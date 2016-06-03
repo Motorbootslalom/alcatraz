@@ -27,7 +27,7 @@ Die ersten Ideen, die Auswertung von Excel zu entkoppeln hatte ich schon 2003. B
 Ich hoffe, dass ich hiermit Interesse bei anderen Entwicklern (egal welches Level) wecke und die Software nicht allein entwickle und nutze. Mit etwas Hilfe, wird sich dann bestimmt auch ein Zeitplan erstellen lassen. Aktuell gibt es diesen jedoch nicht.
 
 ## Was soll Alcatraz alles können?
-Hier nur eine grob sortierte Auflistung der meißten Ideen:
+Hier nur eine grob sortierte Auflistung der meisten Ideen:
 
 - [ ] Verzahnung (Starter 1 Klasse 1, Starter 2 Klasse 4, Starter 3 Klasse 1, ...)
 - [ ] Ansicht für Wettkampfrichter
