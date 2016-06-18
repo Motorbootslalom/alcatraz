@@ -44,7 +44,7 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
     - [ ] Zeitplan (Pausen, Feierabend etc) bei der Sortierung
     - [ ] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg
 - [ ] Gedruckte WKR Listen
-  - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen)
+  - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)
   - [ ] leichte Grau- oder Farbtöne für andere Klassen
     - [ ] Schikane (und andere nicht angefahrende Beobachtungspunkte bei kleineren Klassen auf verzahnten Listen ausgrauen
   - [ ] Auch mehere Klassen auf einer Seite (Konfigurierbar)
@@ -66,3 +66,7 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
 - [ ] Zeiten können im Format 1,2345 und 83,45 statt 1:23:45 eingegeben werden
   - Umrechnung erfolgt für die Anzeige automatisch
 - [ ] Jede Berührung, jeder Starfpunkt wird einzeln erfasst und ist auch im Aushang entsprechend dargestellt
+- [ ] Vorsteg Listen
+  - Zum Laufabhaken und ggf. Punkte, wegen Schwimmestes auf dem Steg ausgezogen
+- [ ] 3 Extra Zeilen unter Beobachtungslisten
+- [ ] 
