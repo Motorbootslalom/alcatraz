@@ -69,4 +69,8 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
 - [ ] Vorsteg Listen
   - Zum Laufabhaken und ggf. Punkte, wegen Schwimmestes auf dem Steg ausgezogen
 - [ ] 3 Extra Zeilen unter Beobachtungslisten
-- [ ] 
+- [ ] Aushanglisten
+  - [ ] Spätstarter (die nicht in der regulären Verzahnung fahren) werden oben (1. Platz) Angezeigt
+  - [ ] Fehlerpunkte != Bojenberührungen werden als Buchstaben angezeigt
+    - Buchstaben über das gesamte Programm gleich
+    - Nur die Buchstaben, die in der Aushangliste aufgeführt werden, werden als (optionale) Tabelle darunter angezeigt
