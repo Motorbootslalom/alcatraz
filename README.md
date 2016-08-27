@@ -21,6 +21,8 @@ Gemeinsam kann man oft mehr erreichen.
 ## Worin woll Alcatraz geschrieben werden?
 Ich würde das Frontend gern als "Browserapp" mit [Angular](https://angular.io/) (nicht AngularJS) schreiben. Etwas später soll noch ein Backend in [go](https://golang.org/) hinzukommen. Das Backend ist dann für die Verbindung mit der Zeitnahme, intelligente Bojen, Pads der Wettkampfrichter und was uns noch so einfällt, zuständig.
 
+Listen können mit [PDFMake](http://pdfmake.org/playground.html) via JS direkt als PDF erzeugt werden. Damit können die Listen und Aushänge auch ideal Archiviert werden.
+
 ## Wie sieht der Zeitplan aus?
 Die ersten Ideen, die Auswertung von Excel zu entkoppeln hatte ich schon 2003. Bis vor wenigen Jahren hatte ich nach einer passenden Basis (Programmiersprache/Framework) gesucht und mir Ideen dazu aufgeschrieben. Nun fange ich an, diese Ideen zu dokumentieren und die ersten auch zu implementieren.
 
