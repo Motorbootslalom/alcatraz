@@ -1,0 +1,88 @@
+# =====================================================================
+# Einstellungen für alle Aufbauten
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+# ---- Globale Bojen-Kürzel (an EINER Stelle umstellbar) -------------
+# In "sub" und Hinweisen werden diese Tokens (als ganze Wörter) ersetzt.
+# So wird aus "hin seiteA" -> "H R". Alternativen:
+#   Hafen/Kai:    seiteA: H,  seiteB: K
+#   Land/See:     seiteA: L,  seiteB: S
+#   Rechts/Links: seiteA: R,  seiteB: L   (Standard)
+bezeichnungen:
+  hin: "H"           # 1. Zeichen: Hinfahrt
+  rueck: "R"         # 1. Zeichen: Rückfahrt (R = Rückfahrt; "R R" = Rück + Rechts ist ok)
+  seiteA: "R"        # 2. Zeichen: eine Bojen-Seite (Standard: Rechts)
+  seiteB: "L"        # 2. Zeichen: andere Bojen-Seite (Standard: Links)
+  seiteAlang: "Rechts"  # Langname (für den Hinweis-Text)
+  seiteBlang: "Links"
+  iahinweis: ""         # nur im Schema "Innen/Außen" mit Text gefüllt
+
+# ---- Auf der Seite umschaltbare Beschriftung (Bojen-Seiten) ---------
+# Wird eines gewählt, überschreiben seine tokens die bezeichnungen oben und
+# alle Listen werden neu beschriftet. Das erste ist der Standard.
+beschriftungen:
+  - id: rl
+    name: "Rechts / Links (R/L)"
+    tokens: { seiteA: "R", seiteB: "L", seiteAlang: "Rechts", seiteBlang: "Links" }
+  - id: ls
+    name: "Land / See (L/S)"
+    tokens: { seiteA: "L", seiteB: "S", seiteAlang: "Land", seiteBlang: "See" }
+  - id: sl
+    name: "See / Land (S/L)"
+    tokens: { seiteA: "S", seiteB: "L", seiteAlang: "See", seiteBlang: "Land" }
+  - id: kh
+    name: "Kai / Hafen (K/H)"
+    tokens: { seiteA: "K", seiteB: "H", seiteAlang: "Kai", seiteBlang: "Hafen" }
+  - id: pfeile
+    name: "Pfeile (→ / ←)"
+    raeumlich: true   # Pfeile zeigen eine Bildrichtung → an "von hinten"-Positionen spiegeln
+    tokens: { seiteA: "→", seiteB: "←", seiteAlang: "Rechts", seiteBlang: "Links" }
+  # Innen/Außen ist TOR-relativ: die Tore 1-4 tragen ihre innen/aussen-Kürzel
+  # (aus der `innen`-Markierung der Spalten), Tor 5/Start/Ziel bleiben bei R/L.
+  - id: ia
+    name: "Innen / Außen (I/A)"
+    tokens:
+      seiteA: "R"
+      seiteB: "L"
+      seiteAlang: "Rechts"
+      seiteBlang: "Links"
+      innen: "I"
+      aussen: "A"
+      iahinweis: "Tore 1-4: I = Innen, A = Außen (statt R/L; Tor 5/Start/Ziel bleiben R/L)"
+
+# ---- Wiederverwendbare Hinweise (Bojen-Bezeichnungen) --------------
+hinweise:
+  blickrichtung: |-
+    Bojen-Bezeichnung (eindeutig):
+    1. Zeichen = Fahrtrichtung: hin = Hinfahrt, rueck = Rückfahrt
+    2. Zeichen = Seite: seiteA = seiteAlang, seiteB = seiteBlang
+    iahinweis
+    Start = Berührung Einfahrt-Bojentor · Ziel = Berührung Ausfahrt-Bojentor
+    Fehler: pro berührter Boje (auch außerhalb des Manövers) = 5
+  knoten: "Fehler: 5 pro fehlerhafter Knoten"
+  parcours: "Es ist nur der eigentliche Fahrweg zu beobachten - keine Bojenberührungen!"
+
+# ---- Überwachung: Was muss in jedem Aufbau auf einer Liste stehen? -
+# `npm run config:check` prüft je Aufbau und Klasse, ob jede Boje und jede Aufgabe
+# von einer Liste abgedeckt ist, auch mit zusammengelegten Positionen. `fahrweg` leitet
+# das aus dem Fahrweg ab (src/config/kurzform.ts): jeder Halt mit seinen Klassen, dazu
+# Ablegen und Anlegen. Eine eigene Liste geht weiterhin:
+#   - { name: …, key: …, sub: [hin seiteA, …] }   Bojen-Spalte und ihre Bojen
+#   - { name: …, katalog: … }                      eine Fehler-Spalte mit diesem Katalog
+#   klassen: [ … ]                                 nur für diese Klassen (fehlt = alle)
+ueberwachung: fahrweg
+
+# ---- Laufzettel (je Klasse/Lauf) ----------------------------------
+# Unter den Checkboxen je gedruckter Seite folgen diese Arbeitsschritte der
+# Auswertung, jeweils mit eigener Checkbox (Reihenfolge wie hier).
+laufzettel:
+  titel: "Auswertung"
+  schritte:
+    - "Ergebnis sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)"
+    - "Ergebnis sortiert nach Platz"
+    - "Kontrolliert"
+    - "Unterschrieben"
+    - "Ausgehangen"
+    - "An die ML geschickt"

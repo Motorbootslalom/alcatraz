@@ -1,0 +1,51 @@
+# =====================================================================
+# Aufbau Möwe (WSC „Möwe“ Oranienburg)
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml. Durchgespielt in
+# KONZEPT-POSITIONEN.md §5.2.
+
+# Eigene Parcoursbilder für Klasse 5 bis 7: In Klasse 5 und 6 läuft die Speedrunde
+# andersherum, in Klasse 7 wird Tonne 8 nicht ausgelegt. Die Starter kennen ihren Platz,
+# die Spalte Sp. 2 bleibt und wird ignoriert.
+kurse:
+  - id: moewe
+    name: Möwe-Parcours
+    bilder: { 5: Klasse5_Moewe, 6: Klasse6_Moewe, 7: Klasse7_Moewe }
+
+aufbauten:
+  - id: moewe
+    name: Möwe
+    kurs: moewe
+    positionen: [moewezeit, steg, moewe135, moewe245, mueb, parcours]
+
+# Die Positionen in Kurzform (KONZEPT-POSITIONEN.md §4).
+positionen:
+  # Start und Ziel sind eine Linie über die ganze Flussbreite, ohne Bojen. Die Felder
+  # stehen trotzdem hier und bleiben leer, wenn es nichts einzutragen gibt. Die Zeit misst
+  # nur die elektronische Zeiterfassung.
+  - id: moewezeit
+    titel: "Elektronische Zeiterfassung"
+    menue: "Elektronische Zeiterfassung mit Start und Ziel"
+    bojen: [StartZiel]
+    aufgaben: [zeit]
+    zeiten: [elektronisch]
+    bild: berlin_startziel   # dieselbe Abblendung wie Berlin Start/Ziel
+    bildNeben: true
+
+  # Auf Höhe von Tor 5, eher von hinten.
+  - id: moewe135
+    titel: "Tor 1 / 3 / 5"
+    menue: "Tore 1 / 3 / 5 mit Fehler Tor 5 (Möwe)"
+    blick: hinten
+    bojen: [Tor1, Tor3, Tor5_unten, Speedboje_unten]
+    aufgaben: [tor5]
+    bild: alcatraz_I_os   # dieselbe Abblendung wie Tore 1 / 3 / 5 ohne Start/Ziel
+
+  # Auf Höhe von Tor 2, von der linken Seite: Bild um 180° gedreht, neben der Legende.
+  - id: moewe245
+    titel: "Tor 2 / 4 / 5"
+    menue: "Tore 2 / 4 / 5 von links (Möwe)"
+    blick: links
+    bojen: [Tor2, Tor4, Tor5_oben, Speedboje_oben]
+    bildNeben: true

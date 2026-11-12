@@ -1,0 +1,49 @@
+# =====================================================================
+# Aufbau Parallelslalom
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+aufbauten:
+  - id: parallel
+    name: Parallelslalom
+    positionen: [zeit, steg, parallelparcours]
+    eigeneStrecke: true   # eigene Bojen, der Überwachungs-Check gilt hier nicht
+    disziplin: parallel   # eigene Eingaben: bleiben beim Wechsel zu Manövrieren und zurück
+
+disziplinen:
+  - id: parallel
+    name: Parallelslalom
+    ergebnisspalten:
+      - { label: "Steg AB", felder: ["katalog:stegAblegen"] }
+      - { label: "Start", felder: ["start|seiteB seiteA"] }
+      - { label: "1", felder: [b1a] }
+      - { label: "2", felder: [b2a] }
+      - { label: "3", felder: [b3a] }
+      - { label: "4", felder: [b4a] }
+      - { label: "5", felder: [b5] }
+      - { label: "4", felder: [b4b] }
+      - { label: "3", felder: [b3b] }
+      - { label: "2", felder: [b2b] }
+      - { label: "1", felder: [b1b] }
+      - { label: "Ziel", felder: ["ziel|seiteB seiteA"] }
+      - { label: "Steg AN", felder: ["katalog:stegAnlegen"] }
+
+positionen:
+  - id: parallelparcours
+    titel: "Parallelslalom"
+    menue: "Parallelslalom (nur Fahrweg)"
+    disq: parcours
+    spalten:
+      - { key: start, label: "Start", typ: boje, sub: ["seiteB seiteA"] }
+      - { key: b1a, label: "Boje 1", typ: boje }
+      - { key: b2a, label: "Boje 2", typ: boje }
+      - { key: b3a, label: "Boje 3", typ: boje }
+      - { key: b4a, label: "Boje 4", typ: boje }
+      - { key: b5, label: "Boje 5", typ: boje }
+      - { key: b4b, label: "Boje 4", typ: boje }
+      - { key: b3b, label: "Boje 3", typ: boje }
+      - { key: b2b, label: "Boje 2", typ: boje }
+      - { key: b1b, label: "Boje 1", typ: boje }
+      - { key: ziel, label: "Ziel", typ: boje, sub: ["seiteB seiteA"] }
+      - { key: disq, label: "Disq.", typ: disq }

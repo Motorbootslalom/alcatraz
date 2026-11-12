@@ -1,0 +1,127 @@
+# =====================================================================
+# Regelwerk DM 2026
+# =====================================================================
+# Quelle: Reglement zur Deutschen Jugendmeisterschaft 2026, Abschnitt C5.
+# Seitenangaben in den Kommentaren beziehen sich auf dieses Reglement.
+#
+# Ein Regelwerk enthält alles, was aus der AUSSCHREIBUNG kommt. Die Positionen
+# (aufbauten/*.yaml) sind orts-/personenabhängig und binden die Kataloge und die
+# Disqualifikationen per Verweis ein. Neue Version: Datei kopieren, `id` und
+# `version` anpassen, in regelwerke.yaml eintragen.
+#
+#   id               Eindeutig, entspricht dem Dateinamen.
+#   name, version    Anzeige im Menü und auf den Listen, z. B. „DM 2026“.
+#   quelle           Dokument, aus dem die Werte stammen (A4-Legende).
+#   einheit          Punkte | Sekunden (A4-Legende).
+#   klassen          Klassen dieses Regelwerks.
+#   fehlerHinweis    Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende.
+#   legendeHinweise  Zusätzliche Hinweise nur auf der A4-Legende.
+#   disziplinen      Was nach diesem Regelwerk gefahren wird (Kennungen aus den
+#                    Aufbauten). Die DM kennt nur das Manövrieren.
+#   gewichte         Statistisches Durchschnittsgewicht je Klasse in kg. Wer leichter
+#                    ist, bekommt den Unterschied als Ausgleichsgewicht ins Boot.
+#   ohneSpalten      { <Position>: [<Spalten-Key>, …] }: Spalten, die es in diesem
+#                    Regelwerk nicht gibt (z. B. einzelne Knoten).
+id: dm-2026
+name: DM
+version: 2026
+quelle: "Reglement zur Deutschen Jugendmeisterschaft 2026 im motorisierten Schlauchbootsport (DMYV), Abschnitt C5"
+einheit: Punkte
+klassen: [E, 1, 2, 3, 4, 5, 6, 7]
+disziplinen: [manoevrieren]
+# Reglement C3 „Co-Pilot und Gewichte“.
+gewichte: { E: 26, 1: 33, 2: 42, 3: 52, 4: 65, 5: 72, 6: 75, 7: 78 }
+
+fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Punkte werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
+
+legendeHinweise:
+  - "Die gefahrene Zeit zählt 1 Punkt pro Sekunde, Strafpunkte werden hinzugezählt."
+  - "E, F und H gelten ab der Frage „Bist Du startklar?“ bis zum beendeten Anlegemanöver."
+  - "M gilt von der Stegeinlass- bis zur Stegauslasskontrolle."
+
+# ---- Disqualifikationen (Buchstaben-Codes) -------------------------
+# Je Punkt der Ausschreibung ein eigener Buchstabe. Das O ist bewusst nicht
+# vergeben: In Bojen-Zellen stehen auch Zahlen, dort wäre es mit der 0 zu
+# verwechseln.
+#
+# `bereiche` legt fest, auf welchen Listen der Buchstabe steht (Position →
+# `disq: <Bereich>`). Fehlt die Angabe, gilt er überall.
+#   vorsteg   Vorsteg (an Land, bevor die Starter den Steg betreten)
+#   steg      Steg (Ablegen / Anlegen)
+#   parcours  Tore, Tor 5 und Parcours
+#   mueb      Listen mit Mann-über-Bord
+disqualifikationen:
+  - { code: "A", text: "Fahren ohne Quickstopp", bereiche: [steg, parcours, mueb] }
+  - { code: "B", text: "Berührung Start-/Ziel-Tor bzw. Zeitmessanlage (nicht die Bojen)", bereiche: [parcours, mueb] }
+  - { code: "C", text: "Rückwärtsfahren ab/bis Start-/Ziel-Tor (außer ins Tor 5 bei Klasse 2 bis 7)", bereiche: [steg, parcours, mueb] }
+  - { code: "D", text: "4. Versuch eines Elementes", bereiche: [steg, parcours, mueb] }
+  - { code: "E", text: "Sitzen auf dem Schlauch (kein Knie auf dem Bootsboden, Gesäß auf dem Süllrand)", bereiche: [steg, parcours, mueb] }
+  - { code: "F", text: "Stehen im Boot, auch in gebückter Haltung (außer zum Anreißen des Motors)", bereiche: [steg, parcours, mueb] }
+  - { code: "G", text: "Überfahren einer Boje (unter die Wasseroberfläche gedrückt oder abgerissen; MüB: Stange vollständig auf dem Wasser)", bereiche: [parcours, mueb] }
+  # Bewusst genauer als die Ausschreibung: Der Süllrand liegt bei den eingesetzten
+  # Booten woanders als üblich. Die Beschreibung wird so ins nächste Reglement
+  # übernommen.
+  - { code: "H", text: "\"Bending\" Herauslehnen über Bootsbreite hinaus (außer bei MüB und An/Ablegen)", bereiche: [steg, parcours, mueb] }
+  - { code: "I", text: "Anlegen mit der Backbordseite", bereiche: [steg] }
+  - { code: "J", text: "Falscher Parcours entgegen der Parcourszeichnung", bereiche: [parcours, mueb] }
+  - { code: "K", text: "Abnehmen des Quickstopps während der Fahrt oder bei Manövern (außer Motorstart mit Schaltung im Leerlauf)", bereiche: [steg, parcours, mueb] }
+  - { code: "L", text: "Anfahren MüB oder Ablegen des Ringes an Steuerbord", bereiche: [mueb] }
+  - { code: "M", text: "Nicht funktionsgerechtes Tragen von Rettungsweste, Helm, Schuhwerk oder Startnummer" }
+  - { code: "N", text: "Auslassen eines Bojentores bzw. des Ziel-Tores", bereiche: [parcours, mueb] }
+  - { code: "P", text: "Wiederholtes Anfahren eines Tores (außer MüB und Tor 5) / Vollkreis vor Tor 5", bereiche: [parcours, mueb] }
+  - { code: "Q", text: "Rückwärtsfahren beim MüB", bereiche: [mueb] }
+  # Abschnitt C3 verbietet die Hilfe, S. 14 macht jeden Verstoß ohne Strafpunkte zur
+  # Disqualifikation. Ausnahmen laut C3: Motorstart und Abweichung vom Ablauf.
+  - { code: "R", text: "Hilfestellung des Co-Piloten beim Ab-/Anlegen oder bei Manövern (außer Motorstart und wenn der Ablauf gestört ist)", bereiche: [steg, parcours, mueb] }
+  - { code: "X", text: "Nicht gestartet" }
+
+# ---- Fehler ohne Code (Punkte werden direkt eingetragen) -----------
+direktpunkte:
+  - { titel: "Bojen", text: "Bojenberührung je Boje und je Fahrtrichtung", punkte: 5 }
+  - { titel: "Tor 5", text: "Berühren der Torbojen bei An-, Ein- und Ausfahrt je Boje und Berührung", punkte: 5 }
+  - { titel: "Knoten", text: "Pro fehlerhaftem Knoten (max. 60 Sekunden je Knoten)", punkte: 5 }
+
+# ---- Fehler-Kataloge (Zahlen → Punkte), benannt & wiederverwendbar --
+# Die Katalog-IDs (tor5, mueb, stegAblegen, stegAnlegen) verwenden die Positionen;
+# jedes Regelwerk muss sie anbieten. Die Codes sind über alle Kataloge eindeutig.
+kataloge:
+  # Steg getrennt nach Ablegen (AB) und Anlegen (AN) - jede Spalte lässt nur
+  # ihre eigenen Codes (und Disqualifikationen) zu.
+  stegAblegen:
+    titel: "Ablegen (AB)"
+    fehler:
+      - { code: 3, text: "erneute Stegberührung", punkte: 5 }
+      - { code: 4, text: "Treten auf den Schlauch / ab Klasse 3", punkte: 5 }
+      - { code: 5, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 6, text: "2. und 3. Versuch des Elementes", punkte: 5 }
+
+  stegAnlegen:
+    titel: "Anlegen (AN)"
+    fehler:
+      - { code: 7, text: "2. und 3. Versuch des Elementes", punkte: 5 }
+      - { code: 8, text: "Festmacherleine nicht im Anlegebereich", punkte: 5 }
+      - { code: 9, text: "Massive Stegberührung", punkte: 10 }
+      - { code: 10, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 11, text: "Rückwärtsfahren auf dem Weg zum Steg", punkte: 5 }
+      - { code: 12, text: "Boot nicht im Stillstand/kein Leerlauf, obwohl Hand am Steg", punkte: 10 }
+      - { code: 23, text: "Treten auf den Schlauch / ab Klasse 3", punkte: 5 }
+
+  tor5:
+    titel: "Einfahrt Tor 5:"
+    fehler:
+      - { code: 1, text: "nicht mit gesamter Länge eingefahren", punkte: 20 }
+      - { code: 2, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 20, text: "2. und 3. Versuch des Elementes", punkte: 5 }
+
+  # Je Zeile der Ausschreibung ein Code (S. 13): Getrennte Punkte lassen sich
+  # kombinieren (14 + 18 = 10), eine gemeinsame Zeile zählt einmal (15 = 5).
+  mueb:
+    titel: "Fehler (MüB):"
+    fehler:
+      - { code: 13, text: "kein Leerlauf", punkte: 5 }
+      - { code: 14, text: "Rettungsring nicht mit beiden Händen gehoben", punkte: 5 }
+      - { code: 15, text: "Rettungsring nicht mit beiden Händen aufgelegt, oder geworfen oder fallengelassen", punkte: 5 }
+      - { code: 16, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 17, text: "Nicht vollständig aufgestoppt", punkte: 5 }
+      - { code: 18, text: "Rettungsring nicht sichtbar über Mittelsäule gehoben", punkte: 5 }
+      - { code: 19, text: "2. und 3. Versuch des Elementes", punkte: 5 }

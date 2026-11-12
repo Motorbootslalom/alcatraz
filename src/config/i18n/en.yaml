@@ -1,0 +1,103 @@
+# =====================================================================
+# Englische Texte der Positionen (je Sprache eine Datei unter i18n/)
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+# Gilt für Regelwerke mit `sprachen: [de, en]`.
+# Begriffe aus dem UIM Circuit Rulebook, Regel 960 (racecourse, gate, pontoon,
+# man-over-board, Knoten laut Pkt. 4.3.1). Keine UIM-Vorlage haben: Vorsteg,
+# Bemerkung, Land/Wasser, Schotstek und die Abkürzung MOB.
+# Die Bojen-Kürzel (H/R, R/L ...) bleiben in allen Sprachen gleich, damit die
+# Listen zur Auswertung passen; die Hinweise erklären sie auf Englisch. Menüs
+# gehören zur Bedienleiste und bleiben deutsch.
+uebersetzungen:
+  en:
+    hinweise:
+      blickrichtung: |-
+        Buoy designation (unique):
+        1st character = direction: hin = outward, rueck = return
+        2nd character = side: seiteA = seiteAlang, seiteB = seiteBlang
+        iahinweis
+        Start = touching the entry gate buoys · Finish = touching the exit gate buoys
+        Penalty: per touched buoy (also outside the manoeuvre) = 5
+      knoten: "Penalty: 5 per improperly done knot"
+      parcours: "Only the actual racecourse is to be observed - no buoy touches!"
+    # Langnamen der Bojen-Seiten je Bezeichnungs-Schema (siehe beschriftungen).
+    bezeichnungen:
+      rl: { seiteAlang: "Right", seiteBlang: "Left" }
+      ls: { seiteAlang: "Land", seiteBlang: "Sea" }
+      sl: { seiteAlang: "Sea", seiteBlang: "Land" }
+      kh: { seiteAlang: "Quay", seiteBlang: "Harbour" }
+      pfeile: { seiteAlang: "Right", seiteBlang: "Left" }
+      ia:
+        seiteAlang: "Right"
+        seiteBlang: "Left"
+        iahinweis: "Gates 1-4: I = inner, A = outer (instead of R/L; gate 5/start/finish remain R/L)"
+    # Titel und Spaltennamen. Gleiche Schreibweise wie im Deutschen (Start, Disq.,
+    # Σ ...) ergibt zweisprachig keine Dopplung.
+    texte:
+      "Zeit": "Time"
+      "Zeit 1": "Time 1"
+      "Zeit 2": "Time 2"
+      "Zeit 3": "Time 3"
+      "Elektronische Zeiterfassung": "Electronic timing"
+      "Elektronisch": "Electronic"
+      "Stoppuhr": "Stopwatch"
+      "Stoppuhr 1": "Stopwatch 1"
+      "Stoppuhr 2": "Stopwatch 2"
+      "Stoppuhr 3": "Stopwatch 3"
+      "Steg": "Pontoon"
+      "Vorsteg": "Pontoon entry"
+      "Tor 1": "Gate 1"
+      "Tor 2": "Gate 2"
+      "Tor 3": "Gate 3"
+      "Tor 4": "Gate 4"
+      "Tor 5": "Gate 5"
+      "Tor 5 + Parcours": "Gate 5 + racecourse"
+      "Tor 5 tief": "Gate 5 deep"
+      "Tor 1 / 3 / 5": "Gate 1 / 3 / 5"
+      "Tor 2 / 4 / 5": "Gate 2 / 4 / 5"
+      "Mann-über-Bord": "Man-over-board"
+      "MüB": "MOB"
+      "Fehler Tor 5": "Gate 5 penalty"
+      "Fehler MüB": "MOB penalty"
+      "MüB Fehler": "MOB penalty"
+      "F-Pkt.": "Pen."
+      "MüB Punkte": "MOB pen."
+      "Parcours": "Racecourse"
+      "Parallelslalom": "Parallel slalom"
+      "Start": "Start"
+      "Ziel": "Finish"
+      "Start/Ziel": "Start/Finish"
+      "Rechts": "Right"
+      "Links": "Left"
+      "Land 1": "Land 1"
+      "Land 2": "Land 2"
+      "Wasser 1": "Water 1"
+      "Wasser 2": "Water 2"
+      "Boje 1": "Buoy 1"
+      "Boje 2": "Buoy 2"
+      "Boje 3": "Buoy 3"
+      "Boje 4": "Buoy 4"
+      "Boje 5": "Buoy 5"
+      "Speed 1": "Speed 1"
+      "Speed 2": "Speed 2"
+      "Sp. 1": "Sp. 1"
+      "Sp. 2": "Sp. 2"
+      "Fehler": "Penalty"
+      "Tor 5 Fehler": "Gate 5 penalty"
+      "Fehler AB": "Penalty AB"
+      "Fehler AN": "Penalty AN"
+      "F-Pkt. AB": "Pen. AB"
+      "F-Pkt. AN": "Pen. AN"
+      "Fehlerpunkte": "Penalties"
+      "Bemerkung": "Remarks"
+      "Disq.": "Disq."
+      "Σ": "Σ"
+      "Knoten": "Knots"
+      "Kreuzknoten": "Reef knot"
+      "Palstek": "Bowline"
+      "Schotstek": "Sheet bend"
+      "Webleinstek": "Clove-hitch"
+      "Klampe": "Half-hitch"

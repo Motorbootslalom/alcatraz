@@ -1,0 +1,132 @@
+import type { AppState, Starter } from '../types'
+import { migrate } from '../state/migrate'
+import { aufbauOf } from '../config/catalog'
+
+/**
+ * Dateien zum Aufheben und Weitergeben. Weil alle Daten nur in diesem Browser
+ * liegen, ist eine Datei der einzige Weg, einen Stand aufzuheben oder auf einen
+ * anderen Rechner zu bringen. Es gibt drei Arten:
+ *
+ * - `sicherung`: der gesamte Stand der Veranstaltung.
+ * - `vorlage`: nur die Einstellungen – ohne Starter, Name und Jahr. Damit
+ *   beginnt die nächste Veranstaltung so, wie man es gewohnt ist.
+ * - `starter`: nur die Teilnehmerdaten.
+ */
+export type FileKind = 'sicherung' | 'vorlage' | 'starter'
+
+/** Einstellungen einer Vorlage: alles außer Startern, Name und Jahr. */
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr'>
+
+interface FileBase {
+  app: 'alcatraz'
+  version: 1
+  savedAt: string
+}
+
+export type AlcatrazFile =
+  | (FileBase & { kind: 'sicherung'; state: AppState })
+  | (FileBase & { kind: 'vorlage'; settings: Template })
+  | (FileBase & { kind: 'starter'; starters: Starter[] })
+
+export function makeFile(kind: FileKind, state: AppState, savedAt: string): AlcatrazFile {
+  const base: FileBase = { app: 'alcatraz', version: 1, savedAt }
+  if (kind === 'sicherung') return { ...base, kind, state }
+  if (kind === 'starter') return { ...base, kind, starters: state.starters }
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, ...settings } = state
+  return { ...base, kind, settings }
+}
+
+export type ParsedFile =
+  | { ok: true; kind: 'sicherung'; state: AppState; savedAt: string | null }
+  /** `apply` setzt die Einstellungen auf einen Stand – Starter, Name, Jahr und eigene Aufbauten bleiben. */
+  | { ok: true; kind: 'vorlage'; apply: (current: AppState) => AppState; savedAt: string | null }
+  | { ok: true; kind: 'starter'; starters: Starter[]; savedAt: string | null }
+  | { ok: false }
+
+export function parseFile(text: string): ParsedFile {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return { ok: false }
+  }
+  if (!parsed || typeof parsed !== 'object') return { ok: false }
+  const file = parsed as Partial<FileBase> & { kind?: unknown; state?: unknown; settings?: unknown; starters?: unknown }
+  if (file.app !== 'alcatraz') return { ok: false }
+  const savedAt = typeof file.savedAt === 'string' ? file.savedAt : null
+  // Dateien aus der Zeit vor den drei Arten sind Sicherungen.
+  const kind = file.kind ?? 'sicherung'
+
+  if (kind === 'sicherung') {
+    const state = migrate(file.state)
+    return state ? { ok: true, kind, state, savedAt } : { ok: false }
+  }
+  if (kind === 'starter') {
+    const state = migrate({ starters: file.starters })
+    return state ? { ok: true, kind, starters: state.starters, savedAt } : { ok: false }
+  }
+  if (kind === 'vorlage' && file.settings && typeof file.settings === 'object') {
+    const settings = file.settings as Partial<AppState>
+    // Über `migrate`, damit auch eine ältere Vorlage vollständige, gültige Einstellungen ergibt.
+    const checked = migrate({ ...settings, starters: [] })
+    if (!checked) return { ok: false }
+    const apply = (current: AppState): AppState => {
+      // Eigene Aufbauten sind erarbeitet, keine bloße Einstellung: Die der Vorlage kommen
+      // dazu (bei gleicher Kennung gilt die Vorlage), die vorhandenen bleiben. Sonst löschte
+      // eine Vorlage ohne eigene Aufbauten stillschweigend alle, die es hier gibt.
+      const ausVorlage = new Set(checked.eigeneAufbauten.map((a) => a.id))
+      const eigeneAufbauten = [...checked.eigeneAufbauten, ...current.eigeneAufbauten.filter((a) => !ausVorlage.has(a.id))]
+      return {
+        ...checked,
+        eigeneAufbauten,
+        // Die Wahl der Vorlage gilt – auch wenn sie auf einen eigenen Aufbau zeigt, den nur
+        // diese Veranstaltung hat (die Migration der Vorlage allein kennt ihn nicht).
+        aufbau: aufbauOf(typeof settings.aufbau === 'string' ? settings.aufbau : '', eigeneAufbauten).id,
+        starters: current.starters,
+        eventName: current.eventName,
+        eventJahr: current.eventJahr,
+      }
+    }
+    return { ok: true, kind, apply, savedAt }
+  }
+  return { ok: false }
+}
+
+/** Text → Teil eines Dateinamens: klein, ohne Umlaute und Sonderzeichen. */
+export function slug(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Zeitpunkt für Dateinamen in Ortszeit, z. B. `2026-11-11_2315`. */
+export function fileStamp(date: Date): string {
+  const two = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}_${two(date.getHours())}${two(date.getMinutes())}`
+}
+
+/**
+ * Dateiname, z. B. `alcatraz-sicherung-moewepokal-2026-2026-11-11_2315.json`.
+ * `label` ist die Art in der Sprache der Oberfläche („sicherung“ / „backup“) –
+ * wer englisch arbeitet, bekommt englische Dateinamen.
+ */
+export function filename(kind: FileKind, label: string, state: AppState, date: Date): string {
+  const event = kind === 'vorlage' ? '' : `${state.eventName} ${state.eventJahr}`
+  return ['alcatraz', slug(label), slug(event), fileStamp(date)].filter(Boolean).join('-') + '.json'
+}
+
+/** Text als Datei herunterladen – ohne Server, direkt aus dem Browser. */
+export function downloadText(name: string, text: string, type = 'application/json'): void {
+  const url = URL.createObjectURL(new Blob([text], { type }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}

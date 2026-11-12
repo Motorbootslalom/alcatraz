@@ -1,0 +1,6 @@
+# Verfügbare Regelwerke (Dateien unter regelwerke/<id>.yaml). Die Reihenfolge gilt
+# im Menü, der erste Eintrag ist der Standard. Mehrere Versionen eines Regelwerks
+# stehen nebeneinander, z. B. dm-2026 und dm-2027.
+regelwerke:
+  - dm-2026
+  - uim-2026

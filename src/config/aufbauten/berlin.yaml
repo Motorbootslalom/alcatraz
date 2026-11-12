@@ -1,0 +1,39 @@
+# =====================================================================
+# Aufbau Berlin
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+aufbauten:
+  - id: berlin
+    name: Berlin
+    positionen: [steg, bstartziel, brechts, blinks]
+
+# Vier feste WKR-Positionen rund um den Kurs (Kurzform, siehe KONZEPT-POSITIONEN.md §4).
+# Das Bild steht neben der Legende; „Links“ sieht den Kurs um 180° gedreht.
+positionen:
+  - id: bstartziel
+    titel: "Start/Ziel"
+    menue: "Start/Ziel (Zeitnahme + Start-/Zieltor-Bojen)"
+    bojen: [StartZiel]
+    aufgaben: [zeit]
+    bild: berlin_startziel
+    bildNeben: true
+
+  - id: brechts
+    titel: "Rechts"
+    menue: "Rechts (Tor 1 / 3 + Mann-über-Bord)"
+    blick: rechts
+    bojen: [Tor1, Tor3]
+    aufgaben: [mueb]
+    bild: berlin_rechts
+    bildNeben: true
+
+  - id: blinks
+    titel: "Links"
+    menue: "Links (Tor 2 / 4 / 5 + Speedbojen)"
+    blick: links
+    bojen: [Tor2, Tor4, Tor5, Speedboje_oben, Speedboje_unten]
+    aufgaben: [tor5]
+    bild: berlin_links
+    bildNeben: true

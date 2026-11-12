@@ -1,0 +1,59 @@
+# =====================================================================
+# Aufbauten Alcatraz und Alcatraz-DM26
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+aufbauten:
+  - id: alcatraz
+    name: Alcatraz
+    positionen: [zeit, vorsteg, steg, gate135, gate245, tor5, mueb, parcours]
+  - id: alcatrazdm26
+    name: Alcatraz-DM26
+    # Je Gerät eine Zeitliste: Gewertet wird die elektronische Zeit, die Stoppuhren nur
+    # bei ihrem Ausfall. Die Listen heißen weiter zeit-1 bis zeit-3.
+    positionen:
+      - { id: zeit, zeiten: [elektronisch] }
+      - { id: zeit, zeiten: [stoppuhr] }
+      - { id: zeit, zeiten: [stoppuhr] }
+      - vorsteg
+      - steg
+      - gate135os
+      - gate245os
+      - tor5
+      - mueb
+      - parcoursms
+
+# Die Tor-Positionen in Kurzform (KONZEPT-POSITIONEN.md §4): Die WKR sitzen hinter Tor 5.
+# Spalten, Unter-Spalten, Trennlinien, Abblendung im Bild, Drehung (90°) und gespiegelte
+# Pfeile folgen aus Blick und Bojen. `bild` nennt nur den Ordner der erzeugten Bilder.
+positionen:
+  - id: gate135
+    titel: "Tor 1 / 3 / 5"
+    menue: "Tore 1 / 3 / 5"
+    blick: hinten
+    bojen: [StartZiel_unten, Tor1, Tor3, Tor5_unten, Speedboje_unten]
+    bild: alcatraz_I
+
+  - id: gate135os
+    titel: "Tor 1 / 3 / 5"
+    menue: "Tore 1 / 3 / 5 ohne Start/Ziel"
+    schnellauswahl: true
+    blick: hinten
+    bojen: [Tor1, Tor3, Tor5_unten, Speedboje_unten]
+    bild: alcatraz_I_os
+
+  - id: gate245
+    titel: "Tor 2 / 4 / 5"
+    menue: "Tore 2 / 4 / 5"
+    blick: hinten
+    bojen: [StartZiel_oben, Tor2, Tor4, Tor5_oben, Speedboje_oben]
+    bild: alcatraz_II
+
+  - id: gate245os
+    titel: "Tor 2 / 4 / 5"
+    menue: "Tore 2 / 4 / 5 ohne Start/Ziel"
+    schnellauswahl: true
+    blick: hinten
+    bojen: [Tor2, Tor4, Tor5_oben, Speedboje_oben]
+    bild: alcatraz_II_os

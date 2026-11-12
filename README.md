@@ -18,15 +18,32 @@ Das Programm wird hier mit dem gesamten Quelltext als [freie Software](http://fs
 In den meisten Landesverbänden wurden von fleißigen Helfern Programme für die Auswertung geschrieben und gehütet wie ein Staatsgeheimnis. Ich glaube nicht, dass das der richtige Weg ist. Ich glaube, es bringt mehr, wenn jeder seine Erfahrung mit einbringen kann um ein Stück Software zu schaffen,was jeder nutzen kann und auch nutzen möchte.
 Gemeinsam kann man oft mehr erreichen.
 
-## Worin woll Alcatraz geschrieben werden?
-Ich würde das Frontend gern als "Browserapp" mit [Angular](https://angular.io/) (nicht AngularJS) schreiben. Etwas später soll noch ein Backend in [go](https://golang.org/) hinzukommen. Das Backend ist dann für die Verbindung mit der Zeitnahme, intelligente Bojen, Pads der Wettkampfrichter und was uns noch so einfällt, zuständig.
+## Wie ist Alcatraz gebaut?
+Alcatraz ist eine reine Browser-Anwendung ([Vue 3](https://vuejs.org/), TypeScript, [Vite](https://vite.dev/)). Es gibt **keinen Server, keine Datenbank und keine Anmeldung**: Alle Daten liegen im Browser des Auswertungsrechners und lassen sich als Datei sichern. Ausgeliefert wird über GitHub Pages; zusätzlich entsteht eine einzelne HTML-Datei (`alcatraz.html`), die ohne Internet per Doppelklick läuft.
 
-Listen können mit [PDFMake](http://pdfmake.org/playground.html) via JS direkt als PDF erzeugt werden. Damit können die Listen und Aushänge auch ideal Archiviert werden.
+- **Mehrsprachig:** Die Oberfläche lässt sich im laufenden Betrieb umschalten (bisher Deutsch und Englisch). Die Texte stehen in `src/i18n/`; eine weitere Sprache ist eine weitere Katalogdatei.
+- **Gedruckte Listen im Mittelpunkt:** Gedruckt wird über den Druckdialog des Browsers (auch „Als PDF speichern“).
+- **Mehrere Geräte:** Für Anzeigetafel und Startlisten auf anderen Geräten ist die verschlüsselte Übertragung über einen ntfy-Server vorgesehen (noch nicht übernommen, siehe Tabelle).
 
-## Wie sieht der Zeitplan aus?
-Die ersten Ideen, die Auswertung von Excel zu entkoppeln hatte ich schon 2003. Bis vor wenigen Jahren hatte ich nach einer passenden Basis (Programmiersprache/Framework) gesucht und mir Ideen dazu aufgeschrieben. Nun fange ich an, diese Ideen zu dokumentieren und die ersten auch zu implementieren.
+Alcatraz führt die bisherigen Prototypen zusammen:
 
-Ich hoffe, dass ich hiermit Interesse bei anderen Entwicklern (egal welches Level) wecke und die Software nicht allein entwickle und nutze. Mit etwas Hilfe, wird sich dann bestimmt auch ein Zeitplan erstellen lassen. Aktuell gibt es diesen jedoch nicht.
+| Quelle | Inhalt | Stand in Alcatraz |
+|---|---|---|
+| `verzahnung-prototyp-vue` | Starter, Startnummern, Verzahnung, Bootbedarf, Parallel-Slalom | übernommen |
+| `fehlerpunkte-prototyp-vue` | Regelwerke, Aufbauten, WKR-Listen, Erfassung, Ergebnislisten | Regelwerke und Aufbauten übernommen (`src/config/`), der Rest ist offen |
+| `tafel` | Anzeigetafel, Startliste im Betrieb, Geräte über ntfy | offen |
+| `Parcours` | Parcours-Zeichnungen | offen (kommt mit den WKR-Listen) |
+| Excel-Auswertung | Mannschaftswertung, Verwiegung, Urkunden-Daten u. a. | Starterlisten, Vorsteg-Liste und Verwiegung (Gewichtslisten, Erfassung) sind da; der Rest ist offen |
+
+### Entwickeln
+```sh
+npm install
+npm run dev          # Entwicklungsserver
+npm run check        # Typprüfung und Tests
+npm run build:all    # dist/ (GitHub Pages) und dist-single/ (eine Datei)
+```
+
+Aufbau von `src/`: `domain/` (Klassen, Startnummern), `import/` (Excel-Austausch), `planung/` (Verzahnung, Boote, Parallel-Slalom), `state/` (Zustand als reiner Reducer), `persistenz/` (Speicher im Browser, Sicherung), `i18n/` (Sprachen), `views/` und `components/` (Oberfläche).
 
 ## Was soll Alcatraz alles können?
 Hier nur eine grob sortierte Auflistung der meisten Ideen:

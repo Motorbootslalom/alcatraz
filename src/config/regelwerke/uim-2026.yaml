@@ -1,0 +1,96 @@
+# =====================================================================
+# Regelwerk UIM 2026 (Formula Future)
+# =====================================================================
+# Quelle: UIM Circuit Rulebook 2026, Regel 960 „Formula Future“. Die Strafen
+# stehen in Pkt. 5.3 (S. 287), die Knoten in Pkt. 4.3.1 und auf S. 288.
+# Felder: siehe dm-2026.yaml.
+#
+# Die englischen Texte (`en`) folgen wörtlich Pkt. 5.3, einschließlich der dort
+# verwendeten Begriffe („safety belt“ für den Rettungsring). Korrigiert ist nur
+# eine doppelte Verneinung (Code 18). Die Titel Departure und Mooring stammen aus
+# Pkt. 4.1.1 und den Parcourszeichnungen. Die deutschen Texte sind Übersetzungen.
+#
+# Codes mit gleicher Bedeutung tragen dieselbe Nummer wie in der DM. Fehler, die
+# die UIM nicht kennt (Durchreißen der Schaltung, Treten auf den Schlauch,
+# Festmacherleine, kein Leerlauf), fehlen hier, die Nummern bleiben frei.
+id: uim-2026
+name: UIM
+version: 2026
+# Listen und Fehlertexte wahlweise deutsch, englisch oder zweisprachig.
+sprachen: [de, en]
+quelle: "UIM Circuit Rulebook 2026, Regel 960 Formula Future, Pkt. 5.3 Penalties"
+quelleEn: "UIM Circuit Rulebook 2026, rule 960 Formula Future, pt. 5.3 Penalties"
+einheit: Sekunden
+einheitEn: seconds
+# Formula Future kennt nur Dolphin (hier: E) und die Klassen 1 bis 5.
+klassen: [E, 1, 2, 3, 4, 5]
+klassenNamen: { E: Dolphin }
+# Formula Future besteht aus Manövrieren und Parallelslalom.
+disziplinen: [manoevrieren, parallel]
+# Regel 960, Pkt. 3.7 Registration procedure, „Statistical average weight“. Die Werte
+# weichen in den Klassen 1, 2, 4 und 5 von der DM ab.
+gewichte: { E: 26, 1: 32, 2: 40, 3: 52, 4: 64, 5: 71 }
+
+fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Sekunden werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
+fehlerHinweisEn: "Penalties can be combined: every code entered counts separately and the seconds are added (2nd and 3rd attempt: the code can be entered twice, e.g. 2x6)."
+
+legendeHinweise:
+  - { text: "Strafzeiten in Sekunden werden zur gefahrenen Zeit addiert.", en: "Penalty seconds are added to the time driven." }
+  - { text: "Mann-über-Bord fahren nur die Klassen 4 und 5.", en: "Only classes 4 and 5 perform the man-over-board manoeuvre." }
+
+# Die UIM kennt vier Knoten: Kreuzknoten (Reef knot), Palstek (Bowline),
+# Webleinstek (Clove hitch) und Klampe (Half hitch, Zeichnung S. 288).
+ohneSpalten:
+  knoten: [schotstek]
+
+# Pkt. 5.3 nennt nur diese Disqualifikationen, ausdrücklich keine für Quickstopp
+# oder Ausrüstung (dort Startbedingung, Pkt. 2), Überfahren einer Boje oder
+# Berührung der Zeitmessanlage (Pkt. 3.10: schwarze Flagge).
+disqualifikationen:
+  - { code: "D", text: "4. Versuch", en: "4th attempt of the racecourse", bereiche: [steg, parcours, mueb] }
+  - { code: "E", text: "Sitzen auf dem Schlauch oder Bending", en: "Sitting on the side of the inflated boat, or bending", bereiche: [steg, parcours, mueb] }
+  - { code: "F", text: "Stehen beim Manövrieren oder Parallelslalom", en: "Standing during manoeuvring or parallel slalom", bereiche: [steg, parcours, mueb] }
+  - { code: "J", text: "Fehler im Parcours (außer den oben genannten)", en: "Error doing the circuit (except above mentioned ones)", bereiche: [parcours, mueb] }
+  - { code: "Q", text: "Rückwärtsfahren beim Mann-über-Bord", en: "Boat goes backwards during the man-over-board manoeuvre", bereiche: [mueb] }
+  - { code: "X", text: "Nicht gestartet", en: "Did not start" }
+
+direktpunkte:
+  - { titel: "Bojen", titelEn: "Buoys", text: "Bojenberührung", en: "Touching of a buoy", punkte: 5 }
+  - { titel: "Knoten", titelEn: "Knots", text: "Pro fehlerhaftem Knoten (max. 60 Sekunden je Knoten)", en: "Improperly done knot, each (max. 60 seconds per knot)", punkte: 5 }
+
+kataloge:
+  stegAblegen:
+    titel: "Ablegen (AB)"
+    titelEn: "Departure (AB)"
+    fehler:
+      - { code: 3, text: "erneute Stegberührung", en: "Additional touch of the starting pontoon", punkte: 5 }
+      - { code: 6, text: "2. und 3. Versuch des Elementes (je Versuch)", en: "2nd and 3rd attempt each element of the race course (each attempt)", punkte: 5 }
+
+  stegAnlegen:
+    titel: "Anlegen (AN)"
+    titelEn: "Mooring (AN)"
+    fehler:
+      - { code: 7, text: "2. und 3. Versuch des Elementes (je Versuch)", en: "2nd and 3rd attempt each element of the race course (each attempt)", punkte: 5 }
+      - { code: 9, text: "Stegberührung mit Zurückprallen (über 300 mm innerhalb 1 Sekunde)", en: "Bumping the landing pontoon (bounces back more than 300 mm within 1 second, Pt. 4.1.1)", punkte: 5 }
+      - { code: 11, text: "Rückwärtsfahren auf dem Weg zum Steg", en: "Driving backwards during moving to the pontoon", punkte: 5 }
+      - { code: 12, text: "Boot nicht im Stillstand, obwohl Hände außerhalb des Bootes", en: "Boat did not stop at the landing pontoon when the driver put the hands out of the boat", punkte: 10 }
+
+  tor5:
+    titel: "Einfahrt Tor 5:"
+    titelEn: "Entering gate 5:"
+    fehler:
+      - { code: 1, text: "nicht mit gesamter Länge durchs Tor gefahren", en: "Not passing the gate with the full length of the boat", punkte: 20 }
+      - { code: 20, text: "2. und 3. Versuch des Elementes (je Versuch)", en: "2nd and 3rd attempt each element of the race course (each attempt)", punkte: 5 }
+
+  # Die UIM führt alle Punkte einzeln auf (auch Auflegen und Fallenlassen).
+  mueb:
+    titel: "Fehler (MüB):"
+    titelEn: "Penalties (man-over-board):"
+    fehler:
+      - { code: 14, text: "Rettungsring mit einer Hand gehoben", en: "Rising the safety belt with one hand", punkte: 5 }
+      - { code: 15, text: "Rettungsring mit einer Hand abgelegt", en: "Putting down the safety belt with one hand", punkte: 5 }
+      - { code: 17, text: "Boot an der Marke nicht gestoppt", en: "Boat did not stop at the mark during the man-over-board manoeuvre", punkte: 5 }
+      - { code: 18, text: "Rettungsring nicht über den Kopf gehoben", en: "Not rising the safety belt above the head (i.e. lower than driver's head)", punkte: 5 }
+      - { code: 19, text: "2. und 3. Versuch des Elementes (je Versuch)", en: "2nd and 3rd attempt each element of the race course (each attempt)", punkte: 5 }
+      - { code: 21, text: "Rettungsring fallengelassen oder geworfen", en: "Dropping or throwing the safety belt on the mark", punkte: 5 }
+      - { code: 22, text: "Zweiter Versuch, den Rettungsring zu heben", en: "Second attempt to raise the lifebuoy", punkte: 5 }

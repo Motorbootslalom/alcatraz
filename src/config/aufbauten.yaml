@@ -1,0 +1,157 @@
+# =====================================================================
+# Aufbauten: Liste der Dateien und Parameter-Beschreibung
+# =====================================================================
+# Die Konfiguration der Positionen liegt auf mehrere Dateien verteilt:
+#   einstellungen.yaml       Bojen-Kürzel, Bezeichnungen, Hinweise, Laufzettel
+#   (Disziplinen und Spalten der Ergebnislisten: aufbauten/gemeinsam.yaml, parallel.yaml)
+#   i18n/<sprache>.yaml      Übersetzungen der Positionen, je Sprache eine Datei
+#   aufbauten/gemeinsam.yaml Positionen, die mehrere Aufbauten nutzen
+#   aufbauten/<name>.yaml    je Austragungsort Aufbauten und ihre Tor-Positionen
+#
+# Die Dateien werden beim Bauen eingebunden und beim Start der App zusammengeführt
+# (src/config/konfig.ts); nichts wird zur Laufzeit nachgeladen.
+# Neuer Aufbau: Datei unter aufbauten/ anlegen und unten eintragen.
+#
+# Die Reihenfolge gilt im Menü, der erste Aufbau ist der Standard.
+dateien: [alcatraz, frontal, berlin, bawue, moewe, parallel]
+sprachen: [en]
+
+# Bei einem Wettkampf wird ein bestimmter AUFBAU (Setup) genutzt - Standard ist
+# "Alcatraz" (WKR sitzt hinten). Jeder Aufbau bündelt die genutzten Positionen
+# (auch gemeinsame wie Zeit/Knoten). Nur die Tor-Positionen unterscheiden sich
+# je Aufbau (Blickrichtung/Spaltenreihenfolge); die übrigen werden geteilt.
+#
+# ---- AUFBAU-Parameter (je Eintrag unter `aufbauten:`) ----------------
+#   positionen   Listen des Aufbaus in Reihenfolge; mehrfach = nummeriert (Zeit (1) …).
+#                Ein Eintrag darf eine Position für diesen Aufbau abwandeln:
+#                `{ id: zeit, zeiten: [elektronisch], titel: … }`. Abwandlungen sind immer
+#                nummeriert (zeit-1 …); eine reine Zeitliste mit einem Gerät heißt nach ihm
+#                („Elektronische Zeiterfassung“, „Stoppuhr“), sofern `titel` fehlt.
+#   eigeneStrecke true = eigene Bojen, der Überwachungs-Check gilt nicht.
+#   disziplin    Verweis auf disziplinen.<id>; fehlt: die erste (Manövrieren). Aufbauten
+#                einer Disziplin teilen sich die Eingaben und die Ergebnislisten.
+#   kurs         Verweis auf kurse.<id>: die Kursvariante des Austragungsorts.
+#
+# ---- KURS-Parameter (je Eintrag unter `kurse:`) ----------------------
+# Was ein Austragungsort am Kurs anders macht, ohne dass sich der Fahrweg ändert.
+#   id, name     Kennung und Anzeige.
+#   bilder       { 5: Klasse5_Moewe, … }: eigenes Parcoursbild je Klasse, Dateiname ohne
+#                Endung. Jeder erzeugte Bildordner enthält alle Quellbilder, die Variante
+#                wählt nur die Datei; die übrigen Klassen nutzen Klasse<k>. Fehlt vor Ort
+#                eine Boje, bleibt ihre Spalte und wird ignoriert.
+#
+# ---- DISZIPLIN-Parameter (je Eintrag unter `disziplinen:`) ------------
+#   id, name     Kennung und Anzeige. Die Reihenfolge der Dateien gilt, die erste ist Standard.
+#   ergebnisspalten  fahrweg = aus dem Fahrweg in src/config/kurzform.ts (Manövrieren), oder
+#                eine eigene Liste (Parallelslalom), in der Reihenfolge der Fahrt:
+#     label      Spaltenkopf.
+#     felder     Feld-Kennungen, deren Punkte in einer Zelle stehen (beide Start-Bojen).
+#     unter      Feld-Kennungen mit je einer Unter-Spalte; Kürzel = das der Boje, oder
+#                `{ label, feld }` mit eigenem Kürzel.
+#                Felder, die es im Aufbau oder in der Klasse nicht gibt, entfallen.
+#                Feld-Kennung: <key>|<sub> bei Bojen („t1a|hin seiteA“), katalog:<id> bei
+#                Fehlern, sonst <key>. Jedes Bojen- und Fehlerfeld muss vorkommen (Check).
+#
+# ---- KURZFORM (KONZEPT-POSITIONEN.md §4, src/config/kurzform.ts) ------
+# Eine Position ohne `spalten` ist eine Kurzform: Sie nennt nur, was sie beobachtet und von
+# wo aus. Spalten, Unter-Spalten, Trennlinien, Abblendung im Bild, Drehung, gespiegelte Pfeile,
+# Disqualifikationen, Katalog, Hinweis und Zusatzspalten (Disq., Σ, Bemerkung) folgen aus dem
+# Fahrweg. Jeder Positions-Parameter darf zusätzlich stehen und gewinnt dann.
+#   blick        hinten | vorne | rechts | links: von wo die Person überwiegend schaut.
+#                Bild: hinten 90°, vorne -90°, rechts 0°, links 180°. Von vorne liegt die
+#                obere Boje links und Tor 5 zeigt zuerst die Rückfahrt.
+#   bojen        IDs aus dem Parcoursbild: ganze Tore (StartZiel, Tor1 … Tor5) oder
+#                Einzelbojen (Tor1_innen, Tor2_aussen, Tor5_oben, StartZiel_unten …) und
+#                Speedboje_oben (Speed 1), Speedboje_unten (Speed 2).
+#   aufgaben     zeit | tor5 (Fehler Tor 5) | mueb (Mann-über-Bord) | parcours (Fahrweg).
+#   zeiten       Geräte der Aufgabe zeit, siehe unten.
+#   bild         Ordner der erzeugten Bilder (Standard: die id).
+#   hinweis      keiner = ohne den Hinweis, den die Kurzform sonst setzt.
+#
+# ---- POSITIONS-Parameter (je Eintrag unter `positionen:`) -----------
+#   id           Eindeutige Kennung (von den Aufbauten referenziert). Pflicht.
+#   titel        Kurzname im Kopf (links). Pflicht.
+#   menue        Ausführlicher Name in den Auswahl-Menüs (Default: titel).
+#   ausrichtung  hoch (A4 Hochformat, Default) | quer (Querformat, z. B. Knoten).
+#   lauf         false = Lauf NICHT im Kopf zeigen (z. B. Knoten). Default true.
+#   schnellauswahl true = zusätzlich in JEDEM Aufbau wählbar (Schnellauswahl
+#                „Eine Position · alle Klassen“ + Bogen-Menüs), z. B. Varianten,
+#                die in keinem Aufbau stehen. Default false: nur in den
+#                Aufbauten, die die Position nennen.
+#   bild         Bild-Ordner unter public/parcours (z. B. alcatraz_Parcours).
+#   bildGenerator true = `bild` wird beim Build aus `bildQuelle` erzeugt: die per
+#                Spalten-`hebt` markierten Tore bleiben voll, der Rest wird
+#                abgeblendet (scripts/generate-parcours.ts → SVG + PNG). Ohne den
+#                Schalter zeigt `bild` auf ein festes fertiges Bild.
+#                Kleine Bilder (`bildNeben` oder um ±90° gedreht) verlieren dabei die
+#                Ziffern in den Bojen und brauchen deshalb diesen Schalter. Den Rahmen
+#                der Quelle entfernt der Generator immer, die App zieht einen eigenen.
+#   bildQuelle   Quell-Ordner für den Generator (Default: alcatraz_Parcours).
+#   bildImBrowser true = kein vorgebautes Bild: Der Browser erzeugt es beim Anzeigen aus
+#                `bildQuelle`, mit derselben Abblendung wie der Generator. `bild` ist dann
+#                nicht nötig (für eigene Aufbauten, die nicht im Repo stehen).
+#   abblenden    [Tor2, Tor4, …] Element-IDs, die abgeblendet werden. Fallback zu
+#                `hebt` bzw. Ergänzung (z. B. zusätzlich Speedboje_unten).
+#   bildDrehung  0 | 90 | -90 | 180  (Bild um so viel Grad drehen).
+#   bildNeben    true = Bild rechts neben Fehlerpunkten und Beschreibung, darunter die
+#                Disqualifikationen. Fehlt: querliegendes Bild unter der Legende.
+#   bildBreite   Nur bei ±90°: Breite des Bildes neben der Legende in mm (Standard 40).
+#                Die Höhe folgt daraus; eine längere Legende macht den Rahmen höher.
+#   pfeileSpiegeln  true = Position von hinten betrachtet (Pfeil-Schema spiegeln).
+#   hinweis      Verweis auf hinweise.<id> (unten) - oder direkter Freitext.
+#   katalog      Verweis auf kataloge.<id> im Regelwerk (positionsweite Fehler).
+#   disq         alle | keine | <Bereich>: welche Disqualifikationen des Regelwerks
+#                gelten (vorsteg, steg, parcours, mueb; siehe regelwerke/*.yaml).
+#   klassen      [4,5,6,7] = Blatt nur für diese Klassen (fehlt = alle).
+#   ersetzt      [tor5, parcours] = diese Liste legt die genannten zusammen (Option in
+#                der Bedienleiste, in jedem Aufbau, der alle genannten enthält).
+#   summeSpalte  key der Spalte (typ: summe), die die Zeilen-Σ zeigt.
+#   subTrenner   Standard-Design der Linien ZWISCHEN den sub-Spalten aller
+#                Spalten dieser Position (je Spalte via `subTrenner` überschreibbar).
+#   zeiten       [elektronisch, stoppuhr, …] = je Gerät eine Zeitspalte statt der Spalten
+#                mit `typ: zeit`. Mit mehreren Geräten heißt jede Spalte nach ihrem Gerät.
+#
+# ---- SPALTEN-Parameter (je Eintrag unter `spalten:`) ----------------
+#   key          Zell-Schlüssel, in der Position eindeutig. Pflicht (außer trenner).
+#   label        Spaltenkopf-Text.
+#   typ          Spalten-Typ (siehe unten). Pflicht.
+#   sub          Unter-Spalten, z. B. ["hin seiteA", "rueck seiteA"] → je eine Zelle.
+#   innen        seiteA | seiteB: welche Bojen-Seite am Tor die INNERE ist
+#                (nur relevant im Schema "Innen/Außen").
+#   punkteSpalte key einer summe-Spalte, in die die aus `code` berechneten Punkte
+#                geschrieben werden.
+#   einzeln      Nur `summe`: true = die Punkte einzeln in der Reihenfolge der Codes
+#                („5 + 5“) statt ihrer Summe. Die Summe steht dann in der Σ-Spalte.
+#   katalog      eigener Fehler-Katalog NUR dieser Spalte (statt positionsweit).
+#   hebt         Element-ID im Parcoursbild (z. B. Tor1), die diese Spalte
+#                hervorhebt. Nur mit `bildGenerator`: markierte Tore bleiben voll,
+#                der Rest wird gedimmt. Beim Kopieren einer Spalte wandert die
+#                Hervorhebung mit.
+#   breite       Relativer Breiten-Anteil (grob). OHNE Angabe teilen sich die
+#                Spalten den Restplatz gleichmäßig; MIT `breite: N` bekommt die
+#                Spalte mehr Raum (Bildschirm/Druck ≈ N × 12 % der Tabellenbreite,
+#                Vektor-PDF: N-facher Flex-Anteil). Darum ist `breite: 1` meist
+#                breiter als ohne - eine Spalte ohne Angabe erhält bei vielen
+#                Spalten nur einen kleinen Rest-Anteil. Sinnvoll v. a. für
+#                Freitext-/Fehler-Spalten (breite: 1-4).
+#   klassen      Spalte nur für diese Klassen (z. B. Speed [5,6,7]); fehlt = alle.
+#   trenner      Kurzform: hervorgehobene Linie am LINKEN Rand dieser Spalte.
+#   subTrenner   Design der Linien zwischen den sub-Spalten DIESER Spalte
+#                (überschreibt den Positions-Standard, z. B. Tor 5 "doppelt").
+#   geraet       Nur `typ: zeit`: elektronisch | stoppuhr (Standard). In der Ergebnisliste
+#                gilt die elektronische Zeit, ohne sie der Mittelwert der Stoppuhren.
+#
+# ---- Spalten-Typen (typ) --------------------------------------------
+#   boje  - Punkte direkt eintragen (5, 10, 15 …); ein Disq-Buchstabe markiert
+#           die Disqualifikation an dieser Stelle. sub = Unter-Spalten.
+#   code  - Fehlercodes (Zahlen) aus dem verwiesenen Katalog; punkteSpalte
+#   summe - berechnete Punkte-/Σ-Spalte     zeit - Zeiteingabe
+#   disq  - Disqualifikations-Spalte          text - Freitext (breite)
+#   trenner - KEINE Datenspalte, sondern eine Trennlinie zwischen zwei Spalten
+#             (linke Kante der Folgespalte). design: fett | doppelt | gepunktet |
+#             gestrichelt. Beispiel (Hin/Rück trennen):
+#               - { key: t5, ... }
+#               - { typ: trenner, design: doppelt }
+#               - { key: t3b, ... }
+#             Kurzform alternativ direkt an der Spalte: `trenner: doppelt`.
+# =====================================================================

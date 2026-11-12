@@ -1,0 +1,27 @@
+# =====================================================================
+# Aufbau Frontal
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+aufbauten:
+  - id: frontal
+    name: Frontal
+    positionen: [zeit, steg, frontal135, frontal245, tor5, mueb, parcours]
+
+# Dieselben Bojen wie Alcatraz, aber vom Start/Ziel aus gesehen (Kurzform, siehe
+# KONZEPT-POSITIONEN.md §4): obere Boje links, Tor 5 zuerst die Rückfahrt, Bild um -90°.
+positionen:
+  - id: frontal135
+    titel: "Tor 1 / 3 / 5"
+    menue: "Tore 1 / 3 / 5 (frontal)"
+    blick: vorne
+    bojen: [StartZiel_unten, Tor1, Tor3, Tor5_unten, Speedboje_unten]
+    bild: alcatraz_I   # dieselbe Abblendung wie gate135, nur anders gedreht
+
+  - id: frontal245
+    titel: "Tor 2 / 4 / 5"
+    menue: "Tore 2 / 4 / 5 (frontal)"
+    blick: vorne
+    bojen: [StartZiel_oben, Tor2, Tor4, Tor5_oben, Speedboje_oben]
+    bild: alcatraz_II

@@ -1,0 +1,45 @@
+# =====================================================================
+# Aufbau Baden-Württemberg
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+aufbauten:
+  - id: bawue
+    name: Baden-Württemberg
+    positionen: [zeit, steg, bawueland1, bawueland2, bawuewasser1, bawuewasser2, knoten]
+
+# Blick von den Seiten (Kurzform, siehe KONZEPT-POSITIONEN.md §4): Land beobachtet die
+# untere Boje jedes Tores (seiteA), Wasser die obere (seiteB) und sieht den Kurs um 180°
+# gedreht. Ohne den Hinweis zur Bojen-Bezeichnung: Mit ihm passt Wasser 1 (MüB-Legende und
+# Bild) nicht mehr auf eine Seite.
+positionen:
+  - id: bawueland1
+    titel: "Land 1"
+    blick: rechts
+    bojen: [StartZiel_unten, Tor1_aussen, Tor2_innen, Tor3_aussen]
+    bild: bawue_Land_1
+    hinweis: keiner
+
+  - id: bawueland2
+    titel: "Land 2"
+    blick: rechts
+    bojen: [Tor4_innen, Tor5_unten, Speedboje_unten]
+    aufgaben: [tor5]
+    bild: bawue_Land_2
+    hinweis: keiner
+
+  - id: bawuewasser1
+    titel: "Wasser 1"
+    blick: links
+    bojen: [StartZiel_oben, Tor1_innen, Tor2_aussen, Tor3_innen]
+    aufgaben: [mueb]
+    bild: bawue_wasser_1
+    hinweis: keiner
+
+  - id: bawuewasser2
+    titel: "Wasser 2"
+    blick: links
+    bojen: [Tor4_aussen, Tor5_oben, Speedboje_oben]
+    bild: bawue_wasser_2
+    hinweis: keiner

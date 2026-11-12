@@ -1,0 +1,124 @@
+# =====================================================================
+# Gemeinsame Positionen (in jedem Aufbau gleich)
+# =====================================================================
+# Wird von `npm run config:sync` mit den anderen Dateien zu public/config/positionen.yaml
+# zusammengeführt. Parameter: siehe src/config/aufbauten.yaml.
+
+# Eine Disziplin bündelt Aufbauten, die sich die Eingaben teilen: Parallelslalom hat eigene
+# Werte, die beim Wechsel zu Manövrieren und zurück erhalten bleiben. `ergebnisspalten` legt
+# die Spalten der Ergebnislisten fest, in der Reihenfolge des Fahrwegs.
+disziplinen:
+  - id: manoevrieren
+    name: Manövrieren
+    # Die Spalten der Ergebnisliste entstehen aus dem Fahrweg (src/config/kurzform.ts), in der
+    # Reihenfolge der Fahrt: Steg AB, Start, 1 H … 4 H, 5 (mit E), 4 R … 1 R, MüB, S1, S2,
+    # 1 R (Speedrunde), Ziel, Steg AN.
+    ergebnisspalten: fahrweg
+
+positionen:
+  - id: zeit
+    titel: "Zeit"
+    menue: "Zeitnahme"
+    ausrichtung: hoch
+    spalten:
+      - { key: zeit1, label: "Zeit 1", typ: zeit }
+      - { key: zeit2, label: "Zeit 2", typ: zeit }
+      - { key: zeit3, label: "Zeit 3", typ: zeit }
+
+  - id: steg
+    titel: "Steg"
+    menue: "Steg (Ablegen / Anlegen)"
+    ausrichtung: hoch
+    summeSpalte: sum
+    disq: steg
+    # Zwei getrennte Fehler-Spalten mit je eigenem Katalog (per-Spalte statt
+    # position-weit). Jede Spalte lässt nur ihre Codes + Disqualifikationen zu.
+    spalten:
+      - { key: fehlerAB, label: "Fehler AB", typ: code, punkteSpalte: fpab, katalog: stegAblegen, breite: 1 }
+      - { key: fpab, label: "F-Pkt. AB", typ: summe, einzeln: true }
+      - { typ: trenner, design: "doppelt" }
+      - { key: fehlerAN, label: "Fehler AN", typ: code, punkteSpalte: fpan, katalog: stegAnlegen, breite: 1 }
+      - { key: fpan, label: "F-Pkt. AN", typ: summe, einzeln: true }
+      - { typ: trenner, design: "doppelt" }
+      - { key: disq, label: "Disq.", typ: disq }
+      - { key: sum, label: "Σ", typ: summe }
+      - { key: bemerkung, label: "Bemerkung", typ: text, breite: 2 }
+
+  - id: vorsteg
+    titel: "Vorsteg"
+    menue: "Vorsteg"
+    schnellauswahl: true   # in keinem Aufbau - nur über die Schnellauswahl
+    ausrichtung: hoch
+    disq: vorsteg
+    # Zwei getrennte Fehler-Spalten mit je eigenem Katalog (per-Spalte statt
+    # position-weit). Jede Spalte lässt nur ihre Codes + Disqualifikationen zu.
+    spalten:
+      - { key: disq, label: "Disq.", typ: disq }
+      - { key: bemerkung, label: "Bemerkung", typ: text, breite: 2 }
+
+  # Tor 5, Mann-über-Bord und Parcours in Kurzform (KONZEPT-POSITIONEN.md §4).
+  - id: tor5
+    titel: "Tor 5"
+    menue: "Tor 5 (Einfahrt)"
+    aufgaben: [tor5]
+
+  # Option „Tor 5 übernimmt die Parcoursüberwachung“: Eine Person macht beides, die
+  # extra Parcoursliste entfällt. `ersetzt` legt fest, in welchen Aufbauten das geht.
+  - id: tor5pue
+    titel: "Tor 5 + Parcours"
+    menue: "Tor 5 (Einfahrt + Parcoursüberwachung)"
+    ersetzt: [tor5, parcours]
+    aufgaben: [tor5, parcours]
+    bild: alcatraz_Parcours_klein   # das kleine Bild ohne Ziffern
+    bildNeben: true
+
+  # Dasselbe für Aufbauten, deren Tor-Listen kein Start/Ziel haben (Alcatraz-DM26):
+  # Dort steckt es in der Parcoursliste und muss hier erhalten bleiben.
+  - id: tor5puems
+    titel: "Tor 5 + Parcours"
+    menue: "Tor 5 (Einfahrt + Parcoursüberwachung mit Start und Ziel)"
+    ersetzt: [tor5, parcoursms]
+    bojen: [StartZiel]
+    aufgaben: [tor5, parcours]
+    bild: alcatraz_Parcours_klein
+    bildNeben: true
+
+  # Mann-über-Bord gibt es ab Klasse 4; das folgt aus dem Fahrweg.
+  - id: mueb
+    titel: "Mann-über-Bord"
+    menue: "Mann-über-Bord / Schikane"
+    blick: hinten
+    aufgaben: [mueb]
+    bildBreite: 50   # die lange MüB-Legende gibt den Platz ohnehin her
+
+  - id: parcours
+    titel: "Parcours"
+    menue: "Parcours einfach (nur Fahrweg)"
+    aufgaben: [parcours]
+    bild: alcatraz_Parcours_gross   # das ganze Bild, nur ohne den Rahmen der Quelle
+
+  - id: parcoursms
+    titel: "Parcours"
+    menue: "Parcours einfach mit Start und Ziel"
+    schnellauswahl: true
+    bojen: [StartZiel]
+    aufgaben: [parcours]
+    bild: alcatraz_Parcours_gross
+
+  - id: knoten
+    titel: "Knoten"
+    menue: "Knoten"
+    schnellauswahl: true   # in jedem Aufbau wählbar: Die Gesamtliste zeigt die Knoten
+    ausrichtung: quer
+    lauf: false          # Knoten werden nur einmal abgenommen (kein Lauf)
+    summeSpalte: sum
+    hinweis: knoten
+    spalten:
+      - { key: webleinstek, label: "Webleinstek", typ: boje, breite: 1 }
+      - { key: schotstek, label: "Schotstek", typ: boje, breite: 1 }
+      - { key: palstek, label: "Palstek", typ: boje, breite: 1 }
+      - { key: kreuzknoten, label: "Kreuzknoten", typ: boje, breite: 1 }
+      - { key: klampe, label: "Klampe", typ: boje, breite: 1 }
+      # - { key: stern, label: "*", typ: boje, breite: 1 }
+      - { key: sum, label: "Σ", typ: summe }
+      - { key: bemerkung, label: "Bemerkung", typ: text, breite: 3 }
