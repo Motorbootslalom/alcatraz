@@ -24,7 +24,7 @@ export interface WkrListenKonfig extends BogenKonfig {
 
 export type WkrListenStand = Pick<
   AppState,
-  'eventName' | 'eventJahr' | 'eventKind' | 'laufCount' | 'aufbau' | 'parcoursList' | 'einteilung' | 'wkrLeerzeilen' | 'wkrLeerzeilenKlasse'
+  'eventName' | 'eventJahr' | 'eventKind' | 'laufCount' | 'aufbau' | 'parcoursList' | 'einteilung' | 'wkrLeerzeilen' | 'wkrLeerzeilenKlasse' | 'wkrClubGemeinsam'
 >
 
 /** Ein Bogen der Veranstaltung: eine Liste für eine Klasse (Clubmeisterschaft: mehrere) in einem Lauf auf einem Parcours. */
@@ -66,8 +66,17 @@ function aufbauSignatur(konfig: BogenKonfig, aufbauId: string, typeId: string, k
 }
 
 /** Die Klassen einer Liste, zu Bögen zusammengefasst: einzeln, oder (Club) nach gleichem Aufbau. */
-function klassenGruppen(konfig: BogenKonfig, aufbauId: string, typeId: string, klassen: ClassId[], gemeinsam: boolean): ClassId[][] {
+function klassenGruppen(
+  konfig: BogenKonfig,
+  aufbauId: string,
+  typeId: string,
+  klassen: ClassId[],
+  gemeinsam: boolean,
+  alleZusammen: boolean,
+): ClassId[][] {
   if (!gemeinsam) return klassen.map((k) => [k])
+  // Papier sparen: ein Bogen für alle Klassen der Liste, ohne Bild; was eine Klasse nicht hat, ist schraffiert.
+  if (alleZusammen) return klassen.length > 0 ? [klassen] : []
   const gruppen = new Map<string, ClassId[]>()
   for (const k of klassen) {
     const s = aufbauSignatur(konfig, aufbauId, typeId, k)
@@ -80,28 +89,39 @@ function klassenGruppen(konfig: BogenKonfig, aufbauId: string, typeId: string, k
  * Alle Bögen der Veranstaltung. `folgen` ist die Startreihenfolge je Parcours aus der
  * Verzahnung (`planEvent(...).plans[].sequence`).
  *
- * Reihenfolge: Parcours, dann Klasse, Lauf und Liste (in der Reihenfolge des Aufbaus).
+ * Reihenfolge: Parcours, dann Klasse (in der Reihenfolge, in der die Klassen laut Verzahnung
+ * zuerst starten), Lauf und Liste (in der Reihenfolge des Aufbaus).
  * Eine Liste ohne Lauf im Kopf (Knoten) gibt es nur einmal; sie zählt zum 1. Lauf.
  *
  * Clubmeisterschaft: Klassen, deren Bogen gleich aufgebaut ist, stehen mit
  * Zwischenüberschrift untereinander auf einem Bogen; eine Klasse mit anderen Spalten oder
- * anderem Parcoursbild bekommt ihren eigenen. Die Wertung bleibt klassenbezogen – jede Zeile kennt ihre Klasse.
+ * anderem Parcoursbild bekommt ihren eigenen. Mit `wkrClubGemeinsam` (Papier sparen) stehen
+ * alle Klassen einer Liste zusammen, ohne Bild; fehlende Spalten sind je Zeile schraffiert. Die Wertung bleibt klassenbezogen – jede Zeile kennt ihre Klasse.
  */
 export function wkrBoegen(stand: WkrListenStand, konfig: WkrListenKonfig, folgen: ReadonlyMap<string, readonly Starter[]>): WkrListen {
   const eventName = [stand.eventName, stand.eventJahr].filter(Boolean).join(' ')
   const mehrereParcours = stand.parcoursList.length > 1
   const listen = konfig.aufbauOrder(stand.aufbau, false)
   const laeufe = Math.max(1, stand.laufCount)
-  const klassenRang = (k: ClassId) => CLASS_IDS.indexOf(k)
+  // Reihenfolge der Klassen je Parcours: so, wie sie in der Verzahnung zuerst an den Start
+  // gehen – nicht E, 1, 2 … Der Stapel aus dem Drucker liegt dann schon in der Reihenfolge,
+  // in der die Bögen am Steg gebraucht werden; man muss ihn nur noch trennen.
+  const auftritt = new Map<string, Map<ClassId, number>>()
   const boegen: WkrBogen[] = []
+  const club = stand.eventKind === 'club'
 
   for (const parcours of stand.parcoursList) {
     const folge = folgen.get(parcours.id) ?? []
     // Klassen ohne Starter entfallen.
-    const klassen = CLASS_IDS.filter((k) => folge.some((s) => s.klasse === k))
+    const zuerst = new Map<ClassId, number>()
+    folge.forEach((s, i) => {
+      if (!zuerst.has(s.klasse)) zuerst.set(s.klasse, i)
+    })
+    auftritt.set(parcours.id, zuerst)
+    const klassen = [...zuerst.keys()]
     const jeGruppe = listen.flatMap((typeId) => {
       const mitListe = klassen.filter((k) => konfig.positionAllowsClass(typeId, k))
-      return klassenGruppen(konfig, stand.aufbau, typeId, mitListe, stand.eventKind === 'club').map((gruppe) => ({ gruppe, typeId }))
+      return klassenGruppen(konfig, stand.aufbau, typeId, mitListe, club, club && stand.wkrClubGemeinsam).map((gruppe) => ({ gruppe, typeId }))
     })
     for (const { gruppe, typeId } of jeGruppe) {
       const def = konfig.getSheetDef(typeId)
@@ -126,6 +146,8 @@ export function wkrBoegen(stand: WkrListenStand, konfig: WkrListenKonfig, folgen
             parcours: mehrereParcours ? parcours.name : undefined,
             // Der Name hängt am Parcours des Bogens, nicht an der Klasse (lib/einteilung.ts).
             wkr: stand.einteilung[parcours.id]?.[typeId]?.trim() ?? '',
+            // Gemeinsamer Bogen über Klassen mit verschiedenen Zeichnungen: lieber kein Bild als ein fremdes.
+            ohneBild: club && stand.wkrClubGemeinsam && gruppe.length > 1,
           },
           optionen:
             gruppe.length > 1
@@ -141,7 +163,7 @@ export function wkrBoegen(stand: WkrListenStand, konfig: WkrListenKonfig, folgen
   boegen.sort(
     (a, b) =>
       parcoursRang.get(a.parcoursId)! - parcoursRang.get(b.parcoursId)! ||
-      klassenRang(a.klassen[0]) - klassenRang(b.klassen[0]) ||
+      auftritt.get(a.parcoursId)!.get(a.klassen[0])! - auftritt.get(b.parcoursId)!.get(b.klassen[0])! ||
       a.lauf - b.lauf ||
       lage.get(a.id)! - lage.get(b.id)!,
   )

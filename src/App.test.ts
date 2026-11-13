@@ -40,6 +40,8 @@ describe('App', () => {
     setLocale('de')
 
     await show('listen')
+    // Die Vorgabe ist die verzahnte Startliste; hier geht es um die Liste nach Klasse.
+    await wrapper.find('.list-kinds button[data-kind="byClass"]').trigger('click')
     // Nach Klasse: eine durchgehende Liste, je Klasse ein zusammenhängender Block.
     expect(wrapper.findAll('.sheet-section')).toHaveLength(1)
     expect(wrapper.findAll('.sheet-table tbody')).toHaveLength(2)

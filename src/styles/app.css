@@ -1198,11 +1198,13 @@ label.class-count {
 /* ---------- Listen (Bildschirmansicht = Druckansicht) ----------
    Format der bisherigen Ausdrucke: umrandeter Kopf (Liste links, Veranstaltung
    rechts), Tabelle mit Gitterlinien und kräftigem Rahmen, alles mittig, und
-   jede fünfte Zeile grau – so findet man beim Abhaken die Zeile wieder. */
+   jede fünfte Zeile grau – so findet man beim Abhaken die Zeile wieder.
+   Farben nur über --blatt-* (styles/blatt.css): am Bildschirm das Farbschema,
+   im Druck schwarz auf weiß. */
 .sheet {
-  background: #fff;
-  color: #000;
-  border: 1px solid var(--border);
+  background: var(--blatt-bg);
+  color: var(--blatt-text);
+  border: 1px solid var(--blatt-rand);
   border-radius: var(--radius);
   padding: 24px 28px;
   overflow-x: auto;
@@ -1233,7 +1235,8 @@ label.class-count {
 
 .sheet-title-box {
   display: flex;
-  border: 2px solid #000;
+  border: 2px solid var(--blatt-linie);
+  background: var(--blatt-kopf);
   font-weight: 700;
 }
 
@@ -1242,7 +1245,7 @@ label.class-count {
   align-items: center;
   padding: 4px 14px;
   white-space: pre-line;
-  border-right: 2px solid #000;
+  border-right: 2px solid var(--blatt-linie);
   font-size: 15px;
   line-height: 1.2;
   text-align: center;
@@ -1256,7 +1259,8 @@ label.class-count {
 }
 
 .sheet-table .sheet-cols th {
-  border: 2px solid #000;
+  border: 2px solid var(--blatt-linie);
+  background: var(--blatt-kopf);
   padding: 16px 8px;
   font-size: 13px;
   font-weight: 700;
@@ -1264,16 +1268,16 @@ label.class-count {
 }
 
 .sheet-table tbody {
-  border-left: 2px solid #000;
-  border-right: 2px solid #000;
+  border-left: 2px solid var(--blatt-linie);
+  border-right: 2px solid var(--blatt-linie);
 }
 
 .sheet-table tbody:last-child {
-  border-bottom: 2px solid #000;
+  border-bottom: 2px solid var(--blatt-linie);
 }
 
 .sheet-table td {
-  border: 1px solid #000;
+  border: 1px solid var(--blatt-linie);
   padding: 1px 6px;
   text-align: center;
   line-height: 1.3;
@@ -1289,7 +1293,7 @@ label.class-count {
 }
 
 .sheet-table tbody tr.shade td {
-  background: #d9d9d9;
+  background: var(--blatt-grau);
 }
 
 .sheet-table .narrow {
@@ -2160,4 +2164,86 @@ fieldset.lockable:disabled .drag-handle {
   flex-wrap: wrap;
   max-width: 100%;
   border-radius: 20px;
+}
+
+/* ---------- Einstellungen: Sprungleiste links ---------- */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.settings-nav {
+  position: sticky;
+  /* Unter der Kopfzeile, die beim Rollen stehen bleibt. */
+  top: 104px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: calc(100vh - 116px);
+  overflow-y: auto;
+}
+
+.settings-nav button {
+  padding: 8px 12px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 0 8px 8px 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-nav button:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.settings-nav button.active {
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Ein angesprungener Block beginnt unter der Kopfzeile, nicht dahinter. */
+.settings-main > .panel {
+  scroll-margin-top: 104px;
+}
+
+/* Schmal: die Leiste als waagerecht rollbare Zeile über den Blöcken. */
+@media (max-width: 860px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .settings-nav {
+    position: static;
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .settings-nav button {
+    flex: none;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 8px 8px 0 0;
+    white-space: nowrap;
+  }
+
+  .settings-nav button.active {
+    border-bottom-color: var(--accent);
+  }
+}
+
+/* Verzahnung: Die klassischen Startnummern passen nicht mehr zur Reihenfolge. */
+.lock-bar.stale {
+  border-color: var(--warn-border);
+  background: var(--danger-soft);
 }

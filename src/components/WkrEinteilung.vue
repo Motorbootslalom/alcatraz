@@ -6,7 +6,6 @@ import { useEvent } from '../lib/event'
 import { einteilungsListen, listeGilt } from '../lib/einteilung'
 import { t } from '../i18n'
 import type { Parcours } from '../types'
-import WkrVorschau from './WkrVorschau.vue'
 
 /**
  * WKR-Einteilung (Vorbild: WkrEinteilung.vue im Fehlerpunkte-Prototyp,
@@ -18,8 +17,8 @@ import WkrVorschau from './WkrVorschau.vue'
  * fahren, wird nur gezeigt – geändert wird es unter „Verzahnung“, damit es eine Stelle gibt.
  *
  * Der Abschnitt steht unter „Einstellungen“ (Wunsch des Nutzers: nicht unter
- * „Veranstaltung“). Darunter die Beispielansicht der Listen (WkrVorschau.vue); dort lässt
- * sich derselbe Name auch im Bogenkopf eintragen.
+ * „Veranstaltung“). Die Beispielansicht der Listen (WkrVorschau.vue, unter den
+ * Aufbauten) trägt denselben Namen im Bogenkopf; auch dort lässt er sich eintragen.
  */
 const { state, dispatch } = useStore()
 const konfig = useKonfig()
@@ -107,6 +106,5 @@ function weiter(p: Parcours, typeId: string) {
       {{ t('wkr.classesNote') }} <a href="#/verzahnung">{{ t('nav.verzahnung') }}</a>
     </p>
     <p class="note">{{ t('wkr.privacyNote') }}</p>
-    <WkrVorschau />
   </div>
 </template>

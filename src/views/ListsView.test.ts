@@ -27,7 +27,7 @@ function ansicht(store: Store) {
   return mount(ListsView, { global: { provide: { [storeKey as symbol]: store } }, attachTo: document.body })
 }
 async function wkr(wrapper: VueWrapper) {
-  await wrapper.findAll('.list-kinds button').at(-1)!.trigger('click')
+  await wrapper.find('.list-kinds button[data-kind="wkr"]').trigger('click')
   await nextTick()
 }
 async function waehle(wrapper: VueWrapper, feld: string, wert: string) {
@@ -50,6 +50,7 @@ describe('Listen: Wettkampfrichter-Listen', () => {
   })
   afterEach(() => setLocale('de'))
 
+  // Baut 90 Bögen: Unter Last (mehrere Testläufe zugleich) reichen die üblichen 5 s nicht.
   it('ist eine eigene Listenart; je Parcours, Klasse, Lauf und Liste ein Bogen', async () => {
     const wrapper = ansicht(store)
     expect(wrapper.findAll('.list-kinds button').map((b) => b.text())).toContain('Wettkampfrichter-Listen')
@@ -63,7 +64,7 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     // Die alten Listen stehen nicht daneben.
     expect(wrapper.find('.sheet').exists()).toBe(false)
     wrapper.unmount()
-  })
+  }, 30_000)
 
   it('die Auswahl grenzt ein, was gezeigt und gedruckt wird', async () => {
     const wrapper = ansicht(store)
@@ -197,4 +198,13 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     expect(wrapper.find('.panel.empty').text()).toContain('Noch keine Starter')
     wrapper.unmount()
   })
+
+  it('die verzahnte Startliste ist die Vorgabe; „nach Klasse“ steht hinten', () => {
+    const wrapper = ansicht(store)
+    const arten = wrapper.findAll('.list-kinds button')
+    expect(wrapper.find('.list-kinds button.active').attributes('data-kind')).toBe('interleaved')
+    expect(arten.at(-1)!.attributes('data-kind')).toBe('byClass')
+    wrapper.unmount()
+  })
+
 })

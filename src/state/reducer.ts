@@ -1,5 +1,6 @@
 import type {
   AppState,
+  Streichlaeufe,
   BoatConfig,
   ClassId,
   EventKind,
@@ -23,6 +24,9 @@ import {
 } from '../domain/startnumbers'
 import { mergeStarters } from '../import/starterMerge'
 import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
+import { nurStarter, ohneLauf, setzeWerte, type EingabeZelle } from '../lib/eingaben'
+import { beispielEingaben, zufallAus, type Zeitnahme } from '../lib/beispielwerte'
+import { configFor } from '../config/konfig'
 import { canonicalRunningNumbers } from '../planung/running'
 import { aufbauOf, DEFAULT_AUFBAU, DEFAULT_REGELWERK, hasParallel, regelwerkOf } from '../config/catalog'
 
@@ -103,6 +107,23 @@ export type Action =
    */
   | { type: 'SET_WKR_LEERZEILEN'; klasse?: ClassId; anzahl: number | null; alleKlassen?: boolean }
   | { type: 'SET_WKR_RUECKSEITE'; rueckseite: boolean }
+  | { type: 'SET_WKR_CLUB_GEMEINSAM'; gemeinsam: boolean }
+  /**
+   * Erfasste Werte setzen, Zelle für Zelle (Lauf-Schlüssel, Starter-ID, Feld-Kennung); ein
+   * leerer Wert löscht die Zelle. Eine Action je Eingabe – oder ein Bündel, etwa wenn später
+   * ein Wettkampfrichter seine Liste vom eigenen Gerät abliefert: Verschiedene Geräte
+   * schreiben verschiedene Zellen und überschreiben einander nichts.
+   */
+  | { type: 'SET_EINGABEN'; zellen: EingabeZelle[] }
+  /** Alle erfassten Werte verwerfen, oder nur die eines Laufs. */
+  | { type: 'CLEAR_EINGABEN'; lauf?: number }
+  /** Streichläufe der Gesamtwertung: `auto` (Regel) oder eine feste Zahl. */
+  | { type: 'SET_STREICHLAEUFE'; streichlaeufe: Streichlaeufe }
+  /**
+   * Beispielwerte für alle Listen des Aufbaus. Der Zufall steckt in der `saat`: Dieselbe
+   * Action ergibt überall dieselben Werte.
+   */
+  | { type: 'FILL_BEISPIELWERTE'; zeitnahme: Zeitnahme; saat: number; laeufe?: number[] }
   | { type: 'LOAD_STATE'; state: AppState }
   | { type: 'RESET_ALL' }
 
@@ -131,6 +152,9 @@ export function emptyState(): AppState {
     wkrLeerzeilen: WKR_LEERZEILEN_VORGABE,
     wkrLeerzeilenKlasse: {},
     wkrRueckseite: false,
+    eingaben: {},
+    streichlaeufe: 'auto',
+    wkrClubGemeinsam: false,
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -159,6 +183,16 @@ function dupKey(p: Starter): string {
 function replaceById(starters: Starter[], updated: Starter[]): Starter[] {
   const byId = new Map(updated.map((p) => [p.id, p]))
   return starters.map((p) => byId.get(p.id) ?? p)
+}
+
+/** Mit den Startern gehen ihre Eingaben: Ohne Starter gäbe es keinen Weg mehr, sie zu sehen oder zu löschen. */
+function mitStartern(state: AppState, starters: Starter[]): AppState {
+  return { ...state, starters, eingaben: nurStarter(state.eingaben, new Set(starters.map((p) => p.id))) }
+}
+
+/** Eine brauchbare Angabe der Streichläufe: `auto` oder eine ganze Zahl von 0 bis 8. */
+export function streichlaeufeWert(wert: unknown): Streichlaeufe {
+  return typeof wert === 'number' && Number.isFinite(wert) ? Math.max(0, Math.min(8, Math.round(wert))) : 'auto'
 }
 
 function mapParcours(state: AppState, id: string, fn: (p: Parcours) => Parcours): AppState {
@@ -291,6 +325,9 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'SET_WKR_RUECKSEITE':
       return { ...state, wkrRueckseite: action.rueckseite }
 
+    case 'SET_WKR_CLUB_GEMEINSAM':
+      return { ...state, wkrClubGemeinsam: action.gemeinsam }
+
     case 'SET_ORIGIN_SHORT': {
       const { [action.name]: _old, ...rest } = state.originShort
       const short = action.short.trim()
@@ -317,7 +354,7 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'IMPORT_STARTERS': {
       if (action.mode === 'replace') {
-        return { ...state, starters: mergeStarters(state.starters, action.starters).starters }
+        return mitStartern(state, mergeStarters(state.starters, action.starters).starters)
       }
       const seen = new Set(state.starters.map(dupKey))
       return { ...state, starters: state.starters.concat(action.starters.filter((p) => !seen.has(dupKey(p)))) }
@@ -353,13 +390,13 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, starters: assignStartNumbers(state) }
 
     case 'REMOVE_STARTER':
-      return { ...state, starters: state.starters.filter((p) => p.id !== action.id) }
+      return mitStartern(state, state.starters.filter((p) => p.id !== action.id))
 
     case 'CLEAR_CLASS':
-      return { ...state, starters: state.starters.filter((p) => p.klasse !== action.klasse) }
+      return mitStartern(state, state.starters.filter((p) => p.klasse !== action.klasse))
 
     case 'CLEAR_ALL_STARTERS':
-      return { ...state, starters: [] }
+      return mitStartern(state, [])
 
     case 'ADD_PARCOURS':
       return {
@@ -418,6 +455,24 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'SET_WKR_NAME':
       return { ...state, einteilung: setzeName(state.einteilung, action.parcoursId, action.typeId, action.name) }
 
+    case 'SET_EINGABEN': {
+      const eingaben = setzeWerte(state.eingaben, action.zellen)
+      return eingaben === state.eingaben ? state : { ...state, eingaben }
+    }
+    case 'CLEAR_EINGABEN': {
+      const eingaben = ohneLauf(state.eingaben, action.lauf)
+      return eingaben === state.eingaben ? state : { ...state, eingaben }
+    }
+    case 'SET_STREICHLAEUFE':
+      return { ...state, streichlaeufe: streichlaeufeWert(action.streichlaeufe) }
+    case 'FILL_BEISPIELWERTE': {
+      // Die Konfiguration ist eine reine Funktion des Stands – der Reducer bleibt deterministisch.
+      const konfig = configFor({ regelwerk: state.regelwerk, eigeneAufbauten: state.eigeneAufbauten })
+      return {
+        ...state,
+        eingaben: beispielEingaben(state, konfig, { zeitnahme: action.zeitnahme, laeufe: action.laeufe }, zufallAus(action.saat)),
+      }
+    }
     case 'LOAD_STATE':
       return action.state
 

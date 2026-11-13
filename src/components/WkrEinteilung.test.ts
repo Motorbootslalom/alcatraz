@@ -1,15 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import WkrEinteilung from './WkrEinteilung.vue'
+import WkrVorschau from './WkrVorschau.vue'
 import { createStore, storeKey, type Store } from '../state/store'
 import { wkrName } from '../lib/einteilung'
 import { configFor } from '../config/konfig'
 import { loadState } from '../persistenz/storage'
 import { setLocale } from '../i18n'
 
+// Wie unter „Einstellungen“: die Tabelle und – weiter unten – die Beispielansicht.
+const Beide = defineComponent({ render: () => h('div', [h(WkrEinteilung), h(WkrVorschau)]) })
+
 function ansicht(store: Store) {
-  return mount(WkrEinteilung, { global: { provide: { [storeKey as symbol]: store } }, attachTo: document.body })
+  return mount(Beide, { global: { provide: { [storeKey as symbol]: store } }, attachTo: document.body })
 }
 
 describe('WKR-Einteilung: Tabelle', () => {
@@ -108,29 +112,37 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
   })
   afterEach(() => setLocale('de'))
 
-  const listen = (w: ReturnType<typeof ansicht>) => w.findAll('.wkr-vorschau .bogen').map((b) => b.attributes('data-liste'))
+  // Je Position ein Reiter; gezeigt wird das Blatt der gewählten.
+  const listen = (w: ReturnType<typeof ansicht>) => w.findAll('.wkr-vorschau-tabs button').map((b) => b.attributes('data-liste'))
+  const zeige = (w: ReturnType<typeof ansicht>, liste: string) => w.find(`.wkr-vorschau-tabs button[data-liste="${liste}"]`).trigger('click')
   const kopf = (w: ReturnType<typeof ansicht>, liste: string) => w.find(`.wkr-vorschau .bogen[data-liste="${liste}"] .bogen-kopf`)
   const nummern = (w: ReturnType<typeof ansicht>, liste: string) =>
     w.findAll(`.wkr-vorschau .bogen[data-liste="${liste}"] .bogen-tabelle > tbody > tr > td.bt-nr`).map((td) => td.text())
   const waehle = (w: ReturnType<typeof ansicht>, klasse: string) => w.find('select[data-feld="vorschau-klasse"]').setValue(klasse)
 
-  it('zeigt alle Listen des Aufbaus für die höchste Klasse – mit Muster-Nummern und Kennzeichen', () => {
+  it('zeigt je Position des Aufbaus einen Reiter für die höchste Klasse – mit Muster-Nummern und Kennzeichen', async () => {
     store.dispatch({ type: 'SET_EVENT', patch: { eventName: 'Hafenpokal', eventJahr: 2026 } })
     const wrapper = ansicht(store)
     expect(listen(wrapper)).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'mueb', 'parcours'])
     expect((wrapper.find('select[data-feld="vorschau-klasse"]').element as HTMLSelectElement).value).toBe('7')
+    // Zuerst die erste Position, und nur ihr Blatt.
+    expect(wrapper.findAll('.wkr-vorschau .bogen').map((b) => b.attributes('data-liste'))).toEqual(['zeit'])
+    expect(wrapper.find('.wkr-vorschau-tabs button.active').attributes('data-liste')).toBe('zeit')
+    await zeige(wrapper, 'steg')
+    expect(wrapper.find('.wkr-vorschau-tabs button[aria-selected="true"]').text()).toBe('Steg')
     expect(nummern(wrapper, 'steg')).toEqual(['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10', '', '', ''])
     // Jedes Blatt trägt das Kennzeichen und gilt als Muster: So wird es nie gedruckt (bogen.css).
     const blaetter = wrapper.findAll('.wkr-vorschau .bogen')
     expect(blaetter.every((b) => b.find('.bogen-kennzeichen').text() === 'Beispielansicht')).toBe(true)
     expect(blaetter.every((b) => b.attributes('data-muster') !== undefined)).toBe(true)
     expect(wrapper.find('.wkr-vorschau').classes()).toContain('no-print')
+    // Jede fünfte Zeile ist grau.
+    expect(wrapper.findAll('.wkr-vorschau .bogen[data-liste="steg"] .bogen-tabelle > tbody > tr.grau > td.bt-nr').map((td) => td.text())).toEqual(['M5', 'M10'])
+    await zeige(wrapper, 'gate135')
     // Kopf: Veranstaltung, Liste, Klasse, Lauf und – bei zwei Parcours – der Parcours der Klasse.
     const zellen = kopf(wrapper, 'gate135').findAll('.bk-zelle').map((z) => z.text())
     expect(kopf(wrapper, 'gate135').find('.bk-titel').text()).toBe('Hafenpokal 2026')
     expect(zellen).toEqual(['Tor 1 / 3 / 5', 'Klasse 7', '1. Lauf', 'Parcours 2'])
-    // Jede fünfte Zeile ist grau.
-    expect(wrapper.findAll('.wkr-vorschau .bogen[data-liste="steg"] .bogen-tabelle > tbody > tr.grau > td.bt-nr').map((td) => td.text())).toEqual(['M5', 'M10'])
     wrapper.unmount()
   })
 
@@ -139,6 +151,7 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     await waehle(wrapper, '2')
     // Klasse 2 fährt kein Mann-über-Bord und laut Verzahnung auf Parcours 1.
     expect(listen(wrapper)).not.toContain('mueb')
+    await zeige(wrapper, 'gate135')
     expect(kopf(wrapper, 'gate135').findAll('.bk-zelle').map((z) => z.text())).toEqual(['Tor 1 / 3 / 5', 'Klasse 2', '1. Lauf', 'Parcours 1'])
     const spalten = (liste: string) => wrapper.findAll(`.bogen[data-liste="${liste}"] .bogen-tabelle > tbody > tr:first-child > td[data-spalte]`).map((td) => td.attributes('data-spalte'))
     expect(spalten('gate135')).not.toContain('speed2')
@@ -149,6 +162,7 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
 
   it('der Name im Bogenkopf schreibt in dieselbe Einteilung wie die Tabelle – beide zeigen denselben Stand', async () => {
     const wrapper = ansicht(store)
+    await zeige(wrapper, 'steg')
     const imKopf = () => kopf(wrapper, 'steg').find('input.bk-wkr-input')
     const inTabelle = () => wrapper.find('input[data-feld="par_2|steg"]')
     expect(imKopf().attributes('aria-label')).toBe('Name im Kopf der Liste Steg, Parcours 2')
@@ -181,6 +195,7 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     try {
       const wrapper = ansicht(store)
       await nextTick()
+      await zeige(wrapper, 'steg')
       // Im Kopf steht der Name nur noch als Text …
       expect(wrapper.find('.wkr-vorschau input.bk-wkr-input').exists()).toBe(false)
       const feld = () => wrapper.find('input[data-feld="vorschau-name|steg"]')
@@ -214,6 +229,7 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     const wahl = wrapper.find('select[data-feld="vorschau-klasse"]')
     expect(wahl.findAll('option').map((o) => o.text())).toEqual(['Dolphin', 'Klasse 1', 'Klasse 2', 'Klasse 3', 'Klasse 4', 'Klasse 5'])
     expect((wahl.element as HTMLSelectElement).value).toBe('5')
+    await zeige(wrapper, 'steg')
     expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Klasse 5')
     wrapper.unmount()
   })
@@ -232,6 +248,7 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     setLocale('en')
     const wrapper = ansicht(store)
     expect(wrapper.find('.wkr-vorschau .bogen-kennzeichen').text()).toBe('Sample')
+    await zeige(wrapper, 'steg')
     expect(nummern(wrapper, 'steg').slice(0, 2)).toEqual(['S1', 'S2'])
     // Nach den DM-Regeln bleiben die Listen deutsch.
     expect(kopf(wrapper, 'steg').find('.bk-liste').text()).toBe('Steg')

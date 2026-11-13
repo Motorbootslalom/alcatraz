@@ -32,4 +32,23 @@ describe('Veranstaltung', () => {
     expect(wrapper.find('[data-hinweis="wkr"] a').text()).toBe('Settings → Judges')
     wrapper.unmount()
   })
+
+  it('zugeklappte Beispielansicht beim Aufbau: Sie folgt dem gewählten Aufbau und nimmt Namen an', async () => {
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    const klappe = wrapper.find('details[data-vorschau]')
+    expect(klappe.find('summary').text()).toContain('So sehen die Listen dieses Aufbaus aus')
+    // Zugeklappt wird nichts gebaut.
+    expect(klappe.find('.wkr-vorschau').exists()).toBe(false)
+    ;(klappe.element as HTMLDetailsElement).open = true
+    await klappe.trigger('toggle')
+    const reiter = () => klappe.findAll('.wkr-vorschau-tabs button').map((b) => b.attributes('data-liste'))
+    expect(reiter()).toContain('gate135')
+    expect(klappe.findAll('.bogen')).toHaveLength(1)
+    await wrapper.find('#ev-aufbau').setValue('berlin')
+    expect(reiter()).toEqual(['steg', 'bstartziel', 'brechts', 'blinks'])
+    await klappe.find('.bogen[data-liste="steg"] input.bk-wkr-input').setValue('A. Muster')
+    expect(store.state.value.einteilung).toEqual({ par_2: { steg: 'A. Muster' } })
+    wrapper.unmount()
+  })
+
 })

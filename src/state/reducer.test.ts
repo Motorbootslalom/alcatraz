@@ -234,5 +234,7 @@ describe('Leerzeilen der Wettkampfrichter-Listen', () => {
   it('Rückseite ein- und ausschalten', () => {
     expect(emptyState().wkrRueckseite).toBe(false)
     expect(reducer(emptyState(), { type: 'SET_WKR_RUECKSEITE', rueckseite: true }).wkrRueckseite).toBe(true)
+    expect(emptyState().wkrClubGemeinsam).toBe(false)
+    expect(reducer(emptyState(), { type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: true }).wkrClubGemeinsam).toBe(true)
   })
 })

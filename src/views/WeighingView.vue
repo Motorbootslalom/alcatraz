@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { classColor } from '../domain/classes'
 import { ausgleichKg, gewichtsGruppen, parseGewicht } from '../domain/gewicht'
@@ -18,7 +19,7 @@ const { state, dispatch } = useStore()
 const { classLabel } = useEvent()
 
 const groups = computed(() => gewichtsGruppen(state.value.starters, state.value.originMode))
-const chosen = ref('')
+const chosen = merke('verwiegung.wahl', '')
 const shown = computed(() => {
   const hit = groups.value.filter((g) => g.origin === chosen.value)
   return chosen.value && hit.length > 0 ? hit : groups.value

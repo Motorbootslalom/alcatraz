@@ -36,3 +36,71 @@ describe('Verzahnung: Schnellauswahl', () => {
     wrapper.unmount()
   })
 })
+
+describe('Verzahnung: klassische Startnummern neu vergeben', () => {
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+    // Erfundene Starter in zwei Klassen desselben Parcours.
+    store.dispatch({
+      type: 'ADD_STARTERS',
+      starters: ['1', '1', '3', '3'].map((klasse, i) => ({
+        id: `id-${i}`,
+        startNr: '',
+        vorname: 'V',
+        nachname: `N${i}`,
+        verein: 'Musterclub',
+        bundesland: 'Musterland',
+        geburtsdatum: '',
+        groesse: '',
+        klasse: klasse as '1' | '3',
+      })),
+    })
+  })
+
+  const ansicht = () => mount(VerzahnungView, { global: { provide: { [storeKey as symbol]: store } } })
+  const nummern = () => store.state.value.starters.map((s) => s.startNr)
+
+  it('nur bei klassischen Startnummern gibt es die Leiste mit dem Knopf', async () => {
+    const wrapper = ansicht()
+    expect(wrapper.find('[data-leiste="nummern"]').exists()).toBe(false)
+    store.dispatch({ type: 'SET_START_NR_MODE', mode: 'klassisch' })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-action="renumber"]').text()).toContain('Startnummern neu vergeben')
+    wrapper.unmount()
+  })
+
+  it('eine geänderte Verzahnung vergibt nichts von selbst – erst der Knopf, nach Rückfrage', async () => {
+    store.dispatch({ type: 'SET_START_NR_MODE', mode: 'klassisch' })
+    store.dispatch({ type: 'ASSIGN_START_NUMBERS' })
+    const vorher = nummern()
+    const wrapper = ansicht()
+    const leiste = () => wrapper.find('[data-leiste="nummern"]')
+    expect(leiste().classes()).not.toContain('stale')
+    expect(leiste().text()).toContain('folgen der Verzahnung')
+    // Anderer Wechsel-Faktor: andere Startreihenfolge.
+    const p = store.state.value.parcoursList.find((x) => x.classIds.includes('1'))!
+    store.dispatch({ type: 'SET_PARCOURS_FACTOR', id: p.id, wechselFaktor: p.wechselFaktor === 2 ? 1 : 2 })
+    await wrapper.vm.$nextTick()
+    expect(nummern()).toEqual(vorher)
+    expect(leiste().classes()).toContain('stale')
+    expect(leiste().text()).toContain('passen nicht zur Verzahnung')
+    // Ablehnen lässt alles, wie es ist; Bestätigen vergibt neu.
+    const frage = window.confirm
+    try {
+      window.confirm = () => false
+      await wrapper.find('[data-action="renumber"]').trigger('click')
+      expect(nummern()).toEqual(vorher)
+      window.confirm = () => true
+      await wrapper.find('[data-action="renumber"]').trigger('click')
+      expect(nummern()).not.toEqual(vorher)
+      expect(leiste().classes()).not.toContain('stale')
+    } finally {
+      window.confirm = frage
+    }
+    wrapper.unmount()
+  })
+})

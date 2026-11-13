@@ -414,21 +414,20 @@ describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
   })
   afterEach(() => setLocale('de'))
 
-  it('die WKR-Einteilung ist ein eigener Abschnitt, mit der Beispielansicht der Listen darunter', async () => {
+  it('die WKR-Einteilung ist ein eigener Abschnitt; die Beispielansicht gehört zum Assistenten und zur Veranstaltung', async () => {
     const wrapper = settings(store)
     const abschnitt = wrapper.find('#wkr-einteilung')
     expect(abschnitt.find('h2').text()).toBe('WKR-Einteilung')
     expect(abschnitt.find('.wkr-tabelle').exists()).toBe(true)
-    expect(abschnitt.find('.wkr-vorschau h3').text()).toContain('So sehen die Listen aus')
-    expect(abschnitt.findAll('.wkr-vorschau .bogen').length).toBeGreaterThan(3)
+    // Ohne offenen Assistenten gibt es hier keine Beispielansicht (sie steht bei der Veranstaltung).
+    expect(wrapper.find('.wkr-vorschau').exists()).toBe(false)
     // Sie steht vor den eigenen Aufbauten und den Dateien.
     const reihenfolge = wrapper.findAll('.panel > h2, details.panel > summary').map((h) => h.text())
     expect(reihenfolge.indexOf('WKR-Einteilung')).toBeGreaterThan(reihenfolge.indexOf('Listen'))
     expect(reihenfolge.indexOf('WKR-Einteilung')).toBeLessThan(reihenfolge.indexOf('Eigene Aufbauten'))
-    // Ein Name aus der Vorschau landet im Stand – und damit in der Tabelle.
-    await abschnitt.find('.bogen[data-liste="zeit"] input.bk-wkr-input').setValue('A. Muster')
-    expect(store.state.value.einteilung).toEqual({ par_2: { zeit: 'A. Muster' } })
-    expect((abschnitt.find('input[data-feld="par_2|zeit"]').element as HTMLInputElement).value).toBe('A. Muster')
+    // Einstellungen der Wettkampfrichter-Listen und die Namen stehen zusammen, vor den Standardgewichten.
+    expect(reihenfolge.indexOf('WKR-Einteilung')).toBe(reihenfolge.indexOf('Wettkampfrichter-Listen') + 1)
+    expect(reihenfolge.indexOf('WKR-Einteilung')).toBeLessThan(reihenfolge.indexOf('Standardgewichte'))
     wrapper.unmount()
   })
 
@@ -438,13 +437,11 @@ describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
       const wrapper = settings(store)
       await wrapper.find('[data-action="derive"]').trigger('click')
       const vorschau = wrapper.find('.assistent-vorschau')
-      expect(vorschau.find('summary').text()).toBe('Beispielansicht der Listen dieses Entwurfs')
-      // Zugeklappt wird nichts gebaut.
-      expect(vorschau.find('.bogen').exists()).toBe(false)
-      ;(vorschau.element as HTMLDetailsElement).open = true
-      await vorschau.trigger('toggle')
+      // Sie gehört zum Assistenten und steht ohne Aufklappen da: je Position ein Reiter, ein Blatt.
       await nextTick()
-      const listen = () => vorschau.findAll('.bogen').map((b) => b.find('.bk-liste').text())
+      expect(vorschau.find('h3').text()).toContain('So sehen die Listen aus')
+      expect(vorschau.findAll('.bogen')).toHaveLength(1)
+      const listen = () => vorschau.findAll('.wkr-vorschau-tabs button').map((b) => b.text())
       expect(listen()).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Mann-über-Bord', 'Parcours'])
       expect(vorschau.find('.bogen-kennzeichen').text()).toBe('Beispielansicht')
       expect(vorschau.find('input.bk-wkr-input').exists()).toBe(false)

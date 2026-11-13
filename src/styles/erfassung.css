@@ -1,0 +1,352 @@
+/* ======================================================================
+   Erfassung: ein Wettkampfrichter-Bogen als Eingabetabelle
+   Dieselben Spalten und Zeilen wie auf dem Papier (components/erfassung/
+   ErfassungTabelle.vue), aber für den Bildschirm gebaut: Die Tabelle rollt in
+   schmalen Fenstern quer, die Startnummer bleibt stehen, die Felder sind groß
+   genug für den Finger. Gedruckt wird sie nie.
+   Farben nur über --blatt-* (styles/blatt.css) – die Tabelle ist ein Blatt
+   wie die Listen und folgt damit dem Farbschema samt Dunkel.
+   ====================================================================== */
+
+.erf-bogen {
+  color: var(--blatt-text);
+}
+
+.erf-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  margin-bottom: 12px;
+}
+
+.erf-titel {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  border: 2px solid var(--blatt-linie);
+  background: var(--blatt-kopf);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.erf-titel > span {
+  padding: 5px 12px;
+}
+
+.erf-titel > span + span {
+  border-left: 2px solid var(--blatt-linie);
+}
+
+.erf-titel > .erf-wkr {
+  font-weight: 400;
+}
+
+.erf-stand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-left: auto;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.erf-balken {
+  width: 120px;
+  height: 10px;
+  accent-color: var(--blatt-akzent);
+}
+
+.erf-stand-text {
+  font-weight: 700;
+}
+
+.erf-stand-text[data-fertig]::after {
+  content: ' ✓';
+  color: var(--blatt-akzent);
+}
+
+.erf-stand-warn {
+  color: var(--blatt-warn);
+  font-weight: 600;
+}
+
+/* Der Rahmen rollt quer; so bleibt die Seite selbst ruhig (auch bei 390 px). */
+.erf-rahmen {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 2px solid var(--blatt-linie);
+  background: var(--blatt-bg);
+}
+
+/* Getrennte Rahmen statt border-collapse: Nur so behält die stehende erste Spalte beim Rollen ihre Linien. */
+.erf-tabelle {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.erf-tabelle th,
+.erf-tabelle td {
+  border-right: 1px solid var(--blatt-linie);
+  border-bottom: 1px solid var(--blatt-linie);
+  padding: 0;
+  text-align: center;
+  background: var(--blatt-bg);
+}
+
+.erf-tabelle tr > :last-child {
+  border-right: none;
+}
+
+.erf-tabelle tbody tr:last-child > * {
+  border-bottom: none;
+}
+
+.erf-tabelle thead th {
+  padding: 5px 4px;
+  background: var(--blatt-kopf);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.erf-tabelle thead tr:last-child th,
+.erf-tabelle thead th[rowspan='2'] {
+  border-bottom-width: 2px;
+}
+
+.erf-tabelle .erf-sub {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Die Startnummer bleibt beim Querrollen stehen. */
+.erf-tabelle .erf-nr {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 52px;
+  padding: 0 6px;
+  border-right-width: 2px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.erf-tabelle thead .erf-nr {
+  z-index: 2;
+}
+
+.erf-tabelle .erf-klasse {
+  padding: 0 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.erf-tabelle tbody tr.erf-grau > * {
+  background: var(--blatt-grau);
+}
+
+/* Zeile mit Fokus: Man sieht, in welcher Zeile man tippt, auch wenn die Nummer weit links steht. */
+.erf-tabelle tbody tr:focus-within > .erf-nr {
+  box-shadow: inset 4px 0 0 var(--blatt-akzent);
+}
+
+.erf-tabelle tbody tr.erf-zwischen > th {
+  padding: 4px 8px;
+  border-top: 1px solid var(--blatt-linie);
+  background: var(--blatt-zwischen);
+  text-align: left;
+  font-weight: 700;
+}
+
+/* Diese Spalte gibt es für die Klasse der Zeile nicht (gemeinsame Liste mehrerer Klassen). */
+.erf-tabelle td.erf-entfaellt {
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--blatt-blass) 4px 5px);
+}
+
+.erf-tabelle .erf-z-sum {
+  min-width: 48px;
+  padding: 0 4px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Trennlinien wie auf dem Bogen (Hin-/Rückfahrt, zwischen den Bojen eines Tores). */
+.erf-tabelle .erf-sep-fett {
+  border-left: 2.5px solid var(--blatt-linie);
+}
+
+.erf-tabelle .erf-sep-doppelt {
+  border-left: 4px double var(--blatt-linie);
+}
+
+.erf-tabelle .erf-sep-gepunktet {
+  border-left: 1px dotted var(--blatt-linie);
+}
+
+.erf-tabelle .erf-sep-gestrichelt {
+  border-left: 1px dashed var(--blatt-linie);
+}
+
+.erf-tabelle .erf-sepr-gepunktet {
+  border-right-style: dotted;
+}
+
+.erf-tabelle .erf-sepr-gestrichelt {
+  border-right-style: dashed;
+}
+
+/* Eingabefelder: füllen die Zelle, ohne eigenen Rahmen – das Gitter ist der Rahmen. */
+.erf-feld {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 44px;
+  height: 34px;
+  border: none;
+  border-radius: 0;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--blatt-text);
+  font: inherit;
+  text-align: center;
+}
+
+.erf-feld:focus {
+  outline: 2px solid var(--blatt-akzent);
+  outline-offset: -2px;
+  background: var(--blatt-feld);
+}
+
+.erf-feld--code {
+  min-width: 84px;
+}
+
+.erf-feld--disq {
+  min-width: 60px;
+  font-weight: 700;
+}
+
+.erf-feld--disq::placeholder {
+  color: var(--blatt-leise);
+  font-weight: 400;
+}
+
+.erf-feld--zeit {
+  min-width: 148px;
+}
+
+.erf-feld--text {
+  min-width: 150px;
+  text-align: left;
+}
+
+/* Unplausibel: farbige Unterkante und Marke an der Nummer – nicht nur Farbe, auch Form. */
+.erf-feld--auffaellig {
+  box-shadow: inset 0 -3px 0 var(--blatt-warn);
+}
+
+.erf-marke {
+  display: inline-block;
+  min-width: 1.1em;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: var(--blatt-warn);
+  color: var(--blatt-bg);
+  font-size: 12px;
+  line-height: 1.25em;
+}
+
+.erf-tabelle .erf-haken {
+  width: 38px;
+  min-width: 38px;
+}
+
+.erf-tabelle .erf-haken input {
+  width: 20px;
+  height: 20px;
+  margin: 4px;
+  accent-color: var(--blatt-akzent);
+  vertical-align: middle;
+}
+
+.erf-hinweise {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: var(--blatt-warn);
+  font-size: 13px;
+}
+
+.erf-fuss {
+  align-items: center;
+  margin-top: 12px;
+}
+
+.erf-legende .bl {
+  max-width: 190mm;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* ---------- Auswahl über der Tabelle (Bedienung, kein Blatt) ---------- */
+
+.eingabe-listen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.eingabe-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.eingabe-chip:hover {
+  border-color: var(--accent);
+}
+
+.eingabe-chip.aktiv {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--panel);
+}
+
+.eingabe-chip-zahl {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.eingabe-chip.fertig .eingabe-chip-zahl::after {
+  content: ' ✓';
+}
+
+.eingabe-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .erf-stand {
+    margin-left: 0;
+  }
+
+  .erf-panel {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}

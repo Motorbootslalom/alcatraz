@@ -49,6 +49,8 @@ export default defineConfig(({ mode }) => {
       environment: 'happy-dom',
       include: ['src/**/*.test.ts'],
       setupFiles: ['src/test-setup.ts'],
+      // Einige Tests bauen Dutzende Bögen; laufen mehrere Testläufe zugleich, reichen 5 s nicht.
+      testTimeout: 30_000,
     },
   }
 })

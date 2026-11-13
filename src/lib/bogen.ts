@@ -49,6 +49,11 @@ export interface BogenAuftrag {
   parcours?: string
   /** Name des Wettkampfrichters im Kopf. */
   wkr?: string
+  /**
+   * Ohne Parcoursbild: für gemeinsame Bögen von Klassen mit verschiedenen Zeichnungen
+   * (Clubmeisterschaft, Papier sparen) – ein fremdes Bild wäre schlimmer als keines.
+   */
+  ohneBild?: boolean
 }
 
 export interface BogenOptionen {
@@ -258,7 +263,7 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
   // Mehrere Klassen: Das Bild der letzten – die höhere Klasse zeigt den längeren Parcours.
   const bildKlasse = klassen[klassen.length - 1]
   const bild: BogenBild | undefined =
-    def.bildErzeugen && bildKlasse !== undefined
+    def.bildErzeugen && bildKlasse !== undefined && !auftrag.ohneBild
       ? { datei: konfig.bildDatei(auftrag.aufbauId, bildKlasse), vorgabe: def.bildErzeugen, drehung: def.bildDrehung ?? 0 }
       : undefined
 

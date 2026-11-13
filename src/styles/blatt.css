@@ -1,0 +1,72 @@
+/* ======================================================================
+   Farben der Listen und Bögen („Blatt“)
+   Alles, was gedruckt wird – Starter-, Gewichts-, Vorsteg-Listen, die Bögen der
+   Wettkampfrichter, später Ergebnislisten –, nimmt seine Farben ausschließlich
+   aus den Variablen --blatt-*. So gibt es genau eine Stelle, an der sich
+   Bildschirm und Papier unterscheiden:
+
+   - Die Vorgabe unten sind die festen Druckfarben: schwarz auf weiß, graue Zeile.
+   - Nur in „@media screen“ werden sie aus dem gewählten Farbschema abgeleitet
+     (samt Dunkel). Der Druck kann deshalb nie eine Schemafarbe erwischen, egal
+     welches Schema und welcher Modus am Bildschirm eingestellt ist.
+
+   Neue Listen: keine festen Farben und keine Schema-Variablen (--panel, --text,
+   --accent …) in den Regeln, nur --blatt-*; das prüft src/styles/blatt.test.ts.
+   ====================================================================== */
+
+:root {
+  /* Papier und Schrift */
+  --blatt-bg: #fff;
+  --blatt-text: #000;
+  /* Gitterlinien und Rahmen */
+  --blatt-linie: #000;
+  /* Jede fünfte Zeile – dem Nutzer besonders wichtig, muss überall deutlich bleiben. */
+  --blatt-grau: #d9d9d9;
+  /* Spaltenköpfe und Titelleiste: auf Papier weiß, am Bildschirm in der Schemafarbe. */
+  --blatt-kopf: #fff;
+  /* Zwischenüberschrift einer Klasse auf einer gemeinsamen Liste */
+  --blatt-zwischen: #e6e6e6;
+  /* Hervorgehobene Zelle der Ergebnislisten („disq.“): im Druck ein kräftigeres Grau */
+  --blatt-hervor: #bdbdbd;
+  /* Kleingedrucktes (Bezeichnung unter der Linie, Bildnachweis) */
+  --blatt-leise: #444;
+  /* Punktlinie des Namensfelds, Schraffur „entfällt“ */
+  --blatt-blass: #999;
+  /* Rahmen um Parcoursbild und Rückseiten-Hinweis; am Bildschirm auch das Eingabefeld */
+  --blatt-akzent: #7a86c9;
+  /* Grund des Eingabefelds im Bogenkopf (nur am Bildschirm sichtbar) */
+  --blatt-feld: transparent;
+  /* Grund hinter dem Parcoursbild: Die Zeichnungen haben dunkle Linien auf
+     durchsichtigem Grund und brauchen deshalb immer etwas Helles dahinter. */
+  --blatt-bild-bg: #fff;
+  /* Hinweise, die es nur am Bildschirm gibt (Seite zu voll, „Beispielansicht“) */
+  --blatt-warn: #b42318;
+  /* Kante des Blatts am Bildschirm; im Druck hat das Blatt keinen Rand. */
+  --blatt-rand: transparent;
+}
+
+@media screen {
+  :root {
+    --blatt-bg: var(--panel);
+    --blatt-text: var(--text);
+    --blatt-linie: var(--text);
+    /* Aus der Schriftfarbe gemischt: Damit ist die Zeile im Hellen dunkler und im
+       Dunklen heller als das Blatt, ohne dass jedes Schema eigene Werte braucht. */
+    --blatt-grau: color-mix(in srgb, var(--text) 18%, var(--panel));
+    --blatt-hervor: color-mix(in srgb, var(--text) 32%, var(--panel));
+    --blatt-kopf: var(--accent-soft);
+    --blatt-zwischen: var(--accent-soft);
+    --blatt-leise: var(--muted);
+    --blatt-blass: color-mix(in srgb, var(--text) 50%, var(--panel));
+    --blatt-akzent: var(--accent);
+    --blatt-feld: var(--accent-soft);
+    --blatt-warn: var(--danger);
+    --blatt-rand: var(--border);
+  }
+
+  /* Im Dunklen ist die Schriftfarbe die helle Farbe des Schemas – als Grund hinter dem
+     Bild bleibt die Zeichnung lesbar, ohne dass ein reinweißer Kasten blendet. */
+  :root[data-mode='dark'] {
+    --blatt-bild-bg: var(--text);
+  }
+}

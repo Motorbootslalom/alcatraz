@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
+import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
@@ -13,8 +14,8 @@ import BogenBlatt from './bogen/BogenBlatt.vue'
 import ParcoursNachweis from './ParcoursNachweis.vue'
 
 /**
- * Beispielansicht der Wettkampfrichter-Listen: alle Listen eines Aufbaus für eine Klasse,
- * so wie sie gedruckt würden – mit Muster-Startnummern („M1“, „M2“ …) und einem Kennzeichen
+ * Beispielansicht der Wettkampfrichter-Listen: die Listen eines Aufbaus für eine Klasse, je
+ * Position ein Reiter, so wie sie gedruckt würden – mit Muster-Startnummern („M1“, „M2“ …) und einem Kennzeichen
  * quer über jedem Blatt. Vorbild ist die Vorschau im Fehlerpunkte-Prototyp (`vorschauKlasse`).
  *
  * Sie rechnet nur aus dem Stand und der Konfiguration und folgt deshalb sofort dem
@@ -50,12 +51,12 @@ const { regelwerk, classLabel } = useEvent()
 const klassen = computed(() => regelwerk.value.klassen)
 // Vorgabe wie im Prototyp die höchste Klasse: Sie hat die meisten Spalten und Listen. Nach
 // einem Wechsel des Regelwerks gilt die Vorgabe, wenn es die gewählte Klasse dort nicht gibt.
-const wahl = ref<ClassId>()
+const wahl = merke<ClassId | undefined>('vorschau.klasse', undefined)
 const klasse = computed<ClassId>(() => (wahl.value && klassen.value.includes(wahl.value) ? wahl.value : klassen.value[klassen.value.length - 1]))
 
 /** Wie viele Muster-Starter auf den Listen stehen; mit vielen zeigt sich die Seitenaufteilung. */
 const MAX_ZEILEN = 60
-const anzahl = ref(10)
+const anzahl = merke('vorschau.zeilen', 10)
 function setzeAnzahl(e: Event) {
   const n = parseInt((e.target as HTMLInputElement).value, 10)
   anzahl.value = Number.isNaN(n) ? 0 : Math.max(0, Math.min(MAX_ZEILEN, n))
@@ -87,7 +88,12 @@ const boegen = computed(() => {
     return { typeId, feld, imKopf, auftrag, label }
   })
 })
-const mitBild = computed(() => boegen.value.some((b) => konfig.value.getSheetDef(b.typeId).bildErzeugen))
+// Je Position ein Reiter: Untereinander wären es bis zu neun Blätter – wer einen Aufbau
+// anlegt, will die eine Position sehen, an der er gerade arbeitet. Gibt es die gewählte
+// Position nicht mehr (andere Klasse, anderer Aufbau), gilt die erste.
+const gewaehlt = merke<string | undefined>('vorschau.reiter', undefined)
+const aktiv = computed(() => boegen.value.find((b) => b.typeId === gewaehlt.value) ?? boegen.value[0])
+const mitBild = computed(() => !!aktiv.value && !!konfig.value.getSheetDef(aktiv.value.typeId).bildErzeugen)
 
 function setzeName(parcoursId: string, typeId: string, name: string) {
   dispatch({ type: 'SET_WKR_NAME', parcoursId, typeId, name })
@@ -128,8 +134,22 @@ const KOPF_FELD_AB = 0.6
       {{ t('preview.noParcours', { class: classLabel(klasse) }) }} <a href="#/verzahnung">{{ t('nav.verzahnung') }}</a>
     </p>
     <p v-if="boegen.length === 0" class="boat-banner warn" role="status">{{ t('preview.noLists', { class: classLabel(klasse) }) }}</p>
+    <div v-if="boegen.length > 1" class="segmented list-kinds wkr-vorschau-tabs" role="tablist" :aria-label="t('preview.tabs')">
+      <button
+        v-for="b in boegen"
+        :key="b.typeId"
+        type="button"
+        role="tab"
+        :data-liste="b.typeId"
+        :class="aktiv?.typeId === b.typeId ? 'active' : ''"
+        :aria-selected="aktiv?.typeId === b.typeId"
+        @click="gewaehlt = b.typeId"
+      >
+        {{ konfig.getSheetDef(b.typeId).title }}
+      </button>
+    </div>
     <div ref="stapel" class="bogen-stapel" :style="zoom">
-      <template v-for="b in boegen" :key="b.typeId">
+      <template v-for="b in aktiv ? [aktiv] : []" :key="b.typeId">
         <!-- Verkleinertes Blatt: das Namensfeld in normaler Größe darüber (siehe oben). -->
         <div v-if="b.feld && !b.imKopf" class="field wkr-vorschau-name">
           <label :for="`${id}-name-${b.typeId}`">{{ b.label }}</label>

@@ -43,3 +43,10 @@ function install(name: 'localStorage' | 'sessionStorage'): void {
 
 install('localStorage')
 install('sessionStorage')
+
+// Was die Ansichten sich über den Wechsel hinweg merken (lib/merken.ts), darf nicht von einem
+// Test in den nächsten wandern.
+import { beforeEach } from 'vitest'
+import { vergissAlles } from './lib/merken'
+
+beforeEach(() => vergissAlles())

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId, watchEffect } from 'vue'
+import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
@@ -46,7 +47,7 @@ const listenArten = computed(() => {
 })
 
 // Eine Wahl, die es nach einer Änderung (Aufbau, Verzahnung, Läufe) nicht mehr gibt, gilt als „alle“.
-const wahl = ref<WkrAuswahl>({})
+const wahl = merke<WkrAuswahl>('listen.wkr', {})
 const auswahl = computed<WkrAuswahl>(() => ({
   parcours: parcours.value.some((p) => p.id === wahl.value.parcours) ? wahl.value.parcours : undefined,
   klasse: wahl.value.klasse !== undefined && klassen.value.includes(wahl.value.klasse) ? wahl.value.klasse : undefined,
@@ -85,7 +86,7 @@ const { zoom } = useBogenZoom(stapel)
 <template>
   <div v-if="!gesperrt" class="panel no-print wkr-listen-wahl">
     <p class="hint">{{ t('lists.wkr.hint') }}</p>
-    <p v-if="state.eventKind === 'club'" class="note">{{ t('lists.wkr.club') }}</p>
+    <p v-if="state.eventKind === 'club'" class="note">{{ state.wkrClubGemeinsam ? t('lists.wkr.clubJoint') : t('lists.wkr.club') }}</p>
     <div class="row wkr-listen-leiste">
       <div v-if="state.parcoursList.length > 1" class="field">
         <label :for="`${id}-parcours`">{{ t('lists.wkr.parcours') }}</label>

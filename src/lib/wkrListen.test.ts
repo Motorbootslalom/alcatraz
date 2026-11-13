@@ -26,6 +26,7 @@ function starter(klassen: ClassId[], n = 3): Starter[] {
 const ALLE: ClassId[] = ['E', '1', '2', '3', '4', '5', '6', '7']
 const stand = (mehr: Partial<AppState> = {}): AppState => ({ ...emptyState(), eventName: 'Hafenpokal', starters: starter(ALLE), ...mehr })
 const dm = configFor({ regelwerk: 'dm-2026' })
+const sortiert = (k: readonly ClassId[]) => [...k].sort((a, b) => ALLE.indexOf(a) - ALLE.indexOf(b))
 const EIN_PARCOURS = [{ id: 'par_1', name: 'Parcours 1', classIds: ALLE, wechselFaktor: 2 as const }]
 
 describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
@@ -41,8 +42,12 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     expect(boegen[1]).toMatchObject({ klassen: ['E'], lauf: 1, typeId: listen[1] })
     // Erst alle Läufe einer Klasse, dann die nächste Klasse, zuletzt der nächste Parcours.
     const folge = boegen.map((b) => `${b.parcoursId}/${b.klassen[0]}/${b.lauf}`).filter((x, i, a) => a.indexOf(x) === i)
-    expect(folge.slice(0, 4)).toEqual(['par_1/E/1', 'par_1/E/2', 'par_1/E/3', 'par_1/1/1'])
-    expect(folge[folge.length - 1]).toBe('par_2/7/3')
+    // Die Klassen eines Parcours in der Reihenfolge, in der sie laut Verzahnung zuerst starten:
+    // So liegt der Stapel aus dem Drucker schon richtig und muss nur getrennt werden.
+    const plan = planEvent(stand()).plans
+    const startfolge = plan.flatMap((p) => [...new Set(p.sequence.map((x) => x.klasse))].map((k) => `${p.parcoursId}/${k}`))
+    expect(startfolge.slice(0, 2)).not.toEqual(['par_1/E', 'par_1/1'])
+    expect(folge).toEqual(startfolge.flatMap((pk) => [1, 2, 3].map((lauf) => `${pk}/${lauf}`)))
     expect(boegen.filter((b) => b.typeId === 'mueb').map((b) => b.klassen[0])).not.toContain('3')
   })
 
@@ -111,7 +116,7 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     const { boegen, ohneListe } = wkrBoegenZumStand(stand({ regelwerk: 'uim-2026' }), uim)
     // Klassen 6 und 7 kennt das Regelwerk nicht: Sie bekommen keinen Bogen und werden gemeldet.
     expect(ohneListe).toEqual(['6', '7'])
-    expect([...new Set(boegen.flatMap((b) => b.klassen))]).toEqual(['E', '1', '2', '3', '4', '5'])
+    expect(new Set(boegen.flatMap((b) => b.klassen))).toEqual(new Set(['E', '1', '2', '3', '4', '5']))
     const b = boegen.find((x) => x.typeId === 'steg' && x.klassen[0] === 'E')!
     expect(bogenSeiten(uim, b.auftrag, b.optionen)[0]).toMatchObject({ klassenText: 'Class Dolphin', laufText: 'Attempt 1' })
   })
@@ -132,7 +137,7 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
   it('Klassen mit gleichem Aufbau teilen sich einen Bogen, Klassen ohne Starter entfallen', () => {
     const { boegen } = wkrBoegenZumStand(club(), dm)
     const steg = boegen.filter((b) => b.typeId === 'steg' && b.lauf === 1)
-    expect(steg.map((b) => b.klassen)).toEqual([['E', '1', '3'], ['4', '7']])
+    expect(steg.map((b) => sortiert(b.klassen))).toEqual([['E', '1', '3'], ['4', '7']])
     expect(steg[0].optionen).toMatchObject({ klassenBloecke: true })
     // Mann-über-Bord: nur die Klassen ab 4 – mit Parcoursbild, also je Klasse (siehe unten).
     expect(boegen.filter((b) => b.typeId === 'mueb' && b.lauf === 1).map((b) => b.klassen)).toEqual([['4'], ['7']])
@@ -163,15 +168,19 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
     // Möwe: Der Kurs der Klassen 5 bis 7 steht nicht auf dem Bogen der Klassen E bis 4.
     const moewe = wkrBoegenZumStand(stand({ eventKind: 'club', aufbau: 'moewe', parcoursList: EIN_PARCOURS }), dm).boegen
     const parcours = moewe.filter((b) => b.typeId === 'parcours' && b.lauf === 1)
-    expect(parcours.map((b) => b.klassen)).toEqual(ALLE.map((k) => [k]))
-    expect(bogenSeiten(dm, parcours[0].auftrag, parcours[0].optionen)[0].bild?.datei).toBe(dm.bildDatei('moewe', 'E'))
+    expect(parcours.map((b) => b.klassen).sort((a, b) => ALLE.indexOf(a[0]) - ALLE.indexOf(b[0]))).toEqual(ALLE.map((k) => [k]))
+    const fuerE = parcours.find((b) => b.klassen[0] === 'E')!
+    expect(bogenSeiten(dm, fuerE.auftrag, fuerE.optionen)[0].bild?.datei).toBe(dm.bildDatei('moewe', 'E'))
   })
 
   it('Gruppen müssen nicht zusammenhängen: Die Bögen folgen der ersten Klasse der Gruppe', () => {
     // Steg: Klasse 4 … 7 haben andere Spalten als E … 3; ohne 5 und 6 stehen 4 und 7 zusammen.
-    const { boegen } = wkrBoegenZumStand(club({ parcoursList: EIN_PARCOURS }), dm)
+    const s = club({ parcoursList: EIN_PARCOURS })
+    const { boegen } = wkrBoegenZumStand(s, dm)
     const lauf1 = boegen.filter((b) => b.lauf === 1)
-    const erste = lauf1.map((b) => ALLE.indexOf(b.klassen[0]))
+    // „Erste Klasse“ heißt: die, die laut Verzahnung zuerst startet.
+    const startfolge = [...new Set(planEvent(s).plans[0].sequence.map((x) => x.klasse))]
+    const erste = lauf1.map((b) => startfolge.indexOf(b.klassen[0]))
     expect(erste).toEqual([...erste].sort((a, b) => a - b))
     // Jede Klasse steht je Liste auf genau einem Bogen.
     for (const typeId of new Set(lauf1.map((b) => b.typeId))) {
@@ -186,15 +195,16 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
     const seiten = bogenSeiten(dm, b.auftrag, b.optionen)
     expect(seiten).toHaveLength(1)
     const seite = seiten[0]
-    expect(seite.klassenText).toBe('Klassen E, 1, 3')
+    // In der Startreihenfolge der Verzahnung: hier 1, E, 3.
+    expect(seite.klassenText).toBe('Klassen 1, E, 3')
     expect(seite.zeigtKlasse).toBe(false)
     expect(seite.rows.map((z) => z.zwischen ?? (z.nr || '·'))).toEqual([
-      'Klasse E', 'E01', 'E02', 'E03', '·',
       'Klasse 1', '101', '102', '103', '·',
+      'Klasse E', 'E01', 'E02', 'E03', '·',
       'Klasse 3', '301', '302', '303', '·', '·',
     ])
     // Jede fünfte Zeile grau, Zwischenüberschriften zählen nicht mit.
-    expect(seite.rows.filter((z) => z.shaded).map((z) => z.nr || '·')).toEqual(['101', '302'])
+    expect(seite.rows.filter((z) => z.shaded).map((z) => z.nr || '·')).toEqual(['E01', '302'])
     expect(new Set(seite.rows.map((z) => z.key)).size).toBe(seite.rows.length)
     expect(seite.rows.filter((z) => z.fixed).every((z) => z.key.startsWith('id-'))).toBe(true)
   })
@@ -203,20 +213,21 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
     const s = club({ starters: [...starter(['E'], 5), ...starter(['1'], 6), ...starter(['3'], 25)], wkrLeerzeilen: 0 })
     const b = wkrBoegenZumStand(s, dm).boegen.find((x) => x.typeId === 'steg')!
     const seiten = bogenSeiten(dm, b.auftrag, { ...b.optionen, zeilenKapazitaet: 12 })
-    // Klasse 3 braucht ohnehin drei Stücke; das erste passt noch unter Klasse 1.
+    // Die Blöcke stehen in der Startreihenfolge der Verzahnung (hier 3, E, 1). Klasse 3 braucht
+    // ohnehin drei Stücke; unter ihrem letzten ist noch Platz für Klasse E.
     expect(seiten.map((x) => x.rows.map((z) => z.zwischen).filter(Boolean))).toEqual([
-      ['Klasse E'],
-      ['Klasse 1', 'Klasse 3'],
+      ['Klasse 3'],
       ['Klasse 3 (Fortsetzung)'],
-      ['Klasse 3 (Fortsetzung)'],
+      ['Klasse 3 (Fortsetzung)', 'Klasse E'],
+      ['Klasse 1'],
     ])
     expect(seiten.every((x) => x.rows.length <= 12)).toBe(true)
     expect(seiten.map((x) => x.pageCount)).toEqual([4, 4, 4, 4])
     // Im Kopf stehen die Klassen der Seite, nicht alle des Bogens.
-    expect(seiten.map((x) => x.klassenText)).toEqual(['Klasse E', 'Klassen 1, 3', 'Klasse 3', 'Klasse 3'])
-    // Mit mehr Platz stehen E und 1 zusammen.
+    expect(seiten.map((x) => x.klassenText)).toEqual(['Klasse 3', 'Klasse 3', 'Klassen 3, E', 'Klasse 1'])
+    // Mit mehr Platz stehen E und 1 zusammen, hinter Klasse 3.
     const weit = bogenSeiten(dm, b.auftrag, { ...b.optionen, zeilenKapazitaet: 30 })
-    expect(weit.map((x) => x.rows.map((z) => z.zwischen).filter(Boolean))).toEqual([['Klasse E', 'Klasse 1'], ['Klasse 3']])
+    expect(weit.map((x) => x.rows.map((z) => z.zwischen).filter(Boolean))).toEqual([['Klasse 3'], ['Klasse E', 'Klasse 1']])
   })
 
   it('Leerzeilen kosten kein eigenes Blatt: Sie entfallen bis auf eine, Starter nie', () => {
@@ -235,8 +246,35 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
   it('ein Parcours für alle: der Name des Wettkampfrichters gilt für den gemeinsamen Bogen', () => {
     const s = club({ parcoursList: EIN_PARCOURS, einteilung: { par_1: { steg: 'A. Muster' } } })
     const steg = wkrBoegenZumStand(s, dm).boegen.filter((b) => b.typeId === 'steg' && b.lauf === 1)
-    expect(steg.map((b) => b.klassen)).toEqual([['E', '1', '3', '4', '7']])
+    expect(steg.map((b) => sortiert(b.klassen))).toEqual([['E', '1', '3', '4', '7']])
     expect(steg[0].auftrag.wkr).toBe('A. Muster')
     expect(steg[0].auftrag.parcours).toBeUndefined()
   })
+
+  it('Club, Papier sparen: alle Klassen einer Liste auf einem Bogen, ohne Bild, fehlende Spalten schraffiert', () => {
+    const s = stand({ eventKind: 'club', wkrClubGemeinsam: true, parcoursList: EIN_PARCOURS, laufCount: 1 })
+    const { boegen } = wkrBoegenZumStand(s, dm)
+    const listen = dm.aufbauOrder('alcatraz', false)
+    // Je Liste genau ein Bogen – statt je Klasse einer bei Listen mit Bild.
+    expect(boegen.map((b) => b.typeId).sort()).toEqual([...listen].sort())
+    const tor = boegen.find((b) => b.typeId === 'gate135')!
+    expect(sortiert(tor.klassen)).toEqual(ALLE)
+    const seiten = bogenSeiten(dm, tor.auftrag, tor.optionen)
+    expect(seiten.every((x) => x.bild === undefined)).toBe(true)
+    // Mann-über-Bord fahren nur die Klassen ab 4: Sie teilen sich den Bogen, die anderen stehen nicht darauf.
+    expect(boegen.find((b) => b.typeId === 'mueb')!.klassen).toEqual(['4', '5', '6', '7'])
+    // Irgendwo im Aufbau hat eine Klasse eine Spalte nicht, die eine andere hat: Dort ist die Zelle gesperrt.
+    const zeilen = boegen.flatMap((b) => bogenSeiten(dm, b.auftrag, b.optionen).flatMap((x) => x.rows))
+    expect(zeilen.some((z) => z.fixed && z.cells.some((c) => !c.gilt))).toBe(true)
+    // Leerzeilen gehören keiner Klasse: Dort ist jedes Feld beschreibbar.
+    expect(zeilen.filter((z) => !z.fixed && z.zwischen === undefined).every((z) => z.cells.every((c) => c.gilt))).toBe(true)
+  })
+
+  it('Club ohne Papier sparen: Listen mit Bild bleiben je Klasse und behalten ihre Zeichnung', () => {
+    const s = stand({ eventKind: 'club', parcoursList: EIN_PARCOURS, laufCount: 1 })
+    const tore = wkrBoegenZumStand(s, dm).boegen.filter((b) => b.typeId === 'gate135')
+    expect(tore.length).toBeGreaterThan(1)
+    expect(tore.every((b) => b.auftrag.ohneBild === false)).toBe(true)
+  })
+
 })

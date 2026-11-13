@@ -1,11 +1,12 @@
 import type { AppState, ClassId, OriginMode, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, leerzeilenZahl } from './reducer'
+import { emptyState, leerzeilenZahl, streichlaeufeWert } from './reducer'
 import { aufbauOf, regelwerkOf } from '../config/catalog'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
 import { normalisiereEinteilung } from '../lib/einteilung'
+import { normalisiereEingaben, nurStarter } from '../lib/eingaben'
 
 /**
  * Einen gelesenen Stand (localStorage, Sicherungsdatei) auf die aktuelle Fassung
@@ -29,11 +30,16 @@ export function migrate(raw: unknown): AppState | null {
     (a) => !gesehen.has(a.id) && !!gesehen.add(a.id),
   )
   const parcoursList = Array.isArray(loaded.parcoursList) ? loaded.parcoursList : base.parcoursList
+  const starters = loaded.starters.map(normalizeStarter)
   return {
     ...base,
     ...loaded,
     schemaVersion: SCHEMA_VERSION,
-    starters: loaded.starters.map(normalizeStarter),
+    starters,
+    // Fehlen in Ständen vor der Erfassung. Werte von Startern, die es nicht (mehr) gibt, entfallen.
+    eingaben: nurStarter(normalisiereEingaben(loaded.eingaben), new Set(starters.map((p) => p.id))),
+    streichlaeufe: streichlaeufeWert(loaded.streichlaeufe),
+    laufCount: Math.max(1, Math.min(9, Math.round(Number(loaded.laufCount)) || base.laufCount)),
     parcoursList,
     boats: { ...base.boats, ...loaded.boats },
     // Kennungen, die es nicht (mehr) gibt, fallen auf die Vorgabe zurück.
@@ -56,6 +62,7 @@ export function migrate(raw: unknown): AppState | null {
     wkrLeerzeilen: leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen,
     wkrLeerzeilenKlasse: eigeneLeerzeilen(loaded.wkrLeerzeilenKlasse, leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen),
     wkrRueckseite: loaded.wkrRueckseite === true,
+    wkrClubGemeinsam: loaded.wkrClubGemeinsam === true,
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },

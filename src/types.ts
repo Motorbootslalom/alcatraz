@@ -129,6 +129,30 @@ export type EventKind = 'meisterschaft' | 'club'
  */
 export type Einteilung = Record<string, Record<string, string>>
 
+/**
+ * Erfasste Werte der Wettkampfrichter-Listen: Lauf-Schlüssel → Starter-ID → Feld-Kennung →
+ * Rohwert, z. B. `eingaben["manoevrieren/1"]["p_ab12"]["t1a|hin seiteA"] = "5"`.
+ *
+ * - Der Lauf-Schlüssel nennt Disziplin und Lauf (lib/eingaben.ts `laufSchluessel`); Listen
+ *   ohne Lauf (Knoten) stehen unter Lauf 0.
+ * - Die Zeile ist die **Starter-ID**, nie die Startnummer: Nummern dürfen sich ändern, und
+ *   die Klasse folgt aus dem Starter.
+ * - Die Feld-Kennung (config/feld.ts) sagt, *was* erfasst ist, nicht wo es steht: Bojen,
+ *   Fehler und Zeiten sind in jedem Aufbau dasselbe Feld; Disq., Bemerkung und der Haken
+ *   „erfasst“ gehören zu ihrer Liste (`disq@steg`).
+ *
+ * Jede Zelle ist damit für sich benannt. Erfassen später mehrere Wettkampfrichter an eigenen
+ * Geräten, lassen sich ihre Eingaben Zelle für Zelle zusammenführen (Action `SET_EINGABEN`).
+ */
+export type Eingaben = Record<string, Record<string, Record<string, string>>>
+
+/**
+ * Wie viele Läufe je Starter gestrichen werden. `auto` ist die Regel der Deutschen
+ * Meisterschaft: ab drei Läufen einer, sonst keiner. Eine Zahl legt der Rennleiter fest
+ * (z. B. 1 bei zwei Läufen: der schlechtere wird gestrichen; 0: alle zählen).
+ */
+export type Streichlaeufe = 'auto' | number
+
 /** Aktuelle Fassung des gespeicherten Zustands, siehe state/migrate.ts. */
 export const SCHEMA_VERSION = 1
 
@@ -196,6 +220,17 @@ export interface AppState extends PlanState {
    * Vorn bleibt mehr Platz für Starter, gedruckt wird dann doppelseitig.
    */
   wkrRueckseite: boolean
+  /** Erfasste Zeiten, Fehler und Disqualifikationen; hängen an der Starter-ID. */
+  eingaben: Eingaben
+  /** Streichläufe der Gesamtwertung; die Zahl der Läufe steht in `laufCount`. */
+  streichlaeufe: Streichlaeufe
+  /**
+   * Clubmeisterschaft, Papier sparen: Alle Klassen einer Liste stehen auf einem Bogen, auch
+   * wenn ihre Spalten oder Zeichnungen verschieden sind. Dafür entfällt das Parcoursbild, und
+   * Spalten, die eine Klasse nicht hat, sind in deren Zeilen schraffiert. Aus = Listen mit
+   * Bild bleiben je Klasse (jede sieht ihre eigene Zeichnung).
+   */
+  wkrClubGemeinsam: boolean
 }
 
 // ---------------------------------------------------------------------------

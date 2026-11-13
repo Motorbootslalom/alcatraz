@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { WKR_LEERZEILEN_MAX } from '../state/reducer'
+import { streichlaeufeVon } from '../lib/ergebnis'
+import type { Zeitnahme } from '../lib/beispielwerte'
 import { classColor } from '../domain/classes'
 import { generateStarters } from '../domain/generate'
 import { defaultKuerzel, normalizeName } from '../domain/kuerzel'
@@ -10,15 +13,16 @@ import { loadLegacyVerzahnung } from '../persistenz/storage'
 import { sollgewichtOf } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { originOf } from '../lib/origin'
-import { formatDateTime, t } from '../i18n'
+import { formatDateTime, t, tn } from '../i18n'
 import type { ClassId, OriginStyle, Starter } from '../types'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
 import WkrEinteilung from '../components/WkrEinteilung.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
+import SettingsNav from '../components/SettingsNav.vue'
 
 /**
  * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten, wer an
- * welcher Liste sitzt (WKR-Einteilung mit Beispielansicht), und die Dateien zum Aufheben
+ * welcher Liste sitzt (WKR-Einteilung), und die Dateien zum Aufheben
  * und Weitergeben (Sicherung, Vorlage, Teilnehmerdaten).
  */
 const { state, dispatch } = useStore()
@@ -27,13 +31,16 @@ const { regelwerk, classLabel } = useEvent()
 const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color: classColor(id) })))
 const ORIGIN_STYLES: OriginStyle[] = ['lang', 'kurz']
 const dateiFeld = ref<HTMLInputElement | null>(null)
+const inhalt = ref<HTMLElement | null>(null)
 
 // „Veranstaltung“ verweist mit `#/einstellungen?wkr` auf die WKR-Einteilung: dann dorthin
 // rollen, statt den Abschnitt in der langen Seite suchen zu lassen.
 onMounted(async () => {
-  if (!location.hash.includes('?wkr')) return
+  // Ebenso `?wertung` aus den Ergebnislisten.
+  const ziel = location.hash.includes('?wkr') ? 'wkr-einteilung' : location.hash.includes('?wertung') ? 'wertung' : ''
+  if (!ziel) return
   await nextTick()
-  document.getElementById('wkr-einteilung')?.scrollIntoView?.({ block: 'start' })
+  document.getElementById(ziel)?.scrollIntoView?.({ block: 'start' })
 })
 
 // --- Kürzel der Herkunft ---------------------------------------------------
@@ -76,6 +83,17 @@ function addShort() {
   dispatch({ type: 'SET_ORIGIN_SHORT', name: newName.value.trim(), short: newShort.value })
   newName.value = ''
   newShort.value = ''
+}
+
+// --- Wertung ---------------------------------------------------------------
+/** Was sich wählen lässt: die Regel, und jede Zahl, bei der noch ein Lauf zählt. */
+const streichWahl = computed(() => ['auto', ...Array.from({ length: Math.max(1, state.value.laufCount) }, (_, i) => String(i))])
+const streichlaeufe = computed(() => streichlaeufeVon(state.value.laufCount, state.value.streichlaeufe))
+const streichText = (wert: string) =>
+  wert === 'auto' ? t('scoring.drop.auto') : wert === '0' ? t('scoring.drop.none') : tn('scoring.drop.n', Number(wert))
+function setzeStreichlaeufe(e: Event) {
+  const wert = (e.target as HTMLSelectElement).value
+  dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: wert === 'auto' ? 'auto' : Number(wert) })
 }
 
 // --- Dateien ---------------------------------------------------------------
@@ -145,9 +163,35 @@ function generate() {
   dispatch({ type: 'CLEAR_ALL_STARTERS' })
   dispatch({ type: 'ADD_STARTERS', starters })
 }
+
+// --- Beispielwerte ---------------------------------------------------------
+const ZEITNAHMEN: Zeitnahme[] = ['stoppuhr', 'lichtschranke']
+const zeitnahme = merke<Zeitnahme>('einstellungen.zeitnahme', 'stoppuhr')
+const beispielBis = merke('einstellungen.beispielBis', 0)
+const laufWahl = computed(() => Array.from({ length: Math.max(1, state.value.laufCount) }, (_, i) => i + 1))
+/** Bis zu welchem Lauf gefüllt wird; die Vorgabe sind alle Läufe. */
+const bisLauf = computed(() => (laufWahl.value.includes(beispielBis.value) ? beispielBis.value : laufWahl.value.length))
+const werteZahl = computed(() =>
+  Object.values(state.value.eingaben).reduce((n, zeilen) => n + Object.values(zeilen).reduce((m, werte) => m + Object.keys(werte).filter((k) => !k.startsWith('erfasst@')).length, 0), 0),
+)
+
+function beispielwerte() {
+  if (werteZahl.value > 0 && !confirm(t('demo.values.confirm'))) return
+  // Der Zufall entsteht hier und reist als Saat in der Action – der Reducer bleibt deterministisch.
+  const saat = Math.floor(Math.random() * 0x100000000)
+  dispatch({ type: 'FILL_BEISPIELWERTE', zeitnahme: zeitnahme.value, saat, laeufe: laufWahl.value.filter((l) => l <= bisLauf.value) })
+}
+
+function werteLoeschen() {
+  if (confirm(t('demo.values.clearConfirm'))) dispatch({ type: 'CLEAR_EINGABEN' })
+}
 </script>
 
 <template>
+  <!-- Links die Sprungleiste, rechts die Blöcke; schmal steht die Leiste als Zeile darüber. -->
+  <div class="settings-layout">
+  <SettingsNav :inhalt="inhalt" />
+  <div ref="inhalt" class="settings-main">
   <AppearancePanel />
   <div class="panel">
     <h2>{{ t('listopt.title') }}</h2>
@@ -179,7 +223,66 @@ function generate() {
     <p class="note">{{ t('listopt.note') }}</p>
 
     <!-- Wettkampfrichter-Listen: Leerzeilen für Nachmeldungen, Beschreibung auf der Rückseite. -->
-    <div class="subhead">{{ t('listopt.wkr.title') }}</div>
+    <details v-if="state.originMode !== 'none'" class="sub-details">
+      <summary>{{ t('short.title') }} ({{ shortRows.length }})</summary>
+      <p class="hint">{{ t('short.hint') }}</p>
+      <table class="starters short-table">
+        <thead>
+          <tr>
+            <th>{{ t('short.name') }}</th>
+            <th style="width: 150px">{{ t('short.short') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in shortRows" :key="row.name">
+            <td>{{ row.name }}</td>
+            <td>
+              <input
+                class="cell-input"
+                :value="row.own"
+                :placeholder="row.preset"
+                :aria-label="t('short.shortFor', { name: row.name })"
+                @change="dispatch({ type: 'SET_ORIGIN_SHORT', name: row.name, short: ($event.target as HTMLInputElement).value })"
+              />
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <input v-model="newName" class="cell-input" :placeholder="t('short.newName')" :aria-label="t('short.newName')" @keyup.enter="addShort" />
+            </td>
+            <td>
+              <input v-model="newShort" class="cell-input" :aria-label="t('short.short')" @keyup.enter="addShort" @change="addShort" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+  </div>
+
+  <!-- Der Rennleiter entscheidet, wie viele Läufe gestrichen werden (z. B. bei zwei Läufen einer oder keiner). -->
+  <div id="wertung" class="panel">
+    <h2>{{ t('scoring.title') }}</h2>
+    <p class="hint">{{ t('scoring.hint', { runs: state.laufCount }) }}</p>
+    <div class="row" style="align-items: flex-end; gap: 20px">
+      <div class="field" style="min-width: 260px">
+        <label for="streichlaeufe">{{ t('scoring.drop') }}</label>
+        <select id="streichlaeufe" class="input" data-feld="streichlaeufe" :value="String(state.streichlaeufe)" @change="setzeStreichlaeufe">
+          <option v-for="w in streichWahl" :key="w" :value="w">{{ streichText(w) }}</option>
+          <!-- Eine Zahl, die zur jetzigen Zahl der Läufe nicht mehr passt, bleibt sichtbar. -->
+          <option v-if="!streichWahl.includes(String(state.streichlaeufe))" :value="String(state.streichlaeufe)">{{ streichText(String(state.streichlaeufe)) }}</option>
+        </select>
+      </div>
+      <p class="note" data-hinweis="streichlaeufe" role="status" style="flex: 1; min-width: 220px; margin: 0">
+        {{ tn('scoring.now', state.laufCount - streichlaeufe, { runs: state.laufCount }) }}
+      </p>
+    </div>
+    <p class="note">{{ t('scoring.note') }}</p>
+  </div>
+
+  <!-- Alles zu den Wettkampfrichter-Listen an einer Stelle: wie sie gedruckt werden und wer an
+       welcher sitzt. Vor den Standardgewichten, die aus dem Regelwerk kommen und selten geändert werden. -->
+  <div class="panel" id="wkr-listen">
+    <h2>{{ t('listopt.wkr.title') }}</h2>
     <div class="row" style="align-items: flex-end; gap: 20px">
       <div class="field" style="width: 170px">
         <label for="wkr-leerzeilen">{{ t('listopt.wkr.blank') }}</label>
@@ -230,42 +333,24 @@ function generate() {
       {{ t('listopt.wkr.back') }}
     </label>
     <p class="note">{{ t('listopt.wkr.backHint') }}</p>
-
-    <details v-if="state.originMode !== 'none'" class="sub-details">
-      <summary>{{ t('short.title') }} ({{ shortRows.length }})</summary>
-      <p class="hint">{{ t('short.hint') }}</p>
-      <table class="starters short-table">
-        <thead>
-          <tr>
-            <th>{{ t('short.name') }}</th>
-            <th style="width: 150px">{{ t('short.short') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in shortRows" :key="row.name">
-            <td>{{ row.name }}</td>
-            <td>
-              <input
-                class="cell-input"
-                :value="row.own"
-                :placeholder="row.preset"
-                :aria-label="t('short.shortFor', { name: row.name })"
-                @change="dispatch({ type: 'SET_ORIGIN_SHORT', name: row.name, short: ($event.target as HTMLInputElement).value })"
-              />
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <input v-model="newName" class="cell-input" :placeholder="t('short.newName')" :aria-label="t('short.newName')" @keyup.enter="addShort" />
-            </td>
-            <td>
-              <input v-model="newShort" class="cell-input" :aria-label="t('short.short')" @keyup.enter="addShort" @change="addShort" />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </details>
+    <!-- Nur bei der Clubmeisterschaft stehen mehrere Klassen auf einem Bogen. -->
+    <template v-if="state.eventKind === 'club'">
+      <label class="boat-check" style="margin-top: 12px">
+        <input
+          type="checkbox"
+          data-feld="wkr-club-gemeinsam"
+          :checked="state.wkrClubGemeinsam"
+          @change="dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: ($event.target as HTMLInputElement).checked })"
+        />
+        {{ t('listopt.wkr.clubJoint') }}
+      </label>
+      <p class="note">{{ t('listopt.wkr.clubJointHint') }}</p>
+    </template>
   </div>
+
+  <!-- Die Namen sind Daten der Veranstaltung (nur in der Sicherung, nie in der Vorlage);
+       gepflegt werden sie trotzdem hier, bei den Listen. -->
+  <WkrEinteilung />
 
   <div class="panel">
     <h2>{{ t('weigh.standards') }}</h2>
@@ -291,10 +376,6 @@ function generate() {
       <button class="btn sm" @click="dispatch({ type: 'RESET_SOLLGEWICHT' })">{{ t('weigh.reset', { rulebook: regelwerk.label }) }}</button>
     </div>
   </div>
-
-  <!-- Die Namen sind Daten der Veranstaltung (nur in der Sicherung, nie in der Vorlage);
-       gepflegt werden sie trotzdem hier, bei den Listen und ihrer Beispielansicht. -->
-  <WkrEinteilung />
 
   <EigeneAufbautenPanel />
 
@@ -335,5 +416,33 @@ function generate() {
     <div class="row" style="justify-content: flex-end">
       <button class="btn" :disabled="total === 0" @click="generate">{{ t('demo.generate') }}</button>
     </div>
+
+    <!-- Beispielwerte für Erfassung und Ergebnislisten: Zufall nach den Häufigkeiten früherer Wettkämpfe. -->
+    <div class="subhead">{{ t('demo.values.title') }}</div>
+    <p class="hint">{{ t('demo.values.intro') }}</p>
+    <div class="row" style="align-items: flex-end; gap: 20px">
+      <div class="field">
+        <label>{{ t('demo.values.timing') }}</label>
+        <div class="segmented">
+          <button v-for="z in ZEITNAHMEN" :key="z" type="button" :class="zeitnahme === z ? 'active' : ''" :aria-pressed="zeitnahme === z" :data-zeitnahme="z" @click="zeitnahme = z">
+            {{ t(`demo.values.timing.${z}`) }}
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="beispiel-laeufe">{{ t('demo.values.runs') }}</label>
+        <select id="beispiel-laeufe" class="input" data-feld="beispiel-laeufe" :value="bisLauf" @change="beispielBis = Number(($event.target as HTMLSelectElement).value)">
+          <option v-for="l in laufWahl" :key="l" :value="l">{{ t('demo.values.runsUpTo', { n: l }) }}</option>
+        </select>
+      </div>
+      <span style="flex: 1" />
+      <button class="btn" data-action="beispielwerte" :disabled="state.starters.length === 0" @click="beispielwerte">{{ t('demo.values.fill') }}</button>
+    </div>
+    <div class="row" style="align-items: center">
+      <span class="note" data-hinweis="werte" role="status" style="flex: 1; margin: 0">{{ tn('demo.values.count', werteZahl) }}</span>
+      <button class="btn danger sm" data-action="werte-loeschen" :disabled="Object.keys(state.eingaben).length === 0" @click="werteLoeschen">{{ t('demo.values.clear') }}</button>
+    </div>
   </details>
+  </div>
+  </div>
 </template>

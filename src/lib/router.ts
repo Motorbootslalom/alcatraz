@@ -5,7 +5,7 @@ import { onUnmounted, ref, type Ref } from 'vue'
  * dann, wenn die Anwendung als einzelne Datei von `file://` geöffnet wird –
  * dort gibt es keine History-API-Pfade.
  */
-export const VIEWS = ['veranstaltung', 'starter', 'verwiegung', 'verzahnung', 'listen', 'einstellungen'] as const
+export const VIEWS = ['veranstaltung', 'starter', 'verwiegung', 'verzahnung', 'listen', 'erfassung', 'einstellungen'] as const
 export type ViewName = (typeof VIEWS)[number]
 
 function parse(hash: string): ViewName {

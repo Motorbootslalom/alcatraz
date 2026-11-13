@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watchEffect } from 'vue'
+import { nextTick, watch, watchEffect } from 'vue'
 import { useStore } from './state/store'
 import { useRoute, VIEWS } from './lib/router'
 import { BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from './lib/build'
@@ -7,11 +7,13 @@ import { formatDateTime, t, tn } from './i18n'
 import AppLogo from './components/AppLogo.vue'
 import LocaleSelect from './components/LocaleSelect.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
+import ToTop from './components/ToTop.vue'
 import EventView from './views/EventView.vue'
 import StartersView from './views/StartersView.vue'
 import VerzahnungView from './views/VerzahnungView.vue'
 import WeighingView from './views/WeighingView.vue'
 import ListsView from './views/ListsView.vue'
+import ErfassungView from './views/ErfassungView.vue'
 import SettingsView from './views/SettingsView.vue'
 
 const { state, saved } = useStore()
@@ -21,6 +23,18 @@ watchEffect(() => {
   document.title = [state.value.eventName, 'Alcatraz', t('app.subtitle')].filter(Boolean).join(' – ')
 })
 const view = useRoute()
+
+// Wie weit man in einer Ansicht gerollt war, gilt beim Zurückkommen wieder – zusammen mit der
+// Auswahl, die sich die Ansichten selbst merken (lib/merken.ts). Die Position wird laufend
+// notiert, weil beim Wechsel schon die neue Ansicht im Fenster steht.
+const rollStand = new Map<string, number>()
+window.addEventListener('scroll', () => rollStand.set(view.value, window.scrollY), { passive: true })
+watch(view, async (neu) => {
+  const ziel = rollStand.get(neu) ?? 0
+  await nextTick()
+  // Ein Verweis mit Sprungziel (`#/einstellungen?wkr`) rollt selbst dorthin.
+  if (!location.hash.includes('?')) window.scrollTo({ top: ziel })
+})
 
 function commitLabel(): string {
   if (!BUILD_COMMIT) return t('app.unknown')
@@ -73,8 +87,11 @@ function commitLabel(): string {
       <WeighingView v-else-if="view === 'verwiegung'" />
       <VerzahnungView v-else-if="view === 'verzahnung'" />
       <ListsView v-else-if="view === 'listen'" />
+      <ErfassungView v-else-if="view === 'erfassung'" />
       <SettingsView v-else-if="view === 'einstellungen'" />
     </main>
+
+    <ToTop />
 
     <footer class="version-footer no-print">
       {{ t('app.footer', { commit: commitLabel(), time: formatDateTime(BUILD_TIME) || t('app.unknown') }) }}

@@ -9,7 +9,8 @@ import { haengeUm } from '../lib/einteilung'
  * anderen Rechner zu bringen. Es gibt drei Arten:
  *
  * - `sicherung`: der gesamte Stand der Veranstaltung.
- * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr und WKR-Einteilung.
+ * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr, WKR-Einteilung und
+ *   erfasste Werte.
  *   Damit beginnt die nächste Veranstaltung so, wie man es gewohnt ist. Eine Vorlage
  *   wird weitergegeben und enthält deshalb keine Personennamen, auch nicht die der
  *   Wettkampfrichter.
@@ -17,8 +18,8 @@ import { haengeUm } from '../lib/einteilung'
  */
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
 
-/** Einstellungen einer Vorlage: alles außer Startern, Name, Jahr und WKR-Einteilung. */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung'>
+/** Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung und erfassten Werten. */
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'eingaben'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -35,7 +36,8 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   const base: FileBase = { app: 'alcatraz', version: 1, savedAt }
   if (kind === 'sicherung') return { ...base, kind, state }
   if (kind === 'starter') return { ...base, kind, starters: state.starters }
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, ...settings } = state
+  // Die erfassten Werte gehören zu den Startern dieser Veranstaltung (sie hängen an deren IDs).
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, eingaben: _eingaben, ...settings } = state
   return { ...base, kind, settings }
 }
 
@@ -88,6 +90,8 @@ export function parseFile(text: string): ParsedFile {
         starters: current.starters,
         eventName: current.eventName,
         eventJahr: current.eventJahr,
+        // Ergebnisse bleiben bei ihren Startern – auch eine von Hand ergänzte Vorlage bringt keine mit.
+        eingaben: current.eingaben,
         // Auch aus einer von Hand ergänzten Vorlage kommen keine Namen: Es gelten die hiesigen.
         // Die Vorlage bringt aber ihre eigenen Parcours mit – die Namen ziehen der Stelle nach
         // auf deren Kennungen um, sonst hingen sie an Parcours, die es nicht mehr gibt.

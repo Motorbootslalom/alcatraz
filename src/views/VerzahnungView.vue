@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
+import { assignStartNumbers } from '../state/reducer'
 import { CLASSES, CLASS_IDS } from '../domain/classes'
 import { uid } from '../domain/ids'
 import { planEvent } from '../planung/plan'
@@ -28,7 +30,7 @@ const { classLabel, parallel } = useEvent()
 // Der Parallelslalom ist ein Unterpunkt der Verzahnung – und nur da, wenn das
 // Regelwerk ihn kennt (UIM). Nach den Regeln der DM gibt es nur das Manövrieren.
 const DISCIPLINES = ['manoever', 'parallel'] as const
-const chosen = ref<(typeof DISCIPLINES)[number]>('manoever')
+const chosen = merke<(typeof DISCIPLINES)[number]>('verzahnung.disziplin', 'manoever')
 const discipline = computed(() => (parallel.value ? chosen.value : 'manoever'))
 
 const unassigned = computed(() => {
@@ -50,6 +52,21 @@ function lock() {
   // Die gezeigten Spuren werden zur festen Anordnung – spätere Nachmeldungen verschieben keine Klasse mehr.
   const tracks = Object.fromEntries(eventPlan.value.plans.map((p) => [p.parcoursId, p.tracks]))
   dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true, tracks })
+}
+
+// Klassische Startnummern laufen in der Reihenfolge der Verzahnung durch. Ändert sich diese,
+// passen sie nicht mehr – neu vergeben wird aber nie von selbst: Nummern können schon
+// gedruckt oder ausgegeben sein. Deshalb hier nur der Knopf und ein Hinweis, wenn sie abweichen.
+const klassisch = computed(() => state.value.startNrMode === 'klassisch')
+const nummernVeraltet = computed(() => {
+  if (!klassisch.value || state.value.starters.length === 0) return false
+  const neu = new Map(assignStartNumbers(state.value).map((s) => [s.id, s.startNr]))
+  return state.value.starters.some((s) => s.startNr !== neu.get(s.id))
+})
+
+function renumber() {
+  const hasNumbers = state.value.starters.some((p) => p.startNr.trim() !== '')
+  if (!hasNumbers || confirm(t('numbers.confirm.klassisch'))) dispatch({ type: 'ASSIGN_START_NUMBERS' })
 }
 
 function unlock() {
@@ -91,6 +108,16 @@ function applyPreset(groups: readonly (readonly ClassId[])[]) {
     </span>
     <button v-if="locked" class="btn" @click="unlock">{{ t('vz.unlock') }}</button>
     <button v-else class="btn primary" :disabled="state.starters.length === 0" @click="lock">{{ t('vz.lock') }}</button>
+  </div>
+
+  <div v-if="klassisch" :class="['panel', 'lock-bar', nummernVeraltet ? 'stale' : '']" data-leiste="nummern" role="status">
+    <span class="lock-text">
+      <b>{{ nummernVeraltet ? t('vz.numbers.stale') : t('vz.numbers.ok') }}</b>
+      {{ t('vz.numbers.note') }}
+    </span>
+    <button :class="['btn', nummernVeraltet ? 'primary' : '']" data-action="renumber" :disabled="state.starters.length === 0" @click="renumber">
+      # {{ t('vz.numbers.assign') }}
+    </button>
   </div>
 
   <fieldset class="lockable" :disabled="locked">

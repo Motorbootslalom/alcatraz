@@ -131,9 +131,10 @@ const bild = computed(() => {
 // ---- Beispielansicht: der Entwurf als eigener Aufbau ------------------------------------
 // Die Konfiguration ist eine reine Funktion der Auswahl: Für die Ansicht wird sie mit dem
 // Entwurf an Stelle des gespeicherten Aufbaus gebaut – nichts davon berührt den Stand.
-// Gebaut wird nur, solange die Ansicht aufgeklappt ist, und mit kurzer Verzögerung, damit
-// nicht jeder Tastendruck im Namensfeld alle Listen neu aufbaut.
-const vorschauOffen = ref(false)
+// Die Ansicht gehört zum Assistenten und steht immer darunter: Wer Bojen zuordnet, sieht
+// sofort, was auf den Listen ankommt. Gebaut wird mit kurzer Verzögerung, damit nicht jeder
+// Tastendruck im Namensfeld die Liste neu aufbaut.
+const vorschauOffen = ref(true)
 const vorschauAufbau = ref<RawAufbau>()
 let vorschauTimer: ReturnType<typeof setTimeout> | undefined
 watch(
@@ -145,7 +146,8 @@ watch(
     if (vorschauAufbau.value) vorschauTimer = setTimeout(uebernehmen, 200)
     else uebernehmen()
   },
-  { deep: true },
+  // Sofort: Die Ansicht steht schon da, wenn der Assistent aufgeht.
+  { deep: true, immediate: true },
 )
 onBeforeUnmount(() => clearTimeout(vorschauTimer))
 const vorschauKonfig = computed(() => {
@@ -496,17 +498,16 @@ function speichern() {
       </p>
     </div>
 
-    <details class="sub-details assistent-vorschau" @toggle="vorschauOffen = ($event.target as HTMLDetailsElement).open">
-      <summary>{{ t('assist.preview') }}</summary>
+    <div class="assistent-vorschau">
       <WkrVorschau
-        v-if="vorschauOffen && vorschauKonfig"
+        v-if="vorschauKonfig"
         :konfig="vorschauKonfig"
         :aufbau-id="entwurf.id"
         :namen-pflegen="false"
         :einleitung="t('assist.previewIntro')"
       />
-      <p v-else-if="vorschauOffen" class="boat-banner warn" role="status">{{ t('assist.previewNotYet') }}</p>
-    </details>
+      <p v-else class="boat-banner warn" role="status">{{ t('assist.previewNotYet') }}</p>
+    </div>
 
     <div class="row" style="justify-content: flex-end">
       <button type="button" class="btn" @click="emit('schliessen')">{{ t('assist.cancel') }}</button>

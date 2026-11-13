@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { manoeverAufbauten, REGELWERKE } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { t } from '../i18n'
 import type { EventKind, OriginMode } from '../types'
+import WkrVorschau from '../components/WkrVorschau.vue'
+import { PROTOTYP_URL } from '../lib/prototyp'
 
 /**
  * Die Veranstaltung selbst: Name, Jahr, Regelwerk, Aufbau. Alles Übrige –
@@ -16,8 +19,7 @@ const { regelwerk, classLabel, foreignClasses, parallel } = useEvent()
 // Mitgelieferte Aufbauten und dahinter die eigenen aus den Einstellungen.
 const aufbauten = computed(() => manoeverAufbauten(state.value.eigeneAufbauten))
 
-/** Hier werden die Listen für den Parallel-Slalom zuerst gebaut und getestet. */
-const PROTOTYP_URL = 'https://motorbootslalom.github.io/fehlerpunkte-prototyp-vue/'
+const vorschauOffen = merke('veranstaltung.vorschau', false)
 
 const KINDS: EventKind[] = ['meisterschaft', 'club']
 const ORIGINS: OriginMode[] = ['verein', 'bundesland', 'none']
@@ -136,5 +138,11 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
       {{ t('event.wkrNote') }} <a href="#/einstellungen?wkr">{{ t('nav.einstellungen') }} → {{ t('wkr.title') }}</a>
     </p>
     <p class="note">{{ t('event.note') }}</p>
+    <!-- Zugeklappt, damit die Seite kurz bleibt: Wer den Aufbau wählt, kann hier nachsehen,
+         welche Listen er ergibt. Gebaut wird die Ansicht erst beim Aufklappen. -->
+    <details class="sub-details" data-vorschau :open="vorschauOffen" @toggle="vorschauOffen = ($event.target as HTMLDetailsElement).open">
+      <summary>{{ t('event.preview') }}</summary>
+      <WkrVorschau v-if="vorschauOffen" />
+    </details>
   </div>
 </template>

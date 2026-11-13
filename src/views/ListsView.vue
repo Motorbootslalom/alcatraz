@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { CLASSES } from '../domain/classes'
 import { duplicateStartNrIds, sortedByStartNr } from '../domain/startnumbers'
@@ -11,16 +12,18 @@ import { originLabelKey, originText } from '../lib/origin'
 import { formatDate, formatDateTime, t, tn } from '../i18n'
 import type { Starter } from '../types'
 import WkrListen from '../components/WkrListen.vue'
+import ErgebnisListen from '../components/ErgebnisListen.vue'
 
 /**
  * Druckbare Listen. Gedruckt wird über den Browser (auch „Als PDF speichern“);
  * die Bildschirmansicht ist die Druckansicht.
  */
-const KINDS = ['gewicht', 'byClass', 'interleaved', 'vorsteg', 'wkr'] as const
+// Die verzahnte Startliste ist die übliche; „nach Klasse“ braucht man fast nie – sie steht deshalb hinten.
+const KINDS = ['interleaved', 'gewicht', 'vorsteg', 'wkr', 'ergebnis', 'byClass'] as const
 type Kind = (typeof KINDS)[number]
 
 const { state } = useStore()
-const kind = ref<Kind>('byClass')
+const kind = merke<Kind>('listen.art', 'interleaved')
 
 
 // Listen entstehen erst, wenn jede Startnummer gesetzt und eindeutig ist.
@@ -28,7 +31,8 @@ const missing = computed(() => state.value.starters.filter((p) => p.startNr.trim
 const duplicate = computed(() => duplicateStartNrIds(state.value.starters, state.value.startNrMode).size)
 // Gewichtslisten entstehen beim Check-in, oft bevor es Startnummern gibt – sie brauchen keine.
 const weightList = computed(() => kind.value === 'gewicht')
-const blocked = computed(() => !weightList.value && (missing.value > 0 || duplicate.value > 0))
+// Ergebnislisten rechnen über die Starter-ID; eine fehlende Nummer hält den Aushang nicht auf.
+const blocked = computed(() => !weightList.value && kind.value !== 'ergebnis' && (missing.value > 0 || duplicate.value > 0))
 const showOrigin = computed(() => state.value.originMode !== 'none' && kind.value !== 'gewicht')
 // Geburtsdatum nur, wenn die Veranstaltung es zeigt; auf der Vorsteg-Liste steht es nie.
 // Auf der Gewichtsliste steht das Geburtsdatum immer – es wird beim Check-in abgeglichen.
@@ -61,11 +65,17 @@ interface Section {
 // meldet, wie viele Bögen die Auswahl zeigt und wie die Auswahl heißt.
 const wkrList = computed(() => kind.value === 'wkr')
 const wkrStand = ref({ anzahl: 0, auswahl: '' })
-const nothingToPrint = computed(() => (wkrList.value ? wkrStand.value.anzahl === 0 : sections.value.length === 0))
+// Ergebnislisten ebenso (components/ErgebnisListen.vue).
+const resultList = computed(() => kind.value === 'ergebnis')
+const resultStand = ref({ anzahl: 0, auswahl: '' })
+const ownView = computed(() => wkrList.value || resultList.value)
+const nothingToPrint = computed(() =>
+  wkrList.value ? wkrStand.value.anzahl === 0 : resultList.value ? resultStand.value.anzahl === 0 : sections.value.length === 0,
+)
 
 const sections = computed<Section[]>(() => {
   const k = kind.value
-  if (k === 'wkr') return []
+  if (k === 'wkr' || k === 'ergebnis') return []
   if (weightList.value) {
     // Je Herkunft ein eigenes Blatt für die Mannschaftsleitung.
     return gewichtsGruppen(state.value.starters, state.value.originMode).map((g) => ({
@@ -125,9 +135,9 @@ const pageCss = computed(() => {
   // kleiner und oben im Rand, damit auch ein Drucker mit breitem Greifrand es noch druckt.
   const boxen = (font: string, extra = '') =>
     `@bottom-center { content: ${page}; font: ${font} Arial, sans-serif; ${extra} } @bottom-right { content: ${cssString(stand.value)}; font: ${font} Arial, sans-serif; ${extra} }`
-  return wkrList.value
-    ? `@page bogen-hoch { ${boxen('7pt', 'vertical-align: top;')} } @page bogen-quer { ${boxen('7pt', 'vertical-align: top;')} }`
-    : `@page { ${boxen('10pt')} }`
+  if (wkrList.value) return `@page bogen-hoch { ${boxen('7pt', 'vertical-align: top;')} } @page bogen-quer { ${boxen('7pt', 'vertical-align: top;')} }`
+  // Ergebnislisten: Querformat mit schmalem Rand (benannte Seite in ergebnis.css).
+  return resultList.value ? `@page ergebnis { ${boxen('8pt')} }` : `@page { ${boxen('10pt')} }`
 })
 
 /**
@@ -137,7 +147,7 @@ const pageCss = computed(() => {
  */
 function print() {
   const before = document.title
-  const auswahl = wkrList.value ? wkrStand.value.auswahl : ''
+  const auswahl = wkrList.value ? wkrStand.value.auswahl : resultList.value ? resultStand.value.auswahl : ''
   document.title = [t(`lists.kind.${kind.value}`), auswahl, heading.value, fileStamp(new Date())].filter(Boolean).join(' - ')
   window.addEventListener('afterprint', () => (document.title = before), { once: true })
   window.print()
@@ -150,7 +160,7 @@ function print() {
     <p class="hint">{{ t('lists.hint') }}</p>
     <div class="row" style="align-items: center">
       <div class="segmented list-kinds">
-        <button v-for="k in KINDS" :key="k" type="button" :class="kind === k ? 'active' : ''" @click="kind = k">
+        <button v-for="k in KINDS" :key="k" type="button" :data-kind="k" :class="kind === k ? 'active' : ''" @click="kind = k">
           {{ t(`lists.kind.${k}`) }}
         </button>
       </div>
@@ -165,11 +175,16 @@ function print() {
     {{ t('lists.fixNumbers') }}
   </p>
 
-  <div v-if="wkrList ? state.starters.length === 0 : sections.length === 0" class="panel empty no-print">{{ t('lists.empty') }}</div>
+  <div v-if="ownView ? state.starters.length === 0 : sections.length === 0" class="panel empty no-print">{{ t('lists.empty') }}</div>
 
   <template v-else-if="wkrList">
     <component :is="'style'">{{ pageCss }}</component>
     <WkrListen :gesperrt="blocked" @stand="wkrStand = $event" />
+  </template>
+
+  <template v-else-if="resultList">
+    <component :is="'style'">{{ pageCss }}</component>
+    <ErgebnisListen @stand="resultStand = $event" />
   </template>
 
   <div v-else :class="['sheet', weightList ? 'weights' : '']">

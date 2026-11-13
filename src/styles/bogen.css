@@ -3,24 +3,21 @@
    Portiert aus styles.css des Fehlerpunkte-Prototyps (Abschnitt „DER BOGEN“).
    Die Klassen heißen hier `bogen…`, weil `.sheet` schon die Startlisten meint.
 
-   Der Bogen ist Papier: Er bleibt auch im dunklen Modus weiß. Am Bildschirm
+   Farben nur über --blatt-* (styles/blatt.css): Am Bildschirm folgt der Bogen dem
+   Farbschema samt Dunkel, gedruckt ist er schwarz auf weiß. Am Bildschirm
    hat er die Maße der Druckseite (A4, 8 mm Rand), damit Umbrüche und die
    Seitenende-Prüfung stimmen; in schmalen Fenstern wird er als Ganzes
    verkleinert (`transform`), statt die Seite quer rollen zu lassen.
    ====================================================================== */
 
 .bogen {
-  --ink: #111;
-  --line: #000;
-  --shade: #d9d9d9;
-  color-scheme: light;
   position: relative;
   flex: none;
   box-sizing: border-box;
-  background: #fff;
-  color: var(--ink);
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  background: var(--blatt-bg);
+  color: var(--blatt-text);
+  border: 1px solid var(--blatt-rand);
+  box-shadow: var(--shadow);
   width: 210mm;
   min-height: 297mm;
   padding: 8mm;
@@ -85,7 +82,7 @@
   margin: 0;
   font-size: 11px;
   line-height: 1.25;
-  color: #b42318;
+  color: var(--blatt-warn);
   font-weight: 600;
 }
 
@@ -93,7 +90,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 2px dashed #d92d20;
+  border-top: 2px dashed var(--blatt-warn);
   pointer-events: none;
 }
 
@@ -114,7 +111,7 @@
   padding: 3mm 9mm;
   border: 2.2mm solid currentColor;
   border-radius: 5mm;
-  color: rgba(196, 30, 30, 0.2);
+  color: color-mix(in srgb, var(--blatt-warn) 22%, transparent);
   font-size: 58pt;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -125,16 +122,17 @@
 /* ---------- Kopf ---------- */
 
 .bogen-kopf {
-  border: 1.6px solid var(--line);
+  border: 1.6px solid var(--blatt-linie);
 }
 
 .bk-leiste {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1.6px solid var(--line);
+  border-bottom: 1.6px solid var(--blatt-linie);
   padding: 4px 8px;
   min-height: 40px;
+  background: var(--blatt-kopf);
 }
 
 .bk-titel {
@@ -150,13 +148,13 @@
 .bk-links {
   width: 42mm;
   flex: none;
-  border-right: 1.6px solid var(--line);
+  border-right: 1.6px solid var(--blatt-linie);
 }
 
 .bk-zelle {
   padding: 5px 8px;
   text-align: center;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--blatt-linie);
   font-size: 12pt;
 }
 
@@ -193,18 +191,18 @@
   display: block;
   width: 100%;
   border: none;
-  border-bottom: 1px dotted #999;
+  border-bottom: 1px dotted var(--blatt-blass);
   border-radius: 0;
   font: inherit;
   font-size: 12pt;
-  color: var(--ink);
+  color: var(--blatt-text);
   background: transparent;
   outline: none;
   padding: 2px 2px;
 }
 
 .bk-wkr-input::placeholder {
-  color: #8a8a8a;
+  color: var(--blatt-leise);
 }
 
 /* Die Bezeichnung unter der Linie: beim Eingabefeld nur im Druck (am Bildschirm
@@ -212,7 +210,7 @@
 .bk-wkr-unter {
   display: none;
   font-size: 7.5pt;
-  color: #444;
+  color: var(--blatt-leise);
   padding: 1px 2px 0;
 }
 
@@ -223,15 +221,15 @@
 @media screen {
   /* Das Feld im Bogenkopf ist am Bildschirm ein Eingabefeld: als solches erkennbar. */
   input.bk-wkr-input {
-    color: #1d4fb8;
-    background: #f3f7ff;
-    border-bottom: 1px solid #1d4fb8;
+    color: var(--blatt-text);
+    background: var(--blatt-feld);
+    border-bottom: 1px solid var(--blatt-akzent);
   }
 
   input.bk-wkr-input:focus-visible {
-    outline: 2px solid #1d4fb8;
+    outline: 2px solid var(--blatt-akzent);
     outline-offset: 1px;
-    background: #fff8d8;
+    background: var(--blatt-bg);
   }
 }
 
@@ -250,7 +248,7 @@
 .bogen-tabelle > tfoot > tr > td.bt-fusszelle {
   border: none;
   padding: 0;
-  background: #fff;
+  background: var(--blatt-bg);
   text-align: left;
   vertical-align: top;
   font-weight: normal;
@@ -282,7 +280,7 @@
    nicht die verschachtelten Legenden-Tabellen im Fuß. */
 .bogen-tabelle > thead > tr > th,
 .bogen-tabelle > tbody > tr > td {
-  border: 1px solid var(--line);
+  border: 1px solid var(--blatt-linie);
   text-align: center;
   padding: 0;
   font-size: 9.5pt;
@@ -298,7 +296,7 @@
   padding: 3px 2px;
   font-size: 9pt;
   font-weight: 700;
-  background: #fff;
+  background: var(--blatt-kopf);
   overflow-wrap: anywhere;
 }
 
@@ -322,56 +320,56 @@
 }
 
 .bogen-tabelle > tbody > tr.grau > td {
-  background: var(--shade);
+  background: var(--blatt-grau);
 }
 
 /* Mehrere Klassen auf einem Bogen: Diese Spalte gibt es für die Klasse der Zeile nicht. */
 .bogen-tabelle > tbody > tr > td.bt-entfaellt {
-  background: repeating-linear-gradient(135deg, transparent 0 3px, #9a9a9a 3px 4px);
+  background: repeating-linear-gradient(135deg, transparent 0 3px, var(--blatt-blass) 3px 4px);
 }
 
 /* Optische Spalten-Trenner am linken Rand einer Spalte, über Kopf und Zellen – z. B.
    zwischen Hin- und Rückfahrt (`{ typ: trenner, design: … }` in den Aufbauten). */
 .bogen-tabelle > thead > tr > th.sep-fett,
 .bogen-tabelle > tbody > tr > td.sep-fett {
-  border-left: 2.5px solid var(--line);
+  border-left: 2.5px solid var(--blatt-linie);
 }
 
 .bogen-tabelle > thead > tr > th.sep-doppelt,
 .bogen-tabelle > tbody > tr > td.sep-doppelt {
-  border-left: 4px double var(--line);
+  border-left: 4px double var(--blatt-linie);
 }
 
 .bogen-tabelle > thead > tr > th.sep-gepunktet,
 .bogen-tabelle > tbody > tr > td.sep-gepunktet {
-  border-left: 2px dotted var(--line);
+  border-left: 2px dotted var(--blatt-linie);
 }
 
 .bogen-tabelle > thead > tr > th.sep-gestrichelt,
 .bogen-tabelle > tbody > tr > td.sep-gestrichelt {
-  border-left: 2px dashed var(--line);
+  border-left: 2px dashed var(--blatt-linie);
 }
 
 /* Rechte Kante: bei inneren Unter-Trennungen zusätzlich gesetzt, damit die Linie unter
    border-collapse beidseitig getragen und nicht überdeckt wird. */
 .bogen-tabelle > thead > tr > th.sepr-fett,
 .bogen-tabelle > tbody > tr > td.sepr-fett {
-  border-right: 2.5px solid var(--line);
+  border-right: 2.5px solid var(--blatt-linie);
 }
 
 .bogen-tabelle > thead > tr > th.sepr-doppelt,
 .bogen-tabelle > tbody > tr > td.sepr-doppelt {
-  border-right: 4px double var(--line);
+  border-right: 4px double var(--blatt-linie);
 }
 
 .bogen-tabelle > thead > tr > th.sepr-gepunktet,
 .bogen-tabelle > tbody > tr > td.sepr-gepunktet {
-  border-right: 2px dotted var(--line);
+  border-right: 2px dotted var(--blatt-linie);
 }
 
 .bogen-tabelle > thead > tr > th.sepr-gestrichelt,
 .bogen-tabelle > tbody > tr > td.sepr-gestrichelt {
-  border-right: 2px dashed var(--line);
+  border-right: 2px dashed var(--blatt-linie);
 }
 
 /* ---------- Fuß: Legende, Parcoursbild, Unterschrift ---------- */
@@ -489,7 +487,8 @@
 
 .bogen-bild {
   margin: 8px 0;
-  border: 1.5px dashed #7a86c9;
+  border: 1.5px dashed var(--blatt-akzent);
+  background: var(--blatt-bild-bg);
   padding: 4px;
   text-align: center;
 }
@@ -531,7 +530,7 @@
 
 .bu-linie {
   width: 62mm;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--blatt-linie);
 }
 
 .bu-text {
@@ -635,7 +634,7 @@
   margin: 0;
   font-size: 5pt;
   line-height: 1.2;
-  color: #555;
+  color: var(--blatt-leise);
   text-align: left;
   overflow-wrap: anywhere;
 }
@@ -649,13 +648,13 @@
 /* Zwischenüberschrift einer Klasse auf einer gemeinsamen Liste (Clubmeisterschaft). */
 .bogen-tabelle > tbody > tr.bt-zwischen > th {
   height: 23px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--blatt-linie);
   border-top-width: 2px;
   text-align: left;
   font-size: 9.5pt;
   font-weight: 700;
   padding: 0 0 0 2mm;
-  background: #e6e6e6;
+  background: var(--blatt-zwischen);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -669,7 +668,7 @@
   gap: 3mm;
   margin-top: 3mm;
   padding: 2mm 3mm;
-  border: 1.5px dashed #7a86c9;
+  border: 1.5px dashed var(--blatt-akzent);
   font-size: 0.85em;
 }
 

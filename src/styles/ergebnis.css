@@ -1,0 +1,280 @@
+/* ======================================================================
+   Ergebnislisten (A4 quer)
+   Format der Auswertungs-Listen der DM 2026 und des Fehlerpunkte-Prototyps:
+   umrandeter Kopf (Klasse | Lauf | Veranstaltung), Gitter mit kräftigem
+   Rahmen, alles mittig, jede fünfte Zeile grau. Die Bildschirmansicht ist die
+   Druckansicht. Farben nur über --blatt-* (styles/blatt.css): am Bildschirm
+   das Farbschema, im Druck schwarz auf weiß.
+   ====================================================================== */
+
+.ergebnis-stapel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* Ein Blatt = eine Liste. In schmalen Fenstern rollt das Blatt quer; die Maße bleiben die des Papiers. */
+.ergebnis-blatt {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--blatt-rand);
+  border-radius: var(--radius);
+  padding: 8mm;
+  background: var(--blatt-bg);
+  color: var(--blatt-text);
+  font-family: Arial, 'Liberation Sans', Helvetica, sans-serif;
+}
+
+.erg-tabelle {
+  width: 281mm;
+  margin: 0 auto;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 7.5pt;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.erg-tabelle td,
+.erg-tabelle thead tr:not(:first-child) th {
+  border: 0.2mm solid var(--blatt-linie);
+  padding: 0 1px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.erg-tabelle tbody td {
+  height: 4.6mm;
+}
+
+.erg-tabelle tbody {
+  border: 1.6px solid var(--blatt-linie);
+}
+
+.erg-tabelle tbody tr.grau td {
+  background: var(--blatt-grau);
+}
+
+.erg-tabelle thead tr.erg-spaltenkopf th,
+.erg-tabelle thead tr.erg-unterkopf th {
+  white-space: normal;
+  background: var(--blatt-kopf);
+  font-weight: 700;
+  font-size: 8.5pt;
+  line-height: 1.1;
+  padding: 0.5mm 1px;
+}
+
+.erg-tabelle thead tr.erg-spaltenkopf th {
+  border-top: 1.6px solid var(--blatt-linie);
+}
+
+.erg-tabelle thead tr.erg-spaltenkopf th:first-child {
+  border-left: 1.6px solid var(--blatt-linie);
+}
+
+.erg-tabelle thead tr.erg-spaltenkopf th:last-child {
+  border-right: 1.6px solid var(--blatt-linie);
+}
+
+.erg-tabelle thead tr.erg-spaltenkopf th small {
+  font-size: 6pt;
+  font-weight: 400;
+}
+
+.erg-tabelle thead tr.erg-unterkopf th {
+  font-weight: 400;
+  font-size: 6pt;
+  line-height: 1.2;
+  padding: 0.3mm 0 0.2mm;
+}
+
+.erg-tabelle thead tr.erg-unterkopf--gesamt th {
+  font-size: 7.5pt;
+  padding: 0.5mm 0;
+}
+
+/* Kräftigere Linie vor jeder Gruppe (Tor, Lauf). */
+.erg-tabelle td.erg-gruppe,
+.erg-tabelle thead th.erg-gruppe {
+  border-left: 0.35mm solid var(--blatt-linie);
+}
+
+.erg-tabelle td.erg-platz {
+  font-weight: 700;
+}
+
+.erg-tabelle td.erg-disq {
+  background: var(--blatt-hervor);
+}
+
+/* Gestrichener Lauf: Zeit, Strafpunkte und Gesamt; der Platz im Lauf bleibt lesbar. */
+.erg-tabelle td.erg-gestrichen {
+  text-decoration: line-through;
+}
+
+.erg-tabelle td.fit-1 {
+  font-size: 0.85em;
+}
+
+.erg-tabelle td.fit-2 {
+  font-size: 0.7em;
+}
+
+.erg-tabelle .erg-kopfzelle {
+  border: none;
+  padding: 0 0 3mm;
+  font-weight: 700;
+}
+
+.erg-kopf {
+  display: grid;
+  grid-template-columns: 52mm 40mm 1fr;
+  border: 1.6px solid var(--blatt-linie);
+  background: var(--blatt-kopf);
+  font-size: 12pt;
+  text-align: center;
+}
+
+.erg-kopf > span {
+  padding: 1.5mm 2mm;
+}
+
+.erg-kopf-titel {
+  border-left: 1.6px solid var(--blatt-linie);
+  border-right: 1.6px solid var(--blatt-linie);
+}
+
+.erg-w-platz {
+  width: 9.5mm;
+}
+
+.erg-w-nr {
+  width: 9mm;
+}
+
+.erg-w-name {
+  width: 22mm;
+}
+
+.erg-w-vorname {
+  width: 18.5mm;
+}
+
+.erg-w-geb {
+  width: 14mm;
+}
+
+.erg-w-zeit {
+  width: 12.5mm;
+}
+
+.erg-w-punkte {
+  width: 10.5mm;
+}
+
+.erg-w-spalte {
+  width: 8mm;
+}
+
+.erg-w-disq {
+  width: 8mm;
+}
+
+.erg-w-ges {
+  width: 11.5mm;
+}
+
+.erg-w-abstand {
+  width: 13mm;
+}
+
+.erg-w-schluessel {
+  width: 14.5mm;
+}
+
+.erg-w-strafp {
+  width: 10mm;
+}
+
+.erg-w-knoten {
+  width: 12mm;
+}
+
+.erg-w-ergebnis {
+  width: 14mm;
+}
+
+/* Die Gesamtliste hat weniger Spalten und größere Schrift: Name und Vorname bekommen den Platz.
+   Die Breite der Herkunft setzt die Liste selbst (Kürzel schmal, Namen breiter). */
+.erg-tabelle--gesamt .erg-w-name,
+.erg-tabelle--gesamt .erg-w-vorname {
+  width: auto;
+}
+
+.erg-tabelle--gesamt .erg-w-geb {
+  width: 18mm;
+}
+
+.erg-tabelle--gesamt .erg-w-zeit {
+  width: 14mm;
+}
+
+.erg-tabelle--gesamt .erg-w-ges {
+  width: 13mm;
+}
+
+.erg-tabelle--gesamt {
+  font-size: 8.5pt;
+}
+
+@page ergebnis {
+  size: A4 landscape;
+  margin: 9mm 8mm 12mm;
+}
+
+@media print {
+  .ergebnis-stapel {
+    display: block;
+  }
+
+  /* Jede Liste beginnt auf einem neuen Blatt; eine lange Liste läuft über mehrere Seiten,
+     Kopf und Spaltenköpfe kehren wieder. */
+  .ergebnis-blatt {
+    page: ergebnis;
+    max-width: none;
+    overflow: visible;
+    border: none;
+    border-radius: 0;
+    /* Ein Hauch Rand: Der kräftige Rahmen liegt zur Hälfte außerhalb der Tabelle und würde
+       sonst an der Kante des Druckbereichs abgeschnitten. */
+    padding: 0 0.6mm;
+    break-after: page;
+  }
+
+  .ergebnis-blatt:last-child {
+    break-after: auto;
+  }
+
+  .erg-tabelle {
+    width: 100%;
+  }
+
+  .erg-tabelle thead {
+    display: table-header-group;
+  }
+
+  .erg-tabelle tr {
+    break-inside: avoid;
+  }
+
+  /* Graue Zeilen und die Hervorhebung „disq.“ müssen auch ohne „Hintergrundgrafiken drucken“ erscheinen. */
+  .erg-tabelle tbody tr.grau td,
+  .erg-tabelle td.erg-disq {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
