@@ -28,6 +28,9 @@ const def = computed(() => getClass(props.classId))
 const showAdd = ref(false)
 const edit = ref(false)
 
+// Ein fehlendes Geburtsdatum hält nichts auf, soll aber sofort auffallen – auch bei zugeklappter Klasse.
+const ohneDatum = computed(() => props.starters.filter((p) => !p.geburtsdatum).length)
+
 const classLine = computed(() => {
   const [from, to] = birthYearRange(props.classId, state.value.eventJahr)
   return t('starters.classLine', {
@@ -120,6 +123,7 @@ const MOVES = [
         <span class="class-badge" :style="{ background: def.color }">{{ classId }}</span>
         <span class="title">{{ classLabel(classId) }}</span>
         <span class="count">{{ classLine }}</span>
+        <span v-if="ohneDatum > 0" class="missing-badge" data-hinweis="ohne-datum">{{ tn('starters.birthdateMissingCount', ohneDatum) }}</span>
         <span class="chevron">{{ open ? '▾' : '▸' }}</span>
       </button>
       <div class="class-tools">
@@ -231,7 +235,7 @@ const MOVES = [
               </td>
               <td>
                 <input
-                  class="cell-input"
+                  :class="['cell-input', p.geburtsdatum ? '' : 'missing']"
                   type="date"
                   :value="p.geburtsdatum"
                   :aria-label="t('common.birthdate')"
@@ -247,7 +251,7 @@ const MOVES = [
               <td>{{ p.vorname }}</td>
               <td v-if="state.originMode !== 'none'">{{ originOf(p, state.originMode) }}</td>
               <td>{{ p.groesse || '–' }}</td>
-              <td>{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : '–' }}</td>
+              <td :class="p.geburtsdatum ? '' : 'cell-missing'">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}</td>
             </template>
             <td>
               <button

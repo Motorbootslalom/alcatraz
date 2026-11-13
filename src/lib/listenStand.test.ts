@@ -147,8 +147,14 @@ describe('Stand der Ergebnislisten', () => {
       expect(danach.listenStand[lauf('4', 1)].zeit, aufbau).toBe(anders ? 2000 : 1000)
     }
     // Baden-Württemberg: dieselben Spalten im Lauf, nur anders auf die Listen verteilt – die
-    // Lauf-Liste bleibt, wie sie war. Die Gesamtliste bekommt dort die Spalte der Knoten.
-    expect(zeiten(nach(s, { type: 'SET_AUFBAU', aufbau: 'bawue', zeit: 2000 }))).toEqual({ [lauf('4', 1)]: 1000, [gesamt('4')]: 2000 })
+    // Lauf-Liste bleibt, wie sie war. Auch die Gesamtliste: Die Spalte der Knoten hat sie in
+    // jedem Aufbau (Vorgabe des Regelwerks).
+    expect(zeiten(nach(s, { type: 'SET_AUFBAU', aufbau: 'bawue', zeit: 2000 }))).toEqual({ [lauf('4', 1)]: 1000, [gesamt('4')]: 1000 })
+    // Ohne die Knoten-Liste verliert die Gesamtliste ihre Spalte – das ist eine Änderung.
+    const ohne = nach(s, { type: 'SET_ZUSATZ_LISTE', liste: 'knoten', an: false, zeit: 3000 })
+    expect(zeiten(ohne)).toEqual({ [lauf('4', 1)]: 1000, [gesamt('4')]: 3000 })
+    // Dort gehört die Liste zum Aufbau selbst: Die Spalte ist wieder da.
+    expect(zeiten(nach(ohne, { type: 'SET_AUFBAU', aufbau: 'bawue', zeit: 4000 }))).toEqual({ [lauf('4', 1)]: 1000, [gesamt('4')]: 4000 })
   })
 
   it('eine Action ohne Zeitpunkt lässt ihn unbekannt, statt einen zu erfinden', () => {

@@ -22,6 +22,24 @@
 #                    ist, bekommt den Unterschied als Ausgleichsgewicht ins Boot.
 #   ohneSpalten      { <Position>: [<Spalten-Key>, …] }: Spalten, die es in diesem
 #                    Regelwerk nicht gibt (z. B. einzelne Knoten).
+#   stichentscheid   Was bei gleichem Ergebnis entscheidet, der Reihe nach – in der
+#                    Liste eines Laufs wie in der Gesamtliste. Trennt keines (oder
+#                    fehlt die Angabe), teilen sich die Starter den Platz.
+#                      schnellsterLauf   die kürzeste gefahrene Zeit (ohne Strafpunkte)
+#                                        unter den gewerteten, nicht gestrichenen Läufen
+#                      besterLauf        das beste Ergebnis (Zeit und Strafpunkte)
+#                                        unter den gewerteten Läufen
+#                      summeAllerLaeufe  die Summe aller Läufe mit Strafpunkten, auch
+#                                        der gestrichenen; wer nicht in jedem Lauf ein
+#                                        gültiges Ergebnis hat, steht dahinter
+#   vorgabeListen    { <Disziplin>: [<Position>, …] }: Listen, die das Regelwerk in
+#                    jedem Aufbau der Disziplin vorsieht – Positionen mit
+#                    `schnellauswahl: true`. Nennt ein Aufbau sie nicht selbst, kommen
+#                    sie als zusätzliche Liste dazu. Es ist eine Vorgabe – unter
+#                    „Einstellungen → Wettkampfrichter-Listen“ lässt sie sich abwählen.
+#   wertungslaeufe   { laeufe, streichlaeufe }: So viele Läufe sieht das Regelwerk vor
+#                    und so viele davon werden gestrichen. Eingestellt wird beides an
+#                    der Veranstaltung; weicht sie ab, weist die Oberfläche darauf hin.
 id: dm-2026
 name: DM
 version: 2026
@@ -31,6 +49,14 @@ klassen: [E, 1, 2, 3, 4, 5, 6, 7]
 disziplinen: [manoevrieren]
 # Reglement C3 „Co-Pilot und Gewichte“.
 gewichte: { E: 26, 1: 33, 2: 42, 3: 52, 4: 65, 5: 72, 6: 75, 7: 78 }
+# Reglement C5: Bei Punktgleichheit entscheidet der schnellste gewertete Lauf. Das
+# Reglement liegt hier nicht als Datei vor; die Regel hat der Veranstalter bestätigt.
+# „Schnellster“ ist als gefahrene Zeit gelesen – soll das Ergebnis des Laufs samt
+# Strafpunkten gelten, steht hier `besterLauf`.
+stichentscheid: [schnellsterLauf]
+# Die Knoten sind Pflicht (Reglement, Fehlerpunkte „Knoten“; vom Veranstalter bestätigt):
+# Die Knoten-Liste gehört deshalb zu jedem Aufbau, wird erfasst und steht in der Gesamtliste.
+vorgabeListen: { manoevrieren: [knoten] }
 
 fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Punkte werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
 

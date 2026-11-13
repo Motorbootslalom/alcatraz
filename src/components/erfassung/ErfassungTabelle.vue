@@ -8,6 +8,7 @@ import { allowedSet, sanitizeBuoy, sanitizeCodeInput, sanitizeDisq } from '../..
 import { erfasstKennung, feldVon, felderJeKennung, laufSchluessel, listenFelder, listenLauf, werteVon, type EingabeZelle, type Feld } from '../../lib/eingaben'
 import { zeileErfasst, zeileHatWerte, zeilenHinweise, type Hinweis } from '../../lib/erfassung'
 import { gridNavKeyDown } from '../../lib/gridnav'
+import { veranstaltungsListen } from '../../lib/listen'
 import { scoreRow, summenText, formatDisqs } from '../../lib/scoring'
 import type { WkrBogen } from '../../lib/wkrListen'
 import { t, tn } from '../../i18n'
@@ -28,7 +29,7 @@ import ZeitZelle from './ZeitZelle.vue'
 const props = defineProps<{ bogen: WkrBogen }>()
 
 const { state, dispatch } = useStore()
-const konfig = useKonfig()
+const konfig = useKonfig({ einsprachig: true })
 
 const seite = computed(
   () => bogenSeiten(konfig.value, props.bogen.auftrag, { klassenBloecke: props.bogen.optionen.klassenBloecke, leerzeilen: 0, leerzeilenJeKlasse: {} })[0],
@@ -37,7 +38,7 @@ const basisDef = computed(() => konfig.value.getSheetDef(props.bogen.typeId))
 const schluessel = computed(() =>
   laufSchluessel(konfig.value.getAufbau(state.value.aufbau).disziplin, listenLauf(basisDef.value, props.bogen.lauf)),
 )
-const listen = computed(() => konfig.value.aufbauOrder(state.value.aufbau, false))
+const listen = computed(() => veranstaltungsListen(konfig.value, state.value))
 const hatSub = (col: Column) => !!col.sub && col.sub.length > 0
 const leafKey = (leaf: BogenBlattSpalte) => (leaf.subIndex === undefined ? leaf.colKey : `${leaf.colKey}#${leaf.subIndex}`)
 const sep = (links?: TrennerDesign, rechts?: TrennerDesign) => (links ? ` erf-sep-${links}` : '') + (rechts ? ` erf-sepr-${rechts}` : '')

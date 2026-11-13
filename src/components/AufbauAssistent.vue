@@ -4,9 +4,10 @@ import ParcoursNachweis from './ParcoursNachweis.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
-import { listenSprache } from '../lib/listensprache'
+import { useListenSprache } from '../lib/listensprache'
 import { configFor } from '../config/konfig'
-import { manoeverAufbauten } from '../config/catalog'
+import { MANOEVRIEREN, manoeverAufbauten, regelwerkOf } from '../config/catalog'
+import { vorgabeListenVon } from '../lib/listen'
 import type { Meldung } from '../config/eigene'
 import type { Blick, RawAufbau } from '../config/schema'
 import ZuordnungImBild from './ZuordnungImBild.vue'
@@ -54,6 +55,11 @@ const props = defineProps<{
 const emit = defineEmits<{ schliessen: [] }>()
 const { state, dispatch } = useStore()
 const konfig = useKonfig()
+const { bogenSprache } = useListenSprache()
+
+/** Das Regelwerk sieht die Knoten-Liste ohnehin vor (regelwerke/*.yaml `vorgabeListen`). */
+// Eigene Aufbauten sind immer Manövrier-Aufbauten.
+const knotenVorgabe = computed(() => vorgabeListenVon(regelwerkOf(state.value.regelwerk), MANOEVRIEREN).includes('knoten'))
 
 // Zufall gehört hierher und nicht in den Reducer: Die Action bringt die fertigen IDs mit.
 const vergeben = konfig.value.vergebeneIds()
@@ -155,7 +161,8 @@ const vorschauKonfig = computed(() => {
   if (!a) return undefined
   const k = configFor({
     regelwerk: state.value.regelwerk,
-    sprache: listenSprache.value,
+    sprache: bogenSprache.value,
+    beschriftung: state.value.beschriftung,
     eigeneAufbauten: [...state.value.eigeneAufbauten.filter((x) => x.id !== a.id), a],
   })
   // Ein Entwurf, den die Prüfung (noch) ablehnt, steht nicht in der Konfiguration.
@@ -330,6 +337,8 @@ function speichern() {
         </div>
       </div>
     </div>
+    <!-- Das Häkchen entscheidet nur, ob die Knoten fest zum Aufbau gehören: Sieht das Regelwerk sie vor, kommen sie ohnehin dazu (lib/listen.ts). -->
+    <p v-if="knotenVorgabe" class="note" data-hinweis="knoten-vorgabe">{{ t('assist.knotenVorgabe', { rulebook: regelwerkOf(state.regelwerk).label }) }}</p>
     <p v-if="nichtUebernommen.length > 0" class="boat-banner warn" role="status">
       {{ t('assist.notTaken', { names: nichtUebernommen.join(', ') }) }}
     </p>

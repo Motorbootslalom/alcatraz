@@ -11,7 +11,7 @@ import {
   musterZeilen,
   type BogenAuftrag,
 } from './bogen'
-import { listenSprache, listenSpracheVon } from './listensprache'
+import { bietetEnglisch, bogenSpracheFuer, listenLocaleFuer, listenSpracheVon } from './listensprache'
 import { parcoursSvg } from './parcoursQuelle'
 
 const dm = configFor({ regelwerk: 'dm-2026' })
@@ -43,17 +43,18 @@ describe('Muster-Startnummern', () => {
 
 describe('Listen eines Aufbaus je Klasse', () => {
   it('Alcatraz: Mann-über-Bord erst ab Klasse 4', () => {
-    expect(listenFuerKlasse(dm, 'alcatraz', '7')).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'mueb', 'parcours'])
-    expect(listenFuerKlasse(dm, 'alcatraz', '2')).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'parcours'])
+    expect(listenFuerKlasse(dm, { aufbau: 'alcatraz' }, '7')).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'mueb', 'parcours', 'knoten'])
+    expect(listenFuerKlasse(dm, { aufbau: 'alcatraz' }, '2')).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'parcours', 'knoten'])
   })
 
   it('Berlin hat andere Listen als Alcatraz', () => {
-    expect(listenFuerKlasse(dm, 'berlin', '7')).toEqual(['steg', 'bstartziel', 'brechts', 'blinks'])
+    expect(listenFuerKlasse(dm, { aufbau: 'berlin' }, '7')).toEqual(['steg', 'bstartziel', 'brechts', 'blinks', 'knoten'])
+    expect(listenFuerKlasse(dm, { aufbau: 'berlin', zusatzListen: { knoten: false } }, '7')).toEqual(['steg', 'bstartziel', 'brechts', 'blinks'])
   })
 
   it('UIM kennt die Klassen 6 und 7 nicht', () => {
-    expect(listenFuerKlasse(uim, 'alcatraz', '7')).toEqual([])
-    expect(listenFuerKlasse(uim, 'alcatraz', '5')).toContain('mueb')
+    expect(listenFuerKlasse(uim, { aufbau: 'alcatraz' }, '7')).toEqual([])
+    expect(listenFuerKlasse(uim, { aufbau: 'alcatraz' }, '5')).toContain('mueb')
   })
 })
 
@@ -271,12 +272,35 @@ describe('Bogen-Modell (UIM 2026, englisch)', () => {
 })
 
 describe('Listensprache', () => {
-  it('folgt vorerst der Sprache der Oberfläche – an einer Stelle', () => {
+  it('„wie die Oberfläche“ folgt der Sprache der Oberfläche', () => {
     expect(listenSpracheVon('de')).toBe('de')
     expect(listenSpracheVon('en')).toBe('en')
-    expect(listenSprache.value).toBe('de')
-    setLocale('en')
-    expect(listenSprache.value).toBe('en')
+    expect(bogenSpracheFuer('ui', 'en', true)).toBe('en')
+    expect(listenLocaleFuer('ui', 'en', true)).toBe('en')
+    expect(bogenSpracheFuer('ui', 'de', true)).toBe('de')
+  })
+
+  it('eine feste Wahl gilt unabhängig von der Oberfläche', () => {
+    expect(bogenSpracheFuer('en', 'de', true)).toBe('en')
+    expect(listenLocaleFuer('en', 'de', true)).toBe('en')
+    expect(bogenSpracheFuer('de', 'en', true)).toBe('de')
+    expect(listenLocaleFuer('de', 'en', true)).toBe('de')
+  })
+
+  it('zweisprachig: die Bögen in beiden Sprachen, die übrigen Listen in der Sprache der Oberfläche', () => {
+    expect(bogenSpracheFuer('de+en', 'de', true)).toBe('de+en')
+    expect(listenLocaleFuer('de+en', 'de', true)).toBe('de')
+    expect(listenLocaleFuer('de+en', 'en', true)).toBe('en')
+  })
+
+  it('ohne Englisch im Regelwerk bleiben die Bögen deutsch, die übrigen Listen folgen der Oberfläche', () => {
+    expect(bietetEnglisch('dm-2026')).toBe(false)
+    expect(bietetEnglisch('uim-2026')).toBe(true)
+    for (const wahl of ['ui', 'de', 'en', 'de+en'] as const) {
+      expect(bogenSpracheFuer(wahl, 'en', false)).toBe('de')
+      expect(listenLocaleFuer(wahl, 'en', false)).toBe('en')
+      expect(listenLocaleFuer(wahl, 'de', false)).toBe('de')
+    }
   })
 })
 

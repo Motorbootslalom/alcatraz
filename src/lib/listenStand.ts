@@ -27,7 +27,7 @@ import { klassenErgebnis, type GesamtListe, type LaufListe } from './ergebnis'
 // ihre nächste Änderung setzt einen. Ebenso eine Änderung durch eine Action ohne `zeit`.
 
 /** Was die Ergebnislisten bestimmt; ändert sich davon nichts, bleibt der Stand, wie er ist. */
-const WERTUNG = ['eingaben', 'starters', 'laufCount', 'streichlaeufe', 'aufbau', 'regelwerk', 'eigeneAufbauten'] as const
+const WERTUNG = ['eingaben', 'starters', 'laufCount', 'streichlaeufe', 'aufbau', 'regelwerk', 'eigeneAufbauten', 'tor5MitParcours', 'zusatzListen'] as const
 export type WertungsStand = Pick<AppState, (typeof WERTUNG)[number]>
 
 /** Schlüssel der Liste eines Laufs in `AppState.listenStand`. */

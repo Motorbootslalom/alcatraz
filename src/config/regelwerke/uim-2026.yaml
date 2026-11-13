@@ -30,6 +30,24 @@ disziplinen: [manoevrieren, parallel]
 # Regel 960, Pkt. 3.7 Registration procedure, „Statistical average weight“. Die Werte
 # weichen in den Klassen 1, 2, 4 und 5 von der DM ab.
 gewichte: { E: 26, 1: 32, 2: 40, 3: 52, 4: 64, 5: 71 }
+# Regel 960, Pkt. 5.2.6 „Dead-heat situations“, Manövrieren: „if two or more drivers have
+# the same time in their best attempt (including knots and driving penalties), the driver
+# with the better added attempt time (including penalties for both attempts) will be
+# ranked higher. If one of the drivers has only one valid attempt, he/she will be ranked
+# lower.“ Die Summe zählt die Versuche mit ihren Fahrstrafen, ohne die Knoten (sie gehören
+# zu keinem Versuch). Für den einzelnen Versuch nennt die Regel keinen Stichentscheid.
+stichentscheid: [summeAllerLaeufe]
+# Regel 960, Pkt. 4.3 „Manoeuvring consists of: Tying knots (point 4.3.1); Driving on the
+# manoeuvring racecourse (point 4.3.2)“ und Pkt. 5.2.1: Die Ergebnisliste zeigt „knots test
+# penalties“ und „best times including knots test penalties“. Die Knoten-Liste gehört deshalb
+# zu jedem Aufbau des Manövrierens; ihre Strafsekunden zählen zum Gesamtergebnis. Für den
+# Parallelslalom (Pkt. 4.4, 5.2.2) nennt die Regel keine Knoten.
+vorgabeListen: { manoevrieren: [knoten] }
+# Regel 960, Pkt. 4.3.2 (Manövrieren): „Each driver is allowed 2 attempts, run consecutively.
+# […] Only the better attempt will be considered for the results (except of dead-heat
+# situations).“ Also zwei Läufe, einer gestrichen – nur dann greift auch der Stichentscheid
+# oben. Eingestellt wird es an der Veranstaltung; die Oberfläche meldet eine Abweichung.
+wertungslaeufe: { laeufe: 2, streichlaeufe: 1 }
 
 fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Sekunden werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
 fehlerHinweisEn: "Penalties can be combined: every code entered counts separately and the seconds are added (2nd and 3rd attempt: the code can be entered twice, e.g. 2x6)."

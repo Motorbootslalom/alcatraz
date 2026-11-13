@@ -123,7 +123,8 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
   it('zeigt je Position des Aufbaus einen Reiter für die höchste Klasse – mit Muster-Nummern und Kennzeichen', async () => {
     store.dispatch({ type: 'SET_EVENT', patch: { eventName: 'Hafenpokal', eventJahr: 2026 } })
     const wrapper = ansicht(store)
-    expect(listen(wrapper)).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'mueb', 'parcours'])
+    // Die Knoten nennt der Aufbau nicht selbst; das Regelwerk sieht ihre Liste vor.
+    expect(listen(wrapper)).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'mueb', 'parcours', 'knoten'])
     expect((wrapper.find('select[data-feld="vorschau-klasse"]').element as HTMLSelectElement).value).toBe('7')
     // Zuerst die erste Position, und nur ihr Blatt.
     expect(wrapper.findAll('.wkr-vorschau .bogen').map((b) => b.attributes('data-liste'))).toEqual(['zeit'])
@@ -219,7 +220,7 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     const wrapper = ansicht(store)
     store.dispatch({ type: 'SET_AUFBAU', aufbau: 'berlin' })
     await nextTick()
-    expect(listen(wrapper)).toEqual(['steg', 'bstartziel', 'brechts', 'blinks'])
+    expect(listen(wrapper)).toEqual(['steg', 'bstartziel', 'brechts', 'blinks', 'knoten'])
     store.dispatch({ type: 'RENAME_PARCOURS', id: 'par_2', name: 'Hafenbecken' })
     await nextTick()
     expect(kopf(wrapper, 'steg').find('.bk-parcours').text()).toBe('Hafenbecken')

@@ -1,0 +1,114 @@
+/* ======================================================================
+   Aushang der Fehler- und Disqualifikations-Codes (A4 hoch)
+   Ein Blatt im Rahmen der übrigen Listen (.sheet, Kopf .sheet-title-box in
+   app.css); hier steht nur, was darunter kommt. Vorbild: LegendePage im
+   Fehlerpunkte-Prototyp. Farben nur über --blatt-* (styles/blatt.css): am
+   Bildschirm das Farbschema, im Druck schwarz auf weiß.
+   ====================================================================== */
+
+/* Der Name der Liste ist hier ein halber Satz, zweisprachig ein ganzer: Er darf umbrechen. */
+.lg-kopf .list {
+  flex: 0 1 46%;
+  white-space: normal;
+}
+
+.lg-quelle {
+  margin: 1mm 0 2mm;
+  font-size: 8.5pt;
+  color: var(--blatt-leise);
+}
+
+/* Maße so, dass das Regelwerk der DM (39 Codes, drei Hinweise) auf ein A4-Blatt passt. */
+.lg-abschnitt {
+  margin-bottom: 2mm;
+}
+
+.lg-abschnitt h3 {
+  margin: 0 0 1mm;
+  font-size: 10.5pt;
+  color: var(--blatt-text);
+}
+
+/* Fehlerblöcke paarweise nebeneinander (Ablegen | Anlegen, Tor 5 | Mann-über-Bord). */
+.lg-raster {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5mm 5mm;
+  align-items: start;
+}
+
+.lg-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  line-height: 1.2;
+}
+
+.lg-tabelle caption {
+  text-align: left;
+  font-weight: 700;
+  padding-bottom: 0.5mm;
+}
+
+.lg-tabelle td {
+  border-top: 0.5pt solid var(--blatt-blass);
+  padding: 0.3mm 1mm;
+  vertical-align: top;
+}
+
+.lg-tabelle tr:last-child td {
+  border-bottom: 0.5pt solid var(--blatt-blass);
+}
+
+/* Eine Zeile bleibt beisammen, auch wenn ein langes Regelwerk eine zweite Seite braucht. */
+.lg-tabelle tr {
+  break-inside: avoid;
+}
+
+.lg-code {
+  width: 8mm;
+  font-weight: 700;
+  text-align: center;
+}
+
+.lg-punkte {
+  width: 8mm;
+  font-weight: 700;
+  text-align: right;
+}
+
+.lg-titel {
+  width: 18mm;
+  font-weight: 700;
+}
+
+/* Zweisprachige Hinweise stehen untereinander (ein Zeilenumbruch im Text). */
+.lg-hinweis {
+  margin: 1mm 0 0;
+  font-size: 8pt;
+  font-style: italic;
+  white-space: pre-line;
+}
+
+.lg-hinweise {
+  margin: 0;
+  padding-left: 4mm;
+  font-size: 8pt;
+  white-space: pre-line;
+}
+
+/* Schmale Fenster: die Fehlerblöcke untereinander statt in zwei zu engen Spalten. */
+@media screen and (max-width: 560px) {
+  .lg-raster {
+    grid-template-columns: 1fr;
+  }
+
+  .lg-kopf {
+    flex-direction: column;
+  }
+
+  .lg-kopf .list {
+    border-right: none;
+    border-bottom: 2px solid var(--blatt-linie);
+  }
+}

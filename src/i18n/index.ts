@@ -76,42 +76,76 @@ function fill(text: string, params?: Params): string {
   return text.replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String((params as Record<string, unknown>)[name]) : match))
 }
 
-/** Übersetzter Text; `{name}` wird aus `params` ersetzt. */
+/** Übersetzter Text in einer bestimmten Sprache; `{name}` wird aus `params` ersetzt. */
+export function tIn(sprache: Locale, key: MessageKey, params?: Params): string {
+  return fill(catalogOf(sprache)[key] ?? de[key] ?? key, params)
+}
+
+/** Übersetzter Text in der Sprache der Oberfläche. */
 export function t(key: MessageKey, params?: Params): string {
-  return fill(catalogOf(locale.value)[key] ?? de[key] ?? key, params)
+  return tIn(locale.value, key, params)
 }
 
 /**
- * Übersetzter Text mit Zahlform. Der Katalogeintrag hat die Gestalt
- * „Einzahl | Mehrzahl“; `{n}` steht für die Zahl.
+ * Übersetzter Text mit Zahlform in einer bestimmten Sprache. Der Katalogeintrag hat die
+ * Gestalt „Einzahl | Mehrzahl“; `{n}` steht für die Zahl.
  */
-export function tn(key: MessageKey, n: number, params?: Params): string {
-  const forms = (catalogOf(locale.value)[key] ?? de[key] ?? key).split(' | ')
+export function tnIn(sprache: Locale, key: MessageKey, n: number, params?: Params): string {
+  const forms = (catalogOf(sprache)[key] ?? de[key] ?? key).split(' | ')
   const form = forms.length > 1 && n !== 1 ? forms[1] : forms[0]
   return fill(form, { n, ...params })
+}
+
+/** Übersetzter Text mit Zahlform in der Sprache der Oberfläche. */
+export function tn(key: MessageKey, n: number, params?: Params): string {
+  return tnIn(locale.value, key, n, params)
 }
 
 const two = (n: number) => String(n).padStart(2, '0')
 
 /**
- * Datum (ISO `JJJJ-MM-TT`) in der Schreibweise der gewählten Sprache: deutsch
+ * Datum (ISO `JJJJ-MM-TT`) in der Schreibweise einer Sprache: deutsch
  * `TT.MM.JJJJ`, englisch bewusst `JJJJ-MM-TT` – bei internationalen Wettkämpfen
  * ist das die einzige Schreibweise, die niemand falsch liest.
  */
-export function formatDate(iso: string): string {
+export function formatDateIn(sprache: Locale, iso: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (!m) return iso
-  return locale.value === 'de' ? `${m[3]}.${m[2]}.${m[1]}` : `${m[1]}-${m[2]}-${m[3]}`
+  return sprache === 'de' ? `${m[3]}.${m[2]}.${m[1]}` : `${m[1]}-${m[2]}-${m[3]}`
+}
+
+/** Datum in der Schreibweise der Oberfläche. */
+export function formatDate(iso: string): string {
+  return formatDateIn(locale.value, iso)
 }
 
 /**
  * Zeitpunkt (ISO) in Ortszeit: deutsch `TT.MM.JJJJ, HH:MM`, englisch `JJJJ-MM-TT HH:MM`.
  * `sekunden`: mit Sekunden – für Angaben, an denen sich zwei Fassungen unterscheiden lassen.
  */
-export function formatDateTime(iso: string, sekunden = false): string {
+export function formatDateTimeIn(sprache: Locale, iso: string | number, sekunden = false): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
   const day = `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`
   const time = `${two(date.getHours())}:${two(date.getMinutes())}${sekunden ? `:${two(date.getSeconds())}` : ''}`
-  return locale.value === 'de' ? `${formatDate(day)}, ${time}` : `${day} ${time}`
+  return sprache === 'de' ? `${formatDateIn('de', day)}, ${time}` : `${day} ${time}`
+}
+
+/** Zeitpunkt in der Schreibweise der Oberfläche. */
+export function formatDateTime(iso: string | number, sekunden = false): string {
+  return formatDateTimeIn(locale.value, iso, sekunden)
+}
+
+/**
+ * Dieselben Funktionen an eine Sprache gebunden, die nicht die der Oberfläche sein muss: Die
+ * gedruckten Listen haben ihre eigene (lib/listensprache.ts). `sprache` wird bei jedem Aufruf
+ * gefragt, die Texte bleiben also reaktiv.
+ */
+export function texteIn(sprache: () => Locale) {
+  return {
+    t: (key: MessageKey, params?: Params) => tIn(sprache(), key, params),
+    tn: (key: MessageKey, n: number, params?: Params) => tnIn(sprache(), key, n, params),
+    formatDate: (iso: string) => formatDateIn(sprache(), iso),
+    formatDateTime: (iso: string | number, sekunden = false) => formatDateTimeIn(sprache(), iso, sekunden),
+  }
 }

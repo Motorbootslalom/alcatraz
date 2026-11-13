@@ -1,8 +1,9 @@
 import type { AppState, ClassId, OriginMode, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, leerzeilenZahl, streichlaeufeWert } from './reducer'
-import { aufbauOf, regelwerkOf } from '../config/catalog'
+import { emptyState, laufzettelLayoutWert, leerzeilenZahl, listenSpracheWert, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
+import { aufbauOf, beschriftungOf, regelwerkOf } from '../config/catalog'
+import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
 import { normalisiereEinteilung } from '../lib/einteilung'
@@ -77,6 +78,18 @@ export function migrate(raw: unknown): AppState | null {
     // Fehlt in Ständen vor dem Zeitpunkt auf den Ergebnislisten: Dann ist er unbekannt, und
     // die Listen zeigen keinen (lib/listenStand.ts) – bis zu ihrer nächsten Änderung.
     listenStand: listenStandVon(loaded.listenStand),
+    // Fehlt in Ständen vor dieser Angabe; ohne Starter gibt es kein Beispiel-Starterfeld.
+    beispielStarter: loaded.beispielStarter === true && starters.length > 0,
+    // Fehlen in Ständen vor diesen Listenoptionen: automatische Aufteilung, R/L, Sprache der Oberfläche.
+    wkrZeilenJeSeite: zeilenJeSeiteZahl(loaded.wkrZeilenJeSeite),
+    wkrTeilenAb: teilenAbZahl(loaded.wkrTeilenAb),
+    beschriftung: beschriftungOf(loaded.beschriftung),
+    listenSprache: listenSpracheWert(loaded.listenSprache),
+    // Fehlen in Ständen vor diesen Optionen: getrennte Listen, die Vorgabe des Regelwerks
+    // (damit die Knoten-Liste), Laufzettel mit einer Zeile je Seite.
+    tor5MitParcours: loaded.tor5MitParcours === true,
+    zusatzListen: normalisiereZusatzListen(loaded.zusatzListen),
+    laufzettelLayout: laufzettelLayoutWert(loaded.laufzettelLayout),
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },

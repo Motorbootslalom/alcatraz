@@ -1,17 +1,19 @@
-import type { RawDisziplin } from '../config/schema'
+import type { RawDisziplin, StichKriterium } from '../config/schema'
 import type { AppState, ClassId, Starter, Streichlaeufe } from '../types'
 import { columnsForClass } from './bogen'
 import { codeEntries, parseCodeEntry } from './codes'
 import { felderJeKennung, laufSchluessel, OHNE_LAUF, vergleicheNr, werteVon, type EingabenKonfig, type Feld } from './eingaben'
 import { bojenWert, codeDisqs, disqCodes, errorParts } from './scoring'
 import { parseTime } from './time'
+import { veranstaltungsListen, type ListenWahl } from './listen'
 
 // Ergebnislisten aus den Eingaben – rein, ohne DOM. Vorbild: lib/ergebnis.ts im
 // Fehlerpunkte-Prototyp, nachgebaut nach den Auswertungs-Listen der DM 2026.
 //
 // Lauf: Die Zeit ist die der elektronischen Zeiterfassung, ohne sie der Mittelwert der
-// Stoppuhren. Eine Sekunde zählt einen Punkt, dazu die Strafpunkte. Gleiche Punkte teilen
-// sich den Platz. Drei Fälle je Starter:
+// Stoppuhren. Eine Sekunde zählt einen Punkt, dazu die Strafpunkte. Bei gleichen Punkten
+// entscheidet der Stichentscheid des Regelwerks (siehe unten); erst wenn auch er nichts
+// trennt, teilen sich die Starter den Platz. Drei Fälle je Starter:
 //   • gewertet        – Zeit vorhanden, keine Disqualifikation.
 //   • offen           – noch keine Zeit und keine Disqualifikation: „noch nicht gefahren“.
 //                       Steht ohne Zeit auf Platz 1 (Entscheidung des Nutzers, wie in der
@@ -20,25 +22,40 @@ import { parseTime } from './time'
 //   • disqualifiziert – ein Disq-Buchstabe irgendwo im Lauf, auch X „Nicht gestartet“
 //                       (am Steg oder Vorsteg eingetragen). Steht ohne Punkte hinter allen.
 //
-// Gesamt: Gewertet werden die Läufe, in denen in der Klasse schon jemand eine Zeit oder eine
-// Disqualifikation hat (Haken und Fehlerpunkte allein machen noch keinen gefahrenen Lauf).
+// Gesamt: Gewertet werden die Läufe, in denen in der Klasse schon jemand gefahren ist: eine
+// Zeit oder eine Disqualifikation aus der Fahrt. Haken und Fehlerpunkte allein machen noch
+// keinen gefahrenen Lauf, ein X „Nicht gestartet“ auch nicht – es lässt sich im Voraus
+// eintragen (der Starter ist abgereist) und setzte sonst die ganze Klasse auf „offen“.
 // Am Ende zählen `laufCount − Streichläufe` Läufe; solange weniger gefahren sind, wird nichts
 // gestrichen. Gestrichen werden zuerst disqualifizierte Läufe, dann die schlechtesten (bei
-// Gleichstand der frühere). Insgesamt disqualifiziert (letzter Platz) ist, wer mehr
-// disqualifizierte Läufe hat, als am Ende gestrichen werden – das steht schon im
-// Zwischenstand fest. Wer dagegen im Zwischenstand weniger gültige Läufe hat, als gerade
-// zählen (ein Lauf ist offen, oder eine Disqualifikation fällt erst später in den
-// Streichlauf), hat noch kein vergleichbares Ergebnis und steht wie im Lauf auf Platz 1:
-// So können die anderen später nur aufrücken. Knoten zählen zusätzlich.
+// Gleichstand der frühere). Disqualifiziert (letzter Platz) ist, wer mehr disqualifizierte
+// Läufe hat, als beim jetzigen Stand gestrichen werden – auch im Zwischenstand: Ein X oder
+// eine Disqualifikation steht hinten, bis der Streichlauf sie aufnimmt (Entscheidung des
+// Nutzers: „X und nicht gestartet“ ist etwas anderes als „leer und oben“). Auf Platz 1 ohne
+// Ergebnis steht nur, wer einen gewerteten Lauf noch nachholt (leere Zeile) – n solche
+// Starter, und der beste Gefahrene hat Platz n + 1. Knoten zählen zusätzlich.
+//
+// Stichentscheid: Was bei gleichem Ergebnis entscheidet, steht im Regelwerk (`stichentscheid`
+// in config/regelwerke/*.yaml), nicht hier – DM und UIM regeln es verschieden. Die Kriterien
+// gelten der Reihe nach, für die Liste eines Laufs wie für die Gesamtliste:
+//   • schnellsterLauf   – die kürzeste gefahrene Zeit unter den gewerteten (nicht gestrichenen)
+//                         Läufen. In der Liste eines Laufs ist das seine gefahrene Zeit.
+//   • besterLauf        – das beste Ergebnis (Zeit und Strafpunkte) unter den gewerteten Läufen.
+//   • summeAllerLaeufe  – die Summe aller Läufe der Liste mit ihren Strafpunkten, auch der
+//                         gestrichenen; wer nicht in jedem ein gültiges Ergebnis hat, steht
+//                         dahinter (UIM 960, Pkt. 5.2.6).
+// Die entscheidenden Werte stehen ohnehin auf der Liste (gefahrene Zeit, Ergebnis je Lauf).
 //
 // Punkte stehen als ganze Hundertstel in den Zeilen, damit nichts durch Rundung kippt.
 
 /** Was die Wertung von der Konfiguration braucht (config/konfig.ts `Konfig`). */
 export interface ErgebnisKonfig extends EingabenKonfig {
   getDisziplin(id: string): RawDisziplin
+  /** Der Stichentscheid des Regelwerks; fehlt die Angabe, teilen sich Punktgleiche den Platz. */
+  getRegelwerk?(): { stichentscheid?: readonly StichKriterium[]; vorgabeListen?: Readonly<Record<string, readonly string[]>> }
 }
 
-export type ErgebnisStand = Pick<AppState, 'aufbau' | 'eingaben' | 'starters' | 'laufCount' | 'streichlaeufe'>
+export type ErgebnisStand = ListenWahl & Pick<AppState, 'eingaben' | 'starters' | 'laufCount' | 'streichlaeufe'>
 
 /** Eine Zelle je Zeile: die Punkte und Buchstaben ihrer Felder. */
 export interface ErgebnisBlatt {
@@ -69,6 +86,8 @@ export interface LaufZeile {
   /** X „Nicht gestartet“ ist eingetragen. */
   nichtGestartet: boolean
   platz: number
+  /** Punktgleich mit einem anderen – den Platz hat der Stichentscheid des Regelwerks bestimmt. */
+  stich: boolean
   /** Inhalt je Blatt der Gruppen. */
   zellen: string[]
   /** Fehlercodes und Disq-Buchstaben, z. B. „3, 17, 18, J“. */
@@ -92,12 +111,14 @@ export interface GesamtZeile {
   /** Summe der gewerteten Läufe; null = disqualifiziert oder noch offen. */
   ergebnis: number | null
   disq: boolean
-  /** Noch kein vergleichbares Ergebnis: weniger gültige Läufe, als beim jetzigen Stand zählen. */
+  /** Noch kein vergleichbares Ergebnis: Ein Lauf der Wertung ist noch nicht gefahren (leere Zeile). */
   offen: boolean
   /** Knoten-Strafpunkte. */
   knoten: number
   gesamt: number | null
   platz: number
+  /** Punktgleich mit einem anderen – den Platz hat der Stichentscheid des Regelwerks bestimmt. */
+  stich: boolean
 }
 
 export interface GesamtListe {
@@ -156,10 +177,27 @@ export function streichlaeufeVon(laufCount: number, streichlaeufe: Streichlaeufe
   return Math.max(0, Math.min(Math.max(1, laufCount) - 1, Math.round(gewuenscht) || 0))
 }
 
+/**
+ * Was das Regelwerk an Läufen und Streichläufen vorsieht, wenn die Veranstaltung anders
+ * eingestellt ist; sonst null (auch wenn das Regelwerk nichts vorgibt). Gewertet wird immer
+ * das Eingestellte – der Rennleiter entscheidet –, die Oberfläche weist nur darauf hin: Unter
+ * UIM zählte mit „Streichläufe nach Regel“ sonst die Summe beider Versuche statt des besseren.
+ */
+export function laeufeLautRegelwerk(
+  regelwerk: { wertungslaeufe?: { laeufe: number; streichlaeufe: number } },
+  stand: Pick<AppState, 'laufCount' | 'streichlaeufe'>,
+): { laeufe: number; streichlaeufe: number } | null {
+  const soll = regelwerk.wertungslaeufe
+  if (!soll) return null
+  const laeufe = Math.max(1, stand.laufCount)
+  return soll.laeufe === laeufe && soll.streichlaeufe === streichlaeufeVon(laeufe, stand.streichlaeufe) ? null : soll
+}
+
 /** Die Spalten der Ergebnisliste: Felder, die es im Aufbau für die Klasse nicht gibt, entfallen. */
-export function ergebnisGruppen(konfig: ErgebnisKonfig, aufbau: string, klasse: string): ErgebnisGruppe[] {
+export function ergebnisGruppen(konfig: ErgebnisKonfig, wahl: ListenWahl, klasse: string): ErgebnisGruppe[] {
+  const aufbau = wahl.aufbau
   const kuerzel = new Map<string, string>()
-  for (const typeId of konfig.aufbauOrder(aufbau, false)) {
+  for (const typeId of veranstaltungsListen(konfig, wahl)) {
     if (!konfig.positionAllowsClass(typeId, klasse)) continue
     for (const col of columnsForClass(konfig.getSheetDef(typeId).columns, klasse)) {
       // Kennung „t1a|hin seiteA“: Das letzte Wort ist die Bojen-Seite.
@@ -242,18 +280,49 @@ export function wertungVon(z: { disq: boolean; gesamt: number | null }): Wertung
 }
 
 /**
- * Sortiert und vergibt die Plätze: Offene zuerst (alle Platz 1), dann nach Punkten,
- * Disqualifizierte gemeinsam dahinter. Innerhalb gleicher Punkte nach Startnummer.
+ * Der Schlüssel des Stichentscheids einer Zeile: je Kriterium Zahlen, kleiner ist besser,
+ * verglichen wird der Reihe nach. `laeufe` sind alle Läufe der Liste, `gewertet` die davon
+ * zählenden (nicht gestrichenen) mit gültigem Ergebnis.
  */
-function platziert<T extends { starter: Starter; gesamt: number | null; disq: boolean; platz: number }>(zeilen: T[]): T[] {
+function stichSchluessel(kriterien: readonly StichKriterium[], laeufe: LaufZeile[], gewertet: LaufZeile[]): number[] {
+  const kleinste = (werte: Array<number | null>) => Math.min(...werte.map((w) => w ?? Number.POSITIVE_INFINITY))
+  return kriterien.flatMap((k) => {
+    if (k === 'schnellsterLauf') return [kleinste(gewertet.map((l) => l.zeit))]
+    if (k === 'besterLauf') return [kleinste(gewertet.map((l) => l.gesamt))]
+    // UIM 960, Pkt. 5.2.6: erst wer in jedem Versuch ein gültiges Ergebnis hat, dann die Summe.
+    const gueltig = laeufe.filter((l) => l.gesamt !== null)
+    return [laeufe.length - gueltig.length, gueltig.reduce((s, l) => s + l.gesamt!, 0)]
+  })
+}
+
+/** Der Reihe nach verglichen; negativ = `a` steht vorn. */
+function vergleicheSchluessel(a: number[], b: number[]): number {
+  for (let i = 0; i < a.length; i++) {
+    // Unendlich gegen unendlich (beide ohne Wert) ist gleich – die Differenz wäre NaN.
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1
+  }
+  return 0
+}
+
+/**
+ * Sortiert und vergibt die Plätze: Offene zuerst (alle Platz 1), dann nach Punkten – der beste
+ * Gewertete steht damit auf Platz „Zahl der Offenen + 1“ –, Disqualifizierte gemeinsam
+ * dahinter. Bei gleichen Punkten entscheidet `schluessel` (der Stichentscheid des Regelwerks);
+ * trennt auch er nichts, teilen sich die Zeilen den Platz und stehen nach Startnummer.
+ */
+function platziert<T extends { starter: Starter; gesamt: number | null; disq: boolean; platz: number; stich: boolean }>(zeilen: T[], schluessel: (z: T) => number[]): T[] {
   const stufe = (z: T) => STUFE[wertungVon(z)]
   const offene = zeilen.filter((z) => stufe(z) === 0).length
   const gewertet = zeilen.filter((z) => stufe(z) === 1)
+  const stich = new Map(gewertet.map((z) => [z, schluessel(z)]))
+  const imStich = (a: T, b: T) => vergleicheSchluessel(stich.get(a)!, stich.get(b)!)
+  const vergleiche = (a: T, b: T) => a.gesamt! - b.gesamt! || imStich(a, b)
   return [...zeilen]
-    .sort((a, b) => stufe(a) - stufe(b) || (stufe(a) === 1 ? a.gesamt! - b.gesamt! : 0) || vergleicheNr(a.starter.startNr, b.starter.startNr))
+    .sort((a, b) => stufe(a) - stufe(b) || (stufe(a) === 1 ? vergleiche(a, b) : 0) || vergleicheNr(a.starter.startNr, b.starter.startNr))
     .map((z) => ({
       ...z,
-      platz: stufe(z) === 0 ? 1 : stufe(z) === 1 ? offene + 1 + gewertet.filter((g) => g.gesamt! < z.gesamt!).length : offene + gewertet.length + 1,
+      platz: stufe(z) === 0 ? 1 : stufe(z) === 1 ? offene + 1 + gewertet.filter((g) => vergleiche(g, z) < 0).length : offene + gewertet.length + 1,
+      stich: stufe(z) === 1 && gewertet.some((g) => g.gesamt === z.gesamt && imStich(g, z) !== 0),
     }))
 }
 
@@ -264,6 +333,7 @@ function laufListe(
   starter: Starter[],
   gruppen: ErgebnisGruppe[],
   felder: Map<string, Feld>,
+  stich: readonly StichKriterium[],
 ): LaufListe {
   const blaetter = gruppen.flatMap((g) => g.blaetter)
   const nachNummer = starter.map((s): LaufZeile => {
@@ -284,13 +354,14 @@ function laufListe(
       offen: !disq && zeit === null,
       nichtGestartet: disqs.includes('X'),
       platz: 1,
+      stich: false,
       zellen,
       schluessel: schluesselText(codes, disqs),
     }
   })
-  const nachPlatz = platziert(nachNummer)
-  const platzVon = new Map(nachPlatz.map((z) => [z.starter.id, z.platz]))
-  return { klasse, lauf, gruppen, nachNummer: nachNummer.map((z) => ({ ...z, platz: platzVon.get(z.starter.id) ?? 1 })), nachPlatz }
+  const nachPlatz = platziert(nachNummer, (z) => stichSchluessel(stich, [z], [z]))
+  const platzVon = new Map(nachPlatz.map((z) => [z.starter.id, z]))
+  return { klasse, lauf, gruppen, nachNummer: nachNummer.map((z) => platzVon.get(z.starter.id) ?? z), nachPlatz }
 }
 
 /**
@@ -315,17 +386,17 @@ function gesamtListe(
   knotenVon: ((id: string) => Werte) | null,
   felder: Map<string, Feld>,
   streichen: number,
-  /** Die am Ende geltenden Streichläufe – mehr Disqualifikationen kann niemand loswerden. */
-  streichenAmEnde: number,
+  stich: readonly StichKriterium[],
 ): GesamtListe {
   const nachNummer = laeufe[0].nachNummer.map((kopf, i): GesamtZeile => {
     const jeLauf = laeufe.map((l) => l.nachNummer[i])
     const disqs = jeLauf.filter((l) => l.disq).length
-    // Zu wenige gültige Läufe: Auch am Ende bliebe eine Disqualifikation in der Wertung.
-    const disq = disqs > Math.max(streichen, streichenAmEnde)
-    // Ein offener Lauf – oder eine Disqualifikation, die erst der Streichlauf am Ende aufnimmt:
-    // Bis dahin fehlt ein gültiger Lauf, das Ergebnis wäre mit den anderen nicht vergleichbar.
-    const offen = !disq && (jeLauf.some((l) => l.offen) || disqs > streichen)
+    // Mehr Disqualifikationen (auch X „Nicht gestartet“), als der jetzige Stand streicht: Ein
+    // gültiger Lauf fehlt. Das gilt auch im Zwischenstand – wer ausgefallen ist, steht hinten
+    // und nicht bei denen, die noch nachholen; greift später der Streichlauf, wird er gewertet.
+    const disq = disqs > streichen
+    // Offen ist nur, wer einen Lauf der Wertung noch nachholt (leere Zeile).
+    const offen = !disq && jeLauf.some((l) => l.offen)
     // Solange das Ergebnis offen ist, gelten nur Disqualifikationen als gestrichen: Welcher
     // gültige Lauf der schlechteste ist, steht erst fest, wenn alle gefahren sind.
     const gestrichen = streichIndizes(jeLauf, offen ? disqs : streichen)
@@ -343,16 +414,24 @@ function gesamtListe(
       knoten,
       gesamt: ergebnis === null ? null : ergebnis + knoten * 100,
       platz: 1,
+      stich: false,
     }
   })
-  const nachPlatz = platziert(nachNummer)
-  const platzVon = new Map(nachPlatz.map((z) => [z.starter.id, z.platz]))
+  const gestrichen = (z: GesamtZeile, lauf: number) => z.gestrichen.includes(lauf)
+  const nachPlatz = platziert(nachNummer, (z) =>
+    stichSchluessel(
+      stich,
+      z.laeufe,
+      z.laeufe.filter((l, k) => l.gesamt !== null && !gestrichen(z, laeufe[k].lauf)),
+    ),
+  )
+  const platzVon = new Map(nachPlatz.map((z) => [z.starter.id, z]))
   return {
     klasse,
     laeufe: laeufe.map((l) => l.lauf),
     streichen,
     mitKnoten: knotenVon !== null,
-    nachNummer: nachNummer.map((z) => ({ ...z, platz: platzVon.get(z.starter.id) ?? 1 })),
+    nachNummer: nachNummer.map((z) => platzVon.get(z.starter.id) ?? z),
     nachPlatz,
   }
 }
@@ -389,19 +468,21 @@ export function klassenErgebnis(stand: ErgebnisStand, konfig: ErgebnisKonfig, kl
   const laeufe = laeufeMitEingaben(stand, konfig, klasse)
   if (laeufe.length === 0) return null
   const disziplin = konfig.getAufbau(stand.aufbau).disziplin
-  const listen = konfig.aufbauOrder(stand.aufbau, false)
+  const listen = veranstaltungsListen(konfig, stand)
   const felder = felderJeKennung(konfig, klasse, listen)
-  const gruppen = ergebnisGruppen(konfig, stand.aufbau, klasse)
+  const gruppen = ergebnisGruppen(konfig, stand, klasse)
   const werte = (lauf: number) => (id: string) => werteVon(stand.eingaben, laufSchluessel(disziplin, lauf), id)
-  const laufListen = laeufe.map((l) => laufListe(klasse, l, werte(l), starter, gruppen, felder))
+  const stich = konfig.getRegelwerk?.().stichentscheid ?? []
+  const laufListen = laeufe.map((l) => laufListe(klasse, l, werte(l), starter, gruppen, felder, stich))
   const mitKnoten = listen.some((typeId) => konfig.positionAllowsClass(typeId, klasse) && konfig.getSheetDef(typeId).showLauf === false)
   // Ein Lauf, in dem erst Haken, Bemerkungen oder Fehlerpunkte stehen (das Abtippen beginnt mit
   // einer Tor-Liste), ist noch nicht gefahren: Er würde sonst die ganze Klasse auf „offen“
-  // setzen. Ist noch gar keiner gefahren, zeigt die Gesamtliste den ersten.
-  const gefahren = laufListen.filter((l) => l.nachNummer.some((z) => !z.offen))
+  // setzen. Dasselbe gilt für ein X „Nicht gestartet“ ohne Zeit – es steht oft schon da, bevor
+  // der Lauf beginnt. Ist noch gar keiner gefahren, zeigt die Gesamtliste den ersten.
+  const gefahren = laufListen.filter((l) => l.nachNummer.some((z) => z.zeit !== null || (z.disq && !z.nichtGestartet)))
   const gesamtLaeufe = gefahren.length > 0 ? gefahren : laufListen.slice(0, 1)
   const laufCount = Math.max(1, stand.laufCount)
   const streichen = streichZahl(laufCount, stand.streichlaeufe, gesamtLaeufe.length)
-  const gesamt = gesamtListe(klasse, gesamtLaeufe, mitKnoten ? werte(OHNE_LAUF) : null, felder, streichen, streichlaeufeVon(laufCount, stand.streichlaeufe))
+  const gesamt = gesamtListe(klasse, gesamtLaeufe, mitKnoten ? werte(OHNE_LAUF) : null, felder, streichen, stich)
   return { klasse, laeufe: laufListen, gesamt }
 }

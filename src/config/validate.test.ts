@@ -36,6 +36,43 @@ describe('Konfigurations-Validierung', () => {
     expect(errors(issues), errors(issues).map((i) => `${i.where}: ${i.message}`).join('\n')).toEqual([])
   })
 
+  it('vorgabeListen: nur Positionen, die sich in jedem Aufbau wählen lassen', () => {
+    const positionen = [
+      { id: 'knoten', titel: 'Knoten', schnellauswahl: true, spalten: [{ key: 'a', label: 'A', typ: 'boje' as const }] },
+      { id: 'steg', titel: 'Steg', spalten: [{ key: 'a', label: 'A', typ: 'boje' as const }] },
+    ]
+    const disziplinen = [{ id: 'manoevrieren' }]
+    const codes = (vorgabeListen: unknown) => validateRawConfig({ positionen, disziplinen, vorgabeListen: vorgabeListen as Record<string, string[]> }).map((i) => i.code)
+    const neu = (liste: unknown) => codes(liste).filter((c) => !codes(undefined).includes(c))
+    expect(neu({ manoevrieren: ['knoten'] })).toEqual([])
+    expect(neu({ manoevrieren: ['gibtsnicht'] })).toEqual(['UNKNOWN_VORGABELISTE'])
+    expect(neu({ manoevrieren: ['steg'] })).toEqual(['VORGABELISTE_NICHT_WAEHLBAR'])
+    expect(neu({ manoevrieren: ['knoten', 'knoten'] })).toEqual(['DUP_VORGABELISTE'])
+    // Die Vorgabe hängt an der Disziplin – eine bloße Liste gälte auch im Parallelslalom.
+    expect(neu(['knoten'])).toEqual(['BAD_VORGABELISTEN'])
+    expect(neu({ manoevrieren: 'knoten' })).toEqual(['BAD_VORGABELISTEN'])
+    expect(neu({ gibtsnicht: ['knoten'] })).toEqual(['UNKNOWN_VORGABE_DISZIPLIN'])
+  })
+
+  it('wertungslaeufe: mindestens ein Lauf, weniger Streichläufe als Läufe', () => {
+    const codes = (wertungslaeufe: unknown) => validateRawConfig({ wertungslaeufe: wertungslaeufe as { laeufe: number } }).map((i) => i.code)
+    const neu = (w: unknown) => codes(w).filter((c) => !codes(undefined).includes(c))
+    expect(neu({ laeufe: 2, streichlaeufe: 1 })).toEqual([])
+    expect(neu({ laeufe: 3 })).toEqual([])
+    expect(neu({ laeufe: 2, streichlaeufe: 2 })).toEqual(['BAD_WERTUNGSLAEUFE'])
+    expect(neu({ laeufe: 0 })).toEqual(['BAD_WERTUNGSLAEUFE'])
+    expect(neu({ streichlaeufe: 1 })).toEqual(['BAD_WERTUNGSLAEUFE'])
+    expect(neu('zwei')).toEqual(['BAD_WERTUNGSLAEUFE'])
+  })
+
+  it('Stichentscheid: nur Kriterien, die die Wertung kennt, und jedes einmal', () => {
+    const codes = (stichentscheid: unknown) => validateRawConfig({ stichentscheid: stichentscheid as string[] }).map((i) => i.code)
+    expect(codes(['schnellsterLauf', 'besterLauf', 'summeAllerLaeufe'])).toEqual([])
+    expect(codes(['losentscheid'])).toContain('UNKNOWN_STICHENTSCHEID')
+    expect(codes(['besterLauf', 'besterLauf'])).toContain('DUP_STICHENTSCHEID')
+    expect(codes('besterLauf')).toContain('BAD_STICHENTSCHEID')
+  })
+
   it('meldet ein gelistetes Regelwerk ohne Datei und eine Datei ohne Listeneintrag', () => {
     const codes = validateConfigTexts({
       ...texte,

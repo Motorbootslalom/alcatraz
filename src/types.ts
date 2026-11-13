@@ -265,7 +265,56 @@ export interface AppState extends PlanState {
    * geändert hat. Gehört zu den Ergebnissen: in der Sicherung, nicht in der Vorlage.
    */
   listenStand: Record<string, ListenStand>
+  /**
+   * Das Starterfeld stammt aus den Beispieldaten (Ansicht „Veranstaltung“). Dann bleibt der
+   * Block dort aufgeklappt – wer ausprobiert, will gleich Beispielwerte ergänzen. Gilt, bis
+   * die Starter ersetzt oder gelöscht werden; von Hand ergänzte Starter ändern daran nichts.
+   * Gehört zu den Startern: in der Sicherung, nicht in der Vorlage.
+   */
+  beispielStarter: boolean
+  /**
+   * Starter je Seite auf den Wettkampfrichter-Listen: 0 = automatisch (gemessen, was auf ein
+   * Blatt passt), sonst fest so viele (mindestens 5). Gilt für Bögen einer Klasse; gemeinsame
+   * Bögen mehrerer Klassen (Clubmeisterschaft) teilen sich immer automatisch, weil dort keine
+   * Klasse unnötig getrennt werden soll (lib/paging.ts `blockSeiten`).
+   */
+  wkrZeilenJeSeite: number
+  /**
+   * Nur mit festem `wkrZeilenJeSeite`: Erst Klassen mit mindestens so vielen Startern werden
+   * geteilt (z. B. 15 / 25: ab 25 Startern je 15, kleinere bleiben auf einem Blatt). 0 = immer.
+   */
+  wkrTeilenAb: number
+  /**
+   * Wie die beiden Bojen eines Tores auf den Wettkampfrichter-Listen heißen: Kennung eines
+   * Schemas aus `config/einstellungen.yaml` (`rl` Rechts/Links, `ls` Land/See …). Die
+   * Ergebnislisten bleiben bei R und L.
+   */
+  beschriftung: string
+  /**
+   * Sprache der gedruckten Listen, unabhängig von der Oberfläche (die gehört zum Gerät, die
+   * Listen zur Veranstaltung): `ui` = wie die Oberfläche. Wirkt nur, wenn das Regelwerk
+   * Englisch anbietet; was daraus wird, steht in lib/listensprache.ts.
+   */
+  listenSprache: ListenSprache
+  /**
+   * „Tor 5 übernimmt die Parcoursüberwachung“: Eine Person beobachtet die Einfahrt in Tor 5
+   * und den Fahrweg auf einer Liste, die eigene Parcoursliste entfällt (config/kombi.ts).
+   * Wirkt nur in Aufbauten, die beide Listen haben; sonst bleibt die Wahl gespeichert.
+   */
+  tor5MitParcours: boolean
+  /**
+   * Zusätzliche Listen außerhalb des Aufbaus (Knoten, Vorsteg …): Kennung → an/aus, und nur
+   * was von der Vorgabe des Regelwerks abweicht (lib/listen.ts). Leer = die Vorgabe.
+   */
+  zusatzListen: Record<string, boolean>
+  /**
+   * Form der Laufzettel: `seite` = eine Zeile je gedruckter Seite, das Kästchen vorn (wie im
+   * Fehlerpunkte-Prototyp); `liste` = eine Zeile je Liste, die Kästchen ihrer Seiten nebeneinander.
+   */
+  laufzettelLayout: LaufzettelLayout
 }
+
+export type LaufzettelLayout = 'seite' | 'liste'
 
 export type ErgebnisNamen = 'voll' | 'kurz' | 'ohne'
 export type ErgebnisHerkunft = 'aus' | 'kurz' | 'lang'
@@ -289,6 +338,9 @@ export type Geraet = 'elektronisch' | 'stoppuhr'
 
 /** Sprache der Listen und Fehlertexte: deutsch, englisch oder beides. */
 export type Sprache = 'de' | 'en' | 'de+en'
+
+/** Die Wahl der Listensprache im Stand: fest oder `ui` = wie die Oberfläche. */
+export type ListenSprache = 'ui' | Sprache
 
 /**
  * Kennung einer Position/Liste. Frei konfigurierbar (siehe config/aufbauten.yaml),

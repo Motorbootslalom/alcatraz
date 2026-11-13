@@ -89,7 +89,8 @@ describe('reducer: Eingaben', () => {
     const a = mit(action)
     expect(mit(action)).toEqual(a)
     expect(mit({ ...action, saat: 54321 }).eingaben).not.toEqual(a.eingaben)
-    expect(Object.keys(a.eingaben).sort()).toEqual([L1, L2, laufSchluessel('manoevrieren', 3)])
+    // Lauf 0: die Knoten – das Regelwerk sieht ihre Liste in jedem Aufbau vor.
+    expect(Object.keys(a.eingaben).sort()).toEqual([laufSchluessel('manoevrieren', 0), L1, L2, laufSchluessel('manoevrieren', 3)])
     expect(Object.keys(a.eingaben[L1]).sort()).toEqual(['a', 'b', 'c'])
     // Nur die genannten Läufe.
     expect(Object.keys(mit({ ...action, laeufe: [2] }).eingaben)).toEqual([L2])

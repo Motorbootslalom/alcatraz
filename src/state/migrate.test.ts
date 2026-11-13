@@ -4,6 +4,14 @@ import { emptyState } from './reducer'
 import { SCHEMA_VERSION } from '../types'
 
 describe('migrate', () => {
+  it('Beispiel-Starterfeld: fehlt in älteren Ständen, gilt nur mit Startern', () => {
+    const starters = [{ id: 'a', klasse: '1', nachname: 'A' }]
+    expect(migrate({ starters })!.beispielStarter).toBe(false)
+    expect(migrate({ starters, beispielStarter: true })!.beispielStarter).toBe(true)
+    expect(migrate({ starters, beispielStarter: 'ja' })!.beispielStarter).toBe(false)
+    expect(migrate({ starters: [], beispielStarter: true })!.beispielStarter).toBe(false)
+  })
+
   it('lehnt Unbrauchbares ab', () => {
     expect(migrate(null)).toBeNull()
     expect(migrate('x')).toBeNull()
@@ -69,3 +77,41 @@ describe('migrate: Einstellungen der Wettkampfrichter-Listen', () => {
   })
 })
 
+
+describe('migrate: Listenoptionen (Seitenaufteilung, Bojen-Seiten, Sprache)', () => {
+  it('fehlen in älteren Ständen und bekommen die Vorgaben', () => {
+    expect(migrate({ starters: [] })).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl', listenSprache: 'ui' })
+  })
+
+  it('Brauchbares bleibt, Unbrauchbares fällt auf die Vorgabe', () => {
+    expect(migrate({ starters: [], wkrZeilenJeSeite: 15, wkrTeilenAb: 25, beschriftung: 'pfeile', listenSprache: 'de+en' })).toMatchObject({
+      wkrZeilenJeSeite: 15,
+      wkrTeilenAb: 25,
+      beschriftung: 'pfeile',
+      listenSprache: 'de+en',
+    })
+    expect(migrate({ starters: [], wkrZeilenJeSeite: 3, wkrTeilenAb: -1, beschriftung: 7, listenSprache: 'fr' })).toMatchObject({
+      wkrZeilenJeSeite: 5,
+      wkrTeilenAb: 0,
+      beschriftung: 'rl',
+      listenSprache: 'ui',
+    })
+    expect(migrate({ starters: [], wkrZeilenJeSeite: 'viele', wkrTeilenAb: null, beschriftung: 'xx' })).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl' })
+  })
+})
+
+describe('migrate: Listen der Veranstaltung und Form der Laufzettel', () => {
+  it('fehlen in älteren Ständen und bekommen die Vorgaben – damit die Knoten-Liste des Regelwerks', () => {
+    expect(migrate({ starters: [] })).toMatchObject({ tor5MitParcours: false, zusatzListen: {}, laufzettelLayout: 'seite' })
+  })
+
+  it('Brauchbares bleibt, Unbrauchbares fällt auf die Vorgabe', () => {
+    expect(migrate({ starters: [], tor5MitParcours: true, zusatzListen: { knoten: false, vorsteg: true }, laufzettelLayout: 'liste' })).toMatchObject({
+      tor5MitParcours: true,
+      zusatzListen: { knoten: false, vorsteg: true },
+      laufzettelLayout: 'liste',
+    })
+    expect(migrate({ starters: [], tor5MitParcours: 'ja', zusatzListen: ['knoten'], laufzettelLayout: 3 })).toMatchObject({ tor5MitParcours: false, zusatzListen: {}, laufzettelLayout: 'seite' })
+    expect(migrate({ starters: [], zusatzListen: { knoten: 'nein', vorsteg: true } })?.zusatzListen).toEqual({ vorsteg: true })
+  })
+})

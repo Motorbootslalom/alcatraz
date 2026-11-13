@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { abstaende, type AbstandArt, type GesamtZeile } from '../../lib/ergebnis'
-import { abstandTitel, abstandZelle, punkteZelle, zeitText } from '../../lib/ergebnisText'
-import { formatDate, t } from '../../i18n'
+import { ergebnisTexte } from '../../lib/ergebnisText'
+import { locale, texteIn, type Locale } from '../../i18n'
 import type { Starter } from '../../types'
 
 /**
@@ -27,7 +27,14 @@ const props = defineProps<{
    * Zeitpunkt im Seitenrand ist dagegen nur der des Drucks. Leer = unbekannt, dann steht nichts da.
    */
   stand?: string
+  /** Sprache der Liste (lib/listensprache.ts); fehlt = die der Oberfläche. */
+  sprache?: Locale
 }>()
+
+// Alles auf dem Blatt steht in der Sprache der Liste, nicht in der der Oberfläche.
+const sprache = () => props.sprache ?? locale.value
+const { t, formatDate } = texteIn(sprache)
+const { abstandTitel, abstandZelle, punkteZelle, zeitText } = ergebnisTexte(sprache)
 
 /** Für den Aushang lässt sich der Nachname auf den Anfangsbuchstaben kürzen. */
 const nachname = (p: Starter) => (props.namen === 'kurz' && p.nachname.trim() ? `${[...p.nachname.trim()][0]}.` : p.nachname)
@@ -101,7 +108,14 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(z, i) in zeilen" :key="z.starter.id" :class="(i + 1) % 5 === 0 ? 'grau' : undefined" :data-starter="z.starter.id" :data-wertung="z.disq ? 'disq' : z.offen ? 'offen' : 'gewertet'">
+        <tr
+          v-for="(z, i) in zeilen"
+          :key="z.starter.id"
+          :class="(i + 1) % 5 === 0 ? 'grau' : undefined"
+          :data-starter="z.starter.id"
+          :data-wertung="z.disq ? 'disq' : z.offen ? 'offen' : 'gewertet'"
+          :data-stich="z.stich ? '' : undefined"
+        >
           <td class="erg-platz">{{ z.platz }}</td>
           <td>{{ z.starter.startNr }}</td>
           <td v-if="namen !== 'ohne'" :class="fit(nachname(z.starter), 14)">{{ nachname(z.starter) }}</td>
@@ -109,9 +123,13 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
           <td v-if="herkunft" :class="fit(herkunft.text(z.starter), Math.floor((herkunftMm - 2) / 1.2))">{{ herkunft.text(z.starter) }}</td>
           <td v-if="geburtsdatum">{{ z.starter.geburtsdatum ? formatDate(z.starter.geburtsdatum) : '' }}</td>
           <template v-for="(l, li) in z.laeufe" :key="li">
-            <td :class="['erg-gruppe', { 'erg-gestrichen': gestrichen(z, li) }]">{{ zeitText(l.zeit) }}</td>
-            <td :class="{ 'erg-gestrichen': gestrichen(z, li) }">{{ l.strafpunkte || '' }}</td>
-            <td :class="{ 'erg-gestrichen': gestrichen(z, li), 'erg-disq': l.disq }">{{ punkteZelle(l.disq, l.gesamt) }}</td>
+            <!-- „Nicht gestartet“ (X) ausgeschrieben statt „disq.“: gewertet wird der Lauf wie jede Disqualifikation. -->
+            <td v-if="l.nichtGestartet && l.zeit === null" colspan="3" :class="['erg-gruppe', 'erg-disq', 'erg-dns', { 'erg-gestrichen': gestrichen(z, li) }]">{{ t('results.dns') }}</td>
+            <template v-else>
+              <td :class="['erg-gruppe', { 'erg-gestrichen': gestrichen(z, li) }]">{{ zeitText(l.zeit) }}</td>
+              <td :class="{ 'erg-gestrichen': gestrichen(z, li) }">{{ l.strafpunkte || '' }}</td>
+              <td :class="{ 'erg-gestrichen': gestrichen(z, li), 'erg-disq': l.disq }">{{ punkteZelle(l.disq, l.gesamt) }}</td>
+            </template>
             <td>{{ l.platz }}</td>
           </template>
           <td :class="['erg-gruppe', { 'erg-disq': z.disq }]">{{ punkteZelle(z.disq, z.ergebnis) }}</td>

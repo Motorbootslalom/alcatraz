@@ -3,6 +3,7 @@ import { defFuerKlasse } from './bogen'
 import { normalizeCodeCell } from './codes'
 import { allowedSet, sanitizeBuoy, sanitizeDisq } from './disq'
 import { columnCellKeys } from './scoring'
+import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
 
 // Die erfassten Werte der Wettkampfrichter-Listen – rein, ohne DOM und ohne Stand. Vorbild:
 // lib/eingaben.ts im Fehlerpunkte-Prototyp.
@@ -30,8 +31,9 @@ export interface EingabenKonfig {
   getSheetDef(typeId: string): SheetDef
   getPositions(): SheetDef[]
   positionAllowsClass(typeId: string, klasse: string): boolean
-  getAufbau(id: string): { disziplin: string }
+  getAufbau(id: string): { disziplin: string; zusatz?: string[]; kombi?: { positionId: string; ersetzt: string[] } }
   aufbauOrder(id: string, kombiAktiv: boolean): string[]
+  getRegelwerk?: ListenWahlKonfig['getRegelwerk']
 }
 
 /** Eine einzelne Eingabe, so wie sie eine Action trägt. Ein leerer Wert löscht die Zelle. */
@@ -182,6 +184,61 @@ export function setzeWerte(eingaben: Eingaben, zellen: readonly EingabeZelle[]):
   return out
 }
 
+/** Die Liste eines Felds, das zu seiner Liste gehört („disq@steg“ → „steg“); sonst `undefined`. */
+function listeVon(kennung: string): string | undefined {
+  const i = kennung.lastIndexOf('@')
+  return i < 0 ? undefined : kennung.slice(i + 1)
+}
+
+/**
+ * Zieht um, was in einer Disziplin zu einer Liste gehört (Disq., Bemerkung, Haken „erfasst“):
+ * von `von` nach `nach`, etwa Tor 5 → Tor 5 + Parcours. Vorbild: `listenUmziehen` im Prototyp.
+ * Ein Wert zieht nur um, wenn die neue Liste das Feld für die Klasse des Starters hat, er
+ * dort gilt und das Ziel noch frei ist – sonst bleibt er, wo er ist (er zählt weiter und
+ * erscheint unter den verborgenen Eingaben). Ändert sich nichts, kommt dasselbe Objekt zurück.
+ */
+export function listeUmziehen(
+  eingaben: Eingaben,
+  konfig: Pick<EingabenKonfig, 'getSheetDef' | 'positionAllowsClass'>,
+  disziplin: string,
+  klasseVon: (starter: string) => string | undefined,
+  von: string,
+  nach: string,
+): Eingaben {
+  if (von === nach) return eingaben
+  let geaendert = false
+  const out: Eingaben = {}
+  for (const [lauf, zeilen] of Object.entries(eingaben)) {
+    out[lauf] = zeilen
+    if (zerlegeLauf(lauf).disziplin !== disziplin) continue
+    const neu: Record<string, Record<string, string>> = {}
+    for (const [starter, werte] of Object.entries(zeilen)) {
+      neu[starter] = werte
+      const klasse = klasseVon(starter)
+      if (klasse === undefined || !konfig.positionAllowsClass(nach, klasse)) continue
+      const ziele = listenFelder(konfig, nach, klasse)
+      let zeile: Record<string, string> | undefined
+      for (const [kennung, wert] of Object.entries(werte)) {
+        if (listeVon(kennung) !== von) continue
+        const ziel = `${kennung.slice(0, kennung.lastIndexOf('@'))}@${nach}`
+        if (ziel in werte) continue
+        // Der Haken „erfasst“ ist kein Feld des Bogens; alles andere muss dort gelten.
+        const gueltig = ziel === erfasstKennung(nach) ? wert : (ziele.find((f) => f.kennung === ziel)?.gueltig(wert) ?? '')
+        if (!gueltig) continue
+        zeile ??= { ...werte }
+        delete zeile[kennung]
+        zeile[ziel] = gueltig
+      }
+      if (zeile) {
+        neu[starter] = zeile
+        geaendert = true
+      }
+    }
+    out[lauf] = neu
+  }
+  return geaendert ? out : eingaben
+}
+
 /** Nur die Eingaben der genannten Starter: Wer gelöscht ist, nimmt seine Werte mit. */
 export function nurStarter(eingaben: Eingaben, ids: ReadonlySet<string>): Eingaben {
   let geaendert = false
@@ -223,9 +280,14 @@ export function gueltigeZellen(zellen: readonly EingabeZelle[], starter: Readonl
  * in jeder Sicherung, und Zeiten oder Disqualifikationen darunter zählen in der Wertung mit –
  * deshalb zeigt die Oberfläche ihre Zahl und bietet an, sie zu entfernen.
  */
-export function verborgeneZellen(stand: Pick<AppState, 'aufbau' | 'eingaben' | 'starters' | 'laufCount'>, konfig: EingabenKonfig): EingabeZelle[] {
+export function verborgeneZellen(stand: ListenWahl & Pick<AppState, 'eingaben' | 'starters' | 'laufCount'>, konfig: EingabenKonfig): EingabeZelle[] {
   const disziplin = konfig.getAufbau(stand.aufbau).disziplin
-  const listen = konfig.aufbauOrder(stand.aufbau, false)
+  const listen = veranstaltungsListen(konfig, stand)
+  // Listen, die durch „Tor 5 übernimmt die Parcoursüberwachung“ gerade ruhen (die Parcoursliste
+  // bzw. die zusammengelegte): Ihr Haken „erfasst“ bleibt für das Zurückschalten stehen. Er
+  // zählt nie in der Wertung und ist deshalb kein Fund, den jemand prüfen müsste.
+  const kombi = konfig.getAufbau(stand.aufbau).kombi
+  const ruhend = new Set((kombi ? [kombi.positionId, ...kombi.ersetzt] : []).filter((id) => !listen.includes(id)).map(erfasstKennung))
   const klasseVon = new Map(stand.starters.map((s) => [s.id, s.klasse]))
   // Je Klasse die Kennungen, die die Erfassung zeigt: mit Lauf und ohne (Knoten).
   const sichtbar = new Map<string, Set<string>>()
@@ -250,6 +312,7 @@ export function verborgeneZellen(stand: Pick<AppState, 'aufbau' | 'eingaben' | '
     for (const [starter, werte] of Object.entries(zeilen)) {
       const klasse = klasseVon.get(starter)
       for (const [feld, wert] of Object.entries(werte)) {
+        if (!laufFehlt && ruhend.has(feld)) continue
         if (laufFehlt || klasse === undefined || !kennungen(klasse, lauf === OHNE_LAUF).has(feld)) out.push({ lauf: schluessel, starter, feld, wert })
       }
     }

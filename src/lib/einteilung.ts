@@ -1,4 +1,5 @@
 import type { ClassId, Einteilung, Parcours } from '../types'
+import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
 
 // WKR-Einteilung (KONZEPT-NAMEN-FREIHAND.md §1 im Fehlerpunkte-Prototyp): Wer an welcher
 // Liste sitzt, einmal für die Veranstaltung statt auf jedem Bogen. Jeder Parcours hat eigene
@@ -16,8 +17,8 @@ import type { ClassId, Einteilung, Parcours } from '../types'
 export type EinteilungsStand = { einteilung: Einteilung; parcoursList: readonly Pick<Parcours, 'id' | 'classIds'>[] }
 
 /** Was die Funktionen hier von der Konfiguration brauchen (config/konfig.ts `Konfig`). */
-export interface ListenKonfig {
-  getAufbau(id: string): { order: string[]; zusatz: string[]; kombi?: { positionId: string } }
+export interface ListenKonfig extends ListenWahlKonfig {
+  getAufbau(id: string): { order: string[]; zusatz: string[]; kombi?: { positionId: string; ersetzt: string[] } }
   getSheetDef(typeId: string): { typeId: string; titelDe: string; title: string; menuLabel: string }
   positionAllowsClass(typeId: string, klasse: string): boolean
 }
@@ -114,6 +115,23 @@ export function haengeUm(e: Einteilung, alt: readonly string[], neu: readonly st
   return Object.fromEntries(paare)
 }
 
+/**
+ * Zieht den Namen einer Liste auf eine andere um, auf jedem Parcours (Tor 5 ↔ Tor 5 +
+ * Parcours). Steht am Ziel schon jemand, bleibt beides, wie es ist. Ändert sich nichts,
+ * kommt dasselbe Objekt zurück.
+ */
+export function nameUmziehen(e: Einteilung, von: string, nach: string): Einteilung {
+  if (von === nach || von === UNBRAUCHBAR || nach === UNBRAUCHBAR) return e
+  let geaendert = false
+  const paare = Object.entries(e).map(([parcoursId, liste]): [string, Record<string, string>] => {
+    if (liste[von] === undefined || liste[nach]?.trim()) return [parcoursId, liste]
+    geaendert = true
+    const { [von]: name, [nach]: _leer, ...rest } = liste
+    return [parcoursId, { ...rest, [nach]: name }]
+  })
+  return geaendert ? Object.fromEntries(paare) : e
+}
+
 /** Die Einteilung ohne einen Parcours (er wurde entfernt). */
 export function ohneParcours(e: Einteilung, parcoursId: string): Einteilung {
   return Object.fromEntries(Object.entries(e).filter(([id]) => id !== parcoursId))
@@ -125,23 +143,27 @@ export interface EinteilungsListe {
 }
 
 /**
- * Die Zeilen der Einteilung: die Listen des Aufbaus in seiner Reihenfolge, darunter die
- * weiteren, die sich ebenfalls drucken lassen (Schnellauswahl, zusammengelegte Liste).
+ * Die Zeilen der Einteilung: die Listen der Veranstaltung in ihrer Reihenfolge (lib/listen.ts
+ * – die des Aufbaus, wahlweise zusammengelegt, und die gewählten zusätzlichen). Darunter
+ * `weitere`: Listen, die gerade nicht gelten, an denen aber noch ein Name steht (etwa die
+ * Parcoursliste, seit Tor 5 sie übernimmt) – Personennamen sollen sichtbar und löschbar bleiben.
  * Teilen sich mehrere denselben Titel (z. B. „Tor 1 / 3 / 5“ mit und ohne Start/Ziel),
  * steht der ausführliche Name aus dem Menü.
  */
-export function einteilungsListen(konfig: ListenKonfig, aufbauId: string): { aufbau: EinteilungsListe[]; weitere: EinteilungsListe[] } {
-  const a = konfig.getAufbau(aufbauId)
-  const kombi = a.kombi && !a.order.includes(a.kombi.positionId) && !a.zusatz.includes(a.kombi.positionId) ? [a.kombi.positionId] : []
-  const weitere = [...kombi, ...a.zusatz]
-  const defs = [...a.order, ...weitere].map((id) => konfig.getSheetDef(id))
+export function einteilungsListen(konfig: ListenKonfig, wahl: ListenWahl, einteilung: Einteilung = {}): { aufbau: EinteilungsListe[]; weitere: EinteilungsListe[] } {
+  const a = konfig.getAufbau(wahl.aufbau)
+  const gelten = veranstaltungsListen(konfig, wahl)
+  const mitNamen = new Set(Object.values(einteilung).flatMap((liste) => Object.keys(liste).filter((id) => liste[id].trim() !== '')))
+  const moeglich = [...a.order, ...(a.kombi ? [a.kombi.positionId] : []), ...a.zusatz]
+  const weitere = [...new Set(moeglich)].filter((id) => !gelten.includes(id) && mitNamen.has(id))
+  const defs = [...gelten, ...weitere].map((id) => konfig.getSheetDef(id))
   const anzahl = new Map<string, number>()
   for (const d of defs) anzahl.set(d.title, (anzahl.get(d.title) ?? 0) + 1)
   const zeile = (id: string): EinteilungsListe => {
     const d = defs.find((x) => x.typeId === id)!
     return { id, titel: (anzahl.get(d.title) ?? 0) > 1 ? d.menuLabel : d.title }
   }
-  return { aufbau: a.order.map(zeile), weitere: weitere.map(zeile) }
+  return { aufbau: gelten.map(zeile), weitere: weitere.map(zeile) }
 }
 
 /** Hat eine Klasse dieses Parcours die Liste (z. B. Mann-über-Bord erst ab Klasse 4)? */

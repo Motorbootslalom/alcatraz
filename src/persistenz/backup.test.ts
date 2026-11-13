@@ -27,6 +27,24 @@ const filled = (): AppState => ({
 const roundTrip = (kind: Parameters<typeof makeFile>[0]) => parseFile(JSON.stringify(makeFile(kind, filled(), AT)))
 
 describe('Dateien', () => {
+  it('Beispiel-Starterfeld: steht in der Sicherung, nicht in der Vorlage – es gehört zu den Startern', () => {
+    const beispiel: AppState = { ...filled(), beispielStarter: true }
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', beispiel, AT)))
+    expect(sicherung.ok && sicherung.kind === 'sicherung' && sicherung.state.beispielStarter).toBe(true)
+
+    const datei = makeFile('vorlage', beispiel, AT)
+    expect(JSON.stringify(datei)).not.toContain('beispielStarter')
+    const vorlage = parseFile(JSON.stringify(datei))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    // Die Vorlage ändert nichts daran, woher die hiesigen Starter stammen – in beide Richtungen.
+    expect(vorlage.apply(beispiel).beispielStarter).toBe(true)
+    expect(vorlage.apply(filled()).beispielStarter).toBe(false)
+    // Auch eine von Hand ergänzte Vorlage macht echte Starter nicht zu Beispieldaten.
+    const ergaenzt = parseFile(JSON.stringify({ ...datei, settings: { ...(datei as { settings: object }).settings, beispielStarter: true } }))
+    if (!ergaenzt.ok || ergaenzt.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(ergaenzt.apply(filled()).beispielStarter).toBe(false)
+  })
+
   it('Sicherung: der ganze Stand kommt zurück', () => {
     expect(roundTrip('sicherung')).toEqual({ ok: true, kind: 'sicherung', state: filled(), savedAt: AT })
   })
@@ -86,5 +104,52 @@ describe('Speicher im Browser', () => {
   it('beginnt leer, wenn der gespeicherte Stand kaputt ist', () => {
     localStorage.setItem(STATE_KEY, '{kaputt')
     expect(loadState()).toBeNull()
+  })
+})
+
+describe('Listenoptionen in den Dateien', () => {
+  const optionen = {
+    wkrZeilenJeSeite: 15,
+    wkrTeilenAb: 25,
+    beschriftung: 'ls',
+    listenSprache: 'de+en',
+    tor5MitParcours: true,
+    zusatzListen: { knoten: false, vorsteg: true },
+    laufzettelLayout: 'liste',
+  } as const
+
+  it('sind Einstellungen: Sie stehen in Sicherung und Vorlage', () => {
+    const stand: AppState = { ...filled(), ...optionen }
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', stand, AT)))
+    expect(sicherung.ok && sicherung.kind === 'sicherung' && sicherung.state).toMatchObject(optionen)
+    const datei = makeFile('vorlage', stand, AT)
+    expect(datei.kind === 'vorlage' && datei.settings).toMatchObject(optionen)
+    const vorlage = parseFile(JSON.stringify(datei))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    // Die Vorlage stellt eine andere Veranstaltung so ein, deren Starter bleiben.
+    const danach = vorlage.apply(filled())
+    expect(danach).toMatchObject(optionen)
+    expect(danach.starters).toEqual(filled().starters)
+  })
+
+  it('eine Vorlage, die Tor 5 und Parcours zusammenlegt, zieht die hiesigen Eingaben und Namen mit', () => {
+    const lauf = 'manoevrieren/1'
+    // Die Disq-Buchstaben sind die der DM.
+    const dm = (): AppState => ({ ...filled(), regelwerk: 'dm-2026' })
+    const hier: AppState = {
+      ...dm(),
+      eingaben: { [lauf]: { [starter.id]: { 'disq@tor5': 'G', 'bemerkung@tor5': 'x', 'erfasst@tor5': '1', zeit1: '80' } } },
+      einteilung: Object.fromEntries(filled().parcoursList.map((p) => [p.id, { tor5: 'Erika Muster' }])),
+    }
+    const vorlage = parseFile(JSON.stringify(makeFile('vorlage', { ...dm(), tor5MitParcours: true }, AT)))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    const danach = vorlage.apply(hier)
+    expect(danach.tor5MitParcours).toBe(true)
+    expect(danach.eingaben[lauf][starter.id]).toEqual({ 'disq@tor5pue': 'G', 'bemerkung@tor5pue': 'x', 'erfasst@tor5pue': '1', zeit1: '80' })
+    expect(Object.values(danach.einteilung)).toEqual(filled().parcoursList.map(() => ({ tor5pue: 'Erika Muster' })))
+    // Und zurück mit einer Vorlage ohne die Option.
+    const ohne = parseFile(JSON.stringify(makeFile('vorlage', dm(), AT)))
+    if (!ohne.ok || ohne.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(ohne.apply(danach).eingaben).toEqual(hier.eingaben)
   })
 })

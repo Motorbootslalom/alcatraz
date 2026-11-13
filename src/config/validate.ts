@@ -3,6 +3,7 @@ import { feldKennungen, spaltenKennung } from './feld.ts'
 import { findeKombi, kombiReihenfolge } from './kombi.ts'
 import { abwandlung, aufbauIds, eintragId, GERAETE, mitZeiten, nummerierung } from './zeitnahme.ts'
 import { AUFGABEN, aufloesen, BLICKE, BOJEN_IDS, hochziehen, istInlineKurzform, istKurzform } from './kurzform.ts'
+import { STICH_KRITERIEN } from './schema.ts'
 import type {
   RawAufbau,
   RawAufbauEintrag,
@@ -39,6 +40,9 @@ export type ConfigInput = {
   uebersetzungen?: Record<string, RawUebersetzung>
   klassen?: Array<string | number>
   ohneSpalten?: Record<string, string[]>
+  stichentscheid?: string[]
+  vorgabeListen?: Record<string, string[]>
+  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number }
   disqualifikationen?: Array<Partial<RawDisq>>
   kataloge?: Record<string, Partial<RawKatalog>>
   hinweise?: Record<string, string>
@@ -534,6 +538,51 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
           `"${nid}" ist in den Aufbauten "${bisher.aufbau}" und "${a?.id}" verschieden abgewandelt. Es gälte nur die erste.`,
           `aufbauten (id: ${a?.id})`,
         )
+    }
+  }
+
+  // ---- Listen, die das Regelwerk vorsieht: Sie müssen in jedem Aufbau wählbar sein ----
+  // Je Disziplin: Knoten gehören zum Manövrieren, nicht zum Parallelslalom.
+  if (raw.vorgabeListen !== undefined) {
+    const jeDisziplin: unknown = raw.vorgabeListen
+    if (!jeDisziplin || typeof jeDisziplin !== 'object' || Array.isArray(jeDisziplin))
+      err('BAD_VORGABELISTEN', 'vorgabeListen muss je Disziplin eine Liste nennen, z. B. { manoevrieren: [knoten] }.', 'vorgabeListen')
+    else {
+      for (const [disziplin, liste] of Object.entries(jeDisziplin)) {
+        const wo = `vorgabeListen.${disziplin}`
+        if (!Array.isArray(liste)) {
+          err('BAD_VORGABELISTEN', `vorgabeListen.${disziplin} muss eine Liste sein.`, wo)
+          continue
+        }
+        if (raw.disziplinen && raw.disziplinen.length > 0 && !raw.disziplinen.some((d) => d?.id === disziplin)) err('UNKNOWN_VORGABE_DISZIPLIN', `vorgabeListen nennt die unbekannte Disziplin "${disziplin}".`, wo)
+        for (const id of liste) {
+          const pos = positionen.find((p) => p?.id === id)
+          if (!pos) err('UNKNOWN_VORGABELISTE', `vorgabeListen nennt die unbekannte Position "${id}".`, wo)
+          else if (pos.schnellauswahl !== true)
+            err('VORGABELISTE_NICHT_WAEHLBAR', `Die Position "${id}" aus vorgabeListen braucht "schnellauswahl: true", sonst kommt sie in keinem Aufbau dazu.`, wo)
+        }
+        for (const [id, n] of duplicates(liste, (x) => x)) err('DUP_VORGABELISTE', `Position "${id}" ${n}× in vorgabeListen.${disziplin}.`, wo)
+      }
+    }
+  }
+
+  // ---- Läufe des Regelwerks: nur eine stimmige Angabe ergibt einen Hinweis ----
+  if (raw.wertungslaeufe !== undefined) {
+    const w: { laeufe?: unknown; streichlaeufe?: unknown } = raw.wertungslaeufe && typeof raw.wertungslaeufe === 'object' ? raw.wertungslaeufe : {}
+    const ganz = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x)
+    const streich = w.streichlaeufe ?? 0
+    if (!ganz(w.laeufe) || !ganz(streich) || w.laeufe < 1 || streich < 0 || streich >= w.laeufe)
+      err('BAD_WERTUNGSLAEUFE', 'wertungslaeufe braucht "laeufe" (mindestens 1) und weniger "streichlaeufe" als Läufe.', 'wertungslaeufe')
+  }
+
+  // ---- Stichentscheid: nur Kriterien, die die Wertung kennt ------------------
+  if (raw.stichentscheid !== undefined) {
+    if (!Array.isArray(raw.stichentscheid)) err('BAD_STICHENTSCHEID', 'stichentscheid muss eine Liste sein.', 'stichentscheid')
+    else {
+      for (const k of raw.stichentscheid)
+        if (!(STICH_KRITERIEN as readonly string[]).includes(k))
+          err('UNKNOWN_STICHENTSCHEID', `Unbekanntes Kriterium "${k}" im Stichentscheid (erlaubt: ${STICH_KRITERIEN.join(', ')}).`, 'stichentscheid')
+      for (const [k, n] of duplicates(raw.stichentscheid, (x) => x)) err('DUP_STICHENTSCHEID', `Kriterium "${k}" ${n}× im Stichentscheid.`, 'stichentscheid')
     }
   }
 

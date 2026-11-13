@@ -56,7 +56,7 @@ describe('Listen: Laufzettel', () => {
 
   it('die Reihenfolge der Listenarten: Laufzettel hinter den Wettkampfrichter-Listen', () => {
     const wrapper = ansicht(store)
-    expect(wrapper.findAll('.list-kinds button').map((b) => b.attributes('data-kind'))).toEqual(['interleaved', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'ergebnis', 'byClass'])
+    expect(wrapper.findAll('.list-kinds button').map((b) => b.attributes('data-kind'))).toEqual(['interleaved', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'codes', 'ergebnis', 'byClass'])
     expect(wrapper.find('.list-kinds button[data-kind="laufzettel"]').text()).toBe('Laufzettel')
     wrapper.unmount()
   })
@@ -70,9 +70,13 @@ describe('Listen: Laufzettel', () => {
     expect(ruecken(wrapper).at(-1)).toMatch(/^Klasse [47] \| 3\. Lauf \| Parcours 2$/)
     const erster = zettel(wrapper)[0]
     expect(erster.find('.lz-titel').text()).toBe('Laufzettel · Hafenpokal 2026')
-    // Ohne Layout (Test-DOM) hat jeder Bogen eine Seite: eine Zeile je Liste mit einem Kästchen ohne Seitenzahl.
-    expect(zeilen(erster)).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Parcours'])
-    expect(erster.findAll('.lz-oben .lz-kasten')).toHaveLength(7)
+    // Ohne Layout (Test-DOM) hat jeder Bogen eine Seite: eine Zeile je Liste, das Kästchen vorn, ohne Seitenangabe.
+    // Die Knoten (ohne Lauf) liegen im Stapel des 1. Laufs.
+    expect(erster.attributes('data-layout')).toBe('seite')
+    expect(zeilen(erster)).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Parcours', 'Knoten'])
+    expect(erster.findAll('.lz-oben li').every((li) => li.element.firstElementChild?.classList.contains('lz-kasten'))).toBe(true)
+    expect(erster.findAll('.lz-oben .lz-kasten')).toHaveLength(8)
+    expect(zeilen(zettel(wrapper)[1])).not.toContain('Knoten')
     expect(erster.find('.lz-schritte-titel').text()).toBe('Auswertung')
     expect(erster.findAll('.lz-schritte li').map((li) => li.text()).at(-1)).toBe('An die ML geschickt')
     // Die Klassen ab 4 haben zusätzlich Mann-über-Bord.
@@ -142,7 +146,7 @@ describe('Listen: Laufzettel', () => {
     wrapper.unmount()
   })
 
-  it('Clubmeisterschaft: ein Zettel je Lauf für die Klassen, die sich Bögen teilen', async () => {
+  it('Clubmeisterschaft, Papier sparen: ein Zettel je Parcours und Lauf – der Stapel der gemeinsamen Bögen', async () => {
     store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
     const wrapper = ansicht(store)
     await laufzettel(wrapper)
@@ -156,27 +160,71 @@ describe('Listen: Laufzettel', () => {
     wrapper.unmount()
   })
 
-  it('mehrere Seiten: Kästchen mit Seitenzahl nebeneinander in der Zeile der Liste; Teil-Klassen stehen davor', () => {
-    const wrapper = mount(LaufzettelBlatt, {
-      props: {
-        klassenText: 'Klassen E, 1, 4',
-        laufText: '1. Lauf',
-        titel: 'Laufzettel',
-        qr: 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.E14.1',
-        schritte: ['Kontrolliert'],
-        zeilen: [
-          { key: 'zeit', label: 'Zeit', gruppen: [{ key: 'a', seiten: 1 }] },
-          { key: 'steg', label: 'Steg', gruppen: [{ key: 'b', seiten: 3 }] },
-          { key: 'mueb', label: 'Mann-über-Bord', gruppen: [{ key: 'c', label: 'Kl. E, 1', seiten: 2 }, { key: 'd', label: 'Kl. 4', seiten: 1 }] },
-        ],
-      },
-    })
+  const BLATT = {
+    klassenText: 'Klassen E, 1, 4',
+    laufText: '1. Lauf',
+    titel: 'Laufzettel',
+    qr: 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.E14.1',
+    schritte: ['Kontrolliert'],
+    zeilen: [
+      { key: 'zeit', label: 'Zeit', gruppen: [{ key: 'a', seiten: 1 }] },
+      { key: 'steg', label: 'Steg', gruppen: [{ key: 'b', seiten: 3 }] },
+      { key: 'mueb', label: 'Mann-über-Bord', gruppen: [{ key: 'c', label: 'Kl. E, 1', seiten: 2 }, { key: 'd', label: 'Kl. 4', seiten: 1 }] },
+    ],
+  }
+  const text = (el: { text(): string }) => el.text().replace(/\s+/g, ' ')
+
+  it('eine Zeile je Seite (Vorgabe, wie im Prototyp): das Kästchen vorn, dahinter Liste und Seite', () => {
+    const wrapper = mount(LaufzettelBlatt, { props: BLATT })
+    expect(wrapper.find('.laufzettel').attributes('data-layout')).toBe('seite')
+    const li = wrapper.findAll('.lz-je-seite li')
+    // Ein einseitiger Bogen nennt keine Seite; Bögen nur eines Teils der Klassen nennen sie.
+    expect(li.map(text)).toEqual(['Zeit', 'Steg – Seite 1', 'Steg – Seite 2', 'Steg – Seite 3', 'Mann-über-Bord · Kl. E, 1 – Seite 1', 'Mann-über-Bord · Kl. E, 1 – Seite 2', 'Mann-über-Bord · Kl. 4'])
+    // Jede Zeile beginnt mit genau einem leeren Kästchen.
+    expect(li.every((x) => x.findAll('.lz-kasten').length === 1 && x.element.firstElementChild?.classList.contains('lz-kasten') && x.find('.lz-kasten').text() === '')).toBe(true)
+    expect(wrapper.find('.lz-seiten').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('eine Zeile je Liste: Kästchen nebeneinander, die Seitenzahl daneben – nicht darin; Teil-Klassen stehen davor', () => {
+    const wrapper = mount(LaufzettelBlatt, { props: { ...BLATT, layout: 'liste' as const } })
+    expect(wrapper.find('.laufzettel').attributes('data-layout')).toBe('liste')
     const li = wrapper.findAll('.lz-seiten li')
     expect(li.map((x) => x.find('.lz-name').text())).toEqual(['Zeit', 'Steg', 'Mann-über-Bord'])
-    // Eine Seite: leeres Kästchen; mehrere: nummeriert.
-    expect(li.map((x) => x.findAll('.lz-kasten').map((k) => k.text()))).toEqual([[''], ['1', '2', '3'], ['1', '2', '']])
+    // Kein Kästchen enthält Text: Der Haken soll nicht auf der Zahl sitzen.
+    expect(wrapper.findAll('.lz-oben .lz-kasten').every((k) => k.text() === '')).toBe(true)
+    expect(li.map((x) => x.findAll('.lz-kasten').length)).toEqual([1, 3, 3])
+    // Eine Seite: keine Zahl; mehrere: 1, 2, 3 jeweils hinter ihrem Kästchen.
+    expect(li.map((x) => x.findAll('.lz-seite').map((k) => k.text()))).toEqual([[''], ['1', '2', '3'], ['1', '2', '']])
+    expect(li[1].findAll('.lz-seite').every((x) => x.element.firstElementChild?.classList.contains('lz-kasten') && x.element.lastElementChild?.classList.contains('lz-nr'))).toBe(true)
     expect(li[2].findAll('.lz-gruppe').map((g) => g.find('.lz-gruppe-name').text())).toEqual(['Kl. E, 1', 'Kl. 4'])
     expect(li[0].find('.lz-gruppe-name').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('die Form wird in den Einstellungen gewählt und gilt für alle Zettel; englisch heißt die Seite „page“', async () => {
+    store.dispatch({ type: 'SET_LAUFZETTEL_LAYOUT', layout: 'liste' })
+    const wrapper = ansicht(store)
+    await laufzettel(wrapper)
+    expect(zettel(wrapper).every((z) => z.attributes('data-layout') === 'liste')).toBe(true)
+    expect(wrapper.find('[data-hinweis="lz-layout"]').text()).toContain('eine Zeile je Liste')
+    store.dispatch({ type: 'SET_LAUFZETTEL_LAYOUT', layout: 'seite' })
+    await nextTick()
+    expect(zettel(wrapper).every((z) => z.attributes('data-layout') === 'seite')).toBe(true)
+    const en = mount(LaufzettelBlatt, { props: { ...BLATT, sprache: 'en' as const } })
+    expect(text(en.findAll('.lz-je-seite li')[1])).toBe('Steg – page 1')
+    en.unmount()
+    wrapper.unmount()
+  })
+
+  it('zusammengelegt und mit zusätzlichen Listen: Der Zettel zählt, was gedruckt wird', async () => {
+    store.dispatch({ type: 'SET_TOR5_MIT_PARCOURS', on: true })
+    store.dispatch({ type: 'SET_ZUSATZ_LISTE', liste: 'knoten', an: false })
+    store.dispatch({ type: 'SET_ZUSATZ_LISTE', liste: 'parcoursms', an: true })
+    const wrapper = ansicht(store)
+    await laufzettel(wrapper)
+    // „Tor 5 + Parcours“ statt Tor 5 und Parcours; die zusätzliche Parcoursliste am Ende, mit dem Namen aus dem Menü.
+    expect(zeilen(zettel(wrapper)[0])).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5 + Parcours', 'Parcours'])
     wrapper.unmount()
   })
 

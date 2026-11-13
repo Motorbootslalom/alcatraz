@@ -5,6 +5,7 @@ import { bogenSeiten } from './bogen'
 import { buildLaufzettel, listenZeilen, messBoegen, messKennung, waehleLaufzettel } from './laufzettel'
 import { wkrBoegenZumStand, type WkrBogen } from './wkrListen'
 import type { AppState, ClassId, Starter } from '../types'
+import { veranstaltungsListen } from './listen'
 
 // Laufzettel aus den Bögen der Veranstaltung. Alle Starter sind erfunden.
 
@@ -19,7 +20,7 @@ const stand = (mehr: Partial<AppState> = {}): AppState => ({ ...emptyState(), st
 const EIN_PARCOURS = [{ id: 'par_1', name: 'Parcours 1', classIds: ALLE, wechselFaktor: 2 as const }]
 const zettelVon = (s: AppState, seitenVon: (b: WkrBogen) => number = () => 1) => {
   const { boegen } = wkrBoegenZumStand(s, dm)
-  return { boegen, zettel: buildLaufzettel(boegen, dm.aufbauOrder(s.aufbau, false), seitenVon) }
+  return { boegen, zettel: buildLaufzettel(boegen, veranstaltungsListen(dm, s), seitenVon, { jeParcours: s.eventKind === 'club' && s.wkrClubGemeinsam }) }
 }
 
 describe('Laufzettel', () => {
@@ -37,9 +38,11 @@ describe('Laufzettel', () => {
   it('je Liste des Aufbaus eine Zeile, in dessen Reihenfolge; Listen, die die Klasse nicht hat, fehlen', () => {
     const { zettel } = zettelVon(stand())
     const listen = dm.aufbauOrder('alcatraz', false)
-    const von = (klasse: ClassId) => zettel.find((z) => z.klassen[0] === klasse && z.lauf === 2)!.zeilen.map((z) => z.typeId)
+    const von = (klasse: ClassId, lauf = 2) => zettel.find((z) => z.klassen[0] === klasse && z.lauf === lauf)!.zeilen.map((z) => z.typeId)
     expect(von('7')).toEqual(listen)
     expect(von('1')).toEqual(listen.filter((l) => l !== 'mueb'))
+    // Die Knoten (zusätzliche Liste, Vorgabe des Regelwerks) stehen am Ende – und nur im 1. Lauf.
+    expect(von('7', 1)).toEqual([...listen, 'knoten'])
   })
 
   it('ein Kästchen je Druckseite: so viele Zeilen wie der Bogen Seiten hat', () => {
@@ -56,7 +59,7 @@ describe('Laufzettel', () => {
     const { zettel } = zettelVon(stand(), seitenVon)
     const z = zettel.find((x) => x.klassen[0] === '4' && x.lauf === 1)!
     const listen = listenZeilen(z.zeilen)
-    expect(listen.map((l) => l.typeId)).toEqual(dm.aufbauOrder('alcatraz', false))
+    expect(listen.map((l) => l.typeId)).toEqual([...dm.aufbauOrder('alcatraz', false), 'knoten'])
     expect(listen.find((l) => l.typeId === 'steg')!.boegen.map((b) => b.seiten)).toEqual([3])
     expect(listen.find((l) => l.typeId === 'zeit')!.boegen.map((b) => b.seiten)).toEqual([2])
     for (const x of zettel) expect(listenZeilen(x.zeilen).reduce((n, l) => n + l.boegen.reduce((m, b) => m + b.seiten, 0), 0)).toBe(x.zeilen.length)
@@ -117,7 +120,7 @@ describe('Laufzettel', () => {
     expect(zettel).toHaveLength(3)
     const z = zettel[0]
     expect(z.zeilen).toHaveLength(boegen.filter((b) => b.lauf === 1).length)
-    const listen = dm.aufbauOrder('alcatraz', false)
+    const listen = veranstaltungsListen(dm, s)
     const raenge = z.zeilen.map((r) => listen.indexOf(r.typeId))
     expect(raenge).toEqual([...raenge].sort((a, b) => a - b))
     const tor = z.zeilen.filter((r) => r.typeId === 'gate135')

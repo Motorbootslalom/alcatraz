@@ -15,6 +15,8 @@ import type {
   ErgebnisHerkunft,
   ErgebnisListenOptionen,
   ErgebnisNamen,
+  ListenSprache,
+  LaufzettelLayout,
 } from '../types'
 import type { RawAufbau } from '../config/schema'
 import { SCHEMA_VERSION } from '../types'
@@ -29,12 +31,14 @@ import {
 import { mergeStarters } from '../import/starterMerge'
 import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
 import { gueltigeZellen, nurStarter, setzeWerte, type EingabeZelle } from '../lib/eingaben'
+import { normalisiereZusatzListen, vorgabeListenVon } from '../lib/listen'
 import { beispielEingaben, zufallAus, type Zeitnahme } from '../lib/beispielwerte'
-import { configFor } from '../config/konfig'
+import { configFor, type Konfig } from '../config/konfig'
 import { listenStandNach } from '../lib/listenStand'
+import { mitTor5Umzug } from './tor5'
 import { istKennung } from '../lib/qr'
 import { canonicalRunningNumbers } from '../planung/running'
-import { aufbauOf, DEFAULT_AUFBAU, DEFAULT_REGELWERK, hasParallel, regelwerkOf } from '../config/catalog'
+import { aufbauOf, beschriftungOf, DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT_REGELWERK, hasParallel, regelwerkOf } from '../config/catalog'
 
 /**
  * Alle Änderungen am Zustand laufen als Action durch diesen Reducer.
@@ -91,7 +95,8 @@ type Aenderung =
    * Starter kommen hinzu, Dubletten (Klasse + Name) werden übergangen.
    */
   | { type: 'IMPORT_STARTERS'; starters: Starter[]; mode: 'replace' | 'merge' }
-  | { type: 'ADD_STARTERS'; starters: Starter[] }
+  /** `beispiel`: erfundene Starter aus den Beispieldaten – das Feld gilt danach als Beispiel-Starterfeld. */
+  | { type: 'ADD_STARTERS'; starters: Starter[]; beispiel?: boolean }
   | { type: 'UPDATE_STARTER'; id: string; patch: Partial<Omit<Starter, 'id'>> }
   | { type: 'MOVE_STARTER'; id: string; target: 'first' | 'last' | 'up' | 'down' }
   | { type: 'ORDER_CLASS_BY_SIZE'; klasse: ClassId }
@@ -123,6 +128,23 @@ type Aenderung =
   | { type: 'SET_WKR_LEERZEILEN'; klasse?: ClassId; anzahl: number | null; alleKlassen?: boolean }
   | { type: 'SET_WKR_RUECKSEITE'; rueckseite: boolean }
   | { type: 'SET_WKR_CLUB_GEMEINSAM'; gemeinsam: boolean }
+  /**
+   * Seitenaufteilung der Wettkampfrichter-Listen: Starter je Seite (0 oder unbrauchbar =
+   * automatisch) und „Teilen ab“ (0 = immer). Nur was im Patch steht, ändert sich.
+   */
+  | { type: 'SET_WKR_SEITEN'; patch: { zeilenJeSeite?: number | null; teilenAb?: number | null } }
+  /** Bezeichnung der Bojen-Seiten auf den Listen; eine unbekannte Kennung gilt als Vorgabe. */
+  | { type: 'SET_BESCHRIFTUNG'; beschriftung: string }
+  | { type: 'SET_LISTEN_SPRACHE'; sprache: ListenSprache }
+  /**
+   * „Tor 5 übernimmt die Parcoursüberwachung“. Was zur Liste Tor 5 gehört (Disq., Bemerkung,
+   * Haken „erfasst“, Name des Wettkampfrichters), zieht dabei auf die zusammengelegte Liste
+   * um und beim Abschalten zurück.
+   */
+  | { type: 'SET_TOR5_MIT_PARCOURS'; on: boolean }
+  /** Eine zusätzliche Liste außerhalb des Aufbaus an- oder abwählen (lib/listen.ts). */
+  | { type: 'SET_ZUSATZ_LISTE'; liste: string; an: boolean }
+  | { type: 'SET_LAUFZETTEL_LAYOUT'; layout: LaufzettelLayout }
   | { type: 'SET_ERGEBNIS_LISTEN'; fassung: ErgebnisFassung; patch: { namen?: ErgebnisNamen; herkunft?: ErgebnisHerkunft } }
   /**
    * Erfasste Werte setzen, Zelle für Zelle (Lauf-Schlüssel, Starter-ID, Feld-Kennung); ein
@@ -163,6 +185,37 @@ export function leerzeilenZahl(n: unknown): number | undefined {
   return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(WKR_LEERZEILEN_MAX, Math.round(n))) : undefined
 }
 
+/** Fest eingestellt stehen mindestens so viele Starter auf einer Seite (wie im Prototyp). */
+export const WKR_ZEILEN_JE_SEITE_MIN = 5
+export const WKR_ZEILEN_JE_SEITE_MAX = 100
+export const WKR_TEILEN_AB_MAX = 200
+
+/** Starter je Seite: 0 = automatisch, sonst 5 bis 100; Unbrauchbares ist automatisch. */
+export function zeilenJeSeiteZahl(n: unknown): number {
+  if (typeof n !== 'number' || !Number.isFinite(n) || Math.round(n) <= 0) return 0
+  return Math.max(WKR_ZEILEN_JE_SEITE_MIN, Math.min(WKR_ZEILEN_JE_SEITE_MAX, Math.round(n)))
+}
+
+/** „Teilen ab“: 0 = immer, sonst bis 200; Unbrauchbares ist 0. */
+export function teilenAbZahl(n: unknown): number {
+  return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(WKR_TEILEN_AB_MAX, Math.round(n))) : 0
+}
+
+export const LISTEN_SPRACHEN: readonly ListenSprache[] = ['ui', 'de', 'en', 'de+en']
+
+/** Eine gültige Wahl der Listensprache; sonst die Vorgabe „wie die Oberfläche“. */
+export function listenSpracheWert(x: unknown): ListenSprache {
+  return LISTEN_SPRACHEN.find((s) => s === x) ?? 'ui'
+}
+
+/** Eine gültige Form der Laufzettel; sonst die Vorgabe „eine Zeile je Seite“. */
+export function laufzettelLayoutWert(x: unknown): LaufzettelLayout {
+  return x === 'liste' ? 'liste' : 'seite'
+}
+
+/** Die Konfiguration zum Stand – eine reine Funktion, der Reducer bleibt deterministisch. */
+const konfigVon = (state: Pick<AppState, 'regelwerk' | 'eigeneAufbauten'>): Konfig => configFor({ regelwerk: state.regelwerk, eigeneAufbauten: state.eigeneAufbauten })
+
 /** Zustand einer frisch angelegten Veranstaltung. */
 export function emptyState(): AppState {
   return {
@@ -185,6 +238,14 @@ export function emptyState(): AppState {
     ergebnisListen: ERGEBNIS_LISTEN_VORGABE,
     kennung: '',
     listenStand: {},
+    beispielStarter: false,
+    wkrZeilenJeSeite: 0,
+    wkrTeilenAb: 0,
+    beschriftung: DEFAULT_BESCHRIFTUNG,
+    listenSprache: 'ui',
+    tor5MitParcours: false,
+    zusatzListen: {},
+    laufzettelLayout: 'seite',
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -267,10 +328,16 @@ const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
 ])
 
 export function reducer(state: AppState, action: Action): AppState {
-  const next = wendeAn(state, action)
-  if (next === state) return state
   // Ein geladener oder neuer Stand bringt seine Zeitpunkte mit; verglichen wird er mit sich selbst.
   const frisch = action.type === 'LOAD_STATE' || action.type === 'RESET_ALL'
+  const roh = wendeAn(state, action)
+  if (roh === state) return state
+  // Wechselt die Liste für Tor 5 (Option, Aufbau, geänderter eigener Aufbau), zieht mit, was an
+  // ihr hing. Ein geladener Stand ist in sich stimmig und bleibt, wie er ist; eine Vorlage
+  // zieht beim Anwenden selbst um (persistenz/backup.ts).
+  const angewandt = frisch ? roh : mitTor5Umzug(state, roh)
+  // Ohne Starter gibt es kein Beispiel-Starterfeld mehr – gleich, wie die Starter gingen.
+  const next = angewandt.beispielStarter && angewandt.starters.length === 0 ? { ...angewandt, beispielStarter: false } : angewandt
   // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
   const klassen =
     action.type === 'SET_EINGABEN'
@@ -345,6 +412,8 @@ function wendeAn(state: AppState, action: Action): AppState {
       return { ...state, regelwerk, runningNumbers: { ...state.runningNumbers, source } }
     }
 
+    // Was an der Liste für Tor 5 hängt, zieht in `reducer` mit (state/tor5.ts) – bei jedem
+    // der drei Wege, auf denen sie wechselt.
     case 'SET_AUFBAU':
       return { ...state, aufbau: aufbauOf(action.aufbau, state.eigeneAufbauten).id }
 
@@ -354,6 +423,20 @@ function wendeAn(state: AppState, action: Action): AppState {
         eigeneAufbauten: action.aufbauten,
         aufbau: aufbauOf(action.aufbau ?? state.aufbau, action.aufbauten).id,
       }
+
+    case 'SET_TOR5_MIT_PARCOURS':
+      return action.on === state.tor5MitParcours ? state : { ...state, tor5MitParcours: action.on }
+
+    case 'SET_ZUSATZ_LISTE': {
+      const { [action.liste]: _alt, ...rest } = normalisiereZusatzListen(state.zusatzListen)
+      // Nur die Abweichung von der Vorgabe des Regelwerks steht im Stand.
+      const vorgabe = vorgabeListenVon(regelwerkOf(state.regelwerk), aufbauOf(state.aufbau, state.eigeneAufbauten).disziplin).includes(action.liste)
+      const zusatzListen = action.an === vorgabe ? rest : { ...rest, [action.liste]: action.an }
+      return JSON.stringify(zusatzListen) === JSON.stringify(state.zusatzListen) ? state : { ...state, zusatzListen }
+    }
+
+    case 'SET_LAUFZETTEL_LAYOUT':
+      return { ...state, laufzettelLayout: laufzettelLayoutWert(action.layout) }
 
     case 'SET_LIST_OPTIONS':
       return { ...state, ...action.patch }
@@ -378,6 +461,21 @@ function wendeAn(state: AppState, action: Action): AppState {
 
     case 'SET_WKR_CLUB_GEMEINSAM':
       return { ...state, wkrClubGemeinsam: action.gemeinsam }
+
+    case 'SET_WKR_SEITEN': {
+      const { zeilenJeSeite, teilenAb } = action.patch
+      const wkrZeilenJeSeite = zeilenJeSeite === undefined ? state.wkrZeilenJeSeite : zeilenJeSeiteZahl(zeilenJeSeite)
+      const wkrTeilenAb = teilenAb === undefined ? state.wkrTeilenAb : teilenAbZahl(teilenAb)
+      // „Teilen ab“ bleibt stehen, wenn auf automatisch gestellt wird: Es wirkt dann nicht und
+      // gilt wieder, sobald eine feste Zahl gewählt ist.
+      return wkrZeilenJeSeite === state.wkrZeilenJeSeite && wkrTeilenAb === state.wkrTeilenAb ? state : { ...state, wkrZeilenJeSeite, wkrTeilenAb }
+    }
+
+    case 'SET_BESCHRIFTUNG':
+      return { ...state, beschriftung: beschriftungOf(action.beschriftung) }
+
+    case 'SET_LISTEN_SPRACHE':
+      return { ...state, listenSprache: listenSpracheWert(action.sprache) }
 
     case 'SET_ERGEBNIS_LISTEN': {
       const { aushang, intern } = state.ergebnisListen
@@ -416,14 +514,15 @@ function wendeAn(state: AppState, action: Action): AppState {
 
     case 'IMPORT_STARTERS': {
       if (action.mode === 'replace') {
-        return mitStartern(state, mergeStarters(state.starters, action.starters).starters)
+        // Die Liste gilt als Ganzes: Es ist nicht mehr das Beispiel-Starterfeld.
+        return { ...mitStartern(state, mergeStarters(state.starters, action.starters).starters), beispielStarter: false }
       }
       const seen = new Set(state.starters.map(dupKey))
       return { ...state, starters: state.starters.concat(action.starters.filter((p) => !seen.has(dupKey(p)))) }
     }
 
     case 'ADD_STARTERS':
-      return { ...state, starters: state.starters.concat(action.starters) }
+      return { ...state, starters: state.starters.concat(action.starters), beispielStarter: state.beispielStarter || (action.beispiel === true && action.starters.length > 0) }
 
     case 'UPDATE_STARTER':
       return {
@@ -529,7 +628,7 @@ function wendeAn(state: AppState, action: Action): AppState {
       return { ...state, streichlaeufe: streichlaeufeWert(action.streichlaeufe) }
     case 'FILL_BEISPIELWERTE': {
       // Die Konfiguration ist eine reine Funktion des Stands – der Reducer bleibt deterministisch.
-      const konfig = configFor({ regelwerk: state.regelwerk, eigeneAufbauten: state.eigeneAufbauten })
+      const konfig = konfigVon(state)
       return {
         ...state,
         eingaben: beispielEingaben(state, konfig, { zeitnahme: action.zeitnahme, laeufe: action.laeufe }, zufallAus(action.saat)),

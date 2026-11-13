@@ -7,11 +7,14 @@ import { useEvent } from '../lib/event'
 import { t } from '../i18n'
 import type { EventKind, OriginMode } from '../types'
 import WkrVorschau from '../components/WkrVorschau.vue'
+import BeispieldatenPanel from '../components/BeispieldatenPanel.vue'
+import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
 import { PROTOTYP_URL } from '../lib/prototyp'
 
 /**
  * Die Veranstaltung selbst: Name, Jahr, Regelwerk, Aufbau. Alles Übrige –
- * Listen, Kürzel, WKR-Einteilung, Dateien – steht unter „Einstellungen“.
+ * Listen, Kürzel, WKR-Einteilung, Dateien – steht unter „Einstellungen“. Am Ende der
+ * Block „Beispieldaten“ zum Ausprobieren (components/BeispieldatenPanel.vue).
  */
 const { state, dispatch } = useStore()
 const { regelwerk, classLabel, foreignClasses, parallel } = useEvent()
@@ -130,6 +133,7 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
         </select>
       </div>
     </div>
+    <RegelLaeufeHinweis />
     <p class="note">
       {{ parallel ? t('event.rulebookNote.parallel') : t('event.rulebookNote.manoever') }}
       {{ t('event.setupNote') }}
@@ -155,4 +159,7 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
       <WkrVorschau v-if="vorschauOffen" />
     </details>
   </div>
+
+  <!-- Am Ende und zugeklappt: Neue sehen, dass es Beispieldaten gibt; offen, sobald sie geladen sind. -->
+  <BeispieldatenPanel />
 </template>

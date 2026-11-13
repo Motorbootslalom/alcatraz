@@ -13,7 +13,7 @@ import { t, tn } from '../i18n'
  * eingestellt wird, und bietet an, sie zu entfernen.
  */
 const { state, dispatch } = useStore()
-const konfig = useKonfig()
+const konfig = useKonfig({ einsprachig: true })
 
 const zellen = computed(() => verborgeneZellen(state.value, konfig.value))
 const starter = computed(() => new Set(zellen.value.map((z) => z.starter)).size)

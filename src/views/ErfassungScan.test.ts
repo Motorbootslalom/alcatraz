@@ -112,7 +112,7 @@ describe('Erfassung: Scannen', () => {
     ['4006381333931', 'Kein Code dieser Anwendung'],
     ['ALC1.K7Q4.DM2026.ALCATRAZ.PAR9.4.1', 'Den Parcours des Blatts (PAR9) gibt es in dieser Veranstaltung nicht (mehr).'],
     ['ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.5', 'Lauf 5 gibt es hier nicht (Zahl der Läufe: 3).'],
-    ['ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.1.KNOTEN.S1', 'Die Liste „KNOTEN“ gibt es im eingestellten Aufbau nicht.'],
+    ['ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.1.GATE135OS.S1', 'Die Liste „GATE135OS“ gibt es im eingestellten Aufbau nicht.'],
     ['ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.4.1.STEG.S1', 'Für Klasse 4 gibt es auf diesem Parcours keinen Bogen (mehr).'],
     ['ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.1.STEG', 'Code unvollständig oder beschädigt.'],
   ])('weist %s verständlich ab und bleibt beim gewählten Bogen', async (code, meldung) => {

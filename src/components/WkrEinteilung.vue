@@ -25,7 +25,7 @@ const konfig = useKonfig()
 const { classLabel } = useEvent()
 
 const parcours = computed(() => state.value.parcoursList)
-const listen = computed(() => einteilungsListen(konfig.value, state.value.aufbau))
+const listen = computed(() => einteilungsListen(konfig.value, state.value, state.value.einteilung))
 const gruppen = computed(() => [
   { id: 'aufbau', zeilen: listen.value.aufbau },
   { id: 'weitere', zeilen: listen.value.weitere },

@@ -1553,6 +1553,27 @@ details.panel[open] > summary {
   }
 }
 
+/* Einstellungen: zusätzliche Listen außerhalb des Aufbaus – Häkchen untereinander, schmal nebeneinander. */
+.zusatz-listen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 12px 0 0;
+  padding: 8px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.zusatz-listen legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.zusatz-vorgabe {
+  margin: 0;
+}
+
 .sub-details {
   margin-top: 16px;
 }

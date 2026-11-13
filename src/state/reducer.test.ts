@@ -18,6 +18,38 @@ function starter(id: string, klasse: ClassId, startNr: string, nachname: string,
 }
 
 describe('reducer', () => {
+  describe('Beispiel-Starterfeld', () => {
+    const a = starter('a', '1', '101', 'A')
+    const b = starter('b', '1', '102', 'B')
+    const beispiel = () => reducer(emptyState(), { type: 'ADD_STARTERS', starters: [a, b], beispiel: true })
+
+    it('gilt nur für Starter aus den Beispieldaten', () => {
+      expect(emptyState().beispielStarter).toBe(false)
+      expect(reducer(emptyState(), { type: 'ADD_STARTERS', starters: [a] }).beispielStarter).toBe(false)
+      expect(beispiel().beispielStarter).toBe(true)
+      // Erfundene Starter ohne Inhalt machen noch kein Starterfeld.
+      expect(reducer(emptyState(), { type: 'ADD_STARTERS', starters: [], beispiel: true }).beispielStarter).toBe(false)
+    })
+
+    it('bleibt, wenn Starter ergänzt, geändert oder einzeln entfernt werden – und beim Erfassen', () => {
+      const c = starter('c', '2', '201', 'C')
+      let state = reducer(beispiel(), { type: 'ADD_STARTERS', starters: [c] })
+      state = reducer(state, { type: 'IMPORT_STARTERS', starters: [starter('d', '2', '202', 'D')], mode: 'merge' })
+      state = reducer(state, { type: 'UPDATE_STARTER', id: 'a', patch: { nachname: 'Anders' } })
+      state = reducer(state, { type: 'REMOVE_STARTER', id: 'b' })
+      state = reducer(state, { type: 'FILL_BEISPIELWERTE', zeitnahme: 'stoppuhr', saat: 1 })
+      expect(state.beispielStarter).toBe(true)
+    })
+
+    it('endet, wenn die Starter gelöscht oder als Ganzes ersetzt werden', () => {
+      expect(reducer(beispiel(), { type: 'CLEAR_ALL_STARTERS' }).beispielStarter).toBe(false)
+      expect(reducer(beispiel(), { type: 'CLEAR_CLASS', klasse: '1' }).beispielStarter).toBe(false)
+      expect(reducer(reducer(beispiel(), { type: 'REMOVE_STARTER', id: 'a' }), { type: 'REMOVE_STARTER', id: 'b' }).beispielStarter).toBe(false)
+      expect(reducer(beispiel(), { type: 'IMPORT_STARTERS', starters: [starter('x', '3', '301', 'X')], mode: 'replace' }).beispielStarter).toBe(false)
+      expect(reducer(beispiel(), { type: 'RESET_ALL' }).beispielStarter).toBe(false)
+    })
+  })
+
   it('ist deterministisch: gleiche Action, gleiches Ergebnis', () => {
     const action = { type: 'ADD_PARCOURS', id: 'par_x' } as const
     expect(reducer(emptyState(), action)).toEqual(reducer(emptyState(), action))
@@ -243,5 +275,66 @@ describe('Leerzeilen der Wettkampfrichter-Listen', () => {
     expect(reducer(alsClub, { type: 'SET_EVENT_KIND', eventKind: 'meisterschaft' }).wkrLeerzeilen).toBe(3)
     const eigene = reducer(emptyState(), { type: 'SET_WKR_LEERZEILEN', anzahl: 5 })
     expect(reducer(eigene, { type: 'SET_EVENT_KIND', eventKind: 'club' }).wkrLeerzeilen).toBe(5)
+  })
+})
+
+describe('Listenoptionen: Seitenaufteilung, Bojen-Seiten, Sprache', () => {
+  it('Vorgaben: automatisch geteilt, Rechts/Links, Sprache der Oberfläche', () => {
+    expect(emptyState()).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl', listenSprache: 'ui' })
+  })
+
+  it('Starter je Seite: 0 = automatisch, sonst 5 bis 100; „Teilen ab“ 0 bis 200', () => {
+    const setze = (patch: { zeilenJeSeite?: number | null; teilenAb?: number | null }, von = emptyState()) => reducer(von, { type: 'SET_WKR_SEITEN', patch })
+    expect(setze({ zeilenJeSeite: 15 }).wkrZeilenJeSeite).toBe(15)
+    // Wie im Prototyp: Unter fünf Startern je Seite lohnt kein Blatt.
+    expect(setze({ zeilenJeSeite: 2 }).wkrZeilenJeSeite).toBe(5)
+    expect(setze({ zeilenJeSeite: 500 }).wkrZeilenJeSeite).toBe(100)
+    expect(setze({ zeilenJeSeite: -3 }, setze({ zeilenJeSeite: 15 })).wkrZeilenJeSeite).toBe(0)
+    expect(setze({ zeilenJeSeite: null }, setze({ zeilenJeSeite: 15 })).wkrZeilenJeSeite).toBe(0)
+    expect(setze({ teilenAb: 25 }).wkrTeilenAb).toBe(25)
+    expect(setze({ teilenAb: 999 }).wkrTeilenAb).toBe(200)
+    expect(setze({ teilenAb: null }, setze({ teilenAb: 25 })).wkrTeilenAb).toBe(0)
+    // Nur was im Patch steht, ändert sich; „Teilen ab“ übersteht den Wechsel auf automatisch.
+    const beide = setze({ zeilenJeSeite: 15, teilenAb: 25 })
+    expect(setze({ zeilenJeSeite: 0 }, beide)).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 25 })
+    // Keine Änderung, kein neuer Stand.
+    expect(setze({ zeilenJeSeite: 15 }, beide)).toBe(beide)
+  })
+
+  it('Bezeichnung der Bojen-Seiten: nur Schemata aus der Konfiguration', () => {
+    expect(reducer(emptyState(), { type: 'SET_BESCHRIFTUNG', beschriftung: 'ls' }).beschriftung).toBe('ls')
+    expect(reducer({ ...emptyState(), beschriftung: 'kh' }, { type: 'SET_BESCHRIFTUNG', beschriftung: 'gibtsnicht' }).beschriftung).toBe('rl')
+  })
+
+  it('Sprache der Listen: wie die Oberfläche, deutsch, englisch oder zweisprachig', () => {
+    for (const sprache of ['ui', 'de', 'en', 'de+en'] as const) expect(reducer(emptyState(), { type: 'SET_LISTEN_SPRACHE', sprache }).listenSprache).toBe(sprache)
+    expect(reducer({ ...emptyState(), listenSprache: 'en' }, { type: 'SET_LISTEN_SPRACHE', sprache: 'fr' as never }).listenSprache).toBe('ui')
+    // Die Wahl gehört zur Veranstaltung und übersteht den Wechsel des Regelwerks.
+    expect(reducer({ ...emptyState(), listenSprache: 'en' }, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }).listenSprache).toBe('en')
+  })
+})
+
+describe('Listen der Veranstaltung: zusätzliche Listen, Form der Laufzettel', () => {
+  it('Vorgaben: getrennte Listen, die Vorgabe des Regelwerks, Laufzettel mit einer Zeile je Seite', () => {
+    expect(emptyState()).toMatchObject({ tor5MitParcours: false, zusatzListen: {}, laufzettelLayout: 'seite' })
+  })
+
+  it('zusätzliche Listen: Im Stand steht nur, was von der Vorgabe des Regelwerks abweicht', () => {
+    const setze = (liste: string, an: boolean, von = emptyState()) => reducer(von, { type: 'SET_ZUSATZ_LISTE', liste, an })
+    // Die Knoten sieht das Regelwerk vor: Abwählen ist die Abweichung, Anwählen keine.
+    expect(setze('knoten', false).zusatzListen).toEqual({ knoten: false })
+    expect(setze('knoten', true, setze('knoten', false)).zusatzListen).toEqual({})
+    expect(setze('vorsteg', true).zusatzListen).toEqual({ vorsteg: true })
+    expect(setze('vorsteg', false, setze('vorsteg', true)).zusatzListen).toEqual({})
+    // Keine Änderung, kein neuer Stand.
+    const s = emptyState()
+    expect(setze('knoten', true, s)).toBe(s)
+    // Die Wahl übersteht den Wechsel von Regelwerk und Aufbau.
+    expect(reducer(setze('knoten', false), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }).zusatzListen).toEqual({ knoten: false })
+  })
+
+  it('Form der Laufzettel: eine Zeile je Seite oder je Liste', () => {
+    expect(reducer(emptyState(), { type: 'SET_LAUFZETTEL_LAYOUT', layout: 'liste' }).laufzettelLayout).toBe('liste')
+    expect(reducer({ ...emptyState(), laufzettelLayout: 'liste' }, { type: 'SET_LAUFZETTEL_LAYOUT', layout: 'quer' as never }).laufzettelLayout).toBe('seite')
   })
 })

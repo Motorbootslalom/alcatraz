@@ -50,15 +50,16 @@ describe('Listen: Wettkampfrichter-Listen', () => {
   })
   afterEach(() => setLocale('de'))
 
-  // Baut 90 Bögen: Unter Last (mehrere Testläufe zugleich) reichen die üblichen 5 s nicht.
+  // Baut 94 Bögen: Unter Last (mehrere Testläufe zugleich) reichen die üblichen 5 s nicht.
   it('ist eine eigene Listenart; je Parcours, Klasse, Lauf und Liste ein Bogen', async () => {
     const wrapper = ansicht(store)
     expect(wrapper.findAll('.list-kinds button').map((b) => b.text())).toContain('Wettkampfrichter-Listen')
     expect(wrapper.find('.wkr-listen').exists()).toBe(false)
     await wkr(wrapper)
-    // Alcatraz: 8 Listen, Mann-über-Bord erst ab Klasse 4 → (7 + 7 + 8 + 8) × 3 Läufe.
-    expect(wrapper.findAll('.wkr-listen .bogen')).toHaveLength(90)
-    expect(wrapper.find('.wkr-listen-stand').text()).toBe('90 Bögen')
+    // Alcatraz: 8 Listen, Mann-über-Bord erst ab Klasse 4 → (7 + 7 + 8 + 8) × 3 Läufe,
+    // dazu je Klasse einmal die Knoten (Vorgabe des Regelwerks, ohne Lauf).
+    expect(wrapper.findAll('.wkr-listen .bogen')).toHaveLength(94)
+    expect(wrapper.find('.wkr-listen-stand').text()).toBe('94 Bögen')
     expect(koepfe(wrapper)[0]).toBe('Zeit | Klasse 1 | 1. Lauf | Parcours 1')
     expect(drucken(wrapper).attributes('disabled')).toBeUndefined()
     // Die alten Listen stehen nicht daneben.

@@ -1,6 +1,6 @@
 import { CLASS_IDS } from '../domain/classes'
 import type { CellKind, Column, DisqDef, ErrorDef, ErrorGroup, SheetDef, Sprache, TrennerDesign } from '../types'
-import type { RawAufbauEintrag, RawConfig, RawDisq, RawDisziplin, RawKatalog, RawPosition, RawRegelwerk, RawSpalte } from './schema'
+import { STICH_KRITERIEN, type RawAufbauEintrag, type RawConfig, type RawDisq, type RawDisziplin, type RawKatalog, type RawPosition, type RawRegelwerk, type RawSpalte, type StichKriterium } from './schema'
 import { feldKennungen } from './feld'
 import { findeKombi, kombiReihenfolge } from './kombi'
 import { bogenTexte, uebersetzt, uebersetztBlock, type BogenTexte } from './sprache'
@@ -51,6 +51,12 @@ export interface RegelwerkInfo {
   sprachen: string[]
   /** Klassen dieses Regelwerks. */
   klassen: string[]
+  /** Was bei gleichem Ergebnis entscheidet, der Reihe nach; leer = der Platz wird geteilt. */
+  stichentscheid: StichKriterium[]
+  /** Disziplin → Listen, die das Regelwerk in jedem ihrer Aufbauten vorsieht (abwählbare Vorgabe, lib/listen.ts). */
+  vorgabeListen: Record<string, string[]>
+  /** Läufe und Streichläufe, die das Regelwerk vorsieht; fehlt die Angabe, macht es keine. */
+  wertungslaeufe?: { laeufe: number; streichlaeufe: number }
 }
 
 /** Inhalt der A4-Legende: alle Codes und Strafen eines Regelwerks. */
@@ -201,6 +207,24 @@ function resolveDisq(pos: RawPosition, all: RawDisq[], t: Uebersetzer): DisqDef[
   return liste.map((d) => ({ code: String(d.code), text: t(d.text, d.en) }))
 }
 
+/** Disziplin → Kennungen ohne Dubletten; alles andere (auch die frühere Listenform) ergibt nichts. */
+function vorgabeListen(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  return Object.fromEntries(
+    Object.entries(raw)
+      .filter(([disziplin, liste]) => disziplin !== '__proto__' && Array.isArray(liste))
+      .map(([disziplin, liste]) => [disziplin, [...new Set((liste as unknown[]).filter((x): x is string => typeof x === 'string'))]]),
+  )
+}
+
+/** Nur eine stimmige Angabe gilt: mindestens ein Lauf, weniger Streichläufe als Läufe. */
+function wertungslaeufe(raw: unknown): { laeufe: number; streichlaeufe: number } | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const { laeufe, streichlaeufe = 0 } = raw as { laeufe?: unknown; streichlaeufe?: unknown }
+  const ganz = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x)
+  return ganz(laeufe) && ganz(streichlaeufe) && laeufe >= 1 && streichlaeufe >= 0 && streichlaeufe < laeufe ? { laeufe, streichlaeufe } : undefined
+}
+
 /** Kenndaten eines Regelwerks; fehlende Angaben bekommen neutrale Standardwerte. */
 export function regelwerkInfo(rw: RawRegelwerk): RegelwerkInfo {
   return {
@@ -208,6 +232,11 @@ export function regelwerkInfo(rw: RawRegelwerk): RegelwerkInfo {
     label: [rw.name ?? rw.id ?? 'Standard', rw.version].filter((x) => x !== undefined).join(' '),
     sprachen: rw.sprachen ?? ['de'],
     klassen: rw.klassen ? rw.klassen.map(String) : [...CLASS_IDS],
+    // Unbekanntes meldet die Prüfung (validate.ts); gewertet wird nur, was es gibt.
+    stichentscheid: [...new Set(Array.isArray(rw.stichentscheid) ? rw.stichentscheid : [])].filter((k): k is StichKriterium => (STICH_KRITERIEN as readonly string[]).includes(k)),
+    // Ob es die Position gibt, zeigt sich am Aufbau: Dazu kommt nur, was er als Zusatz anbietet.
+    vorgabeListen: vorgabeListen(rw.vorgabeListen),
+    wertungslaeufe: wertungslaeufe(rw.wertungslaeufe),
   }
 }
 

@@ -253,14 +253,26 @@ describe('WKR-Einteilung: Sicherung und Vorlage', () => {
 
 describe('WKR-Einteilung: Zeilen', () => {
   it('die Listen des Aufbaus in seiner Reihenfolge, darunter die weiteren', () => {
-    const { aufbau, weitere } = einteilungsListen(konfig, 'alcatraz')
-    expect(aufbau.map((l) => l.id)).toEqual(konfig.getAufbau('alcatraz').order)
+    // Die Listen der Veranstaltung: der Aufbau und – Vorgabe des Regelwerks – die Knoten.
+    const { aufbau, weitere } = einteilungsListen(konfig, { aufbau: 'alcatraz' })
+    expect(aufbau.map((l) => l.id)).toEqual([...konfig.getAufbau('alcatraz').order, 'knoten'])
     expect(aufbau.map((l) => l.titel)).toContain('Steg')
-    const alle = [...aufbau, ...weitere]
-    // Jede Liste einmal, und keine zwei Zeilen heißen gleich.
-    expect(new Set(alle.map((l) => l.id)).size).toBe(alle.length)
-    expect(new Set(alle.map((l) => l.titel)).size).toBe(alle.length)
-    for (const id of konfig.getAufbau('alcatraz').zusatz) expect(weitere.map((l) => l.id)).toContain(id)
+    expect(weitere).toEqual([])
+  })
+
+  it('führt gewählte zusätzliche Listen und die zusammengelegte Liste wie die des Aufbaus', () => {
+    const wahl = { aufbau: 'alcatraz', tor5MitParcours: true, zusatzListen: { knoten: false, gate135os: true } }
+    const { aufbau } = einteilungsListen(konfig, wahl)
+    expect(aufbau.map((l) => l.id)).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5pue', 'mueb', 'gate135os'])
+    // Keine zwei Zeilen heißen gleich: „Tor 1 / 3 / 5“ gibt es mit und ohne Start/Ziel.
+    expect(new Set(aufbau.map((l) => l.titel)).size).toBe(aufbau.length)
+  })
+
+  it('zeigt eine Liste, die nicht mehr gilt, solange dort ein Name steht', () => {
+    const einteilung = { par_1: { parcours: 'Erika Muster', knoten: ' ' } }
+    const { aufbau, weitere } = einteilungsListen(konfig, { aufbau: 'alcatraz', tor5MitParcours: true, zusatzListen: { knoten: false } }, einteilung)
+    expect(aufbau.map((l) => l.id)).not.toContain('parcours')
+    expect(weitere.map((l) => l.id)).toEqual(['parcours'])
   })
 
   it('ein Strich, wenn keine Klasse des Parcours die Liste hat', () => {

@@ -46,6 +46,16 @@ export interface RawDirektpunkt {
 /** Hinweis auf der A4-Legende: nur deutsch oder mit englischem Text. */
 export type RawLegendeHinweis = string | { text: string; en?: string }
 
+/**
+ * Was bei gleichem Ergebnis entscheidet (lib/ergebnis.ts, dort auch die genaue Bedeutung):
+ *   schnellsterLauf   die kürzeste gefahrene Zeit unter den gewerteten Läufen
+ *   besterLauf        das beste Ergebnis (Zeit und Strafpunkte) unter den gewerteten Läufen
+ *   summeAllerLaeufe  die Summe aller Läufe mit Strafpunkten, auch der gestrichenen; wer
+ *                     nicht in jedem ein gültiges Ergebnis hat, steht dahinter
+ */
+export const STICH_KRITERIEN = ['schnellsterLauf', 'besterLauf', 'summeAllerLaeufe'] as const
+export type StichKriterium = (typeof STICH_KRITERIEN)[number]
+
 /** regelwerke/<id>.yaml: ein Regelwerk in einer Version. */
 export interface RawRegelwerk {
   /** Eindeutig, entspricht dem Dateinamen (z. B. "dm-2026"). */
@@ -72,6 +82,23 @@ export interface RawRegelwerk {
   legendeHinweise?: RawLegendeHinweis[]
   /** Spalten, die es in diesem Regelwerk nicht gibt: Position → Spalten-Keys. */
   ohneSpalten?: Record<string, string[]>
+  /**
+   * Stichentscheid bei gleichem Ergebnis, der Reihe nach angewandt – in der Liste eines Laufs
+   * wie in der Gesamtliste. Fehlt die Angabe oder trennt keines, teilen sich die Starter den Platz.
+   */
+  stichentscheid?: string[]
+  /**
+   * Listen, die das Regelwerk in jedem Aufbau einer Disziplin vorsieht (z. B. die Knoten im
+   * Manövrieren): Disziplin → Positionen mit `schnellauswahl: true`. Nennt der Aufbau sie nicht
+   * selbst, kommen sie als zusätzliche Liste dazu – als Vorgabe, die Veranstaltung kann sie
+   * abwählen (lib/listen.ts). Aufbauten anderer Disziplinen bekommen sie nicht.
+   */
+  vorgabeListen?: Record<string, string[]>
+  /**
+   * So viele Läufe sieht das Regelwerk vor und so viele davon werden gestrichen. Nur ein
+   * Hinweis: Eingestellt wird beides an der Veranstaltung, die Oberfläche meldet Abweichungen.
+   */
+  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number }
   disqualifikationen?: RawDisq[]
   kataloge?: Record<string, RawKatalog>
   direktpunkte?: RawDirektpunkt[]

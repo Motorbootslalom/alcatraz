@@ -2,7 +2,7 @@ import type { ClassId } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { configFor, eigeneAuswahl, ROH_REGELWERKE, type RohRegelwerk } from './konfig'
 import { regelwerkInfo } from './build'
-import type { RawAufbau } from './schema'
+import type { RawAufbau, StichKriterium } from './schema'
 
 /**
  * Was eine Veranstaltung zur Auswahl hat: Regelwerke (aus der Ausschreibung) und
@@ -27,6 +27,12 @@ export interface Regelwerk {
   disziplinen: string[]
   /** Statistisches Durchschnittsgewicht je Klasse in kg (Grundlage des Zusatzgewichts). */
   gewichte: Partial<Record<ClassId, number>>
+  /** Was bei gleichem Ergebnis entscheidet (lib/ergebnis.ts); leer = der Platz wird geteilt. */
+  stichentscheid: StichKriterium[]
+  /** Disziplin → Listen, die das Regelwerk in jedem ihrer Aufbauten vorsieht – abwählbare Vorgabe (lib/listen.ts). */
+  vorgabeListen: Record<string, string[]>
+  /** Läufe und Streichläufe, die das Regelwerk vorsieht (nur für den Hinweis bei Abweichung). */
+  wertungslaeufe?: { laeufe: number; streichlaeufe: number }
 }
 
 export interface Aufbau {
@@ -48,6 +54,9 @@ function readRegelwerk(raw: RohRegelwerk): Regelwerk {
     klassenNamen: raw.klassenNamen ?? {},
     disziplinen: raw.disziplinen ?? [MANOEVRIEREN],
     gewichte: raw.gewichte ?? {},
+    stichentscheid: info.stichentscheid,
+    vorgabeListen: info.vorgabeListen,
+    wertungslaeufe: info.wertungslaeufe,
   }
 }
 
@@ -59,6 +68,19 @@ export const AUFBAUTEN: Aufbau[] = configFor().aufbauten.map(({ id, name, diszip
 
 /** Mitgelieferte Aufbauten für das Manövrieren; der Parallelslalom hat einen festen. */
 export const MANOEVER_AUFBAUTEN = AUFBAUTEN.filter((a) => a.disziplin === MANOEVRIEREN)
+
+/**
+ * Die Bezeichnungs-Schemata der Bojen-Seiten (R/L, Land/See …) in Menü-Reihenfolge; das erste
+ * ist die Vorgabe. Die Namen stehen in `einstellungen.yaml` – wie die der Aufbauten – und
+ * nicht noch einmal in src/i18n.
+ */
+export const BESCHRIFTUNGEN: { id: string; name: string }[] = configFor().beschriftungen.map(({ id, name }) => ({ id, name }))
+export const DEFAULT_BESCHRIFTUNG = BESCHRIFTUNGEN[0]?.id ?? ''
+
+/** Die Kennung, falls es das Schema gibt, sonst die Vorgabe (z. B. alte oder fremde Sicherung). */
+export function beschriftungOf(id: unknown): string {
+  return BESCHRIFTUNGEN.some((b) => b.id === id) ? (id as string) : DEFAULT_BESCHRIFTUNG
+}
 
 export const DEFAULT_REGELWERK = REGELWERKE[0].id
 export const DEFAULT_AUFBAU = MANOEVER_AUFBAUTEN[0].id

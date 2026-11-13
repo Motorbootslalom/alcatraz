@@ -6,6 +6,7 @@ import { erfasstKennung, felderJeKennung, laufSchluessel } from './eingaben'
 import { bogenFortschritt } from './erfassung'
 import { klassenErgebnis } from './ergebnis'
 import { parseTime } from './time'
+import { veranstaltungsListen } from './listen'
 
 // Aus dem Fehlerpunkte-Prototyp (lib/beispielwerte.test.ts), hier für die ganze Veranstaltung
 // und mit dem Zufall aus einer Saat. Alle Starter sind erfunden.
@@ -40,10 +41,11 @@ describe('beispielEingaben', () => {
   it('füllt jeden Starter in jedem Lauf; jede Liste gilt als erfasst', () => {
     const s = stand()
     const eingaben = beispielEingaben(s, konfig, { zeitnahme: 'stoppuhr' }, zufallAus(1))
-    expect(Object.keys(eingaben).sort()).toEqual([lauf(1), lauf(2), lauf(3)])
+    // Lauf 0 sind die Knoten: Die Liste gehört unter den DM-Regeln zu jedem Aufbau.
+    expect(Object.keys(eingaben).sort()).toEqual([lauf(0), lauf(1), lauf(2), lauf(3)])
     for (const l of [1, 2, 3]) expect(Object.keys(eingaben[lauf(l)])).toHaveLength(30)
     const zeilen = s.starters.filter((x) => x.klasse === '4').map((x) => ({ id: x.id, klasse: x.klasse }))
-    for (const typeId of konfig.aufbauOrder('alcatraz', false)) {
+    for (const typeId of veranstaltungsListen(konfig, s)) {
       expect(bogenFortschritt(konfig, eingaben, 'alcatraz', { typeId, lauf: 2, zeilen }), typeId).toEqual({ erfasst: 20, gesamt: 20 })
     }
     // Klasse E hat kein Mann-über-Bord: kein Haken, kein Wert dafür.
@@ -95,11 +97,13 @@ describe('beispielEingaben', () => {
     expect(nah).toBeGreaterThanOrEqual(12)
   })
 
-  it('Knoten werden mit dem 1. Lauf gefüllt, wenn der Aufbau sie hat', () => {
+  it('Knoten werden mit dem 1. Lauf gefüllt, wenn die Veranstaltung die Liste hat', () => {
     const bawue = stand({ aufbau: 'bawue' })
     expect(beispielEingaben(bawue, konfig, { zeitnahme: 'stoppuhr' }, zufallAus(1))[lauf(0)]['s4-1'][erfasstKennung('knoten')]).toBe('1')
     expect(beispielEingaben(bawue, konfig, { zeitnahme: 'stoppuhr', laeufe: [2] }, zufallAus(1))[lauf(0)]).toBeUndefined()
-    expect(beispielEingaben(stand(), konfig, { zeitnahme: 'stoppuhr' }, zufallAus(1))[lauf(0)]).toBeUndefined()
+    // Alcatraz nennt die Knoten nicht selbst; sie kommen als Vorgabe des Regelwerks dazu – bis sie abgewählt sind.
+    expect(beispielEingaben(stand(), konfig, { zeitnahme: 'stoppuhr' }, zufallAus(1))[lauf(0)]['s4-1'][erfasstKennung('knoten')]).toBe('1')
+    expect(beispielEingaben(stand({ zusatzListen: { knoten: false } }), konfig, { zeitnahme: 'stoppuhr' }, zufallAus(1))[lauf(0)]).toBeUndefined()
   })
 
   it('ergibt glaubhafte Ergebnislisten: Zeiten im Bereich der Klasse, einige Disqualifikationen, nur gültige Werte', () => {

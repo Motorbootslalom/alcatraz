@@ -7,6 +7,7 @@ import {
   abstaende,
   ergebnisGruppen,
   klassenErgebnis,
+  laeufeLautRegelwerk,
   streichlaeufeVon,
   streichZahl,
   type ErgebnisStand,
@@ -101,11 +102,11 @@ describe('Punkte-Zelle und Abstand', () => {
 })
 
 describe('Spalten der Ergebnisliste', () => {
-  const titel = (aufbau: string, klasse: string) => ergebnisGruppen(konfig, aufbau, klasse).map((g) => g.label)
+  const titel = (aufbau: string, klasse: string) => ergebnisGruppen(konfig, { aufbau }, klasse).map((g) => g.label)
 
   it('folgt für Klasse 4 der Liste der DM', () => {
     expect(titel('alcatraz', '4')).toEqual(['Steg AB', 'Start', '1 H', '2 H', '3 H', '4 H', '5', '4 R', '3 R', '2 R', 'MüB', 'Ziel', 'Steg AN'])
-    const tor5 = ergebnisGruppen(konfig, 'alcatraz', '4').find((g) => g.label === '5')!
+    const tor5 = ergebnisGruppen(konfig, { aufbau: 'alcatraz' }, '4').find((g) => g.label === '5')!
     expect(tor5.blaetter.map((b) => b.label)).toEqual(['L', 'R', 'E', 'L', 'R'])
   })
 
@@ -115,6 +116,15 @@ describe('Spalten der Ergebnisliste', () => {
     expect(titel('alcatraz', '5')).not.toContain('S2')
     expect(titel('alcatraz', '7').filter((t) => t === '1 R')).toHaveLength(2)
     expect(titel('alcatraz', '7').slice(-8)).toEqual(['2 R', '1 R', 'MüB', 'S1', 'S2', '1 R', 'Ziel', 'Steg AN'])
+  })
+
+  it('nennt die Bojen immer R und L, egal welche Bezeichnung und Sprache die Bögen haben', () => {
+    const standard = ergebnisGruppen(konfig, { aufbau: 'alcatraz' }, '7')
+    for (const { id } of konfig.getBeschriftungen()) expect(ergebnisGruppen(configFor({ beschriftung: id }), { aufbau: 'alcatraz' }, '7'), id).toEqual(standard)
+    // Die Bögen selbst tragen die gewählte Bezeichnung.
+    const koepfe = configFor({ beschriftung: 'ls' }).getSheetDef('gate135').columns.flatMap((c) => c.sub ?? [])
+    expect(koepfe.length).toBeGreaterThan(0)
+    expect(koepfe.every((k) => /[LS]$/.test(k))).toBe(true)
   })
 
   it('gilt für jeden Aufbau derselben Disziplin gleich', () => {
@@ -302,6 +312,8 @@ describe('Entscheidung: Noch nicht gefahren steht ohne Zeit auf Platz 1', () => 
   it('ein offener Lauf wird nicht gestrichen, eine Disqualifikation daneben schon', () => {
     const stand = gefahren({ '401': [null, undefined, 70], '402': [80, 81, 82] })
     expect(gesamt(stand, '401')).toMatchObject({ offen: true, disq: false, platz: 1, gestrichen: [1] })
+    // Ohne Streichlauf ist die Disqualifikation nicht zu streichen: hinten statt offen.
+    expect(gesamt({ ...stand, streichlaeufe: 0 }, '401')).toMatchObject({ offen: false, disq: true, platz: 2, gestrichen: [] })
   })
 })
 
@@ -374,19 +386,18 @@ describe('Entscheidung: Ein disqualifizierter Lauf wird gestrichen, zu wenige g�
     expect(gesamt(stand, '401')).toMatchObject({ gestrichen: [], ergebnis: 8000, platz: 1 })
   })
 
-  it('Zwischenstand: Eine Disqualifikation, die der Streichlauf am Ende aufnimmt, ist noch keine Gesamt-Disqualifikation', () => {
-    // 3 Läufe, einer wird gestrichen. Nach zwei Läufen hat 401 erst einen gültigen – kein
-    // vergleichbares Ergebnis, also Platz 1 ohne Ergebnis wie ein Nachholer, nicht „disq.“.
+  it('Zwischenstand: Eine Disqualifikation steht hinten, bis der Streichlauf sie aufnimmt', () => {
+    // 3 Läufe, einer wird gestrichen. Nach zwei Läufen zählen beide – 401 fehlt ein gültiger
+    // Lauf: hinten wie in der Liste des Laufs, nicht auf Platz 1 bei den Nachholern.
     const zwei = gefahren({ '401': [null, 60], '402': [90, 90], '403': [95, 95] })
-    expect(gesamt(zwei, '401')).toMatchObject({ disq: false, offen: true, ergebnis: null, platz: 1, gestrichen: [1] })
-    expect(gesamt(zwei, '402')).toMatchObject({ ergebnis: 18000, platz: 2 })
-    expect(gesamt(zwei, '403')).toMatchObject({ platz: 3 })
-    // Nach dem dritten Lauf ist der disqualifizierte gestrichen – und niemand ist abgerutscht.
+    expect(gesamt(zwei, '401')).toMatchObject({ disq: true, offen: false, ergebnis: null, platz: 3, gestrichen: [] })
+    expect(gesamt(zwei, '402')).toMatchObject({ ergebnis: 18000, platz: 1 })
+    expect(gesamt(zwei, '403')).toMatchObject({ platz: 2 })
+    // Nach dem dritten Lauf ist der disqualifizierte gestrichen und 401 gewertet.
     const drei = gefahren({ '401': [null, 60, 60], '402': [90, 90, 90], '403': [95, 95, 95] })
     expect(gesamt(drei, '401')).toMatchObject({ disq: false, offen: false, ergebnis: 12000, platz: 1, gestrichen: [1] })
     expect(gesamt(drei, '402').platz).toBe(2)
     expect(gesamt(drei, '403').platz).toBe(3)
-    // Fährt 401 im dritten Lauf schlecht, rücken die anderen auf.
     const schlecht = gefahren({ '401': [null, 60, 200], '402': [90, 90, 90], '403': [95, 95, 95] })
     expect(reihenfolge(ergebnis(schlecht).gesamt.nachPlatz)).toEqual(['402', '403', '401'])
   })
@@ -417,9 +428,11 @@ describe('Was als gefahrener Lauf zählt', () => {
     expect(danach.laeufe.map((l) => l.lauf)).toEqual([1, 2, 3])
     expect(danach.gesamt.laeufe).toEqual([1, 2])
     expect(danach.gesamt.nachPlatz.map((z) => [nr(z), z.platz, z.offen, z.ergebnis])).toEqual(vorher.nachPlatz.map((z) => [nr(z), z.platz, z.offen, z.ergebnis]))
-    // Mit der ersten Zeit (oder einer Disqualifikation) ist der Lauf gefahren.
+    // Mit der ersten Zeit (oder einer Disqualifikation aus der Fahrt) ist der Lauf gefahren.
     expect(ergebnis(laufMitZeiten(stand, 3, { '401': 81 })).gesamt.laeufe).toEqual([1, 2, 3])
-    expect(ergebnis(eintragen(stand, 3, '401', { vorsteg: { disq: 'X' } })).gesamt.laeufe).toEqual([1, 2, 3])
+    expect(ergebnis(eintragen(stand, 3, '401', { parcours: { disq: 'J' } })).gesamt.laeufe).toEqual([1, 2, 3])
+    // Ein X „Nicht gestartet“ allein nicht: Es wird oft eingetragen, bevor der Lauf beginnt.
+    expect(ergebnis(eintragen(stand, 3, '401', { vorsteg: { disq: 'X' } })).gesamt.laeufe).toEqual([1, 2])
   })
 
   it('ist noch gar kein Lauf gefahren, zeigt die Gesamtliste den ersten – alle offen auf Platz 1', () => {
@@ -540,7 +553,256 @@ describe('Knoten', () => {
     expect(gesamt(stand, '401').knoten).toBe(10)
   })
 
-  it('ohne Knoten-Liste im Aufbau gibt es keine Knoten-Spalte', () => {
-    expect(ergebnis(gefahren({ '401': [70, 70, 90] })).gesamt.mitKnoten).toBe(false)
+  it('gehören nach den Regeln zu jedem Aufbau: Die Liste kommt als Vorgabe des Regelwerks dazu', () => {
+    // Alcatraz nennt die Knoten nicht selbst.
+    expect(konfig.getAufbau('alcatraz').order).not.toContain('knoten')
+    let stand = gefahren({ '401': [70, 70, 90], '402': [71, 71, 90] })
+    expect(ergebnis(stand).gesamt.mitKnoten).toBe(true)
+    stand = eintragen(stand, 1, '401', { knoten: { palstek: '5' } })
+    expect(gesamt(stand, '401')).toMatchObject({ knoten: 5, ergebnis: 14000, gesamt: 14500 })
+    expect(reihenfolge(ergebnis(stand).gesamt.nachPlatz)).toEqual(['402', '401'])
+  })
+
+  it('abgewählt gibt es keine Knoten-Spalte, und schon erfasste Knoten zählen nicht', () => {
+    const stand = { ...eintragen(gefahren({ '401': [70, 70, 90] }), 1, '401', { knoten: { palstek: '5' } }), zusatzListen: { knoten: false } }
+    expect(ergebnis(stand).gesamt.mitKnoten).toBe(false)
+    expect(gesamt(stand, '401')).toMatchObject({ knoten: 0, gesamt: 14000 })
+  })
+
+  it('UIM: Knoten gehören zum Manövrieren (Regel 960, Pkt. 4.3) und zählen zum besten Versuch (Pkt. 5.2.1)', () => {
+    const uim = configFor({ regelwerk: 'uim-2026' })
+    expect(uim.getRegelwerk().vorgabeListen).toEqual({ manoevrieren: ['knoten'] })
+    const basis = { ...gefahren({ '401': [70, 80], '402': [72, 90] }), regelwerk: 'uim-2026', laufCount: 2, streichlaeufe: 1 as const }
+    const stand = eintragen(basis, 1, '401', { knoten: { palstek: '5' } })
+    const liste = klassenErgebnis(stand, uim, '4')!.gesamt
+    expect(liste.mitKnoten).toBe(true)
+    // 401: bester Versuch 70 s + 5 s Knoten = 75 s; 402: 72 s.
+    expect(liste.nachPlatz.map((z) => [z.starter.startNr, z.gesamt])).toEqual([['402', 7200], ['401', 7500]])
+  })
+})
+
+describe('Entscheidung: n noch nicht Gefahrene stehen auf Platz 1, der beste Gefahrene auf Platz n + 1', () => {
+  const nummern = (n: number) => Array.from({ length: n }, (_, i) => String(401 + i))
+
+  it.each([3, 10])('Liste eines Laufs mit %i Offenen', (n) => {
+    // Die letzten beiden sind gefahren, alle davor noch nicht.
+    const alle = nummern(n + 2)
+    const [besser, schlechter] = alle.slice(-2)
+    const { nachPlatz } = ergebnis(laufMitZeiten(basis(alle), 1, { [besser]: 70, [schlechter]: 80 })).laeufe[0]
+    expect(nachPlatz.slice(0, n).map((z) => [z.platz, z.offen, z.zeit])).toEqual(Array.from({ length: n }, () => [1, true, null]))
+    expect(nachPlatz.slice(n).map((z) => [nr(z), z.platz])).toEqual([[besser, n + 1], [schlechter, n + 2]])
+  })
+
+  it.each([3, 10])('Gesamtliste mit %i Offenen', (n) => {
+    const alle = nummern(n + 2)
+    const [besser, schlechter] = alle.slice(-2)
+    // Der erste Lauf ist für alle gefahren; den zweiten holen n Starter noch nach.
+    let stand = laufMitZeiten(basis(alle), 1, Object.fromEntries(alle.map((nummer) => [nummer, 75])))
+    stand = laufMitZeiten(stand, 2, { [besser]: 70, [schlechter]: 80 })
+    const { nachPlatz } = ergebnis(stand).gesamt
+    expect(nachPlatz.slice(0, n).map((z) => [z.platz, z.offen, z.gesamt])).toEqual(Array.from({ length: n }, () => [1, true, null]))
+    expect(nachPlatz.slice(n).map((z) => [nr(z), z.platz])).toEqual([[besser, n + 1], [schlechter, n + 2]])
+  })
+
+  it('ein x (nicht gestartet) zählt nicht zu den Offenen: Es steht hinten', () => {
+    let stand = laufMitZeiten(basis(nummern(5)), 1, { '404': 70 })
+    stand = eintragen(stand, 1, '405', { steg: { disq: 'X' } })
+    expect(ergebnis(stand).laeufe[0].nachPlatz.map((z) => [nr(z), z.platz])).toEqual([['401', 1], ['402', 1], ['403', 1], ['404', 4], ['405', 5]])
+  })
+})
+
+describe('Läufe laut Regelwerk', () => {
+  const uim = configFor({ regelwerk: 'uim-2026' }).getRegelwerk()
+  it('UIM 960, Pkt. 4.3.2: zwei Versuche, der bessere zählt – die Angabe steht im Regelwerk', () => {
+    expect(uim.wertungslaeufe).toEqual({ laeufe: 2, streichlaeufe: 1 })
+    expect(konfig.getRegelwerk().wertungslaeufe).toBeUndefined()
+  })
+  it('gemeldet wird nur die Abweichung', () => {
+    expect(laeufeLautRegelwerk(uim, { laufCount: 2, streichlaeufe: 1 })).toBeNull()
+    expect(laeufeLautRegelwerk(uim, { laufCount: 2, streichlaeufe: 'auto' })).toEqual({ laeufe: 2, streichlaeufe: 1 })
+    expect(laeufeLautRegelwerk(uim, { laufCount: 3, streichlaeufe: 'auto' })).toEqual({ laeufe: 2, streichlaeufe: 1 })
+    expect(laeufeLautRegelwerk(konfig.getRegelwerk(), { laufCount: 5, streichlaeufe: 0 })).toBeNull()
+  })
+})
+
+describe('Entscheidung: X „Nicht gestartet“ steht auch in der Gesamtliste hinten, nicht bei den Offenen', () => {
+  const x = (stand: ErgebnisStand, lauf: number, nummer: string, liste = 'vorsteg') => eintragen(stand, lauf, nummer, { [liste]: { disq: 'X' } })
+  const plaetze = (stand: ErgebnisStand) => ergebnis(stand).gesamt.nachPlatz.map((z) => [nr(z), z.platz])
+
+  it('nach dem 1. Lauf: drei Offene auf Platz 1, der Gefahrene auf Platz 4, das X dahinter', () => {
+    let stand = laufMitZeiten(basis(['401', '402', '403', '407', '408']), 1, { '408': 60 })
+    stand = x(stand, 1, '407')
+    expect(plaetze(stand)).toEqual([['401', 1], ['402', 1], ['403', 1], ['408', 4], ['407', 5]])
+    expect(gesamt(stand, '407')).toMatchObject({ disq: true, offen: false, gesamt: null })
+    // Die Gesamtliste folgt damit der Liste des Laufs.
+    expect(ergebnis(stand).laeufe[0].nachPlatz.map((z) => [nr(z), z.platz])).toEqual(plaetze(stand))
+  })
+
+  it('während des 2. Laufs: drei Offene, ein X, zwei Gefahrene – Platz 1, 1, 1, 4, 5 und das X auf 6', () => {
+    const alle = ['401', '402', '403', '404', '405', '406']
+    let stand = laufMitZeiten(basis(alle), 1, Object.fromEntries(alle.map((n) => [n, 75])))
+    stand = laufMitZeiten(stand, 2, { '405': 70, '406': 80 })
+    stand = x(stand, 2, '402', 'steg')
+    expect(plaetze(stand)).toEqual([['401', 1], ['403', 1], ['404', 1], ['405', 4], ['406', 5], ['402', 6]])
+    // Der nicht gestartete Lauf ist (noch) nicht gestrichen: Im Zwischenstand zählen beide.
+    expect(gesamt(stand, '402')).toMatchObject({ disq: true, gestrichen: [] })
+  })
+
+  it('am Ende nimmt der Streichlauf das X auf: gewertet mit den beiden gültigen Läufen', () => {
+    let stand = gefahren({ '401': [70, undefined, 72], '402': [80, 81, 82] })
+    stand = x(stand, 2, '401')
+    expect(gesamt(stand, '401')).toMatchObject({ disq: false, offen: false, gestrichen: [2], ergebnis: 14200, platz: 1 })
+  })
+
+  it('ein X nur im 1. Lauf, die übrigen Läufe leer: Die leeren gelten als „holt nach“ – das X gehört in jeden Lauf', () => {
+    let stand = gefahren({ '401': [undefined, undefined, undefined], '402': [80, 81, 82], '403': [90, 91, 92] })
+    stand = x(stand, 1, '401')
+    expect(gesamt(stand, '401')).toMatchObject({ offen: true, disq: false, platz: 1 })
+    // In jedem Lauf eingetragen, steht der Abgereiste hinten.
+    stand = x(x(stand, 2, '401'), 3, '401')
+    expect(plaetze(stand)).toEqual([['402', 1], ['403', 2], ['401', 3]])
+  })
+
+  it('ein X im Voraus für alle Läufe macht die späteren Läufe nicht „gefahren“: Die Zwischenwertung bleibt', () => {
+    let stand = laufMitZeiten(basis(['401', '402', '403']), 1, { '402': 80, '403': 70 })
+    stand = x(x(x(stand, 1, '401'), 2, '401'), 3, '401')
+    const { gesamt: g, laeufe } = ergebnis(stand)
+    expect(laeufe.map((l) => l.lauf)).toEqual([1, 2, 3])
+    expect(g.laeufe).toEqual([1])
+    expect(plaetze(stand)).toEqual([['403', 1], ['402', 2], ['401', 3]])
+    // Beginnt der 2. Lauf, sind die anderen offen – der Abgereiste bleibt hinten.
+    stand = laufMitZeiten(stand, 2, { '403': 71 })
+    expect(plaetze(stand)).toEqual([['402', 1], ['403', 2], ['401', 3]])
+    expect(gesamt(stand, '401')).toMatchObject({ disq: true, offen: false })
+  })
+
+  it('hat in der Klasse niemand eine Zeit, steht das X trotzdem hinten', () => {
+    const stand = x(basis(['401', '402']), 1, '402')
+    expect(plaetze(stand)).toEqual([['401', 1], ['402', 2]])
+  })
+})
+
+describe('Entscheidung: Stichentscheid bei Punktgleichheit – die Regel steht im Regelwerk', () => {
+  const uim = configFor({ regelwerk: 'uim-2026' })
+  const plaetze = (zeilen: Array<{ starter: Starter; platz: number; stich: boolean }>) => zeilen.map((z) => [nr(z), z.platz, z.stich])
+  /** Strafpunkte an einer Boje. */
+  const strafe = (stand: ErgebnisStand, lauf: number, nummer: string, punkte: number) => eintragen(stand, lauf, nummer, { gate135: { 't1a#0': String(punkte) } })
+
+  it('DM nennt den schnellsten gewerteten Lauf, die UIM die Summe aller Versuche', () => {
+    expect(konfig.getRegelwerk().stichentscheid).toEqual(['schnellsterLauf'])
+    expect(uim.getRegelwerk().stichentscheid).toEqual(['summeAllerLaeufe'])
+  })
+
+  describe('DM: der schnellste gewertete Lauf', () => {
+    it('Liste eines Laufs: Bei gleichen Punkten steht vorn, wer schneller gefahren ist', () => {
+      // Alle 80,00 Punkte: 401 = 80 s, 402 = 70 s + 10, 403 = 75 s + 5, 404 = 80 s.
+      let stand = laufMitZeiten(basis(['401', '402', '403', '404', '405']), 1, { '401': 80, '402': 70, '403': 75, '404': 80, '405': 79 })
+      stand = strafe(strafe(stand, 1, '402', 10), 1, '403', 5)
+      const { nachPlatz, nachNummer } = ergebnis(stand).laeufe[0]
+      // 401 und 404 trennt auch die Zeit nicht: geteilter Platz, der nächste entfällt.
+      expect(plaetze(nachPlatz)).toEqual([
+        ['405', 1, false],
+        ['402', 2, true],
+        ['403', 3, true],
+        ['401', 4, true],
+        ['404', 4, true],
+      ])
+      expect(nachPlatz.slice(1).map((z) => z.gesamt)).toEqual([8000, 8000, 8000, 8000])
+      // Dieselben Plätze stehen in der Liste nach Startnummer.
+      expect(plaetze(nachNummer)).toEqual([['401', 4, true], ['402', 2, true], ['403', 3, true], ['404', 4, true], ['405', 1, false]])
+    })
+
+    it('ohne Gleichstand entscheidet nichts: Niemand ist „im Stich“', () => {
+      const stand = laufMitZeiten(basis(['401', '402']), 1, { '401': 80, '402': 70 })
+      expect(plaetze(ergebnis(stand).laeufe[0].nachPlatz)).toEqual([['402', 1, false], ['401', 2, false]])
+    })
+
+    it('gleiche Punkte und gleiche Zeit: geteilter Platz, nach Startnummer', () => {
+      const stand = laufMitZeiten(basis(['402', '401', '403']), 1, { '401': 70, '402': 70, '403': 90 })
+      expect(plaetze(ergebnis(stand).laeufe[0].nachPlatz)).toEqual([['401', 1, false], ['402', 1, false], ['403', 3, false]])
+    })
+
+    it('Gesamtliste: Bei gleicher Summe entscheidet die kürzeste gefahrene Zeit unter den gewerteten Läufen', () => {
+      // Alle 160,00 aus zwei gewerteten Läufen; der dritte ist gestrichen.
+      const stand = gefahren({ '401': [80, 80, 85], '402': [78, 82, 90], '403': [79, 81, 95] })
+      expect(ergebnis(stand).gesamt.nachPlatz.map((z) => [nr(z), z.platz, z.gesamt, z.stich])).toEqual([
+        ['402', 1, 16000, true],
+        ['403', 2, 16000, true],
+        ['401', 3, 16000, true],
+      ])
+    })
+
+    it('Gesamtliste: Ein gestrichener Lauf entscheidet nicht, auch wenn er der schnellste war', () => {
+      // 402 fuhr im 3. Lauf 60 s, aber mit 40 Strafpunkten: 100 Punkte, gestrichen.
+      let stand = gefahren({ '401': [80, 80, 99], '402': [80, 80, 60] })
+      stand = strafe(stand, 3, '402', 40)
+      expect(gesamt(stand, '402').gestrichen).toEqual([3])
+      expect(plaetze(ergebnis(stand).gesamt.nachPlatz)).toEqual([['401', 1, false], ['402', 1, false]])
+    })
+
+    it('Gesamtliste: Es zählt die gefahrene Zeit, nicht das Ergebnis des Laufs', () => {
+      // Beide 160,00. 401: 70 s + 10 und 80 s; 402: 75 s und 85 s. Schnellster Lauf: 401 mit 70 s.
+      let stand = gefahren({ '401': [70, 80, 99], '402': [75, 85, 99] })
+      stand = strafe(stand, 1, '401', 10)
+      expect(plaetze(ergebnis(stand).gesamt.nachPlatz)).toEqual([['401', 1, true], ['402', 2, true]])
+    })
+
+    it('Gesamtliste: Der Stichentscheid ändert nichts an Offenen (Platz 1) und Disqualifizierten (hinten)', () => {
+      const stand = gefahren({ '401': [80, 80, 85], '402': [78, 82, 90], '403': [70, undefined, 70], '404': [null, null, 70] })
+      expect(plaetze(ergebnis(stand).gesamt.nachPlatz)).toEqual([['403', 1, false], ['402', 2, true], ['401', 3, true], ['404', 4, false]])
+    })
+  })
+
+  describe('UIM 960, Pkt. 5.2.6: Manövrieren', () => {
+    const zweiVersuche = { laufCount: 2, streichlaeufe: 1 } as const
+    const uimErgebnis = (stand: ErgebnisStand) => klassenErgebnis(stand, uim, '4')!
+
+    it('gleicher bester Versuch: Die bessere Summe beider Versuche steht vorn', () => {
+      const stand = gefahren({ '401': [50, 60], '402': [55, 50], '403': [50, 60], '404': [49, 70] }, zweiVersuche)
+      const { nachPlatz } = uimErgebnis(stand).gesamt
+      expect(nachPlatz.map((z) => [nr(z), z.platz, z.gesamt, z.stich])).toEqual([
+        ['404', 1, 4900, false],
+        ['402', 2, 5000, true], // 105
+        ['401', 3, 5000, true], // 110
+        ['403', 3, 5000, true], // 110 – auch die Summe trennt nicht: geteilter Platz
+      ])
+    })
+
+    it('wer nur einen gültigen Versuch hat, steht bei Gleichstand dahinter', () => {
+      const stand = gefahren({ '401': [50, null], '402': [50, 90], '403': [null, 50] }, zweiVersuche)
+      expect(plaetze(uimErgebnis(stand).gesamt.nachPlatz)).toEqual([['402', 1, true], ['401', 2, true], ['403', 2, true]])
+    })
+
+    it('die Summe zählt die Fahrstrafen beider Versuche', () => {
+      // Bester Versuch je 50,00. Zweiter Versuch: 401 = 60 s, 402 = 55 s + 10 Strafsekunden.
+      let stand = gefahren({ '401': [50, 60], '402': [50, 55] }, zweiVersuche)
+      stand = strafe(stand, 2, '402', 10)
+      expect(plaetze(uimErgebnis(stand).gesamt.nachPlatz)).toEqual([['401', 1, true], ['402', 2, true]])
+    })
+
+    it('Knoten gehören zum Ergebnis, aber zu keinem Versuch: Die Summe zählt sie nicht', () => {
+      // 401: bester Versuch 50 + 5 Knoten = 55, Summe 50 + 70 = 120. 402: bester 55, Summe 55 + 60 = 115.
+      let stand = gefahren({ '401': [50, 70], '402': [55, 60] }, { ...zweiVersuche, aufbau: 'bawue' })
+      stand = eintragen(stand, 1, '401', { knoten: { palstek: '5' } })
+      const { nachPlatz } = uimErgebnis(stand).gesamt
+      expect(nachPlatz.map((z) => [nr(z), z.platz, z.gesamt])).toEqual([['402', 1, 5500], ['401', 2, 5500]])
+    })
+
+    it('für den einzelnen Versuch nennt die Regel nichts: Gleiche Punkte teilen sich den Platz', () => {
+      let stand = laufMitZeiten(basis(['401', '402'], zweiVersuche), 1, { '401': 80, '402': 70 })
+      stand = strafe(stand, 1, '402', 10)
+      expect(plaetze(uimErgebnis(stand).laeufe[0].nachPlatz)).toEqual([['401', 1, false], ['402', 1, false]])
+    })
+  })
+
+  it('ohne Angabe im Regelwerk teilen sich Punktgleiche den Platz; „besterLauf“ nimmt das Ergebnis des Laufs', () => {
+    let stand = gefahren({ '401': [70, 80, 99], '402': [75, 85, 99] })
+    stand = strafe(stand, 1, '401', 10) // 401: 80 + 80, 402: 75 + 85
+    const mit = (stichentscheid: Array<'besterLauf' | 'schnellsterLauf' | 'summeAllerLaeufe'>) =>
+      klassenErgebnis(stand, { ...konfig, getRegelwerk: () => ({ ...konfig.getRegelwerk(), stichentscheid }) }, '4')!.gesamt.nachPlatz
+    expect(plaetze(mit([]))).toEqual([['401', 1, false], ['402', 1, false]])
+    expect(plaetze(mit(['besterLauf']))).toEqual([['402', 1, true], ['401', 2, true]])
+    // Der Reihe nach: Trennt das erste Kriterium nicht, gilt das nächste.
+    expect(plaetze(mit(['summeAllerLaeufe', 'besterLauf']))).toEqual([['402', 1, true], ['401', 2, true]])
   })
 })

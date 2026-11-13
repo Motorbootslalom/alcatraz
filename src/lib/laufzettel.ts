@@ -1,18 +1,28 @@
 import type { ClassId } from '../types'
 import type { WkrBogen } from './wkrListen'
 
-// Laufzettel (Checklisten): je Parcours, Klasse und Lauf ein Zettel mit einem Kästchen je
-// gedruckter Seite jeder Liste – so lässt sich nach dem Lauf abhaken, ob von jeder Position
-// alle Seiten zurück sind. Vorbild: lib/laufzettel.ts im Fehlerpunkte-Prototyp.
+// Laufzettel (Checklisten): Ein Zettel hält die losen Blätter zusammen, die nach dem Lauf als
+// ein Stapel zur Auswertung gehen, mit einem Kästchen je gedruckter Seite jeder Liste – so
+// lässt sich abhaken, ob von jeder Position alle Seiten zurück sind. Vorbild:
+// lib/laufzettel.ts im Fehlerpunkte-Prototyp.
+//
+// Was ein Stapel ist:
+// - Sonst je Parcours, Klasse und Lauf: Jeder Bogen trägt eine Klasse.
+// - Clubmeisterschaft mit „Papier sparen“: je Parcours und Lauf – alle Klassen stehen auf
+//   denselben Bögen (`jeParcours`).
+// - Clubmeisterschaft ohne „Papier sparen“: Listen ohne Bild (Zeit, Steg …) teilen sich die
+//   Klassen weiter, nur Listen mit Bild sind je Klasse getrennt. Ein gemeinsamer Bogen kann
+//   nicht in zwei Stapeln liegen – der Zettel gilt deshalb für alle Klassen, die über
+//   gemeinsame Bögen zusammenhängen (in der Regel wieder der ganze Parcours); die Bögen
+//   einzelner Klassen nennen ihre Klasse in der Zeile.
+// - Eine Liste ohne Lauf (Knoten) wird einmal abgenommen und gedruckt: Sie liegt im Stapel
+//   des 1. Laufs und steht nur auf dessen Zettel.
 //
 // Grundlage sind die Bögen der Veranstaltung (lib/wkrListen.ts), also genau das, was gedruckt
 // wird. Die Seitenzahl eines Bogens kommt von außen (`seitenVon`): Sie ist gemessen – dieselbe
 // Messung, die den Bogen beim Drucken aufteilt (components/bogen/BogenBlatt.vue) –, nicht
 // geschätzt.
 //
-// Clubmeisterschaft: Dort stehen mehrere Klassen auf einem Bogen. Ein Zettel gilt dann für
-// die Klassen, die sich Bögen teilen (alle, die über gemeinsame Bögen zusammenhängen); Listen,
-// die nur einen Teil davon tragen, nennen ihre Klassen in der Zeile.
 
 export interface LaufzettelZeile {
   /** Eindeutig je Laufzettel (Bogen + Seite). */
@@ -71,14 +81,21 @@ function klassenGruppen(boegen: readonly WkrBogen[]): ClassId[][] {
 /**
  * Bildet die Laufzettel aus den Bögen.
  *
- * - Ein Zettel je Parcours, Klasse(ngruppe) und Lauf – in der Reihenfolge der Bögen, also
- *   erst Parcours, dann die Klassen so, wie sie laut Verzahnung zuerst starten, dann der Lauf.
+ * - Ein Zettel je Blattstapel (siehe oben): Parcours, Klasse(ngruppe) und Lauf – in der
+ *   Reihenfolge der Bögen, also erst Parcours, dann die Klassen so, wie sie laut Verzahnung
+ *   zuerst starten, dann der Lauf.
  * - Darauf die Listen in der Reihenfolge des Aufbaus (`listen`); mehrere Bögen derselben
  *   Liste (je Klasse einer) bleiben in ihrer Reihenfolge.
  * - Eine Zeile je Druckseite. Eine Liste ohne Lauf (Knoten) gibt es nur einmal; sie steht
  *   auf dem Zettel des Laufs, zu dem ihr Bogen gehört (dem ersten).
  */
-export function buildLaufzettel(boegen: readonly WkrBogen[], listen: readonly string[], seitenVon: (bogen: WkrBogen) => number): Laufzettel[] {
+export function buildLaufzettel(
+  boegen: readonly WkrBogen[],
+  listen: readonly string[],
+  seitenVon: (bogen: WkrBogen) => number,
+  /** `jeParcours`: ein Zettel je Parcours und Lauf, gleich wie die Klassen auf den Bögen stehen (Club, „Papier sparen“). */
+  optionen: { jeParcours?: boolean } = {},
+): Laufzettel[] {
   const rang = (typeId: string) => {
     const i = listen.indexOf(typeId)
     return i < 0 ? Number.POSITIVE_INFINITY : i
@@ -87,7 +104,8 @@ export function buildLaufzettel(boegen: readonly WkrBogen[], listen: readonly st
   const parcours = [...new Set(boegen.map((b) => b.parcoursId))]
   for (const parcoursId of parcours) {
     const amParcours = boegen.filter((b) => b.parcoursId === parcoursId)
-    for (const klassen of klassenGruppen(amParcours)) {
+    const stapel = optionen.jeParcours ? [[...new Set(amParcours.flatMap((b) => b.klassen))]] : klassenGruppen(amParcours)
+    for (const klassen of stapel) {
       const derGruppe = amParcours.filter((b) => klassen.includes(b.klassen[0]))
       for (const lauf of [...new Set(derGruppe.map((b) => b.lauf))].sort((a, b) => a - b)) {
         // `sort` ist stabil: Gleiche Listen behalten die Reihenfolge der Bögen.
@@ -117,10 +135,10 @@ export interface LaufzettelListe {
 }
 
 /**
- * Fasst die Kästchen eines Zettels je Liste zusammen – so steht er auf dem Blatt: eine Zeile
- * je Liste, darin die Kästchen ihrer Seiten nebeneinander. Eine Zeile je Seite (wie im
- * Prototyp) passt bei großen Klassen und bei der Clubmeisterschaft nicht mehr auf A5.
- * Reihenfolge der Listen und Bögen wie in `zeilen`; kein Kästchen geht verloren.
+ * Fasst die Kästchen eines Zettels je Liste zusammen: je Liste ihre Bögen, je Bogen seine
+ * Seitenzahl. Das Blatt (LaufzettelBlatt.vue) setzt daraus beide Formen – eine Zeile je Seite
+ * mit dem Kästchen vorn (wie im Prototyp) oder eine Zeile je Liste mit den Kästchen
+ * nebeneinander. Reihenfolge der Listen und Bögen wie in `zeilen`; kein Kästchen geht verloren.
  */
 export function listenZeilen(zeilen: readonly LaufzettelZeile[]): LaufzettelListe[] {
   const je = new Map<string, LaufzettelListe>()

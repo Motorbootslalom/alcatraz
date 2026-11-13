@@ -26,7 +26,7 @@ function sammeln() {
 
 function springe(e: Eintrag) {
   aktiv.value = e.el
-  // Ein zugeklappter Block (Beispieldaten) geht auf: Wer hinspringt, will hinein.
+  // Ein zugeklappter Block geht auf: Wer hinspringt, will hinein.
   if (e.el instanceof HTMLDetailsElement) e.el.open = true
   e.el.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
 }

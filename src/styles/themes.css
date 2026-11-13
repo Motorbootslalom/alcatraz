@@ -138,3 +138,25 @@
   width: 22px;
   height: 22px;
 }
+
+/* ---------- Starter: fehlendes Geburtsdatum fällt auf, hält aber nichts auf ---------- */
+.cell-missing {
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.cell-input.missing {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.missing-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}

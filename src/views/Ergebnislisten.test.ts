@@ -143,6 +143,10 @@ describe('Listen: Ergebnislisten', () => {
     expect(z[0].slice(6, 8)).toEqual(['', '']) // keine Zeit
     expect(z[0].at(-2)).toBe('')
     expect(z[2].slice(-3)).toEqual(['x', 'disq.', 'X'])
+    // Das x steht ausgeschrieben da, wo sonst Zeit und Punkte stünden – nicht nur als Schlüssel „X“.
+    expect(reihen[2].find('td.erg-dns').text()).toBe('Nicht gestartet')
+    expect(reihen[2].find('td.erg-dns').attributes('colspan')).toBe('2')
+    expect(reihen[0].find('td.erg-dns').exists()).toBe(false) // „noch nicht gefahren“ bleibt leer
     expect(reihen[2].find('.erg-disq').exists()).toBe(true)
     wrapper.unmount()
   })
@@ -156,14 +160,17 @@ describe('Listen: Ergebnislisten', () => {
     // Kein Lauf-Wähler bei „nur Gesamtliste“.
     expect(wrapper.find('select[data-feld="erg-lauf"]').exists()).toBe(false)
     const kopf = spalten(wrapper)
-    expect(kopf).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', '1. Lauf', '2. Lauf', '3. Lauf', 'Ergebnis', 'Gesamt'])
+    // Die Knoten gehören nach den Regeln zu jedem Aufbau – auch zu Alcatraz, das sie nicht selbst nennt.
+    expect(kopf).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', '1. Lauf', '2. Lauf', '3. Lauf', 'Ergebnis', 'Knoten', 'Gesamt'])
     const reihen = () => wrapper.findAll('.ergebnis-blatt tbody tr')
     const kurz = () => reihen().map((r) => `${r.attributes('data-wertung')}:${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()} ${r.findAll('td').at(-1)!.text()}`.trim())
     // 401 holt Lauf 2 nach → Platz 1 ohne Ergebnis. 402: x gestrichen → 80 + 81. 403: 90 + 76, der schlechteste (90, Lauf 1 oder 3) gestrichen.
     expect(kurz()).toEqual(['offen:1 401', 'gewertet:2 402 161,00', 'gewertet:3 403 166,00'])
     const gestrichen = (i: number) => reihen()[i].findAll('td.erg-gestrichen').map((c) => c.text())
     expect(gestrichen(0)).toEqual([])
-    expect(gestrichen(1)).toEqual(['', '', 'disq.'])
+    // Der nicht gestartete Lauf: ausgeschrieben über Zeit, Strafpunkte und Gesamt, gestrichen wie jede Disqualifikation.
+    expect(gestrichen(1)).toEqual(['Nicht gestartet'])
+    expect(reihen()[1].find('td.erg-dns').classes()).toContain('erg-disq')
     expect(gestrichen(2)).toEqual(['01:15,00', '15', '90,00'])
 
     await waehle(wrapper, 'ordnung', 'nummer')
@@ -171,6 +178,33 @@ describe('Listen: Ergebnislisten', () => {
     await waehle(wrapper, 'abstand', 'erster')
     expect(spalten(wrapper).at(-1)).toBe('Abstandzum 1. Platz') // im Kopf zweizeilig (<br>)
     expect(reihen().map((r) => r.findAll('td').at(-1)!.text())).toEqual(['', '', '+5,00'])
+    wrapper.unmount()
+  })
+
+  it('Punktgleichheit: Der Stichentscheid des Regelwerks trennt, die Zeile ist gekennzeichnet, der Hinweis nennt die Regel', async () => {
+    // Klasse 1, 1. Lauf: 101 = 66 s, 102 = 65 s, 103 = 60 s + 5 Strafpunkte = 65 Punkte.
+    zeit(store, 1, 'id-1-3', '60')
+    wert(store, 1, 'id-1-3', 't1a|hin seiteA', '5')
+    const wrapper = ansicht(store)
+    await ergebnisse(wrapper)
+    await waehle(wrapper, 'klasse', '1')
+    await waehle(wrapper, 'lauf', '1')
+    const reihen = () => wrapper.findAll('.ergebnis-blatt tbody tr').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()}${r.attributes('data-stich') !== undefined ? ' *' : ''}`)
+    // DM: Der schnellere Lauf steht vorn – die Zeit steht in derselben Zeile.
+    expect(reihen()).toEqual(['1 103 *', '2 102 *', '3 101'])
+    expect(wrapper.find('[data-hinweis="stich"]').text()).toBe(
+      'Bei gleichen Punkten steht vorn, wer den schnelleren gewerteten Lauf hat (gefahrene Zeit ohne Strafpunkte). Trennt auch das nicht, teilen sich die Starter den Platz.',
+    )
+    // UIM: Für den einzelnen Versuch gibt es keinen Stichentscheid – geteilter Platz.
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    await nextTick()
+    expect(reihen()).toEqual(['1 102', '1 103', '3 101'])
+    expect(wrapper.find('[data-hinweis="stich"]').text()).toContain('Summe aller Läufe')
+    setLocale('en')
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="stich"]').text()).toBe(
+      'On equal results, the competitor with the better sum of all attempts ranks higher (including penalties, the dropped attempt too); anyone without a valid result in every attempt ranks behind. If that does not separate them either, the competitors share the rank.',
+    )
     wrapper.unmount()
   })
 
@@ -218,7 +252,11 @@ describe('Listen: Ergebnislisten', () => {
     // Englisch: Dezimalpunkt, „DSQ“.
     const z = zeilen(wrapper)
     expect(z[1].at(-1)).toBe('161.00')
-    expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toContain('DSQ')
+    expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start'])
+    // Ohne Streichlauf zählt der nicht gestartete Lauf: insgesamt „DSQ“.
+    store.dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: 0 })
+    await nextTick()
+    expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start', 'DSQ', 'DSQ'])
     expect(wrapper.find('style').text()).toContain('"Page " counter(page) " of " counter(pages)')
     vi.unstubAllGlobals()
     wrapper.unmount()

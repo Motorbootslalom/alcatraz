@@ -9,32 +9,39 @@ import { gewichtsGruppen } from '../domain/gewicht'
 import { fileStamp } from '../persistenz/backup'
 import { planEvent } from '../planung/plan'
 import { originLabelKey, originText } from '../lib/origin'
-import { formatDate, formatDateTime, t, tn } from '../i18n'
+import { t, tn } from '../i18n'
+import { useListenSprache } from '../lib/listensprache'
 import type { Starter } from '../types'
 import WkrListen from '../components/WkrListen.vue'
 import ErgebnisListen from '../components/ErgebnisListen.vue'
 import LaufzettelListen from '../components/LaufzettelListen.vue'
+import CodesAushang from '../components/CodesAushang.vue'
 
 /**
  * Druckbare Listen. Gedruckt wird über den Browser (auch „Als PDF speichern“);
  * die Bildschirmansicht ist die Druckansicht.
  */
 // Die verzahnte Startliste ist die übliche; „nach Klasse“ braucht man fast nie – sie steht deshalb hinten.
-// Davor in der Reihenfolge, in der man sie am Wettkampftag braucht: Die Laufzettel gehören zu den Bögen der Wettkampfrichter.
-const KINDS = ['interleaved', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'ergebnis', 'byClass'] as const
+// Davor in der Reihenfolge, in der man sie am Wettkampftag braucht: Die Laufzettel und der
+// Aushang der Fehler- und Disqualifikations-Codes gehören zu den Bögen der Wettkampfrichter.
+const KINDS = ['interleaved', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'codes', 'ergebnis', 'byClass'] as const
 type Kind = (typeof KINDS)[number]
 
 const { state } = useStore()
 const kind = merke<Kind>('listen.art', 'interleaved')
-
+// Was auf den Blättern steht, folgt der Listensprache (`lt`, lib/listensprache.ts); die
+// Bedienung und der Fenstertitel der Sprache der Oberfläche (`t`).
+const { t: lt, formatDate, formatDateTime } = useListenSprache()
 
 // Listen entstehen erst, wenn jede Startnummer gesetzt und eindeutig ist.
 const missing = computed(() => state.value.starters.filter((p) => p.startNr.trim() === '').length)
 const duplicate = computed(() => duplicateStartNrIds(state.value.starters, state.value.startNrMode).size)
 // Gewichtslisten entstehen beim Check-in, oft bevor es Startnummern gibt – sie brauchen keine.
 const weightList = computed(() => kind.value === 'gewicht')
+// Der Aushang der Codes hängt nur am Regelwerk – er lässt sich drucken, bevor es Starter gibt.
+const codeList = computed(() => kind.value === 'codes')
 // Ergebnislisten rechnen über die Starter-ID; eine fehlende Nummer hält den Aushang nicht auf.
-const blocked = computed(() => !weightList.value && kind.value !== 'ergebnis' && (missing.value > 0 || duplicate.value > 0))
+const blocked = computed(() => !weightList.value && !codeList.value && kind.value !== 'ergebnis' && (missing.value > 0 || duplicate.value > 0))
 const showOrigin = computed(() => state.value.originMode !== 'none' && kind.value !== 'gewicht')
 // Geburtsdatum nur, wenn die Veranstaltung es zeigt; auf der Vorsteg-Liste steht es nie.
 // Auf der Gewichtsliste steht das Geburtsdatum immer – es wird beim Check-in abgeglichen.
@@ -75,16 +82,16 @@ const runSheets = computed(() => kind.value === 'laufzettel')
 const runSheetStand = ref({ anzahl: 0, auswahl: '' })
 const ownView = computed(() => wkrList.value || resultList.value || runSheets.value)
 const ownStand = computed(() => (wkrList.value ? wkrStand.value : resultList.value ? resultStand.value : runSheetStand.value))
-const nothingToPrint = computed(() => (ownView.value ? ownStand.value.anzahl === 0 : sections.value.length === 0))
+const nothingToPrint = computed(() => !codeList.value && (ownView.value ? ownStand.value.anzahl === 0 : sections.value.length === 0))
 
 const sections = computed<Section[]>(() => {
   const k = kind.value
-  if (k === 'wkr' || k === 'ergebnis' || k === 'laufzettel') return []
+  if (k === 'wkr' || k === 'ergebnis' || k === 'laufzettel' || k === 'codes') return []
   if (weightList.value) {
     // Je Herkunft ein eigenes Blatt für die Mannschaftsleitung.
     return gewichtsGruppen(state.value.starters, state.value.originMode).map((g) => ({
       id: `gewicht:${g.origin}`,
-      title: t('lists.title.gewicht') + (g.origin ? `\n${g.origin}` : ''),
+      title: lt('lists.title.gewicht') + (g.origin ? `\n${g.origin}` : ''),
       groups: [g.starters],
     }))
   }
@@ -92,7 +99,7 @@ const sections = computed<Section[]>(() => {
     const groups = CLASSES.map((c) => sortedByStartNr(state.value.starters.filter((p) => p.klasse === c.id))).filter(
       (g) => g.length > 0,
     )
-    return groups.length > 0 ? [{ id: 'all', title: t('lists.title.byClass'), groups }] : []
+    return groups.length > 0 ? [{ id: 'all', title: lt('lists.title.byClass'), groups }] : []
   }
   // Je Parcours eine eigene Liste auf eigenem Blatt – sie hängt an einem anderen Steg.
   const plans = new Map(planEvent(state.value).plans.map((p) => [p.parcoursId, p]))
@@ -100,7 +107,7 @@ const sections = computed<Section[]>(() => {
   return state.value.parcoursList
     .map((p) => ({
       id: p.id,
-      title: t(`lists.title.${k}`) + (several ? `\n${p.name}` : ''),
+      title: lt(`lists.title.${k}`) + (several ? `\n${p.name}` : ''),
       groups: [plans.get(p.id)?.sequence ?? []],
     }))
     .filter((s) => s.groups[0].length > 0)
@@ -132,7 +139,7 @@ const stand = computed(() => formatDateTime(openedAt))
  */
 const cssString = (text: string) => `"${text.replace(/["\\]/g, '\\$&')}"`
 const pageCss = computed(() => {
-  const [before, after] = t('lists.page', { page: '\u0001', pages: '\u0002' }).split('\u0001')
+  const [before, after] = lt('lists.page', { page: '\u0001', pages: '\u0002' }).split('\u0001')
   const [between, end] = after.split('\u0002')
   const page = `${cssString(before)} counter(page) ${cssString(between)} counter(pages) ${cssString(end)}`
   // Die Bögen der Wettkampfrichter haben nur 8 mm Rand (benannte Seiten in bogen.css): dort
@@ -181,7 +188,12 @@ function print() {
     {{ t('lists.fixNumbers') }}
   </p>
 
-  <div v-if="ownView ? state.starters.length === 0 : sections.length === 0" class="panel empty no-print">{{ t('lists.empty') }}</div>
+  <template v-if="codeList">
+    <component :is="'style'">{{ pageCss }}</component>
+    <CodesAushang />
+  </template>
+
+  <div v-else-if="ownView ? state.starters.length === 0 : sections.length === 0" class="panel empty no-print">{{ t('lists.empty') }}</div>
 
   <template v-else-if="wkrList">
     <component :is="'style'">{{ pageCss }}</component>
@@ -211,20 +223,20 @@ function print() {
             </th>
           </tr>
           <tr class="sheet-cols">
-            <th v-if="weightList" class="narrow">{{ t('lists.class') }}</th>
-            <th v-else class="narrow">{{ t('common.startNr') }}</th>
-            <th>{{ t('common.lastName') }}</th>
-            <th>{{ t('common.firstName') }}</th>
-            <th v-if="showOrigin">{{ t(originLabelKey(state.originMode)) }}</th>
-            <th v-if="showBirthdate" class="narrow">{{ t('common.birthdate') }}</th>
+            <th v-if="weightList" class="narrow">{{ lt('lists.class') }}</th>
+            <th v-else class="narrow">{{ lt('common.startNr') }}</th>
+            <th>{{ lt('common.lastName') }}</th>
+            <th>{{ lt('common.firstName') }}</th>
+            <th v-if="showOrigin">{{ lt(originLabelKey(state.originMode)) }}</th>
+            <th v-if="showBirthdate" class="narrow">{{ lt('common.birthdate') }}</th>
             <template v-if="kind === 'vorsteg'">
-              <th v-for="r in runs" :key="r" class="check">{{ t('lists.run', { n: r }) }}</th>
+              <th v-for="r in runs" :key="r" class="check">{{ lt('lists.run', { n: r }) }}</th>
             </template>
             <template v-if="weightList">
-              <th class="weight">{{ t('lists.standardWeight') }}</th>
-              <th class="weight">{{ t('lists.weight') }}</th>
+              <th class="weight">{{ lt('lists.standardWeight') }}</th>
+              <th class="weight">{{ lt('lists.weight') }}</th>
             </template>
-            <th v-else class="narrow">{{ t('lists.class') }}</th>
+            <th v-else class="narrow">{{ lt('lists.class') }}</th>
           </tr>
         </thead>
         <tbody v-for="(group, gi) in rows[si]" :key="gi">

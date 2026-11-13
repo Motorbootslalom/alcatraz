@@ -2,6 +2,7 @@ import type { AppState, Starter } from '../types'
 import { migrate } from '../state/migrate'
 import { aufbauOf } from '../config/catalog'
 import { haengeUm } from '../lib/einteilung'
+import { mitTor5Umzug } from '../state/tor5'
 
 /**
  * Dateien zum Aufheben und Weitergeben. Weil alle Daten nur in diesem Browser
@@ -10,7 +11,8 @@ import { haengeUm } from '../lib/einteilung'
  *
  * - `sicherung`: der gesamte Stand der Veranstaltung.
  * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr, WKR-Einteilung,
- *   erfasste Werte, den Stand der Ergebnislisten und die Kennung der Veranstaltung.
+ *   erfasste Werte, den Stand der Ergebnislisten, die Kennung der Veranstaltung und die
+ *   Angabe, ob das Starterfeld aus Beispieldaten stammt (sie gehört zu den Startern).
  *   Damit beginnt die nächste Veranstaltung so, wie man es gewohnt ist. Eine Vorlage
  *   wird weitergegeben und enthält deshalb keine Personennamen, auch nicht die der
  *   Wettkampfrichter.
@@ -22,7 +24,7 @@ export type FileKind = 'sicherung' | 'vorlage' | 'starter'
  * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, erfassten
  * Werten, dem Stand der Ergebnislisten und der Kennung der Veranstaltung.
  */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'eingaben' | 'listenStand' | 'kennung'>
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'eingaben' | 'listenStand' | 'kennung' | 'beispielStarter'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -42,7 +44,7 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   // Die erfassten Werte gehören zu den Startern dieser Veranstaltung (sie hängen an deren IDs).
   // Ebenso der Stand der Ergebnislisten. Die Kennung der Veranstaltung bleibt hier: Mit einer
   // Vorlage beginnt eine andere Veranstaltung, deren Bögen sich von diesen unterscheiden müssen.
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, eingaben: _eingaben, listenStand: _stand, kennung: _kennung, ...settings } = state
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, eingaben: _eingaben, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, ...settings } = state
   return { ...base, kind, settings }
 }
 
@@ -86,13 +88,14 @@ export function parseFile(text: string): ParsedFile {
       // eine Vorlage ohne eigene Aufbauten stillschweigend alle, die es hier gibt.
       const ausVorlage = new Set(checked.eigeneAufbauten.map((a) => a.id))
       const eigeneAufbauten = [...checked.eigeneAufbauten, ...current.eigeneAufbauten.filter((a) => !ausVorlage.has(a.id))]
-      return {
+      const mitVorlage: AppState = {
         ...checked,
         eigeneAufbauten,
         // Die Wahl der Vorlage gilt – auch wenn sie auf einen eigenen Aufbau zeigt, den nur
         // diese Veranstaltung hat (die Migration der Vorlage allein kennt ihn nicht).
         aufbau: aufbauOf(typeof settings.aufbau === 'string' ? settings.aufbau : '', eigeneAufbauten).id,
         starters: current.starters,
+        beispielStarter: current.beispielStarter,
         eventName: current.eventName,
         eventJahr: current.eventJahr,
         // Ergebnisse bleiben bei ihren Startern – auch eine von Hand ergänzte Vorlage bringt keine mit.
@@ -109,6 +112,10 @@ export function parseFile(text: string): ParsedFile {
           checked.parcoursList.map((p) => p.id),
         ),
       }
+      // Bringt die Vorlage „Tor 5 übernimmt die Parcoursüberwachung“ oder einen anderen Aufbau
+      // mit, wechselt die Liste für Tor 5: Die hiesigen Eingaben und Namen ziehen mit, sonst
+      // stünden sie als „verborgen“ an einer Liste, die es nicht mehr gibt.
+      return mitTor5Umzug(current, mitVorlage)
     }
     return { ok: true, kind, apply, savedAt }
   }

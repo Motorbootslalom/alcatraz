@@ -10,6 +10,7 @@ import { t, tn } from '../i18n'
 import type { ClassId } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import ParcoursNachweis from './ParcoursNachweis.vue'
+import { veranstaltungsListen } from '../lib/listen'
 
 /**
  * Die Wettkampfrichter-Listen der Veranstaltung unter „Listen“: je Parcours, Klasse, Lauf
@@ -43,7 +44,11 @@ const listenArten = computed(() => {
   const titel = new Map(alle.value.map((b) => [b.typeId, b.titel]))
   // Teilen sich zwei Listen den Titel, unterscheidet sie der ausführliche Name aus dem Menü.
   const mehrfach = (text: string) => [...titel.values()].filter((x) => x === text).length > 1
-  return [...titel].map(([typeId, text]) => ({ typeId, titel: mehrfach(text) ? konfig.value.getSheetDef(typeId).menuLabel : text }))
+  // In der Reihenfolge der Veranstaltung, nicht in der, in der die Bögen der ersten Klasse sie zufällig bringen.
+  const folge = veranstaltungsListen(konfig.value, state.value)
+  return [...titel]
+    .sort((a, b) => folge.indexOf(a[0]) - folge.indexOf(b[0]))
+    .map(([typeId, text]) => ({ typeId, titel: mehrfach(text) ? konfig.value.getSheetDef(typeId).menuLabel : text }))
 })
 
 // Eine Wahl, die es nach einer Änderung (Aufbau, Verzahnung, Läufe) nicht mehr gibt, gilt als „alle“.

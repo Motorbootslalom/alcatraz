@@ -3,6 +3,7 @@ import { CLASS_IDS } from '../domain/classes'
 import { planEvent } from '../planung/plan'
 import { defFuerKlasse, type BogenAuftrag, type BogenKonfig, type BogenOptionen } from './bogen'
 import { bogenCode } from './qr'
+import { veranstaltungsListen, type ListenWahlKonfig } from './listen'
 
 // Die echten Wettkampfrichter-Listen einer Veranstaltung, abgeleitet aus Stand und
 // Verzahnung – rein, ohne DOM: je Parcours, Klasse, Lauf und Liste des gewählten Aufbaus ein
@@ -20,16 +21,15 @@ import { bogenCode } from './qr'
 // Regelwerk, Aufbau, Parcours, Klassen, Lauf und Liste; damit findet die Erfassung den Bogen.
 
 /** Was die Ableitung von der Konfiguration braucht (config/konfig.ts `Konfig`). */
-export interface WkrListenKonfig extends BogenKonfig {
-  aufbauOrder(id: string, kombiAktiv: boolean): string[]
-}
+export interface WkrListenKonfig extends BogenKonfig, ListenWahlKonfig {}
 
 export type WkrListenStand = Pick<
   AppState,
   'eventName' | 'eventJahr' | 'eventKind' | 'laufCount' | 'aufbau' | 'parcoursList' | 'einteilung' | 'wkrLeerzeilen' | 'wkrLeerzeilenKlasse' | 'wkrClubGemeinsam'
 > &
-  // Für den QR-Code; ohne sie (Tests, Beispielansicht) steht dort „keine Kennung“.
-  Partial<Pick<AppState, 'kennung' | 'regelwerk'>>
+  // Für den QR-Code; ohne sie (Tests, Beispielansicht) steht dort „keine Kennung“. Ohne
+  // Angaben zur Seitenaufteilung wird automatisch geteilt.
+  Partial<Pick<AppState, 'kennung' | 'regelwerk' | 'wkrZeilenJeSeite' | 'wkrTeilenAb' | 'tor5MitParcours' | 'zusatzListen'>>
 
 /** Ein Bogen der Veranstaltung: eine Liste für eine Klasse (Clubmeisterschaft: mehrere) in einem Lauf auf einem Parcours. */
 export interface WkrBogen {
@@ -43,7 +43,7 @@ export interface WkrBogen {
   /** Name der Liste, wie er im Kopf steht. */
   titel: string
   auftrag: BogenAuftrag
-  optionen: Pick<BogenOptionen, 'leerzeilen' | 'klassenBloecke' | 'leerzeilenJeKlasse'>
+  optionen: Pick<BogenOptionen, 'leerzeilen' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'zeilenJeSeite' | 'teilenAb'>
 }
 
 export interface WkrListen {
@@ -94,7 +94,8 @@ function klassenGruppen(
  * Verzahnung (`planEvent(...).plans[].sequence`).
  *
  * Reihenfolge: Parcours, dann Klasse (in der Reihenfolge, in der die Klassen laut Verzahnung
- * zuerst starten), Lauf und Liste (in der Reihenfolge des Aufbaus).
+ * zuerst starten), Lauf und Liste (in der Reihenfolge der Veranstaltung, lib/listen.ts:
+ * die Listen des Aufbaus, dahinter die zusätzlichen).
  * Eine Liste ohne Lauf im Kopf (Knoten) gibt es nur einmal; sie zählt zum 1. Lauf.
  *
  * Clubmeisterschaft: Klassen, deren Bogen gleich aufgebaut ist, stehen mit
@@ -105,7 +106,7 @@ function klassenGruppen(
 export function wkrBoegen(stand: WkrListenStand, konfig: WkrListenKonfig, folgen: ReadonlyMap<string, readonly Starter[]>): WkrListen {
   const eventName = [stand.eventName, stand.eventJahr].filter(Boolean).join(' ')
   const mehrereParcours = stand.parcoursList.length > 1
-  const listen = konfig.aufbauOrder(stand.aufbau, false)
+  const listen = veranstaltungsListen(konfig, stand)
   const laeufe = Math.max(1, stand.laufCount)
   // Reihenfolge der Klassen je Parcours: so, wie sie in der Verzahnung zuerst an den Start
   // gehen – nicht E, 1, 2 … Der Stapel aus dem Drucker liegt dann schon in der Reihenfolge,
@@ -113,6 +114,11 @@ export function wkrBoegen(stand: WkrListenStand, konfig: WkrListenKonfig, folgen
   const auftritt = new Map<string, Map<ClassId, number>>()
   const boegen: WkrBogen[] = []
   const club = stand.eventKind === 'club'
+  // „Zeilen je Seite“ und „Teilen ab“ gelten für Bögen einer Klasse. Ein gemeinsamer Bogen
+  // mehrerer Klassen (Clubmeisterschaft) teilt sich immer automatisch: Die feste Zahl zählt
+  // Starter einer Klasse; über Klassen hinweg risse sie Klassen mitten durch und kostete
+  // Blätter – dort soll gerade keine Klasse unnötig getrennt werden (lib/paging.ts `blockSeiten`).
+  const seiten = { zeilenJeSeite: stand.wkrZeilenJeSeite ?? 0, teilenAb: stand.wkrTeilenAb ?? 0 }
 
   for (const parcours of stand.parcoursList) {
     const folge = folgen.get(parcours.id) ?? []
@@ -157,7 +163,7 @@ export function wkrBoegen(stand: WkrListenStand, konfig: WkrListenKonfig, folgen
           optionen:
             gruppe.length > 1
               ? { klassenBloecke: true, leerzeilen: stand.wkrLeerzeilen, leerzeilenJeKlasse: stand.wkrLeerzeilenKlasse }
-              : { leerzeilen: stand.wkrLeerzeilenKlasse[gruppe[0]] ?? stand.wkrLeerzeilen },
+              : { leerzeilen: stand.wkrLeerzeilenKlasse[gruppe[0]] ?? stand.wkrLeerzeilen, ...seiten },
         })
       }
     }

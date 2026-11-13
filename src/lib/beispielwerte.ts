@@ -3,6 +3,7 @@ import { CLASS_IDS } from '../domain/classes'
 import { erfasstKennung, felderJeKennung, laufSchluessel, listenFelder, listenLauf, OHNE_LAUF, type EingabenKonfig, type Feld } from './eingaben'
 import { mittlereZeit } from './ergebnis'
 import { formatMinutenEingabe, formatSeconds } from './time'
+import { veranstaltungsListen, type ListenWahl } from './listen'
 
 // Glaubhafte Zufallswerte für alle Listen des Aufbaus, damit sich Erfassung und Ergebnislisten
 // ohne ausgedachte Werte zeigen und prüfen lassen. Vorbild: lib/beispielwerte.ts im
@@ -20,7 +21,7 @@ import { formatMinutenEingabe, formatSeconds } from './time'
 /** Stoppuhr: 2 bis 3 Zeiten als „1,2345“. Lichtschranke: genau eine Zeit als „85,34“. */
 export type Zeitnahme = 'stoppuhr' | 'lichtschranke'
 
-export type BeispielStand = Pick<AppState, 'regelwerk' | 'aufbau' | 'starters' | 'laufCount' | 'eingaben'>
+export type BeispielStand = ListenWahl & Pick<AppState, 'regelwerk' | 'starters' | 'laufCount' | 'eingaben'>
 type Zufall = () => number
 
 interface Profil {
@@ -246,7 +247,7 @@ export interface BeispielOptionen {
  */
 export function beispielEingaben(stand: BeispielStand, konfig: EingabenKonfig, optionen: BeispielOptionen, zufall: Zufall): Eingaben {
   const disziplin = konfig.getAufbau(stand.aufbau).disziplin
-  const listen = konfig.aufbauOrder(stand.aufbau, false)
+  const listen = veranstaltungsListen(konfig, stand)
   const k = kennzahlenFuer(stand.regelwerk)
   const profilVon = (klasse: ClassId): Profil => k.profile[klasse] ?? k.profile[5]!
   const alleLaeufe = Array.from({ length: Math.max(1, stand.laufCount) }, (_, i) => i + 1)

@@ -6,6 +6,7 @@ import { bogenCode, laufzettelCode, leseCode, type QrBekannt } from './qr'
 import { scanBogen } from './scan'
 import { wkrBoegenZumStand } from './wkrListen'
 import type { AppState, ClassId, Starter } from '../types'
+import { veranstaltungsListen } from './listen'
 
 // Vom gedruckten Code zurück zum Bogen: Jeder Code, der auf einem Bogen steht, muss genau
 // diesen Bogen wiederfinden. Alle Starter sind erfunden.
@@ -26,7 +27,7 @@ const bekannt = (s: AppState): QrBekannt => ({
   regelwerke: dm.getRegelwerke().map((r) => r.id),
   aufbauten: dm.getAufbauten().map((a) => a.id),
   parcours: s.parcoursList.map((p) => p.id),
-  listen: dm.aufbauOrder(s.aufbau, false),
+  listen: veranstaltungsListen(dm, s),
   laufCount: s.laufCount,
 })
 const EIN_PARCOURS = [{ id: 'par_1', name: 'Parcours 1', classIds: ALLE, wechselFaktor: 2 as const }]

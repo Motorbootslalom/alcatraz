@@ -91,7 +91,7 @@ const clubBoegen = computed(() => {
 
 const boegen = computed(() => {
   const zeilen = musterZeilen(anzahl.value, t('preview.numberPrefix'))
-  return listenFuerKlasse(konfig.value, aufbauId.value, klasse.value).map((typeId) => {
+  return listenFuerKlasse(konfig.value, { ...state.value, aufbau: aufbauId.value }, klasse.value).map((typeId) => {
     const feld = props.namenPflegen ? wkrFeld(state.value, typeId, klasse.value, konfig.value) : undefined
     const def = konfig.value.getSheetDef(typeId)
     // Das Feld im Kopf nur, solange es sich treffen und lesen lässt.
@@ -112,8 +112,12 @@ const boegen = computed(() => {
         { parcoursId: parcours.value?.id ?? 'p', klassen: gemeinsam?.klassen ?? [klasse.value], lauf: 1, typeId },
       ),
     }
-    // Leerzeilen wie auf den echten Listen (Einstellungen).
-    const optionen = gemeinsam?.optionen ?? { leerzeilen: state.value.wkrLeerzeilenKlasse[klasse.value] ?? state.value.wkrLeerzeilen }
+    // Leerzeilen und Seitenaufteilung wie auf den echten Listen (Einstellungen).
+    const optionen = gemeinsam?.optionen ?? {
+      leerzeilen: state.value.wkrLeerzeilenKlasse[klasse.value] ?? state.value.wkrLeerzeilen,
+      zeilenJeSeite: state.value.wkrZeilenJeSeite,
+      teilenAb: state.value.wkrTeilenAb,
+    }
     const label = feld && parcours.value ? t('preview.nameFor', { list: def.title, parcours: parcours.value.name }) : undefined
     return { typeId, feld, imKopf, auftrag, optionen, label }
   })

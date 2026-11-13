@@ -10,6 +10,7 @@ import { wkrBoegenZumStand, type WkrBogen, type WkrListen } from '../lib/wkrList
 import { leseCode, type QrFehler } from '../lib/qr'
 import { meldeScan, scanBeenden, scanBogen, scanErledigt, scanStand } from '../lib/scan'
 import { PROTOTYP_URL } from '../lib/prototyp'
+import { veranstaltungsListen } from '../lib/listen'
 import { t, tn } from '../i18n'
 import type { ClassId } from '../types'
 import ErfassungTabelle from '../components/erfassung/ErfassungTabelle.vue'
@@ -31,7 +32,7 @@ import ScanHinweis from '../components/erfassung/ScanHinweis.vue'
  * die erste Zelle. Ein Laufzettel führt zur ersten Liste seiner Klasse in dem Lauf.
  */
 const { state } = useStore()
-const konfig = useKonfig()
+const konfig = useKonfig({ einsprachig: true })
 const { classLabel, parallel } = useEvent()
 const id = useId()
 
@@ -66,11 +67,14 @@ const laeufe = computed(() => Array.from({ length: Math.max(1, state.value.laufC
 const lauf = computed(() => (wahl.value.lauf !== undefined && laeufe.value.includes(wahl.value.lauf) ? wahl.value.lauf : 1))
 
 /** Die Bögen der Klasse in diesem Lauf; eine Liste ohne Lauf (Knoten) gibt es nur einmal – sie steht bei jedem Lauf dabei. */
-const boegen = computed<WkrBogen[]>(() =>
-  amParcours.value.filter(
-    (b) => klasse.value !== undefined && b.klassen.includes(klasse.value) && (b.lauf === lauf.value || konfig.value.getSheetDef(b.typeId).showLauf === false),
-  ),
-)
+const boegen = computed<WkrBogen[]>(() => {
+  // In der Reihenfolge der Listen: Der Bogen ohne Lauf gehört zum 1. Lauf und stünde sonst
+  // in jedem späteren Lauf vor allen anderen.
+  const listen = veranstaltungsListen(konfig.value, state.value)
+  return amParcours.value
+    .filter((b) => klasse.value !== undefined && b.klassen.includes(klasse.value) && (b.lauf === lauf.value || konfig.value.getSheetDef(b.typeId).showLauf === false))
+    .sort((a, b) => listen.indexOf(a.typeId) - listen.indexOf(b.typeId))
+})
 const bogen = computed(() => boegen.value.find((b) => b.typeId === wahl.value.liste) ?? boegen.value[0])
 
 const titel = computed(() => {
@@ -111,7 +115,7 @@ const scan = computed(() => {
     regelwerke: k.getRegelwerke().map((r) => r.id),
     aufbauten: k.getAufbauten().map((a) => a.id),
     parcours: state.value.parcoursList.map((p) => p.id),
-    listen: k.aufbauOrder(state.value.aufbau, false),
+    listen: veranstaltungsListen(k, state.value),
     laufCount: state.value.laufCount,
   })
   if (!lesung.ok) return { code: s.code, fehler: lesung.fehler as QrFehler | { art: 'bogen' }, angaben: angabenZu(lesung.fehler) }

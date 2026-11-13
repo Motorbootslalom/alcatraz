@@ -2,6 +2,7 @@ import type { BogenTexte } from '../config/sprache'
 import type { CellKind, Column, SheetDef, TrennerDesign } from '../types'
 import { blockSeiten, pageChunks } from './paging'
 import { seitenCode } from './qr'
+import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
 
 // Reines Modell eines Wettkampfrichter-Bogens (WKR-Liste, Beobachtungsbogen): Spalten je
 // Klasse, Blatt-/Unterspalten, Zeilen, Kopf, Bild und Seitenaufteilung – ohne DOM und ohne
@@ -395,11 +396,10 @@ export function musterZeilen(anzahl: number, praefix: string): BogenZeile[] {
   return Array.from({ length: Math.max(0, Math.floor(anzahl)) }, (_, i) => ({ nr: `${praefix}${i + 1}` }))
 }
 
-/** Die Listen eines Aufbaus, die eine Klasse hat – in der Reihenfolge des Aufbaus. */
-export function listenFuerKlasse(
-  konfig: { aufbauOrder(id: string, kombiAktiv: boolean): string[]; positionAllowsClass(typeId: string, klasse: string): boolean },
-  aufbauId: string,
-  klasse: string,
-): string[] {
-  return konfig.aufbauOrder(aufbauId, false).filter((id) => konfig.positionAllowsClass(id, klasse))
+/**
+ * Die Listen, die eine Klasse in einem Aufbau hat – in der Reihenfolge der Veranstaltung
+ * (lib/listen.ts): mit zusammengelegter Liste und den gewählten zusätzlichen.
+ */
+export function listenFuerKlasse(konfig: ListenWahlKonfig & { positionAllowsClass(typeId: string, klasse: string): boolean }, wahl: ListenWahl, klasse: string): string[] {
+  return veranstaltungsListen(konfig, wahl).filter((id) => konfig.positionAllowsClass(id, klasse))
 }

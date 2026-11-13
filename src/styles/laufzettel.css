@@ -193,8 +193,61 @@
   font-size: 12pt;
 }
 
-/* Seiten-Liste: je Liste eine Zeile – links der Name, rechts die Kästchen ihrer Seiten, die
-   bei vielen Seiten in die nächste Zeile laufen. So passt auch eine große Klasse oder eine
+/* Form „eine Zeile je Seite“: das Kästchen vorn, dahinter Liste und Seite. Alle Kästchen
+   stehen in einer Flucht; ein langer Name bricht hinter dem Kästchen um. */
+.lz-je-seite li {
+  align-items: flex-start;
+}
+
+.lz-je-seite .lz-kasten {
+  /* Auf Höhe der ersten Textzeile. */
+  margin-top: 0.2mm;
+}
+
+.lz-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Viele Seiten: mehrspaltig. Die Spalten stehen unter dem QR-Code (`clear`), damit beide
+   gleich breit sind; der Browser verteilt die Zeilen gleichmäßig. */
+.lz-oben--spalten2 .lz-je-seite,
+.lz-oben--spalten3 .lz-je-seite {
+  clear: both;
+  column-gap: 4mm;
+}
+
+.lz-oben--spalten2 .lz-je-seite {
+  columns: 2;
+}
+
+.lz-oben.lz-oben--spalten3 .lz-je-seite {
+  columns: 3;
+  column-gap: 3mm;
+  font-size: 8.5pt;
+}
+
+.lz-oben.lz-oben--spalten3 .lz-je-seite li {
+  gap: 1.5mm;
+  padding: 0.5mm 0;
+}
+
+.lz-oben.lz-oben--spalten3 .lz-je-seite .lz-kasten {
+  width: 3.8mm;
+  height: 3.8mm;
+}
+
+.lz-oben.lz-oben--spalten3 .lz-gruppe-name {
+  font-size: 7.5pt;
+}
+
+.lz-oben--spalten2 .lz-titel,
+.lz-oben--spalten3 .lz-titel {
+  margin-bottom: 2mm;
+}
+
+/* Form „eine Zeile je Liste“: links der Name, rechts die Kästchen ihrer Seiten, die bei
+   vielen Seiten in die nächste Zeile laufen. So passt auch eine große Klasse oder eine
    Clubmeisterschaft (viele Bögen je Liste) auf die A5-Seite. */
 .lz-seiten li {
   align-items: flex-start;
@@ -213,7 +266,7 @@
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5mm 4mm;
+  gap: 1.5mm 5mm;
 }
 
 /* Die Kästchen eines Bogens; davor – wenn er nur einen Teil der Klassen trägt – welche. */
@@ -221,7 +274,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1.5mm;
+  gap: 1.5mm 3mm;
 }
 
 .lz-gruppe-name {
@@ -229,18 +282,25 @@
   white-space: nowrap;
 }
 
+/* Ein Kästchen mit seiner Seitenzahl daneben – nicht darin: Dort säße sie unter dem Haken. */
+.lz-seite {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 1mm;
+}
+
+.lz-nr {
+  font-size: 10pt;
+  line-height: 1;
+  color: var(--blatt-leise);
+}
+
 .lz-kasten {
   flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 5.5mm;
   height: 5.5mm;
   border: 0.4mm solid var(--blatt-linie);
-  /* Die Seitenzahl im Kästchen: klein und blass, der Haken kommt darüber. */
-  font-size: 7.5pt;
-  line-height: 1;
-  color: var(--blatt-leise);
 }
 
 /* Sehr viele Seiten: kleiner und dichter, mit kleineren Kästchen. */
@@ -259,21 +319,25 @@
 }
 
 .lz-oben--eng .lz-gruppen {
-  gap: 1mm 2.5mm;
+  gap: 1mm 3.5mm;
 }
 
 .lz-oben--eng .lz-gruppe {
-  gap: 1mm;
+  gap: 1mm 2mm;
 }
 
-.lz-oben--eng .lz-gruppe-name {
+.lz-oben--eng .lz-gruppe-name,
+.lz-oben--eng .lz-nr {
   font-size: 8pt;
+}
+
+.lz-oben--eng .lz-seite {
+  gap: 0.6mm;
 }
 
 .lz-oben--eng .lz-kasten {
   width: 4.2mm;
   height: 4.2mm;
-  font-size: 6.5pt;
 }
 
 /* Passt die Liste auch dicht gesetzt nicht: Der Zettel sagt es selbst – auch gedruckt, damit

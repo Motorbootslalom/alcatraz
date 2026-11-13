@@ -8,15 +8,18 @@ import { useBogenZoom } from '../lib/bogenZoom'
 import { buildLaufzettel, listenZeilen, messBoegen, messKennung, waehleLaufzettel, type Laufzettel, type LaufzettelAuswahl } from '../lib/laufzettel'
 import { schrittText } from '../lib/laufzettelText'
 import { laufzettelCode } from '../lib/qr'
+import { veranstaltungsListen } from '../lib/listen'
 import { wkrBoegenZumStand, type WkrBogen } from '../lib/wkrListen'
 import { t, tn } from '../i18n'
+import { useListenSprache } from '../lib/listensprache'
 import type { ClassId } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import LaufzettelBlatt from './LaufzettelBlatt.vue'
 
 /**
- * Die Laufzettel (Checklisten) unter „Listen“: je Parcours, Klasse und Lauf ein Zettel mit
- * einem Kästchen je gedruckter Seite jeder Wettkampfrichter-Liste (lib/laufzettel.ts). Die
+ * Die Laufzettel (Checklisten) unter „Listen“: je Blattstapel – Parcours, Klasse und Lauf, bei
+ * der Clubmeisterschaft Parcours und Lauf – ein Zettel mit einem Kästchen je gedruckter Seite
+ * jeder Wettkampfrichter-Liste (lib/laufzettel.ts). Die
  * Bildschirmansicht ist die Druckansicht; gedruckt wird, was die Auswahl zeigt.
  *
  * Die Seitenzahlen sind gemessen, nicht geschätzt: Unsichtbar neben dem Fenster stehen
@@ -35,16 +38,24 @@ const emit = defineEmits<{
 
 const { state } = useStore()
 const konfig = useKonfig()
+// Gemessen wird mit der Konfiguration der Bögen (zweisprachige Bögen brechen anders um); die
+// Namen auf dem Zettel stehen dagegen in der einen Sprache der übrigen Listen – „zweisprachig“
+// gilt nur für die Bögen selbst, und „Tor 1 / 3 / 5 · Gate 1 / 3 / 5 – Seite 1“ kostete Platz.
+const namen = useKonfig({ einsprachig: true })
 const { classLabel, regelwerk } = useEvent()
 const id = useId()
+// Was auf dem Zettel steht, folgt der Listensprache (`lt`); die Bedienung der der Oberfläche (`t`).
+const { listenLocale, t: lt } = useListenSprache()
 
 const boegen = computed(() => wkrBoegenZumStand(state.value, konfig.value).boegen)
-const listen = computed(() => konfig.value.aufbauOrder(state.value.aufbau, false))
+const listen = computed(() => veranstaltungsListen(konfig.value, state.value))
 
 // Gemessene Seitenzahl je Mess-Kennung; bis ein Bogen gemessen ist, gilt eine Seite.
 const seiten = reactive(new Map<string, number>())
 const zuMessen = computed(() => (props.gesperrt ? [] : messBoegen(boegen.value)))
-const alle = computed<Laufzettel[]>(() => buildLaufzettel(boegen.value, listen.value, (b) => seiten.get(messKennung(b)) ?? 1))
+// Clubmeisterschaft mit „Papier sparen“: Alle Klassen stehen auf denselben Bögen – der Stapel ist der Lauf.
+const jeParcours = computed(() => state.value.eventKind === 'club' && state.value.wkrClubGemeinsam)
+const alle = computed<Laufzettel[]>(() => buildLaufzettel(boegen.value, listen.value, (b) => seiten.get(messKennung(b)) ?? 1, { jeParcours: jeParcours.value }))
 
 const parcours = computed(() => state.value.parcoursList.filter((p) => alle.value.some((z) => z.parcoursId === p.id)))
 const klassen = computed(() => [...new Set(alle.value.flatMap((z) => z.klassen))])
@@ -81,20 +92,22 @@ const eventName = computed(() => [state.value.eventName, state.value.eventJahr].
 const mehrereParcours = computed(() => state.value.parcoursList.length > 1)
 const klassenName = (k: ClassId) => regelwerk.value.klassenNamen[k] ?? k
 /** „Klasse 3“, „Dolphin“ oder „Klassen E, 1, 2“. */
-const klassenText = (ks: readonly ClassId[]) => (ks.length === 1 ? classLabel(ks[0]) : t('runsheet.classes', { classes: ks.map(klassenName).join(', ') }))
+const klassenText = (ks: readonly ClassId[]) =>
+  ks.length === 1 ? (regelwerk.value.klassenNamen[ks[0]] ?? lt('common.class', { id: ks[0] })) : lt('runsheet.classes', { classes: ks.map(klassenName).join(', ') })
 
-// Der Name der Liste wie im Kopf des Bogens; teilen sich zwei den Titel, der ausführliche aus dem Menü.
+// Der Name der Liste wie im Kopf des Bogens (einsprachig, siehe oben); teilen sich zwei den
+// Titel, der ausführliche aus dem Menü.
 const titelVon = computed(() => {
-  const jeTyp = new Map(boegen.value.map((b) => [b.typeId, b.titel]))
+  const jeTyp = new Map(boegen.value.map((b) => [b.typeId, namen.value.getSheetDef(b.typeId).title]))
   const mehrfach = (text: string) => [...jeTyp.values()].filter((x) => x === text).length > 1
-  return new Map([...jeTyp].map(([typeId, text]) => [typeId, mehrfach(text) ? konfig.value.getSheetDef(typeId).menuLabel : text]))
+  return new Map([...jeTyp].map(([typeId, text]) => [typeId, mehrfach(text) ? namen.value.getSheetDef(typeId).menuLabel : text]))
 })
 
 const blaetter = computed(() =>
   zettel.value.map((z) => ({
     zettel: z,
     klassenText: klassenText(z.klassen),
-    laufText: t('lists.wkr.runN', { n: z.lauf }),
+    laufText: lt('lists.wkr.runN', { n: z.lauf }),
     parcours: mehrereParcours.value ? z.parcoursName : undefined,
     qr: laufzettelCode(state.value, z),
     // Eine Zeile je Liste; darin je Bogen seine Kästchen. Trägt ein Bogen nur einen Teil der
@@ -104,19 +117,25 @@ const blaetter = computed(() =>
       label: titelVon.value.get(liste.typeId) ?? liste.typeId,
       gruppen: liste.boegen.map((b) => ({
         key: b.bogenId,
-        label: b.klassen.length > 0 ? t('runsheet.classShort', { classes: b.klassen.map(klassenName).join(', ') }) : undefined,
+        label: b.klassen.length > 0 ? lt('runsheet.classShort', { classes: b.klassen.map(klassenName).join(', ') }) : undefined,
         seiten: b.seiten,
       })),
     })),
   })),
 )
-const titel = computed(() => [t('runsheet.title'), eventName.value].filter(Boolean).join(' · '))
+const titel = computed(() => [lt('runsheet.title'), eventName.value].filter(Boolean).join(' · '))
 const schritte = computed(() => {
-  const { titel: ueber, schritte: liste } = konfig.value.getLaufzettelConfig()
-  return { titel: ueber ? schrittText(ueber) : undefined, liste: liste.map(schrittText) }
+  const { titel: ueber, schritte: liste } = namen.value.getLaufzettelConfig()
+  return { titel: ueber ? schrittText(ueber, lt) : undefined, liste: liste.map((s) => schrittText(s, lt)) }
 })
 
 const merkeSeiten = (b: WkrBogen, anzahl: number) => seiten.set(messKennung(b), anzahl)
+
+// Zettel, die auch dicht gesetzt nicht auf ihr Blatt passen: Sie sagen es selbst (auch im
+// Druck); hier steht zusätzlich, wie viele es sind und was hilft.
+const zuViel = reactive(new Set<string>())
+const merkeZuViel = (zettelId: string, ja: boolean) => (ja ? zuViel.add(zettelId) : zuViel.delete(zettelId))
+const zuVielAnzahl = computed(() => zettel.value.filter((z) => zuViel.has(z.id)).length)
 
 // Schmale Fenster: Die Zettel werden als Ganzes verkleinert, wie die Bögen (lib/bogenZoom.ts).
 const stapel = ref<HTMLElement | null>(null)
@@ -150,6 +169,13 @@ const { zoom } = useBogenZoom(stapel)
       </div>
       <p class="note wkr-listen-stand" role="status">{{ tn('runsheet.count', zettel.length) }}</p>
     </div>
+    <p v-if="zuVielAnzahl > 0" class="boat-banner warn" role="status" data-hinweis="lz-zuviel">
+      {{ tn('runsheet.overflowNote', zuVielAnzahl) }}
+      <template v-if="state.laufzettelLayout !== 'liste'">{{ t('runsheet.overflowFix') }} <a href="#/einstellungen">{{ t('nav.einstellungen') }}</a>.</template>
+    </p>
+    <p class="note" data-hinweis="lz-layout">
+      {{ t('runsheet.layoutNote', { layout: t(`listopt.runsheet.${state.laufzettelLayout}`) }) }} <a href="#/einstellungen">{{ t('nav.einstellungen') }}</a>.
+    </p>
     <p class="note">{{ t('runsheet.print') }}</p>
     <p class="note">{{ t('runsheet.scan') }} <a href="#/erfassung">{{ t('nav.erfassung') }}</a>.</p>
   </div>
@@ -166,10 +192,13 @@ const { zoom } = useBogenZoom(stapel)
       :parcours="b.parcours"
       :titel="titel"
       :zeilen="b.zeilen"
+      :layout="state.laufzettelLayout"
       :qr="b.qr"
       :schritte-titel="schritte.titel"
       :schritte="schritte.liste"
+      :sprache="listenLocale"
       :data-zettel="b.zettel.id"
+      @zuviel="merkeZuViel(b.zettel.id, $event)"
     />
   </div>
 

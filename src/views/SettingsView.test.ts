@@ -428,6 +428,10 @@ describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
     // Einstellungen der Wettkampfrichter-Listen und die Namen stehen zusammen, vor den Standardgewichten.
     expect(reihenfolge.indexOf('WKR-Einteilung')).toBe(reihenfolge.indexOf('Wettkampfrichter-Listen') + 1)
     expect(reihenfolge.indexOf('WKR-Einteilung')).toBeLessThan(reihenfolge.indexOf('Standardgewichte'))
+    // Die Beispieldaten stehen bei der Veranstaltung, nicht mehr hier.
+    expect(reihenfolge).not.toContain('Beispieldaten')
+    expect(reihenfolge.at(-1)).toBe('Dateien')
+    expect(wrapper.find('[data-action="beispielwerte"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -442,7 +446,9 @@ describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
       expect(vorschau.find('h3').text()).toContain('So sehen die Listen aus')
       expect(vorschau.findAll('.bogen')).toHaveLength(1)
       const listen = () => vorschau.findAll('.wkr-vorschau-tabs button').map((b) => b.text())
-      expect(listen()).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Mann-über-Bord', 'Parcours'])
+      // Die Knoten hat der Entwurf nicht selbst: Sie kommen als Vorgabe des Regelwerks dazu, und der Assistent sagt es.
+      expect(listen()).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Mann-über-Bord', 'Parcours', 'Knoten'])
+      expect(wrapper.find('[data-hinweis="knoten-vorgabe"]').text()).toContain('DM 2026')
       expect(vorschau.find('.bogen-kennzeichen').text()).toBe('Beispielansicht')
       expect(vorschau.find('input.bk-wkr-input').exists()).toBe(false)
       // Der QR-Code steht als Muster da, trifft aber keinen Bogen: An der Stelle der Veranstaltung steht „MUSTER“.

@@ -5,6 +5,7 @@ import { emptyState, reducer } from '../state/reducer'
 import { bogenSeiten } from './bogen'
 import { klassenInStartfolge, waehleBoegen, wkrBoegenZumStand } from './wkrListen'
 import type { AppState, ClassId, Starter } from '../types'
+import { veranstaltungsListen } from './listen'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -35,7 +36,9 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     expect(ohneListe).toEqual([])
     const listen = dm.aufbauOrder('alcatraz', false)
     // Mann-über-Bord gibt es erst ab Klasse 4: acht Klassen × 3 Läufe × Listen, vier Klassen ohne MüB.
-    expect(boegen).toHaveLength(8 * 3 * listen.length - 4 * 3)
+    // Dazu je Klasse einmal die Knoten (Vorgabe des Regelwerks, ohne Lauf).
+    expect(boegen).toHaveLength(8 * 3 * listen.length - 4 * 3 + 8)
+    expect(boegen.filter((b) => b.typeId === 'knoten').every((b) => b.lauf === 1)).toBe(true)
     expect(new Set(boegen.map((b) => b.id)).size).toBe(boegen.length)
     const erster = boegen[0]
     expect(erster).toMatchObject({ parcoursId: 'par_1', klassen: ['E'], lauf: 1, typeId: listen[0] })
@@ -127,7 +130,8 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     expect(waehleBoegen(boegen, { parcours: 'par_2' }).every((b) => b.parcoursId === 'par_2')).toBe(true)
     const wahl = waehleBoegen(boegen, { klasse: '7', lauf: 2, liste: 'steg' })
     expect(wahl.map((b) => b.id)).toEqual(['par_2|7|2|steg'])
-    expect(waehleBoegen(boegen, { klasse: '7', lauf: 1 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length)
+    expect(waehleBoegen(boegen, { klasse: '7', lauf: 1 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length + 1)
+    expect(waehleBoegen(boegen, { klasse: '7', lauf: 2 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length)
   })
 })
 
@@ -255,7 +259,7 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
   it('Club, Papier sparen: alle Klassen einer Liste auf einem Bogen, ohne Bild, fehlende Spalten schraffiert', () => {
     const s = stand({ eventKind: 'club', wkrClubGemeinsam: true, parcoursList: EIN_PARCOURS, laufCount: 1 })
     const { boegen } = wkrBoegenZumStand(s, dm)
-    const listen = dm.aufbauOrder('alcatraz', false)
+    const listen = veranstaltungsListen(dm, s)
     // Je Liste genau ein Bogen – statt je Klasse einer bei Listen mit Bild.
     expect(boegen.map((b) => b.typeId).sort()).toEqual([...listen].sort())
     const tor = boegen.find((b) => b.typeId === 'gate135')!
@@ -301,5 +305,48 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
     expect(club.find((b) => b.typeId === 'steg' && b.lauf === 1)!.auftrag.qr).toBe('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.E1234567.1.STEG')
     expect(club.find((b) => b.typeId === 'mueb' && b.lauf === 3)!.auftrag.qr).toBe('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.4567.3.MUEB')
     expect(new Set(club.map((b) => b.auftrag.qr)).size).toBe(club.length)
+  })
+})
+
+describe('Seitenaufteilung: Starter je Seite und „Teilen ab“', () => {
+  const eineKlasse = (n: number, mehr: Partial<AppState> = {}) => stand({ starters: starter(['4'], n), ...mehr })
+  const seiten = (s: AppState, typeId = 'steg') => {
+    const b = wkrBoegenZumStand(s, dm).boegen.find((x) => x.typeId === typeId && x.lauf === 1)!
+    return bogenSeiten(dm, b.auftrag, b.optionen).map((p) => p.rows.filter((r) => r.fixed).length)
+  }
+
+  it('ohne Angabe steht alles auf einer Seite, bis gemessen ist (automatisch)', () => {
+    const b = wkrBoegenZumStand(eineKlasse(24), dm).boegen[0]
+    expect(b.optionen).toMatchObject({ zeilenJeSeite: 0, teilenAb: 0 })
+    expect(seiten(eineKlasse(24))).toEqual([24])
+  })
+
+  it('eine feste Zahl teilt jeden Bogen einer Klasse; die Leerzeilen stehen auf jeder Seite', () => {
+    const s = eineKlasse(24, { wkrZeilenJeSeite: 10 })
+    expect(seiten(s)).toEqual([10, 10, 4])
+    const b = wkrBoegenZumStand(s, dm).boegen[0]
+    for (const p of bogenSeiten(dm, b.auftrag, b.optionen)) expect(p.rows.filter((r) => !r.fixed)).toHaveLength(3)
+  })
+
+  it('„Teilen ab“: kleinere Klassen bleiben auf einem Blatt', () => {
+    expect(seiten(eineKlasse(24, { wkrZeilenJeSeite: 15, wkrTeilenAb: 25 }))).toEqual([24])
+    expect(seiten(eineKlasse(25, { wkrZeilenJeSeite: 15, wkrTeilenAb: 25 }))).toEqual([15, 10])
+  })
+
+  it('Clubmeisterschaft: gemeinsame Bögen mehrerer Klassen teilen sich immer automatisch', () => {
+    const club = stand({ eventKind: 'club', wkrZeilenJeSeite: 5, wkrTeilenAb: 0, starters: starter(ALLE, 8) })
+    const { boegen } = wkrBoegenZumStand(club, dm)
+    const gemeinsam = boegen.filter((b) => b.klassen.length > 1)
+    expect(gemeinsam.length).toBeGreaterThan(0)
+    for (const b of gemeinsam) {
+      expect(b.optionen.klassenBloecke).toBe(true)
+      expect(b.optionen.zeilenJeSeite).toBeUndefined()
+      // Ohne Messung eine Seite – die feste Zahl (5) risse hier jede Klasse entzwei.
+      expect(bogenSeiten(dm, b.auftrag, b.optionen)).toHaveLength(1)
+    }
+    // Ein Bogen einer einzelnen Klasse (ohne „Papier sparen“ die Listen mit Bild) folgt der festen Zahl.
+    const einzeln = wkrBoegenZumStand({ ...club, wkrClubGemeinsam: false }, dm).boegen.find((b) => b.klassen.length === 1)!
+    expect(einzeln.optionen).toMatchObject({ zeilenJeSeite: 5 })
+    expect(bogenSeiten(dm, einzeln.auftrag, einzeln.optionen)).toHaveLength(2)
   })
 })

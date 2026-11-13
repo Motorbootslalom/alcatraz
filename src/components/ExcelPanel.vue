@@ -10,6 +10,8 @@ import {
 } from '../import/tsv'
 import { copyText } from '../lib/clipboard'
 import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
+import { pruefeKlassen } from '../import/klassenPruefung'
+import { useEvent } from '../lib/event'
 import { t, tn } from '../i18n'
 
 /**
@@ -27,12 +29,23 @@ const parse = (text: string) => parseStartersTsv(text, { assignMissing: state.va
 
 const preview = computed(() => (raw.value.trim() ? parse(raw.value) : null))
 
+// Sobald Ergebnisse erfasst sind, ist die Starterliste fest: Listen sind gedruckt, Werte hängen
+// an den Startern. Ein Import geht erst wieder, wenn die erfassten Werte entfernt sind.
+const gesperrt = computed(() => Object.keys(state.value.eingaben).length > 0)
+
+// Klasse gegen Geburtsjahr: Fehler müssen in der Quelle behoben sein, bevor etwas übernommen wird.
+const { regelwerk, classLabel } = useEvent()
+const pruefung = computed(() => (preview.value ? pruefeKlassen(preview.value.starters, state.value.eventJahr, regelwerk.value.klassen) : null))
+const klassenFehler = computed(() => pruefung.value?.fehler ?? [])
+const darfNicht = computed(() => gesperrt.value || !preview.value || preview.value.imported === 0 || klassenFehler.value.length > 0)
+
 function numbersNote(res: ImportResult): string {
   const note = startNrImportNote(res)
   return note === 'none' ? '' : t(`import.numbers.${note}`, { n: res.assignedNumbers })
 }
 
 function doImport(mode: 'replace' | 'merge') {
+  if (darfNicht.value) return
   const res = parse(raw.value)
   result.value = res
   if (res.imported === 0) return
@@ -73,6 +86,9 @@ function onRaw(e: Event) {
     </div>
 
     <div v-if="open" style="margin-top: 12px">
+      <p v-if="gesperrt" class="boat-banner warn" data-hinweis="import-gesperrt" role="status">
+        {{ t('import.locked') }} <a href="#/einstellungen?wertung">{{ t('nav.einstellungen') }}</a>
+      </p>
       <p class="hint">{{ t('import.hint') }}</p>
       <label class="subhead" for="import-raw" style="display: block; margin-bottom: 6px">
         {{ t('import.label') }}
@@ -94,10 +110,30 @@ function onRaw(e: Event) {
         <template v-if="numbersNote(preview)"><br />{{ numbersNote(preview) }}</template>
       </p>
 
+      <div v-if="klassenFehler.length > 0" class="boat-banner warn" data-hinweis="klassen-fehler" role="alert">
+        {{ tn('import.classErrors', klassenFehler.length) }}
+        <ul style="margin: 6px 0 0; padding-left: 18px">
+          <li v-for="f in klassenFehler" :key="f.starter.id">
+            {{
+              t(f.passend.length > 0 ? 'import.classError' : 'import.classErrorNone', {
+                name: [f.starter.vorname, f.starter.nachname].filter(Boolean).join(' '),
+                class: classLabel(f.starter.klasse),
+                year: f.jahr,
+                from: f.erlaubt[0],
+                to: f.erlaubt[1],
+                fits: f.passend.map((k) => classLabel(k)).join(', '),
+              })
+            }}
+          </li>
+        </ul>
+        <p style="margin: 6px 0 0">{{ t('import.classErrorsFix', { year: state.eventJahr }) }}</p>
+      </div>
+      <p v-else-if="pruefung && pruefung.ohneDatum > 0" class="note" data-hinweis="ohne-datum">{{ tn('import.noBirthdate', pruefung.ohneDatum) }}</p>
+
       <div class="row" style="gap: 8px; margin-top: 4px">
         <button
           class="btn primary"
-          :disabled="!preview || preview.imported === 0"
+          :disabled="darfNicht"
           :title="t('import.replaceTitle')"
           @click="doImport('replace')"
         >
@@ -105,7 +141,7 @@ function onRaw(e: Event) {
         </button>
         <button
           class="btn"
-          :disabled="!preview || preview.imported === 0"
+          :disabled="darfNicht"
           :title="t('import.mergeTitle')"
           @click="doImport('merge')"
         >
