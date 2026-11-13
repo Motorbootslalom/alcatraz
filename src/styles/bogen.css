@@ -700,13 +700,22 @@
 
 .bogen-rueckhinweis-pfeil {
   flex: none;
-  width: 7mm;
-  height: 7mm;
+  width: 10mm;
+  height: 10mm;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.5;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Das Blatt tritt hinter den Pfeil zurück: dünner, damit der Bogen das Bild trägt. */
+.bogen-rueckhinweis-pfeil .brp-blatt {
+  stroke-width: 1.2;
+}
+
+.bogen-rueckhinweis-pfeil .brp-zeilen {
+  stroke-width: 0.9;
 }
 
 /* Rückseite: ganze Druckfläche (Blatt minus 2 × 8 mm Rand, 2 mm Reserve gegen Umbruch).

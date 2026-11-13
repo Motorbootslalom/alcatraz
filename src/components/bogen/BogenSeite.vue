@@ -163,7 +163,11 @@ onBeforeUnmount(() => beobachter?.disconnect())
               <!-- Die Beschreibung steht auf der Rückseite (BogenRueckseite.vue). -->
               <div v-else-if="hasDescription(def)" class="bogen-rueckhinweis">
                 <svg class="bogen-rueckhinweis-pfeil" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 21V4M5 11l7-7 7 7" />
+                  <!-- Blatt mit angehobener unterer Ecke; der Bogen des Pfeils führt von unten über die
+                       Oberkante: hochklappen, nicht bloß „nach oben“. Muss ohne den Text verständlich sein. -->
+                  <path class="brp-blatt" d="M3 8h12v9l-5 5H3zM10 22v-5h5" />
+                  <path class="brp-zeilen" d="M5.5 11.5h7M5.5 14.5h7" />
+                  <path d="M17.5 20.5c4-4 4.5-11 0-15-2.5-2.2-6-2.6-9-1.2M12 1.5L8.3 4.4l3.4 3.2" />
                 </svg>
                 <span>{{ seite.texte.rueckseite }}</span>
               </div>
