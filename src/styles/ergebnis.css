@@ -240,9 +240,10 @@
   font-size: 8.5pt;
 }
 
+/* 8 mm rundum, damit der Browser keine eigenen Kopf- und Fußzeilen setzt (siehe print.css). */
 @page ergebnis {
   size: A4 landscape;
-  margin: 9mm 8mm 12mm;
+  margin: 8mm;
 }
 
 /* Wann sich die Liste zuletzt geändert hat: ein eigenes Feld rechts im Kopf – gut sichtbar,

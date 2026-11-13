@@ -1,8 +1,13 @@
 /* Druck: nur die Liste, ohne Bedienelemente. Seitenzahl und Zeitpunkt setzt
-   die Listenansicht selbst in den Seitenrand (sie kennt Sprache und Uhrzeit). */
+   die Listenansicht selbst in den Seitenrand (sie kennt Sprache und Uhrzeit).
+
+   Oben und unten höchstens 8 mm – auf allen Listen: Der Browser druckt seine eigenen
+   Kopf- und Fußzeilen (Adresse, Datum, Titel, „1/3“) nur, wenn der Rand dafür reicht.
+   In Chromium gemessen: ab 9 mm oben ODER unten erscheinen beide, bei 8 mm keine. Seitlich
+   höchstens 12 mm: Bei 15 mm rechts passt die Seitenzahl des Browsers („1/3“) trotzdem hinein. */
 @page {
   size: A4 portrait;
-  margin: 12mm 15mm 16mm;
+  margin: 8mm 12mm;
 }
 
 @media print {
@@ -68,7 +73,7 @@
 /* Gewichtslisten im Querformat. */
 @page quer {
   size: A4 landscape;
-  margin: 12mm 15mm 16mm;
+  margin: 8mm 12mm;
 }
 
 @media print {

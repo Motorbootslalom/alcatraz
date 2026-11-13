@@ -142,15 +142,16 @@ const pageCss = computed(() => {
   const [before, after] = lt('lists.page', { page: '\u0001', pages: '\u0002' }).split('\u0001')
   const [between, end] = after.split('\u0002')
   const page = `${cssString(before)} counter(page) ${cssString(between)} counter(pages) ${cssString(end)}`
-  // Die Bögen der Wettkampfrichter haben nur 8 mm Rand (benannte Seiten in bogen.css): dort
-  // kleiner und oben im Rand, damit auch ein Drucker mit breitem Greifrand es noch druckt.
-  const boxen = (font: string, extra = '') =>
-    `@bottom-center { content: ${page}; font: ${font} Arial, sans-serif; ${extra} } @bottom-right { content: ${cssString(stand.value)}; font: ${font} Arial, sans-serif; ${extra} }`
+  // Alle Listen haben oben und unten nur 8 mm Rand, damit der Browser keine eigenen Kopf- und
+  // Fußzeilen setzt (print.css). Deshalb klein und oben im Rand, damit auch ein Drucker mit
+  // breitem Greifrand es noch druckt.
+  const rand = `font: 7pt Arial, sans-serif; vertical-align: top;`
+  const boxen = `@bottom-center { content: ${page}; ${rand} } @bottom-right { content: ${cssString(stand.value)}; ${rand} }`
   // Laufzettel werden gefaltet und abgehakt: Seitenzahl und Zeitpunkt stünden nur im Weg.
   if (runSheets.value) return ''
-  if (wkrList.value) return `@page bogen-hoch { ${boxen('7pt', 'vertical-align: top;')} } @page bogen-quer { ${boxen('7pt', 'vertical-align: top;')} }`
-  // Ergebnislisten: Querformat mit schmalem Rand (benannte Seite in ergebnis.css).
-  return resultList.value ? `@page ergebnis { ${boxen('8pt')} }` : `@page { ${boxen('10pt')} }`
+  if (wkrList.value) return `@page bogen-hoch { ${boxen} } @page bogen-quer { ${boxen} }`
+  // Ergebnislisten liegen auf einer benannten Seite (ergebnis.css).
+  return resultList.value ? `@page ergebnis { ${boxen} }` : `@page { ${boxen} }`
 })
 
 /**
