@@ -1,6 +1,7 @@
 import type { AppState, Starter } from '../types'
 import { migrate } from '../state/migrate'
 import { aufbauOf } from '../config/catalog'
+import { haengeUm } from '../lib/einteilung'
 
 /**
  * Dateien zum Aufheben und Weitergeben. Weil alle Daten nur in diesem Browser
@@ -8,14 +9,16 @@ import { aufbauOf } from '../config/catalog'
  * anderen Rechner zu bringen. Es gibt drei Arten:
  *
  * - `sicherung`: der gesamte Stand der Veranstaltung.
- * - `vorlage`: nur die Einstellungen – ohne Starter, Name und Jahr. Damit
- *   beginnt die nächste Veranstaltung so, wie man es gewohnt ist.
+ * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr und WKR-Einteilung.
+ *   Damit beginnt die nächste Veranstaltung so, wie man es gewohnt ist. Eine Vorlage
+ *   wird weitergegeben und enthält deshalb keine Personennamen, auch nicht die der
+ *   Wettkampfrichter.
  * - `starter`: nur die Teilnehmerdaten.
  */
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
 
-/** Einstellungen einer Vorlage: alles außer Startern, Name und Jahr. */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr'>
+/** Einstellungen einer Vorlage: alles außer Startern, Name, Jahr und WKR-Einteilung. */
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -32,13 +35,13 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   const base: FileBase = { app: 'alcatraz', version: 1, savedAt }
   if (kind === 'sicherung') return { ...base, kind, state }
   if (kind === 'starter') return { ...base, kind, starters: state.starters }
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, ...settings } = state
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, ...settings } = state
   return { ...base, kind, settings }
 }
 
 export type ParsedFile =
   | { ok: true; kind: 'sicherung'; state: AppState; savedAt: string | null }
-  /** `apply` setzt die Einstellungen auf einen Stand – Starter, Name, Jahr und eigene Aufbauten bleiben. */
+  /** `apply` setzt die Einstellungen auf einen Stand – Starter, Name, Jahr, WKR-Einteilung und eigene Aufbauten bleiben. */
   | { ok: true; kind: 'vorlage'; apply: (current: AppState) => AppState; savedAt: string | null }
   | { ok: true; kind: 'starter'; starters: Starter[]; savedAt: string | null }
   | { ok: false }
@@ -85,6 +88,14 @@ export function parseFile(text: string): ParsedFile {
         starters: current.starters,
         eventName: current.eventName,
         eventJahr: current.eventJahr,
+        // Auch aus einer von Hand ergänzten Vorlage kommen keine Namen: Es gelten die hiesigen.
+        // Die Vorlage bringt aber ihre eigenen Parcours mit – die Namen ziehen der Stelle nach
+        // auf deren Kennungen um, sonst hingen sie an Parcours, die es nicht mehr gibt.
+        einteilung: haengeUm(
+          current.einteilung,
+          current.parcoursList.map((p) => p.id),
+          checked.parcoursList.map((p) => p.id),
+        ),
       }
     }
     return { ok: true, kind, apply, savedAt }

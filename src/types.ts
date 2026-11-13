@@ -123,6 +123,12 @@ export type OriginStyle = 'lang' | 'kurz'
 /** Art der Veranstaltung – steuert Vorgaben für Listen und Wertung. */
 export type EventKind = 'meisterschaft' | 'club'
 
+/**
+ * WKR-Einteilung: Name des Wettkampfrichters je Parcours (Kennung aus der Verzahnung) und
+ * Liste (`SheetTypeId`), siehe lib/einteilung.ts. Personennamen – nicht für die Vorlage.
+ */
+export type Einteilung = Record<string, Record<string, string>>
+
 /** Aktuelle Fassung des gespeicherten Zustands, siehe state/migrate.ts. */
 export const SCHEMA_VERSION = 1
 
@@ -173,6 +179,11 @@ export interface AppState extends PlanState {
   originShort: Record<string, string>
   /** Anzahl der Läufe je Starter (Deutsche Meisterschaft: 3). */
   laufCount: number
+  /**
+   * Wer an welcher Liste sitzt, je Parcours der Verzahnung. Gehört zur Veranstaltung wie die
+   * Starter: in der Sicherung enthalten, in der Vorlage nicht (Personennamen).
+   */
+  einteilung: Einteilung
 }
 
 // ---------------------------------------------------------------------------
@@ -321,11 +332,14 @@ export interface SheetDef {
    * Legende beide nebeneinander zeigt. Die Vektor-PDF-Wege nutzen `legendNote`.
    */
   legendNoteSpalten?: [string, string]
-  /** Bildordner unter public/parcours (z. B. alcatraz_Parcours). */
+  /**
+   * Name des Bildes der Position, wie im Fehlerpunkte-Prototyp der Bildordner (z. B.
+   * alcatraz_I). Mit `bildErzeugen` ist es die Quelle (alcatraz_Parcours).
+   */
   courseImageDir?: string
   /**
-   * Ohne vorgebautes Bild (`bildImBrowser`): Der Browser erzeugt es aus dem Quellbild in
-   * `courseImageDir` (siehe lib/parcoursbild.ts).
+   * Ohne vorgebautes Bild (`bildImBrowser`, eigene Aufbauten): Der Browser blendet die
+   * Zeichnung der Klasse selbst ab (lib/parcoursbild.ts, lib/parcoursQuelle.ts).
    */
   bildErzeugen?: { dim: string[]; aus: string[] }
   /** Bild-Drehung in Grad: 0 | 90 | -90 | 180. */

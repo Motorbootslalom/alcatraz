@@ -32,7 +32,7 @@ Alcatraz führt die bisherigen Prototypen zusammen:
 | `verzahnung-prototyp-vue` | Starter, Startnummern, Verzahnung, Bootbedarf, Parallel-Slalom | übernommen |
 | `fehlerpunkte-prototyp-vue` | Regelwerke, Aufbauten, WKR-Listen, Erfassung, Ergebnislisten | Regelwerke und Aufbauten übernommen (`src/config/`), der Rest ist offen |
 | `tafel` | Anzeigetafel, Startliste im Betrieb, Geräte über ntfy | offen |
-| `Parcours` | Parcours-Zeichnungen | offen (kommt mit den WKR-Listen) |
+| `Parcours` | Parcours-Zeichnungen | Klasse E, 1–7 und Möwe eingebunden (`src/assets/parcours`, CC BY-SA 4.0, `npm run parcours:sync`); genutzt im Assistenten („Im Bild“), auf den WKR-Listen noch offen |
 | Excel-Auswertung | Mannschaftswertung, Verwiegung, Urkunden-Daten u. a. | Starterlisten, Vorsteg-Liste und Verwiegung (Gewichtslisten, Erfassung) sind da; der Rest ist offen |
 
 ### Entwickeln
@@ -41,6 +41,7 @@ npm install
 npm run dev          # Entwicklungsserver
 npm run check        # Typprüfung und Tests
 npm run build:all    # dist/ (GitHub Pages) und dist-single/ (eine Datei)
+npm run parcours:sync   # von Hand: Parcours-Zeichnungen aus ../Parcours holen (nicht Teil der CI)
 ```
 
 Aufbau von `src/`: `domain/` (Klassen, Startnummern), `import/` (Excel-Austausch), `planung/` (Verzahnung, Boote, Parallel-Slalom), `state/` (Zustand als reiner Reducer), `persistenz/` (Speicher im Browser, Sicherung), `i18n/` (Sprachen), `views/` und `components/` (Oberfläche).

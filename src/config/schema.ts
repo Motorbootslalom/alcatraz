@@ -146,6 +146,12 @@ export interface RawSpalte {
 export interface RawPosition {
   id: string
   titel: string
+  /**
+   * Englischer Titel, wo er nicht in i18n/en.yaml steht: für frei benannte Positionen eigener
+   * Aufbauten (der Assistent fragt ihn ab, wenn das Regelwerk Englisch anbietet). Geht vor.
+   * Fehlt beides, steht auch auf englischen Listen der deutsche Titel.
+   */
+  titelEn?: string
   menue?: string
   ausrichtung?: 'hoch' | 'quer'
   /** Lauf im Kopf zeigen? false z. B. bei Knoten (nur einmal abgenommen). */

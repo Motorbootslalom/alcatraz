@@ -58,9 +58,12 @@ function unlock() {
 
 function applyPreset(groups: readonly (readonly ClassId[])[]) {
   if (currentSig.value === signature(groups)) return
+  // Vorhandene Kennungen der Reihe nach wiederverwenden: Parcours 1 bleibt Parcours 1, und
+  // was an der Kennung hängt (die WKR-Einteilung), bleibt daran.
+  const vorhanden = state.value.parcoursList
   dispatch({
     type: 'SET_PARCOURS_PRESET',
-    parcours: groups.map((classIds) => ({ id: uid('par'), classIds: [...classIds] })),
+    parcours: groups.map((classIds, i) => ({ id: vorhanden[i]?.id ?? uid('par'), classIds: [...classIds] })),
   })
 }
 </script>

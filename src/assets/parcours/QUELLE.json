@@ -1,0 +1,22 @@
+{
+  "repo": "https://github.com/Motorbootslalom/Parcours",
+  "commit": "bbb0692cdbd146be514c43b1d4b0bcb49dbf222d",
+  "ordner": "dist/alcatraz_Parcours",
+  "titel": "Schlauchbootslalom Parcours",
+  "urheber": "Matthias Kerk",
+  "lizenz": "CC BY-SA 4.0",
+  "lizenzUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "dateien": [
+    "KlasseE.svg",
+    "Klasse1.svg",
+    "Klasse2.svg",
+    "Klasse3.svg",
+    "Klasse4.svg",
+    "Klasse5.svg",
+    "Klasse6.svg",
+    "Klasse7.svg",
+    "Klasse5_Moewe.svg",
+    "Klasse6_Moewe.svg",
+    "Klasse7_Moewe.svg"
+  ]
+}

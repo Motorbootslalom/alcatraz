@@ -143,7 +143,7 @@ export function pruefeEigene(eingabe: unknown, quelle: RawQuelle, regelwerk: Raw
   const zusammen = mitEigenen(quelle, [...vorhanden.filter((a) => !neu.has(a.id)), ...aufbauten])
   const befunde = [...kurzformBefunde(zusammen), ...validateRawConfig({ ...regelwerk, ...aufloesen(zusammen) })]
   // Die Befunde aus validate.ts bleiben vorerst deutsch (rund 150 Meldungen zur Pflege der YAML-Dateien).
-  const alsMeldung = (b: ConfigIssue): Meldung => ({ code: b.code, params: { where: b.where }, message: b.message })
+  const alsMeldung = (b: ConfigIssue): Meldung => ({ code: b.code, params: { where: b.where, ...b.params }, message: b.message })
   return {
     aufbauten: befunde.some((b) => b.severity === 'error') ? [] : aufbauten,
     fehler: befunde.filter((b) => b.severity === 'error').map(alsMeldung),
@@ -179,9 +179,10 @@ export interface EigeneAuswahl {
  * - Es genügt, die Prüfung unter **einem** der Regelwerke zu bestehen – so ist der Aufbau
  *   auch einmal hereingekommen (Assistent, YAML-Datei). Damit hängt das Ergebnis nicht am
  *   gewählten Regelwerk: Ein Wechsel nimmt niemandem seine Aufbauten. Das ist nötig, weil
- *   die Prüfung auch Pflegehinweise je Regelwerk kennt (unter UIM etwa fehlende englische
- *   Titel), die einen Aufbau nicht unbrauchbar machen. Genannt werden die Meldungen des
- *   ersten Regelwerks.
+ *   die Prüfung auch Befunde je Regelwerk kennt (etwa einen Katalog, den nur eines hat), die
+ *   einen Aufbau nicht überall unbrauchbar machen. Ein fehlender englischer Titel einer frei
+ *   benannten Position ist dagegen unter keinem Regelwerk ein Fehler, sondern ein Hinweis
+ *   (`EN_TITEL_FEHLT` in validate.ts). Genannt werden die Meldungen des ersten Regelwerks.
  *
  * `probe` baut probeweise mit den angenommenen und dem Kandidaten und wirft, wenn das
  * nicht geht (konfig.ts reicht den Bau herein, für alle Regelwerke; dieses Modul kennt ihn nicht).

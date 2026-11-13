@@ -122,15 +122,71 @@ describe('Abgelehnte eigene Aufbauten im Reducer', () => {
   })
 
   it('ein Wechsel des Regelwerks nimmt niemandem seinen Aufbau – auch nicht mit eigenen Titeln ohne Übersetzung', () => {
-    // Unter UIM meldet die Prüfung einer Datei fehlende englische Titel; brauchbar bleibt der Aufbau.
+    // Unter UIM nennt die Prüfung den fehlenden englischen Titel als Hinweis; brauchbar bleibt der Aufbau.
     const frei: RawAufbau = { id: 'freix2k7', name: 'Frei', positionen: ['zeit', 'steg', { id: 'fr1', titel: 'Alle Tore am Stadthafen', blick: 'rechts', bojen: ['StartZiel', 'Tor1', 'Tor2', 'Tor3', 'Tor4', 'Tor5'] }] }
-    expect(configFor({ regelwerk: 'uim-2026' }).pruefeEigeneAufbauten({ aufbauten: [frei] }).fehler.map((f) => f.code)).toContain('MISSING_EN')
+    const pruefung = configFor({ regelwerk: 'uim-2026' }).pruefeEigeneAufbauten({ aufbauten: [frei] })
+    expect(pruefung.fehler).toEqual([])
+    expect(pruefung.hinweise.map((f) => f.code)).toContain('EN_TITEL_FEHLT')
     const state = reducer(mit([frei], 'freix2k7'), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     expect(state.aufbau).toBe('freix2k7')
     const k = configFor({ regelwerk: 'uim-2026', eigeneAufbauten: state.eigeneAufbauten })
     expect(k.abgelehnteEigene).toEqual([])
     expect(k.getAufbau('freix2k7').eigen).toBe(true)
     expect(migrate(state)?.aufbau).toBe('freix2k7')
+  })
+})
+
+describe('Eigene Aufbauten unter einem Regelwerk mit Englisch (UIM)', () => {
+  const tore = { id: 'fr1', titel: 'Alle Tore am Stadthafen', blick: 'rechts' as const, bojen: ['StartZiel', 'Tor1', 'Tor2', 'Tor3', 'Tor4', 'Tor5'] }
+  const frei = (position: object = tore): RawAufbau => ({ id: 'freix2k7', name: 'Frei', positionen: ['zeit', 'steg', position as typeof tore] })
+  const uim = (aufbauten: RawAufbau[] = [], sprache?: 'de' | 'en' | 'de+en') => configFor({ regelwerk: 'uim-2026', eigeneAufbauten: aufbauten, sprache })
+
+  it('ein frei benannter Titel ohne Englisch ist ein Hinweis, kein Fehler: Der Aufbau lässt sich speichern', () => {
+    const pruefung = uim().pruefeEigeneAufbauten({ aufbauten: [frei()] })
+    expect(pruefung.fehler).toEqual([])
+    expect(pruefung.aufbauten).toEqual([frei()])
+    const hinweis = pruefung.hinweise.find((h) => h.code === 'EN_TITEL_FEHLT')!
+    expect(hinweis.params.titel).toBe('Alle Tore am Stadthafen')
+    expect(hinweis.message).toContain('Auf englischen Listen steht der deutsche')
+    // Unter DM gibt es kein Englisch und damit auch keinen Hinweis.
+    expect(configFor().pruefeEigeneAufbauten({ aufbauten: [frei()] }).hinweise.map((h) => h.code)).not.toContain('EN_TITEL_FEHLT')
+  })
+
+  it('mit englischem Titel entfällt der Hinweis', () => {
+    const pruefung = uim().pruefeEigeneAufbauten({ aufbauten: [frei({ ...tore, titelEn: 'All gates at the town harbour' })] })
+    expect(pruefung.fehler).toEqual([])
+    expect(pruefung.hinweise.map((h) => h.code)).not.toContain('EN_TITEL_FEHLT')
+  })
+
+  it('auch eine umbenannte Liste ({ id: steg, titel }) ist frei benannt', () => {
+    const umbenannt: RawAufbau = { ...frei({ ...tore, titelEn: 'All gates' }), positionen: ['zeit', { id: 'steg', titel: 'Steg am Kran' }, { ...tore, titelEn: 'All gates' }] }
+    const pruefung = uim().pruefeEigeneAufbauten({ aufbauten: [umbenannt] })
+    expect(pruefung.fehler).toEqual([])
+    expect(pruefung.hinweise.filter((h) => h.code === 'EN_TITEL_FEHLT').map((h) => h.params.titel)).toEqual(['Steg am Kran'])
+  })
+
+  it('die Liste zeigt den englischen Titel; ohne ihn fällt sie auf den deutschen zurück', () => {
+    const mitEn = frei({ ...tore, titelEn: 'All gates at the town harbour' })
+    expect(uim([mitEn], 'en').getSheetDef('fr1').title).toBe('All gates at the town harbour')
+    expect(uim([mitEn], 'de+en').getSheetDef('fr1').title).toBe('Alle Tore am Stadthafen / All gates at the town harbour')
+    expect(uim([mitEn], 'de').getSheetDef('fr1').title).toBe('Alle Tore am Stadthafen')
+    expect(uim([mitEn], 'en').getSheetDef('fr1').titelDe).toBe('Alle Tore am Stadthafen')
+    for (const sprache of ['en', 'de+en'] as const) expect(uim([frei()], sprache).getSheetDef('fr1').title).toBe('Alle Tore am Stadthafen')
+    // Unter DM gibt es kein Englisch: Der englische Titel reist mit, wirkt aber nicht.
+    expect(configFor({ eigeneAufbauten: [mitEn], sprache: 'en' }).getSheetDef('fr1').title).toBe('Alle Tore am Stadthafen')
+  })
+
+  it('der englische Titel steht in der YAML-Datei und kommt beim Einspielen zurück', () => {
+    const mitEn = frei({ ...tore, titelEn: 'All gates at the town harbour' })
+    const yaml = uim([mitEn]).aufbauAlsYaml('freix2k7', { datum: '2026-11-13', version: 'test' })!
+    expect(yaml).toContain('titelEn: All gates at the town harbour')
+    expect(uim().pruefeEigeneAufbauten(yaml).aufbauten).toEqual([mitEn])
+  })
+
+  it('ein englischer Titel, der kein Text ist, wird unter jedem Regelwerk abgelehnt', () => {
+    const falsch = frei({ ...tore, titelEn: 7 })
+    for (const k of [configFor(), uim()]) expect(k.pruefeEigeneAufbauten({ aufbauten: [falsch] }).fehler.map((f) => f.code)).toContain('BAD_TITEL_EN')
+    expect(uim([falsch]).abgelehnteEigene.map((a) => a.id)).toEqual(['freix2k7'])
   })
 })
 

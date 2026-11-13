@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import BlickErklaerung from './BlickErklaerung.vue'
+import ParcoursNachweis from './ParcoursNachweis.vue'
 import { computed, ref } from 'vue'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
 import { manoeverAufbauten } from '../config/catalog'
 import type { Meldung } from '../config/eigene'
 import type { Blick, RawAufbau } from '../config/schema'
+import ZuordnungImBild from './ZuordnungImBild.vue'
 import {
   ausAufbau,
   befund,
   BLICKE,
   leererEntwurf,
+  lueckenJeFeld,
+  ohneEnglischenTitel,
   namensteil,
   neueId,
+  spaltenFarbe,
   umschalten,
   zeitnahmeId,
   ZEILEN,
@@ -22,12 +27,16 @@ import {
   type Spalte,
   type Zeile,
 } from '../lib/assistent'
+import { BLICK_NAME, feldName, haelfteName, lueckenName, ZEILEN_KLASSEN, ZEITNAHME_NAME, zeilenName } from '../lib/assistentTexte'
+import { parcoursSvg } from '../lib/parcoursQuelle'
 import { t, type MessageKey } from '../i18n'
 
 /**
  * Assistent für eigene Aufbauten (Vorbild: AufbauAssistent.vue im Fehlerpunkte-Prototyp,
  * KONZEPT-POSITIONEN.md §7). Je Position eine Spalte; ein Klick in die Tabelle legt fest,
- * welche Boje oder Aufgabe sie beobachtet.
+ * welche Boje oder Aufgabe sie beobachtet. „Im Bild“ geht dasselbe mit einer Freihandlinie
+ * um die Bojen (ZuordnungImBild.vue, KONZEPT-NAMEN-FREIHAND.md §2); die Tabelle bleibt der
+ * Weg für die Tastatur.
  *
  * Anders als im Prototyp läuft der Entwurf nicht als Vorschau durch den Zustand: Er lebt
  * nur in dieser Komponente und wird erst mit „Speichern“ – nach der Prüfung – als Action
@@ -48,60 +57,31 @@ const neuePositionsId = () => neueId('p', vergeben)
 const bearbeitet = props.modus === 'bearbeiten' ? state.value.eigeneAufbauten.find((a) => a.id === props.aufbauId) : undefined
 const entwurfsId = bearbeitet?.id ?? neueId('entwurf', vergeben)
 
-const BLICK_NAME: Record<Blick | '', MessageKey> = {
-  '': 'assist.view.none',
-  hinten: 'assist.view.hinten',
-  vorne: 'assist.view.vorne',
-  rechts: 'assist.view.rechts',
-  links: 'assist.view.links',
-}
 const BLICK_ERKLAERUNG: MessageKey[] = [
   'assist.viewHelp.hinten',
   'assist.viewHelp.vorne',
   'assist.viewHelp.rechts',
   'assist.viewHelp.links',
 ]
-const ZEITNAHME_NAME: Record<string, MessageKey> = {
-  '': 'assist.timing.none',
-  e: 'assist.timing.e',
-  s: 'assist.timing.s',
-  e2s: 'assist.timing.e2s',
-  '3s': 'assist.timing.3s',
-}
-// Die Zeilen selbst (lib/assistent.ts) tragen deutsche Namen; die Oberfläche übersetzt über die ID.
-const ZEILEN_NAME: Record<string, MessageKey> = {
-  StartZiel: 'assist.row.StartZiel',
-  Speedboje_oben: 'assist.row.Speedboje_oben',
-  Speedboje_unten: 'assist.row.Speedboje_unten',
-  tor5: 'assist.row.tor5',
-  mueb: 'assist.row.mueb',
-  parcours: 'assist.row.parcours',
-}
-const ZEILEN_KLASSEN: Record<string, MessageKey> = {
-  Speedboje_oben: 'assist.rowNote.Speedboje_oben',
-  Speedboje_unten: 'assist.rowNote.Speedboje_unten',
-  mueb: 'assist.rowNote.mueb',
-}
-
-function zeilenName(z: Zeile): string {
-  const tor = z.id.match(/^Tor(\d)$/)
-  if (tor) return t('assist.row.gate', { n: tor[1] })
-  return ZEILEN_NAME[z.id] ? t(ZEILEN_NAME[z.id]) : z.name
-}
-
-/** „rechts · außen“: die erste Hälfte ist die rechte Seite auf der Hinfahrt. */
-function haelfteName(z: Zeile, id: string): string {
-  const seite = t(z.haelften?.[0].id === id ? 'assist.side.right' : 'assist.side.left')
-  const lage = id.endsWith('_innen') ? t('assist.side.inner') : id.endsWith('_aussen') ? t('assist.side.outer') : ''
-  return lage ? `${seite} · ${lage}` : seite
-}
-
-function feldName(f: string): string {
-  for (const z of ZEILEN) {
-    if (z.id === f) return zeilenName(z)
-    if (z.haelften?.some((x) => x.id === f)) return `${zeilenName(z)} ${haelfteName(z, f)}`
+// Zuordnen in der Tabelle oder im Bild. Die Wahl gehört zum Gerät (Tablet mit Stift oder
+// Rechner mit Tastatur), nicht zur Veranstaltung: Sie steht im Browser, nicht im Stand.
+const ANSICHT_KEY = 'alcatraz:assistent-zuordnen'
+type Ansicht = 'tabelle' | 'bild'
+function gemerkteAnsicht(): Ansicht {
+  try {
+    return localStorage.getItem(ANSICHT_KEY) === 'bild' ? 'bild' : 'tabelle'
+  } catch {
+    return 'tabelle'
   }
-  return f
+}
+const ansicht = ref<Ansicht>(gemerkteAnsicht())
+function ansichtWaehlen(a: Ansicht) {
+  ansicht.value = a
+  try {
+    localStorage.setItem(ANSICHT_KEY, a)
+  } catch {
+    // Ohne Speicher gilt die Wahl nur bis zum Schließen.
+  }
 }
 
 // Vorlagen: die wählbaren Aufbauten für das Manövrieren, mitgelieferte und eigene.
@@ -135,7 +115,22 @@ function vorlageWaehlen(id: string) {
 // ---- Laufende Prüfung -----------------------------------------------------------------
 const aufbau = computed(() => zuAufbau(entwurf.value))
 const markiert = computed(() => befund(entwurf.value))
-const luecken = computed(() => konfig.value.entwurfsLuecken(aufbau.value))
+const luecken = computed(() => lueckenJeFeld(konfig.value.entwurfsLuecken(aufbau.value)))
+
+// Das Bild zum Zeichnen: Klasse 7 zeigt alle Bojen; eine Kursvariante bringt ihr eigenes mit.
+// Der Entwurf steht noch nicht in der Konfiguration, deshalb hier über den Kurs statt über bildDatei().
+const bild = computed(() => {
+  const eigenes = konfig.value.rohQuelle.kurse?.find((k) => k.id === entwurf.value.kurs)?.bilder?.['7']
+  return parcoursSvg(eigenes ?? 'Klasse7') ?? parcoursSvg('Klasse7') ?? ''
+})
+
+// Englische Titel: nur, wo das Regelwerk Englisch anbietet (UIM). Das Feld ist freiwillig;
+// ohne Eintrag steht auf englischen Listen der deutsche Titel. Genannt wird das als Hinweis.
+const mitEnglisch = computed(() => konfig.value.regelwerk.sprachen.includes('en'))
+// Mitgelieferte Übersetzungen (deutscher Titel → englischer): Für „Steg“ oder „Tor 1 / 3 / 5“
+// ist nichts einzutragen; das Feld zeigt dann, was ohnehin gilt.
+const enTexte = computed<Readonly<Record<string, string>>>(() => konfig.value.rohQuelle.uebersetzungen?.en?.texte ?? {})
+const ohneEnglisch = computed(() => (mitEnglisch.value ? ohneEnglischenTitel(entwurf.value, enTexte.value) : []))
 
 function klassenText(k: string[]): string {
   return k.length === 8 ? t('assist.allClasses') : t('assist.classesShort', { classes: k.join(', ') })
@@ -187,9 +182,13 @@ function spalteDazu() {
 }
 
 function spalteWeg(id: string) {
-  entwurf.value.spalten = entwurf.value.spalten.filter((s) => s.id !== id)
-  for (const f of Object.keys(entwurf.value.zuordnung))
-    entwurf.value.zuordnung[f] = entwurf.value.zuordnung[f].filter((s) => s !== id)
+  // Eine neue Zuordnung statt Ändern am Platz: „Rückgängig“ im Bild hält frühere Stände fest
+  // (auch die entfernte Position selbst, siehe ZuordnungImBild.vue).
+  entwurf.value = {
+    ...entwurf.value,
+    spalten: entwurf.value.spalten.filter((s) => s.id !== id),
+    zuordnung: Object.fromEntries(Object.entries(entwurf.value.zuordnung).map(([f, spalten]) => [f, spalten.filter((s) => s !== id)])),
+  }
 }
 
 function blickSetzen(s: Spalte, blick: string) {
@@ -255,6 +254,7 @@ function speichern() {
           <p class="note">{{ t('assist.viewHelp.text') }}</p>
         </div>
       </div>
+      <ParcoursNachweis />
     </details>
 
     <div class="row" style="align-items: flex-end">
@@ -296,13 +296,55 @@ function speichern() {
       {{ t('assist.notTaken', { names: nichtUebernommen.join(', ') }) }}
     </p>
 
-    <div class="assistent-rahmen">
+    <div class="row assistent-ansicht">
+      <span id="as-ansicht" class="assistent-ansicht-label">{{ t('assist.mode.label') }}</span>
+      <div class="segmented" role="group" aria-labelledby="as-ansicht">
+        <button
+          v-for="a in ['tabelle', 'bild'] as const"
+          :key="a"
+          type="button"
+          :class="ansicht === a ? 'active' : ''"
+          :aria-pressed="ansicht === a"
+          @click="ansichtWaehlen(a)"
+        >
+          {{ t(`assist.mode.${a}`) }}
+        </button>
+      </div>
+    </div>
+
+    <ZuordnungImBild
+      v-if="ansicht === 'bild'"
+      :entwurf="entwurf"
+      :befund="markiert"
+      :bild="bild"
+      :mit-englisch="mitEnglisch"
+      @update:entwurf="entwurf = $event"
+      @spalte-dazu="spalteDazu"
+      @spalte-weg="spalteWeg"
+    />
+
+    <div v-else class="assistent-rahmen">
       <table class="assistent-tabelle">
         <thead>
           <tr>
             <th class="zeilenkopf">{{ t('assist.rowHead') }}</th>
-            <th v-for="s in entwurf.spalten" :key="s.id" :class="{ leer: markiert.leer.includes(s.id) }">
+            <!-- Die Farbe der Position ist dieselbe wie im Bild. -->
+            <th
+              v-for="s in entwurf.spalten"
+              :key="s.id"
+              :class="{ leer: markiert.leer.includes(s.id) }"
+              :style="{ borderTop: `4px solid ${spaltenFarbe(entwurf, s.id)}` }"
+            >
               <input v-model="s.titel" class="cell-input spalte-titel" :placeholder="t('assist.positionName')" :aria-label="t('assist.positionName')" />
+              <input
+                v-if="mitEnglisch"
+                v-model="s.titelEn"
+                class="cell-input"
+                lang="en"
+                :placeholder="enTexte[s.titel.trim()] ?? t('assist.positionNameEn')"
+                :title="t('assist.positionNameEnTitle')"
+                :aria-label="t('assist.positionNameEnFor', { position: s.titel })"
+              />
               <select
                 class="cell-input"
                 :value="s.blick ?? ''"
@@ -388,7 +430,7 @@ function speichern() {
       <div v-if="luecken.length > 0" class="boat-banner warn" role="status">
         {{ t('assist.gaps') }}
         <ul>
-          <li v-for="l in luecken" :key="l.element + l.nurZusammengelegt">{{ l.element }} ({{ klassenText(l.klassen) }})</li>
+          <li v-for="l in luecken" :key="l.feld ?? l.katalog ?? l.element">{{ lueckenName(l) }} ({{ klassenText(l.klassen) }})</li>
         </ul>
       </div>
       <p v-if="markiert.doppelt.length > 0" class="boat-banner warn" role="status">
@@ -403,6 +445,9 @@ function speichern() {
               .join(', '),
           })
         }}
+      </p>
+      <p v-if="ohneEnglisch.length > 0" class="note" role="status">
+        {{ t('assist.noEnglish', { names: ohneEnglisch.map((s) => s.titel.trim() || t('assist.img.unnamed')).join(', ') }) }}
       </p>
       <div v-if="fehler.length > 0" class="boat-banner warn" role="alert">
         {{ t('assist.notSaved') }}

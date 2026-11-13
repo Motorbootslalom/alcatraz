@@ -64,11 +64,14 @@ describe('Prüfung eigener Aufbauten', () => {
 })
 
 describe('Eigene Aufbauten in der Konfiguration', () => {
-  it('stehen hinter den mitgelieferten, mit ihren Positionen', () => {
+  it('stehen hinter den mitgelieferten, ihre Positionen erzeugen das Bild im Browser', () => {
     const k = configFor({ eigeneAufbauten: [sommercup] })
     expect(k.getAufbauten().at(-1)?.id).toBe('sommercupx7k2')
     expect(k.getAufbau('sommercupx7k2')).toMatchObject({ eigen: true, order: ['zeit', 'steg', 'sc135', 'sc245', 'mueb', 'parcours'] })
     expect(k.getSheetDef('sc135').titelDe).toBe('Tor 1 / 3 / 5')
+    expect(k.getSheetDef('sc135').courseImageDir).toBe('alcatraz_Parcours')
+    expect(k.getSheetDef('sc135').bildErzeugen?.dim).toContain('Tor2')
+    expect(k.getSheetDef('sc245').bildErzeugen?.aus.length).toBeGreaterThan(0) // neben der Legende: ohne Ziffern
     expect(k.abgelehnteEigene).toEqual([])
     // Ohne sie gibt es weder den Aufbau noch seine Positionen.
     expect(configFor().getAufbauten().some((a) => a.id === 'sommercupx7k2')).toBe(false)

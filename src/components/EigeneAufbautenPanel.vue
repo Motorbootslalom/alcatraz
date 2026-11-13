@@ -52,6 +52,7 @@ const ISSUE_KEYS: Record<string, MessageKey> = {
   POSITION_VORHANDEN: 'own.issue.POSITION_VORHANDEN',
   AUFBAU_DISZIPLIN: 'own.issue.AUFBAU_DISZIPLIN',
   DEFEKT: 'own.issue.DEFEKT',
+  EN_TITEL_FEHLT: 'own.issue.EN_TITEL_FEHLT',
 }
 const meldungText = (m: Meldung) => (ISSUE_KEYS[m.code] ? t(ISSUE_KEYS[m.code], m.params) : m.message)
 

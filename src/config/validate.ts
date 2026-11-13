@@ -69,6 +69,8 @@ export interface ConfigIssue {
   message: string
   /** Fundstelle, z. B. 'positionen[3] (id: mueb)'. */
   where: string
+  /** Werte für eine übersetzte Fassung der Meldung (Oberfläche: `own.issue.<code>`). */
+  params?: Record<string, string>
 }
 
 const VALID_TYPEN = new Set<RawSpalte['typ']>([
@@ -107,8 +109,16 @@ export interface UeberwachungsLuecke {
   aufbau: string
   /** Die Lücke besteht nur mit zusammengelegten Listen. */
   nurZusammengelegt: boolean
+  /** Name für Meldungen an die Pflege der YAML-Dateien, z. B. „Tor 1 (hin seiteA)“. */
   element: string
   klassen: string[]
+  /**
+   * Woher die Lücke stammt, für Oberflächen mit eigener Sprache (Assistent): die Spalte,
+   * ggf. mit ihrer Boje (`sub`, z. B. „hin seiteA“), oder der Katalog der Fehler-Spalte.
+   */
+  key?: string
+  sub?: string
+  katalog?: string
 }
 
 /** Was eine Liste für eine Klasse abdeckt: „key|sub“, „key“ und „katalog:id“. */
@@ -148,14 +158,14 @@ export function ueberwachungsLuecken(raw: ConfigInput): UeberwachungsLuecke[] {
         const da = abgedeckt(liste, klasse)
         for (const p of pruefungen) {
           if (p.klassen && !p.klassen.map(String).includes(klasse)) continue
-          const fehlend = p.katalog
-            ? da.has(`katalog:${p.katalog}`) ? [] : [p.name]
+          const fehlend: Array<Pick<UeberwachungsLuecke, 'element' | 'key' | 'sub' | 'katalog'>> = p.katalog
+            ? da.has(`katalog:${p.katalog}`) ? [] : [{ element: p.name, katalog: p.katalog }]
             : p.sub
-              ? p.sub.filter((s) => !da.has(`${p.key}|${s}`)).map((s) => `${p.name} (${s})`)
-              : da.has(p.key ?? '') ? [] : [p.name]
-          for (const element of fehlend) {
-            const schluessel = `${a.id}|${zusammengelegt}|${element}`
-            const eintrag = luecken.get(schluessel) ?? { aufbau: a.id, nurZusammengelegt: zusammengelegt, element, klassen: [] }
+              ? p.sub.filter((s) => !da.has(`${p.key}|${s}`)).map((s) => ({ element: `${p.name} (${s})`, key: p.key, sub: s }))
+              : da.has(p.key ?? '') ? [] : [{ element: p.name, key: p.key }]
+          for (const herkunft of fehlend) {
+            const schluessel = `${a.id}|${zusammengelegt}|${herkunft.element}`
+            const eintrag = luecken.get(schluessel) ?? { aufbau: a.id, nurZusammengelegt: zusammengelegt, ...herkunft, klassen: [] }
             eintrag.klassen.push(klasse)
             luecken.set(schluessel, eintrag)
           }
@@ -396,6 +406,12 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     })
   })
 
+  // Unter jedem Regelwerk geprüft: Der Titel reist mit dem Aufbau, auch dorthin, wo Englisch gilt.
+  positionen.forEach((pos, i) => {
+    if (pos?.titelEn !== undefined && typeof pos.titelEn !== 'string')
+      err('BAD_TITEL_EN', `titelEn in "${pos.id}" muss ein Text sein.`, `positionen[${i}]${pos?.id ? ` (id: ${pos.id})` : ''}`)
+  })
+
   // ---- Regelwerk mit Englisch: Fehlt irgendwo eine Übersetzung? -------------
   for (const sp of raw.sprachen ?? [])
     if (sp !== 'de' && sp !== 'en') err('BAD_SPRACHE', `Unbekannte Sprache "${sp}" (erlaubt: de, en).`, 'sprachen')
@@ -414,9 +430,24 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     const en = raw.uebersetzungen?.en
     const texte = en?.texte ?? {}
     const hinweisTexte = en?.hinweise ?? {}
+    // Eine frei benannte Position eines eigenen Aufbaus (`bildImBrowser`, siehe eigene.ts) kann
+    // nicht in i18n/en.yaml stehen. Ihr englischer Titel ist freiwillig (`titelEn`): Ohne ihn
+    // steht auf englischen Listen der deutsche (`uebersetzt` fällt darauf zurück). Das ist ein
+    // Hinweis, kein Fehler – sonst ließe sich unter UIM kein eigener Aufbau speichern.
+    const ohneTitelEn = (titel: string, where: string) =>
+      issues.push({
+        severity: 'warning',
+        code: 'EN_TITEL_FEHLT',
+        message: `Position "${titel}" hat keinen englischen Titel (titelEn). Auf englischen Listen steht der deutsche.`,
+        where,
+        params: { titel },
+      })
     positionen.forEach((pos, i) => {
       const where = `positionen[${i}]${pos?.id ? ` (id: ${pos.id})` : ''}`
-      if (pos?.titel && !texte[pos.titel]) fehlt(`Titel "${pos.titel}" (i18n/en.yaml)`, where)
+      if (pos?.titel && !pos.titelEn && !texte[pos.titel]) {
+        if (pos.bildImBrowser) ohneTitelEn(pos.titel, where)
+        else fehlt(`Titel "${pos.titel}" (i18n/en.yaml)`, where)
+      }
       if (pos?.hinweis && hinweisIds.has(pos.hinweis) && !hinweisTexte[pos.hinweis])
         fehlt(`Hinweis "${pos.hinweis}" (i18n/en.yaml)`, where)
       const spalten = pos?.zeiten && gueltigeZeiten(pos.zeiten) ? mitZeiten(pos as RawPosition).spalten : (pos?.spalten ?? [])
@@ -429,7 +460,11 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
         if (!pos?.spalten || typeof e !== 'object') continue
         const neu = abwandlung(pos as RawPosition, e)
         const where = `Aufbau ${a?.id} (${e.id})`
-        if (!texte[neu.titel]) fehlt(`Titel "${neu.titel}" (i18n/en.yaml)`, where)
+        // Auch eine umbenannte Liste eines eigenen Aufbaus ({ id: zeit, titel: … }) ist frei benannt.
+        if (!texte[neu.titel]) {
+          if (a?.eigen) ohneTitelEn(neu.titel, where)
+          else fehlt(`Titel "${neu.titel}" (i18n/en.yaml)`, where)
+        }
         for (const sp of neu.spalten)
           if (sp.label && !texte[sp.label]) fehlt(`Spaltenname "${sp.label}" (i18n/en.yaml)`, where)
       }

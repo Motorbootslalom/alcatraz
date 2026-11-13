@@ -22,6 +22,7 @@ import {
   sortedByStartNr,
 } from '../domain/startnumbers'
 import { mergeStarters } from '../import/starterMerge'
+import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
 import { canonicalRunningNumbers } from '../planung/running'
 import { aufbauOf, DEFAULT_AUFBAU, DEFAULT_REGELWERK, hasParallel, regelwerkOf } from '../config/catalog'
 
@@ -89,6 +90,12 @@ export type Action =
   | { type: 'SET_PARCOURS_FACTOR'; id: string; wechselFaktor: WechselFaktor }
   | { type: 'SET_PARCOURS_TRACKS'; id: string; tracks: TrackItem[][] }
   | { type: 'RESET_TRACKS'; id: string }
+  /**
+   * Name des Wettkampfrichters an einer Liste auf einem Parcours; ein leerer Name entfernt
+   * den Eintrag. Je Feld eine Action (nicht die ganze Einteilung), damit zwei Geräte, die
+   * verschiedene Felder ausfüllen, einander nichts überschreiben.
+   */
+  | { type: 'SET_WKR_NAME'; parcoursId: string; typeId: string; name: string }
   | { type: 'LOAD_STATE'; state: AppState }
   | { type: 'RESET_ALL' }
 
@@ -104,6 +111,7 @@ export function emptyState(): AppState {
     aufbau: DEFAULT_AUFBAU,
     eigeneAufbauten: [],
     laufCount: 3,
+    einteilung: {},
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -336,10 +344,22 @@ export function reducer(state: AppState, action: Action): AppState {
           classIds: p.classIds,
           wechselFaktor: action.wechselFaktor ?? 2,
         })),
+        // Die WKR-Namen hängen an der Kennung des Parcours: Sie ziehen mit, sonst wären sie
+        // nach jeder Schnellauswahl unsichtbar, stünden aber weiter in jeder Sicherung.
+        einteilung: haengeUm(
+          state.einteilung,
+          state.parcoursList.map((p) => p.id),
+          action.parcours.map((p) => p.id),
+        ),
       }
 
     case 'REMOVE_PARCOURS':
-      return { ...state, parcoursList: state.parcoursList.filter((p) => p.id !== action.id) }
+      // Mit dem Parcours gehen die Namen seiner Wettkampfrichter: Es bliebe sonst kein Weg, sie zu löschen.
+      return {
+        ...state,
+        parcoursList: state.parcoursList.filter((p) => p.id !== action.id),
+        einteilung: ohneParcours(state.einteilung, action.id),
+      }
 
     case 'RENAME_PARCOURS':
       return mapParcours(state, action.id, (p) => ({ ...p, name: action.name }))
@@ -357,6 +377,9 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'RESET_TRACKS':
       return mapParcours(state, action.id, (p) => ({ ...p, tracks: undefined }))
+
+    case 'SET_WKR_NAME':
+      return { ...state, einteilung: setzeName(state.einteilung, action.parcoursId, action.typeId, action.name) }
 
     case 'LOAD_STATE':
       return action.state

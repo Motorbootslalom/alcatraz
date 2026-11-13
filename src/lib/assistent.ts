@@ -1,5 +1,7 @@
-import { istInlineKurzform, istKurzform } from '../config/kurzform'
+import { FAHRWEG, istInlineKurzform, istKurzform } from '../config/kurzform'
 import type { Aufgabe, Blick, RawAufbau, RawKurzform, RawPosition, RawQuelle } from '../config/schema'
+import type { UeberwachungsLuecke } from '../config/validate'
+import { CLASS_IDS } from '../domain/classes'
 import { eintragId, zeitTitel } from '../config/zeitnahme'
 import type { Geraet } from '../types'
 
@@ -76,6 +78,8 @@ const AUFGABEN_ZEILEN = new Set(['tor5', 'mueb', 'parcours'])
 export interface Spalte {
   id: string
   titel: string
+  /** Englischer Titel für englische und zweisprachige Listen; leer = der deutsche gilt. */
+  titelEn?: string
   blick?: Blick
   /** Bild halb breit neben der Legende statt quer darunter. */
   bildNeben?: boolean
@@ -202,6 +206,7 @@ export function ausAufbau(
     const spalte: Spalte = {
       id: inline && behalteIds ? inline.id : neuePositionsId(),
       titel: imRepo.titel,
+      ...(imRepo.titelEn ? { titelEn: imRepo.titelEn } : {}),
       ...(imRepo.blick ? { blick: imRepo.blick } : {}),
       ...(imRepo.bildNeben ? { bildNeben: true } : {}),
       ...(imRepo.aufgaben?.includes('zeit') ? { zeiten: imRepo.zeiten ?? ['stoppuhr', 'stoppuhr', 'stoppuhr'] } : {}),
@@ -229,6 +234,8 @@ export function spalteAlsPosition(entwurf: Entwurf, s: Spalte): RawKurzform | un
   return {
     id: s.id,
     titel: s.titel.trim() || zeitTitel(s.zeiten ?? []) || 'Position',
+    // Nur zu einem eigenen deutschen Titel: Der Ersatztitel hat seine Übersetzung in i18n/en.yaml.
+    ...(s.titel.trim() && s.titelEn?.trim() ? { titelEn: s.titelEn.trim() } : {}),
     ...(s.blick ? { blick: s.blick } : {}),
     ...(bojen.length > 0 ? { bojen } : {}),
     ...(aufgaben.length > 0 ? { aufgaben } : {}),
@@ -256,6 +263,18 @@ export function zuAufbau(entwurf: Entwurf): RawAufbau {
   }
 }
 
+/**
+ * Die Spalten, deren Titel es auf Englisch nicht gibt: weder im Entwurf (`titelEn`) noch in
+ * den mitgelieferten Übersetzungen (`texte` aus i18n/en.yaml, deutscher Titel → englischer).
+ * Auf englischen Listen steht dort der deutsche Titel. Spalten, die entfallen, zählen nicht.
+ */
+export function ohneEnglischenTitel(entwurf: Entwurf, texte: Readonly<Record<string, string>>): Spalte[] {
+  return entwurf.spalten.filter((s) => {
+    const pos = spalteAlsPosition(entwurf, s)
+    return !!pos && !pos.titelEn && !texte[pos.titel]
+  })
+}
+
 // ---- Laufende Prüfung ------------------------------------------------------------------
 
 export interface Befund {
@@ -277,6 +296,59 @@ export function befund(entwurf: Entwurf): Befund {
     doppelt: FELDER.filter((f) => auf(f).length > 1),
     leer: entwurf.spalten.filter((s) => !spalteAlsPosition(entwurf, s)).map((s) => s.id),
   }
+}
+
+/** Was im Entwurf noch keine Liste beobachtet, in den Begriffen der Tabelle. */
+export interface EntwurfsLuecke {
+  /** Die Zeile oder Hälfte der Tabelle (siehe {@link FELDER}), die zuzuordnen wäre. */
+  feld?: string
+  /** Ohne Feld: der Katalog, z. B. `stegAblegen` (Baustein „Steg“). */
+  katalog?: string
+  /** Der Name aus der Prüfung, falls sich die Lücke keinem Feld zuordnen lässt. */
+  element: string
+  klassen: string[]
+  nurZusammengelegt: boolean
+}
+
+/**
+ * Die Lücken der Prüfung (validate.ts) je Feld der Tabelle. Die Prüfung nennt jede Boje je
+ * Fahrtrichtung mit ihrer technischen Kennung („Tor 1 (hin seiteA)“, „Tor 1 (rueck seiteA)“);
+ * im Assistenten ist beides dieselbe Boje, die man einer Position gibt. Aus mehreren Lücken
+ * wird deshalb ein Eintrag je Feld, mit allen betroffenen Klassen.
+ */
+export function lueckenJeFeld(luecken: readonly UeberwachungsLuecke[]): EntwurfsLuecke[] {
+  const feldVon = (l: UeberwachungsLuecke): string | undefined => {
+    if (l.katalog) return AUFGABEN_ZEILEN.has(l.katalog) ? l.katalog : undefined
+    const halt = FAHRWEG.find((h) => h.key === l.key)
+    if (halt?.speedboje) return halt.speedboje
+    // seiteA ist die untere Boje im Bild (kurzform.ts) – in der Tabelle die erste Hälfte, „rechts“.
+    const seite = l.sub?.endsWith('seiteA') ? 0 : l.sub?.endsWith('seiteB') ? 1 : undefined
+    return seite === undefined ? undefined : ZEILEN.find((z) => z.id === halt?.tor)?.haelften?.[seite].id
+  }
+  const je = new Map<string, EntwurfsLuecke>()
+  for (const l of luecken) {
+    const feld = feldVon(l)
+    const katalog = feld ? undefined : l.katalog
+    const schluessel = feld ? `feld:${feld}` : katalog ? `katalog:${katalog}` : `element:${l.element}`
+    const eintrag = je.get(schluessel)
+    if (eintrag) {
+      eintrag.klassen = [...new Set([...eintrag.klassen, ...l.klassen])]
+      eintrag.nurZusammengelegt &&= l.nurZusammengelegt
+    } else {
+      je.set(schluessel, {
+        ...(feld ? { feld } : {}),
+        ...(katalog ? { katalog } : {}),
+        element: l.element,
+        klassen: [...l.klassen],
+        nurZusammengelegt: l.nurZusammengelegt,
+      })
+    }
+  }
+  const klassenRang = (k: string) => (CLASS_IDS as readonly string[]).indexOf(k)
+  const feldRang = (l: EntwurfsLuecke) => (l.feld ? FELDER.indexOf(l.feld) : FELDER.length)
+  return [...je.values()]
+    .map((l) => ({ ...l, klassen: [...l.klassen].sort((a, b) => klassenRang(a) - klassenRang(b)) }))
+    .sort((a, b) => feldRang(a) - feldRang(b))
 }
 
 /** Setzt oder löst den Punkt eines Feldes in einer Spalte; ganze Tore beide Hälften. */

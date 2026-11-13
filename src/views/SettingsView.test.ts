@@ -112,6 +112,46 @@ describe('Einstellungen: eigene Aufbauten', () => {
     wrapper.unmount()
   })
 
+  it('der Assistent nennt Lücken verständlich und merkt sich „Im Bild“ im Browser', async () => {
+    localStorage.removeItem('alcatraz:assistent-zuordnen')
+    const wrapper = settings(store)
+    await wrapper.find('[data-action="new"]').trigger('click')
+    const assistent = wrapper.find('.assistent')
+    // Leerer Entwurf: Alles fehlt – genannt wie in der Tabelle, nicht mit der Kennung der Prüfung.
+    const luecken = assistent.find('.assistent-pruefung').text()
+    expect(luecken).toContain('Tor 1 rechts · außen (alle Klassen)')
+    expect(luecken).toContain('Speed 2 (Tonne 8) (Kl. 7)')
+    expect(luecken).not.toMatch(/seite[AB]|hin |rueck /)
+
+    // Vorgabe ist die Tabelle; „Im Bild“ zeigt die Zeichnung, und der Browser merkt sich die Wahl.
+    expect(assistent.find('.assistent-tabelle').exists()).toBe(true)
+    const imBild = assistent.findAll('.assistent-ansicht button')[1]
+    expect(imBild.text()).toBe('Im Bild')
+    await imBild.trigger('click')
+    expect(localStorage.getItem('alcatraz:assistent-zuordnen')).toBe('bild')
+    expect(assistent.find('.assistent-tabelle').exists()).toBe(false)
+    expect(assistent.find('.zib-quelle svg #Tor1_innen').exists()).toBe(true)
+    expect(assistent.find('.zib-ueberlage').attributes('aria-label')).toContain('zuerst eine Position anlegen')
+
+    // Eine Position anlegen, eine Aufgabe anhaken, zurücknehmen.
+    await assistent.findAll('.zib-leiste button').find((b) => b.text() === '+ Position')!.trigger('click')
+    expect(assistent.find('.zib-spalte.aktiv').text()).toBe('Position 1')
+    expect(assistent.find('.zib-ueberlage').attributes('aria-label')).toContain('„Position 1“')
+    const mueb = assistent.findAll('.zib-aufgaben input[type="checkbox"]')[1]
+    await mueb.setValue(true)
+    expect(assistent.find('.assistent-pruefung').text()).not.toContain('Mann-über-Bord')
+    await assistent.find('.zib-zurueck').trigger('click')
+    expect(assistent.find('.assistent-pruefung').text()).toContain('Mann-über-Bord (Kl. 4, 5, 6, 7)')
+    wrapper.unmount()
+
+    // Beim nächsten Öffnen steht der Assistent wieder im Bild.
+    const wieder = settings(store)
+    await wieder.find('[data-action="new"]').trigger('click')
+    expect(wieder.find('.zib').exists()).toBe(true)
+    wieder.unmount()
+    localStorage.removeItem('alcatraz:assistent-zuordnen')
+  })
+
   it('spielt eine YAML-Datei nur ein, wenn sie die Prüfung besteht', async () => {
     const wrapper = settings(store)
     const input = wrapper.find('.own-setups input[type="file"]')
@@ -297,6 +337,69 @@ describe('Einstellungen: eigene Aufbauten', () => {
     const text = wrapper.find('.own-setups > .boat-banner.warn').text()
     expect(text).toContain('Not loaded:')
     expect(text).not.toContain('Nicht eingespielt')
+    wrapper.unmount()
+  })
+
+  it('unter UIM lässt sich ein eigener Aufbau mit frei benannten Positionen speichern – mit oder ohne englischen Namen', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    const wrapper = settings(store)
+    await wrapper.find('.own-setups select#own-vorlage').setValue('moewe')
+    await wrapper.find('[data-action="derive"]').trigger('click')
+    const assistent = wrapper.find('.assistent')
+    await assistent.find('#as-name').setValue('Harbour Cup')
+    const titel = assistent.findAll('input.spalte-titel')
+    const erste = (titel[0].element as HTMLInputElement).value
+    await titel[0].setValue('Am Kran')
+    await titel[1].setValue('Hinter der Mole')
+    // Das Regelwerk bietet Englisch an: je Position ein beschriftetes, freiwilliges Feld.
+    const englisch = assistent.find('input[aria-label="Englischer Name für Am Kran"]')
+    expect(englisch.exists()).toBe(true)
+    expect(assistent.find('.assistent-pruefung').text()).toContain('Ohne englischen Namen – auf englischen Listen steht der deutsche: Am Kran, Hinter der Mole')
+    await englisch.setValue('At the crane')
+    expect(assistent.find('.assistent-pruefung').text()).toContain('steht der deutsche: Hinter der Mole')
+
+    await assistent.find('.btn.primary').trigger('click')
+    await nextTick()
+    expect(wrapper.find('.assistent').exists()).toBe(false)
+    const [neu] = store.state.value.eigeneAufbauten
+    expect(neu.name).toBe('Harbour Cup')
+    const positionen = neu.positionen.filter((p): p is Exclude<typeof p, string> => typeof p === 'object')
+    expect(positionen.find((p) => p.titel === 'Am Kran')).toMatchObject({ titelEn: 'At the crane' })
+    expect(positionen.find((p) => p.titel === 'Hinter der Mole')).not.toHaveProperty('titelEn')
+    expect(erste).not.toBe('Am Kran')
+    // Er gilt: nicht abgelehnt und für die Veranstaltung wählbar.
+    const k = configFor({ regelwerk: 'uim-2026', eigeneAufbauten: store.state.value.eigeneAufbauten })
+    expect(k.abgelehnteEigene).toEqual([])
+    expect(k.getAufbau(neu.id).eigen).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('unter DM fragt der Assistent keinen englischen Namen ab', async () => {
+    const wrapper = settings(store)
+    await wrapper.find('.own-setups select#own-vorlage').setValue('moewe')
+    await wrapper.find('[data-action="derive"]').trigger('click')
+    expect(wrapper.find('.assistent input[lang="en"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('unter UIM wird eine YAML-Datei mit frei benannter Position eingespielt; der fehlende englische Name ist ein Hinweis', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    const frei: RawAufbau = {
+      id: 'freix2k7',
+      name: 'Frei',
+      positionen: ['zeit', 'steg', { id: 'fr1', titel: 'Alle Tore am Stadthafen', blick: 'rechts', bojen: ['StartZiel', 'Tor1', 'Tor2', 'Tor3', 'Tor4', 'Tor5'] }],
+    }
+    const wrapper = settings(store)
+    const input = wrapper.find('.own-setups input[type="file"]')
+    const yaml = configFor({ eigeneAufbauten: [frei] }).aufbauAlsYaml('freix2k7', { datum: '2026-11-13', version: 'test' })!
+    Object.defineProperty(input.element, 'files', { value: [new File([yaml], 'aufbau.yaml')], configurable: true })
+    await input.trigger('change')
+    await vi.waitFor(() => expect(wrapper.find('.own-setups .boat-banner.ok').exists()).toBe(true))
+    expect(store.state.value.eigeneAufbauten).toEqual([frei])
+    expect(wrapper.find('.own-setups').text()).toContain('Position „Alle Tore am Stadthafen“ hat keinen englischen Titel.')
+    setLocale('en')
+    await nextTick()
+    expect(wrapper.find('.own-setups').text()).toContain('Position “Alle Tore am Stadthafen” has no English title.')
     wrapper.unmount()
   })
 })

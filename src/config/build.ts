@@ -5,6 +5,7 @@ import { feldKennungen } from './feld'
 import { findeKombi, kombiReihenfolge } from './kombi'
 import { bogenTexte, uebersetzt, uebersetztBlock, type BogenTexte } from './sprache'
 import { abwandlung, aufbauIds, mitZeiten, nummerierung } from './zeitnahme'
+import { bildVorgabe } from '../lib/parcoursbild'
 
 /** Übersetzt einen Text in die Sprache der Konfiguration. */
 type Uebersetzer = (de: string, en?: string) => string
@@ -319,7 +320,7 @@ export function buildConfig(
       : undefined
     return {
       typeId: pos.id,
-      title: t(pos.titel, englischTexte[pos.titel]),
+      title: t(pos.titel, pos.titelEn || englischTexte[pos.titel]),
       titelDe: pos.titel,
       // Menüs gehören zur Bedienleiste und bleiben deutsch.
       menuLabel: pos.menue ?? pos.titel,
@@ -338,10 +339,11 @@ export function buildConfig(
       legendNote: legendNote || undefined,
       legendNoteSpalten: noteLinks && noteRechts ? [noteLinks, noteRechts] : undefined,
       ohneCodes,
-      // Abweichung vom Prototyp: Bilder, die erst der Browser erzeugt (`bildImBrowser`, eigene
-      // Aufbauten), kommen mit den Parcoursbildern (lib/parcoursbild). Bis dahin haben diese
-      // Positionen kein Bild, statt auf einen Ordner zu zeigen, den es hier noch nicht gibt.
-      courseImageDir: pos.bildImBrowser ? undefined : pos.bild,
+      // Eigene Aufbauten (`bildImBrowser`) haben kein eigenes Bild: Der Browser blendet die
+      // Zeichnung der Klasse selbst ab (lib/parcoursQuelle.ts), nichts wird nachgeladen.
+      ...(pos.bildImBrowser && pos.bildGenerator
+        ? (({ quelle, dim, aus }) => ({ courseImageDir: quelle, bildErzeugen: { dim, aus } }))(bildVorgabe(pos))
+        : { courseImageDir: pos.bild }),
       bildDrehung: pos.bildDrehung,
       bildBreite: pos.bildBreite,
       bildNeben: pos.bildNeben,

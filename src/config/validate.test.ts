@@ -68,6 +68,9 @@ describe('Konfigurations-Validierung', () => {
     const ohneWort = positionenText((t) => t.replace('"Bemerkung": "Remarks"', ''))
     const issues2 = errors(validateConfigTexts({ ...texte, positionen: ohneWort }))
     expect(issues2.find((i) => i.code === 'MISSING_EN')?.message).toContain('Bemerkung')
+    // Ein mitgelieferter Titel ohne Übersetzung bleibt ein Fehler; nur eigene Aufbauten dürfen frei benennen.
+    const ohneTitel = positionenText((t) => t.replace('"Steg": "Pontoon"', ''))
+    expect(errors(validateConfigTexts({ ...texte, positionen: ohneTitel })).map((i) => i.code)).toContain('MISSING_EN')
   })
 
   it('meldet unbekannte Bereiche, Buchstaben-Listen und ungültige Codes', () => {

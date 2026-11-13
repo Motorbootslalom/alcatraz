@@ -4,6 +4,7 @@ import { emptyState } from './reducer'
 import { aufbauOf, regelwerkOf } from '../config/catalog'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
+import { normalisiereEinteilung } from '../lib/einteilung'
 
 /**
  * Einen gelesenen Stand (localStorage, Sicherungsdatei) auf die aktuelle Fassung
@@ -26,12 +27,13 @@ export function migrate(raw: unknown): AppState | null {
   const eigeneAufbauten = (Array.isArray(loaded.eigeneAufbauten) ? loaded.eigeneAufbauten.filter(isAufbau) : []).filter(
     (a) => !gesehen.has(a.id) && !!gesehen.add(a.id),
   )
+  const parcoursList = Array.isArray(loaded.parcoursList) ? loaded.parcoursList : base.parcoursList
   return {
     ...base,
     ...loaded,
     schemaVersion: SCHEMA_VERSION,
     starters: loaded.starters.map(normalizeStarter),
-    parcoursList: Array.isArray(loaded.parcoursList) ? loaded.parcoursList : base.parcoursList,
+    parcoursList,
     boats: { ...base.boats, ...loaded.boats },
     // Kennungen, die es nicht (mehr) gibt, fallen auf die Vorgabe zurück.
     regelwerk: regelwerkOf(loaded.regelwerk ?? '').id,
@@ -43,6 +45,12 @@ export function migrate(raw: unknown): AppState | null {
     showBirthdate: loaded.showBirthdate !== false,
     listOrigin: loaded.listOrigin === 'kurz' ? 'kurz' : 'lang',
     originShort: { ...loaded.originShort },
+    // Fehlt in Ständen vor der WKR-Einteilung; Unbrauchbares entfällt – auch Namen zu
+    // Parcours, die es nicht (mehr) gibt.
+    einteilung: normalisiereEinteilung(
+      loaded.einteilung,
+      parcoursList.map((p) => p?.id).filter((id): id is string => typeof id === 'string'),
+    ),
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },

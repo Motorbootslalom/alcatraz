@@ -4,6 +4,7 @@ import { useStore } from '../state/store'
 import { manoeverAufbauten, REGELWERKE } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { t } from '../i18n'
+import WkrEinteilung from '../components/WkrEinteilung.vue'
 import type { EventKind, OriginMode } from '../types'
 
 /**
@@ -133,4 +134,6 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
     </p>
     <p class="note">{{ t('event.note') }}</p>
   </div>
+  <!-- Daten der Veranstaltung wie die Starter, keine Einstellung: deshalb hier und nicht unter dem Zahnrad. -->
+  <WkrEinteilung />
 </template>
