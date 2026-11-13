@@ -1,25 +1,28 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { setLocale } from '../i18n'
 import { configFor } from '../config/konfig'
 import type { ClassId, Starter } from '../types'
-import { feldVon, laufSchluessel, listenLauf, setzeWerte } from './eingaben'
+import { feldVon, laufSchluessel, listenLauf, setzeWerte, verborgeneZellen } from './eingaben'
 import {
   abstaende,
-  abstandText,
   ergebnisGruppen,
   klassenErgebnis,
-  punkteText,
   streichlaeufeVon,
   streichZahl,
   type ErgebnisStand,
   type GesamtZeile,
   type LaufZeile,
 } from './ergebnis'
+import { abstandZelle, punkteZelle } from './ergebnisText'
 
 // Die Wertung: aus dem Fehlerpunkte-Prototyp übernommen (lib/ergebnis.test.ts) und um die
 // Entscheidungen des Nutzers erweitert – jede hat unten ihren eigenen Abschnitt. Alle Starter
 // sind erfunden.
 
 const konfig = configFor()
+
+// Die Zellen-Texte folgen der Sprache der Oberfläche.
+beforeAll(() => setLocale('de'))
 
 function starter(nr: string, klasse: ClassId = '4'): Starter {
   return { id: `id-${nr}`, startNr: nr, vorname: `Vor${nr}`, nachname: `Nach${nr}`, verein: 'Musterclub', bundesland: 'Musterland', geburtsdatum: '', klasse, groesse: '' }
@@ -74,11 +77,11 @@ const zeile = (zeilen: LaufZeile[], nummer: string) => zeilen.find((z) => nr(z) 
 const gesamt = (stand: ErgebnisStand, nummer: string): GesamtZeile => ergebnis(stand).gesamt.nachPlatz.find((z) => nr(z) === nummer)!
 const reihenfolge = (zeilen: Array<{ starter: Starter }>) => zeilen.map(nr)
 
-describe('punkteText und Abstand', () => {
+describe('Punkte-Zelle und Abstand', () => {
   it('zeigt Punkte, „disq.“ statt einer Zahl und bleibt leer, solange die Zeit fehlt', () => {
-    expect(punkteText(false, 8169)).toBe('81,69')
-    expect(punkteText(true, null)).toBe('disq.')
-    expect(punkteText(false, null)).toBe('')
+    expect(punkteZelle(false, 8169)).toBe('81,69')
+    expect(punkteZelle(true, null)).toBe('disq.')
+    expect(punkteZelle(false, null)).toBe('')
   })
 
   it('Abstand zum Platz davor oder zum Ersten; leer beim Ersten, bei Disq. und ohne Ergebnis', () => {
@@ -92,8 +95,8 @@ describe('punkteText und Abstand', () => {
     ]
     expect(abstaende(zeilen, 'davor')).toEqual([null, null, 250, 750, null, null])
     expect(abstaende(zeilen, 'erster')).toEqual([null, null, 250, 1000, null, null])
-    expect(abstandText(250)).toBe('+2,50')
-    expect(abstandText(null)).toBe('')
+    expect(abstandZelle(250)).toBe('+2,50')
+    expect(abstandZelle(null)).toBe('')
   })
 })
 
@@ -366,11 +369,91 @@ describe('Entscheidung: Ein disqualifizierter Lauf wird gestrichen, zu wenige g�
     expect(gesamt(stand, '401')).toMatchObject({ disq: true, offen: false, platz: 2 })
   })
 
-  it('bei nur einem gefahrenen Lauf wird nichts gestrichen; eine Disqualifikation steht vorerst hinten', () => {
+  it('bei nur einem gefahrenen Lauf wird nichts gestrichen', () => {
     const stand = laufMitZeiten(basis(['401', '402']), 1, { '401': 80, '402': 90 })
     expect(gesamt(stand, '401')).toMatchObject({ gestrichen: [], ergebnis: 8000, platz: 1 })
-    const disq = eintragen(stand, 1, '401', { steg: { disq: 'C' } })
-    expect(gesamt(disq, '401')).toMatchObject({ gestrichen: [], disq: true, platz: 2 })
+  })
+
+  it('Zwischenstand: Eine Disqualifikation, die der Streichlauf am Ende aufnimmt, ist noch keine Gesamt-Disqualifikation', () => {
+    // 3 Läufe, einer wird gestrichen. Nach zwei Läufen hat 401 erst einen gültigen – kein
+    // vergleichbares Ergebnis, also Platz 1 ohne Ergebnis wie ein Nachholer, nicht „disq.“.
+    const zwei = gefahren({ '401': [null, 60], '402': [90, 90], '403': [95, 95] })
+    expect(gesamt(zwei, '401')).toMatchObject({ disq: false, offen: true, ergebnis: null, platz: 1, gestrichen: [1] })
+    expect(gesamt(zwei, '402')).toMatchObject({ ergebnis: 18000, platz: 2 })
+    expect(gesamt(zwei, '403')).toMatchObject({ platz: 3 })
+    // Nach dem dritten Lauf ist der disqualifizierte gestrichen – und niemand ist abgerutscht.
+    const drei = gefahren({ '401': [null, 60, 60], '402': [90, 90, 90], '403': [95, 95, 95] })
+    expect(gesamt(drei, '401')).toMatchObject({ disq: false, offen: false, ergebnis: 12000, platz: 1, gestrichen: [1] })
+    expect(gesamt(drei, '402').platz).toBe(2)
+    expect(gesamt(drei, '403').platz).toBe(3)
+    // Fährt 401 im dritten Lauf schlecht, rücken die anderen auf.
+    const schlecht = gefahren({ '401': [null, 60, 200], '402': [90, 90, 90], '403': [95, 95, 95] })
+    expect(reihenfolge(ergebnis(schlecht).gesamt.nachPlatz)).toEqual(['402', '403', '401'])
+  })
+
+  it('Zwischenstand: Mehr Disqualifikationen, als am Ende gestrichen werden, stehen sofort hinten', () => {
+    // Zwei Disqualifikationen bei einem Streichlauf sind nicht mehr zu retten.
+    const zwei = gefahren({ '401': [null, null], '402': [90, 90] })
+    expect(gesamt(zwei, '401')).toMatchObject({ disq: true, offen: false, platz: 2 })
+    // Ohne Streichlauf (zwei Läufe nach Regel) gilt schon die erste.
+    const ohne = gefahren({ '401': [null], '402': [90] }, { laufCount: 2 })
+    expect(gesamt(ohne, '401')).toMatchObject({ disq: true, offen: false, platz: 2 })
+    // Alle zählen (0 Streichläufe bei drei Läufen): ebenso.
+    const alle = gefahren({ '401': [null, 60], '402': [90, 90] }, { streichlaeufe: 0 })
+    expect(gesamt(alle, '401')).toMatchObject({ disq: true, platz: 2 })
+  })
+})
+
+describe('Was als gefahrener Lauf zählt', () => {
+  it('Haken, Bemerkung oder Fehlerpunkte allein machen noch keinen Lauf der Gesamtwertung', () => {
+    let stand = gefahren({ '401': [80, 70], '402': [75, 76] })
+    const vorher = ergebnis(stand).gesamt
+    expect(vorher.laeufe).toEqual([1, 2])
+    // Das Abtippen von Lauf 3 beginnt mit einer Tor-Liste: ein Haken und ein Bojenfehler.
+    stand = { ...stand, eingaben: setzeWerte(stand.eingaben, [{ lauf: laufSchluessel('manoevrieren', 3), starter: 'id-401', feld: 'erfasst@steg', wert: '1' }]) }
+    stand = eintragen(stand, 3, '402', { gate135: { 't1a#0': '5' } })
+    const danach = ergebnis(stand)
+    // Die Lauf-Liste gibt es schon, die Gesamtliste bleibt beim Stand nach zwei Läufen.
+    expect(danach.laeufe.map((l) => l.lauf)).toEqual([1, 2, 3])
+    expect(danach.gesamt.laeufe).toEqual([1, 2])
+    expect(danach.gesamt.nachPlatz.map((z) => [nr(z), z.platz, z.offen, z.ergebnis])).toEqual(vorher.nachPlatz.map((z) => [nr(z), z.platz, z.offen, z.ergebnis]))
+    // Mit der ersten Zeit (oder einer Disqualifikation) ist der Lauf gefahren.
+    expect(ergebnis(laufMitZeiten(stand, 3, { '401': 81 })).gesamt.laeufe).toEqual([1, 2, 3])
+    expect(ergebnis(eintragen(stand, 3, '401', { vorsteg: { disq: 'X' } })).gesamt.laeufe).toEqual([1, 2, 3])
+  })
+
+  it('ist noch gar kein Lauf gefahren, zeigt die Gesamtliste den ersten – alle offen auf Platz 1', () => {
+    const stand = eintragen(basis(['401', '402']), 1, '401', { gate135: { 't1a#0': '5' } })
+    const { gesamt: g } = ergebnis(stand)
+    expect(g.laeufe).toEqual([1])
+    expect(g.nachPlatz.map((z) => [z.platz, z.offen])).toEqual([[1, true], [1, true]])
+  })
+})
+
+describe('Wechsel des Aufbaus mit schon erfassten Werten', () => {
+  // Kein stiller Fehler mehr: Die Oberfläche fragt vor dem Wechsel nach (EventView) und zeigt
+  // danach, was keine Liste mehr zeigt (EingabenHinweis). Hier steht, was dabei geschieht.
+  it('die erste Zeit ist je nach Aufbau Stoppuhr oder Lichtschranke – dieselben Werte ergeben eine andere Zeit', () => {
+    let stand = basis(['401'])
+    stand = eintragen(stand, 1, '401', { zeit: { zeit1: '80,00', zeit2: '83,00', zeit3: '83,00' } })
+    expect(ergebnis(stand).laeufe[0].nachNummer[0].zeit).toBe(8200)
+    const dm26 = { ...stand, aufbau: 'alcatrazdm26' }
+    expect(ergebnis(dm26).laeufe[0].nachNummer[0].zeit).toBe(8000)
+    // Die zweite und dritte Stoppuhr zeigt der neue Aufbau nicht mehr: Sie sind als verborgen gemeldet.
+    expect(verborgeneZellen(dm26, konfig).map((z) => z.feld).sort()).toEqual(['zeit2', 'zeit3'])
+    expect(verborgeneZellen(stand, konfig)).toEqual([])
+  })
+
+  it('ein x am Vorsteg zählt weiter, auch wenn der neue Aufbau keinen Vorsteg hat – und ist als verborgen gemeldet', () => {
+    let stand = laufMitZeiten(basis(['401', '402']), 1, { '401': 80 })
+    stand = eintragen(stand, 1, '402', { vorsteg: { disq: 'X' } })
+    const frontal = { ...stand, aufbau: 'frontal' }
+    expect(zeile(ergebnis(frontal).laeufe[0].nachNummer, '402')).toMatchObject({ disq: true, nichtGestartet: true })
+    const verborgen = verborgeneZellen(frontal, konfig)
+    expect(verborgen.map((z) => [z.starter, z.feld])).toEqual([['id-402', 'disq@vorsteg']])
+    // Entfernt man das Verborgene, ist der Starter wieder offen.
+    const bereinigt = { ...frontal, eingaben: setzeWerte(frontal.eingaben, verborgen.map((z) => ({ ...z, wert: '' }))) }
+    expect(zeile(ergebnis(bereinigt).laeufe[0].nachNummer, '402')).toMatchObject({ disq: false, offen: true })
   })
 })
 

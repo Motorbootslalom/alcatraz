@@ -22,7 +22,17 @@ const aufbauten = computed(() => manoeverAufbauten(state.value.eigeneAufbauten))
 const vorschauOffen = merke('veranstaltung.vorschau', false)
 
 const KINDS: EventKind[] = ['meisterschaft', 'club']
-const ORIGINS: OriginMode[] = ['verein', 'bundesland', 'none']
+const ORIGINS: OriginMode[] = ['verein', 'bundesland', 'land', 'none']
+
+/** Ein anderer Aufbau kann schon Erfasstes anders werten (lib/eingaben.ts) – dann erst fragen. */
+function onAufbau(e: Event) {
+  const select = e.target as HTMLSelectElement
+  if (Object.keys(state.value.eingaben).length > 0 && !confirm(t('entries.setupConfirm'))) {
+    select.value = state.value.aufbau
+    return
+  }
+  dispatch({ type: 'SET_AUFBAU', aufbau: select.value })
+}
 
 function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
   const value = parseInt((e.target as HTMLInputElement).value, 10)
@@ -112,7 +122,7 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
           id="ev-aufbau"
           class="input"
           :value="state.aufbau"
-          @change="dispatch({ type: 'SET_AUFBAU', aufbau: ($event.target as HTMLSelectElement).value })"
+          @change="onAufbau"
         >
           <option v-for="a in aufbauten" :key="a.id" :value="a.id">
             {{ a.eigen ? t('event.setupOwn', { name: a.name }) : a.name }}

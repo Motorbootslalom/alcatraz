@@ -265,4 +265,28 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     expect(nummern(wrapper, 'steg')[0]).toBe('M1')
     wrapper.unmount()
   })
+
+  it('Clubmeisterschaft: die Beispielansicht zeigt den gemeinsamen Bogen – eine Leerzeile je Klasse, ohne Bild', async () => {
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    const wrapper = ansicht(store)
+    await waehle(wrapper, '2')
+    await zeige(wrapper, 'gate135')
+    const blatt = wrapper.find('.wkr-vorschau .bogen[data-liste="gate135"]')
+    // Klasse 2 fährt mit E, 1 und 3 auf Parcours 1: alle vier stehen auf dem Bogen, jede mit Muster-Nummern.
+    const zeilen = blatt.findAll('.bogen-tabelle > tbody > tr')
+    const ueber = zeilen.filter((z) => z.classes('bt-zwischen')).map((z) => z.text())
+    expect([...ueber].sort()).toEqual(['Klasse 1', 'Klasse 2', 'Klasse 3', 'Klasse E'])
+    const nummern = blatt.findAll('td.bt-nr').map((td) => td.text())
+    expect(nummern.filter((n) => n.startsWith('M'))).toHaveLength(40)
+    // Papier sparen ist die Vorgabe: kein Parcoursbild, eine Leerzeile je Klasse.
+    expect(nummern.filter((n) => n === '')).toHaveLength(4)
+    expect(blatt.find('.bogen-bild').exists()).toBe(false)
+    expect(blatt.find('.bogen-kennzeichen').text()).toBe('Beispielansicht')
+    // Ohne Papier sparen bleibt die Liste mit Bild je Klasse.
+    store.dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: false })
+    await nextTick()
+    expect(wrapper.findAll('.wkr-vorschau .bogen[data-liste="gate135"] td.bt-nr').map((td) => td.text()).filter((n) => n.startsWith('M'))).toHaveLength(10)
+    wrapper.unmount()
+  })
+
 })

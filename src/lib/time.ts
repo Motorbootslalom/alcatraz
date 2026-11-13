@@ -15,6 +15,10 @@
 //                                   Beispiel: 1,2345 → 1:23,45
 //                                             1      → 1:00,00
 //
+// Wer die Zeit so abtippt, wie die Uhr sie zeigt, schreibt einen Doppelpunkt: "1:23,45".
+// Der ist dann eindeutig der Trenner zwischen Minuten und Sekunden. (Früher fiel er einfach
+// weg – aus 1:23,45 wurden stillschweigend 123,45 Sekunden.)
+//
 // Ergebnis wird intern immer als Gesamt-Hundertstel gespeichert, sodass
 // gerechnet werden kann. Anzeige nach Verlassen des Feldes: "mm:ss,00 (ss,00)".
 
@@ -25,17 +29,24 @@ export interface ParsedTime {
 
 const SEP = /[.,]/
 
-/** Nur Ziffern und ein Trenner zulassen (für die Live-Eingabe). */
-export function sanitizeTimeInput(raw: string): string {
+/**
+ * Nur Ziffern, ein Trenner und davor höchstens ein Doppelpunkt (für die Live-Eingabe).
+ * `trenner` ist das Zeichen, als das Komma oder Punkt erscheinen (Sprache der Oberfläche).
+ */
+export function sanitizeTimeInput(raw: string, trenner: ',' | '.' = ','): string {
   // erste Trennstelle behalten, weitere entfernen, Rest auf Ziffern beschränken
   let seenSep = false
+  let seenColon = false
   let out = ''
   for (const ch of raw) {
     if (/[0-9]/.test(ch)) {
       out += ch
     } else if (SEP.test(ch) && !seenSep) {
-      out += ','
+      out += trenner
       seenSep = true
+    } else if (ch === ':' && !seenColon && !seenSep && out !== '') {
+      out += ':'
+      seenColon = true
     }
   }
   return out
@@ -48,6 +59,13 @@ export function sanitizeTimeInput(raw: string): string {
 export function parseTime(raw: string): ParsedTime | null {
   const s = raw.trim()
   if (s === '') return null
+
+  // "m:ss" oder "m:ss,hh": so, wie die Uhr es zeigt. Unvollständiges ("1:", "1:75") gilt nicht.
+  if (s.includes(':')) {
+    const m = /^(\d{1,2}):(\d{1,2})(?:[.,](\d*))?$/.exec(s)
+    if (!m || parseInt(m[2], 10) > 59) return null
+    return { centis: parseInt(m[1], 10) * 6000 + parseInt(m[2], 10) * 100 + padHundredths(m[3] ?? '') }
+  }
 
   const parts = s.split(SEP)
   const before = parts[0] ?? ''

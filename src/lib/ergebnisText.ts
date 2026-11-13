@@ -1,13 +1,22 @@
 import { locale, t, type MessageKey } from '../i18n'
 import type { AbstandArt } from './ergebnis'
-import { formatClock, formatSeconds } from './time'
+import { formatClock, formatSeconds, formatTimeDisplay } from './time'
 
 // Texte der Ergebnislisten in der Sprache der Oberfläche: Zahlen mit Komma oder Punkt,
 // „disq.“, und die wenigen Spaltenkürzel des Fahrwegs, die ein deutsches Wort sind. Reaktiv,
 // weil `t()` und `locale` es sind.
 
 /** Dezimalkomma im Deutschen, Punkt im Englischen. */
-const dezimal = (text: string) => (locale.value === 'de' ? text : text.replace(',', '.'))
+const dezimal = (text: string) => (locale.value === 'de' ? text : text.replaceAll(',', '.'))
+
+/** Das Dezimalzeichen der Sprache – so erscheinen Zeiten auch beim Tippen. */
+export const dezimalZeichen = (): ',' | '.' => (locale.value === 'de' ? ',' : '.')
+
+/** Eine Zeit in der Erfassung nach dem Verlassen des Feldes: „mm:ss,00 (ss,00)“. */
+export const zeitAnzeige = (centis: number) => dezimal(formatTimeDisplay(centis))
+
+/** Eine Roh-Eingabe („1,2345“) mit dem Dezimalzeichen der Sprache, zum Weitertippen. */
+export const zeitRoh = (roh: string) => (locale.value === 'de' ? roh : roh.replace(',', '.'))
 
 /** Gefahrene Zeit als „mm:ss,00“. */
 export const zeitText = (centis: number | null) => (centis === null ? '' : dezimal(formatClock(centis)))

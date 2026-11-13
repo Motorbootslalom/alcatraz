@@ -18,11 +18,16 @@ const props = defineProps<{
   mitKnoten: boolean
   abstand?: AbstandArt
   herkunft?: { titel: string; text: (p: Starter) => string; zeichen: number }
+  /** Namen: voll, Nachname gekürzt („M.“) oder gar nicht (Aushang – dann steht nur die Startnummer da). */
+  namen?: 'voll' | 'kurz' | 'ohne'
   geburtsdatum?: boolean
 }>()
 
+/** Für den Aushang lässt sich der Nachname auf den Anfangsbuchstaben kürzen. */
+const nachname = (p: Starter) => (props.namen === 'kurz' && p.nachname.trim() ? `${[...p.nachname.trim()][0]}.` : p.nachname)
+
 const spaltenZahl = computed(
-  () => 6 + (props.mitKnoten ? 1 : 0) + (props.herkunft ? 1 : 0) + (props.geburtsdatum ? 1 : 0) + (props.abstand ? 1 : 0) + props.laeufe.length * 4,
+  () => 6 - (props.namen === 'ohne' ? 2 : 0) + (props.mitKnoten ? 1 : 0) + (props.herkunft ? 1 : 0) + (props.geburtsdatum ? 1 : 0) + (props.abstand ? 1 : 0) + props.laeufe.length * 4,
 )
 const abstandWerte = computed(() => (props.abstand ? abstaende(props.zeilen, props.abstand) : []))
 const gestrichen = (z: GesamtZeile, li: number) => z.gestrichen.includes(props.laeufe[li])
@@ -37,8 +42,8 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
       <colgroup>
         <col class="erg-w-platz" />
         <col class="erg-w-nr" />
-        <col class="erg-w-name" />
-        <col class="erg-w-vorname" />
+        <col v-if="namen !== 'ohne'" class="erg-w-name" />
+        <col v-if="namen !== 'ohne'" class="erg-w-vorname" />
         <col v-if="herkunft" class="erg-w-herkunft" :style="{ width: `${herkunftMm}mm` }" />
         <col v-if="geburtsdatum" class="erg-w-geb" />
         <template v-for="l in laeufe" :key="l">
@@ -65,8 +70,8 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
         <tr class="erg-spaltenkopf">
           <th rowspan="2">{{ t('results.place') }}</th>
           <th rowspan="2">{{ t('common.startNr') }}</th>
-          <th rowspan="2">{{ t('common.lastName') }}</th>
-          <th rowspan="2">{{ t('common.firstName') }}</th>
+          <th v-if="namen !== 'ohne'" rowspan="2">{{ t('common.lastName') }}</th>
+          <th v-if="namen !== 'ohne'" rowspan="2">{{ t('common.firstName') }}</th>
           <th v-if="herkunft" rowspan="2">{{ herkunft.titel }}</th>
           <th v-if="geburtsdatum" rowspan="2">{{ t('common.birthdate') }}</th>
           <th v-for="l in laeufe" :key="l" colspan="4" class="erg-gruppe">{{ t('lists.wkr.runN', { n: l }) }}</th>
@@ -90,8 +95,8 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
         <tr v-for="(z, i) in zeilen" :key="z.starter.id" :class="(i + 1) % 5 === 0 ? 'grau' : undefined" :data-starter="z.starter.id" :data-wertung="z.disq ? 'disq' : z.offen ? 'offen' : 'gewertet'">
           <td class="erg-platz">{{ z.platz }}</td>
           <td>{{ z.starter.startNr }}</td>
-          <td :class="fit(z.starter.nachname, 14)">{{ z.starter.nachname }}</td>
-          <td :class="fit(z.starter.vorname, 12)">{{ z.starter.vorname }}</td>
+          <td v-if="namen !== 'ohne'" :class="fit(nachname(z.starter), 14)">{{ nachname(z.starter) }}</td>
+          <td v-if="namen !== 'ohne'" :class="fit(z.starter.vorname, 12)">{{ z.starter.vorname }}</td>
           <td v-if="herkunft" :class="fit(herkunft.text(z.starter), Math.floor((herkunftMm - 2) / 1.2))">{{ herkunft.text(z.starter) }}</td>
           <td v-if="geburtsdatum">{{ z.starter.geburtsdatum ? formatDate(z.starter.geburtsdatum) : '' }}</td>
           <template v-for="(l, li) in z.laeufe" :key="li">

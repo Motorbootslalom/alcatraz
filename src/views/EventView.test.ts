@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import EventView from './EventView.vue'
 import { createStore, storeKey, type Store } from '../state/store'
@@ -51,4 +51,29 @@ describe('Veranstaltung', () => {
     wrapper.unmount()
   })
 
+  it('Aufbau wechseln mit schon erfassten Werten: erst nach Rückfrage – sie nennt, was sich ändern kann', async () => {
+    store.dispatch({ type: 'ADD_STARTERS', starters: [{ id: 'p1', startNr: '401', vorname: 'Vor', nachname: 'Nach', verein: '', bundesland: '', geburtsdatum: '', klasse: '4', groesse: '' }] })
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: 'p1', feld: 'zeit1', wert: '80' }] })
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    const vorher = store.state.value.aufbau
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal('confirm', confirm)
+    const wahl = wrapper.find('#ev-aufbau')
+    await wahl.setValue('berlin')
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(confirm.mock.calls[0].join()).toContain('Lichtschranke')
+    // Abgelehnt: Stand und Auswahlfeld bleiben beim alten Aufbau.
+    expect(store.state.value.aufbau).toBe(vorher)
+    expect((wahl.element as HTMLSelectElement).value).toBe(vorher)
+    confirm.mockReturnValue(true)
+    await wahl.setValue('berlin')
+    expect(store.state.value.aufbau).toBe('berlin')
+    // Ohne erfasste Werte wird nicht gefragt.
+    store.dispatch({ type: 'CLEAR_EINGABEN' })
+    await wahl.setValue('frontal')
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(store.state.value.aufbau).toBe('frontal')
+    vi.unstubAllGlobals()
+    wrapper.unmount()
+  })
 })

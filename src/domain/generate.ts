@@ -4,6 +4,9 @@ import { CLUBS, BUNDESLAENDER } from '../data/clubs'
 import { VORNAMEN_M, VORNAMEN_W, NACHNAMEN } from '../data/names'
 import { SIZES } from './sizes'
 
+/** Staaten für erfundene Starter eines internationalen Wettkampfs. */
+const LAENDER = ['Deutschland', 'Österreich', 'Schweiz', 'Polen', 'Tschechien', 'Lettland', 'Estland', 'Litauen', 'Italien', 'Ungarn']
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
@@ -63,7 +66,13 @@ export function generateStarter(
 
   let verein: string
   let bundesland: string
-  if (originMode === 'bundesland') {
+  let land: string | undefined
+  if (originMode === 'land') {
+    // International: nur der Staat.
+    land = pick(LAENDER)
+    verein = ''
+    bundesland = ''
+  } else if (originMode === 'bundesland') {
     // Reiner Bundesland-Modus: kein konkreter Verein, nur das Bundesland.
     bundesland = pick(BUNDESLAENDER)
     verein = ''
@@ -80,6 +89,7 @@ export function generateStarter(
     nachname,
     verein,
     bundesland,
+    ...(land ? { land } : {}),
     geburtsdatum: randomGeburtsdatum(klasse, eventJahr),
     klasse,
     groesse: pick(SIZES as readonly string[] as string[]),

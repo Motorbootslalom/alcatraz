@@ -234,7 +234,14 @@ describe('Leerzeilen der Wettkampfrichter-Listen', () => {
   it('Rückseite ein- und ausschalten', () => {
     expect(emptyState().wkrRueckseite).toBe(false)
     expect(reducer(emptyState(), { type: 'SET_WKR_RUECKSEITE', rueckseite: true }).wkrRueckseite).toBe(true)
-    expect(emptyState().wkrClubGemeinsam).toBe(false)
-    expect(reducer(emptyState(), { type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: true }).wkrClubGemeinsam).toBe(true)
+    // Papier sparen ist die Vorgabe; es wirkt nur bei der Clubmeisterschaft.
+    expect(emptyState().wkrClubGemeinsam).toBe(true)
+    expect(reducer(emptyState(), { type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: false }).wkrClubGemeinsam).toBe(false)
+    // Clubmeisterschaft: eine Leerzeile je Klasse statt drei – und zurück. Eine selbst gewählte Zahl bleibt.
+    const alsClub = reducer(emptyState(), { type: 'SET_EVENT_KIND', eventKind: 'club' })
+    expect(alsClub).toMatchObject({ wkrLeerzeilen: 1, wkrClubGemeinsam: true })
+    expect(reducer(alsClub, { type: 'SET_EVENT_KIND', eventKind: 'meisterschaft' }).wkrLeerzeilen).toBe(3)
+    const eigene = reducer(emptyState(), { type: 'SET_WKR_LEERZEILEN', anzahl: 5 })
+    expect(reducer(eigene, { type: 'SET_EVENT_KIND', eventKind: 'club' }).wkrLeerzeilen).toBe(5)
   })
 })

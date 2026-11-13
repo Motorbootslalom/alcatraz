@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { configFor } from '../config/konfig'
+import type { ClassId, Starter } from '../types'
 import {
   erfasstKennung,
+  gueltigeZellen,
+  starterMitEingaben,
+  verborgeneZellen,
   feldVon,
   felderJeKennung,
   laufSchluessel,
@@ -10,7 +14,6 @@ import {
   normalisiereEingaben,
   nurStarter,
   OHNE_LAUF,
-  ohneLauf,
   setzeWerte,
   vergleicheNr,
   werteVon,
@@ -114,12 +117,6 @@ describe('Aufräumen', () => {
     expect(nurStarter(voll, new Set(['s1', 's2']))).toBe(voll)
   })
 
-  it('ohneLauf: ein Lauf oder alles', () => {
-    expect(Object.keys(ohneLauf(voll, 2))).toEqual([L1])
-    expect(ohneLauf(voll, 3)).toBe(voll)
-    expect(ohneLauf(voll)).toEqual({})
-  })
-
   it('normalisiereEingaben: nur brauchbare Zeichenketten überleben', () => {
     expect(normalisiereEingaben(undefined)).toEqual({})
     expect(normalisiereEingaben([1, 2])).toEqual({})
@@ -138,3 +135,77 @@ describe('vergleicheNr', () => {
     expect(['E10', '401', 'E2', '99'].sort(vergleicheNr)).toEqual(['99', '401', 'E2', 'E10'])
   })
 })
+
+describe('Schutz vor kaputten Schlüsseln', () => {
+  it('eine präparierte Sicherung erreicht den Prototyp aller Objekte nicht', () => {
+    // JSON.parse liefert `__proto__` als eigene Eigenschaft – ungeprüft landete der Wert in Object.prototype.
+    const roh = JSON.parse('{"manoevrieren/1": {"__proto__": {"verseucht": "ja"}, "s1": {"__proto__": "x", "constructor": "y", "zeit1": "80"}}, "__proto__": {"s1": {"zeit1": "1"}}}')
+    expect(normalisiereEingaben(roh)).toEqual({ 'manoevrieren/1': { s1: { zeit1: '80' } } })
+    expect(({} as Record<string, unknown>).verseucht).toBeUndefined()
+    expect(Object.prototype).not.toHaveProperty('verseucht')
+  })
+
+  it('setzeWerte übergeht dieselben Schlüssel', () => {
+    const nach = setzeWerte({}, [
+      { lauf: L1, starter: '__proto__', feld: 'verseucht', wert: 'ja' },
+      { lauf: L1, starter: 's1', feld: '__proto__', wert: 'ja' },
+      { lauf: '__proto__', starter: 's1', feld: 'zeit1', wert: '80' },
+      { lauf: L1, starter: 'constructor', feld: 'zeit1', wert: '80' },
+    ])
+    expect(nach).toEqual({})
+    expect(({} as Record<string, unknown>).verseucht).toBeUndefined()
+  })
+
+  it('gueltigeZellen: nur bekannte Starter und Lauf-Schlüssel nach Muster – dieselbe Regel wie beim Laden', () => {
+    const zellen = [
+      { lauf: L1, starter: 's1', feld: 'zeit1', wert: '80' },
+      { lauf: L1, starter: 'gibtsnicht', feld: 'zeit1', wert: '80' },
+      { lauf: 'quatsch', starter: 's1', feld: 'zeit1', wert: '80' },
+      { lauf: L1, starter: 's1', feld: '', wert: '80' },
+      { lauf: L1, starter: 's1', feld: 'zeit2', wert: '' },
+    ]
+    expect(gueltigeZellen(zellen, new Set(['s1']))).toEqual([zellen[0], zellen[4]])
+  })
+})
+
+describe('Werte, die keine Liste mehr zeigt', () => {
+  const starter = (id: string, klasse: ClassId): Starter => ({ id, startNr: id, vorname: 'Vor', nachname: id, verein: '', bundesland: '', geburtsdatum: '', klasse, groesse: '' })
+  const stand = (extra: Partial<Parameters<typeof verborgeneZellen>[0]> = {}) => ({
+    aufbau: 'alcatraz',
+    laufCount: 3,
+    starters: [starter('s1', '4'), starter('s2', '1')],
+    eingaben: setzeWerte({}, [
+      { lauf: L1, starter: 's1', feld: 'zeit1', wert: '80' },
+      { lauf: L1, starter: 's1', feld: 'katalog:mueb', wert: '17' },
+      { lauf: L1, starter: 's1', feld: erfasstKennung('mueb'), wert: '1' },
+      { lauf: laufSchluessel('manoevrieren', 3), starter: 's2', feld: 'zeit1', wert: '70' },
+    ]),
+    ...extra,
+  })
+
+  it('im passenden Stand ist nichts verborgen', () => {
+    expect(feldVon(konfig, 'mueb', '4', 'fehler')?.kennung).toBe('katalog:mueb')
+    expect(verborgeneZellen(stand(), konfig)).toEqual([])
+    expect([...starterMitEingaben(stand().eingaben)].sort()).toEqual(['s1', 's2'])
+  })
+
+  it('weniger Läufe: Die Werte der weggefallenen Läufe sind gemeldet', () => {
+    const v = verborgeneZellen(stand({ laufCount: 2 }), konfig)
+    expect(v).toEqual([{ lauf: 'manoevrieren/3', starter: 's2', feld: 'zeit1', wert: '70' }])
+    // Entfernen leert genau diese Zellen.
+    expect(Object.keys(setzeWerte(stand().eingaben, v.map((z) => ({ ...z, wert: '' }))))).toEqual([L1])
+  })
+
+  it('Klassenwechsel: Was die neue Klasse nicht hat (Mann über Bord), samt Haken der Liste', () => {
+    const gewechselt = stand({ starters: [starter('s1', '1'), starter('s2', '1')] })
+    expect(verborgeneZellen(gewechselt, konfig).map((z) => z.feld).sort()).toEqual(['erfasst@mueb', 'katalog:mueb'])
+  })
+
+  it('auch Werte eines Starters, den es nicht mehr gibt, und einer anderen Disziplin', () => {
+    const fremd = stand({ starters: [starter('s1', '4')] })
+    expect(verborgeneZellen(fremd, konfig).map((z) => z.starter)).toEqual(['s2'])
+    const andere = { ...stand(), eingaben: { 'parallel/1': { s1: { zeit1: '30' } } } }
+    expect(verborgeneZellen(andere, konfig)).toHaveLength(1)
+  })
+})
+

@@ -1,4 +1,4 @@
-import type { CellKind, Eingaben, ErrorDef, Geraet, SheetDef } from '../types'
+import type { AppState, CellKind, Eingaben, ErrorDef, Geraet, SheetDef } from '../types'
 import { defFuerKlasse } from './bogen'
 import { normalizeCodeCell } from './codes'
 import { allowedSet, sanitizeBuoy, sanitizeDisq } from './disq'
@@ -167,7 +167,7 @@ const LEER: Readonly<Record<string, string>> = Object.freeze({})
 export function setzeWerte(eingaben: Eingaben, zellen: readonly EingabeZelle[]): Eingaben {
   let out = eingaben
   for (const { lauf, starter, feld, wert } of zellen) {
-    if (!lauf || !starter || !feld) continue
+    if (!lauf || !starter || !feld || [lauf, starter, feld].some(gesperrt)) continue
     if ((out[lauf]?.[starter]?.[feld] ?? '') === wert) continue
     const werte = { ...out[lauf]?.[starter] }
     if (wert === '') delete werte[feld]
@@ -194,11 +194,67 @@ export function nurStarter(eingaben: Eingaben, ids: ReadonlySet<string>): Eingab
   return geaendert ? out : eingaben
 }
 
-/** Die Eingaben ohne einen Lauf (alle Disziplinen) bzw. ganz leer. */
-export function ohneLauf(eingaben: Eingaben, lauf?: number): Eingaben {
-  if (lauf === undefined) return Object.keys(eingaben).length > 0 ? {} : eingaben
-  const bleiben = Object.entries(eingaben).filter(([schluessel]) => zerlegeLauf(schluessel).lauf !== lauf)
-  return bleiben.length === Object.keys(eingaben).length ? eingaben : Object.fromEntries(bleiben)
+/** Die Starter, für die irgendetwas erfasst ist. */
+export function starterMitEingaben(eingaben: Eingaben): Set<string> {
+  return new Set(Object.values(eingaben).flatMap((zeilen) => Object.keys(zeilen)))
+}
+
+/** So ist ein Lauf-Schlüssel gebaut: „Disziplin/Lauf“. */
+const LAUF_MUSTER = /^[^/]+\/\d+$/
+
+// Als Schlüssel eines gewöhnlichen Objekts träfen diese Namen dessen Prototyp – aus einer
+// präparierten Sicherung heraus sogar den aller Objekte.
+const gesperrt = (schluessel: string) => schluessel === '__proto__' || schluessel === 'constructor' || schluessel === 'prototype'
+
+/**
+ * Nur Zellen, die in den Stand gehören: Lauf-Schlüssel nach Muster und ein bekannter Starter.
+ * Dieselbe Regel wendet `migrate` beim Laden an – ohne sie stünde im Speicher etwas anderes
+ * als nach dem Neuladen, etwa wenn später ein Bündel von einem Gerät eintrifft, nachdem der
+ * Starter gelöscht wurde.
+ */
+export function gueltigeZellen(zellen: readonly EingabeZelle[], starter: ReadonlySet<string>): EingabeZelle[] {
+  return zellen.filter((z) => LAUF_MUSTER.test(z.lauf) && starter.has(z.starter) && typeof z.feld === 'string' && z.feld !== '' && typeof z.wert === 'string')
+}
+
+/**
+ * Erfasste Werte, die keine Ansicht mehr zeigt: aus einem Lauf jenseits der Zahl der Läufe,
+ * aus einer anderen Disziplin, oder in einem Feld, das der Aufbau für die Klasse des Starters
+ * nicht hat (nach einem Wechsel des Aufbaus oder der Klasse). Sie stehen weiter im Stand und
+ * in jeder Sicherung, und Zeiten oder Disqualifikationen darunter zählen in der Wertung mit –
+ * deshalb zeigt die Oberfläche ihre Zahl und bietet an, sie zu entfernen.
+ */
+export function verborgeneZellen(stand: Pick<AppState, 'aufbau' | 'eingaben' | 'starters' | 'laufCount'>, konfig: EingabenKonfig): EingabeZelle[] {
+  const disziplin = konfig.getAufbau(stand.aufbau).disziplin
+  const listen = konfig.aufbauOrder(stand.aufbau, false)
+  const klasseVon = new Map(stand.starters.map((s) => [s.id, s.klasse]))
+  // Je Klasse die Kennungen, die die Erfassung zeigt: mit Lauf und ohne (Knoten).
+  const sichtbar = new Map<string, Set<string>>()
+  const kennungen = (klasse: string, ohneLauf: boolean): Set<string> => {
+    const schluessel = `${klasse}|${ohneLauf}`
+    let menge = sichtbar.get(schluessel)
+    if (!menge) {
+      menge = new Set<string>()
+      for (const typeId of listen) {
+        if (!konfig.positionAllowsClass(typeId, klasse) || (konfig.getSheetDef(typeId).showLauf === false) !== ohneLauf) continue
+        menge.add(erfasstKennung(typeId))
+        for (const feld of felderVon(konfig, typeId, klasse).liste) menge.add(feld.kennung)
+      }
+      sichtbar.set(schluessel, menge)
+    }
+    return menge
+  }
+  const out: EingabeZelle[] = []
+  for (const [schluessel, zeilen] of Object.entries(stand.eingaben)) {
+    const { disziplin: d, lauf } = zerlegeLauf(schluessel)
+    const laufFehlt = d !== disziplin || lauf > Math.max(1, stand.laufCount)
+    for (const [starter, werte] of Object.entries(zeilen)) {
+      const klasse = klasseVon.get(starter)
+      for (const [feld, wert] of Object.entries(werte)) {
+        if (laufFehlt || klasse === undefined || !kennungen(klasse, lauf === OHNE_LAUF).has(feld)) out.push({ lauf: schluessel, starter, feld, wert })
+      }
+    }
+  }
+  return out
 }
 
 /**
@@ -209,11 +265,11 @@ export function normalisiereEingaben(raw: unknown): Eingaben {
   const out: Eingaben = {}
   if (!istObjekt(raw)) return out
   for (const [lauf, zeilen] of Object.entries(raw)) {
-    if (!istObjekt(zeilen) || !/^[^/]+\/\d+$/.test(lauf)) continue
+    if (!istObjekt(zeilen) || !LAUF_MUSTER.test(lauf)) continue
     for (const [starter, werte] of Object.entries(zeilen)) {
-      if (!istObjekt(werte)) continue
+      if (!istObjekt(werte) || gesperrt(starter)) continue
       for (const [feld, wert] of Object.entries(werte)) {
-        if (typeof wert === 'string' && wert !== '') ((out[lauf] ??= {})[starter] ??= {})[feld] = wert
+        if (typeof wert === 'string' && wert !== '' && !gesperrt(feld)) ((out[lauf] ??= {})[starter] ??= {})[feld] = wert
       }
     }
   }

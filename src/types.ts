@@ -3,7 +3,7 @@ import type { RawAufbau } from './config/schema'
 export type ClassId = 'E' | '1' | '2' | '3' | '4' | '5' | '6' | '7'
 
 /** Welche Herkunft gezeigt wird. `none` blendet sie aus (Clubmeisterschaft). */
-export type OriginMode = 'verein' | 'bundesland' | 'none'
+export type OriginMode = 'verein' | 'bundesland' | 'land' | 'none'
 
 export type WechselFaktor = 1 | 2 | 3 | 4
 
@@ -44,6 +44,8 @@ export interface Starter {
   verein: string
   /** Bundesland des Vereins */
   bundesland: string
+  /** Staat, für den ein Starter antritt (internationale Wettkämpfe); fehlt bei rein nationalen. */
+  land?: string
   /** Geburtsdatum ISO (YYYY-MM-DD) */
   geburtsdatum: string
   klasse: ClassId
@@ -228,9 +230,24 @@ export interface AppState extends PlanState {
    * Clubmeisterschaft, Papier sparen: Alle Klassen einer Liste stehen auf einem Bogen, auch
    * wenn ihre Spalten oder Zeichnungen verschieden sind. Dafür entfällt das Parcoursbild, und
    * Spalten, die eine Klasse nicht hat, sind in deren Zeilen schraffiert. Aus = Listen mit
-   * Bild bleiben je Klasse (jede sieht ihre eigene Zeichnung).
+   * Bild bleiben je Klasse (jede sieht ihre eigene Zeichnung). Vorgabe an; wirkt nur bei der
+   * Clubmeisterschaft.
    */
   wkrClubGemeinsam: boolean
+  /**
+   * Was auf den Ergebnislisten steht, je Fassung: „Aushang“ (öffentlich – Namen wahlweise
+   * gekürzt oder gar nicht) und „Intern“ (immer mit vollem Namen). Die Herkunft je Fassung
+   * nicht, als Kürzel oder ausgeschrieben.
+   */
+  ergebnisListen: ErgebnisListenOptionen
+}
+
+export type ErgebnisNamen = 'voll' | 'kurz' | 'ohne'
+export type ErgebnisHerkunft = 'aus' | 'kurz' | 'lang'
+export type ErgebnisFassung = 'aushang' | 'intern'
+export interface ErgebnisListenOptionen {
+  aushang: { namen: ErgebnisNamen; herkunft: ErgebnisHerkunft }
+  intern: { herkunft: ErgebnisHerkunft }
 }
 
 // ---------------------------------------------------------------------------

@@ -39,11 +39,22 @@ describe('reducer: Eingaben', () => {
     expect(mit(steg, zeit).eingaben).toEqual(mit(zeit, steg).eingaben)
   })
 
-  it('CLEAR_EINGABEN: ein Lauf oder alles', () => {
+  it('CLEAR_EINGABEN verwirft alles', () => {
     const s = mit({ type: 'SET_EINGABEN', zellen: [zelle('a', 'zeit1', '80'), zelle('a', 'zeit1', '81', L2)] })
-    expect(Object.keys(reducer(s, { type: 'CLEAR_EINGABEN', lauf: 1 }).eingaben)).toEqual([L2])
     expect(reducer(s, { type: 'CLEAR_EINGABEN' }).eingaben).toEqual({})
     expect(reducer(mit(), { type: 'CLEAR_EINGABEN' })).toEqual(mit())
+  })
+
+  it('SET_EINGABEN nimmt nur Zellen bekannter Starter und brauchbarer Lauf-Schlüssel an – wie migrate beim Laden', () => {
+    // Etwa ein Bündel von einem Gerät, das eintrifft, nachdem der Starter gelöscht wurde.
+    const vorher = mit()
+    const s = reducer(vorher, { type: 'SET_EINGABEN', zellen: [zelle('gibtsnicht', 'zeit1', '80'), zelle('a', 'zeit1', '80', 'quatsch'), zelle('__proto__', 'verseucht', 'ja')] })
+    expect(s).toBe(vorher)
+    expect(({} as Record<string, unknown>).verseucht).toBeUndefined()
+    // Der Stand im Speicher ist derselbe wie nach dem Neuladen.
+    const gemischt = reducer(vorher, { type: 'SET_EINGABEN', zellen: [zelle('gibtsnicht', 'zeit1', '80'), zelle('a', 'zeit1', '81')] })
+    expect(gemischt.eingaben).toEqual({ [L1]: { a: { zeit1: '81' } } })
+    expect(migrate(JSON.parse(JSON.stringify(gemischt)))!.eingaben).toEqual(gemischt.eingaben)
   })
 
   it('mit einem Starter gehen seine Eingaben – beim Löschen, Leeren der Klasse und Ersetzen der Liste', () => {
@@ -99,6 +110,15 @@ describe('migrate: Eingaben', () => {
     expect(neu.eingaben).toEqual({ [L1]: { a: { zeit1: '80' } } })
     expect(neu.streichlaeufe).toBe(1)
     expect(migrate({ ...mit(), streichlaeufe: 'viele' })!.streichlaeufe).toBe('auto')
+  })
+})
+
+describe('migrate: präparierte Datei', () => {
+  it('ein Schlüssel __proto__ in den Eingaben verändert Object.prototype nicht', () => {
+    const roh = JSON.parse(JSON.stringify(mit()))
+    roh.eingaben = JSON.parse('{"manoevrieren/1": {"__proto__": {"verseucht": "ja"}, "a": {"zeit1": "80"}}}')
+    expect(migrate(roh)!.eingaben).toEqual({ [L1]: { a: { zeit1: '80' } } })
+    expect(({} as Record<string, unknown>).verseucht).toBeUndefined()
   })
 })
 

@@ -78,6 +78,10 @@
   overflow-x: auto;
   border: 2px solid var(--blatt-linie);
   background: var(--blatt-bg);
+  /* Beim Zurückgehen (←, Umschalt+Tab) rollt der Browser das Feld an den linken Rand – dorthin,
+     wo die stehende Nummern-Spalte liegt. Mit diesem Abstand (etwas mehr als die Spalte breit
+     ist) landet es daneben statt darunter. */
+  scroll-padding-left: 96px;
 }
 
 /* Getrennte Rahmen statt border-collapse: Nur so behält die stehende erste Spalte beim Rollen ihre Linien. */

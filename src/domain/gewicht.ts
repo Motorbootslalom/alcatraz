@@ -38,7 +38,7 @@ export interface GewichtsGruppe {
  * Startnummer – gewogen wird beim Check-in, oft bevor es Nummern gibt.
  */
 export function gewichtsGruppen(starters: Starter[], mode: OriginMode): GewichtsGruppe[] {
-  const originOf = (p: Starter) => (mode === 'none' ? '' : mode === 'bundesland' ? p.bundesland : p.verein || p.bundesland)
+  const originOf = (p: Starter) => (mode === 'none' ? '' : mode === 'land' ? (p.land ?? '') : mode === 'bundesland' ? p.bundesland : p.verein || p.bundesland)
   const groups = new Map<string, Starter[]>()
   for (const p of starters) {
     const origin = originOf(p).trim()

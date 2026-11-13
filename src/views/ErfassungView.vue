@@ -11,6 +11,7 @@ import { PROTOTYP_URL } from '../lib/prototyp'
 import { t, tn } from '../i18n'
 import type { ClassId } from '../types'
 import ErfassungTabelle from '../components/erfassung/ErfassungTabelle.vue'
+import EingabenHinweis from '../components/EingabenHinweis.vue'
 
 /**
  * Erfassung: die ausgefüllten Wettkampfrichter-Listen nach dem Lauf abtippen. Gewählt wird
@@ -44,7 +45,7 @@ const alle = computed(() => listen.value.boegen)
 const fehlend = computed(() => state.value.starters.filter((p) => p.startNr.trim() === '').length)
 const doppelt = computed(() => duplicateStartNrIds(state.value.starters, state.value.startNrMode).size)
 
-const wahl = merke<{ parcours?: string; klasse?: ClassId; lauf?: number; liste?: string }>('erfassung.wahl', {})
+const wahl = merke<{ parcours?: string; klasse?: ClassId; lauf?: number; liste?: string }>('erfassung.wahl', {}, { ueberNeuladen: true })
 
 // Jede Stufe grenzt die nächste ein; eine Wahl, die es nicht (mehr) gibt, fällt auf die erste Möglichkeit.
 const parcoursListe = computed(() => state.value.parcoursList.filter((p) => alle.value.some((b) => b.parcoursId === p.id)))
@@ -99,6 +100,7 @@ function weiter() {
       {{ t('capture.noSheets') }} <a href="#/verzahnung">{{ t('nav.verzahnung') }}</a>
     </p>
     <template v-else>
+      <EingabenHinweis />
       <p v-if="fehlend > 0 || doppelt > 0" class="boat-banner warn" role="alert">
         <template v-if="fehlend > 0">{{ tn('lists.missingNumbers', fehlend) }} </template>
         <template v-if="doppelt > 0">{{ tn('lists.duplicateNumbers', doppelt) }} </template>

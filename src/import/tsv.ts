@@ -5,11 +5,12 @@ import { normalizeSize } from '../domain/sizes'
 import { makeStartNr, orderBySize, parseClassNumber, sortedByStartNr } from '../domain/startnumbers'
 import { planEvent } from '../planung/plan'
 import { canonicalRunningNumbers } from '../planung/running'
+import { originOf } from '../lib/origin'
 
 const TAB = '\t'
 
 /** Logische Spalten, die der Import kennt. */
-type Field = 'startNr' | 'klasse' | 'nachname' | 'vorname' | 'verein' | 'bundesland' | 'geburtsdatum' | 'groesse'
+type Field = 'startNr' | 'klasse' | 'nachname' | 'vorname' | 'verein' | 'bundesland' | 'land' | 'geburtsdatum' | 'groesse'
 
 /**
  * Kopfzeilen-Aliasse → logische Spalte. Schlüssel in normalisierter Form (siehe
@@ -38,6 +39,10 @@ const HEADER_ALIASES: Record<string, Field> = {
   land: 'bundesland',
   region: 'bundesland',
   state: 'bundesland',
+  // Eindeutig der Staat; „Land“ allein meint in deutschen Listen meist das Bundesland (siehe `landIstStaat`).
+  country: 'land',
+  nation: 'land',
+  staat: 'land',
   geburtsdatum: 'geburtsdatum',
   geburtstag: 'geburtsdatum',
   geb: 'geburtsdatum',
@@ -70,8 +75,11 @@ function normalizeHeaderCell(cell: string): string {
 }
 
 /** Prüft, ob eine Zeile als Kopfzeile taugt (mind. zwei bekannte Spaltennamen). */
-function detectHeader(cells: string[]): Field[] | null {
-  const mapped = cells.map((c) => HEADER_ALIASES[normalizeHeaderCell(c)])
+function detectHeader(cells: string[], landIstStaat = false): Field[] | null {
+  const mapped = cells.map((c) => {
+    const kopf = normalizeHeaderCell(c)
+    return landIstStaat && kopf === 'land' ? 'land' : HEADER_ALIASES[kopf]
+  })
   const known = mapped.filter(Boolean).length
   return known >= 2 ? mapped.map((f) => f ?? ('' as Field)) : null
 }
@@ -125,7 +133,11 @@ export interface ImportResult {
  * übersprungen und in `skipped` gemeldet. Vorhandene Startnummern werden
  * unverändert übernommen; nur fehlende werden ergänzt.
  */
-export function parseStartersTsv(text: string, options: { assignMissing?: boolean } = {}): ImportResult {
+/**
+ * `landIstStaat`: Die Herkunft der Veranstaltung ist „Land“ – dann meint eine Spalte „Land“
+ * den Staat und nicht, wie sonst in deutschen Listen, das Bundesland.
+ */
+export function parseStartersTsv(text: string, options: { assignMissing?: boolean; landIstStaat?: boolean } = {}): ImportResult {
   const lines = text
     .replace(/\r\n?/g, '\n')
     .split('\n')
@@ -137,7 +149,7 @@ export function parseStartersTsv(text: string, options: { assignMissing?: boolea
   }
 
   const firstCells = lines[0].split(TAB)
-  const header = detectHeader(firstCells)
+  const header = detectHeader(firstCells, options.landIstStaat)
   const usedHeader = header !== null
   const fields = header ?? FIXED_ORDER
   const dataLines = usedHeader ? lines.slice(1) : lines
@@ -170,6 +182,7 @@ export function parseStartersTsv(text: string, options: { assignMissing?: boolea
       nachname,
       verein: get('verein'),
       bundesland: get('bundesland'),
+      ...(get('land') ? { land: get('land') } : {}),
       geburtsdatum: parseGeburtsdatum(get('geburtsdatum')),
       klasse,
       groesse: normalizeSize(get('groesse')),
@@ -291,7 +304,7 @@ export function formatStartlistTsv(state: PlanState): string {
     'Klasse',
     'Nachname',
     'Vorname',
-    state.originMode === 'bundesland' ? 'Bundesland' : 'Verein',
+    state.originMode === 'bundesland' ? 'Bundesland' : state.originMode === 'land' ? 'Land' : 'Verein',
     'Größe',
   ])
   const rows: string[] = []
@@ -309,7 +322,7 @@ export function formatStartlistTsv(state: PlanState): string {
           p.klasse,
           p.nachname,
           p.vorname,
-          state.originMode === 'bundesland' ? p.bundesland : p.verein || p.bundesland,
+          state.originMode === 'none' ? p.verein || p.bundesland : originOf(p, state.originMode),
           p.groesse,
         ]),
       )

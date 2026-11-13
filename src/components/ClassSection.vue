@@ -3,8 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { useStore } from '../state/store'
 import { birthYearRange, getClass } from '../domain/classes'
 import { SIZES } from '../domain/sizes'
-import { originLabelKey, originOf } from '../lib/origin'
+import { originField, originLabelKey, originOf } from '../lib/origin'
 import { useEvent } from '../lib/event'
+import { verlustText, verlustZahl } from '../lib/eingabenVerlust'
 import { formatDate, t, tn } from '../i18n'
 import ManualAddForm from './ManualAddForm.vue'
 import type { ClassId, Starter } from '../types'
@@ -91,8 +92,15 @@ function update(id: string, field: keyof Omit<Starter, 'id' | 'klasse'>, e: Even
   dispatch({ type: 'UPDATE_STARTER', id, patch: { [field]: (e.target as HTMLInputElement).value } })
 }
 
+/** Ein Klick genügt – außer es sind für den Starter schon Werte erfasst: Die gingen ohne Rückgängig mit. */
+function remove(p: Starter) {
+  const name = [p.startNr, p.vorname, p.nachname].filter(Boolean).join(' ')
+  if (verlustZahl(state.value, [p]) > 0 && !confirm(t('entries.removeConfirm', { name }))) return
+  dispatch({ type: 'REMOVE_STARTER', id: p.id })
+}
+
 function clearAll() {
-  if (confirm(t('starters.clearConfirm', { n: props.starters.length, name: classLabel(props.classId) }))) {
+  if (confirm(t('starters.clearConfirm', { n: props.starters.length, name: classLabel(props.classId) }) + verlustText(state.value, props.starters))) {
     dispatch({ type: 'CLEAR_CLASS', klasse: props.classId })
   }
 }
@@ -205,9 +213,9 @@ const MOVES = [
               <td v-if="state.originMode !== 'none'">
                 <input
                   class="cell-input"
-                  :value="state.originMode === 'bundesland' ? p.bundesland : p.verein"
+                  :value="p[originField(state.originMode)] ?? ''"
                   :aria-label="t(originLabelKey(state.originMode))"
-                  @change="update(p.id, state.originMode === 'bundesland' ? 'bundesland' : 'verein', $event)"
+                  @change="update(p.id, originField(state.originMode), $event)"
                 />
               </td>
               <td>
@@ -246,7 +254,7 @@ const MOVES = [
                 class="del"
                 :title="t('common.remove')"
                 :aria-label="t('common.remove')"
-                @click="dispatch({ type: 'REMOVE_STARTER', id: p.id })"
+                @click="remove(p)"
               >
                 ×
               </button>

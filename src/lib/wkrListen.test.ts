@@ -132,7 +132,8 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
 })
 
 describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
-  const club = (mehr: Partial<AppState> = {}) => stand({ eventKind: 'club', starters: starter(['E', '1', '3', '4', '7']), ...mehr })
+  // Hier ohne „Papier sparen“ (die Vorgabe): geprüft wird das Zusammenlegen nach gleichem Aufbau.
+  const club = (mehr: Partial<AppState> = {}) => stand({ eventKind: 'club', wkrClubGemeinsam: false, starters: starter(['E', '1', '3', '4', '7']), ...mehr })
 
   it('Klassen mit gleichem Aufbau teilen sich einen Bogen, Klassen ohne Starter entfallen', () => {
     const { boegen } = wkrBoegenZumStand(club(), dm)
@@ -155,7 +156,7 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
 
   it('Listen mit Parcoursbild bleiben je Klasse: Jede Klasse sieht ihre eigene Zeichnung', () => {
     for (const aufbau of ['alcatraz', 'moewe', 'bawue']) {
-      const s = stand({ eventKind: 'club', aufbau, parcoursList: EIN_PARCOURS })
+      const s = stand({ eventKind: 'club', wkrClubGemeinsam: false, aufbau, parcoursList: EIN_PARCOURS })
       const { boegen } = wkrBoegenZumStand(s, dm)
       expect(boegen.some((b) => b.klassen.length > 1), aufbau).toBe(true)
       for (const b of boegen) {
@@ -166,7 +167,7 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
       }
     }
     // Möwe: Der Kurs der Klassen 5 bis 7 steht nicht auf dem Bogen der Klassen E bis 4.
-    const moewe = wkrBoegenZumStand(stand({ eventKind: 'club', aufbau: 'moewe', parcoursList: EIN_PARCOURS }), dm).boegen
+    const moewe = wkrBoegenZumStand(stand({ eventKind: 'club', wkrClubGemeinsam: false, aufbau: 'moewe', parcoursList: EIN_PARCOURS }), dm).boegen
     const parcours = moewe.filter((b) => b.typeId === 'parcours' && b.lauf === 1)
     expect(parcours.map((b) => b.klassen).sort((a, b) => ALLE.indexOf(a[0]) - ALLE.indexOf(b[0]))).toEqual(ALLE.map((k) => [k]))
     const fuerE = parcours.find((b) => b.klassen[0] === 'E')!
@@ -271,7 +272,7 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
   })
 
   it('Club ohne Papier sparen: Listen mit Bild bleiben je Klasse und behalten ihre Zeichnung', () => {
-    const s = stand({ eventKind: 'club', parcoursList: EIN_PARCOURS, laufCount: 1 })
+    const s = stand({ eventKind: 'club', wkrClubGemeinsam: false, parcoursList: EIN_PARCOURS, laufCount: 1 })
     const tore = wkrBoegenZumStand(s, dm).boegen.filter((b) => b.typeId === 'gate135')
     expect(tore.length).toBeGreaterThan(1)
     expect(tore.every((b) => b.auftrag.ohneBild === false)).toBe(true)

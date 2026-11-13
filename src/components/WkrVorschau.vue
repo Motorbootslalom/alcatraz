@@ -6,10 +6,11 @@ import { useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { listenFuerKlasse, musterZeilen, type BogenAuftrag } from '../lib/bogen'
 import { parcoursVon, wkrFeld, wkrName } from '../lib/einteilung'
+import { wkrBoegen } from '../lib/wkrListen'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { t, tn } from '../i18n'
 import type { Konfig } from '../config/konfig'
-import type { ClassId } from '../types'
+import type { ClassId, Starter } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import ParcoursNachweis from './ParcoursNachweis.vue'
 
@@ -65,6 +66,28 @@ function setzeAnzahl(e: Event) {
 const parcours = computed(() => parcoursVon(state.value.parcoursList, klasse.value))
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 
+/**
+ * Clubmeisterschaft: Dort stehen mehrere Klassen auf einem Bogen. Die Beispielansicht zeigt
+ * deshalb, was wirklich gedruckt würde – abgeleitet mit derselben Funktion wie die echten
+ * Listen (lib/wkrListen.ts), nur mit Muster-Startern: je Klasse des Parcours `anzahl` Stück.
+ */
+const clubBoegen = computed(() => {
+  if (state.value.eventKind !== 'club') return undefined
+  const praefix = t('preview.numberPrefix')
+  const erlaubt = new Set<ClassId>(klassen.value)
+  const p = parcours.value ?? { id: '_', name: '', classIds: [klasse.value], wechselFaktor: 2 as const }
+  const dabei = p.classIds.filter((k) => erlaubt.has(k))
+  let nr = 0
+  const starter: Starter[] = dabei.flatMap((k) =>
+    Array.from({ length: Math.max(0, Math.floor(anzahl.value)) }, () => {
+      nr++
+      return { id: `muster-${nr}`, startNr: `${praefix}${nr}`, vorname: '', nachname: '', verein: '', bundesland: '', geburtsdatum: '', groesse: '', klasse: k }
+    }),
+  )
+  const stand = { ...state.value, aufbau: aufbauId.value, laufCount: 1, parcoursList: [p] }
+  return wkrBoegen(stand, konfig.value, new Map([[p.id, starter]])).boegen
+})
+
 const boegen = computed(() => {
   const zeilen = musterZeilen(anzahl.value, t('preview.numberPrefix'))
   return listenFuerKlasse(konfig.value, aufbauId.value, klasse.value).map((typeId) => {
@@ -72,20 +95,20 @@ const boegen = computed(() => {
     const def = konfig.value.getSheetDef(typeId)
     // Das Feld im Kopf nur, solange es sich treffen und lesen lässt.
     const imKopf = !!feld && faktoren.value[def.orientation] >= KOPF_FELD_AB
+    // Der gemeinsame Bogen, auf dem die gewählte Klasse steht (nur Clubmeisterschaft).
+    const gemeinsam = clubBoegen.value?.find((b) => b.typeId === typeId && b.klassen.includes(klasse.value))
     const auftrag: BogenAuftrag = {
-      typeId,
-      klassen: [klasse.value],
-      lauf: 1,
-      zeilen,
+      ...(gemeinsam?.auftrag ?? { typeId, klassen: [klasse.value], lauf: 1, zeilen, aufbauId: aufbauId.value }),
       eventName: heading.value,
-      aufbauId: aufbauId.value,
       // Wie auf den Startlisten: Der Parcours steht nur da, wenn es mehrere gibt.
       parcours: state.value.parcoursList.length > 1 ? parcours.value?.name : undefined,
       // Im Eingabefeld der Eintrag, wie er getippt wurde; sonst der Name, wie er gedruckt wird.
       wkr: feld && imKopf ? feld.eingabe : wkrName(state.value, typeId, klasse.value, konfig.value),
     }
+    // Leerzeilen wie auf den echten Listen (Einstellungen).
+    const optionen = gemeinsam?.optionen ?? { leerzeilen: state.value.wkrLeerzeilenKlasse[klasse.value] ?? state.value.wkrLeerzeilen }
     const label = feld && parcours.value ? t('preview.nameFor', { list: def.title, parcours: parcours.value.name }) : undefined
-    return { typeId, feld, imKopf, auftrag, label }
+    return { typeId, feld, imKopf, auftrag, optionen, label }
   })
 })
 // Je Position ein Reiter: Untereinander wären es bis zu neun Blätter – wer einen Aufbau
@@ -93,7 +116,7 @@ const boegen = computed(() => {
 // Position nicht mehr (andere Klasse, anderer Aufbau), gilt die erste.
 const gewaehlt = merke<string | undefined>('vorschau.reiter', undefined)
 const aktiv = computed(() => boegen.value.find((b) => b.typeId === gewaehlt.value) ?? boegen.value[0])
-const mitBild = computed(() => !!aktiv.value && !!konfig.value.getSheetDef(aktiv.value.typeId).bildErzeugen)
+const mitBild = computed(() => !!aktiv.value && !aktiv.value.auftrag.ohneBild && !!konfig.value.getSheetDef(aktiv.value.typeId).bildErzeugen)
 
 function setzeName(parcoursId: string, typeId: string, name: string) {
   dispatch({ type: 'SET_WKR_NAME', parcoursId, typeId, name })
@@ -165,6 +188,7 @@ const KOPF_FELD_AB = 0.6
         <BogenBlatt
           :konfig="konfig"
           :auftrag="b.auftrag"
+          :optionen="b.optionen"
           :kennzeichen="t('preview.mark')"
           :wkr-pflege="b.imKopf"
           :wkr-label="b.label"

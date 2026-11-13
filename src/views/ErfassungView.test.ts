@@ -7,6 +7,8 @@ import { configFor } from '../config/konfig'
 import { laufSchluessel } from '../lib/eingaben'
 import { wkrBoegenZumStand } from '../lib/wkrListen'
 import { setLocale } from '../i18n'
+import { STATE_KEY } from '../persistenz/storage'
+import { vergissAlles } from '../lib/merken'
 import type { ClassId, Starter } from '../types'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
@@ -124,6 +126,82 @@ describe('Erfassung', () => {
     expect(fokus()).toBe('id-1-1|zeit2')
     expect(store.state.value.eingaben[L1]).toEqual({ 'id-1-1': { zeit1: '1,2345' }, 'id-1-2': { zeit1: '83,5' }, 'id-1-3': { zeit1: '84' } })
     wrapper.unmount()
+  })
+
+  it('Zeit mit Doppelpunkt, wie die Uhr sie zeigt: 1:23,45 sind 83,45 Sekunden, nicht 123,45', async () => {
+    const wrapper = ansicht(store)
+    const z1 = feld(wrapper, 0, 'zeit1')
+    await tippe(z1, '1:23,45')
+    expect(z1.element.value).toBe('1:23,45')
+    await taste(z1, 'Enter')
+    await nextTick()
+    expect(store.state.value.eingaben[L1]['id-1-1']).toEqual({ zeit1: '1:23,45' })
+    expect(feld(wrapper, 0, 'zeit1').element.value).toBe('01:23,45 (83,45)')
+    wrapper.unmount()
+  })
+
+  it('Zeit: jeder Tastendruck ist gespeichert, nicht erst das Verlassen des Feldes', async () => {
+    const wrapper = ansicht(store)
+    const z1 = feld(wrapper, 0, 'zeit1')
+    await tippe(z1, '88,8')
+    // Kein Enter, kein Verlassen: Ein Neuladen jetzt verlöre nichts.
+    expect(store.state.value.eingaben[L1]['id-1-1']).toEqual({ zeit1: '88,8' })
+    expect(JSON.parse(localStorage.getItem(STATE_KEY) ?? '{}').eingaben?.[L1]?.['id-1-1']).toEqual({ zeit1: '88,8' })
+    // Beim Tippen bleibt die Roh-Eingabe stehen, die Zelle springt nicht in die Anzeige.
+    expect(z1.element.value).toBe('88,8')
+    await tippe(z1, '')
+    expect(store.state.value.eingaben[L1]).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('englische Oberfläche: Zeiten erscheinen und entstehen mit Dezimalpunkt; im Stand steht das Komma', async () => {
+    setLocale('en')
+    const wrapper = ansicht(store)
+    await nextTick()
+    const z1 = feld(wrapper, 0, 'zeit1')
+    await tippe(z1, '83,5')
+    expect(z1.element.value).toBe('83.5')
+    await taste(z1, 'Enter')
+    await nextTick()
+    expect(store.state.value.eingaben[L1]['id-1-1']).toEqual({ zeit1: '83,5' })
+    expect(feld(wrapper, 0, 'zeit1').element.value).toBe('01:23.50 (83.50)')
+    setLocale('de')
+    await nextTick()
+    expect(feld(wrapper, 0, 'zeit1').element.value).toBe('01:23,50 (83,50)')
+    wrapper.unmount()
+  })
+
+  it('Werte, die keine Liste mehr zeigt (Klassenwechsel), sind gemeldet', async () => {
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: L1, starter: 'id-4-1', feld: 'katalog:mueb', wert: '17' }] })
+    const wrapper = ansicht(store)
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="verborgene-eingaben"]').exists()).toBe(false)
+    // Klasse 1 fährt kein „Mann über Bord“.
+    store.dispatch({ type: 'UPDATE_STARTER', id: 'id-4-1', patch: { klasse: '1' } })
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="verborgene-eingaben"]').text()).toContain('Für 1 Starter steht 1 erfasster Wert im Stand')
+    wrapper.unmount()
+  })
+
+  it('die Auswahl übersteht ein Neuladen: Wer weitertippt, schreibt in denselben Lauf derselben Klasse', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'parcours', 'par_2')
+    await waehle(wrapper, 'klasse', '4')
+    await waehle(wrapper, 'lauf', '2')
+    await waehle(wrapper, 'liste', 'steg')
+    const vorher = titel(wrapper)
+    expect(vorher).toContain('2. Lauf')
+    wrapper.unmount()
+    // Neuladen: Der Arbeitsspeicher ist leer, der sessionStorage des Fensters bleibt.
+    const gemerkt = sessionStorage.getItem('alcatraz.merke.erfassung.wahl')
+    expect(JSON.parse(gemerkt!)).toEqual({ parcours: 'par_2', klasse: '4', lauf: 2, liste: 'steg' })
+    vergissAlles()
+    sessionStorage.setItem('alcatraz.merke.erfassung.wahl', gemerkt!)
+    // Der Stand der Veranstaltung kommt aus dem localStorage zurück.
+    const neu = ansicht(createStore())
+    await nextTick()
+    expect(titel(neu)).toBe(vorher)
+    neu.unmount()
   })
 
   it('Pfeiltasten: hoch und runter in der Spalte, links und rechts am Rand des Feldes', async () => {

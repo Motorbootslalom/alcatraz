@@ -97,18 +97,20 @@ describe('Listen: Ergebnislisten', () => {
     wrapper.unmount()
   })
 
-  it('Laufliste: Spalten des Fahrwegs, Punkte an Tor und Boje, Herkunft als Kürzel, Geburtsdatum nach Einstellung', async () => {
+  it('Laufliste: Spalten des Fahrwegs, Punkte an Tor und Boje, Herkunft als Kürzel, nie ein Geburtsdatum', async () => {
     const wrapper = ansicht(store)
     await ergebnisse(wrapper)
     await waehle(wrapper, 'klasse', '4')
     await waehle(wrapper, 'lauf', '1')
     expect(koepfe(wrapper)).toEqual(['Klasse 4 | 1. Lauf | Hafenpokal 2026'])
     const kopf = spalten(wrapper)
-    expect(kopf.slice(0, 8)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', 'Geb. Datum', 'Zeit', 'Punkte'])
-    expect(kopf.slice(8)).toEqual(['Steg AB', 'Start', '1 H', '2 H', '3 H', '4 H', '5', '4 R', '3 R', '2 R', 'MüB', 'Ziel', 'Steg AN', 'disq.', 'ges. Punkte', 'Fehler-Schlüssel'])
+    // Das Geburtsdatum steht nur – wahlweise – auf der Starterliste, nie auf einer Ergebnisliste.
+    expect(kopf.slice(0, 7)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', 'Zeit', 'Punkte'])
+    expect(kopf).not.toContain('Geb. Datum')
+    expect(kopf.slice(7)).toEqual(['Steg AB', 'Start', '1 H', '2 H', '3 H', '4 H', '5', '4 R', '3 R', '2 R', 'MüB', 'Ziel', 'Steg AN', 'disq.', 'ges. Punkte', 'Fehler-Schlüssel'])
     const z = zeilen(wrapper)
     expect(z.map((r) => r.slice(0, 4).join(' '))).toEqual(['1 401 Nach41 Vor41', '2 402 Nach42 Vor42', '3 403 Nach43 Vor43'])
-    expect(z[0].slice(4, 8)).toEqual(['Musterclub', '01.05.2014', '01:10,00', '70,00'])
+    expect(z[0].slice(4, 7)).toEqual(['Musterclub', '01:10,00', '70,00'])
     // 403: 75 s + 5 (Boje Tor 1 hin) + 10 (Steg AN, Code 9) = 90,00 – und jede Strafe steht in ihrer Spalte.
     expect(z[2].at(-2)).toBe('90,00')
     expect(z[2].at(-1)).toBe('9')
@@ -117,11 +119,10 @@ describe('Listen: Ergebnislisten', () => {
     // Jede fünfte Zeile wäre grau; hier sind es drei.
     expect(wrapper.findAll('.ergebnis-blatt tbody tr.grau')).toHaveLength(0)
 
-    // Bundesland mit ISO-Kürzel; ohne Geburtsdatum.
+    // Bundesland mit ISO-Kürzel.
     store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'bundesland' })
-    store.dispatch({ type: 'SET_LIST_OPTIONS', patch: { showBirthdate: false } })
     await nextTick()
-    expect(spalten(wrapper).slice(0, 7)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Land', 'Zeit', 'Punkte'])
+    expect(spalten(wrapper).slice(0, 7)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Bundesland', 'Zeit', 'Punkte'])
     expect(zeilen(wrapper).map((r) => r[4])).toEqual(['BY', 'Musterland', 'Musterland'])
     // Clubmeisterschaft: keine Herkunft.
     store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
@@ -154,7 +155,7 @@ describe('Listen: Ergebnislisten', () => {
     // Kein Lauf-Wähler bei „nur Gesamtliste“.
     expect(wrapper.find('select[data-feld="erg-lauf"]').exists()).toBe(false)
     const kopf = spalten(wrapper)
-    expect(kopf).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', 'Geb. Datum', '1. Lauf', '2. Lauf', '3. Lauf', 'Ergebnis', 'Gesamt'])
+    expect(kopf).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', '1. Lauf', '2. Lauf', '3. Lauf', 'Ergebnis', 'Gesamt'])
     const reihen = () => wrapper.findAll('.ergebnis-blatt tbody tr')
     const kurz = () => reihen().map((r) => `${r.attributes('data-wertung')}:${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()} ${r.findAll('td').at(-1)!.text()}`.trim())
     // 401 holt Lauf 2 nach → Platz 1 ohne Ergebnis. 402: x gestrichen → 80 + 81. 403: 90 + 76, der schlechteste (90, Lauf 1 oder 3) gestrichen.
@@ -212,14 +213,66 @@ describe('Listen: Ergebnislisten', () => {
     await wrapper.find('button.primary').trigger('click')
     expect(document.title).toMatch(/^Results - Class 4 - Overall - Hafenpokal 2026 - /)
     expect(koepfe(wrapper)).toEqual(['Class 4 | Overall | Hafenpokal 2026'])
-    expect(spalten(wrapper).slice(0, 6)).toEqual(['Rank', 'No.', 'Surname', 'First name', 'Club', 'Date of birth'])
-    // Englisch: Datum als yyyy-mm-dd, Dezimalpunkt, „DSQ“.
+    expect(spalten(wrapper).slice(0, 6)).toEqual(['Rank', 'No.', 'Surname', 'First name', 'Club', 'Attempt 1'])
+    // Englisch: Dezimalpunkt, „DSQ“.
     const z = zeilen(wrapper)
-    expect(z[0][5]).toBe('2014-05-01')
     expect(z[1].at(-1)).toBe('161.00')
     expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toContain('DSQ')
     expect(wrapper.find('style').text()).toContain('"Page " counter(page) " of " counter(pages)')
     vi.unstubAllGlobals()
+    wrapper.unmount()
+  })
+
+  it('Klasse 7 mit ausgeschriebenem Vereinsnamen: Die Bojen-Spalten behalten ihre Breite, „20“ steht kleiner statt abgeschnitten', async () => {
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['7']).map((p) => ({ ...p, verein: 'Beispielverein Süd am See' })) })
+    zeit(store, 1, 'id-7-1', '80')
+    wert(store, 1, 'id-7-1', 't5|hin seiteA', '20')
+    store.dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'aushang', patch: { herkunft: 'lang' } })
+    const wrapper = ansicht(store)
+    await ergebnisse(wrapper)
+    await waehle(wrapper, 'klasse', '7')
+    await waehle(wrapper, 'lauf', '1')
+    await waehle(wrapper, 'abstand', 'davor')
+    const blatt = wrapper.find('.ergebnis-blatt[data-art="lauf"]')
+    // Die Bojen haben Vorrang: Die Herkunft fällt auf ihre Mindestbreite (und steht dafür kleiner),
+    // die Bojen-Spalten sind so breit wie mit Kürzel – 3,7 mm, darin steht „20“ eine Stufe kleiner.
+    const herkunftMm = () => parseFloat((wrapper.find('.ergebnis-blatt[data-art="lauf"] col.erg-w-herkunft').element as HTMLElement).style.width)
+    const bojeMm = () => Number(wrapper.find('.ergebnis-blatt[data-art="lauf"]').attributes('data-boje-mm'))
+    expect(herkunftMm()).toBe(11)
+    expect(bojeMm()).toBeGreaterThanOrEqual(3.7)
+    const mitName = bojeMm()
+    const zwanzig = blatt.find('tbody tr[data-starter="id-7-1"]').findAll('td').filter((c) => c.text() === '20')
+    expect(zwanzig).toHaveLength(1)
+    expect(zwanzig[0].classes()).toContain('fit-1')
+    // Mit Kürzel ist Platz: Die Herkunft ist schmal, die Bojen-Spalten sind breiter.
+    store.dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'aushang', patch: { herkunft: 'kurz' } })
+    store.dispatch({ type: 'SET_ORIGIN_SHORT', name: 'Beispielverein Süd am See', short: 'BSS' })
+    await nextTick()
+    expect(bojeMm()).toBe(mitName)
+    // Ohne Abstand-Spalte bleibt mehr: Dann bekommt auch die Herkunft wieder Platz.
+    store.dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'aushang', patch: { herkunft: 'lang' } })
+    await waehle(wrapper, 'abstand', '')
+    expect(bojeMm()).toBeGreaterThanOrEqual(4)
+    expect(herkunftMm()).toBeGreaterThan(11)
+    wrapper.unmount()
+  })
+
+  it('Werte, die keine Liste mehr zeigt (weniger Läufe), sind gemeldet und lassen sich entfernen', async () => {
+    const wrapper = ansicht(store)
+    await ergebnisse(wrapper)
+    expect(wrapper.find('[data-hinweis="verborgene-eingaben"]').exists()).toBe(false)
+    store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 2 } })
+    await nextTick()
+    const hinweis = wrapper.find('[data-hinweis="verborgene-eingaben"]')
+    // Lauf 3 der Klasse 4: drei Zeiten von drei Startern.
+    expect(hinweis.text()).toContain('Für 3 Starter stehen 3 erfasste Werte im Stand')
+    const confirm = vi.fn(() => true)
+    vi.stubGlobal('confirm', confirm)
+    await hinweis.find('button[data-action="verborgene-entfernen"]').trigger('click')
+    vi.unstubAllGlobals()
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(Object.keys(store.state.value.eingaben).sort()).toEqual([lauf(1), lauf(2)])
+    expect(wrapper.find('[data-hinweis="verborgene-eingaben"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -232,4 +285,31 @@ describe('Listen: Ergebnislisten', () => {
     expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
+
+  it('Fassungen: Aushang mit gekürztem Nachnamen oder ohne Namen, Herkunft nach Einstellung; Intern immer mit vollem Namen', async () => {
+    const wrapper = ansicht(store)
+    await ergebnisse(wrapper)
+    await waehle(wrapper, 'klasse', '4')
+    await waehle(wrapper, 'lauf', '1')
+    // Vorgabe: Aushang mit vollem Namen und Herkunft.
+    expect(wrapper.find('button[data-fassung="aushang"]').classes()).toContain('active')
+    expect(spalten(wrapper).slice(0, 5)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein'])
+    store.dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'aushang', patch: { namen: 'kurz', herkunft: 'aus' } })
+    await nextTick()
+    expect(spalten(wrapper).slice(0, 5)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Zeit'])
+    expect(zeilen(wrapper)[0].slice(0, 4)).toEqual(['1', '401', 'N.', 'Vor41'])
+    store.dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'aushang', patch: { namen: 'ohne' } })
+    await nextTick()
+    expect(spalten(wrapper).slice(0, 3)).toEqual(['Platz', 'S-Nr.', 'Zeit'])
+    expect(zeilen(wrapper)[0].slice(0, 2)).toEqual(['1', '401'])
+    // Intern: voller Name, eigene Einstellung für die Herkunft.
+    await wrapper.find('button[data-fassung="intern"]').trigger('click')
+    expect(spalten(wrapper).slice(0, 5)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein'])
+    expect(zeilen(wrapper)[0].slice(2, 4)).toEqual(['Nach41', 'Vor41'])
+    store.dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'intern', patch: { herkunft: 'aus' } })
+    await nextTick()
+    expect(spalten(wrapper).slice(0, 5)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Zeit'])
+    wrapper.unmount()
+  })
+
 })

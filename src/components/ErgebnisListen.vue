@@ -5,11 +5,12 @@ import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { klassenErgebnis, streichlaeufeVon, type AbstandArt, type KlassenErgebnis, type LaufListe } from '../lib/ergebnis'
-import { originText } from '../lib/origin'
+import { originLabelKey, originText } from '../lib/origin'
 import { t, tn } from '../i18n'
-import type { ClassId, Starter } from '../types'
+import type { ClassId, Starter, ErgebnisFassung } from '../types'
 import ErgebnisGesamtBlatt from './ergebnis/ErgebnisGesamtBlatt.vue'
 import ErgebnisLaufBlatt from './ergebnis/ErgebnisLaufBlatt.vue'
+import EingabenHinweis from './EingabenHinweis.vue'
 
 /**
  * Die Ergebnislisten unter „Listen“: je Klasse jeder Lauf und die Gesamtliste, gerechnet aus
@@ -33,7 +34,9 @@ const UMFANG = ['alles', 'laeufe', 'gesamt'] as const
 const ORDNUNG = ['platz', 'nummer'] as const
 const ABSTAND = ['', 'davor', 'erster'] as const
 
-const wahl = merke<{ klasse?: ClassId; lauf?: number; umfang: (typeof UMFANG)[number]; ordnung: (typeof ORDNUNG)[number]; abstand: '' | AbstandArt }>('listen.ergebnis', {
+const wahl = merke<{ klasse?: ClassId; lauf?: number; umfang: (typeof UMFANG)[number]; ordnung: (typeof ORDNUNG)[number]; abstand: '' | AbstandArt; fassung: ErgebnisFassung }>('listen.ergebnis', {
+  // Zuerst die Fassung für den Aushang: Sie ist die, die am ehesten ohne Nachdenken gedruckt wird.
+  fassung: 'aushang',
   umfang: 'alles',
   ordnung: 'platz',
   abstand: '',
@@ -64,19 +67,23 @@ const blaetter = computed<Blatt[]>(() =>
 )
 
 const eventName = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
-// Herkunft: auf Ergebnislisten als Kürzel, wenn es eines gibt – die Zeile ist ohnehin voll.
-// Deshalb auch ein kurzer Spaltenkopf („Land“ statt „Bundesland“).
+// Zwei Fassungen: „Aushang“ (öffentlich) und „Intern“. Was jede zeigt, steht in den
+// Einstellungen: Namen voll, gekürzt oder gar nicht (nur Aushang); Herkunft nicht, als
+// Kürzel oder ausgeschrieben.
+const FASSUNGEN: ErgebnisFassung[] = ['aushang', 'intern']
+const namen = computed(() => (wahl.value.fassung === 'aushang' ? state.value.ergebnisListen.aushang.namen : 'voll'))
+const herkunftArt = computed(() => state.value.ergebnisListen[wahl.value.fassung].herkunft)
 const herkunft = computed(() =>
-  state.value.originMode === 'none'
+  state.value.originMode === 'none' || herkunftArt.value === 'aus'
     ? undefined
     : {
-        titel: t(state.value.originMode === 'bundesland' ? 'results.origin.bundesland' : 'results.origin.verein'),
+        titel: t(originLabelKey(state.value.originMode)),
         text: herkunftText,
         // Ohne Kürzel steht der volle Name da: Die Spalte wird dann so breit wie der längste (in Grenzen).
         zeichen: Math.max(0, ...state.value.starters.map((p) => herkunftText(p).length)),
       },
 )
-const herkunftText = (p: Starter) => originText(p, state.value.originMode, 'kurz', state.value.originShort)
+const herkunftText = (p: Starter) => originText(p, state.value.originMode, herkunftArt.value === 'lang' ? 'lang' : 'kurz', state.value.originShort)
 const abstand = computed(() => wahl.value.abstand || undefined)
 const streichlaeufe = computed(() => streichlaeufeVon(state.value.laufCount, state.value.streichlaeufe))
 
@@ -105,6 +112,22 @@ function setze(feld: 'klasse' | 'lauf' | 'umfang' | 'ordnung' | 'abstand', e: Ev
   <div class="panel no-print ergebnis-wahl">
     <p class="hint">{{ t('results.hint') }}</p>
     <div class="row">
+      <div class="field">
+        <label>{{ t('results.version') }}</label>
+        <div class="segmented" role="group" :aria-label="t('results.version')">
+          <button
+            v-for="f in FASSUNGEN"
+            :key="f"
+            type="button"
+            :data-fassung="f"
+            :class="wahl.fassung === f ? 'active' : ''"
+            :aria-pressed="wahl.fassung === f"
+            @click="wahl.fassung = f"
+          >
+            {{ t(`results.version.${f}`) }}
+          </button>
+        </div>
+      </div>
       <div class="field">
         <label :for="`${id}-klasse`">{{ t('lists.class') }}</label>
         <select :id="`${id}-klasse`" class="input" data-feld="erg-klasse" :value="klasse ?? ''" @change="setze('klasse', $event)">
@@ -144,7 +167,12 @@ function setze(feld: 'klasse' | 'lauf' | 'umfang' | 'ordnung' | 'abstand', e: Ev
       <a href="#/einstellungen?wertung">{{ t('nav.einstellungen') }}</a
       >.
     </p>
+    <p class="note">
+      {{ t(`results.versionNote.${wahl.fassung}`) }} <a href="#/einstellungen?ergebnislisten">{{ t('nav.einstellungen') }}</a
+      >.
+    </p>
     <p v-if="parallel" class="note">{{ t('results.parallel') }}</p>
+    <EingabenHinweis />
   </div>
 
   <div v-if="alle.length === 0" class="panel empty no-print">
@@ -163,7 +191,7 @@ function setze(feld: 'klasse' | 'lauf' | 'umfang' | 'ordnung' | 'abstand', e: Ev
         :mit-knoten="b.ergebnis.gesamt.mitKnoten"
         :abstand="abstand"
         :herkunft="herkunft"
-        :geburtsdatum="state.showBirthdate"
+        :namen="namen"
       />
       <ErgebnisLaufBlatt
         v-else
@@ -174,7 +202,7 @@ function setze(feld: 'klasse' | 'lauf' | 'umfang' | 'ordnung' | 'abstand', e: Ev
         :zeilen="wahl.ordnung === 'platz' ? b.liste.nachPlatz : b.liste.nachNummer"
         :abstand="abstand"
         :herkunft="herkunft"
-        :geburtsdatum="state.showBirthdate"
+        :namen="namen"
       />
     </template>
   </div>

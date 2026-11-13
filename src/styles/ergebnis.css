@@ -124,6 +124,15 @@
   font-size: 0.7em;
 }
 
+/* Ausgeschriebene Herkunft in einer engen Spalte (viele Bojen-Spalten haben Vorrang): zwei
+   kleine Zeilen statt eines abgeschnittenen Namens. Die Zeilenhöhe bleibt. */
+.erg-tabelle td.erg-zweizeilig {
+  font-size: 0.6em;
+  line-height: 1;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .erg-tabelle .erg-kopfzelle {
   border: none;
   padding: 0 0 3mm;

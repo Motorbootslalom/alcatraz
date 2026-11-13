@@ -5,7 +5,7 @@ import { birthYearRange } from '../domain/classes'
 import { SIZES } from '../domain/sizes'
 import { makeStartNr, parseClassNumber } from '../domain/startnumbers'
 import { uid } from '../domain/ids'
-import { originLabelKey } from '../lib/origin'
+import { originField, originLabelKey } from '../lib/origin'
 import { t } from '../i18n'
 import type { ClassId, Starter } from '../types'
 
@@ -30,14 +30,16 @@ function nextStartNr(): string {
 
 function submit() {
   if (!vorname.value.trim() || !nachname.value.trim()) return
-  const isBundesland = state.value.originMode === 'bundesland'
+  const feld = originField(state.value.originMode)
+  const wert = herkunft.value.trim()
   emit('add', {
     id: uid('st'),
     startNr: nextStartNr(),
     vorname: vorname.value.trim(),
     nachname: nachname.value.trim(),
-    verein: isBundesland ? '' : herkunft.value.trim(),
-    bundesland: isBundesland ? herkunft.value.trim() : '',
+    verein: feld === 'verein' ? wert : '',
+    bundesland: feld === 'bundesland' ? wert : '',
+    ...(feld === 'land' && wert ? { land: wert } : {}),
     geburtsdatum: geb.value,
     klasse: props.classId,
     groesse: groesse.value,

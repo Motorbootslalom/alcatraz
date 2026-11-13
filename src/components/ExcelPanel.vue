@@ -9,6 +9,7 @@ import {
   type ImportResult,
 } from '../import/tsv'
 import { copyText } from '../lib/clipboard'
+import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
 import { t, tn } from '../i18n'
 
 /**
@@ -22,7 +23,7 @@ const result = ref<ImportResult | null>(null)
 const copied = ref<'startlist' | 'starters' | null>(null)
 
 // Fehlende klassenbasierte Nummern ergänzt der Import; klassische vergibt erst die Verzahnung.
-const parse = (text: string) => parseStartersTsv(text, { assignMissing: state.value.startNrMode === 'klasse' })
+const parse = (text: string) => parseStartersTsv(text, { assignMissing: state.value.startNrMode === 'klasse', landIstStaat: state.value.originMode === 'land' })
 
 const preview = computed(() => (raw.value.trim() ? parse(raw.value) : null))
 
@@ -35,6 +36,9 @@ function doImport(mode: 'replace' | 'merge') {
   const res = parse(raw.value)
   result.value = res
   if (res.imported === 0) return
+  // Ersetzen nimmt den nicht wiedererkannten Startern ihre erfassten Werte – dann erst fragen.
+  const verlust = mode === 'replace' ? verlustBeimErsetzen(state.value, res.starters) : undefined
+  if (verlust && verlust.zahl > 0 && !confirm(t('entries.replaceConfirm') + verlust.text)) return
   dispatch({ type: 'IMPORT_STARTERS', starters: res.starters, mode })
   raw.value = ''
 }

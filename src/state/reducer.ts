@@ -11,6 +11,10 @@ import type {
   Starter,
   TrackItem,
   WechselFaktor,
+  ErgebnisFassung,
+  ErgebnisHerkunft,
+  ErgebnisListenOptionen,
+  ErgebnisNamen,
 } from '../types'
 import type { RawAufbau } from '../config/schema'
 import { SCHEMA_VERSION } from '../types'
@@ -24,7 +28,7 @@ import {
 } from '../domain/startnumbers'
 import { mergeStarters } from '../import/starterMerge'
 import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
-import { nurStarter, ohneLauf, setzeWerte, type EingabeZelle } from '../lib/eingaben'
+import { gueltigeZellen, nurStarter, setzeWerte, type EingabeZelle } from '../lib/eingaben'
 import { beispielEingaben, zufallAus, type Zeitnahme } from '../lib/beispielwerte'
 import { configFor } from '../config/konfig'
 import { canonicalRunningNumbers } from '../planung/running'
@@ -108,6 +112,7 @@ export type Action =
   | { type: 'SET_WKR_LEERZEILEN'; klasse?: ClassId; anzahl: number | null; alleKlassen?: boolean }
   | { type: 'SET_WKR_RUECKSEITE'; rueckseite: boolean }
   | { type: 'SET_WKR_CLUB_GEMEINSAM'; gemeinsam: boolean }
+  | { type: 'SET_ERGEBNIS_LISTEN'; fassung: ErgebnisFassung; patch: { namen?: ErgebnisNamen; herkunft?: ErgebnisHerkunft } }
   /**
    * Erfasste Werte setzen, Zelle für Zelle (Lauf-Schlüssel, Starter-ID, Feld-Kennung); ein
    * leerer Wert löscht die Zelle. Eine Action je Eingabe – oder ein Bündel, etwa wenn später
@@ -115,8 +120,8 @@ export type Action =
    * schreiben verschiedene Zellen und überschreiben einander nichts.
    */
   | { type: 'SET_EINGABEN'; zellen: EingabeZelle[] }
-  /** Alle erfassten Werte verwerfen, oder nur die eines Laufs. */
-  | { type: 'CLEAR_EINGABEN'; lauf?: number }
+  /** Alle erfassten Werte verwerfen. Einzelne Zellen löscht `SET_EINGABEN` mit leerem Wert. */
+  | { type: 'CLEAR_EINGABEN' }
   /** Streichläufe der Gesamtwertung: `auto` (Regel) oder eine feste Zahl. */
   | { type: 'SET_STREICHLAEUFE'; streichlaeufe: Streichlaeufe }
   /**
@@ -128,7 +133,12 @@ export type Action =
   | { type: 'RESET_ALL' }
 
 /** Leerzeilen je Klasse auf den Wettkampfrichter-Listen: Vorgabe wie im Prototyp (`emptyRows: 3`). */
+/** Ergebnislisten: Vorgabe wie bisher – volle Namen, Herkunft als Kürzel. */
+export const ERGEBNIS_LISTEN_VORGABE: ErgebnisListenOptionen = { aushang: { namen: 'voll', herkunft: 'kurz' }, intern: { herkunft: 'kurz' } }
+
 export const WKR_LEERZEILEN_VORGABE = 3
+/** Bei der Clubmeisterschaft eine: Dort stehen viele Klassen auf einem Blatt. */
+export const WKR_LEERZEILEN_CLUB = 1
 export const WKR_LEERZEILEN_MAX = 30
 
 /** Eine brauchbare Zahl von Leerzeilen (0 bis 30, ganz); sonst `undefined`. */
@@ -154,7 +164,8 @@ export function emptyState(): AppState {
     wkrRueckseite: false,
     eingaben: {},
     streichlaeufe: 'auto',
-    wkrClubGemeinsam: false,
+    wkrClubGemeinsam: true,
+    ergebnisListen: ERGEBNIS_LISTEN_VORGABE,
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -277,15 +288,22 @@ export function reducer(state: AppState, action: Action): AppState {
       return next
     }
 
-    case 'SET_EVENT_KIND':
+    case 'SET_EVENT_KIND': {
+      if (action.eventKind === state.eventKind) return state
       // Eine Clubmeisterschaft zeigt keine Herkunft; beim Wechsel zurück gilt
       // wieder der Verein, bis etwas anderes gewählt wird.
+      // Bei der Clubmeisterschaft zählt das Papier: gemeinsame Bögen (Vorgabe) und nur eine
+      // Leerzeile je Klasse. Wer die Zahl schon selbst gewählt hat, behält sie.
+      const club = action.eventKind === 'club'
+      const [von, nach] = club ? [WKR_LEERZEILEN_VORGABE, WKR_LEERZEILEN_CLUB] : [WKR_LEERZEILEN_CLUB, WKR_LEERZEILEN_VORGABE]
       return {
         ...state,
         eventKind: action.eventKind,
+        wkrLeerzeilen: state.wkrLeerzeilen === von ? nach : state.wkrLeerzeilen,
         originMode:
           action.eventKind === 'club' ? 'none' : state.originMode === 'none' ? 'verein' : state.originMode,
       }
+    }
 
     case 'SET_REGELWERK': {
       const regelwerk = regelwerkOf(action.regelwerk).id
@@ -327,6 +345,17 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_WKR_CLUB_GEMEINSAM':
       return { ...state, wkrClubGemeinsam: action.gemeinsam }
+
+    case 'SET_ERGEBNIS_LISTEN': {
+      const { aushang, intern } = state.ergebnisListen
+      return {
+        ...state,
+        ergebnisListen:
+          action.fassung === 'aushang'
+            ? { intern, aushang: { ...aushang, ...action.patch } }
+            : { aushang, intern: { herkunft: action.patch.herkunft ?? intern.herkunft } },
+      }
+    }
 
     case 'SET_ORIGIN_SHORT': {
       const { [action.name]: _old, ...rest } = state.originShort
@@ -456,13 +485,13 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, einteilung: setzeName(state.einteilung, action.parcoursId, action.typeId, action.name) }
 
     case 'SET_EINGABEN': {
-      const eingaben = setzeWerte(state.eingaben, action.zellen)
+      // Zellen für unbekannte Starter oder kaputte Lauf-Schlüssel kommen gar nicht erst in den Stand.
+      const zellen = gueltigeZellen(action.zellen, new Set(state.starters.map((p) => p.id)))
+      const eingaben = setzeWerte(state.eingaben, zellen)
       return eingaben === state.eingaben ? state : { ...state, eingaben }
     }
-    case 'CLEAR_EINGABEN': {
-      const eingaben = ohneLauf(state.eingaben, action.lauf)
-      return eingaben === state.eingaben ? state : { ...state, eingaben }
-    }
+    case 'CLEAR_EINGABEN':
+      return Object.keys(state.eingaben).length === 0 ? state : { ...state, eingaben: {} }
     case 'SET_STREICHLAEUFE':
       return { ...state, streichlaeufe: streichlaeufeWert(action.streichlaeufe) }
     case 'FILL_BEISPIELWERTE': {

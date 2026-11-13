@@ -13,12 +13,14 @@ import { loadLegacyVerzahnung } from '../persistenz/storage'
 import { sollgewichtOf } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { originOf } from '../lib/origin'
+import { verlustBeimErsetzen, verlustText } from '../lib/eingabenVerlust'
 import { formatDateTime, t, tn } from '../i18n'
-import type { ClassId, OriginStyle, Starter } from '../types'
+import type { ClassId, OriginStyle, Starter, ErgebnisFassung, ErgebnisHerkunft, ErgebnisNamen } from '../types'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
 import WkrEinteilung from '../components/WkrEinteilung.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
 import SettingsNav from '../components/SettingsNav.vue'
+import EingabenHinweis from '../components/EingabenHinweis.vue'
 
 /**
  * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten, wer an
@@ -30,6 +32,9 @@ const { regelwerk, classLabel } = useEvent()
 // Beispieldaten nur für die Klassen des Regelwerks.
 const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color: classColor(id) })))
 const ORIGIN_STYLES: OriginStyle[] = ['lang', 'kurz']
+const ERGEBNIS_FASSUNGEN: ErgebnisFassung[] = ['aushang', 'intern']
+const ERGEBNIS_NAMEN: ErgebnisNamen[] = ['voll', 'kurz', 'ohne']
+const ERGEBNIS_HERKUNFT: ErgebnisHerkunft[] = ['aus', 'kurz', 'lang']
 const dateiFeld = ref<HTMLInputElement | null>(null)
 const inhalt = ref<HTMLElement | null>(null)
 
@@ -37,7 +42,7 @@ const inhalt = ref<HTMLElement | null>(null)
 // rollen, statt den Abschnitt in der langen Seite suchen zu lassen.
 onMounted(async () => {
   // Ebenso `?wertung` aus den Ergebnislisten.
-  const ziel = location.hash.includes('?wkr') ? 'wkr-einteilung' : location.hash.includes('?wertung') ? 'wertung' : ''
+  const ziel = location.hash.includes('?wkr') ? 'wkr-einteilung' : location.hash.includes('?wertung') ? 'wertung' : location.hash.includes('?ergebnislisten') ? 'ergebnislisten' : ''
   if (!ziel) return
   await nextTick()
   document.getElementById(ziel)?.scrollIntoView?.({ block: 'start' })
@@ -119,7 +124,9 @@ async function upload(e: Event) {
     return
   }
   const time = result.savedAt ? formatDateTime(result.savedAt) : t('app.unknown')
-  if (!confirm(t(`files.confirm.${result.kind}`, { time }))) return
+  // Mit den Startern gingen ihre erfassten Werte: Die Rückfrage sagt, wie viele betroffen sind.
+  const verlust = result.kind === 'starter' ? verlustBeimErsetzen(state.value, result.starters).text : ''
+  if (!confirm(t(`files.confirm.${result.kind}`, { time }) + verlust)) return
   if (result.kind === 'sicherung') dispatch({ type: 'LOAD_STATE', state: result.state })
   else if (result.kind === 'vorlage') dispatch({ type: 'LOAD_STATE', state: result.apply(state.value) })
   else dispatch({ type: 'IMPORT_STARTERS', starters: result.starters, mode: 'replace' })
@@ -151,9 +158,9 @@ const total = computed(() => CLASSES.value.reduce((sum, c) => sum + countOf(c.id
 
 function generate() {
   const existing = state.value.starters.length
-  if (existing > 0 && !confirm(t('demo.confirm', { n: existing }))) return
+  if (existing > 0 && !confirm(t('demo.confirm', { n: existing }) + verlustText(state.value, state.value.starters))) return
   // Erfundene Starter entstehen hier und nicht im Reducer – der bleibt frei von Zufall.
-  const origin = state.value.originMode === 'bundesland' ? 'bundesland' : 'verein'
+  const origin = state.value.originMode === 'none' ? 'verein' : state.value.originMode
   let starters: Starter[] = []
   for (const c of CLASSES.value) {
     if (countOf(c.id) > 0) {
@@ -223,6 +230,45 @@ function werteLoeschen() {
     <p class="note">{{ t('listopt.note') }}</p>
 
     <!-- Wettkampfrichter-Listen: Leerzeilen für Nachmeldungen, Beschreibung auf der Rückseite. -->
+    <div id="ergebnislisten" class="subhead">{{ t('listopt.results.title') }}</div>
+    <p class="hint">{{ t('listopt.results.hint') }}</p>
+    <div v-for="f in ERGEBNIS_FASSUNGEN" :key="f" class="row" style="align-items: flex-end; margin-bottom: 10px" :data-fassung="f">
+      <b style="width: 90px; padding-bottom: 8px">{{ t(`results.version.${f}`) }}</b>
+      <div v-if="f === 'aushang'" class="field">
+        <label>{{ t('listopt.results.names') }}</label>
+        <div class="segmented">
+          <button
+            v-for="n in ERGEBNIS_NAMEN"
+            :key="n"
+            type="button"
+            :data-namen="n"
+            :class="state.ergebnisListen.aushang.namen === n ? 'active' : ''"
+            :aria-pressed="state.ergebnisListen.aushang.namen === n"
+            @click="dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'aushang', patch: { namen: n } })"
+          >
+            {{ t(`listopt.results.names.${n}`) }}
+          </button>
+        </div>
+      </div>
+      <div v-if="state.originMode !== 'none'" class="field">
+        <label>{{ t('event.origin') }}</label>
+        <div class="segmented">
+          <button
+            v-for="h in ERGEBNIS_HERKUNFT"
+            :key="h"
+            type="button"
+            :data-herkunft="h"
+            :class="state.ergebnisListen[f].herkunft === h ? 'active' : ''"
+            :aria-pressed="state.ergebnisListen[f].herkunft === h"
+            @click="dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: f, patch: { herkunft: h } })"
+          >
+            {{ t(`listopt.results.origin.${h}`) }}
+          </button>
+        </div>
+      </div>
+      <span v-if="f === 'intern'" class="note" style="margin: 0; padding-bottom: 8px">{{ t('listopt.results.internNames') }}</span>
+    </div>
+
     <details v-if="state.originMode !== 'none'" class="sub-details">
       <summary>{{ t('short.title') }} ({{ shortRows.length }})</summary>
       <p class="hint">{{ t('short.hint') }}</p>
@@ -277,6 +323,7 @@ function werteLoeschen() {
       </p>
     </div>
     <p class="note">{{ t('scoring.note') }}</p>
+    <EingabenHinweis />
   </div>
 
   <!-- Alles zu den Wettkampfrichter-Listen an einer Stelle: wie sie gedruckt werden und wer an

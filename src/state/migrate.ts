@@ -62,7 +62,15 @@ export function migrate(raw: unknown): AppState | null {
     wkrLeerzeilen: leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen,
     wkrLeerzeilenKlasse: eigeneLeerzeilen(loaded.wkrLeerzeilenKlasse, leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen),
     wkrRueckseite: loaded.wkrRueckseite === true,
-    wkrClubGemeinsam: loaded.wkrClubGemeinsam === true,
+    // Vorgabe an: Wirkt ohnehin nur bei der Clubmeisterschaft, und dort ist Papier sparen das Übliche.
+    wkrClubGemeinsam: loaded.wkrClubGemeinsam !== false,
+    ergebnisListen: {
+      aushang: {
+        namen: (['voll', 'kurz', 'ohne'] as const).find((n) => n === loaded.ergebnisListen?.aushang?.namen) ?? base.ergebnisListen.aushang.namen,
+        herkunft: (['aus', 'kurz', 'lang'] as const).find((h) => h === loaded.ergebnisListen?.aushang?.herkunft) ?? base.ergebnisListen.aushang.herkunft,
+      },
+      intern: { herkunft: (['aus', 'kurz', 'lang'] as const).find((h) => h === loaded.ergebnisListen?.intern?.herkunft) ?? base.ergebnisListen.intern.herkunft },
+    },
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },
@@ -117,6 +125,7 @@ function normalizeStarter(s: Starter): Starter {
     nachname: s.nachname ?? '',
     verein: s.verein ?? '',
     bundesland: s.bundesland ?? '',
+    ...(typeof s.land === 'string' && s.land.trim() ? { land: s.land } : {}),
     geburtsdatum: s.geburtsdatum ?? '',
     klasse: s.klasse,
     groesse: s.groesse ?? '',

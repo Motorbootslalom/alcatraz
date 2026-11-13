@@ -27,7 +27,7 @@ const nrKey = (s: Starter) => (s.startNr.trim() ? `${s.klasse}|${s.startNr.trim(
 const nameKey = (s: Starter) =>
   `${s.klasse}|${`${s.vorname} ${s.nachname}`.toLowerCase().replace(/\s+/g, ' ').trim()}`
 
-const FIELDS: (keyof Starter)[] = ['startNr', 'vorname', 'nachname', 'verein', 'bundesland', 'geburtsdatum', 'groesse']
+const FIELDS: (keyof Starter)[] = ['startNr', 'vorname', 'nachname', 'verein', 'bundesland', 'land', 'geburtsdatum', 'groesse']
 
 export function mergeStarters(existing: Starter[], imported: Starter[]): MergeResult {
   const matchOf = new Map<Starter, Starter>()

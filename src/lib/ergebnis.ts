@@ -4,7 +4,7 @@ import { columnsForClass } from './bogen'
 import { codeEntries, parseCodeEntry } from './codes'
 import { felderJeKennung, laufSchluessel, OHNE_LAUF, vergleicheNr, werteVon, type EingabenKonfig, type Feld } from './eingaben'
 import { bojenWert, codeDisqs, disqCodes, errorParts } from './scoring'
-import { formatSeconds, parseTime } from './time'
+import { parseTime } from './time'
 
 // Ergebnislisten aus den Eingaben – rein, ohne DOM. Vorbild: lib/ergebnis.ts im
 // Fehlerpunkte-Prototyp, nachgebaut nach den Auswertungs-Listen der DM 2026.
@@ -20,13 +20,16 @@ import { formatSeconds, parseTime } from './time'
 //   • disqualifiziert – ein Disq-Buchstabe irgendwo im Lauf, auch X „Nicht gestartet“
 //                       (am Steg oder Vorsteg eingetragen). Steht ohne Punkte hinter allen.
 //
-// Gesamt: Gewertet werden die Läufe, für die es in der Klasse schon Eingaben gibt. Am Ende
-// zählen `laufCount − Streichläufe` Läufe; solange weniger gefahren sind, wird nichts
+// Gesamt: Gewertet werden die Läufe, in denen in der Klasse schon jemand eine Zeit oder eine
+// Disqualifikation hat (Haken und Fehlerpunkte allein machen noch keinen gefahrenen Lauf).
+// Am Ende zählen `laufCount − Streichläufe` Läufe; solange weniger gefahren sind, wird nichts
 // gestrichen. Gestrichen werden zuerst disqualifizierte Läufe, dann die schlechtesten (bei
-// Gleichstand der frühere). Bleibt danach noch ein disqualifizierter Lauf in der Wertung
-// (zu wenige gültige Läufe), ist der Starter insgesamt disqualifiziert und steht auf dem
-// letzten Platz. Hat er noch einen offenen Lauf, steht er wie im Lauf auf Platz 1. Knoten
-// zählen zusätzlich.
+// Gleichstand der frühere). Insgesamt disqualifiziert (letzter Platz) ist, wer mehr
+// disqualifizierte Läufe hat, als am Ende gestrichen werden – das steht schon im
+// Zwischenstand fest. Wer dagegen im Zwischenstand weniger gültige Läufe hat, als gerade
+// zählen (ein Lauf ist offen, oder eine Disqualifikation fällt erst später in den
+// Streichlauf), hat noch kein vergleichbares Ergebnis und steht wie im Lauf auf Platz 1:
+// So können die anderen später nur aufrücken. Knoten zählen zusätzlich.
 //
 // Punkte stehen als ganze Hundertstel in den Zeilen, damit nichts durch Rundung kippt.
 
@@ -89,7 +92,7 @@ export interface GesamtZeile {
   /** Summe der gewerteten Läufe; null = disqualifiziert oder noch offen. */
   ergebnis: number | null
   disq: boolean
-  /** Ein Lauf, der zählen kann, ist noch nicht gefahren. */
+  /** Noch kein vergleichbares Ergebnis: weniger gültige Läufe, als beim jetzigen Stand zählen. */
   offen: boolean
   /** Knoten-Strafpunkte. */
   knoten: number
@@ -136,17 +139,6 @@ export function abstaende(zeilen: ReadonlyArray<{ gesamt: number | null; disq: b
     if (besser.length === 0) return null
     return z.gesamt - (art === 'erster' ? bester : Math.max(...besser))
   })
-}
-
-/** Ein Abstand als Zelle: „+12,34“, leer ohne Abstand. */
-export function abstandText(abstand: number | null): string {
-  return abstand === null ? '' : `+${formatSeconds(abstand)}`
-}
-
-/** Eine Punkte-Zelle: „disq.“ statt einer Zahl, leer solange die Zeit fehlt. */
-export function punkteText(disq: boolean, punkte: number | null): string {
-  if (disq) return 'disq.'
-  return punkte === null ? '' : formatSeconds(punkte)
 }
 
 /**
@@ -317,16 +309,26 @@ function streichIndizes(laeufe: LaufZeile[], anzahl: number): number[] {
     .sort((a, b) => a - b)
 }
 
-function gesamtListe(klasse: ClassId, laeufe: LaufListe[], knotenVon: ((id: string) => Werte) | null, felder: Map<string, Feld>, streichen: number): GesamtListe {
+function gesamtListe(
+  klasse: ClassId,
+  laeufe: LaufListe[],
+  knotenVon: ((id: string) => Werte) | null,
+  felder: Map<string, Feld>,
+  streichen: number,
+  /** Die am Ende geltenden Streichläufe – mehr Disqualifikationen kann niemand loswerden. */
+  streichenAmEnde: number,
+): GesamtListe {
   const nachNummer = laeufe[0].nachNummer.map((kopf, i): GesamtZeile => {
     const jeLauf = laeufe.map((l) => l.nachNummer[i])
     const disqs = jeLauf.filter((l) => l.disq).length
-    // Zu wenige gültige Läufe: Auch nach dem Streichen bliebe eine Disqualifikation in der Wertung.
-    const disq = disqs > streichen
-    const offen = !disq && jeLauf.some((l) => l.offen)
-    // Solange ein Lauf offen ist, gelten nur Disqualifikationen als gestrichen: Welcher gültige
-    // Lauf der schlechteste ist, steht erst fest, wenn alle gefahren sind.
-    const gestrichen = streichIndizes(jeLauf, offen ? Math.min(streichen, disqs) : streichen)
+    // Zu wenige gültige Läufe: Auch am Ende bliebe eine Disqualifikation in der Wertung.
+    const disq = disqs > Math.max(streichen, streichenAmEnde)
+    // Ein offener Lauf – oder eine Disqualifikation, die erst der Streichlauf am Ende aufnimmt:
+    // Bis dahin fehlt ein gültiger Lauf, das Ergebnis wäre mit den anderen nicht vergleichbar.
+    const offen = !disq && (jeLauf.some((l) => l.offen) || disqs > streichen)
+    // Solange das Ergebnis offen ist, gelten nur Disqualifikationen als gestrichen: Welcher
+    // gültige Lauf der schlechteste ist, steht erst fest, wenn alle gefahren sind.
+    const gestrichen = streichIndizes(jeLauf, offen ? disqs : streichen)
     const zaehlen = jeLauf.filter((_, k) => !gestrichen.includes(k))
     const ergebnis = disq || offen ? null : zaehlen.reduce((s, l) => s + l.gesamt!, 0)
     const werte = knotenVon?.(kopf.starter.id) ?? {}
@@ -360,7 +362,11 @@ function starterDerKlasse(stand: Pick<ErgebnisStand, 'starters'>, klasse: ClassI
   return stand.starters.filter((s) => s.klasse === klasse).sort((a, b) => vergleicheNr(a.startNr, b.startNr))
 }
 
-/** Die Läufe einer Klasse mit Eingaben, in der Disziplin des Aufbaus – höchstens `laufCount`. */
+/**
+ * Die Läufe einer Klasse mit Eingaben, in der Disziplin des Aufbaus – höchstens `laufCount`.
+ * Für jeden gibt es eine Lauf-Liste; in die Gesamtwertung kommt er erst, wenn er gefahren wird
+ * (siehe {@link klassenErgebnis}).
+ */
 export function laeufeMitEingaben(stand: ErgebnisStand, konfig: ErgebnisKonfig, klasse: ClassId): number[] {
   const disziplin = konfig.getAufbau(stand.aufbau).disziplin
   const ids = stand.starters.filter((s) => s.klasse === klasse).map((s) => s.id)
@@ -389,6 +395,13 @@ export function klassenErgebnis(stand: ErgebnisStand, konfig: ErgebnisKonfig, kl
   const werte = (lauf: number) => (id: string) => werteVon(stand.eingaben, laufSchluessel(disziplin, lauf), id)
   const laufListen = laeufe.map((l) => laufListe(klasse, l, werte(l), starter, gruppen, felder))
   const mitKnoten = listen.some((typeId) => konfig.positionAllowsClass(typeId, klasse) && konfig.getSheetDef(typeId).showLauf === false)
-  const streichen = streichZahl(Math.max(1, stand.laufCount), stand.streichlaeufe, laeufe.length)
-  return { klasse, laeufe: laufListen, gesamt: gesamtListe(klasse, laufListen, mitKnoten ? werte(OHNE_LAUF) : null, felder, streichen) }
+  // Ein Lauf, in dem erst Haken, Bemerkungen oder Fehlerpunkte stehen (das Abtippen beginnt mit
+  // einer Tor-Liste), ist noch nicht gefahren: Er würde sonst die ganze Klasse auf „offen“
+  // setzen. Ist noch gar keiner gefahren, zeigt die Gesamtliste den ersten.
+  const gefahren = laufListen.filter((l) => l.nachNummer.some((z) => !z.offen))
+  const gesamtLaeufe = gefahren.length > 0 ? gefahren : laufListen.slice(0, 1)
+  const laufCount = Math.max(1, stand.laufCount)
+  const streichen = streichZahl(laufCount, stand.streichlaeufe, gesamtLaeufe.length)
+  const gesamt = gesamtListe(klasse, gesamtLaeufe, mitKnoten ? werte(OHNE_LAUF) : null, felder, streichen, streichlaeufeVon(laufCount, stand.streichlaeufe))
+  return { klasse, laeufe: laufListen, gesamt }
 }

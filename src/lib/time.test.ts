@@ -42,6 +42,30 @@ describe('parseTime', () => {
     expect(parseTime('.5')?.centis).toBe(5000) // 0 min, ss=50
   })
 
+  it('liest den Doppelpunkt als Trenner zwischen Minuten und Sekunden – so, wie die Uhr die Zeit zeigt', () => {
+    // Früher fiel der Doppelpunkt weg: aus 1:23,45 wurden stillschweigend 123,45 Sekunden.
+    expect(parseTime('1:23,45')?.centis).toBe(8345)
+    expect(parseTime('1:23.45')?.centis).toBe(8345)
+    expect(parseTime('01:23,4')?.centis).toBe(8340)
+    expect(parseTime('1:23')?.centis).toBe(8300)
+    expect(parseTime('0:45,67')?.centis).toBe(4567)
+    // Auch über der Minuten-Grenze der Kurzschreibweise eindeutig.
+    expect(parseTime('25:00,00')?.centis).toBe(25 * 6000)
+    // Unvollständig oder unmöglich gilt nicht als Zeit.
+    expect(parseTime('1:')).toBeNull()
+    expect(parseTime('1:75,00')).toBeNull()
+    expect(parseTime(':30')).toBeNull()
+    expect(parseTime('1:2:3')).toBeNull()
+  })
+
+  it('lässt beim Tippen einen Doppelpunkt vor dem Dezimalzeichen stehen; das Dezimalzeichen folgt der Sprache', () => {
+    expect(sanitizeTimeInput('1:23,45')).toBe('1:23,45')
+    expect(sanitizeTimeInput('1:23.45x')).toBe('1:23,45')
+    expect(sanitizeTimeInput(':1::2,3:4')).toBe('1:2,34')
+    expect(sanitizeTimeInput('83,5', '.')).toBe('83.5')
+    expect(sanitizeTimeInput('1:23,45', '.')).toBe('1:23.45')
+  })
+
   it('gibt null für leere/ungültige Eingaben', () => {
     expect(parseTime('')).toBeNull()
     expect(parseTime('   ')).toBeNull()
