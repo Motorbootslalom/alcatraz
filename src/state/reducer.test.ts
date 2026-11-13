@@ -210,3 +210,29 @@ describe('festgeschriebene Verzahnung', () => {
     expect(reducer(open, { type: 'SET_BOATS', boats: { klein: 9, gross: 9 } }).boats.klein).toBe(9)
   })
 })
+
+describe('Leerzeilen der Wettkampfrichter-Listen', () => {
+  it('Vorgabe 3; die allgemeine Zahl wird auf 0 bis 30 begrenzt', () => {
+    expect(emptyState().wkrLeerzeilen).toBe(3)
+    expect(reducer(emptyState(), { type: 'SET_WKR_LEERZEILEN', anzahl: 5 }).wkrLeerzeilen).toBe(5)
+    expect(reducer(emptyState(), { type: 'SET_WKR_LEERZEILEN', anzahl: 99 }).wkrLeerzeilen).toBe(30)
+    expect(reducer(emptyState(), { type: 'SET_WKR_LEERZEILEN', anzahl: -2 }).wkrLeerzeilen).toBe(0)
+    expect(reducer({ ...emptyState(), wkrLeerzeilen: 7 }, { type: 'SET_WKR_LEERZEILEN', anzahl: null }).wkrLeerzeilen).toBe(3)
+  })
+
+  it('je Klasse steht nur, was von der allgemeinen Zahl abweicht', () => {
+    let s = reducer(emptyState(), { type: 'SET_WKR_LEERZEILEN', klasse: '7', anzahl: 5 })
+    s = reducer(s, { type: 'SET_WKR_LEERZEILEN', klasse: '1', anzahl: 3 })
+    expect(s.wkrLeerzeilenKlasse).toEqual({ '7': 5 })
+    // Zieht die allgemeine Zahl nach, ist es keine Abweichung mehr.
+    expect(reducer(s, { type: 'SET_WKR_LEERZEILEN', anzahl: 5 }).wkrLeerzeilenKlasse).toEqual({})
+    expect(reducer(s, { type: 'SET_WKR_LEERZEILEN', klasse: '7', anzahl: null }).wkrLeerzeilenKlasse).toEqual({})
+    s = reducer(s, { type: 'SET_WKR_LEERZEILEN', klasse: '2', anzahl: 0 })
+    expect(reducer(s, { type: 'SET_WKR_LEERZEILEN', anzahl: s.wkrLeerzeilen, alleKlassen: true }).wkrLeerzeilenKlasse).toEqual({})
+  })
+
+  it('Rückseite ein- und ausschalten', () => {
+    expect(emptyState().wkrRueckseite).toBe(false)
+    expect(reducer(emptyState(), { type: 'SET_WKR_RUECKSEITE', rueckseite: true }).wkrRueckseite).toBe(true)
+  })
+})

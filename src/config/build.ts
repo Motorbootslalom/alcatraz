@@ -339,10 +339,14 @@ export function buildConfig(
       legendNote: legendNote || undefined,
       legendNoteSpalten: noteLinks && noteRechts ? [noteLinks, noteRechts] : undefined,
       ohneCodes,
-      // Eigene Aufbauten (`bildImBrowser`) haben kein eigenes Bild: Der Browser blendet die
-      // Zeichnung der Klasse selbst ab (lib/parcoursQuelle.ts), nichts wird nachgeladen.
-      ...(pos.bildImBrowser && pos.bildGenerator
-        ? (({ quelle, dim, aus }) => ({ courseImageDir: quelle, bildErzeugen: { dim, aus } }))(bildVorgabe(pos))
+      // Hier gibt es keine vorgebauten Bildordner: Der Browser blendet die Zeichnung der Klasse
+      // selbst ab (lib/parcoursQuelle.ts), nichts wird nachgeladen. Deshalb trägt jede Position
+      // mit erzeugtem Bild ihre Vorgabe – auch die mitgelieferten, deren `bild` im Prototyp den
+      // Ordner nennt. Eigene Aufbauten (`bildImBrowser`) nennen statt eines Ordners die Quelle.
+      ...(pos.bildGenerator
+        ? (({ quelle, dim, aus }) => ({ courseImageDir: pos.bildImBrowser ? quelle : (pos.bild ?? quelle), bildErzeugen: { dim, aus } }))(
+            bildVorgabe(pos),
+          )
         : { courseImageDir: pos.bild }),
       bildDrehung: pos.bildDrehung,
       bildBreite: pos.bildBreite,

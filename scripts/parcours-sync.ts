@@ -118,7 +118,7 @@ if (abweichend.length > 0) {
   console.warn(
     `\nACHTUNG: Die Metadaten von ${abweichend.length} Zeichnung(en) nennen eine andere Lizenz als das Repository (${ERWARTETE_LIZENZ.name}):\n` +
       [...new Set(angaben.map((a) => a.lizenzUrl || '(keine)'))].map((u) => `  ${u}`).join('\n') +
-      '\nBitte im Parcours-Repository (parcours.svg) bereinigen; siehe „Offen“ in src/assets/parcours/LICENSE.md.',
+      '\nBitte im Parcours-Repository (parcours.svg) bereinigen.',
   )
 }
 if (new Set(angaben.map((a) => `${a.titel}|${a.urheber}`)).size > 1) console.warn('ACHTUNG: Titel oder Urheber sind nicht in allen Zeichnungen gleich.')

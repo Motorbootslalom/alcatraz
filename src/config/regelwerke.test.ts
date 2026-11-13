@@ -199,7 +199,7 @@ describe('Sprachen', () => {
     expect(steg.errorGroups?.[0].rows[0].text).toBe('erneute Stegberührung / Additional touch of the starting pontoon')
     expect(steg.legendNote).toContain('kombinierbar')
     expect(steg.legendNote).toContain('Penalties can be combined')
-    expect(getBogenTexte().wkr).toBe('WKR / Race official:')
+    expect(getBogenTexte().wkr).toBe('WKR / Judge:')
     // Satz-Hinweise stehen untereinander, nicht mit „/“ verbunden.
     expect(getLegende().fehlerHinweis?.split('\n')).toHaveLength(2)
     // Auf den Listen stehen sie nebeneinander: links deutsch, rechts englisch.

@@ -30,9 +30,9 @@ Alcatraz führt die bisherigen Prototypen zusammen:
 | Quelle | Inhalt | Stand in Alcatraz |
 |---|---|---|
 | `verzahnung-prototyp-vue` | Starter, Startnummern, Verzahnung, Bootbedarf, Parallel-Slalom | übernommen |
-| `fehlerpunkte-prototyp-vue` | Regelwerke, Aufbauten, WKR-Listen, Erfassung, Ergebnislisten | Regelwerke und Aufbauten übernommen (`src/config/`), der Rest ist offen |
+| `fehlerpunkte-prototyp-vue` | Regelwerke, Aufbauten, WKR-Listen, Erfassung, Ergebnislisten | Regelwerke und Aufbauten übernommen (`src/config/`); WKR-Einteilung und Beispielansicht unter „Einstellungen“. Die echten Wettkampfrichter-Listen stehen unter „Listen“ (`src/lib/wkrListen.ts`, `src/components/WkrListen.vue`): je Parcours, Klasse, Lauf und Liste ein Bogen mit den Startnummern in der Startreihenfolge der Verzahnung, Leerzeilen für Nachmeldungen, wahlweise Beschreibung auf der Rückseite; bei der Clubmeisterschaft mehrere Klassen je Bogen (Listen mit Parcoursbild bleiben je Klasse). Offen: Erfassung, Wertung, Ergebnislisten, Aushang aller Codes |
 | `tafel` | Anzeigetafel, Startliste im Betrieb, Geräte über ntfy | offen |
-| `Parcours` | Parcours-Zeichnungen | Klasse E, 1–7 und Möwe eingebunden (`src/assets/parcours`, CC BY-SA 4.0, `npm run parcours:sync`); genutzt im Assistenten („Im Bild“), auf den WKR-Listen noch offen |
+| `Parcours` | Parcours-Zeichnungen | Klasse E, 1–7 und Möwe eingebunden (`src/assets/parcours`, CC BY-NC-SA 4.0, `npm run parcours:sync`); genutzt im Assistenten („Im Bild“) und abgeblendet je Position auf den WKR-Bögen |
 | Excel-Auswertung | Mannschaftswertung, Verwiegung, Urkunden-Daten u. a. | Starterlisten, Vorsteg-Liste und Verwiegung (Gewichtslisten, Erfassung) sind da; der Rest ist offen |
 
 ### Entwickeln

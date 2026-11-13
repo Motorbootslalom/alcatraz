@@ -10,12 +10,13 @@ import { planEvent } from '../planung/plan'
 import { originLabelKey, originText } from '../lib/origin'
 import { formatDate, formatDateTime, t, tn } from '../i18n'
 import type { Starter } from '../types'
+import WkrListen from '../components/WkrListen.vue'
 
 /**
  * Druckbare Listen. Gedruckt wird über den Browser (auch „Als PDF speichern“);
  * die Bildschirmansicht ist die Druckansicht.
  */
-const KINDS = ['gewicht', 'byClass', 'interleaved', 'vorsteg'] as const
+const KINDS = ['gewicht', 'byClass', 'interleaved', 'vorsteg', 'wkr'] as const
 type Kind = (typeof KINDS)[number]
 
 const { state } = useStore()
@@ -56,7 +57,15 @@ interface Section {
   groups: Starter[][]
 }
 
+// Wettkampfrichter-Listen zeichnet eine eigene Ansicht (components/WkrListen.vue); sie
+// meldet, wie viele Bögen die Auswahl zeigt und wie die Auswahl heißt.
+const wkrList = computed(() => kind.value === 'wkr')
+const wkrStand = ref({ anzahl: 0, auswahl: '' })
+const nothingToPrint = computed(() => (wkrList.value ? wkrStand.value.anzahl === 0 : sections.value.length === 0))
+
 const sections = computed<Section[]>(() => {
+  const k = kind.value
+  if (k === 'wkr') return []
   if (weightList.value) {
     // Je Herkunft ein eigenes Blatt für die Mannschaftsleitung.
     return gewichtsGruppen(state.value.starters, state.value.originMode).map((g) => ({
@@ -65,7 +74,7 @@ const sections = computed<Section[]>(() => {
       groups: [g.starters],
     }))
   }
-  if (kind.value === 'byClass') {
+  if (k === 'byClass') {
     const groups = CLASSES.map((c) => sortedByStartNr(state.value.starters.filter((p) => p.klasse === c.id))).filter(
       (g) => g.length > 0,
     )
@@ -77,7 +86,7 @@ const sections = computed<Section[]>(() => {
   return state.value.parcoursList
     .map((p) => ({
       id: p.id,
-      title: t(`lists.title.${kind.value}`) + (several ? `\n${p.name}` : ''),
+      title: t(`lists.title.${k}`) + (several ? `\n${p.name}` : ''),
       groups: [plans.get(p.id)?.sequence ?? []],
     }))
     .filter((s) => s.groups[0].length > 0)
@@ -112,7 +121,13 @@ const pageCss = computed(() => {
   const [before, after] = t('lists.page', { page: '\u0001', pages: '\u0002' }).split('\u0001')
   const [between, end] = after.split('\u0002')
   const page = `${cssString(before)} counter(page) ${cssString(between)} counter(pages) ${cssString(end)}`
-  return `@page { @bottom-center { content: ${page}; font: 10pt Arial, sans-serif } @bottom-right { content: ${cssString(stand.value)}; font: 10pt Arial, sans-serif } }`
+  // Die Bögen der Wettkampfrichter haben nur 8 mm Rand (benannte Seiten in bogen.css): dort
+  // kleiner und oben im Rand, damit auch ein Drucker mit breitem Greifrand es noch druckt.
+  const boxen = (font: string, extra = '') =>
+    `@bottom-center { content: ${page}; font: ${font} Arial, sans-serif; ${extra} } @bottom-right { content: ${cssString(stand.value)}; font: ${font} Arial, sans-serif; ${extra} }`
+  return wkrList.value
+    ? `@page bogen-hoch { ${boxen('7pt', 'vertical-align: top;')} } @page bogen-quer { ${boxen('7pt', 'vertical-align: top;')} }`
+    : `@page { ${boxen('10pt')} }`
 })
 
 /**
@@ -122,7 +137,8 @@ const pageCss = computed(() => {
  */
 function print() {
   const before = document.title
-  document.title = [t(`lists.kind.${kind.value}`), heading.value, fileStamp(new Date())].filter(Boolean).join(' - ')
+  const auswahl = wkrList.value ? wkrStand.value.auswahl : ''
+  document.title = [t(`lists.kind.${kind.value}`), auswahl, heading.value, fileStamp(new Date())].filter(Boolean).join(' - ')
   window.addEventListener('afterprint', () => (document.title = before), { once: true })
   window.print()
 }
@@ -133,13 +149,13 @@ function print() {
     <h2>{{ t('lists.title') }}</h2>
     <p class="hint">{{ t('lists.hint') }}</p>
     <div class="row" style="align-items: center">
-      <div class="segmented">
+      <div class="segmented list-kinds">
         <button v-for="k in KINDS" :key="k" type="button" :class="kind === k ? 'active' : ''" @click="kind = k">
           {{ t(`lists.kind.${k}`) }}
         </button>
       </div>
       <span style="flex: 1" />
-      <button class="btn primary" :disabled="sections.length === 0 || blocked" @click="print">{{ t('common.print') }}</button>
+      <button class="btn primary" :disabled="nothingToPrint || blocked" @click="print">{{ t('common.print') }}</button>
     </div>
   </div>
 
@@ -149,7 +165,12 @@ function print() {
     {{ t('lists.fixNumbers') }}
   </p>
 
-  <div v-if="sections.length === 0" class="panel empty no-print">{{ t('lists.empty') }}</div>
+  <div v-if="wkrList ? state.starters.length === 0 : sections.length === 0" class="panel empty no-print">{{ t('lists.empty') }}</div>
+
+  <template v-else-if="wkrList">
+    <component :is="'style'">{{ pageCss }}</component>
+    <WkrListen :gesperrt="blocked" @stand="wkrStand = $event" />
+  </template>
 
   <div v-else :class="['sheet', weightList ? 'weights' : '']">
     <component :is="'style'">{{ pageCss }}</component>

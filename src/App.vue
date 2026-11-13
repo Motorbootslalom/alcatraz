@@ -6,6 +6,7 @@ import { BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from './lib/build'
 import { formatDateTime, t, tn } from './i18n'
 import AppLogo from './components/AppLogo.vue'
 import LocaleSelect from './components/LocaleSelect.vue'
+import ThemeToggle from './components/ThemeToggle.vue'
 import EventView from './views/EventView.vue'
 import StartersView from './views/StartersView.vue'
 import VerzahnungView from './views/VerzahnungView.vue'
@@ -42,7 +43,8 @@ function commitLabel(): string {
           <template v-if="state.eventName">{{ state.eventName }} · {{ state.eventJahr }} · </template>
           {{ tn('app.starters', state.starters.length) }}
         </div>
-<LocaleSelect />
+        <ThemeToggle />
+        <LocaleSelect />
       </div>
       <nav class="tabs">
         <a

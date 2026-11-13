@@ -32,11 +32,19 @@ export function uebersetztBlock(sprache: Sprache, de: string, en?: string): stri
 /** Feste Texte auf den Listen (außer den Spaltennamen, siehe i18n/en.yaml). */
 export interface BogenTexte {
   nr: string
+  /** Kopf der Klassen-Spalte, wenn mehrere Klassen auf einer Liste stehen (Clubmeisterschaft). */
+  klasseKurz: string
   wkr: string
   wkrPlatzhalter: string
   unterschrift: string
   rueckseite: string
   klasse(id: string): string
+  /** Mehrere Klassen im Kopf einer gemeinsamen Liste: „Klassen 1, 2, 3“. */
+  klassen(ids: readonly string[]): string
+  /** Zusatz der Zwischenüberschrift, wenn eine Klasse auf der nächsten Seite weitergeht. */
+  fortsetzung: string
+  /** Nur der Name der Klasse („7“, „Dolphin“) – für die Klassen-Spalte. */
+  klasseName(id: string): string
   lauf(n: number): string
   parcours(n: number): string
   seite(n: number, von: number): string
@@ -46,14 +54,19 @@ export function bogenTexte(sprache: Sprache, klassenNamen: Record<string, string
   const t = (de: string, en: string) => uebersetzt(sprache, de, en)
   return {
     nr: t('Nr.', 'No.'),
-    wkr: `${t('WKR', 'Race official')}:`,
-    wkrPlatzhalter: t('Name Wettkampfrichter*in', 'Name of race official'),
-    unterschrift: t('Unterschrift WKR', 'Signature of race official'),
+    klasseKurz: t('Kl.', 'Cl.'),
+    // Englisch nach dem Sprachgebrauch der UIM: „judge“ (im Prototyp noch „race official“).
+    wkr: `${t('WKR', 'Judge')}:`,
+    wkrPlatzhalter: t('Name Wettkampfrichter*in', 'Name of judge'),
+    unterschrift: t('Unterschrift WKR', 'Signature of judge'),
     rueckseite: t(
       'Beschreibung (Fehlerpunkte, Disqualifikationen, Parcours) steht auf der Rückseite - zum Lesen das Blatt nach oben klappen.',
       'Description (penalties, disqualifications, racecourse) is on the back - fold the sheet upwards to read it.',
     ),
     klasse: (id) => `${t('Klasse', 'Class')} ${klassenNamen[id] ?? id}`,
+    klassen: (ids) => `${t('Klassen', 'Classes')} ${ids.map((id) => klassenNamen[id] ?? id).join(', ')}`,
+    fortsetzung: t('Fortsetzung', 'continued'),
+    klasseName: (id) => klassenNamen[id] ?? id,
     lauf: (n) => t(`${n}. Lauf`, `Attempt ${n}`),
     parcours: (n) => t(`Parcours ${n}`, `Course ${n}`),
     seite: (n, von) => `${t('Seite', 'Page')} ${n} / ${von}`,

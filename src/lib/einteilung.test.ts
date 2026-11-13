@@ -4,7 +4,7 @@ import { makeFile, parseFile } from '../persistenz/backup'
 import { migrate } from '../state/migrate'
 import { emptyState, reducer, type Action } from '../state/reducer'
 import type { AppState } from '../types'
-import { einteilungsListen, haengeUm, listeGilt, normalisiereEinteilung, parcoursVon, setzeName, wkrName } from './einteilung'
+import { einteilungsListen, haengeUm, listeGilt, normalisiereEinteilung, parcoursVon, setzeName, wkrFeld, wkrName } from './einteilung'
 
 // Erfundene Namen – keine echten Personen.
 const name = (parcoursId: string, typeId: string, n: string): Action => ({ type: 'SET_WKR_NAME', parcoursId, typeId, name: n })
@@ -112,6 +112,23 @@ describe('WKR-Einteilung: wkrName', () => {
     expect(wkrName(state, 'steg', '3')).toBe('Muster')
     expect(state.einteilung.par_1.alcatraz1).toBe('Nur hier')
     expect(mit(state, { type: 'SET_AUFBAU', aufbau: 'alcatraz' }).einteilung).toEqual(state.einteilung)
+  })
+})
+
+describe('WKR-Einteilung: wkrFeld (Stelle, an die Tabelle und Bogenkopf schreiben)', () => {
+  it('nennt den Parcours der Klasse und den Eintrag, wie er getippt wurde', () => {
+    const state = mit(emptyState(), name('par_2', 'steg', 'Beispiel '))
+    expect(wkrFeld(state, 'steg', '7', konfig)).toEqual({ parcoursId: 'par_2', eingabe: 'Beispiel ' })
+    // Gedruckt wird ohne den Leerraum am Rand.
+    expect(wkrName(state, 'steg', '7', konfig)).toBe('Beispiel')
+    expect(wkrFeld(state, 'steg', '2', konfig)).toEqual({ parcoursId: 'par_1', eingabe: '' })
+  })
+
+  it('kein Feld, wenn die Klasse die Liste nicht hat oder auf keinem Parcours fährt', () => {
+    const state = emptyState()
+    expect(wkrFeld(state, 'mueb', '2', konfig)).toBeUndefined()
+    expect(wkrFeld(state, 'mueb', '5', konfig)?.parcoursId).toBe('par_2')
+    expect(wkrFeld({ ...state, parcoursList: [] }, 'steg', '5', konfig)).toBeUndefined()
   })
 })
 

@@ -96,8 +96,24 @@ export type Action =
    * verschiedene Felder ausfüllen, einander nichts überschreiben.
    */
   | { type: 'SET_WKR_NAME'; parcoursId: string; typeId: string; name: string }
+  /**
+   * Leerzeilen der Wettkampfrichter-Listen: allgemein (`klasse` fehlt) oder für eine Klasse;
+   * `null` = wieder die allgemeine Zahl bzw. die Vorgabe. `alleKlassen` verwirft dabei die
+   * abweichenden Zahlen einzelner Klassen.
+   */
+  | { type: 'SET_WKR_LEERZEILEN'; klasse?: ClassId; anzahl: number | null; alleKlassen?: boolean }
+  | { type: 'SET_WKR_RUECKSEITE'; rueckseite: boolean }
   | { type: 'LOAD_STATE'; state: AppState }
   | { type: 'RESET_ALL' }
+
+/** Leerzeilen je Klasse auf den Wettkampfrichter-Listen: Vorgabe wie im Prototyp (`emptyRows: 3`). */
+export const WKR_LEERZEILEN_VORGABE = 3
+export const WKR_LEERZEILEN_MAX = 30
+
+/** Eine brauchbare Zahl von Leerzeilen (0 bis 30, ganz); sonst `undefined`. */
+export function leerzeilenZahl(n: unknown): number | undefined {
+  return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(WKR_LEERZEILEN_MAX, Math.round(n))) : undefined
+}
 
 /** Zustand einer frisch angelegten Veranstaltung. */
 export function emptyState(): AppState {
@@ -112,6 +128,9 @@ export function emptyState(): AppState {
     eigeneAufbauten: [],
     laufCount: 3,
     einteilung: {},
+    wkrLeerzeilen: WKR_LEERZEILEN_VORGABE,
+    wkrLeerzeilenKlasse: {},
+    wkrRueckseite: false,
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -253,6 +272,24 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_LIST_OPTIONS':
       return { ...state, ...action.patch }
+
+    case 'SET_WKR_LEERZEILEN': {
+      if (action.klasse === undefined) {
+        const anzahl = leerzeilenZahl(action.anzahl) ?? WKR_LEERZEILEN_VORGABE
+        // Was danach nicht mehr abweicht, ist keine eigene Angabe mehr.
+        const eigene = action.alleKlassen ? {} : Object.fromEntries(Object.entries(state.wkrLeerzeilenKlasse).filter(([, n]) => n !== anzahl))
+        return { ...state, wkrLeerzeilen: anzahl, wkrLeerzeilenKlasse: eigene }
+      }
+      const { [action.klasse]: _alt, ...rest } = state.wkrLeerzeilenKlasse
+      const anzahl = leerzeilenZahl(action.anzahl)
+      return {
+        ...state,
+        wkrLeerzeilenKlasse: anzahl === undefined || anzahl === state.wkrLeerzeilen ? rest : { ...rest, [action.klasse]: anzahl },
+      }
+    }
+
+    case 'SET_WKR_RUECKSEITE':
+      return { ...state, wkrRueckseite: action.rueckseite }
 
     case 'SET_ORIGIN_SHORT': {
       const { [action.name]: _old, ...rest } = state.originShort

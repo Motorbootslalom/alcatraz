@@ -54,21 +54,20 @@ const UNGENUTZTE_MARKER = ['RazorWire', 'Scissors', 'Legs']
 const AUSWEICH = ",'DejaVu Sans',sans-serif"
 
 /**
- * Die Lizenz der Zeichnungen, wie README und LICENSE des Parcours-Repositorys sie erklären.
+ * Die Lizenz der Zeichnungen laut README, LICENSE und Metadaten des Parcours-Repositorys.
  * `parcours:sync` vergleicht damit, was in den Metadaten der Dateien steht, und schreibt sie
  * nach QUELLE.json – von dort nimmt die Oberfläche die Namensnennung.
  */
-export const ERWARTETE_LIZENZ = { name: 'CC BY-SA 4.0', url: 'https://creativecommons.org/licenses/by-sa/4.0/' } as const
+export const ERWARTETE_LIZENZ = { name: 'CC BY-NC-SA 4.0', url: 'https://creativecommons.org/licenses/by-nc-sa/4.0/' } as const
 
 /**
- * Der Vermerk, dass die Zeichnung bearbeitet ist (CC BY-SA 4.0 Abschnitt 3(a)(1)(B)). Er steht
+ * Der Vermerk, dass die Zeichnung bearbeitet ist (CC BY-NC-SA 4.0 Abschnitt 3(a)(1)(B)). Er steht
  * in den Metadaten jeder Datei, damit er auch dort mitreist, wo niemand LICENSE.md sieht: in
- * der gebauten App. Die Lizenz nennt er mit, solange die Metadaten der Quelle noch eine
- * andere tragen als das Repository (LICENSE.md, „Offen“).
+ * der gebauten App.
  */
 export const BEARBEITUNGSVERMERK =
   'Für Alcatraz bearbeitet: viewBox ergänzt, Editor-Angaben, ungenutzte Pfeilspitzen und Rahmen der Exportfläche entfernt, ' +
-  `Ausweichschriften ergänzt. Lizenz laut README und LICENSE des Parcours-Repositorys: ${ERWARTETE_LIZENZ.name}, ${ERWARTETE_LIZENZ.url}`
+  `Ausweichschriften ergänzt. Lizenz: ${ERWARTETE_LIZENZ.name}, ${ERWARTETE_LIZENZ.url}`
 
 /** Titel, Urheber und Lizenz-Adresse aus den Metadaten einer Zeichnung; was fehlt, ist leer. */
 export function metadaten(svg: string): { titel: string; urheber: string; lizenzUrl: string } {

@@ -1,6 +1,7 @@
-import type { AppState, OriginMode, Starter } from '../types'
+import type { AppState, ClassId, OriginMode, Starter } from '../types'
+import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState } from './reducer'
+import { emptyState, leerzeilenZahl } from './reducer'
 import { aufbauOf, regelwerkOf } from '../config/catalog'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
@@ -51,6 +52,10 @@ export function migrate(raw: unknown): AppState | null {
       loaded.einteilung,
       parcoursList.map((p) => p?.id).filter((id): id is string => typeof id === 'string'),
     ),
+    // Fehlen in Ständen vor den Wettkampfrichter-Listen.
+    wkrLeerzeilen: leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen,
+    wkrLeerzeilenKlasse: eigeneLeerzeilen(loaded.wkrLeerzeilenKlasse, leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen),
+    wkrRueckseite: loaded.wkrRueckseite === true,
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },
@@ -84,6 +89,17 @@ function ownWeights(
     if (typeof kg === 'number' && kg > 0 && kg !== preset[klasse]) own[klasse] = kg
   }
   return own
+}
+
+/** Nur die Klassen, deren Zahl brauchbar ist und von der allgemeinen abweicht. */
+function eigeneLeerzeilen(loaded: unknown, allgemein: number): AppState['wkrLeerzeilenKlasse'] {
+  if (!loaded || typeof loaded !== 'object' || Array.isArray(loaded)) return {}
+  const eigene: AppState['wkrLeerzeilenKlasse'] = {}
+  for (const [klasse, n] of Object.entries(loaded)) {
+    const anzahl = leerzeilenZahl(n)
+    if (CLASS_IDS.includes(klasse as ClassId) && anzahl !== undefined && anzahl !== allgemein) eigene[klasse as ClassId] = anzahl
+  }
+  return eigene
 }
 
 function normalizeStarter(s: Starter): Starter {

@@ -34,7 +34,7 @@ describe('Zuordnen im Bild', () => {
     expect(zeile.text()).toContain(PARCOURS_HERKUNFT.commit.slice(0, 7))
     expect(zeile.findAll('a').map((a) => [a.text(), a.attributes('href')])).toEqual([
       ['github.com/Motorbootslalom/Parcours', 'https://github.com/Motorbootslalom/Parcours'],
-      ['CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0/'],
+      ['CC BY-NC-SA 4.0', 'https://creativecommons.org/licenses/by-nc-sa/4.0/'],
     ])
     setLocale('en')
     expect(ansicht(entwurf()).find('.parcours-nachweis').text()).toContain('adapted')

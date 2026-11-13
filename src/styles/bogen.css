@@ -1,0 +1,886 @@
+/* ======================================================================
+   Wettkampfrichter-Bogen (WKR-Liste) auf A4
+   Portiert aus styles.css des Fehlerpunkte-Prototyps (Abschnitt „DER BOGEN“).
+   Die Klassen heißen hier `bogen…`, weil `.sheet` schon die Startlisten meint.
+
+   Der Bogen ist Papier: Er bleibt auch im dunklen Modus weiß. Am Bildschirm
+   hat er die Maße der Druckseite (A4, 8 mm Rand), damit Umbrüche und die
+   Seitenende-Prüfung stimmen; in schmalen Fenstern wird er als Ganzes
+   verkleinert (`transform`), statt die Seite quer rollen zu lassen.
+   ====================================================================== */
+
+.bogen {
+  --ink: #111;
+  --line: #000;
+  --shade: #d9d9d9;
+  color-scheme: light;
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  width: 210mm;
+  min-height: 297mm;
+  padding: 8mm;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, 'Liberation Sans', Helvetica, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.bogen *,
+.bogen *::before,
+.bogen *::after {
+  box-sizing: border-box;
+}
+
+.bogen--quer {
+  width: 297mm;
+  min-height: 210mm;
+}
+
+/* Der Stapel der Bögen: Die Ansicht misst seine Breite und setzt die beiden
+   Faktoren (components/WkrVorschau.vue). */
+.bogen-stapel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Verkleinert wird mit `transform`, nicht mit `zoom`: Das Layout bleibt in den Maßen der
+   Druckseite, die Seitenaufteilung (BogenSeite.vue misst sie) ist damit in jedem Fenster
+   dieselbe. `transform` lässt den Platz des Blatts unverändert – die negativen Ränder
+   geben zurück, was es nach dem Verkleinern nicht mehr braucht. Die wahre Höhe meldet
+   BogenSeite.vue (`--bogen-hoehe`); die Vorgabe ist die Mindesthöhe des Blatts. */
+.bogen-stapel .bogen {
+  --bogen-zoom: var(--bogen-zoom-hoch, 1);
+  --bogen-breite: 210mm;
+  --bogen-hoehe: 297mm;
+  transform-origin: 0 0;
+  transform: scale(var(--bogen-zoom));
+  margin-right: calc(var(--bogen-breite) * (var(--bogen-zoom) - 1));
+  margin-bottom: calc(var(--bogen-hoehe) * (var(--bogen-zoom) - 1));
+}
+
+.bogen-stapel .bogen--quer {
+  --bogen-zoom: var(--bogen-zoom-quer, 1);
+  --bogen-breite: 297mm;
+  --bogen-hoehe: 210mm;
+}
+
+/* Seite zu hoch für ein A4-Blatt (BogenSeite.vue): Hinweis im oberen Rand und
+   rote Linie, wo die Druckseite endet. Nur am Bildschirm. */
+.bogen-zuviel {
+  position: absolute;
+  top: 1mm;
+  left: 8mm;
+  right: 8mm;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #b42318;
+  font-weight: 600;
+}
+
+.bogen-seitenende {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed #d92d20;
+  pointer-events: none;
+}
+
+/* Kennzeichen quer über dem Blatt („Beispielansicht“): unübersehbar, aber die
+   Liste darunter bleibt lesbar und das Namensfeld bedienbar. */
+.bogen-kennzeichen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bogen-kennzeichen span {
+  transform: rotate(-32deg);
+  padding: 3mm 9mm;
+  border: 2.2mm solid currentColor;
+  border-radius: 5mm;
+  color: rgba(196, 30, 30, 0.2);
+  font-size: 58pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------- Kopf ---------- */
+
+.bogen-kopf {
+  border: 1.6px solid var(--line);
+}
+
+.bk-leiste {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1.6px solid var(--line);
+  padding: 4px 8px;
+  min-height: 40px;
+}
+
+.bk-titel {
+  font-size: 19pt;
+  font-weight: 600;
+  text-align: center;
+}
+
+.bk-rumpf {
+  display: flex;
+}
+
+.bk-links {
+  width: 42mm;
+  flex: none;
+  border-right: 1.6px solid var(--line);
+}
+
+.bk-zelle {
+  padding: 5px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+  font-size: 12pt;
+}
+
+.bk-zelle:last-child {
+  border-bottom: none;
+}
+
+.bk-liste {
+  font-weight: 600;
+}
+
+.bk-wkr {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 8px;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.bk-wkr-label {
+  font-size: 12pt;
+}
+
+.bk-wkr-feld {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bk-wkr-input {
+  display: block;
+  width: 100%;
+  border: none;
+  border-bottom: 1px dotted #999;
+  border-radius: 0;
+  font: inherit;
+  font-size: 12pt;
+  color: var(--ink);
+  background: transparent;
+  outline: none;
+  padding: 2px 2px;
+}
+
+.bk-wkr-input::placeholder {
+  color: #8a8a8a;
+}
+
+/* Die Bezeichnung unter der Linie: beim Eingabefeld nur im Druck (am Bildschirm
+   sagt der Platzhalter dasselbe), beim reinen Text immer. */
+.bk-wkr-unter {
+  display: none;
+  font-size: 7.5pt;
+  color: #444;
+  padding: 1px 2px 0;
+}
+
+.bk-wkr-text + .bk-wkr-unter {
+  display: block;
+}
+
+@media screen {
+  /* Das Feld im Bogenkopf ist am Bildschirm ein Eingabefeld: als solches erkennbar. */
+  input.bk-wkr-input {
+    color: #1d4fb8;
+    background: #f3f7ff;
+    border-bottom: 1px solid #1d4fb8;
+  }
+
+  input.bk-wkr-input:focus-visible {
+    outline: 2px solid #1d4fb8;
+    outline-offset: 1px;
+    background: #fff8d8;
+  }
+}
+
+/* ---------- Tabelle ---------- */
+
+.bogen-tabelle {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Kopf- und Fußzelle gehen über die volle Breite und tragen keine Rahmen – ihr Inhalt
+   (Kopfbox, Legende) bringt die eigene Gestaltung mit. In <thead>/<tfoot> wiederholen
+   sie sich beim Druck je Seite. */
+.bogen-tabelle > thead > tr > th.bt-kopfzelle,
+.bogen-tabelle > tfoot > tr > td.bt-fusszelle {
+  border: none;
+  padding: 0;
+  background: #fff;
+  text-align: left;
+  vertical-align: top;
+  font-weight: normal;
+  font-size: 10.5pt;
+}
+
+.bogen-tabelle > thead > tr > th.bt-kopfzelle {
+  padding-bottom: 6px;
+}
+
+.bogen-tabelle > tfoot > tr > td.bt-fusszelle {
+  padding-top: 8px;
+}
+
+.bt-cg-nr {
+  width: 13mm;
+}
+
+.bt-cg-klasse {
+  width: 11mm;
+}
+
+/* Lange Klassennamen (UIM: „Dolphin“). */
+.bt-cg-klasse--breit {
+  width: 18mm;
+}
+
+/* Nur die direkten Zellen der Zeilengruppen bekommen Rahmen und Zentrierung –
+   nicht die verschachtelten Legenden-Tabellen im Fuß. */
+.bogen-tabelle > thead > tr > th,
+.bogen-tabelle > tbody > tr > td {
+  border: 1px solid var(--line);
+  text-align: center;
+  padding: 0;
+  font-size: 9.5pt;
+}
+
+.bogen-tabelle > tbody > tr > td {
+  height: 23px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.bogen-tabelle > thead > tr > th {
+  padding: 3px 2px;
+  font-size: 9pt;
+  font-weight: 700;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+
+.bogen-tabelle .bt-nr,
+.bogen-tabelle .bt-klasse {
+  font-weight: 600;
+}
+
+.bogen-tabelle .bt-sub {
+  font-size: 8pt;
+  font-weight: 600;
+}
+
+.bogen-tabelle .bt-sum-zelle {
+  font-weight: 600;
+}
+
+.bogen-tabelle .bt-text-zelle {
+  text-align: left;
+  padding: 0 3px;
+}
+
+.bogen-tabelle > tbody > tr.grau > td {
+  background: var(--shade);
+}
+
+/* Mehrere Klassen auf einem Bogen: Diese Spalte gibt es für die Klasse der Zeile nicht. */
+.bogen-tabelle > tbody > tr > td.bt-entfaellt {
+  background: repeating-linear-gradient(135deg, transparent 0 3px, #9a9a9a 3px 4px);
+}
+
+/* Optische Spalten-Trenner am linken Rand einer Spalte, über Kopf und Zellen – z. B.
+   zwischen Hin- und Rückfahrt (`{ typ: trenner, design: … }` in den Aufbauten). */
+.bogen-tabelle > thead > tr > th.sep-fett,
+.bogen-tabelle > tbody > tr > td.sep-fett {
+  border-left: 2.5px solid var(--line);
+}
+
+.bogen-tabelle > thead > tr > th.sep-doppelt,
+.bogen-tabelle > tbody > tr > td.sep-doppelt {
+  border-left: 4px double var(--line);
+}
+
+.bogen-tabelle > thead > tr > th.sep-gepunktet,
+.bogen-tabelle > tbody > tr > td.sep-gepunktet {
+  border-left: 2px dotted var(--line);
+}
+
+.bogen-tabelle > thead > tr > th.sep-gestrichelt,
+.bogen-tabelle > tbody > tr > td.sep-gestrichelt {
+  border-left: 2px dashed var(--line);
+}
+
+/* Rechte Kante: bei inneren Unter-Trennungen zusätzlich gesetzt, damit die Linie unter
+   border-collapse beidseitig getragen und nicht überdeckt wird. */
+.bogen-tabelle > thead > tr > th.sepr-fett,
+.bogen-tabelle > tbody > tr > td.sepr-fett {
+  border-right: 2.5px solid var(--line);
+}
+
+.bogen-tabelle > thead > tr > th.sepr-doppelt,
+.bogen-tabelle > tbody > tr > td.sepr-doppelt {
+  border-right: 4px double var(--line);
+}
+
+.bogen-tabelle > thead > tr > th.sepr-gepunktet,
+.bogen-tabelle > tbody > tr > td.sepr-gepunktet {
+  border-right: 2px dotted var(--line);
+}
+
+.bogen-tabelle > thead > tr > th.sepr-gestrichelt,
+.bogen-tabelle > tbody > tr > td.sepr-gestrichelt {
+  border-right: 2px dashed var(--line);
+}
+
+/* ---------- Fuß: Legende, Parcoursbild, Unterschrift ---------- */
+
+.bogen-fuss {
+  display: flex;
+  flex-direction: column;
+}
+
+.bl {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 0.8em;
+}
+
+.bl-titel {
+  font-weight: 700;
+  text-decoration: underline;
+  margin-bottom: 2px;
+}
+
+.bl-errors,
+.bl-disq {
+  border-collapse: collapse;
+}
+
+.bl-errors td,
+.bl-disq td {
+  border: none;
+  padding: 1px 6px 1px 0;
+  vertical-align: top;
+}
+
+/* Zweispaltig: spaltenweise von oben nach unten, also weiter alphabetisch. */
+.bl-disq--2,
+.bl-disq--2 tbody {
+  display: block;
+}
+
+.bl-disq--2 tbody {
+  column-count: 2;
+  column-gap: 12px;
+}
+
+.bl-disq--2 tr {
+  display: flex;
+  break-inside: avoid;
+}
+
+.bl-disq--2 .bl-code {
+  flex: none;
+}
+
+.bl-code {
+  font-weight: 700;
+  width: 22px;
+  text-align: center;
+}
+
+.bl-text {
+  text-align: left;
+}
+
+.bl-pts {
+  font-weight: 700;
+  text-align: right;
+  width: 30px;
+}
+
+/* Getrennte Fehlerblöcke (Steg Ablegen | Anlegen) nebeneinander. */
+.bl-grouped {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.bl-col-code {
+  width: 28px;
+}
+
+.bl-col-pts {
+  width: 30px;
+}
+
+.bl-col-buffer {
+  width: 18px;
+}
+
+.bl-grouped .bl-grouptitle {
+  border: none;
+  font-weight: 700;
+  text-decoration: underline;
+  text-align: left;
+  padding: 0 6px 2px 0;
+}
+
+.bl-grouped .bl-buffer {
+  width: 18px;
+  border: none;
+}
+
+.bl-note {
+  font-style: italic;
+  line-height: 1.4;
+  white-space: pre-line;
+  text-align: left;
+}
+
+/* Zweisprachig: links deutsch, rechts englisch (spart Höhe). */
+.bl-note--2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.bogen-bild {
+  margin: 8px 0;
+  border: 1.5px dashed #7a86c9;
+  padding: 4px;
+  text-align: center;
+}
+
+.bogen-bild img {
+  max-width: 100%;
+  /* 62 mm wie im Prototyp: Mit Unterschriftsplatz und den Disqualifikationen der DM 2026
+     passt der Bogen so auf ein Blatt. */
+  max-height: 62mm;
+}
+
+/* Zeile am Fuß: mittige Seitenzahl (mehrseitiger Bogen) und rechts die Unterschrift.
+   padding-top ist der Platz zum Unterschreiben über der Linie (etwa 11 mm). */
+.bogen-unterschrift-zeile {
+  margin-top: auto;
+  padding-top: 42px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.bogen-seitenzahl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  font-size: 9pt;
+  font-weight: 600;
+}
+
+.bogen-unterschrift {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.bu-linie {
+  width: 62mm;
+  border-top: 1px solid var(--line);
+}
+
+.bu-text {
+  font-size: 9pt;
+}
+
+/* Positionen mit gedrehtem Bild: Legende links, Parcoursbild rechts daneben. */
+.bogen--gedreht .bogen-fuss {
+  display: grid;
+  grid-template-columns: 1fr var(--bild-breite, 40mm);
+  grid-template-areas:
+    'legende bild'
+    'unterschrift unterschrift';
+  column-gap: 8px;
+}
+
+.bogen--gedreht .bl {
+  grid-area: legende;
+}
+
+/* Die Zeichnung liegt quer vor und wird um 90° gedreht (Hochformat, Verhältnis 100:237).
+   Die Mindesthöhe kommt vom Bild, nicht von der Legende, damit es auch bei kurzer Legende
+   erkennbar bleibt. 11 px = Rahmenlinien und Innenabstand. */
+.bogen--gedreht .bogen-bild {
+  grid-area: bild;
+  margin: 0;
+  position: relative;
+  overflow: hidden;
+  min-height: calc((var(--bild-breite, 40mm) - 11px) * 2.37 + 11px);
+}
+
+.bogen-bild-svg {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  /* Feste Maße statt auto: Sonst nähme das SVG die Höhe aus seinem Seitenverhältnis und
+     liefe unten aus dem Rahmen. */
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+}
+
+.bogen--gedreht .bogen-unterschrift-zeile {
+  grid-area: unterschrift;
+}
+
+/* Bild neben der Legende: links Fehlerpunkte und Beschreibung, rechts das Bild, darunter
+   die Disqualifikationen über die ganze Breite. */
+.bogen--bild-neben .bogen-fuss {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto auto;
+  grid-template-areas:
+    'fehler bild'
+    'hinweis bild'
+    'disq disq'
+    'unterschrift unterschrift';
+  column-gap: 8px;
+  row-gap: 7px;
+}
+
+/* Die Blöcke der Legende werden selbst zu Rasterzellen. */
+.bogen--bild-neben .bl {
+  display: contents;
+}
+
+.bogen--bild-neben .bl-fehler {
+  grid-area: fehler;
+}
+
+.bogen--bild-neben .bl-note {
+  grid-area: hinweis;
+}
+
+/* In der schmalen Spalte stehen beide Sprachen untereinander. */
+.bogen--bild-neben .bl-note--2 {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.bogen--bild-neben .bl-disqblock {
+  grid-area: disq;
+}
+
+.bogen--bild-neben .bogen-bild {
+  grid-area: bild;
+  margin: 0;
+  align-self: start;
+}
+
+.bogen--bild-neben .bogen-unterschrift-zeile {
+  grid-area: unterschrift;
+}
+
+/* Namensnennung der Parcours-Zeichnung (CC BY-NC-SA): klein, links unten neben der
+   Unterschrift – dort ist ohnehin Platz, die Höhe des Bogens ändert sich nicht. */
+.bogen-nachweis {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  max-width: 36%;
+  margin: 0;
+  font-size: 5pt;
+  line-height: 1.2;
+  color: #555;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.bogen-nachweis--rueck {
+  position: static;
+  max-width: none;
+  margin-top: 6mm;
+}
+
+/* Zwischenüberschrift einer Klasse auf einer gemeinsamen Liste (Clubmeisterschaft). */
+.bogen-tabelle > tbody > tr.bt-zwischen > th {
+  height: 23px;
+  border: 1px solid var(--line);
+  border-top-width: 2px;
+  text-align: left;
+  font-size: 9.5pt;
+  font-weight: 700;
+  padding: 0 0 0 2mm;
+  background: #e6e6e6;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------- Beschreibung auf der Rückseite ---------- */
+
+/* Vorderseite: Hinweis statt Beschreibung. */
+.bogen-rueckhinweis {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  margin-top: 3mm;
+  padding: 2mm 3mm;
+  border: 1.5px dashed #7a86c9;
+  font-size: 0.85em;
+}
+
+.bogen-rueckhinweis-pfeil {
+  flex: none;
+  width: 7mm;
+  height: 7mm;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Rückseite: ganze Druckfläche (Blatt minus 2 × 8 mm Rand, 2 mm Reserve gegen Umbruch).
+   Hochformat wird als Ganzes um 180° gedreht. */
+.bogen-rueck-seite {
+  height: calc(297mm - 18mm);
+}
+
+.bogen--quer .bogen-rueck-seite {
+  height: calc(210mm - 18mm);
+}
+
+.bogen-rueck-seite--flip {
+  transform: rotate(180deg);
+}
+
+/* Beim Nach-oben-Klappen ist nur eine Blatthälfte sichtbar: halbe Blatthöhe minus Rand
+   (8 mm) und 5 mm Abstand zum Knick. */
+.bogen-rueck-haelfte {
+  height: calc(297mm / 2 - 13mm);
+  overflow: hidden;
+  display: flex;
+  gap: 8px;
+}
+
+.bogen--quer .bogen-rueck-haelfte {
+  height: calc(210mm / 2 - 13mm);
+}
+
+.bogen-rueck-haelfte .bogen-bild {
+  margin: 0;
+}
+
+/* Hochformat-Bild (±90° gedreht) rechts neben der Legende, volle Höhe. */
+.bogen-rueck-haelfte--neben .bl {
+  flex: 1;
+  min-width: 0;
+}
+
+.bogen-rueck-haelfte--neben .bogen-bild {
+  flex: none;
+  width: 60mm;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Querformat-Bild unter der Legende, füllt den Rest der Hälfte. */
+.bogen-rueck-haelfte--stapel {
+  flex-direction: column;
+}
+
+.bogen-rueck-haelfte--stapel .bogen-bild {
+  flex: 1;
+  min-height: 0;
+}
+
+.bogen-rueck-haelfte--stapel .bogen-bild img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
+/* ---------- Beispielansicht (Einstellungen, Assistent) ---------- */
+
+/* „Veranstaltung“ verweist hierher: Die Überschrift soll nicht unter der Kopfzeile landen. */
+#wkr-einteilung {
+  scroll-margin-top: 110px;
+}
+
+.wkr-vorschau {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.wkr-vorschau-leiste {
+  align-items: flex-end;
+  margin: 12px 0;
+}
+
+.wkr-vorschau-leiste .wkr-vorschau-stand {
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+}
+
+/* Namensfeld über einem stark verkleinerten Blatt (WkrVorschau.vue). */
+.wkr-vorschau-name {
+  align-self: stretch;
+  margin-top: 6px;
+}
+
+.wkr-vorschau-marke {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
+/* ---------- Druck ---------- */
+
+@page bogen-hoch {
+  size: A4 portrait;
+  margin: 8mm;
+}
+
+@page bogen-quer {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  /* Eine Beispielansicht ist keine Liste: Sie kommt nie aufs Papier – weder der Abschnitt
+     noch ein einzelnes Blatt mit Kennzeichen, wo immer es steht. */
+  .wkr-vorschau,
+  .bogen[data-muster] {
+    display: none !important;
+  }
+
+  .bogen-zuviel,
+  .bogen-seitenende {
+    display: none !important;
+  }
+
+  .bogen-stapel {
+    display: block;
+    overflow: visible;
+  }
+
+  .bogen-stapel .bogen {
+    transform: none;
+    margin: 0;
+  }
+
+  .bogen {
+    page: bogen-hoch;
+    border: none;
+    box-shadow: none;
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    break-after: page;
+  }
+
+  .bogen--quer {
+    page: bogen-quer;
+  }
+
+  .bogen:last-child {
+    break-after: auto;
+  }
+
+  /* Kopf und Legende auf jeder Druckseite wiederholen, Zeilen nicht mittendrin umbrechen. */
+  .bogen-tabelle thead {
+    display: table-header-group;
+  }
+
+  .bogen-tabelle tfoot {
+    display: table-footer-group;
+  }
+
+  .bogen-tabelle tbody tr,
+  .bogen-tabelle thead > tr:first-child {
+    break-inside: avoid;
+  }
+
+  .bk-wkr-input::placeholder {
+    color: transparent;
+  }
+
+  .bk-wkr-unter {
+    display: block;
+  }
+
+  /* Graue Zeilen müssen auch ohne „Hintergrundgrafiken drucken“ erscheinen. */
+  .bogen-tabelle > tbody > tr.grau > td,
+  .bogen-tabelle > tbody > tr > td.bt-entfaellt {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* ---------- Wettkampfrichter-Listen unter „Listen“ (WkrListen.vue) ---------- */
+
+.wkr-listen-leiste {
+  align-items: flex-end;
+  margin: 12px 0;
+}
+
+.wkr-listen-leiste .wkr-listen-stand {
+  flex: 1;
+  min-width: 120px;
+  margin: 0 0 10px;
+}

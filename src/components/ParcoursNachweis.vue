@@ -4,7 +4,7 @@ import { t } from '../i18n'
 
 /**
  * Namensnennung unter einer Parcours-Zeichnung: Urheber, Quelle mit Stand, der Hinweis auf
- * die Bearbeitung und die Lizenz (CC BY-SA 4.0 Abschnitt 3(a)). Die Zeichnungen stehen unter
+ * die Bearbeitung und die Lizenz (CC BY-NC-SA 4.0 Abschnitt 3(a)). Die Zeichnungen stehen unter
  * einer anderen Lizenz als das Programm; src/assets/parcours/LICENSE.md liegt aber nur im
  * Repository – in der gebauten App ist diese Zeile die Angabe, die den Empfänger erreicht.
  *

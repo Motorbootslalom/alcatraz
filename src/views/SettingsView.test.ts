@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import SettingsView from './SettingsView.vue'
-import { downloadText } from '../persistenz/backup'
+import { downloadText, makeFile } from '../persistenz/backup'
 import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
 import { configFor } from '../config/konfig'
@@ -205,7 +205,7 @@ describe('Einstellungen: eigene Aufbauten', () => {
 
     await wrapper.find('[data-aufbau="hafenfestq3m8"] [data-action="edit"]').trigger('click')
     expect(wrapper.find('.assistent-tabelle').exists()).toBe(true)
-    expect(wrapper.findAll('.assistent-tabelle thead th input.spalte-titel').length).toBeGreaterThan(0)
+    expect(wrapper.findAll('.assistent .assistent-tabelle thead th input.spalte-titel').length).toBeGreaterThan(0)
     await wrapper.find('.assistent .btn.primary').trigger('click')
     await nextTick()
     expect(wrapper.find('.assistent').exists()).toBe(false)
@@ -231,29 +231,29 @@ describe('Einstellungen: eigene Aufbauten', () => {
   it('die Zuordnung im Assistenten ist mit der Tastatur bedienbar: Schaltflächen mit Namen und Zustand', async () => {
     const wrapper = settings(store)
     await wrapper.find('[data-action="derive"]').trigger('click')
-    const zellen = wrapper.findAll('.assistent-tabelle tbody td:not(.rand)')
+    const zellen = wrapper.findAll('.assistent .assistent-tabelle tbody td:not(.rand)')
     expect(zellen.length).toBeGreaterThan(0)
     // Jede Zelle der Zuordnung trägt genau eine Schaltfläche.
     for (const zelle of zellen) expect(zelle.findAll('button.zelle')).toHaveLength(1)
 
-    const knoepfe = wrapper.findAll('.assistent-tabelle tbody button.zelle')
-    const titel = (wrapper.find('.assistent-tabelle thead input.spalte-titel').element as HTMLInputElement).value
+    const knoepfe = wrapper.findAll('.assistent .assistent-tabelle tbody button.zelle')
+    const titel = (wrapper.find('.assistent .assistent-tabelle thead input.spalte-titel').element as HTMLInputElement).value
     expect(knoepfe[0].attributes('aria-label')).toBe(`Start / Ziel: beobachtet von ${titel}`)
     const frei = knoepfe.find((k) => k.attributes('aria-pressed') === 'false')!
     const name = frei.attributes('aria-label')
     await frei.trigger('click')
-    const danach = wrapper.findAll('.assistent-tabelle tbody button.zelle').find((k) => k.attributes('aria-label') === name)!
+    const danach = wrapper.findAll('.assistent .assistent-tabelle tbody button.zelle').find((k) => k.attributes('aria-label') === name)!
     expect(danach.attributes('aria-pressed')).toBe('true')
     expect(danach.text()).toBe('●')
 
     // Aufgeklappt: die einzelnen Bojen, ebenfalls als Schaltflächen; das halbe Tor heißt „mixed“.
-    await wrapper.find('.assistent-tabelle .aufklappen').trigger('click')
-    const haelfte = wrapper.find('.assistent-tabelle tr.haelfte button.zelle')
+    await wrapper.find('.assistent .assistent-tabelle .aufklappen').trigger('click')
+    const haelfte = wrapper.find('.assistent .assistent-tabelle tr.haelfte button.zelle')
     expect(haelfte.attributes('aria-label')).toContain('Start / Ziel rechts: beobachtet von')
     const vorher = haelfte.attributes('aria-pressed')
     await haelfte.trigger('click')
-    expect(wrapper.find('.assistent-tabelle tr.haelfte button.zelle').attributes('aria-pressed')).toBe(vorher === 'true' ? 'false' : 'true')
-    expect(wrapper.findAll('.assistent-tabelle tbody button.zelle')[0].attributes('aria-pressed')).toBe('mixed')
+    expect(wrapper.find('.assistent .assistent-tabelle tr.haelfte button.zelle').attributes('aria-pressed')).toBe(vorher === 'true' ? 'false' : 'true')
+    expect(wrapper.findAll('.assistent .assistent-tabelle tbody button.zelle')[0].attributes('aria-pressed')).toBe('mixed')
     wrapper.unmount()
   })
 
@@ -321,7 +321,7 @@ describe('Einstellungen: eigene Aufbauten', () => {
     expect(wahl().value).toBe('alcatraz')
     // „Ableiten“ beginnt mit der Vorgabe statt mit einem leeren Assistenten.
     await wrapper.find('[data-action="derive"]').trigger('click')
-    expect(wrapper.findAll('.assistent-tabelle thead input.spalte-titel').length).toBeGreaterThan(0)
+    expect(wrapper.findAll('.assistent .assistent-tabelle thead input.spalte-titel').length).toBeGreaterThan(0)
     wrapper.unmount()
   })
 
@@ -400,6 +400,111 @@ describe('Einstellungen: eigene Aufbauten', () => {
     setLocale('en')
     await nextTick()
     expect(wrapper.find('.own-setups').text()).toContain('Position “Alle Tore am Stadthafen” has no English title.')
+    wrapper.unmount()
+  })
+})
+
+describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+  })
+  afterEach(() => setLocale('de'))
+
+  it('die WKR-Einteilung ist ein eigener Abschnitt, mit der Beispielansicht der Listen darunter', async () => {
+    const wrapper = settings(store)
+    const abschnitt = wrapper.find('#wkr-einteilung')
+    expect(abschnitt.find('h2').text()).toBe('WKR-Einteilung')
+    expect(abschnitt.find('.wkr-tabelle').exists()).toBe(true)
+    expect(abschnitt.find('.wkr-vorschau h3').text()).toContain('So sehen die Listen aus')
+    expect(abschnitt.findAll('.wkr-vorschau .bogen').length).toBeGreaterThan(3)
+    // Sie steht vor den eigenen Aufbauten und den Dateien.
+    const reihenfolge = wrapper.findAll('.panel > h2, details.panel > summary').map((h) => h.text())
+    expect(reihenfolge.indexOf('WKR-Einteilung')).toBeGreaterThan(reihenfolge.indexOf('Listen'))
+    expect(reihenfolge.indexOf('WKR-Einteilung')).toBeLessThan(reihenfolge.indexOf('Eigene Aufbauten'))
+    // Ein Name aus der Vorschau landet im Stand – und damit in der Tabelle.
+    await abschnitt.find('.bogen[data-liste="zeit"] input.bk-wkr-input').setValue('A. Muster')
+    expect(store.state.value.einteilung).toEqual({ par_2: { zeit: 'A. Muster' } })
+    expect((abschnitt.find('input[data-feld="par_2|zeit"]').element as HTMLInputElement).value).toBe('A. Muster')
+    wrapper.unmount()
+  })
+
+  it('der Assistent zeigt die Listen des Entwurfs als Beispielansicht – ohne Namenspflege', async () => {
+    vi.useFakeTimers()
+    try {
+      const wrapper = settings(store)
+      await wrapper.find('[data-action="derive"]').trigger('click')
+      const vorschau = wrapper.find('.assistent-vorschau')
+      expect(vorschau.find('summary').text()).toBe('Beispielansicht der Listen dieses Entwurfs')
+      // Zugeklappt wird nichts gebaut.
+      expect(vorschau.find('.bogen').exists()).toBe(false)
+      ;(vorschau.element as HTMLDetailsElement).open = true
+      await vorschau.trigger('toggle')
+      await nextTick()
+      const listen = () => vorschau.findAll('.bogen').map((b) => b.find('.bk-liste').text())
+      expect(listen()).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Mann-über-Bord', 'Parcours'])
+      expect(vorschau.find('.bogen-kennzeichen').text()).toBe('Beispielansicht')
+      expect(vorschau.find('input.bk-wkr-input').exists()).toBe(false)
+      // Eine Änderung am Entwurf erscheint in der Ansicht, ohne dass etwas gespeichert wäre.
+      const titel = wrapper.findAll('.assistent input.spalte-titel')
+      if (titel.length === 0) await wrapper.findAll('.assistent-ansicht button')[0].trigger('click')
+      await wrapper.findAll('.assistent input.spalte-titel')[0].setValue('Am Kran')
+      vi.advanceTimersByTime(250)
+      await nextTick()
+      expect(listen()).toContain('Am Kran')
+      expect(store.state.value.eigeneAufbauten).toEqual([])
+      expect(store.state.value.einteilung).toEqual({})
+      // Ohne Namen besteht der Entwurf die Prüfung nicht: Hinweis statt Listen.
+      await wrapper.find('#as-name').setValue('')
+      vi.advanceTimersByTime(250)
+      await nextTick()
+      expect(vorschau.find('.bogen').exists()).toBe(false)
+      expect(vorschau.find('.boat-banner.warn').text()).toContain('sobald der Entwurf die Prüfung besteht')
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('Einstellungen: Wettkampfrichter-Listen', () => {
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+  })
+  afterEach(() => setLocale('de'))
+
+  it('Leerzeilen je Klasse: eine Zahl für alle, abweichend für einzelne Klassen', async () => {
+    const wrapper = settings(store)
+    const feld = wrapper.find('input[data-feld="wkr-leerzeilen"]')
+    expect((feld.element as HTMLInputElement).value).toBe('3')
+    await feld.setValue('2')
+    expect(store.state.value.wkrLeerzeilen).toBe(2)
+    const sieben = wrapper.find('input[data-feld="wkr-leerzeilen|7"]')
+    expect((sieben.element as HTMLInputElement).value).toBe('2')
+    expect(sieben.attributes('aria-label')).toBe('Leerzeilen Klasse 7')
+    await sieben.setValue('6')
+    expect(store.state.value.wkrLeerzeilenKlasse).toEqual({ '7': 6 })
+    expect(sieben.classes()).toContain('own')
+    // Ein geleertes Feld heißt: wieder die allgemeine Zahl.
+    await sieben.setValue('')
+    expect(store.state.value.wkrLeerzeilenKlasse).toEqual({})
+    wrapper.unmount()
+  })
+
+  it('Beschreibung auf die Rückseite; beides reist in der Vorlage mit', async () => {
+    const wrapper = settings(store)
+    await wrapper.find('input[data-feld="wkr-rueckseite"]').setValue(true)
+    expect(store.state.value.wkrRueckseite).toBe(true)
+    store.dispatch({ type: 'SET_WKR_LEERZEILEN', anzahl: 5 })
+    const vorlage = makeFile('vorlage', store.state.value, '2026-11-13T00:00:00.000Z')
+    expect(vorlage.kind === 'vorlage' && vorlage.settings).toMatchObject({ wkrRueckseite: true, wkrLeerzeilen: 5 })
     wrapper.unmount()
   })
 })

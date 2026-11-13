@@ -31,15 +31,32 @@ export function parcoursVon<P extends Pick<Parcours, 'id' | 'classIds'>>(parcour
 }
 
 /**
- * Der Name des Wettkampfrichters für eine Liste in einer Klasse: Klasse → Parcours → Name.
- * Leer, wenn die Klasse auf keinem Parcours fährt oder dort niemand eingetragen ist. Mit
- * `konfig` auch leer, wenn die Klasse die Liste gar nicht hat (z. B. Mann-über-Bord in
- * Klasse 1) – sonst erbte sie den Namen, der für die anderen Klassen des Parcours gilt.
+ * Wo der Name einer Liste für eine Klasse steht: Klasse → Parcours → Eintrag. `eingabe` ist
+ * der Eintrag, wie er getippt wurde (ein Eingabefeld darf beim Tippen kein Leerzeichen
+ * verlieren). `undefined`, wenn die Klasse auf keinem Parcours fährt – oder, mit `konfig`,
+ * wenn sie die Liste gar nicht hat (z. B. Mann-über-Bord in Klasse 1): Sonst erbte sie den
+ * Namen, der für die anderen Klassen des Parcours gilt.
+ *
+ * Tabelle (WkrEinteilung.vue) und Bogenkopf (WkrVorschau.vue) schreiben beide mit
+ * `SET_WKR_NAME` an diese Stelle – deshalb zeigen sie stets denselben Stand.
+ */
+export function wkrFeld(
+  stand: EinteilungsStand,
+  typeId: string,
+  klasse: string,
+  konfig?: Pick<ListenKonfig, 'positionAllowsClass'>,
+): { parcoursId: string; eingabe: string } | undefined {
+  if (konfig && !konfig.positionAllowsClass(typeId, klasse)) return undefined
+  const parcours = parcoursVon(stand.parcoursList, klasse)
+  return parcours && { parcoursId: parcours.id, eingabe: stand.einteilung[parcours.id]?.[typeId] ?? '' }
+}
+
+/**
+ * Der Name des Wettkampfrichters für eine Liste in einer Klasse, wie er gedruckt wird
+ * (ohne Leerraum am Rand). Leer, wenn es kein {@link wkrFeld} gibt oder dort niemand steht.
  */
 export function wkrName(stand: EinteilungsStand, typeId: string, klasse: string, konfig?: Pick<ListenKonfig, 'positionAllowsClass'>): string {
-  if (konfig && !konfig.positionAllowsClass(typeId, klasse)) return ''
-  const parcours = parcoursVon(stand.parcoursList, klasse)
-  return (parcours && stand.einteilung[parcours.id]?.[typeId]?.trim()) || ''
+  return wkrFeld(stand, typeId, klasse, konfig)?.eingabe.trim() ?? ''
 }
 
 /** Setzt den Namen einer Liste auf einem Parcours; leer entfernt ihn. */

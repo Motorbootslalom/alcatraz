@@ -4,12 +4,11 @@ import { useStore } from '../state/store'
 import { manoeverAufbauten, REGELWERKE } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { t } from '../i18n'
-import WkrEinteilung from '../components/WkrEinteilung.vue'
 import type { EventKind, OriginMode } from '../types'
 
 /**
  * Die Veranstaltung selbst: Name, Jahr, Regelwerk, Aufbau. Alles Übrige –
- * Listen, Kürzel, Dateien – steht unter „Einstellungen“.
+ * Listen, Kürzel, WKR-Einteilung, Dateien – steht unter „Einstellungen“.
  */
 const { state, dispatch } = useStore()
 const { regelwerk, classLabel, foreignClasses, parallel } = useEvent()
@@ -132,8 +131,10 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
     <p v-if="foreignClasses.length > 0" class="boat-banner warn" role="status">
       {{ t('event.foreignClasses', { rulebook: regelwerk.label, classes: foreignClasses.map((c) => classLabel(c.id)).join(', ') }) }}
     </p>
+    <!-- Die WKR-Einteilung steht unter „Einstellungen“; hier beim Aufbau nur der Weg dorthin. -->
+    <p class="note" data-hinweis="wkr">
+      {{ t('event.wkrNote') }} <a href="#/einstellungen?wkr">{{ t('nav.einstellungen') }} → {{ t('wkr.title') }}</a>
+    </p>
     <p class="note">{{ t('event.note') }}</p>
   </div>
-  <!-- Daten der Veranstaltung wie die Starter, keine Einstellung: deshalb hier und nicht unter dem Zahnrad. -->
-  <WkrEinteilung />
 </template>

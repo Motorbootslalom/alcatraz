@@ -1,0 +1,113 @@
+/* ======================================================================
+   Farbschemata. Das mitgelieferte Türkis („steg“) steht mit festen Farben in
+   app.css. Alle anderen entstehen aus einem Farbton (--hue) über OKLCH: Dort
+   bedeutet gleiche Helligkeit auch gleich hell fürs Auge, sodass Kontraste in
+   jedem Farbton halten, ohne dass jedes Schema einzeln abgestimmt werden muss.
+   Welche Schemata es gibt, steht in src/lib/theme.ts.
+   ====================================================================== */
+
+:root[data-scheme='blau'] { --hue: 250; }
+:root[data-scheme='indigo'] { --hue: 275; }
+:root[data-scheme='violett'] { --hue: 305; }
+:root[data-scheme='beere'] { --hue: 350; }
+:root[data-scheme='rot'] { --hue: 25; }
+:root[data-scheme='kupfer'] { --hue: 50; }
+:root[data-scheme='bronze'] { --hue: 85; }
+:root[data-scheme='wald'] { --hue: 150; }
+:root[data-scheme='graphit'] { --hue: 250; --c: 0.12; }
+
+:root[data-scheme]:not([data-scheme='steg']) {
+  --bg: oklch(0.975 calc(0.004 * var(--c, 1)) var(--hue));
+  --panel-2: oklch(0.955 calc(0.012 * var(--c, 1)) var(--hue));
+  --border: oklch(0.9 calc(0.012 * var(--c, 1)) var(--hue));
+  --text: oklch(0.27 calc(0.02 * var(--c, 1)) var(--hue));
+  --muted: oklch(0.52 calc(0.03 * var(--c, 1)) var(--hue));
+  --accent: oklch(0.5 calc(0.115 * var(--c, 1)) var(--hue));
+  --accent-hover: oklch(0.43 calc(0.105 * var(--c, 1)) var(--hue));
+  --accent-soft: oklch(0.92 calc(0.04 * var(--c, 1)) var(--hue));
+  --top: oklch(0.31 calc(0.06 * var(--c, 1)) var(--hue));
+  --top-muted: oklch(0.83 calc(0.04 * var(--c, 1)) var(--hue));
+  --logo-accent: oklch(0.85 calc(0.12 * var(--c, 1)) var(--hue));
+}
+
+/* Nur am Bildschirm, wie das dunkle Türkis: Gedruckt wird immer hell. */
+@media screen {
+  :root[data-scheme][data-mode='dark']:not([data-scheme='steg']) {
+    --bg: oklch(0.19 calc(0.015 * var(--c, 1)) var(--hue));
+    --panel: oklch(0.235 calc(0.018 * var(--c, 1)) var(--hue));
+    --panel-2: oklch(0.265 calc(0.02 * var(--c, 1)) var(--hue));
+    --border: oklch(0.34 calc(0.025 * var(--c, 1)) var(--hue));
+    --text: oklch(0.93 calc(0.01 * var(--c, 1)) var(--hue));
+    --muted: oklch(0.7 calc(0.03 * var(--c, 1)) var(--hue));
+    --accent: oklch(0.78 calc(0.11 * var(--c, 1)) var(--hue));
+    --accent-hover: oklch(0.84 calc(0.1 * var(--c, 1)) var(--hue));
+    --accent-text: oklch(0.2 calc(0.04 * var(--c, 1)) var(--hue));
+    --accent-soft: oklch(0.33 calc(0.06 * var(--c, 1)) var(--hue));
+    --top: oklch(0.15 calc(0.015 * var(--c, 1)) var(--hue));
+    --top-muted: oklch(0.7 calc(0.03 * var(--c, 1)) var(--hue));
+  }
+}
+
+/* ---------- Schalter Hell/Dunkel im Kopf ---------- */
+.theme-toggle {
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* ---------- Auswahl des Farbschemas ---------- */
+.scheme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.scheme-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scheme-chip:hover {
+  background: var(--panel-2);
+}
+
+.scheme-chip.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+  font-weight: 700;
+}
+
+/* Das Muster: Kopfzeile mit Wellenfarbe, darunter die Akzentfarbe. */
+.scheme-swatch {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(var(--sw-top) 0 50%, var(--sw-accent) 50% 100%);
+  position: relative;
+}
+
+.scheme-swatch i {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sw-light);
+}

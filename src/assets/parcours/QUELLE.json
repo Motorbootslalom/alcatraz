@@ -1,11 +1,11 @@
 {
   "repo": "https://github.com/Motorbootslalom/Parcours",
-  "commit": "bbb0692cdbd146be514c43b1d4b0bcb49dbf222d",
+  "commit": "9b92e699116aa571341e5a32f18adf345297d58c",
   "ordner": "dist/alcatraz_Parcours",
   "titel": "Schlauchbootslalom Parcours",
   "urheber": "Matthias Kerk",
-  "lizenz": "CC BY-SA 4.0",
-  "lizenzUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "lizenz": "CC BY-NC-SA 4.0",
+  "lizenzUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
   "dateien": [
     "KlasseE.svg",
     "Klasse1.svg",

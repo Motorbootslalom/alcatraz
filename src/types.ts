@@ -184,6 +184,18 @@ export interface AppState extends PlanState {
    * Starter: in der Sicherung enthalten, in der Vorlage nicht (Personennamen).
    */
   einteilung: Einteilung
+  /**
+   * Leerzeilen am Ende jeder Klasse auf den Wettkampfrichter-Listen: Wer nach dem Druck
+   * nachgemeldet wird, bekommt dort von Hand seine Zeile (Vorgabe 3 wie im Prototyp).
+   */
+  wkrLeerzeilen: number
+  /** Abweichende Zahl der Leerzeilen für einzelne Klassen; fehlt = `wkrLeerzeilen`. */
+  wkrLeerzeilenKlasse: Partial<Record<ClassId, number>>
+  /**
+   * Beschreibung (Fehlerpunkte, Disqualifikationen, Parcoursbild) auf die Rückseite drucken:
+   * Vorn bleibt mehr Platz für Starter, gedruckt wird dann doppelseitig.
+   */
+  wkrRueckseite: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -338,8 +350,9 @@ export interface SheetDef {
    */
   courseImageDir?: string
   /**
-   * Ohne vorgebautes Bild (`bildImBrowser`, eigene Aufbauten): Der Browser blendet die
-   * Zeichnung der Klasse selbst ab (lib/parcoursbild.ts, lib/parcoursQuelle.ts).
+   * Woraus der Browser das Bild erzeugt: Er blendet die Zeichnung der Klasse selbst ab
+   * (lib/parcoursbild.ts, lib/parcoursQuelle.ts). Gesetzt für jede Position mit erzeugtem
+   * Bild, mitgelieferte wie eigene – vorgebaute Bildordner gibt es hier nicht.
    */
   bildErzeugen?: { dim: string[]; aus: string[] }
   /** Bild-Drehung in Grad: 0 | 90 | -90 | 180. */

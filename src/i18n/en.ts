@@ -2,7 +2,7 @@ import type { Catalog } from './index'
 
 /** English catalogue. Must provide exactly the keys of `de.ts`. */
 const en: Catalog = {
-  'app.subtitle': 'Scoring for inflatable boat slalom',
+  'app.subtitle': 'Scoring for Formula Future',
   'app.starters': '{n} competitor | {n} competitors',
   'app.footer': 'Revision {commit} · built {time}',
   'app.unknown': 'unknown',
@@ -59,12 +59,13 @@ const en: Catalog = {
   'event.setupNote':
     'The setup defines where the judges sit and which lists they keep. Own setups are created under “Settings”.',
   'event.foreignClasses': 'The rulebook {rulebook} does not have these classes, but they still hold competitors: {classes}.',
+  'event.wkrNote': 'Who sits at which list, and what the lists look like, is set under',
   'event.note':
     'The year decides which birth years belong to which class. A club championship shows no origin.',
 
-  'wkr.title': 'Race officials',
+  'wkr.title': 'Judges',
   'wkr.intro':
-    'Who sits at which list – entered once for all classes and runs instead of on every list. Each course has its own race officials; the name on a list follows from its class. Press Enter to move to the next field.',
+    'Who sits at which list – entered once for all classes and runs instead of on every list. Each course has its own judges; the name on a list follows from its class. Press Enter to move to the next field. Below you see what the lists look like with them.',
   'wkr.list': 'List',
   'wkr.name': 'Name',
   'wkr.nameFor': 'Name for {list}, {parcours}',
@@ -76,6 +77,23 @@ const en: Catalog = {
     'The lists are those of the chosen setup. With another setup, the names are kept for the lists that exist there too. Which classes run on which course is set under',
   'wkr.privacyNote':
     'The names are part of the backup but not of the template: a template contains no personal names.',
+
+  'preview.title': 'What the lists look like',
+  'preview.mark': 'Sample',
+  'preview.intro':
+    'All lists of the chosen setup for one class – with sample start numbers instead of real competitors. The name in the head of a list can be entered right there; it then also appears in the table above. The sample view is never printed.',
+  'preview.class': 'Class',
+  'preview.rows': 'Sample rows',
+  'preview.numberPrefix': 'S',
+  'preview.count': '{n} list | {n} lists',
+  'preview.parcours': 'runs on {parcours} according to the interleaving',
+  'preview.nameFor': 'Name in the head of the list {list}, {parcours}',
+  'preview.noParcours': '{class} does not run on any course yet – so no name can be entered here. The classes of the courses are set under',
+  'preview.noLists': 'The setup has no list for {class}.',
+  'sheet.overflow':
+    '⚠ Does not fit on one A4 sheet (about {n} row too many): description and signature move to another page when printed – the red line marks the end of the page. | ⚠ Does not fit on one A4 sheet (about {n} rows too many): description and signature move to another page when printed – the red line marks the end of the page.',
+  'sheet.backOverflow':
+    '⚠ The description is taller than the half of the sheet that is visible when folded upwards and will be cut off in print.',
 
   'listopt.title': 'Lists',
   'listopt.birthdate': 'Show the date of birth on lists',
@@ -96,13 +114,13 @@ const en: Catalog = {
   'files.download.vorlage': 'Template',
   'files.download.starter': 'Competitor data',
   'files.about.sicherung': 'Everything about this event. Contains names and dates of birth – please store it with care.',
-  'files.about.vorlage': 'The settings only (rulebook, setup, own setups, lists, abbreviations, courses, boats) – without competitors, name, year and the names of the race officials. For the next event.',
+  'files.about.vorlage': 'The settings only (rulebook, setup, own setups, lists, abbreviations, courses, boats) – without competitors, name, year and the names of the judges. For the next event.',
   'files.about.starter': 'The competitors only. Contains names and dates of birth – please store it with care.',
   'files.upload': 'Load a file …',
   'files.uploadNote': 'Backup, template or competitor data – the file knows what it is. You are asked before anything is overwritten.',
   'files.invalid': 'This file does not come from Alcatraz or is damaged.',
   'files.confirm.sicherung': 'Load the backup from {time}?\n\nAll data in this browser will be replaced.',
-  'files.confirm.vorlage': 'Load the template from {time}?\n\nThe settings will be replaced. Competitors, name, year and the assignment of race officials are kept; own setups are kept as well, those of the template are added.',
+  'files.confirm.vorlage': 'Load the template from {time}?\n\nThe settings will be replaced. Competitors, name, year and the assignment of judges are kept; own setups are kept as well, those of the template are added.',
   'files.confirm.starter': 'Load the competitor data from {time}?\n\nThe list of competitors will be replaced. The settings are kept.',
   'files.done.sicherung': '✓ Backup loaded.',
   'files.done.vorlage': '✓ Template loaded.',
@@ -311,6 +329,27 @@ const en: Catalog = {
   'lists.title.byClass': 'All competitors\nby class',
   'lists.title.interleaved': 'All competitors',
   'lists.title.vorsteg': 'Pre-jetty',
+  'lists.kind.wkr': 'Judges\' sheets',
+  'lists.wkr.hint': 'One sheet per course, class, attempt and list of the setup. The start numbers are in the starting order of the interleaving – as on the start list of the course. What the selection shows is what gets printed.',
+  'lists.wkr.club': 'Club championship: classes whose sheets have the same columns share a page, one below the other. Lists with a course drawing stay per class, so that each class sees its own drawing. Blank rows that would cost an extra page on their own are dropped, except for one. Scoring stays per class.',
+  'lists.wkr.all': 'all',
+  'lists.wkr.parcours': 'Course',
+  'lists.wkr.run': 'Attempt',
+  'lists.wkr.runN': 'Attempt {n}',
+  'lists.wkr.list': 'List',
+  'lists.wkr.count': '{n} sheet | {n} sheets',
+  'lists.wkr.noSheets': 'There is no sheet for this selection.',
+  'lists.wkr.without': 'No sheet for {classes}: the class is not on any course, or the rulebook and setup have no list for it. The classes of the courses are set under',
+  'lists.wkr.duplex': 'The description is on the back: please print double-sided and flip on the long edge.',
+  'lists.wkr.settings': 'Blank rows for late entries, the description on the back and the judges\' names are set under',
+  'listopt.wkr.title': 'Judges\' sheets',
+  'listopt.wkr.blank': 'Blank rows per class',
+  'listopt.wkr.blankHint': 'Anyone entered after printing gets one of the blank rows at the end of their class, filled in by hand. If a sheet runs over several pages, they appear on every page.',
+  'listopt.wkr.perClass': 'Different for individual classes',
+  'listopt.wkr.blankFor': 'Blank rows {name}',
+  'listopt.wkr.reset': 'Back to {n} for all classes',
+  'listopt.wkr.back': 'Print the description (penalties, disqualifications, course drawing) on the back',
+  'listopt.wkr.backHint': 'This leaves more room for competitors on the front – useful for setups with a large description. Print double-sided.',
   'lists.class': 'Class',
   'lists.page': 'Page {page} of {pages}',
 
@@ -440,6 +479,10 @@ const en: Catalog = {
   'assist.emptyCols': 'Without buoy, task or timing, dropped: {names}',
   'assist.notSaved': 'Not saved:',
   'assist.ok': 'Every buoy and task is on exactly one list.',
+  'assist.preview': 'Sample view of the lists of this draft',
+  'assist.previewIntro':
+    'This is what the lists of this draft would look like for one class – with sample start numbers instead of real competitors. The names of the judges are entered under “Judges” after saving.',
+  'assist.previewNotYet': 'The sample view appears as soon as the draft passes the check (name, at least one position).',
   'assist.mode.label': 'Assign',
   'assist.mode.tabelle': 'Table',
   'assist.mode.bild': 'In the picture',
@@ -470,6 +513,26 @@ const en: Catalog = {
   'assist.gap.combinedOnly': '{name} – only with combined gate 5 lists',
   'assist.save': 'Save',
   'assist.cancel': 'Cancel',
+  // --- Darstellung: Farbschema und Hell/Dunkel ---
+  'theme.title': 'Appearance',
+  'theme.hint': 'Colour scheme and light/dark apply to this device only, like the language. Printed lists stay black on white.',
+  'theme.scheme': 'Colour scheme',
+  'theme.mode': 'Brightness',
+  'theme.mode.auto': 'Same as device',
+  'theme.mode.light': 'Light',
+  'theme.mode.dark': 'Dark',
+  'theme.toDark': 'Switch to dark appearance',
+  'theme.toLight': 'Switch to light appearance',
+  'theme.scheme.steg': 'Teal',
+  'theme.scheme.blau': 'Blue',
+  'theme.scheme.indigo': 'Indigo',
+  'theme.scheme.violett': 'Violet',
+  'theme.scheme.beere': 'Berry',
+  'theme.scheme.rot': 'Red',
+  'theme.scheme.kupfer': 'Copper',
+  'theme.scheme.bronze': 'Bronze',
+  'theme.scheme.wald': 'Forest green',
+  'theme.scheme.graphit': 'Graphite',
 }
 
 export default en

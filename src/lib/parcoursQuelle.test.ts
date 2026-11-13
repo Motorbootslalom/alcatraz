@@ -74,7 +74,7 @@ describe('Herkunft und Lizenz der Zeichnungen', () => {
     expect(PARCOURS_HERKUNFT.dateien).toEqual(PARCOURS_DATEIEN.map((d) => `${d}.svg`))
     expect(PARCOURS_HERKUNFT.lizenz).toBe(ERWARTETE_LIZENZ.name)
     expect(PARCOURS_HERKUNFT.lizenzUrl).toBe(ERWARTETE_LIZENZ.url)
-    expect(PARCOURS_HERKUNFT.lizenzUrl).toContain('/by-sa/4.0/')
+    expect(PARCOURS_HERKUNFT.lizenzUrl).toContain('/by-nc-sa/4.0/')
     expect(PARCOURS_HERKUNFT.urheber).not.toBe('')
   })
 
@@ -98,11 +98,11 @@ describe('Herkunft und Lizenz der Zeichnungen', () => {
   it('liest Titel, Urheber und Lizenz aus den Metadaten und erkennt eine abweichende Lizenz', () => {
     const svg =
       '<svg><metadata><rdf:RDF><cc:Work rdf:about=""><dc:creator><cc:Agent><dc:title>A. Muster</dc:title></cc:Agent></dc:creator>' +
-      '<dc:title>Bild</dc:title><cc:license rdf:resource="http://creativecommons.org/licenses/by-nc-sa/4.0/" /></cc:Work></rdf:RDF></metadata></svg>'
-    expect(metadaten(svg)).toEqual({ titel: 'Bild', urheber: 'A. Muster', lizenzUrl: 'http://creativecommons.org/licenses/by-nc-sa/4.0/' })
+      '<dc:title>Bild</dc:title><cc:license rdf:resource="http://creativecommons.org/licenses/by-sa/4.0/" /></cc:Work></rdf:RDF></metadata></svg>'
+    expect(metadaten(svg)).toEqual({ titel: 'Bild', urheber: 'A. Muster', lizenzUrl: 'http://creativecommons.org/licenses/by-sa/4.0/' })
     expect(metadaten('<svg/>')).toEqual({ titel: '', urheber: '', lizenzUrl: '' })
     expect(gleicheLizenz(metadaten(svg).lizenzUrl, ERWARTETE_LIZENZ.url)).toBe(false)
-    expect(gleicheLizenz('http://creativecommons.org/licenses/by-sa/4.0', ERWARTETE_LIZENZ.url)).toBe(true)
+    expect(gleicheLizenz('http://creativecommons.org/licenses/by-nc-sa/4.0', ERWARTETE_LIZENZ.url)).toBe(true)
   })
 })
 

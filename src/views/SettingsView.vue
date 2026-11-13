@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useStore } from '../state/store'
+import { WKR_LEERZEILEN_MAX } from '../state/reducer'
 import { classColor } from '../domain/classes'
 import { generateStarters } from '../domain/generate'
 import { defaultKuerzel, normalizeName } from '../domain/kuerzel'
@@ -12,11 +13,13 @@ import { originOf } from '../lib/origin'
 import { formatDateTime, t } from '../i18n'
 import type { ClassId, OriginStyle, Starter } from '../types'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
+import WkrEinteilung from '../components/WkrEinteilung.vue'
+import AppearancePanel from '../components/AppearancePanel.vue'
 
 /**
- * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten,
- * und die Dateien zum Aufheben und Weitergeben (Sicherung, Vorlage,
- * Teilnehmerdaten).
+ * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten, wer an
+ * welcher Liste sitzt (WKR-Einteilung mit Beispielansicht), und die Dateien zum Aufheben
+ * und Weitergeben (Sicherung, Vorlage, Teilnehmerdaten).
  */
 const { state, dispatch } = useStore()
 const { regelwerk, classLabel } = useEvent()
@@ -24,6 +27,14 @@ const { regelwerk, classLabel } = useEvent()
 const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color: classColor(id) })))
 const ORIGIN_STYLES: OriginStyle[] = ['lang', 'kurz']
 const dateiFeld = ref<HTMLInputElement | null>(null)
+
+// „Veranstaltung“ verweist mit `#/einstellungen?wkr` auf die WKR-Einteilung: dann dorthin
+// rollen, statt den Abschnitt in der langen Seite suchen zu lassen.
+onMounted(async () => {
+  if (!location.hash.includes('?wkr')) return
+  await nextTick()
+  document.getElementById('wkr-einteilung')?.scrollIntoView?.({ block: 'start' })
+})
 
 // --- Kürzel der Herkunft ---------------------------------------------------
 /**
@@ -47,6 +58,15 @@ const shortRows = computed(() => {
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 })
+
+// --- Wettkampfrichter-Listen ------------------------------------------------
+const eigeneLeerzeilen = computed(() => Object.keys(state.value.wkrLeerzeilenKlasse).length)
+
+/** Ein leeres oder unbrauchbares Feld heißt: wieder die allgemeine Zahl (bzw. die Vorgabe). */
+function setzeLeerzeilen(klasse: ClassId | undefined, e: Event) {
+  const n = parseInt((e.target as HTMLInputElement).value, 10)
+  dispatch({ type: 'SET_WKR_LEERZEILEN', klasse, anzahl: Number.isNaN(n) ? null : n })
+}
 
 const newName = ref('')
 const newShort = ref('')
@@ -128,6 +148,7 @@ function generate() {
 </script>
 
 <template>
+  <AppearancePanel />
   <div class="panel">
     <h2>{{ t('listopt.title') }}</h2>
     <div class="row" style="align-items: center; gap: 20px">
@@ -156,6 +177,59 @@ function generate() {
       </div>
     </div>
     <p class="note">{{ t('listopt.note') }}</p>
+
+    <!-- Wettkampfrichter-Listen: Leerzeilen für Nachmeldungen, Beschreibung auf der Rückseite. -->
+    <div class="subhead">{{ t('listopt.wkr.title') }}</div>
+    <div class="row" style="align-items: flex-end; gap: 20px">
+      <div class="field" style="width: 170px">
+        <label for="wkr-leerzeilen">{{ t('listopt.wkr.blank') }}</label>
+        <input
+          id="wkr-leerzeilen"
+          class="input"
+          type="number"
+          min="0"
+          :max="WKR_LEERZEILEN_MAX"
+          data-feld="wkr-leerzeilen"
+          :value="state.wkrLeerzeilen"
+          @change="setzeLeerzeilen(undefined, $event)"
+        />
+      </div>
+      <p class="note" style="flex: 1; min-width: 220px; margin: 0">{{ t('listopt.wkr.blankHint') }}</p>
+    </div>
+    <details class="sub-details" :open="eigeneLeerzeilen > 0">
+      <summary>{{ t('listopt.wkr.perClass') }} ({{ eigeneLeerzeilen }})</summary>
+      <div class="setup-grid">
+        <label v-for="c in CLASSES" :key="c.id" class="class-count">
+          <span class="dot" :style="{ background: c.color }" />
+          <span class="meta"><span class="name">{{ classLabel(c.id) }}</span></span>
+          <input
+            type="number"
+            min="0"
+            :max="WKR_LEERZEILEN_MAX"
+            :class="state.wkrLeerzeilenKlasse[c.id] !== undefined ? 'own' : ''"
+            :data-feld="`wkr-leerzeilen|${c.id}`"
+            :value="state.wkrLeerzeilenKlasse[c.id] ?? state.wkrLeerzeilen"
+            :aria-label="t('listopt.wkr.blankFor', { name: classLabel(c.id) })"
+            @change="setzeLeerzeilen(c.id, $event)"
+          />
+        </label>
+      </div>
+      <div v-if="eigeneLeerzeilen > 0" class="row" style="justify-content: flex-end">
+        <button class="btn sm" @click="dispatch({ type: 'SET_WKR_LEERZEILEN', anzahl: state.wkrLeerzeilen, alleKlassen: true })">
+          {{ t('listopt.wkr.reset', { n: state.wkrLeerzeilen }) }}
+        </button>
+      </div>
+    </details>
+    <label class="boat-check" style="margin-top: 12px">
+      <input
+        type="checkbox"
+        data-feld="wkr-rueckseite"
+        :checked="state.wkrRueckseite"
+        @change="dispatch({ type: 'SET_WKR_RUECKSEITE', rueckseite: ($event.target as HTMLInputElement).checked })"
+      />
+      {{ t('listopt.wkr.back') }}
+    </label>
+    <p class="note">{{ t('listopt.wkr.backHint') }}</p>
 
     <details v-if="state.originMode !== 'none'" class="sub-details">
       <summary>{{ t('short.title') }} ({{ shortRows.length }})</summary>
@@ -217,6 +291,10 @@ function generate() {
       <button class="btn sm" @click="dispatch({ type: 'RESET_SOLLGEWICHT' })">{{ t('weigh.reset', { rulebook: regelwerk.label }) }}</button>
     </div>
   </div>
+
+  <!-- Die Namen sind Daten der Veranstaltung (nur in der Sicherung, nie in der Vorlage);
+       gepflegt werden sie trotzdem hier, bei den Listen und ihrer Beispielansicht. -->
+  <WkrEinteilung />
 
   <EigeneAufbautenPanel />
 

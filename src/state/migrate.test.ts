@@ -51,3 +51,21 @@ describe('migrate', () => {
     expect(fromVerzahnungPrototyp({ starters: [] })).toBeNull()
   })
 })
+
+describe('migrate: Einstellungen der Wettkampfrichter-Listen', () => {
+  it('fehlen in älteren Ständen und bekommen die Vorgaben', () => {
+    expect(migrate({ starters: [] })).toMatchObject({ wkrLeerzeilen: 3, wkrLeerzeilenKlasse: {}, wkrRueckseite: false })
+  })
+
+  it('Unbrauchbares entfällt, Brauchbares bleibt', () => {
+    const state = migrate({
+      starters: [],
+      wkrLeerzeilen: 4,
+      wkrLeerzeilenKlasse: { '7': 6, '1': 4, X: 2, '2': 'viele', '3': 99 },
+      wkrRueckseite: true,
+    })
+    expect(state).toMatchObject({ wkrLeerzeilen: 4, wkrLeerzeilenKlasse: { '7': 6, '3': 30 }, wkrRueckseite: true })
+    expect(migrate({ starters: [], wkrLeerzeilen: 'drei', wkrLeerzeilenKlasse: [1] })).toMatchObject({ wkrLeerzeilen: 3, wkrLeerzeilenKlasse: {} })
+  })
+})
+

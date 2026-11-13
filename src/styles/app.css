@@ -1041,7 +1041,7 @@ table.starters tr:hover td {
    ====================================================================== */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --ok-bg: #ecfdf5;
   --ok-text: #065f46;
   --ok-border: #a7f3d0;
@@ -1049,8 +1049,9 @@ table.starters tr:hover td {
   --warn-border: #fecaca;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+@media screen {
+  :root[data-mode='dark'] {
+    color-scheme: dark;
     --bg: #0f172a;
     --panel: #1e293b;
     --panel-2: #172033;
@@ -1332,8 +1333,9 @@ label.class-count {
   --logo-ground: var(--top);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+@media screen {
+  :root[data-mode='dark'] {
+    color-scheme: dark;
     --bg: #0e1717;
     --panel: #162222;
     --panel-2: #1a2a2a;
@@ -2117,7 +2119,7 @@ fieldset.lockable:disabled .drag-handle {
   fill: var(--muted);
 }
 
-/* ---------- WKR-Einteilung (Veranstaltung) ---------- */
+/* ---------- WKR-Einteilung (Einstellungen) ---------- */
 .wkr-tabelle thead th small {
   color: var(--muted);
 }
@@ -2150,4 +2152,12 @@ fieldset.lockable:disabled .drag-handle {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* Listenarten (ListsView.vue): Fünf Einträge passen am Telefon nicht in eine Zeile – sie
+   brechen um, statt abgeschnitten zu werden. */
+.segmented.list-kinds {
+  flex-wrap: wrap;
+  max-width: 100%;
+  border-radius: 20px;
 }

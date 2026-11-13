@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import BlickErklaerung from './BlickErklaerung.vue'
 import ParcoursNachweis from './ParcoursNachweis.vue'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
+import { listenSprache } from '../lib/listensprache'
+import { configFor } from '../config/konfig'
 import { manoeverAufbauten } from '../config/catalog'
 import type { Meldung } from '../config/eigene'
 import type { Blick, RawAufbau } from '../config/schema'
 import ZuordnungImBild from './ZuordnungImBild.vue'
+import WkrVorschau from './WkrVorschau.vue'
 import {
   ausAufbau,
   befund,
@@ -40,7 +43,8 @@ import { t, type MessageKey } from '../i18n'
  *
  * Anders als im Prototyp läuft der Entwurf nicht als Vorschau durch den Zustand: Er lebt
  * nur in dieser Komponente und wird erst mit „Speichern“ – nach der Prüfung – als Action
- * abgeschickt. „Abbrechen“ muss deshalb nichts zurückdrehen.
+ * abgeschickt. „Abbrechen“ muss deshalb nichts zurückdrehen. Die Beispielansicht der Listen
+ * (WkrVorschau.vue) bekommt dafür eine eigene Konfiguration, die den Entwurf enthält.
  */
 const props = defineProps<{
   modus: 'neu' | 'bearbeiten'
@@ -122,6 +126,38 @@ const luecken = computed(() => lueckenJeFeld(konfig.value.entwurfsLuecken(aufbau
 const bild = computed(() => {
   const eigenes = konfig.value.rohQuelle.kurse?.find((k) => k.id === entwurf.value.kurs)?.bilder?.['7']
   return parcoursSvg(eigenes ?? 'Klasse7') ?? parcoursSvg('Klasse7') ?? ''
+})
+
+// ---- Beispielansicht: der Entwurf als eigener Aufbau ------------------------------------
+// Die Konfiguration ist eine reine Funktion der Auswahl: Für die Ansicht wird sie mit dem
+// Entwurf an Stelle des gespeicherten Aufbaus gebaut – nichts davon berührt den Stand.
+// Gebaut wird nur, solange die Ansicht aufgeklappt ist, und mit kurzer Verzögerung, damit
+// nicht jeder Tastendruck im Namensfeld alle Listen neu aufbaut.
+const vorschauOffen = ref(false)
+const vorschauAufbau = ref<RawAufbau>()
+let vorschauTimer: ReturnType<typeof setTimeout> | undefined
+watch(
+  [aufbau, vorschauOffen],
+  ([a, offen]) => {
+    clearTimeout(vorschauTimer)
+    if (!offen) return
+    const uebernehmen = () => (vorschauAufbau.value = JSON.parse(JSON.stringify(a)) as RawAufbau)
+    if (vorschauAufbau.value) vorschauTimer = setTimeout(uebernehmen, 200)
+    else uebernehmen()
+  },
+  { deep: true },
+)
+onBeforeUnmount(() => clearTimeout(vorschauTimer))
+const vorschauKonfig = computed(() => {
+  const a = vorschauAufbau.value
+  if (!a) return undefined
+  const k = configFor({
+    regelwerk: state.value.regelwerk,
+    sprache: listenSprache.value,
+    eigeneAufbauten: [...state.value.eigeneAufbauten.filter((x) => x.id !== a.id), a],
+  })
+  // Ein Entwurf, den die Prüfung (noch) ablehnt, steht nicht in der Konfiguration.
+  return k.getAufbauten().some((x) => x.id === a.id) ? k : undefined
 })
 
 // Englische Titel: nur, wo das Regelwerk Englisch anbietet (UIM). Das Feld ist freiwillig;
@@ -459,6 +495,18 @@ function speichern() {
         {{ t('assist.ok') }}
       </p>
     </div>
+
+    <details class="sub-details assistent-vorschau" @toggle="vorschauOffen = ($event.target as HTMLDetailsElement).open">
+      <summary>{{ t('assist.preview') }}</summary>
+      <WkrVorschau
+        v-if="vorschauOffen && vorschauKonfig"
+        :konfig="vorschauKonfig"
+        :aufbau-id="entwurf.id"
+        :namen-pflegen="false"
+        :einleitung="t('assist.previewIntro')"
+      />
+      <p v-else-if="vorschauOffen" class="boat-banner warn" role="status">{{ t('assist.previewNotYet') }}</p>
+    </details>
 
     <div class="row" style="justify-content: flex-end">
       <button type="button" class="btn" @click="emit('schliessen')">{{ t('assist.cancel') }}</button>
