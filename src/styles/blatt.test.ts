@@ -10,6 +10,7 @@ const bogenCss = lies('bogen.css')
 const printCss = lies('print.css')
 const erfassungCss = lies('erfassung.css')
 const ergebnisCss = lies('ergebnis.css')
+const laufzettelCss = lies('laufzettel.css')
 
 /**
  * Zusage an den Nutzer: Am Bildschirm folgen alle Listen dem Farbschema, im Druck sind sie
@@ -59,8 +60,9 @@ function regeln(css: string): Regel[] {
 
 // Alles, was zu einem Blatt gehört: Listen (.sheet…) und Bögen (.bogen…, Kopf bk-,
 // Tabelle bt-, Legende bl, Unterschrift bu-). Neue Listenarten hier ergänzen.
-// Dazu die Ergebnislisten (ergebnis-blatt, erg-) und die Eingabetabelle der Erfassung (erf-).
-const BLATT = /\.(sheet|bogen|ergebnis-blatt|ergebnis-stapel|erg-|erf-|bk-|bt-|bl-|bu-)|\.bl(?![\w-])/
+// Dazu die Ergebnislisten (ergebnis-blatt, erg-), die Eingabetabelle der Erfassung (erf-)
+// und die Laufzettel (laufzettel, lz-).
+const BLATT = /\.(sheet|bogen|ergebnis-blatt|ergebnis-stapel|laufzettel|lz-|erg-|erf-|bk-|bt-|bl-|bu-)|\.bl(?![\w-])/
 const FESTE_FARBE = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(|\b(white|black|red|gr[ae]y|silver|blue|green|yellow|orange|navy|teal)\b/i
 // Variablen ohne Farbe, die Blatt-Regeln benutzen dürfen (Maße, Schatten, Rundung).
 const ERLAUBT = /^--(blatt-[\w-]+|bogen-[\w-]+|bild-breite|radius|shadow)$/
@@ -105,6 +107,7 @@ describe('Farben der Listen und Bögen', () => {
     ['print.css', printCss],
     ['erfassung.css', erfassungCss],
     ['ergebnis.css', ergebnisCss],
+    ['laufzettel.css', laufzettelCss],
   ])('%s: Listen-Regeln setzen Farben nur über --blatt-*', (_name, css) => {
     expect(regeln(css).some((r) => BLATT.test(r.selektor))).toBe(true)
     expect(verstoesse(css)).toEqual([])
@@ -130,7 +133,7 @@ describe('Farben der Listen und Bögen', () => {
       expect(r.umgebung, r.selektor).toEqual(['@media screen'])
     }
     // Sonst blieben im Druck die Bildschirmwerte stehen.
-    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss]) {
+    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss, laufzettelCss]) {
       for (const r of regeln(css)) for (const d of r.deklarationen) expect(d.name, r.selektor).not.toMatch(/^--blatt-/)
     }
   })
@@ -138,7 +141,7 @@ describe('Farben der Listen und Bögen', () => {
   it('jede benutzte --blatt-Variable hat eine Druckfarbe', () => {
     const bekannt = new Set(vorgabe!.deklarationen.map((d) => d.name))
     const benutzt = new Set<string>()
-    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss, blattCss]) for (const [, name] of css.matchAll(/var\(\s*(--blatt-[\w-]+)/g)) benutzt.add(name)
+    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss, laufzettelCss, blattCss]) for (const [, name] of css.matchAll(/var\(\s*(--blatt-[\w-]+)/g)) benutzt.add(name)
     expect([...benutzt].filter((n) => !bekannt.has(n))).toEqual([])
     expect(benutzt.size).toBeGreaterThan(5)
   })

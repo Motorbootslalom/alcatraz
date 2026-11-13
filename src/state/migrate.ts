@@ -7,6 +7,7 @@ import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
 import { normalisiereEinteilung } from '../lib/einteilung'
 import { normalisiereEingaben, nurStarter } from '../lib/eingaben'
+import { istKennung } from '../lib/qr'
 
 /**
  * Einen gelesenen Stand (localStorage, Sicherungsdatei) auf die aktuelle Fassung
@@ -71,6 +72,11 @@ export function migrate(raw: unknown): AppState | null {
       },
       intern: { herkunft: (['aus', 'kurz', 'lang'] as const).find((h) => h === loaded.ergebnisListen?.intern?.herkunft) ?? base.ergebnisListen.intern.herkunft },
     },
+    // Fehlt in Ständen vor den QR-Codes; der Store vergibt dann eine.
+    kennung: istKennung(loaded.kennung) ? loaded.kennung : '',
+    // Fehlt in Ständen vor dem Zeitpunkt auf den Ergebnislisten: Dann ist er unbekannt, und
+    // die Listen zeigen keinen (lib/listenStand.ts) – bis zu ihrer nächsten Änderung.
+    listenStand: listenStandVon(loaded.listenStand),
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },
@@ -92,6 +98,18 @@ function isAufbau(value: unknown): value is RawAufbau {
     Array.isArray(a.positionen) &&
     a.positionen.every((p) => typeof p === 'string' || (!!p && typeof p === 'object' && typeof p.id === 'string'))
   )
+}
+
+/** Nur Einträge mit Prüfsumme; ein unbrauchbarer Zeitpunkt entfällt (die Liste zeigt dann keinen). */
+function listenStandVon(loaded: unknown): AppState['listenStand'] {
+  if (!loaded || typeof loaded !== 'object' || Array.isArray(loaded)) return {}
+  const stand: AppState['listenStand'] = {}
+  for (const [schluessel, eintrag] of Object.entries(loaded as Record<string, unknown>)) {
+    const e = eintrag as { inhalt?: unknown; zeit?: unknown } | null
+    if (!e || typeof e.inhalt !== 'number' || !Number.isFinite(e.inhalt)) continue
+    stand[schluessel] = typeof e.zeit === 'number' && Number.isFinite(e.zeit) && e.zeit > 0 ? { inhalt: e.inhalt, zeit: e.zeit } : { inhalt: e.inhalt }
+  }
+  return stand
 }
 
 /** Nur behalten, was vom Regelwerk abweicht – der Rest folgt dem Regelwerk, auch wenn es wechselt. */

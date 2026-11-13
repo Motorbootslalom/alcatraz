@@ -122,7 +122,33 @@
 /* ---------- Kopf ---------- */
 
 .bogen-kopf {
+  position: relative;
   border: 1.6px solid var(--blatt-linie);
+}
+
+/* QR-Code der Druckseite oben rechts. Er schwebt über dem Kopf und kostet deshalb keine
+   Höhe – die Seitenaufteilung ist dieselbe wie ohne ihn. Ohne transform: Chrome setzt
+   transformierte Elemente beim Seitenumbruch im Druck teils auf die Vorseite. Seine Farben
+   (immer schwarz auf weiß, auch im Dunklen – sonst liest ihn kein Scanner) stehen im SVG. */
+.bk-qr {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 62px;
+  height: 62px;
+  border: 1px solid var(--blatt-blass);
+}
+
+/* Die Namenslinie endet vor dem Code. */
+.bogen-kopf--qr .bk-wkr {
+  padding-right: 74px;
+}
+
+/* Auch der Name der Veranstaltung weicht dem Code aus – ein langer Name bricht eher um,
+   statt unter dem Code zu verschwinden. Links derselbe Abstand, damit er mittig bleibt. */
+.bogen-kopf--qr .bk-leiste {
+  padding-left: 74px;
+  padding-right: 74px;
 }
 
 .bk-leiste {

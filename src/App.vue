@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { nextTick, watch, watchEffect } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, watch, watchEffect } from 'vue'
 import { useStore } from './state/store'
-import { useRoute, VIEWS } from './lib/router'
+import { navigate, useRoute, VIEWS } from './lib/router'
+import { hoereAufScanner } from './lib/scanner'
+import { meldeScan } from './lib/scan'
 import { BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from './lib/build'
 import { formatDateTime, t, tn } from './i18n'
 import AppLogo from './components/AppLogo.vue'
@@ -16,7 +18,7 @@ import ListsView from './views/ListsView.vue'
 import ErfassungView from './views/ErfassungView.vue'
 import SettingsView from './views/SettingsView.vue'
 
-const { state, saved } = useStore()
+const { state, saved, stelleHer } = useStore()
 
 // Der Fenstertitel folgt der Sprache – er ist auch der vorgeschlagene Name beim Speichern als PDF.
 watchEffect(() => {
@@ -35,6 +37,25 @@ watch(view, async (neu) => {
   // Ein Verweis mit Sprungziel (`#/einstellungen?wkr`) rollt selbst dorthin.
   if (!location.hash.includes('?')) window.scrollTo({ top: ziel })
 })
+
+// Handscanner: Er tippt den QR-Code eines Bogens oder Laufzettels wie eine Tastatur – in
+// jeder Ansicht, auch ohne Klick in ein Feld. Der Code führt in die Erfassung, die ihn
+// auswertet (views/ErfassungView.vue); nur ihr Scan-Feld liest selbst.
+let scannerAb: (() => void) | undefined
+onMounted(() => {
+  scannerAb = hoereAufScanner(
+    (code) => {
+      meldeScan(code)
+      if (view.value !== 'erfassung') navigate('erfassung')
+    },
+    (el) => el instanceof HTMLElement && el.hasAttribute('data-scan-feld'),
+    undefined,
+    // Die ersten Zeichen eines Scans treffen das Feld, in dem der Cursor steht (eine Zelle
+    // der Erfassung, die Auswahlliste des Aufbaus …): Der Stand von davor gilt wieder.
+    { merke: () => state.value, stelleHer },
+  )
+})
+onBeforeUnmount(() => scannerAb?.())
 
 function commitLabel(): string {
   if (!BUILD_COMMIT) return t('app.unknown')

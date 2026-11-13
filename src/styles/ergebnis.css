@@ -245,6 +245,22 @@
   margin: 9mm 8mm 12mm;
 }
 
+/* Wann sich die Liste zuletzt geändert hat: ein eigenes Feld rechts im Kopf – gut sichtbar,
+   auch im Druck und dort auf jeder Seite der Liste. Kleiner gesetzt als der Kopf, damit es
+   dessen Höhe nicht ändert: Die Liste teilt sich auf wie ohne die Angabe. */
+.erg-kopf--stand {
+  grid-template-columns: 52mm 40mm 1fr auto;
+}
+
+.erg-kopf > .erg-stand {
+  display: flex;
+  align-items: center;
+  border-left: 1.6px solid var(--blatt-linie);
+  padding: 0 3mm;
+  font-size: 8.5pt;
+  white-space: nowrap;
+}
+
 @media print {
   .ergebnis-stapel {
     display: block;

@@ -445,6 +445,9 @@ describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
       expect(listen()).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Mann-über-Bord', 'Parcours'])
       expect(vorschau.find('.bogen-kennzeichen').text()).toBe('Beispielansicht')
       expect(vorschau.find('input.bk-wkr-input').exists()).toBe(false)
+      // Der QR-Code steht als Muster da, trifft aber keinen Bogen: An der Stelle der Veranstaltung steht „MUSTER“.
+      expect(vorschau.find('svg.qr-code').attributes('data-qr')).toMatch(/^ALC1\.MUSTER\.DM2026\.[A-Z0-9]+\.PAR2\.7\.1\.[A-Z0-9]+\.S1$/)
+      expect(vorschau.find('svg.qr-code').attributes('data-qr')).not.toContain(store.state.value.kennung)
       // Eine Änderung am Entwurf erscheint in der Ansicht, ohne dass etwas gespeichert wäre.
       const titel = wrapper.findAll('.assistent input.spalte-titel')
       if (titel.length === 0) await wrapper.findAll('.assistent-ansicht button')[0].trigger('click')

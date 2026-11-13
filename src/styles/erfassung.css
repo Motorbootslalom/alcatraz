@@ -354,3 +354,67 @@
     padding-right: 10px;
   }
 }
+
+/* ---------- Scannen ---------- */
+
+/* Feld für den Handscanner oder eine getippte Kennung. Keine Listen-Regel: Farben des Schemas. */
+.scan-feld {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+
+.scan-feld label {
+  font-weight: 600;
+}
+
+.scan-feld .input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 520px;
+  font-family: ui-monospace, 'Cascadia Mono', 'Liberation Mono', monospace;
+}
+
+/* Hinweis nach einem Scan: welches Blatt erkannt wurde oder warum nicht. */
+.scan-hinweis {
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  background: var(--panel);
+}
+
+.scan-hinweis--ok {
+  border-left-color: var(--accent);
+}
+
+.scan-hinweis--fehler {
+  border-left-color: var(--danger);
+}
+
+.scan-zeile {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scan-text {
+  margin: 0;
+  min-width: 0;
+}
+
+.scan-zeile + .scan-text {
+  margin-top: 6px;
+}
+
+.scan-code {
+  margin: 4px 0 0;
+  font-family: ui-monospace, 'Cascadia Mono', 'Liberation Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

@@ -36,7 +36,8 @@ async function waehle(wrapper: VueWrapper, feld: string, w: string) {
   await wrapper.find(`select[data-feld="erg-${feld}"]`).setValue(w)
   await nextTick()
 }
-const koepfe = (wrapper: VueWrapper) => wrapper.findAll('.ergebnis-blatt .erg-kopf').map((k) => k.findAll('span').map((s) => s.text()).join(' | '))
+// Klasse | Lauf | Veranstaltung – ohne das Feld „Letzte Änderung“ (dazu ErgebnisStand.test.ts).
+const koepfe = (wrapper: VueWrapper) => wrapper.findAll('.ergebnis-blatt .erg-kopf').map((k) => k.findAll('span:not(.erg-stand)').map((s) => s.text()).join(' | '))
 const zeilen = (wrapper: VueWrapper, blatt = 0) =>
   wrapper.findAll('.ergebnis-blatt')[blatt].findAll('tbody tr').map((r) => r.findAll('td').map((c) => c.text()))
 const spalten = (wrapper: VueWrapper, blatt = 0) => wrapper.findAll('.ergebnis-blatt')[blatt].findAll('.erg-spaltenkopf th').map((t) => t.text().replace(/\s+/g, ' '))

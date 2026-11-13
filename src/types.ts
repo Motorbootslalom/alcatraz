@@ -155,6 +155,18 @@ export type Eingaben = Record<string, Record<string, Record<string, string>>>
  */
 export type Streichlaeufe = 'auto' | number
 
+/**
+ * Wann sich eine Ergebnisliste zuletzt geändert hat (lib/listenStand.ts). `zeit` fehlt, wenn
+ * der Zeitpunkt nicht bekannt ist – etwa bei einem Stand aus der Zeit vor dieser Angabe: Die
+ * Liste zeigt dann nichts statt eines erfundenen Zeitpunkts.
+ */
+export interface ListenStand {
+  /** Prüfsumme dessen, was auf der Liste steht. */
+  inhalt: number
+  /** Zeitpunkt der letzten Änderung in Millisekunden seit 1970. */
+  zeit?: number
+}
+
 /** Aktuelle Fassung des gespeicherten Zustands, siehe state/migrate.ts. */
 export const SCHEMA_VERSION = 1
 
@@ -240,6 +252,19 @@ export interface AppState extends PlanState {
    * nicht, als Kürzel oder ausgeschrieben.
    */
   ergebnisListen: ErgebnisListenOptionen
+  /**
+   * Kennung der Veranstaltung in den QR-Codes der Bögen und Laufzettel (lib/qr.ts): Daran
+   * erkennt die Erfassung ein Blatt einer anderen Veranstaltung. Zufällig, vom Store vergeben
+   * (der Reducer würfelt nicht); leer, bis das geschehen ist. Sie steht in der Sicherung –
+   * deren Bögen bleiben lesbar –, aber nicht in der Vorlage: Die nächste Veranstaltung ist
+   * eine andere.
+   */
+  kennung: string
+  /**
+   * Stand je Ergebnisliste unter ihrem Schlüssel (lib/listenStand.ts): wann sie sich zuletzt
+   * geändert hat. Gehört zu den Ergebnissen: in der Sicherung, nicht in der Vorlage.
+   */
+  listenStand: Record<string, ListenStand>
 }
 
 export type ErgebnisNamen = 'voll' | 'kurz' | 'ohne'

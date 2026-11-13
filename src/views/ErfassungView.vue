@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
@@ -7,11 +7,14 @@ import { useEvent } from '../lib/event'
 import { duplicateStartNrIds } from '../domain/startnumbers'
 import { bogenFortschritt } from '../lib/erfassung'
 import { wkrBoegenZumStand, type WkrBogen, type WkrListen } from '../lib/wkrListen'
+import { leseCode, type QrFehler } from '../lib/qr'
+import { meldeScan, scanBeenden, scanBogen, scanErledigt, scanStand } from '../lib/scan'
 import { PROTOTYP_URL } from '../lib/prototyp'
 import { t, tn } from '../i18n'
 import type { ClassId } from '../types'
 import ErfassungTabelle from '../components/erfassung/ErfassungTabelle.vue'
 import EingabenHinweis from '../components/EingabenHinweis.vue'
+import ScanHinweis from '../components/erfassung/ScanHinweis.vue'
 
 /**
  * Erfassung: die ausgefüllten Wettkampfrichter-Listen nach dem Lauf abtippen. Gewählt wird
@@ -21,6 +24,11 @@ import EingabenHinweis from '../components/EingabenHinweis.vue'
  * Die Bögen sind dieselben wie unter „Listen“ (lib/wkrListen.ts): gleiche Zeilen in der
  * Startreihenfolge der Verzahnung. Was eingetippt ist, hängt an Starter-ID, Lauf und Feld –
  * die Auswahl hier ist nur der Blick darauf und gehört nicht zum Stand der Veranstaltung.
+ *
+ * Scannen: Jeder Bogen und jeder Laufzettel trägt einen QR-Code (lib/qr.ts). Ein Handscanner
+ * – er tippt wie eine Tastatur, App.vue hört in jeder Ansicht darauf – oder eine ins Feld
+ * getippte Kennung wählt Parcours, Klasse, Lauf und Liste des Blatts und stellt den Cursor in
+ * die erste Zelle. Ein Laufzettel führt zur ersten Liste seiner Klasse in dem Lauf.
  */
 const { state } = useStore()
 const konfig = useKonfig()
@@ -34,7 +42,8 @@ const id = useId()
  */
 let gemerkt: { stand: Record<string, unknown>; konfig: unknown; listen: WkrListen } | undefined
 const listen = computed(() => {
-  const { eingaben: _eingaben, ...rest } = state.value
+  // Auch der Stand der Ergebnislisten ändert sich mit jeder Eingabe und geht die Bögen nichts an.
+  const { eingaben: _eingaben, listenStand: _listenStand, ...rest } = state.value
   const stand = rest as Record<string, unknown>
   const g = gemerkt
   if (g && g.konfig === konfig.value && Object.keys(stand).length === Object.keys(g.stand).length && Object.keys(stand).every((k) => stand[k] === g.stand[k])) return g.listen
@@ -79,6 +88,93 @@ const summe = computed(() => stand.value.reduce((s, x) => ({ erfasst: s.erfasst 
 function setze(feld: 'parcours' | 'klasse' | 'lauf' | 'liste', e: Event) {
   const wert = (e.target as HTMLSelectElement).value
   wahl.value = { ...wahl.value, [feld]: feld === 'lauf' ? Number(wert) : wert }
+  // Wer selbst wählt, sieht nicht mehr das gescannte Blatt.
+  scanBeenden()
+}
+
+function zeige(typeId: string) {
+  wahl.value = { ...wahl.value, liste: typeId }
+  scanBeenden()
+}
+
+// ---- Scannen ----------------------------------------------------------------
+
+/** Was der zuletzt gelesene Code bedeutet – gegen den Stand von jetzt. */
+const scan = computed(() => {
+  const s = scanStand.value
+  if (!s) return null
+  const k = konfig.value
+  const lesung = leseCode(s.code, {
+    kennung: state.value.kennung,
+    regelwerk: state.value.regelwerk,
+    aufbau: state.value.aufbau,
+    regelwerke: k.getRegelwerke().map((r) => r.id),
+    aufbauten: k.getAufbauten().map((a) => a.id),
+    parcours: state.value.parcoursList.map((p) => p.id),
+    listen: k.aufbauOrder(state.value.aufbau, false),
+    laufCount: state.value.laufCount,
+  })
+  if (!lesung.ok) return { code: s.code, fehler: lesung.fehler as QrFehler | { art: 'bogen' }, angaben: angabenZu(lesung.fehler) }
+  const treffer = scanBogen(lesung.ziel, alle.value, (typeId) => k.getSheetDef(typeId).showLauf === false)
+  const klassenText = lesung.ziel.klassen.map((x) => classLabel(x)).join(', ')
+  if (!treffer) return { code: s.code, fehler: { art: 'bogen' as const }, angaben: { printed: klassenText } }
+  const { ziel } = lesung
+  const teile = [
+    ziel.typeId ? titel.value.get(ziel.typeId) ?? treffer.bogen.titel : t('runsheet.title'),
+    ...(state.value.parcoursList.length > 1 ? [treffer.bogen.parcoursName] : []),
+    klassenText,
+    t('lists.wkr.runN', { n: ziel.lauf }),
+    ...(ziel.seite ? [t('scan.page', { n: ziel.seite })] : []),
+  ]
+  return { code: s.code, treffer, lauf: ziel.lauf, teile }
+})
+
+/** Namen statt Kennungen für die Meldung: Gedrucktes und Eingestelltes. */
+function angabenZu(f: QrFehler) {
+  const k = konfig.value
+  if (f.art === 'veranstaltung') return { own: state.value.kennung }
+  if (f.art === 'regelwerk') {
+    const name = (rid: string) => k.getRegelwerke().find((r) => r.id === rid)?.label ?? rid
+    return { printed: f.id ? name(f.id) : f.wert, current: name(state.value.regelwerk) }
+  }
+  if (f.art === 'aufbau') {
+    const name = (aid: string) => k.getAufbauten().find((a) => a.id === aid)?.name ?? aid
+    return { printed: f.id ? name(f.id) : f.wert, current: name(state.value.aufbau) }
+  }
+  if (f.art === 'lauf') return { runs: state.value.laufCount }
+  return {}
+}
+
+/** Zum Bogen des Codes springen und den Cursor in seine erste Zelle stellen. */
+async function springe() {
+  const s = scanStand.value
+  if (!s || scanErledigt.nr === s.nr) return
+  // Nur einmal je Scan: Wer danach selbst wählt, die Ansicht wechselt und zurückkommt, bleibt bei seiner Wahl.
+  scanErledigt.nr = s.nr
+  const treffer = scan.value?.treffer
+  if (!treffer) return
+  wahl.value = { parcours: treffer.bogen.parcoursId, klasse: treffer.klasse, lauf: scan.value!.lauf, liste: treffer.bogen.typeId }
+  // Die Tabelle wird für den neuen Bogen neu aufgebaut.
+  await nextTick()
+  await nextTick()
+  const zelle = document.querySelector<HTMLInputElement>('.erf-panel .erf-tabelle tbody input.erf-feld')
+  zelle?.focus()
+  zelle?.scrollIntoView?.({ block: 'center' })
+}
+watch(() => scanStand.value?.nr, springe, { immediate: true })
+
+// Scan-Feld: Handscanner mit Klick ins Feld, getippte oder eingefügte Kennung (Enter).
+const scanText = ref('')
+function scanAbschicken() {
+  meldeScan(scanText.value)
+  // Stehen lassen, was nicht erkannt wurde – zum Berichtigen.
+  if (scan.value?.treffer) scanText.value = ''
+}
+function scanMitTab(e: KeyboardEvent) {
+  // Manche Scanner schließen mit Tab statt Enter ab.
+  if (!scanText.value.trim()) return
+  e.preventDefault()
+  scanAbschicken()
 }
 
 /** Zur nächsten Liste, die noch nicht fertig ist – sonst einfach zur nächsten. */
@@ -94,6 +190,8 @@ function weiter() {
   <div class="panel">
     <h2>{{ t('capture.title') }}</h2>
     <p class="hint">{{ t('capture.hint') }}</p>
+
+    <ScanHinweis v-if="scan" :code="scan.code" :teile="scan.teile" :geaendert="scan.treffer && !scan.treffer.genau" :fehler="scan.fehler" :angaben="scan.angaben" @schliessen="scanBeenden" />
 
     <p v-if="state.starters.length === 0" class="empty">{{ t('capture.empty') }}</p>
     <p v-else-if="alle.length === 0" class="boat-banner warn" role="status">
@@ -142,7 +240,7 @@ function weiter() {
           :class="['eingabe-chip', { aktiv: s.bogen.id === bogen?.id, fertig: s.gesamt > 0 && s.erfasst === s.gesamt }]"
           :aria-pressed="s.bogen.id === bogen?.id"
           :data-liste="s.bogen.typeId"
-          @click="wahl = { ...wahl, liste: s.bogen.typeId }"
+          @click="zeige(s.bogen.typeId)"
         >
           <span class="eingabe-chip-titel">{{ s.titel }}</span>
           <span class="eingabe-chip-zahl">{{ s.erfasst }}/{{ s.gesamt }}</span>
@@ -152,6 +250,23 @@ function weiter() {
         <p class="note eingabe-summe" role="status" style="flex: 1; margin: 0">{{ t('capture.sum', { done: summe.erfasst, total: summe.gesamt, sheets: stand.length }) }}</p>
         <button type="button" class="btn" data-action="weiter" :disabled="stand.length < 2" @click="weiter">{{ t('capture.next') }} →</button>
       </div>
+      <div class="scan-feld">
+        <label :for="`${id}-scan`">{{ t('scan.label') }}</label>
+        <input
+          :id="`${id}-scan`"
+          v-model="scanText"
+          class="input"
+          data-scan-feld
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          :placeholder="t('scan.placeholder')"
+          @keydown.enter.prevent="scanAbschicken"
+          @keydown.tab="scanMitTab"
+        />
+        <button type="button" class="btn" data-action="scan" :disabled="!scanText.trim()" @click="scanAbschicken">{{ t('scan.go') }}</button>
+      </div>
+      <p class="note">{{ t('scan.hint') }}</p>
       <p class="note">
         {{ t('capture.results') }} <a href="#/listen">{{ t('nav.listen') }}</a
         >.

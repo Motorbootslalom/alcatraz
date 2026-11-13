@@ -1,0 +1,340 @@
+/* ======================================================================
+   Laufzettel (A4 quer, in der Mitte auf A5 gefaltet)
+   Portiert aus styles.css des Fehlerpunkte-Prototyps (Abschnitt „LAUFZETTEL“).
+   Farben nur über --blatt-* (styles/blatt.css): am Bildschirm das Farbschema,
+   im Druck schwarz auf weiß.
+   ====================================================================== */
+
+.laufzettel-stapel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Am Bildschirm nur die Vorderseite (A5 hoch): Die leere Rückseite wäre in schmalen
+   Fenstern alles, was man sähe. Die Maße bleiben die des Papiers, weil das Blatt misst, ob
+   die Liste dichter gesetzt werden muss; in schmalen Fenstern wird es als Ganzes verkleinert –
+   mit `transform`, wie die Bögen (styles/bogen.css, lib/bogenZoom.ts). */
+.laufzettel {
+  --bogen-zoom: var(--bogen-zoom-a5, 1);
+  box-sizing: border-box;
+  flex: none;
+  width: 148.5mm;
+  border: 1px solid var(--blatt-rand);
+  border-radius: var(--radius);
+  padding: 8mm 0;
+  background: var(--blatt-bg);
+  color: var(--blatt-text);
+  font-family: Arial, 'Liberation Sans', Helvetica, sans-serif;
+  text-align: left;
+  transform-origin: 0 0;
+  transform: scale(var(--bogen-zoom));
+  margin-right: calc(148.5mm * (var(--bogen-zoom) - 1));
+  margin-bottom: calc(208mm * (var(--bogen-zoom) - 1));
+}
+
+.laufzettel *,
+.laufzettel *::before,
+.laufzettel *::after {
+  box-sizing: border-box;
+}
+
+/* Inhalt = Druckbereich (A4 quer minus 2 × 8 mm Rand), in der Höhe 2 mm Reserve gegen einen
+   Umbruch auf eine zweite Seite. Der Rand ist ringsum gleich, daher liegt die Mitte des
+   Inhalts auf der Blattmitte – dem Falz. */
+.lz-blatt {
+  display: grid;
+  grid-template-columns: 140.5mm;
+  /* Zeile fest auf die Blatthöhe – sonst wüchse sie mit dem Inhalt. */
+  grid-template-rows: minmax(0, 1fr);
+  width: 140.5mm;
+  height: 192mm;
+}
+
+.lz-rueck {
+  display: none;
+}
+
+/* Rechte Hälfte = Vorderseite nach dem Falten; gestrichelte Linie = Falz. */
+.lz-vorn {
+  display: flex;
+  min-width: 0;
+  padding-left: 4mm;
+  border-left: 0.3mm dashed var(--blatt-blass);
+}
+
+/* Klasse und Lauf senkrecht am Falz (wie ein Buchrücken), von unten nach oben. */
+.lz-ruecken {
+  flex: none;
+  width: 20mm;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10mm;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.lz-klasse {
+  font-size: 28pt;
+}
+
+.lz-lauf {
+  font-size: 22pt;
+}
+
+.lz-parcours {
+  font-size: 16pt;
+  font-weight: 400;
+}
+
+.lz-ruecken--schmal {
+  gap: 7mm;
+}
+
+.lz-ruecken--schmal .lz-klasse {
+  font-size: 20pt;
+}
+
+.lz-ruecken--schmal .lz-lauf {
+  font-size: 18pt;
+}
+
+.lz-ruecken--schmal .lz-parcours {
+  font-size: 13pt;
+}
+
+.lz-ruecken--eng {
+  gap: 5mm;
+}
+
+.lz-ruecken--eng .lz-klasse {
+  font-size: 14pt;
+}
+
+.lz-ruecken--eng .lz-lauf {
+  font-size: 14pt;
+}
+
+.lz-ruecken--eng .lz-parcours {
+  font-size: 11pt;
+}
+
+.lz-inhalt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2mm 0 0 5mm;
+  border-left: 0.4mm solid var(--blatt-linie);
+}
+
+/* Titel und Seiten-Liste füllen den Platz über den Arbeitsschritten (feste Höhe, damit
+   LaufzettelBlatt.vue messen kann, ob die Liste dichter gesetzt werden muss). */
+.lz-oben {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* QR-Code oben rechts. Die Zeilen der Liste weichen ihm aus (Flex-Zeilen überlappen keine
+   Floats), es bleibt keine Lücke. */
+.lz-qr {
+  float: right;
+  width: 24mm;
+  height: 24mm;
+  margin: 0 0 2mm 4mm;
+}
+
+.lz-titel {
+  margin: 0 0 4mm;
+  font-size: 11pt;
+  color: var(--blatt-leise);
+}
+
+.lz-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13pt;
+}
+
+.lz-liste li {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  padding: 1.6mm 0;
+  line-height: 1.25;
+  break-inside: avoid;
+}
+
+/* Arbeitsschritte der Auswertung unten auf der Vorderseite. */
+.lz-schritte {
+  flex: none;
+  margin-top: 3mm;
+  padding-top: 2.5mm;
+  border-top: 0.4mm solid var(--blatt-linie);
+}
+
+.lz-schritte-titel {
+  margin: 0 0 1mm;
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.lz-schritte .lz-liste {
+  font-size: 12pt;
+}
+
+/* Seiten-Liste: je Liste eine Zeile – links der Name, rechts die Kästchen ihrer Seiten, die
+   bei vielen Seiten in die nächste Zeile laufen. So passt auch eine große Klasse oder eine
+   Clubmeisterschaft (viele Bögen je Liste) auf die A5-Seite. */
+.lz-seiten li {
+  align-items: flex-start;
+}
+
+.lz-name {
+  flex: none;
+  width: 38mm;
+  /* Auf Höhe der Kästchen-Mitte der ersten Reihe. */
+  padding-top: 0.5mm;
+  overflow-wrap: anywhere;
+}
+
+.lz-gruppen {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5mm 4mm;
+}
+
+/* Die Kästchen eines Bogens; davor – wenn er nur einen Teil der Klassen trägt – welche. */
+.lz-gruppe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5mm;
+}
+
+.lz-gruppe-name {
+  font-size: 10pt;
+  white-space: nowrap;
+}
+
+.lz-kasten {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.5mm;
+  height: 5.5mm;
+  border: 0.4mm solid var(--blatt-linie);
+  /* Die Seitenzahl im Kästchen: klein und blass, der Haken kommt darüber. */
+  font-size: 7.5pt;
+  line-height: 1;
+  color: var(--blatt-leise);
+}
+
+/* Sehr viele Seiten: kleiner und dichter, mit kleineren Kästchen. */
+.lz-oben--eng .lz-liste {
+  font-size: 10pt;
+}
+
+.lz-oben--eng .lz-liste li {
+  gap: 2mm;
+  padding: 0.8mm 0;
+  line-height: 1.15;
+}
+
+.lz-oben--eng .lz-name {
+  width: 30mm;
+}
+
+.lz-oben--eng .lz-gruppen {
+  gap: 1mm 2.5mm;
+}
+
+.lz-oben--eng .lz-gruppe {
+  gap: 1mm;
+}
+
+.lz-oben--eng .lz-gruppe-name {
+  font-size: 8pt;
+}
+
+.lz-oben--eng .lz-kasten {
+  width: 4.2mm;
+  height: 4.2mm;
+  font-size: 6.5pt;
+}
+
+/* Passt die Liste auch dicht gesetzt nicht: Der Zettel sagt es selbst – auch gedruckt, damit
+   sich niemand auf einen unvollständigen verlässt. */
+.lz-zuviel {
+  flex: none;
+  margin: 0 0 2mm;
+  border: 0.4mm solid var(--blatt-linie);
+  padding: 1mm 2mm;
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--blatt-warn);
+}
+
+/* Die Bögen, an denen die Seitenzahlen gemessen werden: mit Layout in Druckmaßen, aber
+   unsichtbar und außerhalb des Fensters. Gedruckt werden sie nie (`no-print`). */
+.lz-messung {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  width: 297mm;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@page laufzettel {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  .laufzettel-stapel {
+    display: block;
+    overflow: visible;
+  }
+
+  .laufzettel {
+    page: laufzettel;
+    width: auto;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    transform: none;
+    margin: 0;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  .laufzettel:last-child {
+    break-after: auto;
+  }
+
+  /* Das ganze Blatt: links die leere Rückseite, rechts die Vorderseite. */
+  .lz-blatt {
+    grid-template-columns: 1fr 1fr;
+    width: 281mm;
+  }
+
+  .lz-rueck {
+    display: block;
+  }
+}

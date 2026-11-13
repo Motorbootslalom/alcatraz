@@ -41,5 +41,10 @@ describe('t()', () => {
     expect(formatDateTime(new Date(2026, 10, 12, 23, 2).toISOString())).toBe('2026-11-12 23:02')
     setLocale('de')
     expect(formatDateTime(new Date(2026, 10, 12, 23, 2).toISOString())).toBe('12.11.2026, 23:02')
+    // Mit Sekunden: für den Stand der Ergebnislisten.
+    expect(formatDateTime(new Date(2026, 10, 12, 23, 2, 7).toISOString(), true)).toBe('12.11.2026, 23:02:07')
+    setLocale('en')
+    expect(formatDateTime(new Date(2026, 10, 12, 23, 2, 7).toISOString(), true)).toBe('2026-11-12 23:02:07')
+    expect(formatDateTime('', true)).toBe('')
   })
 })

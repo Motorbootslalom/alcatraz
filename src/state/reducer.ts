@@ -31,6 +31,8 @@ import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
 import { gueltigeZellen, nurStarter, setzeWerte, type EingabeZelle } from '../lib/eingaben'
 import { beispielEingaben, zufallAus, type Zeitnahme } from '../lib/beispielwerte'
 import { configFor } from '../config/konfig'
+import { listenStandNach } from '../lib/listenStand'
+import { istKennung } from '../lib/qr'
 import { canonicalRunningNumbers } from '../planung/running'
 import { aufbauOf, DEFAULT_AUFBAU, DEFAULT_REGELWERK, hasParallel, regelwerkOf } from '../config/catalog'
 
@@ -42,7 +44,16 @@ import { aufbauOf, DEFAULT_AUFBAU, DEFAULT_REGELWERK, hasParallel, regelwerkOf }
  * Action später auf mehreren Geräten anwenden (Mehr-Browser-Betrieb über ntfy)
  * und kommt überall zum selben Ergebnis.
  */
-export type Action =
+export type Action = Aenderung & {
+  /**
+   * Zeitpunkt, zu dem die Action entstand (Millisekunden seit 1970); der Store setzt ihn.
+   * Er wird zum Stand der Ergebnislisten, die sich durch die Action ändern
+   * (lib/listenStand.ts). Fehlt er, bleibt deren Zeitpunkt unbekannt.
+   */
+  zeit?: number
+}
+
+type Aenderung =
   | { type: 'SET_EVENT'; patch: Partial<Pick<AppState, 'eventName' | 'eventJahr' | 'laufCount'>> }
   | { type: 'SET_EVENT_KIND'; eventKind: EventKind }
   | { type: 'SET_REGELWERK'; regelwerk: string }
@@ -130,7 +141,13 @@ export type Action =
    */
   | { type: 'FILL_BEISPIELWERTE'; zeitnahme: Zeitnahme; saat: number; laeufe?: number[] }
   | { type: 'LOAD_STATE'; state: AppState }
-  | { type: 'RESET_ALL' }
+  /** `kennung`: die Kennung der neuen Veranstaltung (lib/qr.ts) – eine andere als bisher. */
+  | { type: 'RESET_ALL'; kennung?: string }
+  /**
+   * Der Veranstaltung ihre Kennung für die QR-Codes geben. Wirkt nur, solange sie keine hat:
+   * Gedruckte Bögen tragen die Kennung, sie darf sich danach nicht mehr ändern.
+   */
+  | { type: 'SET_KENNUNG'; kennung: string }
 
 /** Leerzeilen je Klasse auf den Wettkampfrichter-Listen: Vorgabe wie im Prototyp (`emptyRows: 3`). */
 /** Ergebnislisten: Vorgabe wie bisher – volle Namen, Herkunft als Kürzel. */
@@ -166,6 +183,8 @@ export function emptyState(): AppState {
     streichlaeufe: 'auto',
     wkrClubGemeinsam: true,
     ergebnisListen: ERGEBNIS_LISTEN_VORGABE,
+    kennung: '',
+    listenStand: {},
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -248,6 +267,20 @@ const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
 ])
 
 export function reducer(state: AppState, action: Action): AppState {
+  const next = wendeAn(state, action)
+  if (next === state) return state
+  // Ein geladener oder neuer Stand bringt seine Zeitpunkte mit; verglichen wird er mit sich selbst.
+  const frisch = action.type === 'LOAD_STATE' || action.type === 'RESET_ALL'
+  // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
+  const klassen =
+    action.type === 'SET_EINGABEN'
+      ? [...new Set(action.zellen.flatMap((z) => next.starters.find((p) => p.id === z.starter)?.klasse ?? []))]
+      : undefined
+  const listenStand = listenStandNach(frisch ? next : state, next, action.zeit, klassen)
+  return listenStand === next.listenStand ? next : { ...next, listenStand }
+}
+
+function wendeAn(state: AppState, action: Action): AppState {
   if (state.verzahnungLocked && VERZAHNUNG_ACTIONS.has(action.type)) return state
 
   switch (action.type) {
@@ -506,7 +539,10 @@ export function reducer(state: AppState, action: Action): AppState {
       return action.state
 
     case 'RESET_ALL':
-      return emptyState()
+      return { ...emptyState(), kennung: istKennung(action.kennung) ? action.kennung : '' }
+
+    case 'SET_KENNUNG':
+      return state.kennung || !istKennung(action.kennung) ? state : { ...state, kennung: action.kennung }
 
     default:
       return state

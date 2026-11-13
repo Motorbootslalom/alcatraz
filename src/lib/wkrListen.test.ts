@@ -3,7 +3,7 @@ import { configFor } from '../config/konfig'
 import { planEvent } from '../planung/plan'
 import { emptyState, reducer } from '../state/reducer'
 import { bogenSeiten } from './bogen'
-import { waehleBoegen, wkrBoegenZumStand } from './wkrListen'
+import { klassenInStartfolge, waehleBoegen, wkrBoegenZumStand } from './wkrListen'
 import type { AppState, ClassId, Starter } from '../types'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
@@ -278,4 +278,28 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
     expect(tore.every((b) => b.auftrag.ohneBild === false)).toBe(true)
   })
 
+  it('Druckreihenfolge der Klassen: erst Parcours, dann wie sie laut Verzahnung zuerst starten; Klassen ohne Parcours am Ende', () => {
+    const s = stand()
+    const erwartet = planEvent(s).plans.flatMap((p) => [...new Set(p.sequence.map((x) => x.klasse))])
+    expect(klassenInStartfolge(s)).toEqual(erwartet)
+    // Dieselbe Reihenfolge wie die der Bögen.
+    const boegen = wkrBoegenZumStand(s, dm).boegen.map((b) => b.klassen[0]).filter((k, i, a) => a.indexOf(k) === i)
+    expect(klassenInStartfolge(s)).toEqual(boegen)
+    // Nimmt man Klasse 3 von ihrem Parcours, steht sie hinten – ihre Ergebnisse gibt es weiter.
+    const ohne = stand({ parcoursList: s.parcoursList.map((p) => ({ ...p, classIds: p.classIds.filter((k) => k !== '3') })) })
+    expect(klassenInStartfolge(ohne).at(-1)).toBe('3')
+    expect(klassenInStartfolge({ ...ohne, starters: ohne.starters.filter((p) => p.klasse !== '3') })).not.toContain('3')
+  })
+
+  it('jeder Bogen trägt seinen QR-Code: Veranstaltung, Regelwerk, Aufbau, Parcours, Klassen, Lauf und Liste', () => {
+    const { boegen } = wkrBoegenZumStand(stand({ kennung: 'K7Q4' }), dm)
+    const steg = boegen.find((b) => b.typeId === 'steg' && b.klassen[0] === '7' && b.lauf === 2)!
+    expect(steg.auftrag.qr).toBe('ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.7.2.STEG')
+    expect(new Set(boegen.map((b) => b.auftrag.qr)).size).toBe(boegen.length)
+    // Clubmeisterschaft: Der gemeinsame Bogen nennt alle seine Klassen.
+    const club = wkrBoegenZumStand(stand({ kennung: 'K7Q4', eventKind: 'club', parcoursList: EIN_PARCOURS }), dm).boegen
+    expect(club.find((b) => b.typeId === 'steg' && b.lauf === 1)!.auftrag.qr).toBe('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.E1234567.1.STEG')
+    expect(club.find((b) => b.typeId === 'mueb' && b.lauf === 3)!.auftrag.qr).toBe('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.4567.3.MUEB')
+    expect(new Set(club.map((b) => b.auftrag.qr)).size).toBe(club.length)
+  })
 })

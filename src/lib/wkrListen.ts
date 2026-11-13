@@ -2,6 +2,7 @@ import type { AppState, ClassId, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { planEvent } from '../planung/plan'
 import { defFuerKlasse, type BogenAuftrag, type BogenKonfig, type BogenOptionen } from './bogen'
+import { bogenCode } from './qr'
 
 // Die echten Wettkampfrichter-Listen einer Veranstaltung, abgeleitet aus Stand und
 // Verzahnung – rein, ohne DOM: je Parcours, Klasse, Lauf und Liste des gewählten Aufbaus ein
@@ -13,9 +14,10 @@ import { defFuerKlasse, type BogenAuftrag, type BogenKonfig, type BogenOptionen 
 // liegen offen am Steg (Namen und Geburtsjahre Minderjähriger gehören dort nicht hin), und
 // die Zeile bleibt schmal genug für alle Spalten.
 //
-// Erfassung (kommt später): Eine Eingabe gehört zu Starter-ID + Lauf + Liste (+ Spalte).
-// Genau das trägt ein Bogen: `lauf`, `typeId` und je Zeile die `id` des Starters – die
-// Startnummer ist nur die Beschriftung und darf sich ändern.
+// Erfassung: Eine Eingabe gehört zu Starter-ID + Lauf + Liste (+ Spalte). Genau das trägt
+// ein Bogen: `lauf`, `typeId` und je Zeile die `id` des Starters – die Startnummer ist nur
+// die Beschriftung und darf sich ändern. Der QR-Code im Kopf (lib/qr.ts) nennt Veranstaltung,
+// Regelwerk, Aufbau, Parcours, Klassen, Lauf und Liste; damit findet die Erfassung den Bogen.
 
 /** Was die Ableitung von der Konfiguration braucht (config/konfig.ts `Konfig`). */
 export interface WkrListenKonfig extends BogenKonfig {
@@ -25,7 +27,9 @@ export interface WkrListenKonfig extends BogenKonfig {
 export type WkrListenStand = Pick<
   AppState,
   'eventName' | 'eventJahr' | 'eventKind' | 'laufCount' | 'aufbau' | 'parcoursList' | 'einteilung' | 'wkrLeerzeilen' | 'wkrLeerzeilenKlasse' | 'wkrClubGemeinsam'
->
+> &
+  // Für den QR-Code; ohne sie (Tests, Beispielansicht) steht dort „keine Kennung“.
+  Partial<Pick<AppState, 'kennung' | 'regelwerk'>>
 
 /** Ein Bogen der Veranstaltung: eine Liste für eine Klasse (Clubmeisterschaft: mehrere) in einem Lauf auf einem Parcours. */
 export interface WkrBogen {
@@ -148,6 +152,7 @@ export function wkrBoegen(stand: WkrListenStand, konfig: WkrListenKonfig, folgen
             wkr: stand.einteilung[parcours.id]?.[typeId]?.trim() ?? '',
             // Gemeinsamer Bogen über Klassen mit verschiedenen Zeichnungen: lieber kein Bild als ein fremdes.
             ohneBild: club && stand.wkrClubGemeinsam && gruppe.length > 1,
+            qr: bogenCode({ kennung: stand.kennung ?? '', regelwerk: stand.regelwerk ?? '', aufbau: stand.aufbau }, { parcoursId: parcours.id, klassen: gruppe, lauf, typeId }),
           },
           optionen:
             gruppe.length > 1
@@ -183,6 +188,21 @@ export function wkrBoegenZumStand(stand: AppState, konfig: WkrListenKonfig): Wkr
   const ergebnis = wkrBoegen(stand, konfig, folgen)
   const mitBogen = new Set(ergebnis.boegen.flatMap((b) => b.klassen))
   return { ...ergebnis, ohneListe: CLASS_IDS.filter((k) => !mitBogen.has(k) && stand.starters.some((s) => s.klasse === k)) }
+}
+
+/**
+ * Die Klassen in der Druckreihenfolge aller Listen: erst nach Parcours, dann in der
+ * Reihenfolge, in der sie laut Verzahnung zuerst starten – so liegt der Stapel aus dem
+ * Drucker schon richtig und muss nur getrennt werden. Klassen mit Startern, die auf keinem
+ * Parcours fahren, folgen am Ende (E, 1, 2 …); auch sie können Ergebnisse haben.
+ */
+export function klassenInStartfolge(stand: AppState): ClassId[] {
+  const plaene = new Map(planEvent(stand).plans.map((p) => [p.parcoursId, p.sequence]))
+  const folge: ClassId[] = []
+  for (const parcours of stand.parcoursList) {
+    for (const s of plaene.get(parcours.id) ?? []) if (!folge.includes(s.klasse)) folge.push(s.klasse)
+  }
+  return [...folge, ...CLASS_IDS.filter((k) => !folge.includes(k) && stand.starters.some((s) => s.klasse === k))]
 }
 
 /** Was gedruckt wird; ein fehlender Wert heißt „alle“. */

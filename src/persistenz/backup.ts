@@ -9,8 +9,8 @@ import { haengeUm } from '../lib/einteilung'
  * anderen Rechner zu bringen. Es gibt drei Arten:
  *
  * - `sicherung`: der gesamte Stand der Veranstaltung.
- * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr, WKR-Einteilung und
- *   erfasste Werte.
+ * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr, WKR-Einteilung,
+ *   erfasste Werte, den Stand der Ergebnislisten und die Kennung der Veranstaltung.
  *   Damit beginnt die nächste Veranstaltung so, wie man es gewohnt ist. Eine Vorlage
  *   wird weitergegeben und enthält deshalb keine Personennamen, auch nicht die der
  *   Wettkampfrichter.
@@ -18,8 +18,11 @@ import { haengeUm } from '../lib/einteilung'
  */
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
 
-/** Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung und erfassten Werten. */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'eingaben'>
+/**
+ * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, erfassten
+ * Werten, dem Stand der Ergebnislisten und der Kennung der Veranstaltung.
+ */
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'eingaben' | 'listenStand' | 'kennung'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -37,7 +40,9 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   if (kind === 'sicherung') return { ...base, kind, state }
   if (kind === 'starter') return { ...base, kind, starters: state.starters }
   // Die erfassten Werte gehören zu den Startern dieser Veranstaltung (sie hängen an deren IDs).
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, eingaben: _eingaben, ...settings } = state
+  // Ebenso der Stand der Ergebnislisten. Die Kennung der Veranstaltung bleibt hier: Mit einer
+  // Vorlage beginnt eine andere Veranstaltung, deren Bögen sich von diesen unterscheiden müssen.
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, eingaben: _eingaben, listenStand: _stand, kennung: _kennung, ...settings } = state
   return { ...base, kind, settings }
 }
 
@@ -92,6 +97,9 @@ export function parseFile(text: string): ParsedFile {
         eventJahr: current.eventJahr,
         // Ergebnisse bleiben bei ihren Startern – auch eine von Hand ergänzte Vorlage bringt keine mit.
         eingaben: current.eingaben,
+        listenStand: current.listenStand,
+        // Die Veranstaltung bleibt dieselbe; ihre gedruckten Bögen gelten weiter.
+        kennung: current.kennung,
         // Auch aus einer von Hand ergänzten Vorlage kommen keine Namen: Es gelten die hiesigen.
         // Die Vorlage bringt aber ihre eigenen Parcours mit – die Namen ziehen der Stelle nach
         // auf deren Kennungen um, sonst hingen sie an Parcours, die es nicht mehr gibt.

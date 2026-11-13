@@ -1,6 +1,7 @@
 import type { BogenTexte } from '../config/sprache'
 import type { CellKind, Column, SheetDef, TrennerDesign } from '../types'
 import { blockSeiten, pageChunks } from './paging'
+import { seitenCode } from './qr'
 
 // Reines Modell eines Wettkampfrichter-Bogens (WKR-Liste, Beobachtungsbogen): Spalten je
 // Klasse, Blatt-/Unterspalten, Zeilen, Kopf, Bild und Seitenaufteilung – ohne DOM und ohne
@@ -12,9 +13,10 @@ import { blockSeiten, pageChunks } from './paging'
 // (Muster-Startnummern) und später die echten Listen – auch die der Clubmeisterschaft, auf
 // denen mehrere Klassen auf einer Seite stehen.
 //
-// Eingabe der Werte, Wertung und QR-Code gehören noch nicht dazu. Vorbereitet ist: Jede
-// Zeile trägt einen Schlüssel (`key`, später die Starter-ID), jede Zelle `colKey`/`subIndex`
-// – daraus entsteht der Zellschlüssel der Erfassung –, und `anzeige` füllt die Zellen.
+// Eingabe der Werte und Wertung gehören nicht dazu (lib/eingaben.ts, lib/ergebnis.ts). Jede
+// Zeile trägt einen Schlüssel (`key`, die Starter-ID), jede Zelle `colKey`/`subIndex` –
+// daraus entsteht der Zellschlüssel der Erfassung –, und `anzeige` füllt die Zellen. Den
+// QR-Code bringt der Auftrag als Text mit (lib/qr.ts); hier kommt nur die Seite dazu.
 
 /** Was das Modell von der Konfiguration braucht (config/konfig.ts `Konfig`). */
 export interface BogenKonfig {
@@ -54,6 +56,11 @@ export interface BogenAuftrag {
    * (Clubmeisterschaft, Papier sparen) – ein fremdes Bild wäre schlimmer als keines.
    */
   ohneBild?: boolean
+  /**
+   * Inhalt des QR-Codes ohne Seite (lib/qr.ts `bogenCode`); jede Druckseite hängt ihre Nummer
+   * an. Fehlt = kein Code im Kopf.
+   */
+  qr?: string
 }
 
 export interface BogenOptionen {
@@ -152,6 +159,8 @@ export interface BogenSeite {
   laufText?: string
   parcours?: string
   wkr: string
+  /** Inhalt des QR-Codes dieser Druckseite; fehlt = kein Code. */
+  qr?: string
   orientation: 'portrait' | 'landscape'
   /** Oberste Spalten (für gruppierte Kopfzeilen), schon auf die Klassen beschränkt. */
   columns: Column[]
@@ -361,6 +370,7 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
       laufText: def.showLauf === false ? undefined : texte.lauf(auftrag.lauf),
       parcours: auftrag.parcours?.trim() || undefined,
       wkr: auftrag.wkr ?? '',
+      qr: auftrag.qr ? seitenCode(auftrag.qr, pageIndex + 1) : undefined,
       orientation: def.orientation,
       columns: def.columns,
       leaves,

@@ -7,6 +7,7 @@ import { useEvent } from '../lib/event'
 import { listenFuerKlasse, musterZeilen, type BogenAuftrag } from '../lib/bogen'
 import { parcoursVon, wkrFeld, wkrName } from '../lib/einteilung'
 import { wkrBoegen } from '../lib/wkrListen'
+import { musterCode } from '../lib/qr'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { t, tn } from '../i18n'
 import type { Konfig } from '../config/konfig'
@@ -104,6 +105,12 @@ const boegen = computed(() => {
       parcours: state.value.parcoursList.length > 1 ? parcours.value?.name : undefined,
       // Im Eingabefeld der Eintrag, wie er getippt wurde; sonst der Name, wie er gedruckt wird.
       wkr: feld && imKopf ? feld.eingabe : wkrName(state.value, typeId, klasse.value, konfig.value),
+      // Der Code zeigt, wo er steht und wie groß er ist – trifft aber keinen Bogen: An der
+      // Stelle der Veranstaltung steht „MUSTER“, die Erfassung weist ihn als Beispiel ab.
+      qr: musterCode(
+        { regelwerk: state.value.regelwerk, aufbau: aufbauId.value },
+        { parcoursId: parcours.value?.id ?? 'p', klassen: gemeinsam?.klassen ?? [klasse.value], lauf: 1, typeId },
+      ),
     }
     // Leerzeilen wie auf den echten Listen (Einstellungen).
     const optionen = gemeinsam?.optionen ?? { leerzeilen: state.value.wkrLeerzeilenKlasse[klasse.value] ?? state.value.wkrLeerzeilen }

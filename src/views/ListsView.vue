@@ -13,13 +13,15 @@ import { formatDate, formatDateTime, t, tn } from '../i18n'
 import type { Starter } from '../types'
 import WkrListen from '../components/WkrListen.vue'
 import ErgebnisListen from '../components/ErgebnisListen.vue'
+import LaufzettelListen from '../components/LaufzettelListen.vue'
 
 /**
  * Druckbare Listen. Gedruckt wird über den Browser (auch „Als PDF speichern“);
  * die Bildschirmansicht ist die Druckansicht.
  */
 // Die verzahnte Startliste ist die übliche; „nach Klasse“ braucht man fast nie – sie steht deshalb hinten.
-const KINDS = ['interleaved', 'gewicht', 'vorsteg', 'wkr', 'ergebnis', 'byClass'] as const
+// Davor in der Reihenfolge, in der man sie am Wettkampftag braucht: Die Laufzettel gehören zu den Bögen der Wettkampfrichter.
+const KINDS = ['interleaved', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'ergebnis', 'byClass'] as const
 type Kind = (typeof KINDS)[number]
 
 const { state } = useStore()
@@ -68,14 +70,16 @@ const wkrStand = ref({ anzahl: 0, auswahl: '' })
 // Ergebnislisten ebenso (components/ErgebnisListen.vue).
 const resultList = computed(() => kind.value === 'ergebnis')
 const resultStand = ref({ anzahl: 0, auswahl: '' })
-const ownView = computed(() => wkrList.value || resultList.value)
-const nothingToPrint = computed(() =>
-  wkrList.value ? wkrStand.value.anzahl === 0 : resultList.value ? resultStand.value.anzahl === 0 : sections.value.length === 0,
-)
+// Und die Laufzettel (components/LaufzettelListen.vue).
+const runSheets = computed(() => kind.value === 'laufzettel')
+const runSheetStand = ref({ anzahl: 0, auswahl: '' })
+const ownView = computed(() => wkrList.value || resultList.value || runSheets.value)
+const ownStand = computed(() => (wkrList.value ? wkrStand.value : resultList.value ? resultStand.value : runSheetStand.value))
+const nothingToPrint = computed(() => (ownView.value ? ownStand.value.anzahl === 0 : sections.value.length === 0))
 
 const sections = computed<Section[]>(() => {
   const k = kind.value
-  if (k === 'wkr' || k === 'ergebnis') return []
+  if (k === 'wkr' || k === 'ergebnis' || k === 'laufzettel') return []
   if (weightList.value) {
     // Je Herkunft ein eigenes Blatt für die Mannschaftsleitung.
     return gewichtsGruppen(state.value.starters, state.value.originMode).map((g) => ({
@@ -135,6 +139,8 @@ const pageCss = computed(() => {
   // kleiner und oben im Rand, damit auch ein Drucker mit breitem Greifrand es noch druckt.
   const boxen = (font: string, extra = '') =>
     `@bottom-center { content: ${page}; font: ${font} Arial, sans-serif; ${extra} } @bottom-right { content: ${cssString(stand.value)}; font: ${font} Arial, sans-serif; ${extra} }`
+  // Laufzettel werden gefaltet und abgehakt: Seitenzahl und Zeitpunkt stünden nur im Weg.
+  if (runSheets.value) return ''
   if (wkrList.value) return `@page bogen-hoch { ${boxen('7pt', 'vertical-align: top;')} } @page bogen-quer { ${boxen('7pt', 'vertical-align: top;')} }`
   // Ergebnislisten: Querformat mit schmalem Rand (benannte Seite in ergebnis.css).
   return resultList.value ? `@page ergebnis { ${boxen('8pt')} }` : `@page { ${boxen('10pt')} }`
@@ -147,7 +153,7 @@ const pageCss = computed(() => {
  */
 function print() {
   const before = document.title
-  const auswahl = wkrList.value ? wkrStand.value.auswahl : resultList.value ? resultStand.value.auswahl : ''
+  const auswahl = ownView.value ? ownStand.value.auswahl : ''
   document.title = [t(`lists.kind.${kind.value}`), auswahl, heading.value, fileStamp(new Date())].filter(Boolean).join(' - ')
   window.addEventListener('afterprint', () => (document.title = before), { once: true })
   window.print()
@@ -180,6 +186,10 @@ function print() {
   <template v-else-if="wkrList">
     <component :is="'style'">{{ pageCss }}</component>
     <WkrListen :gesperrt="blocked" @stand="wkrStand = $event" />
+  </template>
+
+  <template v-else-if="runSheets">
+    <LaufzettelListen :gesperrt="blocked" @stand="runSheetStand = $event" />
   </template>
 
   <template v-else-if="resultList">

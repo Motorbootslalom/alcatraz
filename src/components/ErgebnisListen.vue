@@ -6,7 +6,9 @@ import { useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { klassenErgebnis, streichlaeufeVon, type AbstandArt, type KlassenErgebnis, type LaufListe } from '../lib/ergebnis'
 import { originLabelKey, originText } from '../lib/origin'
-import { t, tn } from '../i18n'
+import { gesamtListenSchluessel, laufListenSchluessel, standZeit } from '../lib/listenStand'
+import { klassenInStartfolge } from '../lib/wkrListen'
+import { formatDateTime, t, tn } from '../i18n'
 import type { ClassId, Starter, ErgebnisFassung } from '../types'
 import ErgebnisGesamtBlatt from './ergebnis/ErgebnisGesamtBlatt.vue'
 import ErgebnisLaufBlatt from './ergebnis/ErgebnisLaufBlatt.vue'
@@ -42,7 +44,16 @@ const wahl = merke<{ klasse?: ClassId; lauf?: number; umfang: (typeof UMFANG)[nu
   abstand: '',
 })
 
-const alle = computed<KlassenErgebnis[]>(() => classes.value.flatMap((c) => klassenErgebnis(state.value, konfig.value, c.id) ?? []))
+// Druckreihenfolge wie bei allen Listen: erst Parcours, dann die Klassen in der Reihenfolge,
+// in der sie laut Verzahnung zuerst starten (lib/wkrListen.ts) – nicht E, 1, 2 …
+const startfolge = computed(() => klassenInStartfolge(state.value))
+const alle = computed<KlassenErgebnis[]>(() => {
+  const rang = (k: ClassId) => {
+    const i = startfolge.value.indexOf(k)
+    return i < 0 ? startfolge.value.length : i
+  }
+  return [...classes.value].sort((a, b) => rang(a.id) - rang(b.id)).flatMap((c) => klassenErgebnis(state.value, konfig.value, c.id) ?? [])
+})
 const klassen = computed(() => alle.value.map((e) => e.klasse))
 const laeufe = computed(() => [...new Set(alle.value.flatMap((e) => e.laeufe.map((l) => l.lauf)))].sort((a, b) => a - b))
 // Eine Wahl, die es nicht (mehr) gibt, gilt als „alle“.
@@ -65,6 +76,14 @@ const blaetter = computed<Blatt[]>(() =>
       ...(wahl.value.umfang === 'laeufe' || lauf.value !== undefined ? [] : [{ key: `${e.klasse}/gesamt`, ergebnis: e }]),
     ]),
 )
+
+// Wann sich eine Liste zuletzt geändert hat – mit Sekunden, damit sich zwei Fassungen aus derselben Minute unterscheiden.
+const disziplin = computed(() => konfig.value.getAufbau(state.value.aufbau).disziplin)
+const standVon = (b: Blatt) =>
+  formatDateTime(
+    standZeit(state.value.listenStand, b.liste ? laufListenSchluessel(disziplin.value, b.ergebnis.klasse, b.liste.lauf) : gesamtListenSchluessel(disziplin.value, b.ergebnis.klasse)),
+    true,
+  )
 
 const eventName = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 // Zwei Fassungen: „Aushang“ (öffentlich) und „Intern“. Was jede zeigt, steht in den
@@ -192,6 +211,7 @@ function setze(feld: 'klasse' | 'lauf' | 'umfang' | 'ordnung' | 'abstand', e: Ev
         :abstand="abstand"
         :herkunft="herkunft"
         :namen="namen"
+        :stand="standVon(b)"
       />
       <ErgebnisLaufBlatt
         v-else
@@ -203,6 +223,7 @@ function setze(feld: 'klasse' | 'lauf' | 'umfang' | 'ordnung' | 'abstand', e: Ev
         :abstand="abstand"
         :herkunft="herkunft"
         :namen="namen"
+        :stand="standVon(b)"
       />
     </template>
   </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { BOGEN_VORGABEN, bogenSeiten, type BogenAuftrag, type BogenKonfig, type BogenOptionen } from '../../lib/bogen'
 import { pageHeightMm, rowsThatFit } from '../../lib/paging'
 import BogenRueckseite from './BogenRueckseite.vue'
@@ -26,7 +26,15 @@ const props = defineProps<{
   wkrPflege?: boolean
   wkrLabel?: string
 }>()
-const emit = defineEmits<{ wkr: [name: string] }>()
+const emit = defineEmits<{
+  wkr: [name: string]
+  /**
+   * So viele Druckseiten hat der Bogen – nach derselben Messung, die ihn aufteilt. Die
+   * Laufzettel lesen das (components/LaufzettelListen.vue), damit ihre Kästchen zu den
+   * gedruckten Seiten passen. Vor der Messung (und ohne Layout) ist es eine Seite.
+   */
+  seiten: [anzahl: number]
+}>()
 
 // Gemessene Höhe von Kopf/Fuß und Zeilenhöhe (von der ersten Seite). Nur echte Änderungen
 // übernehmen – Rundungsrauschen soll die Aufteilung nicht hin- und herschalten.
@@ -53,6 +61,11 @@ const seiten = computed(() =>
     // Mit der Beschreibung auf der Rückseite gilt dieselbe Messung: Sie misst die Vorderseite, wie sie ist.
     zeilenKapazitaet: layout.value ? Math.max(2, zeilenKapazitaet.value) : 0,
   }),
+)
+watch(
+  () => seiten.value.length,
+  (anzahl) => emit('seiten', anzahl),
+  { immediate: true },
 )
 </script>
 

@@ -104,11 +104,14 @@ export function formatDate(iso: string): string {
   return locale.value === 'de' ? `${m[3]}.${m[2]}.${m[1]}` : `${m[1]}-${m[2]}-${m[3]}`
 }
 
-/** Zeitpunkt (ISO) in Ortszeit: deutsch `TT.MM.JJJJ, HH:MM`, englisch `JJJJ-MM-TT HH:MM`. */
-export function formatDateTime(iso: string): string {
+/**
+ * Zeitpunkt (ISO) in Ortszeit: deutsch `TT.MM.JJJJ, HH:MM`, englisch `JJJJ-MM-TT HH:MM`.
+ * `sekunden`: mit Sekunden – für Angaben, an denen sich zwei Fassungen unterscheiden lassen.
+ */
+export function formatDateTime(iso: string, sekunden = false): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
   const day = `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`
-  const time = `${two(date.getHours())}:${two(date.getMinutes())}`
+  const time = `${two(date.getHours())}:${two(date.getMinutes())}${sekunden ? `:${two(date.getSeconds())}` : ''}`
   return locale.value === 'de' ? `${formatDate(day)}, ${time}` : `${day} ${time}`
 }

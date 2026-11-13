@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { BogenSeite } from '../../lib/bogen'
+import QrCode from '../QrCode.vue'
 
 /**
  * Kopf eines Bogens: Veranstaltung, Liste, Klasse, Lauf, Parcours und der Name des
- * Wettkampfrichters. Vorbild: SheetHeader.vue im Fehlerpunkte-Prototyp (dort mit QR-Code;
- * der kommt mit der Erfassung).
+ * Wettkampfrichters. Vorbild: SheetHeader.vue im Fehlerpunkte-Prototyp. Oben rechts
+ * steht der QR-Code der Druckseite (lib/qr.ts) – über dem Kopf schwebend, damit er keine
+ * Höhe kostet und die Seitenaufteilung bleibt, wie sie ohne ihn war.
  *
  * `wkrPflege`: Das Namensfeld ist am Bildschirm ein Eingabefeld und meldet jede Änderung –
  * wohin sie geschrieben wird, entscheidet der Aufrufer. Ohne Pflege steht der Name als Text.
@@ -19,7 +21,8 @@ const emit = defineEmits<{ wkr: [name: string] }>()
 </script>
 
 <template>
-  <div class="bogen-kopf">
+  <div :class="['bogen-kopf', { 'bogen-kopf--qr': seite.qr }]">
+    <QrCode v-if="seite.qr" class="bk-qr" :inhalt="seite.qr" />
     <div class="bk-leiste">
       <!-- Ohne Namen der Veranstaltung behält die Leiste ihre Höhe. -->
       <span class="bk-titel">{{ seite.eventName || ' ' }}</span>

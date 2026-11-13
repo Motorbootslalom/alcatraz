@@ -8,6 +8,7 @@ import './styles/print.css'
 import './styles/bogen.css'
 import './styles/erfassung.css'
 import './styles/ergebnis.css'
+import './styles/laufzettel.css'
 import './lib/theme'
 
 createApp(App).provide(storeKey, createStore()).mount('#app')

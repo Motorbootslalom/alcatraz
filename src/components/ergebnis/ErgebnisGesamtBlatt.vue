@@ -21,6 +21,12 @@ const props = defineProps<{
   /** Namen: voll, Nachname gekürzt („M.“) oder gar nicht (Aushang – dann steht nur die Startnummer da). */
   namen?: 'voll' | 'kurz' | 'ohne'
   geburtsdatum?: boolean
+  /**
+   * Wann sich die Liste zuletzt geändert hat (lib/listenStand.ts), schon als Text. Steht
+   * im Kopf der Liste, auch im Druck: Hängen zwei Fassungen aus, zeigt er die neuere – der
+   * Zeitpunkt im Seitenrand ist dagegen nur der des Drucks. Leer = unbekannt, dann steht nichts da.
+   */
+  stand?: string
 }>()
 
 /** Für den Aushang lässt sich der Nachname auf den Anfangsbuchstaben kürzen. */
@@ -60,10 +66,13 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
       <thead>
         <tr>
           <th class="erg-kopfzelle" :colspan="spaltenZahl">
-            <div class="erg-kopf">
+            <div :class="['erg-kopf', { 'erg-kopf--stand': stand }]">
               <span class="erg-kopf-klasse">{{ klasseText }}</span>
               <span class="erg-kopf-titel">{{ t('results.overall') }}</span>
               <span class="erg-kopf-event">{{ eventName }}</span>
+              <!-- Im Kopf, nicht unter der Liste: Dort kostete er Höhe und schöbe bei voller Seite
+                   die letzte Zeile aufs nächste Blatt. Der Kopf kehrt zudem auf jeder Seite wieder. -->
+              <span v-if="stand" class="erg-stand">{{ t('results.changed', { time: stand }) }}</span>
             </div>
           </th>
         </tr>

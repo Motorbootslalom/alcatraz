@@ -114,4 +114,29 @@ describe('BogenBlatt', () => {
     expect(zeile[1].find('td[data-spalte="speed2"]').classes()).not.toContain('bt-entfaellt')
     wrapper.unmount()
   })
+
+  it('QR-Code: im Kopf jeder Druckseite, mit ihrer Seite – als Vektor, schwarz auf weiß; ohne Angabe keiner', () => {
+    const ohne = mount(BogenBlatt, { props: { konfig: dm, auftrag: auftrag('steg') } })
+    expect(ohne.find('svg.qr-code').exists()).toBe(false)
+    expect(ohne.find('.bogen-kopf').classes()).not.toContain('bogen-kopf--qr')
+    ohne.unmount()
+
+    const qr = 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.7.3.STEG'
+    const wrapper = mount(BogenBlatt, { props: { konfig: dm, auftrag: auftrag('steg', { qr, zeilen: musterZeilen(7, 'M') }), optionen: { zeilenJeSeite: 3, leerzeilen: 0 }, rueckseite: true } })
+    const koepfe = wrapper.findAll('.bogen-kopf')
+    expect(koepfe).toHaveLength(3)
+    expect(koepfe.map((k) => k.find('svg.qr-code').attributes('data-qr'))).toEqual([`${qr}.S1`, `${qr}.S2`, `${qr}.S3`])
+    const svg = koepfe[0].find('svg.qr-code')
+    expect(svg.classes()).toContain('bk-qr')
+    expect(svg.find('rect').attributes('fill')).toBe('#fff')
+    expect(svg.find('path').attributes('fill')).toBe('#000')
+    expect(svg.find('path').attributes('d')).toMatch(/^M\d+ \d+h\d+v1h-\d+z/)
+    // Die Kennung lässt sich ablesen (Maus auf dem Code) und für Vorleseprogramme nennen.
+    expect(svg.find('title').text()).toBe(`${qr}.S1`)
+    // Die Rückseiten tragen keinen eigenen Code: Sie gehören zu ihrer Vorderseite.
+    expect(wrapper.findAll('svg.qr-code')).toHaveLength(3)
+    // Die Seitenzahl meldet der Bogen für die Laufzettel.
+    expect(wrapper.emitted('seiten')?.at(-1)).toEqual([3])
+    wrapper.unmount()
+  })
 })
