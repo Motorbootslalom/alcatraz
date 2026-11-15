@@ -1,4 +1,4 @@
-import type { RawAufbau } from './config/schema'
+import type { PokalPlatzVariante, PokalVariante, RawAufbau } from './config/schema'
 
 export type ClassId = 'E' | '1' | '2' | '3' | '4' | '5' | '6' | '7'
 
@@ -56,6 +56,31 @@ export interface Starter {
   groesse: string
   /** Gewicht aus der Verwiegung in kg; fehlt, solange nicht gewogen wurde. */
   gewicht?: number
+  /**
+   * Zählt für die Pokalauswertung. Im Stand steht nur `false` – wer das Feld nicht hat, zählt.
+   * Wirkt erst, wenn „nur ausgewählte Starter zählen“ eingeschaltet ist
+   * (`AppState.pokal.nurAuswahl`); die Auswahl bleibt sonst stehen. Sie hängt am Starter und
+   * reist deshalb mit Sicherung und Teilnehmerdaten, nicht mit der Vorlage.
+   */
+  pokal?: false
+}
+
+/**
+ * Pokalauswertung je Herkunft: was die Veranstaltung abweichend von Regelwerk und
+ * Einstellungen festlegt (config/pokal.ts `pokalRegeln`). Gehört zur Veranstaltung wie die
+ * Wertung – in Sicherung und Vorlage.
+ */
+export interface PokalEinstellungen {
+  /** Variante → an/aus, und nur was von der Vorgabe des Regelwerks abweicht. */
+  varianten: Partial<Record<PokalVariante, boolean>>
+  /** Eigene Punkte für Platz 1, 2, 3 …; fehlt = die Vorgabe aus einstellungen.yaml. */
+  punkte: Partial<Record<PokalPlatzVariante, number[]>>
+  /** UIM: eigene Zahl der Besten je Herkunft; fehlt = die des Regelwerks (5). */
+  beste?: number
+  /** UIM: eigene Mindestzahl der Starter je Herkunft; fehlt = die des Regelwerks (5). */
+  mindestens?: number
+  /** Nur Starter zählen, die im Reiter „Starter“ dafür ausgewählt sind (`Starter.pokal`). */
+  nurAuswahl: boolean
 }
 
 /** Ein Element innerhalb einer Spur: entweder ein Klassen-Block oder eine Pause. */
@@ -119,8 +144,12 @@ export interface PlanState {
  */
 export type StartNrMode = 'klasse' | 'klassisch'
 
-/** Schreibweise der Herkunft auf Listen. */
-export type OriginStyle = 'lang' | 'kurz'
+/**
+ * Darstellung der Herkunft auf Listen: ausgeschrieben, als Kürzel – oder mit Flagge (Flagge +
+ * Kürzel, Flagge + ausgeschrieben, nur Flagge). Flaggen gibt es für die Herkunft „Bundesland“
+ * und „Land“; für Vereine gilt eine Flaggen-Darstellung wie die ohne (lib/origin.ts).
+ */
+export type OriginStyle = 'lang' | 'kurz' | 'flagge-kurz' | 'flagge-lang' | 'flagge'
 
 /** Art der Veranstaltung – steuert Vorgaben für Listen und Wertung. */
 export type EventKind = 'meisterschaft' | 'club'
@@ -130,6 +159,9 @@ export type EventKind = 'meisterschaft' | 'club'
  * Liste (`SheetTypeId`), siehe lib/einteilung.ts. Personennamen – nicht für die Vorlage.
  */
 export type Einteilung = Record<string, Record<string, string>>
+
+/** Eine Angabe je Klasse als freier Text (Boot, Co-Pilot); eine Klasse ohne Angabe fehlt. */
+export type Besetzung = Partial<Record<ClassId, string>>
 
 /**
  * Erfasste Werte der Wettkampfrichter-Listen: Lauf-Schlüssel → Starter-ID → Feld-Kennung →
@@ -194,7 +226,7 @@ export interface AppState extends PlanState {
    */
   eigeneAufbauten: RawAufbau[]
   /**
-   * Eigene Standardgewichte je Klasse in kg. Die Vorgabe steht im Regelwerk (DM
+   * Eigene Durchschnittsgewichte je Klasse in kg. Die Vorgabe steht im Regelwerk (DM
    * und UIM unterscheiden sich); hier steht nur, was die Veranstaltung davon
    * abweichend festlegt.
    */
@@ -207,7 +239,7 @@ export interface AppState extends PlanState {
   verzahnungLocked: boolean
   /** Geburtsdatum auf den gedruckten Listen zeigen. */
   showBirthdate: boolean
-  /** Herkunft auf den Startlisten: ausgeschriebener Name oder Kürzel. */
+  /** Herkunft auf den Startlisten: ausgeschriebener Name oder Kürzel, auf Wunsch mit Flagge. */
   listOrigin: OriginStyle
   /**
    * Eigene Kürzel des Veranstalters: Name (Verein, Bundesland, Land, Gruppe) →
@@ -223,12 +255,31 @@ export interface AppState extends PlanState {
    */
   einteilung: Einteilung
   /**
+   * Boot je Klasse (freier Text, z. B. Nummer, Typ oder Motor): Die Regattaleitung legt fest,
+   * welches Boot eine Klasse fährt (DM-Reglement A2). Keine Personenangabe – in Sicherung und
+   * Vorlage. Steht im Kopf der Ausgleichsgewichte (lib/besetzung.ts).
+   */
+  boote: Besetzung
+  /**
+   * Co-Pilot je Klasse (DM-Reglement C3; UIM 960 Pkt. 2 „co-driver“). Ein Personenname wie
+   * die der Wettkampfrichter: in der Sicherung, nie in der Vorlage.
+   */
+  coPiloten: Besetzung
+  /**
    * Leerzeilen am Ende jeder Klasse auf den Wettkampfrichter-Listen: Wer nach dem Druck
    * nachgemeldet wird, bekommt dort von Hand seine Zeile (Vorgabe 3 wie im Prototyp).
    */
   wkrLeerzeilen: number
   /** Abweichende Zahl der Leerzeilen für einzelne Klassen; fehlt = `wkrLeerzeilen`. */
   wkrLeerzeilenKlasse: Partial<Record<ClassId, number>>
+  /**
+   * Leerzeilen je Seite auf den gemeinsamen Bögen der Clubmeisterschaft („Papier sparen“,
+   * `wkrClubGemeinsam`): Dort teilen sich alle Klassen einer Seite die Zeilen für
+   * Nachmeldungen – sie stehen einmal am Ende der Seite statt nach jeder Klasse. Eine eigene
+   * Zahl neben `wkrLeerzeilen`, weil sie etwas anderes zählt: Wer „Papier sparen“ ab- und
+   * wieder anschaltet, findet beide Angaben wieder vor.
+   */
+  wkrLeerzeilenSeite: number
   /**
    * Beschreibung (Fehlerpunkte, Disqualifikationen, Parcoursbild) auf die Rückseite drucken:
    * Vorn bleibt mehr Platz für Starter, gedruckt wird dann doppelseitig.
@@ -291,11 +342,13 @@ export interface AppState extends PlanState {
    */
   beschriftung: string
   /**
-   * Sprache der gedruckten Listen, unabhängig von der Oberfläche (die gehört zum Gerät, die
-   * Listen zur Veranstaltung): `ui` = wie die Oberfläche. Wirkt nur, wenn das Regelwerk
-   * Englisch anbietet; was daraus wird, steht in lib/listensprache.ts.
+   * Sprache der Wettkampfrichter-Bögen je Liste (Kennung der Position → Sprache): Wer an
+   * welcher Position sitzt, entscheidet, ob der Bogen deutsch, englisch oder zweisprachig
+   * sein soll. Fehlt eine Liste, gilt die Sprache des Regelwerks (`listenSprache` im YAML).
+   * Wirkt nur, wo das Regelwerk Englisch anbietet; die Wahl bleibt sonst stehen. Alle übrigen
+   * Listen stehen immer in der Sprache des Regelwerks (lib/listensprache.ts).
    */
-  listenSprache: ListenSprache
+  wkrSprachen: Record<string, Sprache>
   /**
    * „Tor 5 übernimmt die Parcoursüberwachung“: Eine Person beobachtet die Einfahrt in Tor 5
    * und den Fahrweg auf einer Liste, die eigene Parcoursliste entfällt (config/kombi.ts).
@@ -312,12 +365,15 @@ export interface AppState extends PlanState {
    * Fehlerpunkte-Prototyp); `liste` = eine Zeile je Liste, die Kästchen ihrer Seiten nebeneinander.
    */
   laufzettelLayout: LaufzettelLayout
+  /** Pokalauswertung je Herkunft: eingeschaltete Varianten, Punkte, Auswahl der Starter. */
+  pokal: PokalEinstellungen
 }
 
 export type LaufzettelLayout = 'seite' | 'liste'
 
 export type ErgebnisNamen = 'voll' | 'kurz' | 'ohne'
-export type ErgebnisHerkunft = 'aus' | 'kurz' | 'lang'
+/** Herkunft auf den Ergebnislisten: gar nicht oder in einer der Darstellungen der Listen. */
+export type ErgebnisHerkunft = 'aus' | OriginStyle
 export type ErgebnisFassung = 'aushang' | 'intern'
 export interface ErgebnisListenOptionen {
   aushang: { namen: ErgebnisNamen; herkunft: ErgebnisHerkunft }
@@ -338,9 +394,6 @@ export type Geraet = 'elektronisch' | 'stoppuhr'
 
 /** Sprache der Listen und Fehlertexte: deutsch, englisch oder beides. */
 export type Sprache = 'de' | 'en' | 'de+en'
-
-/** Die Wahl der Listensprache im Stand: fest oder `ui` = wie die Oberfläche. */
-export type ListenSprache = 'ui' | Sprache
 
 /**
  * Kennung einer Position/Liste. Frei konfigurierbar (siehe config/aufbauten.yaml),

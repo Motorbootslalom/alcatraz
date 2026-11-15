@@ -1,5 +1,7 @@
-/* Druck: nur die Liste, ohne Bedienelemente. Seitenzahl und Zeitpunkt setzt
-   die Listenansicht selbst in den Seitenrand (sie kennt Sprache und Uhrzeit).
+/* Druck: nur die Liste, ohne Bedienelemente. Im Seitenrand steht nichts – keine Randbox,
+   kein Druckzeitpunkt, keine Seitenzahl: Jede Liste teilt sich selbst in Seiten und schreibt
+   ihre Zahl aufs Blatt (components/ListenDokument.vue) – die Zähler des Browsers liefen über
+   den ganzen Druck. Eine Zeit tragen nur die Ergebnislisten, auf dem Blatt (ergebnis.css).
 
    Oben und unten höchstens 8 mm – auf allen Listen: Der Browser druckt seine eigenen
    Kopf- und Fußzeilen (Adresse, Datum, Titel, „1/3“) nur, wenn der Rand dafür reicht.
@@ -35,12 +37,10 @@
     overflow: visible;
   }
 
-  .sheet-section {
-    max-width: none;
-  }
-
-  .sheet-table {
-    font-size: 10.5pt;
+  /* Auf dem Papier ist der Druckbereich die Breite – genau die, die der Bildschirm fest setzt. */
+  .sheet-section,
+  .sheet.weights .sheet-section {
+    width: auto;
   }
 
   .sheet-table thead {
@@ -57,16 +57,13 @@
     print-color-adjust: exact;
   }
 
-  /* Jede Liste (jeder Parcours) beginnt auf einem neuen Blatt. */
-  .sheet-section + .sheet-section {
+  /* Jede Liste (jeder Parcours) und jede ihrer Seiten beginnt auf einem neuen Blatt. Die
+     Seiten bildet die Liste selbst (lib/seiten.ts), auch so, dass keine Klasse unnötig
+     getrennt wird – der Browser soll innerhalb einer Seite nicht mehr umbrechen müssen. */
+  .sheet-section + .sheet-section,
+  .sheet-page + .sheet-page {
     break-before: page;
     margin-top: 0;
-  }
-
-  /* Ein Block (eine Klasse) rutscht als Ganzes auf das nächste Blatt, wenn er
-     dort hinpasst – so wird keine Klasse unnötig getrennt. */
-  .sheet-table tbody {
-    break-inside: avoid;
   }
 }
 
@@ -79,5 +76,19 @@
 @media print {
   .sheet.weights {
     page: quer;
+  }
+}
+
+/* Druckdatei: Starterliste, Mannschaftswertungen, Codes und Ergebnislisten in einem Druck.
+   Jeder Teil beginnt auf einem neuen Blatt – auch dort, wo zwei Teile dieselbe Seitenart haben
+   (Starterliste und Codes: beide hoch, unbenannt) und der Browser nicht von selbst umbricht.
+   Das letzte Blatt eines Stapels bricht sonst nicht um (`.ergebnis-blatt:last-child`). */
+@media print {
+  .druckdatei {
+    display: block;
+  }
+
+  .druckdatei-teil + .druckdatei-teil {
+    break-before: page;
   }
 }

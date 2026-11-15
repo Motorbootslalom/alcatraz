@@ -45,6 +45,31 @@ describe('Dateien', () => {
     expect(ergaenzt.apply(filled()).beispielStarter).toBe(false)
   })
 
+  it('Besetzung: Co-Piloten sind Personennamen – in der Sicherung, nie in der Vorlage; die Boote reisen mit', () => {
+    const besetzt: AppState = { ...filled(), boote: { '1': 'Boot 2, 9,9 PS' }, coPiloten: { '1': 'Erika Beispiel' } }
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', besetzt, AT)))
+    if (!sicherung.ok || sicherung.kind !== 'sicherung') throw new Error('keine Sicherung')
+    expect(sicherung.state.coPiloten).toEqual({ '1': 'Erika Beispiel' })
+    expect(sicherung.state.boote).toEqual({ '1': 'Boot 2, 9,9 PS' })
+
+    const datei = makeFile('vorlage', besetzt, AT)
+    const text = JSON.stringify(datei)
+    expect(text).not.toContain('Erika Beispiel')
+    expect(text).not.toContain('coPiloten')
+    expect(text).toContain('Boot 2, 9,9 PS')
+    const vorlage = parseFile(text)
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    // Die Vorlage bringt die Boote mit; die hiesigen Co-Piloten bleiben, wie sie sind.
+    const hier: AppState = { ...emptyState(), boote: { '4': 'altes Boot' }, coPiloten: { '2': 'Max Muster' } }
+    const danach = vorlage.apply(hier)
+    expect(danach.boote).toEqual({ '1': 'Boot 2, 9,9 PS' })
+    expect(danach.coPiloten).toEqual({ '2': 'Max Muster' })
+    // Auch eine von Hand um Namen ergänzte Vorlage bringt keine Co-Piloten mit.
+    const ergaenzt = parseFile(JSON.stringify({ ...datei, settings: { ...(datei as { settings: object }).settings, coPiloten: { '3': 'Fremder Name' } } }))
+    if (!ergaenzt.ok || ergaenzt.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(ergaenzt.apply(hier).coPiloten).toEqual({ '2': 'Max Muster' })
+  })
+
   it('Sicherung: der ganze Stand kommt zurück', () => {
     expect(roundTrip('sicherung')).toEqual({ ok: true, kind: 'sicherung', state: filled(), savedAt: AT })
   })
@@ -112,7 +137,8 @@ describe('Listenoptionen in den Dateien', () => {
     wkrZeilenJeSeite: 15,
     wkrTeilenAb: 25,
     beschriftung: 'ls',
-    listenSprache: 'de+en',
+    wkrSprachen: { steg: 'de+en', knoten: 'de' },
+    wkrLeerzeilenSeite: 5,
     tor5MitParcours: true,
     zusatzListen: { knoten: false, vorsteg: true },
     laufzettelLayout: 'liste',

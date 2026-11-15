@@ -1,0 +1,205 @@
+/* ======================================================================
+   Mannschaftswertung je Herkunft (im Code „pokal“)
+   Baut auf den Ergebnislisten auf (styles/ergebnis.css: Blatt, Kopf, Gitter,
+   Fuß). Hier steht nur, was anders ist: die Liste nach Plätzen (A4 quer, viele
+   schmale Punkte-Spalten) und die UIM-Liste (A4 hoch, je Herkunft ein Block).
+   Farben nur über --blatt-* (styles/blatt.css).
+   ====================================================================== */
+
+/* Kopf: Titel | Regel in Worten | Veranstaltung. Der Titel bekommt, was er braucht. */
+.pokal-kopf {
+  grid-template-columns: auto minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.pokal-kopf > span {
+  align-self: center;
+  overflow-wrap: anywhere;
+}
+
+.pokal-kopf .erg-kopf-titel {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pokal-kopf-regel {
+  font-size: 9.5pt;
+  font-weight: 400;
+}
+
+/* Die Herkunft bricht um, statt abgeschnitten zu werden: Die Zeile wird dann höher. */
+.erg-tabelle td.pokal-herkunft {
+  padding: 0.3mm 1.5mm;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.erg-tabelle td.pokal-summe {
+  font-weight: 700;
+}
+
+.erg-tabelle td.pokal-punkt {
+  padding: 0;
+}
+
+.erg-tabelle thead tr.pokal-unterkopf th {
+  padding: 0.5mm 0;
+}
+
+/* ---- UIM: A4 hoch ---------------------------------------------------- */
+
+/* So breit wie der Druckbereich (A4 hoch, 12 mm Rand je Seite) minus der Hauch Rand des Blatts. */
+.pokal-blatt--hoch .erg-tabelle,
+.pokal-blatt--hoch .erg-fuss {
+  width: 184.8mm;
+}
+
+.pokal-w-platz {
+  width: 13mm;
+}
+
+.pokal-w-klasse {
+  width: 20mm;
+}
+
+.pokal-w-nr {
+  width: 14mm;
+}
+
+.pokal-w-punkte {
+  width: 17mm;
+}
+
+.pokal-w-top {
+  width: 15mm;
+}
+
+.pokal-w-gesamt {
+  width: 20mm;
+}
+
+/* Jede Herkunft ist ein eigener Block; der Rahmen umfasst Starter und Summe, nicht den Titel. */
+.erg-tabelle.pokal-tabelle--uim tbody {
+  border: none;
+}
+
+.erg-tabelle.pokal-tabelle--uim tbody td:first-child {
+  border-left: 1.6px solid var(--blatt-linie);
+}
+
+.erg-tabelle.pokal-tabelle--uim tbody td:last-child {
+  border-right: 1.6px solid var(--blatt-linie);
+}
+
+.erg-tabelle.pokal-tabelle--uim tr.pokal-gruppe-titel td {
+  height: 8.5mm;
+  border: none;
+  border-bottom: 1.6px solid var(--blatt-linie);
+  /* Oben Luft: Ein Name, der zweizeilig umbricht, stieße sonst an die Summe des Blocks davor. */
+  padding: 2.5mm 0.5mm 0.8mm;
+  line-height: 1.15;
+  vertical-align: bottom;
+  text-align: left;
+  white-space: normal;
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.pokal-gruppe-titel td > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4mm;
+}
+
+.pokal-gruppe-titel td > div > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pokal-gruppe-titel small {
+  flex: none;
+  font-size: 7.5pt;
+  font-weight: 400;
+}
+
+/* Ein sehr langer Name steht klein in zwei Zeilen; die zweite soll nicht auf der Linie sitzen. */
+.erg-tabelle.pokal-tabelle--uim td.erg-zweizeilig {
+  padding-top: 0.4mm;
+  padding-bottom: 0.6mm;
+}
+
+.erg-tabelle.pokal-tabelle--uim tr.pokal-gruppe-summe td {
+  border-top: 0.35mm solid var(--blatt-linie);
+  border-bottom: 1.6px solid var(--blatt-linie);
+  font-weight: 700;
+}
+
+.erg-tabelle.pokal-tabelle--uim tr.pokal-gruppe-summe td:first-child {
+  padding-right: 2mm;
+  text-align: right;
+}
+
+/* Die Spaltenköpfe stehen über jedem Block (unter dessen Titel) und – wenn eine Seite einen
+   Block fortsetzt – noch einmal im Kopf der Seite. Beide Male dieselbe Zeile in derselben
+   Höhe: Die Seitenteilung zieht der Fortsetzungsseite die gemessene Höhe ab (ListenDokument.vue).
+   Einzeilig, damit die Höhe nicht am Wortlaut hängt. */
+.erg-tabelle.pokal-tabelle--uim tr.pokal-gruppe-kopf th {
+  height: 5mm;
+  border: 1px solid var(--blatt-linie);
+  border-bottom: 1.6px solid var(--blatt-linie);
+  background: var(--blatt-kopf);
+  padding: 0 1px;
+  font-size: 8.5pt;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.erg-tabelle.pokal-tabelle--uim tr.pokal-gruppe-kopf th:first-child {
+  border-left: 1.6px solid var(--blatt-linie);
+}
+
+.erg-tabelle.pokal-tabelle--uim tr.pokal-gruppe-kopf th:last-child {
+  border-right: 1.6px solid var(--blatt-linie);
+}
+
+/* Auf der Fortsetzungsseite schließt die Zeile oben den Block ab, wie sonst die Linie unter dem Titel. */
+.erg-tabelle.pokal-tabelle--uim thead tr.pokal-gruppe-kopf th {
+  border-top: 1.6px solid var(--blatt-linie);
+}
+
+/* „Fortsetzung: …“ steht im festen Abstand unter dem Kopf der Seite. */
+.erg-tabelle .pokal-kopfzelle {
+  position: relative;
+}
+
+.pokal-fortsetzung {
+  position: absolute;
+  left: 0.5mm;
+  bottom: 0.2mm;
+  font-size: 6.5pt;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@page pokalhoch {
+  size: A4 portrait;
+  margin: 8mm 12mm;
+}
+
+@media print {
+  .ergebnis-blatt.pokal-blatt--hoch {
+    page: pokalhoch;
+  }
+
+  .pokal-blatt--hoch .erg-tabelle,
+  .pokal-blatt--hoch .erg-fuss {
+    width: 100%;
+  }
+}

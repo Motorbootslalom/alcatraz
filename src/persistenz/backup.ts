@@ -10,21 +10,24 @@ import { mitTor5Umzug } from '../state/tor5'
  * anderen Rechner zu bringen. Es gibt drei Arten:
  *
  * - `sicherung`: der gesamte Stand der Veranstaltung.
- * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr, WKR-Einteilung,
- *   erfasste Werte, den Stand der Ergebnislisten, die Kennung der Veranstaltung und die
- *   Angabe, ob das Starterfeld aus Beispieldaten stammt (sie gehört zu den Startern).
+ * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr, WKR-Einteilung, Co-Piloten,
+ *   erfasste Werte, den Stand der Ergebnislisten und Pokalauswertungen, die Kennung der
+ *   Veranstaltung und die Angabe, ob das Starterfeld aus Beispieldaten stammt (sie gehört zu
+ *   den Startern). Die Einstellungen der Pokalauswertung (Varianten, Punkte, „nur ausgewählte
+ *   Starter“) sind dabei; welche Starter gewählt sind, steht an den Startern und damit nicht.
  *   Damit beginnt die nächste Veranstaltung so, wie man es gewohnt ist. Eine Vorlage
  *   wird weitergegeben und enthält deshalb keine Personennamen, auch nicht die der
- *   Wettkampfrichter.
+ *   Wettkampfrichter und der Co-Piloten. Die Boote je Klasse sind keine Personenangabe und
+ *   reisen mit.
  * - `starter`: nur die Teilnehmerdaten.
  */
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
 
 /**
- * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, erfassten
+ * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, Co-Piloten, erfassten
  * Werten, dem Stand der Ergebnislisten und der Kennung der Veranstaltung.
  */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'eingaben' | 'listenStand' | 'kennung' | 'beispielStarter'>
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'listenStand' | 'kennung' | 'beispielStarter'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -44,18 +47,19 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   // Die erfassten Werte gehören zu den Startern dieser Veranstaltung (sie hängen an deren IDs).
   // Ebenso der Stand der Ergebnislisten. Die Kennung der Veranstaltung bleibt hier: Mit einer
   // Vorlage beginnt eine andere Veranstaltung, deren Bögen sich von diesen unterscheiden müssen.
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, eingaben: _eingaben, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, ...settings } = state
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, ...settings } = state
   return { ...base, kind, settings }
 }
 
 export type ParsedFile =
   | { ok: true; kind: 'sicherung'; state: AppState; savedAt: string | null }
-  /** `apply` setzt die Einstellungen auf einen Stand – Starter, Name, Jahr, WKR-Einteilung und eigene Aufbauten bleiben. */
+  /** `apply` setzt die Einstellungen auf einen Stand – Starter, Name, Jahr, WKR-Einteilung, Co-Piloten und eigene Aufbauten bleiben. */
   | { ok: true; kind: 'vorlage'; apply: (current: AppState) => AppState; savedAt: string | null }
   | { ok: true; kind: 'starter'; starters: Starter[]; savedAt: string | null }
   | { ok: false }
 
-export function parseFile(text: string): ParsedFile {
+/** `optionen.oberflaeche`: die Sprache der Oberfläche – nur für alte Dateien (state/migrate.ts). */
+export function parseFile(text: string, optionen: { oberflaeche?: string } = {}): ParsedFile {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
@@ -70,7 +74,7 @@ export function parseFile(text: string): ParsedFile {
   const kind = file.kind ?? 'sicherung'
 
   if (kind === 'sicherung') {
-    const state = migrate(file.state)
+    const state = migrate(file.state, optionen)
     return state ? { ok: true, kind, state, savedAt } : { ok: false }
   }
   if (kind === 'starter') {
@@ -80,7 +84,7 @@ export function parseFile(text: string): ParsedFile {
   if (kind === 'vorlage' && file.settings && typeof file.settings === 'object') {
     const settings = file.settings as Partial<AppState>
     // Über `migrate`, damit auch eine ältere Vorlage vollständige, gültige Einstellungen ergibt.
-    const checked = migrate({ ...settings, starters: [] })
+    const checked = migrate({ ...settings, starters: [] }, optionen)
     if (!checked) return { ok: false }
     const apply = (current: AppState): AppState => {
       // Eigene Aufbauten sind erarbeitet, keine bloße Einstellung: Die der Vorlage kommen
@@ -111,6 +115,8 @@ export function parseFile(text: string): ParsedFile {
           current.parcoursList.map((p) => p.id),
           checked.parcoursList.map((p) => p.id),
         ),
+        // Ebenso die Co-Piloten: Sie hängen an der Klasse, nicht am Parcours – die hiesigen bleiben.
+        coPiloten: current.coPiloten,
       }
       // Bringt die Vorlage „Tor 5 übernimmt die Parcoursüberwachung“ oder einen anderen Aufbau
       // mit, wechselt die Liste für Tor 5: Die hiesigen Eingaben und Namen ziehen mit, sonst

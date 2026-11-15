@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, watch, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { useStore } from './state/store'
-import { navigate, useRoute, VIEWS } from './lib/router'
+import { adresse, navigate, useRoute, VIEWS } from './lib/router'
 import { hoereAufScanner } from './lib/scanner'
 import { meldeScan } from './lib/scan'
 import { BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from './lib/build'
-import { formatDateTime, t, tn } from './i18n'
+import { formatDateTime, t, tn, type MessageKey } from './i18n'
+import { neuLaden, offline, pruefeDauerhaft, uebernehmen } from './lib/offline'
 import AppLogo from './components/AppLogo.vue'
 import LocaleSelect from './components/LocaleSelect.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
@@ -18,7 +19,7 @@ import ListsView from './views/ListsView.vue'
 import ErfassungView from './views/ErfassungView.vue'
 import SettingsView from './views/SettingsView.vue'
 
-const { state, saved, stelleHer } = useStore()
+const { state, saved, stelleHer, zweit } = useStore()
 
 // Der Fenstertitel folgt der Sprache – er ist auch der vorgeschlagene Name beim Speichern als PDF.
 watchEffect(() => {
@@ -34,7 +35,7 @@ window.addEventListener('scroll', () => rollStand.set(view.value, window.scrollY
 watch(view, async (neu) => {
   const ziel = rollStand.get(neu) ?? 0
   await nextTick()
-  // Ein Verweis mit Sprungziel (`#/einstellungen?wkr`) rollt selbst dorthin.
+  // Ein Verweis mit Sprungziel (`#/einstellungen?wertung`) rollt selbst dorthin.
   if (!location.hash.includes('?')) window.scrollTo({ top: ziel })
 })
 
@@ -56,6 +57,25 @@ onMounted(() => {
   )
 })
 onBeforeUnmount(() => scannerAb?.())
+
+// Ohne Internet (lib/offline.ts): Die Fußzeile sagt in einem Wort, ob das Programm auf dem Gerät
+// liegt; das Nähere steht unter „Einstellungen“. Eine neue Fassung meldet sich oben – übernommen
+// wird sie nur auf Knopfdruck. „Später“ räumt den Hinweis für dieses Fenster weg.
+const spaeter = ref(false)
+const offlineZeile = computed<MessageKey>(() => {
+  if (offline.neu || offline.ersetzt) return 'offline.state.neu'
+  if (offline.lage === 'bereit') return 'offline.state.bereit'
+  if (offline.lage === 'vorbereiten') return 'offline.state.vorbereiten'
+  return offline.grund === 'datei' ? 'offline.state.datei' : 'offline.state.nicht'
+})
+const offlineGut = computed(() => !offline.neu && !offline.ersetzt && (offline.lage === 'bereit' || offline.grund === 'datei'))
+
+// Den Browser bitten, die Daten zu behalten – erst, wenn es etwas zu verlieren gibt.
+watch(
+  () => state.value.starters.length > 0,
+  (hatStarter) => void pruefeDauerhaft(hatStarter),
+  { immediate: true },
+)
 
 function commitLabel(): string {
   if (!BUILD_COMMIT) return t('app.unknown')
@@ -85,7 +105,7 @@ function commitLabel(): string {
         <a
           v-for="v in VIEWS"
           :key="v"
-          :href="`#/${v}`"
+          :href="adresse(v)"
           :class="['tab', view === v ? 'active' : '', v === 'einstellungen' ? 'settings' : '']"
           :aria-current="view === v ? 'page' : undefined"
         >
@@ -102,6 +122,27 @@ function commitLabel(): string {
 
     <p v-if="!saved" class="boat-banner warn no-print" role="alert">{{ t('app.notSaved') }}</p>
 
+    <!-- Beim Start war der zweite Speicher neuer (state/zweit.ts): bleibt stehen, bis jemand es gelesen hat. -->
+    <p v-if="zweit.wiederhergestellt.value" class="boat-banner warn no-print" role="alert" data-hinweis="wiederhergestellt">
+      {{ t('app.recovered', { time: formatDateTime(zweit.wiederhergestellt.value.zeit, true) }) }}
+      <span class="banner-knoepfe">
+        <button class="btn sm" data-action="wiederhergestellt-ok" @click="zweit.wiederhergestellt.value = null">{{ t('app.recovered.ok') }}</button>
+      </span>
+    </p>
+
+    <p v-if="offline.ersetzt" class="boat-banner warn no-print" role="status" data-hinweis="fassung-ersetzt">
+      {{ t('offline.replaced.text') }}
+      <button class="btn sm" @click="neuLaden()">{{ t('offline.replaced.reload') }}</button>
+    </p>
+    <p v-else-if="offline.neu && !spaeter" class="boat-banner ok no-print" role="status" data-hinweis="neue-fassung">
+      {{ t('offline.update.text', { commit: offline.neuFassung ? t('offline.update.commit', { commit: offline.neuFassung }) : '' }) }}
+      {{ t('offline.update.note') }}
+      <span class="banner-knoepfe">
+        <button class="btn sm primary" data-action="fassung-uebernehmen" @click="uebernehmen()">{{ t('offline.update.take') }}</button>
+        <button class="btn sm" data-action="fassung-spaeter" @click="spaeter = true">{{ t('offline.update.later') }}</button>
+      </span>
+    </p>
+
     <main>
       <EventView v-if="view === 'veranstaltung'" />
       <StartersView v-else-if="view === 'starter'" />
@@ -116,6 +157,10 @@ function commitLabel(): string {
 
     <footer class="version-footer no-print">
       {{ t('app.footer', { commit: commitLabel(), time: formatDateTime(BUILD_TIME) || t('app.unknown') }) }}
+      ·
+      <a class="offline-stand" :href="adresse('einstellungen', { ziel: 'offline' })" data-offline-stand>
+        <span :class="['offline-punkt', offlineGut ? 'gut' : offline.lage === 'vorbereiten' || offline.neu ? 'wartet' : 'aus']" aria-hidden="true" />{{ t(offlineZeile) }}
+      </a>
     </footer>
   </div>
 </template>

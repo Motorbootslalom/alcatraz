@@ -3,6 +3,7 @@ import { configFor, resolveRegelwerkId, ROH_QUELLE, ROH_REGELWERKE } from './kon
 import { quellDateien } from './merge-positionen'
 import aufbauListe from './aufbauten.yaml?raw'
 import type { RawAufbau } from './schema'
+import { buildConfig } from './build'
 
 const eigener: RawAufbau = {
   id: 'hafenfestq3m8',
@@ -96,5 +97,15 @@ describe('Positionsdateien', () => {
     const ids = configFor().getAufbauten().map((a) => a.id)
     expect(ROH_QUELLE.aufbauten?.map((a) => a.id)).toEqual(ids)
     for (const id of ['alcatraz', 'moewe']) expect(ids).toContain(id)
+  })
+
+  it('Laufzettel: Der letzte Lauf hat eigene Schritte; fehlen sie, gelten die der übrigen Läufe', () => {
+    const { schritte, schritteLetzterLauf } = configFor().getLaufzettelConfig()
+    expect(schritte.length).toBeGreaterThan(0)
+    expect(schritteLetzterLauf.length).toBeGreaterThan(0)
+    expect(schritteLetzterLauf).not.toEqual(schritte)
+    expect(buildConfig({ positionen: [], laufzettel: { schritte: ['a', 'b'] } }).laufzettel).toMatchObject({ schritte: ['a', 'b'], schritteLetzterLauf: ['a', 'b'] })
+    expect(buildConfig({ positionen: [], laufzettel: { schritte: ['a'], schritteLetzterLauf: ['z', 7 as never] } }).laufzettel).toMatchObject({ schritte: ['a'], schritteLetzterLauf: ['z', '7'] })
+    expect(buildConfig({ positionen: [] }).laufzettel).toMatchObject({ schritte: [], schritteLetzterLauf: [] })
   })
 })

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { configFor } from '../config/konfig'
 import { emptyState } from '../state/reducer'
 import { bogenSeiten } from './bogen'
-import { buildLaufzettel, listenZeilen, messBoegen, messKennung, waehleLaufzettel } from './laufzettel'
+import { buildLaufzettel, listenZeilen, messBoegen, messKennung, stapelBoegen, waehleLaufzettel } from './laufzettel'
 import { wkrBoegenZumStand, type WkrBogen } from './wkrListen'
 import type { AppState, ClassId, Starter } from '../types'
 import { veranstaltungsListen } from './listen'
@@ -41,8 +41,9 @@ describe('Laufzettel', () => {
     const von = (klasse: ClassId, lauf = 2) => zettel.find((z) => z.klassen[0] === klasse && z.lauf === lauf)!.zeilen.map((z) => z.typeId)
     expect(von('7')).toEqual(listen)
     expect(von('1')).toEqual(listen.filter((l) => l !== 'mueb'))
-    // Die Knoten (zusätzliche Liste, Vorgabe des Regelwerks) stehen am Ende – und nur im 1. Lauf.
-    expect(von('7', 1)).toEqual([...listen, 'knoten'])
+    // Die Knoten (zusätzliche Liste, Vorgabe des Regelwerks) stehen am Ende – und nur im letzten Lauf.
+    expect(von('7', 1)).toEqual(listen)
+    expect(von('7', 3)).toEqual([...listen, 'knoten'])
   })
 
   it('ein Kästchen je Druckseite: so viele Zeilen wie der Bogen Seiten hat', () => {
@@ -57,7 +58,7 @@ describe('Laufzettel', () => {
   it('auf dem Blatt: je Liste eine Zeile, je Bogen so viele Kästchen wie Seiten – keines geht verloren', () => {
     const seitenVon = (b: WkrBogen) => (b.typeId === 'steg' ? 3 : b.typeId === 'zeit' ? 2 : 1)
     const { zettel } = zettelVon(stand(), seitenVon)
-    const z = zettel.find((x) => x.klassen[0] === '4' && x.lauf === 1)!
+    const z = zettel.find((x) => x.klassen[0] === '4' && x.lauf === 3)!
     const listen = listenZeilen(z.zeilen)
     expect(listen.map((l) => l.typeId)).toEqual([...dm.aufbauOrder('alcatraz', false), 'knoten'])
     expect(listen.find((l) => l.typeId === 'steg')!.boegen.map((b) => b.seiten)).toEqual([3])
@@ -96,12 +97,29 @@ describe('Laufzettel', () => {
     }
   })
 
-  it('eine Liste ohne Lauf (Knoten) steht nur auf dem Zettel des 1. Laufs', () => {
+  it('eine Liste ohne Lauf (Knoten) steht nur auf dem Zettel des letzten Laufs', () => {
     const { zettel } = zettelVon(stand({ aufbau: 'bawue' }))
     const knoten = dm.aufbauOrder('bawue', false).filter((l) => dm.getSheetDef(l).showLauf === false)
     expect(knoten.length).toBeGreaterThan(0)
     const hat = (lauf: number) => zettel.find((z) => z.klassen[0] === '3' && z.lauf === lauf)!.zeilen.some((r) => knoten.includes(r.typeId))
-    expect([hat(1), hat(2), hat(3)]).toEqual([true, false, false])
+    // Die Knoten zählen erst zum Gesamtergebnis: Ihr Bogen liegt im Stapel des letzten Laufs.
+    expect([hat(1), hat(2), hat(3)]).toEqual([false, false, true])
+    // Zwei Läufe (UIM: zwei Versuche): der zweite. Ein Lauf: Er ist zugleich der letzte.
+    const zwei = zettelVon(stand({ aufbau: 'bawue', laufCount: 2 })).zettel.filter((z) => z.klassen[0] === '3')
+    expect(zwei.map((z) => [z.lauf, z.zeilen.some((r) => knoten.includes(r.typeId))])).toEqual([[1, false], [2, true]])
+    const einer = zettelVon(stand({ aufbau: 'bawue', laufCount: 1 })).zettel.filter((z) => z.klassen[0] === '3')
+    expect(einer.map((z) => [z.lauf, z.zeilen.some((r) => knoten.includes(r.typeId))])).toEqual([[1, true]])
+  })
+
+  it('der Zettel des letzten Laufs ist als solcher gekennzeichnet – bei nur einem Lauf dieser', () => {
+    expect(zettelVon(stand()).zettel.every((z) => z.letzterLauf === (z.lauf === 3))).toBe(true)
+    expect(zettelVon(stand({ laufCount: 2 })).zettel.every((z) => z.letzterLauf === (z.lauf === 2))).toBe(true)
+    const einer = zettelVon(stand({ laufCount: 1 })).zettel
+    expect(einer.length).toBeGreaterThan(0)
+    expect(einer.every((z) => z.lauf === 1 && z.letzterLauf)).toBe(true)
+    // Auch im gemeinsamen Stapel der Clubmeisterschaft.
+    const club = zettelVon(stand({ eventKind: 'club', parcoursList: EIN_PARCOURS })).zettel
+    expect(club.map((z) => z.letzterLauf)).toEqual([false, false, true])
   })
 
   it('Clubmeisterschaft, Papier sparen: ein Zettel je Lauf für alle Klassen; Listen nur eines Teils nennen ihre Klassen', () => {
@@ -131,8 +149,10 @@ describe('Laufzettel', () => {
   it('gemessen wird ein Bogen je Parcours, Klassen und Liste – die Läufe unterscheiden sich nur im Kopf', () => {
     const { boegen } = wkrBoegenZumStand(stand(), dm)
     const mess = messBoegen(boegen)
-    expect(mess).toHaveLength(boegen.filter((b) => b.lauf === 1).length)
-    expect(mess.every((b) => b.lauf === 1)).toBe(true)
+    // Der Bogen des frühesten Laufs; eine Liste ohne Lauf (Knoten) gibt es nur im letzten.
+    const ohneLauf = (b: WkrBogen) => dm.getSheetDef(b.typeId).showLauf === false
+    expect(mess).toHaveLength(boegen.filter((b) => b.lauf === 1 || ohneLauf(b)).length)
+    expect(mess.every((b) => b.lauf === (ohneLauf(b) ? 3 : 1))).toBe(true)
     // Jeder Bogen findet seine Messung, und bis auf den Lauf ist er derselbe.
     const je = new Map(mess.map((b) => [messKennung(b), b]))
     for (const b of boegen) {
@@ -150,5 +170,51 @@ describe('Laufzettel', () => {
     expect(waehleLaufzettel(zettel, { klasse: '3' }).map((z) => z.lauf)).toEqual([1, 2, 3])
     expect(waehleLaufzettel(zettel, { klasse: '3', lauf: 2 })).toHaveLength(1)
     expect(waehleLaufzettel(zettel, { parcours: 'par_2', klasse: '3' })).toEqual([])
+  })
+})
+
+describe('Blattstapel eines Laufzettels (Erfassung: alle Listen untereinander)', () => {
+  const stapel = (s: AppState, klasse: ClassId, lauf: number, parcoursId = 'par_1') => {
+    const { boegen, zettel } = zettelVon(s)
+    const liste = stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId, klasse, lauf }, { jeParcours: s.eventKind === 'club' && s.wkrClubGemeinsam })
+    return { liste, zettel: zettel.find((z) => z.parcoursId === parcoursId && z.lauf === lauf && z.klassen.includes(klasse)) }
+  }
+
+  it('genau die Bögen des Zettels, in dessen Reihenfolge; die Knoten nur im letzten Lauf', () => {
+    const s = stand({ parcoursList: EIN_PARCOURS })
+    for (const lauf of [1, 3]) {
+      const { liste, zettel } = stapel(s, '7', lauf)
+      expect(liste.map((b) => b.id)).toEqual(zettel!.zeilen.map((z) => z.bogenId))
+      expect(liste.every((b) => b.klassen.includes('7') && b.parcoursId === 'par_1')).toBe(true)
+    }
+    expect(stapel(s, '7', 1).liste.map((b) => b.typeId)).not.toContain('knoten')
+    expect(stapel(s, '7', 3).liste.at(-1)!.typeId).toBe('knoten')
+  })
+
+  it('ein mehrseitiger Bogen steht einmal im Stapel', () => {
+    const s = stand({ parcoursList: EIN_PARCOURS })
+    const { boegen } = wkrBoegenZumStand(s, dm)
+    const liste = stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId: 'par_1', klasse: '4', lauf: 1 })
+    expect(new Set(liste.map((b) => b.id)).size).toBe(liste.length)
+  })
+
+  it('Clubmeisterschaft: der Stapel des Parcours – mit „Papier sparen“ gemeinsame Bögen, ohne auch die Bögen der anderen Klassen', () => {
+    const sparen = stand({ parcoursList: EIN_PARCOURS, eventKind: 'club', wkrClubGemeinsam: true })
+    const gemeinsam = stapel(sparen, '4', 1).liste
+    expect(gemeinsam.find((b) => b.typeId === 'zeit')!.klassen).toHaveLength(8)
+    // Gleich, von welcher Klasse aus gefragt wird.
+    expect(stapel(sparen, 'E', 1).liste.map((b) => b.id)).toEqual(gemeinsam.map((b) => b.id))
+    const einzeln = stapel({ ...sparen, wkrClubGemeinsam: false }, '4', 1).liste
+    expect(einzeln.filter((b) => b.typeId === 'zeit')).toHaveLength(1)
+    expect(einzeln.filter((b) => b.typeId === 'gate135').length).toBeGreaterThan(1)
+    expect(einzeln.some((b) => !b.klassen.includes('4'))).toBe(true)
+  })
+
+  it('leer, wenn es den Stapel nicht gibt: Klasse nicht auf dem Parcours, Lauf jenseits der Läufe', () => {
+    const s = stand()
+    const { boegen } = wkrBoegenZumStand(s, dm)
+    const eine = boegen.find((b) => b.parcoursId === 'par_2')!.klassen[0]
+    expect(stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId: 'par_1', klasse: eine, lauf: 1 })).toEqual([])
+    expect(stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId: 'par_2', klasse: eine, lauf: 9 })).toEqual([])
   })
 })

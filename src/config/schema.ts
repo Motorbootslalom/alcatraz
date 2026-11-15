@@ -56,6 +56,18 @@ export type RawLegendeHinweis = string | { text: string; en?: string }
 export const STICH_KRITERIEN = ['schnellsterLauf', 'besterLauf', 'summeAllerLaeufe'] as const
 export type StichKriterium = (typeof STICH_KRITERIEN)[number]
 
+/**
+ * Varianten der Pokalauswertung je Herkunft (lib/pokal.ts):
+ *   plaetze3  die ersten drei Plätze je Klasse bekommen Punkte (Vorgabe 10, 7, 5)
+ *   plaetze6  die ersten sechs Plätze je Klasse (Vorgabe 6, 5, 4, 3, 2, 1)
+ *   uim       UIM-Punkte für die Plätze 1 bis 20; je Herkunft zählen die Besten (Vorgabe 5)
+ */
+export const POKAL_VARIANTEN = ['plaetze3', 'plaetze6', 'uim'] as const
+export type PokalVariante = (typeof POKAL_VARIANTEN)[number]
+/** Die Varianten mit Punkten je Platz, die sich in den Einstellungen ändern lassen. */
+export const POKAL_PLATZ_VARIANTEN = ['plaetze3', 'plaetze6'] as const
+export type PokalPlatzVariante = (typeof POKAL_PLATZ_VARIANTEN)[number]
+
 /** regelwerke/<id>.yaml: ein Regelwerk in einer Version. */
 export interface RawRegelwerk {
   /** Eindeutig, entspricht dem Dateinamen (z. B. "dm-2026"). */
@@ -65,6 +77,13 @@ export interface RawRegelwerk {
   version?: string | number
   /** Angebotene Sprachen der Listen: [de] (Standard) oder [de, en]. */
   sprachen?: string[]
+  /**
+   * In dieser Sprache stehen alle Listen außer den Wettkampfrichter-Bögen (Starter-, Gewichts-,
+   * Vorsteg- und Ergebnislisten, Laufzettel, Aushang der Codes) – unabhängig von der Sprache
+   * der Oberfläche: Der Aushang gehört zum Regelwerk. Eine der `sprachen`; fehlt = die erste.
+   * Für die Bögen ist es die Vorgabe; dort lässt sich je Liste wählen (lib/listensprache.ts).
+   */
+  listenSprache?: string
   /** Dokument, aus dem die Werte stammen. */
   quelle?: string
   quelleEn?: string
@@ -95,10 +114,18 @@ export interface RawRegelwerk {
    */
   vorgabeListen?: Record<string, string[]>
   /**
-   * So viele Läufe sieht das Regelwerk vor und so viele davon werden gestrichen. Nur ein
-   * Hinweis: Eingestellt wird beides an der Veranstaltung, die Oberfläche meldet Abweichungen.
+   * So viele Läufe sieht das Regelwerk vor und so viele davon werden gestrichen. Die Wahl des
+   * Regelwerks stellt die Veranstaltung so ein (state/reducer.ts SET_REGELWERK); wer danach von
+   * Hand abweicht, bekommt einen Hinweis – außer bei `nurVorgabe: true`: Dann ist die Angabe
+   * nur die Voreinstellung und keine Aussage des Regelwerks, an der die Oberfläche misst.
    */
-  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number }
+  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nurVorgabe?: boolean }
+  /**
+   * Pokalauswertung je Herkunft (config/pokal.ts, lib/pokal.ts): `vorgabe` = die Varianten,
+   * die eine Veranstaltung nach diesem Regelwerk eingeschaltet hat; `uim` = die Punktetabelle
+   * der UIM-Variante mit der Zahl der Besten und der Mindestzahl der Starter je Herkunft.
+   */
+  pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number } }
   disqualifikationen?: RawDisq[]
   kataloge?: Record<string, RawKatalog>
   direktpunkte?: RawDirektpunkt[]
@@ -381,6 +408,8 @@ export interface RawLaufzettel {
   titel?: string
   /** Arbeitsschritte der Auswertung, je mit Checkbox (in dieser Reihenfolge). */
   schritte?: string[]
+  /** Arbeitsschritte auf dem Zettel des letzten Laufs (fehlt = wie `schritte`). */
+  schritteLetzterLauf?: string[]
 }
 
 /** Übersetzung der Positionen in eine Sprache (i18n/<sprache>.yaml). */
@@ -416,6 +445,12 @@ export interface RawPositionen {
   hinweise?: Record<string, string>
   /** Laufzettel: Arbeitsschritte der Auswertung. */
   laufzettel?: RawLaufzettel
+  /**
+   * Pokalauswertung: Punkte je Platz der Varianten, die es in jedem Regelwerk gibt
+   * (einstellungen.yaml) – Variante → Punkte für Platz 1, 2, 3 … Die Vorgabe der Varianten
+   * und die UIM-Tabelle stehen im Regelwerk (`pokal`), gelesen wird beides in config/pokal.ts.
+   */
+  pokalPunkte?: Record<string, number[]>
   /** Aufbauten (Setups); der erste ist der Standard. */
   aufbauten?: RawAufbau[]
   /** Kursvarianten der Austragungsorte. */

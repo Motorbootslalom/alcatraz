@@ -57,4 +57,17 @@ describe('mergeStarters', () => {
     const r = mergeStarters(bisher, [starter('x1', '301', 'Schneider'), starter('x2', '', 'Schneider')])
     expect(r.starters.map((s) => s.id)).toEqual(['s1', 'x2'])
   })
+
+  it('Auswahl für die Pokalauswertung: Excel kennt sie nicht (Abwahl bleibt), die Teilnehmerdaten-Datei bestimmt sie', () => {
+    const mitAbwahl = [starter('s1', '301', 'Schneider', { pokal: false }), starter('s2', '302', 'Weber')]
+    const neu = [starter('x1', '301', 'Schneider'), starter('x2', '302', 'Weber', { pokal: false })]
+    // Excel: Die bestehende Abwahl bleibt, eine mitgebrachte kommt dazu.
+    expect(mergeStarters(mitAbwahl, neu).starters.map((s) => s.pokal)).toEqual([false, false])
+    // Datei: Es gilt, was in ihr steht – und die Änderung zählt als Änderung.
+    const r = mergeStarters(mitAbwahl, neu, 'datei')
+    expect(r.starters.map((s) => s.pokal)).toEqual([undefined, false])
+    expect('pokal' in r.starters[0]).toBe(false)
+    expect(r.changed.map((s) => s.id)).toEqual(['s1', 's2'])
+    expect(r.unchanged).toBe(0)
+  })
 })

@@ -1,49 +1,59 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, useId } from 'vue'
 import { useStore } from '../state/store'
-import { LISTEN_SPRACHEN, WKR_LEERZEILEN_MAX, WKR_TEILEN_AB_MAX, WKR_ZEILEN_JE_SEITE_MAX } from '../state/reducer'
+import { WKR_LEERZEILEN_MAX, WKR_TEILEN_AB_MAX, WKR_ZEILEN_JE_SEITE_MAX } from '../state/reducer'
 import { streichlaeufeVon } from '../lib/ergebnis'
 import { classColor } from '../domain/classes'
-import { defaultKuerzel, normalizeName } from '../domain/kuerzel'
+import { normalizeName } from '../domain/kuerzel'
 import { downloadText, filename, makeFile, parseFile, type FileKind } from '../persistenz/backup'
 import { loadLegacyVerzahnung } from '../persistenz/storage'
 import { BESCHRIFTUNGEN, sollgewichtOf } from '../config/catalog'
-import { bietetEnglisch } from '../lib/listensprache'
+import { bietetEnglisch, regelwerkSprache } from '../lib/listensprache'
 import { useEvent } from '../lib/event'
 import { useKonfig } from '../lib/konfig'
 import { zusatzListen } from '../lib/listen'
-import { originOf } from '../lib/origin'
+import { herkunftAnzeige, originLabelKey, originOf } from '../lib/origin'
+import { hatFlaggen } from '../domain/flaggen'
+import HerkunftWahl from '../components/HerkunftWahl.vue'
+import HerkunftText from '../components/HerkunftText.vue'
+import { POKAL_BESTE_MAX, POKAL_PLATZ_VARIANTEN, POKAL_PUNKTE_MAX, POKAL_VARIANTEN, pokalRegeln, pokalVorgabe, type PokalPlatzVariante } from '../config/pokal'
 import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
-import { formatDateTime, t, tn } from '../i18n'
-import type { ClassId, OriginStyle, ErgebnisFassung, ErgebnisHerkunft, ErgebnisNamen, LaufzettelLayout, ListenSprache } from '../types'
+import { formatDateTime, t, tn, locale } from '../i18n'
+import { adresse, sprungziel } from '../lib/router'
+import { starterfeldFest } from '../lib/eingaben'
+import type { ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout } from '../types'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
-import WkrEinteilung from '../components/WkrEinteilung.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
 import SettingsNav from '../components/SettingsNav.vue'
+import OfflinePanel from '../components/OfflinePanel.vue'
+import FremdeBestandteile from '../components/FremdeBestandteile.vue'
+import { vergissAuswahl } from '../lib/merken'
 import EingabenHinweis from '../components/EingabenHinweis.vue'
+import VerlaufPanel from '../components/VerlaufPanel.vue'
 import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
 
 /**
- * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten, wer an
- * welcher Liste sitzt (WKR-Einteilung), und die Dateien zum Aufheben
- * und Weitergeben (Sicherung, Vorlage, Teilnehmerdaten).
+ * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten, und die
+ * Dateien zum Aufheben und Weitergeben (Sicherung, Vorlage, Teilnehmerdaten). Was für den
+ * einzelnen Wettkampf eingeteilt wird (WKR-Einteilung, Co-Piloten, Boote), steht unter
+ * „Veranstaltung“ im Block „Besetzung“ – hier nur der Verweis.
  */
 const { state, dispatch } = useStore()
+const id = useId()
 const { regelwerk, classLabel } = useEvent()
-// Leerzeilen und Standardgewichte nur für die Klassen des Regelwerks.
+// Leerzeilen und Durchschnittsgewichte nur für die Klassen des Regelwerks.
 const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color: classColor(id) })))
-const ORIGIN_STYLES: OriginStyle[] = ['lang', 'kurz']
 const ERGEBNIS_FASSUNGEN: ErgebnisFassung[] = ['aushang', 'intern']
 const ERGEBNIS_NAMEN: ErgebnisNamen[] = ['voll', 'kurz', 'ohne']
-const ERGEBNIS_HERKUNFT: ErgebnisHerkunft[] = ['aus', 'kurz', 'lang']
 const dateiFeld = ref<HTMLInputElement | null>(null)
 const inhalt = ref<HTMLElement | null>(null)
 
-// „Veranstaltung“ verweist mit `#/einstellungen?wkr` auf die WKR-Einteilung: dann dorthin
-// rollen, statt den Abschnitt in der langen Seite suchen zu lassen.
+// Die Ergebnislisten verweisen mit `#/einstellungen?wertung` auf die Wertung: dann dorthin
+// rollen, statt den Abschnitt in der langen Seite suchen zu lassen. (Die WKR-Einteilung steht
+// nicht mehr hier; `#/einstellungen?wkr` führt zur Veranstaltung – lib/adressen.ts `umzug`.)
 onMounted(async () => {
-  // Ebenso `?wertung` aus den Ergebnislisten.
-  const ziel = location.hash.includes('?wkr') ? 'wkr-einteilung' : location.hash.includes('?wertung') ? 'wertung' : location.hash.includes('?ergebnislisten') ? 'ergebnislisten' : ''
+  // Das Sprungziel steht in der Sprache der Oberfläche in der Adresse (lib/router.ts).
+  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline' } as Record<string, string>)[sprungziel()]
   if (!ziel) return
   await nextTick()
   document.getElementById(ziel)?.scrollIntoView?.({ block: 'start' })
@@ -54,6 +64,11 @@ onMounted(async () => {
  * Zeilen der Kürzel-Tabelle: jede Herkunft, die bei den Startern vorkommt, und
  * jeder eigene Eintrag – auch wenn gerade kein Starter dazu gehört.
  */
+/** Das Kürzel, das ohne eigenen Eintrag auf den Listen steht – dasselbe, das `herkunftAnzeige` dort zeigt. */
+const kuerzelVorgabe = (name: string) => {
+  const kurz = herkunftAnzeige(name, state.value.originMode, 'kurz', {}).klartext
+  return kurz !== name ? kurz : ''
+}
 const shortRows = computed(() => {
   const names = new Map<string, string>()
   const add = (name: string) => {
@@ -67,7 +82,7 @@ const shortRows = computed(() => {
     .map(([key, name]) => ({
       name: own.get(key)?.name ?? name,
       own: own.get(key)?.short ?? '',
-      preset: defaultKuerzel(name),
+      preset: kuerzelVorgabe(name),
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 })
@@ -90,7 +105,7 @@ function setzeSeiten(feld: 'zeilenJeSeite' | 'teilenAb', e: Event) {
 }
 
 // --- Listen der Veranstaltung: zusammengelegte Liste und zusätzliche Listen -------------
-const konfig = useKonfig({ einsprachig: true })
+const konfig = useKonfig()
 const aufbau = computed(() => konfig.value.getAufbau(state.value.aufbau))
 /** „Tor 5 + Parcours“ gibt es nur in Aufbauten, die beide Listen haben. */
 const kombiListe = computed(() => {
@@ -112,8 +127,18 @@ const zusatz = computed(() => {
 const LAUFZETTEL_LAYOUTS: LaufzettelLayout[] = ['seite', 'liste']
 
 // --- Sprache der Listen ----------------------------------------------------
-// Wählbar nur, wenn das Regelwerk Englisch anbietet (UIM); die Wahl bleibt sonst stehen.
+// Sie folgt dem Regelwerk (lib/listensprache.ts) und steht hier nur zur Auskunft. Wählen lässt
+// sich die Sprache der Wettkampfrichter-Bögen je Liste – in der WKR-Einteilung, und nur, wo
+// das Regelwerk Englisch anbietet (UIM).
 const spracheWaehlbar = computed(() => bietetEnglisch(state.value.regelwerk))
+const listenSprache = computed(() => regelwerkSprache(state.value.regelwerk))
+// Gemeinsame Bögen der Clubmeisterschaft teilen sich die Leerzeilen je Seite (lib/bogen.ts).
+const leerJeSeite = computed(() => state.value.eventKind === 'club' && state.value.wkrClubGemeinsam)
+function setzeLeerzeilenSeite(e: Event) {
+  const n = parseInt((e.target as HTMLInputElement).value, 10)
+  dispatch({ type: 'SET_WKR_LEERZEILEN_SEITE', anzahl: Number.isNaN(n) ? null : n })
+  ;(e.target as HTMLInputElement).value = String(state.value.wkrLeerzeilenSeite)
+}
 
 const newName = ref('')
 const newShort = ref('')
@@ -136,6 +161,26 @@ function setzeStreichlaeufe(e: Event) {
   dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: wert === 'auto' ? 'auto' : Number(wert) })
 }
 
+// --- Pokalauswertung -------------------------------------------------------
+// Was gilt (`pokalRegeln`) und was das Regelwerk vorgibt (`pokalVorgabe`); im Stand steht nur die Abweichung.
+const pokal = computed(() => pokalRegeln(state.value))
+const pokalVor = computed(() => pokalVorgabe(state.value.regelwerk))
+const istPlatzVariante = (v: string): v is PokalPlatzVariante => (POKAL_PLATZ_VARIANTEN as readonly string[]).includes(v)
+const eigenePunkte = (v: PokalPlatzVariante) => pokal.value.punkte[v].some((n, i) => n !== pokalVor.value.punkte[v][i])
+/** Ein leeres oder unbrauchbares Feld zählt 0 Punkte; das Feld zeigt danach, was gilt. */
+function setzePokalPunkte(v: PokalPlatzVariante, platz: number, e: Event) {
+  const n = parseInt((e.target as HTMLInputElement).value, 10)
+  dispatch({ type: 'SET_POKAL_PUNKTE', variante: v, punkte: pokal.value.punkte[v].map((alt, i) => (i === platz ? (Number.isNaN(n) ? 0 : n) : alt)) })
+  ;(e.target as HTMLInputElement).value = String(pokal.value.punkte[v][platz])
+}
+/** Ein leeres oder unbrauchbares Feld heißt: wieder die Zahl des Regelwerks. */
+function setzePokalUim(feld: 'beste' | 'mindestens', e: Event) {
+  const n = parseInt((e.target as HTMLInputElement).value, 10)
+  dispatch({ type: 'SET_POKAL_UIM', patch: { [feld]: Number.isNaN(n) ? null : n } })
+  ;(e.target as HTMLInputElement).value = String(pokal.value[feld])
+}
+const eigeneUim = computed(() => pokal.value.beste !== pokalVor.value.beste || pokal.value.mindestens !== pokalVor.value.mindestens)
+
 // --- Dateien ---------------------------------------------------------------
 const FILE_KINDS: FileKind[] = ['sicherung', 'vorlage', 'starter']
 const message = ref<{ ok: boolean; text: string } | null>(null)
@@ -153,28 +198,33 @@ async function upload(e: Event) {
   const file = input.files?.[0]
   input.value = ''
   if (!file) return
-  const result = parseFile(await file.text())
+  const result = parseFile(await file.text(), { oberflaeche: locale.value })
   if (!result.ok) {
     message.value = { ok: false, text: t('files.invalid') }
     return
   }
   // Sind schon Ergebnisse erfasst, ist die Starterliste fest (wie beim Einfügen aus Excel).
-  if (result.kind === 'starter' && Object.keys(state.value.eingaben).length > 0) {
-    message.value = { ok: false, text: t('import.locked') + ' ' + t('nav.einstellungen') }
+  if (result.kind === 'starter' && starterfeldFest(state.value)) {
+    message.value = { ok: false, text: `${t('lock.text')} ${t('lock.fix')} ${t('lock.clear')} ${t('lock.or')} ${t('lock.reset')}.` }
     return
   }
   const time = result.savedAt ? formatDateTime(result.savedAt) : t('app.unknown')
   // Mit den Startern gingen ihre erfassten Werte: Die Rückfrage sagt, wie viele betroffen sind.
   const verlust = result.kind === 'starter' ? verlustBeimErsetzen(state.value, result.starters).text : ''
   if (!confirm(t(`files.confirm.${result.kind}`, { time }) + verlust)) return
-  if (result.kind === 'sicherung') dispatch({ type: 'LOAD_STATE', state: result.state })
-  else if (result.kind === 'vorlage') dispatch({ type: 'LOAD_STATE', state: result.apply(state.value) })
-  else dispatch({ type: 'IMPORT_STARTERS', starters: result.starters, mode: 'replace' })
+  if (result.kind === 'sicherung') {
+    dispatch({ type: 'LOAD_STATE', state: result.state }, { art: 'sicherung' })
+    // Eine andere Veranstaltung: Die Auswahl der vorigen (Klasse, Herkunft …) gilt nicht mehr.
+    vergissAuswahl()
+  } else if (result.kind === 'vorlage') dispatch({ type: 'LOAD_STATE', state: result.apply(state.value) }, { art: 'vorlage' })
+  else dispatch({ type: 'IMPORT_STARTERS', starters: result.starters, mode: 'replace', auswahlAusDatei: true })
   message.value = { ok: true, text: t(`files.done.${result.kind}`) }
 }
 
 function reset() {
-  if (confirm(t('backup.resetConfirm'))) dispatch({ type: 'RESET_ALL' })
+  if (!confirm(t('backup.resetConfirm'))) return
+  dispatch({ type: 'RESET_ALL' })
+  vergissAuswahl()
 }
 
 // Stand aus dem Verzahnungs-Prototyp – nur anbieten, solange hier noch nichts liegt.
@@ -182,7 +232,8 @@ const legacy = computed(() => (state.value.starters.length === 0 ? loadLegacyVer
 
 function takeLegacy() {
   if (legacy.value && confirm(t('backup.legacy.confirm'))) {
-    dispatch({ type: 'LOAD_STATE', state: legacy.value })
+    dispatch({ type: 'LOAD_STATE', state: legacy.value }, { art: 'prototyp' })
+    vergissAuswahl()
   }
 }
 </script>
@@ -205,41 +256,24 @@ function takeLegacy() {
         {{ t('listopt.birthdate') }}
       </label>
       <div v-if="state.originMode !== 'none'" class="field">
-        <label>{{ t('listopt.origin') }}</label>
-        <div class="segmented">
-          <button
-            v-for="o in ORIGIN_STYLES"
-            :key="o"
-            type="button"
-            :class="state.listOrigin === o ? 'active' : ''"
-            :aria-pressed="state.listOrigin === o"
-            @click="dispatch({ type: 'SET_LIST_OPTIONS', patch: { listOrigin: o } })"
-          >
-            {{ t(`listopt.origin.${o}`) }}
-          </button>
-        </div>
+        <label :for="`${id}-list-origin`">{{ t('listopt.origin') }}</label>
+        <HerkunftWahl :id="`${id}-list-origin`" data-feld="list-origin" :wert="state.listOrigin" @wahl="dispatch({ type: 'SET_LIST_OPTIONS', patch: { listOrigin: $event as OriginStyle } })" />
       </div>
     </div>
     <p class="note">{{ t('listopt.note') }}</p>
+    <!-- Flaggen: für wen es sie gibt und was „nur Flagge“ auf Papier heißt. -->
+    <p v-if="state.originMode !== 'none'" class="note" data-hinweis="flaggen">{{ t(hatFlaggen(state.originMode) ? 'origin.style.flagNote' : 'origin.style.noFlags') }}</p>
 
-    <div class="row" style="align-items: flex-end; gap: 20px; margin-top: 12px">
-      <div class="field" style="min-width: 240px">
-        <label for="listen-sprache">{{ t('listopt.language') }}</label>
-        <select
-          id="listen-sprache"
-          class="input"
-          data-feld="listen-sprache"
-          :disabled="!spracheWaehlbar"
-          :value="state.listenSprache"
-          @change="dispatch({ type: 'SET_LISTEN_SPRACHE', sprache: ($event.target as HTMLSelectElement).value as ListenSprache })"
-        >
-          <option v-for="s in LISTEN_SPRACHEN" :key="s" :value="s">{{ t(`listopt.language.${s}`) }}</option>
-        </select>
-      </div>
-      <p class="note" data-hinweis="listen-sprache" style="flex: 1; min-width: 220px; margin: 0">
-        {{ spracheWaehlbar ? t('listopt.language.hint') : t('listopt.language.unavailable', { rulebook: regelwerk.label }) }}
-      </p>
-    </div>
+    <!-- Die Sprache der Listen ist keine Einstellung: Sie folgt dem Regelwerk. Hier steht, welche gilt. -->
+    <p class="note" data-hinweis="listen-sprache" :data-sprache="listenSprache" style="margin-top: 12px">
+      <strong>{{ t('listopt.language') }}:</strong>
+      {{ t('listopt.language.rule', { rulebook: regelwerk.label, language: t(`listopt.language.${listenSprache}`) }) }}
+      <template v-if="spracheWaehlbar">
+        {{ t('listopt.language.sheets') }} <a :href="adresse('veranstaltung', { ziel: 'wkr' })">{{ t('nav.veranstaltung') }} → {{ t('wkr.title') }}</a
+        >.
+      </template>
+      <template v-else>{{ t('listopt.language.sheetsFixed') }}</template>
+    </p>
 
     <!-- Laufzettel: wie im Prototyp eine Zeile je Seite, oder dichter eine Zeile je Liste. -->
     <div class="row" style="align-items: flex-end; gap: 20px; margin-top: 12px">
@@ -279,20 +313,8 @@ function takeLegacy() {
         </div>
       </div>
       <div v-if="state.originMode !== 'none'" class="field">
-        <label>{{ t('event.origin') }}</label>
-        <div class="segmented">
-          <button
-            v-for="h in ERGEBNIS_HERKUNFT"
-            :key="h"
-            type="button"
-            :data-herkunft="h"
-            :class="state.ergebnisListen[f].herkunft === h ? 'active' : ''"
-            :aria-pressed="state.ergebnisListen[f].herkunft === h"
-            @click="dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: f, patch: { herkunft: h } })"
-          >
-            {{ t(`listopt.results.origin.${h}`) }}
-          </button>
-        </div>
+        <label :for="`${id}-erg-origin-${f}`">{{ t('event.origin') }}</label>
+        <HerkunftWahl :id="`${id}-erg-origin-${f}`" data-feld="erg-origin" mit-aus :wert="state.ergebnisListen[f].herkunft" @wahl="dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: f, patch: { herkunft: $event } })" />
       </div>
       <span v-if="f === 'intern'" class="note" style="margin: 0; padding-bottom: 8px">{{ t('listopt.results.internNames') }}</span>
     </div>
@@ -309,7 +331,8 @@ function takeLegacy() {
         </thead>
         <tbody>
           <tr v-for="row in shortRows" :key="row.name">
-            <td>{{ row.name }}</td>
+            <!-- Mit Flagge, wo die Herkunft als Bundesland oder Staat erkannt ist – ohne heißt: Sie steht auf den Listen als Text. -->
+            <td><HerkunftText :anzeige="herkunftAnzeige(row.name, state.originMode, 'flagge-lang', {}, locale)" /></td>
             <td>
               <input
                 class="cell-input"
@@ -355,13 +378,114 @@ function takeLegacy() {
     <EingabenHinweis />
   </div>
 
-  <!-- Alles zu den Wettkampfrichter-Listen an einer Stelle: wie sie gedruckt werden und wer an
-       welcher sitzt. Vor den Standardgewichten, die aus dem Regelwerk kommen und selten geändert werden. -->
+  <!-- Pokalauswertung (Mannschaftswertung je Herkunft): gehört zur Veranstaltung und in die Vorlage.
+       Die Vorgaben kommen aus Regelwerk und einstellungen.yaml (config/pokal.ts). -->
+  <div id="pokal" class="panel">
+    <h2>{{ t('cup.title') }}</h2>
+    <p class="hint">{{ t('cup.settings.hint', { origin: state.originMode === 'none' ? t('cup.settings.origin') : t(originLabelKey(state.originMode)) }) }}</p>
+    <p v-if="state.originMode === 'none'" class="boat-banner warn" data-hinweis="pokal-ohne-herkunft" role="status">
+      {{ t('cup.settings.noOrigin') }} <a :href="adresse('veranstaltung')">{{ t('nav.veranstaltung') }}</a
+      >.
+    </p>
+    <div v-for="v in POKAL_VARIANTEN" :key="v" class="cup-variante" :data-variante="v">
+      <label class="boat-check">
+        <input
+          type="checkbox"
+          :data-feld="`pokal-variante|${v}`"
+          :checked="pokal.an.includes(v)"
+          @change="dispatch({ type: 'SET_POKAL_VARIANTE', variante: v, an: ($event.target as HTMLInputElement).checked })"
+        />
+        {{ t(`cup.variant.${v}`) }}
+        <span v-if="pokalVor.an.includes(v)" class="note zusatz-vorgabe">{{ t('cup.preset', { rulebook: regelwerk.label }) }}</span>
+      </label>
+      <p class="note">{{ t(`cup.about.${v}`, { places: pokal.punkte.uim.length }) }}</p>
+      <div v-if="istPlatzVariante(v)" class="row cup-punkte" style="align-items: flex-end">
+        <label v-for="(n, i) in pokal.punkte[v]" :key="i" class="field cup-punkt-feld">
+          <span>{{ i + 1 }}.</span>
+          <input
+            class="input"
+            type="number"
+            min="0"
+            :max="POKAL_PUNKTE_MAX"
+            :class="n !== pokalVor.punkte[v][i] ? 'own' : ''"
+            :data-feld="`pokal-punkte|${v}|${i + 1}`"
+            :value="n"
+            :aria-label="t('cup.pointsFor', { variant: t(`cup.variant.${v}`), n: i + 1 })"
+            @change="setzePokalPunkte(v, i, $event)"
+          />
+        </label>
+        <button v-if="eigenePunkte(v)" class="btn sm" :data-action="`pokal-punkte-vorgabe|${v}`" @click="dispatch({ type: 'SET_POKAL_PUNKTE', variante: v, punkte: null })">
+          {{ t('cup.pointsReset', { points: pokalVor.punkte[v].join(', ') }) }}
+        </button>
+      </div>
+      <template v-else>
+        <div class="row" style="align-items: flex-end; gap: 20px">
+          <div class="field" style="width: 230px">
+            <label for="pokal-beste">{{ t('cup.uim.best') }}</label>
+            <input id="pokal-beste" class="input" type="number" min="1" :max="POKAL_BESTE_MAX" :class="pokal.beste !== pokalVor.beste ? 'own' : ''" data-feld="pokal-beste" :value="pokal.beste" @change="setzePokalUim('beste', $event)" />
+          </div>
+          <div class="field" style="width: 230px">
+            <label for="pokal-mindestens">{{ t('cup.uim.min') }}</label>
+            <input
+              id="pokal-mindestens"
+              class="input"
+              type="number"
+              min="1"
+              :max="POKAL_BESTE_MAX"
+              :class="pokal.mindestens !== pokalVor.mindestens ? 'own' : ''"
+              data-feld="pokal-mindestens"
+              :value="pokal.mindestens"
+              @change="setzePokalUim('mindestens', $event)"
+            />
+          </div>
+          <button v-if="eigeneUim" class="btn sm" data-action="pokal-uim-vorgabe" @click="dispatch({ type: 'SET_POKAL_UIM', patch: { beste: null, mindestens: null } })">
+            {{ t('cup.uim.reset', { best: pokalVor.beste, min: pokalVor.mindestens }) }}
+          </button>
+        </div>
+        <p class="note">{{ t('cup.uim.minHint') }}</p>
+        <p class="note" data-hinweis="pokal-uim-tabelle">{{ t('cup.uim.table', { places: pokal.punkte.uim.length, points: pokal.punkte.uim.join(', ') }) }}</p>
+      </template>
+    </div>
+    <label class="boat-check cup-variante">
+      <input type="checkbox" data-feld="pokal-nur-auswahl" :checked="pokal.nurAuswahl" @change="dispatch({ type: 'SET_POKAL_NUR_AUSWAHL', an: ($event.target as HTMLInputElement).checked })" />
+      {{ t('cup.onlySelected') }}
+    </label>
+    <p class="note">
+      {{ t('cup.onlySelectedHint') }} <a :href="adresse('starter')">{{ t('nav.starter') }}</a
+      >.
+    </p>
+    <p class="note">{{ t('cup.tieNote') }}</p>
+  </div>
+
+  <!-- Wie die Wettkampfrichter-Listen gedruckt werden. Wer an welcher sitzt, steht bei der
+       Veranstaltung (Block „Besetzung“). Vor den Durchschnittsgewichten, die aus dem Regelwerk
+       kommen und selten geändert werden. -->
   <div class="panel" id="wkr-listen">
     <h2>{{ t('listopt.wkr.title') }}</h2>
-    <div class="row" style="align-items: flex-end; gap: 20px">
+    <p class="note" data-hinweis="besetzung">
+      {{ t('crew.moved') }} <a :href="adresse('veranstaltung', { ziel: 'besetzung' })">{{ t('nav.veranstaltung') }} → {{ t('crew.title') }}</a
+      >.
+    </p>
+    <!-- Papier sparen (Clubmeisterschaft): Auf gemeinsamen Bögen stehen die Leerzeilen einmal je Seite. -->
+    <div v-if="leerJeSeite" class="row" style="align-items: flex-end; gap: 20px; margin-bottom: 12px">
       <div class="field" style="width: 170px">
-        <label for="wkr-leerzeilen">{{ t('listopt.wkr.blank') }}</label>
+        <label for="wkr-leerzeilen-seite">{{ t('listopt.wkr.blankPage') }}</label>
+        <input
+          id="wkr-leerzeilen-seite"
+          class="input"
+          type="number"
+          min="0"
+          :max="WKR_LEERZEILEN_MAX"
+          data-feld="wkr-leerzeilen-seite"
+          :value="state.wkrLeerzeilenSeite"
+          @change="setzeLeerzeilenSeite"
+        />
+      </div>
+      <p class="note" style="flex: 1; min-width: 220px; margin: 0">{{ t('listopt.wkr.blankPageHint') }}</p>
+    </div>
+    <div class="row" style="align-items: flex-end; gap: 20px">
+      <div class="field" :style="{ width: leerJeSeite ? '320px' : '170px' }">
+        <label for="wkr-leerzeilen">{{ leerJeSeite ? t('listopt.wkr.blankSingle') : t('listopt.wkr.blank') }}</label>
         <input
           id="wkr-leerzeilen"
           class="input"
@@ -502,9 +626,6 @@ function takeLegacy() {
     </template>
   </div>
 
-  <!-- Die Namen sind Daten der Veranstaltung (nur in der Sicherung, nie in der Vorlage);
-       gepflegt werden sie trotzdem hier, bei den Listen. -->
-  <WkrEinteilung />
 
   <div class="panel">
     <h2>{{ t('weigh.standards') }}</h2>
@@ -533,7 +654,9 @@ function takeLegacy() {
 
   <EigeneAufbautenPanel />
 
-  <div class="panel">
+  <OfflinePanel />
+
+  <div id="dateien" class="panel">
     <h2>{{ t('files.title') }}</h2>
     <p class="hint">{{ t('files.intro') }}</p>
     <ul class="file-list">
@@ -554,7 +677,12 @@ function takeLegacy() {
       {{ t('backup.legacy.text', { n: legacy.starters.length }) }}
       <button class="btn sm" @click="takeLegacy">{{ t('backup.legacy.button') }}</button>
     </p>
+
+    <!-- Zweiter Speicher und Verlauf: gehört zu den Dateien, weil es dieselbe Frage beantwortet – wie komme ich an einen früheren Stand. -->
+    <VerlaufPanel />
   </div>
+
+  <FremdeBestandteile />
   </div>
   </div>
 </template>

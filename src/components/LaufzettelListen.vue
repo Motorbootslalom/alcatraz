@@ -2,7 +2,7 @@
 import { computed, reactive, ref, useId, watchEffect } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
-import { useKonfig } from '../lib/konfig'
+import { useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { buildLaufzettel, listenZeilen, messBoegen, messKennung, waehleLaufzettel, type Laufzettel, type LaufzettelAuswahl } from '../lib/laufzettel'
@@ -11,6 +11,7 @@ import { laufzettelCode } from '../lib/qr'
 import { veranstaltungsListen } from '../lib/listen'
 import { wkrBoegenZumStand, type WkrBogen } from '../lib/wkrListen'
 import { t, tn } from '../i18n'
+import { adresse } from '../lib/router'
 import { useListenSprache } from '../lib/listensprache'
 import type { ClassId } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
@@ -37,11 +38,12 @@ const emit = defineEmits<{
 }>()
 
 const { state } = useStore()
+// Die Namen auf dem Zettel stehen in der Sprache des Regelwerks wie alle Listen außer den
+// Bögen. Gemessen wird dagegen jeder Bogen in seiner eigenen Sprache (zweisprachige Bögen
+// brechen anders um) – sonst passten die Kästchen nicht zu den gedruckten Seiten.
 const konfig = useKonfig()
-// Gemessen wird mit der Konfiguration der Bögen (zweisprachige Bögen brechen anders um); die
-// Namen auf dem Zettel stehen dagegen in der einen Sprache der übrigen Listen – „zweisprachig“
-// gilt nur für die Bögen selbst, und „Tor 1 / 3 / 5 · Gate 1 / 3 / 5 – Seite 1“ kostete Platz.
-const namen = useKonfig({ einsprachig: true })
+const bogenKonfig = useBogenKonfig()
+const namen = konfig
 const { classLabel, regelwerk } = useEvent()
 const id = useId()
 // Was auf dem Zettel steht, folgt der Listensprache (`lt`); die Bedienung der der Oberfläche (`t`).
@@ -62,7 +64,7 @@ const klassen = computed(() => [...new Set(alle.value.flatMap((z) => z.klassen))
 const laeufe = computed(() => [...new Set(alle.value.map((z) => z.lauf))].sort((a, b) => a - b))
 
 // Eine Wahl, die es nach einer Änderung (Aufbau, Verzahnung, Läufe) nicht mehr gibt, gilt als „alle“.
-const wahl = merke<LaufzettelAuswahl>('listen.laufzettel', {})
+const wahl = merke<LaufzettelAuswahl>('listen.laufzettel', {}, { ueberNeuladen: true })
 const auswahl = computed<LaufzettelAuswahl>(() => ({
   parcours: parcours.value.some((p) => p.id === wahl.value.parcours) ? wahl.value.parcours : undefined,
   klasse: wahl.value.klasse !== undefined && klassen.value.includes(wahl.value.klasse) ? wahl.value.klasse : undefined,
@@ -95,7 +97,7 @@ const klassenName = (k: ClassId) => regelwerk.value.klassenNamen[k] ?? k
 const klassenText = (ks: readonly ClassId[]) =>
   ks.length === 1 ? (regelwerk.value.klassenNamen[ks[0]] ?? lt('common.class', { id: ks[0] })) : lt('runsheet.classes', { classes: ks.map(klassenName).join(', ') })
 
-// Der Name der Liste wie im Kopf des Bogens (einsprachig, siehe oben); teilen sich zwei den
+// Der Name der Liste wie im Kopf des Bogens (in der Sprache des Regelwerks, siehe oben); teilen sich zwei den
 // Titel, der ausführliche aus dem Menü.
 const titelVon = computed(() => {
   const jeTyp = new Map(boegen.value.map((b) => [b.typeId, namen.value.getSheetDef(b.typeId).title]))
@@ -124,9 +126,11 @@ const blaetter = computed(() =>
   })),
 )
 const titel = computed(() => [lt('runsheet.title'), eventName.value].filter(Boolean).join(' · '))
+// Der Zettel des letzten Laufs hat eigene Schritte (kein Aushang, dafür das Gesamtergebnis).
 const schritte = computed(() => {
-  const { titel: ueber, schritte: liste } = namen.value.getLaufzettelConfig()
-  return { titel: ueber ? schrittText(ueber, lt) : undefined, liste: liste.map((s) => schrittText(s, lt)) }
+  const { titel: ueber, schritte: liste, schritteLetzterLauf: letzte } = namen.value.getLaufzettelConfig()
+  const text = (s: string) => schrittText(s, lt)
+  return { titel: ueber ? text(ueber) : undefined, liste: liste.map(text), letzte: letzte.map(text) }
 })
 
 const merkeSeiten = (b: WkrBogen, anzahl: number) => seiten.set(messKennung(b), anzahl)
@@ -171,13 +175,13 @@ const { zoom } = useBogenZoom(stapel)
     </div>
     <p v-if="zuVielAnzahl > 0" class="boat-banner warn" role="status" data-hinweis="lz-zuviel">
       {{ tn('runsheet.overflowNote', zuVielAnzahl) }}
-      <template v-if="state.laufzettelLayout !== 'liste'">{{ t('runsheet.overflowFix') }} <a href="#/einstellungen">{{ t('nav.einstellungen') }}</a>.</template>
+      <template v-if="state.laufzettelLayout !== 'liste'">{{ t('runsheet.overflowFix') }} <a :href="adresse('einstellungen')">{{ t('nav.einstellungen') }}</a>.</template>
     </p>
     <p class="note" data-hinweis="lz-layout">
-      {{ t('runsheet.layoutNote', { layout: t(`listopt.runsheet.${state.laufzettelLayout}`) }) }} <a href="#/einstellungen">{{ t('nav.einstellungen') }}</a>.
+      {{ t('runsheet.layoutNote', { layout: t(`listopt.runsheet.${state.laufzettelLayout}`) }) }} <a :href="adresse('einstellungen')">{{ t('nav.einstellungen') }}</a>.
     </p>
     <p class="note">{{ t('runsheet.print') }}</p>
-    <p class="note">{{ t('runsheet.scan') }} <a href="#/erfassung">{{ t('nav.erfassung') }}</a>.</p>
+    <p class="note">{{ t('runsheet.scan') }} <a :href="adresse('erfassung')">{{ t('nav.erfassung') }}</a>.</p>
   </div>
 
   <div v-if="!gesperrt && alle.length > 0 && zettel.length === 0" class="panel empty no-print">{{ t('runsheet.none') }}</div>
@@ -195,7 +199,8 @@ const { zoom } = useBogenZoom(stapel)
       :layout="state.laufzettelLayout"
       :qr="b.qr"
       :schritte-titel="schritte.titel"
-      :schritte="schritte.liste"
+      :schritte="b.zettel.letzterLauf ? schritte.letzte : schritte.liste"
+      :data-letzter-lauf="b.zettel.letzterLauf || undefined"
       :sprache="listenLocale"
       :data-zettel="b.zettel.id"
       @zuviel="merkeZuViel(b.zettel.id, $event)"
@@ -207,7 +212,7 @@ const { zoom } = useBogenZoom(stapel)
     <BogenBlatt
       v-for="b in zuMessen"
       :key="messKennung(b)"
-      :konfig="konfig"
+      :konfig="bogenKonfig(b.typeId)"
       :auftrag="b.auftrag"
       :optionen="b.optionen"
       :rueckseite="state.wkrRueckseite"

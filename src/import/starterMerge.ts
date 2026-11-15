@@ -13,6 +13,11 @@ import type { Starter } from '../types'
  * Namen – so findet auch ein Starter zurück, dessen Nummer sich geändert hat
  * oder für den keine Nummer mitkam. Wer die Klasse wechselt, gilt als neu: Er
  * fährt dann womöglich auf einem anderen Parcours.
+ *
+ * Die Auswahl für die Pokalauswertung (`Starter.pokal`) kennt nur eine Teilnehmerdaten-Datei
+ * dieses Programms – dort steht sie, und nach dem Laden gilt sie so, wie sie in der Datei
+ * steht (`auswahl: 'datei'`; ein Starter ohne Abwahl zählt wieder). Eine Liste aus Excel kennt
+ * sie nicht und darf sie deshalb nicht löschen (`auswahl: 'bisher'`, die Vorgabe).
  */
 export interface MergeResult {
   starters: Starter[]
@@ -29,7 +34,7 @@ const nameKey = (s: Starter) =>
 
 const FIELDS: (keyof Starter)[] = ['startNr', 'vorname', 'nachname', 'verein', 'bundesland', 'land', 'geburtsdatum', 'groesse']
 
-export function mergeStarters(existing: Starter[], imported: Starter[]): MergeResult {
+export function mergeStarters(existing: Starter[], imported: Starter[], auswahl: 'bisher' | 'datei' = 'bisher'): MergeResult {
   const matchOf = new Map<Starter, Starter>()
   const taken = new Set<Starter>()
 
@@ -61,14 +66,18 @@ export function mergeStarters(existing: Starter[], imported: Starter[]): MergeRe
       added.push(neu)
       return neu
     }
-    // Nummer und Gewicht kommen selten mit – dann bleiben die bisherigen stehen.
+    // Nummer und Gewicht kommen selten mit – dann bleiben die bisherigen stehen. Die Abwahl für
+    // die Pokalauswertung bleibt nur stehen, wenn die Quelle sie nicht kennt (siehe oben).
+    const { pokal: _pokal, ...ohneAuswahl } = neu
+    const abgewaehlt = auswahl === 'datei' ? neu.pokal === false : neu.pokal === false || old.pokal === false
     const merged: Starter = {
-      ...neu,
+      ...ohneAuswahl,
       id: old.id,
       startNr: neu.startNr.trim() || old.startNr,
       gewicht: neu.gewicht ?? old.gewicht,
+      ...(abgewaehlt ? { pokal: false as const } : {}),
     }
-    if (FIELDS.some((f) => merged[f] !== old[f])) changed.push(merged)
+    if (FIELDS.some((f) => merged[f] !== old[f]) || (merged.pokal === false) !== (old.pokal === false)) changed.push(merged)
     else unchanged++
     return merged
   })

@@ -86,3 +86,36 @@ laufzettel:
     - "Unterschrieben"
     - "Ausgehangen"
     - "An die ML geschickt"
+  # Der Zettel des letzten Laufs (bei nur einem Lauf: dieser) hat eigene Schritte. DM-Reglement
+  # C6 „Auswertung“: „Die Auswertungen zum Lauf 1 und 2 werden für alle sichtbar ausgehangen.
+  # Die Auswertung Lauf 3 kann nur vom Mannschaftsleiter nach Aufruf eingesehen werden.“ Der
+  # letzte Lauf wird also nicht mehr ausgehängt, die Mannschaftsleiter sehen ihn nur ein;
+  # danach folgt das Gesamtergebnis. (Bei nur zwei Läufen behandelt das Programm den zweiten
+  # als letzten – Vorgabe des Veranstalters; das Reglement nennt Lauf 1 und 2 als Aushang.)
+  # Die Protestfrist (C7: schriftlich, spätestens ½ Stunde nach eingeräumter Möglichkeit der
+  # Sichtung der Wertungsliste) hat keinen eigenen Schritt. Auf diesem Zettel stehen auch die
+  # Knoten – sie zählen erst zum Gesamtergebnis. Fehlt die Angabe, gelten die Schritte oben.
+  schritteLetzterLauf:
+    - "Ergebnis sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)"
+    - "Ergebnis sortiert nach Platz"
+    - "Kontrolliert"
+    - "Unterschrieben"
+    - "Einsicht der Mannschaftsleiter (kein Aushang)"
+    - "Gesamtergebnis gedruckt"
+    - "Gesamtergebnis kontrolliert"
+
+# ---- Mannschaftswertung je Herkunft (im Code „pokal“) --------------
+# Punkte je Platz der Gesamtliste einer Klasse, für die beiden Varianten, die es in jedem
+# Regelwerk gibt. Es sind Vorgaben: Unter „Einstellungen → Mannschaftswertung“ lassen sich die
+# Punkte ändern; die Zahl der Plätze (3 bzw. 6) steht mit der Länge der Liste fest.
+#   plaetze3   die ersten drei Plätze je Klasse: 10, 7, 5 Punkte
+#   plaetze6   die ersten sechs Plätze je Klasse: 6, 5, 4, 3, 2, 1 Punkte (so rechnet die
+#              Excel-Mappe der DM 2026, Blatt „Eingaben“, „Punkte für Platz“; im DM-Reglement
+#              steht diese Wertung nicht – C6 kennt nur die Länderwertung nach UIM-Punkten)
+# Die dritte Variante (`uim`: Punkte für die Plätze 1 bis 20, je Herkunft zählen die fünf
+# Besten) steht mit ihrer Tabelle im Regelwerk der UIM (regelwerke/uim-2026.yaml, `pokal.uim`).
+# Welche Varianten eine neue Veranstaltung eingeschaltet hat, sagt das Regelwerk (`pokal.vorgabe`).
+# Der Block heißt hier `pokalPunkte`, damit er sich mit dem `pokal` des Regelwerks nicht überdeckt.
+pokalPunkte:
+  plaetze3: [10, 7, 5]
+  plaetze6: [6, 5, 4, 3, 2, 1]

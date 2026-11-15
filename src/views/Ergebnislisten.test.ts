@@ -3,6 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ListsView from './ListsView.vue'
 import { createStore, storeKey, type Store } from '../state/store'
+import { emptyState } from '../state/reducer'
 import { laufSchluessel } from '../lib/eingaben'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
@@ -173,7 +174,9 @@ describe('Listen: Ergebnislisten', () => {
     expect(reihen()[1].find('td.erg-dns').classes()).toContain('erg-disq')
     expect(gestrichen(2)).toEqual(['01:15,00', '15', '90,00'])
 
-    await waehle(wrapper, 'ordnung', 'nummer')
+    // Die Gesamtliste hat ihre eigene Reihenfolge; die der Läufe steht bei „nur Gesamtliste“ nicht da.
+    expect(wrapper.find('select[data-feld="erg-ordnung"]').exists()).toBe(false)
+    await waehle(wrapper, 'ordnung-gesamt', 'nummer')
     expect(kurz().map((k) => k.split(' ')[1])).toEqual(['401', '402', '403'])
     await waehle(wrapper, 'abstand', 'erster')
     expect(spalten(wrapper).at(-1)).toBe('Abstandzum 1. Platz') // im Kopf zweizeilig (<br>)
@@ -190,20 +193,51 @@ describe('Listen: Ergebnislisten', () => {
     await waehle(wrapper, 'klasse', '1')
     await waehle(wrapper, 'lauf', '1')
     const reihen = () => wrapper.findAll('.ergebnis-blatt tbody tr').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()}${r.attributes('data-stich') !== undefined ? ' *' : ''}`)
-    // DM: Der schnellere Lauf steht vorn – die Zeit steht in derselben Zeile.
-    expect(reihen()).toEqual(['1 103 *', '2 102 *', '3 101'])
+    // DM: Der schnellere Lauf steht vorn – die Zeit steht in derselben Zeile. Am Platz steht
+    // ein Sternchen (auch im Druck), die Zeile trägt `data-stich`.
+    expect(reihen()).toEqual(['1* 103 *', '2* 102 *', '3 101'])
     expect(wrapper.find('[data-hinweis="stich"]').text()).toBe(
       'Bei gleichen Punkten steht vorn, wer den schnelleren gewerteten Lauf hat (gefahrene Zeit ohne Strafpunkte). Trennt auch das nicht, teilen sich die Starter den Platz.',
     )
-    // UIM: Für den einzelnen Versuch gibt es keinen Stichentscheid – geteilter Platz.
+    // Unter der Tabelle erklärt eine Zeile das Sternchen – mit der Regel in Worten; sie gehört zum Blatt.
+    const erklaerung = () => wrapper.findAll('.ergebnis-blatt .erg-fuss .erg-stich-hinweis').map((p) => p.text())
+    expect(erklaerung()).toEqual(['* Platz durch Stichentscheid. Bei gleichen Punkten steht vorn, wer den schnelleren gewerteten Lauf hat (gefahrene Zeit ohne Strafpunkte).'])
+    expect(wrapper.find('.erg-stich-hinweis').classes()).not.toContain('no-print')
+    // Nur auf Listen, auf denen ein solcher Platz vorkommt: Klasse 4 hat im 1. Lauf keinen.
+    await waehle(wrapper, 'klasse', '')
+    const jeBlatt = wrapper.findAll('.ergebnis-blatt').map((b) => [b.find('.erg-kopf-klasse').text(), b.findAll('.erg-platz .erg-stich-zeichen').length, b.find('.erg-stich-hinweis').exists()])
+    expect(jeBlatt).toEqual([
+      ['Klasse 1', 2, true],
+      ['Klasse 4', 0, false],
+    ])
+    await waehle(wrapper, 'klasse', '1')
+    // UIM: Für den einzelnen Versuch gibt es keinen Stichentscheid – geteilter Platz, kein Zeichen, keine Erklärung.
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     await nextTick()
     expect(reihen()).toEqual(['1 102', '1 103', '3 101'])
+    expect(erklaerung()).toEqual([])
     expect(wrapper.find('[data-hinweis="stich"]').text()).toContain('Summe aller Läufe')
     setLocale('en')
     await nextTick()
     expect(wrapper.find('[data-hinweis="stich"]').text()).toBe(
       'On equal results, the competitor with the better sum of all attempts ranks higher (including penalties, the dropped attempt too); anyone without a valid result in every attempt ranks behind. If that does not separate them either, the competitors share the rank.',
+    )
+    wrapper.unmount()
+  })
+
+  it('Stichentscheid in der Gesamtliste: Sternchen und Erklärung in der Sprache der Liste (UIM englisch)', async () => {
+    // Klasse 1 nach UIM, zwei Läufe, der bessere zählt: 101 und 102 haben beide 65 als besten
+    // Lauf; die Summe aller Läufe (101: 65 + 70, 102: 65 + 80) entscheidet.
+    const neu = createStore()
+    neu.dispatch({ type: 'LOAD_STATE', state: { ...emptyState(), kennung: 'K7Q4', eventName: 'Hafenpokal', regelwerk: 'uim-2026', laufCount: 2, streichlaeufe: 1, starters: starter(['1']) } })
+    for (const [id, lauf, sek] of [['id-1-1', 1, '65'], ['id-1-1', 2, '70'], ['id-1-2', 1, '80'], ['id-1-2', 2, '65'], ['id-1-3', 1, '90'], ['id-1-3', 2, '91']] as const) zeit(neu, lauf, id, sek)
+    const wrapper = ansicht(neu)
+    await ergebnisse(wrapper)
+    await waehle(wrapper, 'umfang', 'gesamt')
+    const blatt = wrapper.find('.ergebnis-blatt[data-art="gesamt"]')
+    expect(blatt.findAll('tbody tr').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()}`)).toEqual(['1* 101', '2* 102', '3 103'])
+    expect(blatt.find('.erg-fuss .erg-stich-hinweis').text()).toBe(
+      '* Rank decided by tie-break. On equal results, the competitor with the better sum of all attempts ranks higher (including penalties, the dropped attempt too); anyone without a valid result in every attempt ranks behind.',
     )
     wrapper.unmount()
   })
@@ -224,7 +258,7 @@ describe('Listen: Ergebnislisten', () => {
     wrapper.unmount()
   })
 
-  it('Drucken: Fenstertitel mit Listenart, Klasse, Lauf, Veranstaltung und Zeitpunkt – in der Sprache der Oberfläche', async () => {
+  it('Drucken: Fenstertitel in der Sprache der Oberfläche, die Liste in der des Regelwerks; im Seitenrand steht nichts', async () => {
     const print = vi.fn()
     vi.stubGlobal('print', print)
     const wrapper = ansicht(store)
@@ -238,18 +272,32 @@ describe('Listen: Ergebnislisten', () => {
     await waehle(wrapper, 'klasse', '')
     await wrapper.find('button.primary').trigger('click')
     expect(document.title).toMatch(/^Ergebnislisten - alle Klassen - Lauf 1, 2, 3 - Gesamt - Hafenpokal 2026 - /)
-    // Seitenzähler und Zeitpunkt stehen im Seitenrand der Querformat-Seite.
-    expect(wrapper.find('style').text()).toMatch(/@page ergebnis \{ @bottom-center \{ content: "Seite " counter\(page\) " von " counter\(pages\)/)
+    // Im Seitenrand steht nichts: Die Ansicht erzeugt kein Stylesheet mehr, also auch keine
+    // Randbox mit dem Druckzeitpunkt. Eine Seitenzahl schreibt die Liste selbst aufs Blatt,
+    // wenn sie mehr als eine Seite hat – hier hat keine eine.
+    expect(wrapper.find('style').exists()).toBe(false)
+    expect(wrapper.find('.listen-seitenzahl').exists()).toBe(false)
+    expect(wrapper.find('.ergebnis-stapel').text()).not.toMatch(/Seite \d/)
 
     setLocale('en')
     await nextTick()
     await waehle(wrapper, 'klasse', '4')
     await waehle(wrapper, 'umfang', 'gesamt')
     await wrapper.find('button.primary').trigger('click')
+    // Der Fenstertitel ist Bedienung (englisch); die Liste bleibt nach den DM-Regeln deutsch.
     expect(document.title).toMatch(/^Results - Class 4 - Overall - Hafenpokal 2026 - /)
+    expect(koepfe(wrapper)).toEqual(['Klasse 4 | Gesamt | Hafenpokal 2026'])
+    expect(spalten(wrapper).slice(0, 6)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', '1. Lauf'])
+    expect(zeilen(wrapper)[1].at(-1)).toBe('161,00')
+    expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Nicht gestartet'])
+    // Nach den UIM-Regeln ist sie englisch – auch bei deutscher Oberfläche: Dezimalpunkt, „DSQ“.
+    setLocale('de')
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 3 } })
+    store.dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: 1 })
+    await nextTick()
     expect(koepfe(wrapper)).toEqual(['Class 4 | Overall | Hafenpokal 2026'])
     expect(spalten(wrapper).slice(0, 6)).toEqual(['Rank', 'No.', 'Surname', 'First name', 'Club', 'Attempt 1'])
-    // Englisch: Dezimalpunkt, „DSQ“.
     const z = zeilen(wrapper)
     expect(z[1].at(-1)).toBe('161.00')
     expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start'])
@@ -257,13 +305,16 @@ describe('Listen: Ergebnislisten', () => {
     store.dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: 0 })
     await nextTick()
     expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start', 'DSQ', 'DSQ'])
-    expect(wrapper.find('style').text()).toContain('"Page " counter(page) " of " counter(pages)')
+    // Auch englisch: nichts im Seitenrand, keine Seitenzahl bei einer Seite.
+    expect(wrapper.find('style').exists()).toBe(false)
+    expect(wrapper.find('.ergebnis-stapel').text()).not.toMatch(/Page \d/)
     vi.unstubAllGlobals()
     wrapper.unmount()
   })
 
   it('Klasse 7 mit ausgeschriebenem Vereinsnamen: Die Bojen-Spalten behalten ihre Breite, „20“ steht kleiner statt abgeschnitten', async () => {
-    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['7']).map((p) => ({ ...p, verein: 'Beispielverein Süd am See' })) })
+    // Mit erfassten Werten steht das Starterfeld fest – die Klasse 7 kommt deshalb mit einem geladenen Stand dazu.
+    store.dispatch({ type: 'LOAD_STATE', state: { ...store.state.value, starters: [...store.state.value.starters, ...starter(['7']).map((p) => ({ ...p, verein: 'Beispielverein Süd am See' }))] } })
     zeit(store, 1, 'id-7-1', '80')
     wert(store, 1, 'id-7-1', 't5|hin seiteA', '20')
     store.dispatch({ type: 'SET_ERGEBNIS_LISTEN', fassung: 'aushang', patch: { herkunft: 'lang' } })

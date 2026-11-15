@@ -1,33 +1,55 @@
 import { computed, type ComputedRef } from 'vue'
 import { useStore } from '../state/store'
+import { locale } from '../i18n'
 import { configFor, type Konfig } from '../config/konfig'
-import { useListenSprache } from './listensprache'
+import { useListenSprache, wkrSpracheFuer } from './listensprache'
 
 /**
- * Die Konfiguration der Wettkampfrichter-Listen zum Stand der Veranstaltung: Regelwerk,
- * eigene Aufbauten, Bezeichnung der Bojen-Seiten und Sprache der Listen kommen aus dem
- * Store. Weil `configFor` rein ist, genügt ein `computed` – ein Wechsel des Regelwerks oder
- * ein neuer eigener Aufbau wirkt von selbst überall, ohne dass eine Ansicht etwas neu laden
- * müsste.
+ * Die Konfiguration zum Stand der Veranstaltung: Regelwerk, eigene Aufbauten und Bezeichnung
+ * der Bojen-Seiten kommen aus dem Store. Weil `configFor` rein ist, genügt ein `computed` –
+ * ein Wechsel des Regelwerks oder ein neuer eigener Aufbau wirkt von selbst überall, ohne
+ * dass eine Ansicht etwas neu laden müsste.
  *
- * Die Sprache kommt aus lib/listensprache.ts (sie wirkt nur, wo das Regelwerk Englisch
- * anbietet). `einsprachig`: für alles, was nicht der Bogen selbst ist – Ergebnislisten und
- * die Tabelle der Erfassung. Dort stünden zweisprachige Spaltenköpfe („Tor 1 / Gate 1“) in
- * Spalten, die gerade zwei Ziffern breit sind; es gilt die eine Sprache der übrigen Listen.
+ * Die Sprache ist die des Regelwerks (lib/listensprache.ts): für Ergebnislisten, Laufzettel,
+ * den Aushang der Codes und die Namen der Listen in den Einstellungen. Nur die
+ * Wettkampfrichter-Bögen selbst haben ihre Sprache je Liste – siehe {@link useBogenKonfig}.
+ *
+ * `oberflaeche`: für die Erfassung. Sie ist Bedienung, gedruckt wird dort nichts – ihre
+ * Spaltenköpfe stehen wie alles um sie herum in der Sprache der Oberfläche (soweit das
+ * Regelwerk sie hat; sonst deutsch). Die Bögen, von denen abgetippt wird, können je Liste
+ * eine andere Sprache haben; die Spalten sind in jeder dieselben.
  *
  * Die Bezeichnung der Bojen-Seiten gilt immer: Die Erfassung tippt vom Bogen ab und muss
  * dieselben Köpfe zeigen. Die Ergebnislisten nennen die Bojen unabhängig davon R und L
  * (lib/ergebnis.ts).
  */
-export function useKonfig(optionen: { einsprachig?: boolean } = {}): ComputedRef<Konfig> {
+export function useKonfig(optionen: { oberflaeche?: boolean } = {}): ComputedRef<Konfig> {
   const { state } = useStore()
-  const { bogenSprache, listenLocale } = useListenSprache()
+  const { listenLocale } = useListenSprache()
   return computed(() =>
     configFor({
       regelwerk: state.value.regelwerk,
-      sprache: optionen.einsprachig ? listenLocale.value : bogenSprache.value,
+      sprache: optionen.oberflaeche ? locale.value : listenLocale.value,
       beschriftung: state.value.beschriftung,
       eigeneAufbauten: state.value.eigeneAufbauten,
     }),
   )
+}
+
+/**
+ * Die Konfiguration, mit der der Bogen einer Liste gezeichnet wird: wie {@link useKonfig},
+ * aber in der Sprache, die für diese Liste gewählt ist (deutsch, englisch, zweisprachig).
+ * Aufbau, Spalten und Kennungen sind in jeder Sprache dieselben – nur die Texte wechseln.
+ * `configFor` merkt sich jede Fassung; mehr als drei entstehen nicht. Reaktiv, wenn in einem
+ * `computed` oder in der Vorlage aufgerufen.
+ */
+export function useBogenKonfig(): (typeId: string) => Konfig {
+  const { state } = useStore()
+  return (typeId) =>
+    configFor({
+      regelwerk: state.value.regelwerk,
+      sprache: wkrSpracheFuer(state.value, typeId),
+      beschriftung: state.value.beschriftung,
+      eigeneAufbauten: state.value.eigeneAufbauten,
+    })
 }

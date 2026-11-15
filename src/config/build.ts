@@ -49,14 +49,16 @@ export interface RegelwerkInfo {
   label: string
   /** Angebotene Sprachen der Listen, z. B. [de] oder [de, en]. */
   sprachen: string[]
+  /** Sprache aller Listen außer den Wettkampfrichter-Bögen; für diese die Vorgabe. */
+  listenSprache: 'de' | 'en'
   /** Klassen dieses Regelwerks. */
   klassen: string[]
   /** Was bei gleichem Ergebnis entscheidet, der Reihe nach; leer = der Platz wird geteilt. */
   stichentscheid: StichKriterium[]
   /** Disziplin → Listen, die das Regelwerk in jedem ihrer Aufbauten vorsieht (abwählbare Vorgabe, lib/listen.ts). */
   vorgabeListen: Record<string, string[]>
-  /** Läufe und Streichläufe, die das Regelwerk vorsieht; fehlt die Angabe, macht es keine. */
-  wertungslaeufe?: { laeufe: number; streichlaeufe: number }
+  /** Läufe und Streichläufe, die das Regelwerk vorsieht; fehlt die Angabe, macht es keine. `nurVorgabe`: nur Voreinstellung, kein Hinweis bei Abweichung. */
+  wertungslaeufe?: Wertungslaeufe
 }
 
 /** Inhalt der A4-Legende: alle Codes und Strafen eines Regelwerks. */
@@ -89,7 +91,7 @@ export interface ResolvedConfig {
   /** Auf der Seite umschaltbare Bezeichnungs-Schemata (der erste ist Standard). */
   beschriftungen: BeschriftungScheme[]
   /** Laufzettel: Arbeitsschritte der Auswertung unter den Seiten-Checkboxen. */
-  laufzettel: { titel?: string; schritte: string[] }
+  laufzettel: { titel?: string; schritte: string[]; /** Auf dem Zettel des letzten Laufs. */ schritteLetzterLauf: string[] }
 }
 
 // 'trenner' ist keine Datenspalte und taucht hier nicht auf (wird vorher aus der
@@ -217,12 +219,25 @@ function vorgabeListen(raw: unknown): Record<string, string[]> {
   )
 }
 
+export interface Wertungslaeufe {
+  laeufe: number
+  streichlaeufe: number
+  nurVorgabe?: true
+}
+
 /** Nur eine stimmige Angabe gilt: mindestens ein Lauf, weniger Streichläufe als Läufe. */
-function wertungslaeufe(raw: unknown): { laeufe: number; streichlaeufe: number } | undefined {
+function wertungslaeufe(raw: unknown): Wertungslaeufe | undefined {
   if (!raw || typeof raw !== 'object') return undefined
-  const { laeufe, streichlaeufe = 0 } = raw as { laeufe?: unknown; streichlaeufe?: unknown }
+  const { laeufe, streichlaeufe = 0, nurVorgabe } = raw as { laeufe?: unknown; streichlaeufe?: unknown; nurVorgabe?: unknown }
   const ganz = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x)
-  return ganz(laeufe) && ganz(streichlaeufe) && laeufe >= 1 && streichlaeufe >= 0 && streichlaeufe < laeufe ? { laeufe, streichlaeufe } : undefined
+  if (!(ganz(laeufe) && ganz(streichlaeufe) && laeufe >= 1 && streichlaeufe >= 0 && streichlaeufe < laeufe)) return undefined
+  return nurVorgabe === true ? { laeufe, streichlaeufe, nurVorgabe: true } : { laeufe, streichlaeufe }
+}
+
+/** Nur eine Sprache, die das Regelwerk anbietet; sonst seine erste (ohne Angabe: deutsch). */
+function listenSprache(rw: RawRegelwerk): 'de' | 'en' {
+  const angeboten = (rw.sprachen ?? ['de']).filter((s): s is 'de' | 'en' => s === 'de' || s === 'en')
+  return angeboten.find((s) => s === rw.listenSprache) ?? angeboten[0] ?? 'de'
 }
 
 /** Kenndaten eines Regelwerks; fehlende Angaben bekommen neutrale Standardwerte. */
@@ -231,6 +246,7 @@ export function regelwerkInfo(rw: RawRegelwerk): RegelwerkInfo {
     id: rw.id ?? 'standard',
     label: [rw.name ?? rw.id ?? 'Standard', rw.version].filter((x) => x !== undefined).join(' '),
     sprachen: rw.sprachen ?? ['de'],
+    listenSprache: listenSprache(rw),
     klassen: rw.klassen ? rw.klassen.map(String) : [...CLASS_IDS],
     // Unbekanntes meldet die Prüfung (validate.ts); gewertet wird nur, was es gibt.
     stichentscheid: [...new Set(Array.isArray(rw.stichentscheid) ? rw.stichentscheid : [])].filter((k): k is StichKriterium => (STICH_KRITERIEN as readonly string[]).includes(k)),
@@ -478,6 +494,8 @@ export function buildConfig(
   const laufzettel = {
     titel: raw.laufzettel?.titel,
     schritte: (raw.laufzettel?.schritte ?? []).map((x) => String(x)),
+    // Ohne eigene Angabe steht auf dem letzten Zettel dasselbe wie auf den anderen.
+    schritteLetzterLauf: (raw.laufzettel?.schritteLetzterLauf ?? raw.laufzettel?.schritte ?? []).map((x) => String(x)),
   }
 
   return {

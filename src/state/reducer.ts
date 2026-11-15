@@ -15,7 +15,7 @@ import type {
   ErgebnisHerkunft,
   ErgebnisListenOptionen,
   ErgebnisNamen,
-  ListenSprache,
+  Sprache,
   LaufzettelLayout,
 } from '../types'
 import type { RawAufbau } from '../config/schema'
@@ -30,14 +30,18 @@ import {
 } from '../domain/startnumbers'
 import { mergeStarters } from '../import/starterMerge'
 import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
-import { gueltigeZellen, nurStarter, setzeWerte, type EingabeZelle } from '../lib/eingaben'
+import { setzeBesetzung } from '../lib/besetzung'
+import { gueltigeZellen, nurStarter, setzeWerte, starterfeldFest, type EingabeZelle } from '../lib/eingaben'
 import { normalisiereZusatzListen, vorgabeListenVon } from '../lib/listen'
 import { beispielEingaben, zufallAus, type Zeitnahme } from '../lib/beispielwerte'
 import { configFor, type Konfig } from '../config/konfig'
-import { listenStandNach } from '../lib/listenStand'
+import { geaenderteListen, listenStandNach } from '../lib/listenStand'
+import { streichlaeufeVon } from '../lib/ergebnis'
 import { mitTor5Umzug } from './tor5'
 import { istKennung } from '../lib/qr'
+import { isSprache } from '../config/sprache'
 import { canonicalRunningNumbers } from '../planung/running'
+import { POKAL_LEER, POKAL_PLATZ_VARIANTEN, istPokalVariante, pokalVorgabe, pokalZahl, punkteListe, type PokalPlatzVariante, type PokalVariante } from '../config/pokal'
 import { aufbauOf, beschriftungOf, DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT_REGELWERK, hasParallel, regelwerkOf } from '../config/catalog'
 
 /**
@@ -70,7 +74,7 @@ type Aenderung =
   | { type: 'SET_EIGENE_AUFBAUTEN'; aufbauten: RawAufbau[]; aufbau?: string }
   /** Gewicht aus der Verwiegung; `null` heißt „noch nicht gewogen“. */
   | { type: 'SET_WEIGHT'; id: string; gewicht: number | null }
-  /** Eigenes Standardgewicht setzen; `null` oder der Wert des Regelwerks entfernt den Eintrag. */
+  /** Eigenes Durchschnittsgewicht setzen; `null` oder der Wert des Regelwerks entfernt den Eintrag. */
   | { type: 'SET_SOLLGEWICHT'; klasse: ClassId; kg: number | null }
   | { type: 'RESET_SOLLGEWICHT' }
   /**
@@ -94,7 +98,11 @@ type Aenderung =
    * ihre ID (Startlisten und Ergebnisse verweisen darauf). `merge`: Nur neue
    * Starter kommen hinzu, Dubletten (Klasse + Name) werden übergangen.
    */
-  | { type: 'IMPORT_STARTERS'; starters: Starter[]; mode: 'replace' | 'merge' }
+  /**
+   * `auswahlAusDatei`: Die Quelle kennt die Auswahl für die Pokalauswertung (Teilnehmerdaten-
+   * Datei) – sie gilt dann wie geladen. Ohne (Excel) bleibt eine bestehende Abwahl stehen.
+   */
+  | { type: 'IMPORT_STARTERS'; starters: Starter[]; mode: 'replace' | 'merge'; auswahlAusDatei?: true }
   /** `beispiel`: erfundene Starter aus den Beispieldaten – das Feld gilt danach als Beispiel-Starterfeld. */
   | { type: 'ADD_STARTERS'; starters: Starter[]; beispiel?: boolean }
   | { type: 'UPDATE_STARTER'; id: string; patch: Partial<Omit<Starter, 'id'>> }
@@ -120,6 +128,9 @@ type Aenderung =
    * verschiedene Felder ausfüllen, einander nichts überschreiben.
    */
   | { type: 'SET_WKR_NAME'; parcoursId: string; typeId: string; name: string }
+  /** Boot bzw. Co-Pilot einer Klasse (Block „Besetzung“); ein leerer Text entfernt die Angabe. */
+  | { type: 'SET_BOOT'; klasse: ClassId; text: string }
+  | { type: 'SET_CO_PILOT'; klasse: ClassId; text: string }
   /**
    * Leerzeilen der Wettkampfrichter-Listen: allgemein (`klasse` fehlt) oder für eine Klasse;
    * `null` = wieder die allgemeine Zahl bzw. die Vorgabe. `alleKlassen` verwirft dabei die
@@ -135,7 +146,13 @@ type Aenderung =
   | { type: 'SET_WKR_SEITEN'; patch: { zeilenJeSeite?: number | null; teilenAb?: number | null } }
   /** Bezeichnung der Bojen-Seiten auf den Listen; eine unbekannte Kennung gilt als Vorgabe. */
   | { type: 'SET_BESCHRIFTUNG'; beschriftung: string }
-  | { type: 'SET_LISTEN_SPRACHE'; sprache: ListenSprache }
+  /**
+   * Sprache der Wettkampfrichter-Bögen für die genannten Listen (eine Zeile der Einteilung
+   * oder „alle auf …“); `null` = wieder die Sprache des Regelwerks.
+   */
+  | { type: 'SET_WKR_SPRACHE'; typeIds: readonly string[]; sprache: Sprache | null }
+  /** Leerzeilen je Seite auf gemeinsamen Bögen (Clubmeisterschaft, Papier sparen); `null` = Vorgabe. */
+  | { type: 'SET_WKR_LEERZEILEN_SEITE'; anzahl: number | null }
   /**
    * „Tor 5 übernimmt die Parcoursüberwachung“. Was zur Liste Tor 5 gehört (Disq., Bemerkung,
    * Haken „erfasst“, Name des Wettkampfrichters), zieht dabei auf die zusammengelegte Liste
@@ -170,6 +187,21 @@ type Aenderung =
    * Gedruckte Bögen tragen die Kennung, sie darf sich danach nicht mehr ändern.
    */
   | { type: 'SET_KENNUNG'; kennung: string }
+  /** Eine Variante der Pokalauswertung ein- oder ausschalten; im Stand bleibt nur die Abweichung vom Regelwerk. */
+  | { type: 'SET_POKAL_VARIANTE'; variante: PokalVariante; an: boolean }
+  /** Punkte je Platz einer Variante (Platz 1, 2, 3 …); `null` oder die Vorgabe selbst = wieder die Vorgabe. */
+  | { type: 'SET_POKAL_PUNKTE'; variante: PokalPlatzVariante; punkte: number[] | null }
+  /** UIM-Variante: Zahl der Besten und Mindestzahl der Starter je Herkunft; `null` = wieder die des Regelwerks. */
+  | { type: 'SET_POKAL_UIM'; patch: { beste?: number | null; mindestens?: number | null } }
+  /** „Nur ausgewählte Starter zählen“. Die Auswahl selbst bleibt beim Ausschalten stehen. */
+  | { type: 'SET_POKAL_NUR_AUSWAHL'; an: boolean }
+  /**
+   * Auswahl für die Pokalauswertung: die genannten Starter zählen (oder nicht) bzw. ihre
+   * Markierung wird umgekehrt. Ändert das Starterfeld nicht und geht deshalb auch, wenn schon
+   * Ergebnisse erfasst sind.
+   */
+  | { type: 'SET_POKAL_ZAEHLT'; ids: readonly string[]; zaehlt: boolean }
+  | { type: 'INVERT_POKAL_ZAEHLT'; ids: readonly string[] }
 
 /** Leerzeilen je Klasse auf den Wettkampfrichter-Listen: Vorgabe wie im Prototyp (`emptyRows: 3`). */
 /** Ergebnislisten: Vorgabe wie bisher – volle Namen, Herkunft als Kürzel. */
@@ -178,6 +210,12 @@ export const ERGEBNIS_LISTEN_VORGABE: ErgebnisListenOptionen = { aushang: { name
 export const WKR_LEERZEILEN_VORGABE = 3
 /** Bei der Clubmeisterschaft eine: Dort stehen viele Klassen auf einem Blatt. */
 export const WKR_LEERZEILEN_CLUB = 1
+/**
+ * Gemeinsame Bögen (Clubmeisterschaft, Papier sparen): drei je Seite. Die Zeilen teilen sich
+ * alle Klassen der Seite – drei reichen für die Nachmeldungen eines Blatts mit rund 20 Zeilen
+ * und kosten weniger als bisher eine je Klasse, sobald mehr als drei Klassen darauf stehen.
+ */
+export const WKR_LEERZEILEN_SEITE_VORGABE = 3
 export const WKR_LEERZEILEN_MAX = 30
 
 /** Eine brauchbare Zahl von Leerzeilen (0 bis 30, ganz); sonst `undefined`. */
@@ -201,11 +239,10 @@ export function teilenAbZahl(n: unknown): number {
   return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(WKR_TEILEN_AB_MAX, Math.round(n))) : 0
 }
 
-export const LISTEN_SPRACHEN: readonly ListenSprache[] = ['ui', 'de', 'en', 'de+en']
-
-/** Eine gültige Wahl der Listensprache; sonst die Vorgabe „wie die Oberfläche“. */
-export function listenSpracheWert(x: unknown): ListenSprache {
-  return LISTEN_SPRACHEN.find((s) => s === x) ?? 'ui'
+/** Die Sprachen der Bögen je Liste: nur Einträge mit einer gültigen Sprache. */
+export function wkrSprachenWert(x: unknown): AppState['wkrSprachen'] {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return {}
+  return Object.fromEntries(Object.entries(x as Record<string, unknown>).filter((e): e is [string, Sprache] => isSprache(e[1])))
 }
 
 /** Eine gültige Form der Laufzettel; sonst die Vorgabe „eine Zeile je Seite“. */
@@ -229,8 +266,11 @@ export function emptyState(): AppState {
     eigeneAufbauten: [],
     laufCount: 3,
     einteilung: {},
+    boote: {},
+    coPiloten: {},
     wkrLeerzeilen: WKR_LEERZEILEN_VORGABE,
     wkrLeerzeilenKlasse: {},
+    wkrLeerzeilenSeite: WKR_LEERZEILEN_SEITE_VORGABE,
     wkrRueckseite: false,
     eingaben: {},
     streichlaeufe: 'auto',
@@ -242,10 +282,11 @@ export function emptyState(): AppState {
     wkrZeilenJeSeite: 0,
     wkrTeilenAb: 0,
     beschriftung: DEFAULT_BESCHRIFTUNG,
-    listenSprache: 'ui',
+    wkrSprachen: {},
     tor5MitParcours: false,
     zusatzListen: {},
     laufzettelLayout: 'seite',
+    pokal: POKAL_LEER,
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -327,6 +368,13 @@ const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
   'RESET_TRACKS',
 ])
 
+/**
+ * Was Starter hinzufügt oder entfernt. Sobald Ergebnisse erfasst sind, ändern diese Actions
+ * den Stand nicht mehr (lib/eingaben.ts `starterfeldFest`) – die Sperre hängt so nicht nur an
+ * den Knöpfen. Angaben ändern (UPDATE_STARTER), eine Sicherung laden und Zurücksetzen gehen weiter.
+ */
+export const STARTERFELD_ACTIONS: ReadonlySet<Action['type']> = new Set(['IMPORT_STARTERS', 'ADD_STARTERS', 'REMOVE_STARTER', 'CLEAR_CLASS', 'CLEAR_ALL_STARTERS'])
+
 export function reducer(state: AppState, action: Action): AppState {
   // Ein geladener oder neuer Stand bringt seine Zeitpunkte mit; verglichen wird er mit sich selbst.
   const frisch = action.type === 'LOAD_STATE' || action.type === 'RESET_ALL'
@@ -343,12 +391,27 @@ export function reducer(state: AppState, action: Action): AppState {
     action.type === 'SET_EINGABEN'
       ? [...new Set(action.zellen.flatMap((z) => next.starters.find((p) => p.id === z.starter)?.klasse ?? []))]
       : undefined
-  const listenStand = listenStandNach(frisch ? next : state, next, action.zeit, klassen)
+  // Jede Eingabe (getippt, gescannt, gelöscht, Beispielwerte) setzt den Zeitpunkt der Liste
+  // ihrer Klasse und ihres Laufs – auch wenn die Liste danach gleich aussieht (Vorgabe des
+  // Nutzers; lib/listenStand.ts). Nur für die Wege der Eingabe: Ein Umzug von Werten beim
+  // Wechsel des Aufbaus ist keine.
+  const eingegeben = action.type === 'SET_EINGABEN' || action.type === 'FILL_BEISPIELWERTE' ? geaenderteListen(state, next) : undefined
+  // Die Mannschaftswertung führt keinen eigenen Stand: Ihr Zeitpunkt ist der jüngste der
+  // Gesamtlisten (lib/listenStand.ts `wertungZeit`).
+  const listenStand = listenStandNach(frisch ? next : state, next, action.zeit, klassen, eingegeben)
   return listenStand === next.listenStand ? next : { ...next, listenStand }
+}
+
+/** Die Markierung „zählt für die Pokalauswertung“ setzen: Im Stand steht nur `false`. */
+function mitPokalZaehlt(p: Starter, zaehlt: boolean): Starter {
+  if ((p.pokal !== false) === zaehlt) return p
+  const { pokal: _alt, ...rest } = p
+  return zaehlt ? rest : { ...rest, pokal: false }
 }
 
 function wendeAn(state: AppState, action: Action): AppState {
   if (state.verzahnungLocked && VERZAHNUNG_ACTIONS.has(action.type)) return state
+  if (STARTERFELD_ACTIONS.has(action.type) && starterfeldFest(state)) return state
 
   switch (action.type) {
     case 'SET_WEIGHT':
@@ -409,7 +472,17 @@ function wendeAn(state: AppState, action: Action): AppState {
       const regelwerk = regelwerkOf(action.regelwerk).id
       // Ohne Parallelslalom kann er auch nicht die Reihenfolge der Nummern vorgeben.
       const source = hasParallel(regelwerk) ? state.runningNumbers.source : 'manoever'
-      return { ...state, regelwerk, runningNumbers: { ...state.runningNumbers, source } }
+      const next = { ...state, regelwerk, runningNumbers: { ...state.runningNumbers, source } }
+      // Die Wahl des Regelwerks stellt Läufe und Streichläufe so, wie es sie vorsieht (YAML
+      // `wertungslaeufe`: DM 3 Läufe/1 gestrichen, UIM 2/1) – nur beim Wechsel, damit ein Klick
+      // auf das schon gewählte Regelwerk nichts verstellt, was der Rennleiter von Hand gesetzt
+      // hat. Schon erfasste Werte eines Laufs, den es danach nicht mehr gibt, bleiben wie beim
+      // Ändern der Laufzahl im Stand; „Einstellungen → Wertung“ weist auf sie hin.
+      const soll = regelwerkOf(regelwerk).wertungslaeufe
+      if (!soll || regelwerk === state.regelwerk) return next
+      // „Nach Regel“ bleibt stehen, wenn es dasselbe ergibt – sonst die Zahl.
+      const auto = streichlaeufeVon(soll.laeufe, 'auto') === soll.streichlaeufe
+      return { ...next, laufCount: soll.laeufe, streichlaeufe: auto ? 'auto' : streichlaeufeWert(soll.streichlaeufe) }
     }
 
     // Was an der Liste für Tor 5 hängt, zieht in `reducer` mit (state/tor5.ts) – bei jedem
@@ -474,8 +547,18 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_BESCHRIFTUNG':
       return { ...state, beschriftung: beschriftungOf(action.beschriftung) }
 
-    case 'SET_LISTEN_SPRACHE':
-      return { ...state, listenSprache: listenSpracheWert(action.sprache) }
+    case 'SET_WKR_SPRACHE': {
+      const sprache = action.sprache
+      const wkrSprachen = { ...state.wkrSprachen }
+      for (const id of action.typeIds) {
+        if (sprache !== null && isSprache(sprache)) wkrSprachen[id] = sprache
+        else delete wkrSprachen[id]
+      }
+      return { ...state, wkrSprachen }
+    }
+
+    case 'SET_WKR_LEERZEILEN_SEITE':
+      return { ...state, wkrLeerzeilenSeite: leerzeilenZahl(action.anzahl) ?? WKR_LEERZEILEN_SEITE_VORGABE }
 
     case 'SET_ERGEBNIS_LISTEN': {
       const { aushang, intern } = state.ergebnisListen
@@ -515,7 +598,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'IMPORT_STARTERS': {
       if (action.mode === 'replace') {
         // Die Liste gilt als Ganzes: Es ist nicht mehr das Beispiel-Starterfeld.
-        return { ...mitStartern(state, mergeStarters(state.starters, action.starters).starters), beispielStarter: false }
+        return { ...mitStartern(state, mergeStarters(state.starters, action.starters, action.auswahlAusDatei ? 'datei' : 'bisher').starters), beispielStarter: false }
       }
       const seen = new Set(state.starters.map(dupKey))
       return { ...state, starters: state.starters.concat(action.starters.filter((p) => !seen.has(dupKey(p)))) }
@@ -616,6 +699,12 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_WKR_NAME':
       return { ...state, einteilung: setzeName(state.einteilung, action.parcoursId, action.typeId, action.name) }
 
+    case 'SET_BOOT':
+      return { ...state, boote: setzeBesetzung(state.boote, action.klasse, action.text) }
+
+    case 'SET_CO_PILOT':
+      return { ...state, coPiloten: setzeBesetzung(state.coPiloten, action.klasse, action.text) }
+
     case 'SET_EINGABEN': {
       // Zellen für unbekannte Starter oder kaputte Lauf-Schlüssel kommen gar nicht erst in den Stand.
       const zellen = gueltigeZellen(action.zellen, new Set(state.starters.map((p) => p.id)))
@@ -642,6 +731,46 @@ function wendeAn(state: AppState, action: Action): AppState {
 
     case 'SET_KENNUNG':
       return state.kennung || !istKennung(action.kennung) ? state : { ...state, kennung: action.kennung }
+
+    case 'SET_POKAL_VARIANTE': {
+      if (!istPokalVariante(action.variante)) return state
+      const { [action.variante]: _alt, ...rest } = state.pokal.varianten
+      // Nur die Abweichung von der Vorgabe des Regelwerks steht im Stand (wie bei den zusätzlichen Listen).
+      const vorgabe = pokalVorgabe(state.regelwerk).an.includes(action.variante)
+      const varianten = action.an === vorgabe ? rest : { ...rest, [action.variante]: action.an }
+      return JSON.stringify(varianten) === JSON.stringify(state.pokal.varianten) ? state : { ...state, pokal: { ...state.pokal, varianten } }
+    }
+
+    case 'SET_POKAL_PUNKTE': {
+      if (!(POKAL_PLATZ_VARIANTEN as readonly string[]).includes(action.variante)) return state
+      const vorgabe = pokalVorgabe(state.regelwerk).punkte[action.variante]
+      const { [action.variante]: _alt, ...rest } = state.pokal.punkte
+      // Die Zahl der Plätze steht mit der Variante fest: Fehlendes zählt 0, Überzähliges entfällt.
+      const neu = action.punkte === null ? vorgabe : vorgabe.map((_, i) => punkteListe(action.punkte)[i] ?? 0)
+      const punkte = neu.every((n, i) => n === vorgabe[i]) ? rest : { ...rest, [action.variante]: neu }
+      return JSON.stringify(punkte) === JSON.stringify(state.pokal.punkte) ? state : { ...state, pokal: { ...state.pokal, punkte } }
+    }
+
+    case 'SET_POKAL_UIM': {
+      const vorgabe = pokalVorgabe(state.regelwerk)
+      const { beste: _b, mindestens: _m, ...rest } = state.pokal
+      const wert = (feld: 'beste' | 'mindestens') => {
+        const neu = action.patch[feld] === undefined ? state.pokal[feld] : (pokalZahl(action.patch[feld]) ?? undefined)
+        return neu === undefined || neu === vorgabe[feld] ? {} : { [feld]: neu }
+      }
+      const pokal = { ...rest, ...wert('beste'), ...wert('mindestens') }
+      return JSON.stringify(pokal) === JSON.stringify(state.pokal) ? state : { ...state, pokal }
+    }
+
+    case 'SET_POKAL_NUR_AUSWAHL':
+      return action.an === state.pokal.nurAuswahl ? state : { ...state, pokal: { ...state.pokal, nurAuswahl: action.an } }
+
+    case 'SET_POKAL_ZAEHLT':
+    case 'INVERT_POKAL_ZAEHLT': {
+      const ids = new Set(action.ids)
+      const starters = state.starters.map((p) => (ids.has(p.id) ? mitPokalZaehlt(p, action.type === 'SET_POKAL_ZAEHLT' ? action.zaehlt : p.pokal === false) : p))
+      return starters.every((p, i) => p === state.starters[i]) ? state : { ...state, starters }
+    }
 
     default:
       return state

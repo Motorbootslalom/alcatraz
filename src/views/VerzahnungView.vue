@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { merke } from '../lib/merken'
+import { useReiter } from '../lib/router'
 import { useStore } from '../state/store'
 import { assignStartNumbers } from '../state/reducer'
 import { CLASSES, CLASS_IDS } from '../domain/classes'
@@ -31,7 +32,13 @@ const { classLabel, parallel } = useEvent()
 // Regelwerk ihn kennt (UIM). Nach den Regeln der DM gibt es nur das Manövrieren.
 const DISCIPLINES = ['manoever', 'parallel'] as const
 const chosen = merke<(typeof DISCIPLINES)[number]>('verzahnung.disziplin', 'manoever')
-const discipline = computed(() => (parallel.value ? chosen.value : 'manoever'))
+// In der Adresse steht, was gezeigt wird: Ohne Parallelslalom gilt nur „manoever“ – ein Verweis
+// auf `…/parallel` wird dann auf das Manövrieren umgeschrieben, statt stehen zu bleiben.
+const discipline = computed<(typeof DISCIPLINES)[number]>({
+  get: () => (parallel.value ? chosen.value : 'manoever'),
+  set: (wert) => (chosen.value = wert),
+})
+useReiter('verzahnung', discipline, () => (parallel.value ? DISCIPLINES : (['manoever'] as const)))
 
 const unassigned = computed(() => {
   const assigned = new Set(state.value.parcoursList.flatMap((p) => p.classIds))

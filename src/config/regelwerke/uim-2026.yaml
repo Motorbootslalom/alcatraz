@@ -18,6 +18,11 @@ name: UIM
 version: 2026
 # Listen und Fehlertexte wahlweise deutsch, englisch oder zweisprachig.
 sprachen: [de, en]
+# Die UIM schreibt englisch aus: Alle Listen außer den Wettkampfrichter-Bögen (Starter-,
+# Gewichts-, Vorsteg- und Ergebnislisten, Laufzettel, Aushang der Codes) stehen englisch,
+# gleich in welcher Sprache die Oberfläche bedient wird. Für die Bögen ist es die Vorgabe;
+# dort lässt sich je Liste deutsch, englisch oder zweisprachig wählen.
+listenSprache: en
 quelle: "UIM Circuit Rulebook 2026, Regel 960 Formula Future, Pkt. 5.3 Penalties"
 quelleEn: "UIM Circuit Rulebook 2026, rule 960 Formula Future, pt. 5.3 Penalties"
 einheit: Sekunden
@@ -30,6 +35,11 @@ disziplinen: [manoevrieren, parallel]
 # Regel 960, Pkt. 3.7 Registration procedure, „Statistical average weight“. Die Werte
 # weichen in den Klassen 1, 2, 4 und 5 von der DM ab.
 gewichte: { E: 26, 1: 32, 2: 40, 3: 52, 4: 64, 5: 71 }
+# Regel 960, Pkt. 2 „Boats, engines and equipment“: „A co-driver is mandatory for Classes
+# Dolphin, 1 - 3. The experienced co-driver is to be provided by the organizer for each class
+# and each stage. Within the same class is to be the same co-driver.“ Pkt. 3.7: Der Aushang
+# nach der Registrierung nennt für diese Klassen auch den Namen des Co-Driver.
+coPilot: [E, 1, 2, 3]
 # Regel 960, Pkt. 5.2.6 „Dead-heat situations“, Manövrieren: „if two or more drivers have
 # the same time in their best attempt (including knots and driving penalties), the driver
 # with the better added attempt time (including penalties for both attempts) will be
@@ -46,8 +56,33 @@ vorgabeListen: { manoevrieren: [knoten] }
 # Regel 960, Pkt. 4.3.2 (Manövrieren): „Each driver is allowed 2 attempts, run consecutively.
 # […] Only the better attempt will be considered for the results (except of dead-heat
 # situations).“ Also zwei Läufe, einer gestrichen – nur dann greift auch der Stichentscheid
-# oben. Eingestellt wird es an der Veranstaltung; die Oberfläche meldet eine Abweichung.
+# oben. Die Wahl des Regelwerks stellt die Veranstaltung so ein; wer von Hand abweicht,
+# bekommt einen Hinweis.
 wertungslaeufe: { laeufe: 2, streichlaeufe: 1 }
+
+# Mannschaftswertung („team competition“). Regel 960, Pkt. 5.1 „Point system“ (S. 286): „The
+# UIM pointing system to be used is: 1 - 400 points, 2 - 300, 3 - 225, 4 - 169, 5 - 127,
+# 6 - 95, 7 - 71, 8 - 53, 9 - 40, 10 - 30, 11 - 22, 12 - 17, 13 - 13, 14 - 9, 15 - 7, 16 - 5,
+# 17 - 4, 18 - 3, 19 - 2, 20 - 1 point. […] To be eligible for the team competition a
+# National Authority must provide a minimum of five drivers. The final results for the team
+# competition are determined by the points gained in the five best results of the team in the
+# overall individual competitions.“ Pkt. 5.2.4: „Team competition: UIM points secured by the
+# top five team members in the overall individual competitions, sum of the top five points,
+# ranking of the team.“ Dieselbe Tabelle steht in Regel 317.01 und im Blatt „UIM-Points“ der
+# Excel-Mappe der DM 2026.
+#   vorgabe     Varianten, die eine Veranstaltung nach diesem Regelwerk eingeschaltet hat
+#               (plaetze3, plaetze6 – Punkte in einstellungen.yaml – und uim).
+#   uim.punkte  Punkte für die Plätze 1, 2, 3 … der Gesamtliste einer Klasse; dahinter 0.
+#   uim.beste   So viele Starter je Herkunft zählen (die mit den meisten Punkten).
+#   uim.mindestens  So viele Starter muss eine Herkunft stellen, um gewertet zu werden.
+# Nicht umgesetzt (Vorgabe des Veranstalters: Punktgleiche teilen sich den Platz): der
+# Stichentscheid der Mannschaften aus Pkt. 5.2.6 (Summe der Punkte der 1. Plätze, dann der 2. …).
+pokal:
+  vorgabe: [uim]
+  uim:
+    punkte: [400, 300, 225, 169, 127, 95, 71, 53, 40, 30, 22, 17, 13, 9, 7, 5, 4, 3, 2, 1]
+    beste: 5
+    mindestens: 5
 
 fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Sekunden werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
 fehlerHinweisEn: "Penalties can be combined: every code entered counts separately and the seconds are added (2nd and 3rd attempt: the code can be entered twice, e.g. 2x6)."
@@ -56,8 +91,14 @@ legendeHinweise:
   - { text: "Strafzeiten in Sekunden werden zur gefahrenen Zeit addiert.", en: "Penalty seconds are added to the time driven." }
   - { text: "Mann-über-Bord fahren nur die Klassen 4 und 5.", en: "Only classes 4 and 5 perform the man-over-board manoeuvre." }
 
-# Die UIM kennt vier Knoten: Kreuzknoten (Reef knot), Palstek (Bowline),
-# Webleinstek (Clove hitch) und Klampe (Half hitch, Zeichnung S. 288).
+# Regel 960, Pkt. 4.3.1: „Every driver must show his/her skill in tying the following knots
+# (see addendum): Reef knot; Bowline; Half-hitch; Clove-hitch. The maximum time limit for
+# tying each knot is 60 seconds, beyond which the knot will be considered as improperly done.“
+# Pkt. 5.3: „Improperly done knot (each) 5 seconds“. Also vier Knoten – Kreuzknoten (Reef
+# knot), Palstek (Bowline), Webleinstek (Clove hitch) und Klampe (Half hitch; die Zeichnung
+# im Anhang, S. 288, zeigt ihn an einer Klampe) – für jede Klasse dieselben („every driver“,
+# keine Abstufung nach Klasse). Der Schotstek der DM fehlt; mit dem Regelbuch (Fassung vom
+# 28.05.2026) abgeglichen am 14.11.2026.
 ohneSpalten:
   knoten: [schotstek]
 

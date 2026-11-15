@@ -3,10 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { useStore } from '../state/store'
 import { birthYearRange, getClass } from '../domain/classes'
 import { SIZES } from '../domain/sizes'
-import { originField, originLabelKey, originOf } from '../lib/origin'
+import { flaggeAllein, herkunftAnzeige, originField, originLabelKey, originOf } from '../lib/origin'
+import HerkunftText from './HerkunftText.vue'
 import { useEvent } from '../lib/event'
-import { verlustText, verlustZahl } from '../lib/eingabenVerlust'
-import { formatDate, t, tn } from '../i18n'
+import { verlustText } from '../lib/eingabenVerlust'
+import { starterfeldFest } from '../lib/eingaben'
+import { formatDate, locale, t, tn } from '../i18n'
 import ManualAddForm from './ManualAddForm.vue'
 import type { ClassId, Starter } from '../types'
 
@@ -18,6 +20,8 @@ const props = defineProps<{
   open: boolean
   /** Zählt hoch, wenn die Liste von außen neu geordnet werden soll (automatische Vergabe). */
   sortTick: number
+  /** Spalte „zählt für die Pokalauswertung“ zeigen (Einstellungen: nur ausgewählte Starter zählen). */
+  pokalAuswahl?: boolean
 }>()
 
 const emit = defineEmits<{ toggle: [] }>()
@@ -25,6 +29,7 @@ const emit = defineEmits<{ toggle: [] }>()
 const { state, dispatch } = useStore()
 const { classLabel } = useEvent()
 const def = computed(() => getClass(props.classId))
+const flagge = (p: Starter) => flaggeAllein(originOf(p, state.value.originMode), state.value.originMode)
 const showAdd = ref(false)
 const edit = ref(false)
 
@@ -95,18 +100,32 @@ function update(id: string, field: keyof Omit<Starter, 'id' | 'klasse'>, e: Even
   dispatch({ type: 'UPDATE_STARTER', id, patch: { [field]: (e.target as HTMLInputElement).value } })
 }
 
-/** Ein Klick genügt – außer es sind für den Starter schon Werte erfasst: Die gingen ohne Rückgängig mit. */
+// Sobald Ergebnisse erfasst sind, steht das Starterfeld fest: Hinzufügen, Entfernen und
+// „Klasse leeren“ gehen nicht mehr (der Reducer lehnt sie ebenfalls ab). Warum und wie sich
+// das lösen lässt, steht über den Klassen (components/StarterSperre.vue).
+const fest = computed(() => starterfeldFest(state.value))
+watch(fest, (f) => {
+  if (f) showAdd.value = false
+})
+
+/** Ein Klick genügt: Sind schon Werte erfasst, ist das Entfernen ohnehin gesperrt. */
 function remove(p: Starter) {
-  const name = [p.startNr, p.vorname, p.nachname].filter(Boolean).join(' ')
-  if (verlustZahl(state.value, [p]) > 0 && !confirm(t('entries.removeConfirm', { name }))) return
+  if (fest.value) return
   dispatch({ type: 'REMOVE_STARTER', id: p.id })
 }
 
 function clearAll() {
+  if (fest.value) return
   if (confirm(t('starters.clearConfirm', { n: props.starters.length, name: classLabel(props.classId) }) + verlustText(state.value, props.starters))) {
     dispatch({ type: 'CLEAR_CLASS', klasse: props.classId })
   }
 }
+
+// Auswahl für die Pokalauswertung, je Klasse: Das Kästchen im Spaltenkopf schaltet alle/keine
+// (halb gesetzt, wenn nur einige zählen), „umkehren“ dreht die Markierung jedes Starters um.
+// Das geht auch bei festem Starterfeld – die Auswahl ändert es nicht.
+const pokalZaehlen = computed(() => props.starters.filter((p) => p.pokal !== false).length)
+const ids = () => props.starters.map((p) => p.id)
 
 const MOVES = [
   { target: 'first', icon: '⤒', top: true },
@@ -130,7 +149,7 @@ const MOVES = [
         <button v-if="unsorted" class="btn sm primary" :title="t('starters.sortTitle')" @click="sortNow">
           ⇅ {{ t('starters.sort') }}
         </button>
-        <button class="btn sm" @click="showAdd = !showAdd">+ {{ t('starters.manual') }}</button>
+        <button class="btn sm" data-action="starter-neu" :disabled="fest" :title="fest ? t('lock.short') : undefined" @click="showAdd = !showAdd">+ {{ t('starters.manual') }}</button>
         <button
           :class="['btn', 'sm', edit ? 'primary' : '']"
           :disabled="starters.length === 0 || (edit && hasDuplicates)"
@@ -148,14 +167,24 @@ const MOVES = [
         >
           ↕ {{ t('starters.bySize') }}
         </button>
-        <button class="btn sm danger" :disabled="starters.length === 0" @click="clearAll">
+        <button
+          v-if="pokalAuswahl"
+          class="btn sm"
+          data-action="pokal-umkehren-klasse"
+          :disabled="starters.length === 0"
+          :title="t('cup.select.invertTitle')"
+          @click="dispatch({ type: 'INVERT_POKAL_ZAEHLT', ids: ids() })"
+        >
+          {{ t('cup.select.invertClass') }}
+        </button>
+        <button class="btn sm danger" data-action="klasse-leeren" :disabled="starters.length === 0 || fest" :title="fest ? t('lock.short') : undefined" @click="clearAll">
           {{ t('starters.clear') }}
         </button>
       </div>
     </div>
 
     <ManualAddForm
-      v-if="showAdd"
+      v-if="showAdd && !fest"
       :class-id="classId"
       :existing="starters"
       @add="(p) => dispatch({ type: 'ADD_STARTERS', starters: [p] })"
@@ -166,9 +195,26 @@ const MOVES = [
 
     <template v-if="open">
       <div v-if="starters.length === 0" class="empty">{{ t('starters.empty') }}</div>
-      <table v-else class="starters">
+      <!-- In schmalen Fenstern rollt die Tabelle in sich, nicht die Seite. -->
+      <div v-else class="starters-rahmen">
+      <table class="starters">
         <thead>
           <tr>
+            <!-- Die Auswahl steht vorn: In schmalen Fenstern rollt die Tabelle in ihrem Rahmen,
+                 und das Kästchen soll ohne Rollen zu erreichen sein. -->
+            <th v-if="pokalAuswahl" class="cup-spalte" :title="t('cup.select.columnTitle')">
+              <label>
+                <input
+                  type="checkbox"
+                  data-feld="pokal-klasse"
+                  :checked="pokalZaehlen === starters.length"
+                  :indeterminate="pokalZaehlen > 0 && pokalZaehlen < starters.length"
+                  :aria-label="t('cup.select.allClass', { name: classLabel(classId) })"
+                  @change="dispatch({ type: 'SET_POKAL_ZAEHLT', ids: ids(), zaehlt: ($event.target as HTMLInputElement).checked })"
+                />
+                {{ t('cup.select.column') }}
+              </label>
+            </th>
             <th :style="{ width: edit ? '150px' : '64px' }">
               {{ t('common.startNr') }}
             </th>
@@ -181,7 +227,16 @@ const MOVES = [
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(p, i) in shown" :key="p.id">
+          <tr v-for="(p, i) in shown" :key="p.id" :class="pokalAuswahl && p.pokal === false ? 'cup-zaehlt-nicht' : undefined">
+            <td v-if="pokalAuswahl" class="cup-spalte">
+              <input
+                type="checkbox"
+                data-feld="pokal-zaehlt"
+                :checked="p.pokal !== false"
+                :aria-label="t('cup.select.counts', { name: [p.vorname, p.nachname].filter(Boolean).join(' ') || p.startNr })"
+                @change="dispatch({ type: 'SET_POKAL_ZAEHLT', ids: [p.id], zaehlt: ($event.target as HTMLInputElement).checked })"
+              />
+            </td>
             <template v-if="edit">
               <td class="num">
                 <div class="nr-edit">
@@ -215,12 +270,16 @@ const MOVES = [
                 <input class="cell-input" :value="p.vorname" :aria-label="t('common.firstName')" @change="update(p.id, 'vorname', $event)" />
               </td>
               <td v-if="state.originMode !== 'none'">
-                <input
-                  class="cell-input"
-                  :value="p[originField(state.originMode)] ?? ''"
-                  :aria-label="t(originLabelKey(state.originMode))"
-                  @change="update(p.id, originField(state.originMode), $event)"
-                />
+                <!-- Die Flagge vor dem Feld zeigt beim Tippen, ob die Angabe als Bundesland oder Staat erkannt ist. -->
+                <span class="herkunft-feld">
+                  <HerkunftText v-if="flagge(p).flagge" :anzeige="flagge(p)" />
+                  <input
+                    class="cell-input"
+                    :value="p[originField(state.originMode)] ?? ''"
+                    :aria-label="t(originLabelKey(state.originMode))"
+                    @change="update(p.id, originField(state.originMode), $event)"
+                  />
+                </span>
               </td>
               <td>
                 <select
@@ -249,14 +308,15 @@ const MOVES = [
               </td>
               <td>{{ p.nachname }}</td>
               <td>{{ p.vorname }}</td>
-              <td v-if="state.originMode !== 'none'">{{ originOf(p, state.originMode) }}</td>
+              <td v-if="state.originMode !== 'none'"><HerkunftText :anzeige="herkunftAnzeige(originOf(p, state.originMode), state.originMode, 'flagge-lang', {}, locale)" /></td>
               <td>{{ p.groesse || '–' }}</td>
               <td :class="p.geburtsdatum ? '' : 'cell-missing'">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}</td>
             </template>
             <td>
               <button
                 class="del"
-                :title="t('common.remove')"
+                :disabled="fest"
+                :title="fest ? t('lock.short') : t('common.remove')"
                 :aria-label="t('common.remove')"
                 @click="remove(p)"
               >
@@ -266,6 +326,7 @@ const MOVES = [
           </tr>
         </tbody>
       </table>
+      </div>
     </template>
   </section>
 </template>

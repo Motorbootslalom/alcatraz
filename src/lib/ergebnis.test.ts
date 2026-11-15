@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { setLocale } from '../i18n'
 import { configFor } from '../config/konfig'
 import type { ClassId, Starter } from '../types'
-import { feldVon, laufSchluessel, listenLauf, setzeWerte, verborgeneZellen } from './eingaben'
+import { feldVon, laufSchluessel, listenLauf, setzeWerte, verborgeneEinzelheiten, verborgeneZellen } from './eingaben'
 import {
   abstaende,
   ergebnisGruppen,
@@ -454,6 +454,8 @@ describe('Wechsel des Aufbaus mit schon erfassten Werten', () => {
     expect(ergebnis(dm26).laeufe[0].nachNummer[0].zeit).toBe(8000)
     // Die zweite und dritte Stoppuhr zeigt der neue Aufbau nicht mehr: Sie sind als verborgen gemeldet.
     expect(verborgeneZellen(dm26, konfig).map((z) => z.feld).sort()).toEqual(['zeit2', 'zeit3'])
+    // … und als „nur gespeichert“ erklärt: Neben der Lichtschranke rechnet die Wertung nicht mit ihnen.
+    expect(verborgeneEinzelheiten(dm26, konfig).flatMap((g) => g.werte.map((w) => w.zaehlt))).toEqual([false, false])
     expect(verborgeneZellen(stand, konfig)).toEqual([])
   })
 
@@ -464,6 +466,7 @@ describe('Wechsel des Aufbaus mit schon erfassten Werten', () => {
     expect(zeile(ergebnis(frontal).laeufe[0].nachNummer, '402')).toMatchObject({ disq: true, nichtGestartet: true })
     const verborgen = verborgeneZellen(frontal, konfig)
     expect(verborgen.map((z) => [z.starter, z.feld])).toEqual([['id-402', 'disq@vorsteg']])
+    expect(verborgeneEinzelheiten(frontal, konfig).flatMap((g) => g.werte.map((w) => w.zaehlt))).toEqual([true])
     // Entfernt man das Verborgene, ist der Starter wieder offen.
     const bereinigt = { ...frontal, eingaben: setzeWerte(frontal.eingaben, verborgen.map((z) => ({ ...z, wert: '' }))) }
     expect(zeile(ergebnis(bereinigt).laeufe[0].nachNummer, '402')).toMatchObject({ disq: false, offen: true })
@@ -615,7 +618,8 @@ describe('Läufe laut Regelwerk', () => {
   const uim = configFor({ regelwerk: 'uim-2026' }).getRegelwerk()
   it('UIM 960, Pkt. 4.3.2: zwei Versuche, der bessere zählt – die Angabe steht im Regelwerk', () => {
     expect(uim.wertungslaeufe).toEqual({ laeufe: 2, streichlaeufe: 1 })
-    expect(konfig.getRegelwerk().wertungslaeufe).toBeUndefined()
+    // Die DM: nur Voreinstellung (drei Läufe, einer gestrichen) – kein Maß für einen Hinweis.
+    expect(konfig.getRegelwerk().wertungslaeufe).toEqual({ laeufe: 3, streichlaeufe: 1, nurVorgabe: true })
   })
   it('gemeldet wird nur die Abweichung', () => {
     expect(laeufeLautRegelwerk(uim, { laufCount: 2, streichlaeufe: 1 })).toBeNull()

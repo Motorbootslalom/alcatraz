@@ -25,14 +25,16 @@ export interface Regelwerk {
   klassenNamen: Partial<Record<ClassId, string>>
   /** Kennungen der Disziplinen, die nach diesem Regelwerk gefahren werden. */
   disziplinen: string[]
-  /** Statistisches Durchschnittsgewicht je Klasse in kg (Grundlage des Zusatzgewichts). */
+  /** Statistisches Durchschnittsgewicht je Klasse in kg (Grundlage des Ausgleichsgewichts). */
   gewichte: Partial<Record<ClassId, number>>
+  /** Klassen, in denen ein Co-Pilot an Bord sein muss (lib/besetzung.ts). */
+  coPilotKlassen: ClassId[]
   /** Was bei gleichem Ergebnis entscheidet (lib/ergebnis.ts); leer = der Platz wird geteilt. */
   stichentscheid: StichKriterium[]
   /** Disziplin → Listen, die das Regelwerk in jedem ihrer Aufbauten vorsieht – abwählbare Vorgabe (lib/listen.ts). */
   vorgabeListen: Record<string, string[]>
-  /** Läufe und Streichläufe, die das Regelwerk vorsieht (nur für den Hinweis bei Abweichung). */
-  wertungslaeufe?: { laeufe: number; streichlaeufe: number }
+  /** Läufe und Streichläufe, die das Regelwerk vorsieht: Voreinstellung bei der Wahl des Regelwerks und – ohne `nurVorgabe` – Maß für den Hinweis bei Abweichung. */
+  wertungslaeufe?: { laeufe: number; streichlaeufe: number; nurVorgabe?: true }
 }
 
 export interface Aufbau {
@@ -54,6 +56,7 @@ function readRegelwerk(raw: RohRegelwerk): Regelwerk {
     klassenNamen: raw.klassenNamen ?? {},
     disziplinen: raw.disziplinen ?? [MANOEVRIEREN],
     gewichte: raw.gewichte ?? {},
+    coPilotKlassen: (raw.coPilot ?? []).map(String).filter(isClassId),
     stichentscheid: info.stichentscheid,
     vorgabeListen: info.vorgabeListen,
     wertungslaeufe: info.wertungslaeufe,
@@ -113,7 +116,7 @@ export function hasParallel(regelwerkId: string): boolean {
 }
 
 /**
- * Standardgewicht einer Klasse in kg: der eigene Wert der Veranstaltung, sonst
+ * Durchschnittsgewicht einer Klasse in kg: der eigene Wert der Veranstaltung, sonst
  * der des Regelwerks. `0`, wenn das Regelwerk für die Klasse keines nennt.
  */
 export function sollgewichtOf(regelwerkId: string, eigene: Partial<Record<ClassId, number>>, klasse: ClassId): number {

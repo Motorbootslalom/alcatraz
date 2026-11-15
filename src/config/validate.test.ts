@@ -63,6 +63,10 @@ describe('Konfigurations-Validierung', () => {
     expect(neu({ laeufe: 0 })).toEqual(['BAD_WERTUNGSLAEUFE'])
     expect(neu({ streichlaeufe: 1 })).toEqual(['BAD_WERTUNGSLAEUFE'])
     expect(neu('zwei')).toEqual(['BAD_WERTUNGSLAEUFE'])
+    // `nurVorgabe` (Voreinstellung ohne Hinweis bei Abweichung) ist ein Wahrheitswert.
+    expect(neu({ laeufe: 3, streichlaeufe: 1, nurVorgabe: true })).toEqual([])
+    expect(neu({ laeufe: 3, streichlaeufe: 1, nurVorgabe: false })).toEqual([])
+    expect(neu({ laeufe: 3, streichlaeufe: 1, nurVorgabe: 'ja' })).toEqual(['BAD_WERTUNGSLAEUFE'])
   })
 
   it('Stichentscheid: nur Kriterien, die die Wertung kennt, und jedes einmal', () => {

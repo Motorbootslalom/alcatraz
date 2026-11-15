@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { configFor } from '../config/konfig'
-import type { ClassId, Starter } from '../types'
+import type { ClassId, Eingaben, Starter } from '../types'
 import {
   erfasstKennung,
   gueltigeZellen,
   starterMitEingaben,
+  verborgeneEinzelheiten,
   verborgeneZellen,
   feldVon,
   felderJeKennung,
@@ -209,3 +210,112 @@ describe('Werte, die keine Liste mehr zeigt', () => {
   })
 })
 
+describe('Verborgene Werte, erklärt', () => {
+  const starter = (id: string, klasse: ClassId, startNr = id): Starter => ({ id, startNr, vorname: 'Vor', nachname: id, verein: '', bundesland: '', geburtsdatum: '', klasse, groesse: '' })
+  const L3 = laufSchluessel('manoevrieren', 3)
+  const L0 = laufSchluessel('manoevrieren', OHNE_LAUF)
+  const stand = (zellen: Parameters<typeof setzeWerte>[1], extra: Partial<Parameters<typeof verborgeneEinzelheiten>[0]> = {}) => ({
+    aufbau: 'alcatraz',
+    laufCount: 3,
+    starters: [starter('s1', '4', '401'), starter('s2', '1', '101')],
+    eingaben: setzeWerte({}, zellen),
+    ...extra,
+  })
+  /** Je Wert das Wesentliche: Kennung → [Lauf, Liste, Art, zählt, Grund]. */
+  const kurz = (s: Parameters<typeof verborgeneEinzelheiten>[0], k = konfig) =>
+    Object.fromEntries(verborgeneEinzelheiten(s, k).flatMap((g) => g.werte.map((w) => [`${g.starterId}:${w.zelle.feld}`, [w.lauf, w.liste, w.art, w.zaehlt, w.grund]])))
+
+  it('nichts verborgen: keine Gruppen', () => {
+    expect(verborgeneEinzelheiten(stand([{ lauf: L1, starter: 's1', feld: 'zeit1', wert: '80' }]), konfig)).toEqual([])
+  })
+
+  it('dieselben Zellen wie verborgeneZellen – keine geht verloren, keine kommt dazu', () => {
+    const s = stand(
+      [
+        { lauf: L3, starter: 's2', feld: 'zeit1', wert: '70' },
+        { lauf: L1, starter: 's1', feld: 'katalog:mueb', wert: '17' },
+        { lauf: L1, starter: 's1', feld: erfasstKennung('mueb'), wert: '1' },
+        { lauf: L1, starter: 's1', feld: 'zeit1', wert: '80' },
+      ],
+      { laufCount: 2, starters: [starter('s1', '1', '401'), starter('s2', '1', '101')] },
+    )
+    const zellen = verborgeneEinzelheiten(s, konfig).flatMap((g) => g.werte.map((w) => w.zelle))
+    const schluessel = (z: { lauf: string; starter: string; feld: string }) => `${z.lauf}|${z.starter}|${z.feld}`
+    expect(zellen.map(schluessel).sort()).toEqual(verborgeneZellen(s, konfig).map(schluessel).sort())
+    // Starter nach Startnummer.
+    expect(verborgeneEinzelheiten(s, konfig).map((g) => [g.starterId, g.starter?.startNr])).toEqual([['s2', '101'], ['s1', '401']])
+  })
+
+  it('weniger Läufe: Der Lauf liegt über der Zahl der Läufe – der Wert ist nur gespeichert', () => {
+    const s = stand([{ lauf: L3, starter: 's2', feld: 'zeit1', wert: '70' }], { laufCount: 2 })
+    expect(kurz(s)).toEqual({ 's2:zeit1': [3, 'zeit', 'feld', false, 'lauf'] })
+    expect(verborgeneEinzelheiten(s, konfig)[0].werte[0].feld).toMatchObject({ kind: 'time', label: expect.any(String) })
+  })
+
+  it('Klassenwechsel: Fehlerpunkte der alten Klasse zählen weiter mit, der Haken nicht', () => {
+    const s = stand(
+      [
+        { lauf: L1, starter: 's1', feld: 'katalog:mueb', wert: '17' },
+        { lauf: L1, starter: 's1', feld: erfasstKennung('mueb'), wert: '1' },
+      ],
+      { starters: [starter('s1', '1', '401')] },
+    )
+    // Die Wertung liest nur Felder, die irgendeine Liste für die NEUE Klasse kennt: „Mann über Bord“ hat Klasse 1 nicht.
+    expect(kurz(s)).toEqual({ 's1:katalog:mueb': [1, 'mueb', 'feld', false, 'klasse'], 's1:erfasst@mueb': [1, 'mueb', 'erfasst', false, 'klasse'] })
+  })
+
+  it('anderer Aufbau: ein x am Vorsteg zählt weiter mit; die Liste gibt es im Aufbau nicht', () => {
+    const s = stand([{ lauf: L1, starter: 's1', feld: 'disq@vorsteg', wert: 'X' }], { aufbau: 'frontal' })
+    const [wert] = verborgeneEinzelheiten(s, konfig)[0].werte
+    expect(wert).toMatchObject({ lauf: 1, liste: 'vorsteg', art: 'feld', zaehlt: true })
+    expect(['aufbau', 'abgewaehlt']).toContain(wert.grund)
+    expect(wert.feld?.kind).toBe('disq')
+  })
+
+  it('Stoppuhren neben einer elektronischen Zeit zählen nicht; ohne sie schon', () => {
+    const zellen = [
+      { lauf: L1, starter: 's1', feld: 'zeit1', wert: '80,00' },
+      { lauf: L1, starter: 's1', feld: 'zeit2', wert: '83,00' },
+      { lauf: L1, starter: 's1', feld: 'zeit3', wert: '83,00' },
+    ]
+    const dm26 = stand(zellen, { aufbau: 'alcatrazdm26' })
+    expect(kurz(dm26)).toMatchObject({ 's1:zeit2': [1, 'zeit', 'feld', false, expect.any(String)], 's1:zeit3': [1, 'zeit', 'feld', false, expect.any(String)] })
+    // Ohne die elektronische Zeit rechnet die Wertung mit den Stoppuhren, die keine Liste zeigt.
+    const ohne = stand(zellen.slice(1), { aufbau: 'alcatrazdm26' })
+    expect(kurz(ohne)).toMatchObject({ 's1:zeit2': [1, 'zeit', 'feld', true, expect.any(String)] })
+    // Eine unlesbare Zeit zählt nie.
+    const kaputt = stand([{ lauf: L1, starter: 's1', feld: 'zeit2', wert: 'abc' }], { aufbau: 'alcatrazdm26' })
+    expect(kurz(kaputt)['s1:zeit2'][3]).toBe(false)
+  })
+
+  it('abgewählte Liste (Knoten): Punkte ohne Lauf sind nur gespeichert, solange die Liste nicht gilt', () => {
+    const feld = listenFelder(konfig, 'knoten', '4').find((f) => f.kind !== 'text' && f.kind !== 'disq')!
+    const zellen = [{ lauf: L0, starter: 's1', feld: feld.kennung, wert: feld.kind === 'code' ? (feld.katalog?.[0]?.code ?? '1') : '5' }]
+    expect(verborgeneEinzelheiten(stand(zellen), konfig)).toEqual([])
+    const ab = stand(zellen, { zusatzListen: { knoten: false } })
+    expect(kurz(ab)).toEqual({ [`s1:${feld.kennung}`]: [OHNE_LAUF, 'knoten', 'feld', false, 'abgewaehlt'] })
+  })
+
+  it('Klasse, die das Regelwerk nicht kennt (DM-Klasse 7 unter UIM): eigener Grund, nichts zählt mit', () => {
+    const uim = configFor({ regelwerk: 'uim-2026' })
+    const aufbau = uim.getAufbauten()[0].id
+    const s = { ...stand([{ lauf: L1, starter: 's7', feld: 'zeit1', wert: '80' }, { lauf: L1, starter: 's7', feld: 'nur-dort', wert: '5' }], { aufbau, starters: [starter('s7', '7', '701')] }) }
+    expect(kurz(s, uim)).toMatchObject({ 's7:zeit1': [1, expect.anything(), 'feld', false, 'klasseFehlt'], 's7:nur-dort': [1, undefined, 'feld', false, 'klasseFehlt'] })
+  })
+
+  it('andere Disziplin, fehlender Starter, unbekanntes Feld', () => {
+    const s = {
+      ...stand([]),
+      eingaben: { 'parallel/1': { s1: { zeit1: '30' } }, [L1]: { weg: { zeit1: '80' }, s1: { 'gibt-es-nicht': '5', 'erfasst@nirgends': '1' } } } as Eingaben,
+    }
+    expect(kurz(s)).toMatchObject({
+      's1:zeit1': [1, 'zeit', 'feld', false, 'disziplin'],
+      'weg:zeit1': [1, expect.anything(), 'feld', false, 'starter'],
+      's1:gibt-es-nicht': [1, undefined, 'feld', false, 'unbekannt'],
+      's1:erfasst@nirgends': [1, undefined, 'erfasst', false, 'unbekannt'],
+    })
+    const gruppen = verborgeneEinzelheiten(s, konfig)
+    // Der Starter, den es nicht gibt, steht zuletzt und ohne Angaben.
+    expect(gruppen.at(-1)).toMatchObject({ starterId: 'weg', starter: undefined })
+  })
+})

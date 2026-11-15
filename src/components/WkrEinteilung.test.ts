@@ -231,7 +231,14 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     expect(wahl.findAll('option').map((o) => o.text())).toEqual(['Dolphin', 'Klasse 1', 'Klasse 2', 'Klasse 3', 'Klasse 4', 'Klasse 5'])
     expect((wahl.element as HTMLSelectElement).value).toBe('5')
     await zeige(wrapper, 'steg')
+    // Der Bogen steht in der Sprache des Regelwerks (UIM: englisch), solange für die Liste nichts gewählt ist.
+    expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Class 5')
+    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['steg'], sprache: 'de' })
+    await nextTick()
     expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Klasse 5')
+    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['steg'], sprache: 'de+en' })
+    await nextTick()
+    expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Klasse / Class 5')
     wrapper.unmount()
   })
 
@@ -260,14 +267,15 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Class 5')
     // Die Tabelle nennt die Listen genauso.
     expect(wrapper.find('input[data-feld="par_2|steg"]').attributes('aria-label')).toBe('Name for Pontoon, Parcours 2')
+    // Die Sprache der Oberfläche ändert den Bogen nicht – nur das, was Bedienung ist.
     setLocale('de')
     await nextTick()
-    expect(kopf(wrapper, 'steg').find('.bk-liste').text()).toBe('Steg')
+    expect(kopf(wrapper, 'steg').find('.bk-liste').text()).toBe('Pontoon')
     expect(nummern(wrapper, 'steg')[0]).toBe('M1')
     wrapper.unmount()
   })
 
-  it('Clubmeisterschaft: die Beispielansicht zeigt den gemeinsamen Bogen – eine Leerzeile je Klasse, ohne Bild', async () => {
+  it('Clubmeisterschaft: die Beispielansicht zeigt den gemeinsamen Bogen – Leerzeilen je Seite statt je Klasse, ohne Bild', async () => {
     store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
     const wrapper = ansicht(store)
     await waehle(wrapper, '2')
@@ -276,11 +284,24 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     // Klasse 2 fährt mit E, 1 und 3 auf Parcours 1: alle vier stehen auf dem Bogen, jede mit Muster-Nummern.
     const zeilen = blatt.findAll('.bogen-tabelle > tbody > tr')
     const ueber = zeilen.filter((z) => z.classes('bt-zwischen')).map((z) => z.text())
-    expect([...ueber].sort()).toEqual(['Klasse 1', 'Klasse 2', 'Klasse 3', 'Klasse E'])
-    const nummern = blatt.findAll('td.bt-nr').map((td) => td.text())
-    expect(nummern.filter((n) => n.startsWith('M'))).toHaveLength(40)
-    // Papier sparen ist die Vorgabe: kein Parcoursbild, eine Leerzeile je Klasse.
-    expect(nummern.filter((n) => n === '')).toHaveLength(4)
+    // Die Leerzeilen teilen sich die Klassen der Seite: einmal am Ende, unter eigener Überschrift.
+    expect(ueber.at(-1)).toBe('Nachmeldungen')
+    expect([...ueber.slice(0, -1)].sort()).toEqual(['Klasse 1', 'Klasse 2', 'Klasse 3', 'Klasse E'])
+    const nummern = () => wrapper.findAll('.wkr-vorschau .bogen[data-liste="gate135"] td.bt-nr').map((td) => td.text())
+    expect(nummern().filter((n) => n.startsWith('M'))).toHaveLength(40)
+    // Papier sparen ist die Vorgabe: kein Parcoursbild, drei Leerzeilen je Seite (nicht je Klasse) – alle am Ende.
+    expect(nummern().filter((n) => n === '')).toHaveLength(3)
+    expect(nummern().slice(-3)).toEqual(['', '', ''])
+    // Die Zahl aus den Einstellungen wirkt sofort; ohne Leerzeilen entfällt auch die Überschrift.
+    store.dispatch({ type: 'SET_WKR_LEERZEILEN_SEITE', anzahl: 5 })
+    await nextTick()
+    expect(nummern().filter((n) => n === '')).toHaveLength(5)
+    store.dispatch({ type: 'SET_WKR_LEERZEILEN_SEITE', anzahl: 0 })
+    await nextTick()
+    expect(nummern().filter((n) => n === '')).toHaveLength(0)
+    expect(wrapper.find('.wkr-vorschau .bogen[data-liste="gate135"]').text()).not.toContain('Nachmeldungen')
+    store.dispatch({ type: 'SET_WKR_LEERZEILEN_SEITE', anzahl: null })
+    await nextTick()
     expect(blatt.find('.bogen-bild').exists()).toBe(false)
     expect(blatt.find('.bogen-kennzeichen').text()).toBe('Beispielansicht')
     // Ohne Papier sparen bleibt die Liste mit Bild je Klasse.

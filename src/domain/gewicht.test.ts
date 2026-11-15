@@ -14,19 +14,19 @@ const s = (klasse: ClassId, nachname: string, vorname: string, verein: string): 
   groesse: '',
 })
 
-describe('Zusatzgewicht', () => {
+describe('Ausgleichsgewicht', () => {
   it('rundet auf ganze kg, ab ,5 aufwärts', () => {
     expect(ausgleichKg(30.5, 33)).toBe(3)
     expect(ausgleichKg(32.6, 33)).toBe(0)
     expect(ausgleichKg(9, 33)).toBe(24)
   })
 
-  it('braucht keines, wer das Standardgewicht erreicht', () => {
+  it('braucht keines, wer das Durchschnittsgewicht erreicht', () => {
     expect(ausgleichKg(33, 33)).toBeNull()
     expect(ausgleichKg(40, 33)).toBeNull()
   })
 
-  it('nennt für Ungewogene keinen Wert – nicht das volle Standardgewicht', () => {
+  it('nennt für Ungewogene keinen Wert – nicht das volle Durchschnittsgewicht', () => {
     expect(ausgleichKg(undefined, 33)).toBeUndefined()
   })
 
@@ -58,6 +58,18 @@ describe('Gewichtslisten', () => {
       '2 Abel Zoe',
       '2 Zeh Anna',
     ])
+  })
+
+  it('gleichbedeutende Schreibweisen sind eine Liste, benannt nach der häufigsten', () => {
+    const feld = [s('1', 'Abel', 'Ben', 'NRW'), s('2', 'Zeh', 'Anna', 'Nordrhein-Westfalen'), s('E', 'Meier', 'Tom', 'Nordrhein-Westfalen'), s('1', 'Kurz', 'Ida', 'Bayern')]
+    const gleich = (name: string) => (name === 'NRW' ? 'nordrhein-westfalen' : name.toLowerCase())
+    const groups = gewichtsGruppen(feld, 'verein', gleich)
+    expect(groups.map((g) => [g.origin, g.starters.map((p) => p.nachname)])).toEqual([
+      ['Bayern', ['Kurz']],
+      ['Nordrhein-Westfalen', ['Meier', 'Abel', 'Zeh']],
+    ])
+    // Ohne Schlüssel bleibt jede Schreibweise für sich.
+    expect(gewichtsGruppen(feld, 'verein').map((g) => g.origin)).toEqual(['Bayern', 'Nordrhein-Westfalen', 'NRW'])
   })
 
   it('ohne Herkunft eine einzige Liste', () => {

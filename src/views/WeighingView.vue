@@ -4,6 +4,7 @@ import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { classColor } from '../domain/classes'
 import { ausgleichKg, gewichtsGruppen, parseGewicht } from '../domain/gewicht'
+import { mannschaftSchluessel } from '../lib/pokal'
 import { sollgewichtOf } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { originLabelKey } from '../lib/origin'
@@ -18,8 +19,10 @@ import type { Starter } from '../types'
 const { state, dispatch } = useStore()
 const { classLabel } = useEvent()
 
-const groups = computed(() => gewichtsGruppen(state.value.starters, state.value.originMode))
-const chosen = merke('verwiegung.wahl', '')
+const groups = computed(() => gewichtsGruppen(state.value.starters, state.value.originMode, (name) => mannschaftSchluessel(name, state.value.originMode)))
+// Übersteht das Neuladen. Gibt es die gemerkte Herkunft nicht mehr, gelten wieder alle.
+const chosen = merke('verwiegung.wahl', '', { ueberNeuladen: true })
+if (chosen.value && !groups.value.some((g) => g.origin === chosen.value)) chosen.value = ''
 const shown = computed(() => {
   const hit = groups.value.filter((g) => g.origin === chosen.value)
   return chosen.value && hit.length > 0 ? hit : groups.value

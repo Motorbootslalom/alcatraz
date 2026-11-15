@@ -38,7 +38,8 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     // Mann-über-Bord gibt es erst ab Klasse 4: acht Klassen × 3 Läufe × Listen, vier Klassen ohne MüB.
     // Dazu je Klasse einmal die Knoten (Vorgabe des Regelwerks, ohne Lauf).
     expect(boegen).toHaveLength(8 * 3 * listen.length - 4 * 3 + 8)
-    expect(boegen.filter((b) => b.typeId === 'knoten').every((b) => b.lauf === 1)).toBe(true)
+    // Sie liegen im Stapel des letzten Laufs: Die Knoten zählen erst zum Gesamtergebnis.
+    expect(boegen.filter((b) => b.typeId === 'knoten').every((b) => b.lauf === 3)).toBe(true)
     expect(new Set(boegen.map((b) => b.id)).size).toBe(boegen.length)
     const erster = boegen[0]
     expect(erster).toMatchObject({ parcoursId: 'par_1', klassen: ['E'], lauf: 1, typeId: listen[0] })
@@ -110,7 +111,10 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     expect([...new Set(zwei.map((b) => b.lauf))]).toEqual([1, 2])
     const bawue = wkrBoegenZumStand(stand({ aufbau: 'bawue' }), dm).boegen
     expect(dm.getSheetDef('knoten').showLauf).toBe(false)
-    expect(bawue.filter((b) => b.typeId === 'knoten' && b.klassen[0] === '7').map((b) => b.lauf)).toEqual([1])
+    expect(bawue.filter((b) => b.typeId === 'knoten' && b.klassen[0] === '7').map((b) => b.lauf)).toEqual([3])
+    expect(zwei.filter((b) => b.typeId === 'knoten' && b.klassen[0] === '7').map((b) => b.lauf)).toEqual([2])
+    const einer = wkrBoegenZumStand(stand({ laufCount: 1 }), dm).boegen
+    expect(einer.filter((b) => b.typeId === 'knoten' && b.klassen[0] === '7').map((b) => b.lauf)).toEqual([1])
     expect(bawue.filter((b) => b.typeId === 'steg' && b.klassen[0] === '7').map((b) => b.lauf)).toEqual([1, 2, 3])
   })
 
@@ -130,8 +134,96 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     expect(waehleBoegen(boegen, { parcours: 'par_2' }).every((b) => b.parcoursId === 'par_2')).toBe(true)
     const wahl = waehleBoegen(boegen, { klasse: '7', lauf: 2, liste: 'steg' })
     expect(wahl.map((b) => b.id)).toEqual(['par_2|7|2|steg'])
-    expect(waehleBoegen(boegen, { klasse: '7', lauf: 1 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length + 1)
+    expect(waehleBoegen(boegen, { klasse: '7', lauf: 3 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length + 1)
     expect(waehleBoegen(boegen, { klasse: '7', lauf: 2 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length)
+  })
+})
+
+describe('Clubmeisterschaft, Papier sparen: Leerzeilen je Seite statt je Klasse', () => {
+  const sparen = (mehr: Partial<AppState> = {}) => stand({ eventKind: 'club', wkrClubGemeinsam: true, wkrLeerzeilen: 1, laufCount: 1, starters: starter(['E', '1', '2', '3'], 5), ...mehr })
+  const steg = (s: AppState) => wkrBoegenZumStand(s, dm).boegen.find((b) => b.typeId === 'steg')!
+  /** Je Seite die Zeilen in Kurzform: Überschrift, „s“ = Starter, „_“ = Leerzeile. */
+  const bild = (s: AppState, zeilenKapazitaet = 0) => {
+    const b = steg(s)
+    return bogenSeiten(dm, b.auftrag, { ...b.optionen, zeilenKapazitaet }).map((seite) => seite.rows.map((r) => r.zwischen ?? (r.fixed ? 's' : '_')).join(' '))
+  }
+
+  it('gemeinsame Bögen tragen die Zahl je Seite; die Zahl je Klasse gilt dort nicht', () => {
+    const b = steg(sparen({ wkrLeerzeilenSeite: 4, wkrLeerzeilenKlasse: { '1': 7 } }))
+    expect(b.klassen).toHaveLength(4)
+    expect(b.optionen).toEqual({ klassenBloecke: true, leerzeilen: 0, leerzeilenJeSeite: 4 })
+    // Fehlt die Angabe (Aufrufer ohne ganzen Stand), gilt die Vorgabe: drei.
+    const { wkrLeerzeilenSeite: _weg, ...ohne } = sparen()
+    expect(wkrBoegenZumStand(ohne as AppState, dm).boegen.find((x) => x.typeId === 'steg')!.optionen.leerzeilenJeSeite).toBe(3)
+  })
+
+  it('ohne „Papier sparen“ und auf Bögen mit nur einer Klasse bleibt es bei den Leerzeilen je Klasse', () => {
+    const getrennt = steg(sparen({ wkrClubGemeinsam: false, wkrLeerzeilenKlasse: { '1': 7 } }))
+    expect(getrennt.optionen).toEqual({ klassenBloecke: true, leerzeilen: 1, leerzeilenJeKlasse: { '1': 7 } })
+    // Mann-über-Bord hat auf Parcours 2 nur eine Klasse mit Startern: ein Bogen einer Klasse.
+    const allein = wkrBoegenZumStand(sparen({ starters: starter(['1', '4'], 5), wkrLeerzeilen: 2 }), dm).boegen.find((b) => b.typeId === 'mueb')!
+    expect(allein.klassen).toEqual(['4'])
+    expect(allein.optionen).toMatchObject({ leerzeilen: 2 })
+    expect(allein.optionen.leerzeilenJeSeite).toBeUndefined()
+  })
+
+  it('eine Seite: die Leerzeilen stehen einmal am Ende, unter „Nachmeldungen“ – nicht nach jeder Klasse', () => {
+    const seiten = bild(sparen())
+    expect(seiten).toHaveLength(1)
+    const klassen = seiten[0].match(/Klasse \S+/g)!
+    expect(klassen).toHaveLength(4)
+    expect(seiten[0].endsWith('s Nachmeldungen _ _ _')).toBe(true)
+    expect(seiten[0].match(/_/g)).toHaveLength(3)
+    // Vorher: eine je Klasse, also vier, jeweils hinter ihrer Klasse.
+    expect(bild(sparen({ wkrClubGemeinsam: false }))[0].match(/_/g)).toHaveLength(4)
+  })
+
+  it('mehrere Seiten: auf jeder Seite stehen sie am Ende; ihr Platz zählt bei der Teilung mit', () => {
+    // 4 Klassen × (Überschrift + 5 Starter) = 24 Zeilen. Auf ein Blatt mit 20 Zeilen passen
+    // neben „Nachmeldungen“ + 3 Leerzeilen noch 16: zwei Klassen je Seite.
+    const seiten = bild(sparen(), 20)
+    expect(seiten).toHaveLength(2)
+    for (const s of seiten) {
+      expect(s.match(/Klasse \S+/g)).toHaveLength(2)
+      expect(s.endsWith('s Nachmeldungen _ _ _')).toBe(true)
+      expect(s.split(' ').length).toBeLessThanOrEqual(20)
+    }
+    // Die Schlüssel der Leerzeilen sind je Seite eindeutig.
+    const b = steg(sparen())
+    const schluessel = bogenSeiten(dm, b.auftrag, { ...b.optionen, zeilenKapazitaet: 20 }).flatMap((s) => s.rows.map((r) => r.key))
+    expect(new Set(schluessel).size).toBe(schluessel.length)
+  })
+
+  it('Leerzeilen sind kein Grund für ein weiteres Blatt: Sie entfallen bis auf eine', () => {
+    // 24 Zeilen auf Blättern mit 14: zwei Klassen (12 Zeilen) je Seite – daneben bleibt Platz
+    // für die Überschrift und genau eine Leerzeile. Drei kosteten ein drittes Blatt.
+    const seiten = bild(sparen(), 14)
+    expect(seiten).toHaveLength(2)
+    for (const s of seiten) expect(s.endsWith('s Nachmeldungen _')).toBe(true)
+    // Wer keine will, bekommt keine – auch keine Überschrift.
+    const ohne = bild(sparen({ wkrLeerzeilenSeite: 0 }), 20)
+    expect(ohne.join(' ')).not.toMatch(/Nachmeldungen|_/)
+  })
+
+  it('zweisprachiger Bogen: die Überschrift in beiden Sprachen', () => {
+    const b = steg(sparen({ regelwerk: 'uim-2026', starters: starter(['E', '1', '2', '3'], 5) }))
+    const texte = (sprache: 'de' | 'en' | 'de+en') => bogenSeiten(configFor({ regelwerk: 'uim-2026', sprache }), b.auftrag, b.optionen)[0].rows.flatMap((r) => (r.zwischen !== undefined && r.klasse === undefined ? [r.zwischen] : []))
+    expect(texte('en')).toEqual(['Late entries'])
+    expect(texte('de+en')).toEqual(['Nachmeldungen / Late entries'])
+  })
+})
+
+describe('Sprache der Bögen: der Titel in der Auswahl folgt der Sprache der Liste', () => {
+  it('`titelVon` nennt jede Liste, wie sie auf ihrem Bogen heißt; ohne Angabe gilt die Konfiguration', () => {
+    const uim = stand({ regelwerk: 'uim-2026', starters: starter(['1']), laufCount: 1 })
+    const en = configFor({ regelwerk: 'uim-2026', sprache: 'en' })
+    const de = configFor({ regelwerk: 'uim-2026', sprache: 'de' })
+    const titel = (boegen: { typeId: string; titel: string }[]) => Object.fromEntries(boegen.map((b) => [b.typeId, b.titel]))
+    expect(titel(wkrBoegenZumStand(uim, en).boegen)).toMatchObject({ steg: 'Pontoon', zeit: 'Time' })
+    const gemischt = wkrBoegenZumStand(uim, en, (typeId) => (typeId === 'steg' ? de : en).getSheetDef(typeId).title)
+    expect(titel(gemischt.boegen)).toMatchObject({ steg: 'Steg', zeit: 'Time' })
+    // Sonst ändert sich nichts: dieselben Bögen in derselben Reihenfolge.
+    expect(gemischt.boegen.map((b) => b.id)).toEqual(wkrBoegenZumStand(uim, en).boegen.map((b) => b.id))
   })
 })
 

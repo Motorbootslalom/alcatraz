@@ -42,5 +42,19 @@ export function mitTor5Umzug(alt: AppState, next: AppState): AppState {
   const klasseVon = new Map(next.starters.map((s) => [s.id, s.klasse as string]))
   const eingaben = listeUmziehen(next.eingaben, konfig, disziplin, (id) => klasseVon.get(id), von, nach)
   const einteilung = nameUmziehen(next.einteilung, von, nach)
-  return eingaben === next.eingaben && einteilung === next.einteilung ? next : { ...next, eingaben, einteilung }
+  const wkrSprachen = spracheUmziehen(next.wkrSprachen, von, nach)
+  return eingaben === next.eingaben && einteilung === next.einteilung && wkrSprachen === next.wkrSprachen ? next : { ...next, eingaben, einteilung, wkrSprachen }
+}
+
+/**
+ * Die gewählte Sprache des Bogens zieht mit der Liste um – sonst druckte der zusammengelegte
+ * Bogen wieder in der Sprache des Regelwerks, obwohl Tor 5 auf Deutsch gestellt war. Wie beim
+ * Namen: Ein Ziel mit eigener Wahl wird nicht überschrieben; der Eintrag der alten Liste
+ * entfällt, damit er beim Trennen nicht als veraltete Wahl wieder auftaucht.
+ */
+function spracheUmziehen(sprachen: AppState['wkrSprachen'], von: string, nach: string): AppState['wkrSprachen'] {
+  const hat = (id: string) => Object.prototype.hasOwnProperty.call(sprachen, id)
+  if (!hat(von) || hat(nach)) return sprachen
+  const { [von]: sprache, ...rest } = sprachen
+  return { ...rest, [nach]: sprache }
 }

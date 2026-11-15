@@ -8,8 +8,9 @@ import { useKonfig } from '../lib/konfig'
  * Aufhängen am Steg und als Nachschlagewerk für die Wettkampfrichter. Vorbild:
  * LegendePage.vue im Fehlerpunkte-Prototyp.
  *
- * Alle Texte kommen aus der Konfiguration (`getLegende()`, config/build.ts) und stehen damit
- * in der Sprache der Bögen – auch zweisprachig. Das Blatt hängt nur am Regelwerk: Es braucht
+ * Alle Texte kommen aus der Konfiguration (`getLegende()`, config/build.ts) und stehen in
+ * der Sprache des Regelwerks – einsprachig, wie jeder Aushang (lib/listensprache.ts). Das
+ * Blatt hängt nur am Regelwerk: Es braucht
  * weder Starter noch Startnummern und lässt sich schon vor dem Check-in drucken.
  */
 const { state } = useStore()

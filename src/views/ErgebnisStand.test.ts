@@ -36,8 +36,10 @@ async function ergebnisse(wrapper: VueWrapper) {
   await wrapper.find('.list-kinds button[data-kind="ergebnis"]').trigger('click')
   await nextTick()
 }
+/** Was im Feld zu SEHEN ist: nur der Zeitstempel – die Beschriftung für Vorlesegeräte (`.sr-only`) zählt nicht mit. */
+const sichtbar = (el: Element) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim()
 const blaetter = (wrapper: VueWrapper) =>
-  wrapper.findAll('.ergebnis-blatt').map((b) => [b.findAll('.erg-kopf span').slice(0, 2).map((s) => s.text()).join(' '), b.find('.erg-stand').exists() ? b.find('.erg-stand').text() : null])
+  wrapper.findAll('.ergebnis-blatt').map((b) => [b.findAll('.erg-kopf span').slice(0, 2).map((s) => s.text()).join(' '), b.find('.erg-fuss .erg-stand').exists() ? sichtbar(b.find('.erg-fuss .erg-stand').element) : null])
 // Ortszeit, damit der Test in jeder Zeitzone dasselbe erwartet.
 const T1 = new Date(2026, 5, 20, 14, 5, 9).getTime()
 const T2 = new Date(2026, 5, 20, 15, 30, 0).getTime()
@@ -59,20 +61,25 @@ describe('Ergebnislisten: Zeitpunkt der letzten Änderung', () => {
     document.body.innerHTML = ''
   })
 
-  it('steht im Kopf jeder Liste: je Lauf der seiner letzten Eingabe, auf der Gesamtliste der jüngste der Klasse', async () => {
+  it('steht in einem eigenen Feld unter jeder Liste: je Lauf der seiner letzten Eingabe, auf der Gesamtliste der jüngste der Klasse', async () => {
     const wrapper = ansicht(store)
     await ergebnisse(wrapper)
     expect(blaetter(wrapper)).toEqual([
-      ['Klasse 1 1. Lauf', 'Letzte Änderung: 20.06.2026, 14:05:09'],
-      ['Klasse 1 Gesamt', 'Letzte Änderung: 20.06.2026, 14:05:09'],
-      ['Klasse 4 1. Lauf', 'Letzte Änderung: 20.06.2026, 14:05:09'],
-      ['Klasse 4 2. Lauf', 'Letzte Änderung: 20.06.2026, 15:30:00'],
-      ['Klasse 4 Gesamt', 'Letzte Änderung: 20.06.2026, 15:30:00'],
+      ['Klasse 1 1. Lauf', '20.06.2026, 14:05:09'],
+      ['Klasse 1 Gesamt', '20.06.2026, 14:05:09'],
+      ['Klasse 4 1. Lauf', '20.06.2026, 14:05:09'],
+      ['Klasse 4 2. Lauf', '20.06.2026, 15:30:00'],
+      ['Klasse 4 Gesamt', '20.06.2026, 15:30:00'],
     ])
-    // Er gehört zum Blatt (wird mitgedruckt) und ist nicht der Druckzeitpunkt im Seitenrand.
-    expect(wrapper.find('.ergebnis-blatt .erg-kopf .erg-stand').classes()).not.toContain('no-print')
-    expect(wrapper.find('style').text()).toContain('@bottom-right')
-    expect(wrapper.find('style').text()).not.toContain('14:05:09')
+    // Er gehört zum Blatt (wird mitgedruckt): unter der Tabelle, nicht mehr im Kopf – und im
+    // Seitenrand steht gar nichts mehr, auch kein Druckzeitpunkt.
+    expect(wrapper.find('.ergebnis-blatt .erg-fuss .erg-stand').classes()).not.toContain('no-print')
+    // Im Feld steht nur der Zeitstempel; „Letzte Änderung“ hören nur Vorlesegeräte.
+    expect(wrapper.find('.erg-stand .sr-only').text()).toBe('Letzte Änderung:')
+    expect(wrapper.find('.erg-stand').text()).toBe('Letzte Änderung: 20.06.2026, 14:05:09')
+    expect(wrapper.find('.ergebnis-blatt .erg-kopf .erg-stand').exists()).toBe(false)
+    expect(wrapper.find('.ergebnis-blatt thead').text()).not.toContain('Letzte Änderung')
+    expect(wrapper.find('style').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -84,9 +91,14 @@ describe('Ergebnislisten: Zeitpunkt der letzten Änderung', () => {
     await wrapper.find('select[data-feld="erg-ordnung"]').setValue('nummer')
     await nextTick()
     expect(blaetter(wrapper)).toEqual(vorher)
+    // Die Sprache der Oberfläche ändert die Liste nicht; englisch ist sie nach den UIM-Regeln.
     setLocale('en')
     await nextTick()
-    expect(blaetter(wrapper)[3]).toEqual(['Class 4 Attempt 2', 'Last change: 2026-06-20 15:30:00'])
+    expect(blaetter(wrapper)).toEqual(vorher)
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 3 } })
+    await nextTick()
+    expect(blaetter(wrapper)[3]).toEqual(['Class 4 Attempt 2', '2026-06-20 15:30:00'])
     wrapper.unmount()
   })
 
@@ -94,7 +106,7 @@ describe('Ergebnislisten: Zeitpunkt der letzten Änderung', () => {
     const wieder = createStore()
     const wrapper = ansicht(wieder)
     await ergebnisse(wrapper)
-    expect(blaetter(wrapper)[4]).toEqual(['Klasse 4 Gesamt', 'Letzte Änderung: 20.06.2026, 15:30:00'])
+    expect(blaetter(wrapper)[4]).toEqual(['Klasse 4 Gesamt', '20.06.2026, 15:30:00'])
     wrapper.unmount()
   })
 
@@ -108,7 +120,7 @@ describe('Ergebnislisten: Zeitpunkt der letzten Änderung', () => {
     // Die nächste Eingabe setzt ihn – nur für die Listen, die sie betrifft.
     zeit(store, 1, 'id-1-2', '65', T2)
     await nextTick()
-    expect(blaetter(wrapper).map((b) => b[1])).toEqual(['Letzte Änderung: 20.06.2026, 15:30:00', 'Letzte Änderung: 20.06.2026, 15:30:00', null, null, null])
+    expect(blaetter(wrapper).map((b) => b[1])).toEqual(['20.06.2026, 15:30:00', '20.06.2026, 15:30:00', null, null, null])
     wrapper.unmount()
   })
 })

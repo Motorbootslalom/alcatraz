@@ -11,7 +11,9 @@ import {
   musterZeilen,
   type BogenAuftrag,
 } from './bogen'
-import { bietetEnglisch, bogenSpracheFuer, listenLocaleFuer, listenSpracheVon } from './listensprache'
+import { bietetEnglisch, regelwerkSprache, wkrSpracheFuer } from './listensprache'
+import { regelwerkInfo } from '../config/build'
+import { validateRawConfig } from '../config/validate'
 import { parcoursSvg } from './parcoursQuelle'
 
 const dm = configFor({ regelwerk: 'dm-2026' })
@@ -272,35 +274,38 @@ describe('Bogen-Modell (UIM 2026, englisch)', () => {
 })
 
 describe('Listensprache', () => {
-  it('„wie die Oberfläche“ folgt der Sprache der Oberfläche', () => {
-    expect(listenSpracheVon('de')).toBe('de')
-    expect(listenSpracheVon('en')).toBe('en')
-    expect(bogenSpracheFuer('ui', 'en', true)).toBe('en')
-    expect(listenLocaleFuer('ui', 'en', true)).toBe('en')
-    expect(bogenSpracheFuer('ui', 'de', true)).toBe('de')
+  it('alle Listen außer den Bögen stehen in der Sprache des Regelwerks: DM deutsch, UIM englisch', () => {
+    expect(regelwerkSprache('dm-2026')).toBe('de')
+    expect(regelwerkSprache('uim-2026')).toBe('en')
+    // Ein unbekanntes Regelwerk gilt als das erste (config/konfig.ts).
+    expect(regelwerkSprache('gibtsnicht')).toBe('de')
   })
 
-  it('eine feste Wahl gilt unabhängig von der Oberfläche', () => {
-    expect(bogenSpracheFuer('en', 'de', true)).toBe('en')
-    expect(listenLocaleFuer('en', 'de', true)).toBe('en')
-    expect(bogenSpracheFuer('de', 'en', true)).toBe('de')
-    expect(listenLocaleFuer('de', 'en', true)).toBe('de')
+  it('die Sprache steht im Regelwerk, nicht im Code: `listenSprache` aus dem YAML, sonst die erste angebotene', () => {
+    expect(regelwerkInfo({ sprachen: ['de', 'en'], listenSprache: 'en' }).listenSprache).toBe('en')
+    expect(regelwerkInfo({ sprachen: ['de', 'en'] }).listenSprache).toBe('de')
+    expect(regelwerkInfo({ sprachen: ['en', 'de'] }).listenSprache).toBe('en')
+    expect(regelwerkInfo({}).listenSprache).toBe('de')
+    // Eine Sprache, die das Regelwerk nicht anbietet, gilt nicht (die Prüfung meldet sie).
+    expect(regelwerkInfo({ listenSprache: 'en' }).listenSprache).toBe('de')
+    expect(validateRawConfig({ listenSprache: 'en' }).some((i) => i.code === 'BAD_SPRACHE')).toBe(true)
+    expect(validateRawConfig({ sprachen: ['de'], listenSprache: 'de' }).some((i) => i.code === 'BAD_SPRACHE')).toBe(false)
   })
 
-  it('zweisprachig: die Bögen in beiden Sprachen, die übrigen Listen in der Sprache der Oberfläche', () => {
-    expect(bogenSpracheFuer('de+en', 'de', true)).toBe('de+en')
-    expect(listenLocaleFuer('de+en', 'de', true)).toBe('de')
-    expect(listenLocaleFuer('de+en', 'en', true)).toBe('en')
+  it('Bögen: ohne Wahl die Sprache des Regelwerks, sonst die der Liste – auch zweisprachig', () => {
+    const uim = { regelwerk: 'uim-2026', wkrSprachen: { steg: 'de', zeit: 'de+en' } } as const
+    expect(wkrSpracheFuer(uim, 'steg')).toBe('de')
+    expect(wkrSpracheFuer(uim, 'zeit')).toBe('de+en')
+    expect(wkrSpracheFuer(uim, 'tor135')).toBe('en')
+    expect(wkrSpracheFuer({ regelwerk: 'uim-2026' }, 'steg')).toBe('en')
+    // Kennungen, die das Objekt-Urbild träfen, sind keine Wahl.
+    expect(wkrSpracheFuer(uim, 'constructor')).toBe('en')
   })
 
-  it('ohne Englisch im Regelwerk bleiben die Bögen deutsch, die übrigen Listen folgen der Oberfläche', () => {
+  it('ohne Englisch im Regelwerk bleiben die Bögen deutsch; die Wahl bleibt stehen und wirkt nicht', () => {
     expect(bietetEnglisch('dm-2026')).toBe(false)
     expect(bietetEnglisch('uim-2026')).toBe(true)
-    for (const wahl of ['ui', 'de', 'en', 'de+en'] as const) {
-      expect(bogenSpracheFuer(wahl, 'en', false)).toBe('de')
-      expect(listenLocaleFuer(wahl, 'en', false)).toBe('en')
-      expect(listenLocaleFuer(wahl, 'de', false)).toBe('de')
-    }
+    for (const wahl of ['de', 'en', 'de+en'] as const) expect(wkrSpracheFuer({ regelwerk: 'dm-2026', wkrSprachen: { steg: wahl } }, 'steg')).toBe('de')
   })
 })
 

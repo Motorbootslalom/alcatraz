@@ -1,14 +1,24 @@
 import type { AppState, ClassId, OriginMode, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, laufzettelLayoutWert, leerzeilenZahl, listenSpracheWert, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
+import { emptyState, laufzettelLayoutWert, leerzeilenZahl, streichlaeufeWert, teilenAbZahl, wkrSprachenWert, zeilenJeSeiteZahl } from './reducer'
 import { aufbauOf, beschriftungOf, regelwerkOf } from '../config/catalog'
 import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
 import { normalisiereEinteilung } from '../lib/einteilung'
+import { normalisiereBesetzung } from '../lib/besetzung'
 import { normalisiereEingaben, nurStarter } from '../lib/eingaben'
 import { istKennung } from '../lib/qr'
+import { configFor } from '../config/konfig'
+import { isSprache } from '../config/sprache'
+import { bietetEnglisch, regelwerkSprache } from '../lib/listensprache'
+import { pokalWert } from '../config/pokal'
+import { istOriginStyle } from '../lib/origin'
+import type { ErgebnisHerkunft } from '../types'
+
+/** Herkunft auf den Ergebnislisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
+const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
 
 /**
  * Einen gelesenen Stand (localStorage, Sicherungsdatei) auf die aktuelle Fassung
@@ -17,8 +27,12 @@ import { istKennung } from '../lib/qr'
  *
  * Neue Fassungen bekommen hier einen Schritt `if (version < n) { … }`; die
  * Schritte laufen der Reihe nach, sodass auch alte Sicherungen lesbar bleiben.
+ *
+ * `oberflaeche`: die Sprache der Oberfläche dieses Geräts, soweit der Aufrufer sie kennt
+ * (persistenz/). Sie gehört nicht zum Stand; gebraucht wird sie nur für alte Stände, deren
+ * Bögen „wie die Oberfläche“ gedruckt wurden (`alteWkrSprachen`).
  */
-export function migrate(raw: unknown): AppState | null {
+export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): AppState | null {
   if (!raw || typeof raw !== 'object') return null
   const loaded = raw as Partial<AppState>
   if (!Array.isArray(loaded.starters)) return null
@@ -33,9 +47,21 @@ export function migrate(raw: unknown): AppState | null {
   )
   const parcoursList = Array.isArray(loaded.parcoursList) ? loaded.parcoursList : base.parcoursList
   const starters = loaded.starters.map(normalizeStarter)
+  // Bis zur Sprache je Liste gab es eine Wahl für alle Listen (`listenSprache`). Das Feld
+  // entfällt; was daraus für die Bögen wird, steht unten bei `wkrSprachen`.
+  // Ebenso `pokalStand` (eigene Zeitpunkte der Mannschaftswertung): Ihr Zeitpunkt ist jetzt der
+  // jüngste der Gesamtlisten (lib/listenStand.ts `wertungZeit`).
+  // `gespeichert` ist die Speichermarke (persistenz/storage.ts): Sie gehört zum Speichern, nicht zum Stand.
+  const {
+    listenSprache: alteSprache,
+    pokalStand: _pokalStand,
+    gespeichert: _gespeichert,
+    ...uebernommen
+  } = loaded as Partial<AppState> & { listenSprache?: unknown; pokalStand?: unknown; gespeichert?: unknown }
+  const regelwerk = regelwerkOf(loaded.regelwerk ?? '').id
   return {
     ...base,
-    ...loaded,
+    ...uebernommen,
     schemaVersion: SCHEMA_VERSION,
     starters,
     // Fehlen in Ständen vor der Erfassung. Werte von Startern, die es nicht (mehr) gibt, entfallen.
@@ -52,7 +78,8 @@ export function migrate(raw: unknown): AppState | null {
     sollgewicht: ownWeights(loaded.sollgewicht, regelwerkOf(loaded.regelwerk ?? '').gewichte),
     verzahnungLocked: loaded.verzahnungLocked === true,
     showBirthdate: loaded.showBirthdate !== false,
-    listOrigin: loaded.listOrigin === 'kurz' ? 'kurz' : 'lang',
+    // Stände vor den Flaggen kennen nur „kurz“ und „lang“ – beide gelten weiter; Unbekanntes wird die Vorgabe.
+    listOrigin: istOriginStyle(loaded.listOrigin) ? loaded.listOrigin : 'lang',
     originShort: { ...loaded.originShort },
     // Fehlt in Ständen vor der WKR-Einteilung; Unbrauchbares entfällt – auch Namen zu
     // Parcours, die es nicht (mehr) gibt.
@@ -60,18 +87,23 @@ export function migrate(raw: unknown): AppState | null {
       loaded.einteilung,
       parcoursList.map((p) => p?.id).filter((id): id is string => typeof id === 'string'),
     ),
+    // Fehlen in Ständen vor dem Block „Besetzung“; Unbrauchbares entfällt.
+    boote: normalisiereBesetzung(loaded.boote),
+    coPiloten: normalisiereBesetzung(loaded.coPiloten),
     // Fehlen in Ständen vor den Wettkampfrichter-Listen.
     wkrLeerzeilen: leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen,
     wkrLeerzeilenKlasse: eigeneLeerzeilen(loaded.wkrLeerzeilenKlasse, leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen),
+    // Fehlt in Ständen vor den geteilten Leerzeilen: Dann gilt die Vorgabe (drei je Seite).
+    wkrLeerzeilenSeite: leerzeilenZahl(loaded.wkrLeerzeilenSeite) ?? base.wkrLeerzeilenSeite,
     wkrRueckseite: loaded.wkrRueckseite === true,
     // Vorgabe an: Wirkt ohnehin nur bei der Clubmeisterschaft, und dort ist Papier sparen das Übliche.
     wkrClubGemeinsam: loaded.wkrClubGemeinsam !== false,
     ergebnisListen: {
       aushang: {
         namen: (['voll', 'kurz', 'ohne'] as const).find((n) => n === loaded.ergebnisListen?.aushang?.namen) ?? base.ergebnisListen.aushang.namen,
-        herkunft: (['aus', 'kurz', 'lang'] as const).find((h) => h === loaded.ergebnisListen?.aushang?.herkunft) ?? base.ergebnisListen.aushang.herkunft,
+        herkunft: ergebnisHerkunft(loaded.ergebnisListen?.aushang?.herkunft) ?? base.ergebnisListen.aushang.herkunft,
       },
-      intern: { herkunft: (['aus', 'kurz', 'lang'] as const).find((h) => h === loaded.ergebnisListen?.intern?.herkunft) ?? base.ergebnisListen.intern.herkunft },
+      intern: { herkunft: ergebnisHerkunft(loaded.ergebnisListen?.intern?.herkunft) ?? base.ergebnisListen.intern.herkunft },
     },
     // Fehlt in Ständen vor den QR-Codes; der Store vergibt dann eine.
     kennung: istKennung(loaded.kennung) ? loaded.kennung : '',
@@ -84,16 +116,38 @@ export function migrate(raw: unknown): AppState | null {
     wkrZeilenJeSeite: zeilenJeSeiteZahl(loaded.wkrZeilenJeSeite),
     wkrTeilenAb: teilenAbZahl(loaded.wkrTeilenAb),
     beschriftung: beschriftungOf(loaded.beschriftung),
-    listenSprache: listenSpracheWert(loaded.listenSprache),
+    wkrSprachen: loaded.wkrSprachen === undefined ? alteWkrSprachen(alteSprache, regelwerk, eigeneAufbauten, optionen.oberflaeche) : wkrSprachenWert(loaded.wkrSprachen),
     // Fehlen in Ständen vor diesen Optionen: getrennte Listen, die Vorgabe des Regelwerks
     // (damit die Knoten-Liste), Laufzettel mit einer Zeile je Seite.
     tor5MitParcours: loaded.tor5MitParcours === true,
     zusatzListen: normalisiereZusatzListen(loaded.zusatzListen),
     laufzettelLayout: laufzettelLayoutWert(loaded.laufzettelLayout),
+    // Fehlt in Ständen vor der Pokalauswertung: Dann gilt die Vorgabe des Regelwerks, alle Starter zählen.
+    pokal: pokalWert(loaded.pokal),
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },
   }
+}
+
+/**
+ * Stände aus der Zeit der einen „Sprache der Listen“ (wie die Oberfläche, deutsch, englisch,
+ * zweisprachig): Die übrigen Listen folgen jetzt dem Regelwerk – dafür braucht es nichts. Für
+ * die Wettkampfrichter-Bögen galt eine feste Wahl bisher für alle Listen; sie bleibt, je Liste
+ * eingetragen, damit schon gedruckte und noch zu druckende Bögen dieselbe Sprache haben. „Wie
+ * die Oberfläche“ (die frühere Vorgabe, auch wenn das Feld ganz fehlt) gibt es nicht mehr:
+ * Kennt der Aufrufer die Sprache der Oberfläche, wird SIE je Liste eingetragen – wer unter UIM
+ * deutsch bedient hat, druckte deutsche Bögen und soll nach dem Update nicht stillschweigend
+ * englische bekommen. Ist sie unbekannt, gilt die Sprache des Regelwerks. Unter einem
+ * Regelwerk ohne Englisch wirkte die Wahl nie – sie wird nicht übernommen.
+ */
+function alteWkrSprachen(alt: unknown, regelwerk: string, eigeneAufbauten: readonly RawAufbau[], oberflaeche?: string): AppState['wkrSprachen'] {
+  if (!bietetEnglisch(regelwerk)) return {}
+  const wieOberflaeche = alt === 'ui' || alt === undefined
+  const sprache = isSprache(alt) ? alt : wieOberflaeche && isSprache(oberflaeche) ? oberflaeche : undefined
+  // Was der Vorgabe des Regelwerks entspricht, wird nicht eingetragen und folgt ihm weiter.
+  if (!sprache || (wieOberflaeche && sprache === regelwerkSprache(regelwerk))) return {}
+  return Object.fromEntries(configFor({ regelwerk, eigeneAufbauten }).getPositions().map((p) => [p.typeId, sprache]))
 }
 
 /**
@@ -161,6 +215,8 @@ function normalizeStarter(s: Starter): Starter {
     klasse: s.klasse,
     groesse: s.groesse ?? '',
     ...(typeof s.gewicht === 'number' && s.gewicht > 0 ? { gewicht: s.gewicht } : {}),
+    // Nur die Abwahl steht im Stand; alles andere heißt „zählt für die Pokalauswertung“.
+    ...(s.pokal === false ? { pokal: false as const } : {}),
   }
 }
 
@@ -168,11 +224,11 @@ function normalizeStarter(s: Starter): Starter {
  * Stand des Verzahnungs-Prototyps (`verzahnung-prototyp:v1`) übernehmen. Der
  * Prototyp nannte die Starter `participants`; alles Übrige passt.
  */
-export function fromVerzahnungPrototyp(raw: unknown): AppState | null {
+export function fromVerzahnungPrototyp(raw: unknown, optionen: { oberflaeche?: string } = {}): AppState | null {
   if (!raw || typeof raw !== 'object') return null
   const old = raw as Record<string, unknown>
   if (!Array.isArray(old.participants)) return null
   const { participants, initialized: _initialized, originMode, ...rest } = old
   const origin: OriginMode = originMode === 'bundesland' ? 'bundesland' : 'verein'
-  return migrate({ ...rest, originMode: origin, starters: participants })
+  return migrate({ ...rest, originMode: origin, starters: participants }, optionen)
 }

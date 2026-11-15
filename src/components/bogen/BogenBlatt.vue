@@ -20,7 +20,7 @@ import BogenSeite from './BogenSeite.vue'
 const props = defineProps<{
   konfig: BogenKonfig
   auftrag: BogenAuftrag
-  optionen?: Pick<BogenOptionen, 'leerzeilen' | 'zeilenJeSeite' | 'teilenAb' | 'anzeige' | 'klassenBloecke' | 'leerzeilenJeKlasse'>
+  optionen?: Pick<BogenOptionen, 'leerzeilen' | 'zeilenJeSeite' | 'teilenAb' | 'anzeige' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'leerzeilenJeSeite'>
   rueckseite?: boolean
   kennzeichen?: string
   wkrPflege?: boolean

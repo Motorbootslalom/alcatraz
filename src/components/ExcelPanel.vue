@@ -13,6 +13,8 @@ import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
 import { pruefeKlassen } from '../import/klassenPruefung'
 import { useEvent } from '../lib/event'
 import { t, tn } from '../i18n'
+import { starterfeldFest } from '../lib/eingaben'
+import StarterSperre from './StarterSperre.vue'
 
 /**
  * Austausch mit Excel über die Zwischenablage: Starterliste einfügen sowie
@@ -31,7 +33,7 @@ const preview = computed(() => (raw.value.trim() ? parse(raw.value) : null))
 
 // Sobald Ergebnisse erfasst sind, ist die Starterliste fest: Listen sind gedruckt, Werte hängen
 // an den Startern. Ein Import geht erst wieder, wenn die erfassten Werte entfernt sind.
-const gesperrt = computed(() => Object.keys(state.value.eingaben).length > 0)
+const gesperrt = computed(() => starterfeldFest(state.value))
 
 // Klasse gegen Geburtsjahr: Fehler müssen in der Quelle behoben sein, bevor etwas übernommen wird.
 const { regelwerk, classLabel } = useEvent()
@@ -86,9 +88,7 @@ function onRaw(e: Event) {
     </div>
 
     <div v-if="open" style="margin-top: 12px">
-      <p v-if="gesperrt" class="boat-banner warn" data-hinweis="import-gesperrt" role="status">
-        {{ t('import.locked') }} <a href="#/einstellungen?wertung">{{ t('nav.einstellungen') }}</a>
-      </p>
+      <StarterSperre data-hinweis="import-gesperrt" />
       <p class="hint">{{ t('import.hint') }}</p>
       <label class="subhead" for="import-raw" style="display: block; margin-bottom: 6px">
         {{ t('import.label') }}

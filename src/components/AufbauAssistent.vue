@@ -55,7 +55,8 @@ const props = defineProps<{
 const emit = defineEmits<{ schliessen: [] }>()
 const { state, dispatch } = useStore()
 const konfig = useKonfig()
-const { bogenSprache } = useListenSprache()
+// Der Entwurf hat noch keine Sprache je Liste: Seine Beispielansicht steht in der des Regelwerks.
+const { listenLocale } = useListenSprache()
 
 /** Das Regelwerk sieht die Knoten-Liste ohnehin vor (regelwerke/*.yaml `vorgabeListen`). */
 // Eigene Aufbauten sind immer Manövrier-Aufbauten.
@@ -161,7 +162,7 @@ const vorschauKonfig = computed(() => {
   if (!a) return undefined
   const k = configFor({
     regelwerk: state.value.regelwerk,
-    sprache: bogenSprache.value,
+    sprache: listenLocale.value,
     beschriftung: state.value.beschriftung,
     eigeneAufbauten: [...state.value.eigeneAufbauten.filter((x) => x.id !== a.id), a],
   })

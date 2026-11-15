@@ -98,7 +98,8 @@ describe('Bögen, Wertung und Laufzettel folgen den Listen der Veranstaltung', (
 
   it('der QR-Code eines zusätzlichen Bogens nennt seine Liste', () => {
     const knoten = wkrBoegenZumStand(stand({ kennung: 'K7Q4' }), dm).boegen.find((b) => b.typeId === 'knoten' && b.klassen[0] === '4')!
-    expect(knoten).toMatchObject({ lauf: 1, titel: 'Knoten' })
+    // Ohne Lauf im Kopf; eingeordnet im letzten Lauf (drei Läufe).
+    expect(knoten).toMatchObject({ lauf: 3, titel: 'Knoten' })
     expect(knoten.auftrag.qr).toContain('.KNOTEN')
   })
 
@@ -125,10 +126,10 @@ describe('Bögen, Wertung und Laufzettel folgen den Listen der Veranstaltung', (
     const listen = veranstaltungsListen(dm, s)
     const zettel = buildLaufzettel(boegen, listen, () => 2, { jeParcours: true })
     expect(zettel.map((z) => [z.parcoursId, [...z.klassen].sort().join('+'), z.lauf])).toEqual([['par_1', '1+4', 1], ['par_1', '1+4', 2]])
-    // Jede Druckseite jedes Bogens hat ihr Kästchen; die Knoten nur im 1. Lauf.
-    expect(zettel[0].zeilen).toHaveLength(boegen.filter((b) => b.lauf === 1).length * 2)
-    expect(zettel[0].zeilen.at(-1)).toMatchObject({ typeId: 'knoten', seite: 2, seiten: 2 })
-    expect(zettel[1].zeilen.some((z) => z.typeId === 'knoten')).toBe(false)
+    // Jede Druckseite jedes Bogens hat ihr Kästchen; die Knoten nur im letzten Lauf.
+    expect(zettel[1].zeilen).toHaveLength(boegen.filter((b) => b.lauf === 2).length * 2)
+    expect(zettel[1].zeilen.at(-1)).toMatchObject({ typeId: 'knoten', seite: 2, seiten: 2 })
+    expect(zettel[0].zeilen.some((z) => z.typeId === 'knoten')).toBe(false)
     // Selbst Bögen einzelner Klassen ergäben mit `jeParcours` einen Stapel.
     const einzeln = wkrBoegenZumStand({ ...s, eventKind: 'meisterschaft' }, dm).boegen
     expect(buildLaufzettel(einzeln, listen, () => 1, { jeParcours: true })).toHaveLength(2)

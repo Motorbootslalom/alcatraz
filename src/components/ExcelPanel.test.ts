@@ -63,6 +63,13 @@ describe('Einfügen aus Excel: Klasse gegen Geburtsjahr, Sperre nach den ersten 
     await wrapper.find('textarea').setValue(zeilen(von, von))
     expect(wrapper.find('[data-hinweis="import-gesperrt"]').text()).toContain('Ergebnisse erfasst')
     expect(knoepfe(wrapper)).toEqual([true, true])
+    // Der Hinweis nennt beide Wege, die Sperre zu lösen – als Verweise in der Sprache der Oberfläche.
+    const verweise = () => wrapper.findAll('[data-hinweis="import-gesperrt"] a').map((a) => a.attributes('href'))
+    expect(verweise()).toEqual(['#/veranstaltung?werte', '#/einstellungen?dateien'])
+    setLocale('en')
+    await wrapper.vm.$nextTick()
+    expect(verweise()).toEqual(['#/event?values', '#/settings?files'])
+    setLocale('de')
     wrapper.unmount()
   })
 })

@@ -45,7 +45,7 @@ import aufbauListe from './aufbauten.yaml?raw'
  */
 
 /** Ein Regelwerk, wie es in der Datei steht; `disziplinen` gibt es nur hier (siehe catalog.ts). */
-export type RohRegelwerk = RawRegelwerk & { disziplinen?: string[]; gewichte?: Record<string, number> }
+export type RohRegelwerk = RawRegelwerk & { disziplinen?: string[]; gewichte?: Record<string, number>; coPilot?: (string | number)[] }
 
 const dateien = (found: Record<string, string>) =>
   new Map(Object.entries(found).map(([pfad, text]) => [pfad.replace(/^\.\/|\.yaml$/g, ''), text]))
@@ -186,7 +186,7 @@ export function baue(
   const scheme = positionen.beschriftungen?.find((b) => b.id === wahl.beschriftung)
   // `disziplinen` des Regelwerks (Kennungen) gehört nicht in die Listen-Konfiguration;
   // dort sind es die Disziplinen der Positionsdateien.
-  const { disziplinen: _disziplinen, gewichte: _gewichte, ...ohneDisziplinen } = regelwerk as RohRegelwerk
+  const { disziplinen: _disziplinen, gewichte: _gewichte, coPilot: _coPilot, ...ohneDisziplinen } = regelwerk as RohRegelwerk
   const raw: RawConfig = {
     ...ohneDisziplinen,
     ...positionen,
@@ -248,6 +248,9 @@ function erzeuge(wahl: Required<Omit<KonfigWahl, 'beschriftung'>> & { beschriftu
     cfg.aufbauten.find((x) => x.id === id) ??
     cfg.aufbauten[0] ?? { id: 'standard', name: 'Standard', disziplin: 'standard', order: [], zusatz: [] }
 
+  // Nach der Kennung statt mit Suche: Erfassung und Wertung fragen je Zeile und Feld nach der Position.
+  const positionVon = new Map(cfg.positions.map((p) => [p.typeId, p]))
+
   return {
     ...cfg,
     regelwerke: REGELWERK_INFOS,
@@ -259,14 +262,14 @@ function erzeuge(wahl: Required<Omit<KonfigWahl, 'beschriftung'>> & { beschriftu
     kurse: (ROH_QUELLE.kurse ?? []).map((k) => ({ id: k.id, name: k.name })),
 
     getSheetDef(typeId) {
-      const def = cfg.positions.find((p) => p.typeId === typeId)
+      const def = positionVon.get(typeId)
       if (!def) throw new Error(`Unbekannte Position: ${typeId}`)
       return def
     },
     getPositions: () => cfg.positions,
     positionAllowsClass(typeId, klasse) {
       if (!cfg.regelwerk.klassen.includes(klasse)) return false
-      const d = cfg.positions.find((p) => p.typeId === typeId)
+      const d = positionVon.get(typeId)
       return !d?.klassen || d.klassen.length === 0 || d.klassen.includes(klasse)
     },
     getAufbauten: () => cfg.aufbauten,

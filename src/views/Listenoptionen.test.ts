@@ -3,6 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ListsView from './ListsView.vue'
 import SettingsView from './SettingsView.vue'
+import EventView from './EventView.vue'
 import { createStore, storeKey, type Store } from '../state/store'
 import { emptyState } from '../state/reducer'
 import { laufSchluessel } from '../lib/eingaben'
@@ -32,6 +33,8 @@ function starter(klassen: ClassId[], n = 3): Starter[] {
 
 const listen = (store: Store) => mount(ListsView, { global: { provide: { [storeKey as symbol]: store } }, attachTo: document.body })
 const einstellungen = (store: Store) => mount(SettingsView, { global: { provide: { [storeKey as symbol]: store } }, attachTo: document.body })
+// Die WKR-Einteilung steht bei der Veranstaltung (Block „Besetzung“).
+const veranstaltung = (store: Store) => mount(EventView, { global: { provide: { [storeKey as symbol]: store } }, attachTo: document.body })
 async function art(wrapper: VueWrapper, kind: string) {
   await wrapper.find(`.list-kinds button[data-kind="${kind}"]`).trigger('click')
   await nextTick()
@@ -45,6 +48,7 @@ const zeit = (store: Store, lauf: number, id: string, wert: string) =>
 let store: Store
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
   vergissAlles()
   setLocale('de')
   store = createStore()
@@ -91,30 +95,35 @@ describe('Listen: Aushang der Codes', () => {
     wrapper.unmount()
   })
 
-  it('folgt der Listensprache – auch zweisprachig', async () => {
-    lade(store, { regelwerk: 'uim-2026', listenSprache: 'en' })
+  it('steht in der Sprache des Regelwerks – einsprachig, auch wenn Bögen zweisprachig sind', async () => {
+    lade(store, { regelwerk: 'uim-2026' })
     const wrapper = listen(store)
     await art(wrapper, 'codes')
     const titel = () => wrapper.find('.lg-blatt .sheet-title-box .list').text()
     expect(titel()).toBe('Legend: penalties and disqualifications')
     expect(wrapper.find('.lg-quelle').text()).toContain('rule 960 Formula Future')
-    store.dispatch({ type: 'SET_LISTEN_SPRACHE', sprache: 'de+en' })
+    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['steg', 'zeit', 'gate135'], sprache: 'de+en' })
     await nextTick()
-    expect(titel()).toBe('Legende: Fehlerpunkte und Disqualifikationen / Legend: penalties and disqualifications')
+    expect(titel()).toBe('Legend: penalties and disqualifications')
+    // Die Sprache der Oberfläche spielt keine Rolle; unter der DM ist der Aushang deutsch.
+    setLocale('en')
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+    await nextTick()
+    expect(titel()).toBe('Legende: Fehlerpunkte und Disqualifikationen')
     wrapper.unmount()
   })
 })
 
-describe('Listen: Sprache unabhängig von der Oberfläche', () => {
+describe('Listen: Sprache nach dem Regelwerk, unabhängig von der Oberfläche', () => {
   // Die Spaltenköpfe der ersten Liste (je Parcours gibt es eine).
   const koepfe = (wrapper: VueWrapper) => wrapper.find('.sheet-cols').findAll('th').map((th) => th.text())
 
-  it('UIM, Listen englisch, Oberfläche deutsch: Startliste, Laufzettel und Ergebnisliste sind englisch', async () => {
-    lade(store, { regelwerk: 'uim-2026', listenSprache: 'en', showBirthdate: true })
+  it('UIM, Oberfläche deutsch: Startliste, Laufzettel, Ergebnisliste und – ohne eigene Wahl – die Bögen sind englisch', async () => {
+    lade(store, { regelwerk: 'uim-2026', showBirthdate: true })
     zeit(store, 1, 'id-4-1', '70')
     const wrapper = listen(store)
     // Die Bedienung bleibt deutsch.
-    expect(wrapper.find('.list-kinds button[data-kind="interleaved"]').text()).toBe('Starter komplett (verzahnt)')
+    expect(wrapper.find('.list-kinds button[data-kind="starter"]').text()).toBe('Starterlisten')
     expect(koepfe(wrapper)).toEqual(['No.', 'Surname', 'First name', 'Club', 'Date of birth', 'Class'])
     // Datum in englischer Schreibweise.
     expect(wrapper.find('.sheet-table tbody td:nth-child(5)').text()).toMatch(/^2014-05-0\d$/)
@@ -131,16 +140,26 @@ describe('Listen: Sprache unabhängig von der Oberfläche', () => {
     wrapper.unmount()
   })
 
-  it('zweisprachig: die Bögen in beiden Sprachen, die übrigen Listen in der Sprache der Oberfläche', async () => {
-    lade(store, { regelwerk: 'uim-2026', listenSprache: 'de+en' })
+  it('Bögen je Liste: deutsch, englisch oder zweisprachig nebeneinander; die übrigen Listen bleiben bei der Sprache des Regelwerks', async () => {
+    lade(store, { regelwerk: 'uim-2026', laufCount: 1, wkrSprachen: { steg: 'de', zeit: 'de+en' } })
     const wrapper = listen(store)
-    expect(koepfe(wrapper)[0]).toBe('S-Nr.')
+    expect(koepfe(wrapper)[0]).toBe('No.')
+    // Auch die Sprache der Oberfläche ändert daran nichts.
     setLocale('en')
     await nextTick()
     expect(koepfe(wrapper)[0]).toBe('No.')
+    setLocale('de')
     await art(wrapper, 'wkr')
-    expect(wrapper.find('.bogen .bt-nr').text()).toBe('Nr. / No.')
-    // Der Laufzettel nennt die Listen in der einen Sprache der übrigen Listen, nicht „Zeit / Time“.
+    const nr = (liste: string) => wrapper.find(`.wkr-listen .bogen[data-liste="${liste}"] .bt-nr`).text()
+    expect(nr('steg')).toBe('Nr.')
+    expect(nr('zeit')).toBe('Nr. / No.')
+    expect(nr('gate135')).toBe('No.')
+    // Die Auswahl nennt jede Liste so, wie sie auf ihrem Bogen heißt.
+    const titel = wrapper.findAll('select[data-feld="wkr-liste"] option').map((o) => o.text())
+    expect(titel).toContain('Steg')
+    expect(titel).toContain('Zeit / Time')
+    expect(titel).toContain('Gate 1 / 3 / 5')
+    // Der Laufzettel nennt die Listen in der Sprache des Regelwerks, nicht „Zeit / Time“.
     await art(wrapper, 'laufzettel')
     const namen = wrapper.findAll('.lz-vorn .lz-je-seite .lz-text').map((x) => x.text())
     expect(namen.length).toBeGreaterThan(0)
@@ -149,12 +168,14 @@ describe('Listen: Sprache unabhängig von der Oberfläche', () => {
     wrapper.unmount()
   })
 
-  it('DM: Das Regelwerk gibt es nur auf Deutsch – die Wahl wirkt nicht', async () => {
-    lade(store, { listenSprache: 'en' })
+  it('DM: alles deutsch – auch bei englischer Oberfläche; eine Wahl für die Bögen wirkt nicht', async () => {
+    lade(store, { wkrSprachen: { steg: 'en', zeit: 'de+en' } })
+    setLocale('en')
     const wrapper = listen(store)
+    expect(wrapper.find('.list-kinds button[data-kind="starter"]').text()).not.toMatch(/Starter/)
     expect(koepfe(wrapper)[0]).toBe('S-Nr.')
     await art(wrapper, 'wkr')
-    expect(wrapper.find('.bogen .bt-nr').text()).toBe('Nr.')
+    expect(new Set(wrapper.findAll('.wkr-listen .bogen').map((b) => b.find('.bt-nr').text()))).toEqual(new Set(['Nr.']))
     wrapper.unmount()
   })
 })
@@ -179,7 +200,7 @@ describe('Listen: Bezeichnung der Bojen-Seiten', () => {
 })
 
 describe('Ergebnislisten: beide Reihenfolgen in einem Druck', () => {
-  it('je Liste erst nach Platz, dann nach Startnummer', async () => {
+  it('je Liste erst nach Startnummer, dann nach Platz; die Gesamtliste hat ihre eigene Wahl', async () => {
     lade(store)
     // Der spätere Starter ist schneller: Platz und Startnummer ergeben verschiedene Reihenfolgen.
     zeit(store, 1, 'id-4-1', '80')
@@ -193,11 +214,44 @@ describe('Ergebnislisten: beide Reihenfolgen in einem Druck', () => {
     expect(blaetter()).toEqual(['lauf/platz', 'gesamt/platz'])
     await wrapper.find('select[data-feld="erg-ordnung"]').setValue('beide')
     await nextTick()
-    expect(wrapper.find('select[data-feld="erg-ordnung"] option[value="beide"]').text()).toBe('beide (erst Platz, dann Startnummer)')
-    expect(blaetter()).toEqual(['lauf/platz', 'lauf/nummer', 'gesamt/platz', 'gesamt/nummer'])
-    expect(nummern(0)).toEqual(['402', '403', '401'])
-    expect(nummern(1)).toEqual(['401', '402', '403'])
+    expect(wrapper.find('select[data-feld="erg-ordnung"] option[value="beide"]').text()).toBe('beide (erst Startnummer, dann Platz)')
+    // Die Gesamtliste folgt nicht mehr der Wahl für die Läufe: Vorgabe bleibt „nach Platz“.
+    expect(blaetter()).toEqual(['lauf/nummer', 'lauf/platz', 'gesamt/platz'])
+    expect(nummern(0)).toEqual(['401', '402', '403'])
+    expect(nummern(1)).toEqual(['402', '403', '401'])
+    const gesamt = wrapper.find('select[data-feld="erg-ordnung-gesamt"]')
+    expect((gesamt.element as HTMLSelectElement).value).toBe('platz')
+    expect(gesamt.findAll('option').map((o) => o.attributes('value'))).toEqual(['platz', 'nummer', 'beide'])
+    await gesamt.setValue('beide')
+    await nextTick()
+    expect(blaetter()).toEqual(['lauf/nummer', 'lauf/platz', 'gesamt/nummer', 'gesamt/platz'])
+    expect(nummern(2)).toEqual(['401', '402', '403'])
+    expect(nummern(3)).toEqual(['402', '403', '401'])
     expect(wrapper.find('.ergebnis-zahl').text()).toBe('4 Listen')
+    await wrapper.find('select[data-feld="erg-ordnung"]').setValue('platz')
+    await gesamt.setValue('nummer')
+    await nextTick()
+    expect(blaetter()).toEqual(['lauf/platz', 'gesamt/nummer'])
+    // Jedes Feld steht nur da, wenn es etwas zu ordnen gibt.
+    await wrapper.find('select[data-feld="erg-umfang"]').setValue('laeufe')
+    await nextTick()
+    expect(wrapper.find('select[data-feld="erg-ordnung-gesamt"]').exists()).toBe(false)
+    expect(wrapper.find('select[data-feld="erg-ordnung"]').exists()).toBe(true)
+    await wrapper.find('select[data-feld="erg-umfang"]').setValue('gesamt')
+    await nextTick()
+    expect(wrapper.find('select[data-feld="erg-ordnung"]').exists()).toBe(false)
+    expect(blaetter()).toEqual(['gesamt/nummer'])
+    wrapper.unmount()
+  })
+
+  it('eine gemerkte Auswahl aus der Zeit vor dem eigenen Feld: Die Gesamtliste steht nach Platz', async () => {
+    sessionStorage.setItem('alcatraz.merke.listen.ergebnis', JSON.stringify({ fassung: 'aushang', umfang: 'alles', ordnung: 'beide', abstand: '' }))
+    lade(store)
+    zeit(store, 1, 'id-4-1', '80')
+    const wrapper = listen(store)
+    await art(wrapper, 'ergebnis')
+    expect((wrapper.find('select[data-feld="erg-ordnung-gesamt"]').element as HTMLSelectElement).value).toBe('platz')
+    expect(wrapper.findAll('.ergebnis-blatt').map((b) => `${b.attributes('data-art')}/${b.attributes('data-ordnung')}`)).toEqual(['lauf/nummer', 'lauf/platz', 'gesamt/platz'])
     wrapper.unmount()
   })
 })
@@ -244,19 +298,79 @@ describe('Einstellungen: Listenoptionen', () => {
     wrapper.unmount()
   })
 
-  it('Sprache der Listen: nur wählbar, wenn das Regelwerk Englisch anbietet', async () => {
+  it('Sprache der Listen: keine Einstellung mehr – sie folgt dem Regelwerk und steht nur zur Auskunft da', async () => {
     const wrapper = einstellungen(store)
-    const wahl = () => feld(wrapper, 'listen-sprache')
-    expect(wahl().attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-hinweis="listen-sprache"]').text()).toContain('nur auf Deutsch')
+    const hinweis = () => wrapper.find('[data-hinweis="listen-sprache"]')
+    expect(feld(wrapper, 'listen-sprache').exists()).toBe(false)
+    expect(hinweis().attributes('data-sprache')).toBe('de')
+    expect(hinweis().text()).toContain('DM 2026: Deutsch')
+    expect(hinweis().text()).toContain('keine englischen Texte')
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     await nextTick()
-    expect(wahl().attributes('disabled')).toBeUndefined()
-    expect(wahl().findAll('option').map((o) => o.attributes('value'))).toEqual(['ui', 'de', 'en', 'de+en'])
-    // Beim Feld steht, was „zweisprachig“ für die Listen ohne Platz dafür bedeutet.
-    expect(wrapper.find('[data-hinweis="listen-sprache"]').text()).toContain('Sprache der Oberfläche')
-    await wahl().setValue('de+en')
-    expect(store.state.value.listenSprache).toBe('de+en')
+    expect(hinweis().attributes('data-sprache')).toBe('en')
+    expect(hinweis().text()).toContain('UIM 2026: English')
+    // Für die Bögen führt ein Verweis zur WKR-Einteilung – sie steht bei der Veranstaltung.
+    expect(hinweis().find('a').attributes('href')).toBe('#/veranstaltung?wkr')
+    expect(hinweis().find('a').text()).toBe('Veranstaltung → WKR-Einteilung')
+    wrapper.unmount()
+  })
+
+  it('Sprache der Bögen: in der WKR-Einteilung je Liste wählbar, mit „alle auf …“ – nur wo das Regelwerk Englisch anbietet', async () => {
+    lade(store)
+    const wrapper = veranstaltung(store)
+    const wahl = (liste: string) => wrapper.find(`#wkr-einteilung select[data-feld="wkr-sprache|${liste}"]`)
+    const alle = (sprache: string) => wrapper.find(`#wkr-einteilung button[data-alle-sprache="${sprache}"]`)
+    // DM: keine Wahl.
+    expect(wrapper.findAll('#wkr-einteilung select').length).toBe(0)
+    expect(alle('en').exists()).toBe(false)
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    await nextTick()
+    // Eine Zeile je Liste der Veranstaltung; Vorgabe ist die Sprache des Regelwerks.
+    const zeilen = wrapper.findAll('#wkr-einteilung tbody th[scope="row"]').length
+    expect(wrapper.findAll('#wkr-einteilung select').length).toBe(zeilen)
+    expect((wahl('steg').element as HTMLSelectElement).value).toBe('en')
+    expect(wahl('steg').findAll('option').map((o) => o.attributes('value'))).toEqual(['de', 'en', 'de+en'])
+    expect(alle('en').classes()).toContain('active')
+    const zeile = (liste: string) => wahl(liste).element.closest('tr')!.querySelector('th[scope="row"]')!.textContent
+    expect(zeile('steg')).toBe('Pontoon')
+    await wahl('steg').setValue('de+en')
+    expect(store.state.value.wkrSprachen).toEqual({ steg: 'de+en' })
+    // Die Zeile nennt die Liste so, wie sie auf ihrem Bogen heißt.
+    expect(zeile('steg')).toBe('Steg / Pontoon')
+    expect(alle('en').classes()).not.toContain('active')
+    // Was der Vorgabe entspricht, steht nicht im Stand – es folgt weiter dem Regelwerk.
+    await wahl('steg').setValue('en')
+    expect(store.state.value.wkrSprachen).toEqual({})
+    await alle('de').trigger('click')
+    expect(Object.keys(store.state.value.wkrSprachen).length).toBe(zeilen)
+    expect(new Set(Object.values(store.state.value.wkrSprachen))).toEqual(new Set(['de']))
+    expect(alle('de').classes()).toContain('active')
+    expect((wahl('zeit').element as HTMLSelectElement).value).toBe('de')
+    await alle('en').trigger('click')
+    expect(store.state.value.wkrSprachen).toEqual({})
+    wrapper.unmount()
+  })
+
+  it('Leerzeilen: bei gemeinsamen Bögen der Clubmeisterschaft „je Seite“, sonst „je Klasse“', async () => {
+    const wrapper = einstellungen(store)
+    const label = (name: string) => wrapper.find(`label[for="${name}"]`)
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(false)
+    expect(label('wkr-leerzeilen').text()).toBe('Leerzeilen je Klasse')
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    await nextTick()
+    expect(label('wkr-leerzeilen-seite').text()).toBe('Leerzeilen je Seite')
+    expect((feld(wrapper, 'wkr-leerzeilen-seite').element as HTMLInputElement).value).toBe('3')
+    // Die Zahl je Klasse bleibt für Bögen, auf denen nur eine Klasse steht.
+    expect(label('wkr-leerzeilen').text()).toContain('Bögen mit nur einer Klasse')
+    await feld(wrapper, 'wkr-leerzeilen-seite').setValue('5')
+    expect(store.state.value.wkrLeerzeilenSeite).toBe(5)
+    await feld(wrapper, 'wkr-leerzeilen-seite').setValue('')
+    expect(store.state.value.wkrLeerzeilenSeite).toBe(3)
+    // Ohne „Papier sparen“ gibt es wieder nur die Zahl je Klasse.
+    store.dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: false })
+    await nextTick()
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(false)
+    expect(label('wkr-leerzeilen').text()).toBe('Leerzeilen je Klasse')
     wrapper.unmount()
   })
 })
@@ -278,13 +392,15 @@ describe('Einstellungen: Listen der Veranstaltung und Form der Laufzettel', () =
     await haken(wrapper, 'knoten').setValue(false)
     await haken(wrapper, 'parcoursms').setValue(true)
     expect(store.state.value.zusatzListen).toEqual({ knoten: false, parcoursms: true })
-    // Die WKR-Einteilung darunter führt die gewählte Liste, die abgewählte nicht mehr.
-    const zeilen = () => wrapper.findAll('#wkr-einteilung tbody th[scope="row"]').map((th) => th.text())
+    // Die WKR-Einteilung (bei der Veranstaltung) führt die gewählte Liste, die abgewählte nicht mehr.
+    const besetzung = veranstaltung(store)
+    const zeilen = () => besetzung.findAll('#wkr-einteilung tbody th[scope="row"]').map((th) => th.text())
     expect(zeilen()).toContain('Parcours einfach mit Start und Ziel')
     expect(zeilen()).not.toContain('Knoten')
     await haken(wrapper, 'knoten').setValue(true)
     expect(store.state.value.zusatzListen).toEqual({ parcoursms: true })
     expect(zeilen()).toContain('Knoten')
+    besetzung.unmount()
     wrapper.unmount()
   })
 
@@ -304,9 +420,11 @@ describe('Einstellungen: Listen der Veranstaltung und Form der Laufzettel', () =
     await nextTick()
     await feld(wrapper, 'wkr-tor5-mit-parcours').setValue(true)
     expect(store.state.value.tor5MitParcours).toBe(true)
-    const zeilen = wrapper.findAll('#wkr-einteilung tbody th[scope="row"]').map((th) => th.text())
+    const besetzung = veranstaltung(store)
+    const zeilen = besetzung.findAll('#wkr-einteilung tbody th[scope="row"]').map((th) => th.text())
     expect(zeilen).toContain('Tor 5 + Parcours')
     expect(zeilen).not.toContain('Parcours')
+    besetzung.unmount()
     wrapper.unmount()
   })
 

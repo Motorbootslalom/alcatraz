@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { execSync } from 'node:child_process'
+import type { Plugin } from 'vite'
+import { schreibeOfflineSpeicher, SW_ABMELDEN, SW_DATEI } from './scripts/offline-speicher.ts'
 
 /**
  * Letzter Commit, aus dem gebaut wird: kurze ID und Zeitpunkt. Außerhalb eines
@@ -15,6 +17,36 @@ function gitStand(): { commit: string; time: string } {
     return { commit: git('rev-parse --short HEAD') + (dirty ? '+' : ''), time: git('log -1 --format=%cI') }
   } catch {
     return { commit: '', time: '' }
+  }
+}
+
+/**
+ * Offline-Speicher des Pages-Builds: schreibt nach dem Build `sw.js` mit der Liste aller
+ * Dateien in `dist/` (scripts/offline-speicher.ts) und verweist auf das Web-App-Manifest.
+ * Die Ein-Datei-Fassung bekommt beides nicht – sie muss eine einzige Datei bleiben.
+ * Der Entwicklungsserver liefert statt des Speichers dessen Abmeldung.
+ */
+function offlineSpeicher(fassung: string): Plugin {
+  let ordner = 'dist'
+  let bauen = false
+  return {
+    name: 'alcatraz-offline-speicher',
+    configResolved(config) {
+      ordner = config.build.outDir
+      // Nicht beim Entwicklungsserver und nicht in den Tests, die diese Datei ebenfalls laden.
+      bauen = config.command === 'build' && !process.env.VITEST
+    },
+    transformIndexHtml: () => [{ tag: 'link', attrs: { rel: 'manifest', href: './manifest.webmanifest' }, injectTo: 'head' }],
+    configureServer(server) {
+      server.middlewares.use(`/${SW_DATEI}`, (_anfrage, antwort) => {
+        antwort.setHeader('Content-Type', 'text/javascript')
+        antwort.setHeader('Cache-Control', 'no-store')
+        antwort.end(SW_ABMELDEN)
+      })
+    },
+    closeBundle() {
+      if (bauen) schreibeOfflineSpeicher(ordner, fassung)
+    },
   }
 }
 
@@ -36,7 +68,9 @@ export default defineConfig(({ mode }) => {
       __BUILD_COMMIT__: JSON.stringify(stand.commit),
       __BUILD_COMMIT_TIME__: JSON.stringify(stand.time),
     },
-    plugins: [vue(), ...(single ? [viteSingleFile({ removeViteModuleLoader: true })] : [])],
+    plugins: [vue(), ...(single ? [viteSingleFile({ removeViteModuleLoader: true })] : [offlineSpeicher(stand.commit)])],
+    // Manifest und Zeichen (public/) gehören nur zum Pages-Build.
+    publicDir: single ? false : 'public',
     build: single
       ? {
           outDir: 'dist-single',

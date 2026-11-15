@@ -43,6 +43,8 @@ export interface BogenTexte {
   klassen(ids: readonly string[]): string
   /** Zusatz der Zwischenüberschrift, wenn eine Klasse auf der nächsten Seite weitergeht. */
   fortsetzung: string
+  /** Zwischenüberschrift der Leerzeilen, die sich die Klassen einer Seite teilen (Clubmeisterschaft). */
+  nachmeldungen: string
   /** Nur der Name der Klasse („7“, „Dolphin“) – für die Klassen-Spalte. */
   klasseName(id: string): string
   lauf(n: number): string
@@ -66,6 +68,7 @@ export function bogenTexte(sprache: Sprache, klassenNamen: Record<string, string
     klasse: (id) => `${t('Klasse', 'Class')} ${klassenNamen[id] ?? id}`,
     klassen: (ids) => `${t('Klassen', 'Classes')} ${ids.map((id) => klassenNamen[id] ?? id).join(', ')}`,
     fortsetzung: t('Fortsetzung', 'continued'),
+    nachmeldungen: t('Nachmeldungen', 'Late entries'),
     klasseName: (id) => klassenNamen[id] ?? id,
     lauf: (n) => t(`${n}. Lauf`, `Attempt ${n}`),
     parcours: (n) => t(`Parcours ${n}`, `Course ${n}`),

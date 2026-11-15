@@ -50,7 +50,7 @@ describe('migrate', () => {
     expect(state).not.toHaveProperty('initialized')
   })
 
-  it('behält von gespeicherten Standardgewichten nur, was vom Regelwerk abweicht', () => {
+  it('behält von gespeicherten Durchschnittsgewichten nur, was vom Regelwerk abweicht', () => {
     const state = migrate({ starters: [], regelwerk: 'dm-2026', sollgewicht: { E: 26, '1': 33, '2': 45 } })
     expect(state!.sollgewicht).toEqual({ '2': 45 })
   })
@@ -80,21 +80,58 @@ describe('migrate: Einstellungen der Wettkampfrichter-Listen', () => {
 
 describe('migrate: Listenoptionen (Seitenaufteilung, Bojen-Seiten, Sprache)', () => {
   it('fehlen in älteren Ständen und bekommen die Vorgaben', () => {
-    expect(migrate({ starters: [] })).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl', listenSprache: 'ui' })
+    expect(migrate({ starters: [] })).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl', wkrSprachen: {}, wkrLeerzeilenSeite: 3 })
+  })
+
+  it('die alte „Sprache der Listen“ entfällt; eine feste Wahl bleibt den Bögen je Liste erhalten', () => {
+    // „Wie die Oberfläche“ gibt es nicht mehr: Es gilt die Sprache des Regelwerks.
+    const ui = migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'ui' })!
+    expect(ui.wkrSprachen).toEqual({})
+    expect(ui).not.toHaveProperty('listenSprache')
+    // Eine feste Wahl galt für alle Bögen – sie steht jetzt bei jeder Liste des Regelwerks.
+    const fest = migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'de+en' })!
+    expect(fest).not.toHaveProperty('listenSprache')
+    expect(Object.keys(fest.wkrSprachen).length).toBeGreaterThan(3)
+    expect(new Set(Object.values(fest.wkrSprachen))).toEqual(new Set(['de+en']))
+    expect(fest.wkrSprachen).toMatchObject({ steg: 'de+en', knoten: 'de+en' })
+    // Kennt der Aufrufer die Sprache der Oberfläche, bleibt „wie die Oberfläche“ erhalten: Wer
+    // unter UIM deutsch bediente, druckte deutsche Bögen – auch, wenn das Feld noch ganz fehlte.
+    for (const alt of [{ listenSprache: 'ui' }, {}]) {
+      const deutsch = migrate({ starters: [], regelwerk: 'uim-2026', ...alt }, { oberflaeche: 'de' })!
+      expect(deutsch.wkrSprachen).toMatchObject({ steg: 'de', knoten: 'de' })
+      expect(new Set(Object.values(deutsch.wkrSprachen))).toEqual(new Set(['de']))
+      // Englisch ist unter UIM ohnehin die Vorgabe: nichts einzutragen.
+      expect(migrate({ starters: [], regelwerk: 'uim-2026', ...alt }, { oberflaeche: 'en' })!.wkrSprachen).toEqual({})
+      expect(migrate({ starters: [], regelwerk: 'dm-2026', ...alt }, { oberflaeche: 'en' })!.wkrSprachen).toEqual({})
+    }
+    // Eine feste Wahl und ein neuer Stand gehen der Oberfläche vor.
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'en' }, { oberflaeche: 'de' })!.wkrSprachen).toMatchObject({ steg: 'en' })
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', wkrSprachen: {} }, { oberflaeche: 'de' })!.wkrSprachen).toEqual({})
+    // Unter der DM wirkte die Wahl nie: Sie wird nicht übernommen.
+    expect(migrate({ starters: [], regelwerk: 'dm-2026', listenSprache: 'en' })!.wkrSprachen).toEqual({})
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'fr' })!.wkrSprachen).toEqual({})
+    // Ein Stand, der schon je Liste wählt, gilt – eine liegengebliebene alte Angabe nicht.
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'de', wkrSprachen: { steg: 'en', zeit: 'fr' } })!.wkrSprachen).toEqual({ steg: 'en' })
+  })
+
+  it('Leerzeilen je Seite: Brauchbares bleibt, Unbrauchbares ist die Vorgabe', () => {
+    expect(migrate({ starters: [], wkrLeerzeilenSeite: 5 })!.wkrLeerzeilenSeite).toBe(5)
+    expect(migrate({ starters: [], wkrLeerzeilenSeite: 0 })!.wkrLeerzeilenSeite).toBe(0)
+    expect(migrate({ starters: [], wkrLeerzeilenSeite: 'drei' })!.wkrLeerzeilenSeite).toBe(3)
   })
 
   it('Brauchbares bleibt, Unbrauchbares fällt auf die Vorgabe', () => {
-    expect(migrate({ starters: [], wkrZeilenJeSeite: 15, wkrTeilenAb: 25, beschriftung: 'pfeile', listenSprache: 'de+en' })).toMatchObject({
+    expect(migrate({ starters: [], wkrZeilenJeSeite: 15, wkrTeilenAb: 25, beschriftung: 'pfeile', wkrSprachen: { steg: 'de+en' } })).toMatchObject({
       wkrZeilenJeSeite: 15,
       wkrTeilenAb: 25,
       beschriftung: 'pfeile',
-      listenSprache: 'de+en',
+      wkrSprachen: { steg: 'de+en' },
     })
-    expect(migrate({ starters: [], wkrZeilenJeSeite: 3, wkrTeilenAb: -1, beschriftung: 7, listenSprache: 'fr' })).toMatchObject({
+    expect(migrate({ starters: [], wkrZeilenJeSeite: 3, wkrTeilenAb: -1, beschriftung: 7, wkrSprachen: 'fr' })).toMatchObject({
       wkrZeilenJeSeite: 5,
       wkrTeilenAb: 0,
       beschriftung: 'rl',
-      listenSprache: 'ui',
+      wkrSprachen: {},
     })
     expect(migrate({ starters: [], wkrZeilenJeSeite: 'viele', wkrTeilenAb: null, beschriftung: 'xx' })).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl' })
   })

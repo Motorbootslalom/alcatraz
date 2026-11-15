@@ -56,7 +56,7 @@ describe('Listen: Laufzettel', () => {
 
   it('die Reihenfolge der Listenarten: Laufzettel hinter den Wettkampfrichter-Listen', () => {
     const wrapper = ansicht(store)
-    expect(wrapper.findAll('.list-kinds button').map((b) => b.attributes('data-kind'))).toEqual(['interleaved', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'codes', 'ergebnis', 'byClass'])
+    expect(wrapper.findAll('.list-kinds button').map((b) => b.attributes('data-kind'))).toEqual(['starter', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'codes', 'ergebnis', 'pokal', 'druckdatei'])
     expect(wrapper.find('.list-kinds button[data-kind="laufzettel"]').text()).toBe('Laufzettel')
     wrapper.unmount()
   })
@@ -71,14 +71,15 @@ describe('Listen: Laufzettel', () => {
     const erster = zettel(wrapper)[0]
     expect(erster.find('.lz-titel').text()).toBe('Laufzettel · Hafenpokal 2026')
     // Ohne Layout (Test-DOM) hat jeder Bogen eine Seite: eine Zeile je Liste, das Kästchen vorn, ohne Seitenangabe.
-    // Die Knoten (ohne Lauf) liegen im Stapel des 1. Laufs.
     expect(erster.attributes('data-layout')).toBe('seite')
-    expect(zeilen(erster)).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Parcours', 'Knoten'])
+    expect(zeilen(erster)).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Parcours'])
     expect(erster.findAll('.lz-oben li').every((li) => li.element.firstElementChild?.classList.contains('lz-kasten'))).toBe(true)
-    expect(erster.findAll('.lz-oben .lz-kasten')).toHaveLength(8)
-    expect(zeilen(zettel(wrapper)[1])).not.toContain('Knoten')
+    expect(erster.findAll('.lz-oben .lz-kasten')).toHaveLength(7)
     expect(erster.find('.lz-schritte-titel').text()).toBe('Auswertung')
     expect(erster.findAll('.lz-schritte li').map((li) => li.text()).at(-1)).toBe('An die ML geschickt')
+    // Die Knoten (ohne Lauf) zählen erst zum Gesamtergebnis: Sie liegen im Stapel des letzten Laufs.
+    expect(zeilen(zettel(wrapper)[1])).not.toContain('Knoten')
+    expect(zeilen(zettel(wrapper)[2])).toEqual([...zeilen(erster), 'Knoten'])
     // Die Klassen ab 4 haben zusätzlich Mann-über-Bord.
     expect(zeilen(zettel(wrapper).at(-1)!)).toContain('Mann-über-Bord')
     // Die anderen Listen stehen nicht daneben; die Bögen zum Messen sind unsichtbar und werden nie gedruckt.
@@ -86,6 +87,64 @@ describe('Listen: Laufzettel', () => {
     expect(wrapper.find('.wkr-listen').exists()).toBe(false)
     expect(wrapper.find('.lz-messung').classes()).toContain('no-print')
     expect(wrapper.find('.lz-messung').attributes('aria-hidden')).toBe('true')
+    wrapper.unmount()
+  })
+
+  const schritte = (z: ReturnType<typeof zettel>[number]) => z.findAll('.lz-schritte li').map((li) => li.text())
+  const LETZTER = [
+    'Ergebnis sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)',
+    'Ergebnis sortiert nach Platz',
+    'Kontrolliert',
+    'Unterschrieben',
+    'Einsicht der Mannschaftsleiter (kein Aushang)',
+    'Gesamtergebnis gedruckt',
+    'Gesamtergebnis kontrolliert',
+  ]
+
+  it('der Zettel des letzten Laufs hat eigene Arbeitsschritte: kein Aushang, dafür Einsicht und Gesamtergebnis', async () => {
+    const wrapper = ansicht(store)
+    await laufzettel(wrapper)
+    await waehle(wrapper, 'klasse', '3')
+    const [erster, zweiter, dritter] = zettel(wrapper)
+    expect(schritte(erster)).toEqual(schritte(zweiter))
+    expect(schritte(erster)).toContain('Ausgehangen')
+    expect(schritte(dritter)).toEqual(LETZTER)
+    expect(schritte(dritter).some((s) => s === 'Ausgehangen' || s === 'An die ML geschickt')).toBe(false)
+    expect(zettel(wrapper).map((z) => z.attributes('data-letzter-lauf'))).toEqual([undefined, undefined, 'true'])
+    wrapper.unmount()
+  })
+
+  it('bei nur einem Lauf ist dieser der letzte: Knoten und die Schritte des letzten Laufs', async () => {
+    store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 1 } })
+    const wrapper = ansicht(store)
+    await laufzettel(wrapper)
+    expect(zettel(wrapper)).toHaveLength(4)
+    for (const z of zettel(wrapper)) {
+      expect(zeilen(z)).toContain('Knoten')
+      expect(schritte(z)).toEqual(LETZTER)
+    }
+    wrapper.unmount()
+  })
+
+  it('UIM: zwei Versuche – Knoten und die Schritte des letzten Laufs auf dem Zettel des zweiten, englisch', async () => {
+    store.dispatch({ type: 'LOAD_STATE', state: { ...store.state.value, regelwerk: 'uim-2026', laufCount: 2, starters: starter(['1', '3', '4', '5']) } })
+    const wrapper = ansicht(store)
+    await laufzettel(wrapper)
+    await waehle(wrapper, 'klasse', '3')
+    const [erster, zweiter] = zettel(wrapper)
+    expect(zettel(wrapper)).toHaveLength(2)
+    expect(zeilen(erster)).not.toContain('Knots')
+    expect(zeilen(zweiter)).toContain('Knots')
+    expect(schritte(erster).at(-2)).toBe('Posted')
+    expect(schritte(zweiter)).toEqual([
+      "Print results sorted by start number (stapled to the judges' sheets)",
+      'Results sorted by place',
+      'Checked',
+      'Signed',
+      'Reviewed by the team managers (not posted)',
+      'Overall results printed',
+      'Overall results checked',
+    ])
     wrapper.unmount()
   })
 
@@ -120,7 +179,7 @@ describe('Listen: Laufzettel', () => {
     wrapper.unmount()
   })
 
-  it('Fenstertitel beim Drucken: Listenart, Auswahl und Veranstaltung – englisch in der englischen Oberfläche', async () => {
+  it('Fenstertitel beim Drucken: Listenart, Auswahl und Veranstaltung in der Sprache der Oberfläche; der Zettel in der des Regelwerks', async () => {
     vi.stubGlobal('print', vi.fn())
     const wrapper = ansicht(store)
     await laufzettel(wrapper)
@@ -135,13 +194,22 @@ describe('Listen: Laufzettel', () => {
     setLocale('en')
     await nextTick()
     expect(wrapper.find('.list-kinds button[data-kind="laufzettel"]').text()).toBe('Checklists')
+    // DM: Der Zettel bleibt deutsch, nur Bedienung und Fenstertitel folgen der Oberfläche.
+    expect(ruecken(wrapper)).toEqual(['Klasse 4 | 1. Lauf | Parcours 2'])
+    expect(zettel(wrapper)[0].find('.lz-titel').text()).toBe('Laufzettel · Hafenpokal 2026')
+    await wrapper.find('button.primary').trigger('click')
+    expect(document.title).toMatch(/^Checklists - Class 4 - Attempt 1 - Hafenpokal 2026 - /)
+    window.dispatchEvent(new Event('afterprint'))
+    // UIM: Der Zettel ist englisch – auch bei deutscher Oberfläche.
+    setLocale('de')
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    await nextTick()
+    await waehle(wrapper, 'lauf', '1')
+    expect(wrapper.find('.list-kinds button[data-kind="laufzettel"]').text()).toBe('Laufzettel')
     expect(ruecken(wrapper)).toEqual(['Class 4 | Attempt 1 | Parcours 2'])
     expect(zettel(wrapper)[0].find('.lz-titel').text()).toBe('Checklist · Hafenpokal 2026')
     expect(zettel(wrapper)[0].find('.lz-schritte-titel').text()).toBe('Scoring')
     expect(zettel(wrapper)[0].findAll('.lz-schritte li').map((li) => li.text()).at(-1)).toBe('Sent to the team managers')
-    await wrapper.find('button.primary').trigger('click')
-    expect(document.title).toMatch(/^Checklists - Class 4 - Attempt 1 - Hafenpokal 2026 - /)
-    window.dispatchEvent(new Event('afterprint'))
     vi.unstubAllGlobals()
     wrapper.unmount()
   })
@@ -180,6 +248,9 @@ describe('Listen: Laufzettel', () => {
     const li = wrapper.findAll('.lz-je-seite li')
     // Ein einseitiger Bogen nennt keine Seite; Bögen nur eines Teils der Klassen nennen sie.
     expect(li.map(text)).toEqual(['Zeit', 'Steg – Seite 1', 'Steg – Seite 2', 'Steg – Seite 3', 'Mann-über-Bord · Kl. E, 1 – Seite 1', 'Mann-über-Bord · Kl. E, 1 – Seite 2', 'Mann-über-Bord · Kl. 4'])
+    // Nur die Nummer der Seite, nie „Seite 1 von 3“: Die Zeilen stehen ohnehin untereinander.
+    expect(li.some((x) => /\bvon\b|\bof\b|\//.test(text(x).replace(/^.* – /, '')))).toBe(false)
+    expect(li.filter((x) => text(x).includes(' – ')).every((x) => /– Seite \d+$/.test(text(x)))).toBe(true)
     // Jede Zeile beginnt mit genau einem leeren Kästchen.
     expect(li.every((x) => x.findAll('.lz-kasten').length === 1 && x.element.firstElementChild?.classList.contains('lz-kasten') && x.find('.lz-kasten').text() === '')).toBe(true)
     expect(wrapper.find('.lz-seiten').exists()).toBe(false)
@@ -213,6 +284,7 @@ describe('Listen: Laufzettel', () => {
     expect(zettel(wrapper).every((z) => z.attributes('data-layout') === 'seite')).toBe(true)
     const en = mount(LaufzettelBlatt, { props: { ...BLATT, sprache: 'en' as const } })
     expect(text(en.findAll('.lz-je-seite li')[1])).toBe('Steg – page 1')
+    expect(en.findAll('.lz-je-seite li').map(text).filter((x) => x.includes(' – ')).every((x) => /– page \d+$/.test(x))).toBe(true)
     en.unmount()
     wrapper.unmount()
   })

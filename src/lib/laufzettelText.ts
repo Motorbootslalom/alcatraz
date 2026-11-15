@@ -13,6 +13,10 @@ const SCHRITTE: Record<string, MessageKey> = {
   Unterschrieben: 'runsheet.step.signed',
   Ausgehangen: 'runsheet.step.posted',
   'An die ML geschickt': 'runsheet.step.sent',
+  // Nur auf dem Zettel des letzten Laufs:
+  'Einsicht der Mannschaftsleiter (kein Aushang)': 'runsheet.step.review',
+  'Gesamtergebnis gedruckt': 'runsheet.step.overallPrinted',
+  'Gesamtergebnis kontrolliert': 'runsheet.step.overallChecked',
 }
 
 /** Ein Arbeitsschritt (oder die Überschrift darüber), übersetzt mit `uebersetze`. */

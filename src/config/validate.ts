@@ -3,7 +3,7 @@ import { feldKennungen, spaltenKennung } from './feld.ts'
 import { findeKombi, kombiReihenfolge } from './kombi.ts'
 import { abwandlung, aufbauIds, eintragId, GERAETE, mitZeiten, nummerierung } from './zeitnahme.ts'
 import { AUFGABEN, aufloesen, BLICKE, BOJEN_IDS, hochziehen, istInlineKurzform, istKurzform } from './kurzform.ts'
-import { STICH_KRITERIEN } from './schema.ts'
+import { POKAL_PLATZ_VARIANTEN, POKAL_VARIANTEN, STICH_KRITERIEN } from './schema.ts'
 import type {
   RawAufbau,
   RawAufbauEintrag,
@@ -32,6 +32,7 @@ import type {
  */
 export type ConfigInput = {
   sprachen?: string[]
+  listenSprache?: string
   einheitEn?: string
   fehlerHinweis?: string
   fehlerHinweisEn?: string
@@ -42,7 +43,9 @@ export type ConfigInput = {
   ohneSpalten?: Record<string, string[]>
   stichentscheid?: string[]
   vorgabeListen?: Record<string, string[]>
-  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number }
+  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nurVorgabe?: boolean }
+  pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number } }
+  pokalPunkte?: Record<string, number[]>
   disqualifikationen?: Array<Partial<RawDisq>>
   kataloge?: Record<string, Partial<RawKatalog>>
   hinweise?: Record<string, string>
@@ -419,6 +422,8 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
   // ---- Regelwerk mit Englisch: Fehlt irgendwo eine Übersetzung? -------------
   for (const sp of raw.sprachen ?? [])
     if (sp !== 'de' && sp !== 'en') err('BAD_SPRACHE', `Unbekannte Sprache "${sp}" (erlaubt: de, en).`, 'sprachen')
+  if (raw.listenSprache !== undefined && !(raw.sprachen ?? ['de']).includes(raw.listenSprache))
+    err('BAD_SPRACHE', `listenSprache "${raw.listenSprache}" steht nicht in "sprachen" (${(raw.sprachen ?? ['de']).join(', ')}).`, 'listenSprache')
   if (raw.sprachen?.includes('en')) {
     const fehlt = (was: string, where: string) => err('MISSING_EN', `Englischer Text fehlt: ${was}.`, where)
     for (const d of disqs) if (!d?.en) fehlt(`Disqualifikation "${d?.code}"`, 'disqualifikationen')
@@ -568,11 +573,48 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
 
   // ---- Läufe des Regelwerks: nur eine stimmige Angabe ergibt einen Hinweis ----
   if (raw.wertungslaeufe !== undefined) {
-    const w: { laeufe?: unknown; streichlaeufe?: unknown } = raw.wertungslaeufe && typeof raw.wertungslaeufe === 'object' ? raw.wertungslaeufe : {}
+    const w: { laeufe?: unknown; streichlaeufe?: unknown; nurVorgabe?: unknown } = raw.wertungslaeufe && typeof raw.wertungslaeufe === 'object' ? raw.wertungslaeufe : {}
     const ganz = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x)
     const streich = w.streichlaeufe ?? 0
     if (!ganz(w.laeufe) || !ganz(streich) || w.laeufe < 1 || streich < 0 || streich >= w.laeufe)
       err('BAD_WERTUNGSLAEUFE', 'wertungslaeufe braucht "laeufe" (mindestens 1) und weniger "streichlaeufe" als Läufe.', 'wertungslaeufe')
+    else if (w.nurVorgabe !== undefined && typeof w.nurVorgabe !== 'boolean') err('BAD_WERTUNGSLAEUFE', 'wertungslaeufe.nurVorgabe muss true oder false sein.', 'wertungslaeufe')
+  }
+
+  // ---- Pokalauswertung: bekannte Varianten, brauchbare Punkte ------------------
+  // Punkte je Platz: ganze Zahlen ab 0, von Platz zu Platz nicht steigend – ein schlechterer
+  // Platz mit mehr Punkten wäre ein Tippfehler in der Datei.
+  const punkteFehler = (x: unknown): string | undefined => {
+    if (!Array.isArray(x) || x.length === 0) return 'braucht eine Liste von Punkten je Platz'
+    if (!x.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 0)) return 'nennt nur ganze Punkte ab 0'
+    if (x.some((n, i) => i > 0 && n > x[i - 1])) return 'darf von Platz zu Platz nicht steigen'
+    return undefined
+  }
+  if (raw.pokal !== undefined) {
+    const p: { vorgabe?: unknown; uim?: unknown } = raw.pokal && typeof raw.pokal === 'object' ? raw.pokal : {}
+    if (p.vorgabe !== undefined) {
+      if (!Array.isArray(p.vorgabe)) err('BAD_POKAL', 'pokal.vorgabe muss eine Liste von Varianten sein.', 'pokal.vorgabe')
+      else
+        for (const v of p.vorgabe)
+          if (!(POKAL_VARIANTEN as readonly unknown[]).includes(v)) err('UNKNOWN_POKAL_VARIANTE', `Unbekannte Variante "${v}" in pokal.vorgabe (erlaubt: ${POKAL_VARIANTEN.join(', ')}).`, 'pokal.vorgabe')
+    }
+    if (p.uim !== undefined) {
+      const u: { punkte?: unknown; beste?: unknown; mindestens?: unknown } = p.uim && typeof p.uim === 'object' ? p.uim : {}
+      const fehler = punkteFehler(u.punkte)
+      if (fehler) err('BAD_POKAL', `pokal.uim.punkte ${fehler}.`, 'pokal.uim')
+      for (const feld of ['beste', 'mindestens'] as const)
+        if (u[feld] !== undefined && !(typeof u[feld] === 'number' && Number.isInteger(u[feld]) && u[feld] >= 1)) err('BAD_POKAL', `pokal.uim.${feld} muss eine ganze Zahl ab 1 sein.`, 'pokal.uim')
+    }
+  }
+  if (raw.pokalPunkte !== undefined) {
+    const je: unknown = raw.pokalPunkte
+    if (!je || typeof je !== 'object' || Array.isArray(je)) err('BAD_POKAL', 'pokalPunkte nennt je Variante die Punkte je Platz, z. B. { plaetze3: [10, 7, 5] }.', 'pokalPunkte')
+    else
+      for (const [variante, punkte] of Object.entries(je)) {
+        if (!(POKAL_PLATZ_VARIANTEN as readonly string[]).includes(variante)) err('UNKNOWN_POKAL_VARIANTE', `Unbekannte Variante "${variante}" in pokalPunkte (erlaubt: ${POKAL_PLATZ_VARIANTEN.join(', ')}).`, 'pokalPunkte')
+        const fehler = punkteFehler(punkte)
+        if (fehler) err('BAD_POKAL', `pokalPunkte.${variante} ${fehler}.`, 'pokalPunkte')
+      }
   }
 
   // ---- Stichentscheid: nur Kriterien, die die Wertung kennt ------------------

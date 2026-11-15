@@ -184,11 +184,12 @@ export function streichlaeufeVon(laufCount: number, streichlaeufe: Streichlaeufe
  * UIM zählte mit „Streichläufe nach Regel“ sonst die Summe beider Versuche statt des besseren.
  */
 export function laeufeLautRegelwerk(
-  regelwerk: { wertungslaeufe?: { laeufe: number; streichlaeufe: number } },
+  regelwerk: { wertungslaeufe?: { laeufe: number; streichlaeufe: number; nurVorgabe?: true } },
   stand: Pick<AppState, 'laufCount' | 'streichlaeufe'>,
 ): { laeufe: number; streichlaeufe: number } | null {
   const soll = regelwerk.wertungslaeufe
-  if (!soll) return null
+  // `nurVorgabe` (DM): nur die Voreinstellung bei der Wahl des Regelwerks – kein Maß.
+  if (!soll || soll.nurVorgabe) return null
   const laeufe = Math.max(1, stand.laufCount)
   return soll.laeufe === laeufe && soll.streichlaeufe === streichlaeufeVon(laeufe, stand.streichlaeufe) ? null : soll
 }

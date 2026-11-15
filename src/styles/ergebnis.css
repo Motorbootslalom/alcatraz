@@ -14,7 +14,7 @@
   min-width: 0;
 }
 
-/* Ein Blatt = eine Liste. In schmalen Fenstern rollt das Blatt quer; die Maße bleiben die des Papiers. */
+/* Ein Blatt = eine Seite einer Liste. In schmalen Fenstern rollt das Blatt quer; die Maße bleiben die des Papiers. */
 .ergebnis-blatt {
   box-sizing: border-box;
   max-width: 100%;
@@ -28,7 +28,9 @@
 }
 
 .erg-tabelle {
-  width: 281mm;
+  /* Wie im Druck (281 mm Druckbereich minus der Hauch Rand des Blatts): Die Liste misst am
+     Bildschirm, wie viele Zeilen auf ein Blatt passen (components/ListenDokument.vue). */
+  width: 279.8mm;
   margin: 0 auto;
   table-layout: fixed;
   border-collapse: collapse;
@@ -246,19 +248,50 @@
   margin: 8mm;
 }
 
-/* Wann sich die Liste zuletzt geändert hat: ein eigenes Feld rechts im Kopf – gut sichtbar,
-   auch im Druck und dort auf jeder Seite der Liste. Kleiner gesetzt als der Kopf, damit es
-   dessen Höhe nicht ändert: Die Liste teilt sich auf wie ohne die Angabe. */
-.erg-kopf--stand {
-  grid-template-columns: 52mm 40mm 1fr auto;
+/* Der Fuß jeder Seite (components/ergebnis/ErgebnisFuss.vue): 4 mm unter der Tabelle eine
+   Zeile – links die Erklärung zum Stichentscheid, daneben die Seitenzahl, rechts im Rahmen
+   der Zeitpunkt der letzten Änderung (wie `.erg-stand` im Prototyp). Die Höhe des Fußes ist
+   fest (lib/seiten.ts ERGEBNIS_FUSS_MM = 12 mm): Die Liste rechnet damit, was auf ein Blatt passt. */
+.erg-fuss {
+  box-sizing: border-box;
+  width: 279.8mm;
+  height: 12mm;
+  margin: 0 auto;
+  padding-top: 4mm;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 6mm;
+  overflow: hidden;
 }
 
-.erg-kopf > .erg-stand {
-  display: flex;
-  align-items: center;
-  border-left: 1.6px solid var(--blatt-linie);
-  padding: 0 3mm;
+/* Höchstens zwei kleine Zeilen: Die Regel steht in ganzen Sätzen da. */
+.erg-stich-hinweis {
+  margin: 0;
+  max-height: 8mm;
+  overflow: hidden;
+  font-size: 6.5pt;
+  line-height: 1.25;
+}
+
+.erg-stich-zeichen {
+  font-weight: 700;
+}
+
+.erg-fuss .listen-seitenzahl {
+  text-align: right;
+}
+
+/* Nur der Zeitstempel; die Beschriftung „Letzte Änderung“ steht unsichtbar davor (`.sr-only`). */
+.erg-stand {
+  /* Bezug für das `.sr-only` darin – sonst zählte es am Blatt vorbei zur Seitenbreite. */
+  position: relative;
+  margin: 0;
+  border: 1.6px solid var(--blatt-linie);
+  padding: 1.2mm 5mm;
   font-size: 8.5pt;
+  font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -267,8 +300,8 @@
     display: block;
   }
 
-  /* Jede Liste beginnt auf einem neuen Blatt; eine lange Liste läuft über mehrere Seiten,
-     Kopf und Spaltenköpfe kehren wieder. */
+  /* Jede Seite jeder Liste ist ein Blatt: Eine lange Liste teilt sich selbst in Seiten
+     (components/ListenDokument.vue), jede mit Kopf, Spaltenköpfen und eigener Seitenzahl. */
   .ergebnis-blatt {
     page: ergebnis;
     max-width: none;
@@ -285,7 +318,8 @@
     break-after: auto;
   }
 
-  .erg-tabelle {
+  .erg-tabelle,
+  .erg-fuss {
     width: 100%;
   }
 

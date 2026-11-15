@@ -16,7 +16,10 @@ import type { WkrBogen } from './wkrListen'
 //   gemeinsame Bögen zusammenhängen (in der Regel wieder der ganze Parcours); die Bögen
 //   einzelner Klassen nennen ihre Klasse in der Zeile.
 // - Eine Liste ohne Lauf (Knoten) wird einmal abgenommen und gedruckt: Sie liegt im Stapel
-//   des 1. Laufs und steht nur auf dessen Zettel.
+//   des letzten Laufs und steht nur auf dessen Zettel – die Knoten zählen erst zum
+//   Gesamtergebnis (lib/wkrListen.ts ordnet den Bogen so ein).
+// - Der Zettel des letzten Laufs (`letzterLauf`) hat eigene Arbeitsschritte: Nach ihm gibt es
+//   keinen Aushang mehr, dafür das Gesamtergebnis (config/einstellungen.yaml).
 //
 // Grundlage sind die Bögen der Veranstaltung (lib/wkrListen.ts), also genau das, was gedruckt
 // wird. Die Seitenzahl eines Bogens kommt von außen (`seitenVon`): Sie ist gemessen – dieselbe
@@ -43,6 +46,8 @@ export interface Laufzettel {
   parcoursName: string
   klassen: ClassId[]
   lauf: number
+  /** Der letzte Lauf der Veranstaltung – bei nur einem Lauf dieser. */
+  letzterLauf: boolean
   zeilen: LaufzettelZeile[]
 }
 
@@ -87,7 +92,7 @@ function klassenGruppen(boegen: readonly WkrBogen[]): ClassId[][] {
  * - Darauf die Listen in der Reihenfolge des Aufbaus (`listen`); mehrere Bögen derselben
  *   Liste (je Klasse einer) bleiben in ihrer Reihenfolge.
  * - Eine Zeile je Druckseite. Eine Liste ohne Lauf (Knoten) gibt es nur einmal; sie steht
- *   auf dem Zettel des Laufs, zu dem ihr Bogen gehört (dem ersten).
+ *   auf dem Zettel des Laufs, zu dem ihr Bogen gehört (dem letzten).
  */
 export function buildLaufzettel(
   boegen: readonly WkrBogen[],
@@ -101,6 +106,8 @@ export function buildLaufzettel(
     return i < 0 ? Number.POSITIVE_INFINITY : i
   }
   const zettel: Laufzettel[] = []
+  // Über alle Bögen, nicht je Stapel: Der letzte Lauf ist der der Veranstaltung.
+  const letzter = Math.max(0, ...boegen.map((b) => b.lauf))
   const parcours = [...new Set(boegen.map((b) => b.parcoursId))]
   for (const parcoursId of parcours) {
     const amParcours = boegen.filter((b) => b.parcoursId === parcoursId)
@@ -116,6 +123,7 @@ export function buildLaufzettel(
           parcoursName: amParcours[0].parcoursName,
           klassen,
           lauf,
+          letzterLauf: lauf === letzter,
           zeilen: imLauf.flatMap((b) => {
             const seiten = Math.max(1, Math.floor(seitenVon(b)) || 1)
             const eigene = b.klassen.length === klassen.length ? [] : [...b.klassen]
@@ -126,6 +134,26 @@ export function buildLaufzettel(
     }
   }
   return zettel
+}
+
+/**
+ * Die Bögen des Blattstapels, zu dem eine Klasse in einem Lauf gehört – in der Reihenfolge des
+ * Laufzettels. Die Erfassung zeigt sie untereinander, wenn ein Laufzettel gescannt wurde: Wer
+ * den Stapel vor sich hat, tippt Blatt für Blatt ab, ohne zwischen Listen zu wechseln. Bei der
+ * Clubmeisterschaft sind das auch die Bögen der anderen Klassen des Stapels; die Liste ohne
+ * Lauf (Knoten) liegt nur im Stapel des letzten Laufs. Leer, wenn es den Stapel nicht gibt.
+ */
+export function stapelBoegen(
+  boegen: readonly WkrBogen[],
+  listen: readonly string[],
+  ziel: { parcoursId: string; klasse: ClassId; lauf: number },
+  optionen: { jeParcours?: boolean } = {},
+): WkrBogen[] {
+  // Die Seitenzahl spielt hier keine Rolle: eine Zeile je Bogen genügt.
+  const zettel = buildLaufzettel(boegen, listen, () => 1, optionen).find((z) => z.parcoursId === ziel.parcoursId && z.lauf === ziel.lauf && z.klassen.includes(ziel.klasse))
+  if (!zettel) return []
+  const jeId = new Map(boegen.map((b) => [b.id, b]))
+  return zettel.zeilen.flatMap((z) => jeId.get(z.bogenId) ?? [])
 }
 
 /** Eine Zeile des Zettels: eine Liste mit ihren Bögen, je Bogen so viele Kästchen wie Seiten. */

@@ -344,6 +344,41 @@
   outline-offset: 2px;
 }
 
+/* ---------- Gestapelt: alle Listen eines Laufzettels untereinander ---------- */
+
+/*
+ * Bedienung, kein Blatt (deshalb eingabe-…, Farben des Schemas): Die Sprungleiste läuft mit, direkt unter der Kopfzeile der Anwendung (deren Höhe misst die
+ * Ansicht, --kopf-hoehe). Eine Zeile, die quer rollt statt umzubrechen: Am Telefon bliebe sonst
+ * für die Tabelle kein Platz.
+ */
+.eingabe-sprung {
+  position: sticky;
+  top: var(--kopf-hoehe, 0px);
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  margin: 0 -16px 12px;
+  padding: 8px 16px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  scrollbar-width: thin;
+}
+
+.eingabe-sprung .eingabe-chip {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Angesprungen steht eine Liste unter Kopfzeile und Sprungleiste, nicht dahinter. */
+.eingabe-stapel > .panel {
+  scroll-margin-top: calc(var(--kopf-hoehe, 0px) + 58px);
+}
+
+.eingabe-stapel {
+  scroll-margin-top: var(--kopf-hoehe, 0px);
+}
+
 @media (max-width: 560px) {
   .erf-stand {
     margin-left: 0;

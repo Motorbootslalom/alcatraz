@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { emptyState, reducer } from './reducer'
+import { emptyState, reducer, wkrSprachenWert } from './reducer'
+import { wkrSpracheFuer } from '../lib/listensprache'
 import type { ClassId, Starter } from '../types'
 
 function starter(id: string, klasse: ClassId, startNr: string, nachname: string, extra: Partial<Starter> = {}): Starter {
@@ -163,6 +164,32 @@ describe('Regelwerk und Aufbau', () => {
     expect(reducer(emptyState(), { type: 'SET_AUFBAU', aufbau: 'parallel' }).aufbau).toBe('alcatraz')
   })
 
+  it('die Wahl des Regelwerks stellt Läufe und Streichläufe so, wie es sie vorsieht (YAML wertungslaeufe)', () => {
+    // UIM: zwei Versuche, der bessere zählt.
+    const uim = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect([uim.laufCount, uim.streichlaeufe]).toEqual([2, 1])
+    // Zurück zur DM: drei Läufe, „nach Regel“ (ab drei Läufen einer).
+    const dm = reducer(uim, { type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+    expect([dm.laufCount, dm.streichlaeufe]).toEqual([3, 'auto'])
+    // Von Hand abweichen bleibt möglich; ein Klick auf das schon gewählte Regelwerk verstellt nichts.
+    let hand = reducer(uim, { type: 'SET_EVENT', patch: { laufCount: 4 } })
+    hand = reducer(hand, { type: 'SET_STREICHLAEUFE', streichlaeufe: 2 })
+    hand = reducer(hand, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect([hand.laufCount, hand.streichlaeufe]).toEqual([4, 2])
+  })
+
+  it('der Wechsel zu weniger Läufen verliert nichts: Werte des 3. Laufs bleiben im Stand – wie beim Ändern der Laufzahl', () => {
+    const starter = { id: 'a', startNr: '401', vorname: 'Vor', nachname: 'Nach', verein: '', bundesland: '', geburtsdatum: '', klasse: '4' as const, groesse: '' }
+    let state = reducer(emptyState(), { type: 'ADD_STARTERS', starters: [starter] })
+    state = reducer(state, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/3', starter: 'a', feld: 'zeit1', wert: '80' }] })
+    const uim = reducer(state, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect(uim.laufCount).toBe(2)
+    expect(uim.eingaben).toEqual(state.eingaben)
+    expect(uim.eingaben).toEqual(reducer(state, { type: 'SET_EVENT', patch: { laufCount: 2 } }).eingaben)
+    // Zurück zur DM sind sie wieder zu sehen.
+    expect(reducer(uim, { type: 'SET_REGELWERK', regelwerk: 'dm-2026' }).laufCount).toBe(3)
+  })
+
   it('ohne Parallelslalom gibt er auch nicht die Nummernfolge vor', () => {
     let state = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     state = reducer(state, { type: 'SET_RUNNING_NUMBERS', patch: { source: 'parallel' } })
@@ -201,7 +228,7 @@ describe('Verwiegung', () => {
     expect(after.starters[0]).toMatchObject({ id: 'a', gewicht: 31 })
   })
 
-  it('merkt sich nur Standardgewichte, die vom Regelwerk abweichen', () => {
+  it('merkt sich nur Durchschnittsgewichte, die vom Regelwerk abweichen', () => {
     expect(emptyState().sollgewicht).toEqual({})
     const own = reducer(emptyState(), { type: 'SET_SOLLGEWICHT', klasse: '1', kg: 35 })
     expect(own.sollgewicht).toEqual({ '1': 35 })
@@ -279,8 +306,9 @@ describe('Leerzeilen der Wettkampfrichter-Listen', () => {
 })
 
 describe('Listenoptionen: Seitenaufteilung, Bojen-Seiten, Sprache', () => {
-  it('Vorgaben: automatisch geteilt, Rechts/Links, Sprache der Oberfläche', () => {
-    expect(emptyState()).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl', listenSprache: 'ui' })
+  it('Vorgaben: automatisch geteilt, Rechts/Links, Bögen in der Sprache des Regelwerks, drei Leerzeilen je Seite', () => {
+    expect(emptyState()).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl', wkrSprachen: {}, wkrLeerzeilenSeite: 3 })
+    expect(emptyState()).not.toHaveProperty('listenSprache')
   })
 
   it('Starter je Seite: 0 = automatisch, sonst 5 bis 100; „Teilen ab“ 0 bis 200', () => {
@@ -306,11 +334,47 @@ describe('Listenoptionen: Seitenaufteilung, Bojen-Seiten, Sprache', () => {
     expect(reducer({ ...emptyState(), beschriftung: 'kh' }, { type: 'SET_BESCHRIFTUNG', beschriftung: 'gibtsnicht' }).beschriftung).toBe('rl')
   })
 
-  it('Sprache der Listen: wie die Oberfläche, deutsch, englisch oder zweisprachig', () => {
-    for (const sprache of ['ui', 'de', 'en', 'de+en'] as const) expect(reducer(emptyState(), { type: 'SET_LISTEN_SPRACHE', sprache }).listenSprache).toBe(sprache)
-    expect(reducer({ ...emptyState(), listenSprache: 'en' }, { type: 'SET_LISTEN_SPRACHE', sprache: 'fr' as never }).listenSprache).toBe('ui')
+  it('Sprache der Bögen je Liste: deutsch, englisch oder zweisprachig; `null` = wieder die des Regelwerks', () => {
+    const setze = (typeIds: string[], sprache: 'de' | 'en' | 'de+en' | null, von = emptyState()) => reducer(von, { type: 'SET_WKR_SPRACHE', typeIds, sprache })
+    for (const sprache of ['de', 'en', 'de+en'] as const) expect(setze(['steg'], sprache).wkrSprachen).toEqual({ steg: sprache })
+    // „Alle auf …“: mehrere Listen in einer Action; die übrigen bleiben.
+    const alle = setze(['steg', 'zeit'], 'de+en', setze(['knoten'], 'de'))
+    expect(alle.wkrSprachen).toEqual({ knoten: 'de', steg: 'de+en', zeit: 'de+en' })
+    expect(setze(['steg'], null, alle).wkrSprachen).toEqual({ knoten: 'de', zeit: 'de+en' })
+    // Unbrauchbares entfernt den Eintrag, statt ihn zu speichern.
+    expect(setze(['zeit'], 'fr' as never, alle).wkrSprachen).toEqual({ knoten: 'de', steg: 'de+en' })
     // Die Wahl gehört zur Veranstaltung und übersteht den Wechsel des Regelwerks.
-    expect(reducer({ ...emptyState(), listenSprache: 'en' }, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }).listenSprache).toBe('en')
+    expect(reducer(alle, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }).wkrSprachen).toEqual(alle.wkrSprachen)
+    expect(wkrSprachenWert({ steg: 'en', zeit: 'fr', knoten: 7 })).toEqual({ steg: 'en' })
+    expect(wkrSprachenWert(['en'])).toEqual({})
+    expect(wkrSprachenWert(null)).toEqual({})
+  })
+
+  it('die Sprache des Bogens zieht mit, wenn Tor 5 die Parcoursüberwachung übernimmt – und beim Trennen zurück', () => {
+    let stand = reducer(reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }), { type: 'SET_AUFBAU', aufbau: 'alcatraz' })
+    stand = reducer(stand, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5', 'parcours', 'steg'], sprache: 'de' })
+    const zusammen = reducer(stand, { type: 'SET_TOR5_MIT_PARCOURS', on: true })
+    expect(zusammen.wkrSprachen).toEqual({ tor5pue: 'de', parcours: 'de', steg: 'de' })
+    expect(wkrSpracheFuer(zusammen, 'tor5pue')).toBe('de')
+    // Am zusammengelegten Bogen umgestellt und wieder getrennt: Tor 5 nimmt die Wahl mit zurück.
+    const zweisprachig = reducer(zusammen, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5pue'], sprache: 'de+en' })
+    expect(reducer(zweisprachig, { type: 'SET_TOR5_MIT_PARCOURS', on: false }).wkrSprachen).toEqual({ tor5: 'de+en', parcours: 'de', steg: 'de' })
+    // Eine eigene Wahl am Ziel wird nicht überschrieben; ohne Wahl an der alten Liste bleibt alles.
+    const beide = reducer(reducer(stand, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5pue'], sprache: 'en' }), { type: 'SET_TOR5_MIT_PARCOURS', on: true })
+    expect(beide.wkrSprachen).toMatchObject({ tor5: 'de', tor5pue: 'en' })
+    const ohne = reducer(reducer(stand, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5'], sprache: null }), { type: 'SET_TOR5_MIT_PARCOURS', on: true })
+    expect(ohne.wkrSprachen).toEqual({ parcours: 'de', steg: 'de' })
+  })
+
+  it('Leerzeilen je Seite (gemeinsame Bögen): 0 bis 30, Unbrauchbares ist die Vorgabe; unabhängig von der Zahl je Klasse', () => {
+    const setze = (anzahl: number | null, von = emptyState()) => reducer(von, { type: 'SET_WKR_LEERZEILEN_SEITE', anzahl })
+    expect(setze(5).wkrLeerzeilenSeite).toBe(5)
+    expect(setze(0).wkrLeerzeilenSeite).toBe(0)
+    expect(setze(99).wkrLeerzeilenSeite).toBe(30)
+    expect(setze(null, setze(5)).wkrLeerzeilenSeite).toBe(3)
+    expect(setze(5)).toMatchObject({ wkrLeerzeilen: 3, wkrLeerzeilenKlasse: {} })
+    // Der Wechsel zur Clubmeisterschaft stellt nur die Zahl je Klasse um.
+    expect(reducer(emptyState(), { type: 'SET_EVENT_KIND', eventKind: 'club' })).toMatchObject({ wkrLeerzeilen: 1, wkrLeerzeilenSeite: 3 })
   })
 })
 

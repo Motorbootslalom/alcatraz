@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { useStore } from '../../state/store'
 import { useKonfig } from '../../lib/konfig'
 import { bogenSeiten, defFuerKlasse, type BogenBlattSpalte, type BogenModellZeile } from '../../lib/bogen'
@@ -11,7 +11,7 @@ import { gridNavKeyDown } from '../../lib/gridnav'
 import { veranstaltungsListen } from '../../lib/listen'
 import { scoreRow, summenText, formatDisqs } from '../../lib/scoring'
 import type { WkrBogen } from '../../lib/wkrListen'
-import { t, tn } from '../../i18n'
+import { locale, t, tn } from '../../i18n'
 import type { Column, TrennerDesign } from '../../types'
 import BogenLegende from '../bogen/BogenLegende.vue'
 import ZeitZelle from './ZeitZelle.vue'
@@ -29,7 +29,7 @@ import ZeitZelle from './ZeitZelle.vue'
 const props = defineProps<{ bogen: WkrBogen }>()
 
 const { state, dispatch } = useStore()
-const konfig = useKonfig({ einsprachig: true })
+const konfig = useKonfig({ oberflaeche: true })
 
 const seite = computed(
   () => bogenSeiten(konfig.value, props.bogen.auftrag, { klassenBloecke: props.bogen.optionen.klassenBloecke, leerzeilen: 0, leerzeilenJeKlasse: {} })[0],
@@ -38,7 +38,21 @@ const basisDef = computed(() => konfig.value.getSheetDef(props.bogen.typeId))
 const schluessel = computed(() =>
   laufSchluessel(konfig.value.getAufbau(state.value.aufbau).disziplin, listenLauf(basisDef.value, props.bogen.lauf)),
 )
-const listen = computed(() => veranstaltungsListen(konfig.value, state.value))
+// Die Listen der Veranstaltung als EIN Wert: Jede Eingabe ersetzt den Stand, die Listen bleiben
+// dabei dieselben – als neues Array gälte sonst bei jedem Tastendruck alles als geändert.
+const listenKennung = computed(() => JSON.stringify(veranstaltungsListen(konfig.value, state.value)))
+const listen = computed<string[]>(() => JSON.parse(listenKennung.value))
+/** Alle Felder einer Klasse (für die Hinweise einer Zeile) – einmal je Klasse, nicht je Zeile. */
+const alleFelder = computed(() => {
+  const k = konfig.value
+  const l = listen.value
+  const jeKlasse = new Map<string, ReturnType<typeof felderJeKennung>>()
+  return (klasse: string) => {
+    let felder = jeKlasse.get(klasse)
+    if (!felder) jeKlasse.set(klasse, (felder = felderJeKennung(k, klasse, l)))
+    return felder
+  }
+})
 const hatSub = (col: Column) => !!col.sub && col.sub.length > 0
 const leafKey = (leaf: BogenBlattSpalte) => (leaf.subIndex === undefined ? leaf.colKey : `${leaf.colKey}#${leaf.subIndex}`)
 const sep = (links?: TrennerDesign, rechts?: TrennerDesign) => (links ? ` erf-sep-${links}` : '') + (rechts ? ` erf-sepr-${rechts}` : '')
@@ -59,33 +73,64 @@ interface Zeile {
   hinweise: Hinweis[]
 }
 
-const zeilen = computed<Zeile[]>(() =>
-  seite.value.rows.map((row): Zeile => {
+/**
+ * Die zuletzt gebildeten Zeilen, je Starter mit den Werten, aus denen sie entstanden. Jeder
+ * Tastendruck ersetzt die Eingaben als Ganzes, lässt aber die Werte aller anderen Starter
+ * unberührt (lib/eingaben.ts `setzeWerte`) – ihre Zeilen bleiben dieselben Objekte, und die
+ * Vorlage überspringt sie (`v-memo`). Sonst rechnete und verglich jede Ziffer alle Zeilen
+ * aller Listen neu, die untereinander stehen. Neu angelegt wird der Vorrat mit allem, was
+ * außer den Werten in eine Zeile eingeht: Bogen, Lauf, Listen, Konfiguration (samt Sprache).
+ */
+const vorrat = computed(() => {
+  void seite.value
+  void schluessel.value
+  void listen.value
+  void locale.value
+  return new Map<string, Zeile>()
+})
+
+const zeilen = computed<Zeile[]>(() => {
+  // Am Stand vorbei gelesen: Er wird mit jeder Action als Ganzes ersetzt (`state.value` genügt
+  // als Abhängigkeit), und durch die reaktive Hülle kostete jedes Feld jeder Zeile ein Vielfaches.
+  const eingaben = toRaw(state.value).eingaben
+  return seite.value.rows.map((row): Zeile => {
     const klasse = row.klasse ?? props.bogen.klassen[0]
     if (row.zwischen !== undefined) {
-      return { row, klasse, werte: {}, felder: [], summen: [], autoDisq: '', erfasst: false, hatWerte: false, hinweise: [] }
+      const bekannt = vorrat.value.get(row.key)
+      if (bekannt) return bekannt
+      const zeile: Zeile = { row, klasse, werte: {}, felder: [], summen: [], autoDisq: '', erfasst: false, hatWerte: false, hinweise: [] }
+      vorrat.value.set(row.key, zeile)
+      return zeile
     }
-    const typeId = props.bogen.typeId
-    const werte = werteVon(state.value.eingaben, schluessel.value, row.key)
-    const felder = seite.value.leaves.map((leaf, li) => (row.cells[li].gilt ? feldVon(konfig.value, typeId, klasse, leaf.colKey, leaf.subIndex) : undefined))
-    const listenfelder = listenFelder(konfig.value, typeId, klasse)
-    const jeZelle = new Map(listenfelder.map((f) => [f.zelle, f.kennung]))
-    // scoreRow fragt Zellschlüssel „<Zeile>:<Zelle>“; die Zeile ist hier leer.
-    const score = scoreRow(defFuerKlasse(basisDef.value, klasse), '', (key) => werte[jeZelle.get(key.slice(1)) ?? ''] ?? '')
-    return {
-      row,
-      klasse,
-      werte,
-      felder,
-      summen: seite.value.leaves.map((leaf, li) => (leaf.kind === 'sum' && row.cells[li].gilt ? summenText(score, leaf.colKey) : '')),
-      disqTitel: score.disqs.length ? formatDisqs(score.disqs) : undefined,
-      autoDisq: [...new Set(score.disqs.filter((d) => !basisDef.value.columns.some((c) => c.kind === 'disq' && c.label === d.where)).map((d) => d.code))].join(', '),
-      erfasst: zeileErfasst(listenfelder, werte, typeId),
-      hatWerte: zeileHatWerte(listenfelder, werte),
-      hinweise: zeilenHinweise(listenfelder, werte, felderJeKennung(konfig.value, klasse, listen.value), typeId),
-    }
-  }),
-)
+    const werte = werteVon(eingaben, schluessel.value, row.key)
+    const bekannt = vorrat.value.get(row.key)
+    if (bekannt && bekannt.werte === werte) return bekannt
+    const zeile = bildeZeile(row, klasse, werte)
+    vorrat.value.set(row.key, zeile)
+    return zeile
+  })
+})
+
+function bildeZeile(row: BogenModellZeile, klasse: string, werte: Readonly<Record<string, string>>): Zeile {
+  const typeId = props.bogen.typeId
+  const felder = seite.value.leaves.map((leaf, li) => (row.cells[li].gilt ? feldVon(konfig.value, typeId, klasse, leaf.colKey, leaf.subIndex) : undefined))
+  const listenfelder = listenFelder(konfig.value, typeId, klasse)
+  const jeZelle = new Map(listenfelder.map((f) => [f.zelle, f.kennung]))
+  // scoreRow fragt Zellschlüssel „<Zeile>:<Zelle>“; die Zeile ist hier leer.
+  const score = scoreRow(defFuerKlasse(basisDef.value, klasse), '', (key) => werte[jeZelle.get(key.slice(1)) ?? ''] ?? '')
+  return {
+    row,
+    klasse,
+    werte,
+    felder,
+    summen: seite.value.leaves.map((leaf, li) => (leaf.kind === 'sum' && row.cells[li].gilt ? summenText(score, leaf.colKey) : '')),
+    disqTitel: score.disqs.length ? formatDisqs(score.disqs) : undefined,
+    autoDisq: [...new Set(score.disqs.filter((d) => !basisDef.value.columns.some((c) => c.kind === 'disq' && c.label === d.where)).map((d) => d.code))].join(', '),
+    erfasst: zeileErfasst(listenfelder, werte, typeId),
+    hatWerte: zeileHatWerte(listenfelder, werte),
+    hinweise: zeilenHinweise(listenfelder, werte, alleFelder.value(klasse), typeId),
+  }
+}
 
 const starterZeilen = computed(() => zeilen.value.filter((z) => z.row.zwischen === undefined && konfig.value.positionAllowsClass(props.bogen.typeId, z.klasse)))
 const fortschritt = computed(() => ({ erfasst: starterZeilen.value.filter((z) => z.erfasst).length, gesamt: starterZeilen.value.length }))
@@ -210,15 +255,17 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
           </tr>
         </thead>
         <tbody>
-          <template v-for="z in zeilen" :key="z.row.key">
-            <tr v-if="z.row.zwischen !== undefined" class="erf-zwischen" :data-klasse="z.row.klasse">
-              <th :colspan="totalCols" scope="rowgroup">{{ z.row.zwischen }}</th>
-            </tr>
-            <tr
-              v-else
-              :class="{ 'erf-grau': z.row.shaded, 'erf-zeile--erfasst': z.erfasst, 'erf-zeile--hinweis': z.hinweise.length > 0 }"
-              :data-zeile="z.row.key"
-            >
+          <!-- v-memo: Eine Zeile wird nur neu gesetzt, wenn sich ihre Werte geändert haben (siehe `vorrat`). -->
+          <tr
+            v-for="z in zeilen"
+            :key="z.row.key"
+            v-memo="[z, totalCols]"
+            :class="z.row.zwischen !== undefined ? 'erf-zwischen' : { 'erf-grau': z.row.shaded, 'erf-zeile--erfasst': z.erfasst, 'erf-zeile--hinweis': z.hinweise.length > 0 }"
+            :data-klasse="z.row.zwischen !== undefined ? z.row.klasse : undefined"
+            :data-zeile="z.row.zwischen !== undefined ? undefined : z.row.key"
+          >
+            <th v-if="z.row.zwischen !== undefined" :colspan="totalCols" scope="rowgroup">{{ z.row.zwischen }}</th>
+            <template v-else>
               <th class="erf-nr" scope="row">
                 {{ z.row.nr }}
                 <span v-if="z.hinweise.length > 0" class="erf-marke" :title="hinweisText(z)" aria-hidden="true">!</span>
@@ -264,8 +311,8 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
                   @change="hake(z, $event)"
                 />
               </td>
-            </tr>
-          </template>
+            </template>
+          </tr>
         </tbody>
       </table>
     </div>

@@ -1,9 +1,16 @@
 <script setup lang="ts">
+import { listenNachname, type NamenArt } from '../../lib/namen'
 import { computed } from 'vue'
 import { abstaende, type AbstandArt, type GesamtZeile } from '../../lib/ergebnis'
 import { ergebnisTexte } from '../../lib/ergebnisText'
 import { locale, texteIn, type Locale } from '../../i18n'
 import type { Starter } from '../../types'
+import type { HerkunftAnzeige } from '../../lib/origin'
+import HerkunftText from '../HerkunftText.vue'
+import { ERGEBNIS_FUSS_MM, SEITEN_VORGABE, zeilenDerSeite } from '../../lib/seiten'
+import type { SeitenTeil } from '../../lib/seiten'
+import ListenDokument from '../ListenDokument.vue'
+import ErgebnisFuss from './ErgebnisFuss.vue'
 
 /**
  * Gesamtliste einer Klasse (A4 quer): alle Läufe nebeneinander, die gestrichenen
@@ -17,16 +24,23 @@ const props = defineProps<{
   zeilen: GesamtZeile[]
   mitKnoten: boolean
   abstand?: AbstandArt
-  herkunft?: { titel: string; text: (p: Starter) => string; zeichen: number }
+  herkunft?: { titel: string; anzeige: (p: Starter) => HerkunftAnzeige; zeichen: number }
   /** Namen: voll, Nachname gekürzt („M.“) oder gar nicht (Aushang – dann steht nur die Startnummer da). */
-  namen?: 'voll' | 'kurz' | 'ohne'
+  namen?: NamenArt
   geburtsdatum?: boolean
   /**
-   * Wann sich die Liste zuletzt geändert hat (lib/listenStand.ts), schon als Text. Steht
-   * im Kopf der Liste, auch im Druck: Hängen zwei Fassungen aus, zeigt er die neuere – der
-   * Zeitpunkt im Seitenrand ist dagegen nur der des Drucks. Leer = unbekannt, dann steht nichts da.
+   * Wann sich die Liste zuletzt geändert hat (lib/listenStand.ts), schon als Text. Steht in
+   * einem eigenen Feld unter der Tabelle (ErgebnisFuss.vue), auf jeder Seite der Liste und
+   * auch im Druck: Hängen zwei Fassungen aus, zeigt er die neuere. Leer = unbekannt, dann
+   * steht nichts da.
    */
   stand?: string
+  /**
+   * Was bei gleichem Ergebnis entschieden hat, in Worten (in der Sprache der Liste). Steht
+   * unter der Tabelle jeder Seite, auf der ein Platz per Stichentscheid entstand – dort
+   * trägt der Platz ein Sternchen.
+   */
+  stichText?: string
   /** Sprache der Liste (lib/listensprache.ts); fehlt = die der Oberfläche. */
   sprache?: Locale
 }>()
@@ -34,23 +48,74 @@ const props = defineProps<{
 // Alles auf dem Blatt steht in der Sprache der Liste, nicht in der der Oberfläche.
 const sprache = () => props.sprache ?? locale.value
 const { t, formatDate } = texteIn(sprache)
+
+// Die Liste ist ein Dokument: Sie teilt sich selbst in Seiten und zählt nur die eigenen
+// (ListenDokument.vue). Platz, graue Zeile und Abstand hängen an der Stelle in der ganzen
+// Liste, nicht an der auf der Seite (lib/seiten.ts `zeilenDerSeite`).
+/** Steht auf dieser Seite ein Platz, den der Stichentscheid vergeben hat? */
+const mitStich = (teile: readonly SeitenTeil[]) => zeilenDerSeite(props.zeilen, teile).some(({ z }) => z.stich)
 const { abstandTitel, abstandZelle, punkteZelle, zeitText } = ergebnisTexte(sprache)
 
 /** Für den Aushang lässt sich der Nachname auf den Anfangsbuchstaben kürzen. */
-const nachname = (p: Starter) => (props.namen === 'kurz' && p.nachname.trim() ? `${[...p.nachname.trim()][0]}.` : p.nachname)
+const nachname = (p: Starter) => listenNachname(p, props.namen)
 
 const spaltenZahl = computed(
   () => 6 - (props.namen === 'ohne' ? 2 : 0) + (props.mitKnoten ? 1 : 0) + (props.herkunft ? 1 : 0) + (props.geburtsdatum ? 1 : 0) + (props.abstand ? 1 : 0) + props.laeufe.length * 4,
 )
 const abstandWerte = computed(() => (props.abstand ? abstaende(props.zeilen, props.abstand) : []))
 const gestrichen = (z: GesamtZeile, li: number) => z.gestrichen.includes(props.laeufe[li])
-// Breite der Herkunft-Spalte in mm: für Kürzel schmal, für ausgeschriebene Namen breiter.
-const herkunftMm = computed(() => Math.min(48, Math.max(20, Math.round((props.herkunft?.zeichen ?? 0) * 1.2 + 3))))
-const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit-2' : text.length > normal ? 'fit-1' : undefined)
+
+// Name und Vorname teilen sich, was die festen Spalten übrig lassen (`width: auto`). Bei drei
+// Läufen und ausgeschriebener Herkunft blieben ihnen sonst nur 17 mm: „Schumacher B“ stand
+// abgeschnitten da, ohne kleiner gesetzt zu werden. Deshalb haben die Namen Vorrang vor der
+// Herkunft, und kleiner gesetzt wird nach der tatsächlichen Breite der Spalte.
+/** Breite der Tabelle und der festen Spalten in mm – wie in styles/ergebnis.css (`.erg-w-*`, `.erg-tabelle--gesamt`). */
+const BREITE = 279.8
+const LAUF = 14 + 10 + 13 + 9.5
+/** So breit sollen Name und Vorname mindestens je sein, solange die Herkunft dafür nachgeben kann. */
+const NAME_MIN = 22
+const HERKUNFT_MIN = 14
+/**
+ * Breite eines Zeichens in mm bei 8,5 pt, breite Buchstaben eingerechnet. In Chromium gemessen:
+ * „Schumacher B“ braucht rund 20 mm, „MYWSC Schwielochsee e.V.“ rund 39 mm.
+ */
+const ZEICHEN_MM = 1.65
+/** Was nach den festen Spalten bleibt: für Name, Vorname und Herkunft. */
+const frei = computed(
+  () => BREITE - 9.5 - 9 - (props.geburtsdatum ? 18 : 0) - props.laeufe.length * LAUF - 2 * 14 - (props.mitKnoten ? 12 : 0) - (props.abstand ? 13 : 0),
+)
+const herkunftWunsch = computed(() => Math.min(48, Math.max(20, Math.round((props.herkunft?.zeichen ?? 0) * ZEICHEN_MM + 3))))
+// Breite der Herkunft-Spalte in mm: für Kürzel schmal, für ausgeschriebene Namen breiter –
+// aber nur so breit, dass den Namen ihre Mindestbreite bleibt.
+const herkunftMm = computed(() =>
+  props.namen === 'ohne' ? herkunftWunsch.value : Math.max(HERKUNFT_MIN, Math.min(herkunftWunsch.value, Math.floor(frei.value - 2 * NAME_MIN))),
+)
+/** Breite der Spalten Name und Vorname in mm: Sie teilen sich den Rest gleich. */
+const nameMm = computed(() => (frei.value - (props.herkunft ? herkunftMm.value : 0)) / 2)
+/**
+ * Kleiner setzen nach dem Platz: `normal` Zeichen passen in voller Größe. Reicht auch die
+ * kleinste Stufe nicht, steht der Text zweizeilig – abgeschnitten wäre er nicht zu erkennen.
+ */
+const fit = (text: string, normal: number) =>
+  text.length <= normal ? undefined : text.length <= normal / 0.85 ? 'fit-1' : text.length <= normal / 0.7 ? 'fit-2' : 'erg-zweizeilig'
+const fitName = (text: string) => fit(text, Math.floor((nameMm.value - 1) / ZEICHEN_MM))
+const fitHerkunft = (text: string) => fit(text, Math.floor((herkunftMm.value - 2) / ZEICHEN_MM))
 </script>
 
 <template>
-  <section class="ergebnis-blatt" data-art="gesamt">
+  <ListenDokument
+    class="ergebnis-blatt"
+    data-art="gesamt"
+    :laengen="[zeilen.length]"
+    format="landscape"
+    :vorgabe="SEITEN_VORGABE.ergebnisGesamt"
+    :sprache="sprache()"
+    :fuss-mm="ERGEBNIS_FUSS_MM"
+  >
+    <template #fuss="{ teile, seitenzahl }">
+      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="mitStich(teile) ? stichText : ''" :seitenzahl="seitenzahl" />
+    </template>
+    <template #default="{ teile }">
     <table class="erg-tabelle erg-tabelle--gesamt">
       <colgroup>
         <col class="erg-w-platz" />
@@ -73,13 +138,10 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
       <thead>
         <tr>
           <th class="erg-kopfzelle" :colspan="spaltenZahl">
-            <div :class="['erg-kopf', { 'erg-kopf--stand': stand }]">
+            <div class="erg-kopf">
               <span class="erg-kopf-klasse">{{ klasseText }}</span>
               <span class="erg-kopf-titel">{{ t('results.overall') }}</span>
               <span class="erg-kopf-event">{{ eventName }}</span>
-              <!-- Im Kopf, nicht unter der Liste: Dort kostete er Höhe und schöbe bei voller Seite
-                   die letzte Zeile aufs nächste Blatt. Der Kopf kehrt zudem auf jeder Seite wieder. -->
-              <span v-if="stand" class="erg-stand">{{ t('results.changed', { time: stand }) }}</span>
             </div>
           </th>
         </tr>
@@ -109,18 +171,19 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
       </thead>
       <tbody>
         <tr
-          v-for="(z, i) in zeilen"
+          v-for="{ z, i } in zeilenDerSeite(zeilen, teile)"
           :key="z.starter.id"
           :class="(i + 1) % 5 === 0 ? 'grau' : undefined"
           :data-starter="z.starter.id"
           :data-wertung="z.disq ? 'disq' : z.offen ? 'offen' : 'gewertet'"
           :data-stich="z.stich ? '' : undefined"
         >
-          <td class="erg-platz">{{ z.platz }}</td>
+          <!-- Das Sternchen sagt: Diesen Platz hat der Stichentscheid vergeben (Erklärung unter der Tabelle). -->
+          <td class="erg-platz">{{ z.platz }}<span v-if="z.stich" class="erg-stich-zeichen">*</span></td>
           <td>{{ z.starter.startNr }}</td>
-          <td v-if="namen !== 'ohne'" :class="fit(nachname(z.starter), 14)">{{ nachname(z.starter) }}</td>
-          <td v-if="namen !== 'ohne'" :class="fit(z.starter.vorname, 12)">{{ z.starter.vorname }}</td>
-          <td v-if="herkunft" :class="fit(herkunft.text(z.starter), Math.floor((herkunftMm - 2) / 1.2))">{{ herkunft.text(z.starter) }}</td>
+          <td v-if="namen !== 'ohne'" :class="fitName(nachname(z.starter))">{{ nachname(z.starter) }}</td>
+          <td v-if="namen !== 'ohne'" :class="fitName(z.starter.vorname)">{{ z.starter.vorname }}</td>
+          <td v-if="herkunft" :class="fitHerkunft(herkunft.anzeige(z.starter).mass)"><HerkunftText :anzeige="herkunft.anzeige(z.starter)" /></td>
           <td v-if="geburtsdatum">{{ z.starter.geburtsdatum ? formatDate(z.starter.geburtsdatum) : '' }}</td>
           <template v-for="(l, li) in z.laeufe" :key="li">
             <!-- „Nicht gestartet“ (X) ausgeschrieben statt „disq.“: gewertet wird der Lauf wie jede Disqualifikation. -->
@@ -139,5 +202,6 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
         </tr>
       </tbody>
     </table>
-  </section>
+    </template>
+  </ListenDokument>
 </template>

@@ -40,8 +40,8 @@ describe('App', () => {
     setLocale('de')
 
     await show('listen')
-    // Die Vorgabe ist die verzahnte Startliste; hier geht es um die Liste nach Klasse.
-    await wrapper.find('.list-kinds button[data-kind="byClass"]').trigger('click')
+    // Die Vorgabe ist die verzahnte Starterliste; hier geht es um die Liste nach Klasse.
+    await wrapper.find('.starter-arten button[data-art="klasse"]').trigger('click')
     // Nach Klasse: eine durchgehende Liste, je Klasse ein zusammenhängender Block.
     expect(wrapper.findAll('.sheet-section')).toHaveLength(1)
     expect(wrapper.findAll('.sheet-table tbody')).toHaveLength(2)
@@ -80,7 +80,11 @@ describe('App', () => {
     await wrapper.findAll('.segmented button').find((b) => b.text() === 'Gewichtslisten')!.trigger('click')
     expect(wrapper.findAll('.sheet-section')).toHaveLength(2)
     expect(wrapper.find('.boat-banner.warn').exists()).toBe(false)
-    expect(wrapper.findAll('.sheet-title-box .list').map((e) => e.text())).toEqual(['Gewichtsliste\nClub A', 'Gewichtsliste\nClub B'])
+    // Liste und Herkunft stehen in eigenen Feldern – nicht mehr aneinander in einem.
+    expect(wrapper.findAll('.sheet-title-box').map((b) => b.findAll('[data-feld]').map((f) => f.text()))).toEqual([
+      ['Gewichtsliste', 'Club A', '2026'],
+      ['Gewichtsliste', 'Club B', '2026'],
+    ])
     expect(wrapper.findAll('.sheet-section')[1].findAll('tbody tr').map((tr) => tr.findAll('td')[1].text())).toEqual(['Abel', 'Zeh'])
     expect(wrapper.find('.sheet-table tbody').text()).toContain('33 kg')
 

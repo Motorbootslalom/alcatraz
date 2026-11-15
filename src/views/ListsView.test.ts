@@ -109,11 +109,9 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     await drucken(wrapper).trigger('click')
     expect(document.title).toMatch(/^Judges' sheets - Class 7 - Attempt 1 - Tor 1-3-5 - Hafenpokal 2026 - /)
     expect(document.title).not.toMatch(/[/\\:]/)
-    // Seitenzähler und Zeitpunkt stehen im Rand der Bogen-Seiten (Hoch- und Querformat).
-    const css = wrapper.find('style').text()
-    expect(css).toContain('@page bogen-hoch')
-    expect(css).toContain('@page bogen-quer')
-    expect(css).toContain('counter(page)')
+    // Im Rand der Bogen-Seiten steht nichts – kein Druckzeitpunkt, keine Seitenzahl: Die Ansicht
+    // erzeugt kein eigenes Stylesheet mehr. Mehrseitige Bögen zählen ihre Seiten selbst (Seitenzahlen.test.ts).
+    expect(wrapper.find('style').exists()).toBe(false)
     window.dispatchEvent(new Event('afterprint'))
     wrapper.unmount()
     vi.unstubAllGlobals()
@@ -163,7 +161,19 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     await waehle(wrapper, 'liste', 'steg')
     expect(koepfe(wrapper)).toEqual(['Steg | Klassen 1, 3 | 1. Lauf | Parcours 1', 'Steg | Klassen 4, 7 | 1. Lauf | Parcours 2'])
     const bogen = wrapper.findAll('.wkr-listen .bogen')[1]
-    expect(bogen.findAll('tr.bt-zwischen').map((z) => z.text())).toEqual(['Klasse 4', 'Klasse 7'])
+    // Papier sparen (Vorgabe): Die Leerzeilen stehen einmal am Ende der Seite unter eigener
+    // Überschrift – drei für alle Klassen des Blatts, nicht nach jeder Klasse.
+    expect(bogen.findAll('tr.bt-zwischen').map((z) => z.text())).toEqual(['Klasse 4', 'Klasse 7', 'Nachmeldungen'])
+    const zeilenArt = () => wrapper.findAll('.wkr-listen .bogen')[1].findAll('.bogen-tabelle > tbody > tr').map((z) => (z.classes('bt-zwischen') ? z.text() : z.find('td.bt-nr').text() === '' ? 'leer' : 'starter'))
+    expect(zeilenArt().filter((a) => a === 'leer')).toHaveLength(3)
+    expect(zeilenArt().slice(-4)).toEqual(['Nachmeldungen', 'leer', 'leer', 'leer'])
+    // Ohne „Papier sparen“ bleibt es bei den Leerzeilen je Klasse (Clubmeisterschaft: eine).
+    store.dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: false })
+    await nextTick()
+    expect(wrapper.findAll('.wkr-listen .bogen')[1].findAll('tr.bt-zwischen').map((z) => z.text())).toEqual(['Klasse 4', 'Klasse 7'])
+    expect(zeilenArt().filter((a) => a === 'leer')).toHaveLength(2)
+    store.dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: true })
+    await nextTick()
     expect(bogen.find('th.bt-klasse').exists()).toBe(false)
     // Die Auswahl einer Klasse zeigt den gemeinsamen Bogen, auf dem sie steht.
     await waehle(wrapper, 'klasse', '7')
@@ -200,11 +210,13 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     wrapper.unmount()
   })
 
-  it('die verzahnte Startliste ist die Vorgabe; „nach Klasse“ steht hinten', () => {
+  it('die Starterlisten stehen vorn und sind die Vorgabe – verzahnt', () => {
     const wrapper = ansicht(store)
     const arten = wrapper.findAll('.list-kinds button')
-    expect(wrapper.find('.list-kinds button.active').attributes('data-kind')).toBe('interleaved')
-    expect(arten.at(-1)!.attributes('data-kind')).toBe('byClass')
+    expect(wrapper.find('.list-kinds button.active').attributes('data-kind')).toBe('starter')
+    expect(arten[0].attributes('data-kind')).toBe('starter')
+    expect(arten[0].text()).toBe('Starterlisten')
+    expect(wrapper.find('.starter-arten button.active').attributes('data-art')).toBe('verzahnt')
     wrapper.unmount()
   })
 

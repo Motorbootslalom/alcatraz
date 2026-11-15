@@ -2,11 +2,12 @@
 import { computed, ref, useId, watchEffect } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
-import { useKonfig } from '../lib/konfig'
+import { useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { waehleBoegen, wkrBoegenZumStand, type WkrAuswahl } from '../lib/wkrListen'
 import { t, tn } from '../i18n'
+import { adresse } from '../lib/router'
 import type { ClassId } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import ParcoursNachweis from './ParcoursNachweis.vue'
@@ -29,11 +30,15 @@ const emit = defineEmits<{
 }>()
 
 const { state } = useStore()
+// Welche Bögen es gibt, folgt aus Stand und Aufbau – in jeder Sprache dasselbe. Gezeichnet
+// wird jeder Bogen in der Sprache seiner Liste (`bogenKonfig`, lib/listensprache.ts); auch
+// sein Titel in der Auswahl steht so da, wie er auf dem Blatt steht.
 const konfig = useKonfig()
+const bogenKonfig = useBogenKonfig()
 const { classLabel } = useEvent()
 const id = useId()
 
-const listen = computed(() => wkrBoegenZumStand(state.value, konfig.value))
+const listen = computed(() => wkrBoegenZumStand(state.value, konfig.value, (typeId) => bogenKonfig(typeId).getSheetDef(typeId).title))
 const alle = computed(() => listen.value.boegen)
 
 // Was sich wählen lässt, ergibt sich aus den Bögen: nur Parcours, Klassen, Läufe und Listen, die es gibt.
@@ -48,11 +53,11 @@ const listenArten = computed(() => {
   const folge = veranstaltungsListen(konfig.value, state.value)
   return [...titel]
     .sort((a, b) => folge.indexOf(a[0]) - folge.indexOf(b[0]))
-    .map(([typeId, text]) => ({ typeId, titel: mehrfach(text) ? konfig.value.getSheetDef(typeId).menuLabel : text }))
+    .map(([typeId, text]) => ({ typeId, titel: mehrfach(text) ? bogenKonfig(typeId).getSheetDef(typeId).menuLabel : text }))
 })
 
 // Eine Wahl, die es nach einer Änderung (Aufbau, Verzahnung, Läufe) nicht mehr gibt, gilt als „alle“.
-const wahl = merke<WkrAuswahl>('listen.wkr', {})
+const wahl = merke<WkrAuswahl>('listen.wkr', {}, { ueberNeuladen: true })
 const auswahl = computed<WkrAuswahl>(() => ({
   parcours: parcours.value.some((p) => p.id === wahl.value.parcours) ? wahl.value.parcours : undefined,
   klasse: wahl.value.klasse !== undefined && klassen.value.includes(wahl.value.klasse) ? wahl.value.klasse : undefined,
@@ -124,11 +129,12 @@ const { zoom } = useBogenZoom(stapel)
       <p class="note wkr-listen-stand" role="status">{{ tn('lists.wkr.count', boegen.length) }}</p>
     </div>
     <p v-if="ohneListe" class="boat-banner warn" role="status">
-      {{ t('lists.wkr.without', { classes: ohneListe }) }} <a href="#/verzahnung">{{ t('nav.verzahnung') }}</a>
+      {{ t('lists.wkr.without', { classes: ohneListe }) }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a>
     </p>
     <p v-if="state.wkrRueckseite" class="boat-banner ok" role="status">{{ t('lists.wkr.duplex') }}</p>
     <p class="note">
-      {{ t('lists.wkr.settings') }} <a href="#/einstellungen?wkr">{{ t('nav.einstellungen') }}</a
+      {{ t('lists.wkr.settings') }} <a :href="adresse('einstellungen')">{{ t('nav.einstellungen') }}</a
+      >. {{ t('lists.wkr.names') }} <a :href="adresse('veranstaltung', { ziel: 'wkr' })">{{ t('nav.veranstaltung') }} → {{ t('crew.title') }}</a
       >.
     </p>
   </div>
@@ -137,7 +143,7 @@ const { zoom } = useBogenZoom(stapel)
 
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). -->
   <div ref="stapel" class="bogen-stapel wkr-listen" :style="zoom">
-    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="konfig" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
+    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
   </div>
   <div v-if="mitBild" class="no-print"><ParcoursNachweis /></div>
 </template>

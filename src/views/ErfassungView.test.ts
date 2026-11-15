@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ErfassungView from './ErfassungView.vue'
@@ -373,6 +373,184 @@ describe('Erfassung', () => {
     setLocale('de')
     await nextTick()
     expect(wrapper.find('.erf-stand-text').text()).toBe('0 von 3 erfasst')
+    // Die Erfassung ist Bedienung: Auch der Name der Liste und die Spaltenköpfe folgen der
+    // Oberfläche – nicht dem Regelwerk (UIM: englisch) und nicht der Sprache des Bogens.
+    expect(titel(wrapper)).toBe('Zeit | Klasse Dolphin | 1. Lauf | Parcours 1')
+    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['zeit'], sprache: 'de+en' })
+    await nextTick()
+    expect(titel(wrapper)).toBe('Zeit | Klasse Dolphin | 1. Lauf | Parcours 1')
+    wrapper.unmount()
+  })
+})
+
+describe('Erfassung: alle Listen untereinander', () => {
+  let store: Store
+  /** Die Abschnitte des Stapels, von oben nach unten. */
+  const abschnitte = (wrapper: VueWrapper) => wrapper.findAll('.eingabe-stapel [data-abschnitt]')
+  const namen = (wrapper: VueWrapper) => wrapper.findAll('.erf-titel').map((k) => k.find('span').text())
+  /** Ein Feld in einer bestimmten Liste des Stapels. */
+  const feldIn = (wrapper: VueWrapper, liste: string, zeile: number, spalte: string) =>
+    wrapper.findAll(`.eingabe-stapel [data-bogen$="|${liste}"] tbody tr[data-zeile]`)[zeile].find(`td[data-spalte="${spalte}"] input`) as DOMWrapper<HTMLInputElement>
+
+  beforeEach(() => {
+    localStorage.clear()
+    vergissAlles()
+    setLocale('de')
+    // Das Test-DOM kennt den Beobachter, meldet aber nie Sichtbarkeit: Ohne ihn baut die Ansicht alle Listen sofort auf.
+    vi.stubGlobal('IntersectionObserver', undefined)
+    store = createStore()
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['1', '4', '7']) })
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vergissAlles()
+    setLocale('de')
+    document.body.innerHTML = ''
+  })
+
+  it('von Hand: „alle untereinander“ in der Auswahl der Liste zeigt den Blattstapel in der Reihenfolge der Listen', async () => {
+    const wrapper = ansicht(store)
+    expect(wrapper.findAll('select[data-feld="erf-liste"] option').at(-1)!.text()).toBe('alle untereinander')
+    expect(namen(wrapper)).toEqual(['Zeit'])
+    await waehle(wrapper, 'liste', '*')
+    // Klasse 1 fährt kein „Mann über Bord“; die Knoten liegen im Stapel des letzten Laufs.
+    expect(namen(wrapper)).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Parcours'])
+    expect(abschnitte(wrapper)).toHaveLength(7)
+    // Statt des Umschalters steht die Sprungleiste über den Listen.
+    expect(wrapper.find('.eingabe-listen').exists()).toBe(false)
+    expect(wrapper.findAll('.eingabe-sprung [data-sprung]')).toHaveLength(7)
+    expect(wrapper.find('.eingabe-summe').text()).toBe('Dieser Blattstapel: 0 von 21 Zeilen auf 7 Listen erfasst.')
+    await waehle(wrapper, 'lauf', '3')
+    expect(namen(wrapper).at(-1)).toBe('Knoten')
+    // Zurück zu einer einzelnen Liste.
+    await waehle(wrapper, 'liste', 'steg')
+    expect(namen(wrapper)).toEqual(['Steg'])
+    expect(wrapper.find('.eingabe-stapel').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('jede Liste nimmt Eingaben an: Werte, Haken und „leere Zeilen bestätigen“ gelten je Liste', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', '*')
+    await tippe(feldIn(wrapper, 'zeit', 0, 'zeit1'), '80')
+    await tippe(feldIn(wrapper, 'steg', 1, 'fehlerAB'), '3')
+    await tippe(feldIn(wrapper, 'vorsteg', 2, 'disq'), 'x')
+    await nextTick()
+    expect(store.state.value.eingaben[L1]).toEqual({ 'id-1-1': { zeit1: '80' }, 'id-1-2': { 'katalog:stegAblegen': '3' }, 'id-1-3': { 'disq@vorsteg': 'X' } })
+    const chip = (liste: string) => wrapper.find(`.eingabe-sprung [data-liste="${liste}"]`)
+    expect(chip('zeit').text()).toContain('1/3')
+    expect(chip('steg').text()).toContain('1/3')
+    expect(chip('gate135').text()).toContain('0/3')
+    // Der Haken der Tor-Liste gilt nur für sie.
+    const tor = wrapper.find('.eingabe-stapel [data-bogen$="|gate135"]')
+    await tor.findAll('.erf-haken input[type="checkbox"]')[0].setValue(true)
+    expect(store.state.value.eingaben[L1]['id-1-1']).toEqual({ zeit1: '80', 'erfasst@gate135': '1' })
+    await tor.find('[data-action="alle-bestaetigen"]').trigger('click')
+    expect(chip('gate135').classes()).toContain('fertig')
+    expect(chip('gate245').text()).toContain('0/3')
+    expect(tor.find('.erf-stand-text').text()).toBe('3 von 3 erfasst')
+    expect(wrapper.find('.eingabe-stapel [data-bogen$="|steg"] .erf-stand-text').text()).toBe('1 von 3 erfasst')
+    wrapper.unmount()
+  })
+
+  it('Pfeiltasten und Enter bleiben in ihrer Liste: Die Spalten der nächsten sind andere', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', '*')
+    const letzte = feldIn(wrapper, 'vorsteg', 2, 'disq')
+    letzte.element.focus()
+    await taste(letzte, 'ArrowDown')
+    expect(document.activeElement).toBe(letzte.element)
+    await taste(letzte, 'Enter')
+    expect(document.activeElement).toBe(letzte.element)
+    // Am rechten Rand der letzten Zelle geht es nicht in die Liste darunter, am linken der ersten nicht in die darüber.
+    const felder = wrapper.findAll('.eingabe-stapel [data-bogen$="|vorsteg"] tbody input:not([type=checkbox])')
+    const ende = felder.at(-1)! as DOMWrapper<HTMLInputElement>
+    ende.element.focus()
+    await taste(ende, 'ArrowRight')
+    expect(document.activeElement).toBe(ende.element)
+    const anfang = felder[0] as DOMWrapper<HTMLInputElement>
+    anfang.element.focus()
+    await taste(anfang, 'ArrowLeft')
+    expect(document.activeElement).toBe(anfang.element)
+    // Innerhalb der Liste wie gewohnt.
+    const oben = feldIn(wrapper, 'vorsteg', 0, 'disq')
+    oben.element.focus()
+    await taste(oben, 'ArrowDown')
+    expect(fokus()).toBe('id-1-2|disq')
+    expect(document.activeElement?.closest('[data-bogen]')?.getAttribute('data-bogen')).toMatch(/\|vorsteg$/)
+    wrapper.unmount()
+  })
+
+  it('die Sprungleiste stellt den Cursor in die erste Zelle ihrer Liste; „Nächste offene Liste“ in die erste unfertige', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', '*')
+    await wrapper.find('.eingabe-sprung [data-liste="steg"]').trigger('click')
+    await nextTick()
+    expect(fokus()).toBe('id-1-1|fehlerAB')
+    expect(document.activeElement?.closest('[data-bogen]')?.getAttribute('data-bogen')).toMatch(/\|steg$/)
+    // Die Zeitliste ist fertig, der Vorsteg nicht.
+    for (const i of [0, 1, 2]) await tippe(feldIn(wrapper, 'zeit', i, 'zeit1'), '80')
+    await wrapper.find('[data-action="weiter"]').trigger('click')
+    await nextTick()
+    expect(document.activeElement?.closest('[data-bogen]')?.getAttribute('data-bogen')).toMatch(/\|vorsteg$/)
+    wrapper.unmount()
+  })
+
+  it('die Wahl übersteht Ansichtswechsel und Neuladen', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'parcours', 'par_2')
+    await waehle(wrapper, 'klasse', '4')
+    await waehle(wrapper, 'liste', '*')
+    const vorher = namen(wrapper)
+    expect(vorher).toContain('Mann-über-Bord')
+    wrapper.unmount()
+    // Ansichtswechsel: Die Ansicht wird neu aufgebaut.
+    const wieder = ansicht(store)
+    expect(namen(wieder)).toEqual(vorher)
+    wieder.unmount()
+    // Neuladen: Der Arbeitsspeicher ist leer, der sessionStorage des Fensters bleibt.
+    const gemerkt = sessionStorage.getItem('alcatraz.merke.erfassung.wahl')
+    expect(JSON.parse(gemerkt!)).toMatchObject({ parcours: 'par_2', klasse: '4', liste: '*' })
+    vergissAlles()
+    sessionStorage.setItem('alcatraz.merke.erfassung.wahl', gemerkt!)
+    const neu = ansicht(createStore())
+    await nextTick()
+    expect(namen(neu)).toEqual(vorher)
+    expect((neu.find('select[data-feld="erf-liste"]').element as HTMLSelectElement).value).toBe('*')
+    neu.unmount()
+  })
+
+  it('aufgebaut wird eine Liste erst in der Nähe des Fensters; bis dahin hält ein Platzhalter ihren Platz', async () => {
+    let melde: (eintraege: unknown[]) => void = () => {}
+    const beobachtet: Element[] = []
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(rueckruf: (eintraege: unknown[]) => void) {
+          melde = rueckruf
+        }
+        observe(el: Element) {
+          beobachtet.push(el)
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', '*')
+    // Die erste Liste steht sofort da (dort beginnt das Abtippen), die übrigen sind Platzhalter.
+    expect(namen(wrapper)).toEqual(['Zeit'])
+    expect(wrapper.findAll('.erf-platz')).toHaveLength(6)
+    expect(wrapper.findAll('.eingabe-sprung [data-sprung]')).toHaveLength(7)
+    const steg = abschnitte(wrapper).find((a) => a.attributes('data-abschnitt')!.endsWith('|steg'))!
+    expect(beobachtet).toContain(steg.element)
+    melde([{ isIntersecting: true, target: steg.element }])
+    await nextTick()
+    expect(namen(wrapper)).toEqual(['Zeit', 'Steg'])
+    // Wer eine Liste anspringt, bekommt sie sofort.
+    await wrapper.find('.eingabe-sprung [data-liste="parcours"]').trigger('click')
+    await nextTick()
+    expect(namen(wrapper)).toEqual(['Zeit', 'Steg', 'Parcours'])
     wrapper.unmount()
   })
 })

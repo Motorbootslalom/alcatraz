@@ -37,6 +37,28 @@ describe('Verzahnung: Schnellauswahl', () => {
   })
 })
 
+describe('Verzahnung: die Disziplin in der Adresse', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    location.hash = ''
+  })
+
+  it('ohne Parallelslalom (DM) wird ein Verweis auf „parallel“ auf das Manövrieren umgeschrieben; unter UIM gilt er', () => {
+    const zeige = (regelwerk: string) => {
+      const store = createStore()
+      store.dispatch({ type: 'SET_REGELWERK', regelwerk })
+      location.hash = '#/verzahnung/parallel'
+      const wrapper = mount(VerzahnungView, { global: { provide: { [storeKey as symbol]: store } } })
+      const hash = location.hash
+      wrapper.unmount()
+      return hash
+    }
+    expect(zeige('dm-2026')).toBe('#/verzahnung/manoever')
+    expect(zeige('uim-2026')).toBe('#/verzahnung/parallel')
+  })
+})
+
 describe('Verzahnung: klassische Startnummern neu vergeben', () => {
   let store: Store
 

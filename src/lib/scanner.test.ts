@@ -164,6 +164,40 @@ describe('hoereAufScanner', () => {
     expect(codes).toEqual([])
   })
 
+  it('gestaute Tasten: Es zählt, wann getippt wurde – nicht, wie lange die Behandlung je Zeichen dauert', () => {
+    // Ohne eigene Uhr: Der Zeitstempel des Ereignisses gilt. Die Behandlung braucht hier 100 ms
+    // je Zeichen (großes Starterfeld: Rechnen, Speichern, Neuzeichnen), der Scanner tippt alle 5 ms.
+    ab()
+    ab = hoereAufScanner((c) => codes.push(c))
+    const feld = document.createElement('input')
+    document.body.append(feld)
+    feld.value = '7'
+    feld.focus()
+    let getippt = 5000
+    const uhr = vi.spyOn(performance, 'now')
+    let behandelt = 9000
+    uhr.mockImplementation(() => (behandelt += 100))
+    const druecke = (key: string, ms: number) => {
+      getippt += ms
+      const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+      Object.defineProperty(e, 'timeStamp', { value: getippt })
+      feld.dispatchEvent(e)
+      if (!e.defaultPrevented && key.length === 1) {
+        feld.value += key
+        feld.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+    }
+    for (const z of 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.3.1') druecke(z, 5)
+    druecke('Enter', 5)
+    expect(codes).toEqual(['ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.3.1'])
+    expect(feld.value).toBe('7')
+    // Von Hand getippt (Abstand der Ereignisse groß) bleibt es eine Eingabe.
+    for (const z of 'ALC1.') druecke(z, MAX_ABSTAND_MS + 40)
+    expect(feld.value).toBe('7ALC1.')
+    expect(codes).toHaveLength(1)
+    uhr.mockRestore()
+  })
+
   it('Tasten mit Strg/Alt gehören nicht zum Scan; nach dem Abmelden hört niemand mehr zu', () => {
     zeit += 500
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true, cancelable: true }))

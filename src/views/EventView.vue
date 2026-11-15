@@ -8,13 +8,17 @@ import { t } from '../i18n'
 import type { EventKind, OriginMode } from '../types'
 import WkrVorschau from '../components/WkrVorschau.vue'
 import BeispieldatenPanel from '../components/BeispieldatenPanel.vue'
+import BesetzungPanel from '../components/BesetzungPanel.vue'
 import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
+import EingabenHinweis from '../components/EingabenHinweis.vue'
 import { PROTOTYP_URL } from '../lib/prototyp'
 
 /**
- * Die Veranstaltung selbst: Name, Jahr, Regelwerk, Aufbau. Alles Übrige –
- * Listen, Kürzel, WKR-Einteilung, Dateien – steht unter „Einstellungen“. Am Ende der
- * Block „Beispieldaten“ zum Ausprobieren (components/BeispieldatenPanel.vue).
+ * Die Veranstaltung selbst: Name, Jahr, Regelwerk, Aufbau – und im Block „Besetzung“
+ * (components/BesetzungPanel.vue), was für diesen Wettkampf eingeteilt wird: Boote,
+ * Co-Piloten und die WKR-Einteilung. Alles Übrige – Listen, Kürzel, Dateien – steht unter
+ * „Einstellungen“. Am Ende der Block „Beispieldaten“ zum Ausprobieren
+ * (components/BeispieldatenPanel.vue).
  */
 const { state, dispatch } = useStore()
 const { regelwerk, classLabel, foreignClasses, parallel } = useEvent()
@@ -22,7 +26,7 @@ const { regelwerk, classLabel, foreignClasses, parallel } = useEvent()
 // Mitgelieferte Aufbauten und dahinter die eigenen aus den Einstellungen.
 const aufbauten = computed(() => manoeverAufbauten(state.value.eigeneAufbauten))
 
-const vorschauOffen = merke('veranstaltung.vorschau', false)
+const vorschauOffen = merke('veranstaltung.vorschau', false, { ueberNeuladen: true })
 
 const KINDS: EventKind[] = ['meisterschaft', 'club']
 const ORIGINS: OriginMode[] = ['verein', 'bundesland', 'land', 'none']
@@ -134,6 +138,9 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
       </div>
     </div>
     <RegelLaeufeHinweis />
+    <!-- Regelwerk, Aufbau und Zahl der Läufe können erfasste Werte verbergen (3. Lauf, Klassen,
+         die das Regelwerk nicht kennt): Das steht dort, wo man es auslöst. -->
+    <EingabenHinweis />
     <p class="note">
       {{ parallel ? t('event.rulebookNote.parallel') : t('event.rulebookNote.manoever') }}
       {{ t('event.setupNote') }}
@@ -147,10 +154,6 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
     <p v-if="foreignClasses.length > 0" class="boat-banner warn" role="status">
       {{ t('event.foreignClasses', { rulebook: regelwerk.label, classes: foreignClasses.map((c) => classLabel(c.id)).join(', ') }) }}
     </p>
-    <!-- Die WKR-Einteilung steht unter „Einstellungen“; hier beim Aufbau nur der Weg dorthin. -->
-    <p class="note" data-hinweis="wkr">
-      {{ t('event.wkrNote') }} <a href="#/einstellungen?wkr">{{ t('nav.einstellungen') }} → {{ t('wkr.title') }}</a>
-    </p>
     <p class="note">{{ t('event.note') }}</p>
     <!-- Zugeklappt, damit die Seite kurz bleibt: Wer den Aufbau wählt, kann hier nachsehen,
          welche Listen er ergibt. Gebaut wird die Ansicht erst beim Aufklappen. -->
@@ -159,6 +162,9 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
       <WkrVorschau v-if="vorschauOffen" />
     </details>
   </div>
+
+  <!-- Was die Regattaleitung für diesen Wettkampf einteilt: Boote, Co-Piloten, Wettkampfrichter. -->
+  <BesetzungPanel />
 
   <!-- Am Ende und zugeklappt: Neue sehen, dass es Beispieldaten gibt; offen, sobald sie geladen sind. -->
   <BeispieldatenPanel />

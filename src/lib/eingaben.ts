@@ -1,9 +1,11 @@
-import type { AppState, CellKind, Eingaben, ErrorDef, Geraet, SheetDef } from '../types'
+import { CLASS_IDS } from '../domain/classes'
+import type { AppState, CellKind, Eingaben, ErrorDef, Geraet, SheetDef, Starter } from '../types'
 import { defFuerKlasse } from './bogen'
 import { normalizeCodeCell } from './codes'
 import { allowedSet, sanitizeBuoy, sanitizeDisq } from './disq'
 import { columnCellKeys } from './scoring'
 import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
+import { parseTime } from './time'
 
 // Die erfassten Werte der Wettkampfrichter-Listen – rein, ohne DOM und ohne Stand. Vorbild:
 // lib/eingaben.ts im Fehlerpunkte-Prototyp.
@@ -311,13 +313,171 @@ export function verborgeneZellen(stand: ListenWahl & Pick<AppState, 'eingaben' |
     const laufFehlt = d !== disziplin || lauf > Math.max(1, stand.laufCount)
     for (const [starter, werte] of Object.entries(zeilen)) {
       const klasse = klasseVon.get(starter)
-      for (const [feld, wert] of Object.entries(werte)) {
-        if (!laufFehlt && ruhend.has(feld)) continue
-        if (laufFehlt || klasse === undefined || !kennungen(klasse, lauf === OHNE_LAUF).has(feld)) out.push({ lauf: schluessel, starter, feld, wert })
+      // Je Zeile nachgeschlagen, nicht je Feld: Die Oberfläche fragt bei jeder Eingabe, über alle erfassten Werte.
+      const gezeigt = laufFehlt || klasse === undefined ? undefined : kennungen(klasse, lauf === OHNE_LAUF)
+      for (const feld in werte) {
+        if (!Object.prototype.hasOwnProperty.call(werte, feld)) continue
+        if ((!laufFehlt && ruhend.has(feld)) || gezeigt?.has(feld)) continue
+        out.push({ lauf: schluessel, starter, feld, wert: werte[feld] })
       }
     }
   }
   return out
+}
+
+/**
+ * Warum keine Liste einen Wert mehr zeigt – in der Reihenfolge, in der geprüft wird:
+ * - `disziplin`: Er gehört zu einer anderen Disziplin als der des jetzigen Aufbaus.
+ * - `lauf`: Sein Lauf liegt über der eingestellten Zahl der Läufe.
+ * - `starter`: Den Starter gibt es nicht (mehr).
+ * - `klasseFehlt`: Die Klasse des Starters gibt es im eingestellten Regelwerk nicht (keine
+ *   seiner Listen gilt für sie) – etwa nach einem Wechsel des Regelwerks.
+ * - `klasse`: Die Klasse des Starters hat das Feld nicht – etwa nach einem Klassenwechsel.
+ * - `abgewaehlt`: Die Liste gehört zum Aufbau, gilt aber gerade nicht (zusätzliche Liste
+ *   abgewählt, oder sie ruht, weil Tor 5 die Parcoursüberwachung übernimmt bzw. nicht mehr).
+ * - `aufbau`: Die Liste gibt es im jetzigen Aufbau nicht.
+ * - `unbekannt`: Das Feld steht auf keiner Liste des Regelwerks (oder dort nicht unter diesem Lauf).
+ */
+export type VerborgenGrund = 'disziplin' | 'lauf' | 'starter' | 'klasseFehlt' | 'klasse' | 'abgewaehlt' | 'aufbau' | 'unbekannt'
+
+/** Ein verborgener Wert, so weit erklärt, dass man ihn prüfen kann. */
+export interface VerborgenerWert {
+  /** Die Zelle, wie sie im Stand steht – und wie `SET_EINGABEN` sie entfernt. */
+  zelle: EingabeZelle
+  disziplin: string
+  /** Der Lauf; {@link OHNE_LAUF} bei Listen ohne Lauf (Knoten). */
+  lauf: number
+  /** `erfasst`: der Haken „Zeile ist abgetippt“ einer Liste; sonst ein Feld eines Bogens. */
+  art: 'feld' | 'erfasst'
+  /** Die Liste, auf der das Feld stand – soweit das Regelwerk sie kennt. */
+  liste?: string
+  /** Das Feld mit Überschrift und Art; fehlt beim Haken und bei unbekannten Kennungen. */
+  feld?: Feld
+  /**
+   * Geht der Wert weiter in die Ergebnislisten ein? Gerechnet wird wie in lib/ergebnis.ts: Die
+   * Wertung liest je Starter alle Felder seines Laufs, die irgendeine Liste des Regelwerks für
+   * seine Klasse kennt – auch solche, die der Aufbau nicht (mehr) zeigt. Haken und Bemerkungen
+   * zählen nie; eine Stoppuhr-Zeit zählt nicht neben einer elektronischen; unter den Werten
+   * ohne Lauf zählen nur Punkte (Knoten), und nur, wenn die Veranstaltung eine solche Liste hat.
+   *
+   * „Zählt nicht“ heißt: Punkte, Zeit und Disqualifikation ändern sich nicht. Eine Spur bleibt
+   * dennoch möglich: Ist ein solcher Wert (Haken, Bemerkung) der EINZIGE Eintrag seiner Klasse
+   * in einem Lauf, gibt es für den Lauf eine Ergebnisliste, auf der alle „offen“ sind
+   * (lib/ergebnis.ts `laeufeMitEingaben` – so beginnt jede Liste, sobald irgendetwas abgetippt
+   * ist). In die Gesamtwertung geht ein solcher Lauf nicht ein; er gilt nicht als gefahren.
+   */
+  zaehlt: boolean
+  grund: VerborgenGrund
+}
+
+/** Die verborgenen Werte eines Starters. */
+export interface VerborgeneGruppe {
+  starterId: string
+  /** Fehlt, wenn es den Starter nicht mehr gibt. */
+  starter?: Starter
+  werte: VerborgenerWert[]
+}
+
+/**
+ * {@link verborgeneZellen}, je Starter erklärt: zu welchem Lauf, welcher Liste und welchem
+ * Feld ein Wert gehört, ob er in der Wertung weiter mitzählt und warum ihn keine Liste mehr
+ * zeigt. Starter nach Startnummer (unbekannte zuletzt), ihre Werte nach Lauf und in der
+ * Reihenfolge der Listen des Regelwerks.
+ */
+export function verborgeneEinzelheiten(stand: ListenWahl & Pick<AppState, 'eingaben' | 'starters' | 'laufCount'>, konfig: EingabenKonfig): VerborgeneGruppe[] {
+  const zellen = verborgeneZellen(stand, konfig)
+  if (zellen.length === 0) return []
+  const aufbau = konfig.getAufbau(stand.aufbau)
+  const listen = veranstaltungsListen(konfig, stand)
+  const positionen = konfig.getPositions().map((p) => p.typeId)
+  const reihenfolge = [...new Set([...listen, ...positionen])]
+  const rang = (liste: string | undefined) => (liste === undefined ? reihenfolge.length : reihenfolge.indexOf(liste))
+  // Alles, was der Aufbau anbieten kann: mit und ohne zusammengelegtes Tor 5, dazu die zusätzlichen Listen.
+  const moeglich = new Set([...konfig.aufbauOrder(stand.aufbau, false), ...konfig.aufbauOrder(stand.aufbau, true), ...(aufbau.zusatz ?? [])])
+  const ohneLauf = (liste: string) => konfig.getSheetDef(liste).showLauf === false
+  const starterVon = new Map(stand.starters.map((s) => [s.id, s]))
+  const laufCount = Math.max(1, stand.laufCount)
+
+  /** Die erste Liste (zuerst die der Veranstaltung), auf der die Kennung für die Klasse steht. */
+  const suche = (kennung: string, klasse: string): { liste: string; feld: Feld } | undefined => {
+    for (const liste of reihenfolge) {
+      if (!konfig.positionAllowsClass(liste, klasse)) continue
+      const feld = felderVon(konfig, liste, klasse).liste.find((f) => f.kennung === kennung)
+      if (feld) return { liste, feld }
+    }
+    return undefined
+  }
+  // Eine Klasse, für die keine Liste des Regelwerks gilt, kennt das Regelwerk nicht (DM-Klassen 6 und 7 unter UIM).
+  const bekannteKlassen = new Map<string, boolean>()
+  const klasseBekannt = (klasse: string) => {
+    let bekannt = bekannteKlassen.get(klasse)
+    if (bekannt === undefined) bekannteKlassen.set(klasse, (bekannt = positionen.some((liste) => konfig.positionAllowsClass(liste, klasse))))
+    return bekannt
+  }
+  /** Der Grund für eine Liste, die das Regelwerk kennt und die die Klasse des Starters hat. */
+  const listenGrund = (liste: string): VerborgenGrund => (listen.includes(liste) ? 'unbekannt' : moeglich.has(liste) ? 'abgewaehlt' : 'aufbau')
+
+  // Was die Wertung für eine Klasse liest (lib/ergebnis.ts `klassenErgebnis`).
+  const wertungsFelder = new Map<string, Map<string, Feld>>()
+  const felderDerWertung = (klasse: string) => {
+    let felder = wertungsFelder.get(klasse)
+    if (!felder) wertungsFelder.set(klasse, (felder = felderJeKennung(konfig, klasse, listen)))
+    return felder
+  }
+  const mitKnoten = (klasse: string) => listen.some((liste) => konfig.positionAllowsClass(liste, klasse) && ohneLauf(liste))
+  const zaehlt = (zelle: EingabeZelle, lauf: number, klasse: string): boolean => {
+    const felder = felderDerWertung(klasse)
+    const feld = felder.get(zelle.feld)
+    if (!feld || feld.kind === 'text') return false
+    if (lauf === OHNE_LAUF) return mitKnoten(klasse) && (feld.kind === 'buoy' || feld.kind === 'code' || feld.kind === 'points')
+    if (feld.kind !== 'time') return true
+    if (!parseTime(zelle.wert)) return false
+    if (feld.geraet === 'elektronisch') return true
+    const zeile = werteVon(stand.eingaben, zelle.lauf, zelle.starter)
+    return !Object.entries(zeile).some(([kennung, wert]) => {
+      const anderes = felder.get(kennung)
+      return anderes?.kind === 'time' && anderes.geraet === 'elektronisch' && !!parseTime(wert)
+    })
+  }
+
+  const erklaere = (zelle: EingabeZelle): VerborgenerWert => {
+    const { disziplin, lauf } = zerlegeLauf(zelle.lauf)
+    const klasse = starterVon.get(zelle.starter)?.klasse
+    const eigene = listeVon(zelle.feld)
+    const art = eigene !== undefined && zelle.feld === erfasstKennung(eigene) ? 'erfasst' : 'feld'
+    const bekannt = eigene !== undefined && positionen.includes(eigene)
+    // Wo das Feld steht: für die Klasse des Starters, sonst für irgendeine Klasse.
+    const hier = klasse === undefined ? undefined : art === 'erfasst' ? undefined : suche(zelle.feld, klasse)
+    const woanders = hier || art === 'erfasst' ? undefined : CLASS_IDS.map((k) => suche(zelle.feld, k)).find((f) => f !== undefined)
+    const liste = bekannt ? eigene : (hier ?? woanders)?.liste
+    const feld = (hier ?? woanders)?.feld
+    const laufFehlt = disziplin !== aufbau.disziplin || lauf > laufCount
+    let grund: VerborgenGrund
+    if (disziplin !== aufbau.disziplin) grund = 'disziplin'
+    else if (lauf > laufCount) grund = 'lauf'
+    else if (klasse === undefined) grund = 'starter'
+    else if (!klasseBekannt(klasse)) grund = 'klasseFehlt'
+    else if (liste === undefined) grund = 'unbekannt'
+    else if (art === 'erfasst' ? !konfig.positionAllowsClass(liste, klasse) : !hier) grund = 'klasse'
+    else grund = listenGrund(liste)
+    return { zelle, disziplin, lauf, art, liste, feld, zaehlt: !laufFehlt && klasse !== undefined && zaehlt(zelle, lauf, klasse), grund }
+  }
+
+  const gruppen = new Map<string, VerborgeneGruppe>()
+  for (const zelle of zellen) {
+    let gruppe = gruppen.get(zelle.starter)
+    if (!gruppe) gruppen.set(zelle.starter, (gruppe = { starterId: zelle.starter, starter: starterVon.get(zelle.starter), werte: [] }))
+    gruppe.werte.push(erklaere(zelle))
+  }
+  for (const gruppe of gruppen.values()) {
+    // Werte ohne Lauf (Knoten) zuletzt, wie auf dem Laufzettel. `sort` ist stabil: Gleiches bleibt in der Reihenfolge des Stands.
+    const laufRang = (lauf: number) => (lauf === OHNE_LAUF ? Number.MAX_SAFE_INTEGER : lauf)
+    gruppe.werte.sort((a, b) => a.disziplin.localeCompare(b.disziplin) || laufRang(a.lauf) - laufRang(b.lauf) || rang(a.liste) - rang(b.liste))
+  }
+  return [...gruppen.values()].sort((a, b) => {
+    if (!a.starter || !b.starter) return a.starter ? -1 : b.starter ? 1 : a.starterId.localeCompare(b.starterId)
+    return vergleicheNr(a.starter.startNr, b.starter.startNr) || a.starterId.localeCompare(b.starterId)
+  })
 }
 
 /**
@@ -344,4 +504,15 @@ const istObjekt = (wert: unknown): wert is Record<string, unknown> => !!wert && 
 /** Startnummern in natürlicher Reihenfolge (E2 vor E10, 99 vor 401). */
 export function vergleicheNr(a: string, b: string): number {
   return a.localeCompare(b, undefined, { numeric: true })
+}
+
+/**
+ * Sobald Ergebnisse erfasst sind, steht das Starterfeld fest: Listen sind gedruckt, die Werte
+ * hängen an den Startern. Starter kommen dann weder dazu noch weg (Import, von Hand, Klasse
+ * leeren, Beispiel-Starterfeld); ihre Angaben lassen sich weiter ändern. Gelöst wird die Sperre
+ * durch das Löschen der erfassten Werte oder das Zurücksetzen. Dieselbe Frage stellen die
+ * Oberfläche (Knöpfe, Hinweis) und der Reducer (state/reducer.ts).
+ */
+export function starterfeldFest(stand: Pick<AppState, 'eingaben'>): boolean {
+  return Object.keys(stand.eingaben).length > 0
 }

@@ -1,3 +1,5 @@
+import { ISO_STAATEN } from './staaten'
+
 /**
  * Kürzel für die Herkunft (Verein, Bundesland, Land, Gruppe).
  *
@@ -25,15 +27,6 @@ export const BUNDESLAENDER: readonly { code: string; name: string }[] = [
   { code: 'TH', name: 'Thüringen' },
 ]
 
-/** ISO 3166-1: zweistelliger → dreistelliger Ländercode. Die Namen liefert der Browser (Intl). */
-const COUNTRIES =
-  'AD:AND AE:ARE AL:ALB AM:ARM AR:ARG AT:AUT AU:AUS AZ:AZE BA:BIH BE:BEL BG:BGR BH:BHR BR:BRA BY:BLR CA:CAN ' +
-  'CH:CHE CL:CHL CN:CHN CO:COL CY:CYP CZ:CZE DE:DEU DK:DNK DZ:DZA EE:EST EG:EGY ES:ESP FI:FIN FR:FRA GB:GBR ' +
-  'GE:GEO GR:GRC HR:HRV HU:HUN ID:IDN IE:IRL IL:ISR IN:IND IS:ISL IT:ITA JP:JPN KR:KOR KW:KWT KZ:KAZ LI:LIE ' +
-  'LT:LTU LU:LUX LV:LVA MA:MAR MC:MCO MD:MDA ME:MNE MK:MKD MT:MLT MX:MEX MY:MYS NL:NLD NO:NOR NZ:NZL OM:OMN ' +
-  'PL:POL PT:PRT QA:QAT RO:ROU RS:SRB RU:RUS SA:SAU SE:SWE SG:SGP SI:SVN SK:SVK SM:SMR TH:THA TN:TUN TR:TUR ' +
-  'UA:UKR US:USA UZ:UZB VN:VNM XK:XKX ZA:ZAF'
-
 /** Namen vergleichbar machen: Groß-/Kleinschreibung, Leerzeichen und Bindestriche zählen nicht. */
 export function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[\s\-_.]+/g, ' ').trim()
@@ -45,7 +38,7 @@ function defaultMap(): Map<string, string> {
   if (defaults) return defaults
   const map = new Map<string, string>()
   // Länder zuerst, damit ein gleichnamiges Bundesland sie überschreibt (es gibt keins, aber so herum ist es richtig).
-  for (const pair of COUNTRIES.split(' ')) {
+  for (const pair of ISO_STAATEN.split(' ')) {
     const [alpha2, alpha3] = pair.split(':')
     for (const language of ['de', 'en']) {
       try {

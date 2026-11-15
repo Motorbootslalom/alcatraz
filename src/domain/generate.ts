@@ -4,8 +4,8 @@ import { CLUBS, BUNDESLAENDER } from '../data/clubs'
 import { VORNAMEN_M, VORNAMEN_W, NACHNAMEN } from '../data/names'
 import { SIZES } from './sizes'
 
-/** Staaten für erfundene Starter eines internationalen Wettkampfs. */
-const LAENDER = ['Deutschland', 'Österreich', 'Schweiz', 'Polen', 'Tschechien', 'Lettland', 'Estland', 'Litauen', 'Italien', 'Ungarn']
+/** Staaten für erfundene Starter eines internationalen Wettkampfs – ausgeschrieben und so, dass jede eine Flagge hat (domain/flaggen.ts). */
+export const LAENDER = ['Deutschland', 'Österreich', 'Schweiz', 'Polen', 'Tschechien', 'Slowakei', 'Lettland', 'Estland', 'Litauen', 'Italien', 'Ungarn', 'Schweden', 'Niederlande']
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]

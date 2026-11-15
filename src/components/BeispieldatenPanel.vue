@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import type { Zeitnahme } from '../lib/beispielwerte'
@@ -7,6 +7,9 @@ import { classColor } from '../domain/classes'
 import { generateStarters } from '../domain/generate'
 import { useEvent } from '../lib/event'
 import { verlustText } from '../lib/eingabenVerlust'
+import { starterfeldFest } from '../lib/eingaben'
+import { sprungziel } from '../lib/router'
+import StarterSperre from './StarterSperre.vue'
 import { t, tn } from '../i18n'
 import type { ClassId, Starter } from '../types'
 
@@ -23,7 +26,16 @@ const { state, dispatch } = useStore()
 const { regelwerk, classLabel } = useEvent()
 
 // Von Hand auf- oder zuklappen geht weiter; ein frisch erzeugtes Beispiel-Starterfeld öffnet den Block.
-const offen = ref(state.value.beispielStarter)
+// Ebenso der Verweis aus dem Hinweis auf das feste Starterfeld (`#/veranstaltung?werte`): Er
+// führt zu „Alle erfassten Werte löschen“ in diesem Block.
+const block = ref<HTMLElement | null>(null)
+const gerufen = sprungziel() === 'werte'
+const offen = ref(state.value.beispielStarter || gerufen)
+onMounted(async () => {
+  if (!gerufen) return
+  await nextTick()
+  block.value?.scrollIntoView?.({ block: 'start' })
+})
 watch(
   () => state.value.beispielStarter,
   (beispiel) => {
@@ -44,7 +56,11 @@ function setCount(id: ClassId, e: Event) {
 
 const total = computed(() => CLASSES.value.reduce((sum, c) => sum + countOf(c.id), 0))
 
+// Sobald Ergebnisse erfasst sind, steht das Starterfeld fest (components/StarterSperre.vue).
+const fest = computed(() => starterfeldFest(state.value))
+
 function generate() {
+  if (fest.value) return
   const existing = state.value.starters.length
   if (existing > 0 && !confirm(t('demo.confirm', { n: existing }) + verlustText(state.value, state.value.starters))) return
   // Erfundene Starter entstehen hier und nicht im Reducer – der bleibt frei von Zufall.
@@ -63,8 +79,8 @@ function generate() {
 const ZEITNAHMEN: Zeitnahme[] = ['stoppuhr', 'lichtschranke']
 // Die Schlüssel stammen aus der Zeit, als der Block unter „Einstellungen“ stand; sie bleiben,
 // damit eine in diesem Fenster getroffene Wahl nicht verloren geht.
-const zeitnahme = merke<Zeitnahme>('einstellungen.zeitnahme', 'stoppuhr')
-const beispielBis = merke('einstellungen.beispielBis', 0)
+const zeitnahme = merke<Zeitnahme>('einstellungen.zeitnahme', 'stoppuhr', { ueberNeuladen: true, gueltig: (w) => ZEITNAHMEN.includes(w as Zeitnahme) })
+const beispielBis = merke('einstellungen.beispielBis', 0, { ueberNeuladen: true })
 const laufWahl = computed(() => Array.from({ length: Math.max(1, state.value.laufCount) }, (_, i) => i + 1))
 /** Bis zu welchem Lauf gefüllt wird; die Vorgabe sind alle Läufe. */
 const bisLauf = computed(() => (laufWahl.value.includes(beispielBis.value) ? beispielBis.value : laufWahl.value.length))
@@ -85,7 +101,7 @@ function werteLoeschen() {
 </script>
 
 <template>
-  <details class="panel" data-block="beispieldaten" :open="offen" @toggle="offen = ($event.target as HTMLDetailsElement).open">
+  <details ref="block" class="panel" data-block="beispieldaten" :open="offen" @toggle="offen = ($event.target as HTMLDetailsElement).open">
     <summary>{{ t('demo.title') }}</summary>
     <p class="hint">{{ t('demo.intro') }}</p>
     <div class="subhead">{{ t('demo.perClass') }}</div>
@@ -97,8 +113,9 @@ function werteLoeschen() {
       </label>
     </div>
     <div class="row" style="justify-content: flex-end">
-      <button class="btn" data-action="beispielstarter" :disabled="total === 0" @click="generate">{{ t('demo.generate') }}</button>
+      <button class="btn" data-action="beispielstarter" :disabled="total === 0 || fest" @click="generate">{{ t('demo.generate') }}</button>
     </div>
+    <StarterSperre />
 
     <!-- Beispielwerte für Erfassung und Ergebnislisten: Zufall nach den Häufigkeiten früherer Wettkämpfe. -->
     <div class="subhead">{{ t('demo.values.title') }}</div>

@@ -1,8 +1,13 @@
 # =====================================================================
 # Regelwerk DM 2026
 # =====================================================================
-# Quelle: Reglement zur Deutschen Jugendmeisterschaft 2026, Abschnitt C5.
-# Seitenangaben in den Kommentaren beziehen sich auf dieses Reglement.
+# Quelle: Reglement zur Deutschen Jugendmeisterschaft 2026 im motorisierten Schlauchbootsport
+# (DMYV, Referat Jugend & Sport), Abschnitte A2, C1 bis C8. Seitenangaben in den Kommentaren
+# beziehen sich auf dieses Reglement. Mit dem Wortlaut abgeglichen am 14.11.2026; was dabei
+# abweicht und nicht geändert wurde, steht am jeweiligen Eintrag.
+#
+# Das Reglement kennt weder Buchstaben noch Nummern für Fehler und Disqualifikationen: Die
+# Codes sind die der Auswertung (aus dem Fehlerpunkte-Prototyp); die Texte folgen C5.
 #
 # Ein Regelwerk enthält alles, was aus der AUSSCHREIBUNG kommt. Die Positionen
 # (aufbauten/*.yaml) sind orts-/personenabhängig und binden die Kataloge und die
@@ -14,12 +19,21 @@
 #   quelle           Dokument, aus dem die Werte stammen (A4-Legende).
 #   einheit          Punkte | Sekunden (A4-Legende).
 #   klassen          Klassen dieses Regelwerks.
+#   sprachen         Sprachen, in denen es die Texte gibt: [de] (Vorgabe) oder [de, en].
+#   listenSprache    Sprache aller Listen außer den Wettkampfrichter-Bögen (Starter-,
+#                    Gewichts-, Vorsteg-, Ergebnislisten, Laufzettel, Aushang der Codes):
+#                    Der Aushang folgt dem Regelwerk, nicht der Sprache der Oberfläche.
+#                    Eine der `sprachen`; fehlt = die erste. Für die Bögen ist es die
+#                    Vorgabe – dort wählt die Veranstaltung je Liste.
 #   fehlerHinweis    Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende.
 #   legendeHinweise  Zusätzliche Hinweise nur auf der A4-Legende.
 #   disziplinen      Was nach diesem Regelwerk gefahren wird (Kennungen aus den
 #                    Aufbauten). Die DM kennt nur das Manövrieren.
 #   gewichte         Statistisches Durchschnittsgewicht je Klasse in kg. Wer leichter
 #                    ist, bekommt den Unterschied als Ausgleichsgewicht ins Boot.
+#   coPilot          Klassen, in denen ein Co-Pilot an Bord sein muss: Für sie hat die
+#                    Besetzung (Ansicht „Veranstaltung“) ein Feld, und die Liste der
+#                    Ausgleichsgewichte nennt ihn im Kopf. Fehlt = keine.
 #   ohneSpalten      { <Position>: [<Spalten-Key>, …] }: Spalten, die es in diesem
 #                    Regelwerk nicht gibt (z. B. einzelne Knoten).
 #   stichentscheid   Was bei gleichem Ergebnis entscheidet, der Reihe nach – in der
@@ -37,35 +51,120 @@
 #                    `schnellauswahl: true`. Nennt ein Aufbau sie nicht selbst, kommen
 #                    sie als zusätzliche Liste dazu. Es ist eine Vorgabe – unter
 #                    „Einstellungen → Wettkampfrichter-Listen“ lässt sie sich abwählen.
-#   wertungslaeufe   { laeufe, streichlaeufe }: So viele Läufe sieht das Regelwerk vor
-#                    und so viele davon werden gestrichen. Eingestellt wird beides an
-#                    der Veranstaltung; weicht sie ab, weist die Oberfläche darauf hin.
+#   pokal            { vorgabe: [<Variante>, …], uim?: { punkte, beste, mindestens } }:
+#                    Mannschaftswertung je Herkunft. `vorgabe` nennt die Varianten, die eine
+#                    Veranstaltung nach diesem Regelwerk eingeschaltet hat (plaetze3,
+#                    plaetze6, uim). `uim` trägt die Punktetabelle der UIM-Variante – sie
+#                    steht nur im Regelwerk der UIM und gilt auch, wenn die Variante
+#                    unter einem anderen Regelwerk eingeschaltet wird.
+#   wertungslaeufe   { laeufe, streichlaeufe, nurVorgabe? }: So viele Läufe sieht das
+#                    Regelwerk vor und so viele davon werden gestrichen. Die Wahl des
+#                    Regelwerks stellt die Veranstaltung so ein; wer von Hand davon
+#                    abweicht, bekommt einen Hinweis. Mit `nurVorgabe: true` ist es nur
+#                    die Voreinstellung – ohne Hinweis bei Abweichung.
 id: dm-2026
 name: DM
 version: 2026
+# Die DM schreibt deutsch aus; englische Texte hat dieses Regelwerk nicht (`sprachen` fehlt).
+listenSprache: de
 quelle: "Reglement zur Deutschen Jugendmeisterschaft 2026 im motorisierten Schlauchbootsport (DMYV), Abschnitt C5"
 einheit: Punkte
+# Reglement C8 „Klassen“: Klasse ME 6 und 7 Jahre, Klasse 1 8 und 9, Klasse 2 10 und 11,
+# Klasse 3 12 und 13, Klasse 4 14 bis 15, Klasse 5 16 bis 18, Klasse 6 19 bis 21, Klasse 7
+# 22 bis 27 Jahre. „Berechnung der Altersklasse = Veranstaltungsjahr – Geburtsjahr“ – so
+# rechnet domain/classes.ts. Nicht umgesetzt ist die Ausnahme dort: „Klasse ME Starterlaubnis
+# versicherungsbedingt ab dem 6. Geburtstag und Klasse M7 Starterlaubnis bis zum 27.
+# Geburtstag“ (das Programm prüft keinen Stichtag am Wettkampftag). Die jüngste Klasse heißt
+# im Reglement „ME“ (C8 „Klasse ME“, im Text „ME bis M3“); hier trägt sie die Kennung E, und
+# die Listen schreiben „Klasse E“ wie die bisherige Auswertung.
 klassen: [E, 1, 2, 3, 4, 5, 6, 7]
 disziplinen: [manoevrieren]
-# Reglement C3 „Co-Pilot und Gewichte“.
+# Reglement C3 „Co-Pilot und Gewichte“, Tabelle „Stat. Durchschnittsgewicht“: „Jugendliche,
+# deren Körpergewicht geringer als das statistische Durchschnittsgewicht der folgenden Tabelle
+# ist, erhalten ein Ausgleichsgewicht ins Boot so, dass die Summe aus Körpergewicht und
+# Ausgleichsgewicht gleich dem statistischen Durchschnittsgewicht ist.“
 gewichte: { E: 26, 1: 33, 2: 42, 3: 52, 4: 65, 5: 72, 6: 75, 7: 78 }
-# Reglement C5: Bei Punktgleichheit entscheidet der schnellste gewertete Lauf. Das
-# Reglement liegt hier nicht als Datei vor; die Regel hat der Veranstalter bestätigt.
-# „Schnellster“ ist als gefahrene Zeit gelesen – soll das Ergebnis des Laufs samt
-# Strafpunkten gelten, steht hier `besterLauf`.
+# Reglement C3: „In den Klassen ME bis M3 muss ein mindestens 16-jähriger Co-Pilot an Bord
+# sein“. Dazu: „Bei wechselnden Co-Piloten innerhalb einer Klasse ist durch Ausgleichsgewichte
+# sicherzustellen, dass das Gesamtgewicht in der jeweiligen Klasse und jedem Lauf gleich ist.“
+coPilot: [E, 1, 2, 3]
+# Reglement C5 „Wertung“: „Bei Punktgleichheit entscheidet der schnellste gewertete Lauf.“
+# „Schnellster“ ist als gefahrene Zeit gelesen (vom Veranstalter bestätigt) – soll das
+# Ergebnis des Laufs samt Strafpunkten gelten, steht hier `besterLauf`. Was gilt, wenn auch
+# das nicht trennt, sagt das Reglement nicht: Die Starter teilen sich den Platz.
 stichentscheid: [schnellsterLauf]
-# Die Knoten sind Pflicht (Reglement, Fehlerpunkte „Knoten“; vom Veranstalter bestätigt):
-# Die Knoten-Liste gehört deshalb zu jedem Aufbau, wird erfasst und steht in der Gesamtliste.
+# Reglement C5 e) „Fertigen der Knoten“: „Der Nachweis über die Fertigung der Knoten, gemäß
+# der Knotenbilder, muss innerhalb von 60 Sekunden je Knoten erbracht werden.“ Genannt sind
+# fünf – Kreuzknoten, Palstek, Schotstek, Webeleinstek, Belegen der Klampe –, ohne Abstufung
+# nach Klasse; „pro fehlerhafter Knoten 05 Punkte“. Das sind die fünf der Position `knoten`
+# (aufbauten/gemeinsam.yaml; dort „Webleinstek“ und „Klampe“ geschrieben – das Reglement
+# schreibt „Webeleinstek“, in der Anlage „Webeleinenstek“ und „Belegen einer Klampe“), für
+# jede Klasse dieselben (weder `ohneSpalten` noch `klassen` an den Knoten). Die Knoten-Liste
+# gehört deshalb zu jedem Aufbau, wird erfasst und steht in der Gesamtliste. Zu welchem Lauf
+# die Knotenpunkte zählen, sagt das Reglement nicht; sie zählen hier zum Gesamtergebnis.
 vorgabeListen: { manoevrieren: [knoten] }
+# Reglement C5: „Sieger ist der Starter mit der geringsten Punktzahl von 2 Läufen. […] Es
+# werden pro Klasse drei Läufe durchgeführt, wobei der schlechteste Lauf gestrichen wird.“
+# C6: „Es bleibt dem Regattaleiter und dem Schiedsgericht vorbehalten, nur zwei Läufe,
+# durchzuführen, von denen nur ein Lauf gewertet wird.“ Abschnitt C (Einleitung): Das
+# Reglement soll auch für Landes- und Clubmeisterschaften gelten, „in begründeten Fällen kann
+# davon abgewichen werden“. Die Wahl des Regelwerks stellt die Veranstaltung auf drei Läufe
+# und einen Streichlauf. `nurVorgabe`: Weil das Reglement selbst zwei Läufe und begründete
+# Abweichungen zulässt, meldet die Oberfläche eine andere Zahl nicht als Abweichung.
+# Nicht umgesetzt: Bei zwei Läufen streicht die Einstellung „nach Regel“ keinen (C6: nur
+# einer wird gewertet) – der Rennleiter stellt den Streichlauf dann von Hand ein
+# (Einstellungen → Wertung).
+# Nicht abgebildet (Entscheidung der Regattaleitung, keine Rechenregel) – C5: Bei technischem
+# Defekt und Ersatzboot/-motor „ist der Lauf nur dann zu wiederholen, wenn weniger als 2/3 der
+# Teilnehmer in dieser Klasse gestartet sind. In allen anderen Fällen wird mit dem Ersatzboot
+# oder Ersatzmotor/Ersatzschaltung weitergefahren.“ Die Auswertung zählt die Gestarteten einer
+# Klasse nicht mit und warnt nicht.
+# C7: „Feststellungen von Ergebnisfehlern (Eingabefehler, Schreibfehler, Rechenfehler) nach
+# Beendigung der Deutschen Jugendmeisterschaft, sind innerhalb einer Frist von 7 Tagen nach
+# Veranstaltungsende an den Regattaleiter zu richten“. Das betrifft die Druckdatei, die nach
+# dem Wettkampf verschickt wird: Sie nennt die Frist nicht; den Versand selbst verlangt das
+# Reglement nicht.
+wertungslaeufe: { laeufe: 3, streichlaeufe: 1, nurVorgabe: true }
+# Mannschaftswertung (je Verein oder Bundesland; im Code „pokal“). Reglement C6
+# „Länderwertung“: „Um an der Länderwertung teilzunehmen, muss ein Land mindestens fünf Fahrer
+# haben. Die UIM-Punkte, eingefahren von den besten fünf Piloten jedes Teams, werden für die
+# Mannschaftswertung addiert. Der Landesverband mit der höchsten Punktzahl gewinnt. Bei
+# Gleichstand zählt die Anzahl der 1. Plätze. Sollte weiterhin gleichstand bestehen, wird mit
+# den Plätzen 2 und 3 ebenso verfahren.“ Das ist die Variante `uim`; eine eigene Punktetabelle
+# nennt das Reglement nicht – es gilt die der UIM (uim-2026.yaml, `pokal.uim`: Regel 960,
+# Pkt. 5.1), mit denselben Zahlen (fünf Beste, mindestens fünf).
+# Die Wertung nach Plätzen (`plaetze6`: die ersten sechs je Klasse mit 6, 5, 4, 3, 2, 1
+# Punkten; einstellungen.yaml `pokalPunkte`) steht nicht im Reglement: Sie stammt aus der
+# Excel-Mappe der DM 2026, die beide Blätter druckt – deshalb sind beide die Vorgabe.
+# Nicht umgesetzt (Vorgabe des Veranstalters: Punktgleiche teilen sich den Platz): der
+# Stichentscheid der Länderwertung nach der Zahl der 1., dann der 2. und 3. Plätze.
+pokal:
+  vorgabe: [plaetze6, uim]
 
 fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Punkte werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
 
+# Reglement C5: „Die gefahrene Zeit wird innerhalb der Zeitmessung pro Sekunde mit einem Punkt
+# bewertet. Strafpunkte werden hinzugezählt.“ Eine Auflösung oder Rundung der Zeit nennt das
+# Reglement nicht (gerechnet wird in Hundertstel, lib/ergebnis.ts).
 legendeHinweise:
   - "Die gefahrene Zeit zählt 1 Punkt pro Sekunde, Strafpunkte werden hinzugezählt."
   - "E, F und H gelten ab der Frage „Bist Du startklar?“ bis zum beendeten Anlegemanöver."
   - "M gilt von der Stegeinlass- bis zur Stegauslasskontrolle."
 
 # ---- Disqualifikationen (Buchstaben-Codes) -------------------------
+# Reglement C5, Liste nach g) (S. 14): „Alle Verstöße gegen diese Ausschreibung, die nicht
+# durch Strafpunkte belegt sind, führen zur Disqualifikation. Dazu zählen: …“, dazu die mit
+# „Disq.“ bezeichneten Zeilen in b), c), d) und f) und C4 (Sitzen auf dem Schlauch).
+# Abgeglichen: A, K (Quickstopp), M (Ausrüstung), G, N, P, J, C, D, F, H, E, B (Liste S. 14),
+# I (d: „Anlegen mit der Backboard-Seite Disq.“), Q (f: „Rückwärts gefahren Disq.“). Aus der
+# allgemeinen Regel abgeleitet, im Reglement ohne eigene Zeile: L (f: „Seitliches Anfahren der
+# Boje an der Backbordseite“), R (C3). X ist kein Verstoß, sondern der Vermerk der Auswertung.
+# Ohne eigenen Buchstaben bleibt d): „Ein Bremsen mit der Hand ist nicht zulässig.“
+# Ebenfalls ohne Buchstaben, weil es nicht den einzelnen Lauf betrifft – B7
+# „Verantwortlichkeit“: „Ein positives Alkohol-Ergebnis (> bei Alkohol 0,2 Promille) führt zur
+# Disqualifikation für den gesamten Wettkampftag. Ein positives Drogen-Ergebnis […] führt zur
+# Disqualifikation für den gesamten Wettkampf.“ Die Auswertung kennt dafür keinen Code (X heißt
+# nur „nicht gestartet“); einzutragen wäre heute je Lauf ein Disqualifikations-Buchstabe.
 # Je Punkt der Ausschreibung ein eigener Buchstabe. Das O ist bewusst nicht
 # vergeben: In Bojen-Zellen stehen auch Zahlen, dort wäre es mit der 0 zu
 # verwechseln.
@@ -102,12 +201,19 @@ disqualifikationen:
   - { code: "X", text: "Nicht gestartet" }
 
 # ---- Fehler ohne Code (Punkte werden direkt eingetragen) -----------
+# Reglement C5 b): „Bojen Berührung mit dem Sportgerät je Boje und je Fahrtrichtung 5 Punkte“;
+# c): „Berühren der Torbojen mit dem Sportgerät bei An-, Ein- und Ausfahrt je Boje und
+# Berührung 05 Punkte“; e): „pro fehlerhafter Knoten 05 Punkte“.
 direktpunkte:
   - { titel: "Bojen", text: "Bojenberührung je Boje und je Fahrtrichtung", punkte: 5 }
   - { titel: "Tor 5", text: "Berühren der Torbojen bei An-, Ein- und Ausfahrt je Boje und Berührung", punkte: 5 }
   - { titel: "Knoten", text: "Pro fehlerhaftem Knoten (max. 60 Sekunden je Knoten)", punkte: 5 }
 
 # ---- Fehler-Kataloge (Zahlen → Punkte), benannt & wiederverwendbar --
+# Reglement C5 a) Ablegen, c) Tor 5, d) Anlegen, f) Mann-über-Bord, g) Umgang mit dem
+# Sportgerät; alle Punktzahlen abgeglichen. Aus g) stammen in jedem Katalog „Durchreißen der
+# Schaltung“ (Reglement: „Schalten entgegen obiger Definition 05 Punkte“, „gewertet wird dies
+# ab der Klasse M4“) und „Treten auf den Schlauch (ab Klasse M3) 5 Punkte“.
 # Die Katalog-IDs (tor5, mueb, stegAblegen, stegAnlegen) verwenden die Positionen;
 # jedes Regelwerk muss sie anbieten. Die Codes sind über alle Kataloge eindeutig.
 kataloge:

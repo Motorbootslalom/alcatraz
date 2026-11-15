@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import App from '../App.vue'
@@ -29,6 +29,8 @@ function starter(klassen: ClassId[], n = 3): Starter[] {
 
 const ansicht = (store: Store) => mount(ErfassungView, { global: { provide: { [storeKey as symbol]: store } }, attachTo: document.body })
 const titel = (wrapper: VueWrapper) => wrapper.findAll('.erf-titel span').map((s) => s.text()).join(' | ')
+/** Die Namen der gezeigten Listen, von oben nach unten. */
+const listenTitel = (wrapper: VueWrapper) => wrapper.findAll('.erf-titel').map((k) => k.find('span').text())
 const hinweis = (wrapper: VueWrapper) => wrapper.find('.scan-hinweis')
 /** Wo der Fokus steht: „Zeile|Spalte“. */
 function fokus(): string {
@@ -53,10 +55,13 @@ describe('Erfassung: Scannen', () => {
     localStorage.clear()
     setLocale('de')
     scanBeenden()
+    // Das Test-DOM kennt den Beobachter, meldet aber nie Sichtbarkeit: Ohne ihn baut die Ansicht alle Listen sofort auf.
+    vi.stubGlobal('IntersectionObserver', undefined)
     store = createStore()
     store.dispatch({ type: 'LOAD_STATE', state: { ...emptyState(), kennung: 'K7Q4', eventName: 'Hafenpokal', starters: starter(['1', '4', '7']) } })
   })
   afterEach(() => {
+    vi.unstubAllGlobals()
     setLocale('de')
     scanBeenden()
     document.body.innerHTML = ''
@@ -87,12 +92,55 @@ describe('Erfassung: Scannen', () => {
     wrapper.unmount()
   })
 
-  it('der Code eines Laufzettels führt zur ersten Liste der Klasse in dem Lauf', async () => {
+  it('der Code eines Laufzettels zeigt alle Listen seines Blattstapels untereinander, in der Reihenfolge des Zettels', async () => {
     const wrapper = ansicht(store)
     await scanne(wrapper, 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.2')
-    expect(titel(wrapper)).toBe('Zeit | Klasse 4 | 2. Lauf | Parcours 2')
+    expect(listenTitel(wrapper)).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Mann-über-Bord', 'Parcours'])
+    // Jede mit ihrer Überschrift: Klasse, Lauf, Parcours.
+    for (const kopf of wrapper.findAll('.erf-titel')) expect(kopf.text()).toContain('Klasse 42. LaufParcours 2')
+    // Der Cursor steht in der ersten Zelle der ersten Liste.
     expect(fokus()).toMatch(/^id-4-\d\|zeit1$/)
+    expect(document.activeElement?.closest('[data-abschnitt]')).toBe(wrapper.findAll('[data-abschnitt]')[0].element)
     expect(hinweis(wrapper).text()).toContain('Laufzettel · Parcours 2 · Klasse 4 · 2. Lauf')
+    // Die Auswahl sagt, was zu sehen ist; die Sprungleiste nennt jede Liste mit ihrem Stand.
+    expect((wrapper.find('select[data-feld="erf-liste"]').element as HTMLSelectElement).value).toBe('*')
+    expect(wrapper.findAll('.eingabe-sprung [data-sprung]').map((c) => c.text())).toEqual(['Zeit0/3', 'Vorsteg0/3', 'Steg0/3', 'Tor 1 / 3 / 50/3', 'Tor 2 / 4 / 50/3', 'Tor 50/3', 'Mann-über-Bord0/3', 'Parcours0/3'])
+    wrapper.unmount()
+  })
+
+  it('Laufzettel des letzten Laufs: auch die Knoten; in den Läufen davor nicht', async () => {
+    const wrapper = ansicht(store)
+    await scanne(wrapper, 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.3')
+    expect(listenTitel(wrapper).at(-1)).toBe('Knoten')
+    await scanne(wrapper, 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.1')
+    expect(listenTitel(wrapper)).not.toContain('Knoten')
+    wrapper.unmount()
+  })
+
+  it('nach einem Laufzettel der Code eines einzelnen Bogens: nur noch dieser Bogen', async () => {
+    const wrapper = ansicht(store)
+    await scanne(wrapper, 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.2')
+    expect(listenTitel(wrapper).length).toBeGreaterThan(1)
+    await scanne(wrapper, 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.4.2.STEG.S1')
+    expect(titel(wrapper)).toBe('Steg | Klasse 4 | 2. Lauf | Parcours 2')
+    expect(wrapper.find('.eingabe-sprung').exists()).toBe(false)
+    expect(fokus()).toMatch(/^id-4-\d\|fehlerAB$/)
+    wrapper.unmount()
+  })
+
+  it('Clubmeisterschaft mit „Papier sparen“: Der Laufzettel gilt je Parcours und Lauf – alle Klassen auf gemeinsamen Bögen', async () => {
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    const wrapper = ansicht(store)
+    await scanne(wrapper, 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.47.1')
+    expect(listenTitel(wrapper)).toEqual(['Zeit', 'Vorsteg', 'Steg', 'Tor 1 / 3 / 5', 'Tor 2 / 4 / 5', 'Tor 5', 'Mann-über-Bord', 'Parcours'])
+    for (const kopf of wrapper.findAll('.erf-titel')) expect(kopf.text()).toMatch(/Klassen [47], [47]/)
+    // Ohne „Papier sparen“ hat jede Klasse eigene Tor-Listen: Sie liegen im selben Stapel und nennen ihre Klasse.
+    store.dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: false })
+    await warte()
+    const sprung = wrapper.findAll('.eingabe-sprung [data-sprung]').map((c) => c.find('.eingabe-chip-titel').text())
+    expect(sprung.filter((x) => x.startsWith('Tor 1 / 3 / 5'))).toEqual(['Tor 1 / 3 / 5 – Klasse 4', 'Tor 1 / 3 / 5 – Klasse 7'])
+    expect(sprung).toContain('Zeit')
+    expect(wrapper.findAll('[data-abschnitt]')).toHaveLength(sprung.length)
     wrapper.unmount()
   })
 
@@ -181,6 +229,16 @@ describe('Erfassung: Scannen', () => {
 })
 
 describe('App: Handscanner in jeder Ansicht', () => {
+  // Der Scanner wird an der Tastenfolge erkannt: höchstens 60 ms zwischen zwei Zeichen
+  // (lib/scanner.ts). Mit der echten Uhr hinge der Test an der Last des Rechners – jedes
+  // Zeichen kann einen Stand schreiben, und unter Last riss die Folge gelegentlich ab. Deshalb
+  // eine eigene Uhr: 5 ms je Abfrage, wie ein Scanner tippt.
+  beforeEach(() => {
+    let uhr = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => (uhr += 5))
+  })
+  afterEach(() => vi.restoreAllMocks())
+
   it('ein gemeldeter Scan führt in die Erfassung zum Bogen', async () => {
     localStorage.clear()
     setLocale('de')

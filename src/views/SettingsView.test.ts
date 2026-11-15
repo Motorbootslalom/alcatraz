@@ -414,23 +414,27 @@ describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
   })
   afterEach(() => setLocale('de'))
 
-  it('die WKR-Einteilung ist ein eigener Abschnitt; die Beispielansicht gehört zum Assistenten und zur Veranstaltung', async () => {
+  it('die WKR-Einteilung steht nicht mehr hier, sondern bei der Veranstaltung (Besetzung) – hier bleibt der Verweis', async () => {
     const wrapper = settings(store)
-    const abschnitt = wrapper.find('#wkr-einteilung')
-    expect(abschnitt.find('h2').text()).toBe('WKR-Einteilung')
-    expect(abschnitt.find('.wkr-tabelle').exists()).toBe(true)
+    expect(wrapper.find('#wkr-einteilung').exists()).toBe(false)
+    expect(wrapper.find('.wkr-tabelle').exists()).toBe(false)
+    const verweis = wrapper.find('#wkr-listen [data-hinweis="besetzung"]')
+    expect(verweis.text()).toContain('Wer an welcher Liste sitzt (WKR-Einteilung), die Co-Piloten und die Boote stehen unter')
+    expect(verweis.find('a').attributes('href')).toBe('#/veranstaltung?besetzung')
+    expect(verweis.find('a').text()).toBe('Veranstaltung → Besetzung')
     // Ohne offenen Assistenten gibt es hier keine Beispielansicht (sie steht bei der Veranstaltung).
     expect(wrapper.find('.wkr-vorschau').exists()).toBe(false)
-    // Sie steht vor den eigenen Aufbauten und den Dateien.
     const reihenfolge = wrapper.findAll('.panel > h2, details.panel > summary').map((h) => h.text())
-    expect(reihenfolge.indexOf('WKR-Einteilung')).toBeGreaterThan(reihenfolge.indexOf('Listen'))
-    expect(reihenfolge.indexOf('WKR-Einteilung')).toBeLessThan(reihenfolge.indexOf('Eigene Aufbauten'))
-    // Einstellungen der Wettkampfrichter-Listen und die Namen stehen zusammen, vor den Standardgewichten.
-    expect(reihenfolge.indexOf('WKR-Einteilung')).toBe(reihenfolge.indexOf('Wettkampfrichter-Listen') + 1)
-    expect(reihenfolge.indexOf('WKR-Einteilung')).toBeLessThan(reihenfolge.indexOf('Standardgewichte'))
+    expect(reihenfolge).not.toContain('WKR-Einteilung')
+    // Die Einstellungen der Wettkampfrichter-Listen stehen vor den Durchschnittsgewichten (Begriff des Reglements, C3).
+    expect(reihenfolge.indexOf('Durchschnittsgewichte')).toBe(reihenfolge.indexOf('Wettkampfrichter-Listen') + 1)
+    expect(reihenfolge).not.toContain('Standardgewichte')
+    expect(reihenfolge.indexOf('Wettkampfrichter-Listen')).toBeLessThan(reihenfolge.indexOf('Eigene Aufbauten'))
     // Die Beispieldaten stehen bei der Veranstaltung, nicht mehr hier.
     expect(reihenfolge).not.toContain('Beispieldaten')
-    expect(reihenfolge.at(-1)).toBe('Dateien')
+    // Ganz am Ende, zugeklappt: die Lizenzvermerke fremder Bestandteile (Flaggen).
+    expect(reihenfolge.slice(-2)).toEqual(['Dateien', 'Fremde Bestandteile und Lizenzen'])
+    expect(wrapper.find('#lizenzen').text()).toContain('Permission is hereby granted')
     expect(wrapper.find('[data-action="beispielwerte"]').exists()).toBe(false)
     wrapper.unmount()
   })

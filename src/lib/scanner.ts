@@ -27,6 +27,18 @@ export const ENDE_OHNE_ENTER_MS = 250
  */
 const CODE_ANFANG = /(ALC|FP)\d\.$/i
 
+/**
+ * Wann die Taste gedrückt wurde – nicht, wann sie behandelt wird. Die ersten Zeichen eines
+ * Scans landen in der Zelle, in der der Cursor steht, und jedes löst dort Rechnen, Speichern
+ * und Neuzeichnen aus. Bei einem großen Starterfeld dauert das länger als der Abstand zweier
+ * Scanner-Zeichen: Die Tasten stauen sich, und an der Uhr der Behandlung gemessen sähe der
+ * Schwall aus wie von Hand getippt – der Code stünde danach in der Zelle. Der Zeitstempel des
+ * Ereignisses misst den Scanner selbst. Fehlt er (0 in manchen Umgebungen), gilt die Uhr.
+ */
+function ereignisZeit(e: KeyboardEvent): number {
+  return Number.isFinite(e.timeStamp) && e.timeStamp > 0 ? e.timeStamp : performance.now()
+}
+
 type Feld = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 
 function eingabefeld(el: Element | null): Feld | null {
@@ -48,13 +60,13 @@ export interface ScannerStand<T> {
 
 /**
  * Hört auf Scans im ganzen Fenster und meldet jeden Code. `ausnahme` = Element, das Codes
- * selbst annimmt (das Scan-Feld); dort greift der Mitschnitt nicht. `jetzt` ist die Uhr
- * (Tests reichen eine eigene herein). Liefert eine Funktion zum Abmelden.
+ * selbst annimmt (das Scan-Feld); dort greift der Mitschnitt nicht. `jetzt` ist die Uhr: wann
+ * die Taste gedrückt wurde (Tests reichen eine eigene herein). Liefert eine Funktion zum Abmelden.
  */
 export function hoereAufScanner<T = undefined>(
   onCode: (code: string) => void,
   ausnahme: (el: Element | null) => boolean = () => false,
-  jetzt: () => number = () => performance.now(),
+  jetzt: (e: KeyboardEvent) => number = ereignisZeit,
   stand?: ScannerStand<T>,
 ): () => void {
   let puffer = ''
@@ -98,7 +110,7 @@ export function hoereAufScanner<T = undefined>(
   function onKeydown(e: KeyboardEvent) {
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (!aktiv && ausnahme(document.activeElement)) return
-    const zeit = jetzt()
+    const zeit = jetzt(e)
 
     if (e.key === 'Enter' || e.key === 'Tab') {
       if (aktiv) {

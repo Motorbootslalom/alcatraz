@@ -57,15 +57,27 @@ describe('reducer: Eingaben', () => {
     expect(migrate(JSON.parse(JSON.stringify(gemischt)))!.eingaben).toEqual(gemischt.eingaben)
   })
 
-  it('mit einem Starter gehen seine Eingaben – beim Löschen, Leeren der Klasse und Ersetzen der Liste', () => {
+  it('sind Werte erfasst, steht das Starterfeld fest: Hinzufügen, Entfernen, Leeren und Import ändern den Stand nicht', () => {
     const s = mit({ type: 'SET_EINGABEN', zellen: [zelle('a', 'zeit1', '80'), zelle('b', 'zeit1', '81'), zelle('c', 'zeit1', '82')] })
-    expect(Object.keys(reducer(s, { type: 'REMOVE_STARTER', id: 'a' }).eingaben[L1])).toEqual(['b', 'c'])
-    expect(Object.keys(reducer(s, { type: 'CLEAR_CLASS', klasse: '4' }).eingaben[L1])).toEqual(['c'])
-    expect(reducer(s, { type: 'CLEAR_ALL_STARTERS' }).eingaben).toEqual({})
-    // Ersetzen: Wiedererkannte Starter behalten ID und Werte, die übrigen verlieren sie.
-    const ersetzt = reducer(s, { type: 'IMPORT_STARTERS', mode: 'replace', starters: [{ ...starter('neu'), nachname: 'a' }] })
-    expect(ersetzt.starters.map((p) => p.id)).toEqual(['a'])
-    expect(ersetzt.eingaben).toEqual({ [L1]: { a: { zeit1: '80' } } })
+    expect(reducer(s, { type: 'REMOVE_STARTER', id: 'a' })).toBe(s)
+    expect(reducer(s, { type: 'CLEAR_CLASS', klasse: '4' })).toBe(s)
+    expect(reducer(s, { type: 'CLEAR_ALL_STARTERS' })).toBe(s)
+    expect(reducer(s, { type: 'ADD_STARTERS', starters: [starter('neu')] })).toBe(s)
+    expect(reducer(s, { type: 'ADD_STARTERS', starters: [starter('neu')], beispiel: true })).toBe(s)
+    expect(reducer(s, { type: 'IMPORT_STARTERS', mode: 'replace', starters: [{ ...starter('neu'), nachname: 'a' }] })).toBe(s)
+    expect(reducer(s, { type: 'IMPORT_STARTERS', mode: 'merge', starters: [starter('neu')] })).toBe(s)
+  })
+
+  it('das feste Starterfeld: Angaben ändern, Sicherung laden, Zurücksetzen und Werte löschen gehen weiter', () => {
+    const s = mit({ type: 'SET_EINGABEN', zellen: [zelle('a', 'zeit1', '80')] })
+    expect(reducer(s, { type: 'UPDATE_STARTER', id: 'a', patch: { nachname: 'Berichtigt', startNr: '499', geburtsdatum: '2012-03-04' } }).starters.find((p) => p.id === 'a')).toMatchObject({ nachname: 'Berichtigt', startNr: '499', geburtsdatum: '2012-03-04' })
+    expect(reducer(s, { type: 'LOAD_STATE', state: emptyState() }).starters).toEqual([])
+    expect(reducer(s, { type: 'RESET_ALL' }).starters).toEqual([])
+    expect(reducer(s, { type: 'FILL_BEISPIELWERTE', zeitnahme: 'stoppuhr', saat: 1, laeufe: [1] }).eingaben).not.toEqual({})
+    // Sind die Werte gelöscht, ist das Starterfeld wieder frei.
+    const frei = reducer(s, { type: 'CLEAR_EINGABEN' })
+    expect(reducer(frei, { type: 'REMOVE_STARTER', id: 'a' }).starters.some((p) => p.id === 'a')).toBe(false)
+    expect(reducer(frei, { type: 'ADD_STARTERS', starters: [starter('neu')] }).starters.some((p) => p.id === 'neu')).toBe(true)
   })
 
   it('Umnummerieren und Klassenwechsel lassen die Eingaben stehen (sie hängen an der ID)', () => {

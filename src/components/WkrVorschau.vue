@@ -2,7 +2,7 @@
 import { computed, ref, useId } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
-import { useKonfig } from '../lib/konfig'
+import { useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { listenFuerKlasse, musterZeilen, type BogenAuftrag } from '../lib/bogen'
 import { parcoursVon, wkrFeld, wkrName } from '../lib/einteilung'
@@ -10,6 +10,7 @@ import { wkrBoegen } from '../lib/wkrListen'
 import { musterCode } from '../lib/qr'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { t, tn } from '../i18n'
+import { adresse } from '../lib/router'
 import type { Konfig } from '../config/konfig'
 import type { ClassId, Starter } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
@@ -45,6 +46,10 @@ const props = withDefaults(
 const { state, dispatch } = useStore()
 const eigeneKonfig = useKonfig()
 const konfig = computed(() => props.konfig ?? eigeneKonfig.value)
+// Gezeichnet wird der Bogen in der Sprache seiner Liste, wie er gedruckt würde. Der Entwurf
+// im Assistenten bringt seine eigene Konfiguration mit; dort gilt die Sprache des Regelwerks.
+const bogenKonfig = useBogenKonfig()
+const blattKonfig = (typeId: string) => props.konfig ?? bogenKonfig(typeId)
 const aufbauId = computed(() => props.aufbauId ?? state.value.aufbau)
 const id = useId()
 
@@ -53,12 +58,14 @@ const { regelwerk, classLabel } = useEvent()
 const klassen = computed(() => regelwerk.value.klassen)
 // Vorgabe wie im Prototyp die höchste Klasse: Sie hat die meisten Spalten und Listen. Nach
 // einem Wechsel des Regelwerks gilt die Vorgabe, wenn es die gewählte Klasse dort nicht gibt.
-const wahl = merke<ClassId | undefined>('vorschau.klasse', undefined)
+// Die Auswahl der Vorschau übersteht das Neuladen; was es nicht mehr gibt, fällt unten auf die Vorgabe.
+const istText = (w: unknown) => typeof w === 'string'
+const wahl = merke<ClassId | undefined>('vorschau.klasse', undefined, { ueberNeuladen: true, gueltig: istText })
 const klasse = computed<ClassId>(() => (wahl.value && klassen.value.includes(wahl.value) ? wahl.value : klassen.value[klassen.value.length - 1]))
 
 /** Wie viele Muster-Starter auf den Listen stehen; mit vielen zeigt sich die Seitenaufteilung. */
 const MAX_ZEILEN = 60
-const anzahl = merke('vorschau.zeilen', 10)
+const anzahl = merke('vorschau.zeilen', 10, { ueberNeuladen: true, gueltig: (w) => typeof w === 'number' && w >= 0 && w <= MAX_ZEILEN })
 function setzeAnzahl(e: Event) {
   const n = parseInt((e.target as HTMLInputElement).value, 10)
   anzahl.value = Number.isNaN(n) ? 0 : Math.max(0, Math.min(MAX_ZEILEN, n))
@@ -125,7 +132,7 @@ const boegen = computed(() => {
 // Je Position ein Reiter: Untereinander wären es bis zu neun Blätter – wer einen Aufbau
 // anlegt, will die eine Position sehen, an der er gerade arbeitet. Gibt es die gewählte
 // Position nicht mehr (andere Klasse, anderer Aufbau), gilt die erste.
-const gewaehlt = merke<string | undefined>('vorschau.reiter', undefined)
+const gewaehlt = merke<string | undefined>('vorschau.reiter', undefined, { ueberNeuladen: true, gueltig: istText })
 const aktiv = computed(() => boegen.value.find((b) => b.typeId === gewaehlt.value) ?? boegen.value[0])
 const mitBild = computed(() => !!aktiv.value && !aktiv.value.auftrag.ohneBild && !!konfig.value.getSheetDef(aktiv.value.typeId).bildErzeugen)
 
@@ -165,7 +172,7 @@ const KOPF_FELD_AB = 0.6
       </p>
     </div>
     <p v-if="namenPflegen && !parcours && klasse" class="boat-banner warn" role="status">
-      {{ t('preview.noParcours', { class: classLabel(klasse) }) }} <a href="#/verzahnung">{{ t('nav.verzahnung') }}</a>
+      {{ t('preview.noParcours', { class: classLabel(klasse) }) }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a>
     </p>
     <p v-if="boegen.length === 0" class="boat-banner warn" role="status">{{ t('preview.noLists', { class: classLabel(klasse) }) }}</p>
     <div v-if="boegen.length > 1" class="segmented list-kinds wkr-vorschau-tabs" role="tablist" :aria-label="t('preview.tabs')">
@@ -197,7 +204,7 @@ const KOPF_FELD_AB = 0.6
           />
         </div>
         <BogenBlatt
-          :konfig="konfig"
+          :konfig="blattKonfig(b.typeId)"
           :auftrag="b.auftrag"
           :optionen="b.optionen"
           :kennzeichen="t('preview.mark')"

@@ -3,8 +3,9 @@ import { emptyState, reducer, type Action } from '../state/reducer'
 import { migrate } from '../state/migrate'
 import { createStore } from '../state/store'
 import { makeFile, parseFile } from '../persistenz/backup'
-import { laufSchluessel } from './eingaben'
-import { gesamtListenSchluessel, laufListenSchluessel, listenInhalte, standZeit } from './listenStand'
+import { configFor } from '../config/konfig'
+import { feldVon, laufSchluessel, OHNE_LAUF } from './eingaben'
+import { geaenderteListen, KEINE_LISTE, gesamtListenSchluessel, gesamtZeit, laufListenSchluessel, listenInhalte, standZeit, wertungZeit } from './listenStand'
 import type { AppState, ClassId, Starter } from '../types'
 
 // Wann sich eine Ergebnisliste zuletzt geändert hat. Alle Starter sind erfunden.
@@ -63,16 +64,28 @@ describe('Stand der Ergebnislisten', () => {
     expect(zeiten(s)).toEqual({ [lauf('4', 1)]: 5000, [gesamt('4')]: 5000 })
   })
 
-  it('der letzte Wert gelöscht: Die Liste gibt es nicht mehr – und ihren Stand auch nicht', () => {
+  it('der letzte Wert gelöscht: Die Listen gibt es nicht mehr – es bleibt nur der Zeitpunkt des Wegfalls', () => {
     const s = nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80')), eingabe(2000, zelle('c', 'zeit1', '70')), eingabe(5000, zelle('a', 'zeit1', '')))
-    expect(Object.keys(s.listenStand).sort()).toEqual([lauf('1', 1), gesamt('1')].sort())
+    expect(Object.keys(s.listenStand).sort()).toEqual([lauf('1', 1), gesamt('1'), gesamt('4')].sort())
+    expect(s.listenStand[gesamt('4')]).toEqual({ inhalt: KEINE_LISTE, zeit: 5000 })
+    expect(listenInhalte(s).has(gesamt('4'))).toBe(false)
+    // Eine Eingabe anderswo lässt den Eintrag stehen, wie er ist.
+    const weiter = nach(s, eingabe(5500, zelle('c', 'zeit1', '71')))
+    expect(weiter.listenStand[gesamt('4')]).toBe(s.listenStand[gesamt('4')])
     // Kommt wieder ein Wert, beginnt sie neu.
-    expect(nach(s, eingabe(6000, zelle('a', 'zeit1', '80'))).listenStand[lauf('4', 1)].zeit).toBe(6000)
+    const wieder = nach(s, eingabe(6000, zelle('a', 'zeit1', '80')))
+    expect(zeiten(wieder)).toMatchObject({ [lauf('4', 1)]: 6000, [gesamt('4')]: 6000 })
+    expect(wieder.listenStand[gesamt('4')].inhalt).not.toBe(KEINE_LISTE)
   })
 
-  it('CLEAR_EINGABEN leert auch den Stand', () => {
+  it('CLEAR_EINGABEN: Keine Liste mehr – nur der Zeitpunkt, zu dem sie entfielen', () => {
     const s = nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80')), { type: 'CLEAR_EINGABEN', zeit: 2000 })
-    expect(s.listenStand).toEqual({})
+    expect(s.listenStand).toEqual({ [gesamt('4')]: { inhalt: KEINE_LISTE, zeit: 2000 } })
+    // Ohne Zeitpunkt der Action bleibt der jüngste, den die Listen trugen – nie ein älterer Stand als zuvor.
+    const ohne = nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80')), eingabe(1500, zelle('a', 'zeit1', '81', 2)), { type: 'CLEAR_EINGABEN' })
+    expect(ohne.listenStand).toEqual({ [gesamt('4')]: { inhalt: KEINE_LISTE, zeit: 1500 } })
+    // Zurücksetzen beginnt wirklich neu.
+    expect(nach(s, { type: 'RESET_ALL', zeit: 3000 }).listenStand).toEqual({})
   })
 
   it('ein Haken „erfasst“ ändert nichts am Ergebnis und damit nicht am Zeitpunkt', () => {
@@ -106,18 +119,15 @@ describe('Stand der Ergebnislisten', () => {
     expect(zeiten(zwei)).toEqual({ [lauf('4', 1)]: 1000, [gesamt('4')]: 2000 })
   })
 
-  it('ein entfernter Starter ändert die Listen seiner Klasse, nicht die der anderen', () => {
+  it('mit erfassten Werten steht das Starterfeld fest: Starter kommen weder dazu noch weg – die Listen bleiben', () => {
     const s = nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80'), zelle('c', 'zeit1', '70')))
-    const ohne = nach(s, { type: 'REMOVE_STARTER', id: 'b', zeit: 2000 })
-    expect(zeiten(ohne)).toEqual({ [lauf('4', 1)]: 2000, [gesamt('4')]: 2000, [lauf('1', 1)]: 1000, [gesamt('1')]: 1000 })
-    // Der letzte Starter mit Werten geht: Die Listen der Klasse entfallen.
-    expect(Object.keys(nach(ohne, { type: 'REMOVE_STARTER', id: 'a', zeit: 3000 }).listenStand).sort()).toEqual([lauf('1', 1), gesamt('1')].sort())
-    expect(nach(s, { type: 'CLEAR_CLASS', klasse: '4', zeit: 3000 }).listenStand[lauf('4', 1)]).toBeUndefined()
+    expect(nach(s, { type: 'REMOVE_STARTER', id: 'b', zeit: 2000 })).toBe(s)
+    expect(nach(s, { type: 'CLEAR_CLASS', klasse: '4', zeit: 3000 })).toBe(s)
+    expect(nach(s, { type: 'ADD_STARTERS', starters: [starter('e', '4')], zeit: 2000 })).toBe(s)
   })
 
-  it('ein neuer Starter, eine andere Startnummer, ein berichtigter Name: Die Liste sieht anders aus', () => {
+  it('eine andere Startnummer, ein berichtigter Name: Die Liste sieht anders aus', () => {
     const s = nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80'), zelle('c', 'zeit1', '70')))
-    expect(zeiten(nach(s, { type: 'ADD_STARTERS', starters: [starter('e', '4')], zeit: 2000 }))[lauf('4', 1)]).toBe(2000)
     expect(zeiten(nach(s, { type: 'UPDATE_STARTER', id: 'b', patch: { startNr: '499' }, zeit: 2000 }))[lauf('4', 1)]).toBe(2000)
     const name = nach(s, { type: 'UPDATE_STARTER', id: 'c', patch: { nachname: 'Berichtigt' }, zeit: 2000 })
     expect(zeiten(name)).toEqual({ [lauf('4', 1)]: 1000, [gesamt('4')]: 1000, [lauf('1', 1)]: 2000, [gesamt('1')]: 2000 })
@@ -169,6 +179,125 @@ describe('Stand der Ergebnislisten', () => {
     const action = eingabe(1234, zelle('a', 'zeit1', '80'))
     expect(reducer(anfang(), action)).toEqual(reducer(anfang(), action))
     expect(reducer(anfang(), action).listenStand[lauf('4', 1)]).toEqual({ inhalt: expect.any(Number), zeit: 1234 })
+  })
+})
+
+describe('Die Kette der Zeitpunkte: Lauf → Gesamtliste → Mannschaftswertung', () => {
+  const ms = (iso: string) => (iso ? Date.parse(iso) : undefined)
+  const kette = (s: AppState) => ({
+    lauf: Object.fromEntries(Object.entries(s.listenStand).filter(([k]) => !k.endsWith('/gesamt')).map(([k, v]) => [k, v.zeit])),
+    gesamt: Object.fromEntries(['4', '1'].map((k) => [k, ms(gesamtZeit(s.listenStand, D, k))])),
+    wertung: ms(wertungZeit(s.listenStand, D)),
+  })
+  const knotenFeld = () => {
+    const feld = feldVon(configFor(), 'knoten', '4', 'palstek')
+    if (!feld) throw new Error('kein Knoten-Feld')
+    return feld.kennung
+  }
+  const start = () => nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80'), zelle('b', 'zeit1', '82'), zelle('c', 'zeit1', '70'), zelle('d', 'zeit1', '75')))
+
+  it('die Gesamtliste trägt den jüngsten Zeitpunkt ihrer Läufe, die Mannschaftswertung den jüngsten der Gesamtlisten', () => {
+    const s = nach(start(), eingabe(2000, zelle('a', 'zeit1', '81', 2)), eingabe(3000, zelle('c', 'zeit1', '71', 3)))
+    expect(kette(s)).toEqual({
+      lauf: { [lauf('4', 1)]: 1000, [lauf('4', 2)]: 2000, [lauf('1', 1)]: 1000, [lauf('1', 3)]: 3000 },
+      gesamt: { '4': 2000, '1': 3000 },
+      wertung: 3000,
+    })
+  })
+
+  it('eine Eingabe, die die Liste nicht verändert, setzt den Zeitpunkt trotzdem – bis zur Mannschaftswertung', () => {
+    const s0 = start()
+    // „80“ und „80,0“ sind dieselbe Zeit: Auf der Liste ändert sich nichts.
+    const s1 = nach(s0, eingabe(5000, zelle('a', 'zeit1', '80,0')))
+    expect(listenInhalte(s1).get(lauf('4', 1))).toBe(listenInhalte(s0).get(lauf('4', 1)))
+    expect(kette(s1)).toEqual({ lauf: { [lauf('4', 1)]: 5000, [lauf('1', 1)]: 1000 }, gesamt: { '4': 5000, '1': 1000 }, wertung: 5000 })
+    // Die andere Klasse bleibt, wie sie war.
+    expect(s1.listenStand[lauf('1', 1)]).toBe(s0.listenStand[lauf('1', 1)])
+  })
+
+  it('Fehler, Disqualifikation und Löschen: jeweils die Liste von Klasse und Lauf, die Gesamtliste, die Mannschaftswertung', () => {
+    let s = start()
+    s = nach(s, eingabe(2000, zelle('b', 't1a|hin seiteA', '5')))
+    expect(kette(s).gesamt).toEqual({ '4': 2000, '1': 1000 })
+    s = nach(s, eingabe(3000, zelle('d', 'disq@vorsteg', 'X')))
+    expect(kette(s)).toMatchObject({ gesamt: { '4': 2000, '1': 3000 }, wertung: 3000 })
+    s = nach(s, eingabe(4000, zelle('b', 't1a|hin seiteA', '')))
+    expect(kette(s)).toMatchObject({ lauf: { [lauf('4', 1)]: 4000, [lauf('1', 1)]: 3000 }, gesamt: { '4': 4000, '1': 3000 }, wertung: 4000 })
+  })
+
+  it('Knoten stehen ohne Lauf: Sie setzen den Zeitpunkt der Gesamtliste – und der Mannschaftswertung –, nicht den eines Laufs', () => {
+    const knoten = { lauf: laufSchluessel(D, OHNE_LAUF), starter: 'a', feld: knotenFeld(), wert: '5' }
+    const s = nach(start(), eingabe(6000, knoten))
+    expect(kette(s)).toEqual({ lauf: { [lauf('4', 1)]: 1000, [lauf('1', 1)]: 1000 }, gesamt: { '4': 6000, '1': 1000 }, wertung: 6000 })
+    // Derselbe Wert noch einmal ist keine Eingabe; gelöscht ist wieder eine.
+    expect(reducer(s, eingabe(7000, knoten))).toBe(s)
+    expect(kette(nach(s, eingabe(8000, { ...knoten, wert: '' }))).gesamt['4']).toBe(8000)
+  })
+
+  it('mehrere Zellen in einer Action (Scanner, Einfügen): jede betroffene Klasse und jeder Lauf', () => {
+    const s = nach(start(), eingabe(9000, zelle('a', 'zeit1', '79', 2), zelle('c', 'zeit1', '69', 3), zelle('d', 'erfasst@gate135', '1')))
+    expect(geaenderteListen(start(), s)).toEqual(new Set([lauf('4', 2), gesamt('4'), lauf('1', 3), gesamt('1')]))
+    expect(kette(s)).toMatchObject({ gesamt: { '4': 9000, '1': 9000 }, wertung: 9000 })
+    // Der Haken „erfasst“ allein ist keine Änderung des Ergebnisses.
+    expect(geaenderteListen(s, nach(s, eingabe(9500, zelle('a', 'erfasst@gate135', '1')))).size).toBe(0)
+  })
+
+  it('Beispielwerte: Jede gefüllte Liste bekommt den Zeitpunkt, auch beim zweiten Füllen mit anderer Saat', () => {
+    const s1 = nach(anfang(), { type: 'FILL_BEISPIELWERTE', zeitnahme: 'stoppuhr', saat: 1, zeit: 1000 })
+    expect(Object.keys(s1.listenStand).length).toBeGreaterThan(0)
+    expect(Object.values(s1.listenStand).every((e) => e.zeit === 1000)).toBe(true)
+    const s2 = nach(s1, { type: 'FILL_BEISPIELWERTE', zeitnahme: 'stoppuhr', saat: 2, zeit: 2000 })
+    for (const schluessel of geaenderteListen(s1, s2)) if (s2.listenStand[schluessel]) expect(s2.listenStand[schluessel].zeit, schluessel).toBe(2000)
+    expect(ms(wertungZeit(s2.listenStand, D))).toBe(2000)
+    // Keine Liste ist neuer als die Gesamtliste ihrer Klasse, keine Gesamtliste neuer als die Mannschaftswertung.
+    for (const [schluessel, e] of Object.entries(s2.listenStand)) {
+      const klasse = schluessel.split('/')[1]
+      expect(ms(gesamtZeit(s2.listenStand, D, klasse))!).toBeGreaterThanOrEqual(e.zeit ?? 0)
+    }
+  })
+
+  it('alle Werte gelöscht: Es gibt keine Liste mehr, der Zeitpunkt ist der des Löschens', () => {
+    const s = nach(start(), { type: 'CLEAR_EINGABEN', zeit: 2000 })
+    expect(kette(s)).toEqual({ lauf: {}, gesamt: { '4': 2000, '1': 2000 }, wertung: 2000 })
+  })
+
+  it('der Zeitpunkt der Mannschaftswertung läuft nie rückwärts – auch wenn die letzten Werte einer Klasse gelöscht werden', () => {
+    // Klasse 4 bei 1000, Klasse 1 bei 2000: Die Mannschaftswertung trägt 2000 und hängt so aus.
+    const s0 = nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80')), eingabe(2000, zelle('c', 'zeit1', '70')))
+    expect(kette(s0).wertung).toBe(2000)
+    // Der einzige Wert der Klasse 1 wird gelöscht: Sie fehlt jetzt in der Wertung – das ist eine Änderung.
+    const s1 = nach(s0, eingabe(3000, zelle('c', 'zeit1', '')))
+    expect(kette(s1)).toEqual({ lauf: { [lauf('4', 1)]: 1000 }, gesamt: { '4': 1000, '1': 3000 }, wertung: 3000 })
+    // Ebenso, wenn der letzte Starter der Klasse mit Werten die Klasse wechselt …
+    const s2 = nach(s0, { type: 'UPDATE_STARTER', id: 'c', patch: { klasse: '4' }, zeit: 4000 })
+    expect(kette(s2).gesamt['1']).toBe(4000)
+    expect(kette(s2).wertung).toBe(4000)
+    // … und über eine ganze Folge: Nach jedem Schritt ist die Wertung mindestens so jung wie davor.
+    let s = anfang()
+    let bisher = 0
+    const schritte: Action[] = [
+      eingabe(1000, zelle('a', 'zeit1', '80')),
+      eingabe(2000, zelle('c', 'zeit1', '70')),
+      eingabe(3000, zelle('c', 'zeit1', '')),
+      eingabe(4000, zelle('a', 'zeit1', '')),
+      eingabe(5000, zelle('d', 'zeit1', '75', 2)),
+      { type: 'CLEAR_EINGABEN', zeit: 6000 },
+      eingabe(7000, zelle('b', 'zeit1', '82')),
+    ]
+    for (const schritt of schritte) {
+      s = reducer(s, schritt)
+      const wertung = kette(s).wertung ?? 0
+      expect(wertung, JSON.stringify(schritt)).toBeGreaterThan(bisher)
+      for (const k of ['4', '1']) expect(wertung).toBeGreaterThanOrEqual(kette(s).gesamt[k] ?? 0)
+      bisher = wertung
+    }
+  })
+
+  it('eine Eingabe ohne Zeitpunkt macht ihn unbekannt, statt den alten stehen zu lassen', () => {
+    const s = nach(start(), eingabe(undefined, zelle('a', 'zeit1', '80,0')))
+    expect(s.listenStand[lauf('4', 1)].zeit).toBeUndefined()
+    // Die Gesamtliste zeigt, was sie weiß: nichts für Klasse 4, die andere Klasse bleibt.
+    expect(kette(s)).toMatchObject({ gesamt: { '4': undefined, '1': 1000 }, wertung: 1000 })
   })
 })
 

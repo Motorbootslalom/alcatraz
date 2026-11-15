@@ -1,9 +1,16 @@
 <script setup lang="ts">
+import { listenNachname, type NamenArt } from '../../lib/namen'
 import { computed } from 'vue'
 import { abstaende, type AbstandArt, type ErgebnisGruppe, type LaufZeile } from '../../lib/ergebnis'
 import { ergebnisTexte } from '../../lib/ergebnisText'
 import { locale, texteIn, type Locale } from '../../i18n'
 import type { Starter } from '../../types'
+import type { HerkunftAnzeige } from '../../lib/origin'
+import HerkunftText from '../HerkunftText.vue'
+import { ERGEBNIS_FUSS_MM, SEITEN_VORGABE, zeilenDerSeite } from '../../lib/seiten'
+import type { SeitenTeil } from '../../lib/seiten'
+import ListenDokument from '../ListenDokument.vue'
+import ErgebnisFuss from './ErgebnisFuss.vue'
 
 /**
  * Ergebnisliste eines Laufs (A4 quer): je Starter die Punkte an jeder Stelle des Fahrwegs –
@@ -18,16 +25,23 @@ const props = defineProps<{
   zeilen: LaufZeile[]
   abstand?: AbstandArt
   /** Spalte der Herkunft: Überschrift und Text je Starter; fehlt = keine Spalte. */
-  herkunft?: { titel: string; text: (p: Starter) => string; zeichen: number }
+  herkunft?: { titel: string; anzeige: (p: Starter) => HerkunftAnzeige; zeichen: number }
   /** Namen: voll, Nachname gekürzt („M.“) oder gar nicht (Aushang – dann steht nur die Startnummer da). */
-  namen?: 'voll' | 'kurz' | 'ohne'
+  namen?: NamenArt
   geburtsdatum?: boolean
   /**
-   * Wann sich die Liste zuletzt geändert hat (lib/listenStand.ts), schon als Text. Steht
-   * im Kopf der Liste, auch im Druck: Hängen zwei Fassungen aus, zeigt er die neuere – der
-   * Zeitpunkt im Seitenrand ist dagegen nur der des Drucks. Leer = unbekannt, dann steht nichts da.
+   * Wann sich die Liste zuletzt geändert hat (lib/listenStand.ts), schon als Text. Steht in
+   * einem eigenen Feld unter der Tabelle (ErgebnisFuss.vue), auf jeder Seite der Liste und
+   * auch im Druck: Hängen zwei Fassungen aus, zeigt er die neuere. Leer = unbekannt, dann
+   * steht nichts da.
    */
   stand?: string
+  /**
+   * Was bei gleichem Ergebnis entschieden hat, in Worten (in der Sprache der Liste). Steht
+   * unter der Tabelle jeder Seite, auf der ein Platz per Stichentscheid entstand – dort
+   * trägt der Platz ein Sternchen.
+   */
+  stichText?: string
   /** Sprache der Liste (lib/listensprache.ts); fehlt = die der Oberfläche. */
   sprache?: Locale
 }>()
@@ -35,6 +49,12 @@ const props = defineProps<{
 // Alles auf dem Blatt steht in der Sprache der Liste, nicht in der der Oberfläche.
 const sprache = () => props.sprache ?? locale.value
 const { t, formatDate } = texteIn(sprache)
+
+// Die Liste ist ein Dokument: Sie teilt sich selbst in Seiten und zählt nur die eigenen
+// (ListenDokument.vue). Platz, graue Zeile und Abstand hängen an der Stelle in der ganzen
+// Liste, nicht an der auf der Seite (lib/seiten.ts `zeilenDerSeite`).
+/** Steht auf dieser Seite ein Platz, den der Stichentscheid vergeben hat? */
+const mitStich = (teile: readonly SeitenTeil[]) => zeilenDerSeite(props.zeilen, teile).some(({ z }) => z.stich)
 const { abstandTitel, abstandZelle, punkteZelle, sekundenText, spaltenText, zeitText } = ergebnisTexte(sprache)
 
 const zweizeilig = computed(() => props.gruppen.some((g) => g.mitUnter))
@@ -42,7 +62,7 @@ const kopfZeilen = computed(() => (zweizeilig.value ? 2 : 1))
 const blaetter = computed(() => props.gruppen.flatMap((g) => g.blaetter.map((b, bi) => ({ erste: bi === 0, label: b.label }))))
 // Platz, S-Nr., Name, Vorname, Zeit, Punkte + Fahrweg + disq., ges. Punkte, Fehler-Schlüssel
 /** Für den Aushang lässt sich der Nachname auf den Anfangsbuchstaben kürzen. */
-const nachname = (p: Starter) => (props.namen === 'kurz' && p.nachname.trim() ? `${[...p.nachname.trim()][0]}.` : p.nachname)
+const nachname = (p: Starter) => listenNachname(p, props.namen)
 
 const spaltenZahl = computed(() => 9 - (props.namen === 'ohne' ? 2 : 0) + (props.herkunft ? 1 : 0) + (props.geburtsdatum ? 1 : 0) + (props.abstand ? 1 : 0) + blaetter.value.length)
 // Der Abstand hängt nur von den Punkten ab, nicht von der Reihenfolge der Liste.
@@ -69,31 +89,68 @@ const bojenSpalten = computed(() => props.gruppen.reduce((n, g) => n + (g.mitUnt
 const frei = computed(
   () => BREITE - FEST + (props.namen === 'ohne' ? NAMEN : 0) - (props.geburtsdatum ? GEB : 0) - (props.abstand ? ABSTAND : 0) - EINZEL * props.gruppen.filter((g) => !g.mitUnter).length,
 )
+/**
+ * Breite eines Zeichens in mm bei 7,5 pt, breite Buchstaben eingerechnet – dasselbe Maß wie
+ * auf der Gesamtliste (dort 1,65 mm bei 8,5 pt). Mit 1,2 und später 1,37 mm war zu knapp
+ * geschätzt: Ein langer Vereinsname stand unverkleinert da und war am Zellenrand um wenige
+ * Pixel abgeschnitten.
+ */
+const ZEICHEN_MM = 1.46
 // Breite der Herkunft-Spalte in mm: für Kürzel schmal, für ausgeschriebene Namen breiter.
+// Die Überschrift zählt mit: Über einer Spalte voller Kürzel stand sonst „Bundeslar“.
 const herkunftMm = computed(() => {
-  const wunsch = Math.min(30, Math.round((props.herkunft?.zeichen ?? 0) * 1.2 + 3))
+  const wunsch = Math.min(30, Math.max(Math.ceil(titelMm.value * TITEL_KLEINER), Math.round((props.herkunft?.zeichen ?? 0) * ZEICHEN_MM + 3)))
   return Math.max(HERKUNFT_MIN, Math.min(wunsch, Math.floor(frei.value - BOJE_MIN * bojenSpalten.value)))
 })
-/** Die Herkunft bekam weniger Platz, als der längste Name braucht. */
-const herkunftEng = computed(() => !!props.herkunft && herkunftMm.value < Math.round(props.herkunft.zeichen * 1.2 + 3))
+/** Breite eines Zeichens der Überschrift in mm (8,5 pt fett; gemessen an „Bundesland“: 17,7 mm). */
+const TITEL_ZEICHEN_MM = 1.8
 /**
- * Klasse der Herkunft-Zelle: kleiner gesetzt wie die Namen; passt der Name in der engen Spalte
- * auch dann nicht in eine Zeile, steht er zweizeilig – abgeschnitten wäre er nicht zu erkennen.
+ * Für die Überschrift allein wird die Spalte nur bis hierhin breiter (Anteil der vollen Breite) –
+ * den Rest gleicht eine kleinere Schrift aus. Die Bojen-Spalten brauchen den Platz nötiger.
  */
-function fitHerkunft(text: string) {
-  const normal = Math.floor((herkunftMm.value - 2) / 1.2)
-  if (!herkunftEng.value) return fit(text, normal)
-  return text.length > (herkunftMm.value - 2) / 0.85 ? 'erg-zweizeilig' : text.length > normal ? 'fit-2' : undefined
+const TITEL_KLEINER = 0.8
+/** So breit braucht die Überschrift der Herkunft in voller Größe. */
+const titelMm = computed(() => (props.herkunft?.titel.length ?? 0) * TITEL_ZEICHEN_MM + 1.5)
+/** Ist die Spalte schmaler als die Überschrift, wird diese kleiner gesetzt statt abgeschnitten. */
+const titelStil = computed(() => (herkunftMm.value < titelMm.value ? { fontSize: `${(8.5 * Math.max(0.5, (herkunftMm.value - 1.5) / (titelMm.value - 1.5))).toFixed(1)}pt` } : undefined))
+/**
+ * Kleiner setzen nach der tatsächlichen Breite der Spalte, wie auf der Gesamtliste: `normal`
+ * Zeichen passen in voller Größe. Reicht auch die kleinste Stufe nicht, steht der Text
+ * zweizeilig – abgeschnitten wäre er nicht zu erkennen.
+ */
+const fitBreite = (text: string, mm: number) => {
+  const normal = Math.floor((mm - 1.5) / ZEICHEN_MM)
+  return text.length <= normal ? undefined : text.length <= normal / 0.85 ? 'fit-1' : text.length <= normal / 0.7 ? 'fit-2' : 'erg-zweizeilig'
 }
+const fitHerkunft = (text: string) => fitBreite(text, herkunftMm.value)
+/** Name und Vorname haben feste Spalten (styles/ergebnis.css `.erg-w-name`, `.erg-w-vorname`). */
+const fitName = (text: string) => fitBreite(text, 22)
+const fitVorname = (text: string) => fitBreite(text, 18.5)
 const bojeMm = computed(() => (bojenSpalten.value > 0 ? (frei.value - (props.herkunft ? herkunftMm.value : 0)) / bojenSpalten.value : EINZEL))
-/** Lange Namen werden kleiner gesetzt statt umbrochen (wie auf den Startlisten). */
+/** Kurze Zellen (Fahrweg, Fehler-Schlüssel) werden kleiner gesetzt statt umbrochen. */
 const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit-2' : text.length > normal ? 'fit-1' : undefined)
-/** Zellen des Fahrwegs: In schmalen Spalten stehen schon zwei Ziffern („20“) kleiner. */
-const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 2 ? 'fit-2' : text.length > 1 ? 'fit-1' : undefined) : fit(text, 2))
+/**
+ * Zellen des Fahrwegs: In schmalen Spalten stehen schon zwei Ziffern („20“) kleiner; mehr als
+ * drei Zeichen („20, G“ – Punkte und Disqualifikation an derselben Boje) stehen zweizeilig.
+ */
+const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 3 ? 'erg-zweizeilig' : text.length > 2 ? 'fit-2' : text.length > 1 ? 'fit-1' : undefined) : fit(text, 2))
 </script>
 
 <template>
-  <section class="ergebnis-blatt" data-art="lauf" :data-boje-mm="bojeMm.toFixed(2)">
+  <ListenDokument
+    class="ergebnis-blatt"
+    data-art="lauf"
+    :data-boje-mm="bojeMm.toFixed(2)"
+    :laengen="[zeilen.length]"
+    format="landscape"
+    :vorgabe="SEITEN_VORGABE.ergebnisLauf"
+    :sprache="sprache()"
+    :fuss-mm="ERGEBNIS_FUSS_MM"
+  >
+    <template #fuss="{ teile, seitenzahl }">
+      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="mitStich(teile) ? stichText : ''" :seitenzahl="seitenzahl" />
+    </template>
+    <template #default="{ teile }">
     <table class="erg-tabelle">
       <colgroup>
         <col class="erg-w-platz" />
@@ -115,13 +172,10 @@ const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 2 ? 'fit-2
       <thead>
         <tr>
           <th class="erg-kopfzelle" :colspan="spaltenZahl">
-            <div :class="['erg-kopf', { 'erg-kopf--stand': stand }]">
+            <div class="erg-kopf">
               <span class="erg-kopf-klasse">{{ klasseText }}</span>
               <span class="erg-kopf-titel">{{ laufText }}</span>
               <span class="erg-kopf-event">{{ eventName }}</span>
-              <!-- Im Kopf, nicht unter der Liste: Dort kostete er Höhe und schöbe bei voller Seite
-                   die letzte Zeile aufs nächste Blatt. Der Kopf kehrt zudem auf jeder Seite wieder. -->
-              <span v-if="stand" class="erg-stand">{{ t('results.changed', { time: stand }) }}</span>
             </div>
           </th>
         </tr>
@@ -130,7 +184,7 @@ const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 2 ? 'fit-2
           <th :rowspan="kopfZeilen">{{ t('common.startNr') }}</th>
           <th v-if="namen !== 'ohne'" :rowspan="kopfZeilen">{{ t('common.lastName') }}</th>
           <th v-if="namen !== 'ohne'" :rowspan="kopfZeilen">{{ t('common.firstName') }}</th>
-          <th v-if="herkunft" :rowspan="kopfZeilen">{{ herkunft.titel }}</th>
+          <th v-if="herkunft" :rowspan="kopfZeilen" :style="titelStil">{{ herkunft.titel }}</th>
           <th v-if="geburtsdatum" :rowspan="kopfZeilen">{{ t('common.birthdate') }}</th>
           <th :rowspan="kopfZeilen">{{ t('results.time') }}</th>
           <th :rowspan="kopfZeilen">{{ t('results.points') }}</th>
@@ -155,18 +209,19 @@ const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 2 ? 'fit-2
       </thead>
       <tbody>
         <tr
-          v-for="(z, i) in zeilen"
+          v-for="{ z, i } in zeilenDerSeite(zeilen, teile)"
           :key="z.starter.id"
           :class="(i + 1) % 5 === 0 ? 'grau' : undefined"
           :data-starter="z.starter.id"
           :data-wertung="z.disq ? 'disq' : z.offen ? 'offen' : 'gewertet'"
           :data-stich="z.stich ? '' : undefined"
         >
-          <td class="erg-platz">{{ z.platz }}</td>
+          <!-- Das Sternchen sagt: Diesen Platz hat der Stichentscheid vergeben (Erklärung unter der Tabelle). -->
+          <td class="erg-platz">{{ z.platz }}<span v-if="z.stich" class="erg-stich-zeichen">*</span></td>
           <td>{{ z.starter.startNr }}</td>
-          <td v-if="namen !== 'ohne'" :class="fit(nachname(z.starter), 14)">{{ nachname(z.starter) }}</td>
-          <td v-if="namen !== 'ohne'" :class="fit(z.starter.vorname, 12)">{{ z.starter.vorname }}</td>
-          <td v-if="herkunft" :class="fitHerkunft(herkunft.text(z.starter))">{{ herkunft.text(z.starter) }}</td>
+          <td v-if="namen !== 'ohne'" :class="fitName(nachname(z.starter))">{{ nachname(z.starter) }}</td>
+          <td v-if="namen !== 'ohne'" :class="fitVorname(z.starter.vorname)">{{ z.starter.vorname }}</td>
+          <td v-if="herkunft" :class="fitHerkunft(herkunft.anzeige(z.starter).mass)"><HerkunftText :anzeige="herkunft.anzeige(z.starter)" /></td>
           <td v-if="geburtsdatum">{{ z.starter.geburtsdatum ? formatDate(z.starter.geburtsdatum) : '' }}</td>
           <!-- „Nicht gestartet“ (X) steht ausgeschrieben da, wo sonst die Zeit stünde: Es ist eine
                Disqualifikation, aber eine, die jeder ohne Schlüssel verstehen soll. -->
@@ -183,5 +238,6 @@ const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 2 ? 'fit-2
         </tr>
       </tbody>
     </table>
-  </section>
+    </template>
+  </ListenDokument>
 </template>

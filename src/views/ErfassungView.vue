@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRaw, useId, watch } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
@@ -7,11 +7,13 @@ import { useEvent } from '../lib/event'
 import { duplicateStartNrIds } from '../domain/startnumbers'
 import { bogenFortschritt } from '../lib/erfassung'
 import { wkrBoegenZumStand, type WkrBogen, type WkrListen } from '../lib/wkrListen'
+import { stapelBoegen } from '../lib/laufzettel'
 import { leseCode, type QrFehler } from '../lib/qr'
 import { meldeScan, scanBeenden, scanBogen, scanErledigt, scanStand } from '../lib/scan'
 import { PROTOTYP_URL } from '../lib/prototyp'
 import { veranstaltungsListen } from '../lib/listen'
 import { t, tn } from '../i18n'
+import { adresse } from '../lib/router'
 import type { ClassId } from '../types'
 import ErfassungTabelle from '../components/erfassung/ErfassungTabelle.vue'
 import EingabenHinweis from '../components/EingabenHinweis.vue'
@@ -29,10 +31,13 @@ import ScanHinweis from '../components/erfassung/ScanHinweis.vue'
  * Scannen: Jeder Bogen und jeder Laufzettel trägt einen QR-Code (lib/qr.ts). Ein Handscanner
  * – er tippt wie eine Tastatur, App.vue hört in jeder Ansicht darauf – oder eine ins Feld
  * getippte Kennung wählt Parcours, Klasse, Lauf und Liste des Blatts und stellt den Cursor in
- * die erste Zelle. Ein Laufzettel führt zur ersten Liste seiner Klasse in dem Lauf.
+ * die erste Zelle. Ein Laufzettel führt zu seinem ganzen Blattstapel: Alle Listen der Klasse in
+ * dem Lauf stehen untereinander, in der Reihenfolge des Zettels – wer den Stapel abtippt, legt
+ * Blatt für Blatt um und muss am Bildschirm nichts umschalten. Dieselbe Ansicht gibt es von
+ * Hand über die Auswahl der Liste („alle untereinander“).
  */
 const { state } = useStore()
-const konfig = useKonfig({ einsprachig: true })
+const konfig = useKonfig({ oberflaeche: true })
 const { classLabel, parallel } = useEvent()
 const id = useId()
 
@@ -68,14 +73,31 @@ const lauf = computed(() => (wahl.value.lauf !== undefined && laeufe.value.inclu
 
 /** Die Bögen der Klasse in diesem Lauf; eine Liste ohne Lauf (Knoten) gibt es nur einmal – sie steht bei jedem Lauf dabei. */
 const boegen = computed<WkrBogen[]>(() => {
-  // In der Reihenfolge der Listen: Der Bogen ohne Lauf gehört zum 1. Lauf und stünde sonst
-  // in jedem späteren Lauf vor allen anderen.
+  // In der Reihenfolge der Listen: Der Bogen ohne Lauf gehört zum letzten Lauf und stünde
+  // sonst in jedem früheren Lauf hinter allen anderen, auch wenn der Aufbau ihn weiter vorn nennt.
   const listen = veranstaltungsListen(konfig.value, state.value)
   return amParcours.value
     .filter((b) => klasse.value !== undefined && b.klassen.includes(klasse.value) && (b.lauf === lauf.value || konfig.value.getSheetDef(b.typeId).showLauf === false))
     .sort((a, b) => listen.indexOf(a.typeId) - listen.indexOf(b.typeId))
 })
 const bogen = computed(() => boegen.value.find((b) => b.typeId === wahl.value.liste) ?? boegen.value[0])
+
+/** Wert der Listen-Auswahl für „alle untereinander“; keine Liste heißt so (Kennungen sind Wörter). */
+const ALLE = '*'
+/**
+ * Der Blattstapel des Laufzettels (lib/laufzettel.ts), zu dem die gewählte Klasse gehört: bei
+ * der Clubmeisterschaft auch die Bögen der anderen Klassen des Stapels, die Knoten nur im
+ * letzten Lauf – genau die Blätter, die mit dem Zettel zur Auswertung kommen.
+ */
+const stapel = computed<WkrBogen[]>(() => {
+  if (parcoursId.value === undefined || klasse.value === undefined) return []
+  return stapelBoegen(alle.value, veranstaltungsListen(konfig.value, state.value), { parcoursId: parcoursId.value, klasse: klasse.value, lauf: lauf.value }, {
+    jeParcours: state.value.eventKind === 'club' && state.value.wkrClubGemeinsam,
+  })
+})
+const gestapelt = computed(() => wahl.value.liste === ALLE && stapel.value.length > 0)
+/** Was unter der Auswahl steht: der Stapel untereinander oder der eine gewählte Bogen. */
+const gezeigt = computed<WkrBogen[]>(() => (gestapelt.value ? stapel.value : bogen.value ? [bogen.value] : []))
 
 const titel = computed(() => {
   const jeTyp = new Map(boegen.value.map((b) => [b.typeId, b.titel]))
@@ -84,9 +106,22 @@ const titel = computed(() => {
   return new Map([...jeTyp].map(([typeId, text]) => [typeId, mehrfach(text) ? konfig.value.getSheetDef(typeId).menuLabel : text]))
 })
 
-const stand = computed(() =>
-  boegen.value.map((b) => ({ bogen: b, titel: titel.value.get(b.typeId) ?? b.titel, ...bogenFortschritt(konfig.value, state.value.eingaben, state.value.aufbau, b.auftrag) })),
-)
+/** Die Bögen des Überblicks: gestapelt die des Stapels (Sprungleiste), sonst die der Klasse (Umschalter). */
+const stand = computed(() => {
+  const liste = gestapelt.value ? stapel.value : boegen.value
+  // Im Stapel der Clubmeisterschaft kann eine Liste je Klasse einen eigenen Bogen haben.
+  const mehrfach = (typeId: string) => liste.filter((b) => b.typeId === typeId).length > 1
+  // Am Stand vorbei gelesen (er wird als Ganzes ersetzt): Gezählt wird bei jeder Eingabe über alle Zeilen aller Listen.
+  const { eingaben, aufbau } = toRaw(state.value)
+  return liste.map((b) => {
+    const name = titel.value.get(b.typeId) ?? konfig.value.getSheetDef(b.typeId).menuLabel
+    return {
+      bogen: b,
+      titel: mehrfach(b.typeId) ? `${name} – ${b.klassen.map((k) => classLabel(k)).join(', ')}` : name,
+      ...bogenFortschritt(konfig.value, eingaben, aufbau, b.auftrag),
+    }
+  })
+})
 const summe = computed(() => stand.value.reduce((s, x) => ({ erfasst: s.erfasst + x.erfasst, gesamt: s.gesamt + x.gesamt }), { erfasst: 0, gesamt: 0 }))
 
 function setze(feld: 'parcours' | 'klasse' | 'lauf' | 'liste', e: Event) {
@@ -100,6 +135,103 @@ function zeige(typeId: string) {
   wahl.value = { ...wahl.value, liste: typeId }
   scanBeenden()
 }
+
+// ---- Gestapelt: Sprungleiste ---------------------------------------------------
+
+const abschnitt = (bogenId: string) => document.querySelector<HTMLElement>(`.eingabe-stapel [data-abschnitt="${CSS.escape(bogenId)}"]`)
+
+/** Das nächste Bild abwarten; ohne `requestAnimationFrame` (Tests, alte Browser) eine kurze Pause. */
+const bild = () => new Promise<void>((fertig) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => fertig()) : setTimeout(fertig, 16)))
+let sprung = 0
+
+/** Zu einer Liste des Stapels rollen und den Cursor in ihre erste Zelle stellen. */
+async function springeZu(bogenId: string) {
+  const nr = ++sprung
+  sichtbar.value = new Set([...sichtbar.value, bogenId])
+  await nextTick()
+  const ziel = abschnitt(bogenId)
+  if (!ziel) return
+  ziel.scrollIntoView?.({ block: 'start' })
+  ziel.querySelector<HTMLInputElement>('.erf-tabelle tbody input.erf-feld')?.focus({ preventScroll: true })
+  // Den Knopf der Liste in der Sprungleiste ins Bild holen – am Telefon rollt sie quer. Nur die
+  // Leiste selbst wird gerollt, nicht die Seite.
+  const leiste = document.querySelector<HTMLElement>('.eingabe-sprung')
+  const knopf = leiste?.querySelector<HTMLElement>(`[data-sprung="${CSS.escape(bogenId)}"]`)
+  if (leiste && knopf) {
+    const l = leiste.getBoundingClientRect()
+    const k = knopf.getBoundingClientRect()
+    if (k.left < l.left + 16) leiste.scrollLeft += k.left - l.left - 16
+    else if (k.right > l.right - 16) leiste.scrollLeft += k.right - l.right + 16
+  }
+  // Mit dem Rollen kommen Platzhalter über dem Ziel in die Nähe des Fensters und werden zu
+  // Tabellen; ihre echte Höhe weicht von der geschätzten ab (am Telefon deutlich), und das Ziel
+  // rutscht. Deshalb über ein paar Bilder nachrichten, bis es unter der Sprungleiste steht –
+  // es sei denn, inzwischen wurde woandershin gesprungen oder das Ziel gibt es nicht mehr.
+  for (let i = 0; i < 6; i++) {
+    await bild()
+    await nextTick()
+    if (nr !== sprung || !ziel.isConnected) return
+    ziel.scrollIntoView?.({ block: 'start' })
+  }
+}
+
+/**
+ * Die Höhe der Kopfzeile der Anwendung, die beim Rollen stehen bleibt: Darunter hängt die
+ * Sprungleiste, und so viel Abstand halten die Listen beim Anspringen. Gemessen statt
+ * geschätzt – am Telefon bricht die Kopfzeile um und ist höher.
+ */
+const kopfHoehe = ref(0)
+let kopfWaechter: ResizeObserver | undefined
+function messeKopf() {
+  kopfHoehe.value = Math.round(document.querySelector<HTMLElement>('.topbar')?.getBoundingClientRect().height ?? 0)
+}
+
+/**
+ * Welche Listen des Stapels schon aufgebaut sind. Ein Stapel der Clubmeisterschaft hat schnell
+ * tausend Zeilen; aufgebaut wird eine Tabelle deshalb erst, wenn sie in die Nähe des Fensters
+ * kommt (bis dahin hält ein Platzhalter ihre ungefähre Höhe frei), und bleibt dann stehen –
+ * ein Feld, in dem gerade jemand tippt, darf nicht verschwinden. Ohne den Beobachter (alte
+ * Browser, Tests) ist alles sofort da.
+ */
+const sichtbar = ref<ReadonlySet<string>>(new Set())
+let naehe: IntersectionObserver | undefined
+const beobachtet = new Map<string, Element>()
+function beobachte(bogenId: string, el: unknown) {
+  const alt = beobachtet.get(bogenId)
+  if (alt === el) return
+  if (alt) naehe?.unobserve(alt)
+  if (el instanceof Element) {
+    beobachtet.set(bogenId, el)
+    naehe?.observe(el)
+  } else beobachtet.delete(bogenId)
+}
+const aufgebaut = (b: WkrBogen, i: number) => i === 0 || typeof IntersectionObserver !== 'function' || sichtbar.value.has(b.id)
+/** Ungefähre Höhe einer noch nicht aufgebauten Liste: Kopf, Fuß und eine Zeile je Starter. */
+const platz = (b: WkrBogen) => `${150 + 37 * b.auftrag.zeilen.length}px`
+
+onMounted(() => {
+  messeKopf()
+  const kopf = document.querySelector('.topbar')
+  if (kopf && typeof ResizeObserver === 'function') {
+    kopfWaechter = new ResizeObserver(messeKopf)
+    kopfWaechter.observe(kopf)
+  }
+  if (typeof IntersectionObserver === 'function') {
+    naehe = new IntersectionObserver(
+      (eintraege) => {
+        const neu = eintraege.filter((e) => e.isIntersecting).map((e) => (e.target as HTMLElement).dataset.abschnitt ?? '')
+        if (neu.some((bogenId) => !sichtbar.value.has(bogenId))) sichtbar.value = new Set([...sichtbar.value, ...neu])
+      },
+      // Eine gute Fensterhöhe voraus: Beim Rollen steht die Tabelle da, bevor sie zu sehen ist.
+      { rootMargin: '800px 0px' },
+    )
+    for (const el of beobachtet.values()) naehe.observe(el)
+  }
+})
+onBeforeUnmount(() => {
+  kopfWaechter?.disconnect()
+  naehe?.disconnect()
+})
 
 // ---- Scannen ----------------------------------------------------------------
 
@@ -130,7 +262,7 @@ const scan = computed(() => {
     t('lists.wkr.runN', { n: ziel.lauf }),
     ...(ziel.seite ? [t('scan.page', { n: ziel.seite })] : []),
   ]
-  return { code: s.code, treffer, lauf: ziel.lauf, teile }
+  return { code: s.code, treffer, lauf: ziel.lauf, zettel: ziel.typeId === undefined, teile }
 })
 
 /** Namen statt Kennungen für die Meldung: Gedrucktes und Eingestelltes. */
@@ -157,13 +289,16 @@ async function springe() {
   scanErledigt.nr = s.nr
   const treffer = scan.value?.treffer
   if (!treffer) return
-  wahl.value = { parcours: treffer.bogen.parcoursId, klasse: treffer.klasse, lauf: scan.value!.lauf, liste: treffer.bogen.typeId }
+  // Ein Laufzettel steht für den ganzen Stapel – alle seine Listen untereinander; ein Bogen für sich allein.
+  wahl.value = { parcours: treffer.bogen.parcoursId, klasse: treffer.klasse, lauf: scan.value!.lauf, liste: scan.value!.zettel ? ALLE : treffer.bogen.typeId }
   // Die Tabelle wird für den neuen Bogen neu aufgebaut.
   await nextTick()
   await nextTick()
   const zelle = document.querySelector<HTMLInputElement>('.erf-panel .erf-tabelle tbody input.erf-feld')
   zelle?.focus()
-  zelle?.scrollIntoView?.({ block: 'center' })
+  // Gestapelt an den Anfang des Stapels: Die Sprungleiste und die erste Liste sollen zu sehen sein.
+  if (gestapelt.value) document.querySelector('.eingabe-stapel')?.scrollIntoView?.({ block: 'start' })
+  else zelle?.scrollIntoView?.({ block: 'center' })
 }
 watch(() => scanStand.value?.nr, springe, { immediate: true })
 
@@ -183,6 +318,12 @@ function scanMitTab(e: KeyboardEvent) {
 
 /** Zur nächsten Liste, die noch nicht fertig ist – sonst einfach zur nächsten. */
 function weiter() {
+  if (gestapelt.value) {
+    // Gestapelt gibt es keine „aktuelle“ Liste: zur ersten, die noch nicht fertig ist.
+    const offen = stand.value.find((s) => s.erfasst < s.gesamt)
+    if (offen) void springeZu(offen.bogen.id)
+    return
+  }
   const i = boegen.value.findIndex((b) => b.id === bogen.value?.id)
   const danach = [...stand.value.slice(i + 1), ...stand.value.slice(0, i)]
   const ziel = danach.find((s) => s.erfasst < s.gesamt) ?? danach[0]
@@ -199,7 +340,7 @@ function weiter() {
 
     <p v-if="state.starters.length === 0" class="empty">{{ t('capture.empty') }}</p>
     <p v-else-if="alle.length === 0" class="boat-banner warn" role="status">
-      {{ t('capture.noSheets') }} <a href="#/verzahnung">{{ t('nav.verzahnung') }}</a>
+      {{ t('capture.noSheets') }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a>
     </p>
     <template v-else>
       <EingabenHinweis />
@@ -229,14 +370,15 @@ function weiter() {
         </div>
         <div class="field">
           <label :for="`${id}-liste`">{{ t('lists.wkr.list') }}</label>
-          <select :id="`${id}-liste`" class="input" data-feld="erf-liste" :value="bogen?.typeId" @change="setze('liste', $event)">
-            <option v-for="s in stand" :key="s.bogen.id" :value="s.bogen.typeId">{{ s.titel }}</option>
+          <select :id="`${id}-liste`" class="input" data-feld="erf-liste" :value="gestapelt ? ALLE : bogen?.typeId" @change="setze('liste', $event)">
+            <option v-for="b in boegen" :key="b.id" :value="b.typeId">{{ titel.get(b.typeId) ?? b.titel }}</option>
+            <option :value="ALLE">{{ t('capture.allStacked') }}</option>
           </select>
         </div>
       </div>
 
-      <!-- Überblick über den Lauf der Klasse: je Liste, wie viel abgetippt ist. -->
-      <div class="eingabe-listen" role="group" :aria-label="t('capture.overview')">
+      <!-- Überblick über den Lauf der Klasse: je Liste, wie viel abgetippt ist. Gestapelt steht er als Sprungleiste über den Listen. -->
+      <div v-if="!gestapelt" class="eingabe-listen" role="group" :aria-label="t('capture.overview')">
         <button
           v-for="s in stand"
           :key="s.bogen.id"
@@ -251,8 +393,12 @@ function weiter() {
         </button>
       </div>
       <div class="row" style="align-items: center">
-        <p class="note eingabe-summe" role="status" style="flex: 1; margin: 0">{{ t('capture.sum', { done: summe.erfasst, total: summe.gesamt, sheets: stand.length }) }}</p>
-        <button type="button" class="btn" data-action="weiter" :disabled="stand.length < 2" @click="weiter">{{ t('capture.next') }} →</button>
+        <p class="note eingabe-summe" role="status" style="flex: 1; margin: 0">
+          {{ t(gestapelt ? 'capture.sumStack' : 'capture.sum', { done: summe.erfasst, total: summe.gesamt, sheets: stand.length }) }}
+        </p>
+        <button type="button" class="btn" data-action="weiter" :disabled="gestapelt ? summe.erfasst >= summe.gesamt : stand.length < 2" @click="weiter">
+          {{ t(gestapelt ? 'capture.nextOpen' : 'capture.next') }} {{ gestapelt ? '↓' : '→' }}
+        </button>
       </div>
       <div class="scan-feld">
         <label :for="`${id}-scan`">{{ t('scan.label') }}</label>
@@ -272,7 +418,7 @@ function weiter() {
       </div>
       <p class="note">{{ t('scan.hint') }}</p>
       <p class="note">
-        {{ t('capture.results') }} <a href="#/listen">{{ t('nav.listen') }}</a
+        {{ t('capture.results') }} <a :href="adresse('listen')">{{ t('nav.listen') }}</a
         >.
       </p>
       <!-- Parallel-Slalom: eigener Wettkampf, eigener Aufbau – entsteht zuerst im Fehlerpunkte-Prototyp. -->
@@ -282,7 +428,28 @@ function weiter() {
     </template>
   </div>
 
-  <div v-if="bogen" class="panel erf-panel">
+  <!-- Der Blattstapel eines Laufzettels: alle Listen untereinander, darüber mitlaufend die Sprungleiste. -->
+  <div v-if="gestapelt" class="eingabe-stapel" :style="{ '--kopf-hoehe': `${kopfHoehe}px` }">
+    <nav class="eingabe-sprung" :aria-label="t('capture.jump')">
+      <button
+        v-for="s in stand"
+        :key="s.bogen.id"
+        type="button"
+        :class="['eingabe-chip', { fertig: s.gesamt > 0 && s.erfasst === s.gesamt }]"
+        :data-sprung="s.bogen.id"
+        :data-liste="s.bogen.typeId"
+        @click="springeZu(s.bogen.id)"
+      >
+        <span class="eingabe-chip-titel">{{ s.titel }}</span>
+        <span class="eingabe-chip-zahl">{{ s.erfasst }}/{{ s.gesamt }}</span>
+      </button>
+    </nav>
+    <div v-for="(b, i) in gezeigt" :key="b.id" :ref="(el) => beobachte(b.id, el)" class="panel erf-panel" :data-abschnitt="b.id">
+      <ErfassungTabelle v-if="aufgebaut(b, i)" :bogen="b" />
+      <div v-else class="erf-platz" :style="{ height: platz(b) }" aria-hidden="true" />
+    </div>
+  </div>
+  <div v-else-if="bogen" class="panel erf-panel">
     <ErfassungTabelle :key="bogen.id" :bogen="bogen" />
   </div>
 </template>

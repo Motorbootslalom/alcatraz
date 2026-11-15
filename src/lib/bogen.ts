@@ -87,6 +87,15 @@ export interface BogenOptionen {
   klassenBloecke?: boolean
   /** Abweichende Zahl der Leerzeilen je Klasse (nur mit `klassenBloecke`); fehlt = `leerzeilen`. */
   leerzeilenJeKlasse?: Readonly<Record<string, number>>
+  /**
+   * Nur mit `klassenBloecke` (Clubmeisterschaft, Papier sparen): Die Klassen einer Seite
+   * teilen sich die Leerzeilen. Statt nach jeder Klasse stehen so viele einmal am Ende jeder
+   * Seite, unter einer eigenen Zwischenüberschrift („Nachmeldungen“) – sonst sähen sie aus
+   * wie Zeilen der letzten Klasse. `leerzeilen` und `leerzeilenJeKlasse` gelten dann nicht.
+   * Kosteten sie allein ein weiteres Blatt, entfallen sie bis auf eine (wie bei den Zeilen
+   * je Klasse).
+   */
+  leerzeilenJeSeite?: number
   /** Gemessen: so viele Tabellenzeilen (Starter, Leerzeilen, Zwischenüberschriften) passen auf ein Blatt. */
   zeilenKapazitaet?: number
   /** Füllt die Zellen, sobald es Eingaben gibt: Zeilenschlüssel, Spalte, Unter-Spalte → Text. */
@@ -309,20 +318,34 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
   let seitenKlassen: string[][] | undefined
   const zeilenKap = optionen.zeilenKapazitaet ?? 0
   if (bloecke) {
-    // Je Klasse ein Block: ihre Starter in der gegebenen Reihenfolge, dann ihre Leerzeilen.
+    // Je Klasse ein Block: ihre Starter in der gegebenen Reihenfolge, dann ihre Leerzeilen –
+    // außer die Klassen einer Seite teilen sie sich (`leerzeilenJeSeite`, siehe unten).
+    const geteilt = optionen.leerzeilenJeSeite !== undefined
     const jeKlasse = klassen.map((k) => {
       const zeilen: Roh[] = auftrag.zeilen.filter((z) => z.klasse === k).map(starter)
-      const leer = optionen.leerzeilenJeKlasse?.[k] ?? leerzeilen
+      const leer = geteilt ? 0 : (optionen.leerzeilenJeKlasse?.[k] ?? leerzeilen)
       // Die Leerzeile gehört zur Klasse, hat aber keine Klasse im Sinn der Spalten: Jede Zelle ist beschreibbar.
       for (let i = 0; i < leer; i++) zeilen.push({ key: `_k${k}_x${i}`, nr: '', fixed: false })
       return zeilen
     })
     let nummer = 0
     const leerJe = jeKlasse.map((z) => z.filter((x) => !x.fixed).length)
-    const teileJeSeite = blockSeiten(jeKlasse.map((z) => z.length), zeilenKap, leerJe)
+    const laengen = jeKlasse.map((z) => z.length)
+    // Geteilte Leerzeilen: Am Ende jeder Seite bleibt Platz für sie und ihre Überschrift.
+    const mitLeer = (n: number) => blockSeiten(laengen, zeilenKap > 0 ? Math.max(2, zeilenKap - (n > 0 ? n + 1 : 0)) : 0)
+    let leerJeSeite = geteilt ? Math.max(0, Math.floor(optionen.leerzeilenJeSeite ?? 0)) : 0
+    if (geteilt && zeilenKap > 0) {
+      // Neben ihnen müssen eine Klassen-Überschrift und eine Zeile auf das Blatt passen.
+      leerJeSeite = Math.min(leerJeSeite, Math.max(0, zeilenKap - 3))
+      // Leerzeilen sind kein Grund für ein weiteres Blatt: so viele, wie ohne Mehrverbrauch
+      // gehen – mindestens eine, wenn welche gewünscht sind.
+      const blaetter = mitLeer(Math.min(1, leerJeSeite)).length
+      while (leerJeSeite > 1 && mitLeer(leerJeSeite).length > blaetter) leerJeSeite--
+    }
+    const teileJeSeite = geteilt ? mitLeer(leerJeSeite) : blockSeiten(laengen, zeilenKap, leerJe)
     seitenKlassen = teileJeSeite.map((teile) => teile.map((t) => klassen[t.block]))
-    seitenZeilen = teileJeSeite.map((teile) =>
-      teile.flatMap(({ block, von, bis }) => {
+    seitenZeilen = teileJeSeite.map((teile, pageIndex) => {
+      const zeilen = teile.flatMap(({ block, von, bis }) => {
         const k = klassen[block]
         const kopf: Roh = {
           key: `_k${k}_kopf${von}`,
@@ -332,8 +355,15 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
           fixed: false,
         }
         return [fertig(kopf, 0), ...jeKlasse[block].slice(von, bis).map((z) => fertig(z, ++nummer))]
-      }),
-    )
+      })
+      if (leerJeSeite > 0) {
+        // Ohne Klasse: Jede Zelle ist beschreibbar – wer nachgemeldet wird, kann in jeder Klasse
+        // fahren. Gezählt wird für die graue Zeile wie sonst: auf der Seite weiter, nicht darüber hinaus.
+        zeilen.push(fertig({ key: `_p${pageIndex}_nach`, nr: '', zwischen: texte.nachmeldungen, fixed: false }, 0))
+        for (let i = 0; i < leerJeSeite; i++) zeilen.push(fertig({ key: `_p${pageIndex}_x${i}`, nr: '', fixed: false }, nummer + i + 1))
+      }
+      return zeilen
+    })
   } else if (zeilenJeSeite <= 0 && leerzeilen > 0 && zeilenKap > 0 && auftrag.zeilen.length + leerzeilen > zeilenKap && zeilenKap - leerzeilen <= leerzeilen) {
     // Wenig Platz (große Beschreibung, z. B. Baden-Württemberg „Wasser 1“ mit 5 Zeilen je
     // Blatt): Leerzeilen auf jeder Seite ließen den Startern höchstens die Hälfte – sechs

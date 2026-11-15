@@ -26,7 +26,7 @@ describe('Regelwerke und Aufbauten', () => {
     expect(AUFBAUTEN.find((a) => a.id === 'parallel')?.disziplin).toBe('parallel')
   })
 
-  it('nennt die Standardgewichte des Regelwerks – DM und UIM unterscheiden sich', () => {
+  it('nennt die Durchschnittsgewichte des Regelwerks – DM und UIM unterscheiden sich', () => {
     expect(regelwerkOf('dm-2026').gewichte).toEqual({ E: 26, '1': 33, '2': 42, '3': 52, '4': 65, '5': 72, '6': 75, '7': 78 })
     expect(regelwerkOf('uim-2026').gewichte).toEqual({ E: 26, '1': 32, '2': 40, '3': 52, '4': 64, '5': 71 })
     expect(sollgewichtOf('uim-2026', {}, '2')).toBe(40)
