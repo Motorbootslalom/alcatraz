@@ -29,7 +29,13 @@ export function useEvent() {
   /** „Klasse 3“ – oder der Name aus dem Regelwerk, z. B. „Dolphin“. */
   const classLabel = (id: ClassId) => regelwerk.value.klassenNamen[id] ?? t('common.class', { id })
 
+  /** Die Klasse in einer Spalte „Klasse“: ihr Name, wenn das Regelwerk einen hat („Dolphin“), sonst die Kennung („3“). */
+  const classCell = (id: ClassId) => regelwerk.value.klassenNamen[id] ?? id
+
+  /** Das Kurzzeichen für die runden Marken der Oberfläche: aus dem Regelwerk („D“), sonst die Kennung. */
+  const classBadge = (id: ClassId) => regelwerk.value.klassenKurz[id] ?? id
+
   const parallel = computed(() => hasParallel(state.value.regelwerk))
 
-  return { regelwerk, classes, foreignClasses, classLabel, parallel }
+  return { regelwerk, classes, foreignClasses, classLabel, classCell, classBadge, parallel }
 }

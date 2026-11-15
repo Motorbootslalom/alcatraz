@@ -6,11 +6,11 @@
 
 # Eine Disziplin bündelt Aufbauten, die sich die Eingaben teilen: Parallelslalom hat eigene
 # Werte, die beim Wechsel zu Manövrieren und zurück erhalten bleiben. `ergebnisspalten` legt
-# die Spalten der Ergebnislisten fest, in der Reihenfolge des Fahrwegs.
+# die Spalten der Wertungslisten fest, in der Reihenfolge des Fahrwegs.
 disziplinen:
   - id: manoevrieren
     name: Manövrieren
-    # Die Spalten der Ergebnisliste entstehen aus dem Fahrweg (src/config/kurzform.ts), in der
+    # Die Spalten der Wertungsliste entstehen aus dem Fahrweg (src/config/kurzform.ts), in der
     # Reihenfolge der Fahrt: Steg AB, Start, 1 H … 4 H, 5 (mit E), 4 R … 1 R, MüB, S1, S2,
     # 1 R (Speedrunde), Ziel, Steg AN.
     ergebnisspalten: fahrweg
@@ -50,6 +50,10 @@ positionen:
     schnellauswahl: true   # in keinem Aufbau - nur über die Schnellauswahl
     ausrichtung: hoch
     disq: vorsteg
+    # „Versuche direkt nacheinander“ (UIM 960, Pkt. 4.3.2): Am Vorsteg kommt der Starter trotzdem
+    # nur einmal vorbei – eine Zeile je Starter, gültig für jeden Versuch (Entscheidung des
+    # Nutzers vom 15.11.2026).
+    einmalJeStarter: true
     # Zwei getrennte Fehler-Spalten mit je eigenem Katalog (per-Spalte statt
     # position-weit). Jede Spalte lässt nur ihre Codes + Disqualifikationen zu.
     spalten:

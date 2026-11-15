@@ -61,7 +61,7 @@ const seitenZeilen = computed(() =>
         label: z.label,
         klassen: g.label,
         // Bei einem einseitigen Bogen genügt der Name der Liste.
-        seite: g.seiten > 1 ? t('runsheet.pageN', { n: i + 1 }) : undefined,
+        seite: g.seiten <= 1 ? undefined : t('runsheet.pageN', { n: i + 1 }),
       })),
     ),
   ),
@@ -89,11 +89,15 @@ async function fit() {
   await nextTick()
   // Ohne Layout (Test-DOM) gibt es nichts zu messen.
   if (diese !== messung || !obenEl.value || obenEl.value.clientHeight === 0) return
-  while (!passt() && stufe.value < STUFEN.value.length - 1) {
-    stufe.value++
-    await nextTick()
-    if (diese !== messung) return
+  const verdichte = async () => {
+    while (!passt() && stufe.value < STUFEN.value.length - 1) {
+      stufe.value++
+      await nextTick()
+      if (diese !== messung) return false
+    }
+    return true
   }
+  if (!(await verdichte())) return
   zuViel.value = !passt()
 }
 onMounted(fit)

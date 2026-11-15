@@ -35,7 +35,7 @@ describe('App', () => {
     expect(wrapper.text()).toContain('Starter verwalten')
     setLocale('en')
     await nextTick()
-    expect(wrapper.text()).toContain('Manage competitors')
+    expect(wrapper.text()).toContain('Manage drivers')
     expect(wrapper.text()).not.toContain('Starter verwalten')
     setLocale('de')
 

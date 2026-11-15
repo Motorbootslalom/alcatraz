@@ -142,7 +142,7 @@ describe('Seitenzahlen: jede Liste zählt ihre Seiten selbst', () => {
     wrapper.unmount()
   })
 
-  it('Ergebnislisten: je Liste ein Dokument; der Zeitstempel „Letzte Änderung“ steht auf jeder Seite', async () => {
+  it('Wertungslisten: je Liste ein Dokument; der Zeitstempel „Letzte Änderung“ steht auf jeder Seite', async () => {
     const n = SEITEN_VORGABE.ergebnisLauf + 6
     store.dispatch({ type: 'ADD_STARTERS', starters: starter(['1', '4'], { '1': n, '4': 3 }) })
     for (const p of store.state.value.starters) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PRINT_RESERVE_MM, PX_PER_MM, printableHeightPx } from './paging'
-import { ERGEBNIS_FUSS_MM, SEITENZAHL_MM, listenSeiten, zeilenDerSeite, zeilenPlatzPx } from './seiten'
+import { ERGEBNIS_FUSS_MM, ERGEBNIS_FUSS_UNTERSCHRIFT_MM, SEITENZAHL_MM, ergebnisFussMm, listenSeiten, zeilenDerSeite, zeilenPlatzPx } from './seiten'
 
 /** Kurzschrift: je Seite die Stücke als „Block:von-bis“. */
 const kurz = (laengen: number[], kapazitaet: number) => listenSeiten(laengen, kapazitaet).map((s) => s.map((t) => `${t.block}:${t.von}-${t.bis}`).join(' '))
@@ -131,11 +131,20 @@ describe('zeilenPlatzPx: Platz für die Zeilen aus der Messung', () => {
     expect(zeilenPlatzPx(31 * PX_PER_MM, 210)).toBeCloseTo(153 * PX_PER_MM, 6)
   })
 
-  it('ein höherer Fuß (Ergebnislisten: Stichentscheid, Seitenzahl, letzte Änderung) nimmt den Zeilen seinen Platz', () => {
+  it('ein höherer Fuß (Wertungslisten: Stichentscheid, Seitenzahl, letzte Änderung) nimmt den Zeilen seinen Platz', () => {
     // A4 quer: 210 − 16 Rand − 5 Reserve − 12 Fuß − 31 Kopf = 146 mm – 7 mm weniger als mit der bloßen Seitenzahl.
     expect(ERGEBNIS_FUSS_MM).toBe(12)
     expect(zeilenPlatzPx(31 * PX_PER_MM, 210, ERGEBNIS_FUSS_MM)).toBeCloseTo(146 * PX_PER_MM, 6)
     expect(zeilenPlatzPx(31 * PX_PER_MM, 210) - zeilenPlatzPx(31 * PX_PER_MM, 210, ERGEBNIS_FUSS_MM)).toBeCloseTo((ERGEBNIS_FUSS_MM - SEITENZAHL_MM) * PX_PER_MM, 6)
+  })
+
+  it('mit Unterschrift und Uhrzeit des Aushangs (UIM 960, Pkt. 5.2) ist der Fuß 10 mm höher – nur dort, wo das Regelwerk sie verlangt', () => {
+    expect(ERGEBNIS_FUSS_UNTERSCHRIFT_MM).toBe(22)
+    expect(ergebnisFussMm(true)).toBe(22)
+    expect(ergebnisFussMm(false)).toBe(ERGEBNIS_FUSS_MM)
+    expect(ergebnisFussMm(undefined)).toBe(ERGEBNIS_FUSS_MM)
+    // A4 quer: 210 − 16 Rand − 5 Reserve − 22 Fuß − 31 Kopf = 136 mm.
+    expect(zeilenPlatzPx(31 * PX_PER_MM, 210, ergebnisFussMm(true))).toBeCloseTo(136 * PX_PER_MM, 6)
   })
 
   it('füllt der Kopf das Blatt, bleibt kein Platz – die Teilung gibt dann jeder Zeile eine Seite', () => {

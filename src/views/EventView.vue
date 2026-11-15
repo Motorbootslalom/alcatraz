@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
-import { manoeverAufbauten, REGELWERKE } from '../config/catalog'
+import { aufbauFuer, manoeverAufbauten, PARALLEL, REGELWERKE } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { t } from '../i18n'
 import type { EventKind, OriginMode } from '../types'
@@ -11,7 +11,7 @@ import BeispieldatenPanel from '../components/BeispieldatenPanel.vue'
 import BesetzungPanel from '../components/BesetzungPanel.vue'
 import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
 import EingabenHinweis from '../components/EingabenHinweis.vue'
-import { PROTOTYP_URL } from '../lib/prototyp'
+import { starterfeldFest } from '../lib/eingaben'
 
 /**
  * Die Veranstaltung selbst: Name, Jahr, Regelwerk, Aufbau – und im Block „Besetzung“
@@ -25,8 +25,14 @@ const { regelwerk, classLabel, foreignClasses, parallel } = useEvent()
 
 // Mitgelieferte Aufbauten und dahinter die eigenen aus den Einstellungen.
 const aufbauten = computed(() => manoeverAufbauten(state.value.eigeneAufbauten))
+/** Der Aufbau des Parallelslaloms – nur zur Anzeige: Es gibt bisher genau einen. */
+const parallelAufbau = computed(() => aufbauFuer(PARALLEL))
 
 const vorschauOffen = merke('veranstaltung.vorschau', false, { ueberNeuladen: true })
+
+// Sobald Ergebnisse erfasst sind, lässt sich das Regelwerk nicht mehr wechseln (der Reducer
+// lehnt es ebenfalls ab): Listen, Felder und Wertung hängen daran.
+const regelwerkFest = computed(() => starterfeldFest(state.value))
 
 const KINDS: EventKind[] = ['meisterschaft', 'club']
 const ORIGINS: OriginMode[] = ['verein', 'bundesland', 'land', 'none']
@@ -117,11 +123,15 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
             type="button"
             :class="state.regelwerk === r.id ? 'active' : ''"
             :aria-pressed="state.regelwerk === r.id"
+            :disabled="regelwerkFest && state.regelwerk !== r.id"
+            :title="regelwerkFest && state.regelwerk !== r.id ? t('event.rulebookLocked') : undefined"
+            :data-regelwerk="r.id"
             @click="dispatch({ type: 'SET_REGELWERK', regelwerk: r.id })"
           >
             {{ r.label }}
           </button>
         </div>
+        <p v-if="regelwerkFest" class="note" data-hinweis="regelwerk-gesperrt" role="status">{{ t('event.rulebookLocked') }}</p>
       </div>
       <div class="field" style="min-width: 220px">
         <label for="ev-aufbau">{{ parallel ? t('event.setupManoever') : t('event.setup') }}</label>
@@ -145,11 +155,10 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
       {{ parallel ? t('event.rulebookNote.parallel') : t('event.rulebookNote.manoever') }}
       {{ t('event.setupNote') }}
     </p>
-    <!-- Der Parallel-Slalom ist ein eigener Wettkampf auf einem anderen Parcours und braucht
-         einen eigenen Aufbau. Der entsteht zuerst im Fehlerpunkte-Prototyp und wird dort erprobt. -->
-    <p v-if="parallel" class="boat-banner ok">
-      {{ t('event.parallelSetup') }}
-      <a :href="PROTOTYP_URL" target="_blank" rel="noopener">{{ t('event.parallelSetupLink') }}</a>
+    <!-- Der Parallelslalom ist ein eigener Wettkampf auf einem anderen Parcours und hat einen
+         eigenen Aufbau (config/aufbauten/parallel.yaml) – bisher genau einen, zu wählen gibt es nichts. -->
+    <p v-if="parallel && parallelAufbau" class="note" data-hinweis="parallel-aufbau">
+      {{ t('event.parallelSetup', { setup: parallelAufbau.name }) }}
     </p>
     <p v-if="foreignClasses.length > 0" class="boat-banner warn" role="status">
       {{ t('event.foreignClasses', { rulebook: regelwerk.label, classes: foreignClasses.map((c) => classLabel(c.id)).join(', ') }) }}

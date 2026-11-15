@@ -1,9 +1,16 @@
 import type { ClassId, Starter } from '../types'
 import { sizeRank } from './sizes'
 
-/** Startnummern-Präfix je Klasse: E → "E", numerische Klassen → die Ziffer. */
-export function startNrPrefix(klasse: ClassId): string {
-  return klasse
+/**
+ * Was vor der laufenden Nummer einer klassenbezogenen Startnummer steht, je Klasse – soweit
+ * das Regelwerk es nennt (YAML `startNrPraefix`, z. B. { E: E }: E01 auch dort, wo die Klasse
+ * „Dolphin“ heißt). Für jede Klasse, die fehlt, steht ihre Kennung davor.
+ */
+export type StartNrPraefixe = Partial<Record<ClassId, string>>
+
+/** Startnummern-Präfix je Klasse: was das Regelwerk nennt, sonst die Kennung (E → "E", 1 → "1"). */
+export function startNrPrefix(klasse: ClassId, praefixe?: StartNrPraefixe): string {
+  return praefixe?.[klasse] ?? klasse
 }
 
 /** Zweistellig auffüllen (E → E01), größere Zahlen bleiben unverändert. */
@@ -12,32 +19,57 @@ function pad2(n: number): string {
 }
 
 /** Baut eine klassenbasierte Startnummer aus Klasse und laufender Nummer. */
-export function makeStartNr(klasse: ClassId, n: number): string {
-  return startNrPrefix(klasse) + pad2(n)
+export function makeStartNr(klasse: ClassId, n: number, praefixe?: StartNrPraefixe): string {
+  return startNrPrefix(klasse, praefixe) + pad2(n)
 }
+
+/**
+ * Die Buchstaben, die vor den Nummern der Klasse E (Dolphin) stehen können: Der Buchstabe lässt
+ * sich in den Einstellungen umstellen (E oder D, config/catalog.ts `startNrPraefixe`), die schon
+ * vergebenen Nummern bleiben dabei, wie sie sind.
+ */
+const DOLPHIN_PRAEFIXE = ['E', 'D'] as const
 
 /**
  * Liest die laufende Nummer aus einer klassenbasierten Startnummer (Präfix +
  * Zahl). Liefert `null`, wenn das Präfix der Klasse fehlt oder kein numerischer
  * Teil vorhanden ist (z. B. importierte Nummern in anderem Schema).
+ *
+ * In der Klasse E zählen beide Buchstaben: Nach dem Umstellen von E auf D (oder zurück) geht die
+ * Zählung bei der höchsten vergebenen Nummer weiter – sonst bekäme der nächste D01 neben E01,
+ * und in der Sortierung stünde der Neue vor allen bisherigen.
  */
-export function parseClassNumber(startNr: string, klasse: ClassId): number | null {
-  const prefix = startNrPrefix(klasse)
-  if (!startNr.startsWith(prefix)) return null
-  const num = parseInt(startNr.slice(prefix.length), 10)
+export function parseClassNumber(startNr: string, klasse: ClassId, praefixe?: StartNrPraefixe): number | null {
+  const prefix = startNrPrefix(klasse, praefixe)
+  const moegliche = klasse === 'E' ? [prefix, ...DOLPHIN_PRAEFIXE] : [prefix]
+  const passt = moegliche.find((p) => startNr.startsWith(p))
+  if (passt === undefined) return null
+  const num = parseInt(startNr.slice(passt.length), 10)
   return Number.isNaN(num) ? null : num
 }
 
 /**
- * Vergleich innerhalb einer Klasse: numerisch nach der ganzen Startnummer
- * (E01 < E02 < E10, 301 < 311, aber auch importierte 7 < 12); Nummern ohne
- * Ziffern ans Ende.
+ * Startnummern vergleichen – die EINE Stelle dafür, damit jede Liste gleich sortiert. Numerisch
+ * nach der ganzen Nummer (E01 < E02 < E10, 301 < 311, 7 < 12). Ein Präfix aus Buchstaben vor
+ * den Ziffern zählt wie eine 0 (Entscheidung des Nutzers vom 15.11.2026): E01 und D01 stehen wie
+ * 001 vor 101, 201 … – die Klasse mit Präfix ist die jüngste und fährt zuerst. Ohne das stünden
+ * Buchstaben hinter allen Ziffern. Bei gleichem Wert (E01 und 1) entscheidet die Schreibweise,
+ * damit die Reihenfolge fest ist.
+ */
+export function vergleicheStartNr(a: string, b: string): number {
+  const wert = (nr: string) => nr.trim().replace(/^[A-Za-zÄÖÜäöü]+(?=\d)/, '0')
+  return wert(a).localeCompare(wert(b), 'de', { numeric: true }) || a.trim().localeCompare(b.trim(), 'de', { numeric: true })
+}
+
+/**
+ * Vergleich innerhalb einer Klasse: nach der Startnummer ({@link vergleicheStartNr}); Nummern
+ * ohne Ziffern ans Ende.
  */
 function byNumber(a: Starter, b: Starter): number {
   const da = /\d/.test(a.startNr)
   const db = /\d/.test(b.startNr)
   if (da !== db) return da ? -1 : 1
-  return a.startNr.localeCompare(b.startNr, 'de', { numeric: true })
+  return vergleicheStartNr(a.startNr, b.startNr)
 }
 
 /** Teilnehmer einer Klasse in der aktuellen Startnummern-Reihenfolge. */
@@ -62,8 +94,8 @@ export function orderBySize(list: Starter[]): Starter[] {
  * Weist einer geordneten Starter-Liste fortlaufende klassenbasierte Startnummern
  * (1, 2, 3 …) zu und liefert die aktualisierten Teilnehmer in Eingangsreihenfolge.
  */
-export function renumberSequential(ordered: Starter[]): Starter[] {
-  return ordered.map((p, i) => ({ ...p, startNr: makeStartNr(p.klasse, i + 1) }))
+export function renumberSequential(ordered: Starter[], praefixe?: StartNrPraefixe): Starter[] {
+  return ordered.map((p, i) => ({ ...p, startNr: makeStartNr(p.klasse, i + 1, praefixe) }))
 }
 
 /**

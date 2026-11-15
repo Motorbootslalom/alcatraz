@@ -197,6 +197,14 @@ describe('Regeln der Kurzform', () => {
     expect(p.hinweis).toBe('parcours')
   })
 
+  it('„Parcours einfach (nur Fahrweg)“ ohne Bojen hat keine Σ-Spalte: Dort werden Disqualifikationen bewertet, keine Bojenfehler (Entscheidung des Nutzers)', () => {
+    const p = positionen().find((x) => x.id === 'parcours')!
+    expect(kurz(p.spalten)).toEqual(['bemerkung', 'disq'])
+    expect(p.summeSpalte).toBeUndefined()
+    // Erst mit den Bojen von Start und Ziel gibt es Fehlerpunkte – und mit ihnen die Summe.
+    expect(kurz(positionen().find((x) => x.id === 'parcoursms')!.spalten)).toContain('sum')
+  })
+
   it('jedes Feld der ausführlichen Form gewinnt, `hinweis: keiner` lässt den Hinweis weg', () => {
     const p = kurzformPosition({ id: 'x', titel: 'X', blick: 'links', bojen: ['Tor2'], bild: 'eigen', bildDrehung: 0, hinweis: 'keiner' })
     expect(p).toMatchObject({ bild: 'eigen', bildDrehung: 0 })

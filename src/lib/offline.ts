@@ -5,15 +5,22 @@ import { reactive } from 'vue'
  *
  * Der Speicher selbst ist ein Service Worker (scripts/offline-sw.js, beim Build als `sw.js`
  * geschrieben). Hier steht, was die Seite dazu tut: anmelden, den Stand erfragen und eine neue
- * Fassung erst auf Knopfdruck übernehmen. Nichts lädt von selbst neu.
+ * Fassung übernehmen.
  *
- * Eine neue Fassung im Einzelnen:
+ * Ein Wettkampf dauert zwei bis vier Tage, der Rechner wird zwischendurch neu gestartet. Solange
+ * Starter oder Ergebnisse im Stand sind, wechselt die Fassung deshalb NIE von selbst:
  * 1. Der Browser sieht beim Öffnen oder Neuladen der Seite nach (und bei „Nach neuer Fassung
  *    suchen“). Findet er eine, lädt er sie vollständig in einen eigenen Cache.
- * 2. Sie WARTET. Die laufende Fassung bedient weiter alle Fenster – auch nach Neuladen.
- * 3. Übernommen wird mit `uebernehmen()` (dann lädt dieses Fenster neu) oder vom Browser, sobald
- *    kein Fenster der alten Fassung mehr offen ist; das nächste Öffnen zeigt dann die neue.
+ * 2. Ausgeliefert wird weiter die GÜLTIGE Fassung – ein Zeiger im Offline-Speicher nennt sie. Er
+ *    hängt nicht daran, welcher Service Worker läuft: Auch wenn der Browser den neuen aktiviert
+ *    (alle Fenster zu, Neustart), bleibt es bei der alten Fassung.
+ * 3. Liegt eine andere Fassung vollständig bereit, meldet `offline.neu` das (Knopf „Update“ in
+ *    der Kopfzeile). `uebernehmen()` setzt den Zeiger um und lädt dieses Fenster neu.
  * 4. Andere offene Fenster laden nicht von selbst neu; sie melden `ersetzt`.
+ * 5. Ist der Stand leer (keine Starter), gibt es nichts zu schützen: Dann übernimmt die Seite
+ *    eine bereitliegende Fassung beim Start von selbst (`darfVonSelbst`).
+ * Andere Wege zu einer neuen Fassung gibt es nicht – auch keinen Übergang für Fassungen von vor
+ * dem Zeiger (Entscheidung des Nutzers vom 15.11.2026: Die Anwendung ist noch in Entwicklung).
  */
 export type OfflineLage = 'bereit' | 'vorbereiten' | 'nicht-verfuegbar'
 /** Warum es keinen Offline-Speicher gibt. `datei`: Ein-Datei-Fassung von `file://` – sie braucht keinen. */
@@ -32,12 +39,17 @@ export interface OfflineZustand {
   /** Eine neue Fassung liegt vollständig bereit und wartet auf `uebernehmen()`. */
   neu: boolean
   neuFassung: string
+  /** Zeitpunkt ihres Commits und ihres Builds (ISO); leer, wenn der Speicher sie nicht nennt. */
+  neuCommitZeit: string
+  neuZeit: string
+  /** `uebernehmen()` läuft: Gleich lädt das Fenster neu. */
+  uebernimmt: boolean
   /** Eine neue Fassung wird gerade geladen. */
   laedtNeu: boolean
   /** In einem anderen Fenster wurde übernommen: Dieses läuft noch mit der alten Fassung. */
   ersetzt: boolean
   /** Ergebnis von „Nach neuer Fassung suchen“. */
-  suche: '' | 'laeuft' | 'aktuell' | 'neu' | 'kein-netz' | 'fehlgeschlagen'
+  suche: '' | 'laeuft' | 'aktuell' | 'laedt' | 'neu' | 'unvollstaendig' | 'kein-netz' | 'fehlgeschlagen'
   dauerhaft: Dauerhaft
   /** Die Zusage wurde gerade von Hand angefragt und abgelehnt. */
   abgelehnt: boolean
@@ -50,6 +62,9 @@ export const offline = reactive<OfflineZustand>({
   eindatei: false,
   neu: false,
   neuFassung: '',
+  neuCommitZeit: '',
+  neuZeit: '',
+  uebernimmt: false,
   laedtNeu: false,
   ersetzt: false,
   suche: '',
@@ -57,12 +72,27 @@ export const offline = reactive<OfflineZustand>({
   abgelehnt: false,
 })
 
-/** Was der Service Worker auf `{ typ: 'stand' }` antwortet. */
-export interface SpeicherStand {
+/** Eine Fassung im Offline-Speicher, wie der Service Worker sie beschreibt. */
+export interface FassungStand {
+  /** Prüfsumme über die Dateiliste – daran wird eine Fassung erkannt. */
+  kennung: string
   fassung: string
+  commitZeit?: string
+  zeit?: string
   dateien: number
   fehlend: number
   eindatei?: boolean
+}
+
+/**
+ * Was der Service Worker auf `{ typ: 'stand' }` antwortet: `gueltig` ist die Fassung, die er
+ * ausliefert (der Zeiger; fehlt nur, wenn ihre Dateiliste verloren ist), `eigen` seine eigene.
+ * Die beiden unterscheiden sich, wenn der Browser einen neuen Service Worker aktiviert hat,
+ * während alle Fenster zu waren: Er liefert weiter die alte Fassung aus.
+ */
+export interface SpeicherStand {
+  gueltig?: FassungStand
+  eigen: FassungStand
 }
 
 /**
@@ -74,7 +104,8 @@ export function offlineLage(e: {
   entwicklung: boolean
   kannSpeicher: boolean
   fehler: boolean
-  stand: SpeicherStand | undefined
+  /** Die ausgelieferte Fassung, wie der laufende Speicher sie meldet. */
+  stand: FassungStand | undefined
 }): { lage: OfflineLage; grund?: OfflineGrund } {
   if (e.protokoll === 'file:') return { lage: 'nicht-verfuegbar', grund: 'datei' }
   if (e.entwicklung) return { lage: 'nicht-verfuegbar', grund: 'entwicklung' }
@@ -94,11 +125,28 @@ export interface OfflineUmgebung {
   neuLaden: () => void
   /** Wie lange auf die Antwort des Speichers gewartet wird (ms). */
   geduld?: number
+  /** Wie lange auf das Umschalten gewartet wird (ms) – der Speicher füllt dabei notfalls nach. */
+  geduldWechsel?: number
+  /**
+   * Wie lange nach dem Start die Seite selbst nach einer neuen Fassung sieht (ms). Der Browser
+   * tut das beim Öffnen und Neuladen von sich aus, aber nicht verlässlich sofort (gemessen in
+   * Chromium: nach einem eben erst erfolgten Wechsel blieb die Suche über Neuladen und Neustart
+   * hinweg aus). Ohne Netz scheitert der Versuch still.
+   */
+  suchePause?: number
+  /**
+   * Darf eine bereitliegende Fassung ohne Knopfdruck übernommen werden? Nur, wenn es nichts zu
+   * schützen gibt (leerer Stand). `beimStart`: bei der ersten Auskunft des Speichers nach dem
+   * Öffnen; später (die Fassung wurde eben erst fertig geladen) fragt die Seite noch einmal.
+   * Fehlt die Angabe, wird nie von selbst übernommen.
+   */
+  darfVonSelbst?: (beimStart: boolean) => boolean
   /** Pausen (ms) vor den erneuten Versuchen, wenn das erste Füllen des Speichers scheitert. */
   pausen?: readonly number[]
 }
 
-function browser(): OfflineUmgebung {
+/** Der Browser, wie er ist – die Anwendung ergänzt, wann von selbst übernommen werden darf (main.ts). */
+export function offlineBrowser(): OfflineUmgebung {
   return {
     protokoll: location.protocol,
     entwicklung: import.meta.env.DEV,
@@ -107,45 +155,65 @@ function browser(): OfflineUmgebung {
   }
 }
 
-/** Fragt einen Service Worker nach seinem Stand; ohne Antwort `undefined`. */
-function frage(worker: ServiceWorker | null | undefined, geduld: number): Promise<SpeicherStand | undefined> {
+/** Schickt einem Service Worker eine Nachricht und wartet auf die Antwort der Art `erwartet`; ohne Antwort `undefined`. */
+function sende<T>(worker: ServiceWorker | null | undefined, typ: string, erwartet: string, geduld: number): Promise<T | undefined> {
   if (!worker) return Promise.resolve(undefined)
   return new Promise((fertig) => {
     const kanal = new MessageChannel()
-    const ende = (stand?: SpeicherStand) => {
+    const ende = (antwort?: T) => {
       clearTimeout(uhr)
       kanal.port1.close()
-      fertig(stand)
+      fertig(antwort)
     }
     const uhr = setTimeout(() => ende(), geduld)
-    kanal.port1.onmessage = (e: MessageEvent) => ende(e.data?.typ === 'stand' ? (e.data as SpeicherStand) : undefined)
+    kanal.port1.onmessage = (e: MessageEvent) => ende(e.data?.typ === erwartet ? (e.data as T) : undefined)
     try {
-      worker.postMessage({ typ: 'stand' }, [kanal.port2])
+      worker.postMessage({ typ }, [kanal.port2])
     } catch {
       ende()
     }
   })
 }
 
+/** Fragt einen Service Worker nach seinem Stand; ohne Antwort `undefined`. */
+const frage = (worker: ServiceWorker | null | undefined, geduld: number) => sende<SpeicherStand>(worker, 'stand', 'stand', geduld)
+
+/**
+ * Liegt eine andere Fassung als die ausgelieferte vollständig bereit? Die jüngste ist immer die
+ * des jüngsten Service Workers – des wartenden, sonst des laufenden (der Browser hat ihn
+ * aktiviert, während alle Fenster zu waren; ausgeliefert wird trotzdem noch die alte Fassung).
+ */
+export function neueFassung(aktiv: SpeicherStand | undefined, wartend: SpeicherStand | undefined): FassungStand | undefined {
+  const gueltig = aktiv?.gueltig
+  if (!aktiv || !gueltig) return undefined
+  const juengste = (wartend ?? aktiv).eigen
+  // Eine halb geladene (oder vom Browser halb verworfene) Fassung wird nicht angeboten.
+  if (juengste.fehlend !== 0 || juengste.kennung === gueltig.kennung) return undefined
+  return juengste
+}
+
 let anmeldung: ServiceWorkerRegistration | undefined
 let umgebung: OfflineUmgebung | undefined
 let selbstUebernommen = false
+/** Stößt die Abfrage des Speichers neu an (nach einem gescheiterten Umschalten). */
+let neuAbfragen: (() => Promise<void>) | undefined
 /** Meldet den Speicher von Hand neu an (nach einem gescheiterten Füllen oder Anmelden). */
 let neuAnmelden: (() => Promise<boolean>) | undefined
 let wiederholung: ReturnType<typeof setTimeout> | undefined
 
 /** Meldet den Offline-Speicher an und hält `offline` aktuell. Einmal beim Start der Anwendung. */
-export async function starteOffline(u: OfflineUmgebung = browser()): Promise<void> {
+export async function starteOffline(u: OfflineUmgebung = offlineBrowser()): Promise<void> {
   umgebung = u
   anmeldung = undefined
   neuAnmelden = undefined
+  neuAbfragen = undefined
   selbstUebernommen = false
   clearTimeout(wiederholung)
-  Object.assign(offline, { fassung: '', dateien: 0, eindatei: false, neu: false, neuFassung: '', laedtNeu: false, ersetzt: false, suche: '' })
+  Object.assign(offline, { fassung: '', dateien: 0, eindatei: false, neu: false, neuFassung: '', neuCommitZeit: '', neuZeit: '', uebernimmt: false, laedtNeu: false, ersetzt: false, suche: '' })
   const geduld = u.geduld ?? 4000
   const pausen = u.pausen ?? [5000, 30000]
   let fehler = false
-  let stand: SpeicherStand | undefined
+  let stand: FassungStand | undefined
   const setze = () => {
     const { lage, grund } = offlineLage({ protokoll: u.protokoll, entwicklung: u.entwicklung, kannSpeicher: !!u.speicher, fehler, stand })
     offline.lage = lage
@@ -158,22 +226,37 @@ export async function starteOffline(u: OfflineUmgebung = browser()): Promise<voi
   let reg: ServiceWorkerRegistration | undefined
   // Mehrere Abfragen laufen nebeneinander; nur die jüngste zählt.
   let lauf = 0
+  /** Kennung der Fassung, die bei der ersten Auskunft galt – mit ihr wurde dieses Fenster geladen. */
+  let geladen: string | undefined
+  let ersteAuskunft = true
   const aktualisiere = async () => {
     const r = reg
     if (!r) return
     const nr = ++lauf
-    // Eine wartende Fassung gibt es nur neben einer laufenden; beim ersten Mal wird sofort aktiv.
-    offline.neu = !!r.waiting && !!r.active
     offline.laedtNeu = !!r.installing && !!r.active
-    const [aktiv, wartend] = await Promise.all([frage(r.active, geduld), offline.neu ? frage(r.waiting, geduld) : undefined])
+    const [aktiv, wartend] = await Promise.all([frage(r.active, geduld), r.active && r.waiting ? frage(r.waiting, geduld) : undefined])
     if (nr !== lauf) return
-    stand = aktiv
-    offline.fassung = aktiv?.fassung ?? ''
-    offline.dateien = aktiv?.dateien ?? 0
-    offline.eindatei = aktiv?.eindatei === true
-    offline.neuFassung = wartend?.fassung ?? ''
+    const gueltig = aktiv?.gueltig
+    stand = gueltig
+    offline.fassung = gueltig?.fassung ?? ''
+    offline.dateien = gueltig?.dateien ?? 0
+    offline.eindatei = gueltig?.eindatei === true
+    // Wartet ein Service Worker, der (noch) nicht antwortet, wird nichts angeboten.
+    const neu = r.waiting && !wartend ? undefined : neueFassung(aktiv, wartend)
+    offline.neu = !!neu
+    offline.neuFassung = neu?.fassung ?? ''
+    offline.neuCommitZeit = neu?.commitZeit ?? ''
+    offline.neuZeit = neu?.zeit ?? ''
     setze()
+    if (!gueltig) return
+    // Gilt inzwischen eine andere Fassung als beim Laden, wurde in einem anderen Fenster umgeschaltet.
+    if (geladen === undefined) geladen = gueltig.kennung
+    else if (gueltig.kennung !== geladen && !selbstUebernommen) offline.ersetzt = true
+    const beimStart = ersteAuskunft
+    ersteAuskunft = false
+    if (offline.neu && !offline.ersetzt && u.darfVonSelbst?.(beimStart)) void uebernehmen()
   }
+  neuAbfragen = aktualisiere
 
   /**
    * Das erste Füllen ist gescheitert (Verbindung abgerissen, halb veröffentlichter Stand): Der
@@ -198,13 +281,6 @@ export async function starteOffline(u: OfflineUmgebung = browser()): Promise<voi
     beobachtet.add(worker)
     worker.addEventListener('statechange', () => {
       if (r !== reg) return
-      // Nur das Fenster, in dem der Knopf gedrückt wurde, lädt neu – und erst, wenn die neue
-      // Fassung wirklich läuft (dann ist auch der alte Cache schon aufgeräumt).
-      if (worker.state === 'activated' && selbstUebernommen) {
-        selbstUebernommen = false
-        u.neuLaden()
-        return
-      }
       // Verworfen, ohne dass eine Fassung läuft, wartet oder lädt: Das erste Füllen ist gescheitert.
       // (Scheitert das Laden einer NEUEN Fassung, läuft die alte weiter – das ist kein Fehler.)
       if (worker.state === 'redundant' && !r.active && !r.waiting && !r.installing) {
@@ -251,30 +327,47 @@ export async function starteOffline(u: OfflineUmgebung = browser()): Promise<voi
     return anmelden()
   }
 
-  // Wechselt die Fassung, die dieses Fenster bedient, ohne dass hier gedrückt wurde, dann wurde
-  // sie in einem anderen Fenster übernommen. Beim allerersten Mal gab es vorher keine.
-  let bedient = !!speicher.controller
-  speicher.addEventListener('controllerchange', () => {
-    if (bedient && !selbstUebernommen) offline.ersetzt = true
-    bedient = true
-    void aktualisiere()
-  })
-  // Der Speicher meldet sich von selbst, sobald er verworfene Dateien nachgefüllt hat. Auf einer
+  // Ein anderer Service Worker bedient das Fenster (der Browser hat ihn aktiviert): Die
+  // ausgelieferte Fassung ändert das nicht – aber wer die jüngste hält, kann sich geändert haben.
+  speicher.addEventListener('controllerchange', () => void aktualisiere())
+  // Der Speicher meldet sich von selbst, sobald er verworfene Dateien nachgefüllt hat (auf einer
   // langsamen Verbindung dauert das länger, als die Abfrage oben wartet – ohne diese Meldung
-  // bliebe „wird vorbereitet“ stehen, obwohl längst alles da ist.
+  // bliebe „wird vorbereitet“ stehen, obwohl längst alles da ist) und sobald irgendein Fenster
+  // umgeschaltet hat (`gewechselt`).
   speicher.addEventListener('message', (e) => {
-    if ((e as MessageEvent).data?.typ === 'stand') void aktualisiere()
+    const typ = (e as MessageEvent).data?.typ
+    if (typ === 'stand' || typ === 'gewechselt') void aktualisiere()
   })
 
-  await anmelden()
+  if (await anmelden()) {
+    const r = reg
+    setTimeout(() => {
+      if (r && r === reg && r.active) void r.update().catch(() => undefined)
+    }, u.suchePause ?? 3000)
+  }
 }
 
-/** Übernimmt die wartende Fassung und lädt dieses Fenster neu. Die Daten im Browser bleiben. */
-export function uebernehmen(): void {
-  const wartend = anmeldung?.waiting
-  if (!wartend) return
+/**
+ * Macht die bereitliegende Fassung zur gültigen und lädt dieses Fenster neu. Die Daten im Browser
+ * bleiben. Die Nachricht geht an den jüngsten Service Worker (den wartenden, sonst den
+ * laufenden): Er setzt den Zeiger auf seine eigene Fassung. `false`, wenn nichts umgeschaltet wurde.
+ */
+export async function uebernehmen(): Promise<boolean> {
+  const ziel = anmeldung?.waiting ?? anmeldung?.active
+  if (!ziel || !offline.neu || offline.uebernimmt) return false
+  offline.uebernimmt = true
   selbstUebernommen = true
-  wartend.postMessage({ typ: 'uebernehmen' })
+  const antwort = await sende<{ ok?: boolean }>(ziel, 'uebernehmen', 'uebernommen', umgebung?.geduldWechsel ?? 20000)
+  if (antwort?.ok) {
+    umgebung?.neuLaden()
+    return true
+  }
+  // Nicht vollständig (der Browser hat Dateien verworfen, kein Netz) oder keine Antwort: Es bleibt
+  // bei der laufenden Fassung, und die Anzeige fragt neu nach.
+  offline.uebernimmt = false
+  selbstUebernommen = false
+  void neuAbfragen?.()
+  return false
 }
 
 /** Lädt dieses Fenster neu (nachdem in einem anderen Fenster übernommen wurde). */
@@ -296,7 +389,23 @@ export async function sucheNeueFassung(): Promise<void> {
   offline.suche = 'laeuft'
   try {
     await anmeldung.update()
-    offline.suche = anmeldung.installing || anmeldung.waiting ? 'neu' : 'aktuell'
+    const laedt = anmeldung.installing
+    if (laedt) {
+      // Gefunden ist noch nicht bereit: Erst wenn alle Dateien da sind und zur Liste passen, liegt
+      // die Fassung vor. Mitten in einer Veröffentlichung scheitert das – dann steht es da.
+      offline.suche = 'laedt'
+      const ende = () => {
+        if (laedt.state !== 'installed' && laedt.state !== 'redundant' && laedt.state !== 'activated') return
+        laedt.removeEventListener('statechange', ende)
+        if (offline.suche === 'laedt') offline.suche = laedt.state === 'redundant' ? 'unvollstaendig' : 'neu'
+      }
+      laedt.addEventListener('statechange', ende)
+      ende()
+      return
+    }
+    // Auch eine Fassung, die schon bereitliegt (der Browser hat ihren Service Worker längst
+    // aktiviert), ist „gefunden“ – sonst stünde „keine neue Fassung“ neben dem Knopf „Update“.
+    offline.suche = anmeldung.waiting || offline.neu ? 'neu' : 'aktuell'
   } catch {
     offline.suche = 'kein-netz'
   }

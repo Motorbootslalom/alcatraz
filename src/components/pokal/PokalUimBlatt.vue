@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { locale, texteIn, type Locale } from '../../i18n'
 import type { ClassId, Starter } from '../../types'
 import type { UimGruppe, UimStarter, UimWertung } from '../../lib/pokal'
-import { ERGEBNIS_FUSS_MM, SEITEN_VORGABE, type SeitenTeil } from '../../lib/seiten'
+import { ergebnisFussMm, SEITEN_VORGABE, type SeitenTeil } from '../../lib/seiten'
 import type { HerkunftAnzeige } from '../../lib/origin'
 import HerkunftText from '../HerkunftText.vue'
 import ListenDokument from '../ListenDokument.vue'
@@ -38,16 +38,41 @@ const props = defineProps<{
   klasseKurz: (klasse: ClassId) => string
   /** Die Klasse ausgeschrieben, für den Hinweis zum Zwischenstand. */
   klasseText: (klasse: ClassId) => string
-  /** Namen wie auf den Ergebnislisten: voll, Nachname gekürzt („M.“) oder gar nicht. */
+  /** Namen wie auf den Wertungslisten: voll, Nachname gekürzt („M.“) oder gar nicht. */
   namen?: NamenArt
   /** Eine Klasse ohne Endergebnis im Hinweis zum Zwischenstand – kurz, mit der Zahl ihrer gewerteten Läufe („1: 1/2“). */
   offenText?: (klasse: ClassId) => string
+  /** Die Erklärung zum Sternchen am Platz (Stichentscheid der Mannschaften), in der Listensprache. */
+  stichText?: string
   stand?: string
+  /**
+   * Ein Hinweis, der auf jeder Seite unter dem Kopf steht – worauf die Wertung beruht („Nur
+   * Manövrieren – zu Parallel-Slalom ist noch nichts erfasst.“) und welche Disziplin der O.O.D.
+   * für welche Klassen nicht wertet. Leer = keiner.
+   */
+  hinweis?: string
+  /**
+   * Die Punkte sind die der Einzelwertung (UIM 960, Pkt. 5.2.4: „UIM points secured by the top
+   * five team members in the overall individual competitions“): Der Platz in der ersten Spalte
+   * ist dann der der Einzelwertung.
+   */
+  ausEinzel?: boolean
+  /** Die Disziplinen, aus denen die Punkte stammen, für den Kopf („Manövrieren + Parallel-Slalom“); leer = ohne Zusatz. */
+  disziplinenText?: string
+  /**
+   * Unter der Liste stehen die Unterschriftszeile des O.O.D. und das leere Feld für die Uhrzeit
+   * des Aushangs (UIM 960, Pkt. 5.2) – nur unter einem Regelwerk, das sie verlangt. Der Fuß ist
+   * dann höher; die Seitenteilung rechnet damit (lib/seiten.ts `ergebnisFussMm`).
+   */
+  unterschrift?: boolean
   sprache?: Locale
 }>()
 
 const sprache = () => props.sprache ?? locale.value
 const { t } = texteIn(sprache)
+
+/** Die Beschriftung der Zeile für Unterschrift und Aushang, in der Sprache der Liste. */
+const unterschriftTexte = computed(() => (props.unterschrift ? { wer: t('results.signOod'), aushang: t('results.postingTime') } : undefined))
 
 const mitNamen = computed(() => props.namen !== 'ohne')
 const spalten = computed(() => (mitNamen.value ? 8 : 6))
@@ -92,8 +117,11 @@ const fortsetzung = (teile: readonly SeitenTeil[]) => (teile.length > 0 && teile
 const kopfWiederholt = (teile: readonly SeitenTeil[]) => teile.length > 0 && teile[0].von > KOPF_ZEILE
 
 const platzText = (s: UimStarter) => (s.disq ? t('results.dsq') : s.offen || s.platz < 1 ? '–' : String(s.platz))
+// Die Erklärung steht auf jeder Seite des Blatts, sobald irgendein Platz so entstand: Die
+// Plätze einer Mannschaftswertung liest man im Ganzen, nicht seitenweise.
+const mitStich = computed(() => props.wertung.gruppen.some((g) => g.stich))
 const zwischenstand = computed(() =>
-  props.wertung.offen.length > 0 ? t('cup.interimNote', { classes: props.wertung.offen.map((k) => (props.offenText ?? props.klasseText)(k)).join(', ') }) : '',
+  props.wertung.offen.length > 0 ? t(props.ausEinzel ? 'cup.interimNoteBoth' : 'cup.interimNote', { classes: props.wertung.offen.map((k) => (props.offenText ?? props.klasseText)(k)).join(', ') }) : '',
 )
 </script>
 
@@ -105,11 +133,11 @@ const zwischenstand = computed(() =>
     format="portrait"
     :vorgabe="SEITEN_VORGABE.pokalUim"
     :sprache="sprache()"
-    :fuss-mm="ERGEBNIS_FUSS_MM"
+    :fuss-mm="ergebnisFussMm(unterschrift)"
     :wiederholte-zeile="KOPF_ZEILE"
   >
     <template #fuss="{ seitenzahl }">
-      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :hinweis="zwischenstand" :seitenzahl="seitenzahl" />
+      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="mitStich ? stichText : ''" :hinweis="zwischenstand" :seitenzahl="seitenzahl" :unterschrift="unterschriftTexte" />
     </template>
     <template #default="{ teile }">
       <table class="erg-tabelle erg-tabelle--gesamt pokal-tabelle pokal-tabelle--uim">
@@ -128,12 +156,16 @@ const zwischenstand = computed(() =>
             <th class="erg-kopfzelle pokal-kopfzelle" :colspan="spalten">
               <div class="erg-kopf pokal-kopf">
                 <span>{{ t('cup.sheet.titleUim') }}<template v-if="zwischenstand"> – {{ t('cup.interim') }}</template></span>
-                <span class="erg-kopf-titel pokal-kopf-regel">{{ t('cup.uim.rule', { n: wertung.beste, origin: herkunftTitel }) }}</span>
+                <span class="erg-kopf-titel pokal-kopf-regel">{{ disziplinenText ? t('cup.uim.ruleOf', { disciplines: disziplinenText, n: wertung.beste, origin: herkunftTitel }) : t('cup.uim.rule', { n: wertung.beste, origin: herkunftTitel }) }}</span>
                 <span class="erg-kopf-event">{{ eventName }}</span>
               </div>
               <!-- Im festen Abstand unter dem Kopf: ändert die Höhe der Seite nicht. -->
               <span v-if="fortsetzung(teile)" class="pokal-fortsetzung" data-hinweis="fortsetzung">{{ t('cup.continued', { origin: fortsetzung(teile) }) }}</span>
             </th>
+          </tr>
+          <!-- Eine Zeile des Kopfs auf jeder Seite: Das Dokument misst sie mit (ListenDokument.vue). -->
+          <tr v-if="hinweis" class="pokal-hinweis-zeile" data-hinweis="grundlage">
+            <th :colspan="spalten">{{ hinweis }}</th>
           </tr>
           <!-- Nur auf der Fortsetzung eines Blocks: dieselbe Zeile wie über jedem Block (gleiche Höhe – das Dokument rechnet mit ihr). -->
           <tr v-if="kopfWiederholt(teile)" class="pokal-gruppe-kopf" data-kopf="fortsetzung">
@@ -159,7 +191,7 @@ const zwischenstand = computed(() =>
               <td>{{ z.g.summe }}</td>
               <!-- Ohne Wertung (zu wenige Starter) gibt es weder die Summe der Besten noch einen Platz – wie in der Mappe. -->
               <td>{{ z.g.platz === null ? '' : z.g.summeBeste }}</td>
-              <td class="erg-platz">{{ z.g.platz ?? '–' }}</td>
+              <td class="erg-platz" :data-stich="z.g.stich ? '' : undefined">{{ z.g.platz ?? '–' }}<span v-if="z.g.stich" class="erg-stich-zeichen">*</span></td>
             </tr>
             <tr v-else :class="z.nr % 5 === 0 ? 'grau' : undefined" :data-starter="z.s.starter.id" :data-top="z.s.top && z.g.platz !== null ? '' : undefined">
               <td>{{ platzText(z.s) }}</td>

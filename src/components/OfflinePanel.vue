@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { t, type MessageKey } from '../i18n'
-import { bitteDauerhaft, neuLaden, offline, sucheNeueFassung, uebernehmen } from '../lib/offline'
-import { BUILD_COMMIT } from '../lib/build'
+import { bitteDauerhaft, neuLaden, offline, sucheNeueFassung } from '../lib/offline'
+import { BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from '../lib/build'
+import { fassungsText, useUpdate } from '../lib/update'
 import { storeKey } from '../state/store'
 
 /**
@@ -22,6 +23,10 @@ const erklaerung = computed(() =>
 )
 // Zweiter Speicher (state/zweit.ts): ob eine Änderung auch einen harten Abbruch übersteht.
 const zweit = inject(storeKey, null)?.zweit
+// Welche Fassung läuft (die dieser Seite – dieselben Angaben wie in der Fußzeile) und welche bereitliegt.
+const laeuft = computed(() => fassungsText(BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME))
+const bereit = computed(() => fassungsText(offline.neuFassung, offline.neuCommitZeit, offline.neuZeit))
+const update = useUpdate()
 const gut = computed(() => offline.lage === 'bereit' || offline.grund === 'datei')
 </script>
 
@@ -39,11 +44,21 @@ const gut = computed(() => offline.lage === 'bereit' || offline.grund === 'datei
       <button class="btn sm" data-action="offline-neu-laden" @click="neuLaden()">{{ t('offline.replaced.reload') }}</button>
     </p>
     <p v-else-if="offline.neu" class="boat-banner ok" role="status">
-      {{ t('offline.update.text', { commit: offline.neuFassung ? t('offline.update.commit', { commit: offline.neuFassung }) : '' }) }}
+      {{ t('offline.update.text') }}
       {{ t('offline.update.note') }}
-      <button class="btn sm primary" data-action="offline-uebernehmen" @click="uebernehmen()">{{ t('offline.update.take') }}</button>
+      <button class="btn sm primary" data-action="offline-uebernehmen" :disabled="offline.uebernimmt" @click="update()">
+        {{ t(offline.uebernimmt ? 'offline.update.busy' : 'offline.update.take') }}
+      </button>
     </p>
     <p v-else-if="offline.laedtNeu" class="note">{{ t('offline.update.loading') }}</p>
+
+    <ul class="offline-fassungen" data-offline-fassungen>
+      <li data-fassung="laeuft">{{ t('offline.version.running', { fassung: laeuft }) }}</li>
+      <li v-if="offline.neu" data-fassung="bereit">
+        <strong>{{ t('offline.version.ready', { fassung: bereit }) }}</strong>
+      </li>
+    </ul>
+    <p v-if="offline.lage !== 'nicht-verfuegbar'" class="note">{{ t('offline.update.empty') }}</p>
 
     <!-- Ließ sich der Speicher nicht einrichten, ist derselbe Knopf ein neuer Versuch. -->
     <div v-if="offline.lage !== 'nicht-verfuegbar' || offline.grund === 'fehler'" class="row" style="align-items: center">

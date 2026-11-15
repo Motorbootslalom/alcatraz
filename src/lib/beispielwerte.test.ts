@@ -106,7 +106,7 @@ describe('beispielEingaben', () => {
     expect(beispielEingaben(stand({ zusatzListen: { knoten: false } }), konfig, { zeitnahme: 'stoppuhr' }, zufallAus(1))[lauf(0)]).toBeUndefined()
   })
 
-  it('ergibt glaubhafte Ergebnislisten: Zeiten im Bereich der Klasse, einige Disqualifikationen, nur gültige Werte', () => {
+  it('ergibt glaubhafte Wertungslisten: Zeiten im Bereich der Klasse, einige Disqualifikationen, nur gültige Werte', () => {
     const s = stand({ starters: starter('4', 60) })
     const eingaben = beispielEingaben(s, konfig, { zeitnahme: 'stoppuhr' }, zufallAus(11))
     const ergebnis = klassenErgebnis({ ...s, eingaben, streichlaeufe: 'auto' }, konfig, '4')!

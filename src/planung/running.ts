@@ -1,6 +1,6 @@
 import type { PlanState, RunningNumberConfig } from '../types'
 import { planEvent } from './plan'
-import { buildParallelPlan } from './parallel'
+import { VORLAUF, vorlaufPlan } from './parallelRunden'
 
 /**
  * Parst die Liste zu überspringender (fehlender) Startnummern aus freiem Text.
@@ -64,18 +64,23 @@ function manoeverOrderIds(state: PlanState): string[] {
   )
 }
 
-/** Starter-IDs in Parallel-Slalom-Reihenfolge (je Heat A vor B); Dummys als null. */
+/**
+ * Starter-IDs in der Reihenfolge des Parallelslaloms (je Start A vor B); Dummys als null.
+ * Es gilt derselbe Plan wie in der Anzeige (planung/parallelRunden.ts `vorlaufPlan`): der
+ * festgeschriebene, wenn es einen gibt – dann ändern sich die Nummern nicht mehr –, sonst der
+ * aus dem Starterfeld gerechnete. „Nach Startnummer“ ordnet dabei nach den Nummern, die die
+ * Starter gerade tragen; frisch vergebene folgen dieser Reihenfolge und ergeben sie wieder.
+ *
+ * Bei festem Plan zählen die IDs, wie sie im Plan stehen – auch die eines Starters, den es nicht
+ * mehr gibt: Seine Nummer bleibt als Lücke frei, damit die dahinter nicht aufrücken (sie stehen
+ * womöglich schon auf gedruckten Listen). Wer nach dem Festschreiben gemeldet wurde und deshalb
+ * nicht im Plan steht, bekommt die nächsten Nummern hinter allen anderen, statt seine zu verlieren.
+ */
 function parallelOrderIds(state: PlanState): (string | null)[] {
-  // Ohne running-Map, um Zirkularität zu vermeiden: „nach Startnummer" fällt hier
-  // auf die klassenbasierte Nummer zurück (die vergebenen Nummern folgen dann
-  // dieser Reihenfolge, sodass Anzeige und Nummern übereinstimmen).
-  const plan = buildParallelPlan(state.starters, {
-    // Wie in der Ansicht: Parallelslalom wird nur nach UIM gefahren, also international.
-    international: true,
-    class4Small: state.class4Small,
-    orderByStartNr: state.parallelOrderByStartNr,
-  })
-  return plan.heats.flatMap((h) => [
+  const fest = state.parallelPlaene?.[VORLAUF]
+  const vorlauf = vorlaufPlan(state)
+  if (fest) return [...fest.starts.flatMap((s) => [s.a, s.b]), ...vorlauf.ohnePlatz.map((p) => p.id)]
+  return vorlauf.plan.heats.flatMap((h) => [
     h.a.kind === 'starter' ? h.a.p.id : null,
     h.b.kind === 'starter' ? h.b.p.id : null,
   ])

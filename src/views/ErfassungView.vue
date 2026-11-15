@@ -10,11 +10,13 @@ import { wkrBoegenZumStand, type WkrBogen, type WkrListen } from '../lib/wkrList
 import { stapelBoegen } from '../lib/laufzettel'
 import { leseCode, type QrFehler } from '../lib/qr'
 import { meldeScan, scanBeenden, scanBogen, scanErledigt, scanStand } from '../lib/scan'
-import { PROTOTYP_URL } from '../lib/prototyp'
 import { veranstaltungsListen } from '../lib/listen'
+import { parallelBoegen, scanRundenBogen, type ParallelBoegen } from '../lib/parallelBogen'
+import { RACECOURSE_PARCOURS, RACECOURSES } from '../lib/parallelSchluessel'
+import { rundenName } from '../planung/parallelRunden'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
-import type { ClassId } from '../types'
+import type { ClassId, ParallelRunde } from '../types'
 import ErfassungTabelle from '../components/erfassung/ErfassungTabelle.vue'
 import EingabenHinweis from '../components/EingabenHinweis.vue'
 import ScanHinweis from '../components/erfassung/ScanHinweis.vue'
@@ -35,6 +37,14 @@ import ScanHinweis from '../components/erfassung/ScanHinweis.vue'
  * dem Lauf stehen untereinander, in der Reihenfolge des Zettels – wer den Stapel abtippt, legt
  * Blatt für Blatt um und muss am Bildschirm nichts umschalten. Dieselbe Ansicht gibt es von
  * Hand über die Auswahl der Liste („alle untereinander“).
+ *
+ * Parallelslalom (nur unter einem Regelwerk, das ihn kennt): Über der Auswahl steht dann die
+ * Disziplin. Seine Listen gehören zu einer Runde und einem Racecourse statt zu Klasse und Lauf
+ * (lib/parallelBogen.ts) – gewählt werden Racecourse und Liste. Ist oben ein Racecourse gewählt,
+ * erscheint unten nichts vom anderen – weder in den Reitern noch unter „alle untereinander“
+ * (Entscheidung des Nutzers vom 15.11.2026). Der Laufzettel einer Runde gilt einem Racecourse
+ * und führt zu dessen drei Listen untereinander. Listen gibt es erst, wenn der Plan der Runde
+ * festgeschrieben ist.
  */
 const { state } = useStore()
 const konfig = useKonfig({ oberflaeche: true })
@@ -46,35 +56,54 @@ const id = useId()
  * Tastendruck ersetzt aber den Stand als Ganzes; ohne dieses Merken liefe die Verzahnung bei
  * jeder Ziffer neu. Verglichen wird Feld für Feld: Der Reducer lässt Unverändertes stehen.
  */
-let gemerkt: { stand: Record<string, unknown>; konfig: unknown; listen: WkrListen } | undefined
-const listen = computed(() => {
-  // Auch der Stand der Ergebnislisten ändert sich mit jeder Eingabe und geht die Bögen nichts an.
+let gemerkt: { stand: Record<string, unknown>; konfig: unknown; listen: WkrListen; parallel: ParallelBoegen } | undefined
+const beide = computed(() => {
+  // Auch der Stand der Wertungslisten ändert sich mit jeder Eingabe und geht die Bögen nichts an.
   const { eingaben: _eingaben, listenStand: _listenStand, ...rest } = state.value
   const stand = rest as Record<string, unknown>
   const g = gemerkt
-  if (g && g.konfig === konfig.value && Object.keys(stand).length === Object.keys(g.stand).length && Object.keys(stand).every((k) => stand[k] === g.stand[k])) return g.listen
-  gemerkt = { stand, konfig: konfig.value, listen: wkrBoegenZumStand(state.value, konfig.value) }
-  return gemerkt.listen
+  if (g && g.konfig === konfig.value && Object.keys(stand).length === Object.keys(g.stand).length && Object.keys(stand).every((k) => stand[k] === g.stand[k])) return g
+  gemerkt = { stand, konfig: konfig.value, listen: wkrBoegenZumStand(state.value, konfig.value), parallel: parallelBoegen(state.value, konfig.value) }
+  return gemerkt
 })
-const alle = computed(() => listen.value.boegen)
+const listen = computed(() => beide.value.listen)
+/** Die Listen des Parallelslaloms: je Runde mit festgeschriebenem Plan sechs (lib/parallelBogen.ts). */
+const rundenListen = computed(() => beide.value.parallel)
 const fehlend = computed(() => state.value.starters.filter((p) => p.startNr.trim() === '').length)
 const doppelt = computed(() => duplicateStartNrIds(state.value.starters, state.value.startNrMode).size)
 
-const wahl = merke<{ parcours?: string; klasse?: ClassId; lauf?: number; liste?: string }>('erfassung.wahl', {}, { ueberNeuladen: true })
+const wahl = merke<{ parcours?: string; klasse?: ClassId; lauf?: number; liste?: string; disziplin?: Disziplin; runde?: string }>('erfassung.wahl', {}, { ueberNeuladen: true })
+
+// Die Disziplin steht nur zur Wahl, wenn nach dem Regelwerk ein Parallelslalom gefahren wird.
+const DISZIPLINEN = ['manoever', 'parallel'] as const
+type Disziplin = (typeof DISZIPLINEN)[number]
+const imParallel = computed(() => parallel.value && wahl.value.disziplin === 'parallel')
+/** Die Runde, deren Listen gezeigt werden: die gewählte, sonst die erste mit festgeschriebenem Plan. */
+const runde = computed<ParallelRunde | undefined>(() => rundenListen.value.runden.find((r) => r === wahl.value.runde) ?? rundenListen.value.runden[0])
+/** Die Bögen der Ansicht: die des Manövrierens – oder die der gewählten Runde des Parallelslaloms. */
+const alle = computed(() => (imParallel.value ? rundenListen.value.boegen.filter((b) => b.runde?.runde === runde.value) : listen.value.boegen))
+const racecourseName = (id: string) => t(id === RACECOURSE_PARCOURS.B ? 'parallel.parcoursB' : 'parallel.parcoursA')
 
 // Jede Stufe grenzt die nächste ein; eine Wahl, die es nicht (mehr) gibt, fällt auf die erste Möglichkeit.
-const parcoursListe = computed(() => state.value.parcoursList.filter((p) => alle.value.some((b) => b.parcoursId === p.id)))
+const parcoursListe = computed<{ id: string; name: string }[]>(() =>
+  imParallel.value
+    ? RACECOURSES.map((rc) => ({ id: RACECOURSE_PARCOURS[rc], name: racecourseName(RACECOURSE_PARCOURS[rc]) }))
+    : state.value.parcoursList.filter((p) => alle.value.some((b) => b.parcoursId === p.id)),
+)
 const parcoursId = computed(() => (parcoursListe.value.some((p) => p.id === wahl.value.parcours) ? wahl.value.parcours : parcoursListe.value[0]?.id))
 const amParcours = computed(() => alle.value.filter((b) => b.parcoursId === parcoursId.value))
 const klassen = computed(() => [...new Set(amParcours.value.flatMap((b) => b.klassen))])
 const klasse = computed(() => (wahl.value.klasse !== undefined && klassen.value.includes(wahl.value.klasse) ? wahl.value.klasse : klassen.value[0]))
-const laeufe = computed(() => Array.from({ length: Math.max(1, state.value.laufCount) }, (_, i) => i + 1))
+// „Versuche direkt nacheinander“: Alle Versuche stehen auf einem Bogen (lib/wkrListen.ts) – es gibt nur einen Stapel.
+const laeufe = computed(() => (alle.value.some((b) => (b.versuche ?? 1) > 1) ? [1] : Array.from({ length: Math.max(1, state.value.laufCount) }, (_, i) => i + 1)))
 const lauf = computed(() => (wahl.value.lauf !== undefined && laeufe.value.includes(wahl.value.lauf) ? wahl.value.lauf : 1))
 
 /** Die Bögen der Klasse in diesem Lauf; eine Liste ohne Lauf (Knoten) gibt es nur einmal – sie steht bei jedem Lauf dabei. */
 const boegen = computed<WkrBogen[]>(() => {
   // In der Reihenfolge der Listen: Der Bogen ohne Lauf gehört zum letzten Lauf und stünde
   // sonst in jedem früheren Lauf hinter allen anderen, auch wenn der Aufbau ihn weiter vorn nennt.
+  // Parallelslalom: die Listen des Racecourse, wie sie der Aufbau nennt – Klasse und Lauf stehen je Zeile.
+  if (imParallel.value) return amParcours.value
   const listen = veranstaltungsListen(konfig.value, state.value)
   return amParcours.value
     .filter((b) => klasse.value !== undefined && b.klassen.includes(klasse.value) && (b.lauf === lauf.value || konfig.value.getSheetDef(b.typeId).showLauf === false))
@@ -90,6 +119,9 @@ const ALLE = '*'
  * letzten Lauf – genau die Blätter, die mit dem Zettel zur Auswertung kommen.
  */
 const stapel = computed<WkrBogen[]>(() => {
+  // Parallelslalom: Der Stapel ist die Runde auf dem gewählten Racecourse – seine drei Listen
+  // (Laufzettel je Racecourse). Vom anderen Racecourse steht hier nichts.
+  if (imParallel.value) return amParcours.value
   if (parcoursId.value === undefined || klasse.value === undefined) return []
   return stapelBoegen(alle.value, veranstaltungsListen(konfig.value, state.value), { parcoursId: parcoursId.value, klasse: klasse.value, lauf: lauf.value }, {
     jeParcours: state.value.eventKind === 'club' && state.value.wkrClubGemeinsam,
@@ -117,14 +149,20 @@ const stand = computed(() => {
     const name = titel.value.get(b.typeId) ?? konfig.value.getSheetDef(b.typeId).menuLabel
     return {
       bogen: b,
-      titel: mehrfach(b.typeId) ? `${name} – ${b.klassen.map((k) => classLabel(k)).join(', ')}` : name,
+      titel: mehrfach(b.typeId) ? `${name} – ${b.runde ? racecourseName(b.parcoursId) : b.klassen.map((k) => classLabel(k)).join(', ')}` : name,
       ...bogenFortschritt(konfig.value, eingaben, aufbau, b.auftrag),
     }
   })
 })
 const summe = computed(() => stand.value.reduce((s, x) => ({ erfasst: s.erfasst + x.erfasst, gesamt: s.gesamt + x.gesamt }), { erfasst: 0, gesamt: 0 }))
 
-function setze(feld: 'parcours' | 'klasse' | 'lauf' | 'liste', e: Event) {
+function setzeDisziplin(d: Disziplin) {
+  // Parcours und Liste heißen in jeder Disziplin anders: Die Wahl beginnt neu.
+  wahl.value = { ...wahl.value, disziplin: d, parcours: undefined, liste: undefined }
+  scanBeenden()
+}
+
+function setze(feld: 'parcours' | 'klasse' | 'lauf' | 'liste' | 'runde', e: Event) {
   const wert = (e.target as HTMLSelectElement).value
   wahl.value = { ...wahl.value, [feld]: feld === 'lauf' ? Number(wert) : wert }
   // Wer selbst wählt, sieht nicht mehr das gescannte Blatt.
@@ -249,20 +287,36 @@ const scan = computed(() => {
     parcours: state.value.parcoursList.map((p) => p.id),
     listen: veranstaltungsListen(k, state.value),
     laufCount: state.value.laufCount,
+    parallel: rundenListen.value.aufbau === undefined ? undefined : { aufbau: rundenListen.value.aufbau, listen: rundenListen.value.listen, runden: rundenListen.value.runden },
   })
   if (!lesung.ok) return { code: s.code, fehler: lesung.fehler as QrFehler | { art: 'bogen' }, angaben: angabenZu(lesung.fehler) }
-  const treffer = scanBogen(lesung.ziel, alle.value, (typeId) => k.getSheetDef(typeId).showLauf === false)
-  const klassenText = lesung.ziel.klassen.map((x) => classLabel(x)).join(', ')
-  if (!treffer) return { code: s.code, fehler: { art: 'bogen' as const }, angaben: { printed: klassenText } }
   const { ziel } = lesung
+  if (ziel.art === 'runde') {
+    // Ein Blatt des Parallelslaloms: Runde und Racecourse statt Klasse und Lauf.
+    const bogen = scanRundenBogen(ziel, rundenListen.value.boegen)
+    const rundenTitel = rundenName(ziel.runde as ParallelRunde, t)
+    if (!bogen) return { code: s.code, fehler: { art: 'bogen' as const }, angaben: { printed: rundenTitel } }
+    const teile = [
+      ziel.typeId ? k.getSheetDef(ziel.typeId).title : t('runsheet.title'),
+      t('parallel.title'),
+      rundenTitel,
+      racecourseName(RACECOURSE_PARCOURS[ziel.racecourse]),
+      ...(ziel.seite ? [t('scan.page', { n: ziel.seite })] : []),
+    ]
+    return { code: s.code, treffer: { bogen, klasse: bogen.klassen[0], genau: true }, lauf: 1, zettel: ziel.typeId === undefined, teile, runde: ziel.runde }
+  }
+  // Unter den Bögen des Manövrierens – gleich, welche Disziplin die Ansicht gerade zeigt.
+  const treffer = scanBogen(ziel, listen.value.boegen, (typeId) => k.getSheetDef(typeId).showLauf === false)
+  const klassenText = ziel.klassen.map((x) => classLabel(x)).join(', ')
+  if (!treffer) return { code: s.code, fehler: { art: 'bogen' as const }, angaben: { printed: klassenText } }
   const teile = [
     ziel.typeId ? titel.value.get(ziel.typeId) ?? treffer.bogen.titel : t('runsheet.title'),
     ...(state.value.parcoursList.length > 1 ? [treffer.bogen.parcoursName] : []),
     klassenText,
-    t('lists.wkr.runN', { n: ziel.lauf }),
+    (treffer.bogen.versuche ?? 1) > 1 ? t('lists.wkr.runsTo', { n: treffer.bogen.versuche }) : t('lists.wkr.runN', { n: ziel.lauf }),
     ...(ziel.seite ? [t('scan.page', { n: ziel.seite })] : []),
   ]
-  return { code: s.code, treffer, lauf: ziel.lauf, zettel: ziel.typeId === undefined, teile }
+  return { code: s.code, treffer, lauf: ziel.lauf, zettel: ziel.typeId === undefined, teile, runde: undefined }
 })
 
 /** Namen statt Kennungen für die Meldung: Gedrucktes und Eingestelltes. */
@@ -290,7 +344,11 @@ async function springe() {
   const treffer = scan.value?.treffer
   if (!treffer) return
   // Ein Laufzettel steht für den ganzen Stapel – alle seine Listen untereinander; ein Bogen für sich allein.
-  wahl.value = { parcours: treffer.bogen.parcoursId, klasse: treffer.klasse, lauf: scan.value!.lauf, liste: scan.value!.zettel ? ALLE : treffer.bogen.typeId }
+  const liste = scan.value!.zettel ? ALLE : treffer.bogen.typeId
+  wahl.value =
+    scan.value!.runde !== undefined
+      ? { ...wahl.value, disziplin: 'parallel', runde: scan.value!.runde, parcours: treffer.bogen.parcoursId, liste }
+      : { disziplin: 'manoever', runde: wahl.value.runde, parcours: treffer.bogen.parcoursId, klasse: treffer.klasse, lauf: scan.value!.lauf, liste }
   // Die Tabelle wird für den neuen Bogen neu aufgebaut.
   await nextTick()
   await nextTick()
@@ -338,7 +396,20 @@ function weiter() {
 
     <ScanHinweis v-if="scan" :code="scan.code" :teile="scan.teile" :geaendert="scan.treffer && !scan.treffer.genau" :fehler="scan.fehler" :angaben="scan.angaben" @schliessen="scanBeenden" />
 
+    <!-- Nur unter einem Regelwerk mit Parallelslalom: Was erfasst wird, wählt die Disziplin. -->
+    <div v-if="parallel && state.starters.length > 0" class="row eingabe-disziplin">
+      <div class="segmented" role="group" :aria-label="t('capture.discipline')">
+        <button v-for="d in DISZIPLINEN" :key="d" type="button" :data-disziplin="d" :class="(imParallel ? 'parallel' : 'manoever') === d ? 'active' : ''" :aria-pressed="(imParallel ? 'parallel' : 'manoever') === d" @click="setzeDisziplin(d)">
+          {{ t(`running.source.${d}`) }}
+        </button>
+      </div>
+    </div>
+
     <p v-if="state.starters.length === 0" class="empty">{{ t('capture.empty') }}</p>
+    <!-- Parallelslalom: Listen gibt es erst, wenn der Plan festgeschrieben ist – sonst stünde in der Erfassung etwas anderes als auf dem Papier. -->
+    <p v-else-if="imParallel && alle.length === 0" class="boat-banner warn" role="status" data-hinweis="parallel-plan">
+      {{ t('parallel.lists.needPlan') }} <a :href="adresse('verzahnung', { reiter: 'parallel' })">{{ t('nav.verzahnung') }} → {{ t('parallel.title') }}</a>
+    </p>
     <p v-else-if="alle.length === 0" class="boat-banner warn" role="status">
       {{ t('capture.noSheets') }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a>
     </p>
@@ -350,19 +421,25 @@ function weiter() {
         {{ t('capture.numbersNote') }}
       </p>
       <div class="row eingabe-wahl">
-        <div v-if="state.parcoursList.length > 1" class="field">
-          <label :for="`${id}-parcours`">{{ t('lists.wkr.parcours') }}</label>
+        <div v-if="imParallel && rundenListen.runden.length > 1" class="field">
+          <label :for="`${id}-runde`">{{ t('parallel.lists.round') }}</label>
+          <select :id="`${id}-runde`" class="input" data-feld="erf-runde" :value="runde" @change="setze('runde', $event)">
+            <option v-for="r in rundenListen.runden" :key="r" :value="r">{{ rundenName(r, t) }}</option>
+          </select>
+        </div>
+        <div v-if="imParallel || state.parcoursList.length > 1" class="field">
+          <label :for="`${id}-parcours`">{{ imParallel ? t('parallel.lists.racecourse') : t('lists.wkr.parcours') }}</label>
           <select :id="`${id}-parcours`" class="input" data-feld="erf-parcours" :value="parcoursId" @change="setze('parcours', $event)">
             <option v-for="p in parcoursListe" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
-        <div class="field">
+        <div v-if="!imParallel" class="field">
           <label :for="`${id}-klasse`">{{ t('lists.class') }}</label>
           <select :id="`${id}-klasse`" class="input" data-feld="erf-klasse" :value="klasse" @change="setze('klasse', $event)">
             <option v-for="k in klassen" :key="k" :value="k">{{ classLabel(k) }}</option>
           </select>
         </div>
-        <div class="field">
+        <div v-if="!imParallel && laeufe.length > 1" class="field">
           <label :for="`${id}-lauf`">{{ t('lists.wkr.run') }}</label>
           <select :id="`${id}-lauf`" class="input" data-feld="erf-lauf" :value="lauf" @change="setze('lauf', $event)">
             <option v-for="l in laeufe" :key="l" :value="l">{{ t('lists.wkr.runN', { n: l }) }}</option>
@@ -394,7 +471,7 @@ function weiter() {
       </div>
       <div class="row" style="align-items: center">
         <p class="note eingabe-summe" role="status" style="flex: 1; margin: 0">
-          {{ t(gestapelt ? 'capture.sumStack' : 'capture.sum', { done: summe.erfasst, total: summe.gesamt, sheets: stand.length }) }}
+          {{ t(gestapelt ? 'capture.sumStack' : imParallel ? 'capture.sumHeat' : 'capture.sum', { done: summe.erfasst, total: summe.gesamt, sheets: stand.length }) }}
         </p>
         <button type="button" class="btn" data-action="weiter" :disabled="gestapelt ? summe.erfasst >= summe.gesamt : stand.length < 2" @click="weiter">
           {{ t(gestapelt ? 'capture.nextOpen' : 'capture.next') }} {{ gestapelt ? '↓' : '→' }}
@@ -421,10 +498,8 @@ function weiter() {
         {{ t('capture.results') }} <a :href="adresse('listen')">{{ t('nav.listen') }}</a
         >.
       </p>
-      <!-- Parallel-Slalom: eigener Wettkampf, eigener Aufbau – entsteht zuerst im Fehlerpunkte-Prototyp. -->
-      <p v-if="parallel" class="boat-banner ok">
-        {{ t('capture.parallel') }} <a :href="PROTOTYP_URL" target="_blank" rel="noopener">{{ t('event.parallelSetupLink') }}</a>
-      </p>
+      <!-- Der Parallelslalom wird hier erfasst; gewertet wird bisher nur das Manövrieren. -->
+      <p v-if="parallel" class="note" data-hinweis="parallel-wertung">{{ t('capture.parallel') }}</p>
     </template>
   </div>
 

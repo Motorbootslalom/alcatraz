@@ -25,7 +25,7 @@ import WkrEinteilung from './WkrEinteilung.vue'
  * Personennamen: nur in der Sicherung (persistenz/backup.ts).
  */
 const { state, dispatch } = useStore()
-const { regelwerk, classes, classLabel } = useEvent()
+const { regelwerk, classes, classLabel, classBadge } = useEvent()
 
 const anzahl = (b: Partial<Record<ClassId, string>>) => classes.value.filter((c) => besetzungText(b, c.id) !== '').length
 const boote = computed(() => anzahl(state.value.boote))
@@ -91,7 +91,7 @@ function weiter(e: Event) {
         <tbody>
           <tr v-for="c in classes" :key="c.id" :data-klasse="c.id">
             <th scope="row">
-              <span class="class-badge sm" :style="{ background: classColor(c.id) }">{{ c.id }}</span>
+              <span class="class-badge sm" :style="{ background: classColor(c.id) }">{{ classBadge(c.id) }}</span>
               {{ classLabel(c.id) }}
             </th>
             <td :data-titel="t('crew.boat')">

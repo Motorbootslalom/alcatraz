@@ -1,7 +1,8 @@
 import type { ClassId } from '../types'
 import { CLASS_IDS } from '../domain/classes'
+import type { KuerzelNorm } from '../domain/kuerzel'
 import { configFor, eigeneAuswahl, ROH_REGELWERKE, type RohRegelwerk } from './konfig'
-import { regelwerkInfo } from './build'
+import { regelwerkInfo, type DisziplinWertung } from './build'
 import type { RawAufbau, StichKriterium } from './schema'
 
 /**
@@ -23,6 +24,10 @@ export interface Regelwerk {
   klassen: ClassId[]
   /** Eigene Klassennamen, z. B. E → „Dolphin“. */
   klassenNamen: Partial<Record<ClassId, string>>
+  /** Eigene Kurzzeichen der Klassen für die runden Marken der Oberfläche, z. B. E → „D“; sonst die Kennung. */
+  klassenKurz: Partial<Record<ClassId, string>>
+  /** Was vor der laufenden Nummer klassenbezogener Startnummern steht, z. B. E → „E“ (E01); sonst die Kennung. */
+  startNrPraefix: Partial<Record<ClassId, string>>
   /** Kennungen der Disziplinen, die nach diesem Regelwerk gefahren werden. */
   disziplinen: string[]
   /** Statistisches Durchschnittsgewicht je Klasse in kg (Grundlage des Ausgleichsgewichts). */
@@ -34,7 +39,25 @@ export interface Regelwerk {
   /** Disziplin → Listen, die das Regelwerk in jedem ihrer Aufbauten vorsieht – abwählbare Vorgabe (lib/listen.ts). */
   vorgabeListen: Record<string, string[]>
   /** Läufe und Streichläufe, die das Regelwerk vorsieht: Voreinstellung bei der Wahl des Regelwerks und – ohne `nurVorgabe` – Maß für den Hinweis bei Abweichung. */
-  wertungslaeufe?: { laeufe: number; streichlaeufe: number; nurVorgabe?: true }
+  wertungslaeufe?: { laeufe: number; streichlaeufe: number; nurVorgabe?: true; nachRegel?: Record<number, number> }
+  /**
+   * Disziplin → was für sie statt `stichentscheid` und `wertungslaeufe` gilt (lib/ergebnis.ts
+   * `wertungDer`). Eine Disziplin ohne Eintrag folgt den Angaben oben.
+   */
+  wertungJeDisziplin: Record<string, DisziplinWertung>
+  /**
+   * Was das Regelwerk für den Aushang verlangt (UIM 960, Pkt. 5.2): `unterschrift` = Zeile für
+   * den O.O.D. und Feld für die Uhrzeit des Aushangs unter jeder Wertungsliste; `punkte` =
+   * Spalte mit den Punkten des Platzes auf der Gesamtliste.
+   */
+  aushang: { unterschrift: boolean; punkte: boolean }
+  /**
+   * Vorgabe für „Läufe direkt nacheinander“ (UIM 960, Pkt. 4.3.2). `undefined`: Das Regelwerk
+   * kennt den Schalter nicht – er ist dann weder sichtbar noch wirksam ({@link versucheNacheinander}).
+   */
+  versucheNacheinander?: boolean
+  /** Kürzel der Länder auf den Listen: ISO (DM) oder IOC (UIM, Regel 209) – domain/kuerzel.ts `KuerzelNorm`. */
+  laenderKuerzel: KuerzelNorm
 }
 
 export interface Aufbau {
@@ -47,6 +70,16 @@ export interface Aufbau {
 
 const isClassId = (value: string): value is ClassId => (CLASS_IDS as string[]).includes(value)
 
+/** Texte je Klasse aus dem YAML: nur bekannte Klassen, nur nicht leere Texte (Zahlen als Text). */
+function texteJeKlasse(roh: unknown): Partial<Record<ClassId, string>> {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
+  return Object.fromEntries(
+    Object.entries(roh)
+      .filter(([klasse, text]) => isClassId(klasse) && (typeof text === 'string' || typeof text === 'number') && String(text).trim() !== '')
+      .map(([klasse, text]) => [klasse, String(text).trim()]),
+  )
+}
+
 function readRegelwerk(raw: RohRegelwerk): Regelwerk {
   const info = regelwerkInfo(raw)
   return {
@@ -54,12 +87,18 @@ function readRegelwerk(raw: RohRegelwerk): Regelwerk {
     label: info.label,
     klassen: info.klassen.filter(isClassId),
     klassenNamen: raw.klassenNamen ?? {},
+    klassenKurz: texteJeKlasse(raw.klassenKurz),
+    startNrPraefix: texteJeKlasse(raw.startNrPraefix),
     disziplinen: raw.disziplinen ?? [MANOEVRIEREN],
     gewichte: raw.gewichte ?? {},
     coPilotKlassen: (raw.coPilot ?? []).map(String).filter(isClassId),
     stichentscheid: info.stichentscheid,
     vorgabeListen: info.vorgabeListen,
     wertungslaeufe: info.wertungslaeufe,
+    wertungJeDisziplin: info.wertungJeDisziplin,
+    aushang: info.aushang,
+    ...(info.versucheNacheinander === undefined ? {} : { versucheNacheinander: info.versucheNacheinander }),
+    laenderKuerzel: info.laenderKuerzel,
   }
 }
 
@@ -105,9 +144,49 @@ export function regelwerkOf(id: string): Regelwerk {
   return REGELWERKE.find((r) => r.id === id) ?? REGELWERKE[0]
 }
 
+/**
+ * Werden die Läufe eines Starters direkt nacheinander gefahren (kein Aushang dazwischen)? Der
+ * Schalter der Veranstaltung gilt nur unter einem Regelwerk, das ihn kennt – unter jedem
+ * anderen bleibt er gespeichert, aber ohne Wirkung, und die Listen sind wie bisher.
+ */
+export function versucheNacheinander(stand: { regelwerk: string; versucheNacheinander?: boolean }): boolean {
+  return regelwerkOf(stand.regelwerk).versucheNacheinander !== undefined && stand.versucheNacheinander === true
+}
+
+/**
+ * Was vor der laufenden Nummer klassenbezogener Startnummern steht: die Angabe des Regelwerks –
+ * und für die Klasse Dolphin (ein Regelwerk, das die Klasse E so nennt) der in den Einstellungen
+ * gewählte Buchstabe, E oder D (`AppState.dolphinPraefix`; Entscheidung des Nutzers vom
+ * 15.11.2026). Regel 960, Pkt. 3.7 sagt nur: „Each driver shall receive a personal number“.
+ */
+export function startNrPraefixe(stand: { regelwerk: string; dolphinPraefix?: 'E' | 'D' }): Partial<Record<ClassId, string>> {
+  const rw = regelwerkOf(stand.regelwerk)
+  return rw.klassenNamen.E === undefined || stand.dolphinPraefix === undefined ? rw.startNrPraefix : { ...rw.startNrPraefix, E: stand.dolphinPraefix }
+}
+
 /** Der wählbare Aufbau mit dieser Kennung; unbekannte (auch gelöschte oder abgelehnte eigene) fallen auf die Vorgabe zurück. */
 export function aufbauOf(id: string, eigene: readonly RawAufbau[] = []): Aufbau {
   return manoeverAufbauten(eigene).find((a) => a.id === id) ?? MANOEVER_AUFBAUTEN[0]
+}
+
+/**
+ * Die Aufbauten, unter denen für eine Disziplin gewählt wird: für das Manövrieren
+ * {@link manoeverAufbauten} (mit den eigenen), für jede andere die mitgelieferten dieser
+ * Disziplin. Eigene Aufbauten gibt es bisher nur für das Manövrieren (`eigeneAuswahl`).
+ */
+export function aufbautenFuer(disziplin: string, eigene: readonly RawAufbau[] = []): Aufbau[] {
+  return disziplin === MANOEVRIEREN ? manoeverAufbauten(eigene) : AUFBAUTEN.filter((a) => a.disziplin === disziplin)
+}
+
+/**
+ * Der Aufbau einer Disziplin: der mit dieser Kennung, sonst ihr erster (die Vorgabe).
+ * `undefined`, wenn es für die Disziplin keinen gibt. Neben {@link aufbauOf} (Manövrieren, im
+ * Stand als `aufbau`): Der Parallelslalom hat seinen eigenen Aufbau – bisher genau einen
+ * (config/aufbauten/parallel.yaml), deshalb steht für ihn nichts im Stand.
+ */
+export function aufbauFuer(disziplin: string, id?: string, eigene: readonly RawAufbau[] = []): Aufbau | undefined {
+  const liste = aufbautenFuer(disziplin, eigene)
+  return liste.find((a) => a.id === id) ?? liste[0]
 }
 
 /** Wird nach diesem Regelwerk ein Parallelslalom gefahren? */

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, watch, watchEffect } from 'vue'
 import { useStore } from './state/store'
 import { adresse, navigate, useRoute, VIEWS } from './lib/router'
 import { hoereAufScanner } from './lib/scanner'
 import { meldeScan } from './lib/scan'
 import { BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from './lib/build'
 import { formatDateTime, t, tn, type MessageKey } from './i18n'
-import { neuLaden, offline, pruefeDauerhaft, uebernehmen } from './lib/offline'
+import { neuLaden, offline, pruefeDauerhaft } from './lib/offline'
+import { fassungsText, useUpdate } from './lib/update'
 import AppLogo from './components/AppLogo.vue'
 import LocaleSelect from './components/LocaleSelect.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
@@ -59,9 +60,11 @@ onMounted(() => {
 onBeforeUnmount(() => scannerAb?.())
 
 // Ohne Internet (lib/offline.ts): Die Fußzeile sagt in einem Wort, ob das Programm auf dem Gerät
-// liegt; das Nähere steht unter „Einstellungen“. Eine neue Fassung meldet sich oben – übernommen
-// wird sie nur auf Knopfdruck. „Später“ räumt den Hinweis für dieses Fenster weg.
-const spaeter = ref(false)
+// liegt; das Nähere steht unter „Einstellungen“. Liegt eine neue Fassung vollständig bereit,
+// steht in der Kopfzeile vor „Einstellungen“ der Knopf „Update“ – sonst gibt es ihn nicht. Ein
+// Wettkampf geht über mehrere Tage und Neustarts: Gewechselt wird nur auf diesen Knopfdruck.
+const update = useUpdate()
+const updateTitel = computed(() => t('offline.update.title', { fassung: fassungsText(offline.neuFassung, offline.neuCommitZeit, offline.neuZeit) }))
 const offlineZeile = computed<MessageKey>(() => {
   if (offline.neu || offline.ersetzt) return 'offline.state.neu'
   if (offline.lage === 'bereit') return 'offline.state.bereit'
@@ -102,21 +105,33 @@ function commitLabel(): string {
         <LocaleSelect />
       </div>
       <nav class="tabs">
-        <a
-          v-for="v in VIEWS"
-          :key="v"
-          :href="adresse(v)"
-          :class="['tab', view === v ? 'active' : '', v === 'einstellungen' ? 'settings' : '']"
-          :aria-current="view === v ? 'page' : undefined"
-        >
-          <svg v-if="v === 'einstellungen'" class="gear" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.600 11a7.500 7.500 0 0 0 0 2l-2.100 1.600a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.500-1c.5.4 1.100.7 1.700 1l.4 2.600c0 .200.200.400.500.400h4c.3 0 .5-.2.5-.4l.4-2.600a7.300 7.300 0 0 0 1.700-1l2.500 1c.2.100.500 0 .600-.200l2-3.500a.5.5 0 0 0-.1-.6L19.400 13ZM12 15.500a3.500 3.500 0 1 1 0-7 3.500 3.500 0 0 1 0 7Z"
-            />
-          </svg>
-          {{ t(`nav.${v}`) }}
-        </a>
+        <template v-for="v in VIEWS" :key="v">
+          <button
+            v-if="v === 'einstellungen' && offline.neu && !offline.ersetzt"
+            type="button"
+            class="update-knopf"
+            data-action="update"
+            :title="updateTitel"
+            :disabled="offline.uebernimmt"
+            @click="update()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" /></svg>
+            {{ t(offline.uebernimmt ? 'offline.update.busy' : 'offline.update.button') }}
+          </button>
+          <a
+            :href="adresse(v)"
+            :class="['tab', view === v ? 'active' : '', v === 'einstellungen' ? 'settings' : '']"
+            :aria-current="view === v ? 'page' : undefined"
+          >
+            <svg v-if="v === 'einstellungen'" class="gear" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.600 11a7.500 7.500 0 0 0 0 2l-2.100 1.600a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.500-1c.5.4 1.100.7 1.700 1l.4 2.600c0 .200.200.400.500.400h4c.3 0 .5-.2.5-.4l.4-2.600a7.300 7.300 0 0 0 1.700-1l2.500 1c.2.100.500 0 .600-.200l2-3.500a.5.5 0 0 0-.1-.6L19.400 13ZM12 15.500a3.500 3.500 0 1 1 0-7 3.500 3.500 0 0 1 0 7Z"
+              />
+            </svg>
+            {{ t(`nav.${v}`) }}
+          </a>
+        </template>
       </nav>
     </header>
 
@@ -134,14 +149,6 @@ function commitLabel(): string {
       {{ t('offline.replaced.text') }}
       <button class="btn sm" @click="neuLaden()">{{ t('offline.replaced.reload') }}</button>
     </p>
-    <p v-else-if="offline.neu && !spaeter" class="boat-banner ok no-print" role="status" data-hinweis="neue-fassung">
-      {{ t('offline.update.text', { commit: offline.neuFassung ? t('offline.update.commit', { commit: offline.neuFassung }) : '' }) }}
-      {{ t('offline.update.note') }}
-      <span class="banner-knoepfe">
-        <button class="btn sm primary" data-action="fassung-uebernehmen" @click="uebernehmen()">{{ t('offline.update.take') }}</button>
-        <button class="btn sm" data-action="fassung-spaeter" @click="spaeter = true">{{ t('offline.update.later') }}</button>
-      </span>
-    </p>
 
     <main>
       <EventView v-if="view === 'veranstaltung'" />
@@ -156,7 +163,8 @@ function commitLabel(): string {
     <ToTop />
 
     <footer class="version-footer no-print">
-      {{ t('app.footer', { commit: commitLabel(), time: formatDateTime(BUILD_TIME) || t('app.unknown') }) }}
+      <!-- Bauzeit mit Sekunden wie unter „Läuft“ und „Liegt bereit“: zwei Builds derselben Minute sind sonst nicht zu unterscheiden. -->
+      {{ t('app.footer', { commit: commitLabel(), time: formatDateTime(BUILD_TIME, true) || t('app.unknown') }) }}
       ·
       <a class="offline-stand" :href="adresse('einstellungen', { ziel: 'offline' })" data-offline-stand>
         <span :class="['offline-punkt', offlineGut ? 'gut' : offline.lage === 'vorbereiten' || offline.neu ? 'wartet' : 'aus']" aria-hidden="true" />{{ t(offlineZeile) }}

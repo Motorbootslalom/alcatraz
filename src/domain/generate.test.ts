@@ -72,3 +72,17 @@ describe('generateStarters', () => {
     expect(ids.size).toBe(list.length)
   })
 })
+
+describe('Klasse Dolphin mit umgestelltem Buchstaben (E oder D)', () => {
+  it('zählt nach dem Umstellen bei der höchsten Nummer weiter – E und D gelten beide', () => {
+    const e = generateStarters('E', 2, 2026, 'verein', [])
+    expect(generateStarters('E', 2, 2026, 'verein', e, { E: 'D' }).map((p) => p.startNr)).toEqual(['D03', 'D04'])
+  })
+})
+
+describe('Geschlecht der Beispielstarter', () => {
+  it('nur unter einem Regelwerk mit der Liste nach Regel 960, Pkt. 3.7 – unter der DM ohne', () => {
+    expect(generateStarters('3', 4, 2026, 'verein', []).every((p) => p.geschlecht === 'M' || p.geschlecht === 'F')).toBe(true)
+    expect(generateStarters('3', 4, 2026, 'verein', [], undefined, undefined, false).some((p) => 'geschlecht' in p)).toBe(false)
+  })
+})

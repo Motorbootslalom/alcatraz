@@ -1,7 +1,7 @@
 import { PRINT_RESERVE_MM, PX_PER_MM, printableHeightPx } from './paging'
 
 // Seitenteilung der Listen, die keine Wettkampfrichter-Bögen sind: Starter-, Vorsteg-,
-// Gewichts- und Ergebnislisten. Früher überließen sie den Umbruch dem Browser und ließen ihn
+// Gewichts- und Wertungslisten. Früher überließen sie den Umbruch dem Browser und ließen ihn
 // im Seitenrand zählen – über den ganzen Druckauftrag („Seite 58 von 178“). Jetzt ist jede
 // Liste ein Dokument, das sich selbst in Seiten teilt und seine Seitenzahl selbst schreibt
 // (components/ListenDokument.vue). Hier steht nur die Rechnung, ohne DOM.
@@ -24,7 +24,7 @@ const MIN_REST = 3
  * Ohne `hoehe` zählt jede Zeile 1, die Kapazität ist dann die Zahl der Zeilen je Seite. Mit
  * `hoehe` (gemessene Höhe jeder Zeile) ist sie der Platz in derselben Einheit: So stimmt die
  * Teilung auch, wenn einzelne Zeilen höher sind als die anderen (zweizeilige Herkunft auf
- * der Ergebnisliste).
+ * der Wertungsliste).
  *
  * - Ein Block bleibt zusammen: Passt er nicht mehr auf die laufende Seite, aber auf eine
  *   ganze, beginnt er auf der nächsten.
@@ -116,12 +116,23 @@ export function listenSeiten(
 export const SEITENZAHL_MM = 5
 
 /**
- * Höhe des Fußes der Ergebnislisten (styles/ergebnis.css `.erg-fuss`): 4 mm Abstand zur
+ * Höhe des Fußes der Wertungslisten (styles/ergebnis.css `.erg-fuss`): 4 mm Abstand zur
  * Tabelle, darunter eine Zeile mit dem Hinweis zum Stichentscheid, der Seitenzahl und dem
  * Feld mit dem Zeitstempel der letzten Änderung. Fest wie {@link SEITENZAHL_MM}, auch wenn auf einer Seite nichts
  * davon steht – sonst hinge die Aufteilung davon ab, ob es gerade einen Stichentscheid gibt.
  */
 export const ERGEBNIS_FUSS_MM = 12
+
+/**
+ * Höhe des Fußes mit Unterschrift (styles/ergebnis.css `.erg-fuss--unterschrift`): unter der
+ * Zeile von {@link ERGEBNIS_FUSS_MM} eine zweite von 10 mm mit der Unterschriftszeile für den
+ * O.O.D. und dem leeren Feld für die Uhrzeit des Aushangs (UIM 960, Pkt. 5.2). Nur unter einem
+ * Regelwerk, das sie verlangt – die Listen der übrigen behalten ihren Fuß und ihre Seiten.
+ */
+export const ERGEBNIS_FUSS_UNTERSCHRIFT_MM = ERGEBNIS_FUSS_MM + 10
+
+/** Die Höhe des Fußes einer Wertungsliste: mit oder ohne die Zeile für Unterschrift und Aushang. */
+export const ergebnisFussMm = (unterschrift: boolean | undefined): number => (unterschrift ? ERGEBNIS_FUSS_UNTERSCHRIFT_MM : ERGEBNIS_FUSS_MM)
 
 /**
  * Platz für die Zeilen einer Seite in px, aus der Messung der ersten Seite: `fixedPx` = alles
@@ -143,7 +154,7 @@ export const MESS_TOLERANZ_KOPF_PX = 1
 export const MESS_TOLERANZ_ZEILE_PX = 0.25
 
 /**
- * Die Zeilen einer Seite aus einer Liste mit einem einzigen Block (Ergebnislisten): je Zeile
+ * Die Zeilen einer Seite aus einer Liste mit einem einzigen Block (Wertungslisten): je Zeile
  * auch ihre Stelle `i` in der ganzen Liste – daran hängen graue Zeile und Abstand, nicht an
  * der Stelle auf der Seite.
  */
@@ -163,7 +174,9 @@ export const SEITEN_VORGABE = {
   gewicht: 15,
   /** Ausgleichsgewichte für den Steg (A4 hoch, je Klasse ein Dokument). */
   ausgleich: 30,
-  /** Ergebnisliste eines Laufs (A4 quer). */
+  /** Fahrer je Team nach Regel 960, Pkt. 3.7 (A4 quer, je Team ein Dokument). */
+  team: 22,
+  /** Wertungsliste eines Laufs (A4 quer). */
   ergebnisLauf: 30,
   /** Gesamtliste einer Klasse (A4 quer). */
   ergebnisGesamt: 30,

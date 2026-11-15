@@ -5,6 +5,7 @@ import { useEvent } from '../lib/event'
 import { POKAL_VARIANTEN } from '../config/pokal'
 import { pokalWahl, usePokalWertung } from '../lib/pokalBlaetter'
 import { istOriginStyle, originLabelKey } from '../lib/origin'
+import { DISZIPLIN_TEXT } from '../lib/disziplinen'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
 import type { ErgebnisFassung, OriginStyle } from '../types'
@@ -49,6 +50,8 @@ const offen = computed(() => pokal.offen)
 const ohneHerkunftZahl = computed(() => pokal.ohneHerkunftZahl)
 const abgewaehlt = computed(() => pokal.abgewaehlt)
 const nichtGewertet = computed(() => pokal.nichtGewertet)
+/** „Disziplin nicht werten“ in Worten: „Manövrieren – Klasse 3, Klasse 4; Parallel-Slalom – alle Klassen“. */
+const gestrichenText = computed(() => pokal.gestrichen.map((g) => `${t(DISZIPLIN_TEXT[g.disziplin])} – ${g.alle ? t('notScored.allClasses') : g.klassen.map((k) => classLabel(k)).join(', ')}`).join('; '))
 
 /** Die Auswahl in Worten, für Fenstertitel und Dateiname – in der Sprache der Oberfläche. */
 const auswahlText = computed(() => blaetter.value.map((v) => t(`cup.variant.${v}`)).join(', '))
@@ -115,6 +118,12 @@ watchEffect(() => emit('stand', { anzahl: blaetter.value.length, auswahl: auswah
       <p v-if="hatErgebnis && offen.length > 0" class="boat-banner warn" data-hinweis="pokal-zwischenstand" role="status">
         {{ t('cup.interimScreen', { classes: offen.map((k) => classLabel(k)).join(', ') }) }}
       </p>
+      <!-- Nur, wenn der Parallelslalom gewertet wird: worauf die Wertung nach UIM-Punkten dann beruht. -->
+      <p v-if="pokal.ausEinzel && gezeigt.includes('uim')" class="note" data-hinweis="pokal-aus-einzel">{{ t('cup.fromIndividual') }}</p>
+      <!-- Regel 960: Ohne erfasste Knoten hat ein Starter noch keine Punkte aus dem Manövrieren – sonst wunderte man sich über „offen“. -->
+      <p v-if="pokal.uimRegel && pokal.gefahren.includes('manoever') && gezeigt.includes('uim')" class="note" data-hinweis="pokal-knoten">{{ t('cup.knotsNote') }}</p>
+      <!-- „Disziplin nicht werten“ (Entscheidung des O.O.D.): welche Disziplin für welche Klassen fehlt. -->
+      <p v-if="pokal.gestrichen.length > 0" class="boat-banner warn" data-hinweis="pokal-nicht-werten" role="status">{{ t('notScored.screen', { list: gestrichenText }) }}</p>
       <p v-if="regeln.nurAuswahl" class="note" data-hinweis="pokal-auswahl">
         {{ tn('cup.selectionNote', abgewaehlt) }} <a :href="adresse('starter')">{{ t('nav.starter') }}</a
         >.

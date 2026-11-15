@@ -2,9 +2,11 @@
 import { getClass } from '../domain/classes'
 import { originLabelKey, originOf } from '../lib/origin'
 import { t } from '../i18n'
+import { useEvent } from '../lib/event'
 import type { OriginMode, Starter } from '../types'
 
 defineProps<{ sequence: Starter[]; originMode: OriginMode }>()
+const { classLabel, classBadge } = useEvent()
 </script>
 
 <template>
@@ -24,7 +26,7 @@ defineProps<{ sequence: Starter[]; originMode: OriginMode }>()
         <tr v-for="(p, i) in sequence" :key="p.id">
           <td class="pos">{{ i + 1 }}</td>
           <td>
-            <span class="class-badge sm" :style="{ background: getClass(p.klasse).color }">{{ p.klasse }}</span>
+            <span class="class-badge sm" :style="{ background: getClass(p.klasse).color }" :title="classLabel(p.klasse)">{{ classBadge(p.klasse) }}</span>
           </td>
           <td class="num">{{ p.startNr || '–' }}</td>
           <td>{{ p.nachname }}, {{ p.vorname }}</td>

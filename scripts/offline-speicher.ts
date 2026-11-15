@@ -26,33 +26,47 @@ function dateien(ordner: string, unter = ordner): string[] {
 
 const sha256 = (inhalt: Buffer | string) => createHash('sha256').update(inhalt).digest('hex')
 
-export interface OfflineStand {
+/** Woran man eine Fassung erkennt – dieselben Angaben wie in der Fußzeile (src/lib/build.ts). */
+export interface OfflineFassung {
   /** Codestand zur Anzeige (Commit); leer außerhalb von Git. */
   fassung: string
+  /** Zeitpunkt des Commits und des Builds (ISO); leer, wenn unbekannt. */
+  commitZeit: string
+  zeit: string
+}
+
+export interface OfflineStand extends OfflineFassung {
   /** Prüfsumme über die Liste: Name des Caches. Jede geänderte Datei ergibt eine neue Kennung. */
   kennung: string
   /** Pfad relativ zum Ordner und SHA-256 des Inhalts. */
   dateien: [pfad: string, summe: string][]
 }
 
-export function offlineStand(ordner: string, fassung: string): OfflineStand {
+export function offlineStand(ordner: string, fassung: OfflineFassung): OfflineStand {
   const liste = dateien(ordner)
     .filter((pfad) => pfad !== SW_DATEI)
     .map((pfad): [string, string] => [pfad, sha256(readFileSync(join(ordner, pfad)))])
-  return { fassung, kennung: sha256(JSON.stringify(liste)).slice(0, 16), dateien: liste }
+  // Die Kennung hängt allein am Inhalt der Dateien. Weil die Bauzeit im Bundle steht (lib/build.ts,
+  // Fuß der Seite), ist aber jeder Neubau eine neue Fassung – auch bei gleichem Code; nur dieselben
+  // Dateien (etwa zweimal dieselbe `dist` verarbeitet) ergeben dieselbe Kennung.
+  return { fassung: fassung.fassung, commitZeit: fassung.commitZeit, zeit: fassung.zeit, kennung: sha256(JSON.stringify(liste)).slice(0, 16), dateien: liste }
 }
 
-/** Die Fassung, die schon in einer `sw.js` steht – für den zweiten Aufruf nach dem Kopieren. */
-function fassungAus(ordner: string): string {
+/**
+ * Die Fassung, die schon in einer `sw.js` steht – für den zweiten Aufruf nach dem Kopieren. Sie
+ * stammt vom ersten Aufruf desselben Builds; eine `sw.js` älterer Bauart wird nicht gelesen.
+ */
+function fassungAus(ordner: string): OfflineFassung {
   try {
     const kopf = readFileSync(join(ordner, SW_DATEI), 'utf8').split('\n', 1)[0]
-    return (JSON.parse(kopf.replace(/^const STAND = /, '')) as OfflineStand).fassung
+    const { fassung, commitZeit, zeit } = JSON.parse(kopf.replace(/^const STAND = /, '')) as OfflineStand
+    return { fassung, commitZeit, zeit }
   } catch {
-    return ''
+    return { fassung: '', commitZeit: '', zeit: '' }
   }
 }
 
-export function schreibeOfflineSpeicher(ordner: string, fassung: string = fassungAus(ordner)): OfflineStand {
+export function schreibeOfflineSpeicher(ordner: string, fassung: OfflineFassung = fassungAus(ordner)): OfflineStand {
   const stand = offlineStand(ordner, fassung)
   writeFileSync(join(ordner, SW_DATEI), `const STAND = ${JSON.stringify(stand)}\n${readFileSync(VORLAGE, 'utf8')}`)
   return stand
@@ -68,8 +82,8 @@ self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (ereignis) => {
   ereignis.waitUntil(
     (async () => {
-      const prefix = 'alcatraz-offline|' + new URL(self.registration.scope).pathname + '|'
-      for (const name of await caches.keys()) if (name.startsWith(prefix)) await caches.delete(name)
+      const pfad = new URL(self.registration.scope).pathname
+      for (const name of await caches.keys()) if (name.startsWith('alcatraz-offline|' + pfad + '|') || name === 'alcatraz-fassung|' + pfad) await caches.delete(name)
       await self.registration.unregister()
       for (const fenster of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) fenster.navigate(fenster.url)
     })(),

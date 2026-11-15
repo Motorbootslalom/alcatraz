@@ -433,6 +433,74 @@ table.starters tr:hover td {
   background: var(--danger-soft);
 }
 
+.starters .del.zurueck {
+  color: var(--accent);
+}
+
+.starters .del.zurueck:hover {
+  background: var(--accent-soft);
+}
+
+/* Nach Beginn des Wettkampfs abgemeldet (lib/abmeldung.ts): schraffiert wie die Zeilen in der
+   Erfassung, dazu das Wort – nicht nur Muster. */
+table.starters tr.starter-abgemeldet td {
+  background-image: repeating-linear-gradient(45deg, transparent 0 6px, color-mix(in srgb, var(--muted) 35%, transparent) 6px 7.5px);
+}
+
+.abgemeldet-marke {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ---------- Dialog (components/AppDialog.vue) ---------- */
+.app-dialog {
+  box-sizing: border-box;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.app-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.app-dialog-inhalt {
+  padding: 20px 22px;
+}
+
+.app-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+
+.app-dialog p {
+  margin: 0 0 10px;
+}
+
+.app-dialog-liste {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.app-dialog-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
 /* Startnummern-Editor (verschieben & Nummer ändern) */
 .nr-edit {
   display: flex;
@@ -1003,6 +1071,39 @@ table.starters tr:hover td {
   color: #9a3412;
 }
 
+/* Start ohne Starter im festgeschriebenen Plan: bleibt an seiner Position, abgeblendet. */
+/* Runden nach dem Vorlauf (components/ParallelRunden.vue): je Klasse ihr Weg und die Knöpfe. */
+.parallel-klasse {
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+.parallel-klasse h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+.parallel-weg {
+  margin: 0 0 6px;
+  padding-left: 18px;
+}
+.parallel-weg li {
+  margin: 2px 0;
+}
+.parallel-weg .btn,
+.parallel-naechste .btn {
+  margin-left: 8px;
+}
+.parallel-veraltet {
+  color: var(--danger);
+}
+
+.parallel-sequence tr.entfaellt td {
+  color: var(--muted);
+}
+
+.parallel-sequence .entfaellt-text {
+  font-style: italic;
+}
+
 .run-tag {
   margin-left: 6px;
   color: var(--muted);
@@ -1247,6 +1348,31 @@ label.class-count {
   font-size: 9pt;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* Doppelseitig drucken (lib/doppelseitig.ts): die leere Rückseite hinter einem Dokument mit
+   ungerader Seitenzahl. Am Bildschirm ein blasses leeres Blatt mit Vermerk; im Druck ist die
+   Seite leer (styles/print.css). */
+.leere-rueckseite {
+  box-sizing: border-box;
+  min-height: 46mm;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--blatt-rand);
+  border-radius: var(--radius);
+  background: var(--blatt-bg);
+  color: var(--blatt-text);
+  opacity: 0.7;
+}
+
+.sheet-page + .leere-rueckseite {
+  margin-top: 32px;
+}
+
+.leere-rueckseite-vermerk {
+  margin: 0;
+  font-size: 10pt;
+  letter-spacing: 0.04em;
 }
 
 /* Schriftgröße wie im Druck – siehe oben. */
@@ -1680,6 +1806,47 @@ details.panel[open] > summary {
 .gear {
   width: 16px;
   height: 16px;
+}
+
+/* „Update“: nur da, wenn eine neue Fassung bereitliegt (App.vue) – vor „Einstellungen“, in der
+   hellen Farbe des Zeichens, damit er auf der dunklen Kopfzeile auffällt, ohne zu blinken. */
+.topbar .update-knopf {
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--logo-accent);
+  color: #06201d;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.topbar .update-knopf svg {
+  width: 15px;
+  height: 15px;
+}
+
+.topbar .update-knopf:hover {
+  filter: brightness(1.08);
+}
+
+.topbar .update-knopf:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.topbar .update-knopf:focus-visible {
+  outline: 2px solid var(--top-text);
+  outline-offset: 2px;
+}
+
+.topbar .update-knopf + a.tab.settings {
+  margin-left: 4px;
 }
 
 .file-list {
@@ -2754,6 +2921,15 @@ table.starters tr.cup-zaehlt-nicht td:not(.cup-spalte) {
   margin-right: 0;
 }
 
+.offline-fassungen {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+}
+
 .offline-panel h3 {
   margin: 18px 0 6px;
 }
@@ -3029,4 +3205,38 @@ table.starters tr.cup-zaehlt-nicht td:not(.cup-spalte) {
     grid-column: 1 / -1;
     justify-content: flex-start;
   }
+}
+
+/* ---------- Startliste einer Runde des Parallelslaloms (ParallelStartlisten.vue) ---------- */
+
+/* Zwischen zwei Blöcken der Startreihenfolge eine kräftige Linie – wie auf den Listen der race officials. */
+.parallel-startliste .sheet-table tbody.psl-block + tbody.psl-block {
+  border-top: 2px solid var(--blatt-linie);
+}
+
+/* Racecourse B beginnt mit einer kräftigen Linie: Die beiden Hälften der Zeile lesen sich getrennt. */
+.parallel-startliste .sheet-table .psl-b {
+  border-left: 2px solid var(--blatt-linie);
+}
+
+.parallel-startliste .sheet-table td.psl-name {
+  text-align: left;
+}
+
+.parallel-startliste .sheet-table td.psl-dummy {
+  font-style: italic;
+  background: repeating-linear-gradient(135deg, transparent 0 3px, var(--blatt-blass) 3px 4px);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------- Fahrer je Team nach Regel 960, Pkt. 3.7 (TeamListen.vue) ---------- */
+
+.sheet.team-liste .sheet-table td.ausgleich-kg {
+  font-weight: 700;
+}
+
+.sheet.team-liste .sheet-table td.ungewogen {
+  font-size: 0.85em;
+  font-style: italic;
 }

@@ -8,7 +8,7 @@ import { t } from '../i18n'
 // Sieht das Regelwerk eine bestimmte Zahl von Läufen und Streichläufen vor (UIM: zwei
 // Versuche, der bessere zählt) und ist die Veranstaltung anders eingestellt, steht es hier.
 // Nur ein Hinweis: Wie viele Läufe gestrichen werden, entscheidet der Rennleiter. Derselbe
-// Hinweis steht dort, wo man es einstellt (Veranstaltung, Wertung), und bei den Ergebnislisten.
+// Hinweis steht dort, wo man es einstellt (Veranstaltung, Wertung), und bei den Wertungslisten.
 const { state } = useStore()
 const { regelwerk } = useEvent()
 const soll = computed(() => laeufeLautRegelwerk(regelwerk.value, state.value))
@@ -22,7 +22,7 @@ const soll = computed(() => laeufeLautRegelwerk(regelwerk.value, state.value))
         runs: soll.laeufe,
         drop: soll.streichlaeufe,
         nowRuns: state.laufCount,
-        nowDrop: streichlaeufeVon(state.laufCount, state.streichlaeufe),
+        nowDrop: streichlaeufeVon(state.laufCount, state.streichlaeufe, regelwerk.wertungslaeufe?.nachRegel),
       })
     }}
   </p>

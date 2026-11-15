@@ -5,6 +5,8 @@ import { useEvent } from '../lib/event'
 import { standAus } from '../persistenz/storage'
 import { VERLAUF_GRENZEN, type Beschreibung, type VerlaufEintrag } from '../lib/verlauf'
 import { vergissAuswahl } from '../lib/merken'
+import { rundeVon } from '../lib/parallelSchluessel'
+import { rundenName } from '../planung/parallelRunden'
 import { formatDateTime, t, tn, type MessageKey } from '../i18n'
 import type { ClassId } from '../types'
 
@@ -56,8 +58,15 @@ const tage = Math.round(VERLAUF_GRENZEN.alter / (24 * 3_600_000))
 /** Was sich geändert hat – aus Art und Angaben, in der Sprache der Oberfläche. */
 function was(b: Beschreibung): string {
   if (b.art === 'eingabe') {
-    const teile = [b.klasse ? classLabel(b.klasse as ClassId) : '', b.lauf ? t('lists.wkr.runN', { n: b.lauf }) : ''].filter(Boolean)
+    // Im Parallelslalom ist der „Lauf“ der Attempt einer Runde (lib/verlauf.ts `runde`).
+    const runde = rundeVon(`parallel:${b.runde ?? ''}`)
+    const lauf = !b.lauf ? '' : !runde ? t('lists.wkr.runN', { n: b.lauf }) : b.lauf === 1 || b.lauf === 2 ? t(`parallel.attempt.${b.lauf}`) : `${t('parallel.attempt')} ${b.lauf}`
+    const teile = [b.klasse ? classLabel(b.klasse as ClassId) : '', runde ? `${t('parallel.title')} ${rundenName(runde, t)}` : '', lauf].filter(Boolean)
     return [t('history.what.eingabe'), teile.join(', ')].filter(Boolean).join(' ')
+  }
+  if (b.art === 'rundeFest' || b.art === 'rundeGeloest') {
+    const runde = rundeVon(`parallel:${b.runde ?? ''}`)
+    return t(`history.what.${b.art}`, { round: runde ? rundenName(runde, t) : '', class: b.klasse ? classLabel(b.klasse as ClassId) : '' })
   }
   if (b.art === 'verlauf') {
     const time = formatDateTime(b.zeit ?? 0, true)

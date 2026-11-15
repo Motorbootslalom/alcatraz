@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { locale, texteIn, type Locale } from '../../i18n'
 import type { ClassId } from '../../types'
 import type { PlaetzeWertung } from '../../lib/pokal'
-import { ERGEBNIS_FUSS_MM, SEITEN_VORGABE, zeilenDerSeite } from '../../lib/seiten'
+import { ergebnisFussMm, SEITEN_VORGABE, zeilenDerSeite } from '../../lib/seiten'
 import type { HerkunftAnzeige } from '../../lib/origin'
 import HerkunftText from '../HerkunftText.vue'
 import ListenDokument from '../ListenDokument.vue'
@@ -28,13 +28,26 @@ const props = defineProps<{
   klasseText: (klasse: ClassId) => string
   /** Eine Klasse ohne Endergebnis im Hinweis zum Zwischenstand – kurz, mit der Zahl ihrer gewerteten Läufe („1: 1/2“). */
   offenText?: (klasse: ClassId) => string
+  /** Die Erklärung zum Sternchen am Platz (Stichentscheid der Mannschaften), in der Listensprache. */
+  stichText?: string
   /** „Letzte Änderung“, schon als Text; leer = unbekannt. */
   stand?: string
+  /**
+   * Unter der Liste stehen die Unterschriftszeile des O.O.D. und das leere Feld für die Uhrzeit
+   * des Aushangs (UIM 960, Pkt. 5.2) – nur unter einem Regelwerk, das sie verlangt. Der Fuß ist
+   * dann höher; die Seitenteilung rechnet damit (lib/seiten.ts `ergebnisFussMm`).
+   */
+  unterschrift?: boolean
+  /** Ein Hinweis im Fuß jeder Seite: für welche Klassen der O.O.D. das Manövrieren nicht wertet (Regel 960; lib/disziplinen.ts). */
+  hinweis?: string
   sprache?: Locale
 }>()
 
 const sprache = () => props.sprache ?? locale.value
 const { t } = texteIn(sprache)
+
+/** Die Beschriftung der Zeile für Unterschrift und Aushang, in der Sprache der Liste. */
+const unterschriftTexte = computed(() => (props.unterschrift ? { wer: t('results.signOod'), aushang: t('results.postingTime') } : undefined))
 
 /** Breite der Tabelle in mm – wie `.erg-tabelle` (styles/ergebnis.css). */
 const BREITE = 279.8
@@ -73,8 +86,11 @@ const fitZelle = (text: string) => {
   const platz = (zelleMm.value - 0.6) / 1.5
   return text.length <= platz ? undefined : text.length <= platz / 0.85 ? 'fit-1' : 'fit-2'
 }
+// Die Erklärung steht auf jeder Seite des Blatts, sobald irgendein Platz so entstand: Die
+// Plätze einer Mannschaftswertung liest man im Ganzen, nicht seitenweise.
+const mitStich = computed(() => props.wertung.zeilen.some((z) => z.stich))
 const zwischenstand = computed(() =>
-  props.wertung.offen.length > 0 ? t('cup.interimNote', { classes: props.wertung.offen.map((k) => (props.offenText ?? props.klasseText)(k)).join(', ') }) : '',
+  [props.wertung.offen.length > 0 ? t('cup.interimNote', { classes: props.wertung.offen.map((k) => (props.offenText ?? props.klasseText)(k)).join(', ') }) : '', props.hinweis ?? ''].filter(Boolean).join(' '),
 )
 const regelText = computed(() => t('cup.places.rule', { n: props.wertung.plaetze, points: props.punkte.join(' · ') }))
 </script>
@@ -88,10 +104,10 @@ const regelText = computed(() => t('cup.places.rule', { n: props.wertung.plaetze
     format="landscape"
     :vorgabe="SEITEN_VORGABE.pokalPlaetze"
     :sprache="sprache()"
-    :fuss-mm="ERGEBNIS_FUSS_MM"
+    :fuss-mm="ergebnisFussMm(unterschrift)"
   >
     <template #fuss="{ seitenzahl }">
-      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :hinweis="zwischenstand" :seitenzahl="seitenzahl" />
+      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="mitStich ? stichText : ''" :hinweis="zwischenstand" :seitenzahl="seitenzahl" :unterschrift="unterschriftTexte" />
     </template>
     <template #default="{ teile }">
       <table class="erg-tabelle erg-tabelle--gesamt pokal-tabelle">
@@ -125,7 +141,7 @@ const regelText = computed(() => t('cup.places.rule', { n: props.wertung.plaetze
         </thead>
         <tbody>
           <tr v-for="{ z, i } in zeilenDerSeite(wertung.zeilen, teile)" :key="z.herkunft" :class="(i + 1) % 5 === 0 ? 'grau' : undefined" :data-herkunft="z.herkunft">
-            <td class="erg-platz">{{ z.platz }}</td>
+            <td class="erg-platz" :data-stich="z.stich ? '' : undefined">{{ z.platz }}<span v-if="z.stich" class="erg-stich-zeichen">*</span></td>
             <td class="pokal-herkunft"><HerkunftText :anzeige="herkunftAnzeige(z.herkunft)" /></td>
             <td class="pokal-summe">{{ z.gesamt }}</td>
             <template v-for="(klasse, ki) in z.punkte" :key="ki">

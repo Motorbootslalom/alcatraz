@@ -344,7 +344,7 @@ describe('Verlauf', () => {
     expect(wert(store, 'c')).toBe('70')
   })
 
-  it('die Zeitpunkte der Ergebnislisten bleiben wie im wiederhergestellten Stand', async () => {
+  it('die Zeitpunkte der Wertungslisten bleiben wie im wiederhergestellten Stand', async () => {
     const store = await mitStartern()
     store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: laufSchluessel('manoevrieren', 1), starter: 'a', feld: 'zeit1', wert: '80' }], zeit: 1000 })
     await store.zweit.fertig()

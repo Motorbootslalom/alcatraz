@@ -20,7 +20,7 @@ import BogenSeite from './BogenSeite.vue'
 const props = defineProps<{
   konfig: BogenKonfig
   auftrag: BogenAuftrag
-  optionen?: Pick<BogenOptionen, 'leerzeilen' | 'zeilenJeSeite' | 'teilenAb' | 'anzeige' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'leerzeilenJeSeite'>
+  optionen?: Pick<BogenOptionen, 'leerzeilen' | 'zeilenJeSeite' | 'teilenAb' | 'anzeige' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'leerzeilenJeSeite' | 'zebra'>
   rueckseite?: boolean
   kennzeichen?: string
   wkrPflege?: boolean
@@ -34,6 +34,13 @@ const emit = defineEmits<{
    * gedruckten Seiten passen. Vor der Messung (und ohne Layout) ist es eine Seite.
    */
   seiten: [anzahl: number]
+  /**
+   * So viele Tabellenzeilen passen auf ein Blatt dieser Liste (0 = noch nicht gemessen). Jede
+   * Liste einer Runde des Parallelslaloms teilt sich danach für sich (components/ParallelMessung.vue,
+   * lib/parallelBogen.ts) – die Zeit-Liste fasst mehr Starts als Steg und Fahrweg, Seite n trägt
+   * deshalb nicht auf allen Listen dieselben Starts (Entscheidung des Nutzers vom 15.11.2026).
+   */
+  kapazitaet: [zeilen: number]
 }>()
 
 // Gemessene Höhe von Kopf/Fuß und Zeilenhöhe (von der ersten Seite). Nur echte Änderungen
@@ -62,6 +69,7 @@ const seiten = computed(() =>
     zeilenKapazitaet: layout.value ? Math.max(2, zeilenKapazitaet.value) : 0,
   }),
 )
+watch(zeilenKapazitaet, (zeilen) => emit('kapazitaet', zeilen), { immediate: true })
 watch(
   () => seiten.value.length,
   (anzahl) => emit('seiten', anzahl),

@@ -1,8 +1,8 @@
 import type { AppState, ClassId, OriginMode, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { flaggeVon } from '../domain/flaggen'
-import { laufSchluessel, vergleicheNr } from './eingaben'
-import { klassenErgebnis, type ErgebnisKonfig, type ErgebnisStand, type GesamtListe } from './ergebnis'
+import { vergleicheNr } from './eingaben'
+import { klassenErgebnis, wertungVon, type ErgebnisKonfig, type ErgebnisStand, type GesamtListe } from './ergebnis'
 
 // Pokalauswertung (Mannschaftswertung je Herkunft) – rein, ohne DOM und ohne Zustand.
 //
@@ -38,21 +38,32 @@ import { klassenErgebnis, type ErgebnisKonfig, type ErgebnisStand, type GesamtLi
 //     dahinter, ohne Platz. Gezählt werden dafür die Starter, die für die Pokalauswertung
 //     zählen (auch Disqualifizierte und Offene): Mit „nur ausgewählte Starter zählen“ ist die
 //     Auswahl die gemeldete Mannschaft, und wer abgewählt ist, gehört nicht dazu.
-// Punktgleiche Herkünfte teilen sich den Platz, der nächste entfällt (Vorgabe des Veranstalters;
-// kein weiteres Kriterium – auch nicht das aus Pkt. 5.2.6 der UIM).
+//     Wird unter Regel 960 auch der Parallelslalom gewertet, zählen je Starter die addierten
+//     Punkte beider Stages (Pkt. 5.1: „the five best results of the team in the overall
+//     individual competitions“; Pkt. 5.2.4) – die Zeilen kommen dann aus der Einzelwertung
+//     (lib/einzelwertung.ts `einzelPokalKlassen`) und tragen ihre Punkte selbst (`punkte`).
+// Punktgleiche Herkünfte trennt der Stichentscheid des Regelwerks (YAML `pokal.stichentscheid`,
+// `PokalStich`): DM C6 „Bei Gleichstand zählt die Anzahl der 1. Plätze. Sollte weiterhin
+// gleichstand bestehen, wird mit den Plätzen 2 und 3 ebenso verfahren.“ – UIM 960, Pkt. 5.2.6
+// „the sum of points of 1st places are added, if the dead heat situation continues, the same
+// procedure must been followed for the 2nd place until a winner can be defined.“ Gezählt
+// werden die Plätze aller Starter der Herkunft, die für die Wertung zählen. Erst wenn auch das
+// nichts trennt (oder das Regelwerk nichts nennt), teilen sie sich den Platz, der nächste
+// entfällt. Die Regel des Regelwerks gilt für jede Variante – auch für die nach Plätzen, die in
+// keinem Regelbuch steht. Wessen Platz so entstand, trägt `stich` (Sternchen auf dem Blatt).
 //
 // Zwischenstand: Die Wertung lässt sich jederzeit rechnen. Solange nicht jede Klasse mit
 // Startern ein vollständiges Gesamtergebnis hat, nennt sie die offenen Klassen (`offen`) – die
 // Liste kennzeichnet sich dann deutlich als Zwischenstand.
 //
-// Eine Klasse zählt im Zwischenstand mit ihrem Stand nach den vollständig gefahrenen Läufen;
-// ein angefangener Lauf zählt erst, wenn niemand mehr offen ist. Der Grund: Die Gesamtliste
-// stellt alle Offenen auf Platz 1 und den besten Gewerteten dahinter (Platz „Zahl der Offenen
-// + 1“). Dieser Platz ist weder der vorläufige noch der schlechtestmögliche – der Erste von
-// acht stünde nach seiner Fahrt auf Platz 8 und bekäme keinen Punkt, und im zweiten Lauf
-// stünde der zuerst Gefahrene allein vorn. Die Reihenfolge der Herkünfte spränge mit jedem
-// Starter um. Mit den vollständigen Läufen steht dagegen genau das da, was die Gesamtliste
-// nach dem letzten fertigen Lauf gezeigt hat; am Ende ist es die Gesamtliste selbst.
+// Im Zwischenstand zählt eine Klasse mit ihrer Gesamtliste, wie sie gerade steht – auch
+// mitten in einem angefangenen Lauf (Entscheidung des Nutzers: „Ich finde einen springenden
+// Zwischenstand okay“). Die Gesamtliste stellt alle Offenen (noch nicht Gefahrenen) ohne Zeit
+// auf Platz 1 und den besten Gewerteten dahinter; für die Mannschaftswertung werden die Plätze
+// deshalb UNTER DEN GEFAHRENEN gebildet (Platz der Gesamtliste minus Zahl der Offenen): Wer
+// bisher der Beste ist, hat Platz 1 und dessen Punkte. Offene bekommen nichts und schieben
+// niemanden nach hinten. Die Reihenfolge der Herkünfte kann damit von Starter zu Starter
+// springen – am Ende ist es die Gesamtliste selbst.
 
 /** Ein Starter mit seinem Platz in der Gesamtliste seiner Klasse. */
 export interface PokalZeile {
@@ -62,14 +73,23 @@ export interface PokalZeile {
   disq: boolean
   /** Noch kein vergleichbares Ergebnis (in der Gesamtliste ohne Zeit auf Platz 1). */
   offen: boolean
+  /**
+   * Nur für die Wertung nach UIM-Punkten über beide Stages (lib/einzelwertung.ts
+   * `einzelPokalKlassen`): die Punkte des Starters aus der Einzelwertung – sie gelten dann statt
+   * der Punkte seines Platzes, und `platz` ist der Platz der Einzelwertung. Fehlt = Punkte des
+   * Platzes (eine Stage, alle Wertungen nach Plätzen).
+   */
+  punkte?: number
 }
 
 export interface PokalKlasse {
   klasse: ClassId
   /** Alle Läufe der Wertung sind gefahren, niemand ist mehr offen. */
   fertig: boolean
-  /** Die Läufe, auf denen die Plätze beruhen: die vollständig gefahrenen. Leer = noch keiner. */
+  /** Die Läufe, auf denen die Plätze beruhen: die der Gesamtliste, auch ein angefangener. Leer = noch keiner. */
   laeufe: number[]
+  /** So viele Starter stehen mit einem Platz da (gewertet oder disqualifiziert); die übrigen sind offen. */
+  gefahren: number
   /** Alle Starter der Klasse. */
   zeilen: PokalZeile[]
 }
@@ -77,43 +97,69 @@ export interface PokalKlasse {
 /**
  * Die Gesamtlisten als Grundlage der Pokalauswertung: je Klasse mit Startern ein Eintrag, in
  * der Reihenfolge von `klassen`. Eine Klasse ohne jedes Ergebnis ist dabei – ihre Starter
- * zählen zur Herkunft (UIM: Mindestzahl), haben aber noch keinen Platz.
+ * zählen zur Herkunft (UIM: Mindestzahl), haben aber noch keinen Platz. Die Plätze sind die
+ * unter den Gefahrenen (siehe oben): Offene haben Platz 0 und zählen bei niemandem mit.
  */
-export function pokalKlassen(stand: ErgebnisStand, konfig: ErgebnisKonfig, klassen: readonly ClassId[] = CLASS_IDS): PokalKlasse[] {
+export function pokalKlassen(stand: ErgebnisStand, konfig: ErgebnisKonfig, klassen: readonly ClassId[] = CLASS_IDS, optionen: { knoten?: boolean } = {}): PokalKlasse[] {
   const laufCount = Math.max(1, stand.laufCount)
+  const knoten = optionen.knoten === true
   return klassen.flatMap((klasse): PokalKlasse[] => {
     const starter = stand.starters.filter((p) => p.klasse === klasse)
     if (starter.length === 0) return []
     const gesamt = klassenErgebnis(stand, konfig, klasse)?.gesamt
-    const voll = gesamt && gesamt.nachPlatz.some((z) => z.offen) ? nachVollenLaeufen(stand, konfig, klasse, gesamt) : gesamt
-    if (!voll) return [{ klasse, fertig: false, laeufe: [], zeilen: starter.map((p) => ({ starter: p, platz: 0, disq: false, offen: true })) }]
-    const zeilen = voll.nachPlatz.map((z) => ({ starter: z.starter, platz: z.platz, disq: z.disq, offen: z.offen }))
-    return [{ klasse, fertig: voll === gesamt && voll.laeufe.length >= laufCount, laeufe: voll.laeufe, zeilen }]
+    if (!gesamt) return [{ klasse, fertig: false, laeufe: [], gefahren: 0, zeilen: starter.map((p) => ({ starter: p, platz: 0, disq: false, offen: true })) }]
+    // Die Gesamtliste zählt die Offenen vor den Gewerteten mit (alle auf Platz 1).
+    // „Offen“ ist, wen die Gesamtliste so einordnet (`wertungVon`) – genau die zählt sie vorn mit.
+    // `knoten` (Regel 960): Wer gefahren ist, dessen Knoten aber noch nicht erfasst sind, ist für
+    // die Punkte ebenfalls offen – sein Platz kann sich mit den Strafsekunden der Knoten ändern.
+    const istOffen = (z: (typeof gesamt.nachPlatz)[number]) => wertungVon(z) === 'offen' || (knoten && knotenFehlen(z))
+    const offene = gesamt.nachPlatz.filter(istOffen).length
+    const gefahrene = gesamt.nachPlatz.filter((z) => !istOffen(z))
+    // Der Platz unter den Gefahrenen: 1 + die Zahl derer, die vor ihm stehen. Ohne fehlende Knoten
+    // dasselbe wie „Platz minus Zahl der Offenen“ (die Offenen stehen alle auf Platz 1).
+    const zeilen = gesamt.nachPlatz.map((z) => ({ starter: z.starter, platz: istOffen(z) ? 0 : 1 + gefahrene.filter((y) => y.platz < z.platz).length, disq: z.disq, offen: istOffen(z) }))
+    return [{ klasse, fertig: klasseFertig(gesamt, laufCount, knoten), laeufe: gesamt.laeufe, gefahren: zeilen.length - offene, zeilen }]
   })
 }
 
+/** Was {@link klasseFertig} und {@link gesamtPunkte} von einer Gesamtliste brauchen. */
+export interface GesamtStand {
+  laeufe: GesamtListe['laeufe']
+  nachPlatz: ReadonlyArray<{ starter: { id: string }; platz: number; disq: boolean; gesamt: number | null; knotenErfasst?: boolean }>
+}
+
+/** Gewertet gefahren, aber die Knoten sind noch nicht erfasst (lib/ergebnis.ts `knotenErfasst`). */
+const knotenFehlen = (z: GesamtStand['nachPlatz'][number]) => wertungVon(z) === 'gewertet' && z.knotenErfasst === false
+
 /**
- * Die Gesamtliste einer Klasse ohne ihre angefangenen Läufe (in denen noch jemand offen ist) –
- * so, wie sie nach dem letzten vollständigen Lauf stand; `undefined`, wenn noch keiner
- * vollständig ist. Gerechnet wird mit der echten Wertung über einen Stand ohne die Eingaben
- * dieser Läufe: Streichläufe und Stichentscheid gelten damit wie auf der Gesamtliste.
+ * Steht das Gesamtergebnis der Klasse fest? Alle Läufe der Wertung sind gefahren, niemand ist
+ * mehr offen. Mit `knoten` (Regel 960) außerdem: Die Knoten jedes Gewerteten sind erfasst – Pkt.
+ * 5.2.1 nennt die UIM points des Manövrierens für „best times including knots test penalties“,
+ * vorher steht der Platz nicht fest (Entscheidung des Nutzers vom 15.11.2026). Disqualifizierte
+ * brauchen keine Knoten: Sie haben ohnehin 0 Punkte. Unter der DM bleibt es ohne `knoten`.
  */
-function nachVollenLaeufen(stand: ErgebnisStand, konfig: ErgebnisKonfig, klasse: ClassId, gesamt: GesamtListe): GesamtListe | undefined {
-  const disziplin = konfig.getAufbau(stand.aufbau).disziplin
-  let eingaben = stand.eingaben
-  let liste: GesamtListe | undefined = gesamt
-  // Jede Runde nimmt mindestens einen Lauf heraus – nach höchstens so vielen Runden, wie die
-  // Liste Läufe hat, ist niemand mehr offen oder kein Lauf mehr übrig.
-  while (liste) {
-    const aktuell: GesamtListe = liste
-    const offene = aktuell.nachNummer.filter((z) => z.offen)
-    if (offene.length === 0) return aktuell
-    const angefangen = new Set(aktuell.laeufe.filter((_, k) => offene.some((z) => z.laeufe[k].offen)).map((lauf) => laufSchluessel(disziplin, lauf)))
-    if (angefangen.size === 0) return undefined
-    eingaben = Object.fromEntries(Object.entries(eingaben).filter(([schluessel]) => !angefangen.has(schluessel)))
-    liste = klassenErgebnis({ ...stand, eingaben }, konfig, klasse)?.gesamt
-  }
-  return undefined
+export function klasseFertig(gesamt: GesamtStand, laufCount: number, knoten = false): boolean {
+  return gesamt.laeufe.length >= Math.max(1, laufCount) && gesamt.nachPlatz.every((z) => wertungVon(z) !== 'offen' && !(knoten && knotenFehlen(z)))
+}
+
+/**
+ * Die Punkte je Starter für die Spalte „UIM points“ der Gesamtliste (UIM 960, Pkt. 5.2.1:
+ * „… best times including knots test penalties, ranking, UIM points“; Tabelle Pkt. 5.1).
+ *
+ * - `null`, solange die Klasse nicht vollständig ist ({@link klasseFertig}, mit den Knoten): Vorher sind die
+ *   Plätze vorläufig (Offene stehen ohne Zeit auf Platz 1), und Punkte, die sich beim nächsten
+ *   Starter ändern, gehören nicht auf einen Aushang. Die Mannschaftswertung zeigt für diese
+ *   Zeit ihren eigenen Zwischenstand.
+ * - Sonst je Starter die Punkte seines Platzes. Ein geteilter Platz gibt beiden die vollen
+ *   Punkte dieses Platzes, der nächste entfällt (Pkt. 5.2.6 „dead-heat result“) – wie in der
+ *   Mannschaftswertung ({@link uimWertung}), damit beide Listen dieselben Punkte nennen.
+ * - Disqualifizierte haben 0 Punkte (Pkt. 5.1: „Drivers must complete the relevant stage and
+ *   cross the finishing line in order to be classified for the stage.“), ebenso Plätze hinter
+ *   dem Ende der Tabelle.
+ */
+export function gesamtPunkte(gesamt: GesamtStand, laufCount: number, punkte: readonly number[]): Map<string, number> | null {
+  if (!klasseFertig(gesamt, laufCount, true)) return null
+  return new Map(gesamt.nachPlatz.map((z) => [z.starter.id, wertungVon(z) === 'gewertet' ? platzPunkte(punkte, z.platz) : 0]))
 }
 
 /** Wer zu welcher Herkunft gehört und wer zählt. */
@@ -195,15 +241,58 @@ const gewertet = (z: PokalZeile) => z.platz >= 1 && !z.disq && !z.offen
 const offeneKlassen = (klassen: readonly PokalKlasse[]) => klassen.filter((k) => !k.fertig).map((k) => k.klasse)
 
 /**
- * Plätze vergeben: gleiche Punkte, gleicher Platz – der nächste entfällt (1, 1, 3).
- * `sortiert` steht schon in der Reihenfolge der Punkte, die meisten zuerst.
+ * Der Stichentscheid der Mannschaftswertung, wie ihn das Regelwerk nennt (YAML
+ * `pokal.stichentscheid`): Bei gleicher Punktzahl steht vorn, wer mehr 1. Plätze hat, dann
+ * mehr 2. Plätze … bis Platz `plaetze` (fehlt = jeder Platz der Punktetabelle der Wertung).
+ *   • anzahl – verglichen wird die Zahl der Plätze (DM C6);
+ *   • punkte – die Summe der Punkte dieser Plätze (UIM 960, Pkt. 5.2.6). Mit der UIM-Tabelle
+ *     dasselbe; mit eigenen Punkten kann ein Platz ohne Punkte dann nichts entscheiden.
  */
-function mitPlatz<T>(sortiert: readonly T[], punkte: (x: T) => number): { x: T; platz: number }[] {
-  let platz = 0
-  return sortiert.map((x, i) => {
-    if (i === 0 || punkte(x) !== punkte(sortiert[i - 1])) platz = i + 1
-    return { x, platz }
-  })
+export interface PokalStich {
+  zaehlt: 'anzahl' | 'punkte'
+  plaetze?: number
+}
+
+/** Die Plätze der Starter einer Herkunft als Zahl je Platz (Index 0 = 1. Platz), `bis` Plätze weit. */
+function platzZahlen(plaetze: readonly number[], bis: number): number[] {
+  const zahl = Array.from({ length: bis }, () => 0)
+  for (const platz of plaetze) if (platz >= 1 && platz <= bis) zahl[platz - 1]++
+  return zahl
+}
+
+/** Der Reihe nach verglichen; negativ = `a` steht vorn (mehr vom besseren Platz). */
+const vergleicheStich = (a: readonly number[], b: readonly number[]) => {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return b[i] - a[i]
+  return 0
+}
+
+/**
+ * Plätze vergeben. `sortiert` steht schon nach Punkten (die meisten zuerst), bei Gleichstand
+ * nach Namen. Punktgleiche trennt der Stichentscheid; was er nicht trennt, teilt sich den
+ * Platz – der nächste entfällt (1, 1, 3). `stich`: Der Platz dieser Zeile hat sich im
+ * Stichentscheid ergeben (sie ist punktgleich mit einer, von der er sie trennt).
+ */
+function mitPlatz<T>(
+  sortiert: readonly T[],
+  punkte: (x: T) => number,
+  entscheid?: { regel: PokalStich; plaetze: (x: T) => readonly number[]; tabelle: readonly number[] },
+): { x: T; platz: number; stich: boolean }[] {
+  const bis = entscheid ? Math.max(0, Math.min(entscheid.regel.plaetze ?? entscheid.tabelle.length, 200)) : 0
+  const schluessel = new Map(
+    sortiert.map((x): [T, number[]] => {
+      if (!entscheid) return [x, []]
+      const zahl = platzZahlen(entscheid.plaetze(x), bis)
+      return [x, entscheid.regel.zaehlt === 'punkte' ? zahl.map((n, i) => n * platzPunkte(entscheid.tabelle, i + 1)) : zahl]
+    }),
+  )
+  const vergleiche = (a: T, b: T) => punkte(b) - punkte(a) || vergleicheStich(schluessel.get(a)!, schluessel.get(b)!)
+  // Stabil: Was auch der Stichentscheid nicht trennt, bleibt in der Reihenfolge der Namen.
+  const reihe = [...sortiert].sort(vergleiche)
+  return reihe.map((x) => ({
+    x,
+    platz: 1 + reihe.filter((y) => vergleiche(y, x) < 0).length,
+    stich: reihe.some((y) => punkte(y) === punkte(x) && vergleicheStich(schluessel.get(y)!, schluessel.get(x)!) !== 0),
+  }))
 }
 
 const nachName = (a: string, b: string) => a.localeCompare(b, 'de')
@@ -215,6 +304,8 @@ const nachName = (a: string, b: string) => a.localeCompare(b, 'de')
 export interface PlaetzeZeile {
   herkunft: string
   platz: number
+  /** Punktgleich mit einer anderen Herkunft – den Platz hat der Stichentscheid des Regelwerks bestimmt. */
+  stich: boolean
   /** Summe aller Punkte. */
   gesamt: number
   /**
@@ -237,8 +328,8 @@ export interface PlaetzeWertung {
   offen: ClassId[]
 }
 
-export function plaetzeWertung(klassen: readonly PokalKlasse[], punkte: readonly number[], zuordnung: PokalZuordnung): PlaetzeWertung {
-  const je = jeHerkunft<number[][]>(zuordnung.schluessel)
+export function plaetzeWertung(klassen: readonly PokalKlasse[], punkte: readonly number[], zuordnung: PokalZuordnung, stich?: PokalStich): PlaetzeWertung {
+  const je = jeHerkunft<{ zellen: number[][]; plaetze: number[] }>(zuordnung.schluessel)
   let ohneHerkunft = 0
   klassen.forEach((k, ki) => {
     for (const z of k.zeilen) {
@@ -248,20 +339,21 @@ export function plaetzeWertung(klassen: readonly PokalKlasse[], punkte: readonly
         continue
       }
       if (!zuordnung.zaehlt(z.starter)) continue
-      const zellen = je.zu(herkunft, () => klassen.map(() => punkte.map(() => 0)))
+      const { zellen, plaetze } = je.zu(herkunft, () => ({ zellen: klassen.map(() => punkte.map(() => 0)), plaetze: [] }))
       // Wer zählt, aber keine Punkte holt, macht seine Herkunft trotzdem zur Zeile der Liste.
+      if (gewertet(z)) plaetze.push(z.platz)
       if (gewertet(z) && z.platz <= punkte.length) zellen[ki][z.platz - 1] += platzPunkte(punkte, z.platz)
     }
   })
   const summe = (zellen: number[][]) => zellen.reduce((n, klasse) => n + klasse.reduce((a, b) => a + b, 0), 0)
   const sortiert = je
     .alle()
-    .map(({ herkunft, wert: zellen }) => ({ herkunft, punkte: zellen, gesamt: summe(zellen) }))
+    .map(({ herkunft, wert }) => ({ herkunft, punkte: wert.zellen, gesamt: summe(wert.zellen), plaetze: wert.plaetze }))
     .sort((a, b) => b.gesamt - a.gesamt || nachName(a.herkunft, b.herkunft))
   return {
     klassen: klassen.map((k) => k.klasse),
     plaetze: punkte.length,
-    zeilen: mitPlatz(sortiert, (z) => z.gesamt).map(({ x, platz }) => ({ ...x, platz })),
+    zeilen: mitPlatz(sortiert, (z) => z.gesamt, stich && { regel: stich, plaetze: (z) => z.plaetze, tabelle: punkte }).map(({ x: { plaetze: _, ...zeile }, platz, stich: imStich }) => ({ ...zeile, platz, stich: imStich })),
     ohneHerkunft,
     offen: offeneKlassen(klassen),
   }
@@ -282,6 +374,8 @@ export interface UimGruppe {
   herkunft: string
   /** Platz der Herkunft; `null` = nicht gewertet (weniger Starter als die Mindestzahl). */
   platz: number | null
+  /** Punktgleich mit einer anderen Herkunft – den Platz hat der Stichentscheid des Regelwerks bestimmt. */
+  stich: boolean
   /** Alle Starter der Herkunft, die zählen – nach Punkten, dann Klasse und Startnummer. */
   starter: UimStarter[]
   /** Summe der Punkte aller Starter. */
@@ -301,7 +395,7 @@ export interface UimWertung {
 
 export function uimWertung(
   klassen: readonly PokalKlasse[],
-  regeln: { punkte: readonly number[]; beste: number; mindestens: number },
+  regeln: { punkte: readonly number[]; beste: number; mindestens: number; stich?: PokalStich },
   zuordnung: PokalZuordnung,
 ): UimWertung {
   const beste = Math.max(1, Math.round(regeln.beste))
@@ -316,12 +410,20 @@ export function uimWertung(
         continue
       }
       if (!zuordnung.zaehlt(z.starter)) continue
-      je.zu(herkunft, () => []).push({ ...z, klasse: k.klasse, punkte: gewertet(z) ? platzPunkte(regeln.punkte, z.platz) : 0 })
+      je.zu(herkunft, () => []).push({ ...z, klasse: k.klasse, punkte: z.punkte ?? (gewertet(z) ? platzPunkte(regeln.punkte, z.platz) : 0) })
     }
   }
   const rang = (klasse: ClassId) => CLASS_IDS.indexOf(klasse)
   const gruppen = je.alle().map(({ herkunft, wert: liste }) => {
-    const sortiert = [...liste].sort((a, b) => b.punkte - a.punkte || rang(a.klasse) - rang(b.klasse) || vergleicheNr(a.starter.startNr, b.starter.startNr))
+    // Bei gleichen Punkten zuerst der bessere Platz: Rechnet die Wertung aus beiden Stages, können
+    // zwei Starter dieselbe Summe, aber verschiedene Plätze der Einzelwertung haben (durch die Zeit
+    // getrennt, oder in verschiedenen Klassen). Stünde an der Grenze der Besten der mit dem
+    // schlechteren Platz vorn, zählte der Stichentscheid („1st places“, Pkt. 5.2.6) einen 1. Platz
+    // nicht mit. Aus dem Manövrieren allein ändert das nichts: Dort heißen gleiche Punkte gleicher Platz.
+    const platzRang = (z: { platz: number }) => (z.platz >= 1 ? z.platz : Infinity)
+    const sortiert = [...liste].sort(
+      (a, b) => b.punkte - a.punkte || platzRang(a) - platzRang(b) || rang(a.klasse) - rang(b.klasse) || vergleicheNr(a.starter.startNr, b.starter.startNr),
+    )
     // Die Besten sind die ersten der Reihenfolge; wer keine Punkte hat, trägt nichts bei und
     // wird nicht als „zählt“ gekennzeichnet. Bei gleichen Punkten an der Grenze ist die Summe dieselbe.
     const starter = sortiert.map((s, i): UimStarter => ({ ...s, top: i < beste && s.punkte > 0 }))
@@ -339,8 +441,15 @@ export function uimWertung(
     beste,
     mindestens,
     gruppen: [
-      ...mitPlatz(mitWertung, (g) => g.summeBeste).map(({ x, platz }): UimGruppe => ({ ...x, platz })),
-      ...ohnePlatz.map((g): UimGruppe => ({ ...g, platz: null })),
+      // Pkt. 5.2.6: „This is only possible if both teams have enough drivers to be taken into
+      // account“ – der Stichentscheid gilt unter den gewerteten Herkünften. Verglichen werden
+      // nur die Plätze der Besten, deren Punkte für die Mannschaft zählen (Pkt. 5.2.4 „the top
+      // five team members“): Sonst entschiede der Platz eines sechsten Starters, dessen Punkte
+      // gar nicht in die Summe eingehen.
+      ...mitPlatz(mitWertung, (g) => g.summeBeste, regeln.stich && { regel: regeln.stich, plaetze: (g) => g.starter.filter((s) => s.top).map((s) => s.platz), tabelle: regeln.punkte }).map(
+        ({ x, platz, stich }): UimGruppe => ({ ...x, platz, stich }),
+      ),
+      ...ohnePlatz.map((g): UimGruppe => ({ ...g, platz: null, stich: false })),
     ],
     ohneHerkunft,
     offen: offeneKlassen(klassen),

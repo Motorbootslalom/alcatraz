@@ -5,7 +5,8 @@ import { emptyState, reducer, type Action } from '../state/reducer'
 import { migrate } from '../state/migrate'
 import { makeFile, parseFile } from '../persistenz/backup'
 import { laufSchluessel } from './eingaben'
-import { platzPunkte, plaetzeWertung, pokalKlassen, pokalZuordnung, uimWertung, type PokalKlasse, type PokalZeile, type PokalZuordnung } from './pokal'
+import { klassenErgebnis } from './ergebnis'
+import { gesamtPunkte, klasseFertig, platzPunkte, plaetzeWertung, pokalKlassen, pokalZuordnung, uimWertung, type PokalKlasse, type PokalZeile, type PokalZuordnung } from './pokal'
 import { gesamtListenSchluessel, wertungZeit } from './listenStand'
 import type { AppState, ClassId, Starter } from '../types'
 
@@ -29,7 +30,7 @@ function klasse(id: ClassId, angaben: string[], fertig = true): PokalKlasse {
     if (platz === 'o') return { starter: s, platz: 1, disq: false, offen: true }
     return { starter: s, platz: Number(platz), disq: false, offen: false }
   })
-  return { klasse: id, fertig, laeufe: fertig ? [1] : [], zeilen }
+  return { klasse: id, fertig, laeufe: fertig ? [1] : [], gefahren: zeilen.filter((z) => !z.offen).length, zeilen }
 }
 const ALLE: PokalZuordnung = { herkunft: (p) => p.verein, zaehlt: () => true }
 const tabelle = (w: ReturnType<typeof plaetzeWertung>) => w.zeilen.map((z) => `${z.platz}. ${z.herkunft} ${z.gesamt}`)
@@ -192,6 +193,90 @@ describe('Variante 3: UIM', () => {
   })
 })
 
+describe('Stichentscheid der Mannschaften nach Regelbuch', () => {
+  const DM = pokalVorgabe('dm-2026').stich!
+  const UIM_STICH = pokalVorgabe('uim-2026').stich!
+  const plaetze = (w: ReturnType<typeof plaetzeWertung>) => w.zeilen.map((z) => `${z.platz}${z.stich ? '*' : ''} ${z.herkunft} ${z.gesamt}`)
+  const uim = (w: ReturnType<typeof uimWertung>) => w.gruppen.map((g) => `${g.platz ?? '–'}${g.stich ? '*' : ''} ${g.herkunft} ${g.summeBeste}`)
+
+  it('die Regel steht im Regelwerk: DM C6 Zahl der 1. Plätze, dann 2 und 3; UIM 960, Pkt. 5.2.6 Punkte der 1. Plätze, dann der 2. … ohne Grenze', () => {
+    expect(DM).toEqual({ zaehlt: 'anzahl', plaetze: 3 })
+    expect(UIM_STICH).toEqual({ zaehlt: 'punkte' })
+    expect(pokalRegeln(emptyState()).stich).toEqual(DM)
+  })
+
+  it('Plätze-Variante: Bei gleicher Punktzahl steht vorn, wer mehr 1. Plätze hat – beide tragen das Zeichen', () => {
+    // A: Platz 1 und Platz 6 (6 + 1 = 7); B: Platz 2 und Platz 5 (5 + 2 = 7); C: Platz 3 (4).
+    const klassen = [klasse('1', ['1 A', '2 B', '3 C']), klasse('2', ['6 A', '5 B'])]
+    expect(plaetze(plaetzeWertung(klassen, P6, ALLE))).toEqual(['1 A 7', '1 B 7', '3 C 4'])
+    expect(plaetze(plaetzeWertung(klassen, P6, ALLE, DM))).toEqual(['1* A 7', '2* B 7', '3 C 4'])
+  })
+
+  it('gleich viele 1. Plätze: dann die 2., dann die 3. Plätze – danach ist unter DM Schluss, der Platz wird geteilt', () => {
+    // Je ein 1. Platz; B hat dazu einen 2., A einen 3. und einen 6. (6+4+1 = 11, 6+5 = 11).
+    const zweite = [klasse('1', ['1 A', '2 B']), klasse('2', ['1 B', '3 A']), klasse('3', ['6 A'])]
+    expect(plaetze(plaetzeWertung(zweite, P6, ALLE, DM))).toEqual(['1* B 11', '2* A 11'])
+    // Bis Platz 3 gleich (je ein 1.), erst Platz 4 gegen 5 + 6 unterschiede sie: DM teilt, die UIM-Regel trennt.
+    const vierte = [klasse('1', ['1 A', '1 B']), klasse('2', ['4 A', '5 B', '6 B'])]
+    expect(plaetze(plaetzeWertung(vierte, P6, ALLE, DM))).toEqual(['1 A 9', '1 B 9'])
+    expect(plaetze(plaetzeWertung(vierte, P6, ALLE, UIM_STICH))).toEqual(['1* A 9', '2* B 9'])
+  })
+
+  it('nur Punktgleiche werden verglichen; wer allein steht, trägt kein Zeichen', () => {
+    const klassen = [klasse('1', ['1 A', '2 B', '3 C', '4 D']), klasse('2', ['2 A', '1 D', '3 B', '4 C'])]
+    // A 11, D 9, B 9, C 7: D hat einen 1. Platz, B keinen.
+    expect(plaetze(plaetzeWertung(klassen, P6, ALLE, DM))).toEqual(['1 A 11', '2* D 9', '3* B 9', '4 C 7'])
+  })
+
+  it('UIM-Variante: gleiche Summe der Besten – die Punkte der 1. Plätze entscheiden, dann der 2.', () => {
+    // Mit der UIM-Tabelle entstehen gleiche Summen praktisch nur aus denselben Plätzen in verschiedenen Klassen.
+    const klassen = [klasse('1', ['1 A', '2 B']), klasse('2', ['2 A', '1 B']), klasse('3', ['3 A', '3 B', '1 C'])]
+    const regeln = { punkte: UIM.punkte.uim, beste: 5, mindestens: 1 }
+    expect(uim(uimWertung(klassen, regeln, ALLE))).toEqual(['1 A 925', '1 B 925', '3 C 400'])
+    // Alles gleich (je ein 1., 2., 3. Platz): Auch der Stichentscheid trennt nicht – „dead-heat result“.
+    expect(uim(uimWertung(klassen, { ...regeln, stich: UIM_STICH }, ALLE))).toEqual(['1 A 925', '1 B 925', '3 C 400'])
+    // Eigene Punkte, bei denen 1. + 4. Platz so viel zählt wie 2. + 3.: Der 1. Platz entscheidet.
+    const eigene = [klasse('1', ['1 A', '2 B']), klasse('2', ['4 A', '3 B'])]
+    const tabelle = { punkte: [10, 7, 5, 2], beste: 5, mindestens: 1 }
+    expect(uim(uimWertung(eigene, tabelle, ALLE))).toEqual(['1 A 12', '1 B 12'])
+    expect(uim(uimWertung(eigene, { ...tabelle, stich: UIM_STICH }, ALLE))).toEqual(['1* A 12', '2* B 12'])
+    expect(uim(uimWertung(eigene, { ...tabelle, stich: DM }, ALLE))).toEqual(['1* A 12', '2* B 12'])
+  })
+
+  it('UIM-Variante: Nicht gewertete Herkünfte (zu wenige Starter) nehmen am Stichentscheid nicht teil', () => {
+    const klassen = [klasse('1', ['1 A', '2 B', '4 A']), klasse('2', ['4 B', '1 C'])]
+    const w = uimWertung(klassen, { punkte: [10, 7, 5, 2], beste: 5, mindestens: 2, stich: UIM_STICH }, ALLE)
+    expect(uim(w)).toEqual(['1 A 12', '2 B 9', '– C 10'])
+  })
+
+  it('UIM-Variante: Verglichen werden nur die Besten, deren Punkte zählen – ein sechster Starter entscheidet nichts', () => {
+    // A: 1, 1, 2, 3, 4 und ein 5. Platz, der nicht mehr zu den fünf Besten gehört; B: 1, 1, 2, 3, 4.
+    const klassen = [klasse('1', ['1 A', '2 A', '3 A', '4 A', '5 A']), klasse('2', ['1 B', '2 B', '3 B', '4 B']), klasse('3', ['1 A']), klasse('4', ['1 B'])]
+    expect(uim(uimWertung(klassen, { ...UIM_REGELN, stich: UIM_STICH }, ALLE))).toEqual(['1 A 1494', '1 B 1494'])
+  })
+
+  it('UIM-Variante aus beiden Stages: Bei gleichen Punkten an der Grenze der Besten zählt der bessere Platz', () => {
+    // Die Zeile trägt die Summe beider Stages und den Platz der Einzelwertung (lib/einzelwertung.ts):
+    // Gleiche Punkte heißen dann nicht mehr gleicher Platz.
+    const zeile = (verein: string, id: ClassId, platz: number, punkte: number): PokalZeile => ({ starter: starter(verein, id), platz, disq: false, offen: false, punkte })
+    const k = (id: ClassId, zeilen: PokalZeile[]): PokalKlasse => ({ klasse: id, fertig: true, laeufe: [1], gefahren: zeilen.length, zeilen })
+    const klassen = [k('1', [zeile('Y', '1', 1, 700), zeile('X', '1', 2, 700)]), k('2', [zeile('X', '2', 1, 700), zeile('Z', '2', 2, 700)])]
+    const w = uimWertung(klassen, { punkte: UIM.punkte.uim, beste: 1, mindestens: 1, stich: UIM_STICH }, ALLE)
+    // X zählt mit seinem 1. Platz der Klasse 2, nicht mit dem 2. Platz der früheren Klasse 1.
+    const x = w.gruppen.find((g) => g.herkunft === 'X')!
+    expect(x.starter.map((s) => [s.klasse, s.platz, s.top])).toEqual([
+      ['2', 1, true],
+      ['1', 2, false],
+    ])
+    expect(uim(w)).toEqual(['1* X 700', '1* Y 700', '3* Z 700'])
+  })
+
+  it('Disqualifizierte und Offene zählen im Stichentscheid nicht als Platz', () => {
+    const klassen = [klasse('1', ['1 A', '2 B', 'o B', 'd A']), klasse('2', ['6 A', '5 B'])]
+    expect(plaetze(plaetzeWertung(klassen, P6, ALLE, DM))).toEqual(['1* A 7', '2* B 7'])
+  })
+})
+
 describe('Klassen ohne Starter, Starter ohne Herkunft', () => {
   it('eine Klasse ohne Starter kommt nicht vor', () => {
     const stand = { ...emptyState(), starters: [starter('A', '1'), starter('B', '3')] }
@@ -264,9 +349,9 @@ describe('Aus den Gesamtlisten gerechnet', () => {
     let s = nach(anfang(), { type: 'SET_EINGABEN', zellen: [zeit('a1', '60'), zeit('b1', '70')], zeit: 10 })
     // a2 ist noch nicht gefahren (offen, Platz 1 ohne Zeit); Klasse 2 hat noch gar nichts.
     expect(wertung(s).offen).toEqual(['1', '2'])
-    // Der angefangene Lauf zählt noch nicht: In der Gesamtliste stünde a1 hinter dem Offenen
-    // auf Platz 2 – das ist kein Platz, nach dem sich Punkte vergeben lassen.
-    expect(tabelle(wertung(s))).toEqual(['1. Club A 0', '1. Club B 0'])
+    // Der angefangene Lauf zählt schon: In der Gesamtliste steht a1 hinter dem Offenen auf
+    // Platz 2 – unter den Gefahrenen ist er der Erste und bekommt dessen Punkte; a2 bekommt nichts.
+    expect(tabelle(wertung(s))).toEqual(['1. Club A 10', '2. Club B 7'])
     s = nach(s, { type: 'SET_EINGABEN', zellen: [zeit('a2', '80'), zeit('b2', '90')], zeit: 20 })
     expect(wertung(s).offen).toEqual([])
     expect(tabelle(wertung(s))).toEqual(['1. Club B 17', '2. Club A 15'])
@@ -292,40 +377,50 @@ describe('Zwischenstand einer laufenden Klasse', () => {
   const k1 = (s: AppState) => pokalKlassen(s, configFor({ regelwerk: s.regelwerk }), ['1'])[0]
   const p6 = (s: AppState) => tabelle(wertung(s, 'plaetze6'))
 
-  it('ein angefangener erster Lauf zählt nicht: Wer als Erster gefahren ist, bekäme sonst die Punkte des letzten Platzes', () => {
-    const s = nach(zwei(), { type: 'SET_EINGABEN', zellen: [zeit('a', '60')], zeit: 10 })
-    expect(k1(s)).toMatchObject({ fertig: false, laeufe: [] })
-    expect(k1(s).zeilen.every((z) => z.platz === 0 && z.offen)).toBe(true)
-    expect(p6(s)).toEqual(['1. Club A 0', '1. Club B 0', '1. Club C 0', '1. Club D 0'])
+  it('ein angefangener erster Lauf zählt: Wer als Erster gefahren ist, steht unter den Gefahrenen auf Platz 1; Offene bekommen nichts', () => {
+    let s = nach(zwei(), { type: 'SET_EINGABEN', zellen: [zeit('a', '60')], zeit: 10 })
+    expect(k1(s)).toMatchObject({ fertig: false, laeufe: [1], gefahren: 1 })
+    expect(k1(s).zeilen.map((z) => `${z.starter.id}:${z.platz}${z.offen ? ' offen' : ''}`).sort()).toEqual(['a:1', 'b:0 offen', 'c:0 offen', 'd:0 offen'])
+    expect(p6(s)).toEqual(['1. Club A 6', '2. Club B 0', '2. Club C 0', '2. Club D 0'])
     const uim = uimWertung([k1(s)], { ...UIM_REGELN, mindestens: 1 }, pokalZuordnung(s, false))
-    expect(uim.gruppen.map((g) => g.summe)).toEqual([0, 0, 0, 0])
+    expect(uim.gruppen.map((g) => g.summe)).toEqual([400, 0, 0, 0])
+    // Der Zweite ist schneller: Der Zwischenstand springt – A rutscht auf Platz 2.
+    s = nach(s, { type: 'SET_EINGABEN', zellen: [zeit('b', '55')], zeit: 20 })
+    expect(p6(s)).toEqual(['1. Club B 6', '2. Club A 5', '3. Club C 0', '3. Club D 0'])
+    expect(wertung(s).offen).toEqual(['1'])
   })
 
-  it('nach dem vollständigen ersten Lauf steht sein Ergebnis da – und bleibt, während der zweite läuft', () => {
+  it('Offene schieben die Gefahrenen nicht nach hinten – auch im angefangenen zweiten Lauf', () => {
     let s = nach(zwei(), { type: 'SET_EINGABEN', zellen: lauf1, zeit: 10 })
-    const nachLauf1 = ['1. Club A 6', '2. Club B 5', '3. Club C 4', '4. Club D 3']
-    expect(p6(s)).toEqual(nachLauf1)
-    expect(k1(s)).toMatchObject({ fertig: false, laeufe: [1] })
+    expect(p6(s)).toEqual(['1. Club A 6', '2. Club B 5', '3. Club C 4', '4. Club D 3'])
+    expect(k1(s)).toMatchObject({ fertig: false, laeufe: [1], gefahren: 4 })
     expect(wertung(s).offen).toEqual(['1'])
     // Im zweiten Lauf ist erst der Letzte gefahren: In der Gesamtliste stehen A, B, C jetzt als
-    // Offene auf Platz 1 und D allein dahinter. Die Pokalauswertung bleibt beim Stand nach Lauf 1.
+    // Offene auf Platz 1 und D allein dahinter (Platz 4). Unter den Gefahrenen ist D der Erste.
     s = nach(s, { type: 'SET_EINGABEN', zellen: [zeit('d', '50', 2)], zeit: 20 })
-    expect(p6(s)).toEqual(nachLauf1)
-    expect(k1(s)).toMatchObject({ fertig: false, laeufe: [1] })
+    expect(k1(s)).toMatchObject({ fertig: false, laeufe: [1, 2], gefahren: 1 })
+    expect(p6(s)).toEqual(['1. Club D 6', '2. Club A 0', '2. Club B 0', '2. Club C 0'])
     s = nach(s, { type: 'SET_EINGABEN', zellen: [zeit('a', '70', 2), zeit('b', '55', 2)], zeit: 30 })
-    expect(p6(s)).toEqual(nachLauf1)
-    // Mit dem Letzten ist der zweite Lauf vollständig: Jetzt gilt die Gesamtliste über beide Läufe.
+    // Unter DM zählt bei zwei Läufen der bessere (C6): D 50, B 55, A 60 – C ist noch offen.
+    expect(p6(s)).toEqual(['1. Club D 6', '2. Club B 5', '3. Club A 4', '4. Club C 0'])
+    expect(wertung(s).offen).toEqual(['1'])
+    // Mit dem Letzten ist der zweite Lauf vollständig: Jetzt gilt die Gesamtliste selbst.
     s = nach(s, { type: 'SET_EINGABEN', zellen: [zeit('c', '65', 2)], zeit: 40 })
-    expect(k1(s)).toMatchObject({ fertig: true, laeufe: [1, 2] })
+    expect(k1(s)).toMatchObject({ fertig: true, laeufe: [1, 2], gefahren: 4 })
     expect(wertung(s).offen).toEqual([])
-    // Summen: D 113, B 116, C 127, A 130.
-    expect(p6(s)).toEqual(['1. Club D 6', '2. Club B 5', '3. Club C 4', '4. Club A 3'])
+    expect(p6(s)).toEqual(['1. Club D 6', '2. Club B 5', '3. Club A 4', '4. Club C 3'])
   })
 
-  it('der Stand nach den vollständigen Läufen ist die Gesamtliste, wie sie ohne den angefangenen Lauf stünde', () => {
-    const fertig1 = nach(zwei(), { type: 'SET_EINGABEN', zellen: lauf1, zeit: 10 })
-    const mitten = nach(fertig1, { type: 'SET_EINGABEN', zellen: [zeit('d', '50', 2)], zeit: 20 })
-    expect(k1(mitten).zeilen).toEqual(k1(fertig1).zeilen)
+  it('am Endergebnis ändert sich nichts: Sind alle gefahren, sind es die Plätze der Gesamtliste', () => {
+    const s = nach(zwei(), { type: 'SET_EINGABEN', zellen: [...lauf1, zeit('a', '70', 2), zeit('b', '55', 2), zeit('c', '65', 2), zeit('d', '50', 2)], zeit: 10 })
+    const gesamt = klassenErgebnis(s, configFor({ regelwerk: s.regelwerk }), '1')!.gesamt
+    expect(k1(s).zeilen.map((z) => [z.starter.id, z.platz])).toEqual(gesamt.nachPlatz.map((z) => [z.starter.id, z.platz]))
+  })
+
+  it('ein Disqualifizierter zählt als gefahren, bekommt aber keine Punkte', () => {
+    const s = nach(zwei(), { type: 'SET_EINGABEN', zellen: [zeit('a', '60'), { lauf: laufSchluessel(D, 1), starter: 'b', feld: 'disq@steg', wert: 'D' }], zeit: 10 })
+    expect(k1(s)).toMatchObject({ gefahren: 2 })
+    expect(p6(s)).toEqual(['1. Club A 6', '2. Club B 0', '2. Club C 0', '2. Club D 0'])
   })
 })
 
@@ -525,7 +620,7 @@ describe('Zeitpunkt der Mannschaftswertung: der jüngste der Gesamtlisten aller 
     s = nach(s, { type: 'SET_EINGABEN', zellen: [zeit('b2', '91')], zeit: 300 })
     expect(stand(s)).toBe(300)
     expect(s.listenStand[gesamtListenSchluessel(D, '1')].zeit).toBe(200)
-    // Nie älter als eine Ergebnisliste.
+    // Nie älter als eine Wertungsliste.
     expect(stand(s)).toBe(Math.max(...Object.values(s.listenStand).map((e) => e.zeit ?? 0)))
   })
 
@@ -539,7 +634,7 @@ describe('Zeitpunkt der Mannschaftswertung: der jüngste der Gesamtlisten aller 
       { type: 'SET_POKAL_NUR_AUSWAHL', an: true, zeit: 600 },
     )
     expect(stand(s)).toBe(100)
-    // Ein berichtigter Verein steht auf den Ergebnislisten – und damit auch hier.
+    // Ein berichtigter Verein steht auf den Wertungslisten – und damit auch hier.
     s = nach(s, { type: 'UPDATE_STARTER', id: 'b2', patch: { verein: 'Club C' }, zeit: 700 })
     expect(stand(s)).toBe(700)
   })
@@ -559,5 +654,58 @@ describe('Zeitpunkt der Mannschaftswertung: der jüngste der Gesamtlisten aller 
 
   it('der Reducer bleibt rein: gleiche Actions, gleicher Stand', () => {
     expect(fertig()).toEqual(fertig())
+  })
+})
+
+describe('Spalte „UIM points“ der Gesamtliste (Regel 960, Pkt. 5.2.1)', () => {
+  // Erfundene Zeilen einer Gesamtliste: `gesamt` in Hundertstel, null = disqualifiziert oder offen.
+  const zeile = (id: string, platz: number, gesamt: number | null, disq = false) => ({ starter: starter('Club', '1', { id }), platz, gesamt, disq })
+  const liste = (laeufe: number[], zeilen: ReturnType<typeof zeile>[]) => ({ laeufe, nachPlatz: zeilen })
+  const punkte = (l: ReturnType<typeof liste>, laufCount = 2) => {
+    const p = gesamtPunkte(l, laufCount, UIM.punkte.uim)
+    return p && Object.fromEntries(p)
+  }
+
+  it('je Platz die Punkte der Tabelle aus Pkt. 5.1', () => {
+    expect(punkte(liste([1, 2], [zeile('a', 1, 6000), zeile('b', 2, 6100), zeile('c', 3, 6200)]))).toEqual({ a: 400, b: 300, c: 225 })
+  })
+
+  it('geteilter Platz: beide bekommen die vollen Punkte des Platzes, der nächste entfällt', () => {
+    expect(punkte(liste([1, 2], [zeile('a', 1, 6000), zeile('b', 2, 6100), zeile('c', 2, 6100), zeile('d', 4, 6300)]))).toEqual({ a: 400, b: 300, c: 300, d: 169 })
+  })
+
+  it('wer disqualifiziert ist, hat 0 Punkte – ebenso ein Platz hinter dem Ende der Tabelle', () => {
+    expect(punkte(liste([1, 2], [zeile('a', 1, 6000), zeile('b', 2, null, true)]))).toEqual({ a: 400, b: 0 })
+    const viele = Array.from({ length: 22 }, (_, i) => zeile(`s${i + 1}`, i + 1, 6000 + i))
+    const p = punkte(liste([1, 2], viele))!
+    expect([p.s20, p.s21, p.s22]).toEqual([1, 0, 0])
+  })
+
+  it('keine Punkte, solange die Klasse nicht vollständig ist: jemand ist offen oder ein Versuch fehlt noch ganz', () => {
+    // b ist noch nicht gefahren: Er steht ohne Zeit auf Platz 1, a dahinter.
+    const offen = liste([1, 2], [zeile('b', 1, null), zeile('a', 2, 6000)])
+    expect(klasseFertig(offen, 2)).toBe(false)
+    expect(punkte(offen)).toBeNull()
+    // Alle sind den 1. Versuch gefahren, der 2. steht noch aus.
+    const ersterVersuch = liste([1], [zeile('a', 1, 6000), zeile('b', 2, 6100)])
+    expect(punkte(ersterVersuch)).toBeNull()
+    expect(punkte(ersterVersuch, 1)).toEqual({ a: 400, b: 300 })
+  })
+
+  it('aus den erfassten Werten: dieselben Punkte wie in der Mannschaftswertung', () => {
+    // Klasse 1: a1 und b1 sind gefahren, a2 noch nicht.
+    let s = nach({ ...anfang(), regelwerk: 'uim-2026', laufCount: 1 }, { type: 'SET_EINGABEN', zellen: [zeit('a1', '60'), zeit('b1', '70')], zeit: 10 })
+    const gesamt = () => klassenErgebnis(s, configFor({ regelwerk: 'uim-2026' }), '1')!.gesamt
+    expect(gesamtPunkte(gesamt(), s.laufCount, UIM.punkte.uim)).toBeNull()
+    s = nach(s, { type: 'SET_EINGABEN', zellen: [zeit('a2', '80')], zeit: 20 })
+    // Alle gefahren – die Punkte gibt es trotzdem erst, wenn auch die Knoten erfasst sind (Pkt. 5.2.1).
+    expect(gesamtPunkte(gesamt(), s.laufCount, UIM.punkte.uim)).toBeNull()
+    expect(pokalKlassen(s, configFor({ regelwerk: 'uim-2026' }), ['1'], { knoten: true })[0].fertig).toBe(false)
+    s = nach(s, { type: 'SET_EINGABEN', zellen: ['a1', 'b1', 'a2'].map((id) => ({ lauf: 'manoevrieren/0', starter: id, feld: 'erfasst@knoten', wert: '1' })), zeit: 30 })
+    const p = gesamtPunkte(gesamt(), s.laufCount, UIM.punkte.uim)!
+    const k1 = pokalKlassen(s, configFor({ regelwerk: 'uim-2026' }), ['1'], { knoten: true })[0]
+    expect(k1.fertig).toBe(true)
+    for (const z of k1.zeilen) expect(p.get(z.starter.id)).toBe(platzPunkte(UIM.punkte.uim, z.platz))
+    expect(Object.fromEntries(p)).toEqual({ a1: 400, b1: 300, a2: 225 })
   })
 })

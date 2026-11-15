@@ -45,6 +45,20 @@ export const IOC_STAATEN =
   'VIE:VN VIN:VC ZAM:ZM ZIM:ZW ENG:GB-ENG SCO:GB-SCT WAL:GB-WLS NIR:GB-NIR'
 
 /**
+ * Frühere IOC-Kürzel aus `IOC_STAATEN`, die das IOC nicht mehr vergibt: ROM (heute ROU), SIN
+ * (heute SGP), TRI (heute TTO) – heute gleich dem ISO-Code. Erkannt werden sie weiter (eine alte
+ * Meldeliste), ausgegeben nie (domain/kuerzel.ts `iocKuerzel`).
+ */
+export const IOC_FRUEHER = 'ROM SIN TRI'
+
+/**
+ * IOC-Kürzel, die zugleich ISO-Code eines anderen Staates sind (BRN: IOC Bahrain, ISO Brunei):
+ * Erkannt wird bei ihnen der ISO-Code (siehe oben), ausgegeben werden sie trotzdem, wenn eine
+ * Liste die Kürzel des IOC trägt.
+ */
+export const IOC_NUR_AUSGABE = 'BRN:BH'
+
+/**
  * Namen und Schreibweisen, die Intl nicht liefert: umgangssprachliche („Holland“), ältere
  * („Weißrussland“) und die Landesteile des Vereinigten Königreichs. Klein geschrieben; die
  * Zuordnung gleicht Groß-/Kleinschreibung, Leerzeichen und Umlaute selbst aus.

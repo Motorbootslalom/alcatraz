@@ -7,8 +7,8 @@ import { t, type MessageKey } from '../i18n'
 // (lib/listensprache.ts); ohne sie gilt die Oberfläche.
 const SCHRITTE: Record<string, MessageKey> = {
   Auswertung: 'runsheet.steps',
-  'Ergebnis sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)': 'runsheet.step.byNumber',
-  'Ergebnis sortiert nach Platz': 'runsheet.step.byPlace',
+  'Wertungsliste sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)': 'runsheet.step.byNumber',
+  'Wertungsliste sortiert nach Platz': 'runsheet.step.byPlace',
   Kontrolliert: 'runsheet.step.checked',
   Unterschrieben: 'runsheet.step.signed',
   Ausgehangen: 'runsheet.step.posted',
@@ -21,3 +21,11 @@ const SCHRITTE: Record<string, MessageKey> = {
 
 /** Ein Arbeitsschritt (oder die Überschrift darüber), übersetzt mit `uebersetze`. */
 export const schrittText = (text: string, uebersetze: (key: MessageKey) => string = t) => (SCHRITTE[text] ? uebersetze(SCHRITTE[text]) : text)
+
+/**
+ * Ein Arbeitsschritt in der Sprache der Liste: Nennt das Regelwerk den englischen Wortlaut
+ * selbst (`en`, nach dem Regelbuch formuliert), gilt er auf englischen Zetteln; sonst die
+ * Übersetzung der mitgelieferten Schritte.
+ */
+export const schrittIn = (schritt: { text: string; en?: string }, sprache: 'de' | 'en', uebersetze: (key: MessageKey) => string = t) =>
+  sprache === 'en' && schritt.en ? schritt.en : schrittText(schritt.text, uebersetze)

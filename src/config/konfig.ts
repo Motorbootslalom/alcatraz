@@ -190,6 +190,8 @@ export function baue(
   const raw: RawConfig = {
     ...ohneDisziplinen,
     ...positionen,
+    // Die Schritte des Laufzettels hängen am Regelwerk: Was es nennt, ersetzt die Vorgabe.
+    laufzettel: { ...positionen.laufzettel, ...regelwerk.laufzettel },
     bezeichnungen: { ...(positionen.bezeichnungen ?? {}), ...(scheme?.tokens ?? {}) },
   }
   return buildConfig(raw, { raeumlich: scheme?.raeumlich, sprache: wahl.sprache, schema: scheme?.id })

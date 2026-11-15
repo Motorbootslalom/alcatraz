@@ -35,6 +35,13 @@ export interface RunningNumberConfig {
   skipText: string
 }
 
+/**
+ * Geschlecht eines Starters, wie Regel 960 (Pkt. 3.7 „Sex“) es auf der Liste je Team verlangt:
+ * M (männlich), F (weiblich), D (divers), nA (keine Angabe) – Entscheidung des Nutzers vom
+ * 15.11.2026 (domain/geschlecht.ts).
+ */
+export type Geschlecht = 'M' | 'F' | 'D' | 'nA'
+
 export interface Starter {
   id: string
   startNr: string
@@ -56,6 +63,13 @@ export interface Starter {
   groesse: string
   /** Gewicht aus der Verwiegung in kg; fehlt, solange nicht gewogen wurde. */
   gewicht?: number
+  /**
+   * Geschlecht, freiwillig: `M`, `F`, `D` oder `nA` (keine Angabe); fehlt = nicht erfasst. Gebraucht
+   * allein für die Liste der Fahrer je Team nach Regel 960, Pkt. 3.7 („The list must contain:
+   * … Sex“); die Wertung kennt es nicht. Eine Angabe zur Person: in Sicherung und
+   * Teilnehmerdaten, nie in der Vorlage.
+   */
+  geschlecht?: Geschlecht
   /**
    * Zählt für die Pokalauswertung. Im Stand steht nur `false` – wer das Feld nicht hat, zählt.
    * Wirkt erst, wenn „nur ausgewählte Starter zählen“ eingeschaltet ist
@@ -123,18 +137,67 @@ export interface PlanState {
   /** Wenn true, fährt Klasse 4 ausnahmsweise mit einem kleinen Boot. */
   class4Small: boolean
   /**
-   * Parallel-Slalom im internationalen Modus: nur bis Klasse 5 (6/7 ignoriert),
-   * Klasse E heißt „Dolphin". Standard: true.
-   */
-  parallelInternational: boolean
-  /**
-   * Parallel-Slalom: Reihenfolge innerhalb der Bootstyp-Pools nach Startnummer
-   * (statt nach Klasse). Sinnvoll bei genutzten klassischen Startnummern.
+   * Parallel-Slalom: Die Klassen eines Bootstyps stehen nach ihrer kleinsten Startnummer
+   * (statt in ihrer festen Folge). Sinnvoll bei genutzten klassischen Startnummern.
    */
   parallelOrderByStartNr: boolean
+  /**
+   * Parallelslalom: strenge Klassentrennung – Paare nur innerhalb einer Klasse, ein Dummy je
+   * ungerader Klasse (Regel 960, Pkt. 4.4: „Two drivers from the same class shall start at the
+   * same time“). Aus: Der Übrige einer ungeraden Klasse fährt gegen den ersten der nächsten
+   * Klasse im gleichen Boot. Fehlt die Angabe, gilt streng.
+   */
+  parallelStreng?: boolean
+  /** Festgeschriebene Startpläne des Parallelslaloms je Runde (planung/parallelRunden.ts). */
+  parallelPlaene?: ParallelPlaene
   /** Klassische fortlaufende Startnummern (nach Verzahnung vergeben). */
   runningNumbers: RunningNumberConfig
 }
+
+/**
+ * Runde des Parallelslaloms (Regel 960, Pkt. 5.2.2: „Parallel slalom preliminary heat /
+ * semi-finals / finals“; Pkt. 5.2.6: „must re-run both attempts“). Eine Wiederholung heißt
+ * `rerun-<runde>-<n>` (`rerun-pre-1`, `rerun-semi-2`): die n-te Wiederholung zum Vorlauf bzw. zum Halbfinale.
+ */
+export type ParallelRunde = 'pre' | 'semi' | 'final' | `rerun-${string}`
+
+/**
+ * Ein Start eines festgeschriebenen Plans: wer auf Racecourse A und B fährt. Gehalten werden
+ * Starter-IDs, nie Startnummern (Nummern dürfen sich ändern); `null` ist der Dummy.
+ */
+export interface ParallelStartFest {
+  a: string | null
+  b: string | null
+  /**
+   * 1. oder 2. Attempt des Paares: Der frühere Start im Plan ist der 1. Attempt, im 2. sind
+   * die Racecourses getauscht (Pkt. 4.4: „the drivers shall change boats and courses for the
+   * second attempt“).
+   */
+  attempt: 1 | 2
+  /** Block der Startreihenfolge, ab 0 (Organisation, nicht Regel 960). */
+  block: number
+  /** Bootstyp des Paares – steht hier, damit er auch gilt, wenn ein Starter nicht mehr da ist. */
+  boot: BoatType
+  /**
+   * Die Klasse, für die dieser Start festgeschrieben wurde – nur in den Runden nach dem Vorlauf
+   * (Halbfinale, Finals, Wiederholung): Sie werden je Klasse festgeschrieben und gelöst, und der
+   * Plan einer Runde sammelt die Starts aller Klassen. Im Vorlauf fehlt die Angabe.
+   */
+  klasse?: ClassId
+  /**
+   * Nur in den Finals: um welche Plätze dieser Start geht – 1 = „compete for the 1st and 2nd
+   * place“, 3 = „compete for the 3rd and 4th place“ (Regel 960, Pkt. 4.4).
+   */
+  finale?: 1 | 3
+}
+
+/** Der festgeschriebene Startplan einer Runde: Er wird nicht neu gerechnet. */
+export interface ParallelPlanFest {
+  runde: ParallelRunde
+  starts: ParallelStartFest[]
+}
+
+export type ParallelPlaene = Partial<Record<ParallelRunde, ParallelPlanFest>>
 
 /**
  * Art der Startnummern. Eine Veranstaltung nutzt genau eine davon:
@@ -188,7 +251,7 @@ export type Eingaben = Record<string, Record<string, Record<string, string>>>
 export type Streichlaeufe = 'auto' | number
 
 /**
- * Wann sich eine Ergebnisliste zuletzt geändert hat (lib/listenStand.ts). `zeit` fehlt, wenn
+ * Wann sich eine Wertungsliste zuletzt geändert hat (lib/listenStand.ts). `zeit` fehlt, wenn
  * der Zeitpunkt nicht bekannt ist – etwa bei einem Stand aus der Zeit vor dieser Angabe: Die
  * Liste zeigt dann nichts statt eines erfundenen Zeitpunkts.
  */
@@ -198,6 +261,21 @@ export interface ListenStand {
   /** Zeitpunkt der letzten Änderung in Millisekunden seit 1970. */
   zeit?: number
 }
+
+/**
+ * Die Disziplinen der Wertung nach Regel 960: Manövrieren („manoeuvring“) und Parallelslalom
+ * („parallel slalom“). Unter der DM gibt es nur das Manövrieren.
+ */
+export type WertungsDisziplin = 'manoever' | 'parallel'
+
+/**
+ * „Disziplin nicht werten“ je Disziplin und Klasse (lib/disziplinen.ts): Die Disziplin zählt für
+ * die genannten Klassen nicht in Einzel- und Mannschaftswertung – etwa weil sie in einer Klasse
+ * abgebrochen wurde und der O.O.D. sie dann auch für fertige Klassen streicht. Regel 960 regelt
+ * das nicht (nur Pkt. 5.1: „Drivers must complete the relevant stage and cross the finishing
+ * line in order to be classified for the stage.“) – eine Entscheidung des O.O.D. vor Ort.
+ */
+export type NichtWerten = Partial<Record<WertungsDisziplin, ClassId[]>>
 
 /** Aktuelle Fassung des gespeicherten Zustands, siehe state/migrate.ts. */
 export const SCHEMA_VERSION = 1
@@ -237,6 +315,14 @@ export interface AppState extends PlanState {
    * nicht ändern.
    */
   verzahnungLocked: boolean
+  /** Im Stand immer gesetzt (Vorgabe true), siehe {@link PlanState.parallelStreng}. Einstellung: in Sicherung und Vorlage. */
+  parallelStreng: boolean
+  /**
+   * Im Stand immer gesetzt. Der Plan des Vorlaufs (`pre`) entsteht mit „Verzahnung
+   * festschreiben“ und entfällt beim Lösen. Er hängt an den Startern dieser Veranstaltung
+   * (ihren IDs): in der Sicherung, nicht in der Vorlage.
+   */
+  parallelPlaene: ParallelPlaene
   /** Geburtsdatum auf den gedruckten Listen zeigen. */
   showBirthdate: boolean
   /** Herkunft auf den Startlisten: ausgeschriebener Name oder Kürzel, auf Wunsch mit Flagge. */
@@ -249,6 +335,18 @@ export interface AppState extends PlanState {
   originShort: Record<string, string>
   /** Anzahl der Läufe je Starter (Deutsche Meisterschaft: 3). */
   laufCount: number
+  /**
+   * Die Läufe (Versuche) eines Starters werden direkt nacheinander gefahren – zwischen ihnen
+   * wird nichts ausgehängt (UIM 960, Pkt. 4.3.2: „2 attempts, run consecutively“). Eine Option
+   * (Entscheidung des Nutzers vom 15.11.2026: nicht vorgewählt – manche Länder legen am Steg nur
+   * an, steigen nicht aus und fahren gleich noch einmal; andere fahren die Versuche wie Läufe).
+   * Ist sie an, steht jeder Starter auf den Listen der race officials des Manövrierens zweimal
+   * direkt nacheinander: 1. und 2. Versuch auf einem Klassenzettel (lib/bogen.ts). Wirkt und ist
+   * sichtbar nur unter einem Regelwerk, das den Schalter kennt (config/catalog.ts
+   * `versucheNacheinander`); sonst bleibt die Angabe gespeichert. Eine Einstellung ohne
+   * Personenbezug: in Sicherung und Vorlage.
+   */
+  versucheNacheinander: boolean
   /**
    * Wer an welcher Liste sitzt, je Parcours der Verzahnung. Gehört zur Veranstaltung wie die
    * Starter: in der Sicherung enthalten, in der Vorlage nicht (Personennamen).
@@ -287,6 +385,20 @@ export interface AppState extends PlanState {
   wkrRueckseite: boolean
   /** Erfasste Zeiten, Fehler und Disqualifikationen; hängen an der Starter-ID. */
   eingaben: Eingaben
+  /**
+   * Starter (IDs), die nach Beginn des Wettkampfs als „nicht gestartet“ eingetragen wurden
+   * (lib/abmeldung.ts): Das X steht als gewöhnlicher Wert in `eingaben`; diese Liste sorgt dafür,
+   * dass auch ein später hinzukommender Lauf es bekommt, und macht die Abmeldung als Ganzes
+   * rücknehmbar. Gehört zu den erfassten Werten – in der Sicherung, nie in Vorlage oder
+   * Teilnehmerdaten.
+   */
+  abgemeldet: string[]
+  /**
+   * Je abgemeldetem Starter der höchste Lauf, für den das X schon einmal eingetragen wurde.
+   * Ohne das käme ein von Hand entferntes X zurück, wenn die Zahl der Läufe gesenkt und wieder
+   * erhöht wird (Abbruch wegen Unwetter, dann doch weiter): Als „neu“ gilt ein Lauf nur einmal.
+   */
+  abgemeldetBis: Record<string, number>
   /** Streichläufe der Gesamtwertung; die Zahl der Läufe steht in `laufCount`. */
   streichlaeufe: Streichlaeufe
   /**
@@ -298,7 +410,7 @@ export interface AppState extends PlanState {
    */
   wkrClubGemeinsam: boolean
   /**
-   * Was auf den Ergebnislisten steht, je Fassung: „Aushang“ (öffentlich – Namen wahlweise
+   * Was auf den Wertungslisten steht, je Fassung: „Aushang“ (öffentlich – Namen wahlweise
    * gekürzt oder gar nicht) und „Intern“ (immer mit vollem Namen). Die Herkunft je Fassung
    * nicht, als Kürzel oder ausgeschrieben.
    */
@@ -312,7 +424,7 @@ export interface AppState extends PlanState {
    */
   kennung: string
   /**
-   * Stand je Ergebnisliste unter ihrem Schlüssel (lib/listenStand.ts): wann sie sich zuletzt
+   * Stand je Wertungsliste unter ihrem Schlüssel (lib/listenStand.ts): wann sie sich zuletzt
    * geändert hat. Gehört zu den Ergebnissen: in der Sicherung, nicht in der Vorlage.
    */
   listenStand: Record<string, ListenStand>
@@ -338,7 +450,7 @@ export interface AppState extends PlanState {
   /**
    * Wie die beiden Bojen eines Tores auf den Wettkampfrichter-Listen heißen: Kennung eines
    * Schemas aus `config/einstellungen.yaml` (`rl` Rechts/Links, `ls` Land/See …). Die
-   * Ergebnislisten bleiben bei R und L.
+   * Wertungslisten bleiben bei R und L.
    */
   beschriftung: string
   /**
@@ -367,12 +479,32 @@ export interface AppState extends PlanState {
   laufzettelLayout: LaufzettelLayout
   /** Pokalauswertung je Herkunft: eingeschaltete Varianten, Punkte, Auswahl der Starter. */
   pokal: PokalEinstellungen
+  /**
+   * „Disziplin nicht werten“ ({@link NichtWerten}). Gehört zu den Ergebnissen dieser
+   * Veranstaltung: in der Sicherung, nicht in Vorlage oder Teilnehmerdaten; „Werte löschen“ setzt
+   * es zurück. Wirkt nur unter einem Regelwerk mit Parallelslalom (Regel 960).
+   */
+  nichtWerten: NichtWerten
+  /**
+   * Der Buchstabe vor den Startnummern der Klasse Dolphin: „E“ (E01, wie national) oder „D“
+   * (D01). Wirkt nur unter einem Regelwerk, in dem die Klasse E „Dolphin“ heißt (Regel 960), und
+   * nur für Nummern, die neu vergeben werden – vorhandene bleiben, bis „Startnummern neu
+   * vergeben“ sie ersetzt (config/catalog.ts `startNrPraefixe`). Eine Einstellung: in Sicherung
+   * und Vorlage.
+   */
+  dolphinPraefix: 'E' | 'D'
+  /**
+   * Listen der race officials im Parallelslalom: jede zweite Zeile grau (Listen-Option, Vorgabe
+   * an – Entscheidung des Nutzers vom 15.11.2026). Die Zeile ohne Eingabe (Dummy, entfallener
+   * Start) bleibt schraffiert. Eine Einstellung ohne Personenbezug: in Sicherung und Vorlage.
+   */
+  parallelZebra: boolean
 }
 
 export type LaufzettelLayout = 'seite' | 'liste'
 
 export type ErgebnisNamen = 'voll' | 'kurz' | 'ohne'
-/** Herkunft auf den Ergebnislisten: gar nicht oder in einer der Darstellungen der Listen. */
+/** Herkunft auf den Wertungslisten: gar nicht oder in einer der Darstellungen der Listen. */
 export type ErgebnisHerkunft = 'aus' | OriginStyle
 export type ErgebnisFassung = 'aushang' | 'intern'
 export interface ErgebnisListenOptionen {
@@ -493,6 +625,13 @@ export interface SheetDef {
   orientation: 'portrait' | 'landscape'
   /** Lauf im Kopf anzeigen (Default true; false z. B. bei Knoten). */
   showLauf?: boolean
+  /**
+   * Der Starter kommt an dieser Position nur einmal vorbei, auch wenn er seine Versuche direkt
+   * nacheinander fährt (Vorsteg; „Versuche direkt nacheinander“, config/catalog.ts
+   * `versucheNacheinander`): Dann hat der Bogen EINE Zeile je Starter – wie die Knoten-Liste –,
+   * und was in ihr steht, gilt für jeden Versuch (lib/bogen.ts `BogenAuftrag.einmal`).
+   */
+  einmalJeStarter?: boolean
   /**
    * Klassen, für die dieses Blatt genutzt wird (z. B. MüB [4,5,6,7]). Leer =
    * alle. Steuert die Bogen-Erzeugung (nicht passende Klassen werden ausgelassen).

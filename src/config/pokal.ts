@@ -1,6 +1,7 @@
 import type { AppState, PokalEinstellungen } from '../types'
 import { ROH_QUELLE, ROH_REGELWERKE, resolveRegelwerkId } from './konfig'
 import { POKAL_PLATZ_VARIANTEN, POKAL_VARIANTEN, type PokalPlatzVariante, type PokalVariante } from './schema'
+import type { PokalStich } from '../lib/pokal'
 
 // Pokalauswertung: was die Konfiguration vorgibt und was die Veranstaltung daraus macht.
 //
@@ -33,6 +34,17 @@ export interface PokalVorgabe {
   beste: number
   /** UIM: So viele Starter muss eine Herkunft stellen, um gewertet zu werden. */
   mindestens: number
+  /** Was punktgleiche Mannschaften trennt (lib/pokal.ts `PokalStich`); fehlt = sie teilen sich den Platz. */
+  stich?: PokalStich
+}
+
+/** Der Stichentscheid aus dem Regelwerk; nur eine brauchbare Angabe gilt (den Rest meldet die Prüfung). */
+function pokalStich(x: unknown): PokalStich | undefined {
+  if (!x || typeof x !== 'object') return undefined
+  const { zaehlt, plaetze } = x as { zaehlt?: unknown; plaetze?: unknown }
+  if (zaehlt !== 'anzahl' && zaehlt !== 'punkte') return undefined
+  const bis = ganz(plaetze, 1, 200)
+  return bis === undefined ? { zaehlt } : { zaehlt, plaetze: bis }
 }
 
 /** Brauchbare Punkte je Platz: ganze Zahlen von 0 bis {@link POKAL_PUNKTE_MAX}; sonst leer. */
@@ -63,8 +75,13 @@ export function pokalVorgabe(regelwerk: string): PokalVorgabe {
   const uim = uimTabelle(id)
   const punkte = punkteListe(uim.punkte)
   const jePlatz = ROH_QUELLE.pokalPunkte ?? {}
+  const eigen = ROH_REGELWERKE.find((r) => r.id === id)?.pokal
+  // Der Stichentscheid ist – anders als die Punktetabelle – Sache des gewählten Regelwerks:
+  // DM und UIM nennen verschiedene (bis Platz 3 bzw. bis einer vorn ist).
+  const stich = pokalStich(eigen?.stichentscheid)
   return {
-    an: (ROH_REGELWERKE.find((r) => r.id === id)?.pokal?.vorgabe ?? []).filter(istPokalVariante),
+    ...(stich ? { stich } : {}),
+    an: (eigen?.vorgabe ?? []).filter(istPokalVariante),
     punkte: { plaetze3: punkteListe(jePlatz.plaetze3), plaetze6: punkteListe(jePlatz.plaetze6), uim: punkte },
     beste: pokalZahl(uim.beste) ?? 5,
     mindestens: pokalZahl(uim.mindestens) ?? 1,
@@ -86,6 +103,7 @@ export function pokalRegeln(stand: Pick<AppState, 'regelwerk' | 'pokal'>): Pokal
     return liste && liste.length === vorgabe.punkte[v].length ? punkteListe(liste) : vorgabe.punkte[v]
   }
   return {
+    ...(vorgabe.stich ? { stich: vorgabe.stich } : {}),
     an: POKAL_VARIANTEN.filter((v) => eigen.varianten[v] ?? vorgabe.an.includes(v)),
     punkte: { plaetze3: eigenePunkte('plaetze3'), plaetze6: eigenePunkte('plaetze6'), uim: vorgabe.punkte.uim },
     beste: pokalZahl(eigen.beste) ?? vorgabe.beste,

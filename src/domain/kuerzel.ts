@@ -1,13 +1,48 @@
-import { ISO_STAATEN } from './staaten'
+import { IOC_FRUEHER, IOC_NUR_AUSGABE, IOC_STAATEN, ISO_STAATEN } from './staaten'
 
 /**
  * Kürzel für die Herkunft (Verein, Bundesland, Land, Gruppe).
  *
- * Für deutsche Bundesländer und für Länder gibt es Vorgaben nach ISO 3166:
- * Bundesländer mit dem Code aus ISO 3166-2:DE ohne das „DE-“ (BY, NW …),
- * Länder mit dem dreistelligen Code aus ISO 3166-1 (DEU, AUT …). Vereine und
- * Gruppen pflegt der Veranstalter selbst; eigene Einträge gehen immer vor.
+ * Für deutsche Bundesländer und für Länder gibt es Vorgaben: Bundesländer mit dem Code aus
+ * ISO 3166-2:DE ohne das „DE-“ (BY, NW …), Länder nach der Norm des Regelwerks
+ * ({@link KuerzelNorm}). Vereine und Gruppen pflegt der Veranstalter selbst; eigene Einträge
+ * gehen immer vor.
  */
+
+/**
+ * Welche dreistelligen Kürzel Länder bekommen – eine Angabe des Regelwerks (`laenderKuerzel`):
+ *
+ * - `iso`: der Code aus ISO 3166-1 alpha-3 (DEU, CHE, NLD). So hat es der Nutzer am 12.11.2026
+ *   für die Listen festgelegt; es gilt unter der DM.
+ * - `ioc`: das Kürzel des IOC (GER, SUI, NED), sonst wie ISO. Das UIM-Rulebook verlangt es für
+ *   die Wertungslisten, Regel 209 „POSTING OF THE RESULTS“: „The nationality of all drivers –
+ *   either by using a three letter abbreviation for the countries worldwide as listed by the
+ *   IOC or as full names of the nations in English language.“ Im Zweifel gilt das Regelbuch.
+ */
+export type KuerzelNorm = 'iso' | 'ioc'
+
+export function istKuerzelNorm(wert: unknown): wert is KuerzelNorm {
+  return wert === 'iso' || wert === 'ioc'
+}
+
+let iocAusgabe: Map<string, string> | null = null
+
+/**
+ * Das Kürzel des IOC zu einem zweistelligen ISO-Code, wo es vom dreistelligen ISO-Code abweicht
+ * (DE → GER); sonst `undefined` – dann gilt der ISO-Code (AUT, ITA, POL).
+ */
+export function iocKuerzel(alpha2: string): string | undefined {
+  if (!iocAusgabe) {
+    const frueher = new Set(IOC_FRUEHER.split(' '))
+    const map = new Map<string, string>()
+    for (const paar of [...IOC_STAATEN.split(' '), ...IOC_NUR_AUSGABE.split(' ')]) {
+      const [ioc, code] = paar.split(':')
+      if (!frueher.has(ioc)) map.set(code, ioc)
+    }
+    iocAusgabe = map
+  }
+  return iocAusgabe.get(alpha2)
+}
 export const BUNDESLAENDER: readonly { code: string; name: string }[] = [
   { code: 'BW', name: 'Baden-Württemberg' },
   { code: 'BY', name: 'Bayern' },
@@ -32,18 +67,20 @@ export function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[\s\-_.]+/g, ' ').trim()
 }
 
-let defaults: Map<string, string> | null = null
+const defaults = new Map<KuerzelNorm, Map<string, string>>()
 
-function defaultMap(): Map<string, string> {
-  if (defaults) return defaults
+function defaultMap(norm: KuerzelNorm): Map<string, string> {
+  const bekannt = defaults.get(norm)
+  if (bekannt) return bekannt
   const map = new Map<string, string>()
   // Länder zuerst, damit ein gleichnamiges Bundesland sie überschreibt (es gibt keins, aber so herum ist es richtig).
   for (const pair of ISO_STAATEN.split(' ')) {
     const [alpha2, alpha3] = pair.split(':')
+    const kuerzel = (norm === 'ioc' ? iocKuerzel(alpha2) : undefined) ?? alpha3
     for (const language of ['de', 'en']) {
       try {
         const name = new Intl.DisplayNames([language], { type: 'region' }).of(alpha2)
-        if (name && name !== alpha2) map.set(normalizeName(name), alpha3)
+        if (name && name !== alpha2) map.set(normalizeName(name), kuerzel)
       } catch {
         // Der Browser kennt die Sprache oder das Land nicht – dann eben ohne Vorgabe.
       }
@@ -51,23 +88,28 @@ function defaultMap(): Map<string, string> {
   }
   for (const land of BUNDESLAENDER) map.set(normalizeName(land.name), land.code)
   map.set('nrw', 'NW')
-  defaults = map
+  defaults.set(norm, map)
   return map
 }
 
-/** Kürzel nach ISO für ein Bundesland oder Land; `''`, wenn es keine Vorgabe gibt. */
-export function defaultKuerzel(name: string): string {
-  return defaultMap().get(normalizeName(name)) ?? ''
+/** Das vorgegebene Kürzel für ein Bundesland oder Land (Länder nach `norm`); `''`, wenn es keine Vorgabe gibt. */
+export function defaultKuerzel(name: string, norm: KuerzelNorm = 'iso'): string {
+  return defaultMap(norm).get(normalizeName(name)) ?? ''
 }
 
-/**
- * Das Kürzel zu einem Namen: der eigene Eintrag, sonst die ISO-Vorgabe, sonst
- * `''`. `own` ist die Tabelle des Veranstalters (Name → Kürzel).
- */
-export function kuerzelOf(name: string, own: Record<string, string>): string {
+/** Der eigene Eintrag des Veranstalters zu einem Namen; `''`, wenn es keinen gibt. */
+export function eigenesKuerzel(name: string, own: Record<string, string>): string {
   const key = normalizeName(name)
   for (const [entry, short] of Object.entries(own)) {
     if (short.trim() && normalizeName(entry) === key) return short.trim()
   }
-  return defaultKuerzel(name)
+  return ''
+}
+
+/**
+ * Das Kürzel zu einem Namen: der eigene Eintrag, sonst die Vorgabe (Länder nach `norm`), sonst
+ * `''`. `own` ist die Tabelle des Veranstalters (Name → Kürzel).
+ */
+export function kuerzelOf(name: string, own: Record<string, string>, norm: KuerzelNorm = 'iso'): string {
+  return eigenesKuerzel(name, own) || defaultKuerzel(name, norm)
 }

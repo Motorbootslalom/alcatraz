@@ -12,7 +12,7 @@ import { setLocale } from '../i18n'
 import type { AppState, ClassId, Starter } from '../types'
 
 // Listenoptionen aus dem Fehlerpunkte-Prototyp: Seitenaufteilung, Bezeichnung der
-// Bojen-Seiten, Sprache der Listen, Aushang der Codes, beide Ergebnislisten in einem Druck.
+// Bojen-Seiten, Sprache der Listen, Aushang der Codes, beide Wertungslisten in einem Druck.
 // Alle Starter sind erfunden.
 
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -59,7 +59,7 @@ afterEach(() => {
 })
 
 describe('Listen: Aushang der Codes', () => {
-  it('steht zwischen Laufzetteln und Ergebnislisten und braucht weder Starter noch Startnummern', async () => {
+  it('steht zwischen Laufzetteln und Wertungslisten und braucht weder Starter noch Startnummern', async () => {
     const wrapper = listen(store)
     await art(wrapper, 'codes')
     expect(wrapper.find('.list-kinds button[data-kind="codes"]').text()).toBe('Aushang der Codes')
@@ -118,20 +118,20 @@ describe('Listen: Sprache nach dem Regelwerk, unabhängig von der Oberfläche', 
   // Die Spaltenköpfe der ersten Liste (je Parcours gibt es eine).
   const koepfe = (wrapper: VueWrapper) => wrapper.find('.sheet-cols').findAll('th').map((th) => th.text())
 
-  it('UIM, Oberfläche deutsch: Startliste, Laufzettel, Ergebnisliste und – ohne eigene Wahl – die Bögen sind englisch', async () => {
+  it('UIM, Oberfläche deutsch: Startliste, Laufzettel, Wertungsliste und – ohne eigene Wahl – die Bögen sind englisch', async () => {
     lade(store, { regelwerk: 'uim-2026', showBirthdate: true })
     zeit(store, 1, 'id-4-1', '70')
     const wrapper = listen(store)
     // Die Bedienung bleibt deutsch.
     expect(wrapper.find('.list-kinds button[data-kind="starter"]').text()).toBe('Starterlisten')
     expect(koepfe(wrapper)).toEqual(['No.', 'Surname', 'First name', 'Club', 'Date of birth', 'Class'])
-    // Datum in englischer Schreibweise.
-    expect(wrapper.find('.sheet-table tbody td:nth-child(5)').text()).toMatch(/^2014-05-0\d$/)
+    // Geburtsdatum wie in Regel 960 Pkt. 3.7: „Date of birth (day/month/year)“.
+    expect(wrapper.find('.sheet-table tbody td:nth-child(5)').text()).toMatch(/^0\d\/05\/2014$/)
     await art(wrapper, 'laufzettel')
     expect(wrapper.find('.laufzettel .lz-titel').text()).toBe('Checklist · Hafenpokal 2026')
     expect(wrapper.find('.laufzettel .lz-lauf').text()).toBe('Attempt 1')
     await art(wrapper, 'ergebnis')
-    expect(wrapper.find('.ergebnis-blatt .erg-spaltenkopf th').text()).toBe('Rank')
+    expect(wrapper.find('.ergebnis-blatt .erg-spaltenkopf th').text()).toBe('Rank.')
     expect(wrapper.find('.ergebnis-blatt .erg-kopf-klasse').text()).toBe('Class 4')
     // Die Auswahl darüber ist Bedienung.
     expect(wrapper.find('select[data-feld="erg-klasse"] option:nth-child(2)').text()).toMatch(/^Klasse /)
@@ -181,7 +181,7 @@ describe('Listen: Sprache nach dem Regelwerk, unabhängig von der Oberfläche', 
 })
 
 describe('Listen: Bezeichnung der Bojen-Seiten', () => {
-  it('die Bögen tragen das gewählte Schema, die Ergebnislisten bleiben bei R und L', async () => {
+  it('die Bögen tragen das gewählte Schema, die Wertungslisten bleiben bei R und L', async () => {
     lade(store, { beschriftung: 'ls' })
     zeit(store, 1, 'id-4-1', '70')
     const wrapper = listen(store)
@@ -199,7 +199,7 @@ describe('Listen: Bezeichnung der Bojen-Seiten', () => {
   })
 })
 
-describe('Ergebnislisten: beide Reihenfolgen in einem Druck', () => {
+describe('Wertungslisten: beide Reihenfolgen in einem Druck', () => {
   it('je Liste erst nach Startnummer, dann nach Platz; die Gesamtliste hat ihre eigene Wahl', async () => {
     lade(store)
     // Der spätere Starter ist schneller: Platz und Startnummer ergeben verschiedene Reihenfolgen.
@@ -342,7 +342,11 @@ describe('Einstellungen: Listenoptionen', () => {
     await wahl('steg').setValue('en')
     expect(store.state.value.wkrSprachen).toEqual({})
     await alle('de').trigger('click')
-    expect(Object.keys(store.state.value.wkrSprachen).length).toBe(zeilen)
+    // „Alle“ sind die Listen beider Disziplinen: Zeit und Steg gibt es im Manövrieren und im
+    // Parallelslalom (zwei Zeilen, eine Liste), dessen Fahrweg nur dort.
+    const listenIds = new Set(wrapper.findAll('#wkr-einteilung select').map((s) => s.attributes('data-feld')!.split('|')[1]))
+    expect(listenIds.has('parallelparcours')).toBe(true)
+    expect(Object.keys(store.state.value.wkrSprachen).length).toBe(listenIds.size)
     expect(new Set(Object.values(store.state.value.wkrSprachen))).toEqual(new Set(['de']))
     expect(alle('de').classes()).toContain('active')
     expect((wahl('zeit').element as HTMLSelectElement).value).toBe('de')

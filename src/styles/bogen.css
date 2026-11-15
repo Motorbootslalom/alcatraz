@@ -349,6 +349,60 @@
   background: var(--blatt-grau);
 }
 
+/* ---- Listen einer Runde des Parallelslaloms (lib/parallelBogen.ts) ---- */
+.bt-cg-start {
+  width: 11mm;
+}
+
+.bt-cg-attempt {
+  width: 15mm;
+}
+
+.bogen-tabelle .bt-start {
+  font-weight: 400;
+}
+
+/* Fahrweg-Liste einer Runde: viele schmale Bojen-Spalten. Vorn etwas schmaler und die Köpfe
+   mit weniger Polster, damit ein Wort wie „Finish“ nicht mitten umbricht. */
+.bogen--runde-eng .bt-cg-start {
+  width: 9.5mm;
+}
+
+.bogen--runde-eng .bt-cg-attempt {
+  width: 14mm;
+}
+
+.bogen--runde-eng .bogen-tabelle > thead > tr > th {
+  padding-left: 1px;
+  padding-right: 1px;
+}
+
+/* Dummy oder entfallener Start: Zeile ohne Eingabe – die übrigen Zellen schraffiert (`bt-entfaellt`,
+   Entscheidung des Nutzers vom 15.11.2026). Jede zweite Zeile ist grau (Vorgabe, `parallelZebra`):
+   Davon muss sich die Zeile klar abheben. Deshalb sind Start- und Dummy-Zelle weiß statt grau, und
+   die Schraffur ist kräftiger und dichter als die einer Spalte, die eine Klasse nicht hat. */
+.bogen-tabelle > tbody > tr.bt-ohne > td {
+  background: var(--blatt-bg);
+}
+
+.bogen-tabelle > tbody > tr.bt-ohne > td.bt-entfaellt {
+  background: repeating-linear-gradient(135deg, var(--blatt-bg) 0 2.2px, var(--blatt-linie) 2.2px 3.2px);
+}
+
+.bogen-tabelle > tbody > tr.bt-ohne > td.bt-dummy {
+  font-weight: 400;
+  font-style: italic;
+  text-align: left;
+  padding-left: 6px;
+}
+
+/* Ende eines Blocks der Startreihenfolge: Beide Attempts eines Paares stehen darüber. Die Linie
+   liegt als Schatten IN der Zelle und kostet keine Höhe – alle Zeilen bleiben gleich hoch, und
+   die gemessene Kapazität gilt für jede Seite, gleich wie viele Blöcke sie trägt. */
+.bogen-tabelle > tbody > tr.bt-blockende > td {
+  box-shadow: inset 0 -2.5px 0 var(--blatt-linie);
+}
+
 /* Mehrere Klassen auf einem Bogen: Diese Spalte gibt es für die Klasse der Zeile nicht. */
 .bogen-tabelle > tbody > tr > td.bt-entfaellt {
   background: repeating-linear-gradient(135deg, transparent 0 3px, var(--blatt-blass) 3px 4px);
@@ -900,6 +954,8 @@
 
   /* Graue Zeilen müssen auch ohne „Hintergrundgrafiken drucken“ erscheinen. */
   .bogen-tabelle > tbody > tr.grau > td,
+  .bogen-tabelle > tbody > tr.bt-ohne > td,
+  .bogen-tabelle > tbody > tr.bt-blockende > td,
   .bogen-tabelle > tbody > tr > td.bt-entfaellt {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

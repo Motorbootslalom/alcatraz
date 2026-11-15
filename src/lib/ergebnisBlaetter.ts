@@ -1,8 +1,8 @@
 import type { ClassId } from '../types'
 import type { KlassenErgebnis, LaufListe } from './ergebnis'
 
-// Welche Ergebnislisten eine Auswahl zeigt und in welcher Reihenfolge – rein, ohne DOM. Für
-// den Reiter „Ergebnislisten“ (components/ErgebnisListen.vue) und für die Druckdatei
+// Welche Wertungslisten eine Auswahl zeigt und in welcher Reihenfolge – rein, ohne DOM. Für
+// den Reiter „Wertungslisten“ (components/ErgebnisListen.vue) und für die Druckdatei
 // (components/DruckdateiListen.vue); gezeichnet werden sie von components/ErgebnisStapel.vue.
 
 /** „beide“: je Liste erst die nach Startnummer (zum Prüfen), dann die nach Platz (für den Aushang). */

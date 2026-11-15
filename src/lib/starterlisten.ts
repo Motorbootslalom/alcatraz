@@ -1,27 +1,38 @@
-import type { AppState, OriginMode, Starter } from '../types'
-import { CLASSES } from '../domain/classes'
+import type { AppState, OriginMode, Starter, StartNrMode } from '../types'
+import { CLASSES, CLASS_IDS } from '../domain/classes'
 import { gewichtsGruppen } from '../domain/gewicht'
-import { sortedByStartNr } from '../domain/startnumbers'
+import { sortedByStartNr, vergleicheStartNr } from '../domain/startnumbers'
 import { planEvent } from '../planung/plan'
 import { originOf } from './origin'
 import { jeHerkunft, mannschaftSchluessel } from './pokal'
 
 // Die Starterlisten unter „Listen“ – rein, ohne DOM (views/ListsView.vue zeichnet sie).
 //
-// Ein Reiter, drei Arten:
+// Ein Reiter, drei Arten – unter einem Regelwerk mit Parallelslalom vier:
 //   • verzahnt: die Startfolge je Parcours. Auf Wunsch für eine Herkunft: die VOLLSTÄNDIGE
 //     Liste, in der deren Starter hervorgehoben sind – der Mannschaftsleiter sieht auf einen
 //     Blick, wann die eigenen Starter starten.
 //   • je Herkunft nach Startnummer: nur die Starter einer Herkunft; der Parcours spielt dort
 //     keine Rolle.
 //   • nach Klasse.
+//   • Parallelslalom: die Startliste einer Runde (lib/parallelStartliste.ts) – A und B
+//     nebeneinander oder je Racecourse eine eigene zum Aushang am jeweiligen Parcours
+//     (Entscheidung des Nutzers vom 15.11.2026). Gezeichnet von components/ParallelStartlisten.vue;
+//     {@link starterDokumente} kennt sie nicht.
 
-export const STARTER_ARTEN = ['verzahnt', 'herkunft', 'klasse'] as const
+export const STARTER_ARTEN = ['verzahnt', 'herkunft', 'klasse', 'parallel'] as const
 export type StarterArt = (typeof STARTER_ARTEN)[number]
 export const istStarterArt = (x: unknown): x is StarterArt => (STARTER_ARTEN as readonly unknown[]).includes(x)
 
 /** Auswahl „alle Herkünfte“ – kein Schlüssel einer Herkunft sieht so aus (die tragen `art:` davor). */
 export const ALLE = '*'
+
+/**
+ * Die Startliste einer Runde des Parallelslaloms: A und B nebeneinander (so steht sie in der
+ * Druckdatei), nur Racecourse A, nur B – oder je Racecourse eine eigene Liste.
+ */
+export const PARALLEL_STARTLISTEN = ['nebeneinander', 'A', 'B', 'je'] as const
+export type ParallelStartlisteForm = (typeof PARALLEL_STARTLISTEN)[number]
 
 /** Was im Reiter „Starterlisten“ gewählt ist; übersteht Ansichtswechsel und Neuladen (lib/merken.ts). */
 export interface StarterWahl {
@@ -30,12 +41,24 @@ export interface StarterWahl {
   markierung: string
   /** Je Herkunft: {@link ALLE} oder der Schlüssel einer Herkunft. */
   herkunft: string
+  /** Parallelslalom: {@link ALLE} oder eine Runde (`pre`, `semi` …); fehlt = alle. */
+  runde?: string
+  /** Parallelslalom: welche Startliste; fehlt = A und B nebeneinander. */
+  racecourse?: ParallelStartlisteForm
 }
 export const STARTER_WAHL: StarterWahl = { art: 'verzahnt', markierung: '', herkunft: ALLE }
 
 export function istStarterWahl(x: unknown): x is StarterWahl {
   const w = x as Partial<StarterWahl> | null
-  return !!w && typeof w === 'object' && istStarterArt(w.art) && typeof w.markierung === 'string' && typeof w.herkunft === 'string'
+  return (
+    !!w &&
+    typeof w === 'object' &&
+    istStarterArt(w.art) &&
+    typeof w.markierung === 'string' &&
+    typeof w.herkunft === 'string' &&
+    (w.runde === undefined || typeof w.runde === 'string') &&
+    (w.racecourse === undefined || (PARALLEL_STARTLISTEN as readonly unknown[]).includes(w.racecourse))
+  )
 }
 
 export interface Herkunft {
@@ -73,15 +96,20 @@ export function ohneHerkunft(starters: readonly Starter[], mode: OriginMode): St
 }
 
 /**
- * Nach Startnummer, Klasse E zuerst: „E01 kommt vor 101“ (Vorgabe des Nutzers). Die Klasse E
- * steht auch dann vorn, wenn ihre Nummern reine Zahlen sind (Startnummern-Art „klassisch“,
- * importierte Nummern). Danach Nummern mit Buchstaben vorn, dann die reinen Zahlen, innerhalb
- * jeweils natürlich sortiert (E2 vor E10, 99 vor 401); Starter ohne Nummer zuletzt in ihrer
- * Gruppe. Bei gleicher Nummer bleibt die Reihenfolge.
+ * Nach Startnummer – wie sie je Art der Startnummern (`startNrMode`) zu lesen ist:
+ *   • klassisch (durchlaufende Zahlen über die ganze Veranstaltung): Es zählt allein die
+ *     Nummer, gleich in welcher Klasse der Starter fährt (7, 9, 12, 100).
+ *   • klassenbezogen (E01, 101, 201 …): erst die Klasse in der Reihenfolge des Starterfelds,
+ *     darin die Nummer – so steht „E01 vor 101“ und die Klasse E nicht hinter Klasse 7, wohin
+ *     eine reine Sortierung der Zeichen sie stellte (Ziffern vor Buchstaben).
+ * Innerhalb natürlich sortiert (E2 vor E10, 99 vor 401); Starter ohne Nummer zuletzt (klassisch:
+ * am Ende der Liste, klassenbezogen: am Ende ihrer Klasse). Bei gleicher Nummer bleibt die
+ * Reihenfolge.
  */
-export function nachStartnummer(starters: readonly Starter[]): Starter[] {
-  const rang = (p: Starter) => (p.klasse === 'E' ? 0 : 3) + (p.startNr.trim() === '' ? 2 : /^\d/.test(p.startNr.trim()) ? 1 : 0)
-  return [...starters].sort((a, b) => rang(a) - rang(b) || a.startNr.trim().localeCompare(b.startNr.trim(), 'de', { numeric: true }))
+export function nachStartnummer(starters: readonly Starter[], mode: StartNrMode): Starter[] {
+  const klasse = (p: Starter) => (mode === 'klasse' ? CLASS_IDS.indexOf(p.klasse) : 0)
+  const leer = (p: Starter) => (p.startNr.trim() === '' ? 1 : 0)
+  return [...starters].sort((a, b) => klasse(a) - klasse(b) || leer(a) - leer(b) || vergleicheStartNr(a.startNr, b.startNr))
 }
 
 /** Die gewählten Herkünfte: alle bei {@link ALLE}, sonst die eine – eine, die es nicht (mehr) gibt, zählt wie „alle“. */
@@ -152,6 +180,8 @@ export function starterDokumente(
     }))
   }
   const art = wahl.liste === 'starter' ? (wahl.art ?? 'verzahnt') : 'verzahnt'
+  // Die Startliste einer Runde des Parallelslaloms zeichnet eine eigene Ansicht (components/ParallelStartlisten.vue).
+  if (art === 'parallel') return []
   if (art === 'klasse') {
     const zaehler = { n: 0 }
     const groups = CLASSES.map((c) => sortedByStartNr(stand.starters.filter((p) => p.klasse === c.id)))
@@ -166,7 +196,7 @@ export function starterDokumente(
       title: titel.starter,
       origin: h.name,
       markierung: false,
-      groups: [zeilenVon(nachStartnummer(h.starter), { n: 0 })],
+      groups: [zeilenVon(nachStartnummer(h.starter, stand.startNrMode), { n: 0 })],
     }))
   }
   // Je Parcours eine eigene Liste auf eigenem Blatt – sie hängt an einem anderen Steg.

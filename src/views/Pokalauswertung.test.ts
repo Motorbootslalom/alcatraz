@@ -9,6 +9,7 @@ import { laufSchluessel } from '../lib/eingaben'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { knotenHaken } from '../testHilfen'
 
 // Mannschaftswertung (im Code „pokal“) in der Oberfläche: Listenart, Einstellungen, Auswahl im Starter-Reiter.
 // Alle Starter und Vereine sind erfunden.
@@ -90,6 +91,30 @@ describe('Mannschaftswertung', () => {
       wrapper.unmount()
     })
 
+    it('Stichentscheid nach Regelbuch (DM C6): Sternchen am Platz und die Regel im Fuß – neben dem Hinweis zum Zwischenstand', async () => {
+      store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 1 } })
+      const zeit = (klasse: ClassId, i: number, s: number) => ({ lauf: laufSchluessel('manoevrieren', 1), starter: `id-${klasse}-${i}`, feld: 'zeit1', wert: String(s) })
+      // Klasse 1: Nord, Süd, Ost; Klasse 2: Ost, Süd, Nord – jede Mannschaft hat 10 Punkte (6 + 4, 5 + 5, 4 + 6).
+      store.dispatch({ type: 'SET_EINGABEN', zellen: [zeit('1', 1, 61), zeit('1', 2, 62), zeit('1', 3, 63), zeit('2', 3, 61), zeit('2', 2, 62), zeit('2', 1, 63)], zeit: 1 })
+      const wrapper = await pokal(store)
+      // Nord und Ost haben je einen 1. und einen 3. Platz, Süd keinen 1.: Süd steht dahinter, die beiden teilen sich Platz 1.
+      expect(zeilen(wrapper, 'pokal-plaetze').map((z) => z.split(' ').slice(0, 3).join(' '))).toEqual(['1* MBC Nord', '1* WSV Ost', '3* MBC Süd'])
+      const fuss = wrapper.find('.ergebnis-blatt[data-art="pokal-plaetze"] .erg-fuss')
+      expect(fuss.find('[data-hinweis="stich"]').text()).toBe('* Platz durch Stichentscheid. Bei gleicher Punktzahl entscheidet die Anzahl der 1. Plätze, dann der 2. und 3. Plätze.')
+      expect(fuss.find('[data-hinweis="fuss"]').exists()).toBe(false)
+      expect(wrapper.find('.ergebnis-blatt[data-art="pokal-plaetze"] .erg-kopf').text()).not.toContain('Zwischenstand')
+      wrapper.unmount()
+    })
+
+    it('ohne Punktgleichheit steht kein Zeichen und keine Regel im Fuß', async () => {
+      fahre(store, '1')
+      fahre(store, '2')
+      const wrapper = await pokal(store)
+      expect(wrapper.findAll('[data-stich]')).toHaveLength(0)
+      expect(wrapper.find('[data-hinweis="stich"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
     it('ohne Herkunft gibt es keine Mannschaftswertung – die Ansicht sagt es', async () => {
       fahre(store, '1')
       store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'none' })
@@ -120,7 +145,7 @@ describe('Mannschaftswertung', () => {
       expect(kopf).toContain('Mannschaftswertung – Zwischenstand')
       expect(kopf).toContain('Plätze 1–6 je Klasse: 6 · 5 · 4 · 3 · 2 · 1 Punkte')
       expect(kopf).toContain('Hafenpokal 2026')
-      expect(wrapper.find('.ergebnis-blatt[data-art="pokal-plaetze"] [data-hinweis="fuss"]').text()).toBe('Zwischenstand – noch ohne Endergebnis (Klasse: gewertete Läufe): 2: 0/3')
+      expect(wrapper.find('.ergebnis-blatt[data-art="pokal-plaetze"] [data-hinweis="fuss"]').text()).toBe('Zwischenstand – noch ohne Endergebnis (Klasse: Läufe · gefahren): 2: 0/3')
       // Spalten wie im Blatt „Mannschaftswertung_Ausgabe“: Platz, Verein, Gesamt, je Klasse „1.“ bis „6.“.
       const koepfe = wrapper.find('.ergebnis-blatt[data-art="pokal-plaetze"]').findAll('thead th').map((t) => t.text())
       expect(koepfe.slice(1, 6)).toEqual(['Platz', 'Verein', 'Gesamt', 'Klasse 1', 'Klasse 2'])
@@ -193,14 +218,17 @@ describe('Mannschaftswertung', () => {
       store.dispatch({ type: 'SET_POKAL_UIM', patch: { mindestens: 1 } })
       fahre(store, '1')
       fahre(store, '2')
+      // Unter Regel 960 gibt es die UIM points des Manövrierens erst mit den Knoten.
+      store.dispatch({ type: 'SET_EINGABEN', zellen: knotenHaken(['1', '2'].flatMap((k) => [1, 2, 3].map((i) => `id-${k}-${i}`))) })
       const wrapper = await pokal(store)
       expect(wrapper.findAll('.ergebnis-blatt').map((b) => b.attributes('data-art'))).toEqual(['pokal-uim'])
       const blatt = wrapper.find('.ergebnis-blatt')
       expect(blatt.find('.erg-kopf').text()).toContain('Team competition')
       expect(blatt.find('.erg-kopf').text()).toContain('UIM points · best 5 per Country')
-      expect(blatt.findAll('tbody tr.pokal-gruppe-kopf').map((k) => k.findAll('th').map((t) => t.text()))).toEqual(Array(2).fill(['Rank', 'Class', 'No.', 'Surname', 'First name', 'Points', 'Top 5', 'Team rank']))
-      // Deutschland: 400 + 400 + 300 + 300 = 1400; Österreich: 225 + 225.
-      expect(zeilen(wrapper, 'pokal-uim').filter((z) => /^(Deutschland|Österreich|Total)/.test(z))).toEqual(['Deutschland', 'Total 1400 1400 1', 'Österreich', 'Total 450 450 2'])
+      expect(blatt.findAll('tbody tr.pokal-gruppe-kopf').map((k) => k.findAll('th').map((t) => t.text()))).toEqual(Array(2).fill(['Rank.', 'Class', 'No.', 'Surname', 'First name', 'Points', 'Top 5', 'Team ranking']))
+      // Deutschland: 400 + 400 + 300 + 300 = 1400; Österreich: 225 + 225. Auf der englischen Liste mit
+      // englischem Namen – Nationen sind international (Entscheidung des Nutzers vom 15.11.2026).
+      expect(zeilen(wrapper, 'pokal-uim').filter((z) => /^(Germany|Austria|Sum)/.test(z))).toEqual(['Germany', 'Sum 1400 1400 1', 'Austria', 'Sum 450 450 2'])
       wrapper.unmount()
     })
 

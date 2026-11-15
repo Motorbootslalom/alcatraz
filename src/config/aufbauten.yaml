@@ -3,7 +3,7 @@
 # =====================================================================
 # Die Konfiguration der Positionen liegt auf mehrere Dateien verteilt:
 #   einstellungen.yaml       Bojen-Kürzel, Bezeichnungen, Hinweise, Laufzettel
-#   (Disziplinen und Spalten der Ergebnislisten: aufbauten/gemeinsam.yaml, parallel.yaml)
+#   (Disziplinen und Spalten der Wertungslisten: aufbauten/gemeinsam.yaml, parallel.yaml)
 #   i18n/<sprache>.yaml      Übersetzungen der Positionen, je Sprache eine Datei
 #   aufbauten/gemeinsam.yaml Positionen, die mehrere Aufbauten nutzen
 #   aufbauten/<name>.yaml    je Austragungsort Aufbauten und ihre Tor-Positionen
@@ -29,7 +29,7 @@ sprachen: [en]
 #                („Elektronische Zeiterfassung“, „Stoppuhr“), sofern `titel` fehlt.
 #   eigeneStrecke true = eigene Bojen, der Überwachungs-Check gilt nicht.
 #   disziplin    Verweis auf disziplinen.<id>; fehlt: die erste (Manövrieren). Aufbauten
-#                einer Disziplin teilen sich die Eingaben und die Ergebnislisten.
+#                einer Disziplin teilen sich die Eingaben und die Wertungslisten.
 #   kurs         Verweis auf kurse.<id>: die Kursvariante des Austragungsorts.
 #
 # ---- KURS-Parameter (je Eintrag unter `kurse:`) ----------------------
@@ -74,6 +74,10 @@ sprachen: [en]
 #   menue        Ausführlicher Name in den Auswahl-Menüs (Default: titel).
 #   ausrichtung  hoch (A4 Hochformat, Default) | quer (Querformat, z. B. Knoten).
 #   lauf         false = Lauf NICHT im Kopf zeigen (z. B. Knoten). Default true.
+#   einmalJeStarter true = Der Starter kommt hier nur einmal vorbei, auch wenn er seine
+#                Versuche direkt nacheinander fährt (z. B. Vorsteg). Mit der Option
+#                „Versuche direkt nacheinander“ hat der Bogen dann EINE Zeile je Starter
+#                (wie die Knoten-Liste), und ihr Inhalt gilt für jeden Versuch. Default false.
 #   schnellauswahl true = zusätzlich in JEDEM Aufbau wählbar (Schnellauswahl
 #                „Eine Position · alle Klassen“ + Bogen-Menüs), z. B. Varianten,
 #                die in keinem Aufbau stehen. Default false: nur in den
@@ -138,7 +142,7 @@ sprachen: [en]
 #   trenner      Kurzform: hervorgehobene Linie am LINKEN Rand dieser Spalte.
 #   subTrenner   Design der Linien zwischen den sub-Spalten DIESER Spalte
 #                (überschreibt den Positions-Standard, z. B. Tor 5 "doppelt").
-#   geraet       Nur `typ: zeit`: elektronisch | stoppuhr (Standard). In der Ergebnisliste
+#   geraet       Nur `typ: zeit`: elektronisch | stoppuhr (Standard). In der Wertungsliste
 #                gilt die elektronische Zeit, ohne sie der Mittelwert der Stoppuhren.
 #
 # ---- Spalten-Typen (typ) --------------------------------------------

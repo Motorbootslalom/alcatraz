@@ -1,5 +1,6 @@
-import type { AppState, ClassId, Starter } from '../types'
+import type { AppState, ClassId, ParallelRunde, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
+import { versucheNacheinander } from '../config/catalog'
 import { planEvent } from '../planung/plan'
 import { BOGEN_VORGABEN, defFuerKlasse, type BogenAuftrag, type BogenKonfig, type BogenOptionen } from './bogen'
 import { bogenCode } from './qr'
@@ -30,7 +31,7 @@ export type WkrListenStand = Pick<
   // Für den QR-Code; ohne sie (Tests, Beispielansicht) steht dort „keine Kennung“. Ohne
   // Angaben zur Seitenaufteilung wird automatisch geteilt; ohne `wkrLeerzeilenSeite` gilt
   // auf gemeinsamen Bögen die Vorgabe.
-  Partial<Pick<AppState, 'kennung' | 'regelwerk' | 'wkrZeilenJeSeite' | 'wkrTeilenAb' | 'tor5MitParcours' | 'zusatzListen' | 'wkrLeerzeilenSeite'>>
+  Partial<Pick<AppState, 'kennung' | 'regelwerk' | 'wkrZeilenJeSeite' | 'wkrTeilenAb' | 'tor5MitParcours' | 'zusatzListen' | 'wkrLeerzeilenSeite' | 'versucheNacheinander'>>
 
 /** Ein Bogen der Veranstaltung: eine Liste für eine Klasse (Clubmeisterschaft: mehrere) in einem Lauf auf einem Parcours. */
 export interface WkrBogen {
@@ -44,7 +45,22 @@ export interface WkrBogen {
   /** Name der Liste, wie er im Kopf steht. */
   titel: string
   auftrag: BogenAuftrag
-  optionen: Pick<BogenOptionen, 'leerzeilen' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'leerzeilenJeSeite' | 'zeilenJeSeite' | 'teilenAb'>
+  optionen: Pick<BogenOptionen, 'leerzeilen' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'leerzeilenJeSeite' | 'zeilenJeSeite' | 'teilenAb' | 'zebra'>
+  /**
+   * „Versuche direkt nacheinander“: Der Bogen gilt für so viele Versuche (lib/bogen.ts
+   * `BogenAuftrag.versuche`) – ein Klassenzettel für alle Versuche. `lauf` ist dann 1 (der
+   * Stapel, in dem er liegt); die Werte stehen je Zeile unter ihrem Versuch. Am Vorsteg
+   * (`auftrag.einmal`) steht jeder Starter nur einmal da, seine Zeile gilt für jeden Versuch.
+   * Fehlt = ein Lauf.
+   */
+  versuche?: number
+  /**
+   * Nur bei Listen des Parallelslaloms (lib/parallelBogen.ts): Der Bogen gehört zu einer Runde
+   * und einem Racecourse statt zu Klasse und Lauf. `parcoursId` ist dann die Kennung des
+   * Racecourse in der Einteilung, `klassen` nennt alle Klassen des Plans, `lauf` ist ohne
+   * Bedeutung (der Attempt steht je Zeile).
+   */
+  runde?: { runde: ParallelRunde; racecourse: 'A' | 'B' }
 }
 
 export interface WkrListen {
@@ -108,6 +124,14 @@ function klassenGruppen(
  * Die Leerzeilen für Nachmeldungen teilen sich dort alle Klassen einer Seite: Sie stehen
  * einmal am Ende jeder Seite (`wkrLeerzeilenSeite`) statt nach jeder Klasse.
  *
+ * „Versuche direkt nacheinander“ (UIM 960, Pkt. 4.3.2: „2 attempts, run consecutively“; Option
+ * der Veranstaltung, config/catalog.ts `versucheNacheinander`): Statt eines Bogens je Lauf gibt
+ * es je Liste EINEN, auf dem jeder Starter mit allen Versuchen direkt nacheinander steht – er
+ * legt am Steg nur an und fährt gleich noch einmal. Alle Bögen liegen dann in einem Stapel
+ * (`lauf` 1, auch die Knoten), mit einem Laufzettel je Klasse. Am Vorsteg kommt der Starter
+ * trotzdem nur einmal vorbei (config `einmalJeStarter`): Dort steht er wie auf der Knoten-Liste
+ * nur einmal, und seine Zeile gilt für jeden Versuch (lib/bogen.ts `BogenAuftrag.einmal`).
+ *
  * `titelVon`: Der Name der Liste, wie er im Kopf ihres Bogens steht – die Bögen haben ihre
  * Sprache je Liste (lib/listensprache.ts), der Aufbau ist in jeder Sprache derselbe. Fehlt =
  * der Titel aus `konfig`.
@@ -122,6 +146,9 @@ export function wkrBoegen(
   const mehrereParcours = stand.parcoursList.length > 1
   const listen = veranstaltungsListen(konfig, stand)
   const laeufe = Math.max(1, stand.laufCount)
+  // „Versuche direkt nacheinander“: ein Bogen je Liste mit allen Versuchen – nur, wo das Regelwerk die Option kennt.
+  const nacheinander = laeufe > 1 && versucheNacheinander({ regelwerk: stand.regelwerk ?? '', versucheNacheinander: stand.versucheNacheinander })
+  const stapel = nacheinander ? 1 : laeufe
   // Reihenfolge der Klassen je Parcours: so, wie sie in der Verzahnung zuerst an den Start
   // gehen – nicht E, 1, 2 … Der Stapel aus dem Drucker liegt dann schon in der Reihenfolge,
   // in der die Bögen am Steg gebraucht werden; man muss ihn nur noch trennen.
@@ -152,7 +179,10 @@ export function wkrBoegen(
       const def = konfig.getSheetDef(typeId)
       const zeilen = folge.filter((s) => gruppe.includes(s.klasse)).map((s) => ({ nr: s.startNr, id: s.id, klasse: s.klasse }))
       // Ohne Lauf: ein einziger Bogen, im letzten Lauf (siehe oben).
-      for (let lauf = def.showLauf === false ? laeufe : 1; lauf <= laeufe; lauf++) {
+      const versuche = nacheinander && def.showLauf !== false ? laeufe : undefined
+      // Am Vorsteg kommt der Starter auch dann nur einmal vorbei: eine Zeile für alle Versuche.
+      const einmal = versuche !== undefined && def.einmalJeStarter === true
+      for (let lauf = def.showLauf === false ? stapel : 1; lauf <= stapel; lauf++) {
         boegen.push({
           id: [parcours.id, gruppe.join('+'), lauf, typeId].join('|'),
           parcoursId: parcours.id,
@@ -161,11 +191,14 @@ export function wkrBoegen(
           lauf,
           typeId,
           titel: titelVon(typeId),
+          ...(versuche ? { versuche } : {}),
           auftrag: {
             typeId,
             klassen: gruppe,
             lauf,
             zeilen,
+            ...(versuche ? { versuche } : {}),
+            ...(einmal ? { einmal } : {}),
             eventName,
             aufbauId: stand.aufbau,
             // Wie auf den Startlisten: Der Parcours steht nur da, wenn es mehrere gibt.

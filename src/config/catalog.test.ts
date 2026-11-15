@@ -15,6 +15,21 @@ describe('Regelwerke und Aufbauten', () => {
     expect(regelwerkOf('dm-2026').klassen).toHaveLength(8)
   })
 
+  it('der Name der Klasse E kommt aus dem Regelwerk: unter UIM „Dolphin“ (Kurzzeichen „D“), unter DM keiner – also „Klasse E“, nicht „ME“', () => {
+    const uim = regelwerkOf('uim-2026')
+    const dm = regelwerkOf('dm-2026')
+    expect(uim.klassenNamen).toEqual({ E: 'Dolphin' })
+    expect(uim.klassenKurz).toEqual({ E: 'D' })
+    expect(dm.klassenNamen).toEqual({})
+    expect(dm.klassenKurz).toEqual({})
+    expect(JSON.stringify([dm.klassenNamen, dm.klassenKurz, dm.startNrPraefix])).not.toContain('ME')
+  })
+
+  it('der Buchstabe der Startnummern steht im Regelwerk: E01 – auch unter UIM, wo die Klasse „Dolphin“ heißt', () => {
+    expect(regelwerkOf('uim-2026').startNrPraefix).toEqual({ E: 'E' })
+    expect(regelwerkOf('dm-2026').startNrPraefix).toEqual({ E: 'E' })
+  })
+
   it('Parallelslalom gibt es nur nach den Regeln der UIM', () => {
     expect(hasParallel('dm-2026')).toBe(false)
     expect(hasParallel('uim-2026')).toBe(true)

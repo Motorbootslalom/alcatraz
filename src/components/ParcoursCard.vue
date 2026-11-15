@@ -16,7 +16,7 @@ const FACTORS: WechselFaktor[] = [1, 2, 3, 4]
 const props = defineProps<{ parcours: Parcours; plan: ParcoursPlan; locked: boolean }>()
 
 const { state, dispatch } = useStore()
-const { classes, classLabel } = useEvent()
+const { classes, classLabel, classBadge } = useEvent()
 
 const filtered = computed(() => state.value.starters.filter((p) => props.parcours.classIds.includes(p.klasse)))
 const counts = computed(() => classCounts(filtered.value))
@@ -124,7 +124,7 @@ function removeParcours() {
           :aria-pressed="parcours.classIds.includes(c.id)"
           @click="toggleClass(c.id)"
         >
-          {{ c.id }} <span style="opacity: 0.8; font-weight: 600">· {{ starterCount(c.id) }}</span>
+          {{ classBadge(c.id) }} <span style="opacity: 0.8; font-weight: 600">· {{ starterCount(c.id) }}</span>
         </button>
       </div>
       <p class="note">

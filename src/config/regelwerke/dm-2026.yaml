@@ -21,11 +21,14 @@
 #   klassen          Klassen dieses Regelwerks.
 #   sprachen         Sprachen, in denen es die Texte gibt: [de] (Vorgabe) oder [de, en].
 #   listenSprache    Sprache aller Listen außer den Wettkampfrichter-Bögen (Starter-,
-#                    Gewichts-, Vorsteg-, Ergebnislisten, Laufzettel, Aushang der Codes):
+#                    Gewichts-, Vorsteg-, Wertungslisten, Laufzettel, Aushang der Codes):
 #                    Der Aushang folgt dem Regelwerk, nicht der Sprache der Oberfläche.
 #                    Eine der `sprachen`; fehlt = die erste. Für die Bögen ist es die
 #                    Vorgabe – dort wählt die Veranstaltung je Liste.
-#   fehlerHinweis    Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende.
+#   laenderKuerzel   Dreistellige Kürzel der Länder auf den Listen: iso (ISO 3166-1,
+#                    DEU, CHE – Vorgabe) oder ioc (Kürzel des IOC, GER, SUI). Eigene
+#                    Kürzel der Veranstaltung gehen immer vor.
+#   fehlerHinweis   Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende.
 #   legendeHinweise  Zusätzliche Hinweise nur auf der A4-Legende.
 #   disziplinen      Was nach diesem Regelwerk gefahren wird (Kennungen aus den
 #                    Aufbauten). Die DM kennt nur das Manövrieren.
@@ -61,7 +64,9 @@
 #                    Regelwerk vor und so viele davon werden gestrichen. Die Wahl des
 #                    Regelwerks stellt die Veranstaltung so ein; wer von Hand davon
 #                    abweicht, bekommt einen Hinweis. Mit `nurVorgabe: true` ist es nur
-#                    die Voreinstellung – ohne Hinweis bei Abweichung.
+#                    die Voreinstellung – ohne Hinweis bei Abweichung. `nachRegel`
+#                    { Läufe: Streichläufe }: was die Einstellung „Streichläufe nach
+#                    Regel“ bei dieser Zahl von Läufen streicht; sonst ab 3 Läufen einer.
 id: dm-2026
 name: DM
 version: 2026
@@ -76,8 +81,12 @@ einheit: Punkte
 # versicherungsbedingt ab dem 6. Geburtstag und Klasse M7 Starterlaubnis bis zum 27.
 # Geburtstag“ (das Programm prüft keinen Stichtag am Wettkampftag). Die jüngste Klasse heißt
 # im Reglement „ME“ (C8 „Klasse ME“, im Text „ME bis M3“); hier trägt sie die Kennung E, und
-# die Listen schreiben „Klasse E“ wie die bisherige Auswertung.
+# die Listen schreiben „Klasse E“ – Entscheidung des Veranstalters: „Das M bei der E ist ein
+# Überbleibsel“. Deshalb steht hier bewusst kein `klassenNamen` (unter UIM: { E: Dolphin }).
 klassen: [E, 1, 2, 3, 4, 5, 6, 7]
+# Was vor der laufenden Nummer einer klassenbezogenen Startnummer steht (E01, 101 …). Ohne
+# Angabe ist es die Kennung der Klasse; für die Klasse E steht der Buchstabe hier ausdrücklich.
+startNrPraefix: { E: E }
 disziplinen: [manoevrieren]
 # Reglement C3 „Co-Pilot und Gewichte“, Tabelle „Stat. Durchschnittsgewicht“: „Jugendliche,
 # deren Körpergewicht geringer als das statistische Durchschnittsgewicht der folgenden Tabelle
@@ -111,9 +120,10 @@ vorgabeListen: { manoevrieren: [knoten] }
 # davon abgewichen werden“. Die Wahl des Regelwerks stellt die Veranstaltung auf drei Läufe
 # und einen Streichlauf. `nurVorgabe`: Weil das Reglement selbst zwei Läufe und begründete
 # Abweichungen zulässt, meldet die Oberfläche eine andere Zahl nicht als Abweichung.
-# Nicht umgesetzt: Bei zwei Läufen streicht die Einstellung „nach Regel“ keinen (C6: nur
-# einer wird gewertet) – der Rennleiter stellt den Streichlauf dann von Hand ein
-# (Einstellungen → Wertung).
+# `nachRegel: { 2: 1 }` setzt C6 um: Werden nur zwei Läufe gefahren, streicht die Einstellung
+# „Streichläufe nach Regel“ einen („von denen nur ein Lauf gewertet wird“). Von Hand lässt sich
+# weiter jede Zahl einstellen (Abbruch wegen Unwetter: Läufe und Streichläufe frei wählbar) –
+# wegen `nurVorgabe` ohne Hinweis auf eine Abweichung.
 # Nicht abgebildet (Entscheidung der Regattaleitung, keine Rechenregel) – C5: Bei technischem
 # Defekt und Ersatzboot/-motor „ist der Lauf nur dann zu wiederholen, wenn weniger als 2/3 der
 # Teilnehmer in dieser Klasse gestartet sind. In allen anderen Fällen wird mit dem Ersatzboot
@@ -124,7 +134,7 @@ vorgabeListen: { manoevrieren: [knoten] }
 # Veranstaltungsende an den Regattaleiter zu richten“. Das betrifft die Druckdatei, die nach
 # dem Wettkampf verschickt wird: Sie nennt die Frist nicht; den Versand selbst verlangt das
 # Reglement nicht.
-wertungslaeufe: { laeufe: 3, streichlaeufe: 1, nurVorgabe: true }
+wertungslaeufe: { laeufe: 3, streichlaeufe: 1, nurVorgabe: true, nachRegel: { 2: 1 } }
 # Mannschaftswertung (je Verein oder Bundesland; im Code „pokal“). Reglement C6
 # „Länderwertung“: „Um an der Länderwertung teilzunehmen, muss ein Land mindestens fünf Fahrer
 # haben. Die UIM-Punkte, eingefahren von den besten fünf Piloten jedes Teams, werden für die
@@ -136,10 +146,15 @@ wertungslaeufe: { laeufe: 3, streichlaeufe: 1, nurVorgabe: true }
 # Die Wertung nach Plätzen (`plaetze6`: die ersten sechs je Klasse mit 6, 5, 4, 3, 2, 1
 # Punkten; einstellungen.yaml `pokalPunkte`) steht nicht im Reglement: Sie stammt aus der
 # Excel-Mappe der DM 2026, die beide Blätter druckt – deshalb sind beide die Vorgabe.
-# Nicht umgesetzt (Vorgabe des Veranstalters: Punktgleiche teilen sich den Platz): der
-# Stichentscheid der Länderwertung nach der Zahl der 1., dann der 2. und 3. Plätze.
+# `stichentscheid`: C6 „Bei Gleichstand zählt die Anzahl der 1. Plätze. Sollte weiterhin
+# gleichstand bestehen, wird mit den Plätzen 2 und 3 ebenso verfahren.“ – also die Zahl der
+# Plätze (`zaehlt: anzahl`) bis Platz 3 (`plaetze: 3`). Gezählt werden die Plätze aller Starter
+# der Mannschaft, die für die Wertung zählen. Trennt auch das nichts, teilen sich die
+# Mannschaften den Platz. Die Regel gilt für jede eingeschaltete Variante, auch für die nach
+# Plätzen (für die das Reglement nichts sagt).
 pokal:
   vorgabe: [plaetze6, uim]
+  stichentscheid: { zaehlt: anzahl, plaetze: 3 }
 
 fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Punkte werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
 
@@ -158,8 +173,9 @@ legendeHinweise:
 # Abgeglichen: A, K (Quickstopp), M (Ausrüstung), G, N, P, J, C, D, F, H, E, B (Liste S. 14),
 # I (d: „Anlegen mit der Backboard-Seite Disq.“), Q (f: „Rückwärts gefahren Disq.“). Aus der
 # allgemeinen Regel abgeleitet, im Reglement ohne eigene Zeile: L (f: „Seitliches Anfahren der
-# Boje an der Backbordseite“), R (C3). X ist kein Verstoß, sondern der Vermerk der Auswertung.
-# Ohne eigenen Buchstaben bleibt d): „Ein Bremsen mit der Hand ist nicht zulässig.“
+# Boje an der Backbordseite“), R (C3), S (d: „Ein Bremsen mit der Hand ist nicht zulässig.“ –
+# Entscheidung des Nutzers vom 15.11.2026: eigener Buchstabe, nur auf der Steg-Liste). X ist
+# kein Verstoß, sondern der Vermerk der Auswertung.
 # Ebenfalls ohne Buchstaben, weil es nicht den einzelnen Lauf betrifft – B7
 # „Verantwortlichkeit“: „Ein positives Alkohol-Ergebnis (> bei Alkohol 0,2 Promille) führt zur
 # Disqualifikation für den gesamten Wettkampftag. Ein positives Drogen-Ergebnis […] führt zur
@@ -198,6 +214,11 @@ disqualifikationen:
   # Abschnitt C3 verbietet die Hilfe, S. 14 macht jeden Verstoß ohne Strafpunkte zur
   # Disqualifikation. Ausnahmen laut C3: Motorstart und Abweichung vom Ablauf.
   - { code: "R", text: "Hilfestellung des Co-Piloten beim Ab-/Anlegen oder bei Manövern (außer Motorstart und wenn der Ablauf gestört ist)", bereiche: [steg, parcours, mueb] }
+  # Reglement C5 d) Anlegen: „Das Boot muss im Anlegebereich komplett zum Stillstand gebracht
+  # werden. Ein Bremsen mit der Hand ist nicht zulässig.“ Dafür nennt d) keine Strafpunkte, also
+  # gilt die Liste nach g) (S. 14): „Alle Verstöße gegen diese Ausschreibung, die nicht durch
+  # Strafpunkte belegt sind, führen zur Disqualifikation.“ Beobachtet wird es am Steg.
+  - { code: "S", text: "Bremsen mit der Hand beim Anlegen", bereiche: [steg] }
   - { code: "X", text: "Nicht gestartet" }
 
 # ---- Fehler ohne Code (Punkte werden direkt eingetragen) -----------

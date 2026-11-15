@@ -10,6 +10,10 @@ aufbauten:
     positionen: [zeit, steg, parallelparcours]
     eigeneStrecke: true   # eigene Bojen, der Überwachungs-Check gilt hier nicht
     disziplin: parallel   # eigene Eingaben: bleiben beim Wechsel zu Manövrieren und zurück
+    # Die Steg-Liste (pontoon) hat hier keine Spalte „Bemerkung“ (Entscheidung des Nutzers vom
+    # 15.11.2026): Der Platz geht an die übrigen Spalten. Unter dem Manövrieren bleibt sie.
+    ohneSpalten:
+      steg: [bemerkung]
 
 disziplinen:
   - id: parallel
@@ -34,6 +38,9 @@ positionen:
     titel: "Parallelslalom"
     menue: "Parallelslalom (nur Fahrweg)"
     disq: parcours
+    # Σ wie auf den Fahrweg-Listen des Manövrierens mit Bojen (Parcours mit Start und Ziel):
+    # hinter „Disq.“, die Summe der Fehlerpunkte der Zeile (Entscheidung des Nutzers vom 15.11.2026).
+    summeSpalte: sum
     spalten:
       - { key: start, label: "Start", typ: boje, sub: ["seiteB seiteA"] }
       - { key: b1a, label: "Boje 1", typ: boje }
@@ -47,3 +54,4 @@ positionen:
       - { key: b1b, label: "Boje 1", typ: boje }
       - { key: ziel, label: "Ziel", typ: boje, sub: ["seiteB seiteA"] }
       - { key: disq, label: "Disq.", typ: disq }
+      - { key: sum, label: "Σ", typ: summe }

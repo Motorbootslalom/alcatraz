@@ -9,13 +9,14 @@ import { ERGEBNIS_ORDNUNG as ORDNUNG, ERGEBNIS_UMFANG as UMFANG, ergebnisBlaette
 import { klassenInStartfolge } from '../lib/wkrListen'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
+import { versucheNacheinander } from '../config/catalog'
 import type { ClassId, ErgebnisFassung } from '../types'
 import ErgebnisStapel from './ErgebnisStapel.vue'
 import EingabenHinweis from './EingabenHinweis.vue'
 import RegelLaeufeHinweis from './RegelLaeufeHinweis.vue'
 
 /**
- * Die Ergebnislisten unter „Listen“: je Klasse jeder Lauf und die Gesamtliste, gerechnet aus
+ * Die Wertungslisten unter „Listen“: je Klasse jeder Lauf und die Gesamtliste, gerechnet aus
  * den erfassten Werten (lib/ergebnis.ts). Die Bildschirmansicht ist die Druckansicht;
  * gedruckt wird, was die Auswahl zeigt. Vorbild: ErgebnisListen.vue im Fehlerpunkte-Prototyp.
  *
@@ -77,7 +78,7 @@ const blaetter = computed(() =>
 // Kürzel oder ausgeschrieben.
 const FASSUNGEN: ErgebnisFassung[] = ['aushang', 'intern']
 const abstand = computed(() => wahl.value.abstand || undefined)
-const streichlaeufe = computed(() => streichlaeufeVon(state.value.laufCount, state.value.streichlaeufe))
+const streichlaeufe = computed(() => streichlaeufeVon(state.value.laufCount, state.value.streichlaeufe, regelwerk.value.wertungslaeufe?.nachRegel))
 // Was bei gleichen Punkten entscheidet, legt das Regelwerk fest (lib/ergebnis.ts) – hier in Worten.
 const stichText = computed(() => {
   const kriterien = regelwerk.value.stichentscheid
@@ -174,6 +175,8 @@ function setze(feld: 'klasse' | 'lauf' | 'umfang' | 'ordnung' | 'ordnungGesamt' 
     <!-- Der Stichentscheid kommt aus dem Regelwerk; hier steht, was es festlegt. -->
     <p class="note" data-hinweis="stich">{{ stichText }}</p>
     <RegelLaeufeHinweis />
+    <!-- Versuche direkt nacheinander (nur unter Regelwerken mit diesem Schalter): kein Aushang dazwischen. -->
+    <p v-if="versucheNacheinander(state)" class="note" data-hinweis="versuche-nacheinander">{{ t('results.consecutive') }}</p>
     <p class="note">
       {{ t(`results.versionNote.${wahl.fassung}`) }} <a :href="adresse('einstellungen', { ziel: 'ergebnislisten' })">{{ t('nav.einstellungen') }}</a
       >.

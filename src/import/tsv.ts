@@ -1,8 +1,9 @@
 import type { PlanState, ClassId, Starter } from '../types'
+import { parseGeschlecht } from '../domain/geschlecht'
 import { uid } from '../domain/ids'
 import { CLASS_IDS } from '../domain/classes'
 import { normalizeSize } from '../domain/sizes'
-import { makeStartNr, orderBySize, parseClassNumber, sortedByStartNr } from '../domain/startnumbers'
+import { makeStartNr, orderBySize, parseClassNumber, sortedByStartNr, type StartNrPraefixe } from '../domain/startnumbers'
 import { planEvent } from '../planung/plan'
 import { canonicalRunningNumbers } from '../planung/running'
 import { originOf } from '../lib/origin'
@@ -10,7 +11,7 @@ import { originOf } from '../lib/origin'
 const TAB = '\t'
 
 /** Logische Spalten, die der Import kennt. */
-type Field = 'startNr' | 'klasse' | 'nachname' | 'vorname' | 'verein' | 'bundesland' | 'land' | 'geburtsdatum' | 'groesse'
+type Field = 'startNr' | 'klasse' | 'nachname' | 'vorname' | 'verein' | 'bundesland' | 'land' | 'geburtsdatum' | 'groesse' | 'geschlecht'
 
 /**
  * Kopfzeilen-Aliasse → logische Spalte. Schlüssel in normalisierter Form (siehe
@@ -55,6 +56,10 @@ const HEADER_ALIASES: Record<string, Field> = {
   size: 'groesse',
   shirt: 'groesse',
   shirtgröße: 'groesse',
+  // Regel 960, Pkt. 3.7: „Sex“ – freiwillig, nur für die Liste der Fahrer je Team.
+  sex: 'geschlecht',
+  gender: 'geschlecht',
+  geschlecht: 'geschlecht',
 }
 
 /** Feste Spaltenreihenfolge, wenn keine Kopfzeile erkannt wird. */
@@ -92,6 +97,9 @@ function parseKlasse(raw: string): ClassId | null {
   return null
 }
 
+/** Geschlecht aus einer Datei: M, F, D, nA in gängigen Schreibweisen (domain/geschlecht.ts). */
+export { parseGeschlecht }
+
 /** Geburtsdatum in ISO (YYYY-MM-DD) normalisieren; toleriert TT.MM.JJJJ und reine Jahre. */
 function parseGeburtsdatum(raw: string): string {
   const s = raw.trim()
@@ -124,6 +132,12 @@ export interface ImportResult {
   /** Starter ohne Startnummer in der Quelle, deren Nummer der Import ergänzt hat. */
   assignedNumbers: number
   skipped: ImportSkip[]
+  /**
+   * Angaben in der Spalte Geschlecht, die der Import nicht kennt (etwa „X“ oder „?“): Die Zeile
+   * wird übernommen, das Feld bleibt leer – die Oberfläche sagt es, sonst fiele es erst auf der
+   * Liste nach Pkt. 3.7 auf. Je Wert einmal, in der Folge des ersten Auftretens.
+   */
+  geschlechtUnbekannt: { anzahl: number; werte: string[] }
 }
 
 /**
@@ -137,15 +151,16 @@ export interface ImportResult {
  * `landIstStaat`: Die Herkunft der Veranstaltung ist „Land“ – dann meint eine Spalte „Land“
  * den Staat und nicht, wie sonst in deutschen Listen, das Bundesland.
  */
-export function parseStartersTsv(text: string, options: { assignMissing?: boolean; landIstStaat?: boolean } = {}): ImportResult {
+export function parseStartersTsv(text: string, options: { assignMissing?: boolean; landIstStaat?: boolean; startNrPraefix?: StartNrPraefixe } = {}): ImportResult {
   const lines = text
     .replace(/\r\n?/g, '\n')
     .split('\n')
     .filter((l) => l.trim() !== '')
 
   const skipped: ImportSkip[] = []
+  const geschlechtUnbekannt = { anzahl: 0, werte: [] as string[] }
   if (lines.length === 0) {
-    return { starters: [], usedHeader: false, imported: 0, assignedNumbers: 0, skipped }
+    return { starters: [], usedHeader: false, imported: 0, assignedNumbers: 0, skipped, geschlechtUnbekannt }
   }
 
   const firstCells = lines[0].split(TAB)
@@ -175,6 +190,11 @@ export function parseStartersTsv(text: string, options: { assignMissing?: boolea
       return
     }
 
+    const geschlecht = parseGeschlecht(get('geschlecht'))
+    if (geschlecht === undefined && get('geschlecht') !== '') {
+      geschlechtUnbekannt.anzahl++
+      if (!geschlechtUnbekannt.werte.includes(get('geschlecht'))) geschlechtUnbekannt.werte.push(get('geschlecht'))
+    }
     starters.push({
       id: uid('st'),
       startNr: get('startNr').trim(),
@@ -186,13 +206,14 @@ export function parseStartersTsv(text: string, options: { assignMissing?: boolea
       geburtsdatum: parseGeburtsdatum(get('geburtsdatum')),
       klasse,
       groesse: normalizeSize(get('groesse')),
+      ...(geschlecht ? { geschlecht } : {}),
     })
   })
 
   // Klassenbasierte Nummern lassen sich ergänzen; klassische vergibt die Verzahnung.
-  const assignedNumbers = (options.assignMissing ?? true) ? fillMissingStartNumbers(starters) : 0
+  const assignedNumbers = (options.assignMissing ?? true) ? fillMissingStartNumbers(starters, options.startNrPraefix) : 0
 
-  return { starters, usedHeader, imported: starters.length, assignedNumbers, skipped }
+  return { starters, usedHeader, imported: starters.length, assignedNumbers, skipped, geschlechtUnbekannt }
 }
 
 /**
@@ -202,7 +223,7 @@ export function parseStartersTsv(text: string, options: { assignMissing?: boolea
  * Fehlt in einer Klasse jede Nummer, wird nach Größe durchnummeriert; fehlen nur
  * einzelne, werden sie hinten angehängt (höchste Nummer + 1).
  */
-function fillMissingStartNumbers(starters: Starter[]): number {
+function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe): number {
   let assigned = 0
   for (const klasse of CLASS_IDS) {
     const inClass = starters.filter((p) => p.klasse === klasse)
@@ -212,12 +233,12 @@ function fillMissingStartNumbers(starters: Starter[]): number {
     if (missing.length === inClass.length) {
       // Ganze Klasse ohne Nummern → nach Größe vergeben.
       orderBySize(inClass).forEach((p, i) => {
-        p.startNr = makeStartNr(klasse, i + 1)
+        p.startNr = makeStartNr(klasse, i + 1, praefixe)
       })
     } else {
       let max = 0
-      for (const p of inClass) max = Math.max(max, parseClassNumber(p.startNr, klasse) ?? 0)
-      for (const p of missing) p.startNr = makeStartNr(klasse, ++max)
+      for (const p of inClass) max = Math.max(max, parseClassNumber(p.startNr, klasse, praefixe) ?? 0)
+      for (const p of missing) p.startNr = makeStartNr(klasse, ++max, praefixe)
     }
   }
   return assigned
@@ -255,6 +276,8 @@ function tsvRow(cells: (string | number)[]): string {
  */
 export function formatStartersTsv(state: PlanState): string {
   const running = canonicalRunningNumbers(state)
+  // Die freiwillige Spalte steht nur da, wenn sie jemand gefüllt hat – sonst bleibt die Datei, wie sie war.
+  const mitGeschlecht = state.starters.some((p) => p.geschlecht !== undefined)
   const header = tsvRow([
     'Startnummer',
     'Nr',
@@ -265,6 +288,7 @@ export function formatStartersTsv(state: PlanState): string {
     'Bundesland',
     'Geburtsdatum',
     'Größe',
+    ...(mitGeschlecht ? ['Geschlecht'] : []),
   ])
   const rows: string[] = []
   for (const klasse of CLASS_IDS) {
@@ -281,6 +305,7 @@ export function formatStartersTsv(state: PlanState): string {
           p.bundesland,
           formatGeburtsdatum(p.geburtsdatum),
           p.groesse,
+          ...(mitGeschlecht ? [p.geschlecht ?? ''] : []),
         ]),
       )
     }

@@ -39,7 +39,7 @@ const NUR_7 = ['7']
 export interface Halt {
   key?: string
   label?: string
-  /** Spalte der Ergebnisliste, wie in der DM-Liste („1 H“, „S1“ …). */
+  /** Spalte der Wertungsliste, wie in der DM-Liste („1 H“, „S1“ …). */
   kurz: string
   /** Name in der Prüfung auf Lücken (`ueberwachung`). */
   name: string
@@ -58,7 +58,7 @@ export const FAHRWEG: readonly Halt[] = [
   { key: 't3a', label: 'Tor 3', richtung: 'hin', tor: 'Tor3', kurz: '3 H', name: 'Tor 3' },
   { key: 't4a', label: 'Tor 4', richtung: 'hin', tor: 'Tor4', kurz: '4 H', name: 'Tor 4' },
   { key: 't5', label: 'Tor 5', richtung: 'hin', tor: 'Tor5', kurz: '5', name: 'Tor 5' },
-  // In der Ergebnisliste „E“ unter Tor 5, wie in der DM-Liste.
+  // In der Wertungsliste „E“ unter Tor 5, wie in der DM-Liste.
   { katalog: 'tor5', kurz: 'E', name: 'Fehler Tor 5' },
   { key: 't5', label: 'Tor 5', richtung: 'rueck', tor: 'Tor5', kurz: '5', name: 'Tor 5' },
   { key: 't4b', label: 'Tor 4', richtung: 'rueck', tor: 'Tor4', kurz: '4 R', name: 'Tor 4' },
@@ -82,7 +82,7 @@ const STEG = {
 }
 
 /**
- * Die Spalten der Ergebnisliste in der Reihenfolge der Fahrt (`ergebnisspalten: fahrweg`).
+ * Die Spalten der Wertungsliste in der Reihenfolge der Fahrt (`ergebnisspalten: fahrweg`).
  * Tore mit je einer Unter-Spalte für die linke, dann die rechte Boje wie in der DM-Liste,
  * Start und Ziel mit beiden Bojen in einer Zelle, Tor 5 mit „E“ zwischen Hin und Rück.
  */

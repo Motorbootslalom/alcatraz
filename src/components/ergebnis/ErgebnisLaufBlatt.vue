@@ -7,13 +7,13 @@ import { locale, texteIn, type Locale } from '../../i18n'
 import type { Starter } from '../../types'
 import type { HerkunftAnzeige } from '../../lib/origin'
 import HerkunftText from '../HerkunftText.vue'
-import { ERGEBNIS_FUSS_MM, SEITEN_VORGABE, zeilenDerSeite } from '../../lib/seiten'
+import { ergebnisFussMm, SEITEN_VORGABE, zeilenDerSeite } from '../../lib/seiten'
 import type { SeitenTeil } from '../../lib/seiten'
 import ListenDokument from '../ListenDokument.vue'
 import ErgebnisFuss from './ErgebnisFuss.vue'
 
 /**
- * Ergebnisliste eines Laufs (A4 quer): je Starter die Punkte an jeder Stelle des Fahrwegs –
+ * Wertungsliste eines Laufs (A4 quer): je Starter die Punkte an jeder Stelle des Fahrwegs –
  * so sieht man im Aushang, an welchem Tor und welcher Boje was passiert ist, nicht nur die
  * Summe. Vorbild: ErgebnisLaufSeite.vue im Fehlerpunkte-Prototyp und die Listen der DM 2026.
  */
@@ -42,6 +42,12 @@ const props = defineProps<{
    * trägt der Platz ein Sternchen.
    */
   stichText?: string
+  /**
+   * Unter der Liste stehen die Unterschriftszeile des O.O.D. und das leere Feld für die Uhrzeit
+   * des Aushangs (UIM 960, Pkt. 5.2) – nur unter einem Regelwerk, das sie verlangt. Der Fuß ist
+   * dann höher; die Seitenteilung rechnet damit (lib/seiten.ts `ergebnisFussMm`).
+   */
+  unterschrift?: boolean
   /** Sprache der Liste (lib/listensprache.ts); fehlt = die der Oberfläche. */
   sprache?: Locale
 }>()
@@ -49,6 +55,9 @@ const props = defineProps<{
 // Alles auf dem Blatt steht in der Sprache der Liste, nicht in der der Oberfläche.
 const sprache = () => props.sprache ?? locale.value
 const { t, formatDate } = texteIn(sprache)
+
+/** Die Beschriftung der Zeile für Unterschrift und Aushang, in der Sprache der Liste. */
+const unterschriftTexte = computed(() => (props.unterschrift ? { wer: t('results.signOod'), aushang: t('results.postingTime') } : undefined))
 
 // Die Liste ist ein Dokument: Sie teilt sich selbst in Seiten und zählt nur die eigenen
 // (ListenDokument.vue). Platz, graue Zeile und Abstand hängen an der Stelle in der ganzen
@@ -134,6 +143,16 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
  * drei Zeichen („20, G“ – Punkte und Disqualifikation an derselben Boje) stehen zweizeilig.
  */
 const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 3 ? 'erg-zweizeilig' : text.length > 2 ? 'fit-2' : text.length > 1 ? 'fit-1' : undefined) : fit(text, 2))
+/**
+ * Kopf einer Spalte ohne Unterspalten (8 mm): Die englischen Kürzel der Steg-Spalten („Leav.“,
+ * „Moor.“ nach Regel 960, Pkt. 4.1 und 4.1.1) sind ein Wort und brechen nicht um – in voller
+ * Größe stand der Punkt über dem Rand (gemessen: „Moor.“ 32 px in 29 px). Sie stehen deshalb
+ * kleiner. Die deutschen Köpfe („Steg AB“) brechen um und bleiben, wie sie sind.
+ */
+const kopfKlasse = (label: string) => {
+  const text = spaltenText(label)
+  return text !== label && !/\s/.test(text) && text.length > 4 ? 'erg-kopf-eng' : undefined
+}
 </script>
 
 <template>
@@ -145,10 +164,10 @@ const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 3 ? 'erg-z
     format="landscape"
     :vorgabe="SEITEN_VORGABE.ergebnisLauf"
     :sprache="sprache()"
-    :fuss-mm="ERGEBNIS_FUSS_MM"
+    :fuss-mm="ergebnisFussMm(unterschrift)"
   >
     <template #fuss="{ teile, seitenzahl }">
-      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="mitStich(teile) ? stichText : ''" :seitenzahl="seitenzahl" />
+      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="mitStich(teile) ? stichText : ''" :seitenzahl="seitenzahl" :unterschrift="unterschriftTexte" />
     </template>
     <template #default="{ teile }">
     <table class="erg-tabelle">
@@ -187,10 +206,10 @@ const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 3 ? 'erg-z
           <th v-if="herkunft" :rowspan="kopfZeilen" :style="titelStil">{{ herkunft.titel }}</th>
           <th v-if="geburtsdatum" :rowspan="kopfZeilen">{{ t('common.birthdate') }}</th>
           <th :rowspan="kopfZeilen">{{ t('results.time') }}</th>
-          <th :rowspan="kopfZeilen">{{ t('results.points') }}</th>
+          <th :rowspan="kopfZeilen">{{ t('results.timeValue') }}</th>
           <template v-for="(g, gi) in gruppen" :key="gi">
             <th v-if="g.mitUnter" :colspan="g.blaetter.length" class="erg-gruppe">{{ spaltenText(g.label) }}</th>
-            <th v-else :rowspan="kopfZeilen" class="erg-gruppe">{{ spaltenText(g.label) }}</th>
+            <th v-else :rowspan="kopfZeilen" :class="['erg-gruppe', kopfKlasse(g.label)]">{{ spaltenText(g.label) }}</th>
           </template>
           <th :rowspan="kopfZeilen" class="erg-gruppe">{{ t('results.dsq') }}</th>
           <th :rowspan="kopfZeilen">{{ t('results.total') }}</th>

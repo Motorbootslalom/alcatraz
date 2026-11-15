@@ -30,7 +30,7 @@ const zeile = (p: Starter, laeufe: number): GesamtZeile => ({
   ergebnis: 16000,
   disq: false,
   offen: false,
-  knoten: 0,
+  knotenErfasst: true, knoten: 0,
   gesamt: 16000,
   platz: 1,
   stich: false,

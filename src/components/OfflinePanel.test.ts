@@ -5,7 +5,7 @@ import OfflinePanel from './OfflinePanel.vue'
 import { offline } from '../lib/offline'
 import { setLocale } from '../i18n'
 
-const AUSGANG = { lage: 'vorbereiten', grund: undefined, fassung: '', dateien: 0, eindatei: false, neu: false, neuFassung: '', laedtNeu: false, ersetzt: false, suche: '', dauerhaft: 'unbekannt', abgelehnt: false } as const
+const AUSGANG = { lage: 'vorbereiten', grund: undefined, fassung: '', dateien: 0, eindatei: false, neu: false, neuFassung: '', neuCommitZeit: '', neuZeit: '', uebernimmt: false, laedtNeu: false, ersetzt: false, suche: '', dauerhaft: 'unbekannt', abgelehnt: false } as const
 
 beforeEach(() => {
   setLocale('de')
@@ -38,12 +38,16 @@ describe('OfflinePanel', () => {
   it('bietet die neue Fassung nur zum Übernehmen an', async () => {
     Object.assign(offline, { lage: 'bereit', neu: true, neuFassung: 'def5678' })
     const w = mount(OfflinePanel)
-    expect(w.text()).toContain('Neue Fassung von Alcatraz verfügbar (Codestand def5678)')
-    expect(w.find('[data-action="offline-uebernehmen"]').exists()).toBe(true)
+    expect(w.text()).toContain('Eine neue Fassung von Alcatraz liegt bereit')
+    expect(w.find('[data-action="offline-uebernehmen"]').text()).toBe('Update')
+    // Welche Fassung läuft und welche bereitliegt – mit Codestand und Zeitpunkt des Builds.
+    expect(w.find('[data-fassung="laeuft"]').text()).toContain('Läuft: Codestand')
+    expect(w.find('[data-fassung="bereit"]').text()).toContain('Liegt bereit: Codestand def5678')
 
     Object.assign(offline, { neu: false, ersetzt: true })
     await nextTick()
     expect(w.find('[data-action="offline-uebernehmen"]').exists()).toBe(false)
+    expect(w.find('[data-fassung="bereit"]').exists()).toBe(false)
     expect(w.find('[data-action="offline-neu-laden"]').exists()).toBe(true)
   })
 

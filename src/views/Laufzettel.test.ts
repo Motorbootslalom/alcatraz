@@ -92,8 +92,8 @@ describe('Listen: Laufzettel', () => {
 
   const schritte = (z: ReturnType<typeof zettel>[number]) => z.findAll('.lz-schritte li').map((li) => li.text())
   const LETZTER = [
-    'Ergebnis sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)',
-    'Ergebnis sortiert nach Platz',
+    'Wertungsliste sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)',
+    'Wertungsliste sortiert nach Platz',
     'Kontrolliert',
     'Unterschrieben',
     'Einsicht der Mannschaftsleiter (kein Aushang)',
@@ -136,15 +136,18 @@ describe('Listen: Laufzettel', () => {
     expect(zeilen(erster)).not.toContain('Knots')
     expect(zeilen(zweiter)).toContain('Knots')
     expect(schritte(erster).at(-2)).toBe('Posted')
+    // UIM 960, Pkt. 5.2: Die Ergebnisse hängen binnen einer Stunde aus, vom O.O.D. unterschrieben, mit Uhrzeit –
+    // statt der Einsicht der Mannschaftsleiter der DM (C6). Der Wortlaut steht englisch im Regelwerk.
     expect(schritte(zweiter)).toEqual([
-      "Print results sorted by start number (stapled to the judges' sheets)",
-      'Results sorted by place',
+      "Print results sorted by race number (stapled to the race officials' sheets)",
+      'Results sorted by ranking',
       'Checked',
-      'Signed',
-      'Reviewed by the team managers (not posted)',
+      'Results signed by the O.O.D. and posted – not more than 1 (one) hour after the last driver of the class has finished, showing the time of posting (rule 960, pt. 5.2)',
       'Overall results printed',
       'Overall results checked',
     ])
+    // Deutsche Oberfläche ändert daran nichts; bei deutscher Listensprache gäbe es den deutschen Text des Regelwerks.
+    expect(schritte(erster)).not.toContain(schritte(zweiter)[3])
     wrapper.unmount()
   })
 
@@ -205,11 +208,23 @@ describe('Listen: Laufzettel', () => {
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     await nextTick()
     await waehle(wrapper, 'lauf', '1')
+    // „Versuche direkt nacheinander“ ist unter UIM eine Option und nicht vorgewählt.
+    expect(store.state.value.versucheNacheinander).toBe(false)
     expect(wrapper.find('.list-kinds button[data-kind="laufzettel"]').text()).toBe('Laufzettel')
-    expect(ruecken(wrapper)).toEqual(['Class 4 | Attempt 1 | Parcours 2'])
+    expect(ruecken(wrapper)).toEqual(['Class 4 | Attempt 1 | Course 2'])
     expect(zettel(wrapper)[0].find('.lz-titel').text()).toBe('Checklist · Hafenpokal 2026')
     expect(zettel(wrapper)[0].find('.lz-schritte-titel').text()).toBe('Scoring')
-    expect(zettel(wrapper)[0].findAll('.lz-schritte li').map((li) => li.text()).at(-1)).toBe('Sent to the team managers')
+    // Ohne die Option wird zwischen den Versuchen ausgehängt: je Versuch ein Zettel.
+    const schritte = () => zettel(wrapper)[0].findAll('.lz-schritte li').map((li) => li.text())
+    expect(schritte().slice(-2)).toEqual(['Posted', 'Sent to the team managers'])
+    // Mit der Option (Regel 960, Pkt. 4.3.2) stehen beide Versuche auf einem Klassenzettel: ein
+    // Laufzettel je Klasse für beide Versuche – der letzte, mit Aushang der Gesamtliste.
+    store.dispatch({ type: 'SET_VERSUCHE_NACHEINANDER', on: true })
+    await nextTick()
+    await nextTick()
+    expect(ruecken(wrapper)).toEqual(['Class 4 | Attempts 1 to 2 | Course 2'])
+    expect(zettel(wrapper)).toHaveLength(1)
+    expect(zettel(wrapper)[0].attributes('data-letzter-lauf')).toBeDefined()
     vi.unstubAllGlobals()
     wrapper.unmount()
   })

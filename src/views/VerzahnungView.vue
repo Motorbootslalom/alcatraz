@@ -12,6 +12,7 @@ import { t } from '../i18n'
 import BoatPanel from '../components/BoatPanel.vue'
 import ParcoursCard from '../components/ParcoursCard.vue'
 import ParallelView from './ParallelView.vue'
+import ParallelRunden from '../components/ParallelRunden.vue'
 import type { ClassId } from '../types'
 
 /** Vorlagen für die Aufteilung der Klassen auf Parcours. */
@@ -26,7 +27,7 @@ function signature(groups: readonly (readonly ClassId[])[]): string {
 }
 
 const { state, dispatch } = useStore()
-const { classLabel, parallel } = useEvent()
+const { classLabel, classCell, parallel } = useEvent()
 
 // Der Parallelslalom ist ein Unterpunkt der Verzahnung – und nur da, wenn das
 // Regelwerk ihn kennt (UIM). Nach den Regeln der DM gibt es nur das Manövrieren.
@@ -111,7 +112,7 @@ function applyPreset(groups: readonly (readonly ClassId[])[]) {
   <div :class="['panel', 'lock-bar', locked ? 'locked' : '']" role="status">
     <span class="lock-text">
       <b>{{ locked ? t('vz.locked') : t('vz.open') }}</b>
-      {{ locked ? t('vz.lockedNote') : t('vz.openNote') }}
+      {{ locked ? t(parallel ? 'vz.lockedNote.parallel' : 'vz.lockedNote') : t('vz.openNote') }}
     </span>
     <button v-if="locked" class="btn" @click="unlock">{{ t('vz.unlock') }}</button>
     <button v-else class="btn primary" :disabled="state.starters.length === 0" @click="lock">{{ t('vz.lock') }}</button>
@@ -145,7 +146,7 @@ function applyPreset(groups: readonly (readonly ClassId[])[]) {
           :title="currentSig === signature(pr.groups) ? t('vz.presetActive') : t('vz.presetApply')"
           @click="applyPreset(pr.groups)"
         >
-          {{ t(`vz.preset.${pr.key}`) }}
+          {{ t(`vz.preset.${pr.key}`, { e: classCell('E') }) }}
         </button>
       </div>
     </div>
@@ -163,4 +164,9 @@ function applyPreset(groups: readonly (readonly ClassId[])[]) {
   <button class="btn" @click="dispatch({ type: 'ADD_PARCOURS', id: uid('par') })">{{ t('vz.addParcours') }}</button>
   </template>
   </fieldset>
+
+  <!-- Halbfinale, Finals und Wiederholung des Parallelslaloms: je Klasse festgeschrieben, sobald
+       der Vorlauf entschieden ist. Außerhalb der Sperre – gerade bei festgeschriebener Verzahnung
+       (und damit festem Vorlauf) wird hier weitergearbeitet. -->
+  <ParallelRunden v-if="discipline === 'parallel'" />
 </template>

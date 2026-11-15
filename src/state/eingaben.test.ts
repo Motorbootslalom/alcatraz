@@ -80,6 +80,23 @@ describe('reducer: Eingaben', () => {
     expect(reducer(frei, { type: 'ADD_STARTERS', starters: [starter('neu')] }).starters.some((p) => p.id === 'neu')).toBe(true)
   })
 
+  it('CLEAR_EINGABEN_TEIL: nur die gewählten Läufe – mit dem 1. Lauf auch die Listen ohne Lauf; bleibt nichts, ist alles gelöscht', () => {
+    const s = mit({ type: 'FILL_BEISPIELWERTE', zeitnahme: 'stoppuhr', saat: 3 })
+    const schluessel = Object.keys(s.eingaben).sort()
+    expect(schluessel).toContain('manoevrieren/0')
+    const ohneZwei = reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [2] })
+    expect(Object.keys(ohneZwei.eingaben).sort()).toEqual(schluessel.filter((k) => k !== 'manoevrieren/2'))
+    // Lauf 1 nimmt die Knoten (Lauf 0) mit – so, wie die Beispielwerte sie füllen.
+    expect(Object.keys(reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [1] }).eingaben).sort()).toEqual(schluessel.filter((k) => k !== 'manoevrieren/0' && k !== 'manoevrieren/1'))
+    // Nichts Gewähltes oder nichts Erfasstes: derselbe Stand.
+    expect(reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [9] })).toBe(s)
+    expect(reducer(s, { type: 'CLEAR_EINGABEN_TEIL', runden: ['pre'] })).toBe(s)
+    // Alle Läufe gewählt: wie „Alle erfassten Werte löschen“ – das Starterfeld ist wieder frei.
+    const leer = reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [1, 2, 3] })
+    expect(leer.eingaben).toEqual({})
+    expect(reducer(leer, { type: 'REMOVE_STARTER', id: 'a' }).starters.some((p) => p.id === 'a')).toBe(false)
+  })
+
   it('Umnummerieren und Klassenwechsel lassen die Eingaben stehen (sie hängen an der ID)', () => {
     const s = mit({ type: 'SET_EINGABEN', zellen: [zelle('a', 'zeit1', '80')] })
     const danach = reducer(reducer(s, { type: 'UPDATE_STARTER', id: 'a', patch: { startNr: '999', klasse: '5' } }), { type: 'ASSIGN_START_NUMBERS' })

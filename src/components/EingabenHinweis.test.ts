@@ -6,6 +6,7 @@ import { createStore, storeKey, type Store } from '../state/store'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { wechsleRegelwerk } from '../testHilfen'
 
 // Der Hinweis auf erfasste Werte, die keine Liste mehr zeigt – zugeklappt kurz, aufgeklappt
 // mit jedem Wert einzeln. Alle Starter sind erfunden.
@@ -76,7 +77,7 @@ describe('Hinweis auf verborgene Werte', () => {
     // Das Starterfeld steht fest, sobald Werte erfasst sind – die Klasse lässt sich aber ändern.
     store.dispatch({ type: 'UPDATE_STARTER', id: 'a', patch: { klasse: '7' } })
     store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: 'b', feld: 'gibt-es-nicht', wert: '5' }] })
-    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    wechsleRegelwerk(store, 'uim-2026')
     const wrapper = zeige(store)
     await wrapper.find('[data-action="verborgene-einzelheiten"]').trigger('click')
     const fremd = wrapper.findAll('.verborgen-tabelle tbody tr[data-grund="klasseFehlt"]')

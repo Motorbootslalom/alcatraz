@@ -1,5 +1,5 @@
 /**
- * Die Wörter der Adresse (`#/listen/wkr`, `#/lists/judges`) je Sprache – an EINER Stelle.
+ * Die Wörter der Adresse (`#/listen/wkr`, `#/lists/race-officials`) je Sprache – an EINER Stelle.
  *
  * Die internen Namen im Code bleiben deutsch (`ViewName`, die Listenarten, die Sprungziele).
  * Geschrieben wird die Adresse in der Sprache der Oberfläche, gelesen wird jede Sprache: Ein
@@ -42,6 +42,9 @@ export const ADRESS_FALLBACK = 'en'
 
 // Die Wörter folgen den Namen der Reiter in der jeweiligen Oberfläche (i18n/de.ts, en.ts):
 // klein, ohne Umlaute und Leerzeichen – eine Adresse soll sich abtippen und vorlesen lassen.
+// Die englischen folgen dem UIM Circuit Rulebook, Regel 960 („drivers“, Pkt. 3.7 „list of
+// drivers“, „race officials“, „pontoon“, Pkt. 5.2 „results“); die deutschen dem DM-Reglement
+// (C7 „Wertungsliste“). Wörter, die früher hier standen, lesen sich weiter ({@link ALTE_ADRESSEN}).
 export const ADRESSEN = {
   de: {
     ansichten: {
@@ -61,18 +64,18 @@ export const ADRESSEN = {
         wkr: 'wkr',
         laufzettel: 'laufzettel',
         codes: 'codes',
-        ergebnis: 'ergebnis',
+        ergebnis: 'wertungslisten',
         pokal: 'mannschaftswertung',
         druckdatei: 'druckdatei',
       },
       verzahnung: { manoever: 'manoever', parallel: 'parallel' },
     },
-    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline' },
+    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline' },
   },
   en: {
     ansichten: {
       veranstaltung: 'event',
-      starter: 'competitors',
+      starter: 'drivers',
       verwiegung: 'weighing',
       verzahnung: 'interleaving',
       listen: 'lists',
@@ -81,10 +84,10 @@ export const ADRESSEN = {
     },
     reiter: {
       listen: {
-        starter: 'competitor-lists',
+        starter: 'lists-of-drivers',
         gewicht: 'weights',
-        vorsteg: 'pre-jetty',
-        wkr: 'judges',
+        vorsteg: 'pontoon-entry',
+        wkr: 'race-officials',
         laufzettel: 'checklists',
         codes: 'codes',
         ergebnis: 'results',
@@ -94,7 +97,7 @@ export const ADRESSEN = {
       },
       verzahnung: { manoever: 'manoeuvring', parallel: 'parallel' },
     },
-    ziele: { wkr: 'judges', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'result-lists', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline' },
+    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline' },
   },
 } as const satisfies Record<string, AdressTabelle>
 
@@ -109,16 +112,27 @@ export const ADRESSEN = {
  * - Die WKR-Einteilung stand unter „Einstellungen“ (`#/einstellungen?wkr`); heute steht sie im
  *   Block „Besetzung“ der Ansicht „Veranstaltung“. Der alte Verweis führt dorthin (`umzug`:
  *   Ansicht → Sprungziel → die Ansicht, in der das Ziel heute liegt).
+ * - Die Wertungslisten hießen „Ergebnislisten“ (`ergebnis` und `ergebnislisten` sind zugleich
+ *   die internen Namen und gehen ohnehin auf; englisch `result-lists`).
+ * - Die englischen Wörter folgten nicht dem Rulebook: `competitors` (heute `drivers`),
+ *   `competitor-lists` (`lists-of-drivers`), `pre-jetty` (`pontoon-entry`), `judges`
+ *   (`race-officials`).
  * Ein Wort, das heute etwas anderes meint, gilt in seiner heutigen Bedeutung.
  */
 export interface AlteAdressen {
+  /** Frühere Wörter für Ansichten (erstes Segment). */
+  ansichten?: Readonly<Record<string, ViewName>>
   reiter: Partial<Record<ReiterView, Readonly<Record<string, { reiter: string; art?: string }>>>>
   ziele: Readonly<Record<string, string>>
   umzug?: Partial<Record<ViewName, Readonly<Partial<Record<string, ViewName>>>>>
 }
 export const ALTE_ADRESSEN: AlteAdressen = {
+  ansichten: { competitors: 'starter' },
   reiter: {
     listen: {
+      'competitor-lists': { reiter: 'starter' },
+      'pre-jetty': { reiter: 'vorsteg' },
+      judges: { reiter: 'wkr' },
       verzahnt: { reiter: 'starter', art: 'verzahnt' },
       interleaved: { reiter: 'starter', art: 'verzahnt' },
       'nach-klasse': { reiter: 'starter', art: 'klasse' },
@@ -127,7 +141,7 @@ export const ALTE_ADRESSEN: AlteAdressen = {
       'team-ranking': { reiter: 'pokal' },
     },
   },
-  ziele: { 'team-ranking': 'pokal' },
+  ziele: { 'team-ranking': 'pokal', 'result-lists': 'ergebnislisten', judges: 'wkr' },
   umzug: { einstellungen: { wkr: 'veranstaltung' } },
 }
 
@@ -262,7 +276,7 @@ function entschluesselt(text: string): string {
 export function liesAdresse(buch: Adressbuch, hash: string, alte: AlteAdressen = ALTE_ADRESSEN): Ort {
   const [pfad, frage = ''] = hash.replace(/^#\/?/, '').split('?')
   const [a = '', r = ''] = pfad.split('/').map(entschluesselt)
-  const view = buch.ansichten.lies[klein(a)] as ViewName | undefined
+  const view = (buch.ansichten.lies[klein(a)] ?? alte.ansichten?.[klein(a)]) as ViewName | undefined
   const raum = view ? buch.reiter[view] : undefined
   // Ein heutiges Wort gewinnt; erst danach gelten die früheren.
   const frueher = view && r !== '' && raum?.lies[klein(r)] === undefined ? alte.reiter[view as ReiterView]?.[klein(r)] : undefined

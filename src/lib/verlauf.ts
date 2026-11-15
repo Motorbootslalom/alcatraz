@@ -1,6 +1,7 @@
 import type { AppState } from '../types'
 import type { Action } from '../state/reducer'
 import { OHNE_LAUF, zerlegeLauf } from './eingaben'
+import { zerlegeAttempt } from './parallelSchluessel'
 
 /**
  * Reine Logik des zweiten Speichers und des Verlaufs: welcher von zwei gespeicherten Ständen der
@@ -57,12 +58,16 @@ export function entscheideStart(erster: { vorhanden: boolean; marke: Speichermar
 export type VerlaufArt =
   | 'eingabe'
   | 'eingabenGeloescht'
+  | 'eingabenTeilGeloescht'
   | 'beispielwerte'
   | 'import'
   | 'starterNeu'
   | 'beispielStarter'
   | 'starter'
   | 'starterGeloescht'
+  /** Nach Beginn des Wettkampfs als „nicht gestartet“ eingetragen bzw. diese Abmeldung zurückgenommen. */
+  | 'starterAbgemeldet'
+  | 'starterAngemeldet'
   | 'gewicht'
   | 'aufbau'
   | 'regelwerk'
@@ -87,12 +92,19 @@ export type VerlaufArt =
   | 'verdraengt'
   /** „Stand merken“. */
   | 'gemerkt'
+  /** Parallelslalom: eine Runde für eine Klasse festgeschrieben bzw. gelöst (`klasse`, `runde`). */
+  | 'rundeFest'
+  | 'rundeGeloest'
+  /** „Disziplin nicht werten“ gesetzt oder gelöst (Entscheidung des O.O.D., lib/disziplinen.ts). */
+  | 'nichtWerten'
 
 export interface Beschreibung {
   art: VerlaufArt
   /** Klasse und Lauf einer Eingabe – nur, wenn sie genau eine Klasse bzw. einen Lauf betrifft. */
   klasse?: string
   lauf?: number
+  /** Eingabe im Parallelslalom: die Runde (`pre` …); `lauf` ist dann der Attempt. Auch die festgeschriebene oder gelöste Runde. */
+  runde?: string
   /** Zahl der Starter (Import, Hinzufügen). */
   n?: number
   /** Wiederhergestellter Stand: sein Zeitpunkt und, wenn er einen hatte, sein Name. */
@@ -103,6 +115,7 @@ export interface Beschreibung {
 /** Diese Arten stehen immer für sich: Zwei Importe hintereinander sind zwei Einträge. */
 const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'eingabenGeloescht',
+  'eingabenTeilGeloescht',
   'beispielwerte',
   'import',
   'starterNeu',
@@ -119,10 +132,13 @@ const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'abbruch',
   'verdraengt',
   'gemerkt',
+  'rundeFest',
+  'rundeGeloest',
 ])
 
 const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   CLEAR_EINGABEN: 'eingabenGeloescht',
+  CLEAR_EINGABEN_TEIL: 'eingabenTeilGeloescht',
   FILL_BEISPIELWERTE: 'beispielwerte',
   UPDATE_STARTER: 'starter',
   MOVE_STARTER: 'starter',
@@ -130,6 +146,8 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   SET_START_NR_MODE: 'starter',
   ASSIGN_START_NUMBERS: 'starter',
   REMOVE_STARTER: 'starterGeloescht',
+  ABMELDEN_STARTER: 'starterAbgemeldet',
+  ANMELDEN_STARTER: 'starterAngemeldet',
   CLEAR_CLASS: 'starterGeloescht',
   CLEAR_ALL_STARTERS: 'starterGeloescht',
   SET_WEIGHT: 'gewicht',
@@ -155,6 +173,7 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   SET_POKAL_NUR_AUSWAHL: 'mannschaft',
   SET_POKAL_ZAEHLT: 'mannschaft',
   INVERT_POKAL_ZAEHLT: 'mannschaft',
+  SET_NICHT_WERTEN: 'nichtWerten',
   LOAD_STATE: 'geladen',
   RESET_ALL: 'zurueckgesetzt',
 }
@@ -171,15 +190,24 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'SET_EINGABEN': {
       const ids = new Set(action.zellen.map((z) => z.starter))
       const klassen = new Set(nachher.starters.filter((p) => ids.has(p.id)).map((p) => p.klasse))
+      // Ein Attempt des Parallelslaloms ist kein Lauf des Manövrierens: Die Runde steht dabei,
+      // sonst hieße „Vorlauf, 2. Attempt“ im Verlauf „Lauf 2“ (lib/parallelSchluessel.ts).
+      const runden = new Set(action.zellen.map((z) => zerlegeAttempt(z.lauf)?.runde ?? ''))
+      const runde = runden.size === 1 ? [...runden][0] : undefined
       const laeufe = new Set(action.zellen.map((z) => zerlegeLauf(z.lauf).lauf))
-      const lauf = laeufe.size === 1 ? [...laeufe][0] : undefined
+      // Gemischt (Manövrieren und Parallelslalom, zwei Runden) gibt es keinen Lauf zu nennen.
+      const lauf = laeufe.size === 1 && runde !== undefined ? [...laeufe][0] : undefined
       return {
         art: 'eingabe',
         ...(klassen.size === 1 ? { klasse: String([...klassen][0]) } : {}),
+        ...(runde ? { runde } : {}),
         // Listen ohne Lauf (Knoten) stehen unter Lauf 0 – dort gibt es keinen zu nennen.
         ...(lauf !== undefined && lauf !== OHNE_LAUF && Number.isFinite(lauf) ? { lauf } : {}),
       }
     }
+    case 'PARALLEL_RUNDE_FESTSCHREIBEN':
+    case 'PARALLEL_RUNDE_LOESEN':
+      return { art: action.type === 'PARALLEL_RUNDE_LOESEN' ? 'rundeGeloest' : 'rundeFest', klasse: action.klasse, runde: action.runde }
     case 'IMPORT_STARTERS':
       return { art: 'import', n: action.starters.length }
     case 'ADD_STARTERS':
@@ -192,7 +220,7 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
 
 /** Zwei Änderungen mit derselben Gruppe sind gleichartig. */
 export function gruppe(was: Beschreibung): string {
-  return `${was.art}|${was.klasse ?? ''}|${was.lauf ?? ''}`
+  return `${was.art}|${was.klasse ?? ''}|${was.lauf ?? ''}${was.runde ? `|${was.runde}` : ''}`
 }
 
 /** Ein Eintrag des Verlaufs ohne den Stand selbst (der liegt getrennt, damit die Liste klein bleibt). */

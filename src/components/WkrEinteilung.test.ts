@@ -96,7 +96,7 @@ describe('WKR-Einteilung: Tabelle', () => {
   it('spricht auch Englisch', async () => {
     setLocale('en')
     const wrapper = ansicht(store)
-    expect(wrapper.find('.wkr-einteilung h2').text()).toBe('Judges')
+    expect(wrapper.find('.wkr-einteilung h2').text()).toBe('Race officials')
     expect(wrapper.find('input[data-feld="par_1|steg"]').attributes('aria-label')).toMatch(/^Name for .+, Parcours 1$/)
     wrapper.unmount()
   })
@@ -263,7 +263,7 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     await nextTick()
     expect(kopf(wrapper, 'steg').find('.bk-liste').text()).toBe('Pontoon')
-    expect(kopf(wrapper, 'steg').find('.bk-wkr-label').text()).toBe('Judge:')
+    expect(kopf(wrapper, 'steg').find('.bk-wkr-label').text()).toBe('Race official:')
     expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Class 5')
     // Die Tabelle nennt die Listen genauso.
     expect(wrapper.find('input[data-feld="par_2|steg"]').attributes('aria-label')).toBe('Name for Pontoon, Parcours 2')

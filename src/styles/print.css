@@ -1,7 +1,7 @@
 /* Druck: nur die Liste, ohne Bedienelemente. Im Seitenrand steht nichts – keine Randbox,
    kein Druckzeitpunkt, keine Seitenzahl: Jede Liste teilt sich selbst in Seiten und schreibt
    ihre Zahl aufs Blatt (components/ListenDokument.vue) – die Zähler des Browsers liefen über
-   den ganzen Druck. Eine Zeit tragen nur die Ergebnislisten, auf dem Blatt (ergebnis.css).
+   den ganzen Druck. Eine Zeit tragen nur die Wertungslisten, auf dem Blatt (ergebnis.css).
 
    Oben und unten höchstens 8 mm – auf allen Listen: Der Browser druckt seine eigenen
    Kopf- und Fußzeilen (Adresse, Datum, Titel, „1/3“) nur, wenn der Rand dafür reicht.
@@ -67,6 +67,29 @@
   }
 }
 
+/* Doppelseitig drucken: Die leere Rückseite ist eine eigene Seite ohne jeden Inhalt – ein
+   Hauch Höhe, damit der Browser sie nicht verwirft; der Vermerk ist nur für den Bildschirm.
+   Davor und danach wird umgebrochen: Das nächste Dokument beginnt auf einem neuen Blatt. */
+@media print {
+  .leere-rueckseite,
+  .ergebnis-blatt.leere-rueckseite {
+    break-before: page;
+    break-after: page;
+    min-height: 0;
+    height: 1mm;
+    margin: 0;
+    border: none;
+    padding: 0;
+    background: none;
+    opacity: 1;
+    overflow: hidden;
+  }
+
+  .leere-rueckseite-vermerk {
+    display: none;
+  }
+}
+
 /* Gewichtslisten im Querformat. */
 @page quer {
   size: A4 landscape;
@@ -79,7 +102,7 @@
   }
 }
 
-/* Druckdatei: Starterliste, Mannschaftswertungen, Codes und Ergebnislisten in einem Druck.
+/* Druckdatei: Starterliste, Mannschaftswertungen, Codes und Wertungslisten in einem Druck.
    Jeder Teil beginnt auf einem neuen Blatt – auch dort, wo zwei Teile dieselbe Seitenart haben
    (Starterliste und Codes: beide hoch, unbenannt) und der Browser nicht von selbst umbricht.
    Das letzte Blatt eines Stapels bricht sonst nicht um (`.ergebnis-blatt:last-child`). */

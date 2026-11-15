@@ -1,6 +1,6 @@
 /* ======================================================================
    Mannschaftswertung je Herkunft (im Code „pokal“)
-   Baut auf den Ergebnislisten auf (styles/ergebnis.css: Blatt, Kopf, Gitter,
+   Baut auf den Wertungslisten auf (styles/ergebnis.css: Blatt, Kopf, Gitter,
    Fuß). Hier steht nur, was anders ist: die Liste nach Plätzen (A4 quer, viele
    schmale Punkte-Spalten) und die UIM-Liste (A4 hoch, je Herkunft ein Block).
    Farben nur über --blatt-* (styles/blatt.css).
@@ -171,6 +171,20 @@
 /* Auf der Fortsetzungsseite schließt die Zeile oben den Block ab, wie sonst die Linie unter dem Titel. */
 .erg-tabelle.pokal-tabelle--uim thead tr.pokal-gruppe-kopf th {
   border-top: 1.6px solid var(--blatt-linie);
+}
+
+/* Worauf die Wertung beruht („nur Manövrieren (Stage 2)“): eine Zeile unter dem Kopf jeder
+   Seite, ohne Rahmen. Ihre Höhe misst das Dokument mit dem Kopf (ListenDokument.vue). */
+.erg-tabelle.pokal-tabelle--uim thead tr.pokal-hinweis-zeile th {
+  height: 5mm;
+  border: none;
+  background: none;
+  padding: 0 0.5mm 1mm;
+  font-size: 8pt;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: left;
+  vertical-align: top;
 }
 
 /* „Fortsetzung: …“ steht im festen Abstand unter dem Kopf der Seite. */

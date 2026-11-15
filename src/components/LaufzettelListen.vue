@@ -5,14 +5,16 @@ import { useStore } from '../state/store'
 import { useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { useBogenZoom } from '../lib/bogenZoom'
-import { buildLaufzettel, listenZeilen, messBoegen, messKennung, waehleLaufzettel, type Laufzettel, type LaufzettelAuswahl } from '../lib/laufzettel'
-import { schrittText } from '../lib/laufzettelText'
+import { buildLaufzettel, listenZeilen, messBoegen, messKennung, waehleLaufzettel, zettelSchritte, type Laufzettel, type LaufzettelAuswahl } from '../lib/laufzettel'
+import { versucheNacheinander } from '../config/catalog'
+import { schrittIn, schrittText } from '../lib/laufzettelText'
 import { laufzettelCode } from '../lib/qr'
 import { veranstaltungsListen } from '../lib/listen'
 import { wkrBoegenZumStand, type WkrBogen } from '../lib/wkrListen'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
 import { useListenSprache } from '../lib/listensprache'
+import { parcoursName } from '../config/sprache'
 import type { ClassId } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import LaufzettelBlatt from './LaufzettelBlatt.vue'
@@ -105,12 +107,16 @@ const titelVon = computed(() => {
   return new Map([...jeTyp].map(([typeId, text]) => [typeId, mehrfach(text) ? namen.value.getSheetDef(typeId).menuLabel : text]))
 })
 
+/** So viele Versuche stehen auf einem Bogen (lib/wkrListen.ts `WkrBogen.versuche`); 1 = ein Bogen je Lauf. */
+const versucheAufZettel = computed(() => Math.max(1, ...boegen.value.map((b) => b.versuche ?? 1)))
+
 const blaetter = computed(() =>
   zettel.value.map((z) => ({
     zettel: z,
     klassenText: klassenText(z.klassen),
-    laufText: lt('lists.wkr.runN', { n: z.lauf }),
-    parcours: mehrereParcours.value ? z.parcoursName : undefined,
+    // „Versuche direkt nacheinander“: Der eine Zettel der Klasse gilt für alle Versuche.
+    laufText: versucheAufZettel.value > 1 ? lt('lists.wkr.runsTo', { n: versucheAufZettel.value }) : lt('lists.wkr.runN', { n: z.lauf }),
+    parcours: mehrereParcours.value ? parcoursName(z.parcoursName, listenLocale.value) : undefined,
     qr: laufzettelCode(state.value, z),
     // Eine Zeile je Liste; darin je Bogen seine Kästchen. Trägt ein Bogen nur einen Teil der
     // Klassen des Zettels (Clubmeisterschaft), stehen sie kurz davor („Kl. 4, 5“).
@@ -127,10 +133,17 @@ const blaetter = computed(() =>
 )
 const titel = computed(() => [lt('runsheet.title'), eventName.value].filter(Boolean).join(' · '))
 // Der Zettel des letzten Laufs hat eigene Schritte (kein Aushang, dafür das Gesamtergebnis).
+// Werden die Versuche direkt nacheinander gefahren, entfallen auf den Zetteln davor die
+// Schritte für den Aushang (lib/laufzettel.ts `zettelSchritte`).
 const schritte = computed(() => {
-  const { titel: ueber, schritte: liste, schritteLetzterLauf: letzte } = namen.value.getLaufzettelConfig()
-  const text = (s: string) => schrittText(s, lt)
-  return { titel: ueber ? text(ueber) : undefined, liste: liste.map(text), letzte: letzte.map(text) }
+  const config = namen.value.getLaufzettelConfig()
+  const text = (s: { text: string; en?: string }) => schrittIn(s, listenLocale.value, lt)
+  const nacheinander = versucheNacheinander(state.value)
+  return {
+    titel: config.titel ? schrittText(config.titel, lt) : undefined,
+    liste: zettelSchritte(config, { letzterLauf: false }, nacheinander).map(text),
+    letzte: zettelSchritte(config, { letzterLauf: true }, nacheinander).map(text),
+  }
 })
 
 const merkeSeiten = (b: WkrBogen, anzahl: number) => seiten.set(messKennung(b), anzahl)

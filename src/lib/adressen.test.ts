@@ -111,18 +111,18 @@ describe('Tabellen der Sprachen', () => {
 
   it('schreibt in der Sprache der Oberfläche und liest beide', () => {
     expect(schreibeAdresse(buch, 'de', 'listen', { reiter: 'wkr' })).toBe('#/listen/wkr')
-    expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'wkr' })).toBe('#/lists/judges')
-    expect(schreibeAdresse(buch, 'en', 'einstellungen', { ziel: 'ergebnislisten' })).toBe('#/settings?result-lists')
+    expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'wkr' })).toBe('#/lists/race-officials')
+    expect(schreibeAdresse(buch, 'en', 'einstellungen', { ziel: 'ergebnislisten' })).toBe('#/settings?results')
     expect(schreibeAdresse(buch, 'de', 'veranstaltung', { ziel: 'wkr' })).toBe('#/veranstaltung?wkr')
     expect(schreibeAdresse(buch, 'en', 'veranstaltung', { ziel: 'besetzung' })).toBe('#/event?assignments')
     expect(schreibeAdresse(buch, 'en', 'verzahnung', { reiter: 'manoever' })).toBe('#/interleaving/manoeuvring')
     for (const sprache of ['de', 'en']) {
       for (const view of VIEWS) expect(liesAdresse(buch, schreibeAdresse(buch, sprache, view))).toEqual({ view, reiter: '', ziel: '' })
     }
-    expect(liesAdresse(buch, '#/lists/judges')).toEqual({ view: 'listen', reiter: 'wkr', ziel: '' })
+    expect(liesAdresse(buch, '#/lists/race-officials')).toEqual({ view: 'listen', reiter: 'wkr', ziel: '' })
     expect(liesAdresse(buch, '#/Listen/WKR')).toEqual({ view: 'listen', reiter: 'wkr', ziel: '' })
     expect(liesAdresse(buch, '#/settings?scoring')).toEqual({ view: 'einstellungen', reiter: '', ziel: 'wertung' })
-    expect(liesAdresse(buch, '#/event?judges')).toEqual({ view: 'veranstaltung', reiter: '', ziel: 'wkr' })
+    expect(liesAdresse(buch, '#/event?race-officials')).toEqual({ view: 'veranstaltung', reiter: '', ziel: 'wkr' })
     // Die WKR-Einteilung stand unter „Einstellungen“: Der alte Verweis führt zur Veranstaltung – in jeder Sprache.
     expect(liesAdresse(buch, '#/einstellungen?wkr')).toEqual({ view: 'veranstaltung', reiter: '', ziel: 'wkr' })
     expect(liesAdresse(buch, '#/settings?judges')).toEqual({ view: 'veranstaltung', reiter: '', ziel: 'wkr' })
@@ -149,9 +149,29 @@ describe('Tabellen der Sprachen', () => {
     for (const raum of [buch.reiter.listen, buch.ziele]) for (const woerter of Object.values(raum.schreibe)) expect(Object.values(woerter).join(' ')).not.toMatch(/pokal|ranking/)
   })
 
+  it('Wertungslisten (DM C7) und die englischen Wörter nach UIM 960: geschrieben wird das neue Wort, die früheren werden weiter gelesen', () => {
+    expect(schreibeAdresse(buch, 'de', 'listen', { reiter: 'ergebnis' })).toBe('#/listen/wertungslisten')
+    expect(schreibeAdresse(buch, 'de', 'einstellungen', { ziel: 'ergebnislisten' })).toBe('#/einstellungen?wertungslisten')
+    expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'ergebnis' })).toBe('#/lists/results')
+    expect(schreibeAdresse(buch, 'en', 'starter')).toBe('#/drivers')
+    expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'vorsteg' })).toBe('#/lists/pontoon-entry')
+    // Die früheren deutschen Wörter sind zugleich die internen Namen.
+    for (const alt of ['#/listen/ergebnis', '#/lists/ergebnis', '#/listen/Ergebnis', '#/listen/wertungslisten', '#/lists/results']) expect(liesAdresse(buch, alt), alt).toEqual({ view: 'listen', reiter: 'ergebnis', ziel: '' })
+    for (const alt of ['#/einstellungen?ergebnislisten', '#/settings?result-lists', '#/settings?results', '#/einstellungen?wertungslisten']) expect(liesAdresse(buch, alt), alt).toEqual({ view: 'einstellungen', reiter: '', ziel: 'ergebnislisten' })
+    // Die früheren englischen Wörter (vor dem Abgleich mit dem Rulebook).
+    expect(liesAdresse(buch, '#/competitors')).toEqual({ view: 'starter', reiter: '', ziel: '' })
+    expect(liesAdresse(buch, '#/Competitors')).toEqual({ view: 'starter', reiter: '', ziel: '' })
+    expect(liesAdresse(buch, '#/lists/competitor-lists')).toEqual({ view: 'listen', reiter: 'starter', ziel: '' })
+    expect(liesAdresse(buch, '#/lists/pre-jetty')).toEqual({ view: 'listen', reiter: 'vorsteg', ziel: '' })
+    expect(liesAdresse(buch, '#/lists/judges')).toEqual({ view: 'listen', reiter: 'wkr', ziel: '' })
+    expect(liesAdresse(buch, '#/event?judges')).toEqual({ view: 'veranstaltung', reiter: '', ziel: 'wkr' })
+    // Geschrieben wird keines der früheren Wörter mehr.
+    for (const raum of raeume) for (const woerter of Object.values(raum.schreibe)) expect(Object.values(woerter).join(' ')).not.toMatch(/competitor|jetty|judges|result-lists|ergebnis/)
+  })
+
   it('ein Reiter „Starterlisten“: Die Adressen der beiden früheren Reiter führen dorthin und nennen die Art', () => {
     expect(schreibeAdresse(buch, 'de', 'listen', { reiter: 'starter' })).toBe('#/listen/starterlisten')
-    expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'starter' })).toBe('#/lists/competitor-lists')
+    expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'starter' })).toBe('#/lists/lists-of-drivers')
     for (const alt of ['#/listen/verzahnt', '#/lists/interleaved', '#/listen/interleaved']) expect(liesAdresse(buch, alt), alt).toEqual({ view: 'listen', reiter: 'starter', ziel: '', art: 'verzahnt' })
     for (const alt of ['#/listen/nach-klasse', '#/lists/by-class', '#/listen/byClass']) expect(liesAdresse(buch, alt), alt).toEqual({ view: 'listen', reiter: 'starter', ziel: '', art: 'klasse' })
     // Die heutigen Wörter nennen keine Art: Es gilt die gemerkte.
@@ -177,7 +197,7 @@ describe('Tabellen der Sprachen', () => {
     expect(schreibeAdresse(mit, 'xx', 'listen')).toBe('#/lists')
     expect(schreibeAdresse(mit, 'xx', 'starter')).toBe('#/startoj')
     // Auch die deutsche Adresse weicht aus – sonst läse xx sie falsch.
-    expect(schreibeAdresse(mit, 'de', 'starter')).toBe('#/competitors')
+    expect(schreibeAdresse(mit, 'de', 'starter')).toBe('#/drivers')
     expect(liesAdresse(mit, '#/startoj').view).toBe('starter')
     // Eine Sprache ohne Tabelle schreibt englisch.
     expect(schreibeAdresse(mit, 'yy', 'listen')).toBe('#/lists')

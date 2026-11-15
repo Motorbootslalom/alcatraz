@@ -1,6 +1,7 @@
 import { CLASS_IDS } from '../domain/classes'
+import { istKuerzelNorm, type KuerzelNorm } from '../domain/kuerzel'
 import type { CellKind, Column, DisqDef, ErrorDef, ErrorGroup, SheetDef, Sprache, TrennerDesign } from '../types'
-import { STICH_KRITERIEN, type RawAufbauEintrag, type RawConfig, type RawDisq, type RawDisziplin, type RawKatalog, type RawPosition, type RawRegelwerk, type RawSpalte, type StichKriterium } from './schema'
+import { STICH_KRITERIEN, type RawAufbauEintrag, type RawConfig, type RawDisq, type RawDisziplin, type RawKatalog, type RawPosition, type RawRegelwerk, type RawSchritt, type RawSpalte, type StichKriterium } from './schema'
 import { feldKennungen } from './feld'
 import { findeKombi, kombiReihenfolge } from './kombi'
 import { bogenTexte, uebersetzt, uebersetztBlock, type BogenTexte } from './sprache'
@@ -16,7 +17,7 @@ type Uebersetzer = (de: string, en?: string) => string
 export interface ResolvedAufbau {
   id: string
   name: string
-  /** Disziplin: Ihre Aufbauten teilen sich die Eingaben und die Ergebnislisten. */
+  /** Disziplin: Ihre Aufbauten teilen sich die Eingaben und die Wertungslisten. */
   disziplin: string
   /** Positions-IDs dieses Aufbaus (nur existierende, in Reihenfolge). */
   order: string[]
@@ -31,6 +32,8 @@ export interface ResolvedAufbau {
   kurs?: { id: string; name: string; bilder: Record<string, string> }
   /** Ein eigener Aufbau aus dem Browser, nicht aus dem Repo. */
   eigen?: boolean
+  /** Spalten, die die Listen dieses Aufbaus nicht haben: Position → Spalten-Keys. */
+  ohneSpalten?: Record<string, string[]>
 }
 
 /** Umschaltbares Bezeichnungs-Schema (Bojen-Kürzel), z. B. Rechts/Links. */
@@ -51,6 +54,8 @@ export interface RegelwerkInfo {
   sprachen: string[]
   /** Sprache aller Listen außer den Wettkampfrichter-Bögen; für diese die Vorgabe. */
   listenSprache: 'de' | 'en'
+  /** Kürzel der Länder auf den Listen: ISO oder IOC (domain/kuerzel.ts `KuerzelNorm`). */
+  laenderKuerzel: KuerzelNorm
   /** Klassen dieses Regelwerks. */
   klassen: string[]
   /** Was bei gleichem Ergebnis entscheidet, der Reihe nach; leer = der Platz wird geteilt. */
@@ -59,6 +64,12 @@ export interface RegelwerkInfo {
   vorgabeListen: Record<string, string[]>
   /** Läufe und Streichläufe, die das Regelwerk vorsieht; fehlt die Angabe, macht es keine. `nurVorgabe`: nur Voreinstellung, kein Hinweis bei Abweichung. */
   wertungslaeufe?: Wertungslaeufe
+  /** Disziplin → was für sie statt `stichentscheid` und `wertungslaeufe` gilt (nur die Angaben, die sie macht). */
+  wertungJeDisziplin: Record<string, DisziplinWertung>
+  /** Was das Regelwerk für den Aushang verlangt: Unterschrift und Uhrzeit des Aushangs, Punkte auf der Gesamtliste. */
+  aushang: { unterschrift: boolean; punkte: boolean }
+  /** Vorgabe „Läufe direkt nacheinander“; `undefined` = das Regelwerk kennt den Schalter nicht. */
+  versucheNacheinander?: boolean
 }
 
 /** Inhalt der A4-Legende: alle Codes und Strafen eines Regelwerks. */
@@ -91,7 +102,7 @@ export interface ResolvedConfig {
   /** Auf der Seite umschaltbare Bezeichnungs-Schemata (der erste ist Standard). */
   beschriftungen: BeschriftungScheme[]
   /** Laufzettel: Arbeitsschritte der Auswertung unter den Seiten-Checkboxen. */
-  laufzettel: { titel?: string; schritte: string[]; /** Auf dem Zettel des letzten Laufs. */ schritteLetzterLauf: string[] }
+  laufzettel: { titel?: string; schritte: Schritt[]; /** Auf dem Zettel des letzten Laufs. */ schritteLetzterLauf: Schritt[] }
 }
 
 // 'trenner' ist keine Datenspalte und taucht hier nicht auf (wird vorher aus der
@@ -219,19 +230,66 @@ function vorgabeListen(raw: unknown): Record<string, string[]> {
   )
 }
 
+/** Ein Arbeitsschritt des Laufzettels: deutsch, dazu – wenn das Regelwerk ihn nennt – der englische Wortlaut. */
+export interface Schritt {
+  text: string
+  en?: string
+  /** Gehört zum Aushang zwischen den Läufen – entfällt, wenn sie direkt nacheinander gefahren werden (lib/laufzettel.ts). */
+  zwischenaushang?: true
+}
+
+const schritt = (x: RawSchritt): Schritt =>
+  x && typeof x === 'object'
+    ? { text: String(x.text ?? ''), ...(typeof x.en === 'string' && x.en ? { en: x.en } : {}), ...(x.zwischenaushang === true ? { zwischenaushang: true as const } : {}) }
+    : { text: String(x) }
+
 export interface Wertungslaeufe {
   laeufe: number
   streichlaeufe: number
   nurVorgabe?: true
+  /** Zahl der Läufe → Streichläufe der Einstellung „nach Regel“; was fehlt, folgt der allgemeinen Regel. */
+  nachRegel?: Record<number, number>
 }
 
 /** Nur eine stimmige Angabe gilt: mindestens ein Lauf, weniger Streichläufe als Läufe. */
 function wertungslaeufe(raw: unknown): Wertungslaeufe | undefined {
   if (!raw || typeof raw !== 'object') return undefined
-  const { laeufe, streichlaeufe = 0, nurVorgabe } = raw as { laeufe?: unknown; streichlaeufe?: unknown; nurVorgabe?: unknown }
+  const { laeufe, streichlaeufe = 0, nurVorgabe, nachRegel: roh } = raw as { laeufe?: unknown; streichlaeufe?: unknown; nurVorgabe?: unknown; nachRegel?: unknown }
   const ganz = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x)
   if (!(ganz(laeufe) && ganz(streichlaeufe) && laeufe >= 1 && streichlaeufe >= 0 && streichlaeufe < laeufe)) return undefined
-  return nurVorgabe === true ? { laeufe, streichlaeufe, nurVorgabe: true } : { laeufe, streichlaeufe }
+  // Nur stimmige Einträge gelten (mindestens ein Lauf zählt); den Rest meldet die Prüfung.
+  const eintraege = (roh && typeof roh === 'object' && !Array.isArray(roh) ? Object.entries(roh) : [])
+    .map(([l, s]): [number, unknown] => [Number(l), s])
+    .filter((e): e is [number, number] => Number.isInteger(e[0]) && e[0] >= 1 && ganz(e[1]) && e[1] >= 0 && e[1] < e[0])
+  const nachRegel = eintraege.length > 0 ? { nachRegel: Object.fromEntries(eintraege) as Record<number, number> } : {}
+  return { laeufe, streichlaeufe, ...(nurVorgabe === true ? { nurVorgabe: true as const } : {}), ...nachRegel }
+}
+
+/** Die Wertung einer Disziplin, soweit das Regelwerk sie eigens regelt (`wertungJeDisziplin`). */
+export interface DisziplinWertung {
+  stichentscheid?: StichKriterium[]
+  wertungslaeufe?: Wertungslaeufe
+}
+
+/** Nur Kriterien, die die Wertung kennt, jedes einmal; Unbekanntes meldet die Prüfung (validate.ts). */
+function stichKriterien(roh: unknown): StichKriterium[] {
+  return [...new Set(Array.isArray(roh) ? roh : [])].filter((k): k is StichKriterium => (STICH_KRITERIEN as readonly string[]).includes(k))
+}
+
+function wertungJeDisziplin(roh: unknown): Record<string, DisziplinWertung> {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
+  const out: Record<string, DisziplinWertung> = {}
+  for (const [disziplin, angabe] of Object.entries(roh as Record<string, unknown>)) {
+    if (disziplin === '__proto__' || !angabe || typeof angabe !== 'object' || Array.isArray(angabe)) continue
+    const a = angabe as { stichentscheid?: unknown; wertungslaeufe?: unknown }
+    const laeufe = wertungslaeufe(a.wertungslaeufe)
+    out[disziplin] = {
+      ...(Array.isArray(a.stichentscheid) ? { stichentscheid: stichKriterien(a.stichentscheid) } : {}),
+      // Ohne `nurVorgabe` und `nachRegel`: Die Läufe dieser Disziplin stellt niemand ein.
+      ...(laeufe ? { wertungslaeufe: { laeufe: laeufe.laeufe, streichlaeufe: laeufe.streichlaeufe } } : {}),
+    }
+  }
+  return out
 }
 
 /** Nur eine Sprache, die das Regelwerk anbietet; sonst seine erste (ohne Angabe: deutsch). */
@@ -247,12 +305,17 @@ export function regelwerkInfo(rw: RawRegelwerk): RegelwerkInfo {
     label: [rw.name ?? rw.id ?? 'Standard', rw.version].filter((x) => x !== undefined).join(' '),
     sprachen: rw.sprachen ?? ['de'],
     listenSprache: listenSprache(rw),
+    // Unbekanntes meldet die Prüfung (validate.ts); es gilt dann ISO wie ohne Angabe.
+    laenderKuerzel: istKuerzelNorm(rw.laenderKuerzel) ? rw.laenderKuerzel : 'iso',
     klassen: rw.klassen ? rw.klassen.map(String) : [...CLASS_IDS],
     // Unbekanntes meldet die Prüfung (validate.ts); gewertet wird nur, was es gibt.
-    stichentscheid: [...new Set(Array.isArray(rw.stichentscheid) ? rw.stichentscheid : [])].filter((k): k is StichKriterium => (STICH_KRITERIEN as readonly string[]).includes(k)),
+    stichentscheid: stichKriterien(rw.stichentscheid),
     // Ob es die Position gibt, zeigt sich am Aufbau: Dazu kommt nur, was er als Zusatz anbietet.
     vorgabeListen: vorgabeListen(rw.vorgabeListen),
     wertungslaeufe: wertungslaeufe(rw.wertungslaeufe),
+    wertungJeDisziplin: wertungJeDisziplin(rw.wertungJeDisziplin),
+    aushang: { unterschrift: rw.aushang?.unterschrift === true, punkte: rw.aushang?.punkte === true },
+    ...(typeof rw.versucheNacheinander === 'boolean' ? { versucheNacheinander: rw.versucheNacheinander } : {}),
   }
 }
 
@@ -371,6 +434,7 @@ export function buildConfig(
       menuLabel: pos.menue ?? pos.titel,
       orientation: pos.ausrichtung === 'quer' ? 'landscape' : 'portrait',
       showLauf: pos.lauf !== false,
+      ...(pos.einmalJeStarter === true ? { einmalJeStarter: true } : {}),
       klassen: pos.klassen?.map((k) => String(k)),
       columns: buildColumns(spalten, posTokens, kataloge, t, englischTexte, pos.subTrenner, pos.katalog, pos.id),
       sumColumnKey: pos.summeSpalte,
@@ -463,6 +527,7 @@ export function buildConfig(
             id: a.id,
             name: a.name,
             ...(a.eigen ? { eigen: true } : {}),
+            ...(a.ohneSpalten ? { ohneSpalten: a.ohneSpalten } : {}),
             ...(kurs
               ? {
                   kurs: {
@@ -493,9 +558,9 @@ export function buildConfig(
 
   const laufzettel = {
     titel: raw.laufzettel?.titel,
-    schritte: (raw.laufzettel?.schritte ?? []).map((x) => String(x)),
+    schritte: (raw.laufzettel?.schritte ?? []).map(schritt),
     // Ohne eigene Angabe steht auf dem letzten Zettel dasselbe wie auf den anderen.
-    schritteLetzterLauf: (raw.laufzettel?.schritteLetzterLauf ?? raw.laufzettel?.schritte ?? []).map((x) => String(x)),
+    schritteLetzterLauf: (raw.laufzettel?.schritteLetzterLauf ?? raw.laufzettel?.schritte ?? []).map(schritt),
   }
 
   return {

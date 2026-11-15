@@ -1,17 +1,22 @@
-import type { AppState, ClassId, Eingaben } from '../types'
+import type { AppState, ClassId, Eingaben, ParallelRunde } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { erfasstKennung, felderJeKennung, laufSchluessel, listenFelder, listenLauf, OHNE_LAUF, type EingabenKonfig, type Feld } from './eingaben'
 import { mittlereZeit } from './ergebnis'
 import { formatMinutenEingabe, formatSeconds } from './time'
 import { veranstaltungsListen, type ListenWahl } from './listen'
+import { parallelListen } from './parallelBogen'
+import { attemptSchluessel } from './parallelSchluessel'
+import { plaetzeVon } from '../planung/parallelRunden'
+import { boatTypeOf } from '../domain/classes'
 
-// Glaubhafte Zufallswerte für alle Listen des Aufbaus, damit sich Erfassung und Ergebnislisten
+// Glaubhafte Zufallswerte für alle Listen des Aufbaus, damit sich Erfassung und Wertungslisten
 // ohne ausgedachte Werte zeigen und prüfen lassen. Vorbild: lib/beispielwerte.ts im
 // Fehlerpunkte-Prototyp – dort für die angezeigten Bögen, hier für die ganze Veranstaltung.
 //
-// Die Zahlen sind gerundete Kennzahlen je Klasse aus echten Ergebnislisten, je Wettkampf aus
+// Die Zahlen sind gerundete Kennzahlen je Klasse aus echten Wertungslisten, je Wettkampf aus
 // anderen: Das Manövrieren der DM kommt aus der DM 2026 (450 Läufe), das Manövrieren nach UIM
-// aus der WM 2025 (194 Versuche). Einzelne Ergebnisse oder Namen stehen bewusst nicht im Repo.
+// aus der WM 2025 (194 Versuche), der Vorlauf des Parallelslaloms ebenfalls aus der WM 2025.
+// Einzelne Ergebnisse oder Namen stehen bewusst nicht im Repo.
 // Zwei Annahmen stammen nicht aus den Listen, weil dort nur der Mittelwert steht: die Streuung
 // zwischen den Stoppuhren und wie oft eine dritte Zeit dabei ist.
 //
@@ -21,7 +26,7 @@ import { veranstaltungsListen, type ListenWahl } from './listen'
 /** Stoppuhr: 2 bis 3 Zeiten als „1,2345“. Lichtschranke: genau eine Zeit als „85,34“. */
 export type Zeitnahme = 'stoppuhr' | 'lichtschranke'
 
-export type BeispielStand = ListenWahl & Pick<AppState, 'regelwerk' | 'starters' | 'laufCount' | 'eingaben'>
+export type BeispielStand = ListenWahl & Pick<AppState, 'regelwerk' | 'starters' | 'laufCount' | 'eingaben'> & Partial<Pick<AppState, 'abgemeldet'>>
 type Zufall = () => number
 
 interface Profil {
@@ -127,7 +132,44 @@ const WM_MANOEVRIEREN: Kennzahlen = {
   patzer: 0.15,
 }
 
-/** Der Parallelslalom wird hier noch nicht gewertet; seine Kennzahlen bleiben im Prototyp. */
+/**
+ * Parallelslalom, Vorlauf (preliminary heat) auf beiden Racecourses – gerundete Kennzahlen je
+ * Klasse aus der WM 2025, wie oben geglättet. Start und Ziel sind hier je eine Zelle je Start.
+ * „Nicht gestartet“ zählt nicht mit, dafür gäbe es keine Zeit. Knoten gibt es im Parallelslalom
+ * nicht (Regel 960, Pkt. 4.4 und 5.2.2 nennen keine).
+ */
+const WM_PARALLEL: Kennzahlen = {
+  profile: {
+    E: { zeit: [71, 73, 81], boje: 0.02, start: 0.16, ziel: 0.27, stegAn: 0.04, disq: 0.04, knoten: 0 },
+    1: { zeit: [68, 72, 78], boje: 0.01, start: 0.06, ziel: 0.16, stegAn: 0.1, disq: 0.1, knoten: 0 },
+    2: { zeit: [65, 70, 72], boje: 0.005, start: 0.05, ziel: 0.09, stegAn: 0.01, disq: 0.01, knoten: 0 },
+    3: { zeit: [67, 70, 73], boje: 0.01, start: 0.04, ziel: 0.11, stegAn: 0.01, disq: 0.01, knoten: 0 },
+    4: { zeit: [57, 58, 60], boje: 0.005, start: 0.05, ziel: 0.06, stegAn: 0.01, disq: 0.005, knoten: 0 },
+    5: { zeit: [55, 58, 60], boje: 0.005, start: 0.07, ziel: 0.08, stegAn: 0.02, disq: 0.005, knoten: 0 },
+  },
+  fehlerJeStart: { 'katalog:stegAblegen': 0.03 },
+  codeHaeufigkeit: { 3: 5, 7: 3, 9: 3 },
+  wiederholt: {},
+  zweiterCode: 0.1,
+  disqOrte: {
+    boje: { anteil: 4, buchstaben: { J: 4 } },
+    tor5: { anteil: 0, buchstaben: {} },
+    mueb: { anteil: 0, buchstaben: {} },
+    steg: { anteil: 0, buchstaben: {} },
+    spalte: { anteil: 1, buchstaben: { J: 1 } },
+  },
+  laufStreuung: 1.5,
+  patzer: 0.03,
+}
+
+/**
+ * Annahme aus den Listen der WM 2025: Mit kleinen Booten war Racecourse A einige Sekunden
+ * langsamer als B. Die Quartile oben enthalten beide Racecourses; hier wird die halbe
+ * Differenz je Racecourse aufgeschlagen bzw. abgezogen, damit sich der Unterschied in den
+ * Beispielwerten zeigt. Sekunden.
+ */
+const RACECOURSE_UNTERSCHIED_KLEIN = 3
+
 function kennzahlenFuer(regelwerk: string): Kennzahlen {
   return regelwerk.startsWith('uim') ? WM_MANOEVRIEREN : DM_2026
 }
@@ -244,6 +286,7 @@ export interface BeispielOptionen {
  * Ersetzt die Werte aller Listen des Aufbaus in den gewählten Läufen durch Zufallswerte – für
  * jeden Starter, dessen Klasse der Aufbau kennt. Bemerkungen und andere Läufe bleiben. Jede
  * Zeile gilt danach als erfasst. Listen ohne Lauf (Knoten) werden mit dem 1. Lauf gefüllt.
+ * Abgemeldete bleiben, wie sie sind: Sie fahren nicht, ihr X „nicht gestartet“ bleibt stehen.
  */
 export function beispielEingaben(stand: BeispielStand, konfig: EingabenKonfig, optionen: BeispielOptionen, zufall: Zufall): Eingaben {
   const disziplin = konfig.getAufbau(stand.aufbau).disziplin
@@ -274,8 +317,9 @@ export function beispielEingaben(stand: BeispielStand, konfig: EingabenKonfig, o
   }
 
   const zuFuellen = [...(laeufe.includes(1) ? [OHNE_LAUF] : []), ...laeufe]
+  const abgemeldet = new Set(stand.abgemeldet ?? [])
   for (const klasse of CLASS_IDS) {
-    const starter = stand.starters.filter((s) => s.klasse === klasse)
+    const starter = stand.starters.filter((s) => s.klasse === klasse && !abgemeldet.has(s.id))
     if (starter.length === 0) continue
     const profil = profilVon(klasse)
     const alleFelder = felderJeKennung(konfig, klasse, listen)
@@ -321,6 +365,83 @@ export function beispielEingaben(stand: BeispielStand, konfig: EingabenKonfig, o
         for (const kennung of haken) werte[kennung] = '1'
         zeilen[s.id] = werte
       }
+      eingaben[schluessel] = zeilen
+    }
+  }
+  return eingaben
+}
+
+export type VorlaufStand = Pick<AppState, 'starters' | 'eingaben' | 'parallelPlaene'> & Partial<Pick<AppState, 'class4Small' | 'abgemeldet'>>
+
+/**
+ * Ersetzt die Werte einer Runde des Parallelslaloms durch Zufallswerte: für jeden Starter des
+ * festgeschriebenen Plans beide Attempts, auf allen Listen des Aufbaus (Zeit, Steg, Fahrweg).
+ * Ohne festgeschriebenen Plan bleibt alles, wie es ist – ohne Plan gibt es keine Liste, auf der
+ * die Werte stünden. Bemerkungen und alle anderen Läufe bleiben; jede Zeile gilt danach als
+ * erfasst. Der Dummy hat keine Zeile und bekommt keine Werte. Das gilt für jede Runde –
+ * Vorlauf, Halbfinale, Finals, Wiederholung –, die Kennzahlen sind die des Vorlaufs.
+ *
+ * Wo ein Starter fährt (Racecourse A oder B), folgt aus dem Plan (planung/parallelRunden.ts
+ * `plaetzeVon`); gespeichert wird je Starter und Attempt (lib/parallelSchluessel.ts).
+ * Abgemeldete bekommen keine Werte – ihr X „nicht gestartet“ bleibt stehen.
+ */
+export function beispielRunde(
+  stand: VorlaufStand,
+  konfig: EingabenKonfig,
+  runde: ParallelRunde,
+  /** `nurLeere`: Attempts, zu denen schon etwas erfasst ist, bleiben – in einer Runde, die je Klasse festgeschrieben wird, behalten die Klassen davor ihre Werte. */
+  optionen: Pick<BeispielOptionen, 'zeitnahme'> & { nurLeere?: boolean },
+  zufall: Zufall,
+): Eingaben {
+  const plan = stand.parallelPlaene[runde]
+  const getAufbauten = konfig.getAufbauten
+  const listen = getAufbauten ? parallelListen({ getAufbauten, aufbauOrder: konfig.aufbauOrder, rohRegelwerk: konfig.rohRegelwerk }) : []
+  if (!plan || listen.length === 0) return stand.eingaben
+  const k = WM_PARALLEL
+  const eingaben: Eingaben = { ...stand.eingaben }
+  const starterVon = new Map(stand.starters.map((s) => [s.id, s]))
+  const abgemeldet = new Set(stand.abgemeldet ?? [])
+  const imPlan = [...new Set(plan.starts.flatMap((s) => [s.a, s.b]))].flatMap((id) => (id === null || abgemeldet.has(id) ? [] : (starterVon.get(id) ?? [])))
+
+  for (const s of imPlan) {
+    const profil = k.profile[s.klasse] ?? k.profile[5]!
+    const felder = new Map<string, Feld>()
+    const haken: string[] = []
+    for (const typeId of listen) {
+      if (!konfig.positionAllowsClass(typeId, s.klasse)) continue
+      haken.push(erfasstKennung(typeId))
+      for (const feld of listenFelder(konfig, typeId, s.klasse)) if (feld.kind !== 'text' && !felder.has(feld.kennung)) felder.set(feld.kennung, feld)
+    }
+    if (haken.length === 0) continue
+    const zeitFelder = [...felder.values()].filter((f) => f.kind === 'time')
+    const grund = grundzeit(profil, zufall)
+    const klein = boatTypeOf(s.klasse, stand.class4Small === true) === 'klein'
+    for (const platz of plaetzeVon(plan, s.id)) {
+      const schluessel = attemptSchluessel(runde, platz.attempt)
+      const zeilen = { ...eingaben[schluessel] }
+      if (optionen.nurLeere && Object.keys(zeilen[s.id] ?? {}).length > 0) continue
+      const werte = { ...zeilen[s.id] }
+      for (const kennung of felder.keys()) delete werte[kennung]
+      for (const feld of felder.values()) {
+        if (feld.kind !== 'buoy' && feld.kind !== 'code') continue
+        const quote = feld.kind === 'buoy' ? bojenQuote(feld, profil) : feld.kennung === 'katalog:stegAnlegen' ? profil.stegAn : (k.fehlerJeStart[feld.kennung] ?? 0)
+        if (zufall() >= quote) continue
+        const wert = feld.kind === 'buoy' ? '5' : feld.gueltig(fehlerCodes(feld, k, zufall))
+        if (wert) werte[feld.kennung] = wert
+      }
+      if (zeitFelder.length > 0) {
+        const versatz = klein ? (platz.racecourse === 'A' ? RACECOURSE_UNTERSCHIED_KLEIN : -RACECOURSE_UNTERSCHIED_KLEIN) : 0
+        Object.assign(werte, zeitWerte(zeitFelder, laufzeit(grund + versatz, k, zufall), optionen.zeitnahme, zufall))
+      }
+      if (zufall() < profil.disq) {
+        const treffer = disqualifikation([...felder.values()], k, zufall)
+        if (treffer) {
+          const { kennung } = treffer.feld
+          werte[kennung] = treffer.feld.gueltig(werte[kennung] ? `${werte[kennung]}, ${treffer.buchstabe}` : treffer.buchstabe)
+        }
+      }
+      for (const kennung of haken) werte[kennung] = '1'
+      zeilen[s.id] = werte
       eingaben[schluessel] = zeilen
     }
   }

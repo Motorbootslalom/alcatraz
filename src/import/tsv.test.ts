@@ -122,7 +122,6 @@ function baseState(): PlanState {
     parcoursList: [{ id: 'p1', name: 'Parcours 1', classIds: ['E', '3'], wechselFaktor: 2 }],
     boats: { klein: 4, gross: 4 },
     class4Small: false,
-    parallelInternational: true,
     parallelOrderByStartNr: false,
     runningNumbers: { enabled: false, source: 'manoever', start: 1, skipText: '' },
   }

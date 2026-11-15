@@ -8,7 +8,12 @@ import {
   redistributeNumbers,
   renumberSequential,
   sortedByStartNr,
+  vergleicheStartNr,
 } from './startnumbers'
+import { startNrPraefixe } from '../config/catalog'
+import { cmpStartNr } from '../planung/parallel'
+import { paareNachNummer } from '../planung/parallelRunden'
+import { emptyState, reducer } from '../state/reducer'
 import type { ClassId, Starter } from '../types'
 
 function mk(klasse: ClassId, nr: number, groesse = ''): Starter {
@@ -24,6 +29,59 @@ function mk(klasse: ClassId, nr: number, groesse = ''): Starter {
     groesse,
   }
 }
+
+describe('Präfix der klassenbezogenen Startnummern aus dem Regelwerk', () => {
+  it('ohne Angabe steht die Kennung der Klasse davor', () => {
+    expect(makeStartNr('E', 1)).toBe('E01')
+    expect(makeStartNr('3', 12)).toBe('312')
+    expect(makeStartNr('E', 1, {})).toBe('E01')
+  })
+
+  it('eine Angabe im Regelwerk stellt den Buchstaben um – ohne Programmänderung', () => {
+    expect(makeStartNr('E', 1, { E: 'D' })).toBe('D01')
+    expect(makeStartNr('1', 1, { E: 'D' })).toBe('101')
+    expect(parseClassNumber('D07', 'E', { E: 'D' })).toBe(7)
+    // Die schon vergebenen E-Nummern zählen weiter mit: Nach dem Umstellen geht die Zählung bei ihnen weiter (kein D01 neben E01).
+    expect(parseClassNumber('E07', 'E', { E: 'D' })).toBe(7)
+    expect(parseClassNumber('D07', 'E')).toBe(7)
+    expect(parseClassNumber('D07', '1')).toBeNull()
+    expect(renumberSequential([mk('E', 5), mk('E', 9)], { E: 'D' }).map((p) => p.startNr)).toEqual(['D01', 'D02'])
+  })
+})
+
+describe('Nummern mit Präfix sortieren wie mit einer 0 davor – vor den übrigen (Entscheidung des Nutzers)', () => {
+  it('E01 und D01 stehen vor 101, 201 …; innerhalb der Klasse numerisch', () => {
+    expect(['201', 'E10', '101', 'E02', 'D01', '7'].sort(vergleicheStartNr)).toEqual(['D01', 'E02', '7', 'E10', '101', '201'])
+    expect(['E2', 'E10', 'E1'].sort(vergleicheStartNr)).toEqual(['E1', 'E2', 'E10'])
+    // Gleicher Wert (E01 und 1): feste Reihenfolge, damit keine Liste springt.
+    expect(Math.sign(vergleicheStartNr('E01', '1'))).toBe(-Math.sign(vergleicheStartNr('1', 'E01')))
+  })
+
+  it('überall dieselbe Reihenfolge: Parallelslalom (Paare nach Nummer) und Listen', () => {
+    const p = (klasse: ClassId, startNr: string): Starter => ({ ...mk(klasse, 1), id: startNr, startNr })
+    const feld = [p('1', '101'), p('E', 'E02'), p('E', 'D01'), p('1', '102')]
+    expect([...feld].sort(cmpStartNr).map((s) => s.startNr)).toEqual(['D01', 'E02', '101', '102'])
+    expect(paareNachNummer(feld)).toEqual([
+      { a: 'D01', b: 'E02' },
+      { a: '101', b: '102' },
+    ])
+    expect(sortedByStartNr(feld).map((s) => s.startNr)).toEqual(['D01', 'E02', '101', '102'])
+  })
+
+  it('der Buchstabe der Dolphin-Nummern ist wählbar (E oder D) – nur unter einem Regelwerk mit „Dolphin“', () => {
+    let state = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect([state.dolphinPraefix, startNrPraefixe(state).E]).toEqual(['E', 'E'])
+    state = reducer(state, { type: 'ADD_STARTERS', starters: [mk('E', 1), mk('E', 2), mk('1', 1)] })
+    state = reducer(state, { type: 'SET_DOLPHIN_PRAEFIX', praefix: 'D' })
+    expect(startNrPraefixe(state).E).toBe('D')
+    // Vorhandene Nummern bleiben, bis sie neu vergeben werden.
+    expect(state.starters.map((s) => s.startNr)).toEqual(['E01', 'E02', '101'])
+    state = reducer(state, { type: 'ASSIGN_START_NUMBERS' })
+    expect(state.starters.map((s) => s.startNr)).toEqual(['D01', 'D02', '101'])
+    // Unter der DM heißt die Klasse E: Dort bleibt es bei E, gleich was gewählt ist.
+    expect(startNrPraefixe({ regelwerk: 'dm-2026', dolphinPraefix: 'D' }).E).toBe('E')
+  })
+})
 
 describe('startnumbers', () => {
   it('baut und liest klassenbasierte Nummern', () => {

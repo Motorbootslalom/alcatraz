@@ -69,6 +69,42 @@ describe('Konfigurations-Validierung', () => {
     expect(neu({ laeufe: 3, streichlaeufe: 1, nurVorgabe: 'ja' })).toEqual(['BAD_WERTUNGSLAEUFE'])
   })
 
+  it('wertungJeDisziplin: je Disziplin nur stichentscheid und wertungslaeufe, in ihrer Form', () => {
+    const codes = (mehr: Record<string, unknown>) => validateRawConfig(mehr as Parameters<typeof validateRawConfig>[0]).map((i) => i.code)
+    const neu = (je: unknown) => codes({ wertungJeDisziplin: je }).filter((c) => !codes({}).includes(c))
+    expect(neu({ parallel: { wertungslaeufe: { laeufe: 2, streichlaeufe: 0 }, stichentscheid: ['besterLauf'] } })).toEqual([])
+    expect(neu({ parallel: { stichentscheid: ['besterLauf'] } })).toEqual([])
+    expect(neu({ parallel: {} })).toEqual([])
+    expect(neu('parallel')).toEqual(['BAD_WERTUNG_JE_DISZIPLIN'])
+    expect(neu({ parallel: true })).toEqual(['BAD_WERTUNG_JE_DISZIPLIN'])
+    expect(neu({ parallel: { punkte: 3 } })).toEqual(['BAD_WERTUNG_JE_DISZIPLIN'])
+    expect(neu({ parallel: { stichentscheid: 'besterLauf' } })).toEqual(['BAD_STICHENTSCHEID'])
+    expect(neu({ parallel: { stichentscheid: ['muenzwurf'] } })).toEqual(['UNKNOWN_STICHENTSCHEID'])
+    expect(neu({ parallel: { stichentscheid: ['besterLauf', 'besterLauf'] } })).toEqual(['DUP_STICHENTSCHEID'])
+    expect(neu({ parallel: { wertungslaeufe: { laeufe: 2, streichlaeufe: 2 } } })).toEqual(['BAD_WERTUNGSLAEUFE'])
+    // `nurVorgabe` und `nachRegel` gibt es hier nicht: Die Läufe dieser Disziplin stellt niemand ein.
+    expect(neu({ parallel: { wertungslaeufe: { laeufe: 2, streichlaeufe: 0, nurVorgabe: true } } })).toEqual(['BAD_WERTUNGSLAEUFE'])
+    // Eine Disziplin, die die Konfiguration nicht kennt.
+    const mitDisziplinen = (je: unknown) => codes({ disziplinen: [{ id: 'manoevrieren', name: 'M' }], wertungJeDisziplin: je }).filter((c) => !codes({ disziplinen: [{ id: 'manoevrieren', name: 'M' }] }).includes(c))
+    expect(mitDisziplinen({ parallel: {} })).toEqual(['UNKNOWN_WERTUNG_DISZIPLIN'])
+    expect(mitDisziplinen({ manoevrieren: {} })).toEqual([])
+  })
+
+  it('aushang und versucheNacheinander: nur Ja/Nein; Punkte brauchen die Punktetabelle', () => {
+    const codes = (mehr: Record<string, unknown>) => validateRawConfig(mehr as Parameters<typeof validateRawConfig>[0]).map((i) => i.code)
+    const neu = (mehr: Record<string, unknown>) => codes(mehr).filter((c) => !codes({}).includes(c))
+    const pokal = { uim: { punkte: [400, 300], beste: 5, mindestens: 5 } }
+    expect(neu({ aushang: { unterschrift: true, punkte: true }, pokal })).toEqual(neu({ pokal }))
+    expect(neu({ aushang: { unterschrift: false } })).toEqual([])
+    expect(neu({ aushang: { unterschrift: 'ja' } })).toEqual(['BAD_AUSHANG'])
+    expect(neu({ aushang: { stempel: true } })).toEqual(['BAD_AUSHANG'])
+    expect(neu({ aushang: true })).toEqual(['BAD_AUSHANG'])
+    expect(neu({ aushang: { punkte: true } })).toEqual(['AUSHANG_OHNE_PUNKTE'])
+    expect(neu({ versucheNacheinander: true })).toEqual([])
+    expect(neu({ versucheNacheinander: false })).toEqual([])
+    expect(neu({ versucheNacheinander: 'ja' })).toEqual(['BAD_VERSUCHE_NACHEINANDER'])
+  })
+
   it('Stichentscheid: nur Kriterien, die die Wertung kennt, und jedes einmal', () => {
     const codes = (stichentscheid: unknown) => validateRawConfig({ stichentscheid: stichentscheid as string[] }).map((i) => i.code)
     expect(codes(['schnellsterLauf', 'besterLauf', 'summeAllerLaeufe'])).toEqual([])
@@ -134,7 +170,7 @@ describe('Konfigurations-Validierung', () => {
     )
   })
 
-  describe('Ergebnislisten', () => {
+  describe('Wertungslisten', () => {
     const codes = (aendern: (text: string) => string) =>
       validateConfigTexts({ ...texte, positionen: positionenText(aendern) }).map((i) => i.code)
 
@@ -152,6 +188,14 @@ describe('Konfigurations-Validierung', () => {
       const zweiter = (t: string) =>
         t.replace('aufbauten:\n', 'aufbauten:\n  - { id: probe, name: Probe, positionen: [{ id: zeit, zeiten: [stoppuhr] }, steg] }\n')
       expect(codes(zweiter)).toContain('ABWANDLUNG_KONFLIKT')
+    })
+
+    it('Parallelslalom: Die Spalten seiner Listen hängen nicht von der Klasse ab – ein Blatt trägt alle Klassen', () => {
+      expect(codes((t) => t)).not.toContain('PARALLEL_KLASSEN')
+      // Eine Spalte nur für bestimmte Klassen …
+      expect(codes((t) => t.replace('- { key: b5, label: "Boje 5", typ: boje }', '- { key: b5, label: "Boje 5", typ: boje, klassen: [4, 5] }'))).toContain('PARALLEL_KLASSEN')
+      // … oder die ganze Position.
+      expect(codes((t) => t.replace('    menue: "Parallelslalom (nur Fahrweg)"\n', '    menue: "Parallelslalom (nur Fahrweg)"\n    klassen: [4, 5]\n'))).toContain('PARALLEL_KLASSEN')
     })
 
     it('meldet einen Aufbau mit unbekannter Disziplin', () => {

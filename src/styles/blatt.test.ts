@@ -18,7 +18,7 @@ const aushangCss = lies('aushang.css')
  * Zusage an den Nutzer: Am Bildschirm folgen alle Listen dem Farbschema, im Druck sind sie
  * verlässlich schwarz auf weiß. Das hält nur, solange keine Listen-Regel eine Farbe an
  * --blatt-* vorbei setzt – genau das wird hier geprüft, damit es auch für künftige Listen
- * (Ergebnislisten) gilt.
+ * (Wertungslisten) gilt.
  */
 
 interface Regel {
@@ -62,7 +62,7 @@ function regeln(css: string): Regel[] {
 
 // Alles, was zu einem Blatt gehört: Listen (.sheet…, ihre Druckseiten .listen-seite…) und Bögen (.bogen…, Kopf bk-,
 // Tabelle bt-, Legende bl, Unterschrift bu-). Neue Listenarten hier ergänzen.
-// Dazu die Ergebnislisten (ergebnis-blatt, erg-), die Eingabetabelle der Erfassung (erf-)
+// Dazu die Wertungslisten (ergebnis-blatt, erg-), die Eingabetabelle der Erfassung (erf-)
 // die Laufzettel (laufzettel, lz-), der Aushang der Codes (lg-) und die Pokalauswertung (pokal-).
 const BLATT = /\.(sheet|listen-seite|bogen|ergebnis-blatt|ergebnis-stapel|laufzettel|lz-|lg-|erg-|pokal-|erf-|bk-|bt-|bl-|bu-)|\.bl(?![\w-])/
 const FESTE_FARBE = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(|\b(white|black|red|gr[ae]y|silver|blue|green|yellow|orange|navy|teal)\b/i

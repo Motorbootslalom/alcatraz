@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { execSync } from 'node:child_process'
 import type { Plugin } from 'vite'
-import { schreibeOfflineSpeicher, SW_ABMELDEN, SW_DATEI } from './scripts/offline-speicher.ts'
+import { schreibeOfflineSpeicher, SW_ABMELDEN, SW_DATEI, type OfflineFassung } from './scripts/offline-speicher.ts'
 
 /**
  * Letzter Commit, aus dem gebaut wird: kurze ID und Zeitpunkt. Außerhalb eines
@@ -26,7 +26,7 @@ function gitStand(): { commit: string; time: string } {
  * Die Ein-Datei-Fassung bekommt beides nicht – sie muss eine einzige Datei bleiben.
  * Der Entwicklungsserver liefert statt des Speichers dessen Abmeldung.
  */
-function offlineSpeicher(fassung: string): Plugin {
+function offlineSpeicher(fassung: OfflineFassung): Plugin {
   let ordner = 'dist'
   let bauen = false
   return {
@@ -61,14 +61,16 @@ function offlineSpeicher(fassung: string): Plugin {
 export default defineConfig(({ mode }) => {
   const single = mode === 'single'
   const stand = gitStand()
+  // Ein Zeitpunkt für Seite und Offline-Speicher: Beide nennen dieselbe Fassung.
+  const bauZeit = new Date().toISOString()
   return {
     base: './',
     define: {
-      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+      __BUILD_TIME__: JSON.stringify(bauZeit),
       __BUILD_COMMIT__: JSON.stringify(stand.commit),
       __BUILD_COMMIT_TIME__: JSON.stringify(stand.time),
     },
-    plugins: [vue(), ...(single ? [viteSingleFile({ removeViteModuleLoader: true })] : [offlineSpeicher(stand.commit)])],
+    plugins: [vue(), ...(single ? [viteSingleFile({ removeViteModuleLoader: true })] : [offlineSpeicher({ fassung: stand.commit, commitZeit: stand.time, zeit: bauZeit })])],
     // Manifest und Zeichen (public/) gehören nur zum Pages-Build.
     publicDir: single ? false : 'public',
     build: single

@@ -7,8 +7,10 @@
 #
 # Die englischen Texte (`en`) folgen wörtlich Pkt. 5.3, einschließlich der dort
 # verwendeten Begriffe („safety belt“ für den Rettungsring). Korrigiert ist nur
-# eine doppelte Verneinung (Code 18). Die Titel Departure und Mooring stammen aus
-# Pkt. 4.1.1 und den Parcourszeichnungen. Die deutschen Texte sind Übersetzungen.
+# eine doppelte Verneinung (Code 18). Die Titel der Steg-Kataloge folgen Pkt. 4.1 („right from
+# the moment of leaving the starting pontoon“) und Pkt. 4.1.1 („Mooring: After passing the
+# finishing line a boat must approach the mooring pontoon …“) – ohne die deutschen Kürzel AB
+# und AN. Die deutschen Texte sind Übersetzungen.
 #
 # Codes mit gleicher Bedeutung tragen dieselbe Nummer wie in der DM. Fehler, die
 # die UIM nicht kennt (Durchreißen der Schaltung, Treten auf den Schlauch,
@@ -19,17 +21,31 @@ version: 2026
 # Listen und Fehlertexte wahlweise deutsch, englisch oder zweisprachig.
 sprachen: [de, en]
 # Die UIM schreibt englisch aus: Alle Listen außer den Wettkampfrichter-Bögen (Starter-,
-# Gewichts-, Vorsteg- und Ergebnislisten, Laufzettel, Aushang der Codes) stehen englisch,
+# Gewichts-, Vorsteg- und Wertungslisten, Laufzettel, Aushang der Codes) stehen englisch,
 # gleich in welcher Sprache die Oberfläche bedient wird. Für die Bögen ist es die Vorgabe;
 # dort lässt sich je Liste deutsch, englisch oder zweisprachig wählen.
 listenSprache: en
+# Länder auf den Listen mit dem Kürzel des IOC (GER, SUI, NED, LAT), nicht nach ISO (DEU, CHE …):
+# Regel 209 „POSTING OF THE RESULTS“ – „The nationality of all drivers – either by using a three
+# letter abbreviation for the countries worldwide as listed by the IOC or as full names of the
+# nations in English language.“
+laenderKuerzel: ioc
 quelle: "UIM Circuit Rulebook 2026, Regel 960 Formula Future, Pkt. 5.3 Penalties"
 quelleEn: "UIM Circuit Rulebook 2026, rule 960 Formula Future, pt. 5.3 Penalties"
 einheit: Sekunden
 einheitEn: seconds
 # Formula Future kennt nur Dolphin (hier: E) und die Klassen 1 bis 5.
 klassen: [E, 1, 2, 3, 4, 5]
+# Regel 960, Pkt. 1: „Class Dolphin ages 6 – 7 years“ – so heißt die jüngste Klasse im
+# Regelwerk, und so steht sie überall (Listen, Bögen, Laufzettel, Erfassung, Auswahlfelder,
+# Mannschaftswertung, Druckdatei), gleich in welcher Sprache die Oberfläche bedient wird.
 klassenNamen: { E: Dolphin }
+# Für die runden Marken der Oberfläche, in die der Name nicht passt.
+klassenKurz: { E: D }
+# Die Startnummern der Klasse behalten ihr „E“ (E01): Das Regelbuch nennt für Dolphin keine
+# eigenen Nummern (Pkt. 3.7: „Each driver shall receive a personal number“). Soll sich das
+# einmal ändern, genügt der Buchstabe hier – z. B. { E: D } für D01.
+startNrPraefix: { E: E }
 # Formula Future besteht aus Manövrieren und Parallelslalom.
 disziplinen: [manoevrieren, parallel]
 # Regel 960, Pkt. 3.7 Registration procedure, „Statistical average weight“. Die Werte
@@ -48,7 +64,7 @@ coPilot: [E, 1, 2, 3]
 # zu keinem Versuch). Für den einzelnen Versuch nennt die Regel keinen Stichentscheid.
 stichentscheid: [summeAllerLaeufe]
 # Regel 960, Pkt. 4.3 „Manoeuvring consists of: Tying knots (point 4.3.1); Driving on the
-# manoeuvring racecourse (point 4.3.2)“ und Pkt. 5.2.1: Die Ergebnisliste zeigt „knots test
+# manoeuvring racecourse (point 4.3.2)“ und Pkt. 5.2.1: Die Wertungsliste zeigt „knots test
 # penalties“ und „best times including knots test penalties“. Die Knoten-Liste gehört deshalb
 # zu jedem Aufbau des Manövrierens; ihre Strafsekunden zählen zum Gesamtergebnis. Für den
 # Parallelslalom (Pkt. 4.4, 5.2.2) nennt die Regel keine Knoten.
@@ -59,6 +75,48 @@ vorgabeListen: { manoevrieren: [knoten] }
 # oben. Die Wahl des Regelwerks stellt die Veranstaltung so ein; wer von Hand abweicht,
 # bekommt einen Hinweis.
 wertungslaeufe: { laeufe: 2, streichlaeufe: 1 }
+# Der Parallelslalom wird anders gewertet als das Manövrieren; was hier steht, gilt für ihn
+# statt `stichentscheid` und `wertungslaeufe` oben (das Manövrieren folgt weiter jenen).
+# Regel 960, Pkt. 4.4: „Each driver shall have two attempts - the drivers shall change boats
+# and courses for the second attempt. Times from both attempts are counted up, adding penalty
+# seconds (if any) and the driver is awarded UIM points for his/her ranking (point 317.01 ).“
+# Also zwei Läufe (Attempts), keiner gestrichen: Es zählt die Summe. Pkt. 5.2.2: „If a
+# disqualification occurs in parallel slalom, the driver concerned shall be disqualified from
+# the whole stage because he/she does not have the required two valid attempts.“ – das folgt
+# aus „keiner gestrichen“: Ein disqualifizierter Attempt lässt sich nicht streichen.
+# Pkt. 5.2.6 „Dead-heat situations“: „Parallel slalom - if two or more drivers have the same
+# added times from their two attempts (including penalties), the driver having the better
+# single attempt time (including penalties) from either his/her first or second attempt will
+# be ranked higher. If there is still a dead-heat situation and a decision is required in
+# order to set up the semi-finals or finals, the drivers having the same time must re-run both
+# attempts. After running again only the time of the re-run will be taken into account.“
+# Also `besterLauf`; bleibt danach ein Gleichstand an der Grenze zum Weiterkommen, meldet ihn
+# die Wertung des Vorlaufs und sperrt das Weiterkommen (lib/parallelErgebnis.ts).
+wertungJeDisziplin:
+  parallel:
+    wertungslaeufe: { laeufe: 2, streichlaeufe: 0 }
+    stichentscheid: [besterLauf]
+# Regel 960, Pkt. 4.3.2: „Each driver is allowed 2 attempts, run consecutively.“ … „The jury can
+# decide another starting order/system in manoeuvring.“ Wie „consecutively“ gefahren wird, ist
+# je Land verschieden (Entscheidung des Nutzers vom 15.11.2026): Manche legen am Steg nur an,
+# steigen nicht aus und fahren gleich noch einmal; andere fahren die Versuche wie zwei Läufe.
+# Deshalb ist „Versuche direkt nacheinander“ eine Option der Veranstaltung und NICHT vorgewählt.
+# Ist sie an, steht jeder Starter auf den Listen der race officials zweimal direkt nacheinander
+# (1. und 2. Versuch auf einem Klassenzettel, lib/bogen.ts), und auf dem Laufzettel entfallen
+# die Schritte für den Aushang dazwischen (einstellungen.yaml `laufzettel`, `zwischenaushang`).
+versucheNacheinander: false
+# Regel 960, Pkt. 5.2 „Results“: „All results must be signed by the O.O.D. and must show the
+# time of posting.“ Unter jeder Wertungsliste (je Versuch, Gesamtliste, Einzelwertung, Mannschaftswertung)
+# stehen deshalb eine Unterschriftszeile „O.O.D.“ und ein leeres Feld „Time of posting“, beides
+# zum Eintragen von Hand – der gedruckte Zeitstempel daneben nennt die letzte Änderung, nicht
+# den Aushang. Pkt. 5.2.1: „Manoeuvring: knots test penalties, 1st attempt times, 1st att.
+# penalties, 1st att. times including penalties, 2nd attempt times, 2nd penalties, 2nd attempt
+# times including penalties, best times including knots test penalties, ranking, UIM points.“
+# Die Gesamtliste des Manövrierens bekommt deshalb die Spalte „UIM points“ (Tabelle unten,
+# `pokal.uim.punkte`, Pkt. 5.1). Punkte stehen erst da, wenn die Klasse vollständig ist; Pkt.
+# 5.1: „Drivers must complete the relevant stage and cross the finishing line in order to be
+# classified for the stage.“ – wer disqualifiziert ist, hat 0 Punkte.
+aushang: { unterschrift: true, punkte: true }
 
 # Mannschaftswertung („team competition“). Regel 960, Pkt. 5.1 „Point system“ (S. 286): „The
 # UIM pointing system to be used is: 1 - 400 points, 2 - 300, 3 - 225, 4 - 169, 5 - 127,
@@ -75,14 +133,72 @@ wertungslaeufe: { laeufe: 2, streichlaeufe: 1 }
 #   uim.punkte  Punkte für die Plätze 1, 2, 3 … der Gesamtliste einer Klasse; dahinter 0.
 #   uim.beste   So viele Starter je Herkunft zählen (die mit den meisten Punkten).
 #   uim.mindestens  So viele Starter muss eine Herkunft stellen, um gewertet zu werden.
-# Nicht umgesetzt (Vorgabe des Veranstalters: Punktgleiche teilen sich den Platz): der
-# Stichentscheid der Mannschaften aus Pkt. 5.2.6 (Summe der Punkte der 1. Plätze, dann der 2. …).
+#   stichentscheid  Was punktgleiche Mannschaften trennt. Pkt. 5.2.6 „Dead-heat situations“:
+#               „Team competition - if two or more teams end up having the same sum of UIM
+#               points in the team competition, the sum of points of 1st places are added, if
+#               the dead heat situation continues, the same procedure must been followed for
+#               the 2nd place until a winner can be defined. This is only possible if both
+#               teams have enough drivers to be taken into account. If any of the above
+#               mentioned solutions would not define a winner, there will be a dead-heat
+#               result.“ Also die Summe der Punkte der 1. Plätze (`zaehlt: punkte`), dann der
+#               2. … ohne Grenze (`plaetze` fehlt = jeder Platz der Punktetabelle); gezählt
+#               werden die Plätze aller Starter der Mannschaft, die für die Wertung zählen,
+#               verglichen wird nur unter gewerteten Mannschaften. Trennt nichts: geteilter Platz.
+#
+# Einzelwertung („individual competition“) und ihre Rolle in der Mannschaftswertung. Pkt. 5.1:
+# „The 2nd and the 3rd stage will be regarded as separate championships. At the end of the 3rd
+# stage, points of the 2nd and the 3rd stage will be added up. An overall title in the individual
+# competition will be awarded to the three drivers of each class who have the highest scores from
+# the sum of the 2nd and the 3rd stages.“ Pkt. 5.2.3: „Individual competition / General:
+# manoeuvring overall UIM points, parallel slalom overall UIM points, UIM combined points
+# ranking.“ Pkt. 5.2.6: „Individual competition - if two or more drivers have the same combined
+# number of points from 2nd and 3rd stage, the driver having the best combined times, i.e. the
+# sum of his/her better manoeuvring attempt (including penalties) and both his/her parallel
+# slalom attempts (including penalties) - will be ranked higher.“
+# Gerechnet in lib/einzelwertung.ts. Welche Disziplin zählt (lib/disziplinen.ts; Entscheidungen
+# des Nutzers vom 15.11.2026 – Regel 960 nennt die Fälle nicht): jede, zu der der erste Wert
+# erfasst ist, in beliebiger Reihenfolge – auch nur eine von beiden, dann sind ihre Punkte die der
+# Einzelwertung. Wird eine Disziplin in einer Klasse abgebrochen, zählt sie für diese Klasse
+# nicht; ob sie dann auch für fertige Klassen gestrichen wird, entscheidet der O.O.D. vor Ort
+# (Schalter „Disziplin nicht werten“ je Disziplin und Klasse). Die Mannschaftswertung nach
+# UIM-Punkten zählt je Starter die Punkte der Einzelwertung; `uim.punkte` gilt je Disziplin. Die
+# UIM points des Manövrierens gibt es erst, wenn auch die Knoten erfasst sind (Pkt. 5.2.1: „best
+# times including knots test penalties, ranking, UIM points“).
+# FESTLEGUNGEN zum Stichentscheid der Einzelwertung, wo Pkt. 5.2.6 nichts Näheres sagt
+# (Entscheidungen des Nutzers vom 15.11.2026; umstellbar in lib/einzelwertung.ts
+# `EINZEL_FESTLEGUNGEN`): der bessere Versuch des Manövrierens MIT den Strafen der Knoten und die
+# beiden Attempts des VORLAUFS (nach einem Re-run dessen Zeiten). Wem für den Stichentscheid eine
+# Zeit fehlt, weil er in einer Disziplin disqualifiziert ist, steht hinter den Punktgleichen mit
+# Zeit (eine Disqualifikation ist eine Wertung: letzter Platz unter den Punktgleichen); mehrere
+# solche teilen sich diesen Platz. Die „1st places“ des Stichentscheids der Mannschaften sind die
+# der Einzelwertung, dann die „2nd places“ usw.
 pokal:
   vorgabe: [uim]
+  stichentscheid: { zaehlt: punkte }
   uim:
     punkte: [400, 300, 225, 169, 127, 95, 71, 53, 40, 30, 22, 17, 13, 9, 7, 5, 4, 3, 2, 1]
     beste: 5
     mindestens: 5
+
+# Laufzettel: Abweichung von der Vorgabe (einstellungen.yaml `laufzettel`) für den Zettel des
+# letzten Versuchs. Regel 960, Pkt. 5.2 „Results“: „Results for each class and stage must be
+# posted as soon as possible (and never more than 1 (one) hour after the last driver of that
+# class has finished the relevant stage) in a clearly visible place (as announced in the
+# drivers meeting). All results must be signed by the O.O.D. and must show the time of
+# posting.“ Mit dem letzten Versuch ist die Stage (Manövrieren) der Klasse beendet: Der Zettel
+# bekommt deshalb den Schritt für den Aushang binnen einer Stunde, mit Unterschrift des O.O.D.
+# und Uhrzeit des Aushangs. Der Schritt der DM „Einsicht der Mannschaftsleiter (kein Aushang)“
+# (Reglement C6) entfällt hier – die UIM verlangt den Aushang; ebenso das allgemeine
+# „Unterschrieben“, das im neuen Schritt aufgeht. Die Zettel der übrigen Versuche folgen der Vorgabe.
+laufzettel:
+  schritteLetzterLauf:
+    - "Wertungsliste sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)"
+    - "Wertungsliste sortiert nach Platz"
+    - "Kontrolliert"
+    - text: "Ergebnisse vom O.O.D. unterschrieben und ausgehängt – höchstens 1 Stunde nach dem letzten Fahrer der Klasse, mit Uhrzeit des Aushangs (Regel 960, Pkt. 5.2)"
+      en: "Results signed by the O.O.D. and posted – not more than 1 (one) hour after the last driver of the class has finished, showing the time of posting (rule 960, pt. 5.2)"
+    - "Gesamtergebnis gedruckt"
+    - "Gesamtergebnis kontrolliert"
 
 fehlerHinweis: "Fehler sind kombinierbar: Jeder eingetragene Code zählt einzeln, die Sekunden werden addiert (2. und 3. Versuch: Code ist zweimal eintragbar, z. B. 2x6)."
 fehlerHinweisEn: "Penalties can be combined: every code entered counts separately and the seconds are added (2nd and 3rd attempt: the code can be entered twice, e.g. 2x6)."
@@ -120,14 +236,14 @@ direktpunkte:
 kataloge:
   stegAblegen:
     titel: "Ablegen (AB)"
-    titelEn: "Departure (AB)"
+    titelEn: "Leaving the starting pontoon"
     fehler:
       - { code: 3, text: "erneute Stegberührung", en: "Additional touch of the starting pontoon", punkte: 5 }
       - { code: 6, text: "2. und 3. Versuch des Elementes (je Versuch)", en: "2nd and 3rd attempt each element of the race course (each attempt)", punkte: 5 }
 
   stegAnlegen:
     titel: "Anlegen (AN)"
-    titelEn: "Mooring (AN)"
+    titelEn: "Mooring"
     fehler:
       - { code: 7, text: "2. und 3. Versuch des Elementes (je Versuch)", en: "2nd and 3rd attempt each element of the race course (each attempt)", punkte: 5 }
       - { code: 9, text: "Stegberührung mit Zurückprallen (über 300 mm innerhalb 1 Sekunde)", en: "Bumping the landing pontoon (bounces back more than 300 mm within 1 second, Pt. 4.1.1)", punkte: 5 }

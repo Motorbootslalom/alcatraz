@@ -1,5 +1,6 @@
 import type { ClassId, Einteilung, Parcours } from '../types'
 import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
+import { istRacecourseParcours } from './parallelSchluessel'
 
 // WKR-Einteilung (KONZEPT-NAMEN-FREIHAND.md §1 im Fehlerpunkte-Prototyp): Wer an welcher
 // Liste sitzt, einmal für die Veranstaltung statt auf jedem Bogen. Jeder Parcours hat eigene
@@ -10,6 +11,12 @@ import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './
 // Namen hängen deshalb an der Kennung des Parcours – beliebig viele – und an der Liste
 // (`typeId`), nicht am Aufbau: Nach einem Aufbauwechsel gelten sie für die Listen, die es
 // dort auch gibt, die übrigen bleiben gespeichert.
+//
+// Parallelslalom: Die race officials der beiden Racecourses A und B stehen in derselben
+// Einteilung, unter den festen Kennungen der Racecourses statt der eines Parcours
+// (lib/parallelSchluessel.ts `RACECOURSE_PARCOURS`) – je Racecourse Zeit, Steg (pontoon) und
+// Fahrweg. Das ist Organisation, nicht Regel 960. Diese Einträge hängen an keinem Parcours der
+// Verzahnung und bleiben deshalb, wenn deren Parcours wechseln.
 //
 // Es sind Personennamen: Sie gehören in die Sicherung, nicht in die Vorlage (persistenz/backup.ts).
 
@@ -84,7 +91,7 @@ export function normalisiereEinteilung(raw: unknown, parcoursIds?: readonly stri
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   const paare: Array<[string, Record<string, string>]> = []
   for (const [parcoursId, liste] of Object.entries(raw)) {
-    if (parcoursId === UNBRAUCHBAR || (parcoursIds && !parcoursIds.includes(parcoursId))) continue
+    if (parcoursId === UNBRAUCHBAR || (parcoursIds && !parcoursIds.includes(parcoursId) && !istRacecourseParcours(parcoursId))) continue
     if (!liste || typeof liste !== 'object' || Array.isArray(liste)) continue
     const namen = Object.entries(liste).filter(
       (x): x is [string, string] => x[0] !== UNBRAUCHBAR && typeof x[1] === 'string' && x[1].trim() !== '',
@@ -112,6 +119,8 @@ export function haengeUm(e: Einteilung, alt: readonly string[], neu: readonly st
     const liste = quelle === undefined ? undefined : namen.get(quelle)
     if (liste && id !== UNBRAUCHBAR) paare.push([id, liste])
   })
+  // Die race officials der Racecourses (Parallelslalom) hängen an keinem Parcours: Sie bleiben.
+  for (const [id, liste] of namen) if (istRacecourseParcours(id) && !neu.includes(id)) paare.push([id, liste])
   return Object.fromEntries(paare)
 }
 

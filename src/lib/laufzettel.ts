@@ -137,6 +137,23 @@ export function buildLaufzettel(
 }
 
 /**
+ * Die Arbeitsschritte eines Zettels. Der Zettel des letzten Laufs hat eigene (kein Aushang
+ * mehr, dafür das Gesamtergebnis). `nacheinander`: Die Läufe werden direkt nacheinander
+ * gefahren (UIM 960, Pkt. 4.3.2 „2 attempts, run consecutively“) – zwischen ihnen wird nichts
+ * ausgehängt und nichts verschickt. Auf den Zetteln vor dem letzten Lauf entfallen dann die
+ * Schritte, die das Regelwerk bzw. die Vorgabe als `zwischenaushang` kennzeichnet; der Zettel
+ * des letzten Laufs bleibt, wie er ist.
+ */
+export function zettelSchritte<S extends { zwischenaushang?: boolean }>(
+  config: { schritte: readonly S[]; schritteLetzterLauf: readonly S[] },
+  zettel: Pick<Laufzettel, 'letzterLauf'>,
+  nacheinander: boolean,
+): S[] {
+  if (zettel.letzterLauf) return [...config.schritteLetzterLauf]
+  return nacheinander ? config.schritte.filter((s) => !s.zwischenaushang) : [...config.schritte]
+}
+
+/**
  * Die Bögen des Blattstapels, zu dem eine Klasse in einem Lauf gehört – in der Reihenfolge des
  * Laufzettels. Die Erfassung zeigt sie untereinander, wenn ein Laufzettel gescannt wurde: Wer
  * den Stapel vor sich hat, tippt Blatt für Blatt ab, ohne zwischen Listen zu wechseln. Bei der

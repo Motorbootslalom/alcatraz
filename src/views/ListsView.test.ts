@@ -102,12 +102,12 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     await waehle(wrapper, 'lauf', '1')
     await drucken(wrapper).trigger('click')
     expect(print).toHaveBeenCalledOnce()
-    expect(document.title).toMatch(/^Judges' sheets - Class 7 - Attempt 1 - Hafenpokal 2026 - \d{4}-\d{2}-\d{2}/)
+    expect(document.title).toMatch(/^Race officials' sheets - Class 7 - Attempt 1 - Hafenpokal 2026 - \d{4}-\d{2}-\d{2}/)
     window.dispatchEvent(new Event('afterprint'))
     // Der Titel wird zum Dateinamen: keine Schrägstriche („Tor 1 / 3 / 5“; der Name der Liste folgt dem Regelwerk).
     await waehle(wrapper, 'liste', 'gate135')
     await drucken(wrapper).trigger('click')
-    expect(document.title).toMatch(/^Judges' sheets - Class 7 - Attempt 1 - Tor 1-3-5 - Hafenpokal 2026 - /)
+    expect(document.title).toMatch(/^Race officials' sheets - Class 7 - Attempt 1 - Tor 1-3-5 - Hafenpokal 2026 - /)
     expect(document.title).not.toMatch(/[/\\:]/)
     // Im Rand der Bogen-Seiten steht nichts – kein Druckzeitpunkt, keine Seitenzahl: Die Ansicht
     // erzeugt kein eigenes Stylesheet mehr. Mehrseitige Bögen zählen ihre Seiten selbst (Seitenzahlen.test.ts).

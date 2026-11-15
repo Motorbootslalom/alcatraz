@@ -4,7 +4,9 @@ import { useStore } from '../state/store'
 import { birthYearRange } from '../domain/classes'
 import { SIZES } from '../domain/sizes'
 import { makeStartNr, parseClassNumber } from '../domain/startnumbers'
+import { startNrPraefixe } from '../config/catalog'
 import { uid } from '../domain/ids'
+import { useEvent } from '../lib/event'
 import { originField, originLabelKey } from '../lib/origin'
 import { t } from '../i18n'
 import type { ClassId, Starter } from '../types'
@@ -13,6 +15,7 @@ const props = defineProps<{ classId: ClassId; existing: Starter[] }>()
 const emit = defineEmits<{ add: [p: Starter]; done: [] }>()
 
 const { state } = useStore()
+const { classLabel } = useEvent()
 const range = computed(() => birthYearRange(props.classId, state.value.eventJahr))
 const vorname = ref('')
 const nachname = ref('')
@@ -24,12 +27,25 @@ const groesse = ref('')
 function nextStartNr(): string {
   if (state.value.startNrMode === 'klassisch') return ''
   let max = 0
-  for (const p of props.existing) max = Math.max(max, parseClassNumber(p.startNr, props.classId) ?? 0)
-  return makeStartNr(props.classId, max + 1)
+  const praefixe = startNrPraefixe(state.value)
+  for (const p of props.existing) max = Math.max(max, parseClassNumber(p.startNr, props.classId, praefixe) ?? 0)
+  return makeStartNr(props.classId, max + 1, praefixe)
 }
 
+/**
+ * Ein Geburtsjahr, das nicht in die Klasse gehört, wird abgewiesen – wie beim Einfügen aus Excel
+ * (import/klassenPruefung.ts): Wer in der falschen Klasse fährt, verfälscht deren Wertung. Das
+ * Datumsfeld begrenzt die Jahre schon; verlassen wird sich darauf nicht (Eingabe von Hand,
+ * Browser ohne Prüfung). Ohne Datum lässt sich nichts prüfen – das fällt in der Liste auf.
+ */
+const jahrFehler = computed(() => {
+  const jahr = parseInt(geb.value.slice(0, 4), 10)
+  if (!geb.value || Number.isNaN(jahr) || (jahr >= range.value[0] && jahr <= range.value[1])) return ''
+  return t('starters.birthOutOfRange', { year: jahr, class: classLabel(props.classId), from: range.value[0], to: range.value[1] })
+})
+
 function submit() {
-  if (!vorname.value.trim() || !nachname.value.trim()) return
+  if (!vorname.value.trim() || !nachname.value.trim() || jahrFehler.value) return
   const feld = originField(state.value.originMode)
   const wert = herkunft.value.trim()
   emit('add', {
@@ -81,9 +97,10 @@ function submit() {
           <option v-for="s in SIZES" :key="s" :value="s">{{ s }}</option>
         </select>
       </div>
-      <button class="btn primary" type="submit" :disabled="!vorname.trim() || !nachname.trim()">
+      <button class="btn primary" type="submit" :disabled="!vorname.trim() || !nachname.trim() || !!jahrFehler">
         {{ t('common.add') }}
       </button>
     </div>
+    <p v-if="jahrFehler" class="boat-banner warn" role="alert" data-hinweis="jahrgang-falsch">{{ jahrFehler }}</p>
   </form>
 </template>

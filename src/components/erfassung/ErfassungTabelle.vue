@@ -5,8 +5,9 @@ import { useKonfig } from '../../lib/konfig'
 import { bogenSeiten, defFuerKlasse, type BogenBlattSpalte, type BogenModellZeile } from '../../lib/bogen'
 import { codeEntries, normalizeCodeCell, parseCodeEntry } from '../../lib/codes'
 import { allowedSet, sanitizeBuoy, sanitizeCodeInput, sanitizeDisq } from '../../lib/disq'
-import { erfasstKennung, feldVon, felderJeKennung, laufSchluessel, listenFelder, listenLauf, werteVon, type EingabeZelle, type Feld } from '../../lib/eingaben'
-import { zeileErfasst, zeileHatWerte, zeilenHinweise, type Hinweis } from '../../lib/erfassung'
+import { erfasstKennung, feldVon, felderJeKennung, laufSchluessel, listenFelder, werteVon, type EingabeZelle, type Feld } from '../../lib/eingaben'
+import { nichtGestartet, versucheAbweichend, zeileErfasst, zeileHatWerte, zeilenHinweise, zeilenSchluessel, zeilenSchluesselAlle, type Hinweis } from '../../lib/erfassung'
+import { parallelListen } from '../../lib/parallelBogen'
 import { gridNavKeyDown } from '../../lib/gridnav'
 import { veranstaltungsListen } from '../../lib/listen'
 import { scoreRow, summenText, formatDisqs } from '../../lib/scoring'
@@ -25,6 +26,18 @@ import ZeitZelle from './ZeitZelle.vue'
  * Jede Zelle schreibt sofort in den Stand: Lauf-Schlüssel, Starter-ID und Feld-Kennung
  * benennen sie (lib/eingaben.ts). Leerzeilen gibt es hier nicht – wer nachgemeldet ist, wird
  * unter „Starter“ angelegt und hat dann seine Zeile.
+ *
+ * Listen einer Runde des Parallelslaloms (lib/parallelBogen.ts): Jede Zeile ist ein Start und
+ * hat ihren eigenen Lauf-Schlüssel (den Attempt, lib/parallelSchluessel.ts) – die Werte hängen
+ * an Starter-ID und Attempt, nicht am Racecourse. Die Zeile eines Dummys oder eines
+ * entfallenen Starts steht grau da und hat keine Felder: Enter und die Pfeiltasten
+ * überspringen sie von selbst.
+ *
+ * „Versuche direkt nacheinander“ (lib/bogen.ts `BogenAuftrag.versuche`): Auch auf einem Bogen
+ * des Manövrierens steht dann jeder Starter je Versuch einmal da, und jede Zeile schreibt unter
+ * ihren Versuch (Lauf) – wie auf dem Papier. Nur am Vorsteg (`BogenAuftrag.einmal`) steht er
+ * einmal da: Seine Zeile gilt für jeden Versuch und schreibt unter jeden (lib/erfassung.ts
+ * `zeilenSchluesselAlle`).
  */
 const props = defineProps<{ bogen: WkrBogen }>()
 
@@ -35,12 +48,23 @@ const seite = computed(
   () => bogenSeiten(konfig.value, props.bogen.auftrag, { klassenBloecke: props.bogen.optionen.klassenBloecke, leerzeilen: 0, leerzeilenJeKlasse: {} })[0],
 )
 const basisDef = computed(() => konfig.value.getSheetDef(props.bogen.typeId))
-const schluessel = computed(() =>
-  laufSchluessel(konfig.value.getAufbau(state.value.aufbau).disziplin, listenLauf(basisDef.value, props.bogen.lauf)),
-)
+/** Der Lauf-Schlüssel des Bogens; auf Listen einer Runde gilt je Zeile ihr Attempt ({@link schluesselVon}). */
+const schluessel = computed(() => zeilenSchluessel(konfig.value, state.value.aufbau, props.bogen.auftrag))
+const schluesselVon = (row: BogenModellZeile) => (row.lauf === undefined ? schluessel.value : zeilenSchluessel(konfig.value, state.value.aufbau, props.bogen.auftrag, row.lauf))
+/**
+ * Die weiteren Lauf-Schlüssel, unter die jede Zeile schreibt: nur am Vorsteg mit „Versuche direkt
+ * nacheinander“ (die Versuche 2 … n; gelesen wird unter dem ersten, {@link schluessel}). Sonst leer.
+ */
+// Erst als EIN Text: Jede Eingabe ersetzt den Stand; ein neues Array gälte sonst jedes Mal als
+// Änderung und legte den Vorrat der Zeilen neu an (siehe `vorrat`).
+const weitereKennung = computed(() => zeilenSchluesselAlle(konfig.value, state.value.aufbau, props.bogen.auftrag).slice(1).join('\n'))
+const weitereSchluessel = computed(() => (weitereKennung.value ? weitereKennung.value.split('\n') : []))
+const KEINE: readonly Readonly<Record<string, string>>[] = Object.freeze([])
+/** Die Starter-ID einer Zeile: sonst ihr Schlüssel, auf Listen einer Runde eigens genannt. */
+const starterVon = (row: BogenModellZeile) => row.starter ?? row.key
 // Die Listen der Veranstaltung als EIN Wert: Jede Eingabe ersetzt den Stand, die Listen bleiben
 // dabei dieselben – als neues Array gälte sonst bei jedem Tastendruck alles als geändert.
-const listenKennung = computed(() => JSON.stringify(veranstaltungsListen(konfig.value, state.value)))
+const listenKennung = computed(() => JSON.stringify(props.bogen.runde ? parallelListen(konfig.value) : veranstaltungsListen(konfig.value, state.value)))
 const listen = computed<string[]>(() => JSON.parse(listenKennung.value))
 /** Alle Felder einer Klasse (für die Hinweise einer Zeile) – einmal je Klasse, nicht je Zeile. */
 const alleFelder = computed(() => {
@@ -56,12 +80,16 @@ const alleFelder = computed(() => {
 const hatSub = (col: Column) => !!col.sub && col.sub.length > 0
 const leafKey = (leaf: BogenBlattSpalte) => (leaf.subIndex === undefined ? leaf.colKey : `${leaf.colKey}#${leaf.subIndex}`)
 const sep = (links?: TrennerDesign, rechts?: TrennerDesign) => (links ? ` erf-sep-${links}` : '') + (rechts ? ` erf-sepr-${rechts}` : '')
-const totalCols = computed(() => 2 + (seite.value.zeigtKlasse ? 1 : 0) + seite.value.leaves.length)
+// Mit „Versuche direkt nacheinander“ steht hinter Nr. und Klasse ebenfalls die Spalte Versuch (lib/bogen.ts).
+const mitVersuch = computed(() => seite.value.startForm || seite.value.versuchForm)
+const totalCols = computed(() => 2 + (seite.value.zeigtKlasse ? 1 : 0) + (seite.value.startForm ? 1 : 0) + (mitVersuch.value ? 1 : 0) + seite.value.leaves.length)
 
 interface Zeile {
   row: BogenModellZeile
   klasse: string
   werte: Readonly<Record<string, string>>
+  /** Am Vorsteg mit „Versuche direkt nacheinander“: die Werte der weiteren Versuche (sonst leer). */
+  weitere: readonly Readonly<Record<string, string>>[]
   /** Je Blatt-Spalte das Feld; `undefined` bei Σ und bei Spalten, die die Klasse nicht hat. */
   felder: (Feld | undefined)[]
   summen: string[]
@@ -71,6 +99,8 @@ interface Zeile {
   erfasst: boolean
   hatWerte: boolean
   hinweise: Hinweis[]
+  /** Im Lauf dieser Liste steht das X „Nicht gestartet“: Die Zeile ist schraffiert. */
+  x: boolean
 }
 
 /**
@@ -84,6 +114,7 @@ interface Zeile {
 const vorrat = computed(() => {
   void seite.value
   void schluessel.value
+  void weitereSchluessel.value
   void listen.value
   void locale.value
   return new Map<string, Zeile>()
@@ -95,46 +126,79 @@ const zeilen = computed<Zeile[]>(() => {
   const eingaben = toRaw(state.value).eingaben
   return seite.value.rows.map((row): Zeile => {
     const klasse = row.klasse ?? props.bogen.klassen[0]
-    if (row.zwischen !== undefined) {
+    // Ohne Starter (Zwischenüberschrift; Dummy oder entfallener Start einer Runde) gibt es keine Werte.
+    if (row.zwischen !== undefined || row.dummy || row.entfaellt) {
       const bekannt = vorrat.value.get(row.key)
       if (bekannt) return bekannt
-      const zeile: Zeile = { row, klasse, werte: {}, felder: [], summen: [], autoDisq: '', erfasst: false, hatWerte: false, hinweise: [] }
+      const zeile: Zeile = { row, klasse, werte: {}, weitere: KEINE, felder: [], summen: [], autoDisq: '', erfasst: false, hatWerte: false, hinweise: [], x: false }
       vorrat.value.set(row.key, zeile)
       return zeile
     }
-    const werte = werteVon(eingaben, schluessel.value, row.key)
+    const werte = werteVon(eingaben, schluesselVon(row), starterVon(row))
+    const weitere = weitereSchluessel.value.length === 0 ? KEINE : weitereSchluessel.value.map((lauf) => werteVon(eingaben, lauf, starterVon(row)))
     const bekannt = vorrat.value.get(row.key)
-    if (bekannt && bekannt.werte === werte) return bekannt
-    const zeile = bildeZeile(row, klasse, werte)
+    if (bekannt && bekannt.werte === werte && bekannt.weitere.length === weitere.length && bekannt.weitere.every((w, i) => w === weitere[i])) return bekannt
+    const zeile = bildeZeile(row, klasse, werte, weitere)
     vorrat.value.set(row.key, zeile)
     return zeile
   })
 })
 
-function bildeZeile(row: BogenModellZeile, klasse: string, werte: Readonly<Record<string, string>>): Zeile {
+function bildeZeile(row: BogenModellZeile, klasse: string, werte: Readonly<Record<string, string>>, weitere: readonly Readonly<Record<string, string>>[]): Zeile {
   const typeId = props.bogen.typeId
   const felder = seite.value.leaves.map((leaf, li) => (row.cells[li].gilt ? feldVon(konfig.value, typeId, klasse, leaf.colKey, leaf.subIndex) : undefined))
   const listenfelder = listenFelder(konfig.value, typeId, klasse)
   const jeZelle = new Map(listenfelder.map((f) => [f.zelle, f.kennung]))
   // scoreRow fragt Zellschlüssel „<Zeile>:<Zelle>“; die Zeile ist hier leer.
   const score = scoreRow(defFuerKlasse(basisDef.value, klasse), '', (key) => werte[jeZelle.get(key.slice(1)) ?? ''] ?? '')
+  const hinweise = zeilenHinweise(listenfelder, werte, alleFelder.value(klasse), typeId)
   return {
     row,
     klasse,
     werte,
+    weitere,
     felder,
     summen: seite.value.leaves.map((leaf, li) => (leaf.kind === 'sum' && row.cells[li].gilt ? summenText(score, leaf.colKey) : '')),
     disqTitel: score.disqs.length ? formatDisqs(score.disqs) : undefined,
     autoDisq: [...new Set(score.disqs.filter((d) => !basisDef.value.columns.some((c) => c.kind === 'disq' && c.label === d.where)).map((d) => d.code))].join(', '),
     erfasst: zeileErfasst(listenfelder, werte, typeId),
     hatWerte: zeileHatWerte(listenfelder, werte),
-    hinweise: zeilenHinweise(listenfelder, werte, alleFelder.value(klasse), typeId),
+    // Gilt die Zeile für jeden Versuch, fällt auf, wenn ein späterer etwas anderes trägt (lib/erfassung.ts).
+    hinweise: versucheAbweichend(listenfelder, werte, weitere, typeId) ? [...hinweise, { art: 'versucheAbweichend' }] : hinweise,
+    // … und schraffiert ist sie erst, wenn er in KEINEM Versuch startet.
+    x: [werte, ...weitere].every((w) => nichtGestartet(w, alleFelder.value(klasse))),
   }
 }
 
-const starterZeilen = computed(() => zeilen.value.filter((z) => z.row.zwischen === undefined && konfig.value.positionAllowsClass(props.bogen.typeId, z.klasse)))
+/**
+ * Eine Liste ohne Lauf (Knoten) gehört zu keinem Lauf, in dem ein X stehen könnte. Dort ist
+ * schraffiert, wer in JEDEM Lauf das X hat – also gar nicht antritt. (Die Zeilen selbst hängen
+ * hier an den Werten ohne Lauf; deshalb steht das neben ihnen und nicht in ihnen.)
+ */
+const nieGestartet = computed<ReadonlySet<string>>(() => {
+  const out = new Set<string>()
+  if (basisDef.value.showLauf !== false) return out
+  const eingaben = toRaw(state.value).eingaben
+  const disziplin = konfig.value.getAufbau(state.value.aufbau).disziplin
+  const laeufe = Array.from({ length: Math.max(1, state.value.laufCount) }, (_, i) => laufSchluessel(disziplin, i + 1))
+  for (const row of seite.value.rows) {
+    if (row.zwischen !== undefined) continue
+    const felder = alleFelder.value(row.klasse ?? props.bogen.klassen[0])
+    if (laeufe.every((lauf) => nichtGestartet(werteVon(eingaben, lauf, row.key), felder))) out.add(row.key)
+  }
+  return out
+})
+
+const ohneStarter = (row: BogenModellZeile) => row.zwischen !== undefined || !!row.dummy || !!row.entfaellt
+const starterZeilen = computed(() => zeilen.value.filter((z) => !ohneStarter(z.row) && konfig.value.positionAllowsClass(props.bogen.typeId, z.klasse)))
 const fortschritt = computed(() => ({ erfasst: starterZeilen.value.filter((z) => z.erfasst).length, gesamt: starterZeilen.value.length }))
-const offen = computed(() => starterZeilen.value.filter((z) => !z.erfasst))
+/**
+ * Die leeren Zeilen für „alle bestätigen“. Nicht dazu gehört eine Zeile, die für jeden Versuch
+ * gilt, deren späterer Versuch aber etwas anderes trägt (Hinweis `versucheAbweichend`): Sie ist
+ * nicht leer. Bestätigen gliche alle Versuche an den leeren ersten an und löschte dabei, was im
+ * späteren steht – auch ein X „Nicht gestartet“. Das klärt nur eine Eingabe in der Zeile selbst.
+ */
+const offen = computed(() => starterZeilen.value.filter((z) => !z.erfasst && !z.hinweise.some((h) => h.art === 'versucheAbweichend')))
 const mitHinweis = computed(() => starterZeilen.value.filter((z) => z.hinweise.length > 0))
 const hatZeit = computed(() => seite.value.leaves.some((l) => l.kind === 'time'))
 const hatDisq = computed(() => seite.value.leaves.some((l) => l.kind === 'disq'))
@@ -147,8 +211,22 @@ watch(
 )
 
 function setze(zeile: Zeile, kennung: string, wert: string) {
-  const zelle: EingabeZelle = { lauf: schluessel.value, starter: zeile.row.key, feld: kennung, wert }
-  dispatch({ type: 'SET_EINGABEN', zellen: [zelle] })
+  dispatch({ type: 'SET_EINGABEN', zellen: zellenVon(zeile, kennung, wert) })
+}
+
+/**
+ * Die Zellen einer Eingabe. Gilt die Zeile für jeden Versuch (Vorsteg mit „Versuche direkt
+ * nacheinander“), steht danach in jedem Versuch dasselbe wie in der Zeile: alle Felder der Liste
+ * und ihr Haken, mit der neuen Eingabe – so gleicht die nächste Eingabe auch einen abweichenden
+ * späteren Versuch an.
+ */
+function zellenVon(zeile: Zeile, kennung: string, wert: string): EingabeZelle[] {
+  const starter = starterVon(zeile.row)
+  const lauf = schluesselVon(zeile.row)
+  if (weitereSchluessel.value.length === 0) return [{ lauf, starter, feld: kennung, wert }]
+  const kennungen = [...new Set([...listenFelder(konfig.value, props.bogen.typeId, zeile.klasse).map((f) => f.kennung), erfasstKennung(props.bogen.typeId), kennung])]
+  const zeilenWerte = { ...zeile.werte, [kennung]: wert }
+  return [lauf, ...weitereSchluessel.value].flatMap((l) => kennungen.map((feld): EingabeZelle => ({ lauf: l, starter, feld, wert: zeilenWerte[feld] ?? '' })))
 }
 
 const erlaubt = (zeile: Zeile) => allowedSet(defFuerKlasse(basisDef.value, zeile.klasse).disqTable)
@@ -200,7 +278,7 @@ function hake(zeile: Zeile, e: Event) {
 /** Alle noch leeren Zeilen als abgetippt bestätigen: auf einer Tor-Liste sind das die fehlerfreien Fahrten. */
 function alleBestaetigen() {
   const feld = erfasstKennung(props.bogen.typeId)
-  dispatch({ type: 'SET_EINGABEN', zellen: offen.value.map((z) => ({ lauf: schluessel.value, starter: z.row.key, feld, wert: '1' })) })
+  dispatch({ type: 'SET_EINGABEN', zellen: offen.value.flatMap((z) => zellenVon(z, feld, '1')) })
 }
 
 const auffaellig = (zeile: Zeile, leaf: BogenBlattSpalte) => zeile.hinweise.some((h) => h.zelle === leafKey(leaf))
@@ -231,8 +309,10 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
       <table class="erf-tabelle">
         <thead>
           <tr>
+            <th v-if="seite.startForm" class="erf-start" :rowspan="seite.twoRow ? 2 : 1" scope="col">{{ seite.texte.start }}</th>
             <th class="erf-nr" :rowspan="seite.twoRow ? 2 : 1" scope="col">{{ seite.texte.nr }}</th>
             <th v-if="seite.zeigtKlasse" :rowspan="seite.twoRow ? 2 : 1" scope="col">{{ seite.texte.klasseKurz }}</th>
+            <th v-if="mitVersuch" :rowspan="seite.twoRow ? 2 : 1" scope="col">{{ seite.texte.attempt }}</th>
             <template v-for="col in seite.columns" :key="col.key">
               <th v-if="hatSub(col)" :class="`erf-gruppe${sep(col.trenner)}`" :colspan="col.sub!.length" scope="colgroup">{{ col.label }}</th>
               <th v-else :class="`erf-k-${col.kind}${sep(col.trenner)}`" :rowspan="seite.twoRow ? 2 : 1" scope="col">{{ col.label }}</th>
@@ -259,18 +339,41 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
           <tr
             v-for="z in zeilen"
             :key="z.row.key"
-            v-memo="[z, totalCols]"
-            :class="z.row.zwischen !== undefined ? 'erf-zwischen' : { 'erf-grau': z.row.shaded, 'erf-zeile--erfasst': z.erfasst, 'erf-zeile--hinweis': z.hinweise.length > 0 }"
+            v-memo="[z, totalCols, nieGestartet.has(z.row.key)]"
+            :class="
+              z.row.zwischen !== undefined
+                ? 'erf-zwischen'
+                : {
+                    'erf-grau': z.row.shaded,
+                    'erf-zeile--erfasst': z.erfasst,
+                    'erf-zeile--hinweis': z.hinweise.length > 0,
+                    'erf-zeile--x': z.x || nieGestartet.has(z.row.key),
+                    'erf-ohne': z.row.dummy || z.row.entfaellt,
+                    'erf-blockende': z.row.blockEnde,
+                  }
+            "
             :data-klasse="z.row.zwischen !== undefined ? z.row.klasse : undefined"
             :data-zeile="z.row.zwischen !== undefined ? undefined : z.row.key"
+            :data-starter="z.row.starter"
+            :data-attempt="z.row.starter !== undefined ? z.row.lauf : undefined"
+            :data-ohne="z.row.dummy ? 'dummy' : z.row.entfaellt ? 'entfaellt' : undefined"
+            :data-nicht-gestartet="z.x || nieGestartet.has(z.row.key) ? '' : undefined"
           >
             <th v-if="z.row.zwischen !== undefined" :colspan="totalCols" scope="rowgroup">{{ z.row.zwischen }}</th>
+            <!-- Dummy oder entfallener Start: die Zeile des Papiers, ohne Felder – die Eingabe überspringt sie. -->
+            <template v-else-if="z.row.dummy || z.row.entfaellt">
+              <td class="erf-start">{{ z.row.start }}</td>
+              <td class="erf-dummy" :colspan="totalCols - 1">{{ z.row.entfaellt ? seite.texte.entfaellt : seite.texte.dummy }}</td>
+            </template>
             <template v-else>
+              <td v-if="seite.startForm" class="erf-start">{{ z.row.start }}</td>
               <th class="erf-nr" scope="row">
                 {{ z.row.nr }}
+                <span v-if="z.x || nieGestartet.has(z.row.key)" class="erf-x-marke" :title="t('results.dns')">✕<span class="sr-only"> {{ t('results.dns') }}</span></span>
                 <span v-if="z.hinweise.length > 0" class="erf-marke" :title="hinweisText(z)" aria-hidden="true">!</span>
               </th>
               <td v-if="seite.zeigtKlasse" class="erf-klasse">{{ z.row.klasseText ?? '' }}</td>
+              <td v-if="mitVersuch" class="erf-attempt">{{ z.row.lauf }}</td>
               <template v-for="(leaf, li) in seite.leaves" :key="leafKey(leaf)">
                 <td v-if="leaf.kind === 'sum'" :class="`erf-z-sum${sep(leaf.trenner, leaf.trennerR)}${z.row.cells[li].gilt ? '' : ' erf-entfaellt'}`" :title="z.disqTitel" :data-spalte="leafKey(leaf)">
                   {{ z.summen[li] }}

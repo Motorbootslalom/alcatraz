@@ -11,7 +11,10 @@ import type { RunningNumberConfig, RunningNumberSource, StartNrMode } from '../t
  * Bearbeiten-Modus der Klassen.
  */
 const { state, dispatch } = useStore()
-const { parallel } = useEvent()
+const { parallel, regelwerk } = useEvent()
+// Der Buchstabe der Dolphin-Nummern – nur, wo die Klasse E „Dolphin“ heißt (Regel 960).
+const dolphin = computed(() => regelwerk.value.klassenNamen.E !== undefined)
+const PRAEFIXE = ['E', 'D'] as const
 const emit = defineEmits<{ assigned: [] }>()
 const MODES: StartNrMode[] = ['klasse', 'klassisch']
 const SOURCES: RunningNumberSource[] = ['manoever', 'parallel']
@@ -54,6 +57,24 @@ function assign() {
       </button>
     </div>
     <p class="hint">{{ t(`numbers.hint.${state.startNrMode}`) }}</p>
+
+    <div v-if="dolphin && state.startNrMode === 'klasse'" class="field" style="width: auto" data-feld="dolphin-praefix">
+      <label>{{ t('numbers.dolphinPrefix') }}</label>
+      <div class="segmented" role="group" :aria-label="t('numbers.dolphinPrefix')">
+        <button
+          v-for="p in PRAEFIXE"
+          :key="p"
+          type="button"
+          :data-praefix="p"
+          :class="state.dolphinPraefix === p ? 'active' : ''"
+          :aria-pressed="state.dolphinPraefix === p"
+          @click="dispatch({ type: 'SET_DOLPHIN_PRAEFIX', praefix: p })"
+        >
+          {{ p }}01
+        </button>
+      </div>
+      <p class="note">{{ t('numbers.dolphinPrefix.hint') }}</p>
+    </div>
 
     <div v-if="state.startNrMode === 'klassisch'" class="running-fields">
       <div v-if="parallel" class="field" style="width: auto">

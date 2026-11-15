@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useStore } from '../state/store'
+import { useEvent } from '../lib/event'
 import { t, tn } from '../i18n'
 import type { EventPlan } from '../planung/plan'
 import type { BoatConfig } from '../types'
+import { vorlaufGebunden } from '../planung/parallelRunden'
 
 /**
  * Bootbestand und Bootbedarf: einstellbare Bootzahlen, der Klasse-4-Schalter
@@ -11,6 +13,9 @@ import type { BoatConfig } from '../types'
  */
 const props = defineProps<{ plan: EventPlan }>()
 const { state, dispatch } = useStore()
+const { classCell } = useEvent()
+// Zum Vorlauf des Parallelslaloms sind Werte erfasst: Sein Plan – und der Bootstyp der Klasse 4, nach dem er gerechnet ist – bleibt.
+const planGebunden = computed(() => vorlaufGebunden(state.value))
 
 function clampBoats(e: Event): number {
   return Math.max(0, Math.min(99, parseInt((e.target as HTMLInputElement).value, 10) || 0))
@@ -42,7 +47,7 @@ const banner = computed(() => {
     <h2>{{ t('boats.title') }}</h2>
     <div class="boat-controls">
       <div class="field" style="width: 150px">
-        <label for="boats-klein">{{ t('boats.small') }}</label>
+        <label for="boats-klein">{{ t('boats.small', { e: classCell('E') }) }}</label>
         <input
           id="boats-klein"
           class="input"
@@ -68,6 +73,8 @@ const banner = computed(() => {
       <label class="boat-check">
         <input
           type="checkbox"
+          :disabled="planGebunden"
+          :title="planGebunden ? t('parallel.plan.kept') : undefined"
           :checked="state.class4Small"
           @change="dispatch({ type: 'SET_CLASS4_SMALL', class4Small: ($event.target as HTMLInputElement).checked })"
         />

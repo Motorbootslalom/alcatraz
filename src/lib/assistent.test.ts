@@ -160,7 +160,7 @@ describe('Assistent: Namen in der Sprache der Oberfläche', () => {
     setLocale('en')
     expect(lueckenName(boje)).toBe('Gate 1 right · outer')
     expect(lueckenName({ ...boje, feld: 'mueb' })).toBe('Man-over-board')
-    expect(lueckenName(steg)).toBe('Casting off at the pontoon (“Pontoon” option)')
+    expect(lueckenName(steg)).toBe('Leaving the starting pontoon (“Pontoon” option)')
     // Was sich nicht zuordnen lässt, behält den Namen der Prüfung.
     expect(lueckenName({ element: 'Unbekannt', klassen: [], nurZusammengelegt: false })).toBe('Unbekannt')
   })

@@ -114,6 +114,16 @@ export function formatDateIn(sprache: Locale, iso: string): string {
   return sprache === 'de' ? `${m[3]}.${m[2]}.${m[1]}` : `${m[1]}-${m[2]}-${m[3]}`
 }
 
+/**
+ * Geburtsdatum auf den gedruckten Listen. Englisch als Tag/Monat/Jahr: So beschreibt Regel 960
+ * Pkt. 3.7 die auszuhängende Liste („Date of birth (day/month/year)“). Die Oberfläche und alle
+ * Zeitstempel bleiben englisch bei JJJJ-MM-TT – das ist nicht verwechselbar.
+ */
+export function geburtsdatumAufListe(sprache: Locale, iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return m && sprache !== 'de' ? `${m[3]}/${m[2]}/${m[1]}` : formatDateIn(sprache, iso)
+}
+
 /** Datum in der Schreibweise der Oberfläche. */
 export function formatDate(iso: string): string {
   return formatDateIn(locale.value, iso)

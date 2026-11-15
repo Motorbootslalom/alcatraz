@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { configFor, resolveRegelwerkId, ROH_QUELLE, ROH_REGELWERKE } from './konfig'
+import { baue, configFor, resolveRegelwerkId, ROH_QUELLE, ROH_REGELWERKE } from './konfig'
 import { quellDateien } from './merge-positionen'
 import aufbauListe from './aufbauten.yaml?raw'
 import type { RawAufbau } from './schema'
@@ -104,8 +104,25 @@ describe('Positionsdateien', () => {
     expect(schritte.length).toBeGreaterThan(0)
     expect(schritteLetzterLauf.length).toBeGreaterThan(0)
     expect(schritteLetzterLauf).not.toEqual(schritte)
-    expect(buildConfig({ positionen: [], laufzettel: { schritte: ['a', 'b'] } }).laufzettel).toMatchObject({ schritte: ['a', 'b'], schritteLetzterLauf: ['a', 'b'] })
-    expect(buildConfig({ positionen: [], laufzettel: { schritte: ['a'], schritteLetzterLauf: ['z', 7 as never] } }).laufzettel).toMatchObject({ schritte: ['a'], schritteLetzterLauf: ['z', '7'] })
+    expect(buildConfig({ positionen: [], laufzettel: { schritte: ['a', 'b'] } }).laufzettel).toMatchObject({ schritte: [{ text: 'a' }, { text: 'b' }], schritteLetzterLauf: [{ text: 'a' }, { text: 'b' }] })
+    expect(buildConfig({ positionen: [], laufzettel: { schritte: ['a'], schritteLetzterLauf: ['z', 7 as never] } }).laufzettel).toMatchObject({ schritte: [{ text: 'a' }], schritteLetzterLauf: [{ text: 'z' }, { text: '7' }] })
     expect(buildConfig({ positionen: [] }).laufzettel).toMatchObject({ schritte: [], schritteLetzterLauf: [] })
+  })
+
+  it('Laufzettel: Die Schritte hängen am Regelwerk – die Vorgabe steht in einstellungen.yaml, das Regelwerk darf abweichen', () => {
+    const dm = configFor({ regelwerk: 'dm-2026' }).getLaufzettelConfig()
+    const uim = configFor({ regelwerk: 'uim-2026' }).getLaufzettelConfig()
+    // DM: unverändert die Vorgabe (C6: letzter Lauf nur Einsicht der Mannschaftsleiter, kein Aushang).
+    expect(dm.schritteLetzterLauf.map((s) => s.text)).toContain('Einsicht der Mannschaftsleiter (kein Aushang)')
+    expect(dm.schritteLetzterLauf.every((s) => s.en === undefined)).toBe(true)
+    // UIM 960, Pkt. 5.2: Aushang binnen einer Stunde, vom O.O.D. unterschrieben, mit Uhrzeit – englisch nach dem Rulebook.
+    expect(uim.schritte).toEqual(dm.schritte)
+    expect(uim.titel).toBe(dm.titel)
+    const aushang = uim.schritteLetzterLauf.find((s) => s.en)
+    expect(aushang?.en).toBe('Results signed by the O.O.D. and posted – not more than 1 (one) hour after the last driver of the class has finished, showing the time of posting (rule 960, pt. 5.2)')
+    expect(uim.schritteLetzterLauf.map((s) => s.text)).not.toContain('Einsicht der Mannschaftsleiter (kein Aushang)')
+    // Was ein Regelwerk nennt, ersetzt die gleichnamige Angabe der Vorgabe – der Rest bleibt.
+    const eigen = baue({ id: 'x', laufzettel: { schritteLetzterLauf: [{ text: 'Aushang', en: 'Posted' }] } }, { positionen: [], laufzettel: { titel: 'T', schritte: ['a'], schritteLetzterLauf: ['b'] } })
+    expect(eigen.laufzettel).toEqual({ titel: 'T', schritte: [{ text: 'a' }], schritteLetzterLauf: [{ text: 'Aushang', en: 'Posted' }] })
   })
 })

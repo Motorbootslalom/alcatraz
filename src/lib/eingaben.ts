@@ -1,4 +1,5 @@
 import { CLASS_IDS } from '../domain/classes'
+import { vergleicheStartNr } from '../domain/startnumbers'
 import type { AppState, CellKind, Eingaben, ErrorDef, Geraet, SheetDef, Starter } from '../types'
 import { defFuerKlasse } from './bogen'
 import { normalizeCodeCell } from './codes'
@@ -6,6 +7,8 @@ import { allowedSet, sanitizeBuoy, sanitizeDisq } from './disq'
 import { columnCellKeys } from './scoring'
 import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
 import { parseTime } from './time'
+import { parallelListen } from './parallelBogen'
+import { attemptsImPlan, zerlegeAttempt } from './parallelSchluessel'
 
 // Die erfassten Werte der Wettkampfrichter-Listen – rein, ohne DOM und ohne Stand. Vorbild:
 // lib/eingaben.ts im Fehlerpunkte-Prototyp.
@@ -36,6 +39,9 @@ export interface EingabenKonfig {
   getAufbau(id: string): { disziplin: string; zusatz?: string[]; kombi?: { positionId: string; ersetzt: string[] } }
   aufbauOrder(id: string, kombiAktiv: boolean): string[]
   getRegelwerk?: ListenWahlKonfig['getRegelwerk']
+  /** Für die Werte des Parallelslaloms (lib/parallelBogen.ts); fehlt = es gibt dort keine Listen. */
+  getAufbauten?(): ReadonlyArray<{ id: string; disziplin: string }>
+  rohRegelwerk?: { disziplinen?: readonly string[] }
 }
 
 /** Eine einzelne Eingabe, so wie sie eine Action trägt. Ein leerer Wert löscht die Zelle. */
@@ -281,8 +287,17 @@ export function gueltigeZellen(zellen: readonly EingabeZelle[], starter: Readonl
  * nicht hat (nach einem Wechsel des Aufbaus oder der Klasse). Sie stehen weiter im Stand und
  * in jeder Sicherung, und Zeiten oder Disqualifikationen darunter zählen in der Wertung mit –
  * deshalb zeigt die Oberfläche ihre Zahl und bietet an, sie zu entfernen.
+ *
+ * Die Werte des Parallelslaloms (Lauf-Schlüssel `parallel:<runde>/<attempt>`,
+ * lib/parallelSchluessel.ts) sind KEINE andere Disziplin in diesem Sinn: Sie stehen neben denen
+ * des Manövrierens. Verborgen sind sie nur, wenn ihre Liste sie nicht zeigt – die Runde hat
+ * keinen festgeschriebenen Plan (mehr), der Starter hat dort diesen Attempt nicht, oder die
+ * Listen des Parallelslaloms haben das Feld für seine Klasse nicht.
  */
-export function verborgeneZellen(stand: ListenWahl & Pick<AppState, 'eingaben' | 'starters' | 'laufCount'>, konfig: EingabenKonfig): EingabeZelle[] {
+export function verborgeneZellen(
+  stand: ListenWahl & Pick<AppState, 'eingaben' | 'starters' | 'laufCount'> & Partial<Pick<AppState, 'parallelPlaene'>>,
+  konfig: EingabenKonfig,
+): EingabeZelle[] {
   const disziplin = konfig.getAufbau(stand.aufbau).disziplin
   const listen = veranstaltungsListen(konfig, stand)
   // Listen, die durch „Tor 5 übernimmt die Parcoursüberwachung“ gerade ruhen (die Parcoursliste
@@ -307,8 +322,47 @@ export function verborgeneZellen(stand: ListenWahl & Pick<AppState, 'eingaben' |
     }
     return menge
   }
+  // Parallelslalom: je Klasse die Kennungen seiner Listen, je Runde die Attempts der Starter laut Plan.
+  const getAufbauten = konfig.getAufbauten
+  const parallel = getAufbauten ? parallelListen({ getAufbauten, aufbauOrder: konfig.aufbauOrder, rohRegelwerk: konfig.rohRegelwerk }) : []
+  const parallelSichtbar = new Map<string, Set<string>>()
+  const parallelKennungen = (klasse: string): Set<string> => {
+    let menge = parallelSichtbar.get(klasse)
+    if (!menge) {
+      menge = new Set<string>()
+      for (const typeId of parallel) {
+        if (!konfig.positionAllowsClass(typeId, klasse)) continue
+        menge.add(erfasstKennung(typeId))
+        for (const feld of felderVon(konfig, typeId, klasse).liste) menge.add(feld.kennung)
+      }
+      parallelSichtbar.set(klasse, menge)
+    }
+    return menge
+  }
+  const attemptsJeRunde = new Map<string, Map<string, Set<number>>>()
+  const imPlan = (runde: string, starter: string, attempt: number): boolean => {
+    let attempts = attemptsJeRunde.get(runde)
+    if (!attempts) {
+      const plan = parallel.length > 0 ? stand.parallelPlaene?.[runde as keyof NonNullable<typeof stand.parallelPlaene>] : undefined
+      attemptsJeRunde.set(runde, (attempts = plan ? attemptsImPlan(plan) : new Map()))
+    }
+    return attempts.get(starter)?.has(attempt) === true
+  }
+
   const out: EingabeZelle[] = []
   for (const [schluessel, zeilen] of Object.entries(stand.eingaben)) {
+    const attempt = zerlegeAttempt(schluessel)
+    if (attempt) {
+      for (const [starter, werte] of Object.entries(zeilen)) {
+        const klasse = klasseVon.get(starter)
+        const gezeigt = klasse !== undefined && imPlan(attempt.runde, starter, attempt.attempt) ? parallelKennungen(klasse) : undefined
+        for (const feld in werte) {
+          if (!Object.prototype.hasOwnProperty.call(werte, feld) || gezeigt?.has(feld)) continue
+          out.push({ lauf: schluessel, starter, feld, wert: werte[feld] })
+        }
+      }
+      continue
+    }
     const { disziplin: d, lauf } = zerlegeLauf(schluessel)
     const laufFehlt = d !== disziplin || lauf > Math.max(1, stand.laufCount)
     for (const [starter, werte] of Object.entries(zeilen)) {
@@ -354,7 +408,7 @@ export interface VerborgenerWert {
   /** Das Feld mit Überschrift und Art; fehlt beim Haken und bei unbekannten Kennungen. */
   feld?: Feld
   /**
-   * Geht der Wert weiter in die Ergebnislisten ein? Gerechnet wird wie in lib/ergebnis.ts: Die
+   * Geht der Wert weiter in die Wertungslisten ein? Gerechnet wird wie in lib/ergebnis.ts: Die
    * Wertung liest je Starter alle Felder seines Laufs, die irgendeine Liste des Regelwerks für
    * seine Klasse kennt – auch solche, die der Aufbau nicht (mehr) zeigt. Haken und Bemerkungen
    * zählen nie; eine Stoppuhr-Zeit zählt nicht neben einer elektronischen; unter den Werten
@@ -362,9 +416,10 @@ export interface VerborgenerWert {
    *
    * „Zählt nicht“ heißt: Punkte, Zeit und Disqualifikation ändern sich nicht. Eine Spur bleibt
    * dennoch möglich: Ist ein solcher Wert (Haken, Bemerkung) der EINZIGE Eintrag seiner Klasse
-   * in einem Lauf, gibt es für den Lauf eine Ergebnisliste, auf der alle „offen“ sind
+   * in einem Lauf, gibt es für den Lauf eine Wertungsliste, auf der alle „offen“ sind
    * (lib/ergebnis.ts `laeufeMitEingaben` – so beginnt jede Liste, sobald irgendetwas abgetippt
-   * ist). In die Gesamtwertung geht ein solcher Lauf nicht ein; er gilt nicht als gefahren.
+   * ist; allein ein X „Nicht gestartet“ beginnt sie noch nicht). In die Gesamtwertung geht ein
+   * solcher Lauf nicht ein; er gilt nicht als gefahren.
    */
   zaehlt: boolean
   grund: VerborgenGrund
@@ -501,9 +556,9 @@ export function normalisiereEingaben(raw: unknown): Eingaben {
 
 const istObjekt = (wert: unknown): wert is Record<string, unknown> => !!wert && typeof wert === 'object' && !Array.isArray(wert)
 
-/** Startnummern in natürlicher Reihenfolge (E2 vor E10, 99 vor 401). */
+/** Startnummern in natürlicher Reihenfolge (E2 vor E10, 99 vor 401, E01 vor 101) – domain/startnumbers.ts `vergleicheStartNr`. */
 export function vergleicheNr(a: string, b: string): number {
-  return a.localeCompare(b, undefined, { numeric: true })
+  return vergleicheStartNr(a, b)
 }
 
 /**
@@ -515,4 +570,15 @@ export function vergleicheNr(a: string, b: string): number {
  */
 export function starterfeldFest(stand: Pick<AppState, 'eingaben'>): boolean {
   return Object.keys(stand.eingaben).length > 0
+}
+
+/**
+ * Ein Stand, in dem es nichts zu schützen gibt: keine Starter (Entscheidung des Nutzers vom
+ * 15.11.2026: „als leerer Stand gilt: keine Starter“) – vor dem Anlegen einer Veranstaltung oder
+ * nach „Alles zurücksetzen“. Erfasste Werte gibt es ohne Starter nicht (state/reducer.ts
+ * `mitStartern`, state/migrate.ts). Nur dann übernimmt die Anwendung eine neue Fassung von selbst
+ * (lib/offline.ts); sonst wechselt sie allein auf „Update“.
+ */
+export function standLeer(stand: Pick<AppState, 'starters'>): boolean {
+  return stand.starters.length === 0
 }

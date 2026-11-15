@@ -125,7 +125,8 @@ describe('leseCode', () => {
     expect(fehler('4006381333931')).toBe('fremd')
     expect(fehler('https://example.org/x')).toBe('fremd')
     expect(fehler('FP2.DM2026.ALCATRAZ.3.1.ZEIT.S1')).toBe('prototyp')
-    expect(fehler('ALC2.K7Q4.DM2026.ALCATRAZ.PAR1.3.1')).toBe('fassung')
+    // ALC2 ist seit den Listen des Parallelslaloms eine bekannte Fassung; eine spätere ist es nicht.
+    expect(fehler('ALC3.K7Q4.DM2026.ALCATRAZ.PAR1.3.1')).toBe('fassung')
     expect(fehler('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.3')).toBe('kaputt')
     expect(fehler('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.3.1.STEG')).toBe('kaputt')
     expect(fehler('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.3.1.STEG.S0')).toBe('kaputt')

@@ -7,6 +7,7 @@ import { emptyState } from '../state/reducer'
 import { laufSchluessel } from '../lib/eingaben'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { wechsleRegelwerk } from '../testHilfen'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -43,7 +44,7 @@ const zeilen = (wrapper: VueWrapper, blatt = 0) =>
   wrapper.findAll('.ergebnis-blatt')[blatt].findAll('tbody tr').map((r) => r.findAll('td').map((c) => c.text()))
 const spalten = (wrapper: VueWrapper, blatt = 0) => wrapper.findAll('.ergebnis-blatt')[blatt].findAll('.erg-spaltenkopf th').map((t) => t.text().replace(/\s+/g, ' '))
 
-describe('Listen: Ergebnislisten', () => {
+describe('Listen: Wertungslisten', () => {
   let store: Store
 
   beforeEach(() => {
@@ -70,7 +71,7 @@ describe('Listen: Ergebnislisten', () => {
 
   it('ist eine eigene Listenart; je Klasse jeder Lauf mit Eingaben und die Gesamtliste', async () => {
     const wrapper = ansicht(store)
-    expect(wrapper.find('.list-kinds button[data-kind="ergebnis"]').text()).toBe('Ergebnislisten')
+    expect(wrapper.find('.list-kinds button[data-kind="ergebnis"]').text()).toBe('Wertungslisten')
     await ergebnisse(wrapper)
     expect(koepfe(wrapper)).toEqual([
       'Klasse 1 | 1. Lauf | Hafenpokal 2026',
@@ -106,7 +107,7 @@ describe('Listen: Ergebnislisten', () => {
     await waehle(wrapper, 'lauf', '1')
     expect(koepfe(wrapper)).toEqual(['Klasse 4 | 1. Lauf | Hafenpokal 2026'])
     const kopf = spalten(wrapper)
-    // Das Geburtsdatum steht nur – wahlweise – auf der Starterliste, nie auf einer Ergebnisliste.
+    // Das Geburtsdatum steht nur – wahlweise – auf der Starterliste, nie auf einer Wertungsliste.
     expect(kopf.slice(0, 7)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', 'Zeit', 'Punkte'])
     expect(kopf).not.toContain('Geb. Datum')
     expect(kopf.slice(7)).toEqual(['Steg AB', 'Start', '1 H', '2 H', '3 H', '4 H', '5', '4 R', '3 R', '2 R', 'MüB', 'Ziel', 'Steg AN', 'disq.', 'ges. Punkte', 'Fehler-Schlüssel'])
@@ -212,7 +213,7 @@ describe('Listen: Ergebnislisten', () => {
     ])
     await waehle(wrapper, 'klasse', '1')
     // UIM: Für den einzelnen Versuch gibt es keinen Stichentscheid – geteilter Platz, kein Zeichen, keine Erklärung.
-    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    wechsleRegelwerk(store, 'uim-2026')
     await nextTick()
     expect(reihen()).toEqual(['1 102', '1 103', '3 101'])
     expect(erklaerung()).toEqual([])
@@ -220,7 +221,7 @@ describe('Listen: Ergebnislisten', () => {
     setLocale('en')
     await nextTick()
     expect(wrapper.find('[data-hinweis="stich"]').text()).toBe(
-      'On equal results, the competitor with the better sum of all attempts ranks higher (including penalties, the dropped attempt too); anyone without a valid result in every attempt ranks behind. If that does not separate them either, the competitors share the rank.',
+      'Same time in the best attempt (including knots and driving penalties): the driver with the better added attempt time (including penalties for both attempts) is ranked higher; a driver with only one valid attempt is ranked lower. If that does not define a winner either, there is a dead-heat result: the drivers share the place.',
     )
     wrapper.unmount()
   })
@@ -237,7 +238,7 @@ describe('Listen: Ergebnislisten', () => {
     const blatt = wrapper.find('.ergebnis-blatt[data-art="gesamt"]')
     expect(blatt.findAll('tbody tr').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()}`)).toEqual(['1* 101', '2* 102', '3 103'])
     expect(blatt.find('.erg-fuss .erg-stich-hinweis').text()).toBe(
-      '* Rank decided by tie-break. On equal results, the competitor with the better sum of all attempts ranks higher (including penalties, the dropped attempt too); anyone without a valid result in every attempt ranks behind.',
+      '* Ranking decided by the dead-heat rule. Same time in the best attempt (including knots and driving penalties): the driver with the better added attempt time (including penalties for both attempts) is ranked higher; a driver with only one valid attempt is ranked lower.',
     )
     wrapper.unmount()
   })
@@ -267,11 +268,11 @@ describe('Listen: Ergebnislisten', () => {
     await waehle(wrapper, 'lauf', '2')
     await wrapper.find('button.primary').trigger('click')
     expect(print).toHaveBeenCalledOnce()
-    expect(document.title).toMatch(/^Ergebnislisten - Klasse 4 - 2\. Lauf - Hafenpokal 2026 - \d{4}-\d\d-\d\d_\d{4}$/)
+    expect(document.title).toMatch(/^Wertungslisten - Klasse 4 - 2\. Lauf - Hafenpokal 2026 - \d{4}-\d\d-\d\d_\d{4}$/)
     await waehle(wrapper, 'lauf', '')
     await waehle(wrapper, 'klasse', '')
     await wrapper.find('button.primary').trigger('click')
-    expect(document.title).toMatch(/^Ergebnislisten - alle Klassen - Lauf 1, 2, 3 - Gesamt - Hafenpokal 2026 - /)
+    expect(document.title).toMatch(/^Wertungslisten - alle Klassen - Lauf 1, 2, 3 - Gesamt - Hafenpokal 2026 - /)
     // Im Seitenrand steht nichts: Die Ansicht erzeugt kein Stylesheet mehr, also auch keine
     // Randbox mit dem Druckzeitpunkt. Eine Seitenzahl schreibt die Liste selbst aufs Blatt,
     // wenn sie mehr als eine Seite hat – hier hat keine eine.
@@ -292,14 +293,17 @@ describe('Listen: Ergebnislisten', () => {
     expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Nicht gestartet'])
     // Nach den UIM-Regeln ist sie englisch – auch bei deutscher Oberfläche: Dezimalpunkt, „DSQ“.
     setLocale('de')
-    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    wechsleRegelwerk(store, 'uim-2026')
     store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 3 } })
     store.dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: 1 })
     await nextTick()
     expect(koepfe(wrapper)).toEqual(['Class 4 | Overall | Hafenpokal 2026'])
-    expect(spalten(wrapper).slice(0, 6)).toEqual(['Rank', 'No.', 'Surname', 'First name', 'Club', 'Attempt 1'])
+    expect(spalten(wrapper).slice(0, 6)).toEqual(['Rank.', 'No.', 'Surname', 'First name', 'Club', 'Attempt 1'])
+    // Unter UIM folgt dem Gesamtergebnis die Spalte „UIM points“ (Regel 960, Pkt. 5.2.1) – leer,
+    // solange die Klasse nicht vollständig ist (401 holt den 2. Versuch noch nach).
+    expect(spalten(wrapper).at(-1)).toBe('UIM points')
     const z = zeilen(wrapper)
-    expect(z[1].at(-1)).toBe('161.00')
+    expect(z[1].slice(-2)).toEqual(['161.00', ''])
     expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start'])
     // Ohne Streichlauf zählt der nicht gestartete Lauf: insgesamt „DSQ“.
     store.dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: 0 })
@@ -366,7 +370,7 @@ describe('Listen: Ergebnislisten', () => {
     wrapper.unmount()
   })
 
-  it('fehlende Startnummern halten die Ergebnislisten nicht auf', async () => {
+  it('fehlende Startnummern halten die Wertungslisten nicht auf', async () => {
     store.dispatch({ type: 'UPDATE_STARTER', id: 'id-1-3', patch: { startNr: '' } })
     const wrapper = ansicht(store)
     await ergebnisse(wrapper)

@@ -33,6 +33,7 @@ import type {
 export type ConfigInput = {
   sprachen?: string[]
   listenSprache?: string
+  laenderKuerzel?: string
   einheitEn?: string
   fehlerHinweis?: string
   fehlerHinweisEn?: string
@@ -43,8 +44,11 @@ export type ConfigInput = {
   ohneSpalten?: Record<string, string[]>
   stichentscheid?: string[]
   vorgabeListen?: Record<string, string[]>
-  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nurVorgabe?: boolean }
-  pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number } }
+  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nurVorgabe?: boolean; nachRegel?: Record<string, number> }
+  wertungJeDisziplin?: Record<string, { stichentscheid?: string[]; wertungslaeufe?: { laeufe?: number; streichlaeufe?: number } }>
+  aushang?: { unterschrift?: boolean; punkte?: boolean }
+  versucheNacheinander?: boolean
+  pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number }; stichentscheid?: { zaehlt?: string; plaetze?: number } }
   pokalPunkte?: Record<string, number[]>
   disqualifikationen?: Array<Partial<RawDisq>>
   kataloge?: Record<string, Partial<RawKatalog>>
@@ -424,6 +428,8 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     if (sp !== 'de' && sp !== 'en') err('BAD_SPRACHE', `Unbekannte Sprache "${sp}" (erlaubt: de, en).`, 'sprachen')
   if (raw.listenSprache !== undefined && !(raw.sprachen ?? ['de']).includes(raw.listenSprache))
     err('BAD_SPRACHE', `listenSprache "${raw.listenSprache}" steht nicht in "sprachen" (${(raw.sprachen ?? ['de']).join(', ')}).`, 'listenSprache')
+  if (raw.laenderKuerzel !== undefined && raw.laenderKuerzel !== 'iso' && raw.laenderKuerzel !== 'ioc')
+    err('BAD_LAENDER_KUERZEL', `laenderKuerzel "${raw.laenderKuerzel}" ist unbekannt (erlaubt: iso, ioc).`, 'laenderKuerzel')
   if (raw.sprachen?.includes('en')) {
     const fehlt = (was: string, where: string) => err('MISSING_EN', `Englischer Text fehlt: ${was}.`, where)
     for (const d of disqs) if (!d?.en) fehlt(`Disqualifikation "${d?.code}"`, 'disqualifikationen')
@@ -493,6 +499,20 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
         err('UNKNOWN_SPALTE', `ohneSpalten: Position "${pid}" hat keine Spalte "${key}".`, 'ohneSpalten')
   }
 
+  // ---- Aufbau: Spalten, die seine Listen nicht haben ------------------------
+  for (const a of raw.aufbauten ?? []) {
+    for (const [pid, keys] of Object.entries(a?.ohneSpalten ?? {})) {
+      const pos = positionen.find((p) => p?.id === pid)
+      if (!pos) {
+        err('UNKNOWN_POSITION_REF', `Aufbau "${a?.id}": ohneSpalten verweist auf unbekannte Position "${pid}".`, 'aufbauten')
+        continue
+      }
+      for (const key of keys)
+        if (!(pos.spalten ?? []).some((s) => s?.key === key))
+          err('UNKNOWN_SPALTE', `Aufbau "${a?.id}": ohneSpalten: Position "${pid}" hat keine Spalte "${key}".`, 'aufbauten')
+    }
+  }
+
   // ---- Kursvarianten -------------------------------------------------------
   const kurse = raw.kurse ?? []
   for (const [id, n] of duplicates(kurse, (k) => k?.id)) err('DUP_KURS_ID', `Kursvariante "${id}" ${n}× definiert.`, 'kurse')
@@ -546,6 +566,30 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     }
   }
 
+  // ---- Parallelslalom: Ein Blatt trägt alle Klassen ---------------------------
+  // Die Listen des Parallelslaloms stehen klassenübergreifend in der Reihenfolge des Startplans
+  // (lib/parallelBogen.ts). Ihre Spalten dürfen deshalb nicht von der Klasse abhängen: weder
+  // die ganze Position noch eine einzelne Spalte darf auf Klassen beschränkt sein.
+  for (const a of aufbauten) {
+    if (a?.disziplin !== 'parallel') continue
+    const where = `aufbauten (id: ${a.id})`
+    for (const e of a.positionen ?? []) {
+      if (typeof e !== 'string' && !gueltigerEintrag(e)) continue
+      const pos = positionen.find((p) => p?.id === eintragId(e))
+      if (!pos) continue
+      if ((pos.klassen ?? []).length > 0)
+        err('PARALLEL_KLASSEN', `Aufbau "${a.id}" (Parallelslalom): Die Position "${pos.id}" gilt nur für bestimmte Klassen. Auf einer Liste des Parallelslaloms stehen alle Klassen.`, where)
+      for (const sp of pos.spalten ?? []) {
+        if (((sp as { klassen?: unknown[] } | null)?.klassen ?? []).length > 0)
+          err(
+            'PARALLEL_KLASSEN',
+            `Aufbau "${a.id}" (Parallelslalom): Die Spalte "${(sp as { key?: string }).key ?? '?'}" der Position "${pos.id}" gilt nur für bestimmte Klassen. Auf einer Liste des Parallelslaloms stehen alle Klassen.`,
+            where,
+          )
+      }
+    }
+  }
+
   // ---- Listen, die das Regelwerk vorsieht: Sie müssen in jedem Aufbau wählbar sein ----
   // Je Disziplin: Knoten gehören zum Manövrieren, nicht zum Parallelslalom.
   if (raw.vorgabeListen !== undefined) {
@@ -573,13 +617,34 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
 
   // ---- Läufe des Regelwerks: nur eine stimmige Angabe ergibt einen Hinweis ----
   if (raw.wertungslaeufe !== undefined) {
-    const w: { laeufe?: unknown; streichlaeufe?: unknown; nurVorgabe?: unknown } = raw.wertungslaeufe && typeof raw.wertungslaeufe === 'object' ? raw.wertungslaeufe : {}
+    const w: { laeufe?: unknown; streichlaeufe?: unknown; nurVorgabe?: unknown; nachRegel?: unknown } = raw.wertungslaeufe && typeof raw.wertungslaeufe === 'object' ? raw.wertungslaeufe : {}
     const ganz = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x)
     const streich = w.streichlaeufe ?? 0
     if (!ganz(w.laeufe) || !ganz(streich) || w.laeufe < 1 || streich < 0 || streich >= w.laeufe)
       err('BAD_WERTUNGSLAEUFE', 'wertungslaeufe braucht "laeufe" (mindestens 1) und weniger "streichlaeufe" als Läufe.', 'wertungslaeufe')
     else if (w.nurVorgabe !== undefined && typeof w.nurVorgabe !== 'boolean') err('BAD_WERTUNGSLAEUFE', 'wertungslaeufe.nurVorgabe muss true oder false sein.', 'wertungslaeufe')
+    // Streichläufe „nach Regel“ je Zahl der Läufe: Es muss mindestens ein Lauf zählen.
+    if (w.nachRegel !== undefined) {
+      const eintraege = w.nachRegel && typeof w.nachRegel === 'object' && !Array.isArray(w.nachRegel) ? Object.entries(w.nachRegel) : null
+      if (!eintraege || eintraege.some(([l, s]) => !/^[1-9]\d*$/.test(l) || !ganz(s) || s < 0 || s >= Number(l)))
+        err('BAD_WERTUNGSLAEUFE', 'wertungslaeufe.nachRegel nennt je Zahl der Läufe (ab 1) weniger Streichläufe als Läufe, z. B. { 2: 1 }.', 'wertungslaeufe')
+    }
   }
+
+  // ---- Aushang und Läufe nacheinander: nur Ja/Nein ---------------------------
+  if (raw.aushang !== undefined) {
+    const a: Record<string, unknown> = raw.aushang && typeof raw.aushang === 'object' && !Array.isArray(raw.aushang) ? { ...raw.aushang } : { '': null }
+    for (const [key, wert] of Object.entries(a)) {
+      if ((key !== 'unterschrift' && key !== 'punkte') || typeof wert !== 'boolean')
+        err('BAD_AUSHANG', 'aushang nennt nur "unterschrift" und "punkte", je true oder false.', 'aushang')
+    }
+    // Die Punkte der Gesamtliste kommen aus der Tabelle der Mannschaftswertung.
+    const tabelle: unknown = raw.pokal?.uim?.punkte
+    if (a.punkte === true && !(Array.isArray(tabelle) && tabelle.length > 0))
+      err('AUSHANG_OHNE_PUNKTE', 'aushang.punkte braucht die Punktetabelle "pokal.uim.punkte" im selben Regelwerk.', 'aushang')
+  }
+  if (raw.versucheNacheinander !== undefined && typeof raw.versucheNacheinander !== 'boolean')
+    err('BAD_VERSUCHE_NACHEINANDER', 'versucheNacheinander muss true oder false sein.', 'versucheNacheinander')
 
   // ---- Pokalauswertung: bekannte Varianten, brauchbare Punkte ------------------
   // Punkte je Platz: ganze Zahlen ab 0, von Platz zu Platz nicht steigend – ein schlechterer
@@ -591,7 +656,12 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     return undefined
   }
   if (raw.pokal !== undefined) {
-    const p: { vorgabe?: unknown; uim?: unknown } = raw.pokal && typeof raw.pokal === 'object' ? raw.pokal : {}
+    const p: { vorgabe?: unknown; uim?: unknown; stichentscheid?: unknown } = raw.pokal && typeof raw.pokal === 'object' ? raw.pokal : {}
+    if (p.stichentscheid !== undefined) {
+      const st: { zaehlt?: unknown; plaetze?: unknown } = p.stichentscheid && typeof p.stichentscheid === 'object' ? p.stichentscheid : {}
+      if (st.zaehlt !== 'anzahl' && st.zaehlt !== 'punkte') err('BAD_POKAL', 'pokal.stichentscheid.zaehlt muss "anzahl" oder "punkte" sein.', 'pokal.stichentscheid')
+      if (st.plaetze !== undefined && !(typeof st.plaetze === 'number' && Number.isInteger(st.plaetze) && st.plaetze >= 1)) err('BAD_POKAL', 'pokal.stichentscheid.plaetze muss eine ganze Zahl ab 1 sein.', 'pokal.stichentscheid')
+    }
     if (p.vorgabe !== undefined) {
       if (!Array.isArray(p.vorgabe)) err('BAD_POKAL', 'pokal.vorgabe muss eine Liste von Varianten sein.', 'pokal.vorgabe')
       else
@@ -628,7 +698,43 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     }
   }
 
-  // ---- Ergebnislisten: Stehen alle Punkte einer Disziplin in ihren Spalten? --
+  // ---- Wertung je Disziplin: dieselben Angaben wie oben, je Disziplin -----------
+  if (raw.wertungJeDisziplin !== undefined) {
+    const wo = 'wertungJeDisziplin'
+    const je = raw.wertungJeDisziplin
+    if (!je || typeof je !== 'object' || Array.isArray(je)) err('BAD_WERTUNG_JE_DISZIPLIN', 'wertungJeDisziplin muss je Disziplin "stichentscheid" und/oder "wertungslaeufe" nennen.', wo)
+    else {
+      const ganz = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x)
+      for (const [disziplin, angabe] of Object.entries(je as Record<string, unknown>)) {
+        const hier = `${wo}.${disziplin}`
+        if (raw.disziplinen && raw.disziplinen.length > 0 && !raw.disziplinen.some((d) => d?.id === disziplin)) err('UNKNOWN_WERTUNG_DISZIPLIN', `wertungJeDisziplin nennt die unbekannte Disziplin "${disziplin}".`, hier)
+        if (!angabe || typeof angabe !== 'object' || Array.isArray(angabe)) {
+          err('BAD_WERTUNG_JE_DISZIPLIN', `wertungJeDisziplin.${disziplin} muss "stichentscheid" und/oder "wertungslaeufe" nennen.`, hier)
+          continue
+        }
+        const a = angabe as Record<string, unknown>
+        for (const feld of Object.keys(a))
+          if (feld !== 'stichentscheid' && feld !== 'wertungslaeufe') err('BAD_WERTUNG_JE_DISZIPLIN', `wertungJeDisziplin.${disziplin} kennt nur "stichentscheid" und "wertungslaeufe", nicht "${feld}".`, hier)
+        if (a.stichentscheid !== undefined) {
+          if (!Array.isArray(a.stichentscheid)) err('BAD_STICHENTSCHEID', 'stichentscheid muss eine Liste sein.', `${hier}.stichentscheid`)
+          else {
+            for (const k of a.stichentscheid)
+              if (!(STICH_KRITERIEN as readonly string[]).includes(k))
+                err('UNKNOWN_STICHENTSCHEID', `Unbekanntes Kriterium "${k}" im Stichentscheid (erlaubt: ${STICH_KRITERIEN.join(', ')}).`, `${hier}.stichentscheid`)
+            for (const [k, n] of duplicates(a.stichentscheid as string[], (x) => x)) err('DUP_STICHENTSCHEID', `Kriterium "${k}" ${n}× im Stichentscheid.`, `${hier}.stichentscheid`)
+          }
+        }
+        if (a.wertungslaeufe !== undefined) {
+          const w: Record<string, unknown> = a.wertungslaeufe && typeof a.wertungslaeufe === 'object' && !Array.isArray(a.wertungslaeufe) ? (a.wertungslaeufe as Record<string, unknown>) : {}
+          const streich = w.streichlaeufe ?? 0
+          if (!ganz(w.laeufe) || !ganz(streich) || w.laeufe < 1 || streich < 0 || streich >= w.laeufe || Object.keys(w).some((f) => f !== 'laeufe' && f !== 'streichlaeufe'))
+            err('BAD_WERTUNGSLAEUFE', `wertungJeDisziplin.${disziplin}.wertungslaeufe braucht "laeufe" (mindestens 1) und weniger "streichlaeufe" als Läufe – sonst nichts.`, `${hier}.wertungslaeufe`)
+        }
+      }
+    }
+  }
+
+  // ---- Wertungslisten: Stehen alle Punkte einer Disziplin in ihren Spalten? --
   const disziplinen = raw.disziplinen ?? []
   if (disziplinen.length > 0) {
     const felderVon = (sp: Partial<RawErgebnisSpalte>) => [
@@ -746,7 +852,8 @@ export function validateConfigTexts(texte: ConfigTexts): ConfigIssue[] {
       issues.push({ severity: 'error', code: 'BAD_REGELWERK_ID', message: `id "${rw.id}" passt nicht zum Dateinamen "${id}".`, where: file })
     if (!rw.name || rw.version === undefined)
       issues.push({ severity: 'error', code: 'MISSING_REGELWERK_NAME', message: 'Regelwerk ohne "name" oder "version".', where: file })
-    const raw: RawConfig = { ...rw, ...aufloesen(positionen.data as RawQuelle) }
+    const quelle = aufloesen(positionen.data as RawQuelle)
+    const raw: RawConfig = { ...rw, ...quelle, laufzettel: { ...quelle.laufzettel, ...rw.laufzettel } }
     for (const issue of validateRawConfig(raw)) {
       const schluessel = `${issue.code}|${issue.where}|${issue.message}`
       if (gesehen.has(schluessel)) continue

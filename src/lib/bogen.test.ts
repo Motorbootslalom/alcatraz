@@ -244,8 +244,8 @@ describe('Bogen-Modell (UIM 2026, englisch)', () => {
     expect(seite.klassenText).toBe('Class Dolphin')
     expect(seite.laufText).toBe('Attempt 1')
     expect(seite.texte.nr).toBe('No.')
-    expect(seite.texte.wkr).toBe('Judge:')
-    expect(seite.texte.unterschrift).toBe('Signature of judge')
+    expect(seite.texte.wkr).toBe('Race official:')
+    expect(seite.texte.unterschrift).toBe('Signature of race official')
     expect(seite.def.disqTableTitle).toContain('Disqualification')
   })
 

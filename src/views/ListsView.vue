@@ -11,17 +11,27 @@ import { t, tn } from '../i18n'
 import { useListenSprache } from '../lib/listensprache'
 import WkrListen from '../components/WkrListen.vue'
 import ErgebnisListen from '../components/ErgebnisListen.vue'
+import ParallelErgebnisListen from '../components/ParallelErgebnisListen.vue'
+import EinzelwertungListen from '../components/EinzelwertungListen.vue'
 import PokalListen from '../components/PokalListen.vue'
 import LaufzettelListen from '../components/LaufzettelListen.vue'
+import ParallelWkrListen from '../components/ParallelWkrListen.vue'
+import ParallelLaufzettel from '../components/ParallelLaufzettel.vue'
 import CodesAushang from '../components/CodesAushang.vue'
 import StarterBlaetter from '../components/StarterBlaetter.vue'
 import DruckdateiListen from '../components/DruckdateiListen.vue'
 import AusgleichListen from '../components/AusgleichListen.vue'
+import TeamListen from '../components/TeamListen.vue'
+import { teamListen } from '../lib/teamListe'
 import { ausgleichListen } from '../lib/ausgleich'
 import { useEvent } from '../lib/event'
-import type { ClassId } from '../types'
+import type { ClassId, ParallelRunde } from '../types'
 import { adresse } from '../lib/router'
-import { ALLE, herkuenfte, istStarterArt, istStarterWahl, ohneHerkunft, STARTER_ARTEN, STARTER_WAHL, starterDokumente, type StarterArt, type StarterDokument, type StarterWahl } from '../lib/starterlisten'
+import { gibDoppelseitig, istDoppelseitigArt, istDoppelseitigWahl, type DoppelseitigArt } from '../lib/doppelseitig'
+import { ALLE, herkuenfte, istStarterArt, istStarterWahl, ohneHerkunft, PARALLEL_STARTLISTEN, STARTER_ARTEN, STARTER_WAHL, starterDokumente, type ParallelStartlisteForm, type StarterArt, type StarterDokument, type StarterWahl } from '../lib/starterlisten'
+import { festeRunden } from '../lib/parallelBogen'
+import { rundenName } from '../planung/parallelRunden'
+import ParallelStartlisten from '../components/ParallelStartlisten.vue'
 
 /**
  * Druckbare Listen. Gedruckt wird über den Browser (auch „Als PDF speichern“);
@@ -31,7 +41,7 @@ import { ALLE, herkuenfte, istStarterArt, istStarterWahl, ohneHerkunft, STARTER_
 // nach Startnummer, nach Klasse – lib/starterlisten.ts). Danach in der Reihenfolge, in der man
 // die Listen am Wettkampftag braucht: Die Laufzettel und der Aushang der Fehler- und
 // Disqualifikations-Codes gehören zu den Bögen der Wettkampfrichter; die Mannschaftswertung
-// (im Code „pokal“) entsteht aus den Ergebnislisten und steht hinter ihnen. Zuletzt die
+// (im Code „pokal“) entsteht aus den Wertungslisten und steht hinter ihnen. Zuletzt die
 // Druckdatei: alles zusammen in einer Datei, die nach dem Wettkampf an die Gruppen geht.
 const KINDS = ['starter', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'codes', 'ergebnis', 'pokal', 'druckdatei'] as const satisfies readonly ReiterNamen['listen'][]
 type Kind = (typeof KINDS)[number]
@@ -48,19 +58,39 @@ useReiter('listen', kind, KINDS, (art) => {
   if (istStarterArt(art)) starterWahl.value.art = art
 })
 const id = useId()
-const { classes, classLabel } = useEvent()
+const { classes, classLabel, parallel } = useEvent()
+
+// Doppelseitig drucken: Jedes Dokument beginnt auf einem neuen Blatt (lib/doppelseitig.ts).
+// Den Schalter haben die Listenarten mit mehreren Dokumenten in einem Druck; die Bögen der
+// Wettkampfrichter haben mit der Rückseiten-Option ihre eigene Logik. Vorgabe aus; gemerkt
+// wird je Listenart, über Ansichtswechsel und Neuladen.
+const doppelseitigWahl = merke<Partial<Record<DoppelseitigArt, boolean>>>('listen.doppelseitig', () => ({}), { ueberNeuladen: true, gueltig: istDoppelseitigWahl })
+const doppelseitigArt = computed<DoppelseitigArt | undefined>(() => (istDoppelseitigArt(kind.value) ? kind.value : undefined))
+const doppelseitig = computed(() => doppelseitigArt.value !== undefined && doppelseitigWahl.value[doppelseitigArt.value] === true)
+gibDoppelseitig(doppelseitig)
+function setzeDoppelseitig(e: Event) {
+  if (doppelseitigArt.value) doppelseitigWahl.value[doppelseitigArt.value] = (e.target as HTMLInputElement).checked
+}
 
 // Gewichtslisten gibt es in zwei Arten: je Herkunft zum Eintragen beim Check-in (quer, ohne
 // Startnummern) und „Ausgleichsgewichte“ für den Steg (hoch, je Klasse ein Blatt nach
 // Startnummer – lib/ausgleich.ts). Die Wahl bleibt über Ansichtswechsel und Neuladen stehen.
-const GEWICHT_ARTEN = ['herkunft', 'steg'] as const
+// Unter Regel 960 kommt eine dritte dazu: die Liste der Fahrer je Team nach Pkt. 3.7 (Race
+// number, Name, Sex, Date of birth, Verified weight and ballast, Class, Co-driver –
+// lib/teamListe.ts). Eine interne Liste; sie steht nie in der Druckdatei.
+const GEWICHT_ARTEN = ['herkunft', 'steg', 'team'] as const
 type GewichtArt = (typeof GEWICHT_ARTEN)[number]
-const gewichtWahl = merke<{ art: GewichtArt; klasse: string }>('listen.gewicht', () => ({ art: 'herkunft', klasse: ALLE }), {
+const gewichtWahl = merke<{ art: GewichtArt; klasse: string; team?: string }>('listen.gewicht', () => ({ art: 'herkunft', klasse: ALLE }), {
   ueberNeuladen: true,
   gueltig: (x) => !!x && typeof x === 'object' && (GEWICHT_ARTEN as readonly unknown[]).includes((x as { art?: unknown }).art) && typeof (x as { klasse?: unknown }).klasse === 'string',
 })
+/** Die Arten, die es für die Veranstaltung gibt: die Liste je Team nur unter Regel 960 und mit einer Herkunft. */
+const gewichtArten = computed(() => GEWICHT_ARTEN.filter((a) => a !== 'team' || (parallel.value && state.value.originMode !== 'none')))
+const gewichtArt = computed<GewichtArt>(() => (gewichtArten.value.includes(gewichtWahl.value.art) ? gewichtWahl.value.art : 'herkunft'))
 /** Die Liste für den Steg ist gewählt. */
-const stegList = computed(() => kind.value === 'gewicht' && gewichtWahl.value.art === 'steg')
+const stegList = computed(() => kind.value === 'gewicht' && gewichtArt.value === 'steg')
+/** Die Liste der Fahrer je Team (Regel 960, Pkt. 3.7) ist gewählt. */
+const teamList = computed(() => kind.value === 'gewicht' && gewichtArt.value === 'team')
 /** Klassen mit Startern – nur für sie gibt es ein Blatt. */
 const stegKlassen = computed(() => classes.value.filter((c) => state.value.starters.some((p) => p.klasse === c.id)))
 /** Die gewählte Klasse – eine, die es nicht mehr gibt, zählt wie „alle“. */
@@ -72,11 +102,33 @@ const stegUngewogen = computed(() => stegListen.value.reduce((n, l) => n + l.ung
 const { t: lt } = useListenSprache()
 
 const ohneHerkunftsArt = computed(() => state.value.originMode === 'none')
+/** Die Arten der Starterliste, die es gibt: die des Parallelslaloms nur unter einem Regelwerk, das ihn kennt. */
+const starterArten = computed(() => STARTER_ARTEN.filter((a) => a !== 'parallel' || parallel.value))
 /** Die Herkünfte des Starterfelds – gleichbedeutende Schreibweisen zusammengefasst wie in der Mannschaftswertung. */
 const alleHerkuenfte = computed(() => herkuenfte(state.value.starters, state.value.originMode))
 const starterOhneHerkunft = computed(() => ohneHerkunft(state.value.starters, state.value.originMode).length)
 /** Die Art, die gilt: Ohne Herkunft gibt es keine Liste je Herkunft – dann bleibt die Wahl stehen, gezeigt wird die verzahnte. */
-const starterArt = computed<StarterArt>(() => (starterWahl.value.art === 'herkunft' && ohneHerkunftsArt.value ? 'verzahnt' : starterWahl.value.art))
+const starterArt = computed<StarterArt>(() =>
+  (starterWahl.value.art === 'herkunft' && ohneHerkunftsArt.value) || (starterWahl.value.art === 'parallel' && !parallel.value) ? 'verzahnt' : starterWahl.value.art,
+)
+
+// Startliste einer Runde des Parallelslaloms (components/ParallelStartlisten.vue): A und B
+// nebeneinander wie in der Druckdatei – oder je Racecourse eine eigene zum Aushang am jeweiligen
+// Parcours (Entscheidung des Nutzers vom 15.11.2026). Es gibt sie für jede festgeschriebene Runde.
+const parallelStart = computed(() => kind.value === 'starter' && starterArt.value === 'parallel')
+const startRunden = computed<ParallelRunde[]>(() => (parallel.value ? festeRunden(state.value.parallelPlaene) : []))
+const startRunde = computed(() => (startRunden.value.some((r) => r === starterWahl.value.runde) ? (starterWahl.value.runde as ParallelRunde) : ALLE))
+const startForm = computed<ParallelStartlisteForm>(() => starterWahl.value.racecourse ?? 'nebeneinander')
+/** Die Dokumente: je gewählter Runde die gemeinsame Liste oder die eines bzw. beider Racecourses. */
+const startDokumente = computed(() => {
+  const runden = startRunde.value === ALLE ? startRunden.value : [startRunde.value as ParallelRunde]
+  const formen = startForm.value === 'je' ? (['A', 'B'] as const) : startForm.value === 'nebeneinander' ? [undefined] : [startForm.value]
+  return formen.map((racecourse) => ({ racecourse, runden }))
+})
+const parallelStartStand = computed(() => ({
+  anzahl: startDokumente.value.reduce((n, d) => n + d.runden.length, 0),
+  auswahl: [t('lists.starter.art.parallel'), startRunde.value === ALLE ? '' : rundenName(startRunde.value as ParallelRunde, t), t(`lists.starter.parallel.${startForm.value}`)].filter(Boolean).join(' '),
+}))
 /** Verzahnt: die Markierung, die gilt – '' = keine. Eine Herkunft, die es nicht mehr gibt, zählt wie „ohne Markierung“. */
 const markierung = computed(() => {
   const m = starterWahl.value.markierung
@@ -93,19 +145,42 @@ const herkunftsWahl = computed(() => (alleHerkuenfte.value.some((h) => h.schlues
 const missing = computed(() => state.value.starters.filter((p) => p.startNr.trim() === '').length)
 const duplicate = computed(() => duplicateStartNrIds(state.value.starters, state.value.startNrMode).size)
 // Gewichtslisten entstehen beim Check-in, oft bevor es Startnummern gibt – sie brauchen keine.
-// Die Liste für den Steg dagegen ist nach Startnummer geordnet und braucht sie wie die übrigen.
-const weightList = computed(() => kind.value === 'gewicht' && !stegList.value)
+// Die Liste für den Steg dagegen ist nach Startnummer geordnet und braucht sie wie die übrigen;
+// ebenso die Liste je Team, die die Race number nennen muss (Pkt. 3.7).
+const weightList = computed(() => kind.value === 'gewicht' && !stegList.value && !teamList.value)
+/** Das gewählte Team – eines, das es nicht mehr gibt, zählt wie „alle“. */
+const teamWahl = computed(() => (alleHerkuenfte.value.some((h) => h.schluessel === gewichtWahl.value.team) ? gewichtWahl.value.team! : ALLE))
+const teamListenAlle = computed(() => (teamList.value ? teamListen(state.value, teamWahl.value) : []))
+const teamUngewogen = computed(() => teamListenAlle.value.reduce((n, l) => n + l.ungewogen, 0))
+const teamOhneGeschlecht = computed(() => teamListenAlle.value.reduce((n, l) => n + l.zeilen.filter((z) => z.starter.geschlecht === undefined).length, 0))
 // Der Aushang der Codes hängt nur am Regelwerk – er lässt sich drucken, bevor es Starter gibt.
 const codeList = computed(() => kind.value === 'codes')
-// Ergebnislisten und Mannschaftswertung rechnen über die Starter-ID; eine fehlende Nummer hält den Aushang nicht auf.
+// Wertungslisten und Mannschaftswertung rechnen über die Starter-ID; eine fehlende Nummer hält den Aushang nicht auf.
 // Die Druckdatei lässt dann nur ihre Starterliste weg und sagt das (components/DruckdateiListen.vue).
 const blocked = computed(() => !weightList.value && !codeList.value && kind.value !== 'ergebnis' && kind.value !== 'pokal' && kind.value !== 'druckdatei' && (missing.value > 0 || duplicate.value > 0))
+
+// Unter einem Regelwerk mit Parallelslalom (UIM 960) gibt es die Bögen der Wettkampfrichter, die
+// Laufzettel und die Wertungslisten je Disziplin: Die des Parallelslaloms gehören zu Runde und
+// Racecourse statt zu Klasse und Lauf und haben eigene Ansichten (components/ParallelWkrListen.vue,
+// ParallelLaufzettel.vue, ParallelErgebnisListen.vue). Die Wahl bleibt über Ansichtswechsel und
+// Neuladen stehen.
+// Bei den Wertungslisten steht daneben die Einzelwertung über beide Stages („Individual
+// competition“, Pkt. 5.2.3; components/EinzelwertungListen.vue) – Bögen und Laufzettel gibt es
+// dazu nicht: Dort gilt die Wahl „Einzelwertung“ wie „Manövrieren“.
+const DISZIPLINEN = ['manoever', 'parallel', 'einzel'] as const
+type Disziplin = (typeof DISZIPLINEN)[number]
+const disziplinWahl = merke<Disziplin>('listen.disziplin', 'manoever', { ueberNeuladen: true, gueltig: (x) => (DISZIPLINEN as readonly unknown[]).includes(x) })
+const mitDisziplin = computed(() => parallel.value && (kind.value === 'wkr' || kind.value === 'laufzettel' || kind.value === 'ergebnis'))
+const disziplinen = computed(() => DISZIPLINEN.filter((d) => d !== 'einzel' || kind.value === 'ergebnis'))
+const disziplin = computed<Disziplin>(() => (disziplinen.value.includes(disziplinWahl.value) ? disziplinWahl.value : 'manoever'))
+const imParallel = computed(() => mitDisziplin.value && disziplin.value === 'parallel')
+const imEinzel = computed(() => mitDisziplin.value && disziplin.value === 'einzel')
 
 // Wettkampfrichter-Listen zeichnet eine eigene Ansicht (components/WkrListen.vue); sie
 // meldet, wie viele Bögen die Auswahl zeigt und wie die Auswahl heißt.
 const wkrList = computed(() => kind.value === 'wkr')
 const wkrStand = ref({ anzahl: 0, auswahl: '' })
-// Ergebnislisten ebenso (components/ErgebnisListen.vue).
+// Wertungslisten ebenso (components/ErgebnisListen.vue).
 const resultList = computed(() => kind.value === 'ergebnis')
 const resultStand = ref({ anzahl: 0, auswahl: '' })
 // Und die Laufzettel (components/LaufzettelListen.vue).
@@ -115,19 +190,34 @@ const runSheetStand = ref({ anzahl: 0, auswahl: '' })
 const cupList = computed(() => kind.value === 'pokal')
 const cupStand = ref({ anzahl: 0, auswahl: '' })
 // Und die Ausgleichsgewichte für den Steg (components/AusgleichListen.vue); ihre Auswahl steht hier.
+const teamStand = computed(() => ({ anzahl: teamListenAlle.value.length, auswahl: [t('lists.weight.art.team'), teamWahl.value === ALLE ? '' : (alleHerkuenfte.value.find((h) => h.schluessel === teamWahl.value)?.name ?? '')].filter(Boolean).join(' ') }))
 const stegStand = computed(() => ({ anzahl: stegListen.value.length, auswahl: [t('lists.title.ausgleich'), stegKlasse.value === ALLE ? '' : classLabel(stegKlasse.value as ClassId)].filter(Boolean).join(' ') }))
-// Und die Druckdatei (components/DruckdateiListen.vue): Starterliste, Mannschaftswertungen, Codes und Ergebnislisten in einem Druck.
+// Und die Druckdatei (components/DruckdateiListen.vue): Starterliste, Mannschaftswertungen, Codes und Wertungslisten in einem Druck.
 const bookletList = computed(() => kind.value === 'druckdatei')
 const bookletStand = ref({ anzahl: 0, auswahl: '' })
-const ownView = computed(() => wkrList.value || resultList.value || runSheets.value || cupList.value || stegList.value || bookletList.value)
+const ownView = computed(() => wkrList.value || resultList.value || runSheets.value || cupList.value || stegList.value || teamList.value || bookletList.value || parallelStart.value)
 const ownStand = computed(() =>
-  stegList.value ? stegStand.value : wkrList.value ? wkrStand.value : resultList.value ? resultStand.value : cupList.value ? cupStand.value : bookletList.value ? bookletStand.value : runSheetStand.value,
+  parallelStart.value
+    ? parallelStartStand.value
+    : teamList.value
+      ? teamStand.value
+      : stegList.value
+        ? stegStand.value
+        : wkrList.value
+          ? wkrStand.value
+          : resultList.value
+            ? resultStand.value
+            : cupList.value
+              ? cupStand.value
+              : bookletList.value
+                ? bookletStand.value
+                : runSheetStand.value,
 )
 const nothingToPrint = computed(() => !codeList.value && (ownView.value ? ownStand.value.anzahl === 0 : sections.value.length === 0))
 
 const sections = computed<StarterDokument[]>(() => {
   const k = kind.value
-  if ((k !== 'starter' && k !== 'vorsteg' && k !== 'gewicht') || stegList.value) return []
+  if ((k !== 'starter' && k !== 'vorsteg' && k !== 'gewicht') || stegList.value || teamList.value) return []
   return starterDokumente(
     state.value,
     { liste: k, art: starterArt.value, markierung: markierung.value, herkunft: herkunftsWahl.value },
@@ -140,6 +230,7 @@ const starterAuswahl = computed(() => {
   const herkunftTitel = t(originLabelKey(state.value.originMode))
   const name = (wahl: string) => (wahl === ALLE ? '' : (alleHerkuenfte.value.find((h) => h.schluessel === wahl)?.name ?? ''))
   if (starterArt.value === 'klasse') return t('lists.starter.art.klasse')
+  if (starterArt.value === 'parallel') return parallelStartStand.value.auswahl
   if (starterArt.value === 'herkunft') return [t('lists.starter.art.herkunft', { origin: herkunftTitel }), name(herkunftsWahl.value)].filter(Boolean).join(' ')
   return [t('lists.starter.art.verzahnt'), markierung.value === '' ? '' : name(markierung.value) || `${herkunftTitel}: ${t('lists.wkr.all')}`].filter(Boolean).join(', ')
 })
@@ -147,7 +238,7 @@ const starterAuswahl = computed(() => {
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 
 // Im Seitenrand steht nichts, auch kein Druckzeitpunkt: Er änderte sich bei jedem Nachdruck
-// und sagte nichts über die Liste. Nur die Ergebnislisten tragen eine Zeit – die ihrer letzten
+// und sagte nichts über die Liste. Nur die Wertungslisten tragen eine Zeit – die ihrer letzten
 // Änderung, in einem eigenen Feld unter der Tabelle (components/ergebnis/ErgebnisFuss.vue).
 // Eine Seitenzahl im Rand gab es nie: Die Zähler des Browsers laufen über den ganzen Druck-
 // auftrag („Seite 58 von 178“); jede Liste zählt ihre Seiten selbst (ListenDokument.vue).
@@ -182,6 +273,10 @@ function print() {
         </button>
       </div>
       <span style="flex: 1" />
+      <label v-if="doppelseitigArt" class="boat-check doppelseitig-wahl" :title="t('lists.duplex.hint')">
+        <input type="checkbox" data-feld="doppelseitig" :checked="doppelseitig" @change="setzeDoppelseitig" />
+        {{ t('lists.duplex') }}
+      </label>
       <button class="btn primary" :disabled="nothingToPrint || blocked" @click="print">{{ t('common.print') }}</button>
     </div>
   </div>
@@ -193,7 +288,7 @@ function print() {
         <label>{{ t('lists.starter.art') }}</label>
         <div class="segmented starter-arten" role="group" :aria-label="t('lists.starter.art')">
           <button
-            v-for="a in STARTER_ARTEN"
+            v-for="a in starterArten"
             :key="a"
             type="button"
             :data-art="a"
@@ -221,9 +316,27 @@ function print() {
           <option v-for="h in alleHerkuenfte" :key="h.schluessel" :value="h.schluessel">{{ h.name }}</option>
         </select>
       </div>
-      <p v-if="!blocked" class="note ergebnis-zahl" role="status">{{ tn('results.count', dokumente) }}</p>
+      <template v-if="starterArt === 'parallel'">
+        <div v-if="startRunden.length > 1" class="field">
+          <label :for="`${id}-start-runde`">{{ t('parallel.lists.round') }}</label>
+          <select :id="`${id}-start-runde`" class="input" data-feld="start-runde" :value="startRunde" @change="starterWahl.runde = ($event.target as HTMLSelectElement).value">
+            <option :value="ALLE">{{ t('lists.wkr.all') }}</option>
+            <option v-for="r in startRunden" :key="r" :value="r">{{ rundenName(r, t) }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label :for="`${id}-start-racecourse`">{{ t('parallel.lists.racecourse') }}</label>
+          <select :id="`${id}-start-racecourse`" class="input" data-feld="start-racecourse" :value="startForm" @change="starterWahl.racecourse = ($event.target as HTMLSelectElement).value as ParallelStartlisteForm">
+            <option v-for="f in PARALLEL_STARTLISTEN" :key="f" :value="f">{{ t(`lists.starter.parallel.${f}`) }}</option>
+          </select>
+        </div>
+      </template>
+      <p v-if="!blocked" class="note ergebnis-zahl" role="status">{{ tn('results.count', parallelStart ? parallelStartStand.anzahl : dokumente) }}</p>
     </div>
     <p class="note" data-hinweis="starter-art">{{ t(starterArt === 'verzahnt' && markierung !== '' ? 'lists.starter.hint.verzahnt.marked' : `lists.starter.hint.${starterArt}`, { origin: t(originLabelKey(state.originMode)) }) }}</p>
+    <p v-if="parallelStart && startRunden.length === 0" class="boat-banner warn" role="status" data-hinweis="parallel-plan">
+      {{ t('parallel.lists.needPlan') }} <a :href="adresse('verzahnung', { reiter: 'parallel' })">{{ t('nav.verzahnung') }} → {{ t('parallel.title') }}</a>
+    </p>
     <p v-if="ohneHerkunftsArt" class="note" data-hinweis="starter-ohne-herkunftsart">
       {{ t('lists.starter.noOrigin') }} <a :href="adresse('veranstaltung')">{{ t('nav.veranstaltung') }}</a
       >.
@@ -239,8 +352,8 @@ function print() {
       <div class="field">
         <label>{{ t('lists.weight.art') }}</label>
         <div class="segmented gewicht-arten" role="group" :aria-label="t('lists.weight.art')">
-          <button v-for="a in GEWICHT_ARTEN" :key="a" type="button" :data-art="a" :class="gewichtWahl.art === a ? 'active' : ''" :aria-pressed="gewichtWahl.art === a" @click="gewichtWahl.art = a">
-            {{ a === 'steg' ? t('lists.weight.art.steg') : ohneHerkunftsArt ? t('lists.weight.art.checkin') : t('lists.weight.art.herkunft', { origin: t(originLabelKey(state.originMode)) }) }}
+          <button v-for="a in gewichtArten" :key="a" type="button" :data-art="a" :class="gewichtArt === a ? 'active' : ''" :aria-pressed="gewichtArt === a" @click="gewichtWahl.art = a">
+            {{ a === 'team' ? t('lists.weight.art.team') : a === 'steg' ? t('lists.weight.art.steg') : ohneHerkunftsArt ? t('lists.weight.art.checkin') : t('lists.weight.art.herkunft', { origin: t(originLabelKey(state.originMode)) }) }}
           </button>
         </div>
       </div>
@@ -251,19 +364,47 @@ function print() {
           <option v-for="c in stegKlassen" :key="c.id" :value="c.id">{{ classLabel(c.id) }}</option>
         </select>
       </div>
-      <p v-if="!blocked && state.starters.length > 0" class="note ergebnis-zahl" role="status">{{ tn('results.count', stegList ? stegListen.length : dokumente) }}</p>
+      <div v-if="teamList" class="field">
+        <label :for="`${id}-team`">{{ t(originLabelKey(state.originMode)) }}</label>
+        <select :id="`${id}-team`" class="input" data-feld="team-wahl" :value="teamWahl" @change="gewichtWahl.team = ($event.target as HTMLSelectElement).value">
+          <option :value="ALLE">{{ t('lists.wkr.all') }}</option>
+          <option v-for="h in alleHerkuenfte" :key="h.schluessel" :value="h.schluessel">{{ h.name }}</option>
+        </select>
+      </div>
+      <p v-if="!blocked && state.starters.length > 0" class="note ergebnis-zahl" role="status">{{ tn('results.count', teamList ? teamListenAlle.length : stegList ? stegListen.length : dokumente) }}</p>
     </div>
     <p class="note" data-hinweis="gewicht-art">
-      {{ t(`lists.weight.hint.${gewichtWahl.art}`) }}
+      {{ t(`lists.weight.hint.${gewichtArt}`) }}
+      <template v-if="teamList">
+        <a :href="adresse('einstellungen')">{{ t('nav.einstellungen') }}</a
+        >.
+      </template>
       <template v-if="stegList">
         <a :href="adresse('veranstaltung', { ziel: 'besetzung' })">{{ t('nav.veranstaltung') }} → {{ t('crew.title') }}</a
         >.
       </template>
     </p>
+    <p v-if="teamList && !blocked && teamOhneGeschlecht > 0" class="note" data-hinweis="team-ohne-geschlecht" role="status">
+      {{ tn('lists.team.noSex', teamOhneGeschlecht) }} <a :href="adresse('starter')">{{ t('nav.starter') }}</a
+      >.
+    </p>
+    <p v-if="teamList && !blocked && teamUngewogen > 0" class="boat-banner warn" data-hinweis="team-ungewogen" role="status">
+      {{ tn('lists.weight.unweighed', teamUngewogen) }} <a :href="adresse('verwiegung')">{{ t('nav.verwiegung') }}</a
+      >.
+    </p>
     <p v-if="stegList && !blocked && stegUngewogen > 0" class="boat-banner warn" data-hinweis="steg-ungewogen" role="status">
       {{ tn('lists.weight.unweighed', stegUngewogen) }} <a :href="adresse('verwiegung')">{{ t('nav.verwiegung') }}</a
       >.
     </p>
+  </div>
+
+  <!-- Bögen, Laufzettel und Wertungslisten je Disziplin – nur, wenn nach dem Regelwerk ein Parallelslalom gefahren wird. -->
+  <div v-if="mitDisziplin" class="panel no-print disziplin-wahl">
+    <div class="segmented" role="group" :aria-label="t('capture.discipline')">
+      <button v-for="d in disziplinen" :key="d" type="button" :data-disziplin="d" :class="disziplin === d ? 'active' : ''" :aria-pressed="disziplin === d" @click="disziplinWahl = d">
+        {{ d === 'einzel' ? t('individual.title') : t(`running.source.${d}`) }}
+      </button>
+    </div>
   </div>
 
   <p v-if="blocked" class="boat-banner warn no-print" role="alert" style="margin-bottom: 16px">
@@ -281,16 +422,26 @@ function print() {
   <!-- Starter gibt es, aber keine Liste: keiner fährt auf einem Parcours, oder keiner hat eine Herkunft. -->
   <div v-else-if="!ownView && sections.length === 0" class="panel empty no-print" data-hinweis="keine-liste">{{ t('lists.noList') }}</div>
 
+  <ParallelWkrListen v-else-if="wkrList && imParallel" :gesperrt="blocked" @stand="wkrStand = $event" />
   <WkrListen v-else-if="wkrList" :gesperrt="blocked" @stand="wkrStand = $event" />
 
+  <ParallelLaufzettel v-else-if="runSheets && imParallel" :gesperrt="blocked" @stand="runSheetStand = $event" />
   <LaufzettelListen v-else-if="runSheets" :gesperrt="blocked" @stand="runSheetStand = $event" />
 
+  <ParallelErgebnisListen v-else-if="resultList && imParallel" @stand="resultStand = $event" />
+  <EinzelwertungListen v-else-if="resultList && imEinzel" @stand="resultStand = $event" />
   <ErgebnisListen v-else-if="resultList" @stand="resultStand = $event" />
 
   <DruckdateiListen v-else-if="bookletList" :starter-gesperrt="missing > 0 || duplicate > 0" @stand="bookletStand = $event" />
 
   <!-- Vor gültigen Startnummern gibt es die Liste für den Steg nicht (der Hinweis steht oben). -->
   <template v-else-if="stegList"><AusgleichListen v-if="!blocked" :listen="stegListen" /></template>
+  <!-- Startliste einer Runde des Parallelslaloms: gemeinsam oder je Racecourse; vor gültigen Startnummern keine. -->
+  <template v-else-if="parallelStart">
+    <template v-if="!blocked"><ParallelStartlisten v-for="d in startDokumente" :key="d.racecourse ?? 'ab'" :runden="d.runden" :racecourse="d.racecourse" :herkunft="state.listOrigin" /></template>
+  </template>
+  <!-- Die Liste je Team nennt die Race number (Pkt. 3.7) und braucht gültige Startnummern wie die für den Steg. -->
+  <template v-else-if="teamList"><TeamListen v-if="!blocked" :listen="teamListenAlle" :geburtsdatum="state.showBirthdate" /></template>
 
   <StarterBlaetter v-else :dokumente="sections" :liste="kind === 'gewicht' ? 'gewicht' : kind === 'vorsteg' ? 'vorsteg' : 'starter'" :form="starterArt === 'herkunft' ? 'herkunft' : 'starter'" :data-art="kind === 'starter' ? starterArt : undefined" />
 </template>

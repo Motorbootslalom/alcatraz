@@ -18,7 +18,7 @@ import { effectScope, ref, watch, type Ref } from 'vue'
  * Der Reiter selbst steht in der Adresse (`useReiter` in lib/router.ts).
  * Ebenso bleibt, was man sich in den übrigen Ansichten zurechtgelegt hat: die aufgeklappten
  * Klassen bei „Starter“, die Herkunft bei „Verwiegung“, die Vorschau der Veranstaltung und die
- * Wahl bei den Beispielwerten.
+ * Wahl bei den Beispieldaten (Zahl je Klasse, Herkünfte, Beispielwerte).
  * Mit der Veranstaltung endet das: `vergissAuswahl` (Zurücksetzen, Laden einer Sicherung).
  *
  * Ein gemerkter Wert kann veralten (die Klasse, die Herkunft gibt es nicht mehr): Gelesen wird

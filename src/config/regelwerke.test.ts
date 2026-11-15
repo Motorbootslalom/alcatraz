@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { configFor, resolveRegelwerkId } from './konfig'
+import { regelwerkOf, versucheNacheinander } from './catalog'
 import type { Sprache } from '../types'
 
 // Aus regelwerke.test.ts des Fehlerpunkte-Prototyps. Dort waren Regelwerk und Sprache ein
@@ -108,7 +109,7 @@ describe('DM 2026', () => {
 
   it('jede Liste bekommt nur die Buchstaben ihres Bereichs', () => {
     expect(buchstaben('vorsteg')).toEqual(['M', 'X'])
-    expect(buchstaben('steg')).toEqual(['A', 'C', 'D', 'E', 'F', 'H', 'I', 'K', 'M', 'R', 'X'])
+    expect(buchstaben('steg')).toEqual(['A', 'C', 'D', 'E', 'F', 'H', 'I', 'K', 'M', 'R', 'S', 'X'])
     expect(buchstaben('gate135')).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'R', 'X'])
   })
 })
@@ -130,6 +131,19 @@ describe('UIM 2026', () => {
     applyRegelwerk('uim-2026')
     const spalten = getSheetDef('knoten').columns.filter((c) => c.kind === 'buoy').map((c) => c.key)
     expect(spalten).toEqual(['webleinstek', 'palstek', 'kreuzknoten', 'klampe'])
+  })
+
+  it('verlangt für den Aushang Unterschrift, Uhrzeit und Punkte (Pkt. 5.2, 5.2.1) und kennt die Option „Versuche direkt nacheinander“ (Pkt. 4.3.2; nicht vorgewählt) – die DM nicht', () => {
+    const uim = regelwerkOf('uim-2026')
+    expect(uim.aushang).toEqual({ unterschrift: true, punkte: true })
+    expect(uim.versucheNacheinander).toBe(false)
+    const dm = regelwerkOf('dm-2026')
+    expect(dm.aushang).toEqual({ unterschrift: false, punkte: false })
+    // Die DM kennt den Schalter nicht: Er ist dort weder sichtbar noch wirksam.
+    expect(dm.versucheNacheinander).toBeUndefined()
+    expect(versucheNacheinander({ regelwerk: 'dm-2026', versucheNacheinander: true })).toBe(false)
+    expect(versucheNacheinander({ regelwerk: 'uim-2026', versucheNacheinander: true })).toBe(true)
+    expect(versucheNacheinander({ regelwerk: 'uim-2026', versucheNacheinander: false })).toBe(false)
   })
 
   it('kennt keine Fehler, die Pkt. 5.3 nicht nennt, und führt das MüB einzeln auf', () => {
@@ -199,7 +213,7 @@ describe('Sprachen', () => {
     expect(steg.errorGroups?.[0].rows[0].text).toBe('erneute Stegberührung / Additional touch of the starting pontoon')
     expect(steg.legendNote).toContain('kombinierbar')
     expect(steg.legendNote).toContain('Penalties can be combined')
-    expect(getBogenTexte().wkr).toBe('WKR / Judge:')
+    expect(getBogenTexte().wkr).toBe('WKR / Race official:')
     // Satz-Hinweise stehen untereinander, nicht mit „/“ verbunden.
     expect(getLegende().fehlerHinweis?.split('\n')).toHaveLength(2)
     // Auf den Listen stehen sie nebeneinander: links deutsch, rechts englisch.

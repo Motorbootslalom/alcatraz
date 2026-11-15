@@ -8,7 +8,7 @@ import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
 
-// Die Druckdatei: Starterliste, Mannschaftswertungen, Codes und Ergebnislisten in einem Druck.
+// Die Druckdatei: Starterliste, Mannschaftswertungen, Codes und Wertungslisten in einem Druck.
 // Alle Starter und Vereine sind erfunden.
 
 const VEREINE = ['MBC Nord', 'MBC Süd', 'WSV Ost']
@@ -44,7 +44,8 @@ const global = (store: Store) => ({ global: { provide: { [storeKey as symbol]: s
 async function fertig(wrapper: VueWrapper) {
   // Erst die Änderung ankommen lassen: Eine andere Auswahl beginnt den Aufbau von vorn.
   await nextTick()
-  await vi.waitFor(() => expect(wrapper.find('.druckdatei').attributes('data-fertig')).toBeDefined())
+  // Großzügig warten: Läuft die ganze Suite, teilen sich viele Dateien den Rechner – die Vorgabe (1 s) reichte dann nicht immer.
+  await vi.waitFor(() => expect(wrapper.find('.druckdatei').attributes('data-fertig')).toBeDefined(), { timeout: 10000 })
   // Der Stand (Zahl der Listen) geht an die Ansicht, die danach den Knopf „Drucken“ freigibt.
   await nextTick()
   await nextTick()
@@ -117,6 +118,42 @@ describe('Druckdatei', () => {
     expect(new Set(wrapper.findAll('.druckdatei-teil[data-teil="ergebnis"] .ergebnis-blatt').map((b) => b.attributes('data-ordnung')))).toEqual(new Set(['platz']))
     expect(wrapper.find('[data-hinweis="druckdatei-unfertig"]').exists()).toBe(false)
     expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('nur die normale verzahnte Starterliste – keine Listen je Herkunft, keine Markierung; die Liste nach Pkt. 3.7 in keiner Fassung', async () => {
+    fahre(store, '1')
+    fahre(store, '2')
+    const wrapper = mount(ListsView, global(store))
+    // Unter „Starterlisten“ ist die Liste je Herkunft gewählt, verzahnt mit Markierung – die Druckdatei bleibt bei der normalen.
+    await wrapper.find('.starter-arten button[data-art="herkunft"]').trigger('click')
+    await wrapper.find('.list-kinds button[data-kind="druckdatei"]').trigger('click')
+    await fertig(wrapper)
+    const starterListen = () => wrapper.findAll('.druckdatei-teil[data-teil="starter"] .sheet-section').map((s) => s.attributes('data-liste'))
+    // Je Parcours mit Startern eine Liste – deren Kennung ist die des Parcours (je Herkunft hieße sie `herkunft:…`).
+    expect(starterListen()).toEqual(['par_1'])
+    for (const fassung of ['extern', 'intern']) {
+      await wrapper.find(`.druckdatei-wahl button[data-fassung="${fassung}"]`).trigger('click')
+      await fertig(wrapper)
+      expect(starterListen()).toEqual(['par_1'])
+      expect(wrapper.find('.druckdatei [data-markiert]').exists()).toBe(false)
+      expect(wrapper.find('.druckdatei .team-liste').exists()).toBe(false)
+    }
+    wrapper.unmount()
+  })
+
+  it('unter Regel 960 ebenso: die verzahnte Starterliste, die Liste je Team (Pkt. 3.7) auch intern nicht', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'land' })
+    fahre(store, '1')
+    const wrapper = await druckdatei(store)
+    for (const fassung of ['extern', 'intern']) {
+      await wrapper.find(`.druckdatei-wahl button[data-fassung="${fassung}"]`).trigger('click')
+      await fertig(wrapper)
+      expect(wrapper.findAll('.druckdatei-teil[data-teil="starter"] .sheet-section').map((s) => s.attributes('data-liste'))).toEqual(['par_1'])
+      expect(wrapper.find('.druckdatei .team-liste').exists()).toBe(false)
+      expect(wrapper.find('.druckdatei').text()).not.toContain('Pkt. 3.7')
+    }
     wrapper.unmount()
   })
 
@@ -232,7 +269,9 @@ describe('Druckdatei', () => {
     setLocale('en')
     const wrapper = await druckdatei(store)
     expect(wrapper.find('.list-kinds button[data-kind="druckdatei"]').text()).toBe('Results booklet')
-    expect(dokumente(wrapper)[0]).toMatch(/^starter: Competitor list/)
+    // Unter Regel 960 steht die Starterliste vor den Wertungslisten des Manövrierens, nicht vorn.
+    expect(teile(wrapper)).toEqual(['codes', 'starter', 'ergebnis'])
+    expect(dokumente(wrapper).find((d) => d.startsWith('starter:'))).toMatch(/^starter: List of drivers/)
     wrapper.unmount()
   })
 })

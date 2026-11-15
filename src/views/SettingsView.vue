@@ -8,8 +8,9 @@ import { normalizeName } from '../domain/kuerzel'
 import { downloadText, filename, makeFile, parseFile, type FileKind } from '../persistenz/backup'
 import { loadLegacyVerzahnung } from '../persistenz/storage'
 import { BESCHRIFTUNGEN, sollgewichtOf } from '../config/catalog'
-import { bietetEnglisch, regelwerkSprache } from '../lib/listensprache'
+import { bietetEnglisch, laenderKuerzelFuer, regelwerkSprache } from '../lib/listensprache'
 import { useEvent } from '../lib/event'
+import { pruefeKlassen } from '../import/klassenPruefung'
 import { useKonfig } from '../lib/konfig'
 import { zusatzListen } from '../lib/listen'
 import { herkunftAnzeige, originLabelKey, originOf } from '../lib/origin'
@@ -17,6 +18,7 @@ import { hatFlaggen } from '../domain/flaggen'
 import HerkunftWahl from '../components/HerkunftWahl.vue'
 import HerkunftText from '../components/HerkunftText.vue'
 import { POKAL_BESTE_MAX, POKAL_PLATZ_VARIANTEN, POKAL_PUNKTE_MAX, POKAL_VARIANTEN, pokalRegeln, pokalVorgabe, type PokalPlatzVariante } from '../config/pokal'
+import { pokalStichText } from '../lib/pokalBlaetter'
 import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
 import { formatDateTime, t, tn, locale } from '../i18n'
 import { adresse, sprungziel } from '../lib/router'
@@ -40,7 +42,7 @@ import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
  */
 const { state, dispatch } = useStore()
 const id = useId()
-const { regelwerk, classLabel } = useEvent()
+const { regelwerk, classLabel, parallel } = useEvent()
 // Leerzeilen und Durchschnittsgewichte nur für die Klassen des Regelwerks.
 const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color: classColor(id) })))
 const ERGEBNIS_FASSUNGEN: ErgebnisFassung[] = ['aushang', 'intern']
@@ -48,7 +50,7 @@ const ERGEBNIS_NAMEN: ErgebnisNamen[] = ['voll', 'kurz', 'ohne']
 const dateiFeld = ref<HTMLInputElement | null>(null)
 const inhalt = ref<HTMLElement | null>(null)
 
-// Die Ergebnislisten verweisen mit `#/einstellungen?wertung` auf die Wertung: dann dorthin
+// Die Wertungslisten verweisen mit `#/einstellungen?wertung` auf die Wertung: dann dorthin
 // rollen, statt den Abschnitt in der langen Seite suchen zu lassen. (Die WKR-Einteilung steht
 // nicht mehr hier; `#/einstellungen?wkr` führt zur Veranstaltung – lib/adressen.ts `umzug`.)
 onMounted(async () => {
@@ -64,9 +66,12 @@ onMounted(async () => {
  * Zeilen der Kürzel-Tabelle: jede Herkunft, die bei den Startern vorkommt, und
  * jeder eigene Eintrag – auch wenn gerade kein Starter dazu gehört.
  */
-/** Das Kürzel, das ohne eigenen Eintrag auf den Listen steht – dasselbe, das `herkunftAnzeige` dort zeigt. */
+/**
+ * Das Kürzel, das ohne eigenen Eintrag auf den Listen steht – dasselbe, das `herkunftAnzeige` dort
+ * zeigt, also auch nach der Norm des Regelwerks (UIM: IOC, Regel 209).
+ */
 const kuerzelVorgabe = (name: string) => {
-  const kurz = herkunftAnzeige(name, state.value.originMode, 'kurz', {}).klartext
+  const kurz = herkunftAnzeige(name, state.value.originMode, 'kurz', {}, regelwerkSprache(state.value.regelwerk), false, laenderKuerzelFuer(state.value.regelwerk)).klartext
   return kurz !== name ? kurz : ''
 }
 const shortRows = computed(() => {
@@ -153,9 +158,17 @@ function addShort() {
 // --- Wertung ---------------------------------------------------------------
 /** Was sich wählen lässt: die Regel, und jede Zahl, bei der noch ein Lauf zählt. */
 const streichWahl = computed(() => ['auto', ...Array.from({ length: Math.max(1, state.value.laufCount) }, (_, i) => String(i))])
-const streichlaeufe = computed(() => streichlaeufeVon(state.value.laufCount, state.value.streichlaeufe))
+const streichlaeufe = computed(() => streichlaeufeVon(state.value.laufCount, state.value.streichlaeufe, regelwerk.value.wertungslaeufe?.nachRegel))
+// „Nach Regel“ in Worten: Nennt das Regelwerk für einzelne Laufzahlen eigene Streichläufe
+// (DM C6: bei zwei Läufen einer), steht das dabei – sonst nur die allgemeine Regel.
+const streichAutoText = computed(() => {
+  const regel = Object.entries(regelwerk.value.wertungslaeufe?.nachRegel ?? {})
+    .filter(([l, s]) => s !== (Number(l) >= 3 ? 1 : 0))
+    .map(([l, s]) => t('scoring.drop.autoRule.item', { runs: l, drop: s }))
+  return regel.length > 0 ? t('scoring.drop.autoRule', { rulebook: regelwerk.value.label, rule: regel.join(', ') }) : t('scoring.drop.auto')
+})
 const streichText = (wert: string) =>
-  wert === 'auto' ? t('scoring.drop.auto') : wert === '0' ? t('scoring.drop.none') : tn('scoring.drop.n', Number(wert))
+  wert === 'auto' ? streichAutoText.value : wert === '0' ? t('scoring.drop.none') : tn('scoring.drop.n', Number(wert))
 function setzeStreichlaeufe(e: Event) {
   const wert = (e.target as HTMLSelectElement).value
   dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: wert === 'auto' ? 'auto' : Number(wert) })
@@ -207,6 +220,16 @@ async function upload(e: Event) {
   if (result.kind === 'starter' && starterfeldFest(state.value)) {
     message.value = { ok: false, text: `${t('lock.text')} ${t('lock.fix')} ${t('lock.clear')} ${t('lock.or')} ${t('lock.reset')}.` }
     return
+  }
+  // Klasse gegen Geburtsjahr, wie beim Einfügen aus Excel: Eine Datei mit einem Starter in der
+  // falschen Klasse (von Hand geändert, anderes Jahr der Veranstaltung) wird nicht übernommen.
+  if (result.kind === 'starter') {
+    const fehler = pruefeKlassen(result.starters, state.value.eventJahr, regelwerk.value.klassen).fehler
+    if (fehler.length > 0) {
+      const names = fehler.map((f) => `${[f.starter.vorname, f.starter.nachname].filter(Boolean).join(' ')}: ${classLabel(f.starter.klasse)}, ${f.jahr}`).join('; ')
+      message.value = { ok: false, text: tn('files.classErrors', fehler.length, { names, year: state.value.eventJahr }) }
+      return
+    }
   }
   const time = result.savedAt ? formatDateTime(result.savedAt) : t('app.unknown')
   // Mit den Startern gingen ihre erfassten Werte: Die Rückfrage sagt, wie viele betroffen sind.
@@ -332,7 +355,7 @@ function takeLegacy() {
         <tbody>
           <tr v-for="row in shortRows" :key="row.name">
             <!-- Mit Flagge, wo die Herkunft als Bundesland oder Staat erkannt ist – ohne heißt: Sie steht auf den Listen als Text. -->
-            <td><HerkunftText :anzeige="herkunftAnzeige(row.name, state.originMode, 'flagge-lang', {}, locale)" /></td>
+            <td><HerkunftText :anzeige="herkunftAnzeige(row.name, state.originMode, 'flagge-lang', {}, locale, true)" /></td>
             <td>
               <input
                 class="cell-input"
@@ -375,6 +398,19 @@ function takeLegacy() {
       </p>
     </div>
     <p class="note">{{ t('scoring.note') }}</p>
+    <!-- Nur unter einem Regelwerk, das den Schalter kennt (YAML `versucheNacheinander`, UIM 960 Pkt. 4.3.2). -->
+    <template v-if="regelwerk.versucheNacheinander !== undefined">
+      <label class="boat-check" style="margin-top: 12px">
+        <input
+          type="checkbox"
+          data-feld="versuche-nacheinander"
+          :checked="state.versucheNacheinander"
+          @change="dispatch({ type: 'SET_VERSUCHE_NACHEINANDER', on: ($event.target as HTMLInputElement).checked })"
+        />
+        {{ t('scoring.consecutive') }}
+      </label>
+      <p class="note" data-hinweis="versuche-nacheinander">{{ t('scoring.consecutive.hint', { rulebook: regelwerk.label }) }}</p>
+    </template>
     <EingabenHinweis />
   </div>
 
@@ -454,7 +490,7 @@ function takeLegacy() {
       {{ t('cup.onlySelectedHint') }} <a :href="adresse('starter')">{{ t('nav.starter') }}</a
       >.
     </p>
-    <p class="note">{{ t('cup.tieNote') }}</p>
+    <p class="note" data-hinweis="pokal-stich">{{ t('cup.tieNote', { tie: pokal.stich ? `${pokalStichText(pokal.stich, t)} ${t('cup.tie.shared')}` : t('cup.tie.none') }) }}</p>
   </div>
 
   <!-- Wie die Wettkampfrichter-Listen gedruckt werden. Wer an welcher sitzt, steht bei der
@@ -555,6 +591,20 @@ function takeLegacy() {
     </div>
     <p class="note">{{ t('listopt.wkr.rowsHint') }}</p>
     <p v-if="state.eventKind === 'club'" class="note" data-hinweis="wkr-seiten-club">{{ t('listopt.wkr.rowsClub') }}</p>
+    <!-- Nur unter einem Regelwerk mit Parallelslalom (UIM 960). -->
+    <template v-if="parallel">
+      <p class="note" data-hinweis="wkr-seiten-parallel">{{ t('listopt.wkr.rowsParallel') }}</p>
+      <label class="boat-check" style="margin-top: 12px">
+        <input
+          type="checkbox"
+          data-feld="parallel-zebra"
+          :checked="state.parallelZebra"
+          @change="dispatch({ type: 'SET_PARALLEL_ZEBRA', zebra: ($event.target as HTMLInputElement).checked })"
+        />
+        {{ t('listopt.wkr.parallelZebra') }}
+      </label>
+      <p class="note">{{ t('listopt.wkr.parallelZebraHint') }}</p>
+    </template>
 
     <div class="row" style="align-items: flex-end; gap: 20px; margin-top: 12px">
       <div class="field" style="min-width: 240px">

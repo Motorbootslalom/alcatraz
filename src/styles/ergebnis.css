@@ -1,5 +1,5 @@
 /* ======================================================================
-   Ergebnislisten (A4 quer)
+   Wertungslisten (A4 quer)
    Format der Auswertungs-Listen der DM 2026 und des Fehlerpunkte-Prototyps:
    umrandeter Kopf (Klasse | Lauf | Veranstaltung), Gitter mit kräftigem
    Rahmen, alles mittig, jede fünfte Zeile grau. Die Bildschirmansicht ist die
@@ -82,6 +82,11 @@
   border-right: 1.6px solid var(--blatt-linie);
 }
 
+/* Ein Wort, das in seiner schmalen Spalte nicht umbrechen kann (ErgebnisLaufBlatt.vue `kopfKlasse`). */
+.erg-tabelle thead tr.erg-spaltenkopf th.erg-kopf-eng {
+  font-size: 7pt;
+}
+
 .erg-tabelle thead tr.erg-spaltenkopf th small {
   font-size: 6pt;
   font-weight: 400;
@@ -159,6 +164,34 @@
   border-right: 1.6px solid var(--blatt-linie);
 }
 
+/* Listen einer Runde des Parallelslaloms: Der Titel nennt Runde und Liste („Preliminary heat –
+   Attempts“) und braucht mehr Platz als „Gesamt“ oder „1. Lauf“. */
+.erg-kopf.erg-kopf--runde {
+  grid-template-columns: 40mm 84mm 1fr;
+}
+
+/* Liste der Attempts (components/ergebnis/ParallelAttemptsBlatt.vue): Jede der beiden Tabellen
+   beginnt mit ihrer Titelzeile („1st attempt“, „Racecourse A“). Dieselbe Zeile steht im Kopf
+   einer Seite, die eine Tabelle fortsetzt – in derselben Höhe, das Dokument rechnet mit ihr. */
+.erg-tabelle tbody tr.erg-teil-titel td,
+.erg-tabelle thead tr.erg-teil-titel th {
+  height: 6mm;
+  padding: 0 2mm;
+  border: 0.2mm solid var(--blatt-linie);
+  border-top: 1.6px solid var(--blatt-linie);
+  background: var(--blatt-kopf);
+  font-size: 9pt;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.erg-tabelle thead tr.erg-teil-titel th {
+  border-left: 1.6px solid var(--blatt-linie);
+  border-right: 1.6px solid var(--blatt-linie);
+}
+
 .erg-w-platz {
   width: 9.5mm;
 }
@@ -209,6 +242,10 @@
 
 .erg-w-strafp {
   width: 10mm;
+}
+
+.erg-w-uim {
+  width: 12mm;
 }
 
 .erg-w-knoten {
@@ -263,6 +300,54 @@
   align-items: center;
   column-gap: 6mm;
   overflow: hidden;
+}
+
+/* Mit Unterschrift (UIM 960, Pkt. 5.2; lib/seiten.ts ERGEBNIS_FUSS_UNTERSCHRIFT_MM = 22 mm):
+   unter der Zeile oben 10 mm für die Unterschriftszeile des O.O.D. und das leere Feld für die
+   Uhrzeit des Aushangs. */
+.erg-fuss--unterschrift {
+  height: 22mm;
+  grid-template-rows: 8mm 10mm;
+}
+
+.erg-unterschrift {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  gap: 10mm;
+  height: 10mm;
+  box-sizing: border-box;
+  padding-bottom: 0.6mm;
+  font-size: 8.5pt;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.erg-unterschrift-wer,
+.erg-unterschrift-aushang {
+  display: flex;
+  align-items: flex-end;
+  gap: 2mm;
+}
+
+.erg-unterschrift-wer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Die Linie, auf der unterschrieben wird: so lang, wie neben dem Feld für die Uhrzeit Platz ist – höchstens 90 mm. */
+.erg-unterschrift-linie {
+  flex: 0 1 90mm;
+  border-bottom: 1.2px solid var(--blatt-linie);
+}
+
+/* Leer zum Eintragen von Hand – gerahmt wie der Zeitstempel darüber. */
+.erg-unterschrift-feld {
+  width: 32mm;
+  height: 7.5mm;
+  box-sizing: border-box;
+  border: 1.6px solid var(--blatt-linie);
 }
 
 /* Höchstens zwei kleine Zeilen: Die Regel steht in ganzen Sätzen da. */
@@ -333,6 +418,8 @@
 
   /* Graue Zeilen und die Hervorhebung „disq.“ müssen auch ohne „Hintergrundgrafiken drucken“ erscheinen. */
   .erg-tabelle tbody tr.grau td,
+  .erg-tabelle tr.erg-teil-titel td,
+  .erg-tabelle tr.erg-teil-titel th,
   .erg-tabelle td.erg-disq {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

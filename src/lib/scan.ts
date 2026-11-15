@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { ClassId } from '../types'
-import type { QrZiel } from './qr'
+import type { QrRundenZiel, QrZiel } from './qr'
 import type { WkrBogen } from './wkrListen'
 
 // Vom gelesenen Code zum Bogen der Erfassung. Der Code nennt Parcours, Klassen, Lauf und –
@@ -25,8 +25,12 @@ const gleich = (a: readonly string[], b: readonly string[]) => a.length === b.le
  * Der Bogen zu einem Code. Ein Laufzettel-Code trifft die erste Liste seiner Klasse(n) in dem
  * Lauf. `ohneLauf` sagt, ob eine Liste keinen Lauf hat (Knoten): Sie gibt es nur einmal, und
  * sie passt zu jedem Lauf. `null`: Für diese Klassen gibt es dort keinen Bogen (mehr).
+ *
+ * Gesucht wird unter den Bögen des Manövrierens. Ein Blatt des Parallelslaloms (Format ALC2,
+ * `art: 'runde'`) trifft hier nie – seinen Bogen findet lib/parallelBogen.ts `scanRundenBogen`.
  */
-export function scanBogen(ziel: QrZiel, boegen: readonly WkrBogen[], ohneLauf: (typeId: string) => boolean): ScanTreffer | null {
+export function scanBogen(ziel: QrZiel | QrRundenZiel, boegen: readonly WkrBogen[], ohneLauf: (typeId: string) => boolean): ScanTreffer | null {
+  if (ziel.art === 'runde') return null
   const amParcours = boegen.filter((b) => b.parcoursId === ziel.parcoursId && (b.lauf === ziel.lauf || ohneLauf(b.typeId)))
   const infrage = ziel.typeId === undefined ? amParcours.filter((b) => b.lauf === ziel.lauf) : amParcours.filter((b) => b.typeId === ziel.typeId)
   const mit = (b: WkrBogen) => ziel.klassen.find((k) => b.klassen.includes(k))

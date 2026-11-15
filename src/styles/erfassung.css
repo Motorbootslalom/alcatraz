@@ -102,7 +102,11 @@
   background: var(--blatt-bg);
 }
 
-.erf-tabelle tr > :last-child {
+/* Rechts außen keine Linie – aber nur in Zeilen, die bis an den Rand reichen: In der zweiten
+   Kopfzeile (Unter-Spalten wie „L R“ unter „Ziel“) ist die letzte Zelle nicht die letzte Spalte;
+   rechts daneben stehen „Disq.“ und der Haken aus der ersten Zeile, und die Linie gehört dazwischen. */
+.erf-tabelle thead tr:first-child > :last-child,
+.erf-tabelle tbody tr > :last-child {
   border-right: none;
 }
 
@@ -169,8 +173,48 @@
 }
 
 /* Diese Spalte gibt es für die Klasse der Zeile nicht (gemeinsame Liste mehrerer Klassen). */
+/* ---- Listen einer Runde des Parallelslaloms: Start und Attempt vorn, Dummy grau, Linie am Blockende ---- */
+.erf-tabelle .erf-start,
+.erf-tabelle .erf-attempt {
+  text-align: center;
+  color: var(--blatt-leise);
+  padding: 0 6px;
+}
+
+.erf-tabelle tbody tr.erf-ohne > td {
+  background: var(--blatt-grau);
+  color: var(--blatt-leise);
+}
+
+.erf-tabelle tbody tr.erf-ohne > td.erf-dummy {
+  font-style: italic;
+  text-align: left;
+  padding: 0 8px;
+}
+
+.erf-tabelle tbody tr.erf-blockende > * {
+  box-shadow: inset 0 -2px 0 var(--blatt-linie);
+}
+
 .erf-tabelle td.erf-entfaellt {
   background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--blatt-blass) 4px 5px);
+}
+
+/* „Nicht gestartet“ (X im Lauf – von Hand oder über das Abmelden): die ganze Zeile schraffiert,
+   in jeder Liste des Laufs. Gegenläufig und weiter als „entfällt“, damit beides nebeneinander
+   lesbar bleibt; die Felder bleiben bedienbar (wer doch fährt, bekommt das X wieder weg). Die
+   Schraffur liegt über dem Grund der Zelle – auch über dem Grau der Wechselzeilen. */
+/* Die Nummer selbst bleibt frei und in voller Farbe: Nach ihr wird abgetippt, Striche durch die
+   Ziffern machten sie schwer lesbar. */
+.erf-tabelle tbody tr.erf-zeile--x > :not(.erf-nr) {
+  background-image: repeating-linear-gradient(45deg, transparent 0 6px, var(--blatt-blass) 6px 7.5px);
+}
+
+/* Nicht nur Muster: ein Kreuz an der Nummer, für Vorleseprogramme ausgeschrieben. */
+.erf-x-marke {
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .erf-tabelle .erf-z-sum {

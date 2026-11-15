@@ -22,6 +22,26 @@ describe('migrate', () => {
     expect(migrate({ ...emptyState(), schemaVersion: SCHEMA_VERSION + 1 })).toBeNull()
   })
 
+  it('alte Stände tragen noch `parallelInternational` (nationaler Parallelslalom): Das Feld entfällt, der Stand lädt', () => {
+    const alt = { ...emptyState(), eventName: 'Pokal', parallelInternational: false }
+    const state = migrate(alt)
+    expect(state).not.toBeNull()
+    expect(state!.eventName).toBe('Pokal')
+    expect('parallelInternational' in state!).toBe(false)
+    // Auch der Stand des Verzahnungs-Prototyps hatte das Feld.
+    expect('parallelInternational' in migrate({ starters: [], parallelInternational: true, parallelOrderByStartNr: true })!).toBe(false)
+    expect(migrate({ starters: [], parallelInternational: true, parallelOrderByStartNr: true })!.parallelOrderByStartNr).toBe(true)
+  })
+
+  it('„Versuche direkt nacheinander“ fehlt in älteren Ständen: Dann gilt die Vorgabe des Regelwerks', () => {
+    expect(migrate({ starters: [] })!.versucheNacheinander).toBe(false)
+    // Unter UIM eine Option, die nicht vorgewählt ist.
+    expect(migrate({ starters: [], regelwerk: 'uim-2026' })!.versucheNacheinander).toBe(false)
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', versucheNacheinander: true })!.versucheNacheinander).toBe(true)
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', versucheNacheinander: false })!.versucheNacheinander).toBe(false)
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', versucheNacheinander: 'ja' })!.versucheNacheinander).toBe(false)
+  })
+
   it('füllt fehlende Felder mit Vorgaben auf', () => {
     const state = migrate({ starters: [{ id: 'a', klasse: '1', nachname: 'A' }], eventName: 'Pokal' })
     expect(state).not.toBeNull()

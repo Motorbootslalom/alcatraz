@@ -1,6 +1,6 @@
 import type { BogenTexte } from '../config/sprache'
 import type { CellKind, Column, SheetDef, TrennerDesign } from '../types'
-import { blockSeiten, pageChunks } from './paging'
+import { blockSeiten, gruppenKapazitaet, gruppenSeiten, pageChunks } from './paging'
 import { seitenCode } from './qr'
 import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
 
@@ -36,6 +36,17 @@ export interface BogenZeile {
   id?: string
   /** Klasse des Starters; nötig, wenn mehrere Klassen auf dem Bogen stehen. */
   klasse?: string
+  /**
+   * Nur auf Listen einer Runde ({@link BogenAuftrag.runde}): die Position des Starts im Plan
+   * (ab 1), der Attempt der Zeile und der Block der Startreihenfolge. `dummy`: Auf diesem
+   * Racecourse fährt ein Dummy; `entfaellt`: Der Start hat keinen Starter mehr. Beide Zeilen
+   * bleiben stehen, damit Zeile n auf allen Listen derselbe Start ist.
+   */
+  start?: number
+  attempt?: number
+  gruppe?: number
+  dummy?: boolean
+  entfaellt?: boolean
 }
 
 /** Ein Bogen: eine Liste (Position) für eine oder mehrere Klassen in einem Lauf. */
@@ -62,6 +73,55 @@ export interface BogenAuftrag {
    * an. Fehlt = kein Code im Kopf.
    */
   qr?: string
+  /**
+   * Liste einer Runde des Parallelslaloms (lib/parallelBogen.ts) statt einer Klasse in einem
+   * Lauf: Die Zeilen sind die Starts des Plans in ihrer Reihenfolge, über alle Klassen. Vorn
+   * stehen Start, Nr., Klasse und Attempt; im Kopf steht die Runde (z. B. „Vorlauf“) an der
+   * Stelle der Klasse und der Racecourse an der des Parcours – beides in der Sprache des
+   * Bogens. Einen Lauf nennt der Kopf nicht, er steht je Zeile. Leerzeilen gibt es nicht (jede
+   * Zeile ist ein fester Start), geteilt wird nur am Ende eines Blocks (`BogenZeile.gruppe`).
+   */
+  runde?: { runde: string; racecourse: string }
+  /**
+   * Die Disziplin, unter der die Werte dieses Bogens stehen, wenn es nicht die des Aufbaus der
+   * Veranstaltung ist (Parallelslalom: `parallel:pre`, lib/parallelSchluessel.ts).
+   */
+  disziplin?: string
+  /**
+   * „Versuche direkt nacheinander“ (UIM 960, Pkt. 4.3.2: „2 attempts, run consecutively“; Option
+   * der Veranstaltung): Jeder Starter steht mit so vielen Versuchen direkt nacheinander auf dem
+   * Bogen – 1. und 2. Versuch auf einem Klassenzettel, weil er am Steg nur anlegt und gleich
+   * noch einmal fährt. `zeilen` nennt jeden Starter einmal; der Bogen macht daraus je Versuch
+   * eine Zeile ({@link auftragZeilen}), hinter der Startnummer steht die Spalte „Versuch“, und
+   * die Werte jeder Zeile stehen unter ihrem Versuch (Lauf). Einen Lauf nennt der Kopf nicht.
+   * Fehlt oder 1 = ein Bogen je Lauf, wie bisher. Gilt nicht für Listen ohne Lauf (Knoten).
+   */
+  versuche?: number
+  /**
+   * Mit {@link versuche}: Der Starter kommt an dieser Liste nur einmal vorbei, auch wenn er seine
+   * Versuche direkt nacheinander fährt (Vorsteg; config `einmalJeStarter`). Dann steht er nur
+   * EINMAL auf dem Bogen, ohne Spalte „Versuch“ – wie auf der Knoten-Liste –, und was in seiner
+   * Zeile steht, gilt für jeden Versuch: Die Erfassung schreibt es unter jeden
+   * (lib/erfassung.ts `zeilenSchluesselAlle`). Auch dann nennt der Kopf keinen Lauf.
+   */
+  einmal?: boolean
+  /**
+   * Spalten (Keys), die dieser Bogen nicht hat, obwohl die Liste sie kennt – der Aufbau lässt
+   * sie weg (config/aufbauten/parallel.yaml `ohneSpalten`: die Steg-Liste des Parallelslaloms
+   * ohne „Bemerkung“). Der Platz geht an die übrigen Spalten.
+   */
+  ohneSpalten?: readonly string[]
+}
+
+/**
+ * Die Zeilen eines Bogens, wie sie auf dem Papier stehen: mit {@link BogenAuftrag.versuche} je
+ * Starter eine Zeile je Versuch, direkt nacheinander (`attempt` 1, 2 …); sonst – auch mit
+ * {@link BogenAuftrag.einmal} – die Zeilen selbst.
+ */
+export function auftragZeilen(auftrag: Pick<BogenAuftrag, 'zeilen' | 'versuche' | 'runde' | 'einmal'>): BogenZeile[] {
+  const n = auftrag.runde === undefined && !auftrag.einmal ? Math.floor(auftrag.versuche ?? 1) : 1
+  if (n <= 1) return [...auftrag.zeilen]
+  return auftrag.zeilen.flatMap((z) => Array.from({ length: n }, (_, i): BogenZeile => ({ ...z, attempt: i + 1 })))
 }
 
 export interface BogenOptionen {
@@ -98,6 +158,12 @@ export interface BogenOptionen {
   leerzeilenJeSeite?: number
   /** Gemessen: so viele Tabellenzeilen (Starter, Leerzeilen, Zwischenüberschriften) passen auf ein Blatt. */
   zeilenKapazitaet?: number
+  /**
+   * Nur für Listen einer Runde: jede zweite Zeile grau (Listen-Option der Veranstaltung,
+   * `AppState.parallelZebra`; Vorgabe an). Die Zeile ohne Eingabe (Dummy, entfallener Start)
+   * bleibt schraffiert.
+   */
+  zebra?: boolean
   /** Füllt die Zellen, sobald es Eingaben gibt: Zeilenschlüssel, Spalte, Unter-Spalte → Text. */
   anzeige?: (zeile: string, colKey: string, subIndex?: number) => string
 }
@@ -148,6 +214,18 @@ export interface BogenModellZeile {
   shaded: boolean
   /** Deckungsgleich zu `leaves`. */
   cells: BogenZelle[]
+  /**
+   * Nur auf Listen einer Runde: Die Zeile ist ein Start. Ihr Schlüssel ist dann `s<Start>` –
+   * auf allen Listen der Runde derselbe –, und die Werte hängen an `starter` (Starter-ID) und
+   * `lauf` (Attempt). Ohne `starter` (Dummy, entfallener Start) gibt es nichts einzutragen.
+   */
+  start?: number
+  starter?: string
+  lauf?: number
+  dummy?: boolean
+  entfaellt?: boolean
+  /** Letzte Zeile ihres Blocks: Darunter steht die Trennlinie. */
+  blockEnde?: boolean
 }
 
 /** Das Parcoursbild eines Bogens: Zeichnung und Abblendung (lib/parcoursQuelle.ts). */
@@ -179,6 +257,10 @@ export interface BogenSeite {
   twoRow: boolean
   /** Mehrere Klassen: Eine Spalte nennt die Klasse jeder Zeile. */
   zeigtKlasse: boolean
+  /** Liste einer Runde: vorn die Spalte Start, hinter der Klasse die Spalte Attempt. */
+  startForm: boolean
+  /** „Versuche direkt nacheinander“: hinter Nr. (und Klasse) die Spalte Versuch – jeder Starter steht je Versuch einmal da. */
+  versuchForm: boolean
   rows: BogenModellZeile[]
   /** Die Position für diese Klassen: Legende, Hinweise, Bildlage. */
   def: SheetDef
@@ -275,7 +357,9 @@ function spalteGilt(leaf: BogenBlattSpalte, klasse: string | undefined, listeGil
 export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen: BogenOptionen = {}): BogenSeite[] {
   const { leerzeilen, zeilenJeSeite, teilenAb } = { ...BOGEN_VORGABEN, ...optionen }
   const klassen = [...auftrag.klassen]
-  const def = defFuerKlassen(konfig.getSheetDef(auftrag.typeId), klassen)
+  const ganz = defFuerKlassen(konfig.getSheetDef(auftrag.typeId), klassen)
+  const ohne = auftrag.ohneSpalten ?? []
+  const def = ohne.length > 0 ? { ...ganz, columns: ganz.columns.filter((c) => !ohne.includes(c.key)) } : ganz
   const leaves = blattSpalten(def.columns)
   const texte = konfig.getBogenTexte()
   const zeigtKlasse = klassen.length > 1
@@ -287,15 +371,27 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
       : undefined
 
   type Roh = Omit<BogenModellZeile, 'shaded' | 'cells'>
-  const bloecke = !!optionen.klassenBloecke && klassen.length > 1
+  const rundenListe = auftrag.runde !== undefined
+  const bloecke = !rundenListe && !!optionen.klassenBloecke && klassen.length > 1
+  // „Versuche direkt nacheinander“: Der Bogen gilt für alle Versuche, je Starter steht eine Zeile
+  // je Versuch da – nicht auf Listen ohne Lauf (Knoten) und nicht dort, wo der Starter nur einmal
+  // vorbeikommt (Vorsteg, `einmal`): Dort hat er eine Zeile für alle Versuche.
+  const fuerVersuche = !rundenListe && def.showLauf !== false ? Math.max(1, Math.floor(auftrag.versuche ?? 1)) : 1
+  const versuche = auftrag.einmal ? 1 : fuerVersuche
+  const jeVersuch = (zeilen: readonly BogenZeile[]): BogenZeile[] => auftragZeilen({ zeilen, versuche })
   const starter = (z: BogenZeile): Roh => {
     const klasse = z.klasse ?? (zeigtKlasse ? undefined : klassen[0])
+    const key = z.id ?? (zeigtKlasse && klasse ? `${klasse}:${z.nr}` : z.nr)
     return {
-      key: z.id ?? (zeigtKlasse && klasse ? `${klasse}:${z.nr}` : z.nr),
+      // Mit mehreren Versuchen steht der Starter mehrfach da: Der Versuch gehört zum Schlüssel der
+      // Zeile, die Werte hängen an `starter` und `lauf` (wie auf den Listen einer Runde).
+      key: z.attempt === undefined ? key : `${key}#${z.attempt}`,
       nr: z.nr,
       klasse,
       klasseText: klasse === undefined ? undefined : texte.klasseName(klasse),
       fixed: true,
+      // Unter dem letzten Versuch eines Starters steht die Trennlinie: So liest sich das Paar als eines.
+      ...(z.attempt === undefined ? {} : { starter: z.id, lauf: z.attempt, blockEnde: z.attempt === versuche || undefined }),
     }
   }
   /** Zellen und graue Zeilen; `nummer` zählt Starter und Leerzeilen, Zwischenüberschriften nicht. */
@@ -304,7 +400,9 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
     const listeGilt = z.klasse === undefined || konfig.positionAllowsClass(auftrag.typeId, z.klasse)
     return {
       ...z,
-      shaded: nummer % 5 === 0,
+      // Mit mehreren Versuchen je Starter gliedert die Trennlinie unter jedem Starter – eine graue
+      // fünfte Zeile schnitte mitten durch ein Paar.
+      shaded: versuche === 1 && nummer % 5 === 0,
       cells: leaves.map((leaf) => ({
         kind: leaf.kind,
         display: optionen.anzeige?.(z.key, leaf.colKey, leaf.subIndex) ?? '',
@@ -317,12 +415,58 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
   /** Mit Klassen-Blöcken: die Klassen, die auf der Seite stehen. */
   let seitenKlassen: string[][] | undefined
   const zeilenKap = optionen.zeilenKapazitaet ?? 0
-  if (bloecke) {
+  if (rundenListe) {
+    // Liste einer Runde: jede Zeile ein Start, keine Leerzeilen. Geteilt wird nur am Ende eines
+    // Blocks. Jede Liste teilt für sich, mit so wenigen Seiten wie möglich und darauf
+    // ausgeglichen (Entscheidungen des Nutzers vom 15.11.2026) – die Zeit-Liste fasst mehr Starts
+    // als die Listen mit Legende. „Zeilen je Seite“ und „Teilen ab“ gelten als Obergrenze
+    // (lib/paging.ts `gruppenSeiten`, `gruppenKapazitaet`).
+    const gruppen: BogenZeile[][] = []
+    for (const z of auftrag.zeilen) {
+      const letzte = gruppen[gruppen.length - 1]
+      if (letzte && letzte[0].gruppe === z.gruppe) letzte.push(z)
+      else gruppen.push([z])
+    }
+    const kap = gruppenKapazitaet(auftrag.zeilen.length, zeilenKap, zeilenJeSeite, teilenAb)
+    let nummer = 0
+    seitenZeilen = gruppenSeiten(
+      gruppen.map((g) => g.length),
+      kap,
+    ).map((seite) =>
+      seite.flatMap((g) =>
+        gruppen[g].map((z, i): BogenModellZeile => {
+          const frei = z.dummy || z.entfaellt || z.id === undefined
+          const listeGilt = !frei && (z.klasse === undefined || konfig.positionAllowsClass(auftrag.typeId, z.klasse))
+          return {
+            key: `s${z.start ?? 0}`,
+            nr: z.nr,
+            klasse: frei ? undefined : z.klasse,
+            klasseText: frei || z.klasse === undefined ? undefined : texte.klasseName(z.klasse),
+            fixed: true,
+            // Keine graue fünfte Zeile; auf Wunsch jede zweite (`zebra`). Die Zeile ohne Eingabe
+            // (Dummy, entfallener Start) ist schraffiert und zählt für das Grau mit.
+            shaded: ++nummer % 2 === 0 && !!optionen.zebra && !frei,
+            start: z.start,
+            starter: frei ? undefined : z.id,
+            lauf: z.attempt,
+            dummy: z.dummy || undefined,
+            entfaellt: z.entfaellt || undefined,
+            blockEnde: i === gruppen[g].length - 1 || undefined,
+            cells: leaves.map((leaf) => ({
+              kind: leaf.kind,
+              display: frei ? '' : (optionen.anzeige?.(`s${z.start ?? 0}`, leaf.colKey, leaf.subIndex) ?? ''),
+              gilt: !frei && spalteGilt(leaf, z.klasse, listeGilt),
+            })),
+          }
+        }),
+      ),
+    )
+  } else if (bloecke) {
     // Je Klasse ein Block: ihre Starter in der gegebenen Reihenfolge, dann ihre Leerzeilen –
     // außer die Klassen einer Seite teilen sie sich (`leerzeilenJeSeite`, siehe unten).
     const geteilt = optionen.leerzeilenJeSeite !== undefined
     const jeKlasse = klassen.map((k) => {
-      const zeilen: Roh[] = auftrag.zeilen.filter((z) => z.klasse === k).map(starter)
+      const zeilen: Roh[] = jeVersuch(auftrag.zeilen.filter((z) => z.klasse === k)).map(starter)
       const leer = geteilt ? 0 : (optionen.leerzeilenJeKlasse?.[k] ?? leerzeilen)
       // Die Leerzeile gehört zur Klasse, hat aber keine Klasse im Sinn der Spalten: Jede Zelle ist beschreibbar.
       for (let i = 0; i < leer; i++) zeilen.push({ key: `_k${k}_x${i}`, nr: '', fixed: false })
@@ -364,7 +508,7 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
       }
       return zeilen
     })
-  } else if (zeilenJeSeite <= 0 && leerzeilen > 0 && zeilenKap > 0 && auftrag.zeilen.length + leerzeilen > zeilenKap && zeilenKap - leerzeilen <= leerzeilen) {
+  } else if (versuche === 1 && zeilenJeSeite <= 0 && leerzeilen > 0 && zeilenKap > 0 && auftrag.zeilen.length + leerzeilen > zeilenKap && zeilenKap - leerzeilen <= leerzeilen) {
     // Wenig Platz (große Beschreibung, z. B. Baden-Württemberg „Wasser 1“ mit 5 Zeilen je
     // Blatt): Leerzeilen auf jeder Seite ließen den Startern höchstens die Hälfte – sechs
     // Starter bräuchten drei Blätter. Dann stehen die Leerzeilen einmal am Ende, und die
@@ -375,9 +519,13 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
     seitenZeilen = []
     for (let i = 0; i < roh.length; i += jeSeite) seitenZeilen.push(roh.slice(i, i + jeSeite).map((z, j) => fertig(z, i + j + 1)))
   } else {
-    const chunks = pageChunks([...auftrag.zeilen], zeilenJeSeite, teilenAb, optionen.kapazitaet ?? 0)
+    // Geteilt wird nach Startern: Die Versuche eines Starters bleiben auf einer Seite. Auf ein
+    // Blatt passen dann entsprechend weniger Starter (jeder braucht `versuche` Zeilen).
+    const kapazitaet = optionen.kapazitaet ?? 0
+    const chunks = pageChunks([...auftrag.zeilen], zeilenJeSeite, teilenAb, versuche > 1 && kapazitaet > 0 ? Math.max(1, Math.floor(kapazitaet / versuche)) : kapazitaet)
     let davor = 0
-    seitenZeilen = chunks.map((chunk, pageIndex) => {
+    seitenZeilen = chunks.map((starterDerSeite, pageIndex) => {
+      const chunk = jeVersuch(starterDerSeite)
       const roh: Roh[] = chunk.map(starter)
       // Der Seiten-Präfix hält die Schlüssel der Leerzeilen je Seite eindeutig.
       for (let i = 0; i < leerzeilen; i++) roh.push({ key: `_p${pageIndex}_x${i}`, nr: '', fixed: false })
@@ -396,10 +544,10 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
       eventName: auftrag.eventName,
       titel: def.title,
       klassen,
-      klassenText: kopfKlassen(seitenKlassen?.[pageIndex] ?? klassen),
+      klassenText: auftrag.runde ? texte.runde(auftrag.runde.runde) : kopfKlassen(seitenKlassen?.[pageIndex] ?? klassen),
       lauf: auftrag.lauf,
-      laufText: def.showLauf === false ? undefined : texte.lauf(auftrag.lauf),
-      parcours: auftrag.parcours?.trim() || undefined,
+      laufText: def.showLauf === false || rundenListe || fuerVersuche > 1 ? undefined : texte.lauf(auftrag.lauf),
+      parcours: auftrag.runde ? texte.racecourse(auftrag.runde.racecourse) : auftrag.parcours?.trim() ? texte.parcoursName(auftrag.parcours) : undefined,
       wkr: auftrag.wkr ?? '',
       qr: auftrag.qr ? seitenCode(auftrag.qr, pageIndex + 1) : undefined,
       orientation: def.orientation,
@@ -407,7 +555,9 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
       leaves,
       twoRow: def.columns.some((c) => c.sub && c.sub.length > 0),
       // Mit Zwischenüberschriften braucht es die Klassen-Spalte nicht.
-      zeigtKlasse: zeigtKlasse && !bloecke,
+      zeigtKlasse: rundenListe || (zeigtKlasse && !bloecke),
+      startForm: rundenListe,
+      versuchForm: versuche > 1,
       rows,
       def,
       bild,

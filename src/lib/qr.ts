@@ -23,6 +23,18 @@ import type { ClassId } from '../types'
 // Regelwerk und Aufbau stehen drin, damit die Erfassung ein Blatt abweist, dessen Spalten
 // nicht mehr zu dem passen, was eingestellt ist.
 //
+// Format ALC2 – die Listen des Parallelslaloms (lib/parallelBogen.ts). Sie gehören zu einer
+// Runde und einem Racecourse statt zu Parcours, Klassen und Lauf:
+//   Laufzettel  ALC2.<VERANSTALTUNG>.<REGELWERK>.<AUFBAU>.<RUNDE>.<RACECOURSE>
+//   Bogen       … wie oben … .<LISTE>.S<SEITE>
+// z. B. ALC2.K7Q4.UIM2026.PARALLEL.PRE.A und ALC2.K7Q4.UIM2026.PARALLEL.PRE.A.ZEIT.S1. Den
+// Laufzettel einer Runde gibt es je Racecourse (Entscheidung des Nutzers vom 15.11.2026): Sein
+// Code öffnet nur die Listen dieses Racecourse.
+//   • <RUNDE>      – PRE, SEMI, FINAL oder RERUN… (planung/parallelRunden.ts)
+//   • <RACECOURSE> – A oder B
+// ALC1 bleibt, wie es ist: Was für das Manövrieren gedruckt wurde, wird weiter gelesen, und
+// neue Bögen des Manövrierens tragen weiter ALC1.
+//
 // Nur Großbuchstaben, Ziffern und Punkt: Diese Zeichen tippt ein Handscanner auch dann
 // richtig, wenn er auf eine andere Tastaturbelegung eingestellt ist als der PC (US/DE). Dann
 // sind nur Y und Z vertauscht; das fängt `leseCode` ab, und Präfix wie Veranstaltungs-Kennung
@@ -30,6 +42,8 @@ import type { ClassId } from '../types'
 // alphanumerischen Modus und hat bei gleicher Größe gröbere Kästchen.
 
 export const QR_FORMAT = 'ALC1'
+/** Fassung für die Listen einer Runde des Parallelslaloms (siehe oben). */
+export const QR_FORMAT_RUNDE = 'ALC2'
 /** Steht in Beispielansichten an der Stelle der Veranstaltung: Ein solcher Code trifft nie einen echten Bogen. */
 export const QR_MUSTER = 'MUSTER'
 /** Für einen Stand, der (noch) keine Kennung hat – etwa in Tests ohne Store. */
@@ -90,6 +104,21 @@ export function bogenCode(k: QrKontext, b: QrBogen & { typeId: string }): string
   return `${laufzettelCode(k, b)}.${teil(b.typeId)}`
 }
 
+/** Was einen Laufzettel bzw. einen Bogen einer Runde des Parallelslaloms benennt. */
+export interface QrRunde {
+  runde: string
+}
+
+/** Code des Laufzettels einer Runde auf einem Racecourse: dessen Listen. `k.aufbau` ist der Aufbau des Parallelslaloms. */
+export function rundenZettelCode(k: QrKontext, b: QrRunde & { racecourse: string }): string {
+  return [QR_FORMAT_RUNDE, teil(k.kennung) || OHNE_KENNUNG, teil(k.regelwerk), teil(k.aufbau), teil(b.runde), teil(b.racecourse)].join('.')
+}
+
+/** Code eines Bogens einer Runde auf einem Racecourse, noch ohne Seite ({@link seitenCode}). */
+export function rundenBogenCode(k: QrKontext, b: QrRunde & { racecourse: string; typeId: string }): string {
+  return `${rundenZettelCode(k, b)}.${teil(b.typeId)}`
+}
+
 /** Code einer Druckseite eines Bogens (Seite ab 1). */
 export function seitenCode(bogen: string, seite: number): string {
   return `${bogen}.S${seite}`
@@ -104,10 +133,23 @@ export function musterCode(k: Omit<QrKontext, 'kennung'>, b: QrBogen & { typeId:
 
 /** Was ein gelesener Code bezeichnet, aufgelöst auf die Kennungen der Veranstaltung. */
 export interface QrZiel {
+  /** Fehlt bei Blättern des Manövrierens; `runde` = ein Blatt des Parallelslaloms ({@link QrRundenZiel}). */
+  art?: undefined
   parcoursId: string
   klassen: ClassId[]
   lauf: number
   /** Nur bei Bögen; ohne Liste ist es ein Laufzettel. */
+  typeId?: string
+  seite?: number
+}
+
+/** Ein Blatt einer Runde des Parallelslaloms (Format ALC2). */
+export interface QrRundenZiel {
+  art: 'runde'
+  /** Die Runde, wie sie im Stand heißt (`pre`, `semi` …). */
+  runde: string
+  racecourse: 'A' | 'B'
+  /** Nur bei Bögen; ohne Liste ist es der Laufzettel der Runde auf diesem Racecourse. */
   typeId?: string
   seite?: number
 }
@@ -122,6 +164,12 @@ export interface QrBekannt extends QrKontext {
   /** Listen des eingestellten Aufbaus. */
   listen: readonly string[]
   laufCount: number
+  /**
+   * Der Parallelslalom der Veranstaltung: sein Aufbau, dessen Listen und die Runden, für die es
+   * Listen gibt. Fehlt, wenn nach dem Regelwerk keiner gefahren wird – ein ALC2-Code nennt dann
+   * einen Aufbau, den es hier nicht gibt.
+   */
+  parallel?: { aufbau: string; listen: readonly string[]; runden: readonly string[] }
 }
 
 /**
@@ -130,10 +178,10 @@ export interface QrBekannt extends QrKontext {
  */
 export type QrFehler =
   | { art: 'leer' | 'fremd' | 'prototyp' | 'fassung' | 'kaputt' | 'muster' }
-  | { art: 'veranstaltung' | 'parcours' | 'klasse' | 'lauf' | 'liste'; wert: string }
+  | { art: 'veranstaltung' | 'parcours' | 'klasse' | 'lauf' | 'liste' | 'runde' | 'racecourse'; wert: string }
   | { art: 'regelwerk' | 'aufbau'; wert: string; id?: string }
 
-export type QrLesung = { ok: true; ziel: QrZiel } | { ok: false; fehler: QrFehler }
+export type QrLesung = { ok: true; ziel: QrZiel | QrRundenZiel } | { ok: false; fehler: QrFehler }
 
 /** Woran eine vertauschte Tastaturbelegung schuld sein kann: Kennungen, die nicht gefunden wurden – in Prüfreihenfolge. */
 const KENNUNG_FEHLT: QrFehler['art'][] = ['regelwerk', 'aufbau', 'parcours', 'liste']
@@ -168,6 +216,7 @@ function loese(code: string, bekannt: QrBekannt): QrLesung {
   if (code === '') return fehler({ art: 'leer' })
   const teile = code.split('.')
   if (/^FP\d+$/.test(teile[0])) return fehler({ art: 'prototyp' })
+  if (teile[0] === QR_FORMAT_RUNDE) return loeseRunde(teile, bekannt)
   if (teile[0] !== QR_FORMAT) return fehler({ art: /^ALC\d+$/.test(teile[0]) ? 'fassung' : 'fremd' })
   // Laufzettel: 7 Teile; Bogen: dazu Liste und Seite.
   if ((teile.length !== 7 && teile.length !== 9) || teile.some((t) => !/^[A-Z0-9]+$/.test(t))) {
@@ -194,6 +243,29 @@ function loese(code: string, bekannt: QrBekannt): QrLesung {
   const typeId = finde(bekannt.listen, liste)
   if (!typeId) return fehler({ art: 'liste', wert: liste })
   return { ok: true, ziel: { ...ziel, typeId, seite } }
+}
+
+/** Ein Code im Format ALC2: Laufzettel (6 Teile) oder Bogen (8 Teile) einer Runde des Parallelslaloms auf einem Racecourse. */
+function loeseRunde(teile: string[], bekannt: QrBekannt): QrLesung {
+  const fehler = (f: QrFehler): QrLesung => ({ ok: false, fehler: f })
+  if ((teile.length !== 6 && teile.length !== 8) || teile.some((t) => !/^[A-Z0-9]+$/.test(t))) {
+    return fehler({ art: teile[1] === QR_MUSTER ? 'muster' : 'kaputt' })
+  }
+  const [, kennung, rw, ab, ru, rc, liste, seiteTeil] = teile
+  if (kennung === QR_MUSTER) return fehler({ art: 'muster' })
+  if (kennung !== (teil(bekannt.kennung) || OHNE_KENNUNG)) return fehler({ art: 'veranstaltung', wert: kennung })
+  if (rw !== teil(bekannt.regelwerk)) return fehler({ art: 'regelwerk', wert: rw, id: finde(bekannt.regelwerke, rw) })
+  const parallel = bekannt.parallel
+  if (!parallel || ab !== teil(parallel.aufbau)) return fehler({ art: 'aufbau', wert: ab, id: finde(bekannt.aufbauten, ab) })
+  const runde = finde(parallel.runden, ru)
+  if (!runde) return fehler({ art: 'runde', wert: ru })
+  if (rc !== 'A' && rc !== 'B') return fehler({ art: 'racecourse', wert: rc })
+  if (liste === undefined) return { ok: true, ziel: { art: 'runde', runde, racecourse: rc } }
+  const seite = /^S\d{1,3}$/.test(seiteTeil) ? Number(seiteTeil.slice(1)) : 0
+  if (seite < 1) return fehler({ art: 'kaputt' })
+  const typeId = finde(parallel.listen, liste)
+  if (!typeId) return fehler({ art: 'liste', wert: liste })
+  return { ok: true, ziel: { art: 'runde', runde, racecourse: rc, typeId, seite } }
 }
 
 // ---- Zeichnen ---------------------------------------------------------------

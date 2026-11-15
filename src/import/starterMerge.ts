@@ -32,7 +32,7 @@ const nrKey = (s: Starter) => (s.startNr.trim() ? `${s.klasse}|${s.startNr.trim(
 const nameKey = (s: Starter) =>
   `${s.klasse}|${`${s.vorname} ${s.nachname}`.toLowerCase().replace(/\s+/g, ' ').trim()}`
 
-const FIELDS: (keyof Starter)[] = ['startNr', 'vorname', 'nachname', 'verein', 'bundesland', 'land', 'geburtsdatum', 'groesse']
+const FIELDS: (keyof Starter)[] = ['startNr', 'vorname', 'nachname', 'verein', 'bundesland', 'land', 'geburtsdatum', 'groesse', 'geschlecht']
 
 export function mergeStarters(existing: Starter[], imported: Starter[], auswahl: 'bisher' | 'datei' = 'bisher'): MergeResult {
   const matchOf = new Map<Starter, Starter>()
@@ -75,6 +75,8 @@ export function mergeStarters(existing: Starter[], imported: Starter[], auswahl:
       id: old.id,
       startNr: neu.startNr.trim() || old.startNr,
       gewicht: neu.gewicht ?? old.gewicht,
+      // Das Geschlecht kommt selten mit (freiwillige Spalte) – dann bleibt das bisherige stehen.
+      ...((neu.geschlecht ?? old.geschlecht) ? { geschlecht: neu.geschlecht ?? old.geschlecht } : {}),
       ...(abgewaehlt ? { pokal: false as const } : {}),
     }
     if (FIELDS.some((f) => merged[f] !== old[f]) || (merged.pokal === false) !== (old.pokal === false)) changed.push(merged)

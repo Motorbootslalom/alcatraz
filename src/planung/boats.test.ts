@@ -118,7 +118,6 @@ describe('eventBoatDemand & boatShortfall', () => {
     eventJahr: 2026,
     originMode: 'verein',
     class4Small: false,
-    parallelInternational: true,
     parallelOrderByStartNr: false,
     runningNumbers: { enabled: false, source: 'manoever', start: 1, skipText: '' },
     boats: { klein: 2, gross: 2 },

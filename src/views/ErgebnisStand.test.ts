@@ -10,6 +10,7 @@ import { klassenInStartfolge } from '../lib/wkrListen'
 import { planEvent } from '../planung/plan'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { wechsleRegelwerk } from '../testHilfen'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -44,7 +45,7 @@ const blaetter = (wrapper: VueWrapper) =>
 const T1 = new Date(2026, 5, 20, 14, 5, 9).getTime()
 const T2 = new Date(2026, 5, 20, 15, 30, 0).getTime()
 
-describe('Ergebnislisten: Zeitpunkt der letzten Änderung', () => {
+describe('Wertungslisten: Zeitpunkt der letzten Änderung', () => {
   let store: Store
 
   beforeEach(() => {
@@ -95,7 +96,7 @@ describe('Ergebnislisten: Zeitpunkt der letzten Änderung', () => {
     setLocale('en')
     await nextTick()
     expect(blaetter(wrapper)).toEqual(vorher)
-    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    wechsleRegelwerk(store, 'uim-2026')
     store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 3 } })
     await nextTick()
     expect(blaetter(wrapper)[3]).toEqual(['Class 4 Attempt 2', '2026-06-20 15:30:00'])
@@ -125,7 +126,7 @@ describe('Ergebnislisten: Zeitpunkt der letzten Änderung', () => {
   })
 })
 
-describe('Ergebnislisten: Druckreihenfolge', () => {
+describe('Wertungslisten: Druckreihenfolge', () => {
   afterEach(() => {
     document.body.innerHTML = ''
   })

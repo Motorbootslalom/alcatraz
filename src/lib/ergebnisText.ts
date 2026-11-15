@@ -2,12 +2,12 @@ import { locale, tIn, type Locale, type MessageKey } from '../i18n'
 import type { AbstandArt } from './ergebnis'
 import { formatClock, formatSeconds, formatTimeDisplay } from './time'
 
-// Texte der Ergebnislisten und der Erfassung: Zahlen mit Komma oder Punkt, „disq.“, und die
+// Texte der Wertungslisten und der Erfassung: Zahlen mit Komma oder Punkt, „disq.“, und die
 // wenigen Spaltenkürzel des Fahrwegs, die ein deutsches Wort sind. Reaktiv, weil die Sprache
 // bei jedem Aufruf gefragt wird.
 //
 // Die Erfassung ist Bedienung und nimmt die Sprache der Oberfläche (die Funktionen unten);
-// die Ergebnislisten sind Listen und binden dieselben Funktionen mit {@link ergebnisTexte}
+// die Wertungslisten sind Listen und binden dieselben Funktionen mit {@link ergebnisTexte}
 // an die Listensprache (lib/listensprache.ts).
 
 // Die Kürzel kommen aus dem Fahrweg (config/kurzform.ts) und sind deutsch; übersetzt wird nur, was ein Wort ist.

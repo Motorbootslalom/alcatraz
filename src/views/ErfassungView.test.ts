@@ -278,6 +278,37 @@ describe('Erfassung', () => {
     wrapper.unmount()
   })
 
+  it('X im Lauf: Die Zeile des Starters ist in JEDER Liste dieses Laufs schraffiert – ohne X nicht, und Eingaben bleiben möglich', async () => {
+    const wrapper = ansicht(store)
+    const schraffiert = () => zeilen(wrapper).filter((z) => z.attributes('data-nicht-gestartet') !== undefined).map((z) => z.attributes('data-zeile'))
+    await waehle(wrapper, 'liste', 'vorsteg')
+    expect(schraffiert()).toEqual([])
+    // Von Hand gesetzt.
+    await tippe(feld(wrapper, 1, 'disq'), 'x')
+    await nextTick()
+    expect(schraffiert()).toEqual(['id-1-2'])
+    expect(zeilen(wrapper)[1].classes()).toContain('erf-zeile--x')
+    expect(zeilen(wrapper)[1].find('.erf-x-marke').text()).toContain('Nicht gestartet')
+    // Auf jeder anderen Liste desselben Laufs ebenso – dort steht das X gar nicht.
+    for (const liste of ['zeit', 'steg', 'gate135', 'parcours']) {
+      await waehle(wrapper, 'liste', liste)
+      expect(schraffiert(), liste).toEqual(['id-1-2'])
+    }
+    // Die Felder der Zeile bleiben bedienbar.
+    await waehle(wrapper, 'liste', 'gate135')
+    expect(feld(wrapper, 1, 't1a#0').attributes('disabled')).toBeUndefined()
+    // Ein anderer Lauf hat kein X: keine Schraffur.
+    await waehle(wrapper, 'lauf', '2')
+    expect(schraffiert()).toEqual([])
+    // Das X wieder entfernt (er fährt doch): Die Schraffur ist weg.
+    await waehle(wrapper, 'lauf', '1')
+    await waehle(wrapper, 'liste', 'vorsteg')
+    await tippe(feld(wrapper, 1, 'disq'), '')
+    await nextTick()
+    expect(schraffiert()).toEqual([])
+    wrapper.unmount()
+  })
+
   it('Fortschritt je Bogen: Zeilen mit Wert und bestätigte leere Zeilen', async () => {
     const wrapper = ansicht(store)
     await waehle(wrapper, 'liste', 'gate135')
@@ -366,10 +397,13 @@ describe('Erfassung', () => {
     const wrapper = ansicht(store)
     await nextTick()
     expect(wrapper.find('h2').text()).toBe('Data entry')
-    expect(titel(wrapper)).toBe('Time | Class Dolphin | Attempt 1 | Parcours 1')
+    expect(titel(wrapper)).toBe('Time | Class Dolphin | Attempt 1 | Course 1')
     expect(wrapper.find('.erf-stand-text').text()).toBe('0 of 3 entered')
     expect(wrapper.findAll('select[data-feld="erf-lauf"] option')[0].text()).toBe('Attempt 1')
-    expect(wrapper.find('.boat-banner.ok').text()).toContain('parallel slalom')
+    // Kein Verweis mehr auf den Prototyp: Der Parallelslalom wird hier erfasst, die Disziplin steht zur Wahl.
+    expect(wrapper.find('[data-hinweis="parallel-wertung"]').text()).toContain('parallel slalom')
+    expect(wrapper.html()).not.toMatch(/prototyp/i)
+    expect(wrapper.findAll('.eingabe-disziplin button').map((b) => b.attributes('data-disziplin'))).toEqual(['manoever', 'parallel'])
     setLocale('de')
     await nextTick()
     expect(wrapper.find('.erf-stand-text').text()).toBe('0 von 3 erfasst')
@@ -406,6 +440,29 @@ describe('Erfassung: alle Listen untereinander', () => {
     vergissAlles()
     setLocale('de')
     document.body.innerHTML = ''
+  })
+
+  it('über das Abmelden gesetzt: schraffiert in jedem Lauf, auch im Blattstapel; die Knoten-Liste (ohne Lauf), wenn er in keinem Lauf startet', async () => {
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: L1, starter: 'id-1-1', feld: 'zeit1', wert: '80' }] })
+    store.dispatch({ type: 'ABMELDEN_STARTER', id: 'id-1-3' })
+    const wrapper = ansicht(store)
+    const jeListe = () =>
+      wrapper.findAll('.erf-bogen').map((b) => b.findAll('tbody tr[data-nicht-gestartet]').map((z) => z.attributes('data-zeile')).join(','))
+    await waehle(wrapper, 'liste', '*')
+    for (const lauf of ['1', '2', '3']) {
+      await waehle(wrapper, 'lauf', lauf)
+      const listen = jeListe()
+      expect(listen.length, lauf).toBeGreaterThanOrEqual(7)
+      expect(new Set(listen), lauf).toEqual(new Set(['id-1-3']))
+    }
+    // Im letzten Lauf liegt die Knoten-Liste im Stapel: auch dort schraffiert.
+    expect(wrapper.find('.erf-bogen[data-bogen*="knoten"] tr[data-nicht-gestartet]').attributes('data-zeile')).toBe('id-1-3')
+    // Fährt er einen Lauf doch (X entfernt), ist die Knoten-Zeile nicht mehr schraffiert.
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: laufSchluessel('manoevrieren', 2), starter: 'id-1-3', feld: 'disq@steg', wert: '' }] })
+    await nextTick()
+    expect(wrapper.find('.erf-bogen[data-bogen*="knoten"] tr[data-nicht-gestartet]').exists()).toBe(false)
+    expect(new Set(jeListe().filter(Boolean))).toEqual(new Set(['id-1-3']))
+    wrapper.unmount()
   })
 
   it('von Hand: „alle untereinander“ in der Auswahl der Liste zeigt den Blattstapel in der Reihenfolge der Listen', async () => {
@@ -551,6 +608,110 @@ describe('Erfassung: alle Listen untereinander', () => {
     await wrapper.find('.eingabe-sprung [data-liste="parcours"]').trigger('click')
     await nextTick()
     expect(namen(wrapper)).toEqual(['Zeit', 'Steg', 'Parcours'])
+    wrapper.unmount()
+  })
+})
+
+describe('Erfassung unter UIM mit „Versuche direkt nacheinander“', () => {
+  afterEach(() => {
+    setLocale('de')
+    document.body.innerHTML = ''
+  })
+
+  it('ein Bogen je Liste: jeder Starter mit 1. und 2. Versuch direkt nacheinander – jede Zeile schreibt unter ihren Versuch', async () => {
+    localStorage.clear()
+    vergissAlles()
+    const store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'SET_VERSUCHE_NACHEINANDER', on: true })
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['1'], 2) })
+    const wrapper = ansicht(store)
+    // Kein Lauf im Titel und keine Lauf-Auswahl: Der eine Bogen trägt beide Versuche.
+    expect(titel(wrapper)).not.toMatch(/Lauf|Attempt \d/)
+    expect(wrapper.find('select[data-feld="erf-lauf"]').exists()).toBe(false)
+    expect(zeilen(wrapper).map((z) => [z.find('.erf-nr').text(), z.attributes('data-starter'), z.attributes('data-attempt'), z.find('.erf-attempt').text()])).toEqual([
+      ['101', 'id-1-1', '1', '1'],
+      ['101', 'id-1-1', '2', '2'],
+      ['102', 'id-1-2', '1', '1'],
+      ['102', 'id-1-2', '2', '2'],
+    ])
+    // Zeile 2 ist der 2. Versuch von 101, Zeile 3 der 1. Versuch von 102.
+    const spalte = zeilen(wrapper)[0].find('td[data-spalte] input').element.closest('td')!.getAttribute('data-spalte')!
+    await tippe(feld(wrapper, 0, spalte), '60,00')
+    await tippe(feld(wrapper, 1, spalte), '61,00')
+    await tippe(feld(wrapper, 2, spalte), '70,00')
+    const kennung = Object.keys(store.state.value.eingaben['manoevrieren/1']['id-1-1'])[0]
+    expect(store.state.value.eingaben).toEqual({
+      'manoevrieren/1': { 'id-1-1': { [kennung]: '60,00' }, 'id-1-2': { [kennung]: '70,00' } },
+      'manoevrieren/2': { 'id-1-1': { [kennung]: '61,00' } },
+    })
+    // Der Fortschritt zählt die Zeilen des Papiers: drei von vier.
+    expect(wrapper.find('.erf-stand-text').text()).toMatch(/3.*4/)
+    wrapper.unmount()
+  })
+
+  it('Vorsteg: eine Zeile je Starter – was dort steht, gilt für jeden Versuch', async () => {
+    localStorage.clear()
+    vergissAlles()
+    const store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'SET_VERSUCHE_NACHEINANDER', on: true })
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['1'], 2) })
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', 'vorsteg')
+    expect(titel(wrapper)).not.toMatch(/Lauf|Attempt \d|Versuch/)
+    expect(wrapper.findAll('.erf-tabelle thead th').map((th) => th.text())).not.toContain('Versuch')
+    expect(zeilen(wrapper).map((z) => [z.find('.erf-nr').text(), z.attributes('data-zeile'), z.find('.erf-attempt').exists()])).toEqual([
+      ['101', 'id-1-1', false],
+      ['102', 'id-1-2', false],
+    ])
+    // Ein X „Nicht gestartet“ am Vorsteg steht unter beiden Versuchen: Er startet in keinem.
+    await tippe(feld(wrapper, 0, 'disq'), 'x')
+    const B = 'bemerkung@vorsteg'
+    expect(store.state.value.eingaben).toEqual({
+      'manoevrieren/1': { 'id-1-1': { 'disq@vorsteg': 'X' } },
+      'manoevrieren/2': { 'id-1-1': { 'disq@vorsteg': 'X' } },
+    })
+    expect(zeilen(wrapper)[0].attributes('data-nicht-gestartet')).toBe('')
+    // Der Haken „erfasst“ ebenso.
+    await zeilen(wrapper)[1].find('td.erf-haken input').setValue(true)
+    expect(store.state.value.eingaben['manoevrieren/2']['id-1-2']).toEqual({ 'erfasst@vorsteg': '1' })
+    expect(wrapper.find('.erf-stand-text').text()).toMatch(/2.*2/)
+    // Stand im 2. Versuch etwas anderes (aus der Zeit vor der Option), fällt es auf – die nächste Eingabe gleicht an.
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/2', starter: 'id-1-2', feld: B, wert: 'alt' }] })
+    await nextTick()
+    expect(zeilen(wrapper)[1].classes()).toContain('erf-zeile--hinweis')
+    expect(wrapper.find('.erf-hinweise').text()).toContain('gilt für jeden Versuch')
+    await tippe(feld(wrapper, 1, 'bemerkung'), 'Helm')
+    expect(store.state.value.eingaben['manoevrieren/1']['id-1-2']).toEqual({ 'erfasst@vorsteg': '1', [B]: 'Helm' })
+    expect(store.state.value.eingaben['manoevrieren/2']['id-1-2']).toEqual({ 'erfasst@vorsteg': '1', [B]: 'Helm' })
+    expect(zeilen(wrapper)[1].classes()).not.toContain('erf-zeile--hinweis')
+    // Ein X nur im 1. Versuch (etwa am Steg) schraffiert die Vorsteg-Zeile nicht: Er startet im 2.
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: 'id-1-2', feld: 'disq@steg', wert: 'X' }] })
+    await nextTick()
+    expect(zeilen(wrapper)[1].attributes('data-nicht-gestartet')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('Vorsteg: „leere Zeilen bestätigen“ lässt eine Zeile aus, deren späterer Versuch etwas anderes trägt – das X bleibt', async () => {
+    localStorage.clear()
+    vergissAlles()
+    const store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['1'], 2) })
+    // Vor der Option: X im 2. Versuch für 101.
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/2', starter: 'id-1-1', feld: 'disq@vorsteg', wert: 'X' }] })
+    store.dispatch({ type: 'SET_VERSUCHE_NACHEINANDER', on: true })
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', 'vorsteg')
+    expect(zeilen(wrapper)[0].classes()).toContain('erf-zeile--hinweis')
+    const knopf = wrapper.find('[data-action="alle-bestaetigen"]')
+    expect(knopf.text()).toMatch(/\b1\b/)
+    await knopf.trigger('click')
+    expect(store.state.value.eingaben['manoevrieren/2']['id-1-1']).toEqual({ 'disq@vorsteg': 'X' })
+    expect(store.state.value.eingaben['manoevrieren/1']['id-1-1']).toBeUndefined()
+    expect(store.state.value.eingaben['manoevrieren/1']['id-1-2']).toEqual({ 'erfasst@vorsteg': '1' })
+    expect(store.state.value.eingaben['manoevrieren/2']['id-1-2']).toEqual({ 'erfasst@vorsteg': '1' })
     wrapper.unmount()
   })
 })

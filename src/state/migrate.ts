@@ -2,7 +2,7 @@ import type { AppState, ClassId, OriginMode, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
 import { emptyState, laufzettelLayoutWert, leerzeilenZahl, streichlaeufeWert, teilenAbZahl, wkrSprachenWert, zeilenJeSeiteZahl } from './reducer'
-import { aufbauOf, beschriftungOf, regelwerkOf } from '../config/catalog'
+import { aufbauOf, beschriftungOf, hasParallel, regelwerkOf } from '../config/catalog'
 import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
@@ -14,10 +14,14 @@ import { configFor } from '../config/konfig'
 import { isSprache } from '../config/sprache'
 import { bietetEnglisch, regelwerkSprache } from '../lib/listensprache'
 import { pokalWert } from '../config/pokal'
+import { normalisiereAbgemeldet, normalisiereAbgemeldetBis } from '../lib/abmeldung'
 import { istOriginStyle } from '../lib/origin'
 import type { ErgebnisHerkunft } from '../types'
+import { mitVorlaufPlan, normalisierePlaene } from '../planung/parallelRunden'
+import { normalisiereNichtWerten } from '../lib/disziplinen'
+import { istGeschlecht } from '../domain/geschlecht'
 
-/** Herkunft auf den Ergebnislisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
+/** Herkunft auf den Wertungslisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
 const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
 
 /**
@@ -47,27 +51,37 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
   )
   const parcoursList = Array.isArray(loaded.parcoursList) ? loaded.parcoursList : base.parcoursList
   const starters = loaded.starters.map(normalizeStarter)
+  const abgemeldet = normalisiereAbgemeldet(loaded.abgemeldet, new Set(starters.map((p) => p.id)))
   // Bis zur Sprache je Liste gab es eine Wahl für alle Listen (`listenSprache`). Das Feld
   // entfällt; was daraus für die Bögen wird, steht unten bei `wkrSprachen`.
   // Ebenso `pokalStand` (eigene Zeitpunkte der Mannschaftswertung): Ihr Zeitpunkt ist jetzt der
   // jüngste der Gesamtlisten (lib/listenStand.ts `wertungZeit`).
   // `gespeichert` ist die Speichermarke (persistenz/storage.ts): Sie gehört zum Speichern, nicht zum Stand.
+  // `parallelInternational` (nationaler Parallelslalom bis Klasse 7) war ohne Wirkung: Den
+  // Parallelslalom gibt es nur nach Regel 960, also bis Klasse 5. Alte Sicherungen tragen das Feld noch.
   const {
     listenSprache: alteSprache,
     pokalStand: _pokalStand,
     gespeichert: _gespeichert,
+    parallelInternational: _parallelInternational,
     ...uebernommen
-  } = loaded as Partial<AppState> & { listenSprache?: unknown; pokalStand?: unknown; gespeichert?: unknown }
+  } = loaded as Partial<AppState> & { listenSprache?: unknown; pokalStand?: unknown; gespeichert?: unknown; parallelInternational?: unknown }
   const regelwerk = regelwerkOf(loaded.regelwerk ?? '').id
-  return {
+  const stand: AppState = {
     ...base,
     ...uebernommen,
     schemaVersion: SCHEMA_VERSION,
     starters,
     // Fehlen in Ständen vor der Erfassung. Werte von Startern, die es nicht (mehr) gibt, entfallen.
     eingaben: nurStarter(normalisiereEingaben(loaded.eingaben), new Set(starters.map((p) => p.id))),
+    // Fehlt in Ständen vor dem Abmelden; IDs ohne Starter entfallen.
+    abgemeldet,
+    abgemeldetBis: normalisiereAbgemeldetBis(loaded.abgemeldetBis, abgemeldet),
     streichlaeufe: streichlaeufeWert(loaded.streichlaeufe),
     laufCount: Math.max(1, Math.min(9, Math.round(Number(loaded.laufCount)) || base.laufCount)),
+    // Fehlt in Ständen vor diesem Schalter: Dann gilt die Vorgabe des Regelwerks (aus – unter
+    // Regel 960 eine Option, die nicht vorgewählt ist).
+    versucheNacheinander: typeof loaded.versucheNacheinander === 'boolean' ? loaded.versucheNacheinander : regelwerkOf(regelwerk).versucheNacheinander === true,
     parcoursList,
     boats: { ...base.boats, ...loaded.boats },
     // Kennungen, die es nicht (mehr) gibt, fallen auf die Vorgabe zurück.
@@ -107,7 +121,7 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     },
     // Fehlt in Ständen vor den QR-Codes; der Store vergibt dann eine.
     kennung: istKennung(loaded.kennung) ? loaded.kennung : '',
-    // Fehlt in Ständen vor dem Zeitpunkt auf den Ergebnislisten: Dann ist er unbekannt, und
+    // Fehlt in Ständen vor dem Zeitpunkt auf den Wertungslisten: Dann ist er unbekannt, und
     // die Listen zeigen keinen (lib/listenStand.ts) – bis zu ihrer nächsten Änderung.
     listenStand: listenStandVon(loaded.listenStand),
     // Fehlt in Ständen vor dieser Angabe; ohne Starter gibt es kein Beispiel-Starterfeld.
@@ -127,7 +141,21 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     startNrMode: loaded.startNrMode === 'klassisch' ? 'klassisch' : 'klasse',
     // `enabled` stammt aus dem Prototyp (Nummern als Zusatz); hier gibt es nur eine Art je Veranstaltung.
     runningNumbers: { ...base.runningNumbers, ...loaded.runningNumbers, enabled: false },
+    // Fehlt in Ständen vor der Paarung nach Klassen: Dann gilt die Vorgabe der Regel (Regel 960,
+    // Pkt. 4.4 „Two drivers from the same class“) – die frühere Paarung nur nach Bootstyp gibt es nicht mehr.
+    parallelStreng: loaded.parallelStreng !== false,
+    parallelPlaene: normalisierePlaene(loaded.parallelPlaene),
+    // Fehlen in Ständen vor diesen Angaben: jede gefahrene Disziplin zählt, Dolphin-Nummern mit E.
+    nichtWerten: normalisiereNichtWerten(loaded.nichtWerten),
+    dolphinPraefix: loaded.dolphinPraefix === 'D' ? 'D' : 'E',
+    // Vorgabe an (Entscheidung des Nutzers vom 15.11.2026); nur ein ausdrückliches „aus“ bleibt aus.
+    parallelZebra: loaded.parallelZebra !== false,
   }
+  // Ein Stand mit festgeschriebener Verzahnung aus der Zeit vor den festen Plänen bekommt seinen
+  // Plan des Vorlaufs jetzt – einmal, danach wird er nicht mehr neu gerechnet. Ohne Sperre bleibt
+  // der Stand, wie er ist: Ein Plan, der bei freigegebener Verzahnung noch da ist, entfällt nur
+  // über „Werte löschen“ (state/reducer.ts), nicht beim Neuladen.
+  return stand.verzahnungLocked ? mitVorlaufPlan(stand, hasParallel(regelwerk)) : stand
 }
 
 /**
@@ -215,6 +243,8 @@ function normalizeStarter(s: Starter): Starter {
     klasse: s.klasse,
     groesse: s.groesse ?? '',
     ...(typeof s.gewicht === 'number' && s.gewicht > 0 ? { gewicht: s.gewicht } : {}),
+    // Freiwillig; alles außer M, F, D und nA heißt „nicht erfasst“.
+    ...(istGeschlecht(s.geschlecht) ? { geschlecht: s.geschlecht } : {}),
     // Nur die Abwahl steht im Stand; alles andere heißt „zählt für die Pokalauswertung“.
     ...(s.pokal === false ? { pokal: false as const } : {}),
   }

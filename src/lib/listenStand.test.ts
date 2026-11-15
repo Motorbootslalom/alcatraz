@@ -5,10 +5,10 @@ import { createStore } from '../state/store'
 import { makeFile, parseFile } from '../persistenz/backup'
 import { configFor } from '../config/konfig'
 import { feldVon, laufSchluessel, OHNE_LAUF } from './eingaben'
-import { geaenderteListen, KEINE_LISTE, gesamtListenSchluessel, gesamtZeit, laufListenSchluessel, listenInhalte, standZeit, wertungZeit } from './listenStand'
+import { geaenderteListen, KEINE_LISTE, gesamtListenSchluessel, gesamtZeit, laeufeZeit, laufListenSchluessel, listenInhalte, standZeit, wertungZeit } from './listenStand'
 import type { AppState, ClassId, Starter } from '../types'
 
-// Wann sich eine Ergebnisliste zuletzt geändert hat. Alle Starter sind erfunden.
+// Wann sich eine Wertungsliste zuletzt geändert hat. Alle Starter sind erfunden.
 
 const D = 'manoevrieren'
 const L = (n: number) => laufSchluessel(D, n)
@@ -22,7 +22,7 @@ const eingabe = (zeit: number | undefined, ...zellen: ReturnType<typeof zelle>[]
 const nach = (s: AppState, ...actions: Action[]) => actions.reduce(reducer, s)
 const zeiten = (s: AppState) => Object.fromEntries(Object.entries(s.listenStand).map(([k, v]) => [k, v.zeit]))
 
-describe('Stand der Ergebnislisten', () => {
+describe('Stand der Wertungslisten', () => {
   it('ohne Eingaben gibt es keine Liste und keinen Stand', () => {
     expect(anfang().listenStand).toEqual({})
     expect(listenInhalte(anfang()).size).toBe(0)
@@ -301,7 +301,7 @@ describe('Die Kette der Zeitpunkte: Lauf → Gesamtliste → Mannschaftswertung'
   })
 })
 
-describe('Stand der Ergebnislisten: Laden und Dateien', () => {
+describe('Stand der Wertungslisten: Laden und Dateien', () => {
   const mitWerten = () => nach(anfang(), eingabe(1000, zelle('a', 'zeit1', '80')), eingabe(2000, zelle('c', 'zeit1', '70')))
 
   it('alte Stände ohne Zeitpunkt: Die Listen zeigen nichts – auch nach der nächsten Eingabe anderswo', () => {
@@ -406,5 +406,20 @@ describe('Store: Zeitpunkt und Kennung kommen mit der Action', () => {
     expect(reducer(emptyState(), { type: 'SET_KENNUNG', kennung: 'kaputt!' })).toEqual(emptyState())
     expect(migrate({ starters: [], kennung: 'x y' })!.kennung).toBe('')
     expect(migrate({ starters: [], kennung: 'K7Q4' })!.kennung).toBe('K7Q4')
+  })
+})
+
+describe('laeufeZeit: Die Liste der Attempts folgt nur ihren Attempts', () => {
+  it('ein jüngerer Zeitpunkt allein am Ergebnis der Runde („nicht werten“) ändert sie nicht', () => {
+    const E = 'parallel:pre'
+    const stand: AppState['listenStand'] = {
+      [laufListenSchluessel(E, '1', 1)]: { inhalt: 1, zeit: Date.UTC(2026, 8, 26, 13, 0, 0) },
+      [laufListenSchluessel(E, '1', 2)]: { inhalt: 2, zeit: Date.UTC(2026, 8, 26, 13, 5, 0) },
+      [gesamtListenSchluessel(E, '1')]: { inhalt: 3, zeit: Date.UTC(2026, 8, 26, 14, 0, 0) },
+      [laufListenSchluessel(E, '2', 1)]: { inhalt: 4, zeit: Date.UTC(2026, 8, 26, 15, 0, 0) },
+    }
+    expect(laeufeZeit(stand, E, '1')).toBe('2026-09-26T13:05:00.000Z')
+    expect(gesamtZeit(stand, E, '1')).toBe('2026-09-26T14:00:00.000Z')
+    expect(laeufeZeit(stand, E, '3')).toBe('')
   })
 })

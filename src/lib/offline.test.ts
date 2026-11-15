@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { bitteDauerhaft, DAUERHAFT_KEY, darfVonSelbstBitten, leseDauerhaft, offline, offlineLage, pruefeDauerhaft, starteOffline, sucheNeueFassung, uebernehmen, type OfflineUmgebung, type SpeicherStand } from './offline'
+import { bitteDauerhaft, DAUERHAFT_KEY, darfVonSelbstBitten, leseDauerhaft, offline, neueFassung, offlineLage, pruefeDauerhaft, starteOffline, sucheNeueFassung, uebernehmen, type OfflineUmgebung, type SpeicherStand } from './offline'
 
 // --- Nachbau des Browsers: nur, was lib/offline.ts anfasst -------------------
 
@@ -12,9 +12,12 @@ class Worker extends EventTarget {
     super()
     this.stand = stand
   }
+  /** Antwort auf `uebernehmen`; `undefined`: antwortet nicht. */
+  uebernimmt: boolean | undefined = true
   postMessage(nachricht: { typ: string }, ports?: MessagePort[]) {
     this.nachrichten.push(nachricht)
     if (nachricht.typ === 'stand' && this.stand) ports?.[0]?.postMessage({ typ: 'stand', ...this.stand })
+    if (nachricht.typ === 'uebernehmen' && this.uebernimmt !== undefined) ports?.[0]?.postMessage({ typ: 'uebernommen', ok: this.uebernimmt })
   }
   wird(state: string) {
     this.state = state
@@ -42,7 +45,12 @@ function umgebung(speicher: Speicher | undefined, mehr: Partial<OfflineUmgebung>
 }
 
 const ruhe = () => new Promise((fertig) => setTimeout(fertig, 60))
-const VOLL: SpeicherStand = { fassung: 'abc1234', dateien: 7, fehlend: 0 }
+const ALT = { kennung: 'k-alt', fassung: 'abc1234', commitZeit: '2026-05-01T10:00:00+02:00', zeit: '2026-05-01T08:05:00.000Z', dateien: 7, fehlend: 0 }
+const NEU = { kennung: 'k-neu', fassung: 'def5678', commitZeit: '2026-06-01T10:00:00+02:00', zeit: '2026-06-01T08:05:00.000Z', dateien: 8, fehlend: 0 }
+/** Ein Service Worker der alten Fassung, der die alte ausliefert. */
+const VOLL: SpeicherStand = { gueltig: ALT, eigen: ALT }
+/** Ein Service Worker der neuen Fassung, der (noch) die alte ausliefert. */
+const NEU_WARTET: SpeicherStand = { gueltig: ALT, eigen: NEU }
 
 /** Ein Speicher, der schon läuft und dieses Fenster bedient. */
 function laufend(): Speicher {
@@ -55,8 +63,8 @@ function laufend(): Speicher {
 }
 
 /** Eine neue Fassung kommt an: lädt, ist fertig, wartet. */
-async function neueFassung(s: Speicher, fassung = 'def5678'): Promise<Worker> {
-  const neu = new Worker({ fassung, dateien: 8, fehlend: 0 })
+async function kommtAn(s: Speicher): Promise<Worker> {
+  const neu = new Worker(NEU_WARTET)
   s.anmeldung.installing = neu
   s.anmeldung.dispatchEvent(new Event('updatefound'))
   await ruhe()
@@ -84,8 +92,27 @@ describe('offlineLage', () => {
 
   it('ist erst bereit, wenn der Speicher meldet, dass keine Datei fehlt', () => {
     expect(offlineLage(basis).lage).toBe('vorbereiten')
-    expect(offlineLage({ ...basis, stand: { ...VOLL, fehlend: 2 } }).lage).toBe('vorbereiten')
-    expect(offlineLage({ ...basis, stand: VOLL }).lage).toBe('bereit')
+    expect(offlineLage({ ...basis, stand: { ...ALT, fehlend: 2 } }).lage).toBe('vorbereiten')
+    expect(offlineLage({ ...basis, stand: ALT }).lage).toBe('bereit')
+  })
+})
+
+describe('neueFassung', () => {
+  it('nimmt die Fassung des jüngsten Service Workers – des wartenden, sonst des laufenden', () => {
+    expect(neueFassung(VOLL, undefined)).toBeUndefined()
+    expect(neueFassung(VOLL, NEU_WARTET)).toMatchObject({ kennung: 'k-neu' })
+    expect(neueFassung(NEU_WARTET, undefined)).toMatchObject({ kennung: 'k-neu' })
+    expect(neueFassung(undefined, NEU_WARTET)).toBeUndefined()
+  })
+
+  it('ohne ausgelieferte Fassung (ihre Liste ist verloren) wird nichts angeboten', () => {
+    expect(neueFassung({ eigen: NEU }, undefined)).toBeUndefined()
+    expect(neueFassung({ eigen: ALT }, NEU_WARTET)).toBeUndefined()
+  })
+
+  it('bietet nichts an, wenn Dateien fehlen oder die Fassung dieselbe ist', () => {
+    expect(neueFassung(VOLL, { ...NEU_WARTET, eigen: { ...NEU, fehlend: 1 } })).toBeUndefined()
+    expect(neueFassung(VOLL, { ...VOLL })).toBeUndefined()
   })
 })
 
@@ -138,7 +165,7 @@ describe('starteOffline', () => {
 
   it('bleibt bei „wird vorbereitet“, solange Dateien fehlen', async () => {
     const s = laufend()
-    s.anmeldung.active!.stand = { ...VOLL, fehlend: 1 }
+    s.anmeldung.active!.stand = { ...VOLL, gueltig: { ...ALT, fehlend: 1 } }
     await starteOffline(umgebung(s).u)
     expect(offline.lage).toBe('vorbereiten')
   })
@@ -149,7 +176,7 @@ describe('starteOffline', () => {
     await starteOffline(u)
     expect(offline).toMatchObject({ lage: 'bereit', neu: false })
 
-    const neu = new Worker({ fassung: 'def5678', dateien: 8, fehlend: 0 })
+    const neu = new Worker(NEU_WARTET)
     s.anmeldung.installing = neu
     s.anmeldung.dispatchEvent(new Event('updatefound'))
     await ruhe()
@@ -159,47 +186,131 @@ describe('starteOffline', () => {
     s.anmeldung.waiting = neu
     neu.wird('installed')
     await ruhe()
-    expect(offline).toMatchObject({ lage: 'bereit', fassung: 'abc1234', neu: true, neuFassung: 'def5678', laedtNeu: false })
+    expect(offline).toMatchObject({ lage: 'bereit', fassung: 'abc1234', neu: true, neuFassung: 'def5678', neuZeit: NEU.zeit, neuCommitZeit: NEU.commitZeit, laedtNeu: false })
     expect(neuLaden).not.toHaveBeenCalled()
     expect(neu.nachrichten).not.toContainEqual({ typ: 'uebernehmen' })
   })
 
   it('findet eine Fassung, die beim Start schon wartet', async () => {
     const s = laufend()
-    const neu = new Worker({ fassung: 'def5678', dateien: 8, fehlend: 0 })
+    const neu = new Worker(NEU_WARTET)
     neu.state = 'installed'
     s.anmeldung.waiting = neu
     await starteOffline(umgebung(s).u)
     expect(offline).toMatchObject({ lage: 'bereit', neu: true, neuFassung: 'def5678' })
   })
 
+  it('nach einem Neustart läuft der NEUE Service Worker, ausgeliefert wird die alte Fassung: Die neue liegt bereit, nichts wechselt von selbst', async () => {
+    const s = laufend()
+    // Der Browser hat den wartenden Service Worker aktiviert, während alle Fenster zu waren.
+    s.anmeldung.active!.stand = NEU_WARTET
+    const { u, neuLaden } = umgebung(s, { darfVonSelbst: () => false })
+    await starteOffline(u)
+    expect(offline).toMatchObject({ lage: 'bereit', fassung: 'abc1234', neu: true, neuFassung: 'def5678', ersetzt: false })
+    expect(neuLaden).not.toHaveBeenCalled()
+    expect(s.anmeldung.active!.nachrichten).not.toContainEqual({ typ: 'uebernehmen' })
+
+    // „Update“ geht dann an den laufenden Service Worker – es wartet ja keiner.
+    await uebernehmen()
+    expect(s.anmeldung.active!.nachrichten).toContainEqual({ typ: 'uebernehmen' })
+    expect(neuLaden).toHaveBeenCalledTimes(1)
+  })
+
+  it('bietet eine halb geladene oder verworfene Fassung nicht an', async () => {
+    const s = laufend()
+    const neu = new Worker({ ...NEU_WARTET, eigen: { ...NEU, fehlend: 3 } })
+    neu.state = 'installed'
+    s.anmeldung.waiting = neu
+    await starteOffline(umgebung(s).u)
+    expect(offline.neu).toBe(false)
+    // Ebenso, wenn der wartende Service Worker nicht antwortet.
+    neu.stand = undefined
+    await starteOffline(umgebung(s).u)
+    expect(offline.neu).toBe(false)
+  })
+
+  it('leerer Stand: übernimmt eine bereitliegende Fassung beim Start von selbst', async () => {
+    const s = laufend()
+    const neu = new Worker(NEU_WARTET)
+    neu.state = 'installed'
+    s.anmeldung.waiting = neu
+    const darf = vi.fn((_beimStart: boolean) => true)
+    const { u, neuLaden } = umgebung(s, { darfVonSelbst: darf })
+    await starteOffline(u)
+    await ruhe()
+    expect(darf).toHaveBeenCalledWith(true)
+    expect(neu.nachrichten).toContainEqual({ typ: 'uebernehmen' })
+    expect(neuLaden).toHaveBeenCalledTimes(1)
+  })
+
+  it('mit Daten: übernimmt nie von selbst – auch nicht, wenn die Fassung erst später fertig lädt', async () => {
+    const s = laufend()
+    const darf = vi.fn((_beimStart: boolean) => false)
+    const { u, neuLaden } = umgebung(s, { darfVonSelbst: darf })
+    await starteOffline(u)
+    const neu = await kommtAn(s)
+    expect(offline.neu).toBe(true)
+    // Später gefragt wird mit `beimStart = false`: Die Seite entscheidet dann strenger.
+    expect(darf).toHaveBeenLastCalledWith(false)
+    expect(neu.nachrichten).not.toContainEqual({ typ: 'uebernehmen' })
+    expect(neuLaden).not.toHaveBeenCalled()
+  })
+
+  it('ohne die Angabe `darfVonSelbst` wird nie von selbst übernommen', async () => {
+    const s = laufend()
+    const neu = new Worker(NEU_WARTET)
+    neu.state = 'installed'
+    s.anmeldung.waiting = neu
+    const { u, neuLaden } = umgebung(s)
+    await starteOffline(u)
+    await ruhe()
+    expect(neuLaden).not.toHaveBeenCalled()
+  })
+
   it('übernimmt erst auf Knopfdruck und lädt dann genau einmal neu', async () => {
     const s = laufend()
     const { u, neuLaden } = umgebung(s)
     await starteOffline(u)
-    const neu = await neueFassung(s)
+    const neu = await kommtAn(s)
 
-    uebernehmen()
+    const fertig = uebernehmen()
+    expect(offline.uebernimmt).toBe(true)
     expect(neu.nachrichten).toContainEqual({ typ: 'uebernehmen' })
+    // Erst wenn der Service Worker den Zeiger umgesetzt hat, lädt das Fenster neu.
     expect(neuLaden).not.toHaveBeenCalled()
+    expect(await fertig).toBe(true)
+    expect(neuLaden).toHaveBeenCalledTimes(1)
 
-    // Der Browser schaltet um: erst dann lädt das Fenster neu.
+    // Der Browser löst den alten Service Worker ab, und alle Fenster erfahren vom Wechsel:
+    // In DIESEM Fenster ändert das nichts mehr – kein zweites Neuladen, kein Hinweis.
     s.anmeldung.waiting = null
     s.anmeldung.active = neu
-    neu.wird('activating')
-    expect(neuLaden).not.toHaveBeenCalled()
+    neu.stand = { gueltig: NEU, eigen: NEU }
     s.controller = neu
     s.dispatchEvent(new Event('controllerchange'))
     neu.wird('activated')
+    s.dispatchEvent(new MessageEvent('message', { data: { typ: 'gewechselt', kennung: NEU.kennung } }))
+    await ruhe()
     expect(neuLaden).toHaveBeenCalledTimes(1)
     expect(offline.ersetzt).toBe(false)
+  })
+
+  it('lässt sich nicht umschalten (Dateien verworfen, kein Netz): bleibt bei der laufenden Fassung', async () => {
+    const s = laufend()
+    const { u, neuLaden } = umgebung(s)
+    await starteOffline(u)
+    const neu = await kommtAn(s)
+    neu.uebernimmt = false
+    expect(await uebernehmen()).toBe(false)
+    expect(neuLaden).not.toHaveBeenCalled()
+    expect(offline.uebernimmt).toBe(false)
   })
 
   it('übernimmt nichts, wenn keine Fassung wartet', async () => {
     const s = laufend()
     const { u, neuLaden } = umgebung(s)
     await starteOffline(u)
-    uebernehmen()
+    expect(await uebernehmen()).toBe(false)
     expect(s.anmeldung.active!.nachrichten).not.toContainEqual({ typ: 'uebernehmen' })
     expect(neuLaden).not.toHaveBeenCalled()
   })
@@ -208,15 +319,29 @@ describe('starteOffline', () => {
     const s = laufend()
     const { u, neuLaden } = umgebung(s)
     await starteOffline(u)
-    const neu = await neueFassung(s)
+    const neu = await kommtAn(s)
 
+    // Dort wurde „Update“ gedrückt: Der Zeiger steht auf der neuen Fassung, alle Fenster erfahren es.
+    s.anmeldung.active!.stand = { gueltig: NEU, eigen: ALT }
+    neu.stand = { gueltig: NEU, eigen: NEU }
+    s.dispatchEvent(new MessageEvent('message', { data: { typ: 'gewechselt', kennung: NEU.kennung } }))
+    await ruhe()
+    expect(offline).toMatchObject({ ersetzt: true, neu: false })
+    expect(neuLaden).not.toHaveBeenCalled()
+  })
+
+  it('der Browser aktiviert den wartenden Service Worker (anderes Fenster zu, dieses offen geblieben): kein Hinweis, die Fassung bleibt', async () => {
+    const s = laufend()
+    const { u, neuLaden } = umgebung(s)
+    await starteOffline(u)
+    const neu = await kommtAn(s)
     s.anmeldung.waiting = null
     s.anmeldung.active = neu
     s.controller = neu
     neu.wird('activated')
     s.dispatchEvent(new Event('controllerchange'))
     await ruhe()
-    expect(offline).toMatchObject({ ersetzt: true, neu: false })
+    expect(offline).toMatchObject({ ersetzt: false, neu: true, fassung: 'abc1234', neuFassung: 'def5678' })
     expect(neuLaden).not.toHaveBeenCalled()
   })
 
@@ -314,6 +439,20 @@ describe('starteOffline', () => {
     expect(offline.lage).toBe('bereit')
   })
 
+  it('sieht kurz nach dem Start selbst nach einer neuen Fassung – der Browser tut es nicht verlässlich', async () => {
+    const s = laufend()
+    await starteOffline(umgebung(s, { suchePause: 10 }).u)
+    expect(s.anmeldung.update).not.toHaveBeenCalled()
+    await ruhe()
+    expect(s.anmeldung.update).toHaveBeenCalledTimes(1)
+    // Ohne Netz scheitert das still.
+    const ohne = laufend()
+    ohne.anmeldung.update.mockRejectedValue(new TypeError('offline'))
+    await starteOffline(umgebung(ohne, { suchePause: 10 }).u)
+    await ruhe()
+    expect(offline).toMatchObject({ lage: 'bereit', suche: '' })
+  })
+
   it('sucht auf Wunsch nach einer neuen Fassung', async () => {
     const s = laufend()
     await starteOffline(umgebung(s).u)
@@ -321,11 +460,30 @@ describe('starteOffline', () => {
     expect(s.anmeldung.update).toHaveBeenCalledTimes(1)
     expect(offline.suche).toBe('aktuell')
 
+    // Gefunden heißt noch nicht bereit: erst laden …
+    const neu = new Worker()
     s.anmeldung.update.mockImplementationOnce(async () => {
-      s.anmeldung.installing = new Worker()
+      s.anmeldung.installing = neu
     })
     await sucheNeueFassung()
+    expect(offline.suche).toBe('laedt')
+    s.anmeldung.installing = null
+    s.anmeldung.waiting = neu
+    neu.wird('installed')
     expect(offline.suche).toBe('neu')
+    s.anmeldung.waiting = null
+
+    // … und eine halb veröffentlichte Fassung lässt sich nicht laden: Das steht dann da.
+    const halb = new Worker()
+    s.anmeldung.update.mockImplementationOnce(async () => {
+      s.anmeldung.installing = halb
+    })
+    await sucheNeueFassung()
+    expect(offline.suche).toBe('laedt')
+    s.anmeldung.installing = null
+    halb.wird('redundant')
+    expect(offline.suche).toBe('unvollstaendig')
+    expect(offline.neu).toBe(false)
 
     s.anmeldung.update.mockRejectedValueOnce(new TypeError('offline'))
     await sucheNeueFassung()

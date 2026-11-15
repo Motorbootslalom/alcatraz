@@ -27,14 +27,11 @@ const nr = (slot: ParallelSlot) => slotShort(slot)
 const row = (h: ParallelHeat) => `${nr(h.a)}|${nr(h.b)}`
 const rows = (heats: ParallelHeat[]) => heats.map(row)
 
-const OPTS = { international: true, class4Small: false }
+const OPTS = { class4Small: false }
 
 describe('parallelActiveClasses', () => {
-  it('international schließt Klassen 6 und 7 aus', () => {
-    expect(parallelActiveClasses(true)).toEqual(['E', '1', '2', '3', '4', '5'])
-  })
-  it('national enthält alle Klassen', () => {
-    expect(parallelActiveClasses(false)).toEqual(['E', '1', '2', '3', '4', '5', '6', '7'])
+  it('gefahren wird bis Klasse 5 – die Klassen 6 und 7 gibt es im Parallelslalom nicht', () => {
+    expect(parallelActiveClasses()).toEqual(['E', '1', '2', '3', '4', '5'])
   })
 })
 
@@ -99,24 +96,6 @@ describe('buildParallelPlan – Grundmuster aus der Aufgabenstellung', () => {
     expect(plan.heats.find((h) => h.pos === 6)!.blockStart).toBe(false)
   })
 
-  it('Reihenfolge nach Startnummer sortiert den Pool nach klassischer Nummer (statt Klasse)', () => {
-    // Feld nur klein: Klasse E und Klasse 3. Standard (nach Klasse) → Dolphin zuerst.
-    const ps = [...make('E', 2), ...make('3', 2)]
-    expect(rows(buildParallelPlan(ps, OPTS).heats)[0]).toBe('E01|E02')
-
-    // Manövrieren hat Klasse 3 zuerst gesetzt (Bibs 1,2), Dolphin danach (3,4).
-    const running = new Map([
-      ['3-1', 1],
-      ['3-2', 2],
-      ['E-1', 3],
-      ['E-2', 4],
-    ])
-    const heats = buildParallelPlan(ps, { ...OPTS, orderByStartNr: true }, running).heats
-    // Jetzt startet Klasse 3 (301) statt Dolphin, Bootstyp-Trennung bleibt.
-    expect(rows(heats)[0]).toBe('301|302')
-    expect(heats.every((h) => h.boat === 'klein')).toBe(true)
-  })
-
   it('nur ein Bootstyp im Feld → ausschließlich 2er-Blöcke', () => {
     const plan = buildParallelPlan(make('E', 4), OPTS)
     expect(rows(plan.heats)).toEqual(['E01|E02', 'E02|E01', 'E03|E04', 'E04|E03'])
@@ -125,53 +104,139 @@ describe('buildParallelPlan – Grundmuster aus der Aufgabenstellung', () => {
   })
 })
 
-describe('Paarung nach Bootstyp, nicht Klasse', () => {
-  it('Klasse E kann gegen Klasse 3 fahren (beide klein)', () => {
-    const ps = [...make('E', 1), ...make('3', 1)]
-    const plan = buildParallelPlan(ps, OPTS)
-    // ein klein-Paar (E01, 301), zweimal gefahren
-    expect(rows(plan.heats)).toEqual(['E01|301', '301|E01'])
-    expect(plan.kleinDummy).toBe(false)
+/** Klassische Nummern setzen: id → Nummer. */
+const mitNummern = (ps: Starter[], nummern: Record<string, number>): Starter[] => ps.map((p) => ({ ...p, startNr: String(nummern[p.id] ?? '') }))
+/** Die Klassen eines Starts, z. B. „E|E“ oder „1|Dummy“. */
+const klassen = (h: ParallelHeat) => [h.a, h.b].map((s) => (s.kind === 'dummy' ? 'Dummy' : s.p.klasse)).join('|')
+
+describe('strenge Klassentrennung (Vorgabe, Regel 960 Pkt. 4.4)', () => {
+  it('Paare nur innerhalb einer Klasse: Dolphin fährt nicht gegen Klasse 3, jeder Übrige gegen einen Dummy', () => {
+    const plan = buildParallelPlan([...make('E', 1), ...make('3', 1)], OPTS)
+    expect(rows(plan.heats)).toEqual(['E01|Dummy', 'Dummy|E01', '301|Dummy', 'Dummy|301'])
+    expect(plan.kleinDummy).toBe(2)
+    expect(plan.pairs).toBe(2)
   })
 
-  it('kleine und große Klassen bilden getrennte Pools', () => {
-    const ps = [...make('2', 2), ...make('4', 2)]
+  it('ein Dummy je ungerader Klasse – auch mehrere je Bootstyp; gerade Klassen bleiben ohne', () => {
+    const ps = [...make('E', 3), ...make('1', 2), ...make('2', 1), ...make('4', 3), ...make('5', 5)]
     const plan = buildParallelPlan(ps, OPTS)
-    // 2 = klein, 4 = groß → kein gemischtes Paar
+    expect(plan.kleinStarter).toBe(6)
+    expect(plan.kleinDummy).toBe(2)
+    expect(plan.grossStarter).toBe(8)
+    expect(plan.grossDummy).toBe(2)
+    // Kein Start mischt zwei Klassen.
     for (const h of plan.heats) {
-      expect(nr(h.a).slice(0, 1)).toBe(nr(h.b).slice(0, 1))
+      if (h.a.kind === 'starter' && h.b.kind === 'starter') expect(h.a.p.klasse).toBe(h.b.p.klasse)
     }
+    // Der Dummy steht beim letzten Starter seiner Klasse.
+    expect(rows(plan.heats.filter((h) => h.run === 1 && h.boat === 'klein'))).toEqual(['E01|E02', 'E03|Dummy', '101|102', '201|Dummy'])
   })
-})
 
-describe('Dummy bei ungerader Anzahl je Bootstyp', () => {
-  it('ungerade kleine Anzahl → genau ein Dummy klein', () => {
-    const ps = make('E', 3)
-    const plan = buildParallelPlan(ps, OPTS)
-    expect(plan.kleinDummy).toBe(true)
+  it('eine Klasse mit einem einzigen Starter: Er fährt beide Attempts gegen den Dummy, einmal auf A und einmal auf B', () => {
+    const plan = buildParallelPlan(make('2', 1), OPTS)
+    expect(rows(plan.heats)).toEqual(['201|Dummy', 'Dummy|201'])
+    expect(plan.heats.map((h) => h.run)).toEqual([1, 2])
+    expect(plan.kleinDummy).toBe(1)
     const dummies = plan.heats.flatMap((h) => [h.a, h.b]).filter((s) => s.kind === 'dummy')
-    // Dummy taucht in beiden Läufen seines Paares auf (A und B) → 2 Slots
-    expect(dummies.length).toBe(2)
     expect(dummies.every((s) => s.kind === 'dummy' && s.boat === 'klein')).toBe(true)
   })
 
   it('gerade Anzahl → kein Dummy', () => {
     const plan = buildParallelPlan(make('E', 4), OPTS)
-    expect(plan.kleinDummy).toBe(false)
+    expect(plan.kleinDummy).toBe(0)
     expect(plan.heats.some((h) => h.a.kind === 'dummy' || h.b.kind === 'dummy')).toBe(false)
+  })
+
+  it('kleine und große Klassen bilden getrennte Pools', () => {
+    const plan = buildParallelPlan([...make('2', 2), ...make('4', 2)], OPTS)
+    expect(plan.heats.map(klassen)).toEqual(['2|2', '4|4', '2|2', '4|4'])
   })
 })
 
-describe('internationaler Modus', () => {
-  it('ignoriert Klassen 6 und 7', () => {
-    const ps = [...make('E', 2), ...make('6', 2), ...make('7', 2)]
-    const intl = buildParallelPlan(ps, { international: true, class4Small: false })
-    // nur die beiden E-Starter zählen
-    expect(intl.kleinStarter).toBe(2)
-    expect(intl.grossStarter).toBe(0)
+describe('nicht streng: der Übrige fährt gegen den ersten der nächsten Klasse im gleichen Boot', () => {
+  const NICHT_STRENG = { ...OPTS, streng: false }
 
-    const national = buildParallelPlan(ps, { international: false, class4Small: false })
-    expect(national.grossStarter).toBe(4) // 6 und 7 sind groß
+  it('ungerade Klassen, gerader Pool: kein Dummy, die Klassen bleiben sonst zusammen', () => {
+    const ps = [...make('E', 3), ...make('1', 3)]
+    const plan = buildParallelPlan(ps, NICHT_STRENG)
+    expect(rows(plan.heats.filter((h) => h.run === 1))).toEqual(['E01|E02', 'E03|101', '102|103'])
+    expect(plan.kleinDummy).toBe(0)
+  })
+
+  it('Dummy nur bei ungeradem Pool – und nie über die Bootstypen hinweg', () => {
+    const ps = [...make('E', 1), ...make('2', 2), ...make('4', 1), ...make('5', 1)]
+    const plan = buildParallelPlan(ps, NICHT_STRENG)
+    expect(rows(plan.heats.filter((h) => h.run === 1))).toEqual(['E01|201', '401|501', '202|Dummy'])
+    expect(plan.kleinDummy).toBe(1)
+    expect(plan.grossDummy).toBe(0)
+    // Klein gegen groß gibt es nicht.
+    expect(plan.heats.every((h) => [h.a, h.b].every((s) => s.kind === 'dummy' || (h.boat === 'gross') === ['4', '5'].includes(s.p.klasse)))).toBe(true)
+  })
+
+  it('gerade Klassen: derselbe Plan wie streng', () => {
+    const ps = [...make('E', 2), ...make('1', 4), ...make('4', 2)]
+    expect(rows(buildParallelPlan(ps, NICHT_STRENG).heats)).toEqual(rows(buildParallelPlan(ps, OPTS).heats))
+  })
+})
+
+describe('Reihenfolge nach Startnummer: Klassen nach ihrer kleinsten Nummer', () => {
+  // Das Manövrieren hat Klasse 3 zuerst gesetzt (1–3), Dolphin danach (4, 5), Klasse 1 zuletzt (6, 7).
+  const ps = mitNummern([...make('E', 2), ...make('1', 2), ...make('3', 3)], { '3-1': 2, '3-2': 1, '3-3': 3, 'E-1': 4, 'E-2': 5, '1-1': 7, '1-2': 6 })
+
+  it('ohne die Option gilt die feste Folge der Klassen, innerhalb der Klasse die Nummer', () => {
+    const plan = buildParallelPlan(ps, OPTS)
+    expect(rows(plan.heats.filter((h) => h.run === 1))).toEqual(['4|5', '6|7', '1|2', '3|Dummy'])
+  })
+
+  it('mit der Option steht Klasse 3 vorn; die Klassen bleiben zusammen und werden nicht nach Nummer gemischt', () => {
+    const plan = buildParallelPlan(ps, { ...OPTS, orderByStartNr: true })
+    expect(rows(plan.heats.filter((h) => h.run === 1))).toEqual(['1|2', '3|Dummy', '4|5', '6|7'])
+    expect(plan.heats.filter((h) => h.run === 1).map(klassen)).toEqual(['3|3', '3|Dummy', 'E|E', '1|1'])
+  })
+
+  it('nicht streng: der Übrige der Klasse 3 fährt gegen den ersten Dolphin', () => {
+    const plan = buildParallelPlan(ps, { ...OPTS, orderByStartNr: true, streng: false })
+    expect(rows(plan.heats.filter((h) => h.run === 1))).toEqual(['1|2', '3|4', '5|6', '7|Dummy'])
+  })
+
+  it('Starter ohne Nummer stehen in ihrer Klasse hinten, Klassen ohne Nummern am Ende', () => {
+    const feld = mitNummern([...make('E', 2), ...make('1', 2)], { '1-2': 1 })
+    const plan = buildParallelPlan(feld, { ...OPTS, orderByStartNr: true })
+    expect(plan.heats.filter((h) => h.run === 1).map((h) => [h.a, h.b].map((s) => (s.kind === 'starter' ? s.p.id : '–')).join('|'))).toEqual(['1-2|1-1', 'E-1|E-2'])
+  })
+
+  it('klassische Nummern zählen als Zahl: 9 vor 10', () => {
+    const feld = mitNummern(make('E', 2), { 'E-1': 10, 'E-2': 9 })
+    expect(rows(buildParallelPlan(feld, OPTS).heats)[0]).toBe('9|10')
+  })
+})
+
+describe('Attempts', () => {
+  it('der frühere Start eines Paares ist der 1. Attempt; im 2. sind die Racecourses getauscht', () => {
+    const plan = buildParallelPlan([...make('E', 3), ...make('1', 2), ...make('4', 2)], OPTS)
+    const paar = (h: ParallelHeat) => [nr(h.a), nr(h.b)].sort().join('+')
+    const gesehen = new Map<string, ParallelHeat>()
+    for (const h of plan.heats) {
+      const erster = gesehen.get(paar(h))
+      if (!erster) {
+        expect(h.run).toBe(1)
+        gesehen.set(paar(h), h)
+      } else {
+        expect(h.run).toBe(2)
+        expect(row(h)).toBe(`${nr(erster.b)}|${nr(erster.a)}`)
+      }
+    }
+    expect(gesehen.size).toBe(plan.pairs)
+  })
+})
+
+describe('Klassen 6 und 7', () => {
+  it('fahren keinen Parallelslalom', () => {
+    const ps = [...make('E', 2), ...make('6', 2), ...make('7', 2)]
+    const plan = buildParallelPlan(ps, OPTS)
+    // nur die beiden E-Starter zählen
+    expect(plan.kleinStarter).toBe(2)
+    expect(plan.grossStarter).toBe(0)
   })
 })
 
@@ -193,7 +258,7 @@ describe('Fairness & Vollständigkeit', () => {
 
   it('class4Small verschiebt Klasse 4 in den kleinen Pool', () => {
     const ps = [...make('E', 2), ...make('4', 2)]
-    const plan = buildParallelPlan(ps, { international: true, class4Small: true })
+    const plan = buildParallelPlan(ps, { class4Small: true })
     // alles klein → 2 Paare klein, keine großen
     expect(plan.kleinStarter).toBe(4)
     expect(plan.grossStarter).toBe(0)

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useStore } from '../state/store'
+import { startNrPraefixe } from '../config/catalog'
 import {
   formatStartersTsv,
   formatStartlistTsv,
@@ -27,7 +28,7 @@ const result = ref<ImportResult | null>(null)
 const copied = ref<'startlist' | 'starters' | null>(null)
 
 // Fehlende klassenbasierte Nummern ergänzt der Import; klassische vergibt erst die Verzahnung.
-const parse = (text: string) => parseStartersTsv(text, { assignMissing: state.value.startNrMode === 'klasse', landIstStaat: state.value.originMode === 'land' })
+const parse = (text: string) => parseStartersTsv(text, { assignMissing: state.value.startNrMode === 'klasse', landIstStaat: state.value.originMode === 'land', startNrPraefix: startNrPraefixe(state.value) })
 
 const preview = computed(() => (raw.value.trim() ? parse(raw.value) : null))
 
@@ -44,6 +45,11 @@ const darfNicht = computed(() => gesperrt.value || !preview.value || preview.val
 function numbersNote(res: ImportResult): string {
   const note = startNrImportNote(res)
   return note === 'none' ? '' : t(`import.numbers.${note}`, { n: res.assignedNumbers })
+}
+/** Nicht erkannte Angaben zum Geschlecht: Die Zeilen kommen herein, das Feld bleibt leer. */
+function geschlechtNote(res: ImportResult): string {
+  const u = res.geschlechtUnbekannt
+  return u.anzahl === 0 ? '' : tn('import.sexUnknown', u.anzahl, { values: u.werte.join(', ') })
 }
 
 function doImport(mode: 'replace' | 'merge') {
@@ -108,6 +114,7 @@ function onRaw(e: Event) {
         {{ preview.usedHeader ? t('import.header') : t('import.fixed') }}
         <template v-if="preview.skipped.length > 0"> · {{ tn('import.skipped', preview.skipped.length) }}</template>
         <template v-if="numbersNote(preview)"><br />{{ numbersNote(preview) }}</template>
+        <template v-if="geschlechtNote(preview)"><br /><span data-hinweis="geschlecht-unbekannt">{{ geschlechtNote(preview) }}</span></template>
       </p>
 
       <div v-if="klassenFehler.length > 0" class="boat-banner warn" data-hinweis="klassen-fehler" role="alert">
@@ -156,7 +163,7 @@ function onRaw(e: Event) {
         role="status"
       >
         <template v-if="result.imported > 0">
-          {{ t('import.done', { n: result.imported }) }} {{ numbersNote(result) }}
+          {{ t('import.done', { n: result.imported }) }} {{ numbersNote(result) }} {{ geschlechtNote(result) }}
         </template>
         <template v-else>{{ t('import.none') }}</template>
         <template v-if="result.skipped.length > 0">

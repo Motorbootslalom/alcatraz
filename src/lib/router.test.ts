@@ -46,7 +46,7 @@ describe('Reiter in der Adresse', () => {
   it('trägt den gemerkten Reiter nach, wenn die Adresse keinen oder einen unbekannten nennt', () => {
     location.hash = '#/listen'
     const a = baue('ergebnis')
-    expect(location.hash).toBe('#/listen/ergebnis')
+    expect(location.hash).toBe('#/listen/wertungslisten')
     a.wrapper.unmount()
     location.hash = '#/listen/gibt-es-nicht'
     const b = baue('codes')
@@ -60,7 +60,7 @@ describe('Reiter in der Adresse', () => {
     const { wahl, wrapper } = baue()
     wahl.value = 'ergebnis'
     await nextTick()
-    expect(location.hash).toBe('#/listen/ergebnis')
+    expect(location.hash).toBe('#/listen/wertungslisten')
     await wechsel('#/listen/wkr')
     expect(wahl.value).toBe('wkr')
     wrapper.unmount()
@@ -95,9 +95,9 @@ describe('Reiter in der Adresse', () => {
     expect(adresse('veranstaltung', { ziel: 'besetzung' })).toBe('#/veranstaltung?besetzung')
     expect(adresse('listen', { reiter: 'wkr' })).toBe('#/listen/wkr')
     setLocale('en')
-    expect(adresse('veranstaltung', { ziel: 'wkr' })).toBe('#/event?judges')
+    expect(adresse('veranstaltung', { ziel: 'wkr' })).toBe('#/event?race-officials')
     expect(adresse('veranstaltung', { ziel: 'besetzung' })).toBe('#/event?assignments')
-    expect(adresse('listen', { reiter: 'wkr' })).toBe('#/lists/judges')
+    expect(adresse('listen', { reiter: 'wkr' })).toBe('#/lists/race-officials')
     navigate('erfassung')
     expect(location.hash).toBe('#/entry')
   })
@@ -125,7 +125,7 @@ describe('Reiter in der Adresse', () => {
     expect(location.hash).toBe('#/einstellungen?wertung')
     await wechsel('#/lists/results')
     expect(view.value).toBe('listen')
-    expect(location.hash).toBe('#/listen/ergebnis')
+    expect(location.hash).toBe('#/listen/wertungslisten')
     wrapper.unmount()
   })
 
@@ -145,7 +145,7 @@ describe('Reiter in der Adresse', () => {
     // Eine neue Wahl steht danach englisch da.
     wahl.value = 'wkr'
     await nextTick()
-    expect(location.hash).toBe('#/lists/judges')
+    expect(location.hash).toBe('#/lists/race-officials')
     setLocale('de')
     expect(location.hash).toBe('#/listen/wkr')
     wrapper.unmount()

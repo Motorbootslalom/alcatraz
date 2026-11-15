@@ -132,8 +132,9 @@ describe('Aufräumen', () => {
 })
 
 describe('vergleicheNr', () => {
-  it('sortiert Startnummern natürlich', () => {
-    expect(['E10', '401', 'E2', '99'].sort(vergleicheNr)).toEqual(['99', '401', 'E2', 'E10'])
+  it('sortiert Startnummern natürlich; ein Präfix zählt wie eine 0 und steht damit vor den übrigen', () => {
+    expect(['E10', '401', 'E2', '99'].sort(vergleicheNr)).toEqual(['E2', 'E10', '99', '401'])
+    expect(['101', 'D02', '201', 'E01', '7'].sort(vergleicheNr)).toEqual(['E01', 'D02', '7', '101', '201'])
   })
 })
 

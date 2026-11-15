@@ -6,7 +6,7 @@
 // springt dort zur nächsten Option mit A). Beides wird zurückgenommen – das Feld bekommt
 // seinen Wert von vor dem Schwall zurück, und der Stand der Anwendung wird auf den von vor
 // dem Schwall gesetzt (`stand`). Nur das Feld zurückzustellen genügt nicht: Hin und zurück
-// wären zwei Änderungen, und die Ergebnisliste trüge danach eine „Letzte Änderung“, die
+// wären zwei Änderungen, und die Wertungsliste trüge danach eine „Letzte Änderung“, die
 // keine war. Vorbild: lib/scanner.ts im Fehlerpunkte-Prototyp.
 //
 // Manche Scanner stellen dem Code eine Kennung der Code-Art voran („]Q1“); der Anfang des

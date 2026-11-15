@@ -178,15 +178,35 @@ describe('Regelwerk und Aufbau', () => {
     expect([hand.laufCount, hand.streichlaeufe]).toEqual([4, 2])
   })
 
-  it('der Wechsel zu weniger Läufen verliert nichts: Werte des 3. Laufs bleiben im Stand – wie beim Ändern der Laufzahl', () => {
+  it('„Versuche direkt nacheinander“ folgt beim Wechsel dem Regelwerk und lässt sich nur dort stellen, wo es den Schalter gibt', () => {
+    expect(emptyState().versucheNacheinander).toBe(false)
+    const uim = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    // Unter UIM eine Option, nicht vorgewählt (Entscheidung des Nutzers).
+    expect(uim.versucheNacheinander).toBe(false)
+    // Von Hand an; ein Klick auf das schon gewählte Regelwerk verstellt nichts.
+    const an = reducer(uim, { type: 'SET_VERSUCHE_NACHEINANDER', on: true })
+    expect(an.versucheNacheinander).toBe(true)
+    expect(reducer(an, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }).versucheNacheinander).toBe(true)
+    expect(reducer(an, { type: 'SET_VERSUCHE_NACHEINANDER', on: false }).versucheNacheinander).toBe(false)
+    // Die DM kennt den Schalter nicht: Er ist aus und bleibt es.
+    const dm = reducer(an, { type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+    expect(dm.versucheNacheinander).toBe(false)
+    expect(reducer(dm, { type: 'SET_VERSUCHE_NACHEINANDER', on: true })).toBe(dm)
+  })
+
+  it('sobald Ergebnisse erfasst sind, lässt sich das Regelwerk nicht mehr wechseln – bis alle Werte gelöscht sind', () => {
     const starter = { id: 'a', startNr: '401', vorname: 'Vor', nachname: 'Nach', verein: '', bundesland: '', geburtsdatum: '', klasse: '4' as const, groesse: '' }
     let state = reducer(emptyState(), { type: 'ADD_STARTERS', starters: [starter] })
     state = reducer(state, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/3', starter: 'a', feld: 'zeit1', wert: '80' }] })
-    const uim = reducer(state, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
-    expect(uim.laufCount).toBe(2)
-    expect(uim.eingaben).toEqual(state.eingaben)
-    expect(uim.eingaben).toEqual(reducer(state, { type: 'SET_EVENT', patch: { laufCount: 2 } }).eingaben)
-    // Zurück zur DM sind sie wieder zu sehen.
+    // Gesperrt: Der Stand bleibt derselbe. Ein Klick auf das schon gewählte Regelwerk ändert ohnehin nichts.
+    expect(reducer(state, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })).toBe(state)
+    expect(reducer(state, { type: 'SET_REGELWERK', regelwerk: 'dm-2026' })).toEqual(state)
+    // Sind alle Werte gelöscht, geht es wieder.
+    const leer = reducer(state, { type: 'CLEAR_EINGABEN' })
+    const uim = reducer(leer, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect([uim.regelwerk, uim.laufCount]).toEqual(['uim-2026', 2])
+    // Die Zahl der Läufe von Hand zu senken verliert weiter nichts: Werte des 3. Laufs bleiben im Stand.
+    expect(reducer(state, { type: 'SET_EVENT', patch: { laufCount: 2 } }).eingaben).toEqual(state.eingaben)
     expect(reducer(uim, { type: 'SET_REGELWERK', regelwerk: 'dm-2026' }).laufCount).toBe(3)
   })
 

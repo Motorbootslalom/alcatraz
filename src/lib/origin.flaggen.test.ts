@@ -41,14 +41,39 @@ describe('Herkunft anzeigen: Text, Kürzel, Flagge – eine Stelle für alle Lis
     expect(zeige('Austria', 'land', 'flagge-kurz', {}, 'en')).toEqual({ flagge: 'AT', text: 'AUT', druck: '', alt: 'Austria' })
     // Eine Angabe, die selbst ein Kürzel ist, bleibt stehen (GER wird nicht zu DEU).
     expect(zeige('GER', 'land', 'flagge-kurz', {}, 'en')).toEqual({ flagge: 'DE', text: 'GER', druck: '', alt: 'Germany' })
-    expect(zeige('GER', 'land', 'flagge-lang', {}, 'en')).toEqual({ flagge: 'DE', text: 'GER', druck: '', alt: 'Germany' })
-    // Steht ein anderer Name desselben Staates ausgeschrieben daneben, bleibt die Flagge stumm (nicht „Czechia Czech Republic“).
-    expect(zeige('Czech Republic', 'land', 'flagge-lang', {}, 'en')).toEqual({ flagge: 'CZ', text: 'Czech Republic', druck: '', alt: '' })
-    expect(zeige('Great Britain', 'land', 'flagge-lang', {}, 'en')).toEqual({ flagge: 'GB', text: 'Great Britain', druck: '', alt: '' })
+    // Ausgeschrieben steht auf einer englischen Liste der englische Name des Staates (Nationen international,
+    // Entscheidung des Nutzers vom 15.11.2026) – die Flagge bleibt dann stumm (nicht „Czechia Czechia“).
+    expect(zeige('GER', 'land', 'flagge-lang', {}, 'en')).toEqual({ flagge: 'DE', text: 'Germany', druck: '', alt: '' })
+    expect(zeige('Czech Republic', 'land', 'flagge-lang', {}, 'en')).toEqual({ flagge: 'CZ', text: 'Czechia', druck: '', alt: '' })
+    expect(zeige('Great Britain', 'land', 'flagge-lang', {}, 'en')).toEqual({ flagge: 'GB', text: 'United Kingdom', druck: '', alt: '' })
+    // Ein deutscher Name steht auf einer englischen Liste englisch, auf einer deutschen, wie er eingetragen ist.
+    expect(zeige('Litauen', 'land', 'lang', {}, 'en')).toMatchObject({ text: 'Lithuania' })
+    expect(zeige('Litauen', 'land', 'lang', {}, 'de')).toMatchObject({ text: 'Litauen' })
+    // Die Angabe selbst (Starter-Reiter, Tabelle der Kürzel) steht immer, wie sie eingetragen ist.
+    expect(herkunftAnzeige('Litauen', 'land', 'flagge-lang', {}, 'en', true)).toMatchObject({ text: 'Litauen', alt: '' })
+    expect(zeige('Litauen', 'land', 'kurz', {}, 'en')).toMatchObject({ text: 'LTU' })
+    // Nicht erkannt bleibt, was eingetragen ist; Bundesländer und Vereine werden nicht übersetzt.
+    expect(zeige('Atlantis', 'land', 'lang', {}, 'en')).toMatchObject({ text: 'Atlantis' })
+    expect(zeige('Bayern', 'bundesland', 'lang', {}, 'en')).toMatchObject({ text: 'Bayern' })
     expect(zeige('Great Britain', 'land', 'flagge-kurz', {}, 'en')).toEqual({ flagge: 'GB', text: 'GBR', druck: '', alt: 'United Kingdom' })
     // Auch ohne Flagge gilt das Kürzel des erkannten Staates.
     expect(zeige('Holland', 'land', 'kurz')).toMatchObject({ flagge: undefined, text: 'NLD' })
     expect(zeige('Österreich', 'land', 'flagge-kurz', { Österreich: 'A' })).toMatchObject({ flagge: 'AT', text: 'A' })
+  })
+
+  it('Kürzel nach IOC (UIM, Regel 209): jede Schreibweise eines Staates wird zu demselben Kürzel', () => {
+    const ioc = (name: string, stil: OriginStyle = 'kurz', eigene: Record<string, string> = {}) => herkunftAnzeige(name, 'land', stil, eigene, 'en', false, 'ioc')
+    // Auf einer Liste steht dieselbe Nation nicht unter zwei Codes (DEU neben GER).
+    expect(['Germany', 'Deutschland', 'DEU', 'GER', 'germany'].map((n) => ioc(n).text)).toEqual(['GER', 'GER', 'GER', 'GER', 'GER'])
+    expect(['Schweiz', 'Holland', 'Lettland', 'Österreich'].map((n) => ioc(n).text)).toEqual(['SUI', 'NED', 'LAT', 'AUT'])
+    expect(ioc('Germany', 'flagge')).toMatchObject({ flagge: { code: 'DE' }, text: '', druck: 'GER' })
+    expect(ioc('England', 'flagge-kurz')).toMatchObject({ text: 'ENG' })
+    // Eigene Einträge gehen vor; nicht Erkanntes und Bundesländer bleiben, wie sie sind.
+    expect(ioc('Deutschland', 'kurz', { Deutschland: 'D' }).text).toBe('D')
+    expect(ioc('Atlantis').text).toBe('Atlantis')
+    expect(herkunftAnzeige('Bayern', 'bundesland', 'kurz', {}, 'en', false, 'ioc').text).toBe('BY')
+    // Unter ISO (DM) bleibt alles wie bisher.
+    expect(['Germany', 'DEU', 'GER'].map((n) => herkunftAnzeige(n, 'land', 'kurz', {}, 'de').text)).toEqual(['DEU', 'DEU', 'GER'])
   })
 
   it('nicht Erkanntes steht ohne Flagge als Text da – bei „nur Flagge“ bleibt der Text', () => {

@@ -8,7 +8,7 @@ import { adressbuch, ADRESSEN, liesAdresse, schreibeAdresse, VIEWS, type AdressT
  * dort gibt es keine History-API-Pfade. Deshalb wird hier auch nur der Hash
  * verändert (`location.hash`, `location.replace('#…')`), nie der Pfad.
  *
- * Die Adresse steht in der Sprache der Oberfläche (`#/lists/judges`), gelesen wird jede
+ * Die Adresse steht in der Sprache der Oberfläche (`#/lists/race-officials`), gelesen wird jede
  * Sprache (lib/adressen.ts). Die Namen im Code bleiben die internen, deutschen.
  */
 export { VIEWS }

@@ -1,36 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useStore } from '../state/store'
-import { buildParallelPlan, type ParallelOptions } from '../planung/parallel'
+import { rundenName, vorlaufGebunden, vorlaufPlan, VORLAUF } from '../planung/parallelRunden'
 import { t, tn } from '../i18n'
 import HeatTable from '../components/HeatTable.vue'
+import type { Starter } from '../types'
 
 const { state, dispatch } = useStore()
 
-const opts = computed<ParallelOptions>(() => ({
-  // Parallelslalom gibt es nur nach den Regeln der UIM: bis Klasse 5, E heißt Dolphin.
-  international: true,
-  class4Small: state.value.class4Small,
-  orderByStartNr: state.value.parallelOrderByStartNr,
-}))
+// Der gültige Plan des Vorlaufs: der festgeschriebene, sonst der aus dem Starterfeld gerechnete –
+// derselbe, nach dem die klassischen Startnummern vergeben werden (planung/running.ts).
+const vorlauf = computed(() => vorlaufPlan(state.value))
+const plan = computed(() => vorlauf.value.plan)
+// Zum Vorlauf sind Werte erfasst: Der Plan bleibt fest, auch bei freigegebener Verzahnung, und die Schalter sind gesperrt.
+const gebunden = computed(() => vorlaufGebunden(state.value))
 
-// Klassische Startnummern sind Zahlen und dienen als Sortierschlüssel „nach
-// Startnummer“; klassenbasierte vergleicht der Plan selbst.
-const numberOrder = computed(() => {
-  if (state.value.startNrMode !== 'klassisch') return undefined
-  const map = new Map<string, number>()
-  for (const p of state.value.starters) {
-    const n = parseInt(p.startNr, 10)
-    if (Number.isFinite(n)) map.set(p.id, n)
-  }
-  return map
-})
-const plan = computed(() => buildParallelPlan(state.value.starters, opts.value, numberOrder.value))
-
-function line(starters: number, dummy: boolean): string {
+function line(starters: number, dummy: number): string {
   const text = tn('app.starters', starters)
-  return dummy ? t('parallel.plusDummy', { starters: text }) : text
+  return dummy > 0 ? tn('parallel.plusDummy', dummy, { starters: text }) : text
 }
+
+const namen = (liste: Starter[]) => liste.map((p) => `${p.startNr || '–'} ${p.nachname}`.trim()).join(', ')
 
 const checked = (e: Event) => (e.target as HTMLInputElement).checked
 </script>
@@ -41,9 +31,20 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked
     <p class="hint">{{ t('parallel.hint') }}</p>
 
     <div class="parallel-controls">
+      <label class="boat-check" :title="t('parallel.strictTitle')">
+        <input
+          type="checkbox"
+          data-option="parallel-streng"
+          :disabled="gebunden"
+          :checked="state.parallelStreng"
+          @change="dispatch({ type: 'SET_PARALLEL_STRENG', value: checked($event) })"
+        />
+        {{ t('parallel.strict') }}
+      </label>
       <label class="boat-check">
         <input
           type="checkbox"
+          :disabled="gebunden"
           :checked="state.class4Small"
           @change="dispatch({ type: 'SET_CLASS4_SMALL', class4Small: checked($event) })"
         />
@@ -52,6 +53,7 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked
       <label class="boat-check" :title="t('parallel.orderByStartNrTitle')">
         <input
           type="checkbox"
+          :disabled="gebunden"
           :checked="state.parallelOrderByStartNr"
           @change="dispatch({ type: 'SET_PARALLEL_ORDER_BY_STARTNR', value: checked($event) })"
         />
@@ -69,12 +71,25 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked
         <b>{{ line(plan.grossStarter, plan.grossDummy) }}</b>
       </span>
       <span class="pstat">
-        {{ t('parallel.stats', { heats: plan.heats.length, pairs: plan.pairs, blocks: plan.blocks }) }}
+        {{ t('parallel.stats', { starts: plan.heats.length, pairs: plan.pairs, blocks: plan.blocks }) }}
       </span>
     </div>
   </div>
 
-  <div class="panel">
-    <HeatTable :heats="plan.heats" :international="opts.international" />
+  <div class="panel" data-runde="pre" :data-fest="vorlauf.fest">
+    <h2>{{ rundenName(VORLAUF, t) }}</h2>
+    <p class="hint" data-hinweis="plan-stand">{{ vorlauf.fest ? t('parallel.fixed') : t('parallel.live') }}</p>
+    <p v-if="gebunden" class="boat-banner warn" role="status" data-hinweis="plan-gebunden">{{ t('parallel.plan.kept') }}</p>
+    <!-- Ein fester Plan folgt dem Starterfeld nicht mehr: Was seither nicht mehr passt, steht hier. -->
+    <p v-if="vorlauf.ohnePlatz.length > 0" class="note" style="color: var(--danger)" role="status" data-warnung="ohne-platz">
+      {{ t('parallel.warn.unplaced', { names: namen(vorlauf.ohnePlatz) }) }}
+    </p>
+    <p v-if="vorlauf.fehlend.length > 0" class="note" style="color: var(--danger)" role="status" data-warnung="fehlend">
+      {{ t('parallel.warn.missing', { n: vorlauf.fehlend.length }) }}
+    </p>
+    <p v-if="vorlauf.falschesBoot.length > 0" class="note" style="color: var(--danger)" role="status" data-warnung="boot">
+      {{ t('parallel.warn.boat', { names: namen(vorlauf.falschesBoot) }) }}
+    </p>
+    <HeatTable :heats="plan.heats" />
   </div>
 </template>

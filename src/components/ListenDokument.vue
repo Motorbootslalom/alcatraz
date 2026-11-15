@@ -4,6 +4,8 @@ import { pageHeightMm } from '../lib/paging'
 import { listenSeiten, MESS_TOLERANZ_KOPF_PX, MESS_TOLERANZ_ZEILE_PX, SEITENZAHL_MM, zeilenPlatzPx, type SeitenTeil } from '../lib/seiten'
 import { bogenTexte } from '../config/sprache'
 import type { Locale } from '../i18n'
+import { DRUCKSEITE, useLeereRueckseite } from '../lib/doppelseitig'
+import LeereRueckseite from './LeereRueckseite.vue'
 
 /**
  * Eine Liste als Dokument: Sie teilt sich selbst in Druckseiten und schreibt ihre Seitenzahl
@@ -17,11 +19,15 @@ import type { Locale } from '../i18n'
  * Schrift, gleiche Breite), und die Höhe einer Zeile hängt nicht davon ab, auf welcher Seite
  * sie steht. Ohne Layout gilt `vorgabe` (Zeilen je Seite).
  *
- * Unter dem Inhalt steht die Seitenzahl. Eine Liste, die dort mehr zeigt (Ergebnislisten:
+ * Unter dem Inhalt steht die Seitenzahl. Eine Liste, die dort mehr zeigt (Wertungslisten:
  * Stichentscheid, Seitenzahl, letzte Änderung), füllt den Slot `fuss` und nennt mit `fussMm`
  * dessen feste Höhe – der Fuß steht auf jeder Seite, und sein Platz zählt bei der Teilung mit.
  *
  * Attribute (Klasse, `data-…`) landen auf jeder Seite.
+ *
+ * Doppelseitig gedruckt (lib/doppelseitig.ts) folgt einem Dokument mit ungerader Seitenzahl
+ * eine leere Rückseite – außer dem letzten des Drucks. Sie ist keine Seite des Dokuments: Die
+ * Zählung („1 / 3“ … „3 / 3“) bleibt, wie sie ist.
  */
 defineOptions({ inheritAttrs: false })
 const props = defineProps<{
@@ -101,6 +107,13 @@ function messen() {
   if (!gleich) mass.value = neu
 }
 
+// Die letzte Seite des Dokuments – daran sieht es, ob im Druck noch eines folgt.
+const leereRueckseite = useLeereRueckseite(
+  () => seiten.value.length,
+  () => inhalte[seiten.value.length - 1]?.parentElement,
+)
+const druckseite = { [DRUCKSEITE]: '' }
+
 let beobachter: ResizeObserver | undefined
 let beobachtet: HTMLElement | undefined
 function beobachten() {
@@ -126,7 +139,7 @@ onBeforeUnmount(() => beobachter?.disconnect())
 </script>
 
 <template>
-  <section v-for="(teile, i) in seiten" :key="i" v-bind="$attrs" class="listen-seite" :data-seite="i + 1" :data-seiten="seiten.length">
+  <section v-for="(teile, i) in seiten" :key="i" v-bind="{ ...$attrs, ...druckseite }" class="listen-seite" :data-seite="i + 1" :data-seiten="seiten.length">
     <div :ref="(el) => merke(i, el)" class="listen-seite-inhalt"><slot :teile="teile" :seite="i" :anzahl="seiten.length" /></div>
     <!-- Auf dem Blatt, nicht im Seitenrand: Dort zählte der Browser über den ganzen Druck. -->
     <div v-if="$slots.fuss" class="listen-fuss" :style="{ height: `${fussMm}mm` }">
@@ -134,4 +147,6 @@ onBeforeUnmount(() => beobachter?.disconnect())
     </div>
     <p v-else-if="seiten.length > 1" class="listen-seitenzahl">{{ seitenzahl(i) }}</p>
   </section>
+  <!-- Nur die Klasse des Dokuments: Sie trägt die Seitenart (hoch/quer); `data-…` bleiben den echten Seiten. -->
+  <LeereRueckseite v-if="leereRueckseite" :class="$attrs.class" />
 </template>

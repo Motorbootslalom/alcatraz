@@ -2,12 +2,13 @@ import type { RawDisziplin, StichKriterium } from '../config/schema'
 import type { AppState, ClassId, Starter, Streichlaeufe } from '../types'
 import { columnsForClass } from './bogen'
 import { codeEntries, parseCodeEntry } from './codes'
-import { felderJeKennung, laufSchluessel, OHNE_LAUF, vergleicheNr, werteVon, type EingabenKonfig, type Feld } from './eingaben'
+import { erfasstKennung, felderJeKennung, laufSchluessel, listenFelder, OHNE_LAUF, vergleicheNr, werteVon, type EingabenKonfig, type Feld } from './eingaben'
 import { bojenWert, codeDisqs, disqCodes, errorParts } from './scoring'
 import { parseTime } from './time'
 import { veranstaltungsListen, type ListenWahl } from './listen'
+import { versucheNacheinander } from '../config/catalog'
 
-// Ergebnislisten aus den Eingaben – rein, ohne DOM. Vorbild: lib/ergebnis.ts im
+// Wertungslisten aus den Eingaben – rein, ohne DOM. Vorbild: lib/ergebnis.ts im
 // Fehlerpunkte-Prototyp, nachgebaut nach den Auswertungs-Listen der DM 2026.
 //
 // Lauf: Die Zeit ist die der elektronischen Zeiterfassung, ohne sie der Mittelwert der
@@ -52,10 +53,49 @@ import { veranstaltungsListen, type ListenWahl } from './listen'
 export interface ErgebnisKonfig extends EingabenKonfig {
   getDisziplin(id: string): RawDisziplin
   /** Der Stichentscheid des Regelwerks; fehlt die Angabe, teilen sich Punktgleiche den Platz. */
-  getRegelwerk?(): { stichentscheid?: readonly StichKriterium[]; vorgabeListen?: Readonly<Record<string, readonly string[]>> }
+  getRegelwerk?(): RegelwerkWertung & { vorgabeListen?: Readonly<Record<string, readonly string[]>> }
 }
 
-export type ErgebnisStand = ListenWahl & Pick<AppState, 'eingaben' | 'starters' | 'laufCount' | 'streichlaeufe'>
+/** Was das Regelwerk zur Wertung sagt: allgemein und – wo es abweicht – je Disziplin (`wertungJeDisziplin`). */
+export interface RegelwerkWertung {
+  stichentscheid?: readonly StichKriterium[]
+  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nachRegel?: StreichRegel }
+  wertungJeDisziplin?: Readonly<Record<string, { stichentscheid?: readonly StichKriterium[]; wertungslaeufe?: { laeufe: number; streichlaeufe: number } }>>
+}
+
+/**
+ * Stichentscheid und Wertungsläufe einer Disziplin: was das Regelwerk für sie eigens nennt
+ * (`wertungJeDisziplin`), sonst seine allgemeine Angabe. Das Manövrieren hat in keinem
+ * mitgelieferten Regelwerk einen eigenen Eintrag – für es gilt, was immer galt.
+ */
+export function wertungDer(regelwerk: RegelwerkWertung | undefined, disziplin: string): { stichentscheid: readonly StichKriterium[]; wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nachRegel?: StreichRegel } } {
+  const je = regelwerk?.wertungJeDisziplin ?? {}
+  // Nur eigene Einträge: „constructor“ o. Ä. als Disziplin träfe sonst das Objekt-Urbild.
+  const eigen = Object.prototype.hasOwnProperty.call(je, disziplin) ? je[disziplin] : undefined
+  return { stichentscheid: eigen?.stichentscheid ?? regelwerk?.stichentscheid ?? [], wertungslaeufe: eigen?.wertungslaeufe ?? regelwerk?.wertungslaeufe }
+}
+
+/**
+ * Was gewertet wird, wenn es nicht die Disziplin des Aufbaus der Veranstaltung ist (das
+ * Manövrieren): eine Runde des Parallelslaloms (lib/parallelErgebnis.ts). Fehlt die Angabe,
+ * rechnet {@link klassenErgebnis} wie immer – Disziplin und Listen aus `stand.aufbau`, Läufe
+ * und Streichläufe aus der Veranstaltung.
+ */
+export interface WertungsEinheit {
+  /** Die Disziplin der Konfiguration: Spalten der Liste, Stichentscheid (`parallel`). */
+  disziplin: string
+  /** Unter dieser Kennung stehen die Werte (`laufSchluessel`): `parallel:pre`. */
+  schluessel: string
+  /** Die Wettkampfrichter-Listen, aus denen die Werte kommen, in ihrer Reihenfolge. */
+  listen: readonly string[]
+  /** So viele Läufe hat die Einheit. Sie zählen alle von Anfang an: Wer einen noch nicht gefahren ist, ist offen. */
+  laeufe: number
+  /** So viele davon werden gestrichen. */
+  streichlaeufe: number
+}
+
+/** `regelwerk` und `versucheNacheinander` dürfen fehlen (Tests, Stände ohne die Option): Dann gilt der Schalter als aus. */
+export type ErgebnisStand = ListenWahl & Pick<AppState, 'eingaben' | 'starters' | 'laufCount' | 'streichlaeufe'> & Partial<Pick<AppState, 'regelwerk' | 'versucheNacheinander'>>
 
 /** Eine Zelle je Zeile: die Punkte und Buchstaben ihrer Felder. */
 export interface ErgebnisBlatt {
@@ -115,6 +155,14 @@ export interface GesamtZeile {
   offen: boolean
   /** Knoten-Strafpunkte. */
   knoten: number
+  /**
+   * Die Knoten des Starters sind erfasst: Auf jeder Liste ohne Lauf mit Summe (Knoten) steht bei
+   * ihm ein Wert oder der Haken „erfasst“ – ohne solche Liste immer `true`. Die Gesamtliste
+   * rechnet fehlende Knoten wie bisher als 0 Strafpunkte; unter Regel 960 gibt es die UIM points
+   * des Manövrierens aber erst mit den Knoten (lib/pokal.ts `klasseFertig`; Pkt. 5.2.1 „best
+   * times including knots test penalties, ranking, UIM points“).
+   */
+  knotenErfasst: boolean
   gesamt: number | null
   platz: number
   /** Punktgleich mit einem anderen – den Platz hat der Stichentscheid des Regelwerks bestimmt. */
@@ -143,7 +191,7 @@ type Werte = Readonly<Record<string, string>>
 /** Die Bojen heißen hier immer R und L: Andere Bezeichnungen dienen nur den WKR zur Orientierung am Parcours. */
 const BOJEN_SEITE: Record<string, string> = { seiteA: 'R', seiteB: 'L' }
 
-/** Abstand in den Ergebnislisten: zum nächstbesseren Ergebnis oder zum Ersten. */
+/** Abstand in den Wertungslisten: zum nächstbesseren Ergebnis oder zum Ersten. */
 export type AbstandArt = 'davor' | 'erster'
 
 /**
@@ -167,13 +215,23 @@ export function abstaende(zeilen: ReadonlyArray<{ gesamt: number | null; disq: b
  * Am Ende zählen `laufCount − Streichläufe`; vorher wird nichts gestrichen, was noch zählen
  * könnte (zwei von drei gefahren → beide zählen).
  */
-export function streichZahl(laufCount: number, streichlaeufe: Streichlaeufe, gefahren: number): number {
-  return Math.max(0, gefahren - (laufCount - streichlaeufeVon(laufCount, streichlaeufe)))
+export function streichZahl(laufCount: number, streichlaeufe: Streichlaeufe, gefahren: number, nachRegel?: StreichRegel): number {
+  return Math.max(0, gefahren - (laufCount - streichlaeufeVon(laufCount, streichlaeufe, nachRegel)))
 }
 
-/** Die geltende Zahl der Streichläufe: `auto` = ab drei Läufen einer; nie mehr als `laufCount − 1`. */
-export function streichlaeufeVon(laufCount: number, streichlaeufe: Streichlaeufe): number {
-  const gewuenscht = streichlaeufe === 'auto' ? (laufCount >= 3 ? 1 : 0) : streichlaeufe
+/**
+ * Was „Streichläufe nach Regel“ je Zahl der Läufe streicht, soweit das Regelwerk es sagt
+ * (YAML `wertungslaeufe.nachRegel`; DM C6: zwei Läufe, einer gewertet → { 2: 1 }).
+ */
+export type StreichRegel = Readonly<Record<number, number>>
+
+/**
+ * Die geltende Zahl der Streichläufe; nie mehr als `laufCount − 1`. `auto` („nach Regel“) =
+ * was das Regelwerk für diese Zahl von Läufen nennt (`nachRegel`), sonst ab drei Läufen einer.
+ * Eine Zahl von Hand gilt immer wie eingestellt – der Rennleiter entscheidet.
+ */
+export function streichlaeufeVon(laufCount: number, streichlaeufe: Streichlaeufe, nachRegel?: StreichRegel): number {
+  const gewuenscht = streichlaeufe === 'auto' ? (nachRegel?.[Math.max(1, laufCount)] ?? (laufCount >= 3 ? 1 : 0)) : streichlaeufe
   return Math.max(0, Math.min(Math.max(1, laufCount) - 1, Math.round(gewuenscht) || 0))
 }
 
@@ -184,28 +242,27 @@ export function streichlaeufeVon(laufCount: number, streichlaeufe: Streichlaeufe
  * UIM zählte mit „Streichläufe nach Regel“ sonst die Summe beider Versuche statt des besseren.
  */
 export function laeufeLautRegelwerk(
-  regelwerk: { wertungslaeufe?: { laeufe: number; streichlaeufe: number; nurVorgabe?: true } },
+  regelwerk: { wertungslaeufe?: { laeufe: number; streichlaeufe: number; nurVorgabe?: true; nachRegel?: StreichRegel } },
   stand: Pick<AppState, 'laufCount' | 'streichlaeufe'>,
 ): { laeufe: number; streichlaeufe: number } | null {
   const soll = regelwerk.wertungslaeufe
   // `nurVorgabe` (DM): nur die Voreinstellung bei der Wahl des Regelwerks – kein Maß.
   if (!soll || soll.nurVorgabe) return null
   const laeufe = Math.max(1, stand.laufCount)
-  return soll.laeufe === laeufe && soll.streichlaeufe === streichlaeufeVon(laeufe, stand.streichlaeufe) ? null : soll
+  return soll.laeufe === laeufe && soll.streichlaeufe === streichlaeufeVon(laeufe, stand.streichlaeufe, soll.nachRegel) ? null : { laeufe: soll.laeufe, streichlaeufe: soll.streichlaeufe }
 }
 
-/** Die Spalten der Ergebnisliste: Felder, die es im Aufbau für die Klasse nicht gibt, entfallen. */
-export function ergebnisGruppen(konfig: ErgebnisKonfig, wahl: ListenWahl, klasse: string): ErgebnisGruppe[] {
-  const aufbau = wahl.aufbau
+/** Die Spalten der Wertungsliste: Felder, die es im Aufbau für die Klasse nicht gibt, entfallen. */
+export function ergebnisGruppen(konfig: ErgebnisKonfig, wahl: ListenWahl, klasse: string, einheit?: Pick<WertungsEinheit, 'disziplin' | 'listen'>): ErgebnisGruppe[] {
   const kuerzel = new Map<string, string>()
-  for (const typeId of veranstaltungsListen(konfig, wahl)) {
+  for (const typeId of einheit?.listen ?? veranstaltungsListen(konfig, wahl)) {
     if (!konfig.positionAllowsClass(typeId, klasse)) continue
     for (const col of columnsForClass(konfig.getSheetDef(typeId).columns, klasse)) {
       // Kennung „t1a|hin seiteA“: Das letzte Wort ist die Bojen-Seite.
       col.felder?.forEach((feld) => kuerzel.set(feld, BOJEN_SEITE[feld.split(' ').pop() ?? ''] ?? col.label))
     }
   }
-  return (konfig.getDisziplin(konfig.getAufbau(aufbau).disziplin).ergebnisspalten ?? []).flatMap((sp): ErgebnisGruppe[] => {
+  return (konfig.getDisziplin(einheit?.disziplin ?? konfig.getAufbau(wahl.aufbau).disziplin).ergebnisspalten ?? []).flatMap((sp): ErgebnisGruppe[] => {
     if (sp.unter) {
       const blaetter = sp.unter
         .map((u) => (typeof u === 'string' ? { feld: u, label: kuerzel.get(u) ?? '' } : u))
@@ -269,7 +326,7 @@ const codeVon = (eintrag: string) => parseCodeEntry(eintrag)?.code ?? eintrag
 
 /** Fehler-Schlüssel in natürlicher Reihenfolge: die Codes der Zahl nach, dahinter die Buchstaben. */
 function schluesselText(codes: string[], disqs: string[]): string {
-  const sortiert = [...codes].sort((a, b) => vergleicheNr(codeVon(a), codeVon(b)))
+  const sortiert = [...codes].sort((a, b) => codeVon(a).localeCompare(codeVon(b), undefined, { numeric: true }))
   return [...sortiert, ...[...new Set(disqs)].sort()].join(', ')
 }
 
@@ -388,6 +445,7 @@ function gesamtListe(
   felder: Map<string, Feld>,
   streichen: number,
   stich: readonly StichKriterium[],
+  knotenErfasst: (id: string) => boolean = () => true,
 ): GesamtListe {
   const nachNummer = laeufe[0].nachNummer.map((kopf, i): GesamtZeile => {
     const jeLauf = laeufe.map((l) => l.nachNummer[i])
@@ -413,6 +471,7 @@ function gesamtListe(
       disq,
       offen,
       knoten,
+      knotenErfasst: knotenVon === null || knotenErfasst(kopf.starter.id),
       gesamt: ergebnis === null ? null : ergebnis + knoten * 100,
       platz: 1,
       stich: false,
@@ -444,36 +503,80 @@ function starterDerKlasse(stand: Pick<ErgebnisStand, 'starters'>, klasse: ClassI
 
 /**
  * Die Läufe einer Klasse mit Eingaben, in der Disziplin des Aufbaus – höchstens `laufCount`.
+ * Ein Lauf, in dem für die Klasse nur „Nicht gestartet“ steht, zählt noch nicht.
  * Für jeden gibt es eine Lauf-Liste; in die Gesamtwertung kommt er erst, wenn er gefahren wird
  * (siehe {@link klassenErgebnis}).
  */
-export function laeufeMitEingaben(stand: ErgebnisStand, konfig: ErgebnisKonfig, klasse: ClassId): number[] {
-  const disziplin = konfig.getAufbau(stand.aufbau).disziplin
+export function laeufeMitEingaben(stand: ErgebnisStand, konfig: ErgebnisKonfig, klasse: ClassId, einheit?: WertungsEinheit): number[] {
+  const disziplin = einheit?.schluessel ?? konfig.getAufbau(stand.aufbau).disziplin
   const ids = stand.starters.filter((s) => s.klasse === klasse).map((s) => s.id)
+  const felder = felderJeKennung(konfig, klasse)
+  // Eine Zeile, in der allein das X „Nicht gestartet“ steht, ist noch keine Eingabe zum Lauf:
+  // Wer nach Wettkampfbeginn abgemeldet wird, bekommt das X in JEDEM kommenden Lauf
+  // (lib/abmeldung.ts) – sonst entstünden sofort Lauf-Listen aller künftigen Läufe, auf denen
+  // alle anderen ohne Zeit auf Platz 1 stehen, samt Zeitstempel und Blatt im Druck „alle“.
+  const nurNichtGestartet = (eintraege: [string, string][]) => eintraege.every(([kennung, wert]) => felder.get(kennung)?.kind === 'disq' && wert.trim().toUpperCase() === 'X')
+  // „Versuche direkt nacheinander“: Was an einer Position steht, an der der Starter nur einmal
+  // vorbeikommt (Vorsteg, config `einmalJeStarter`), steht in jedem Versuch
+  // (components/erfassung/ErfassungTabelle.vue `zellenVon`). In einem späteren Versuch ist es noch
+  // keine Eingabe zu diesem – sonst legte der erste Haken am Vorsteg schon die Liste des 2.
+  // Versuchs samt Zeitstempel an, bevor jemand ihn gefahren ist.
+  const einmal = einheit ? KEINE_KENNUNG : einmalKennungen(stand, konfig, klasse)
   const out: number[] = []
-  for (let lauf = 1; lauf <= Math.max(1, stand.laufCount); lauf++) {
+  for (let lauf = 1; lauf <= Math.max(1, einheit?.laeufe ?? stand.laufCount); lauf++) {
     const zeilen = stand.eingaben[laufSchluessel(disziplin, lauf)]
-    if (zeilen && ids.some((id) => zeilen[id] && Object.keys(zeilen[id]).length > 0)) out.push(lauf)
+    const zaehlt = (werte: Readonly<Record<string, string>> | undefined) => {
+      const eintraege = Object.entries(werte ?? {}).filter(([kennung]) => lauf === 1 || !einmal.has(kennung))
+      return eintraege.length > 0 && !nurNichtGestartet(eintraege)
+    }
+    if (zeilen && ids.some((id) => zaehlt(zeilen[id]))) out.push(lauf)
+  }
+  return out
+}
+
+const KEINE_KENNUNG: ReadonlySet<string> = new Set()
+
+/**
+ * Die Kennungen der Felder, die bei „Versuche direkt nacheinander“ in jedem Versuch stehen: die
+ * der Positionen mit `einmalJeStarter` samt Haken „erfasst“. Leer, solange der Schalter aus ist –
+ * dann hat der Vorsteg wie bisher einen Bogen je Lauf, und jeder zählt für sich.
+ */
+function einmalKennungen(stand: ErgebnisStand, konfig: ErgebnisKonfig, klasse: ClassId): ReadonlySet<string> {
+  if (stand.laufCount < 2 || !versucheNacheinander({ regelwerk: stand.regelwerk ?? '', versucheNacheinander: stand.versucheNacheinander })) return KEINE_KENNUNG
+  const out = new Set<string>()
+  for (const pos of konfig.getPositions()) {
+    if (pos.einmalJeStarter !== true || !konfig.positionAllowsClass(pos.typeId, klasse)) continue
+    for (const feld of listenFelder(konfig, pos.typeId, klasse)) out.add(feld.kennung)
+    out.add(erfasstKennung(pos.typeId))
   }
   return out
 }
 
 /**
- * Die Ergebnislisten einer Klasse für die Disziplin des Aufbaus; null, solange es keine
+ * Die Wertungslisten einer Klasse für die Disziplin des Aufbaus; null, solange es keine
  * Starter gibt oder noch nichts eingetragen ist. Gewertet wird je Klasse – auch bei der
  * Clubmeisterschaft, wo mehrere Klassen auf einem Bogen stehen.
+ *
+ * Mit `einheit` wird statt der Disziplin des Aufbaus eine andere Wertungseinheit gerechnet
+ * (eine Runde des Parallelslaloms): mit ihren Listen, ihren Läufen und dem Stichentscheid ihrer
+ * Disziplin. Dort zählen alle Läufe von Anfang an – einen Zwischenstand nach dem ersten gibt
+ * es nicht (UIM 960, Pkt. 5.2.2: „the required two valid attempts“).
  */
-export function klassenErgebnis(stand: ErgebnisStand, konfig: ErgebnisKonfig, klasse: ClassId): KlassenErgebnis | null {
+export function klassenErgebnis(stand: ErgebnisStand, konfig: ErgebnisKonfig, klasse: ClassId, einheit?: WertungsEinheit): KlassenErgebnis | null {
   const starter = starterDerKlasse(stand, klasse)
   if (starter.length === 0) return null
-  const laeufe = laeufeMitEingaben(stand, konfig, klasse)
-  if (laeufe.length === 0) return null
-  const disziplin = konfig.getAufbau(stand.aufbau).disziplin
-  const listen = veranstaltungsListen(konfig, stand)
+  const mitEingaben = laeufeMitEingaben(stand, konfig, klasse, einheit)
+  if (mitEingaben.length === 0) return null
+  // In einer Einheit gibt es zu jedem ihrer Läufe eine Liste, sobald irgendeiner Eingaben hat.
+  const laeufe = einheit ? Array.from({ length: Math.max(1, einheit.laeufe) }, (_, i) => i + 1) : mitEingaben
+  const disziplin = einheit?.disziplin ?? konfig.getAufbau(stand.aufbau).disziplin
+  const schluessel = einheit?.schluessel ?? disziplin
+  const listen = einheit ? [...einheit.listen] : veranstaltungsListen(konfig, stand)
   const felder = felderJeKennung(konfig, klasse, listen)
-  const gruppen = ergebnisGruppen(konfig, stand, klasse)
-  const werte = (lauf: number) => (id: string) => werteVon(stand.eingaben, laufSchluessel(disziplin, lauf), id)
-  const stich = konfig.getRegelwerk?.().stichentscheid ?? []
+  const gruppen = ergebnisGruppen(konfig, stand, klasse, einheit)
+  const werte = (lauf: number) => (id: string) => werteVon(stand.eingaben, laufSchluessel(schluessel, lauf), id)
+  const regel = wertungDer(konfig.getRegelwerk?.(), disziplin)
+  const stich = regel.stichentscheid
   const laufListen = laeufe.map((l) => laufListe(klasse, l, werte(l), starter, gruppen, felder, stich))
   const mitKnoten = listen.some((typeId) => konfig.positionAllowsClass(typeId, klasse) && konfig.getSheetDef(typeId).showLauf === false)
   // Ein Lauf, in dem erst Haken, Bemerkungen oder Fehlerpunkte stehen (das Abtippen beginnt mit
@@ -481,9 +584,17 @@ export function klassenErgebnis(stand: ErgebnisStand, konfig: ErgebnisKonfig, kl
   // setzen. Dasselbe gilt für ein X „Nicht gestartet“ ohne Zeit – es steht oft schon da, bevor
   // der Lauf beginnt. Ist noch gar keiner gefahren, zeigt die Gesamtliste den ersten.
   const gefahren = laufListen.filter((l) => l.nachNummer.some((z) => z.zeit !== null || (z.disq && !z.nichtGestartet)))
-  const gesamtLaeufe = gefahren.length > 0 ? gefahren : laufListen.slice(0, 1)
-  const laufCount = Math.max(1, stand.laufCount)
-  const streichen = streichZahl(laufCount, stand.streichlaeufe, gesamtLaeufe.length)
-  const gesamt = gesamtListe(klasse, gesamtLaeufe, mitKnoten ? werte(OHNE_LAUF) : null, felder, streichen, stich)
+  const gesamtLaeufe = einheit ? laufListen : gefahren.length > 0 ? gefahren : laufListen.slice(0, 1)
+  const laufCount = Math.max(1, einheit?.laeufe ?? stand.laufCount)
+  const streichen = streichZahl(laufCount, einheit?.streichlaeufe ?? stand.streichlaeufe, gesamtLaeufe.length, regel.wertungslaeufe?.nachRegel)
+  // Erfasst sind die Knoten eines Starters, wenn auf jeder Liste ohne Lauf mit Summe bei ihm ein
+  // Wert oder der Haken steht (wie lib/erfassung.ts `zeileErfasst`): Fehlerfreie Knoten lassen
+  // die Zeile leer, erst der Haken sagt, dass sie abgenommen sind.
+  const knotenListen = listen.filter((typeId) => konfig.positionAllowsClass(typeId, klasse) && konfig.getSheetDef(typeId).showLauf === false && konfig.getSheetDef(typeId).sumColumnKey !== undefined)
+  const knotenErfasst = (id: string) => {
+    const w = werte(OHNE_LAUF)(id)
+    return knotenListen.every((typeId) => !!w[erfasstKennung(typeId)] || listenFelder(konfig, typeId, klasse).some((f) => !!w[f.kennung]))
+  }
+  const gesamt = gesamtListe(klasse, gesamtLaeufe, mitKnoten ? werte(OHNE_LAUF) : null, felder, streichen, stich, knotenErfasst)
   return { klasse, laeufe: laufListen, gesamt }
 }

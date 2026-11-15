@@ -8,13 +8,13 @@ import type { ErgebnisHerkunft, OriginStyle } from '../types'
 
 /**
  * Auswahl, wie die Herkunft auf einer Liste steht: ausgeschrieben, als Kürzel, mit Flagge –
- * dieselbe Auswahl für Starterlisten, Ergebnislisten (dort zusätzlich „nicht zeigen“) und
+ * dieselbe Auswahl für Starterlisten, Wertungslisten (dort zusätzlich „nicht zeigen“) und
  * Pokalauswertung. Flaggen gibt es nur für Bundesland und Land: Für Vereine sind die
  * Flaggen-Darstellungen nicht wählbar, und gezeigt wird, was dann tatsächlich gilt.
  */
 const props = defineProps<{
   wert: ErgebnisHerkunft
-  /** Auch „nicht zeigen“ anbieten (Ergebnislisten). */
+  /** Auch „nicht zeigen“ anbieten (Wertungslisten). */
   mitAus?: boolean
   id?: string
 }>()

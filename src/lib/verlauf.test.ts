@@ -3,6 +3,7 @@ import {
   auszusondern,
   beschreibe,
   eintragFuer,
+  gruppe,
   entscheideStart,
   setztFort,
   sortiert,
@@ -66,6 +67,15 @@ describe('was sich geändert hat', () => {
   it('ein Bündel über mehrere Klassen oder Läufe nennt nur, was eindeutig ist', () => {
     expect(beschreibe({ type: 'SET_EINGABEN', zellen: [zelle('a', 1), zelle('c', 1)] }, STAND)).toEqual({ art: 'eingabe', lauf: 1 })
     expect(beschreibe({ type: 'SET_EINGABEN', zellen: [zelle('a', 1), zelle('b', 2)] }, STAND)).toEqual({ art: 'eingabe', klasse: '4' })
+  })
+
+  it('eine Eingabe im Parallelslalom nennt die Runde, ihr Lauf ist der Attempt – und sie ist eine eigene Gruppe', () => {
+    const attempt = { lauf: 'parallel:pre/2', starter: 'a', feld: 'zeit1', wert: '1' }
+    const was = beschreibe({ type: 'SET_EINGABEN', zellen: [attempt] }, STAND)
+    expect(was).toEqual({ art: 'eingabe', klasse: '4', runde: 'pre', lauf: 2 })
+    expect(gruppe(was!)).not.toBe(gruppe(beschreibe({ type: 'SET_EINGABEN', zellen: [zelle('a', 2)] }, STAND)!))
+    // Manövrieren und Parallelslalom in einem Bündel: weder Runde noch Lauf.
+    expect(beschreibe({ type: 'SET_EINGABEN', zellen: [attempt, zelle('a', 2)] }, STAND)).toEqual({ art: 'eingabe', klasse: '4' })
   })
 
   it('Listen ohne Lauf (Knoten) nennen keinen', () => {

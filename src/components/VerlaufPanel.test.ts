@@ -28,6 +28,12 @@ async function ruhe() {
   await new Promise((r) => setTimeout(r, 5))
   await flushPromises()
 }
+/**
+ * Wartet auf einen Zustand statt auf eine Zeit: Wiederherstellen liest aus der IndexedDB,
+ * schreibt den Stand und liest die Liste neu – unter Last (voller Testlauf) dauert das länger
+ * als die feste Pause von `ruhe`.
+ */
+const bis = (pruefe: () => void) => vi.waitFor(pruefe, { timeout: 3000, interval: 10 })
 const panel = () => mount(VerlaufPanel, { global: { provide: { [storeKey as symbol]: store } } })
 
 beforeEach(async () => {
@@ -61,13 +67,23 @@ describe('Verlauf in den Einstellungen', () => {
     expect(zeilen[1].find('[data-marke="jetzt"]').exists()).toBe(false)
   })
 
+  it('eine Eingabe im Parallelslalom nennt Runde und Attempt, nicht einen Lauf des Manövrierens', async () => {
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'parallel:pre/2', starter: 'a', feld: 'zeit1', wert: '80' }] })
+    const w = panel()
+    await ruhe()
+    expect(w.find('.verlauf-liste li').text()).toContain('Eingabe Klasse 4, Parallel-Slalom Vorlauf, 2. Versuch')
+    setLocale('en')
+    await ruhe()
+    expect(w.find('.verlauf-liste li').text()).toContain('Data entry Class 4, Parallel slalom Preliminary heat, 2nd attempt')
+  })
+
   it('folgt der Sprache der Oberfläche', async () => {
     eingabe(store, 'a', '80', 2)
     setLocale('en')
     const w = panel()
     await ruhe()
     expect(w.find('.verlauf-liste li').text()).toContain('Data entry Class 4, Attempt 2')
-    expect(w.text()).toContain('3 competitors added')
+    expect(w.text()).toContain('3 drivers added')
   })
 
   it('stellt einen Stand nach Rückfrage wieder her; der vorige steht danach im Verlauf', async () => {
@@ -77,15 +93,20 @@ describe('Verlauf in den Einstellungen', () => {
     const confirm = vi.fn((_frage: string) => false)
     vi.stubGlobal('confirm', confirm)
     const knopf = () => w.findAll('.verlauf-liste li')[1].find('[data-action="verlauf-wiederherstellen"]')
+    await bis(() => expect(w.findAll('.verlauf-liste li')).toHaveLength(2))
     await knopf().trigger('click')
+    await bis(() => expect(confirm).toHaveBeenCalledTimes(1))
     await ruhe()
     expect(confirm.mock.calls[0][0]).toContain('Der jetzige Stand geht nicht verloren')
     expect(wert(store, 'a')).toBe('80')
 
     confirm.mockReturnValue(true)
     await knopf().trigger('click')
-    await ruhe()
-    expect(wert(store, 'a')).toBeUndefined()
+    await bis(() => {
+      expect(wert(store, 'a')).toBeUndefined()
+      expect(w.findAll('.verlauf-liste li')).toHaveLength(3)
+      expect(w.find('[data-hinweis="verlauf-meldung"]').exists()).toBe(true)
+    })
     expect(store.state.value.starters).toHaveLength(3)
     const zeilen = w.findAll('.verlauf-liste li')
     expect(zeilen).toHaveLength(3)
@@ -93,8 +114,7 @@ describe('Verlauf in den Einstellungen', () => {
     expect(w.find('[data-hinweis="verlauf-meldung"]').text()).toContain('wiederhergestellt')
     // Wieder nach vorn: der Stand mit der Eingabe.
     await zeilen[1].find('[data-action="verlauf-wiederherstellen"]').trigger('click')
-    await ruhe()
-    expect(wert(store, 'a')).toBe('80')
+    await bis(() => expect(wert(store, 'a')).toBe('80'))
   })
 
   it('„Stand merken“ legt den jetzigen Stand mit Namen ab; nur gemerkte lassen sich löschen', async () => {

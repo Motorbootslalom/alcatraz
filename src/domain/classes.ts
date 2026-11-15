@@ -14,6 +14,8 @@ export interface ClassDef {
 // Altersklasse = Veranstaltungsjahr − Geburtsjahr (jahrgangsbezogen).
 // Die Jahrgänge werden daher immer aus dem Eventjahr berechnet, nicht hart kodiert.
 export const CLASSES: ClassDef[] = [
+  // Wie eine Klasse auf Listen und in der Oberfläche heißt, sagt das Regelwerk (YAML `klassenNamen`,
+  // lib/event.ts `classLabel`): unter DM „Klasse E“ (ausdrücklich nicht „ME“), unter UIM „Dolphin“.
   { id: 'E', label: 'Klasse E', minAge: 6, maxAge: 7, color: '#8b5cf6' },
   { id: '1', label: 'Klasse 1', minAge: 8, maxAge: 9, color: '#3b82f6' },
   { id: '2', label: 'Klasse 2', minAge: 10, maxAge: 11, color: '#06b6d4' },
@@ -54,21 +56,6 @@ export function boatTypeOf(id: ClassId, class4Small: boolean): BoatType {
 export const BOAT_LABEL: Record<BoatType, string> = {
   klein: 'kleines Boot',
   gross: 'großes Boot',
-}
-
-/**
- * Anzeigename einer Klasse für den Parallel-Slalom. International heißt die
- * Klasse E „Dolphin"; alle anderen Klassen behalten ihre Bezeichnung.
- */
-export function parallelClassLabel(id: ClassId, international: boolean): string {
-  if (id === 'E') return international ? 'Dolphin' : 'E'
-  return id
-}
-
-/** Kurzes Badge-Kürzel: international „D" für Dolphin, sonst die Klassen-ID. */
-export function parallelClassBadge(id: ClassId, international: boolean): string {
-  if (id === 'E') return international ? 'D' : 'E'
-  return id
 }
 
 /** Geburtsjahr-Bereich [von, bis] (beide inklusive) für eine Klasse im gegebenen Eventjahr. */

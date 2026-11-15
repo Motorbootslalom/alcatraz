@@ -17,6 +17,8 @@ import type {
   ErgebnisNamen,
   Sprache,
   LaufzettelLayout,
+  ParallelRunde,
+  WertungsDisziplin,
 } from '../types'
 import type { RawAufbau } from '../config/schema'
 import { SCHEMA_VERSION } from '../types'
@@ -31,9 +33,11 @@ import {
 import { mergeStarters } from '../import/starterMerge'
 import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
 import { setzeBesetzung } from '../lib/besetzung'
-import { gueltigeZellen, nurStarter, setzeWerte, starterfeldFest, type EingabeZelle } from '../lib/eingaben'
+import { gueltigeZellen, laufSchluessel, nurStarter, OHNE_LAUF, setzeWerte, starterfeldFest, type EingabeZelle } from '../lib/eingaben'
+import { attemptSchluessel } from '../lib/parallelSchluessel'
+import { abmeldeZellen, ergaenzeAbmeldungen, mitAbmeldung, mitAbmeldungenInRunden, mitAbmeldungInRunden } from '../lib/abmeldung'
 import { normalisiereZusatzListen, vorgabeListenVon } from '../lib/listen'
-import { beispielEingaben, zufallAus, type Zeitnahme } from '../lib/beispielwerte'
+import { beispielEingaben, beispielRunde, zufallAus, type Zeitnahme } from '../lib/beispielwerte'
 import { configFor, type Konfig } from '../config/konfig'
 import { geaenderteListen, listenStandNach } from '../lib/listenStand'
 import { streichlaeufeVon } from '../lib/ergebnis'
@@ -41,8 +45,12 @@ import { mitTor5Umzug } from './tor5'
 import { istKennung } from '../lib/qr'
 import { isSprache } from '../config/sprache'
 import { canonicalRunningNumbers } from '../planung/running'
+import { mitVorlaufPlan, VORLAUF, vorlaufGebunden } from '../planung/parallelRunden'
+import { loeseRunde, schreibeRundeFest } from '../lib/parallelStage'
+import { setzeNichtWerten, WERTUNGS_DISZIPLINEN } from '../lib/disziplinen'
 import { POKAL_LEER, POKAL_PLATZ_VARIANTEN, istPokalVariante, pokalVorgabe, pokalZahl, punkteListe, type PokalPlatzVariante, type PokalVariante } from '../config/pokal'
-import { aufbauOf, beschriftungOf, DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT_REGELWERK, hasParallel, regelwerkOf } from '../config/catalog'
+import { aufbauOf, beschriftungOf, DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT_REGELWERK, hasParallel, regelwerkOf, startNrPraefixe } from '../config/catalog'
+import { istGeschlecht } from '../domain/geschlecht'
 
 /**
  * Alle Änderungen am Zustand laufen als Action durch diesen Reducer.
@@ -55,7 +63,7 @@ import { aufbauOf, beschriftungOf, DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT
 export type Action = Aenderung & {
   /**
    * Zeitpunkt, zu dem die Action entstand (Millisekunden seit 1970); der Store setzt ihn.
-   * Er wird zum Stand der Ergebnislisten, die sich durch die Action ändern
+   * Er wird zum Stand der Wertungslisten, die sich durch die Action ändern
    * (lib/listenStand.ts). Fehlt er, bleibt deren Zeitpunkt unbekannt.
    */
   zeit?: number
@@ -90,8 +98,17 @@ type Aenderung =
   | { type: 'SET_ORIGIN_MODE'; originMode: OriginMode }
   | { type: 'SET_BOATS'; boats: BoatConfig }
   | { type: 'SET_CLASS4_SMALL'; class4Small: boolean }
-  | { type: 'SET_PARALLEL_INTERNATIONAL'; parallelInternational: boolean }
   | { type: 'SET_PARALLEL_ORDER_BY_STARTNR'; value: boolean }
+  /** Parallelslalom: strenge Klassentrennung (Regel 960, Pkt. 4.4) an oder aus. */
+  | { type: 'SET_PARALLEL_STRENG'; value: boolean }
+  /**
+   * Parallelslalom: die nächste Runde einer Klasse (Halbfinale, Finals, Wiederholung)
+   * festschreiben bzw. die letzte wieder lösen (lib/parallelStage.ts). Wer fährt, rechnet der
+   * Reducer aus dem Stand – die Action nennt nur Klasse und Runde und wirkt nicht, wenn diese
+   * Runde für die Klasse gerade nicht ansteht. Beim Lösen gehen die Werte der Klasse in der Runde.
+   */
+  | { type: 'PARALLEL_RUNDE_FESTSCHREIBEN'; klasse: ClassId; runde: ParallelRunde }
+  | { type: 'PARALLEL_RUNDE_LOESEN'; klasse: ClassId; runde: ParallelRunde }
   | { type: 'SET_RUNNING_NUMBERS'; patch: Partial<RunningNumberConfig> }
   /**
    * `replace`: Die Liste gilt danach als Ganzes; wiedererkannte Starter behalten
@@ -112,6 +129,12 @@ type Aenderung =
   /** Vergibt alle Startnummern neu – nach der gewählten Art, siehe {@link assignStartNumbers}. */
   | { type: 'ASSIGN_START_NUMBERS' }
   | { type: 'REMOVE_STARTER'; id: string }
+  /**
+   * Nach Beginn des Wettkampfs statt Entfernen: als „nicht gestartet“ eintragen (X in jedem Lauf
+   * ohne erfasste Werte) bzw. diese Abmeldung als Ganzes zurücknehmen – lib/abmeldung.ts.
+   */
+  | { type: 'ABMELDEN_STARTER'; id: string }
+  | { type: 'ANMELDEN_STARTER'; id: string }
   | { type: 'CLEAR_CLASS'; klasse: ClassId }
   | { type: 'CLEAR_ALL_STARTERS' }
   | { type: 'ADD_PARCOURS'; id: string }
@@ -159,6 +182,8 @@ type Aenderung =
    * um und beim Abschalten zurück.
    */
   | { type: 'SET_TOR5_MIT_PARCOURS'; on: boolean }
+  /** „Versuche direkt nacheinander“ – nur unter einem Regelwerk, das den Schalter kennt. */
+  | { type: 'SET_VERSUCHE_NACHEINANDER'; on: boolean }
   /** Eine zusätzliche Liste außerhalb des Aufbaus an- oder abwählen (lib/listen.ts). */
   | { type: 'SET_ZUSATZ_LISTE'; liste: string; an: boolean }
   | { type: 'SET_LAUFZETTEL_LAYOUT'; layout: LaufzettelLayout }
@@ -178,7 +203,23 @@ type Aenderung =
    * Beispielwerte für alle Listen des Aufbaus. Der Zufall steckt in der `saat`: Dieselbe
    * Action ergibt überall dieselben Werte.
    */
-  | { type: 'FILL_BEISPIELWERTE'; zeitnahme: Zeitnahme; saat: number; laeufe?: number[] }
+  /**
+   * Gefüllt wird nur das Gewählte (Entscheidung des Nutzers vom 15.11.2026): das Manövrieren
+   * (`laeufe`, fehlt = alle Läufe) oder einzelne Runden des Parallelslaloms.
+   * `runden`: diese Runden des Parallelslaloms füllen – nur festgeschriebene.
+   * `nurRunden`: das Manövrieren bleibt, wie es ist.
+   * `nurLeere`: In den Runden werden nur Attempts ohne Werte gefüllt – sonst stünden nach dem
+   * Füllen eines Halbfinales andere Werte in den Klassen, deren Finals schon auf ihrem
+   * Halbfinale stehen.
+   */
+  | { type: 'FILL_BEISPIELWERTE'; zeitnahme: Zeitnahme; saat: number; laeufe?: number[]; runden?: ParallelRunde[]; nurRunden?: boolean; nurLeere?: boolean }
+  /**
+   * Die erfassten Werte des Gewählten verwerfen: Läufe des Manövrierens (mit dem 1. Lauf auch die
+   * Listen ohne Lauf, die Knoten – so, wie die Beispielwerte sie füllen) und/oder Runden des
+   * Parallelslaloms (beide Attempts). Festgeschriebene Pläne bleiben. Bleibt danach kein Wert
+   * übrig, gilt es wie `CLEAR_EINGABEN`.
+   */
+  | { type: 'CLEAR_EINGABEN_TEIL'; laeufe?: number[]; runden?: ParallelRunde[] }
   | { type: 'LOAD_STATE'; state: AppState }
   /** `kennung`: die Kennung der neuen Veranstaltung (lib/qr.ts) – eine andere als bisher. */
   | { type: 'RESET_ALL'; kennung?: string }
@@ -202,9 +243,18 @@ type Aenderung =
    */
   | { type: 'SET_POKAL_ZAEHLT'; ids: readonly string[]; zaehlt: boolean }
   | { type: 'INVERT_POKAL_ZAEHLT'; ids: readonly string[] }
+  /**
+   * „Disziplin nicht werten“ für die genannten Klassen setzen oder lösen (lib/disziplinen.ts) –
+   * die Entscheidung des O.O.D., eine (etwa in einer Klasse abgebrochene) Disziplin nicht in
+   * Einzel- und Mannschaftswertung zu zählen. Für „alle Klassen“ nennt die Action alle.
+   */
+  | { type: 'SET_NICHT_WERTEN'; disziplin: WertungsDisziplin; klassen: readonly ClassId[]; an: boolean }
+  /** Der Buchstabe vor den Startnummern der Klasse Dolphin (E oder D); gilt für neu vergebene Nummern. */
+  | { type: 'SET_DOLPHIN_PRAEFIX'; praefix: 'E' | 'D' }
+  | { type: 'SET_PARALLEL_ZEBRA'; zebra: boolean }
 
 /** Leerzeilen je Klasse auf den Wettkampfrichter-Listen: Vorgabe wie im Prototyp (`emptyRows: 3`). */
-/** Ergebnislisten: Vorgabe wie bisher – volle Namen, Herkunft als Kürzel. */
+/** Wertungslisten: Vorgabe wie bisher – volle Namen, Herkunft als Kürzel. */
 export const ERGEBNIS_LISTEN_VORGABE: ErgebnisListenOptionen = { aushang: { namen: 'voll', herkunft: 'kurz' }, intern: { herkunft: 'kurz' } }
 
 export const WKR_LEERZEILEN_VORGABE = 3
@@ -265,6 +315,7 @@ export function emptyState(): AppState {
     aufbau: DEFAULT_AUFBAU,
     eigeneAufbauten: [],
     laufCount: 3,
+    versucheNacheinander: regelwerkOf(DEFAULT_REGELWERK).versucheNacheinander === true,
     einteilung: {},
     boote: {},
     coPiloten: {},
@@ -273,6 +324,8 @@ export function emptyState(): AppState {
     wkrLeerzeilenSeite: WKR_LEERZEILEN_SEITE_VORGABE,
     wkrRueckseite: false,
     eingaben: {},
+    abgemeldet: [],
+    abgemeldetBis: {},
     streichlaeufe: 'auto',
     wkrClubGemeinsam: true,
     ergebnisListen: ERGEBNIS_LISTEN_VORGABE,
@@ -287,6 +340,9 @@ export function emptyState(): AppState {
     zusatzListen: {},
     laufzettelLayout: 'seite',
     pokal: POKAL_LEER,
+    nichtWerten: {},
+    dolphinPraefix: 'E',
+    parallelZebra: true,
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,
@@ -300,8 +356,9 @@ export function emptyState(): AppState {
     ],
     boats: { klein: 2, gross: 2 },
     class4Small: false,
-    parallelInternational: true,
     parallelOrderByStartNr: false,
+    parallelStreng: true,
+    parallelPlaene: {},
     runningNumbers: { enabled: false, source: 'manoever', start: 1, skipText: '' },
   }
 }
@@ -319,7 +376,10 @@ function replaceById(starters: Starter[], updated: Starter[]): Starter[] {
 
 /** Mit den Startern gehen ihre Eingaben: Ohne Starter gäbe es keinen Weg mehr, sie zu sehen oder zu löschen. */
 function mitStartern(state: AppState, starters: Starter[]): AppState {
-  return { ...state, starters, eingaben: nurStarter(state.eingaben, new Set(starters.map((p) => p.id))) }
+  const ids = new Set(starters.map((p) => p.id))
+  const abgemeldet = state.abgemeldet.some((id) => !ids.has(id)) ? state.abgemeldet.filter((id) => ids.has(id)) : state.abgemeldet
+  const abgemeldetBis = abgemeldet === state.abgemeldet ? state.abgemeldetBis : Object.fromEntries(Object.entries(state.abgemeldetBis).filter(([id]) => ids.has(id)))
+  return { ...state, starters, eingaben: nurStarter(state.eingaben, ids), abgemeldet, abgemeldetBis }
 }
 
 /** Eine brauchbare Angabe der Streichläufe: `auto` oder eine ganze Zahl von 0 bis 8. */
@@ -345,7 +405,7 @@ function mapParcours(state: AppState, id: string, fn: (p: Parcours) => Parcours)
 export function assignStartNumbers(state: AppState): Starter[] {
   if (state.startNrMode === 'klasse') {
     const renumbered = CLASS_IDS.flatMap((k) =>
-      renumberSequential(sortedByStartNr(state.starters.filter((p) => p.klasse === k))),
+      renumberSequential(sortedByStartNr(state.starters.filter((p) => p.klasse === k)), startNrPraefixe(state)),
     )
     return replaceById(state.starters, renumbered)
   }
@@ -357,8 +417,8 @@ export function assignStartNumbers(state: AppState): Starter[] {
 const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
   'SET_BOATS',
   'SET_CLASS4_SMALL',
-  'SET_PARALLEL_INTERNATIONAL',
   'SET_PARALLEL_ORDER_BY_STARTNR',
+  'SET_PARALLEL_STRENG',
   'ADD_PARCOURS',
   'SET_PARCOURS_PRESET',
   'REMOVE_PARCOURS',
@@ -373,17 +433,43 @@ const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
  * den Stand nicht mehr (lib/eingaben.ts `starterfeldFest`) – die Sperre hängt so nicht nur an
  * den Knöpfen. Angaben ändern (UPDATE_STARTER), eine Sicherung laden und Zurücksetzen gehen weiter.
  */
+/** Die Schalter, nach denen der Startplan des Parallelslaloms gerechnet wird. */
+const PLAN_ACTIONS: ReadonlySet<Action['type']> = new Set(['SET_CLASS4_SMALL', 'SET_PARALLEL_ORDER_BY_STARTNR', 'SET_PARALLEL_STRENG'])
+
 export const STARTERFELD_ACTIONS: ReadonlySet<Action['type']> = new Set(['IMPORT_STARTERS', 'ADD_STARTERS', 'REMOVE_STARTER', 'CLEAR_CLASS', 'CLEAR_ALL_STARTERS'])
+
+/**
+ * Steht die Klasse der Starter fest? Sobald die Verzahnung oder der Startplan des Vorlaufs
+ * festgeschrieben ist. Dieselbe Frage stellen Oberfläche und Reducer.
+ */
+export function klasseFest(state: Pick<AppState, 'verzahnungLocked' | 'parallelPlaene'>): boolean {
+  return state.verzahnungLocked || state.parallelPlaene[VORLAUF] !== undefined
+}
 
 export function reducer(state: AppState, action: Action): AppState {
   // Ein geladener oder neuer Stand bringt seine Zeitpunkte mit; verglichen wird er mit sich selbst.
   const frisch = action.type === 'LOAD_STATE' || action.type === 'RESET_ALL'
-  const roh = wendeAn(state, action)
-  if (roh === state) return state
+  const angewendet = wendeAn(state, action)
+  if (angewendet === state) return state
+  // Der Plan des Vorlaufs, der bei freigegebener Verzahnung an erfassten Werten hängt, entfällt
+  // nur über „Werte löschen“ (Entscheidung des Nutzers vom 15.11.2026) – nicht schon, wenn das
+  // letzte einzelne Feld geleert wird: Wer einen Tippfehler berichtigt, verlöre sonst den Plan,
+  // nach dem gedruckt ist. Bei gesetzter Sperre ändert sich hier nichts
+  // (planung/parallelRunden.ts `mitVorlaufPlan`).
+  // „Werte des Gewählten löschen“, das alles leert, ist dasselbe wie „Werte löschen“.
+  const allesGeloescht = action.type === 'CLEAR_EINGABEN' || (action.type === 'CLEAR_EINGABEN_TEIL' && Object.keys(angewendet.eingaben).length === 0)
+  const roh = allesGeloescht && !angewendet.verzahnungLocked ? mitVorlaufPlan(angewendet, hasParallel(angewendet.regelwerk)) : angewendet
+  // Wird der Plan des Vorlaufs festgeschrieben, bekommen schon Abgemeldete dort ihr X.
+  const mitX = !frisch && roh.abgemeldet.length > 0 && roh.parallelPlaene[VORLAUF] !== undefined && state.parallelPlaene[VORLAUF] === undefined ? mitAbmeldungenInRunden(roh, konfigVon(roh), [VORLAUF]) : roh
   // Wechselt die Liste für Tor 5 (Option, Aufbau, geänderter eigener Aufbau), zieht mit, was an
   // ihr hing. Ein geladener Stand ist in sich stimmig und bleibt, wie er ist; eine Vorlage
   // zieht beim Anwenden selbst um (persistenz/backup.ts).
-  const angewandt = frisch ? roh : mitTor5Umzug(state, roh)
+  const umgezogen = frisch ? mitX : mitTor5Umzug(state, mitX)
+  // Kommt ein Lauf dazu (Zahl der Läufe, andere Disziplin), bekommen Abgemeldete das X auch dort.
+  const angewandt =
+    frisch || umgezogen.abgemeldet.length === 0 || (umgezogen.laufCount === state.laufCount && umgezogen.aufbau === state.aufbau && umgezogen.eigeneAufbauten === state.eigeneAufbauten && umgezogen.regelwerk === state.regelwerk)
+      ? umgezogen
+      : ergaenzeAbmeldungen(state, umgezogen, konfigVon(state), konfigVon(umgezogen))
   // Ohne Starter gibt es kein Beispiel-Starterfeld mehr – gleich, wie die Starter gingen.
   const next = angewandt.beispielStarter && angewandt.starters.length === 0 ? { ...angewandt, beispielStarter: false } : angewandt
   // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
@@ -395,7 +481,10 @@ export function reducer(state: AppState, action: Action): AppState {
   // ihrer Klasse und ihres Laufs – auch wenn die Liste danach gleich aussieht (Vorgabe des
   // Nutzers; lib/listenStand.ts). Nur für die Wege der Eingabe: Ein Umzug von Werten beim
   // Wechsel des Aufbaus ist keine.
-  const eingegeben = action.type === 'SET_EINGABEN' || action.type === 'FILL_BEISPIELWERTE' ? geaenderteListen(state, next) : undefined
+  const eingegeben =
+    action.type === 'SET_EINGABEN' || action.type === 'FILL_BEISPIELWERTE' || action.type === 'CLEAR_EINGABEN_TEIL' || action.type === 'ABMELDEN_STARTER' || action.type === 'ANMELDEN_STARTER' || action.type === 'PARALLEL_RUNDE_LOESEN'
+      ? geaenderteListen(state, next)
+      : undefined
   // Die Mannschaftswertung führt keinen eigenen Stand: Ihr Zeitpunkt ist der jüngste der
   // Gesamtlisten (lib/listenStand.ts `wertungZeit`).
   const listenStand = listenStandNach(frisch ? next : state, next, action.zeit, klassen, eingegeben)
@@ -411,6 +500,13 @@ function mitPokalZaehlt(p: Starter, zaehlt: boolean): Starter {
 
 function wendeAn(state: AppState, action: Action): AppState {
   if (state.verzahnungLocked && VERZAHNUNG_ACTIONS.has(action.type)) return state
+  // Sind zum Vorlauf des Parallelslaloms Werte erfasst, bleibt sein Plan fest – und mit ihm die
+  // Schalter, nach denen er gerechnet wurde (planung/parallelRunden.ts `vorlaufGebunden`).
+  if (PLAN_ACTIONS.has(action.type) && vorlaufGebunden(state)) return state
+  // Das Regelwerk bestimmt Listen, Felder und Wertung: Sobald Ergebnisse erfasst sind, lässt es
+  // sich nicht mehr wechseln – bis alle Werte gelöscht sind (Entscheidung des Nutzers vom
+  // 15.11.2026). Ein Klick auf das schon gewählte ändert ohnehin nichts.
+  if (action.type === 'SET_REGELWERK' && starterfeldFest(state) && regelwerkOf(action.regelwerk).id !== state.regelwerk) return state
   if (STARTERFELD_ACTIONS.has(action.type) && starterfeldFest(state)) return state
 
   switch (action.type) {
@@ -436,13 +532,18 @@ function wendeAn(state: AppState, action: Action): AppState {
 
     case 'SET_VERZAHNUNG_LOCK': {
       const tracks = action.locked ? action.tracks : undefined
-      return {
-        ...state,
-        verzahnungLocked: action.locked,
-        parcoursList: tracks
-          ? state.parcoursList.map((p) => (tracks[p.id] ? { ...p, tracks: tracks[p.id] } : p))
-          : state.parcoursList,
-      }
+      // Mit der Sperre friert auch der Startplan des Parallelslaloms ein (Vorlauf) und wird
+      // danach nicht neu gerechnet; beim Lösen entfällt er (planung/parallelRunden.ts).
+      return mitVorlaufPlan(
+        {
+          ...state,
+          verzahnungLocked: action.locked,
+          parcoursList: tracks
+            ? state.parcoursList.map((p) => (tracks[p.id] ? { ...p, tracks: tracks[p.id] } : p))
+            : state.parcoursList,
+        },
+        hasParallel(state.regelwerk),
+      )
     }
 
     case 'SET_EVENT': {
@@ -472,7 +573,13 @@ function wendeAn(state: AppState, action: Action): AppState {
       const regelwerk = regelwerkOf(action.regelwerk).id
       // Ohne Parallelslalom kann er auch nicht die Reihenfolge der Nummern vorgeben.
       const source = hasParallel(regelwerk) ? state.runningNumbers.source : 'manoever'
-      const next = { ...state, regelwerk, runningNumbers: { ...state.runningNumbers, source } }
+      // „Versuche direkt nacheinander“ folgt beim Wechsel der Vorgabe des neuen Regelwerks
+      // (UIM: an, Regel 960 Pkt. 4.3.2); kennt es den Schalter nicht, ist er aus. Ein Klick auf
+      // das schon gewählte Regelwerk verstellt nichts.
+      const versucheNacheinander = regelwerk === state.regelwerk ? state.versucheNacheinander : regelwerkOf(regelwerk).versucheNacheinander === true
+      // Kommt der Parallelslalom bei festgeschriebener Verzahnung erst mit dem Regelwerk dazu,
+      // wird sein Plan jetzt festgeschrieben; ein schon vorhandener bleibt.
+      const next = mitVorlaufPlan({ ...state, regelwerk, versucheNacheinander, runningNumbers: { ...state.runningNumbers, source } }, hasParallel(regelwerk))
       // Die Wahl des Regelwerks stellt Läufe und Streichläufe so, wie es sie vorsieht (YAML
       // `wertungslaeufe`: DM 3 Läufe/1 gestrichen, UIM 2/1) – nur beim Wechsel, damit ein Klick
       // auf das schon gewählte Regelwerk nichts verstellt, was der Rennleiter von Hand gesetzt
@@ -481,7 +588,7 @@ function wendeAn(state: AppState, action: Action): AppState {
       const soll = regelwerkOf(regelwerk).wertungslaeufe
       if (!soll || regelwerk === state.regelwerk) return next
       // „Nach Regel“ bleibt stehen, wenn es dasselbe ergibt – sonst die Zahl.
-      const auto = streichlaeufeVon(soll.laeufe, 'auto') === soll.streichlaeufe
+      const auto = streichlaeufeVon(soll.laeufe, 'auto', soll.nachRegel) === soll.streichlaeufe
       return { ...next, laufCount: soll.laeufe, streichlaeufe: auto ? 'auto' : streichlaeufeWert(soll.streichlaeufe) }
     }
 
@@ -507,6 +614,10 @@ function wendeAn(state: AppState, action: Action): AppState {
       const zusatzListen = action.an === vorgabe ? rest : { ...rest, [action.liste]: action.an }
       return JSON.stringify(zusatzListen) === JSON.stringify(state.zusatzListen) ? state : { ...state, zusatzListen }
     }
+
+    case 'SET_VERSUCHE_NACHEINANDER':
+      // Ohne den Schalter im Regelwerk gibt es nichts zu stellen.
+      return regelwerkOf(state.regelwerk).versucheNacheinander === undefined || action.on === state.versucheNacheinander ? state : { ...state, versucheNacheinander: action.on }
 
     case 'SET_LAUFZETTEL_LAYOUT':
       return { ...state, laufzettelLayout: laufzettelLayoutWert(action.layout) }
@@ -586,11 +697,26 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_CLASS4_SMALL':
       return { ...state, class4Small: action.class4Small }
 
-    case 'SET_PARALLEL_INTERNATIONAL':
-      return { ...state, parallelInternational: action.parallelInternational }
-
     case 'SET_PARALLEL_ORDER_BY_STARTNR':
       return { ...state, parallelOrderByStartNr: action.value }
+
+    case 'SET_PARALLEL_STRENG':
+      return action.value === state.parallelStreng ? state : { ...state, parallelStreng: action.value }
+
+    case 'PARALLEL_RUNDE_FESTSCHREIBEN': {
+      const konfig = konfigVon(state)
+      const parallelPlaene = hasParallel(state.regelwerk) ? schreibeRundeFest(state, konfig, action.klasse, action.runde) : null
+      if (!parallelPlaene) return state
+      // Wer abgemeldet ist und trotzdem in der Runde steht, bekommt dort gleich sein X – nur in
+      // der Klasse, die festgeschrieben wird: Ein X, das in einer anderen Klasse derselben Runde
+      // von Hand entfernt wurde (er fährt doch), bleibt entfernt.
+      return mitAbmeldungenInRunden({ ...state, parallelPlaene }, konfig, [action.runde], action.klasse)
+    }
+
+    case 'PARALLEL_RUNDE_LOESEN': {
+      const geloest = loeseRunde(state, konfigVon(state), action.klasse, action.runde)
+      return geloest ? { ...state, ...geloest } : state
+    }
 
     case 'SET_RUNNING_NUMBERS':
       return { ...state, runningNumbers: { ...state.runningNumbers, ...action.patch } }
@@ -607,11 +733,25 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'ADD_STARTERS':
       return { ...state, starters: state.starters.concat(action.starters), beispielStarter: state.beispielStarter || (action.beispiel === true && action.starters.length > 0) }
 
-    case 'UPDATE_STARTER':
+    case 'UPDATE_STARTER': {
+      // Die Klasse eines Starters lässt sich nicht mehr ändern, sobald die Verzahnung bzw. der
+      // Startplan des Parallelslaloms festgeschrieben ist (Entscheidung des Nutzers vom
+      // 15.11.2026): Er stünde sonst in Spur, Paar und Boot einer Klasse, zu der er nicht gehört.
+      // Die übrigen Angaben des Patches gelten weiter.
+      const { klasse, ...ohneKlasse } = action.patch
+      const patch = klasse !== undefined && klasseFest(state) ? ohneKlasse : action.patch
+      if (Object.keys(patch).length === 0) return state
       return {
         ...state,
-        starters: state.starters.map((p) => (p.id === action.id ? { ...p, ...action.patch } : p)),
+        starters: state.starters.map((p) => {
+          if (p.id !== action.id) return p
+          const neu = { ...p, ...patch }
+          // Freiwillige Angabe: „nicht erfasst“ steht nicht als leeres Feld im Stand.
+          if (!istGeschlecht(neu.geschlecht)) delete neu.geschlecht
+          return neu
+        }),
       }
+    }
 
     case 'MOVE_STARTER': {
       const target = state.starters.find((p) => p.id === action.id)
@@ -632,6 +772,29 @@ function wendeAn(state: AppState, action: Action): AppState {
 
     case 'ASSIGN_START_NUMBERS':
       return { ...state, starters: assignStartNumbers(state) }
+
+    case 'ABMELDEN_STARTER': {
+      // Vor dem ersten Ergebnis wird ein Starter einfach entfernt – abgemeldet wird erst danach.
+      const starter = state.starters.find((p) => p.id === action.id)
+      if (!starter || !starterfeldFest(state) || state.abgemeldet.includes(starter.id)) return state
+      return {
+        ...state,
+        abgemeldet: [...state.abgemeldet, starter.id],
+        abgemeldetBis: { ...state.abgemeldetBis, [starter.id]: Math.max(1, state.laufCount) },
+        eingaben: mitAbmeldungInRunden({ ...state, eingaben: mitAbmeldung(state, konfigVon(state), starter) }, konfigVon(state), starter),
+      }
+    }
+
+    case 'ANMELDEN_STARTER': {
+      const starter = state.starters.find((p) => p.id === action.id)
+      if (!starter || !state.abgemeldet.includes(starter.id)) return state
+      return {
+        ...state,
+        abgemeldet: state.abgemeldet.filter((id) => id !== starter.id),
+        abgemeldetBis: Object.fromEntries(Object.entries(state.abgemeldetBis).filter(([id]) => id !== starter.id)),
+        eingaben: setzeWerte(state.eingaben, abmeldeZellen(state.eingaben, konfigVon(state), starter)),
+      }
+    }
 
     case 'REMOVE_STARTER':
       return mitStartern(state, state.starters.filter((p) => p.id !== action.id))
@@ -712,16 +875,48 @@ function wendeAn(state: AppState, action: Action): AppState {
       return eingaben === state.eingaben ? state : { ...state, eingaben }
     }
     case 'CLEAR_EINGABEN':
-      return Object.keys(state.eingaben).length === 0 ? state : { ...state, eingaben: {} }
+      // Mit den Werten gehen die Abmeldungen: Das Starterfeld ist danach wieder frei.
+      // Und die Runden nach dem Vorlauf: Sie stehen auf seinem Ergebnis, das es nicht mehr gibt.
+      // Ebenso „Disziplin nicht werten“: Ohne Werte zählt ohnehin keine Disziplin.
+      // Der Plan des Vorlaufs hängt an der Verzahnung und bleibt, solange sie festgeschrieben
+      // ist; bei freigegebener Verzahnung entfällt er hier (in `reducer`, planung/parallelRunden.ts).
+      return Object.keys(state.eingaben).length === 0 &&
+        state.abgemeldet.length === 0 &&
+        Object.keys(state.nichtWerten).length === 0 &&
+        Object.keys(state.parallelPlaene).every((r) => r === VORLAUF) &&
+        (state.verzahnungLocked || state.parallelPlaene[VORLAUF] === undefined)
+        ? state
+        : { ...state, eingaben: {}, abgemeldet: [], abgemeldetBis: {}, nichtWerten: {}, parallelPlaene: state.parallelPlaene[VORLAUF] ? { [VORLAUF]: state.parallelPlaene[VORLAUF] } : {} }
     case 'SET_STREICHLAEUFE':
       return { ...state, streichlaeufe: streichlaeufeWert(action.streichlaeufe) }
     case 'FILL_BEISPIELWERTE': {
       // Die Konfiguration ist eine reine Funktion des Stands – der Reducer bleibt deterministisch.
       const konfig = konfigVon(state)
-      return {
-        ...state,
-        eingaben: beispielEingaben(state, konfig, { zeitnahme: action.zeitnahme, laeufe: action.laeufe }, zufallAus(action.saat)),
-      }
+      const zufall = zufallAus(action.saat)
+      const eingaben = action.nurRunden ? state.eingaben : beispielEingaben(state, konfig, { zeitnahme: action.zeitnahme, laeufe: action.laeufe }, zufall)
+      if (!hasParallel(state.regelwerk)) return { ...state, eingaben }
+      const runden = action.runden ?? []
+      return { ...state, eingaben: runden.reduce((e, runde) => beispielRunde({ ...state, eingaben: e }, konfig, runde, { zeitnahme: action.zeitnahme, nurLeere: action.nurLeere === true }, zufall), eingaben) }
+    }
+    case 'CLEAR_EINGABEN_TEIL': {
+      const disziplin = konfigVon(state).getAufbau(state.aufbau).disziplin
+      const weg = new Set<string>([
+        ...(action.laeufe ?? []).flatMap((l) => [laufSchluessel(disziplin, l), ...(l === 1 ? [laufSchluessel(disziplin, OHNE_LAUF)] : [])]),
+        ...(action.runden ?? []).flatMap((r) => [attemptSchluessel(r, 1), attemptSchluessel(r, 2)]),
+      ])
+      const bleibt = Object.entries(state.eingaben).filter(([schluessel]) => !weg.has(schluessel))
+      if (bleibt.length === Object.keys(state.eingaben).length) return state
+      // Bleibt nichts übrig, ist es dasselbe wie „Alle erfassten Werte löschen“ – mit Abmeldungen
+      // und späteren Runden (den Plan des Vorlaufs nimmt `reducer` dann ebenso weg).
+      if (bleibt.length === 0) return wendeAn(state, { type: 'CLEAR_EINGABEN' })
+      // Wer abgemeldet ist, bleibt es: Sein X „nicht gestartet“ kommt in die gelöschten Läufe und
+      // Runden zurück (lib/abmeldung.ts) – sonst stünde er dort als „noch offen“ da, obwohl er
+      // als abgemeldet gilt, und Beispielwerte gäben ihm Zeiten.
+      const konfig = konfigVon(state)
+      let next: AppState = { ...state, eingaben: Object.fromEntries(bleibt) }
+      const laeufe = (action.laeufe ?? []).filter((l) => l >= 1 && l <= Math.max(1, state.laufCount))
+      for (const s of state.starters) if (laeufe.length > 0 && state.abgemeldet.includes(s.id)) next = { ...next, eingaben: mitAbmeldung(next, konfig, s, laeufe) }
+      return action.runden && action.runden.length > 0 ? mitAbmeldungenInRunden(next, konfig, action.runden) : next
     }
     case 'LOAD_STATE':
       return action.state
@@ -764,6 +959,20 @@ function wendeAn(state: AppState, action: Action): AppState {
 
     case 'SET_POKAL_NUR_AUSWAHL':
       return action.an === state.pokal.nurAuswahl ? state : { ...state, pokal: { ...state.pokal, nurAuswahl: action.an } }
+
+    case 'SET_NICHT_WERTEN': {
+      // Den Schalter gibt es nur nach Regel 960 (Einzelwertung aus zwei Disziplinen).
+      if (!hasParallel(state.regelwerk) || !(WERTUNGS_DISZIPLINEN as readonly string[]).includes(action.disziplin)) return state
+      const nichtWerten = setzeNichtWerten(state.nichtWerten, action.disziplin, action.klassen, action.an)
+      return nichtWerten === state.nichtWerten ? state : { ...state, nichtWerten }
+    }
+
+    case 'SET_PARALLEL_ZEBRA':
+      return action.zebra === state.parallelZebra ? state : { ...state, parallelZebra: action.zebra === true }
+    case 'SET_DOLPHIN_PRAEFIX': {
+      const dolphinPraefix = action.praefix === 'D' ? 'D' : 'E'
+      return dolphinPraefix === state.dolphinPraefix ? state : { ...state, dolphinPraefix }
+    }
 
     case 'SET_POKAL_ZAEHLT':
     case 'INVERT_POKAL_ZAEHLT': {

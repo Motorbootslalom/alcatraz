@@ -17,7 +17,7 @@ import type { Starter } from '../types'
  * Vorname), damit sich die Liste von oben nach unten abtippen lässt.
  */
 const { state, dispatch } = useStore()
-const { classLabel } = useEvent()
+const { classLabel, classBadge } = useEvent()
 
 const groups = computed(() => gewichtsGruppen(state.value.starters, state.value.originMode, (name) => mannschaftSchluessel(name, state.value.originMode)))
 // Übersteht das Neuladen. Gibt es die gemerkte Herkunft nicht mehr, gelten wieder alle.
@@ -95,7 +95,7 @@ function next(e: Event) {
       <tbody>
         <tr v-for="p in g.starters" :key="p.id">
           <td>
-            <span class="class-badge sm" :style="{ background: classColor(p.klasse) }">{{ p.klasse }}</span>
+            <span class="class-badge sm" :style="{ background: classColor(p.klasse) }">{{ classBadge(p.klasse) }}</span>
             {{ classLabel(p.klasse) }}
           </td>
           <td>{{ p.nachname }}</td>

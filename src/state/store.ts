@@ -18,7 +18,7 @@ export interface Store {
    * Setzt den Stand ohne Action auf einen früheren zurück. Nur für den Handscanner
    * (lib/scanner.ts): Die ersten Zeichen eines Scans landen als Eingabe im Stand, bevor der
    * Code erkannt ist – sie sollen keine Spur hinterlassen, auch keinen Zeitpunkt auf einer
-   * Ergebnisliste.
+   * Wertungsliste.
    */
   stelleHer: (stand: AppState) => void
   /** `false`, sobald ein Stand nicht gespeichert werden konnte. */
@@ -40,7 +40,7 @@ export interface StoreUmgebung {
  * Zentraler Store: reiner Reducer, jede Änderung wird sofort gespeichert.
  *
  * Was der Reducer nicht darf, geschieht hier: Jede Action bekommt ihren Zeitpunkt (daraus
- * wird der Stand der Ergebnislisten), und eine Veranstaltung ohne Kennung für die QR-Codes
+ * wird der Stand der Wertungslisten), und eine Veranstaltung ohne Kennung für die QR-Codes
  * bekommt eine gewürfelte – beides reist als Teil der Action, sodass dieselbe Action überall
  * zum selben Ergebnis führt.
  *

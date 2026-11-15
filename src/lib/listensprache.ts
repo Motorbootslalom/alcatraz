@@ -2,6 +2,7 @@ import { computed, type ComputedRef } from 'vue'
 import { texteIn, type Locale } from '../i18n'
 import { useStore } from '../state/store'
 import { REGELWERK_INFOS, resolveRegelwerkId } from '../config/konfig'
+import type { KuerzelNorm } from '../domain/kuerzel'
 import type { AppState, Sprache } from '../types'
 
 // Die Sprache der gedruckten Listen – an EINER Stelle. Wer die Listensprache braucht, fragt
@@ -11,7 +12,7 @@ import type { AppState, Sprache } from '../types'
 // Es gibt zwei Arten von Listen, und für jede eine Antwort:
 //
 // - Alle Listen außer den Wettkampfrichter-Bögen (Starter-, Gewichts-, Vorsteg- und
-//   Ergebnislisten, Laufzettel, Aushang der Codes) stehen in der Sprache des Regelwerks:
+//   Wertungslisten, Laufzettel, Aushang der Codes) stehen in der Sprache des Regelwerks:
 //   DM deutsch, UIM englisch. Der Aushang gehört zur Ausschreibung – er darf nicht davon
 //   abhängen, in welcher Sprache gerade jemand das Programm bedient. Die Sprache steht im
 //   YAML des Regelwerks (`listenSprache`), nicht hier: `regelwerkSprache`, `listenLocale`.
@@ -38,6 +39,11 @@ export function regelwerkSprache(regelwerk: string): Locale {
   return infoVon(regelwerk)?.listenSprache ?? 'de'
 }
 
+/** Die Kürzel der Länder auf den Listen des Regelwerks (domain/kuerzel.ts `KuerzelNorm`). */
+export function laenderKuerzelFuer(regelwerk: string): KuerzelNorm {
+  return infoVon(regelwerk)?.laenderKuerzel ?? 'iso'
+}
+
 /** Die Sprache des Bogens einer Liste (auch zweisprachig). */
 export function wkrSpracheFuer(stand: Pick<AppState, 'regelwerk'> & Partial<Pick<AppState, 'wkrSprachen'>>, typeId: string): Sprache {
   const vorgabe = regelwerkSprache(stand.regelwerk)
@@ -57,7 +63,9 @@ export function useListenSprache() {
   /** Lässt sich die Sprache der Bögen wählen? */
   const waehlbar = computed(() => bietetEnglisch(state.value.regelwerk))
   const listenLocale: ComputedRef<Locale> = computed(() => regelwerkSprache(state.value.regelwerk))
+  /** Die Kürzel der Länder auf den Listen: wie die Sprache eine Angabe des Regelwerks (UIM: IOC, Regel 209). */
+  const kuerzelNorm: ComputedRef<KuerzelNorm> = computed(() => laenderKuerzelFuer(state.value.regelwerk))
   /** Die Sprache des Bogens einer Liste – reaktiv, wenn in `computed` oder Vorlage gelesen. */
   const wkrSprache = (typeId: string): Sprache => wkrSpracheFuer(state.value, typeId)
-  return { waehlbar, listenLocale, wkrSprache, ...texteIn(() => listenLocale.value) }
+  return { waehlbar, listenLocale, kuerzelNorm, wkrSprache, ...texteIn(() => listenLocale.value) }
 }

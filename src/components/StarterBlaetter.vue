@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useStore } from '../state/store'
+import { useEvent } from '../lib/event'
 import { sollgewichtOf } from '../config/catalog'
 import { herkunftAnzeige, originLabelKey, starterHerkunft } from '../lib/origin'
 import { listenNachname, type NamenArt } from '../lib/namen'
 import { useListenSprache } from '../lib/listensprache'
+import { parcoursName } from '../config/sprache'
+import { geburtsdatumAufListe } from '../i18n'
 import { SEITEN_VORGABE } from '../lib/seiten'
 import type { StarterDokument, StarterListe } from '../lib/starterlisten'
 import type { ErgebnisHerkunft, Starter } from '../types'
@@ -38,8 +41,10 @@ const props = withDefaults(
 )
 
 const { state } = useStore()
+// Die Klasse steht mit ihrem Namen aus dem Regelwerk in der Spalte (UIM: „Dolphin“), sonst mit ihrer Kennung.
+const { classCell } = useEvent()
 // Was auf den Blättern steht, folgt der Listensprache (lib/listensprache.ts).
-const { t: lt, formatDate, listenLocale } = useListenSprache()
+const { t: lt, listenLocale, kuerzelNorm } = useListenSprache()
 
 const form = computed(() => (props.liste === 'starter' ? (props.form ?? 'starter') : 'starter'))
 // Gewichtslisten entstehen beim Check-in, oft bevor es Startnummern gibt – vorn steht die Klasse.
@@ -55,7 +60,7 @@ const showOrigin = computed(() => state.value.originMode !== 'none' && props.her
 const showBirthdate = computed(() => props.geburtsdatum ?? (weightList.value || (state.value.showBirthdate && props.liste !== 'vorsteg')))
 const weightText = (p: Starter) => (p.gewicht === undefined ? '' : String(p.gewicht).replace('.', ','))
 // Was als Herkunft dasteht (Text, Kürzel, Flagge), entscheidet lib/origin.ts – für alle Listen gleich.
-const origin = (p: Starter) => starterHerkunft(p, state.value.originMode, herkunftStil.value, state.value.originShort, listenLocale.value)
+const origin = (p: Starter) => starterHerkunft(p, state.value.originMode, herkunftStil.value, state.value.originShort, listenLocale.value, kuerzelNorm.value)
 /** Die Herkunft im Kopf eines Blatts: ausgeschrieben – sie ist dort der Name des Blatts –, mit Flagge, wenn die Starterlisten eine zeigen. */
 const titelHerkunft = (name: string) => herkunftAnzeige(name, state.value.originMode, state.value.listOrigin.startsWith('flagge') ? 'flagge-lang' : 'lang', state.value.originShort, listenLocale.value)
 const columns = computed(
@@ -98,8 +103,8 @@ const masszeilen = computed(() =>
       vorname: breitester(alle.map((p) => p.vorname), 18),
       // Die breiteste Herkunft samt Flagge: `mass` rechnet deren Breite mit.
       herkunft: showOrigin.value ? alle.map(origin).reduce((a, b) => (breitester([a.mass, b.mass], 32) === a.mass ? a : b), herkunftAnzeige('', 'none', 'lang', {})) : undefined,
-      geburtsdatum: breitester(alle.map((p) => (p.geburtsdatum ? formatDate(p.geburtsdatum) : ''))),
-      klasse: breitester(alle.map((p) => p.klasse)),
+      geburtsdatum: breitester(alle.map((p) => (p.geburtsdatum ? geburtsdatumAufListe(listenLocale.value, p.geburtsdatum) : ''))),
+      klasse: breitester(alle.map((p) => classCell(p.klasse))),
     }
   }),
 )
@@ -131,7 +136,7 @@ const laengen = computed(() => props.dokumente.map((s) => s.groups.map((g) => g.
               <!-- Das Leerzeichen zwischen den Feldern zeichnet nichts (Flex), trennt sie aber im Text:
                    Kopiert, vorgelesen oder aus dem PDF gelesen heißt es „Gewichtsliste Deutschland“. -->
               <span class="list" data-feld="liste">{{ s.title }}</span>{{ ' ' }}
-              <span v-if="s.zusatz" class="feld" data-feld="zusatz">{{ s.zusatz }}</span>{{ ' ' }}
+              <span v-if="s.zusatz" class="feld" data-feld="zusatz">{{ parcoursName(s.zusatz, listenLocale) }}</span>{{ ' ' }}
               <span v-if="s.origin" class="feld" data-feld="herkunft"><HerkunftText :anzeige="titelHerkunft(s.origin)" /></span>{{ ' ' }}
               <span class="event" data-feld="veranstaltung">{{ heading }}</span>
             </div>
@@ -179,15 +184,15 @@ const laengen = computed(() => props.dokumente.map((s) => s.groups.map((g) => g.
       </thead>
       <tbody v-for="teil in teile" :key="teil.block">
         <tr v-for="{ p, shade, markiert } in s.groups[teil.block].slice(teil.von, teil.bis)" :key="p.id" :class="{ shade, markiert }" :data-markiert="markiert ? '' : undefined">
-          <td v-if="weightList" class="narrow">{{ p.klasse }}</td>
+          <td v-if="weightList" class="narrow">{{ classCell(p.klasse) }}</td>
           <td v-else class="narrow">{{ p.startNr }}</td>
           <template v-if="mitNamen">
             <td :class="fit(nachname(p), 18)">{{ nachname(p) }}</td>
             <td :class="fit(p.vorname, 18)">{{ p.vorname }}</td>
           </template>
-          <td v-if="form === 'herkunft'" class="narrow">{{ p.klasse }}</td>
+          <td v-if="form === 'herkunft'" class="narrow">{{ classCell(p.klasse) }}</td>
           <td v-if="showOrigin" :class="fit(origin(p).mass, 32)"><HerkunftText :anzeige="origin(p)" /></td>
-          <td v-if="showBirthdate" class="narrow">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : '' }}</td>
+          <td v-if="showBirthdate" class="narrow">{{ p.geburtsdatum ? geburtsdatumAufListe(listenLocale, p.geburtsdatum) : '' }}</td>
           <template v-if="liste === 'vorsteg'">
             <td v-for="r in runs" :key="r" class="check" />
           </template>
@@ -195,7 +200,7 @@ const laengen = computed(() => props.dokumente.map((s) => s.groups.map((g) => g.
             <td class="weight">{{ sollgewichtOf(state.regelwerk, state.sollgewicht, p.klasse) }} kg</td>
             <td class="weight">{{ weightText(p) }}</td>
           </template>
-          <td v-else-if="form !== 'herkunft'" class="narrow">{{ p.klasse }}</td>
+          <td v-else-if="form !== 'herkunft'" class="narrow">{{ classCell(p.klasse) }}</td>
         </tr>
       </tbody>
     </table>

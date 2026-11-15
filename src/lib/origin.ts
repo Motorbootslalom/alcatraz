@@ -1,5 +1,5 @@
 import type { OriginMode, OriginStyle, Starter } from '../types'
-import { kuerzelOf } from '../domain/kuerzel'
+import { defaultKuerzel, eigenesKuerzel, iocKuerzel, type KuerzelNorm } from '../domain/kuerzel'
 import { flaggeVon, flaggenName, hatFlaggen, type Flagge } from '../domain/flaggen'
 import type { MessageKey } from '../i18n'
 
@@ -67,21 +67,41 @@ export interface HerkunftAnzeige {
 
 /**
  * Die eine Stelle, an der entschieden wird, wie eine Herkunft auf einer Liste steht: Text,
- * Kürzel, Flagge. Alle Listen (Starter-, Vorsteg-, Ergebnislisten, Pokalauswertung) und der
+ * Kürzel, Flagge. Alle Listen (Starter-, Vorsteg-, Wertungslisten, Pokalauswertung) und der
  * Starter-Reiter zeigen, was hier herauskommt, über `HerkunftText.vue`.
  *
- * Kürzel: das eigene des Veranstalters, sonst die ISO-Vorgabe zum Namen, sonst – wenn die
+ * Kürzel: das eigene des Veranstalters, sonst die Vorgabe zum Namen, sonst – wenn die
  * Herkunft als Bundesland oder Staat erkannt ist – dessen Kürzel („Holland“ → NLD). Ist die
  * Angabe selbst schon ein Kürzel („GER“), bleibt sie stehen. Ohne Kürzel steht der Name da.
+ * Länder bekommen ihr Kürzel nach der Norm des Regelwerks (`norm`, domain/kuerzel.ts
+ * `KuerzelNorm`): unter der UIM das des IOC (Regel 209) – dort wird jeder erkannte Staat zu
+ * diesem Kürzel, gleich wie er eingetragen ist („Germany“, „Deutschland“, „DEU“ und „GER“ → GER),
+ * damit eine Nation auf einer Liste nicht unter zwei Codes steht.
+ *
+ * Nationen sind international (Entscheidung des Nutzers vom 15.11.2026): Auf einer englischen
+ * Liste steht ein erkannter Staat mit seinem englischen Namen („Litauen“ → „Lithuania“) bzw.
+ * seinem Kürzel – nie der deutsche Name. Auf einer deutschen Liste steht er, wie er eingetragen ist.
+ * `eingabe`: keine Liste, sondern die Angabe selbst (Starter-Reiter, Tabelle der Kürzel) – dort
+ * steht der Name immer so, wie er eingetragen ist; `sprache` gilt dann nur für die Textalternative.
  */
-export function herkunftAnzeige(name: string, mode: OriginMode, style: OriginStyle, own: Record<string, string>, sprache: string = 'de'): HerkunftAnzeige {
+export function herkunftAnzeige(
+  name: string,
+  mode: OriginMode,
+  style: OriginStyle,
+  own: Record<string, string>,
+  sprache: string = 'de',
+  eingabe = false,
+  norm: KuerzelNorm = 'iso',
+): HerkunftAnzeige {
   const stil = wirksamerStil(style, mode)
   const erkannt = name ? flaggeVon(name, mode) : undefined
-  const kurz = (name && (kuerzelOf(name, own) || (erkannt && name.trim().length > 3 ? erkannt.kuerzel : ''))) || name
+  const kurz = (name && kurzVon(name, erkannt, own, norm)) || name
   const mitFlagge = stil !== 'lang' && stil !== 'kurz'
   const flagge = mitFlagge ? erkannt : undefined
+  /** Der ausgeschriebene Name auf der Liste: englisch der englische des erkannten Staates. */
+  const lang = !eingabe && sprache === 'en' && erkannt?.art === 'staat' ? flaggenName(erkannt, 'en') : name
   // Ohne Flagge (nicht erkannt) bleibt von „nur Flagge“ das Kürzel – sonst stünde nichts da.
-  const text = stil === 'lang' || stil === 'flagge-lang' ? name : stil === 'flagge' && flagge ? '' : kurz
+  const text = stil === 'lang' || stil === 'flagge-lang' ? lang : stil === 'flagge' && flagge ? '' : kurz
   const druck = stil === 'flagge' && flagge ? kurz : ''
   const klartext = text || druck
   return {
@@ -91,7 +111,7 @@ export function herkunftAnzeige(name: string, mode: OriginMode, style: OriginSty
     // Republic“ neben der Flagge von Tschechien) –, bleibt die Flagge stumm: Sonst läse ein
     // Vorleseprogramm „Czechia Czech Republic“. Ein Kürzel daneben (auch eine Angabe wie „GER“,
     // bis drei Zeichen) ist kein Name: Dann nennt die Flagge ihn.
-    alt: flagge && !(text === name && name.trim().length > 3) ? flaggenName(flagge, sprache) : '',
+    alt: flagge && !(text === lang && lang.trim().length > 3) ? flaggenName(flagge, sprache) : '',
     text,
     druck,
     klartext,
@@ -99,9 +119,17 @@ export function herkunftAnzeige(name: string, mode: OriginMode, style: OriginSty
   }
 }
 
+/** Das Kürzel einer Herkunft (siehe `herkunftAnzeige`); `''`, wenn es keins gibt. */
+function kurzVon(name: string, erkannt: Flagge | undefined, own: Record<string, string>, norm: KuerzelNorm): string {
+  const eigen = eigenesKuerzel(name, own)
+  if (eigen) return eigen
+  if (norm === 'ioc' && erkannt?.art === 'staat') return iocKuerzel(erkannt.code) ?? erkannt.kuerzel
+  return defaultKuerzel(name, norm) || (erkannt && name.trim().length > 3 ? erkannt.kuerzel : '')
+}
+
 /** Die Herkunft eines Starters, wie sie auf einer Liste steht (siehe `herkunftAnzeige`). */
-export function starterHerkunft(p: Starter, mode: OriginMode, style: OriginStyle, own: Record<string, string>, sprache?: string): HerkunftAnzeige {
-  return herkunftAnzeige(originOf(p, mode), mode, style, own, sprache)
+export function starterHerkunft(p: Starter, mode: OriginMode, style: OriginStyle, own: Record<string, string>, sprache?: string, norm?: KuerzelNorm): HerkunftAnzeige {
+  return herkunftAnzeige(originOf(p, mode), mode, style, own, sprache, false, norm)
 }
 
 /**

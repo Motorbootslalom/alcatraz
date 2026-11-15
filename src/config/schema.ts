@@ -79,11 +79,16 @@ export interface RawRegelwerk {
   sprachen?: string[]
   /**
    * In dieser Sprache stehen alle Listen außer den Wettkampfrichter-Bögen (Starter-, Gewichts-,
-   * Vorsteg- und Ergebnislisten, Laufzettel, Aushang der Codes) – unabhängig von der Sprache
+   * Vorsteg- und Wertungslisten, Laufzettel, Aushang der Codes) – unabhängig von der Sprache
    * der Oberfläche: Der Aushang gehört zum Regelwerk. Eine der `sprachen`; fehlt = die erste.
    * Für die Bögen ist es die Vorgabe; dort lässt sich je Liste wählen (lib/listensprache.ts).
    */
   listenSprache?: string
+  /**
+   * Welche dreistelligen Kürzel Länder auf den Listen bekommen: `iso` (ISO 3166-1 alpha-3, DEU)
+   * oder `ioc` (Kürzel des IOC, GER). Fehlt = `iso` (domain/kuerzel.ts `KuerzelNorm`).
+   */
+  laenderKuerzel?: string
   /** Dokument, aus dem die Werte stammen. */
   quelle?: string
   quelleEn?: string
@@ -94,6 +99,18 @@ export interface RawRegelwerk {
   klassen?: Array<string | number>
   /** Abweichende Klassennamen auf den Listen, z. B. { E: Dolphin }. */
   klassenNamen?: Record<string, string>
+  /**
+   * Abweichende Kurzzeichen der Klassen für die runden Marken der Oberfläche (Verzahnung,
+   * Verwiegung, Besetzung), z. B. { E: D } – dort ist für den ganzen Namen kein Platz. Fehlt
+   * die Angabe für eine Klasse, steht ihre Kennung.
+   */
+  klassenKurz?: Record<string, string>
+  /**
+   * Was vor der laufenden Nummer einer klassenbezogenen Startnummer steht, je Klasse, z. B.
+   * { E: E } → E01. Fehlt die Angabe für eine Klasse, steht ihre Kennung davor. Der Name der
+   * Klasse (`klassenNamen`) ändert die Startnummern nicht.
+   */
+  startNrPraefix?: Record<string, string | number>
   /** Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende. */
   fehlerHinweis?: string
   fehlerHinweisEn?: string
@@ -118,14 +135,52 @@ export interface RawRegelwerk {
    * Regelwerks stellt die Veranstaltung so ein (state/reducer.ts SET_REGELWERK); wer danach von
    * Hand abweicht, bekommt einen Hinweis – außer bei `nurVorgabe: true`: Dann ist die Angabe
    * nur die Voreinstellung und keine Aussage des Regelwerks, an der die Oberfläche misst.
+   * `nachRegel`: Zahl der Läufe → Streichläufe, die die Einstellung „Streichläufe nach Regel“
+   * bei dieser Zahl von Läufen streicht (DM C6: zwei Läufe, einer gewertet → { 2: 1 }). Für
+   * jede Zahl, die hier fehlt, gilt die allgemeine Regel der Auswertung (ab drei Läufen einer).
    */
-  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nurVorgabe?: boolean }
+  wertungslaeufe?: { laeufe?: number; streichlaeufe?: number; nurVorgabe?: boolean; nachRegel?: Record<string, number> }
+  /**
+   * Wertung je Disziplin: Disziplin → eigener `stichentscheid` und eigene `wertungslaeufe`.
+   * Was hier für eine Disziplin steht, gilt für sie STATT der gleichnamigen Angabe oben; eine
+   * Disziplin ohne Eintrag (und jede Angabe, die ihr Eintrag nicht macht) folgt der Angabe oben.
+   * So regelt UIM 960 Manövrieren (besserer Versuch, Pkt. 4.3.2) und Parallelslalom (Summe
+   * beider Versuche, Pkt. 4.4) verschieden. Die `wertungslaeufe` einer Disziplin, deren Läufe
+   * die Veranstaltung nicht einstellt (Parallelslalom: der Plan gibt die Versuche vor), gelten
+   * unmittelbar; `nurVorgabe` und `nachRegel` gibt es hier deshalb nicht.
+   */
+  wertungJeDisziplin?: Record<string, { stichentscheid?: string[]; wertungslaeufe?: { laeufe?: number; streichlaeufe?: number } }>
+  /**
+   * Was das Regelwerk für den Aushang der Wertungslisten verlangt (UIM 960, Pkt. 5.2). Fehlt
+   * die Angabe, bleiben die Listen, wie sie sind.
+   *   • `unterschrift`: Unter jeder Wertungsliste (je Lauf, Gesamtliste, Mannschaftswertung)
+   *     stehen eine Unterschriftszeile für den O.O.D. und ein leeres Feld für die Uhrzeit des
+   *     Aushangs, beides zum Eintragen von Hand.
+   *   • `punkte`: Die Gesamtliste hat eine Spalte mit den Punkten des Platzes (Tabelle
+   *     `pokal.uim.punkte`).
+   */
+  aushang?: { unterschrift?: boolean; punkte?: boolean }
+  /**
+   * Die Läufe eines Starters werden direkt nacheinander gefahren (UIM 960, Pkt. 4.3.2): Die
+   * Vorgabe für den Schalter der Veranstaltung (`AppState.versucheNacheinander`). Nur ein
+   * Regelwerk, das die Angabe macht (true oder false), kennt den Schalter; ohne sie gibt es
+   * ihn nicht, und zwischen den Läufen wird ausgehängt wie bisher.
+   */
+  versucheNacheinander?: boolean
   /**
    * Pokalauswertung je Herkunft (config/pokal.ts, lib/pokal.ts): `vorgabe` = die Varianten,
    * die eine Veranstaltung nach diesem Regelwerk eingeschaltet hat; `uim` = die Punktetabelle
-   * der UIM-Variante mit der Zahl der Besten und der Mindestzahl der Starter je Herkunft.
+   * der UIM-Variante mit der Zahl der Besten und der Mindestzahl der Starter je Herkunft;
+   * `stichentscheid` = was punktgleiche Mannschaften trennt: mehr 1. Plätze, dann mehr 2. … bis
+   * Platz `plaetze` (fehlt = jeder Platz der Punktetabelle); `zaehlt: anzahl` vergleicht die Zahl
+   * der Plätze, `punkte` die Summe ihrer Punkte. Fehlt die Angabe, teilen Punktgleiche den Platz.
    */
-  pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number } }
+  /**
+   * Abweichungen vom Laufzettel der Vorgabe (einstellungen.yaml `laufzettel`): Was hier steht,
+   * ersetzt die gleichnamige Angabe dort – z. B. eigene Schritte für den Zettel des letzten Laufs.
+   */
+  laufzettel?: RawLaufzettel
+  pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number }; stichentscheid?: { zaehlt?: string; plaetze?: number } }
   disqualifikationen?: RawDisq[]
   kataloge?: Record<string, RawKatalog>
   direktpunkte?: RawDirektpunkt[]
@@ -210,6 +265,13 @@ export interface RawPosition {
   ausrichtung?: 'hoch' | 'quer'
   /** Lauf im Kopf zeigen? false z. B. bei Knoten (nur einmal abgenommen). */
   lauf?: boolean
+  /**
+   * true = Der Starter kommt hier nur einmal vorbei, auch wenn er seine Versuche direkt
+   * nacheinander fährt (Vorsteg): Mit „Versuche direkt nacheinander“ hat der Bogen dann eine
+   * Zeile je Starter statt einer je Versuch; ihr Inhalt gilt für jeden Versuch. Ohne die Option
+   * ohne Wirkung.
+   */
+  einmalJeStarter?: boolean
   /**
    * true = zusätzlich in JEDEM Aufbau wählbar (Schnellauswahl „Eine Position ·
    * alle Klassen“ und Bogen-Menüs), z. B. Varianten wie „ohne Start/Ziel“, die
@@ -351,12 +413,18 @@ export interface RawAufbau {
   positionen: Array<string | RawAufbauEintrag | RawKurzform>
   /** Eigene Bojen (z. B. Parallelslalom): Der Überwachungs-Check gilt hier nicht. */
   eigeneStrecke?: boolean
-  /** Disziplin mit eigenen Eingaben und Ergebnislisten. Fehlt: die erste aus `disziplinen`. */
+  /** Disziplin mit eigenen Eingaben und Wertungslisten. Fehlt: die erste aus `disziplinen`. */
   disziplin?: string
   /** Kursvariante des Austragungsorts (`kurse.<id>`), z. B. eigene Parcoursbilder. */
   kurs?: string
   /** Intern: ein eigener Aufbau aus dem Browser, nicht aus dem Repo (siehe eigene.ts). */
   eigen?: boolean
+  /**
+   * { <Position>: [<Spalten-Key>, …] }: Spalten, die die Listen DIESES Aufbaus nicht haben –
+   * etwa „Bemerkung“ auf der Steg-Liste des Parallelslaloms. Anders als `ohneSpalten` des
+   * Regelwerks gilt es nur für die Bögen dieses Aufbaus (lib/parallelBogen.ts).
+   */
+  ohneSpalten?: Record<string, string[]>
 }
 
 /**
@@ -374,7 +442,7 @@ export interface RawKurs {
   bilder?: Record<string, string>
 }
 
-/** Eine Spalte der Ergebnisliste; Felder ohne Liste im Aufbau oder in der Klasse entfallen. */
+/** Eine Spalte der Wertungsliste; Felder ohne Liste im Aufbau oder in der Klasse entfallen. */
 export interface RawErgebnisSpalte {
   label: string
   /** Felder, deren Punkte zusammen in einer Zelle stehen, z. B. beide Start-Bojen. */
@@ -383,7 +451,7 @@ export interface RawErgebnisSpalte {
   unter?: Array<string | { label: string; feld: string }>
 }
 
-/** Disziplin: Ihre Aufbauten teilen sich die Eingaben und die Ergebnislisten. */
+/** Disziplin: Ihre Aufbauten teilen sich die Eingaben und die Wertungslisten. */
 export interface RawDisziplin {
   id: string
   name: string
@@ -402,14 +470,27 @@ export interface RawUeberwachung {
   klassen?: Array<string | number>
 }
 
-/** Laufzettel (je Klasse/Lauf): Arbeitsschritte unter den Seiten-Checkboxen. */
+/**
+ * Ein Arbeitsschritt des Laufzettels: der deutsche Text – oder, wo ein Regelwerk den Wortlaut
+ * in seiner Sprache vorgibt, `{ text, en }` (wie die Fehlertexte der Regelwerke).
+ * `zwischenaushang: true` kennzeichnet einen Schritt, der zum Aushang zwischen den Läufen
+ * gehört (aushängen, verschicken): Werden die Läufe direkt nacheinander gefahren
+ * (`versucheNacheinander`), entfällt er auf den Zetteln vor dem letzten Lauf.
+ */
+export type RawSchritt = string | { text?: string; en?: string; zwischenaushang?: boolean }
+
+/**
+ * Laufzettel (je Klasse/Lauf): Arbeitsschritte unter den Seiten-Checkboxen. Die Vorgabe steht
+ * in einstellungen.yaml; ein Regelwerk darf mit einem eigenen Abschnitt `laufzettel` davon
+ * abweichen – jede Angabe, die es macht, ersetzt die der Vorgabe (config/konfig.ts `baue`).
+ */
 export interface RawLaufzettel {
   /** Überschrift des Schritte-Blocks (fehlt = keine). */
   titel?: string
   /** Arbeitsschritte der Auswertung, je mit Checkbox (in dieser Reihenfolge). */
-  schritte?: string[]
+  schritte?: RawSchritt[]
   /** Arbeitsschritte auf dem Zettel des letzten Laufs (fehlt = wie `schritte`). */
-  schritteLetzterLauf?: string[]
+  schritteLetzterLauf?: RawSchritt[]
 }
 
 /** Übersetzung der Positionen in eine Sprache (i18n/<sprache>.yaml). */

@@ -35,7 +35,10 @@ const emit = defineEmits<{
 const def = computed(() => props.seite.def)
 const gedreht = computed(() => Math.abs(props.seite.bild?.drehung ?? 0) === 90)
 // Gesamtspaltenzahl für die Kopf-/Fußzellen über die volle Breite.
-const totalCols = computed(() => 1 + (props.seite.zeigtKlasse ? 1 : 0) + props.seite.leaves.length)
+// Listen einer Runde des Parallelslaloms haben vorn die Spalte Start und hinter der Klasse den Attempt.
+// Mit „Versuche direkt nacheinander“ steht hinter Nr. und Klasse ebenfalls die Spalte Versuch.
+const mitVersuch = computed(() => props.seite.startForm || props.seite.versuchForm)
+const totalCols = computed(() => 1 + (props.seite.zeigtKlasse ? 1 : 0) + (props.seite.startForm ? 1 : 0) + (mitVersuch.value ? 1 : 0) + props.seite.leaves.length)
 // Die Klassen-Spalte nennt den Namen der Klasse; für lange Namen („Dolphin“) ist sie breiter.
 const klasseBreit = computed(() => props.seite.klassen.some((k) => props.seite.texte.klasseName(k).length > 3))
 // Die Zeichnungen stehen unter CC BY-NC-SA: Wo ein Bild gedruckt wird, steht auch die Namensnennung.
@@ -47,8 +50,11 @@ const trennerClassR = (trenner?: TrennerDesign) => (trenner ? ` sepr-${trenner}`
 
 /** Spaltenbreite fürs <colgroup>; ohne Angabe teilen sich die Spalten den Rest. */
 function leafWidth(leaf: BogenBlattSpalte): string | undefined {
-  if (leaf.kind === 'sum') return leaf.einzeln ? '18mm' : '12mm'
-  if (leaf.kind === 'disq') return '16mm'
+  // Fahrweg-Liste einer Runde (Parallelslalom): Elf Bojen-Spalten neben Start, Nr., Klasse und
+  // Attempt – Σ und Disq. sind dort schmaler, damit „Finish“ in seine Spalte passt.
+  const eng = props.seite.startForm && props.seite.leaves.length > 10
+  if (leaf.kind === 'sum') return leaf.einzeln ? '18mm' : eng ? '10mm' : '12mm'
+  if (leaf.kind === 'disq') return eng ? '14mm' : '16mm'
   if (leaf.grow) return `${leaf.grow * 12}%`
   return undefined
 }
@@ -59,6 +65,12 @@ const subCellClass = (col: Column, i: number) =>
   `bt-sub${trennerClass(i === 0 ? col.trenner : col.subTrenner)}${i < col.sub!.length - 1 ? trennerClassR(col.subTrenner) : ''}`
 const leafKey = (leaf: BogenBlattSpalte) => (leaf.subIndex === undefined ? leaf.colKey : `${leaf.colKey}#${leaf.subIndex}`)
 const leafSep = (leaf: BogenBlattSpalte) => trennerClass(leaf.trenner) + trennerClassR(leaf.trennerR)
+/**
+ * Klassen einer Zeile: grau (jede fünfte), auf Listen einer Runde außerdem die Zeile ohne
+ * Eingabe (Dummy, entfallener Start) und die Linie am Ende eines Blocks.
+ */
+const zeilenClass = (row: BogenSeite['rows'][number]) =>
+  [row.shaded ? 'grau' : '', row.dummy || row.entfaellt ? 'bt-ohne' : '', row.blockEnde ? 'bt-blockende' : ''].filter(Boolean).join(' ') || undefined
 
 // Passt die Seite auf ein A4-Blatt? Das Blatt am Bildschirm hat dieselben Maße wie die
 // Druckseite (A4, 8 mm Rand); ist der Inhalt höher, bricht der Druck um. Das zeigt die
@@ -114,7 +126,7 @@ onBeforeUnmount(() => beobachter?.disconnect())
     :class="[
       'bogen',
       `bogen--${seite.orientation === 'landscape' ? 'quer' : 'hoch'}`,
-      { 'bogen--gedreht': gedreht && !rueckseite, 'bogen--bild-neben': def.bildNeben && !rueckseite },
+      { 'bogen--gedreht': gedreht && !rueckseite, 'bogen--bild-neben': def.bildNeben && !rueckseite, 'bogen--runde-eng': seite.startForm && seite.leaves.length > 10 },
     ]"
     :style="[def.bildBreite ? { '--bild-breite': `${def.bildBreite}mm` } : undefined, hoehe > 0 ? { '--bogen-hoehe': `${hoehe}px` } : undefined]"
   >
@@ -126,8 +138,10 @@ onBeforeUnmount(() => beobachter?.disconnect())
          Seite, falls eine Seite doch noch umbricht. -->
     <table class="bogen-tabelle">
       <colgroup>
+        <col v-if="seite.startForm" class="bt-cg-start" />
         <col class="bt-cg-nr" />
         <col v-if="seite.zeigtKlasse" :class="['bt-cg-klasse', { 'bt-cg-klasse--breit': klasseBreit }]" />
+        <col v-if="mitVersuch" class="bt-cg-attempt" />
         <col v-for="leaf in seite.leaves" :key="leafKey(leaf)" :style="{ width: leafWidth(leaf) }" />
       </colgroup>
       <thead>
@@ -137,8 +151,10 @@ onBeforeUnmount(() => beobachter?.disconnect())
           </th>
         </tr>
         <tr>
+          <th v-if="seite.startForm" class="bt-nr bt-start" :rowspan="seite.twoRow ? 2 : 1">{{ seite.texte.start }}</th>
           <th class="bt-nr" :rowspan="seite.twoRow ? 2 : 1">{{ seite.texte.nr }}</th>
           <th v-if="seite.zeigtKlasse" class="bt-klasse" :rowspan="seite.twoRow ? 2 : 1">{{ seite.texte.klasseKurz }}</th>
+          <th v-if="mitVersuch" class="bt-klasse bt-attempt" :rowspan="seite.twoRow ? 2 : 1">{{ seite.texte.attempt }}</th>
           <template v-for="col in seite.columns" :key="col.key">
             <th v-if="hatSub(col)" :class="headTopClass(col)" :colspan="col.sub!.length">{{ col.label }}</th>
             <th v-else :class="headTopClass(col)" :rowspan="seite.twoRow ? 2 : 1">{{ col.label }}</th>
@@ -189,9 +205,15 @@ onBeforeUnmount(() => beobachter?.disconnect())
         <tr v-if="row.zwischen !== undefined" class="bt-zwischen" :data-klasse="row.klasse">
           <th :colspan="totalCols" scope="rowgroup">{{ row.zwischen }}</th>
         </tr>
-        <tr v-else :class="row.shaded ? 'grau' : undefined" :data-zeile="row.key">
+        <tr v-else :class="zeilenClass(row)" :data-zeile="row.key" :data-ohne="row.dummy ? 'dummy' : row.entfaellt ? 'entfaellt' : undefined">
+          <td v-if="seite.startForm" class="bt-nr bt-start">{{ row.start }}</td>
+          <!-- Dummy oder entfallener Start: Die Zeile bleibt (Zeile n ist auf allen Listen derselbe Start), trägt aber nichts. -->
+          <td v-if="row.dummy || row.entfaellt" class="bt-nr bt-dummy" :colspan="3">{{ row.entfaellt ? seite.texte.entfaellt : seite.texte.dummy }}</td>
+          <template v-else>
           <td class="bt-nr">{{ row.nr }}</td>
           <td v-if="seite.zeigtKlasse" class="bt-klasse">{{ row.klasseText ?? '' }}</td>
+          <td v-if="mitVersuch" class="bt-klasse bt-attempt">{{ row.lauf }}</td>
+          </template>
           <td
             v-for="(leaf, li) in seite.leaves"
             :key="leafKey(leaf)"

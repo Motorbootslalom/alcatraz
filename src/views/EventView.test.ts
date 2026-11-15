@@ -5,6 +5,9 @@ import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
 import { vergissAlles } from '../lib/merken'
 import { nextTick } from 'vue'
+import { wechsleRegelwerk } from '../testHilfen'
+import { LAENDER } from '../domain/generate'
+import { herkunftAnzeige } from '../lib/origin'
 
 describe('Veranstaltung', () => {
   let store: Store
@@ -172,17 +175,41 @@ describe('Veranstaltung', () => {
     wrapper.unmount()
   })
 
-  it('verbirgt der Wechsel des Regelwerks erfasste Werte (3. Lauf), steht der Hinweis gleich hier', async () => {
+  it('sobald Ergebnisse erfasst sind, ist der Wechsel des Regelwerks gesperrt – mit Hinweis; nach „Werte löschen“ geht er wieder', async () => {
+    store.dispatch({ type: 'ADD_STARTERS', starters: [{ id: 'p1', startNr: '401', vorname: 'Vor', nachname: 'Nach', verein: '', bundesland: '', geburtsdatum: '', klasse: '4', groesse: '' }] })
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    const knopf = (id: string) => wrapper.find(`button[data-regelwerk="${id}"]`)
+    const hinweis = () => wrapper.find('[data-hinweis="regelwerk-gesperrt"]')
+    expect(hinweis().exists()).toBe(false)
+    expect(knopf('uim-2026').attributes('disabled')).toBeUndefined()
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: 'p1', feld: 'zeit1', wert: '80' }] })
+    await wrapper.vm.$nextTick()
+    expect(hinweis().text()).toContain('das Regelwerk lässt sich nicht mehr wechseln')
+    expect(knopf('uim-2026').attributes('disabled')).toBeDefined()
+    // Das gewählte Regelwerk bleibt bedienbar (ein Klick ändert nichts).
+    expect(knopf('dm-2026').attributes('disabled')).toBeUndefined()
+    // Auch am Knopf vorbei lehnt der Reducer ab.
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect(store.state.value.regelwerk).toBe('dm-2026')
+    store.dispatch({ type: 'CLEAR_EINGABEN' })
+    await wrapper.vm.$nextTick()
+    expect(hinweis().exists()).toBe(false)
+    await knopf('uim-2026').trigger('click')
+    expect(store.state.value.regelwerk).toBe('uim-2026')
+    wrapper.unmount()
+  })
+
+  it('zeigt ein Stand unter einem anderen Regelwerk erfasste Werte nicht (3. Lauf, etwa aus einer Sicherung), steht der Hinweis gleich hier', async () => {
     store.dispatch({ type: 'ADD_STARTERS', starters: [{ id: 'p1', startNr: '401', vorname: 'Vor', nachname: 'Nach', verein: '', bundesland: '', geburtsdatum: '', klasse: '4', groesse: '' }] })
     store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/3', starter: 'p1', feld: 'zeit1', wert: '80' }] })
     const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
     const hinweis = () => wrapper.find('[data-hinweis="verborgene-eingaben"]')
     expect(hinweis().exists()).toBe(false)
-    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    wechsleRegelwerk(store, 'uim-2026')
     await wrapper.vm.$nextTick()
     expect(hinweis().exists()).toBe(true)
     // Nichts ist verloren: Zurück auf DM zeigt den 3. Lauf wieder.
-    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+    wechsleRegelwerk(store, 'dm-2026')
     await wrapper.vm.$nextTick()
     expect(hinweis().exists()).toBe(false)
     expect(Object.keys(store.state.value.eingaben)).toContain('manoevrieren/3')
@@ -228,6 +255,39 @@ describe('Veranstaltung', () => {
       expect(Object.keys(store.state.value.eingaben).length).toBeGreaterThan(0)
       expect(block(wieder).find('[data-hinweis="werte"]').text()).not.toBe('0 Werte erfasst.')
       wieder.unmount()
+    })
+
+    it('die Zahl je Klasse bleibt stehen – über den Wechsel der Ansicht und (im sessionStorage) über das Neuladen', async () => {
+      vergissAlles()
+      store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+      const wrapper = zeige()
+      const felder = () => block(wrapper).findAll('.class-count input')
+      expect(felder().map((f) => (f.element as HTMLInputElement).value)).toEqual(Array(6).fill('6'))
+      await felder()[0].setValue('11')
+      await felder()[5].setValue('10')
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      expect(store.state.value.starters).toHaveLength(11 + 4 * 6 + 10)
+      wrapper.unmount()
+      expect(JSON.parse(sessionStorage.getItem('alcatraz.merke.beispiel.anzahlen') ?? 'null')).toEqual({ E: 11, 5: 10 })
+      const wieder = zeige()
+      expect(block(wieder).findAll('.class-count input').map((f) => (f.element as HTMLInputElement).value)).toEqual(['11', '6', '6', '6', '6', '10'])
+      wieder.unmount()
+      vergissAlles()
+    })
+
+    it('unter UIM immer Nationen, nie Vereine – mit englischem Namen und dreistelligem Code (Entscheidung des Nutzers)', async () => {
+      store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'verein' })
+      const wrapper = zeige()
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      expect(store.state.value.originMode).toBe('land')
+      const starters = store.state.value.starters
+      expect(starters.length).toBeGreaterThan(0)
+      expect(starters.every((p) => p.verein === '' && LAENDER.includes(p.land ?? ''))).toBe(true)
+      // Englische Namen, die als Staat erkannt sind; das Kürzel ist der dreistellige Code.
+      for (const land of LAENDER) expect(herkunftAnzeige(land, 'land', 'kurz', {}).text, land).toMatch(/^[A-Z]{3}$/)
+      expect(herkunftAnzeige('Lithuania', 'land', 'kurz', {}).text).toBe('LTU')
+      wrapper.unmount()
     })
 
     it('ersetzt vorhandene Starter erst nach Rückfrage', async () => {

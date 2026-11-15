@@ -2,12 +2,14 @@
 import { computed } from 'vue'
 import { classColor } from '../domain/classes'
 import { t } from '../i18n'
+import { useEvent } from '../lib/event'
 import type { Starter } from '../types'
 
 const PREVIEW_LIMIT = 100
 const PREVIEW_EDGE = 50
 
 const props = defineProps<{ sequence: Starter[] }>()
+const { classBadge } = useEvent()
 
 // Bis 100 alles zeigen; darüber die ersten und die letzten 50 – der
 // unverzahnte Block am Ende ist besonders wichtig.
@@ -30,7 +32,7 @@ const hidden = computed(() => props.sequence.length - head.value.length - tail.v
         :style="{ background: classColor(p.klasse) }"
         :title="`#${i + 1} · ${p.startNr}`"
       >
-        {{ p.klasse }}
+        {{ classBadge(p.klasse) }}
       </span>
       <span v-if="truncated" class="fp-gap">{{ t('parcours.flowMore', { n: hidden }) }}</span>
       <span
@@ -40,7 +42,7 @@ const hidden = computed(() => props.sequence.length - head.value.length - tail.v
         :style="{ background: classColor(p.klasse) }"
         :title="`#${sequence.length - tail.length + i + 1} · ${p.startNr}`"
       >
-        {{ p.klasse }}
+        {{ classBadge(p.klasse) }}
       </span>
     </div>
   </template>

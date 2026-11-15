@@ -10,7 +10,7 @@ import { useListenSprache, wkrSpracheFuer } from './listensprache'
  * ein Wechsel des Regelwerks oder ein neuer eigener Aufbau wirkt von selbst überall, ohne
  * dass eine Ansicht etwas neu laden müsste.
  *
- * Die Sprache ist die des Regelwerks (lib/listensprache.ts): für Ergebnislisten, Laufzettel,
+ * Die Sprache ist die des Regelwerks (lib/listensprache.ts): für Wertungslisten, Laufzettel,
  * den Aushang der Codes und die Namen der Listen in den Einstellungen. Nur die
  * Wettkampfrichter-Bögen selbst haben ihre Sprache je Liste – siehe {@link useBogenKonfig}.
  *
@@ -20,7 +20,7 @@ import { useListenSprache, wkrSpracheFuer } from './listensprache'
  * eine andere Sprache haben; die Spalten sind in jeder dieselben.
  *
  * Die Bezeichnung der Bojen-Seiten gilt immer: Die Erfassung tippt vom Bogen ab und muss
- * dieselben Köpfe zeigen. Die Ergebnislisten nennen die Bojen unabhängig davon R und L
+ * dieselben Köpfe zeigen. Die Wertungslisten nennen die Bojen unabhängig davon R und L
  * (lib/ergebnis.ts).
  */
 export function useKonfig(optionen: { oberflaeche?: boolean } = {}): ComputedRef<Konfig> {

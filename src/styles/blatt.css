@@ -1,7 +1,7 @@
 /* ======================================================================
    Farben der Listen und Bögen („Blatt“)
    Alles, was gedruckt wird – Starter-, Gewichts-, Vorsteg-Listen, die Bögen der
-   Wettkampfrichter, später Ergebnislisten –, nimmt seine Farben ausschließlich
+   Wettkampfrichter, später Wertungslisten –, nimmt seine Farben ausschließlich
    aus den Variablen --blatt-*. So gibt es genau eine Stelle, an der sich
    Bildschirm und Papier unterscheiden:
 
@@ -26,7 +26,7 @@
   --blatt-kopf: #fff;
   /* Zwischenüberschrift einer Klasse auf einer gemeinsamen Liste */
   --blatt-zwischen: #e6e6e6;
-  /* Hervorgehobene Zelle der Ergebnislisten („disq.“): im Druck ein kräftigeres Grau */
+  /* Hervorgehobene Zelle der Wertungslisten („disq.“): im Druck ein kräftigeres Grau */
   --blatt-hervor: #bdbdbd;
   /* Kleingedrucktes (Bezeichnung unter der Linie, Bildnachweis) */
   --blatt-leise: #444;

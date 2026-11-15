@@ -128,6 +128,65 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     expect(bogenSeiten(uim, b.auftrag, b.optionen)[0]).toMatchObject({ klassenText: 'Class Dolphin', laufText: 'Attempt 1' })
   })
 
+  it('UIM, „Versuche direkt nacheinander“: je Liste EIN Bogen, jeder Starter mit 1. und 2. Versuch direkt nacheinander', () => {
+    const uim = configFor({ regelwerk: 'uim-2026', sprache: 'en' })
+    const basis = stand({ regelwerk: 'uim-2026', laufCount: 2, starters: starter(['1']), kennung: 'ABCD2345' })
+    // Aus (Vorgabe): je Versuch ein Bogen, wie bisher.
+    const aus = wkrBoegenZumStand(basis, uim).boegen
+    expect(aus.filter((b) => b.typeId === 'steg').map((b) => [b.lauf, b.versuche])).toEqual([
+      [1, undefined],
+      [2, undefined],
+    ])
+    expect(bogenSeiten(uim, aus[0].auftrag, aus[0].optionen)[0]).toMatchObject({ versuchForm: false, laufText: 'Attempt 1' })
+    // An: ein Bogen je Liste, alle im selben Stapel (Lauf 1) – auch die Knoten.
+    const an = wkrBoegenZumStand({ ...basis, versucheNacheinander: true }, uim).boegen
+    expect([...new Set(an.map((b) => b.lauf))]).toEqual([1])
+    expect(an.filter((b) => b.typeId === 'steg').map((b) => b.versuche)).toEqual([2])
+    expect(an.find((b) => b.typeId === 'knoten')?.versuche).toBeUndefined()
+    const steg = an.find((b) => b.typeId === 'steg')!
+    const seite = bogenSeiten(uim, steg.auftrag, { ...steg.optionen, leerzeilen: 0 })[0]
+    expect(seite).toMatchObject({ versuchForm: true, startForm: false, laufText: undefined })
+    // Jeder Starter zweimal direkt nacheinander; die Werte hängen an Starter und Versuch.
+    expect(seite.rows.map((r) => [r.nr, r.lauf, r.starter, r.key, r.blockEnde === true])).toEqual([
+      ['101', 1, 'id-1-1', 'id-1-1#1', false],
+      ['101', 2, 'id-1-1', 'id-1-1#2', true],
+      ['102', 1, 'id-1-2', 'id-1-2#1', false],
+      ['102', 2, 'id-1-2', 'id-1-2#2', true],
+      ['103', 1, 'id-1-3', 'id-1-3#1', false],
+      ['103', 2, 'id-1-3', 'id-1-3#2', true],
+    ])
+    // Die Knoten werden nur einmal abgenommen: eine Zeile je Starter, ohne Spalte „Versuch“.
+    const knoten = an.find((b) => b.typeId === 'knoten')!
+    expect(bogenSeiten(uim, knoten.auftrag, { ...knoten.optionen, leerzeilen: 0 })[0]).toMatchObject({ versuchForm: false })
+    expect(bogenSeiten(uim, knoten.auftrag, { ...knoten.optionen, leerzeilen: 0 })[0].rows).toHaveLength(3)
+    // Geteilt wird nach Startern: Die Versuche eines Starters bleiben auf einer Seite (Platz für 5 Zeilen = 2 Starter).
+    const geteilt = bogenSeiten(uim, steg.auftrag, { leerzeilen: 0, kapazitaet: 5 })
+    expect(geteilt.map((s) => s.rows.map((r) => `${r.nr}/${r.lauf}`))).toEqual([['101/1', '101/2', '102/1', '102/2'], ['103/1', '103/2']])
+    // Am Vorsteg kommt der Starter nur einmal vorbei: eine Zeile je Starter wie bei den Knoten,
+    // ohne Spalte „Versuch“ und ohne Lauf im Kopf – der Bogen gilt für beide Versuche.
+    const vorsteg = an.find((b) => b.typeId === 'vorsteg')!
+    expect([vorsteg.lauf, vorsteg.versuche, vorsteg.auftrag.versuche, vorsteg.auftrag.einmal]).toEqual([1, 2, 2, true])
+    expect(steg.auftrag.einmal).toBeUndefined()
+    const vs = bogenSeiten(uim, vorsteg.auftrag, { ...vorsteg.optionen, leerzeilen: 0 })[0]
+    expect(vs).toMatchObject({ versuchForm: false, laufText: undefined })
+    expect(vs.rows.map((r) => [r.nr, r.key, r.lauf])).toEqual([
+      ['101', 'id-1-1', undefined],
+      ['102', 'id-1-2', undefined],
+      ['103', 'id-1-3', undefined],
+    ])
+    // Ohne die Option hat auch der Vorsteg je Versuch seinen Bogen.
+    expect(aus.filter((b) => b.typeId === 'vorsteg').map((b) => [b.lauf, b.auftrag.einmal])).toEqual([
+      [1, undefined],
+      [2, undefined],
+    ])
+    // Der QR-Code nennt den Stapel (Lauf 1) – die Erfassung findet darüber den einen Bogen.
+    expect(steg.auftrag.qr).toMatch(/\.1\.STEG$/i)
+    expect(vorsteg.auftrag.qr).toMatch(/\.1\.VORSTEG$/i)
+    // Unter der DM gibt es die Option nicht: Der Schalter wirkt dort nicht.
+    const unterDm = wkrBoegenZumStand(stand({ laufCount: 2, starters: starter(['1']), versucheNacheinander: true }), dm).boegen
+    expect([...new Set(unterDm.map((b) => b.lauf))]).toEqual([1, 2])
+  })
+
   it('Auswahl: Parcours, Klasse, Lauf und Liste grenzen ein; nichts gewählt heißt alle', () => {
     const { boegen } = wkrBoegenZumStand(stand(), dm)
     expect(waehleBoegen(boegen, {})).toHaveLength(boegen.length)

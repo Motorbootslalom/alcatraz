@@ -45,6 +45,32 @@ describe('Dateien', () => {
     expect(ergaenzt.apply(filled()).beispielStarter).toBe(false)
   })
 
+  it('„Disziplin nicht werten“ gehört zu den Ergebnissen: in der Sicherung, nicht in der Vorlage; der Buchstabe der Dolphin-Nummern ist eine Einstellung', () => {
+    const stand: AppState = { ...filled(), nichtWerten: { parallel: ['1', '2'] }, dolphinPraefix: 'D' }
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', stand, AT)))
+    expect(sicherung.ok && sicherung.kind === 'sicherung' && [sicherung.state.nichtWerten, sicherung.state.dolphinPraefix]).toEqual([{ parallel: ['1', '2'] }, 'D'])
+    const datei = makeFile('vorlage', stand, AT)
+    expect(JSON.stringify(datei)).not.toContain('nichtWerten')
+    const vorlage = parseFile(JSON.stringify(datei))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    // Die hiesige Entscheidung bleibt; der Buchstabe kommt aus der Vorlage.
+    const hier: AppState = { ...filled(), nichtWerten: { manoever: ['3'] } }
+    const danach = vorlage.apply(hier)
+    expect([danach.nichtWerten, danach.dolphinPraefix]).toEqual([{ manoever: ['3'] }, 'D'])
+    // Unbrauchbares entfällt beim Laden, ohne abzustürzen.
+    const kaputt = parseFile(JSON.stringify({ app: 'alcatraz', version: 1, savedAt: AT, kind: 'sicherung', state: { ...stand, nichtWerten: { parallel: ['1', 'x', 9], quer: ['1'], manoever: 'alle' }, dolphinPraefix: 'Q' } }))
+    expect(kaputt.ok && kaputt.kind === 'sicherung' && [kaputt.state.nichtWerten, kaputt.state.dolphinPraefix]).toEqual([{ parallel: ['1'] }, 'E'])
+  })
+
+  it('sind Ergebnisse erfasst, wechselt auch eine Vorlage das Regelwerk nicht', () => {
+    const datei = JSON.stringify(makeFile('vorlage', { ...filled(), regelwerk: 'dm-2026' }, AT))
+    const vorlage = parseFile(datei)
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    const mitWerten: AppState = { ...filled(), eingaben: { 'manoevrieren/1': { st_1: { zeit1: '80' } } } }
+    expect(vorlage.apply(mitWerten).regelwerk).toBe('uim-2026')
+    expect(vorlage.apply(filled()).regelwerk).toBe('dm-2026')
+  })
+
   it('Besetzung: Co-Piloten sind Personennamen – in der Sicherung, nie in der Vorlage; die Boote reisen mit', () => {
     const besetzt: AppState = { ...filled(), boote: { '1': 'Boot 2, 9,9 PS' }, coPiloten: { '1': 'Erika Beispiel' } }
     const sicherung = parseFile(JSON.stringify(makeFile('sicherung', besetzt, AT)))

@@ -8,9 +8,16 @@ import HerkunftText from './HerkunftText.vue'
 import { useEvent } from '../lib/event'
 import { verlustText } from '../lib/eingabenVerlust'
 import { starterfeldFest } from '../lib/eingaben'
+import { abmeldeAttempts, abmeldePlan, abmeldeZellen } from '../lib/abmeldung'
+import { zerlegeAttempt } from '../lib/parallelSchluessel'
+import { rundenName } from '../planung/parallelRunden'
+import { useKonfig } from '../lib/konfig'
+import { zerlegeLauf } from '../lib/eingaben'
 import { formatDate, locale, t, tn } from '../i18n'
 import ManualAddForm from './ManualAddForm.vue'
+import AppDialog from './AppDialog.vue'
 import type { ClassId, Starter } from '../types'
+import { GESCHLECHTER, istGeschlecht } from '../domain/geschlecht'
 
 const props = defineProps<{
   classId: ClassId
@@ -27,7 +34,7 @@ const props = defineProps<{
 const emit = defineEmits<{ toggle: [] }>()
 
 const { state, dispatch } = useStore()
-const { classLabel } = useEvent()
+const { classLabel, classBadge, parallel } = useEvent()
 const def = computed(() => getClass(props.classId))
 const flagge = (p: Starter) => flaggeAllein(originOf(p, state.value.originMode), state.value.originMode)
 const showAdd = ref(false)
@@ -96,8 +103,35 @@ function toggleEdit() {
   if (edit.value && !props.open) emit('toggle')
 }
 
+/** Ein abgewiesenes Geburtsdatum (Jahrgang passt nicht zur Klasse) – bis zur nächsten Änderung. */
+const jahrFehler = ref('')
+
+// Die Klasse steht hier nicht zur Wahl: Ein Starter gehört in die Klasse seines Jahrgangs. Der
+// Reducer lehnt einen Klassenwechsel außerdem ab, sobald Verzahnung bzw. Startplan
+// festgeschrieben sind (state/reducer.ts `klasseFest`).
 function update(id: string, field: keyof Omit<Starter, 'id' | 'klasse'>, e: Event) {
-  dispatch({ type: 'UPDATE_STARTER', id, patch: { [field]: (e.target as HTMLInputElement).value } })
+  const feld = e.target as HTMLInputElement
+  jahrFehler.value = ''
+  // Ein Geburtsjahr, das nicht in die Klasse gehört, wird abgewiesen – wie beim Einfügen aus
+  // Excel und beim Hinzufügen von Hand: Das Feld zeigt wieder, was galt.
+  if (field === 'geburtsdatum' && feld.value) {
+    const jahr = parseInt(feld.value.slice(0, 4), 10)
+    const [from, to] = birthYearRange(props.classId, state.value.eventJahr)
+    if (Number.isNaN(jahr) || jahr < from || jahr > to) {
+      jahrFehler.value = t('starters.birthOutOfRange', { year: Number.isNaN(jahr) ? feld.value : jahr, class: classLabel(props.classId), from, to })
+      feld.value = props.starters.find((p) => p.id === id)?.geburtsdatum ?? ''
+      return
+    }
+  }
+  dispatch({ type: 'UPDATE_STARTER', id, patch: { [field]: feld.value } })
+}
+
+// Geschlecht, freiwillig: Die Spalte steht nur da, wo sie gebraucht wird – unter einem Regelwerk
+// mit der Liste je Team nach Regel 960, Pkt. 3.7 („Sex“), oder wenn schon jemand eines trägt.
+const mitGeschlecht = computed(() => parallel.value || state.value.starters.some((p) => p.geschlecht !== undefined))
+function setzeGeschlecht(id: string, e: Event) {
+  const wert = (e.target as HTMLSelectElement).value
+  dispatch({ type: 'UPDATE_STARTER', id, patch: { geschlecht: istGeschlecht(wert) ? wert : undefined } })
 }
 
 // Sobald Ergebnisse erfasst sind, steht das Starterfeld fest: Hinzufügen, Entfernen und
@@ -108,11 +142,44 @@ watch(fest, (f) => {
   if (f) showAdd.value = false
 })
 
-/** Ein Klick genügt: Sind schon Werte erfasst, ist das Entfernen ohnehin gesperrt. */
+/**
+ * Vor dem ersten Ergebnis genügt ein Klick. Danach lässt sich ein Starter nicht mehr entfernen
+ * (die gedruckten Wettkampfrichter-Listen enthalten seine Zeile) – das × sagt dann, warum, und
+ * bietet an, ihn in jedem Lauf als „nicht gestartet“ einzutragen (lib/abmeldung.ts). Wer so
+ * abgemeldet ist, hat statt des × den Weg zurück.
+ */
+const konfig = useKonfig({ oberflaeche: true })
+const abgemeldet = computed(() => new Set(state.value.abgemeldet))
+const frage = ref<{ starter: Starter; art: 'abmelden' | 'anmelden' } | null>(null)
+const frageWer = computed(() => {
+  const p = frage.value?.starter
+  return p ? [p.startNr, [p.vorname, p.nachname].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : ''
+})
+const plan = computed(() => (frage.value ? abmeldePlan(state.value, konfig.value, frage.value.starter) : null))
+/** Die Läufe, aus denen das Zurücknehmen das X entfernt – die des Manövrierens; die Runden des Parallelslaloms stehen daneben. */
+const zurueck = computed(() => (frage.value ? abmeldeZellen(state.value.eingaben, konfig.value, frage.value.starter) : []))
+const zurueckLaeufe = computed(() => zurueck.value.filter((z) => !zerlegeAttempt(z.lauf)).map((z) => zerlegeLauf(z.lauf).lauf).sort((a, b) => a - b))
+const rundenText = (runden: readonly string[]) => [...new Set(runden)].map((r) => rundenName(r as Parameters<typeof rundenName>[0], t)).join(', ')
+const zurueckRunden = computed(() => rundenText(zurueck.value.flatMap((z) => zerlegeAttempt(z.lauf)?.runde ?? [])))
+/** Parallelslalom: die Runden, in denen das Abmelden das X in leere Attempts setzt (lib/abmeldung.ts). */
+const planRunden = computed(() => (frage.value ? rundenText(abmeldeAttempts(state.value, konfig.value, frage.value.starter).map((a) => a.runde)) : ''))
+const liste = (laeufe: readonly number[]) => laeufe.join(', ')
+
 function remove(p: Starter) {
-  if (fest.value) return
-  dispatch({ type: 'REMOVE_STARTER', id: p.id })
+  if (!fest.value) dispatch({ type: 'REMOVE_STARTER', id: p.id })
+  else frage.value = { starter: p, art: abgemeldet.value.has(p.id) ? 'anmelden' : 'abmelden' }
 }
+
+function bestaetige() {
+  const f = frage.value
+  if (!f) return
+  dispatch({ type: f.art === 'abmelden' ? 'ABMELDEN_STARTER' : 'ANMELDEN_STARTER', id: f.starter.id })
+  frage.value = null
+}
+// Lösen sich die Voraussetzungen unter dem Dialog auf (anderes Fenster, Werte gelöscht), geht er zu.
+watch([fest, () => props.starters], () => {
+  if (frage.value && (!fest.value || !props.starters.some((p) => p.id === frage.value!.starter.id))) frage.value = null
+})
 
 function clearAll() {
   if (fest.value) return
@@ -139,7 +206,7 @@ const MOVES = [
   <section class="class-section">
     <div class="class-header">
       <button class="class-toggle-btn" :aria-expanded="open" @click="emit('toggle')">
-        <span class="class-badge" :style="{ background: def.color }">{{ classId }}</span>
+        <span class="class-badge" :style="{ background: def.color }">{{ classBadge(classId) }}</span>
         <span class="title">{{ classLabel(classId) }}</span>
         <span class="count">{{ classLine }}</span>
         <span v-if="ohneDatum > 0" class="missing-badge" data-hinweis="ohne-datum">{{ tn('starters.birthdateMissingCount', ohneDatum) }}</span>
@@ -192,6 +259,7 @@ const MOVES = [
     />
 
     <p v-if="edit && hasDuplicates" class="boat-banner warn" role="alert">{{ t('starters.duplicateBlock') }}</p>
+    <p v-if="jahrFehler" class="boat-banner warn" role="alert" data-hinweis="jahrgang-falsch">{{ jahrFehler }}</p>
 
     <template v-if="open">
       <div v-if="starters.length === 0" class="empty">{{ t('starters.empty') }}</div>
@@ -222,12 +290,18 @@ const MOVES = [
             <th>{{ t('common.firstName') }}</th>
             <th v-if="state.originMode !== 'none'">{{ t(originLabelKey(state.originMode)) }}</th>
             <th style="width: 64px">{{ t('common.size') }}</th>
+            <th v-if="mitGeschlecht" style="width: 64px" data-spalte="geschlecht">{{ t('starters.sex') }}</th>
             <th style="width: 130px">{{ t('common.birthdate') }}</th>
             <th style="width: 40px" />
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(p, i) in shown" :key="p.id" :class="pokalAuswahl && p.pokal === false ? 'cup-zaehlt-nicht' : undefined">
+          <tr
+            v-for="(p, i) in shown"
+            :key="p.id"
+            :class="{ 'cup-zaehlt-nicht': pokalAuswahl && p.pokal === false, 'starter-abgemeldet': abgemeldet.has(p.id) }"
+            :data-abgemeldet="abgemeldet.has(p.id) ? '' : undefined"
+          >
             <td v-if="pokalAuswahl" class="cup-spalte">
               <input
                 type="checkbox"
@@ -292,6 +366,13 @@ const MOVES = [
                   <option v-for="s in SIZES" :key="s" :value="s">{{ s }}</option>
                 </select>
               </td>
+              <td v-if="mitGeschlecht">
+                <!-- Freiwillig (Regel 960, Pkt. 3.7 „Sex“): M, F, D, nA (keine Angabe); leer = nicht erfasst. -->
+                <select class="size-select" data-feld="geschlecht" :value="p.geschlecht ?? ''" :aria-label="t('starters.sex')" :title="t('starters.sexHint')" @change="setzeGeschlecht(p.id, $event)">
+                  <option value="">–</option>
+                  <option v-for="g in GESCHLECHTER" :key="g" :value="g" :title="t(`starters.sex.${g}`)">{{ g }}</option>
+                </select>
+              </td>
               <td>
                 <input
                   :class="['cell-input', p.geburtsdatum ? '' : 'missing']"
@@ -306,18 +387,34 @@ const MOVES = [
               <td :class="['num', duplicates.has(p.id) ? 'dup' : '']" :title="duplicates.has(p.id) ? t('starters.duplicate') : undefined">
                 {{ p.startNr || '–' }}
               </td>
-              <td>{{ p.nachname }}</td>
+              <td>
+                {{ p.nachname }}
+                <span v-if="abgemeldet.has(p.id)" class="abgemeldet-marke">{{ t('starters.withdraw.mark') }}</span>
+              </td>
               <td>{{ p.vorname }}</td>
-              <td v-if="state.originMode !== 'none'"><HerkunftText :anzeige="herkunftAnzeige(originOf(p, state.originMode), state.originMode, 'flagge-lang', {}, locale)" /></td>
+              <td v-if="state.originMode !== 'none'"><HerkunftText :anzeige="herkunftAnzeige(originOf(p, state.originMode), state.originMode, 'flagge-lang', {}, locale, true)" /></td>
               <td>{{ p.groesse || '–' }}</td>
+              <td v-if="mitGeschlecht" data-spalte="geschlecht">{{ p.geschlecht ?? '–' }}</td>
               <td :class="p.geburtsdatum ? '' : 'cell-missing'">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}</td>
             </template>
             <td>
               <button
+                v-if="fest && abgemeldet.has(p.id)"
+                class="del zurueck"
+                data-action="starter-anmelden"
+                :title="t('starters.reinstate.confirm')"
+                :aria-label="t('starters.reinstate.confirm')"
+                @click="remove(p)"
+              >
+                ↺
+              </button>
+              <button
+                v-else
                 class="del"
-                :disabled="fest"
-                :title="fest ? t('lock.short') : t('common.remove')"
+                data-action="starter-entfernen"
+                :title="fest ? t('starters.withdraw.title') : t('common.remove')"
                 :aria-label="t('common.remove')"
+                :aria-haspopup="fest ? 'dialog' : undefined"
                 @click="remove(p)"
               >
                 ×
@@ -328,5 +425,40 @@ const MOVES = [
       </table>
       </div>
     </template>
+
+    <AppDialog v-if="frage && plan && frage.art === 'abmelden'" :titel="t('starters.withdraw.heading', { who: frageWer })" data-dialog="abmelden" @abbrechen="frage = null">
+      <p>{{ t('starters.withdraw.why') }}</p>
+      <template v-if="plan.ziel">
+        <p>
+          {{ tn('starters.withdraw.offer', state.laufCount, { column: plan.ziel.label, list: konfig.getSheetDef(plan.ziel.liste).title, dns: t('results.dns') }) }}
+        </p>
+        <ul class="app-dialog-liste">
+          <li v-if="plan.frei.length > 0" data-plan="frei">{{ tn('starters.withdraw.free', plan.frei.length, { runs: liste(plan.frei) }) }}</li>
+          <li v-if="plan.schonX.length > 0" data-plan="schon">{{ tn('starters.withdraw.already', plan.schonX.length, { runs: liste(plan.schonX) }) }}</li>
+          <li v-if="planRunden" data-plan="parallel">{{ t('starters.withdraw.parallel', { rounds: planRunden }) }}</li>
+          <li v-if="plan.belegt.length > 0" data-plan="belegt">
+            <strong>{{ tn('starters.withdraw.kept', plan.belegt.length, { runs: liste(plan.belegt) }) }}</strong>
+            {{ t('starters.withdraw.keptNote') }}
+          </li>
+        </ul>
+        <p class="note">{{ t('starters.withdraw.undo') }}</p>
+      </template>
+      <p v-else class="boat-banner warn">{{ t('starters.withdraw.none') }}</p>
+      <template #knoepfe>
+        <button v-if="plan.ziel" type="button" class="btn primary" data-action="abmelden-bestaetigen" autofocus @click="bestaetige">{{ t('starters.withdraw.confirm') }}</button>
+        <button type="button" class="btn" data-action="dialog-abbrechen" @click="frage = null">{{ t('common.cancel') }}</button>
+      </template>
+    </AppDialog>
+
+    <AppDialog v-if="frage && frage.art === 'anmelden'" :titel="t('starters.reinstate.heading', { who: frageWer })" data-dialog="anmelden" @abbrechen="frage = null">
+      <p v-if="zurueckLaeufe.length > 0">{{ tn('starters.reinstate.text', zurueckLaeufe.length, { runs: liste(zurueckLaeufe), dns: t('results.dns') }) }}</p>
+      <p v-else-if="!zurueckRunden">{{ t('starters.reinstate.nothing', { dns: t('results.dns') }) }}</p>
+      <p v-if="zurueckRunden" data-plan="parallel">{{ t('starters.reinstate.parallel', { rounds: zurueckRunden }) }}</p>
+      <p class="note">{{ t('starters.reinstate.note') }}</p>
+      <template #knoepfe>
+        <button type="button" class="btn primary" data-action="anmelden-bestaetigen" autofocus @click="bestaetige">{{ t('starters.reinstate.confirm') }}</button>
+        <button type="button" class="btn" data-action="dialog-abbrechen" @click="frage = null">{{ t('common.cancel') }}</button>
+      </template>
+    </AppDialog>
   </section>
 </template>

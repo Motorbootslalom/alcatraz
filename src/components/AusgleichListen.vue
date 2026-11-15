@@ -23,7 +23,7 @@ import ListenDokument from './ListenDokument.vue'
 defineProps<{ listen: AusgleichListe[] }>()
 
 const { state } = useStore()
-const { regelwerk } = useEvent()
+const { regelwerk, classCell } = useEvent()
 const { t: lt, listenLocale } = useListenSprache()
 
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
@@ -68,7 +68,7 @@ const laengster = (texte: string[]) => texte.reduce((a, b) => (b.length > a.leng
               <td :class="fit(laengster(l.zeilen.map((z) => z.starter.nachname)), 18)">{{ laengster(l.zeilen.map((z) => z.starter.nachname)) }}</td>
               <td :class="fit(laengster(l.zeilen.map((z) => z.starter.vorname)), 18)">{{ laengster(l.zeilen.map((z) => z.starter.vorname)) }}</td>
               <td class="weight" />
-              <td class="narrow">{{ l.klasse }}</td>
+              <td class="narrow">{{ classCell(l.klasse) }}</td>
               <td v-for="r in runs" :key="r" class="check" />
             </tr>
           </thead>
@@ -81,7 +81,7 @@ const laengster = (texte: string[]) => texte.reduce((a, b) => (b.length > a.leng
               <!-- Leer heißt „kein Ausgleichsgewicht nötig“ – wer nicht gewogen ist, steht deshalb ausdrücklich da. -->
               <td v-if="z.ausgleich === undefined" class="weight ungewogen">{{ lt('lists.notWeighed') }}</td>
               <td v-else class="weight ausgleich-kg">{{ z.ausgleich === null ? '' : `${z.ausgleich} kg` }}</td>
-              <td class="narrow">{{ z.starter.klasse }}</td>
+              <td class="narrow">{{ classCell(z.starter.klasse) }}</td>
               <td v-for="r in runs" :key="r" class="check" />
             </tr>
           </tbody>

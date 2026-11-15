@@ -68,23 +68,25 @@ describe('Herkünfte des Starterfelds', () => {
 })
 
 describe('Nach Startnummer', () => {
-  const nummern = (liste: Starter[]) => nachStartnummer(liste).map((p) => p.startNr)
+  const nummern = (liste: Starter[], mode: 'klasse' | 'klassisch') => nachStartnummer(liste, mode).map((p) => p.startNr)
 
-  it('Klasse E zuerst: E01 kommt vor 101', () => {
-    expect(nummern([starter('101', '1'), starter('E01', 'E'), starter('703', '7'), starter('E10', 'E'), starter('E02', 'E'), starter('201', '2')])).toEqual(['E01', 'E02', 'E10', '101', '201', '703'])
+  it('klassenbezogene Nummern: E01 kommt vor 101 – die Klasse E steht nicht hinter Klasse 7', () => {
+    expect(nummern([starter('101', '1'), starter('E01', 'E'), starter('703', '7'), starter('E10', 'E'), starter('E02', 'E'), starter('201', '2')], 'klasse')).toEqual(['E01', 'E02', 'E10', '101', '201', '703'])
   })
 
-  it('natürlich sortiert, auch fortlaufende Nummern; ohne Nummer zuletzt', () => {
-    expect(nummern([starter('12', '3'), starter('', '1'), starter('7', '1'), starter('100', '5'), starter('9', '2')])).toEqual(['7', '9', '12', '100', ''])
+  it('klassische Nummern: allein die Nummer zählt, gleich welche Klasse', () => {
+    expect(nachStartnummer([starter('3', '1'), starter('12', 'E'), starter('5', '4'), starter('7', '2'), starter('2', 'E'), starter('1', '7')], 'klassisch').map((p) => `${p.klasse}:${p.startNr}`)).toEqual(['7:1', 'E:2', '1:3', '4:5', '2:7', 'E:12'])
   })
 
-  it('Klasse E steht auch mit reinen Zahlen als Startnummer vorn', () => {
-    expect(nachStartnummer([starter('3', '1'), starter('12', 'E'), starter('5', '4'), starter('M7', '2'), starter('2', 'E'), starter('', 'E')]).map((p) => `${p.klasse}:${p.startNr}`)).toEqual(['E:2', 'E:12', 'E:', '2:M7', '1:3', '4:5'])
+  it('natürlich sortiert; ohne Nummer zuletzt', () => {
+    expect(nummern([starter('12', '3'), starter('', '1'), starter('7', '1'), starter('100', '5'), starter('9', '2')], 'klassisch')).toEqual(['7', '9', '12', '100', ''])
+    // Klassenbezogen: ohne Nummer am Ende der eigenen Klasse.
+    expect(nachStartnummer([starter('', 'E'), starter('102', '1'), starter('E02', 'E'), starter('', '1'), starter('101', '1')], 'klasse').map((p) => `${p.klasse}:${p.startNr}`)).toEqual(['E:E02', 'E:', '1:101', '1:102', '1:'])
   })
 
   it('ändert die übergebene Liste nicht', () => {
     const liste = [starter('201', '2'), starter('E01', 'E')]
-    nachStartnummer(liste)
+    nachStartnummer(liste, 'klasse')
     expect(liste.map((p) => p.startNr)).toEqual(['201', 'E01'])
   })
 })

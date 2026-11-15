@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { classColor, parallelClassBadge, parallelClassLabel } from '../domain/classes'
+import { classColor } from '../domain/classes'
+import { useEvent } from '../lib/event'
 import { t } from '../i18n'
 import type { ParallelSlot } from '../planung/parallel'
 
 /** Ein Startplatz (Starter oder Dummy): farbiges Kürzel, Startnummer, Name. */
-defineProps<{ item: ParallelSlot; international: boolean }>()
+defineProps<{ item: ParallelSlot }>()
+// Name und Kurzzeichen der Klasse kommen aus dem Regelwerk (UIM: „Dolphin“, „D“).
+const { classLabel, classBadge } = useEvent()
 </script>
 
 <template>
@@ -19,9 +22,9 @@ defineProps<{ item: ParallelSlot; international: boolean }>()
     <span
       class="class-badge"
       :style="{ background: classColor(item.p.klasse) }"
-      :title="parallelClassLabel(item.p.klasse, international)"
+      :title="classLabel(item.p.klasse)"
     >
-      {{ parallelClassBadge(item.p.klasse, international) }}
+      {{ classBadge(item.p.klasse) }}
     </span>
     <span class="slot-main">
       <span class="slot-nr num">{{ item.p.startNr || '–' }}</span>

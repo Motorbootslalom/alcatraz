@@ -87,10 +87,14 @@ uebersetzungen:
       "Sp. 2": "Sp. 2"
       "Fehler": "Penalty"
       "Tor 5 Fehler": "Gate 5 penalty"
-      "Fehler AB": "Penalty AB"
-      "Fehler AN": "Penalty AN"
-      "F-Pkt. AB": "Pen. AB"
-      "F-Pkt. AN": "Pen. AN"
+      # AB und AN sind deutsche Kürzel (Ablegen, Anlegen). Englisch nach Regel 960: Pkt. 4.1 „right
+      # from the moment of leaving the starting pontoon“ und Pkt. 4.1.1 „Mooring: After passing the
+      # finishing line a boat must approach the mooring pontoon and land smoothly …“. Die Spalte
+      # „Fehler“ nimmt die Codes der Legende auf, „F-Pkt.“ deren Strafsekunden (Pkt. 5.3 „Penalties“).
+      "Fehler AB": "Leaving: codes"
+      "Fehler AN": "Mooring: codes"
+      "F-Pkt. AB": "Leaving: pen."
+      "F-Pkt. AN": "Mooring: pen."
       "Fehlerpunkte": "Penalties"
       "Bemerkung": "Remarks"
       "Disq.": "Disq."

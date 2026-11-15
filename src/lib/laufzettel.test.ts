@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { configFor } from '../config/konfig'
 import { emptyState } from '../state/reducer'
 import { bogenSeiten } from './bogen'
-import { buildLaufzettel, listenZeilen, messBoegen, messKennung, stapelBoegen, waehleLaufzettel } from './laufzettel'
+import { buildLaufzettel, listenZeilen, messBoegen, messKennung, stapelBoegen, waehleLaufzettel, zettelSchritte } from './laufzettel'
 import { wkrBoegenZumStand, type WkrBogen } from './wkrListen'
 import type { AppState, ClassId, Starter } from '../types'
 import { veranstaltungsListen } from './listen'
@@ -216,5 +216,34 @@ describe('Blattstapel eines Laufzettels (Erfassung: alle Listen untereinander)',
     const eine = boegen.find((b) => b.parcoursId === 'par_2')!.klassen[0]
     expect(stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId: 'par_1', klasse: eine, lauf: 1 })).toEqual([])
     expect(stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId: 'par_2', klasse: eine, lauf: 9 })).toEqual([])
+  })
+})
+
+describe('Arbeitsschritte: Versuche direkt nacheinander (UIM 960, Pkt. 4.3.2)', () => {
+  const texte = (regelwerk: string, letzterLauf: boolean, nacheinander: boolean) =>
+    zettelSchritte(configFor({ regelwerk }).getLaufzettelConfig(), { letzterLauf }, nacheinander).map((s) => s.text)
+
+  it('der Zettel vor dem letzten Versuch verliert die Schritte für Aushang und Verschicken', () => {
+    expect(texte('uim-2026', false, false).slice(-3)).toEqual(['Unterschrieben', 'Ausgehangen', 'An die ML geschickt'])
+    const ohne = texte('uim-2026', false, true)
+    expect(ohne).not.toContain('Ausgehangen')
+    expect(ohne).not.toContain('An die ML geschickt')
+    expect(ohne).toEqual(texte('uim-2026', false, false).slice(0, -2))
+  })
+
+  it('der Zettel des letzten Versuchs bleibt: Dort wird ausgehängt – mit Unterschrift des O.O.D. und Uhrzeit', () => {
+    expect(texte('uim-2026', true, true)).toEqual(texte('uim-2026', true, false))
+    expect(texte('uim-2026', true, true).some((s) => s.includes('O.O.D.'))).toBe(true)
+  })
+
+  it('ohne den Schalter bleibt alles, wie es ist – die Zettel der DM ändern sich nicht', () => {
+    expect(texte('dm-2026', false, false)).toEqual([
+      'Wertungsliste sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)',
+      'Wertungsliste sortiert nach Platz',
+      'Kontrolliert',
+      'Unterschrieben',
+      'Ausgehangen',
+      'An die ML geschickt',
+    ])
   })
 })

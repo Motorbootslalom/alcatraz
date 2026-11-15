@@ -1,5 +1,6 @@
 import type { ClassId, Parcours, Starter, TrackItem } from '../types'
 import { CLASS_IDS } from '../domain/classes'
+import { vergleicheStartNr } from '../domain/startnumbers'
 
 const classOrderIndex = (id: ClassId) => CLASS_IDS.indexOf(id)
 
@@ -24,7 +25,7 @@ export function startersByClass(starters: Starter[]): Map<ClassId, Starter[]> {
     m.set(p.klasse, list)
   }
   for (const list of m.values()) {
-    list.sort((a, b) => a.startNr.localeCompare(b.startNr, 'de', { numeric: true }))
+    list.sort((a, b) => vergleicheStartNr(a.startNr, b.startNr))
   }
   return m
 }

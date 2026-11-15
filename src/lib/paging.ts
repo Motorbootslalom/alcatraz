@@ -185,3 +185,117 @@ export function blockSeiten(laengen: readonly number[], kapazitaet: number, leer
   })
   return seiten
 }
+
+/**
+ * Unteilbare Gruppen auf Seiten verteilen – für Listen, deren Zeilen in Blöcken
+ * zusammengehören (Parallelslalom: ein Block der Startreihenfolge, lib/parallelBogen.ts).
+ * `laengen` = Zeilen je Gruppe, `kapazitaet` = Tabellenzeilen je Seite, 0 = unbekannt → alles
+ * auf eine Seite. Liefert je Seite die Nummern ihrer Gruppen, immer mindestens eine (ggf.
+ * leere) Seite.
+ *
+ * - Eine Seite endet **nur am Ende einer Gruppe**: Keine Gruppe wird geteilt. Eine Gruppe, die
+ *   allein nicht auf eine Seite passt, steht für sich auf einer – die Ansicht meldet dann, dass
+ *   das Blatt überläuft, statt die Gruppe zu zerreißen.
+ * - So wenige Seiten wie möglich (Entscheidung des Nutzers vom 15.11.2026): so viele, wie es
+ *   braucht, wenn jede Seite der Reihe nach so voll wie möglich gefüllt wird.
+ * - Seiten ausgleichen (Entscheidung des Nutzers vom 15.11.2026, abends): Auf diese Zahl von
+ *   Seiten werden die Gruppen gleichmäßig verteilt – statt 32 + 34 + 4 Starts also 24 + 24 + 22.
+ *   Erst wird die kleinste Obergrenze je Seite gesucht, mit der es bei dieser Seitenzahl bleibt.
+ *   Dann werden die Gruppen so auf die Seiten gelegt, dass die kürzeste Seite so lang wie möglich
+ *   ist ({@link gruppenVerteilen}): 40 Starts in Blöcken zu 4 auf vier Seiten zu höchstens 12
+ *   also 12 + 12 + 8 + 8, nicht 12 + 12 + 12 + 4. Der Reihe nach bis zur Obergrenze zu füllen,
+ *   ließe den ganzen Rest auf dem letzten Blatt. Keine Seite trägt mehr als `kapazitaet`.
+ *
+ * Anders als {@link blockSeiten} kostet eine Gruppe keine Zwischenüberschrift, und es gibt
+ * keine Leerzeilen.
+ */
+export function gruppenSeiten(laengen: readonly number[], kapazitaet: number): number[][] {
+  const alle = laengen.map((_, i) => i)
+  if (kapazitaet <= 0 || alle.length === 0) return [alle]
+  const seiten = gruppenFuellen(laengen, kapazitaet)
+  if (seiten.length < 2) return seiten
+  // Die kleinste Obergrenze, mit der es bei so vielen Seiten bleibt. Weniger als die größte
+  // Gruppe geht nicht (sie stünde sonst allein und zählte doppelt), weniger als der Schnitt auch nicht.
+  const summe = laengen.reduce((a, b) => a + b, 0)
+  let unten = Math.max(Math.ceil(summe / seiten.length), ...laengen.filter((n) => n <= kapazitaet))
+  let oben = kapazitaet
+  while (unten < oben) {
+    const mitte = Math.floor((unten + oben) / 2)
+    if (gruppenFuellen(laengen, mitte).length <= seiten.length) oben = mitte
+    else unten = mitte + 1
+  }
+  return gruppenVerteilen(laengen, seiten.length, oben) ?? gruppenFuellen(laengen, oben)
+}
+
+/**
+ * Die Gruppen der Reihe nach auf genau `seitenzahl` Seiten mit höchstens `grenze` Zeilen (eine
+ * zu große Gruppe steht für sich), so dass die kürzeste Seite so lang wie möglich ist. Unter
+ * gleich guten Verteilungen gilt die mit den volleren vorderen Seiten (28 + 24 + 24 + 24, nicht
+ * 24 + 24 + 24 + 28): Der Rest steht hinten wie bisher, nur eben nicht mehr allein.
+ * `undefined`, wenn es so nicht geht.
+ *
+ * Gerechnet wird über die Grenzen zwischen den Gruppen von hinten nach vorn: Für jede Gruppe und
+ * jede Zahl übriger Seiten die längste kürzeste Seite, die ab dort erreichbar ist. Eine Liste
+ * hat höchstens einige Dutzend Blöcke, das ist schnell.
+ */
+function gruppenVerteilen(laengen: readonly number[], seitenzahl: number, grenze: number): number[][] | undefined {
+  const n = laengen.length
+  const bis = [0]
+  for (const l of laengen) bis.push(bis[bis.length - 1] + l)
+  const zeilen = (von: number, ende: number) => bis[ende] - bis[von]
+  const passt = (von: number, ende: number) => ende - von === 1 || zeilen(von, ende) <= grenze
+  // beste[r][i]: die längste kürzeste Seite, wenn die Gruppen ab i auf genau r Seiten stehen; -1 = geht nicht.
+  const beste = Array.from({ length: seitenzahl + 1 }, () => new Array<number>(n + 1).fill(-1))
+  beste[0][n] = Infinity
+  for (let r = 1; r <= seitenzahl; r++) {
+    for (let i = n - 1; i >= 0; i--) {
+      for (let ende = i + 1; ende <= n && passt(i, ende); ende++) {
+        if (beste[r - 1][ende] >= 0) beste[r][i] = Math.max(beste[r][i], Math.min(zeilen(i, ende), beste[r - 1][ende]))
+      }
+    }
+  }
+  const ziel = beste[seitenzahl][0]
+  if (ziel < 0) return undefined
+  // Von vorn: jede Seite so voll wie möglich, solange die übrigen das Ziel noch erreichen.
+  const seiten: number[][] = []
+  let i = 0
+  for (let r = seitenzahl; r > 0; r--) {
+    let ende = i + 1
+    for (let weiter = i + 1; weiter <= n && passt(i, weiter); weiter++) {
+      if (zeilen(i, weiter) >= ziel && beste[r - 1][weiter] >= ziel) ende = weiter
+    }
+    seiten.push(Array.from({ length: ende - i }, (_, k) => i + k))
+    i = ende
+  }
+  return seiten
+}
+
+/** Die Gruppen der Reihe nach auf Seiten mit höchstens `grenze` Zeilen; eine zu große Gruppe steht für sich. */
+function gruppenFuellen(laengen: readonly number[], grenze: number): number[][] {
+  const seiten: number[][] = [[]]
+  let belegt = 0
+  laengen.forEach((n, gruppe) => {
+    if (belegt > 0 && belegt + n > grenze) {
+      seiten.push([])
+      belegt = 0
+    }
+    seiten[seiten.length - 1].push(gruppe)
+    belegt += n
+  })
+  return seiten
+}
+
+/**
+ * Wie viele Zeilen eine Seite einer Liste aus unteilbaren Gruppen höchstens trägt
+ * ({@link gruppenSeiten}): das, was gemessen auf ein Blatt passt (`gemessen`, 0 = unbekannt) –
+ * und, wenn „Zeilen je Seite“ fest gewählt ist (`zeilenJeSeite` > 0), höchstens so viele. Wie
+ * bei den Bögen einer Klasse ({@link pageChunks}) gilt die feste Zahl erst für Listen mit mehr
+ * Zeilen als das und mit mindestens `teilenAb` Zeilen. Die Zahl ist eine Obergrenze: Weil eine
+ * Seite nur am Ende einer Gruppe endet, stehen dort so viele Zeilen, wie ganze Gruppen
+ * hineinpassen. 0 = unbekannt und nichts gewählt → eine Seite.
+ */
+export function gruppenKapazitaet(zeilen: number, gemessen: number, zeilenJeSeite = 0, teilenAb = 0): number {
+  const fest = zeilenJeSeite > 0 && zeilen > zeilenJeSeite && zeilen >= teilenAb ? zeilenJeSeite : 0
+  if (fest <= 0) return Math.max(0, gemessen)
+  return gemessen > 0 ? Math.min(fest, gemessen) : fest
+}

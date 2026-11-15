@@ -77,15 +77,23 @@ ueberwachung: fahrweg
 # ---- Laufzettel (je Klasse/Lauf) ----------------------------------
 # Unter den Checkboxen je gedruckter Seite folgen diese Arbeitsschritte der
 # Auswertung, jeweils mit eigener Checkbox (Reihenfolge wie hier).
+# Das ist die Vorgabe. Die Schritte hängen am Regelwerk: Ein Regelwerk (regelwerke/<id>.yaml)
+# darf mit einem eigenen Abschnitt `laufzettel` abweichen – jede Angabe dort (`titel`,
+# `schritte`, `schritteLetzterLauf`) ersetzt die gleichnamige hier. Ein Schritt ist ein Text
+# oder `{ text, en }`, wenn das Regelwerk den englischen Wortlaut vorgibt.
 laufzettel:
   titel: "Auswertung"
   schritte:
-    - "Ergebnis sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)"
-    - "Ergebnis sortiert nach Platz"
+    - "Wertungsliste sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)"
+    - "Wertungsliste sortiert nach Platz"
     - "Kontrolliert"
     - "Unterschrieben"
-    - "Ausgehangen"
-    - "An die ML geschickt"
+    # `zwischenaushang: true`: Der Schritt gehört zum Aushang zwischen den Läufen. Werden die
+    # Läufe direkt nacheinander gefahren (Schalter der Veranstaltung, nur unter Regelwerken mit
+    # `versucheNacheinander`, z. B. UIM 960 Pkt. 4.3.2), entfällt er auf den Zetteln vor dem
+    # letzten Lauf – ausgehängt wird dann erst das Ergebnis nach dem letzten.
+    - { text: "Ausgehangen", zwischenaushang: true }
+    - { text: "An die ML geschickt", zwischenaushang: true }
   # Der Zettel des letzten Laufs (bei nur einem Lauf: dieser) hat eigene Schritte. DM-Reglement
   # C6 „Auswertung“: „Die Auswertungen zum Lauf 1 und 2 werden für alle sichtbar ausgehangen.
   # Die Auswertung Lauf 3 kann nur vom Mannschaftsleiter nach Aufruf eingesehen werden.“ Der
@@ -96,8 +104,8 @@ laufzettel:
   # Sichtung der Wertungsliste) hat keinen eigenen Schritt. Auf diesem Zettel stehen auch die
   # Knoten – sie zählen erst zum Gesamtergebnis. Fehlt die Angabe, gelten die Schritte oben.
   schritteLetzterLauf:
-    - "Ergebnis sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)"
-    - "Ergebnis sortiert nach Platz"
+    - "Wertungsliste sortiert nach Startnummer drucken (geheftet mit den WKR-Listen)"
+    - "Wertungsliste sortiert nach Platz"
     - "Kontrolliert"
     - "Unterschrieben"
     - "Einsicht der Mannschaftsleiter (kein Aushang)"

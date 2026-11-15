@@ -404,6 +404,35 @@ describe('Einstellungen: eigene Aufbauten', () => {
   })
 })
 
+describe('Einstellungen: Teilnehmerdaten einspielen', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('eine Datei mit einem Starter, dessen Jahrgang nicht zur Klasse passt, wird abgewiesen – wie beim Einfügen aus Excel', async () => {
+    localStorage.clear()
+    setLocale('de')
+    vi.stubGlobal('confirm', () => true)
+    const store = createStore()
+    store.dispatch({ type: 'SET_EVENT', patch: { eventJahr: 2026 } })
+    const wrapper = settings(store)
+    const input = wrapper.find('input[type="file"][accept*="json"]')
+    const spiele = async (geburtsdatum: string) => {
+      const starters = [{ id: 'x', startNr: '401', vorname: 'Vor', nachname: 'Nach', verein: '', bundesland: '', geburtsdatum, klasse: '4', groesse: '' }]
+      const text = JSON.stringify({ app: 'alcatraz', version: 1, savedAt: '2026-01-01T00:00:00.000Z', kind: 'starter', starters })
+      Object.defineProperty(input.element, 'files', { value: [new File([text], 'starter.json')], configurable: true })
+      await input.trigger('change')
+    }
+    // Klasse 4 im Jahr 2026: Jahrgang 2019 ist zu jung.
+    await spiele('2019-05-05')
+    await vi.waitFor(() => expect(wrapper.find('#dateien .boat-banner.warn, .boat-banner.warn[role="status"]').exists()).toBe(true))
+    expect(wrapper.text()).toContain('Nichts übernommen: 1 Starter der Datei steht in einer Klasse, die nicht zum Geburtsjahr passt (Vor Nach: Klasse 4, 2019)')
+    expect(store.state.value.starters).toEqual([])
+    // Ohne Geburtsdatum lässt sich nichts prüfen: Die Datei wird übernommen.
+    await spiele('')
+    await vi.waitFor(() => expect(store.state.value.starters).toHaveLength(1))
+    wrapper.unmount()
+  })
+})
+
 describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
   let store: Store
 
@@ -515,6 +544,48 @@ describe('Einstellungen: Wettkampfrichter-Listen', () => {
     store.dispatch({ type: 'SET_WKR_LEERZEILEN', anzahl: 5 })
     const vorlage = makeFile('vorlage', store.state.value, '2026-11-13T00:00:00.000Z')
     expect(vorlage.kind === 'vorlage' && vorlage.settings).toMatchObject({ wkrRueckseite: true, wkrLeerzeilen: 5 })
+    wrapper.unmount()
+  })
+})
+
+describe('Einstellungen: Streichläufe „nach Regel“ je Regelwerk', () => {
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+  })
+  afterEach(() => setLocale('de'))
+
+  const wahl = (wrapper: ReturnType<typeof settings>) => wrapper.find('select[data-feld="streichlaeufe"]')
+
+  it('DM, zwei Läufe (C6): „nach Regel“ streicht einen – die Auswahl nennt die Regel, es gibt keine Warnung', async () => {
+    store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 2 } })
+    const wrapper = settings(store)
+    await nextTick()
+    expect(store.state.value.streichlaeufe).toBe('auto')
+    expect(wahl(wrapper).find('option[value="auto"]').text()).toBe('nach Regel (DM 2026: bei 2 Läufen 1; sonst ab 3 Läufen einer)')
+    expect(wrapper.find('[data-hinweis="streichlaeufe"]').text()).toBe('Es zählt 1 Lauf von 2.')
+    expect(wrapper.find('[data-hinweis="regel-laeufe"]').exists()).toBe(false)
+    // Von Hand abweichen bleibt möglich (Abbruch wegen Unwetter) – ebenfalls ohne Warnung.
+    await wahl(wrapper).setValue('0')
+    expect(store.state.value.streichlaeufe).toBe(0)
+    expect(wrapper.find('[data-hinweis="streichlaeufe"]').text()).toBe('Es zählen 2 Läufe von 2.')
+    expect(wrapper.find('[data-hinweis="regel-laeufe"]').exists()).toBe(false)
+    // Drei Läufe: wie bisher einer.
+    store.dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: 'auto' })
+    store.dispatch({ type: 'SET_EVENT', patch: { laufCount: 3 } })
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="streichlaeufe"]').text()).toBe('Es zählen 2 Läufe von 3.')
+    wrapper.unmount()
+  })
+
+  it('ein Regelwerk ohne eigene Angabe nennt nur die allgemeine Regel', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    const wrapper = settings(store)
+    await nextTick()
+    expect(wahl(wrapper).find('option[value="auto"]').text()).toBe('nach Regel (ab 3 Läufen einer)')
     wrapper.unmount()
   })
 })

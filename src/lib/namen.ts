@@ -1,6 +1,6 @@
 import type { AppState, ErgebnisFassung, ErgebnisNamen, Starter } from '../types'
 
-// Namen auf Listen, die ausgehängt werden (Ergebnislisten, Pokalauswertung nach UIM-Punkten).
+// Namen auf Listen, die ausgehängt werden (Wertungslisten, Pokalauswertung nach UIM-Punkten).
 // Die Regel steht einmal hier, damit eine Änderung am Datenschutz alle Listen trifft.
 
 /** Wie Namen auf einem Blatt stehen: voll, Nachname gekürzt („M.“) oder gar nicht. */

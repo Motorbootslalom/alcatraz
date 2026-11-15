@@ -1,8 +1,12 @@
 import type { AppState, Starter } from '../types'
 import { migrate } from '../state/migrate'
-import { aufbauOf } from '../config/catalog'
+import { aufbauOf, hasParallel } from '../config/catalog'
+import { mitVorlaufPlan, VORLAUF, vorlaufGebunden } from '../planung/parallelRunden'
 import { haengeUm } from '../lib/einteilung'
 import { mitTor5Umzug } from '../state/tor5'
+import { ergaenzeAbmeldungen } from '../lib/abmeldung'
+import { configFor } from '../config/konfig'
+import { starterfeldFest } from '../lib/eingaben'
 
 /**
  * Dateien zum Aufheben und Weitergeben. Weil alle Daten nur in diesem Browser
@@ -11,7 +15,7 @@ import { mitTor5Umzug } from '../state/tor5'
  *
  * - `sicherung`: der gesamte Stand der Veranstaltung.
  * - `vorlage`: nur die Einstellungen – ohne Starter, Name, Jahr, WKR-Einteilung, Co-Piloten,
- *   erfasste Werte, den Stand der Ergebnislisten und Pokalauswertungen, die Kennung der
+ *   erfasste Werte, „Disziplin nicht werten“, festgeschriebene Pläne des Parallelslaloms, den Stand der Wertungslisten und Pokalauswertungen, die Kennung der
  *   Veranstaltung und die Angabe, ob das Starterfeld aus Beispieldaten stammt (sie gehört zu
  *   den Startern). Die Einstellungen der Pokalauswertung (Varianten, Punkte, „nur ausgewählte
  *   Starter“) sind dabei; welche Starter gewählt sind, steht an den Startern und damit nicht.
@@ -25,9 +29,9 @@ export type FileKind = 'sicherung' | 'vorlage' | 'starter'
 
 /**
  * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, Co-Piloten, erfassten
- * Werten, dem Stand der Ergebnislisten und der Kennung der Veranstaltung.
+ * Werten, dem Stand der Wertungslisten und der Kennung der Veranstaltung.
  */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'listenStand' | 'kennung' | 'beispielStarter'>
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'nichtWerten'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -45,9 +49,11 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   if (kind === 'sicherung') return { ...base, kind, state }
   if (kind === 'starter') return { ...base, kind, starters: state.starters }
   // Die erfassten Werte gehören zu den Startern dieser Veranstaltung (sie hängen an deren IDs).
-  // Ebenso der Stand der Ergebnislisten. Die Kennung der Veranstaltung bleibt hier: Mit einer
+  // Ebenso der Stand der Wertungslisten. Die Kennung der Veranstaltung bleibt hier: Mit einer
   // Vorlage beginnt eine andere Veranstaltung, deren Bögen sich von diesen unterscheiden müssen.
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, ...settings } = state
+  // Die festgeschriebenen Pläne des Parallelslaloms nennen Starter (ihre IDs) und bleiben ebenfalls hier.
+  // „Disziplin nicht werten“ ist eine Entscheidung zu den Ergebnissen dieser Veranstaltung: ebenfalls nicht.
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, nichtWerten: _nichtWerten, ...settings } = state
   return { ...base, kind, settings }
 }
 
@@ -92,8 +98,20 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
       // eine Vorlage ohne eigene Aufbauten stillschweigend alle, die es hier gibt.
       const ausVorlage = new Set(checked.eigeneAufbauten.map((a) => a.id))
       const eigeneAufbauten = [...checked.eigeneAufbauten, ...current.eigeneAufbauten.filter((a) => !ausVorlage.has(a.id))]
+      // Bleibt der hiesige feste Plan des Vorlaufs stehen (hier festgeschrieben, und die Vorlage
+      // bringt die Sperre mit), bleiben auch die Schalter, nach denen er gerechnet wurde. Sonst
+      // stünde „Strenge Klassentrennung“ aus über einem streng gepaarten Plan, und ein anderes
+      // `class4Small` meldete Klassenwechsel, die es nicht gab. Im Reducer sind genau diese drei
+      // bei gesetzter Sperre gesperrt (VERZAHNUNG_ACTIONS) – die Vorlage soll daran nicht vorbeiführen.
+      // Ebenso, wenn der Plan an erfasste Werte gebunden ist: Er bleibt dann auch ohne Sperre
+      // (`vorlaufGebunden`), und der Reducer sperrt die drei Schalter (PLAN_ACTIONS).
+      const planBleibt = current.parallelPlaene[VORLAUF] !== undefined && (checked.verzahnungLocked || vorlaufGebunden(current))
+      const planSchalter: Pick<AppState, 'parallelStreng' | 'class4Small' | 'parallelOrderByStartNr'> = planBleibt
+        ? { parallelStreng: current.parallelStreng, class4Small: current.class4Small, parallelOrderByStartNr: current.parallelOrderByStartNr }
+        : { parallelStreng: checked.parallelStreng, class4Small: checked.class4Small, parallelOrderByStartNr: checked.parallelOrderByStartNr }
       const mitVorlage: AppState = {
         ...checked,
+        ...planSchalter,
         eigeneAufbauten,
         // Die Wahl der Vorlage gilt – auch wenn sie auf einen eigenen Aufbau zeigt, den nur
         // diese Veranstaltung hat (die Migration der Vorlage allein kennt ihn nicht).
@@ -104,6 +122,8 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
         eventJahr: current.eventJahr,
         // Ergebnisse bleiben bei ihren Startern – auch eine von Hand ergänzte Vorlage bringt keine mit.
         eingaben: current.eingaben,
+        abgemeldet: current.abgemeldet,
+        abgemeldetBis: current.abgemeldetBis,
         listenStand: current.listenStand,
         // Die Veranstaltung bleibt dieselbe; ihre gedruckten Bögen gelten weiter.
         kennung: current.kennung,
@@ -117,11 +137,24 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
         ),
         // Ebenso die Co-Piloten: Sie hängen an der Klasse, nicht am Parcours – die hiesigen bleiben.
         coPiloten: current.coPiloten,
+        // Festgeschriebene Pläne des Parallelslaloms hängen an den hiesigen Startern: Sie bleiben.
+        parallelPlaene: current.parallelPlaene,
+        // „Disziplin nicht werten“ gehört zu den hiesigen Ergebnissen.
+        nichtWerten: current.nichtWerten,
+        // Sind Ergebnisse erfasst, bleibt das Regelwerk (wie im Reducer, SET_REGELWERK): Die
+        // Werte hängen an seinen Listen und Feldern.
+        ...(starterfeldFest(current) ? { regelwerk: current.regelwerk } : {}),
       }
       // Bringt die Vorlage „Tor 5 übernimmt die Parcoursüberwachung“ oder einen anderen Aufbau
       // mit, wechselt die Liste für Tor 5: Die hiesigen Eingaben und Namen ziehen mit, sonst
       // stünden sie als „verborgen“ an einer Liste, die es nicht mehr gibt.
-      return mitTor5Umzug(current, mitVorlage)
+      // Bringt die Vorlage die Sperre der Verzahnung mit, wird der Plan des Vorlaufs festgeschrieben
+      // (ein schon fester bleibt); ohne Sperre entfällt er (planung/parallelRunden.ts).
+      const umgezogen = mitTor5Umzug(current, mitVorlaufPlan(mitVorlage, hasParallel(mitVorlage.regelwerk)))
+      // Bringt die Vorlage mehr Läufe mit, bekommen Abgemeldete das X auch dort – wie bei der
+      // Einstellung selbst (state/reducer.ts); sonst stünden sie im neuen Lauf still „offen“.
+      const konfig = (s: AppState) => configFor({ regelwerk: s.regelwerk, eigeneAufbauten: s.eigeneAufbauten })
+      return ergaenzeAbmeldungen(current, umgezogen, konfig(current), konfig(umgezogen))
     }
     return { ok: true, kind, apply, savedAt }
   }

@@ -19,6 +19,24 @@ describe('Kürzel der Herkunft', () => {
     expect(defaultKuerzel('Latvia')).toBe('LVA')
   })
 
+  it('nach IOC (UIM, Regel 209): GER, SUI, NED, LAT – sonst wie ISO; frühere IOC-Kürzel nie', () => {
+    expect(defaultKuerzel('Deutschland', 'ioc')).toBe('GER')
+    expect(defaultKuerzel('Switzerland', 'ioc')).toBe('SUI')
+    expect(defaultKuerzel('Niederlande', 'ioc')).toBe('NED')
+    expect(defaultKuerzel('Latvia', 'ioc')).toBe('LAT')
+    expect(defaultKuerzel('Österreich', 'ioc')).toBe('AUT')
+    expect(defaultKuerzel('Litauen', 'ioc')).toBe('LTU')
+    // ROM, SIN, TRI vergibt das IOC nicht mehr: heute ROU, SGP, TTO wie ISO.
+    expect(['Rumänien', 'Singapur', 'Trinidad und Tobago'].map((n) => defaultKuerzel(n, 'ioc'))).toEqual(['ROU', 'SGP', 'TTO'])
+    // BRN ist beim IOC Bahrain, bei ISO Brunei.
+    expect(defaultKuerzel('Bahrain', 'ioc')).toBe('BRN')
+    expect(defaultKuerzel('Brunei', 'ioc')).toBe('BRU')
+    // Bundesländer bleiben, und ohne Angabe gilt ISO.
+    expect(defaultKuerzel('Bayern', 'ioc')).toBe('BY')
+    expect(kuerzelOf('Deutschland', {})).toBe('DEU')
+    expect(kuerzelOf('Deutschland', { Deutschland: 'D' }, 'ioc')).toBe('D')
+  })
+
   it('hat für Vereine keine Vorgabe', () => {
     expect(defaultKuerzel('MC Neuruppin e.V.')).toBe('')
   })
