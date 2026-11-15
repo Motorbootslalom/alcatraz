@@ -13,6 +13,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:leise": "vitest run --reporter=minimal",
+    "test:geaendert": "vitest run --changed",
     "check": "vue-tsc -b && vitest run",
     "parcours:sync": "node scripts/parcours-sync.ts",
     "prepare": "git config core.hooksPath .githooks || true"

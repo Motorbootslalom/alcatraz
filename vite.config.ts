@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { execSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
 import { schreibeOfflineSpeicher, SW_ABMELDEN, SW_DATEI, type OfflineFassung } from './scripts/offline-speicher.ts'
 
@@ -87,6 +88,9 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['src/test-setup.ts'],
       // Einige Tests bauen Dutzende Bögen; laufen mehrere Testläufe zugleich, reichen 5 s nicht.
       testTimeout: 30_000,
+      // Node ab 25 warnt in jedem Worker, dass localStorage ohne --localstorage-file fehlt. Die Tests
+      // nutzen ihren eigenen Speicher (src/test-setup.ts); das Skript blendet genau diese Meldung aus.
+      execArgv: ['--require', fileURLToPath(new URL('./scripts/ohne-localstorage-warnung.cjs', import.meta.url))],
     },
   }
 })

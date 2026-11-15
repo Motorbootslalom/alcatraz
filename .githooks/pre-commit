@@ -1,10 +1,14 @@
 #!/bin/sh
-# Vor jedem Commit: TypeScript-Typecheck + Vitest-Tests.
+# Vor jedem Commit: TypeScript-Typecheck + alle Vitest-Tests, also genau `npm run check`.
 # Aktivierung (einmalig): git config core.hooksPath .githooks
 # Bei rotem Test bricht der Commit ab. Umgehen im Notfall: git commit --no-verify
+#
+# Knappe Ausgabe: `--silent` lässt npm seine Kopfzeilen weg, `--reporter=minimal` hängt npm an das
+# letzte Kommando von `check` an (vitest run). Es zeigt nur Fehler und am Ende die Zahlen;
+# geprüft wird dasselbe wie mit `npm run check`.
 
-echo "▶ pre-commit: vue-tsc -b && vitest run"
-npm run check
+echo "▶ pre-commit: npm run check (vue-tsc -b && vitest run)"
+npm run --silent check -- --reporter=minimal
 status=$?
 if [ $status -ne 0 ]; then
   echo "✖ Tests/Typecheck fehlgeschlagen – Commit abgebrochen."
