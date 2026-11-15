@@ -27,8 +27,12 @@ export interface BeispielHerkunft {
   land?: string
 }
 
-/** Alle Herkünfte, aus denen die Beispieldaten würfeln – je nach Art der Herkunft. */
+/**
+ * Alle Herkünfte, aus denen die Beispieldaten würfeln – je nach Art der Herkunft. Ohne Herkunft
+ * (`none`, etwa bei der Clubmeisterschaft) gibt es keine: Die Starter bleiben ohne.
+ */
 function herkunftsPool(originMode: OriginMode): BeispielHerkunft[] {
+  if (originMode === 'none') return []
   if (originMode === 'land') return LAENDER.map((land) => ({ verein: '', bundesland: '', land }))
   if (originMode === 'bundesland') return BUNDESLAENDER.map((bundesland) => ({ verein: '', bundesland }))
   return CLUBS.map((c) => ({ verein: c.name, bundesland: c.bundesland }))
@@ -36,12 +40,14 @@ function herkunftsPool(originMode: OriginMode): BeispielHerkunft[] {
 
 /**
  * So viele verschiedene Herkünfte, zufällig gewählt – für ein Beispiel-Starterfeld mit wenigen
- * Herkünften, an dem sich die Mannschaftswertung prüfen lässt. Welche Art, sagt `originMode`
- * (Verein, Bundesland oder Land); unter UIM ruft die Oberfläche immer mit „Land“ (Nationen,
- * components/BeispieldatenPanel.vue). Mehr, als es gibt, sind alle.
+ * Herkünften, an dem sich die Mannschaftswertung prüfen lässt. Welche Art, sagt `originMode`:
+ * die Herkunft der Veranstaltung (Verein, Bundesland, Land), gleich unter welchem Regelwerk
+ * (Entscheidung des Nutzers vom 15.11.2026, components/BeispieldatenPanel.vue). Mehr, als es gibt,
+ * sind alle; ohne Herkunft (`none`) keine.
  */
 export function beispielHerkuenfte(originMode: OriginMode, anzahl: number): BeispielHerkunft[] {
   const pool = herkunftsPool(originMode)
+  if (pool.length === 0) return []
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[pool[i], pool[j]] = [pool[j], pool[i]]
@@ -101,6 +107,10 @@ export function generateStarter(
   let land: string | undefined
   if (herkunft) {
     ;({ verein, bundesland, land } = herkunft)
+  } else if (originMode === 'none') {
+    // Die Veranstaltung führt keine Herkunft (Clubmeisterschaft): Die Starter haben keine.
+    verein = ''
+    bundesland = ''
   } else if (originMode === 'land') {
     // International: nur der Staat.
     land = pick(LAENDER)

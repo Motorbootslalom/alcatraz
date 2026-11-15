@@ -161,51 +161,40 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     wrapper.unmount()
   })
 
-  it('der Name im Bogenkopf schreibt in dieselbe Einteilung wie die Tabelle – beide zeigen denselben Stand', async () => {
+  it('der Name im Bogenkopf wird nur angezeigt: der aus der WKR-Einteilung für Liste und Parcours der Klasse', async () => {
     const wrapper = ansicht(store)
     await zeige(wrapper, 'steg')
-    const imKopf = () => kopf(wrapper, 'steg').find('input.bk-wkr-input')
-    const inTabelle = () => wrapper.find('input[data-feld="par_2|steg"]')
-    expect(imKopf().attributes('aria-label')).toBe('Name im Kopf der Liste Steg, Parcours 2')
-    // Aus der Vorschau …
-    await imKopf().setValue('A. Muster')
-    expect(store.state.value.einteilung).toEqual({ par_2: { steg: 'A. Muster' } })
-    expect((inTabelle().element as HTMLInputElement).value).toBe('A. Muster')
+    const imKopf = () => kopf(wrapper, 'steg').find('.bk-wkr-text')
+    // Kein Eingabefeld in der Beispielansicht – weder im Kopf noch darüber (Entscheidung des Nutzers vom 15.11.2026).
+    expect(wrapper.findAll('.wkr-vorschau input').map((i) => i.attributes('data-feld') ?? i.attributes('type'))).toEqual(['number'])
+    // Niemand eingeteilt: die leere Linie mit der Bezeichnung darunter, wie auf dem Papier.
+    expect(imKopf().text()).toBe('')
+    expect(kopf(wrapper, 'steg').find('.bk-wkr-unter').text()).toBe('Name Wettkampfrichter*in')
+    // Aus der Tabelle: Parcours 2 (Klasse 7) zeigt den Namen, ohne Leerraum am Rand.
+    await wrapper.find('input[data-feld="par_2|steg"]').setValue('A. Muster ')
+    expect(imKopf().text()).toBe('A. Muster')
     expect(wkrName(store.state.value, 'steg', '7', configFor())).toBe('A. Muster')
-    // … und aus der Tabelle.
-    await inTabelle().setValue('B. Beispiel')
-    expect((imKopf().element as HTMLInputElement).value).toBe('B. Beispiel')
-    // Ein Leerzeichen beim Tippen bleibt im Feld stehen (sonst ließe sich kein zweites Wort schreiben).
-    await imKopf().setValue('B. ')
-    expect((imKopf().element as HTMLInputElement).value).toBe('B. ')
     // Parcours 1 hat einen eigenen Namen: Klasse 2 zeigt ihn, nicht den von Parcours 2.
     await waehle(wrapper, '2')
-    expect((imKopf().element as HTMLInputElement).value).toBe('')
-    await imKopf().setValue('C. Probe')
-    expect(store.state.value.einteilung).toEqual({ par_2: { steg: 'B. ' }, par_1: { steg: 'C. Probe' } })
-    // Leeren entfernt den Eintrag, auch aus der Vorschau.
-    await imKopf().setValue('')
-    expect(store.state.value.einteilung).toEqual({ par_2: { steg: 'B. ' } })
+    expect(imKopf().text()).toBe('')
+    await wrapper.find('input[data-feld="par_1|steg"]').setValue('C. Probe')
+    expect(imKopf().text()).toBe('C. Probe')
+    // Der Hinweis führt zur Einteilung – dort allein wird gepflegt.
+    expect(wrapper.find('.wkr-vorschau [data-hinweis="vorschau-namen"] a').attributes('href')).toBe('#/veranstaltung?wkr')
     wrapper.unmount()
   })
 
-  it('schmales Fenster: Das Namensfeld steht in normaler Größe über dem verkleinerten Blatt', async () => {
+  it('schmales Fenster: Das Blatt wird verkleinert, ein Namensfeld gibt es auch dort nicht', async () => {
     // Das Test-DOM kennt kein Layout; die Breite des Stapels wird hier vorgegeben (Telefon).
     const breite = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 340 })
     try {
+      store.dispatch({ type: 'SET_WKR_NAME', parcoursId: 'par_2', typeId: 'steg', name: 'A. Muster' })
       const wrapper = ansicht(store)
       await nextTick()
       await zeige(wrapper, 'steg')
-      // Im Kopf steht der Name nur noch als Text …
       expect(wrapper.find('.wkr-vorschau input.bk-wkr-input').exists()).toBe(false)
-      const feld = () => wrapper.find('input[data-feld="vorschau-name|steg"]')
-      expect(wrapper.find(`label[for="${feld().attributes('id')}"]`).text()).toBe('Name im Kopf der Liste Steg, Parcours 2')
-      // … und das Feld darüber schreibt an dieselbe Stelle wie die Tabelle.
-      await feld().setValue('A. Muster ')
-      expect(store.state.value.einteilung).toEqual({ par_2: { steg: 'A. Muster ' } })
-      expect((wrapper.find('input[data-feld="par_2|steg"]').element as HTMLInputElement).value).toBe('A. Muster ')
-      expect((feld().element as HTMLInputElement).value).toBe('A. Muster ')
+      expect(wrapper.find('input[data-feld="vorschau-name|steg"]').exists()).toBe(false)
       expect(kopf(wrapper, 'steg').find('.bk-wkr-text').text()).toBe('A. Muster')
       // Verkleinert wird über die Faktoren am Stapel (bogen.css).
       expect(wrapper.find('.bogen-stapel').attributes('style')).toContain('--bogen-zoom-hoch: 0.428')
@@ -233,22 +222,29 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     await zeige(wrapper, 'steg')
     // Der Bogen steht in der Sprache des Regelwerks (UIM: englisch), solange für die Liste nichts gewählt ist.
     expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Class 5')
-    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['steg'], sprache: 'de' })
+    // Die Sprache gilt je Parcours: Klasse 5 fährt auf Parcours 2 – eine Wahl für Parcours 1 wirkt hier nicht.
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'par_1', typeId: 'steg' }], sprache: 'de' })
+    await nextTick()
+    expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Class 5')
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'par_2', typeId: 'steg' }], sprache: 'de' })
     await nextTick()
     expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Klasse 5')
-    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['steg'], sprache: 'de+en' })
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'par_2', typeId: 'steg' }], sprache: 'de+en' })
     await nextTick()
     expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Klasse / Class 5')
+    // Klasse 3 fährt auf Parcours 1: dort deutsch.
+    await waehle(wrapper, '3')
+    expect(kopf(wrapper, 'steg').findAll('.bk-zelle')[1].text()).toBe('Klasse 3')
     wrapper.unmount()
   })
 
-  it('eine Klasse ohne Parcours: Hinweis statt Namensfeld', async () => {
+  it('eine Klasse ohne Parcours: Hinweis, im Kopf die leere Linie', async () => {
     const wrapper = ansicht(store)
     for (const p of store.state.value.parcoursList) store.dispatch({ type: 'REMOVE_PARCOURS', id: p.id })
     await nextTick()
-    expect(wrapper.find('.wkr-vorschau .boat-banner.warn').text()).toContain('Klasse 7 fährt noch auf keinem Parcours')
-    expect(wrapper.find('.wkr-vorschau input.bk-wkr-input').exists()).toBe(false)
+    expect(wrapper.find('.wkr-vorschau .boat-banner.warn').text()).toContain('Klasse 7 fährt noch auf keinem Parcours – deshalb steht im Kopf kein Name')
     expect(listen(wrapper)).toContain('steg')
+    expect(kopf(wrapper, 'zeit').find('.bk-wkr-text').text()).toBe('')
     wrapper.unmount()
   })
 
@@ -311,4 +307,74 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     wrapper.unmount()
   })
 
+
+  it('Parallelslalom (UIM): je Racecourse A und B Zeit, Steg und Fahrweg – Muster-Nummern in Blöcken, Dummy-Zeile, Muster-QR', async () => {
+    const wrapper = ansicht(store)
+    // Unter der DM gibt es ihn nicht – auch nicht in der Beispielansicht.
+    expect(wrapper.find('.wkr-vorschau-parallel').exists()).toBe(false)
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    await nextTick()
+    const reiter = () => wrapper.findAll('.wkr-vorschau-parallel-tabs button')
+    expect(reiter().map((b) => b.attributes('data-liste'))).toEqual([
+      'parallel|pre|A|zeit',
+      'parallel|pre|A|steg',
+      'parallel|pre|A|parallelparcours',
+      'parallel|pre|B|zeit',
+      'parallel|pre|B|steg',
+      'parallel|pre|B|parallelparcours',
+    ])
+    expect(reiter().map((b) => b.text()).slice(0, 3)).toEqual(['Time', 'Pontoon', 'Parallel slalom'])
+    expect(wrapper.findAll('.wkr-vorschau-racecourse-name').map((x) => x.text())).toEqual(['Parcours A', 'Parcours B'])
+    // Die Listen des Manövrierens bleiben daneben.
+    expect(listen(wrapper)).toContain('steg')
+    await wrapper.find('.wkr-vorschau-parallel-tabs button[data-liste="parallel|pre|B|steg"]').trigger('click')
+    const blatt = () => wrapper.find('.wkr-vorschau .bogen[data-liste="steg"]')
+    expect(wrapper.findAll('.wkr-vorschau .bogen')).toHaveLength(1)
+    expect(blatt().findAll('.bk-zelle').map((z) => z.text())).toEqual(['Pontoon', 'Preliminary heat', 'Racecourse B'])
+    expect(blatt().attributes('data-muster')).toBeDefined()
+    expect(blatt().find('.bogen-kennzeichen').text()).toBe('Beispielansicht')
+    expect(blatt().find('svg.qr-code').attributes('data-qr')).toBe('ALC2.MUSTER.UIM2026.PARALLEL.PRE.B.STEG.S1')
+    // 10 Muster-Zeilen = 10 Starts: Blöcke 4, 4, 2 wie gedruckt, eine Dummy-Zeile.
+    const zeilen = () => blatt().findAll('.bogen-tabelle > tbody > tr[data-zeile]')
+    expect(zeilen()).toHaveLength(10)
+    expect(blatt().findAll('.bogen-tabelle > tbody > tr.bt-blockende').map((r) => r.attributes('data-zeile'))).toEqual(['s4', 's8', 's10'])
+    expect(blatt().findAll('tr[data-ohne="dummy"]')).toHaveLength(1)
+    // Auf B: die Muster-Nummern in der Reihenfolge des Plans, der Dummy im 1. Attempt des letzten Paares.
+    expect(blatt().findAll('tr[data-zeile] td.bt-nr:not(.bt-start)').map((td) => td.text())).toEqual(['M2', 'M7', 'M1', 'M6', 'M4', 'M9', 'M3', 'M8', 'Dummy', 'M5'])
+    expect(wrapper.find('[data-hinweis="vorschau-parallel"]').text()).toContain('ein Vorlauf mit 10 Starts')
+    // „Muster-Zeilen“ wirkt: 6 Starts = 3 Paare, Blöcke 4 und 2; ungerade Zahl → auf ganze Paare aufgerundet.
+    const zahl = wrapper.find('.wkr-vorschau input[type="number"]')
+    await zahl.setValue('6')
+    await zahl.trigger('change')
+    expect(zeilen()).toHaveLength(6)
+    expect(blatt().findAll('.bogen-tabelle > tbody > tr.bt-blockende').map((r) => r.attributes('data-zeile'))).toEqual(['s4', 's6'])
+    // 0 Muster-Zeilen: leere Listen wie im Manövrieren – der Hinweis verspricht dann keine Dummy-Zeile.
+    await zahl.setValue('0')
+    await zahl.trigger('change')
+    expect(zeilen()).toHaveLength(0)
+    expect(blatt().findAll('tr[data-ohne="dummy"]')).toHaveLength(0)
+    expect(reiter()).toHaveLength(6)
+    const leer = wrapper.find('[data-hinweis="vorschau-parallel"]').text()
+    expect(leer).toContain('ohne Muster-Zeilen')
+    expect(leer).not.toContain('0 Starts')
+    expect(leer).not.toContain('zur Anschauung')
+    await zahl.setValue('5')
+    await zahl.trigger('change')
+    expect(zeilen()).toHaveLength(6)
+    // Name und Sprache je Racecourse aus der Einteilung – B ist eine eigene Gruppe.
+    expect(blatt().find('.bk-wkr-text').text()).toBe('')
+    await wrapper.find('input[data-feld="racecourse-b|steg"]').setValue('Tom Test')
+    expect(blatt().find('.bk-wkr-text').text()).toBe('Tom Test')
+    await wrapper.find('select[data-feld="wkr-sprache|racecourse-b|steg"]').setValue('de')
+    expect(blatt().findAll('.bk-zelle').map((z) => z.text())).toEqual(['Steg', 'Vorlauf', 'Parcours B'])
+    await wrapper.find('.wkr-vorschau-parallel-tabs button[data-liste="parallel|pre|A|steg"]').trigger('click')
+    expect(blatt().findAll('.bk-zelle').map((z) => z.text())).toEqual(['Pontoon', 'Preliminary heat', 'Racecourse A'])
+    expect(blatt().find('.bk-wkr-text').text()).toBe('')
+    // Englisch mit dem Wort des Rulebooks: „preliminary heat“, nicht „round“.
+    setLocale('en')
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="vorschau-parallel"]').text()).toContain('one preliminary heat with 6 starts')
+    expect(wrapper.find('[data-hinweis="vorschau-parallel"]').text()).not.toMatch(/\bround\b/)
+    wrapper.unmount()
+  })
 })

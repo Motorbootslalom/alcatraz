@@ -2,10 +2,10 @@
 import { computed, ref, useId, watchEffect } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
-import { useBogenKonfig, useKonfig } from '../lib/konfig'
+import { useAuswahlKonfig, useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { parallelBoegen, waehleRundenBoegen, type ParallelAuswahl } from '../lib/parallelBogen'
-import { RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
+import { RACECOURSE_PARCOURS, RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
 import { rundenName as rundenNameIn } from '../planung/parallelRunden'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
@@ -34,12 +34,17 @@ const emit = defineEmits<{
 
 const { state } = useStore()
 const konfig = useKonfig()
+// Jeder Bogen in der Sprache seiner Liste auf seinem Racecourse; die Auswahl nennt eine Liste so,
+// wenn A und B dieselbe Sprache haben, sonst in der des Regelwerks (lib/konfig.ts).
 const bogenKonfig = useBogenKonfig()
+const auswahlKonfig = useAuswahlKonfig()
 const id = useId()
 
-const parallel = computed(() => parallelBoegen(state.value, konfig.value, (typeId) => bogenKonfig(typeId).getSheetDef(typeId).title))
+const parallel = computed(() => parallelBoegen(state.value, konfig.value, (typeId, parcoursId) => bogenKonfig(typeId, parcoursId).getSheetDef(typeId).title))
 const alle = computed(() => parallel.value.boegen)
-const listenArten = computed(() => parallel.value.listen.map((typeId) => ({ typeId, titel: bogenKonfig(typeId).getSheetDef(typeId).title })))
+const listenArten = computed(() =>
+  parallel.value.listen.map((typeId) => ({ typeId, titel: auswahlKonfig(typeId, Object.values(RACECOURSE_PARCOURS)).getSheetDef(typeId).title })),
+)
 
 // Eine Wahl, die es nicht mehr gibt, gilt als „alle“.
 const wahl = merke<ParallelAuswahl>('listen.wkr.parallel', {}, { ueberNeuladen: true })
@@ -123,6 +128,6 @@ const { zoom } = useBogenZoom(stapel)
 
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). -->
   <div ref="stapel" class="bogen-stapel wkr-listen" :style="zoom">
-    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
+    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
   </div>
 </template>

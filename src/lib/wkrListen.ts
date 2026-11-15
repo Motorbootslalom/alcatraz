@@ -133,14 +133,14 @@ function klassenGruppen(
  * nur einmal, und seine Zeile gilt für jeden Versuch (lib/bogen.ts `BogenAuftrag.einmal`).
  *
  * `titelVon`: Der Name der Liste, wie er im Kopf ihres Bogens steht – die Bögen haben ihre
- * Sprache je Liste (lib/listensprache.ts), der Aufbau ist in jeder Sprache derselbe. Fehlt =
- * der Titel aus `konfig`.
+ * Sprache je Parcours und Liste (lib/listensprache.ts), der Aufbau ist in jeder Sprache
+ * derselbe. Fehlt = der Titel aus `konfig`.
  */
 export function wkrBoegen(
   stand: WkrListenStand,
   konfig: WkrListenKonfig,
   folgen: ReadonlyMap<string, readonly Starter[]>,
-  titelVon: (typeId: string) => string = (typeId) => konfig.getSheetDef(typeId).title,
+  titelVon: (typeId: string, parcoursId: string) => string = (typeId) => konfig.getSheetDef(typeId).title,
 ): WkrListen {
   const eventName = [stand.eventName, stand.eventJahr].filter(Boolean).join(' ')
   const mehrereParcours = stand.parcoursList.length > 1
@@ -190,7 +190,7 @@ export function wkrBoegen(
           klassen: gruppe,
           lauf,
           typeId,
-          titel: titelVon(typeId),
+          titel: titelVon(typeId, parcours.id),
           ...(versuche ? { versuche } : {}),
           auftrag: {
             typeId,
@@ -241,7 +241,7 @@ export function wkrBoegen(
  * die auf keinem Parcours fährt, stehen in keiner Folge – ihre Klasse wird als `ohneListe`
  * gemeldet.
  */
-export function wkrBoegenZumStand(stand: AppState, konfig: WkrListenKonfig, titelVon?: (typeId: string) => string): WkrListen {
+export function wkrBoegenZumStand(stand: AppState, konfig: WkrListenKonfig, titelVon?: (typeId: string, parcoursId: string) => string): WkrListen {
   const folgen = new Map(planEvent(stand).plans.map((p) => [p.parcoursId, p.sequence]))
   const ergebnis = wkrBoegen(stand, konfig, folgen, titelVon)
   const mitBogen = new Set(ergebnis.boegen.flatMap((b) => b.klassen))

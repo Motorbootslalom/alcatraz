@@ -8,7 +8,7 @@
   je Action, Sperren (VERZAHNUNG_ACTIONS, PLAN_ACTIONS, STARTERFELD_ACTIONS, klasseFest()), Nachbearbeitung in
   reducer(), Normalisierer (zeilenJeSeiteZahl, teilenAbZahl, leerzeilenZahl, laufzettelLayoutWert, streichlaeufeWert).
 - `migrate.ts` – gelesenen Stand normalisieren (Objekt `stand`), normalizeStarter(); SCHEMA_VERSION aus types.ts.
-- `tor5.ts` – mitTor5Umzug: Eingaben und WKR-Namen ziehen mit, wenn die Liste für Tor 5 wechselt.
+- `tor5.ts` – mitTor5Umzug: Eingaben, WKR-Namen und Sprachen der Bögen ziehen mit, wenn die Liste für Tor 5 wechselt.
 - `zweit.ts` – zweiter Speicher und Verlauf: Schreibpumpe, Start-Entscheidung, merken/wiederherstellen.
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
@@ -55,6 +55,11 @@
 - backup.ts: Personen- und Veranstaltungsdaten an DREI Stellen (Template, makeFile, apply). Eine Vorlage enthält
   nie Personennamen; dolphinPraefix und Boote je Klasse reisen mit.
 - Tor 5 zieht zentral in reducer() um, nicht je Action; LOAD_STATE/RESET_ALL nicht, Vorlage in apply() selbst.
+- wkrSprachen ist gebaut wie einteilung (Parcours → Liste → Sprache): SET_PARCOURS_PRESET/REMOVE_PARCOURS hängen beide
+  um; migrate verteilt die alte Form je Liste auf alle Parcours (lib/einteilung.ts normalisiereSprachen). Anders als die
+  Namen eine Einstellung: reist in der Vorlage mit (dort mit deren Parcours).
+- Beispieldaten-Actions (FILL_BEISPIELWERTE, FILL_BEISPIEL_BESETZUNG, FILL_BEISPIELGEWICHTE) bringen nur die `saat`; was
+  gefüllt wird, rechnet der Reducer aus dem Stand (konfigVon). Die Rückfrage vor dem Ersetzen stellt BeispieldatenPanel.
 - CLEAR_EINGABEN löscht auch abgemeldet, abgemeldetBis, nichtWerten und alle Runden nach dem Vorlauf. Ein einzeln
   geleertes Feld löst den Vorlaufplan nicht (Entscheidung 15.11.2026).
 - Sobald Werte erfasst sind (lib/eingaben.ts starterfeldFest): Starterfeld und Regelwerk gesperrt. Tests wechseln

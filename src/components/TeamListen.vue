@@ -9,6 +9,8 @@ import type { TeamListe } from '../lib/teamListe'
 import ListenDokument from './ListenDokument.vue'
 import { geschlechtAufListe } from '../domain/geschlecht'
 import { herkunftAnzeige } from '../lib/origin'
+// Dasselbe Dezimalzeichen wie auf der Gewichtsliste je Herkunft (Sprache der Liste).
+import { gewichtText } from '../domain/gewicht'
 
 /**
  * Die Liste der Fahrer je Team nach Regel 960, Pkt. 3.7 (lib/teamListe.ts): je Team ein eigenes
@@ -76,7 +78,7 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit
               <!-- Leer hieße „kein Ballast nötig“ – wer nicht gewogen ist, steht deshalb ausdrücklich da. -->
               <td v-if="z.ausgleich === undefined" class="weight ungewogen" colspan="2">{{ lt('lists.notWeighed') }}</td>
               <template v-else>
-                <td class="weight">{{ z.starter.gewicht }} kg</td>
+                <td class="weight">{{ z.starter.gewicht === undefined ? '' : gewichtText(z.starter.gewicht, listenLocale) }} kg</td>
                 <td class="weight ausgleich-kg">{{ z.ausgleich === null ? '–' : `${z.ausgleich} kg` }}</td>
               </template>
               <td class="narrow" data-spalte="klasse">{{ classCell(z.starter.klasse) }}</td>

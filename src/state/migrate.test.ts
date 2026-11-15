@@ -103,35 +103,58 @@ describe('migrate: Listenoptionen (Seitenaufteilung, Bojen-Seiten, Sprache)', ()
     expect(migrate({ starters: [] })).toMatchObject({ wkrZeilenJeSeite: 0, wkrTeilenAb: 0, beschriftung: 'rl', wkrSprachen: {}, wkrLeerzeilenSeite: 3 })
   })
 
-  it('die alte „Sprache der Listen“ entfällt; eine feste Wahl bleibt den Bögen je Liste erhalten', () => {
+  it('die alte „Sprache der Listen“ entfällt; eine feste Wahl bleibt den Bögen je Liste und Parcours erhalten', () => {
+    /** Alle eingetragenen Sprachen, über Parcours und Listen. */
+    const sprachen = (w: Record<string, Record<string, string>>) => new Set(Object.values(w).flatMap((l) => Object.values(l)))
     // „Wie die Oberfläche“ gibt es nicht mehr: Es gilt die Sprache des Regelwerks.
     const ui = migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'ui' })!
     expect(ui.wkrSprachen).toEqual({})
     expect(ui).not.toHaveProperty('listenSprache')
-    // Eine feste Wahl galt für alle Bögen – sie steht jetzt bei jeder Liste des Regelwerks.
+    // Eine feste Wahl galt für alle Bögen – sie steht jetzt bei jeder Liste des Regelwerks, auf
+    // jedem Parcours (hier die beiden der Vorgabe) und beiden Racecourses.
     const fest = migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'de+en' })!
     expect(fest).not.toHaveProperty('listenSprache')
-    expect(Object.keys(fest.wkrSprachen).length).toBeGreaterThan(3)
-    expect(new Set(Object.values(fest.wkrSprachen))).toEqual(new Set(['de+en']))
-    expect(fest.wkrSprachen).toMatchObject({ steg: 'de+en', knoten: 'de+en' })
+    expect(Object.keys(fest.wkrSprachen).sort()).toEqual(['par_1', 'par_2', 'racecourse-a', 'racecourse-b'])
+    expect(Object.keys(fest.wkrSprachen.par_1).length).toBeGreaterThan(3)
+    expect(sprachen(fest.wkrSprachen)).toEqual(new Set(['de+en']))
+    expect(fest.wkrSprachen.par_2).toMatchObject({ steg: 'de+en', knoten: 'de+en' })
+    expect(fest.wkrSprachen['racecourse-a']).toMatchObject({ zeit: 'de+en', parallelparcours: 'de+en' })
     // Kennt der Aufrufer die Sprache der Oberfläche, bleibt „wie die Oberfläche“ erhalten: Wer
     // unter UIM deutsch bediente, druckte deutsche Bögen – auch, wenn das Feld noch ganz fehlte.
     for (const alt of [{ listenSprache: 'ui' }, {}]) {
       const deutsch = migrate({ starters: [], regelwerk: 'uim-2026', ...alt }, { oberflaeche: 'de' })!
-      expect(deutsch.wkrSprachen).toMatchObject({ steg: 'de', knoten: 'de' })
-      expect(new Set(Object.values(deutsch.wkrSprachen))).toEqual(new Set(['de']))
+      expect(deutsch.wkrSprachen.par_1).toMatchObject({ steg: 'de', knoten: 'de' })
+      expect(sprachen(deutsch.wkrSprachen)).toEqual(new Set(['de']))
       // Englisch ist unter UIM ohnehin die Vorgabe: nichts einzutragen.
       expect(migrate({ starters: [], regelwerk: 'uim-2026', ...alt }, { oberflaeche: 'en' })!.wkrSprachen).toEqual({})
       expect(migrate({ starters: [], regelwerk: 'dm-2026', ...alt }, { oberflaeche: 'en' })!.wkrSprachen).toEqual({})
     }
     // Eine feste Wahl und ein neuer Stand gehen der Oberfläche vor.
-    expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'en' }, { oberflaeche: 'de' })!.wkrSprachen).toMatchObject({ steg: 'en' })
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'en' }, { oberflaeche: 'de' })!.wkrSprachen.par_1).toMatchObject({ steg: 'en' })
     expect(migrate({ starters: [], regelwerk: 'uim-2026', wkrSprachen: {} }, { oberflaeche: 'de' })!.wkrSprachen).toEqual({})
     // Unter der DM wirkte die Wahl nie: Sie wird nicht übernommen.
     expect(migrate({ starters: [], regelwerk: 'dm-2026', listenSprache: 'en' })!.wkrSprachen).toEqual({})
     expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'fr' })!.wkrSprachen).toEqual({})
-    // Ein Stand, der schon je Liste wählt, gilt – eine liegengebliebene alte Angabe nicht.
-    expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'de', wkrSprachen: { steg: 'en', zeit: 'fr' } })!.wkrSprachen).toEqual({ steg: 'en' })
+    // Ein Stand, der schon wählt, gilt – eine liegengebliebene alte Angabe nicht.
+    expect(migrate({ starters: [], regelwerk: 'uim-2026', listenSprache: 'de', wkrSprachen: { par_1: { steg: 'en', zeit: 'fr' } } })!.wkrSprachen).toEqual({ par_1: { steg: 'en' } })
+  })
+
+  it('Sprache je Liste (bis 15.11.2026) wird Sprache je Parcours und Liste: Der bisherige Wert gilt für jeden Parcours', () => {
+    const parcoursList = [
+      { id: 'p_a', name: 'Parcours 1', classIds: ['1'], wechselFaktor: 2 },
+      { id: 'p_b', name: 'Parcours 2', classIds: ['4'], wechselFaktor: 2 },
+    ]
+    const stand = migrate({ starters: [], regelwerk: 'uim-2026', parcoursList, wkrSprachen: { steg: 'de', zeit: 'de+en', tor135: 'fr' } })!
+    expect(stand.wkrSprachen).toEqual({
+      p_a: { steg: 'de', zeit: 'de+en' },
+      p_b: { steg: 'de', zeit: 'de+en' },
+      // Zeit und Steg galten auch für die Bögen des Parallelslaloms.
+      'racecourse-a': { steg: 'de', zeit: 'de+en' },
+      'racecourse-b': { steg: 'de', zeit: 'de+en' },
+    })
+    // Sprachen zu Parcours, die es nicht (mehr) gibt, entfallen wie deren Namen; die der Racecourses bleiben.
+    const neu = migrate({ starters: [], parcoursList, wkrSprachen: { p_a: { steg: 'de' }, weg: { steg: 'de' }, 'racecourse-b': { zeit: 'en' } } })!
+    expect(neu.wkrSprachen).toEqual({ p_a: { steg: 'de' }, 'racecourse-b': { zeit: 'en' } })
   })
 
   it('Leerzeilen je Seite: Brauchbares bleibt, Unbrauchbares ist die Vorgabe', () => {
@@ -141,11 +164,11 @@ describe('migrate: Listenoptionen (Seitenaufteilung, Bojen-Seiten, Sprache)', ()
   })
 
   it('Brauchbares bleibt, Unbrauchbares fällt auf die Vorgabe', () => {
-    expect(migrate({ starters: [], wkrZeilenJeSeite: 15, wkrTeilenAb: 25, beschriftung: 'pfeile', wkrSprachen: { steg: 'de+en' } })).toMatchObject({
+    expect(migrate({ starters: [], wkrZeilenJeSeite: 15, wkrTeilenAb: 25, beschriftung: 'pfeile', wkrSprachen: { par_1: { steg: 'de+en' } } })).toMatchObject({
       wkrZeilenJeSeite: 15,
       wkrTeilenAb: 25,
       beschriftung: 'pfeile',
-      wkrSprachen: { steg: 'de+en' },
+      wkrSprachen: { par_1: { steg: 'de+en' } },
     })
     expect(migrate({ starters: [], wkrZeilenJeSeite: 3, wkrTeilenAb: -1, beschriftung: 7, wkrSprachen: 'fr' })).toMatchObject({
       wkrZeilenJeSeite: 5,

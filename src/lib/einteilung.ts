@@ -1,6 +1,7 @@
-import type { ClassId, Einteilung, Parcours } from '../types'
+import type { ClassId, Einteilung, Parcours, Sprache, WkrSprachen } from '../types'
+import { isSprache } from '../config/sprache'
 import { veranstaltungsListen, type ListenWahl, type ListenWahlKonfig } from './listen'
-import { istRacecourseParcours } from './parallelSchluessel'
+import { RACECOURSE_PARCOURS, RACECOURSES, istRacecourseParcours } from './parallelSchluessel'
 
 // WKR-Einteilung (KONZEPT-NAMEN-FREIHAND.md §1 im Fehlerpunkte-Prototyp): Wer an welcher
 // Liste sitzt, einmal für die Veranstaltung statt auf jedem Bogen. Jeder Parcours hat eigene
@@ -19,6 +20,12 @@ import { istRacecourseParcours } from './parallelSchluessel'
 // Verzahnung und bleiben deshalb, wenn deren Parcours wechseln.
 //
 // Es sind Personennamen: Sie gehören in die Sicherung, nicht in die Vorlage (persistenz/backup.ts).
+//
+// Die Sprache der Bögen (AppState.wkrSprachen) hängt genauso an Parcours und Liste: Auf jedem
+// Parcours – im Parallelslalom auf jedem Racecourse – sitzt eine eigene Gruppe (Entscheidung des
+// Nutzers vom 15.11.2026). Sie ist keine Personenangabe und reist auch in der Vorlage mit; deshalb
+// stehen hier dieselben Bausteine für beide (`haengeUm`, `ohneParcours`) und für die Sprache
+// `setzeSprache`, `normalisiereSprachen`.
 
 /** Was {@link wkrName} vom Stand braucht. */
 export type EinteilungsStand = { einteilung: Einteilung; parcoursList: readonly Pick<Parcours, 'id' | 'classIds'>[] }
@@ -45,8 +52,8 @@ export function parcoursVon<P extends Pick<Parcours, 'id' | 'classIds'>>(parcour
  * wenn sie die Liste gar nicht hat (z. B. Mann-über-Bord in Klasse 1): Sonst erbte sie den
  * Namen, der für die anderen Klassen des Parcours gilt.
  *
- * Tabelle (WkrEinteilung.vue) und Bogenkopf (WkrVorschau.vue) schreiben beide mit
- * `SET_WKR_NAME` an diese Stelle – deshalb zeigen sie stets denselben Stand.
+ * Geschrieben wird nur aus der Tabelle (WkrEinteilung.vue, `SET_WKR_NAME`); die Beispielansicht
+ * (WkrVorschau.vue) liest hier und zeigt den Namen nur an (Entscheidung des Nutzers vom 15.11.2026).
  */
 export function wkrFeld(
   stand: EinteilungsStand,
@@ -111,9 +118,9 @@ export function normalisiereEinteilung(raw: unknown, parcoursIds?: readonly stri
  * diesen nicht mehr gibt. Was danach zu keinem Parcours gehört, entfällt – siehe
  * {@link normalisiereEinteilung}.
  */
-export function haengeUm(e: Einteilung, alt: readonly string[], neu: readonly string[]): Einteilung {
+export function haengeUm<T>(e: Readonly<Record<string, T>>, alt: readonly string[], neu: readonly string[]): Record<string, T> {
   const namen = new Map(Object.entries(e))
-  const paare: Array<[string, Record<string, string>]> = []
+  const paare: Array<[string, T]> = []
   neu.forEach((id, i) => {
     const quelle = alt.includes(id) ? id : alt[i] !== undefined && !neu.includes(alt[i]) ? alt[i] : undefined
     const liste = quelle === undefined ? undefined : namen.get(quelle)
@@ -141,9 +148,66 @@ export function nameUmziehen(e: Einteilung, von: string, nach: string): Einteilu
   return geaendert ? Object.fromEntries(paare) : e
 }
 
-/** Die Einteilung ohne einen Parcours (er wurde entfernt). */
-export function ohneParcours(e: Einteilung, parcoursId: string): Einteilung {
+/** Die Einteilung (oder die Sprachen der Bögen) ohne einen Parcours (er wurde entfernt). */
+export function ohneParcours<T>(e: Readonly<Record<string, T>>, parcoursId: string): Record<string, T> {
   return Object.fromEntries(Object.entries(e).filter(([id]) => id !== parcoursId))
+}
+
+/** Eine Zelle der Einteilung: Liste auf einem Parcours (oder Racecourse). */
+export interface WkrZelle {
+  parcoursId: string
+  typeId: string
+}
+
+/**
+ * Setzt die Sprache des Bogens für die genannten Zellen; `null` – oder eine unbekannte
+ * Sprache – entfernt den Eintrag (dann gilt wieder die Sprache des Regelwerks). Ein Parcours
+ * ohne Eintrag bleibt nicht leer zurück. Ändert sich nichts, kommt dasselbe Objekt zurück.
+ */
+export function setzeSprache(s: WkrSprachen, zellen: readonly WkrZelle[], sprache: Sprache | null): WkrSprachen {
+  const wert = sprache !== null && isSprache(sprache) ? sprache : undefined
+  let neu: WkrSprachen = s
+  for (const { parcoursId, typeId } of zellen) {
+    if (parcoursId === UNBRAUCHBAR || typeId === UNBRAUCHBAR) continue
+    const liste = Object.prototype.hasOwnProperty.call(neu, parcoursId) ? neu[parcoursId] : {}
+    const hat = Object.prototype.hasOwnProperty.call(liste, typeId)
+    if (wert !== undefined ? hat && liste[typeId] === wert : !hat) continue
+    const { [typeId]: _alt, ...rest } = liste
+    const naechste: Record<string, Sprache> = wert !== undefined ? { ...rest, [typeId]: wert } : rest
+    const { [parcoursId]: _weg, ...andere } = neu
+    neu = Object.keys(naechste).length > 0 ? { ...andere, [parcoursId]: naechste } : andere
+  }
+  return neu
+}
+
+/**
+ * Gespeicherte Sprachen der Bögen, bereinigt (Muster {@link normalisiereEinteilung}): nur gültige
+ * Sprachen, mit `parcoursIds` nur die der Parcours, die es gibt, und die der Racecourses.
+ *
+ * Bis zum 15.11.2026 galt die Sprache je Liste für alle Parcours (`{ steg: 'de' }`). Ein solcher
+ * Eintrag gilt jetzt für jeden Parcours und beide Racecourses – genau dort galt er bisher
+ * (Entscheidung des Nutzers vom 15.11.2026). Ein Eintrag je Parcours hat Vorrang.
+ */
+export function normalisiereSprachen(raw: unknown, parcoursIds?: readonly string[]): WkrSprachen {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const ergebnis: Record<string, Record<string, Sprache>> = {}
+  const setze = (parcoursId: string, typeId: string, sprache: Sprache, vorrang: boolean) => {
+    if (parcoursId === UNBRAUCHBAR || typeId === UNBRAUCHBAR) return
+    if (parcoursIds && !parcoursIds.includes(parcoursId) && !istRacecourseParcours(parcoursId)) return
+    // Nur eigene Einträge: „constructor“ als Kennung träfe sonst das Objekt-Urbild.
+    const liste = Object.prototype.hasOwnProperty.call(ergebnis, parcoursId) ? ergebnis[parcoursId] : (ergebnis[parcoursId] = {})
+    if (vorrang || !Object.prototype.hasOwnProperty.call(liste, typeId)) liste[typeId] = sprache
+  }
+  const alle = [...(parcoursIds ?? []), ...Object.values(RACECOURSE_PARCOURS)]
+  for (const [schluessel, wert] of Object.entries(raw)) {
+    if (isSprache(wert)) {
+      // Die frühere Form: eine Sprache je Liste für alle Parcours.
+      for (const parcoursId of alle) setze(parcoursId, schluessel, wert, false)
+    } else if (wert && typeof wert === 'object' && !Array.isArray(wert)) {
+      for (const [typeId, sprache] of Object.entries(wert)) if (isSprache(sprache)) setze(schluessel, typeId, sprache, true)
+    }
+  }
+  return Object.fromEntries(Object.entries(ergebnis).filter(([, liste]) => Object.keys(liste).length > 0))
 }
 
 export interface EinteilungsListe {
@@ -178,4 +242,23 @@ export function einteilungsListen(konfig: ListenKonfig, wahl: ListenWahl, eintei
 /** Hat eine Klasse dieses Parcours die Liste (z. B. Mann-über-Bord erst ab Klasse 4)? */
 export function listeGilt(konfig: Pick<ListenKonfig, 'positionAllowsClass'>, typeId: string, klassen: readonly ClassId[]): boolean {
   return klassen.some((k) => konfig.positionAllowsClass(typeId, k))
+}
+
+/**
+ * Alle Zellen der Einteilung, deren Bogen gedruckt wird: je Parcours der Verzahnung die Listen
+ * der Veranstaltung, die eine seiner Klassen hat, und je Racecourse die Listen des
+ * Parallelslaloms (`parallelTypen`, lib/parallelBogen.ts `parallelListen`; leer ohne
+ * Parallelslalom). Darauf wirken „alle auf …“ (Sprache, WkrEinteilung.vue) und die
+ * Beispiel-Besetzung (lib/beispieldaten.ts) – nicht auf Listen, die gerade nicht gelten.
+ */
+export function einteilungsZellen(
+  konfig: ListenWahlKonfig & Pick<ListenKonfig, 'positionAllowsClass'>,
+  stand: ListenWahl & { parcoursList: readonly Pick<Parcours, 'id' | 'classIds'>[] },
+  parallelTypen: readonly string[],
+): WkrZelle[] {
+  const listen = veranstaltungsListen(konfig, stand)
+  return [
+    ...stand.parcoursList.flatMap((p) => listen.filter((typeId) => listeGilt(konfig, typeId, p.classIds)).map((typeId) => ({ parcoursId: p.id, typeId }))),
+    ...RACECOURSES.flatMap((rc) => parallelTypen.map((typeId) => ({ parcoursId: RACECOURSE_PARCOURS[rc], typeId }))),
+  ]
 }

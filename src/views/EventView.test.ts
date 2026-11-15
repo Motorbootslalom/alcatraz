@@ -7,6 +7,8 @@ import { vergissAlles } from '../lib/merken'
 import { nextTick } from 'vue'
 import { wechsleRegelwerk } from '../testHilfen'
 import { LAENDER } from '../domain/generate'
+import { BUNDESLAENDER, CLUBS } from '../data/clubs'
+import { regelwerkOf } from '../config/catalog'
 import { herkunftAnzeige } from '../lib/origin'
 
 describe('Veranstaltung', () => {
@@ -131,7 +133,7 @@ describe('Veranstaltung', () => {
     wrapper.unmount()
   })
 
-  it('zugeklappte Beispielansicht beim Aufbau: Sie folgt dem gewählten Aufbau und nimmt Namen an', async () => {
+  it('zugeklappte Beispielansicht beim Aufbau: Sie folgt dem gewählten Aufbau und zeigt die Namen der WKR-Einteilung nur an', async () => {
     const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
     const klappe = wrapper.find('details[data-vorschau]')
     expect(klappe.find('summary').text()).toContain('So sehen die Listen dieses Aufbaus aus')
@@ -144,8 +146,10 @@ describe('Veranstaltung', () => {
     expect(klappe.findAll('.bogen')).toHaveLength(1)
     await wrapper.find('#ev-aufbau').setValue('berlin')
     expect(reiter()).toEqual(['steg', 'bstartziel', 'brechts', 'blinks', 'knoten'])
-    await klappe.find('.bogen[data-liste="steg"] input.bk-wkr-input').setValue('A. Muster')
-    expect(store.state.value.einteilung).toEqual({ par_2: { steg: 'A. Muster' } })
+    // Der Name im Kopf ist kein Eingabefeld; er kommt aus der WKR-Einteilung weiter unten.
+    expect(klappe.find('.bogen[data-liste="steg"] input').exists()).toBe(false)
+    await wrapper.find('#wkr-einteilung input[data-feld="par_2|steg"]').setValue('A. Muster')
+    expect(klappe.find('.bogen[data-liste="steg"] .bk-wkr-text').text()).toBe('A. Muster')
     wrapper.unmount()
   })
 
@@ -275,18 +279,122 @@ describe('Veranstaltung', () => {
       vergissAlles()
     })
 
-    it('unter UIM immer Nationen, nie Vereine – mit englischem Namen und dreistelligem Code (Entscheidung des Nutzers)', async () => {
+    // Entscheidung des Nutzers vom 15.11.2026 (spät abends): Die Herkunft der Beispielstarter folgt
+    // der Wahl der Veranstaltung, gleich unter welchem Regelwerk – sie wird nicht mehr umgestellt.
+    it('die Herkunft folgt der Veranstaltung, auch unter UIM: Verein bleibt Verein', async () => {
       store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
       store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'verein' })
       const wrapper = zeige()
+      expect(block(wrapper).find('[data-hinweis="beispiel-herkunft"]').text()).toContain('Verein')
       await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
-      expect(store.state.value.originMode).toBe('land')
+      expect(store.state.value.originMode).toBe('verein')
       const starters = store.state.value.starters
       expect(starters.length).toBeGreaterThan(0)
-      expect(starters.every((p) => p.verein === '' && LAENDER.includes(p.land ?? ''))).toBe(true)
-      // Englische Namen, die als Staat erkannt sind; das Kürzel ist der dreistellige Code.
-      for (const land of LAENDER) expect(herkunftAnzeige(land, 'land', 'kurz', {}).text, land).toMatch(/^[A-Z]{3}$/)
-      expect(herkunftAnzeige('Lithuania', 'land', 'kurz', {}).text).toBe('LTU')
+      const vereine = new Set(CLUBS.map((c) => c.name))
+      expect(starters.every((p) => vereine.has(p.verein) && p.land === undefined)).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('Land: Länder mit englischem Namen und Kürzel nach IOC – auch unter der DM', async () => {
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'land' })
+      const wrapper = zeige()
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      expect(store.state.value.regelwerk).toBe('dm-2026')
+      const starters = store.state.value.starters
+      expect(starters.every((p) => p.verein === '' && p.bundesland === '' && LAENDER.includes(p.land ?? ''))).toBe(true)
+      // Englische Namen, die als Staat erkannt sind; das Kürzel ist das des IOC (beide Regelwerke).
+      for (const id of ['dm-2026', 'uim-2026']) {
+        const norm = regelwerkOf(id).laenderKuerzel
+        expect(norm).toBe('ioc')
+        for (const land of LAENDER) expect(herkunftAnzeige(land, 'land', 'kurz', {}, 'de', false, norm).text, land).toMatch(/^[A-Z]{3}$/)
+        expect(['Germany', 'Switzerland', 'Netherlands', 'Lithuania'].map((land) => herkunftAnzeige(land, 'land', 'kurz', {}, 'de', false, norm).text)).toEqual(['GER', 'SUI', 'NED', 'LTU'])
+      }
+      wrapper.unmount()
+    })
+
+    it('Bundesland: nur Bundesländer; „Herkünfte“ zählt dann Bundesländer', async () => {
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'bundesland' })
+      const wrapper = zeige()
+      await block(wrapper).find('[data-feld="beispiel-herkuenfte"]').setValue('3')
+      await block(wrapper).find('[data-feld="beispiel-herkuenfte"]').trigger('change')
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      const starters = store.state.value.starters
+      expect(starters.every((p) => p.verein === '' && BUNDESLAENDER.includes(p.bundesland) && p.land === undefined)).toBe(true)
+      expect(new Set(starters.map((p) => p.bundesland)).size).toBe(3)
+      wrapper.unmount()
+      vergissAlles()
+    })
+
+    it('ohne Herkunft: Starter ohne Herkunft, das Feld „Herkünfte“ ist gesperrt und leer', async () => {
+      const wrapper = zeige()
+      const feld = () => block(wrapper).find<HTMLInputElement>('[data-feld="beispiel-herkuenfte"]')
+      await feld().setValue('3')
+      await feld().trigger('change')
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'none' })
+      await nextTick()
+      expect(feld().attributes('disabled')).toBeDefined()
+      // Weder die zuvor eingetragene Zahl noch „unbegrenzt“: Ohne Herkunft gilt keine Begrenzung.
+      expect(feld().element.value).toBe('')
+      expect(feld().attributes('placeholder')).toBeUndefined()
+      expect(block(wrapper).find('[data-hinweis="beispiel-herkunft"]').text()).toContain('keine')
+      // Die gemerkte Zahl bleibt: Mit einer Herkunft steht sie wieder da.
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'verein' })
+      await nextTick()
+      expect(feld().element.value).toBe('3')
+      expect(feld().attributes('disabled')).toBeUndefined()
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'none' })
+      await nextTick()
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      expect(store.state.value.originMode).toBe('none')
+      expect(store.state.value.starters.length).toBe(48)
+      expect(store.state.value.starters.every((p) => p.verein === '' && p.bundesland === '' && p.land === undefined)).toBe(true)
+      wrapper.unmount()
+      vergissAlles()
+    })
+
+    it('Beispiel-Besetzung: füllt die WKR-Einteilung; stehen dort schon Namen, erst nach Rückfrage', async () => {
+      const wrapper = zeige()
+      const stand = () => block(wrapper).find('[data-hinweis="beispiel-besetzung"]').text()
+      expect(stand()).toMatch(/^0 von \d+ Listen besetzt$/)
+      await block(wrapper).find('[data-action="beispielbesetzung"]').trigger('click')
+      const gesamt = Number(stand().match(/von (\d+)/)![1])
+      expect(stand()).toBe(`${gesamt} von ${gesamt} Listen besetzt`)
+      const erste = store.state.value.einteilung
+      expect(Object.keys(erste).sort()).toEqual(['par_1', 'par_2'])
+
+      // Jetzt stehen Namen da: Abbrechen lässt sie stehen, Bestätigen ersetzt sie.
+      const confirm = vi.fn(() => false)
+      vi.stubGlobal('confirm', confirm)
+      await block(wrapper).find('[data-action="beispielbesetzung"]').trigger('click')
+      expect(confirm).toHaveBeenCalledOnce()
+      expect(confirm.mock.calls[0]).toEqual([expect.stringContaining(`An ${gesamt} Listen stehen schon Namen`)])
+      expect(store.state.value.einteilung).toBe(erste)
+      confirm.mockReturnValue(true)
+      await block(wrapper).find('[data-action="beispielbesetzung"]').trigger('click')
+      expect(store.state.value.einteilung).not.toEqual(erste)
+      vi.unstubAllGlobals()
+      wrapper.unmount()
+    })
+
+    it('Beispielgewichte: erst mit Startern; sind schon Gewichte da, erst nach Rückfrage', async () => {
+      const wrapper = zeige()
+      const knopf = () => block(wrapper).find('[data-action="beispielgewichte"]')
+      expect(knopf().attributes('disabled')).toBeDefined()
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      expect(block(wrapper).find('[data-hinweis="beispiel-gewichte"]').text()).toBe('0 von 48 gewogen')
+      await knopf().trigger('click')
+      expect(block(wrapper).find('[data-hinweis="beispiel-gewichte"]').text()).toBe('48 von 48 gewogen')
+      const vorher = store.state.value.starters
+
+      const confirm = vi.fn(() => false)
+      vi.stubGlobal('confirm', confirm)
+      await knopf().trigger('click')
+      expect(confirm.mock.calls[0]).toEqual([expect.stringContaining('48 Starter sind schon gewogen')])
+      expect(store.state.value.starters).toBe(vorher)
+      confirm.mockReturnValue(true)
+      await knopf().trigger('click')
+      expect(store.state.value.starters.map((p) => p.gewicht)).not.toEqual(vorher.map((p) => p.gewicht))
+      vi.unstubAllGlobals()
       wrapper.unmount()
     })
 

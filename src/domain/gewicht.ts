@@ -26,6 +26,17 @@ export function parseGewicht(text: string): number | undefined {
   return Number.isFinite(value) && value > 0 && value < 300 ? Math.round(value * 10) / 10 : undefined
 }
 
+/**
+ * Ein Gewicht, wie es auf einer Liste steht: mit dem Dezimalzeichen der Listensprache – deutsch
+ * „28,7“, englisch „28.7“ (wie die Zeiten, lib/ergebnisText.ts). Eine Stelle für alle Listen,
+ * damit dasselbe Gewicht nicht auf der Gewichtsliste je Herkunft mit Komma und auf der Liste nach
+ * Pkt. 3.7 mit Punkt steht.
+ */
+export function gewichtText(kg: number, sprache: 'de' | 'en'): string {
+  const text = String(kg)
+  return sprache === 'de' ? text.replace('.', ',') : text
+}
+
 export interface GewichtsGruppe {
   /** Verein, Bundesland oder Land; `''`, wenn die Veranstaltung keine Herkunft führt. */
   origin: string

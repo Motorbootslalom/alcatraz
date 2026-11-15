@@ -23,11 +23,8 @@ const props = defineProps<{
   optionen?: Pick<BogenOptionen, 'leerzeilen' | 'zeilenJeSeite' | 'teilenAb' | 'anzeige' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'leerzeilenJeSeite' | 'zebra'>
   rueckseite?: boolean
   kennzeichen?: string
-  wkrPflege?: boolean
-  wkrLabel?: string
 }>()
 const emit = defineEmits<{
-  wkr: [name: string]
   /**
    * So viele Druckseiten hat der Bogen – nach derselben Messung, die ihn aufteilt. Die
    * Laufzettel lesen das (components/LaufzettelListen.vue), damit ihre Kästchen zu den
@@ -83,10 +80,7 @@ watch(
       :seite="seite"
       :rueckseite="rueckseite"
       :kennzeichen="kennzeichen"
-      :wkr-pflege="wkrPflege"
-      :wkr-label="wkrLabel"
       @layout="onLayout"
-      @wkr="emit('wkr', $event)"
     />
     <!-- Je Vorderseite eine Rückseite mit der Beschreibung. -->
     <BogenRueckseite v-if="rueckseite" :seite="seite" :kennzeichen="kennzeichen" />

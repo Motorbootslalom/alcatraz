@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { emptyState, reducer, wkrSprachenWert } from './reducer'
+import { emptyState, reducer } from './reducer'
+import { normalisiereSprachen } from '../lib/einteilung'
 import { wkrSpracheFuer } from '../lib/listensprache'
 import type { ClassId, Starter } from '../types'
 
@@ -354,36 +355,75 @@ describe('Listenoptionen: Seitenaufteilung, Bojen-Seiten, Sprache', () => {
     expect(reducer({ ...emptyState(), beschriftung: 'kh' }, { type: 'SET_BESCHRIFTUNG', beschriftung: 'gibtsnicht' }).beschriftung).toBe('rl')
   })
 
-  it('Sprache der Bögen je Liste: deutsch, englisch oder zweisprachig; `null` = wieder die des Regelwerks', () => {
-    const setze = (typeIds: string[], sprache: 'de' | 'en' | 'de+en' | null, von = emptyState()) => reducer(von, { type: 'SET_WKR_SPRACHE', typeIds, sprache })
-    for (const sprache of ['de', 'en', 'de+en'] as const) expect(setze(['steg'], sprache).wkrSprachen).toEqual({ steg: sprache })
-    // „Alle auf …“: mehrere Listen in einer Action; die übrigen bleiben.
-    const alle = setze(['steg', 'zeit'], 'de+en', setze(['knoten'], 'de'))
-    expect(alle.wkrSprachen).toEqual({ knoten: 'de', steg: 'de+en', zeit: 'de+en' })
-    expect(setze(['steg'], null, alle).wkrSprachen).toEqual({ knoten: 'de', zeit: 'de+en' })
-    // Unbrauchbares entfernt den Eintrag, statt ihn zu speichern.
-    expect(setze(['zeit'], 'fr' as never, alle).wkrSprachen).toEqual({ knoten: 'de', steg: 'de+en' })
+  it('Sprache der Bögen je Parcours und Liste: deutsch, englisch oder zweisprachig; `null` = wieder die des Regelwerks', () => {
+    type S = 'de' | 'en' | 'de+en' | null
+    const zellen = (parcoursId: string, ...typeIds: string[]) => typeIds.map((typeId) => ({ parcoursId, typeId }))
+    const setze = (z: { parcoursId: string; typeId: string }[], sprache: S, von = emptyState()) => reducer(von, { type: 'SET_WKR_SPRACHE', zellen: z, sprache })
+    for (const sprache of ['de', 'en', 'de+en'] as const) expect(setze(zellen('par_1', 'steg'), sprache).wkrSprachen).toEqual({ par_1: { steg: sprache } })
+    // Auf jedem Parcours sitzt eine eigene Gruppe: Die Wahl gilt nur dort.
+    const getrennt = setze(zellen('par_2', 'steg'), 'de+en', setze(zellen('par_1', 'steg'), 'de'))
+    expect(getrennt.wkrSprachen).toEqual({ par_1: { steg: 'de' }, par_2: { steg: 'de+en' } })
+    // „Alle auf …“: mehrere Zellen in einer Action – auch die der Racecourses; die übrigen bleiben.
+    const alle = setze([...zellen('par_1', 'steg', 'zeit'), ...zellen('racecourse-a', 'zeit')], 'de+en', setze(zellen('par_2', 'knoten'), 'de'))
+    expect(alle.wkrSprachen).toEqual({ par_2: { knoten: 'de' }, par_1: { steg: 'de+en', zeit: 'de+en' }, 'racecourse-a': { zeit: 'de+en' } })
+    // Ohne Eintrag bleibt kein leerer Parcours zurück.
+    expect(setze(zellen('racecourse-a', 'zeit'), null, alle).wkrSprachen).toEqual({ par_2: { knoten: 'de' }, par_1: { steg: 'de+en', zeit: 'de+en' } })
+    // Unbrauchbares entfernt den Eintrag, statt ihn zu speichern; unverändert bleibt der Stand derselbe.
+    expect(setze(zellen('par_1', 'zeit'), 'fr' as never, alle).wkrSprachen).toEqual({ par_2: { knoten: 'de' }, par_1: { steg: 'de+en' }, 'racecourse-a': { zeit: 'de+en' } })
+    expect(setze(zellen('par_1', 'steg'), 'de+en', alle)).toBe(alle)
+    expect(setze(zellen('par_1', 'vorsteg'), null, alle)).toBe(alle)
     // Die Wahl gehört zur Veranstaltung und übersteht den Wechsel des Regelwerks.
     expect(reducer(alle, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }).wkrSprachen).toEqual(alle.wkrSprachen)
-    expect(wkrSprachenWert({ steg: 'en', zeit: 'fr', knoten: 7 })).toEqual({ steg: 'en' })
-    expect(wkrSprachenWert(['en'])).toEqual({})
-    expect(wkrSprachenWert(null)).toEqual({})
+    // Sie gilt je Parcours: UIM, Steg auf Parcours 1 deutsch, auf Parcours 2 und dem Racecourse die Vorgabe.
+    const uim = reducer(getrennt, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect(wkrSpracheFuer(uim, 'par_1', 'steg')).toBe('de')
+    expect(wkrSpracheFuer(uim, 'par_2', 'steg')).toBe('de+en')
+    expect(wkrSpracheFuer(uim, 'racecourse-a', 'steg')).toBe('en')
+    expect(wkrSpracheFuer(uim, undefined, 'steg')).toBe('en')
   })
 
-  it('die Sprache des Bogens zieht mit, wenn Tor 5 die Parcoursüberwachung übernimmt – und beim Trennen zurück', () => {
+  it('Sprache der Bögen folgt den Parcours: Schnellauswahl hängt um, ein entfernter Parcours nimmt seine mit', () => {
+    let stand = reducer(emptyState(), { type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'par_1', typeId: 'steg' }, { parcoursId: 'racecourse-b', typeId: 'zeit' }], sprache: 'de+en' })
+    // Neue Kennungen an derselben Stelle: Parcours 1 bleibt Parcours 1; die Racecourses bleiben.
+    stand = reducer(stand, { type: 'SET_PARCOURS_PRESET', parcours: [{ id: 'neu_1', classIds: ['1'] }, { id: 'neu_2', classIds: ['4'] }] })
+    expect(stand.wkrSprachen).toEqual({ neu_1: { steg: 'de+en' }, 'racecourse-b': { zeit: 'de+en' } })
+    expect(reducer(stand, { type: 'REMOVE_PARCOURS', id: 'neu_1' }).wkrSprachen).toEqual({ 'racecourse-b': { zeit: 'de+en' } })
+  })
+
+  it('normalisiereSprachen: nur gültige Sprachen; die frühere Wahl je Liste gilt für jeden Parcours und beide Racecourses', () => {
+    expect(normalisiereSprachen({ par_1: { steg: 'en', zeit: 'fr', knoten: 7 } })).toEqual({ par_1: { steg: 'en' } })
+    expect(normalisiereSprachen(['en'])).toEqual({})
+    expect(normalisiereSprachen(null)).toEqual({})
+    expect(normalisiereSprachen({ par_1: { steg: 'de' }, weg: { steg: 'de' } }, ['par_1'])).toEqual({ par_1: { steg: 'de' } })
+    expect(normalisiereSprachen({ steg: 'de', zeit: 'fr' }, ['par_1', 'par_2'])).toEqual({
+      par_1: { steg: 'de' },
+      par_2: { steg: 'de' },
+      'racecourse-a': { steg: 'de' },
+      'racecourse-b': { steg: 'de' },
+    })
+    // Ein Eintrag je Parcours hat Vorrang vor dem früheren je Liste – in jeder Reihenfolge.
+    expect(normalisiereSprachen({ par_1: { steg: 'en' }, steg: 'de' }, ['par_1', 'par_2'])).toMatchObject({ par_1: { steg: 'en' }, par_2: { steg: 'de' } })
+    expect(normalisiereSprachen({ steg: 'de', par_1: { steg: 'en' } }, ['par_1'])).toMatchObject({ par_1: { steg: 'en' } })
+    // „constructor“ als Kennung wird ein eigener Eintrag, kein Griff ins Objekt-Urbild.
+    expect(normalisiereSprachen({ constructor: { steg: 'de' } }, ['constructor'])).toEqual({ constructor: { steg: 'de' } })
+  })
+
+  it('die Sprache des Bogens zieht mit, wenn Tor 5 die Parcoursüberwachung übernimmt – und beim Trennen zurück, je Parcours', () => {
+    const z = (parcoursId: string, ...typeIds: string[]) => typeIds.map((typeId) => ({ parcoursId, typeId }))
     let stand = reducer(reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }), { type: 'SET_AUFBAU', aufbau: 'alcatraz' })
-    stand = reducer(stand, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5', 'parcours', 'steg'], sprache: 'de' })
+    stand = reducer(stand, { type: 'SET_WKR_SPRACHE', zellen: z('par_2', 'tor5', 'parcours', 'steg'), sprache: 'de' })
+    stand = reducer(stand, { type: 'SET_WKR_SPRACHE', zellen: z('par_1', 'tor5'), sprache: 'de+en' })
     const zusammen = reducer(stand, { type: 'SET_TOR5_MIT_PARCOURS', on: true })
-    expect(zusammen.wkrSprachen).toEqual({ tor5pue: 'de', parcours: 'de', steg: 'de' })
-    expect(wkrSpracheFuer(zusammen, 'tor5pue')).toBe('de')
+    expect(zusammen.wkrSprachen).toEqual({ par_2: { tor5pue: 'de', parcours: 'de', steg: 'de' }, par_1: { tor5pue: 'de+en' } })
+    expect(wkrSpracheFuer(zusammen, 'par_2', 'tor5pue')).toBe('de')
     // Am zusammengelegten Bogen umgestellt und wieder getrennt: Tor 5 nimmt die Wahl mit zurück.
-    const zweisprachig = reducer(zusammen, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5pue'], sprache: 'de+en' })
-    expect(reducer(zweisprachig, { type: 'SET_TOR5_MIT_PARCOURS', on: false }).wkrSprachen).toEqual({ tor5: 'de+en', parcours: 'de', steg: 'de' })
+    const zweisprachig = reducer(zusammen, { type: 'SET_WKR_SPRACHE', zellen: z('par_2', 'tor5pue'), sprache: 'de+en' })
+    expect(reducer(zweisprachig, { type: 'SET_TOR5_MIT_PARCOURS', on: false }).wkrSprachen).toEqual({ par_2: { tor5: 'de+en', parcours: 'de', steg: 'de' }, par_1: { tor5: 'de+en' } })
     // Eine eigene Wahl am Ziel wird nicht überschrieben; ohne Wahl an der alten Liste bleibt alles.
-    const beide = reducer(reducer(stand, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5pue'], sprache: 'en' }), { type: 'SET_TOR5_MIT_PARCOURS', on: true })
-    expect(beide.wkrSprachen).toMatchObject({ tor5: 'de', tor5pue: 'en' })
-    const ohne = reducer(reducer(stand, { type: 'SET_WKR_SPRACHE', typeIds: ['tor5'], sprache: null }), { type: 'SET_TOR5_MIT_PARCOURS', on: true })
-    expect(ohne.wkrSprachen).toEqual({ parcours: 'de', steg: 'de' })
+    const beide = reducer(reducer(stand, { type: 'SET_WKR_SPRACHE', zellen: z('par_2', 'tor5pue'), sprache: 'en' }), { type: 'SET_TOR5_MIT_PARCOURS', on: true })
+    expect(beide.wkrSprachen.par_2).toMatchObject({ tor5: 'de', tor5pue: 'en' })
+    const ohne = reducer(reducer(stand, { type: 'SET_WKR_SPRACHE', zellen: [...z('par_2', 'tor5'), ...z('par_1', 'tor5')], sprache: null }), { type: 'SET_TOR5_MIT_PARCOURS', on: true })
+    expect(ohne.wkrSprachen).toEqual({ par_2: { parcours: 'de', steg: 'de' } })
   })
 
   it('Leerzeilen je Seite (gemeinsame Bögen): 0 bis 30, Unbrauchbares ist die Vorgabe; unabhängig von der Zahl je Klasse', () => {

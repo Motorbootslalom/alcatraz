@@ -1,11 +1,11 @@
-import type { AppState, ClassId, ParallelPlanFest, ParallelRunde } from '../types'
-import { CLASS_IDS } from '../domain/classes'
-import { startEntfaellt } from '../planung/parallel'
-import { loeseAuf, vergleicheRunden } from '../planung/parallelRunden'
+import type { AppState, BoatType, ClassId, ParallelPlanFest, ParallelRunde, Starter } from '../types'
+import { boatTypeOf, CLASS_IDS } from '../domain/classes'
+import { buildParallelPlan, parallelActiveClasses, startEntfaellt } from '../planung/parallel'
+import { loeseAuf, schreibeFest, vergleicheRunden, VORLAUF } from '../planung/parallelRunden'
 import type { BogenKonfig, BogenZeile } from './bogen'
 import { gruppenKapazitaet, gruppenSeiten } from './paging'
 import { RACECOURSE_PARCOURS, RACECOURSES, rundenDisziplin, type Racecourse } from './parallelSchluessel'
-import { rundenBogenCode, rundenZettelCode, type QrRundenZiel } from './qr'
+import { QR_MUSTER, rundenBogenCode, rundenZettelCode, type QrRundenZiel } from './qr'
 import type { WkrBogen } from './wkrListen'
 
 // Die Wettkampfrichter-Listen des Parallelslaloms – rein, ohne DOM. Je Runde sechs Listen: je
@@ -140,9 +140,13 @@ export interface ParallelBoegen {
 /**
  * Alle Bögen des Parallelslaloms zum Stand. Ohne festgeschriebenen Plan (oder ohne
  * Parallelslalom im Regelwerk) keine. `titelVon` wie in lib/wkrListen.ts: der Name der Liste
- * in der Sprache ihres Bogens.
+ * in der Sprache ihres Bogens – je Racecourse (dessen Kennung in der Einteilung) und Liste.
  */
-export function parallelBoegen(stand: ParallelStand, konfig: ParallelKonfig, titelVon: (typeId: string) => string = (typeId) => konfig.getSheetDef(typeId).title): ParallelBoegen {
+export function parallelBoegen(
+  stand: ParallelStand,
+  konfig: ParallelKonfig,
+  titelVon: (typeId: string, parcoursId: string) => string = (typeId) => konfig.getSheetDef(typeId).title,
+): ParallelBoegen {
   const aufbau = parallelAufbauId(konfig)
   if (aufbau === undefined) return { listen: [], runden: [], boegen: [] }
   const listen = parallelListen(konfig)
@@ -167,7 +171,7 @@ export function parallelBoegen(stand: ParallelStand, konfig: ParallelKonfig, tit
           klassen,
           lauf: 1,
           typeId,
-          titel: titelVon(typeId),
+          titel: titelVon(typeId, RACECOURSE_PARCOURS[racecourse]),
           runde: { runde, racecourse },
           auftrag: {
             typeId,
@@ -190,6 +194,64 @@ export function parallelBoegen(stand: ParallelStand, konfig: ParallelKonfig, tit
   return { aufbau, listen, runden, boegen }
 }
 
+/** Was die Beispielansicht der Listen (components/WkrVorschau.vue) für eine Muster-Runde wählt. */
+export interface MusterRundeWahl {
+  /** So viele Zeilen (Starts) – aufgerundet auf ganze Paare, denn jedes Paar fährt zwei Attempts. */
+  anzahl: number
+  /** Buchstabe vor den Muster-Startnummern („M1“, „M2“ …), wie auf den übrigen Beispielbögen. */
+  praefix: string
+  /** Die gewählte Klasse: Sie fährt in ihrem Bootstyp; der andere bekommt eine Klasse dazu. */
+  klasse: ClassId
+}
+
+/**
+ * Muster-Starter für eine Runde mit etwa `anzahl` Starts: je Bootstyp eine Klasse – die
+ * gewählte und eine des anderen Bootstyps –, damit die Blöcke wie auf den gedruckten Listen
+ * entstehen: ein kleines und ein großes Paar im 4er-Block, die übrigen Paare des kleinen Boots
+ * im 2er-Block. In der Klasse des kleinen Boots ist die Zahl ungerade: Ihr letzter fährt gegen
+ * einen Dummy – je Racecourse eine Dummy-Zeile zur Anschauung.
+ */
+export function musterStarter(wahl: MusterRundeWahl, class4Small: boolean): Starter[] {
+  const paare = Math.max(0, Math.ceil(Math.floor(wahl.anzahl) / 2))
+  const gross = Math.floor(paare / 2)
+  const anzahl: Record<BoatType, number> = { klein: paare - gross > 0 ? 2 * (paare - gross) - 1 : 0, gross: 2 * gross }
+  const aktiv = parallelActiveClasses()
+  const boot = (k: ClassId) => boatTypeOf(k, class4Small)
+  // Die gewählte Klasse fährt in ihrem Boot; im anderen die nächstgelegene: die höchste kleine, die kleinste große.
+  const klasse = (b: BoatType): ClassId | undefined =>
+    aktiv.includes(wahl.klasse) && boot(wahl.klasse) === b ? wahl.klasse : b === 'klein' ? aktiv.filter((k) => boot(k) === b).at(-1) : aktiv.find((k) => boot(k) === b)
+  let nr = 0
+  return (['klein', 'gross'] as const).flatMap((b) => {
+    const k = klasse(b)
+    if (k === undefined) return []
+    return Array.from({ length: anzahl[b] }, (): Starter => {
+      nr++
+      return { id: `muster-${nr}`, startNr: `${wahl.praefix}${nr}`, vorname: '', nachname: '', verein: '', bundesland: '', geburtsdatum: '', groesse: '', klasse: k }
+    })
+  })
+}
+
+/**
+ * Die Listen einer Muster-Runde des Parallelslaloms für die Beispielansicht: der Vorlauf mit
+ * Muster-Startern ({@link musterStarter}), je Racecourse A und B Zeit, Steg und Fahrweg. Gebaut
+ * mit denselben Bausteinen wie die echten Listen, nicht nachgebaut (Entscheidung des Nutzers vom
+ * 15.11.2026): Paarung und Blöcke aus planung/parallel.ts `buildParallelPlan`, festgeschrieben
+ * wie ein echter Plan (`schreibeFest`), die Bögen aus {@link parallelBoegen} – mit Namen aus der
+ * WKR-Einteilung der Racecourses. Statt der Kennung der Veranstaltung trägt der QR-Code „MUSTER“
+ * (lib/qr.ts `QR_MUSTER`): Er trifft nie einen echten Bogen, die Erfassung erkennt ihn als Beispiel.
+ */
+export function musterRundenBoegen(
+  stand: Omit<ParallelStand, 'starters' | 'parallelPlaene' | 'kennung'> & Partial<Pick<AppState, 'class4Small' | 'parallelStreng'>>,
+  konfig: ParallelKonfig,
+  wahl: MusterRundeWahl,
+  titelVon?: (typeId: string, parcoursId: string) => string,
+): ParallelBoegen {
+  const starters = musterStarter(wahl, stand.class4Small === true)
+  // Gepaart wie in der Veranstaltung eingestellt (Klasse 4 im kleinen Boot, strenge Klassentrennung).
+  const fest = schreibeFest(buildParallelPlan(starters, { class4Small: stand.class4Small === true, streng: stand.parallelStreng !== false }), VORLAUF)
+  return parallelBoegen({ ...stand, kennung: QR_MUSTER, starters, parallelPlaene: { [VORLAUF]: fest } }, konfig, titelVon)
+}
+
 /** Was gedruckt wird; ein fehlender Wert heißt „alle“. */
 export interface ParallelAuswahl {
   runde?: ParallelRunde
@@ -207,13 +269,23 @@ export function waehleRundenBoegen(boegen: readonly WkrBogen[], auswahl: Paralle
 }
 
 /**
- * Je Liste ein Bogen zum Messen der Kapazität (der des ersten Racecourse der ersten Runde):
- * Wie viele Zeilen auf ein Blatt passen, hängt an der Liste – an Kopf, Legende und Format –,
- * nicht an Runde und Racecourse.
+ * Wonach die Kapazität eines Blatts gemessen wird: Racecourse und Liste. Wie viele Zeilen auf
+ * ein Blatt passen, hängt an Kopf, Legende und Format der Liste und an der Sprache ihres Bogens
+ * – die gilt je Racecourse (zweisprachig bricht anders um; Entscheidung des Nutzers vom
+ * 15.11.2026) –, nicht an der Runde.
  */
+export function messKennungRunde(b: { racecourse: Racecourse; typeId: string }): string {
+  return `${b.racecourse}|${b.typeId}`
+}
+
+/** Je Racecourse und Liste ein Bogen zum Messen der Kapazität (der der ersten Runde), siehe {@link messKennungRunde}. */
 export function messBoegenRunde(boegen: readonly WkrBogen[]): WkrBogen[] {
   const je = new Map<string, WkrBogen>()
-  for (const b of boegen) if (!je.has(b.typeId)) je.set(b.typeId, b)
+  for (const b of boegen) {
+    if (!b.runde) continue
+    const kennung = messKennungRunde({ racecourse: b.runde.racecourse, typeId: b.typeId })
+    if (!je.has(kennung)) je.set(kennung, b)
+  }
   return [...je.values()]
 }
 
@@ -242,11 +314,16 @@ export interface RundenZettel {
  * Die Laufzettel des Parallelslaloms: je Runde (statt je Klasse und Lauf) IMMER zwei – einer je
  * Racecourse (Entscheidung des Nutzers vom 15.11.2026, abends): Zettel A mit den Kästchen der
  * drei Listen von A, Zettel B mit denen von B, je gedrucktem Blatt eines, jeder mit eigenem
- * QR-Code. `seitenVon` nennt die Seitenzahl einer Liste der Runde ({@link rundenSeitenzahl}) –
- * jede Liste teilt für sich, A und B einer Liste gleich. Die Schritte der Auswertung stehen nur
- * auf Zettel A.
+ * QR-Code. `seitenVon` nennt die Seitenzahl einer Liste der Runde auf einem Racecourse
+ * ({@link rundenSeitenzahl}) – jede Liste teilt für sich, und A und B einer Liste können sich
+ * unterscheiden, wenn ihre Bögen verschiedene Sprachen haben. Die Schritte der Auswertung
+ * stehen nur auf Zettel A.
  */
-export function rundenZettel(stand: Pick<ParallelStand, 'kennung' | 'regelwerk'>, parallel: ParallelBoegen, seitenVon: (runde: ParallelRunde, typeId: string) => number): RundenZettel[] {
+export function rundenZettel(
+  stand: Pick<ParallelStand, 'kennung' | 'regelwerk'>,
+  parallel: ParallelBoegen,
+  seitenVon: (runde: ParallelRunde, typeId: string, racecourse: Racecourse) => number,
+): RundenZettel[] {
   const { aufbau } = parallel
   if (aufbau === undefined) return []
   return parallel.runden.flatMap((runde) => {
@@ -261,7 +338,7 @@ export function rundenZettel(stand: Pick<ParallelStand, 'kennung' | 'regelwerk'>
           typeId,
           boegen: derRunde
             .filter((b) => b.typeId === typeId && b.runde!.racecourse === racecourse)
-            .map((b) => ({ bogenId: b.id, racecourse, seiten: Math.max(1, Math.floor(seitenVon(runde, typeId)) || 1) })),
+            .map((b) => ({ bogenId: b.id, racecourse, seiten: Math.max(1, Math.floor(seitenVon(runde, typeId, racecourse)) || 1) })),
         })),
         schritte: racecourse === RACECOURSES[0],
       }),

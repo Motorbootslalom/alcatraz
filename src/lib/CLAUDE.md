@@ -12,15 +12,18 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
   `ergebnisText.ts` (SPALTEN → results.col.*), `listenStand.ts` (Zeitpunkt je Liste, WERTUNG), `disziplinen.ts`.
 - Parallelslalom: `parallelErgebnis.ts` (Runde, Qualifikation, Re-run, PARALLEL_ANNAHMEN), `parallelStage.ts`
   (klassenStand, schreibeRundeFest, stageErgebnis), `parallelSchluessel.ts`, `parallelBogen.ts` (Listen je Racecourse;
-  rundenZettel: Zettel A und B, Schritte nur auf A), `parallelStartliste.ts` (Blatt: components/ParallelStartlisten).
+  rundenZettel: Zettel A und B, Schritte nur auf A; Messung je Racecourse und Liste `messKennungRunde`; Muster-Runde der
+  Beispielansicht `musterRundenBoegen`), `parallelStartliste.ts` (Blatt: components/ParallelStartlisten).
 - Einzel/Mannschaft: `einzelwertung.ts` (EINZEL_FESTLEGUNGEN), `pokal.ts`, `pokalBlaetter.ts`, `teamListe.ts`.
 - Bögen und Listen: `wkrListen.ts` (wkrBoegenZumStand), `bogen.ts` (Modell, bogenSeiten), `listen.ts`
   (veranstaltungsListen), `laufzettel.ts`, `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`,
-  `namen.ts`, `origin.ts` (Herkunft, Kürzel, Flagge), `ausgleich.ts`, `besetzung.ts`, `einteilung.ts`, `qr.ts`.
+  `namen.ts`, `origin.ts` (Herkunft, Kürzel, Flagge), `ausgleich.ts`, `besetzung.ts`, `einteilung.ts` (Namen UND Sprache
+  der Bögen je Parcours und Liste: setzeSprache, normalisiereSprachen; einteilungsZellen = gedruckte Zellen), `qr.ts`.
 - Seiten: `paging.ts` (WKR-Bögen; gruppenSeiten/gruppenKapazitaet gleichen aus, Blöcke unteilbar), `seiten.ts`
   (listenSeiten füllt auf, gleicht nicht aus; `gebunden` = Zeilen einer Zelle mit rowspan), `doppelseitig.ts`. Sprache: `konfig.ts`, `listensprache.ts`, `event.ts`.
 - Betrieb: `offline.ts`, `update.ts`, `verlauf.ts` (ARTEN, beschreibe), `merken.ts`, `scan.ts`, `scanner.ts`,
-  `router.ts`, `adressen.ts`, `theme.ts`, `build.ts`, `clipboard.ts`, `bogenZoom.ts`, `beispielwerte.ts` (saat → Werte).
+  `router.ts`, `adressen.ts`, `theme.ts`, `build.ts`, `clipboard.ts`, `bogenZoom.ts`, `beispielwerte.ts` (saat → Werte),
+  `beispieldaten.ts` (saat → Beispiel-Besetzung der WKR-Einteilung, Beispielgewichte).
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
 
 ## Abläufe
@@ -46,10 +49,12 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
 - Mannschaftswertung: pokal.ts plaetzeWertung/uimWertung/platzPunkte/klasseFertig; Regeln config/pokal.ts.
 - Druckdatei: druckdatei.ts DRUCKDATEI_TEILE, SPAETERE_TEILE, istDruckdateiWahl, druckdateiFolge.
 - Beispielwerte: beispielwerte.ts (DM_2026, WM_MANOEVRIEREN, WM_PARALLEL; nur gerundete Kennzahlen).
+- Beispiel-Besetzung/-gewichte: beispieldaten.ts (BESETZUNG_PERSONEN, BESETZUNG_HOECHSTENS = eine Zeile im Bogenkopf,
+  ANTEIL_LEICHTER); welche Zellen: einteilung.ts einteilungsZellen (auch „alle auf …“ in WkrEinteilung.vue).
 
 ## Fallen
 
-- Reducer ruft Teile von lib (eingaben, listenStand, abmeldung, parallelStage, beispielwerte): dort kein
+- Reducer ruft Teile von lib (eingaben, listenStand, abmeldung, parallelStage, beispielwerte, beispieldaten): dort kein
   Date.now()/Math.random(). Zeit = action.zeit, Zufall = zufallAus(saat).
 - Eingaben: `eingaben[laufSchluessel][starterId][feld]` – Zeile ist die Starter-ID, nicht die Startnummer.
   Disq/Bemerkung/erfasst gehören zur Liste (`disq@steg`, `erfasst@<typeId>`); Knoten unter Lauf 0 (OHNE_LAUF).

@@ -513,7 +513,6 @@ function speichern() {
         v-if="vorschauKonfig"
         :konfig="vorschauKonfig"
         :aufbau-id="entwurf.id"
-        :namen-pflegen="false"
         :einleitung="t('assist.previewIntro')"
       />
       <p v-else class="boat-banner warn" role="status">{{ t('assist.previewNotYet') }}</p>

@@ -31,7 +31,9 @@ import {
   sortedByStartNr,
 } from '../domain/startnumbers'
 import { dublettenSchluessel, mergeStarters } from '../import/starterMerge'
-import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
+import { einteilungsZellen, haengeUm, ohneParcours, setzeName, setzeSprache, type WkrZelle } from '../lib/einteilung'
+import { beispielEinteilung, beispielGewichte } from '../lib/beispieldaten'
+import { parallelListen } from '../lib/parallelBogen'
 import { setzeBesetzung } from '../lib/besetzung'
 import { gueltigeZellen, laufSchluessel, nurStarter, OHNE_LAUF, setzeWerte, starterfeldFest, type EingabeZelle } from '../lib/eingaben'
 import { attemptSchluessel } from '../lib/parallelSchluessel'
@@ -43,13 +45,12 @@ import { geaenderteListen, listenStandNach } from '../lib/listenStand'
 import { streichlaeufeVon } from '../lib/ergebnis'
 import { mitTor5Umzug } from './tor5'
 import { istKennung } from '../lib/qr'
-import { isSprache } from '../config/sprache'
 import { canonicalRunningNumbers } from '../planung/running'
 import { mitVorlaufPlan, VORLAUF, vorlaufGebunden } from '../planung/parallelRunden'
 import { loeseRunde, schreibeRundeFest } from '../lib/parallelStage'
 import { setzeNichtWerten, WERTUNGS_DISZIPLINEN } from '../lib/disziplinen'
 import { POKAL_LEER, POKAL_PLATZ_VARIANTEN, istPokalVariante, pokalVorgabe, pokalZahl, punkteListe, type PokalPlatzVariante, type PokalVariante } from '../config/pokal'
-import { aufbauOf, beschriftungOf, DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT_REGELWERK, hasParallel, regelwerkOf, startNrPraefixe } from '../config/catalog'
+import { aufbauOf, beschriftungOf, DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT_REGELWERK, hasParallel, regelwerkOf, sollgewichtOf, startNrPraefixe } from '../config/catalog'
 import { istGeschlecht } from '../domain/geschlecht'
 
 /**
@@ -170,10 +171,11 @@ type Aenderung =
   /** Bezeichnung der Bojen-Seiten auf den Listen; eine unbekannte Kennung gilt als Vorgabe. */
   | { type: 'SET_BESCHRIFTUNG'; beschriftung: string }
   /**
-   * Sprache der Wettkampfrichter-Bögen für die genannten Listen (eine Zeile der Einteilung
-   * oder „alle auf …“); `null` = wieder die Sprache des Regelwerks.
+   * Sprache der Wettkampfrichter-Bögen für die genannten Zellen der Einteilung – je Parcours
+   * (bzw. Racecourse) und Liste: eine Zelle oder „alle auf …“; `null` = wieder die Sprache des
+   * Regelwerks.
    */
-  | { type: 'SET_WKR_SPRACHE'; typeIds: readonly string[]; sprache: Sprache | null }
+  | { type: 'SET_WKR_SPRACHE'; zellen: readonly WkrZelle[]; sprache: Sprache | null }
   /** Leerzeilen je Seite auf gemeinsamen Bögen (Clubmeisterschaft, Papier sparen); `null` = Vorgabe. */
   | { type: 'SET_WKR_LEERZEILEN_SEITE'; anzahl: number | null }
   /**
@@ -213,6 +215,19 @@ type Aenderung =
    * Halbfinale stehen.
    */
   | { type: 'FILL_BEISPIELWERTE'; zeitnahme: Zeitnahme; saat: number; laeufe?: number[]; runden?: ParallelRunde[]; nurRunden?: boolean; nurLeere?: boolean }
+  /**
+   * Beispiel-Besetzung: zwei bis drei erfundene Namen in jede Zelle der WKR-Einteilung, deren
+   * Bogen gedruckt wird – je Parcours und Liste, unter einem Regelwerk mit Parallelslalom auch je
+   * Racecourse (lib/beispieldaten.ts). Ersetzt, was dort stand; die Rückfrage stellt die
+   * Oberfläche. Der Zufall steckt in der `saat`.
+   */
+  | { type: 'FILL_BEISPIEL_BESETZUNG'; saat: number }
+  /**
+   * Beispielgewichte: ein erfundenes Gewicht für jeden Starter um das Durchschnittsgewicht seiner
+   * Klasse, ein Teil leichter (lib/beispieldaten.ts). Ersetzt vorhandene Gewichte; die Rückfrage
+   * stellt die Oberfläche. Der Zufall steckt in der `saat`.
+   */
+  | { type: 'FILL_BEISPIELGEWICHTE'; saat: number }
   /**
    * Die erfassten Werte des Gewählten verwerfen: Läufe des Manövrierens (mit dem 1. Lauf auch die
    * Listen ohne Lauf, die Knoten – so, wie die Beispielwerte sie füllen) und/oder Runden des
@@ -287,12 +302,6 @@ export function zeilenJeSeiteZahl(n: unknown): number {
 /** „Teilen ab“: 0 = immer, sonst bis 200; Unbrauchbares ist 0. */
 export function teilenAbZahl(n: unknown): number {
   return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(WKR_TEILEN_AB_MAX, Math.round(n))) : 0
-}
-
-/** Die Sprachen der Bögen je Liste: nur Einträge mit einer gültigen Sprache. */
-export function wkrSprachenWert(x: unknown): AppState['wkrSprachen'] {
-  if (!x || typeof x !== 'object' || Array.isArray(x)) return {}
-  return Object.fromEntries(Object.entries(x as Record<string, unknown>).filter((e): e is [string, Sprache] => isSprache(e[1])))
 }
 
 /** Eine gültige Form der Laufzettel; sonst die Vorgabe „eine Zeile je Seite“. */
@@ -654,13 +663,8 @@ function wendeAn(state: AppState, action: Action): AppState {
       return { ...state, beschriftung: beschriftungOf(action.beschriftung) }
 
     case 'SET_WKR_SPRACHE': {
-      const sprache = action.sprache
-      const wkrSprachen = { ...state.wkrSprachen }
-      for (const id of action.typeIds) {
-        if (sprache !== null && isSprache(sprache)) wkrSprachen[id] = sprache
-        else delete wkrSprachen[id]
-      }
-      return { ...state, wkrSprachen }
+      const wkrSprachen = setzeSprache(state.wkrSprachen, action.zellen, action.sprache)
+      return wkrSprachen === state.wkrSprachen ? state : { ...state, wkrSprachen }
     }
 
     case 'SET_WKR_LEERZEILEN_SEITE':
@@ -827,6 +831,12 @@ function wendeAn(state: AppState, action: Action): AppState {
           state.parcoursList.map((p) => p.id),
           action.parcours.map((p) => p.id),
         ),
+        // Ebenso die Sprache der Bögen je Parcours: Sie gehört zu der Gruppe, die dort sitzt.
+        wkrSprachen: haengeUm(
+          state.wkrSprachen,
+          state.parcoursList.map((p) => p.id),
+          action.parcours.map((p) => p.id),
+        ),
       }
 
     case 'REMOVE_PARCOURS':
@@ -835,6 +845,7 @@ function wendeAn(state: AppState, action: Action): AppState {
         ...state,
         parcoursList: state.parcoursList.filter((p) => p.id !== action.id),
         einteilung: ohneParcours(state.einteilung, action.id),
+        wkrSprachen: ohneParcours(state.wkrSprachen, action.id),
       }
 
     case 'RENAME_PARCOURS':
@@ -892,6 +903,16 @@ function wendeAn(state: AppState, action: Action): AppState {
       if (!hasParallel(state.regelwerk)) return { ...state, eingaben }
       const runden = action.runden ?? []
       return { ...state, eingaben: runden.reduce((e, runde) => beispielRunde({ ...state, eingaben: e }, konfig, runde, { zeitnahme: action.zeitnahme, nurLeere: action.nurLeere === true }, zufall), eingaben) }
+    }
+    case 'FILL_BEISPIEL_BESETZUNG': {
+      const konfig = konfigVon(state)
+      const zellen = einteilungsZellen(konfig, state, hasParallel(state.regelwerk) ? parallelListen(konfig) : [])
+      const einteilung = beispielEinteilung(state.einteilung, zellen, zufallAus(action.saat))
+      return einteilung === state.einteilung ? state : { ...state, einteilung }
+    }
+    case 'FILL_BEISPIELGEWICHTE': {
+      if (state.starters.length === 0) return state
+      return { ...state, starters: beispielGewichte(state.starters, (klasse) => sollgewichtOf(state.regelwerk, state.sollgewicht, klasse), zufallAus(action.saat)) }
     }
     case 'CLEAR_EINGABEN_TEIL': {
       const disziplin = konfigVon(state).getAufbau(state.aufbau).disziplin

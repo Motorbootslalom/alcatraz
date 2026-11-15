@@ -163,7 +163,7 @@ describe('Listenoptionen in den Dateien', () => {
     wkrZeilenJeSeite: 15,
     wkrTeilenAb: 25,
     beschriftung: 'ls',
-    wkrSprachen: { steg: 'de+en', knoten: 'de' },
+    wkrSprachen: { par_1: { steg: 'de+en' }, par_2: { knoten: 'de' }, 'racecourse-a': { zeit: 'de' } },
     wkrLeerzeilenSeite: 5,
     tor5MitParcours: true,
     zusatzListen: { knoten: false, vorsteg: true },
@@ -182,6 +182,16 @@ describe('Listenoptionen in den Dateien', () => {
     const danach = vorlage.apply(filled())
     expect(danach).toMatchObject(optionen)
     expect(danach.starters).toEqual(filled().starters)
+  })
+
+  it('Sprache der Bögen je Parcours: Die Vorlage bringt sie mit den eigenen Parcours mit, an deren Kennungen sie hängt', () => {
+    const parcoursList: AppState['parcoursList'] = [{ id: 'v_1', name: 'Parcours 1', classIds: ['1', '2'], wechselFaktor: 2 }]
+    const datei = makeFile('vorlage', { ...filled(), parcoursList, wkrSprachen: { v_1: { steg: 'de' }, 'racecourse-b': { steg: 'de+en' } } }, AT)
+    const vorlage = parseFile(JSON.stringify(datei))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    const danach = vorlage.apply({ ...filled(), wkrSprachen: { par_1: { zeit: 'de+en' } } })
+    expect(danach.parcoursList.map((p) => p.id)).toEqual(['v_1'])
+    expect(danach.wkrSprachen).toEqual({ v_1: { steg: 'de' }, 'racecourse-b': { steg: 'de+en' } })
   })
 
   it('eine Vorlage, die Tor 5 und Parcours zusammenlegt, zieht die hiesigen Eingaben und Namen mit', () => {

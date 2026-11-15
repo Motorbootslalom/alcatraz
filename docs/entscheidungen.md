@@ -181,8 +181,25 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   (Abgleich beim Check-in). → AppState.showBirthdate
 - 2026-11-14 · N · Wertungslisten in „beiden Reihenfolgen“: erst nach Startnummer, dann nach Platz; die Gesamtliste hat
   dafür ein eigenes Auswahlfeld.
-- 2026-11-14 · N · Listensprache folgt dem Regelwerk (DM deutsch, UIM englisch), nicht der Oberfläche; WKR-Bögen je
-  Liste wählbar, unter UIM Vorgabe englisch. → `lib/listensprache.ts`, AppState.wkrSprachen
+- 2026-11-14 · N · Listensprache folgt dem Regelwerk (DM deutsch, UIM englisch), nicht der Oberfläche; WKR-Bögen
+  wählbar (siehe nächster Eintrag), unter UIM Vorgabe englisch. → `lib/listensprache.ts`
+- 2026-11-15 · N · Sprache der WKR-Bögen je Liste UND Parcours, im Parallelslalom je Racecourse A/B: Auf den Parcours
+  sitzen ganz getrennte Gruppen. Gewählt wird je Zelle der WKR-Einteilung gleich neben dem Namen (DE, EN, DE+EN), keine
+  eigene Spalte mehr; eine frühere Wahl je Liste gilt beim Laden für jeden Parcours und beide Racecourses. Gedruckte
+  Bögen, die Messung der Laufzettel und die Beispielansicht folgen ihr. Weiter eine Einstellung: in Sicherung und
+  Vorlage, dort mit den Parcours der Vorlage. Festlegung bei der Umsetzung, vom Nutzer nicht entschieden (siehe
+  „Offen“): Die Erfassung bleibt bei der Sprache der Oberfläche (Bedienung). →
+  AppState.wkrSprachen, `lib/listensprache.ts` wkrSpracheFuer, `lib/einteilung.ts`, `components/WkrEinteilung.vue`
+- 2026-11-15 · N · Beispielansicht beim Aufbau: Der Name des Wettkampfrichters wird dort nur angezeigt (der in der
+  WKR-Einteilung für Liste und Parcours eingeteilte), nicht eingetragen – gepflegt wird er nur in der Einteilung. Ohne
+  Eintrag die leere Linie mit „Name Wettkampfrichter*in“ / „Name of race official“ wie auf dem Papier; der Assistent für
+  eigene Aufbauten ebenso. → `components/WkrVorschau.vue`, `components/bogen/BogenKopf.vue`
+- 2026-11-15 · N · Beispielansicht unter einem Regelwerk mit Parallelslalom (UIM) auch mit dessen Listen: je Racecourse A
+  und B Zeit, Steg (pontoon), Fahrweg einer Muster-Runde – Muster-Startnummern in 4er- bzw. 2er-Blöcken wie gedruckt,
+  eine Dummy-Zeile, Kennzeichen „Beispielansicht“, Muster-QR (Scan: Beispiel). Gebaut mit denselben Bausteinen wie die
+  echten Listen. „Muster-Zeilen“ zählt dort die Starts, aufgerundet auf ganze Paare; die gewählte Klasse fährt in ihrem
+  Boot. Festlegung bei der Umsetzung: Bei 0 Muster-Zeilen leere Listen wie im Manövrieren, der Hinweis sagt das. →
+  `lib/parallelBogen.ts` musterRundenBoegen, `components/WkrVorschau.vue`
 - 2026-11-15 · N · Englische Wertungslisten: Kürzel nach Rulebook (Leav./Moor. statt Dep./Moor); die Sprache des
   Rulebooks hat Vorrang. → `i18n/en.ts` results.col.stegAb/stegAn, `lib/ergebnisText.ts` SPALTEN (WKR-Bögen:
   `config/i18n/en.yaml`)
@@ -283,9 +300,25 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 
 - 2026-11-13 · N · Block „Beispieldaten“ zugeklappt unter „Veranstaltung“; offen, sobald Beispieldaten geladen sind. →
   `views/EventView.vue`
-- 2026-11-15 · N · Nationen immer international (englischer Name, dreistelliger Code); unter UIM sind Beispielstarter
-  immer Nationen, und das Beispielfeld stellt die Herkunft der Veranstaltung auf „Land“ (SET_ORIGIN_MODE). →
-  `domain/generate.ts`, `components/BeispieldatenPanel.vue`, Test `views/EventView.test.ts`
+- 2026-11-15 · N · Nationen immer international (englischer Name, dreistelliger Code nach IOC). → `domain/generate.ts`
+  `LAENDER`, `lib/origin.ts`
+- 2026-11-15 · N · Das Beispiel-Starterfeld folgt der Herkunft der Veranstaltung, unabhängig vom Regelwerk: Verein →
+  Vereine, Bundesland → Bundesländer, Land → Länder (Kürzel nach IOC), ohne → Starter ohne Herkunft. Die Einstellung
+  bleibt, wie gewählt (kein Umstellen auf „Land“ unter UIM mehr). „Herkünfte (leer = unbegrenzt)“ zählt die jeweilige
+  Art; ohne Herkunft ist das Feld gesperrt. → `components/BeispieldatenPanel.vue`, `domain/generate.ts`, Test
+  `views/EventView.test.ts`
+- 2026-11-15 · N · Beispiel-Besetzung, eigener Knopf: füllt jede Zelle der WKR-Einteilung, deren Bogen gedruckt wird (je
+  Parcours und Liste, unter UIM auch je Racecourse), mit zwei bis drei erfundenen Personen aus `data/`, durch Komma
+  getrennt. Über 40 Zeichen stehen die Vornamen abgekürzt, reicht das nicht, nur zwei Personen – so bleibt der Eintrag
+  im Bogenkopf auf einer Zeile (gemessen, auch neben QR-Code und „WKR / Race official:“). Stehen dort schon Namen: erst
+  Rückfrage. Die Namen stehen wie echte in der Sicherung, nie in der Vorlage; eigener Verlaufseintrag; deterministisch
+  über `saat`. → `lib/beispieldaten.ts`, Action `FILL_BEISPIEL_BESETZUNG`
+- 2026-11-15 · N · Beispielgewichte, eigener Knopf: je Starter um das Durchschnittsgewicht seiner Klasse (Regelwerk oder
+  abweichender Wert der Veranstaltung), ein Teil leichter, damit Ausgleichsgewichte entstehen; auf 0,1 kg wie die
+  Eingabe in der Verwiegung. Sind schon Gewichte da: erst Rückfrage; eigener Verlaufseintrag; deterministisch über
+  `saat`. Festlegung bei der Umsetzung: 40 % je Klasse leichter (ab zwei Startern mindestens einer, je 1 kg bis gut
+  15 % darunter), die übrigen bis 25 % darüber (`ANTEIL_LEICHTER`). → `lib/beispieldaten.ts`, Action
+  `FILL_BEISPIELGEWICHTE`
 - 2026-11-15 · N · Beispielwerte: Abweichung zwischen Racecourse A und B bleibt; wählbar, welche Stages/Runden Werte
   bekommen. → `lib/beispielwerte.ts`
 
@@ -334,6 +367,9 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 - Hinweis „Auswertung: siehe Zettel A“ auf Laufzettel B des Parallelslaloms (`lib/parallelBogen.ts` rundenZettel).
 - Beispieldaten: ob die Zahlen nur je Reiter stehen sollen (`components/BeispieldatenPanel.vue`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
+- Sprache der Erfassung: bisher die der Oberfläche (Festlegung bei der Umsetzung von Paket E, nicht vom Nutzer
+  entschieden). Offen, ob ihre Spaltenköpfe der Sprache des Bogens folgen sollen, von dem abgetippt wird (je Liste und
+  Parcours bzw. Racecourse). → `lib/konfig.ts` useKonfig `oberflaeche`, `views/ErfassungView.vue`
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
 - Mehrgeräte-Betrieb (Anzeigetafel, Startlisten) über ntfy: noch nicht übernommen; der Server ist mit dem Nutzer
   abgestimmt (Hostname bewusst nicht im Repo).

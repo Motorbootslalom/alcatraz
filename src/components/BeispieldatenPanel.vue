@@ -14,14 +14,16 @@ import { useKonfig } from '../lib/konfig'
 import { sprungziel } from '../lib/router'
 import StarterSperre from './StarterSperre.vue'
 import { rundenName, vergleicheRunden, VORLAUF, vorlaufGebunden } from '../planung/parallelRunden'
-import { festeRunden } from '../lib/parallelBogen'
+import { festeRunden, parallelListen } from '../lib/parallelBogen'
+import { einteilungsZellen } from '../lib/einteilung'
 import type { ParallelRunde } from '../types'
 import { t, tn } from '../i18n'
 import type { ClassId, Starter } from '../types'
 
 /**
- * Beispieldaten am Ende der Ansicht „Veranstaltung“: ein erfundenes Starterfeld und dazu
- * Beispielwerte für Erfassung und Wertungslisten. Der Block steht dort – und nicht unter
+ * Beispieldaten am Ende der Ansicht „Veranstaltung“: ein erfundenes Starterfeld, eine erfundene
+ * Besetzung der WKR-Einteilung, erfundene Gewichte und dazu Beispielwerte für Erfassung und
+ * Wertungslisten. Der Block steht dort – und nicht unter
  * „Einstellungen“ –, damit Neue gleich sehen, dass sich alles gefahrlos ausprobieren lässt.
  *
  * Zugeklappt, solange mit echten Startern gearbeitet wird: Der Block soll dann nicht stören.
@@ -72,8 +74,9 @@ function setCount(id: ClassId, e: Event) {
 const total = computed(() => CLASSES.value.reduce((sum, c) => sum + countOf(c.id), 0))
 
 // Herkünfte: unbegrenzt (gewürfelt aus allen) oder eine Zahl – dann verteilen sich die Starter
-// reihum auf so viele Vereine bzw. Bundesländer oder Nationen, je nach Art der Herkunft. So lässt
+// reihum auf so viele Vereine bzw. Bundesländer oder Länder, je nach Art der Herkunft. So lässt
 // sich die Mannschaftswertung prüfen (Entscheidung des Nutzers vom 15.11.2026). 0 = unbegrenzt.
+// Ohne Herkunft gibt es nichts zu verteilen: Das Feld ist dann gesperrt.
 const herkuenfte = merke('beispiel.herkuenfte', 0, { ueberNeuladen: true, gueltig: (w) => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= 99 })
 function setHerkuenfte(e: Event) {
   herkuenfte.value = Math.max(0, Math.min(99, parseInt((e.target as HTMLInputElement).value, 10) || 0))
@@ -87,11 +90,13 @@ function generate() {
   const existing = state.value.starters.length
   if (existing > 0 && !confirm(t('demo.confirm', { n: existing }) + verlustText(state.value, state.value.starters))) return
   // Erfundene Starter entstehen hier und nicht im Reducer – der bleibt frei von Zufall.
-  // Unter UIM (Regelwerk mit Parallelslalom) immer Nationen, nie Vereine (Entscheidung des Nutzers
-  // vom 15.11.2026): Die Herkunft der Veranstaltung wird dazu auf „Land“ gestellt.
-  if (parallel.value && state.value.originMode !== 'land') dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'land' })
-  const origin = parallel.value ? 'land' : state.value.originMode === 'none' ? 'verein' : state.value.originMode
-  const feste = herkuenfte.value > 0 ? beispielHerkuenfte(origin, herkuenfte.value) : undefined
+  // Die Herkunft folgt der Wahl der Veranstaltung, gleich unter welchem Regelwerk: Verein →
+  // Vereine, Bundesland → Bundesländer, Land → Länder (Kürzel nach IOC), ohne → keine
+  // (Entscheidung des Nutzers vom 15.11.2026, spät abends; sie ersetzt die vom selben Tag, nach
+  // der unter UIM immer Nationen kamen und die Herkunft dazu auf „Land“ umgestellt wurde).
+  // Die Einstellung der Veranstaltung bleibt, wie gewählt.
+  const origin = state.value.originMode
+  const feste = herkuenfte.value > 0 && origin !== 'none' ? beispielHerkuenfte(origin, herkuenfte.value) : undefined
   let starters: Starter[] = []
   for (const c of CLASSES.value) {
     if (countOf(c.id) > 0) {
@@ -101,6 +106,38 @@ function generate() {
   }
   dispatch({ type: 'CLEAR_ALL_STARTERS' })
   dispatch({ type: 'ADD_STARTERS', starters, beispiel: true })
+}
+
+/** Was die Herkunft der Beispielstarter sein wird – die der Veranstaltung (oben in dieser Ansicht). */
+const herkunftHinweis = computed(() =>
+  state.value.originMode === 'none' ? t('demo.originNote.none') : t('demo.originNote', { origin: t(`event.origin.${state.value.originMode}`) }),
+)
+
+/** Der Zufall entsteht hier und reist als Saat in der Action – der Reducer bleibt deterministisch. */
+const neueSaat = () => Math.floor(Math.random() * 0x100000000)
+
+// --- Beispiel-Besetzung und Beispielgewichte ---------------------------------
+// Je ein eigener Knopf (Entscheidung des Nutzers vom 15.11.2026): erfundene Namen für die
+// WKR-Einteilung und erfundene Gewichte aus der Verwiegung. Was schon eingetragen ist, wird nie
+// still ersetzt – erst nach Rückfrage (lib/beispieldaten.ts).
+
+/** Die Zellen, die die Beispiel-Besetzung füllt – dieselben wie „alle auf …“ in der WKR-Einteilung. */
+const besetzungZellen = computed(() => einteilungsZellen(konfig.value, state.value, parallel.value ? parallelListen(konfig.value) : []))
+const besetzt = computed(() => besetzungZellen.value.filter((z) => (state.value.einteilung[z.parcoursId]?.[z.typeId] ?? '').trim() !== '').length)
+const besetzungStand = computed(() =>
+  besetzungZellen.value.length === 0 ? t('demo.crew.noLists') : t('demo.crew.count', { done: besetzt.value, total: besetzungZellen.value.length }),
+)
+
+function beispielBesetzung() {
+  if (besetzt.value > 0 && !confirm(tn('demo.crew.confirm', besetzt.value))) return
+  dispatch({ type: 'FILL_BEISPIEL_BESETZUNG', saat: neueSaat() })
+}
+
+const gewogen = computed(() => state.value.starters.filter((p) => p.gewicht !== undefined).length)
+
+function beispielGewichte() {
+  if (gewogen.value > 0 && !confirm(tn('demo.weights.confirm', gewogen.value))) return
+  dispatch({ type: 'FILL_BEISPIELGEWICHTE', saat: neueSaat() })
 }
 
 // --- Beispielwerte -----------------------------------------------------------
@@ -148,8 +185,7 @@ const nurLeere = computed(() => was.value !== MANOEVER && was.value !== VORLAUF)
 
 function beispielwerte() {
   if (!nurLeere.value && werteGewaehlt.value > 0 && !confirm(t('demo.values.confirm'))) return
-  // Der Zufall entsteht hier und reist als Saat in der Action – der Reducer bleibt deterministisch.
-  const saat = Math.floor(Math.random() * 0x100000000)
+  const saat = neueSaat()
   const w = was.value
   if (w === MANOEVER) dispatch({ type: 'FILL_BEISPIELWERTE', zeitnahme: zeitnahme.value, saat, laeufe: laeufeGewaehlt.value })
   else dispatch({ type: 'FILL_BEISPIELWERTE', zeitnahme: zeitnahme.value, saat, runden: [w], nurRunden: true, ...(nurLeere.value ? { nurLeere: true } : {}) })
@@ -183,14 +219,43 @@ function werteLoeschen() {
       </label>
     </div>
     <div class="row" style="justify-content: flex-end; align-items: flex-end; gap: 20px">
-      <!-- 0 = unbegrenzt: Die Herkunft jedes Starters wird aus allen gewürfelt. -->
+      <!-- 0 = unbegrenzt: Die Herkunft jedes Starters wird aus allen gewürfelt. Ohne Herkunft ist das
+           Feld gesperrt und leer (weder Zahl noch „unbegrenzt“) – es gilt dann nichts davon; die
+           gemerkte Zahl bleibt und steht wieder da, sobald die Veranstaltung eine Herkunft führt. -->
       <div class="field" style="width: 220px">
         <label for="beispiel-herkuenfte">{{ t('demo.origins') }}</label>
-        <input id="beispiel-herkuenfte" class="input" type="number" min="0" max="99" data-feld="beispiel-herkuenfte" :value="herkuenfte || ''" :placeholder="t('demo.origins.unlimited')" :title="t('demo.origins.hint')" @change="setHerkuenfte" />
+        <input
+          id="beispiel-herkuenfte"
+          class="input"
+          type="number"
+          min="0"
+          max="99"
+          data-feld="beispiel-herkuenfte"
+          :value="state.originMode === 'none' ? '' : herkuenfte || ''"
+          :placeholder="state.originMode === 'none' ? undefined : t('demo.origins.unlimited')"
+          :title="t(state.originMode === 'none' ? 'demo.origins.none' : 'demo.origins.hint')"
+          :disabled="state.originMode === 'none'"
+          @change="setHerkuenfte"
+        />
       </div>
       <button class="btn" data-action="beispielstarter" :disabled="total === 0 || fest" @click="generate">{{ t('demo.generate') }}</button>
     </div>
+    <p class="note" data-hinweis="beispiel-herkunft">{{ herkunftHinweis }}</p>
     <StarterSperre />
+
+    <!-- Beispiel-Besetzung und Beispielgewichte: je ein Knopf, Rückfrage vor dem Ersetzen. -->
+    <div class="subhead">{{ t('demo.crew.title') }}</div>
+    <p class="hint">{{ t('demo.crew.intro') }}</p>
+    <div class="row" style="align-items: center; gap: 12px 32px; margin-bottom: 18px">
+      <span class="row" style="align-items: center; gap: 10px">
+        <button class="btn" data-action="beispielbesetzung" :disabled="besetzungZellen.length === 0" @click="beispielBesetzung">{{ t('demo.crew.fill') }}</button>
+        <span class="note" data-hinweis="beispiel-besetzung" role="status" style="margin: 0">{{ besetzungStand }}</span>
+      </span>
+      <span class="row" style="align-items: center; gap: 10px">
+        <button class="btn" data-action="beispielgewichte" :disabled="state.starters.length === 0" @click="beispielGewichte">{{ t('demo.weights.fill') }}</button>
+        <span class="note" data-hinweis="beispiel-gewichte" role="status" style="margin: 0">{{ t('weigh.progress', { done: gewogen, total: state.starters.length }) }}</span>
+      </span>
+    </div>
 
     <!-- Beispielwerte für Erfassung und Wertungslisten: Zufall nach den Häufigkeiten früherer Wettkämpfe. -->
     <div class="subhead">{{ t('demo.values.title') }}</div>

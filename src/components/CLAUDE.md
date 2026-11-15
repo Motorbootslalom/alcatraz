@@ -10,7 +10,9 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
   `HerkunftText.vue`, `QrCode.vue`.
 - WKR-Bögen `bogen/`: `BogenBlatt.vue` (misst erste Seite, bogenSeiten, meldet seiten/kapazitaet), `BogenSeite.vue`,
   `BogenKopf.vue` (schwebender QR), `BogenLegende.vue`, `BogenBild.vue`, `BogenRueckseite.vue` (180° gedreht).
-  Reiter: `WkrListen.vue`, `ParallelWkrListen.vue`, `WkrVorschau.vue` (nie gedruckt), `WkrEinteilung.vue`.
+  Reiter: `WkrListen.vue`, `ParallelWkrListen.vue`, `WkrVorschau.vue` (nie gedruckt; Name nur Anzeige; unter UIM auch
+  Muster-Runde des Parallelslaloms), `WkrEinteilung.vue` (Name + Sprache je Zelle = Parcours/Racecourse × Liste; Zellen
+  lib/einteilung.ts einteilungsZellen; Tabelle volle Breite, damit 2–3 Personen je Feld lesbar sind).
 - Wertung `ergebnis/`: `ErgebnisLaufBlatt.vue`, `ErgebnisGesamtBlatt.vue` (DM, UIM und Runden-Ergebnis Parallel),
   `ErgebnisFuss.vue`, `ParallelAttemptsBlatt.vue`, `ParallelStageBlatt.vue`, `EinzelwertungBlatt.vue`.
   Reiter + Stapel: `ErgebnisListen`/`ErgebnisStapel`, `ParallelErgebnisListen`/`…Stapel`, `EinzelwertungListen`/
@@ -25,7 +27,8 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
 - Starter/Verzahnung: `ClassSection.vue`, `ManualAddForm.vue`, `ExcelPanel.vue`, `StartNumberPanel.vue` (auch E/D),
   `StarterSperre.vue`, `ParcoursCard.vue`, `TrackContainer.vue`, `ClassChip.vue`, `PauseChip.vue`, `SlotCell.vue`,
   `FlowPreview.vue`, `SequenceTable.vue`, `BoatPanel.vue`, `HeatTable.vue`, `ParallelRunden.vue`.
-- Panels: `BeispieldatenPanel.vue` (Starter + saat entstehen hier; unter UIM Herkunft „Land“), `BesetzungPanel.vue`,
+- Panels: `BeispieldatenPanel.vue` (Starter + saat entstehen hier; Herkunft wie die Veranstaltung; Knöpfe
+  Beispiel-Besetzung und Beispielgewichte, Rückfrage per confirm vor dem Ersetzen), `BesetzungPanel.vue`,
   `EigeneAufbautenPanel.vue`, `AufbauAssistent.vue` + `ZuordnungImBild.vue` + `BlickErklaerung.vue`, `VerlaufPanel.vue`,
   `OfflinePanel.vue`, `AppearancePanel.vue`, `EingabenHinweis.vue`, `HerkunftWahl.vue` (Listenform), `SettingsNav.vue`.
   Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop, ParcoursNachweis, FremdeBestandteile.
@@ -34,7 +37,7 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
 
 - Wertungsliste: ErgebnisListen (klassenErgebnis, ergebnisBlaetter) → ErgebnisStapel (namen, origin, listenStand,
   stichAufListe) → ErgebnisLaufBlatt/GesamtBlatt (texteIn(sprache)) → ListenDokument → ErgebnisFuss.
-- WKR-Bogen: WkrListen (wkrBoegenZumStand, useBogenKonfig je Liste) → BogenBlatt (@layout → paging.rowsThatFit →
+- WKR-Bogen: WkrListen (wkrBoegenZumStand, useBogenKonfig(typeId, parcoursId)) → BogenBlatt (@layout → paging.rowsThatFit →
   bogen.bogenSeiten) → BogenSeite + BogenKopf + BogenLegende + BogenBild → optional BogenRueckseite.
 - Druckdatei: DruckdateiListen (lib/druckdatei.ts) nutzt dieselben Stapel wie die Reiter; leere Rückseite über
   useLeereRueckseite nach ungerader Seitenzahl, nur wenn noch ein Dokument folgt.
@@ -67,6 +70,9 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
 - Doppelseitig: nur lib/doppelseitig.ts DOPPELSEITIG_ARTEN; eigene Seiten ohne ListenDokument brauchen
   data-druckseite und useLeereRueckseite selbst.
 - Bedienauswahl über lib/merken.ts merke(); nicht mehr vorhandene Wahl gilt als 'alle'/Vorgabe (Muster WkrListen.vue).
+- Sprache eines Bogens hängt an Parcours UND Liste: bogenKonfig(b.typeId, b.parcoursId), auch beim Messen (Laufzettel,
+  ParallelMessung je Racecourse). Auswahlfelder über mehrere Parcours: useAuswahlKonfig (sonst Regelwerkssprache).
+- Bogenkopf hat kein Namensfeld mehr: Namen nur in WkrEinteilung (Entscheidung 15.11.2026).
 - ISSUE_KEYS (own.issue.*) doppelt: EigeneAufbautenPanel und AufbauAssistent. PARALLEL_RUNDE_LOESEN heißt „Löschen“.
 
 ## Tests

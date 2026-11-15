@@ -223,6 +223,13 @@ export type EventKind = 'meisterschaft' | 'club'
  */
 export type Einteilung = Record<string, Record<string, string>>
 
+/**
+ * Sprache der Wettkampfrichter-Bögen je Parcours (Kennung aus der Verzahnung, im
+ * Parallelslalom die des Racecourse) und Liste (`SheetTypeId`) – gebaut wie die
+ * {@link Einteilung}, siehe lib/einteilung.ts. Keine Personendaten: eine Einstellung.
+ */
+export type WkrSprachen = Record<string, Record<string, Sprache>>
+
 /** Eine Angabe je Klasse als freier Text (Boot, Co-Pilot); eine Klasse ohne Angabe fehlt. */
 export type Besetzung = Partial<Record<ClassId, string>>
 
@@ -454,13 +461,16 @@ export interface AppState extends PlanState {
    */
   beschriftung: string
   /**
-   * Sprache der Wettkampfrichter-Bögen je Liste (Kennung der Position → Sprache): Wer an
-   * welcher Position sitzt, entscheidet, ob der Bogen deutsch, englisch oder zweisprachig
-   * sein soll. Fehlt eine Liste, gilt die Sprache des Regelwerks (`listenSprache` im YAML).
-   * Wirkt nur, wo das Regelwerk Englisch anbietet; die Wahl bleibt sonst stehen. Alle übrigen
-   * Listen stehen immer in der Sprache des Regelwerks (lib/listensprache.ts).
+   * Sprache der Wettkampfrichter-Bögen je Parcours und Liste – gebaut wie die Einteilung
+   * ({@link WkrSprachen}): Wer an welcher Position sitzt, entscheidet, ob der Bogen deutsch,
+   * englisch oder zweisprachig sein soll, und auf jedem Parcours sitzt eine eigene Gruppe
+   * (Entscheidung des Nutzers vom 15.11.2026). Fehlt ein Eintrag, gilt die Sprache des
+   * Regelwerks (`listenSprache` im YAML). Wirkt nur, wo das Regelwerk Englisch anbietet; die
+   * Wahl bleibt sonst stehen. Alle übrigen Listen stehen immer in der Sprache des Regelwerks
+   * (lib/listensprache.ts). Eine Einstellung: Sie reist auch in der Vorlage mit – dort mit den
+   * Parcours der Vorlage, an deren Kennungen sie hängt.
    */
-  wkrSprachen: Record<string, Sprache>
+  wkrSprachen: WkrSprachen
   /**
    * „Tor 5 übernimmt die Parcoursüberwachung“: Eine Person beobachtet die Einfahrt in Tor 5
    * und den Fahrweg auf einer Liste, die eigene Parcoursliste entfällt (config/kombi.ts).

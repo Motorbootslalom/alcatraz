@@ -4,10 +4,12 @@ import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
-import { listenFuerKlasse, musterZeilen, type BogenAuftrag } from '../lib/bogen'
-import { parcoursVon, wkrFeld, wkrName } from '../lib/einteilung'
+import { listenFuerKlasse, musterZeilen, type BogenAuftrag, type BogenOptionen } from '../lib/bogen'
+import { parcoursVon, wkrName } from '../lib/einteilung'
 import { wkrBoegen } from '../lib/wkrListen'
 import { musterCode } from '../lib/qr'
+import { musterRundenBoegen } from '../lib/parallelBogen'
+import { RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
@@ -24,32 +26,36 @@ import ParcoursNachweis from './ParcoursNachweis.vue'
  * Sie rechnet nur aus dem Stand und der Konfiguration und folgt deshalb sofort dem
  * Regelwerk, dem Aufbau, der Einteilung und der Sprache. Gedruckt wird sie nie (bogen.css).
  *
- * Mit `namenPflegen` ist das Namensfeld im Bogenkopf ein Eingabefeld. Es schreibt mit
- * derselben Action an dieselbe Stelle wie die Tabelle der WKR-Einteilung (lib/einteilung.ts
- * `wkrFeld`); beide zeigen deshalb stets denselben Stand. Ist das Blatt in einem schmalen
- * Fenster stark verkleinert, wäre das Feld im Kopf nur wenige Pixel hoch: Dann steht
- * dasselbe Feld in normaler Größe über dem Blatt, und der Kopf zeigt den Namen als Text.
+ * Der Name im Bogenkopf wird nur angezeigt: der aus der WKR-Einteilung für diese Liste auf dem
+ * Parcours der Klasse (bzw. auf dem Racecourse). Ist dort niemand eingeteilt, steht wie auf dem
+ * Papier die leere Linie mit „Name Wettkampfrichter*in“. Eintragen lässt er sich nur in der
+ * WKR-Einteilung (Entscheidung des Nutzers vom 15.11.2026: ein Name auf einem Beispielbogen war
+ * unlogisch) – so zeigen die Vorschau hier und die im Assistenten für eigene Aufbauten dasselbe.
+ *
+ * Unter einem Regelwerk mit Parallelslalom (UIM) kommen dessen Listen dazu: je Racecourse A und B
+ * Zeit, Steg (pontoon) und Fahrweg einer Muster-Runde (Entscheidung des Nutzers vom 15.11.2026) –
+ * gebaut mit denselben Bausteinen wie die echten Listen (lib/parallelBogen.ts `musterRundenBoegen`):
+ * Muster-Startnummern in Blöcken wie gedruckt (4 bzw. 2 Starts), eine Dummy-Zeile, Muster-QR.
+ * „Muster-Zeilen“ zählt dort die Starts, aufgerundet auf ganze Paare. Nicht im Assistenten: Der
+ * entwirft einen Aufbau des Manövrierens.
  */
-const props = withDefaults(
-  defineProps<{
-    /** Eine andere Konfiguration als die der Veranstaltung: der Entwurf im Assistenten. */
-    konfig?: Konfig
-    /** Der Aufbau; Vorgabe ist der gewählte. */
-    aufbauId?: string
-    namenPflegen?: boolean
-    /** Einleitung, wenn nicht die der Einstellungen passt. */
-    einleitung?: string
-  }>(),
-  { namenPflegen: true },
-)
+const props = defineProps<{
+  /** Eine andere Konfiguration als die der Veranstaltung: der Entwurf im Assistenten. */
+  konfig?: Konfig
+  /** Der Aufbau; Vorgabe ist der gewählte. */
+  aufbauId?: string
+  /** Einleitung, wenn nicht die der Einstellungen passt. */
+  einleitung?: string
+}>()
 
-const { state, dispatch } = useStore()
+const { state } = useStore()
 const eigeneKonfig = useKonfig()
 const konfig = computed(() => props.konfig ?? eigeneKonfig.value)
-// Gezeichnet wird der Bogen in der Sprache seiner Liste, wie er gedruckt würde. Der Entwurf
-// im Assistenten bringt seine eigene Konfiguration mit; dort gilt die Sprache des Regelwerks.
+// Gezeichnet wird der Bogen in der Sprache seiner Liste auf seinem Parcours, wie er gedruckt
+// würde. Der Entwurf im Assistenten bringt seine eigene Konfiguration mit; dort gilt die Sprache
+// des Regelwerks.
 const bogenKonfig = useBogenKonfig()
-const blattKonfig = (typeId: string) => props.konfig ?? bogenKonfig(typeId)
+const blattKonfig = (b: { typeId: string; parcoursId?: string }) => props.konfig ?? bogenKonfig(b.typeId, b.parcoursId)
 const aufbauId = computed(() => props.aufbauId ?? state.value.aufbau)
 const id = useId()
 
@@ -74,6 +80,17 @@ function setzeAnzahl(e: Event) {
 const parcours = computed(() => parcoursVon(state.value.parcoursList, klasse.value))
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 
+/** Ein Reiter der Beispielansicht: ein Blatt, wie es gedruckt würde. */
+interface Blatt {
+  /** Kennung des Reiters: im Manövrieren die Liste, im Parallelslalom Runde, Racecourse und Liste. */
+  id: string
+  typeId: string
+  /** Parcours bzw. Racecourse des Blatts (Kennung in der Einteilung) – für Name und Sprache. */
+  parcoursId?: string
+  auftrag: BogenAuftrag
+  optionen: Pick<BogenOptionen, 'leerzeilen' | 'zeilenJeSeite' | 'teilenAb' | 'klassenBloecke' | 'leerzeilenJeKlasse' | 'leerzeilenJeSeite' | 'zebra'>
+}
+
 /**
  * Clubmeisterschaft: Dort stehen mehrere Klassen auf einem Bogen. Die Beispielansicht zeigt
  * deshalb, was wirklich gedruckt würde – abgeleitet mit derselben Funktion wie die echten
@@ -96,13 +113,9 @@ const clubBoegen = computed(() => {
   return wkrBoegen(stand, konfig.value, new Map([[p.id, starter]])).boegen
 })
 
-const boegen = computed(() => {
+const boegen = computed<Blatt[]>(() => {
   const zeilen = musterZeilen(anzahl.value, t('preview.numberPrefix'))
   return listenFuerKlasse(konfig.value, { ...state.value, aufbau: aufbauId.value }, klasse.value).map((typeId) => {
-    const feld = props.namenPflegen ? wkrFeld(state.value, typeId, klasse.value, konfig.value) : undefined
-    const def = konfig.value.getSheetDef(typeId)
-    // Das Feld im Kopf nur, solange es sich treffen und lesen lässt.
-    const imKopf = !!feld && faktoren.value[def.orientation] >= KOPF_FELD_AB
     // Der gemeinsame Bogen, auf dem die gewählte Klasse steht (nur Clubmeisterschaft).
     const gemeinsam = clubBoegen.value?.find((b) => b.typeId === typeId && b.klassen.includes(klasse.value))
     const auftrag: BogenAuftrag = {
@@ -110,8 +123,8 @@ const boegen = computed(() => {
       eventName: heading.value,
       // Wie auf den Startlisten: Der Parcours steht nur da, wenn es mehrere gibt.
       parcours: state.value.parcoursList.length > 1 ? parcours.value?.name : undefined,
-      // Im Eingabefeld der Eintrag, wie er getippt wurde; sonst der Name, wie er gedruckt wird.
-      wkr: feld && imKopf ? feld.eingabe : wkrName(state.value, typeId, klasse.value, konfig.value),
+      // Nur zur Anzeige: der Name aus der WKR-Einteilung, wie er gedruckt wird (siehe oben).
+      wkr: wkrName(state.value, typeId, klasse.value, konfig.value),
       // Der Code zeigt, wo er steht und wie groß er ist – trifft aber keinen Bogen: An der
       // Stelle der Veranstaltung steht „MUSTER“, die Erfassung weist ihn als Beispiel ab.
       qr: musterCode(
@@ -125,26 +138,37 @@ const boegen = computed(() => {
       zeilenJeSeite: state.value.wkrZeilenJeSeite,
       teilenAb: state.value.wkrTeilenAb,
     }
-    const label = feld && parcours.value ? t('preview.nameFor', { list: def.title, parcours: parcours.value.name }) : undefined
-    return { typeId, feld, imKopf, auftrag, optionen, label }
+    return { id: typeId, typeId, parcoursId: parcours.value?.id, auftrag, optionen }
   })
 })
+
+// --- Parallelslalom: eine Muster-Runde je Racecourse (nur unter einem Regelwerk, das ihn kennt) ---
+const parallel = computed(() =>
+  props.konfig ? undefined : musterRundenBoegen(state.value, konfig.value, { anzahl: anzahl.value, praefix: t('preview.numberPrefix'), klasse: klasse.value }),
+)
+const parallelBlaetter = computed<(Blatt & { racecourse: Racecourse })[]>(() =>
+  (parallel.value?.boegen ?? []).map((b) => ({ id: b.id, typeId: b.typeId, parcoursId: b.parcoursId, racecourse: b.runde!.racecourse, auftrag: b.auftrag, optionen: b.optionen })),
+)
+const parallelGruppen = computed(() =>
+  RACECOURSES.map((rc) => ({ racecourse: rc, blaetter: parallelBlaetter.value.filter((b) => b.racecourse === rc) })).filter((g) => g.blaetter.length > 0),
+)
+const racecourseName = (rc: Racecourse) => t(rc === 'A' ? 'parallel.parcoursA' : 'parallel.parcoursB')
+/** Wie viele Starts eine Liste der Muster-Runde hat (Zeilen): je Paar zwei Attempts. */
+const parallelStarts = computed(() => parallelBlaetter.value[0]?.auftrag.zeilen.length ?? 0)
+
 // Je Position ein Reiter: Untereinander wären es bis zu neun Blätter – wer einen Aufbau
 // anlegt, will die eine Position sehen, an der er gerade arbeitet. Gibt es die gewählte
-// Position nicht mehr (andere Klasse, anderer Aufbau), gilt die erste.
+// Position nicht mehr (andere Klasse, anderer Aufbau, anderes Regelwerk), gilt die erste.
 const gewaehlt = merke<string | undefined>('vorschau.reiter', undefined, { ueberNeuladen: true, gueltig: istText })
-const aktiv = computed(() => boegen.value.find((b) => b.typeId === gewaehlt.value) ?? boegen.value[0])
+const alleBlaetter = computed<Blatt[]>(() => [...boegen.value, ...parallelBlaetter.value])
+const aktiv = computed(() => alleBlaetter.value.find((b) => b.id === gewaehlt.value) ?? alleBlaetter.value[0])
+const parallelAktiv = computed(() => !!aktiv.value && parallelBlaetter.value.some((b) => b.id === aktiv.value!.id))
 const mitBild = computed(() => !!aktiv.value && !aktiv.value.auftrag.ohneBild && !!konfig.value.getSheetDef(aktiv.value.typeId).bildErzeugen)
-
-function setzeName(parcoursId: string, typeId: string, name: string) {
-  dispatch({ type: 'SET_WKR_NAME', parcoursId, typeId, name })
-}
+const reiterTitel = (b: Blatt) => konfig.value.getSheetDef(b.typeId).title
 
 // Schmale Fenster: Die Bögen werden als Ganzes verkleinert (lib/bogenZoom.ts).
 const stapel = ref<HTMLElement | null>(null)
-const { faktoren, zoom } = useBogenZoom(stapel)
-/** Unter diesem Faktor ist das Namensfeld im Kopf (12 pt) kleiner als etwa 9 px Schrift. */
-const KOPF_FELD_AB = 0.6
+const { zoom } = useBogenZoom(stapel)
 </script>
 
 <template>
@@ -155,6 +179,10 @@ const KOPF_FELD_AB = 0.6
       <span class="wkr-vorschau-marke">{{ t('preview.mark') }}</span>
     </h3>
     <p class="hint">{{ einleitung ?? t('preview.intro') }}</p>
+    <p v-if="!einleitung" class="note" data-hinweis="vorschau-namen">
+      {{ t('preview.names') }} <a :href="adresse('veranstaltung', { ziel: 'wkr' })">{{ t('wkr.title') }}</a
+      >.
+    </p>
     <div class="row wkr-vorschau-leiste">
       <div class="field">
         <label :for="`${id}-klasse`">{{ t('preview.class') }}</label>
@@ -169,49 +197,59 @@ const KOPF_FELD_AB = 0.6
       <p class="note wkr-vorschau-stand" role="status">
         {{ tn('preview.count', boegen.length) }}
         <template v-if="parcours"> · {{ t('preview.parcours', { parcours: parcours.name }) }}</template>
+        <template v-if="parallelBlaetter.length > 0"> · {{ tn('preview.countParallel', parallelBlaetter.length) }}</template>
       </p>
     </div>
-    <p v-if="namenPflegen && !parcours && klasse" class="boat-banner warn" role="status">
+    <p v-if="!props.konfig && !parcours && klasse" class="boat-banner warn" role="status">
       {{ t('preview.noParcours', { class: classLabel(klasse) }) }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a>
     </p>
     <p v-if="boegen.length === 0" class="boat-banner warn" role="status">{{ t('preview.noLists', { class: classLabel(klasse) }) }}</p>
-    <div v-if="boegen.length > 1" class="segmented list-kinds wkr-vorschau-tabs" role="tablist" :aria-label="t('preview.tabs')">
-      <button
-        v-for="b in boegen"
-        :key="b.typeId"
-        type="button"
-        role="tab"
-        :data-liste="b.typeId"
-        :class="aktiv?.typeId === b.typeId ? 'active' : ''"
-        :aria-selected="aktiv?.typeId === b.typeId"
-        @click="gewaehlt = b.typeId"
-      >
-        {{ konfig.getSheetDef(b.typeId).title }}
-      </button>
-    </div>
-    <div ref="stapel" class="bogen-stapel" :style="zoom">
-      <template v-for="b in aktiv ? [aktiv] : []" :key="b.typeId">
-        <!-- Verkleinertes Blatt: das Namensfeld in normaler Größe darüber (siehe oben). -->
-        <div v-if="b.feld && !b.imKopf" class="field wkr-vorschau-name">
-          <label :for="`${id}-name-${b.typeId}`">{{ b.label }}</label>
-          <input
-            :id="`${id}-name-${b.typeId}`"
-            class="input"
-            autocomplete="off"
-            :data-feld="`vorschau-name|${b.typeId}`"
-            :value="b.feld.eingabe"
-            @input="setzeName(b.feld.parcoursId, b.typeId, ($event.target as HTMLInputElement).value)"
-          />
+    <div v-if="alleBlaetter.length > 1" class="wkr-vorschau-reiter" role="tablist" :aria-label="t('preview.tabs')">
+      <div v-if="boegen.length > 0" class="segmented list-kinds wkr-vorschau-tabs">
+        <button
+          v-for="b in boegen"
+          :key="b.id"
+          type="button"
+          role="tab"
+          :data-liste="b.id"
+          :class="aktiv?.id === b.id ? 'active' : ''"
+          :aria-selected="aktiv?.id === b.id"
+          @click="gewaehlt = b.id"
+        >
+          {{ reiterTitel(b) }}
+        </button>
+      </div>
+      <!-- Parallelslalom: je Racecourse seine Listen. -->
+      <div v-if="parallelGruppen.length > 0" class="wkr-vorschau-parallel">
+        <span class="wkr-vorschau-parallel-titel">{{ t('parallel.title') }}</span>
+        <div v-for="g in parallelGruppen" :key="g.racecourse" class="wkr-vorschau-racecourse" :data-racecourse="g.racecourse">
+          <span class="wkr-vorschau-racecourse-name">{{ racecourseName(g.racecourse) }}</span>
+          <div class="segmented list-kinds wkr-vorschau-parallel-tabs">
+            <button
+              v-for="b in g.blaetter"
+              :key="b.id"
+              type="button"
+              role="tab"
+              :data-liste="b.id"
+              :class="aktiv?.id === b.id ? 'active' : ''"
+              :aria-selected="aktiv?.id === b.id"
+              :aria-label="`${reiterTitel(b)}, ${racecourseName(g.racecourse)}`"
+              @click="gewaehlt = b.id"
+            >
+              {{ reiterTitel(b) }}
+            </button>
+          </div>
         </div>
-        <BogenBlatt
-          :konfig="blattKonfig(b.typeId)"
-          :auftrag="b.auftrag"
-          :optionen="b.optionen"
-          :kennzeichen="t('preview.mark')"
-          :wkr-pflege="b.imKopf"
-          :wkr-label="b.label"
-          @wkr="b.feld && setzeName(b.feld.parcoursId, b.typeId, $event)"
-        />
+      </div>
+    </div>
+    <!-- Mit 0 Muster-Zeilen bleiben die Listen leer wie im Manövrieren (nur der Kopf) – dann nennt der
+         Hinweis weder Blöcke noch eine Dummy-Zeile, die es nicht gibt. -->
+    <p v-if="parallelAktiv" class="note" data-hinweis="vorschau-parallel">
+      {{ parallelStarts > 0 ? tn('preview.parallelNote', parallelStarts) : t('preview.parallelNoteEmpty') }}
+    </p>
+    <div ref="stapel" class="bogen-stapel" :style="zoom">
+      <template v-for="b in aktiv ? [aktiv] : []" :key="b.id">
+        <BogenBlatt :konfig="blattKonfig(b)" :auftrag="b.auftrag" :optionen="b.optionen" :kennzeichen="t('preview.mark')" />
       </template>
     </div>
     <ParcoursNachweis v-if="mitBild" />

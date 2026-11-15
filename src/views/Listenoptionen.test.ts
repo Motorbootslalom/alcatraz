@@ -102,7 +102,7 @@ describe('Listen: Aushang der Codes', () => {
     const titel = () => wrapper.find('.lg-blatt .sheet-title-box .list').text()
     expect(titel()).toBe('Legend: penalties and disqualifications')
     expect(wrapper.find('.lg-quelle').text()).toContain('rule 960 Formula Future')
-    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['steg', 'zeit', 'gate135'], sprache: 'de+en' })
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: ['steg', 'zeit', 'gate135'].map((typeId) => ({ parcoursId: 'par_1', typeId })), sprache: 'de+en' })
     await nextTick()
     expect(titel()).toBe('Legend: penalties and disqualifications')
     // Die Sprache der Oberfläche spielt keine Rolle; unter der DM ist der Aushang deutsch.
@@ -140,8 +140,9 @@ describe('Listen: Sprache nach dem Regelwerk, unabhängig von der Oberfläche', 
     wrapper.unmount()
   })
 
-  it('Bögen je Liste: deutsch, englisch oder zweisprachig nebeneinander; die übrigen Listen bleiben bei der Sprache des Regelwerks', async () => {
-    lade(store, { regelwerk: 'uim-2026', laufCount: 1, wkrSprachen: { steg: 'de', zeit: 'de+en' } })
+  it('Bögen je Parcours und Liste: deutsch, englisch oder zweisprachig nebeneinander; die übrigen Listen bleiben bei der Sprache des Regelwerks', async () => {
+    // Klasse 1 fährt auf Parcours 1, Klasse 4 auf Parcours 2 – zwei getrennte Gruppen.
+    lade(store, { regelwerk: 'uim-2026', laufCount: 1, wkrSprachen: { par_1: { steg: 'de', zeit: 'de+en' }, par_2: { steg: 'de', zeit: 'de' } } })
     const wrapper = listen(store)
     expect(koepfe(wrapper)[0]).toBe('No.')
     // Auch die Sprache der Oberfläche ändert daran nichts.
@@ -150,14 +151,16 @@ describe('Listen: Sprache nach dem Regelwerk, unabhängig von der Oberfläche', 
     expect(koepfe(wrapper)[0]).toBe('No.')
     setLocale('de')
     await art(wrapper, 'wkr')
-    const nr = (liste: string) => wrapper.find(`.wkr-listen .bogen[data-liste="${liste}"] .bt-nr`).text()
-    expect(nr('steg')).toBe('Nr.')
-    expect(nr('zeit')).toBe('Nr. / No.')
-    expect(nr('gate135')).toBe('No.')
-    // Die Auswahl nennt jede Liste so, wie sie auf ihrem Bogen heißt.
+    const nr = (liste: string) => wrapper.findAll(`.wkr-listen .bogen[data-liste="${liste}"] th.bt-nr`).map((x) => x.text())
+    // Je Parcours ein Bogen: erst Parcours 1, dann Parcours 2.
+    expect(nr('steg')).toEqual(['Nr.', 'Nr.'])
+    expect(nr('zeit')).toEqual(['Nr. / No.', 'Nr.'])
+    expect(nr('gate135')).toEqual(['No.', 'No.'])
+    // Die Auswahl nennt jede Liste so, wie sie auf ihren Bögen heißt – stehen die Parcours in
+    // verschiedenen Sprachen, in der des Regelwerks.
     const titel = wrapper.findAll('select[data-feld="wkr-liste"] option').map((o) => o.text())
     expect(titel).toContain('Steg')
-    expect(titel).toContain('Zeit / Time')
+    expect(titel).toContain('Time')
     expect(titel).toContain('Gate 1 / 3 / 5')
     // Der Laufzettel nennt die Listen in der Sprache des Regelwerks, nicht „Zeit / Time“.
     await art(wrapper, 'laufzettel')
@@ -169,7 +172,7 @@ describe('Listen: Sprache nach dem Regelwerk, unabhängig von der Oberfläche', 
   })
 
   it('DM: alles deutsch – auch bei englischer Oberfläche; eine Wahl für die Bögen wirkt nicht', async () => {
-    lade(store, { wkrSprachen: { steg: 'en', zeit: 'de+en' } })
+    lade(store, { wkrSprachen: { par_1: { steg: 'en', zeit: 'de+en' }, par_2: { steg: 'en' } } })
     setLocale('en')
     const wrapper = listen(store)
     expect(wrapper.find('.list-kinds button[data-kind="starter"]').text()).not.toMatch(/Starter/)
@@ -315,41 +318,56 @@ describe('Einstellungen: Listenoptionen', () => {
     wrapper.unmount()
   })
 
-  it('Sprache der Bögen: in der WKR-Einteilung je Liste wählbar, mit „alle auf …“ – nur wo das Regelwerk Englisch anbietet', async () => {
+  it('Sprache der Bögen: in der WKR-Einteilung je Liste und Parcours wählbar, neben dem Namen, mit „alle auf …“ – nur wo das Regelwerk Englisch anbietet', async () => {
     lade(store)
     const wrapper = veranstaltung(store)
-    const wahl = (liste: string) => wrapper.find(`#wkr-einteilung select[data-feld="wkr-sprache|${liste}"]`)
+    const wahl = (parcours: string, liste: string) => wrapper.find(`#wkr-einteilung select[data-feld="wkr-sprache|${parcours}|${liste}"]`)
     const alle = (sprache: string) => wrapper.find(`#wkr-einteilung button[data-alle-sprache="${sprache}"]`)
     // DM: keine Wahl.
     expect(wrapper.findAll('#wkr-einteilung select').length).toBe(0)
     expect(alle('en').exists()).toBe(false)
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     await nextTick()
-    // Eine Zeile je Liste der Veranstaltung; Vorgabe ist die Sprache des Regelwerks.
-    const zeilen = wrapper.findAll('#wkr-einteilung tbody th[scope="row"]').length
-    expect(wrapper.findAll('#wkr-einteilung select').length).toBe(zeilen)
-    expect((wahl('steg').element as HTMLSelectElement).value).toBe('en')
-    expect(wahl('steg').findAll('option').map((o) => o.attributes('value'))).toEqual(['de', 'en', 'de+en'])
+    // Keine eigene Spalte mehr: Jede Zelle mit Namensfeld hat ihre Wahl, gleich daneben.
+    expect(wrapper.find('#wkr-einteilung thead').text()).not.toContain('Sprache')
+    const zellen = wrapper.findAll('#wkr-einteilung .wkr-zelle')
+    expect(zellen.length).toBeGreaterThan(10)
+    expect(zellen.every((z) => z.find('input.cell-input').exists() && z.find('select.wkr-sprache-wahl').exists())).toBe(true)
+    // Vorgabe ist die Sprache des Regelwerks; kurz beschriftet, der volle Name steht im Titel.
+    expect((wahl('par_1', 'steg').element as HTMLSelectElement).value).toBe('en')
+    expect(wahl('par_1', 'steg').findAll('option').map((o) => o.attributes('value'))).toEqual(['de', 'en', 'de+en'])
+    expect(wahl('par_1', 'steg').findAll('option').map((o) => o.text())).toEqual(['DE', 'EN', 'DE+EN'])
+    expect(wahl('par_1', 'steg').attributes('title')).toBe('English')
+    expect(wahl('par_1', 'steg').attributes('aria-label')).toBe('Sprache des Bogens Pontoon, Parcours 1')
     expect(alle('en').classes()).toContain('active')
-    const zeile = (liste: string) => wahl(liste).element.closest('tr')!.querySelector('th[scope="row"]')!.textContent
-    expect(zeile('steg')).toBe('Pontoon')
-    await wahl('steg').setValue('de+en')
-    expect(store.state.value.wkrSprachen).toEqual({ steg: 'de+en' })
-    // Die Zeile nennt die Liste so, wie sie auf ihrem Bogen heißt.
-    expect(zeile('steg')).toBe('Steg / Pontoon')
+    // „Alle auf …“ steht unter BEIDEN Tabellen – es stellt auch die Racecourses um – und sagt das.
+    const leiste = wrapper.find('#wkr-einteilung .wkr-sprache-alle').element
+    const parallelTabelle = wrapper.find('#wkr-einteilung [data-tabelle="wkr-parallel"]').element
+    expect(parallelTabelle.compareDocumentPosition(leiste) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(wrapper.find('#wkr-einteilung [data-hinweis="wkr-sprache"]').text()).toContain('auch für Racecourse A und B')
+    const zeile = (parcours: string, liste: string) => wahl(parcours, liste).element.closest('tr')!.querySelector('th[scope="row"]')!.textContent
+    expect(zeile('par_1', 'steg')).toBe('Pontoon')
+    await wahl('par_1', 'steg').setValue('de+en')
+    // Nur dieser Parcours: Auf Parcours 2 sitzt eine andere Gruppe.
+    expect(store.state.value.wkrSprachen).toEqual({ par_1: { steg: 'de+en' } })
+    expect((wahl('par_2', 'steg').element as HTMLSelectElement).value).toBe('en')
+    expect(wahl('par_1', 'steg').attributes('title')).toBe('Deutsch + English')
+    // Die Zeile nennt die Liste in der Sprache des Regelwerks – je Parcours kann der Bogen anders heißen.
+    expect(zeile('par_1', 'steg')).toBe('Pontoon')
     expect(alle('en').classes()).not.toContain('active')
     // Was der Vorgabe entspricht, steht nicht im Stand – es folgt weiter dem Regelwerk.
-    await wahl('steg').setValue('en')
+    await wahl('par_1', 'steg').setValue('en')
     expect(store.state.value.wkrSprachen).toEqual({})
     await alle('de').trigger('click')
-    // „Alle“ sind die Listen beider Disziplinen: Zeit und Steg gibt es im Manövrieren und im
-    // Parallelslalom (zwei Zeilen, eine Liste), dessen Fahrweg nur dort.
-    const listenIds = new Set(wrapper.findAll('#wkr-einteilung select').map((s) => s.attributes('data-feld')!.split('|')[1]))
-    expect(listenIds.has('parallelparcours')).toBe(true)
-    expect(Object.keys(store.state.value.wkrSprachen).length).toBe(listenIds.size)
-    expect(new Set(Object.values(store.state.value.wkrSprachen))).toEqual(new Set(['de']))
+    // „Alle“ sind alle Zellen beider Disziplinen: je Parcours die Listen des Manövrierens, je
+    // Racecourse die des Parallelslaloms (dessen Fahrweg nur dort).
+    const felder = wrapper.findAll('#wkr-einteilung select.wkr-sprache-wahl').map((x) => x.attributes('data-feld')!.split('|'))
+    expect(felder.some(([, p, l]) => p === 'racecourse-a' && l === 'parallelparcours')).toBe(true)
+    const eingetragen = Object.entries(store.state.value.wkrSprachen).flatMap(([p, l]) => Object.entries(l).map(([typeId, s]) => [p, typeId, s]))
+    expect(eingetragen.length).toBe(felder.length)
+    expect(new Set(eingetragen.map(([, , s]) => s))).toEqual(new Set(['de']))
     expect(alle('de').classes()).toContain('active')
-    expect((wahl('zeit').element as HTMLSelectElement).value).toBe('de')
+    expect((wahl('racecourse-b', 'zeit').element as HTMLSelectElement).value).toBe('de')
     await alle('en').trigger('click')
     expect(store.state.value.wkrSprachen).toEqual({})
     wrapper.unmount()

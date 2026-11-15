@@ -5,7 +5,8 @@ import { useKonfig } from '../lib/konfig'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { zettelSchritte } from '../lib/laufzettel'
 import { schrittIn, schrittText } from '../lib/laufzettelText'
-import { parallelBoegen, rundenSeitenzahl, rundenZettel, type RundenZettel } from '../lib/parallelBogen'
+import { messKennungRunde, parallelBoegen, rundenSeitenzahl, rundenZettel, type RundenZettel } from '../lib/parallelBogen'
+import type { Racecourse } from '../lib/parallelSchluessel'
 import type { ParallelRunde } from '../types'
 import { rundenName } from '../planung/parallelRunden'
 import { t, tn } from '../i18n'
@@ -26,7 +27,8 @@ import ParallelMessung from './ParallelMessung.vue'
  * (components/LaufzettelBlatt.vue `zuviel`) – nichts wird zu Seitenbereichen zusammengefasst.
  *
  * Die Seitenzahlen sind gemessen (components/ParallelMessung.vue): Jede Liste teilt für sich,
- * die Zeit-Liste hat deshalb weniger Blätter als Steg und Fahrweg.
+ * die Zeit-Liste hat deshalb weniger Blätter als Steg und Fahrweg – und je Racecourse, weil die
+ * Sprache des Bogens dort gilt (zweisprachig braucht mehr Platz).
  *
  * Arbeitsschritte: die der Zettel zwischen den Läufen, mit dem Aushang – nach einer Runde wird
  * ausgehängt, wer weiterkommt; „Ausgehangen“ (zentrale Tafel) und „An die ML geschickt“ (PDF
@@ -41,10 +43,13 @@ const konfig = useKonfig()
 const { listenLocale, t: lt } = useListenSprache()
 
 const parallel = computed(() => parallelBoegen(state.value, konfig.value))
-/** Gemessen je Liste: so viele Tabellenzeilen passen auf ihr Blatt (fehlt = unbekannt). */
+/** Gemessen je Racecourse und Liste: so viele Tabellenzeilen passen auf ihr Blatt (fehlt = unbekannt). */
 const kapazitaeten = ref<Record<string, number>>({})
-const seitenVon = (runde: ParallelRunde, typeId: string) =>
-  rundenSeitenzahl(state.value.parallelPlaene[runde]!, kapazitaeten.value[typeId] ?? 0, { zeilenJeSeite: state.value.wkrZeilenJeSeite, teilenAb: state.value.wkrTeilenAb })
+const seitenVon = (runde: ParallelRunde, typeId: string, racecourse: Racecourse) =>
+  rundenSeitenzahl(state.value.parallelPlaene[runde]!, kapazitaeten.value[messKennungRunde({ racecourse, typeId })] ?? 0, {
+    zeilenJeSeite: state.value.wkrZeilenJeSeite,
+    teilenAb: state.value.wkrTeilenAb,
+  })
 const zettel = computed(() => (props.gesperrt ? [] : rundenZettel(state.value, parallel.value, seitenVon)))
 watchEffect(() => emit('stand', { anzahl: zettel.value.length, auswahl: t('parallel.title') }))
 

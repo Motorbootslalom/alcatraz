@@ -225,7 +225,7 @@ const { zoom } = useBogenZoom(stapel)
     <BogenBlatt
       v-for="b in zuMessen"
       :key="messKennung(b)"
-      :konfig="bogenKonfig(b.typeId)"
+      :konfig="bogenKonfig(b.typeId, b.parcoursId)"
       :auftrag="b.auftrag"
       :optionen="b.optionen"
       :rueckseite="state.wkrRueckseite"

@@ -2,7 +2,8 @@ import { computed, type ComputedRef } from 'vue'
 import { useStore } from '../state/store'
 import { locale } from '../i18n'
 import { configFor, type Konfig } from '../config/konfig'
-import { useListenSprache, wkrSpracheFuer } from './listensprache'
+import type { AppState, Sprache } from '../types'
+import { useListenSprache, wkrSpracheAller, wkrSpracheFuer } from './listensprache'
 
 /**
  * Die Konfiguration zum Stand der Veranstaltung: Regelwerk, eigene Aufbauten und Bezeichnung
@@ -11,13 +12,14 @@ import { useListenSprache, wkrSpracheFuer } from './listensprache'
  * dass eine Ansicht etwas neu laden müsste.
  *
  * Die Sprache ist die des Regelwerks (lib/listensprache.ts): für Wertungslisten, Laufzettel,
- * den Aushang der Codes und die Namen der Listen in den Einstellungen. Nur die
- * Wettkampfrichter-Bögen selbst haben ihre Sprache je Liste – siehe {@link useBogenKonfig}.
+ * den Aushang der Codes und die Namen der Listen in den Einstellungen und der WKR-Einteilung.
+ * Nur die Wettkampfrichter-Bögen selbst haben ihre Sprache je Parcours und Liste – siehe
+ * {@link useBogenKonfig}.
  *
  * `oberflaeche`: für die Erfassung. Sie ist Bedienung, gedruckt wird dort nichts – ihre
  * Spaltenköpfe stehen wie alles um sie herum in der Sprache der Oberfläche (soweit das
- * Regelwerk sie hat; sonst deutsch). Die Bögen, von denen abgetippt wird, können je Liste
- * eine andere Sprache haben; die Spalten sind in jeder dieselben.
+ * Regelwerk sie hat; sonst deutsch). Die Bögen, von denen abgetippt wird, können je Parcours
+ * und Liste eine andere Sprache haben; die Spalten sind in jeder dieselben.
  *
  * Die Bezeichnung der Bojen-Seiten gilt immer: Die Erfassung tippt vom Bogen ab und muss
  * dieselben Köpfe zeigen. Die Wertungslisten nennen die Bojen unabhängig davon R und L
@@ -37,19 +39,26 @@ export function useKonfig(optionen: { oberflaeche?: boolean } = {}): ComputedRef
 }
 
 /**
- * Die Konfiguration, mit der der Bogen einer Liste gezeichnet wird: wie {@link useKonfig},
- * aber in der Sprache, die für diese Liste gewählt ist (deutsch, englisch, zweisprachig).
- * Aufbau, Spalten und Kennungen sind in jeder Sprache dieselben – nur die Texte wechseln.
- * `configFor` merkt sich jede Fassung; mehr als drei entstehen nicht. Reaktiv, wenn in einem
- * `computed` oder in der Vorlage aufgerufen.
+ * Die Konfiguration, mit der der Bogen einer Liste auf einem Parcours (im Parallelslalom: auf
+ * einem Racecourse) gezeichnet wird: wie {@link useKonfig}, aber in der Sprache, die dort für
+ * diese Liste gewählt ist (deutsch, englisch, zweisprachig). Aufbau, Spalten und Kennungen sind
+ * in jeder Sprache dieselben – nur die Texte wechseln. `configFor` merkt sich jede Fassung;
+ * mehr als drei entstehen nicht. Reaktiv, wenn in einem `computed` oder in der Vorlage aufgerufen.
  */
-export function useBogenKonfig(): (typeId: string) => Konfig {
+export function useBogenKonfig(): (typeId: string, parcoursId: string | undefined) => Konfig {
   const { state } = useStore()
-  return (typeId) =>
-    configFor({
-      regelwerk: state.value.regelwerk,
-      sprache: wkrSpracheFuer(state.value, typeId),
-      beschriftung: state.value.beschriftung,
-      eigeneAufbauten: state.value.eigeneAufbauten,
-    })
+  return (typeId, parcoursId) => konfigIn(state.value, wkrSpracheFuer(state.value, parcoursId, typeId))
 }
+
+/**
+ * Wie {@link useBogenKonfig}, für eine Auswahl, die eine Liste über mehrere Parcours
+ * zusammenfasst: in der Sprache ihrer Bögen, wenn alle Parcours dieselbe haben, sonst in der
+ * des Regelwerks (lib/listensprache.ts `wkrSpracheAller`).
+ */
+export function useAuswahlKonfig(): (typeId: string, parcoursIds: readonly string[]) => Konfig {
+  const { state } = useStore()
+  return (typeId, parcoursIds) => konfigIn(state.value, wkrSpracheAller(state.value, parcoursIds, typeId))
+}
+
+const konfigIn = (stand: Pick<AppState, 'regelwerk' | 'beschriftung' | 'eigeneAufbauten'>, sprache: Sprache) =>
+  configFor({ regelwerk: stand.regelwerk, sprache, beschriftung: stand.beschriftung, eigeneAufbauten: stand.eigeneAufbauten })

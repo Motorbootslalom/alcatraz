@@ -95,7 +95,7 @@
 }
 
 /* Kennzeichen quer über dem Blatt („Beispielansicht“): unübersehbar, aber die
-   Liste darunter bleibt lesbar und das Namensfeld bedienbar. */
+   Liste darunter bleibt lesbar. */
 .bogen-kennzeichen {
   position: absolute;
   inset: 0;
@@ -227,36 +227,13 @@
   padding: 2px 2px;
 }
 
-.bk-wkr-input::placeholder {
-  color: var(--blatt-leise);
-}
-
-/* Die Bezeichnung unter der Linie: beim Eingabefeld nur im Druck (am Bildschirm
-   sagt der Platzhalter dasselbe), beim reinen Text immer. */
+/* Die Bezeichnung unter der Linie – immer, auch ohne Namen: Der Name steht nur als Text da
+   (gepflegt in der WKR-Einteilung), sonst trägt man ihn auf dem Papier von Hand ein. */
 .bk-wkr-unter {
-  display: none;
+  display: block;
   font-size: 7.5pt;
   color: var(--blatt-leise);
   padding: 1px 2px 0;
-}
-
-.bk-wkr-text + .bk-wkr-unter {
-  display: block;
-}
-
-@media screen {
-  /* Das Feld im Bogenkopf ist am Bildschirm ein Eingabefeld: als solches erkennbar. */
-  input.bk-wkr-input {
-    color: var(--blatt-text);
-    background: var(--blatt-feld);
-    border-bottom: 1px solid var(--blatt-akzent);
-  }
-
-  input.bk-wkr-input:focus-visible {
-    outline: 2px solid var(--blatt-akzent);
-    outline-offset: 1px;
-    background: var(--blatt-bg);
-  }
 }
 
 /* ---------- Tabelle ---------- */
@@ -869,10 +846,37 @@
   margin: 0;
 }
 
-/* Namensfeld über einem stark verkleinerten Blatt (WkrVorschau.vue). */
-.wkr-vorschau-name {
-  align-self: stretch;
-  margin-top: 6px;
+/* Reiter der Beispielansicht (WkrVorschau.vue): die Listen des Manövrierens, darunter – unter
+   einem Regelwerk mit Parallelslalom – je Racecourse dessen Listen. */
+.wkr-vorschau-reiter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.wkr-vorschau-parallel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.wkr-vorschau-parallel-titel {
+  font-weight: 600;
+}
+
+.wkr-vorschau-racecourse {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.wkr-vorschau-racecourse-name {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .wkr-vorschau-marke {
@@ -956,13 +960,6 @@
     break-inside: avoid;
   }
 
-  .bk-wkr-input::placeholder {
-    color: transparent;
-  }
-
-  .bk-wkr-unter {
-    display: block;
-  }
 
   /* Graue Zeilen müssen auch ohne „Hintergrundgrafiken drucken“ erscheinen. */
   .bogen-tabelle > tbody > tr.grau > td,

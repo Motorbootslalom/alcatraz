@@ -69,4 +69,34 @@ describe('Liste der Fahrer je Team im Reiter „Gewichtslisten“', () => {
     expect(wrapper.find('.team-liste [data-spalte="geschlecht"]').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('dasselbe Gewicht steht auf beiden Listen gleich: Dezimalzeichen der Listensprache (UIM 20.5, DM 20,5)', async () => {
+    store.dispatch({ type: 'SET_WEIGHT', id: 'a1', gewicht: 20.5 })
+    store.dispatch({ type: 'SET_SOLLGEWICHT', klasse: '4', kg: 64.5 })
+    // Spalten der Gewichtsliste je Herkunft: Klasse, Nachname, Vorname, Geburtsdatum, Durchschnittsgewicht, Gewicht.
+    const herkunftsZeilen = (w: Awaited<ReturnType<typeof gewicht>>) =>
+      w.findAll('.sheet.weights:not(.team-liste) tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()).slice(-2))
+    const dm = await gewicht()
+    expect(herkunftsZeilen(dm)).toEqual([
+      ['26 kg', '20,5'],
+      ['64,5 kg', ''],
+      ['33 kg', ''],
+    ])
+    dm.unmount()
+
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'SET_SOLLGEWICHT', klasse: '4', kg: 64.5 })
+    const uim = await gewicht()
+    expect(herkunftsZeilen(uim)).toEqual([
+      ['26 kg', '20.5'],
+      ['64.5 kg', ''],
+      ['32 kg', ''],
+    ])
+    await uim.find('.gewicht-arten button[data-art="team"]').trigger('click')
+    await nextTick()
+    // Liste nach Pkt. 3.7: dieselbe Schreibweise; 26 − 20,5 = 5,5 → 6 kg Ballast.
+    const zeile = uim.find('.team-liste tr[data-starter="a1"]').findAll('td').map((td) => td.text())
+    expect(zeile.slice(5, 7)).toEqual(['20.5 kg', '6 kg'])
+    uim.unmount()
+  })
 })

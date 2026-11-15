@@ -1,12 +1,12 @@
-import type { AppState, ClassId, OriginMode, Starter } from '../types'
+import type { AppState, ClassId, OriginMode, Sprache, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, laufzettelLayoutWert, leerzeilenZahl, streichlaeufeWert, teilenAbZahl, wkrSprachenWert, zeilenJeSeiteZahl } from './reducer'
+import { emptyState, laufzettelLayoutWert, leerzeilenZahl, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
 import { aufbauOf, beschriftungOf, hasParallel, regelwerkOf } from '../config/catalog'
 import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
-import { normalisiereEinteilung } from '../lib/einteilung'
+import { normalisiereEinteilung, normalisiereSprachen } from '../lib/einteilung'
 import { normalisiereBesetzung } from '../lib/besetzung'
 import { normalisiereEingaben, nurStarter } from '../lib/eingaben'
 import { istKennung } from '../lib/qr'
@@ -50,6 +50,7 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     (a) => !gesehen.has(a.id) && !!gesehen.add(a.id),
   )
   const parcoursList = Array.isArray(loaded.parcoursList) ? loaded.parcoursList : base.parcoursList
+  const parcoursIds = parcoursList.map((p) => p?.id).filter((id): id is string => typeof id === 'string')
   const starters = loaded.starters.map(normalizeStarter)
   const abgemeldet = normalisiereAbgemeldet(loaded.abgemeldet, new Set(starters.map((p) => p.id)))
   // Bis zur Sprache je Liste gab es eine Wahl für alle Listen (`listenSprache`). Das Feld
@@ -97,10 +98,7 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     originShort: { ...loaded.originShort },
     // Fehlt in Ständen vor der WKR-Einteilung; Unbrauchbares entfällt – auch Namen zu
     // Parcours, die es nicht (mehr) gibt.
-    einteilung: normalisiereEinteilung(
-      loaded.einteilung,
-      parcoursList.map((p) => p?.id).filter((id): id is string => typeof id === 'string'),
-    ),
+    einteilung: normalisiereEinteilung(loaded.einteilung, parcoursIds),
     // Fehlen in Ständen vor dem Block „Besetzung“; Unbrauchbares entfällt.
     boote: normalisiereBesetzung(loaded.boote),
     coPiloten: normalisiereBesetzung(loaded.coPiloten),
@@ -130,7 +128,13 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     wkrZeilenJeSeite: zeilenJeSeiteZahl(loaded.wkrZeilenJeSeite),
     wkrTeilenAb: teilenAbZahl(loaded.wkrTeilenAb),
     beschriftung: beschriftungOf(loaded.beschriftung),
-    wkrSprachen: loaded.wkrSprachen === undefined ? alteWkrSprachen(alteSprache, regelwerk, eigeneAufbauten, optionen.oberflaeche) : wkrSprachenWert(loaded.wkrSprachen),
+    // Je Parcours und Liste (Entscheidung des Nutzers vom 15.11.2026). Die frühere Wahl je Liste
+    // gilt für jeden Parcours und beide Racecourses; Sprachen zu Parcours, die es nicht (mehr)
+    // gibt, entfallen wie deren Namen (lib/einteilung.ts `normalisiereSprachen`).
+    wkrSprachen: normalisiereSprachen(
+      loaded.wkrSprachen === undefined ? alteWkrSprachen(alteSprache, regelwerk, eigeneAufbauten, optionen.oberflaeche) : loaded.wkrSprachen,
+      parcoursIds,
+    ),
     // Fehlen in Ständen vor diesen Optionen: getrennte Listen, die Vorgabe des Regelwerks
     // (damit die Knoten-Liste), Laufzettel mit einer Zeile je Seite.
     tor5MitParcours: loaded.tor5MitParcours === true,
@@ -162,14 +166,14 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
  * Stände aus der Zeit der einen „Sprache der Listen“ (wie die Oberfläche, deutsch, englisch,
  * zweisprachig): Die übrigen Listen folgen jetzt dem Regelwerk – dafür braucht es nichts. Für
  * die Wettkampfrichter-Bögen galt eine feste Wahl bisher für alle Listen; sie bleibt, je Liste
- * eingetragen, damit schon gedruckte und noch zu druckende Bögen dieselbe Sprache haben. „Wie
- * die Oberfläche“ (die frühere Vorgabe, auch wenn das Feld ganz fehlt) gibt es nicht mehr:
+ * eingetragen (`normalisiereSprachen` verteilt sie auf jeden Parcours), damit schon gedruckte
+ * und noch zu druckende Bögen dieselbe Sprache haben. „Wie die Oberfläche“ (die frühere Vorgabe, auch wenn das Feld ganz fehlt) gibt es nicht mehr:
  * Kennt der Aufrufer die Sprache der Oberfläche, wird SIE je Liste eingetragen – wer unter UIM
  * deutsch bedient hat, druckte deutsche Bögen und soll nach dem Update nicht stillschweigend
  * englische bekommen. Ist sie unbekannt, gilt die Sprache des Regelwerks. Unter einem
  * Regelwerk ohne Englisch wirkte die Wahl nie – sie wird nicht übernommen.
  */
-function alteWkrSprachen(alt: unknown, regelwerk: string, eigeneAufbauten: readonly RawAufbau[], oberflaeche?: string): AppState['wkrSprachen'] {
+function alteWkrSprachen(alt: unknown, regelwerk: string, eigeneAufbauten: readonly RawAufbau[], oberflaeche?: string): Record<string, Sprache> {
   if (!bietetEnglisch(regelwerk)) return {}
   const wieOberflaeche = alt === 'ui' || alt === undefined
   const sprache = isSprache(alt) ? alt : wieOberflaeche && isSprache(oberflaeche) ? oberflaeche : undefined

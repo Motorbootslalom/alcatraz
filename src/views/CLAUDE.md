@@ -7,7 +7,8 @@ Blätter und Panels stehen in src/components (CLAUDE.md dort), Logik in src/lib.
 ## Dateien
 
 - `EventView.vue` – Veranstaltung: Name, Jahr, Regelwerk, Aufbau, Art, Herkunft (originMode, SET_ORIGIN_MODE);
-  Besetzung, Beispieldaten (components/BeispieldatenPanel.vue, zugeklappt; Test EventView.test.ts `beispielstarter`).
+  Besetzung, Beispieldaten (components/BeispieldatenPanel.vue, zugeklappt; Test EventView.test.ts `beispielstarter`,
+  `beispielbesetzung`, `beispielgewichte`; Herkunft der Beispielstarter = originMode, nie umgestellt).
 - `StartersView.vue` – Starter je Klasse, Startnummern, Excel-Austausch, Schalter „zählt für Mannschaftswertung“.
 - `WeighingView.vue` – Verwiegung: Gewichte je Herkunft in Ausdruck-Reihenfolge abtippen (SET_WEIGHT).
 - `VerzahnungView.vue` – Parcours, Klassenaufteilung, Sperre (festschreiben), Startnummernvergabe; Unterreiter

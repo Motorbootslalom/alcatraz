@@ -60,16 +60,19 @@ describe('BogenBlatt', () => {
     wrapper.unmount()
   })
 
-  it('Steg: zwei Fehlerblöcke nebeneinander; das Namensfeld meldet Eingaben', async () => {
-    const wrapper = mount(BogenBlatt, { props: { konfig: dm, auftrag: auftrag('steg'), wkrPflege: true, wkrLabel: 'Name' } })
+  it('Steg: zwei Fehlerblöcke nebeneinander; der Name steht als Text im Kopf, ohne Namen die leere Linie', () => {
+    const wrapper = mount(BogenBlatt, { props: { konfig: dm, auftrag: auftrag('steg') } })
     expect(wrapper.findAll('.bl-grouptitle')).toHaveLength(2)
     expect(wrapper.findAll('.bl-grouptitle').every((th) => th.text() !== '')).toBe(true)
-    const feld = wrapper.find('input.bk-wkr-input')
-    expect((feld.element as HTMLInputElement).value).toBe('A. Muster')
-    expect(feld.attributes('aria-label')).toBe('Name')
-    await feld.setValue('B. Beispiel')
-    expect(wrapper.emitted('wkr')).toEqual([['B. Beispiel']])
+    // Gepflegt wird der Name nur in der WKR-Einteilung: im Kopf kein Eingabefeld (Entscheidung vom 15.11.2026).
+    expect(wrapper.find('.bogen-kopf input').exists()).toBe(false)
+    expect(wrapper.find('.bk-wkr-text').text()).toBe('A. Muster')
+    expect(wrapper.find('.bk-wkr-unter').text()).toBe('Name Wettkampfrichter*in')
     wrapper.unmount()
+    const leer = mount(BogenBlatt, { props: { konfig: configFor({ regelwerk: 'uim-2026', sprache: 'en' }), auftrag: auftrag('steg', { wkr: '' }) } })
+    expect(leer.find('.bk-wkr-text').text()).toBe('')
+    expect(leer.find('.bk-wkr-unter').text()).toBe('Name of race official')
+    leer.unmount()
   })
 
   it('feste Zeilenzahl je Seite: mehrere Blätter mit Seitenangabe', () => {

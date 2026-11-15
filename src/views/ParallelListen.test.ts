@@ -89,6 +89,27 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     wrapper.unmount()
   })
 
+  it('Listen: Die Sprache gilt je Racecourse – A deutsch, B englisch; das Manövrieren bleibt davon unberührt', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'racecourse-a', typeId: 'zeit' }], sprache: 'de' })
+    const wrapper = await listen('wkr')
+    const zeit = wrapper.findAll('.wkr-listen .bogen[data-liste="zeit"]')
+    expect(zeit.map((b) => b.findAll('.bk-zelle').map((z) => z.text()))).toEqual([
+      ['Zeit', 'Vorlauf', 'Parcours A'],
+      ['Time', 'Preliminary heat', 'Racecourse B'],
+    ])
+    // Die Auswahl nennt die Liste in der Sprache des Regelwerks, weil A und B verschieden sind.
+    expect(wrapper.findAll('select[data-feld="pwkr-liste"] option').map((o) => o.text())).toEqual(['alle', 'Time', 'Pontoon', 'Parallel slalom'])
+    // Gleiche Sprache auf A und B: dann so, wie sie auf beiden Bögen heißt.
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'racecourse-b', typeId: 'zeit' }], sprache: 'de' })
+    await warte()
+    expect(wrapper.findAll('select[data-feld="pwkr-liste"] option').map((o) => o.text())[1]).toBe('Zeit')
+    wrapper.unmount()
+    const manoever = await listen('wkr', 'manoever')
+    expect(manoever.find('.wkr-listen .bogen[data-liste="zeit"] .bk-liste').text()).toBe('Time')
+    manoever.unmount()
+  })
+
   it('Listen des Manövrierens bleiben, wie sie sind: keine Spalten Start/Attempt, Klasse und Lauf im Kopf', async () => {
     store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
     const wrapper = await listen('wkr', 'manoever')
@@ -245,15 +266,19 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     wrapper.unmount()
   })
 
-  it('Einteilung: race officials je Racecourse A und B für Zeit, Steg und Fahrweg – mit Sprache je Liste', async () => {
+  it('Einteilung: race officials je Racecourse A und B für Zeit, Steg und Fahrweg – mit Sprache je Racecourse und Liste', async () => {
     const wrapper = mount(WkrEinteilung, mit(store))
     const tabelle = wrapper.find('[data-tabelle="wkr-parallel"]')
-    expect(tabelle.findAll('thead th').map((t) => t.text())).toEqual(['Liste', 'Parcours A', 'Parcours B', 'Sprache des Bogens'])
+    expect(tabelle.findAll('thead th').map((t) => t.text())).toEqual(['Liste', 'Parcours A', 'Parcours B'])
     expect(tabelle.findAll('tbody th').map((t) => t.text())).toEqual(['Time', 'Pontoon', 'Parallel slalom'])
     await tabelle.find('input[data-feld="racecourse-b|parallelparcours"]').setValue('Tom Test')
     expect(store.state.value.einteilung).toEqual({ 'racecourse-b': { parallelparcours: 'Tom Test' } })
-    await tabelle.find('select[data-feld="wkr-sprache-parallel|parallelparcours"]').setValue('de+en')
-    expect(store.state.value.wkrSprachen).toEqual({ parallelparcours: 'de+en' })
+    // Die Sprache steht neben dem Namen und gilt nur für diesen Racecourse – nicht für A, nicht für das Manövrieren.
+    await tabelle.find('select[data-feld="wkr-sprache|racecourse-b|parallelparcours"]').setValue('de+en')
+    expect(store.state.value.wkrSprachen).toEqual({ 'racecourse-b': { parallelparcours: 'de+en' } })
+    await tabelle.find('select[data-feld="wkr-sprache|racecourse-a|zeit"]').setValue('de')
+    expect(store.state.value.wkrSprachen).toEqual({ 'racecourse-b': { parallelparcours: 'de+en' }, 'racecourse-a': { zeit: 'de' } })
+    expect((wrapper.find('select[data-feld="wkr-sprache|par_1|zeit"]').element as HTMLSelectElement).value).toBe('en')
     // Unter der DM gibt es die Tabelle nicht.
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
     await nextTick()

@@ -11,7 +11,7 @@ import {
   musterZeilen,
   type BogenAuftrag,
 } from './bogen'
-import { bietetEnglisch, regelwerkSprache, wkrSpracheFuer } from './listensprache'
+import { bietetEnglisch, regelwerkSprache, wkrSpracheAller, wkrSpracheFuer } from './listensprache'
 import { regelwerkInfo } from '../config/build'
 import { validateRawConfig } from '../config/validate'
 import { parcoursSvg } from './parcoursQuelle'
@@ -292,20 +292,34 @@ describe('Listensprache', () => {
     expect(validateRawConfig({ sprachen: ['de'], listenSprache: 'de' }).some((i) => i.code === 'BAD_SPRACHE')).toBe(false)
   })
 
-  it('Bögen: ohne Wahl die Sprache des Regelwerks, sonst die der Liste – auch zweisprachig', () => {
-    const uim = { regelwerk: 'uim-2026', wkrSprachen: { steg: 'de', zeit: 'de+en' } } as const
-    expect(wkrSpracheFuer(uim, 'steg')).toBe('de')
-    expect(wkrSpracheFuer(uim, 'zeit')).toBe('de+en')
-    expect(wkrSpracheFuer(uim, 'tor135')).toBe('en')
-    expect(wkrSpracheFuer({ regelwerk: 'uim-2026' }, 'steg')).toBe('en')
+  it('Bögen: ohne Wahl die Sprache des Regelwerks, sonst die der Liste auf ihrem Parcours – auch zweisprachig', () => {
+    const uim = { regelwerk: 'uim-2026', wkrSprachen: { par_1: { steg: 'de', zeit: 'de+en' }, par_2: { steg: 'de+en' } } } as const
+    expect(wkrSpracheFuer(uim, 'par_1', 'steg')).toBe('de')
+    expect(wkrSpracheFuer(uim, 'par_1', 'zeit')).toBe('de+en')
+    expect(wkrSpracheFuer(uim, 'par_1', 'tor135')).toBe('en')
+    // Ein anderer Parcours, eine andere Gruppe: eigene Wahl oder die Vorgabe.
+    expect(wkrSpracheFuer(uim, 'par_2', 'steg')).toBe('de+en')
+    expect(wkrSpracheFuer(uim, 'par_2', 'zeit')).toBe('en')
+    // Ohne Parcours (Klasse noch nicht eingeteilt) und ohne Wahl: die Sprache des Regelwerks.
+    expect(wkrSpracheFuer(uim, undefined, 'steg')).toBe('en')
+    expect(wkrSpracheFuer({ regelwerk: 'uim-2026' }, 'par_1', 'steg')).toBe('en')
     // Kennungen, die das Objekt-Urbild träfen, sind keine Wahl.
-    expect(wkrSpracheFuer(uim, 'constructor')).toBe('en')
+    expect(wkrSpracheFuer(uim, 'constructor', 'steg')).toBe('en')
+    expect(wkrSpracheFuer(uim, 'par_1', 'constructor')).toBe('en')
+  })
+
+  it('eine Auswahl über mehrere Parcours: deren gemeinsame Sprache, sonst die des Regelwerks', () => {
+    const uim = { regelwerk: 'uim-2026', wkrSprachen: { par_1: { steg: 'de', zeit: 'de' }, par_2: { steg: 'de+en', zeit: 'de' } } } as const
+    expect(wkrSpracheAller(uim, ['par_1', 'par_2'], 'zeit')).toBe('de')
+    expect(wkrSpracheAller(uim, ['par_1', 'par_2'], 'steg')).toBe('en')
+    expect(wkrSpracheAller(uim, ['par_2'], 'steg')).toBe('de+en')
+    expect(wkrSpracheAller(uim, [], 'steg')).toBe('en')
   })
 
   it('ohne Englisch im Regelwerk bleiben die Bögen deutsch; die Wahl bleibt stehen und wirkt nicht', () => {
     expect(bietetEnglisch('dm-2026')).toBe(false)
     expect(bietetEnglisch('uim-2026')).toBe(true)
-    for (const wahl of ['de', 'en', 'de+en'] as const) expect(wkrSpracheFuer({ regelwerk: 'dm-2026', wkrSprachen: { steg: wahl } }, 'steg')).toBe('de')
+    for (const wahl of ['de', 'en', 'de+en'] as const) expect(wkrSpracheFuer({ regelwerk: 'dm-2026', wkrSprachen: { par_1: { steg: wahl } } }, 'par_1', 'steg')).toBe('de')
   })
 })
 

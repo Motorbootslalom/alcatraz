@@ -27,7 +27,7 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 - YAML → Konfig: konfig.ts glob → quellDateien + mergePositionen → configFor(wahl) [Memo-Schlüssel = JSON von
   regelwerk, sprache, beschriftung, eigene; max. 12] → eigene.ts brauchbareEigene → kurzform.ts aufloesen →
   baue() (Regelwerk + Positionen, laufzettel-Override) → build.ts buildConfig → Konfig.
-- Stand → Bogen: lib/konfig.ts useBogenKonfig (Sprache je Liste) → configFor → lib/wkrListen.ts → lib/bogen.ts.
+- Stand → Bogen: lib/konfig.ts useBogenKonfig (Sprache je Parcours und Liste) → configFor → lib/wkrListen.ts → lib/bogen.ts.
 - Regelwerk wählen: SET_REGELWERK → catalog.ts regelwerkOf → Läufe/Streichläufe, versucheNacheinander, Vorlaufplan.
 
 ## Wo ändere ich …

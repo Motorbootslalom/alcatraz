@@ -16,9 +16,11 @@ import type { AppState, Sprache } from '../types'
 //   DM deutsch, UIM englisch. Der Aushang gehört zur Ausschreibung – er darf nicht davon
 //   abhängen, in welcher Sprache gerade jemand das Programm bedient. Die Sprache steht im
 //   YAML des Regelwerks (`listenSprache`), nicht hier: `regelwerkSprache`, `listenLocale`.
-// - Die Wettkampfrichter-Bögen haben ihre Sprache je Liste (`wkrSprachen` im Stand): Am Steg
-//   sitzt, wer da ist – die eine Position braucht den Bogen deutsch, die andere englisch,
-//   eine dritte zweisprachig. Ohne Wahl gilt die Sprache des Regelwerks: `wkrSpracheFuer`.
+// - Die Wettkampfrichter-Bögen haben ihre Sprache je Parcours und Liste (`wkrSprachen` im
+//   Stand, gebaut wie die WKR-Einteilung): Am Steg sitzt, wer da ist – die eine Position braucht
+//   den Bogen deutsch, die andere englisch, eine dritte zweisprachig –, und auf jedem Parcours
+//   (im Parallelslalom auf jedem Racecourse) sitzt eine eigene Gruppe (Entscheidung des Nutzers
+//   vom 15.11.2026). Ohne Wahl gilt die Sprache des Regelwerks: `wkrSpracheFuer`.
 //
 // Wählen lässt sich nur, wo das Regelwerk Englisch anbietet (`sprachen` im YAML): Die DM hat
 // keine englischen Texte, dort bleiben alle Bögen deutsch. Die Wahl bleibt dabei im Stand und
@@ -44,13 +46,32 @@ export function laenderKuerzelFuer(regelwerk: string): KuerzelNorm {
   return infoVon(regelwerk)?.laenderKuerzel ?? 'iso'
 }
 
-/** Die Sprache des Bogens einer Liste (auch zweisprachig). */
-export function wkrSpracheFuer(stand: Pick<AppState, 'regelwerk'> & Partial<Pick<AppState, 'wkrSprachen'>>, typeId: string): Sprache {
+type SprachStand = Pick<AppState, 'regelwerk'> & Partial<Pick<AppState, 'wkrSprachen'>>
+
+/** Nur eigene Einträge: „constructor“ o. Ä. als Kennung träfe sonst das Objekt-Urbild. */
+const eigen = (objekt: object, schluessel: string) => Object.prototype.hasOwnProperty.call(objekt, schluessel)
+
+/**
+ * Die Sprache des Bogens einer Liste auf einem Parcours (im Parallelslalom: auf einem
+ * Racecourse, lib/parallelSchluessel.ts `RACECOURSE_PARCOURS`), auch zweisprachig. Ohne
+ * Parcours – eine Klasse, die noch auf keinem fährt – gilt die Sprache des Regelwerks.
+ */
+export function wkrSpracheFuer(stand: SprachStand, parcoursId: string | undefined, typeId: string): Sprache {
   const vorgabe = regelwerkSprache(stand.regelwerk)
-  if (!bietetEnglisch(stand.regelwerk)) return vorgabe
+  if (!bietetEnglisch(stand.regelwerk) || parcoursId === undefined) return vorgabe
   const wahl = stand.wkrSprachen ?? {}
-  // Nur eigene Einträge: „constructor“ o. Ä. als Kennung träfe sonst das Objekt-Urbild.
-  return Object.prototype.hasOwnProperty.call(wahl, typeId) ? wahl[typeId] : vorgabe
+  const liste = eigen(wahl, parcoursId) ? wahl[parcoursId] : undefined
+  return liste && eigen(liste, typeId) ? liste[typeId] : vorgabe
+}
+
+/**
+ * Die Sprache einer Liste über mehrere Parcours, für eine Auswahl, die sie zusammenfasst (z. B.
+ * „Liste“ unter „Listen“): die ihrer Bögen, wenn alle Parcours dieselbe haben – sonst die des
+ * Regelwerks, denn jede einzelne nannte nur einen Teil der Bögen richtig.
+ */
+export function wkrSpracheAller(stand: SprachStand, parcoursIds: readonly string[], typeId: string): Sprache {
+  const sprachen = new Set(parcoursIds.map((p) => wkrSpracheFuer(stand, p, typeId)))
+  return sprachen.size === 1 ? [...sprachen][0] : regelwerkSprache(stand.regelwerk)
 }
 
 /**
@@ -65,7 +86,7 @@ export function useListenSprache() {
   const listenLocale: ComputedRef<Locale> = computed(() => regelwerkSprache(state.value.regelwerk))
   /** Die Kürzel der Länder auf den Listen: wie die Sprache eine Angabe des Regelwerks (UIM: IOC, Regel 209). */
   const kuerzelNorm: ComputedRef<KuerzelNorm> = computed(() => laenderKuerzelFuer(state.value.regelwerk))
-  /** Die Sprache des Bogens einer Liste – reaktiv, wenn in `computed` oder Vorlage gelesen. */
-  const wkrSprache = (typeId: string): Sprache => wkrSpracheFuer(state.value, typeId)
+  /** Die Sprache des Bogens einer Liste auf einem Parcours – reaktiv, wenn in `computed` oder Vorlage gelesen. */
+  const wkrSprache = (parcoursId: string | undefined, typeId: string): Sprache => wkrSpracheFuer(state.value, parcoursId, typeId)
   return { waehlbar, listenLocale, kuerzelNorm, wkrSprache, ...texteIn(() => listenLocale.value) }
 }

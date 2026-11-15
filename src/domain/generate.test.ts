@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateStarter, generateStarters } from './generate'
+import { beispielHerkuenfte, generateStarter, generateStarters, LAENDER } from './generate'
 import { birthYearRange } from './classes'
 import { CLUBS } from '../data/clubs'
 import type { ClassId } from '../types'
@@ -64,6 +64,16 @@ describe('generateStarters', () => {
     const p = generateStarter('4', 2026, 'bundesland', [])
     expect(p.verein).toBe('')
     expect(p.bundesland).not.toBe('')
+  })
+
+  it('Land-Modus: nur der Staat; ohne Herkunft: gar keine (Entscheidung des Nutzers vom 15.11.2026)', () => {
+    const land = generateStarter('4', 2026, 'land', [])
+    expect([land.verein, land.bundesland, LAENDER.includes(land.land ?? '')]).toEqual(['', '', true])
+    const ohne = generateStarter('4', 2026, 'none', [])
+    expect([ohne.verein, ohne.bundesland, ohne.land]).toEqual(['', '', undefined])
+    // Ohne Herkunft gibt es nichts zu verteilen – auch nicht mit begrenzter Zahl.
+    expect(beispielHerkuenfte('none', 3)).toEqual([])
+    expect(generateStarters('4', 3, 2026, 'none', [], undefined, beispielHerkuenfte('none', 3)).every((p) => p.verein === '' && p.bundesland === '' && p.land === undefined)).toBe(true)
   })
 
   it('vergibt eindeutige IDs', () => {

@@ -4,10 +4,14 @@ import { zerlegeRerun } from '../planung/parallelRunden'
 // Sprachen der Listen und Fehlertexte. Ein Regelwerk nennt in `sprachen`, was es
 // anbietet; die Bedienleiste bleibt immer deutsch.
 
-export const SPRACHEN: Array<{ id: Sprache; name: string }> = [
-  { id: 'de', name: 'Deutsch' },
-  { id: 'en', name: 'English' },
-  { id: 'de+en', name: 'Deutsch + English' },
+/**
+ * `kurz`: für die Wahl in einer Zelle der WKR-Einteilung, neben dem Namen – dort ist kein Platz
+ * für „Deutsch + English“ (Entscheidung des Nutzers vom 15.11.2026: platzsparend je Zelle).
+ */
+export const SPRACHEN: Array<{ id: Sprache; name: string; kurz: string }> = [
+  { id: 'de', name: 'Deutsch', kurz: 'DE' },
+  { id: 'en', name: 'English', kurz: 'EN' },
+  { id: 'de+en', name: 'Deutsch + English', kurz: 'DE+EN' },
 ]
 
 export function isSprache(x: unknown): x is Sprache {

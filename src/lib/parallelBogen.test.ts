@@ -11,7 +11,22 @@ import { haengeUm, normalisiereEinteilung } from './einteilung'
 import { beispielRunde, zufallAus } from './beispielwerte'
 import { gruppenSeiten } from './paging'
 import { bogenTexte } from '../config/sprache'
-import { blockLaengen, festeRunden, messBoegenRunde, parallelAufbauId, parallelBoegen, parallelListen, rundenSeitenzahl, rundenZeilen, rundenZettel, scanRundenBogen, waehleRundenBoegen } from './parallelBogen'
+import {
+  blockLaengen,
+  festeRunden,
+  messBoegenRunde,
+  messKennungRunde,
+  musterRundenBoegen,
+  musterStarter,
+  parallelAufbauId,
+  parallelBoegen,
+  parallelListen,
+  rundenSeitenzahl,
+  rundenZeilen,
+  rundenZettel,
+  scanRundenBogen,
+  waehleRundenBoegen,
+} from './parallelBogen'
 import { attemptSchluessel, attemptsImPlan, RACECOURSE_PARCOURS, rundeHatEingaben, rundenDisziplin, rundeVon, zerlegeAttempt } from './parallelSchluessel'
 import { leseCode, rundenBogenCode, rundenZettelCode, seitenCode, type QrBekannt } from './qr'
 import { scanBogen } from './scan'
@@ -254,8 +269,15 @@ describe('Listen des Vorlaufs', () => {
     expect(rundenSeitenzahl(plan, 13)).toBe(2)
     expect(rundenSeitenzahl(plan, 30)).toBe(1)
     expect(rundenSeitenzahl(plan, 0)).toBe(1)
-    // Gemessen wird je Liste ein Bogen.
-    expect(messBoegenRunde(boegen).map((b) => b.typeId)).toEqual(['zeit', 'steg', 'parallelparcours'])
+    // Gemessen wird je Racecourse und Liste ein Bogen: Die Sprache des Bogens gilt je Racecourse.
+    expect(messBoegenRunde(boegen).map((b) => messKennungRunde({ racecourse: b.runde!.racecourse, typeId: b.typeId }))).toEqual([
+      'A|zeit',
+      'A|steg',
+      'A|parallelparcours',
+      'B|zeit',
+      'B|steg',
+      'B|parallelparcours',
+    ])
   })
 
   it('„Starter je Seite“ und „Teilen ab“ gelten als Obergrenze, abgerundet auf Blockenden', () => {
@@ -304,6 +326,9 @@ describe('Listen des Vorlaufs', () => {
     expect(zettel[1].listen.map((l) => l.boegen.map((b) => `${b.racecourse}${b.seiten}`))).toEqual([['B1'], ['B3'], ['B3']])
     // Jeder Zettel hat seinen Code: Er öffnet nur die Listen seines Racecourse.
     expect(zettel.map((z) => z.qr)).toEqual(['ALC2.K7Q4.UIM2026.PARALLEL.PRE.A', 'ALC2.K7Q4.UIM2026.PARALLEL.PRE.B'])
+    // Die Seitenzahl gilt je Racecourse: Ein zweisprachiger Bogen auf B kann mehr Blätter haben als auf A.
+    const jeRacecourse = rundenZettel(state, parallel, (_r, typeId, rc) => (typeId === 'steg' && rc === 'B' ? 4 : 1))
+    expect(jeRacecourse.map((z) => z.listen[1].boegen.map((b) => b.seiten))).toEqual([[1], [4]])
   })
 
   it('Auswahl nach Racecourse und Liste', () => {
@@ -600,5 +625,70 @@ describe('Name der Runde auf den Listen der race officials (config/sprache.ts)',
     expect(['pre', 'semi', 'final'].map(de.runde)).toEqual(['Vorlauf', 'Halbfinale', 'Finale'])
     expect(['rerun-pre-1', 'rerun-pre-2', 'rerun-semi-1'].map(de.runde)).toEqual(['Vorlauf – Wiederholung', 'Vorlauf – 2. Wiederholung', 'Halbfinale – Wiederholung'])
     expect(['rerun-pre-1', 'rerun-pre-2', 'rerun-semi-1'].map(en.runde)).toEqual(['Preliminary heat – Re-run', 'Preliminary heat – Re-run 2', 'Semi-finals – Re-run'])
+  })
+})
+
+describe('Beispielansicht: Muster-Runde des Parallelslaloms', () => {
+  const stand = () => reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+  const wahl = { anzahl: 10, praefix: 'M', klasse: '3' as ClassId }
+
+  it('Muster-Starter: die gewählte Klasse und eine des anderen Bootstyps; „Muster-Zeilen“ zählt Starts, aufgerundet auf Paare', () => {
+    const starter = musterStarter(wahl, false)
+    // 10 Starts = 5 Paare: 3 kleine (5 Starter, einer gegen den Dummy), 2 große.
+    expect(starter.map((p) => `${p.startNr}:${p.klasse}`)).toEqual(['M1:3', 'M2:3', 'M3:3', 'M4:3', 'M5:3', 'M6:4', 'M7:4', 'M8:4', 'M9:4'])
+    expect(new Set(starter.map((p) => p.id)).size).toBe(9)
+    // Die gewählte Klasse fährt in ihrem Boot; groß gewählt, kommt die höchste kleine dazu.
+    expect(new Set(musterStarter({ ...wahl, klasse: '5' }, false).map((p) => p.klasse))).toEqual(new Set(['3', '5']))
+    expect(new Set(musterStarter({ ...wahl, klasse: '5' }, true).map((p) => p.klasse))).toEqual(new Set(['4', '5']))
+    expect(musterStarter({ ...wahl, anzahl: 0 }, false)).toEqual([])
+    expect(musterStarter({ ...wahl, anzahl: 1 }, false).map((p) => p.startNr)).toEqual(['M1'])
+  })
+
+  it('dieselben Bausteine wie die echten Listen: Blöcke 4 und 2, je Racecourse eine Dummy-Zeile, Muster-QR, Namen aus der Einteilung', () => {
+    const s = { ...stand(), eventName: 'Hafenpokal', einteilung: { 'racecourse-b': { steg: 'Tom Test' } } }
+    const muster = musterRundenBoegen(s, configFor({ regelwerk: 'uim-2026' }), wahl)
+    expect(muster.boegen.map((b) => b.id)).toEqual([
+      'parallel|pre|A|zeit',
+      'parallel|pre|A|steg',
+      'parallel|pre|A|parallelparcours',
+      'parallel|pre|B|zeit',
+      'parallel|pre|B|steg',
+      'parallel|pre|B|parallelparcours',
+    ])
+    const a = muster.boegen[0].auftrag
+    // Blöcke wie gedruckt: zwei 4er-Blöcke (klein/groß im Wechsel), dann ein 2er-Block.
+    const bloecke: number[] = []
+    a.zeilen.forEach((z, i) => (i > 0 && a.zeilen[i - 1].gruppe === z.gruppe ? bloecke[bloecke.length - 1]++ : bloecke.push(1)))
+    expect(bloecke).toEqual([4, 4, 2])
+    expect(a.zeilen.map((z) => z.nr)).toEqual(['M1', 'M6', 'M2', 'M7', 'M3', 'M8', 'M4', 'M9', 'M5', ''])
+    // Je Racecourse genau eine Dummy-Zeile.
+    for (const b of muster.boegen) expect(b.auftrag.zeilen.filter((z) => z.dummy)).toHaveLength(1)
+    // Der Code ist gebaut wie der echte, trägt aber „MUSTER“: Die Erfassung erkennt ihn als Beispiel.
+    expect(a.qr).toBe('ALC2.MUSTER.UIM2026.PARALLEL.PRE.A.ZEIT')
+    const bekannt: QrBekannt = {
+      kennung: 'K7Q4',
+      regelwerk: 'uim-2026',
+      aufbau: 'alcatraz',
+      regelwerke: ['uim-2026'],
+      aufbauten: ['alcatraz', 'parallel'],
+      parcours: ['par_1'],
+      listen: [],
+      laufCount: 1,
+      parallel: { aufbau: 'parallel', listen: ['zeit', 'steg', 'parallelparcours'], runden: ['pre'] },
+    }
+    expect(leseCode(seitenCode(a.qr!, 1), bekannt)).toEqual({ ok: false, fehler: { art: 'muster' } })
+    // Der Name kommt aus der Einteilung des Racecourse – nur angezeigt; sonst bleibt die Linie leer.
+    expect(muster.boegen.map((b) => b.auftrag.wkr)).toEqual(['', '', '', '', 'Tom Test', ''])
+    expect(a.eventName).toBe('Hafenpokal 2026')
+    // Der Stand der Veranstaltung bleibt unberührt: kein Plan, keine Starter.
+    expect(s.parallelPlaene).toEqual({})
+    expect(s.starters).toEqual([])
+  })
+
+  it('ohne Parallelslalom im Regelwerk (DM) keine Listen; ohne Muster-Zeilen ein leeres Blatt je Liste', () => {
+    expect(musterRundenBoegen(emptyState(), configFor({ regelwerk: 'dm-2026' }), wahl).boegen).toEqual([])
+    const leer = musterRundenBoegen(stand(), configFor({ regelwerk: 'uim-2026' }), { ...wahl, anzahl: 0 })
+    expect(leer.boegen).toHaveLength(6)
+    expect(leer.boegen.every((b) => b.auftrag.zeilen.length === 0)).toBe(true)
   })
 })

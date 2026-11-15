@@ -88,6 +88,8 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Seiten ausgleichen | lib/paging.ts gruppenSeiten/gruppenKapazitaet (Nutzer: bogen.ts, parallelBogen.ts) |
 | Seiten der übrigen Listen | lib/seiten.ts listenSeiten (füllt auf, gleicht nicht aus; `gebunden`); ListenDokument.vue; mm ↔ CSS |
 | Listenart unter „Listen“ | views/ListsView.vue KINDS; lib/adressen.ts; i18n lists.kind.*; lib/doppelseitig.ts |
+| Sprache der WKR-Bögen | lib/listensprache.ts wkrSpracheFuer(stand, parcoursId, typeId); lib/konfig.ts useBogenKonfig |
+| Beispielansicht der Bögen | components/WkrVorschau.vue (Name nur Anzeige); Parallel: lib/parallelBogen.ts musterRundenBoegen |
 | Druckdatei | lib/druckdatei.ts DRUCKDATEI_TEILE/druckdateiFolge; components/DruckdateiListen.vue |
 | Neue Ansicht/Reiter | lib/adressen.ts VIEWS/ADRESSEN; App.vue `<main>`; i18n nav.* |
 | Länder, Kürzel, Flaggen | domain/staaten.ts, kuerzel.ts, flaggen.ts; flaggen/bilder.ts; YAML `laenderKuerzel` |
@@ -98,7 +100,8 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Herkunft der Veranstaltung | AppState.originMode, SET_ORIGIN_MODE (views/EventView.vue); Anzeige lib/origin.ts |
 | Neues Regelwerk / neue Angabe | regelwerke/<id>.yaml + regelwerke.yaml; Angabe: schema → validate → build → catalog |
 | Neuer Aufbau | config/aufbauten/<name>.yaml + aufbauten.yaml `dateien`; en.yaml; Snapshot erneuern |
-| Beispieldaten | components/BeispieldatenPanel.vue (Herkunft, saat); domain/generate.ts, data/*; lib/beispielwerte.ts |
+| Beispieldaten | components/BeispieldatenPanel.vue (Herkunft wie Veranstaltung, saat, Rückfragen); domain/generate.ts, data/*; |
+| … Werte, Besetzung, Gewichte | lib/beispielwerte.ts; lib/beispieldaten.ts (FILL_BEISPIEL_BESETZUNG, FILL_BEISPIELGEWICHTE) |
 | Sperre einer Action | reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS |
 | Offline, Update | scripts/offline-sw.js, scripts/offline-speicher.ts, lib/offline.ts, lib/update.ts |
 
@@ -107,7 +110,8 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 - Begriffe im Zweifel wie im Regelbuch (DM-Reglement, UIM Rulebook Regel 960), auch wenn das Gespräch andere
   Wörter nutzt. Englische Listen nach Rulebook: driver, race official, racecourse, attempt, preliminary heat,
   re-run, O.O.D. Deutsch: „Wertungslisten“, „Mannschaftswertung“, „Ausgleichsgewicht“.
-- Listensprache folgt dem Regelwerk (DM deutsch, UIM englisch), nicht der Oberfläche; WKR-Bögen je Liste.
+- Listensprache folgt dem Regelwerk (DM deutsch, UIM englisch), nicht der Oberfläche; WKR-Bögen je Liste und Parcours
+  (Racecourse), AppState.wkrSprachen wie die Einteilung; Erfassung = Oberfläche.
 - Alle sichtbaren Texte über i18n: Schlüssel in de.ts UND en.ts (gleiche Platzhalter, „Einzahl | Mehrzahl“).
   Regelwerks- und Positionstexte in YAML (`en`, config/i18n/en.yaml), Bogentexte in config/sprache.ts.
 - Reducer rein und deterministisch: kein Date.now(), Math.random(), uid() darin oder in dem, was er ruft.

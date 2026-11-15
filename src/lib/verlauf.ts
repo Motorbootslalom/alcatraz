@@ -60,6 +60,9 @@ export type VerlaufArt =
   | 'eingabenGeloescht'
   | 'eingabenTeilGeloescht'
   | 'beispielwerte'
+  /** Beispieldaten: erfundene WKR-Einteilung bzw. erfundene Gewichte (lib/beispieldaten.ts). */
+  | 'beispielBesetzung'
+  | 'beispielGewichte'
   | 'import'
   | 'starterNeu'
   | 'beispielStarter'
@@ -117,6 +120,8 @@ const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'eingabenGeloescht',
   'eingabenTeilGeloescht',
   'beispielwerte',
+  'beispielBesetzung',
+  'beispielGewichte',
   'import',
   'starterNeu',
   'beispielStarter',
@@ -140,6 +145,8 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   CLEAR_EINGABEN: 'eingabenGeloescht',
   CLEAR_EINGABEN_TEIL: 'eingabenTeilGeloescht',
   FILL_BEISPIELWERTE: 'beispielwerte',
+  FILL_BEISPIEL_BESETZUNG: 'beispielBesetzung',
+  FILL_BEISPIELGEWICHTE: 'beispielGewichte',
   UPDATE_STARTER: 'starter',
   MOVE_STARTER: 'starter',
   ORDER_CLASS_BY_SIZE: 'starter',

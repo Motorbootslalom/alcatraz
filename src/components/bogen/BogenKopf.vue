@@ -8,16 +8,11 @@ import QrCode from '../QrCode.vue'
  * steht der QR-Code der Druckseite (lib/qr.ts) – über dem Kopf schwebend, damit er keine
  * Höhe kostet und die Seitenaufteilung bleibt, wie sie ohne ihn war.
  *
- * `wkrPflege`: Das Namensfeld ist am Bildschirm ein Eingabefeld und meldet jede Änderung –
- * wohin sie geschrieben wird, entscheidet der Aufrufer. Ohne Pflege steht der Name als Text.
+ * Der Name steht immer als Text da, auch in der Beispielansicht: Gepflegt wird er nur in der
+ * WKR-Einteilung (Entscheidung des Nutzers vom 15.11.2026). Ohne Namen bleibt die Linie leer,
+ * darunter „Name Wettkampfrichter*in“ – wie auf dem Papier.
  */
-defineProps<{
-  seite: BogenSeite
-  wkrPflege?: boolean
-  /** Beschriftung des Namensfelds für Vorleseprogramme (Sprache der Oberfläche). */
-  wkrLabel?: string
-}>()
-const emit = defineEmits<{ wkr: [name: string] }>()
+defineProps<{ seite: BogenSeite }>()
 </script>
 
 <template>
@@ -34,23 +29,14 @@ const emit = defineEmits<{ wkr: [name: string] }>()
         <div v-if="seite.laufText" class="bk-zelle">{{ seite.laufText }}</div>
         <div v-if="seite.parcours" class="bk-zelle bk-parcours">{{ seite.parcours }}</div>
       </div>
-      <label class="bk-wkr">
+      <div class="bk-wkr">
         <span class="bk-wkr-label">{{ seite.texte.wkr }}</span>
         <span class="bk-wkr-feld">
-          <input
-            v-if="wkrPflege"
-            class="bk-wkr-input"
-            autocomplete="off"
-            :value="seite.wkr"
-            :placeholder="seite.texte.wkrPlatzhalter"
-            :aria-label="wkrLabel"
-            @input="emit('wkr', ($event.target as HTMLInputElement).value)"
-          />
-          <span v-else class="bk-wkr-input bk-wkr-text">{{ seite.wkr || ' ' }}</span>
-          <!-- Die Bezeichnung unter der Linie: Im Druck sähe ein Platzhalter wie ein Name aus. -->
+          <span class="bk-wkr-input bk-wkr-text">{{ seite.wkr || ' ' }}</span>
+          <!-- Die Bezeichnung unter der Linie, auch ohne Namen: Dort trägt man ihn von Hand ein. -->
           <span class="bk-wkr-unter">{{ seite.texte.wkrPlatzhalter }}</span>
         </span>
-      </label>
+      </div>
     </div>
   </div>
 </template>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ausgleichKg, gewichtsGruppen, parseGewicht } from './gewicht'
+import { ausgleichKg, gewichtsGruppen, gewichtText, parseGewicht } from './gewicht'
 import type { ClassId, Starter } from '../types'
 
 const s = (klasse: ClassId, nachname: string, vorname: string, verein: string): Starter => ({
@@ -37,6 +37,13 @@ describe('Ausgleichsgewicht', () => {
     expect(parseGewicht('')).toBeUndefined()
     expect(parseGewicht('schwer')).toBeUndefined()
     expect(parseGewicht('0')).toBeUndefined()
+  })
+
+  it('schreibt Gewichte mit dem Dezimalzeichen der Listensprache', () => {
+    expect(gewichtText(28.7, 'de')).toBe('28,7')
+    expect(gewichtText(28.7, 'en')).toBe('28.7')
+    expect(gewichtText(26, 'de')).toBe('26')
+    expect(gewichtText(26, 'en')).toBe('26')
   })
 })
 

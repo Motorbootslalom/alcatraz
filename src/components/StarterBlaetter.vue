@@ -9,6 +9,7 @@ import { useListenSprache } from '../lib/listensprache'
 import { parcoursName } from '../config/sprache'
 import { geburtsdatumAufListe } from '../i18n'
 import { SEITEN_VORGABE } from '../lib/seiten'
+import { gewichtText } from '../domain/gewicht'
 import type { StarterDokument, StarterListe } from '../lib/starterlisten'
 import type { ErgebnisHerkunft, Starter } from '../types'
 import HerkunftText from './HerkunftText.vue'
@@ -58,7 +59,9 @@ const showOrigin = computed(() => state.value.originMode !== 'none' && props.her
 // Geburtsdatum nur, wenn die Veranstaltung es zeigt; auf der Vorsteg-Liste steht es nie.
 // Auf der Gewichtsliste steht das Geburtsdatum immer – es wird beim Check-in abgeglichen.
 const showBirthdate = computed(() => props.geburtsdatum ?? (weightList.value || (state.value.showBirthdate && props.liste !== 'vorsteg')))
-const weightText = (p: Starter) => (p.gewicht === undefined ? '' : String(p.gewicht).replace('.', ','))
+// Gewichte mit dem Dezimalzeichen der Listensprache (englisch 28.7, deutsch 28,7) – wie auf der Liste nach Pkt. 3.7.
+const weightText = (p: Starter) => (p.gewicht === undefined ? '' : gewichtText(p.gewicht, listenLocale.value))
+const sollText = (p: Starter) => gewichtText(sollgewichtOf(state.value.regelwerk, state.value.sollgewicht, p.klasse), listenLocale.value)
 // Was als Herkunft dasteht (Text, Kürzel, Flagge), entscheidet lib/origin.ts – für alle Listen gleich.
 const origin = (p: Starter) => starterHerkunft(p, state.value.originMode, herkunftStil.value, state.value.originShort, listenLocale.value, kuerzelNorm.value)
 /** Die Herkunft im Kopf eines Blatts: ausgeschrieben – sie ist dort der Name des Blatts –, mit Flagge, wenn die Starterlisten eine zeigen. */
@@ -197,7 +200,7 @@ const laengen = computed(() => props.dokumente.map((s) => s.groups.map((g) => g.
             <td v-for="r in runs" :key="r" class="check" />
           </template>
           <template v-if="weightList">
-            <td class="weight">{{ sollgewichtOf(state.regelwerk, state.sollgewicht, p.klasse) }} kg</td>
+            <td class="weight">{{ sollText(p) }} kg</td>
             <td class="weight">{{ weightText(p) }}</td>
           </template>
           <td v-else-if="form !== 'herkunft'" class="narrow">{{ classCell(p.klasse) }}</td>

@@ -49,12 +49,17 @@ export function mitTor5Umzug(alt: AppState, next: AppState): AppState {
 /**
  * Die gewählte Sprache des Bogens zieht mit der Liste um – sonst druckte der zusammengelegte
  * Bogen wieder in der Sprache des Regelwerks, obwohl Tor 5 auf Deutsch gestellt war. Wie beim
- * Namen: Ein Ziel mit eigener Wahl wird nicht überschrieben; der Eintrag der alten Liste
- * entfällt, damit er beim Trennen nicht als veraltete Wahl wieder auftaucht.
+ * Namen auf jedem Parcours für sich: Ein Ziel mit eigener Wahl wird nicht überschrieben; der
+ * Eintrag der alten Liste entfällt, damit er beim Trennen nicht als veraltete Wahl wieder auftaucht.
  */
 function spracheUmziehen(sprachen: AppState['wkrSprachen'], von: string, nach: string): AppState['wkrSprachen'] {
-  const hat = (id: string) => Object.prototype.hasOwnProperty.call(sprachen, id)
-  if (!hat(von) || hat(nach)) return sprachen
-  const { [von]: sprache, ...rest } = sprachen
-  return { ...rest, [nach]: sprache }
+  let geaendert = false
+  const paare = Object.entries(sprachen).map(([parcoursId, liste]): [string, AppState['wkrSprachen'][string]] => {
+    const hat = (id: string) => Object.prototype.hasOwnProperty.call(liste, id)
+    if (!hat(von) || hat(nach)) return [parcoursId, liste]
+    geaendert = true
+    const { [von]: sprache, ...rest } = liste
+    return [parcoursId, { ...rest, [nach]: sprache }]
+  })
+  return geaendert ? Object.fromEntries(paare) : sprachen
 }

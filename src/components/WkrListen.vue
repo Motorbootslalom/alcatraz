@@ -2,7 +2,7 @@
 import { computed, ref, useId, watchEffect } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
-import { useBogenKonfig, useKonfig } from '../lib/konfig'
+import { useAuswahlKonfig, useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { waehleBoegen, wkrBoegenZumStand, type WkrAuswahl } from '../lib/wkrListen'
@@ -31,14 +31,16 @@ const emit = defineEmits<{
 
 const { state } = useStore()
 // Welche Bögen es gibt, folgt aus Stand und Aufbau – in jeder Sprache dasselbe. Gezeichnet
-// wird jeder Bogen in der Sprache seiner Liste (`bogenKonfig`, lib/listensprache.ts); auch
-// sein Titel in der Auswahl steht so da, wie er auf dem Blatt steht.
+// wird jeder Bogen in der Sprache seiner Liste auf seinem Parcours (`bogenKonfig`,
+// lib/listensprache.ts); auch sein Titel in der Auswahl steht so da, wie er auf dem Blatt steht –
+// haben die Parcours verschiedene Sprachen, in der des Regelwerks (`auswahlKonfig`).
 const konfig = useKonfig()
 const bogenKonfig = useBogenKonfig()
+const auswahlKonfig = useAuswahlKonfig()
 const { classLabel } = useEvent()
 const id = useId()
 
-const listen = computed(() => wkrBoegenZumStand(state.value, konfig.value, (typeId) => bogenKonfig(typeId).getSheetDef(typeId).title))
+const listen = computed(() => wkrBoegenZumStand(state.value, konfig.value, (typeId, parcoursId) => bogenKonfig(typeId, parcoursId).getSheetDef(typeId).title))
 const alle = computed(() => listen.value.boegen)
 
 // Was sich wählen lässt, ergibt sich aus den Bögen: nur Parcours, Klassen, Läufe und Listen, die es gibt.
@@ -46,14 +48,18 @@ const parcours = computed(() => state.value.parcoursList.filter((p) => alle.valu
 const klassen = computed(() => [...new Set(alle.value.flatMap((b) => b.klassen))])
 const laeufe = computed(() => [...new Set(alle.value.map((b) => b.lauf))].sort((a, b) => a - b))
 const listenArten = computed(() => {
-  const titel = new Map(alle.value.map((b) => [b.typeId, b.titel]))
+  // Je Liste die Parcours, auf denen sie einen Bogen hat: Ihr Name in der Auswahl folgt deren Sprache.
+  const jeListe = new Map<string, string[]>()
+  for (const b of alle.value) jeListe.set(b.typeId, [...new Set([...(jeListe.get(b.typeId) ?? []), b.parcoursId])])
+  const defVon = (typeId: string) => auswahlKonfig(typeId, jeListe.get(typeId) ?? []).getSheetDef(typeId)
+  const titel = new Map([...jeListe.keys()].map((typeId) => [typeId, defVon(typeId).title]))
   // Teilen sich zwei Listen den Titel, unterscheidet sie der ausführliche Name aus dem Menü.
   const mehrfach = (text: string) => [...titel.values()].filter((x) => x === text).length > 1
   // In der Reihenfolge der Veranstaltung, nicht in der, in der die Bögen der ersten Klasse sie zufällig bringen.
   const folge = veranstaltungsListen(konfig.value, state.value)
   return [...titel]
     .sort((a, b) => folge.indexOf(a[0]) - folge.indexOf(b[0]))
-    .map(([typeId, text]) => ({ typeId, titel: mehrfach(text) ? bogenKonfig(typeId).getSheetDef(typeId).menuLabel : text }))
+    .map(([typeId, text]) => ({ typeId, titel: mehrfach(text) ? defVon(typeId).menuLabel : text }))
 })
 
 // Eine Wahl, die es nach einer Änderung (Aufbau, Verzahnung, Läufe) nicht mehr gibt, gilt als „alle“.
@@ -143,7 +149,7 @@ const { zoom } = useBogenZoom(stapel)
 
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). -->
   <div ref="stapel" class="bogen-stapel wkr-listen" :style="zoom">
-    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
+    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
   </div>
   <div v-if="mitBild" class="no-print"><ParcoursNachweis /></div>
 </template>

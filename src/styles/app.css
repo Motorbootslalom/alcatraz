@@ -2624,6 +2624,18 @@ fieldset.lockable:disabled .drag-handle {
 }
 
 /* ---------- WKR-Einteilung (Veranstaltung → Besetzung) ---------- */
+/* Die Tabelle nutzt die Breite des Blocks: An einer Liste sitzen oft zwei, drei Personen („Anna
+   Müller, Ben Schmidt, Clara Weber“), und ihr Eintrag soll im Feld ganz zu lesen sein. Bei vielen
+   Parcours werden die Felder schmaler bis zur Mindestbreite, dann scrollt der Rahmen. Die
+   Spalte mit den Listen bleibt so schmal wie ihr Text. */
+.wkr-tabelle {
+  width: 100%;
+}
+
+.wkr-tabelle .zeilenkopf {
+  width: 1%;
+}
+
 .wkr-tabelle thead th small {
   color: var(--muted);
 }
@@ -2640,15 +2652,45 @@ fieldset.lockable:disabled .drag-handle {
   min-width: 150px;
 }
 
-/* Sprache des Bogens je Liste: eine schmale Spalte hinter den Namen. */
-.wkr-tabelle .wkr-sprache {
-  padding: 2px 4px;
+/* Je Zelle: der Name und gleich daneben die Sprache des Bogens (WkrEinteilung.vue). Die Wahl
+   ist schmal – „DE“, „EN“, „DE+EN“ –, damit mehrere Parcours nebeneinander Platz haben. */
+.wkr-tabelle .wkr-zelle {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
 }
 
-.wkr-tabelle .wkr-sprache .input {
-  min-width: 170px;
-  font-size: 14px;
-  padding: 4px 8px;
+.wkr-tabelle .wkr-zelle .cell-input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.wkr-tabelle .wkr-sprache-wahl {
+  flex: 0 0 auto;
+  width: auto;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.wkr-tabelle .wkr-sprache-wahl:hover,
+.wkr-tabelle .wkr-sprache-wahl:focus-visible {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Abweichend von der Sprache des Regelwerks: auf einen Blick zu sehen. */
+.wkr-tabelle .wkr-sprache-wahl.wkr-sprache-eigen {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .wkr-tabelle .wkr-entfaellt {

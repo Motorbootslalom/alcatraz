@@ -23,11 +23,8 @@ const props = defineProps<{
   rueckseite?: boolean
   /** Kennzeichen quer über dem Blatt, z. B. „Beispielansicht“. Solche Blätter werden nie gedruckt. */
   kennzeichen?: string
-  wkrPflege?: boolean
-  wkrLabel?: string
 }>()
 const emit = defineEmits<{
-  wkr: [name: string]
   /** Gemessene Höhe von Kopf/Fuß und Zeilenhöhe der ersten Seite, in ungezoomten CSS-Pixeln. */
   layout: [mass: { fixedPx: number; rowPx: number }]
 }>()
@@ -147,7 +144,7 @@ onBeforeUnmount(() => beobachter?.disconnect())
       <thead>
         <tr>
           <th class="bt-kopfzelle" :colspan="totalCols">
-            <BogenKopf :seite="seite" :wkr-pflege="wkrPflege" :wkr-label="wkrLabel" @wkr="emit('wkr', $event)" />
+            <BogenKopf :seite="seite" />
           </th>
         </tr>
         <tr>

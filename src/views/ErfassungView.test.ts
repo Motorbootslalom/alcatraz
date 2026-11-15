@@ -410,7 +410,7 @@ describe('Erfassung', () => {
     // Die Erfassung ist Bedienung: Auch der Name der Liste und die Spaltenköpfe folgen der
     // Oberfläche – nicht dem Regelwerk (UIM: englisch) und nicht der Sprache des Bogens.
     expect(titel(wrapper)).toBe('Zeit | Klasse Dolphin | 1. Lauf | Parcours 1')
-    store.dispatch({ type: 'SET_WKR_SPRACHE', typeIds: ['zeit'], sprache: 'de+en' })
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: store.state.value.parcoursList.map((p) => ({ parcoursId: p.id, typeId: 'zeit' })), sprache: 'de+en' })
     await nextTick()
     expect(titel(wrapper)).toBe('Zeit | Klasse Dolphin | 1. Lauf | Parcours 1')
     wrapper.unmount()
