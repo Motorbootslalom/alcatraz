@@ -30,7 +30,7 @@ import {
   renumberSequential,
   sortedByStartNr,
 } from '../domain/startnumbers'
-import { mergeStarters } from '../import/starterMerge'
+import { dublettenSchluessel, mergeStarters } from '../import/starterMerge'
 import { haengeUm, ohneParcours, setzeName } from '../lib/einteilung'
 import { setzeBesetzung } from '../lib/besetzung'
 import { gueltigeZellen, laufSchluessel, nurStarter, OHNE_LAUF, setzeWerte, starterfeldFest, type EingabeZelle } from '../lib/eingaben'
@@ -361,11 +361,6 @@ export function emptyState(): AppState {
     parallelPlaene: {},
     runningNumbers: { enabled: false, source: 'manoever', start: 1, skipText: '' },
   }
-}
-
-/** Schlüssel zur Dubletten-Erkennung beim Ergänzen (Klasse + Name). */
-function dupKey(p: Starter): string {
-  return `${p.klasse}|${p.nachname.trim().toLowerCase()}|${p.vorname.trim().toLowerCase()}`
 }
 
 /** Übernimmt die geänderten Starter aus `updated` (per ID); die Reihenfolge bleibt. */
@@ -726,8 +721,8 @@ function wendeAn(state: AppState, action: Action): AppState {
         // Die Liste gilt als Ganzes: Es ist nicht mehr das Beispiel-Starterfeld.
         return { ...mitStartern(state, mergeStarters(state.starters, action.starters, action.auswahlAusDatei ? 'datei' : 'bisher').starters), beispielStarter: false }
       }
-      const seen = new Set(state.starters.map(dupKey))
-      return { ...state, starters: state.starters.concat(action.starters.filter((p) => !seen.has(dupKey(p)))) }
+      const seen = new Set(state.starters.map(dublettenSchluessel))
+      return { ...state, starters: state.starters.concat(action.starters.filter((p) => !seen.has(dublettenSchluessel(p)))) }
     }
 
     case 'ADD_STARTERS':

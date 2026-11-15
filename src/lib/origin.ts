@@ -74,7 +74,7 @@ export interface HerkunftAnzeige {
  * Herkunft als Bundesland oder Staat erkannt ist – dessen Kürzel („Holland“ → NLD). Ist die
  * Angabe selbst schon ein Kürzel („GER“), bleibt sie stehen. Ohne Kürzel steht der Name da.
  * Länder bekommen ihr Kürzel nach der Norm des Regelwerks (`norm`, domain/kuerzel.ts
- * `KuerzelNorm`): unter der UIM das des IOC (Regel 209) – dort wird jeder erkannte Staat zu
+ * `KuerzelNorm`): unter DM und UIM das des IOC (Regel 209) – dort wird jeder erkannte Staat zu
  * diesem Kürzel, gleich wie er eingetragen ist („Germany“, „Deutschland“, „DEU“ und „GER“ → GER),
  * damit eine Nation auf einer Liste nicht unter zwei Codes steht.
  *

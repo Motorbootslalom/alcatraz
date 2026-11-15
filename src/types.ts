@@ -329,8 +329,8 @@ export interface AppState extends PlanState {
   listOrigin: OriginStyle
   /**
    * Eigene Kürzel des Veranstalters: Name (Verein, Bundesland, Land, Gruppe) →
-   * Kürzel. Für Bundesländer und Länder gibt es ISO-Vorgaben (domain/kuerzel),
-   * die hier nur stehen, wenn sie überschrieben wurden.
+   * Kürzel. Für Bundesländer (ISO 3166-2) und Länder (IOC, Regelwerk `laenderKuerzel`) gibt
+   * es Vorgaben (domain/kuerzel), die hier nur stehen, wenn sie überschrieben wurden.
    */
   originShort: Record<string, string>
   /** Anzahl der Läufe je Starter (Deutsche Meisterschaft: 3). */
@@ -518,8 +518,12 @@ export interface ErgebnisListenOptionen {
 // Konfigurationsschicht ohne Umbau darauf baut.
 // ---------------------------------------------------------------------------
 
-/** Design einer Spalten-Trennlinie. */
-export type TrennerDesign = 'fett' | 'doppelt' | 'gepunktet' | 'gestrichelt'
+/**
+ * Design einer Spalten-Trennlinie. `linie` ist die gewöhnliche dünne Linie zwischen zwei Zellen –
+ * als `subTrenner` einer Spalte hebt sie den gepunkteten Standard der Position auf (Start und Ziel:
+ * linke und rechte Boje in getrennten Zellen, Entscheidung des Nutzers vom 15.11.2026).
+ */
+export type TrennerDesign = 'fett' | 'doppelt' | 'gepunktet' | 'gestrichelt' | 'linie'
 
 /** Gerät einer Zeitspalte: elektronische Zeiterfassung (Lichtschranke) oder Stoppuhr. */
 export type Geraet = 'elektronisch' | 'stoppuhr'
@@ -583,8 +587,8 @@ export interface Column {
   trenner?: TrennerDesign
   /**
    * Design der Trennlinien ZWISCHEN den Unter-Spalten (`sub`) dieser Spalte,
-   * z. B. gepunktet zwischen den beiden Bojen eines Tores. Fehlt = normale
-   * dünne Linie.
+   * z. B. gepunktet zwischen den beiden Bojen eines Tores. Fehlt = der Standard
+   * der Position (`subTrenner` dort), sonst die normale dünne Linie.
    */
   subTrenner?: TrennerDesign
   /**

@@ -5,8 +5,8 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 
 ## Dateien
 
-- YAML: `regelwerke.yaml` (IDs, erste = Vorgabe), `regelwerke/dm-2026.yaml` (Kopf beschreibt alle Felder),
-  `regelwerke/uim-2026.yaml` (en-Texte, IOC-Kürzel, wertungJeDisziplin.parallel, Aushang, Laufzettel, UIM points),
+- YAML: `regelwerke.yaml` (IDs, erste = Vorgabe), `regelwerke/dm-2026.yaml` (Kopf beschreibt alle Felder; Länder
+  nach IOC wie die UIM), `regelwerke/uim-2026.yaml` (en-Texte, IOC-Kürzel, wertungJeDisziplin.parallel, Aushang, Laufzettel, UIM points),
   `aufbauten.yaml` (Reihenfolge `dateien`, Parameterbeschreibung), `aufbauten/gemeinsam.yaml` (Disziplin
   manoevrieren, Positionen zeit/steg/vorsteg/knoten/tor5/mueb/parcours), `aufbauten/parallel.yaml`,
   `aufbauten/{alcatraz,frontal,berlin,bawue,moewe}.yaml` (Tor-Positionen in Kurzform), `einstellungen.yaml`
@@ -44,6 +44,8 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 - Neuer Aufbau/Kursvariante: aufbauten/<name>.yaml + aufbauten.yaml `dateien` (fehlt sie: Fehler beim Start; doppelte
   IDs: DUP_*); Titel in i18n/en.yaml; Bilder per `npm run parcours:sync`; Snapshot bewusst erneuern.
 - WKR-Spaltenkopf: `positionen[].spalten[].label` bzw. kurzform.ts FAHRWEG; Englisch in i18n/en.yaml `texte`.
+  Kopf der Unter-Spalten ≠ Kennung: `subKopf` (Start/Ziel nur „L“/„R“, `sub` bleibt „hin seiteB“); gewöhnliche
+  Linie statt des gepunkteten Positions-Standards: `subTrenner: linie` (CSS bogen.css/erfassung.css `…-linie`).
 - Laufzettel: einstellungen.yaml `laufzettel` bzw. Regelwerk `laufzettel` (ersetzt je Schlüssel titel/schritte/
   schritteLetzterLauf); Übersetzung lib/laufzettelText.ts SCHRITTE + runsheet.step.* in de.ts/en.ts.
 - Mannschaftswertung: einstellungen.yaml pokalPunkte; Regelwerk `pokal`; neue Variante: schema, pokal.ts, validate.

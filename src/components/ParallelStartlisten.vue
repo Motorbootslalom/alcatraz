@@ -27,6 +27,14 @@ import ListenDokument from './ListenDokument.vue'
  * nicht in der Druckdatei). Spalten Start, Attempt, Klasse, Nr., Name, Herkunft; die Start-Nummern
  * sind die der gemeinsamen Liste und der Listen der race officials, ein Dummy und ein entfallener
  * Start stehen als schraffierte Zeile da.
+ *
+ * Beide Formen sind abwechselnd weiß und grau wie die Listen der race officials (dieselbe
+ * Einstellung `parallelZebra`; lib/bogen.ts): Jede zweite Zeile der Liste ist grau, gezählt über
+ * die ganze Liste. Eine Zeile ohne Starter (Dummy auf der Liste eines Racecourse, entfallener
+ * Start) zählt mit, bleibt aber weiß und schraffiert; auf der gemeinsamen Liste bleibt die Zelle
+ * des Dummys schraffiert. Die Seiten werden NICHT ausgeglichen – nur ein Block bleibt auf einer
+ * Seite; eine letzte Seite mit 2 oder 4 Zeilen ist in Ordnung (Entscheidung des Nutzers vom
+ * 15.11.2026).
  */
 const props = defineProps<{
   runden: readonly ParallelRunde[]
@@ -42,7 +50,19 @@ const { state } = useStore()
 const { classCell } = useEvent()
 const { t: lt, listenLocale, kuerzelNorm } = useListenSprache()
 
-const listen = computed(() => props.runden.flatMap((r) => rundenStartliste(state.value, r) ?? []))
+/** Je Runde die Liste und je Block die Zahl der Zeilen davor – die graue Zeile zählt über die ganze Liste. */
+const listen = computed(() =>
+  props.runden.flatMap((r) => {
+    const l = rundenStartliste(state.value, r)
+    if (!l) return []
+    const beginn: number[] = []
+    l.bloecke.reduce((n, b, i) => ((beginn[i] = n), n + b.length), 0)
+    return [{ ...l, beginn }]
+  }),
+)
+const zebra = computed(() => state.value.parallelZebra !== false)
+/** Grau ist jede zweite Zeile der Liste (`nr` ab 1) – außer einer Zeile ohne Starter: Sie zählt mit, bleibt aber weiß. */
+const grau = (nr: number, ohne: boolean) => zebra.value && nr % 2 === 0 && !ohne
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 const mitNamen = computed(() => props.namen !== 'ohne')
 const mitHerkunft = computed(() => state.value.originMode !== 'none' && props.herkunft !== undefined && props.herkunft !== 'aus')
@@ -96,10 +116,15 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit
             </tr>
           </thead>
           <!-- Je Block (oder Stück eines Blocks) ein tbody: Die kräftige Linie trennt die Blöcke. -->
-          <tbody v-for="teil in teile" :key="`${teil.block}:${teil.von}`" class="psl-block">
-            <template v-for="z in l.bloecke[teil.block].slice(teil.von, teil.bis)" :key="z.start">
+          <tbody v-for="teil in teile" :key="`${teil.block}:${teil.von}`" class="psl-block" :data-block="teil.block">
+            <template v-for="(z, j) in l.bloecke[teil.block].slice(teil.von, teil.bis)" :key="z.start">
               <!-- Liste eines Racecourse: Ein Dummy und ein entfallener Start sind schraffierte Zeilen. -->
-              <tr v-if="racecourse" :data-start="z.start" :data-ohne="z.entfaellt ? 'entfaellt' : amRacecourse(z) === null ? 'dummy' : undefined" :class="{ 'psl-ohne': z.entfaellt || amRacecourse(z) === null }">
+              <tr
+                v-if="racecourse"
+                :data-start="z.start"
+                :data-ohne="z.entfaellt ? 'entfaellt' : amRacecourse(z) === null ? 'dummy' : undefined"
+                :class="{ 'psl-ohne': z.entfaellt || amRacecourse(z) === null, shade: grau(l.beginn[teil.block] + teil.von + j + 1, z.entfaellt || amRacecourse(z) === null) }"
+              >
                 <td class="narrow">{{ z.start }}</td>
                 <td class="narrow">{{ z.attempt }}</td>
                 <td class="narrow">
@@ -115,7 +140,7 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit
                   <td v-if="mitHerkunft" class="narrow"><HerkunftText :anzeige="herkunft(amRacecourse(z)!)" /></td>
                 </template>
               </tr>
-              <tr v-else :data-start="z.start" :class="{ 'psl-entfaellt': z.entfaellt }">
+              <tr v-else :data-start="z.start" :class="{ 'psl-entfaellt': z.entfaellt, shade: grau(l.beginn[teil.block] + teil.von + j + 1, z.entfaellt) }">
                 <td class="narrow">{{ z.start }}</td>
                 <td class="narrow">{{ z.attempt }}</td>
                 <td class="narrow">

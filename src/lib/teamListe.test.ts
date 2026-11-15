@@ -4,6 +4,7 @@ import { migrate } from '../state/migrate'
 import { makeFile, parseFile } from '../persistenz/backup'
 import { mergeStarters } from '../import/starterMerge'
 import { formatStartersTsv, parseGeschlecht, parseStartersTsv } from '../import/tsv'
+import { geschlechtAufListe, geschlechtKuerzel } from '../domain/geschlecht'
 import { beispielHerkuenfte, generateStarters } from '../domain/generate'
 import { teamListen } from './teamListe'
 import type { AppState, ClassId, Starter } from '../types'
@@ -66,6 +67,28 @@ describe('Geschlecht: freiwilliges Starterfeld', () => {
     expect(res.geschlechtUnbekannt).toEqual({ anzahl: 1, werte: ['?'] })
     expect(parseStartersTsv(['Klasse\tName\tVorname\tSex', '1\tA\tB\tX', '1\tC\tD\tX', '1\tE\tF\tunbekannt', '1\tG\tH\tD'].join('\n')).geschlechtUnbekannt).toEqual({ anzahl: 3, werte: ['X', 'unbekannt'] })
     expect(parseStartersTsv('Klasse\tName\tVorname\tGender\n2\tMuster\tMax\tm').starters[0].geschlecht).toBe('M')
+  })
+
+  it('Import erkennt auch die deutschen Kürzel W und k. A. in üblichen Schreibweisen (Entscheidung des Nutzers vom 15.11.2026)', () => {
+    expect(['W', 'w', 'weibl.', 'Woman'].map(parseGeschlecht)).toEqual(['F', 'F', 'F', 'F'])
+    expect(['k. A.', 'k.A.', 'K.A', 'ka', 'K A', 'keine Angaben', 'n. a.', 'not specified'].map(parseGeschlecht)).toEqual(['nA', 'nA', 'nA', 'nA', 'nA', 'nA', 'nA', 'nA'])
+    expect(['männl.', 'MAENNL', 'div.'].map(parseGeschlecht)).toEqual(['M', 'M', 'D'])
+    // Was keins der vier ist, bleibt unerkannt – auch nicht halb.
+    expect(['k', 'A', 'weib', 'X'].map(parseGeschlecht)).toEqual([undefined, undefined, undefined, undefined])
+    const res = parseStartersTsv(['Klasse\tName\tVorname\tGeschlecht', '1\tMuster\tMia\tW', '1\tProbe\tPia\tk. A.'].join('\n'))
+    expect(res.starters.map((p) => p.geschlecht)).toEqual(['F', 'nA'])
+    expect(res.geschlechtUnbekannt.anzahl).toBe(0)
+  })
+
+  it('das Kürzel folgt der Sprache: englisch M, F, D, n/a – deutsch M, W, D, k. A.; gespeichert bleibt M, F, D, nA', () => {
+    expect((['M', 'F', 'D', 'nA'] as const).map((g) => geschlechtKuerzel(g, 'en'))).toEqual(['M', 'F', 'D', 'n/a'])
+    expect((['M', 'F', 'D', 'nA'] as const).map((g) => geschlechtKuerzel(g, 'de'))).toEqual(['M', 'W', 'D', 'k. A.'])
+    expect(geschlechtAufListe('F', 'de')).toBe('W')
+    expect(geschlechtAufListe('nA', 'en')).toBe('n/a')
+    expect(geschlechtAufListe(undefined, 'de')).toBe('')
+    // Was auf einer Liste steht, liest der Import wieder als denselben Wert.
+    for (const sprache of ['de', 'en'] as const)
+      expect((['M', 'F', 'D', 'nA'] as const).map((g) => parseGeschlecht(geschlechtKuerzel(g, sprache)))).toEqual(['M', 'F', 'D', 'nA'])
   })
 
   it('Export und Import: die vier Werte kommen so zurück, wie sie hinausgingen', () => {

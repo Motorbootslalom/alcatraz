@@ -46,6 +46,11 @@ const props = defineProps<{
    * Herkunftsblocks). Ihre gemessene Höhe geht dort vom Platz der Seite ab (lib/seiten.ts).
    */
   wiederholteZeile?: number
+  /**
+   * Zeile `zeile` des Blocks bleibt auf der Seite der Zeile davor: Eine Zelle fasst beide
+   * zusammen (Results des Parallelslaloms, „Qualified“ über mehrere Zeilen; lib/seiten.ts).
+   */
+  gebunden?: (block: number, zeile: number) => boolean
 }>()
 defineSlots<{
   default(props: { teile: SeitenTeil[]; seite: number; anzahl: number }): unknown
@@ -62,7 +67,7 @@ const seiten = computed(() => {
   const zeilen = props.laengen.reduce((n, l) => n + Math.max(0, l), 0)
   // Passt die Messung nicht (mehr) zur Liste, gilt bis zur nächsten die Vorgabe.
   const w = props.wiederholteZeile
-  if (!m || m.hoehen.length !== zeilen) return listenSeiten(props.laengen, props.vorgabe, undefined, w === undefined ? undefined : () => 1)
+  if (!m || m.hoehen.length !== zeilen) return listenSeiten(props.laengen, props.vorgabe, undefined, w === undefined ? undefined : () => 1, props.gebunden)
   const beginn: number[] = []
   props.laengen.reduce((n, l, i) => ((beginn[i] = n), n + Math.max(0, l)), 0)
   // Mindestens die höchste Zeile muss Platz haben – sonst entstünde keine Seite.
@@ -72,6 +77,7 @@ const seiten = computed(() => {
     platz,
     (block, zeile) => m.hoehen[beginn[block] + zeile],
     w === undefined ? undefined : (block) => (w < props.laengen[block] ? m.hoehen[beginn[block] + w] : 0),
+    props.gebunden,
   )
 })
 

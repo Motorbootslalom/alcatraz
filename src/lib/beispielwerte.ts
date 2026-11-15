@@ -134,18 +134,20 @@ const WM_MANOEVRIEREN: Kennzahlen = {
 
 /**
  * Parallelslalom, Vorlauf (preliminary heat) auf beiden Racecourses – gerundete Kennzahlen je
- * Klasse aus der WM 2025, wie oben geglättet. Start und Ziel sind hier je eine Zelle je Start.
+ * Klasse aus der WM 2025, wie oben geglättet. Start und Ziel hatten dort je eine Zelle je Start;
+ * seit sie je eine Zelle für die linke und die rechte Boje haben (Entscheidung des Nutzers vom
+ * 15.11.2026), steht hier die halbe Quote je Zelle – so bleibt es bei derselben Zahl je Start.
  * „Nicht gestartet“ zählt nicht mit, dafür gäbe es keine Zeit. Knoten gibt es im Parallelslalom
  * nicht (Regel 960, Pkt. 4.4 und 5.2.2 nennen keine).
  */
 const WM_PARALLEL: Kennzahlen = {
   profile: {
-    E: { zeit: [71, 73, 81], boje: 0.02, start: 0.16, ziel: 0.27, stegAn: 0.04, disq: 0.04, knoten: 0 },
-    1: { zeit: [68, 72, 78], boje: 0.01, start: 0.06, ziel: 0.16, stegAn: 0.1, disq: 0.1, knoten: 0 },
-    2: { zeit: [65, 70, 72], boje: 0.005, start: 0.05, ziel: 0.09, stegAn: 0.01, disq: 0.01, knoten: 0 },
-    3: { zeit: [67, 70, 73], boje: 0.01, start: 0.04, ziel: 0.11, stegAn: 0.01, disq: 0.01, knoten: 0 },
-    4: { zeit: [57, 58, 60], boje: 0.005, start: 0.05, ziel: 0.06, stegAn: 0.01, disq: 0.005, knoten: 0 },
-    5: { zeit: [55, 58, 60], boje: 0.005, start: 0.07, ziel: 0.08, stegAn: 0.02, disq: 0.005, knoten: 0 },
+    E: { zeit: [71, 73, 81], boje: 0.02, start: 0.16 / 2, ziel: 0.27 / 2, stegAn: 0.04, disq: 0.04, knoten: 0 },
+    1: { zeit: [68, 72, 78], boje: 0.01, start: 0.06 / 2, ziel: 0.16 / 2, stegAn: 0.1, disq: 0.1, knoten: 0 },
+    2: { zeit: [65, 70, 72], boje: 0.005, start: 0.05 / 2, ziel: 0.09 / 2, stegAn: 0.01, disq: 0.01, knoten: 0 },
+    3: { zeit: [67, 70, 73], boje: 0.01, start: 0.04 / 2, ziel: 0.11 / 2, stegAn: 0.01, disq: 0.01, knoten: 0 },
+    4: { zeit: [57, 58, 60], boje: 0.005, start: 0.05 / 2, ziel: 0.06 / 2, stegAn: 0.01, disq: 0.005, knoten: 0 },
+    5: { zeit: [55, 58, 60], boje: 0.005, start: 0.07 / 2, ziel: 0.08 / 2, stegAn: 0.02, disq: 0.005, knoten: 0 },
   },
   fehlerJeStart: { 'katalog:stegAblegen': 0.03 },
   codeHaeufigkeit: { 3: 5, 7: 3, 9: 3 },

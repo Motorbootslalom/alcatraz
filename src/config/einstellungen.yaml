@@ -59,7 +59,7 @@ hinweise:
     1. Zeichen = Fahrtrichtung: hin = Hinfahrt, rueck = Rückfahrt
     2. Zeichen = Seite: seiteA = seiteAlang, seiteB = seiteBlang
     iahinweis
-    Start = Berührung Einfahrt-Bojentor · Ziel = Berührung Ausfahrt-Bojentor
+    Start = Berührung Einfahrt-Bojentor · Ziel = Berührung Ausfahrt-Bojentor (je nur Seite)
     Fehler: pro berührter Boje (auch außerhalb des Manövers) = 5
   knoten: "Fehler: 5 pro fehlerhafter Knoten"
   parcours: "Es ist nur der eigentliche Fahrweg zu beobachten - keine Bojenberührungen!"

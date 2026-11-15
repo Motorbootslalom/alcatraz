@@ -32,7 +32,9 @@ describe('Bezeichnungs-Schemata (live umschaltbar)', () => {
     // Tor 5 und Start/Ziel bleiben bei R/L.
     expect(colSub('blinks', 't5a')).toEqual(['H R', 'H L'])
     expect(colSub('blinks', 't5b')).toEqual(['R R', 'R L'])
-    expect(colSub('bstartziel', 'start')).toEqual(['H R', 'H L'])
+    // Start und Ziel: nur die Seite, erst L, dann R (Entscheidung des Nutzers vom 15.11.2026).
+    expect(colSub('bstartziel', 'start')).toEqual(['L', 'R'])
+    expect(colSub('bstartziel', 'ziel')).toEqual(['L', 'R'])
   })
 
   it('liefert die konfigurierten Schemata', () => {
@@ -48,7 +50,7 @@ describe('Bezeichnungs-Schemata (live umschaltbar)', () => {
     expect(colSub('frontal135', 't1a')).toEqual(['H ←', 'H →']) // Frontal: seiteB=Links links im Bild
     // Einzelne Boje (Tor 5 = dieselbe Boje hin+zurück): gleicher Pfeil
     expect(colSub('gate135', 't5')).toEqual(['H ←', 'R ←'])
-    expect(colSub('gate135', 'start')).toEqual(['H ←'])
+    expect(colSub('gate135', 'start')).toEqual(['←'])
   })
 
   it('Standard Rechts/Links: Tor-Spalten tragen R und L', () => {
@@ -82,7 +84,7 @@ describe('Bezeichnungs-Schemata (live umschaltbar)', () => {
     expect(colSub('frontal245', 't2a')).toEqual(['H A', 'H I'])
     // Tor 5, Start, Ziel bleiben physisch (Rechts/Links); Rück = R
     expect(colSub('gate135', 't5')).toEqual(['H R', 'R R'])
-    expect(colSub('gate135', 'start')).toEqual(['H R'])
+    expect(colSub('gate135', 'start')).toEqual(['R'])
   })
 
   it('Legendenhinweis erklärt I/A nur im Innen/Außen-Schema (ohne Leerzeilen)', () => {

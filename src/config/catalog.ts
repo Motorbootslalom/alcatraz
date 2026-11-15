@@ -56,7 +56,7 @@ export interface Regelwerk {
    * kennt den Schalter nicht – er ist dann weder sichtbar noch wirksam ({@link versucheNacheinander}).
    */
   versucheNacheinander?: boolean
-  /** Kürzel der Länder auf den Listen: ISO (DM) oder IOC (UIM, Regel 209) – domain/kuerzel.ts `KuerzelNorm`. */
+  /** Kürzel der Länder auf den Listen: IOC (DM und UIM, Regel 209) oder ISO – domain/kuerzel.ts `KuerzelNorm`. */
   laenderKuerzel: KuerzelNorm
 }
 

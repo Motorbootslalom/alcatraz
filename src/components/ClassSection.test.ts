@@ -175,3 +175,50 @@ describe('Jahrgang und Klasse', () => {
     expect(store.state.value.starters[0].klasse).toBe('4')
   })
 })
+
+describe('Geschlecht im Starter-Reiter', () => {
+  let store: Store
+  const ansicht = () =>
+    mount(ClassSection, {
+      props: { classId: '4', starters: store.state.value.starters, duplicates: new Set<string>(), open: true, sortTick: 0 },
+      global: { provide: { [storeKey as symbol]: store } },
+    })
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: [{ ...starter(1), geschlecht: 'F' }, { ...starter(2), geschlecht: 'nA' }] })
+  })
+  afterEach(() => setLocale('de'))
+
+  it('die Kürzel folgen der Sprache der Oberfläche – gespeichert bleibt M, F, D, nA (Entscheidung des Nutzers vom 15.11.2026)', async () => {
+    const zellen = (w: ReturnType<typeof ansicht>) => w.findAll('td[data-spalte="geschlecht"]').map((td) => td.text())
+    const deutsch = ansicht()
+    expect(zellen(deutsch)).toEqual(['W', 'k. A.'])
+    await deutsch.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    const auswahl = deutsch.find('select[data-feld="geschlecht"]')
+    expect(auswahl.findAll('option').map((o) => [o.attributes('value'), o.text()])).toEqual([['', '–'], ['M', 'M'], ['F', 'W'], ['D', 'D'], ['nA', 'k. A.']])
+    await auswahl.setValue('D')
+    expect(store.state.value.starters[0].geschlecht).toBe('D')
+    deutsch.unmount()
+
+    setLocale('en')
+    const englisch = ansicht()
+    expect(zellen(englisch)).toEqual(['D', 'n/a'])
+    await englisch.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    expect(englisch.find('select[data-feld="geschlecht"]').findAll('option').map((o) => o.text())).toEqual(['–', 'M', 'F', 'D', 'n/a'])
+    englisch.unmount()
+  })
+
+  it('der Hinweis am Feld nennt die deutschen Kürzel als die der Oberfläche – eine deutsche Liste mit Geschlecht gibt es nicht', async () => {
+    // Geschlecht steht nur auf der Liste nach Pkt. 3.7, und die gibt es nur unter UIM, also englisch.
+    setLocale('en')
+    const englisch = ansicht()
+    await englisch.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    const hinweis = englisch.find('select[data-feld="geschlecht"]').attributes('title') ?? ''
+    expect(hinweis).toContain('In the German interface M, W, D, k. A.')
+    expect(hinweis).not.toMatch(/German lists?/i)
+    englisch.unmount()
+  })
+})

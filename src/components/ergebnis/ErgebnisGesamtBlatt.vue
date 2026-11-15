@@ -26,12 +26,28 @@ const props = defineProps<{
   /**
    * Die Spalte „UIM points“ hinter dem Gesamtergebnis (UIM 960, Pkt. 5.2.1) – nur unter einem
    * Regelwerk, das sie verlangt. `werte`: die Punkte je Starter-ID (lib/pokal.ts
-   * `gesamtPunkte`); `null`, solange die Klasse nicht vollständig ist – dann steht die Spalte
-   * leer da. Fehlt die Angabe, gibt es die Spalte nicht. `titel`: eine andere Überschrift – im
-   * Ergebnis einer Runde, deren Disziplin der O.O.D. für die Klasse nicht wertet, stehen dort nur
-   * noch Vermerke wie „Qualified“ (ParallelErgebnisStapel.vue).
+   * `gesamtPunkte`), im Ergebnis einer Runde auch „Re-run“; `null`, solange die Klasse nicht
+   * vollständig ist – dann steht die Spalte leer da. Fehlt die Angabe, gibt es die Spalte nicht.
+   *
+   * `bloecke` (Ergebnis einer Runde): wer weiterfährt, wohin – „Qualified“, „Final 1–2“, „Small
+   * final“. Aufeinanderfolgende Zeilen mit demselben Vermerk teilen sich EINE Zelle, der Vermerk
+   * steht schräg darin (Entscheidung des Nutzers vom 15.11.2026); kein Seitenwechsel trennt sie.
+   * Wertet der O.O.D. die Disziplin für die Klasse nicht, bleiben nur sie und „Re-run“, die
+   * übrigen Zellen sind leer.
    */
-  punkte?: { werte: ReadonlyMap<string, number | string> | null; titel?: string }
+  punkte?: { werte: ReadonlyMap<string, number | string> | null; bloecke?: ReadonlyMap<string, string> }
+  /**
+   * Ohne die Spalte „Result“ (bester Versuch ohne Knoten): Die UIM-Gesamtliste nennt nach Pkt.
+   * 5.2.1 nur die Zeit mit den Knoten – welcher Versuch zählt, zeigen die gestrichenen
+   * (Entscheidung des Nutzers vom 15.11.2026). Im Ergebnis einer Runde gibt es sie ohnehin nicht.
+   */
+  ohneErgebnis?: boolean
+  /**
+   * Plätze, die eine Wiederholung entschieden hat (Results einer Runde des Parallelslaloms, UIM
+   * 960, Pkt. 5.2.6): Sie tragen ein Sternchen wie die des Stichentscheids, `text` erklärt es im
+   * Fuß jeder Seite, auf der eines steht – zusammen mit dem Stichentscheid, steht auch einer da.
+   */
+  wiederholt?: { ids: ReadonlySet<string>; text: string }
   /**
    * Das Ergebnis einer Runde des Parallelslaloms statt der Gesamtliste des Manövrierens (UIM
    * 960, Pkt. 5.2.2: „1st attempt times, 1st att. penalties, 1st att. times including
@@ -65,9 +81,8 @@ const props = defineProps<{
    */
   stichText?: string
   /**
-   * Ein Hinweis ohne Zeichen unter der Tabelle jeder Seite – im Ergebnis einer Runde des
-   * Parallelslaloms, deren Plätze eine Wiederholung mitbestimmt hat (UIM 960, Pkt. 5.2.6).
-   * Fehlt = keiner (Gesamtliste des Manövrierens).
+   * Ein Hinweis ohne Zeichen unter der Tabelle jeder Seite – etwa, dass der O.O.D. die Disziplin
+   * für die Klasse nicht wertet (lib/disziplinen.ts). Fehlt = keiner.
    */
   fussHinweis?: string
   /**
@@ -90,16 +105,73 @@ const unterschriftTexte = computed(() => (props.unterschrift ? { wer: t('results
 // Die Liste ist ein Dokument: Sie teilt sich selbst in Seiten und zählt nur die eigenen
 // (ListenDokument.vue). Platz, graue Zeile und Abstand hängen an der Stelle in der ganzen
 // Liste, nicht an der auf der Seite (lib/seiten.ts `zeilenDerSeite`).
-/** Steht auf dieser Seite ein Platz, den der Stichentscheid vergeben hat? */
-const mitStich = (teile: readonly SeitenTeil[]) => zeilenDerSeite(props.zeilen, teile).some(({ z }) => z.stich)
+/** Hat eine Wiederholung diesen Platz entschieden? */
+const durchWiederholung = (z: GesamtZeile) => !!props.wiederholt?.ids.has(z.starter.id)
+/**
+ * Die Erklärung zum Sternchen für diese Seite: der Stichentscheid, wenn er hier einen Platz
+ * vergeben hat, und die Wiederholung, wenn sie hier einen entschieden hat – beide unter EINEM
+ * Zeichen, denn beides ist Pkt. 5.2.6 („Dead-heat situations“). Leer = kein Sternchen hier.
+ */
+const sternText = (teile: readonly SeitenTeil[]) => {
+  const seite = zeilenDerSeite(props.zeilen, teile).map(({ z }) => z)
+  return [seite.some((z) => z.stich) ? props.stichText : '', seite.some(durchWiederholung) ? props.wiederholt?.text : ''].filter(Boolean).join(' ')
+}
 const { abstandTitel, abstandZelle, punkteZelle, zeitText } = ergebnisTexte(sprache)
+
+// Die Spalte „UIM points“ im Ergebnis einer Runde: Aufeinanderfolgende Zeilen mit demselben
+// Vermerk („Qualified“, das Finale) sind EINE Zelle (`rowspan`), der Vermerk steht schräg darin.
+/** Der Vermerk der Zeile, der mit den Nachbarn eine Zelle teilt; `undefined` = eigene Zelle. */
+const blockVon = (z: GesamtZeile) => props.punkte?.bloecke?.get(z.starter.id)
+/** Zeile `zeile` gehört zur Zelle der Zeile davor – kein Seitenwechsel dazwischen (ListenDokument.vue). */
+const gebunden = (_block: number, zeile: number) => zeile > 0 && blockVon(props.zeilen[zeile]) !== undefined && blockVon(props.zeilen[zeile]) === blockVon(props.zeilen[zeile - 1])
+/** Was in der Spalte steht: der Text und über wie viele Zeilen; `null` = die Zeile liegt unter der Zelle einer früheren. */
+type PunkteZelle = { text: string | number; zeilen: number } | null
+/** Die Zeilen einer Seite samt ihrer Zelle in der Spalte „UIM points“. */
+function seitenZeilen(teile: readonly SeitenTeil[]): { z: GesamtZeile; i: number; uim: PunkteZelle }[] {
+  const zeilen = zeilenDerSeite(props.zeilen, teile)
+  return zeilen.map(({ z, i }, j) => {
+    const block = blockVon(z)
+    if (block === undefined) return { z, i, uim: { text: props.punkte?.werte?.get(z.starter.id) ?? '', zeilen: 1 } }
+    // Auf der Seite gezählt: Teilte ein Seitenwechsel die Folge doch (länger als eine Seite), beginnt die Zelle neu.
+    if (j > 0 && blockVon(zeilen[j - 1].z) === block) return { z, i, uim: null }
+    let n = 1
+    while (j + n < zeilen.length && blockVon(zeilen[j + n].z) === block) n++
+    return { z, i, uim: { text: block, zeilen: n } }
+  })
+}
+/** Höhe einer Zeile in mm – wie `.erg-tabelle tbody td` in styles/ergebnis.css. */
+const ZEILE_MM = 4.6
+/**
+ * Breite eines Zeichens in em, mit Reserve: In Arial braucht „Qualified“ rund 0,44 em je Zeichen,
+ * „Final 1–2“ 0,46, „Small final“ 0,44 (in Chromium gemessen).
+ */
+const ZEICHEN_EM = 0.5
+/** Höchstens so groß steht der schräge Vermerk (9 pt) – in einer hohen Zelle nicht größer als nötig. */
+const SCHRAEG_MAX_MM = 3.175
+/**
+ * Der Vermerk schräg in seiner Zelle: von links unten nach rechts oben, so groß, wie er in die
+ * Zelle passt (mit etwas Rand) – nie abgeschnitten. Die Zelle ist so breit wie die Spalte und so
+ * hoch wie ihre Zeilen.
+ */
+function schraeg(text: string, zeilen: number): Record<string, string> {
+  const breit = uimMm.value - 1.2
+  const hoch = zeilen * ZEILE_MM - 0.6
+  const winkel = Math.atan2(hoch, breit)
+  const [cos, sin] = [Math.cos(winkel), Math.sin(winkel)]
+  const lang = text.length * ZEICHEN_EM
+  const zeile = 1.15
+  const mm = Math.min(SCHRAEG_MAX_MM, breit / (lang * cos + zeile * sin), hoch / (lang * sin + zeile * cos))
+  return { fontSize: `${mm.toFixed(2)}mm`, transform: `translate(-50%, -50%) rotate(${(-(winkel * 180) / Math.PI).toFixed(1)}deg)` }
+}
 
 /** Für den Aushang lässt sich der Nachname auf den Anfangsbuchstaben kürzen. */
 const nachname = (p: Starter) => listenNachname(p, props.namen)
 
+/** Die Spalte „Result“ (bester Versuch ohne Knoten): nur auf der Gesamtliste, und dort nicht unter UIM. */
+const mitErgebnis = computed(() => !props.runde && !props.ohneErgebnis)
 const spaltenZahl = computed(
   () =>
-    (props.runde ? 5 : 6) -
+    (mitErgebnis.value ? 6 : 5) -
     (props.namen === 'ohne' ? 2 : 0) +
     (props.mitKnoten ? 1 : 0) +
     (props.punkte ? 1 : 0) +
@@ -142,7 +214,7 @@ const frei = computed(
     9 -
     (props.geburtsdatum ? 18 : 0) -
     props.laeufe.length * (LAUF + (props.runde ? RACECOURSE_MM - 9.5 : 0)) -
-    (props.runde ? SUMME_RUNDE_MM : 2 * 14) -
+    (props.runde ? SUMME_RUNDE_MM : (mitErgebnis.value ? 2 : 1) * 14) -
     (props.mitKnoten ? 12 : 0) -
     (props.punkte ? uimMm.value : 0) -
     (props.abstand ? 13 : 0),
@@ -175,9 +247,10 @@ const fitHerkunft = (text: string) => fit(text, Math.floor((herkunftMm.value - 2
     :vorgabe="SEITEN_VORGABE.ergebnisGesamt"
     :sprache="sprache()"
     :fuss-mm="ergebnisFussMm(unterschrift)"
+    :gebunden="punkte?.bloecke ? gebunden : undefined"
   >
     <template #fuss="{ teile, seitenzahl }">
-      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="mitStich(teile) ? stichText : ''" :hinweis="fussHinweis" :seitenzahl="seitenzahl" :unterschrift="unterschriftTexte" />
+      <ErgebnisFuss :stand="stand" :stand-label="t('results.changed')" :stich="sternText(teile)" :hinweis="fussHinweis" :seitenzahl="seitenzahl" :unterschrift="unterschriftTexte" />
     </template>
     <template #default="{ teile }">
     <table class="erg-tabelle erg-tabelle--gesamt">
@@ -195,7 +268,7 @@ const fitHerkunft = (text: string) => fit(text, Math.floor((herkunftMm.value - 2
           <col class="erg-w-ges" />
           <col v-if="!runde" class="erg-w-platz" />
         </template>
-        <col v-if="!runde" class="erg-w-ergebnis" />
+        <col v-if="mitErgebnis" class="erg-w-ergebnis" />
         <col v-if="mitKnoten" class="erg-w-knoten" />
         <col class="erg-w-ergebnis" :style="runde ? { width: `${SUMME_RUNDE_MM}mm` } : undefined" />
         <col v-if="punkte" class="erg-w-uim" :style="runde ? { width: `${UIM_RUNDE_MM}mm` } : undefined" />
@@ -219,10 +292,11 @@ const fitHerkunft = (text: string) => fit(text, Math.floor((herkunftMm.value - 2
           <th v-if="herkunft" rowspan="2">{{ herkunft.titel }}</th>
           <th v-if="geburtsdatum" rowspan="2">{{ t('common.birthdate') }}</th>
           <th v-for="l in laeufe" :key="l" colspan="4" class="erg-gruppe">{{ runde ? runde.laufTitel(l) : t('lists.wkr.runN', { n: l }) }}</th>
-          <th v-if="!runde" rowspan="2" class="erg-gruppe">{{ t('results.result') }}</th>
-          <th v-if="mitKnoten" rowspan="2">{{ t('results.knots') }}</th>
-          <th rowspan="2" :class="{ 'erg-gruppe': runde }" :data-spalte="runde ? 'summe' : undefined">{{ runde ? t('parallel.results.combined') : t('results.bestInclKnots') }}</th>
-          <th v-if="punkte" rowspan="2" data-spalte="uim-punkte">{{ punkte.titel ?? t('results.uimPoints') }}</th>
+          <th v-if="mitErgebnis" rowspan="2" class="erg-gruppe">{{ t('results.result') }}</th>
+          <!-- Ohne „Result“ beginnt die Gruppe hinter den Läufen mit den Knoten (die kräftige Linie wandert mit). -->
+          <th v-if="mitKnoten" rowspan="2" :class="{ 'erg-gruppe': !mitErgebnis }" data-spalte="knoten">{{ t('results.knots') }}</th>
+          <th rowspan="2" :class="{ 'erg-gruppe': !mitErgebnis && !mitKnoten }" :data-spalte="runde ? 'summe' : undefined">{{ runde ? t('parallel.results.combined') : t('results.bestInclKnots') }}</th>
+          <th v-if="punkte" rowspan="2" data-spalte="uim-punkte">{{ t('results.uimPoints') }}</th>
           <th v-if="props.abstand" rowspan="2">
             {{ t('results.gap') }}<br /><small>{{ abstandTitel(props.abstand) }}</small>
           </th>
@@ -239,15 +313,16 @@ const fitHerkunft = (text: string) => fit(text, Math.floor((herkunftMm.value - 2
       </thead>
       <tbody>
         <tr
-          v-for="{ z, i } in zeilenDerSeite(zeilen, teile)"
+          v-for="{ z, i, uim } in seitenZeilen(teile)"
           :key="z.starter.id"
           :class="(i + 1) % 5 === 0 ? 'grau' : undefined"
           :data-starter="z.starter.id"
           :data-wertung="z.disq ? 'disq' : z.offen ? 'offen' : 'gewertet'"
           :data-stich="z.stich ? '' : undefined"
+          :data-wiederholt="durchWiederholung(z) ? '' : undefined"
         >
-          <!-- Das Sternchen sagt: Diesen Platz hat der Stichentscheid vergeben (Erklärung unter der Tabelle). -->
-          <td class="erg-platz">{{ z.platz }}<span v-if="z.stich" class="erg-stich-zeichen">*</span></td>
+          <!-- Das Sternchen sagt: Diesen Platz hat der Stichentscheid oder eine Wiederholung vergeben (Erklärung unter der Tabelle). -->
+          <td class="erg-platz">{{ z.platz }}<span v-if="z.stich || durchWiederholung(z)" class="erg-stich-zeichen">*</span></td>
           <td>{{ z.starter.startNr }}</td>
           <td v-if="namen !== 'ohne'" :class="fitName(nachname(z.starter))">{{ nachname(z.starter) }}</td>
           <td v-if="namen !== 'ohne'" :class="fitName(z.starter.vorname)">{{ z.starter.vorname }}</td>
@@ -264,11 +339,17 @@ const fitHerkunft = (text: string) => fit(text, Math.floor((herkunftMm.value - 2
             </template>
             <td v-if="!runde">{{ l.platz }}</td>
           </template>
-          <td v-if="!runde" :class="['erg-gruppe', { 'erg-disq': z.disq }]">{{ punkteZelle(z.disq, z.ergebnis) }}</td>
-          <td v-if="mitKnoten">{{ z.knoten || '' }}</td>
-          <td :class="{ 'erg-gruppe': runde, 'erg-disq': z.disq }" :data-spalte="runde ? 'summe' : undefined">{{ punkteZelle(z.disq, z.gesamt) }}</td>
-          <!-- Leer, solange die Klasse nicht vollständig ist: Vorläufige Punkte gehören nicht auf den Aushang. -->
-          <td v-if="punkte" data-spalte="uim-punkte">{{ punkte.werte?.get(z.starter.id) ?? '' }}</td>
+          <td v-if="mitErgebnis" :class="['erg-gruppe', { 'erg-disq': z.disq }]">{{ punkteZelle(z.disq, z.ergebnis) }}</td>
+          <td v-if="mitKnoten" :class="{ 'erg-gruppe': !mitErgebnis }" data-spalte="knoten">{{ z.knoten || '' }}</td>
+          <td :class="{ 'erg-gruppe': !mitErgebnis && !mitKnoten, 'erg-disq': z.disq }" :data-spalte="runde ? 'summe' : undefined">{{ punkteZelle(z.disq, z.gesamt) }}</td>
+          <!-- Leer, solange die Klasse nicht vollständig ist: Vorläufige Punkte gehören nicht auf den Aushang.
+               Ein Vermerk über mehrere Zeilen steht in EINER Zelle, schräg; die Zeilen darunter haben keine eigene. -->
+          <template v-if="punkte && uim">
+            <td v-if="uim.zeilen > 1" :rowspan="uim.zeilen" class="erg-block" data-spalte="uim-punkte" :data-zeilen="uim.zeilen">
+              <span class="erg-schraeg" :style="schraeg(String(uim.text), uim.zeilen)">{{ uim.text }}</span>
+            </td>
+            <td v-else data-spalte="uim-punkte">{{ uim.text }}</td>
+          </template>
           <td v-if="props.abstand">{{ abstandZelle(abstandWerte[i]) }}</td>
         </tr>
       </tbody>

@@ -19,7 +19,7 @@ uebersetzungen:
         1st character = direction: hin = outward, rueck = return
         2nd character = side: seiteA = seiteAlang, seiteB = seiteBlang
         iahinweis
-        Start = touching the entry gate buoys · Finish = touching the exit gate buoys
+        Start = touching the entry gate buoys · Finish = touching the exit gate buoys (side only)
         Penalty: per touched buoy (also outside the manoeuvre) = 5
       knoten: "Penalty: 5 per improperly done knot"
       parcours: "Only the actual racecourse is to be observed - no buoy touches!"

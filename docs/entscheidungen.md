@@ -45,9 +45,14 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   `state/reducer.ts`
 - 2026-11-12 · N · Bojen und Strafpunkte wie im Prototyp; der Aushang zeigt, an welchem Tor/welcher Boje was geschah,
   nicht nur die Summe. → `components/ergebnis/ErgebnisLaufBlatt.vue`
-- 2026-11-15 · N · WKR-Listen mit Bojen: auch Start und Ziel je mit eigener Spalte für die linke und die rechte Boje –
-  erkennbar, welche berührt wurde. Wertungslisten nennen Bojen immer R/L. → `config/kurzform.ts`, `lib/ergebnis.ts`
-  BOJEN_SEITE
+- 2026-11-15 · N · WKR-Listen mit Bojen: Start und Ziel je mit eigener Zelle für die linke und die rechte Boje (L, R),
+  mit durchgezogener Linie getrennt (nicht gepunktet wie die Bojen eines Tores), im Kopf nur die Seite; ohne
+  Blickrichtung erst L, dann R. Auf dem Bogen und in der Erfassung, auch im Parallelslalom (Start/Finish). Gespeichert
+  wird je Seite wie bisher, die Wertung bleibt. → `config/kurzform.ts` (`subKopf`, `subTrenner: linie`),
+  `config/aufbauten/parallel.yaml`
+- 2026-11-15 · N · Wertungslisten nennen Bojen immer R/L; Start und Ziel stehen dort wie die Tore mit L und R (vorher
+  beide in einer Zelle), auch auf den Attempts des Parallelslaloms. → `config/kurzform.ts` ergebnisspaltenAusFahrweg,
+  `lib/ergebnis.ts` BOJEN_SEITE
 - 2026-11-13 · R · Knoten sind Pflicht: Liste und Erfassung in jedem Aufbau. → `config/aufbauten/gemeinsam.yaml`
 - 2026-11-15 · N · „Bremsen mit der Hand beim Anlegen“: kein Fehlercode 24, sondern Disq-Buchstabe S, nur auf der
   Steg-Liste (Reglement: Verstöße ohne Strafpunkte führen zur Disqualifikation). → `config/regelwerke/dm-2026.yaml`
@@ -71,10 +76,16 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-15 · N · Auf Listen keine Stage-Nummern, nur der Name der Disziplin.
 - 2026-11-15 · N · Abbruch einer Disziplin in einer Klasse: zählt für diese Klasse nicht; ob auch für fertige Klassen,
   wählt der O.O.D. je Klasse („Disziplin nicht werten“). Auf deren Listen entfallen dann die UIM points, mit kurzem
-  Hinweis. → `components/NichtWertenWahl.vue`, `lib/disziplinen.ts`
+  Hinweis; in den Results von Vorlauf und Halbfinale bleibt die Spalte „UIM points“ in derselben Form (Block
+  „Qualified“ bzw. der Finals, „Re-run“), die übrigen Zellen leer – keine Spalte „Remark“. →
+  `components/NichtWertenWahl.vue`, `lib/disziplinen.ts`, `components/ParallelErgebnisStapel.vue` punkteVon
 - 2026-11-14 · R · Gleichstand im Manövrieren: Summe beider Versuche ohne Knoten. → `uim-2026.yaml` `stichentscheid`
 - 2026-11-15 · R · UIM points des Manövrierens erst, wenn die Knoten erfasst sind (Pkt. 5.2.1); der Haken „erfasst“ der
   Knoten-Liste reicht dafür (N). → `lib/ergebnis.ts`, `lib/pokal.ts`
+- 2026-11-15 · N · UIM „Overall“ des Manövrierens ohne Spalte „Result“ (bester Versuch ohne Knoten – man sieht ihn an
+  den gestrichenen Versuchen): Attempts, Knots pen., Best time incl. knots pen., UIM points. Die DM-Gesamtliste behält
+  „Ergebnis“. → `components/ergebnis/ErgebnisGesamtBlatt.vue` ohneErgebnis, `components/ErgebnisStapel.vue`
+  (`aushang.punkte` in `uim-2026.yaml`)
 - 2026-11-15 · N · Strenge Klassentrennung im Parallelslalom ist Vorgabe. → AppState.parallelStreng,
   `planung/parallel.ts`
 - 2026-11-15 · N · „Dummy“ bleibt als Wort; entfallener Start als graue Zeile, Dummy-Zeile schraffiert.
@@ -90,6 +101,10 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-15 · N · Wenige Gewertete: Halbfinale ab 3, Finale ab 2, sonst Platz 1 aus dem Vorlauf. →
   PARALLEL_ANNAHMEN.halbfinaleAb/finaleAb
 - 2026-11-15 · N · „Qualified“ bleibt als Wort; unter fünf Gewerteten sind alle „Qualified“.
+- 2026-11-15 · N · Results des Vorlaufs: In der Spalte „UIM points“ sind aufeinanderfolgende Zeilen mit „Qualified“
+  EINE Zelle (rowspan), „Qualified“ steht diagonal darin; im Halbfinale ebenso „Final 1–2“ und „Small final“.
+  „Re-run“ bleibt je Zeile. Die Zelle bleibt weiß, auch über einer grauen Zeile; kein Seitenwechsel trennt sie. →
+  `components/ergebnis/ErgebnisGesamtBlatt.vue` (bloecke, schraeg), `lib/seiten.ts` listenSeiten `gebunden`
 - 2026-11-15 · N · Gleichstand an der Qualifikationsgrenze: Die ganze Klasse bleibt ohne „Qualified“, bis der Re-run
   gefahren ist. Die Re-run-Fahrer bleiben auf den Plätzen, um die sie gleichauf lagen (z. B. 4 und 5), egal welche
   Re-run-Zeit. → `lib/parallelErgebnis.ts` qualifikation, mitWiederholungen
@@ -97,6 +112,10 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Platz der Gruppe (z. B. 5.), nicht letzter Platz. → PARALLEL_ANNAHMEN.disqInWiederholungDesVorlaufs = 'heat'
 - 2026-11-15 · N · Ist eine ganze Re-run-Gruppe disqualifiziert, entscheidet der O.O.D. vor Ort; die App löst den Fall
   nicht eigens. → `lib/parallelErgebnis.ts` mitWiederholung
+- 2026-11-15 · N · Re-run: Die Plätze, die er entschieden hat, tragen ein * mit Fußnote nach Pkt. 5.2.6 (wie der
+  Stichentscheid; beides auf einer Seite = eine Fußnote mit beiden Sätzen) – im Result der Runde und in den Overall
+  results; die Liste der Wiederholung selbst nicht. → `lib/parallelErgebnis.ts` durchWiederholung,
+  `lib/parallelStage.ts` stageDurchWiederholung, i18n parallel.results.rerunNote
 - 2026-11-15 · N · Geteilter Platz bekommt die vollen Punkte.
 - 2026-11-15 · N · „Small final“ / „kleines Finale“ für Platz 3 und 4 statt des Regelbuch-Wortlauts; Halbfinale-Vermerk
   „Small final“ ohne Zusatz. → `i18n/de.ts`, `i18n/en.ts` parallel.*
@@ -176,8 +195,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-12 · N · Kürzel: eigene je Verein/Bundesland/Gruppe haben Vorrang; Bundesländer nach ISO 3166-2 (BY, NW …);
   Länder dreistellig. Startlisten: lang oder Kürzel; Wertungslisten standardmäßig Kürzel. → `domain/kuerzel.ts`,
   `domain/staaten.ts`, Regelwerk-YAML `laenderKuerzel`
-- 2026-11-15 · R · Länder unter UIM nach IOC (Regel 209), frühere IOC-Kürzel werden erkannt, ausgegeben die heutigen. →
-  `config/regelwerke/uim-2026.yaml` `laenderKuerzel: ioc`. Unter DM: siehe „Entschieden, noch nicht umgesetzt“.
+- 2026-11-15 · R/N · Länder nach IOC: unter UIM nach Regel 209, unter DM ebenso (Entscheidung des Nutzers: Der Verband
+  gehört zum Olympischen Sportbund; vorher ISO 3166-1). Frühere IOC-Kürzel werden erkannt, ausgegeben die heutigen;
+  Bundesländer behalten ihre Kürzel. → `config/regelwerke/dm-2026.yaml` und `uim-2026.yaml` `laenderKuerzel: ioc`
 - 2026-11-14 · N · Reiter „Starterlisten“: verzahnt (wahlweise ▶ Zeile ◀ + fett für eine Herkunft, oder „alle“ = je
   Herkunft ein Satz), je Herkunft nach Startnummer (ohne Parcours-Spalte), nach Klasse. Kopf: Titel, Herkunft/Parcours
   und Veranstaltung in eigenen Feldern. → `lib/starterlisten.ts`
@@ -202,6 +222,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-15 · N · Startlisten des Parallelslaloms (gemeinsam und je Racecourse) NICHT ausgleichen; nur Blöcke nie über
   einen Seitenwechsel trennen – eine letzte Seite mit 2 bzw. 4 Zeilen ist in Ordnung. →
   `components/ParallelStartlisten.vue`, `lib/seiten.ts` listenSeiten
+- 2026-11-15 · N · Startlisten des Parallelslaloms (gemeinsam, je Racecourse, in der Druckdatei) abwechselnd weiß/grau
+  wie die WKR-Listen: dieselbe Einstellung parallelZebra; Dummy-Zelle schraffiert, Zeile ohne Starter bleibt weiß. →
+  `components/ParallelStartlisten.vue`, `styles/app.css`
 - 2026-11-15 · N · Startliste einer Parallel-Runde: die gemeinsame (A und B nebeneinander) und zusätzlich je Racecourse
   eine. → `components/ParallelStartlisten.vue`
 
@@ -217,6 +240,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Unterschrift (R, Pkt. 5.2). → `config/einstellungen.yaml`, `uim-2026.yaml` `laufzettel.schritteLetzterLauf`
 - 2026-11-15 · N · Laufzettel einer Parallel-Runde immer getrennt je Racecourse A und B. → `lib/parallelBogen.ts`
   rundenZettel
+- 2026-11-15 · N · Vorsteg mit „Versuche direkt nacheinander“: Löschte eine Eingabe in der Zeile beim Angleichen ein X
+  eines späteren Versuchs, das die Zeile nicht zeigt, fragt die Erfassung vorher (Dialog, Vorgabe „X behalten“); ohne X
+  gleicht sie still an wie bisher. → `lib/erfassung.ts` ueberschreibtX, `components/erfassung/ErfassungTabelle.vue`
 - 2026-11-14 · N · Nach Laufzettel-Scan alle Listen von Klasse und Lauf untereinander; Knoten gestapelt nur im letzten
   Lauf, einzeln in jedem Lauf. → `views/ErfassungView.vue`
 - 2026-11-15 · N · Erfassung Parallelslalom: Ist Racecourse A gewählt, erscheint nichts von B (auch nicht „alle
@@ -247,8 +273,11 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-13 · R · Standardgewichte DM (Reglement C3): E 26, 1 33, 2 42, 3 52, 4 65, 5 72, 6 75, 7 78 kg; UIM (Pkt.
   3.7): Dolphin 26, 1 32, 2 40, 3 52, 4 64, 5 71 kg. Die Veranstaltung speichert nur Abweichungen. → Regelwerk-YAML
   `gewichte`
-- 2026-11-15 · N · Geschlecht: M, F, D (divers), nA (keine Angabe); auf englischen Listen „n/a“. →
-  `domain/geschlecht.ts` geschlechtAufListe. Deutsche Kürzel: siehe „Entschieden, noch nicht umgesetzt“.
+- 2026-11-15 · N · Geschlecht: gespeichert M, F, D (divers), nA (keine Angabe). Das Kürzel folgt der Sprache: englische
+  Listen (UIM) M, F, D, n/a, deutsche Listen (DM) M, W, D, k. A.; der Starter-Reiter folgt der Oberfläche. Der Import
+  erkennt beide Schreibweisen (W, k. A., n/a …). Zu sehen ist das Geschlecht derzeit nur auf der Liste nach Pkt. 3.7
+  (nur unter UIM, also immer englisch) und im Starter-Reiter; unter der DM steht es auf keiner Liste – deutsch
+  erscheint es nur in der deutschen Oberfläche. → `domain/geschlecht.ts` geschlechtKuerzel, geschlechtAufListe
 
 ## Beispieldaten
 
@@ -296,23 +325,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
 
-- 2026-11-15 · N · Länderkürzel auch unter DM nach IOC (der Verband gehört zum Olympischen Sportbund), also überall
-  IOC; Bundesländer-Kürzel bleiben. Code und README: unter DM noch ISO 3166-1 (`dm-2026.yaml` ohne `laenderKuerzel`,
-  Vorgabe `iso` in `config/build.ts`; Festlegung vom 2026-11-12).
-- 2026-11-15 · N · Geschlecht folgt der Listensprache: englisch M, F, D, n/a; deutsch M, W, D, k. A. („k. A.“ ist ein
-  Vorschlag). Code: deutsch noch M, F, D, nA (`domain/geschlecht.ts` geschlechtAufListe).
-- 2026-11-15 · N · UIM „Overall“ des Manövrierens ohne Spalte „Result“ (bester Versuch ohne Knoten). Code: Spalte noch
-  da (`components/ergebnis/ErgebnisGesamtBlatt.vue`; Kopfzeilen prüft `views/UimAushang.test.ts`).
-- 2026-11-15 · N · Re-run: Die Plätze der Betroffenen tragen ein * mit Fußnote. Code: nur die Fußnote
-  (parallel.results.rerunNote in `components/ParallelErgebnisStapel.vue`).
-- 2026-11-15 · N · Results des Vorlaufs: In der Spalte „UIM points“ werden die Zeilen mit „Qualified“ zu einer Zelle
-  zusammengefasst, „Qualified“ steht diagonal darin. Die Spalte „Remark“ (bei „Disziplin nicht werten“) gefällt nicht;
-  Auslegung (noch mit Bildern zu bestätigen): dieselbe Form, übrige Zellen leer, Fußnote; im Halbfinale analog
-  „Final“/„Small final“. Code: Spalte „Remark“ (`components/ParallelErgebnisStapel.vue`).
-- 2026-11-15 · N · Vorsteg mit „Versuche direkt nacheinander“: vor dem Überschreiben eines abweichenden X in einem
-  späteren Versuch nachfragen. Code: nur Hinweis `versucheAbweichend` (`components/erfassung/ErfassungTabelle.vue`).
-- 2026-11-15 · N · Startlisten des Parallelslaloms (gemeinsam und je Racecourse) wie die WKR-Listen abwechselnd
-  weiß/grau. Code: keine solche Regel für `.parallel-startliste` (`styles/app.css`).
+- Derzeit nichts.
 
 ## Offen
 

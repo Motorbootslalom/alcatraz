@@ -430,6 +430,13 @@
   border-left: 2px dashed var(--blatt-linie);
 }
 
+/* Die gewöhnliche Linie zwischen zwei Zellen: Start und Ziel trennen die linke und die rechte
+   Boje so – nicht gepunktet wie die beiden Bojen eines Tores (`subTrenner: linie`). */
+.bogen-tabelle > thead > tr > th.sep-linie,
+.bogen-tabelle > tbody > tr > td.sep-linie {
+  border-left: 1px solid var(--blatt-linie);
+}
+
 /* Rechte Kante: bei inneren Unter-Trennungen zusätzlich gesetzt, damit die Linie unter
    border-collapse beidseitig getragen und nicht überdeckt wird. */
 .bogen-tabelle > thead > tr > th.sepr-fett,
@@ -450,6 +457,11 @@
 .bogen-tabelle > thead > tr > th.sepr-gestrichelt,
 .bogen-tabelle > tbody > tr > td.sepr-gestrichelt {
   border-right: 2px dashed var(--blatt-linie);
+}
+
+.bogen-tabelle > thead > tr > th.sepr-linie,
+.bogen-tabelle > tbody > tr > td.sepr-linie {
+  border-right: 1px solid var(--blatt-linie);
 }
 
 /* ---------- Fuß: Legende, Parcoursbild, Unterschrift ---------- */

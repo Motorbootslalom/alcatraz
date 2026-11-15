@@ -1,7 +1,7 @@
 import type { AppState, ClassId, Eingaben, ParallelPlaene, ParallelRunde, Starter } from '../types'
 import { boatTypeOf } from '../domain/classes'
 import { cmpStartNr } from '../planung/parallel'
-import { klassenPaare, klassenTeilnehmer, mitKlasse, ohneKlasse, paareNachNummer, rundenDerKlasse, VORLAUF, type RundenPaar } from '../planung/parallelRunden'
+import { klassenPaare, klassenTeilnehmer, mitKlasse, ohneKlasse, paareNachNummer, rundenDerKlasse, VORLAUF, zerlegeRerun, type RundenPaar } from '../planung/parallelRunden'
 import { vergleicheNr } from './eingaben'
 import { FINALE_UM_1, klassenDerRunde, PARALLEL_ANNAHMEN, rundenErgebnis, type RundenErgebnis, type RundenKonfig, type RundenStand } from './parallelErgebnis'
 import { attemptSchluessel } from './parallelSchluessel'
@@ -301,6 +301,17 @@ export function stageErgebnis(stand: StageStand, konfig: StageKonfig, klasse: Cl
     klasse,
     nachPlatz: [...zeilen.values()].sort((a, b) => a.platz - b.platz || Number(a.disq) - Number(b.disq) || vergleicheNr(a.starter.startNr, b.starter.startNr)),
   }
+}
+
+/**
+ * Die Starter (IDs), deren Platz in der Stage eine Wiederholung entschieden hat – ab Platz 5 aus
+ * dem Vorlauf (bzw. der Dritte eines Halbfinales mit Dummy) nach einem Re-run. Ihre Summe ist
+ * die der Wiederholung (Pkt. 5.2.6: „After running again only the time of the re-run will be
+ * taken into account.“); auf dem Blatt trägt ihr Platz ein Sternchen mit Fußnote wie auf den
+ * Results der Runde (lib/parallelErgebnis.ts `durchWiederholung`).
+ */
+export function stageDurchWiederholung(stage: Pick<StageErgebnis, 'nachPlatz'>): Set<string> {
+  return new Set(stage.nachPlatz.filter((z) => zerlegeRerun(z.runde) !== undefined).map((z) => z.starter.id))
 }
 
 /** Das Ergebnis der Stage als Blatt: ein Dokument mit eigener Seitenzählung, neben den Listen der Runden (lib/parallelErgebnis.ts `RundenBlatt`). */

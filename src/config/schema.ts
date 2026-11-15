@@ -157,7 +157,8 @@ export interface RawRegelwerk {
    *     stehen eine Unterschriftszeile für den O.O.D. und ein leeres Feld für die Uhrzeit des
    *     Aushangs, beides zum Eintragen von Hand.
    *   • `punkte`: Die Gesamtliste hat eine Spalte mit den Punkten des Platzes (Tabelle
-   *     `pokal.uim.punkte`).
+   *     `pokal.uim.punkte`) und die Spalten nach UIM 960, Pkt. 5.2.1 – ohne „Result“ (bester
+   *     Versuch ohne Knoten).
    */
   aushang?: { unterschrift?: boolean; punkte?: boolean }
   /**
@@ -208,6 +209,12 @@ export interface RawSpalte {
   /** Unter-Spalten (z. B. Bojen-Bezeichnungen [H K, H H]) - nur bei 'boje'. */
   sub?: string[]
   /**
+   * Kopf der Unter-Spalten, wenn er von `sub` abweicht – gleich viele Einträge, Tokens wie dort.
+   * `sub` bleibt die Kennung des Feldes (config/feld.ts), hier steht nur, was auf dem Bogen
+   * steht: Start und Ziel nur mit der Seite („L“, „R“), die Richtung ist dort immer dieselbe.
+   */
+  subKopf?: string[]
+  /**
    * Welche physische Seite (seiteA/seiteB) an diesem Tor die INNERE Boje ist.
    * Nur an den Toren 1-4 gesetzt. Wird das Schema "Innen/Außen" gewählt, werden
    * die Bojen-Seiten dieser Spalte relativ (Innen/Außen) statt physisch (R/L)
@@ -240,7 +247,10 @@ export interface RawSpalte {
    * `{ typ: trenner, design: fett|doppelt|gepunktet|gestrichelt }` DAVOR.
    */
   trenner?: TrennerDesign
-  /** Design der Trennlinien zwischen den `sub`-Unter-Spalten dieser Spalte. */
+  /**
+   * Design der Trennlinien zwischen den `sub`-Unter-Spalten dieser Spalte; `linie` = die
+   * gewöhnliche dünne Linie, auch wenn die Position `gepunktet` vorgibt (Start und Ziel).
+   */
   subTrenner?: TrennerDesign
   /**
    * Nur für diese Klassen anzeigen (z. B. [5, 6, 7] für Speed 1, [7] für

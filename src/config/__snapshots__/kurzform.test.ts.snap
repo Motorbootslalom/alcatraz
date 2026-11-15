@@ -424,10 +424,10 @@ exports[`Kurzform bildet die Listen nach > erfasst dieselben Felder in derselben
         "zeit1",
         "zeit2",
         "zeit3",
-        "start|hin seiteA",
         "start|hin seiteB",
-        "ziel|rueck seiteA",
+        "start|hin seiteA",
         "ziel|rueck seiteB",
+        "ziel|rueck seiteA",
       ],
     },
     "innen": {},
@@ -920,10 +920,10 @@ exports[`Kurzform bildet die Listen nach > erfasst dieselben Felder in derselben
     "ersetzt": undefined,
     "felder": {
       "E 1 2 3 4 5 6 7": [
-        "start|hin seiteA",
         "start|hin seiteB",
-        "ziel|rueck seiteA",
+        "start|hin seiteA",
         "ziel|rueck seiteB",
+        "ziel|rueck seiteA",
       ],
     },
     "innen": {},
@@ -1004,10 +1004,10 @@ exports[`Kurzform bildet die Listen nach > erfasst dieselben Felder in derselben
     ],
     "felder": {
       "E 1 2 3 4 5 6 7": [
-        "start|hin seiteA",
         "start|hin seiteB",
-        "ziel|rueck seiteA",
+        "start|hin seiteA",
         "ziel|rueck seiteB",
+        "ziel|rueck seiteA",
         "katalog:tor5",
       ],
     },

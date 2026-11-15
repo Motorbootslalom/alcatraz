@@ -142,6 +142,14 @@ describe('Farben der Listen und Bögen', () => {
     }
   })
 
+  it('graue Zeilen: die zusammengefasste Zelle der Results bleibt weiß, die Zelle des Dummys auf der Startliste schraffiert auf Weiß', () => {
+    // Auch wenn ihre erste Zeile grau ist (`tr.grau`): Die Regel muss die der grauen Zeile schlagen.
+    const block = regeln(ergebnisCss).find((r) => r.selektor.includes('tr.grau td.erg-block'))
+    expect(block?.deklarationen).toContainEqual({ name: 'background', wert: 'var(--blatt-bg)' })
+    const dummy = regeln(appCss).find((r) => r.selektor === '.parallel-startliste .sheet-table td.psl-dummy')
+    expect(dummy?.deklarationen.find((d) => d.name === 'background')?.wert).toMatch(/^repeating-linear-gradient\(135deg, var\(--blatt-bg\) /)
+  })
+
   it('jede benutzte --blatt-Variable hat eine Druckfarbe', () => {
     const bekannt = new Set(vorgabe!.deklarationen.map((d) => d.name))
     const benutzt = new Set<string>()

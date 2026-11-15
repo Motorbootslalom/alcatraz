@@ -106,6 +106,25 @@ describe('parseStartersTsv', () => {
     expect(startNrImportNote(res)).toBe('someAssigned')
   })
 
+  it('beim Ergänzen schließen fehlende Nummern an die der Veranstaltung an – Dubletten bekommen keine', () => {
+    // Erfunden: Klasse 1 hat schon 101–106; die Nachmeldung kommt ohne Nummern.
+    const vorhandene = parseStartersTsv(
+      [row('Startnummer', 'Klasse', 'Nachname', 'Vorname'), ...[1, 2, 3, 4, 5, 6].map((n) => row(`10${n}`, '1', `Alt${n}`, 'X'))].join('\n'),
+    ).starters
+    const text = [
+      row('Klasse', 'Nachname', 'Vorname', 'Größe'),
+      row('1', 'Nach1', 'Y', 'L'),
+      row('1', 'Alt2', 'X', 'M'), // steht schon da – wird übergangen
+      row('1', 'Nach2', 'Y', 'XS'),
+      row('3', 'Neu', 'Z', 'M'), // Klasse ohne Starter: wie bisher nach Größe ab 301
+    ].join('\n')
+    const res = parseStartersTsv(text, { vorhandene })
+    expect(res.starters.map((p) => `${p.nachname}:${p.startNr}`)).toEqual(['Nach1:107', 'Alt2:', 'Nach2:108', 'Neu:301'])
+    expect(res.assignedNumbers).toBe(3)
+    // Ohne `vorhandene` (Ersetzen) gilt die Liste als Ganzes: nach Größe ab 101.
+    expect(parseStartersTsv(text).starters.filter((p) => p.klasse === '1').map((p) => `${p.nachname}:${p.startNr}`)).toEqual(['Nach1:103', 'Alt2:102', 'Nach2:101'])
+  })
+
   it('behandelt Dolphin/D als Klasse E', () => {
     const text = [row('Klasse', 'Nachname'), row('Dolphin', 'A'), row('D', 'B')].join('\n')
     const res = parseStartersTsv(text)
@@ -145,6 +164,29 @@ describe('TSV export', () => {
     const lena = reparsed.starters.find((p) => p.nachname === 'Müller')!
     expect(lena.startNr).toBe('305')
     expect(lena.groesse).toBe('M')
+  })
+
+  it('der Staat reist in der Spalte „Staat“ mit – auch wenn „Land“ das Bundesland meint', () => {
+    const state = baseState()
+    state.starters = parseStartersTsv(
+      [
+        row('Klasse', 'Nachname', 'Vorname', 'Bundesland', 'Nation', 'Startnummer'),
+        row('3', 'Muster', 'Max', 'NRW', 'Germany', '305'),
+        row('3', 'Beispiel', 'Eva', '', 'Litauen', '306'),
+      ].join('\n'),
+    ).starters
+    const tsv = formatStartersTsv(state)
+    expect(tsv.split('\n')[0].split(TAB)).toContain('Staat')
+    for (const landIstStaat of [false, true]) {
+      const zurueck = parseStartersTsv(tsv, { landIstStaat }).starters
+      expect(zurueck.map((p) => [p.bundesland, p.land])).toEqual([
+        ['NRW', 'Germany'],
+        ['', 'Litauen'],
+      ])
+    }
+    // Ohne Staat bleibt die Datei, wie sie war.
+    state.starters = state.starters.map(({ land: _land, ...p }) => p)
+    expect(formatStartersTsv(state).split('\n')[0].split(TAB)).not.toContain('Staat')
   })
 
   it('Startliste enthält eine Kopfzeile und je Starter eine Zeile', () => {

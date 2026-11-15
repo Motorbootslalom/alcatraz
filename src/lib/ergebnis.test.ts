@@ -208,7 +208,10 @@ describe('Wertungsliste eines Laufs', () => {
     }
     expect(zelleVon('1 H', 0)).toBe('J') // Links
     expect(zelleVon('1 H', 1)).toBe('5') // Rechts
-    expect(zelleVon('Start')).toBe('15')
+    // Start mit L und R wie ein Tor (Entscheidung des Nutzers vom 15.11.2026): vorher „15“ in einer Zelle.
+    expect(gruppen.find((g) => g.label === 'Start')).toMatchObject({ mitUnter: true, blaetter: [{ label: 'L' }, { label: 'R' }] })
+    expect(zelleVon('Start', 0)).toBe('10') // Links: obere Boje, Liste gate245
+    expect(zelleVon('Start', 1)).toBe('5') // Rechts: untere Boje, Liste gate135
     expect(zelleVon('5', 2)).toBe('5') // Einfahrt: Code 2
     expect(zelleVon('MüB')).toBe('5, D')
     expect(nachNummer[0].zellen.join('|')).not.toContain('C')

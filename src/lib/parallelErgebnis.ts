@@ -451,6 +451,17 @@ export function rundenVermerke(
   }
 }
 
+/**
+ * Die Starter (IDs), deren Platz in dieser Runde eine Wiederholung entschieden hat (Pkt. 5.2.6:
+ * „the drivers having the same time must re-run both attempts. After running again only the
+ * time of the re-run will be taken into account.“). Auf der Liste „Results“ der Runde trägt ihr
+ * Platz ein Sternchen mit Fußnote (Entscheidung des Nutzers vom 15.11.2026); die Liste der
+ * Wiederholung selbst hat keines – dort entscheidet ihre eigene Zeit.
+ */
+export function durchWiederholung(ergebnis: Pick<RundenErgebnis, 'runde' | 'massgeblich'>): Set<string> {
+  return new Set([...ergebnis.massgeblich].filter(([, m]) => m.runde !== ergebnis.runde).map(([id]) => id))
+}
+
 /** Der frühere Name von {@link rundenVermerke} (als es nur den Vorlauf gab). */
 export const vorlaufVermerke = rundenVermerke
 

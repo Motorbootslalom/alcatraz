@@ -25,9 +25,9 @@
 #                    Der Aushang folgt dem Regelwerk, nicht der Sprache der Oberfläche.
 #                    Eine der `sprachen`; fehlt = die erste. Für die Bögen ist es die
 #                    Vorgabe – dort wählt die Veranstaltung je Liste.
-#   laenderKuerzel   Dreistellige Kürzel der Länder auf den Listen: iso (ISO 3166-1,
-#                    DEU, CHE – Vorgabe) oder ioc (Kürzel des IOC, GER, SUI). Eigene
-#                    Kürzel der Veranstaltung gehen immer vor.
+#   laenderKuerzel   Dreistellige Kürzel der Länder auf den Listen: ioc (Kürzel des
+#                    IOC, GER, SUI) oder iso (ISO 3166-1, DEU, CHE – Vorgabe, wenn die
+#                    Angabe fehlt). Eigene Kürzel der Veranstaltung gehen immer vor.
 #   fehlerHinweis   Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende.
 #   legendeHinweise  Zusätzliche Hinweise nur auf der A4-Legende.
 #   disziplinen      Was nach diesem Regelwerk gefahren wird (Kennungen aus den
@@ -72,6 +72,10 @@ name: DM
 version: 2026
 # Die DM schreibt deutsch aus; englische Texte hat dieses Regelwerk nicht (`sprachen` fehlt).
 listenSprache: de
+# Länder mit dem Kürzel des IOC (GER, SUI, NED) wie unter der UIM, nicht nach ISO (DEU, CHE …):
+# Der Verband gehört zum Olympischen Sportbund (Entscheidung des Nutzers vom 15.11.2026; vorher
+# ISO 3166-1, Festlegung vom 12.11.2026). Die Bundesländer behalten ihre Kürzel (BY, NW …).
+laenderKuerzel: ioc
 quelle: "Reglement zur Deutschen Jugendmeisterschaft 2026 im motorisierten Schlauchbootsport (DMYV), Abschnitt C5"
 einheit: Punkte
 # Reglement C8 „Klassen“: Klasse ME 6 und 7 Jahre, Klasse 1 8 und 9, Klasse 2 10 und 11,

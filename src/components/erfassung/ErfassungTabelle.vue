@@ -6,7 +6,7 @@ import { bogenSeiten, defFuerKlasse, type BogenBlattSpalte, type BogenModellZeil
 import { codeEntries, normalizeCodeCell, parseCodeEntry } from '../../lib/codes'
 import { allowedSet, sanitizeBuoy, sanitizeCodeInput, sanitizeDisq } from '../../lib/disq'
 import { erfasstKennung, feldVon, felderJeKennung, laufSchluessel, listenFelder, werteVon, type EingabeZelle, type Feld } from '../../lib/eingaben'
-import { nichtGestartet, versucheAbweichend, zeileErfasst, zeileHatWerte, zeilenHinweise, zeilenSchluessel, zeilenSchluesselAlle, type Hinweis } from '../../lib/erfassung'
+import { nichtGestartet, ueberschreibtX, versucheAbweichend, zeileErfasst, zeileHatWerte, zeilenHinweise, zeilenSchluessel, zeilenSchluesselAlle, type Hinweis } from '../../lib/erfassung'
 import { parallelListen } from '../../lib/parallelBogen'
 import { gridNavKeyDown } from '../../lib/gridnav'
 import { veranstaltungsListen } from '../../lib/listen'
@@ -14,6 +14,7 @@ import { scoreRow, summenText, formatDisqs } from '../../lib/scoring'
 import type { WkrBogen } from '../../lib/wkrListen'
 import { locale, t, tn } from '../../i18n'
 import type { Column, TrennerDesign } from '../../types'
+import AppDialog from '../AppDialog.vue'
 import BogenLegende from '../bogen/BogenLegende.vue'
 import ZeitZelle from './ZeitZelle.vue'
 
@@ -37,7 +38,8 @@ import ZeitZelle from './ZeitZelle.vue'
  * des Manövrierens steht dann jeder Starter je Versuch einmal da, und jede Zeile schreibt unter
  * ihren Versuch (Lauf) – wie auf dem Papier. Nur am Vorsteg (`BogenAuftrag.einmal`) steht er
  * einmal da: Seine Zeile gilt für jeden Versuch und schreibt unter jeden (lib/erfassung.ts
- * `zeilenSchluesselAlle`).
+ * `zeilenSchluesselAlle`). Nähme eine Eingabe dabei einem späteren Versuch ein X „Nicht
+ * gestartet“, das die Zeile nicht zeigt, fragt die Tabelle vorher nach (`frage`).
  */
 const props = defineProps<{ bogen: WkrBogen }>()
 
@@ -210,8 +212,35 @@ watch(
   () => (meldung.value = ''),
 )
 
-function setze(zeile: Zeile, kennung: string, wert: string) {
-  dispatch({ type: 'SET_EINGABEN', zellen: zellenVon(zeile, kennung, wert) })
+/**
+ * Eine Eingabe, die erst nach einer Rückfrage gilt: Sie gliche einen späteren Versuch an und
+ * löschte dabei sein X „Nicht gestartet“ (lib/erfassung.ts `ueberschreibtX`; Entscheidung des
+ * Nutzers vom 15.11.2026). `zurueck` stellt das Feld wieder auf den gespeicherten Wert, wenn
+ * die Eingabe nicht gilt – das Feld zeigt sonst, was nicht gespeichert ist.
+ */
+const frage = ref<{ nr: string; zellen: EingabeZelle[]; zurueck?: () => void } | null>(null)
+
+function setze(zeile: Zeile, kennung: string, wert: string, zurueck?: () => void) {
+  const zellen = zellenVon(zeile, kennung, wert)
+  if (zeile.weitere.length > 0) {
+    const neu = { ...zeile.werte, [kennung]: wert }
+    if (ueberschreibtX(listenFelder(konfig.value, props.bogen.typeId, zeile.klasse), zeile.werte, zeile.weitere, neu, alleFelder.value(zeile.klasse), props.bogen.typeId)) {
+      frage.value = { nr: zeile.row.nr, zellen, zurueck }
+      return
+    }
+  }
+  dispatch({ type: 'SET_EINGABEN', zellen })
+}
+
+function xUeberschreiben() {
+  const f = frage.value
+  frage.value = null
+  if (f) dispatch({ type: 'SET_EINGABEN', zellen: f.zellen })
+}
+
+function xBehalten() {
+  frage.value?.zurueck?.()
+  frage.value = null
 }
 
 /**
@@ -245,13 +274,13 @@ function onInput(zeile: Zeile, feld: Feld, e: Event) {
             : input.value
   // Auch wenn sich der gespeicherte Wert nicht ändert, darf das Unerlaubte nicht stehen bleiben.
   if (input.value !== wert) input.value = wert
-  setze(zeile, feld.kennung, wert)
+  setze(zeile, feld.kennung, wert, () => (input.value = zeile.werte[feld.kennung] ?? ''))
 }
 
 function onBlur(zeile: Zeile, feld: Feld, e: Event) {
   const input = e.target as HTMLInputElement
   if (feld.kind === 'text') {
-    if (input.value !== input.value.trim()) setze(zeile, feld.kennung, input.value.trim())
+    if (input.value !== input.value.trim()) setze(zeile, feld.kennung, input.value.trim(), () => (input.value = zeile.werte[feld.kennung] ?? ''))
     return
   }
   if (feld.kind !== 'code') return
@@ -267,12 +296,13 @@ function onBlur(zeile: Zeile, feld: Feld, e: Event) {
   meldung.value = verworfen.length > 0 ? t('capture.dropped', { nr: zeile.row.nr, column: feld.label, entries: verworfen.join(', ') }) : ''
   if (sauber !== roh) {
     input.value = sauber
-    setze(zeile, feld.kennung, sauber)
+    setze(zeile, feld.kennung, sauber, () => (input.value = zeile.werte[feld.kennung] ?? ''))
   }
 }
 
 function hake(zeile: Zeile, e: Event) {
-  setze(zeile, erfasstKennung(props.bogen.typeId), (e.target as HTMLInputElement).checked ? '1' : '')
+  const box = e.target as HTMLInputElement
+  setze(zeile, erfasstKennung(props.bogen.typeId), box.checked ? '1' : '', () => (box.checked = zeile.erfasst))
 }
 
 /** Alle noch leeren Zeilen als abgetippt bestätigen: auf einer Tor-Liste sind das die fehlerfreien Fahrten. */
@@ -440,5 +470,13 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
       <summary>{{ t('capture.legend') }}</summary>
       <BogenLegende :def="seite.def" />
     </details>
+
+    <AppDialog v-if="frage" :titel="t('capture.overwriteX.heading', { dns: t('results.dns') })" data-dialog="x-ueberschreiben" @abbrechen="xBehalten">
+      <p>{{ t('capture.overwriteX.text', { nr: frage.nr, dns: t('results.dns') }) }}</p>
+      <template #knoepfe>
+        <button type="button" class="btn primary" data-action="x-behalten" autofocus @click="xBehalten">{{ t('capture.overwriteX.keep') }}</button>
+        <button type="button" class="btn" data-action="x-ueberschreiben" @click="xUeberschreiben">{{ t('capture.overwriteX.confirm') }}</button>
+      </template>
+    </AppDialog>
   </section>
 </template>

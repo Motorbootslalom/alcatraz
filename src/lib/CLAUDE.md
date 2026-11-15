@@ -18,7 +18,7 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
   (veranstaltungsListen), `laufzettel.ts`, `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`,
   `namen.ts`, `origin.ts` (Herkunft, Kürzel, Flagge), `ausgleich.ts`, `besetzung.ts`, `einteilung.ts`, `qr.ts`.
 - Seiten: `paging.ts` (WKR-Bögen; gruppenSeiten/gruppenKapazitaet gleichen aus, Blöcke unteilbar), `seiten.ts`
-  (listenSeiten füllt auf, gleicht nicht aus), `doppelseitig.ts`. Sprache: `konfig.ts`, `listensprache.ts`, `event.ts`.
+  (listenSeiten füllt auf, gleicht nicht aus; `gebunden` = Zeilen einer Zelle mit rowspan), `doppelseitig.ts`. Sprache: `konfig.ts`, `listensprache.ts`, `event.ts`.
 - Betrieb: `offline.ts`, `update.ts`, `verlauf.ts` (ARTEN, beschreibe), `merken.ts`, `scan.ts`, `scanner.ts`,
   `router.ts`, `adressen.ts`, `theme.ts`, `build.ts`, `clipboard.ts`, `bogenZoom.ts`, `beispielwerte.ts` (saat → Werte).
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
@@ -41,6 +41,7 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
 - Parallel-Annahmen: nur PARALLEL_ANNAHMEN; Rundenfolge parallelStage.ts klassenStand; Paarung planung/.
 - Re-run: parallelErgebnis.ts qualifikation (`rerun`), mitWiederholungen → mitWiederholung (Disq darin). Dieselbe
   Annahme nutzen rundenVermerke und die Doku von parallelStage.ts stageErgebnis; Namen: planung/parallelRunden.ts.
+  „*“ an den Plätzen, die er entschied: durchWiederholung (Results), parallelStage.ts stageDurchWiederholung.
 - Einzelwertung: EINZEL_FESTLEGUNGEN; „nicht werten“: disziplinen.ts + AppState.nichtWerten.
 - Mannschaftswertung: pokal.ts plaetzeWertung/uimWertung/platzPunkte/klasseFertig; Regeln config/pokal.ts.
 - Druckdatei: druckdatei.ts DRUCKDATEI_TEILE, SPAETERE_TEILE, istDruckdateiWahl, druckdateiFolge.
@@ -58,7 +59,10 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
   erweitern (sonst ändern sich alle Prüfsummen und Sicherungen verlieren ihre Zeitpunkte).
 - Welche WKR-Listen es gibt, sagt immer listen.ts veranstaltungsListen (Parallel: parallelBogen.ts parallelListen).
 - X macht keinen Lauf zum gefahrenen; ein X allein beim Abgemeldeten zählt nicht als gefahrene Disziplin.
-- Wertungslisten nennen Bojen immer R/L (ergebnis.ts BOJEN_SEITE). QR: ALC1 muss lesbar bleiben, Runden = ALC2.
+- Wertungslisten nennen Bojen immer R/L (ergebnis.ts BOJEN_SEITE: letztes Wort nach Leerzeichen oder „|“ – Start/Ziel
+  `start|hin seiteB`, im Parallelslalom `start|seiteB`). QR: ALC1 muss lesbar bleiben, Runden = ALC2.
+- Vorsteg mit „Versuche direkt nacheinander“: Die Zeile schreibt in jeden Versuch; löschte das ein verdecktes X eines
+  späteren Versuchs, fragt ErfassungTabelle.vue erst (erfassung.ts ueberschreibtX).
 - merken.ts mit ueberNeuladen: neue Werte brauchen einen Guard für alte gemerkte Auswahl (SPAETERE_TEILE).
 - Listen-Texte über ergebnisTexte(sprache)/useListenSprache. Rundennamen doppelt: rundenName und bogenTexte().runde.
 - Offline: Cache-Namen, Merk-Cache und Nachrichten von scripts/offline-sw.js teilen alte und neue Fassung –

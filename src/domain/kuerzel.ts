@@ -12,12 +12,14 @@ import { IOC_FRUEHER, IOC_NUR_AUSGABE, IOC_STAATEN, ISO_STAATEN } from './staate
 /**
  * Welche dreistelligen Kürzel Länder bekommen – eine Angabe des Regelwerks (`laenderKuerzel`):
  *
- * - `iso`: der Code aus ISO 3166-1 alpha-3 (DEU, CHE, NLD). So hat es der Nutzer am 12.11.2026
- *   für die Listen festgelegt; es gilt unter der DM.
  * - `ioc`: das Kürzel des IOC (GER, SUI, NED), sonst wie ISO. Das UIM-Rulebook verlangt es für
  *   die Wertungslisten, Regel 209 „POSTING OF THE RESULTS“: „The nationality of all drivers –
  *   either by using a three letter abbreviation for the countries worldwide as listed by the
  *   IOC or as full names of the nations in English language.“ Im Zweifel gilt das Regelbuch.
+ *   Auch die DM nimmt es (Entscheidung des Nutzers vom 15.11.2026: Der Verband gehört zum
+ *   Olympischen Sportbund) – beide Regelwerke nennen `ioc` in ihrem YAML.
+ * - `iso`: der Code aus ISO 3166-1 alpha-3 (DEU, CHE, NLD); bis zum 15.11.2026 die Norm der DM
+ *   (Festlegung vom 12.11.2026). Bleibt die Vorgabe eines Regelwerks ohne Angabe.
  */
 export type KuerzelNorm = 'iso' | 'ioc'
 

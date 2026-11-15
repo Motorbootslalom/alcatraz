@@ -69,6 +69,32 @@ describe('listenSeiten: Zeilenblöcke auf Druckseiten verteilen', () => {
   it('unbekannte Kapazität (0): alles auf einer Seite', () => {
     expect(kurz([100, 100], 0)).toEqual(['0:0-100 1:0-100'])
   })
+
+  it('gebundene Zeilen (eine Zelle über mehrere Zeilen) teilt kein Seitenwechsel – der Rest füllt die Seiten wie sonst', () => {
+    /** Die Zeilen `von` bis `bis` (ausschließlich) bilden je eine zusammengefasste Zelle. */
+    const bindung = (...gruppen: [number, number][]) => (_: number, zeile: number) => gruppen.some(([von, bis]) => zeile > von && zeile < bis)
+    const stuecke = (laengen: number[], kap: number, g: (b: number, z: number) => boolean) =>
+      listenSeiten(laengen, kap, undefined, undefined, g).map((s) => s.map((t) => `${t.block}:${t.von}-${t.bis}`).join(' '))
+    // „Qualified“ auf den Zeilen 8–11 (von 20, 10 je Seite): Seite 1 endet vor der Zelle (das
+    // letzte Stück bekommt wie immer mindestens drei Zeilen).
+    expect(stuecke([20], 10, bindung([8, 12]))).toEqual(['0:0-8', '0:8-17', '0:17-20'])
+    // Ohne Bindung wie bisher; eine Zelle, die genau an der Grenze endet oder beginnt, ändert nichts.
+    expect(stuecke([20], 10, () => false)).toEqual(['0:0-10', '0:10-20'])
+    expect(stuecke([20], 10, bindung([6, 10], [10, 14]))).toEqual(['0:0-10', '0:10-20'])
+    // Der Rest von mindestens drei Zeilen holt sich keine halbe Zelle: lieber ein kürzeres vorletztes Stück.
+    expect(stuecke([21], 10, bindung([17, 19]))).toEqual(['0:0-10', '0:10-17', '0:17-21'])
+    expect(stuecke([21], 10, bindung([18, 20]))).toEqual(['0:0-10', '0:10-18', '0:18-21'])
+    // Füllt die gebundene Folge allein mehr als eine Seite, wird sie doch geteilt – nichts geht verloren.
+    expect(stuecke([12], 4, bindung([0, 12]))).toEqual(['0:0-4', '0:4-8', '0:8-12'])
+    // Nichts geht verloren, keine Seite ist zu voll, keine gebundene Folge (bis Seitengröße) ist geteilt.
+    for (const kap of [3, 5, 7, 10]) {
+      const g = bindung([1, 4], [6, 8], [9, 13], [20, 22])
+      const seiten = listenSeiten([25], kap, undefined, undefined, g)
+      for (const s of seiten) expect(s.reduce((n, t) => n + t.bis - t.von, 0)).toBeLessThanOrEqual(kap)
+      expect(seiten.flat().reduce((n, t) => n + t.bis - t.von, 0)).toBe(25)
+      for (const t of seiten.flat().slice(1)) if (kap >= 4) expect(g(0, t.von), `${kap}: ${t.von}`).toBe(false)
+    }
+  })
 })
 
 describe('listenSeiten mit gemessenen Zeilenhöhen', () => {

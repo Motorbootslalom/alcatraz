@@ -81,8 +81,16 @@ describe('Aushang nach UIM 960, Pkt. 5.2', () => {
     await wrapper.find('select[data-feld="erg-umfang"]').setValue('gesamt')
     await nextTick()
     const kopf = blaetter(wrapper, 'gesamt')[0].findAll('.erg-spaltenkopf th').map((t) => t.text())
-    // Pkt. 5.2.1: „knots test penalties“, „best times including knots test penalties“, „UIM points“.
-    expect(kopf.slice(-3)).toEqual(['Knots pen.', 'Best time incl. knots pen.', 'UIM points'])
+    // Pkt. 5.2.1: „knots test penalties“, „best times including knots test penalties“, „UIM points“ –
+    // keine Spalte „Result“ (bester Versuch ohne Knoten; Entscheidung des Nutzers vom 15.11.2026):
+    // Hinter den Attempts folgen gleich die Knoten, mit der kräftigen Linie davor.
+    expect(kopf.slice(-5)).toEqual(['Attempt 1', 'Attempt 2', 'Knots pen.', 'Best time incl. knots pen.', 'UIM points'])
+    expect(kopf).not.toContain('Result')
+    const blatt = blaetter(wrapper, 'gesamt')[0]
+    expect(blatt.find('th[data-spalte="knoten"]').classes()).toContain('erg-gruppe')
+    expect(blatt.find('tbody td[data-spalte="knoten"]').classes()).toContain('erg-gruppe')
+    // Der Kopf überspannt genau die Spalten.
+    expect(blatt.find('th.erg-kopfzelle').attributes('colspan')).toBe(String(blatt.findAll('colgroup col').length))
     // 103 holt den 2. Versuch noch nach: keine Punkte auf dem Aushang.
     expect(punkte(wrapper)).toEqual({ '101': '', '102': '', '103': '' })
     // 103 wird im 2. Versuch disqualifiziert; der Streichlauf nimmt das auf – er bleibt gewertet.
@@ -153,6 +161,9 @@ describe('Aushang nach UIM 960, Pkt. 5.2', () => {
     const ergebnis = await listen(store, 'ergebnis')
     expect(ergebnis.findAll('.ergebnis-blatt').length).toBeGreaterThan(0)
     expect(ergebnis.find('[data-spalte="uim-punkte"]').exists()).toBe(false)
+    // Die Gesamtliste der DM behält die Spalte „Ergebnis“ (bester Lauf ohne Knoten) vor den Knoten.
+    const gesamt = blaetter(ergebnis, 'gesamt')[0].findAll('.erg-spaltenkopf th').map((t) => t.text())
+    expect(gesamt.slice(-3)).toEqual(['Ergebnis', 'Knoten', 'Gesamt'])
     expect(ergebnis.find('[data-feld="unterschrift"]').exists()).toBe(false)
     expect(ergebnis.find('.erg-fuss--unterschrift').exists()).toBe(false)
     for (const f of ergebnis.findAll('.listen-fuss')) expect(f.attributes('style')).toContain('height: 12mm')

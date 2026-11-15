@@ -17,7 +17,7 @@ import { formatDate, locale, t, tn } from '../i18n'
 import ManualAddForm from './ManualAddForm.vue'
 import AppDialog from './AppDialog.vue'
 import type { ClassId, Starter } from '../types'
-import { GESCHLECHTER, istGeschlecht } from '../domain/geschlecht'
+import { GESCHLECHTER, geschlechtKuerzel, istGeschlecht } from '../domain/geschlecht'
 
 const props = defineProps<{
   classId: ClassId
@@ -367,10 +367,11 @@ const MOVES = [
                 </select>
               </td>
               <td v-if="mitGeschlecht">
-                <!-- Freiwillig (Regel 960, Pkt. 3.7 „Sex“): M, F, D, nA (keine Angabe); leer = nicht erfasst. -->
+                <!-- Freiwillig (Regel 960, Pkt. 3.7 „Sex“): gespeichert M, F, D, nA (keine Angabe); leer = nicht erfasst.
+                     Das Kürzel folgt der Sprache der Oberfläche: deutsch M, W, D, k. A. – englisch M, F, D, n/a. -->
                 <select class="size-select" data-feld="geschlecht" :value="p.geschlecht ?? ''" :aria-label="t('starters.sex')" :title="t('starters.sexHint')" @change="setzeGeschlecht(p.id, $event)">
                   <option value="">–</option>
-                  <option v-for="g in GESCHLECHTER" :key="g" :value="g" :title="t(`starters.sex.${g}`)">{{ g }}</option>
+                  <option v-for="g in GESCHLECHTER" :key="g" :value="g" :title="t(`starters.sex.${g}`)">{{ geschlechtKuerzel(g, locale) }}</option>
                 </select>
               </td>
               <td>
@@ -394,7 +395,7 @@ const MOVES = [
               <td>{{ p.vorname }}</td>
               <td v-if="state.originMode !== 'none'"><HerkunftText :anzeige="herkunftAnzeige(originOf(p, state.originMode), state.originMode, 'flagge-lang', {}, locale, true)" /></td>
               <td>{{ p.groesse || '–' }}</td>
-              <td v-if="mitGeschlecht" data-spalte="geschlecht">{{ p.geschlecht ?? '–' }}</td>
+              <td v-if="mitGeschlecht" data-spalte="geschlecht">{{ p.geschlecht ? geschlechtKuerzel(p.geschlecht, locale) : '–' }}</td>
               <td :class="p.geburtsdatum ? '' : 'cell-missing'">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}</td>
             </template>
             <td>

@@ -39,6 +39,10 @@ const MIN_REST = 3
  *   mit der FORTSETZUNG dieses Blocks beginnt – dort wiederholt die Liste etwas im Kopf (die
  *   Spaltenköpfe des Herkunftsblocks der UIM-Mannschaftswertung). Er geht vom Platz dieser
  *   Seite ab, auch für die Blöcke, die danach auf ihr stehen.
+ * - `gebunden` (sonst nie): Diese Zeile bleibt auf der Seite der Zeile davor – zusammengefasste
+ *   Zellen über mehrere Zeilen (Results des Parallelslaloms: „Qualified“). Ein geteilter Block
+ *   wird dann vor dem Anfang dieser Zeilen geteilt statt mitten darin; nur wenn sie allein mehr
+ *   als eine Seite füllen, auch darin.
  *
  * Liefert immer mindestens eine (ggf. leere) Seite; keine Seite außer dieser ist leer.
  */
@@ -47,6 +51,7 @@ export function listenSeiten(
   kapazitaet: number,
   hoehe: (block: number, zeile: number) => number = () => 1,
   wiederholt: (block: number) => number = () => 0,
+  gebunden: (block: number, zeile: number) => boolean = () => false,
 ): SeitenTeil[][] {
   if (!(kapazitaet > 0)) return [laengen.flatMap((n, block) => (n > 0 ? [{ block, von: 0, bis: n }] : []))]
   const kap = kapazitaet
@@ -74,26 +79,34 @@ export function listenSeiten(
     const grenzen = [0]
     let platz = frei
     let belegt = 0
+    /** Die Grenze vor `zeile`, zurückgezogen an den Anfang gebundener Zeilen – höchstens bis hinter `ab`. */
+    const vorBindung = (zeile: number, ab: number) => {
+      let grenze = zeile
+      while (grenze > ab && gebunden(block, grenze)) grenze--
+      return grenze
+    }
     for (let zeile = 0; zeile < n; zeile++) {
       // Mindestens eine Zeile je Stück – auch eine, die höher ist als das Blatt.
-      if (belegt + h[zeile] > platz && zeile > grenzen[grenzen.length - 1]) {
-        grenzen.push(zeile)
+      const vorige = grenzen[grenzen.length - 1]
+      if (belegt + h[zeile] > platz && zeile > vorige) {
+        // Nicht mitten in gebundenen Zeilen teilen; füllen sie das ganze Stück, dann doch.
+        const zurueck = vorBindung(zeile, vorige)
+        const grenze = zurueck > vorige ? zurueck : zeile
+        grenzen.push(grenze)
         platz = kap - abzug
-        belegt = 0
+        belegt = summe(grenze, zeile)
       }
       belegt += h[zeile]
     }
     grenzen.push(n)
     // Kein Blatt für eine einzelne Zeile: Das letzte Stück holt sich Zeilen vom vorletzten,
-    // solange diesem selbst genug bleiben und das letzte auf seine (eigene) Seite passt.
+    // solange diesem selbst genug bleiben und das letzte auf seine (eigene) Seite passt –
+    // gebundene Zeilen nur ganz.
     const letztes = grenzen.length - 2
-    while (
-      letztes > 0 &&
-      n - grenzen[letztes] < MIN_REST &&
-      grenzen[letztes] - grenzen[letztes - 1] > MIN_REST &&
-      summe(grenzen[letztes] - 1, n) <= kap - abzug
-    ) {
-      grenzen[letztes]--
+    while (letztes > 0 && n - grenzen[letztes] < MIN_REST) {
+      const neu = vorBindung(grenzen[letztes] - 1, grenzen[letztes - 1])
+      if (neu - grenzen[letztes - 1] < MIN_REST || summe(neu, n) > kap - abzug) break
+      grenzen[letztes] = neu
     }
     for (let i = 0; i + 1 < grenzen.length; i++) {
       if (i > 0) {

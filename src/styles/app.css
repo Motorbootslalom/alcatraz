@@ -3223,9 +3223,12 @@ table.starters tr.cup-zaehlt-nicht td:not(.cup-spalte) {
   text-align: left;
 }
 
+/* Dummy und entfallener Start: schraffiert auf Weiß – auch in einer grauen Zeile (`shade`, jede
+   zweite wie auf den Listen der race officials, `parallelZebra`) bleibt die Zelle so klar
+   erkennbar. Die Zeile eines Racecourse ohne Starter (`psl-ohne`) wird gar nicht grau. */
 .parallel-startliste .sheet-table td.psl-dummy {
   font-style: italic;
-  background: repeating-linear-gradient(135deg, transparent 0 3px, var(--blatt-blass) 3px 4px);
+  background: repeating-linear-gradient(135deg, var(--blatt-bg) 0 3px, var(--blatt-blass) 3px 4px);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }

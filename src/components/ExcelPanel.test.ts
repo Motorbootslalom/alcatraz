@@ -50,6 +50,23 @@ describe('Einfügen aus Excel: Klasse gegen Geburtsjahr, Sperre nach den ersten 
     wrapper.unmount()
   })
 
+  it('„Ergänzen“ ohne Startnummern vergibt die nächsten freien Nummern der Klasse, keine doppelten', async () => {
+    // Erfunden: Klasse 1 hat schon 101–106.
+    store.dispatch({
+      type: 'IMPORT_STARTERS',
+      mode: 'replace',
+      starters: [1, 2, 3, 4, 5, 6].map((n) => ({ id: `alt${n}`, startNr: `10${n}`, klasse: '1' as const, nachname: `Alt${n}`, vorname: 'X', verein: '', bundesland: '', geburtsdatum: '', groesse: '' })),
+    })
+    const wrapper = ansicht()
+    // Mit Startern steht das Panel zugeklappt.
+    await wrapper.find('.export-head button[aria-expanded]').trigger('click')
+    await wrapper.find('textarea').setValue('Klasse\tNachname\tVorname\n1\tNach1\tY\n1\tNach2\tY\n1\tAlt3\tX')
+    await wrapper.findAll('.row button').find((b) => b.text() === 'Ergänzen')!.trigger('click')
+    const nummern = store.state.value.starters.map((s) => `${s.nachname}:${s.startNr}`)
+    expect(nummern).toEqual(['Alt1:101', 'Alt2:102', 'Alt3:103', 'Alt4:104', 'Alt5:105', 'Alt6:106', 'Nach1:107', 'Nach2:108'])
+    wrapper.unmount()
+  })
+
   it('sind Ergebnisse erfasst, ist der Import gesperrt', async () => {
     const [von] = birthYearRange('3', 2026)
     const wrapper = ansicht()

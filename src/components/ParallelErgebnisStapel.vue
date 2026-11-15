@@ -4,8 +4,8 @@ import { namenDerFassung } from '../lib/namen'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { wertungDer } from '../lib/ergebnis'
-import { attemptTabellen, rundenVermerke, type RundenAnsicht, type RundenBlatt, type RundenErgebnis } from '../lib/parallelErgebnis'
-import { klassenStand, type StageBlatt } from '../lib/parallelStage'
+import { attemptTabellen, durchWiederholung, rundenVermerke, type RundenAnsicht, type RundenBlatt, type RundenErgebnis } from '../lib/parallelErgebnis'
+import { klassenStand, stageDurchWiederholung, type StageBlatt } from '../lib/parallelStage'
 import { useKonfig } from '../lib/konfig'
 import { rundenDisziplin } from '../lib/parallelSchluessel'
 import { rundenName, VORLAUF } from '../planung/parallelRunden'
@@ -77,7 +77,10 @@ const herkunft = computed(() =>
 // Die Spalte „UIM points“ (UIM 960, Pkt. 5.2.2), wenn das Regelwerk sie verlangt: die Punkte
 // der Tabelle des Regelwerks (Pkt. 5.1) – oder, wer weiterfährt, wohin: „Qualified“ im Vorlauf,
 // das Finale im Halbfinale, „Re-run“ bei einem Gleichstand an der Grenze. Erst, wenn die Klasse
-// in der Runde vollständig ist (lib/parallelErgebnis.ts `rundenVermerke`).
+// in der Runde vollständig ist (lib/parallelErgebnis.ts `rundenVermerke`). Wer weiterfährt,
+// steht als Block da: Aufeinanderfolgende Zeilen mit demselben Vermerk teilen sich eine Zelle,
+// der Vermerk steht schräg darin (`bloecke`, Entscheidung des Nutzers vom 15.11.2026); „Re-run“
+// bleibt je Zeile.
 const punkteTabelle = computed(() => pokalVorgabe(state.value.regelwerk).punkte.uim)
 const uimPunkte = computed(() => (regelwerk.value.aushang.punkte ? punkteTabelle.value : undefined))
 // „Disziplin nicht werten“ (Entscheidung des O.O.D., lib/disziplinen.ts): Wertet er den
@@ -85,27 +88,34 @@ const uimPunkte = computed(() => (regelwerk.value.aushang.punkte ? punkteTabelle
 // Runde und Overall results – die UIM points; Zeiten und Plätze bleiben, ein kurzer Hinweis
 // sagt, warum (Entscheidung des Nutzers vom 15.11.2026). Sonst stünden in der Druckdatei UIM
 // points einer Disziplin, die laut Einzelwertung nicht zählt. Wer weiterfährt, steht trotzdem
-// da: „Qualified“ im Vorlauf (ebenso „Re-run“ und im Halbfinale das Finale) – die Spalte heißt
-// dann „Remark“. Wo es nur Punkte gäbe (Finals, Wiederholung), entfällt sie ganz.
+// da: Im Vorlauf und im Halbfinale bleibt die Spalte „UIM points“ in derselben Form – der Block
+// „Qualified“ bzw. des Finales und „Re-run“, die übrigen Zellen leer (Entscheidung des Nutzers
+// vom 15.11.2026, statt einer Spalte „Remark“). Wo es nur Punkte gäbe (Finals, Wiederholung),
+// entfällt sie ganz.
 const ohnePunkte = (k: ClassId) => nichtGewertet(state.value.nichtWerten, 'parallel', k)
 const MIT_VERMERK: readonly ParallelRunde[] = [VORLAUF, 'semi']
+const BLOCK_TEXT = { qualified: 'parallel.results.qualified', final: 'parallel.results.toFinal', final34: 'parallel.results.toFinal34' } as const
 function punkteVon(e: RundenErgebnis) {
   if (!uimPunkte.value) return undefined
   const ohne = ohnePunkte(e.klasse)
   if (ohne && !MIT_VERMERK.includes(e.runde)) return undefined
-  const titel = ohne ? lt('parallel.results.remark') : undefined
   const vermerke = rundenVermerke(e, uimPunkte.value)
-  if (!vermerke) return { werte: null, titel }
-  const text = { qualified: 'parallel.results.qualified', rerun: 'parallel.round.rerun', final: 'parallel.results.toFinal', final34: 'parallel.results.toFinal34' } as const
-  return {
-    werte: new Map(
-      [...vermerke].flatMap(([id, v]): [string, number | string][] => (v.art === 'punkte' ? (ohne ? [] : [[id, v.punkte]]) : [[id, lt(text[v.art])]])),
-    ),
-    titel,
+  if (!vermerke) return { werte: null }
+  const werte = new Map<string, number | string>()
+  const bloecke = new Map<string, string>()
+  for (const [id, v] of vermerke) {
+    if (v.art === 'punkte') {
+      if (!ohne) werte.set(id, v.punkte)
+    } else if (v.art === 'rerun') werte.set(id, lt('parallel.round.rerun'))
+    else bloecke.set(id, lt(BLOCK_TEXT[v.art]))
   }
+  return { werte, bloecke }
 }
 const nichtGewertetText = (k: ClassId) => (ohnePunkte(k) ? lt('notScored.sheet', { discipline: lt(DISZIPLIN_TEXT.parallel) }) : '')
-const fussVon = (e: RundenErgebnis) => [e.wiederholt.length > 0 ? lt('parallel.results.rerunNote') : '', nichtGewertetText(e.klasse)].filter(Boolean).join(' ') || undefined
+// Plätze, die eine Wiederholung entschieden hat: ein Sternchen am Platz, die Fußnote auf jeder
+// Seite mit einem (Pkt. 5.2.6; Entscheidung des Nutzers vom 15.11.2026) – im Results der Runde
+// und in den Overall results (dort ist auch die Summe die der Wiederholung).
+const wiederholtVon = (ids: ReadonlySet<string>) => (ids.size > 0 ? { ids, text: lt('parallel.results.rerunNote') } : undefined)
 // Was bei gleicher Summe entscheidet, in der Sprache der Liste (Pkt. 5.2.6) – steht dort ein
 // Sternchen, hat es entschieden.
 const stichAufListe = computed(() => {
@@ -132,6 +142,7 @@ const stichAufListe = computed(() => {
         :stand="stageStand(b.stage.klasse)"
         :hinweis-text="nichtGewertetText(b.stage.klasse) || undefined"
         :ohne-punkte="ohnePunkte(b.stage.klasse)"
+        :wiederholt="wiederholtVon(stageDurchWiederholung(b.stage))"
       />
       <ParallelAttemptsBlatt
         v-else-if="b.art === 'attempts'"
@@ -165,7 +176,8 @@ const stichAufListe = computed(() => {
         :namen="namen"
         :stand="standVon(b.ergebnis)"
         :stich-text="stichAufListe"
-        :fuss-hinweis="fussVon(b.ergebnis)"
+        :wiederholt="wiederholtVon(durchWiederholung(b.ergebnis))"
+        :fuss-hinweis="nichtGewertetText(b.ergebnis.klasse) || undefined"
       />
     </template>
   </div>

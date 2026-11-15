@@ -20,7 +20,8 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
   (Pkt. 3.7), `CodesAushang.vue`, `ParallelStartlisten.vue` (über ListenDokument), `DruckdateiListen.vue`.
 - Laufzettel: `LaufzettelListen.vue` (Seitenzahlen aus unsichtbaren BogenBlatt-Instanzen), `LaufzettelBlatt.vue`,
   `ParallelLaufzettel.vue` (Zettel A und B; Schritte nur auf A), `ParallelMessung.vue`.
-- Erfassung `erfassung/`: `ErfassungTabelle.vue` (dispatch SET_EINGABEN), `ZeitZelle.vue`, `ScanHinweis.vue`.
+- Erfassung `erfassung/`: `ErfassungTabelle.vue` (dispatch SET_EINGABEN; AppDialog vor dem Löschen eines verdeckten X
+  am Vorsteg, `frage`), `ZeitZelle.vue`, `ScanHinweis.vue`.
 - Starter/Verzahnung: `ClassSection.vue`, `ManualAddForm.vue`, `ExcelPanel.vue`, `StartNumberPanel.vue` (auch E/D),
   `StarterSperre.vue`, `ParcoursCard.vue`, `TrackContainer.vue`, `ClassChip.vue`, `PauseChip.vue`, `SlotCell.vue`,
   `FlowPreview.vue`, `SequenceTable.vue`, `BoatPanel.vue`, `HeatTable.vue`, `ParallelRunden.vue`.
@@ -43,7 +44,9 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
 - Spaltenkopf einer Wertungsliste: `<th>` in ergebnis/*.vue, pokal/*.vue; Text i18n results.*, individual.col.*,
   parallel.*; Fahrweg-Spalten über lib/ergebnisText.ts; Breiten styles/ergebnis.css (Tests: nichts abgeschnitten).
 - Spaltenfolge: je Blatt dreimal gleich (`<colgroup>`, `<thead>`, `<tbody>`), `erg-gruppe` (kräftige Linie) wandert
-  mit. DM und UIM teilen das Blatt (Props mitKnoten, punkte, runde): Nur für UIM ändern braucht eine Bedingung.
+  mit. DM und UIM teilen das Blatt (Props mitKnoten, punkte, runde, ohneErgebnis): Nur für UIM ändern braucht eine
+  Bedingung.
+- „Qualified“/Finals als eine schräge Zelle: ErgebnisGesamtBlatt.vue `punkte.bloecke` (rowspan, `schraeg`, `gebunden`).
 - Bogen-Texte (Nr., WKR, Seite n / m, Klasse, Lauf, Racecourse, Runde): config/sprache.ts bogenTexte().
 - Seitenteilung übriger Listen: lib/seiten.ts (SEITEN_VORGABE, Fußhöhen), ListenDokument.vue messen() (MESS_TOLERANZ_*).
 - WKR-Seitenteilung: lib/paging.ts, lib/bogen.ts; Toleranzen in BogenBlatt.vue onLayout.
@@ -59,6 +62,8 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
 - Farben auf Listen nur über --blatt-* (styles/blatt.css); styles/blatt.test.ts prüft alle CSS-Dateien.
 - Gemeinsame Stapel zeichnen im Reiter UND in der Druckdatei – views/Druckdatei.test.ts mitlaufen lassen.
 - Laufzettel-Kästchen folgen gemessenen Bogenseiten: Bogenlayout ändern ändert den Laufzettel.
+- Results einer Runde: Unter einer zusammengefassten Zelle fehlt der Zeile die td „UIM points“ – in Tests die Spalte
+  über `td[data-spalte="uim-punkte"]` (mit rowspan) lesen, nicht über die letzte Zelle jeder Zeile.
 - Doppelseitig: nur lib/doppelseitig.ts DOPPELSEITIG_ARTEN; eigene Seiten ohne ListenDokument brauchen
   data-druckseite und useLeereRueckseite selbst.
 - Bedienauswahl über lib/merken.ts merke(); nicht mehr vorhandene Wahl gilt als 'alle'/Vorgabe (Muster WkrListen.vue).

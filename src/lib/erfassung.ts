@@ -131,6 +131,22 @@ export function versucheAbweichend(felder: readonly Feld[], werte: Werte, weiter
   return weitere.some((w) => kennungen.some((k) => (w[k] ?? '') !== (werte[k] ?? '')))
 }
 
+/**
+ * Löschte eine Eingabe in einer Zeile, die für jeden Versuch gilt, ein X „Nicht gestartet“, das die
+ * Zeile nicht zeigt? Das ist der Fall, wenn ein späterer Versuch auf dieser Liste ein X trägt, der
+ * erste (den die Zeile zeigt) nicht, und die Zeile auch nach der Eingabe keins hat: Die Eingabe
+ * gliche den späteren Versuch an und nähme ihm das X (Entscheidung des Nutzers vom 15.11.2026 –
+ * dann erst nachfragen). Ohne X bleibt es beim stillen Angleichen ({@link versucheAbweichend}).
+ * Ein X auf einer anderen Liste (etwa am Steg) berührt die Eingabe nicht und zählt hier nicht.
+ *
+ * `neu`: die Werte der Zeile nach der Eingabe; `alleFelder`: die Felder der Klasse nach Kennung.
+ */
+export function ueberschreibtX(felder: readonly Feld[], werte: Werte, weitere: readonly Werte[], neu: Werte, alleFelder: ReadonlyMap<string, Feld>, typeId: string): boolean {
+  const kennungen = [...felder.map((f) => f.kennung), erfasstKennung(typeId)]
+  const xAufListe = (w: Werte) => nichtGestartet(Object.fromEntries(kennungen.map((k) => [k, w[k] ?? ''])), alleFelder)
+  return !xAufListe(werte) && !xAufListe(neu) && weitere.some(xAufListe)
+}
+
 /** Die Disq-Buchstaben eines Laufs, gleich in welcher Zelle sie stehen. */
 function disqsImLauf(werte: Werte, alleFelder: ReadonlyMap<string, Feld>): string[] {
   return Object.entries(werte).flatMap(([kennung, wert]) => {

@@ -68,6 +68,9 @@ describe('Parallelslalom: Wertungslisten des Vorlaufs', () => {
   }
   const zeilen = (wrapper: VueWrapper, art: string, klasse: string) =>
     wrapper.findAll(`.listen-seite[data-art="${art}"][data-klasse="${klasse}"] tbody tr[data-starter]`).map((r) => r.findAll('td').map((z) => z.text()))
+  /** Die Zellen der Spalte „UIM points“ von oben nach unten; eine zusammengefasste mit „×n“ (über n Zeilen). */
+  const uimZellen = (wrapper: VueWrapper, klasse: string) =>
+    wrapper.findAll(`.listen-seite[data-art="gesamt"][data-klasse="${klasse}"] tbody td[data-spalte="uim-punkte"]`).map((t) => (t.attributes('rowspan') ? `${t.text()} ×${t.attributes('rowspan')}` : t.text()))
 
   it('ohne festgeschriebenen Plan nur der Hinweis; mit Plan, aber ohne Werte: nichts zu drucken', async () => {
     const wrapper = await listen()
@@ -115,10 +118,16 @@ describe('Parallelslalom: Wertungslisten des Vorlaufs', () => {
     expect(result.findAll('.erg-spaltenkopf th').map((t) => t.text()).slice(-4)).toEqual(['1st attempt', '2nd attempt', 'Combined time', 'UIM points'])
     expect(result.findAll('.erg-unterkopf th').map((t) => t.text())).toEqual(['Racecourse', 'Time', 'Pen.', 'Time incl. pen.', 'Racecourse', 'Time', 'Pen.', 'Time incl. pen.'])
     const r = zeilen(wrapper, 'gesamt', '1')
-    expect(r.map((z) => `${z[0]} ${z[1]} ${z[z.length - 2]} ${z[z.length - 1]}`)).toEqual(['1 101 81.00 Qualified', '2 102 83.00 Qualified', '3 103 85.00 Qualified', '4 104 87.00 Qualified', '5 105 89.00 127', '6 106 91.00 95'])
+    expect(r.map((z) => `${z[0]} ${z[1]}`)).toEqual(['1 101', '2 102', '3 103', '4 104', '5 105', '6 106'])
+    expect(result.findAll('tbody td[data-spalte="summe"]').map((t) => t.text())).toEqual(['81.00', '83.00', '85.00', '87.00', '89.00', '91.00'])
+    // „Qualified“ der vier Besten steht in EINER Zelle über ihre vier Zeilen, schräg (Entscheidung des Nutzers vom 15.11.2026).
+    expect(uimZellen(wrapper, '1')).toEqual(['Qualified ×4', '127', '95'])
+    const block = result.find('td.erg-block')
+    expect(block.attributes('data-zeilen')).toBe('4')
+    expect(block.find('.erg-schraeg').attributes('style')).toMatch(/font-size: [\d.]+mm; transform: translate\(-50%, -50%\) rotate\(-\d+(\.\d)?deg\)/)
     expect(result.find('[data-feld="unterschrift"]').exists()).toBe(true)
     // Klasse 2: Einer ist noch nicht gefahren – keine Punkte, kein „Qualified“.
-    expect(zeilen(wrapper, 'gesamt', '2').map((z) => z[z.length - 1])).toEqual(['', ''])
+    expect(uimZellen(wrapper, '2')).toEqual(['', ''])
     expect(wrapper.find('[data-hinweis="parallel-offen"]').text()).toContain('Klasse 2')
     expect(wrapper.find('[data-hinweis="parallel-entschieden"]').text()).toContain('Klasse 1')
     expect(wrapper.find('[data-hinweis="parallel-gleichstand"]').exists()).toBe(false)
@@ -217,6 +226,10 @@ describe('Parallelslalom: Wertungslisten des Vorlaufs', () => {
     await warteAufDruckdatei(wrapper)
     // Vor den Wertungslisten der Runde steht ihre Startliste (Regel 960, lib/druckdatei.ts).
     expect(wrapper.findAll('.druckdatei-teil').map((t) => t.attributes('data-teil')).slice(-3)).toEqual(['ergebnis', 'startliste', 'parallel'])
+    // Auch dort abwechselnd weiß und grau wie die Listen der race officials (`parallelZebra`).
+    const startliste = wrapper.findAll('.druckdatei-teil[data-teil="startliste"] tr[data-start]')
+    expect(startliste.length).toBeGreaterThan(2)
+    startliste.forEach((r, i) => expect(r.classes().includes('shade'), `Zeile ${i + 1}`).toBe((i + 1) % 2 === 0 && !r.classes().includes('psl-entfaellt')))
     const teil = wrapper.find('.druckdatei-teil[data-teil="parallel"]')
     // Klassen in der Reihenfolge des Regelwerks, nach Platz, je Klasse Attempts und Result.
     expect(teil.findAll('.listen-seite').map((s) => `${s.attributes('data-klasse')}/${s.attributes('data-art')}/${s.attributes('data-ordnung')}`)).toEqual(['1/attempts/platz', '1/gesamt/platz', '2/attempts/platz', '2/gesamt/platz'])

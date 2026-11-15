@@ -164,7 +164,8 @@ function toColumn(
     label: t(sp.label ?? '', texte[sp.label ?? '']),
     kind: TYP_TO_KIND[sp.typ as Exclude<RawSpalte['typ'], 'trenner'>] ?? 'text',
     felder: feldKennungen(sp, posKatalog, positionId),
-    sub: sp.sub?.map((x) => resolveTokens(x, subTokens)),
+    // `subKopf`: was auf dem Bogen steht, wenn es von der Kennung abweicht (Start/Ziel nur mit der Seite).
+    sub: (sp.subKopf ?? sp.sub)?.map((x) => resolveTokens(x, subTokens)),
     pointsCol: sp.punkteSpalte,
     einzeln: sp.einzeln,
     errorTable: sp.katalog ? katalogRows(kataloge[sp.katalog], t) : undefined,

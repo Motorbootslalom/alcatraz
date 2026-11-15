@@ -7,6 +7,7 @@ import { makeStartNr, orderBySize, parseClassNumber, sortedByStartNr, type Start
 import { planEvent } from '../planung/plan'
 import { canonicalRunningNumbers } from '../planung/running'
 import { originOf } from '../lib/origin'
+import { dublettenSchluessel } from './starterMerge'
 
 const TAB = '\t'
 
@@ -150,8 +151,16 @@ export interface ImportResult {
 /**
  * `landIstStaat`: Die Herkunft der Veranstaltung ist „Land“ – dann meint eine Spalte „Land“
  * den Staat und nicht, wie sonst in deutschen Listen, das Bundesland.
+ *
+ * `vorhandene`: die Starter, zu denen die Liste hinzukommt („Ergänzen“). Fehlende Nummern
+ * schließen dann an die höchste Nummer der Klasse an, statt sie ein zweites Mal zu vergeben;
+ * wer als Dublette übergangen wird, bekommt keine. Beim Ersetzen bleibt es leer – die Liste
+ * gilt als Ganzes.
  */
-export function parseStartersTsv(text: string, options: { assignMissing?: boolean; landIstStaat?: boolean; startNrPraefix?: StartNrPraefixe } = {}): ImportResult {
+export function parseStartersTsv(
+  text: string,
+  options: { assignMissing?: boolean; landIstStaat?: boolean; startNrPraefix?: StartNrPraefixe; vorhandene?: readonly Starter[] } = {},
+): ImportResult {
   const lines = text
     .replace(/\r\n?/g, '\n')
     .split('\n')
@@ -211,7 +220,7 @@ export function parseStartersTsv(text: string, options: { assignMissing?: boolea
   })
 
   // Klassenbasierte Nummern lassen sich ergänzen; klassische vergibt die Verzahnung.
-  const assignedNumbers = (options.assignMissing ?? true) ? fillMissingStartNumbers(starters, options.startNrPraefix) : 0
+  const assignedNumbers = (options.assignMissing ?? true) ? fillMissingStartNumbers(starters, options.startNrPraefix, options.vorhandene) : 0
 
   return { starters, usedHeader, imported: starters.length, assignedNumbers, skipped, geschlechtUnbekannt }
 }
@@ -221,23 +230,27 @@ export function parseStartersTsv(text: string, options: { assignMissing?: boolea
  * Vorhandene Nummern bleiben unverändert – auch mit Lücken oder in anderem
  * Schema (z. B. 7, 12), denn sie stehen so auf Startlisten und Fehlerpunktbögen.
  * Fehlt in einer Klasse jede Nummer, wird nach Größe durchnummeriert; fehlen nur
- * einzelne, werden sie hinten angehängt (höchste Nummer + 1).
+ * einzelne, werden sie hinten angehängt (höchste Nummer + 1). Beim „Ergänzen“
+ * zählen die Starter der Veranstaltung mit (`vorhandene`): Hat die Klasse dort schon
+ * Starter, fehlen aus ihrer Sicht nur einzelne Nummern.
  */
-function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe): number {
+function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe, vorhandene: readonly Starter[] = []): number {
+  const uebergangen = new Set(vorhandene.map(dublettenSchluessel))
   let assigned = 0
   for (const klasse of CLASS_IDS) {
     const inClass = starters.filter((p) => p.klasse === klasse)
-    const missing = inClass.filter((p) => p.startNr === '')
+    const bisher = vorhandene.filter((p) => p.klasse === klasse)
+    const missing = inClass.filter((p) => p.startNr === '' && !uebergangen.has(dublettenSchluessel(p)))
     if (missing.length === 0) continue
     assigned += missing.length
-    if (missing.length === inClass.length) {
+    if (bisher.length === 0 && missing.length === inClass.length) {
       // Ganze Klasse ohne Nummern → nach Größe vergeben.
       orderBySize(inClass).forEach((p, i) => {
         p.startNr = makeStartNr(klasse, i + 1, praefixe)
       })
     } else {
       let max = 0
-      for (const p of inClass) max = Math.max(max, parseClassNumber(p.startNr, klasse, praefixe) ?? 0)
+      for (const p of [...bisher, ...inClass]) max = Math.max(max, parseClassNumber(p.startNr, klasse, praefixe) ?? 0)
       for (const p of missing) p.startNr = makeStartNr(klasse, ++max, praefixe)
     }
   }
@@ -276,7 +289,9 @@ function tsvRow(cells: (string | number)[]): string {
  */
 export function formatStartersTsv(state: PlanState): string {
   const running = canonicalRunningNumbers(state)
-  // Die freiwillige Spalte steht nur da, wenn sie jemand gefüllt hat – sonst bleibt die Datei, wie sie war.
+  // Die freiwilligen Spalten stehen nur da, wenn sie jemand gefüllt hat – sonst bleibt die Datei, wie sie war.
+  // Der Staat heißt „Staat“, nicht „Land“: „Land“ läse der Import sonst als Bundesland (siehe `landIstStaat`).
+  const mitStaat = state.starters.some((p) => !!p.land)
   const mitGeschlecht = state.starters.some((p) => p.geschlecht !== undefined)
   const header = tsvRow([
     'Startnummer',
@@ -286,6 +301,7 @@ export function formatStartersTsv(state: PlanState): string {
     'Vorname',
     'Verein',
     'Bundesland',
+    ...(mitStaat ? ['Staat'] : []),
     'Geburtsdatum',
     'Größe',
     ...(mitGeschlecht ? ['Geschlecht'] : []),
@@ -303,6 +319,7 @@ export function formatStartersTsv(state: PlanState): string {
           p.vorname,
           p.verein,
           p.bundesland,
+          ...(mitStaat ? [p.land ?? ''] : []),
           formatGeburtsdatum(p.geburtsdatum),
           p.groesse,
           ...(mitGeschlecht ? [p.geschlecht ?? ''] : []),

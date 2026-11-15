@@ -41,6 +41,11 @@ describe('Regelwerke', () => {
     expect(resolveRegelwerkId('gibtsnicht')).toBe('dm-2026')
   })
 
+  it('Länder überall mit dem Kürzel des IOC: UIM nach Regel 209, die DM ebenso (Entscheidung des Nutzers vom 15.11.2026)', () => {
+    expect(regelwerkOf('dm-2026').laenderKuerzel).toBe('ioc')
+    expect(regelwerkOf('uim-2026').laenderKuerzel).toBe('ioc')
+  })
+
   it.todo('wertet denselben Code je Regelwerk anders: Stegberührung beim Anlegen (kommt mit der Wertung)')
 
   it('nennt das Regelwerk auf den Listen', () => {

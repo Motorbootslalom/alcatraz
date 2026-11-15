@@ -156,7 +156,7 @@ describe('Kurzform am Beispiel Möwe (KONZEPT-POSITIONEN.md §5.2)', () => {
 
   it('Zeitliste mit Start und Ziel und nur der elektronischen Zeiterfassung', () => {
     const p = moewe({ id: 'mz', bojen: ['StartZiel'], aufgaben: ['zeit'], zeiten: ['elektronisch'] })
-    expect(kurz(p.spalten)).toEqual(['zeit1', 'start[hin seiteA, hin seiteB]', '‖ ziel[rueck seiteA, rueck seiteB]', 'disq', 'sum'])
+    expect(kurz(p.spalten)).toEqual(['zeit1', 'start[hin seiteB, hin seiteA] ~linie', '‖ ziel[rueck seiteB, rueck seiteA] ~linie', 'disq', 'sum'])
     expect(p.spalten[0]).toMatchObject({ label: 'Zeit', geraet: 'elektronisch' })
   })
 })
@@ -192,9 +192,30 @@ describe('Regeln der Kurzform', () => {
 
   it('Parcoursüberwachung: Bojen vorn, keine Abblendung, Hinweis zum Fahrweg', () => {
     const p = kurzformPosition({ id: 'p', titel: 'P', bojen: ['StartZiel'], aufgaben: ['tor5', 'parcours'] })
-    expect(kurz(p.spalten)).toEqual(['start[hin seiteA, hin seiteB]', '‖ ziel[rueck seiteA, rueck seiteB]', 'fehler', 'fp', 'disq', 'sum', 'bemerkung'])
+    expect(kurz(p.spalten)).toEqual(['start[hin seiteB, hin seiteA] ~linie', '‖ ziel[rueck seiteB, rueck seiteA] ~linie', 'fehler', 'fp', 'disq', 'sum', 'bemerkung'])
     expect(p.abblenden).toBeUndefined()
     expect(p.hinweis).toBe('parcours')
+  })
+
+  it('Start und Ziel: L und R je in eigener Zelle mit durchgezogener Linie, im Kopf nur die Seite (Entscheidung des Nutzers vom 15.11.2026)', () => {
+    const p = kurzformPosition({ id: 'sz', titel: 'SZ', bojen: ['StartZiel', 'Tor1'], aufgaben: ['zeit'] })
+    const start = p.spalten.find((s) => s.key === 'start')!
+    // Die Kennung behält die Richtung – gespeichert wird wie bisher je Seite.
+    expect(start).toMatchObject({ sub: ['hin seiteB', 'hin seiteA'], subKopf: ['seiteB', 'seiteA'], subTrenner: 'linie' })
+    expect(p.spalten.find((s) => s.key === 'ziel')).toMatchObject({ sub: ['rueck seiteB', 'rueck seiteA'], subKopf: ['seiteB', 'seiteA'], subTrenner: 'linie' })
+    // Die Tore behalten ihre gepunktete Linie zwischen den beiden Bojen (Standard der Position).
+    expect(p.subTrenner).toBe('gepunktet')
+    expect(p.spalten.find((s) => s.key === 't1a')?.subTrenner).toBeUndefined()
+    // Nur eine Boje von Start/Ziel: eine Zelle, ohne eigene Linie.
+    const halb = kurzformPosition({ id: 'h', titel: 'H', blick: 'hinten', bojen: ['StartZiel_unten'] })
+    expect(halb.spalten.find((s) => s.key === 'start')).toMatchObject({ sub: ['hin seiteA'], subKopf: ['seiteA'] })
+    expect(halb.spalten.find((s) => s.key === 'start')?.subTrenner).toBeUndefined()
+  })
+
+  it('die Wertungsliste nennt Start und Ziel ebenso mit L und R', () => {
+    const spalten = ergebnisspaltenAusFahrweg()
+    expect(spalten.find((s) => s.label === 'Start')).toEqual({ label: 'Start', unter: ['start|hin seiteB', 'start|hin seiteA'] })
+    expect(spalten.find((s) => s.label === 'Ziel')).toEqual({ label: 'Ziel', unter: ['ziel|rueck seiteB', 'ziel|rueck seiteA'] })
   })
 
   it('„Parcours einfach (nur Fahrweg)“ ohne Bojen hat keine Σ-Spalte: Dort werden Disqualifikationen bewertet, keine Bojenfehler (Entscheidung des Nutzers)', () => {

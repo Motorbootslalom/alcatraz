@@ -716,6 +716,65 @@ describe('Erfassung unter UIM mit „Versuche direkt nacheinander“', () => {
   })
 })
 
+describe('Vorsteg mit „Versuche direkt nacheinander“: Rückfrage vor dem Löschen eines X', () => {
+  afterEach(() => {
+    setLocale('de')
+    document.body.innerHTML = ''
+  })
+
+  it('löschte eine Eingabe das X eines späteren Versuchs, das die Zeile nicht zeigt, fragt die Erfassung vorher (Entscheidung des Nutzers vom 15.11.2026)', async () => {
+    localStorage.clear()
+    vergissAlles()
+    const store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['1'], 2) })
+    // Vor der Option: X im 2. Versuch für 101, für 102 nur eine abweichende Bemerkung.
+    store.dispatch({
+      type: 'SET_EINGABEN',
+      zellen: [
+        { lauf: 'manoevrieren/2', starter: 'id-1-1', feld: 'disq@vorsteg', wert: 'X' },
+        { lauf: 'manoevrieren/2', starter: 'id-1-2', feld: 'bemerkung@vorsteg', wert: 'alt' },
+      ],
+    })
+    store.dispatch({ type: 'SET_VERSUCHE_NACHEINANDER', on: true })
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', 'vorsteg')
+    const vorher = store.state.value.eingaben
+    const dialog = () => wrapper.find('[data-dialog="x-ueberschreiben"]')
+
+    // Abbrechen („X behalten“): nichts geschrieben, das Feld zeigt wieder den gespeicherten Wert.
+    await tippe(feld(wrapper, 0, 'bemerkung'), 'Helm')
+    expect(dialog().exists()).toBe(true)
+    expect(dialog().text()).toContain('101')
+    expect(dialog().text()).toContain('Nicht gestartet')
+    expect(store.state.value.eingaben).toBe(vorher)
+    await dialog().find('[data-action="x-behalten"]').trigger('click')
+    expect(dialog().exists()).toBe(false)
+    expect(store.state.value.eingaben).toBe(vorher)
+    expect(feld(wrapper, 0, 'bemerkung').element.value).toBe('')
+    // Der Haken „erfasst“ ebenso: Er bleibt aus.
+    const haken = zeilen(wrapper)[0].find('td.erf-haken input')
+    await haken.setValue(true)
+    expect(dialog().exists()).toBe(true)
+    await dialog().find('[data-action="x-behalten"]').trigger('click')
+    expect((haken.element as HTMLInputElement).checked).toBe(false)
+    expect(store.state.value.eingaben).toBe(vorher)
+
+    // Bestätigen: Die Eingabe gilt für jeden Versuch, das X ist gelöscht.
+    await tippe(feld(wrapper, 0, 'bemerkung'), 'Helm')
+    await dialog().find('[data-action="x-ueberschreiben"]').trigger('click')
+    expect(dialog().exists()).toBe(false)
+    expect(store.state.value.eingaben['manoevrieren/1']['id-1-1']).toEqual({ 'bemerkung@vorsteg': 'Helm' })
+    expect(store.state.value.eingaben['manoevrieren/2']['id-1-1']).toEqual({ 'bemerkung@vorsteg': 'Helm' })
+
+    // Ohne X bleibt alles wie bisher: Die Eingabe gleicht still an.
+    await tippe(feld(wrapper, 1, 'bemerkung'), 'Weste')
+    expect(dialog().exists()).toBe(false)
+    expect(store.state.value.eingaben['manoevrieren/2']['id-1-2']).toEqual({ 'bemerkung@vorsteg': 'Weste' })
+    wrapper.unmount()
+  })
+})
+
 /** Ein Store ganz ohne Starter. */
 function createStoreLeer(): Store {
   localStorage.clear()

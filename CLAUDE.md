@@ -78,7 +78,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Disq-Buchstabe, Fehlercode | config/regelwerke/<id>.yaml `disqualifikationen`/`kataloge`; regelwerke.test.ts |
 | Läufe, Stichentscheid | Regelwerk-YAML `wertungslaeufe`/`stichentscheid`; lib/ergebnis.ts; STICH_KRITERIEN |
 | Wertung Parallelslalom | lib/parallelErgebnis.ts PARALLEL_ANNAHMEN, parallelStage.ts; uim-2026.yaml |
-| Re-run: Wertung | lib/parallelErgebnis.ts qualifikation, mitWiederholung(en), rundenVermerke |
+| Re-run: Wertung | lib/parallelErgebnis.ts qualifikation, mitWiederholung(en), rundenVermerke; „*“: durchWiederholung |
 | Re-run: Runde, Name | planung/parallelRunden.ts rerunRunde/zerlegeRerun/rundenName + sprache.ts bogenTexte().runde |
 | Einzelwertung | lib/einzelwertung.ts EINZEL_FESTLEGUNGEN; lib/disziplinen.ts (nichtWerten) |
 | Mannschaftswertung | config/einstellungen.yaml pokalPunkte; Regelwerk-YAML `pokal`; config/pokal.ts; lib/pokal.ts |
@@ -86,7 +86,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Laufzettel Parallelslalom | lib/parallelBogen.ts rundenZettel (Schritte nur auf A); ParallelLaufzettel.vue |
 | Seiten der WKR-Bögen | lib/paging.ts, lib/bogen.ts bogenSeiten; Stand wkrZeilenJeSeite/wkrTeilenAb/wkrLeerzeilen* |
 | Seiten ausgleichen | lib/paging.ts gruppenSeiten/gruppenKapazitaet (Nutzer: bogen.ts, parallelBogen.ts) |
-| Seiten der übrigen Listen | lib/seiten.ts listenSeiten (füllt auf, gleicht nicht aus); ListenDokument.vue; mm ↔ CSS |
+| Seiten der übrigen Listen | lib/seiten.ts listenSeiten (füllt auf, gleicht nicht aus; `gebunden`); ListenDokument.vue; mm ↔ CSS |
 | Listenart unter „Listen“ | views/ListsView.vue KINDS; lib/adressen.ts; i18n lists.kind.*; lib/doppelseitig.ts |
 | Druckdatei | lib/druckdatei.ts DRUCKDATEI_TEILE/druckdateiFolge; components/DruckdateiListen.vue |
 | Neue Ansicht/Reiter | lib/adressen.ts VIEWS/ADRESSEN; App.vue `<main>`; i18n nav.* |

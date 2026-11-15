@@ -32,6 +32,14 @@ const nrKey = (s: Starter) => (s.startNr.trim() ? `${s.klasse}|${s.startNr.trim(
 const nameKey = (s: Starter) =>
   `${s.klasse}|${`${s.vorname} ${s.nachname}`.toLowerCase().replace(/\s+/g, ' ').trim()}`
 
+/**
+ * Schlüssel der Dubletten beim „Ergänzen“ (Klasse + Name): Ein Starter mit gleichem Schlüssel wird
+ * übergangen (`IMPORT_STARTERS` mit `mode: 'merge'`) und bekommt deshalb auch keine Nummer (import/tsv.ts).
+ */
+export function dublettenSchluessel(p: Pick<Starter, 'klasse' | 'nachname' | 'vorname'>): string {
+  return `${p.klasse}|${p.nachname.trim().toLowerCase()}|${p.vorname.trim().toLowerCase()}`
+}
+
 const FIELDS: (keyof Starter)[] = ['startNr', 'vorname', 'nachname', 'verein', 'bundesland', 'land', 'geburtsdatum', 'groesse', 'geschlecht']
 
 export function mergeStarters(existing: Starter[], imported: Starter[], auswahl: 'bisher' | 'datei' = 'bisher'): MergeResult {

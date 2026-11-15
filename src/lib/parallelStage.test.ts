@@ -6,9 +6,9 @@ import { abmeldeAttempts } from './abmeldung'
 import { feldVon } from './eingaben'
 import { gesamtZeit } from './listenStand'
 import { parallelBoegen } from './parallelBogen'
-import { PARALLEL_ANNAHMEN, rundenErgebnis, rundenVermerke } from './parallelErgebnis'
+import { durchWiederholung, PARALLEL_ANNAHMEN, rundenErgebnis, rundenVermerke } from './parallelErgebnis'
 import { attemptSchluessel, rundenDisziplin } from './parallelSchluessel'
-import { klassenStand, offeneKlassen, stageBlaetter, stageErgebnis } from './parallelStage'
+import { klassenStand, offeneKlassen, stageBlaetter, stageDurchWiederholung, stageErgebnis } from './parallelStage'
 import { beschreibe } from './verlauf'
 import { klassenPaare, normalisierePlaene, rundenName, vergleicheRunden, zerlegeRerun } from '../planung/parallelRunden'
 import type { AppState, ClassId, ParallelRunde, Starter } from '../types'
@@ -306,10 +306,15 @@ describe('Wiederholung (Pkt. 5.2.6)', () => {
     state = fahre(state, 'rerun-pre-1', { '1-4': [60], '1-5': [50] })
     expect(stand(state).naechste).toBeUndefined()
     expect(ergebnis(state, 'pre').rerunFest).toBe(true)
+    // Solange die Wiederholung nicht eingerechnet ist, hat sie keinen Platz entschieden (kein Sternchen).
+    expect(durchWiederholung(ergebnis(state, 'pre')).size).toBe(0)
     // 1-5 gewinnt die Wiederholung – obwohl beide dort langsamer sind als 1-6 im Vorlauf.
     state = fahre(state, 'rerun-pre-1', { '1-4': [60, 60], '1-5': [50, 59] })
     expect(plaetze(state, 'pre')).toEqual({ '1-1': 1, '1-2': 2, '1-3': 3, '1-5': 4, '1-4': 5, '1-6': 6 })
     expect(ergebnis(state, 'pre').wiederholt).toEqual(['rerun-pre-1'])
+    // Ihre Plätze hat die Wiederholung entschieden: Sternchen auf den Results des Vorlaufs – nicht auf ihrer eigenen Liste.
+    expect([...durchWiederholung(ergebnis(state, 'pre'))].sort()).toEqual(['1-4', '1-5'])
+    expect(durchWiederholung(ergebnis(state, 'rerun-pre-1')).size).toBe(0)
     expect(vermerke(state, 'pre')).toMatchObject({ '1-5': 'qualified', '1-4': 127, '1-6': 95 })
     expect(stand(state).naechste).toEqual({
       runde: 'semi',
@@ -322,6 +327,8 @@ describe('Wiederholung (Pkt. 5.2.6)', () => {
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
     state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
     expect(stage(state)[4]).toEqual(['1-4', 5, 127, 'rerun-pre-1', 120])
+    // Dort trägt nur er ein Sternchen: Den Platz von 1-5 (4) hat das Finale bestimmt.
+    expect([...stageDurchWiederholung(stageErgebnis(state, konfig, '1', PUNKTE)!)]).toEqual(['1-4'])
   })
 
   it('bleibt es auch in der Wiederholung gleich, folgt die nächste', () => {

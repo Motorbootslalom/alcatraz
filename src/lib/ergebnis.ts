@@ -258,8 +258,8 @@ export function ergebnisGruppen(konfig: ErgebnisKonfig, wahl: ListenWahl, klasse
   for (const typeId of einheit?.listen ?? veranstaltungsListen(konfig, wahl)) {
     if (!konfig.positionAllowsClass(typeId, klasse)) continue
     for (const col of columnsForClass(konfig.getSheetDef(typeId).columns, klasse)) {
-      // Kennung „t1a|hin seiteA“: Das letzte Wort ist die Bojen-Seite.
-      col.felder?.forEach((feld) => kuerzel.set(feld, BOJEN_SEITE[feld.split(' ').pop() ?? ''] ?? col.label))
+      // Kennung „t1a|hin seiteA“ (im Parallelslalom „start|seiteA“): Das letzte Wort ist die Bojen-Seite.
+      col.felder?.forEach((feld) => kuerzel.set(feld, BOJEN_SEITE[feld.split(/[ |]/).pop() ?? ''] ?? col.label))
     }
   }
   return (konfig.getDisziplin(einheit?.disziplin ?? konfig.getAufbau(wahl.aufbau).disziplin).ergebnisspalten ?? []).flatMap((sp): ErgebnisGruppe[] => {

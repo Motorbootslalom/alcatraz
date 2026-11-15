@@ -164,6 +164,11 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     return wrapper
   }
   const blaetter = (wrapper: VueWrapper) => wrapper.findAll('.ergebnis-stapel[data-stapel="parallel"] .listen-seite').map((s) => `${s.find('.erg-kopf-titel').text()}`)
+  /** Die Zellen der Spalte „UIM points“ einer Liste „Results“ (sonst der ersten); eine zusammengefasste mit „×n“ (über n Zeilen). */
+  const uimZellen = (w: VueWrapper | ReturnType<VueWrapper['find']>) =>
+    (w.classes().includes('listen-seite') ? w : w.find('.listen-seite[data-art="gesamt"]'))
+      .findAll('tbody td[data-spalte="uim-punkte"]')
+      .map((t) => (t.attributes('rowspan') ? `${t.text()} ×${t.attributes('rowspan')}` : t.text()))
 
   it('Wertungslisten je Runde und das Gesamtergebnis – englisch, mit Zeitstempel, O.O.D. und eigener Seitenzählung', async () => {
     bisEnde()
@@ -178,7 +183,9 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     await warte()
     expect(blaetter(wrapper)).toEqual(['Semi-finals – Attempts', 'Semi-finals – Results'])
     const letzte = (art: string) => wrapper.findAll(`.listen-seite[data-art="${art}"] tbody tr[data-starter]`).map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()} ${r.findAll('td').at(-1)!.text()}`)
-    expect(letzte('gesamt')).toEqual(['1 102 Final 1–2', '2 101 Final 1–2', '3 104 Small final', '4 103 Small final'])
+    // Wer um welche Plätze fährt, steht als Block: eine Zelle je Finale über seine zwei Zeilen.
+    expect(uimZellen(wrapper)).toEqual(['Final 1–2 ×2', 'Small final ×2'])
+    expect(wrapper.findAll('.listen-seite[data-art="gesamt"] tbody tr[data-starter]').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()}`)).toEqual(['1 102', '2 101', '3 104', '4 103'])
     // Jede Runde trägt ihren eigenen Zeitstempel.
     const stand = wrapper.find('.listen-seite[data-art="gesamt"] .erg-stand').text()
     await wrapper.find('[data-feld="perg-runde"]').setValue('final')
@@ -205,21 +212,52 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     expect(stage.find('.erg-stand').text()).not.toBe('')
   })
 
-  it('hat eine Wiederholung die Plätze des Vorlaufs mitbestimmt, steht das unter seiner Liste', async () => {
+  it('hat eine Wiederholung Plätze entschieden, tragen sie ein Sternchen mit Fußnote – im Vorlauf und in den Overall results', async () => {
     fahre('pre', { ...VORLAUF, '1-4': [43, 45], '1-5': [45, 43] })
     const wrapper = await listen('ergebnis')
-    expect(wrapper.find('.listen-seite[data-art="gesamt"] [data-hinweis="fuss"]').exists()).toBe(false)
+    const plaetze = (blatt: ReturnType<VueWrapper['find']>) => blatt.findAll('tbody tr[data-starter]').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()}`)
+    // Vor dem Re-run: „Re-run“ steht je Zeile, noch kein Sternchen, keine Fußnote.
+    expect(uimZellen(wrapper)).toEqual(['', '', '', 'Re-run', 'Re-run', '95'])
+    expect(wrapper.find('.listen-seite[data-art="gesamt"] .erg-fuss').text()).not.toContain('re-run')
     expect(wrapper.find('[data-hinweis="parallel-gleichstand"]').text()).toContain('104, 105')
     store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'rerun-pre-1' })
     fahre('rerun-pre-1', { '1-4': [60, 60], '1-5': [50, 59] }, 2000)
     await warte()
     expect(blaetter(wrapper)).toEqual(['Preliminary heat – Attempts', 'Preliminary heat – Results', 'Preliminary heat – Re-run – Attempts', 'Preliminary heat – Re-run – Results'])
     const vorlauf = wrapper.findAll('.listen-seite[data-art="gesamt"]')[0]
-    expect(vorlauf.find('[data-hinweis="fuss"]').text()).toContain('only the time of the re-run is taken into account')
-    expect(vorlauf.findAll('tbody tr').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()} ${r.findAll('td').at(-1)!.text()}`).slice(3, 5)).toEqual(['4 105 Qualified', '5 104 127'])
-    // Die Liste der Wiederholung selbst trägt keinen Vermerk.
-    expect(wrapper.findAll('.listen-seite[data-art="gesamt"]')[1].find('[data-hinweis="fuss"]').exists()).toBe(false)
+    // Die Plätze 4 und 5 hat der Re-run entschieden: Sternchen daran, die Fußnote nach Pkt. 5.2.6 – statt eines Hinweises ohne Zeichen.
+    expect(plaetze(vorlauf)).toEqual(['1 101', '2 102', '3 103', '4* 105', '5* 104', '6 106'])
+    expect(vorlauf.findAll('tbody tr[data-wiederholt]').map((r) => r.attributes('data-starter'))).toEqual(['1-5', '1-4'])
+    expect(vorlauf.find('[data-hinweis="stich"]').text()).toBe('* Ranking decided by the re-run (pt. 5.2.6): still a dead-heat situation where a decision was required – after running again only the time of the re-run is taken into account.')
+    expect(vorlauf.find('[data-hinweis="fuss"]').exists()).toBe(false)
+    expect(uimZellen(vorlauf)).toEqual(['Qualified ×4', '127', '95'])
+    // Die Liste der Wiederholung selbst trägt keinen Vermerk: Dort entscheidet ihre eigene Zeit.
+    const rerun = wrapper.findAll('.listen-seite[data-art="gesamt"]')[1]
+    expect(rerun.find('tbody tr[data-wiederholt]').exists()).toBe(false)
+    expect(rerun.find('.erg-fuss').text()).not.toContain('re-run')
     expect(wrapper.find('[data-hinweis="parallel-gleichstand"]').exists()).toBe(false)
+
+    // Bis zum Ende: In den Overall results steht 104 auf Platz 5 – mit der Summe der Wiederholung und dem Sternchen.
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
+    fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-5': [44, 45] }, 3000)
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'final' })
+    fahre('final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-5': [44, 45] }, 4000)
+    await wrapper.find('[data-feld="perg-runde"]').setValue('stage')
+    await warte()
+    const stage = wrapper.find('.listen-seite[data-art="stage"]')
+    expect(stage.findAll('tbody tr').map((r) => [0, 1, -2].map((i) => r.findAll('td').at(i)!.text()).join(' | '))).toEqual([
+      '1 | 101 | 82.00',
+      '2 | 102 | 83.00',
+      '3 | 103 | 60.00',
+      '4 | 105 | 89.00',
+      '5* | 104 | 120.00',
+      '6 | 106 | 110.00',
+    ])
+    expect(stage.find('[data-hinweis="stich"]').text()).toContain('only the time of the re-run is taken into account')
+    // Halbfinale und Finals hat kein Re-run entschieden: dort kein Sternchen.
+    await wrapper.find('[data-feld="perg-runde"]').setValue('semi')
+    await warte()
+    expect(wrapper.find('tbody tr[data-wiederholt]').exists()).toBe(false)
   })
 
   it('solange eine Klasse nicht alle Runden gefahren ist, gibt es kein Gesamtergebnis – der Hinweis nennt die Runde', async () => {

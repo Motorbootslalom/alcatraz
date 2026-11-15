@@ -193,7 +193,8 @@ describe('Einzelwertung', () => {
     store.dispatch({ type: 'SET_NICHT_WERTEN', disziplin: 'parallel', klassen: ['1'], an: true })
     store.dispatch({ type: 'SET_NICHT_WERTEN', disziplin: 'manoever', klassen: ['1'], an: true })
     const kopf = (blatt: ReturnType<VueWrapper['find']>) => blatt.findAll('thead th[rowspan], thead .erg-spaltenkopf th').map((t) => t.text())
-    const spalte = (blatt: ReturnType<VueWrapper['find']>) => blatt.findAll('tbody td[data-spalte="uim-punkte"]').map((t) => t.text())
+    /** Die Zellen der Spalte „UIM points“; eine zusammengefasste mit „×n“ (über n Zeilen). */
+    const spalte = (blatt: ReturnType<VueWrapper['find']>) => blatt.findAll('tbody td[data-spalte="uim-punkte"]').map((t) => (t.attributes('rowspan') ? `${t.text()} ×${t.attributes('rowspan')}` : t.text()))
     /** Die Tabelle bleibt so breit wie die Seite: Der Kopf überspannt genau die Spalten. */
     const breit = (blatt: ReturnType<VueWrapper['find']>) => expect(blatt.find('th.erg-kopfzelle').attributes('colspan')).toBe(String(blatt.findAll('colgroup col').length))
 
@@ -210,7 +211,8 @@ describe('Einzelwertung', () => {
     breit(m2)
     m.unmount()
 
-    // Parallelslalom: im Vorlauf heißt die Spalte „Remark“ und nennt nur noch „Qualified“ …
+    // Parallelslalom: Im Vorlauf bleibt die Spalte „UIM points“ in derselben Form – der Block
+    // „Qualified“, die übrigen Zellen leer; der Hinweis darunter sagt, warum (keine Spalte „Remark“) …
     const p = await listen('ergebnis', 'parallel')
     const runde = async (r: string) => {
       await p.find('select[data-feld="perg-runde"]').setValue(r)
@@ -218,13 +220,15 @@ describe('Einzelwertung', () => {
       return p.find('.listen-seite[data-art="gesamt"][data-klasse="1"]')
     }
     const pre = await runde('pre')
-    expect(pre.find('th[data-spalte="uim-punkte"]').text()).toBe('Remark')
-    expect(spalte(pre)).toEqual(['Qualified', 'Qualified', 'Qualified', 'Qualified', '', ''])
+    expect(pre.find('th[data-spalte="uim-punkte"]').text()).toBe('UIM points')
+    expect(spalte(pre)).toEqual(['Qualified ×4', '', ''])
     expect(pre.find('.erg-fuss').text()).toContain('Parallel slalom not scored – decision of the O.O.D.')
+    expect(p.text()).not.toContain('Remark')
     breit(pre)
-    // … im Halbfinale das Finale; in den Finals gibt es die Spalte nicht.
+    // … im Halbfinale die Blöcke der Finals; in den Finals gibt es die Spalte nicht.
     const semi = await runde('semi')
-    expect(spalte(semi)).toEqual(['Final 1–2', 'Final 1–2', 'Small final', 'Small final'])
+    expect(semi.find('th[data-spalte="uim-punkte"]').text()).toBe('UIM points')
+    expect(spalte(semi)).toEqual(['Final 1–2 ×2', 'Small final ×2'])
     const finale = await runde('final')
     expect(finale.find('[data-spalte="uim-punkte"]').exists()).toBe(false)
     expect(finale.find('.erg-fuss').text()).toContain('not scored')
@@ -246,7 +250,7 @@ describe('Einzelwertung', () => {
     await q.find('select[data-feld="perg-runde"]').setValue('pre')
     await warte()
     expect(q.find('.listen-seite[data-art="gesamt"][data-klasse="1"] th[data-spalte="uim-punkte"]').text()).toBe('UIM points')
-    expect(spalte(q.find('.listen-seite[data-art="gesamt"][data-klasse="1"]'))).toEqual(['Qualified', 'Qualified', 'Qualified', 'Qualified', '127', '95'])
+    expect(spalte(q.find('.listen-seite[data-art="gesamt"][data-klasse="1"]'))).toEqual(['Qualified ×4', '127', '95'])
     q.unmount()
   })
 

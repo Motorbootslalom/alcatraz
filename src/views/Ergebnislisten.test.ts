@@ -111,6 +111,11 @@ describe('Listen: Wertungslisten', () => {
     expect(kopf.slice(0, 7)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Verein', 'Zeit', 'Punkte'])
     expect(kopf).not.toContain('Geb. Datum')
     expect(kopf.slice(7)).toEqual(['Steg AB', 'Start', '1 H', '2 H', '3 H', '4 H', '5', '4 R', '3 R', '2 R', 'MüB', 'Ziel', 'Steg AN', 'disq.', 'ges. Punkte', 'Fehler-Schlüssel'])
+    // Start und Ziel mit L und R wie die Tore (Entscheidung des Nutzers vom 15.11.2026): Die erste
+    // Unter-Spalte jeder Gruppe trägt die kräftige Linie, L und R stehen in eigenen Zellen.
+    const unter = wrapper.findAll('.ergebnis-blatt')[0].findAll('.erg-unterkopf th')
+    expect(unter.slice(0, 4).map((th) => [th.text(), th.classes('erg-gruppe')])).toEqual([['L', true], ['R', false], ['L', true], ['R', false]])
+    expect(unter.slice(-2).map((th) => [th.text(), th.classes('erg-gruppe')])).toEqual([['L', true], ['R', false]])
     const z = zeilen(wrapper)
     expect(z.map((r) => r.slice(0, 4).join(' '))).toEqual(['1 401 Nach41 Vor41', '2 402 Nach42 Vor42', '3 403 Nach43 Vor43'])
     expect(z[0].slice(4, 7)).toEqual(['Musterclub', '01:10,00', '70,00'])
@@ -127,6 +132,14 @@ describe('Listen: Wertungslisten', () => {
     await nextTick()
     expect(spalten(wrapper).slice(0, 7)).toEqual(['Platz', 'S-Nr.', 'Name', 'Vorname', 'Bundesland', 'Zeit', 'Punkte'])
     expect(zeilen(wrapper).map((r) => r[4])).toEqual(['BY', 'Musterland', 'Musterland'])
+    // Länder auch unter der DM mit dem Kürzel des IOC (Entscheidung des Nutzers vom 15.11.2026):
+    // „Deutschland“ und „DEU“ werden zu GER, die Schweiz zu SUI.
+    store.dispatch({ type: 'UPDATE_STARTER', id: 'id-4-1', patch: { land: 'Deutschland' } })
+    store.dispatch({ type: 'UPDATE_STARTER', id: 'id-4-2', patch: { land: 'DEU' } })
+    store.dispatch({ type: 'UPDATE_STARTER', id: 'id-4-3', patch: { land: 'Schweiz' } })
+    store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'land' })
+    await nextTick()
+    expect(zeilen(wrapper).map((r) => r[4])).toEqual(['GER', 'GER', 'SUI'])
     // Clubmeisterschaft: keine Herkunft.
     store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
     await nextTick()
@@ -305,10 +318,12 @@ describe('Listen: Wertungslisten', () => {
     const z = zeilen(wrapper)
     expect(z[1].slice(-2)).toEqual(['161.00', ''])
     expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start'])
-    // Ohne Streichlauf zählt der nicht gestartete Lauf: insgesamt „DSQ“.
+    // Ohne Streichlauf zählt der nicht gestartete Lauf: insgesamt „DSQ“ – einmal, denn die Spalte
+    // „Result“ (bester Versuch ohne Knoten) hat die UIM-Gesamtliste nicht.
     store.dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: 0 })
     await nextTick()
-    expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start', 'DSQ', 'DSQ'])
+    expect(wrapper.findAll('td.erg-disq').map((c) => c.text())).toEqual(['Did not start', 'DSQ'])
+    expect(spalten(wrapper)).not.toContain('Result')
     // Auch englisch: nichts im Seitenrand, keine Seitenzahl bei einer Seite.
     expect(wrapper.find('style').exists()).toBe(false)
     expect(wrapper.find('.ergebnis-stapel').text()).not.toMatch(/Page \d/)

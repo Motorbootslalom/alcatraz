@@ -61,7 +61,7 @@ describe('Herkunft anzeigen: Text, Kürzel, Flagge – eine Stelle für alle Lis
     expect(zeige('Österreich', 'land', 'flagge-kurz', { Österreich: 'A' })).toMatchObject({ flagge: 'AT', text: 'A' })
   })
 
-  it('Kürzel nach IOC (UIM, Regel 209): jede Schreibweise eines Staates wird zu demselben Kürzel', () => {
+  it('Kürzel nach IOC (DM und UIM, Regel 209): jede Schreibweise eines Staates wird zu demselben Kürzel', () => {
     const ioc = (name: string, stil: OriginStyle = 'kurz', eigene: Record<string, string> = {}) => herkunftAnzeige(name, 'land', stil, eigene, 'en', false, 'ioc')
     // Auf einer Liste steht dieselbe Nation nicht unter zwei Codes (DEU neben GER).
     expect(['Germany', 'Deutschland', 'DEU', 'GER', 'germany'].map((n) => ioc(n).text)).toEqual(['GER', 'GER', 'GER', 'GER', 'GER'])
@@ -72,7 +72,7 @@ describe('Herkunft anzeigen: Text, Kürzel, Flagge – eine Stelle für alle Lis
     expect(ioc('Deutschland', 'kurz', { Deutschland: 'D' }).text).toBe('D')
     expect(ioc('Atlantis').text).toBe('Atlantis')
     expect(herkunftAnzeige('Bayern', 'bundesland', 'kurz', {}, 'en', false, 'ioc').text).toBe('BY')
-    // Unter ISO (DM) bleibt alles wie bisher.
+    // Unter ISO (Vorgabe eines Regelwerks ohne `laenderKuerzel`) bleibt alles wie bisher.
     expect(['Germany', 'DEU', 'GER'].map((n) => herkunftAnzeige(n, 'land', 'kurz', {}, 'de').text)).toEqual(['DEU', 'DEU', 'GER'])
   })
 

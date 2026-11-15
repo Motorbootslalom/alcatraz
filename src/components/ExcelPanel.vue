@@ -28,7 +28,14 @@ const result = ref<ImportResult | null>(null)
 const copied = ref<'startlist' | 'starters' | null>(null)
 
 // Fehlende klassenbasierte Nummern ergänzt der Import; klassische vergibt erst die Verzahnung.
-const parse = (text: string) => parseStartersTsv(text, { assignMissing: state.value.startNrMode === 'klasse', landIstStaat: state.value.originMode === 'land', startNrPraefix: startNrPraefixe(state.value) })
+// Beim Ergänzen schließen sie an die Nummern der Veranstaltung an (`vorhandene`), statt sie doppelt zu vergeben.
+const parse = (text: string, mode: 'replace' | 'merge' = 'replace') =>
+  parseStartersTsv(text, {
+    assignMissing: state.value.startNrMode === 'klasse',
+    landIstStaat: state.value.originMode === 'land',
+    startNrPraefix: startNrPraefixe(state.value),
+    ...(mode === 'merge' ? { vorhandene: state.value.starters } : {}),
+  })
 
 const preview = computed(() => (raw.value.trim() ? parse(raw.value) : null))
 
@@ -54,7 +61,7 @@ function geschlechtNote(res: ImportResult): string {
 
 function doImport(mode: 'replace' | 'merge') {
   if (darfNicht.value) return
-  const res = parse(raw.value)
+  const res = parse(raw.value, mode)
   result.value = res
   if (res.imported === 0) return
   // Ersetzen nimmt den nicht wiedererkannten Startern ihre erfassten Werte – dann erst fragen.

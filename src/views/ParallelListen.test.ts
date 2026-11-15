@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ErfassungView from './ErfassungView.vue'
@@ -134,6 +134,93 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     await warte()
     expect(wrapper.findAll('.parallel-startliste .sheet-section').map((d) => d.attributes('data-liste'))).toEqual(['startliste:pre:B'])
     wrapper.unmount()
+  })
+
+  const startlisten = async (racecourse?: 'je'): Promise<VueWrapper> => {
+    const wrapper = mount(ListsView, mit(store))
+    await wrapper.find('.list-kinds button[data-kind="starter"]').trigger('click')
+    await wrapper.find('.starter-arten button[data-art="parallel"]').trigger('click')
+    await warte()
+    if (racecourse) await wrapper.find('select[data-feld="start-racecourse"]').setValue(racecourse)
+    await warte()
+    return wrapper
+  }
+
+  it('Startlisten: abwechselnd weiß und grau wie die Listen der race officials – Dummy und entfallener Start bleiben weiß und schraffiert', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    // Das Paar der Klasse 4 gibt es nicht mehr: Seine beiden Starts entfallen, die Zeilen bleiben.
+    store.dispatch({ type: 'REMOVE_STARTER', id: '4-1' })
+    store.dispatch({ type: 'REMOVE_STARTER', id: '4-2' })
+    const wrapper = await startlisten()
+    /** Je Zeile: grau („g“) oder weiß („w“), dahinter „x“ für eine Zeile ohne Starter (Dummy, entfallen). */
+    const muster = (liste: ReturnType<VueWrapper['find']>, ohne: (r: ReturnType<VueWrapper['find']>) => boolean) =>
+      liste.findAll('tr[data-start]').map((r) => `${r.classes().includes('shade') ? 'g' : 'w'}${ohne(r) ? 'x' : ''}`)
+    const gemeinsam = muster(wrapper.find('.parallel-startliste .sheet-section'), (r) => r.classes().includes('psl-entfaellt'))
+    expect(gemeinsam).toHaveLength(8)
+    // Jede zweite Zeile grau, über die ganze Liste gezählt; ein entfallener Start zählt mit, bleibt aber weiß.
+    gemeinsam.forEach((z, i) => expect(z, `Zeile ${i + 1}`).toBe(z.endsWith('x') ? 'wx' : (i + 1) % 2 === 0 ? 'g' : 'w'))
+    expect(gemeinsam.filter((z) => z === 'wx')).toHaveLength(2)
+    expect(gemeinsam.some((z, i) => z === 'wx' && (i + 1) % 2 === 0)).toBe(true)
+    // Der Dummy steht in einer seiner Zeilen neben einem Starter: Dessen Zeile wird grau, die Zelle des Dummys bleibt schraffiert.
+    const dummy = wrapper.findAll('.parallel-startliste tr[data-start]').filter((r) => r.find('td.psl-dummy').exists() && !r.classes().includes('psl-entfaellt'))
+    expect(dummy.length).toBeGreaterThan(0)
+    expect(dummy.some((r) => r.classes().includes('shade'))).toBe(true)
+
+    // Je Racecourse: dieselbe Regel; die Zeile ohne Starter (Dummy, entfallener Start) ist weiß.
+    await wrapper.find('select[data-feld="start-racecourse"]').setValue('je')
+    await warte()
+    const je = wrapper.findAll('.parallel-startliste .sheet-section').map((l) => muster(l, (r) => r.classes().includes('psl-ohne')))
+    expect(je).toHaveLength(2)
+    for (const liste of je) liste.forEach((z, i) => expect(z, `Zeile ${i + 1}`).toBe(z.endsWith('x') ? 'wx' : (i + 1) % 2 === 0 ? 'g' : 'w'))
+    // Zwei entfallene Starts auf jeder Liste, dazu der Dummy auf einer der beiden.
+    expect(je.flat().filter((z) => z === 'wx')).toHaveLength(6)
+
+    // Dieselbe Einstellung wie auf den Listen der race officials: aus = alles weiß.
+    store.dispatch({ type: 'SET_PARALLEL_ZEBRA', zebra: false })
+    await warte()
+    expect(wrapper.findAll('.parallel-startliste tr.shade')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  describe('Startlisten im Browser: Ein Block bleibt auf einer Seite, ausgeglichen wird nicht', () => {
+    /** Höhe einer Zeile in px; Kopf 104 px – Platz für die Zeilen: (1024,25 − 104) / Zeile (wie components/ListenDokument.test.ts). */
+    let zeilePx = 100
+    function rect(this: HTMLElement): DOMRect {
+      let height = 0
+      if (this.matches('.parallel-startliste tbody tr')) height = zeilePx
+      else if (this.classList.contains('listen-seite-inhalt') && this.closest('.parallel-startliste')) height = 104 + this.querySelectorAll('tbody tr').length * zeilePx
+      return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: height, width: 0, height, toJSON: () => ({}) }
+    }
+    afterEach(() => vi.restoreAllMocks())
+
+    it.each([
+      // 9 Zeilen je Seite: Der dritte 4er-Block passt nicht mehr – 8 + 8 statt 9 + 7.
+      [100, [8, 8]],
+      // 13 Zeilen je Seite: Der erste 2er-Block passt nicht mehr – 12 + 4; die kurze letzte Seite bleibt (kein Ausgleich auf 8 + 8).
+      [70, [12, 4]],
+    ])('Zeile %i px → Zeilen je Seite %j – gemeinsam und je Racecourse', async (px, erwartet) => {
+      zeilePx = px
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(rect)
+      // Klein: E (2 Paare, eins mit Dummy), 1 (1 Paar), 2 (2 Paare) → 5 Paare; groß: 4 (1 Paar), 5 (2 Paare) → 3.
+      // Blöcke: drei 4er (je ein kleines und ein großes Paar), dann zwei 2er – 16 Starts.
+      store.dispatch({ type: 'ADD_STARTERS', starters: [...mk('2', 4), ...mk('5', 4)] })
+      store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+      for (const art of [undefined, 'je'] as const) {
+        const wrapper = await startlisten(art)
+        const listen = wrapper.findAll('.parallel-startliste .sheet-section')
+        expect(listen).toHaveLength(art ? 2 : 1)
+        for (const liste of listen) {
+          const seiten = liste.findAll('.listen-seite')
+          expect(seiten.map((s) => s.findAll('tbody tr').length)).toEqual(erwartet)
+          // Jeder Block steht ganz auf einer Seite: kein Block auf zwei Seiten, keiner gekürzt.
+          const bloecke = seiten.flatMap((s, i) => s.findAll('tbody.psl-block').map((b) => ({ seite: i, block: b.attributes('data-block'), zeilen: b.findAll('tr').length })))
+          expect(new Set(bloecke.map((b) => b.block)).size).toBe(bloecke.length)
+          expect(bloecke.map((b) => b.zeilen)).toEqual([4, 4, 4, 2, 2])
+          expect(seiten.map((s) => s.attributes('data-seiten'))).toEqual(erwartet.map(() => String(erwartet.length)))
+        }
+        wrapper.unmount()
+      }
+    })
   })
 
   it('unter der DM gibt es keine Wahl der Disziplin', async () => {

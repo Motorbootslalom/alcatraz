@@ -114,6 +114,25 @@
   font-weight: 700;
 }
 
+/* Ein Vermerk über mehrere Zeilen (Results des Parallelslaloms: „Qualified“, das Finale) in EINER
+   Zelle, schräg von links unten nach rechts oben (ErgebnisGesamtBlatt.vue `schraeg`: Winkel und
+   Größe passen ihn in die Zelle). Die Zelle bleibt weiß, auch wenn eine graue (fünfte) Zeile in
+   ihr liegt – das Grau dieser Zeile endet an ihr, und der Vermerk bleibt ohne Streifen lesbar. */
+.erg-tabelle tbody tr td.erg-block,
+.erg-tabelle tbody tr.grau td.erg-block {
+  position: relative;
+  background: var(--blatt-bg);
+}
+
+.erg-tabelle td.erg-block .erg-schraeg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  line-height: 1.15;
+  white-space: nowrap;
+  transform-origin: center;
+}
+
 .erg-tabelle td.erg-disq {
   background: var(--blatt-hervor);
 }
@@ -350,13 +369,15 @@
   border: 1.6px solid var(--blatt-linie);
 }
 
-/* Höchstens zwei kleine Zeilen: Die Regel steht in ganzen Sätzen da. */
+/* Höchstens drei kleine Zeilen (3 × 6,5 pt × 1,15 ≈ 7,9 mm): Die Regel steht in ganzen Sätzen da.
+   Drei braucht es im Results des Parallelslaloms, wenn auf einer Seite Stichentscheid und Re-run
+   ein Sternchen vergeben haben (zwei Zeilen) und die Klasse nicht gewertet wird (eine Zeile). */
 .erg-stich-hinweis {
   margin: 0;
   max-height: 8mm;
   overflow: hidden;
   font-size: 6.5pt;
-  line-height: 1.25;
+  line-height: 1.15;
 }
 
 .erg-stich-zeichen {

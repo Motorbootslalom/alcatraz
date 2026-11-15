@@ -103,7 +103,7 @@
 }
 
 /* Rechts außen keine Linie – aber nur in Zeilen, die bis an den Rand reichen: In der zweiten
-   Kopfzeile (Unter-Spalten wie „L R“ unter „Ziel“) ist die letzte Zelle nicht die letzte Spalte;
+   Kopfzeile (Unter-Spalten wie „L“ und „R“ unter „Ziel“) ist die letzte Zelle nicht die letzte Spalte;
    rechts daneben stehen „Disq.“ und der Haken aus der ersten Zeile, und die Linie gehört dazwischen. */
 .erf-tabelle thead tr:first-child > :last-child,
 .erf-tabelle tbody tr > :last-child {
@@ -247,6 +247,12 @@
 
 .erf-tabelle .erf-sepr-gestrichelt {
   border-right-style: dashed;
+}
+
+/* Start und Ziel: linke und rechte Boje in getrennten Zellen mit der gewöhnlichen Linie dazwischen
+   (`subTrenner: linie`) – die linke Zelle trägt sie ohnehin rechts, die rechte braucht links keine. */
+.erf-tabelle .erf-sepr-linie {
+  border-right-style: solid;
 }
 
 /* Eingabefelder: füllen die Zelle, ohne eigenen Rahmen – das Gitter ist der Rahmen. */

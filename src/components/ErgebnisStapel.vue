@@ -65,7 +65,9 @@ const herkunft = computed(() =>
 )
 // Die Spalte „UIM points“ der Gesamtliste, wenn das Regelwerk sie verlangt (UIM 960, Pkt.
 // 5.2.1). Die Punkte sind die der Tabelle des Regelwerks (Pkt. 5.1) – dieselbe, nach der die
-// Mannschaftswertung rechnet; sie stehen erst da, wenn die Klasse vollständig ist.
+// Mannschaftswertung rechnet; sie stehen erst da, wenn die Klasse vollständig ist. Dieselbe
+// Liste nach Pkt. 5.2.1 hat keine Spalte „Result“ (bester Versuch ohne Knoten; Entscheidung
+// des Nutzers vom 15.11.2026) – auch nicht, wenn die Punkte nach „nicht werten“ entfallen.
 const uimPunkte = computed(() => (regelwerk.value.aushang.punkte ? pokalVorgabe(state.value.regelwerk).punkte.uim : undefined))
 // „Disziplin nicht werten“ (nur nach Regel 960; Entscheidung des O.O.D., lib/disziplinen.ts):
 // Wertet er das Manövrieren für die Klasse nicht, entfällt auf ihrer Gesamtliste die Spalte
@@ -94,6 +96,7 @@ const stichAufListe = computed(() => [lt('results.tie.mark'), ...regelwerk.value
         :data-klasse="b.ergebnis.klasse"
         :mit-knoten="b.ergebnis.gesamt.mitKnoten"
         :punkte="punkteVon(b)"
+        :ohne-ergebnis="regelwerk.aushang.punkte"
         :unterschrift="regelwerk.aushang.unterschrift"
         :abstand="abstand"
         :herkunft="herkunft"

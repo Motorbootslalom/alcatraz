@@ -115,7 +115,10 @@ versucheNacheinander: false
 # Die Gesamtliste des Manövrierens bekommt deshalb die Spalte „UIM points“ (Tabelle unten,
 # `pokal.uim.punkte`, Pkt. 5.1). Punkte stehen erst da, wenn die Klasse vollständig ist; Pkt.
 # 5.1: „Drivers must complete the relevant stage and cross the finishing line in order to be
-# classified for the stage.“ – wer disqualifiziert ist, hat 0 Punkte.
+# classified for the stage.“ – wer disqualifiziert ist, hat 0 Punkte. Eine Spalte für den besten
+# Versuch ohne Knoten („Result“) nennt Pkt. 5.2.1 nicht: Mit `punkte` hat die Gesamtliste sie nicht
+# (Entscheidung des Nutzers vom 15.11.2026 – man sieht ihn an den gestrichenen Versuchen; auch,
+# wenn die Punkte nach „Disziplin nicht werten“ entfallen; components/ErgebnisStapel.vue).
 aushang: { unterschrift: true, punkte: true }
 
 # Mannschaftswertung („team competition“). Regel 960, Pkt. 5.1 „Point system“ (S. 286): „The

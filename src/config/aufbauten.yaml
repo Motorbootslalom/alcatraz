@@ -120,6 +120,9 @@ sprachen: [en]
 #   label        Spaltenkopf-Text.
 #   typ          Spalten-Typ (siehe unten). Pflicht.
 #   sub          Unter-Spalten, z. B. ["hin seiteA", "rueck seiteA"] → je eine Zelle.
+#   subKopf      Was über den Unter-Spalten steht, wenn es von `sub` abweicht (gleich
+#                viele Einträge, Tokens wie dort). `sub` bleibt die Kennung des Feldes.
+#                Start/Ziel aus der Kurzform: sub "hin seiteB", subKopf "seiteB" → „L“.
 #   innen        seiteA | seiteB: welche Bojen-Seite am Tor die INNERE ist
 #                (nur relevant im Schema "Innen/Außen").
 #   punkteSpalte key einer summe-Spalte, in die die aus `code` berechneten Punkte
@@ -141,7 +144,8 @@ sprachen: [en]
 #   klassen      Spalte nur für diese Klassen (z. B. Speed [5,6,7]); fehlt = alle.
 #   trenner      Kurzform: hervorgehobene Linie am LINKEN Rand dieser Spalte.
 #   subTrenner   Design der Linien zwischen den sub-Spalten DIESER Spalte
-#                (überschreibt den Positions-Standard, z. B. Tor 5 "doppelt").
+#                (überschreibt den Positions-Standard, z. B. Tor 5 "doppelt");
+#                `linie` = die gewöhnliche dünne Linie (Start/Ziel: L und R getrennt).
 #   geraet       Nur `typ: zeit`: elektronisch | stoppuhr (Standard). In der Wertungsliste
 #                gilt die elektronische Zeit, ohne sie der Mittelwert der Stoppuhren.
 #
@@ -153,7 +157,7 @@ sprachen: [en]
 #   disq  - Disqualifikations-Spalte          text - Freitext (breite)
 #   trenner - KEINE Datenspalte, sondern eine Trennlinie zwischen zwei Spalten
 #             (linke Kante der Folgespalte). design: fett | doppelt | gepunktet |
-#             gestrichelt. Beispiel (Hin/Rück trennen):
+#             gestrichelt | linie. Beispiel (Hin/Rück trennen):
 #               - { key: t5, ... }
 #               - { typ: trenner, design: doppelt }
 #               - { key: t3b, ... }

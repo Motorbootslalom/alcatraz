@@ -84,7 +84,8 @@ const STEG = {
 /**
  * Die Spalten der Wertungsliste in der Reihenfolge der Fahrt (`ergebnisspalten: fahrweg`).
  * Tore mit je einer Unter-Spalte für die linke, dann die rechte Boje wie in der DM-Liste,
- * Start und Ziel mit beiden Bojen in einer Zelle, Tor 5 mit „E“ zwischen Hin und Rück.
+ * Tor 5 mit „E“ zwischen Hin und Rück. Start und Ziel ebenso mit L und R: Erkennbar, welche
+ * Boje berührt wurde (Entscheidung des Nutzers vom 15.11.2026; vorher beide in einer Zelle).
  */
 export function ergebnisspaltenAusFahrweg(): RawErgebnisSpalte[] {
   const out: RawErgebnisSpalte[] = [{ label: STEG.ab.kurz, felder: [`katalog:${STEG.ab.katalog}`] }]
@@ -94,7 +95,6 @@ export function ergebnisspaltenAusFahrweg(): RawErgebnisSpalte[] {
     if (h.katalog === 'tor5' && tor5) tor5.unter!.push({ label: h.kurz, feld: `katalog:${h.katalog}` })
     else if (h.katalog) out.push({ label: h.kurz, felder: [`katalog:${h.katalog}`] })
     else if (h.speedboje) out.push({ label: h.kurz, felder: [h.key!] })
-    else if (h.tor === 'StartZiel') out.push({ label: h.kurz, felder: bojen(['seiteA', 'seiteB']) })
     else if (h.tor === 'Tor5' && tor5) tor5.unter!.push(...bojen(['seiteB', 'seiteA']))
     else if (h.tor === 'Tor5') out.push((tor5 = { label: h.kurz, unter: bojen(['seiteB', 'seiteA']) }))
     else out.push({ label: h.kurz, unter: bojen(['seiteB', 'seiteA']) })
@@ -267,7 +267,14 @@ export function kurzformPosition(k: RawKurzform): RawPosition {
       continue
     }
     const tor = h.tor!
-    const beobachtet = seiten.filter((s) => gesehen.has(bojeId(tor, s)))
+    // Start und Ziel (Entscheidung des Nutzers vom 15.11.2026): linke und rechte Boje in je
+    // eigener Zelle, mit durchgezogener Linie getrennt statt gepunktet wie die beiden Bojen eines
+    // Tores – genau erkennbar, welche berührt wurde. Im Kopf nur die Seite: Die Richtung ist hier
+    // immer dieselbe („R R“ hieße am Ziel „Rückfahrt rechts“). Ohne Blickrichtung (Start/Ziel-
+    // und Parcours-Listen) erst L, dann R wie auf der Wertungsliste.
+    const startZiel = tor === 'StartZiel'
+    const reihe: Seite[] = startZiel && !blick ? ['oben', 'unten'] : seiten
+    const beobachtet = reihe.filter((s) => gesehen.has(bojeId(tor, s)))
     if (beobachtet.length === 0) continue
     const innen = INNEN[tor] ? { innen: SEITE[INNEN[tor]] } : {}
     const spalte: RawSpalte = {
@@ -275,6 +282,8 @@ export function kurzformPosition(k: RawKurzform): RawPosition {
       label: h.label,
       typ: 'boje',
       sub: beobachtet.map((s) => `${h.richtung} ${SEITE[s]}`),
+      ...(startZiel ? { subKopf: beobachtet.map((s) => SEITE[s]) } : {}),
+      ...(startZiel && beobachtet.length > 1 ? { subTrenner: 'linie' as const } : {}),
       ...innen,
       ...klassen,
     }

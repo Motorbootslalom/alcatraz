@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { configFor } from '../config/konfig'
 import { erfasstKennung, felderJeKennung, laufSchluessel, listenFelder, setzeWerte } from './eingaben'
-import { bogenFortschritt, zeileErfasst, zeileHatWerte, zeilenHinweise, type ErfassungsBogen } from './erfassung'
+import { bogenFortschritt, ueberschreibtX, zeileErfasst, zeileHatWerte, zeilenHinweise, type ErfassungsBogen } from './erfassung'
 
 const konfig = configFor()
 const L1 = laufSchluessel('manoevrieren', 1)
@@ -85,5 +85,33 @@ describe('Hinweise auf unvollständige und unplausible Eingaben', () => {
     expect(arten('zeit', { [erfasstKennung('zeit')]: '1' })).toEqual([])
     expect(arten('zeit', { 'disq@vorsteg': 'X' })).toEqual([])
     expect(arten('zeit', { 't1a|hin seiteA': 'J' })).toEqual([])
+  })
+})
+
+describe('Vorsteg mit „Versuche direkt nacheinander“: ein verdecktes X löscht nur, wer es will', () => {
+  // Die Zeile zeigt den 1. Versuch und schreibt in jeden; `weitere` sind die späteren Versuche.
+  const felder = listenFelder(konfig, 'vorsteg', '4')
+  const D = 'disq@vorsteg'
+  const B = 'bemerkung@vorsteg'
+  const pruefe = (werte: Record<string, string>, weitere: Record<string, string>[], neu: Record<string, string>) =>
+    ueberschreibtX(felder, werte, weitere, { ...werte, ...neu }, alle('4'), 'vorsteg')
+
+  it('fragt, wenn ein späterer Versuch ein X trägt, das die Zeile nicht zeigt, und die Eingabe es löschte', () => {
+    expect(pruefe({}, [{ [D]: 'X' }], { [B]: 'Helm' })).toBe(true)
+    expect(pruefe({}, [{ [D]: 'X' }], { [erfasstKennung('vorsteg')]: '1' })).toBe(true)
+    // Auch ein X neben einem anderen Buchstaben ist eins.
+    expect(pruefe({}, [{}, { [D]: 'C, X' }], { [D]: 'C' })).toBe(true)
+  })
+
+  it('fragt nicht ohne X, nicht wenn das X bleibt und nicht, wenn die Zeile es selbst zeigt', () => {
+    // Abweichend, aber ohne X: still angleichen wie bisher.
+    expect(pruefe({}, [{ [B]: 'alt' }], { [B]: 'Helm' })).toBe(false)
+    // Das X kommt mit der Eingabe in jeden Versuch.
+    expect(pruefe({}, [{ [D]: 'X' }], { [D]: 'X' })).toBe(false)
+    // Die Zeile zeigt das X: Wer es löscht, sieht, was er tut.
+    expect(pruefe({ [D]: 'X' }, [{ [D]: 'X' }], { [D]: '' })).toBe(false)
+    // Ein X auf einer anderen Liste (Steg) berührt die Eingabe am Vorsteg nicht.
+    expect(pruefe({}, [{ 'disq@steg': 'X' }], { [B]: 'Helm' })).toBe(false)
+    expect(pruefe({}, [], { [B]: 'Helm' })).toBe(false)
   })
 })

@@ -18,9 +18,11 @@ aufbauten:
 disziplinen:
   - id: parallel
     name: Parallelslalom
+    # Start und Ziel mit je einer Spalte für die linke und die rechte Boje (L, R), wie die Tore
+    # der Wertungsliste im Manövrieren (Entscheidung des Nutzers vom 15.11.2026).
     ergebnisspalten:
       - { label: "Steg AB", felder: ["katalog:stegAblegen"] }
-      - { label: "Start", felder: ["start|seiteB seiteA"] }
+      - { label: "Start", unter: ["start|seiteB", "start|seiteA"] }
       - { label: "1", felder: [b1a] }
       - { label: "2", felder: [b2a] }
       - { label: "3", felder: [b3a] }
@@ -30,7 +32,7 @@ disziplinen:
       - { label: "3", felder: [b3b] }
       - { label: "2", felder: [b2b] }
       - { label: "1", felder: [b1b] }
-      - { label: "Ziel", felder: ["ziel|seiteB seiteA"] }
+      - { label: "Ziel", unter: ["ziel|seiteB", "ziel|seiteA"] }
       - { label: "Steg AN", felder: ["katalog:stegAnlegen"] }
 
 positionen:
@@ -41,8 +43,11 @@ positionen:
     # Σ wie auf den Fahrweg-Listen des Manövrierens mit Bojen (Parcours mit Start und Ziel):
     # hinter „Disq.“, die Summe der Fehlerpunkte der Zeile (Entscheidung des Nutzers vom 15.11.2026).
     summeSpalte: sum
+    # Start und Ziel: die linke und die rechte Boje je in eigener Zelle, durchgezogen getrennt –
+    # genau erkennbar, welche berührt wurde (Entscheidung des Nutzers vom 15.11.2026; vorher
+    # beide in einer Zelle „L R“).
     spalten:
-      - { key: start, label: "Start", typ: boje, sub: ["seiteB seiteA"] }
+      - { key: start, label: "Start", typ: boje, sub: ["seiteB", "seiteA"], subTrenner: linie }
       - { key: b1a, label: "Boje 1", typ: boje }
       - { key: b2a, label: "Boje 2", typ: boje }
       - { key: b3a, label: "Boje 3", typ: boje }
@@ -52,6 +57,6 @@ positionen:
       - { key: b3b, label: "Boje 3", typ: boje }
       - { key: b2b, label: "Boje 2", typ: boje }
       - { key: b1b, label: "Boje 1", typ: boje }
-      - { key: ziel, label: "Ziel", typ: boje, sub: ["seiteB seiteA"] }
+      - { key: ziel, label: "Ziel", typ: boje, sub: ["seiteB", "seiteA"], subTrenner: linie }
       - { key: disq, label: "Disq.", typ: disq }
       - { key: sum, label: "Σ", typ: summe }

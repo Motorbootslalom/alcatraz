@@ -95,7 +95,8 @@ const VALID_TYPEN = new Set<RawSpalte['typ']>([
   'trenner',
 ])
 
-const VALID_TRENNER = new Set(['fett', 'doppelt', 'gepunktet', 'gestrichelt'])
+const VALID_TRENNER = new Set(['fett', 'doppelt', 'gepunktet', 'gestrichelt', 'linie'])
+const TRENNER_TEXT = [...VALID_TRENNER].join(' | ')
 
 // Bleibt lokal: types.ts würde hier einen Laufzeit-Import nötig machen, und das
 // Skript check-config.ts läuft ohne Bundler.
@@ -350,7 +351,7 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     }
 
     if (pos.subTrenner && !VALID_TRENNER.has(pos.subTrenner))
-      err('BAD_SUBTRENNER', `subTrenner "${pos.subTrenner}" in "${pos.id}" muss fett | doppelt | gepunktet | gestrichelt sein.`, where)
+      err('BAD_SUBTRENNER', `subTrenner "${pos.subTrenner}" in "${pos.id}" muss ${TRENNER_TEXT} sein.`, where)
 
     if (pos.zeiten !== undefined && !gueltigeZeiten(pos.zeiten))
       err('BAD_ZEITEN', `zeiten in "${pos.id}" muss eine Liste aus ${GERAETE.join(' | ')} sein.`, where)
@@ -377,7 +378,7 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
       // Trenner-Eintrag: keine Datenspalte - kein key nötig, nur Design prüfen.
       if (sp.typ === 'trenner') {
         if (sp.design && !VALID_TRENNER.has(sp.design))
-          err('BAD_TRENNER', `trenner-Design "${sp.design}" (${sw}) muss fett | doppelt | gepunktet | gestrichelt sein.`, sw)
+          err('BAD_TRENNER', `trenner-Design "${sp.design}" (${sw}) muss ${TRENNER_TEXT} sein.`, sw)
         return
       }
       if (!sp.key) err('MISSING_SPALTE_KEY', 'Spalte ohne "key".', sw)
@@ -407,10 +408,14 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
         err('BAD_INNEN', `innen "${sp.innen}" (Spalte "${sp.key}") muss 'seiteA' oder 'seiteB' sein.`, sw)
 
       if (sp.trenner && !VALID_TRENNER.has(sp.trenner))
-        err('BAD_TRENNER', `trenner "${sp.trenner}" (Spalte "${sp.key}") muss fett | doppelt | gepunktet | gestrichelt sein.`, sw)
+        err('BAD_TRENNER', `trenner "${sp.trenner}" (Spalte "${sp.key}") muss ${TRENNER_TEXT} sein.`, sw)
 
       if (sp.subTrenner && !VALID_TRENNER.has(sp.subTrenner))
-        err('BAD_SUBTRENNER', `subTrenner "${sp.subTrenner}" (Spalte "${sp.key}") muss fett | doppelt | gepunktet | gestrichelt sein.`, sw)
+        err('BAD_SUBTRENNER', `subTrenner "${sp.subTrenner}" (Spalte "${sp.key}") muss ${TRENNER_TEXT} sein.`, sw)
+
+      // Der Kopf ersetzt die Beschriftung Zelle für Zelle: Er braucht genau so viele Einträge.
+      if (sp.subKopf !== undefined && (!Array.isArray(sp.subKopf) || sp.subKopf.length !== (sp.sub?.length ?? 0) || sp.subKopf.some((k) => typeof k !== 'string')))
+        err('BAD_SUBKOPF', `subKopf (Spalte "${sp.key}") muss so viele Texte haben wie sub (${sp.sub?.length ?? 0}).`, sw)
 
       if (sp.geraet !== undefined && (sp.typ !== 'zeit' || !GERAETE.includes(sp.geraet)))
         err('BAD_GERAET', `geraet "${sp.geraet}" (Spalte "${sp.key}") gibt es nur bei typ: zeit, als ${GERAETE.join(' | ')}.`, sw)
