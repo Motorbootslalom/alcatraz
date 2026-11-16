@@ -485,7 +485,8 @@ Ohne Logo sieht jede Liste aus wie vorher.
   - auf den WKR-Bögen in der Titelleiste, rechts vor dem QR-Code (dessen Lage und Größe bleiben), auch in der
     Beispielansicht, nicht auf der Rückseite;
   - auf den Laufzetteln als Streifen über Titel und QR-Code.
-- Höhe 8 bis 30 mm, Vorgabe 15 mm, für beide Logos auf allen Listen gleich. Die Breite folgt dem Seitenverhältnis,
+- Höhe 8 bis 30 mm, Vorgabe 15 mm, für beide Logos auf allen Listen gleich; auf den WKR-Bögen höchstens 12 mm (dort
+  kostet jeder Millimeter Zeilen; Laufzettel folgen der Einstellung). Die Breite folgt dem Seitenverhältnis,
   höchstens 60 mm bzw. ein Viertel der Kopfbreite. Höhere Logos kosten Zeilen; die Listen messen und teilen neu.
 - Hochladen: PNG, JPEG, WebP, GIF oder SVG bis 20 MB. Das Bild wird im Browser verkleinert, auf höchstens 360 px
   Höhe (`src/lib/logoBild.ts`), und als PNG gespeichert, sonst als WebP, notfalls als JPEG – je Logo höchstens rund

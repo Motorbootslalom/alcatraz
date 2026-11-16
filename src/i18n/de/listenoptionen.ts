@@ -108,7 +108,7 @@ export default {
   'listopt.logo.lowRes': 'Bei {mm} mm Höhe nur etwa {dpi} dpi – im Druck vielleicht unscharf.',
   'listopt.logo.busy': 'Bild wird verkleinert …',
   'listopt.logo.height': 'Höhe der Logos (mm)',
-  'listopt.logo.heightHint': 'Gilt für beide Logos auf allen Listen: {min} bis {max} mm, Vorgabe {vorgabe} mm. Die Breite folgt dem Seitenverhältnis (höchstens {breite} mm). Höhere Logos lassen weniger Platz für Zeilen – die Listen teilen ihre Seiten danach neu ein.',
+  'listopt.logo.heightHint': 'Gilt für beide Logos auf allen Listen: {min} bis {max} mm, Vorgabe {vorgabe} mm; auf den Wettkampfrichter-Listen höchstens {bogen} mm. Die Breite folgt dem Seitenverhältnis (höchstens {breite} mm). Höhere Logos lassen weniger Platz für Zeilen – die Listen teilen ihre Seiten danach neu ein.',
   'listopt.logo.error.typ': 'Dieses Dateiformat geht nicht – bitte PNG, JPEG, WebP, GIF oder SVG.',
   'listopt.logo.error.gross': 'Das Bild ist zu groß (höchstens {mb} MB und {mp} Megapixel). Das bisherige Logo bleibt.',
   'listopt.logo.error.lesbar': 'Das Bild ließ sich nicht lesen. Das bisherige Logo bleibt.',

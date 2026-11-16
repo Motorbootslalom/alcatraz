@@ -65,7 +65,7 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Ansicht ab (Jahrgang), springt es zurück. Meldungen kommen als `fehler`, die Ansicht zeigt sie. Es folgt der Prop,
   nicht dem Store: ClassSection bekommt `starters` von außen, in Tests nach einem dispatch `setProps`.
 - ISSUE_KEYS (own.issue.*) doppelt: EigeneAufbautenPanel, AufbauAssistent. PARALLEL_RUNDE_LOESEN heißt „Löschen“.
-- Neuer Listenkopf → KopfLogos drumherum (Bogen art=leiste, Laufzettel art=streifen); Logo-Maße fest in mm aus den
+- Neuer Listenkopf → KopfLogos drumherum (Bogen art=leiste, höchstens 12 mm; Laufzettel art=streifen); Logo-Maße fest in mm aus den
   Pixelmaßen, nie vom Laden; Messungen ohne ResizeObserver (LaufzettelBlatt.fit, DruckdateiListen.messeCodes) brauchen
   logoSchluessel im Watch.
 

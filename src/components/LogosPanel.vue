@@ -10,6 +10,7 @@ import {
   LOGO_HOEHE_MAX_MM,
   LOGO_HOEHE_MIN_MM,
   LOGO_HOEHE_VORGABE_MM,
+  LOGO_HOEHE_BOGEN_MAX_MM,
   LOGO_MAX_MEGAPIXEL,
   logoDpi,
   logoInfo,
@@ -193,7 +194,7 @@ const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jp
       </div>
     </div>
     <p class="note">
-      {{ t('listopt.logo.heightHint', { min: LOGO_HOEHE_MIN_MM, max: LOGO_HOEHE_MAX_MM, vorgabe: LOGO_HOEHE_VORGABE_MM, breite: LOGO_BREITE_MAX_MM }) }}
+      {{ t('listopt.logo.heightHint', { min: LOGO_HOEHE_MIN_MM, max: LOGO_HOEHE_MAX_MM, vorgabe: LOGO_HOEHE_VORGABE_MM, bogen: LOGO_HOEHE_BOGEN_MAX_MM, breite: LOGO_BREITE_MAX_MM }) }}
     </p>
   </div>
 </template>

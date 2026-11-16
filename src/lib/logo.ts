@@ -7,10 +7,15 @@ import type { LogoBild } from '../types'
 // lib/listenLogos.ts und components/KopfLogos.vue; Einstellung: components/LogosPanel.vue.
 
 /**
- * Höhe der Logos auf den Listen in mm. Die Vorgabe ist vorläufig: Der Nutzer entscheidet nach
- * Beispielen in mehreren Höhen (10/15/20 mm), 16.11.2026 – siehe docs/entscheidungen.md „Offen“.
+ * Höhe der Logos auf den Listen in mm. Vom Nutzer nach Beispielen in 10/15/20 mm bestätigt (16.11.2026).
  */
 export const LOGO_HOEHE_VORGABE_MM = 15
+/**
+ * Auf den WKR-Bögen höchstens 12 mm, gleich wie hoch eingestellt (Entscheidung des Nutzers vom 16.11.2026,
+ * nach den Beispielen: „WKR-Listen können kleiner sein“) – dort kostet jeder Millimeter im Kopf Zeilen.
+ * Laufzettel und übrige Listen folgen der Einstellung.
+ */
+export const LOGO_HOEHE_BOGEN_MAX_MM = 12
 export const LOGO_HOEHE_MIN_MM = 8
 /** Darüber kostet ein Logo auf Bögen und Laufzetteln zu viele Zeilen. */
 export const LOGO_HOEHE_MAX_MM = 30

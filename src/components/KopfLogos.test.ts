@@ -53,8 +53,21 @@ describe('KopfLogos', () => {
       const w = mitStore(store, art)
       expect(w.find('.kopf-logos').classes()).toEqual(['kopf-logos', `kopf-logos--${art}`])
       expect(w.findAll('.kopf-logos > *').map((e) => e.attributes('data-logo') ?? e.classes()[0])).toEqual(['links', 'kopf-logos-mitte', 'rechts'])
-      expect(w.find('img[data-logo="rechts"]').attributes('style')).toContain('width: 15mm')
+      // Quadratisch: Breite = Höhe – auf den WKR-Bögen (`leiste`) höchstens 12 mm.
+      expect(w.find('img[data-logo="rechts"]').attributes('style')).toContain(art === 'leiste' ? 'width: 12mm' : 'width: 15mm')
     }
+  })
+
+  it('WKR-Bögen (leiste): höchstens 12 mm, darunter gilt die Einstellung; die übrigen Formen folgen ihr ganz', async () => {
+    store.dispatch({ type: 'SET_LOGO', seite: 'links', logo: testLogo() })
+    store.dispatch({ type: 'SET_LOGO_HOEHE', mm: 20 })
+    const hoehe = (art: string) => mitStore(store, art).find('img[data-logo="links"]').attributes('style')
+    expect(hoehe('leiste')).toContain('height: 12mm')
+    expect(hoehe('leiste')).toContain('width: 24mm')
+    expect(hoehe('rahmen')).toContain('height: 20mm')
+    expect(hoehe('streifen')).toContain('height: 20mm')
+    store.dispatch({ type: 'SET_LOGO_HOEHE', mm: 10 })
+    expect(hoehe('leiste')).toContain('height: 10mm')
   })
 
   it('die eingestellte Höhe gilt für beide; entfernen stellt das DOM von „ohne“ wieder her', async () => {

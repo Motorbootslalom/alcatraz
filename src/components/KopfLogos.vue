@@ -7,10 +7,12 @@
 // beim Druck weg); kein loading="lazy" (sonst fehlen Logos späterer Seiten im Druck). alt="": Schmuck.
 // Formen (styles/logos.css): `rahmen` neben einem umrandeten Kopf (Listen), `leiste` in der Titelleiste
 // der WKR-Bögen, `streifen` als eigene Zeile über dem Laufzettel.
+// Auf den WKR-Bögen (`leiste`) höchstens LOGO_HOEHE_BOGEN_MAX_MM (Entscheidung des Nutzers vom 16.11.2026).
 import { useListenLogos } from '../lib/listenLogos'
+import { LOGO_HOEHE_BOGEN_MAX_MM } from '../lib/logo'
 
-withDefaults(defineProps<{ art?: 'rahmen' | 'leiste' | 'streifen' }>(), { art: 'rahmen' })
-const logos = useListenLogos()
+const props = withDefaults(defineProps<{ art?: 'rahmen' | 'leiste' | 'streifen' }>(), { art: 'rahmen' })
+const logos = useListenLogos(props.art === 'leiste' ? LOGO_HOEHE_BOGEN_MAX_MM : undefined)
 </script>
 
 <template>

@@ -110,7 +110,7 @@ export default {
   'listopt.logo.lowRes': 'At {mm} mm height only about {dpi} dpi – may look blurred in print.',
   'listopt.logo.busy': 'Reducing image …',
   'listopt.logo.height': 'Logo height (mm)',
-  'listopt.logo.heightHint': 'Applies to both logos on all lists: {min} to {max} mm, default {vorgabe} mm. The width follows the aspect ratio (at most {breite} mm). Taller logos leave less room for rows – the lists re-paginate accordingly.',
+  'listopt.logo.heightHint': 'Applies to both logos on all lists: {min} to {max} mm, default {vorgabe} mm; on the race officials\' sheets at most {bogen} mm. The width follows the aspect ratio (at most {breite} mm). Taller logos leave less room for rows – the lists re-paginate accordingly.',
   'listopt.logo.error.typ': 'This file format is not supported – please use PNG, JPEG, WebP, GIF or SVG.',
   'listopt.logo.error.gross': 'The image is too large (at most {mb} MB and {mp} megapixels). The previous logo stays.',
   'listopt.logo.error.lesbar': 'The image could not be read. The previous logo stays.',

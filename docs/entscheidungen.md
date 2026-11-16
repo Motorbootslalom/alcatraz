@@ -269,8 +269,10 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-16 · N · Logos auf allen gedruckten Listen, auch auf WKR-Bögen und Laufzetteln: zwei frei belegbare Plätze
   „Logo links“ und „Logo rechts“, unter DM und UIM gleich, ohne Vorbelegung – ohne Logo bleibt jede Liste wie vorher.
   Der Nutzer lädt die Bilder selbst (im Browser verkleinert); das Repo enthält keine fremden Logos. In Sicherung und
-  Vorlage. Höhe einstellbar, Vorgabe 15 mm; die Größe ist nach Beispielen offen. → `components/KopfLogos.vue`,
-  `components/LogosPanel.vue`, `lib/logo.ts`
+  Vorlage. Höhe einstellbar, Vorgabe 15 mm – nach Beispielen in 10/15/20 mm bestätigt; auf den WKR-Bögen höchstens
+  12 mm („können kleiner sein“), Laufzettel wie die übrigen Listen. Fehlt der Vorlage ein Logo, bleibt das hiesige;
+  mit nur einem Logo steht der Titel nicht genau mittig (beides bestätigt). → `components/KopfLogos.vue`,
+  `components/LogosPanel.vue`, `lib/logo.ts` (LOGO_HOEHE_VORGABE_MM, LOGO_HOEHE_BOGEN_MAX_MM)
 
 ## Laufzettel und Erfassung
 
@@ -444,7 +446,5 @@ Zurzeit nichts.
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
 - Mehrgeräte-Betrieb (Anzeigetafel, Startlisten) über ntfy: noch nicht übernommen; der Server ist mit dem Nutzer
   abgestimmt (Hostname bewusst nicht im Repo).
-- Höhe der Logos: nach Beispielen in mehreren Höhen (10/15/20 mm); bis dahin 15 mm (`lib/logo.ts`
-  LOGO_HOEHE_VORGABE_MM). Ebenso, ob Bögen und Laufzettel eine eigene Grenze bekommen.
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`) und EINZEL_FESTLEGUNGEN (`lib/einzelwertung.ts`) legen aus, wo Regel 960
   schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste anpassen.

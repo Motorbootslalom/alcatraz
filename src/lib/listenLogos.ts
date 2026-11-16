@@ -26,10 +26,14 @@ export interface LogosImKopf {
  * Action ersetzt `state.value`; ein computed löst aber nur bei geändertem Wert aus (Vue 3.5) – so
  * zeichnet nicht jeder Tastendruck in der Erfassung alle Köpfe der Druckdatei neu.
  */
-export function useListenLogos(): ComputedRef<LogosImKopf | null> {
+export function useListenLogos(hoechstensMm?: number): ComputedRef<LogosImKopf | null> {
   const store = inject(storeKey, null)
   const logos = computed(() => store?.state.value.logos)
-  const hoehe = computed(() => store?.state.value.logoHoeheMm)
+  // `hoechstensMm`: WKR-Bögen deckeln die eingestellte Höhe (lib/logo.ts LOGO_HOEHE_BOGEN_MAX_MM).
+  const hoehe = computed(() => {
+    const mm = store?.state.value.logoHoeheMm
+    return mm === undefined || hoechstensMm === undefined ? mm : Math.min(mm, hoechstensMm)
+  })
   return computed(() => {
     const l = logos.value
     const hoeheMm = hoehe.value

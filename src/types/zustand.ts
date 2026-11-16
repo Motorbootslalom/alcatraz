@@ -252,8 +252,8 @@ export interface AppState extends PlanState {
    */
   logos: Logos
   /**
-   * Höhe der Logos auf allen Listen in mm: 8 bis 30, Vorgabe 15 (lib/logo.ts). Die endgültige
-   * Vorgabe ist offen, bis der Nutzer Beispiele in mehreren Höhen gesehen hat (16.11.2026).
+   * Höhe der Logos auf allen Listen in mm: 8 bis 30, Vorgabe 15 (lib/logo.ts); auf den WKR-Bögen höchstens
+   * 12 mm (LOGO_HOEHE_BOGEN_MAX_MM). Beides vom Nutzer nach Beispielen bestätigt (16.11.2026).
    */
   logoHoeheMm: number
 }
