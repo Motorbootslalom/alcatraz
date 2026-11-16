@@ -42,6 +42,67 @@ describe('Einfügen aus Excel: Klasse gegen Geburtsjahr, Sperre nach den ersten 
     wrapper.unmount()
   })
 
+  it('gehört der Jahrgang in eine andere Klasse, lässt sich der Starter je Zeile dort übernehmen – und zurück', async () => {
+    const [, bis] = birthYearRange('3', 2026)
+    const wrapper = ansicht()
+    await wrapper.find('textarea').setValue(zeilen(bis, bis + 1))
+    const knopf = wrapper.find('[data-hinweis="klassen-fehler"] [data-action="in-klasse-uebernehmen"]')
+    expect(knopf.text()).toBe('In Klasse 2 übernehmen')
+    expect(knopf.attributes('title')).toContain('statt in Klasse 3')
+    await knopf.trigger('click')
+    // Der Fehler ist weg, der Import geht; die Vorschau sagt, wer anders übernommen wird.
+    expect(wrapper.find('[data-hinweis="klassen-fehler"]').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="umgeklasst"]').text()).toContain('Eva Beispiel: Klasse 3 → Klasse 2')
+    expect(knoepfe(wrapper)).toEqual([false, false])
+    // Zurück: Die Zeile hält den Import wieder auf.
+    await wrapper.find('[data-action="umklassen-zurueck"]').trigger('click')
+    expect(wrapper.find('[data-hinweis="klassen-fehler"]').exists()).toBe(true)
+    expect(knoepfe(wrapper)).toEqual([true, true])
+    await wrapper.find('[data-action="in-klasse-uebernehmen"]').trigger('click')
+    await wrapper.find('.row button.primary').trigger('click')
+    expect(store.state.value.starters.map((s) => `${s.nachname}:${s.klasse}:${s.startNr}`)).toEqual(['Muster:3:301', 'Beispiel:2:201'])
+    wrapper.unmount()
+  })
+
+  it('passt ein Jahrgang in keine Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten – ohne Knopf', async () => {
+    const wrapper = ansicht()
+    await wrapper.find('textarea').setValue(zeilen(2013, 2024))
+    const hinweis = wrapper.find('[data-hinweis="klassen-fehler"]')
+    expect(hinweis.text()).toContain('gehört in keine Klasse des Regelwerks – es starten die Jahrgänge 1999–2020')
+    expect(hinweis.find('[data-action="in-klasse-uebernehmen"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('nicht lesbare Geburtsdaten werden genannt; Schrägstrich heißt Tag zuerst', async () => {
+    const wrapper = ansicht()
+    await wrapper.find('textarea').setValue('Klasse\tNachname\tVorname\tGeburtsdatum\n3\tMuster\tMax\t31.02.2013\n3\tBeispiel\tEva\t12/01/2013')
+    expect(wrapper.find('[data-hinweis="datum-unlesbar"]').text()).toContain('1 Geburtsdatum nicht erkannt (31.02.2013)')
+    await wrapper.find('.row button.primary').trigger('click')
+    expect(store.state.value.starters.map((s) => s.geburtsdatum)).toEqual(['', '2013-01-12'])
+    // Prüfbefund zu Paket F (16.11.2026): Die Vorschau ist danach weg – die Meldung nennt es weiter.
+    const meldung = wrapper.find('[role="status"].boat-banner')
+    expect(meldung.text()).toContain('✓ 2 Starter übernommen')
+    expect(meldung.find('[data-hinweis="datum-unlesbar"]').text()).toContain('1 Geburtsdatum nicht erkannt (31.02.2013)')
+    wrapper.unmount()
+  })
+
+  // Prüfbefund zu Paket F (16.11.2026): Nach „In Klasse X übernehmen“ hieß es „keine Startnummern
+  // erkannt“, obwohl die Nummer erkannt und nur wegen der anderen Klasse verworfen wurde.
+  it('in einer anderen Klasse übernommen: die weggefallene Nummer wird genannt, nicht „keine Startnummern erkannt“', async () => {
+    const [, bis] = birthYearRange('3', 2026)
+    const wrapper = ansicht()
+    await wrapper.find('textarea').setValue(`Klasse\tStartnummer\tNachname\tVorname\tGeburtsdatum\n3\t301\tMuster\tMax\t01.05.${bis}\n3\t302\tBeispiel\tEva\t01.05.${bis + 1}`)
+    await wrapper.find('[data-action="in-klasse-uebernehmen"]').trigger('click')
+    const erwartet = 'Startnummern unverändert übernommen, außer 1 Nummer der gelisteten Klasse (302) – in einer anderen Klasse übernommen und dort neu vergeben'
+    expect(wrapper.text()).toContain(erwartet)
+    await wrapper.find('.row button.primary').trigger('click')
+    expect(store.state.value.starters.map((s) => `${s.nachname}:${s.klasse}:${s.startNr}`)).toEqual(['Muster:3:301', 'Beispiel:2:201'])
+    const meldung = wrapper.find('[role="status"].boat-banner').text()
+    expect(meldung).toContain(erwartet)
+    expect(meldung).not.toContain('keine Startnummern erkannt')
+    wrapper.unmount()
+  })
+
   it('ohne Geburtsdatum geht der Import, mit Hinweis', async () => {
     const wrapper = ansicht()
     await wrapper.find('textarea').setValue('Klasse\tNachname\tVorname\n3\tMuster\tMax')

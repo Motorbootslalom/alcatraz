@@ -23,6 +23,9 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
   (listenSeiten füllt auf, gleicht nicht aus; `gebunden` = Zeilen einer Zelle mit rowspan), `doppelseitig.ts`. Sprache: `konfig.ts`, `listensprache.ts`, `event.ts`.
 - Betrieb: `offline.ts`, `update.ts`, `verlauf.ts` (ARTEN, beschreibe), `merken.ts`, `scan.ts`, `scanner.ts`,
   `router.ts`, `adressen.ts`, `theme.ts`, `build.ts`, `clipboard.ts`, `bogenZoom.ts`, `beispielwerte.ts` (saat → Werte),
+  `reihenfolge.ts` (Starter je Klasse nach Spalte, stabil, fehlende hinten; mische(saat); Reducer und Oberfläche),
+  `saat.ts` (neueSaat – nur Oberfläche, Math.random), `datum.ts` (liesDatum: JJJJ-MM-TT, TT.MM.JJJJ, TT/MM/JJJJ –
+  Schrägstrich immer Tag zuerst; excelSeriennummer),
   `beispieldaten.ts` (saat → Beispiel-Besetzung der WKR-Einteilung, Beispielgewichte).
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
 
@@ -54,7 +57,7 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
 
 ## Fallen
 
-- Reducer ruft Teile von lib (eingaben, listenStand, abmeldung, parallelStage, beispielwerte, beispieldaten): dort kein
+- Reducer ruft Teile von lib (eingaben, listenStand, abmeldung, parallelStage, beispielwerte, beispieldaten, reihenfolge): dort kein
   Date.now()/Math.random(). Zeit = action.zeit, Zufall = zufallAus(saat).
 - Eingaben: `eingaben[laufSchluessel][starterId][feld]` – Zeile ist die Starter-ID, nicht die Startnummer.
   Disq/Bemerkung/erfasst gehören zur Liste (`disq@steg`, `erfasst@<typeId>`); Knoten unter Lauf 0 (OHNE_LAUF).
@@ -70,6 +73,8 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
   späteren Versuchs, fragt ErfassungTabelle.vue erst (erfassung.ts ueberschreibtX).
 - merken.ts mit ueberNeuladen: neue Werte brauchen einen Guard für alte gemerkte Auswahl (SPAETERE_TEILE).
 - Listen-Texte über ergebnisTexte(sprache)/useListenSprache. Rundennamen doppelt: rundenName und bogenTexte().runde.
+- adressen.ts: drittes Segment `wahl` (Wert aus den Daten, kodiert, nicht übersetzt; `*` = alle) nur unter einem
+  Reiter; useReiter gibt es an `beiWahl` und schreibt danach die Adresse ohne Wahl.
 - Offline: Cache-Namen, Merk-Cache und Nachrichten von scripts/offline-sw.js teilen alte und neue Fassung –
   ihre Bedeutung nie ändern. Fassung wechselt nur per „Update“ oder bei leerem Stand.
 

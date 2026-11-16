@@ -1,6 +1,10 @@
 /**
  * Die Wörter der Adresse (`#/listen/wkr`, `#/lists/race-officials`) je Sprache – an EINER Stelle.
  *
+ * Aufbau: `#/ansicht/reiter/wahl?ziel`. `wahl` ist eine Auswahl innerhalb des Reiters, die ein
+ * Querverweis mitgibt – ein Wert aus den Daten (z. B. ein Verein), deshalb nicht übersetzt,
+ * sondern nur kodiert; `*` heißt „alle“ (Verwiegung → Listen → Gewichtslisten).
+ *
  * Die internen Namen im Code bleiben deutsch (`ViewName`, die Listenarten, die Sprungziele).
  * Geschrieben wird die Adresse in der Sprache der Oberfläche, gelesen wird jede Sprache: Ein
  * weitergegebener deutscher Verweis geht auch bei englischer Oberfläche auf.
@@ -262,6 +266,8 @@ export interface Ort {
   ziel: string
   /** Nur bei einem alten Verweis ({@link ALTE_ADRESSEN}): die Auswahl innerhalb des Reiters, die er meinte. */
   art?: string
+  /** Drittes Segment: eine Auswahl innerhalb des Reiters, wie ein Querverweis sie mitgibt (nicht übersetzt). */
+  wahl?: string
 }
 
 function entschluesselt(text: string): string {
@@ -275,7 +281,7 @@ function entschluesselt(text: string): string {
 /** Liest `#/ansicht/reiter?ziel` – in jeder Sprache des Adressbuchs. */
 export function liesAdresse(buch: Adressbuch, hash: string, alte: AlteAdressen = ALTE_ADRESSEN): Ort {
   const [pfad, frage = ''] = hash.replace(/^#\/?/, '').split('?')
-  const [a = '', r = ''] = pfad.split('/').map(entschluesselt)
+  const [a = '', r = '', w = ''] = pfad.split('/').map(entschluesselt)
   const view = (buch.ansichten.lies[klein(a)] ?? alte.ansichten?.[klein(a)]) as ViewName | undefined
   const raum = view ? buch.reiter[view] : undefined
   // Ein heutiges Wort gewinnt; erst danach gelten die früheren.
@@ -288,13 +294,23 @@ export function liesAdresse(buch: Adressbuch, hash: string, alte: AlteAdressen =
     reiter: r === '' ? '' : (raum?.lies[klein(r)] ?? frueher?.reiter ?? r),
     ziel,
     ...(frueher?.art ? { art: frueher.art } : {}),
+    // Eine Auswahl gibt es nur unter einem Reiter.
+    ...(w !== '' && r !== '' ? { wahl: w } : {}),
   }
 }
 
 /** Schreibt die Adresse in einer Sprache; eine unbekannte Sprache schreibt wie der Fallback. */
-export function schreibeAdresse(buch: Adressbuch, sprache: string, view: ViewName, teile: { reiter?: string; ziel?: string } = {}, fallback: string = ADRESS_FALLBACK): string {
+export function schreibeAdresse(
+  buch: Adressbuch,
+  sprache: string,
+  view: ViewName,
+  teile: { reiter?: string; ziel?: string; wahl?: string } = {},
+  fallback: string = ADRESS_FALLBACK,
+): string {
   const wort = (raum: Wortraum | undefined, ziel: string) => raum?.schreibe[sprache]?.[ziel] ?? raum?.schreibe[fallback]?.[ziel] ?? ziel
   const reiter = teile.reiter ? `/${wort(buch.reiter[view], teile.reiter)}` : ''
+  // Ein Wert aus den Daten: kodiert, damit „/“, „?“ oder „#“ in einem Vereinsnamen die Adresse nicht zerlegen.
+  const wahl = teile.reiter && teile.wahl ? `/${encodeURIComponent(teile.wahl)}` : ''
   const ziel = teile.ziel ? `?${wort(buch.ziele, teile.ziel)}` : ''
-  return `#/${wort(buch.ansichten, view)}${reiter}${ziel}`
+  return `#/${wort(buch.ansichten, view)}${reiter}${wahl}${ziel}`
 }

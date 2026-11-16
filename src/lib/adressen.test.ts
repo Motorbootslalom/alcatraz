@@ -134,6 +134,18 @@ describe('Tabellen der Sprachen', () => {
     expect(liesAdresse(buch, '#/listen/pokal').reiter).toBe('pokal')
   })
 
+  it('eine Auswahl innerhalb des Reiters (drittes Segment): nicht übersetzt, kodiert, in jeder Sprache gelesen', () => {
+    expect(schreibeAdresse(buch, 'de', 'listen', { reiter: 'gewicht', wahl: 'Musterclub Nord' })).toBe('#/listen/gewicht/Musterclub%20Nord')
+    expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'gewicht', wahl: 'Musterclub Nord' })).toBe('#/lists/weights/Musterclub%20Nord')
+    expect(schreibeAdresse(buch, 'de', 'listen', { reiter: 'gewicht', wahl: '*' })).toBe('#/listen/gewicht/*')
+    // „/“, „?“ und „#“ im Namen zerlegen die Adresse nicht.
+    const schwierig = 'SC Nord/Süd ?#1'
+    expect(liesAdresse(buch, schreibeAdresse(buch, 'de', 'listen', { reiter: 'gewicht', wahl: schwierig }))).toEqual({ view: 'listen', reiter: 'gewicht', ziel: '', wahl: schwierig })
+    expect(liesAdresse(buch, '#/lists/weights/Musterclub%20Nord')).toEqual({ view: 'listen', reiter: 'gewicht', ziel: '', wahl: 'Musterclub Nord' })
+    // Ohne Reiter gibt es keine Auswahl.
+    expect(schreibeAdresse(buch, 'de', 'listen', { wahl: 'Musterclub' })).toBe('#/listen')
+  })
+
   it('die Mannschaftswertung steht mit dem Wort der Regelbücher in der Adresse; die früheren Wörter werden weiter gelesen', () => {
     expect(schreibeAdresse(buch, 'de', 'listen', { reiter: 'pokal' })).toBe('#/listen/mannschaftswertung')
     expect(schreibeAdresse(buch, 'en', 'listen', { reiter: 'pokal' })).toBe('#/lists/team-competition')

@@ -23,6 +23,7 @@ import DruckdateiListen from '../components/DruckdateiListen.vue'
 import AusgleichListen from '../components/AusgleichListen.vue'
 import TeamListen from '../components/TeamListen.vue'
 import { teamListen } from '../lib/teamListe'
+import { mannschaftSchluessel } from '../lib/pokal'
 import { ausgleichListen } from '../lib/ausgleich'
 import { useEvent } from '../lib/event'
 import type { ClassId, ParallelRunde } from '../types'
@@ -51,12 +52,6 @@ const { state } = useStore()
 const kind = merke<Kind>('listen.art', 'starter', { gueltig: (x) => (KINDS as readonly unknown[]).includes(x) })
 // Was im Reiter „Starterlisten“ gewählt ist, bleibt über Ansichtswechsel und Neuladen stehen.
 const starterWahl = merke<StarterWahl>('listen.starter', () => ({ ...STARTER_WAHL }), { ueberNeuladen: true, gueltig: istStarterWahl })
-// Die Listenart steht auch in der Adresse: Nach einem Neuladen ist man wieder bei derselben Liste.
-// Die Adressen der früheren Reiter (`#/listen/verzahnt`, `#/listen/nach-klasse`) führen hierher
-// und wählen die passende Art.
-useReiter('listen', kind, KINDS, (art) => {
-  if (istStarterArt(art)) starterWahl.value.art = art
-})
 const id = useId()
 const { classes, classLabel, parallel } = useEvent()
 
@@ -80,10 +75,33 @@ function setzeDoppelseitig(e: Event) {
 // lib/teamListe.ts). Eine interne Liste; sie steht nie in der Druckdatei.
 const GEWICHT_ARTEN = ['herkunft', 'steg', 'team'] as const
 type GewichtArt = (typeof GEWICHT_ARTEN)[number]
-const gewichtWahl = merke<{ art: GewichtArt; klasse: string; team?: string }>('listen.gewicht', () => ({ art: 'herkunft', klasse: ALLE }), {
+// `herkunft`: für welche Herkunft die Listen zum Eintragen gedruckt werden (Schlüssel wie in
+// lib/starterlisten.ts `herkuenfte`) – auch per Querverweis aus der Verwiegung gewählt.
+const gewichtWahl = merke<{ art: GewichtArt; klasse: string; team?: string; herkunft?: string }>('listen.gewicht', () => ({ art: 'herkunft', klasse: ALLE }), {
   ueberNeuladen: true,
   gueltig: (x) => !!x && typeof x === 'object' && (GEWICHT_ARTEN as readonly unknown[]).includes((x as { art?: unknown }).art) && typeof (x as { klasse?: unknown }).klasse === 'string',
 })
+// Die Listenart steht auch in der Adresse: Nach einem Neuladen ist man wieder bei derselben Liste.
+// Die Adressen der früheren Reiter (`#/listen/verzahnt`, `#/listen/nach-klasse`) führen hierher
+// und wählen die passende Art.
+// Der Querverweis „Gewichtslisten drucken“ der Verwiegung (Entscheidung des Nutzers vom
+// 15.11.2026) gibt die dort gewählte Herkunft mit (`#/listen/gewicht/Musterclub`, `*` = alle):
+// Sie gilt für die Listen zum Eintragen, gefunden über denselben Schlüssel wie die Gruppen der
+// Verwiegung (Schreibweisen zusammengefasst).
+useReiter(
+  'listen',
+  kind,
+  KINDS,
+  (art) => {
+    if (istStarterArt(art)) starterWahl.value.art = art
+  },
+  (reiter, wahl) => {
+    if (reiter !== 'gewicht') return
+    const name = wahl.replace(/\s+/g, ' ').trim()
+    const herkunft = name === ALLE || name === '' ? ALLE : mannschaftSchluessel(name, state.value.originMode)
+    gewichtWahl.value = { ...gewichtWahl.value, art: 'herkunft', herkunft }
+  },
+)
 /** Die Arten, die es für die Veranstaltung gibt: die Liste je Team nur unter Regel 960 und mit einer Herkunft. */
 const gewichtArten = computed(() => GEWICHT_ARTEN.filter((a) => a !== 'team' || (parallel.value && state.value.originMode !== 'none')))
 const gewichtArt = computed<GewichtArt>(() => (gewichtArten.value.includes(gewichtWahl.value.art) ? gewichtWahl.value.art : 'herkunft'))
@@ -151,6 +169,8 @@ const weightList = computed(() => kind.value === 'gewicht' && !stegList.value &&
 /** Das gewählte Team – eines, das es nicht mehr gibt, zählt wie „alle“. */
 const teamWahl = computed(() => (alleHerkuenfte.value.some((h) => h.schluessel === gewichtWahl.value.team) ? gewichtWahl.value.team! : ALLE))
 const teamListenAlle = computed(() => (teamList.value ? teamListen(state.value, teamWahl.value) : []))
+/** Gewichtslisten zum Eintragen: die gewählte Herkunft – eine, die es nicht (mehr) gibt, zählt wie „alle“. */
+const gewichtHerkunft = computed(() => (alleHerkuenfte.value.some((h) => h.schluessel === gewichtWahl.value.herkunft) ? gewichtWahl.value.herkunft! : ALLE))
 const teamUngewogen = computed(() => teamListenAlle.value.reduce((n, l) => n + l.ungewogen, 0))
 const teamOhneGeschlecht = computed(() => teamListenAlle.value.reduce((n, l) => n + l.zeilen.filter((z) => z.starter.geschlecht === undefined).length, 0))
 // Der Aushang der Codes hängt nur am Regelwerk – er lässt sich drucken, bevor es Starter gibt.
@@ -175,6 +195,15 @@ const disziplinen = computed(() => DISZIPLINEN.filter((d) => d !== 'einzel' || k
 const disziplin = computed<Disziplin>(() => (disziplinen.value.includes(disziplinWahl.value) ? disziplinWahl.value : 'manoever'))
 const imParallel = computed(() => mitDisziplin.value && disziplin.value === 'parallel')
 const imEinzel = computed(() => mitDisziplin.value && disziplin.value === 'einzel')
+
+// Die Bögen der Wettkampfrichter (Manövrieren) und ihre Laufzettel lassen sich erst drucken,
+// wenn die Verzahnung festgeschrieben ist (Entscheidung des Nutzers vom 15.11.2026): Sie legt
+// Startnummern und Startreihenfolge auf den Bögen fest. Ansehen geht vorher schon; gedruckt wird
+// weder über den Knopf noch über Strg+P (`druck-gesperrt` in WkrListen/LaufzettelListen). Die
+// Listen des Parallelslaloms hängen an ihren festgeschriebenen Runden und bleiben, wie sie sind.
+// Andere Wege zu diesen Bögen gibt es nicht: Die Druckdatei enthält keine (lib/druckdatei.ts),
+// die Beispielansicht wird nie gedruckt (components/WkrVorschau.vue).
+const vorVerzahnung = computed(() => (kind.value === 'wkr' || kind.value === 'laufzettel') && !imParallel.value && !state.value.verzahnungLocked)
 
 // Wettkampfrichter-Listen zeichnet eine eigene Ansicht (components/WkrListen.vue); sie
 // meldet, wie viele Bögen die Auswahl zeigt und wie die Auswahl heißt.
@@ -220,7 +249,7 @@ const sections = computed<StarterDokument[]>(() => {
   if ((k !== 'starter' && k !== 'vorsteg' && k !== 'gewicht') || stegList.value || teamList.value) return []
   return starterDokumente(
     state.value,
-    { liste: k, art: starterArt.value, markierung: markierung.value, herkunft: herkunftsWahl.value },
+    { liste: k, art: starterArt.value, markierung: markierung.value, herkunft: k === 'gewicht' ? gewichtHerkunft.value : herkunftsWahl.value },
     { starter: lt('lists.title.starter'), vorsteg: lt('lists.title.vorsteg'), gewicht: lt('lists.title.gewicht'), klasse: lt('lists.title.klasse') },
   )
 })
@@ -234,6 +263,9 @@ const starterAuswahl = computed(() => {
   if (starterArt.value === 'herkunft') return [t('lists.starter.art.herkunft', { origin: herkunftTitel }), name(herkunftsWahl.value)].filter(Boolean).join(' ')
   return [t('lists.starter.art.verzahnt'), markierung.value === '' ? '' : name(markierung.value) || `${herkunftTitel}: ${t('lists.wkr.all')}`].filter(Boolean).join(', ')
 })
+
+/** Gewichtslisten zum Eintragen: die gewählte Herkunft in Worten – für Fenstertitel und Dateiname. */
+const gewichtAuswahl = computed(() => (gewichtHerkunft.value === ALLE ? '' : (alleHerkuenfte.value.find((h) => h.schluessel === gewichtHerkunft.value)?.name ?? '')))
 
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 
@@ -253,7 +285,7 @@ const dokumente = computed(() => sections.value.length)
  */
 function print() {
   const before = document.title
-  const auswahl = ownView.value ? ownStand.value.auswahl : kind.value === 'starter' ? starterAuswahl.value : ''
+  const auswahl = ownView.value ? ownStand.value.auswahl : kind.value === 'starter' ? starterAuswahl.value : weightList.value ? gewichtAuswahl.value : ''
   // Die Druckdatei geht an alle Gruppen: Dort steht die Veranstaltung vorn – so heißt die Datei im Posteingang.
   const teile = bookletList.value ? [heading.value, t('lists.kind.druckdatei'), auswahl] : [t(`lists.kind.${kind.value}`), auswahl, heading.value]
   document.title = [...teile, fileStamp(new Date())].filter(Boolean).join(' - ')
@@ -277,7 +309,7 @@ function print() {
         <input type="checkbox" data-feld="doppelseitig" :checked="doppelseitig" @change="setzeDoppelseitig" />
         {{ t('lists.duplex') }}
       </label>
-      <button class="btn primary" :disabled="nothingToPrint || blocked" @click="print">{{ t('common.print') }}</button>
+      <button class="btn primary" :disabled="nothingToPrint || blocked || vorVerzahnung" @click="print">{{ t('common.print') }}</button>
     </div>
   </div>
 
@@ -364,6 +396,13 @@ function print() {
           <option v-for="c in stegKlassen" :key="c.id" :value="c.id">{{ classLabel(c.id) }}</option>
         </select>
       </div>
+      <div v-if="weightList && !ohneHerkunftsArt && alleHerkuenfte.length > 0" class="field">
+        <label :for="`${id}-gewicht-herkunft`">{{ t(originLabelKey(state.originMode)) }}</label>
+        <select :id="`${id}-gewicht-herkunft`" class="input" data-feld="gewicht-herkunft" :value="gewichtHerkunft" @change="gewichtWahl.herkunft = ($event.target as HTMLSelectElement).value">
+          <option :value="ALLE">{{ t('lists.wkr.all') }}</option>
+          <option v-for="h in alleHerkuenfte" :key="h.schluessel" :value="h.schluessel">{{ h.name }}</option>
+        </select>
+      </div>
       <div v-if="teamList" class="field">
         <label :for="`${id}-team`">{{ t(originLabelKey(state.originMode)) }}</label>
         <select :id="`${id}-team`" class="input" data-feld="team-wahl" :value="teamWahl" @change="gewichtWahl.team = ($event.target as HTMLSelectElement).value">
@@ -412,6 +451,11 @@ function print() {
     <template v-if="duplicate > 0">{{ tn('lists.duplicateNumbers', duplicate) }} </template>
     {{ t('lists.fixNumbers') }}
   </p>
+  <!-- Ohne no-print: Wer trotzdem Strg+P drückt, bekommt statt der Bögen diesen Hinweis aufs Papier. -->
+  <p v-if="vorVerzahnung && !blocked && state.starters.length > 0" class="boat-banner warn" role="status" data-hinweis="vor-verzahnung" style="margin-bottom: 16px">
+    {{ t('lists.wkr.needLock') }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a
+    >.
+  </p>
 
   <CodesAushang v-if="codeList" />
 
@@ -423,10 +467,10 @@ function print() {
   <div v-else-if="!ownView && sections.length === 0" class="panel empty no-print" data-hinweis="keine-liste">{{ t('lists.noList') }}</div>
 
   <ParallelWkrListen v-else-if="wkrList && imParallel" :gesperrt="blocked" @stand="wkrStand = $event" />
-  <WkrListen v-else-if="wkrList" :gesperrt="blocked" @stand="wkrStand = $event" />
+  <WkrListen v-else-if="wkrList" :gesperrt="blocked" :druck-gesperrt="vorVerzahnung" @stand="wkrStand = $event" />
 
   <ParallelLaufzettel v-else-if="runSheets && imParallel" :gesperrt="blocked" @stand="runSheetStand = $event" />
-  <LaufzettelListen v-else-if="runSheets" :gesperrt="blocked" @stand="runSheetStand = $event" />
+  <LaufzettelListen v-else-if="runSheets" :gesperrt="blocked" :druck-gesperrt="vorVerzahnung" @stand="runSheetStand = $event" />
 
   <ParallelErgebnisListen v-else-if="resultList && imParallel" @stand="resultStand = $event" />
   <EinzelwertungListen v-else-if="resultList && imEinzel" @stand="resultStand = $event" />

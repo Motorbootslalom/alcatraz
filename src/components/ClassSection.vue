@@ -16,8 +16,14 @@ import { zerlegeLauf } from '../lib/eingaben'
 import { formatDate, locale, t, tn } from '../i18n'
 import ManualAddForm from './ManualAddForm.vue'
 import AppDialog from './AppDialog.vue'
+import DatumFeld from './DatumFeld.vue'
+import { geburtsjahr, jahrgaengeText, klassenFuerJahr, startendeJahrgaenge } from '../import/klassenPruefung'
+import { klasseFest } from '../state/reducer'
+import { adresse } from '../lib/router'
 import type { ClassId, Starter } from '../types'
 import { GESCHLECHTER, geschlechtKuerzel, istGeschlecht } from '../domain/geschlecht'
+import { istGeordnet, sortierSpalten, spaltenText, type SortierSpalte, type Sortierung } from '../lib/reihenfolge'
+import { neueSaat } from '../lib/saat'
 
 const props = defineProps<{
   classId: ClassId
@@ -29,12 +35,18 @@ const props = defineProps<{
   sortTick: number
   /** Spalte „zählt für die Pokalauswertung“ zeigen (Einstellungen: nur ausgewählte Starter zählen). */
   pokalAuswahl?: boolean
+  /** Zuletzt oben für alle Klassen gewählte Sortierung – der Spaltenkopf zeigt sie auch hier. */
+  sortierung?: Sortierung | null
 }>()
 
-const emit = defineEmits<{ toggle: [] }>()
+const emit = defineEmits<{
+  toggle: []
+  /** Ein Starter ist in eine andere Klasse gekommen (angelegt oder verschoben) – die soll aufgehen. */
+  oeffne: [klasse: ClassId]
+}>()
 
 const { state, dispatch } = useStore()
-const { classLabel, classBadge, parallel } = useEvent()
+const { classLabel, classBadge, parallel, regelwerk } = useEvent()
 const def = computed(() => getClass(props.classId))
 const flagge = (p: Starter) => flaggeAllein(originOf(p, state.value.originMode), state.value.originMode)
 const showAdd = ref(false)
@@ -79,7 +91,7 @@ function sortNow() {
 
 watch(() => props.sortTick, sortNow)
 
-// Verschieben und „Nach Größe“ ordnen ausdrücklich um – danach gilt die neue Reihenfolge.
+// Verschieben und Sortieren ordnen ausdrücklich um – danach gilt die neue Reihenfolge.
 const resort = ref(false)
 watch(
   () => props.starters,
@@ -90,9 +102,57 @@ watch(
 )
 
 function reorder(action: Parameters<typeof dispatch>[0]) {
+  const vorher = state.value
   resort.value = true
   dispatch(action)
+  // Stand schon so (oder gesperrt): Es kommt keine neue Liste – sonst ordnete die nächste
+  // Änderung von Hand die Tabelle unerwartet um.
+  if (state.value === vorher) resort.value = false
 }
+
+/**
+ * „Sortierung ändern“ (Entscheidung des Nutzers vom 15.11.2026): Die Spaltenköpfe werden zu
+ * Knöpfen. Ein Klick sortiert nach der Spalte aufsteigend, ein zweiter auf dieselbe dreht die
+ * Richtung um; bei Gleichstand bleibt die bisherige Reihenfolge (lib/reihenfolge.ts). „Zufall“
+ * mischt jedes Mal neu. Nur solange die Verzahnung offen ist – danach sperrt auch der Reducer.
+ */
+const sortieren = ref(false)
+const verzahnungFest = computed(() => state.value.verzahnungLocked)
+const kopfKlickbar = computed(() => sortieren.value && !verzahnungFest.value)
+const spalten = computed(() => sortierSpalten(state.value.originMode, mitGeschlecht.value))
+const BREITE: Partial<Record<SortierSpalte, string>> = { groesse: '64px', geschlecht: '64px', geburtsdatum: '130px' }
+/** Die zuletzt gewählte Sortierung – hier oder oben für alle Klassen. */
+const letzte = ref<Sortierung | null>(null)
+watch(
+  () => props.sortierung,
+  (s) => (letzte.value = s ?? null),
+)
+/** Die Richtung am Kopf gilt nur, solange die Klasse noch so steht (nicht nach Verschieben oder Nummern von Hand). */
+const aktiv = computed(() => (letzte.value && istGeordnet(props.starters, letzte.value, state.value.originMode) ? letzte.value : null))
+
+function schalteSortieren() {
+  sortieren.value = !sortieren.value
+  if (sortieren.value && !props.open) emit('toggle')
+}
+
+function sortiere(spalte: SortierSpalte) {
+  const absteigend = aktiv.value?.spalte === spalte ? !aktiv.value.absteigend : false
+  letzte.value = { spalte, absteigend }
+  reorder({ type: 'ORDER_STARTERS', klassen: [props.classId], nach: spalte, absteigend })
+}
+
+function mischen() {
+  letzte.value = null
+  reorder({ type: 'SHUFFLE_STARTERS', klassen: [props.classId], saat: neueSaat() })
+}
+
+const pfeil = (spalte: SortierSpalte) => (aktiv.value?.spalte === spalte ? (aktiv.value.absteigend ? '▼' : '▲') : '↕')
+function kopfTitel(spalte: SortierSpalte) {
+  if (unsorted.value) return t('starters.order.unsorted')
+  const column = t(spaltenText(spalte, state.value.originMode))
+  return aktiv.value?.spalte === spalte ? t('starters.order.byActive', { column, direction: t(aktiv.value.absteigend ? 'starters.order.desc' : 'starters.order.asc') }) : t('starters.order.by', { column })
+}
+const ariaSort = (spalte: SortierSpalte) => (kopfKlickbar.value && aktiv.value?.spalte === spalte ? (aktiv.value.absteigend ? 'descending' : 'ascending') : undefined)
 
 const hasDuplicates = computed(() => props.starters.some((p) => props.duplicates.has(p.id)))
 
@@ -103,27 +163,89 @@ function toggleEdit() {
   if (edit.value && !props.open) emit('toggle')
 }
 
-/** Ein abgewiesenes Geburtsdatum (Jahrgang passt nicht zur Klasse) – bis zur nächsten Änderung. */
+/** Ein abgewiesenes Geburtsdatum (Jahrgang passt nicht zur Klasse, kein gültiges Datum) – bis zur nächsten Änderung. */
 const jahrFehler = ref('')
+/** Der Vorschlag dazu: in die Klasse, in die der Jahrgang gehört – mit dem abgewiesenen Datum. */
+const verschieben = ref<{ starter: Starter; klasse: ClassId; geburtsdatum: string } | null>(null)
+/** Was zuletzt in eine andere Klasse ging (angelegt oder verschoben) – hier steht es nicht mehr. */
+const woanders = ref('')
+
+const nameVon = (p: Starter) => [p.vorname, p.nachname].filter(Boolean).join(' ') || p.startNr
+
+function meldungenWeg() {
+  jahrFehler.value = ''
+  verschieben.value = null
+  woanders.value = ''
+}
 
 // Die Klasse steht hier nicht zur Wahl: Ein Starter gehört in die Klasse seines Jahrgangs. Der
 // Reducer lehnt einen Klassenwechsel außerdem ab, sobald Verzahnung bzw. Startplan
 // festgeschrieben sind (state/reducer.ts `klasseFest`).
-function update(id: string, field: keyof Omit<Starter, 'id' | 'klasse'>, e: Event) {
-  const feld = e.target as HTMLInputElement
-  jahrFehler.value = ''
-  // Ein Geburtsjahr, das nicht in die Klasse gehört, wird abgewiesen – wie beim Einfügen aus
-  // Excel und beim Hinzufügen von Hand: Das Feld zeigt wieder, was galt.
-  if (field === 'geburtsdatum' && feld.value) {
-    const jahr = parseInt(feld.value.slice(0, 4), 10)
-    const [from, to] = birthYearRange(props.classId, state.value.eventJahr)
-    if (Number.isNaN(jahr) || jahr < from || jahr > to) {
-      jahrFehler.value = t('starters.birthOutOfRange', { year: Number.isNaN(jahr) ? feld.value : jahr, class: classLabel(props.classId), from, to })
-      feld.value = props.starters.find((p) => p.id === id)?.geburtsdatum ?? ''
-      return
-    }
+function update(id: string, field: keyof Omit<Starter, 'id' | 'klasse' | 'geburtsdatum'>, e: Event) {
+  meldungenWeg()
+  dispatch({ type: 'UPDATE_STARTER', id, patch: { [field]: (e.target as HTMLInputElement).value } })
+}
+
+/**
+ * Ein Geburtsjahr, das nicht in die Klasse gehört, wird abgewiesen – wie beim Einfügen aus
+ * Excel und beim Hinzufügen von Hand: Das Feld zeigt wieder, was galt (components/DatumFeld.vue).
+ * Gehört der Jahrgang in eine andere Klasse des Regelwerks, schlägt die Meldung vor, den Starter
+ * dorthin zu verschieben – nur, solange die Klasse nicht feststeht (Entscheidung des Nutzers vom
+ * 15.11.2026). Passt er in keine, nennt sie die Jahrgänge, die überhaupt starten.
+ */
+function setzeDatum(p: Starter, iso: string) {
+  meldungenWeg()
+  const jahr = geburtsjahr(iso)
+  const [from, to] = birthYearRange(props.classId, state.value.eventJahr)
+  if (jahr !== null && (jahr < from || jahr > to)) {
+    const ziel = klassenFuerJahr(jahr, state.value.eventJahr, regelwerk.value.klassen).find((k) => k !== props.classId)
+    // Mit Namen: Die Zeile zeigt schon wieder das alte Datum – wen die Meldung meint, sagt sie selbst.
+    const grund = t('starters.birthOutOfRangeFor', { name: nameVon(p), year: jahr, class: classLabel(props.classId), from, to })
+    jahrFehler.value = ziel ? grund : `${grund} ${t('starters.birthNoClass', { years: jahrgaengeText(startendeJahrgaenge(state.value.eventJahr, regelwerk.value.klassen)) })}`
+    if (ziel) verschieben.value = { starter: p, klasse: ziel, geburtsdatum: iso }
+    return
   }
-  dispatch({ type: 'UPDATE_STARTER', id, patch: { [field]: feld.value } })
+  dispatch({ type: 'UPDATE_STARTER', id: p.id, patch: { geburtsdatum: iso } })
+}
+
+/** Ungültiges Datum im Feld (31.02., unbekanntes Muster): Die Meldung steht über der Tabelle, mit dem Namen. */
+function datumFehler(p: Starter, text: string) {
+  if (!text) return
+  meldungenWeg()
+  jahrFehler.value = t('starters.dateNotTaken', { name: nameVon(p), reason: text })
+}
+
+/** Verschieben geht nicht, sobald die Klasse feststeht oder Ergebnisse erfasst sind – dann sagt die Meldung, warum. */
+const verschiebenGesperrt = computed(() => (klasseFest(state.value) ? t('starters.classFixed') : starterfeldFest(state.value) ? t('starters.moveLockedResults') : ''))
+const verschiebenTitel = computed(() => {
+  const v = verschieben.value
+  if (!v) return ''
+  const [from, to] = birthYearRange(v.klasse, state.value.eventJahr)
+  const text = t('starters.moveToClassTitle', { name: nameVon(v.starter), class: classLabel(v.klasse), from, to })
+  return state.value.startNrMode === 'klasse' ? `${text} ${t('starters.moveToClassNumber')}` : text
+})
+
+function verschiebe() {
+  const v = verschieben.value
+  if (!v || verschiebenGesperrt.value) return
+  const vorher = state.value
+  dispatch({ type: 'MOVE_STARTER_TO_CLASS', id: v.starter.id, klasse: v.klasse, geburtsdatum: v.geburtsdatum })
+  if (state.value === vorher) return
+  const neu = state.value.starters.find((p) => p.id === v.starter.id)
+  meldungenWeg()
+  woanders.value = neu?.startNr
+    ? t('starters.movedToNr', { name: nameVon(v.starter), class: classLabel(v.klasse), nr: neu.startNr })
+    : t('starters.movedTo', { name: nameVon(v.starter), class: classLabel(v.klasse) })
+  emit('oeffne', v.klasse)
+}
+
+/** Von Hand hinzugefügt – auf Wunsch in der Klasse, in die der Jahrgang gehört („In Klasse X anlegen“). */
+function hinzu(p: Starter) {
+  meldungenWeg()
+  dispatch({ type: 'ADD_STARTERS', starters: [p] })
+  if (p.klasse === props.classId) return
+  woanders.value = t('starters.addedIn', { name: nameVon(p), class: classLabel(p.klasse) })
+  emit('oeffne', p.klasse)
 }
 
 // Geschlecht, freiwillig: Die Spalte steht nur da, wo sie gebraucht wird – unter einem Regelwerk
@@ -227,12 +349,24 @@ const MOVES = [
           {{ edit ? `✓ ${t('starters.editDone')}` : `✎ ${t('starters.editNumbers')}` }}
         </button>
         <button
-          class="btn sm"
-          :disabled="starters.length === 0 || unsorted"
-          :title="t('starters.bySizeTitle')"
-          @click="reorder({ type: 'ORDER_CLASS_BY_SIZE', klasse: classId })"
+          :class="['btn', 'sm', kopfKlickbar ? 'primary' : '']"
+          data-action="sortierung"
+          :disabled="starters.length < 2 || verzahnungFest"
+          :aria-pressed="kopfKlickbar"
+          :title="verzahnungFest ? t('starters.order.locked') : t('starters.order.changeTitle')"
+          @click="schalteSortieren"
         >
-          ↕ {{ t('starters.bySize') }}
+          ↕ {{ t('starters.order.change') }}
+        </button>
+        <button
+          v-if="kopfKlickbar"
+          class="btn sm"
+          data-action="zufall"
+          :disabled="unsorted"
+          :title="unsorted ? t('starters.order.unsorted') : t('starters.order.randomTitle')"
+          @click="mischen"
+        >
+          {{ t('starters.order.random') }}
         </button>
         <button
           v-if="pokalAuswahl"
@@ -250,16 +384,30 @@ const MOVES = [
       </div>
     </div>
 
-    <ManualAddForm
-      v-if="showAdd && !fest"
-      :class-id="classId"
-      :existing="starters"
-      @add="(p) => dispatch({ type: 'ADD_STARTERS', starters: [p] })"
-      @done="showAdd = false"
-    />
+    <ManualAddForm v-if="showAdd && !fest" :class-id="classId" @add="hinzu" @done="showAdd = false" />
 
     <p v-if="edit && hasDuplicates" class="boat-banner warn" role="alert">{{ t('starters.duplicateBlock') }}</p>
-    <p v-if="jahrFehler" class="boat-banner warn" role="alert" data-hinweis="jahrgang-falsch">{{ jahrFehler }}</p>
+    <div v-if="jahrFehler" class="boat-banner warn" role="alert" data-hinweis="jahrgang-falsch">
+      {{ jahrFehler }}
+      <div v-if="verschieben" class="jahrgang-vorschlag">
+        <button
+          type="button"
+          class="btn sm primary"
+          data-action="in-klasse-verschieben"
+          :data-klasse="verschieben.klasse"
+          :disabled="!!verschiebenGesperrt"
+          :title="verschiebenGesperrt || verschiebenTitel"
+          @click="verschiebe"
+        >
+          {{ t('starters.moveToClass', { class: classLabel(verschieben.klasse) }) }}
+        </button>
+        <span v-if="verschiebenGesperrt" class="note" data-hinweis="verschieben-gesperrt">
+          {{ verschiebenGesperrt }}
+          <a v-if="klasseFest(state)" :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a>
+        </span>
+      </div>
+    </div>
+    <p v-if="woanders" class="boat-banner ok" role="status" data-hinweis="in-anderer-klasse">{{ woanders }}</p>
 
     <template v-if="open">
       <div v-if="starters.length === 0" class="empty">{{ t('starters.empty') }}</div>
@@ -286,12 +434,13 @@ const MOVES = [
             <th :style="{ width: edit ? '150px' : '64px' }">
               {{ t('common.startNr') }}
             </th>
-            <th>{{ t('common.lastName') }}</th>
-            <th>{{ t('common.firstName') }}</th>
-            <th v-if="state.originMode !== 'none'">{{ t(originLabelKey(state.originMode)) }}</th>
-            <th style="width: 64px">{{ t('common.size') }}</th>
-            <th v-if="mitGeschlecht" style="width: 64px" data-spalte="geschlecht">{{ t('starters.sex') }}</th>
-            <th style="width: 130px">{{ t('common.birthdate') }}</th>
+            <!-- Dieselben Spalten in derselben Folge wie die Zellen darunter (lib/reihenfolge.ts sortierSpalten). -->
+            <th v-for="s in spalten" :key="s" :style="BREITE[s] ? { width: BREITE[s] } : undefined" :data-spalte="s" :aria-sort="ariaSort(s)">
+              <button v-if="kopfKlickbar" type="button" class="sortier-kopf" :data-sortier="s" :disabled="unsorted" :title="kopfTitel(s)" @click="sortiere(s)">
+                {{ t(spaltenText(s, state.originMode)) }}<span :class="['sortier-pfeil', aktiv?.spalte === s ? 'aktiv' : '']" aria-hidden="true">{{ pfeil(s) }}</span>
+              </button>
+              <template v-else>{{ t(spaltenText(s, state.originMode)) }}</template>
+            </th>
             <th style="width: 40px" />
           </tr>
         </thead>
@@ -375,12 +524,13 @@ const MOVES = [
                 </select>
               </td>
               <td>
-                <input
+                <!-- Eigenes Textfeld mit festem Muster – nie die Datumswahl des Browsers (mm/dd/yyyy). -->
+                <DatumFeld
                   :class="['cell-input', p.geburtsdatum ? '' : 'missing']"
-                  type="date"
-                  :value="p.geburtsdatum"
+                  :model-value="p.geburtsdatum"
                   :aria-label="t('common.birthdate')"
-                  @change="update(p.id, 'geburtsdatum', $event)"
+                  @update:model-value="setzeDatum(p, $event)"
+                  @fehler="datumFehler(p, $event)"
                 />
               </td>
             </template>

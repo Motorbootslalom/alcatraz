@@ -9,8 +9,10 @@ Blätter und Panels stehen in src/components (CLAUDE.md dort), Logik in src/lib.
 - `EventView.vue` – Veranstaltung: Name, Jahr, Regelwerk, Aufbau, Art, Herkunft (originMode, SET_ORIGIN_MODE);
   Besetzung, Beispieldaten (components/BeispieldatenPanel.vue, zugeklappt; Test EventView.test.ts `beispielstarter`,
   `beispielbesetzung`, `beispielgewichte`; Herkunft der Beispielstarter = originMode, nie umgestellt).
-- `StartersView.vue` – Starter je Klasse, Startnummern, Excel-Austausch, Schalter „zählt für Mannschaftswertung“.
-- `WeighingView.vue` – Verwiegung: Gewichte je Herkunft in Ausdruck-Reihenfolge abtippen (SET_WEIGHT).
+- `StartersView.vue` – Starter je Klasse, Startnummern, Excel-Austausch, Schalter „zählt für Mannschaftswertung“;
+  Leiste „Alle Klassen“ (`sortierung-alle`): Sortierung ändern/Zufall für alle Klassen, Spaltenköpfe in ClassSection.vue.
+- `WeighingView.vue` – Verwiegung: Gewichte je Herkunft in Ausdruck-Reihenfolge abtippen (SET_WEIGHT); Link
+  „Gewichtslisten drucken“ → `#/listen/gewicht/<Herkunft>` (`*` = alle), ListsView übernimmt sie (gewichtHerkunft).
 - `VerzahnungView.vue` – Parcours, Klassenaufteilung, Sperre (festschreiben), Startnummernvergabe; Unterreiter
   Parallelslalom (useReiter).
 - `ParallelView.vue` – Vorlauf-Plan: Schalter streng/nach Startnummer, Heat-Tabelle (Runden: ParallelRunden.vue).
@@ -51,8 +53,13 @@ Blätter und Panels stehen in src/components (CLAUDE.md dort), Logik in src/lib.
   lib/merken.ts merke(key, vorgabe, { ueberNeuladen, gueltig }); die Listenart steht auch in der Adresse.
 - ListsView sperrt den Druck bei fehlenden/doppelten Startnummern – außer Gewichtsliste je Herkunft, Codes,
   Wertungslisten, Mannschaftswertung, Druckdatei. Dann erzeugt WkrListen auch per Strg+P keinen Bogen.
+- WKR-Bögen des Manövrierens und ihre Laufzettel zusätzlich bis zum Festschreiben der Verzahnung (`vorVerzahnung`,
+  Entscheidung 15.11.2026): Knopf gesperrt, Hinweis `vor-verzahnung` (wird mitgedruckt), Stapel `no-print` – am
+  Bildschirm zu sehen, Strg+P druckt nur den Hinweis. Parallel-Listen nicht (hängen an festgeschriebenen Runden).
+  Tests, die WKR-Bögen oder Laufzettel drucken, schreiben vorher die Verzahnung fest (SET_VERZAHNUNG_LOCK).
 - Sobald Werte erfasst sind, sind Regelwerk und Starterfeld gesperrt (components/StarterSperre.vue).
   Tests: src/testHilfen.ts wechsleRegelwerk; UIM points des Manövrierens erst mit knotenHaken.
+- ListsView: useReiter steht NACH gewichtWahl – `beiWahl` läuft schon beim Aufbau und setzt sie (sonst TDZ-Fehler).
 - Unter DM gibt es keinen Parallelslalom – auch nicht in Texten und Hinweisen (config/catalog.ts hasParallel).
 - Dateinamen und Titel von Downloads folgen der Oberflächensprache (englisch: „backup“, Datum yyyy-mm-dd).
 - Testdaten nur erfunden (Muster views/Laufzettel.test.ts: `Vor${klasse}${i}`, `Nach…`, 'Musterclub').
@@ -60,6 +67,7 @@ Blätter und Panels stehen in src/components (CLAUDE.md dort), Logik in src/lib.
 ## Tests
 
 Je Ansicht bzw. Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meist über ListsView),
-z. B. Ergebnislisten, ParallelErgebnis, Einzelwertung, Pokalauswertung, Laufzettel, Druckdatei, Seitenzahlen,
-Doppelseitig, SettingsView, Listenoptionen, ErfassungView, ErfassungScan, Dolphin, UimAushang (englische Kopfzeilen).
+z. B. Verwiegung (Link zu den Gewichtslisten), Ergebnislisten, ParallelErgebnis, Einzelwertung, Pokalauswertung,
+Laufzettel, Druckdatei, Seitenzahlen, Doppelseitig, SettingsView, Listenoptionen, ErfassungView, ErfassungScan, Dolphin,
+UimAushang (englische Kopfzeilen).
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

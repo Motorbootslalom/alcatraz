@@ -1908,8 +1908,24 @@ details.panel[open] > summary {
 }
 
 /* ---------- Verwiegung ---------- */
+/* Der Link zu den Gewichtslisten steht neben der Auswahl der Herkunft, auf Höhe des Feldes. */
+.weigh-wahl .weigh-listen {
+  display: inline-block;
+  padding: 8px 0;
+  font-weight: 600;
+}
+
 .weigh-table .right {
   text-align: right;
+}
+
+/* Vorschlag unter der Meldung „Jahrgang passt nicht“: In Klasse X anlegen bzw. verschieben. */
+.jahrgang-vorschlag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .weigh-table .ballast {
@@ -2882,6 +2898,58 @@ table.starters th.cup-spalte label {
 
 table.starters tr.cup-zaehlt-nicht td:not(.cup-spalte) {
   color: var(--muted);
+}
+
+/* ---------- Starter: Sortierung ändern (Spaltenköpfe als Knöpfe, oben für alle Klassen) ---------- */
+table.starters th .sortier-kopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-transform: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+table.starters th .sortier-kopf:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.sortier-pfeil {
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.sortier-pfeil.aktiv {
+  opacity: 1;
+}
+
+.sortier-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  font-size: 13px;
+}
+
+.sortier-leiste .note {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.sortier-leiste .segmented {
+  flex-wrap: wrap;
 }
 
 /* Die Starter-Tabelle ist breiter als ein schmales Fenster (erst recht mit der Pokal-Spalte):

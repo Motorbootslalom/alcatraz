@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import ListsView from './ListsView.vue'
 import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
+import { adresse } from '../lib/router'
 import type { ClassId, Starter } from '../types'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
@@ -61,6 +62,9 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     expect(wrapper.findAll('.wkr-listen .bogen')).toHaveLength(94)
     expect(wrapper.find('.wkr-listen-stand').text()).toBe('94 Bögen')
     expect(koepfe(wrapper)[0]).toBe('Zeit | Klasse 1 | 1. Lauf | Parcours 1')
+    // Gedruckt wird erst mit festgeschriebener Verzahnung (eigener Test unten).
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    await nextTick()
     expect(drucken(wrapper).attributes('disabled')).toBeUndefined()
     // Die alten Listen stehen nicht daneben.
     expect(wrapper.find('.sheet').exists()).toBe(false)
@@ -96,6 +100,7 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     const print = vi.fn()
     vi.stubGlobal('print', print)
     setLocale('en')
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
     const wrapper = ansicht(store)
     await wkr(wrapper)
     await waehle(wrapper, 'klasse', '7')
@@ -115,6 +120,42 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     window.dispatchEvent(new Event('afterprint'))
     wrapper.unmount()
     vi.unstubAllGlobals()
+  })
+
+  it('druckbar erst mit festgeschriebener Verzahnung: vorher Hinweis mit Link, Bögen und Laufzettel nur am Bildschirm (Entscheidung des Nutzers vom 15.11.2026)', async () => {
+    const wrapper = ansicht(store)
+    await wkr(wrapper)
+    await waehle(wrapper, 'klasse', '7')
+    await waehle(wrapper, 'lauf', '1')
+    const hinweis = wrapper.find('[data-hinweis="vor-verzahnung"]')
+    expect(hinweis.text()).toContain('Drucken erst, wenn die Verzahnung festgeschrieben ist')
+    expect(hinweis.find('a').attributes('href')).toBe(adresse('verzahnung'))
+    // Der Hinweis geht mit aufs Papier (Strg+P), die Bögen nicht – am Bildschirm stehen sie.
+    expect(hinweis.classes()).not.toContain('no-print')
+    expect(wrapper.findAll('.wkr-listen .bogen').length).toBeGreaterThan(0)
+    expect(wrapper.find('.wkr-listen').classes()).toContain('no-print')
+    expect(drucken(wrapper).attributes('disabled')).toBeDefined()
+
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="vor-verzahnung"]').exists()).toBe(false)
+    expect(wrapper.find('.wkr-listen').classes()).not.toContain('no-print')
+    expect(drucken(wrapper).attributes('disabled')).toBeUndefined()
+
+    // Die Laufzettel gehören zu den Bögen: dieselbe Sperre.
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: false })
+    await wrapper.find('.list-kinds button[data-kind="laufzettel"]').trigger('click')
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="vor-verzahnung"]').exists()).toBe(true)
+    expect(wrapper.find('.laufzettel-stapel').classes()).toContain('no-print')
+    expect(wrapper.findAll('.laufzettel-stapel > *').length).toBeGreaterThan(0)
+    expect(drucken(wrapper).attributes('disabled')).toBeDefined()
+    // Andere Listen hängen nicht daran.
+    await wrapper.find('.list-kinds button[data-kind="codes"]').trigger('click')
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="vor-verzahnung"]').exists()).toBe(false)
+    expect(drucken(wrapper).attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
   })
 
   it('Parcoursbild mit Namensnennung der Zeichnung auf dem Bogen', async () => {

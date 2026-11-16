@@ -161,8 +161,9 @@ const zeilenVon = (starter: readonly Starter[], zaehler: { n: number }): Starter
 /**
  * Die Dokumente einer Auswahl – für den Reiter der Liste (views/ListsView.vue) und für die
  * Druckdatei (components/DruckdateiListen.vue), die dieselbe verzahnte Starterliste enthält.
- * `art`, `markierung` und `herkunft` gelten nur für die Starterlisten und müssen schon geprüft
- * sein (eine Herkunft, die es nicht gibt, zählt wie „alle“ – {@link gewaehlteHerkuenfte}).
+ * `art` und `markierung` gelten nur für die Starterlisten, `herkunft` für sie und die
+ * Gewichtslisten; geprüft sein müssen sie schon (eine Herkunft, die es nicht gibt, zählt wie
+ * „alle“ – {@link gewaehlteHerkuenfte}).
  */
 export function starterDokumente(
   stand: AppState,
@@ -171,13 +172,18 @@ export function starterDokumente(
 ): StarterDokument[] {
   if (wahl.liste === 'gewicht') {
     // Je Herkunft ein eigenes Blatt für den Mannschaftsleiter; dort beginnt die Zählung der grauen Zeilen neu.
-    return gewichtsGruppen(stand.starters, stand.originMode, (name) => mannschaftSchluessel(name, stand.originMode)).map((g) => ({
-      id: `gewicht:${g.origin}`,
-      title: titel.gewicht,
-      origin: g.origin || undefined,
-      markierung: false,
-      groups: [zeilenVon(g.starters, { n: 0 })],
-    }))
+    // Eine gewählte Herkunft (Querverweis aus der Verwiegung) druckt nur ihr Blatt.
+    const schluessel = (name: string) => mannschaftSchluessel(name, stand.originMode)
+    const eine = wahl.herkunft !== undefined && wahl.herkunft !== ALLE ? wahl.herkunft : null
+    return gewichtsGruppen(stand.starters, stand.originMode, schluessel)
+      .filter((g) => eine === null || (g.origin !== '' && schluessel(g.origin) === eine))
+      .map((g) => ({
+        id: `gewicht:${g.origin}`,
+        title: titel.gewicht,
+        origin: g.origin || undefined,
+        markierung: false,
+        groups: [zeilenVon(g.starters, { n: 0 })],
+      }))
   }
   const art = wahl.liste === 'starter' ? (wahl.art ?? 'verzahnt') : 'verzahnt'
   // Die Startliste einer Runde des Parallelslaloms zeichnet eine eigene Ansicht (components/ParallelStartlisten.vue).

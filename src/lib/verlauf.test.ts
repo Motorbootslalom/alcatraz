@@ -88,6 +88,11 @@ describe('was sich geändert hat', () => {
     expect(beschreibe({ type: 'ADD_STARTERS', starters: STAND.starters, beispiel: true }, STAND)).toEqual({ art: 'beispielStarter', n: 3 })
   })
 
+  it('ein Starter in eine andere Klasse (Jahrgang) nennt die neue Klasse und steht für sich', () => {
+    const was = beschreibe({ type: 'MOVE_STARTER_TO_CLASS', id: 'a', klasse: 'E', geburtsdatum: '2019-05-05' }, STAND)
+    expect(was).toEqual({ art: 'klasseGewechselt', klasse: 'E' })
+  })
+
   it('Aufbau, Regelwerk, Zurücksetzen haben ihren Namen; Unbekanntes ist eine Einstellung; die Kennung bekommt keinen Eintrag', () => {
     expect(beschreibe({ type: 'SET_AUFBAU', aufbau: 'x' }, STAND)?.art).toBe('aufbau')
     expect(beschreibe({ type: 'SET_REGELWERK', regelwerk: 'x' }, STAND)?.art).toBe('regelwerk')

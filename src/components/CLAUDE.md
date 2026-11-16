@@ -24,7 +24,10 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
   `ParallelLaufzettel.vue` (Zettel A und B; Schritte nur auf A), `ParallelMessung.vue`.
 - Erfassung `erfassung/`: `ErfassungTabelle.vue` (dispatch SET_EINGABEN; AppDialog vor dem Löschen eines verdeckten X
   am Vorsteg, `frage`), `ZeitZelle.vue`, `ScanHinweis.vue`.
-- Starter/Verzahnung: `ClassSection.vue`, `ManualAddForm.vue`, `ExcelPanel.vue`, `StartNumberPanel.vue` (auch E/D),
+- Starter/Verzahnung: `ClassSection.vue` (Sortierköpfe + Zufall bei „Sortierung ändern“, `sortierung` von oben;
+  Jahrgang passt nicht → „In Klasse X verschieben“, emit `oeffne`), `ManualAddForm.vue` („In Klasse X anlegen“),
+  `ExcelPanel.vue` (je Zeile „In Klasse X übernehmen“), `DatumFeld.vue` (eigenes Datumsfeld, nie type="date";
+  Test DatumFeld.test.ts durchsucht alle Vorlagen), `StartNumberPanel.vue` (auch E/D),
   `StarterSperre.vue`, `ParcoursCard.vue`, `TrackContainer.vue`, `ClassChip.vue`, `PauseChip.vue`, `SlotCell.vue`,
   `FlowPreview.vue`, `SequenceTable.vue`, `BoatPanel.vue`, `HeatTable.vue`, `ParallelRunden.vue`.
 - Panels: `BeispieldatenPanel.vue` (Starter + saat entstehen hier; Herkunft wie die Veranstaltung; Knöpfe
@@ -73,6 +76,14 @@ Logik liegt in src/lib (CLAUDE.md dort), Zustand ändert sich nur per dispatch.
 - Sprache eines Bogens hängt an Parcours UND Liste: bogenKonfig(b.typeId, b.parcoursId), auch beim Messen (Laufzettel,
   ParallelMessung je Racecourse). Auswahlfelder über mehrere Parcours: useAuswahlKonfig (sonst Regelwerkssprache).
 - Bogenkopf hat kein Namensfeld mehr: Namen nur in WkrEinteilung (Entscheidung 15.11.2026).
+- ClassSection: Kopfspalten (v-for über lib/reihenfolge.ts sortierSpalten) und Zellen darunter in derselben Folge
+  halten. `reorder()` setzt `resort` zurück, wenn der Reducer nichts ändert (sonst springt die nächste Eingabe).
+- WkrListen/LaufzettelListen `druckGesperrt`: Stapel `no-print`, Bildschirm bleibt (ListsView `vorVerzahnung`).
+- DatumFeld: v-model ist JJJJ-MM-TT. Mit `sofort` (Formular) geht jedes vollständige Datum schon beim Tippen hinaus,
+  Unfertiges als ''; ohne (Tabellenzelle) erst beim Bestätigen, danach zeigt das Feld wieder den Stand – weist die
+  Ansicht ab (Jahrgang), springt es zurück. Meldungen kommen als `fehler`, die Ansicht zeigt sie.
+- ClassSection bekommt `starters` von außen: In Tests nach einem dispatch `setProps`, sonst zeigt das Datumsfeld den
+  alten Stand (es folgt der Prop, nicht dem Store).
 - ISSUE_KEYS (own.issue.*) doppelt: EigeneAufbautenPanel und AufbauAssistent. PARALLEL_RUNDE_LOESEN heißt „Löschen“.
 
 ## Tests

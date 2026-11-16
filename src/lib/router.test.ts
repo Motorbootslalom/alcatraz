@@ -151,6 +151,30 @@ describe('Reiter in der Adresse', () => {
     wrapper.unmount()
   })
 
+  it('eine Auswahl im Verweis geht an die Ansicht; danach steht nur der Reiter in der Adresse – auch nach dem Umschreiben in die Sprache der Oberfläche', () => {
+    const erhalten: [string, string][] = []
+    const wahl = ref<'gewicht' | 'wkr'>('wkr')
+    const baueMitWahl = () =>
+      mount(
+        defineComponent({
+          setup() {
+            useRoute()
+            useReiter('listen', wahl, ['gewicht', 'wkr'] as const, undefined, (reiter, w) => erhalten.push([reiter, w]))
+            return () => h('div')
+          },
+        }),
+      )
+    location.hash = '#/lists/weights/Musterclub%20Nord'
+    const a = baueMitWahl()
+    expect(wahl.value).toBe('gewicht')
+    expect(erhalten).toEqual([['gewicht', 'Musterclub Nord']])
+    expect(location.hash).toBe('#/listen/gewicht')
+    a.unmount()
+    expect(adresse('listen', { reiter: 'gewicht', wahl: '*' })).toBe('#/listen/gewicht/*')
+    setLocale('en')
+    expect(adresse('listen', { reiter: 'gewicht', wahl: 'Musterclub' })).toBe('#/lists/weights/Musterclub')
+  })
+
   it('eine leere oder unbekannte Adresse bleibt, wie sie ist', () => {
     location.hash = '#/quatsch'
     const { view, wrapper } = baue()

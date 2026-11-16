@@ -13,10 +13,12 @@ import StartNumberPanel from '../components/StartNumberPanel.vue'
 import ExcelPanel from '../components/ExcelPanel.vue'
 import ClassSection from '../components/ClassSection.vue'
 import StarterSperre from '../components/StarterSperre.vue'
+import { istGeordnet, sortierSpalten, spaltenText, type SortierSpalte, type Sortierung } from '../lib/reihenfolge'
+import { neueSaat } from '../lib/saat'
 import type { ClassId, Starter } from '../types'
 
 const { state, dispatch } = useStore()
-const { classes } = useEvent()
+const { classes, parallel } = useEvent()
 
 const byClass = computed(() => {
   const m = new Map<ClassId, Starter[]>()
@@ -39,6 +41,10 @@ const expanded = computed(() => new Set(CLASSES.map((c) => c.id).filter((id) => 
 function toggle(id: ClassId) {
   geklappt.value = { ...geklappt.value, [id]: !expanded.value.has(id) }
 }
+/** Ein Starter ist in einer anderen Klasse angelegt oder dorthin verschoben (Jahrgang): Sie geht auf. */
+function oeffne(id: ClassId) {
+  if (!expanded.value.has(id)) geklappt.value = { ...geklappt.value, [id]: true }
+}
 
 // Nach der automatischen Vergabe ordnen sich alle Klassen neu.
 const sortTick = ref(0)
@@ -60,6 +66,42 @@ const flaggenlos = computed(() => ohneFlagge(state.value.starters.map((p) => ori
 const schreibweisen = computed(() => mehrfachGeschrieben(state.value.starters.map((p) => originOf(p, state.value.originMode)), state.value.originMode))
 
 const duplicates = computed(() => duplicateStartNrIds(state.value.starters, state.value.startNrMode))
+
+// „Sortierung ändern“ für alle Klassen zugleich (Entscheidung des Nutzers vom 15.11.2026): Jede
+// Klasse wird in sich sortiert, die Reihenfolge der Klassen bleibt. Dieselben Spalten wie in den
+// Tabellen der Klassen (components/ClassSection.vue), dort zeigt der Spaltenkopf die Wahl auch.
+// Nur solange die Verzahnung offen ist; danach sperrt auch der Reducer (VERZAHNUNG_ACTIONS).
+const verzahnungFest = computed(() => state.value.verzahnungLocked)
+const sortierenAlle = ref(false)
+// Wie in ClassSection.vue: Die Spalte Geschlecht steht nur da, wo sie gebraucht wird.
+const mitGeschlecht = computed(() => parallel.value || state.value.starters.some((p) => p.geschlecht !== undefined))
+const spaltenAlle = computed(() => sortierSpalten(state.value.originMode, mitGeschlecht.value))
+const klassenMitStartern = computed(() => classes.value.map((c) => c.id).filter((k) => byClass.value.get(k)!.length > 0))
+const alleLetzte = ref<Sortierung | null>(null)
+/** Die Richtung gilt nur, solange jede Klasse noch so steht. */
+const alleAktiv = computed(() => {
+  const s = alleLetzte.value
+  return s && klassenMitStartern.value.every((k) => istGeordnet(byClass.value.get(k)!, s, state.value.originMode)) ? s : null
+})
+
+function sortiereAlle(spalte: SortierSpalte) {
+  const absteigend = alleAktiv.value?.spalte === spalte ? !alleAktiv.value.absteigend : false
+  alleLetzte.value = { spalte, absteigend }
+  dispatch({ type: 'ORDER_STARTERS', klassen: klassenMitStartern.value, nach: spalte, absteigend })
+  sortTick.value++
+}
+
+function mischeAlle() {
+  alleLetzte.value = null
+  dispatch({ type: 'SHUFFLE_STARTERS', klassen: klassenMitStartern.value, saat: neueSaat() })
+  sortTick.value++
+}
+
+const pfeilAlle = (spalte: SortierSpalte) => (alleAktiv.value?.spalte === spalte ? (alleAktiv.value.absteigend ? '▼' : '▲') : '↕')
+function titelAlle(spalte: SortierSpalte) {
+  const column = t(spaltenText(spalte, state.value.originMode))
+  return alleAktiv.value?.spalte === spalte ? t('starters.order.byActive', { column, direction: t(alleAktiv.value.absteigend ? 'starters.order.desc' : 'starters.order.asc') }) : t('starters.order.by', { column })
+}
 </script>
 
 <template>
@@ -104,6 +146,42 @@ const duplicates = computed(() => duplicateStartNrIds(state.value.starters, stat
         {{ t('cup.select.barHint') }} <a :href="adresse('einstellungen', { ziel: 'pokal' })">{{ t('nav.einstellungen') }}</a>
       </span>
     </div>
+    <div v-if="state.starters.length > 1" class="sortier-leiste" data-bereich="sortierung-alle">
+      <strong>{{ t('starters.order.all') }}</strong>
+      <button
+        type="button"
+        :class="['btn', 'sm', sortierenAlle && !verzahnungFest ? 'primary' : '']"
+        data-action="sortierung-alle"
+        :disabled="verzahnungFest"
+        :aria-pressed="sortierenAlle && !verzahnungFest"
+        :title="verzahnungFest ? t('starters.order.locked') : t('starters.order.changeTitle')"
+        @click="sortierenAlle = !sortierenAlle"
+      >
+        ↕ {{ t('starters.order.change') }}
+      </button>
+      <template v-if="sortierenAlle && !verzahnungFest">
+        <span class="segmented" role="group" :aria-label="t('starters.order.change')">
+          <button
+            v-for="s in spaltenAlle"
+            :key="s"
+            type="button"
+            :data-sortier="s"
+            :class="alleAktiv?.spalte === s ? 'active' : ''"
+            :aria-pressed="alleAktiv?.spalte === s"
+            :title="titelAlle(s)"
+            @click="sortiereAlle(s)"
+          >
+            {{ t(spaltenText(s, state.originMode)) }} <span :class="['sortier-pfeil', alleAktiv?.spalte === s ? 'aktiv' : '']" aria-hidden="true">{{ pfeilAlle(s) }}</span>
+          </button>
+        </span>
+        <button type="button" class="btn sm" data-action="zufall-alle" :title="t('starters.order.randomTitle')" @click="mischeAlle">{{ t('starters.order.random') }}</button>
+        <span class="note">{{ t('starters.order.allHint') }}</span>
+      </template>
+      <span v-if="verzahnungFest" class="note" data-hinweis="sortierung-gesperrt">
+        {{ t('starters.order.locked') }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a
+        >.
+      </span>
+    </div>
     <ClassSection
       v-for="c in classes"
       :key="c.id"
@@ -113,7 +191,9 @@ const duplicates = computed(() => duplicateStartNrIds(state.value.starters, stat
       :sort-tick="sortTick"
       :open="expanded.has(c.id)"
       :pokal-auswahl="pokalAuswahl"
+      :sortierung="alleLetzte"
       @toggle="toggle(c.id)"
+      @oeffne="oeffne"
     />
   </div>
 </template>

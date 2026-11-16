@@ -31,7 +31,7 @@ function parse(hash: string): ViewName {
  * Der Verweis auf eine Ansicht in der Sprache der Oberfläche – für `href` und `navigate`.
  * Liest `locale`: In einer Vorlage folgt der Verweis dem Sprachwechsel von selbst.
  */
-export function adresse<V extends ViewName>(view: V, teile: { reiter?: V extends ReiterView ? ReiterNamen[V] : never; ziel?: Sprungziel } = {}): string {
+export function adresse<V extends ViewName>(view: V, teile: { reiter?: V extends ReiterView ? ReiterNamen[V] : never; ziel?: Sprungziel; wahl?: string } = {}): string {
   return schreibeAdresse(BUCH, locale.value, view, teile)
 }
 
@@ -103,6 +103,12 @@ export function useReiter<V extends ReiterView, T extends ReiterNamen[V]>(
    * bekommt die Art, bevor die Adresse auf das heutige Wort umgeschrieben wird.
    */
   beiAlterArt?: (art: string) => void,
+  /**
+   * Eine Auswahl, die ein Querverweis in der Adresse mitgibt (`#/listen/gewicht/Musterclub`,
+   * lib/adressen.ts `wahl`): Die Ansicht übernimmt sie, danach steht in der Adresse wieder nur
+   * der Reiter – die Auswahl selbst merkt sich die Ansicht (lib/merken.ts).
+   */
+  beiWahl?: (reiter: T, wahl: string) => void,
 ): void {
   const hier = () => ort().view === view
   const schreibe = (ersetzen: boolean) => {
@@ -123,6 +129,7 @@ export function useReiter<V extends ReiterView, T extends ReiterNamen[V]>(
     if ((toValue(gueltig) as readonly string[]).includes(r)) {
       wahl.value = r as T
       if (art) beiAlterArt?.(art)
+      if (o.wahl !== undefined) beiWahl?.(r as T, o.wahl)
     }
     // Fehlt der Reiter, ist er unbekannt oder in einer anderen Sprache geschrieben: nachtragen
     // (ohne Schritt im Verlauf).

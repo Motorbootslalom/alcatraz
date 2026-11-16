@@ -32,8 +32,11 @@ import LaufzettelBlatt from './LaufzettelBlatt.vue'
  *
  * `gesperrt`: Startnummern fehlen oder sind doppelt (ListsView.vue zeigt den Hinweis) – wie
  * bei den Bögen entsteht dann nichts.
+ *
+ * `druckGesperrt`: Die Verzahnung ist noch nicht festgeschrieben – wie bei den Bögen stehen die
+ * Zettel am Bildschirm, gedruckt werden sie nicht, auch nicht über Strg+P.
  */
-const props = defineProps<{ gesperrt?: boolean }>()
+const props = defineProps<{ gesperrt?: boolean; druckGesperrt?: boolean }>()
 const emit = defineEmits<{
   /** Wie viele Zettel die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname). */
   stand: [stand: { anzahl: number; auswahl: string }]
@@ -200,7 +203,7 @@ const { zoom } = useBogenZoom(stapel)
   <div v-if="!gesperrt && alle.length > 0 && zettel.length === 0" class="panel empty no-print">{{ t('runsheet.none') }}</div>
 
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen. -->
-  <div ref="stapel" class="laufzettel-stapel" :style="zoom">
+  <div ref="stapel" :class="['laufzettel-stapel', druckGesperrt ? 'no-print' : '']" :data-druck-gesperrt="druckGesperrt || undefined" :style="zoom">
     <LaufzettelBlatt
       v-for="b in blaetter"
       :key="b.zettel.id"

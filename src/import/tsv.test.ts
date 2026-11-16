@@ -4,6 +4,7 @@ import {
   formatStartersTsv,
   formatStartlistTsv,
   startNrImportNote,
+  ergaenzteNummern,
 } from './tsv'
 import type { PlanState } from '../types'
 
@@ -129,6 +130,51 @@ describe('parseStartersTsv', () => {
     const text = [row('Klasse', 'Nachname'), row('Dolphin', 'A'), row('D', 'B')].join('\n')
     const res = parseStartersTsv(text)
     expect(res.starters.every((p) => p.klasse === 'E')).toBe(true)
+  })
+
+  // Entscheidung des Nutzers vom 15.11.2026: Ein Schrägstrich heißt IMMER Tag zuerst, nie Monat/Tag.
+  it('Geburtsdatum: Schrägstrich Tag zuerst, Excel-Seriennummer, angehängte Uhrzeit, reines Jahr – gespeichert JJJJ-MM-TT', () => {
+    const daten = ['12/01/2013', '1/5/2013', '01.05.2013', '2013-5-1', '41395', '01.05.2013 00:00:00', '2013']
+    const text = [row('Klasse', 'Nachname', 'Geburtsdatum'), ...daten.map((d, i) => row('3', `Nach${i}`, d))].join('\n')
+    const res = parseStartersTsv(text)
+    expect(res.starters.map((p) => p.geburtsdatum)).toEqual(['2013-01-12', '2013-05-01', '2013-05-01', '2013-05-01', '2013-05-01', '2013-05-01', '2013-01-01'])
+    expect(res.datumUnlesbar).toEqual({ anzahl: 0, werte: [] })
+  })
+
+  it('Geburtsdatum: Unlesbares (31.02., Monat/Tag) bleibt leer und wird gemeldet – die Zeile kommt herein', () => {
+    const text = [row('Klasse', 'Nachname', 'Geburtsdatum'), row('3', 'A', '31.02.2013'), row('3', 'B', '05/31/2013'), row('3', 'C', '31.02.2013'), row('3', 'D', 'Mai 2013')].join('\n')
+    const res = parseStartersTsv(text)
+    expect(res.imported).toBe(4)
+    expect(res.starters.map((p) => p.geburtsdatum)).toEqual(['', '', '', ''])
+    expect(res.datumUnlesbar).toEqual({ anzahl: 4, werte: ['31.02.2013', '05/31/2013', 'Mai 2013'] })
+  })
+
+  it('in eine andere Klasse übernommen (klasseJeZeile): Die Nummer der gelisteten Klasse fällt weg und wird dort ergänzt', () => {
+    const text = [row('Klasse', 'Nachname', 'Startnummer'), row('3', 'A', '301'), row('3', 'B', '302'), row('2', 'C', '201')].join('\n')
+    const ohne = parseStartersTsv(text)
+    expect(ohne.zeilen).toEqual([2, 3, 4])
+    const res = parseStartersTsv(text, { klasseJeZeile: { 3: '2' } })
+    expect(res.starters.map((p) => `${p.nachname}:${p.klasse}:${p.startNr}`)).toEqual(['A:3:301', 'B:2:202', 'C:2:201'])
+    // Die weggefallene Nummer zählt nicht als „ohne Startnummer“ – sie wird eigens genannt.
+    expect(res.nummerEntfallen).toEqual({ anzahl: 1, werte: ['302'] })
+    expect(ergaenzteNummern(res)).toBe(0)
+    expect(startNrImportNote(res)).toBe('unchanged')
+    // Klassische Nummern (keine Ergänzung) bleiben, wie sie sind.
+    const klassisch = parseStartersTsv([row('Klasse', 'Nachname', 'Startnummer'), row('3', 'A', '17')].join('\n'), { assignMissing: false, klasseJeZeile: { 2: '2' } })
+    expect(klassisch.starters[0]).toMatchObject({ klasse: '2', startNr: '17' })
+    expect(klassisch.nummerEntfallen.anzahl).toBe(0)
+  })
+
+  // Prüfbefund zu Paket F (16.11.2026): Die Liste hatte eine Nummer (305), die Zeile kam in eine
+  // andere Klasse – danach hieß es „keine Startnummern erkannt“.
+  it('umgeklasste Zeile mit Nummer, alle übrigen ohne: nicht „keine Startnummern erkannt“', () => {
+    const text = [row('Klasse', 'Nachname', 'Startnummer'), row('3', 'A', '305'), row('3', 'B', ''), row('3', 'C', '')].join('\n')
+    expect(startNrImportNote(parseStartersTsv(text))).toBe('someAssigned')
+    const res = parseStartersTsv(text, { klasseJeZeile: { 2: 'E' } })
+    expect(res.starters.map((p) => `${p.nachname}:${p.klasse}:${p.startNr}`)).toEqual(['A:E:E01', 'B:3:301', 'C:3:302'])
+    expect(res.assignedNumbers).toBe(3)
+    expect(ergaenzteNummern(res)).toBe(2)
+    expect(startNrImportNote(res)).toBe('someAssigned')
   })
 })
 

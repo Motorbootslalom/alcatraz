@@ -22,8 +22,11 @@ import { veranstaltungsListen } from '../lib/listen'
  * `gesperrt`: Startnummern fehlen oder sind doppelt (ListsView.vue zeigt den Hinweis) –
  * dann entsteht kein Bogen, auch nicht über Strg+P: Ein Bogen mit leerer oder doppelter
  * Nummer wäre am Steg nicht zu gebrauchen.
+ *
+ * `druckGesperrt`: Die Verzahnung ist noch nicht festgeschrieben (Entscheidung des Nutzers vom
+ * 15.11.2026) – die Bögen stehen am Bildschirm, gedruckt werden sie nicht, auch nicht über Strg+P.
  */
-const props = defineProps<{ gesperrt?: boolean }>()
+const props = defineProps<{ gesperrt?: boolean; druckGesperrt?: boolean }>()
 const emit = defineEmits<{
   /** Wie viele Bögen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname). */
   stand: [stand: { anzahl: number; auswahl: string }]
@@ -148,7 +151,7 @@ const { zoom } = useBogenZoom(stapel)
   <div v-if="!gesperrt && alle.length > 0 && boegen.length === 0" class="panel empty no-print">{{ t('lists.wkr.noSheets') }}</div>
 
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). -->
-  <div ref="stapel" class="bogen-stapel wkr-listen" :style="zoom">
+  <div ref="stapel" :class="['bogen-stapel', 'wkr-listen', druckGesperrt ? 'no-print' : '']" :data-druck-gesperrt="druckGesperrt || undefined" :style="zoom">
     <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
   </div>
   <div v-if="mitBild" class="no-print"><ParcoursNachweis /></div>

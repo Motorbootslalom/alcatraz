@@ -67,6 +67,10 @@ export type VerlaufArt =
   | 'starterNeu'
   | 'beispielStarter'
   | 'starter'
+  /** Starter nach einer Spalte oder zufällig neu geordnet – eine Klasse (`klasse`) oder alle. */
+  | 'reihenfolge'
+  /** Ein Starter in eine andere Klasse verschoben, weil sein Jahrgang dorthin gehört (`klasse` = die neue). */
+  | 'klasseGewechselt'
   | 'starterGeloescht'
   /** Nach Beginn des Wettkampfs als „nicht gestartet“ eingetragen bzw. diese Abmeldung zurückgenommen. */
   | 'starterAbgemeldet'
@@ -124,6 +128,7 @@ const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'beispielGewichte',
   'import',
   'starterNeu',
+  'klasseGewechselt',
   'beispielStarter',
   'aufbau',
   'regelwerk',
@@ -149,7 +154,6 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   FILL_BEISPIELGEWICHTE: 'beispielGewichte',
   UPDATE_STARTER: 'starter',
   MOVE_STARTER: 'starter',
-  ORDER_CLASS_BY_SIZE: 'starter',
   SET_START_NR_MODE: 'starter',
   ASSIGN_START_NUMBERS: 'starter',
   REMOVE_STARTER: 'starterGeloescht',
@@ -215,6 +219,12 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'PARALLEL_RUNDE_FESTSCHREIBEN':
     case 'PARALLEL_RUNDE_LOESEN':
       return { art: action.type === 'PARALLEL_RUNDE_LOESEN' ? 'rundeGeloest' : 'rundeFest', klasse: action.klasse, runde: action.runde }
+    case 'ORDER_STARTERS':
+    case 'SHUFFLE_STARTERS':
+      // Eine Klasse wird genannt; „alle Klassen“ zugleich (Knopf oben im Reiter) steht ohne.
+      return { art: 'reihenfolge', ...(action.klassen.length === 1 ? { klasse: String(action.klassen[0]) } : {}) }
+    case 'MOVE_STARTER_TO_CLASS':
+      return { art: 'klasseGewechselt', klasse: String(action.klasse) }
     case 'IMPORT_STARTERS':
       return { art: 'import', n: action.starters.length }
     case 'ADD_STARTERS':

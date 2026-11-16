@@ -1,6 +1,6 @@
 import type { ClassId, Parcours, Starter, TrackItem } from '../types'
 import { CLASS_IDS } from '../domain/classes'
-import { vergleicheStartNr } from '../domain/startnumbers'
+import { sortedByStartNr } from '../domain/startnumbers'
 
 const classOrderIndex = (id: ClassId) => CLASS_IDS.indexOf(id)
 
@@ -16,7 +16,12 @@ export function classCounts(starters: Starter[]): Map<ClassId, number> {
   return m
 }
 
-/** Teilnehmer je Klasse, jeweils nach Startnummer sortiert. */
+/**
+ * Teilnehmer je Klasse, jeweils nach Startnummer sortiert – wie im Reiter „Starter“
+ * (sortedByStartNr): Wer keine Nummer hat, steht hinten, untereinander in der Folge des Stands.
+ * Vorher standen Starter ohne Nummer hier vorn; „Startnummern neu vergeben“ gab ihnen dann die
+ * ersten Nummern, obwohl die Klasse im Reiter anders sortiert war (Prüfbefund zu Paket F, 16.11.2026).
+ */
 export function startersByClass(starters: Starter[]): Map<ClassId, Starter[]> {
   const m = new Map<ClassId, Starter[]>()
   for (const p of starters) {
@@ -24,9 +29,7 @@ export function startersByClass(starters: Starter[]): Map<ClassId, Starter[]> {
     list.push(p)
     m.set(p.klasse, list)
   }
-  for (const list of m.values()) {
-    list.sort((a, b) => vergleicheStartNr(a.startNr, b.startNr))
-  }
+  for (const [klasse, list] of m) m.set(klasse, sortedByStartNr(list))
   return m
 }
 

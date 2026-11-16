@@ -8,6 +8,8 @@ import { mannschaftSchluessel } from '../lib/pokal'
 import { sollgewichtOf } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { originLabelKey } from '../lib/origin'
+import { adresse } from '../lib/router'
+import { ALLE } from '../lib/starterlisten'
 import { t } from '../i18n'
 import type { Starter } from '../types'
 
@@ -27,6 +29,13 @@ const shown = computed(() => {
   const hit = groups.value.filter((g) => g.origin === chosen.value)
   return chosen.value && hit.length > 0 ? hit : groups.value
 })
+
+// „Gewichtslisten drucken“ (Entscheidung des Nutzers vom 15.11.2026): zu Listen → Gewichtslisten,
+// mit der hier gewählten Herkunft (bei „Alle“ alle) – als Adresse in der Sprache der Oberfläche,
+// die sich weitergeben lässt (lib/adressen.ts, drittes Segment `wahl`).
+const listenAdresse = computed(() => adresse('listen', { reiter: 'gewicht', wahl: chosen.value || ALLE }))
+// „Alle“ nicht in den Satz einsetzen – das gäbe „für Alle“ mitten im Satz.
+const listenTitel = computed(() => (chosen.value ? t('weigh.printListsTitle', { origin: chosen.value }) : t('weigh.printListsTitleAll')))
 
 const weighed = (list: Starter[]) => list.filter((p) => p.gewicht !== undefined).length
 const total = computed(() => state.value.starters.length)
@@ -62,14 +71,17 @@ function next(e: Event) {
       <span class="pstat"><b>{{ t('weigh.progress', { done, total }) }}</b></span>
     </div>
     <p class="hint">{{ t('weigh.hint') }}</p>
-    <div v-if="groups.length > 1" class="field" style="max-width: 360px">
-      <label for="weigh-origin">{{ t(originLabelKey(state.originMode)) }}</label>
-      <select id="weigh-origin" v-model="chosen" class="input">
-        <option value="">{{ t('weigh.all') }}</option>
-        <option v-for="g in groups" :key="g.origin" :value="g.origin">
-          {{ g.origin || t('weigh.noOrigin') }} ({{ weighed(g.starters) }}/{{ g.starters.length }})
-        </option>
-      </select>
+    <div v-if="total > 0" class="row weigh-wahl">
+      <div v-if="groups.length > 1" class="field" style="max-width: 360px">
+        <label for="weigh-origin">{{ t(originLabelKey(state.originMode)) }}</label>
+        <select id="weigh-origin" v-model="chosen" class="input">
+          <option value="">{{ t('weigh.all') }}</option>
+          <option v-for="g in groups" :key="g.origin" :value="g.origin">
+            {{ g.origin || t('weigh.noOrigin') }} ({{ weighed(g.starters) }}/{{ g.starters.length }})
+          </option>
+        </select>
+      </div>
+      <a class="weigh-listen" data-action="gewichtslisten" :href="listenAdresse" :title="listenTitel">🖨 {{ t('weigh.printLists') }}</a>
     </div>
   </div>
 

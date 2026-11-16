@@ -24,12 +24,14 @@ import type { RawAufbau } from '../config/schema'
 import { SCHEMA_VERSION } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import {
+  makeStartNr,
   moveInOrder,
-  orderBySize,
+  parseClassNumber,
   redistributeNumbers,
   renumberSequential,
   sortedByStartNr,
 } from '../domain/startnumbers'
+import { mische, ordneNach, type SortierSpalte } from '../lib/reihenfolge'
 import { dublettenSchluessel, mergeStarters } from '../import/starterMerge'
 import { einteilungsZellen, haengeUm, ohneParcours, setzeName, setzeSprache, type WkrZelle } from '../lib/einteilung'
 import { beispielEinteilung, beispielGewichte } from '../lib/beispieldaten'
@@ -124,8 +126,18 @@ type Aenderung =
   /** `beispiel`: erfundene Starter aus den Beispieldaten – das Feld gilt danach als Beispiel-Starterfeld. */
   | { type: 'ADD_STARTERS'; starters: Starter[]; beispiel?: boolean }
   | { type: 'UPDATE_STARTER'; id: string; patch: Partial<Omit<Starter, 'id'>> }
+  /** In eine andere Klasse, weil der Jahrgang dorthin gehört – mit dem neuen Geburtsdatum (components/ClassSection.vue). */
+  | { type: 'MOVE_STARTER_TO_CLASS'; id: string; klasse: ClassId; geburtsdatum?: string }
   | { type: 'MOVE_STARTER'; id: string; target: 'first' | 'last' | 'up' | 'down' }
-  | { type: 'ORDER_CLASS_BY_SIZE'; klasse: ClassId }
+  /**
+   * Die Starter jeder genannten Klasse neu ordnen – nach einer Spalte des Reiters „Starter“
+   * (stabil: gleiche Werte behalten ihre bisherige Reihenfolge) bzw. zufällig aus der `saat`.
+   * Jede Klasse für sich, die Reihenfolge der Klassen bleibt; die vorhandenen Startnummern der
+   * Klasse werden nur neu verteilt (lib/reihenfolge.ts). Gesperrt, solange die Verzahnung
+   * festgeschrieben ist (VERZAHNUNG_ACTIONS; Entscheidung des Nutzers vom 15.11.2026).
+   */
+  | { type: 'ORDER_STARTERS'; klassen: ClassId[]; nach: SortierSpalte; absteigend: boolean }
+  | { type: 'SHUFFLE_STARTERS'; klassen: ClassId[]; saat: number }
   | { type: 'SET_START_NR_MODE'; mode: StartNrMode }
   /** Vergibt alle Startnummern neu – nach der gewählten Art, siehe {@link assignStartNumbers}. */
   | { type: 'ASSIGN_START_NUMBERS' }
@@ -378,6 +390,23 @@ function replaceById(starters: Starter[], updated: Starter[]): Starter[] {
   return starters.map((p) => byId.get(p.id) ?? p)
 }
 
+/**
+ * Stellt die Starter EINER Klasse in eine neue Reihenfolge (Verschieben, „Sortierung ändern“,
+ * „Zufall“): Die vorhandenen Nummern werden neu verteilt, und die Starter rücken im Array auf die
+ * Plätze ihrer Klasse in dieser Folge. Das Zweite braucht es für Starter ohne Nummer – klassisch
+ * der übliche Fall, bis die Verzahnung die Nummern vergibt: sortedByStartNr, die Verzahnung und
+ * der Export ordnen sie in der Folge des Arrays; sonst bliebe die neue Reihenfolge ohne Wirkung
+ * (Prüfbefund zu Paket F, 16.11.2026). `vorher` ist die Klasse nach Startnummer; steht `geordnet`
+ * schon so, bleibt das Array dasselbe.
+ */
+function inFolge(starters: Starter[], vorher: readonly Starter[], geordnet: readonly Starter[]): Starter[] {
+  if (geordnet.length === 0 || geordnet.every((p, i) => p.id === vorher[i]?.id)) return starters
+  const neu = redistributeNumbers([...geordnet])
+  const klasse = geordnet[0].klasse
+  let i = 0
+  return starters.map((p) => (p.klasse === klasse ? neu[i++] : p))
+}
+
 /** Mit den Startern gehen ihre Eingaben: Ohne Starter gäbe es keinen Weg mehr, sie zu sehen oder zu löschen. */
 function mitStartern(state: AppState, starters: Starter[]): AppState {
   const ids = new Set(starters.map((p) => p.id))
@@ -430,6 +459,10 @@ const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
   'SET_PARCOURS_FACTOR',
   'SET_PARCOURS_TRACKS',
   'RESET_TRACKS',
+  // Die Startnummern stehen mit der Verzahnung fest: Sortieren verteilte sie neu (Entscheidung
+  // des Nutzers vom 15.11.2026). Verschieben einzelner Starter und Nummern von Hand gehen weiter.
+  'ORDER_STARTERS',
+  'SHUFFLE_STARTERS',
 ])
 
 /**
@@ -440,7 +473,9 @@ const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
 /** Die Schalter, nach denen der Startplan des Parallelslaloms gerechnet wird. */
 const PLAN_ACTIONS: ReadonlySet<Action['type']> = new Set(['SET_CLASS4_SMALL', 'SET_PARALLEL_ORDER_BY_STARTNR', 'SET_PARALLEL_STRENG'])
 
-export const STARTERFELD_ACTIONS: ReadonlySet<Action['type']> = new Set(['IMPORT_STARTERS', 'ADD_STARTERS', 'REMOVE_STARTER', 'CLEAR_CLASS', 'CLEAR_ALL_STARTERS'])
+// Ein Starter in eine andere Klasse ist für beide Klassen wie Entfernen und Hinzufügen: Die
+// gedruckten Bögen enthalten seine Zeile – deshalb hier und nicht bei den Angaben.
+export const STARTERFELD_ACTIONS: ReadonlySet<Action['type']> = new Set(['IMPORT_STARTERS', 'ADD_STARTERS', 'REMOVE_STARTER', 'CLEAR_CLASS', 'CLEAR_ALL_STARTERS', 'MOVE_STARTER_TO_CLASS'])
 
 /**
  * Steht die Klasse der Starter fest? Sobald die Verzahnung oder der Startplan des Vorlaufs
@@ -752,17 +787,44 @@ function wendeAn(state: AppState, action: Action): AppState {
       }
     }
 
+    case 'MOVE_STARTER_TO_CLASS': {
+      // Vorschlag beim Bearbeiten, wenn der Jahrgang nicht mehr zur Klasse passt (Entscheidung des
+      // Nutzers vom 15.11.2026): nur solange die Klasse nicht feststeht (klasseFest), wie bei
+      // UPDATE_STARTER. Klassenbasierte Nummern gehören zur Klasse – der Starter bekommt in der
+      // neuen die nächste freie und steht dort hinten; eine klassische bleibt (die Verzahnung vergibt sie).
+      if (klasseFest(state)) return state
+      const starter = state.starters.find((p) => p.id === action.id)
+      if (!starter || starter.klasse === action.klasse) return state
+      const praefixe = startNrPraefixe(state)
+      let startNr = starter.startNr
+      if (state.startNrMode === 'klasse') {
+        let max = 0
+        for (const p of state.starters) if (p.klasse === action.klasse) max = Math.max(max, parseClassNumber(p.startNr, action.klasse, praefixe) ?? 0)
+        startNr = makeStartNr(action.klasse, max + 1, praefixe)
+      }
+      const geburtsdatum = action.geburtsdatum ?? starter.geburtsdatum
+      return { ...state, starters: state.starters.map((p) => (p.id === starter.id ? { ...p, klasse: action.klasse, startNr, geburtsdatum } : p)) }
+    }
+
     case 'MOVE_STARTER': {
       const target = state.starters.find((p) => p.id === action.id)
       if (!target) return state
       const inClass = sortedByStartNr(state.starters.filter((p) => p.klasse === target.klasse))
-      const moved = moveInOrder(inClass, action.id, action.target)
-      return { ...state, starters: replaceById(state.starters, redistributeNumbers(moved)) }
+      const starters = inFolge(state.starters, inClass, moveInOrder(inClass, action.id, action.target))
+      return starters === state.starters ? state : { ...state, starters }
     }
 
-    case 'ORDER_CLASS_BY_SIZE': {
-      const inClass = state.starters.filter((p) => p.klasse === action.klasse)
-      return { ...state, starters: replaceById(state.starters, redistributeNumbers(orderBySize(inClass))) }
+    case 'ORDER_STARTERS':
+    case 'SHUFFLE_STARTERS': {
+      let starters = state.starters
+      for (const klasse of new Set(action.klassen)) {
+        // Die bisherige Reihenfolge ist die der Startnummern – bei Gleichstand bleibt sie.
+        const inClass = sortedByStartNr(state.starters.filter((p) => p.klasse === klasse))
+        if (inClass.length < 2) continue
+        const geordnet = action.type === 'ORDER_STARTERS' ? ordneNach(inClass, { spalte: action.nach, absteigend: action.absteigend }, state.originMode) : mische(inClass, action.saat + CLASS_IDS.indexOf(klasse))
+        starters = inFolge(starters, inClass, geordnet)
+      }
+      return starters === state.starters ? state : { ...state, starters }
     }
 
     case 'SET_START_NR_MODE':

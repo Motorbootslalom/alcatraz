@@ -8,59 +8,86 @@ import { startNrPraefixe } from '../config/catalog'
 import { uid } from '../domain/ids'
 import { useEvent } from '../lib/event'
 import { originField, originLabelKey } from '../lib/origin'
+import { geburtsjahr, jahrgaengeText, klassenFuerJahr, startendeJahrgaenge } from '../import/klassenPruefung'
 import { t } from '../i18n'
+import DatumFeld from './DatumFeld.vue'
 import type { ClassId, Starter } from '../types'
 
-const props = defineProps<{ classId: ClassId; existing: Starter[] }>()
+const props = defineProps<{ classId: ClassId }>()
 const emit = defineEmits<{ add: [p: Starter]; done: [] }>()
 
 const { state } = useStore()
-const { classLabel } = useEvent()
+const { classLabel, regelwerk } = useEvent()
 const range = computed(() => birthYearRange(props.classId, state.value.eventJahr))
 const vorname = ref('')
 const nachname = ref('')
 const herkunft = ref('')
 const geb = ref('')
 const groesse = ref('')
+/** Meldung des Datumsfelds: ein Datum, das es nicht gibt, oder ein unbekanntes Muster. */
+const datumFehler = ref('')
 
 /** Klassenbasiert folgt die nächste Nummer der Klasse; klassische bleiben leer, bis sie vergeben werden. */
-function nextStartNr(): string {
+function nextStartNr(klasse: ClassId): string {
   if (state.value.startNrMode === 'klassisch') return ''
   let max = 0
   const praefixe = startNrPraefixe(state.value)
-  for (const p of props.existing) max = Math.max(max, parseClassNumber(p.startNr, props.classId, praefixe) ?? 0)
-  return makeStartNr(props.classId, max + 1, praefixe)
+  for (const p of state.value.starters) if (p.klasse === klasse) max = Math.max(max, parseClassNumber(p.startNr, klasse, praefixe) ?? 0)
+  return makeStartNr(klasse, max + 1, praefixe)
 }
 
 /**
  * Ein Geburtsjahr, das nicht in die Klasse gehört, wird abgewiesen – wie beim Einfügen aus Excel
- * (import/klassenPruefung.ts): Wer in der falschen Klasse fährt, verfälscht deren Wertung. Das
- * Datumsfeld begrenzt die Jahre schon; verlassen wird sich darauf nicht (Eingabe von Hand,
- * Browser ohne Prüfung). Ohne Datum lässt sich nichts prüfen – das fällt in der Liste auf.
+ * (import/klassenPruefung.ts): Wer in der falschen Klasse fährt, verfälscht deren Wertung. Ohne
+ * Datum lässt sich nichts prüfen – das fällt in der Liste auf.
+ *
+ * Gehört der Jahrgang in eine andere Klasse des Regelwerks, bietet die Meldung an, den Starter
+ * mit allen Angaben dort anzulegen (Entscheidung des Nutzers vom 15.11.2026); passt er in keine,
+ * nennt sie die Jahrgänge, die überhaupt starten. Die Jahrgänge folgen aus dem Jahr der
+ * Veranstaltung, die Klassen aus dem Regelwerk.
  */
+const jahr = computed(() => geburtsjahr(geb.value))
+const passtNicht = computed(() => jahr.value !== null && (jahr.value < range.value[0] || jahr.value > range.value[1]))
+const andereKlasse = computed<ClassId | undefined>(() =>
+  passtNicht.value ? klassenFuerJahr(jahr.value!, state.value.eventJahr, regelwerk.value.klassen).find((k) => k !== props.classId) : undefined,
+)
 const jahrFehler = computed(() => {
-  const jahr = parseInt(geb.value.slice(0, 4), 10)
-  if (!geb.value || Number.isNaN(jahr) || (jahr >= range.value[0] && jahr <= range.value[1])) return ''
-  return t('starters.birthOutOfRange', { year: jahr, class: classLabel(props.classId), from: range.value[0], to: range.value[1] })
+  if (!passtNicht.value) return ''
+  const grund = t('starters.birthOutOfRange', { year: jahr.value!, class: classLabel(props.classId), from: range.value[0], to: range.value[1] })
+  if (andereKlasse.value) return grund
+  return `${grund} ${t('starters.birthNoClass', { years: jahrgaengeText(startendeJahrgaenge(state.value.eventJahr, regelwerk.value.klassen)) })}`
 })
+const zielBereich = computed(() => (andereKlasse.value ? birthYearRange(andereKlasse.value, state.value.eventJahr) : null))
+const name = computed(() => [vorname.value.trim(), nachname.value.trim()].filter(Boolean).join(' '))
+const unvollstaendig = computed(() => !vorname.value.trim() || !nachname.value.trim() || !!datumFehler.value)
 
-function submit() {
-  if (!vorname.value.trim() || !nachname.value.trim() || jahrFehler.value) return
+function anlegen(klasse: ClassId) {
   const feld = originField(state.value.originMode)
   const wert = herkunft.value.trim()
   emit('add', {
     id: uid('st'),
-    startNr: nextStartNr(),
+    startNr: nextStartNr(klasse),
     vorname: vorname.value.trim(),
     nachname: nachname.value.trim(),
     verein: feld === 'verein' ? wert : '',
     bundesland: feld === 'bundesland' ? wert : '',
     ...(feld === 'land' && wert ? { land: wert } : {}),
     geburtsdatum: geb.value,
-    klasse: props.classId,
+    klasse,
     groesse: groesse.value,
   })
   emit('done')
+}
+
+function submit() {
+  if (unvollstaendig.value || jahrFehler.value) return
+  anlegen(props.classId)
+}
+
+/** „In Klasse X anlegen“: dieselben Angaben, die Klasse, in die der Jahrgang gehört. */
+function inAndereKlasse() {
+  if (unvollstaendig.value || !andereKlasse.value) return
+  anlegen(andereKlasse.value)
 }
 </script>
 
@@ -81,14 +108,8 @@ function submit() {
       </div>
       <div class="field" style="width: 190px">
         <label :for="`add-bd-${classId}`">{{ t('starters.birthLabel', { from: range[0], to: range[1] }) }}</label>
-        <input
-          :id="`add-bd-${classId}`"
-          v-model="geb"
-          class="input"
-          type="date"
-          :min="`${range[0]}-01-01`"
-          :max="`${range[1]}-12-31`"
-        />
+        <!-- Eigenes Textfeld mit festem Muster – nie die Datumswahl des Browsers (mm/dd/yyyy). -->
+        <DatumFeld :id="`add-bd-${classId}`" v-model="geb" class="input" sofort @fehler="datumFehler = $event" />
       </div>
       <div class="field" style="width: 80px">
         <label :for="`add-sz-${classId}`">{{ t('common.size') }}</label>
@@ -97,10 +118,26 @@ function submit() {
           <option v-for="s in SIZES" :key="s" :value="s">{{ s }}</option>
         </select>
       </div>
-      <button class="btn primary" type="submit" :disabled="!vorname.trim() || !nachname.trim() || !!jahrFehler">
+      <button class="btn primary" type="submit" :disabled="unvollstaendig || !!jahrFehler">
         {{ t('common.add') }}
       </button>
     </div>
-    <p v-if="jahrFehler" class="boat-banner warn" role="alert" data-hinweis="jahrgang-falsch">{{ jahrFehler }}</p>
+    <p v-if="datumFehler" class="boat-banner warn" role="alert" data-hinweis="datum-ungueltig">{{ datumFehler }}</p>
+    <div v-else-if="jahrFehler" class="boat-banner warn" role="alert" data-hinweis="jahrgang-falsch">
+      {{ jahrFehler }}
+      <div v-if="andereKlasse && zielBereich" class="jahrgang-vorschlag">
+        <button
+          type="button"
+          class="btn sm primary"
+          data-action="in-klasse-anlegen"
+          :data-klasse="andereKlasse"
+          :disabled="unvollstaendig"
+          :title="t('starters.addInClassTitle', { name: name || '…', class: classLabel(andereKlasse), from: zielBereich[0], to: zielBereich[1] })"
+          @click="inAndereKlasse"
+        >
+          {{ t('starters.addInClass', { class: classLabel(andereKlasse) }) }}
+        </button>
+      </div>
+    </div>
   </form>
 </template>

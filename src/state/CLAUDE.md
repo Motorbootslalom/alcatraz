@@ -64,6 +64,12 @@
   geleertes Feld löst den Vorlaufplan nicht (Entscheidung 15.11.2026).
 - Sobald Werte erfasst sind (lib/eingaben.ts starterfeldFest): Starterfeld und Regelwerk gesperrt. Tests wechseln
   das Regelwerk über src/testHilfen.ts wechsleRegelwerk.
+- MOVE_STARTER_TO_CLASS (Jahrgang gehört in andere Klasse): abgelehnt bei klasseFest UND in STARTERFELD_ACTIONS;
+  klassenbasierte Nummer = nächste freie der neuen Klasse, klassische bleibt. UPDATE_STARTER mit `klasse` nur Tests.
+- ORDER_STARTERS/SHUFFLE_STARTERS (Starter-Reiter, lib/reihenfolge.ts) stehen in VERZAHNUNG_ACTIONS: nach dem
+  Festschreiben keine Sortierung mehr; MOVE_STARTER und Nummern von Hand gehen weiter. Unverändert ⇒ derselbe Stand.
+  Alle drei über inFolge(): Nummern neu verteilt UND die Starter der Klasse im Array umgestellt – ohne Nummer
+  (klassisch vor der Verzahnung) zählt nur die Array-Folge (sortedByStartNr, Verzahnung, Export).
 
 ## Tests
 

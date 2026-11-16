@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useStore } from '../state/store'
 import { startNrPraefixe } from '../config/catalog'
 import {
+  ergaenzteNummern,
   formatStartersTsv,
   formatStartlistTsv,
   parseStartersTsv,
@@ -11,11 +12,12 @@ import {
 } from '../import/tsv'
 import { copyText } from '../lib/clipboard'
 import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
-import { pruefeKlassen } from '../import/klassenPruefung'
+import { jahrgaengeText, pruefeKlassen, startendeJahrgaenge, type KlassenFehler } from '../import/klassenPruefung'
 import { useEvent } from '../lib/event'
 import { t, tn } from '../i18n'
 import { starterfeldFest } from '../lib/eingaben'
 import StarterSperre from './StarterSperre.vue'
+import type { ClassId } from '../types'
 
 /**
  * Austausch mit Excel über die Zwischenablage: Starterliste einfügen sowie
@@ -26,6 +28,11 @@ const open = ref(state.value.starters.length === 0)
 const raw = ref('')
 const result = ref<ImportResult | null>(null)
 const copied = ref<'startlist' | 'starters' | null>(null)
+/**
+ * Zeilen, deren Starter in einer anderen Klasse übernommen werden als in der Liste – je Zeile
+ * die neue und die gelistete Klasse. Ein neuer Text beginnt ohne (die Zeilen sind andere).
+ */
+const umklassen = ref<Record<number, { klasse: ClassId; gelistet: ClassId; name: string }>>({})
 
 // Fehlende klassenbasierte Nummern ergänzt der Import; klassische vergibt erst die Verzahnung.
 // Beim Ergänzen schließen sie an die Nummern der Veranstaltung an (`vorhandene`), statt sie doppelt zu vergeben.
@@ -34,6 +41,7 @@ const parse = (text: string, mode: 'replace' | 'merge' = 'replace') =>
     assignMissing: state.value.startNrMode === 'klasse',
     landIstStaat: state.value.originMode === 'land',
     startNrPraefix: startNrPraefixe(state.value),
+    klasseJeZeile: Object.fromEntries(Object.entries(umklassen.value).map(([zeile, u]) => [zeile, u.klasse])),
     ...(mode === 'merge' ? { vorhandene: state.value.starters } : {}),
   })
 
@@ -48,15 +56,44 @@ const { regelwerk, classLabel } = useEvent()
 const pruefung = computed(() => (preview.value ? pruefeKlassen(preview.value.starters, state.value.eventJahr, regelwerk.value.klassen) : null))
 const klassenFehler = computed(() => pruefung.value?.fehler ?? [])
 const darfNicht = computed(() => gesperrt.value || !preview.value || preview.value.imported === 0 || klassenFehler.value.length > 0)
+const jahrgaenge = computed(() => jahrgaengeText(startendeJahrgaenge(state.value.eventJahr, regelwerk.value.klassen)))
+const nameVon = (f: KlassenFehler) => [f.starter.vorname, f.starter.nachname].filter(Boolean).join(' ')
+
+/**
+ * Derselbe Vorschlag wie beim Hinzufügen von Hand (Entscheidung des Nutzers vom 15.11.2026):
+ * Gehört der Jahrgang in eine andere Klasse, lässt sich der Starter dort übernehmen – je Zeile
+ * ein Knopf, nie für alle auf einmal: Ist nur das Jahr der Veranstaltung falsch eingestellt,
+ * passte sonst jeder Starter „in eine andere Klasse“. Die Liste in Excel bleibt, wie sie ist.
+ */
+function inKlasse(f: KlassenFehler, klasse: ClassId) {
+  const i = preview.value?.starters.indexOf(f.starter) ?? -1
+  const zeile = preview.value?.zeilen[i]
+  if (zeile === undefined) return
+  umklassen.value = { ...umklassen.value, [zeile]: { klasse, gelistet: f.starter.klasse, name: nameVon(f) } }
+}
+function zurueck(zeile: string) {
+  const rest = { ...umklassen.value }
+  delete rest[Number(zeile)]
+  umklassen.value = rest
+}
 
 function numbersNote(res: ImportResult): string {
   const note = startNrImportNote(res)
-  return note === 'none' ? '' : t(`import.numbers.${note}`, { n: res.assignedNumbers })
+  if (note === 'none') return ''
+  const text = t(`import.numbers.${note}`, { n: ergaenzteNummern(res) })
+  // Nummern, die nur wegfielen, weil die Zeile in einer anderen Klasse übernommen wird.
+  const weg = res.nummerEntfallen
+  return weg.anzahl === 0 ? text : `${text}, ${tn('import.numbers.moved', weg.anzahl, { values: weg.werte.join(', ') })}`
 }
 /** Nicht erkannte Angaben zum Geschlecht: Die Zeilen kommen herein, das Feld bleibt leer. */
 function geschlechtNote(res: ImportResult): string {
   const u = res.geschlechtUnbekannt
   return u.anzahl === 0 ? '' : tn('import.sexUnknown', u.anzahl, { values: u.werte.join(', ') })
+}
+/** Nicht lesbare Geburtsdaten (31.02.2019, Monat/Tag): Die Zeilen kommen herein, das Feld bleibt leer. */
+function datumNote(res: ImportResult): string {
+  const u = res.datumUnlesbar
+  return u.anzahl === 0 ? '' : tn('import.dateUnreadable', u.anzahl, { values: u.werte.join(', ') })
 }
 
 function doImport(mode: 'replace' | 'merge') {
@@ -69,6 +106,7 @@ function doImport(mode: 'replace' | 'merge') {
   if (verlust && verlust.zahl > 0 && !confirm(t('entries.replaceConfirm') + verlust.text)) return
   dispatch({ type: 'IMPORT_STARTERS', starters: res.starters, mode })
   raw.value = ''
+  umklassen.value = {}
 }
 
 async function copy(which: 'startlist' | 'starters') {
@@ -82,6 +120,7 @@ async function copy(which: 'startlist' | 'starters') {
 function onRaw(e: Event) {
   raw.value = (e.target as HTMLTextAreaElement).value
   result.value = null
+  umklassen.value = {}
 }
 </script>
 
@@ -122,7 +161,20 @@ function onRaw(e: Event) {
         <template v-if="preview.skipped.length > 0"> · {{ tn('import.skipped', preview.skipped.length) }}</template>
         <template v-if="numbersNote(preview)"><br />{{ numbersNote(preview) }}</template>
         <template v-if="geschlechtNote(preview)"><br /><span data-hinweis="geschlecht-unbekannt">{{ geschlechtNote(preview) }}</span></template>
+        <template v-if="datumNote(preview)"><br /><span data-hinweis="datum-unlesbar">{{ datumNote(preview) }}</span></template>
       </p>
+
+      <div v-if="Object.keys(umklassen).length > 0" class="note" data-hinweis="umgeklasst" role="status">
+        {{ tn('import.moved', Object.keys(umklassen).length) }}
+        <ul style="margin: 4px 0 0; padding-left: 18px">
+          <li v-for="(u, zeile) in umklassen" :key="zeile">
+            {{ t('import.movedItem', { name: u.name, listed: classLabel(u.gelistet), class: classLabel(u.klasse) }) }}
+            <button type="button" class="btn ghost sm" data-action="umklassen-zurueck" :title="t('import.movedUndoTitle', { name: u.name, listed: classLabel(u.gelistet) })" @click="zurueck(String(zeile))">
+              {{ t('import.movedUndo') }}
+            </button>
+          </li>
+        </ul>
+      </div>
 
       <div v-if="klassenFehler.length > 0" class="boat-banner warn" data-hinweis="klassen-fehler" role="alert">
         {{ tn('import.classErrors', klassenFehler.length) }}
@@ -130,14 +182,28 @@ function onRaw(e: Event) {
           <li v-for="f in klassenFehler" :key="f.starter.id">
             {{
               t(f.passend.length > 0 ? 'import.classError' : 'import.classErrorNone', {
-                name: [f.starter.vorname, f.starter.nachname].filter(Boolean).join(' '),
+                name: nameVon(f),
                 class: classLabel(f.starter.klasse),
                 year: f.jahr,
                 from: f.erlaubt[0],
                 to: f.erlaubt[1],
                 fits: f.passend.map((k) => classLabel(k)).join(', '),
+                years: jahrgaenge,
               })
             }}
+            <button
+              v-for="k in f.passend"
+              :key="k"
+              type="button"
+              class="btn sm"
+              data-action="in-klasse-uebernehmen"
+              :data-klasse="k"
+              :disabled="gesperrt"
+              :title="t('import.takeInClassTitle', { name: nameVon(f), class: classLabel(k), listed: classLabel(f.starter.klasse) })"
+              @click="inKlasse(f, k)"
+            >
+              {{ t('import.takeInClass', { class: classLabel(k) }) }}
+            </button>
           </li>
         </ul>
         <p style="margin: 6px 0 0">{{ t('import.classErrorsFix', { year: state.eventJahr }) }}</p>
@@ -170,7 +236,11 @@ function onRaw(e: Event) {
         role="status"
       >
         <template v-if="result.imported > 0">
-          {{ t('import.done', { n: result.imported }) }} {{ numbersNote(result) }} {{ geschlechtNote(result) }}
+          {{ t('import.done', { n: result.imported }) }} {{ numbersNote(result) }}
+          <!-- Je Hinweis eine Zeile wie in der Vorschau. Die ist nach der Übernahme weg (Textfeld leer) –
+               ohne den Datumshinweis hier stünde nirgends mehr, welche Daten leer blieben. -->
+          <template v-if="geschlechtNote(result)"><br /><span data-hinweis="geschlecht-unbekannt">{{ geschlechtNote(result) }}</span></template>
+          <template v-if="datumNote(result)"><br /><span data-hinweis="datum-unlesbar">{{ datumNote(result) }}</span></template>
         </template>
         <template v-else>{{ t('import.none') }}</template>
         <template v-if="result.skipped.length > 0">

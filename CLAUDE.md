@@ -96,6 +96,11 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Starterfeld/Importspalte | types.ts Starter → migrate.ts normalizeStarter → import/tsv.ts HEADER_ALIASES, Export |
 | … Abgleich beim Import | import/starterMerge.ts FIELDS + Merge-Regel bei freiwilliger Spalte (Muster geschlecht) |
 | Startnummern | domain/startnumbers.ts (parseClassNumber); YAML `startNrPraefix`; reducer.ts assignStartNumbers |
+| Reihenfolge im Starter-Reiter | lib/reihenfolge.ts (Spalten, stabil, mische); ClassSection.vue, StartersView.vue; ORDER_/SHUFFLE_STARTERS |
+| Druck erst nach Verzahnung | views/ListsView.vue vorVerzahnung → WkrListen/LaufzettelListen `druckGesperrt` (Stapel no-print) |
+| Datumsfeld | components/DatumFeld.vue (Textfeld, `sofort` = Formular); lib/datum.ts liesDatum; Import: import/tsv.ts |
+| Jahrgang passt nicht zur Klasse | import/klassenPruefung.ts (klassenFuerJahr, startendeJahrgaenge); Vorschlag in ManualAddForm, ClassSection (MOVE_STARTER_TO_CLASS), ExcelPanel (klasseJeZeile) |
+| Querverweis mit Auswahl | lib/adressen.ts drittes Segment `wahl` → router.ts useReiter `beiWahl` (Muster: WeighingView → ListsView gewichtHerkunft) |
 | Dolphin-Präfix E/D | AppState.dolphinPraefix → config/catalog.ts startNrPraefixe; components/StartNumberPanel.vue |
 | Herkunft der Veranstaltung | AppState.originMode, SET_ORIGIN_MODE (views/EventView.vue); Anzeige lib/origin.ts |
 | Neues Regelwerk / neue Angabe | regelwerke/<id>.yaml + regelwerke.yaml; Angabe: schema → validate → build → catalog |
@@ -120,6 +125,8 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
   normalizeStarter(). Sonst kommt Kaputtes ungeprüft durch bzw. das Starterfeld verschwindet beim Laden.
 - Neue Einstellungen gehören in views/SettingsView.vue, nicht in die Fachansichten. Bedienauswahl (Reiter,
   Filter, aufgeklappt) nicht in den AppState, sondern lib/merken.ts.
+- Datumsfelder nie als `<input type="date">` (zeigt je nach System mm/dd/yyyy – „darf es nie geben“), immer
+  components/DatumFeld.vue: deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT, Schrägstrich = Tag zuerst; gespeichert JJJJ-MM-TT.
 - Kein Geburtsdatum auf Wertungslisten. Klasse E heißt unter DM „E“, unter UIM „Dolphin“, nie „ME“.
 - Parallelslalom nur unter UIM; unter DM fehlt er auch in Texten und Hinweisen (config/catalog.ts hasParallel).
 - Druck: Seitenzahlen zählt jede Liste selbst, nie der Browser; Rand oben/unten höchstens 8 mm (sonst druckt

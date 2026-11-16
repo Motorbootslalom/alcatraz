@@ -184,6 +184,8 @@ describe('Listen: Laufzettel', () => {
 
   it('Fenstertitel beim Drucken: Listenart, Auswahl und Veranstaltung in der Sprache der Oberfläche; der Zettel in der des Regelwerks', async () => {
     vi.stubGlobal('print', vi.fn())
+    // Gedruckt wird erst mit festgeschriebener Verzahnung (ListsView.test.ts).
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
     const wrapper = ansicht(store)
     await laufzettel(wrapper)
     await waehle(wrapper, 'klasse', '4')

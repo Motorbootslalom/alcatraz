@@ -61,6 +61,14 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
   it('Listen: ohne festgeschriebenen Plan nur der Hinweis; danach sechs Listen je Runde', async () => {
     const wrapper = await listen('wkr')
     expect(wrapper.find('[data-hinweis="parallel-plan"]').text()).toContain('festgeschrieben')
+    // Die Sperre bis zur festgeschriebenen Verzahnung gilt den Bögen des Manövrierens; die des
+    // Parallelslaloms hängen an ihren festgeschriebenen Runden (Entscheidung des Nutzers vom 15.11.2026).
+    expect(wrapper.find('[data-hinweis="vor-verzahnung"]').exists()).toBe(false)
+    await wrapper.find('.disziplin-wahl button[data-disziplin="manoever"]').trigger('click')
+    await warte()
+    expect(wrapper.find('[data-hinweis="vor-verzahnung"]').exists()).toBe(true)
+    await wrapper.find('.disziplin-wahl button[data-disziplin="parallel"]').trigger('click')
+    await warte()
     expect(wrapper.findAll('.wkr-listen .bogen')).toHaveLength(0)
     expect(wrapper.find('.btn.primary').attributes('disabled')).toBeDefined()
 

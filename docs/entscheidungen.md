@@ -223,6 +223,19 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-13 · N · Gewichtslisten gehen vor der Verzahnung und ohne Startnummern: je Verein/Bundesland/Land, nach Klasse
   (E, 1, 2 …), Nachname, Vorname, mit Feld für das Gewicht und dem Standardgewicht; Querformat, hohe Zeilen. →
   `components/StarterBlaetter.vue`, `views/WeighingView.vue`
+- 2026-11-15 · N · Verwiegung: neben der Auswahl der Herkunft der Link „Gewichtslisten drucken“ zu Listen →
+  Gewichtslisten, mit der gewählten Herkunft (bei „Alle“ alle); Adresse sprachabhängig und weitergebbar wie die
+  übrigen Querverweise. Festlegung bei der Umsetzung: Die Herkunft steht als drittes Segment in der Adresse
+  (`#/listen/gewicht/<Herkunft>`, `*` = alle, nicht übersetzt), die Listen übernehmen sie (Schreibweisen
+  zusammengefasst wie in der Mannschaftswertung), danach steht nur der Reiter in der Adresse; dafür haben die
+  Gewichtslisten zum Eintragen jetzt selbst eine Auswahl der Herkunft. → `views/WeighingView.vue`,
+  `lib/adressen.ts` (wahl), `lib/router.ts` useReiter beiWahl, `views/ListsView.vue` gewichtHerkunft
+- 2026-11-15 · N · WKR-Listen (Bögen des Manövrierens) und ihre Laufzettel erst drucken, wenn die Verzahnung
+  festgeschrieben ist („Erst danach darf ich WKR-Listen drucken“): vorher „Drucken“ gesperrt, Hinweis mit Link zur
+  Verzahnung; die Bildschirmansicht bleibt. Festlegung bei der Umsetzung: Auch Strg+P druckt dann keine Bögen, nur den
+  Hinweis. Andere Wege gibt es nicht (Druckdatei ohne Bögen, Beispielansicht nie gedruckt); die Listen des
+  Parallelslaloms hängen unverändert an ihren festgeschriebenen Runden. → `views/ListsView.vue` vorVerzahnung,
+  `components/WkrListen.vue`, `components/LaufzettelListen.vue` (druckGesperrt)
 - 2026-11-14 · N · Doppelseitiger Druck: optional eine leere Seite nach Dokumenten mit ungerader Seitenzahl. →
   `lib/doppelseitig.ts`
 - 2026-11-14 · N · Druckdatei: eine PDF für alle teilnehmenden Gruppen, Fassung intern/extern wie die Aushänge. →
@@ -274,6 +287,19 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   `components/ClassSection.vue`
 - 2026-11-13 · N · Die Verzahnung ist maßgeblich (bestimmt Startnummern und alle Listen) und wird festgeschrieben. →
   AppState.verzahnungLocked
+- 2026-11-15 · N · Reihenfolge im Starter-Reiter: „Sortierung ändern“ je Klasse (statt „Nach Größe“) und einmal oben für
+  alle Klassen (jede Klasse in sich, die Folge der Klassen bleibt). Dann sind die Spaltenköpfe Name, Vorname, Herkunft
+  (Verein/Bundesland/Land wie die Veranstaltung), Größe, Geschlecht, Geburtsdatum Knöpfe; ein zweiter Klick dreht die
+  Richtung um, die Richtung steht am Kopf. Stabil: erst Vorname, dann Name = nach Name und Vorname. „Zufall“ mischt
+  jedes Mal neu (saat in der Action). Die vorhandenen Startnummern werden nur neu verteilt; Verlaufseintrag. Nur solange
+  die Verzahnung offen ist, danach gesperrt (auch im Reducer) mit Hinweis. Festlegung bei der Umsetzung: Ohne Angabe
+  steht in beiden Richtungen hinten; Texte nach deutscher Ordnung (Umlaut beim Grundbuchstaben, groß/klein gleich),
+  unabhängig von der Oberfläche; Geschlecht in der Folge M, F, D, keine Angabe; Geburtsdatum aufsteigend = Älteste
+  zuerst; unbekannte Größe wie keine. Verschieben einzelner Starter und Nummern von Hand bleiben nach dem
+  Festschreiben möglich (nicht entschieden). Nach der Prüfung (16.11.): Ohne Startnummern (klassisch vor der
+  Verzahnung) ordnen Sortieren, Zufall und Verschieben die Starter selbst um; die Verzahnung vergibt die Nummern
+  dann in dieser Folge. Fehlen nur einige, gehen die vorhandenen an die ersten, die übrigen folgen sortiert. → `lib/reihenfolge.ts`, `components/ClassSection.vue`,
+  `views/StartersView.vue`, Actions ORDER_STARTERS/SHUFFLE_STARTERS in `state/reducer.ts` VERZAHNUNG_ACTIONS
 - 2026-11-15 · N · Unter UIM ist der Buchstabe der Dolphin-Nummern wählbar: E (Vorgabe, E01) oder D. Er gilt für neu
   vergebene Nummern; beim Weiterzählen zählen E und D gemeinsam (parseClassNumber). Ein Buchstaben-Präfix sortiert wie
   0, also vorn. → AppState.dolphinPraefix, `config/catalog.ts` startNrPraefixe, `components/StartNumberPanel.vue`,
@@ -285,6 +311,27 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   `state/reducer.ts`
 - 2026-11-15 · N · Klasse und Geburtsjahr müssen beim Import und Eintragen passen (falscher Jahrgang bleibt verboten);
   nach dem Festschreiben steht die Klasse fest. → `import/klassenPruefung.ts`, `state/reducer.ts` klasseFest
+- 2026-11-15 · N · Unpassender Jahrgang: Gehört er in eine andere Klasse des Regelwerks, steht unter der Meldung ein
+  Vorschlag – beim Hinzufügen „In Klasse X anlegen“ (mit allen Angaben), beim Bearbeiten (Geburtsdatum geändert)
+  „In Klasse X verschieben“, nur solange die Klasse nicht feststeht. Passt er in keine Klasse, nennt die Meldung die
+  Jahrgänge, die überhaupt starten. Klassen aus dem Regelwerk, Jahrgänge aus dem Jahr der Veranstaltung. Festlegung
+  bei der Umsetzung: Verschieben ist auch gesperrt, sobald Ergebnisse erfasst sind (wie Entfernen/Hinzufügen,
+  STARTERFELD_ACTIONS); eine klassenbasierte Startnummer wird in der neuen Klasse neu vergeben (nächste freie, hinten),
+  eine klassische bleibt; eigener Verlaufseintrag. Beim Einfügen aus Excel derselbe Vorschlag je Zeile („In Klasse X
+  übernehmen“, mit „zurück“), nie für alle auf einmal – ist nur das Jahr der Veranstaltung falsch eingestellt, passte
+  sonst jeder Starter „woanders“; die Excel-Liste bleibt, wie sie ist. Nicht bei der Teilnehmerdaten-Datei (eine Datei
+  dieses Programms: passt dort eine Klasse nicht, stimmt eher das Jahr der Veranstaltung nicht). →
+  `components/ManualAddForm.vue`, `components/ClassSection.vue`, `components/ExcelPanel.vue`, Action
+  `MOVE_STARTER_TO_CLASS`, `import/tsv.ts` klasseJeZeile
+- 2026-11-15 · N · Datumsfelder nie als Datumswahl des Browsers (`<input type="date">` zeigte je nach Systemsprache
+  mm/dd/yyyy – „darf es nie geben“), sondern als Textfeld mit festem Muster: deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT
+  (siehe „Begriffe“, 13.11.). Beim Tippen und Einfügen werden auch 2019-12-01, 01.12.2019, 1.12.2019, 01/12/2019
+  erkannt; Schrägstrich IMMER Tag zuerst; ungültige Daten (31.02.) werden gemeldet. Gespeichert wird JJJJ-MM-TT. Der
+  Excel-Import liest dieselben Schreibweisen, nie Monat/Tag. Festlegung bei der Umsetzung: Der Import liest dazu ein
+  Jahr allein (→ 1. Januar, wie bisher), eine angehängte Uhrzeit und Excel-Seriennummern (fünfstellig; vorher wurden
+  sie nicht erkannt); Unlesbares bleibt leer und wird in der Vorschau und in der Meldung nach der Übernahme genannt
+  (wie beim Geschlecht). Zweistellige Jahre werden nicht erraten. → `components/DatumFeld.vue`, `lib/datum.ts`, `import/tsv.ts`; Test
+  `components/DatumFeld.test.ts` (keine Vorlage mit type="date")
 - 2026-11-14 · R · Altersgrenzen der Klassen sind bei DM und UIM gleich (Klasse = Veranstaltungsjahr − Geburtsjahr). →
   `domain/classes.ts`
 - 2026-11-13 · R · Standardgewichte DM (Reglement C3): E 26, 1 33, 2 42, 3 52, 4 65, 5 72, 6 75, 7 78 kg; UIM (Pkt.

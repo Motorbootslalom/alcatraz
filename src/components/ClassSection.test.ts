@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import ClassSection from './ClassSection.vue'
 import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
@@ -133,31 +133,190 @@ describe('Jahrgang und Klasse', () => {
     const [vorname, nachname] = form.findAll('input.input')
     await vorname.setValue('Neu')
     await nachname.setValue('Dabei')
-    const datum = form.find('input[type="date"]')
+    const datum = form.find('input[data-datum]')
     // Klasse 4 im Jahr 2026: zu jung.
-    await datum.setValue('2019-05-05')
+    await datum.setValue('05.05.2019')
     expect(form.find('[data-hinweis="jahrgang-falsch"]').text()).toContain('Geburtsjahr 2019 passt nicht zu Klasse 4')
     expect(form.find('button[type="submit"]').attributes('disabled')).toBeDefined()
     await form.trigger('submit')
     expect(store.state.value.starters).toHaveLength(1)
     // Ein passender Jahrgang geht.
     const [von] = form.find('label[for="add-bd-4"]').text().match(/\d{4}/)!
-    await datum.setValue(`${von}-05-05`)
+    await datum.setValue(`05.05.${von}`)
     expect(form.find('[data-hinweis="jahrgang-falsch"]').exists()).toBe(false)
     await form.trigger('submit')
     expect(store.state.value.starters.map((p) => p.nachname)).toEqual(['Nach1', 'Dabei'])
+    expect(store.state.value.starters[1].geburtsdatum).toBe(`${von}-05-05`)
     wrapper.unmount()
   })
 
-  it('Bearbeiten: Ein Geburtsdatum mit falschem Jahrgang wird nicht übernommen', async () => {
+  it('von Hand hinzufügen: Passt der Jahrgang zu einer anderen Klasse, legt „In Klasse X anlegen“ den Starter mit allen Angaben dort an', async () => {
+    const wrapper = ansicht()
+    await wrapper.find('[data-action="starter-neu"]').trigger('click')
+    const form = wrapper.find('form.add-form')
+    const [vorname, nachname, herkunft] = form.findAll('input.input')
+    await vorname.setValue('Vor9')
+    await nachname.setValue('Nach9')
+    await herkunft.setValue('Musterclub')
+    await form.find('select').setValue('M')
+    // 2026 − 2019 = 7 Jahre: Klasse E.
+    await form.find('input[data-datum]').setValue('05.05.2019')
+    const knopf = form.find('[data-action="in-klasse-anlegen"]')
+    expect(knopf.text()).toBe('In Klasse E anlegen')
+    expect(knopf.attributes('data-klasse')).toBe('E')
+    await knopf.trigger('click')
+    const neu = store.state.value.starters[1]
+    expect(neu).toMatchObject({ vorname: 'Vor9', nachname: 'Nach9', verein: 'Musterclub', geburtsdatum: '2019-05-05', klasse: 'E', groesse: 'M', startNr: 'E01' })
+    expect(wrapper.find('form.add-form').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor9 Nach9 ist in Klasse E angelegt.')
+    expect(wrapper.emitted('oeffne')).toEqual([['E']])
+    wrapper.unmount()
+  })
+
+  it('passt der Jahrgang in keine Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten – ohne Knopf', async () => {
+    const wrapper = ansicht()
+    await wrapper.find('[data-action="starter-neu"]').trigger('click')
+    const form = wrapper.find('form.add-form')
+    // DM 2026: Klasse E bis 7 = 6 bis 27 Jahre.
+    await form.find('input[data-datum]').setValue('2023-01-01')
+    const hinweis = form.find('[data-hinweis="jahrgang-falsch"]')
+    expect(hinweis.text()).toContain('Der Jahrgang passt in keine Klasse: Es starten die Jahrgänge 1999–2020.')
+    expect(hinweis.find('button').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('das Datumsfeld liest 2012-05-03, 3.5.2012 und 03/05/2012 (Schrägstrich: Tag zuerst) und meldet ein Datum, das es nicht gibt', async () => {
+    const wrapper = ansicht()
+    await wrapper.find('[data-action="starter-neu"]').trigger('click')
+    const form = wrapper.find('form.add-form')
+    const [vorname, nachname] = form.findAll('input.input')
+    await vorname.setValue('Vor5')
+    await nachname.setValue('Nach5')
+    const datum = form.find('input[data-datum]')
+    expect(datum.attributes('type')).toBe('text')
+    expect(datum.attributes('placeholder')).toBe('TT.MM.JJJJ')
+    for (const text of ['2012-05-03', '3.5.2012', '03/05/2012', '2012-5-3']) {
+      await datum.setValue(text)
+      await datum.trigger('change')
+      // Bestätigt, steht es im Muster der Oberfläche da.
+      expect((datum.element as HTMLInputElement).value).toBe('03.05.2012')
+    }
+    await datum.setValue('31.02.2012')
+    await datum.trigger('change')
+    expect(form.find('[data-hinweis="datum-ungueltig"]').text()).toBe('Kein gültiges Datum: Den 31.02.2012 gibt es nicht.')
+    expect(datum.attributes('aria-invalid')).toBe('true')
+    expect(form.find('button[type="submit"]').attributes('disabled')).toBeDefined()
+    await form.trigger('submit')
+    expect(store.state.value.starters).toHaveLength(1)
+    // Monat/Tag gilt nie – die Meldung sagt, warum.
+    await datum.setValue('05/31/2012')
+    await datum.trigger('change')
+    expect(form.find('[data-hinweis="datum-ungueltig"]').text()).toContain('mit Schrägstrich steht immer der Tag vorn')
+    await datum.setValue('31/05/2012')
+    expect(form.find('[data-hinweis="datum-ungueltig"]').exists()).toBe(false)
+    await form.trigger('submit')
+    expect(store.state.value.starters[1].geburtsdatum).toBe('2012-05-31')
+    wrapper.unmount()
+  })
+
+  it('nirgends die Datumswahl des Browsers – englisch steht das Datum als yyyy-mm-dd da', async () => {
+    store.dispatch({ type: 'UPDATE_STARTER', id: 'p1', patch: { geburtsdatum: '2012-05-03' } })
+    const wrapper = ansicht()
+    await wrapper.find('[data-action="starter-neu"]').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    expect(wrapper.findAll('input[type="date"]')).toHaveLength(0)
+    const zelle = wrapper.find('input[data-datum].cell-input')
+    expect((zelle.element as HTMLInputElement).value).toBe('03.05.2012')
+    setLocale('en')
+    await wrapper.vm.$nextTick()
+    expect((zelle.element as HTMLInputElement).value).toBe('2012-05-03')
+    expect(zelle.attributes('placeholder')).toBe('yyyy-mm-dd')
+    // Auch englisch: Schrägstrich heißt Tag zuerst.
+    await zelle.setValue('02/05/2012')
+    await zelle.trigger('change')
+    expect(store.state.value.starters[0].geburtsdatum).toBe('2012-05-02')
+    // Wie im Reiter: Die Klasse bekommt den neuen Stand herein, das Feld zeigt ihn.
+    await wrapper.setProps({ starters: store.state.value.starters })
+    expect((zelle.element as HTMLInputElement).value).toBe('2012-05-02')
+    setLocale('de')
+    wrapper.unmount()
+  })
+
+  it('Bearbeiten: Ein Geburtsdatum mit falschem Jahrgang wird nicht übernommen – „In Klasse X verschieben“ verschiebt mit dem neuen Datum', async () => {
     const wrapper = ansicht()
     await wrapper.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
-    const datum = wrapper.find('input[type="date"].cell-input')
-    await datum.setValue('2019-05-05')
+    const datum = wrapper.find('input[data-datum].cell-input')
+    await datum.setValue('05.05.2019')
+    await datum.trigger('change')
+    await flushPromises()
     expect(store.state.value.starters[0].geburtsdatum).toBe('')
     expect((datum.element as HTMLInputElement).value).toBe('')
-    expect(wrapper.find('[data-hinweis="jahrgang-falsch"]').text()).toContain('Geburtsjahr 2019')
+    const hinweis = wrapper.find('[data-hinweis="jahrgang-falsch"]')
+    expect(hinweis.text()).toContain('Geburtsjahr 2019')
+    const knopf = hinweis.find('[data-action="in-klasse-verschieben"]')
+    expect(knopf.text()).toBe('In Klasse E verschieben')
+    expect(knopf.attributes('title')).toContain('Startnummer wird dort neu vergeben')
+    await knopf.trigger('click')
+    expect(store.state.value.starters[0]).toMatchObject({ klasse: 'E', geburtsdatum: '2019-05-05', startNr: 'E01' })
+    expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor1 Nach1 steht jetzt in Klasse E, mit der Startnummer E01.')
+    expect(wrapper.emitted('oeffne')).toEqual([['E']])
     wrapper.unmount()
+  })
+
+  it('Bearbeiten: Ein Datum, das es nicht gibt, wird nicht übernommen – die Meldung nennt den Starter, das Feld zeigt wieder das alte', async () => {
+    store.dispatch({ type: 'UPDATE_STARTER', id: 'p1', patch: { geburtsdatum: '2012-05-03' } })
+    const wrapper = ansicht()
+    await wrapper.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    const datum = wrapper.find('input[data-datum].cell-input')
+    await datum.setValue('31.02.2012')
+    await datum.trigger('change')
+    await flushPromises()
+    expect(store.state.value.starters[0].geburtsdatum).toBe('2012-05-03')
+    expect((datum.element as HTMLInputElement).value).toBe('03.05.2012')
+    expect(wrapper.find('[data-hinweis="jahrgang-falsch"]').text()).toBe('Nicht übernommen für Vor1 Nach1 – Kein gültiges Datum: Den 31.02.2012 gibt es nicht.')
+    wrapper.unmount()
+  })
+
+  it('Bearbeiten: Ist die Klasse festgeschrieben oder sind Ergebnisse erfasst, ist Verschieben gesperrt – mit Grund', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    const wrapper = ansicht()
+    await wrapper.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    const datum = wrapper.find('input[data-datum].cell-input')
+    await datum.setValue('05.05.2019')
+    await datum.trigger('change')
+    const knopf = wrapper.find('[data-action="in-klasse-verschieben"]')
+    expect(knopf.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-hinweis="verschieben-gesperrt"]').text()).toContain('Die Verzahnung bzw. der Startplan ist festgeschrieben')
+    expect(wrapper.find('[data-hinweis="verschieben-gesperrt"] a').attributes('href')).toBe('#/verzahnung')
+    // Auch der Reducer lehnt ab.
+    const vorher = store.state.value
+    store.dispatch({ type: 'MOVE_STARTER_TO_CLASS', id: 'p1', klasse: 'E', geburtsdatum: '2019-05-05' })
+    expect(store.state.value).toBe(vorher)
+    wrapper.unmount()
+
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: false })
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: 'p1', feld: 'zeit1', wert: '80' }] })
+    const danach = ansicht()
+    await danach.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    const feld = danach.find('input[data-datum].cell-input')
+    await feld.setValue('05.05.2019')
+    await feld.trigger('change')
+    expect(danach.find('[data-action="in-klasse-verschieben"]').attributes('disabled')).toBeDefined()
+    expect(danach.find('[data-hinweis="verschieben-gesperrt"]').text()).toBe('Verschieben geht nicht mehr: Es sind schon Ergebnisse erfasst.')
+    const stand = store.state.value
+    store.dispatch({ type: 'MOVE_STARTER_TO_CLASS', id: 'p1', klasse: 'E' })
+    expect(store.state.value).toBe(stand)
+    danach.unmount()
+  })
+
+  it('Verschieben: klassische Startnummern bleiben, klassenbasierte schließen in der neuen Klasse an', () => {
+    store.dispatch({ type: 'ADD_STARTERS', starters: [{ ...starter(2), id: 'e1', startNr: 'E03', klasse: 'E' }] })
+    store.dispatch({ type: 'MOVE_STARTER_TO_CLASS', id: 'p1', klasse: 'E', geburtsdatum: '2019-05-05' })
+    expect(store.state.value.starters.find((p) => p.id === 'p1')!.startNr).toBe('E04')
+    store.dispatch({ type: 'SET_START_NR_MODE', mode: 'klassisch' })
+    store.dispatch({ type: 'UPDATE_STARTER', id: 'e1', patch: { startNr: '17' } })
+    store.dispatch({ type: 'MOVE_STARTER_TO_CLASS', id: 'e1', klasse: '1' })
+    expect(store.state.value.starters.find((p) => p.id === 'e1')).toMatchObject({ klasse: '1', startNr: '17' })
   })
 
   it('die Klasse eines Starters lässt sich nicht mehr ändern, sobald Verzahnung bzw. Startplan festgeschrieben sind (Reducer)', () => {

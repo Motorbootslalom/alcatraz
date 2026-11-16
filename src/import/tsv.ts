@@ -8,6 +8,7 @@ import { planEvent } from '../planung/plan'
 import { canonicalRunningNumbers } from '../planung/running'
 import { originOf } from '../lib/origin'
 import { dublettenSchluessel } from './starterMerge'
+import { excelSeriennummer, liesDatum } from '../lib/datum'
 
 const TAB = '\t'
 
@@ -101,20 +102,22 @@ function parseKlasse(raw: string): ClassId | null {
 /** Geschlecht aus einer Datei: M, F, D, nA in gängigen Schreibweisen (domain/geschlecht.ts). */
 export { parseGeschlecht }
 
-/** Geburtsdatum in ISO (YYYY-MM-DD) normalisieren; toleriert TT.MM.JJJJ und reine Jahre. */
-function parseGeburtsdatum(raw: string): string {
-  const s = raw.trim()
+/**
+ * Geburtsdatum in ISO (JJJJ-MM-TT) – dieselben Schreibweisen wie das Datumsfeld der Oberfläche
+ * (lib/datum.ts): JJJJ-MM-TT, TT.MM.JJJJ, TT/MM/JJJJ. Ein Schrägstrich heißt IMMER Tag zuerst,
+ * nie Monat/Tag (Entscheidung des Nutzers vom 15.11.2026) – 12/01/2019 ist der 12. Januar.
+ * Dazu, nur hier: ein reines Jahr (→ 1. Januar), eine angehängte Uhrzeit (manche Programme
+ * kopieren „01.12.2019 00:00:00“) und eine Excel-Seriennummer (fünfstellig, Zelle als Zahl
+ * formatiert). `null`: nicht lesbar – das Feld bleibt leer, die Vorschau nennt den Wert.
+ */
+function parseGeburtsdatum(raw: string): string | null {
+  const s = raw.trim().replace(/\s+\d{1,2}:\d{2}(:\d{2})?$/, '')
   if (!s) return ''
-  // ISO bereits vorhanden
-  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`
-  // Deutsch: TT.MM.JJJJ (auch T.M.JJJJ)
-  const de = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
-  if (de) return `${de[3]}-${de[2].padStart(2, '0')}-${de[1].padStart(2, '0')}`
-  // Nur Jahr
-  const yr = s.match(/^(\d{4})$/)
-  if (yr) return `${yr[1]}-01-01`
-  return s
+  const gelesen = liesDatum(s)
+  if (gelesen.art === 'ok') return gelesen.iso
+  if (/^\d{4}$/.test(s)) return `${s}-01-01`
+  if (/^\d{5}$/.test(s)) return excelSeriennummer(Number(s))
+  return null
 }
 
 export interface ImportSkip {
@@ -139,6 +142,20 @@ export interface ImportResult {
    * Liste nach Pkt. 3.7 auf. Je Wert einmal, in der Folge des ersten Auftretens.
    */
   geschlechtUnbekannt: { anzahl: number; werte: string[] }
+  /**
+   * Geburtsdaten, die sich nicht lesen lassen (31.02.2019, „Mai 2019“): Die Zeilen kommen herein,
+   * das Feld bleibt leer – wie beim Geschlecht. Je Wert einmal, in der Folge des ersten Auftretens.
+   */
+  datumUnlesbar: { anzahl: number; werte: string[] }
+  /**
+   * Klassenbasierte Nummern aus der Liste, die wegfielen, weil die Zeile in einer anderen Klasse
+   * übernommen wird (`klasseJeZeile`) – dort bekommt der Starter eine neue. Sie zählen nicht als
+   * „ohne Startnummer“: Erkannt war die Nummer ja (Prüfbefund zu Paket F, 16.11.2026; vorher hieß
+   * es „keine Startnummern erkannt“). Je Wert einmal, in der Folge des ersten Auftretens.
+   */
+  nummerEntfallen: { anzahl: number; werte: string[] }
+  /** Je Starter (gleicher Index wie `starters`) die Zeile der Quelle – für die Klassenprüfung der Vorschau. */
+  zeilen: number[]
 }
 
 /**
@@ -156,10 +173,21 @@ export interface ImportResult {
  * schließen dann an die höchste Nummer der Klasse an, statt sie ein zweites Mal zu vergeben;
  * wer als Dublette übergangen wird, bekommt keine. Beim Ersetzen bleibt es leer – die Liste
  * gilt als Ganzes.
+ *
+ * `klasseJeZeile`: Zeilen (wie in `zeilen`), deren Starter in einer anderen Klasse als in der
+ * Liste übernommen werden – der Vorschlag der Klassenprüfung, wenn der Jahrgang in eine andere
+ * Klasse gehört (Entscheidung des Nutzers vom 15.11.2026). Eine klassenbasierte Nummer der
+ * bisherigen Klasse fällt dann weg und wird in der neuen ergänzt (`assignMissing`).
  */
 export function parseStartersTsv(
   text: string,
-  options: { assignMissing?: boolean; landIstStaat?: boolean; startNrPraefix?: StartNrPraefixe; vorhandene?: readonly Starter[] } = {},
+  options: {
+    assignMissing?: boolean
+    landIstStaat?: boolean
+    startNrPraefix?: StartNrPraefixe
+    vorhandene?: readonly Starter[]
+    klasseJeZeile?: Readonly<Record<number, ClassId>>
+  } = {},
 ): ImportResult {
   const lines = text
     .replace(/\r\n?/g, '\n')
@@ -168,8 +196,11 @@ export function parseStartersTsv(
 
   const skipped: ImportSkip[] = []
   const geschlechtUnbekannt = { anzahl: 0, werte: [] as string[] }
+  const datumUnlesbar = { anzahl: 0, werte: [] as string[] }
+  const nummerEntfallen = { anzahl: 0, werte: [] as string[] }
+  const zeilen: number[] = []
   if (lines.length === 0) {
-    return { starters: [], usedHeader: false, imported: 0, assignedNumbers: 0, skipped, geschlechtUnbekannt }
+    return { starters: [], usedHeader: false, imported: 0, assignedNumbers: 0, skipped, geschlechtUnbekannt, datumUnlesbar, nummerEntfallen, zeilen }
   }
 
   const firstCells = lines[0].split(TAB)
@@ -187,11 +218,14 @@ export function parseStartersTsv(
       return i >= 0 && i < cells.length ? cells[i].trim() : ''
     }
 
-    const klasse = parseKlasse(get('klasse'))
-    if (!klasse) {
+    const gelistet = parseKlasse(get('klasse'))
+    if (!gelistet) {
       skipped.push({ line: lineNo, raw: line, reason: 'unknownClass', value: get('klasse') })
       return
     }
+    const klasse = options.klasseJeZeile?.[lineNo] ?? gelistet
+    // In eine andere Klasse übernommen: Eine Nummer der gelisteten Klasse passt dort nicht mehr.
+    const alteNummer = klasse !== gelistet && options.assignMissing !== false && parseClassNumber(get('startNr'), gelistet, options.startNrPraefix) !== null
     const nachname = get('nachname')
     const vorname = get('vorname')
     if (!nachname && !vorname) {
@@ -204,15 +238,25 @@ export function parseStartersTsv(
       geschlechtUnbekannt.anzahl++
       if (!geschlechtUnbekannt.werte.includes(get('geschlecht'))) geschlechtUnbekannt.werte.push(get('geschlecht'))
     }
+    const geburtsdatum = parseGeburtsdatum(get('geburtsdatum'))
+    if (geburtsdatum === null) {
+      datumUnlesbar.anzahl++
+      if (!datumUnlesbar.werte.includes(get('geburtsdatum'))) datumUnlesbar.werte.push(get('geburtsdatum'))
+    }
+    if (alteNummer) {
+      nummerEntfallen.anzahl++
+      if (!nummerEntfallen.werte.includes(get('startNr').trim())) nummerEntfallen.werte.push(get('startNr').trim())
+    }
+    zeilen.push(lineNo)
     starters.push({
       id: uid('st'),
-      startNr: get('startNr').trim(),
+      startNr: alteNummer ? '' : get('startNr').trim(),
       vorname,
       nachname,
       verein: get('verein'),
       bundesland: get('bundesland'),
       ...(get('land') ? { land: get('land') } : {}),
-      geburtsdatum: parseGeburtsdatum(get('geburtsdatum')),
+      geburtsdatum: geburtsdatum ?? '',
       klasse,
       groesse: normalizeSize(get('groesse')),
       ...(geschlecht ? { geschlecht } : {}),
@@ -222,7 +266,7 @@ export function parseStartersTsv(
   // Klassenbasierte Nummern lassen sich ergänzen; klassische vergibt die Verzahnung.
   const assignedNumbers = (options.assignMissing ?? true) ? fillMissingStartNumbers(starters, options.startNrPraefix, options.vorhandene) : 0
 
-  return { starters, usedHeader, imported: starters.length, assignedNumbers, skipped, geschlechtUnbekannt }
+  return { starters, usedHeader, imported: starters.length, assignedNumbers, skipped, geschlechtUnbekannt, datumUnlesbar, nummerEntfallen, zeilen }
 }
 
 /**
@@ -265,8 +309,17 @@ export type StartNrImportNote = 'none' | 'unchanged' | 'allAssigned' | 'someAssi
 
 export function startNrImportNote(res: ImportResult): StartNrImportNote {
   if (res.imported === 0) return 'none'
-  if (res.assignedNumbers === 0) return 'unchanged'
-  return res.assignedNumbers === res.imported ? 'allAssigned' : 'someAssigned'
+  const ergaenzt = ergaenzteNummern(res)
+  if (ergaenzt === 0) return 'unchanged'
+  return ergaenzt === res.imported ? 'allAssigned' : 'someAssigned'
+}
+
+/**
+ * Wie viele Starter ohne Nummer in der Liste standen und eine bekamen – ohne die, deren Nummer nur
+ * wegen einer anderen Klasse wegfiel (`nummerEntfallen`; die Oberfläche nennt sie eigens).
+ */
+export function ergaenzteNummern(res: ImportResult): number {
+  return Math.max(0, res.assignedNumbers - res.nummerEntfallen.anzahl)
 }
 
 // ---------------------------------------------------------------------------
