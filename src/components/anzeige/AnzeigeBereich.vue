@@ -10,6 +10,10 @@ import HerkunftText from '../HerkunftText.vue'
  * der Parcours, mittig Klasse und Lauf, darunter groß die Startnummer, daneben Name, Herkunft und – wenn
  * eingestellt – der Start davor. Liest NUR die öffentliche Sicht (betrieb/sicht.ts): So zeigt eine entfernte
  * Anzeige (ab E6) dasselbe wie die am Bedienrechner. Texte in der Sprache der Tafel (`sicht.sprache`).
+ *
+ * Parallelslalom (E4): ein Paar – Racecourse A und B nebeneinander, je Seite Nummer, Name und Herkunft; oben
+ * mittig Klasse, Runde und Attempt. Eine leere Seite (Dummy, gelöscht, X) zeigt nur ihren Racecourse und „–“
+ * (BETRIEB_ANNAHMEN.parallelLeereSeite).
  */
 const props = defineProps<{
   bereich: SichtBereich
@@ -20,7 +24,7 @@ const props = defineProps<{
   anordnung?: string
 }>()
 
-const tx = (key: MessageKey) => tIn(props.sicht.sprache, key)
+const tx = (key: MessageKey, params?: Record<string, string | number>) => tIn(props.sicht.sprache, key, params)
 
 interface Gezeigt {
   startNr: string
@@ -37,9 +41,50 @@ function beschreibe(s: SichtStart | null): Gezeigt | null {
   return { startNr: p.startNr || '–', name: p.name, klasse: props.sicht.klassen[p.klasse], lauf: s.titel, herkunft: p.herkunft }
 }
 
-const aktuell = computed(() => beschreibe(props.bereich.aktuell))
+interface Seite {
+  rc: 'A' | 'B'
+  /** `null`: leer. */
+  startNr: string | null
+  name: string
+  herkunft: SichtStarter['herkunft']
+}
+interface Paar {
+  klassen: SichtKlasse[]
+  titel: string
+  seiten: Seite[]
+}
+
+/** Ein Paar des Parallelslaloms: beide Seiten; eine leere (oder ein Starter, der in der Sicht fehlt) ohne Angaben. */
+function beschreibePaar(s: SichtStart | null): Paar | null {
+  if (!s?.paar) return null
+  const seite = (rc: 'A' | 'B', id: string | null): Seite => {
+    const p = id === null ? undefined : props.sicht.starter[id]
+    return { rc, startNr: p ? p.startNr || '–' : null, name: p?.name ?? '', herkunft: p?.herkunft ?? null }
+  }
+  const starter = [s.paar.a, s.paar.b].flatMap((id) => (id !== null && props.sicht.starter[id] ? [props.sicht.starter[id]] : []))
+  const klassen = [...new Set(starter.map((p) => p.klasse))].flatMap((k) => (props.sicht.klassen[k] ? [props.sicht.klassen[k]!] : []))
+  return { klassen, titel: s.titel, seiten: [seite('A', s.paar.a), seite('B', s.paar.b)] }
+}
+
+/** Der Start davor in einer Zeile: Manövrieren Nummer, Klasse, Name; ein Paar beide Nummern und die Klasse. */
+function davorText(s: SichtStart | null): string {
+  const paar = beschreibePaar(s)
+  if (paar) {
+    if (!paar.seiten.some((x) => x.startNr)) return ''
+    return [paar.seiten.map((x) => x.startNr ?? '–').join(' / '), paar.klassen.map((k) => k.titel).join(' / ')].filter(Boolean).join(' · ')
+  }
+  const d = beschreibe(s)
+  return d ? [d.startNr, d.klasse?.titel, d.name].filter(Boolean).join(' · ') : ''
+}
+
+// Ein Paar, von dem keine Seite mehr in der Sicht steht (beide gelöscht), zeigt „bereit“ – wie ein gelöschter Starter.
+const paar = computed(() => {
+  const p = beschreibePaar(props.bereich.aktuell)
+  return p && p.seiten.some((x) => x.startNr !== null) ? p : null
+})
+const aktuell = computed(() => (props.bereich.aktuell?.paar ? null : beschreibe(props.bereich.aktuell)))
 // Mit Klasse: Am Steg wird daran abgelesen, welches Boot gerade zurückkommt.
-const vorig = computed(() => (props.sicht.einst.davor ? beschreibe(props.bereich.vorig) : null))
+const vorig = computed(() => (props.sicht.einst.davor ? davorText(props.bereich.vorig) : ''))
 const parcours = computed(() => (props.sicht.einst.parcoursName ? props.bereich.name : ''))
 const meldung = computed(() => props.bereich.meldung)
 /** Störung und Pause verdrängen den Starter; ein Hinweis steht darunter. */
@@ -73,6 +118,33 @@ const HINWEIS_ZEILEN = 2
         </div>
       </template>
 
+      <template v-else-if="paar">
+        <div v-fit class="anzeige-zeile anzeige-meta">
+          <span class="anzeige-parcours">{{ parcours }}</span>
+          <span class="anzeige-mitte">
+            <span v-for="k in paar.klassen" :key="k.titel" class="anzeige-klasse" data-klasse
+              ><span class="anzeige-klassenfarbe" :style="{ background: k.farbe }" aria-hidden="true" />{{ k.titel }}</span
+            >
+            <span class="anzeige-lauf" data-lauf>{{ paar.titel }}</span>
+          </span>
+          <span />
+        </div>
+
+        <div class="anzeige-rumpf">
+          <!-- Racecourse A links, B rechts – wie sie vom Ufer aus liegen, ist Sache der Aufstellung; die Tafel sagt es dazu. -->
+          <div class="anzeige-paar">
+            <div v-for="x in paar.seiten" :key="x.rc" class="anzeige-bahn" :class="{ leer: !x.startNr }" :data-racecourse="x.rc">
+              <div v-fit class="anzeige-zeile anzeige-racecourse" data-teil="racecourse">{{ tx('anzeige.racecourse', { rc: x.rc }) }}</div>
+              <div v-fit class="anzeige-zeile anzeige-startnr" data-startnr>{{ x.startNr ?? '–' }}</div>
+              <div v-if="x.name" v-fit class="anzeige-zeile anzeige-name" data-name>{{ x.name }}</div>
+              <div v-if="x.herkunft" v-fit class="anzeige-zeile anzeige-herkunft" data-herkunft><HerkunftText :anzeige="x.herkunft" /></div>
+            </div>
+          </div>
+          <div v-if="vorig" v-fit class="anzeige-zeile anzeige-vorig anzeige-vorig-paar" data-vorig>{{ tx('anzeige.davor') }}: {{ vorig }}</div>
+          <div v-if="meldung" v-fit-zeilen="HINWEIS_ZEILEN" class="anzeige-zeile anzeige-meldung info darunter" data-meldung>{{ meldung.text }}</div>
+        </div>
+      </template>
+
       <template v-else-if="aktuell">
         <div v-fit class="anzeige-zeile anzeige-meta">
           <span class="anzeige-parcours">{{ parcours }}</span>
@@ -91,9 +163,7 @@ const HINWEIS_ZEILEN = 2
             <div class="anzeige-angaben">
               <div v-if="aktuell.name" v-fit class="anzeige-zeile anzeige-name" data-name>{{ aktuell.name }}</div>
               <div v-if="aktuell.herkunft" v-fit class="anzeige-zeile anzeige-herkunft" data-herkunft><HerkunftText :anzeige="aktuell.herkunft" /></div>
-              <div v-if="vorig" v-fit class="anzeige-zeile anzeige-vorig" data-vorig>
-                {{ tx('anzeige.davor') }}: {{ [vorig.startNr, vorig.klasse?.titel, vorig.name].filter(Boolean).join(' · ') }}
-              </div>
+              <div v-if="vorig" v-fit class="anzeige-zeile anzeige-vorig" data-vorig>{{ tx('anzeige.davor') }}: {{ vorig }}</div>
             </div>
           </div>
           <!-- Ein Hinweis schrumpft selbst (höchstens zwei Zeilen), statt über den Block die Startnummer zu verkleinern. -->

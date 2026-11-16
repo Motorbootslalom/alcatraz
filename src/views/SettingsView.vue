@@ -75,13 +75,21 @@ const setzeAnzeige = (patch: Partial<AnzeigeEinstellungen>) => dispatch({ type: 
 const anzeigeBereiche = computed(() => bereicheZumStand(state.value))
 const anzeigeGezeigt = computed(() => new Set(bereicheZumStand(state.value, { anzeige: true }).map((b) => b.id)))
 const kopfVorgabe = computed(() => (state.value.eventName.trim() ? `${state.value.eventName.trim()} ${state.value.eventJahr}` : ''))
-/** Einen Parcours auf der gemeinsamen Tafel ein- oder ausblenden; alle gewählt heißt „alle“ ([]) – auch künftige. Einer bleibt immer. */
+/**
+ * Einen Bereich auf der gemeinsamen Tafel ein- oder ausblenden. Entspricht die Wahl der automatischen ([] – alle
+ * Parcours, der Parallelslalom erst ab einer begonnenen Runde, betrieb/folge.ts bereicheZumStand), bleibt sie
+ * automatisch – auch für künftige Parcours. Einer bleibt immer.
+ */
 function setzeAnzeigeBereich(id: string, an: boolean) {
   const alle = anzeigeBereiche.value.map((b) => b.id)
   const neu = alle.filter((x) => (x === id ? an : anzeigeGezeigt.value.has(x)))
   if (neu.length === 0) return
-  setzeAnzeige({ bereiche: neu.length === alle.length ? [] : neu })
+  const automatisch = bereicheZumStand({ ...state.value, anzeige: { ...state.value.anzeige, bereiche: [] } }, { anzeige: true }).map((b) => b.id)
+  const gleich = neu.length === automatisch.length && neu.every((x) => automatisch.includes(x))
+  setzeAnzeige({ bereiche: gleich ? [] : neu })
 }
+/** Der Name eines Bereichs in der Oberfläche: der Parcours wie im Stand, der Parallelslalom mit seinem Wort. */
+const bereichName = (b: { name: string; art: string }) => (b.art === 'parallel' ? t('parallel.title') : b.name)
 /** Leer = Name und Jahr der Veranstaltung (`null`); „keine Kopfzeile“ ist der Haken daneben (''). */
 function setzeKopfzeile(e: Event) {
   const wert = (e.target as HTMLInputElement).value
@@ -820,9 +828,11 @@ function takeLegacy() {
           :disabled="anzeigeGezeigt.has(b.id) && anzeigeGezeigt.size === 1"
           @change="setzeAnzeigeBereich(b.id, ($event.target as HTMLInputElement).checked)"
         />
-        {{ b.name }}
+        {{ bereichName(b) }}
       </label>
       <p class="note">{{ t('listopt.anzeige.bereiche.hint') }}</p>
+      <!-- Nur wo es den Parallelslalom gibt (UIM): Er kommt von selbst erst mit seiner ersten begonnenen Runde dazu. -->
+      <p v-if="anzeigeBereiche.some((b) => b.art === 'parallel')" class="note" data-hinweis="anzeige-parallel">{{ t('listopt.anzeige.bereiche.parallel') }}</p>
     </fieldset>
 
     <div class="row" style="align-items: center; gap: 20px; margin-top: 12px">

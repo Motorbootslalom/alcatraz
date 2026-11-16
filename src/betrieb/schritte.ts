@@ -207,16 +207,56 @@ export function beweglich(l: Pick<BereichLage, 'folge' | 'erledigt'>, key: strin
  * gezeigter Start eines späteren Laufs schiebt den Zeiger nicht): Ein gezielt gezeigter Start (B-5, wie
  * showSlot im Prototyp) steht danach dort, wo er gefahren ist – die Folge spiegelt die Wirklichkeit (B-7);
  * „als Nächster einreihen“ (B-4) ebenso. Mehrere (Einsteigen) kommen in der gegebenen Folge dorthin.
+ * Im Parallelslalom hinter das zuletzt Erledigte der eigenen Runde ({@link hinterDasErledigteDerRunde}).
  */
-export function hinterDenZeiger(l: Pick<BereichLage, 'folge' | 'zeiger' | 'aktuell'>, bewegt: string | readonly string[]): string[] {
+export function hinterDenZeiger(l: Pick<BereichLage, 'folge' | 'zeiger' | 'aktuell' | 'erledigt'>, bewegt: string | readonly string[]): string[] {
   const liste = typeof bewegt === 'string' ? [bewegt] : [...bewegt]
   const weg = new Set(liste)
   const rest = keysVon(l.folge).filter((k) => !weg.has(k))
+  if (jeRunde(l, liste[0])) return hinterDasErledigteDerRunde(l, liste, rest)
   // Zeiger und Start im Boot sind erledigt, also nie unter den bewegten.
   const zeiger = l.zeiger >= 0 ? rest.indexOf(l.folge[l.zeiger].key) : -1
   const imBoot = l.aktuell ? rest.indexOf(l.aktuell.key) : -1
   const at = Math.max(zeiger, imBoot) + 1
   return [...rest.slice(0, at), ...liste, ...rest.slice(at)]
+}
+
+/** Gilt für diesen Start die Folge je Runde – ein Paar des Parallelslaloms (BETRIEB_ANNAHMEN.parallelRundenFuerSich)? */
+function jeRunde(l: Pick<BereichLage, 'folge'>, key: string | undefined): boolean {
+  return BETRIEB_ANNAHMEN.parallelRundenFuerSich && !!l.folge.find((e) => e.key === key)?.paar
+}
+
+/** Die Stelle hinter dem zuletzt Erledigten einer Runde in `keys` (gezeigt, „ohne Anzeige“, der Start im Boot); −1 = keines. */
+function hinterLetztemErledigten(l: Pick<BereichLage, 'erledigt'>, keys: readonly string[], punktVon: ReadonlyMap<string, PunktId>, punkt: PunktId | undefined): number {
+  let at = -1
+  keys.forEach((k, i) => {
+    if (punktVon.get(k) === punkt && l.erledigt.has(k)) at = i + 1
+  })
+  return at
+}
+
+/**
+ * „Hinter den Zeiger“ im Parallelslalom: Die Runden laufen je Klasse für sich (BETRIEB_ANNAHMEN.parallelRundenFuerSich),
+ * also kommt jeder bewegte Start hinter das zuletzt Erledigte SEINER Runde – der Zeiger stünde womöglich in einer
+ * späteren Runde, und dorthin gesetzt überholte der Start die übrigen seiner eigenen (sie würden nachzuholen). Ist in
+ * der Runde nichts erledigt, vor ihren ersten Start; hat sie keinen mehr, an seine alte Stelle. Mehrere Runden
+ * (Einsteigen) je für sich, in der gegebenen Folge.
+ */
+function hinterDasErledigteDerRunde(l: Pick<BereichLage, 'folge' | 'erledigt'>, liste: readonly string[], rest: readonly string[]): string[] {
+  const punktVon = new Map(l.folge.map((e) => [e.key, e.punkt]))
+  let keys = [...rest]
+  for (const punkt of new Set(liste.map((k) => punktVon.get(k)))) {
+    const mit = liste.filter((k) => punktVon.get(k) === punkt)
+    let at = hinterLetztemErledigten(l, keys, punktVon, punkt)
+    if (at < 0) at = keys.findIndex((k) => punktVon.get(k) === punkt)
+    if (at < 0) {
+      const davor = new Set(keysVon(l.folge.slice(0, Math.max(0, l.folge.findIndex((e) => e.key === mit[0])))))
+      at = keys.findIndex((k) => !davor.has(k))
+      if (at < 0) at = keys.length
+    }
+    keys = [...keys.slice(0, at), ...mit, ...keys.slice(at)]
+  }
+  return keys
 }
 
 /**
@@ -225,15 +265,59 @@ export function hinterDenZeiger(l: Pick<BereichLage, 'folge' | 'zeiger' | 'aktue
  * liegt vor dem Zeiger – ein verpasster Lauf 1, während Lauf 2 läuft), ans Ende des Blocks des laufenden
  * Punkts: dort, wo der Start wirklich drankommt (S-4). Nie vor den Zeiger.
  */
-export function ansPunktende(l: Pick<BereichLage, 'folge' | 'zeiger' | 'laufend' | 'programm'>, key: string): string[] {
-  const e = l.folge.find((x) => x.key === key)
+export function ansPunktende(l: Pick<BereichLage, 'folge' | 'zeiger' | 'laufend' | 'programm' | 'erledigt'>, bewegt: string | readonly string[]): string[] {
+  // Mehrere (die Attempts eines Paares im Parallelslalom) kommen in der gegebenen Folge dorthin, wo der erste hinkäme.
+  const liste = typeof bewegt === 'string' ? [bewegt] : [...bewegt]
+  const e = l.folge.find((x) => x.key === liste[0])
   if (!e) return keysVon(l.folge)
-  const rest = l.folge.filter((x) => x.key !== key)
+  const weg = new Set(liste)
+  const rest = l.folge.filter((x) => !weg.has(x.key))
   const block = bloeckeIn(rest, l.programm)
-  const frueheste = zeigerOhne(l, key) + 1
+  // Der Zeiger in der Folge ohne die bewegten (ein nicht erledigter Start ist nie selbst der Zeiger). Im
+  // Parallelslalom das zuletzt Erledigte der eigenen Runde: Das Ende der Runde ist nie vorbei, auch wenn eine
+  // spätere schon läuft (BETRIEB_ANNAHMEN.parallelRundenFuerSich) – der laufende Punkt spielt dort keine Rolle.
+  const runde = jeRunde(l, e.key)
+  const frueheste = runde
+    ? Math.max(0, hinterLetztemErledigten(l, keysVon(rest), new Map(l.folge.map((x) => [x.key, x.punkt])), e.punkt))
+    : (l.zeiger >= 0 ? rest.findIndex((x) => x.key === l.folge[l.zeiger].key) : -1) + 1
   let at = hinterBlock(block, Math.max(0, l.programm.indexOf(e.punkt)))
-  if (at < frueheste && l.laufend !== null && BETRIEB_ANNAHMEN.einreihenEndeLaufend) at = hinterBlock(block, Math.max(0, l.programm.indexOf(l.laufend)))
-  return setzeAn(keysVon(l.folge), key, Math.max(at, frueheste))
+  if (!runde && at < frueheste && l.laufend !== null && BETRIEB_ANNAHMEN.einreihenEndeLaufend) at = hinterBlock(block, Math.max(0, l.programm.indexOf(l.laufend)))
+  const ziel = Math.max(at, frueheste)
+  const keys = keysVon(rest)
+  return [...keys.slice(0, ziel), ...liste, ...keys.slice(ziel)]
+}
+
+// --- Paare des Parallelslaloms ------------------------------------------------------------------------
+
+/** Wer zu einem Paar einer Runde gehört – gleich, wer im jeweiligen Attempt auf A oder B steht. */
+function paarKennung(e: FolgeEintrag): string | null {
+  if (!e.paar) return null
+  return JSON.stringify([e.paar.runde, [e.paar.a ?? '', e.paar.b ?? ''].sort()])
+}
+
+/**
+ * Die Starts desselben Paares in derselben Runde (beide Attempts), in der Folge – für die Einheit „Paar“ beim
+ * Zurückstellen und Einreihen (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit). Im Manövrieren nur der Start selbst.
+ */
+export function paarStarts(l: Pick<BereichLage, 'folge'>, key: string): FolgeEintrag[] {
+  const e = l.folge.find((x) => x.key === key)
+  if (!e) return []
+  const kennung = paarKennung(e)
+  if (kennung === null || !BETRIEB_ANNAHMEN.parallelPaarAlsEinheit) return [e]
+  return l.folge.filter((x) => paarKennung(x) === kennung)
+}
+
+/**
+ * Der andere Attempt eines Paares, der im Plan DIREKT hinter diesem Start steht – so legen Halbfinale, Finals und
+ * Re-runs ihre Paare an (planung/parallelRunden.ts `mitKlasse`). Im Vorlauf wechseln die Blöcke die Bootstypen
+ * (1. Attempt klein, 1. Attempt groß, 2. Attempt klein …): Dort gibt es keinen, die Folge des Plans bleibt. Sonst `null`.
+ * Für BETRIEB_ANNAHMEN.parallelPaarZuEnde und das gezielte Zeigen (parallelPaarAlsEinheit).
+ */
+export function planPartner(abgeleitet: readonly FolgeEintrag[], key: string): string | null {
+  const i = abgeleitet.findIndex((e) => e.key === key)
+  if (i < 0 || !abgeleitet[i].paar) return null
+  const danach = abgeleitet[i + 1]
+  return danach && danach.lauf > abgeleitet[i].lauf && paarKennung(danach) === paarKennung(abgeleitet[i]) ? danach.key : null
 }
 
 /** Wohin ein Verschieben zielt: die Stelle in der Folge ohne den bewegten Start und der Block dort. */

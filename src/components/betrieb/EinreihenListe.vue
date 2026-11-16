@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { OeffentlicheSicht, SichtStart } from '../../types'
+import type { OeffentlicheSicht, SichtBereich, SichtStart } from '../../types'
 import { t } from '../../i18n'
-import { startZeile } from './texte'
+import { startZeile, tBereich } from './texte'
 
 /**
  * Starts, die wieder eingereiht werden (B-4, BETRIEB_EINREIHEN nimmt genau diese):
@@ -11,10 +11,13 @@ import { startZeile } from './texte'
  *   (BETRIEB_ANNAHMEN.nachzueglerNachzuholen); sie kommen nie von selbst als Nächstes.
  * Je Start „Jetzt zeigen“ (gezielt, B-5), „Als Nächster“ und „Ans Ende des Laufs“. Drei Knöpfe statt eines
  * Menüs: Am Steg ist das ein Griff, und keiner davon ist unumkehrbar. Liest nur die öffentliche Sicht,
- * Bedienung in der Sprache der Oberfläche.
+ * Bedienung in der Sprache der Oberfläche. Im Parallelslalom („Ans Ende der Runde“) holt das Einreihen die wartenden
+ * Attempts desselben Paares mit (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit, im Reducer).
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
+  /** Nur für die Wörter (Lauf bzw. Runde). */
+  bereich?: Pick<SichtBereich, 'art'>
   eintraege: readonly SichtStart[]
   art: 'zurueckgestellt' | 'nachzuholen'
   gesperrt?: boolean
@@ -38,8 +41,8 @@ const zeilen = computed(() => props.eintraege.map((e) => startZeile(props.sicht,
         <span class="betrieb-zeilen-knoepfe">
           <button type="button" class="btn sm" :data-action="`${art}-zeigen`" :disabled="gesperrt" @click="emit('zeigen', z.key)">{{ t('betrieb.jetztZeigen') }}</button>
           <button type="button" class="btn sm" data-action="einreihen-naechster" :disabled="gesperrt" @click="emit('einreihen', z.key, 'naechster')">{{ t('betrieb.einreihen.naechster') }}</button>
-          <button type="button" class="btn sm" data-action="einreihen-ende" :disabled="gesperrt" :title="t('betrieb.einreihen.ende.title')" @click="emit('einreihen', z.key, 'ende')">
-            {{ t('betrieb.einreihen.ende') }}
+          <button type="button" class="btn sm" data-action="einreihen-ende" :disabled="gesperrt" :title="tBereich(bereich, 'betrieb.einreihen.ende.title')" @click="emit('einreihen', z.key, 'ende')">
+            {{ tBereich(bereich, 'betrieb.einreihen.ende') }}
           </button>
         </span>
       </li>

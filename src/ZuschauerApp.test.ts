@@ -6,7 +6,7 @@ import { createLeseStore, leseStoreKey, type LeseStore } from './state/leseStore
 import { STATE_KEY } from './persistenz/storage'
 import { reducer } from './state/reducer'
 import { refKey } from './betrieb/folge'
-import { betriebsStand, betriebStarter, festgeschrieben, zeigeNaechsten } from './testHilfen'
+import { betriebsStand, betriebStarter, festgeschrieben, uimParallelStand, zeigeNaechsten } from './testHilfen'
 import { setLocale } from './i18n'
 import type { AppState } from './types'
 
@@ -226,5 +226,52 @@ describe('Zuschauerliste', () => {
     location.hash = `#/zuschauer/${P1}`
     const nur = await zuschauer(imBetrieb())
     expect(nur.findAll('.zuschauer-bereich').map((b) => b.attributes('data-bereich'))).toEqual([P1])
+  })
+
+  it('Parallelslalom (E4, UIM): je Karte ein Paar mit Racecourse A und B, eine leere Seite „–“; ohne Wartezeit, mit Steg', async () => {
+    let s = reducer(uimParallelStand(), { type: 'SET_ANZEIGE', patch: { amSteg: 1, vorSteg: 1 } })
+    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre' })
+    s = reducer(s, { type: 'BETRIEB_ZEIGEN', bereich: 'parallel', ref: refKey({ art: 'p', runde: 'pre', attempt: 1, a: 'E-1', b: 'E-2' }), vorher: null, zeit: T0 })
+    location.hash = '#/zuschauer/parallel'
+    const w = await zuschauer(s)
+    const b = w.find('[data-bereich="parallel"]')
+    expect(text(b.find('h2'))).toBe('Parallel slalom')
+    expect(text(b.find('[data-teil="stand"]'))).toBe('Preliminary heat in progress')
+    expect(text(b.find('[data-teil="ohne-zeit"]'))).toBe('No waiting times in the parallel slalom.')
+    const seiten = (el: ReturnType<VueWrapper['find']>) => el.findAll('.zuschauer-seite').map((x) => [x.attributes('data-racecourse'), text(x.find('.zuschauer-rc')), text(x.find('.zuschauer-nr'))])
+    expect(seiten(b.find('[data-teil="imboot"]'))).toEqual([
+      ['A', 'Racecourse A', 'E01'],
+      ['B', 'Racecourse B', 'E02'],
+    ])
+    // Im Boot mit der Klassenplakette wie die Karten darunter; die Karte hat zwei Teile (Paar, Wartezeit) und eigene
+    // Spalten (styles/zuschauer.css `.zuschauer-start.zuschauer-paar`).
+    expect(text(b.find('[data-teil="imboot"] .zuschauer-was'))).toBe('Dolphin Preliminary heat · Attempt 1')
+    expect(b.find('[data-teil="imboot"] .zuschauer-start').classes()).toContain('zuschauer-paar')
+    // Der Hinweis auf die Schätzung der Wartezeiten fehlt, wenn nur der Parallelslalom gezeigt wird – er hat keine.
+    expect(w.find('[data-teil="hinweis"]').exists()).toBe(false)
+    const amSteg = b.find('[data-gruppe="amSteg"] [data-start]')
+    expect(seiten(amSteg)).toEqual([
+      ['A', 'Racecourse A', 'E02'],
+      ['B', 'Racecourse B', 'E01'],
+    ])
+    expect(text(amSteg.find('.zuschauer-was'))).toBe('Dolphin Preliminary heat · Attempt 2')
+    // Dolphin 3 gegen den Dummy: vor Steg, die leere Seite „–“ ohne Namen; nirgends eine Wartezeit.
+    const vorSteg = b.find('[data-gruppe="vorSteg"] [data-start]')
+    expect(seiten(vorSteg)).toEqual([
+      ['A', 'Racecourse A', 'E03'],
+      ['B', 'Racecourse B', '–'],
+    ])
+    expect(b.findAll('[data-teil="ca"], [data-teil="vorsteg"]')).toHaveLength(0)
+    // Klassenfilter: ein Paar zählt für die Klasse seiner Seiten.
+    await w.find('[data-teil="filter"] [data-klasse="1"]').trigger('click')
+    const gefiltert = w.find('[data-bereich="parallel"]').findAll('[data-gruppe] [data-start]')
+    expect(gefiltert.length).toBeGreaterThan(0)
+    expect(gefiltert.map((z) => z.find('.class-badge').text())).toEqual(gefiltert.map(() => '1'))
+    // Mit den Parcours zusammen steht der Hinweis auf die Wartezeiten wieder da.
+    wrapper?.unmount()
+    lese?.beende()
+    location.hash = '#/zuschauer'
+    const alle = await zuschauer(s)
+    expect(alle.find('[data-teil="hinweis"]').exists()).toBe(true)
   })
 })

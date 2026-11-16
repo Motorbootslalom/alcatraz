@@ -253,7 +253,7 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
 
 Am Wettkampftag gibt der Bedienrechner frei, wer als Nächstes startet, und eine **Anzeigetafel** zeigt es – in einem
 zweiten Fenster, etwa auf einem Monitor am Steg (Reiter „Betrieb“, `src/views/BetriebView.vue`; Plan zur Übernahme des
-Prototyps `tafel` vom 16.11.2026, Etappen E1 bis E3). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
+Prototyps `tafel` vom 16.11.2026, Etappen E1 bis E4). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
 Dazu kommen eine **Startliste** mit geschätzten Wartezeiten und eine **Zuschauerliste**. Mehrere Geräte über das
 Internet kommen später; bisher braucht nichts davon ein Netz.
 
@@ -365,14 +365,20 @@ Internet kommen später; bisher braucht nichts davon ein Netz.
   Steg-Gruppen und Wartezeiten zählen alle Klassen; das Fenster merkt ihn sich auch über das Neuladen. Schmal genug fürs Handy, in der Sprache der
   Anzeigetafel, im Farbschema der Bedienung. Das Fenster liest nur und schreibt nie, wie die Anzeigetafel. Fürs Handy
   der Zuschauer über das Internet kommt später ein Link (dieselbe Seite).
+- **Parallelslalom** (nur unter UIM, Etappe E4; Einzelheiten in [parallelslalom.md](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)):
+  ein eigener Bereich „Parallel slalom“ hinter den Parcours. Seine Punkte sind die festgeschriebenen Runden (Vorlauf,
+  Re-run, Halbfinale, Finals), seine Starts die Paare des Plans; die Anzeigetafel zeigt Racecourse A und B
+  nebeneinander. Klassen aussetzen, vorziehen und Verschieben gibt es dort nicht, Zurückstellen nimmt das ganze Paar,
+  und Startliste und Zuschauerliste zeigen keine Wartezeit. Die gemeinsame Anzeigetafel nimmt ihn von selbst erst
+  dazu, wenn eine Runde begonnen ist; eine eigene Tafel gibt es über „Eigene Anzeigetafel“ (`#/anzeige/parallel`).
 - **Was die Anzeigetafel zeigt** (`src/betrieb/sicht.ts`): nur Startnummer, Name, Klasse und Herkunft der Starter,
   die gerade vorkommen – nie Geburtsdatum, Gewicht, Geschlecht oder erfasste Werte. Dieselbe Sicht liest die
   Start-Freigabe; so können beide später auch auf anderen Geräten laufen. Die Zuschauerliste liest eine noch
   schmalere Sicht (`sichtZuschauer`): ohne alles, was nur die Bedienung braucht – wer zurückgestellt ist, wer
   nachzuholen ist, die Starts späterer Läufe –, und nur die Starter, die darin vorkommen.
 - **Einstellungen** unter „Einstellungen → Anzeigetafel“: Kopfzeile (Vorgabe Name und Jahr der Veranstaltung,
-  eigener Text oder keine), Logos links und rechts daneben (die der Listen), welche Parcours die gemeinsame Tafel
-  zeigt, Start davor, Name des Parcours, Namen (wie der Aushang der Wertungslisten, voll, gekürzt, ohne), Herkunft,
+  eigener Text oder keine), Logos links und rechts daneben (die der Listen), welche Parcours (unter UIM auch der
+  Parallelslalom) die gemeinsame Tafel zeigt, Start davor, Name des Parcours, Namen (wie der Aushang der Wertungslisten, voll, gekürzt, ohne), Herkunft,
   Sprache und Schriftgröße (70–130 %). Unter „Einstellungen → Startfolge im Betrieb“: „Verzahnung beim Verschieben
   halten“, wie viele Starts „am Steg“ und „vor Steg“ stehen (je 0–10) und die **Startabstände** je Klasse: Vorgabe,
   eigener Wert (30–600 s; leer oder gleich der Vorgabe heißt Vorgabe), gemessen (Mittel, Zahl, zuletzt) und was gilt.

@@ -16,6 +16,7 @@ Warum etwas so ist, steht mit Datum in [entscheidungen.md](entscheidungen.md).
 - [Wertung des Vorlaufs](#wertung-des-vorlaufs)
 - [Runden nach dem Vorlauf](#runden-nach-dem-vorlauf)
 - [Abmelden](#abmelden)
+- [Betrieb: Start-Freigabe und Anzeigetafel](#betrieb-start-freigabe-und-anzeigetafel)
 - [Dummys und Wörter](#dummys-und-wörter)
 - [Einzelwertung](#einzelwertung)
   - [Disziplin nicht werten](#disziplin-nicht-werten)
@@ -349,6 +350,53 @@ Wer nach Wettkampfbeginn als „nicht gestartet“ eingetragen wird, bekommt das
 - Das X einer Abmeldung macht eine Disziplin nicht zur „gefahrenen“
   (`disziplinGefahren` in `src/lib/disziplinen.ts` übergeht Zeilen Abgemeldeter, in denen nur das X steht).
   Wer nur das Manövrieren fährt und danach jemanden abmeldet, behält seine Einzelwertung.
+
+## Betrieb: Start-Freigabe und Anzeigetafel
+
+Etappe E4 des Plans zur Übernahme der Tafel (16.11.2026); das Allgemeine steht in
+[funktionen.md](funktionen.md#betrieb-start-freigabe-und-anzeigetafel). Unter DM gibt es den Bereich nicht.
+Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts`) und sind noch zu bestätigen.
+
+- **Bereich „Parallel slalom“** (`parallel`) hinter den Parcours, sobald jemand in einer Klasse bis 5 fährt
+  oder eine Runde festgeschrieben ist (`src/betrieb/folge.ts`).
+- **Punkte sind die festgeschriebenen Runden**, in der Folge, in der sie gefahren werden: Vorlauf, seine
+  Wiederholungen, Halbfinale, dessen Wiederholungen, Finals. Eine Runde ohne festgeschriebenen Plan steht nicht im
+  Programm. Ein Re-run, der erst nach dem Halbfinale festgeschrieben wird, ordnet sich davor ein und wartet als
+  nicht begonnene Runde („Vorlauf – Wiederholung beginnen“). Das kleine Finale ist keine eigene Runde: Es steht
+  im Plan der Finals vorn, und jeder Start nennt sein Finale („Small final (3rd and 4th place)“, „Final“).
+- **Die Runden laufen je Klasse für sich** (Halbfinale, Finals und Re-runs werden je Klasse festgeschrieben; Prüfung
+  von E4, 16.11.2026, noch zu bestätigen): „Nachzuholen“ ist ein Start nur, wenn hinter ihm schon ein Start derselben
+  Runde gezeigt ist. Ein Re-run, der festgeschrieben wird, während das Halbfinale läuft, kommt nach „Re-run beginnen“
+  also dran; das Halbfinale einer Klasse, das erst während der Finals einer anderen festgeschrieben wird, ist sofort
+  freigegeben. Gefahren wird in der Folge der Runden, aber ein Paar im Boot fährt erst seinen anderen Attempt. Als
+  laufende Runde nennen Tafel und Zuschauerliste die des nächsten Starts.
+- Betrieb ist möglich, sobald eine Runde festgeschrieben ist – unabhängig von der Sperre der Verzahnung.
+- **Starts sind die Paare des Plans**, in seiner Reihenfolge – dieselbe wie auf den Listen der race officials.
+  Die Kennung eines Starts bilden Runde, Attempt und die gespeicherten IDs auf A und B (`parallelPlaene[runde].starts`),
+  nie die aufgelösten Paare: Wird ein Starter gelöscht, bleibt ein schon gezeigter Start derselbe und taucht nicht
+  wieder als offen auf (Kritik K8).
+- **Leere Seite:** Steht auf einer Seite ein Dummy, ein gelöschter Starter oder ein X „nicht gestartet“ in diesem
+  Attempt, zeigt die Anzeigetafel sie leer („–“); der Gegner fährt – so fährt ein Halbfinale mit einer abgemeldeten
+  Seite. Der Start entfällt erst, wenn auf keiner Seite jemand fährt (beide gelöscht, beide X, Dummy gegen X).
+  Die Sicht sagt nicht, warum eine Seite leer ist; die Zuschauerliste (öffentlicher Link) nennt auch in ihren
+  internen Kennungen nur, wer fährt.
+- **Anzeigetafel:** Racecourse A und B nebeneinander, je Seite Startnummer, Name und Herkunft; darüber Klasse,
+  Runde und Attempt („Class Dolphin“, „Preliminary heat · Attempt 2“), auf Wunsch das Paar davor. Englisch nach dem
+  Rulebook, deutsch als Einstellung („Vorlauf · 2. Versuch“, „Parcours A“). Die gemeinsame Tafel nimmt den
+  Parallelslalom von selbst erst dazu, wenn eine Runde begonnen ist; „Eigene Anzeigetafel“ öffnet `#/anzeige/parallel`.
+- **Start-Freigabe:** „Vorlauf beginnen“ (bzw. die nächste Runde), „Nächster Start“, „Zurück“, Meldung,
+  „Anderen Starter wählen“ (die Suche findet ein Paar über beide Nummern), „Einsteigen ab …“ Runde und Klasse.
+  Zurückstellen nimmt das ganze Paar – seine offenen Attempts der Runde –, Einreihen und gezieltes Zeigen holen die
+  wartenden Attempts des Paares in ihrer Folge mit, gezieltes Zeigen nach dem Vorlauf auch den direkt folgenden (im
+  Vorlauf wechseln dazwischen die Bootstypen, dort bleibt der Plan); „Als Nächster“ und gezielt Gezeigtes kommen hinter
+  das zuletzt Gezeigte ihrer Runde, „Ans Ende der Runde“ ans Ende ihrer Runde, nie in eine spätere. Klassen aussetzen oder vorziehen und Starts verschieben gibt es
+  hier nicht: Der Plan gibt die Folge vor (Paare, Blöcke im Wechsel der Bootstypen, Tausch zum 2. Attempt); die
+  Karte sagt das statt „Klassen · Boot fehlt“.
+- **Startliste und Zuschauerliste:** je Zeile bzw. Karte ein Paar mit Racecourse A und B; „am Steg“ und „vor Steg“
+  wie im Manövrieren, aber **ohne geschätzte Wartezeit**: Paarstarts werden nicht gemessen – ihr Takt (zwei Boote
+  zugleich, kurzer Racecourse, Tausch zum 2. Attempt) verzerrte die Abstände der Klassen fürs Manövrieren, und eine
+  eigene Vorgabe gibt es nicht. In der Startliste wird nicht gezogen.
+- Der Betrieb ändert weder die Pläne noch die Werte der Runden.
 
 ## Dummys und Wörter
 

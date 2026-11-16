@@ -2,8 +2,8 @@
 
 Statische Browser-App ohne Server, die die Excel-Auswertung für Motorbootslalom (Schlauchbootslalom) ersetzt:
 Starter, Verzahnung, Verwiegung, WKR-Bögen, Laufzettel, Erfassung, Wertungs-, Einzel- und Mannschaftswertung, Druck;
-am Wettkampftag Start-Freigabe, Anzeigetafel im zweiten Fenster, Startliste mit Wartezeiten und Zuschauerliste
-(Plan zur Übernahme der Tafel, 16.11.2026: E1–E3).
+am Wettkampftag Start-Freigabe, Anzeigetafel im zweiten Fenster, Startliste mit Wartezeiten und Zuschauerliste,
+unter UIM auch für den Parallelslalom (Plan zur Übernahme der Tafel, 16.11.2026: E1–E4).
 Regelwerke: DM-Reglement (`dm-2026`) und UIM Regel 960 „Formula Future“ (`uim-2026`, mit Parallelslalom).
 Daten nur im Browser (localStorage + IndexedDB-Verlauf, Sicherung als Datei); GitHub Pages oder eine HTML-Datei.
 
@@ -123,6 +123,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Start-Freigabe (Bedienung) | views/BetriebView.vue, components/betrieb/ (StartFreigabe + BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb; texte.ts); i18n betrieb.* |
 | Startliste, Wartezeiten („ca. in“, Zum Vorsteg) | betrieb/prognose.ts (Messung auf dem Stand, wartezeiten auf dem Bildschirm), components/betrieb/StartListe.vue, lib/uhr.ts; Vorgabe einstellungen.yaml `startabstaende` → config/catalog.ts startabstandOf |
 | Zuschauerliste | betrieb/sicht.ts sichtZuschauer (Schlüssel-Test), components/zuschauer/ZuschauerListe.vue, styles/zuschauer.css; i18n zuschauer.* (Tafel-Sprache) |
+| Parallelslalom im Betrieb (UIM) | betrieb/folge.ts parallelFolge (Ref aus fest.starts, leere Seite, `paar`), SichtStart.paar (sicht.ts), Schritte gesperrt/Paar als Einheit in state/reducer/betrieb.ts; AnzeigeBereich.vue (A/B); texte.ts tBereich (`….runde`-Texte) |
 
 ## Feste Regeln
 

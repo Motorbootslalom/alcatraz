@@ -23,6 +23,10 @@ import HerkunftText from '../HerkunftText.vue'
  *
  * Groß genug fürs Handy (styles/zuschauer.css): je Start eine Karte statt einer Tabellenzeile, die Startnummer groß,
  * die Wartezeit rechts.
+ *
+ * Parallelslalom (E4): je Karte ein Paar – Racecourse A und B untereinander, eine leere Seite als „–“; ohne Wartezeit
+ * (BETRIEB_ANNAHMEN.parallelOhnePrognose), die Gruppen Am Steg/Vor Steg bleiben. Der Klassenfilter zeigt ein Paar,
+ * wenn eine Seite in der Klasse fährt.
  */
 const props = defineProps<{
   sicht: ZuschauerSicht
@@ -41,19 +45,29 @@ const gezeigt = computed(() => props.sicht.bereiche.filter((b) => !props.bereich
 // je Parcours filterbar) – die Sicht nennt die Klassen aller Parcours. Der Start im Boot zählt mit: Geht der letzte
 // Start einer Klasse ins Boot, bleibt ihr Knopf, und die gewählte Klasse springt nicht unvermittelt auf „alle“.
 const gemerkt = merke<string>('zuschauer.klasse', '', { ueberNeuladen: true, gueltig: (x) => typeof x === 'string' })
+/** Die Starter eines Starts: einer, im Parallelslalom die Seiten, die fahren. */
+const starterVon = (s: SichtStart): string[] => (s.paar ? [s.paar.a, s.paar.b].filter((id): id is string => id !== null) : [s.starter])
+const klassenVon = (s: SichtStart): ClassId[] => starterVon(s).flatMap((id) => props.sicht.starter[id]?.klasse ?? [])
 const klassen = computed(() => {
   const da = new Set<ClassId>()
-  for (const b of gezeigt.value)
-    for (const s of [...(b.aktuell ? [b.aktuell] : []), ...b.frei, ...b.bootFehlt]) {
-      const k = props.sicht.starter[s.starter]?.klasse
-      if (k) da.add(k)
-    }
+  for (const b of gezeigt.value) for (const s of [...(b.aktuell ? [b.aktuell] : []), ...b.frei, ...b.bootFehlt]) for (const k of klassenVon(s)) da.add(k)
   return CLASS_IDS.filter((k) => da.has(k) && props.sicht.klassen[k]).map((k) => ({ id: k, ...props.sicht.klassen[k]! }))
 })
 const filter = computed<ClassId | ''>(() => (klassen.value.some((k) => k.id === gemerkt.value) ? (gemerkt.value as ClassId) : ''))
 
+/** Eine Seite eines Paares (Parallelslalom). */
+interface Seite {
+  rc: 'A' | 'B'
+  /** '–' für eine leere Seite (Dummy, gelöscht, X). */
+  startNr: string
+  name: string
+  herkunft: SichtStarter['herkunft']
+}
+
 interface Zeile {
   key: string
+  /** Nur im Parallelslalom: beide Seiten (dann gelten startNr/name/herkunft nicht). */
+  seiten?: Seite[]
   startNr: string
   name: string
   klasse: SichtKlasse | undefined
@@ -74,8 +88,13 @@ function zeile(s: SichtStart, w: Wartezeit | undefined): Zeile | null {
   const p = props.sicht.starter[s.starter]
   if (!p) return null
   const zeit = w?.art === 'zeit' ? w : null
+  const seite = (rc: 'A' | 'B', id: string | null): Seite => {
+    const x = id === null ? undefined : props.sicht.starter[id]
+    return { rc, startNr: x ? x.startNr || '–' : '–', name: x?.name ?? '', herkunft: x?.herkunft ?? null }
+  }
   return {
     key: s.key,
+    ...(s.paar ? { seiten: [seite('A', s.paar.a), seite('B', s.paar.b)] } : {}),
     startNr: p.startNr || '–',
     name: p.name,
     klasse: props.sicht.klassen[p.klasse],
@@ -109,14 +128,14 @@ interface Ansicht {
 function standText(b: ZuschauerBereich, offen: number): string {
   if (b.punkt && offen > 0) return tx('zuschauer.laeuft', { punkt: b.punkt.titel })
   if (b.naechsterPunkt) return tx('zuschauer.naechsterPunkt', { punkt: b.naechsterPunkt.titel })
-  return b.punkt ? tx('zuschauer.zuEnde') : ''
+  return b.punkt ? tx(b.art === 'parallel' ? 'zuschauer.zuEnde.runde' : 'zuschauer.zuEnde') : ''
 }
 
 const ansichten = computed<Ansicht[]>(() =>
   gezeigt.value.map((b) => {
     // Die Wartezeiten über die GANZE Folge – der Filter blendet nur aus, die Stellen bleiben.
     const zeiten = wartezeiten(props.sicht, b, props.jetzt)
-    const passt = (s: SichtStart) => !filter.value || props.sicht.starter[s.starter]?.klasse === filter.value
+    const passt = (s: SichtStart) => !filter.value || klassenVon(s).includes(filter.value)
     const gruppen: Gruppe[] = [
       { art: 'amSteg', titel: tx('zuschauer.amSteg'), zeilen: [] },
       { art: 'vorSteg', titel: tx('zuschauer.vorSteg'), zeilen: [] },
@@ -148,6 +167,8 @@ const ansichten = computed<Ansicht[]>(() =>
   }),
 )
 const mehrere = computed(() => ansichten.value.length > 1)
+/** Zeigt die Liste einen Bereich mit Wartezeiten (Manövrieren)? Ohne ihn – nur Parallelslalom – kein Hinweis darauf. */
+const mitWartezeiten = computed(() => ansichten.value.length === 0 || ansichten.value.some((a) => a.b.art !== 'parallel'))
 </script>
 
 <template>
@@ -176,10 +197,25 @@ const mehrere = computed(() => ansichten.value.length > 1)
       <h2 v-if="mehrere || sicht.einst.parcoursName">{{ a.b.name }}</h2>
       <p v-if="a.b.meldung" :class="['zuschauer-meldung', a.b.meldung.art]" data-teil="meldung">{{ a.b.meldung.text }}</p>
       <p v-if="a.stand" class="zuschauer-stand" data-teil="stand">{{ a.stand }}</p>
+      <p v-if="a.b.art === 'parallel'" class="zuschauer-stand" data-teil="ohne-zeit">{{ tx('zuschauer.ohneZeit') }}</p>
 
       <div class="zuschauer-imboot" data-teil="imboot">
         <span class="zuschauer-gruppe-titel">{{ tx('zuschauer.imBoot') }}</span>
-        <div v-if="a.imBoot" class="zuschauer-start gross">
+        <div v-if="a.imBoot?.seiten" class="zuschauer-start gross zuschauer-paar">
+          <span class="zuschauer-wer">
+            <span v-for="x in a.imBoot.seiten" :key="x.rc" class="zuschauer-seite" :data-racecourse="x.rc">
+              <span class="zuschauer-rc">{{ tx('anzeige.racecourse', { rc: x.rc }) }}</span>
+              <span class="zuschauer-nr">{{ x.startNr }}</span>
+              <span class="zuschauer-name">{{ x.name }}</span>
+              <HerkunftText v-if="x.herkunft" :anzeige="x.herkunft" />
+            </span>
+            <span class="zuschauer-was">
+              <span v-if="a.imBoot.klasse" class="class-badge sm" :style="{ background: a.imBoot.klasse.farbe }">{{ a.imBoot.klasse.name }}</span>
+              {{ a.imBoot.lauf }}
+            </span>
+          </span>
+        </div>
+        <div v-else-if="a.imBoot" class="zuschauer-start gross">
           <span class="zuschauer-nr">{{ a.imBoot.startNr }}</span>
           <span class="zuschauer-wer">
             <span class="zuschauer-name">{{ a.imBoot.name }}</span>
@@ -196,9 +232,21 @@ const mehrere = computed(() => ansichten.value.length > 1)
       <div v-for="g in a.gruppen" :key="g.art" class="zuschauer-gruppe" :data-gruppe="g.art">
         <h3 class="zuschauer-gruppe-titel">{{ g.titel }}</h3>
         <ol class="zuschauer-starts">
-          <li v-for="z in g.zeilen" :key="z.key" :class="['zuschauer-start', g.art === 'bootFehlt' ? 'aus' : '']" :data-start="z.key">
-            <span class="zuschauer-nr">{{ z.startNr }}</span>
-            <span class="zuschauer-wer">
+          <li v-for="z in g.zeilen" :key="z.key" :class="['zuschauer-start', g.art === 'bootFehlt' ? 'aus' : '', z.seiten ? 'zuschauer-paar' : '']" :data-start="z.key">
+            <span v-if="z.seiten" class="zuschauer-wer">
+              <span v-for="x in z.seiten" :key="x.rc" class="zuschauer-seite" :data-racecourse="x.rc">
+                <span class="zuschauer-rc">{{ tx('anzeige.racecourse', { rc: x.rc }) }}</span>
+                <span class="zuschauer-nr">{{ x.startNr }}</span>
+                <span class="zuschauer-name">{{ x.name }}</span>
+                <HerkunftText v-if="x.herkunft" :anzeige="x.herkunft" />
+              </span>
+              <span class="zuschauer-was">
+                <span v-if="z.klasse" class="class-badge sm" :style="{ background: z.klasse.farbe }">{{ z.klasse.name }}</span>
+                {{ z.lauf }}
+              </span>
+            </span>
+            <span v-else class="zuschauer-nr">{{ z.startNr }}</span>
+            <span v-if="!z.seiten" class="zuschauer-wer">
               <span class="zuschauer-name">{{ z.name }}</span>
               <span class="zuschauer-was">
                 <span v-if="z.klasse" class="class-badge sm" :style="{ background: g.art === 'bootFehlt' ? 'var(--muted)' : z.klasse.farbe }">{{ z.klasse.name }}</span>
@@ -216,6 +264,7 @@ const mehrere = computed(() => ansichten.value.length > 1)
       <p v-if="a.leer" class="zuschauer-leer" data-teil="leer">{{ tx('zuschauer.leer') }}</p>
     </section>
 
-    <p class="zuschauer-hinweis">{{ tx('zuschauer.hinweis') }}</p>
+    <!-- Der Hinweis gilt den Wartezeiten – der Parallelslalom hat keine (BETRIEB_ANNAHMEN.parallelOhnePrognose) und sagt das selbst. -->
+    <p v-if="mitWartezeiten" class="zuschauer-hinweis" data-teil="hinweis">{{ tx('zuschauer.hinweis') }}</p>
   </div>
 </template>

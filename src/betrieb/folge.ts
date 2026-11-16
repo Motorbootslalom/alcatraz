@@ -1,12 +1,15 @@
-import type { AppState, BereichBetrieb, BereichId, ClassId, Parcours, PunktId, StartRef, Starter, TrackItem } from '../types'
+import type { AppState, BereichBetrieb, BereichId, ClassId, ParallelRunde, Parcours, PunktId, StartRef, Starter, TrackItem } from '../types'
 import { planEvent, type ParcoursPlan } from '../planung/plan'
 import { istRunde } from '../planung/parallelRunden'
-import { PARALLEL, versucheNacheinander } from '../config/catalog'
+import { parallelActiveClasses } from '../planung/parallel'
+import { hasParallel, PARALLEL, versucheNacheinander } from '../config/catalog'
 import { konfigVon } from '../state/reducer/gemeinsam'
 import { felderJeKennung, laufSchluessel, werteVon, type Feld } from '../lib/eingaben'
 import { nichtGestartet } from '../lib/erfassung'
+import { festeRunden, parallelListen } from '../lib/parallelBogen'
+import { attemptSchluessel } from '../lib/parallelSchluessel'
 import { BETRIEB_ANNAHMEN } from './annahmen'
-import { abgleich, zeigerIn } from './schritte'
+import { abgleich, planPartner, zeigerIn } from './schritte'
 
 // Die Folge der Starts im Betrieb – rein, ohne DOM und ohne Store. Sie wird nie gespeichert, sondern
 // immer aus dem Stand abgeleitet (BETRIEB_ANNAHMEN.folgeAbgeleitet): je Parcours die Folge der
@@ -18,7 +21,11 @@ import { abgleich, zeigerIn } from './schritte'
 // Ein Start heißt nach dem, was ihn ausmacht (StartRef), als Text über `refKey`: So bleibt er derselbe,
 // wenn Nachmeldungen, Abmeldungen oder eine andere Zahl der Läufe die Stellen verschieben.
 //
-// Parallelslalom (Bereich `parallel`) kommt mit E4; bis dahin liefert er nichts.
+// Parallelslalom (Bereich `parallel`, E4, nur unter UIM): je festgeschriebener Runde ein Punkt (`runde:<runde>`,
+// in der Folge von vergleicheRunden), die Starts aus `parallelPlaene[runde].starts` in ihrer Reihenfolge. Ein
+// Start ist ein Paar; seine Kennung bilden die gespeicherten IDs auf A und B (fest.starts[i].a/b), nie die
+// aufgelösten Heats – dort würde ein gelöschter Starter zum Dummy, die Kennung eines schon gezeigten Starts
+// änderte sich, und er stünde wieder offen da (Kritik K8). Der Betrieb ändert die Pläne nie.
 
 /** Der Bereich des Parallelslaloms (ab E4, nur unter UIM). */
 export const PARALLEL_BEREICH: BereichId = PARALLEL
@@ -67,30 +74,65 @@ export function laufVonPunkt(punkt: PunktId): number | undefined {
   return m ? Number(m[1]) : undefined
 }
 
+/** Der Punkt einer Runde des Parallelslaloms: `runde:pre`. */
+export const rundenPunkt = (runde: ParallelRunde): PunktId => `runde:${runde}`
+
+/** Die Runde eines Runden-Punkts; `undefined` bei einem Lauf. */
+export function rundeVonPunkt(punkt: PunktId): ParallelRunde | undefined {
+  if (!punkt.startsWith('runde:')) return undefined
+  const runde = punkt.slice('runde:'.length)
+  return istRunde(runde) ? runde : undefined
+}
+
 // --- Bereiche -----------------------------------------------------------------------------------
 
 export interface BereichInfo {
   id: BereichId
-  /** Name wie im Stand (der Parcours); die Anzeigetafel übersetzt ihn (betrieb/sicht.ts). */
+  /**
+   * Name wie im Stand (der Parcours); die Anzeigetafel übersetzt ihn (betrieb/sicht.ts). Der Parallelslalom hat
+   * keinen im Stand ('') – Sicht und Oberfläche nennen ihn in ihrer Sprache.
+   */
   name: string
   art: 'manoevrieren' | 'parallel'
 }
 
+/** Ist das der Bereich des Parallelslaloms? */
+export const istParallel = (bereich: BereichId): boolean => bereich === PARALLEL_BEREICH
+
 /**
- * Die Bereiche des Betriebs: jeder Parcours, auf dem Starter fahren, in der Folge der Verzahnung
- * (ab E4 dahinter der Parallelslalom). Mit `anzeige` nur die der gemeinsamen Anzeigetafel
- * (`anzeige.bereiche`, in deren Reihenfolge; leer oder ohne gültigen Eintrag = alle).
+ * Gibt es den Parallelslalom als Bereich: nur unter einem Regelwerk mit der Disziplin (UIM; unter DM nie, auch
+ * nicht in Texten – config/catalog.ts hasParallel) und nur, wenn jemand in seinen Klassen fährt oder schon eine
+ * Runde festgeschrieben ist.
+ */
+function mitParallel(stand: AppState): boolean {
+  if (!hasParallel(stand.regelwerk)) return false
+  const aktiv = new Set(parallelActiveClasses())
+  return stand.starters.some((s) => aktiv.has(s.klasse)) || Object.keys(stand.parallelPlaene).length > 0
+}
+
+/**
+ * Die Bereiche des Betriebs: jeder Parcours, auf dem Starter fahren, in der Folge der Verzahnung, unter UIM
+ * dahinter der Parallelslalom (E4). Mit `anzeige` nur die der gemeinsamen Anzeigetafel (`anzeige.bereiche`, in
+ * deren Reihenfolge; leer oder ohne gültigen Eintrag = automatisch: alle Parcours, der Parallelslalom erst, wenn
+ * dort eine Runde begonnen ist – BETRIEB_ANNAHMEN.parallelAufDerTafel).
  */
 export function bereicheZumStand(stand: AppState, optionen: { anzeige?: boolean } = {}): BereichInfo[] {
   const klassen = new Set(stand.starters.map((s) => s.klasse))
   const alle: BereichInfo[] = stand.parcoursList.filter((p) => p.classIds.some((k) => klassen.has(k))).map((p) => ({ id: p.id, name: p.name, art: 'manoevrieren' }))
+  if (mitParallel(stand)) alle.push({ id: PARALLEL_BEREICH, name: '', art: 'parallel' })
   if (!optionen.anzeige) return alle
   const wahl = [...new Set(stand.anzeige.bereiche)].flatMap((id) => alle.filter((b) => b.id === id))
-  return wahl.length > 0 ? wahl : alle
+  if (wahl.length > 0) return wahl
+  const automatisch = alle.filter((b) => b.art !== 'parallel' || !BETRIEB_ANNAHMEN.parallelAufDerTafel || betriebVon(stand, b.id).begonnen.length > 0)
+  return automatisch.length > 0 ? automatisch : alle
 }
 
-/** Gibt es diesen Bereich (einen Parcours der Verzahnung)? Auch ohne Starter – dort gibt es nur nichts zu zeigen. */
-export function bereichBekannt(stand: Pick<AppState, 'parcoursList'>, bereich: BereichId): boolean {
+/**
+ * Gibt es diesen Bereich: einen Parcours der Verzahnung (auch ohne Starter – dort gibt es nur nichts zu zeigen) oder
+ * den Parallelslalom unter einem Regelwerk, das ihn kennt?
+ */
+export function bereichBekannt(stand: Pick<AppState, 'parcoursList' | 'regelwerk'>, bereich: BereichId): boolean {
+  if (istParallel(bereich)) return hasParallel(stand.regelwerk)
   return stand.parcoursList.some((p) => p.id === bereich)
 }
 
@@ -130,8 +172,12 @@ export function bereichLeer(b: BereichBetrieb): boolean {
 /**
  * Ist im Bereich Betrieb möglich – „Lauf beginnen“ und „Start zeigen“? Manövrieren: nur mit
  * festgeschriebener Verzahnung (BETRIEB_ANNAHMEN.nurFestgeschrieben); erst dann stehen Nummern und Folge fest.
+ * Parallelslalom: sobald eine Runde festgeschrieben ist – nur festgeschriebene stehen im Programm, und eine
+ * Runde gilt unabhängig von der Sperre der Verzahnung (der Vorlauf bleibt an erfasste Werte gebunden,
+ * planung/parallelRunden.ts `vorlaufGebunden`; die Runden danach werden je Klasse festgeschrieben).
  */
-export function bereichFest(stand: Pick<AppState, 'verzahnungLocked'>, _bereich: BereichId): boolean {
+export function bereichFest(stand: AppState, bereich: BereichId): boolean {
+  if (istParallel(bereich)) return programm(stand, bereich).length > 0 || !BETRIEB_ANNAHMEN.nurFestgeschrieben
   return !BETRIEB_ANNAHMEN.nurFestgeschrieben || stand.verzahnungLocked
 }
 
@@ -158,11 +204,37 @@ export function laeufeVonPunkt(stand: AppState, punkt: PunktId): number[] {
  * Das Programm eines Bereichs: seine Punkte in ihrer Folge. Manövrieren: `lauf:1` bis zur Zahl der
  * Läufe, mit „Versuche nacheinander“ nur `lauf:1` (BETRIEB_ANNAHMEN.versucheNacheinanderEinPunkt).
  * Die Knoten haben keinen Lauf und kommen nicht vor. Ein unbekannter Bereich hat keines.
+ *
+ * Parallelslalom: die festgeschriebenen Runden in der Folge, in der sie gefahren werden (vergleicheRunden:
+ * Vorlauf, seine Wiederholungen, Halbfinale, dessen Wiederholungen, Finals – das kleine Finale steht als erstes
+ * im Plan der Finals). Eine Runde ohne festgeschriebenen Plan gibt es noch nicht; eine Wiederholung, die erst
+ * nach dem Halbfinale festgeschrieben wird, ordnet sich davor ein und wartet als nicht begonnener Punkt
+ * (BETRIEB_ANNAHMEN.begonnenAlsMenge).
  */
 export function programm(stand: AppState, bereich: BereichId): PunktId[] {
   if (!bereichBekannt(stand, bereich)) return []
+  if (istParallel(bereich)) return festeRunden(stand.parallelPlaene).map(rundenPunkt)
   if (nacheinander(stand)) return [laufPunkt(1)]
   return Array.from({ length: Math.max(1, stand.laufCount) }, (_, i) => laufPunkt(i + 1))
+}
+
+/**
+ * Ein Start des Parallelslaloms in der Folge: Runde, Attempt und wer auf A und B steht – die IDs wie im
+ * festgeschriebenen Plan, auch eines gelöschten Starters (die Kennung bleibt so stabil, Kritik K8).
+ */
+export interface FolgePaar {
+  runde: ParallelRunde
+  attempt: 1 | 2
+  a: string | null
+  b: string | null
+  /**
+   * Fährt auf A bzw. B jemand? `false` = die Seite ist leer: Dummy, Starter gelöscht oder X „nicht gestartet“ in
+   * einer Disq-Zelle dieses Attempts (BETRIEB_ANNAHMEN.parallelLeereSeite).
+   */
+  aFaehrt: boolean
+  bFaehrt: boolean
+  /** Nur in den Finals: 1 = um Platz 1 und 2, 3 = kleines Finale. */
+  finale?: 1 | 3
 }
 
 /** Ein Start in der abgeleiteten Folge eines Bereichs. */
@@ -171,11 +243,19 @@ export interface FolgeEintrag {
   key: string
   ref: StartRef
   punkt: PunktId
+  /** Der Starter; im Parallelslalom der der ersten Seite, die fährt (A vor B), sonst A bzw. B laut Plan, sonst ''. */
   starter: string
+  /** Lauf bzw. Versuch; im Parallelslalom der Attempt. */
   lauf: number
+  /** Im Parallelslalom die Klasse des Starts (laut Plan, sonst die eines Starters darauf). */
   klasse: ClassId
-  /** X „nicht gestartet“ in einer Disq-Zelle dieses Laufs (Steg oder Vorsteg): Der Start entfällt – nie offen, nie der Nächste. */
+  /**
+   * Der Start entfällt – nie offen, nie der Nächste. Manövrieren: X „nicht gestartet“ in einer Disq-Zelle dieses
+   * Laufs (Steg oder Vorsteg). Parallelslalom: auf keiner Seite fährt jemand (beide leer: Dummy, gelöscht, X).
+   */
   entfaellt: boolean
+  /** Nur im Parallelslalom: das Paar. */
+  paar?: FolgePaar
 }
 
 /**
@@ -202,9 +282,54 @@ function planVon(stand: AppState, parcoursId: string): ParcoursPlan | undefined 
   return eintrag.jeParcours.get(parcoursId)
 }
 
-/** Die Spur-Anordnung eines Bereichs (Klassen und Pausen je Spur) – dieselbe wie Verzahnung und WKR-Bögen. */
+/** Die Spur-Anordnung eines Bereichs (Klassen und Pausen je Spur) – dieselbe wie Verzahnung und WKR-Bögen. Der Parallelslalom hat keine. */
 export function spurenVon(stand: AppState, bereich: BereichId): TrackItem[][] {
-  return bereichBekannt(stand, bereich) ? (planVon(stand, bereich)?.tracks ?? []) : []
+  return bereichBekannt(stand, bereich) && !istParallel(bereich) ? (planVon(stand, bereich)?.tracks ?? []) : []
+}
+
+/**
+ * Die abgeleitete Folge des Parallelslaloms: je festgeschriebener Runde ihre Starts in der Reihenfolge des Plans
+ * (dieselbe wie auf den Listen der race officials, lib/parallelBogen.ts). Kennung aus den gespeicherten IDs
+ * (`fest.starts[i].a/b`, Kritik K8). Eine Seite ist leer bei Dummy, gelöschtem Starter oder X in einer Disq-Zelle
+ * des Attempts (die Listen des Parallelslaloms – dieselbe Frage wie Erfassung und Wertung); der Start entfällt nur,
+ * wenn auf keiner Seite jemand fährt (BETRIEB_ANNAHMEN.parallelLeereSeite: startEntfaellt oder beide X – und
+ * ebenso ein Dummy gegen ein X). Eine doppelte Kennung (nur in einem von Hand gebauten Plan möglich) zählt einmal.
+ */
+function parallelFolge(stand: AppState): FolgeEintrag[] {
+  const konfig = konfigVon(stand)
+  const listen = parallelListen(konfig)
+  const nachId = new Map(stand.starters.map((s) => [s.id, s]))
+  const felder = new Map<ClassId, ReadonlyMap<string, Feld>>()
+  const felderVon = (klasse: ClassId) => {
+    let f = felder.get(klasse)
+    if (!f) felder.set(klasse, (f = felderJeKennung(konfig, klasse, listen)))
+    return f
+  }
+  const faehrt = (id: string | null, runde: ParallelRunde, attempt: 1 | 2): boolean => {
+    const p = id === null ? undefined : nachId.get(id)
+    if (!p) return false
+    return !nichtGestartet(werteVon(stand.eingaben, attemptSchluessel(runde, attempt), p.id), felderVon(p.klasse))
+  }
+  const out: FolgeEintrag[] = []
+  const gesehen = new Set<string>()
+  for (const runde of festeRunden(stand.parallelPlaene)) {
+    const punkt = rundenPunkt(runde)
+    for (const s of stand.parallelPlaene[runde]?.starts ?? []) {
+      const ref: StartRef = { art: 'p', runde, attempt: s.attempt, a: s.a, b: s.b }
+      const key = refKey(ref)
+      if (gesehen.has(key)) continue
+      gesehen.add(key)
+      const aFaehrt = faehrt(s.a, runde, s.attempt)
+      const bFaehrt = faehrt(s.b, runde, s.attempt)
+      // Die Klasse des Starts: laut Plan (Runden nach dem Vorlauf), sonst die eines Starters darauf. Fehlen beide
+      // (beide gelöscht), entfällt der Start ohnehin – die Klasse wird dann nie gelesen.
+      const klasse = s.klasse ?? nachId.get(s.a ?? '')?.klasse ?? nachId.get(s.b ?? '')?.klasse ?? parallelActiveClasses()[0]
+      const starter = (aFaehrt ? s.a : bFaehrt ? s.b : (s.a ?? s.b)) ?? ''
+      const paar: FolgePaar = { runde, attempt: s.attempt, a: s.a, b: s.b, aFaehrt, bFaehrt, ...(s.finale ? { finale: s.finale } : {}) }
+      out.push({ key, ref, punkt, starter, lauf: s.attempt, klasse, entfaellt: !aFaehrt && !bFaehrt, paar })
+    }
+  }
+  return out
 }
 
 /**
@@ -217,6 +342,7 @@ export function spurenVon(stand: AppState, bereich: BereichId): TrackItem[][] {
 export function abgeleiteteFolge(stand: AppState, bereich: BereichId): FolgeEintrag[] {
   const punkte = programm(stand, bereich)
   if (punkte.length === 0) return []
+  if (istParallel(bereich)) return parallelFolge(stand)
   const folge = planVon(stand, bereich)?.sequence ?? []
   const konfig = konfigVon(stand)
   const disziplin = konfig.getAufbau(stand.aufbau).disziplin
@@ -274,7 +400,10 @@ export interface BereichLage {
   programm: PunktId[]
   /** Die begonnenen Punkte des Programms, in dessen Folge. */
   begonnen: PunktId[]
-  /** Der laufende Punkt: der letzte begonnene im Programm. */
+  /**
+   * Der laufende Punkt: der letzte begonnene im Programm. Im Parallelslalom die Runde des Nächsten, sonst die des
+   * Starts im Boot, sonst die zuletzt begonnene (BETRIEB_ANNAHMEN.parallelRundenFuerSich).
+   */
   laufend: PunktId | null
   /** Der erste Punkt des Programms, der nicht begonnen ist. */
   naechsterPunkt: PunktId | null
@@ -361,14 +490,22 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
   // Start SEINES oder eines späteren begonnenen Punkts erledigt. Ohne Umstellungen ist das dasselbe wie „vor
   // dem Zeiger“; ein dritter Lauf aber, der mitten in Lauf 2 gesetzt und dort übergangen wurde, ist nicht
   // überholt – er wartet auf Lauf 3 und ist dann der Erste (S-9).
+  // Im Parallelslalom nur ein Start SEINER Runde (BETRIEB_ANNAHMEN.parallelRundenFuerSich): Die Runden laufen je
+  // Klasse für sich – ein Re-run, der festgeschrieben wird, nachdem im Halbfinale schon gezeigt wurde, steht in der
+  // Folge der Runden davor und wäre sonst sofort ein Nachzügler, der nie von selbst drankommt.
+  const jeRunde = istParallel(bereich) && BETRIEB_ANNAHMEN.parallelRundenFuerSich
   const rang = new Map(punkte.map((p, i) => [p, i]))
   const ueberholt: boolean[] = new Array(folge.length).fill(false)
   let spaetesterRang = -1
+  const erledigtDahinter = new Set<PunktId>()
   for (let i = folge.length - 1; i >= 0; i--) {
     const e = folge[i]
     const r = rang.get(e.punkt) ?? -1
-    ueberholt[i] = begonnenMenge.has(e.punkt) && spaetesterRang >= r
-    if (erledigt.has(e.key) && begonnenMenge.has(e.punkt)) spaetesterRang = Math.max(spaetesterRang, r)
+    ueberholt[i] = begonnenMenge.has(e.punkt) && (jeRunde ? erledigtDahinter.has(e.punkt) : spaetesterRang >= r)
+    if (erledigt.has(e.key) && begonnenMenge.has(e.punkt)) {
+      spaetesterRang = Math.max(spaetesterRang, r)
+      erledigtDahinter.add(e.punkt)
+    }
   }
 
   const offen: FolgeEintrag[] = []
@@ -383,10 +520,28 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
     else if (nachzuegler) nachzuholen.push(e)
     else offen.push(e)
   })
+  const aktuell = gezeigtEintrag(b.gezeigt.at(-1))
+  const imBoot = aktuell?.eintrag ?? null
+  // Ein Paar im Boot fährt seinen anderen Attempt, bevor eine andere Runde drankommt (BETRIEB_ANNAHMEN.parallelPaarZuEnde):
+  // Ein begonnener Re-run oder das später festgeschriebene Halbfinale einer Klasse stehen in der Folge der Runden vorn.
+  // Der Attempt rückt nur in `offen` vor den ersten freigegebenen Start – die gespeicherte Folge bleibt, wie sie ist.
+  // Nur ein Attempt, der im Plan direkt dahinter steht (planPartner) – im Vorlauf wechseln die Bootstypen dazwischen.
+  if (jeRunde && BETRIEB_ANNAHMEN.parallelPaarZuEnde && imBoot?.paar && begonnenMenge.has(imBoot.punkt)) {
+    const erster = offen.findIndex((e) => begonnenMenge.has(e.punkt))
+    const partner = planPartner(abgeleitet, imBoot.key)
+    if (erster >= 0 && partner !== null && offen[erster].punkt !== imBoot.punkt) {
+      const i = offen.findIndex((e) => e.key === partner)
+      if (i > erster) offen.splice(erster, 0, ...offen.splice(i, 1))
+    }
+  }
   const frei = offen.filter((e) => begonnenMenge.has(e.punkt))
   const naechster = frei[0] ?? null
   const naechsterPunkt = punkte.find((p) => !begonnenMenge.has(p)) ?? null
-  const laufend = begonnen.at(-1) ?? null
+  // Der laufende Punkt: der letzte begonnene im Programm. Im Parallelslalom (BETRIEB_ANNAHMEN.parallelRundenFuerSich)
+  // die Runde des Nächsten, ohne ihn die des Starts im Boot, sonst die zuletzt begonnene – ein Re-run, der nach dem
+  // Halbfinale beginnt, ist dann „in progress“, obwohl das Halbfinale im Programm danach steht.
+  const zuletztBegonnen = [...b.begonnen].reverse().find((p) => rang.has(p)) ?? null
+  const laufend = jeRunde ? (naechster?.punkt ?? (imBoot && begonnenMenge.has(imBoot.punkt) ? imBoot.punkt : zuletztBegonnen)) : (begonnen.at(-1) ?? null)
   // Der Arbeitspunkt (BETRIEB_ANNAHMEN.klassenImLaufendenPunkt): der laufende, solange dort noch Starts frei sind
   // oder auf ihr Boot warten – ein Nachzügler eines früheren Laufs, der gerade als Nächster eingereiht ist, nimmt
   // den Klassen des laufenden nicht ihr „Boot fehlt“ und „Vorziehen“ (B-9, B-10).
@@ -403,7 +558,7 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
     folge,
     abgeleitet,
     abweichend: b.reihenfolge !== null,
-    aktuell: gezeigtEintrag(b.gezeigt.at(-1)),
+    aktuell,
     vorig: gezeigtEintrag(b.gezeigt.at(-2)),
     gezeigtKeys,
     erledigt,

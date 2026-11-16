@@ -19,7 +19,7 @@ Nicht hier: Regelwerk-/Positionstexte (config/*.yaml, config/i18n/en.yaml), fest
 | listenoptionen.ts | wkr, preview, sheet, listopt, origin, short | WKR-Einteilung, Beispielansicht, Listenoptionen, Herkunft, Kürzel |
 | aufbauten.ts | own, assist | eigene Aufbauten, Aufbau-Assistent |
 | verlauf.ts | offline, files, history, backup | Offline/Update, Dateien, Verlauf, Zurücksetzen |
-| betrieb.ts | betrieb, anzeige, meldung, zuschauer | Start-Freigabe und Startliste (Oberfläche, `betrieb.liste.*`), Anzeigetafel (Sprache der Tafel, tIn; Wartezeiten `anzeige.zeit.*`), Meldungsarten, Meldungsvorlagen (`meldung.vorlage.<id>` Tafel-Sprache, `….titel`/`meldung.gruppe.*` Oberfläche), Zuschauerliste (`zuschauer.*`, Tafel-Sprache); ab E6 geraete |
+| betrieb.ts | betrieb, anzeige, meldung, zuschauer | Start-Freigabe und Startliste (Oberfläche, `betrieb.liste.*`), Anzeigetafel (Sprache der Tafel, tIn; Wartezeiten `anzeige.zeit.*`), Meldungsarten, Meldungsvorlagen (`meldung.vorlage.<id>` Tafel-Sprache, `….titel`/`meldung.gruppe.*` Oberfläche), Zuschauerliste (`zuschauer.*`, Tafel-Sprache); E4 Parallelslalom: `….runde`-Fassungen (texte.ts tBereich), `anzeige.parallel/racecourse/versuch`; ab E6 geraete |
 
 ## Text ergänzen
 

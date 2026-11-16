@@ -5,7 +5,7 @@ import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { locale, t, tn } from '../../i18n'
 import { bereichAngehalten, mmss, seitSekunden, wartezeiten } from '../../betrieb/prognose'
 import EinreihenListe from './EinreihenListe.vue'
-import { ganzeFolge, punktText, punktVon, startZeile, verschiebeZiele, wartezeitText, type StartZeile } from './texte'
+import { ganzeFolge, punktText, punktVon, startZeile, tBereich, verschiebeZiele, wartezeitText, type StartZeile } from './texte'
 
 /**
  * Startliste im Betrieb (Etappe E3, Plan vom 16.11.2026; Vorbild: Tafel-Prototyp ListView.vue): die ganze Folge eines
@@ -24,6 +24,10 @@ import { ganzeFolge, punktText, punktVon, startZeile, verschiebeZiele, wartezeit
  * Block mit). Wo die Spur mitrutscht, landet der Start deshalb nicht immer genau am Ablageort. Für die Tastatur und
  * Lauf-Grenzen gibt es dasselbe Menü „Verschieben …“ (texte.ts verschiebeZiele). Liest NUR die öffentliche Sicht,
  * schickt Actions über `sende`; ohne festgeschriebene Verzahnung ruht beides (`bereich.fest`).
+ *
+ * Parallelslalom (E4): je Zeile ein Paar (Nummern und Namen beider Racecourses), Spalte „Versuch“; ohne Wartezeit
+ * (BETRIEB_ANNAHMEN.parallelOhnePrognose – „am Steg“/„vor Steg“ bleiben) und ohne Ziehen und Menü
+ * (BETRIEB_ANNAHMEN.parallelOhneUmstellen); zurückgestellte und nachzuholende Paare wie im Manövrieren.
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -35,9 +39,12 @@ const props = defineProps<{
 
 const b = computed(() => props.bereich)
 const gesperrt = computed(() => !b.value.fest)
+const parallel = computed(() => b.value.art === 'parallel')
+/** Ziehen und „Verschieben …“: nicht ohne Festschreiben und nie im Parallelslalom. */
+const umstellbar = computed(() => !gesperrt.value && !parallel.value)
 
 const stand = computed(() => {
-  if (!b.value.punkt) return t('betrieb.nichtBegonnen')
+  if (!b.value.punkt) return tBereich(b.value, 'betrieb.nichtBegonnen')
   return `${t('betrieb.laufend', { punkt: punktText(b.value.punkt) })} · ${tn('betrieb.offen', b.value.offenZahl)}`
 })
 const aktuell = computed(() => (b.value.aktuell && props.sicht.starter[b.value.aktuell.starter] ? startZeile(props.sicht, b.value.aktuell) : null))
@@ -95,7 +102,7 @@ function wohin(ziel: string): 'vor' | 'nach' | null {
   return von < nach ? 'nach' : 'vor'
 }
 function ziehen(z: Zeile, e: DragEvent) {
-  if (gesperrt.value || z.art !== 'offen') {
+  if (!umstellbar.value || z.art !== 'offen') {
     e.preventDefault()
     return
   }
@@ -124,7 +131,7 @@ function ablegen(z: Zeile, e: DragEvent) {
   const key = gezogen.value
   const wo = key !== null ? wohin(z.key) : null
   ziehenEnde()
-  if (key === null || !wo || gesperrt.value) return
+  if (key === null || !wo || !umstellbar.value) return
   verschiebe(key, wo === 'vor' ? { vor: z.key } : { nach: z.key })
 }
 function ziehenEnde() {
@@ -182,6 +189,7 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
     </p>
 
     <p v-if="angehalten && zeilen.length > 0" class="note betrieb-warn" data-teil="angehalten">{{ t('betrieb.liste.angehalten') }}</p>
+    <p v-if="parallel" class="note" data-hinweis="parallel">{{ t('betrieb.liste.parallel') }}</p>
     <p v-if="zeilen.length === 0" class="note" data-teil="liste-leer">{{ t('betrieb.folge.leer') }}</p>
     <div v-else class="betrieb-startliste-rahmen">
       <table class="betrieb-startliste-tabelle" @keydown.esc="menue !== null && schliesseMenue()">
@@ -191,7 +199,7 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
             <th>{{ t('betrieb.liste.col.nr') }}</th>
             <th>{{ t('betrieb.liste.col.name') }}</th>
             <th>{{ t('betrieb.liste.col.klasse') }}</th>
-            <th>{{ t('betrieb.liste.col.lauf') }}</th>
+            <th>{{ t(parallel ? 'betrieb.liste.col.versuch' : 'betrieb.liste.col.lauf') }}</th>
             <th class="zahl">{{ t('betrieb.liste.col.caIn') }}</th>
             <th class="zahl" :title="t('betrieb.liste.col.vorsteg.title')">{{ t('betrieb.liste.col.vorsteg') }}</th>
             <th></th>
@@ -211,14 +219,14 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
                 'ziel-vor': ablage?.key === z.key && ablage.wo === 'vor',
                 'ziel-nach': ablage?.key === z.key && ablage.wo === 'nach',
               }"
-              :draggable="z.art === 'offen' && !gesperrt"
+              :draggable="z.art === 'offen' && umstellbar"
               @dragstart="ziehen(z, $event)"
               @dragover="ueber(z, $event)"
               @drop="ablegen(z, $event)"
               @dragend="ziehenEnde"
             >
-              <td class="griff" :title="z.art === 'offen' && !gesperrt ? t('betrieb.liste.ziehen.title') : undefined" aria-hidden="true">
-                {{ z.art === 'offen' && !gesperrt ? '⠿' : '' }}
+              <td class="griff" :title="z.art === 'offen' && umstellbar ? t('betrieb.liste.ziehen.title') : undefined" aria-hidden="true">
+                {{ z.art === 'offen' && umstellbar ? '⠿' : '' }}
               </td>
               <td><b>{{ z.startNr }}</b></td>
               <td>
@@ -228,12 +236,12 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
               <td>
                 <span class="class-badge sm" :style="{ background: z.art === 'bootFehlt' || !z.farbe ? 'var(--muted)' : z.farbe }">{{ z.klasse || '?' }}</span>
               </td>
-              <td>{{ t('betrieb.lauf', { n: z.s.lauf }) }}</td>
+              <td>{{ t(parallel ? 'betrieb.versuch' : 'betrieb.lauf', { n: z.s.lauf }) }}</td>
               <td :class="['zahl', z.art === 'bootFehlt' ? 'betrieb-warn' : '']" data-teil="ca">{{ z.ca }}</td>
               <td class="zahl" data-teil="vorsteg">{{ z.vorsteg }}</td>
               <td class="betrieb-startliste-knopf">
                 <button
-                  v-if="z.art === 'offen'"
+                  v-if="z.art === 'offen' && !parallel"
                   :ref="(el) => merkeKnopf(z.key, el)"
                   type="button"
                   :class="['btn', 'sm', menue === z.key ? 'active' : '']"
@@ -259,7 +267,7 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
       </table>
     </div>
 
-    <EinreihenListe :sicht="sicht" :eintraege="bereich.zurueckgestellt" art="zurueckgestellt" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
-    <EinreihenListe :sicht="sicht" :eintraege="bereich.nachzuholen" art="nachzuholen" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
+    <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.zurueckgestellt" art="zurueckgestellt" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
+    <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.nachzuholen" art="nachzuholen" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
   </section>
 </template>

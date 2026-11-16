@@ -158,15 +158,41 @@ export interface SichtPunkt {
   laeufe: number[]
 }
 
-/** Ein Start in der Sicht (Manövrieren). Der Parallelslalom kommt mit E4 (`sv` steigt). */
+/**
+ * Ein Paar des Parallelslaloms in der Sicht (ab sv 4, E4): wer auf Racecourse A und B fährt. `null` heißt „leer“ –
+ * ein Dummy, ein gelöschter Starter oder ein X „nicht gestartet“ in diesem Attempt; das Paar sagt nicht, welches
+ * davon (Abmeldungen gehören nicht in die Sicht). Die Anzeigetafel zeigt die Seite leer
+ * (BETRIEB_ANNAHMEN.parallelLeereSeite). Die Kennung (`SichtStart.key`) der öffentlichen Sicht trägt dagegen die IDs
+ * laut Plan – auch die einer leeren Seite; die Zuschauersicht bildet ihre Kennung nur aus `a` und `b`.
+ */
+export interface SichtPaar {
+  /** 1. oder 2. Attempt (Regel 960, Pkt. 4.4: im 2. sind Boote und Racecourses getauscht). */
+  attempt: 1 | 2
+  a: string | null
+  b: string | null
+  /** Nur in den Finals: 1 = um Platz 1 und 2, 3 = kleines Finale (Platz 3 und 4). */
+  finale?: 1 | 3
+}
+
+/**
+ * Ein Start in der Sicht. Manövrieren: ein Starter und sein Lauf. Parallelslalom (ab sv 4): ein Paar (`paar`) –
+ * `starter` ist dann der Starter der ersten Seite, die fährt (A vor B; '' wenn keine), nur damit Klasse und Suche
+ * auch dort etwas finden, wo ein Start als ein Starter gelesen wird; `lauf` ist der Attempt.
+ */
 export interface SichtStart {
-  /** Kennung des Starts (`refKey`) – für ZEIGEN, ZURUECK. */
+  /**
+   * Kennung des Starts (`refKey`) – für ZEIGEN, ZURUECK. Im Parallelslalom mit den IDs laut Plan, auch einer leeren
+   * Seite (sie darf sich nicht ändern, Kritik K8). In der Zuschauersicht nur eindeutig, aus dem Gezeigten gebildet
+   * (betrieb/sicht.ts `sichtZuschauer`) – dort verrät sie keine leere Seite.
+   */
   key: string
   starter: string
   lauf: number
   punkt: PunktId
-  /** Der Lauf in der Sprache der Tafel: „2. Lauf“, „Attempt 2“. */
+  /** Der Lauf in der Sprache der Tafel: „2. Lauf“, „Attempt 2“; im Parallelslalom Runde und Attempt („Preliminary heat · Attempt 1“). */
   titel: string
+  /** Nur im Parallelslalom: die beiden Seiten. */
+  paar?: SichtPaar
 }
 
 /** Ein Bereich in der Sicht. */
@@ -247,9 +273,10 @@ export interface SichtEinstieg extends SichtStart {
 export interface OeffentlicheSicht {
   /**
    * Fassung der Sicht; steigt, wenn sich ihre Form ändert (2: Steuerung der Etappe E2; 3: Startabstände und
-   * „am Steg“/„vor Steg“ für die Prognose, Etappe E3). Gilt auch für die Zuschauersicht.
+   * „am Steg“/„vor Steg“ für die Prognose, Etappe E3; 4: Bereich `parallel` mit Paaren, `SichtStart.paar`, E4).
+   * Gilt auch für die Zuschauersicht.
    */
-  sv: 3
+  sv: 4
   /** Kopfzeile; '' = keine. */
   kopf: string
   /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */

@@ -36,6 +36,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   (punktText, startZeile, ganzeFolge, verschiebeZiele – Oberflächensprache; wartezeitText(sek, sprache)).
   `zuschauer/` ZuschauerListe (E3; liest NUR ZuschauerSicht + `jetzt`: Im Boot, Am Steg, Vor Steg, Danach, Boot fehlt;
   Klassenfilter merke `zuschauer.klasse`; Texte tIn(sicht.sprache); styles/zuschauer.css, fürs Handy).
+  E4 Parallelslalom (nur UIM): AnzeigeBereich zweigt bei `aktuell.paar` ab (Racecourse A/B nebeneinander, `.anzeige-bahn`,
+  leere Seite `.leer` mit „–“); StartFreigabe zeigt Paare je Seite (`.betrieb-seite`, `data-racecourse`) und statt
+  KlassenAussetzen den Hinweis `data-hinweis="parallel"`; BetriebsFolge/StartListe ohne „Verschieben …“ und Ziehen,
+  StartListe Spalte „Versuch“, ohne Zahl; ZuschauerListe Paar-Karten (`.zuschauer-seite`). texte.ts: startZeile mit
+  `seiten`/`nummern`/`ids`, tBereich/tnBereich (`….runde`-Texte im Parallelslalom), punktText über rundenName.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -94,5 +99,6 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 
 `npx vitest run src/components src/styles src/lib/seiten src/lib/paging` (Messen per getBoundingClientRect-Spy).
 Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (zwei Fenster), views/Betrieb.test.ts;
+Parallelslalom auf der Tafel (englisch, keine deutschen Wörter): components/anzeige/AnzeigeParallel.test.ts;
 Zuschauerliste: src/ZuschauerApp.test.ts.
 Im Zusammenhang src/views/*.test.ts; UIM-Kopfzeilen: views/UimAushang.test.ts, Beispieldaten: views/EventView.test.ts.

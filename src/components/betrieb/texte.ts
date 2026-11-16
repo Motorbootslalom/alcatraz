@@ -1,6 +1,8 @@
 import type { OeffentlicheSicht, PunktId, SichtBereich, SichtPunkt, SichtStart, VerschiebeZiel } from '../../types'
-import { t, tIn, type Locale } from '../../i18n'
+import { t, tIn, tn, type Locale, type MessageKey } from '../../i18n'
 import { wartezeitAnzeige } from '../../betrieb/prognose'
+import { rundeVonPunkt } from '../../betrieb/folge'
+import { rundenName } from '../../planung/parallelRunden'
 
 // Texte der Start-Freigabe in der Sprache der Oberfläche, gemeinsam für ihre Teile (StartFreigabe, BetriebsFolge,
 // EinreihenListe, KlassenAussetzen, EinsteigenAb, StartListe). Namen von Klassen und Parcours kommen aus der Sicht
@@ -8,14 +10,51 @@ import { wartezeitAnzeige } from '../../betrieb/prognose'
 // dieselben Teile bedienen ab E7 vom Handy aus. Ausnahme `wartezeitText`: in einer gegebenen Sprache, weil die
 // Zuschauerliste (components/zuschauer/) in der Sprache der Anzeigetafel schreibt.
 
-/** Ein Punkt: „Lauf 2“, mit „Versuche nacheinander“ „Läufe 1–3“; ohne Läufe (Parallelslalom, E4) sein Titel. */
+/**
+ * Texte, die im Parallelslalom von Runden statt Läufen sprechen: Dort gilt die Fassung `….runde` (i18n
+ * de/+en/betrieb.ts) – „Noch keine Runde begonnen“, „Ans Ende der Runde“. Unter DM gibt es den Bereich nicht, also
+ * auch diese Texte nicht.
+ */
+export type BereichText =
+  | 'betrieb.nichtBegonnen'
+  | 'betrieb.alleZuEnde'
+  | 'betrieb.beginnen.frage'
+  | 'betrieb.beginnen.text'
+  | 'betrieb.stockt'
+  | 'betrieb.abweichend'
+  | 'betrieb.zurueckstellen.title'
+  | 'betrieb.einreihen.ende'
+  | 'betrieb.einreihen.ende.title'
+  | 'betrieb.einstieg.hint'
+  | 'betrieb.einstieg.punkt'
+  | 'betrieb.einstieg.alleKlassen'
+
+const fassung = (b: Pick<SichtBereich, 'art'> | null | undefined, key: BereichText): MessageKey => (b?.art === 'parallel' ? (`${key}.runde` as MessageKey) : key)
+
+/** Ein Text der Start-Freigabe in der Fassung des Bereichs (Lauf bzw. Runde). */
+export function tBereich(b: Pick<SichtBereich, 'art'> | null | undefined, key: BereichText, params?: Record<string, string | number>): string {
+  return t(fassung(b, key), params)
+}
+
+/** Dasselbe mit Zahlform („noch {n} Start | noch {n} Starts“). */
+export function tnBereich(b: Pick<SichtBereich, 'art'> | null | undefined, key: BereichText, n: number): string {
+  return tn(fassung(b, key), n)
+}
+
+/**
+ * Ein Punkt: „Lauf 2“, mit „Versuche nacheinander“ „Läufe 1–3“; eine Runde des Parallelslaloms mit ihrem Namen in der
+ * Sprache der Oberfläche („Vorlauf“, „Halbfinale – Wiederholung“; planung/parallelRunden.ts rundenName).
+ */
 export function punktText(p: SichtPunkt): string {
+  const runde = rundeVonPunkt(p.id)
+  if (runde !== undefined) return rundenName(runde, t)
   if (p.laeufe.length === 0) return p.titel
   return p.laeufe.length > 1 ? t('betrieb.laeufe', { von: p.laeufe[0], bis: p.laeufe.at(-1)! }) : t('betrieb.lauf', { n: p.laeufe[0] })
 }
 
-/** „Lauf 2 beginnen“ bzw. „Läufe 1–3 beginnen“. */
+/** „Lauf 2 beginnen“ bzw. „Läufe 1–3 beginnen“, im Parallelslalom „Halbfinale beginnen“. */
 export function beginnenText(p: SichtPunkt): string {
+  if (rundeVonPunkt(p.id) !== undefined) return t('betrieb.beginnen.runde', { runde: punktText(p) })
   if (p.laeufe.length === 0) return p.titel
   return p.laeufe.length > 1 ? t('betrieb.beginnen.laeufe', { von: p.laeufe[0], bis: p.laeufe.at(-1)! }) : t('betrieb.beginnen', { n: p.laeufe[0] })
 }
@@ -25,24 +64,44 @@ export function punktVon(b: Pick<SichtBereich, 'programm'>, id: PunktId): SichtP
   return b.programm.find((p) => p.id === id) ?? null
 }
 
+/** Eine Seite eines Paares (Parallelslalom) in einer Zeile der Start-Freigabe. */
+export interface SeitenZeile {
+  /** 'A' oder 'B'. */
+  rc: 'A' | 'B'
+  /** „Parcours A“ bzw. „Racecourse A“ (Sprache der Oberfläche). */
+  titel: string
+  /** `false`: leer (Dummy, gelöscht, X) – Nummer '–', kein Name. */
+  faehrt: boolean
+  startNr: string
+  name: string
+  herkunft: string
+}
+
 /** Ein Start, wie ihn die Start-Freigabe in einer Zeile nennt. */
 export interface StartZeile {
   key: string
-  /** '–', wenn der Starter (noch) keine Nummer hat oder nicht in der Sicht steht. */
+  /** '–', wenn der Starter (noch) keine Nummer hat oder nicht in der Sicht steht; ein Paar: „101 / 102“. */
   startNr: string
-  /** '' bei „Namen: ohne“. */
+  /** '' bei „Namen: ohne“; ein Paar: beide, mit „ / “ getrennt (eine leere Seite ohne Namen). */
   name: string
-  /** „Klasse E · Lauf 2“. */
+  /** „Klasse E · Lauf 2“; ein Paar: „Klasse 1 · Vorlauf · Versuch 1“ bzw. in den Finals statt der Runde das Finale. */
   was: string
   herkunft: string
   /** Klassenfarbe, '' ohne Klasse. */
   farbe: string
   /** Kurzname der Klasse für die Plakette („1“, „Dolphin“), '' ohne Klasse. */
   klasse: string
+  /** Die Startnummern, mit denen die Suche den Start findet (ein Paar: beide Seiten, die fahren). */
+  nummern: string[]
+  /** Die Starter, die hier fahren (Suche: „gehören alle Treffer zu einem Starter“). */
+  ids: string[]
+  /** Nur im Parallelslalom: beide Seiten. */
+  seiten?: [SeitenZeile, SeitenZeile]
 }
 
 /** Angaben zu einem Start aus der Sicht – auch für einen Starter, der dort fehlt (dann nur der Lauf). */
 export function startZeile(sicht: Pick<OeffentlicheSicht, 'starter' | 'klassen'>, s: SichtStart): StartZeile {
+  if (s.paar) return paarZeile(sicht, s)
   const p = sicht.starter[s.starter]
   const klasse = p ? sicht.klassen[p.klasse] : undefined
   return {
@@ -53,6 +112,37 @@ export function startZeile(sicht: Pick<OeffentlicheSicht, 'starter' | 'klassen'>
     herkunft: p?.herkunft?.klartext ?? '',
     farbe: klasse?.farbe ?? '',
     klasse: klasse?.name ?? '',
+    nummern: p?.startNr ? [p.startNr] : [],
+    ids: p ? [s.starter] : [],
+  }
+}
+
+/**
+ * Ein Paar des Parallelslaloms in einer Zeile: Nummern und Namen beider Seiten (A vor B), eine leere Seite als „–“;
+ * die Klasse der Seite, die fährt (beide fahren in einer Klasse, außer ohne strenge Klassentrennung – dann beide).
+ */
+function paarZeile(sicht: Pick<OeffentlicheSicht, 'starter' | 'klassen'>, s: SichtStart): StartZeile {
+  const paar = s.paar!
+  const seite = (rc: 'A' | 'B', id: string | null): SeitenZeile => {
+    const p = id === null ? undefined : sicht.starter[id]
+    return { rc, titel: t('betrieb.racecourse', { rc }), faehrt: !!p, startNr: p ? p.startNr || '–' : '–', name: p?.name ?? '', herkunft: p?.herkunft?.klartext ?? '' }
+  }
+  const seiten: [SeitenZeile, SeitenZeile] = [seite('A', paar.a), seite('B', paar.b)]
+  const starter = [paar.a, paar.b].flatMap((id) => (id !== null && sicht.starter[id] ? [sicht.starter[id]] : []))
+  const klassen = [...new Set(starter.map((p) => p.klasse))].flatMap((k) => (sicht.klassen[k] ? [sicht.klassen[k]!] : []))
+  const runde = rundeVonPunkt(s.punkt)
+  const wo = paar.finale ? t(paar.finale === 1 ? 'parallel.final.1' : 'parallel.final.3') : runde !== undefined ? rundenName(runde, t) : ''
+  return {
+    key: s.key,
+    startNr: seiten.map((x) => x.startNr).join(' / '),
+    name: seiten.some((x) => x.name) ? seiten.map((x) => x.name || '–').join(' / ') : '',
+    was: [klassen.length > 0 ? t('common.class', { id: klassen.map((k) => k.name).join('/') }) : '', wo, t('betrieb.versuch', { n: paar.attempt })].filter(Boolean).join(' · '),
+    herkunft: seiten.some((x) => x.herkunft) ? seiten.map((x) => x.herkunft || '–').join(' / ') : '',
+    farbe: klassen[0]?.farbe ?? '',
+    klasse: klassen.map((k) => k.name).join('/'),
+    nummern: starter.map((p) => p.startNr).filter(Boolean),
+    ids: [paar.a, paar.b].filter((id): id is string => id !== null && !!sicht.starter[id]),
+    seiten,
   }
 }
 
@@ -99,11 +189,13 @@ export interface VerschiebeWahl {
  * etwas offen ist (vor/nach einem vorbeigegangenen hieße nur „hinter den Zeiger“). Die Regeln (Blöcke, Zeiger,
  * „Verzahnung halten“) wendet der Reducer an (betrieb/schritte.ts `verschiebe`).
  */
-export function verschiebeZiele(b: Pick<SichtBereich, 'offen' | 'waehlbar' | 'programm'>, s: SichtStart): VerschiebeWahl[] {
+export function verschiebeZiele(b: Pick<SichtBereich, 'offen' | 'waehlbar' | 'programm' | 'art'>, s: SichtStart): VerschiebeWahl[] {
+  // Im Parallelslalom wird nicht verschoben (BETRIEB_ANNAHMEN.parallelOhneUmstellen).
+  if (b.art === 'parallel') return []
   const vorne = b.offen[0]?.key ?? b.waehlbar[0]?.key ?? null
   const out: VerschiebeWahl[] = []
   if (vorne && vorne !== s.key) out.push({ id: 'vorne', text: t('betrieb.folge.vorziehen'), ziel: { vor: vorne } })
-  out.push({ id: 'ende', text: t('betrieb.einreihen.ende'), ziel: { nachPunkt: s.punkt } })
+  out.push({ id: 'ende', text: tBereich(b, 'betrieb.einreihen.ende'), ziel: { nachPunkt: s.punkt } })
   const grenzen = b.programm.length > 1 ? b.programm.filter((p) => p.id !== s.punkt && b.waehlbar.some((x) => x.punkt === p.id)) : []
   for (const p of grenzen) {
     out.push({ id: `vor|${p.id}`, text: t('betrieb.folge.vorPunkt', { punkt: punktText(p) }), ziel: { vorPunkt: p.id } })

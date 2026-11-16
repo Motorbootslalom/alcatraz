@@ -37,8 +37,98 @@ export const BETRIEB_ANNAHMEN = {
    * (4) Parallelslalom (ab E4): Eine Seite mit X oder Dummy wird leer gezeigt; der Start entfällt nur
    * bei `startEntfaellt` (planung/parallel.ts) oder wenn beide Seiten ein X haben – der Gegner fährt
    * (lib/abmeldung.ts, Halbfinale und Finale). 16.11.2026.
+   * Beim Bau von E4 (16.11.2026, noch zu bestätigen): „Leer“ ist eine Seite mit Dummy, mit gelöschtem Starter
+   * (startEntfaellt zählt ihn als Dummy) oder mit X in einer Disq-Zelle dieses Attempts auf einer Liste des
+   * Parallelslaloms – dieselbe Frage wie Erfassung und Wertung. Der Start entfällt, wenn BEIDE Seiten leer sind;
+   * das schließt startEntfaellt und das doppelte X ein und ebenso einen Dummy gegen ein X (dort fährt niemand –
+   * die Regel oben nennt den Fall nicht). Die Sicht sagt nicht, warum eine Seite leer ist (`null`): Abmeldungen
+   * gehören nicht in die Sicht.
+   * Nach der Prüfung von E4 (16.11.2026, vom Nutzer zu bestätigen): Die Kennung eines Paares in der öffentlichen
+   * Sicht (Anzeigetafel, Start-Freigabe, ab E6 Geräte des Veranstalters) trägt weiter die IDs laut Plan, auch die
+   * einer leeren Seite – „Nächster Start“ schickt sie als `vorher`, und sie darf sich nicht ändern, wenn ein X
+   * gesetzt oder ein Starter gelöscht wird (Kritik K8). Die Zuschauersicht (öffentlicher Link) bildet ihre Kennung
+   * dagegen nur aus dem, was sie zeigt (`sichtZuschauer`): Dort verrät keine Kennung, wer auf einer leeren Seite
+   * gestanden hätte.
    */
   parallelLeereSeite: true,
+  /**
+   * (zu 4, 10) Parallelslalom: je festgeschriebener Runde ein Punkt (`runde:<runde>`) in der Folge von
+   * vergleicheRunden; eine Runde ohne festgeschriebenen Plan steht nicht im Programm. Das kleine Finale ist kein
+   * eigener Punkt: Es steht im Plan der Finals (`parallelPlaene.final`, Starts mit `finale: 3`) und wird dort
+   * zuerst gefahren (PARALLEL_ANNAHMEN) – jeder Start nennt auf der Tafel, ob „Final“ oder „Small final (3rd and
+   * 4th place)“. Betrieb im Bereich ist möglich, sobald eine Runde festgeschrieben ist, unabhängig von der Sperre
+   * der Verzahnung (die Runden nach dem Vorlauf stehen außerhalb davon, der Vorlauf bleibt an erfasste Werte
+   * gebunden). Beim Bau von E4, 16.11.2026 – noch zu bestätigen.
+   */
+  parallelRundenAlsPunkte: true,
+  /**
+   * (zu 10, 6 und 8) Im Parallelslalom laufen die Runden je Klasse für sich: Halbfinale, Finals und Re-runs werden
+   * je Klasse festgeschrieben (planung/parallelRunden.ts `mitKlasse`, neue Klassen ans Ende des Plans), also stehen
+   * Klassen zugleich in verschiedenen Runden. Deshalb gilt dort je Runde: „Nachzuholen“ ist ein Start nur, wenn
+   * hinter ihm ein Start DERSELBEN Runde erledigt ist (nicht einer einer späteren Runde), und „hinter den Zeiger“
+   * (gezielt zeigen, „Als Nächster“, „Einsteigen ab …“) heißt hinter das zuletzt Erledigte seiner Runde; „Ans Ende der
+   * Runde“ geht nie vor dieses. Sonst würde ein Re-run, der nach dem ersten gezeigten Halbfinal-Start festgeschrieben
+   * wird, sofort „nachzuholen“ und käme nach „Re-run beginnen“ nie von selbst dran; ebenso das Halbfinale einer
+   * Klasse, deren Re-run die Finals einer anderen abwarten musste. Die laufende Runde (Tafel „Semi-finals“,
+   * Zuschauerliste) ist die des Nächsten, ohne ihn die des Starts im Boot, sonst die zuletzt begonnene – nicht die
+   * im Programm späteste begonnene. Nach der Prüfung von E4, 16.11.2026 – vom Nutzer zu bestätigen.
+   */
+  parallelRundenFuerSich: true,
+  /**
+   * (zu `parallelRundenFuerSich`) Ein Paar im Boot fährt seinen anderen Attempt, bevor eine ANDERE Runde drankommt –
+   * wenn er im Plan direkt dahinter steht (Runden nach dem Vorlauf; im Vorlauf ist keine Runde davor):
+   * Wird eine frühere Runde begonnen („Re-run beginnen“ nach dem 1. Attempt eines Halbfinal-Paares) oder eine
+   * frühere Runde einer Klasse festgeschrieben, während eine andere schon in den Finals ist, stünde deren Start in
+   * der Folge der Runden vorn und unterbräche das Paar zwischen seinen Attempts (Tausch von Boot und Racecourse,
+   * Regel 960 Pkt. 4.4). Innerhalb derselben Runde gilt die Folge, wie sie steht – „Als Nächster“ und „Einsteigen
+   * ab …“ sind dort bewusste Entscheidungen am Steg; gezielt zeigen geht immer. Nach der Prüfung von E4, 16.11.2026 –
+   * vom Nutzer zu bestätigen.
+   */
+  parallelPaarZuEnde: true,
+  /**
+   * (zu B-3, B-4) Im Parallelslalom ist ein Paar die Einheit: „Zurückstellen“ stellt auch die übrigen offenen
+   * Attempts desselben Paares in derselben Runde zurück, „Einreihen“ holt die zurückgestellten bzw. nachzuholenden
+   * Attempts des Paares mit, in der Folge der Attempts. Sonst führe nach einem zurückgestellten 1. Attempt der
+   * 2. desselben Paares – vor dem 1. und mit einem Paar, das nicht bereit ist (Regel 960, Pkt. 4.4: der frühere
+   * Start ist der 1. Attempt). Gezielt zeigen geht wie im Manövrieren für jeden offenen Start; dort prüft der
+   * Betrieb die Folge der Attempts nicht – das ist eine bewusste Entscheidung am Steg. Beim Bau von E4,
+   * 16.11.2026 – noch zu bestätigen.
+   * Nach der Prüfung von E4 (16.11.2026, vom Nutzer zu bestätigen): Gezielt gezeigt holt ein Attempt auch den
+   * offenen Attempt seines Paares direkt hinter sich, der im Plan direkt dahinter steht (Halbfinale, Finals, Re-runs:
+   * planung/parallelRunden.ts `mitKlasse`) – sonst käme nach einem gezielt gezeigten 1. Attempt erst ein Paar, das in
+   * der Folge davor stand. Im Vorlauf wechseln die Blöcke zwischen den Attempts die Bootstypen; dort bleibt der Plan.
+   */
+  parallelPaarAlsEinheit: true,
+  /**
+   * (zu B-9, B-10, S-4, S-6, V-5, V-7) Im Parallelslalom gibt der festgeschriebene Plan die Folge vor: Paare
+   * nach Klasse, Blöcke im Wechsel der Bootstypen, Tausch von Boot und Racecourse zum 2. Attempt. Es gibt keine
+   * Spuren der Verzahnung, an denen sich „Boot fehlt“, „Andere Klassen vorziehen“, „Klasse vorziehen“ oder
+   * „Verzahnung beim Verschieben halten“ ausrichten könnten. Diese Schritte und das Verschieben (Menü und Ziehen
+   * in der Startliste) sind dort gesperrt – der Reducer ändert nichts, die Start-Freigabe zeigt einen Hinweis.
+   * Ist ein Paar nicht bereit: zurückstellen und einreihen (`parallelPaarAlsEinheit`). Zeigen, Zurück,
+   * Meldungen, Runde beginnen und „Einsteigen ab …“ (Runde, Klasse) gehen. Beim Bau von E4, 16.11.2026 – noch
+   * zu bestätigen.
+   */
+  parallelOhneUmstellen: true,
+  /**
+   * (zu 12) Im Parallelslalom keine Prognose: Seine Starts werden nicht gemessen, und Startliste und
+   * Zuschauerliste zeigen dort Folge und Gruppen (Am Steg, Vor Steg) ohne „ca. in“. Gründe: Die Abstände je
+   * Klasse gelten dem Manövrieren – Paarstarts haben einen anderen Takt (zwei Boote zugleich, kurzer Racecourse,
+   * Tausch von Boot und Racecourse zum 2. Attempt) und verzerrten dessen Mittel für den Rest des Tags; ein
+   * eigener Abstand des Parallelslaloms bräuchte eine Vorgabe, die weder Regel 960 noch die Messdaten des
+   * Prototyps hergeben, und bis zur dritten Messung gäbe es ohnehin keine Zahl – bei wenigen Dutzend Starts je
+   * Runde kaum je eine. Später möglich: ein eigener gemessener Abstand des Bereichs. Beim Bau von E4,
+   * 16.11.2026 – noch zu bestätigen.
+   */
+  parallelOhnePrognose: true,
+  /**
+   * Die gemeinsame Anzeigetafel (`anzeige.bereiche` leer = automatisch) zeigt alle Parcours und den Parallelslalom
+   * erst, wenn dort eine Runde begonnen ist: Am Tag des Manövrierens bliebe sonst ein Drittel der Tafel auf
+   * „bereit“. Eine eigene Tafel nur für ihn gibt es über „Eigene Anzeigetafel“ (`#/anzeige/parallel`), ausdrücklich
+   * wählen lässt er sich in den Einstellungen. `false`: Er steht immer auf der gemeinsamen Tafel. Beim Bau von E4,
+   * 16.11.2026 – noch zu bestätigen.
+   */
+  parallelAufDerTafel: true as boolean,
   /**
    * (5) Die Knoten kommen nicht auf die Anzeigetafel: Ihre Liste hat keinen Lauf, und es gibt keinen
    * Start dafür. Gebaut: Die Folge kennt nur Läufe (`programm`), das X zählt nur auf Listen mit

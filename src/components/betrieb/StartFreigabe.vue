@@ -10,7 +10,7 @@ import EinreihenListe from './EinreihenListe.vue'
 import EinsteigenAb from './EinsteigenAb.vue'
 import KlassenAussetzen from './KlassenAussetzen.vue'
 import MeldungWahl from './MeldungWahl.vue'
-import { beginnenText, punktText, startZeile } from './texte'
+import { beginnenText, punktText, startZeile, tBereich, tnBereich, type StartZeile } from './texte'
 
 /**
  * Start-Freigabe eines Bereichs (Parcours): wer im Boot sitzt, wer als Nächstes dran ist, „Nächster Start“,
@@ -24,6 +24,10 @@ import { beginnenText, punktText, startZeile } from './texte'
  * Starter gescrollt wird. Rückfrage nur bei „Lauf beginnen“, solange Starts offen sind – alles andere ist
  * umkehrbar. Nur betriebliche Knöpfe; Einstellungen (etwa „Verzahnung beim Verschieben halten“) stehen in den
  * Einstellungen (BETRIEB_ANNAHMEN.wohin).
+ *
+ * Parallelslalom (E4): Runden statt Läufe, je Start ein Paar (Racecourse A und B). Zurückstellen nimmt das ganze Paar
+ * (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit); Klassen aussetzen/vorziehen und Verschieben gibt es dort nicht – statt
+ * „Klassen · Boot fehlt“ steht ein Hinweis (BETRIEB_ANNAHMEN.parallelOhneUmstellen).
  *
  * Liest NUR die öffentliche Sicht und schickt Actions über `sende` – am Bedienrechner dispatch, später (E7)
  * vom Handy über den Host. Jede Action ist bedingt (state/reducer/betrieb.ts): „Nächster Start“ trägt den
@@ -41,15 +45,10 @@ const props = defineProps<{
 const b = computed(() => props.bereich)
 /** Ohne festgeschriebene Verzahnung ruhen Zeigen, Beginnen und alle Schritte der Folge (BETRIEB_ANNAHMEN.schritteNurFestgeschrieben). */
 const gesperrt = computed(() => !b.value.fest)
+const parallel = computed(() => b.value.art === 'parallel')
 
-interface Zeile {
-  startNr: string
-  name: string
-  was: string
-  herkunft: string
-}
-/** Ein Start mit seinem Starter; `null`, wenn der Starter nicht (mehr) in der Sicht steht (gelöscht). */
-function zeile(s: SichtStart | null): Zeile | null {
+/** Ein Start mit seinem Starter (einem Paar mit mindestens einem); `null`, wenn keiner (mehr) in der Sicht steht (gelöscht). */
+function zeile(s: SichtStart | null): StartZeile | null {
   if (!s || !props.sicht.starter[s.starter]) return null
   return startZeile(props.sicht, s)
 }
@@ -60,7 +59,7 @@ const naechster = computed(() => zeile(b.value.offen[0] ?? null))
 const vorher = computed(() => b.value.aktuell?.key ?? null)
 
 const stand = computed(() => {
-  if (!b.value.punkt) return t('betrieb.nichtBegonnen')
+  if (!b.value.punkt) return tBereich(b.value, 'betrieb.nichtBegonnen')
   return `${t('betrieb.laufend', { punkt: punktText(b.value.punkt) })} · ${tn('betrieb.offen', b.value.offenZahl)}`
 })
 /**
@@ -74,8 +73,8 @@ const wartend = computed(() => {
 /** Kein Nächster: Der Lauf stockt, der laufende Punkt ist zu Ende (die Tafel bleibt stehen) – oder alle sind es. */
 const ohneNaechsten = computed(() => {
   if (b.value.offen.length > 0 || !b.value.punkt) return ''
-  if (wartend.value > 0) return tn('betrieb.stockt', wartend.value)
-  return b.value.naechsterPunkt ? t('betrieb.punktZuEnde', { punkt: punktText(b.value.punkt) }) : t('betrieb.alleZuEnde')
+  if (wartend.value > 0) return tnBereich(b.value, 'betrieb.stockt', wartend.value)
+  return b.value.naechsterPunkt ? t('betrieb.punktZuEnde', { punkt: punktText(b.value.punkt) }) : tBereich(b.value, 'betrieb.alleZuEnde')
 })
 
 function zeige(key: string) {
@@ -165,7 +164,17 @@ function meldungLoeschen() {
 
     <div class="betrieb-imboot" data-teil="imboot">
       <span class="note">{{ t('betrieb.imBoot') }}</span>
-      <template v-if="aktuell">
+      <template v-if="aktuell?.seiten">
+        <!-- Ein Paar: Racecourse A und B, eine leere Seite (Dummy, gelöscht, X) als „leer“. -->
+        <!-- Zwischenräume ausdrücklich: Sie gehören zum Text (Vorlesen, Kopieren), nicht nur zur Anordnung. -->
+        <span v-for="x in aktuell.seiten" :key="x.rc" class="betrieb-seite" :data-racecourse="x.rc">
+          <span class="note">{{ x.titel }}:</span>{{ ' ' }}<template v-if="x.faehrt"
+            ><span class="betrieb-nr">{{ x.startNr }}</span>{{ ' ' }}<span class="betrieb-name">{{ x.name }}</span></template
+          ><span v-else class="note">{{ t('betrieb.paar.leer') }}</span>
+        </span>
+        <span class="note">{{ aktuell.was }}</span>
+      </template>
+      <template v-else-if="aktuell">
         <span class="betrieb-nr">{{ aktuell.startNr }}</span>
         <span class="betrieb-name">{{ aktuell.name }}</span>
         <span class="note">{{ [aktuell.was, aktuell.herkunft].filter(Boolean).join(' · ') }}</span>
@@ -178,7 +187,14 @@ function meldungLoeschen() {
 
     <div class="betrieb-naechster" data-teil="naechster">
       <span class="note">{{ t('betrieb.naechster') }}</span>
-      <template v-if="naechster">
+      <template v-if="naechster?.seiten">
+        <span v-for="x in naechster.seiten" :key="x.rc" class="betrieb-seite" :data-racecourse="x.rc">
+          <span class="note">{{ x.titel }}:</span>{{ ' ' }}<template v-if="x.faehrt"><b>{{ x.startNr }}</b> {{ x.name }}</template
+          ><span v-else class="note">{{ t('betrieb.paar.leer') }}</span>
+        </span>
+        <span class="note">{{ naechster.was }}</span>
+      </template>
+      <template v-else-if="naechster">
         <b>{{ naechster.startNr }}</b> {{ naechster.name }}
         <span class="note">{{ [naechster.was, naechster.herkunft].filter(Boolean).join(' · ') }}</span>
       </template>
@@ -190,7 +206,7 @@ function meldungLoeschen() {
       <button ref="zeigenKnopf" type="button" class="btn primary betrieb-gross" data-action="zeigen" :disabled="gesperrt || !naechster" @click="naechsterStart">
         {{ t('betrieb.zeigen') }}
       </button>
-      <button type="button" class="btn" data-action="zurueckstellen" :disabled="gesperrt || !bereich.offen[0]" :title="t('betrieb.zurueckstellen.title')" @click="zurueckstellen">
+      <button type="button" class="btn" data-action="zurueckstellen" :disabled="gesperrt || !bereich.offen[0]" :title="tBereich(bereich, 'betrieb.zurueckstellen.title')" @click="zurueckstellen">
         {{ t('betrieb.zurueckstellen') }}
       </button>
       <button type="button" class="btn" data-action="zurueck" :disabled="!bereich.aktuell" :title="t('betrieb.zurueck.title')" @click="zurueck">
@@ -222,13 +238,15 @@ function meldungLoeschen() {
 
     <BetriebsFolge v-if="wahlOffen && !gesperrt" :sicht="sicht" :bereich="bereich" :sende="sende" :gesperrt="gesperrt" @fertig="wahlZu" />
 
-    <EinreihenListe :sicht="sicht" :eintraege="bereich.zurueckgestellt" art="zurueckgestellt" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
-    <EinreihenListe :sicht="sicht" :eintraege="bereich.nachzuholen" art="nachzuholen" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
+    <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.zurueckgestellt" art="zurueckgestellt" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
+    <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.nachzuholen" art="nachzuholen" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
 
     <!-- Umgestellt: Die WKR-Bögen bleiben trotzdem, wie sie sind – das soll am Steg niemand fürchten müssen. -->
-    <p v-if="bereich.abweichend" class="note" data-teil="abweichend">{{ t('betrieb.abweichend') }}</p>
+    <p v-if="bereich.abweichend" class="note" data-teil="abweichend">{{ tBereich(bereich, 'betrieb.abweichend') }}</p>
 
-    <KlassenAussetzen :sicht="sicht" :bereich="bereich" :sende="sende" :gesperrt="gesperrt" />
+    <!-- Im Parallelslalom gibt der Plan die Folge vor: kein Aussetzen, Vorziehen, Verschieben (BETRIEB_ANNAHMEN.parallelOhneUmstellen). -->
+    <p v-if="parallel" class="note" data-hinweis="parallel">{{ t('betrieb.parallel.hint') }}</p>
+    <KlassenAussetzen v-else :sicht="sicht" :bereich="bereich" :sende="sende" :gesperrt="gesperrt" />
 
     <details class="betrieb-abschnitt betrieb-meldung" :open="!!bereich.meldung">
       <summary>
@@ -257,8 +275,8 @@ function meldungLoeschen() {
 
     <EinsteigenAb :sicht="sicht" :bereich="bereich" :sende="sende" :gesperrt="gesperrt" />
 
-    <AppDialog v-if="frageBeginnen && bereich.naechsterPunkt" :titel="t('betrieb.beginnen.frage')" data-dialog="beginnen" @abbrechen="frageBeginnen = false">
-      <p>{{ tn('betrieb.beginnen.text', bereich.offenZahl) }}</p>
+    <AppDialog v-if="frageBeginnen && bereich.naechsterPunkt" :titel="tBereich(bereich, 'betrieb.beginnen.frage')" data-dialog="beginnen" @abbrechen="frageBeginnen = false">
+      <p>{{ tnBereich(bereich, 'betrieb.beginnen.text', bereich.offenZahl) }}</p>
       <template #knoepfe>
         <button type="button" class="btn primary" data-action="beginnen-ja" @click="beginnenJa">{{ beginnenText(bereich.naechsterPunkt) }}</button>
         <button type="button" class="btn" data-action="beginnen-nein" autofocus @click="frageBeginnen = false">{{ t('common.cancel') }}</button>

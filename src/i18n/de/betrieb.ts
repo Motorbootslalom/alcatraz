@@ -72,6 +72,30 @@ export default {
   'betrieb.status.bootFehlt': 'Boot fehlt',
   'betrieb.status.nachzuholen': 'nachzuholen',
 
+  // Parallel-Slalom (E4, nur unter UIM): Runden statt Läufe, Paare auf Parcours A und B. Die Fassungen `….runde`
+  // ersetzen die gleichnamigen Texte im Bereich des Parallel-Slaloms (components/betrieb/texte.ts tBereich).
+  'betrieb.versuch': 'Versuch {n}',
+  'betrieb.racecourse': 'Parcours {rc}',
+  'betrieb.paar.leer': 'leer',
+  'betrieb.nichtBegonnen.runde': 'Noch keine Runde begonnen.',
+  'betrieb.alleZuEnde.runde': 'Alle Runden sind zu Ende.',
+  'betrieb.beginnen.runde': '{runde} beginnen',
+  'betrieb.beginnen.frage.runde': 'Nächste Runde beginnen?',
+  'betrieb.beginnen.text.runde':
+    'In den begonnenen Runden ist noch {n} Start offen. Er bleibt freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Finals –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch. | In den begonnenen Runden sind noch {n} Starts offen. Sie bleiben freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Finals –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch.',
+  'betrieb.stockt.runde':
+    'Kein Start frei – noch {n} Start wartet (zurückgestellt oder nachzuholen). Die Runde ist nicht zu Ende. | Kein Start frei – noch {n} Starts warten (zurückgestellt oder nachzuholen). Die Runde ist nicht zu Ende.',
+  'betrieb.abweichend.runde': 'Die Folge weicht vom festgeschriebenen Plan ab (Paare zurückgestellt oder gezielt gezeigt). Die Listen der Wettkampfrichter bleiben, wie sie sind.',
+  'betrieb.zurueckstellen.title.runde': 'Das nächste Paar zurückstellen: Seine offenen Versuche dieser Runde fahren vorerst nicht, bleiben aber sichtbar.',
+  'betrieb.einreihen.ende.runde': 'Ans Ende der Runde',
+  'betrieb.einreihen.ende.title.runde': 'Hinter den letzten Start seiner Runde – ist die schon vorbei, ans Ende der laufenden. Die Versuche des Paares kommen mit.',
+  'betrieb.einstieg.hint.runde':
+    'Wenn die Start-Freigabe erst mitten im Wettkampf dazukommt: Was vor dem gewählten Start noch nicht gezeigt wurde, gilt als gefahren – ohne Anzeige; die Runden bis dahin gelten als begonnen. Ein früherer Einstieg nimmt das zurück.',
+  'betrieb.einstieg.punkt.runde': 'Runde',
+  'betrieb.einstieg.alleKlassen.runde': 'erster Start der Runde',
+  'betrieb.parallel.hint':
+    'Im Parallel-Slalom gibt der festgeschriebene Plan die Folge vor: Paare nach Klasse, Blöcke im Wechsel der Bootstypen, Tausch von Boot und Parcours zum 2. Versuch. Klassen aussetzen oder vorziehen und Starts verschieben gibt es hier deshalb nicht. Ist ein Paar nicht bereit: „Zurückstellen“ – seine offenen Versuche der Runde warten, bis es eingereiht oder gezeigt wird.',
+
   // „Anderen Starter wählen“ (components/betrieb/BetriebsFolge.vue)
   'betrieb.folge.suche': 'Startnummer oder Name',
   'betrieb.folge.hint':
@@ -105,6 +129,9 @@ export default {
   'betrieb.liste.wartet': '{punkt} – noch nicht begonnen',
   'betrieb.liste.abstaende': 'Startabstände',
   'betrieb.liste.angehalten': 'Pause oder Störung auf der Anzeigetafel – keine Wartezeiten, bis die Meldung weg ist.',
+  'betrieb.liste.col.versuch': 'Versuch',
+  'betrieb.liste.parallel':
+    'Parallel-Slalom: Folge und „am Steg“/„vor Steg“ ohne geschätzte Wartezeit – die Startabstände der Klassen gelten dem Manövrieren. Umgestellt wird an der Start-Freigabe (Zurückstellen, Einreihen, Zeigen), nicht durch Ziehen.',
 
   // Klassen, „Boot fehlt“ (components/betrieb/KlassenAussetzen.vue, B-9, B-10, V-5)
   'betrieb.klassen': 'Klassen · Boot fehlt',
@@ -155,6 +182,10 @@ export default {
   'anzeige.steg.amSteg': 'am Steg',
   'anzeige.steg.vorSteg': 'vor Steg',
   'anzeige.bootFehlt': 'Boot fehlt',
+  // Parallel-Slalom (E4): Name des Bereichs, die beiden Parcours, der Versuch – wie auf den Listen (config/sprache.ts).
+  'anzeige.parallel': 'Parallel-Slalom',
+  'anzeige.racecourse': 'Parcours {rc}',
+  'anzeige.versuch': '{n}. Versuch',
 
   // Zuschauerliste (`#/zuschauer`, src/ZuschauerApp.vue, components/zuschauer/; E3) – in der Sprache der Anzeigetafel
   'zuschauer.titel': 'Startfolge',
@@ -171,6 +202,8 @@ export default {
   'zuschauer.laeuft': '{punkt} läuft',
   'zuschauer.naechsterPunkt': 'Als Nächstes: {punkt}',
   'zuschauer.zuEnde': 'Alle Läufe sind zu Ende.',
+  'zuschauer.zuEnde.runde': 'Alle Runden sind zu Ende.',
+  'zuschauer.ohneZeit': 'Im Parallel-Slalom ohne Wartezeiten.',
   'zuschauer.leer': 'Keine Starts dieser Klasse.',
   'zuschauer.hinweis': 'Wartezeiten sind Schätzungen aus den bisherigen Startabständen; für einen Lauf, der noch nicht begonnen hat, und während einer Pause oder Störung gibt es keine.',
 

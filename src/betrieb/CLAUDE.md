@@ -3,7 +3,8 @@
 Rein, ohne DOM und Store. Plan zur Übernahme der Tafel vom 16.11.2026 (Etappen E1–E8); E1 = Anzeigetafel im
 zweiten Fenster und Start-Freigabe am Bedienrechner, nur Manövrieren, ohne Netz; E2 = Steuerung an der Start-Freigabe
 (gezielt zeigen, zurückstellen/einreihen, Klasse aussetzen/vorziehen, verschieben, einsteigen); E3 = Startabstände,
-Prognose („ca. in“, „Zeit bis zum Vorsteg“), Startliste im Betrieb, Zuschauerliste lokal. Begriffe:
+Prognose („ca. in“, „Zeit bis zum Vorsteg“), Startliste im Betrieb, Zuschauerliste lokal; E4 = Parallelslalom (nur
+UIM: Bereich `parallel`, Runden als Punkte, Paare A/B, ohne Prognose, ohne Umstellen). Begriffe:
 „Anzeigetafel“ (Code `anzeige`), „Start-Freigabe“; „Tafel“ ist das Aushangbrett. Englisch vorläufig: display board,
 start release.
 
@@ -14,18 +15,23 @@ start release.
   programm (lauf:1..n; „nacheinander“ nur lauf:1), abgeleiteteFolge (Verzahnung, Entfallene mit `entfaellt`),
   startfolge (= abgeleitet + Schnappschuss), spurenVon (Spur-Anordnung), lage (aktuell, vorig, Zeiger, offen, frei,
   nachzuholen, zurueckgestellt, bootFehlt, naechster, naechsterPunkt, arbeitsPunkt, abgeleitet, erledigt …).
-  Parallel (`parallel`) erst ab E4.
+  E4 Parallel: PARALLEL_BEREICH/istParallel, rundenPunkt/rundeVonPunkt, programm = festeRunden (vergleicheRunden),
+  parallelFolge (Ref aus `fest.starts[i].a/b`, FolgeEintrag.paar mit aFaehrt/bFaehrt, entfällt = beide leer),
+  bereichFest (eine Runde festgeschrieben), bereicheZumStand (UIM: dahinter; Tafel automatisch erst ab begonnener Runde).
 - `schritte.ts` (E2) – rein auf der Folge (Vorbild TF lib/startlist.ts, neu geschrieben): bloecke/bloeckeIn (je
   Stelle der Lauf-Block; Gäste = Starts in einem fremden Block), abgleich (Schnappschuss über die abgeleitete Folge,
   Neues in den Block seines Punkts), schnappschuss (`null` = keine Abweichung; nur umgestellte Punkte), zeigerIn,
   hinterDenZeiger (auch mehrere), ansPunktende (Blockende), zielStelle/verschiebe (Spur rutscht nur im Block mit,
   V-7), webeNeu (reinterleave je Block und je Starter: Klasse aussetzen/zurück, startTrack),
   klassenNachNaechstemStart/klasseAllein/klasseVor (B-10), ersterStart/einsteigen (AB). Liefern Kennungen; den
-  Stand macht state/reducer/betrieb.ts.
+  Stand macht state/reducer/betrieb.ts. E4: paarStarts (beide Attempts eines Paares einer Runde), ansPunktende
+  nimmt auch mehrere Kennungen; im Parallelslalom gehen hinterDenZeiger/ansPunktende je Runde; planPartner.
 - `meldungen.ts` (E2) – MELDUNGS_VORLAGEN (Gruppe, Kennung, Art), vorlagenText (Tafel-Sprache, `{veranstaltung}`),
   vorlagenTitel/gruppenTitel (Schlüssel für t()), vorlagenMeldung(sicht, vorlage). Texte: i18n `meldung.vorlage.*`.
 - `sicht.ts` – sichtOeffentlich(stand, {logos}) → OeffentlicheSicht: die EINE Stelle für den Datenschutz-Zuschnitt;
   sichtZuschauer(sicht) → ZuschauerSicht (E3): daraus abgeleitet, schmaler (Im Boot, `frei`, „Boot fehlt“, Meldung).
+  E4 (sv 4): SichtStart.paar {attempt, a, b, finale?} – leere Seite `null` ohne Grund; `starter` = erste Seite, die
+  fährt; titel „Preliminary heat · Attempt 1“ (Finals: „Small final (3rd and 4th place)“); Bereichsname anzeige.parallel.
 - `prognose.ts` (E3, Vorbild TF lib/timing.ts) – Messung auf dem Stand: messungenIn/messungen (Abstand gehört dem
   vorigen Start; 30–300 s; nicht über „ohne Anzeige“, nicht über eine Punktgrenze, nicht bei X), klassenMessungen,
   genugGemessen (ab 3),
@@ -65,6 +71,10 @@ start release.
 - Startliste (E3): BetriebView `startliste` → je Bereich StartListe(sicht, bereich, jetzt aus useUhr(1000)) →
   wartezeiten() je Render. Ziehen auf einen offenen Start = BETRIEB_VERSCHIEBEN {vor} (nach oben) bzw. {nach} (nach
   unten), dazu das Menü „Verschieben …“ (verschiebeZiele, wie BetriebsFolge) – BETRIEB_ANNAHMEN.ziehenInDerStartliste.
+- Parallelslalom (E4): BETRIEB_BEGINNEN {punkt: `runde:<runde>`}, ZEIGEN/ZURUECK/MELDUNG/AB wie sonst. ZURUECKSTELLEN
+  nimmt die offenen Attempts des Paares mit, EINREIHEN und gezieltes ZEIGEN eines zurückgestellten holen die wartenden
+  in Attempt-Folge mit (paarStarts). AUSSETZEN, VORZIEHEN, KLASSE_VOR, VERSCHIEBEN ändern dort nichts (umstellenErlaubt);
+  die Start-Freigabe zeigt `data-hinweis="parallel"` statt KlassenAussetzen, kein „Verschieben …“, kein Ziehen.
 - Startabstände (SettingsView `#betrieb`): startabstandZeilen (Vorgabe, eigen, gemessen, wirksam, quelle); Eingabe →
   SET_ANZEIGE {abstaende} nur mit Abweichungen (gleich Vorgabe/leer = weg, in Klassenfolge); Knopf =
   messwerteAlsVorgabe.
@@ -77,6 +87,7 @@ start release.
 - Entfallen heißt allein: ein X in einer Disq-Zelle des Laufs, Steg oder Vorsteg (lib/erfassung.ts nichtGestartet,
   dieselbe Frage wie die Wertung); `abgemeldet` filtert nicht.
 - „Nachzuholen“ = überholt: Punkt begonnen und dahinter ein Erledigtes seines oder eines späteren begonnenen Punkts
+  (Parallelslalom: nur seiner Runde)
   (ohne Umstellung = vor dem Zeiger); nie von selbst der Nächste. Starts nicht begonnener Punkte warten, auch vor dem
   Zeiger (`nichtBegonneneWarten`, S-9). Den Zeiger schiebt nur Erledigtes begonnener Punkte (`zeigerNurBegonnene`).
 - Einteilung in lage: zurückgestellt vor „Boot fehlt“ (Klasse ausgesetzt, gleich wo) vor nachzuholen vor offen.
@@ -95,7 +106,7 @@ start release.
   Nachzüglers). Leere Bereiche entfallen im Stand (mitBereich), unbekannte Bereiche ändern nichts (schrittErlaubt).
 - Sicht: nie Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen; nur vorkommende Starter. Neue Felder → sicht.test.ts
   (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert (sv 2 = E2, mit `programm`; sv 3 = E3, mit
-  `abstaende` und `einst.amSteg/vorSteg`). Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit
+  `abstaende` und `einst.amSteg/vorSteg`; sv 4 = E4, `SichtStart.paar`, Bereich `parallel`). Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit
   `jetzt + versatz` (prognose.ts), nie Reducer oder Sicht; `abstaende` ändert sich nur mit Gezeigtem/Einstellungen.
   Zuschauersicht: genaue Schlüssel im Test, auch verschachtelt (Start, Starter, Herkunft, Punkt, Meldung, Klasse) –
   sichtZuschauer baut jedes Objekt Feld für Feld neu, nie als Referenz; ein neues Feld dort ist eine bewusste
@@ -117,6 +128,19 @@ start release.
   Hosts = eigene Uhr + Versatz), nie Store oder Sicht. BetriebView liest `jetzt` nur im Zweig der Startliste – sonst
   zeichnete die Start-Freigabe jede Sekunde neu. Die Zuschauerliste trägt keine Bedienangaben: Was sie zeigen soll,
   muss erst in sichtZuschauer (bewusste Entscheidung, Schlüssel-Test).
+- Parallel (E4): Die Kennung eines Paares kommt aus `fest.starts` (Kritik K8) – nie aus loeseAuf/plan.heats (ein
+  gelöschter Starter würde dort zum Dummy, die Kennung änderte sich, der Start käme wieder). Eine Seite ist leer bei
+  Dummy, gelöschtem Starter oder X im Attempt (felderJeKennung mit parallelListen); entfällt nur, wenn beide leer sind.
+  Runden je Klasse für sich (BETRIEB_ANNAHMEN.parallelRundenFuerSich, Prüfung E4): überholt nur Erledigtes DERSELBEN
+  Runde; hinterDenZeiger/ansPunktende rechnen dort ab dem letzten Erledigten der eigenen Runde (nicht dem Zeiger, der
+  in einer späteren Runde stehen kann); `laufend` = Runde des Nächsten, sonst des Starts im Boot, sonst zuletzt
+  begonnen (`b.begonnen` in Folge des Beginnens). Ein Paar im Boot fährt vor einer ANDEREN Runde zu Ende
+  (parallelPaarZuEnde: lage rückt seinen Attempt in `offen` vor). Gezieltes ZEIGEN holt den im Plan direkt folgenden
+  Attempt mit (schritte.ts planPartner – nur nach dem Vorlauf; dort wechseln zwischen den Attempts die Bootstypen).
+  Zuschauersicht: Kennung eines Paares nur aus `paar.a/b` (verrät keine leere Seite); die öffentliche trägt die IDs laut Plan.
+  Das kleine Finale ist kein eigener Punkt (Plan `final`, `finale: 3` vorn). Parallel misst nicht und hat keine Zahl
+  (wartezeiten: `angehalten` mit Steg). Unter DM gibt es den Bereich nicht (bereichBekannt → hasParallel) – auch keine
+  Texte; die `….runde`-Texte holt components/betrieb/texte.ts tBereich nur für `art: 'parallel'`.
 - `einstieg` trägt Starts der Sicht (mit Starter, ohne Entfallene): „Weiter mit“ nennt auch einen schon „ohne Anzeige“
   erledigten. BETRIEB_AB setzt den gewählten Start und das mit ihm wieder Offene hinter den Zeiger, wenn danach schon
   gezeigt wurde – sonst überholte ihn das Gezeigte.
@@ -124,7 +148,7 @@ start release.
 ## Tests
 
 `npx vitest run src/betrieb src/state/betrieb src/state/leseStore src/components/anzeige src/AnzeigeApp src/ZuschauerApp
-src/main src/views/Betrieb src/lib/anzeigeFenster src/lib/fit src/planung/verzahnung`. Hilfen: testHilfen.ts betriebsStand,
+src/main src/views/Betrieb src/lib/anzeigeFenster src/lib/fit src/planung/verzahnung`; E4 dazu src/views/SettingsView. Hilfen: testHilfen.ts betriebsStand,
 festgeschrieben, zeigeNaechsten – nimmt `ref`/`vorher` aus der Sicht wie die Start-Freigabe; Starter e1/k1/e2/k2 auf
 Parcours 1, v1/f1/v2 auf Parcours 2. E2: betrieb/schritte.test.ts mit eigener Hilfe `stand({E: 2, '1': 6 …}, {spuren,
 laeufe})` (V-5-Beispiel, S-4/S-9, B-10, AB, Abgleich, WKR-Bögen unverändert). E3: betrieb/prognose.test.ts
@@ -134,3 +158,9 @@ außer `betrieb` ändert sich nichts). Oberfläche E3: views/Betrieb.test.ts „
 vi.useFakeTimers({toFake: ['Date','setInterval','clearInterval']}); Ziehen per trigger dragstart/dragover/drop, Ergebnis
 gleich reducer(BETRIEB_VERSCHIEBEN)), src/ZuschauerApp.test.ts (Gruppen, Wartezeiten, Datenschutz im HTML, Filter),
 src/main.zuschauer.test.ts (echter Start `#/spectators`, schreibt nichts). Einstellungen: views/SettingsView.test.ts.
+E4 (Parallel): betrieb/parallel.test.ts (Programm, Re-run nach gezeigtem Halbfinal-Start, Klassen in verschiedenen
+Runden, K7/K8: gelöschter Starter, abgemeldete Seite im Halbfinale, Dummy gegen X, Finals; Zuschauer-Kennung; Schritte: Paar als Einheit, Gesperrtes, Einsteigen; Sicht/Zuschauersicht feldweise; keine
+Prognose; automatische Tafel), components/anzeige/AnzeigeParallel.test.ts (englische Tafel wie UimAushang: keine
+deutschen Wörter; Spezifität der Seiten-Regeln gegen „gestapelt“ am CSS-Text – happy-dom rechnet kein CSS), views/Betrieb.test.ts „Parallelslalom (E4)“, ZuschauerApp.test.ts (Paar-Karten), SettingsView.test.ts
+(Auswahl der Tafel). Hilfen: testHilfen.ts parallelStarter (`<klasse>-<n>`), uimParallelStand (UIM, festgeschrieben:
+Dolphin 3, Klasse 1 6), fahreRunde.

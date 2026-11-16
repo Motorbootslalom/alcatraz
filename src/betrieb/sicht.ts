@@ -1,12 +1,12 @@
-import type { Locale } from '../i18n'
-import type { AppState, ClassId, OeffentlicheSicht, PunktId, SichtBereich, SichtEinstieg, SichtHerkunft, SichtKlasse, SichtKlassenStand, SichtPunkt, SichtStart, SichtStarter, Starter, ZuschauerBereich, ZuschauerSicht } from '../types'
+import { tIn, type Locale } from '../i18n'
+import type { AppState, ClassId, OeffentlicheSicht, ParallelRunde, PunktId, SichtBereich, SichtEinstieg, SichtHerkunft, SichtKlasse, SichtKlassenStand, SichtPaar, SichtPunkt, SichtStart, SichtStarter, Starter, ZuschauerBereich, ZuschauerSicht } from '../types'
 import { regelwerkOf } from '../config/catalog'
 import { bogenTexte, type BogenTexte } from '../config/sprache'
 import { classColor } from '../domain/classes'
 import { listenNachname } from '../lib/namen'
 import { starterHerkunft } from '../lib/origin'
 import { laenderKuerzelFuer, regelwerkSprache } from '../lib/listensprache'
-import { bereicheZumStand, betriebVon, laeufeVonPunkt, lage, punktVonLauf, spurenVon, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
+import { bereicheZumStand, betriebVon, istParallel, laeufeVonPunkt, lage, punktVonLauf, rundenPunkt, rundeVonPunkt, spurenVon, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
 import { ersterStart, klasseAllein, klassenNachNaechstemStart } from './schritte'
 import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabstandImBetrieb, type Messung } from './prognose'
 
@@ -25,6 +25,13 @@ import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabst
 //
 // Die Zuschauersicht (`sichtZuschauer`) ist eine Teilmenge davon, für die Zuschauerliste und später den
 // Zuschauer-Link: ohne Bedienangaben (BETRIEB_ANNAHMEN.zuschauerSchmal).
+//
+// Parallelslalom (sv 4, E4): Ein Start ist ein Paar (`SichtStart.paar`, Racecourse A und B). Eine leere Seite
+// (Dummy, gelöscht, X) steht als `null` darin – ohne Grund, und ihr Starter steht nicht dafür in `starter`. Die
+// Kennung (`key`) trägt in der öffentlichen Sicht weiter die IDs laut Plan: „Nächster Start“ schickt sie als
+// `vorher`, sie darf sich mit einem X nicht ändern (Kritik K8). Die Zuschauersicht bildet ihre Kennung nur aus dem,
+// was sie zeigt – so verrät der öffentliche Link nicht, wer auf einer leeren Seite gestanden hätte
+// (BETRIEB_ANNAHMEN.parallelLeereSeite, Prüfung E4).
 
 export interface SichtOptionen {
   /**
@@ -67,6 +74,8 @@ function anzeigeHerkunft(p: Starter, stand: AppState, sprache: Locale): SichtHer
  * Starts, ausgesetzte dahinter (auch ohne offene Starts – sonst ließen sie sich nicht zurückholen).
  */
 function klassenFolge(l: BereichLage, stand: AppState): SichtKlassenStand[] {
+  // Im Parallelslalom gibt es kein Aussetzen und Vorziehen von Klassen (BETRIEB_ANNAHMEN.parallelOhneUmstellen).
+  if (istParallel(l.bereich)) return []
   const fahrend = klassenNachNaechstemStart(l)
   const spuren = spurenVon(stand, l.bereich)
   const imPunkt = [...l.offen, ...l.bootFehlt].filter((e) => e.punkt === l.arbeitsPunkt)
@@ -94,8 +103,20 @@ function einstiege(l: BereichLage, start: (e: FolgeEintrag) => SichtStart): Sich
 
 function sichtPunkt(stand: AppState, punkt: PunktId | null, texte: BogenTexte): SichtPunkt | null {
   if (punkt === null) return null
+  // Eine Runde des Parallelslaloms heißt wie auf ihren Listen („Preliminary heat“, „Semi-finals“ …), ohne Läufe.
+  const runde = rundeVonPunkt(punkt)
+  if (runde !== undefined) return { id: punkt, titel: texte.runde(runde), laeufe: [] }
   const laeufe = laeufeVonPunkt(stand, punkt)
   return { id: punkt, titel: laeufe.map((n) => texte.lauf(n)).join(' / '), laeufe }
+}
+
+/**
+ * Der Titel eines Starts des Parallelslaloms in der Sprache der Tafel: die Runde – in den Finals, um welche Plätze
+ * („Final“, „Small final (3rd and 4th place)“) – und der Attempt.
+ */
+function paarTitel(runde: ParallelRunde, attempt: number, finale: 1 | 3 | undefined, texte: BogenTexte, sprache: Locale): string {
+  const was = finale ? tIn(sprache, finale === 1 ? 'parallel.final.1' : 'parallel.final.3') : texte.runde(runde)
+  return `${was} · ${tIn(sprache, 'anzeige.versuch', { n: attempt })}`
 }
 
 /**
@@ -110,6 +131,14 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
   const vorkommend = new Map<string, Starter>()
 
   const start = (e: FolgeEintrag): SichtStart => {
+    if (e.paar) {
+      // Nur die Seiten, auf denen jemand fährt – eine leere (Dummy, gelöscht, X) ist `null`, ohne Grund.
+      const a = e.paar.aFaehrt ? e.paar.a : null
+      const b = e.paar.bFaehrt ? e.paar.b : null
+      for (const id of [a, b]) if (id !== null) vorkommend.set(id, starterNachId.get(id)!)
+      const paar: SichtPaar = { attempt: e.paar.attempt, a, b, ...(e.paar.finale ? { finale: e.paar.finale } : {}) }
+      return { key: e.key, starter: a ?? b ?? '', lauf: e.lauf, punkt: e.punkt, titel: paarTitel(e.paar.runde, e.paar.attempt, e.paar.finale, texte, sprache), paar }
+    }
     vorkommend.set(e.starter, starterNachId.get(e.starter)!)
     return { key: e.key, starter: e.starter, lauf: e.lauf, punkt: e.punkt, titel: texte.lauf(e.lauf) }
   }
@@ -122,8 +151,15 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
     if (!g) return null
     if (g.eintrag) return start(g.eintrag)
     const ref = g.ref
-    // Parallelslalom (`p`) kommt mit E4 und bringt dort seine eigene Form des Starts in der Sicht.
-    if (!ref || ref.art !== 'm') return null
+    if (!ref) return null
+    if (ref.art === 'p') {
+      // Ein Paar, dessen Runde nicht mehr festgeschrieben ist (gelöscht): Es bleibt im Boot, mit den Startern, die es
+      // noch gibt – ob sie damals gefahren sind, weiß nur die Folge, die es nicht mehr gibt.
+      const a = ref.a !== null && starterNachId.has(ref.a) ? ref.a : null
+      const b = ref.b !== null && starterNachId.has(ref.b) ? ref.b : null
+      for (const id of [a, b]) if (id !== null) vorkommend.set(id, starterNachId.get(id)!)
+      return { key: g.key, starter: a ?? b ?? '', lauf: ref.attempt, punkt: rundenPunkt(ref.runde), titel: paarTitel(ref.runde, ref.attempt, undefined, texte, sprache), paar: { attempt: ref.attempt, a, b } }
+    }
     const p = starterNachId.get(ref.starter)
     if (p) vorkommend.set(ref.starter, p)
     return { key: g.key, starter: ref.starter, lauf: ref.lauf, punkt: punktVonLauf(stand, ref.lauf), titel: texte.lauf(ref.lauf) }
@@ -139,7 +175,8 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
     const aktuell = gezeigt(l.aktuell)
     return {
       id: b.id,
-      name: texte.parcoursName(b.name),
+      // Der Parallelslalom hat keinen Namen im Stand: in der Sprache der Tafel.
+      name: b.art === 'parallel' ? tIn(sprache, 'anzeige.parallel') : texte.parcoursName(b.name),
       art: b.art,
       fest: l.fest,
       punkt: sichtPunkt(stand, l.laufend, texte),
@@ -180,7 +217,7 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
 
   const mitLogos = (optionen.logos ?? true) && stand.anzeige.logos && (stand.logos.links !== null || stand.logos.rechts !== null)
   return {
-    sv: 3,
+    sv: 4,
     kopf: kopfzeile(stand),
     veranstaltung: stand.eventName.trim(),
     sprache,
@@ -215,6 +252,16 @@ function zuschauerHerkunft(h: SichtHerkunft): SichtHerkunft {
 export function sichtZuschauer(sicht: OeffentlicheSicht): ZuschauerSicht {
   const vorkommend = new Set<string>()
   const start = (s: SichtStart): SichtStart => {
+    if (s.paar) {
+      // Paar (Parallelslalom): beide Seiten, Feld für Feld; eine leere bleibt `null`. Die Kennung nur aus dem, was hier
+      // steht – die der öffentlichen Sicht nennt auch den Starter einer leeren Seite (abgemeldet, gelöscht). Eindeutig
+      // bleibt sie: Je Runde und Attempt fährt ein Starter in einem Paar, und Entfallene (beide leer) stehen nur als
+      // Start im Boot da. So bleiben aktuell, frei und „Boot fehlt“ untereinander gleich benannt (Wartezeiten, v-for).
+      const p = s.paar
+      for (const id of [p.a, p.b]) if (id !== null) vorkommend.add(id)
+      const paar: SichtPaar = { attempt: p.attempt, a: p.a, b: p.b, ...(p.finale ? { finale: p.finale } : {}) }
+      return { key: JSON.stringify(['p', s.punkt, p.attempt, p.a, p.b]), starter: s.starter, lauf: s.lauf, punkt: s.punkt, titel: s.titel, paar }
+    }
     vorkommend.add(s.starter)
     return { key: s.key, starter: s.starter, lauf: s.lauf, punkt: s.punkt, titel: s.titel }
   }

@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, type ComponentPublicInstance } from
 import type { OeffentlicheSicht, SichtBereich, SichtPunkt, SichtStart, VerschiebeZiel } from '../../types'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { t } from '../../i18n'
-import { ganzeFolge as folgeMitBootFehlt, punktText, punktVon, startZeile, verschiebeZiele, type StartZeile } from './texte'
+import { ganzeFolge as folgeMitBootFehlt, punktText, punktVon, startZeile, tBereich, verschiebeZiele, type StartZeile } from './texte'
 
 /**
  * „Anderen Starter wählen“: die Folge eines Bereichs an der Start-Freigabe (B-5, S-4, S-6). Zuerst die nächsten
@@ -21,6 +21,9 @@ import { ganzeFolge as folgeMitBootFehlt, punktText, punktVon, startZeile, versc
  * Mit der Eingabetaste im Suchfeld wird gezeigt, wenn alle Treffer zu EINEM Starter gehören (eine volle
  * Startnummer findet ihn in jedem Lauf): sein frühester Start, der nicht auf seinen Lauf wartet – am Laptop der
  * schnellste Weg. Passt die Nummer genau, zählen nur ihre Treffer (Suche „10“ neben 101, 102 …).
+ *
+ * Parallelslalom (E4): Die Suche findet ein Paar über beide Startnummern und Namen; „Verschieben …“ gibt es dort nicht
+ * (BETRIEB_ANNAHMEN.parallelOhneUmstellen), Zurückstellen nimmt das ganze Paar.
  *
  * Gezogen wird hier nicht – das geht in der Startliste (components/betrieb/StartListe.vue, E3): An der Start-Freigabe
  * ist ein Menü der sicherere Griff (BETRIEB_ANNAHMEN.knoepfeStattZiehen). Die Ziele des Menüs und die ganze Folge
@@ -73,7 +76,7 @@ const treffer = computed<Zeile[] | null>(() => {
     ...b.value.zurueckgestellt.map((s) => zeile(s, 'zurueckgestellt')),
     ...b.value.nachzuholen.map((s) => zeile(s, 'nachzuholen')),
   ]
-  return alle.filter((z) => klein(z.startNr).includes(q) || klein(z.name).includes(q))
+  return alle.filter((z) => z.nummern.some((n) => klein(n).includes(q)) || klein(z.startNr).includes(q) || klein(z.name).includes(q))
 })
 
 const zeilen = computed(() => treffer.value ?? (ganz.value ? ganzeFolge.value : offene.value.slice(0, NAECHSTE)))
@@ -93,10 +96,13 @@ const enterZiel = computed<Zeile | null>(() => {
   const alle = treffer.value
   if (!alle?.length) return null
   const q = klein(suche.value)
-  const genau = alle.filter((z) => klein(z.startNr) === q)
+  const genau = alle.filter((z) => z.nummern.some((n) => klein(n) === q))
   const kandidaten = genau.length > 0 ? genau : alle
-  if (new Set(kandidaten.map((z) => z.s.starter)).size !== 1) return null
-  const frei = kandidaten.filter((z) => !z.wartet).sort((a, b) => a.s.lauf - b.s.lauf)
+  // Ein Starter, der in allen Treffern fährt – im Manövrieren genau einer je Start, im Parallelslalom einer der beiden Seiten.
+  const gemeinsam = kandidaten.reduce<string[]>((ids, z, i) => (i === 0 ? [...z.ids] : ids.filter((id) => z.ids.includes(id))), [])
+  if (gemeinsam.length === 0) return null
+  // Im Manövrieren der früheste Lauf; ein Paar steht schon in seiner Folge (Runden, Attempts).
+  const frei = kandidaten.filter((z) => !z.wartet).sort((a, b) => (a.s.paar ? 0 : a.s.lauf - b.s.lauf))
   return frei[0] ?? kandidaten[0]
 })
 function zeigeTreffer() {
@@ -183,6 +189,7 @@ function vermerk(z: Zeile): string {
           <template v-if="z.art === 'offen'">
             <button type="button" class="btn sm" data-action="folge-zurueckstellen" :disabled="gesperrt" @click="zurueckstellen(z)">{{ t('betrieb.zurueckstellen') }}</button>
             <button
+              v-if="b.art !== 'parallel'"
               :ref="(el) => merkeKnopf(z.key, el)"
               type="button"
               :class="['btn', 'sm', menue === z.key ? 'active' : '']"
@@ -197,7 +204,7 @@ function vermerk(z: Zeile): string {
           </template>
           <template v-else-if="z.art !== 'bootFehlt'">
             <button type="button" class="btn sm" data-action="einreihen-naechster" :disabled="gesperrt" @click="einreihen(z, 'naechster')">{{ t('betrieb.einreihen.naechster') }}</button>
-            <button type="button" class="btn sm" data-action="einreihen-ende" :disabled="gesperrt" @click="einreihen(z, 'ende')">{{ t('betrieb.einreihen.ende') }}</button>
+            <button type="button" class="btn sm" data-action="einreihen-ende" :disabled="gesperrt" @click="einreihen(z, 'ende')">{{ tBereich(b, 'betrieb.einreihen.ende') }}</button>
           </template>
         </span>
         <!-- Die Ziele als Knöpfe: Erst ein Klick (oder Enter/Leertaste auf einem Knopf) verschiebt. -->

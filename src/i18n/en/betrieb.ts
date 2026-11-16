@@ -69,6 +69,29 @@ export default {
   'betrieb.status.bootFehlt': 'boat missing',
   'betrieb.status.nachzuholen': 'to be made up',
 
+  // Parallel slalom (rule 960): „heat“ is the round (pt. 5.2.2), „racecourse“ and „attempt“ (pt. 4.4).
+  'betrieb.versuch': 'Attempt {n}',
+  'betrieb.racecourse': 'Racecourse {rc}',
+  'betrieb.paar.leer': 'empty',
+  'betrieb.nichtBegonnen.runde': 'No heat begun yet.',
+  'betrieb.alleZuEnde.runde': 'All heats are complete.',
+  'betrieb.beginnen.runde': 'Begin {runde}',
+  'betrieb.beginnen.frage.runde': 'Begin the next heat?',
+  'betrieb.beginnen.text.runde':
+    'The heats begun still have {n} start to go. It stays released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, finals –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt. | The heats begun still have {n} starts to go. They stay released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, finals –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt.',
+  'betrieb.stockt.runde':
+    'No start released – {n} start is waiting (held back or to be made up). The heat is not complete. | No start released – {n} starts are waiting (held back or to be made up). The heat is not complete.',
+  'betrieb.abweichend.runde': 'The order differs from the locked starting order (pairs held back or shown out of turn). The race officials’ sheets stay as they are.',
+  'betrieb.zurueckstellen.title.runde': 'Hold back the next pair: its open attempts of this heat do not go for now but stay visible.',
+  'betrieb.einreihen.ende.runde': 'To the end of the heat',
+  'betrieb.einreihen.ende.title.runde': 'Behind the last start of its heat – if that is already over, to the end of the current one. The attempts of the pair come along.',
+  'betrieb.einstieg.hint.runde':
+    'If start release only joins in the middle of the competition: anything before the chosen start that has not been shown counts as done – without display; the heats up to it count as begun. Joining from an earlier start undoes this.',
+  'betrieb.einstieg.punkt.runde': 'Heat',
+  'betrieb.einstieg.alleKlassen.runde': 'first start of the heat',
+  'betrieb.parallel.hint':
+    'In the parallel slalom the locked starting order sets the order: pairs by class, blocks alternating between the types of boat, boats and racecourses changed for the 2nd attempt. Classes cannot sit out or be pulled forward here, and starts cannot be moved. If a pair is not ready: “Hold back” – its open attempts of the heat wait until it is put back in line or shown.',
+
   'betrieb.folge.suche': 'Start number or name',
   'betrieb.folge.hint':
     '“Show” puts the start on the display board at once – also from another class or a later attempt. The Enter key shows the marked start when all matches belong to one driver.',
@@ -100,6 +123,9 @@ export default {
   'betrieb.liste.wartet': '{punkt} – not begun yet',
   'betrieb.liste.abstaende': 'Intervals between starts',
   'betrieb.liste.angehalten': 'Break or interruption on the display board – no waiting times until the message is cleared.',
+  'betrieb.liste.col.versuch': 'Attempt',
+  'betrieb.liste.parallel':
+    'Parallel slalom: order and “at the pontoon”/“at pontoon entry” without an estimated waiting time – the intervals between starts per class are those of manoeuvring. The order is changed at the start release (hold back, put back in line, show), not by dragging.',
 
   'betrieb.klassen': 'Classes · boat missing',
   'betrieb.klassen.aktiv': 'Boat missing: {klassen}',
@@ -147,6 +173,9 @@ export default {
   'anzeige.steg.amSteg': 'at the pontoon',
   'anzeige.steg.vorSteg': 'at pontoon entry',
   'anzeige.bootFehlt': 'Boat missing',
+  'anzeige.parallel': 'Parallel slalom',
+  'anzeige.racecourse': 'Racecourse {rc}',
+  'anzeige.versuch': 'Attempt {n}',
 
   // „Pontoon“ und „pontoon entry“ (Vorsteg) wie die Listen; „spectator list“ vorläufig (Plan vom 16.11.2026).
   'zuschauer.titel': 'Starting order',
@@ -163,6 +192,8 @@ export default {
   'zuschauer.laeuft': '{punkt} in progress',
   'zuschauer.naechsterPunkt': 'Next: {punkt}',
   'zuschauer.zuEnde': 'All attempts are complete.',
+  'zuschauer.zuEnde.runde': 'All heats are complete.',
+  'zuschauer.ohneZeit': 'No waiting times in the parallel slalom.',
   'zuschauer.leer': 'No starts of this class.',
   'zuschauer.hinweis': 'Waiting times are estimates based on the intervals between starts so far; there are none for an attempt that has not begun or during a break or interruption.',
 

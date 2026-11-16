@@ -17,6 +17,9 @@
 - `reducer/betrieb.ts` – BETRIEB_* (beginnen, zeigen mit `vorher`, zurück, Meldung, zurücksetzen; E2: zurückstellen,
   einreihen, aussetzen, vorziehen, klasse vor, verschieben, ab), SET_ANZEIGE; normalisiereBetrieb/-Anzeige für migrate.
   Logik der Folge: betrieb/ (eigene Karte), Schritte in betrieb/schritte.ts; der Reducer schreibt nur `betrieb`.
+  E4 Parallelslalom (Bereich `parallel`): ZURUECKSTELLEN/EINREIHEN/gezieltes ZEIGEN nehmen das Paar (paarStarts; ZEIGEN
+  holt den im Plan direkt folgenden Attempt mit, planPartner),
+  AUSSETZEN/VORZIEHEN/KLASSE_VOR/VERSCHIEBEN ändern dort nichts (umstellenErlaubt); Pläne ändert der Betrieb nie.
   SET_ANZEIGE trägt auch die Startfolge im Betrieb (`verzahnungHalten`, ab E3 amSteg/vorSteg/abstaende; SettingsView
   `#betrieb`); geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`.
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts

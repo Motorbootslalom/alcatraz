@@ -14,7 +14,8 @@ import { bereicheZumStand, betriebVon, liesRef, startfolge, type FolgeEintrag } 
 //
 // Auslegungen (Grenzen, ab wann die Messung gilt, was keine Messung ist, wer eine Wartezeit bekommt):
 // BETRIEB_ANNAHMEN.prognoseMessung, keineMessungOhneLauf, keineMessungUeberPunktgrenze, wartezeitNurFreigegebene,
-// vorstegVorDenStegStarts, vorgabeAbGenugMessungen, keineZahlBeiPause.
+// vorstegVorDenStegStarts, vorgabeAbGenugMessungen, keineZahlBeiPause; Parallelslalom ohne Prognose:
+// parallelOhnePrognose (keine Messung, keine Zahl – Folge und Gruppen bleiben).
 
 // --- Messung --------------------------------------------------------------------------------------
 
@@ -31,7 +32,8 @@ export interface Messung {
  * ist (L-4), der vorige Start inzwischen entfällt (X), zwischen beiden in der Folge ein „ohne Anzeige“ erledigter
  * Start steht (Einsteigen – der Abstand umfasste mehrere Läufe), beide Starts zu verschiedenen Punkten gehören
  * (Laufwechsel: „Lauf beginnen“, WKR-Bögen tauschen – BETRIEB_ANNAHMEN.keineMessungUeberPunktgrenze) oder die
- * Klasse unbekannt ist (Starter gelöscht). Starts des Parallelslaloms (ab E4) werden noch nicht gemessen.
+ * Klasse unbekannt ist (Starter gelöscht). Starts des Parallelslaloms (Paare) werden bewusst nicht gemessen: Ihr Takt
+ * ist ein anderer und verzerrte die Abstände der Klassen fürs Manövrieren (BETRIEB_ANNAHMEN.parallelOhnePrognose).
  */
 export function messungenIn(
   bereich: BereichId,
@@ -182,8 +184,9 @@ export type Wartezeit =
    */
   | { art: 'zeit'; stelle: number; bisStart: number; bisVorsteg: number; steg: StegStelle }
   /**
-   * Freigegeben, aber der Bereich steht: Die Anzeigetafel zeigt eine Pause oder Störung (BETRIEB_ANNAHMEN.
-   * keineZahlBeiPause). Stelle und Steg bleiben (wer am Steg wartet, wartet dort weiter), die Zahl fehlt.
+   * Freigegeben, aber ohne Zahl: Der Bereich steht – die Anzeigetafel zeigt eine Pause oder Störung (BETRIEB_ANNAHMEN.
+   * keineZahlBeiPause) –, oder es ist der Parallelslalom (BETRIEB_ANNAHMEN.parallelOhnePrognose). Stelle und Steg
+   * bleiben (wer am Steg wartet, wartet dort weiter), die Zahl fehlt.
    */
   | { art: 'angehalten'; stelle: number; steg: StegStelle }
   /** Seine Klasse setzt aus („Boot fehlt“, L-7): keine Zahl. */
@@ -240,7 +243,8 @@ export function wartezeiten(sicht: PrognoseSicht, bereich: SichtBereich | Zuscha
   const vorne = sicht.einst.amSteg + sicht.einst.vorSteg
   const out = new Map<string, Wartezeit>()
   const bisStart: number[] = []
-  const angehalten = bereichAngehalten(bereich)
+  // Im Parallelslalom gibt es keine Zahl, nur Stelle und Steg (BETRIEB_ANNAHMEN.parallelOhnePrognose).
+  const angehalten = bereichAngehalten(bereich) || (bereich.art === 'parallel' && BETRIEB_ANNAHMEN.parallelOhnePrognose)
   freieFolge(bereich).forEach((s, stelle) => {
     const steg: StegStelle = stelle < amSteg ? 'amSteg' : stelle < vorne ? 'vorSteg' : null
     bisStart.push(summe)

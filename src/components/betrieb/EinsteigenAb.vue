@@ -4,7 +4,7 @@ import type { ClassId, OeffentlicheSicht, PunktId, SichtBereich } from '../../ty
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { t } from '../../i18n'
 import { merke } from '../../lib/merken'
-import { punktText, punktVon, startZeile } from './texte'
+import { punktText, punktVon, startZeile, tBereich } from './texte'
 
 /**
  * „Einsteigen ab …“ (BETRIEB_AB, Vorbild startAt/firstSlotOf des Prototyps): wenn die Start-Freigabe erst
@@ -70,12 +70,12 @@ function einsteigen() {
 <template>
   <details class="betrieb-abschnitt" data-teil="einsteigen" :open="offen" @toggle="offen = ($event.target as HTMLDetailsElement).open">
     <summary>{{ t('betrieb.einstieg') }}</summary>
-    <p class="note">{{ t('betrieb.einstieg.hint') }}</p>
+    <p class="note" data-teil="einstieg-hinweis">{{ tBereich(bereich, 'betrieb.einstieg.hint') }}</p>
     <p v-if="punkte.length === 0" class="note">{{ t('betrieb.einstieg.keiner') }}</p>
     <template v-else>
       <div class="row betrieb-einstieg">
         <div class="field">
-          <label :for="`${id}-punkt`">{{ t('betrieb.einstieg.punkt') }}</label>
+          <label :for="`${id}-punkt`">{{ tBereich(bereich, 'betrieb.einstieg.punkt') }}</label>
           <select :id="`${id}-punkt`" class="input" data-feld="einstieg-punkt" :value="punkt ?? ''" :disabled="gesperrt" @change="waehlePunkt">
             <option v-for="p in punkte" :key="p.id" :value="p.id">{{ punktText(p) }}</option>
           </select>
@@ -83,7 +83,7 @@ function einsteigen() {
         <div class="field">
           <label :for="`${id}-klasse`">{{ t('betrieb.einstieg.klasse') }}</label>
           <select :id="`${id}-klasse`" class="input" data-feld="einstieg-klasse" :value="klasse ?? ''" :disabled="gesperrt" @change="klasseWahl = ($event.target as HTMLSelectElement).value as ClassId | ''">
-            <option value="">{{ t('betrieb.einstieg.alleKlassen') }}</option>
+            <option value="">{{ tBereich(bereich, 'betrieb.einstieg.alleKlassen') }}</option>
             <option v-for="k in klassen" :key="k" :value="k">{{ name(k) }}</option>
           </select>
         </div>

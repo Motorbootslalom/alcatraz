@@ -125,6 +125,8 @@ export default {
   'listopt.anzeige.kopfzeile.hint': 'Leave empty: name and year of the event.',
   'listopt.anzeige.bereiche': 'Courses on the shared display board',
   'listopt.anzeige.bereiche.hint': 'Side by side or one above the other, depending on the screen. Under “Operation” each course can also get a display board of its own.',
+  'listopt.anzeige.bereiche.parallel':
+    'The shared display board shows the parallel slalom by itself only once a heat has begun there; here it can also be selected or deselected for good.',
   'listopt.anzeige.davor': 'Show previous start',
   'listopt.anzeige.parcoursName': 'Show course name',
   'listopt.anzeige.namen': 'Names',

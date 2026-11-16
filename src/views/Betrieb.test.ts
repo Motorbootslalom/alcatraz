@@ -8,7 +8,7 @@ import { setLocale } from '../i18n'
 import { vergissAlles } from '../lib/merken'
 import { refKey } from '../betrieb/folge'
 import { sichtOeffentlich } from '../betrieb/sicht'
-import { betriebsStand, betriebStarter, festgeschrieben, zeigeNaechsten } from '../testHilfen'
+import { betriebsStand, betriebStarter, festgeschrieben, uimParallelStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState, ClassId } from '../types'
 
 // Reiter „Betrieb“: Start-Freigabe je Parcours am Bedienrechner. Alle Starter sind erfunden
@@ -793,5 +793,70 @@ describe('Betrieb: Startliste (E3)', () => {
     await w.find('[data-action="zuschauer-oeffnen"]').trigger('click')
     expect(open).toHaveBeenLastCalledWith(expect.stringMatching(/#\/spectators$/), 'alcatraz-zuschauer')
     expect(text(liste(w).findAll('thead th')[6])).toBe('To pontoon entry')
+  })
+})
+
+describe('Betrieb: Parallelslalom (E4)', () => {
+  const P = 'parallel'
+  const p = (attempt: 1 | 2, a: string | null, b: string | null) => refKey({ art: 'p', runde: 'pre', attempt, a, b })
+  const seiten = (w: VueWrapper, teil: 'imboot' | 'naechster') => karte(w, P).findAll(`[data-teil="${teil}"] .betrieb-seite`).map(text)
+
+  it('Karte: Runde beginnen, das Paar mit Parcours A und B, Zurückstellen nimmt das Paar; Klassen aussetzen und Verschieben gibt es nicht', async () => {
+    const w = betrieb(uimParallelStand())
+    // Unter UIM hinter dem Parcours; der Name in der Sprache der Tafel (englisch), die Bedienung deutsch.
+    expect(w.findAll('.betrieb-karte').map((k) => k.attributes('data-bereich'))).toEqual([P1, P])
+    expect(text(karte(w, P).find('h3'))).toBe('Parallel slalom')
+    expect(text(karte(w, P).find('[data-teil="stand"]'))).toBe('Noch keine Runde begonnen.')
+    expect(text(karte(w, P).find('[data-action="beginnen"]'))).toBe('Vorlauf beginnen')
+    expect(karte(w, P).find('[data-teil="klassen"]').exists()).toBe(false)
+    expect(text(karte(w, P).find('[data-hinweis="parallel"]'))).toContain('Klassen aussetzen oder vorziehen und Starts verschieben gibt es hier deshalb nicht')
+    // „Einsteigen ab …“ spricht von Runden, nicht von Läufen.
+    const einstieg = text(karte(w, P).find('[data-teil="einstieg-hinweis"]'))
+    expect(einstieg).toContain('die Runden bis dahin gelten als begonnen')
+    expect(einstieg).not.toContain('Läufe')
+    await knopf(w, 'beginnen', P)
+    expect(text(karte(w, P).find('[data-teil="stand"]'))).toBe('Vorlauf läuft · noch 10 Starts')
+    expect(seiten(w, 'naechster')).toEqual(['Parcours A: E01 VorE1 NachE1', 'Parcours B: E02 VorE2 NachE2'])
+    await knopf(w, 'zeigen', P)
+    expect(seiten(w, 'imboot')).toEqual(['Parcours A: E01 VorE1 NachE1', 'Parcours B: E02 VorE2 NachE2'])
+    expect(text(karte(w, P).find('[data-teil="imboot"]'))).toContain('Klasse Dolphin · Vorlauf · Versuch 1')
+    // Als Nächstes der 2. Attempt mit getauschten Seiten (Pkt. 4.4).
+    expect(seiten(w, 'naechster')).toEqual(['Parcours A: E02 VorE2 NachE2', 'Parcours B: E01 VorE1 NachE1'])
+    await knopf(w, 'zeigen', P)
+    // Dolphin 3 gegen den Dummy: die Seite ist leer. Zurückstellen nimmt beide Attempts des Paares.
+    expect(seiten(w, 'naechster')).toEqual(['Parcours A: E03 VorE3 NachE3', 'Parcours B: leer'])
+    await knopf(w, 'zurueckstellen', P)
+    expect(betriebVon(P).zurueckgestellt).toEqual([p(1, 'E-3', null), p(2, null, 'E-3')])
+    const liste = karte(w, P).find('[data-teil="zurueckgestellt"]')
+    expect(liste.findAll('li').map((li) => li.findAll('.betrieb-start > *').map(text))).toEqual([
+      ['E03 / –', 'VorE3 NachE3 / –', 'Klasse Dolphin · Vorlauf · Versuch 1'],
+      ['– / E03', '– / VorE3 NachE3', 'Klasse Dolphin · Vorlauf · Versuch 2'],
+    ])
+    expect(text(liste.find('[data-action="einreihen-ende"]'))).toBe('Ans Ende der Runde')
+    // „Anderen Starter wählen“: ohne „Verschieben …“.
+    await knopf(w, 'wahl', P)
+    expect(karte(w, P).findAll('[data-teil="folge"] li').length).toBeGreaterThan(0)
+    expect(karte(w, P).findAll('[data-teil="folge"] [data-action="verschieben"]')).toHaveLength(0)
+    // Die Pläne ändert der Betrieb nie.
+    expect(store.state.value.parallelPlaene).toEqual(uimParallelStand().parallelPlaene)
+  })
+
+  it('Startliste: Paare in ihrer Folge, Spalte „Versuch“, ohne Wartezeit und ohne Ziehen – Steg bleibt', async () => {
+    location.hash = '#/betrieb/startliste'
+    let s = reducer(uimParallelStand(), { type: 'SET_ANZEIGE', patch: { amSteg: 1, vorSteg: 1 } })
+    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: P, punkt: 'runde:pre' })
+    const w = betrieb(s)
+    await nextTick()
+    const liste = w.find(`.betrieb-startliste[data-bereich="${P}"]`)
+    expect(text(liste.findAll('thead th')[4])).toBe('Versuch')
+    expect(liste.find('[data-hinweis="parallel"]').exists()).toBe(true)
+    const zeilen = liste.findAll('tbody tr[data-start]')
+    expect(zeilen.slice(0, 3).map((z) => [text(z.findAll('td')[1]), text(z.find('[data-teil="ca"]')), text(z.find('[data-teil="vorsteg"]'))])).toEqual([
+      ['E01 / E02', '–', 'am Steg'],
+      ['E02 / E01', '–', 'vor Steg'],
+      ['E03 / –', '–', '–'],
+    ])
+    expect(zeilen.every((z) => z.attributes('draggable') !== 'true')).toBe(true)
+    expect(liste.findAll('[data-action="verschieben"]')).toHaveLength(0)
   })
 })

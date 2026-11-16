@@ -113,7 +113,7 @@ describe('Öffentliche Sicht', () => {
 
   it('Fassung 3 (E3): Startabstand je Klasse und „am Steg“/„vor Steg“ – zeitunabhängig, gemessen oder Vorgabe', () => {
     const sicht = sichtOeffentlich(imBetrieb())
-    expect(sicht.sv).toBe(3)
+    expect(sicht.sv).toBeGreaterThanOrEqual(3)
     expect(sicht.einst).toEqual({ davor: true, parcoursName: true, amSteg: 2, vorSteg: 2 })
     // Eine Messung (E: 60 s) ist zu wenig – es gilt die Vorgabe aus einstellungen.yaml, für jede Klasse der Sicht.
     expect(sicht.abstaende).toEqual({ E: 120, '1': 110, '4': 120, '5': 135 })

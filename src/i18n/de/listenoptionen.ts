@@ -123,6 +123,8 @@ export default {
   'listopt.anzeige.kopfzeile.hint': 'Leer lassen: Name und Jahr der Veranstaltung.',
   'listopt.anzeige.bereiche': 'Parcours auf der gemeinsamen Anzeigetafel',
   'listopt.anzeige.bereiche.hint': 'Neben- oder untereinander, je nach Bildschirm. Unter „Betrieb“ lässt sich je Parcours auch eine eigene Anzeigetafel öffnen.',
+  'listopt.anzeige.bereiche.parallel':
+    'Den Parallel-Slalom zeigt die gemeinsame Anzeigetafel von selbst erst, sobald dort eine Runde begonnen ist; hier lässt er sich auch fest wählen oder abwählen.',
   'listopt.anzeige.davor': 'Vorigen Start zeigen',
   'listopt.anzeige.parcoursName': 'Namen des Parcours zeigen',
   'listopt.anzeige.namen': 'Namen',

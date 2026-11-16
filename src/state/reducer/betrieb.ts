@@ -11,8 +11,8 @@ import { CLASS_IDS } from '../../domain/classes'
 import { STARTABSTAND_MAX, STARTABSTAND_MIN } from '../../config/schema'
 import { istOriginStyle } from '../../lib/origin'
 import { BETRIEB_ANNAHMEN } from '../../betrieb/annahmen'
-import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, type BereichLage } from '../../betrieb/folge'
-import { ansPunktende, beweglich, einsteigen, hinterDenZeiger, klasseVor, schnappschuss, verschiebe, webeNeu } from '../../betrieb/schritte'
+import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istParallel, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, type BereichLage } from '../../betrieb/folge'
+import { ansPunktende, beweglich, einsteigen, hinterDenZeiger, klasseVor, paarStarts, planPartner, schnappschuss, verschiebe, webeNeu } from '../../betrieb/schritte'
 
 export type BetriebAenderung =
   /** Einen Punkt (Lauf) beginnen – nur mit festgeschriebener Verzahnung und nur, wenn er im Programm steht. */
@@ -192,7 +192,11 @@ export function normalisiereBetrieb(raw: unknown, bereichIds?: readonly string[]
   return { bereiche: Object.fromEntries(paare) }
 }
 
-/** Die Bereiche, die ein Stand kennen kann: seine Parcours und der Parallelslalom (ab E4). */
+/**
+ * Die Bereiche, die ein Stand kennen kann: seine Parcours und der Parallelslalom (E4) – Letzteren immer, auch unter
+ * DM: Beim Laden steht das Regelwerk nicht sicher fest, und ein Eintrag stört dort nicht (unter DM gibt es keinen
+ * solchen Bereich, also auch keine Schritte darin – schrittErlaubt, bereichBekannt).
+ */
 export function bereichKennungen(stand: Pick<AppState, 'parcoursList'>): string[] {
   return [...stand.parcoursList.map((p) => p.id), PARALLEL_BEREICH]
 }
@@ -230,6 +234,12 @@ const folgeAls = (l: Pick<BereichLage, 'abgeleitet'>, keys: readonly string[]) =
 const schrittErlaubt = (l: Pick<BereichLage, 'fest' | 'programm'>) => l.programm.length > 0 && (l.fest || !BETRIEB_ANNAHMEN.schritteNurFestgeschrieben)
 
 /**
+ * Schritte, die sich an den Spuren der Verzahnung ausrichten (Klasse aussetzen, vorziehen, Klasse vor, verschieben),
+ * gibt es im Parallelslalom nicht: Dort gibt der festgeschriebene Plan die Folge vor (BETRIEB_ANNAHMEN.parallelOhneUmstellen).
+ */
+const umstellenErlaubt = (l: Pick<BereichLage, 'fest' | 'programm' | 'bereich'>) => schrittErlaubt(l) && !(istParallel(l.bereich) && BETRIEB_ANNAHMEN.parallelOhneUmstellen)
+
+/**
  * Den Rest der Punkte neu verzahnen (Klasse aussetzen, zurückholen, vorziehen): die begonnenen und der
  * Arbeitspunkt – spätere Punkte bleiben auf der Verzahnung (V-5).
  */
@@ -262,11 +272,22 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       // BETRIEB_ANNAHMEN.zeigenJederOffene). Er rückt hinter den Zeiger bzw. den Start im Boot: dorthin, wo er gefahren ist.
       const erlaubt = BETRIEB_ANNAHMEN.zeigenJederOffene ? beweglich(l, action.ref) !== null : l.nachzuholen.some((e) => e.key === action.ref)
       if (!erlaubt) return state
+      // Ein zurückgestellter Attempt eines Paares (Parallelslalom) holt die späteren zurückgestellten desselben Paares
+      // mit – direkt hinter sich: Das Paar ist wieder da. Ebenso jeden Attempt den, der im Plan direkt dahinter steht
+      // (Runden nach dem Vorlauf, planPartner): Sonst käme nach einem gezielt gezeigten 1. Attempt erst ein anderes
+      // Paar, das in der Folge davor stand (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit). Im Vorlauf bleibt der Plan.
+      const ref = l.folge.find((e) => e.key === action.ref)
+      const zurueck = b.zurueckgestellt.includes(action.ref)
+      const partner = planPartner(l.abgeleitet, action.ref)
+      const mit = ref
+        ? paarStarts(l, action.ref).filter((e) => e.key !== action.ref && e.lauf > ref.lauf && beweglich(l, e.key) !== null && ((zurueck && b.zurueckgestellt.includes(e.key)) || e.key === partner))
+        : []
+      const weg = new Set([action.ref, ...mit.map((e) => e.key)])
       return mitBereich(state, action.bereich, {
         ...b,
         gezeigt,
-        zurueckgestellt: b.zurueckgestellt.filter((k) => k !== action.ref),
-        reihenfolge: folgeAls(l, hinterDenZeiger(l, action.ref)),
+        zurueckgestellt: b.zurueckgestellt.filter((k) => !weg.has(k)),
+        reihenfolge: folgeAls(l, hinterDenZeiger(l, [action.ref, ...mit.map((e) => e.key)])),
       })
     }
 
@@ -274,7 +295,11 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       const l = lage(state, action.bereich)
       const b = betriebVon(state, action.bereich)
       if (!schrittErlaubt(l) || !beweglich(l, action.ref) || b.zurueckgestellt.includes(action.ref)) return state
-      return mitBereich(state, action.bereich, { ...b, zurueckgestellt: [...b.zurueckgestellt, action.ref] })
+      // Im Parallelslalom das ganze Paar: auch seine übrigen offenen Attempts dieser Runde (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit).
+      const mit = paarStarts(l, action.ref)
+        .map((e) => e.key)
+        .filter((k) => k === action.ref || (beweglich(l, k) !== null && !b.zurueckgestellt.includes(k)))
+      return mitBereich(state, action.bereich, { ...b, zurueckgestellt: [...b.zurueckgestellt, ...mit] })
     }
 
     case 'BETRIEB_EINREIHEN': {
@@ -283,14 +308,22 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       // Nur was zurückgestellt oder nachzuholen ist – ein zweites Mal geschickt, ist er schon wieder offen.
       if (!l.zurueckgestellt.some((e) => e.key === action.ref) && !l.nachzuholen.some((e) => e.key === action.ref)) return state
       const b = betriebVon(state, action.bereich)
-      const keys = action.wo === 'ende' ? ansPunktende(l, action.ref) : hinterDenZeiger(l, action.ref)
-      return wennAnders(state, action.bereich, b, { ...b, zurueckgestellt: b.zurueckgestellt.filter((k) => k !== action.ref), reihenfolge: folgeAls(l, keys) })
+      // Im Parallelslalom kommt das Paar mit: seine zurückgestellten und nachzuholenden Attempts dieser Runde, in
+      // der Folge der Attempts (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit). Im Manövrieren nur der Start selbst.
+      const wartend = new Set([...l.zurueckgestellt, ...l.nachzuholen].map((e) => e.key))
+      const mit = paarStarts(l, action.ref)
+        .filter((e) => e.key === action.ref || wartend.has(e.key))
+        .sort((x, y) => x.lauf - y.lauf)
+        .map((e) => e.key)
+      const weg = new Set(mit)
+      const keys = action.wo === 'ende' ? ansPunktende(l, mit) : hinterDenZeiger(l, mit)
+      return wennAnders(state, action.bereich, b, { ...b, zurueckgestellt: b.zurueckgestellt.filter((k) => !weg.has(k)), reihenfolge: folgeAls(l, keys) })
     }
 
     case 'BETRIEB_AUSSETZEN': {
       const l = lage(state, action.bereich)
       const b = betriebVon(state, action.bereich)
-      if (!schrittErlaubt(l) || b.ausgesetzt.includes(action.klasse) === action.an) return state
+      if (!umstellenErlaubt(l) || b.ausgesetzt.includes(action.klasse) === action.an) return state
       if (action.an) {
         // Nur eine Klasse, die hier fährt.
         if (!l.folge.some((e) => e.klasse === action.klasse)) return state
@@ -307,7 +340,7 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
     case 'BETRIEB_VORZIEHEN': {
       const l = lage(state, action.bereich)
       const b = betriebVon(state, action.bereich)
-      if (!schrittErlaubt(l) || b.vorziehen === action.an) return state
+      if (!umstellenErlaubt(l) || b.vorziehen === action.an) return state
       // Einschalten wirkt sofort auf den Rest; Ausschalten lässt die Folge stehen – sonst spränge sie am
       // Steg unter den Händen weg (wie im Prototyp).
       const reihenfolge = action.an && b.ausgesetzt.length > 0 ? folgeAls(l, neuVerzahnt(state, action.bereich, l, b.ausgesetzt)) : b.reihenfolge
@@ -316,7 +349,7 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
 
     case 'BETRIEB_KLASSE_VOR': {
       const l = lage(state, action.bereich)
-      if (!schrittErlaubt(l)) return state
+      if (!umstellenErlaubt(l)) return state
       const b = betriebVon(state, action.bereich)
       const keys = klasseVor(l, spurenVon(state, action.bereich), new Set(b.ausgesetzt), action.klasse, action.vor)
       return keys ? wennAnders(state, action.bereich, b, { ...b, reihenfolge: folgeAls(l, keys) }) : state
@@ -324,7 +357,7 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
 
     case 'BETRIEB_VERSCHIEBEN': {
       const l = lage(state, action.bereich)
-      if (!schrittErlaubt(l) || !beweglich(l, action.ref)) return state
+      if (!umstellenErlaubt(l) || !beweglich(l, action.ref)) return state
       const b = betriebVon(state, action.bereich)
       const keys = verschiebe(l, action.ref, action.ziel, state.anzeige.verzahnungHalten ? spurenVon(state, action.bereich) : null)
       return keys ? wennAnders(state, action.bereich, b, { ...b, reihenfolge: folgeAls(l, keys) }) : state

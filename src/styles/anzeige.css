@@ -319,6 +319,67 @@ html.anzeige-fenster body {
   font-size: calc(var(--anzeige-u) * 0.062 * var(--angaben-skala) * var(--fit-scale));
 }
 
+/*
+ * Parallelslalom (E4): Racecourse A und B nebeneinander, je Seite Racecourse, Nummer, Name, Herkunft untereinander –
+ * jede Seite hat die halbe Breite, die Nummer deshalb so groß wie „gestapelt“. Eine leere Seite (Dummy, gelöscht, X)
+ * bleibt stehen, nur gedämpft: So springt die andere nicht in die Mitte, und A bleibt links.
+ *
+ * Die Regeln der Seiten beginnen mit `.anzeige-inhalt` (Spezifität 0,3,0) und stehen hinter denen für „gestapelt“:
+ * Die Tafel nur für den Parallelslalom ist immer gestapelt (ein Bereich, 16:9), und deren Regeln rechnen mit
+ * --angaben-skala, die es nur in `.anzeige-angaben` gibt – ohne sie fiele die Schrift auf 16 px (Prüfung E4,
+ * 16.11.2026).
+ */
+.anzeige-paar {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: calc(var(--anzeige-u) * 0.05);
+  min-width: 0;
+}
+
+/* Oben ausgerichtet: Eine leere Seite hat nur zwei Zeilen – mittig stünde ihr Racecourse tiefer als der der anderen. */
+.anzeige-bahn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: center;
+}
+
+.anzeige-bahn + .anzeige-bahn {
+  border-left: 3px solid var(--anzeige-trenner);
+  padding-left: calc(var(--anzeige-u) * 0.05);
+}
+
+.anzeige-racecourse {
+  font-size: calc(var(--anzeige-u) * 0.09 * var(--fit-scale));
+  font-weight: 900;
+  color: var(--anzeige-lauf);
+}
+
+.anzeige-inhalt .anzeige-bahn .anzeige-startnr {
+  font-size: calc(var(--anzeige-u) * 0.4 * var(--fit-scale));
+  text-align: center;
+}
+
+.anzeige-inhalt .anzeige-bahn .anzeige-name {
+  font-size: calc(var(--anzeige-u) * 0.11 * var(--fit-scale));
+}
+
+.anzeige-inhalt .anzeige-bahn .anzeige-herkunft {
+  font-size: calc(var(--anzeige-u) * 0.08 * var(--fit-scale));
+}
+
+.anzeige-inhalt .anzeige-bahn.leer .anzeige-startnr {
+  color: var(--anzeige-leer);
+}
+
+.anzeige-inhalt .anzeige-vorig.anzeige-vorig-paar {
+  text-align: center;
+  font-size: calc(var(--anzeige-u) * 0.07 * var(--fit-scale));
+}
+
 .anzeige-leer {
   text-align: center;
   font-size: calc(var(--anzeige-u) * 0.1);

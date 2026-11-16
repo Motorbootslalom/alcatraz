@@ -3118,6 +3118,18 @@ table.starters th .sortier-kopf:disabled {
   font-weight: 700;
 }
 
+/* Parallelslalom (E4): je Seite eines Paares eine Zeile – Racecourse, Nummer, Name. */
+.betrieb-seite {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.betrieb-imboot .betrieb-seite .betrieb-nr {
+  font-size: 32px;
+}
+
 .betrieb-knoepfe {
   display: flex;
   flex-wrap: wrap;

@@ -48,13 +48,15 @@ Alcatraz führt die bisherigen Prototypen zusammen:
 Listen und Wertung des Parallelslaloms sind inzwischen ebenfalls da
 ([Parallelslalom](parallelslalom.md)).
 
-**Aus `tafel`** ist übernommen (Plan vom 16.11.2026, Etappen E1 bis E3;
+**Aus `tafel`** ist übernommen (Plan vom 16.11.2026, Etappen E1 bis E4;
 [Betrieb: Start-Freigabe und Anzeigetafel](funktionen.md#betrieb-start-freigabe-und-anzeigetafel)):
 die Anzeigetafel in einem zweiten Fenster am Bedienrechner und die Start-Freigabe dort, für das Manövrieren,
 ohne Netz – mit Zurückstellen, anderem Starter, Verschieben, „Boot fehlt“ und Klassen vorziehen, Meldungsvorlagen
 und „Einsteigen ab …“; dazu die Startliste im Betrieb mit Wartezeiten („ca. in“, „Zum Vorsteg“) aus gemessenen
-Startabständen und die Zuschauerliste in einem eigenen Fenster. Es folgen in Etappen: der Parallelslalom auf der
-Anzeigetafel, dann Anzeigetafel, Zuschauer und Start-Freigabe auf anderen Geräten (verschlüsselt über ntfy).
+Startabständen und die Zuschauerliste in einem eigenen Fenster. Unter UIM auch der Parallelslalom (E4): Runden als
+Punkte, Paare mit Racecourse A und B auf der Anzeigetafel, ohne Wartezeiten
+([Parallelslalom](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)). Es folgen in Etappen: Anzeigetafel,
+Zuschauer und Start-Freigabe auf anderen Geräten (verschlüsselt über ntfy).
 
 **Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
 (`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).

@@ -1,7 +1,10 @@
 import { emptyState, reducer, type Action } from './state/reducer'
 import { planEvent } from './planung/plan'
 import { sichtOeffentlich } from './betrieb/sicht'
-import type { AppState, ClassId, LogoBild, Starter } from './types'
+import { configFor } from './config/konfig'
+import { feldVon } from './lib/eingaben'
+import { attemptSchluessel } from './lib/parallelSchluessel'
+import type { AppState, ClassId, LogoBild, ParallelRunde, Starter } from './types'
 
 // Hilfen nur für Tests – kein Teil der Anwendung.
 
@@ -112,4 +115,30 @@ export function zeigeNaechsten(state: AppState, bereich: string, zeit = 1000): A
   const naechster = b?.offen[0]
   if (!b || !naechster) return state
   return reducer(state, { type: 'BETRIEB_ZEIGEN', bereich, ref: naechster.key, vorher: b.aktuell?.key ?? null, zeit })
+}
+
+// --- Parallelslalom im Betrieb (E4) ------------------------------------------------------------------
+
+/** Erfundene Starter einer Klasse: IDs `<klasse>-<n>`, Nummern `<klasse>01` …, Vor<klasse><n>/Nach<klasse><n>, Musterclub. */
+export function parallelStarter(klasse: ClassId, n: number): Starter[] {
+  return Array.from({ length: n }, (_, i) => betriebStarter(`${klasse}-${i + 1}`, klasse, `${klasse}${String(i + 1).padStart(2, '0')}`, { vorname: `Vor${klasse}${i + 1}`, nachname: `Nach${klasse}${i + 1}` }))
+}
+
+/** UIM mit Startern, Verzahnung festgeschrieben – damit auch der Plan des Vorlaufs. Vorgabe: Dolphin 3 (einer gegen den Dummy), Klasse 1 6. */
+export function uimParallelStand(starters: readonly Starter[] = [...parallelStarter('E', 3), ...parallelStarter('1', 6)], fest = true): AppState {
+  let s = reducer({ ...emptyState(), eventName: 'Musterpokal' }, { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+  s = reducer(s, { type: 'ADD_STARTERS', starters: [...starters] })
+  return fest ? festgeschrieben(s) : s
+}
+
+/** Je Starter beide Attempts einer Runde in Sekunden eintragen; `null` = disqualifiziert (Fahrweg). */
+export function fahreRunde(state: AppState, runde: ParallelRunde, zeiten: Record<string, Array<number | null>>): AppState {
+  const disq = feldVon(configFor({ regelwerk: 'uim-2026' }), 'parallelparcours', '1', 'disq')!.kennung
+  const zellen = Object.entries(zeiten).flatMap(([id, je]) =>
+    je.flatMap((sek, i) => {
+      const lauf = attemptSchluessel(runde, i + 1)
+      return [{ lauf, starter: id, feld: 'zeit1', wert: `${sek ?? 50},00` }, ...(sek === null ? [{ lauf, starter: id, feld: disq, wert: 'J' }] : [])]
+    }),
+  )
+  return reducer(state, { type: 'SET_EINGABEN', zellen })
 }

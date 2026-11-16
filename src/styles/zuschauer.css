@@ -188,3 +188,29 @@
 .zuschauer-hinweis {
   margin-top: 24px;
 }
+
+/*
+ * Parallelslalom (E4): ein Paar je Karte – Racecourse A und B untereinander, je mit Nummer und Name. Die Karte hat nur
+ * zwei Teile (Paar, Wartezeit): ohne eigene Spalten stünde das ganze Paar in der 4.2em schmalen Spalte der Startnummer
+ * (Prüfung E4, 16.11.2026). Steht hinter `.zuschauer-imboot .zuschauer-start` (gleiche Spezifität) und gilt auch dort.
+ */
+.zuschauer-start.zuschauer-paar {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.zuschauer-seite {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zuschauer-rc {
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 7em;
+}
+
+.zuschauer-paar .zuschauer-seite .zuschauer-nr {
+  min-width: 2.5em;
+}

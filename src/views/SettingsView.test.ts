@@ -8,7 +8,7 @@ import { setLocale } from '../i18n'
 import { configFor } from '../config/konfig'
 import type { RawAufbau } from '../config/schema'
 import { LogoFehler, verkleinereLogo } from '../lib/logoBild'
-import { betriebsStand, festgeschrieben, TEST_PNG_2X1, testLogo, zeigeNaechsten } from '../testHilfen'
+import { betriebsStand, festgeschrieben, TEST_PNG_2X1, testLogo, uimParallelStand, zeigeNaechsten } from '../testHilfen'
 import { reducer } from '../state/reducer'
 
 /** Erfundener eigener Aufbau. */
@@ -802,6 +802,44 @@ describe('Einstellungen: Anzeigetafel', () => {
     expect(haken()[1].attributes('disabled')).toBeDefined()
     await haken()[0].setValue(true)
     expect(anzeige().bereiche).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('UIM: der Parallel-Slalom ist wählbar; automatisch steht er erst mit seiner ersten begonnenen Runde auf der Tafel (E4)', async () => {
+    store.dispatch({ type: 'LOAD_STATE', state: uimParallelStand() })
+    const wrapper = settings(store)
+    const haken = () => wrapper.findAll('[data-feld="anzeige-bereiche"] input')
+    const stand = () => haken().map((h) => [h.attributes('data-bereich'), (h.element as HTMLInputElement).checked])
+    expect(stand()).toEqual([
+      ['par_1', true],
+      ['parallel', false],
+    ])
+    expect(wrapper.find('[data-feld="anzeige-bereiche"]').text()).toContain('Parallel-Slalom')
+    expect(wrapper.find('[data-hinweis="anzeige-parallel"]').exists()).toBe(true)
+    // Ausdrücklich dazu gewählt: eine feste Auswahl; wieder abgewählt: automatisch.
+    await haken()[1].setValue(true)
+    expect(anzeige().bereiche).toEqual(['par_1', 'parallel'])
+    await haken()[1].setValue(false)
+    expect(anzeige().bereiche).toEqual([])
+    // Ist eine Runde begonnen, gehört er zur automatischen Auswahl – alle gewählt heißt wieder „automatisch“.
+    store.dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre' })
+    await nextTick()
+    expect(stand()).toEqual([
+      ['par_1', true],
+      ['parallel', true],
+    ])
+    await haken()[0].setValue(false)
+    expect(anzeige().bereiche).toEqual(['parallel'])
+    await haken()[0].setValue(true)
+    expect(anzeige().bereiche).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('DM: kein Parallel-Slalom, auch nicht im Hinweis', () => {
+    const wrapper = settings(store)
+    expect(wrapper.find('[data-feld="anzeige-bereiche"] [data-bereich="parallel"]').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="anzeige-parallel"]').exists()).toBe(false)
+    expect(wrapper.find('#anzeigetafel').text()).not.toContain('Parallel')
     wrapper.unmount()
   })
 
