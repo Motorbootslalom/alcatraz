@@ -380,8 +380,16 @@ Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts
   Seite. Der Start entfällt erst, wenn auf keiner Seite jemand fährt (beide gelöscht, beide X, Dummy gegen X).
   Die Sicht sagt nicht, warum eine Seite leer ist; die Zuschauerliste (öffentlicher Link) nennt auch in ihren
   internen Kennungen nur, wer fährt.
-- **Anzeigetafel:** Racecourse A und B nebeneinander, je Seite Startnummer, Name und Herkunft; darüber Klasse,
-  Runde und Attempt („Class Dolphin“, „Preliminary heat · Attempt 2“), auf Wunsch das Paar davor. Englisch nach dem
+- **Anzeigetafel:** Racecourse A und B, je Seite Startnummer, Name und Herkunft; darüber Klasse,
+  Runde und Attempt („Class Dolphin“, „Preliminary heat · Attempt 2“), auf Wunsch das Paar davor.
+  **Wo A und B liegen, ist einstellbar** (Einstellungen → Anzeigetafel, nur unter UIM; Entscheidung vom 16.11.2026):
+  „A links, B rechts“ (Vorgabe), „B links, A rechts“, „A oben, B unten“, „B oben, A unten“ – je nach Standort der
+  Tafel, so wie die Racecourses vom Publikum aus liegen. Nebeneinander trennt eine senkrechte, untereinander eine
+  waagerechte Linie; jede Seite behält ihre Überschrift „Racecourse A/B“, nur die Lage wechselt. Untereinander stehen
+  Nummer und Angaben je Seite nebeneinander, wenn die Tafel breit genug ist (Querformat), hochkant untereinander; was
+  nicht passt, wird gemeinsam kleiner. „Davor“ nennt die beiden Nummern in der Folge der Seiten auf der Tafel. Die
+  Lage steht in der Sicht (auch für entfernte Anzeigetafeln), nicht in der Zuschauerliste; Start-Freigabe, Startliste
+  und Zuschauerliste bleiben bei A vor B (`BETRIEB_ANNAHMEN.parallelAnordnungNurTafel`). Englisch nach dem
   Rulebook, deutsch als Einstellung („Vorlauf · 2. Versuch“, „Parcours A“). Die gemeinsame Tafel nimmt den
   Parallelslalom von selbst erst dazu, wenn eine Runde begonnen ist; „Eigene Anzeigetafel“ öffnet `#/anzeige/parallel`.
 - **Start-Freigabe:** „Vorlauf beginnen“ (bzw. die nächste Runde), „Nächster Start“, „Zurück“, Meldung,

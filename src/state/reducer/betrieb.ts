@@ -6,7 +6,7 @@
 // setzt sie), Kennungen sind Refs (betrieb/folge.ts `refKey`), keine Zufalls-IDs. Der Betrieb schreibt
 // nie in `eingaben` und ändert keine Wertungsliste (BETRIEB_ANNAHMEN.keinXVonDerTafel).
 
-import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, PunktId, VerschiebeZiel } from '../../types'
+import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, ParallelAnordnung, PunktId, VerschiebeZiel } from '../../types'
 import { CLASS_IDS } from '../../domain/classes'
 import { STARTABSTAND_MAX, STARTABSTAND_MIN } from '../../config/schema'
 import { istOriginStyle } from '../../lib/origin'
@@ -73,11 +73,14 @@ export const ABSTAND_MAX = STARTABSTAND_MAX
 const MELDUNG_ARTEN: readonly MeldungArt[] = ['info', 'stoerung', 'pause']
 const NAMEN: readonly AnzeigeNamen[] = ['aushang', 'voll', 'kurz', 'ohne']
 const SPRACHEN: readonly AnzeigeSprache[] = ['regelwerk', 'de', 'en']
+/** Die Lagen von Racecourse A und B auf der Anzeigetafel, in der Folge der Auswahl (SettingsView). */
+export const PARALLEL_ANORDNUNGEN: readonly ParallelAnordnung[] = ['a-links', 'b-links', 'a-oben', 'b-oben']
 
 /**
  * Vorgaben der Anzeigetafel. Davor und Parcours-Name an (wie der Tafel-Prototyp), Größe 1;
  * Namen, Herkunft und Sprache nach BETRIEB_ANNAHMEN; 2 am Steg, 2 vor Steg (docs/stand.md: 1 im
- * Boot, 2 am Steg, 2 vor Steg); Verzahnung beim Verschieben halten (V-7).
+ * Boot, 2 am Steg, 2 vor Steg); Verzahnung beim Verschieben halten (V-7); Racecourse A links, B rechts
+ * (so stand die Tafel bis zur Einstellung vom 16.11.2026 immer).
  */
 export function anzeigeVorgabe(): AnzeigeEinstellungen {
   return {
@@ -90,6 +93,7 @@ export function anzeigeVorgabe(): AnzeigeEinstellungen {
     skala: 1,
     sprache: BETRIEB_ANNAHMEN.spracheVorgabe,
     logos: true,
+    parallelAnordnung: 'a-links',
     amSteg: 2,
     vorSteg: 2,
     verzahnungHalten: true,
@@ -143,6 +147,7 @@ export function normalisiereAnzeige(raw: unknown, bereichIds?: readonly string[]
     skala,
     sprache: SPRACHEN.find((s) => s === a.sprache) ?? v.sprache,
     logos: wahrheit(a.logos, v.logos),
+    parallelAnordnung: PARALLEL_ANORDNUNGEN.find((x) => x === a.parallelAnordnung) ?? v.parallelAnordnung,
     amSteg: ganz(a.amSteg, 0, STEG_MAX) ?? v.amSteg,
     vorSteg: ganz(a.vorSteg, 0, STEG_MAX) ?? v.vorSteg,
     verzahnungHalten: wahrheit(a.verzahnungHalten, v.verzahnungHalten),

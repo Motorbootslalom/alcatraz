@@ -19,7 +19,7 @@ import type { Directive } from 'vue'
  * zu sehen. Fenstergrößen ändern sich dagegen selten; dafür genügt `resize`.
  */
 
-/** Klasse der Zeilen in einem Block, die {@link fitBlock} nach dem Verkleinern neu anpasst (wie `v-fit`). */
+/** Klasse der Zeilen in einem Block, die {@link fitBlock} bei jedem Maßstab neu anpasst (wie `v-fit`). */
 export const FIT_ZEILE = 'anzeige-zeile'
 
 /** Schrumpft eine einzelne Zeile, bis sie in ihre Breite passt. */
@@ -74,6 +74,9 @@ function passeAn(el: HTMLElement): void {
   else fitLine(el)
 }
 
+/** Höchstens so viele Runden verkleinert {@link fitBlock} nach der ersten Messung; danach bleibt es, wie es ist. */
+const BLOCK_RUNDEN = 8
+
 /**
  * Verkleinert einen ganzen Block, bis er in die Höhe seines Bereichs passt.
  *
@@ -84,12 +87,27 @@ function passeAn(el: HTMLElement): void {
  *
  * Der Block darf den Bereich füllen (styles/anzeige.css: die Kopfzeile steht so immer oben); gemessen
  * wird seine natürliche Höhe – während des Messens wächst er nicht mit (`flex-grow: 0`).
+ *
+ * Die Zeilen ({@link FIT_ZEILE}) werden bei JEDEM Maßstab neu angepasst, bevor gemessen wird: Ihre Schrift
+ * hängt am Maßstab des Blocks (--anzeige-u enthält --block-scale). Eine Zeile, die bei Maßstab 1 zu breit war
+ * (hochkant die Startnummer), passt bei einem kleineren wieder in ganzer Größe. Mit dem alten --fit-scale
+ * gemessen, wäre sie doppelt verkleinert (--fit-scale mal --block-scale) – der Block schiene klein genug, die
+ * Zeile wüchse beim Anpassen danach wieder, und er liefe über. So geschah es hochkant mit Racecourse A und B
+ * untereinander nach jedem „Nächster Start“, bis ein `resize` kam (Prüfung, 16.11.2026).
  */
 export function fitBlock(el: HTMLElement): void {
   const region = el.parentElement
   if (!region) return
 
-  el.style.removeProperty('--block-scale')
+  const zeilen = [...el.querySelectorAll<HTMLElement>(`.${FIT_ZEILE}`)]
+  /** Maßstab setzen, die Zeilen dazu anpassen, dann die Höhe des Blocks messen. */
+  const hoeheBei = (scale: number): number => {
+    if (scale < 1) el.style.setProperty('--block-scale', String(scale))
+    else el.style.removeProperty('--block-scale')
+    zeilen.forEach(passeAn)
+    return el.offsetHeight
+  }
+
   el.style.setProperty('flex-grow', '0')
 
   // Der Innenabstand des Bereichs zählt nicht als Platz – sonst klebte der
@@ -98,22 +116,21 @@ export function fitBlock(el: HTMLElement): void {
   const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
   const available = region.clientHeight - (Number.isFinite(padding) ? padding : 0)
 
-  if (available > 0 && el.offsetHeight > available) {
-    let scale = available / el.offsetHeight
-    el.style.setProperty('--block-scale', String(scale))
-
-    // Beim Verkleinern brechen Zeilen anders um – deshalb nachjustieren.
-    for (let i = 0; i < 3 && el.offsetHeight > available; i++) {
-      scale *= available / el.offsetHeight
-      el.style.setProperty('--block-scale', String(scale))
+  let hoehe = hoeheBei(1)
+  if (available > 0 && hoehe > available) {
+    // Jede Runde im Verhältnis von Platz und Höhe. Das nähert sich dem passenden Maßstab von oben und wird nie
+    // kleiner als nötig: Teile, die an ihrer Breite gedeckelt sind, schrumpfen erst spät mit, die Höhe fällt also
+    // langsamer als der Maßstab. Gerade deshalb braucht es mehrere Runden (hochkant, A über B: drei bis vier), dazu
+    // brechen Zeilen beim Verkleinern anders um. Ein Pixel Rest bleibt im Innenabstand des Bereichs unsichtbar.
+    let scale = 1
+    for (let i = 0; i < BLOCK_RUNDEN; i++) {
+      scale *= available / hoehe
+      hoehe = hoeheBei(scale)
+      if (hoehe <= available + 1) break
     }
   }
 
   el.style.removeProperty('flex-grow')
-
-  // Die Breitenanpassung der Zeilen danach erneut rechnen – sonst bliebe eine
-  // Zeile schmaler als nötig, weil sie mit der alten Schriftgröße gemessen wurde.
-  el.querySelectorAll<HTMLElement>(`.${FIT_ZEILE}`).forEach(passeAn)
 }
 
 /**

@@ -27,8 +27,9 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 - `SettingsView.vue` (~880 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (logos (LogosPanel),
   wertung, streichlaeufe, ergebnislisten, pokal, wkr-listen, wkr-zeilen-je-seite, wkr-teilen-ab, wkr-leerzeilen,
   laufzettel-layout, anzeigetafel, betrieb, dateien …) und `data-feld` je Steuerelement; Kürzel, Dateien, Verlauf.
-  Anzeigetafel: data-feld `anzeige-*` → SET_ANZEIGE; Sprungziel `#/einstellungen?anzeigetafel`. Startfolge im Betrieb
-  (`#betrieb`, Sprungziel `?startfolge`/`?start-order`): `betrieb-verzahnung-halten` → SET_ANZEIGE {verzahnungHalten};
+  Anzeigetafel: data-feld `anzeige-*` → SET_ANZEIGE; Sprungziel `#/einstellungen?anzeigetafel`; nur UIM
+  (`v-if="parallel"`) `anzeige-parallel-anordnung` (Lage von Racecourse A und B, PARALLEL_ANORDNUNGEN). Startfolge im
+  Betrieb (`#betrieb`, Sprungziel `?startfolge`/`?start-order`): `betrieb-verzahnung-halten` → SET_ANZEIGE {verzahnungHalten};
   E3: `betrieb-am-steg`/`betrieb-vor-steg` (0–STEG_MAX), Tabelle `startabstaende` (betrieb/prognose.ts
   startabstandZeilen; `betrieb-abstand|<klasse>` = eigener Wert, leer oder gleich der Vorgabe ⇒ keiner),
   `messwerte-uebernehmen` (messwerteAlsVorgabe), `abstaende-vorgabe` (alle eigenen weg).

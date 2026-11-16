@@ -129,6 +129,13 @@ export default {
     'The shared display board shows the parallel slalom by itself only once a heat has begun there; here it can also be selected or deselected for good.',
   'listopt.anzeige.davor': 'Show previous start',
   'listopt.anzeige.parcoursName': 'Show course name',
+  'listopt.anzeige.parallelAnordnung': 'Parallel slalom: racecourses A and B on the display board',
+  'listopt.anzeige.parallelAnordnung.a-links': 'Racecourse A left, B right',
+  'listopt.anzeige.parallelAnordnung.b-links': 'Racecourse B left, A right',
+  'listopt.anzeige.parallelAnordnung.a-oben': 'Racecourse A top, B bottom',
+  'listopt.anzeige.parallelAnordnung.b-oben': 'Racecourse B top, A bottom',
+  'listopt.anzeige.parallelAnordnung.hint':
+    'Depending on where the display board stands – as the racecourses lie as seen by the spectators: side by side with a vertical dividing line, one above the other with a horizontal one. Start release, the starting order and the spectator list keep A before B.',
   'listopt.anzeige.namen': 'Names',
   'listopt.anzeige.namen.aushang': 'as on the posted results ({art})',
   'listopt.anzeige.skala': 'Font size (%)',

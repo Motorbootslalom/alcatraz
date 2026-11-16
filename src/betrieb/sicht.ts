@@ -31,7 +31,9 @@ import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabst
 // Kennung (`key`) trägt in der öffentlichen Sicht weiter die IDs laut Plan: „Nächster Start“ schickt sie als
 // `vorher`, sie darf sich mit einem X nicht ändern (Kritik K8). Die Zuschauersicht bildet ihre Kennung nur aus dem,
 // was sie zeigt – so verrät der öffentliche Link nicht, wer auf einer leeren Seite gestanden hätte
-// (BETRIEB_ANNAHMEN.parallelLeereSeite, Prüfung E4).
+// (BETRIEB_ANNAHMEN.parallelLeereSeite, Prüfung E4). Ab sv 5 sagt `einst.parallelAnordnung`, wo A und B auf der
+// Anzeigetafel liegen (Einstellung nach dem Standort, 16.11.2026); Start-Freigabe und Zuschauersicht bleiben bei A
+// vor B (BETRIEB_ANNAHMEN.parallelAnordnungNurTafel).
 
 export interface SichtOptionen {
   /**
@@ -217,13 +219,21 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
 
   const mitLogos = (optionen.logos ?? true) && stand.anzeige.logos && (stand.logos.links !== null || stand.logos.rechts !== null)
   return {
-    sv: 4,
+    sv: 5,
     kopf: kopfzeile(stand),
     veranstaltung: stand.eventName.trim(),
     sprache,
     skala: stand.anzeige.skala,
     ...(mitLogos ? { logos: { links: stand.logos.links, rechts: stand.logos.rechts } } : {}),
-    einst: { davor: stand.anzeige.davor, parcoursName: stand.anzeige.parcoursName, amSteg: stand.anzeige.amSteg, vorSteg: stand.anzeige.vorSteg },
+    einst: {
+      davor: stand.anzeige.davor,
+      parcoursName: stand.anzeige.parcoursName,
+      amSteg: stand.anzeige.amSteg,
+      vorSteg: stand.anzeige.vorSteg,
+      // Die Lage von A und B (sv 5) steht in der Sicht, nicht nur am Bedienrechner: Entfernte Anzeigetafeln (ab E6)
+      // lesen nur die Sicht. Nur mit dem Bereich Parallelslalom – unter DM gibt es ihn nicht, auch nicht dem Namen nach.
+      ...(bereiche.some((b) => b.art === 'parallel') ? { parallelAnordnung: stand.anzeige.parallelAnordnung } : {}),
+    },
     auswahl: bereicheZumStand(stand, { anzeige: true }).map((b) => b.id),
     klassen,
     abstaende,

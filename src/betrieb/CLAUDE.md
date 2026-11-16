@@ -32,6 +32,8 @@ start release.
   sichtZuschauer(sicht) → ZuschauerSicht (E3): daraus abgeleitet, schmaler (Im Boot, `frei`, „Boot fehlt“, Meldung).
   E4 (sv 4): SichtStart.paar {attempt, a, b, finale?} – leere Seite `null` ohne Grund; `starter` = erste Seite, die
   fährt; titel „Preliminary heat · Attempt 1“ (Finals: „Small final (3rd and 4th place)“); Bereichsname anzeige.parallel.
+  sv 5 (16.11.2026): `einst.parallelAnordnung` (Lage von A und B, `anzeige.parallelAnordnung`) – nur, wenn die Sicht
+  den Bereich `parallel` hat (unter DM nicht einmal der Schlüssel); nicht in der Zuschauersicht.
 - `prognose.ts` (E3, Vorbild TF lib/timing.ts) – Messung auf dem Stand: messungenIn/messungen (Abstand gehört dem
   vorigen Start; 30–300 s; nicht über „ohne Anzeige“, nicht über eine Punktgrenze, nicht bei X), klassenMessungen,
   genugGemessen (ab 3),
@@ -106,7 +108,8 @@ start release.
   Nachzüglers). Leere Bereiche entfallen im Stand (mitBereich), unbekannte Bereiche ändern nichts (schrittErlaubt).
 - Sicht: nie Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen; nur vorkommende Starter. Neue Felder → sicht.test.ts
   (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert (sv 2 = E2, mit `programm`; sv 3 = E3, mit
-  `abstaende` und `einst.amSteg/vorSteg`; sv 4 = E4, `SichtStart.paar`, Bereich `parallel`). Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit
+  `abstaende` und `einst.amSteg/vorSteg`; sv 4 = E4, `SichtStart.paar`, Bereich `parallel`; sv 5 =
+  `einst.parallelAnordnung`). Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit
   `jetzt + versatz` (prognose.ts), nie Reducer oder Sicht; `abstaende` ändert sich nur mit Gezeigtem/Einstellungen.
   Zuschauersicht: genaue Schlüssel im Test, auch verschachtelt (Start, Starter, Herkunft, Punkt, Meldung, Klasse) –
   sichtZuschauer baut jedes Objekt Feld für Feld neu, nie als Referenz; ein neues Feld dort ist eine bewusste
@@ -162,5 +165,7 @@ E4 (Parallel): betrieb/parallel.test.ts (Programm, Re-run nach gezeigtem Halbfin
 Runden, K7/K8: gelöschter Starter, abgemeldete Seite im Halbfinale, Dummy gegen X, Finals; Zuschauer-Kennung; Schritte: Paar als Einheit, Gesperrtes, Einsteigen; Sicht/Zuschauersicht feldweise; keine
 Prognose; automatische Tafel), components/anzeige/AnzeigeParallel.test.ts (englische Tafel wie UimAushang: keine
 deutschen Wörter; Spezifität der Seiten-Regeln gegen „gestapelt“ am CSS-Text – happy-dom rechnet kein CSS), views/Betrieb.test.ts „Parallelslalom (E4)“, ZuschauerApp.test.ts (Paar-Karten), SettingsView.test.ts
-(Auswahl der Tafel). Hilfen: testHilfen.ts parallelStarter (`<klasse>-<n>`), uimParallelStand (UIM, festgeschrieben:
-Dolphin 3, Klasse 1 6), fahreRunde.
+(Auswahl der Tafel, Lage von A und B nur unter UIM). Lage A/B (16.11.2026): AnzeigeParallel.test.ts „Lage von
+Racecourse A und B“ (vier Varianten, Folge im DOM, `data-lage`, `untereinander`/`flach`, hochkant per
+`happyDOM.setViewport`), sicht.test.ts „Fassung 5“. Hilfen: testHilfen.ts parallelStarter (`<klasse>-<n>`),
+uimParallelStand (UIM, festgeschrieben: Dolphin 3, Klasse 1 6), fahreRunde.

@@ -21,7 +21,8 @@
   holt den im Plan direkt folgenden Attempt mit, planPartner),
   AUSSETZEN/VORZIEHEN/KLASSE_VOR/VERSCHIEBEN ändern dort nichts (umstellenErlaubt); Pläne ändert der Betrieb nie.
   SET_ANZEIGE trägt auch die Startfolge im Betrieb (`verzahnungHalten`, ab E3 amSteg/vorSteg/abstaende; SettingsView
-  `#betrieb`); geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`.
+  `#betrieb`) und die Lage von Racecourse A und B (`parallelAnordnung`, PARALLEL_ANORDNUNGEN, Vorgabe `a-links`);
+  geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`.
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
 

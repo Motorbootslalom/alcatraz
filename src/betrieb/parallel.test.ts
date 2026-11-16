@@ -329,7 +329,7 @@ describe('Parallelslalom im Betrieb: Sicht, Zuschauersicht, Prognose', () => {
 
   it('Fassung 4: ein Start ist ein Paar mit Racecourse A und B – genau diese Felder', () => {
     const sicht = sichtOeffentlich(laeuft())
-    expect(sicht.sv).toBe(4)
+    expect(sicht.sv).toBeGreaterThanOrEqual(4)
     const b = bereich(sicht)
     expect([b.name, b.art, b.punkt?.titel]).toEqual(['Parallel slalom', 'parallel', 'Preliminary heat'])
     expect(b.aktuell).toEqual({ key: p('pre', 2, 'E-2', 'E-1'), starter: 'E-2', lauf: 2, punkt: 'runde:pre', titel: 'Preliminary heat · Attempt 2', paar: { attempt: 2, a: 'E-2', b: 'E-1' } })

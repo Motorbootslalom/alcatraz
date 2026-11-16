@@ -91,6 +91,13 @@ export type AnzeigeNamen = 'aushang' | 'voll' | 'kurz' | 'ohne'
 /** Sprache der Anzeigetafel: die der Listen (Regelwerk) oder fest. */
 export type AnzeigeSprache = 'regelwerk' | 'de' | 'en'
 
+/**
+ * Wo Racecourse A und B auf der Anzeigetafel liegen (nur Parallelslalom, also nur UIM): nebeneinander (A bzw. B links)
+ * oder untereinander (A bzw. B oben) – je nach Standort der Tafel, so wie die Racecourses vom Publikum aus liegen
+ * (Entscheidung des Nutzers vom 16.11.2026). Vorgabe `a-links`.
+ */
+export type ParallelAnordnung = 'a-links' | 'b-links' | 'a-oben' | 'b-oben'
+
 /** Einstellungen der Anzeigetafel (und ab E2/E3 der Startfolge im Betrieb). */
 export interface AnzeigeEinstellungen {
   /** Kopfzeile über allen Bereichen; `null` = Name und Jahr der Veranstaltung, '' = keine. */
@@ -109,6 +116,8 @@ export interface AnzeigeEinstellungen {
   sprache: AnzeigeSprache
   /** Die Logos der Listen auf der Anzeigetafel zeigen – nur auf der Tafel am Bedienrechner. */
   logos: boolean
+  /** Lage von Racecourse A und B auf der Anzeigetafel (Parallelslalom, nur UIM); Start-Freigabe bleibt bei A vor B. */
+  parallelAnordnung: ParallelAnordnung
   /** E3: so viele Starts „am Steg“ bzw. „vor Steg“ (Zuschauerliste, Prognose). */
   amSteg: number
   vorSteg: number
@@ -273,10 +282,10 @@ export interface SichtEinstieg extends SichtStart {
 export interface OeffentlicheSicht {
   /**
    * Fassung der Sicht; steigt, wenn sich ihre Form ändert (2: Steuerung der Etappe E2; 3: Startabstände und
-   * „am Steg“/„vor Steg“ für die Prognose, Etappe E3; 4: Bereich `parallel` mit Paaren, `SichtStart.paar`, E4).
-   * Gilt auch für die Zuschauersicht.
+   * „am Steg“/„vor Steg“ für die Prognose, Etappe E3; 4: Bereich `parallel` mit Paaren, `SichtStart.paar`, E4;
+   * 5: `einst.parallelAnordnung`, Lage von Racecourse A und B, 16.11.2026). Gilt auch für die Zuschauersicht.
    */
-  sv: 4
+  sv: 5
   /** Kopfzeile; '' = keine. */
   kopf: string
   /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */
@@ -310,6 +319,12 @@ export interface SichtEinstellungen {
   /** So viele Starts stehen „am Steg“ (nach dem im Boot), danach `vorSteg` „vor Steg“ (`anzeige.amSteg/vorSteg`). */
   amSteg: number
   vorSteg: number
+  /**
+   * Ab sv 5: Lage von Racecourse A und B auf der Anzeigetafel (`anzeige.parallelAnordnung`) – in der Sicht, damit
+   * auch entfernte Anzeigetafeln (ab E6) sie bekommen. Nur, wenn die Sicht den Bereich Parallelslalom hat (unter DM
+   * gibt es ihn nicht, auch nicht dem Namen nach). Nicht in der Zuschauersicht: Deren Karten nennen A und B.
+   */
+  parallelAnordnung?: ParallelAnordnung
 }
 
 // --- Zuschauersicht ------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { reducer } from '../state/reducer'
 import { laufSchluessel } from '../lib/eingaben'
-import { BETRIEB_STARTER, betriebsStand, betriebStarter, festgeschrieben, testLogo, zeigeNaechsten } from '../testHilfen'
+import { BETRIEB_STARTER, betriebsStand, betriebStarter, festgeschrieben, testLogo, uimParallelStand, zeigeNaechsten } from '../testHilfen'
 import { refKey } from './folge'
 import { sichtOeffentlich, sichtZuschauer } from './sicht'
 import type { AppState, OeffentlicheSicht } from '../types'
@@ -126,6 +126,24 @@ describe('Öffentliche Sicht', () => {
     s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'lauf:2' })
     s = zeigeNaechsten(zeigeNaechsten(s, P1, 311_000), P1, 391_000) // k2 → e1: über die Laufgrenze, zählt nicht; e1 → k1: 80 s für E
     expect(sichtOeffentlich(s).abstaende).toMatchObject({ E: 70, '1': 110 })
+  })
+
+  it('Fassung 5: die Lage von Racecourse A und B in `einst` – nur mit dem Parallelslalom, nie in der Zuschauersicht', () => {
+    // DM: kein Parallelslalom – also auch keine Lage, nicht einmal ihr Name (Schlüssel-Durchlauf).
+    const dm = sichtOeffentlich(imBetrieb())
+    expect(dm.sv).toBe(5)
+    expect(Object.keys(dm.einst).sort()).toEqual(['amSteg', 'davor', 'parcoursName', 'vorSteg'])
+    expect(schluessel(dm).has('parallelAnordnung')).toBe(false)
+    // UIM mit Parallelslalom: die Einstellung (Vorgabe A links) – auch entfernte Anzeigetafeln (ab E6) lesen nur die Sicht.
+    const uim = uimParallelStand()
+    expect(sichtOeffentlich(uim).einst).toEqual({ davor: true, parcoursName: true, amSteg: 2, vorSteg: 2, parallelAnordnung: 'a-links' })
+    const sicht = sichtOeffentlich(reducer(uim, { type: 'SET_ANZEIGE', patch: { parallelAnordnung: 'b-oben' } }))
+    expect(sicht.einst.parallelAnordnung).toBe('b-oben')
+    // Die Zuschauerliste nennt A und B auf ihren Karten; die Lage der Tafel gehört nicht in den öffentlichen Link.
+    const z = sichtZuschauer(sicht)
+    expect(Object.keys(z.einst).sort()).toEqual(['amSteg', 'parcoursName', 'vorSteg'])
+    expect(schluessel(z).has('parallelAnordnung')).toBe(false)
+    expect(JSON.stringify(z)).not.toContain('b-oben')
   })
 
   it('Zuschauersicht: nur Im Boot, die offene Folge der begonnenen Läufe, „Boot fehlt“ und Meldung – keine Bedienangaben', () => {

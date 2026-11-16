@@ -437,6 +437,13 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Betriebliche ihrer Parcours, Einstellungen bleiben am Bedienrechner; eine öffentliche Namensregel für Anzeigetafel
   und Zuschauer (wie der Aushang der Wertungslisten); Gerätebetrieb nur, wenn Bedienrechner und Geräte dieselbe
   Fassung haben. → Plan §7 (F2–F7), ab E5 `geraete/`
+- 2026-11-16 · N · Anordnung A/B einstellbar, standortabhängig: Auf der Anzeigetafel des Parallelslaloms lässt sich
+  einstellen, ob Racecourse A und B neben- oder untereinander stehen und welcher links bzw. oben („Bei der
+  Parallel-Tafel bitte einstellbar machen, ob horizontal oder vertikal geteilt wird. Das ist standortabhängig.“ –
+  „Ja, es muss einstellbar sein, ob oben oder unten bzw. links/rechts.“). Vier Möglichkeiten, Vorgabe A links; nur
+  unter UIM; reist mit der Vorlage. Ausgelegt beim Bau (noch zu bestätigen): Start-Freigabe, Startliste und
+  Zuschauerliste bleiben bei A vor B. → `AnzeigeEinstellungen.parallelAnordnung` (types/betrieb.ts),
+  `components/anzeige/AnzeigeBereich.vue`, `styles/anzeige.css`, `BETRIEB_ANNAHMEN.parallelAnordnungNurTafel`
 - 2026-11-11 · N · Für die Tafel darf ein öffentlicher ntfy-Server genutzt werden („Im Fall der ../tafel kann aber
   auf ntfy.adminforge.de zurückgegriffen werden“): Vorgabe ntfy.adminforge.de, in den Einstellungen änderbar (wie im
   Lastenheft der Tafel, P-9). Die frühere Notiz „Hostname bewusst nicht im Repo“ stammte nicht vom Nutzer. → ab E5

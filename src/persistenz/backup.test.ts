@@ -102,7 +102,7 @@ describe('Dateien', () => {
     const imBetrieb: AppState = {
       ...filled(),
       betrieb: { bereiche: { par_1: { begonnen: ['lauf:1'], gezeigt: [{ ref, zeit: 1000 }], ohneAnzeige: [], zurueckgestellt: [], reihenfolge: null, ausgesetzt: [], vorziehen: false, meldung: { text: 'Mittagspause', art: 'pause' } } } },
-      anzeige: { ...filled().anzeige, kopfzeile: '30. Möwepokal am See', namen: 'kurz', skala: 1.2, abstaende: { E: 95, '1': 80 } },
+      anzeige: { ...filled().anzeige, kopfzeile: '30. Möwepokal am See', namen: 'kurz', skala: 1.2, abstaende: { E: 95, '1': 80 }, parallelAnordnung: 'b-oben' },
     }
     const sicherung = parseFile(JSON.stringify(makeFile('sicherung', imBetrieb, AT)))
     if (!sicherung.ok || sicherung.kind !== 'sicherung') throw new Error('keine Sicherung')
@@ -113,14 +113,15 @@ describe('Dateien', () => {
     for (const nie of ['betrieb', 'Mittagspause', 'Möwepokal', ref]) expect(text).not.toContain(nie)
     if (datei.kind !== 'vorlage') throw new Error('keine Vorlage')
     // Auch die eigenen (oder übernommenen) Startabstände reisen mit – sie sind die Vorgabe fürs nächste Mal (L-6).
-    expect(datei.settings.anzeige).toMatchObject({ kopfzeile: null, namen: 'kurz', skala: 1.2, abstaende: { E: 95, '1': 80 } })
+    expect(datei.settings.anzeige).toMatchObject({ kopfzeile: null, namen: 'kurz', skala: 1.2, abstaende: { E: 95, '1': 80 }, parallelAnordnung: 'b-oben' })
     const vorlage = parseFile(text)
     if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
     // Hier: eigener Betrieb und eigene Kopfzeile – beide bleiben; die übrigen Einstellungen kommen aus der Vorlage.
     const hier: AppState = { ...imBetrieb, anzeige: { ...emptyState().anzeige, kopfzeile: 'Hiesige Kopfzeile' } }
     const danach = vorlage.apply(hier)
     expect(danach.betrieb).toEqual(imBetrieb.betrieb)
-    expect(danach.anzeige).toMatchObject({ kopfzeile: 'Hiesige Kopfzeile', namen: 'kurz', skala: 1.2, abstaende: { E: 95, '1': 80 } })
+    // Auch die Lage von Racecourse A und B (16.11.2026): Sie gehört zum Standort der Tafel, der meist derselbe bleibt.
+    expect(danach.anzeige).toMatchObject({ kopfzeile: 'Hiesige Kopfzeile', namen: 'kurz', skala: 1.2, abstaende: { E: 95, '1': 80 }, parallelAnordnung: 'b-oben' })
   })
 
   it('eine Vorlage mit anderen Parcours hängt den Betrieb um wie die Einteilung; der Parallelslalom bleibt', () => {

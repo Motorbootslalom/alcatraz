@@ -130,6 +130,15 @@ export const BETRIEB_ANNAHMEN = {
    */
   parallelAufDerTafel: true as boolean,
   /**
+   * Die Lage von Racecourse A und B (`anzeige.parallelAnordnung`: A oder B links, A oder B oben – Entscheidung des
+   * Nutzers vom 16.11.2026, „standortabhängig“) gilt nur für die Anzeigetafel, die das Publikum sieht. Die
+   * Start-Freigabe, die Startliste im Betrieb und die Zuschauerliste bleiben bei A vor B: Am Steg und auf dem Handy
+   * liest man sie wie die Listen der race officials, den Laufzettel und die Startlisten (überall A vor B), nicht vom
+   * Ufer aus. Die Zeile „davor“ der Tafel nennt das Paar in der Folge der Seiten auf der Tafel (links bzw. oben
+   * zuerst) – so steht jede Nummer auf derselben Seite wie eben noch im Boot. Beim Bau, 16.11.2026 – noch zu bestätigen.
+   */
+  parallelAnordnungNurTafel: true,
+  /**
    * (5) Die Knoten kommen nicht auf die Anzeigetafel: Ihre Liste hat keinen Lauf, und es gibt keinen
    * Start dafür. Gebaut: Die Folge kennt nur Läufe (`programm`), das X zählt nur auf Listen mit
    * Lauf. 16.11.2026.

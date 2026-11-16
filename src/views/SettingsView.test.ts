@@ -839,7 +839,36 @@ describe('Einstellungen: Anzeigetafel', () => {
     const wrapper = settings(store)
     expect(wrapper.find('[data-feld="anzeige-bereiche"] [data-bereich="parallel"]').exists()).toBe(false)
     expect(wrapper.find('[data-hinweis="anzeige-parallel"]').exists()).toBe(false)
+    // Auch keine Lage von Racecourse A und B (16.11.2026).
+    expect(wrapper.find('[data-feld="anzeige-parallel-anordnung"]').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="anzeige-parallel-anordnung"]').exists()).toBe(false)
     expect(wrapper.find('#anzeigetafel').text()).not.toContain('Parallel')
+    wrapper.unmount()
+  })
+
+  it('UIM: Lage von Racecourse A und B auf der Tafel – vier Möglichkeiten, je nach Standort; wirkt über SET_ANZEIGE (16.11.2026)', async () => {
+    store.dispatch({ type: 'LOAD_STATE', state: uimParallelStand() })
+    const wrapper = settings(store)
+    const feld = () => wrapper.find('#anzeigetafel [data-feld="anzeige-parallel-anordnung"]')
+    expect(feld().findAll('option').map((o) => [o.attributes('value'), o.text()])).toEqual([
+      ['a-links', 'A links, B rechts'],
+      ['b-links', 'B links, A rechts'],
+      ['a-oben', 'A oben, B unten'],
+      ['b-oben', 'B oben, A unten'],
+    ])
+    expect((feld().element as HTMLSelectElement).value).toBe('a-links')
+    expect(wrapper.find(`label[for="${feld().attributes('id')}"]`).text()).toBe('Parallel-Slalom: Racecourse A und B auf der Anzeigetafel')
+    expect(wrapper.find('[data-hinweis="anzeige-parallel-anordnung"]').text()).toContain('Standort der Anzeigetafel')
+    await feld().setValue('b-oben')
+    expect(anzeige().parallelAnordnung).toBe('b-oben')
+    expect((feld().element as HTMLSelectElement).value).toBe('b-oben')
+    await feld().setValue('a-links')
+    expect(anzeige().parallelAnordnung).toBe('a-links')
+    // Englisch nach dem Rulebook: racecourse.
+    setLocale('en')
+    await nextTick()
+    expect(feld().find('option[value="a-oben"]').text()).toBe('Racecourse A top, B bottom')
+    expect(wrapper.find(`label[for="${feld().attributes('id')}"]`).text()).toBe('Parallel slalom: racecourses A and B on the display board')
     wrapper.unmount()
   })
 

@@ -236,11 +236,13 @@ describe('migrate: Betrieb und Anzeigetafel (16.11.2026)', () => {
         par_2: 'kaputt',
       },
     }
-    const anzeige = { ...emptyState().anzeige, kopfzeile: 'Musterregatta', bereiche: ['par_2', 'par_7'], skala: 1.2, namen: 'kurz', abstaende: { E: 50 } }
+    const anzeige = { ...emptyState().anzeige, kopfzeile: 'Musterregatta', bereiche: ['par_2', 'par_7'], skala: 1.2, namen: 'kurz', abstaende: { E: 50 }, parallelAnordnung: 'b-oben' }
     const stand = migrate({ starters: [], betrieb, anzeige })!
     expect(stand.betrieb).toEqual({ bereiche: { par_1: betrieb.bereiche.par_1 } })
     expect(stand.anzeige).toEqual({ ...anzeige, bereiche: ['par_2'] })
     // Ganz kaputt: die Vorgaben.
     expect(migrate({ starters: [], betrieb: 'x', anzeige: [1] })).toMatchObject({ betrieb: { bereiche: {} }, anzeige: emptyState().anzeige })
+    // Unbekannte Lage von A und B (16.11.2026): die Vorgabe, A links; die übrigen Felder bleiben.
+    expect(migrate({ starters: [], anzeige: { ...anzeige, parallelAnordnung: 'quer' } })!.anzeige).toMatchObject({ parallelAnordnung: 'a-links', namen: 'kurz', skala: 1.2 })
   })
 })

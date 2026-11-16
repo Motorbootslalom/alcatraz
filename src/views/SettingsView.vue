@@ -23,11 +23,11 @@ import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
 import { formatDateTime, t, tn, locale } from '../i18n'
 import { adresse, sprungziel } from '../lib/router'
 import { starterfeldFest } from '../lib/eingaben'
-import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout } from '../types'
+import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout, ParallelAnordnung } from '../types'
 import { bereicheZumStand } from '../betrieb/folge'
 import { messungen, messwerteAlsVorgabe, startabstandZeilen, type StartabstandZeile } from '../betrieb/prognose'
 import { BETRIEB_ANNAHMEN } from '../betrieb/annahmen'
-import { ABSTAND_MAX, ABSTAND_MIN, SKALA_MAX, SKALA_MIN, STEG_MAX } from '../state/reducer/betrieb'
+import { ABSTAND_MAX, ABSTAND_MIN, PARALLEL_ANORDNUNGEN, SKALA_MAX, SKALA_MIN, STEG_MAX } from '../state/reducer/betrieb'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
 import LogosPanel from '../components/LogosPanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
@@ -845,6 +845,26 @@ function takeLegacy() {
         {{ t('listopt.anzeige.parcoursName') }}
       </label>
     </div>
+
+    <!-- Nur UIM (Parallelslalom; unter DM gibt es ihn nicht, auch nicht in Texten): Wo Racecourse A und B auf der Tafel
+         liegen, hängt am Standort (Entscheidung des Nutzers vom 16.11.2026). Die Start-Freigabe bleibt bei A vor B. -->
+    <template v-if="parallel">
+      <div class="row" style="align-items: flex-end; gap: 20px; margin-top: 12px">
+        <div class="field">
+          <label :for="`${id}-anzeige-parallel-anordnung`">{{ t('listopt.anzeige.parallelAnordnung') }}</label>
+          <select
+            :id="`${id}-anzeige-parallel-anordnung`"
+            class="input"
+            data-feld="anzeige-parallel-anordnung"
+            :value="state.anzeige.parallelAnordnung"
+            @change="setzeAnzeige({ parallelAnordnung: ($event.target as HTMLSelectElement).value as ParallelAnordnung })"
+          >
+            <option v-for="a in PARALLEL_ANORDNUNGEN" :key="a" :value="a">{{ t(`listopt.anzeige.parallelAnordnung.${a}`) }}</option>
+          </select>
+        </div>
+      </div>
+      <p class="note" data-hinweis="anzeige-parallel-anordnung">{{ t('listopt.anzeige.parallelAnordnung.hint') }}</p>
+    </template>
 
     <div class="row" style="align-items: flex-end; gap: 20px; margin-top: 12px">
       <div class="field">

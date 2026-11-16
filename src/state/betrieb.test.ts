@@ -130,6 +130,21 @@ describe('Einstellungen der Anzeigetafel (SET_ANZEIGE)', () => {
     expect(reducer(n, { type: 'SET_ANZEIGE', patch: { abstaende: { E: 45, X: 50, '1': 5 } as never } }).anzeige.abstaende).toEqual({ E: 45, '1': 30 })
   })
 
+  it('Lage von Racecourse A und B (16.11.2026): vier Werte, Vorgabe A links; Unbekanntes wird die Vorgabe', () => {
+    const s = fest()
+    expect(s.anzeige.parallelAnordnung).toBe('a-links')
+    expect(reducer(s, { type: 'SET_ANZEIGE', patch: { parallelAnordnung: 'a-links' } })).toBe(s)
+    for (const lage of ['b-links', 'a-oben', 'b-oben'] as const) {
+      const n = reducer(s, { type: 'SET_ANZEIGE', patch: { parallelAnordnung: lage } })
+      expect(n.anzeige).toEqual({ ...s.anzeige, parallelAnordnung: lage })
+      // Doppelt zugestellt: derselbe Stand.
+      expect(reducer(n, { type: 'SET_ANZEIGE', patch: { parallelAnordnung: lage } })).toBe(n)
+      expect(reducer(n, { type: 'SET_ANZEIGE', patch: { parallelAnordnung: 'rechts' as 'a-links' } }).anzeige.parallelAnordnung).toBe('a-links')
+    }
+    expect(normalisiereAnzeige({ parallelAnordnung: 'b-oben' }).parallelAnordnung).toBe('b-oben')
+    for (const kaputt of ['oben', 'A-LINKS', 3, null, ['a-oben']]) expect(normalisiereAnzeige({ parallelAnordnung: kaputt }).parallelAnordnung, String(kaputt)).toBe('a-links')
+  })
+
   it('Normalisierer: Fremdes und Kaputtes wird die Vorgabe; unbekannte Bereiche entfallen', () => {
     expect(normalisiereAnzeige(null)).toEqual(emptyState().anzeige)
     expect(normalisiereAnzeige({ bereiche: ['par_1', 'par_9', 'par_1', 3], kopfzeile: 7, skala: 'groß' }, ['par_1'])).toMatchObject({ bereiche: ['par_1'], kopfzeile: null, skala: 1 })

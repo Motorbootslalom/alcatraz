@@ -127,6 +127,14 @@ export default {
     'Den Parallel-Slalom zeigt die gemeinsame Anzeigetafel von selbst erst, sobald dort eine Runde begonnen ist; hier lässt er sich auch fest wählen oder abwählen.',
   'listopt.anzeige.davor': 'Vorigen Start zeigen',
   'listopt.anzeige.parcoursName': 'Namen des Parcours zeigen',
+  // Nur unter UIM (Parallel-Slalom); Entscheidung des Nutzers vom 16.11.2026: Lage von A und B je nach Standort.
+  'listopt.anzeige.parallelAnordnung': 'Parallel-Slalom: Racecourse A und B auf der Anzeigetafel',
+  'listopt.anzeige.parallelAnordnung.a-links': 'A links, B rechts',
+  'listopt.anzeige.parallelAnordnung.b-links': 'B links, A rechts',
+  'listopt.anzeige.parallelAnordnung.a-oben': 'A oben, B unten',
+  'listopt.anzeige.parallelAnordnung.b-oben': 'B oben, A unten',
+  'listopt.anzeige.parallelAnordnung.hint':
+    'Je nach Standort der Anzeigetafel, so wie die Racecourses vom Publikum aus liegen: nebeneinander mit senkrechter, untereinander mit waagerechter Trennlinie. Die Start-Freigabe, die Startliste und die Zuschauerliste bleiben bei A vor B.',
   'listopt.anzeige.namen': 'Namen',
   'listopt.anzeige.namen.aushang': 'wie der Aushang ({art})',
   'listopt.anzeige.skala': 'Schriftgröße (%)',

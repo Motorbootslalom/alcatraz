@@ -320,9 +320,10 @@ html.anzeige-fenster body {
 }
 
 /*
- * Parallelslalom (E4): Racecourse A und B nebeneinander, je Seite Racecourse, Nummer, Name, Herkunft untereinander –
- * jede Seite hat die halbe Breite, die Nummer deshalb so groß wie „gestapelt“. Eine leere Seite (Dummy, gelöscht, X)
- * bleibt stehen, nur gedämpft: So springt die andere nicht in die Mitte, und A bleibt links.
+ * Parallelslalom (E4): Racecourse A und B nebeneinander (Vorgabe; A oder B links nach der Einstellung), je Seite
+ * Racecourse, Nummer, Name, Herkunft untereinander – jede Seite hat die halbe Breite, die Nummer deshalb so groß wie
+ * „gestapelt“. Eine leere Seite (Dummy, gelöscht, X) bleibt stehen, nur gedämpft: So springt die andere nicht in die
+ * Mitte, und jede Seite bleibt an ihrem Platz. Untereinander: siehe `.anzeige-paar.untereinander` weiter unten.
  *
  * Die Regeln der Seiten beginnen mit `.anzeige-inhalt` (Spezifität 0,3,0) und stehen hinter denen für „gestapelt“:
  * Die Tafel nur für den Parallelslalom ist immer gestapelt (ein Bereich, 16:9), und deren Regeln rechnen mit
@@ -350,6 +351,74 @@ html.anzeige-fenster body {
 .anzeige-bahn + .anzeige-bahn {
   border-left: 3px solid var(--anzeige-trenner);
   padding-left: calc(var(--anzeige-u) * 0.05);
+}
+
+/*
+ * Untereinander (Einstellung „A oben, B unten“ bzw. „B oben, A unten“, 16.11.2026): Je nach Standort der Tafel liegen
+ * die Racecourses vom Publikum aus hinter- statt nebeneinander. Jede Seite hat die ganze Breite, dazwischen eine
+ * waagerechte Trennlinie. Als Raster mit gleich hohen Zeilen: Die untere Seite springt nicht, wenn die obere leer ist.
+ * Welche Seite oben steht, sagt die Folge im DOM (AnzeigeBereich.vue).
+ */
+.anzeige-paar.untereinander {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 1fr;
+  gap: calc(var(--anzeige-u) * 0.025);
+}
+
+.anzeige-paar.untereinander .anzeige-bahn + .anzeige-bahn {
+  border-left: 0;
+  padding-left: 0;
+  border-top: 3px solid var(--anzeige-trenner);
+  padding-top: calc(var(--anzeige-u) * 0.025);
+}
+
+/*
+ * Untereinander und breit genug (AnzeigeTafel.vue `paarFlach`, etwa Querformat): je Seite die Nummer links, rechts
+ * daneben Racecourse, Name und Herkunft – wie `.anzeige-haupt`, aber ohne zusätzliches Element. So bleibt die Nummer
+ * groß, obwohl jede Seite nur die halbe Höhe hat; untereinander gestapelt wäre sie kaum halb so groß.
+ * Beide Seiten teilen sich die Spalten (subgrid): Nummern rechtsbündig untereinander, „Racecourse A/B“ linksbündig –
+ * auch neben einer leeren Seite („–“), die sonst für sich mittig stünde. Die äußeren 1fr-Spalten halten das Ganze in
+ * der Mitte und die Trennlinie über die ganze Breite. Die Nummer behält ihre Breite (wie `flex: none` in
+ * `.anzeige-haupt`), die Spalte daneben darf schrumpfen (minmax(0, …)): Ein langer Name wird über lib/fit.ts kleiner,
+ * statt die Nummer zu verdrängen. Spezifität 0,4,0: gilt vor den Regeln der Seiten und vor „gestapelt“ (beide 0,3,0).
+ */
+.anzeige-paar.untereinander.flach {
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, max-content) minmax(0, 1fr);
+  column-gap: 0;
+}
+
+.anzeige-paar.untereinander.flach .anzeige-bahn {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-areas:
+    '. nr rc .'
+    '. nr name .'
+    '. nr herkunft .';
+  align-content: center;
+  align-items: center;
+  text-align: left;
+}
+
+.anzeige-paar.untereinander.flach .anzeige-racecourse {
+  grid-area: rc;
+}
+
+.anzeige-paar.untereinander.flach .anzeige-startnr {
+  grid-area: nr;
+  text-align: right;
+  margin-right: calc(var(--anzeige-u) * 0.06);
+  /* So hoch wie Racecourse, Name und Herkunft daneben zusammen (je mit line-height 1,12). */
+  font-size: calc(var(--anzeige-u) * 0.28 * var(--fit-scale));
+}
+
+.anzeige-paar.untereinander.flach .anzeige-name {
+  grid-area: name;
+}
+
+.anzeige-paar.untereinander.flach .anzeige-herkunft {
+  grid-area: herkunft;
 }
 
 .anzeige-racecourse {

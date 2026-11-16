@@ -36,9 +36,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   (punktText, startZeile, ganzeFolge, verschiebeZiele – Oberflächensprache; wartezeitText(sek, sprache)).
   `zuschauer/` ZuschauerListe (E3; liest NUR ZuschauerSicht + `jetzt`: Im Boot, Am Steg, Vor Steg, Danach, Boot fehlt;
   Klassenfilter merke `zuschauer.klasse`; Texte tIn(sicht.sprache); styles/zuschauer.css, fürs Handy).
-  E4 Parallelslalom (nur UIM): AnzeigeBereich zweigt bei `aktuell.paar` ab (Racecourse A/B nebeneinander, `.anzeige-bahn`,
-  leere Seite `.leer` mit „–“); StartFreigabe zeigt Paare je Seite (`.betrieb-seite`, `data-racecourse`) und statt
-  KlassenAussetzen den Hinweis `data-hinweis="parallel"`; BetriebsFolge/StartListe ohne „Verschieben …“ und Ziehen,
+  E4 Parallelslalom (nur UIM): AnzeigeBereich zweigt bei `aktuell.paar` ab (Racecourse A/B, `.anzeige-bahn`,
+  leere Seite `.leer` mit „–“; Lage nach `sicht.einst.parallelAnordnung` als Folge im DOM, `.anzeige-paar` mit
+  `data-lage` und Klasse `untereinander` (Raster, waagerechte Linie) bzw. dazu `flach` (AnzeigeTafel `paarFlach`: je
+  Seite Nummer neben den Angaben, Spalten per subgrid geteilt); „davor“ in der Folge der Seiten); StartFreigabe zeigt
+  Paare je Seite, immer A vor B (`.betrieb-seite`, `data-racecourse`) und statt KlassenAussetzen den Hinweis `data-hinweis="parallel"`; BetriebsFolge/StartListe ohne „Verschieben …“ und Ziehen,
   StartListe Spalte „Versuch“, ohne Zahl; ZuschauerListe Paar-Karten (`.zuschauer-seite`). texte.ts: startZeile mit
   `seiten`/`nummern`/`ids`, tBereich/tnBereich (`….runde`-Texte im Parallelslalom), punktText über rundenName.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem

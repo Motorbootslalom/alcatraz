@@ -57,19 +57,28 @@ function kopfAnteil(n: number, neben: boolean): number {
   return n > 1 && !neben ? 0.11 : 0.15
 }
 const kopf = computed(() => kopfAnteil(anzahl.value, nebeneinander.value))
-const gestapelt = computed(() => {
+/** Breite durch Höhe eines Bereichs; `null`, solange das Fenster keine Höhe hat. */
+const verhaeltnis = computed((): number | null => {
   const n = anzahl.value
   const hoehe = (fenster.value.h * (1 - kopf.value)) / (nebeneinander.value ? 1 : n)
   const breite = nebeneinander.value ? fenster.value.w / n : fenster.value.w
-  return hoehe > 0 && breite / hoehe < NEBENEINANDER_AB
+  return hoehe > 0 ? breite / hoehe : null
 })
+const gestapelt = computed(() => verhaeltnis.value !== null && verhaeltnis.value < NEBENEINANDER_AB)
+/**
+ * Parallelslalom mit Racecourse A und B untereinander (Einstellung nach dem Standort, 16.11.2026): Jede Seite hat die
+ * ganze Breite und etwa die halbe Höhe des Bereichs, ist also doppelt so breit wie er. Reicht das für Nummer und
+ * Angaben nebeneinander (dieselbe Grenze wie oben), stehen sie je Seite so – untereinander wäre die Nummer auf
+ * einem Bildschirm im Querformat nur gut halb so groß. Hochkant bleiben sie untereinander, alles schrumpft gemeinsam.
+ */
+const paarFlach = computed(() => verhaeltnis.value !== null && 2 * verhaeltnis.value >= NEBENEINANDER_AB)
 
 /**
  * Die Anordnung als Text, an jeden Bereich gereicht: Ändert sie sich mit der Fenstergröße (Vollbild, LED-Band),
  * zeichnet der Bereich neu, und lib/fit.ts misst in `updated` mit der neuen Anordnung. Die `resize`-Handler der
  * Zeilen liefen sonst vor dem Umschalten und mäßen die alte – ein langer Name bliebe abgeschnitten.
  */
-const anordnung = computed(() => `${nebeneinander.value ? 'neben' : 'unter'}|${gestapelt.value ? 'gestapelt' : 'flach'}|${anzahl.value}|${kopf.value}`)
+const anordnung = computed(() => `${nebeneinander.value ? 'neben' : 'unter'}|${gestapelt.value ? 'gestapelt' : 'flach'}|${paarFlach.value ? 'paar-flach' : 'paar-hoch'}|${anzahl.value}|${kopf.value}`)
 
 const cssVars = computed(() => ({
   // Übereinander stehende Bereiche teilen sich die Höhe; nebeneinander hat jeder die ganze.
@@ -91,7 +100,7 @@ const cssVars = computed(() => ({
     <div class="anzeige-flaeche" :class="{ nebeneinander }">
       <template v-for="(b, i) in gezeigt" :key="b.id">
         <div v-if="i > 0" class="anzeige-trenner" />
-        <AnzeigeBereich :bereich="b" :sicht="sicht" :gestapelt="gestapelt" :anordnung="anordnung" />
+        <AnzeigeBereich :bereich="b" :sicht="sicht" :gestapelt="gestapelt" :paar-flach="paarFlach" :anordnung="anordnung" />
       </template>
       <section v-if="gezeigt.length === 0" class="anzeige-bereich">
         <div class="anzeige-leer" data-leer>{{ tIn(sicht.sprache, 'anzeige.keineStarter') }}</div>

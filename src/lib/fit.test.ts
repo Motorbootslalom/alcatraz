@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { defineComponent, h, withDirectives } from 'vue'
+import { defineComponent, h, withDirectives, type Directive } from 'vue'
 import { mount } from '@vue/test-utils'
 import { FIT_ZEILE, fitBlock, fitLine, fitZeilen, vFit, vFitBlock } from './fit'
 
@@ -151,6 +151,25 @@ describe('fitBlock: ein Block schrumpft gemeinsam, bis er in die Höhe seines Be
     expect(() => fitBlock(el)).not.toThrow()
     expect(el.style.getPropertyValue('--block-scale')).toBe('')
   })
+
+  it('eine Zeile, die bei Maßstab 1 zu breit war, wird bei jedem Maßstab neu angepasst – danach passt der Block (Prüfung, 16.11.2026)', () => {
+    // Wie hochkant mit Racecourse A über B: Die Startnummer braucht 200 bei 150 Platz; der Rest des Blocks ist 100
+    // hoch, die Nummer 300. Ihre Breite und Höhe hängen am eigenen Maßstab UND an dem des Blocks.
+    const nr = document.createElement('div')
+    nr.className = FIT_ZEILE
+    const { el } = block(280, 0, (b) => 100 * b + 300 * b * massstab(nr, '--fit-scale'))
+    zeile(150, (m) => 200 * m * massstab(el, '--block-scale'), nr)
+    el.append(nr)
+    // Wie beim Einhängen: v-fit hat die Zeile schon bei Maßstab 1 angepasst.
+    fitLine(nr)
+    expect(massstab(nr, '--fit-scale')).toBeCloseTo(0.75)
+    fitBlock(el)
+    // Mit dem alten --fit-scale gemessen, schiene 0,86 genug – danach wüchse die Nummer, und der Block wäre 311 hoch.
+    // Richtig: bei 0,7 hat die Nummer ihre volle Größe (140 breit), und der Block ist 280 hoch.
+    expect(el.offsetHeight).toBeLessThanOrEqual(281)
+    expect(massstab(el, '--block-scale')).toBeGreaterThan(0.69)
+    expect(nr.scrollWidth).toBeLessThanOrEqual(nr.clientWidth)
+  })
 })
 
 describe('v-fit und v-fit-block: beim Einhängen, nach jeder Änderung und bei neuer Fenstergröße', () => {
@@ -186,6 +205,44 @@ describe('v-fit und v-fit-block: beim Einhängen, nach jeder Änderung und bei n
     hoehe = 400
     await w.setProps({ text: 'Musterclub mit sehr langer Meldung' })
     expect(massstab(el, '--block-scale')).toBeCloseTo(0.25)
+    w.unmount()
+  })
+
+  it('ein neuer Block (wie nach „Nächster Start“): erst v-fit bei Maßstab 1, dann v-fit-block – er passt sofort, ohne `resize`', () => {
+    // Maße setzt eine Hilfsdirektive in `created`: Das läuft für alle Elemente vor dem ersten `mounted`.
+    const masse = (setze: (el: HTMLElement) => void): Directive<HTMLElement> => ({ created: (el) => setze(el) })
+    let inhalt!: HTMLElement
+    let nr!: HTMLElement
+    const Bereich = defineComponent({
+      render: () =>
+        withDirectives(
+          h('section', [
+            withDirectives(
+              h('div', [
+                withDirectives(h('div', { class: FIT_ZEILE }, '401'), [
+                  [masse((el) => (nr = zeile(150, (m) => 200 * m * massstab(inhalt, '--block-scale'), el)))],
+                  [vFit],
+                ]),
+              ]),
+              [
+                [
+                  masse((el) => {
+                    inhalt = el
+                    const b = () => massstab(el, '--block-scale')
+                    Object.defineProperty(el, 'offsetHeight', { configurable: true, get: () => 100 * b() + 300 * b() * massstab(nr, '--fit-scale') })
+                  }),
+                ],
+                [vFitBlock],
+              ],
+            ),
+          ]),
+          [[masse((el) => Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => 280 }))]],
+        ),
+    })
+    const w = mount(Bereich, { attachTo: document.body })
+    expect(inhalt.offsetHeight).toBeLessThanOrEqual(281)
+    expect(massstab(inhalt, '--block-scale')).toBeGreaterThan(0.69)
+    expect(nr.scrollWidth).toBeLessThanOrEqual(nr.clientWidth)
     w.unmount()
   })
 })

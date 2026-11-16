@@ -26,7 +26,7 @@ clipboard, scanner, logoBild.
 - Seiten: `paging.ts` (WKR-Bögen, gleicht aus, Blöcke unteilbar), `seiten.ts` (übrige Listen; `gebunden` = Zeilen einer
   Zelle mit rowspan), `doppelseitig.ts`. Sprache: `konfig.ts`, `listensprache.ts`, `event.ts`.
 - Anzeigetafel (16.11.2026): `fit.ts` (fitLine/fitBlock/fitZeilen, v-fit, v-fit-block, v-fit-zeilen; nur mounted/updated,
-  kein ResizeObserver; fitBlock misst die natürliche Höhe mit `flex-grow: 0`),
+  kein ResizeObserver; fitBlock misst die natürliche Höhe mit `flex-grow: 0` und passt vor jeder Messung die Zeilen an),
   `anzeigeFenster.ts` (oeffneAnzeige = window.open `#/anzeige[/<bereich>]`, E3 oeffneZuschauer = `#/zuschauer`;
   postMessage-Rückfall, wo `storage` unter file:// nicht trägt), `uhr.ts` (E3: useUhr(takt) = Date.now() im Takt,
   solange die Komponente steht – Wartezeiten nie im Store). Logik des Betriebs: src/betrieb/ (eigene Karte).
