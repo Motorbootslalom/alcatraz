@@ -22,11 +22,15 @@ const store = useLeseStore()
  * meist dieselbe Sicht. Nur wenn sich ihr Text ändert, wird sie ersetzt – sonst bliebe das DOM zwar
  * gleich, doch Vue rechnete die Tafel neu und lib/fit.ts mäße jede Zeile nach. So rührt eine Eingabe im
  * anderen Fenster die Tafel gar nicht an.
+ *
+ * Verglichen wird ohne `veranstaltung`: Den Namen braucht nur die Start-Freigabe (Meldungsvorlagen), die Tafel
+ * zeigt ihn nicht – und EventView schickt ihn bei jedem Tastendruck. Mit eigener Kopfzeile zeichnete das Tippen
+ * des Namens sonst die Tafel bei jedem Zeichen neu (lib/fit.ts misst dann jede Zeile nach).
  */
 let text = ''
 function sichtZu(stand: AppState): OeffentlicheSicht {
   const s = sichtOeffentlich(stand)
-  text = JSON.stringify(s)
+  text = JSON.stringify({ ...s, veranstaltung: '' })
   return s
 }
 const sicht = shallowRef(sichtZu(store.state.value))

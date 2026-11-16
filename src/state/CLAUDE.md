@@ -14,8 +14,11 @@
 - `zweit.ts` – zweiter Speicher und Verlauf: Schreibpumpe, Start-Entscheidung, merken/wiederherstellen.
 - `leseStore.ts` – Nur-Lese-Store der Anzeigetafel (zweites Fenster): liest localStorage, folgt `storage`, schreibt nie.
   Angelegt in main.ts statt createStore(), wenn die Adresse `#/anzeige` ist; `lies()` auch auf postMessage des openers.
-- `reducer/betrieb.ts` – BETRIEB_* (beginnen, zeigen mit `vorher`, zurück, Meldung, zurücksetzen), SET_ANZEIGE;
-  normalisiereBetrieb/-Anzeige für migrate. Logik der Folge: betrieb/ (eigene Karte).
+- `reducer/betrieb.ts` – BETRIEB_* (beginnen, zeigen mit `vorher`, zurück, Meldung, zurücksetzen; E2: zurückstellen,
+  einreihen, aussetzen, vorziehen, klasse vor, verschieben, ab), SET_ANZEIGE; normalisiereBetrieb/-Anzeige für migrate.
+  Logik der Folge: betrieb/ (eigene Karte), Schritte in betrieb/schritte.ts; der Reducer schreibt nur `betrieb`.
+  SET_ANZEIGE trägt auch die Startfolge im Betrieb (`verzahnungHalten`, ab E3 amSteg/vorSteg/abstaende; SettingsView
+  `#betrieb`); geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`.
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
 

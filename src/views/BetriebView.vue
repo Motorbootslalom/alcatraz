@@ -10,13 +10,15 @@ import AppDialog from '../components/AppDialog.vue'
 import StartFreigabe from '../components/betrieb/StartFreigabe.vue'
 
 /**
- * Reiter „Betrieb“ am Wettkampftag (Plan vom 16.11.2026): in E1 die Start-Freigabe je Parcours und der
- * Knopf, der die Anzeigetafel in einem eigenen Fenster öffnet. Unterreiter `start`; die Startliste (E3) und
- * die Geräte (E6) kommen dazu. Einstellungen der Anzeigetafel stehen unter „Einstellungen“, nicht hier.
+ * Reiter „Betrieb“ am Wettkampftag (Plan vom 16.11.2026): die Start-Freigabe je Parcours (E1, mit der
+ * Steuerung der Etappe E2) und der Knopf, der die Anzeigetafel in einem eigenen Fenster öffnet. Unterreiter
+ * `start`; die Startliste (E3) und die Geräte (E6) kommen dazu. Einstellungen (Anzeigetafel, Startfolge)
+ * stehen unter „Einstellungen“, nicht hier – verlinkt.
  *
  * Die Karten lesen nur die öffentliche Sicht (betrieb/sicht.ts) – dieselben Komponenten bedienen später
  * vom Handy aus. Ohne festgeschriebene Verzahnung gibt es keine Bedienung, nur den Weg dorthin – außer es
- * ist schon Betrieb da (Verzahnung mitten am Tag gelöst): Dann bleiben die Karten mit Zurück und Meldung.
+ * ist schon Betrieb da (Verzahnung mitten am Tag gelöst): Dann bleiben die Karten mit den Knöpfen, die
+ * keine Folge brauchen (Zurück, Meldung); Zeigen, Beginnen und alle Schritte der Folge ruhen.
  */
 const { state, dispatch } = useStore()
 
@@ -44,6 +46,7 @@ function zuruecksetzen() {
       <button type="button" class="btn primary" data-action="anzeige-oeffnen" @click="oeffneAnzeige()">{{ t('betrieb.oeffnen') }}</button>
       <span class="note">{{ t('betrieb.oeffnen.hint') }}</span>
       <a :href="adresse('einstellungen', { ziel: 'anzeigetafel' })" data-verweis="anzeige-einstellungen">{{ t('betrieb.einstellungen') }}</a>
+      <a :href="adresse('einstellungen', { ziel: 'betrieb' })" data-verweis="betrieb-einstellungen">{{ t('betrieb.einstellungen.folge') }}</a>
       <button v-if="hatBetrieb" type="button" class="btn danger" data-action="betrieb-zuruecksetzen" @click="frageZuruecksetzen = true">
         {{ t('betrieb.zuruecksetzen') }}
       </button>
@@ -56,7 +59,8 @@ function zuruecksetzen() {
     >.
   </p>
   <!-- Ist schon Betrieb da, bleiben die Karten auch bei gelöster Verzahnung: Zurück, Meldungen und Zurücksetzen gehen
-       immer (BETRIEB_ANNAHMEN.nurFestgeschrieben); „Nächster Start“ und „beginnen“ sperrt die Karte selbst (`fest`). -->
+       immer (BETRIEB_ANNAHMEN.nurFestgeschrieben); Zeigen, Beginnen und die Schritte der Folge (zurückstellen, Klassen
+       aussetzen, verschieben, einsteigen – BETRIEB_ANNAHMEN.schritteNurFestgeschrieben) sperrt die Karte selbst (`fest`). -->
   <div v-if="sicht.bereiche.length > 0 && (fest || hatBetrieb)" class="betrieb-karten">
     <StartFreigabe
       v-for="b in sicht.bereiche"

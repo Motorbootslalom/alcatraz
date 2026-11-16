@@ -58,7 +58,7 @@ const inhalt = ref<HTMLElement | null>(null)
 // nicht mehr hier; `#/einstellungen?wkr` führt zur Veranstaltung – lib/adressen.ts `umzug`.)
 onMounted(async () => {
   // Das Sprungziel steht in der Sprache der Oberfläche in der Adresse (lib/router.ts).
-  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline', anzeigetafel: 'anzeigetafel' } as Record<string, string>)[sprungziel()]
+  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'betrieb' } as Record<string, string>)[sprungziel()]
   if (!ziel) return
   await nextTick()
   document.getElementById(ziel)?.scrollIntoView?.({ block: 'start' })
@@ -855,6 +855,26 @@ function takeLegacy() {
       {{ t('listopt.anzeige.logos') }}
     </label>
     <p class="note">{{ t('listopt.anzeige.logos.hint', { logos: t('listopt.logo.title') }) }}</p>
+  </div>
+
+  <!-- Startfolge im Betrieb (Plan vom 16.11.2026, E2): wie die Start-Freigabe umstellt – eine Einstellung, deshalb hier und
+       nicht an der Start-Freigabe (BETRIEB_ANNAHMEN.wohin). Ab E3 kommen „Am Steg“/„Vor Steg“ und die Startabstände dazu. -->
+  <div id="betrieb" class="panel">
+    <h2>{{ t('listopt.betrieb.title') }}</h2>
+    <p class="hint">
+      {{ t('listopt.betrieb.hint') }}
+      <a :href="adresse('betrieb')">{{ t('nav.betrieb') }} → {{ t('betrieb.title') }}</a>
+    </p>
+    <label class="boat-check">
+      <input
+        type="checkbox"
+        data-feld="betrieb-verzahnung-halten"
+        :checked="state.anzeige.verzahnungHalten"
+        @change="setzeAnzeige({ verzahnungHalten: ($event.target as HTMLInputElement).checked })"
+      />
+      {{ t('listopt.betrieb.verzahnungHalten') }}
+    </label>
+    <p class="note">{{ t('listopt.betrieb.verzahnungHalten.hint') }}</p>
   </div>
 
   <EigeneAufbautenPanel />

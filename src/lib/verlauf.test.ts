@@ -109,6 +109,14 @@ describe('was sich geändert hat', () => {
     expect(beschreibe({ type: 'BETRIEB_ZURUECK', bereich: 'par_1', ref }, STAND)).toBeNull()
     expect(beschreibe({ type: 'BETRIEB_MELDUNG', bereich: '*', meldung: { text: 'Pause', art: 'pause' } }, STAND)).toBeNull()
     expect(beschreibe({ type: 'BETRIEB_ZURUECKSETZEN' }, STAND)).toBeNull()
+    // E2: die Steuerung an der Start-Freigabe ebenso.
+    expect(beschreibe({ type: 'BETRIEB_ZURUECKSTELLEN', bereich: 'par_1', ref }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_EINREIHEN', bereich: 'par_1', ref, wo: 'ende' }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_AUSSETZEN', bereich: 'par_1', klasse: 'E', an: true }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_VORZIEHEN', bereich: 'par_1', an: false }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_KLASSE_VOR', bereich: 'par_1', klasse: 'E', vor: null }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_VERSCHIEBEN', bereich: 'par_1', ref, ziel: { nachPunkt: 'lauf:2' } }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_AB', bereich: 'par_1', ref }, STAND)).toBeNull()
     expect(beschreibe({ type: 'SET_ANZEIGE', patch: { davor: false } }, STAND)?.art).toBe('einstellung')
     // Ohne Beschreibung behält der letzte Eintrag seinen Namen und bekommt nur den neuen Stand.
     const letzter = eintrag({ was: { art: 'eingabe', klasse: '4', lauf: 1 }, folge: 3 })

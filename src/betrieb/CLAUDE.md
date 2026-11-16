@@ -1,25 +1,49 @@
 # src/betrieb – Betrieb am Wettkampftag (Anzeigetafel, Start-Freigabe)
 
 Rein, ohne DOM und Store. Plan zur Übernahme der Tafel vom 16.11.2026 (Etappen E1–E8); E1 = Anzeigetafel im
-zweiten Fenster und Start-Freigabe am Bedienrechner, nur Manövrieren, ohne Netz. Begriffe: „Anzeigetafel“ (Code
-`anzeige`), „Start-Freigabe“; „Tafel“ ist das Aushangbrett. Englisch vorläufig: display board, start release.
+zweiten Fenster und Start-Freigabe am Bedienrechner, nur Manövrieren, ohne Netz; E2 = Steuerung an der Start-Freigabe
+(gezielt zeigen, zurückstellen/einreihen, Klasse aussetzen/vorziehen, verschieben, einsteigen). Begriffe:
+„Anzeigetafel“ (Code `anzeige`), „Start-Freigabe“; „Tafel“ ist das Aushangbrett. Englisch vorläufig: display board,
+start release.
 
 ## Dateien
 
 - `annahmen.ts` – BETRIEB_ANNAHMEN: alle Auslegungen mit Datum, an EINER Stelle (Muster PARALLEL_ANNAHMEN).
 - `folge.ts` – Kennungen (refKey/liesRef, istPunktId, laufPunkt), bereicheZumStand (alle bzw. `{anzeige:true}`),
-  programm (lauf:1..n; „nacheinander“ nur lauf:1), startfolge (abgeleitet, Entfallene mit `entfaellt`), lage
-  (aktuell, vorig, Zeiger, offen, frei, nachzuholen, naechster, naechsterPunkt). Parallel (`parallel`) erst ab E4.
+  programm (lauf:1..n; „nacheinander“ nur lauf:1), abgeleiteteFolge (Verzahnung, Entfallene mit `entfaellt`),
+  startfolge (= abgeleitet + Schnappschuss), spurenVon (Spur-Anordnung), lage (aktuell, vorig, Zeiger, offen, frei,
+  nachzuholen, zurueckgestellt, bootFehlt, naechster, naechsterPunkt, arbeitsPunkt, abgeleitet, erledigt …).
+  Parallel (`parallel`) erst ab E4.
+- `schritte.ts` (E2) – rein auf der Folge (Vorbild TF lib/startlist.ts, neu geschrieben): bloecke/bloeckeIn (je
+  Stelle der Lauf-Block; Gäste = Starts in einem fremden Block), abgleich (Schnappschuss über die abgeleitete Folge,
+  Neues in den Block seines Punkts), schnappschuss (`null` = keine Abweichung; nur umgestellte Punkte), zeigerIn,
+  hinterDenZeiger (auch mehrere), ansPunktende (Blockende), zielStelle/verschiebe (Spur rutscht nur im Block mit,
+  V-7), webeNeu (reinterleave je Block und je Starter: Klasse aussetzen/zurück, startTrack),
+  klassenNachNaechstemStart/klasseAllein/klasseVor (B-10), ersterStart/einsteigen (AB). Liefern Kennungen; den
+  Stand macht state/reducer/betrieb.ts.
+- `meldungen.ts` (E2) – MELDUNGS_VORLAGEN (Gruppe, Kennung, Art), vorlagenText (Tafel-Sprache, `{veranstaltung}`),
+  vorlagenTitel/gruppenTitel (Schlüssel für t()), vorlagenMeldung(sicht, vorlage). Texte: i18n `meldung.vorlage.*`.
 - `sicht.ts` – sichtOeffentlich(stand, {logos}) → OeffentlicheSicht: die EINE Stelle für den Datenschutz-Zuschnitt.
 - Typen: types/betrieb.ts. Actions und Normalisierer: state/reducer/betrieb.ts. Nur-Lese-Store: state/leseStore.ts.
 - Oberfläche (liest nur die Sicht): components/anzeige/ (AnzeigeTafel, AnzeigeBereich; styles/anzeige.css, lib/fit.ts),
-  components/betrieb/ (StartFreigabe, NachzuholenListe), views/BetriebView.vue, src/AnzeigeApp.vue,
-  lib/anzeigeFenster.ts (window.open, postMessage-Rückfall). Einstellungen: SettingsView `#anzeigetafel`.
+  components/betrieb/ (StartFreigabe; E2: BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb,
+  texte.ts), views/BetriebView.vue, src/AnzeigeApp.vue, lib/anzeigeFenster.ts (window.open, postMessage-Rückfall).
+  Einstellungen: SettingsView `#anzeigetafel`, `#betrieb` (Startfolge: `anzeige.verzahnungHalten`).
 
 ## Abläufe
 
 - Stand → lage(stand, bereich) → sichtOeffentlich → Anzeigetafel/Start-Freigabe (lesen nur die Sicht, schicken Actions).
 - „Nächster Start“: BETRIEB_ZEIGEN {bereich, ref: sicht.offen[0].key, vorher: sicht.aktuell?.key ?? null}.
+  „Anderen Starter wählen“ (BetriebsFolge): dieselbe Action mit einem Start aus `sicht.waehlbar` (die nächsten 12,
+  ganze Folge mit „Boot fehlt“ am Punktende, Suche auch über zurueckgestellt/nachzuholen).
+- Start-Freigabe → Action: „Zurückstellen“ = ZURUECKSTELLEN {ref: offen[0]}; Einreihen-Knöpfe = EINREIHEN; Menü
+  „Verschieben …“ = VERSCHIEBEN {vor: offen[0]} (vorziehen), {nachPunkt: eigener} (ans Ende), {vor|nachPunkt} (Lauf n,
+  aus `sicht.programm`); „Boot fehlt“ = AUSSETZEN; „Vorziehen“ einer Klasse = KLASSE_VOR {vor: erste fahrende};
+  „Einsteigen ab …“ = AB {ref aus sicht.einstieg}; Vorlagen füllen nur den Entwurf, dann BETRIEB_MELDUNG.
+- E2-Schritte (alle bedingt/idempotent, nur festgeschrieben): ZURUECKSTELLEN {ref}, EINREIHEN {ref, wo}, AUSSETZEN
+  {klasse, an}, VORZIEHEN {an}, KLASSE_VOR {klasse, vor}, VERSCHIEBEN {ref, ziel: VerschiebeZiel}, AB {ref aus
+  sicht.einstieg}. Umstellungen → lage → schritte.ts → neue Kennungsfolge → `reihenfolge` (Schnappschuss) oder null.
+  Ohne Festschreiben sperrt die Start-Freigabe all das (`bereich.fest`); Zurück und Meldung gehen immer.
 - Zweites Fenster: main.ts liest `#/anzeige[/<bereich>]` (lib/router.ts vollbild) VOR jedem Store → AnzeigeApp mit
   createLeseStore() → storage-Ereignis → lies() → Sicht nach JSON verglichen (shallowRef) → AnzeigeTafel. Rückfall:
   Bedienfenster stößt per postMessage an (verbindeAnzeigen in main.ts), die Tafel meldet sich beim opener.
@@ -31,21 +55,46 @@ zweiten Fenster und Start-Freigabe am Bedienrechner, nur Manövrieren, ohne Netz
   trägt ihn trotzdem (`aktuell.key`, ohne Eintrag in `starter`): Sonst passte `vorher` nie und „Nächster Start“ hinge.
 - Entfallen heißt allein: ein X in einer Disq-Zelle des Laufs, Steg oder Vorsteg (lib/erfassung.ts nichtGestartet,
   dieselbe Frage wie die Wertung); `abgemeldet` filtert nicht.
-- Vor dem Zeiger = „nachzuholen“, nie von selbst der Nächste; der Nächste braucht einen begonnenen Punkt. Den Zeiger
-  schiebt nur Erledigtes begonnener Punkte (`zeigerNurBegonnene`: „nacheinander“ mitten im Lauf ausgeschaltet).
+- „Nachzuholen“ = überholt: Punkt begonnen und dahinter ein Erledigtes seines oder eines späteren begonnenen Punkts
+  (ohne Umstellung = vor dem Zeiger); nie von selbst der Nächste. Starts nicht begonnener Punkte warten, auch vor dem
+  Zeiger (`nichtBegonneneWarten`, S-9). Den Zeiger schiebt nur Erledigtes begonnener Punkte (`zeigerNurBegonnene`).
+- Einteilung in lage: zurückgestellt vor „Boot fehlt“ (Klasse ausgesetzt, gleich wo) vor nachzuholen vor offen.
+- Schnappschuss nur bei Abweichung und nur der umgestellten Punkte (`schnappschuss` lässt weg, was der Abgleich genau
+  so zurücklegt – geprüft durch Nachrechnen): Unberührte Läufe folgen einer später geänderten Verzahnung, umgestellte
+  nicht – `sicht.abweichend` zeigt das an. Verzahnung und WKR-Bögen ändert der Betrieb nie.
+- Blöcke (`bloecke`): je Punkt einer, in der Folge des Programms, mit möglichst vielen eigenen Starts; Gleichstand =
+  der frühere (ein Gast an der Grenze gehört zum Block davor). Ein Start eines späteren Laufs genau an der Grenze ist
+  der erste seines eigenen Blocks (BETRIEB_ANNAHMEN.bloeckeJePunkt).
+- Neu weben (webeNeu) fasst je Punkt nur Offenes IM EIGENEN BLOCK hinter dem Zeiger an (nicht begonnener Punkt: der
+  ganze Block); Gäste und Hinausgesetzte bleiben stehen. Gewoben wird je Starter (Versuche nacheinander bleiben
+  beisammen; ein angefangener Starter fährt zu Ende); ausgesetzte Klassen ans Ende; mit Pausen nur, wenn im Block noch
+  nichts erledigt ist. Boot zurück im stockenden Lauf: die Vorbeigezogenen hinter den Zeiger. Spätere Punkte bleiben.
+- Verschieben mit „Verzahnung halten“: Spur rutscht nur innerhalb des Blocks; über eine Laufgrenze genau ans Ziel.
+- arbeitsPunkt = der laufende, solange dort Starts frei sind oder ihr Boot fehlt (nicht der Punkt eines eingereihten
+  Nachzüglers). Leere Bereiche entfallen im Stand (mitBereich), unbekannte Bereiche ändern nichts (schrittErlaubt).
 - Sicht: nie Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen; nur vorkommende Starter. Neue Felder → sicht.test.ts
-  (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert. Zeitunabhängig: „seit“ rechnet der Bildschirm.
-- planEvent wird je Stand einmal gerechnet (WeakMap in folge.ts) – Stände nie verändern, immer neu anlegen.
+  (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert (sv 2 = E2, mit `programm`). Zeitunabhängig:
+  „seit“ rechnet der Bildschirm. `waehlbar` trägt alle offenen Starts aller Punkte – damit stehen fast alle Starter in
+  `starter`. „Lauf stockt“ (nichts frei, aber zurückgestellt/„Boot fehlt“/nachzuholen in begonnenen Punkten) rechnet
+  die Start-Freigabe aus der Sicht – der Lauf ist dann nicht zu Ende.
+- planEvent wird je Planungsstand einmal gerechnet (WeakMap über parcoursList → starters, dazu boats/class4Small in
+  folge.ts) – Stände nie verändern, immer neu anlegen.
 - Texte der Tafel in deren Sprache (tIn(sicht.sprache), Bogentexte in der Sicht); Bedienung in der Oberflächensprache.
   Start-Freigabe zeigt Namen nach der öffentlichen Einstellung (`namen: 'ohne'` ⇒ auch dort keine).
 - Schreib-Spione in Tests an der Instanz (`vi.spyOn(localStorage, 'setItem')`): localStorage ist dort eine eigene
   Klasse (test-setup.ts), ein Spion an Storage.prototype sieht nichts. Echter Start mit `#/anzeige`: src/main.test.ts.
-- AnzeigeApp vergleicht die Sicht nach Inhalt: Ein neues Feld, das sich bei jeder Eingabe ändert, zeichnete die Tafel
-  bei jedem Tastendruck neu (AnzeigeApp.test.ts „zwei Fenster“ fängt das).
+- AnzeigeApp vergleicht die Sicht nach Inhalt – ohne `veranstaltung` (nur für die Vorlagen der Start-Freigabe): Ein
+  neues Feld, das sich bei jeder Eingabe ändert, zeichnete die Tafel bei jedem Tastendruck neu (AnzeigeApp.test.ts
+  „zwei Fenster“ fängt das, auch das Tippen des Namens bei eigener Kopfzeile).
+- `einstieg` trägt Starts der Sicht (mit Starter, ohne Entfallene): „Weiter mit“ nennt auch einen schon „ohne Anzeige“
+  erledigten. BETRIEB_AB setzt den gewählten Start und das mit ihm wieder Offene hinter den Zeiger, wenn danach schon
+  gezeigt wurde – sonst überholte ihn das Gezeigte.
 
 ## Tests
 
 `npx vitest run src/betrieb src/state/betrieb src/state/leseStore src/components/anzeige src/AnzeigeApp src/main
-src/views/Betrieb src/lib/anzeigeFenster src/lib/fit` (Hilfen: testHilfen.ts betriebsStand, festgeschrieben, zeigeNaechsten
-– nimmt `ref`/`vorher` aus der Sicht wie die Start-Freigabe;
-Starter e1/k1/e2/k2 auf Parcours 1, v1/f1/v2 auf Parcours 2; Einstellungen: views/SettingsView.test.ts „Anzeigetafel“).
+src/views/Betrieb src/lib/anzeigeFenster src/lib/fit src/planung/verzahnung`. Hilfen: testHilfen.ts betriebsStand,
+festgeschrieben, zeigeNaechsten – nimmt `ref`/`vorher` aus der Sicht wie die Start-Freigabe; Starter e1/k1/e2/k2 auf
+Parcours 1, v1/f1/v2 auf Parcours 2. E2: betrieb/schritte.test.ts mit eigener Hilfe `stand({E: 2, '1': 6 …}, {spuren,
+laeufe})` (V-5-Beispiel, S-4/S-9, B-10, AB, Abgleich, WKR-Bögen unverändert). Oberfläche E2: views/Betrieb.test.ts
+(`klassenStand`, `v5`; Abnahme: außer `betrieb` ändert sich nichts). Einstellungen: views/SettingsView.test.ts.

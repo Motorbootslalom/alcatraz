@@ -207,6 +207,13 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'BETRIEB_ZURUECK':
     case 'BETRIEB_MELDUNG':
     case 'BETRIEB_ZURUECKSETZEN':
+    case 'BETRIEB_ZURUECKSTELLEN':
+    case 'BETRIEB_EINREIHEN':
+    case 'BETRIEB_AUSSETZEN':
+    case 'BETRIEB_VORZIEHEN':
+    case 'BETRIEB_KLASSE_VOR':
+    case 'BETRIEB_VERSCHIEBEN':
+    case 'BETRIEB_AB':
       return null
     case 'SET_EINGABEN': {
       const ids = new Set(action.zellen.map((z) => z.starter))

@@ -128,6 +128,20 @@ describe('Fenster der Anzeigetafel', () => {
     expect(w.find(`[data-bereich="${P1}"] .anzeige-inhalt`).element).toBe(block)
     expect(w.html()).not.toContain('83.4')
 
+    // Den Namen der Veranstaltung tippen, während eine eigene Kopfzeile steht: Die Sicht trägt ihn nur für die
+    // Meldungsvorlagen der Start-Freigabe – die Tafel zeigt ihn nicht und bleibt unberührt.
+    bedienung.dispatch({ type: 'SET_ANZEIGE', patch: { kopfzeile: 'Eigene Kopfzeile' } })
+    ereignis()
+    await flushPromises()
+    aenderungen.length = 0
+    for (const name of ['M', 'Mu', 'Mus']) {
+      bedienung.dispatch({ type: 'SET_EVENT', patch: { eventName: name } })
+      ereignis()
+      await flushPromises()
+    }
+    expect(aenderungen).toEqual([])
+    expect(w.find(`[data-bereich="${P1}"] .anzeige-inhalt`).element).toBe(block)
+
     // Der nächste Start: ein neuer Block mit k1.
     naechster(bedienung)
     ereignis()

@@ -253,30 +253,71 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
 
 Am Wettkampftag gibt der Bedienrechner frei, wer als Nächstes startet, und eine **Anzeigetafel** zeigt es – in einem
 zweiten Fenster, etwa auf einem Monitor am Steg (Reiter „Betrieb“, `src/views/BetriebView.vue`; Plan zur Übernahme des
-Prototyps `tafel` vom 16.11.2026, Etappe E1). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
-Mehrere Geräte über das Internet kommen später; diese Etappe braucht kein Netz.
+Prototyps `tafel` vom 16.11.2026, Etappen E1 und E2). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
+Mehrere Geräte über das Internet kommen später; bisher braucht nichts davon ein Netz.
 
 - **Voraussetzung:** Die Verzahnung ist festgeschrieben. Erst dann stehen Startnummern und Folge fest;
   vorher zeigt der Reiter nur den Weg zur Verzahnung. Wird sie mitten am Tag gelöst, bleiben die Karten stehen:
-  „Nächster Start“ und „Lauf beginnen“ ruhen, Zurück, Meldungen und Zurücksetzen gehen weiter.
+  Zeigen, „Lauf beginnen“ und alles, was die Folge umstellt, ruhen; Zurück, Meldungen und Zurücksetzen gehen weiter.
 - **Die Folge der Starts** wird nie gespeichert, sondern aus der Verzahnung abgeleitet, Lauf für Lauf – dieselbe wie
-  auf den WKR-Bögen (`src/betrieb/folge.ts`). Gespeichert wird nur, was gezeigt und begonnen wurde.
+  auf den WKR-Bögen (`src/betrieb/folge.ts`). Gespeichert wird nur, was gezeigt und begonnen wurde – und, sobald die
+  Start-Freigabe umstellt, ein Schnappschuss der Folge (`src/betrieb/schritte.ts`). Verzahnung und WKR-Bögen ändert der
+  Betrieb nie; eine Nachmeldung oder ein X fließt auch in eine umgestellte Folge ein.
   Mit „Versuche direkt nacheinander“ (UIM) fährt jeder Starter seine Versuche hintereinander, alle in einem Punkt.
+- **Freigegeben wird nach Lauf, nicht nach Stelle:** Ein Start eines Laufs, der noch nicht begonnen hat, wartet – auch
+  wenn er schon mitten im laufenden steht (etwa der dritte Lauf ans Ende von Lauf 2 gesetzt); gezielt zeigen geht immer.
 - **Start-Freigabe** je Parcours (`src/components/betrieb/StartFreigabe.vue`):
   - „Lauf N beginnen“ gibt die Starts des Laufs frei. Sind im laufenden Lauf noch Starts offen, fragt es erst;
     sie bleiben freigegeben und kommen vor dem neuen Lauf dran.
   - „Nächster Start“ bringt den nächsten offenen Start auf die Anzeigetafel, „Zurück“ nimmt ihn zurück.
     Ein Doppelklick schaltet nur einmal: Jeder Klick nennt den Start, der gerade steht.
   - Am Ende eines Laufs bleibt die Anzeigetafel auf dem letzten Starter stehen, bis der nächste Lauf beginnt.
-  - **Nachzuholen:** Starts vor dem zuletzt gezeigten, die noch nicht dran waren – eine Nachmeldung, ein entferntes X,
-    ein verpasster Lauf. Sie kommen nie von selbst als Nächstes; „Jetzt zeigen“ holt einen gezielt.
+  - **Zurückstellen:** Der Nächste ist kurzfristig verhindert – er fährt vorerst nicht, bleibt aber unter
+    „Zurückgestellt“ sichtbar. Von dort „Als Nächster“, „Ans Ende des Laufs“ oder „Jetzt zeigen“.
+  - **Nachzuholen:** Starts, die überholt wurden, ohne dran gewesen zu sein – eine Nachmeldung, ein entferntes X,
+    ein verpasster Lauf. Sie kommen nie von selbst als Nächstes; „Jetzt zeigen“, „Als Nächster“ oder „Ans Ende des
+    Laufs“ (ist der eigene Lauf vorbei: ans Ende des laufenden).
+  - **Anderen Starter wählen** (`BetriebsFolge.vue`): die nächsten zwölf offenen Starts, auf Wunsch die ganze Folge,
+    und eine Suche nach Startnummer oder Name über alles, was noch zu zeigen ist – auch aus anderen Klassen und
+    späteren Läufen („wartet, bis Lauf 3 beginnt“). „Zeigen“ holt den Start sofort auf die Anzeigetafel; er steht dann
+    in der Folge dort, wo er gefahren ist, und der bisherige Nächste bleibt der Nächste. Gehören alle Treffer der
+    Suche zu einem Starter (eine volle Startnummer findet ihn in jedem Lauf), ist sein Start im laufenden Lauf
+    markiert, und die Eingabetaste zeigt ihn. Nach „Zeigen“ steht der Fokus auf „Nächster Start“.
+  - **Verschieben** (Menüknopf je Start, die Ziele klappen als Knöpfe auf): vorziehen (vor den Nächsten), ans Ende
+    des Laufs, vor oder nach einem anderen Lauf – etwa den dritten Lauf ans Ende von Lauf 2 oder den zweiten vor
+    Beginn von Lauf 3. Nie vor schon Gefahrenes. Mit „Verzahnung beim Verschieben halten“ (Einstellung, Vorgabe an)
+    rutscht innerhalb eines Laufs die Spur mit: Der Start bekommt den nächsten Platz seiner Spur, zwei Starts derselben
+    Spur folgen dort nie aufeinander. In einen anderen Lauf geht er genau ans Ziel; die anderen Läufe bleiben, wie sie
+    sind.
+  - Was die Bedienung in einen anderen Lauf gesetzt hat (eingereiht, verschoben, gezielt gezeigt), bleibt dort, auch
+    wenn später eine Klasse aussetzt oder vorgezogen wird. Läufe, die der Betrieb nicht umgestellt hat, folgen
+    weiter der Verzahnung – auch wenn sie gelöst, geändert und wieder festgeschrieben wird.
+  - **Klassen · Boot fehlt** (`KlassenAussetzen.vue`): die Klassen in der Folge, in der sie drankommen, je mit der
+    Zahl ihrer ausstehenden Starts, darunter die Folge als Klassenplaketten. „Boot fehlt“: Die Klasse fährt vorerst
+    nicht, ihre Starts stehen grau am Ende des Laufs. Mit „Andere Klassen vorziehen“ (Vorgabe an) rückt die nächste
+    Klasse derselben Spur auf ihre Plätze (`E2E21212121216163` → `E6E61111113`), sonst schließen sich nur die Lücken
+    (`EE111116163`). „Boot ist zurück“ verzahnt den Rest des Laufs wieder mit ihr – auch wenn der Lauf schon
+    stockte –; spätere Läufe bleiben, wie sie sind. Mit „Versuche direkt nacheinander“ bleiben die Versuche eines
+    Starters dabei beisammen. Die Klassen gelten dem laufenden Lauf, auch wenn gerade ein Nachzügler eines früheren
+    als Nächster eingereiht ist. „Vorziehen“ macht eine Klasse zur nächsten, umgestellt nur innerhalb der Spuren – eine Klasse, die ihre
+    Spur für sich hat, hat diesen Knopf nicht.
+  - Sind nur noch zurückgestellte, nachzuholende oder „Boot fehlt“-Starts übrig, stockt der Lauf: Die Karte sagt es,
+    der Lauf ist nicht zu Ende.
+  - **Einsteigen ab …** Lauf und wahlweise Klasse: wenn die Start-Freigabe erst mitten im Wettkampf dazukommt.
+    Was davor nicht gezeigt wurde, gilt als gefahren (ohne Anzeige, ohne Zeit), die Läufe bis dahin als begonnen.
+    „Weiter mit“ nennt den Start mit Nummer und Name; er ist danach der Nächste. Ein früherer Einstieg nimmt einen zu
+    späten zurück, auch wenn inzwischen schon gezeigt wurde.
+  - Ist die Folge umgestellt, sagt die Karte das – mit dem Hinweis, dass die WKR-Bögen bleiben, wie sie sind.
+  - Rückfrage gibt es nur vor „Lauf beginnen“, solange Starts offen sind; alles andere lässt sich zurücknehmen.
   - Ein Start mit X („nicht gestartet“) in einer Disq-Zelle des Laufs – am Steg oder am Vorsteg, wie in Wertung und
     Erfassung – entfällt; wird das X entfernt, ist er wieder da. Der Betrieb selbst setzt nie ein X und ändert keine
     Wertungsliste.
   - Wird der Starter im Boot gelöscht (vor dem ersten Wert), zeigt die Anzeigetafel „bereit“; „Nächster Start“
     geht weiter.
   - **Meldung** je Parcours oder auf allen: Störung und Pause stehen statt des Starters auf der Anzeigetafel,
-    ein Hinweis steht darunter.
+    ein Hinweis steht darunter. **Vorlagen** (Begrüßung, Dank, Pause, Störung; `src/betrieb/meldungen.ts`): wählen,
+    „Übernehmen“ schreibt sie ins Textfeld – Uhrzeit oder Tag anpassen, dann zeigen. Ihr Text steht in der Sprache der Anzeigetafel, mit
+    dem Namen der Veranstaltung.
   - „Betrieb zurücksetzen“ (mit Rückfrage) löscht Begonnenes, Gezeigtes und Meldungen; Starter, Verzahnung und Werte bleiben.
 - **Anzeigetafel** (`src/AnzeigeApp.vue`, `src/components/anzeige/`): „Anzeigetafel öffnen“ öffnet ein eigenes Fenster
   (`#/anzeige`, englisch `#/display`; je Parcours `#/anzeige/<parcours>`). Taste F oder Doppelklick schaltet Vollbild,
@@ -296,7 +337,8 @@ Mehrere Geräte über das Internet kommen später; diese Etappe braucht kein Net
 - **Einstellungen** unter „Einstellungen → Anzeigetafel“: Kopfzeile (Vorgabe Name und Jahr der Veranstaltung,
   eigener Text oder keine), Logos links und rechts daneben (die der Listen), welche Parcours die gemeinsame Tafel
   zeigt, Start davor, Name des Parcours, Namen (wie der Aushang der Wertungslisten, voll, gekürzt, ohne), Herkunft,
-  Sprache und Schriftgröße (70–130 %). Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile.
+  Sprache und Schriftgröße (70–130 %). Unter „Einstellungen → Startfolge im Betrieb“: „Verzahnung beim Verschieben
+  halten“. Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile.
 - **Gespeichert:** Der Betrieb steht in der Sicherung, nicht in der Vorlage. „Verlauf wiederherstellen“ (innerhalb
   derselben Veranstaltung) und „Alle erfassten Werte löschen“ lassen ihn stehen; ein Stand einer anderen
   Veranstaltung bringt seinen eigenen Betrieb mit.

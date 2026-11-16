@@ -33,9 +33,10 @@ export type ReiterView = keyof ReiterNamen
 /**
  * Sprungziele innerhalb einer Ansicht (`#/einstellungen?wertung`): Abschnitte der
  * Einstellungen und, unter „Veranstaltung“, der Block „Besetzung“ (`besetzung`; `wkr` meint
- * darin die WKR-Einteilung) und der Block mit „Alle erfassten Werte löschen“ (`werte`).
+ * darin die WKR-Einteilung) und der Block mit „Alle erfassten Werte löschen“ (`werte`). Für den Betrieb:
+ * `anzeigetafel` und `betrieb` („Startfolge im Betrieb“, geschrieben `startfolge` bzw. `start-order`).
  */
-export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline' | 'anzeigetafel'
+export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline' | 'anzeigetafel' | 'betrieb'
 
 /**
  * Fenster mit eigener Wurzel, ohne Kopf, Reiter und Fuß (src/main.ts wählt sie vor dem Store):
@@ -92,7 +93,7 @@ export const ADRESSEN = {
       verzahnung: { manoever: 'manoever', parallel: 'parallel' },
       betrieb: { start: 'start' },
     },
-    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel' },
+    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge' },
     vollbild: { anzeige: 'anzeige' },
   },
   en: {
@@ -123,7 +124,7 @@ export const ADRESSEN = {
       verzahnung: { manoever: 'manoeuvring', parallel: 'parallel' },
       betrieb: { start: 'start' },
     },
-    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board' },
+    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order' },
     // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen.
     vollbild: { anzeige: 'display' },
   },

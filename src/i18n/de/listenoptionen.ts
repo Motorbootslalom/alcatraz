@@ -134,6 +134,14 @@ export default {
   'listopt.anzeige.logos': 'Logos neben der Kopfzeile',
   'listopt.anzeige.logos.hint': 'Die Logos aus „{logos}“, links und rechts – nur auf der Anzeigetafel dieses Rechners.',
 
+  // Startfolge im Betrieb (Plan vom 16.11.2026, E2): wie die Start-Freigabe umstellt. Ab E3 Am/Vor Steg, Startabstände.
+  'listopt.betrieb.title': 'Startfolge im Betrieb',
+  'listopt.betrieb.hint':
+    'Wie die Start-Freigabe die Folge der Starts umstellt, wenn ein Start verschoben wird. Verzahnung und Wettkampfrichter-Listen ändert sie nie.',
+  'listopt.betrieb.verzahnungHalten': 'Verzahnung beim Verschieben halten',
+  'listopt.betrieb.verzahnungHalten.hint':
+    'Wird ein Start innerhalb seines Laufs verschoben, rutscht seine Spur mit: So folgen dort nie zwei Starts derselben Spur aufeinander, und am Steg bleibt Zeit für den Bootswechsel. In einen anderen Lauf geht er genau ans Ziel. Ausschalten, wenn eine Folge bewusst genau so gewollt ist.',
+
   'origin.style.aus': 'nicht zeigen',
   'origin.style.lang': 'ausgeschrieben',
   'origin.style.kurz': 'Kürzel',

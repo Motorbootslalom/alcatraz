@@ -7,7 +7,7 @@
 //   types/einstellungen.ts  OriginMode, OriginStyle, EventKind, Einteilung, WkrSprachen, Besetzung, LaufzettelLayout,
 //                           LogoSeite, LogoBild, Logos
 //   types/bogen.ts          SheetDef, Column, CellKind, ErrorDef, DisqDef, Sprache, Geraet, TrennerDesign
-//   types/betrieb.ts        BereichId, PunktId, StartRef, Meldung, BereichBetrieb, Betrieb, AnzeigeEinstellungen,
+//   types/betrieb.ts        BereichId, PunktId, StartRef, VerschiebeZiel, Meldung, BereichBetrieb, Betrieb, AnzeigeEinstellungen,
 //                           OeffentlicheSicht (Sicht…)
 // Die Teile enthalten nur Typen; der einzige Wert, SCHEMA_VERSION, bleibt hier.
 

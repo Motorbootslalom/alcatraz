@@ -1,12 +1,13 @@
 import type { Locale } from '../i18n'
-import type { AppState, ClassId, OeffentlicheSicht, PunktId, SichtBereich, SichtHerkunft, SichtKlasse, SichtPunkt, SichtStart, SichtStarter, Starter } from '../types'
+import type { AppState, ClassId, OeffentlicheSicht, PunktId, SichtBereich, SichtEinstieg, SichtHerkunft, SichtKlasse, SichtKlassenStand, SichtPunkt, SichtStart, SichtStarter, Starter } from '../types'
 import { regelwerkOf } from '../config/catalog'
 import { bogenTexte, type BogenTexte } from '../config/sprache'
 import { classColor } from '../domain/classes'
 import { listenNachname } from '../lib/namen'
 import { starterHerkunft } from '../lib/origin'
 import { laenderKuerzelFuer, regelwerkSprache } from '../lib/listensprache'
-import { bereicheZumStand, betriebVon, laeufeVonPunkt, lage, punktVonLauf, type FolgeEintrag, type GezeigtEintrag } from './folge'
+import { bereicheZumStand, betriebVon, laeufeVonPunkt, lage, punktVonLauf, spurenVon, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
+import { ersterStart, klasseAllein, klassenNachNaechstemStart } from './schritte'
 
 // Die öffentliche Sicht auf den Betrieb – die EINE Stelle, an der entschieden wird, was Anzeigetafel,
 // Zuschauer und Start-Freigabe vom Stand zu sehen bekommen (Plan vom 16.11.2026, §1 und §3). Andere
@@ -54,6 +55,36 @@ function anzeigeHerkunft(p: Starter, stand: AppState, sprache: Locale): SichtHer
   const h = starterHerkunft(p, stand.originMode, stil, stand.originShort, sprache, laenderKuerzelFuer(stand.regelwerk))
   if (!h.klartext) return null
   return { text: h.text, klartext: h.klartext, druck: h.druck, alt: h.alt, ...(h.flagge ? { flagge: h.flagge } : {}) }
+}
+
+/**
+ * Die Klassen des Arbeitspunkts für die Start-Freigabe (B-9, B-10): fahrende in der Folge ihres nächsten
+ * Starts, ausgesetzte dahinter (auch ohne offene Starts – sonst ließen sie sich nicht zurückholen).
+ */
+function klassenFolge(l: BereichLage, stand: AppState): SichtKlassenStand[] {
+  const fahrend = klassenNachNaechstemStart(l)
+  const spuren = spurenVon(stand, l.bereich)
+  const imPunkt = [...l.offen, ...l.bootFehlt].filter((e) => e.punkt === l.arbeitsPunkt)
+  const zahl = (k: ClassId) => imPunkt.filter((e) => e.klasse === k).length
+  // Ausgesetzte in der Folge ihres ersten ausstehenden Starts im Punkt, die übrigen in der Folge des Aussetzens.
+  const ausgesetzt = [...new Set([...imPunkt.filter((e) => l.ausgesetzt.includes(e.klasse)).map((e) => e.klasse), ...l.ausgesetzt])]
+  return [
+    ...fahrend.map((klasse) => ({ klasse, offen: zahl(klasse), ausgesetzt: false, verschiebbar: !klasseAllein(klasse, fahrend, spuren) })),
+    ...ausgesetzt.map((klasse) => ({ klasse, offen: zahl(klasse), ausgesetzt: true, verschiebbar: false })),
+  ]
+}
+
+/**
+ * „Einsteigen ab …“: je Punkt der erste noch nicht gezeigte, nicht entfallene Start, dazu je Klasse darin (in der
+ * Folge ihres ersten Starts). Als Start der Sicht – so steht auch ein schon „ohne Anzeige“ erledigter mit Nummer da.
+ */
+function einstiege(l: BereichLage, start: (e: FolgeEintrag) => SichtStart): SichtEinstieg[] {
+  return l.programm.flatMap((punkt) => {
+    const erster = ersterStart(l, punkt)
+    if (!erster) return []
+    const klassen = [...new Set(l.folge.filter((e) => e.punkt === punkt && !e.entfaellt && !l.gezeigtKeys.has(e.key)).map((e) => e.klasse))]
+    return [{ ...start(erster), klasse: null }, ...klassen.map((klasse) => ({ ...start(ersterStart(l, punkt, klasse)!), klasse }))]
+  })
 }
 
 function sichtPunkt(stand: AppState, punkt: PunktId | null, texte: BogenTexte): SichtPunkt | null {
@@ -110,20 +141,34 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       offenZahl: l.frei.length,
       nachzuholen: l.nachzuholen.map(start),
       meldung: betriebVon(stand, b.id).meldung,
+      begonnen: l.begonnen,
+      waehlbar: l.offen.map(start),
+      zurueckgestellt: l.zurueckgestellt.map(start),
+      bootFehlt: l.bootFehlt.map(start),
+      arbeitsPunkt: sichtPunkt(stand, l.arbeitsPunkt, texte),
+      programm: l.programm.map((p) => sichtPunkt(stand, p, texte)!),
+      klassenFolge: klassenFolge(l, stand),
+      vorziehen: l.vorziehen,
+      abweichend: l.abweichend,
+      einstieg: einstiege(l, start),
     }
   })
 
   const starter: Record<string, SichtStarter> = {}
   const klassen: Partial<Record<ClassId, SichtKlasse>> = {}
+  const klasse = (k: ClassId) => (klassen[k] ??= { name: texte.klasseName(k), titel: texte.klasse(k), farbe: classColor(k) })
   for (const [id, p] of vorkommend) {
     starter[id] = { startNr: p.startNr, name: anzeigeName(p, stand), klasse: p.klasse, herkunft: anzeigeHerkunft(p, stand, sprache) }
-    klassen[p.klasse] ??= { name: texte.klasseName(p.klasse), titel: texte.klasse(p.klasse), farbe: classColor(p.klasse) }
+    klasse(p.klasse)
   }
+  // Auch eine ausgesetzte Klasse ohne offenen Start braucht ihren Namen an der Start-Freigabe.
+  for (const b of bereiche) for (const k of b.klassenFolge) klasse(k.klasse)
 
   const mitLogos = (optionen.logos ?? true) && stand.anzeige.logos && (stand.logos.links !== null || stand.logos.rechts !== null)
   return {
-    sv: 1,
+    sv: 2,
     kopf: kopfzeile(stand),
+    veranstaltung: stand.eventName.trim(),
     sprache,
     skala: stand.anzeige.skala,
     ...(mitLogos ? { logos: { links: stand.logos.links, rechts: stand.logos.rechts } } : {}),

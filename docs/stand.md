@@ -48,12 +48,13 @@ Alcatraz führt die bisherigen Prototypen zusammen:
 Listen und Wertung des Parallelslaloms sind inzwischen ebenfalls da
 ([Parallelslalom](parallelslalom.md)).
 
-**Aus `tafel`** ist übernommen (Plan vom 16.11.2026, Etappe E1;
+**Aus `tafel`** ist übernommen (Plan vom 16.11.2026, Etappen E1 und E2;
 [Betrieb: Start-Freigabe und Anzeigetafel](funktionen.md#betrieb-start-freigabe-und-anzeigetafel)):
 die Anzeigetafel in einem zweiten Fenster am Bedienrechner und die Start-Freigabe dort, für das Manövrieren,
-ohne Netz. Es folgen in Etappen: Steuerung mit Zurückstellen, Aussetzen und Verschieben, die Startliste im Betrieb
-mit Zeitprognose und Zuschauerliste, der Parallelslalom auf der Anzeigetafel, dann Anzeigetafel, Zuschauer und
-Start-Freigabe auf anderen Geräten (verschlüsselt über ntfy).
+ohne Netz – mit Zurückstellen, anderem Starter, Verschieben, „Boot fehlt“ und Klassen vorziehen, Meldungsvorlagen
+und „Einsteigen ab …“. Es folgen in Etappen: die Startliste im Betrieb mit Zeitprognose und Zuschauerliste, der
+Parallelslalom auf der Anzeigetafel, dann Anzeigetafel, Zuschauer und Start-Freigabe auf anderen Geräten
+(verschlüsselt über ntfy).
 
 **Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
 (`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).
@@ -99,11 +100,13 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
       mit der Startliste im Betrieb
     - [ ] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg) → vorbereitet (2/2 im Stand),
       noch nicht einstellbar
-    - [ ] Reihenfolge, je nach Berechtigung, änderbar → offen: Verschieben kommt; Berechtigungen mit den Geräten
+    - [ ] Reihenfolge, je nach Berechtigung, änderbar → teilweise: an der Start-Freigabe zurückstellen, verschieben,
+      Klasse aussetzen oder vorziehen; Berechtigungen kommen mit den Geräten
     - [x] Unterschiedliche Farben für Klasse und Lauf → Anzeigetafel (Klasse mit Klassenfarbe, Lauf in eigener Farbe)
     - [x] Starter rutschen automatisch hoch nach abgeschlossenem Lauf → „Nächster Start“ zeigt den Nächsten der Folge;
       der Lauf danach wird ausdrücklich begonnen
     - [ ] Zeitplan (Pausen, Feierabend etc.) bei der Sortierung → offen; Pausen gibt es als Meldung auf der Anzeigetafel
+      (auch als Vorlage: Mittagspause, Siegerehrung …)
     - [ ] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg → offen, kommt mit der Startliste im Betrieb
 - [x] Gedruckte WKR-Listen → [Wettkampfrichter-Listen](funktionen.md#wettkampfrichter-listen)
   - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)

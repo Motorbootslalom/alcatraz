@@ -49,9 +49,12 @@ describe('Betrieb: Lauf beginnen und Starts zeigen', () => {
     expect(reducer(einmal, { ...zeige, ref: m('k1', 1) })).toBe(einmal)
     const zwei = reducer(einmal, { ...zeige, ref: m('k1', 1), vorher: m('e1', 1), zeit: 2000 })
     expect(zwei.betrieb.bereiche[P1].gezeigt.map((g) => g.ref)).toEqual([m('e1', 1), m('k1', 1)])
-    // Nur der Nächste (oder ein nachzuholender) – nicht irgendein offener Start, nicht einer aus Lauf 2.
-    expect(reducer(zwei, { ...zeige, ref: m('k2', 1), vorher: m('k1', 1) })).toBe(zwei)
-    expect(reducer(zwei, { ...zeige, ref: m('e1', 2), vorher: m('k1', 1) })).toBe(zwei)
+    // Nie ein schon erledigter, nie einer, den es nicht gibt. Gezielt (E2, B-5) geht jeder andere offene Start,
+    // auch einer aus Lauf 2 – siehe betrieb/schritte.test.ts.
+    expect(reducer(zwei, { ...zeige, ref: m('e1', 1), vorher: m('k1', 1) })).toBe(zwei)
+    expect(reducer(zwei, { ...zeige, ref: m('x9', 1), vorher: m('k1', 1) })).toBe(zwei)
+    const gezielt = reducer(zwei, { ...zeige, ref: m('e1', 2), vorher: m('k1', 1) })
+    expect([lage(gezielt, P1).aktuell?.key, lage(gezielt, P1).naechster?.key]).toEqual([m('e1', 2), m('e2', 1)])
     // Ohne Zeit (Tests, alte Wege) steht 0 – der Reducer fragt keine Uhr.
     const ohneZeit = reducer(s, { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: m('e1', 1), vorher: null })
     expect(ohneZeit.betrieb.bereiche[P1].gezeigt[0].zeit).toBe(0)
@@ -92,10 +95,11 @@ describe('Betrieb: Meldungen und Zurücksetzen', () => {
     const alle = reducer(eine, { type: 'BETRIEB_MELDUNG', bereich: '*', meldung: { text: 'Mittagspause', art: 'pause' } })
     expect([alle.betrieb.bereiche[P1].meldung?.text, alle.betrieb.bereiche[P2].meldung?.text]).toEqual(['Mittagspause', 'Mittagspause'])
     const weg = reducer(alle, { type: 'BETRIEB_MELDUNG', bereich: '*', meldung: null })
-    expect([weg.betrieb.bereiche[P1].meldung, weg.betrieb.bereiche[P2].meldung]).toEqual([null, null])
+    // Ohne Meldung ist in beiden Bereichen nichts mehr geschehen: Ihre Einträge fallen weg (wie beim Laden).
+    expect(weg.betrieb.bereiche).toEqual({})
     expect(reducer(weg, { type: 'BETRIEB_MELDUNG', bereich: '*', meldung: null })).toBe(weg)
     // Leerer Text löscht, zu lang wird gekürzt, unbekannte Art ist ein Hinweis, unbekannter Bereich nichts.
-    expect(reducer(eine, { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: '   ', art: 'info' } }).betrieb.bereiche[P1].meldung).toBeNull()
+    expect(reducer(eine, { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: '   ', art: 'info' } }).betrieb.bereiche[P1]?.meldung ?? null).toBeNull()
     const lang = reducer(s, { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: 'x'.repeat(500), art: 'laut' as 'info' } })
     expect([lang.betrieb.bereiche[P1].meldung?.text.length, lang.betrieb.bereiche[P1].meldung?.art]).toEqual([MELDUNG_MAX, 'info'])
     expect(reducer(s, { type: 'BETRIEB_MELDUNG', bereich: 'gibt-es-nicht', meldung: stoerung })).toBe(s)
@@ -134,7 +138,7 @@ describe('Einstellungen der Anzeigetafel (SET_ANZEIGE)', () => {
       bereiche: {
         par_1: { begonnen: ['lauf:1', 'lauf:0', 'lauf:1'], gezeigt: [{ ref: m('e1', 1), zeit: 5 }, { ref: 'kaputt', zeit: 1 }, { ref: m('k1', 1), zeit: -1 }], meldung: { text: '' }, ausgesetzt: ['E', 'Q'], vorziehen: 'ja' },
         par_9: { begonnen: ['lauf:1'] },
-        leer: { begonnen: [] },
+        leer: { begonnen: [], vorziehen: true },
       },
     }
     expect(normalisiereBetrieb(roh, ['par_1', 'leer'])).toEqual({
@@ -146,11 +150,15 @@ describe('Einstellungen der Anzeigetafel (SET_ANZEIGE)', () => {
           zurueckgestellt: [],
           reihenfolge: null,
           ausgesetzt: ['E'],
-          vorziehen: false,
+          // Kein Wahrheitswert: die Vorgabe (BETRIEB_ANNAHMEN.vorziehenVorgabe, an).
+          vorziehen: true,
           meldung: null,
         },
       },
     })
+    // Ausdrücklich aus bleibt aus; Kennungen der Folge und Zurückgestelltes werden geprüft wie gezeigte.
+    const aus = normalisiereBetrieb({ bereiche: { par_1: { vorziehen: false, reihenfolge: [m('e1', 1), 'kaputt', m('e1', 1)], zurueckgestellt: [7, m('k1', 1)] } } })
+    expect(aus.bereiche.par_1).toMatchObject({ vorziehen: false, reihenfolge: [m('e1', 1)], zurueckgestellt: [m('k1', 1)] })
   })
 })
 

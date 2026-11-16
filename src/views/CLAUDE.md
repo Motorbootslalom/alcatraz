@@ -18,14 +18,17 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
   druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`), print() setzt
   document.title (= Dateiname) und ruft window.print().
 - `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start` (useReiter; E3 startliste, E6 geraete),
-  „Anzeigetafel öffnen“ (lib/anzeigeFenster.ts), je Parcours components/betrieb/StartFreigabe.vue aus sichtOeffentlich;
-  ohne festgeschriebene Verzahnung nur der Hinweis `vor-verzahnung` (mit schon begonnenem Betrieb dazu die Karten,
-  ohne „Nächster Start“/„beginnen“); „Betrieb zurücksetzen“ mit AppDialog.
+  „Anzeigetafel öffnen“ (lib/anzeigeFenster.ts), Verweise auf `#anzeigetafel` und `#betrieb` (Startfolge), je Parcours
+  components/betrieb/StartFreigabe.vue aus sichtOeffentlich (mit der Steuerung von E2); ohne festgeschriebene Verzahnung
+  nur der Hinweis `vor-verzahnung` (mit schon begonnenem Betrieb dazu die Karten, ohne Zeigen/Beginnen/Umstellen);
+  „Betrieb zurücksetzen“ mit AppDialog.
 - `ErfassungView.vue` – Bogen wählen oder scannen, Eingabetabelle; nach Laufzettel-Scan alle Blätter untereinander.
 - `SettingsView.vue` (~880 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (logos (LogosPanel),
   wertung, streichlaeufe, ergebnislisten, pokal, wkr-listen, wkr-zeilen-je-seite, wkr-teilen-ab, wkr-leerzeilen,
-  laufzettel-layout, anzeigetafel, dateien …) und `data-feld` je Steuerelement; Kürzel, Dateien, Verlauf.
-  Anzeigetafel: data-feld `anzeige-*` → SET_ANZEIGE; Sprungziel `#/einstellungen?anzeigetafel`.
+  laufzettel-layout, anzeigetafel, betrieb, dateien …) und `data-feld` je Steuerelement; Kürzel, Dateien, Verlauf.
+  Anzeigetafel: data-feld `anzeige-*` → SET_ANZEIGE; Sprungziel `#/einstellungen?anzeigetafel`. Startfolge im Betrieb
+  (`#betrieb`, Sprungziel `?startfolge`/`?start-order`): `betrieb-verzahnung-halten` → SET_ANZEIGE {verzahnungHalten};
+  ab E3 dort auch Am/Vor Steg und Startabstände.
 
 ## Abläufe
 
@@ -72,5 +75,5 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 
 Je Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meist über ListsView), z. B. Verwiegung
 (Link zu den Gewichtslisten), Ergebnislisten, ParallelErgebnis, Einzelwertung, Pokalauswertung, Laufzettel, Druckdatei,
-Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel), Betrieb (Start-Freigabe), Listenoptionen, ErfassungView, ErfassungScan, Dolphin, UimAushang (englisch).
+Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel, Startfolge), Betrieb (Start-Freigabe, E2-Steuerung), Listenoptionen, ErfassungView, ErfassungScan, Dolphin, UimAushang (englisch).
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

@@ -830,4 +830,34 @@ describe('Einstellungen: Anzeigetafel', () => {
       else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView
     }
   })
+
+  it('Startfolge im Betrieb: „Verzahnung beim Verschieben halten“ (V-7) wirkt über SET_ANZEIGE; Sprungziel #/einstellungen?startfolge', async () => {
+    const vorher = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
+    const scroll = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { value: scroll, configurable: true, writable: true })
+    location.hash = '#/einstellungen?startfolge'
+    try {
+      const wrapper = settings(store, { attachTo: document.body })
+      await flushPromises()
+      const abschnitt = wrapper.find('#betrieb.panel')
+      expect(scroll.mock.contexts).toContain(abschnitt.element)
+      expect(abschnitt.find('h2').text()).toBe('Startfolge im Betrieb')
+      expect(abschnitt.find('.hint a').attributes('href')).toBe('#/betrieb')
+      // Vorgabe an (V-7); aus und wieder an.
+      const feld = abschnitt.find('[data-feld="betrieb-verzahnung-halten"]')
+      expect((feld.element as HTMLInputElement).checked).toBe(true)
+      await feld.setValue(false)
+      expect(anzeige().verzahnungHalten).toBe(false)
+      expect(store.state.value.betrieb).toEqual({ bereiche: {} })
+      await feld.setValue(true)
+      expect(anzeige().verzahnungHalten).toBe(true)
+      // In der Sprungleiste steht der Abschnitt mit seiner Überschrift.
+      expect(wrapper.findAll('.settings-nav button').map((b) => b.text())).toContain('Startfolge im Betrieb')
+      wrapper.unmount()
+    } finally {
+      location.hash = ''
+      if (vorher) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', vorher)
+      else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
+  })
 })

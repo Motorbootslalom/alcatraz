@@ -262,6 +262,13 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'BETRIEB_ZURUECK':
     case 'BETRIEB_MELDUNG':
     case 'BETRIEB_ZURUECKSETZEN':
+    case 'BETRIEB_ZURUECKSTELLEN':
+    case 'BETRIEB_EINREIHEN':
+    case 'BETRIEB_AUSSETZEN':
+    case 'BETRIEB_VORZIEHEN':
+    case 'BETRIEB_KLASSE_VOR':
+    case 'BETRIEB_VERSCHIEBEN':
+    case 'BETRIEB_AB':
     case 'SET_ANZEIGE':
       return wendeBetriebAn(state, action)
 

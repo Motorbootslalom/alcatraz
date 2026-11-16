@@ -136,6 +136,13 @@ export default {
   'listopt.anzeige.logos': 'Logos beside the header',
   'listopt.anzeige.logos.hint': 'The logos from “{logos}”, left and right – only on the display board of this computer.',
 
+  'listopt.betrieb.title': 'Order of starts in operation',
+  'listopt.betrieb.hint':
+    'How start release rearranges the order of starts when a start is moved. It never changes the interleaving or the race officials’ sheets.',
+  'listopt.betrieb.verzahnungHalten': 'Keep the interleaving when moving',
+  'listopt.betrieb.verzahnungHalten.hint':
+    'When a start is moved within its attempt, its track moves along: two starts of the same track never follow each other there, and the pontoon keeps its time for changing boats. Into another attempt it goes exactly to the target. Switch off if an order is wanted exactly as it is.',
+
   'origin.style.aus': 'hide',
   'origin.style.lang': 'full name',
   'origin.style.kurz': 'abbreviation',

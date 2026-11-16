@@ -6,6 +6,8 @@ import {
   autoDistribute,
   tracksMatch,
   buildSequence,
+  buildSequenceSteps,
+  trackOfClass,
   computeVerzahnung,
   analyzeSequence,
   itemDragId,
@@ -167,6 +169,53 @@ describe('Pausen (Versatz, keine Leerzeile)', () => {
       [{ kind: 'pause', id: 'b', length: 5 }],
     ]
     expect(buildSequence(tracks, new Map())).toEqual([])
+  })
+})
+
+describe('buildSequence – Startspur und beliebige Elemente (Betrieb am Wettkampftag)', () => {
+  // Spur 1: E, 1, 3 · Spur 2: 2, 6 – das Beispiel aus dem Lastenheft der Tafel (V-5).
+  const spuren: TrackItem[][] = [
+    [{ kind: 'class', klasse: 'E' }, { kind: 'class', klasse: '1' }, { kind: 'class', klasse: '3' }],
+    [{ kind: 'class', klasse: '2' }, { kind: 'class', klasse: '6' }],
+  ]
+  const ps = [...make('E', 2), ...make('1', 6), ...make('2', 6), ...make('3', 1), ...make('6', 2)]
+  const muster = (xs: Starter[]) => xs.map((p) => p.klasse).join('')
+
+  it('ohne Startspur wie bisher: Spur 1 beginnt', () => {
+    expect(muster(buildSequence(spuren, startersByClass(ps)))).toBe('E2E21212121216163')
+    expect(muster(buildSequence(spuren, startersByClass(ps), 0))).toBe('E2E21212121216163')
+  })
+
+  it('mit Startspur beginnt der Reigen dort; zu große und negative Werte zählen reihum', () => {
+    expect(muster(buildSequence(spuren, startersByClass(ps), 1))).toBe('2E2E2121212161613')
+    expect(muster(buildSequence(spuren, startersByClass(ps), 3))).toBe('2E2E2121212161613')
+    expect(muster(buildSequence(spuren, startersByClass(ps), -1))).toBe('2E2E2121212161613')
+    expect(muster(buildSequence(spuren, startersByClass(ps), 2))).toBe('E2E21212121216163')
+    // Ohne Spuren gibt es nichts – auch nicht mit Startspur.
+    expect(buildSequence([], startersByClass(ps), 1)).toEqual([])
+  })
+
+  it('webt beliebige Elemente: Starts mit Lauf, die Spur je Element kommt mit', () => {
+    const starts = new Map<ClassId, { id: string; lauf: number }[]>([
+      ['E', [{ id: 'e1', lauf: 2 }, { id: 'e2', lauf: 2 }]],
+      ['2', [{ id: 'z1', lauf: 2 }]],
+    ])
+    const schritte = buildSequenceSteps(spuren, starts, 1)
+    expect(schritte.map((s) => [s.p.id, s.track])).toEqual([
+      ['z1', 1],
+      ['e1', 0],
+      ['e2', 0],
+    ])
+  })
+
+  it('trackOfClass: Spur je Klasse, Pausen zählen nicht', () => {
+    const mitPause: TrackItem[][] = [[{ kind: 'pause', id: 'p', length: 1 }, { kind: 'class', klasse: '3' }], [{ kind: 'class', klasse: '1' }]]
+    expect([...trackOfClass(mitPause)]).toEqual([
+      ['3', 0],
+      ['1', 1],
+    ])
+    expect(trackOfClass(spuren).get('6')).toBe(1)
+    expect(trackOfClass(spuren).has('7')).toBe(false)
   })
 })
 

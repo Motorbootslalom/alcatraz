@@ -56,8 +56,16 @@ export const BETRIEB_ANNAHMEN = {
    * (9) „Versuche direkt nacheinander“: ein einziger Punkt `lauf:1`, seine Starts je Versuch
    * starterweise hintereinander (wie die WKR-Bögen, lib/wkrListen.ts `stapel = 1`). Die Kennungen
    * der Punkte bleiben so stabil, wenn der Schalter oder die Zahl der Läufe sich ändert. 16.11.2026.
+   * Auch beim Neu-Verzahnen (Klasse aussetzen, zurück, vorziehen) bleiben die Versuche eines Starters
+   * beisammen – gewoben wird je Starter (betrieb/schritte.ts `webe`). Nach der Prüfung von E2, 16.11.2026.
    */
   versucheNacheinanderEinPunkt: true,
+  /**
+   * (zu 9) Hat ein Starter mit „Versuche nacheinander“ schon einen Versuch gefahren, fährt er die übrigen zu
+   * Ende: Neu-Verzahnen lässt sie, wo sie sind (direkt hinter ihm) – außer sein Boot fehlt, dann kommen sie mit
+   * der Klasse ans Ende. Nach der Prüfung von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  angebrochenFaehrtZuEnde: true,
   /**
    * (10) Begonnene Punkte sind eine Menge, kein „bis“: Eine Wiederholung (Re-run) wird erst nach
    * späteren Runden festgeschrieben und ordnet sich davor ein – ein „bis“ gäbe sie ungefragt frei.
@@ -78,6 +86,129 @@ export const BETRIEB_ANNAHMEN = {
    * steht, wird nachzuholen. Nach der Prüfung von E1, 16.11.2026.
    */
   zeigerNurBegonnene: true,
+  /**
+   * (7) Ausgesetzte Klasse („Boot fehlt“, V-5/L-7): Ihre Starts fahren nicht und stehen am Ende ihres
+   * Punkts, gekennzeichnet, ohne Wartezeit. Mit „Andere Klassen vorziehen“ rückt die nächste Klasse
+   * derselben Spur auf ihre Plätze (der Rest der begonnenen Punkte wird neu verzahnt); ohne schließen sich
+   * nur die Lücken. Kommt das Boot zurück, wird der Rest des Punkts mit ihr neu verzahnt; spätere Punkte
+   * bleiben auf der Verzahnung. Plan §7 Nr. 7, 16.11.2026 (betrieb/schritte.ts `webeNeu`).
+   */
+  ausgesetztAnsPunktende: true,
+  /**
+   * (8, Teil E2) Gezielt zeigen darf die Bedienung jeden Start, der nicht erledigt und nicht entfallen ist –
+   * auch einen eines nicht begonnenen Punkts (B-5, S-4). Plan §7 Nr. 8, 16.11.2026.
+   * Ausgelegt beim Bau von E2 (16.11.2026, noch zu bestätigen): auch einen zurückgestellten (er ist dann
+   * nicht mehr zurückgestellt) und einen der „Boot fehlt“-Klasse (die Klasse setzt weiter aus). Ein anderer
+   * als der Nächste rückt in der Folge hinter den Zeiger bzw. hinter den Start im Boot – dorthin, wo er
+   * gefahren ist (B-7, wie showSlot im Prototyp); der Nächste bleibt der, der es vorher war.
+   */
+  zeigenJederOffene: true,
+  /**
+   * (zu 6 und 8) „Nachzuholen“ ist ein Start erst, wenn sein Punkt begonnen ist und hinter ihm schon ein
+   * Start SEINES oder eines späteren begonnenen Punkts erledigt ist – nicht schon, weil er vor dem Zeiger
+   * steht. Ohne Umstellungen ist das dasselbe. Fall: Der dritte Lauf eines Starters wurde mitten in Lauf 2
+   * gesetzt und dort übergangen; er wartet auf seinen Punkt, und beginnt Lauf 3, ist er als Erster dran (S-9:
+   * maßgeblich ist der Lauf, nicht die Stelle). `false` hieße: alles vor dem Zeiger ist nachzuholen – er
+   * käme nie von selbst. Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  nichtBegonneneWarten: true,
+  /**
+   * (zu 7) Ein Start einer ausgesetzten Klasse heißt „Boot fehlt“, gleich wo er steht – auch wenn der Zeiger
+   * an ihm vorbeigezogen ist; er ist kein Nachzügler. Kommt das Boot zurück, werden diese Starts in den Rest
+   * ihres Punkts eingewoben, solange der Punkt hinter dem Zeiger noch offene Starts hat. Ist der Punkt schon
+   * vorbei (Lauf 2 läuft, das Boot fehlte bis zum Ende von Lauf 1), werden sie „nachzuholen“ – wie ein
+   * verpasster Lauf, die Bedienung reiht sie ein. Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   * „Vorbei“ heißt: Der Zeiger steht schon im Block eines späteren Punkts. Stockt der Lauf nur (hinter dem
+   * Zeiger ist nichts mehr offen, aber in diesem Lauf wurde zuletzt gefahren), kommen sie direkt hinter den
+   * Zeiger und sind wieder frei (V-5: „der Rest des Laufs wird erneut mit ihr verzahnt“). Nach der Prüfung
+   * von E2, 16.11.2026.
+   */
+  bootFehltVorNachzuholen: true,
+  /**
+   * (zu 1, 7 und V-7) Die Folge zerfällt in Blöcke, je Punkt einen, in der Folge des Programms; ein Start, den
+   * die Bedienung in einen anderen Lauf gesetzt hat (eingereiht, verschoben, gezielt gezeigt), ist dort Gast
+   * (betrieb/schritte.ts `bloecke`). Neu verzahnt wird nur, was im Block seines Punkts steht – Gäste und
+   * hinausgesetzte Starts bleiben an ihrer Stelle; „ans Ende des Laufs“ und „vor/nach Lauf n“ zielen auf
+   * Blockgrenzen. Grenze: Ein Start eines späteren Laufs genau am Ende des vorigen ist der Stelle nach der
+   * erste seines Laufs (er wartet ohnehin auf ihn, S-9); beginnt der Lauf mit fehlendem Boot, wird er mit
+   * verzahnt und bleibt der erste seiner Klasse. Nach der Prüfung von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  bloeckeJePunkt: true,
+  /**
+   * (zu V-7) „Verzahnung beim Verschieben halten“ wirkt innerhalb eines Blocks: Dort rutscht die Spur mit.
+   * Geht ein Start in einen anderen Lauf (S-4, S-6: „den dritten ans Ende von Lauf 2“, „vor Lauf 3“), wird er
+   * genau ans Ziel gesetzt – die rutschende Spur schöbe sonst fremde Starts über die Laufgrenze, und das Ziel
+   * würde verfehlt. Im Lauf, den er verlässt, und an der Grenze können dann zwei Starts derselben Spur
+   * aufeinander folgen; das ist auch ohne Halten nicht zu vermeiden. Nach der Prüfung von E2, 16.11.2026 –
+   * noch zu bestätigen.
+   */
+  haltenImBlock: true,
+  /**
+   * (zu 1) Der Schnappschuss trägt nur die umgestellten Punkte: Ein Lauf, den der Betrieb nicht angefasst hat,
+   * folgt weiter der Verzahnung – auch einer, die gelöst, geändert und wieder festgeschrieben wird, wie die
+   * WKR-Bögen. Umgestellte Läufe behalten ihre Folge (`sicht.abweichend` sagt es). Nach der Prüfung von E2,
+   * 16.11.2026 – noch zu bestätigen (betrieb/schritte.ts `schnappschuss`).
+   */
+  unberuehrtePunkteFolgenVerzahnung: true,
+  /**
+   * (zu B-9, B-10) „Klassen · Boot fehlt“ an der Start-Freigabe gilt dem laufenden Lauf, solange dort noch
+   * Starts frei sind oder auf ihr Boot warten – auch wenn gerade ein Nachzügler eines früheren Laufs als
+   * Nächster eingereiht ist. Erst danach dem Punkt des Nächsten bzw. dem nächsten Lauf (betrieb/folge.ts
+   * `arbeitsPunkt`). Nach der Prüfung von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  klassenImLaufendenPunkt: true,
+  /**
+   * „Andere Klassen vorziehen“ ist anfangs an – wie im Tafel-Prototyp (`pullForward: true`): Fällt ein Boot
+   * aus, bleibt der Wechsel zwischen den Spuren erhalten, ohne dass am Steg erst ein Schalter gesucht werden
+   * muss. Beim Bau von E2, 16.11.2026 – noch zu bestätigen (`false`: anfangs schließen sich nur die Lücken).
+   */
+  vorziehenVorgabe: true as boolean,
+  /**
+   * (zu B-4) „Ans Ende des Laufs einreihen“: hinter den letzten Start des eigenen Punkts; ist der schon
+   * vorbei (ein verpasster Lauf 1, während Lauf 2 läuft), ans Ende des laufenden Punkts – dort kommt er
+   * wirklich dran (S-4: „den zweiten vor Beginn von Lauf 3“). Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  einreihenEndeLaufend: true,
+  /**
+   * (zu 2) Auch die Schritte der Etappe E2 – zurückstellen, einreihen, Klasse aussetzen, vorziehen,
+   * verschieben, einsteigen – gehen nur mit festgeschriebener Verzahnung: Sie legen eine Folge fest, und
+   * die steht erst dann. Ohne Festschreiben (oder wieder gelöst) ändern sie nichts; „Zurück“, Meldungen
+   * und Zurücksetzen gehen weiter. Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  schritteNurFestgeschrieben: true,
+  /**
+   * (zu B-10) Eine Klasse, die unter den fahrenden Klassen ihre Spur für sich hat, lässt sich nicht
+   * vorziehen (Lastenheft B-10: „ihre Plätze gehören ihr ohnehin alle“). Der Prototyp ließ in diesem Fall
+   * stattdessen die andere Spur beginnen; das geht hier über das Vorziehen einer Klasse der anderen Spur.
+   * Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  alleinAufDerSpurFest: true,
+  /**
+   * (zu B-8) Meldungsvorlagen erscheinen in der Sprache der Anzeigetafel (wie alles, was dort steht),
+   * beschriftet in der Sprache der Oberfläche; `{veranstaltung}` wird der Name der Veranstaltung, ohne
+   * Namen ein allgemeines Wort. Texte nach dem Tafel-Prototyp (data/messages.ts, aus der bisherigen
+   * Word-Lösung). Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   */
+  vorlagenInTafelSprache: true,
+  /**
+   * (zu B-10, S-6) An der Start-Freigabe wird mit Knöpfen umgestellt, nicht gezogen (das Lastenheft nennt Drag
+   * & Drop): „Vorziehen“ macht eine Klasse zur nächsten (BETRIEB_KLASSE_VOR vor die erste fahrende, umgestellt
+   * nur innerhalb der Spuren); ein Start wird über ein Menü verschoben – vorziehen (vor den Nächsten), ans Ende
+   * des Laufs, vor/nach Lauf n. Am Laptop am Steg ist ein Klick der sicherere Griff, ein Fehlgriff beim Ziehen
+   * stellte die Folge vor Zuschauern um. Ziehen kommt mit der Startliste im Betrieb (E3). Beim Bau der
+   * Oberfläche von E2, 16.11.2026 – noch zu bestätigen (components/betrieb/KlassenAussetzen.vue, BetriebsFolge.vue).
+   */
+  knoepfeStattZiehen: true,
+  /**
+   * „Einsteigen ab …“ fragt nicht nach: Ein früherer Einstieg nimmt einen zu späten zurück (betrieb/schritte.ts
+   * `einsteigen`), und Rückfragen gibt es an der Start-Freigabe nur vor Unumkehrbarem bzw. vor „Lauf beginnen“
+   * mit noch offenen Starts (E1). Der Prototyp fragte mit confirm(). Beim Bau der Oberfläche von E2,
+   * 16.11.2026 – noch zu bestätigen (components/betrieb/EinsteigenAb.vue).
+   * Der gewählte Start ist danach der Nächste, auch wenn nach einem zu späten Einstieg schon gezeigt wurde: Er
+   * und alles, was mit ihm wieder offen ist, rücken hinter den Zeiger (state/reducer/betrieb.ts BETRIEB_AB).
+   * Nach der Prüfung von E2, 16.11.2026.
+   */
+  einsteigenOhneRueckfrage: true,
   /**
    * (11) Am Ende eines Punkts bleibt die Anzeigetafel auf dem letzten Starter stehen, bis der nächste
    * Punkt beginnt und dessen erster Start gezeigt wird. 16.11.2026.

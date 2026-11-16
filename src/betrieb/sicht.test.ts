@@ -55,12 +55,60 @@ describe('Öffentliche Sicht', () => {
     expect([b.id, b.name, b.fest, b.punkt?.id, b.punkt?.titel, b.naechsterPunkt?.id]).toEqual([P1, 'Parcours 1', true, 'lauf:1', '1. Lauf', 'lauf:2'])
     expect([b.aktuell?.key, b.vorig?.key, b.seit, b.offen.map((o) => o.key), b.offenZahl]).toEqual([m('k1', 1), m('e1', 1), 61_000, [m('e2', 1)], 2])
     expect(b.aktuell?.titel).toBe('1. Lauf')
-    expect(Object.keys(sicht.starter).sort()).toEqual(['e1', 'e2', 'k1'])
+    // Zur Wahl (E2) stehen alle offenen Starts, auch späterer Läufe und des Parcours, der noch nicht begonnen hat.
+    expect(Object.keys(sicht.starter).sort()).toEqual(['e1', 'e2', 'f1', 'k1', 'k2', 'v1', 'v2'])
+    // Wer nirgends mehr vorkommt, steht nicht darin: k2 mit X in allen Läufen.
+    const x = [1, 2, 3].reduce((st, lauf) => reducer(st, { type: 'SET_EINGABEN', zellen: [{ lauf: laufSchluessel('manoevrieren', lauf), starter: 'k2', feld: 'disq@steg', wert: 'X' }] }), s)
+    expect(Object.keys(sichtOeffentlich(x).starter)).not.toContain('k2')
     expect(sicht.starter.k1).toEqual({ startNr: '101', name: 'Vork1 Nachk1', klasse: '1', herkunft: expect.objectContaining({ klartext: 'Musterclub' }) })
-    expect(Object.keys(sicht.klassen).sort()).toEqual(['1', 'E'])
-    // Parcours 2 hat nicht begonnen: steht da, aber ohne Starter.
+    expect(Object.keys(sicht.klassen).sort()).toEqual(['1', '4', '5', 'E'])
+    // Parcours 2 hat nicht begonnen: steht da, ohne Start im Boot und ohne freigegebene – seine Starts warten.
     expect(sicht.bereiche[1]).toMatchObject({ id: 'par_2', punkt: null, aktuell: null, offen: [], offenZahl: 0, naechsterPunkt: { id: 'lauf:1' } })
     expect(sicht.auswahl).toEqual([P1, 'par_2'])
+  })
+
+  it('Fassung 2 (E2): zur Wahl, zurückgestellt, „Boot fehlt“, Klassen, Einstiege – alles aus der Lage', () => {
+    let s = reducer(imBetrieb(), { type: 'BETRIEB_ZURUECKSTELLEN', bereich: P1, ref: m('e2', 1) })
+    s = reducer(s, { type: 'BETRIEB_AUSSETZEN', bereich: P1, klasse: 'E', an: true })
+    const sicht = sichtOeffentlich(s)
+    const b = sicht.bereiche[0]
+    expect(sicht.sv).toBe(2)
+    expect(b.begonnen).toEqual(['lauf:1'])
+    expect(b.zurueckgestellt.map((x) => x.key)).toEqual([m('e2', 1)])
+    expect(b.bootFehlt.map((x) => x.key)).toEqual([m('e1', 2), m('e2', 2), m('e1', 3), m('e2', 3)])
+    // Zur Wahl: alle offenen Starts aller Läufe, ohne Zurückgestellte und ohne „Boot fehlt“.
+    expect(b.waehlbar.map((x) => x.key)).toEqual([m('k2', 1), m('k1', 2), m('k2', 2), m('k1', 3), m('k2', 3)])
+    expect(b.arbeitsPunkt?.id).toBe('lauf:1')
+    // Das ganze Programm, für „vor/nach Lauf n“ und „Einsteigen ab …“ – auch die nicht begonnenen Läufe.
+    expect(b.programm.map((p) => [p.id, p.titel, p.laeufe])).toEqual([
+      ['lauf:1', '1. Lauf', [1]],
+      ['lauf:2', '2. Lauf', [2]],
+      ['lauf:3', '3. Lauf', [3]],
+    ])
+    expect(b.klassenFolge).toEqual([
+      { klasse: '1', offen: 1, ausgesetzt: false, verschiebbar: false },
+      { klasse: 'E', offen: 0, ausgesetzt: true, verschiebbar: false },
+    ])
+    expect([b.vorziehen, b.abweichend]).toEqual([true, false])
+    // Einsteigen: je Lauf der erste nicht gezeigte Start, auch je Klasse.
+    expect(b.einstieg.filter((x) => x.punkt === 'lauf:2').map((x) => [x.klasse, x.key])).toEqual([
+      [null, m('e1', 2)],
+      ['E', m('e1', 2)],
+      ['1', m('k1', 2)],
+    ])
+    expect(b.einstieg.find((x) => x.punkt === 'lauf:1' && x.klasse === null)?.key).toBe(m('e2', 1))
+    // Als Start, mit Starter und Lauf – die Start-Freigabe nennt ihn auch, wenn er schon „ohne Anzeige“ erledigt ist.
+    expect(b.einstieg[0]).toEqual({ key: m('e2', 1), starter: 'e2', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf', klasse: null })
+    const spaet = reducer(s, { type: 'BETRIEB_AB', bereich: P1, ref: m('e1', 3) })
+    const ohne = sichtOeffentlich(spaet).bereiche[0]
+    expect(ohne.einstieg.find((x) => x.punkt === 'lauf:1' && x.klasse === 'E')).toMatchObject({ key: m('e2', 1), starter: 'e2', lauf: 1 })
+    // Ein entfallener Start (X) ist kein Einstieg: „Weiter mit“ nennte sonst einen, der nicht fährt.
+    const x = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: laufSchluessel('manoevrieren', 2), starter: 'e1', feld: 'disq@steg', wert: 'X' }] })
+    expect(sichtOeffentlich(x).bereiche[0].einstieg.filter((e) => e.punkt === 'lauf:2').map((e) => [e.klasse, e.key])).toEqual([
+      [null, m('k1', 2)],
+      ['1', m('k1', 2)],
+      ['E', m('e2', 2)],
+    ])
   })
 
   it('Namen nach der Einstellung: wie der Aushang, voll, gekürzt, ohne', () => {

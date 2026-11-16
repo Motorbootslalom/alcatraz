@@ -2,7 +2,7 @@
 
 Statische Browser-App ohne Server, die die Excel-Auswertung für Motorbootslalom (Schlauchbootslalom) ersetzt:
 Starter, Verzahnung, Verwiegung, WKR-Bögen, Laufzettel, Erfassung, Wertungs-, Einzel- und Mannschaftswertung, Druck;
-am Wettkampftag Start-Freigabe und Anzeigetafel im zweiten Fenster (Plan zur Übernahme der Tafel, 16.11.2026: E1).
+am Wettkampftag Start-Freigabe und Anzeigetafel im zweiten Fenster (Plan zur Übernahme der Tafel, 16.11.2026: E1, E2).
 Regelwerke: DM-Reglement (`dm-2026`) und UIM Regel 960 „Formula Future“ (`uim-2026`, mit Parallelslalom).
 Daten nur im Browser (localStorage + IndexedDB-Verlauf, Sicherung als Datei); GitHub Pages oder eine HTML-Datei.
 
@@ -113,11 +113,12 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Logos auf den Listen | lib/logo.ts (Grenzen, logoWert, Maße), lib/logoBild.ts (Verkleinern), lib/listenLogos.ts (useListenLogos); components/KopfLogos.vue in jedem Listenkopf, LogosPanel.vue; styles/logos.css |
 | Offline, Update | scripts/offline-sw.js, scripts/offline-speicher.ts, lib/offline.ts, lib/update.ts |
 | Betrieb: Folge, Lauf beginnen, Nächster | betrieb/folge.ts (lage), state/reducer/betrieb.ts (BETRIEB_*); Auslegungen nur betrieb/annahmen.ts |
+| … umstellen (zurückstellen, aussetzen, verschieben, einsteigen) | betrieb/schritte.ts (Schnappschuss, Abgleich, webeNeu); Actions in state/reducer/betrieb.ts |
 | … was Tafel und Freigabe sehen | betrieb/sicht.ts sichtOeffentlich (EINE Stelle, Datenschutz; Form ändern → `sv`, sicht.test.ts) |
 | Anzeigetafel: Aussehen, Schrift | components/anzeige/AnzeigeTafel.vue + AnzeigeBereich.vue, styles/anzeige.css (--anzeige-*), lib/fit.ts |
 | … Fenster, Adresse, Rückfall file:// | AnzeigeApp.vue, main.ts (Wurzel), lib/adressen.ts VOLLBILDER/liesVollbild, lib/anzeigeFenster.ts |
-| … Einstellung | SettingsView `#anzeigetafel` → SET_ANZEIGE (normalisiereAnzeige); Texte listopt.anzeige.* |
-| Start-Freigabe (Bedienung) | views/BetriebView.vue, components/betrieb/StartFreigabe.vue, NachzuholenListe.vue; i18n betrieb.* |
+| … Einstellung | SettingsView `#anzeigetafel`, `#betrieb` (Startfolge) → SET_ANZEIGE (normalisiereAnzeige); Texte listopt.anzeige.*, listopt.betrieb.* |
+| Start-Freigabe (Bedienung) | views/BetriebView.vue, components/betrieb/ (StartFreigabe + BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb; texte.ts); i18n betrieb.* |
 
 ## Feste Regeln
 

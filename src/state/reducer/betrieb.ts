@@ -6,11 +6,12 @@
 // setzt sie), Kennungen sind Refs (betrieb/folge.ts `refKey`), keine Zufalls-IDs. Der Betrieb schreibt
 // nie in `eingaben` und ändert keine Wertungsliste (BETRIEB_ANNAHMEN.keinXVonDerTafel).
 
-import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, PunktId } from '../../types'
+import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, PunktId, VerschiebeZiel } from '../../types'
 import { CLASS_IDS } from '../../domain/classes'
 import { istOriginStyle } from '../../lib/origin'
 import { BETRIEB_ANNAHMEN } from '../../betrieb/annahmen'
-import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm } from '../../betrieb/folge'
+import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, type BereichLage } from '../../betrieb/folge'
+import { ansPunktende, beweglich, einsteigen, hinterDenZeiger, klasseVor, schnappschuss, verschiebe, webeNeu } from '../../betrieb/schritte'
 
 export type BetriebAenderung =
   /** Einen Punkt (Lauf) beginnen – nur mit festgeschriebener Verzahnung und nur, wenn er im Programm steht. */
@@ -18,7 +19,9 @@ export type BetriebAenderung =
   /**
    * Einen Start auf die Anzeigetafel bringen („Nächster Start“). Wirkt nur, wenn gerade `vorher`
    * (Kennung, `null` = noch keiner) steht – ein Doppelklick oder eine doppelte Zustellung schaltet
-   * nicht zweimal. E1: `ref` ist der Nächste oder ein nachzuholender Start.
+   * nicht zweimal. `ref`: der Nächste oder – gezielt (B-5, S-4) – jeder andere nicht erledigte, nicht
+   * entfallene Start, auch eines nicht begonnenen Punkts; der rückt in der Folge hinter den Zeiger bzw.
+   * hinter den Start im Boot – dorthin, wo er gefahren ist.
    */
   | { type: 'BETRIEB_ZEIGEN'; bereich: BereichId; ref: string; vorher: string | null }
   /** Den zuletzt gezeigten Start zurücknehmen – nur, wenn er `ref` ist. */
@@ -29,6 +32,30 @@ export type BetriebAenderung =
   | { type: 'BETRIEB_ZURUECKSETZEN'; bereich?: BereichId }
   /** Einstellungen der Anzeigetafel; nur was im Patch steht, ändert sich (geprüft wie beim Laden). */
   | { type: 'SET_ANZEIGE'; patch: Partial<AnzeigeEinstellungen> }
+  // --- E2: Steuerung an der Start-Freigabe (betrieb/schritte.ts) ---
+  /** Einen Start zurückstellen (B-3): Er fährt nicht, bleibt aber sichtbar. Nur offene, nachzuholende und „Boot fehlt“-Starts. */
+  | { type: 'BETRIEB_ZURUECKSTELLEN'; bereich: BereichId; ref: string }
+  /**
+   * Einen zurückgestellten oder nachzuholenden Start wieder einreihen (B-4): `naechster` direkt hinter den
+   * Zeiger, `ende` ans Ende seines Punkts (ist der vorbei, des laufenden).
+   */
+  | { type: 'BETRIEB_EINREIHEN'; bereich: BereichId; ref: string; wo: 'naechster' | 'ende' }
+  /**
+   * Eine Klasse aussetzen (`an`, „Boot fehlt“, V-5) bzw. zurückholen. Mit „Andere Klassen vorziehen“ wird
+   * beim Aussetzen der Rest der begonnenen Punkte neu verzahnt; beim Zurückholen immer.
+   */
+  | { type: 'BETRIEB_AUSSETZEN'; bereich: BereichId; klasse: ClassId; an: boolean }
+  /** „Andere Klassen vorziehen“ – ausdrücklich an oder aus, nie umschaltend (doppelt zugestellt = einmal). */
+  | { type: 'BETRIEB_VORZIEHEN'; bereich: BereichId; an: boolean }
+  /** Eine Klasse vor `vor` ziehen (`null` = als Letzte), nur innerhalb ihrer Spur und nur im Arbeitspunkt (B-10). */
+  | { type: 'BETRIEB_KLASSE_VOR'; bereich: BereichId; klasse: ClassId; vor: ClassId | null }
+  /** Einen Start verschieben (S-4, S-6): vor/hinter einen Start oder an eine Punktgrenze; nie vor den Zeiger. */
+  | { type: 'BETRIEB_VERSCHIEBEN'; bereich: BereichId; ref: string; ziel: VerschiebeZiel }
+  /**
+   * Einsteigen ab einem Start (mitten im Wettkampf, nach Neuanfang): Was davor nicht gezeigt wurde, ist
+   * „ohne Anzeige“ erledigt, die Punkte bis zu seinem sind begonnen. Ein früherer Start öffnet wieder.
+   */
+  | { type: 'BETRIEB_AB'; bereich: BereichId; ref: string }
 
 /** Längste Meldung in Zeichen: Mehr ist auf der Tafel aus der Entfernung nicht zu lesen. */
 export const MELDUNG_MAX = 200
@@ -139,9 +166,10 @@ function normalisiereBereich(raw: unknown): BereichBetrieb | null {
     gezeigt,
     ohneAnzeige: refListe(b.ohneAnzeige),
     zurueckgestellt: refListe(b.zurueckgestellt),
-    reihenfolge: Array.isArray(b.reihenfolge) ? refListe(b.reihenfolge) : null,
+    // Ein leerer Schnappschuss ist keiner (es gibt keine Folge ohne Starts, von der abzuweichen wäre).
+    reihenfolge: Array.isArray(b.reihenfolge) && refListe(b.reihenfolge).length > 0 ? refListe(b.reihenfolge) : null,
     ausgesetzt: Array.isArray(b.ausgesetzt) ? eindeutig(b.ausgesetzt.filter((k): k is ClassId => CLASS_IDS.includes(k as ClassId))) : [],
-    vorziehen: b.vorziehen === true,
+    vorziehen: typeof b.vorziehen === 'boolean' ? b.vorziehen : BETRIEB_ANNAHMEN.vorziehenVorgabe,
     meldung: meldungWert(b.meldung),
   }
   return bereichLeer(bereich) ? null : bereich
@@ -168,11 +196,46 @@ export function bereichKennungen(stand: Pick<AppState, 'parcoursList'>): string[
   return [...stand.parcoursList.map((p) => p.id), PARALLEL_BEREICH]
 }
 
+/**
+ * Den Bereich setzen. Ist danach nichts mehr in ihm geschehen (etwa „Vorziehen“ aus und wieder an), fällt sein
+ * Eintrag weg – wie beim Laden (normalisiereBetrieb); sonst hielte ein leerer Eintrag „Betrieb zurücksetzen“
+ * sichtbar, bis neu geladen wird.
+ */
 function mitBereich(state: AppState, bereich: BereichId, b: BereichBetrieb): AppState {
+  if (bereichLeer(b)) {
+    if (!Object.hasOwn(state.betrieb.bereiche, bereich)) return state
+    const { [bereich]: _weg, ...rest } = state.betrieb.bereiche
+    return { ...state, betrieb: { bereiche: rest } }
+  }
   return { ...state, betrieb: { bereiche: { ...state.betrieb.bereiche, [bereich]: b } } }
 }
 
 const gleich = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
+/** Den Bereich ersetzen – nur wenn sich etwas ändert; sonst derselbe Stand (unverändert = dieselbe Referenz). */
+function wennAnders(state: AppState, bereich: BereichId, alt: BereichBetrieb, neu: BereichBetrieb): AppState {
+  return gleich(alt, neu) ? state : mitBereich(state, bereich, neu)
+}
+
+/** Die neue Folge als Schnappschuss – `null`, wenn sie der abgeleiteten gleicht. */
+const folgeAls = (l: Pick<BereichLage, 'abgeleitet'>, keys: readonly string[]) => schnappschuss(keys, l.abgeleitet)
+
+/**
+ * Die Schritte der Etappe E2 legen eine Folge fest – nur mit festgeschriebener Verzahnung
+ * (BETRIEB_ANNAHMEN.schritteNurFestgeschrieben, wie Beginnen und Zeigen) und nur in einem Bereich, den es gibt
+ * (ein Programm hat): Ein veraltetes Gerät legt sonst Einträge für Bereiche an, die es nicht gibt – unter DM
+ * auch für den Parallelslalom, den migrate() als Kennung immer durchlässt.
+ */
+const schrittErlaubt = (l: Pick<BereichLage, 'fest' | 'programm'>) => l.programm.length > 0 && (l.fest || !BETRIEB_ANNAHMEN.schritteNurFestgeschrieben)
+
+/**
+ * Den Rest der Punkte neu verzahnen (Klasse aussetzen, zurückholen, vorziehen): die begonnenen und der
+ * Arbeitspunkt – spätere Punkte bleiben auf der Verzahnung (V-5).
+ */
+function neuVerzahnt(state: AppState, bereich: BereichId, l: BereichLage, ausgesetzt: readonly ClassId[], zurueck?: ClassId): string[] {
+  const punkte = [...l.begonnen, ...(l.arbeitsPunkt !== null ? [l.arbeitsPunkt] : [])]
+  return webeNeu(l, spurenVon(state, bereich), new Set(ausgesetzt), { punkte, ...(zurueck ? { zurueck: new Set([zurueck]) } : {}) })
+}
 
 export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zeit?: number }): AppState {
   switch (action.type) {
@@ -180,16 +243,115 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       if (!bereichFest(state, action.bereich) || !programm(state, action.bereich).includes(action.punkt)) return state
       const b = betriebVon(state, action.bereich)
       if (b.begonnen.includes(action.punkt)) return state
-      return mitBereich(state, action.bereich, { ...b, begonnen: [...b.begonnen, action.punkt] })
+      const begonnen = { ...b, begonnen: [...b.begonnen, action.punkt] }
+      // Fehlt ein Boot noch und rücken die anderen Klassen vor, gilt das auch im neuen Punkt (V-5).
+      if (!b.vorziehen || b.ausgesetzt.length === 0) return mitBereich(state, action.bereich, begonnen)
+      const l = lage(mitBereich(state, action.bereich, begonnen), action.bereich)
+      const keys = webeNeu(l, spurenVon(state, action.bereich), new Set(b.ausgesetzt), { punkte: [action.punkt] })
+      return mitBereich(state, action.bereich, { ...begonnen, reihenfolge: folgeAls(l, keys) })
     }
 
     case 'BETRIEB_ZEIGEN': {
       const l = lage(state, action.bereich)
       if (!l.fest || (l.aktuell?.key ?? null) !== action.vorher) return state
-      // E1: der Nächste oder ein nachzuholender Start – nie ein schon erledigter, nie einer ohne Freigabe.
-      if (l.naechster?.key !== action.ref && !l.nachzuholen.some((e) => e.key === action.ref)) return state
       const b = betriebVon(state, action.bereich)
-      return mitBereich(state, action.bereich, { ...b, gezeigt: [...b.gezeigt, { ref: action.ref, zeit: action.zeit ?? 0 }] })
+      const gezeigt = [...b.gezeigt, { ref: action.ref, zeit: action.zeit ?? 0 }]
+      if (l.naechster?.key === action.ref) return mitBereich(state, action.bereich, { ...b, gezeigt })
+      // Ein nachzuholender Start (E1) – oder jeder andere nicht erledigte, nicht entfallene (B-5, S-4;
+      // BETRIEB_ANNAHMEN.zeigenJederOffene). Er rückt hinter den Zeiger bzw. den Start im Boot: dorthin, wo er gefahren ist.
+      const erlaubt = BETRIEB_ANNAHMEN.zeigenJederOffene ? beweglich(l, action.ref) !== null : l.nachzuholen.some((e) => e.key === action.ref)
+      if (!erlaubt) return state
+      return mitBereich(state, action.bereich, {
+        ...b,
+        gezeigt,
+        zurueckgestellt: b.zurueckgestellt.filter((k) => k !== action.ref),
+        reihenfolge: folgeAls(l, hinterDenZeiger(l, action.ref)),
+      })
+    }
+
+    case 'BETRIEB_ZURUECKSTELLEN': {
+      const l = lage(state, action.bereich)
+      const b = betriebVon(state, action.bereich)
+      if (!schrittErlaubt(l) || !beweglich(l, action.ref) || b.zurueckgestellt.includes(action.ref)) return state
+      return mitBereich(state, action.bereich, { ...b, zurueckgestellt: [...b.zurueckgestellt, action.ref] })
+    }
+
+    case 'BETRIEB_EINREIHEN': {
+      const l = lage(state, action.bereich)
+      if (!schrittErlaubt(l)) return state
+      // Nur was zurückgestellt oder nachzuholen ist – ein zweites Mal geschickt, ist er schon wieder offen.
+      if (!l.zurueckgestellt.some((e) => e.key === action.ref) && !l.nachzuholen.some((e) => e.key === action.ref)) return state
+      const b = betriebVon(state, action.bereich)
+      const keys = action.wo === 'ende' ? ansPunktende(l, action.ref) : hinterDenZeiger(l, action.ref)
+      return wennAnders(state, action.bereich, b, { ...b, zurueckgestellt: b.zurueckgestellt.filter((k) => k !== action.ref), reihenfolge: folgeAls(l, keys) })
+    }
+
+    case 'BETRIEB_AUSSETZEN': {
+      const l = lage(state, action.bereich)
+      const b = betriebVon(state, action.bereich)
+      if (!schrittErlaubt(l) || b.ausgesetzt.includes(action.klasse) === action.an) return state
+      if (action.an) {
+        // Nur eine Klasse, die hier fährt.
+        if (!l.folge.some((e) => e.klasse === action.klasse)) return state
+        const ausgesetzt = [...b.ausgesetzt, action.klasse]
+        const reihenfolge = b.vorziehen ? folgeAls(l, neuVerzahnt(state, action.bereich, l, ausgesetzt)) : b.reihenfolge
+        return mitBereich(state, action.bereich, { ...b, ausgesetzt, reihenfolge })
+      }
+      // Das Boot ist zurück: Der Rest wird mit der Klasse neu verzahnt (V-5), gleich ob vorgezogen wurde.
+      const ausgesetzt = b.ausgesetzt.filter((k) => k !== action.klasse)
+      const zurueck = lage(mitBereich(state, action.bereich, { ...b, ausgesetzt }), action.bereich)
+      return mitBereich(state, action.bereich, { ...b, ausgesetzt, reihenfolge: folgeAls(l, neuVerzahnt(state, action.bereich, zurueck, ausgesetzt, action.klasse)) })
+    }
+
+    case 'BETRIEB_VORZIEHEN': {
+      const l = lage(state, action.bereich)
+      const b = betriebVon(state, action.bereich)
+      if (!schrittErlaubt(l) || b.vorziehen === action.an) return state
+      // Einschalten wirkt sofort auf den Rest; Ausschalten lässt die Folge stehen – sonst spränge sie am
+      // Steg unter den Händen weg (wie im Prototyp).
+      const reihenfolge = action.an && b.ausgesetzt.length > 0 ? folgeAls(l, neuVerzahnt(state, action.bereich, l, b.ausgesetzt)) : b.reihenfolge
+      return mitBereich(state, action.bereich, { ...b, vorziehen: action.an, reihenfolge })
+    }
+
+    case 'BETRIEB_KLASSE_VOR': {
+      const l = lage(state, action.bereich)
+      if (!schrittErlaubt(l)) return state
+      const b = betriebVon(state, action.bereich)
+      const keys = klasseVor(l, spurenVon(state, action.bereich), new Set(b.ausgesetzt), action.klasse, action.vor)
+      return keys ? wennAnders(state, action.bereich, b, { ...b, reihenfolge: folgeAls(l, keys) }) : state
+    }
+
+    case 'BETRIEB_VERSCHIEBEN': {
+      const l = lage(state, action.bereich)
+      if (!schrittErlaubt(l) || !beweglich(l, action.ref)) return state
+      const b = betriebVon(state, action.bereich)
+      const keys = verschiebe(l, action.ref, action.ziel, state.anzeige.verzahnungHalten ? spurenVon(state, action.bereich) : null)
+      return keys ? wennAnders(state, action.bereich, b, { ...b, reihenfolge: folgeAls(l, keys) }) : state
+    }
+
+    case 'BETRIEB_AB': {
+      const l = lage(state, action.bereich)
+      if (!l.fest) return state
+      const e = l.folge.find((x) => x.key === action.ref)
+      const ohneAnzeige = einsteigen(l, betriebVon(state, action.bereich).ohneAnzeige, action.ref)
+      if (!e || !ohneAnzeige) return state
+      const b = betriebVon(state, action.bereich)
+      const erledigt = new Set(ohneAnzeige)
+      // Die Punkte bis zu seinem sind begonnen; spätere, in denen noch nichts gezeigt wurde, nicht mehr –
+      // ein zu später Einstieg gäbe sonst einen Lauf frei, der nicht begonnen hat (S-8).
+      const rang = l.programm.indexOf(e.punkt)
+      const gezeigtIn = new Set(l.folge.filter((x) => l.gezeigtKeys.has(x.key)).map((x) => x.punkt))
+      const begonnen = [...b.begonnen.filter((p) => l.programm.indexOf(p) <= rang || gezeigtIn.has(p)), ...l.programm.slice(0, rang + 1).filter((p) => !b.begonnen.includes(p))]
+      const neu = { ...b, ohneAnzeige, begonnen, zurueckgestellt: b.zurueckgestellt.filter((k) => !erledigt.has(k)) }
+      // „Weiter mit“ heißt: Der gewählte Start ist der Nächste. Wurde nach einem zu späten Einstieg schon gezeigt,
+      // stünde das Gezeigte hinter ihm und überholte ihn (nachzuholen). Dann rücken er und alles, was mit ihm
+      // wieder offen ist, in ihrer Folge hinter den Zeiger bzw. den Start im Boot – wie gezielt gezeigt (B-7).
+      const n = lage(mitBereich(state, action.bereich, neu), action.bereich)
+      const i = n.folge.findIndex((x) => x.key === action.ref)
+      const grenze = Math.max(n.zeiger, n.aktuell ? n.folge.findIndex((x) => x.key === n.aktuell!.key) : -1)
+      const wieder = i >= 0 && i < grenze ? n.folge.slice(i, grenze).filter((x) => !x.entfaellt && !n.erledigt.has(x.key)).map((x) => x.key) : []
+      const reihenfolge = wieder.length > 0 ? folgeAls(n, hinterDenZeiger(n, wieder)) : b.reihenfolge
+      return wennAnders(state, action.bereich, b, { ...neu, reihenfolge })
     }
 
     case 'BETRIEB_ZURUECK': {

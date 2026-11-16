@@ -27,7 +27,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Bereiche neben-/untereinander nach Seitenverhältnis), AnzeigeBereich (Parcours, Klasse + Lauf, Startnummer, Name,
   Herkunft, davor, Meldung; Kopfzeile immer oben, Rest in `.anzeige-rumpf`; v-fit/v-fit-block, Hinweis v-fit-zeilen aus
   lib/fit.ts; styles/anzeige.css); `betrieb/` StartFreigabe (Lauf beginnen mit AppDialog, Nächster Start mit `vorher`,
-  Zurück, Meldung; Actions über Prop `sende`), NachzuholenListe.
+  Zurückstellen, Zurück, Anderen Starter wählen, Meldung; Actions über Prop `sende`) mit E2-Teilen: BetriebsFolge (Wahl:
+  nächste 12/ganze Folge/Suche, Zeigen, Zurückstellen, Menüknopf „Verschieben …“ mit Zielknöpfen), EinreihenListe
+  (zurückgestellt, nachzuholen), KlassenAussetzen (Boot fehlt, Vorziehen, Folge als Plaketten), MeldungWahl (Vorlage
+  wählen, „Übernehmen“ → Entwurf),
+  EinsteigenAb (Lauf/Klasse → BETRIEB_AB); texte.ts (punktText, startZeile – Oberflächensprache).
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -73,6 +77,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 - Anzeigetafel: Farben nur --anzeige-* (styles/anzeige.css, nicht vom Farbschema), Schriften als Bruchteil von
   --anzeige-u; kein `<Transition>` (verdecktes Fenster bliebe stehen) – ein neuer Start ist ein neuer Block (`:key`).
   Texte per tIn(sicht.sprache), nie t(). StartFreigabe/AnzeigeTafel nie an den Store hängen: Sie laufen ab E6/E7 auf Geräten.
+- Start-Freigabe (E2): alle Teile bekommen `sende` und `gesperrt` (= !bereich.fest) von StartFreigabe; Aufgeklapptes über
+  merke(`betrieb.<teil>.<bereich>`) – Tests rufen vergissAlles(). Nur betriebliche Knöpfe; Einstellungen in SettingsView.
+  Rückfrage nur vor „Lauf beginnen“ mit offenen Starts. Kennungen in `data-start` enthalten `"`: Selektor mit `'…'`.
+  Befehle nie über `change` eines `<select>` (Chromium feuert ihn schon bei ↓ auf dem zugeklappten Feld): Menüknopf mit
+  Zielknöpfen oder Auswahl + eigener Knopf. Schließt sich ein Teil per v-if, den Fokus zurücksetzen (StartFreigabe wahlZu).
 - Neuer Listenkopf → KopfLogos drumherum (Bogen art=leiste, höchstens 12 mm; Laufzettel art=streifen); Logo-Maße fest in mm aus den
   Pixelmaßen, nie vom Laden; Messungen ohne ResizeObserver (LaufzettelBlatt.fit, DruckdateiListen.messeCodes) brauchen
   logoSchluessel im Watch.

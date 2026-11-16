@@ -37,6 +37,12 @@ export type StartRef =
   | { art: 'm'; starter: string; lauf: number }
   | { art: 'p'; runde: ParallelRunde; attempt: 1 | 2; a: string | null; b: string | null }
 
+/**
+ * Wohin ein Start verschoben wird (E2, S-4/S-6): vor oder hinter einen anderen Start (Kennung) oder an eine
+ * Punktgrenze – „vor Lauf 3“ (vor dessen ersten Start), „nach Lauf 2“ (hinter dessen letzten).
+ */
+export type VerschiebeZiel = { vor: string } | { nach: string } | { vorPunkt: PunktId } | { nachPunkt: PunktId }
+
 /** Art einer Meldung auf der Anzeigetafel: Hinweis, Störung oder Pause. */
 export type MeldungArt = 'info' | 'stoerung' | 'pause'
 
@@ -62,7 +68,10 @@ export interface BereichBetrieb {
   ohneAnzeige: string[]
   /** E2: zurückgestellte Starts (bleiben sichtbar). Kennungen. */
   zurueckgestellt: string[]
-  /** E2: Schnappschuss der GANZEN Folge des Bereichs (Kennungen), nur wenn von der abgeleiteten abgewichen wird. */
+  /**
+   * E2: Schnappschuss der umgestellten Punkte (Kennungen), nur wenn von der abgeleiteten Folge abgewichen wird;
+   * Punkte, die wie abgeleitet stehen, fehlen darin und folgen der Verzahnung (betrieb/schritte.ts `schnappschuss`).
+   */
   reihenfolge: string[] | null
   /** E2: Klassen, deren Boot fehlt („Boot fehlt“). */
   ausgesetzt: ClassId[]
@@ -184,6 +193,51 @@ export interface SichtBereich {
   /** Nicht erledigte Starts vor dem Zeiger (Nachmeldung, entferntes X, verpasster Lauf). */
   nachzuholen: SichtStart[]
   meldung: Meldung | null
+  // --- ab sv 2 (E2: Steuerung an der Start-Freigabe) ---
+  /** Die begonnenen Punkte; Starts anderer Punkte warten (die Start-Freigabe kennzeichnet sie). */
+  begonnen: PunktId[]
+  /**
+   * Alle offenen Starts ALLER Punkte in ihrer Folge, auch nicht begonnener (ohne zurückgestellte, ohne
+   * „Boot fehlt“): „Anderen Starter wählen“ – die nächsten und die Suche nach Startnummer (B-5, S-4).
+   */
+  waehlbar: SichtStart[]
+  /** Zurückgestellte Starts (B-3), in der Folge. */
+  zurueckgestellt: SichtStart[]
+  /** Starts ausgesetzter Klassen („Boot fehlt“, V-5/L-7), in der Folge. */
+  bootFehlt: SichtStart[]
+  /** Der Punkt, auf den sich Aussetzen und Vorziehen der Klassen beziehen (betrieb/folge.ts `arbeitsPunkt`). */
+  arbeitsPunkt: SichtPunkt | null
+  /** Alle Punkte des Programms in ihrer Folge – für „vor/nach Lauf n“ (S-6) und „Einsteigen ab …“. */
+  programm: SichtPunkt[]
+  /** Die Klassen des Arbeitspunkts in der Folge ihres nächsten Starts, ausgesetzte dahinter (B-9, B-10). */
+  klassenFolge: SichtKlassenStand[]
+  /** „Andere Klassen vorziehen“, solange eine Klasse aussetzt (V-5). */
+  vorziehen: boolean
+  /** Die Folge weicht von der Verzahnung ab (verschoben, vorgezogen, Klasse ausgesetzt …). */
+  abweichend: boolean
+  /** „Einsteigen ab …“: je Punkt (und je Klasse darin) der erste noch nicht gezeigte Start – Kennung für BETRIEB_AB. */
+  einstieg: SichtEinstieg[]
+}
+
+/** Eine Klasse an der Start-Freigabe (B-9, B-10). */
+export interface SichtKlassenStand {
+  klasse: ClassId
+  /** So viele Starts der Klasse stehen im Arbeitspunkt noch aus (offen oder „Boot fehlt“). */
+  offen: number
+  /** Das Boot fehlt: Die Klasse setzt aus. */
+  ausgesetzt: boolean
+  /** Lässt sich vorziehen: Sie teilt ihre Spur mit einer anderen fahrenden Klasse und setzt nicht aus. */
+  verschiebbar: boolean
+}
+
+/**
+ * Ein Einstieg für „Einsteigen ab …“: der erste noch nicht gezeigte (und nicht entfallene) Start eines Punkts
+ * bzw. einer Klasse darin – als Start, damit die Start-Freigabe ihn nennen kann, auch wenn er schon „ohne
+ * Anzeige“ erledigt ist (sein Starter steht dafür in `starter`).
+ */
+export interface SichtEinstieg extends SichtStart {
+  /** `null`: der erste Start des Punkts überhaupt. */
+  klasse: ClassId | null
 }
 
 /**
@@ -191,10 +245,12 @@ export interface SichtBereich {
  * Zuschauer und Start-Freigabe sehen. Zeitunabhängig – „seit m:ss“ rechnet der Bildschirm.
  */
 export interface OeffentlicheSicht {
-  /** Fassung der Sicht; steigt, wenn sich ihre Form ändert. */
-  sv: 1
+  /** Fassung der Sicht; steigt, wenn sich ihre Form ändert (2: Steuerung der Etappe E2). */
+  sv: 2
   /** Kopfzeile; '' = keine. */
   kopf: string
+  /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */
+  veranstaltung: string
   sprache: Locale
   skala: number
   /** Nur auf der Tafel am Bedienrechner und nur mit mindestens einem Logo. */

@@ -168,28 +168,37 @@ export function tracksMatch(tracks: TrackItem[][] | undefined, classes: ClassId[
   return true
 }
 
-type Step = { kind: 'starter'; p: Starter } | { kind: 'pause' }
+type Step<T> = { kind: 'starter'; p: T } | { kind: 'pause' }
 
 /**
- * Baut die verzahnte Startreihenfolge aus einer Spur-Anordnung.
- * Round-Robin über die Spuren; leere Spuren werden übersprungen. Eine Pause
- * verbraucht einen Takt der Spur, ohne einen Starter zu erzeugen – dadurch
- * setzt die nachfolgende Klasse dieser Spur später ein (Versatz, keine Leerzeile).
+ * Ein ausgegebenes Element (meist ein Starter) samt der Spur, aus der es stammt. Generisch, weil der
+ * Betrieb am Wettkampftag (betrieb/schritte.ts) mit derselben Verzahnung seine offenen Starts neu
+ * webt – dort sind die Elemente Starts (Starter und Lauf), nicht Starter.
  */
-/** Ein ausgegebener Starter samt der Spur, aus der er stammt. */
-export interface SeqStep {
-  p: Starter
-  /** Index der Spur (0-basiert), aus der dieser Starter kommt. */
+export interface SeqStep<T = Starter> {
+  p: T
+  /** Index der Spur (0-basiert), aus der dieses Element kommt. */
   track: number
 }
 
-/** Wie {@link buildSequence}, liefert zusätzlich die Spur je Starter (für die Bootbedarf-Rechnung). */
-export function buildSequenceSteps(
+/**
+ * Baut die verzahnte Folge aus einer Spur-Anordnung, mit der Spur je Element (für die
+ * Bootbedarf-Rechnung). Round-Robin über die Spuren; leere Spuren werden übersprungen. Eine Pause
+ * verbraucht einen Takt der Spur, ohne ein Element zu erzeugen – dadurch setzt die nachfolgende Klasse
+ * dieser Spur später ein (Versatz, keine Leerzeile).
+ *
+ * `startTrack`: die Spur, mit der der Reigen beginnt (Vorgabe 0, wie in der Verzahnung). Der Betrieb
+ * webt den REST eines Laufs neu (Klasse setzt aus, Klasse vorziehen) und setzt dabei hinter der Spur
+ * des zuletzt gefahrenen Starts ein – sonst stünden an der Nahtstelle zwei Starts derselben Spur
+ * hintereinander und am Steg fehlte die Zeit für den Bootswechsel (Tafel-Prototyp, 16.11.2026).
+ */
+export function buildSequenceSteps<T = Starter>(
   tracks: TrackItem[][],
-  byClass: Map<ClassId, Starter[]>,
-): SeqStep[] {
-  const stepTracks: Step[][] = tracks.map((track) => {
-    const steps: Step[] = []
+  byClass: ReadonlyMap<ClassId, readonly T[]>,
+  startTrack = 0,
+): SeqStep<T>[] {
+  const stepTracks: Step<T>[][] = tracks.map((track) => {
+    const steps: Step<T>[] = []
     for (const item of track) {
       if (item.kind === 'pause') {
         for (let i = 0; i < Math.max(0, item.length); i++) steps.push({ kind: 'pause' })
@@ -201,17 +210,15 @@ export function buildSequenceSteps(
   })
 
   const pos = stepTracks.map(() => 0)
-  const remainingStarters = () =>
-    stepTracks.reduce(
-      (sum, steps, i) => sum + steps.slice(pos[i]).filter((s) => s.kind === 'starter').length,
-      0,
-    )
+  // Zahl der noch auszugebenden Elemente: Pausen am Ende einer Spur verbrauchen danach keinen Takt mehr.
+  let remaining = stepTracks.reduce((sum, steps) => sum + steps.filter((s) => s.kind === 'starter').length, 0)
 
-  const sequence: SeqStep[] = []
+  const sequence: SeqStep<T>[] = []
   const n = stepTracks.length
-  let idx = 0
+  // Auch negative oder zu große Werte landen auf einer gültigen Spur.
+  let idx = n > 0 ? ((Math.trunc(startTrack) % n) + n) % n : 0
 
-  while (remainingStarters() > 0) {
+  while (remaining > 0) {
     // nächste Spur mit noch offenen Schritten finden
     let skipped = 0
     while (skipped < n && pos[idx % n] >= stepTracks[idx % n].length) {
@@ -224,18 +231,31 @@ export function buildSequenceSteps(
     const step = stepTracks[t][pos[t]]
     pos[t]++
     idx++
-    if (step.kind === 'starter') sequence.push({ p: step.p, track: t })
+    if (step.kind === 'starter') {
+      sequence.push({ p: step.p, track: t })
+      remaining--
+    }
     // Pause: nichts ausgeben, nur den Takt verbrauchen
   }
 
   return sequence
 }
 
-export function buildSequence(
+export function buildSequence<T = Starter>(
   tracks: TrackItem[][],
-  byClass: Map<ClassId, Starter[]>,
-): Starter[] {
-  return buildSequenceSteps(tracks, byClass).map((s) => s.p)
+  byClass: ReadonlyMap<ClassId, readonly T[]>,
+  startTrack = 0,
+): T[] {
+  return buildSequenceSteps(tracks, byClass, startTrack).map((s) => s.p)
+}
+
+/** Die Spur (0-basiert) jeder Klasse einer Anordnung; wer nicht vorkommt, fehlt. */
+export function trackOfClass(tracks: readonly (readonly TrackItem[])[]): Map<ClassId, number> {
+  const m = new Map<ClassId, number>()
+  tracks.forEach((track, index) => {
+    for (const item of track) if (item.kind === 'class') m.set(item.klasse, index)
+  })
+  return m
 }
 
 export interface VerzahnungResult {

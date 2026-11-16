@@ -201,6 +201,10 @@ describe('Tabellen der Sprachen', () => {
     expect(schreibeAdresse(buch, 'en', 'einstellungen', { ziel: 'anzeigetafel' })).toBe('#/settings?display-board')
     expect(liesAdresse(buch, '#/settings?display-board').ziel).toBe('anzeigetafel')
     expect(liesAdresse(buch, '#/einstellungen?display-board').ziel).toBe('anzeigetafel')
+    // Die Startfolge im Betrieb (E2): eigener Abschnitt der Einstellungen.
+    expect(schreibeAdresse(buch, 'de', 'einstellungen', { ziel: 'betrieb' })).toBe('#/einstellungen?startfolge')
+    expect(schreibeAdresse(buch, 'en', 'einstellungen', { ziel: 'betrieb' })).toBe('#/settings?start-order')
+    for (const a of ['#/settings?start-order', '#/einstellungen?startfolge', '#/einstellungen?betrieb']) expect(liesAdresse(buch, a).ziel, a).toBe('betrieb')
   })
 
   it('Vollbild der Anzeigetafel: #/anzeige bzw. #/display, mit Bereich; in jeder Sprache gelesen', () => {

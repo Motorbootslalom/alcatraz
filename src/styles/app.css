@@ -3131,24 +3131,175 @@ table.starters th .sortier-kopf:disabled {
   padding: 12px 22px;
 }
 
-.betrieb-nachzuholen h4 {
+/* Zurückgestellt, nachzuholen (EinreihenListe) und „Anderen Starter wählen“ (BetriebsFolge): je Start eine Zeile. */
+.betrieb-liste h4 {
   margin: 12px 0 2px;
   font-size: 14px;
 }
 
-.betrieb-nachzuholen ul {
+.betrieb-liste ul,
+.betrieb-folge-liste {
   list-style: none;
   margin: 6px 0;
   padding: 0;
 }
 
-.betrieb-nachzuholen li {
+.betrieb-liste li,
+.betrieb-folge-liste li {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 4px 0;
   border-top: 1px solid var(--border);
+}
+
+/* Starts eines nicht begonnenen Laufs und „Boot fehlt“: zu sehen, aber zurückgenommen. */
+.betrieb-folge-liste li.wartet .betrieb-start,
+.betrieb-folge-liste li.aus .betrieb-start {
+  opacity: 0.7;
+}
+
+.betrieb-zeilen-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Die Ziele von „Verschieben …“: aufgeklappt unter der Zeile, rechtsbündig unter dem Menüknopf. */
+.betrieb-menue {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-basis: 100%;
+}
+
+/* Der Start, den die Eingabetaste im Suchfeld zeigen würde. */
+.betrieb-folge-liste li.enter-ziel {
+  box-shadow: inset 3px 0 0 var(--accent);
+  padding-left: 8px;
+}
+
+.btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.betrieb-folge {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.betrieb-folge-kopf {
+  align-items: center;
+}
+
+.betrieb-folge-kopf .input {
+  flex: 1;
+  min-width: 160px;
+  font-size: 16px;
+}
+
+/* Hinweis, der eine Handlung verlangt: der Lauf stockt. */
+.betrieb-warn {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Zugeklappte Teile der Karte (Klassen, Meldung, Einsteigen): sehen aus wie Überschriften. */
+.betrieb-abschnitt {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.betrieb-abschnitt summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Was gerade gilt, auch zugeklappt: „Boot fehlt: 2“, „zurückgestellt“. */
+.betrieb-aktiv {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  background: var(--panel-2);
+}
+
+.betrieb-aktiv.stoerung {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.betrieb-klassen {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+}
+
+/* Große Flächen: am Steg mit nassen Fingern zu treffen. */
+.betrieb-klassen li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Grau und gestrichelt heißt: fährt gerade nicht – auch aus dem Augenwinkel. */
+.betrieb-klassen li.aus {
+  border-style: dashed;
+}
+
+.betrieb-klassen .note {
+  margin: 0;
+}
+
+.betrieb-vorziehen {
+  margin-top: 4px;
+}
+
+.betrieb-vorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.betrieb-plaketten {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.betrieb-plaketten .class-badge.aus {
+  opacity: 0.6;
+}
+
+.betrieb-meldung-wahl {
+  align-items: center;
+  margin-top: 6px;
+}
+
+.betrieb-vorlagen .input {
+  max-width: 100%;
+}
+
+.betrieb-einstieg {
+  margin: 8px 0;
 }
 
 .betrieb-start {
@@ -3162,15 +3313,6 @@ table.starters th .sortier-kopf:disabled {
   margin: 0;
 }
 
-.betrieb-meldung {
-  margin-top: 12px;
-}
-
-.betrieb-meldung summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
 .betrieb-meldung textarea {
   display: block;
   width: 100%;
@@ -3179,7 +3321,7 @@ table.starters th .sortier-kopf:disabled {
 }
 
 .betrieb-meldung .segmented {
-  margin-top: 6px;
+  margin-top: 0;
 }
 
 .betrieb-meldung-aktiv {
