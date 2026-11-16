@@ -343,6 +343,11 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   dieses Programms: passt dort eine Klasse nicht, stimmt eher das Jahr der Veranstaltung nicht). →
   `components/ManualAddForm.vue`, `components/ClassSection.vue`, `components/ExcelPanel.vue`, Action
   `MOVE_STARTER_TO_CLASS`, `import/tsv.ts` klasseJeZeile
+- 2026-11-16 · N · Beim Einfügen aus Excel zusätzlich ein Knopf „Alle beheben“, weil es manchmal viele sind: alle
+  Starter in die Klasse ihres Jahrgangs, zu alte nicht übernehmen (Auslegung: ebenso zu junge – beide passen in keine
+  Klasse). Ein Zusatz, kein Entweder-oder: Die Knöpfe je Zeile bleiben („In Klasse X übernehmen“, neu auch „Nicht
+  übernehmen“). Gegen ein falsch eingestelltes Jahr nennt der Knopf das Jahr, und jede Änderung steht mit „zurück“
+  darunter. → `components/ExcelPanel.vue`, `import/tsv.ts` ohneZeilen
 - 2026-11-15 · N · Datumsfelder nie als Datumswahl des Browsers (`<input type="date">` zeigte je nach Systemsprache
   mm/dd/yyyy – „darf es nie geben“), sondern als Textfeld mit festem Muster: deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT
   (siehe „Begriffe“, 13.11.). Beim Tippen und Einfügen werden auch 2019-12-01, 01.12.2019, 1.12.2019, 01/12/2019

@@ -558,10 +558,15 @@ Die Punkte mit Datum sind Entscheidungen vom 15.11.2026.
   - „In Klasse X verschieben“ beim Bearbeiten (mit dem neuen Datum).
     Eine klassenbasierte Startnummer wird die nächste freie der neuen Klasse.
     Gesperrt, sobald die Klasse feststeht oder Ergebnisse erfasst sind (`MOVE_STARTER_TO_CLASS`).
-  - „In Klasse X übernehmen“ je Zeile beim Einfügen aus Excel – nie für alle auf einmal;
-    die Excel-Liste bleibt, wie sie ist.
+  - „In Klasse X übernehmen“ je Zeile beim Einfügen aus Excel; die Excel-Liste bleibt, wie sie ist.
+  - zusätzlich „Alle beheben“ beim Einfügen aus Excel (16.11.2026; die Knöpfe je Zeile bleiben, denn manchmal sind es
+    viele): Jeder gemeldete Starter kommt in die Klasse seines
+    Jahrgangs, wer in keine passt (zu alt oder zu jung), wird nicht übernommen. Der Knopf nennt das Jahr der
+    Veranstaltung; beide Listen darunter („in einer anderen Klasse“, „nicht übernommen“) zeigen jede Änderung mit
+    „zurück“. Übernommen wird erst mit „Liste ersetzen“ bzw. „Ergänzen“ (`import/tsv.ts` klasseJeZeile, ohneZeilen).
 
-  Passt der Jahrgang in keine Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten.
+  Passt der Jahrgang in keine Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten; beim Einfügen aus Excel
+  lässt sich die Zeile dann je Starter „Nicht übernehmen“.
   Ohne Geburtsdatum lässt sich nichts prüfen; das fällt in der Starterliste auf („fehlt“).
 - **Datumsfelder** (15.11.2026): nie die Datumswahl des Browsers.
   Sie zeigte je nach Systemsprache mm/dd/yyyy – „darf es nie geben“.

@@ -73,6 +73,49 @@ describe('Einfügen aus Excel: Klasse gegen Geburtsjahr, Sperre nach den ersten 
     wrapper.unmount()
   })
 
+  // Wunsch des Nutzers vom 16.11.2026: ein Knopf für alle – in die Klasse des Jahrgangs, wer in keine
+  // passt (zu alt, zu jung), bleibt weg. Jede Änderung steht darunter mit „zurück“.
+  it('„Alle beheben“: verschiebt in die passende Klasse, lässt Jahrgänge ohne Klasse weg – mit „zurück“', async () => {
+    const [von, bis] = birthYearRange('3', 2026)
+    const wrapper = ansicht()
+    const liste = [
+      'Klasse\tNachname\tVorname\tGeburtsdatum',
+      `3\tMuster\tMax\t01.05.${von}`,
+      `3\tBeispiel\tEva\t01.05.${bis + 1}`,
+      '3\tProbe\tUdo\t01.05.1980',
+      '3\tTest\tIda\t01.05.2024',
+    ].join('\n')
+    await wrapper.find('textarea').setValue(liste)
+    expect(wrapper.findAll('[data-hinweis="klassen-fehler"] li')).toHaveLength(3)
+    // Je Zeile ohne passende Klasse auch ein eigener Knopf.
+    expect(wrapper.findAll('[data-hinweis="klassen-fehler"] [data-action="nicht-uebernehmen"]')).toHaveLength(2)
+    const knopf = wrapper.find('[data-action="alle-beheben"]')
+    expect(knopf.text()).toBe('Alle beheben')
+    expect(knopf.attributes('title')).toContain('Jahr der Veranstaltung (2026)')
+    await knopf.trigger('click')
+    expect(wrapper.find('[data-hinweis="klassen-fehler"]').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="umgeklasst"]').text()).toContain('Eva Beispiel: Klasse 3 → Klasse 2')
+    const weg = wrapper.find('[data-hinweis="weggelassen"]')
+    expect(weg.text()).toContain('2 Starter werden nicht übernommen')
+    expect(weg.text()).toContain('Udo Probe (geboren 1980)')
+    expect(weg.text()).toContain('Ida Test (geboren 2024)')
+    // Weggelassene zählen weder als übernommen noch als nicht lesbar.
+    expect(wrapper.text()).toContain('Vorschau: 2 Starter')
+    expect(wrapper.text()).not.toContain('übersprungen')
+    expect(knoepfe(wrapper)).toEqual([false, false])
+    // „zurück“: Die Zeile hält den Import wieder auf; einzeln lässt sie sich wieder weglassen.
+    await weg.find('[data-action="weglassen-zurueck"]').trigger('click')
+    expect(wrapper.findAll('[data-hinweis="klassen-fehler"] li')).toHaveLength(1)
+    expect(knoepfe(wrapper)).toEqual([true, true])
+    await wrapper.find('[data-action="nicht-uebernehmen"]').trigger('click')
+    expect(wrapper.find('[data-hinweis="klassen-fehler"]').exists()).toBe(false)
+    await wrapper.find('.row button.primary').trigger('click')
+    expect(store.state.value.starters.map((s) => `${s.nachname}:${s.klasse}`)).toEqual(['Muster:3', 'Beispiel:2'])
+    // Nach der Übernahme ist die Wahl vorbei.
+    expect(wrapper.find('[data-hinweis="weggelassen"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('nicht lesbare Geburtsdaten werden genannt; Schrägstrich heißt Tag zuerst', async () => {
     const wrapper = ansicht()
     await wrapper.find('textarea').setValue('Klasse\tNachname\tVorname\tGeburtsdatum\n3\tMuster\tMax\t31.02.2013\n3\tBeispiel\tEva\t12/01/2013')

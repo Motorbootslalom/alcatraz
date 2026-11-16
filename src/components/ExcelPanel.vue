@@ -35,6 +35,8 @@ const copied = ref<'startlist' | 'starters' | null>(null)
  * die neue und die gelistete Klasse. Ein neuer Text beginnt ohne (die Zeilen sind andere).
  */
 const umklassen = ref<Record<number, { klasse: ClassId; gelistet: ClassId; name: string }>>({})
+/** Zeilen, die nicht übernommen werden: Ihr Jahrgang passt in keine Klasse (je Zeile Name und Jahr). */
+const weglassen = ref<Record<number, { name: string; jahr: number }>>({})
 
 // Fehlende klassenbasierte Nummern ergänzt der Import; klassische vergibt erst die Verzahnung.
 // Beim Ergänzen schließen sie an die Nummern der Veranstaltung an (`vorhandene`), statt sie doppelt zu vergeben.
@@ -45,6 +47,7 @@ const parse = (text: string, mode: 'replace' | 'merge' = 'replace') =>
     landIstStaat: state.value.originMode === 'land',
     startNrPraefix: startNrPraefixe(state.value),
     klasseJeZeile: Object.fromEntries(Object.entries(umklassen.value).map(([zeile, u]) => [zeile, u.klasse])),
+    ohneZeilen: Object.keys(weglassen.value).map(Number),
     ...(mode === 'merge' ? { vorhandene: state.value.starters } : { bisherige: state.value.starters }),
   })
 
@@ -62,22 +65,54 @@ const darfNicht = computed(() => gesperrt.value || !preview.value || preview.val
 const jahrgaenge = computed(() => jahrgaengeText(startendeJahrgaenge(state.value.eventJahr, regelwerk.value.klassen)))
 const nameVon = (f: KlassenFehler) => [f.starter.vorname, f.starter.nachname].filter(Boolean).join(' ')
 
+/** Die Zeile der Liste, aus der ein gemeldeter Starter stammt. */
+const zeileVon = (f: KlassenFehler) => preview.value?.zeilen[preview.value.starters.indexOf(f.starter)]
+
 /**
  * Derselbe Vorschlag wie beim Hinzufügen von Hand (Entscheidung des Nutzers vom 15.11.2026):
- * Gehört der Jahrgang in eine andere Klasse, lässt sich der Starter dort übernehmen – je Zeile
- * ein Knopf, nie für alle auf einmal: Ist nur das Jahr der Veranstaltung falsch eingestellt,
- * passte sonst jeder Starter „in eine andere Klasse“. Die Liste in Excel bleibt, wie sie ist.
+ * Gehört der Jahrgang in eine andere Klasse, lässt sich der Starter dort übernehmen. Die Liste in
+ * Excel bleibt, wie sie ist.
  */
 function inKlasse(f: KlassenFehler, klasse: ClassId) {
-  const i = preview.value?.starters.indexOf(f.starter) ?? -1
-  const zeile = preview.value?.zeilen[i]
+  const zeile = zeileVon(f)
   if (zeile === undefined) return
   umklassen.value = { ...umklassen.value, [zeile]: { klasse, gelistet: f.starter.klasse, name: nameVon(f) } }
+}
+/** Passt der Jahrgang in keine Klasse, bleibt die Zeile weg (16.11.2026). */
+function nichtUebernehmen(f: KlassenFehler) {
+  const zeile = zeileVon(f)
+  if (zeile === undefined) return
+  weglassen.value = { ...weglassen.value, [zeile]: { name: nameVon(f), jahr: f.jahr } }
+}
+/**
+ * „Alle beheben“ (Wunsch des Nutzers vom 16.11.2026): ein Zusatz zu den Knöpfen je Zeile, die bleiben –
+ * „kein Entweder-oder, manchmal sind es viele“. Jeder gemeldete Starter kommt in die Klasse seines Jahrgangs, wer in keine passt
+ * (zu alt oder zu jung), bleibt weg. Gegen ein falsch eingestelltes Jahr der Veranstaltung – dann
+ * passte fast jeder „in eine andere Klasse“ – nennt der Knopf das Jahr, und beide Listen darunter
+ * zeigen jede Änderung mit „zurück“; übernommen wird erst mit „Liste ersetzen“ bzw. „Ergänzen“.
+ */
+function allesBeheben() {
+  const neuKlasse = { ...umklassen.value }
+  const neuWeg = { ...weglassen.value }
+  for (const f of klassenFehler.value) {
+    const zeile = zeileVon(f)
+    if (zeile === undefined) continue
+    // Die Klassen überschneiden sich nicht (klassenFuerJahr): höchstens eine passt.
+    if (f.passend.length > 0) neuKlasse[zeile] = { klasse: f.passend[0], gelistet: f.starter.klasse, name: nameVon(f) }
+    else neuWeg[zeile] = { name: nameVon(f), jahr: f.jahr }
+  }
+  umklassen.value = neuKlasse
+  weglassen.value = neuWeg
 }
 function zurueck(zeile: string) {
   const rest = { ...umklassen.value }
   delete rest[Number(zeile)]
   umklassen.value = rest
+}
+function zurueckWeglassen(zeile: string) {
+  const rest = { ...weglassen.value }
+  delete rest[Number(zeile)]
+  weglassen.value = rest
 }
 
 function numbersNote(res: ImportResult): string {
@@ -121,6 +156,7 @@ function doImport(mode: 'replace' | 'merge') {
   result.value = res
   raw.value = ''
   umklassen.value = {}
+  weglassen.value = {}
 }
 
 async function copy(which: 'startlist' | 'starters') {
@@ -135,6 +171,7 @@ function onRaw(e: Event) {
   raw.value = (e.target as HTMLTextAreaElement).value
   result.value = null
   umklassen.value = {}
+  weglassen.value = {}
 }
 </script>
 
@@ -190,8 +227,31 @@ function onRaw(e: Event) {
         </ul>
       </div>
 
+      <div v-if="Object.keys(weglassen).length > 0" class="note" data-hinweis="weggelassen" role="status">
+        {{ tn('import.left', Object.keys(weglassen).length) }}
+        <ul style="margin: 4px 0 0; padding-left: 18px">
+          <li v-for="(w, zeile) in weglassen" :key="zeile">
+            {{ t('import.leftItem', { name: w.name, year: w.jahr }) }}
+            <button type="button" class="btn ghost sm" data-action="weglassen-zurueck" :title="t('import.leftUndoTitle', { name: w.name })" @click="zurueckWeglassen(String(zeile))">
+              {{ t('import.movedUndo') }}
+            </button>
+          </li>
+        </ul>
+      </div>
+
       <div v-if="klassenFehler.length > 0" class="boat-banner warn" data-hinweis="klassen-fehler" role="alert">
         {{ tn('import.classErrors', klassenFehler.length) }}
+        <button
+          type="button"
+          class="btn sm primary"
+          data-action="alle-beheben"
+          style="margin-left: 8px"
+          :disabled="gesperrt"
+          :title="t('import.fixAllTitle', { year: state.eventJahr })"
+          @click="allesBeheben"
+        >
+          {{ t('import.fixAll') }}
+        </button>
         <ul style="margin: 6px 0 0; padding-left: 18px">
           <li v-for="f in klassenFehler" :key="f.starter.id">
             {{
@@ -217,6 +277,17 @@ function onRaw(e: Event) {
               @click="inKlasse(f, k)"
             >
               {{ t('import.takeInClass', { class: classLabel(k) }) }}
+            </button>
+            <button
+              v-if="f.passend.length === 0"
+              type="button"
+              class="btn sm"
+              data-action="nicht-uebernehmen"
+              :disabled="gesperrt"
+              :title="t('import.leaveOutTitle', { name: nameVon(f) })"
+              @click="nichtUebernehmen(f)"
+            >
+              {{ t('import.leaveOut') }}
             </button>
           </li>
         </ul>

@@ -165,6 +165,15 @@ describe('parseStartersTsv', () => {
     expect(klassisch.nummerEntfallen.anzahl).toBe(0)
   })
 
+  it('weggelassene Zeilen (ohneZeilen, „Alle beheben“ 16.11.2026) fehlen ganz – nicht übersprungen, keine Nummer verbraucht', () => {
+    const text = [row('Klasse', 'Nachname'), row('3', 'A'), row('3', 'B'), row('3', 'C')].join('\n')
+    const res = parseStartersTsv(text, { assignMissing: true, ohneZeilen: [3] })
+    expect(res.starters.map((p) => `${p.nachname}:${p.startNr}`)).toEqual(['A:301', 'C:302'])
+    expect(res.zeilen).toEqual([2, 4])
+    expect(res.skipped).toEqual([])
+    expect(res.imported).toBe(2)
+  })
+
   // Prüfbefund zu Paket F (16.11.2026): Die Liste hatte eine Nummer (305), die Zeile kam in eine
   // andere Klasse – danach hieß es „keine Startnummern erkannt“.
   it('umgeklasste Zeile mit Nummer, alle übrigen ohne: nicht „keine Startnummern erkannt“', () => {

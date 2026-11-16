@@ -186,6 +186,10 @@ export interface ImportResult {
  * Liste übernommen werden – der Vorschlag der Klassenprüfung, wenn der Jahrgang in eine andere
  * Klasse gehört (Entscheidung des Nutzers vom 15.11.2026). Eine klassenbasierte Nummer der
  * bisherigen Klasse fällt dann weg und wird in der neuen ergänzt (`assignMissing`).
+ *
+ * `ohneZeilen`: Zeilen (wie in `zeilen`), die bewusst nicht übernommen werden – Starter, deren
+ * Jahrgang in keine Klasse des Regelwerks passt („Alle beheben“, Entscheidung des Nutzers vom
+ * 16.11.2026). Sie zählen nicht als übersprungen: Die Oberfläche nennt sie eigens.
  */
 export function parseStartersTsv(
   text: string,
@@ -196,6 +200,7 @@ export function parseStartersTsv(
     vorhandene?: readonly Starter[]
     bisherige?: readonly Starter[]
     klasseJeZeile?: Readonly<Record<number, ClassId>>
+    ohneZeilen?: readonly number[]
   } = {},
 ): ImportResult {
   const lines = text
@@ -221,6 +226,7 @@ export function parseStartersTsv(
   const starters: Starter[] = []
   dataLines.forEach((line, idx) => {
     const lineNo = (usedHeader ? idx + 2 : idx + 1)
+    if (options.ohneZeilen?.includes(lineNo)) return
     const cells = line.split(TAB)
     const get = (f: Field): string => {
       const i = fields.indexOf(f)
