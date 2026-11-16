@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KopfLogos from './KopfLogos.vue'
 import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
 
@@ -25,10 +26,12 @@ const quelle = computed(() => legende.value.quelle ?? konfig.value.getRegelwerk(
   <div class="sheet lg-blatt" :data-regelwerk="konfig.getRegelwerk().id">
     <section class="sheet-section">
       <!-- Kopf wie auf allen Listen: links der Name der Liste, rechts die Veranstaltung. -->
-      <div class="sheet-title-box lg-kopf">
-        <span class="list">{{ legende.texte.titel }}</span>
-        <span class="event">{{ eventName }}</span>
-      </div>
+      <KopfLogos>
+        <div class="sheet-title-box lg-kopf">
+          <span class="list">{{ legende.texte.titel }}</span>
+          <span class="event">{{ eventName }}</span>
+        </div>
+      </KopfLogos>
       <p class="lg-quelle">{{ quelle }}</p>
 
       <div class="lg-abschnitt">

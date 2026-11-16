@@ -472,6 +472,30 @@ Der Hinweis über der Auswahl beschreibt diese Folge (Text `booklet.hint960`):
   (Entscheidung vom 15.11.2026; mit Test belegt).
 - Die Liste nach Pkt. 3.7 steht in keiner Druckdatei, auch nicht in der internen.
 
+### Logos
+
+Einstellungen → „Logos auf den Listen“ (`src/components/LogosPanel.vue`; Entscheidung vom 16.11.2026).
+Zwei Plätze, „Logo links“ und „Logo rechts“, anfangs leer und für alle Regelwerke gleich.
+Ohne Logo sieht jede Liste aus wie vorher.
+
+- Wo sie stehen (`src/components/KopfLogos.vue`):
+  - neben dem umrandeten Kopf jeder Seite: Starter-, Gewichts- und Vorsteg-Listen, Ausgleichsgewichte, Liste nach
+    Pkt. 3.7, Startlisten und Wertungslisten auch des Parallelslaloms, Einzelwertung, Mannschaftswertung, Codes und
+    damit auch die Druckdatei;
+  - auf den WKR-Bögen in der Titelleiste, rechts vor dem QR-Code (dessen Lage und Größe bleiben), auch in der
+    Beispielansicht, nicht auf der Rückseite;
+  - auf den Laufzetteln als Streifen über Titel und QR-Code.
+- Höhe 8 bis 30 mm, Vorgabe 15 mm, für beide Logos auf allen Listen gleich. Die Breite folgt dem Seitenverhältnis,
+  höchstens 60 mm bzw. ein Viertel der Kopfbreite. Höhere Logos kosten Zeilen; die Listen messen und teilen neu.
+- Hochladen: PNG, JPEG, WebP, GIF oder SVG bis 20 MB. Das Bild wird im Browser verkleinert, auf höchstens 360 px
+  Höhe (`src/lib/logoBild.ts`), und als PNG gespeichert, sonst als WebP, notfalls als JPEG – je Logo höchstens rund
+  100 kB. Metadaten fallen dabei weg. Unter 200 dpi in der eingestellten Höhe weist die Einstellung darauf hin.
+  Ein SVG wird gerastert; fehlt ihm die viewBox, kommt eine aus Breite und Höhe dazu, damit der Inhalt mitwächst.
+  Ein SVG aus einer von Hand geänderten Vorlage oder Sicherung bleibt auf den Listen eine data-URL (keine
+  Blob-Adresse mit dem Ursprung der App, in der ein im Tab geöffnetes SVG Skripte ausführen könnte).
+- Sicherung und Vorlage tragen die Logos (keine Personendaten). Eine Vorlage ohne Logo für eine Seite lässt das
+  hiesige stehen. „Alles zurücksetzen“ entfernt die Logos.
+
 ### Doppelseitig drucken
 
 Bei den Listenarten mit mehreren Dokumenten in einem Druck steht neben dem Druckknopf der Schalter
@@ -487,6 +511,7 @@ Alle Listen und Bögen folgen am Bildschirm dem gewählten Farbschema (auch dunk
 Gedruckt sind sie immer schwarz auf weiß mit grauer Fünfer-Zeile.
 Ihre Farben kommen ausschließlich aus den Variablen `--blatt-*` in `src/styles/blatt.css`.
 Neue Listen verwenden nur diese (`src/styles/blatt.test.ts` prüft das).
+Ausnahme: Logos drucken in ihren eigenen Farben.
 
 ## Sperren und Prüfungen
 

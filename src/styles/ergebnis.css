@@ -189,6 +189,18 @@
   grid-template-columns: 40mm 84mm 1fr;
 }
 
+/* Mit Logos (components/KopfLogos.vue, 16.11.2026) bleibt dem Kopf weniger Breite: Die festen Spalten werden zu
+   Höchstmaßen, damit der Kasten nicht über die Logos hinausläuft. Ist genug Platz, sind sie so breit wie
+   oben; sonst brechen die Texte um, und der Kopf wird höher (die Liste misst das mit). Ohne Logo gilt nur
+   die Regel oben. Die Mannschaftswertung hat eigene, schon bewegliche Spalten (pokal.css .pokal-kopf). */
+.kopf-logos .erg-kopf:not(.pokal-kopf) {
+  grid-template-columns: minmax(auto, 52mm) minmax(auto, 40mm) minmax(auto, 1fr);
+}
+
+.kopf-logos .erg-kopf.erg-kopf--runde {
+  grid-template-columns: minmax(auto, 40mm) minmax(auto, 84mm) minmax(auto, 1fr);
+}
+
 /* Liste der Attempts (components/ergebnis/ParallelAttemptsBlatt.vue): Jede der beiden Tabellen
    beginnt mit ihrer Titelzeile („1st attempt“, „Racecourse A“). Dieselbe Zeile steht im Kopf
    einer Seite, die eine Tabelle fortsetzt – in derselben Höhe, das Dokument rechnet mit ihr. */

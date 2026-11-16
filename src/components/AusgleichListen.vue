@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KopfLogos from './KopfLogos.vue'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { useListenSprache } from '../lib/listensprache'
@@ -45,14 +46,16 @@ const laengster = (texte: string[]) => texte.reduce((a, b) => (b.length > a.leng
           <thead>
             <tr class="sheet-title">
               <th :colspan="5 + runs.length">
-                <div class="sheet-title-box">
-                  <!-- Das Leerzeichen trennt die Felder im Text (kopiert, vorgelesen, aus dem PDF gelesen). -->
-                  <span class="list" data-feld="liste">{{ lt('lists.title.ausgleich') }}</span>{{ ' ' }}
-                  <span class="feld" data-feld="klasse">{{ klasseText(l.klasse) }}</span>{{ ' ' }}
-                  <span class="feld benannt" data-feld="boot"><small>{{ lt('lists.boat') }}</small>{{ ' ' }}<span class="wert">{{ l.boot }}</span></span>{{ ' ' }}
-                  <span v-if="l.coPilot !== undefined" class="feld benannt" data-feld="coPilot"><small>{{ lt('lists.coPilot') }}</small>{{ ' ' }}<span class="wert">{{ l.coPilot }}</span></span>{{ ' ' }}
-                  <span class="event" data-feld="veranstaltung">{{ heading }}</span>
-                </div>
+                <KopfLogos>
+                  <div class="sheet-title-box">
+                    <!-- Das Leerzeichen trennt die Felder im Text (kopiert, vorgelesen, aus dem PDF gelesen). -->
+                    <span class="list" data-feld="liste">{{ lt('lists.title.ausgleich') }}</span>{{ ' ' }}
+                    <span class="feld" data-feld="klasse">{{ klasseText(l.klasse) }}</span>{{ ' ' }}
+                    <span class="feld benannt" data-feld="boot"><small>{{ lt('lists.boat') }}</small>{{ ' ' }}<span class="wert">{{ l.boot }}</span></span>{{ ' ' }}
+                    <span v-if="l.coPilot !== undefined" class="feld benannt" data-feld="coPilot"><small>{{ lt('lists.coPilot') }}</small>{{ ' ' }}<span class="wert">{{ l.coPilot }}</span></span>{{ ' ' }}
+                    <span class="event" data-feld="veranstaltung">{{ heading }}</span>
+                  </div>
+                </KopfLogos>
               </th>
             </tr>
             <tr class="sheet-cols">

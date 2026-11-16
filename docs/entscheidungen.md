@@ -266,6 +266,11 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-16 · N · Die Herkunft der Gewichtslisten bleibt nach dem Link aus der Verwiegung in der Adresse stehen und
   folgt der Auswahl, damit sich die Adresse weitergeben lässt; „alle“ steht nicht da. → `lib/router.ts`
   `wahlFuerAdresse`, `views/ListsView.vue`
+- 2026-11-16 · N · Logos auf allen gedruckten Listen, auch auf WKR-Bögen und Laufzetteln: zwei frei belegbare Plätze
+  „Logo links“ und „Logo rechts“, unter DM und UIM gleich, ohne Vorbelegung – ohne Logo bleibt jede Liste wie vorher.
+  Der Nutzer lädt die Bilder selbst (im Browser verkleinert); das Repo enthält keine fremden Logos. In Sicherung und
+  Vorlage. Höhe einstellbar, Vorgabe 15 mm; die Größe ist nach Beispielen offen. → `components/KopfLogos.vue`,
+  `components/LogosPanel.vue`, `lib/logo.ts`
 
 ## Laufzettel und Erfassung
 
@@ -429,9 +434,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
 
-- 2026-11-16 · N · Logos auf den Listen, eines links und eines rechts im Kopf. Bei der WM links das Logo des Ausrichters,
-  rechts das der UIM. Die Logos lädt der Nutzer selbst hoch; das Repo enthält keine fremden Logos. Offen: welche
-  Listen, Größe, Vorgabe unter der DM, Platz neben dem QR-Code der WKR-Bögen.
+Zurzeit nichts.
 
 ## Offen
 
@@ -441,5 +444,7 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
 - Mehrgeräte-Betrieb (Anzeigetafel, Startlisten) über ntfy: noch nicht übernommen; der Server ist mit dem Nutzer
   abgestimmt (Hostname bewusst nicht im Repo).
+- Höhe der Logos: nach Beispielen in mehreren Höhen (10/15/20 mm); bis dahin 15 mm (`lib/logo.ts`
+  LOGO_HOEHE_VORGABE_MM). Ebenso, ob Bögen und Laufzettel eine eigene Grenze bekommen.
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`) und EINZEL_FESTLEGUNGEN (`lib/einzelwertung.ts`) legen aus, wo Regel 960
   schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste anpassen.

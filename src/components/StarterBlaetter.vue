@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KopfLogos from './KopfLogos.vue'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { sollgewichtOf } from '../config/catalog'
@@ -135,14 +136,16 @@ const laengen = computed(() => props.dokumente.map((s) => s.groups.map((g) => g.
         <tr class="sheet-title">
           <th :colspan="columns">
             <!-- Jede Angabe in einem eigenen Feld: Liste | Parcours | Herkunft | Veranstaltung. Was fehlt, entfällt. -->
-            <div class="sheet-title-box">
-              <!-- Das Leerzeichen zwischen den Feldern zeichnet nichts (Flex), trennt sie aber im Text:
-                   Kopiert, vorgelesen oder aus dem PDF gelesen heißt es „Gewichtsliste Deutschland“. -->
-              <span class="list" data-feld="liste">{{ s.title }}</span>{{ ' ' }}
-              <span v-if="s.zusatz" class="feld" data-feld="zusatz">{{ parcoursName(s.zusatz, listenLocale) }}</span>{{ ' ' }}
-              <span v-if="s.origin" class="feld" data-feld="herkunft"><HerkunftText :anzeige="titelHerkunft(s.origin)" /></span>{{ ' ' }}
-              <span class="event" data-feld="veranstaltung">{{ heading }}</span>
-            </div>
+            <KopfLogos>
+              <div class="sheet-title-box">
+                <!-- Das Leerzeichen zwischen den Feldern zeichnet nichts (Flex), trennt sie aber im Text:
+                     Kopiert, vorgelesen oder aus dem PDF gelesen heißt es „Gewichtsliste Deutschland“. -->
+                <span class="list" data-feld="liste">{{ s.title }}</span>{{ ' ' }}
+                <span v-if="s.zusatz" class="feld" data-feld="zusatz">{{ parcoursName(s.zusatz, listenLocale) }}</span>{{ ' ' }}
+                <span v-if="s.origin" class="feld" data-feld="herkunft"><HerkunftText :anzeige="titelHerkunft(s.origin)" /></span>{{ ' ' }}
+                <span class="event" data-feld="veranstaltung">{{ heading }}</span>
+              </div>
+            </KopfLogos>
           </th>
         </tr>
         <tr class="sheet-cols">

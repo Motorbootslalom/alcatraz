@@ -9,6 +9,7 @@ import { vergissAlles } from '../lib/merken'
 import { SEITEN_VORGABE } from '../lib/seiten'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { ohneLogos, seitenKoepfe, setzeTestLogos } from '../testHilfen'
 
 // Reiter „Gewichtslisten“: je Herkunft für die Verwiegung oder „Ausgleichsgewichte“ für den
 // Steg (je Klasse ein Blatt). Dazu die Begriffe des Reglements. Alle Starter sind erfunden.
@@ -106,6 +107,24 @@ describe('Gewichtslisten: Ausgleichsgewichte für den Steg', () => {
     await nextTick()
     expect(spalten(wrapper).slice(5)).toEqual(['1. Lauf', '2. Lauf'])
     expect(zeilen(wrapper, '4')[0]).toHaveLength(7)
+    wrapper.unmount()
+  })
+
+  it('mit Logos (16.11.2026): auf jeder Seite links und rechts neben dem Kopf, sonst alles wie ohne', async () => {
+    // Mehrere Seiten in Klasse 4.
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['4'], 40).map((p) => ({ ...p, id: `${p.id}-x`, startNr: `4${p.startNr}` })) })
+    const vorher = mounte(ListsView, store)
+    await steg(vorher)
+    const ohne = seitenKoepfe(document.body)
+    vorher.unmount()
+    expect(ohne.length).toBeGreaterThan(2)
+    expect(ohne.every((x) => x.logos.length === 0)).toBe(true)
+    setzeTestLogos(store)
+    const wrapper = mounte(ListsView, store)
+    await steg(wrapper)
+    const mit = seitenKoepfe(document.body)
+    expect(mit.map((x) => x.logos)).toEqual(mit.map(() => ['links', 'rechts']))
+    expect(ohneLogos(mit)).toEqual(ohneLogos(ohne))
     wrapper.unmount()
   })
 

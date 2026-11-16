@@ -2,7 +2,7 @@ import type { ClassId } from './starter'
 import type { Sprache } from './bogen'
 
 // Einstellungen der Veranstaltung und ihrer Listen: Herkunft, Art der Veranstaltung, WKR-Einteilung und
-// -Sprachen, Besetzung je Klasse, Form der Laufzettel.
+// -Sprachen, Besetzung je Klasse, Form der Laufzettel, Logos der Listen.
 
 /** Welche Herkunft gezeigt wird. `none` blendet sie aus (Clubmeisterschaft). */
 export type OriginMode = 'verein' | 'bundesland' | 'land' | 'none'
@@ -34,3 +34,20 @@ export type WkrSprachen = Record<string, Record<string, Sprache>>
 export type Besetzung = Partial<Record<ClassId, string>>
 
 export type LaufzettelLayout = 'seite' | 'liste'
+
+/** Platz eines Logos im Kopf der gedruckten Listen. */
+export type LogoSeite = 'links' | 'rechts'
+
+/**
+ * Ein Logo: verkleinertes Bild als data-URL und seine Pixelmaße. Mit den Maßen steht die Breite
+ * auf dem Blatt schon vor dem Laden des Bildes fest – die Seitenteilung hängt so nie davon ab.
+ * Prüfung: lib/logo.ts `logoWert`.
+ */
+export interface LogoBild {
+  src: string
+  breite: number
+  hoehe: number
+}
+
+/** Die beiden Logos der Listen; `null` = an diesem Platz keins. */
+export type Logos = Record<LogoSeite, LogoBild | null>

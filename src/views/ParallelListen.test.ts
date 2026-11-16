@@ -9,6 +9,7 @@ import { meldeScan, scanBeenden } from '../lib/scan'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { logoFolge, ohneLogos, seitenKoepfe, setzeTestLogos } from '../testHilfen'
 
 // Erfundene Starter – keine echten Personen.
 function mk(klasse: ClassId, n: number): Starter[] {
@@ -275,6 +276,75 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     expect(zettel[1].find('.lz-verweis').text()).toBe('Scoring: see the checklist for Racecourse A')
     expect(zettel[0].find('.lz-verweis').exists()).toBe(false)
     wrapper.unmount()
+  })
+
+  it('mit Logos (16.11.2026): Startlisten, Listen der race officials und Laufzettel A und B tragen sie – sonst alles wie ohne', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    const startlisten = async () => {
+      const wrapper = mount(ListsView, mit(store))
+      await wrapper.find('.list-kinds button[data-kind="starter"]').trigger('click')
+      await wrapper.find('.starter-arten button[data-art="parallel"]').trigger('click')
+      await warte()
+      await wrapper.find('select[data-feld="start-racecourse"]').setValue('je')
+      await warte()
+      return wrapper
+    }
+    /** Je Bogen: Logos in der Titelleiste, Titel und Zellen des Kopfs. */
+    const boegen = (w: VueWrapper) =>
+      w.findAll('.wkr-listen .bogen-kopf').map((k) => ({
+        logos: logoFolge(k.element),
+        titel: k.find('.bk-titel').text(),
+        zellen: k.findAll('.bk-zelle').map((z) => z.text()),
+        qr: k.find('svg.qr-code').attributes('data-qr'),
+      }))
+    /** Je Laufzettel: Logos im Streifen und die Zeilen der Liste. */
+    const zettel = (w: VueWrapper) =>
+      w.findAll('.laufzettel').map((z) => ({
+        logos: logoFolge(z.element),
+        zeilen: z.findAll('.lz-oben .lz-liste li').map((l) => l.text().replace(/\s+/g, ' ')),
+        qr: z.find('.lz-oben .lz-qr').exists(),
+      }))
+
+    const vorher = { start: await startlisten() }
+    const ohne = { start: seitenKoepfe(document.body) }
+    vorher.start.unmount()
+    const wkrOhne = await listen('wkr')
+    const ohneBoegen = boegen(wkrOhne)
+    wkrOhne.unmount()
+    const lzOhne = await listen('laufzettel')
+    const ohneZettel = zettel(lzOhne)
+    lzOhne.unmount()
+    expect(ohne.start.map((x) => x.kopf)).toEqual([expect.stringContaining('Racecourse A'), expect.stringContaining('Racecourse B')])
+    expect(ohneBoegen).toHaveLength(6)
+    expect(ohneZettel).toHaveLength(2)
+
+    setzeTestLogos(store)
+    const start = await startlisten()
+    const mitStart = seitenKoepfe(document.body)
+    expect(mitStart.map((x) => x.logos)).toEqual([
+      ['links', 'rechts'],
+      ['links', 'rechts'],
+    ])
+    expect(ohneLogos(mitStart)).toEqual(ohneLogos(ohne.start))
+    start.unmount()
+
+    const wkr = await listen('wkr')
+    const mitBoegen = boegen(wkr)
+    expect(mitBoegen.map((b) => b.logos)).toEqual(mitBoegen.map(() => ['links', 'rechts']))
+    expect(mitBoegen.map(({ logos: _l, ...rest }) => rest)).toEqual(ohneBoegen.map(({ logos: _l, ...rest }) => rest))
+    expect(wkr.findAll('.wkr-listen .bogen-kopf.bogen-kopf--qr.bogen-kopf--logos')).toHaveLength(6)
+    wkr.unmount()
+
+    const lz = await listen('laufzettel')
+    const mitZettel = zettel(lz)
+    expect(lz.findAll('.laufzettel').map((z) => z.attributes('data-zettel'))).toEqual(['parallel|pre|A', 'parallel|pre|B'])
+    expect(mitZettel.map((z) => z.logos)).toEqual([
+      ['links', 'rechts'],
+      ['links', 'rechts'],
+    ])
+    expect(mitZettel.map(({ logos: _l, ...rest }) => rest)).toEqual(ohneZettel.map(({ logos: _l, ...rest }) => rest))
+    for (const z of lz.findAll('.laufzettel')) expect(z.find('.lz-inhalt > .kopf-logos--streifen + .lz-oben, .lz-inhalt > .kopf-logos--streifen + .lz-zuviel').exists()).toBe(true)
+    lz.unmount()
   })
 
   it('Einteilung: race officials je Racecourse A und B für Zeit, Steg und Fahrweg – mit Sprache je Racecourse und Liste', async () => {

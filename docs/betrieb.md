@@ -120,6 +120,8 @@ Gegen ein verlorenes oder defektes Gerät und gegen gelöschte Browserdaten hilf
   Gemerkte Stände bleiben, bis man sie löscht; die übrigen weichen neueren (höchstens 100, höchstens 30 Tage alt).
 - Ein Stand mit 336 Startern und allen Eingaben belegt in Chromium rund 50 bis 100 kB auf der Platte,
   100 Stände also rund 5 bis 10 MB.
+- Logos stehen in jedem Stand mit: zusammen höchstens rund 0,3 MB je Stand, bei 100 Ständen also bis zu rund 30 MB
+  mehr; übliche Logos deutlich weniger.
 - Der Verlauf enthält Namen und Ergebnisse.
   Er liegt nur auf diesem Gerät, steht in keiner Sicherung und keiner Vorlage, und „Alles zurücksetzen“ löscht ihn mit.
   Scheitert das Löschen im zweiten Speicher ausnahmsweise, holt es die nächste Änderung oder der nächste Start nach.

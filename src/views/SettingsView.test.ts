@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import SettingsView from './SettingsView.vue'
 import { downloadText, makeFile } from '../persistenz/backup'
@@ -7,6 +7,8 @@ import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
 import { configFor } from '../config/konfig'
 import type { RawAufbau } from '../config/schema'
+import { LogoFehler, verkleinereLogo } from '../lib/logoBild'
+import { TEST_PNG_2X1, testLogo } from '../testHilfen'
 
 /** Erfundener eigener Aufbau. */
 const hafenfest: RawAufbau = {
@@ -21,6 +23,12 @@ const hafenfest: RawAufbau = {
   ],
 }
 
+// Verkleinern braucht Canvas (nur im Browser geprüft): Hier kommt immer das Testbild zurück. LogoFehler bleibt echt.
+vi.mock('../lib/logoBild', async (original) => ({
+  ...(await original<typeof import('../lib/logoBild')>()),
+  verkleinereLogo: vi.fn(async () => testLogo()),
+}))
+
 // Der Download selbst braucht einen Browser; geprüft wird, was heruntergeladen würde.
 vi.mock('../persistenz/backup', async (original) => ({
   ...(await original<typeof import('../persistenz/backup')>()),
@@ -30,8 +38,8 @@ vi.mock('../persistenz/backup', async (original) => ({
 /** Wie aus einer beschädigten Sicherung: Die Form stimmt, die Prüfung stolpert (`klassen` muss eine Liste sein). */
 const kaputt = { id: 'kk', name: 'Kaputt', positionen: [{ id: 'pz', titel: 'x', bojen: ['Tor1'], klassen: 5 }] } as unknown as RawAufbau
 
-function settings(store: Store) {
-  return mount(SettingsView, { global: { provide: { [storeKey as symbol]: store } } })
+function settings(store: Store, optionen: { attachTo?: HTMLElement } = {}) {
+  return mount(SettingsView, { ...optionen, global: { provide: { [storeKey as symbol]: store } } })
 }
 
 describe('Einstellungen: eigene Aufbauten', () => {
@@ -262,6 +270,7 @@ describe('Einstellungen: eigene Aufbauten', () => {
     for (const [knopf, feld] of [
       ['.own-setups [data-action="upload"]', '.own-setups input[type="file"]'],
       ['[data-action="upload-file"]', 'input[type="file"][accept*="json"]'],
+      ['[data-action="logo-waehlen|links"]', 'input[data-feld="logo|links"]'],
     ]) {
       expect(wrapper.find(knopf).element.tagName).toBe('BUTTON')
       // Kein Dateifeld mit `hidden` in einem `label`: Das wäre mit Tab nicht erreichbar.
@@ -587,6 +596,128 @@ describe('Einstellungen: Streichläufe „nach Regel“ je Regelwerk', () => {
     const wrapper = settings(store)
     await nextTick()
     expect(wahl(wrapper).find('option[value="auto"]').text()).toBe('nach Regel (ab 3 Läufen einer)')
+    wrapper.unmount()
+  })
+})
+
+describe('Einstellungen: Logos', () => {
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+    vi.mocked(verkleinereLogo).mockClear()
+  })
+  afterEach(() => {
+    setLocale('de')
+    document.body.innerHTML = ''
+  })
+
+  /** Eine Datei ins Feld eines Platzes legen, wie es der Dateidialog täte. */
+  async function waehle(wrapper: ReturnType<typeof settings>, seite: 'links' | 'rechts', datei: File) {
+    const feld = wrapper.find(`input[data-feld="logo|${seite}"]`)
+    Object.defineProperty(feld.element, 'files', { value: [datei], configurable: true })
+    await feld.trigger('change')
+    await flushPromises()
+  }
+  const png = () => new File([new Uint8Array([137, 80, 78, 71])], 'a.png', { type: 'image/png' })
+
+  it('ein eigener Block mit Überschrift, unter DM und UIM', async () => {
+    const wrapper = settings(store)
+    expect(wrapper.find('#logos.panel > h2').text()).toBe('Logos auf den Listen')
+    expect(wrapper.findAll('#logos fieldset.logo-slot').map((f) => f.attributes('data-logo'))).toEqual(['links', 'rechts'])
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    await nextTick()
+    expect(wrapper.find('#logos').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('Bild wählen: verkleinert, gesetzt, mit Vorschau und Auskunft', async () => {
+    const wrapper = settings(store)
+    expect(wrapper.find('[data-logo="links"] .logo-leer').text()).toBe('Kein Logo')
+    const datei = png()
+    await waehle(wrapper, 'links', datei)
+    expect(verkleinereLogo).toHaveBeenCalledWith(datei)
+    expect(store.state.value.logos.links).toEqual(testLogo())
+    expect(store.state.value.logos.rechts).toBeNull()
+    const platz = wrapper.find('[data-logo="links"]')
+    expect(platz.find('img.logo-vorschau').attributes('src')).toBe(TEST_PNG_2X1)
+    expect(platz.find('img.logo-vorschau').attributes('alt')).toBe('Vorschau: Logo links')
+    expect(platz.find('[data-hinweis="logo-info"]').text()).toContain('2 × 1 px')
+    expect(platz.find('[data-hinweis="logo-info"]').text()).toContain('PNG')
+    // Zwei Pixel bei 15 mm sind kaum Auflösung: Darauf weist der Platz hin.
+    expect(platz.find('[data-hinweis="logo-aufloesung"]').exists()).toBe(true)
+    expect(platz.find('[data-action="logo-waehlen|links"]').text()).toBe('Ersetzen …')
+    // Name = sichtbarer Text (WCAG 2.5.3); den Platz nennt die legend des fieldset.
+    expect(platz.find('[data-action="logo-waehlen|links"]').attributes('aria-label')).toBeUndefined()
+    expect(platz.find('[data-action="logo-entfernen|links"]').attributes('aria-label')).toBeUndefined()
+    expect(platz.element.tagName).toBe('FIELDSET')
+    expect(platz.find('legend').text()).toBe('Logo links')
+    wrapper.unmount()
+  })
+
+  it('ein Format, das nicht geht: kein Verkleinern, eine Meldung, der Stand bleibt', async () => {
+    const wrapper = settings(store)
+    const vorher = store.state.value
+    await waehle(wrapper, 'links', new File(['x'], 'x.heic', { type: 'image/heic' }))
+    expect(verkleinereLogo).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-logo="links"] .boat-banner.warn').text()).toContain('Dieses Dateiformat geht nicht')
+    expect(store.state.value).toBe(vorher)
+    wrapper.unmount()
+  })
+
+  it('ein Bild, das sich nicht lesen lässt: Meldung, das bisherige Logo bleibt', async () => {
+    store.dispatch({ type: 'SET_LOGO', seite: 'rechts', logo: testLogo(4, 2) })
+    const wrapper = settings(store)
+    vi.mocked(verkleinereLogo).mockRejectedValueOnce(new LogoFehler('lesbar'))
+    await waehle(wrapper, 'rechts', png())
+    expect(wrapper.find('[data-logo="rechts"] [data-fehler="lesbar"]').text()).toContain('ließ sich nicht lesen')
+    expect(store.state.value.logos.rechts).toEqual(testLogo(4, 2))
+    wrapper.unmount()
+  })
+
+  it('Entfernen: das Logo ist weg, der Fokus steht auf dem Wahl-Knopf', async () => {
+    store.dispatch({ type: 'SET_LOGO', seite: 'links', logo: testLogo() })
+    const wrapper = settings(store, { attachTo: document.body })
+    await wrapper.find('[data-action="logo-entfernen|links"]').trigger('click')
+    await flushPromises()
+    expect(store.state.value.logos.links).toBeNull()
+    expect(wrapper.find('[data-action="logo-entfernen|links"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.find('[data-action="logo-waehlen|links"]').element)
+    expect(wrapper.find('[data-action="logo-waehlen|links"]').text()).toBe('Bild wählen …')
+    wrapper.unmount()
+  })
+
+  it('Höhe: gerundet und geklemmt, leer ist die Vorgabe; ein eigener Wert ist hervorgehoben', async () => {
+    const wrapper = settings(store)
+    const feld = wrapper.find('input[data-feld="logo-hoehe"]')
+    expect((feld.element as HTMLInputElement).value).toBe('15')
+    await feld.setValue('3')
+    expect(store.state.value.logoHoeheMm).toBe(8)
+    expect((feld.element as HTMLInputElement).value).toBe('8')
+    await feld.setValue('')
+    expect(store.state.value.logoHoeheMm).toBe(15)
+    expect(feld.classes()).not.toContain('own')
+    await feld.setValue('20')
+    expect(store.state.value.logoHoeheMm).toBe(20)
+    expect(feld.classes()).toContain('own')
+    wrapper.unmount()
+  })
+
+  it('wäre der Speicher voll: das vorige Logo kommt zurück, mit Meldung', async () => {
+    const wrapper = settings(store)
+    // Am Speicher dieser Tests selbst (src/test-setup.ts: eigene Klasse, nicht Storage.prototype).
+    const setItem = localStorage.setItem.bind(localStorage)
+    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation((key: string, wert: string) => {
+      if (wert.includes(TEST_PNG_2X1)) throw new DOMException('voll', 'QuotaExceededError')
+      setItem(key, wert)
+    })
+    await waehle(wrapper, 'links', png())
+    expect(store.state.value.logos.links).toBeNull()
+    expect(store.saved.value).toBe(true)
+    expect(wrapper.find('[data-logo="links"] [data-fehler="speicher"]').text()).toContain('Speicher des Browsers voll')
+    spy.mockRestore()
     wrapper.unmount()
   })
 })

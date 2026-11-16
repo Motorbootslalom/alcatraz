@@ -5,7 +5,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 
 ## Dateien (alle .vue, gruppiert)
 
-- Rahmen: ListenDokument (misst, listenSeiten, Seitenzahl, data-druckseite), LeereRueckseite, HerkunftText, QrCode.
+- Rahmen: ListenDokument (misst, listenSeiten, Seitenzahl, data-druckseite), LeereRueckseite, HerkunftText, QrCode,
+  KopfLogos (Logos links/rechts im Kopf; ohne Logo nur der Slot).
 - WKR-Bögen `bogen/`: BogenBlatt (misst erste Seite, bogenSeiten, meldet seiten/kapazitaet), BogenSeite, BogenKopf
   (schwebender QR), BogenLegende, BogenBild, BogenRueckseite (180° gedreht). Reiter: WkrListen, ParallelWkrListen,
   WkrVorschau (nie gedruckt; UIM: auch Muster-Runde), WkrEinteilung (Name + Sprache je Parcours/Racecourse × Liste,
@@ -23,9 +24,10 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   E/D), StarterSperre, ParcoursCard, TrackContainer, ClassChip, PauseChip, SlotCell, FlowPreview, SequenceTable,
   BoatPanel, HeatTable, ParallelRunden.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
-  Ersetzen), BesetzungPanel, EigeneAufbautenPanel, AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel,
-  OfflinePanel, AppearancePanel, EingabenHinweis, HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo,
-  LocaleFlag, LocaleSelect, ThemeToggle, ToTop, ParcoursNachweis, FremdeBestandteile.
+  Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
+  AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
+  HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop,
+  ParcoursNachweis, FremdeBestandteile.
 
 ## Abläufe
 
@@ -63,6 +65,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Ansicht ab (Jahrgang), springt es zurück. Meldungen kommen als `fehler`, die Ansicht zeigt sie. Es folgt der Prop,
   nicht dem Store: ClassSection bekommt `starters` von außen, in Tests nach einem dispatch `setProps`.
 - ISSUE_KEYS (own.issue.*) doppelt: EigeneAufbautenPanel, AufbauAssistent. PARALLEL_RUNDE_LOESEN heißt „Löschen“.
+- Neuer Listenkopf → KopfLogos drumherum (Bogen art=leiste, Laufzettel art=streifen); Logo-Maße fest in mm aus den
+  Pixelmaßen, nie vom Laden; Messungen ohne ResizeObserver (LaufzettelBlatt.fit, DruckdateiListen.messeCodes) brauchen
+  logoSchluessel im Watch.
 
 ## Tests
 

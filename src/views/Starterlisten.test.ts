@@ -7,6 +7,7 @@ import { vergissAlles } from '../lib/merken'
 import { SEITEN_VORGABE } from '../lib/seiten'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { logoFolge, setzeTestLogos } from '../testHilfen'
 
 // Der Reiter „Starterlisten“: eine Auswahl „Art“ statt zweier Reiter, die Markierung für eine
 // Herkunft, die Liste je Herkunft nach Startnummer und der Kopf mit eigenen Feldern.
@@ -424,6 +425,44 @@ describe('Starterlisten', () => {
       await nextTick()
       expect(koepfe(wrapper)).toEqual(['Vorsteg | Parcours 1 | Hafenpokal 2026', 'Vorsteg | Parcours 2 | Hafenpokal 2026'])
       wrapper.unmount()
+    })
+  })
+
+  describe('Logos im Kopf (16.11.2026)', () => {
+    /** Je Druckseite: die Logos, die Felder des Kopfs und die Spaltenzahl der Kopfzelle. */
+    const seiten = (wrapper: VueWrapper) =>
+      wrapper.findAll('.listen-seite').map((x) => ({
+        logos: logoFolge(x.element),
+        kopf: x.findAll('.sheet-title-box [data-feld]').map((f) => f.text()).join(' | '),
+        colspan: x.find('.sheet-title th').attributes('colspan'),
+      }))
+    const ohneLogos = (liste: ReturnType<typeof seiten>) => liste.map(({ logos: _l, ...rest }) => rest)
+
+    it('Starter-, Vorsteg- und Gewichtslisten: auf jeder Seite links und rechts, sonst alles wie ohne', async () => {
+      // Mehrere Seiten: 50 Starter auf Parcours 1.
+      store.dispatch({ type: 'ADD_STARTERS', starters: starter(['2'], 50).map((p) => ({ ...p, id: `${p.id}-x` })) })
+      for (const kind of ['starter', 'vorsteg', 'gewicht']) {
+        const vorher = ansicht(store)
+        await vorher.find(`.list-kinds button[data-kind="${kind}"]`).trigger('click')
+        await nextTick()
+        const ohne = seiten(vorher)
+        expect(vorher.find('.kopf-logos').exists()).toBe(false)
+        vorher.unmount()
+        expect(ohne.length, kind).toBeGreaterThan(2)
+        expect(ohne.every((x) => x.logos.length === 0), kind).toBe(true)
+
+        setzeTestLogos(store)
+        const nachher = ansicht(store)
+        await nachher.find(`.list-kinds button[data-kind="${kind}"]`).trigger('click')
+        await nextTick()
+        const mit = seiten(nachher)
+        expect(mit.map((x) => x.logos), kind).toEqual(mit.map(() => ['links', 'rechts']))
+        expect(ohneLogos(mit), kind).toEqual(ohneLogos(ohne))
+        expect(nachher.findAll('.sheet-title th > .kopf-logos > .kopf-logos-mitte > .sheet-title-box')).toHaveLength(mit.length)
+        nachher.unmount()
+        store.dispatch({ type: 'SET_LOGO', seite: 'links', logo: null })
+        store.dispatch({ type: 'SET_LOGO', seite: 'rechts', logo: null })
+      }
     })
   })
 })

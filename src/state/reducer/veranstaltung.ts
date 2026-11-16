@@ -7,6 +7,7 @@ import { DEFAULT_AUFBAU, DEFAULT_BESCHRIFTUNG, DEFAULT_REGELWERK, regelwerkOf } 
 import { istKennung } from '../../lib/qr'
 import { WKR_LEERZEILEN_CLUB, WKR_LEERZEILEN_SEITE_VORGABE, WKR_LEERZEILEN_VORGABE } from './listen'
 import { ERGEBNIS_LISTEN_VORGABE } from './wertung'
+import { LOGO_HOEHE_VORGABE_MM } from '../../lib/logo'
 
 export type VeranstaltungAenderung =
   | { type: 'SET_EVENT'; patch: Partial<Pick<AppState, 'eventName' | 'eventJahr' | 'laufCount'>> }
@@ -61,6 +62,9 @@ export function emptyState(): AppState {
     nichtWerten: {},
     dolphinPraefix: 'E',
     parallelZebra: true,
+    // Anfangs keine Logos, unter jedem Regelwerk (Entscheidung des Nutzers vom 16.11.2026).
+    logos: { links: null, rechts: null },
+    logoHoeheMm: LOGO_HOEHE_VORGABE_MM,
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,

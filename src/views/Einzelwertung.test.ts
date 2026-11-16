@@ -8,7 +8,7 @@ import { attemptSchluessel } from '../lib/parallelSchluessel'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, ParallelRunde, Starter } from '../types'
-import { knotenHaken } from '../testHilfen'
+import { knotenHaken, ohneLogos, seitenKoepfe, setzeTestLogos } from '../testHilfen'
 
 // Einzelwertung über beide Stages (Regel 960, Pkt. 5.2.3) unter „Listen“ und in der Druckdatei,
 // die Mannschaftswertung daraus (Pkt. 5.2.4) – und dass ohne Parallelslalom und unter der DM
@@ -301,6 +301,24 @@ describe('Einzelwertung', () => {
     await warte()
     expect(wrapper.find('.listen-seite[data-art="einzel"] .erg-stand').text()).not.toBe(stand)
     expect(wrapper.find('.listen-seite[data-art="einzel"] .erg-stand').text()).toMatch(/:00:05$/)
+    wrapper.unmount()
+  })
+
+  it('mit Logos (16.11.2026): links und rechts neben dem Kasten der Einzelwertung, sonst alles wie ohne', async () => {
+    manoever(MANOEVER)
+    parallel()
+    const KOPF = ['.erg-kopf span:not(.erg-stand)', 'th.erg-kopfzelle'] as const
+    const vorher = await listen('ergebnis', 'einzel')
+    const ohne = seitenKoepfe(vorher.find('.listen-seite[data-art="einzel"]').element.parentElement!, ...KOPF)
+    vorher.unmount()
+    expect(ohne.length).toBeGreaterThan(0)
+    expect(ohne.every((x) => x.logos.length === 0)).toBe(true)
+    setzeTestLogos(store)
+    const wrapper = await listen('ergebnis', 'einzel')
+    const mit = seitenKoepfe(wrapper.find('.listen-seite[data-art="einzel"]').element.parentElement!, ...KOPF)
+    expect(mit.map((x) => x.logos)).toEqual(mit.map(() => ['links', 'rechts']))
+    expect(ohneLogos(mit)).toEqual(ohneLogos(ohne))
+    expect(mit[0].kopf).toContain('Individual competition')
     wrapper.unmount()
   })
 

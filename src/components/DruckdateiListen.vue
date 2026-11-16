@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, onUpdated, ref, watch, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, watch, watchEffect } from 'vue'
 import { DRUCKSEITE, useLeereRueckseite } from '../lib/doppelseitig'
 import { pageHeightMm, printableHeightPx } from '../lib/paging'
 import LeereRueckseite from './LeereRueckseite.vue'
@@ -23,6 +23,7 @@ import { starterDokumente } from '../lib/starterlisten'
 import { namenDerFassung } from '../lib/namen'
 import { istOriginStyle } from '../lib/origin'
 import { useListenSprache } from '../lib/listensprache'
+import { logoSchluessel, useListenLogos } from '../lib/listenLogos'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
 import type { ClassId, ErgebnisFassung, OriginStyle, ParallelRunde } from '../types'
@@ -243,6 +244,13 @@ function messeCodes() {
 }
 onMounted(messeCodes)
 onUpdated(messeCodes)
+// Logos (16.11.2026) machen den Kopf des Aushangs höher, ohne dass diese Komponente neu zeichnet (der Kopf
+// zeichnet sich selbst neu): onUpdated käme nicht – also eigens messen. Ohne Logo ist der Schlüssel immer ''.
+const logos = useListenLogos()
+watch(
+  () => logoSchluessel(logos.value),
+  () => nextTick(messeCodes),
+)
 const codesLeer = useLeereRueckseite(
   () => codesSeiten.value,
   () => codesTeil.value?.querySelector(`[${DRUCKSEITE}]`),

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KopfLogos from './KopfLogos.vue'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { useListenSprache } from '../lib/listensprache'
@@ -88,11 +89,13 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit
           <thead>
             <tr class="sheet-title">
               <th :colspan="spalten">
-                <div class="sheet-title-box">
-                  <span class="list" data-feld="liste">{{ lt('parallel.startlist.title') }}</span>{{ ' ' }}
-                  <span class="feld" data-feld="runde">{{ lt('parallel.title') }} · {{ rundenName(l.runde, lt) }}<template v-if="racecourse"> · {{ racecourseText(racecourse) }}</template></span>{{ ' ' }}
-                  <span class="event" data-feld="veranstaltung">{{ heading }}</span>
-                </div>
+                <KopfLogos>
+                  <div class="sheet-title-box">
+                    <span class="list" data-feld="liste">{{ lt('parallel.startlist.title') }}</span>{{ ' ' }}
+                    <span class="feld" data-feld="runde">{{ lt('parallel.title') }} · {{ rundenName(l.runde, lt) }}<template v-if="racecourse"> · {{ racecourseText(racecourse) }}</template></span>{{ ' ' }}
+                    <span class="event" data-feld="veranstaltung">{{ heading }}</span>
+                  </div>
+                </KopfLogos>
               </th>
             </tr>
             <!-- Ein Racecourse: Start, Attempt, Klasse, Nr., Name, Herkunft – eine Zeile je Start. -->

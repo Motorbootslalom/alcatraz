@@ -3,6 +3,7 @@ import { emptyState, reducer } from './reducer'
 import { normalisiereSprachen } from '../lib/einteilung'
 import { wkrSpracheFuer } from '../lib/listensprache'
 import type { ClassId, Starter } from '../types'
+import { testLogo, testSvgLogo } from '../testHilfen'
 
 function starter(id: string, klasse: ClassId, startNr: string, nachname: string, extra: Partial<Starter> = {}): Starter {
   return {
@@ -460,5 +461,50 @@ describe('Listen der Veranstaltung: zusätzliche Listen, Form der Laufzettel', (
   it('Form der Laufzettel: eine Zeile je Seite oder je Liste', () => {
     expect(reducer(emptyState(), { type: 'SET_LAUFZETTEL_LAYOUT', layout: 'liste' }).laufzettelLayout).toBe('liste')
     expect(reducer({ ...emptyState(), laufzettelLayout: 'liste' }, { type: 'SET_LAUFZETTEL_LAYOUT', layout: 'quer' as never }).laufzettelLayout).toBe('seite')
+  })
+})
+
+describe('Logos', () => {
+  it('Vorgabe: keine Logos, 15 mm hoch', () => {
+    expect(emptyState().logos).toEqual({ links: null, rechts: null })
+    expect(emptyState().logoHoeheMm).toBe(15)
+  })
+
+  it('SET_LOGO setzt, entfernt und ändert bei Gleichem oder Unbrauchbarem nichts', () => {
+    const leer = emptyState()
+    const mit = reducer(leer, { type: 'SET_LOGO', seite: 'links', logo: testLogo() })
+    expect(mit.logos).toEqual({ links: testLogo(), rechts: null })
+    // Das Bild im Stand ist ein eigenes Objekt (geprüft, ohne Zusatzfelder).
+    expect(reducer(leer, { type: 'SET_LOGO', seite: 'links', logo: { ...testLogo(), extra: 1 } as never }).logos.links).toEqual(testLogo())
+    expect(reducer(mit, { type: 'SET_LOGO', seite: 'links', logo: testLogo() })).toBe(mit)
+    expect(reducer(mit, { type: 'SET_LOGO', seite: 'links', logo: { src: 'https://example.org/a.png', breite: 2, hoehe: 1 } })).toBe(mit)
+    expect(reducer(mit, { type: 'SET_LOGO', seite: 'mitte' as never, logo: testLogo() })).toBe(mit)
+    // Andere Maße sind ein anderes Logo.
+    expect(reducer(mit, { type: 'SET_LOGO', seite: 'links', logo: testLogo(4, 1) }).logos.links).toEqual(testLogo(4, 1))
+    const beide = reducer(mit, { type: 'SET_LOGO', seite: 'rechts', logo: testSvgLogo() })
+    expect(beide.logos.rechts).toEqual(testSvgLogo())
+    expect(reducer(beide, { type: 'SET_LOGO', seite: 'links', logo: null }).logos).toEqual({ links: null, rechts: testSvgLogo() })
+    expect(reducer(leer, { type: 'SET_LOGO', seite: 'rechts', logo: null })).toBe(leer)
+  })
+
+  it('SET_LOGO_HOEHE klemmt auf 8 bis 30 mm; null ist die Vorgabe', () => {
+    const s = emptyState()
+    expect(reducer(s, { type: 'SET_LOGO_HOEHE', mm: 3 }).logoHoeheMm).toBe(8)
+    expect(reducer(s, { type: 'SET_LOGO_HOEHE', mm: 99 }).logoHoeheMm).toBe(30)
+    expect(reducer(reducer(s, { type: 'SET_LOGO_HOEHE', mm: 20 }), { type: 'SET_LOGO_HOEHE', mm: null }).logoHoeheMm).toBe(15)
+    expect(reducer(s, { type: 'SET_LOGO_HOEHE', mm: 15 })).toBe(s)
+    expect(reducer(s, { type: 'SET_LOGO_HOEHE', mm: null })).toBe(s)
+  })
+
+  it('wirkt auch bei festgeschriebener Verzahnung und erfassten Werten (keine Sperre)', () => {
+    const tracks = { par_1: [[{ kind: 'class' as const, klasse: '4' as const }]] }
+    let state = reducer(emptyState(), { type: 'ADD_STARTERS', starters: [starter('a', '4', '401', 'A')] })
+    state = reducer(state, { type: 'SET_VERZAHNUNG_LOCK', locked: true, tracks })
+    state = reducer(state, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: 'a', feld: 'zeit1', wert: '80' }] })
+    expect(state.verzahnungLocked).toBe(true)
+    expect(Object.keys(state.eingaben)).not.toHaveLength(0)
+    const mit = reducer(state, { type: 'SET_LOGO', seite: 'rechts', logo: testLogo() })
+    expect(mit.logos.rechts).toEqual(testLogo())
+    expect(reducer(mit, { type: 'SET_LOGO_HOEHE', mm: 20 }).logoHoeheMm).toBe(20)
   })
 })

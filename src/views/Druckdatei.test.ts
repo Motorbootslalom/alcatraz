@@ -7,6 +7,7 @@ import { laufSchluessel } from '../lib/eingaben'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { logoFolge, setzeTestLogos } from '../testHilfen'
 
 // Die Druckdatei: Starterliste, Mannschaftswertungen, Codes und Wertungslisten in einem Druck.
 // Alle Starter und Vereine sind erfunden.
@@ -118,6 +119,26 @@ describe('Druckdatei', () => {
     expect(new Set(wrapper.findAll('.druckdatei-teil[data-teil="ergebnis"] .ergebnis-blatt').map((b) => b.attributes('data-ordnung')))).toEqual(new Set(['platz']))
     expect(wrapper.find('[data-hinweis="druckdatei-unfertig"]').exists()).toBe(false)
     expect(wrapper.find('button.primary').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('mit Logos (16.11.2026): jeder Teil, jede Seite trägt sie – dieselben Dokumente in derselben Folge', async () => {
+    fahre(store, '1')
+    fahre(store, '2')
+    const vorher = await druckdatei(store)
+    const ohne = dokumente(vorher)
+    const seitenOhne = vorher.findAll('.druckdatei-teil .listen-seite').length
+    expect(vorher.find('.druckdatei .kopf-logos').exists()).toBe(false)
+    vorher.unmount()
+    setzeTestLogos(store)
+    const wrapper = await druckdatei(store)
+    expect(teile(wrapper)).toEqual(['starter', 'pokal', 'codes', 'ergebnis'])
+    for (const teil of wrapper.findAll('.druckdatei-teil')) expect(logoFolge(teil.element).length, teil.attributes('data-teil')).toBeGreaterThan(0)
+    const seiten = wrapper.findAll('.druckdatei-teil .listen-seite')
+    expect(seiten).toHaveLength(seitenOhne)
+    for (const s of seiten) expect(logoFolge(s.element)).toEqual(['links', 'rechts'])
+    expect(logoFolge(wrapper.find('.druckdatei-teil[data-teil="codes"] .lg-blatt').element)).toEqual(['links', 'rechts'])
+    expect(dokumente(wrapper)).toEqual(ohne)
     wrapper.unmount()
   })
 

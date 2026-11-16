@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { listenNachname, type NamenArt } from '../../lib/namen'
 import { computed } from 'vue'
+import KopfLogos from '../KopfLogos.vue'
 import { locale, texteIn, type Locale } from '../../i18n'
 import type { ClassId, Starter } from '../../types'
 import type { UimGruppe, UimStarter, UimWertung } from '../../lib/pokal'
@@ -154,11 +155,13 @@ const zwischenstand = computed(() =>
         <thead>
           <tr>
             <th class="erg-kopfzelle pokal-kopfzelle" :colspan="spalten">
-              <div class="erg-kopf pokal-kopf">
-                <span>{{ t('cup.sheet.titleUim') }}<template v-if="zwischenstand"> – {{ t('cup.interim') }}</template></span>
-                <span class="erg-kopf-titel pokal-kopf-regel">{{ disziplinenText ? t('cup.uim.ruleOf', { disciplines: disziplinenText, n: wertung.beste, origin: herkunftTitel }) : t('cup.uim.rule', { n: wertung.beste, origin: herkunftTitel }) }}</span>
-                <span class="erg-kopf-event">{{ eventName }}</span>
-              </div>
+              <KopfLogos>
+                <div class="erg-kopf pokal-kopf">
+                  <span>{{ t('cup.sheet.titleUim') }}<template v-if="zwischenstand"> – {{ t('cup.interim') }}</template></span>
+                  <span class="erg-kopf-titel pokal-kopf-regel">{{ disziplinenText ? t('cup.uim.ruleOf', { disciplines: disziplinenText, n: wertung.beste, origin: herkunftTitel }) : t('cup.uim.rule', { n: wertung.beste, origin: herkunftTitel }) }}</span>
+                  <span class="erg-kopf-event">{{ eventName }}</span>
+                </div>
+              </KopfLogos>
               <!-- Im festen Abstand unter dem Kopf: ändert die Höhe der Seite nicht. -->
               <span v-if="fortsetzung(teile)" class="pokal-fortsetzung" data-hinweis="fortsetzung">{{ t('cup.continued', { origin: fortsetzung(teile) }) }}</span>
             </th>

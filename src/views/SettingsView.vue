@@ -25,6 +25,7 @@ import { adresse, sprungziel } from '../lib/router'
 import { starterfeldFest } from '../lib/eingaben'
 import type { ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout } from '../types'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
+import LogosPanel from '../components/LogosPanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
 import SettingsNav from '../components/SettingsNav.vue'
 import OfflinePanel from '../components/OfflinePanel.vue'
@@ -378,6 +379,9 @@ function takeLegacy() {
       </table>
     </details>
   </div>
+
+  <!-- Logos auf allen gedruckten Listen: unter DM und UIM gleich (16.11.2026), daher ohne v-if. -->
+  <LogosPanel />
 
   <!-- Der Rennleiter entscheidet, wie viele Läufe gestrichen werden (z. B. bei zwei Läufen einer oder keiner). -->
   <div id="wertung" class="panel">

@@ -7,6 +7,7 @@ import { configFor } from '../config/konfig'
 import { feldVon, laufSchluessel, OHNE_LAUF } from './eingaben'
 import { geaenderteListen, KEINE_LISTE, gesamtListenSchluessel, gesamtZeit, laeufeZeit, laufListenSchluessel, listenInhalte, standZeit, wertungZeit } from './listenStand'
 import type { AppState, ClassId, Starter } from '../types'
+import { testLogo } from '../testHilfen'
 
 // Wann sich eine Wertungsliste zuletzt geändert hat. Alle Starter sind erfunden.
 
@@ -144,7 +145,11 @@ describe('Stand der Wertungslisten', () => {
       { type: 'SET_EVENT', patch: { eventName: 'Hafenpokal' }, zeit: 2000 },
       { type: 'SET_WKR_NAME', parcoursId: 'par_1', typeId: 'steg', name: 'A. Muster', zeit: 2000 },
       { type: 'RENAME_PARCOURS', id: 'par_1', name: 'Nord', zeit: 2000 },
+      // Logos sind Darstellung: Sie ändern keine Prüfsumme (16.11.2026).
+      { type: 'SET_LOGO', seite: 'links', logo: testLogo(), zeit: 2000 },
+      { type: 'SET_LOGO_HOEHE', mm: 25, zeit: 2000 },
     )
+    expect(danach.logos.links).toEqual(testLogo())
     expect(danach.listenStand).toBe(s.listenStand)
   })
 

@@ -7,7 +7,7 @@ import { emptyState } from '../state/reducer'
 import { laufSchluessel } from '../lib/eingaben'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
-import { wechsleRegelwerk } from '../testHilfen'
+import { ohneLogos, seitenKoepfe, setzeTestLogos, wechsleRegelwerk } from '../testHilfen'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -86,6 +86,30 @@ describe('Listen: Wertungslisten', () => {
     // Die anderen Listen stehen nicht daneben.
     expect(wrapper.find('.sheet').exists()).toBe(false)
     expect(wrapper.find('.bogen').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('mit Logos (16.11.2026): auf jeder Seite jeder Liste links und rechts neben dem Kasten, sonst alles wie ohne', async () => {
+    // Klasse 2 über mehrere Seiten (Starter kommen nur vor den ersten Werten dazu).
+    store.dispatch({ type: 'CLEAR_EINGABEN' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['2'], 35) })
+    zeit(store, 2, 'id-4-1', '70')
+    for (let i = 1; i <= 35; i++) zeit(store, 1, `id-2-${i}`, String(60 + i))
+    const KOPF = ['.erg-kopf span:not(.erg-stand)', 'th.erg-kopfzelle'] as const
+    const vorher = ansicht(store)
+    await ergebnisse(vorher)
+    const ohne = seitenKoepfe(document.body, ...KOPF)
+    vorher.unmount()
+    // Lauf- und Gesamtliste der Klasse 2: je zwei Seiten, jede mit Kopf.
+    expect(ohne.filter((x) => x.kopf.startsWith('Klasse 2 |'))).toHaveLength(4)
+    expect(ohne.every((x) => x.logos.length === 0)).toBe(true)
+    setzeTestLogos(store)
+    const wrapper = ansicht(store)
+    await ergebnisse(wrapper)
+    const mit = seitenKoepfe(document.body, ...KOPF)
+    expect(mit.map((x) => x.logos)).toEqual(mit.map(() => ['links', 'rechts']))
+    expect(ohneLogos(mit)).toEqual(ohneLogos(ohne))
+    expect(wrapper.findAll('th.erg-kopfzelle > .kopf-logos > .kopf-logos-mitte > .erg-kopf')).toHaveLength(mit.length)
     wrapper.unmount()
   })
 

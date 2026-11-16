@@ -4,6 +4,8 @@ import { mount } from '@vue/test-utils'
 import ErgebnisLaufBlatt from './ErgebnisLaufBlatt.vue'
 import type { LaufZeile } from '../../lib/ergebnis'
 import type { Starter } from '../../types'
+import { createStore, storeKey, type Store } from '../../state/store'
+import { logoFolge, setzeTestLogos } from '../../testHilfen'
 
 // Auf der Laufliste konnte ein langer Vereinsname am Zellenrand um wenige Pixel abgeschnitten
 // sein: Die Breite eines Zeichens war zu knapp geschätzt (1,2 bzw. 1,37 mm), der Name stand
@@ -23,8 +25,9 @@ const starter = (i: number, nachname: string, verein: string, vorname = 'Erika')
 })
 const zeile = (p: Starter): LaufZeile => ({ starter: p, zeit: 8000, strafpunkte: 0, gesamt: 8000, disq: false, nichtGestartet: false, offen: false, platz: 1, stich: false, zellen: [], schluessel: '' }) as unknown as LaufZeile
 
-function blatt(leute: Starter[]) {
+function blatt(leute: Starter[], store?: Store) {
   return mount(ErgebnisLaufBlatt, {
+    global: store ? { provide: { [storeKey as symbol]: store } } : {},
     props: {
       klasseText: 'Klasse 4',
       laufText: '1. Lauf',
@@ -71,5 +74,27 @@ describe('Laufliste: Herkunft und Namen werden nicht am Zellenrand abgeschnitten
     expect(klassen(w, 0).slice(0, 2)).toEqual(['fit-2', 'erg-zweizeilig'])
     expect(klassen(w, 1).slice(0, 2)).toEqual(['', ''])
     expect(klassen(w, 2)[0]).toBe('erg-zweizeilig')
+  })
+})
+
+describe('Laufliste: Logos im Kopf (16.11.2026)', () => {
+  const kopf = (w: ReturnType<typeof blatt>) => ({
+    texte: w.findAll('.erg-kopf span').map((e) => e.text()),
+    colspan: w.find('th.erg-kopfzelle').attributes('colspan'),
+  })
+
+  it('ohne Store oder ohne Logo bleibt der Kopf, wie er war; mit Logos stehen sie links und rechts daneben', () => {
+    localStorage.clear()
+    const ohne = blatt([starter(1, 'Muster', 'MBC')])
+    expect(ohne.find('th.erg-kopfzelle > .erg-kopf').exists()).toBe(true)
+    expect(ohne.find('.kopf-logos').exists()).toBe(false)
+    const store = createStore({ idb: null })
+    expect(blatt([starter(1, 'Muster', 'MBC')], store).html()).toBe(ohne.html())
+    setzeTestLogos(store)
+    const mit = blatt([starter(1, 'Muster', 'MBC')], store)
+    expect(mit.find('th.erg-kopfzelle > .kopf-logos > .kopf-logos-mitte > .erg-kopf').exists()).toBe(true)
+    expect(logoFolge(mit.find('th.erg-kopfzelle').element)).toEqual(['links', 'rechts'])
+    expect(kopf(mit)).toEqual(kopf(ohne))
+    expect(kopf(mit).texte).toEqual(['Klasse 4', '1. Lauf', 'Hafenpokal'])
   })
 })

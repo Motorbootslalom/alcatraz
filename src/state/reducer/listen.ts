@@ -1,9 +1,11 @@
-// Listen und Druck: WKR-Bögen (Leerzeilen, Seiten, Rückseite, Sprache, Namen, Besetzung), Beschriftung, Laufzettel, Herkunft, Zebra.
+// Listen und Druck: WKR-Bögen (Leerzeilen, Seiten, Rückseite, Sprache, Namen, Besetzung), Beschriftung, Laufzettel, Herkunft, Zebra,
+// Logos.
 
-import type { AppState, ClassId, LaufzettelLayout, Sprache } from '../../types'
+import type { AppState, ClassId, LaufzettelLayout, LogoBild, LogoSeite, Sprache } from '../../types'
 import { setzeName, setzeSprache, type WkrZelle } from '../../lib/einteilung'
 import { setzeBesetzung } from '../../lib/besetzung'
 import { beschriftungOf } from '../../config/catalog'
+import { LOGO_HOEHE_VORGABE_MM, logoHoeheZahl, logoWert } from '../../lib/logo'
 
 export type ListenAenderung =
   | { type: 'SET_LIST_OPTIONS'; patch: Partial<Pick<AppState, 'showBirthdate' | 'listOrigin'>> }
@@ -43,6 +45,14 @@ export type ListenAenderung =
   | { type: 'SET_WKR_LEERZEILEN_SEITE'; anzahl: number | null }
   | { type: 'SET_LAUFZETTEL_LAYOUT'; layout: LaufzettelLayout }
   | { type: 'SET_PARALLEL_ZEBRA'; zebra: boolean }
+  /**
+   * Logo links oder rechts im Kopf der gedruckten Listen (Entscheidung des Nutzers vom 16.11.2026); das
+   * fertige, verkleinerte Bild samt Pixelmaßen kommt mit der Action (lib/logoBild.ts). `null` = entfernen.
+   * Unbrauchbares (lib/logo.ts `logoWert`) ändert nichts – die Oberfläche prüft vorher.
+   */
+  | { type: 'SET_LOGO'; seite: LogoSeite; logo: LogoBild | null }
+  /** Höhe der Logos in mm (8 bis 30); `null` = Vorgabe. */
+  | { type: 'SET_LOGO_HOEHE'; mm: number | null }
 
 /** Leerzeilen je Klasse auf den Wettkampfrichter-Listen: Vorgabe wie im Prototyp (`emptyRows: 3`). */
 export const WKR_LEERZEILEN_VORGABE = 3
@@ -148,5 +158,21 @@ export function wendeListenAn(state: AppState, action: ListenAenderung): AppStat
 
     case 'SET_PARALLEL_ZEBRA':
       return action.zebra === state.parallelZebra ? state : { ...state, parallelZebra: action.zebra === true }
+
+    case 'SET_LOGO': {
+      if (action.seite !== 'links' && action.seite !== 'rechts') return state
+      const alt = state.logos[action.seite]
+      if (action.logo === null) return alt === null ? state : { ...state, logos: { ...state.logos, [action.seite]: null } }
+      // Zweites Netz hinter der Oberfläche: Nur ein geprüftes Bild kommt in den Stand (und damit in
+      // Sicherung, Vorlage und jeden Verlaufseintrag). Dasselbe Bild noch einmal ändert nichts.
+      const neu = logoWert(action.logo)
+      if (!neu || (alt && alt.src === neu.src && alt.breite === neu.breite && alt.hoehe === neu.hoehe)) return state
+      return { ...state, logos: { ...state.logos, [action.seite]: neu } }
+    }
+
+    case 'SET_LOGO_HOEHE': {
+      const mm = action.mm === null ? LOGO_HOEHE_VORGABE_MM : logoHoeheZahl(action.mm)
+      return mm === state.logoHoeheMm ? state : { ...state, logoHoeheMm: mm }
+    }
   }
 }

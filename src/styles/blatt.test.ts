@@ -13,6 +13,7 @@ const ergebnisCss = lies('ergebnis.css')
 const pokalCss = lies('pokal.css')
 const laufzettelCss = lies('laufzettel.css')
 const aushangCss = lies('aushang.css')
+const logosCss = lies('logos.css')
 
 /**
  * Zusage an den Nutzer: Am Bildschirm folgen alle Listen dem Farbschema, im Druck sind sie
@@ -63,8 +64,9 @@ function regeln(css: string): Regel[] {
 // Alles, was zu einem Blatt gehört: Listen (.sheet…, ihre Druckseiten .listen-seite…) und Bögen (.bogen…, Kopf bk-,
 // Tabelle bt-, Legende bl, Unterschrift bu-). Neue Listenarten hier ergänzen.
 // Dazu die Wertungslisten (ergebnis-blatt, erg-), die Eingabetabelle der Erfassung (erf-)
-// die Laufzettel (laufzettel, lz-), der Aushang der Codes (lg-) und die Pokalauswertung (pokal-).
-const BLATT = /\.(sheet|listen-seite|bogen|ergebnis-blatt|ergebnis-stapel|laufzettel|lz-|lg-|erg-|pokal-|erf-|bk-|bt-|bl-|bu-)|\.bl(?![\w-])/
+// die Laufzettel (laufzettel, lz-), der Aushang der Codes (lg-), die Pokalauswertung (pokal-) und die Logos im
+// Kopf (kopf-logos, listen-logo).
+const BLATT = /\.(sheet|listen-seite|bogen|ergebnis-blatt|ergebnis-stapel|laufzettel|lz-|lg-|erg-|pokal-|erf-|bk-|bt-|bl-|bu-|kopf-logos|listen-logo)|\.bl(?![\w-])/
 const FESTE_FARBE = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(|\b(white|black|red|gr[ae]y|silver|blue|green|yellow|orange|navy|teal)\b/i
 // Variablen ohne Farbe, die Blatt-Regeln benutzen dürfen (Maße, Schatten, Rundung).
 const ERLAUBT = /^--(blatt-[\w-]+|bogen-[\w-]+|bild-breite|radius|shadow)$/
@@ -112,6 +114,7 @@ describe('Farben der Listen und Bögen', () => {
     ['pokal.css', pokalCss],
     ['laufzettel.css', laufzettelCss],
     ['aushang.css', aushangCss],
+    ['logos.css', logosCss],
   ])('%s: Listen-Regeln setzen Farben nur über --blatt-*', (_name, css) => {
     expect(regeln(css).some((r) => BLATT.test(r.selektor))).toBe(true)
     expect(verstoesse(css)).toEqual([])
@@ -137,7 +140,7 @@ describe('Farben der Listen und Bögen', () => {
       expect(r.umgebung, r.selektor).toEqual(['@media screen'])
     }
     // Sonst blieben im Druck die Bildschirmwerte stehen.
-    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss, pokalCss, laufzettelCss, aushangCss]) {
+    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss, pokalCss, laufzettelCss, aushangCss, logosCss]) {
       for (const r of regeln(css)) for (const d of r.deklarationen) expect(d.name, r.selektor).not.toMatch(/^--blatt-/)
     }
   })
@@ -153,7 +156,7 @@ describe('Farben der Listen und Bögen', () => {
   it('jede benutzte --blatt-Variable hat eine Druckfarbe', () => {
     const bekannt = new Set(vorgabe!.deklarationen.map((d) => d.name))
     const benutzt = new Set<string>()
-    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss, pokalCss, laufzettelCss, aushangCss, blattCss]) for (const [, name] of css.matchAll(/var\(\s*(--blatt-[\w-]+)/g)) benutzt.add(name)
+    for (const css of [appCss, bogenCss, printCss, erfassungCss, ergebnisCss, pokalCss, laufzettelCss, aushangCss, logosCss, blattCss]) for (const [, name] of css.matchAll(/var\(\s*(--blatt-[\w-]+)/g)) benutzt.add(name)
     expect([...benutzt].filter((n) => !bekannt.has(n))).toEqual([])
     expect(benutzt.size).toBeGreaterThan(5)
   })

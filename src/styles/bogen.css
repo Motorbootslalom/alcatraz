@@ -151,6 +151,15 @@
   padding-right: 74px;
 }
 
+/* Mit Logos (components/KopfLogos.vue, 16.11.2026): links an den Rand, rechts vor die Aussparung des QR-Codes
+   (padding-right 74px bleibt, der Code liegt unverändert darüber); die Leiste wird so hoch wie die Logos + 1 mm
+   oben und unten, der Titel steht mittig zwischen ihnen. */
+.bogen-kopf--logos .bk-leiste {
+  padding-top: 1mm;
+  padding-bottom: 1mm;
+  padding-left: 8px;
+}
+
 .bk-leiste {
   display: flex;
   align-items: center;

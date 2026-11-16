@@ -8,6 +8,7 @@ import { emptyState } from '../state/reducer'
 import { leseCode } from '../lib/qr'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { logoFolge, setzeTestLogos } from '../testHilfen'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -100,6 +101,31 @@ describe('Listen: Laufzettel', () => {
     'Gesamtergebnis gedruckt',
     'Gesamtergebnis kontrolliert',
   ]
+
+  it('mit Logos (16.11.2026): ein Streifen über Titel und QR-Code auf jedem Zettel; Kästchen und QR-Code bleiben', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    const vorher = ansicht(store)
+    await laufzettel(vorher)
+    const ohne = zettel(vorher).map((z) => ({ zeilen: zeilen(z), qr: z.find('.lz-oben .lz-qr').attributes('data-qr') }))
+    expect(vorher.find('.kopf-logos').exists()).toBe(false)
+    vorher.unmount()
+    setzeTestLogos(store)
+    const wrapper = ansicht(store)
+    await laufzettel(wrapper)
+    const alle = zettel(wrapper)
+    expect(alle).toHaveLength(12)
+    for (const z of alle) {
+      const inhalt = z.find('.lz-inhalt').element
+      // Der Streifen steht vorn, vor Titel, Liste und QR-Code.
+      expect(inhalt.firstElementChild?.matches('.kopf-logos.kopf-logos--streifen')).toBe(true)
+      expect(z.find('.lz-inhalt > .kopf-logos--streifen ~ .lz-oben').exists()).toBe(true)
+      expect(logoFolge(inhalt.firstElementChild!)).toEqual(['links', 'rechts'])
+      // Nur dort: kein zweites Logo im Rest des Zettels.
+      expect(logoFolge(z.element)).toEqual(['links', 'rechts'])
+    }
+    expect(alle.map((z) => ({ zeilen: zeilen(z), qr: z.find('.lz-oben .lz-qr').attributes('data-qr') }))).toEqual(ohne)
+    wrapper.unmount()
+  })
 
   it('der Zettel des letzten Laufs hat eigene Arbeitsschritte: kein Aushang, dafür Einsicht und Gesamtergebnis', async () => {
     const wrapper = ansicht(store)

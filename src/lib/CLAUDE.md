@@ -1,7 +1,8 @@
 # src/lib – Logik der Wertung und Listen
 
 Fast alles rein (kein DOM, kein Store), Stand und Konfiguration als Parameter. Mit Vue: konfig, event, listensprache,
-pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, update; DOM auch clipboard, scanner.
+pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, update, listenLogos; DOM auch clipboard,
+scanner, logoBild.
 
 ## Dateien (gruppiert) und Abläufe
 
@@ -29,6 +30,9 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
 - Aus der `saat` (Reducer und Oberfläche): `beispielwerte.ts`, `beispieldaten.ts` (Beispiel-Besetzung, -gewichte),
   `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische); `saat.ts` neueSaat – nur Oberfläche.
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
+- Logos (16.11.2026): `logo.ts` (rein: Grenzen, logoTeile = eine Lesart der data-URL, logoWert, logoHoeheZahl, Maße,
+  zielMasse), `logoBild.ts` (nur Browser: verkleinereLogo; testbar svgMasse, svgFuerZiel = viewBox ergänzen),
+  `listenLogos.ts` (useListenLogos, logoUrl = Blob-Adressen mit LRU, SVG bleibt data-URL; logoSchluessel).
 
 ## Wo ändere ich …
 
@@ -44,7 +48,7 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
 
 ## Fallen
 
-- Was der Reducer ruft (eingaben, listenStand, abmeldung, parallelStage, beispielwerte, beispieldaten, reihenfolge),
+- Was der Reducer ruft (eingaben, listenStand, abmeldung, parallelStage, beispielwerte, beispieldaten, reihenfolge, logo),
   bleibt rein: kein Date.now()/Math.random(). Zeit = action.zeit, Zufall = zufallAus(saat).
 - Eingaben: `eingaben[laufSchluessel][starterId][feld]` – Zeile ist die Starter-ID, nicht die Startnummer.
   Disq/Bemerkung/erfasst gehören zur Liste (`disq@steg`, `erfasst@<typeId>`); Knoten unter Lauf 0 (OHNE_LAUF).

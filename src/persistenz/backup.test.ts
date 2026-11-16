@@ -3,6 +3,7 @@ import { fileStamp, filename, makeFile, parseFile } from './backup'
 import { loadState, saveState, STATE_KEY } from './storage'
 import { emptyState } from '../state/reducer'
 import type { AppState, Starter } from '../types'
+import { testLogo, testSvgLogo } from '../testHilfen'
 
 const AT = '2026-11-11T22:15:00.000Z'
 const starter: Starter = {
@@ -168,6 +169,8 @@ describe('Listenoptionen in den Dateien', () => {
     tor5MitParcours: true,
     zusatzListen: { knoten: false, vorsteg: true },
     laufzettelLayout: 'liste',
+    logos: { links: testLogo(), rechts: null },
+    logoHoeheMm: 20,
   } as const
 
   it('sind Einstellungen: Sie stehen in Sicherung und Vorlage', () => {
@@ -182,6 +185,29 @@ describe('Listenoptionen in den Dateien', () => {
     const danach = vorlage.apply(filled())
     expect(danach).toMatchObject(optionen)
     expect(danach.starters).toEqual(filled().starters)
+  })
+
+  it('Logos: Je Seite gilt das Logo der Vorlage; fehlt es ihr, bleibt das hiesige. Die Höhe kommt aus der Vorlage', () => {
+    const hier: AppState = { ...filled(), logos: { links: testLogo(), rechts: testLogo(4, 2) }, logoHoeheMm: 12 }
+    const ohne = parseFile(JSON.stringify(makeFile('vorlage', { ...filled(), logoHoeheMm: 25 }, AT)))
+    if (!ohne.ok || ohne.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(ohne.apply(hier)).toMatchObject({ logos: hier.logos, logoHoeheMm: 25 })
+    // Eine Vorlage von vor den Logos (ohne beide Felder) lässt die Logos stehen, die Höhe wird die Vorgabe.
+    const { logos: _l, logoHoeheMm: _h, ...settings } = (makeFile('vorlage', filled(), AT) as unknown as { settings: AppState }).settings
+    const alt = parseFile(JSON.stringify({ app: 'alcatraz', version: 1, savedAt: AT, kind: 'vorlage', settings }))
+    if (!alt.ok || alt.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(alt.apply(hier)).toMatchObject({ logos: hier.logos, logoHoeheMm: 15 })
+    const rechts = parseFile(JSON.stringify(makeFile('vorlage', { ...filled(), logos: { links: null, rechts: testSvgLogo() } }, AT)))
+    if (!rechts.ok || rechts.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(rechts.apply(hier).logos).toEqual({ links: testLogo(), rechts: testSvgLogo() })
+  })
+
+  it('Logos: Eine Sicherung mit einem Logo aus dem Netz lädt, das Logo entfällt', () => {
+    const datei = makeFile('sicherung', { ...filled(), logos: { links: { src: 'https://example.org/logo.png', breite: 2, hoehe: 1 }, rechts: testLogo() } }, AT)
+    const sicherung = parseFile(JSON.stringify(datei))
+    if (!sicherung.ok || sicherung.kind !== 'sicherung') throw new Error('keine Sicherung')
+    expect(sicherung.state.logos).toEqual({ links: null, rechts: testLogo() })
+    expect(sicherung.state.starters).toEqual(filled().starters)
   })
 
   it('Sprache der Bögen je Parcours: Die Vorlage bringt sie mit den eigenen Parcours mit, an deren Kennungen sie hängt', () => {

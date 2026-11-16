@@ -20,6 +20,7 @@ import type { ErgebnisHerkunft } from '../types'
 import { mitVorlaufPlan, normalisierePlaene } from '../planung/parallelRunden'
 import { normalisiereNichtWerten } from '../lib/disziplinen'
 import { istGeschlecht } from '../domain/geschlecht'
+import { logoHoeheZahl, logoWert } from '../lib/logo'
 
 /** Herkunft auf den Wertungslisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
 const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
@@ -154,6 +155,9 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     dolphinPraefix: loaded.dolphinPraefix === 'D' ? 'D' : 'E',
     // Vorgabe an (Entscheidung des Nutzers vom 15.11.2026); nur ein ausdrückliches „aus“ bleibt aus.
     parallelZebra: loaded.parallelZebra !== false,
+    // Fehlen in Ständen vor den Logos (16.11.2026): keine, Vorgabehöhe. Fremde Adressen, Zu-Großes und Maße ≤ 0 entfallen.
+    logos: { links: logoWert(loaded.logos?.links), rechts: logoWert(loaded.logos?.rechts) },
+    logoHoeheMm: logoHoeheZahl(loaded.logoHoeheMm),
   }
   // Ein Stand mit festgeschriebener Verzahnung aus der Zeit vor den festen Plänen bekommt seinen
   // Plan des Vorlaufs jetzt – einmal, danach wird er nicht mehr neu gerechnet. Ohne Sperre bleibt

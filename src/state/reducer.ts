@@ -247,6 +247,8 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_WKR_LEERZEILEN_SEITE':
     case 'SET_LAUFZETTEL_LAYOUT':
     case 'SET_PARALLEL_ZEBRA':
+    case 'SET_LOGO':
+    case 'SET_LOGO_HOEHE':
       return wendeListenAn(state, action)
 
     default:

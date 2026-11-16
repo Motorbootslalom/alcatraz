@@ -5,6 +5,8 @@ import { nextTick } from 'vue'
 import ErgebnisGesamtBlatt from './ErgebnisGesamtBlatt.vue'
 import type { GesamtZeile, LaufZeile } from '../../lib/ergebnis'
 import type { Starter } from '../../types'
+import { createStore, storeKey, type Store } from '../../state/store'
+import { logoFolge, setzeTestLogos } from '../../testHilfen'
 
 // Name und Vorname teilen sich auf der Gesamtliste, was die festen Spalten übrig lassen. Bei
 // drei Läufen und ausgeschriebenem Vereinsnamen blieben ihnen 17 mm – „Schumacher B“ stand
@@ -37,10 +39,11 @@ const zeile = (p: Starter, laeufe: number): GesamtZeile => ({
   stich: false,
 })
 
-function blatt(namen: string[], opt: { laeufe: number; verein?: string; geburtsdatum?: boolean; mitKnoten?: boolean; abstand?: boolean }) {
+function blatt(namen: string[], opt: { laeufe: number; verein?: string; geburtsdatum?: boolean; mitKnoten?: boolean; abstand?: boolean; store?: Store }) {
   const leute = namen.map((n, i) => starter(i + 1, n, opt.verein))
   const zeichen = Math.max(...leute.map((p) => p.verein.length))
   return mount(ErgebnisGesamtBlatt, {
+    global: opt.store ? { provide: { [storeKey as symbol]: opt.store } } : {},
     props: {
       klasseText: 'Klasse 4',
       eventName: 'Hafenpokal',
@@ -199,5 +202,24 @@ describe('Ergebnis einer Runde: „Qualified“ und das Finale in EINER Zelle, s
     expect(w.findAll('.listen-seite').map((s) => s.findAll('tbody tr').length)).toEqual([28, 6])
     expect(zellen(w)[1].slice(0, 1)).toEqual(['Qualified ×4'])
     w.unmount()
+  })
+})
+
+describe('Gesamtliste: Logos im Kopf (16.11.2026)', () => {
+  const kopf = (w: ReturnType<typeof blatt>) => ({
+    texte: w.findAll('.erg-kopf span').map((e) => e.text()),
+    colspan: w.find('th.erg-kopfzelle').attributes('colspan'),
+  })
+
+  it('mit Logos: links und rechts neben dem Kasten, Texte und Spaltenzahl unverändert', () => {
+    localStorage.clear()
+    const ohne = blatt(['Muster'], { laeufe: 3 })
+    expect(ohne.find('th.erg-kopfzelle > .erg-kopf').exists()).toBe(true)
+    const store = createStore({ idb: null })
+    setzeTestLogos(store)
+    const mit = blatt(['Muster'], { laeufe: 3, store })
+    expect(mit.find('th.erg-kopfzelle > .kopf-logos > .kopf-logos-mitte > .erg-kopf').exists()).toBe(true)
+    expect(logoFolge(mit.find('th.erg-kopfzelle').element)).toEqual(['links', 'rechts'])
+    expect(kopf(mit)).toEqual(kopf(ohne))
   })
 })

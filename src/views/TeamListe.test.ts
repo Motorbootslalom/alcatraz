@@ -6,6 +6,7 @@ import { createStore, storeKey, type Store } from '../state/store'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
+import { ohneLogos, seitenKoepfe, setzeTestLogos } from '../testHilfen'
 
 // Die Liste der Fahrer je Team (Regel 960, Pkt. 3.7) im Reiter „Gewichtslisten“ – und die
 // Auswahl der Beispielwerte. Alle Starter sind erfunden.
@@ -98,5 +99,29 @@ describe('Liste der Fahrer je Team im Reiter „Gewichtslisten“', () => {
     const zeile = uim.find('.team-liste tr[data-starter="a1"]').findAll('td').map((td) => td.text())
     expect(zeile.slice(5, 7)).toEqual(['20.5 kg', '6 kg'])
     uim.unmount()
+  })
+
+  it('mit Logos (16.11.2026): auf jeder Seite links und rechts neben dem Kopf, sonst alles wie ohne', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    const team = async () => {
+      const wrapper = await gewicht()
+      await wrapper.find('.gewicht-arten button[data-art="team"]').trigger('click')
+      await nextTick()
+      return wrapper
+    }
+    const vorher = await team()
+    const ohne = seitenKoepfe(vorher.find('.team-liste').element)
+    vorher.unmount()
+    expect(ohne.map((x) => x.kopf.split(' | ')[1])).toEqual(['Estonia', 'Latvia'])
+    expect(ohne.every((x) => x.logos.length === 0)).toBe(true)
+    setzeTestLogos(store)
+    const wrapper = await team()
+    const mit = seitenKoepfe(wrapper.find('.team-liste').element)
+    expect(mit.map((x) => x.logos)).toEqual([
+      ['links', 'rechts'],
+      ['links', 'rechts'],
+    ])
+    expect(ohneLogos(mit)).toEqual(ohneLogos(ohne))
+    wrapper.unmount()
   })
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KopfLogos from '../KopfLogos.vue'
 import { locale, texteIn, type Locale } from '../../i18n'
 import type { ClassId } from '../../types'
 import type { PlaetzeWertung } from '../../lib/pokal'
@@ -120,11 +121,13 @@ const regelText = computed(() => t('cup.places.rule', { n: props.wertung.plaetze
         <thead>
           <tr>
             <th class="erg-kopfzelle" :colspan="3 + spalten">
-              <div class="erg-kopf pokal-kopf">
-                <span>{{ t('cup.sheet.title') }}<template v-if="zwischenstand"> – {{ t('cup.interim') }}</template></span>
-                <span class="erg-kopf-titel pokal-kopf-regel">{{ regelText }}</span>
-                <span class="erg-kopf-event">{{ eventName }}</span>
-              </div>
+              <KopfLogos>
+                <div class="erg-kopf pokal-kopf">
+                  <span>{{ t('cup.sheet.title') }}<template v-if="zwischenstand"> – {{ t('cup.interim') }}</template></span>
+                  <span class="erg-kopf-titel pokal-kopf-regel">{{ regelText }}</span>
+                  <span class="erg-kopf-event">{{ eventName }}</span>
+                </div>
+              </KopfLogos>
             </th>
           </tr>
           <tr class="erg-spaltenkopf">

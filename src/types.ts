@@ -4,7 +4,8 @@
 //   types/starter.ts        ClassId, Geschlecht, Starter, StartNrMode
 //   types/planung.ts        Parcours, Spuren, Boote, laufende Nummern, PlanState; ParallelRunde, ParallelPlaene …
 //   types/wertung.ts        Eingaben, Streichlaeufe, ListenStand, NichtWerten, PokalEinstellungen, Ergebnis…
-//   types/einstellungen.ts  OriginMode, OriginStyle, EventKind, Einteilung, WkrSprachen, Besetzung, LaufzettelLayout
+//   types/einstellungen.ts  OriginMode, OriginStyle, EventKind, Einteilung, WkrSprachen, Besetzung, LaufzettelLayout,
+//                           LogoSeite, LogoBild, Logos
 //   types/bogen.ts          SheetDef, Column, CellKind, ErrorDef, DisqDef, Sprache, Geraet, TrennerDesign
 // Die Teile enthalten nur Typen; der einzige Wert, SCHEMA_VERSION, bleibt hier.
 

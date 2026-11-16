@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KopfLogos from '../KopfLogos.vue'
 import { listenNachname, type NamenArt } from '../../lib/namen'
 import { ergebnisTexte } from '../../lib/ergebnisText'
 import { locale, texteIn, type Locale } from '../../i18n'
@@ -78,11 +79,13 @@ const herkunftMm = computed(() => Math.min(60, Math.max(20, Math.round((props.he
         <thead>
           <tr>
             <th class="erg-kopfzelle" :colspan="spaltenZahl">
-              <div class="erg-kopf erg-kopf--runde">
-                <span class="erg-kopf-klasse">{{ klasseText }}</span>
-                <span class="erg-kopf-titel">{{ titel }}</span>
-                <span class="erg-kopf-event">{{ eventName }}</span>
-              </div>
+              <KopfLogos>
+                <div class="erg-kopf erg-kopf--runde">
+                  <span class="erg-kopf-klasse">{{ klasseText }}</span>
+                  <span class="erg-kopf-titel">{{ titel }}</span>
+                  <span class="erg-kopf-event">{{ eventName }}</span>
+                </div>
+              </KopfLogos>
             </th>
           </tr>
           <tr class="erg-spaltenkopf">

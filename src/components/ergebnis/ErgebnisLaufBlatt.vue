@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { listenNachname, type NamenArt } from '../../lib/namen'
 import { computed } from 'vue'
+import KopfLogos from '../KopfLogos.vue'
 import { abstaende, type AbstandArt, type ErgebnisGruppe, type LaufZeile } from '../../lib/ergebnis'
 import { ergebnisTexte } from '../../lib/ergebnisText'
 import { locale, texteIn, type Locale } from '../../i18n'
@@ -191,11 +192,13 @@ const kopfKlasse = (label: string) => {
       <thead>
         <tr>
           <th class="erg-kopfzelle" :colspan="spaltenZahl">
-            <div class="erg-kopf">
-              <span class="erg-kopf-klasse">{{ klasseText }}</span>
-              <span class="erg-kopf-titel">{{ laufText }}</span>
-              <span class="erg-kopf-event">{{ eventName }}</span>
-            </div>
+            <KopfLogos>
+              <div class="erg-kopf">
+                <span class="erg-kopf-klasse">{{ klasseText }}</span>
+                <span class="erg-kopf-titel">{{ laufText }}</span>
+                <span class="erg-kopf-event">{{ eventName }}</span>
+              </div>
+            </KopfLogos>
           </th>
         </tr>
         <tr class="erg-spaltenkopf">

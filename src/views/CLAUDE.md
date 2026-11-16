@@ -18,8 +18,8 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
   druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`), print() setzt
   document.title (= Dateiname) und ruft window.print().
 - `ErfassungView.vue` – Bogen wählen oder scannen, Eingabetabelle; nach Laufzettel-Scan alle Blätter untereinander.
-- `SettingsView.vue` (~740 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (wertung,
-  streichlaeufe, ergebnislisten, pokal, wkr-listen, wkr-zeilen-je-seite, wkr-teilen-ab, wkr-leerzeilen,
+- `SettingsView.vue` (~740 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (logos (LogosPanel),
+  wertung, streichlaeufe, ergebnislisten, pokal, wkr-listen, wkr-zeilen-je-seite, wkr-teilen-ab, wkr-leerzeilen,
   laufzettel-layout, dateien …) und `data-feld` je Steuerelement; Kürzel, Dateien, Verlauf.
 
 ## Abläufe

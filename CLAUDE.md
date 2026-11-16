@@ -43,7 +43,7 @@ src/data/             Beispieldaten: erfundene Namen; Clubs teils an reale angel
 src/flaggen/          Flaggenbilder: Staaten aus country-flag-icons, Bundesländer als SVG (LIESMICH.md)
 src/assets/parcours/  Parcours-SVGs, nur per `npm run parcours:sync` (QUELLE.json, CC BY-NC-SA 4.0)
 src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder
-src/testHilfen.ts     nur Tests: wechsleRegelwerk (trotz Werten), knotenHaken (Regel-960-Knoten)
+src/testHilfen.ts     nur Tests: wechsleRegelwerk (trotz Werten), knotenHaken (Regel-960-Knoten), Testlogos
 scripts/              Offline-Speicher (sw.js), parcours-sync, Warnfilter der Tests
 docs/                 entscheidungen, funktionen, parallelslalom, betrieb, technik, stand (.md); bilder/ (README)
 ```
@@ -107,6 +107,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Beispieldaten | components/BeispieldatenPanel.vue (Herkunft wie Veranstaltung, saat, Rückfragen); domain/generate.ts, data/*; |
 | … Werte, Besetzung, Gewichte | lib/beispielwerte.ts; lib/beispieldaten.ts; Actions FILL_BEISPIEL* in state/reducer/erfassung.ts |
 | Sperre einer Action | state/reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS; klasseFest in reducer/starter.ts |
+| Logos auf den Listen | lib/logo.ts (Grenzen, logoWert, Maße), lib/logoBild.ts (Verkleinern), lib/listenLogos.ts (useListenLogos); components/KopfLogos.vue in jedem Listenkopf, LogosPanel.vue; styles/logos.css |
 | Offline, Update | scripts/offline-sw.js, scripts/offline-speicher.ts, lib/offline.ts, lib/update.ts |
 
 ## Feste Regeln

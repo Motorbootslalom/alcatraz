@@ -6,6 +6,7 @@ import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
 import { adresse } from '../lib/router'
 import type { ClassId, Starter } from '../types'
+import { logoFolge, setzeTestLogos } from '../testHilfen'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -156,6 +157,30 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     expect(wrapper.find('[data-hinweis="vor-verzahnung"]').exists()).toBe(false)
     expect(drucken(wrapper).attributes('disabled')).toBeUndefined()
     wrapper.unmount()
+  })
+
+  it('Aushang der Codes mit Logos (16.11.2026): links und rechts neben dem Kopf, unter DM und UIM gleich', async () => {
+    const codes = async () => {
+      const wrapper = ansicht(store)
+      await wrapper.find('.list-kinds button[data-kind="codes"]').trigger('click')
+      await nextTick()
+      return wrapper
+    }
+    for (const regelwerk of ['dm-2026', 'uim-2026']) {
+      store.dispatch({ type: 'SET_REGELWERK', regelwerk })
+      store.dispatch({ type: 'SET_LOGO', seite: 'links', logo: null })
+      store.dispatch({ type: 'SET_LOGO', seite: 'rechts', logo: null })
+      const vorher = await codes()
+      const ohne = vorher.findAll('.lg-kopf span').map((e) => e.text())
+      expect(vorher.find('.lg-blatt .kopf-logos').exists()).toBe(false)
+      vorher.unmount()
+      setzeTestLogos(store)
+      const wrapper = await codes()
+      expect(wrapper.find('.lg-blatt .kopf-logos .sheet-title-box.lg-kopf').exists(), regelwerk).toBe(true)
+      expect(logoFolge(wrapper.find('.lg-blatt').element), regelwerk).toEqual(['links', 'rechts'])
+      expect(wrapper.findAll('.lg-kopf span').map((e) => e.text()), regelwerk).toEqual(ohne)
+      wrapper.unmount()
+    }
   })
 
   it('Parcoursbild mit Namensnennung der Zeichnung auf dem Bogen', async () => {

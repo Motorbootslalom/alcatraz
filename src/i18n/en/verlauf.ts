@@ -65,7 +65,7 @@ export default {
   'files.uploadNote': 'Backup, template or driver data – the file knows what it is. You are asked before anything is overwritten.',
   'files.invalid': 'This file does not come from Alcatraz or is damaged.',
   'files.confirm.sicherung': 'Load the backup from {time}?\n\nAll data in this browser will be replaced.',
-  'files.confirm.vorlage': 'Load the template from {time}?\n\nThe settings will be replaced. Drivers, name, year, the assignment of race officials and the co-drivers are kept (the boats come from the template); own setups are kept as well, those of the template are added.',
+  'files.confirm.vorlage': 'Load the template from {time}?\n\nThe settings will be replaced. Drivers, name, year, the assignment of race officials and the co-drivers are kept (the boats come from the template); own setups are kept as well, those of the template are added. The logos come from the template; where it has none for a side, the current one stays.',
   'files.confirm.starter': 'Load the driver data from {time}?\n\nThe list of drivers will be replaced. The settings are kept.',
   'files.done.sicherung': '✓ Backup loaded.',
   'files.done.vorlage': '✓ Template loaded.',

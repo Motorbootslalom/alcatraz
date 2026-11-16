@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fromVerzahnungPrototyp, migrate } from './migrate'
 import { emptyState } from './reducer'
 import { SCHEMA_VERSION } from '../types'
+import { testLogo, testSvgLogo } from '../testHilfen'
 
 describe('migrate', () => {
   it('Beispiel-Starterfeld: fehlt in älteren Ständen, gilt nur mit Startern', () => {
@@ -193,5 +194,27 @@ describe('migrate: Listen der Veranstaltung und Form der Laufzettel', () => {
     })
     expect(migrate({ starters: [], tor5MitParcours: 'ja', zusatzListen: ['knoten'], laufzettelLayout: 3 })).toMatchObject({ tor5MitParcours: false, zusatzListen: {}, laufzettelLayout: 'seite' })
     expect(migrate({ starters: [], zusatzListen: { knoten: 'nein', vorsteg: true } })?.zusatzListen).toEqual({ vorsteg: true })
+  })
+})
+
+describe('migrate: Logos (16.11.2026)', () => {
+  it('fehlen in älteren Ständen: keine Logos, Vorgabehöhe', () => {
+    expect(migrate({ starters: [] })).toMatchObject({ logos: { links: null, rechts: null }, logoHoeheMm: 15 })
+  })
+
+  it('gültige Logos und Höhe bleiben', () => {
+    const stand = migrate({ starters: [], logos: { links: testLogo(), rechts: testSvgLogo() }, logoHoeheMm: 20 })
+    expect(stand).toMatchObject({ logos: { links: testLogo(), rechts: testSvgLogo() }, logoHoeheMm: 20 })
+  })
+
+  it('Unsinn entfällt: fremde Adressen, keine Objekte, Höhe als Text', () => {
+    const stand = migrate({ starters: [], logos: { links: { src: 'https://x/y.png', breite: 2, hoehe: 1 }, rechts: 'a' }, logoHoeheMm: '20' })
+    expect(stand).toMatchObject({ logos: { links: null, rechts: null }, logoHoeheMm: 15 })
+    expect(migrate({ starters: [], logos: 'kaputt', logoHoeheMm: 99 })).toMatchObject({ logos: { links: null, rechts: null }, logoHoeheMm: 30 })
+    expect(migrate({ starters: [], logos: { links: { ...testLogo(), breite: 0 } } })?.logos.links).toBeNull()
+  })
+
+  it('ein leerer Stand bleibt beim Migrieren gleich', () => {
+    expect(migrate(emptyState())).toEqual(emptyState())
   })
 })

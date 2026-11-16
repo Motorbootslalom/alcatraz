@@ -3,13 +3,16 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { locale, texteIn, type Locale } from '../i18n'
 import type { LaufzettelLayout } from '../types'
 import QrCode from './QrCode.vue'
+import KopfLogos from './KopfLogos.vue'
+import { logoSchluessel, useListenLogos } from '../lib/listenLogos'
 
 /**
  * Ein Laufzettel: A4 quer, in der Mitte auf A5 gefaltet (Falz = gestrichelte Linie). Die
  * rechte Hälfte ist nach dem Falten die Vorderseite: am Falz stehen senkrecht Klasse und Lauf
  * (wie ein Buchrücken), daneben die Kästchen der Druckseiten und darunter die Arbeitsschritte
  * der Auswertung. Oben rechts steht der QR-Code (lib/qr.ts): Er führt in der Erfassung zu
- * Klasse und Lauf. Die linke Hälfte bleibt frei. Vorbild: LaufzettelPage.vue im
+ * Klasse und Lauf; darüber, falls eingestellt, die Logos (16.11.2026) als eigener Streifen – der QR-Code
+ * bleibt, wie er ist. Die linke Hälfte bleibt frei. Vorbild: LaufzettelPage.vue im
  * Fehlerpunkte-Prototyp.
  *
  * Zwei Formen (`layout`, Einstellung der Veranstaltung):
@@ -104,7 +107,10 @@ async function fit() {
 }
 onMounted(fit)
 // Die Zeilen ändern sich, sobald die Seitenzahlen der Bögen gemessen sind.
-watch(() => [JSON.stringify(props.zeilen), props.schritte.join('\n'), props.schritteVerweis, props.titel, props.layout], fit)
+// Die Logos nehmen dem Platz über den Schritten Höhe: Ändern sie sich, wird neu verdichtet. Ohne Logo ist
+// der Schlüssel immer '' – dann löst er nie aus.
+const logos = useListenLogos()
+watch(() => [JSON.stringify(props.zeilen), props.schritte.join('\n'), props.schritteVerweis, props.titel, props.layout, logoSchluessel(logos.value)], fit)
 watch(zuViel, (z) => emit('zuviel', z))
 </script>
 
@@ -119,6 +125,7 @@ watch(zuViel, (z) => emit('zuviel', z))
           <span v-if="parcours" class="lz-parcours">{{ parcours }}</span>
         </div>
         <div class="lz-inhalt">
+          <KopfLogos art="streifen" />
           <p v-if="zuViel" class="lz-zuviel">{{ t(jeSeite ? 'runsheet.overflowPages' : 'runsheet.overflow') }}</p>
           <!-- QR rechts oben; Titel und die ersten Zeilen laufen links daran vorbei. -->
           <div ref="obenEl" :class="['lz-oben', STUFEN[stufe]]">

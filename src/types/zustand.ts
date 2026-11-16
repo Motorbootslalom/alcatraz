@@ -7,6 +7,7 @@ import type {
   Einteilung,
   EventKind,
   LaufzettelLayout,
+  Logos,
   OriginStyle,
   WkrSprachen,
 } from './einstellungen'
@@ -243,4 +244,16 @@ export interface AppState extends PlanState {
    * Start) bleibt schraffiert. Eine Einstellung ohne Personenbezug: in Sicherung und Vorlage.
    */
   parallelZebra: boolean
+  /**
+   * Zwei frei belegbare Logos im Kopf jeder gedruckten Liste – auch auf den WKR-Bögen und
+   * Laufzetteln (components/KopfLogos.vue). Unter jedem Regelwerk gleich, anfangs keine; ohne Logo
+   * sieht jede Liste aus wie vorher (Entscheidung des Nutzers vom 16.11.2026). Eine Einstellung
+   * des Ausrichters ohne Personenbezug: in Sicherung und Vorlage. Prüfung: lib/logo.ts `logoWert`.
+   */
+  logos: Logos
+  /**
+   * Höhe der Logos auf allen Listen in mm: 8 bis 30, Vorgabe 15 (lib/logo.ts). Die endgültige
+   * Vorgabe ist offen, bis der Nutzer Beispiele in mehreren Höhen gesehen hat (16.11.2026).
+   */
+  logoHoeheMm: number
 }

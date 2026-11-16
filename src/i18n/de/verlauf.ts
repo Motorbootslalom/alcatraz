@@ -63,7 +63,7 @@ export default {
   'files.uploadNote': 'Sicherung, Vorlage oder Teilnehmerdaten – die Datei weiß selbst, was sie ist. Vor dem Überschreiben wird gefragt.',
   'files.invalid': 'Diese Datei stammt nicht aus Alcatraz oder ist beschädigt.',
   'files.confirm.sicherung': 'Sicherung vom {time} einspielen?\n\nDer gesamte Stand in diesem Browser wird ersetzt.',
-  'files.confirm.vorlage': 'Vorlage vom {time} einspielen?\n\nDie Einstellungen werden ersetzt. Starter, Name, Jahr, WKR-Einteilung und Co-Piloten bleiben (die Boote kommen aus der Vorlage); eigene Aufbauten bleiben ebenfalls, die der Vorlage kommen dazu.',
+  'files.confirm.vorlage': 'Vorlage vom {time} einspielen?\n\nDie Einstellungen werden ersetzt. Starter, Name, Jahr, WKR-Einteilung und Co-Piloten bleiben (die Boote kommen aus der Vorlage); eigene Aufbauten bleiben ebenfalls, die der Vorlage kommen dazu. Die Logos kommen aus der Vorlage; hat sie für eine Seite keins, bleibt das hiesige.',
   'files.confirm.starter': 'Teilnehmerdaten vom {time} einspielen?\n\nDie Starterliste wird ersetzt. Die Einstellungen bleiben.',
   'files.done.sicherung': '✓ Sicherung eingespielt.',
   'files.done.vorlage': '✓ Vorlage eingespielt.',

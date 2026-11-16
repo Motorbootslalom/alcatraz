@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KopfLogos from '../KopfLogos.vue'
 import { listenNachname, type NamenArt } from '../../lib/namen'
 import type { ErgebnisGruppe } from '../../lib/ergebnis'
 import type { AttemptTabelle, AttemptZeile } from '../../lib/parallelErgebnis'
@@ -140,11 +141,13 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit
         <thead>
           <tr>
             <th class="erg-kopfzelle" :colspan="spaltenZahl">
-              <div class="erg-kopf erg-kopf--runde">
-                <span class="erg-kopf-klasse">{{ klasseText }}</span>
-                <span class="erg-kopf-titel">{{ titel }}</span>
-                <span class="erg-kopf-event">{{ eventName }}</span>
-              </div>
+              <KopfLogos>
+                <div class="erg-kopf erg-kopf--runde">
+                  <span class="erg-kopf-klasse">{{ klasseText }}</span>
+                  <span class="erg-kopf-titel">{{ titel }}</span>
+                  <span class="erg-kopf-event">{{ eventName }}</span>
+                </div>
+              </KopfLogos>
             </th>
           </tr>
           <tr class="erg-spaltenkopf">

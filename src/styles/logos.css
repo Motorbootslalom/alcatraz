@@ -1,0 +1,58 @@
+/* Logos im Kopf der gedruckten Listen (components/KopfLogos.vue; Entscheidung des Nutzers vom 16.11.2026).
+   Jede Regel hängt an .kopf-logos bzw. .listen-logo – ohne Logo gibt es beide nicht, und jede Liste sieht
+   genau aus wie vorher. Höhe und Breite der Bilder stehen als mm im style-Attribut (aus den gespeicherten
+   Pixelmaßen); die Seitenteilung misst den Kopf mit, sie hängt nie vom Laden des Bildes ab.
+   Farben nur über --blatt-* (blatt.test.ts); die Logos selbst drucken in ihren eigenen Farben. */
+
+/* Logo links, Kopf in der Mitte, Logo rechts – senkrecht mittig, damit ein Kopf niedriger als die Logos
+   zwischen ihnen steht statt oben zu kleben. */
+.kopf-logos {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+}
+
+/* Die Mitte nimmt den Rest; min-width 0 lässt einen langen Titel umbrechen, statt die Logos zu verdrängen. */
+.kopf-logos-mitte {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Nie gestaucht (flex: none); object-fit hält das Seitenverhältnis, wenn max-width die Breite deckelt.
+   Der helle Grund hält dunkle Logos auf durchsichtigem Grund auch am dunklen Bildschirm lesbar (im Druck weiß). */
+.listen-logo {
+  display: block;
+  flex: none;
+  object-fit: contain;
+  background: var(--blatt-bild-bg);
+}
+
+/* Neben einem Kopf oder Titel höchstens ein Viertel der Breite: Der Kopf behält immer mindestens die Hälfte. */
+.kopf-logos--rahmen .listen-logo,
+.kopf-logos--leiste .listen-logo {
+  max-width: 25%;
+}
+
+/* Titelleiste der WKR-Bögen: Die Logos füllen die Leiste, der Titel steht mittig zwischen ihnen. */
+.kopf-logos--leiste {
+  flex: 1;
+  min-width: 0;
+}
+
+.kopf-logos--leiste .kopf-logos-mitte {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Laufzettel: eigene Zeile über Titel und QR-Code, darunter 2 mm Luft. Die leere Mitte hält die Logos
+   auseinander – das linke steht links, das rechte rechts, auch wenn nur eins gesetzt ist. */
+.kopf-logos--streifen {
+  flex: none;
+  margin-bottom: 2mm;
+}
+
+.kopf-logos--streifen .listen-logo {
+  max-width: 48%;
+}

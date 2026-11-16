@@ -64,6 +64,9 @@
 - ORDER_STARTERS/SHUFFLE_STARTERS (Starter-Reiter, lib/reihenfolge.ts) und MOVE_STARTER (▲▼, 16.11.2026) in
   VERZAHNUNG_ACTIONS: danach keine neue Folge; Nummern von Hand gehen weiter; unverändert ⇒ derselbe Stand. Alle drei über inFolge(): Nummern neu
   verteilt UND Starter im Array umgestellt – ohne Nummer zählt die Array-Folge (sortedByStartNr, Verzahnung, Export).
+- logos/logoHoeheMm (16.11.2026): Prüfung nur über lib/logo.ts logoWert/logoHoeheZahl (Reducer UND migrate);
+  unbrauchbares SET_LOGO ändert nichts; backup.ts apply: je Seite gilt das Logo der Vorlage, fehlt es, bleibt das
+  hiesige; nicht in WERTUNG.
 
 ## Tests
 

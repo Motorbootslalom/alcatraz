@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import EinzelwertungBlatt from './EinzelwertungBlatt.vue'
 import type { EinzelZeile } from '../../lib/einzelwertung'
+import { createStore, storeKey } from '../../state/store'
+import { logoFolge, setzeTestLogos } from '../../testHilfen'
 
 // Der Fuß der Einzelwertung (Regel 960, Pkt. 5.2.6): Die Regel steht auf jeder Seite mit
 // Punktgleichen – mit Sternchen, wenn die Zeit einen Platz bestimmt hat, sonst ohne. Erfundene Starter.
@@ -71,5 +73,22 @@ describe('Platz ganz vorn, Spalten je Disziplin: Zeit, Platz, UIM points – dah
     expect(oben).toEqual(['Rank.', 'No.', 'Surname', 'First name', 'Manoeuvring overall', 'UIM combined points'])
     expect(unter).toEqual(['Time', 'Rank.', 'UIM points'])
     expect(w.find('[data-spalte^="parallel"]').exists()).toBe(false)
+  })
+})
+
+describe('Einzelwertung: Logos im Kopf (16.11.2026)', () => {
+  it('mit Logos: links und rechts neben dem Kasten, Texte und Spaltenzahl unverändert', () => {
+    localStorage.clear()
+    const props = { klasseText: 'Class 1', titel: 'Individual competition', eventName: 'Test', zeilen: [zeile(1, 1, 700)], sprache: 'en' as const }
+    const ohne = mount(EinzelwertungBlatt, { props })
+    const store = createStore({ idb: null })
+    setzeTestLogos(store)
+    const mit = mount(EinzelwertungBlatt, { props, global: { provide: { [storeKey as symbol]: store } } })
+    expect(ohne.find('th.erg-kopfzelle > .erg-kopf').exists()).toBe(true)
+    expect(mit.find('th.erg-kopfzelle > .kopf-logos > .kopf-logos-mitte > .erg-kopf').exists()).toBe(true)
+    expect(logoFolge(mit.find('th.erg-kopfzelle').element)).toEqual(['links', 'rechts'])
+    const kopf = (w: typeof ohne) => [w.findAll('.erg-kopf span').map((e) => e.text()), w.find('th.erg-kopfzelle').attributes('colspan')]
+    expect(kopf(mit)).toEqual(kopf(ohne))
+    expect(kopf(mit)[0]).toEqual(['Class 1', 'Individual competition', 'Test'])
   })
 })

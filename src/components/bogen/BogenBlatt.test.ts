@@ -3,6 +3,8 @@ import { mount } from '@vue/test-utils'
 import BogenBlatt from './BogenBlatt.vue'
 import { configFor } from '../../config/konfig'
 import { musterZeilen, type BogenAuftrag } from '../../lib/bogen'
+import { createStore, storeKey } from '../../state/store'
+import { logoFolge, setzeTestLogos } from '../../testHilfen'
 
 // Die Zeilen des Bogens selbst – im Fuß stecken weitere Tabellen (Legende).
 const ZEILEN = '.bogen-tabelle > tbody > tr'
@@ -141,5 +143,43 @@ describe('BogenBlatt', () => {
     // Die Seitenzahl meldet der Bogen für die Laufzettel.
     expect(wrapper.emitted('seiten')?.at(-1)).toEqual([3])
     wrapper.unmount()
+  })
+})
+
+describe('BogenBlatt: Logos in der Titelleiste (16.11.2026)', () => {
+  const qr = 'ALC1.K7Q4.DM2026.ALCATRAZ.PAR2.7.3.STEG'
+  const props = { konfig: dm, auftrag: auftrag('steg', { qr, zeilen: musterZeilen(7, 'M') }), optionen: { zeilenJeSeite: 3, leerzeilen: 0 }, rueckseite: true }
+
+  it('ohne Logos: keine Klasse, der Titel direkt in der Leiste', () => {
+    localStorage.clear()
+    const store = createStore({ idb: null })
+    const w = mount(BogenBlatt, { props, global: { provide: { [storeKey as symbol]: store } } })
+    expect(w.findAll('.bogen-kopf--logos')).toHaveLength(0)
+    expect(w.findAll('.bk-leiste > .bk-titel')).toHaveLength(3)
+    expect(w.find('img').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('mit Logos: links und rechts in der Leiste jeder Seite, der QR-Code bleibt, wo er war', () => {
+    localStorage.clear()
+    const store = createStore({ idb: null })
+    setzeTestLogos(store)
+    const w = mount(BogenBlatt, { props, global: { provide: { [storeKey as symbol]: store } } })
+    const koepfe = w.findAll('.bogen-kopf')
+    expect(koepfe).toHaveLength(3)
+    for (const k of koepfe) {
+      expect(k.classes()).toEqual(expect.arrayContaining(['bogen-kopf', 'bogen-kopf--qr', 'bogen-kopf--logos']))
+      expect(logoFolge(k.find('.bk-leiste').element)).toEqual(['links', 'rechts'])
+      expect(k.find('.bk-leiste > .kopf-logos.kopf-logos--leiste > .kopf-logos-mitte > .bk-titel').text()).toBe('Hafenpokal 2026')
+      // Der Code ist weiter das schwebende erste Kind des Kopfs, nicht Teil der Leiste.
+      expect(k.element.firstElementChild?.matches('svg.qr-code.bk-qr')).toBe(true)
+      expect(k.find('.bk-leiste svg.qr-code').exists()).toBe(false)
+    }
+    expect(koepfe.map((k) => k.find('svg.qr-code').attributes('data-qr'))).toEqual([`${qr}.S1`, `${qr}.S2`, `${qr}.S3`])
+    expect(w.findAll('svg.qr-code')).toHaveLength(3)
+    // Die Rückseite hat keinen Kopf und bekommt kein Logo.
+    expect(w.findAll('img.listen-logo')).toHaveLength(6)
+    expect(w.findAll('.bk-zelle').slice(0, 3).map((z) => z.text())).toEqual(['Steg', 'Klasse 7', '3. Lauf'])
+    w.unmount()
   })
 })

@@ -22,7 +22,8 @@ import { starterfeldFest } from '../lib/eingaben'
  *   Damit beginnt die nächste Veranstaltung so, wie man es gewohnt ist. Eine Vorlage
  *   wird weitergegeben und enthält deshalb keine Personennamen, auch nicht die der
  *   Wettkampfrichter und der Co-Piloten. Die Boote je Klasse sind keine Personenangabe und
- *   reisen mit.
+ *   reisen mit. Ebenso die Logos der Listen (Einstellung des Ausrichters, keine Personendaten,
+ *   16.11.2026); ein Logo, das der Vorlage fehlt, lässt das hiesige stehen.
  * - `starter`: nur die Teilnehmerdaten.
  */
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
@@ -59,7 +60,10 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
 
 export type ParsedFile =
   | { ok: true; kind: 'sicherung'; state: AppState; savedAt: string | null }
-  /** `apply` setzt die Einstellungen auf einen Stand – Starter, Name, Jahr, WKR-Einteilung, Co-Piloten und eigene Aufbauten bleiben. */
+  /**
+   * `apply` setzt die Einstellungen auf einen Stand – Starter, Name, Jahr, WKR-Einteilung, Co-Piloten und eigene Aufbauten bleiben.
+   * Die Logos reisen mit (keine Personendaten); ein Logo, das der Vorlage fehlt, lässt das hiesige stehen.
+   */
   | { ok: true; kind: 'vorlage'; apply: (current: AppState) => AppState; savedAt: string | null }
   | { ok: true; kind: 'starter'; starters: Starter[]; savedAt: string | null }
   | { ok: false }
@@ -113,6 +117,9 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
         ...checked,
         ...planSchalter,
         eigeneAufbauten,
+        // Je Seite gilt das Logo der Vorlage; bringt sie keins mit (etwa eine Vorlage von vor den Logos), bleibt das hiesige –
+        // sonst löschte sie es stillschweigend. Entfernen geht nur ausdrücklich (Einstellungen).
+        logos: { links: checked.logos.links ?? current.logos.links, rechts: checked.logos.rechts ?? current.logos.rechts },
         // Die Wahl der Vorlage gilt – auch wenn sie auf einen eigenen Aufbau zeigt, den nur
         // diese Veranstaltung hat (die Migration der Vorlage allein kennt ihn nicht).
         aufbau: aufbauOf(typeof settings.aufbau === 'string' ? settings.aufbau : '', eigeneAufbauten).id,

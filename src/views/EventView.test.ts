@@ -5,7 +5,7 @@ import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
 import { vergissAlles } from '../lib/merken'
 import { nextTick } from 'vue'
-import { wechsleRegelwerk } from '../testHilfen'
+import { logoFolge, setzeTestLogos, wechsleRegelwerk } from '../testHilfen'
 import { LAENDER } from '../domain/generate'
 import { BUNDESLAENDER, CLUBS } from '../data/clubs'
 import { regelwerkOf } from '../config/catalog'
@@ -150,6 +150,24 @@ describe('Veranstaltung', () => {
     expect(klappe.find('.bogen[data-liste="steg"] input').exists()).toBe(false)
     await wrapper.find('#wkr-einteilung input[data-feld="par_2|steg"]').setValue('A. Muster')
     expect(klappe.find('.bogen[data-liste="steg"] .bk-wkr-text').text()).toBe('A. Muster')
+    wrapper.unmount()
+  })
+
+  it('Beispielansicht mit Logos (16.11.2026): Sie stehen auch dort in der Titelleiste des Bogens', async () => {
+    setzeTestLogos(store)
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    const klappe = wrapper.find('details[data-vorschau]')
+    ;(klappe.element as HTMLDetailsElement).open = true
+    await klappe.trigger('toggle')
+    const kopf = klappe.find('.wkr-vorschau .bogen-kopf--logos')
+    expect(kopf.exists()).toBe(true)
+    expect(logoFolge(kopf.find('.bk-leiste').element)).toEqual(['links', 'rechts'])
+    // Entfernt: Der Kopf ist wieder der ohne Logos.
+    store.dispatch({ type: 'SET_LOGO', seite: 'links', logo: null })
+    store.dispatch({ type: 'SET_LOGO', seite: 'rechts', logo: null })
+    await nextTick()
+    expect(klappe.find('.wkr-vorschau .bogen-kopf--logos').exists()).toBe(false)
+    expect(klappe.find('.wkr-vorschau .bk-leiste > .bk-titel').exists()).toBe(true)
     wrapper.unmount()
   })
 

@@ -9,7 +9,7 @@ import { laufSchluessel } from '../lib/eingaben'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
-import { knotenHaken } from '../testHilfen'
+import { knotenHaken, ohneLogos, seitenKoepfe, setzeTestLogos } from '../testHilfen'
 
 // Mannschaftswertung (im Code „pokal“) in der Oberfläche: Listenart, Einstellungen, Auswahl im Starter-Reiter.
 // Alle Starter und Vereine sind erfunden.
@@ -256,6 +256,32 @@ describe('Mannschaftswertung', () => {
       // UIM: 73 Blöcke, keiner geteilt – keine Fortsetzung.
       expect(wrapper.findAll('.ergebnis-blatt[data-art="pokal-uim"] .pokal-gruppe-titel')).toHaveLength(73)
       expect(wrapper.find('[data-hinweis="fortsetzung"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('mit Logos (16.11.2026): Plätze und UIM auf jeder Seite links und rechts; die Fortsetzung bleibt in der Kopfzelle', async () => {
+      // Ein Block über zwei Seiten der UIM-Liste: 60 Starter eines Vereins.
+      const viele = Array.from({ length: 60 }, (_, i): Starter => ({ ...starter(['3'])[0], id: `v-${i}`, startNr: String(300 + i) }))
+      store.dispatch({ type: 'ADD_STARTERS', starters: viele })
+      for (let n = 1; n <= 3; n++) store.dispatch({ type: 'SET_EINGABEN', zellen: viele.map((p, i) => ({ lauf: laufSchluessel('manoevrieren', n), starter: p.id, feld: 'zeit1', wert: String(50 + i) })) })
+      const KOPF = ['.erg-kopf span:not(.erg-stand)', 'th.erg-kopfzelle'] as const
+      const vorher = await pokal(store)
+      const ohne = seitenKoepfe(document.body, ...KOPF)
+      vorher.unmount()
+      expect(ohne.length).toBeGreaterThan(2)
+      expect(ohne.every((x) => x.logos.length === 0)).toBe(true)
+      setzeTestLogos(store)
+      const wrapper = await pokal(store)
+      const mit = seitenKoepfe(document.body, ...KOPF)
+      expect(mit.map((x) => x.logos)).toEqual(mit.map(() => ['links', 'rechts']))
+      expect(ohneLogos(mit)).toEqual(ohneLogos(ohne))
+      for (const art of ['pokal-plaetze', 'pokal-uim']) {
+        expect(wrapper.find(`.ergebnis-blatt[data-art="${art}"] th.erg-kopfzelle > .kopf-logos > .kopf-logos-mitte > .erg-kopf.pokal-kopf`).exists(), art).toBe(true)
+      }
+      // Die Fortsetzung sitzt weiter direkt in der Kopfzelle (absolut, unter dem Kopf), nicht zwischen den Logos.
+      const fortsetzung = wrapper.find('[data-hinweis="fortsetzung"]')
+      expect(fortsetzung.exists()).toBe(true)
+      expect(fortsetzung.element.parentElement?.matches('th.erg-kopfzelle.pokal-kopfzelle')).toBe(true)
       wrapper.unmount()
     })
   })
