@@ -25,8 +25,8 @@ export type ViewName = (typeof VIEWS)[number]
 export interface ReiterNamen {
   listen: 'starter' | 'gewicht' | 'vorsteg' | 'wkr' | 'laufzettel' | 'codes' | 'ergebnis' | 'pokal' | 'druckdatei'
   verzahnung: 'manoever' | 'parallel'
-  /** Betrieb am Wettkampftag (Plan vom 16.11.2026): E1 nur die Start-Freigabe; `startliste` (E3) und `geraete` (E6) folgen. */
-  betrieb: 'start'
+  /** Betrieb am Wettkampftag (Plan vom 16.11.2026): Start-Freigabe (E1/E2), Startliste mit Prognose (E3); `geraete` (E6) folgt. */
+  betrieb: 'start' | 'startliste'
 }
 export type ReiterView = keyof ReiterNamen
 
@@ -40,14 +40,15 @@ export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'p
 
 /**
  * Fenster mit eigener Wurzel, ohne Kopf, Reiter und Fuß (src/main.ts wählt sie vor dem Store):
- * die Anzeigetafel `#/anzeige[/<bereich>]` (src/AnzeigeApp.vue, Plan vom 16.11.2026). Der Bereich
- * ist eine Kennung aus den Daten (Parcours) – kodiert, nicht übersetzt, wie `wahl`.
+ * die Anzeigetafel `#/anzeige[/<bereich>]` (src/AnzeigeApp.vue, Plan vom 16.11.2026) und die
+ * Zuschauerliste `#/zuschauer[/<bereich>]` (src/ZuschauerApp.vue, E3). Der Bereich ist eine Kennung
+ * aus den Daten (Parcours) – kodiert, nicht übersetzt, wie `wahl`.
  */
-export const VOLLBILDER = ['anzeige'] as const
+export const VOLLBILDER = ['anzeige', 'zuschauer'] as const
 export type VollbildArt = (typeof VOLLBILDER)[number]
 export interface Vollbild {
   art: VollbildArt
-  /** Nur dieser Bereich (`#/anzeige/<parcours-id>`); ohne = die gemeinsame Anzeigetafel. */
+  /** Nur dieser Bereich (`#/anzeige/<parcours-id>`); ohne = die gemeinsame Anzeigetafel bzw. alle Parcours. */
   bereich?: string
 }
 
@@ -91,10 +92,10 @@ export const ADRESSEN = {
         druckdatei: 'druckdatei',
       },
       verzahnung: { manoever: 'manoever', parallel: 'parallel' },
-      betrieb: { start: 'start' },
+      betrieb: { start: 'start', startliste: 'startliste' },
     },
     ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge' },
-    vollbild: { anzeige: 'anzeige' },
+    vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer' },
   },
   en: {
     ansichten: {
@@ -122,11 +123,13 @@ export const ADRESSEN = {
         druckdatei: 'results-booklet',
       },
       verzahnung: { manoever: 'manoeuvring', parallel: 'parallel' },
-      betrieb: { start: 'start' },
+      // „Starting order“ wie die Startlisten des Parallelslaloms (parallel.startlist.title); hier mit Wartezeiten.
+      betrieb: { start: 'start', startliste: 'starting-order' },
     },
     ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order' },
-    // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen.
-    vollbild: { anzeige: 'display' },
+    // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen;
+    // „spectators“ ebenso (Plan §4: `#/spectators`).
+    vollbild: { anzeige: 'display', zuschauer: 'spectators' },
   },
 } as const satisfies Record<string, AdressTabelle>
 
@@ -343,7 +346,7 @@ export function schreibeAdresse(
 }
 
 /**
- * Liest ein Fenster mit eigener Wurzel (`#/anzeige`, `#/display/<bereich>`) – in jeder Sprache;
+ * Liest ein Fenster mit eigener Wurzel (`#/anzeige`, `#/display/<bereich>`, `#/zuschauer`) – in jeder Sprache;
  * `null` für jede gewöhnliche Adresse. Rein: src/main.ts fragt das, bevor ein Store entsteht.
  */
 export function liesVollbild(buch: Adressbuch, hash: string): Vollbild | null {

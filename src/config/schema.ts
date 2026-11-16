@@ -68,6 +68,15 @@ export type PokalVariante = (typeof POKAL_VARIANTEN)[number]
 export const POKAL_PLATZ_VARIANTEN = ['plaetze3', 'plaetze6'] as const
 export type PokalPlatzVariante = (typeof POKAL_PLATZ_VARIANTEN)[number]
 
+/**
+ * Grenzen eines Startabstands in ganzen Sekunden – für die Vorgaben im YAML (validate.ts) und die
+ * eigenen Werte der Veranstaltung (state/reducer/betrieb.ts normalisiereAnzeige), an EINER Stelle.
+ * Unter 30 s ist kein Lauf samt Bootswechsel denkbar; über 10 min wäre es keine Vorgabe mehr, sondern
+ * eine Pause (die Messung verwirft schon über 5 min, BETRIEB_ANNAHMEN.prognoseMessung).
+ */
+export const STARTABSTAND_MIN = 30
+export const STARTABSTAND_MAX = 600
+
 /** regelwerke/<id>.yaml: ein Regelwerk in einer Version. */
 export interface RawRegelwerk {
   /** Eindeutig, entspricht dem Dateinamen (z. B. "dm-2026"). */
@@ -181,6 +190,12 @@ export interface RawRegelwerk {
    * ersetzt die gleichnamige Angabe dort – z. B. eigene Schritte für den Zettel des letzten Laufs.
    */
   laufzettel?: RawLaufzettel
+  /**
+   * Startabstände je Klasse in Sekunden (Betrieb am Wettkampftag, Prognose der Wartezeit): Was hier steht,
+   * ersetzt je Klasse die allgemeine Vorgabe aus einstellungen.yaml `startabstaende`. Nur für den Zustand
+   * gelesen (config/catalog.ts `startabstandOf`), nicht für die Listen – baue() nimmt es heraus.
+   */
+  startabstaende?: Record<string, number>
   pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number }; stichentscheid?: { zaehlt?: string; plaetze?: number } }
   disqualifikationen?: RawDisq[]
   kataloge?: Record<string, RawKatalog>
@@ -542,6 +557,12 @@ export interface RawPositionen {
    * und die UIM-Tabelle stehen im Regelwerk (`pokal`), gelesen wird beides in config/pokal.ts.
    */
   pokalPunkte?: Record<string, number[]>
+  /**
+   * Allgemeine Startabstände je Klasse in Sekunden (einstellungen.yaml): Vorgabe der Prognose im Betrieb,
+   * bis gemessen ist. Ein Regelwerk ersetzt sie je Klasse (`RawRegelwerk.startabstaende`), die
+   * Veranstaltung mit eigenen Werten (`AppState.anzeige.abstaende`) – config/catalog.ts `startabstandOf`.
+   */
+  startabstaende?: Record<string, number>
   /** Aufbauten (Setups); der erste ist der Standard. */
   aufbauten?: RawAufbau[]
   /** Kursvarianten der Austragungsorte. */

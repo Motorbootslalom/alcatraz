@@ -42,7 +42,8 @@
   Veranstaltungs-/Personendaten; reine Einstellungen reisen über `...settings` von selbst mit) → lib/verlauf.ts ARTEN
   (optional, Rückfall 'einstellung') → views/SettingsView.vue → i18n de/+en/listenoptionen.ts. Muster:
   versucheNacheinander; nur UIM wie parallelZebra (`v-if="parallel"`; Test reducer/Vorlage/migrate: teamListe.test.ts).
-- Vorgabe aus dem Regelwerk: steht dreimal – emptyState, case SET_REGELWERK (reducer/regelwerk.ts), migrate.
+- Vorgabe aus dem Regelwerk: steht dreimal – emptyState, case SET_REGELWERK (reducer/regelwerk.ts), migrate. Oder
+  beim Lesen auflösen, der Stand hält nur eigene Werte (Muster config/catalog.ts sollgewichtOf, startabstandOf).
 - Wirkt das Feld auf Wertungslisten: lib/listenStand.ts WERTUNG ergänzen (sonst kein neuer Zeitpunkt).
 - reducer.ts: neue Sperre → passende Menge (SET_REGELWERK: Anfang wendeAn()); Eingabeweg mit Zeitpunkt → `eingegeben`.
 - Neues Starterfeld: types/starter.ts → normalizeStarter() (zählt Felder einzeln!) → import/tsv.ts → starterMerge.ts

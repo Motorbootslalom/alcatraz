@@ -3,7 +3,7 @@ import { feldKennungen, spaltenKennung } from './feld.ts'
 import { findeKombi, kombiReihenfolge } from './kombi.ts'
 import { abwandlung, aufbauIds, eintragId, GERAETE, mitZeiten, nummerierung } from './zeitnahme.ts'
 import { AUFGABEN, aufloesen, BLICKE, BOJEN_IDS, hochziehen, istInlineKurzform, istKurzform } from './kurzform.ts'
-import { POKAL_PLATZ_VARIANTEN, POKAL_VARIANTEN, STICH_KRITERIEN } from './schema.ts'
+import { POKAL_PLATZ_VARIANTEN, POKAL_VARIANTEN, STARTABSTAND_MAX, STARTABSTAND_MIN, STICH_KRITERIEN } from './schema.ts'
 import type {
   RawAufbau,
   RawAufbauEintrag,
@@ -50,6 +50,7 @@ export type ConfigInput = {
   versucheNacheinander?: boolean
   pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number }; stichentscheid?: { zaehlt?: string; plaetze?: number } }
   pokalPunkte?: Record<string, number[]>
+  startabstaende?: Record<string, unknown>
   disqualifikationen?: Array<Partial<RawDisq>>
   kataloge?: Record<string, Partial<RawKatalog>>
   hinweise?: Record<string, string>
@@ -692,6 +693,20 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
       }
   }
 
+  // ---- Startabstände (Betrieb, Prognose): bekannte Klassen, ganze Sekunden in den Grenzen ----
+  // Allgemein in einstellungen.yaml, je Klasse ersetzt vom Regelwerk (validateConfigTexts legt beide
+  // zusammen wie den Laufzettel). Grenzen wie die eigenen Werte der Veranstaltung (schema.ts).
+  if (raw.startabstaende !== undefined) {
+    const je: unknown = raw.startabstaende
+    if (!je || typeof je !== 'object' || Array.isArray(je)) err('BAD_STARTABSTAENDE', 'startabstaende nennt je Klasse den Startabstand in Sekunden, z. B. { E: 120, 1: 110 }.', 'startabstaende')
+    else
+      for (const [klasse, sekunden] of Object.entries(je)) {
+        if (!VALID_KLASSEN.has(klasse)) err('UNKNOWN_STARTABSTAND_KLASSE', `startabstaende nennt die unbekannte Klasse "${klasse}".`, 'startabstaende')
+        if (!(typeof sekunden === 'number' && Number.isInteger(sekunden) && sekunden >= STARTABSTAND_MIN && sekunden <= STARTABSTAND_MAX))
+          err('BAD_STARTABSTAND', `startabstaende.${klasse} muss eine ganze Zahl von ${STARTABSTAND_MIN} bis ${STARTABSTAND_MAX} Sekunden sein.`, 'startabstaende')
+      }
+  }
+
   // ---- Stichentscheid: nur Kriterien, die die Wertung kennt ------------------
   if (raw.stichentscheid !== undefined) {
     if (!Array.isArray(raw.stichentscheid)) err('BAD_STICHENTSCHEID', 'stichentscheid muss eine Liste sein.', 'stichentscheid')
@@ -858,7 +873,12 @@ export function validateConfigTexts(texte: ConfigTexts): ConfigIssue[] {
     if (!rw.name || rw.version === undefined)
       issues.push({ severity: 'error', code: 'MISSING_REGELWERK_NAME', message: 'Regelwerk ohne "name" oder "version".', where: file })
     const quelle = aufloesen(positionen.data as RawQuelle)
-    const raw: RawConfig = { ...rw, ...quelle, laufzettel: { ...quelle.laufzettel, ...rw.laufzettel } }
+    // Startabstände: Das Regelwerk ersetzt je Klasse (config/catalog.ts startabstandVorgabe). Ist eine der
+    // beiden Angaben kein Objekt, geht die des Regelwerks ungemischt in die Prüfung – sonst verdeckte das
+    // Zusammenlegen ihren Fehler.
+    const objekt = (x: unknown) => !!x && typeof x === 'object' && !Array.isArray(x)
+    const startabstaende = rw.startabstaende === undefined ? quelle.startabstaende : objekt(rw.startabstaende) && objekt(quelle.startabstaende) ? { ...quelle.startabstaende, ...rw.startabstaende } : rw.startabstaende
+    const raw: RawConfig = { ...rw, ...quelle, laufzettel: { ...quelle.laufzettel, ...rw.laufzettel }, startabstaende }
     for (const issue of validateRawConfig(raw)) {
       const schluessel = `${issue.code}|${issue.where}|${issue.message}`
       if (gesehen.has(schluessel)) continue

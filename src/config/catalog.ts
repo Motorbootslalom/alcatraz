@@ -1,7 +1,7 @@
 import type { ClassId } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import type { KuerzelNorm } from '../domain/kuerzel'
-import { configFor, eigeneAuswahl, ROH_REGELWERKE, type RohRegelwerk } from './konfig'
+import { configFor, eigeneAuswahl, ROH_QUELLE, ROH_REGELWERKE, type RohRegelwerk } from './konfig'
 import { regelwerkInfo, type DisziplinWertung } from './build'
 import type { RawAufbau, StichKriterium } from './schema'
 
@@ -58,6 +58,8 @@ export interface Regelwerk {
   versucheNacheinander?: boolean
   /** Kürzel der Länder auf den Listen: IOC (DM und UIM, Regel 209) oder ISO – domain/kuerzel.ts `KuerzelNorm`. */
   laenderKuerzel: KuerzelNorm
+  /** Eigene Startabstände des Regelwerks je Klasse in Sekunden; ersetzen die allgemeinen ({@link STARTABSTAENDE}). */
+  startabstaende: Partial<Record<ClassId, number>>
 }
 
 export interface Aufbau {
@@ -80,6 +82,12 @@ function texteJeKlasse(roh: unknown): Partial<Record<ClassId, string>> {
   )
 }
 
+/** Zahlen je Klasse aus dem YAML: nur bekannte Klassen, nur endliche Zahlen (geprüft in validate.ts). */
+function zahlenJeKlasse(roh: unknown): Partial<Record<ClassId, number>> {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
+  return Object.fromEntries(Object.entries(roh).filter(([klasse, zahl]) => isClassId(klasse) && typeof zahl === 'number' && Number.isFinite(zahl)))
+}
+
 function readRegelwerk(raw: RohRegelwerk): Regelwerk {
   const info = regelwerkInfo(raw)
   return {
@@ -99,6 +107,7 @@ function readRegelwerk(raw: RohRegelwerk): Regelwerk {
     aushang: info.aushang,
     ...(info.versucheNacheinander === undefined ? {} : { versucheNacheinander: info.versucheNacheinander }),
     laenderKuerzel: info.laenderKuerzel,
+    startabstaende: zahlenJeKlasse(raw.startabstaende),
   }
 }
 
@@ -200,4 +209,32 @@ export function hasParallel(regelwerkId: string): boolean {
  */
 export function sollgewichtOf(regelwerkId: string, eigene: Partial<Record<ClassId, number>>, klasse: ClassId): number {
   return eigene[klasse] ?? regelwerkOf(regelwerkId).gewichte[klasse] ?? 0
+}
+
+/** Die allgemeinen Startabstände je Klasse in Sekunden (einstellungen.yaml `startabstaende`). */
+export const STARTABSTAENDE: Readonly<Partial<Record<ClassId, number>>> = Object.freeze(zahlenJeKlasse(ROH_QUELLE.startabstaende))
+
+/**
+ * Startabstand einer Klasse, die weder einstellungen.yaml noch das Regelwerk nennt. validate.test.ts
+ * hält die Dateien so, dass es nie dazu kommt; 125 s ist das Mittel der allgemeinen Werte (124,4 s),
+ * auf 5 s gerundet wie diese (berichtigt nach der Prüfung von E3, 16.11.2026; vorher stand 120 da).
+ */
+export const STARTABSTAND_RUECKFALL = 125
+
+/**
+ * Die Vorgabe des Startabstands einer Klasse in Sekunden, ohne eigenen Wert der Veranstaltung: der des
+ * Regelwerks, sonst der allgemeine (einstellungen.yaml) – das Regelwerk ersetzt je Klasse.
+ */
+export function startabstandVorgabe(regelwerkId: string, klasse: ClassId): number {
+  return regelwerkOf(regelwerkId).startabstaende[klasse] ?? STARTABSTAENDE[klasse] ?? STARTABSTAND_RUECKFALL
+}
+
+/**
+ * Startabstand einer Klasse in Sekunden, wie die Prognose ihn nimmt, solange zu wenig gemessen ist
+ * (betrieb/prognose.ts): der eigene Wert der Veranstaltung (`anzeige.abstaende`), sonst der des
+ * Regelwerks, sonst der allgemeine. Wie {@link sollgewichtOf} wird die Vorgabe erst beim Lesen
+ * aufgelöst – im Stand stehen nur eigene Werte, ein Wechsel des Regelwerks muss nichts nachziehen.
+ */
+export function startabstandOf(stand: { regelwerk: string; anzeige: { abstaende: Partial<Record<ClassId, number>> } }, klasse: ClassId): number {
+  return stand.anzeige.abstaende[klasse] ?? startabstandVorgabe(stand.regelwerk, klasse)
 }

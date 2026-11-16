@@ -245,8 +245,11 @@ export interface SichtEinstieg extends SichtStart {
  * Zuschauer und Start-Freigabe sehen. Zeitunabhängig – „seit m:ss“ rechnet der Bildschirm.
  */
 export interface OeffentlicheSicht {
-  /** Fassung der Sicht; steigt, wenn sich ihre Form ändert (2: Steuerung der Etappe E2). */
-  sv: 2
+  /**
+   * Fassung der Sicht; steigt, wenn sich ihre Form ändert (2: Steuerung der Etappe E2; 3: Startabstände und
+   * „am Steg“/„vor Steg“ für die Prognose, Etappe E3). Gilt auch für die Zuschauersicht.
+   */
+  sv: 3
   /** Kopfzeile; '' = keine. */
   kopf: string
   /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */
@@ -255,13 +258,75 @@ export interface OeffentlicheSicht {
   skala: number
   /** Nur auf der Tafel am Bedienrechner und nur mit mindestens einem Logo. */
   logos?: { links: LogoBild | null; rechts: LogoBild | null }
-  einst: { davor: boolean; parcoursName: boolean }
+  /** Darstellung; ab sv 3 auch, wie viele Starts „am Steg“ und „vor Steg“ stehen (Zuschauerliste, Zeit bis zum Vorsteg). */
+  einst: SichtEinstellungen
   /** Die Bereiche der gemeinsamen Anzeigetafel (`#/anzeige`), in ihrer Reihenfolge. */
   auswahl: BereichId[]
   /** Die Klassen, die in der Sicht vorkommen. */
   klassen: Partial<Record<ClassId, SichtKlasse>>
+  /**
+   * Ab sv 3: der Startabstand je Klasse in ganzen Sekunden, wie die Prognose ihn nimmt – gemessen (ab drei
+   * Messungen) oder die Vorgabe (betrieb/prognose.ts `startabstandImBetrieb`). Für jede Klasse in `klassen`.
+   * Zeitunabhängig: ändert sich nur mit einem neuen gezeigten Start oder einer Einstellung (Kritik K28).
+   */
+  abstaende: Partial<Record<ClassId, number>>
   /** Nur die Starter, die in der Sicht vorkommen. */
   starter: Record<string, SichtStarter>
   /** Alle Bereiche in der Folge der Verzahnung. */
   bereiche: SichtBereich[]
+}
+
+/** Darstellung in der Sicht. */
+export interface SichtEinstellungen {
+  davor: boolean
+  parcoursName: boolean
+  /** So viele Starts stehen „am Steg“ (nach dem im Boot), danach `vorSteg` „vor Steg“ (`anzeige.amSteg/vorSteg`). */
+  amSteg: number
+  vorSteg: number
+}
+
+// --- Zuschauersicht ------------------------------------------------------------------------------
+
+/**
+ * Ein Bereich der Zuschauersicht (betrieb/sicht.ts `sichtZuschauer`): nur, was die Zuschauerliste zeigt – kein
+ * Bedienfeld der Start-Freigabe (BETRIEB_ANNAHMEN.zuschauerSchmal).
+ */
+export interface ZuschauerBereich {
+  id: BereichId
+  name: string
+  art: 'manoevrieren' | 'parallel'
+  /** Der laufende Punkt; `null`, solange keiner begonnen ist. */
+  punkt: SichtPunkt | null
+  /** Der erste Punkt des Programms, der nicht begonnen ist („Lauf 2 beginnt …“). */
+  naechsterPunkt: SichtPunkt | null
+  /** „Im Boot“. */
+  aktuell: SichtStart | null
+  /** Seit wann `aktuell` steht (Zeit des Hosts, ms) – Grundlage der Restzeit in der Prognose. */
+  seit: number | null
+  /**
+   * Die offene Folge der begonnenen Punkte, ganz: der erste ist der Nächste. Die ersten `einst.amSteg` stehen
+   * „am Steg“, die nächsten `einst.vorSteg` „vor Steg“, danach die übrigen – jeder mit Wartezeit.
+   */
+  frei: SichtStart[]
+  /** Starts begonnener Punkte, deren Boot fehlt (ohne Wartezeit, L-7), in der Folge. */
+  bootFehlt: SichtStart[]
+  meldung: Meldung | null
+}
+
+/**
+ * Die Zuschauersicht: was die Zuschauerliste (`#/zuschauer`, später der Zuschauer-Link) sieht – eine Teilmenge der
+ * öffentlichen Sicht, aus ihr abgeleitet. Nie Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen; nur Starter,
+ * die hier vorkommen; keine Bedienangaben, keine Logos.
+ */
+export interface ZuschauerSicht {
+  sv: OeffentlicheSicht['sv']
+  kopf: string
+  sprache: Locale
+  einst: Pick<SichtEinstellungen, 'parcoursName' | 'amSteg' | 'vorSteg'>
+  /** Die Klassen der Starter hier (Klassenfilter, Farbe, Name in der Sprache der Liste). */
+  klassen: Partial<Record<ClassId, SichtKlasse>>
+  /** Startabstand je Klasse (wie {@link OeffentlicheSicht.abstaende}) für die Wartezeit. */
+  abstaende: Partial<Record<ClassId, number>>
+  starter: Record<string, SichtStarter>
+  bereiche: ZuschauerBereich[]
 }

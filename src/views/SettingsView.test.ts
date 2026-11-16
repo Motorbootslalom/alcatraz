@@ -8,7 +8,8 @@ import { setLocale } from '../i18n'
 import { configFor } from '../config/konfig'
 import type { RawAufbau } from '../config/schema'
 import { LogoFehler, verkleinereLogo } from '../lib/logoBild'
-import { betriebsStand, festgeschrieben, TEST_PNG_2X1, testLogo } from '../testHilfen'
+import { betriebsStand, festgeschrieben, TEST_PNG_2X1, testLogo, zeigeNaechsten } from '../testHilfen'
+import { reducer } from '../state/reducer'
 
 /** Erfundener eigener Aufbau. */
 const hafenfest: RawAufbau = {
@@ -859,5 +860,81 @@ describe('Einstellungen: Anzeigetafel', () => {
       if (vorher) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', vorher)
       else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView
     }
+  })
+
+  it('Am Steg / Vor Steg (E3): ganze Zahlen 0–10, wirken über SET_ANZEIGE; Unbrauchbares zeigt wieder den geltenden Wert', async () => {
+    const wrapper = settings(store)
+    const am = wrapper.find('[data-feld="betrieb-am-steg"]')
+    const vor = wrapper.find('[data-feld="betrieb-vor-steg"]')
+    expect([(am.element as HTMLInputElement).value, (vor.element as HTMLInputElement).value]).toEqual(['2', '2'])
+    await am.setValue('3')
+    await vor.setValue('25')
+    expect([anzeige().amSteg, anzeige().vorSteg]).toEqual([3, 10])
+    expect((vor.element as HTMLInputElement).value).toBe('10')
+    await am.setValue('x')
+    expect([anzeige().amSteg, (am.element as HTMLInputElement).value]).toEqual([3, '3'])
+    expect(wrapper.find('#betrieb').text()).toContain('je 0 bis 10')
+    wrapper.unmount()
+  })
+
+  it('Startabstände (E3, K24): Vorgabe je Klasse, eigener Wert nur als Abweichung; leer oder gleich der Vorgabe = Vorgabe', async () => {
+    const wrapper = settings(store)
+    const zeile = (k: string) => wrapper.find(`[data-teil="startabstaende"] tr[data-klasse="${k}"]`)
+    const feld = (k: string) => zeile(k).find(`[data-feld="betrieb-abstand|${k}"]`)
+    // Alle Klassen des Regelwerks; Vorgabe aus einstellungen.yaml (DM 2025: E 120 s, Klasse 1 110 s).
+    expect(wrapper.findAll('[data-teil="startabstaende"] tbody tr').map((z) => z.attributes('data-klasse'))).toEqual(['E', '1', '2', '3', '4', '5', '6', '7'])
+    expect([zeile('E').find('[data-teil="vorgabe"]').text(), zeile('1').find('[data-teil="vorgabe"]').text()]).toEqual(['120 s', '110 s'])
+    expect(feld('E').attributes('placeholder')).toBe('120')
+    expect(zeile('E').find('[data-teil="gilt"]').attributes('data-quelle')).toBe('vorgabe')
+
+    await feld('E').setValue('150')
+    expect(anzeige().abstaende).toEqual({ E: 150 })
+    expect(zeile('E').find('[data-teil="gilt"]').text()).toContain('150 s')
+    expect(zeile('E').find('[data-teil="gilt"]').attributes('data-quelle')).toBe('eigen')
+    // Begrenzt auf 30–600 s und gerundet; in der Folge der Klassen gespeichert.
+    await feld('1').setValue('12')
+    await feld('3').setValue('999.4')
+    expect(anzeige().abstaende).toEqual({ E: 150, 1: 30, 3: 600 })
+    expect((feld('1').element as HTMLInputElement).value).toBe('30')
+    // Gleich der Vorgabe ist kein eigener Wert (der Stand hält nur Abweichungen), leer auch nicht.
+    await feld('1').setValue('110')
+    await feld('3').setValue('')
+    expect(anzeige().abstaende).toEqual({ E: 150 })
+    expect((feld('1').element as HTMLInputElement).value).toBe('')
+    // „Alle auf die Vorgabe“.
+    await wrapper.find('[data-action="abstaende-vorgabe"]').trigger('click')
+    expect(anzeige().abstaende).toEqual({})
+    expect(wrapper.find('[data-action="abstaende-vorgabe"]').attributes('disabled')).toBeDefined()
+    // Ohne Messung gibt es nichts zu übernehmen.
+    expect(wrapper.find('[data-action="messwerte-uebernehmen"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-teil="messungen"]').text()).toBe('Bisher 0 gemessene Abstände.')
+    wrapper.unmount()
+  })
+
+  it('„Messwerte als Vorgabe übernehmen“ (L-6): Klassen ab drei Messungen bekommen ihr Mittel als eigenen Wert', async () => {
+    // Parcours 1 fährt e1, k1, e2, k2 je Lauf; alle 100 s ein Start → E dreimal gemessen, Klasse 1 nur einmal
+    // (k2 → e1 geht über die Laufgrenze und zählt nicht, BETRIEB_ANNAHMEN.keineMessungUeberPunktgrenze).
+    let s = festgeschrieben(betriebsStand())
+    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:1', zeit: 1000 })
+    for (let i = 0; i < 4; i++) s = zeigeNaechsten(s, 'par_1', 10_000 + i * 100_000)
+    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:2', zeit: 350_000 })
+    for (let i = 4; i < 6; i++) s = zeigeNaechsten(s, 'par_1', 10_000 + i * 100_000)
+    store.dispatch({ type: 'LOAD_STATE', state: s })
+    const wrapper = settings(store)
+    const zeile = (k: string) => wrapper.find(`[data-teil="startabstaende"] tr[data-klasse="${k}"]`)
+    expect(wrapper.find('[data-teil="messungen"]').text()).toBe('Bisher 4 gemessene Abstände.')
+    expect(zeile('E').find('[data-teil="gemessen"]').text()).toBe('100 s 3 Abstände, zuletzt 100 s')
+    // Ab drei Messungen gilt der Messwert schon für die Prognose; Klasse 1 hat erst eine – dort gilt die Vorgabe.
+    expect(zeile('E').find('[data-teil="gilt"]').attributes('data-quelle')).toBe('messung')
+    expect(zeile('1').find('[data-teil="gilt"]').attributes('data-quelle')).toBe('vorgabe')
+
+    const knopf = wrapper.find('[data-action="messwerte-uebernehmen"]')
+    expect(knopf.attributes('disabled')).toBeUndefined()
+    await knopf.trigger('click')
+    expect(anzeige().abstaende).toEqual({ E: 100 })
+    expect(store.state.value.betrieb).toEqual(s.betrieb)
+    // Schon übernommen: nichts mehr zu tun.
+    expect(wrapper.find('[data-action="messwerte-uebernehmen"]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
   })
 })

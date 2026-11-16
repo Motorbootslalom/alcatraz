@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, type ComponentPublicInstance } from 'vue'
-import type { OeffentlicheSicht, PunktId, SichtBereich, SichtPunkt, SichtStart, VerschiebeZiel } from '../../types'
+import type { OeffentlicheSicht, SichtBereich, SichtPunkt, SichtStart, VerschiebeZiel } from '../../types'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { t } from '../../i18n'
-import { punktText, punktVon, startZeile, type StartZeile } from './texte'
+import { ganzeFolge as folgeMitBootFehlt, punktText, punktVon, startZeile, verschiebeZiele, type StartZeile } from './texte'
 
 /**
  * „Anderen Starter wählen“: die Folge eines Bereichs an der Start-Freigabe (B-5, S-4, S-6). Zuerst die nächsten
@@ -22,9 +22,10 @@ import { punktText, punktVon, startZeile, type StartZeile } from './texte'
  * Startnummer findet ihn in jedem Lauf): sein frühester Start, der nicht auf seinen Lauf wartet – am Laptop der
  * schnellste Weg. Passt die Nummer genau, zählen nur ihre Treffer (Suche „10“ neben 101, 102 …).
  *
- * Gezogen wird hier nicht (das kommt mit der Startliste, E3): Ein Menü ist am Steg der sicherere Griff
- * (BETRIEB_ANNAHMEN.knoepfeStattZiehen). Nichts davon ist unumkehrbar – ohne Rückfrage. Liest nur die
- * öffentliche Sicht, schickt Actions über `sende`.
+ * Gezogen wird hier nicht – das geht in der Startliste (components/betrieb/StartListe.vue, E3): An der Start-Freigabe
+ * ist ein Menü der sicherere Griff (BETRIEB_ANNAHMEN.knoepfeStattZiehen). Die Ziele des Menüs und die ganze Folge
+ * teilt sie mit der Startliste (texte.ts verschiebeZiele, ganzeFolge). Nichts davon ist unumkehrbar – ohne Rückfrage.
+ * Liest nur die öffentliche Sicht, schickt Actions über `sende`.
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -59,30 +60,8 @@ function zeile(s: SichtStart, art: Art): Zeile {
 }
 const offene = computed(() => b.value.waehlbar.map((s) => zeile(s, 'offen')))
 
-/** Rang eines Punkts im Programm (unbekannt: hinten). */
-const rang = (p: PunktId) => {
-  const i = b.value.programm.findIndex((x) => x.id === p)
-  return i < 0 ? Number.MAX_SAFE_INTEGER : i
-}
-
-/**
- * Die ganze Folge: die offenen Starts in ihrer Folge, „Boot fehlt“ jeweils hinter dem letzten Start ihres
- * Punkts (V-5, L-7: am Ende des Laufs, gekennzeichnet) – hat der Punkt keinen offenen mehr, vor dem nächsten.
- */
-const ganzeFolge = computed(() => {
-  const out = [...offene.value]
-  const fehlt = b.value.bootFehlt.map((s) => zeile(s, 'bootFehlt'))
-  for (const punkt of new Set(fehlt.map((z) => z.s.punkt))) {
-    let at = -1
-    out.forEach((z, i) => {
-      if (z.s.punkt === punkt) at = i + 1
-    })
-    if (at < 0) at = out.findIndex((z) => rang(z.s.punkt) > rang(punkt))
-    if (at < 0) at = out.length
-    out.splice(at, 0, ...fehlt.filter((z) => z.s.punkt === punkt))
-  }
-  return out
-})
+/** Die ganze Folge: die offenen Starts, „Boot fehlt“ am Ende ihres Punkts (texte.ts `ganzeFolge`, wie die Startliste). */
+const ganzeFolge = computed(() => folgeMitBootFehlt(b.value).map((f) => zeile(f.s, f.art)))
 
 const klein = (x: string) => x.toLowerCase().replace(/\s+/g, '')
 /** Treffer der Suche über alles, was sich noch zeigen lässt; `null` ohne Suchtext. */
@@ -135,11 +114,6 @@ function zurueckstellen(z: Zeile) {
 function einreihen(z: Zeile, wo: 'naechster' | 'ende') {
   props.sende({ type: 'BETRIEB_EINREIHEN', bereich: b.value.id, ref: z.key, wo })
 }
-
-/** Wohin „Vorziehen“ zielt: vor den Nächsten – gibt es keinen freigegebenen, vor den ersten offenen. */
-const vorne = computed(() => b.value.offen[0]?.key ?? b.value.waehlbar[0]?.key ?? null)
-/** Lauf-Grenzen als Ziel: andere Punkte, in denen noch etwas offen ist (vor/nach einem vorbeigegangenen Lauf hieße nur „hinter den Zeiger“). */
-const grenzen = (z: Zeile) => (b.value.programm.length > 1 ? b.value.programm.filter((p) => p.id !== z.s.punkt && b.value.waehlbar.some((s) => s.punkt === p.id)) : [])
 
 // --- Menü „Verschieben …“ ---
 /** Für welchen Start das Menü offen ist (höchstens eines). */
@@ -228,12 +202,8 @@ function vermerk(z: Zeile): string {
         </span>
         <!-- Die Ziele als Knöpfe: Erst ein Klick (oder Enter/Leertaste auf einem Knopf) verschiebt. -->
         <span v-if="menue === z.key && !gesperrt" class="betrieb-menue" role="group" :aria-label="t('betrieb.folge.verschieben')" data-teil="verschieben">
-          <button v-if="vorne && vorne !== z.key" type="button" class="btn sm" data-ziel="vorne" @click="verschiebe(z, { vor: vorne })">{{ t('betrieb.folge.vorziehen') }}</button>
-          <button type="button" class="btn sm" data-ziel="ende" @click="verschiebe(z, { nachPunkt: z.s.punkt })">{{ t('betrieb.einreihen.ende') }}</button>
-          <template v-for="p in grenzen(z)" :key="p.id">
-            <button type="button" class="btn sm" :data-ziel="`vor|${p.id}`" @click="verschiebe(z, { vorPunkt: p.id })">{{ t('betrieb.folge.vorPunkt', { punkt: punktText(p) }) }}</button>
-            <button type="button" class="btn sm" :data-ziel="`nach|${p.id}`" @click="verschiebe(z, { nachPunkt: p.id })">{{ t('betrieb.folge.nachPunkt', { punkt: punktText(p) }) }}</button>
-          </template>
+          <!-- Vorziehen, ans Ende des Laufs, vor/nach Lauf n (texte.ts verschiebeZiele, wie in der Startliste). -->
+          <button v-for="w in verschiebeZiele(b, z.s)" :key="w.id" type="button" class="btn sm" :data-ziel="w.id" @click="verschiebe(z, w.ziel)">{{ w.text }}</button>
         </span>
       </li>
     </ol>

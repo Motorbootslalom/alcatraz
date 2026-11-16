@@ -2,7 +2,8 @@
 
 Rein, ohne DOM und Store. Plan zur Übernahme der Tafel vom 16.11.2026 (Etappen E1–E8); E1 = Anzeigetafel im
 zweiten Fenster und Start-Freigabe am Bedienrechner, nur Manövrieren, ohne Netz; E2 = Steuerung an der Start-Freigabe
-(gezielt zeigen, zurückstellen/einreihen, Klasse aussetzen/vorziehen, verschieben, einsteigen). Begriffe:
+(gezielt zeigen, zurückstellen/einreihen, Klasse aussetzen/vorziehen, verschieben, einsteigen); E3 = Startabstände,
+Prognose („ca. in“, „Zeit bis zum Vorsteg“), Startliste im Betrieb, Zuschauerliste lokal. Begriffe:
 „Anzeigetafel“ (Code `anzeige`), „Start-Freigabe“; „Tafel“ ist das Aushangbrett. Englisch vorläufig: display board,
 start release.
 
@@ -23,12 +24,23 @@ start release.
   Stand macht state/reducer/betrieb.ts.
 - `meldungen.ts` (E2) – MELDUNGS_VORLAGEN (Gruppe, Kennung, Art), vorlagenText (Tafel-Sprache, `{veranstaltung}`),
   vorlagenTitel/gruppenTitel (Schlüssel für t()), vorlagenMeldung(sicht, vorlage). Texte: i18n `meldung.vorlage.*`.
-- `sicht.ts` – sichtOeffentlich(stand, {logos}) → OeffentlicheSicht: die EINE Stelle für den Datenschutz-Zuschnitt.
+- `sicht.ts` – sichtOeffentlich(stand, {logos}) → OeffentlicheSicht: die EINE Stelle für den Datenschutz-Zuschnitt;
+  sichtZuschauer(sicht) → ZuschauerSicht (E3): daraus abgeleitet, schmaler (Im Boot, `frei`, „Boot fehlt“, Meldung).
+- `prognose.ts` (E3, Vorbild TF lib/timing.ts) – Messung auf dem Stand: messungenIn/messungen (Abstand gehört dem
+  vorigen Start; 30–300 s; nicht über „ohne Anzeige“, nicht über eine Punktgrenze, nicht bei X), klassenMessungen,
+  genugGemessen (ab 3),
+  startabstandImBetrieb (Mittel oder config/catalog.ts startabstandOf), startabstandZeilen (Einstellungen),
+  messwerteAlsVorgabe (→ SET_ANZEIGE {abstaende}). Auf dem Bildschirm: freieFolge, wartezeiten(sicht, bereich,
+  jetzt) → Map key → {art:'zeit', stelle, bisStart, bisVorsteg, steg} | {art:'angehalten', stelle, steg} (Pause/
+  Störung auf der Tafel, bereichAngehalten) | bootFehlt | spaeter | ohne; seitSekunden, wartezeitAnzeige, mmss.
 - Typen: types/betrieb.ts. Actions und Normalisierer: state/reducer/betrieb.ts. Nur-Lese-Store: state/leseStore.ts.
 - Oberfläche (liest nur die Sicht): components/anzeige/ (AnzeigeTafel, AnzeigeBereich; styles/anzeige.css, lib/fit.ts),
-  components/betrieb/ (StartFreigabe; E2: BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb,
-  texte.ts), views/BetriebView.vue, src/AnzeigeApp.vue, lib/anzeigeFenster.ts (window.open, postMessage-Rückfall).
-  Einstellungen: SettingsView `#anzeigetafel`, `#betrieb` (Startfolge: `anzeige.verzahnungHalten`).
+  components/betrieb/ (StartFreigabe; E2: BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb;
+  E3: StartListe; texte.ts mit ganzeFolge, verschiebeZiele, wartezeitText), views/BetriebView.vue (Unterreiter `start`,
+  `startliste`), src/AnzeigeApp.vue, E3: src/ZuschauerApp.vue + components/zuschauer/ZuschauerListe.vue
+  (styles/zuschauer.css), lib/anzeigeFenster.ts (oeffneAnzeige/oeffneZuschauer, postMessage-Rückfall), lib/uhr.ts
+  (useUhr: Takt des Bildschirms). Einstellungen: SettingsView `#anzeigetafel`, `#betrieb` (Startfolge:
+  `verzahnungHalten`; E3: `amSteg`/`vorSteg`, Startabstände je Klasse, „Messwerte als Vorgabe übernehmen“).
 
 ## Abläufe
 
@@ -47,6 +59,15 @@ start release.
 - Zweites Fenster: main.ts liest `#/anzeige[/<bereich>]` (lib/router.ts vollbild) VOR jedem Store → AnzeigeApp mit
   createLeseStore() → storage-Ereignis → lies() → Sicht nach JSON verglichen (shallowRef) → AnzeigeTafel. Rückfall:
   Bedienfenster stößt per postMessage an (verbindeAnzeigen in main.ts), die Tafel meldet sich beim opener.
+  Zuschauerliste (E3) genauso: `#/zuschauer[/<bereich>]` (en `#/spectators`) → ZuschauerApp → sichtZuschauer(sicht…
+  {logos:false}) nach JSON verglichen → ZuschauerListe(sicht, jetzt aus useUhr(5000)); Klassenfilter merke
+  `zuschauer.klasse` (ueberNeuladen, sessionStorage), nur Klassen der gezeigten Bereiche (`#/zuschauer/<bereich>`).
+- Startliste (E3): BetriebView `startliste` → je Bereich StartListe(sicht, bereich, jetzt aus useUhr(1000)) →
+  wartezeiten() je Render. Ziehen auf einen offenen Start = BETRIEB_VERSCHIEBEN {vor} (nach oben) bzw. {nach} (nach
+  unten), dazu das Menü „Verschieben …“ (verschiebeZiele, wie BetriebsFolge) – BETRIEB_ANNAHMEN.ziehenInDerStartliste.
+- Startabstände (SettingsView `#betrieb`): startabstandZeilen (Vorgabe, eigen, gemessen, wirksam, quelle); Eingabe →
+  SET_ANZEIGE {abstaende} nur mit Abweichungen (gleich Vorgabe/leer = weg, in Klassenfolge); Knopf =
+  messwerteAlsVorgabe.
 
 ## Fallen
 
@@ -73,9 +94,15 @@ start release.
 - arbeitsPunkt = der laufende, solange dort Starts frei sind oder ihr Boot fehlt (nicht der Punkt eines eingereihten
   Nachzüglers). Leere Bereiche entfallen im Stand (mitBereich), unbekannte Bereiche ändern nichts (schrittErlaubt).
 - Sicht: nie Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen; nur vorkommende Starter. Neue Felder → sicht.test.ts
-  (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert (sv 2 = E2, mit `programm`). Zeitunabhängig:
-  „seit“ rechnet der Bildschirm. `waehlbar` trägt alle offenen Starts aller Punkte – damit stehen fast alle Starter in
-  `starter`. „Lauf stockt“ (nichts frei, aber zurückgestellt/„Boot fehlt“/nachzuholen in begonnenen Punkten) rechnet
+  (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert (sv 2 = E2, mit `programm`; sv 3 = E3, mit
+  `abstaende` und `einst.amSteg/vorSteg`). Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit
+  `jetzt + versatz` (prognose.ts), nie Reducer oder Sicht; `abstaende` ändert sich nur mit Gezeigtem/Einstellungen.
+  Zuschauersicht: genaue Schlüssel im Test, auch verschachtelt (Start, Starter, Herkunft, Punkt, Meldung, Klasse) –
+  sichtZuschauer baut jedes Objekt Feld für Feld neu, nie als Referenz; ein neues Feld dort ist eine bewusste
+  Entscheidung (öffentlicher Link).
+  Die offene Folge der begonnenen Punkte steht in der öffentlichen Sicht nicht doppelt: freieFolge = `waehlbar` mit
+  begonnenem Punkt; die Zuschauersicht trägt sie als `frei`. `waehlbar` trägt alle offenen Starts aller Punkte –
+  damit stehen fast alle Starter in `starter`. „Lauf stockt“ (nichts frei, aber zurückgestellt/„Boot fehlt“/nachzuholen in begonnenen Punkten) rechnet
   die Start-Freigabe aus der Sicht – der Lauf ist dann nicht zu Ende.
 - planEvent wird je Planungsstand einmal gerechnet (WeakMap über parcoursList → starters, dazu boats/class4Small in
   folge.ts) – Stände nie verändern, immer neu anlegen.
@@ -86,15 +113,24 @@ start release.
 - AnzeigeApp vergleicht die Sicht nach Inhalt – ohne `veranstaltung` (nur für die Vorlagen der Start-Freigabe): Ein
   neues Feld, das sich bei jeder Eingabe ändert, zeichnete die Tafel bei jedem Tastendruck neu (AnzeigeApp.test.ts
   „zwei Fenster“ fängt das, auch das Tippen des Namens bei eigener Kopfzeile).
+- Uhr nur im Bildschirm (lib/uhr.ts useUhr): StartListe/ZuschauerListe bekommen `jetzt` als Prop (ab E6: Zeit des
+  Hosts = eigene Uhr + Versatz), nie Store oder Sicht. BetriebView liest `jetzt` nur im Zweig der Startliste – sonst
+  zeichnete die Start-Freigabe jede Sekunde neu. Die Zuschauerliste trägt keine Bedienangaben: Was sie zeigen soll,
+  muss erst in sichtZuschauer (bewusste Entscheidung, Schlüssel-Test).
 - `einstieg` trägt Starts der Sicht (mit Starter, ohne Entfallene): „Weiter mit“ nennt auch einen schon „ohne Anzeige“
   erledigten. BETRIEB_AB setzt den gewählten Start und das mit ihm wieder Offene hinter den Zeiger, wenn danach schon
   gezeigt wurde – sonst überholte ihn das Gezeigte.
 
 ## Tests
 
-`npx vitest run src/betrieb src/state/betrieb src/state/leseStore src/components/anzeige src/AnzeigeApp src/main
-src/views/Betrieb src/lib/anzeigeFenster src/lib/fit src/planung/verzahnung`. Hilfen: testHilfen.ts betriebsStand,
+`npx vitest run src/betrieb src/state/betrieb src/state/leseStore src/components/anzeige src/AnzeigeApp src/ZuschauerApp
+src/main src/views/Betrieb src/lib/anzeigeFenster src/lib/fit src/planung/verzahnung`. Hilfen: testHilfen.ts betriebsStand,
 festgeschrieben, zeigeNaechsten – nimmt `ref`/`vorher` aus der Sicht wie die Start-Freigabe; Starter e1/k1/e2/k2 auf
 Parcours 1, v1/f1/v2 auf Parcours 2. E2: betrieb/schritte.test.ts mit eigener Hilfe `stand({E: 2, '1': 6 …}, {spuren,
-laeufe})` (V-5-Beispiel, S-4/S-9, B-10, AB, Abgleich, WKR-Bögen unverändert). Oberfläche E2: views/Betrieb.test.ts
-(`klassenStand`, `v5`; Abnahme: außer `betrieb` ändert sich nichts). Einstellungen: views/SettingsView.test.ts.
+laeufe})` (V-5-Beispiel, S-4/S-9, B-10, AB, Abgleich, WKR-Bögen unverändert). E3: betrieb/prognose.test.ts
+(`laufend(lücken)` wie TF `running`, je fünf Starter E/1), Zuschauersicht in sicht.test.ts, startabstaende in
+config/validate.test.ts und catalog.test.ts. Oberfläche E2: views/Betrieb.test.ts (`klassenStand`, `v5`; Abnahme:
+außer `betrieb` ändert sich nichts). Oberfläche E3: views/Betrieb.test.ts „Startliste (E3)“ (Uhr per
+vi.useFakeTimers({toFake: ['Date','setInterval','clearInterval']}); Ziehen per trigger dragstart/dragover/drop, Ergebnis
+gleich reducer(BETRIEB_VERSCHIEBEN)), src/ZuschauerApp.test.ts (Gruppen, Wartezeiten, Datenschutz im HTML, Filter),
+src/main.zuschauer.test.ts (echter Start `#/spectators`, schreibt nichts). Einstellungen: views/SettingsView.test.ts.

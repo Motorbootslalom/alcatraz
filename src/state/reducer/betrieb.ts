@@ -8,6 +8,7 @@
 
 import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, PunktId, VerschiebeZiel } from '../../types'
 import { CLASS_IDS } from '../../domain/classes'
+import { STARTABSTAND_MAX, STARTABSTAND_MIN } from '../../config/schema'
 import { istOriginStyle } from '../../lib/origin'
 import { BETRIEB_ANNAHMEN } from '../../betrieb/annahmen'
 import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, type BereichLage } from '../../betrieb/folge'
@@ -65,9 +66,9 @@ export const SKALA_MIN = 0.7
 export const SKALA_MAX = 1.3
 /** Höchstens so viele Starts „am Steg“ bzw. „vor Steg“. */
 export const STEG_MAX = 10
-/** Grenzen eines eigenen Startabstands in Sekunden (E3; wie die Prüfung der Vorgaben im YAML). */
-export const ABSTAND_MIN = 30
-export const ABSTAND_MAX = 600
+/** Grenzen eines eigenen Startabstands in Sekunden (E3) – dieselben wie für die Vorgaben im YAML (config/schema.ts). */
+export const ABSTAND_MIN = STARTABSTAND_MIN
+export const ABSTAND_MAX = STARTABSTAND_MAX
 
 const MELDUNG_ARTEN: readonly MeldungArt[] = ['info', 'stoerung', 'pause']
 const NAMEN: readonly AnzeigeNamen[] = ['aushang', 'voll', 'kurz', 'ohne']

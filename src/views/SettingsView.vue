@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, useId } from 'vue'
 import { useStore } from '../state/store'
 import { WKR_LEERZEILEN_MAX, WKR_TEILEN_AB_MAX, WKR_ZEILEN_JE_SEITE_MAX } from '../state/reducer'
 import { streichlaeufeVon } from '../lib/ergebnis'
-import { classColor } from '../domain/classes'
+import { CLASS_IDS, classColor } from '../domain/classes'
 import { normalizeName } from '../domain/kuerzel'
 import { downloadText, filename, makeFile, parseFile, type FileKind } from '../persistenz/backup'
 import { loadLegacyVerzahnung } from '../persistenz/storage'
@@ -25,7 +25,9 @@ import { adresse, sprungziel } from '../lib/router'
 import { starterfeldFest } from '../lib/eingaben'
 import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout } from '../types'
 import { bereicheZumStand } from '../betrieb/folge'
-import { SKALA_MAX, SKALA_MIN } from '../state/reducer/betrieb'
+import { messungen, messwerteAlsVorgabe, startabstandZeilen, type StartabstandZeile } from '../betrieb/prognose'
+import { BETRIEB_ANNAHMEN } from '../betrieb/annahmen'
+import { ABSTAND_MAX, ABSTAND_MIN, SKALA_MAX, SKALA_MIN, STEG_MAX } from '../state/reducer/betrieb'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
 import LogosPanel from '../components/LogosPanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
@@ -96,6 +98,45 @@ function setzeSkala(e: Event) {
   // den geltenden Wert zurückschreiben (wie bei den Leerzeilen), sonst stünde 250 da und 130 gälte.
   feld.value = String(Math.round(state.value.anzeige.skala * 100))
 }
+
+// --- Startfolge im Betrieb: am Steg / vor Steg, Startabstände (E3) ------------
+// Was die Startliste und die Zuschauerliste zum Schätzen der Wartezeiten brauchen (betrieb/prognose.ts). Der Stand
+// hält nur eigene Startabstände; die Vorgabe (Regelwerk, sonst einstellungen.yaml) wird beim Lesen aufgelöst
+// (config/catalog.ts startabstandOf, Kritik K24) – ein Wert gleich der Vorgabe ist deshalb kein eigener.
+function setzeSteg(feld: 'amSteg' | 'vorSteg', e: Event) {
+  const el = e.target as HTMLInputElement
+  const n = parseFloat(el.value)
+  if (Number.isFinite(n)) setzeAnzeige(feld === 'amSteg' ? { amSteg: n } : { vorSteg: n })
+  // Begrenzt oder unbrauchbar: den geltenden Wert zurückschreiben (wie bei der Schriftgröße).
+  el.value = String(state.value.anzeige[feld])
+}
+const MESS_AB = BETRIEB_ANNAHMEN.prognoseMessung.ab
+const abstandZeilen = computed(() => startabstandZeilen(state.value))
+const messZahl = computed(() => messungen(state.value).length)
+/** Eigene Abstände in der Folge der Klassen: Derselbe Inhalt ergibt denselben Text (der Reducer vergleicht als JSON). */
+function inKlassenFolge(a: Partial<Record<ClassId, number>>): Partial<Record<ClassId, number>> {
+  return Object.fromEntries(CLASS_IDS.filter((k) => a[k] !== undefined).map((k) => [k, a[k]]))
+}
+/** Leer = wieder die Vorgabe; sonst gerundet und auf {@link ABSTAND_MIN}–{@link ABSTAND_MAX} begrenzt. */
+function setzeAbstand(z: StartabstandZeile, e: Event) {
+  const el = e.target as HTMLInputElement
+  const roh = el.value.trim()
+  const n = parseFloat(roh)
+  const neu = { ...state.value.anzeige.abstaende }
+  if (roh === '') delete neu[z.klasse]
+  else if (Number.isFinite(n)) {
+    const sekunden = Math.max(ABSTAND_MIN, Math.min(ABSTAND_MAX, Math.round(n)))
+    if (sekunden === z.vorgabe) delete neu[z.klasse]
+    else neu[z.klasse] = sekunden
+  }
+  setzeAnzeige({ abstaende: inKlassenFolge(neu) })
+  el.value = String(state.value.anzeige.abstaende[z.klasse] ?? '')
+}
+/** „Messwerte als Vorgabe übernehmen“ (L-6, K22): Klassen mit genug Messungen bekommen ihr Mittel als eigenen Wert. */
+const uebernommen = computed(() => inKlassenFolge(messwerteAlsVorgabe(state.value)))
+const uebernehmenAendert = computed(() => JSON.stringify(uebernommen.value) !== JSON.stringify(inKlassenFolge(state.value.anzeige.abstaende)))
+const hatEigeneAbstaende = computed(() => Object.keys(state.value.anzeige.abstaende).length > 0)
+const sekunden = (n: number) => `${Math.round(n)} s`
 
 // --- Kürzel der Herkunft ---------------------------------------------------
 /**
@@ -858,7 +899,7 @@ function takeLegacy() {
   </div>
 
   <!-- Startfolge im Betrieb (Plan vom 16.11.2026, E2): wie die Start-Freigabe umstellt – eine Einstellung, deshalb hier und
-       nicht an der Start-Freigabe (BETRIEB_ANNAHMEN.wohin). Ab E3 kommen „Am Steg“/„Vor Steg“ und die Startabstände dazu. -->
+       nicht an der Start-Freigabe (BETRIEB_ANNAHMEN.wohin). E3: „Am Steg“/„Vor Steg“ und die Startabstände. -->
   <div id="betrieb" class="panel">
     <h2>{{ t('listopt.betrieb.title') }}</h2>
     <p class="hint">
@@ -875,6 +916,97 @@ function takeLegacy() {
       {{ t('listopt.betrieb.verzahnungHalten') }}
     </label>
     <p class="note">{{ t('listopt.betrieb.verzahnungHalten.hint') }}</p>
+
+    <h3>{{ t('listopt.betrieb.steg') }}</h3>
+    <div class="row" style="align-items: flex-end; gap: 20px">
+      <div class="field" style="max-width: 160px">
+        <label :for="`${id}-betrieb-am-steg`">{{ t('listopt.betrieb.amSteg') }}</label>
+        <input
+          :id="`${id}-betrieb-am-steg`"
+          class="input"
+          type="number"
+          min="0"
+          :max="STEG_MAX"
+          step="1"
+          data-feld="betrieb-am-steg"
+          :value="state.anzeige.amSteg"
+          @change="setzeSteg('amSteg', $event)"
+        />
+      </div>
+      <div class="field" style="max-width: 160px">
+        <label :for="`${id}-betrieb-vor-steg`">{{ t('listopt.betrieb.vorSteg') }}</label>
+        <input
+          :id="`${id}-betrieb-vor-steg`"
+          class="input"
+          type="number"
+          min="0"
+          :max="STEG_MAX"
+          step="1"
+          data-feld="betrieb-vor-steg"
+          :value="state.anzeige.vorSteg"
+          @change="setzeSteg('vorSteg', $event)"
+        />
+      </div>
+      <p class="note" style="flex: 1; min-width: 220px; margin: 0">{{ t('listopt.betrieb.steg.hint', { max: STEG_MAX }) }}</p>
+    </div>
+
+    <!-- Startabstände je Klasse (E3, Lastenheft der Tafel L-3 bis L-6): Vorgabe, eigener Wert, Messung, was gilt. -->
+    <h3>{{ t('listopt.betrieb.abstaende') }}</h3>
+    <p class="note">{{ t('listopt.betrieb.abstaende.hint', { min: ABSTAND_MIN, max: ABSTAND_MAX, ab: MESS_AB }) }}</p>
+    <div style="overflow-x: auto">
+      <table class="startabstaende" data-teil="startabstaende">
+        <thead>
+          <tr>
+            <th>{{ t('listopt.betrieb.abstaende.klasse') }}</th>
+            <th>{{ t('listopt.betrieb.abstaende.vorgabe') }}</th>
+            <th>{{ t('listopt.betrieb.abstaende.eigen') }}</th>
+            <th>{{ t('listopt.betrieb.abstaende.gemessen') }}</th>
+            <th>{{ t('listopt.betrieb.abstaende.gilt') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="z in abstandZeilen" :key="z.klasse" :data-klasse="z.klasse">
+            <td><span class="class-badge" :style="{ background: classColor(z.klasse) }">{{ classLabel(z.klasse) }}</span></td>
+            <td class="zahl" data-teil="vorgabe">{{ sekunden(z.vorgabe) }}</td>
+            <td>
+              <input
+                class="input"
+                type="number"
+                :min="ABSTAND_MIN"
+                :max="ABSTAND_MAX"
+                step="5"
+                :class="z.eigen !== null ? 'own' : ''"
+                :data-feld="`betrieb-abstand|${z.klasse}`"
+                :value="z.eigen ?? ''"
+                :placeholder="String(z.vorgabe)"
+                :aria-label="`${t('listopt.betrieb.abstaende.eigen')} – ${classLabel(z.klasse)}`"
+                @change="setzeAbstand(z, $event)"
+              />
+            </td>
+            <td class="zahl" data-teil="gemessen">
+              <template v-if="z.gemessen">
+                {{ sekunden(z.gemessen.mittel) }}
+                <span class="note">{{ tn('listopt.betrieb.abstaende.anzahl', z.gemessen.anzahl) }}, {{ t('listopt.betrieb.abstaende.zuletzt', { zeit: sekunden(z.gemessen.zuletzt) }) }}</span>
+              </template>
+              <template v-else>–</template>
+            </td>
+            <td class="zahl" data-teil="gilt" :data-quelle="z.quelle">
+              <b>{{ sekunden(z.wirksam) }}</b> <span class="note">{{ t(`listopt.betrieb.abstaende.quelle.${z.quelle}`) }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="row" style="align-items: center; gap: 12px; margin-top: 10px">
+      <button type="button" class="btn" data-action="messwerte-uebernehmen" :disabled="!uebernehmenAendert" @click="setzeAnzeige({ abstaende: uebernommen })">
+        {{ t('listopt.betrieb.abstaende.uebernehmen') }}
+      </button>
+      <button type="button" class="btn" data-action="abstaende-vorgabe" :disabled="!hatEigeneAbstaende" @click="setzeAnzeige({ abstaende: {} })">
+        {{ t('listopt.betrieb.abstaende.alleVorgabe') }}
+      </button>
+      <span class="note" data-teil="messungen">{{ tn('listopt.betrieb.abstaende.messungen', messZahl) }}</span>
+    </div>
+    <p class="note">{{ t('listopt.betrieb.abstaende.uebernehmen.hint', { ab: MESS_AB }) }}</p>
   </div>
 
   <EigeneAufbautenPanel />

@@ -15,6 +15,10 @@ export default {
   'betrieb.oeffnen.bereichTitel': 'Open a display board for {name} only',
   'betrieb.einstellungen': 'Display board settings',
   'betrieb.einstellungen.folge': 'Order of starts',
+  'betrieb.reiter.start': 'Start release',
+  'betrieb.reiter.startliste': 'Starting order',
+  'betrieb.zuschauer': 'Open spectator list',
+  'betrieb.zuschauer.title': 'Who is in the boat, at the pontoon and at pontoon entry, with waiting times – in a window of its own, also as narrow as a phone',
   'betrieb.vorVerzahnung':
     'Start release begins once the interleaving is locked – only then are the start numbers and the order of starts fixed:',
   'betrieb.geloest':
@@ -79,6 +83,24 @@ export default {
   'betrieb.folge.vorPunkt': 'before {punkt}',
   'betrieb.folge.nachPunkt': 'after {punkt}',
 
+  'betrieb.liste.hint':
+    'All open starts in their order: “in about” until the start, “To pontoon entry” until the driver must be at pontoon entry. Estimated from the intervals between starts – from three measured intervals of a class on from the measurement, otherwise from the default. There is no figure for an attempt that has not begun, when the boat is missing, or during a break or interruption on the display board.',
+  'betrieb.liste.ziehen':
+    'Dragging (or “Move …”) rearranges a start – by the same rules as at start release: never ahead of what has already run; with “Keep the interleaving” the track moves along within the attempt.',
+  'betrieb.liste.ziehen.title': 'Drag to move this start',
+  'betrieb.liste.seit': 'for {zeit}',
+  'betrieb.liste.seitLange': 'for over 1 h',
+  'betrieb.liste.col.nr': 'No.',
+  'betrieb.liste.col.name': 'Name',
+  'betrieb.liste.col.klasse': 'Class',
+  'betrieb.liste.col.lauf': 'Attempt',
+  'betrieb.liste.col.caIn': 'in about',
+  'betrieb.liste.col.vorsteg': 'To pontoon entry',
+  'betrieb.liste.col.vorsteg.title': 'Time until the driver must be at pontoon entry',
+  'betrieb.liste.wartet': '{punkt} – not begun yet',
+  'betrieb.liste.abstaende': 'Intervals between starts',
+  'betrieb.liste.angehalten': 'Break or interruption on the display board – no waiting times until the message is cleared.',
+
   'betrieb.klassen': 'Classes · boat missing',
   'betrieb.klassen.aktiv': 'Boat missing: {klassen}',
   'betrieb.klassen.hint':
@@ -119,6 +141,30 @@ export default {
   'anzeige.bereit': 'ready',
   'anzeige.davor': 'previous',
   'anzeige.keineStarter': 'No drivers yet',
+  'anzeige.zeit.gleich': 'shortly',
+  'anzeige.zeit.min': '{n} min',
+  'anzeige.zeit.h': '{h} h {min} min',
+  'anzeige.steg.amSteg': 'at the pontoon',
+  'anzeige.steg.vorSteg': 'at pontoon entry',
+  'anzeige.bootFehlt': 'Boat missing',
+
+  // „Pontoon“ und „pontoon entry“ (Vorsteg) wie die Listen; „spectator list“ vorläufig (Plan vom 16.11.2026).
+  'zuschauer.titel': 'Starting order',
+  'zuschauer.imBoot': 'In the boat',
+  'zuschauer.amSteg': 'At the pontoon',
+  'zuschauer.vorSteg': 'At pontoon entry',
+  'zuschauer.danach': 'After that',
+  'zuschauer.klasse': 'Class',
+  'zuschauer.alle': 'All',
+  'zuschauer.caIn': 'in about {zeit}',
+  'zuschauer.vorsteg': 'to pontoon entry in {zeit}',
+  'zuschauer.vorsteg.gleich': 'to pontoon entry shortly',
+  'zuschauer.keiner': 'no start yet',
+  'zuschauer.laeuft': '{punkt} in progress',
+  'zuschauer.naechsterPunkt': 'Next: {punkt}',
+  'zuschauer.zuEnde': 'All attempts are complete.',
+  'zuschauer.leer': 'No starts of this class.',
+  'zuschauer.hinweis': 'Waiting times are estimates based on the intervals between starts so far; there are none for an attempt that has not begun or during a break or interruption.',
 
   'meldung.info': 'Notice',
   'meldung.stoerung': 'Disruption',

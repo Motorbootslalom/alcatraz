@@ -225,6 +225,23 @@ describe('Tabellen der Sprachen', () => {
     for (const wort of Object.keys(buch.vollbild.lies)) expect(buch.ansichten.lies[wort], wort).toBeUndefined()
   })
 
+  it('E3: Unterreiter „Startliste“ im Betrieb; Zuschauerliste als eigenes Fenster #/zuschauer bzw. #/spectators', () => {
+    expect(schreibeAdresse(buch, 'de', 'betrieb', { reiter: 'startliste' })).toBe('#/betrieb/startliste')
+    expect(schreibeAdresse(buch, 'en', 'betrieb', { reiter: 'startliste' })).toBe('#/operation/starting-order')
+    for (const a of ['#/betrieb/startliste', '#/operation/starting-order', '#/betrieb/starting-order']) expect(liesAdresse(buch, a), a).toEqual({ view: 'betrieb', reiter: 'startliste', ziel: '' })
+
+    expect(schreibeVollbild(buch, 'de', { art: 'zuschauer' })).toBe('#/zuschauer')
+    expect(schreibeVollbild(buch, 'en', { art: 'zuschauer' })).toBe('#/spectators')
+    for (const a of ['#/zuschauer', '#/spectators', '#/Zuschauer']) expect(liesVollbild(buch, a), a).toEqual({ art: 'zuschauer' })
+    expect(liesVollbild(buch, '#/spectators/par_2')).toEqual({ art: 'zuschauer', bereich: 'par_2' })
+    // Die Anzeigetafel bleibt, was sie war; der Unterreiter ist kein eigenes Fenster.
+    expect(liesVollbild(buch, '#/display')).toEqual({ art: 'anzeige' })
+    expect(liesVollbild(buch, '#/betrieb/startliste')).toBeNull()
+    // Kein Wort der Fenster ist mehrdeutig (sonst läse eine Sprache die Adresse der anderen falsch).
+    expect(buch.vollbild.fehler).toEqual([])
+    expect(buch.reiter.betrieb.fehler).toEqual([])
+  })
+
   it('Unbekanntes bleibt, wie es dasteht; ohne Ansicht gibt es keine', () => {
     expect(liesAdresse(buch, '')).toEqual({ view: undefined, reiter: '', ziel: '' })
     expect(liesAdresse(buch, '#/quatsch/x')).toEqual({ view: undefined, reiter: 'x', ziel: '' })

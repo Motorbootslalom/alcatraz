@@ -105,6 +105,35 @@ describe('Konfigurations-Validierung', () => {
     expect(neu({ versucheNacheinander: 'ja' })).toEqual(['BAD_VERSUCHE_NACHEINANDER'])
   })
 
+  it('startabstaende: bekannte Klassen, ganze Sekunden von 30 bis 600', () => {
+    const codes = (mehr: Record<string, unknown>) => validateRawConfig(mehr as Parameters<typeof validateRawConfig>[0]).map((i) => i.code)
+    const neu = (startabstaende: unknown) => codes({ startabstaende }).filter((c) => !codes({}).includes(c))
+    expect(neu({ E: 120, 1: 110, 7: 140 })).toEqual([])
+    expect(neu({ E: 30, 1: 600 })).toEqual([])
+    expect(neu({ E: 29 })).toEqual(['BAD_STARTABSTAND'])
+    expect(neu({ E: 601 })).toEqual(['BAD_STARTABSTAND'])
+    expect(neu({ E: 90.5 })).toEqual(['BAD_STARTABSTAND'])
+    expect(neu({ E: '120' })).toEqual(['BAD_STARTABSTAND'])
+    expect(neu({ M: 120 })).toEqual(['UNKNOWN_STARTABSTAND_KLASSE'])
+    expect(neu([120, 110])).toEqual(['BAD_STARTABSTAENDE'])
+    expect(neu(120)).toEqual(['BAD_STARTABSTAENDE'])
+  })
+
+  it('startabstaende: einstellungen.yaml nennt jede Klasse; ein Regelwerk ersetzt je Klasse und wird mitgeprüft', () => {
+    const allgemein = (yamlLoad(texte.positionen) as RawQuelle).startabstaende ?? {}
+    for (const k of ['E', '1', '2', '3', '4', '5', '6', '7']) expect(allgemein[k], `Klasse ${k}`).toBeGreaterThanOrEqual(30)
+    // Ein falscher Wert im Regelwerk fällt auf – mit der Datei des Regelwerks als Fundstelle.
+    const mitAbstand = (zeile: string) => ({ ...bundledRegelwerke, 'dm-2026': bundledRegelwerke['dm-2026'].replace('\nid: dm-2026\n', `\nid: dm-2026\n${zeile}\n`) })
+    expect(errors(validateConfigTexts({ ...texte, regelwerke: mitAbstand('startabstaende: { E: 100 }') }))).toEqual([])
+    const falsch = errors(validateConfigTexts({ ...texte, regelwerke: mitAbstand('startabstaende: { E: 10 }') }))
+    expect(falsch.map((i) => [i.code, i.where])).toEqual([['BAD_STARTABSTAND', 'regelwerke/dm-2026.yaml: startabstaende']])
+    const keinObjekt = errors(validateConfigTexts({ ...texte, regelwerke: mitAbstand('startabstaende: [100]') }))
+    expect(keinObjekt.map((i) => i.code)).toEqual(['BAD_STARTABSTAENDE'])
+    // Ein Fehler in einstellungen.yaml gilt für jedes Regelwerk und steht deshalb nur einmal da.
+    const allgemeinFalsch = errors(validateConfigTexts({ ...texte, positionen: positionenText((t) => t.replace('startabstaende: { E: 120,', 'startabstaende: { E: 1200,')) }))
+    expect(allgemeinFalsch.map((i) => i.code)).toEqual(['BAD_STARTABSTAND'])
+  })
+
   it('Stichentscheid: nur Kriterien, die die Wertung kennt, und jedes einmal', () => {
     const codes = (stichentscheid: unknown) => validateRawConfig({ stichentscheid: stichentscheid as string[] }).map((i) => i.code)
     expect(codes(['schnellsterLauf', 'besterLauf', 'summeAllerLaeufe'])).toEqual([])

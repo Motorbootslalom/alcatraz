@@ -31,7 +31,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   nächste 12/ganze Folge/Suche, Zeigen, Zurückstellen, Menüknopf „Verschieben …“ mit Zielknöpfen), EinreihenListe
   (zurückgestellt, nachzuholen), KlassenAussetzen (Boot fehlt, Vorziehen, Folge als Plaketten), MeldungWahl (Vorlage
   wählen, „Übernehmen“ → Entwurf),
-  EinsteigenAb (Lauf/Klasse → BETRIEB_AB); texte.ts (punktText, startZeile – Oberflächensprache).
+  EinsteigenAb (Lauf/Klasse → BETRIEB_AB); E3: StartListe (Startliste im Betrieb: ganze Folge nach Lauf, „ca. in“,
+  „Zum Vorsteg“, seit m:ss; Ziehen = BETRIEB_VERSCHIEBEN {vor|nach}, Menü wie BetriebsFolge; Prop `jetzt`); texte.ts
+  (punktText, startZeile, ganzeFolge, verschiebeZiele – Oberflächensprache; wartezeitText(sek, sprache)).
+  `zuschauer/` ZuschauerListe (E3; liest NUR ZuschauerSicht + `jetzt`: Im Boot, Am Steg, Vor Steg, Danach, Boot fehlt;
+  Klassenfilter merke `zuschauer.klasse`; Texte tIn(sicht.sprache); styles/zuschauer.css, fürs Handy).
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -89,5 +93,6 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 ## Tests
 
 `npx vitest run src/components src/styles src/lib/seiten src/lib/paging` (Messen per getBoundingClientRect-Spy).
-Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (zwei Fenster), views/Betrieb.test.ts.
+Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (zwei Fenster), views/Betrieb.test.ts;
+Zuschauerliste: src/ZuschauerApp.test.ts.
 Im Zusammenhang src/views/*.test.ts; UIM-Kopfzeilen: views/UimAushang.test.ts, Beispieldaten: views/EventView.test.ts.

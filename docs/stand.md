@@ -48,13 +48,13 @@ Alcatraz führt die bisherigen Prototypen zusammen:
 Listen und Wertung des Parallelslaloms sind inzwischen ebenfalls da
 ([Parallelslalom](parallelslalom.md)).
 
-**Aus `tafel`** ist übernommen (Plan vom 16.11.2026, Etappen E1 und E2;
+**Aus `tafel`** ist übernommen (Plan vom 16.11.2026, Etappen E1 bis E3;
 [Betrieb: Start-Freigabe und Anzeigetafel](funktionen.md#betrieb-start-freigabe-und-anzeigetafel)):
 die Anzeigetafel in einem zweiten Fenster am Bedienrechner und die Start-Freigabe dort, für das Manövrieren,
 ohne Netz – mit Zurückstellen, anderem Starter, Verschieben, „Boot fehlt“ und Klassen vorziehen, Meldungsvorlagen
-und „Einsteigen ab …“. Es folgen in Etappen: die Startliste im Betrieb mit Zeitprognose und Zuschauerliste, der
-Parallelslalom auf der Anzeigetafel, dann Anzeigetafel, Zuschauer und Start-Freigabe auf anderen Geräten
-(verschlüsselt über ntfy).
+und „Einsteigen ab …“; dazu die Startliste im Betrieb mit Wartezeiten („ca. in“, „Zum Vorsteg“) aus gemessenen
+Startabständen und die Zuschauerliste in einem eigenen Fenster. Es folgen in Etappen: der Parallelslalom auf der
+Anzeigetafel, dann Anzeigetafel, Zuschauer und Start-Freigabe auf anderen Geräten (verschlüsselt über ntfy).
 
 **Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
 (`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).
@@ -94,20 +94,21 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
   - [ ] Nächster Start wird erst freigegeben, wenn alle Wettkampfrichter den Lauf abgenickt haben → offen
   - [ ] Startnummer und Klasse muss sich vor jedem Start aktualisieren → offen
   - [ ] Starterseite → teilweise: die [Anzeigetafel](funktionen.md#betrieb-start-freigabe-und-anzeigetafel) im zweiten
-    Fenster am Bedienrechner („Im Boot“, davor); Startliste im Betrieb und andere Geräte folgen (Prototyp `tafel`)
+    Fenster am Bedienrechner („Im Boot“, davor), die Startliste im Betrieb und die Zuschauerliste (eigenes Fenster,
+    fürs Handy gebaut); andere Geräte folgen (Prototyp `tafel`)
     - [x] Anzeige von Informationen wie Startnummer, Name, Klasse und Lauf → Anzeigetafel
-    - [ ] Aufgeteilt nach 'Im Boot', 'Am Steg', 'Vor Steg' → teilweise: „Im Boot“ und davor; Am/Vor Steg kommt
-      mit der Startliste im Betrieb
-    - [ ] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg) → vorbereitet (2/2 im Stand),
-      noch nicht einstellbar
+    - [x] Aufgeteilt nach 'Im Boot', 'Am Steg', 'Vor Steg' → Zuschauerliste (Anzeigetafel: „Im Boot“ und davor)
+    - [x] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg) → Einstellungen → Startfolge
+      im Betrieb (je 0–10)
     - [ ] Reihenfolge, je nach Berechtigung, änderbar → teilweise: an der Start-Freigabe zurückstellen, verschieben,
-      Klasse aussetzen oder vorziehen; Berechtigungen kommen mit den Geräten
+      Klasse aussetzen oder vorziehen, in der Startliste auch durch Ziehen; Berechtigungen kommen mit den Geräten
     - [x] Unterschiedliche Farben für Klasse und Lauf → Anzeigetafel (Klasse mit Klassenfarbe, Lauf in eigener Farbe)
     - [x] Starter rutschen automatisch hoch nach abgeschlossenem Lauf → „Nächster Start“ zeigt den Nächsten der Folge;
       der Lauf danach wird ausdrücklich begonnen
     - [ ] Zeitplan (Pausen, Feierabend etc.) bei der Sortierung → offen; Pausen gibt es als Meldung auf der Anzeigetafel
       (auch als Vorlage: Mittagspause, Siegerehrung …)
-    - [ ] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg → offen, kommt mit der Startliste im Betrieb
+    - [x] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg → Startliste und Zuschauerliste: „ca. in“ und „Zum
+      Vorsteg“ aus den Startabständen je Klasse (ab drei Messungen gemessen, sonst Vorgabe der DM 2025)
 - [x] Gedruckte WKR-Listen → [Wettkampfrichter-Listen](funktionen.md#wettkampfrichter-listen)
   - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)
     → teilweise: Ein Bogen gilt je Klasse und Lauf, die Starter stehen darauf in der Startfolge der Verzahnung.

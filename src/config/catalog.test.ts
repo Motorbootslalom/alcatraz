@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUFBAUTEN, DEFAULT_AUFBAU, DEFAULT_REGELWERK, MANOEVER_AUFBAUTEN, REGELWERKE, hasParallel, regelwerkOf, sollgewichtOf } from './catalog'
+import { AUFBAUTEN, DEFAULT_AUFBAU, DEFAULT_REGELWERK, MANOEVER_AUFBAUTEN, REGELWERKE, STARTABSTAENDE, hasParallel, regelwerkOf, sollgewichtOf, startabstandOf, startabstandVorgabe } from './catalog'
 
 describe('Regelwerke und Aufbauten', () => {
   it('liest die Regelwerke in Menü-Reihenfolge', () => {
@@ -47,6 +47,24 @@ describe('Regelwerke und Aufbauten', () => {
     expect(sollgewichtOf('uim-2026', {}, '2')).toBe(40)
     expect(sollgewichtOf('uim-2026', { '2': 41 }, '2')).toBe(41)
     expect(sollgewichtOf('uim-2026', {}, '7')).toBe(0)
+  })
+
+  it('Startabstände: eigener Wert, sonst Regelwerk (je Klasse), sonst einstellungen.yaml – aufgelöst beim Lesen', () => {
+    // Die allgemeinen Werte (DM 2025, gerundet); weder DM noch UIM nennen bisher eigene.
+    expect(STARTABSTAENDE).toEqual({ E: 120, '1': 110, '2': 115, '3': 120, '4': 120, '5': 135, '6': 135, '7': 140 })
+    expect([regelwerkOf('dm-2026').startabstaende, regelwerkOf('uim-2026').startabstaende]).toEqual([{}, {}])
+    const stand = (abstaende: Partial<Record<string, number>> = {}) => ({ regelwerk: 'uim-2026', anzeige: { abstaende } })
+    expect([startabstandOf(stand(), 'E'), startabstandOf(stand({ E: 95 }), 'E'), startabstandOf(stand({ E: 95 }), '1')]).toEqual([120, 95, 110])
+    // Ein Regelwerk mit eigenem Wert ersetzt nur seine Klasse (hier nachgestellt; die Testdatei hat ihre eigenen Module).
+    const uim = regelwerkOf('uim-2026')
+    const vorher = uim.startabstaende
+    try {
+      uim.startabstaende = { E: 150 }
+      expect([startabstandVorgabe('uim-2026', 'E'), startabstandVorgabe('uim-2026', '1'), startabstandVorgabe('dm-2026', 'E')]).toEqual([150, 110, 120])
+      expect(startabstandOf(stand({ E: 95 }), 'E')).toBe(95)
+    } finally {
+      uim.startabstaende = vorher
+    }
   })
 
   it('unbekannte Kennungen fallen auf die Vorgabe zurück', () => {

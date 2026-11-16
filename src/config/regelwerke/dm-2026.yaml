@@ -67,6 +67,10 @@
 #                    die Voreinstellung – ohne Hinweis bei Abweichung. `nachRegel`
 #                    { Läufe: Streichläufe }: was die Einstellung „Streichläufe nach
 #                    Regel“ bei dieser Zahl von Läufen streicht; sonst ab 3 Läufen einer.
+#   startabstaende   { <Klasse>: <Sekunden> }: Startabstände für die Prognose im Betrieb
+#                    (ganze Sekunden, 30 bis 600). Ersetzt je Klasse die allgemeinen aus
+#                    einstellungen.yaml; fehlt = die allgemeinen. Weder DM noch UIM nennen
+#                    bisher eigene – die allgemeinen stammen aus der DM 2025.
 id: dm-2026
 name: DM
 version: 2026

@@ -127,3 +127,21 @@ laufzettel:
 pokalPunkte:
   plaetze3: [10, 7, 5]
   plaetze6: [6, 5, 4, 3, 2, 1]
+
+# ---- Startabstände je Klasse (Betrieb am Wettkampftag) --------------
+# Abstand zweier Starts auf der Anzeigetafel in ganzen Sekunden (30 bis 600): Fahrzeit plus
+# Bootswechsel am Steg. Grundlage der Wartezeit in der Startliste und der Zuschauerliste („ca. in“,
+# „Zeit bis zum Vorsteg“), solange in der Veranstaltung weniger als drei Abstände der Klasse
+# gemessen sind (betrieb/prognose.ts, BETRIEB_ANNAHMEN.prognoseMessung). Es gilt, der Reihe nach:
+# der eigene Wert der Veranstaltung (Einstellungen → Betrieb, auch „Messwerte als Vorgabe
+# übernehmen“), sonst `startabstaende` des Regelwerks (ersetzt je Klasse), sonst der Wert hier
+# (config/catalog.ts startabstandOf). Unter UIM gilt bis zur Messung ebenfalls der Wert hier
+# (Plan zur Übernahme der Tafel vom 16.11.2026, §7 Nr. 12).
+# Beleg (übernommen am 16.11.2026 aus dem Tafel-Prototyp, Herleitung dort in data/timings.ts):
+# die Ergebnislisten der Deutschen Meisterschaft 2025, Gesamtblätter je Klasse, „gef. Zeit“ aller
+# drei Läufe – die mittlere Fahrzeit je Klasse plus 30 s für den Bootswechsel, auf 5 s gerundet
+# (genauer ist die Zahl nicht, der Zuschlag ist geschätzt). Läufe, die nicht durchgefahren wurden
+# (Platzhalter für Abbrüche), sind nicht eingeflossen. Hier stehen bewusst nur die gerundeten
+# Mittel, keine Einzelzeiten. Klasse 1 fährt am schnellsten, danach wird es klassenweise langsamer;
+# Klasse E fällt heraus – kurze Bahn, aber mehr Zeit am Steg (Lastenheft der Tafel, L-3).
+startabstaende: { E: 120, 1: 110, 2: 115, 3: 120, 4: 120, 5: 135, 6: 135, 7: 140 }

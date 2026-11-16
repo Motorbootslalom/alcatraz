@@ -3329,6 +3329,132 @@ table.starters th .sortier-kopf:disabled {
   margin-left: 6px;
 }
 
+/* Startliste im Betrieb (components/betrieb/StartListe.vue, E3): die ganze Folge als Tabelle, gegliedert nach Lauf. */
+.betrieb-startliste .betrieb-karte-kopf {
+  margin-bottom: 4px;
+}
+
+.betrieb-startliste-imboot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.betrieb-startliste-imboot .note {
+  margin: 0;
+}
+
+/* Schmaler Bildschirm: die Tabelle rollt seitlich, die Seite nicht. */
+.betrieb-startliste-rahmen {
+  overflow-x: auto;
+}
+
+.betrieb-startliste-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.betrieb-startliste-tabelle th,
+.betrieb-startliste-tabelle td {
+  padding: 4px 6px;
+  text-align: left;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.betrieb-startliste-tabelle thead th {
+  border-top: 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.betrieb-startliste-tabelle .zahl {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.betrieb-startliste-tabelle td .note {
+  margin: 0 0 0 4px;
+}
+
+.betrieb-startliste-punkt th {
+  padding-top: 10px;
+  font-size: 13px;
+  background: var(--panel-2);
+}
+
+/* Der Griff zum Ziehen; gezogen wird die ganze Zeile. */
+.betrieb-startliste-tabelle .griff {
+  width: 1.2em;
+  color: var(--muted);
+  cursor: grab;
+  user-select: none;
+}
+
+.betrieb-startliste-tabelle tr[draggable='true'] {
+  cursor: grab;
+}
+
+.betrieb-startliste-tabelle tr.gezogen {
+  opacity: 0.5;
+}
+
+/* Wo der gezogene Start landet: eine Linie über bzw. unter dem Ziel. */
+.betrieb-startliste-tabelle tr.ziel-vor td {
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+.betrieb-startliste-tabelle tr.ziel-nach td {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.betrieb-startliste-tabelle tr.aus td:not(.zahl) {
+  opacity: 0.7;
+}
+
+.betrieb-startliste-knopf {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.betrieb-startliste-menue td {
+  border-top: 0;
+}
+
+.betrieb-abstaende {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.betrieb-abstand {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Startabstände in den Einstellungen (SettingsView `#betrieb`). */
+.startabstaende td,
+.startabstaende th {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.startabstaende .input {
+  width: 6em;
+}
+
+.startabstaende .zahl {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .betrieb-meldung-aktiv.stoerung {
   color: var(--danger);
 }

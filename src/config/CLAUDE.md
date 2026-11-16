@@ -10,13 +10,15 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
   UIM points), `aufbauten.yaml` (Reihenfolge `dateien`, Parameterbeschreibung), `aufbauten/gemeinsam.yaml` (Disziplin
   manoevrieren, Positionen zeit/steg/vorsteg/knoten/tor5/mueb/parcours), `aufbauten/parallel.yaml`,
   `aufbauten/{alcatraz,frontal,berlin,bawue,moewe}.yaml` (Tor-Positionen in Kurzform), `einstellungen.yaml`
-  (Bojen-Kürzel, Beschriftungen, Laufzettel-Vorgabe, pokalPunkte), `i18n/en.yaml` (Englisch nach deutschem Wortlaut).
+  (Bojen-Kürzel, Beschriftungen, Laufzettel-Vorgabe, pokalPunkte, startabstaende), `i18n/en.yaml` (Englisch nach
+  deutschem Wortlaut).
 - `konfig.ts` – lädt YAML, ROH_REGELWERKE/ROH_QUELLE (eingefroren), baue(), `configFor(wahl)` mit Zugriffen
   (getSheetDef, getAufbau, getDisziplin, getLegende, getLaufzettelConfig …).
 - `build.ts` – buildConfig: Roh → SheetDefs, Spalten, Legende, Laufzettel; regelwerkInfo(), RegelwerkInfo.
-- `schema.ts` – Roh-Typen aller YAML; STICH_KRITERIEN, POKAL_VARIANTEN, POKAL_PLATZ_VARIANTEN.
+- `schema.ts` – Roh-Typen aller YAML; STICH_KRITERIEN, POKAL_VARIANTEN, POKAL_PLATZ_VARIANTEN, STARTABSTAND_MIN/MAX.
 - `validate.ts` – Fachprüfung (validateRawConfig, validateConfigTexts), Fehlercodes BAD_*/DUP_*/MISSING_EN.
-- `catalog.ts` – schmale Sicht für Zustand/Planung: REGELWERKE, AUFBAUTEN, regelwerkOf, aufbauOf, hasParallel.
+- `catalog.ts` – schmale Sicht für Zustand/Planung: REGELWERKE, AUFBAUTEN, regelwerkOf, aufbauOf, hasParallel,
+  sollgewichtOf, startabstandOf/startabstandVorgabe/STARTABSTAENDE (Betrieb, E3).
 - `kurzform.ts` – FAHRWEG, Kurzform → Position, Ergebnisspalten und Überwachung aus dem Fahrweg, aufloesen().
 - `merge-positionen.ts` (Dateireihenfolge, Listen anhängen), `eigene.ts` (eigene Aufbauten prüfen/einbauen,
   YAML-Austausch), `feld.ts` (Feld-Kennungen), `kombi.ts` (`ersetzt`), `zeitnahme.ts` (Zeitspalten je Gerät),
@@ -48,6 +50,10 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 - Laufzettel: einstellungen.yaml `laufzettel` bzw. Regelwerk `laufzettel` (ersetzt je Schlüssel titel/schritte/
   schritteLetzterLauf); Übersetzung lib/laufzettelText.ts SCHRITTE + runsheet.step.* in i18n de/+en/listen.ts.
 - Mannschaftswertung: einstellungen.yaml pokalPunkte; Regelwerk `pokal`; neue Variante: schema, pokal.ts, validate.
+- Startabstände (Prognose im Betrieb): einstellungen.yaml `startabstaende` (allgemein, Beleg dort), Regelwerk
+  `startabstaende` ersetzt je Klasse; schema.ts STARTABSTAND_MIN/MAX (auch für AppState.anzeige.abstaende) →
+  validate.ts (BAD_/UNKNOWN_STARTABSTAND…, validateConfigTexts legt beide zusammen) → catalog.ts startabstandOf
+  (eigener Wert, Regelwerk, allgemein – beim Lesen aufgelöst, der Stand hält nur eigene); baue() nimmt beide heraus.
 
 ## Fallen
 

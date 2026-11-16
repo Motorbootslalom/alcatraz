@@ -8,7 +8,7 @@ import { setLocale } from '../i18n'
 import { vergissAlles } from '../lib/merken'
 import { refKey } from '../betrieb/folge'
 import { sichtOeffentlich } from '../betrieb/sicht'
-import { betriebsStand, betriebStarter, festgeschrieben } from '../testHilfen'
+import { betriebsStand, betriebStarter, festgeschrieben, zeigeNaechsten } from '../testHilfen'
 import type { AppState, ClassId } from '../types'
 
 // Reiter „Betrieb“: Start-Freigabe je Parcours am Bedienrechner. Alle Starter sind erfunden
@@ -642,5 +642,156 @@ describe('Betrieb: Steuerung an der Start-Freigabe (E2)', () => {
   it('Verweis auf die Einstellung der Startfolge', () => {
     const w = betrieb(festgeschrieben(betriebsStand()))
     expect(w.find('[data-verweis="betrieb-einstellungen"]').attributes('href')).toBe('#/einstellungen?startfolge')
+  })
+})
+
+describe('Betrieb: Startliste (E3)', () => {
+  /** Wann e1 ins Boot kam (Zeit des Hosts, ms). */
+  const T0 = 2_000_000
+  /** Lauf 1 auf Parcours 1 begonnen, e1 seit T0 im Boot; am Steg 1, vor Steg 1 (so reicht die Folge für „Zum Vorsteg“). */
+  const imBetrieb = (halten = true) => {
+    let s = reducer(festgeschrieben(betriebsStand()), { type: 'SET_ANZEIGE', patch: { amSteg: 1, vorSteg: 1, verzahnungHalten: halten } })
+    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'lauf:1', zeit: T0 - 5000 })
+    return zeigeNaechsten(s, P1, T0)
+  }
+  const liste = (w: VueWrapper, bereich = P1) => w.find(`.betrieb-startliste[data-bereich="${bereich}"]`)
+  const zeile = (w: VueWrapper, key: string, bereich = P1) => liste(w, bereich).find(`tr[data-start='${key}']`)
+  const zelle = (w: VueWrapper, key: string, teil: 'ca' | 'vorsteg') => text(zeile(w, key).find(`[data-teil="${teil}"]`))
+  const startliste = async (stand: AppState, jetzt = T0 + 60_000) => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    vi.setSystemTime(jetzt)
+    location.hash = '#/betrieb/startliste'
+    const w = betrieb(stand)
+    await nextTick()
+    return w
+  }
+  afterEach(() => vi.useRealTimers())
+
+  it('Unterreiter in der Adresse; je Parcours die Folge nach Lauf, „ca. in“ und „Zum Vorsteg“ – gerechnet mit der Uhr des Bildschirms', async () => {
+    const w = await startliste(imBetrieb())
+    expect(location.hash).toBe('#/betrieb/startliste')
+    expect(w.find('[data-reiter="startliste"]').attributes('aria-pressed')).toBe('true')
+    expect(w.find('.betrieb-karte').exists()).toBe(false)
+    expect(w.findAll('.betrieb-startliste').map((l) => l.attributes('data-bereich'))).toEqual([P1, P2])
+
+    expect(liste(w).find('[data-teil="imboot"] b').text()).toBe('E01')
+    expect(text(liste(w).find('[data-teil="imboot"]'))).toContain('Vore1 Nache1')
+    expect(text(liste(w).find('[data-teil="seit"]'))).toBe('seit 1:00')
+    expect(liste(w).findAll('[data-teil="punkt"]').map(text)).toEqual(['Lauf 1', 'Lauf 2 – noch nicht begonnen', 'Lauf 3 – noch nicht begonnen'])
+    // e1 seit 60 s im Boot (E: 120 s) → k1 in 60 s; dann je Start der Abstand seiner Klasse (1: 110 s, E: 120 s).
+    expect([m('k1', 1), m('e2', 1), m('k2', 1)].map((k) => zelle(w, k, 'ca'))).toEqual(['1 min', '3 min', '5 min'])
+    // Zum Vorsteg: der erste ist am Steg, der zweite vor Steg; der dritte muss hin, wenn k1 ins Boot geht.
+    expect([m('k1', 1), m('e2', 1), m('k2', 1)].map((k) => zelle(w, k, 'vorsteg'))).toEqual(['am Steg', 'vor Steg', '1 min'])
+    // Ein Lauf, der nicht begonnen hat, bekommt keine Zahl (L-2).
+    expect([zelle(w, m('e1', 2), 'ca'), zelle(w, m('e1', 2), 'vorsteg')]).toEqual(['–', '–'])
+    expect(text(liste(w, P2).find('[data-teil="punkt"]'))).toBe('Lauf 1 – noch nicht begonnen')
+
+    // Die Uhr tickt im Bildschirm, nicht im Stand: nichts wird gespeichert.
+    const vorher = store.state.value
+    vi.advanceTimersByTime(30_000)
+    await nextTick()
+    expect(text(liste(w).find('[data-teil="seit"]'))).toBe('seit 1:30')
+    expect(zelle(w, m('k1', 1), 'ca')).toBe('gleich')
+    expect(store.state.value).toBe(vorher)
+    // Steht der Start schon über eine Stunde (etwa vom Vorabend), keine riesige Minutenzahl.
+    vi.advanceTimersByTime(2 * 3600_000)
+    await nextTick()
+    expect(text(liste(w).find('[data-teil="seit"]'))).toBe('seit über 1 h')
+
+    // Zurück zur Start-Freigabe: ein Schritt in der Adresse.
+    await w.find('[data-reiter="start"]').trigger('click')
+    expect(location.hash).toBe('#/betrieb/start')
+    expect(w.find('.betrieb-startliste').exists()).toBe(false)
+    expect(w.findAll('.betrieb-karte')).toHaveLength(2)
+  })
+
+  it('„Boot fehlt“ ohne Zahl am Ende des Laufs; zurückgestellte stehen darunter zum Einreihen', async () => {
+    let s = reducer(imBetrieb(), { type: 'BETRIEB_AUSSETZEN', bereich: P1, klasse: '1', an: true })
+    s = reducer(s, { type: 'BETRIEB_ZURUECKSTELLEN', bereich: P1, ref: m('e2', 1) })
+    const w = await startliste(s)
+    expect(zeile(w, m('k1', 1)).attributes('data-art')).toBe('bootFehlt')
+    expect([zelle(w, m('k1', 1), 'ca'), zelle(w, m('k1', 1), 'vorsteg')]).toEqual(['Boot fehlt', ''])
+    expect(zeile(w, m('k1', 1)).attributes('draggable')).toBe('false')
+    await liste(w).find('[data-teil="zurueckgestellt"] [data-action="einreihen-naechster"]').trigger('click')
+    expect(betriebVon()?.zurueckgestellt).toEqual([])
+    expect(zelle(w, m('e2', 1), 'ca')).toBe('1 min')
+  })
+
+  it('Pause oder Störung auf der Anzeigetafel: keine Wartezeiten, Steg bleibt, ein Satz sagt warum', async () => {
+    const s = reducer(imBetrieb(), { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: 'Kurze Störung', art: 'stoerung' } })
+    const w = await startliste(s, T0 + 20 * 60_000)
+    expect(text(liste(w).find('[data-teil="angehalten"]'))).toContain('keine Wartezeiten')
+    expect([m('k1', 1), m('e2', 1), m('k2', 1)].map((k) => [zelle(w, k, 'ca'), zelle(w, k, 'vorsteg')])).toEqual([
+      ['–', 'am Steg'],
+      ['–', 'vor Steg'],
+      ['–', '–'],
+    ])
+    // Parcours 2 hat keine Meldung: kein Satz dort.
+    expect(liste(w, P2).find('[data-teil="angehalten"]').exists()).toBe(false)
+  })
+
+  it('Ziehen = BETRIEB_VERSCHIEBEN { vor | nach } – genau dieselben Regeln wie „Verschieben …“ (V-7: die Spur rutscht im Lauf mit)', async () => {
+    const stand = imBetrieb()
+    const w = await startliste(stand)
+    const vorher = ohneBetrieb(store.state.value)
+    const zieheAuf = async (von: string, auf: string) => {
+      await zeile(w, von).trigger('dragstart')
+      await zeile(w, auf).trigger('dragover')
+      await zeile(w, auf).trigger('drop')
+      await zeile(w, von).trigger('dragend')
+    }
+    // Nach oben gezogen: vor das Ziel.
+    await zieheAuf(m('k2', 1), m('k1', 1))
+    const erwartet = reducer(stand, { type: 'BETRIEB_VERSCHIEBEN', bereich: P1, ref: m('k2', 1), ziel: { vor: m('k1', 1) } })
+    expect(betriebVon()).toEqual(erwartet.betrieb.bereiche[P1])
+    expect(waehlbar().slice(0, 3)).toEqual([m('k2', 1), m('e2', 1), m('k1', 1)])
+    // Nach unten gezogen: dahinter – auch in einen Lauf, der noch nicht begonnen hat.
+    await zieheAuf(m('e2', 1), m('e1', 2))
+    const danach = reducer(erwartet, { type: 'BETRIEB_VERSCHIEBEN', bereich: P1, ref: m('e2', 1), ziel: { nach: m('e1', 2) } })
+    expect(betriebVon()).toEqual(danach.betrieb.bereiche[P1])
+    // Auf sich selbst oder ohne Ziehen: nichts.
+    const jetzt = JSON.stringify(betriebVon())
+    await zeile(w, m('k1', 1)).trigger('drop')
+    await zieheAuf(m('k1', 1), m('k1', 1))
+    expect(JSON.stringify(betriebVon())).toBe(jetzt)
+    // Verzahnung, Starter, Werte, Einstellungen bleiben (Abnahme wie E2).
+    expect(ohneBetrieb(store.state.value)).toEqual(vorher)
+  })
+
+  it('Menü „Verschieben …“ wie an der Start-Freigabe; ohne festgeschriebene Verzahnung ruhen Ziehen und Menü', async () => {
+    const stand = imBetrieb(false)
+    const w = await startliste(stand)
+    await zeile(w, m('k2', 3)).find('[data-action="verschieben"]').trigger('click')
+    const ziele = liste(w).findAll('[data-teil="verschieben"] button')
+    expect(ziele.map((z) => z.text())).toEqual(['Vorziehen', 'Ans Ende des Laufs', 'vor Lauf 1', 'nach Lauf 1', 'vor Lauf 2', 'nach Lauf 2'])
+    await liste(w).find('[data-teil="verschieben"] [data-ziel="nach|lauf:1"]').trigger('click')
+    expect(betriebVon()).toEqual(reducer(stand, { type: 'BETRIEB_VERSCHIEBEN', bereich: P1, ref: m('k2', 3), ziel: { nachPunkt: 'lauf:1' } }).betrieb.bereiche[P1])
+    expect(liste(w).find('[data-teil="verschieben"]').exists()).toBe(false)
+
+    // Verzahnung gelöst: Die Liste bleibt zu sehen, aber nichts lässt sich umstellen.
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: false })
+    await nextTick()
+    expect(w.find('[data-hinweis="vor-verzahnung"]').exists()).toBe(true)
+    expect(zeile(w, m('k1', 1)).attributes('draggable')).toBe('false')
+    expect(zeile(w, m('k1', 1)).find('[data-action="verschieben"]').attributes('disabled')).toBeDefined()
+    const gesperrt = JSON.stringify(betriebVon())
+    await zeile(w, m('k1', 1)).trigger('dragstart')
+    await zeile(w, m('e2', 1)).trigger('drop')
+    expect(JSON.stringify(betriebVon())).toBe(gesperrt)
+  })
+
+  it('Startabstände je Klasse mit Verweis auf die Einstellungen; „Zuschauerliste öffnen“ öffnet #/zuschauer', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const w = await startliste(imBetrieb())
+    const abstaende = w.find('[data-teil="abstaende"]')
+    expect(abstaende.find('a').attributes('href')).toBe('#/einstellungen?startfolge')
+    expect(abstaende.findAll('[data-klasse]').map(text)).toEqual(['E 2:00', '1 1:50', '4 2:00', '5 2:15'])
+    await w.find('[data-action="zuschauer-oeffnen"]').trigger('click')
+    expect(open).toHaveBeenLastCalledWith(expect.stringMatching(/#\/zuschauer$/), 'alcatraz-zuschauer')
+    setLocale('en')
+    await nextTick()
+    await w.find('[data-action="zuschauer-oeffnen"]').trigger('click')
+    expect(open).toHaveBeenLastCalledWith(expect.stringMatching(/#\/spectators$/), 'alcatraz-zuschauer')
+    expect(text(liste(w).findAll('thead th')[6])).toBe('To pontoon entry')
   })
 })

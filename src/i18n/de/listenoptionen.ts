@@ -134,13 +134,36 @@ export default {
   'listopt.anzeige.logos': 'Logos neben der Kopfzeile',
   'listopt.anzeige.logos.hint': 'Die Logos aus „{logos}“, links und rechts – nur auf der Anzeigetafel dieses Rechners.',
 
-  // Startfolge im Betrieb (Plan vom 16.11.2026, E2): wie die Start-Freigabe umstellt. Ab E3 Am/Vor Steg, Startabstände.
+  // Startfolge im Betrieb (Plan vom 16.11.2026, E2): wie die Start-Freigabe umstellt; E3: Am/Vor Steg, Startabstände.
   'listopt.betrieb.title': 'Startfolge im Betrieb',
   'listopt.betrieb.hint':
     'Wie die Start-Freigabe die Folge der Starts umstellt, wenn ein Start verschoben wird. Verzahnung und Wettkampfrichter-Listen ändert sie nie.',
   'listopt.betrieb.verzahnungHalten': 'Verzahnung beim Verschieben halten',
   'listopt.betrieb.verzahnungHalten.hint':
     'Wird ein Start innerhalb seines Laufs verschoben, rutscht seine Spur mit: So folgen dort nie zwei Starts derselben Spur aufeinander, und am Steg bleibt Zeit für den Bootswechsel. In einen anderen Lauf geht er genau ans Ziel. Ausschalten, wenn eine Folge bewusst genau so gewollt ist.',
+  'listopt.betrieb.steg': 'Am Steg und vor Steg',
+  'listopt.betrieb.amSteg': 'Starts am Steg',
+  'listopt.betrieb.vorSteg': 'Starts vor Steg',
+  'listopt.betrieb.steg.hint':
+    'Nach dem Start im Boot stehen so viele Starts „am Steg“, die nächsten „vor Steg“ (je 0 bis {max}) – auf der Zuschauerliste und in der Startliste. „Zeit bis zum Vorsteg“: Wer dazugehört, muss am Vorsteg sein.',
+  'listopt.betrieb.abstaende': 'Startabstände',
+  'listopt.betrieb.abstaende.hint':
+    'Abstand zweier Starts in Sekunden ({min} bis {max}), Fahrzeit und Bootswechsel zusammen – daraus schätzen Startliste und Zuschauerliste die Wartezeiten. Ab {ab} gemessenen Abständen einer Klasse gilt das Mittel der Messung, vorher der eigene Wert, sonst die Vorgabe: die des Regelwerks oder die Mittel der DM 2025. Ein Feld leeren heißt: wieder die Vorgabe.',
+  'listopt.betrieb.abstaende.klasse': 'Klasse',
+  'listopt.betrieb.abstaende.vorgabe': 'Vorgabe',
+  'listopt.betrieb.abstaende.eigen': 'Eigener Wert (s)',
+  'listopt.betrieb.abstaende.gemessen': 'Gemessen',
+  'listopt.betrieb.abstaende.gilt': 'Gilt',
+  'listopt.betrieb.abstaende.anzahl': '{n} Abstand | {n} Abstände',
+  'listopt.betrieb.abstaende.zuletzt': 'zuletzt {zeit}',
+  'listopt.betrieb.abstaende.quelle.messung': 'gemessen',
+  'listopt.betrieb.abstaende.quelle.eigen': 'eigener Wert',
+  'listopt.betrieb.abstaende.quelle.vorgabe': 'Vorgabe',
+  'listopt.betrieb.abstaende.messungen': 'Bisher {n} gemessener Abstand. | Bisher {n} gemessene Abstände.',
+  'listopt.betrieb.abstaende.uebernehmen': 'Messwerte als Vorgabe übernehmen',
+  'listopt.betrieb.abstaende.uebernehmen.hint':
+    'Klassen mit mindestens {ab} gemessenen Abständen bekommen ihr Mittel als eigenen Wert – er reist mit der Vorlage zur nächsten Veranstaltung.',
+  'listopt.betrieb.abstaende.alleVorgabe': 'Alle auf die Vorgabe',
 
   'origin.style.aus': 'nicht zeigen',
   'origin.style.lang': 'ausgeschrieben',

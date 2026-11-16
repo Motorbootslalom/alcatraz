@@ -44,6 +44,23 @@ export function oeffneAnzeige(bereich?: BereichId): void {
   if (w) anzeigen.add(w)
 }
 
+/** Fenstername der Zuschauerliste: Ein zweites „Öffnen“ holt dasselbe Fenster nach vorn. */
+export const ZUSCHAUER_FENSTER = 'alcatraz-zuschauer'
+
+/** Die volle Adresse der Zuschauerliste (`#/zuschauer`, src/ZuschauerApp.vue). */
+export function zuschauerUrl(): string {
+  return `${location.href.split('#')[0]}${vollbildAdresse({ art: 'zuschauer' })}`
+}
+
+/**
+ * Öffnet die Zuschauerliste in einem eigenen Fenster (E3, nur in diesem Browser – der Link für fremde Geräte kommt
+ * mit E6). Sie liest wie die Anzeigetafel nur und wird genauso angestoßen, wo das storage-Ereignis nicht trägt.
+ */
+export function oeffneZuschauer(): void {
+  const w = window.open(zuschauerUrl(), ZUSCHAUER_FENSTER)
+  if (w) anzeigen.add(w)
+}
+
 /** Stößt alle bekannten Anzeigetafeln an, nachzulesen; geschlossene vergisst es. */
 export function stoesseAnzeigenAn(): void {
   for (const w of anzeigen) {

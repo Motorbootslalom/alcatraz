@@ -195,10 +195,21 @@ export const BETRIEB_ANNAHMEN = {
    * & Drop): „Vorziehen“ macht eine Klasse zur nächsten (BETRIEB_KLASSE_VOR vor die erste fahrende, umgestellt
    * nur innerhalb der Spuren); ein Start wird über ein Menü verschoben – vorziehen (vor den Nächsten), ans Ende
    * des Laufs, vor/nach Lauf n. Am Laptop am Steg ist ein Klick der sicherere Griff, ein Fehlgriff beim Ziehen
-   * stellte die Folge vor Zuschauern um. Ziehen kommt mit der Startliste im Betrieb (E3). Beim Bau der
-   * Oberfläche von E2, 16.11.2026 – noch zu bestätigen (components/betrieb/KlassenAussetzen.vue, BetriebsFolge.vue).
+   * stellte die Folge vor Zuschauern um. Gezogen wird in der Startliste im Betrieb (E3, `ziehenInDerStartliste`);
+   * Klassen werden nirgends gezogen. Beim Bau der Oberfläche von E2, 16.11.2026 – noch zu bestätigen
+   * (components/betrieb/KlassenAussetzen.vue, BetriebsFolge.vue).
    */
   knoepfeStattZiehen: true,
+  /**
+   * (zu S-4, S-6) In der Startliste im Betrieb (components/betrieb/StartListe.vue) lässt sich ein offener Start ziehen:
+   * Abgelegt auf einem anderen offenen Start heißt nach oben gezogen „vor ihn“, nach unten gezogen „hinter ihn“ –
+   * BETRIEB_VERSCHIEBEN `{ vor }` bzw. `{ nach }`, also genau die Regeln des Menüs „Verschieben …“ (betrieb/schritte.ts
+   * `verschiebe`: Blöcke je Lauf, nie vor den Zeiger, mit „Verzahnung halten“ rutscht die Spur im Block mit – der
+   * Start landet dann auf dem nächsten Platz seiner Spur, nicht immer genau am Ablageort). Nicht gezogen werden
+   * „Boot fehlt“, zurückgestellte und nachzuholende (sie haben ihre Knöpfe); für die Tastatur steht daneben dasselbe
+   * Menü. Ohne festgeschriebene Verzahnung ruht beides. Beim Bau der Oberfläche von E3, 16.11.2026 – noch zu bestätigen.
+   */
+  ziehenInDerStartliste: true,
   /**
    * „Einsteigen ab …“ fragt nicht nach: Ein früherer Einstieg nimmt einen zu späten zurück (betrieb/schritte.ts
    * `einsteigen`), und Rückfragen gibt es an der Start-Freigabe nur vor Unumkehrbarem bzw. vor „Lauf beginnen“
@@ -209,6 +220,90 @@ export const BETRIEB_ANNAHMEN = {
    * Nach der Prüfung von E2, 16.11.2026.
    */
   einsteigenOhneRueckfrage: true,
+  /**
+   * (12) Startabstand und Prognose (E3, betrieb/prognose.ts; Lastenheft der Tafel L-2 bis L-7): Gemessen wird der
+   * Abstand zweier aufeinanderfolgender Anzeigen eines Bereichs, zugeschlagen der Klasse des VORIGEN Starts – die
+   * Zeit von seinem Erscheinen bis zum nächsten hat sein Lauf gekostet (wie der Prototyp, lib/timing.ts). Abstände
+   * unter `kuerzester` (Durchklicken, Fehlklick) oder über `laengster` Sekunden (Pause, Störung, Mittag) zählen
+   * nicht (L-4). Ab `ab` Messungen einer Klasse (über alle Bereiche) gilt ihr Mittel, sonst die Vorgabe
+   * (config/catalog.ts startabstandOf: eigener Wert, Regelwerk, einstellungen.yaml – unter UIM die allgemeine).
+   * Plan §7 Nr. 12, 16.11.2026. Beim Bau von E3 (16.11.2026, noch zu bestätigen): Unter `ab` Messungen wird nicht
+   * gemischt (der Prototyp gewichtete Vorgabe und Messung) – „ab 3 Messungen der Messwert“ wörtlich.
+   */
+  prognoseMessung: { ab: 3, kuerzester: 30, laengster: 300 },
+  /**
+   * (zu 12) Was keine Messung ist – beim Bau von E3, 16.11.2026, noch zu bestätigen: „ohne Anzeige“ Erledigtes
+   * (Einsteigen) hat keine Zeit; steht zwischen zwei gezeigten Starts in der Folge ein solcher, zählt ihr Abstand
+   * nicht (er umfasste mehrere Läufe). Ebenso nicht, wenn der vorige Start inzwischen entfällt (X: kein Lauf
+   * gefahren) oder sein Starter gelöscht ist (Klasse unbekannt). „Zurück“ nimmt den Start aus dem Verlauf und so
+   * auch aus der Messung.
+   */
+  keineMessungOhneLauf: true,
+  /**
+   * (zu 12, L-4) Kein Abstand über eine Punktgrenze: Gehören zwei nacheinander gezeigte Starts zu verschiedenen
+   * Punkten (letzter Start von Lauf 1 → erster von Lauf 2), steckt der Laufwechsel darin – „Lauf beginnen“, WKR-Bögen
+   * tauschen, kurz durchatmen. Unter 300 s bliebe er sonst in der Messung und verzerrte das Mittel der Klasse des
+   * letzten Starts für den Rest des Tags (Prüfung: 110 s je Start, 280 s über die Grenze → Mittel 144 s statt 110 s).
+   * Wann der Punkt begonnen wurde, steht nicht im Stand; also zählt kein Abstand zwischen zwei Punkten – auch nicht
+   * der zu einem nachzuholenden oder gezielt gezeigten Start eines anderen Punkts. Eine verworfene Messung schadet
+   * nicht, eine verzerrte schon. Mit „Versuche nacheinander“ gibt es nur einen Punkt, dort greift das nie. Der
+   * Prototyp maß über die Grenze. Nach der Prüfung von E3, 16.11.2026 – noch zu bestätigen.
+   */
+  keineMessungUeberPunktgrenze: true,
+  /**
+   * (zu 12, L-2, L-7) Eine Wartezeit bekommen nur die freigegebenen Starts – offen und im begonnenen Punkt –, in
+   * ihrer Folge: Rest des Starts im Boot (Abstand seiner Klasse minus seit; nie unter 0), dann je Start der
+   * Abstand seiner Klasse. Ohne Zahl bleiben „Boot fehlt“ (wann es zurück ist, weiß niemand), Starts nicht
+   * begonnener Punkte (deren Beginn steht nicht fest: Mittag, Nacht), zurückgestellte und nachzuholende (sie
+   * kommen nicht von selbst). Gerechnet wird auf dem Bildschirm mit seiner Uhr; die Sicht trägt nur die Abstände
+   * und `seit` (Kritik K28). Beim Bau von E3, 16.11.2026 – noch zu bestätigen.
+   */
+  wartezeitNurFreigegebene: true,
+  /**
+   * (zu L-2, L-7) Steht auf der Anzeigetafel eines Bereichs eine Pause oder Störung – jede Meldung außer „Hinweis“,
+   * also die, die dort den Starter verdrängt –, bekommen seine Starts keine Zahl: Startliste und Zuschauerliste
+   * behalten Folge und Gruppen (Am Steg, Vor Steg), „ca. in“ und „zum Vorsteg in“ bleiben leer, die Meldung steht
+   * darüber („Mittagspause bis 13:30“). Wie lange es dauert, weiß die Liste nicht; weiterzuzählen hieße, Zahlen zu
+   * erfinden. Dieselbe Grenze wie auf der Tafel, mit Absicht: Auch Begrüßungen („Gleich geht's los“) stehen als
+   * Pause – solange sie stehen, fährt niemand, und vor dem ersten Start wäre jede Zahl erfunden. Ein „Hinweis“
+   * (Art info) hält nichts an. Ist die Meldung weg, rechnet die Liste vom Start im Boot weiter (sein Rest ist dann
+   * meist 0: der Nächste „gleich“). Nach der Prüfung von E3, 16.11.2026 – noch zu bestätigen
+   * (betrieb/prognose.ts `bereichAngehalten`).
+   */
+  keineZahlBeiPause: true,
+  /**
+   * (zu 12, docs/stand.md „Zeit bis zum Vorsteg“) Am Vorsteg muss ein Starter sein, sobald er zu den nächsten
+   * `amSteg + vorSteg` Starts gehört – also wenn der Start so viele Stellen vor ihm ins Boot geht: Zeit bis zum
+   * Vorsteg = Wartezeit dieses Starts. Wer schon dazugehört, hat 0 (jetzt). Beim Bau von E3, 16.11.2026 – noch
+   * zu bestätigen.
+   */
+  vorstegVorDenStegStarts: true,
+  /**
+   * (zu 12, L-6) „Messwerte als Vorgabe übernehmen“ (Einstellungen → Betrieb) übernimmt nur Klassen mit mindestens
+   * `prognoseMessung.ab` Messungen – weniger sind auch für die Prognose zu wenig –, auf ganze Sekunden gerundet;
+   * ein Wert gleich der Vorgabe wird kein eigener (der Stand hält nur Abweichungen, K24). Der Prototyp übernahm
+   * schon ab einer Messung. Beim Bau von E3, 16.11.2026 – noch zu bestätigen.
+   */
+  vorgabeAbGenugMessungen: true,
+  /**
+   * Zuschauerliste (`#/zuschauer`, später der Zuschauer-Link): eine eigene, schmalere Sicht (betrieb/sicht.ts
+   * `sichtZuschauer`, aus der öffentlichen abgeleitet). Sie trägt je Bereich nur den Start im Boot, die offene Folge
+   * der begonnenen Punkte, deren „Boot fehlt“ und die Meldung – keine Bedienangaben (zur Wahl über alle Läufe,
+   * zurückgestellt, nachzuholen, Einstiege, Klassen, Programm) und keine Logos. Grund: Der Link wird weitergegeben
+   * (Minderjährige), und wer zurückgestellt ist, geht Zuschauer nichts an; Starter, die nur in Bedienangaben
+   * vorkommen, stehen dann gar nicht darin. Beim Bau von E3, 16.11.2026 – noch zu bestätigen.
+   */
+  zuschauerSchmal: true,
+  /**
+   * (zu L-1, L-2, L-7) Die Zuschauerliste (components/zuschauer/ZuschauerListe.vue) gliedert je Parcours: „Im Boot“,
+   * „Am Steg“ (die nächsten `amSteg`), „Vor Steg“ (die `vorSteg` danach), „Danach“, zuletzt „Boot fehlt“ ohne Zahl.
+   * Wer am Steg oder vor Steg steht, bekommt keine „Zeit bis zum Vorsteg“ mehr (er ist schon da), die übrigen „ca. in“
+   * und „zum Vorsteg in“. Der Klassenfilter blendet nur aus – Gruppe und Wartezeit zählen alle Klassen, sonst rückte
+   * ein Starter scheinbar an den Steg. Unter einer Minute steht „gleich“, ab einer Stunde „1 h 05 min“. Die
+   * Startliste im Betrieb zeigt dagegen die ganze Folge, auch nicht begonnene Läufe (ohne Zahl, L-2). Beim Bau der
+   * Oberfläche von E3, 16.11.2026 – noch zu bestätigen.
+   */
+  zuschauerGruppen: true,
   /**
    * (11) Am Ende eines Punkts bleibt die Anzeigetafel auf dem letzten Starter stehen, bis der nächste
    * Punkt beginnt und dessen erster Start gezeigt wird. 16.11.2026.

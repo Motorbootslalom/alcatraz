@@ -185,11 +185,13 @@ export function baue(
 ): ResolvedConfig {
   const scheme = positionen.beschriftungen?.find((b) => b.id === wahl.beschriftung)
   // `disziplinen` des Regelwerks (Kennungen) gehört nicht in die Listen-Konfiguration;
-  // dort sind es die Disziplinen der Positionsdateien.
-  const { disziplinen: _disziplinen, gewichte: _gewichte, coPilot: _coPilot, ...ohneDisziplinen } = regelwerk as RohRegelwerk
+  // dort sind es die Disziplinen der Positionsdateien. Ebenso die Startabstände (nur für den Betrieb,
+  // config/catalog.ts startabstandOf): Zusammengelegt verdeckten die allgemeinen die des Regelwerks.
+  const { disziplinen: _disziplinen, gewichte: _gewichte, coPilot: _coPilot, startabstaende: _abstaende, ...ohneDisziplinen } = regelwerk as RohRegelwerk
+  const { startabstaende: _allgemein, ...positionenOhneAbstaende } = positionen
   const raw: RawConfig = {
     ...ohneDisziplinen,
-    ...positionen,
+    ...positionenOhneAbstaende,
     // Die Schritte des Laufzettels hängen am Regelwerk: Was es nennt, ersetzt die Vorgabe.
     laufzettel: { ...positionen.laufzettel, ...regelwerk.laufzettel },
     bezeichnungen: { ...(positionen.bezeichnungen ?? {}), ...(scheme?.tokens ?? {}) },

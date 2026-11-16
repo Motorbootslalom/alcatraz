@@ -2,8 +2,11 @@
  * Betrieb am Wettkampftag (Plan vom 16.11.2026): die Start-Freigabe am Bedienrechner (`betrieb.*`, Sprache
  * der Oberfläche), die Anzeigetafel selbst (`anzeige.*`, in der Sprache der Tafel über tIn – wie die Listen)
  * und die Arten einer Meldung (`meldung.*`). Begriffe: „Anzeigetafel“, nicht „Tafel“ – das ist das
- * Aushangbrett; „Start-Freigabe“ ist der Steg, der die Starts freigibt. Ab E6 kommt `geraete.*` dazu.
- * Die Einstellungen der Anzeigetafel stehen unter `listopt.anzeige.*` (listenoptionen.ts).
+ * Aushangbrett; „Start-Freigabe“ ist der Steg, der die Starts freigibt. Ab E3 die Startliste im Betrieb
+ * (`betrieb.liste.*`, Oberfläche) und die Zuschauerliste (`zuschauer.*`, Sprache der Tafel über tIn – wie
+ * `anzeige.*`, dort auch die Wartezeiten `anzeige.zeit.*`). Ab E6 kommt `geraete.*` dazu.
+ * Die Einstellungen der Anzeigetafel stehen unter `listopt.anzeige.*`, die der Startfolge unter
+ * `listopt.betrieb.*` (listenoptionen.ts).
  */
 export default {
   'betrieb.title': 'Start-Freigabe',
@@ -15,6 +18,10 @@ export default {
   'betrieb.oeffnen.bereichTitel': 'Eine Anzeigetafel nur für {name} öffnen',
   'betrieb.einstellungen': 'Einstellungen der Anzeigetafel',
   'betrieb.einstellungen.folge': 'Startfolge',
+  'betrieb.reiter.start': 'Start-Freigabe',
+  'betrieb.reiter.startliste': 'Startliste',
+  'betrieb.zuschauer': 'Zuschauerliste öffnen',
+  'betrieb.zuschauer.title': 'Wer im Boot, am Steg und vor Steg ist, mit Wartezeiten – in einem eigenen Fenster, auch schmal wie ein Handy',
   'betrieb.vorVerzahnung':
     'Die Start-Freigabe beginnt, wenn die Verzahnung festgeschrieben ist – erst dann stehen Startnummern und Folge der Starts fest:',
   'betrieb.geloest':
@@ -80,6 +87,25 @@ export default {
   'betrieb.folge.vorPunkt': 'vor {punkt}',
   'betrieb.folge.nachPunkt': 'nach {punkt}',
 
+  // Startliste im Betrieb (components/betrieb/StartListe.vue, E3; Wartezeiten: betrieb/prognose.ts)
+  'betrieb.liste.hint':
+    'Alle offenen Starts in ihrer Folge: „ca. in“ bis zum Start, „Zum Vorsteg“ bis der Starter am Vorsteg sein muss. Geschätzt aus den Startabständen – ab drei gemessenen Abständen einer Klasse aus der Messung, sonst aus der Vorgabe. Für einen Lauf, der noch nicht begonnen hat, bei „Boot fehlt“ und während einer Pause oder Störung auf der Anzeigetafel steht keine Zahl.',
+  'betrieb.liste.ziehen':
+    'Ziehen (oder „Verschieben …“) stellt einen Start um – nach denselben Regeln wie an der Start-Freigabe: nie vor schon Gefahrenes, mit „Verzahnung halten“ rutscht innerhalb des Laufs die Spur mit.',
+  'betrieb.liste.ziehen.title': 'Ziehen, um den Start zu verschieben',
+  'betrieb.liste.seit': 'seit {zeit}',
+  'betrieb.liste.seitLange': 'seit über 1 h',
+  'betrieb.liste.col.nr': 'Nr.',
+  'betrieb.liste.col.name': 'Name',
+  'betrieb.liste.col.klasse': 'Klasse',
+  'betrieb.liste.col.lauf': 'Lauf',
+  'betrieb.liste.col.caIn': 'ca. in',
+  'betrieb.liste.col.vorsteg': 'Zum Vorsteg',
+  'betrieb.liste.col.vorsteg.title': 'Zeit bis zum Vorsteg: so lange, bis der Starter am Vorsteg sein muss',
+  'betrieb.liste.wartet': '{punkt} – noch nicht begonnen',
+  'betrieb.liste.abstaende': 'Startabstände',
+  'betrieb.liste.angehalten': 'Pause oder Störung auf der Anzeigetafel – keine Wartezeiten, bis die Meldung weg ist.',
+
   // Klassen, „Boot fehlt“ (components/betrieb/KlassenAussetzen.vue, B-9, B-10, V-5)
   'betrieb.klassen': 'Klassen · Boot fehlt',
   'betrieb.klassen.aktiv': 'Boot fehlt: {klassen}',
@@ -122,6 +148,31 @@ export default {
   'anzeige.bereit': 'bereit',
   'anzeige.davor': 'davor',
   'anzeige.keineStarter': 'Noch keine Starter',
+  // Wartezeiten (betrieb/prognose.ts wartezeitAnzeige; Startliste in der Oberfläche, Zuschauerliste in der Tafel-Sprache)
+  'anzeige.zeit.gleich': 'gleich',
+  'anzeige.zeit.min': '{n} min',
+  'anzeige.zeit.h': '{h} h {min} min',
+  'anzeige.steg.amSteg': 'am Steg',
+  'anzeige.steg.vorSteg': 'vor Steg',
+  'anzeige.bootFehlt': 'Boot fehlt',
+
+  // Zuschauerliste (`#/zuschauer`, src/ZuschauerApp.vue, components/zuschauer/; E3) – in der Sprache der Anzeigetafel
+  'zuschauer.titel': 'Startfolge',
+  'zuschauer.imBoot': 'Im Boot',
+  'zuschauer.amSteg': 'Am Steg',
+  'zuschauer.vorSteg': 'Vor Steg',
+  'zuschauer.danach': 'Danach',
+  'zuschauer.klasse': 'Klasse',
+  'zuschauer.alle': 'Alle',
+  'zuschauer.caIn': 'ca. in {zeit}',
+  'zuschauer.vorsteg': 'zum Vorsteg in {zeit}',
+  'zuschauer.vorsteg.gleich': 'gleich zum Vorsteg',
+  'zuschauer.keiner': 'noch kein Start',
+  'zuschauer.laeuft': '{punkt} läuft',
+  'zuschauer.naechsterPunkt': 'Als Nächstes: {punkt}',
+  'zuschauer.zuEnde': 'Alle Läufe sind zu Ende.',
+  'zuschauer.leer': 'Keine Starts dieser Klasse.',
+  'zuschauer.hinweis': 'Wartezeiten sind Schätzungen aus den bisherigen Startabständen; für einen Lauf, der noch nicht begonnen hat, und während einer Pause oder Störung gibt es keine.',
 
   'meldung.info': 'Hinweis',
   'meldung.stoerung': 'Störung',

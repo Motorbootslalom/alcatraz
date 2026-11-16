@@ -253,8 +253,9 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
 
 Am Wettkampftag gibt der Bedienrechner frei, wer als Nächstes startet, und eine **Anzeigetafel** zeigt es – in einem
 zweiten Fenster, etwa auf einem Monitor am Steg (Reiter „Betrieb“, `src/views/BetriebView.vue`; Plan zur Übernahme des
-Prototyps `tafel` vom 16.11.2026, Etappen E1 und E2). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
-Mehrere Geräte über das Internet kommen später; bisher braucht nichts davon ein Netz.
+Prototyps `tafel` vom 16.11.2026, Etappen E1 bis E3). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
+Dazu kommen eine **Startliste** mit geschätzten Wartezeiten und eine **Zuschauerliste**. Mehrere Geräte über das
+Internet kommen später; bisher braucht nichts davon ein Netz.
 
 - **Voraussetzung:** Die Verzahnung ist festgeschrieben. Erst dann stehen Startnummern und Folge fest;
   vorher zeigt der Reiter nur den Weg zur Verzahnung. Wird sie mitten am Tag gelöst, bleiben die Karten stehen:
@@ -331,19 +332,58 @@ Mehrere Geräte über das Internet kommen später; bisher braucht nichts davon e
   - Das Fenster liest nur und schreibt nie; es folgt dem Bedienfenster sofort. Neuladen zeigt gleich den Stand.
     Eine Eingabe in der Erfassung zeichnet die Tafel nicht neu – nur was sie zeigt, zählt.
   - Sprache wie die Listen (DM deutsch, UIM englisch: „Course“, „Attempt“, „Class Dolphin“), umstellbar.
+- **Startliste** (Unterreiter „Startliste“, `#/betrieb/startliste`; `src/components/betrieb/StartListe.vue`): je
+  Parcours der Start im Boot mit „seit m:ss“ (ab einer Stunde „seit über 1 h“) und die ganze Folge der offenen
+  Starts, nach Lauf gegliedert, mit zwei Zeiten:
+  - **„ca. in“** – wann der Start ungefähr dran ist: der Rest des Starts im Boot, dann je Start der Startabstand seiner
+    Klasse;
+  - **„Zum Vorsteg“** – wann der Starter am Vorsteg sein muss: sobald er zu den nächsten „am Steg“ + „vor Steg“ Starts
+    gehört (Vorgabe 2 + 2). Wer schon dazugehört, hat „am Steg“ bzw. „vor Steg“ stehen.
+  - Ohne Zahl bleiben Starts eines Laufs, der noch nicht begonnen hat (sein Beginn steht nicht fest), und „Boot fehlt“
+    (wann das Boot zurück ist, weiß niemand); zurückgestellte und nachzuholende stehen darunter, wie an der
+    Start-Freigabe zum Einreihen.
+  - Zeigt die Anzeigetafel des Parcours eine Pause oder Störung (jede Meldung außer „Hinweis“, auch eine Begrüßung),
+    steht keine Zahl da – nur „am Steg“/„vor Steg“ und ein Satz, warum. Ist die Meldung weg, wird weitergerechnet.
+  - Unter einer Minute steht „gleich“, sonst Minuten, ab einer Stunde „1 h 05 min“. Gerechnet wird mit der Uhr des
+    Bildschirms; gespeichert wird dabei nichts.
+  - **Umstellen:** einen offenen Start auf einen anderen ziehen (nach oben gezogen: davor, nach unten: dahinter) oder
+    das Menü „Verschieben …“ wie an der Start-Freigabe – dieselben Regeln (nie vor schon Gefahrenes; mit „Verzahnung
+    beim Verschieben halten“ rutscht im Lauf die Spur mit, der Start landet dann auf dem nächsten Platz seiner Spur).
+  - Darüber die Startabstände, mit denen gerechnet wird, mit Verweis auf die Einstellungen.
+- **Startabstände** (`src/betrieb/prognose.ts`): Gemessen wird der Abstand zweier Anzeigen eines Parcours, zugeschlagen
+  der Klasse des vorigen Starts. Abstände unter 30 s (Durchklicken) und über 300 s (Pause, Störung, Mittag) zählen
+  nicht, ebenso keine über einen „ohne Anzeige“ erledigten Start (Einsteigen), keine über eine Laufgrenze (darin steckt
+  der Laufwechsel: „Lauf beginnen“, Bögen tauschen) oder bei einem Start, der inzwischen ein X hat. Ab drei Messungen einer Klasse gilt ihr Mittel; vorher der eigene Wert der Veranstaltung, sonst die Vorgabe:
+  die des Regelwerks oder die allgemeinen Werte (`src/config/einstellungen.yaml` `startabstaende`, gerundete Mittel der
+  DM 2025: Fahrzeit plus 30 s Bootswechsel; Klasse 1 am schnellsten, E mit mehr Zeit am Steg). Unter UIM gelten bis zur
+  Messung dieselben allgemeinen Werte.
+- **Zuschauerliste** („Zuschauerliste öffnen“, eigenes Fenster `#/zuschauer`, englisch `#/spectators`; je Parcours
+  `#/zuschauer/<parcours>`; `src/ZuschauerApp.vue`, `src/components/zuschauer/`): je Parcours „Im Boot“, „Am Steg“,
+  „Vor Steg“, „Danach“ (mit „ca. in“ und „zum Vorsteg in“) und zuletzt „Boot fehlt“ ohne Zahl; Läufe, die noch nicht
+  begonnen haben, stehen nicht darin. Bei Pause oder Störung auf der Anzeigetafel steht die Meldung oben, die Gruppen
+  bleiben, Zahlen gibt es keine. Filter nach Klasse (nur die Klassen der gezeigten Parcours) – er blendet nur aus,
+  Steg-Gruppen und Wartezeiten zählen alle Klassen; das Fenster merkt ihn sich auch über das Neuladen. Schmal genug fürs Handy, in der Sprache der
+  Anzeigetafel, im Farbschema der Bedienung. Das Fenster liest nur und schreibt nie, wie die Anzeigetafel. Fürs Handy
+  der Zuschauer über das Internet kommt später ein Link (dieselbe Seite).
 - **Was die Anzeigetafel zeigt** (`src/betrieb/sicht.ts`): nur Startnummer, Name, Klasse und Herkunft der Starter,
   die gerade vorkommen – nie Geburtsdatum, Gewicht, Geschlecht oder erfasste Werte. Dieselbe Sicht liest die
-  Start-Freigabe; so können beide später auch auf anderen Geräten laufen.
+  Start-Freigabe; so können beide später auch auf anderen Geräten laufen. Die Zuschauerliste liest eine noch
+  schmalere Sicht (`sichtZuschauer`): ohne alles, was nur die Bedienung braucht – wer zurückgestellt ist, wer
+  nachzuholen ist, die Starts späterer Läufe –, und nur die Starter, die darin vorkommen.
 - **Einstellungen** unter „Einstellungen → Anzeigetafel“: Kopfzeile (Vorgabe Name und Jahr der Veranstaltung,
   eigener Text oder keine), Logos links und rechts daneben (die der Listen), welche Parcours die gemeinsame Tafel
   zeigt, Start davor, Name des Parcours, Namen (wie der Aushang der Wertungslisten, voll, gekürzt, ohne), Herkunft,
   Sprache und Schriftgröße (70–130 %). Unter „Einstellungen → Startfolge im Betrieb“: „Verzahnung beim Verschieben
-  halten“. Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile.
+  halten“, wie viele Starts „am Steg“ und „vor Steg“ stehen (je 0–10) und die **Startabstände** je Klasse: Vorgabe,
+  eigener Wert (30–600 s; leer oder gleich der Vorgabe heißt Vorgabe), gemessen (Mittel, Zahl, zuletzt) und was gilt.
+  **„Messwerte als Vorgabe übernehmen“** macht das Mittel jeder Klasse mit mindestens drei Messungen zum eigenen Wert;
+  „Alle auf die Vorgabe“ nimmt die eigenen zurück. Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile – so
+  kommen übernommene Startabstände zur nächsten Veranstaltung mit.
 - **Gespeichert:** Der Betrieb steht in der Sicherung, nicht in der Vorlage. „Verlauf wiederherstellen“ (innerhalb
   derselben Veranstaltung) und „Alle erfassten Werte löschen“ lassen ihn stehen; ein Stand einer anderen
   Veranstaltung bringt seinen eigenen Betrieb mit.
 - Unter `file://` (Ein-Datei-Fassung) tragen nicht alle Browser die Nachricht zwischen zwei Fenstern; dann stößt das
-  Bedienfenster die von ihm geöffnete Anzeigetafel selbst an (`src/lib/anzeigeFenster.ts`).
+  Bedienfenster die von ihm geöffnete Anzeigetafel und Zuschauerliste selbst an (`src/lib/anzeigeFenster.ts`).
 - Wie gebaut ist und was ausgelegt wurde – weder DM-Reglement noch Regel 960 regeln den Ablauf am Steg:
   `BETRIEB_ANNAHMEN` in `src/betrieb/annahmen.ts`.
 

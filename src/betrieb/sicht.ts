@@ -1,5 +1,5 @@
 import type { Locale } from '../i18n'
-import type { AppState, ClassId, OeffentlicheSicht, PunktId, SichtBereich, SichtEinstieg, SichtHerkunft, SichtKlasse, SichtKlassenStand, SichtPunkt, SichtStart, SichtStarter, Starter } from '../types'
+import type { AppState, ClassId, OeffentlicheSicht, PunktId, SichtBereich, SichtEinstieg, SichtHerkunft, SichtKlasse, SichtKlassenStand, SichtPunkt, SichtStart, SichtStarter, Starter, ZuschauerBereich, ZuschauerSicht } from '../types'
 import { regelwerkOf } from '../config/catalog'
 import { bogenTexte, type BogenTexte } from '../config/sprache'
 import { classColor } from '../domain/classes'
@@ -8,6 +8,7 @@ import { starterHerkunft } from '../lib/origin'
 import { laenderKuerzelFuer, regelwerkSprache } from '../lib/listensprache'
 import { bereicheZumStand, betriebVon, laeufeVonPunkt, lage, punktVonLauf, spurenVon, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
 import { ersterStart, klasseAllein, klassenNachNaechstemStart } from './schritte'
+import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabstandImBetrieb, type Messung } from './prognose'
 
 // Die öffentliche Sicht auf den Betrieb – die EINE Stelle, an der entschieden wird, was Anzeigetafel,
 // Zuschauer und Start-Freigabe vom Stand zu sehen bekommen (Plan vom 16.11.2026, §1 und §3). Andere
@@ -17,9 +18,13 @@ import { ersterStart, klasseAllein, klassenNachNaechstemStart } from './schritte
 // Geschlecht, Ausgleichsgewicht, erfasste Werte oder Abmeldungen. Nur Starter, die in der Sicht
 // vorkommen, und von ihnen Startnummer, Name nach der Einstellung, Klasse und Herkunft.
 //
-// Zeitunabhängig: Die Sicht ändert sich nur, wenn sich der Stand ändert – „seit m:ss“ rechnet der
-// Bildschirm aus `seit` und seiner Uhr. Texte stehen in der Sprache der Anzeigetafel (Bogentexte,
+// Zeitunabhängig: Die Sicht ändert sich nur, wenn sich der Stand ändert – „seit m:ss“ und die Wartezeiten
+// („ca. in“, „Zeit bis zum Vorsteg“) rechnet der Bildschirm aus `seit`, den Startabständen und seiner Uhr
+// (betrieb/prognose.ts, Kritik K28). Texte stehen in der Sprache der Anzeigetafel (Bogentexte,
 // config/sprache.ts); Bedienelemente übersetzt die Oberfläche selbst.
+//
+// Die Zuschauersicht (`sichtZuschauer`) ist eine Teilmenge davon, für die Zuschauerliste und später den
+// Zuschauer-Link: ohne Bedienangaben (BETRIEB_ANNAHMEN.zuschauerSchmal).
 
 export interface SichtOptionen {
   /**
@@ -124,8 +129,13 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
     return { key: g.key, starter: ref.starter, lauf: ref.lauf, punkt: punktVonLauf(stand, ref.lauf), titel: texte.lauf(ref.lauf) }
   }
 
+  // Die Startabstände misst die Sicht gleich mit (aus der schon gerechneten Folge jedes Bereichs).
+  const klasseVon = klasseNachStarter(stand)
+  const gemessen: Messung[] = []
   const bereiche = bereicheZumStand(stand).map((b): SichtBereich => {
     const l = lage(stand, b.id)
+    const betrieb = betriebVon(stand, b.id)
+    gemessen.push(...messungenIn(b.id, betrieb.gezeigt, l.folge, betrieb.ohneAnzeige, klasseVon))
     const aktuell = gezeigt(l.aktuell)
     return {
       id: b.id,
@@ -140,7 +150,7 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       offen: l.frei.slice(0, stand.anzeige.amSteg + stand.anzeige.vorSteg + 1).map(start),
       offenZahl: l.frei.length,
       nachzuholen: l.nachzuholen.map(start),
-      meldung: betriebVon(stand, b.id).meldung,
+      meldung: betrieb.meldung,
       begonnen: l.begonnen,
       waehlbar: l.offen.map(start),
       zurueckgestellt: l.zurueckgestellt.map(start),
@@ -163,18 +173,86 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
   }
   // Auch eine ausgesetzte Klasse ohne offenen Start braucht ihren Namen an der Start-Freigabe.
   for (const b of bereiche) for (const k of b.klassenFolge) klasse(k.klasse)
+  // Je Klasse der Sicht der Startabstand, wie die Prognose ihn nimmt (gemessen oder Vorgabe), in ganzen Sekunden.
+  const jeKlasse = klassenMessungen(gemessen)
+  const abstaende: Partial<Record<ClassId, number>> = {}
+  for (const k of Object.keys(klassen) as ClassId[]) abstaende[k] = startabstandImBetrieb(stand, k, jeKlasse)
 
   const mitLogos = (optionen.logos ?? true) && stand.anzeige.logos && (stand.logos.links !== null || stand.logos.rechts !== null)
   return {
-    sv: 2,
+    sv: 3,
     kopf: kopfzeile(stand),
     veranstaltung: stand.eventName.trim(),
     sprache,
     skala: stand.anzeige.skala,
     ...(mitLogos ? { logos: { links: stand.logos.links, rechts: stand.logos.rechts } } : {}),
-    einst: { davor: stand.anzeige.davor, parcoursName: stand.anzeige.parcoursName },
+    einst: { davor: stand.anzeige.davor, parcoursName: stand.anzeige.parcoursName, amSteg: stand.anzeige.amSteg, vorSteg: stand.anzeige.vorSteg },
     auswahl: bereicheZumStand(stand, { anzeige: true }).map((b) => b.id),
     klassen,
+    abstaende,
+    starter,
+    bereiche,
+  }
+}
+
+/** Die Herkunft für die Zuschauersicht, Feld für Feld (siehe {@link sichtZuschauer}). */
+function zuschauerHerkunft(h: SichtHerkunft): SichtHerkunft {
+  return { text: h.text, klartext: h.klartext, druck: h.druck, alt: h.alt, ...(h.flagge ? { flagge: { art: h.flagge.art, code: h.flagge.code, kuerzel: h.flagge.kuerzel } } : {}) }
+}
+
+/**
+ * Die Zuschauersicht zur öffentlichen Sicht – die Zuschauerliste (`#/zuschauer`, später der Zuschauer-Link) liest
+ * nur sie. Abgeleitet, nicht neu gerechnet: So kann sie nie mehr enthalten als die öffentliche. Je Bereich der
+ * Start im Boot, die ganze offene Folge der begonnenen Punkte, deren „Boot fehlt“ und die Meldung; keine
+ * Bedienangaben (zur Wahl über alle Läufe, zurückgestellt, nachzuholen, Einstiege, Klassen, Programm), keine
+ * Logos, nicht der Name der Veranstaltung außerhalb der Kopfzeile. Starter, Klassen und Abstände nur für die
+ * Starts, die hier vorkommen (BETRIEB_ANNAHMEN.zuschauerSchmal). Neue Felder → sicht.test.ts (Schlüssel).
+ *
+ * Jedes Objekt wird Feld für Feld neu gebaut, auch verschachtelt (Starter, Herkunft, Start, Punkt, Meldung,
+ * Klasse) – nie als Referenz durchgereicht: Bekäme die öffentliche Sicht dort ein Feld nur für die Start-Freigabe,
+ * landete es sonst still im öffentlichen Link (Prüfung E3, 16.11.2026). Was hier fehlt, sieht kein Zuschauer.
+ */
+export function sichtZuschauer(sicht: OeffentlicheSicht): ZuschauerSicht {
+  const vorkommend = new Set<string>()
+  const start = (s: SichtStart): SichtStart => {
+    vorkommend.add(s.starter)
+    return { key: s.key, starter: s.starter, lauf: s.lauf, punkt: s.punkt, titel: s.titel }
+  }
+  const punkt = (p: SichtPunkt | null): SichtPunkt | null => p && { id: p.id, titel: p.titel, laeufe: [...p.laeufe] }
+  const bereiche = sicht.bereiche.map((b): ZuschauerBereich => {
+    const begonnen = new Set(b.begonnen)
+    return {
+      id: b.id,
+      name: b.name,
+      art: b.art,
+      punkt: punkt(b.punkt),
+      naechsterPunkt: punkt(b.naechsterPunkt),
+      aktuell: b.aktuell && start(b.aktuell),
+      seit: b.seit,
+      frei: freieFolge(b).map(start),
+      bootFehlt: b.bootFehlt.filter((s) => begonnen.has(s.punkt)).map(start),
+      meldung: b.meldung && { text: b.meldung.text, art: b.meldung.art },
+    }
+  })
+  const starter: Record<string, SichtStarter> = {}
+  const klassen: ZuschauerSicht['klassen'] = {}
+  const abstaende: ZuschauerSicht['abstaende'] = {}
+  for (const id of vorkommend) {
+    const p = sicht.starter[id]
+    if (!p) continue
+    starter[id] = { startNr: p.startNr, name: p.name, klasse: p.klasse, herkunft: p.herkunft && zuschauerHerkunft(p.herkunft) }
+    const k = sicht.klassen[p.klasse]
+    if (k) klassen[p.klasse] = { name: k.name, titel: k.titel, farbe: k.farbe }
+    const a = sicht.abstaende[p.klasse]
+    if (a !== undefined) abstaende[p.klasse] = a
+  }
+  return {
+    sv: sicht.sv,
+    kopf: sicht.kopf,
+    sprache: sicht.sprache,
+    einst: { parcoursName: sicht.einst.parcoursName, amSteg: sicht.einst.amSteg, vorSteg: sicht.einst.vorSteg },
+    klassen,
+    abstaende,
     starter,
     bereiche,
   }

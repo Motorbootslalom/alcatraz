@@ -142,6 +142,29 @@ export default {
   'listopt.betrieb.verzahnungHalten': 'Keep the interleaving when moving',
   'listopt.betrieb.verzahnungHalten.hint':
     'When a start is moved within its attempt, its track moves along: two starts of the same track never follow each other there, and the pontoon keeps its time for changing boats. Into another attempt it goes exactly to the target. Switch off if an order is wanted exactly as it is.',
+  'listopt.betrieb.steg': 'At the pontoon and at pontoon entry',
+  'listopt.betrieb.amSteg': 'Starts at the pontoon',
+  'listopt.betrieb.vorSteg': 'Starts at pontoon entry',
+  'listopt.betrieb.steg.hint':
+    'After the start in the boat, this many starts are “at the pontoon”, the next ones “at pontoon entry” (0 to {max} each) – on the spectator list and in the starting order. “Time until pontoon entry”: whoever belongs to them must be at pontoon entry.',
+  'listopt.betrieb.abstaende': 'Intervals between starts',
+  'listopt.betrieb.abstaende.hint':
+    'Interval between two starts in seconds ({min} to {max}), run and boat change together – the starting order and the spectator list estimate waiting times from it. From {ab} measured intervals of a class on, the mean of the measurement applies, before that the own value, otherwise the default: that of the rulebook or the means of the DM 2025. Clearing a field means: the default again.',
+  'listopt.betrieb.abstaende.klasse': 'Class',
+  'listopt.betrieb.abstaende.vorgabe': 'Default',
+  'listopt.betrieb.abstaende.eigen': 'Own value (s)',
+  'listopt.betrieb.abstaende.gemessen': 'Measured',
+  'listopt.betrieb.abstaende.gilt': 'Applies',
+  'listopt.betrieb.abstaende.anzahl': '{n} interval | {n} intervals',
+  'listopt.betrieb.abstaende.zuletzt': 'last {zeit}',
+  'listopt.betrieb.abstaende.quelle.messung': 'measured',
+  'listopt.betrieb.abstaende.quelle.eigen': 'own value',
+  'listopt.betrieb.abstaende.quelle.vorgabe': 'default',
+  'listopt.betrieb.abstaende.messungen': '{n} interval measured so far. | {n} intervals measured so far.',
+  'listopt.betrieb.abstaende.uebernehmen': 'Adopt measured values as defaults',
+  'listopt.betrieb.abstaende.uebernehmen.hint':
+    'Classes with at least {ab} measured intervals get their mean as an own value – it travels with the template to the next event.',
+  'listopt.betrieb.abstaende.alleVorgabe': 'All back to the default',
 
   'origin.style.aus': 'hide',
   'origin.style.lang': 'full name',

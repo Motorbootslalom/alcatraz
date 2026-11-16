@@ -1,6 +1,7 @@
-import { createApp } from 'vue'
+import { createApp, type Component } from 'vue'
 import App from './App.vue'
 import AnzeigeApp from './AnzeigeApp.vue'
+import ZuschauerApp from './ZuschauerApp.vue'
 import { createStore, storeKey } from './state/store'
 import { createLeseStore, leseStoreKey } from './state/leseStore'
 import './styles/app.css'
@@ -20,20 +21,25 @@ import { standLeer } from './lib/eingaben'
 import { vollbild } from './lib/router'
 import { verbindeAnzeigen } from './lib/anzeigeFenster'
 
-// Die Wurzel folgt der Adresse – und zwar VOR jedem Store: Das Fenster der Anzeigetafel (`#/anzeige`) darf
-// nie den vollen Store anlegen, der beim Start schreibt (Kennung, zweiter Speicher). Wechselt die Adresse
-// später zwischen Anzeigetafel und gewöhnlicher Ansicht, lädt das Fenster neu und wählt so die andere Wurzel.
-const anzeige = vollbild() !== null
+// Die Wurzel folgt der Adresse – und zwar VOR jedem Store: Die Fenster der Anzeigetafel (`#/anzeige`) und der
+// Zuschauerliste (`#/zuschauer`) dürfen nie den vollen Store anlegen, der beim Start schreibt (Kennung, zweiter
+// Speicher). Wechselt die Adresse später auf eine andere Wurzel (Anzeigetafel, Zuschauerliste, gewöhnliche
+// Ansicht), lädt das Fenster neu und wählt sie so.
+const fenster = vollbild()?.art ?? null
 window.addEventListener('hashchange', () => {
-  if ((vollbild() !== null) !== anzeige) location.reload()
+  if ((vollbild()?.art ?? null) !== fenster) location.reload()
 })
 
-if (anzeige) starteAnzeige()
+if (fenster === 'anzeige') starteNurLesen(AnzeigeApp)
+else if (fenster === 'zuschauer') starteNurLesen(ZuschauerApp)
 else starteBedienung()
 
-/** Anzeigetafel: nur lesen – kein Offline-Start, kein Handscanner, kein Kopf (src/AnzeigeApp.vue). */
-function starteAnzeige() {
-  createApp(AnzeigeApp).provide(leseStoreKey, createLeseStore()).mount('#app')
+/**
+ * Anzeigetafel (src/AnzeigeApp.vue) bzw. Zuschauerliste (src/ZuschauerApp.vue): nur lesen – kein Offline-Start,
+ * kein Handscanner, kein Kopf; der Nur-Lese-Store schreibt nie (state/leseStore.ts).
+ */
+function starteNurLesen(wurzel: Component) {
+  createApp(wurzel).provide(leseStoreKey, createLeseStore()).mount('#app')
 }
 
 function starteBedienung() {
