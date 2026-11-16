@@ -39,13 +39,13 @@ src/domain/           Klassen, Startnummern, Kürzel, Staaten, Flaggen, Gewicht,
 src/planung/          Verzahnung, Boote, laufende Nummern, Parallelslalom: Paarung, Runden, Re-run
 src/import/           Excel/TSV-Import und -Export der Starter, Zusammenführen, Klassenprüfung
 src/i18n/        *    de.ts (Quelle aller Schlüssel), en.ts: setzen de/, en/ nach Bereichen zusammen; t()/tIn()/texteIn()
-src/data/             erfundene Namen und Clubs für Beispieldaten
+src/data/             Beispieldaten: erfundene Namen; Clubs teils an reale angelehnt (in Bildern nie Herkunft „Verein“)
 src/flaggen/          Flaggenbilder: Staaten aus country-flag-icons, Bundesländer als SVG (LIESMICH.md)
 src/assets/parcours/  Parcours-SVGs, nur per `npm run parcours:sync` (QUELLE.json, CC BY-NC-SA 4.0)
 src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder
 src/testHilfen.ts     nur Tests: wechsleRegelwerk (trotz Werten), knotenHaken (Regel-960-Knoten)
 scripts/              Offline-Speicher (sw.js), parcours-sync, Warnfilter der Tests
-docs/entscheidungen.md  fachliche Entscheidungen des Nutzers und Festlegungen nach Regelbuch
+docs/                 entscheidungen, funktionen, parallelslalom, betrieb, technik, stand (.md); bilder/ (README)
 ```
 
 ## Datenfluss
@@ -142,9 +142,10 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 ## Arbeitsweise für Agenten
 
 - Zuerst diese Karte und die CLAUDE.md des Bereichsordners, dann gezielt lesen: grep, Kopfkommentare, Read mit
-  offset/limit. Groß: config/validate.ts, SettingsView.vue; README.md (74 KB, lange Zeilen) nie ganz, nur per grep.
+  offset/limit. Groß: config/validate.ts, SettingsView.vue, docs/funktionen.md, docs/parallelslalom.md.
 - Fachliche Fragen: docs/entscheidungen.md (auch „Entschieden, noch nicht umgesetzt“ und „Offen“). Bei Widerspruch
-  zum Code nichts still ändern: datierten Code-Kommentar und README vergleichen, es gilt die jüngere Entscheidung;
-  im Zweifel den Nutzer fragen und danach die Liste nachziehen.
+  zum Code nichts still ändern: datierten Code-Kommentar und docs/funktionen.md bzw. parallelslalom.md vergleichen,
+  es gilt die jüngere Entscheidung; im Zweifel den Nutzer fragen und danach die Liste nachziehen.
 - Gezielt testen; volle Suite (`npm run test:leise`) nur am Ende. Nach Typ- oder i18n-Änderungen `npx vue-tsc -b`.
-- Bildschirmfotos klein halten (Ausschnitt, geringe Auflösung).
+- Bildschirmfotos klein halten (Ausschnitt, geringe Auflösung). README.md bleibt kurz; Neues gehört nach docs/.
+  Bilder für docs/bilder/: Regeln in docs/technik.md unter „Entwickeln“ (nur Beispieldaten, nie Herkunft „Verein“).

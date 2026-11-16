@@ -1,0 +1,125 @@
+# Stand und Herkunft
+
+Woher Alcatraz kommt, was aus den Prototypen übernommen ist und was noch fehlt.
+Was die App heute kann: [funktionen.md](funktionen.md).
+Offene fachliche Fragen stehen in [entscheidungen.md](entscheidungen.md#offen).
+
+## Wie es dazu kam
+
+Ich habe seit 1995 die Auswertungen der Wettkämpfe beim Landesverband Motorbootsport Brandenburg gemacht.
+Damals noch auf Basis von Excel und VBA.
+Zwischen jedem Wettkampf habe ich das „Programm“ Stück für Stück erweitert.
+Als ich 2003/2004 aus zeitlichen Gründen nicht mehr teilnehmen konnte, blieb auch die Entwicklung dazu liegen.
+
+Seit 2008 bin ich wieder aktiv dabei.
+In der Zwischenzeit hatte Volker ein eigenes Programm (auch auf Excel-Basis) entwickelt.
+Beide Programme haben viele Gemeinsamkeiten und unterschiedliche Vorteile.
+Zusammen haben sie aber den Nachteil, dass sie nur mit Excel unter Windows laufen.
+Auch mit der aktuellen Version für Mac OS X laufen sie nicht.
+
+Da ich persönlich weder mit Windows noch mit Mac gern arbeite, wächst in mir der Wunsch
+nach einer vom Betriebssystem unabhängigen Lösung.
+Aus diesem Grund soll Alcatraz im Browser laufen.
+Auch ohne aktive Internetverbindung …
+
+## Zusammenführung der Prototypen
+
+Alcatraz führt die bisherigen Prototypen zusammen:
+
+| Quelle | Inhalt | Stand in Alcatraz |
+|---|---|---|
+| `verzahnung-prototyp-vue` | Starter, Startnummern, Verzahnung, Bootbedarf, Parallel-Slalom | übernommen |
+| `fehlerpunkte-prototyp-vue` | Regelwerke, Aufbauten, WKR-Listen, Erfassung, Wertungslisten | übernommen, siehe unten |
+| `tafel` | Anzeigetafel, Startliste im Betrieb, Geräte über ntfy | offen |
+| `Parcours` | Parcours-Zeichnungen | eingebunden, siehe unten |
+| Excel-Auswertung | Mannschaftswertung, Verwiegung, Urkunden-Daten u. a. | größtenteils übernommen, siehe unten |
+
+**Aus `fehlerpunkte-prototyp-vue`** sind übernommen (Einzelheiten in [funktionen.md](funktionen.md)):
+
+- Regelwerke und Aufbauten (`src/config/`),
+- die WKR-Einteilung und die Beispielansicht der Listen
+  ([Veranstaltung und Besetzung](funktionen.md#veranstaltung-und-besetzung)),
+- die [Wettkampfrichter-Listen](funktionen.md#wettkampfrichter-listen),
+  [Laufzettel und QR-Codes](funktionen.md#laufzettel-und-qr-codes),
+- die [Erfassung](funktionen.md#erfassung),
+- [Wertung und Wertungslisten](funktionen.md#wertung-und-wertungslisten),
+  der [Aushang der Codes](funktionen.md#aushang-der-codes).
+
+Listen und Wertung des Parallelslaloms sind inzwischen ebenfalls da
+([Parallelslalom](parallelslalom.md)).
+
+**Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
+(`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).
+Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
+
+**Aus der Excel-Auswertung** sind da:
+
+- die [Starterlisten](funktionen.md#starterlisten-und-vorsteg-liste) und die Vorsteg-Liste,
+- die [Verwiegung](funktionen.md#verwiegung) mit Gewichtslisten und der Liste „Ausgleichsgewichte“,
+- die [Mannschaftswertung](funktionen.md#mannschaftswertung),
+- die [Druckdatei](funktionen.md#druckdatei).
+
+## Was offen ist
+
+- Erfassung durch die Wettkampfrichter am eigenen Gerät (im Datenmodell vorbereitet).
+- **Mehrere Geräte:** Für Anzeigetafel und Startlisten auf anderen Geräten ist die verschlüsselte Übertragung
+  über einen ntfy-Server vorgesehen (Prototyp `tafel`, noch nicht übernommen).
+- Aus der Excel-Auswertung: Urkunden-Daten u. a.
+- Was fachlich entschieden, aber noch offen ist: [entscheidungen.md](entscheidungen.md#offen).
+
+## Ursprüngliche Ideenliste
+
+Die Liste stammt aus der Zeit vor den Prototypen;
+übernommen ist sie inhaltlich unverändert, nur Tippfehler sind berichtigt.
+Die Kästchen sind noch nicht nachgezogen; vieles davon kann Alcatraz inzwischen (siehe [funktionen.md](funktionen.md)).
+
+Hier nur eine grob sortierte Auflistung der meisten Ideen:
+
+- [ ] Verzahnung (Starter 1 Klasse 1, Starter 2 Klasse 4, Starter 3 Klasse 1, ...)
+- [ ] Ansicht für Wettkampfrichter
+  - [ ] Login und Rechtemodell ...
+  - [ ] Nächster Start wird erst freigegeben, wenn alle Wettkampfrichter den Lauf abgenickt haben
+  - [ ] Startnummer und Klasse muss sich vor jedem Start aktualisieren
+  - [ ] Starterseite
+    - [ ] Anzeige von Informationen wie Startnummer, Name, Klasse und Lauf
+    - [ ] Aufgeteilt nach 'Im Boot', 'Am Steg', 'Vor Steg'
+    - [ ] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg)
+    - [ ] Reihenfolge, je nach Berechtigung, änderbar
+    - [ ] Unterschiedliche Farben für Klasse und Lauf
+    - [ ] Starter rutschen automatisch hoch nach abgeschlossenem Lauf
+    - [ ] Zeitplan (Pausen, Feierabend etc.) bei der Sortierung
+    - [ ] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg
+- [ ] Gedruckte WKR-Listen
+  - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)
+  - [ ] leichte Grau- oder Farbtöne für andere Klassen
+    - [ ] Schikane (und andere nicht angefahrene Beobachtungspunkte) bei kleineren Klassen auf verzahnten Listen
+          ausgrauen
+  - [ ] Auch mehrere Klassen auf einer Seite (konfigurierbar)
+    - Bei Clubmeisterschaften oder kleinen Wettkämpfen mit nur 1–2 Startern pro Klasse macht eine eigene Liste keinen
+      Sinn
+  - [ ] Übertragung von Listen in das Programm mit gleicher Ansicht
+        (Browserformular und Beobachtungsliste sind identisch)
+    - Weniger fehleranfällig und einfache Kontrolle
+  - [ ] Lauf kann erst 'abgeschlossen' werden, wenn alle Beobachtungslisten eingetragen & kontrolliert wurden
+    - [ ] 4-Augen-Prinzip. Kontrolle muss mit einem anderen Wettkampfrichter/Benutzer erfolgen
+- [ ] Support für 'Spaßstarter'
+    - Ältere Starter fahren in jüngerer Klasse (zusätzlich zum eigentlichen Lauf)
+    - Mit auf den Listen und bei der Erfassung
+    - Mit im Aushang
+    - Nicht in die Endwertung, aber mit Info für die Siegerehrung (Differenz zum eigentlichen Starter etc.)
+- [ ] Bei Clubmeisterschaft den Verein nicht anzeigen
+- [ ] Regel als Set hinterlegen (Deutsche Meisterschaftsregeln)
+- [ ] Regeln für die Veranstaltung auf Basis der DM-Regeln
+  - Regeln können deaktiviert oder überschrieben werden
+- [ ] Verstöße werden mit Kürzel (A, B, C usw.) angegeben und dargestellt
+- [ ] Zeiten können im Format 1,2345 und 83,45 statt 1:23:45 eingegeben werden
+  - Umrechnung erfolgt für die Anzeige automatisch
+- [ ] Jede Berührung, jeder Strafpunkt wird einzeln erfasst und ist auch im Aushang entsprechend dargestellt
+- [ ] Vorsteg-Listen
+  - Zum Laufabhaken und ggf. Punkte, wegen Schwimmwesten auf dem Steg ausgezogen
+- [ ] 3 Extra-Zeilen unter Beobachtungslisten
+- [ ] Aushanglisten
+  - [ ] Spätstarter (die nicht in der regulären Verzahnung fahren) werden oben (1. Platz) angezeigt
+  - [ ] Fehlerpunkte != Bojenberührungen werden als Buchstaben angezeigt
+    - Buchstaben über das gesamte Programm gleich
+    - Nur die Buchstaben, die in der Aushangliste aufgeführt werden, werden als (optionale) Tabelle darunter angezeigt

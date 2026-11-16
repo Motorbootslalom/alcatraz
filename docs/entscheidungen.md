@@ -1,9 +1,10 @@
 # Fachliche Entscheidungen
 
 Erste Anlaufstelle für fachliche Fragen. Bei Widerspruch zum Code nichts still ändern: datierten Code-Kommentar
-(„Entscheidung des Nutzers vom …“) und README vergleichen, es gilt die jüngere Entscheidung. Im Zweifel den Nutzer
-fragen und danach diese Liste nachziehen. Was entschieden, aber noch nicht gebaut ist, steht unter „Entschieden, noch
-nicht umgesetzt“ – dort weicht der Code bewusst noch ab.
+(„Entscheidung des Nutzers vom …“) und [funktionen.md](funktionen.md) bzw. [parallelslalom.md](parallelslalom.md)
+vergleichen, es gilt die jüngere Entscheidung. Im Zweifel den Nutzer fragen und danach diese Liste nachziehen.
+Was entschieden, aber noch nicht gebaut ist, steht unter „Entschieden, noch nicht umgesetzt“ – dort weicht der Code
+bewusst noch ab.
 
 Kennzeichen: **N** = Entscheidung des Nutzers, **R** = Festlegung nach Regelbuch (DM-Reglement 2026, UIM Rulebook Regel
 960 „Formula Future“), **R/N** = Regelbuch, vom Nutzer ausgelegt oder ergänzt. Spätere Einträge ersetzen frühere;

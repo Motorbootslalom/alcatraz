@@ -19,7 +19,7 @@ import { oeffneZweitspeicher, type Schreibauftrag, type Zweitspeicher } from '..
  * wartet nur die jüngste (ältere Zwischenstände braucht niemand) und geht hinaus, sobald der
  * laufende fertig ist. Damit ist das offene Zeitfenster so lang wie ein Schreibvorgang (gemessen
  * in Chromium bei 336 Startern: im Mittel 5 ms, höchstens 26 ms; bei pausenlosen Eingaben
- * höchstens 47 ms – siehe README), und schnelles Tippen staut nichts auf: Das Schreiben
+ * höchstens 47 ms – siehe docs/betrieb.md), und schnelles Tippen staut nichts auf: Das Schreiben
  * geschieht im Hintergrund, die Eingabe gibt nur den fertigen Text ab. Eine feste Verzögerung
  * („erst 300 ms nach dem letzten Tastendruck“) hielte dagegen genau das Fenster offen, das der
  * zweite Speicher schließen soll. Wird die Seite verborgen oder verlassen, geht auch ein
