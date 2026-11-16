@@ -14,7 +14,7 @@ import { copyText } from '../lib/clipboard'
 import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
 import { jahrgaengeText, pruefeKlassen, startendeJahrgaenge, type KlassenFehler } from '../import/klassenPruefung'
 import { useEvent } from '../lib/event'
-import { t, tn } from '../i18n'
+import { locale, t, tn } from '../i18n'
 import { starterfeldFest } from '../lib/eingaben'
 import StarterSperre from './StarterSperre.vue'
 import type { ClassId } from '../types'
@@ -27,6 +27,8 @@ const { state, dispatch } = useStore()
 const open = ref(state.value.starters.length === 0)
 const raw = ref('')
 const result = ref<ImportResult | null>(null)
+/** Zur Meldung nach der Übernahme: neu dazugekommen und (nur beim Ergänzen) als schon vorhanden übergangen. */
+const zahlen = ref({ uebernommen: 0, uebergangen: 0 })
 const copied = ref<'startlist' | 'starters' | null>(null)
 /**
  * Zeilen, deren Starter in einer anderen Klasse übernommen werden als in der Liste – je Zeile
@@ -36,13 +38,14 @@ const umklassen = ref<Record<number, { klasse: ClassId; gelistet: ClassId; name:
 
 // Fehlende klassenbasierte Nummern ergänzt der Import; klassische vergibt erst die Verzahnung.
 // Beim Ergänzen schließen sie an die Nummern der Veranstaltung an (`vorhandene`), statt sie doppelt zu vergeben.
+// Beim Ersetzen behält ein wiedererkannter Starter ohne Nummer seine bisherige (`bisherige`, 16.11.2026).
 const parse = (text: string, mode: 'replace' | 'merge' = 'replace') =>
   parseStartersTsv(text, {
     assignMissing: state.value.startNrMode === 'klasse',
     landIstStaat: state.value.originMode === 'land',
     startNrPraefix: startNrPraefixe(state.value),
     klasseJeZeile: Object.fromEntries(Object.entries(umklassen.value).map(([zeile, u]) => [zeile, u.klasse])),
-    ...(mode === 'merge' ? { vorhandene: state.value.starters } : {}),
+    ...(mode === 'merge' ? { vorhandene: state.value.starters } : { bisherige: state.value.starters }),
   })
 
 const preview = computed(() => (raw.value.trim() ? parse(raw.value) : null))
@@ -80,10 +83,13 @@ function zurueck(zeile: string) {
 function numbersNote(res: ImportResult): string {
   const note = startNrImportNote(res)
   if (note === 'none') return ''
-  const text = t(`import.numbers.${note}`, { n: ergaenzteNummern(res) })
+  const teile = note === 'kept' ? [] : [t(`import.numbers.${note}`, { n: ergaenzteNummern(res) })]
+  // Beim Ersetzen: Starter ohne Nummer, die ihre bisherige behielten.
+  if (res.nummerBehalten > 0) teile.push(tn('import.numbers.kept', res.nummerBehalten))
   // Nummern, die nur wegfielen, weil die Zeile in einer anderen Klasse übernommen wird.
   const weg = res.nummerEntfallen
-  return weg.anzahl === 0 ? text : `${text}, ${tn('import.numbers.moved', weg.anzahl, { values: weg.werte.join(', ') })}`
+  if (weg.anzahl > 0) teile.push(tn('import.numbers.moved', weg.anzahl, { values: weg.werte.join(', ') }))
+  return teile.join(', ')
 }
 /** Nicht erkannte Angaben zum Geschlecht: Die Zeilen kommen herein, das Feld bleibt leer. */
 function geschlechtNote(res: ImportResult): string {
@@ -99,18 +105,26 @@ function datumNote(res: ImportResult): string {
 function doImport(mode: 'replace' | 'merge') {
   if (darfNicht.value) return
   const res = parse(raw.value, mode)
-  result.value = res
-  if (res.imported === 0) return
+  if (res.imported === 0) {
+    result.value = res
+    return
+  }
   // Ersetzen nimmt den nicht wiedererkannten Startern ihre erfassten Werte – dann erst fragen.
-  const verlust = mode === 'replace' ? verlustBeimErsetzen(state.value, res.starters) : undefined
+  const verlust = mode === 'replace' ? verlustBeimErsetzen(state.value, res.starters, res.nummerVomImport) : undefined
   if (verlust && verlust.zahl > 0 && !confirm(t('entries.replaceConfirm') + verlust.text)) return
-  dispatch({ type: 'IMPORT_STARTERS', starters: res.starters, mode })
+  const vorher = state.value.starters.length
+  dispatch({ type: 'IMPORT_STARTERS', starters: res.starters, mode, nummerVomImport: res.nummerVomImport })
+  // Die Meldung zählt, was wirklich dazukam (16.11.2026): Beim Ergänzen übergeht der Reducer Starter,
+  // die schon in ihrer Klasse stehen – die nennt sie eigens.
+  const dazu = mode === 'merge' ? state.value.starters.length - vorher : res.imported
+  zahlen.value = { uebernommen: dazu, uebergangen: res.imported - dazu }
+  result.value = res
   raw.value = ''
   umklassen.value = {}
 }
 
 async function copy(which: 'startlist' | 'starters') {
-  const text = which === 'startlist' ? formatStartlistTsv(state.value) : formatStartersTsv(state.value)
+  const text = which === 'startlist' ? formatStartlistTsv(state.value) : formatStartersTsv(state.value, locale.value)
   if (await copyText(text)) {
     copied.value = which
     setTimeout(() => (copied.value = null), 1500)
@@ -236,7 +250,8 @@ function onRaw(e: Event) {
         role="status"
       >
         <template v-if="result.imported > 0">
-          {{ t('import.done', { n: result.imported }) }} {{ numbersNote(result) }}
+          {{ t('import.done', { n: zahlen.uebernommen }) }} {{ numbersNote(result) }}
+          <template v-if="zahlen.uebergangen > 0"><br /><span data-hinweis="uebergangen">{{ tn('import.duplicates', zahlen.uebergangen) }}</span></template>
           <!-- Je Hinweis eine Zeile wie in der Vorschau. Die ist nach der Übernahme weg (Textfeld leer) –
                ohne den Datumshinweis hier stünde nirgends mehr, welche Daten leer blieben. -->
           <template v-if="geschlechtNote(result)"><br /><span data-hinweis="geschlecht-unbekannt">{{ geschlechtNote(result) }}</span></template>

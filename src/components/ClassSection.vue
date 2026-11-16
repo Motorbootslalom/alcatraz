@@ -476,8 +476,8 @@ const MOVES = [
                       v-for="m in MOVES"
                       :key="m.target"
                       class="mv"
-                      :disabled="unsorted || (m.top ? i === 0 : i === starters.length - 1)"
-                      :title="t(`starters.move.${m.target}`)"
+                      :disabled="verzahnungFest || unsorted || (m.top ? i === 0 : i === starters.length - 1)"
+                      :title="verzahnungFest ? t('starters.order.locked') : t(`starters.move.${m.target}`)"
                       :aria-label="t(`starters.move.${m.target}`)"
                       @click="reorder({ type: 'MOVE_STARTER', id: p.id, target: m.target })"
                     >

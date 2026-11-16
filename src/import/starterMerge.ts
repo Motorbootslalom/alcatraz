@@ -14,6 +14,11 @@ import type { Starter } from '../types'
  * oder für den keine Nummer mitkam. Wer die Klasse wechselt, gilt als neu: Er
  * fährt dann womöglich auf einem anderen Parcours.
  *
+ * Nummern, die erst der Import vergeben hat (`nummerVomImport`, IDs der importierten Starter),
+ * zählen beim Wiedererkennen nicht (Entscheidung 16.11.2026): Eine Liste ohne Nummern bekam sie
+ * nach Größe, und ein Starter fand so den bisherigen mit derselben Nummer – samt dessen Gewicht
+ * und Platz in der Verzahnung. Solche Starter erkennt nur der Name wieder.
+ *
  * Die Auswahl für die Pokalauswertung (`Starter.pokal`) kennt nur eine Teilnehmerdaten-Datei
  * dieses Programms – dort steht sie, und nach dem Laden gilt sie so, wie sie in der Datei
  * steht (`auswahl: 'datei'`; ein Starter ohne Abwahl zählt wieder). Eine Liste aus Excel kennt
@@ -29,7 +34,8 @@ export interface MergeResult {
 
 const nrKey = (s: Starter) => (s.startNr.trim() ? `${s.klasse}|${s.startNr.trim().toUpperCase()}` : null)
 
-const nameKey = (s: Starter) =>
+/** Klasse und Name, so wie das Ersetzen einen Starter wiedererkennt (auch import/tsv.ts `bisherige`). */
+export const namensSchluessel = (s: Pick<Starter, 'klasse' | 'vorname' | 'nachname'>) =>
   `${s.klasse}|${`${s.vorname} ${s.nachname}`.toLowerCase().replace(/\s+/g, ' ').trim()}`
 
 /**
@@ -42,7 +48,12 @@ export function dublettenSchluessel(p: Pick<Starter, 'klasse' | 'nachname' | 'vo
 
 const FIELDS: (keyof Starter)[] = ['startNr', 'vorname', 'nachname', 'verein', 'bundesland', 'land', 'geburtsdatum', 'groesse', 'geschlecht']
 
-export function mergeStarters(existing: Starter[], imported: Starter[], auswahl: 'bisher' | 'datei' = 'bisher'): MergeResult {
+export function mergeStarters(
+  existing: Starter[],
+  imported: Starter[],
+  auswahl: 'bisher' | 'datei' = 'bisher',
+  nummerVomImport: ReadonlySet<string> = new Set(),
+): MergeResult {
   const matchOf = new Map<Starter, Starter>()
   const taken = new Set<Starter>()
 
@@ -61,8 +72,8 @@ export function mergeStarters(existing: Starter[], imported: Starter[], auswahl:
       taken.add(old)
     }
   }
-  assign(nrKey)
-  assign(nameKey)
+  assign((s) => (nummerVomImport.has(s.id) ? null : nrKey(s)))
+  assign(namensSchluessel)
 
   const changed: Starter[] = []
   const added: Starter[] = []

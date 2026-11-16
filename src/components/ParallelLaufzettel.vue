@@ -21,7 +21,8 @@ import ParallelMessung from './ParallelMessung.vue'
  * die richtigen Blätter einzusammeln und zusammenzuhalten – ein Kästchen je gedrucktem Blatt
  * seiner drei Listen (lib/parallelBogen.ts `rundenZettel`). Sein QR-Code führt in der Erfassung
  * nur zu den Listen seines Racecourse, untereinander. Die Schritte der Auswertung stehen nur auf
- * Zettel A: Die Runde wird einmal ausgewertet.
+ * Zettel A: Die Runde wird einmal ausgewertet. Zettel B verweist darauf (Entscheidung 16.11.2026),
+ * damit niemand mit Zettel B die Schritte sucht.
  *
  * Passen die Kästchen auch dicht gesetzt nicht auf einen Zettel, sagt es der Zettel selbst
  * (components/LaufzettelBlatt.vue `zuviel`) – nichts wird zu Seitenbereichen zusammengefasst.
@@ -120,6 +121,7 @@ const { zoom } = useBogenZoom(stapel)
       :qr="b.zettel.qr"
       :schritte-titel="b.zettel.schritte ? schritte.titel : undefined"
       :schritte="b.zettel.schritte ? schritte.liste : []"
+      :schritte-verweis="b.zettel.schritte ? undefined : lt('runsheet.stepsElsewhere', { zettel: lt('parallel.parcoursA') })"
       :sprache="listenLocale"
       :data-zettel="b.zettel.id"
       @zuviel="merkeZuViel(b.zettel, $event)"

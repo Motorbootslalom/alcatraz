@@ -99,7 +99,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Druck erst nach Verzahnung | views/ListsView.vue vorVerzahnung → WkrListen/LaufzettelListen `druckGesperrt` (Stapel no-print) |
 | Datumsfeld | components/DatumFeld.vue (Textfeld, `sofort` = Formular); lib/datum.ts liesDatum; Import: import/tsv.ts |
 | Jahrgang passt nicht zur Klasse | import/klassenPruefung.ts (klassenFuerJahr, startendeJahrgaenge); Vorschlag in ManualAddForm, ClassSection (MOVE_STARTER_TO_CLASS), ExcelPanel (klasseJeZeile) |
-| Querverweis mit Auswahl | lib/adressen.ts drittes Segment `wahl` → router.ts useReiter `beiWahl` (Muster: WeighingView → ListsView gewichtHerkunft) |
+| Querverweis mit Auswahl | lib/adressen.ts drittes Segment `wahl` → router.ts useReiter `beiWahl`, bleibt per `wahlFuerAdresse` (Muster: WeighingView → ListsView gewichtHerkunft) |
 | Dolphin-Präfix E/D | AppState.dolphinPraefix (state/reducer/startnummern.ts) → config/catalog.ts startNrPraefixe; components/StartNumberPanel.vue |
 | Herkunft der Veranstaltung | AppState.originMode, SET_ORIGIN_MODE (views/EventView.vue, state/reducer/veranstaltung.ts); Anzeige lib/origin.ts |
 | Neues Regelwerk / neue Angabe | regelwerke/<id>.yaml + regelwerke.yaml; Angabe: schema → validate → build → catalog |
@@ -134,8 +134,9 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 - Annahmen nur an einer Stelle: PARALLEL_ANNAHMEN, EINZEL_FESTLEGUNGEN. Belege und Entscheidungen mit Datum als
   Kommentar (YAML bzw. Code) mitpflegen.
 - Datenschutz: Das Repo ist öffentlich. Keine echten Namen, Geburtsdaten oder Einzelergebnisse in Code, Tests,
-  Fixtures, Doku, Bildern; keine Pfade zu privaten Dateien außerhalb des Repos. Tests mit erfundenen Daten
-  (data/names.ts, data/clubs.ts, Muster `Vor1`/`Nach1`/'Musterclub'), Hilfen in src/testHilfen.ts.
+  Fixtures, Doku, Bildern (Ausnahme: einzelne Vornamen in der Doku, 16.11.2026); keine Pfade zu privaten Dateien
+  außerhalb des Repos. Tests mit erfundenen Daten (data/names.ts, data/clubs.ts, Muster `Vor1`/`Nach1`/'Musterclub'),
+  Hilfen in src/testHilfen.ts.
 - Stil: keine Semikolons, einfache Anführungszeichen, 2 Leerzeichen, Kommentare auf Deutsch und mit dem Warum.
 - Keine Abwärtskompatibilität nötig, solange die App in Entwicklung ist (alte Stände, Update-Übergänge).
 

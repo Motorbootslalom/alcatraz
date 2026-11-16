@@ -60,7 +60,8 @@ pokalBlaetter, merken, scan, theme, router, bogenZoom, doppelseitig, offline, up
   späteren Versuchs, fragt ErfassungTabelle.vue erst (erfassung.ts ueberschreibtX).
 - merken.ts mit ueberNeuladen: neue Werte brauchen einen Guard für alte gemerkte Auswahl (SPAETERE_TEILE).
 - adressen.ts: drittes Segment `wahl` (Wert aus den Daten, kodiert, nicht übersetzt; `*` = alle) nur unter einem
-  Reiter; useReiter gibt es an `beiWahl` und schreibt danach die Adresse ohne Wahl.
+  Reiter; useReiter gibt es an `beiWahl`. Danach steht nur der Reiter da – außer die Ansicht gibt `wahlFuerAdresse`
+  (Herkunft der Gewichtslisten, 16.11.2026); das wird schon beim Aufbau gelesen.
 - Offline: Cache-Namen, Merk-Cache und Nachrichten von scripts/offline-sw.js teilen alte und neue Fassung –
   ihre Bedeutung nie ändern. Fassung wechselt nur per „Update“ oder bei leerem Stand.
 

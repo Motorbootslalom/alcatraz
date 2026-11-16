@@ -23,7 +23,8 @@
   übernehmen + Banner) → lib/offline.ts starteOffline (von selbst nur bei leerem Stand = keine Starter).
 - Datei laden: SettingsView → backup.ts parseFile → migrate → LOAD_STATE {art:'sicherung'}; Vorlage: apply(state)
   behält Starter, Eingaben, Kennung, Einteilung, Co-Piloten, Pläne, nichtWerten → LOAD_STATE {art:'vorlage'}.
-- Starter (reducer/starter.ts): IMPORT_STARTERS {mode:'replace'|'merge'} → import/starterMerge.ts (IDs bleiben);
+- Starter (reducer/starter.ts): IMPORT_STARTERS {mode:'replace'|'merge', nummerVomImport} → import/starterMerge.ts
+  (IDs bleiben; vom Import vergebene Nummern zählen beim Wiedererkennen nicht, tsv.ts `bisherige` behält alte);
   ABMELDEN_STARTER (nur wenn starterfeldFest) → X in leere Läufe/Runden (lib/abmeldung.ts).
 
 ## Wo ändere ich …
@@ -60,8 +61,8 @@
 - Werte erfasst (lib/eingaben.ts starterfeldFest) ⇒ Starterfeld, Regelwerk gesperrt; Tests: testHilfen.wechsleRegelwerk.
 - MOVE_STARTER_TO_CLASS (Jahrgang gehört in andere Klasse): abgelehnt bei klasseFest UND in STARTERFELD_ACTIONS;
   klassenbasierte Nummer = nächste freie der neuen Klasse, klassische bleibt. UPDATE_STARTER mit `klasse` nur Tests.
-- ORDER_STARTERS/SHUFFLE_STARTERS (Starter-Reiter, lib/reihenfolge.ts) in VERZAHNUNG_ACTIONS: danach keine Sortierung;
-  MOVE_STARTER und Nummern von Hand gehen weiter; unverändert ⇒ derselbe Stand. Alle drei über inFolge(): Nummern neu
+- ORDER_STARTERS/SHUFFLE_STARTERS (Starter-Reiter, lib/reihenfolge.ts) und MOVE_STARTER (▲▼, 16.11.2026) in
+  VERZAHNUNG_ACTIONS: danach keine neue Folge; Nummern von Hand gehen weiter; unverändert ⇒ derselbe Stand. Alle drei über inFolge(): Nummern neu
   verteilt UND Starter im Array umgestellt – ohne Nummer zählt die Array-Folge (sortedByStartNr, Verzahnung, Export).
 
 ## Tests

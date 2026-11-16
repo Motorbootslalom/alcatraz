@@ -95,6 +95,12 @@ describe('Geschlecht: freiwilliges Starterfeld', () => {
     const vier = (['M', 'F', 'D', 'nA'] as const).map((g, i) => mk(`g${i}`, '1', 'Estland', { geschlecht: g }))
     const tsv = formatStartersTsv({ ...stand(), starters: vier })
     expect(parseStartersTsv(tsv).starters.map((p) => p.geschlecht)).toEqual(['M', 'F', 'D', 'nA'])
+    // Die Spalte folgt der Sprache der Oberfläche (16.11.2026); beide Fassungen lesen sich wieder ein.
+    const spalte = (text: string) => text.split('\n').slice(1).map((z) => z.split('\t').at(-1))
+    expect(spalte(tsv)).toEqual(['M', 'W', 'D', 'k. A.'])
+    const englisch = formatStartersTsv({ ...stand(), starters: vier }, 'en')
+    expect(spalte(englisch)).toEqual(['M', 'F', 'D', 'n/a'])
+    expect(parseStartersTsv(englisch).starters.map((p) => p.geschlecht)).toEqual(['M', 'F', 'D', 'nA'])
   })
 
   it('eine Liste ohne die Spalte löscht die Angabe nicht; der Export nennt sie nur, wenn es sie gibt', () => {

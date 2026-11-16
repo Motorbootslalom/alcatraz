@@ -81,7 +81,11 @@ describe('Verwiegung: Gewichtslisten drucken', () => {
     expect(koepfe[0]).toContain('MBC Nord')
     expect(listen.text()).toContain('Nach41')
     expect(listen.text()).not.toContain('Nach32')
-    // Danach steht in der Adresse nur der Reiter; die Wahl bleibt (gemerkt).
+    // Die Herkunft bleibt in der Adresse stehen (Entscheidung 16.11.2026) und folgt der Auswahl.
+    expect(location.hash).toBe('#/listen/gewicht/MBC%20Nord')
+    await auswahl.setValue(auswahl.findAll('option')[2].element.value)
+    expect(location.hash).toBe('#/listen/gewicht/MBC%20S%C3%BCd')
+    await auswahl.setValue(auswahl.findAll('option')[0].element.value)
     expect(location.hash).toBe('#/listen/gewicht')
     listen.unmount()
 

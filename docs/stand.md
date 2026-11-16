@@ -69,18 +69,22 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
 
 ## Ursprüngliche Ideenliste
 
-Die Liste stammt aus der Zeit vor den Prototypen;
-übernommen ist sie inhaltlich unverändert, nur Tippfehler sind berichtigt.
-Die Kästchen sind noch nicht nachgezogen; vieles davon kann Alcatraz inzwischen (siehe [funktionen.md](funktionen.md)).
+Die Liste stammt aus der Zeit vor den Prototypen; der Wortlaut der Ideen ist unverändert, nur Tippfehler sind berichtigt.
+Die Kästchen sind am 16.11.2026 gegen den Code nachgezogen.
+Hinter jeder Idee steht nach „→“, wo sie umgesetzt ist, oder was fehlt.
+„Teilweise“ und „offen“ heißen: noch zu entscheiden, ob es kommt oder verworfen wird.
 
 Hier nur eine grob sortierte Auflistung der meisten Ideen:
 
-- [ ] Verzahnung (Starter 1 Klasse 1, Starter 2 Klasse 4, Starter 3 Klasse 1, ...)
+- [x] Verzahnung (Starter 1 Klasse 1, Starter 2 Klasse 4, Starter 3 Klasse 1, ...)
+  → [Verzahnung](funktionen.md#verzahnung)
 - [ ] Ansicht für Wettkampfrichter
-  - [ ] Login und Rechtemodell ...
-  - [ ] Nächster Start wird erst freigegeben, wenn alle Wettkampfrichter den Lauf abgenickt haben
-  - [ ] Startnummer und Klasse muss sich vor jedem Start aktualisieren
-  - [ ] Starterseite
+  → offen: braucht mehrere Geräte; die Erfassung am eigenen Gerät ist im Datenmodell vorbereitet
+  (siehe [Was offen ist](#was-offen-ist))
+  - [ ] Login und Rechtemodell ... → offen; Alcatraz hat bisher bewusst keine Anmeldung
+  - [ ] Nächster Start wird erst freigegeben, wenn alle Wettkampfrichter den Lauf abgenickt haben → offen
+  - [ ] Startnummer und Klasse muss sich vor jedem Start aktualisieren → offen
+  - [ ] Starterseite → offen; Anzeigetafel und Startliste im Betrieb gibt es im Prototyp `tafel`, noch nicht übernommen
     - [ ] Anzeige von Informationen wie Startnummer, Name, Klasse und Lauf
     - [ ] Aufgeteilt nach 'Im Boot', 'Am Steg', 'Vor Steg'
     - [ ] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg)
@@ -89,37 +93,55 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
     - [ ] Starter rutschen automatisch hoch nach abgeschlossenem Lauf
     - [ ] Zeitplan (Pausen, Feierabend etc.) bei der Sortierung
     - [ ] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg
-- [ ] Gedruckte WKR-Listen
+- [x] Gedruckte WKR-Listen → [Wettkampfrichter-Listen](funktionen.md#wettkampfrichter-listen)
   - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)
+    → teilweise: Ein Bogen gilt je Klasse und Lauf, die Starter stehen darauf in der Startfolge der Verzahnung.
+    Nur bei der Clubmeisterschaft stehen mehrere Klassen auf einem Bogen, dann untereinander statt verzahnt.
   - [ ] leichte Grau- oder Farbtöne für andere Klassen
+    → offen: Auf gemeinsamen Bögen trennt eine Zwischenüberschrift die Klassen; grau ist nur jede fünfte Zeile.
     - [ ] Schikane (und andere nicht angefahrene Beobachtungspunkte) bei kleineren Klassen auf verzahnten Listen
-          ausgrauen
-  - [ ] Auch mehrere Klassen auf einer Seite (konfigurierbar)
+          ausgrauen → offen
+  - [x] Auch mehrere Klassen auf einer Seite (konfigurierbar)
+    → bei der Art „Clubmeisterschaft“ (Reiter „Veranstaltung“); Listen mit Parcoursbild bleiben je Klasse
     - Bei Clubmeisterschaften oder kleinen Wettkämpfen mit nur 1–2 Startern pro Klasse macht eine eigene Liste keinen
       Sinn
-  - [ ] Übertragung von Listen in das Programm mit gleicher Ansicht
-        (Browserformular und Beobachtungsliste sind identisch)
+  - [x] Übertragung von Listen in das Programm mit gleicher Ansicht
+        (Browserformular und Beobachtungsliste sind identisch) → [Erfassung](funktionen.md#erfassung)
     - Weniger fehleranfällig und einfache Kontrolle
   - [ ] Lauf kann erst 'abgeschlossen' werden, wenn alle Beobachtungslisten eingetragen & kontrolliert wurden
+    → teilweise, auf Papier: Der [Laufzettel](funktionen.md#laufzettel-und-qr-codes) hat ein Kästchen je Bogen und die
+    Schritte der Auswertung. Die Erfassung zeigt den Fortschritt je Bogen, sperrt aber nichts.
     - [ ] 4-Augen-Prinzip. Kontrolle muss mit einem anderen Wettkampfrichter/Benutzer erfolgen
-- [ ] Support für 'Spaßstarter'
+      → teilweise, auf Papier: „Geprüft“ und „Unterschrieben“ auf dem Laufzettel; in der App ohne Benutzer offen
+- [ ] Support für 'Spaßstarter' → offen
     - Ältere Starter fahren in jüngerer Klasse (zusätzlich zum eigentlichen Lauf)
     - Mit auf den Listen und bei der Erfassung
     - Mit im Aushang
     - Nicht in die Endwertung, aber mit Info für die Siegerehrung (Differenz zum eigentlichen Starter etc.)
-- [ ] Bei Clubmeisterschaft den Verein nicht anzeigen
-- [ ] Regel als Set hinterlegen (Deutsche Meisterschaftsregeln)
+- [x] Bei Clubmeisterschaft den Verein nicht anzeigen → Herkunft „ohne“ im Reiter „Veranstaltung“
+- [x] Regel als Set hinterlegen (Deutsche Meisterschaftsregeln)
+  → DM-Reglement (`dm-2026`), dazu UIM Regel 960 (`uim-2026`); [Regelwerke](funktionen.md#regelwerke-und-begriffe)
 - [ ] Regeln für die Veranstaltung auf Basis der DM-Regeln
+  → teilweise: Läufe, Streichläufe, zusätzliche Listen und eigene Aufbauten sind je Veranstaltung einstellbar;
+  einzelne Regeln abschalten oder überschreiben geht nicht.
   - Regeln können deaktiviert oder überschrieben werden
-- [ ] Verstöße werden mit Kürzel (A, B, C usw.) angegeben und dargestellt
-- [ ] Zeiten können im Format 1,2345 und 83,45 statt 1:23:45 eingegeben werden
+- [x] Verstöße werden mit Kürzel (A, B, C usw.) angegeben und dargestellt
+  → Buchstaben und Fehlercodes aus dem Regelwerk; [Aushang der Codes](funktionen.md#aushang-der-codes)
+- [x] Zeiten können im Format 1,2345 und 83,45 statt 1:23:45 eingegeben werden
+  → [Erfassung](funktionen.md#erfassung)
   - Umrechnung erfolgt für die Anzeige automatisch
-- [ ] Jede Berührung, jeder Strafpunkt wird einzeln erfasst und ist auch im Aushang entsprechend dargestellt
-- [ ] Vorsteg-Listen
+- [x] Jede Berührung, jeder Strafpunkt wird einzeln erfasst und ist auch im Aushang entsprechend dargestellt
+  → Erfasst wird je Tor und Boje (Start und Ziel getrennt nach L und R).
+  Die Wertungsliste eines Laufs zeigt die Punkte je Bogen des Fahrwegs und den Fehler-Schlüssel.
+- [x] Vorsteg-Listen → [Starterlisten und Vorsteg-Liste](funktionen.md#starterlisten-und-vorsteg-liste); dazu ein
+  Vorsteg-Bogen, der wie die übrigen Bögen erfasst und gewertet wird
   - Zum Laufabhaken und ggf. Punkte, wegen Schwimmwesten auf dem Steg ausgezogen
-- [ ] 3 Extra-Zeilen unter Beobachtungslisten
-- [ ] Aushanglisten
-  - [ ] Spätstarter (die nicht in der regulären Verzahnung fahren) werden oben (1. Platz) angezeigt
-  - [ ] Fehlerpunkte != Bojenberührungen werden als Buchstaben angezeigt
+- [x] 3 Extra-Zeilen unter Beobachtungslisten → Leerzeilen für Nachmeldungen, Zahl einstellbar
+  (Einstellungen → Wettkampfrichter-Listen)
+- [x] Aushanglisten → [Wertung und Wertungslisten](funktionen.md#wertung-und-wertungslisten)
+  - [x] Spätstarter (die nicht in der regulären Verzahnung fahren) werden oben (1. Platz) angezeigt
+    → Wer noch nicht gefahren ist, steht ohne Zeit auf Platz 1.
+  - [x] Fehlerpunkte != Bojenberührungen werden als Buchstaben angezeigt
     - Buchstaben über das gesamte Programm gleich
     - Nur die Buchstaben, die in der Aushangliste aufgeführt werden, werden als (optionale) Tabelle darunter angezeigt
+      → offen: Heute stehen alle Codes des Regelwerks auf einem eigenen Aushang, nicht nur die benutzten unter der Liste.

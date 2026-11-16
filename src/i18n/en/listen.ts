@@ -89,6 +89,7 @@ export default {
   'lists.duplex.blank': 'blank back',
 
   'runsheet.title': 'Checklist',
+  'runsheet.stepsElsewhere': 'Scoring: see the checklist for {zettel}',
   'runsheet.hint': 'A slip keeps together the loose sheets that belong together: one per course, class and attempt – at a club championship, where classes share sheets, one per course and attempt. It has a box for every printed page of every race officials\' sheet: after the attempt you can tick off whether all pages are back. A sheet without an attempt (knots) is on the slip of the last attempt; that slip has its own steps (not posted, but the overall results). The page counts are measured on the sheets as they are printed. What the selection shows is what gets printed.',
   'runsheet.count': '{n} checklist | {n} checklists',
   'runsheet.none': 'There is no checklist for this selection.',

@@ -79,9 +79,11 @@ const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
   'SET_PARCOURS_TRACKS',
   'RESET_TRACKS',
   // Die Startnummern stehen mit der Verzahnung fest: Sortieren verteilte sie neu (Entscheidung
-  // des Nutzers vom 15.11.2026). Verschieben einzelner Starter und Nummern von Hand gehen weiter.
+  // des Nutzers vom 15.11.2026), ebenso ▲▼ im Starter-Reiter (16.11.2026). Nummern von Hand gehen
+  // weiter – für Korrekturen.
   'ORDER_STARTERS',
   'SHUFFLE_STARTERS',
+  'MOVE_STARTER',
 ])
 
 /**

@@ -81,27 +81,6 @@ const gewichtWahl = merke<{ art: GewichtArt; klasse: string; team?: string; herk
   ueberNeuladen: true,
   gueltig: (x) => !!x && typeof x === 'object' && (GEWICHT_ARTEN as readonly unknown[]).includes((x as { art?: unknown }).art) && typeof (x as { klasse?: unknown }).klasse === 'string',
 })
-// Die Listenart steht auch in der Adresse: Nach einem Neuladen ist man wieder bei derselben Liste.
-// Die Adressen der früheren Reiter (`#/listen/verzahnt`, `#/listen/nach-klasse`) führen hierher
-// und wählen die passende Art.
-// Der Querverweis „Gewichtslisten drucken“ der Verwiegung (Entscheidung des Nutzers vom
-// 15.11.2026) gibt die dort gewählte Herkunft mit (`#/listen/gewicht/Musterclub`, `*` = alle):
-// Sie gilt für die Listen zum Eintragen, gefunden über denselben Schlüssel wie die Gruppen der
-// Verwiegung (Schreibweisen zusammengefasst).
-useReiter(
-  'listen',
-  kind,
-  KINDS,
-  (art) => {
-    if (istStarterArt(art)) starterWahl.value.art = art
-  },
-  (reiter, wahl) => {
-    if (reiter !== 'gewicht') return
-    const name = wahl.replace(/\s+/g, ' ').trim()
-    const herkunft = name === ALLE || name === '' ? ALLE : mannschaftSchluessel(name, state.value.originMode)
-    gewichtWahl.value = { ...gewichtWahl.value, art: 'herkunft', herkunft }
-  },
-)
 /** Die Arten, die es für die Veranstaltung gibt: die Liste je Team nur unter Regel 960 und mit einer Herkunft. */
 const gewichtArten = computed(() => GEWICHT_ARTEN.filter((a) => a !== 'team' || (parallel.value && state.value.originMode !== 'none')))
 const gewichtArt = computed<GewichtArt>(() => (gewichtArten.value.includes(gewichtWahl.value.art) ? gewichtWahl.value.art : 'herkunft'))
@@ -266,6 +245,31 @@ const starterAuswahl = computed(() => {
 
 /** Gewichtslisten zum Eintragen: die gewählte Herkunft in Worten – für Fenstertitel und Dateiname. */
 const gewichtAuswahl = computed(() => (gewichtHerkunft.value === ALLE ? '' : (alleHerkuenfte.value.find((h) => h.schluessel === gewichtHerkunft.value)?.name ?? '')))
+
+// Die Listenart steht auch in der Adresse: Nach einem Neuladen ist man wieder bei derselben Liste.
+// Die Adressen der früheren Reiter (`#/listen/verzahnt`, `#/listen/nach-klasse`) führen hierher
+// und wählen die passende Art.
+// Der Querverweis „Gewichtslisten drucken“ der Verwiegung (Entscheidung des Nutzers vom
+// 15.11.2026) gibt die dort gewählte Herkunft mit (`#/listen/gewicht/Musterclub`, `*` = alle):
+// Sie gilt für die Listen zum Eintragen, gefunden über denselben Schlüssel wie die Gruppen der
+// Verwiegung (Schreibweisen zusammengefasst).
+useReiter(
+  'listen',
+  kind,
+  KINDS,
+  (art) => {
+    if (istStarterArt(art)) starterWahl.value.art = art
+  },
+  (reiter, wahl) => {
+    if (reiter !== 'gewicht') return
+    const name = wahl.replace(/\s+/g, ' ').trim()
+    const herkunft = name === ALLE || name === '' ? ALLE : mannschaftSchluessel(name, state.value.originMode)
+    gewichtWahl.value = { ...gewichtWahl.value, art: 'herkunft', herkunft }
+  },
+  // Die gewählte Herkunft bleibt in der Adresse stehen (Entscheidung 16.11.2026) – „alle“ ist die Vorgabe
+  // und steht nicht da. Deshalb steht useReiter erst hier: Es schreibt die Adresse schon beim Aufbau.
+  () => (kind.value === 'gewicht' && gewichtArt.value === 'herkunft' && gewichtAuswahl.value ? gewichtAuswahl.value : undefined),
+)
 
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 

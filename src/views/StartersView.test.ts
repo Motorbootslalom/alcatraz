@@ -144,13 +144,19 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     expect(knopf.attributes('disabled')).toBeDefined()
     expect(knopf.attributes('title')).toContain('Die Verzahnung ist festgeschrieben')
     expect(wrapper.find('th button[data-sortier]').exists()).toBe(false)
-    // Verschieben bleibt nach dem Festschreiben möglich (nicht entschieden) – der Hinweis sagt das
-    // auch so (Prüfbefund zu Paket F, 16.11.2026: er nannte vorher das Verschieben mit).
+    // Auch ▲▼ ist nach dem Festschreiben gesperrt (Entscheidung 16.11.2026) – Knopf und Reducer.
+    // ▲▼ stehen unter „Bearbeiten“.
+    await wrapper.findAll('.class-section')[3].findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    const pfeile = wrapper.findAll('.class-section')[3].findAll('button.mv')
+    expect(pfeile.length).toBeGreaterThan(0)
+    expect(pfeile.every((b) => b.attributes('disabled') !== undefined)).toBe(true)
+    expect(pfeile[0].attributes('title')).toContain('Die Verzahnung ist festgeschrieben')
+    const vorher = store.state.value
     store.dispatch({ type: 'MOVE_STARTER', id: 'a', target: 'down' })
-    expect(store.state.value.starters.find((p) => p.id === 'a')!.startNr).toBe('302')
+    expect(store.state.value).toBe(vorher)
     const hinweis = wrapper.findAll('p.hint').map((p) => p.text()).find((x) => x.startsWith('Startnummern bleiben'))
-    expect(hinweis).toContain('„Sortierung ändern“ und „Zufall“ gehen nur, bis die Verzahnung festgeschrieben ist')
-    expect(hinweis).not.toContain('Verschieben, „Sortierung ändern“ und „Zufall“ verteilen nur die vorhandenen Nummern neu – das geht')
+    expect(hinweis).toContain('Verschieben, „Sortierung ändern“ und „Zufall“ ordnen die Starter neu')
+    expect(hinweis).toContain('alle drei gehen nur, bis die Verzahnung festgeschrieben ist')
     wrapper.unmount()
   })
 })

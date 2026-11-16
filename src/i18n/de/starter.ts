@@ -5,7 +5,7 @@ export default {
 
   'starters.title': 'Starter verwalten',
   'starters.hint':
-    'Startnummern bleiben, wie sie sind – auch importierte. Verschieben, „Sortierung ändern“ und „Zufall“ ordnen die Starter neu und verteilen dabei nur die vorhandenen Nummern; „Sortierung ändern“ und „Zufall“ gehen nur, bis die Verzahnung festgeschrieben ist. Wer eine Nummer von Hand ändert, bleibt an seinem Platz, bis die Liste mit „Sortieren“ neu geordnet wird.',
+    'Startnummern bleiben, wie sie sind – auch importierte. Verschieben, „Sortierung ändern“ und „Zufall“ ordnen die Starter neu und verteilen dabei nur die vorhandenen Nummern; alle drei gehen nur, bis die Verzahnung festgeschrieben ist. Wer eine Nummer von Hand ändert, bleibt an seinem Platz, bis die Liste mit „Sortieren“ neu geordnet wird.',
   'starters.birthdateMissing': 'fehlt',
   'starters.birthOutOfRange': 'Nicht übernommen: Geburtsjahr {year} passt nicht zu {class} – dort starten die Jahrgänge {from}–{to} (maßgeblich ist das Jahr der Veranstaltung).',
   'starters.birthOutOfRangeFor': 'Nicht übernommen für {name}: Geburtsjahr {year} passt nicht zu {class} – dort starten die Jahrgänge {from}–{to} (maßgeblich ist das Jahr der Veranstaltung).',
@@ -41,7 +41,7 @@ export default {
   'starters.order.desc': 'absteigend',
   'starters.order.random': 'Zufall',
   'starters.order.randomTitle': 'Zufällig mischen – jeder Klick mischt neu. Die vorhandenen Startnummern werden nur neu verteilt.',
-  'starters.order.locked': 'Sortieren gesperrt: Die Verzahnung ist festgeschrieben – die Startnummern bleiben, wie sie sind.',
+  'starters.order.locked': 'Sortieren und Verschieben gesperrt: Die Verzahnung ist festgeschrieben – die Startnummern bleiben, wie sie sind.',
   'starters.order.unsorted': 'Erst „Sortieren“: Die Liste steht nicht in der Reihenfolge der Startnummern.',
   'starters.order.all': 'Alle Klassen',
   'starters.order.allHint': 'Jede Klasse wird in sich sortiert; die Reihenfolge der Klassen bleibt.',
@@ -118,7 +118,11 @@ export default {
   'import.skip.unknownClass': 'unbekannte Klasse „{value}“',
   'import.skip.noName': 'kein Name',
   'import.sexUnknown': '{n} Angabe zum Geschlecht nicht erkannt ({values}) – das Feld bleibt leer; erkannt werden M, male, männlich; W, F, weiblich, female; D, divers, diverse; k. A., keine Angabe, n/a. | {n} Angaben zum Geschlecht nicht erkannt ({values}) – das Feld bleibt leer; erkannt werden M, male, männlich; W, F, weiblich, female; D, divers, diverse; k. A., keine Angabe, n/a.',
+  'import.duplicates':
+    '{n} Starter stand schon in seiner Klasse und wurde übergangen. | {n} Starter standen schon in ihrer Klasse und wurden übergangen.',
   'import.numbers.unchanged': 'Startnummern unverändert übernommen',
+  'import.numbers.kept':
+    '{n} Starter ohne Startnummer an Klasse und Namen wiedererkannt – bisherige Nummer behalten | {n} Starter ohne Startnummer an Klasse und Namen wiedererkannt – bisherige Nummern behalten',
   'import.numbers.allAssigned': 'keine Startnummern erkannt – je Klasse nach Größe vergeben',
   'import.numbers.someAssigned': '{n} Starter ohne Startnummer – ergänzt, alle anderen unverändert',
   'import.numbers.moved': 'außer {n} Nummer der gelisteten Klasse ({values}) – in einer anderen Klasse übernommen und dort neu vergeben | außer {n} Nummern der gelisteten Klassen ({values}) – in einer anderen Klasse übernommen und dort neu vergeben',

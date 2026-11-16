@@ -1,5 +1,5 @@
 import type { PlanState, ClassId, Starter } from '../types'
-import { parseGeschlecht } from '../domain/geschlecht'
+import { geschlechtKuerzel, parseGeschlecht } from '../domain/geschlecht'
 import { uid } from '../domain/ids'
 import { CLASS_IDS } from '../domain/classes'
 import { normalizeSize } from '../domain/sizes'
@@ -7,7 +7,7 @@ import { makeStartNr, orderBySize, parseClassNumber, sortedByStartNr, type Start
 import { planEvent } from '../planung/plan'
 import { canonicalRunningNumbers } from '../planung/running'
 import { originOf } from '../lib/origin'
-import { dublettenSchluessel } from './starterMerge'
+import { dublettenSchluessel, namensSchluessel } from './starterMerge'
 import { excelSeriennummer, liesDatum } from '../lib/datum'
 
 const TAB = '\t'
@@ -154,6 +154,10 @@ export interface ImportResult {
    * es „keine Startnummern erkannt“). Je Wert einmal, in der Folge des ersten Auftretens.
    */
   nummerEntfallen: { anzahl: number; werte: string[] }
+  /** IDs der Starter, deren Nummer erst der Import vergab – für `IMPORT_STARTERS` (zählt nicht zum Wiedererkennen). */
+  nummerVomImport: string[]
+  /** Starter ohne Nummer in der Quelle, die beim Ersetzen ihre bisherige behalten (`bisherige`). */
+  nummerBehalten: number
   /** Je Starter (gleicher Index wie `starters`) die Zeile der Quelle – für die Klassenprüfung der Vorschau. */
   zeilen: number[]
 }
@@ -174,6 +178,10 @@ export interface ImportResult {
  * wer als Dublette übergangen wird, bekommt keine. Beim Ersetzen bleibt es leer – die Liste
  * gilt als Ganzes.
  *
+ * `bisherige`: die Starter, die die Liste ersetzt („Liste ersetzen“). Wer ohne Nummer kommt und an
+ * Klasse und Namen wiedererkannt wird (wie in import/starterMerge.ts), behält seine bisherige Nummer,
+ * sofern die Liste sie nicht selbst vergibt; erst die übrigen bekommen neue (Entscheidung 16.11.2026).
+ *
  * `klasseJeZeile`: Zeilen (wie in `zeilen`), deren Starter in einer anderen Klasse als in der
  * Liste übernommen werden – der Vorschlag der Klassenprüfung, wenn der Jahrgang in eine andere
  * Klasse gehört (Entscheidung des Nutzers vom 15.11.2026). Eine klassenbasierte Nummer der
@@ -186,6 +194,7 @@ export function parseStartersTsv(
     landIstStaat?: boolean
     startNrPraefix?: StartNrPraefixe
     vorhandene?: readonly Starter[]
+    bisherige?: readonly Starter[]
     klasseJeZeile?: Readonly<Record<number, ClassId>>
   } = {},
 ): ImportResult {
@@ -200,7 +209,7 @@ export function parseStartersTsv(
   const nummerEntfallen = { anzahl: 0, werte: [] as string[] }
   const zeilen: number[] = []
   if (lines.length === 0) {
-    return { starters: [], usedHeader: false, imported: 0, assignedNumbers: 0, skipped, geschlechtUnbekannt, datumUnlesbar, nummerEntfallen, zeilen }
+    return { starters: [], usedHeader: false, imported: 0, assignedNumbers: 0, skipped, geschlechtUnbekannt, datumUnlesbar, nummerEntfallen, nummerVomImport: [], nummerBehalten: 0, zeilen }
   }
 
   const firstCells = lines[0].split(TAB)
@@ -264,9 +273,46 @@ export function parseStartersTsv(
   })
 
   // Klassenbasierte Nummern lassen sich ergänzen; klassische vergibt die Verzahnung.
-  const assignedNumbers = (options.assignMissing ?? true) ? fillMissingStartNumbers(starters, options.startNrPraefix, options.vorhandene) : 0
+  const ergaenzen = options.assignMissing ?? true
+  const nummerBehalten = ergaenzen && options.bisherige ? bisherigeNummern(starters, options.bisherige) : 0
+  const vergeben = ergaenzen ? fillMissingStartNumbers(starters, options.startNrPraefix, options.vorhandene) : []
 
-  return { starters, usedHeader, imported: starters.length, assignedNumbers, skipped, geschlechtUnbekannt, datumUnlesbar, nummerEntfallen, zeilen }
+  return {
+    starters,
+    usedHeader,
+    imported: starters.length,
+    assignedNumbers: vergeben.length,
+    skipped,
+    geschlechtUnbekannt,
+    datumUnlesbar,
+    nummerEntfallen,
+    nummerVomImport: vergeben.map((p) => p.id),
+    nummerBehalten,
+    zeilen,
+  }
+}
+
+/**
+ * Beim Ersetzen: Starter ohne Nummer, die an Klasse und Namen einem bisherigen entsprechen, bekommen
+ * dessen Nummer – außer die Liste vergibt sie selbst schon oder ein anderer hat sie eben bekommen.
+ * Liefert, wie viele so ihre Nummer behielten.
+ */
+function bisherigeNummern(starters: Starter[], bisherige: readonly Starter[]): number {
+  const nrKey = (p: Pick<Starter, 'klasse' | 'startNr'>) => `${p.klasse}|${p.startNr.trim().toUpperCase()}`
+  const belegt = new Set(starters.filter((p) => p.startNr.trim()).map(nrKey))
+  const nachName = new Map<string, Starter>()
+  for (const p of bisherige) if (p.startNr.trim() && !nachName.has(namensSchluessel(p))) nachName.set(namensSchluessel(p), p)
+  let behalten = 0
+  for (const p of starters) {
+    if (p.startNr !== '') continue
+    const alt = nachName.get(namensSchluessel(p))
+    if (!alt || belegt.has(nrKey(alt))) continue
+    p.startNr = alt.startNr.trim()
+    belegt.add(nrKey(alt))
+    nachName.delete(namensSchluessel(p))
+    behalten++
+  }
+  return behalten
 }
 
 /**
@@ -276,17 +322,17 @@ export function parseStartersTsv(
  * Fehlt in einer Klasse jede Nummer, wird nach Größe durchnummeriert; fehlen nur
  * einzelne, werden sie hinten angehängt (höchste Nummer + 1). Beim „Ergänzen“
  * zählen die Starter der Veranstaltung mit (`vorhandene`): Hat die Klasse dort schon
- * Starter, fehlen aus ihrer Sicht nur einzelne Nummern.
+ * Starter, fehlen aus ihrer Sicht nur einzelne Nummern. Liefert die Starter, die eine bekamen.
  */
-function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe, vorhandene: readonly Starter[] = []): number {
+function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe, vorhandene: readonly Starter[] = []): Starter[] {
   const uebergangen = new Set(vorhandene.map(dublettenSchluessel))
-  let assigned = 0
+  const assigned: Starter[] = []
   for (const klasse of CLASS_IDS) {
     const inClass = starters.filter((p) => p.klasse === klasse)
     const bisher = vorhandene.filter((p) => p.klasse === klasse)
     const missing = inClass.filter((p) => p.startNr === '' && !uebergangen.has(dublettenSchluessel(p)))
     if (missing.length === 0) continue
-    assigned += missing.length
+    assigned.push(...missing)
     if (bisher.length === 0 && missing.length === inClass.length) {
       // Ganze Klasse ohne Nummern → nach Größe vergeben.
       orderBySize(inClass).forEach((p, i) => {
@@ -305,12 +351,13 @@ function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe
  * Wie die Startnummern übernommen wurden – als Schlüssel für die Import-Vorschau
  * (die Oberfläche übersetzt: import.numbers.*).
  */
-export type StartNrImportNote = 'none' | 'unchanged' | 'allAssigned' | 'someAssigned'
+/** `kept`: keine Nummer neu vergeben, aber Starter ohne Nummer behielten beim Ersetzen ihre bisherige. */
+export type StartNrImportNote = 'none' | 'unchanged' | 'kept' | 'allAssigned' | 'someAssigned'
 
 export function startNrImportNote(res: ImportResult): StartNrImportNote {
   if (res.imported === 0) return 'none'
   const ergaenzt = ergaenzteNummern(res)
-  if (ergaenzt === 0) return 'unchanged'
+  if (ergaenzt === 0) return res.nummerBehalten > 0 ? 'kept' : 'unchanged'
   return ergaenzt === res.imported ? 'allAssigned' : 'someAssigned'
 }
 
@@ -339,8 +386,11 @@ function tsvRow(cells: (string | number)[]): string {
  * Teilnehmerliste als TSV (eine Zeile je Starter, nach Klasse und Startnummer
  * sortiert). Enthält die klassische Nummer, falls aktiviert. Round-trip-fähig:
  * lässt sich unverändert wieder importieren.
+ *
+ * Das Geschlecht steht in der Sprache der Oberfläche (`sprache`): deutsch M, W, D, k. A., englisch
+ * M, F, D, n/a – wie im Starter-Reiter (Entscheidung 16.11.2026). Der Import liest beide Schreibweisen.
  */
-export function formatStartersTsv(state: PlanState): string {
+export function formatStartersTsv(state: PlanState, sprache: 'de' | 'en' = 'de'): string {
   const running = canonicalRunningNumbers(state)
   // Die freiwilligen Spalten stehen nur da, wenn sie jemand gefüllt hat – sonst bleibt die Datei, wie sie war.
   // Der Staat heißt „Staat“, nicht „Land“: „Land“ läse der Import sonst als Bundesland (siehe `landIstStaat`).
@@ -375,7 +425,7 @@ export function formatStartersTsv(state: PlanState): string {
           ...(mitStaat ? [p.land ?? ''] : []),
           formatGeburtsdatum(p.geburtsdatum),
           p.groesse,
-          ...(mitGeschlecht ? [p.geschlecht ?? ''] : []),
+          ...(mitGeschlecht ? [p.geschlecht ? geschlechtKuerzel(p.geschlecht, sprache) : ''] : []),
         ]),
       )
     }

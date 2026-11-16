@@ -51,6 +51,7 @@ export default {
   'licences.title': 'Third-party components and licences',
   'licences.flags.countries': 'Country flags: package “country-flag-icons”, © 2020 @catamphetamine, under the MIT licence:',
   'licences.flags.states': 'Flags of the German states: drawings from Wikimedia Commons, public domain (official works) – for each state the flag anyone may fly.',
+  'licences.parcours': 'Racecourse drawings on the race official sheets and in the wizard:',
 
   // --- Darstellung: Farbschema und Hell/Dunkel ---
   'settings.jump': 'Jump to a section',

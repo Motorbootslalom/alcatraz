@@ -271,6 +271,9 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     for (const z of zettel) expect(z.findAll('.lz-oben .lz-liste li').map((l) => l.text().replace(/\s+/g, ' '))).toEqual(['Time', 'Pontoon', 'Parallel slalom'])
     expect(zettel[0].find('.lz-schritte').exists()).toBe(true)
     expect(zettel[1].find('.lz-schritte').exists()).toBe(false)
+    // Zettel B sagt, wo die Schritte stehen (Entscheidung 16.11.2026); A braucht den Verweis nicht.
+    expect(zettel[1].find('.lz-verweis').text()).toBe('Scoring: see the checklist for Racecourse A')
+    expect(zettel[0].find('.lz-verweis').exists()).toBe(false)
     wrapper.unmount()
   })
 

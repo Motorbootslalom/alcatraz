@@ -23,6 +23,11 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Update-Übergänge).
 - 2026-11-12 · N · Gestaltung „Steg“ (Wasserfarben, weiche Formen) mit der Reiter-Navigation in der Kopfzeile; Logo
   „A mit Welle“. → `styles/app.css` (Block „Gestaltung Steg“), `components/AppLogo.vue`
+- 2026-11-16 · N · Einzelne Vornamen dürfen in der Doku stehen (etwa in der Vorgeschichte, `docs/stand.md`) – nie mit
+  Nachname, Verein, Geburtsdatum oder Ergebnis. Für Tests und Bilder bleibt es bei erfundenen Daten.
+- 2026-11-16 · N · Namensnennung der Parcours-Zeichnungen: Es genügt der Vermerk in den Einstellungen unter „Fremde
+  Bestandteile und Lizenzen“, wie bei den Flaggen – Parcours und App betreut derselbe Verantwortliche. Bilder der Bögen
+  in der Doku brauchen keine eigene Quellenzeile. → `components/FremdeBestandteile.vue`
 
 ## Wertung DM (Manövrieren)
 
@@ -258,6 +263,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   `components/ParallelStartlisten.vue`, `styles/app.css`
 - 2026-11-15 · N · Startliste einer Parallel-Runde: die gemeinsame (A und B nebeneinander) und zusätzlich je Racecourse
   eine. → `components/ParallelStartlisten.vue`
+- 2026-11-16 · N · Die Herkunft der Gewichtslisten bleibt nach dem Link aus der Verwiegung in der Adresse stehen und
+  folgt der Auswahl, damit sich die Adresse weitergeben lässt; „alle“ steht nicht da. → `lib/router.ts`
+  `wahlFuerAdresse`, `views/ListsView.vue`
 
 ## Laufzettel und Erfassung
 
@@ -279,6 +287,10 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-15 · N · Erfassung Parallelslalom: Ist Racecourse A gewählt, erscheint nichts von B (auch nicht „alle
   untereinander“).
 - 2026-11-14 · N · Auswahl und aufgeklappte Blöcke überstehen ein Neuladen. → `lib/merken.ts`
+- 2026-11-16 · N · Laufzettel B des Parallelslaloms verweist auf die Schritte: „Auswertung: siehe Laufzettel Parcours
+  A“ (englisch „Scoring: see the checklist for Racecourse A“). → `components/ParallelLaufzettel.vue`
+- 2026-11-16 · N · Die Erfassung bleibt in der Sprache der Oberfläche, nicht der des Bogens: Am Auswertungsrechner tippt
+  eine Person die Bögen aller Parcours ab. Erfassen später Wettkampfrichter selbst, wird neu entschieden.
 
 ## Starter und Startnummern
 
@@ -343,6 +355,15 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   erkennt beide Schreibweisen (W, k. A., n/a …). Zu sehen ist das Geschlecht derzeit nur auf der Liste nach Pkt. 3.7
   (nur unter UIM, also immer englisch) und im Starter-Reiter; unter der DM steht es auf keiner Liste – deutsch
   erscheint es nur in der deutschen Oberfläche. → `domain/geschlecht.ts` geschlechtKuerzel, geschlechtAufListe
+- 2026-11-16 · N · „Starterliste kopieren“ schreibt das Geschlecht in der Sprache der Oberfläche (M, W, D, k. A. bzw.
+  M, F, D, n/a); der Import liest beides. → `import/tsv.ts` formatStartersTsv
+- 2026-11-16 · N · „Liste ersetzen“ ohne Startnummern: Wer an Klasse und Name wiedererkannt wird, behält seine bisherige
+  Nummer; Nummern, die erst der Import vergibt, zählen beim Wiedererkennen nicht – sonst erbte ein neuer Starter Gewicht
+  und Platz in der Verzahnung eines anderen. → `import/tsv.ts` `bisherige`, `import/starterMerge.ts` `nummerVomImport`
+- 2026-11-16 · N · Die Meldung nach „Ergänzen“ zählt nur die wirklich neuen Starter; übergangene (schon in ihrer Klasse)
+  nennt eine eigene Zeile. → `components/ExcelPanel.vue`
+- 2026-11-16 · N · ▲▼ im Starter-Reiter ist nach dem Festschreiben der Verzahnung gesperrt wie „Sortierung ändern“ und
+  „Zufall“; Startnummern von Hand bleiben frei, für Korrekturen. → `state/reducer.ts` VERZAHNUNG_ACTIONS
 
 ## Beispieldaten
 
@@ -369,6 +390,8 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   `FILL_BEISPIELGEWICHTE`
 - 2026-11-15 · N · Beispielwerte: Abweichung zwischen Racecourse A und B bleibt; wählbar, welche Stages/Runden Werte
   bekommen. → `lib/beispielwerte.ts`
+- 2026-11-16 · N · Die Zahlen im Beispieldaten-Block (Starter je Klasse, Herkünfte, Wahl der Beispielwerte) überstehen
+  ein Neuladen nur im selben Tab; das reicht. → `components/BeispieldatenPanel.vue`
 
 ## Begriffe
 
@@ -402,22 +425,19 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Mannschaftswertung, Urkunden-Daten als CSV/XLSX für Serienbriefe; Anzeigetafel zum Schluss. NKB-Qualifikation nur
   beschreiben (viel später). Essenkarten entfallen.
 
-## Entschieden, noch nicht umgesetzt (Stand 2026-11-15)
+## Entschieden, noch nicht umgesetzt (Stand 2026-11-16)
 
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
 
-- Derzeit nichts.
+- 2026-11-16 · N · Logos auf den Listen, eines links und eines rechts im Kopf. Bei der WM links das Logo des Ausrichters,
+  rechts das der UIM. Die Logos lädt der Nutzer selbst hoch; das Repo enthält keine fremden Logos. Offen: welche
+  Listen, Größe, Vorgabe unter der DM, Platz neben dem QR-Code der WKR-Bögen.
 
 ## Offen
 
 - Geburtstags-Ausnahme des DM-Reglements (ME ab dem 6. Geburtstag, M7 bis zum 27. Geburtstag): abschaltbar in den
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
-- Hinweis „Auswertung: siehe Zettel A“ auf Laufzettel B des Parallelslaloms (`lib/parallelBogen.ts` rundenZettel).
-- Beispieldaten: ob die Zahlen nur je Reiter stehen sollen (`components/BeispieldatenPanel.vue`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
-- Sprache der Erfassung: bisher die der Oberfläche (Festlegung bei der Umsetzung von Paket E, nicht vom Nutzer
-  entschieden). Offen, ob ihre Spaltenköpfe der Sprache des Bogens folgen sollen, von dem abgetippt wird (je Liste und
-  Parcours bzw. Racecourse). → `lib/konfig.ts` useKonfig `oberflaeche`, `views/ErfassungView.vue`
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
 - Mehrgeräte-Betrieb (Anzeigetafel, Startlisten) über ntfy: noch nicht übernommen; der Server ist mit dem Nutzer
   abgestimmt (Hostname bewusst nicht im Repo).

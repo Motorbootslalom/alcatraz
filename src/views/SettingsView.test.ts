@@ -461,9 +461,10 @@ describe('Einstellungen: WKR-Einteilung und Beispielansicht', () => {
     expect(reihenfolge.indexOf('Wettkampfrichter-Listen')).toBeLessThan(reihenfolge.indexOf('Eigene Aufbauten'))
     // Die Beispieldaten stehen bei der Veranstaltung, nicht mehr hier.
     expect(reihenfolge).not.toContain('Beispieldaten')
-    // Ganz am Ende, zugeklappt: die Lizenzvermerke fremder Bestandteile (Flaggen).
+    // Ganz am Ende, zugeklappt: die Lizenzvermerke fremder Bestandteile (Flaggen, Parcours-Zeichnungen).
     expect(reihenfolge.slice(-2)).toEqual(['Dateien', 'Fremde Bestandteile und Lizenzen'])
     expect(wrapper.find('#lizenzen').text()).toContain('Permission is hereby granted')
+    expect(wrapper.find('#lizenzen .parcours-nachweis').text()).toContain('CC BY-NC-SA 4.0')
     expect(wrapper.find('[data-action="beispielwerte"]').exists()).toBe(false)
     wrapper.unmount()
   })

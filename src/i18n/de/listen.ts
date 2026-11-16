@@ -87,6 +87,7 @@ export default {
   'lists.duplex.blank': 'leere Rückseite',
 
   'runsheet.title': 'Laufzettel',
+  'runsheet.stepsElsewhere': 'Auswertung: siehe Laufzettel {zettel}',
   'runsheet.hint': 'Ein Zettel hält die losen Blätter zusammen, die zusammengehören: je Parcours, Klasse und Lauf – bei der Clubmeisterschaft, wo sich die Klassen Bögen teilen, je Parcours und Lauf. Darauf steht ein Kästchen für jede gedruckte Seite jeder Wettkampfrichter-Liste: Nach dem Lauf lässt sich abhaken, ob alle Seiten zurück sind. Eine Liste ohne Lauf (Knoten) steht auf dem Zettel des letzten Laufs; er hat eigene Arbeitsschritte (kein Aushang, dafür das Gesamtergebnis). Die Seitenzahlen sind an den Bögen gemessen, so wie sie gedruckt werden. Gedruckt wird, was die Auswahl zeigt.',
   'runsheet.count': '{n} Laufzettel | {n} Laufzettel',
   'runsheet.none': 'Für diese Auswahl gibt es keinen Laufzettel.',

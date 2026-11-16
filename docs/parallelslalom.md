@@ -135,6 +135,7 @@ Der Laufzettel nennt seinen Racecourse und öffnet nur dessen Listen.
 - Er dient dazu, die richtigen Blätter einzusammeln und zusammenzuhalten.
 - Die Schritte der Auswertung (Ergebnisse sortiert, geprüft, unterschrieben, ausgehängt, an die Mannschaftsleiter
   geschickt) stehen nur auf Zettel A – die Runde wird einmal ausgewertet.
+  Zettel B sagt an derselben Stelle, wo sie stehen: „Auswertung: siehe Laufzettel Parcours A“ (16.11.2026).
 - Passen die Kästchen auch dicht gesetzt nicht, sagt es der Zettel; nichts wird zu Seitenbereichen zusammengefasst.
 
 ## Erfassung im Parallelslalom

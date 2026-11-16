@@ -24,7 +24,11 @@ export function verlustText(stand: Pick<AppState, 'eingaben'>, entfallen: Iterab
  * nicht wiedererkennt – auch, wer in der neuen Liste in einer anderen Klasse steht (er gilt
  * als neu, siehe import/starterMerge.ts).
  */
-export function verlustBeimErsetzen(stand: Pick<AppState, 'eingaben' | 'starters'>, neu: Starter[]): { zahl: number; text: string } {
-  const zahl = verlustZahl(stand, mergeStarters(stand.starters, neu).removed)
+export function verlustBeimErsetzen(
+  stand: Pick<AppState, 'eingaben' | 'starters'>,
+  neu: Starter[],
+  nummerVomImport: readonly string[] = [],
+): { zahl: number; text: string } {
+  const zahl = verlustZahl(stand, mergeStarters(stand.starters, neu, 'bisher', new Set(nummerVomImport)).removed)
   return { zahl, text: zahl > 0 ? tn('entries.lossImport', zahl) : '' }
 }

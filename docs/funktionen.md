@@ -68,6 +68,17 @@ Herkunft (Verein, Bundesland, Land oder ohne), Regelwerk und Aufbau auf.
 Der Reiter „Starter“ führt die Starter je Klasse.
 Sie kommen von Hand oder über den Austausch mit Excel (Import und Export).
 Startnummern gibt es klassenbasiert (E01, 101 …) oder klassisch (fortlaufend).
+
+Austausch mit Excel (`src/components/ExcelPanel.vue`, `src/import/tsv.ts`, `src/import/starterMerge.ts`):
+
+- **Liste ersetzen** erkennt bisherige Starter an Klasse und Startnummer, dann an Klasse und Name wieder;
+  sie behalten ihre ID und damit Gewicht und Platz in der Verzahnung.
+  Kommt die Liste ohne Startnummern, behält ein Wiedererkannter seine bisherige Nummer;
+  Nummern, die erst der Import vergibt, zählen beim Wiedererkennen nicht (16.11.2026).
+- **Ergänzen** fügt nur neue Starter hinzu. Die Meldung zählt nur, wer wirklich dazukam,
+  und nennt die übergangenen eigens (16.11.2026).
+- **Starterliste kopieren** schreibt das Geschlecht in der Sprache der Oberfläche
+  (M, W, D, k. A. bzw. M, F, D, n/a); der Import liest beide Schreibweisen.
 „Automatisch vergeben“ nummeriert klassenbasiert jede Klasse in ihrer aktuellen Reihenfolge,
 klassisch in der Startreihenfolge der Verzahnung.
 Was ab wann gesperrt ist und was geprüft wird, steht unter [Sperren und Prüfungen](#sperren-und-prüfungen).
@@ -124,7 +135,8 @@ gezeichnet von einer Komponente (`src/components/HerkunftText.vue`).
   - Staaten: alle rund 250 Staaten und Gebiete aus dem Paket
     [country-flag-icons](https://www.npmjs.com/package/country-flag-icons)
     (MIT-Lizenz, © 2020 @catamphetamine), Fassung 3:2.
-    Der Lizenzvermerk steht auch in der Anwendung selbst (Einstellungen → „Fremde Bestandteile und Lizenzen“),
+    Der Lizenzvermerk steht auch in der Anwendung selbst (Einstellungen → „Fremde Bestandteile und Lizenzen“,
+    dort seit 16.11.2026 auch die Namensnennung der Parcours-Zeichnungen),
     damit er mit der Ein-Datei-Fassung weitergegeben wird.
   - Bundesländer: `src/flaggen/bundeslaender/` – je Land die **Landesflagge, die jedermann führen darf** (Zivilflagge),
     nicht die den Behörden vorbehaltene Dienstflagge mit Wappen.
@@ -134,6 +146,9 @@ gezeichnet von einer Komponente (`src/components/HerkunftText.vue`).
 ## Verwiegung
 
 - Gewichtslisten je Herkunft zum Eintragen beim Check-in.
+  Der Link „Gewichtslisten drucken“ in der Verwiegung öffnet sie für die dort gewählte Herkunft.
+  Die Herkunft steht danach in der Adresse (`#/listen/gewicht/<Herkunft>`) und folgt der Auswahl;
+  so lässt sich die Adresse weitergeben (16.11.2026).
 - Die Erfassung der Gewichte im Reiter „Verwiegung“.
 - Die Liste „Ausgleichsgewichte“ für den Steg:
   je Klasse ein Blatt nach Startnummer mit dem Ausgleichsgewicht und einem Kästchen je Lauf.
@@ -500,7 +515,8 @@ Die Punkte mit Datum sind Entscheidungen vom 15.11.2026.
   - „Zufall“ mischt jedes Mal neu (Saat in der Action).
   - Die vorhandenen Startnummern werden nur neu verteilt
     (`src/lib/reihenfolge.ts`, Actions `ORDER_STARTERS`/`SHUFFLE_STARTERS`, Verlauf „Reihenfolge geändert“).
-  - Gesperrt, sobald die Verzahnung festgeschrieben ist (`VERZAHNUNG_ACTIONS`).
+  - Gesperrt, sobald die Verzahnung festgeschrieben ist (`VERZAHNUNG_ACTIONS`),
+    ebenso ▲▼ unter „Bearbeiten“ (`MOVE_STARTER`, 16.11.2026). Startnummern von Hand bleiben frei, für Korrekturen.
 - **WKR-Listen drucken** (15.11.2026): Die Bögen des Manövrierens und ihre Laufzettel lassen sich erst drucken,
   wenn die Verzahnung festgeschrieben ist („Erst danach darf ich WKR-Listen drucken“).
   Vorher ist „Drucken“ gesperrt, und ein Hinweis führt zur Verzahnung.

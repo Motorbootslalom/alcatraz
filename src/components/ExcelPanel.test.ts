@@ -125,6 +125,34 @@ describe('Einfügen aus Excel: Klasse gegen Geburtsjahr, Sperre nach den ersten 
     await wrapper.findAll('.row button').find((b) => b.text() === 'Ergänzen')!.trigger('click')
     const nummern = store.state.value.starters.map((s) => `${s.nachname}:${s.startNr}`)
     expect(nummern).toEqual(['Alt1:101', 'Alt2:102', 'Alt3:103', 'Alt4:104', 'Alt5:105', 'Alt6:106', 'Nach1:107', 'Nach2:108'])
+    // Die Meldung zählt nur, wer wirklich dazukam, und nennt den übergangenen eigens (16.11.2026).
+    const meldung = wrapper.find('[role="status"].boat-banner')
+    expect(meldung.text()).toContain('✓ 2 Starter übernommen')
+    expect(meldung.find('[data-hinweis="uebergangen"]').text()).toBe('1 Starter stand schon in seiner Klasse und wurde übergangen.')
+    wrapper.unmount()
+  })
+
+  // Entscheidung 16.11.2026: Nummern, die erst der Import vergibt, zählen beim Wiedererkennen nicht.
+  it('„Liste ersetzen“ ohne Startnummern: Wiedererkannte behalten Nummer und Gewicht, Neue erben nichts', async () => {
+    // Erfunden: Klasse 1 hat 101–103 mit Gewichten; die neue Liste ohne Nummern hat Alt2, Alt3 und Neu1.
+    store.dispatch({
+      type: 'IMPORT_STARTERS',
+      mode: 'replace',
+      starters: [1, 2, 3].map((n) => ({ id: `alt${n}`, startNr: `10${n}`, klasse: '1' as const, nachname: `Alt${n}`, vorname: 'X', verein: '', bundesland: '', geburtsdatum: '', groesse: '', gewicht: 40 + n })),
+    })
+    const wrapper = ansicht()
+    await wrapper.find('.export-head button[aria-expanded]').trigger('click')
+    await wrapper.find('textarea').setValue('Klasse\tNachname\tVorname\n1\tNeu1\tY\n1\tAlt3\tX\n1\tAlt2\tX')
+    await wrapper.find('.row button.primary').trigger('click')
+    const [neu, ...bisher] = store.state.value.starters
+    // Vorher bekam Neu1 nach Größe die 101 und damit Platz und Gewicht von Alt1 (die anderen ebenso vertauscht).
+    expect(neu.id).not.toMatch(/^alt/)
+    expect(`${neu.nachname}:${neu.startNr}:${neu.gewicht ?? '-'}`).toBe('Neu1:104:-')
+    expect(bisher.map((s) => `${s.id}:${s.nachname}:${s.startNr}:${s.gewicht}`)).toEqual(['alt3:Alt3:103:43', 'alt2:Alt2:102:42'])
+    const meldung = wrapper.find('[role="status"].boat-banner').text()
+    expect(meldung).toContain('✓ 3 Starter übernommen')
+    expect(meldung).toContain('1 Starter ohne Startnummer – ergänzt, alle anderen unverändert')
+    expect(meldung).toContain('2 Starter ohne Startnummer an Klasse und Namen wiedererkannt – bisherige Nummern behalten')
     wrapper.unmount()
   })
 

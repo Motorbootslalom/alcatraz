@@ -193,6 +193,16 @@
   font-size: 12pt;
 }
 
+/* Zettel B des Parallelslaloms: statt der Schritte der Verweis auf Zettel A, am selben Platz. */
+.lz-verweis {
+  flex: none;
+  margin: 3mm 0 0;
+  padding-top: 2.5mm;
+  border-top: 0.4mm solid var(--blatt-linie);
+  font-size: 11pt;
+  font-weight: 700;
+}
+
 /* Form „eine Zeile je Seite“: das Kästchen vorn, dahinter Liste und Seite. Alle Kästchen
    stehen in einer Flucht; ein langer Name bricht hinter dem Kästchen um. */
 .lz-je-seite li {

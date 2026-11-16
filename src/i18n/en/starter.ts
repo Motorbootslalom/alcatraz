@@ -7,7 +7,7 @@ export default {
 
   'starters.title': 'Manage drivers',
   'starters.hint':
-    'Race numbers stay as they are – imported ones too. Moving, “Change order” and “Random” reorder the drivers and only redistribute the existing numbers; “Change order” and “Random” are possible only until the interleaving is locked. A driver whose number is changed by hand stays in place until the list is reordered with “Sort”.',
+    'Race numbers stay as they are – imported ones too. Moving, “Change order” and “Random” reorder the drivers and only redistribute the existing numbers; all three are possible only until the interleaving is locked. A driver whose number is changed by hand stays in place until the list is reordered with “Sort”.',
   'starters.birthdateMissing': 'missing',
   'starters.birthOutOfRange': 'Not accepted: year of birth {year} does not fit {class} – the years {from}–{to} start there (the year of the event counts).',
   'starters.birthOutOfRangeFor': 'Not accepted for {name}: year of birth {year} does not fit {class} – the years {from}–{to} start there (the year of the event counts).',
@@ -43,7 +43,7 @@ export default {
   'starters.order.desc': 'descending',
   'starters.order.random': 'Random',
   'starters.order.randomTitle': 'Shuffle – every click shuffles anew. The existing race numbers are only redistributed.',
-  'starters.order.locked': 'Sorting locked: the interleaving is locked – the race numbers stay as they are.',
+  'starters.order.locked': 'Sorting and moving locked: the interleaving is locked – the race numbers stay as they are.',
   'starters.order.unsorted': 'First “Sort”: the list is not in race-number order.',
   'starters.order.all': 'All classes',
   'starters.order.allHint': 'Each class is sorted within itself; the order of the classes stays.',
@@ -120,7 +120,10 @@ export default {
   'import.skip.unknownClass': 'unknown class “{value}”',
   'import.skip.noName': 'no name',
   'import.sexUnknown': '{n} value for sex not recognised ({values}) – the field stays empty; recognised are M, male, männlich; F, W, female, weiblich; D, diverse, divers; n/a, not specified, k. A., keine Angabe. | {n} values for sex not recognised ({values}) – the field stays empty; recognised are M, male, männlich; F, W, female, weiblich; D, diverse, divers; n/a, not specified, k. A., keine Angabe.',
+  'import.duplicates': '{n} driver was already in the class and was skipped. | {n} drivers were already in their class and were skipped.',
   'import.numbers.unchanged': 'race numbers taken over unchanged',
+  'import.numbers.kept':
+    '{n} driver without a race number recognised by class and name – previous number kept | {n} drivers without a race number recognised by class and name – previous numbers kept',
   'import.numbers.allAssigned': 'no race numbers found – assigned by size within each class',
   'import.numbers.someAssigned': '{n} drivers without a race number – added, all others unchanged',
   'import.numbers.moved': 'except {n} race number of the listed class ({values}) – taken over in another class and reassigned there | except {n} race numbers of the listed classes ({values}) – taken over in another class and reassigned there',

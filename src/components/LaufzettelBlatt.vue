@@ -35,6 +35,8 @@ const props = defineProps<{
   qr: string
   schritteTitel?: string
   schritte: string[]
+  /** Ohne eigene Schritte: wo sie stehen (Parallelslalom, Zettel B → „siehe Laufzettel Racecourse A“). */
+  schritteVerweis?: string
   /** Sprache des Zettels (lib/listensprache.ts); fehlt = die der Oberfläche. */
   sprache?: Locale
 }>()
@@ -102,7 +104,7 @@ async function fit() {
 }
 onMounted(fit)
 // Die Zeilen ändern sich, sobald die Seitenzahlen der Bögen gemessen sind.
-watch(() => [JSON.stringify(props.zeilen), props.schritte.join('\n'), props.titel, props.layout], fit)
+watch(() => [JSON.stringify(props.zeilen), props.schritte.join('\n'), props.schritteVerweis, props.titel, props.layout], fit)
 watch(zuViel, (z) => emit('zuviel', z))
 </script>
 
@@ -151,6 +153,7 @@ watch(zuViel, (z) => emit('zuviel', z))
               <li v-for="(s, i) in schritte" :key="i"><span class="lz-kasten" />{{ s }}</li>
             </ul>
           </div>
+          <p v-else-if="schritteVerweis" class="lz-verweis">{{ schritteVerweis }}</p>
         </div>
       </div>
     </div>

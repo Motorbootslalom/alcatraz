@@ -57,7 +57,8 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
   Tests, die WKR-Bögen oder Laufzettel drucken, schreiben vorher die Verzahnung fest (SET_VERZAHNUNG_LOCK).
 - Sobald Werte erfasst sind, sind Regelwerk und Starterfeld gesperrt (components/StarterSperre.vue).
   Tests: src/testHilfen.ts wechsleRegelwerk; UIM points des Manövrierens erst mit knotenHaken.
-- ListsView: useReiter steht NACH gewichtWahl – `beiWahl` läuft schon beim Aufbau und setzt sie (sonst TDZ-Fehler).
+- ListsView: useReiter steht NACH gewichtWahl und gewichtAuswahl – `beiWahl` setzt die eine, `wahlFuerAdresse` liest
+  die andere schon beim Aufbau (sonst TDZ-Fehler). Die gewählte Herkunft bleibt in der Adresse (`#/listen/gewicht/…`).
 - Unter DM gibt es keinen Parallelslalom – auch nicht in Texten und Hinweisen (config/catalog.ts hasParallel).
 - Dateinamen und Titel von Downloads folgen der Oberflächensprache (englisch: „backup“, Datum yyyy-mm-dd).
 - Testdaten nur erfunden (Muster views/Laufzettel.test.ts: `Vor${klasse}${i}`, `Nach…`, 'Musterclub').

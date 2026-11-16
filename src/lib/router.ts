@@ -105,16 +105,21 @@ export function useReiter<V extends ReiterView, T extends ReiterNamen[V]>(
   beiAlterArt?: (art: string) => void,
   /**
    * Eine Auswahl, die ein Querverweis in der Adresse mitgibt (`#/listen/gewicht/Musterclub`,
-   * lib/adressen.ts `wahl`): Die Ansicht übernimmt sie, danach steht in der Adresse wieder nur
-   * der Reiter – die Auswahl selbst merkt sich die Ansicht (lib/merken.ts).
+   * lib/adressen.ts `wahl`): Die Ansicht übernimmt sie; gemerkt wird sie dort (lib/merken.ts).
    */
   beiWahl?: (reiter: T, wahl: string) => void,
+  /**
+   * Was danach als Auswahl in der Adresse steht (`undefined` = nur der Reiter). Sie folgt der
+   * Auswahl ohne Schritt im Verlauf – so lässt sich die Adresse kopieren und weitergeben
+   * (Entscheidung 16.11.2026, Herkunft der Gewichtslisten). Ohne diese Angabe nur der Reiter.
+   */
+  wahlFuerAdresse?: () => string | undefined,
 ): void {
   const hier = () => ort().view === view
   const schreibe = (ersetzen: boolean) => {
     // Ein Verweis mit Sprungziel (`…?wertung`) bleibt, wie er ist.
     if (!hier() || location.hash.includes('?')) return
-    const ziel = schreibeAdresse(BUCH, locale.value, view, { reiter: wahl.value })
+    const ziel = schreibeAdresse(BUCH, locale.value, view, { reiter: wahl.value, wahl: wahlFuerAdresse?.() })
     if (location.hash === ziel) return
     if (ersetzen) location.replace(ziel)
     else location.hash = ziel
@@ -137,6 +142,8 @@ export function useReiter<V extends ReiterView, T extends ReiterNamen[V]>(
   }
   lies()
   watch(wahl, () => schreibe(false))
+  // Nach dem Reiter registriert: Wechselt beides zugleich, steht die Adresse schon und dies tut nichts.
+  if (wahlFuerAdresse) watch(wahlFuerAdresse, () => schreibe(true))
   window.addEventListener('hashchange', lies)
   onUnmounted(() => window.removeEventListener('hashchange', lies))
 }

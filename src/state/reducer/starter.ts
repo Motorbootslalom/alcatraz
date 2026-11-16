@@ -25,7 +25,8 @@ export type StarterAenderung =
    * `auswahlAusDatei`: Die Quelle kennt die Auswahl für die Pokalauswertung (Teilnehmerdaten-
    * Datei) – sie gilt dann wie geladen. Ohne (Excel) bleibt eine bestehende Abwahl stehen.
    */
-  | { type: 'IMPORT_STARTERS'; starters: Starter[]; mode: 'replace' | 'merge'; auswahlAusDatei?: true }
+  /** `nummerVomImport`: IDs der Starter, deren Nummer erst der Import vergab – zählt nicht zum Wiedererkennen. */
+  | { type: 'IMPORT_STARTERS'; starters: Starter[]; mode: 'replace' | 'merge'; auswahlAusDatei?: true; nummerVomImport?: string[] }
   /** `beispiel`: erfundene Starter aus den Beispieldaten – das Feld gilt danach als Beispiel-Starterfeld. */
   | { type: 'ADD_STARTERS'; starters: Starter[]; beispiel?: boolean }
   | { type: 'UPDATE_STARTER'; id: string; patch: Partial<Omit<Starter, 'id'>> }
@@ -82,7 +83,7 @@ export function wendeStarterAn(state: AppState, action: StarterAenderung): AppSt
     case 'IMPORT_STARTERS': {
       if (action.mode === 'replace') {
         // Die Liste gilt als Ganzes: Es ist nicht mehr das Beispiel-Starterfeld.
-        return { ...mitStartern(state, mergeStarters(state.starters, action.starters, action.auswahlAusDatei ? 'datei' : 'bisher').starters), beispielStarter: false }
+        return { ...mitStartern(state, mergeStarters(state.starters, action.starters, action.auswahlAusDatei ? 'datei' : 'bisher', new Set(action.nummerVomImport)).starters), beispielStarter: false }
       }
       const seen = new Set(state.starters.map(dublettenSchluessel))
       return { ...state, starters: state.starters.concat(action.starters.filter((p) => !seen.has(dublettenSchluessel(p)))) }
