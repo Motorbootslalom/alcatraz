@@ -3,11 +3,12 @@
 Statische Browser-App ohne Server, die die Excel-Auswertung für Motorbootslalom (Schlauchbootslalom) ersetzt:
 Starter, Verzahnung, Verwiegung, WKR-Bögen, Laufzettel, Erfassung, Wertungs-, Einzel- und Mannschaftswertung, Druck;
 am Wettkampftag Start-Freigabe, Anzeigetafel im zweiten Fenster, Startliste mit Wartezeiten und Zuschauerliste,
-unter UIM auch für den Parallelslalom (Plan zur Übernahme der Tafel, 16.11.2026: E1–E4).
+unter UIM auch für den Parallelslalom (Plan zur Übernahme der Tafel, 16.11.2026: E1–E4; E5 = Übertragungskern für
+andere Geräte über ntfy, noch ohne Oberfläche und von der App nicht geladen).
 Regelwerke: DM-Reglement (`dm-2026`) und UIM Regel 960 „Formula Future“ (`uim-2026`, mit Parallelslalom).
 Daten nur im Browser (localStorage + IndexedDB-Verlauf, Sicherung als Datei); GitHub Pages oder eine HTML-Datei.
 
-Technik: Vue 3 `<script setup lang="ts">`, TypeScript strict, Vite 7, Vitest + happy-dom, js-yaml.
+Technik: Vue 3 `<script setup lang="ts">`, TypeScript strict, Vite 7, Vitest + happy-dom, js-yaml; tweetnacl (geraete/).
 Kein Router- und kein Store-Paket: Hash-Router `lib/router.ts`, eigener reiner Reducer `state/reducer.ts`.
 
 ## Befehle
@@ -38,6 +39,7 @@ src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/St
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
 src/lib/         *    reine Logik: Wertung, Parallelslalom, Pokal, Bögen, Listen, Laufzettel, QR, Verlauf, Offline
 src/betrieb/     *    Betrieb am Wettkampftag, rein: Folge (abgeleitet), Lage, Schritte, Sicht, Prognose, BETRIEB_ANNAHMEN
+src/geraete/     *    Gerätebetrieb über ntfy (ab E5, ohne Oberfläche): transport/ (Protokoll, Leitung, Host/Gerät), Themen, Führung, Fensterbus, Ablage (gerätelokal)
 src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/, anzeige/, betrieb/, zuschauer/
 src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Betrieb, Erfassung, Settings
 src/domain/           Klassen, Startnummern, Kürzel, Staaten, Flaggen, Gewicht, Geschlecht, Beispielstarter
@@ -124,6 +126,10 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Startliste, Wartezeiten („ca. in“, Zum Vorsteg) | betrieb/prognose.ts (Messung auf dem Stand, wartezeiten auf dem Bildschirm), components/betrieb/StartListe.vue, lib/uhr.ts; Vorgabe einstellungen.yaml `startabstaende` → config/catalog.ts startabstandOf |
 | Zuschauerliste | betrieb/sicht.ts sichtZuschauer (Schlüssel-Test), components/zuschauer/ZuschauerListe.vue, styles/zuschauer.css; i18n zuschauer.* (Tafel-Sprache) |
 | Parallelslalom im Betrieb (UIM) | betrieb/folge.ts parallelFolge (Ref aus fest.starts, leere Seite, `paar`), SichtStart.paar (sicht.ts), Schritte gesperrt/Paar als Einheit in state/reducer/betrieb.ts; AnzeigeBereich.vue (A/B); texte.ts tBereich (`….runde`-Texte) |
+| Geräte: Nachrichten, Signatur, Leitung zu ntfy | geraete/transport/protokoll.ts (Arten, PROTOKOLL_FASSUNG), ntfy/wire.ts, ntfy/leitung.ts (NTFY_ZEITEN), ntfy/transport.ts (Host/Gerät); Tests mit ntfy/testNtfy.ts |
+| … Themen, Vorgabe-Server | geraete/themen.ts (`NTFY_VORGABE` – einzige Stelle des Hostnamens) |
+| … wo Raum/Schlüssel liegen | geraete/ablage.ts ABLAGE (`alcatraz.geraete.*`, `alcatraz.geraet.*`), nie AppState |
+| … welches Fenster verbindet, wo Geräte-Actions angewandt werden | geraete/fuehrung.ts (Web Locks, Lease), geraete/fensterbus.ts (Schreibfenster, 1 s Rückfall) |
 
 ## Feste Regeln
 
@@ -147,6 +153,9 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 - Betrieb (16.11.2026): „Anzeigetafel“ (Code `anzeige`; „Tafel“ ist das Aushangbrett), „Start-Freigabe“. Tafel und
   Start-Freigabe lesen NUR die öffentliche Sicht (betrieb/sicht.ts) – nie Geburtsdatum, Gewicht, Geschlecht, Werte.
   Das Tafel-Fenster schreibt nie (state/leseStore.ts). Der Betrieb schreibt nie in `eingaben`.
+- Gerätebetrieb (ab E5): Raum, Schlüssel und Register nur gerätelokal (geraete/ablage.ts), nie im AppState, also nie
+  in Sicherung, Vorlage oder Verlauf; nichts aus geraete/ im Reducer. Auf die Leitung nur Sichten, nie der AppState;
+  Fehler als Codes. Den Server bekommt der Transport immer von außen (Vorgabe nur themen.ts NTFY_VORGABE).
 - Druck: Seitenzahlen zählt jede Liste selbst, nie der Browser; Rand oben/unten höchstens 8 mm (sonst druckt
   Chromium Kopf- und Fußzeilen); Listenfarben nur über --blatt-* (styles/blatt.css).
 - „X“ = nicht gestartet (lib/abmeldung.ts) muss in jedem Regelwerk stehen; „O“ wird nie vergeben.

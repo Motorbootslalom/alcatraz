@@ -8,7 +8,9 @@ Für Agenten und Entwickler gibt es dazu die Projektkarte [CLAUDE.md](../CLAUDE.
 ## Inhalt
 
 - [Aufbau](#aufbau)
+- [Abhängigkeiten](#abhängigkeiten)
 - [Offline-Speicher](#offline-speicher)
+- [Gerätebetrieb: Sicherheitsmodell](#gerätebetrieb-sicherheitsmodell)
 - [Entwickeln](#entwickeln)
 - [Tests](#tests)
 
@@ -43,6 +45,26 @@ Aufbau von `src/`:
 
 Die vollständige Ordnerkarte steht in [CLAUDE.md](../CLAUDE.md).
 
+## Abhängigkeiten
+
+In der ausgelieferten App stecken nur wenige fremde Pakete (`package.json`, `dependencies`):
+
+| Paket | Wofür | Lizenz |
+|---|---|---|
+| `vue` | Oberfläche | MIT |
+| `js-yaml` | Regelwerke und Aufbauten (YAML) | MIT |
+| `qrcode-generator` | QR-Codes auf Bögen und Laufzetteln | MIT |
+| `vuedraggable` (mit `sortablejs`) | Ziehen in Verzahnung und Startliste | MIT |
+| `tweetnacl` | Verschlüsselung und Signaturen im Gerätebetrieb (`src/geraete/`, ab Etappe E5) | Unlicense (gemeinfrei) |
+
+Dazu kommen die Flaggenbilder aus `country-flag-icons` (MIT; als Entwicklungsabhängigkeit eingetragen, weil nur die
+Bilder beim Bauen übernommen werden). Alle Vermerke zeigt die App unter „Einstellungen → Fremde Bestandteile und
+Lizenzen“ (`src/components/FremdeBestandteile.vue`) – die Ein-Datei-Fassung wird ohne README weitergereicht.
+
+`tweetnacl` (1.0.3, wie im Prototyp `tafel`; Plan vom 16.11.2026) statt WebCrypto: `crypto.subtle` fehlt außerhalb
+sicherer Kontexte und kann unter `file://` bei undurchsichtiger Herkunft fehlen, tweetnacl läuft überall.
+Solange nichts außerhalb von `src/geraete/` es lädt (Etappe E5), steckt es noch nicht im Bündel.
+
 ## Offline-Speicher
 
 Was Auswerter davon sehen und tun müssen, steht in [betrieb.md](betrieb.md).
@@ -71,6 +93,38 @@ Was Auswerter davon sehen und tun müssen, steht in [betrieb.md](betrieb.md).
   Sie steht im gespeicherten Text, aber nicht im Stand und nie in einer Datei.
 - Die Tests benutzen statt der IndexedDB des Browsers `fake-indexeddb` (nur zum Testen).
 - `public/manifest.webmanifest` macht die Pages-Fassung installierbar.
+
+## Gerätebetrieb: Sicherheitsmodell
+
+Stand Etappe E5 (16.11.2026): Der Übertragungskern ist gebaut und getestet, die App nutzt ihn noch nicht.
+Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offline); Ordnerkarte `src/geraete/CLAUDE.md`.
+
+- **Ein fremder Server, kein eigener:** Nachrichten gehen über einen ntfy-Server (Vorgabe `ntfy.adminforge.de`,
+  änderbar). Er sieht Themen, Zeitpunkte, Größen und IP-Adressen, aber keine Inhalte.
+- **Der Bedienrechner ist die einzige Wahrheit.** Geräte bekommen nie den Stand der Veranstaltung, sondern eine
+  zugeschnittene Sicht (`src/betrieb/sicht.ts`: nie Geburtsdatum, Gewicht, Geschlecht). Geräte schicken nur
+  Änderungswünsche; prüfen und anwenden tut allein der Bedienrechner.
+- **Verschlüsselt und signiert:** Sichten je Gruppe mit einem gemeinsamen Schlüssel (secretbox), Nachrichten an ein
+  Gerät und von einem Gerät an dessen bzw. den Schlüssel des Bedienrechners (box). Jede Nachricht des
+  Bedienrechners ist signiert (Ed25519) – samt Thema, Raum, Gruppe, Nummer, Fassung und Sendezeit. Eine alte,
+  erneut eingestellte Nachricht verliert gegen die neueste; ein Gerät ohne eigenen Stand nimmt nur Frisches (höchstens
+  2 Stunden alt). „Andere Fassung, Update nötig“ meldet ein Gerät nur mit einem signierten Fassungsbeleg.
+- **Themen:** Die beiden öffentlichen (Anzeigetafel-Link, Zuschauer-Link) sind Zufall und stehen nur in ihrem Link;
+  der Zuschauer-Link lässt sich erneuern, ohne die Anzeigetafel zu stören. Alle übrigen leiten sich aus einem
+  Geheimnis des Bedienrechners ab und erfahren nur gekoppelte Geräte.
+- **Gegen Störung:** Der Bedienrechner lädt nie einen Anhang; Geräte nur nach signierter Ankündigung, mit Prüfsumme
+  und höchstens 256 kB. Anmeldungen Unbekannter öffnet er nur auf Koppel-Themen und gedrosselt je Thema, auf dem
+  Thema der gekoppelten Geräte gar nicht; Ablehnungen und zweite Antworten kosten ihn nur wenige Veröffentlichungen.
+  Jede Nachricht eines Geräts trägt eine fortlaufende Nummer; der Bedienrechner merkt sich die letzte dauerhaft,
+  auch über ein Neuladen hinweg. Schlüsselwechsel und Entzug stehen im Raum, bis ntfy sie angenommen hat.
+- **Ein Fenster führt:** Mit ntfy verbindet nur ein Fenster des Bedienrechners (Web Locks, sonst eine Lease im
+  localStorage); angewandt wird im zuletzt bedienten Fenster (Fensterbus), damit es bei einem Schreiber bleibt. Geht
+  das führende Fenster in den Back/Forward-Cache, gibt es die Führung ab.
+- **Schlüssel bleiben auf dem Gerät:** Raum, Schlüssel und Geräteliste liegen im localStorage dieses Browsers
+  (`alcatraz.geraete.*`, auf Geräten `alcatraz.geraet.*`), nie in Sicherung, Vorlage oder Verlauf. Sie liegen dort im
+  Klartext (wer den Rechner hat, hat ohnehin den Stand); ein anderer Rechner heißt neuer Raum. Auf Geräten läuft eine
+  abgelegte Sicht nach 36 Stunden ab; Kennung und Nummernfolge eines Geräts liegen in einem Eintrag und gehen nur
+  zusammen verloren („Raum verlassen“ heißt neu koppeln mit neuem Schlüssel).
 
 ## Entwickeln
 

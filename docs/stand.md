@@ -55,8 +55,12 @@ ohne Netz – mit Zurückstellen, anderem Starter, Verschieben, „Boot fehlt“
 und „Einsteigen ab …“; dazu die Startliste im Betrieb mit Wartezeiten („ca. in“, „Zum Vorsteg“) aus gemessenen
 Startabständen und die Zuschauerliste in einem eigenen Fenster. Unter UIM auch der Parallelslalom (E4): Runden als
 Punkte, Paare mit Racecourse A und B auf der Anzeigetafel, ohne Wartezeiten
-([Parallelslalom](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)). Es folgen in Etappen: Anzeigetafel,
-Zuschauer und Start-Freigabe auf anderen Geräten (verschlüsselt über ntfy).
+([Parallelslalom](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)). Mit E5 ist der Übertragungskern
+für andere Geräte übernommen (`src/geraete/`, noch ohne Oberfläche): verschlüsselt und signiert über einen
+ntfy-Server, mit den Lücken des Prototyps geschlossen (Anmeldung unter fremder Geräte-ID, doppelte Ausführung,
+Verlust während einer Trennung, Anhänge vor der Prüfung, Flut von Anmeldungen, zwei führende Fenster); dazu Führung
+über Web Locks, Fensterbus und die gerätelokale Ablage ([technik.md](technik.md#gerätebetrieb-sicherheitsmodell)).
+Es folgen in Etappen: Anzeigetafel und Zuschauer über Lese-Links (E6), Start-Freigabe auf dem Handy (E7).
 
 **Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
 (`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).
@@ -72,9 +76,10 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
 ## Was offen ist
 
 - Erfassung durch die Wettkampfrichter am eigenen Gerät (im Datenmodell vorbereitet).
-- **Mehrere Geräte:** Die Anzeigetafel läuft heute im zweiten Fenster am Bedienrechner (ohne Netz). Für Anzeigetafel,
-  Start-Freigabe und Startlisten auf anderen Geräten ist die verschlüsselte Übertragung über einen ntfy-Server
-  vorgesehen (Prototyp `tafel`, noch nicht übernommen).
+- **Mehrere Geräte:** Die Anzeigetafel läuft heute im zweiten Fenster am Bedienrechner (ohne Netz). Die
+  verschlüsselte Übertragung über einen ntfy-Server ist gebaut und getestet (E5, `src/geraete/`), aber noch nicht
+  eingebunden: Lese-Links für Anzeigetafel und Zuschauer (E6), Koppeln und Start-Freigabe vom Handy (E7), Feldtest mit
+  echten Handys und echtem Server (E8).
 - Aus der Excel-Auswertung: Urkunden-Daten u. a.
 - Was fachlich entschieden, aber noch offen ist: [entscheidungen.md](entscheidungen.md#offen).
 

@@ -45,7 +45,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
   HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop,
-  ParcoursNachweis, FremdeBestandteile.
+  ParcoursNachweis, FremdeBestandteile (Lizenzvermerke: Flaggen mit MIT-Text, tweetnacl, Parcours; neues Paket in
+  `dependencies` → hier nennen, Test FremdeBestandteile.test.ts).
 
 ## Abläufe
 

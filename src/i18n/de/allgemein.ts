@@ -51,6 +51,7 @@ export default {
   'licences.title': 'Fremde Bestandteile und Lizenzen',
   'licences.flags.countries': 'Flaggen der Staaten: Paket „country-flag-icons“, © 2020 @catamphetamine, unter der MIT-Lizenz:',
   'licences.flags.states': 'Flaggen der Bundesländer: Zeichnungen von Wikimedia Commons, gemeinfrei (amtliche Werke) – je Land die Landesflagge, die jedermann führen darf.',
+  'licences.tweetnacl': 'Verschlüsselung und Signaturen im Betrieb mit anderen Geräten: Paket „tweetnacl“ (TweetNaCl.js), gemeinfrei nach „The Unlicense“.',
   'licences.parcours': 'Parcours-Zeichnungen auf den Wettkampfrichter-Listen und im Assistenten:',
 
   // --- Darstellung: Farbschema und Hell/Dunkel ---
