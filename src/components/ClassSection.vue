@@ -180,7 +180,7 @@ function meldungenWeg() {
 
 // Die Klasse steht hier nicht zur Wahl: Ein Starter gehört in die Klasse seines Jahrgangs. Der
 // Reducer lehnt einen Klassenwechsel außerdem ab, sobald Verzahnung bzw. Startplan
-// festgeschrieben sind (state/reducer.ts `klasseFest`).
+// festgeschrieben sind (state/reducer/starter.ts `klasseFest`).
 function update(id: string, field: keyof Omit<Starter, 'id' | 'klasse' | 'geburtsdatum'>, e: Event) {
   meldungenWeg()
   dispatch({ type: 'UPDATE_STARTER', id, patch: { [field]: (e.target as HTMLInputElement).value } })

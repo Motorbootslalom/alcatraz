@@ -5,9 +5,9 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 
 ## Dateien
 
-- YAML: `regelwerke.yaml` (IDs, erste = Vorgabe), `regelwerke/dm-2026.yaml` (Kopf beschreibt alle Felder; Länder
-  nach IOC wie die UIM), `regelwerke/uim-2026.yaml` (en-Texte, IOC-Kürzel, wertungJeDisziplin.parallel, Aushang, Laufzettel, UIM points),
-  `aufbauten.yaml` (Reihenfolge `dateien`, Parameterbeschreibung), `aufbauten/gemeinsam.yaml` (Disziplin
+- YAML: `regelwerke.yaml` (IDs, erste = Vorgabe), `regelwerke/dm-2026.yaml` (Kopf beschreibt alle Felder; Länder nach
+  IOC wie die UIM), `regelwerke/uim-2026.yaml` (en-Texte, IOC-Kürzel, wertungJeDisziplin.parallel, Aushang, Laufzettel,
+  UIM points), `aufbauten.yaml` (Reihenfolge `dateien`, Parameterbeschreibung), `aufbauten/gemeinsam.yaml` (Disziplin
   manoevrieren, Positionen zeit/steg/vorsteg/knoten/tor5/mueb/parcours), `aufbauten/parallel.yaml`,
   `aufbauten/{alcatraz,frontal,berlin,bawue,moewe}.yaml` (Tor-Positionen in Kurzform), `einstellungen.yaml`
   (Bojen-Kürzel, Beschriftungen, Laufzettel-Vorgabe, pokalPunkte), `i18n/en.yaml` (Englisch nach deutschem Wortlaut).
@@ -27,14 +27,13 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 - YAML → Konfig: konfig.ts glob → quellDateien + mergePositionen → configFor(wahl) [Memo-Schlüssel = JSON von
   regelwerk, sprache, beschriftung, eigene; max. 12] → eigene.ts brauchbareEigene → kurzform.ts aufloesen →
   baue() (Regelwerk + Positionen, laufzettel-Override) → build.ts buildConfig → Konfig.
-- Stand → Bogen: lib/konfig.ts useBogenKonfig (Sprache je Parcours und Liste) → configFor → lib/wkrListen.ts → lib/bogen.ts.
-- Regelwerk wählen: SET_REGELWERK → catalog.ts regelwerkOf → Läufe/Streichläufe, versucheNacheinander, Vorlaufplan.
+- Stand → Bogen: lib/konfig.ts useBogenKonfig (Sprache je Parcours/Liste) → configFor → lib/wkrListen.ts → lib/bogen.ts.
+- Regelwerk wählen (state/reducer/regelwerk.ts) → regelwerkOf → Läufe/Streichläufe, versucheNacheinander, Vorlaufplan.
 
 ## Wo ändere ich …
 
 - Disq-Buchstabe: regelwerke/<id>.yaml `disqualifikationen: { code, text, en, bereiche }` (`en` nur bei `sprachen`);
-  Großbuchstabe, nie O; Bereiche vorsteg|steg|parcours|mueb, Position wählt per `disq:`; regelwerke.test.ts erwartet
-  je Position die volle Buchstabenliste (`buchstaben('steg')`) – dort ergänzen.
+  Großbuchstabe, nie O; Bereiche vorsteg|steg|parcours|mueb (Position: `disq:`); regelwerke.test.ts ergänzen (s. Tests).
 - Fehlercode: `kataloge.<katalog>.fehler { code, text, en, punkte }` (über alle Kataloge eindeutig) oder `direktpunkte`.
 - Neue Regelwerk-Angabe: YAML (Beleg als Kommentar) → schema.ts RawRegelwerk → validate.ts ConfigInput (eigene
   Kopie!) + Prüfung → build.ts RegelwerkInfo/regelwerkInfo() → catalog.ts Regelwerk/readRegelwerk(). Nur für
@@ -47,12 +46,12 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
   Kopf der Unter-Spalten ≠ Kennung: `subKopf` (Start/Ziel nur „L“/„R“, `sub` bleibt „hin seiteB“); gewöhnliche
   Linie statt des gepunkteten Positions-Standards: `subTrenner: linie` (CSS bogen.css/erfassung.css `…-linie`).
 - Laufzettel: einstellungen.yaml `laufzettel` bzw. Regelwerk `laufzettel` (ersetzt je Schlüssel titel/schritte/
-  schritteLetzterLauf); Übersetzung lib/laufzettelText.ts SCHRITTE + runsheet.step.* in de.ts/en.ts.
+  schritteLetzterLauf); Übersetzung lib/laufzettelText.ts SCHRITTE + runsheet.step.* in i18n de/+en/listen.ts.
 - Mannschaftswertung: einstellungen.yaml pokalPunkte; Regelwerk `pokal`; neue Variante: schema, pokal.ts, validate.
 
 ## Fallen
 
-- Drei Textsysteme: Oberfläche/Listen in i18n/de.ts+en.ts; Regelwerk/Positionen in YAML (`en`, `titelEn`,
+- Drei Textsysteme: Oberfläche/Listen in i18n/de/+en/ (Bereichsdateien); Regelwerk/Positionen in YAML (`en`, `titelEn`,
   `fehlerHinweisEn`, i18n/en.yaml nach deutschem Wortlaut); feste Bogen-/Legendentexte in sprache.ts bzw. build.ts.
 - Übersetzungen hängen am exakten deutschen Wortlaut (en.yaml, lib/ergebnisText.ts SPALTEN, laufzettelText.ts
   SCHRITTE). Deutschen Text ändern ⇒ Zuordnung mitziehen, sonst MISSING_EN oder Deutsch auf englischer Liste.
@@ -60,13 +59,12 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 - Unter `sprachen: [de, en]` ist jede fehlende Übersetzung ein Fehler (MISSING_EN), bei eigenen nur EN_TITEL_FEHLT.
 - Parallelslalom: Positionen/Spalten ohne `klassen` (PARALLEL_KLASSEN). configFor, ROH_* sind tief eingefroren –
   nie verändern; catalog.ts kennt keine eigenen Aufbauten.
-- YAML-Kommentare tragen Belege (Reglement, Regel 960 Pkt.) und Nutzerentscheidungen mit Datum – mitpflegen.
-  Veraltet: Verweise auf `npm run config:sync`/`config:check`, scripts/*-config.ts, public/config/ gibt es nicht;
-  geprüft wird in validate.test.ts.
+- YAML-Kommentare tragen Belege (Reglement, Regel 960 Pkt.) und Nutzerentscheidungen mit Datum – mitpflegen. Veraltet
+  (gibt es nicht): `npm run config:sync`/`config:check`, scripts/*-config.ts, public/config/; geprüft: validate.test.ts.
 - Parcours-SVGs nie von Hand ändern (Quelle: Parcours-Repo, lib/parcoursVertrag.ts, lib/parcoursQuelle.test.ts).
 
 ## Tests
 
-`npx vitest run src/config src/i18n` (validate.test.ts prüft die echten YAML; regelwerke.test.ts feste Buchstaben
-und Codes; Snapshot `__snapshots__/kurzform.test.ts.snap`, erneuern: `npx vitest run src/config/kurzform -u`).
-Typen: `npx vue-tsc -b`. Bei Wertung/Texten zusätzlich src/lib/ergebnis, parallelErgebnis, einzelwertung, pokal, disq.
+`npx vitest run src/config src/i18n` (validate.test.ts prüft die echten YAML; regelwerke.test.ts feste Codes und je
+Position die volle Buchstabenliste, `buchstaben('steg')`; Snapshot `__snapshots__/kurzform.test.ts.snap`; erneuern und
+Typen: Wurzelkarte). Bei Wertung/Texten zusätzlich src/lib/ergebnis, parallelErgebnis, einzelwertung, pokal, disq.

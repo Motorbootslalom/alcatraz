@@ -575,7 +575,7 @@ export function starterfeldFest(stand: Pick<AppState, 'eingaben'>): boolean {
 /**
  * Ein Stand, in dem es nichts zu schützen gibt: keine Starter (Entscheidung des Nutzers vom
  * 15.11.2026: „als leerer Stand gilt: keine Starter“) – vor dem Anlegen einer Veranstaltung oder
- * nach „Alles zurücksetzen“. Erfasste Werte gibt es ohne Starter nicht (state/reducer.ts
+ * nach „Alles zurücksetzen“. Erfasste Werte gibt es ohne Starter nicht (state/reducer/starter.ts
  * `mitStartern`, state/migrate.ts). Nur dann übernimmt die Anwendung eine neue Fassung von selbst
  * (lib/offline.ts); sonst wechselt sie allein auf „Update“.
  */

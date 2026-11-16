@@ -22,24 +22,23 @@ npm run build:all                               # dist/ (Pages, mit sw.js) und d
 ```
 
 Volle Suite: rund 120 Testdateien, 35–45 s. Geänderte package.json/vite.config.ts lassen test:geaendert alles laufen.
-Ist CLAUDECODE oder AI_AGENT gesetzt, wählt Vitest von selbst die knappe Ausgabe wie test:leise; sonst volle Ausgabe.
-CI (.github/workflows/ci.yml): `npm run check` + `npm run build:all` unter Node 24.
+Mit CLAUDECODE/AI_AGENT gibt Vitest knapp aus wie test:leise. CI (.github/workflows/ci.yml): check + build:all, Node 24.
 
 ## Ordnerkarte (* = eigene CLAUDE.md im Ordner, wird beim Lesen dort geladen)
 
 ```
-src/types.ts          AppState, Starter, Eingaben, ParallelRunde, SheetDef/Column; SCHEMA_VERSION = 1
+src/types.ts, types/  Sammelpunkt (SCHEMA_VERSION = 1, welcher Typ wo); types/zustand (AppState), starter, planung, wertung, einstellungen, bogen (SheetDef)
 src/main.ts, App.vue  Store anlegen, Offline starten; Kopf, Reiter (lib/adressen.ts VIEWS), Banner, Fuß
-src/state/       *    Store, reiner Reducer (alle Actions, Sperren), migrate(), Tor-5-Umzug, zweiter Speicher
+src/state/       *    Store, reiner Reducer (reducer.ts: Einstieg, Sperren; reducer/<bereich>.ts: die Actions), migrate(), Tor 5, zweiter Speicher
 src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/Starter (backup.ts)
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
 src/lib/         *    reine Logik: Wertung, Parallelslalom, Pokal, Bögen, Listen, Laufzettel, QR, Verlauf, Offline
-src/components/  *    Blätter und Panels: bogen/, ergebnis/, pokal/, erfassung/; ListenDokument teilt Seiten
+src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/; ListenDokument teilt Seiten
 src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Erfassung, Settings
 src/domain/           Klassen, Startnummern, Kürzel, Staaten, Flaggen, Gewicht, Geschlecht, Beispielstarter
 src/planung/          Verzahnung, Boote, laufende Nummern, Parallelslalom: Paarung, Runden, Re-run
 src/import/           Excel/TSV-Import und -Export der Starter, Zusammenführen, Klassenprüfung
-src/i18n/             de.ts (Quelle aller Schlüssel), en.ts (gleiche Schlüssel), t()/tIn()/texteIn()
+src/i18n/        *    de.ts (Quelle aller Schlüssel), en.ts: setzen de/, en/ nach Bereichen zusammen; t()/tIn()/texteIn()
 src/data/             erfundene Namen und Clubs für Beispieldaten
 src/flaggen/          Flaggenbilder: Staaten aus country-flag-icons, Bundesländer als SVG (LIESMICH.md)
 src/assets/parcours/  Parcours-SVGs, nur per `npm run parcours:sync` (QUELLE.json, CC BY-NC-SA 4.0)
@@ -67,11 +66,11 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 
 | Aufgabe | Stellen (Pfade ab src/) |
 |---|---|
-| Neue Einstellung (AppState) | types.ts → reducer.ts emptyState/Action/case → migrate.ts `stand` → SettingsView.vue |
-| … Fortsetzung | de.ts+en.ts; backup.ts nur bei Veranstaltungs-/Personendaten; lib/verlauf.ts ARTEN optional |
+| Neue Einstellung (AppState) | types/zustand.ts → state/reducer/<bereich>.ts Action + case (emptyState: reducer/veranstaltung.ts), case-Zeile in reducer.ts → migrate.ts `stand` → SettingsView.vue |
+| … Fortsetzung | i18n de/+en/listenoptionen.ts (listopt.*); backup.ts nur bei Veranstaltungs-/Personendaten; lib/verlauf.ts ARTEN optional |
 | … Sonderfälle | nur UIM: SettingsView `v-if="parallel"`, Muster parallelZebra; Wertung: lib/listenStand.ts WERTUNG |
-| Bedientext | i18n/de.ts UND en.ts; auf Listen useListenSprache()/texteIn(), nicht t() |
-| Spaltenkopf Wertungsliste | i18n results.*, individual.col.*; Fahrweg: config/kurzform.ts + ergebnisText SPALTEN |
+| Bedientext | i18n/de/<bereich>.ts UND en/<bereich>.ts (Präfix → Datei: i18n/CLAUDE.md); auf Listen useListenSprache()/texteIn(), nicht t() |
+| Spaltenkopf Wertungsliste | i18n results.*, individual.col.* (de/+en/wertung.ts); Fahrweg: config/kurzform.ts + ergebnisText SPALTEN |
 | Spaltenfolge Wertungsliste | components/ergebnis/*Blatt.vue: colgroup, thead, tbody gleich ändern (+ `erg-gruppe`) |
 | Spalte/Titel WKR-Bogen | config/aufbauten/gemeinsam+parallel.yaml `spalten[].label`; Tor-Spalten kurzform.ts FAHRWEG |
 | … Englisch, feste Texte | config/i18n/en.yaml (nach deutschem Wortlaut); config/sprache.ts bogenTexte() |
@@ -79,7 +78,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Läufe, Stichentscheid | Regelwerk-YAML `wertungslaeufe`/`stichentscheid`; lib/ergebnis.ts; STICH_KRITERIEN |
 | Wertung Parallelslalom | lib/parallelErgebnis.ts PARALLEL_ANNAHMEN, parallelStage.ts; uim-2026.yaml |
 | Re-run: Wertung | lib/parallelErgebnis.ts qualifikation, mitWiederholung(en), rundenVermerke; „*“: durchWiederholung |
-| Re-run: Runde, Name | planung/parallelRunden.ts rerunRunde/zerlegeRerun/rundenName + sprache.ts bogenTexte().runde |
+| Re-run: Runde, Name | planung/parallelRunden.ts rerunRunde/zerlegeRerun/rundenName + sprache.ts bogenTexte().runde (Rundennamen doppelt: beide) |
 | Einzelwertung | lib/einzelwertung.ts EINZEL_FESTLEGUNGEN; lib/disziplinen.ts (nichtWerten) |
 | Mannschaftswertung | config/einstellungen.yaml pokalPunkte; Regelwerk-YAML `pokal`; config/pokal.ts; lib/pokal.ts |
 | Laufzettel-Schritte | config/einstellungen.yaml `laufzettel` (Regelwerk ersetzt je Schlüssel); lib/laufzettelText.ts |
@@ -87,27 +86,27 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Seiten der WKR-Bögen | lib/paging.ts, lib/bogen.ts bogenSeiten; Stand wkrZeilenJeSeite/wkrTeilenAb/wkrLeerzeilen* |
 | Seiten ausgleichen | lib/paging.ts gruppenSeiten/gruppenKapazitaet (Nutzer: bogen.ts, parallelBogen.ts) |
 | Seiten der übrigen Listen | lib/seiten.ts listenSeiten (füllt auf, gleicht nicht aus; `gebunden`); ListenDokument.vue; mm ↔ CSS |
-| Listenart unter „Listen“ | views/ListsView.vue KINDS; lib/adressen.ts; i18n lists.kind.*; lib/doppelseitig.ts |
+| Listenart unter „Listen“ | views/ListsView.vue KINDS; lib/adressen.ts; i18n lists.kind.* (de/+en/listen.ts); lib/doppelseitig.ts |
 | Sprache der WKR-Bögen | lib/listensprache.ts wkrSpracheFuer(stand, parcoursId, typeId); lib/konfig.ts useBogenKonfig |
 | Beispielansicht der Bögen | components/WkrVorschau.vue (Name nur Anzeige); Parallel: lib/parallelBogen.ts musterRundenBoegen |
 | Druckdatei | lib/druckdatei.ts DRUCKDATEI_TEILE/druckdateiFolge; components/DruckdateiListen.vue |
-| Neue Ansicht/Reiter | lib/adressen.ts VIEWS/ADRESSEN; App.vue `<main>`; i18n nav.* |
+| Neue Ansicht/Reiter | lib/adressen.ts VIEWS/ADRESSEN; App.vue `<main>`; i18n nav.* (de/+en/allgemein.ts) |
 | Länder, Kürzel, Flaggen | domain/staaten.ts, kuerzel.ts, flaggen.ts; flaggen/bilder.ts; YAML `laenderKuerzel` |
-| Starterfeld/Importspalte | types.ts Starter → migrate.ts normalizeStarter → import/tsv.ts HEADER_ALIASES, Export |
+| Starterfeld/Importspalte | types/starter.ts Starter → migrate.ts normalizeStarter → import/tsv.ts HEADER_ALIASES, Export |
 | … Abgleich beim Import | import/starterMerge.ts FIELDS + Merge-Regel bei freiwilliger Spalte (Muster geschlecht) |
-| Startnummern | domain/startnumbers.ts (parseClassNumber); YAML `startNrPraefix`; reducer.ts assignStartNumbers |
-| Reihenfolge im Starter-Reiter | lib/reihenfolge.ts (Spalten, stabil, mische); ClassSection.vue, StartersView.vue; ORDER_/SHUFFLE_STARTERS |
+| Startnummern | domain/startnumbers.ts (parseClassNumber); YAML `startNrPraefix`; state/reducer/startnummern.ts assignStartNumbers |
+| Reihenfolge im Starter-Reiter | lib/reihenfolge.ts (Spalten, stabil, mische); ClassSection.vue, StartersView.vue; ORDER_/SHUFFLE_STARTERS in state/reducer/startnummern.ts |
 | Druck erst nach Verzahnung | views/ListsView.vue vorVerzahnung → WkrListen/LaufzettelListen `druckGesperrt` (Stapel no-print) |
 | Datumsfeld | components/DatumFeld.vue (Textfeld, `sofort` = Formular); lib/datum.ts liesDatum; Import: import/tsv.ts |
 | Jahrgang passt nicht zur Klasse | import/klassenPruefung.ts (klassenFuerJahr, startendeJahrgaenge); Vorschlag in ManualAddForm, ClassSection (MOVE_STARTER_TO_CLASS), ExcelPanel (klasseJeZeile) |
 | Querverweis mit Auswahl | lib/adressen.ts drittes Segment `wahl` → router.ts useReiter `beiWahl` (Muster: WeighingView → ListsView gewichtHerkunft) |
-| Dolphin-Präfix E/D | AppState.dolphinPraefix → config/catalog.ts startNrPraefixe; components/StartNumberPanel.vue |
-| Herkunft der Veranstaltung | AppState.originMode, SET_ORIGIN_MODE (views/EventView.vue); Anzeige lib/origin.ts |
+| Dolphin-Präfix E/D | AppState.dolphinPraefix (state/reducer/startnummern.ts) → config/catalog.ts startNrPraefixe; components/StartNumberPanel.vue |
+| Herkunft der Veranstaltung | AppState.originMode, SET_ORIGIN_MODE (views/EventView.vue, state/reducer/veranstaltung.ts); Anzeige lib/origin.ts |
 | Neues Regelwerk / neue Angabe | regelwerke/<id>.yaml + regelwerke.yaml; Angabe: schema → validate → build → catalog |
 | Neuer Aufbau | config/aufbauten/<name>.yaml + aufbauten.yaml `dateien`; en.yaml; Snapshot erneuern |
 | Beispieldaten | components/BeispieldatenPanel.vue (Herkunft wie Veranstaltung, saat, Rückfragen); domain/generate.ts, data/*; |
-| … Werte, Besetzung, Gewichte | lib/beispielwerte.ts; lib/beispieldaten.ts (FILL_BEISPIEL_BESETZUNG, FILL_BEISPIELGEWICHTE) |
-| Sperre einer Action | reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS |
+| … Werte, Besetzung, Gewichte | lib/beispielwerte.ts; lib/beispieldaten.ts; Actions FILL_BEISPIEL* in state/reducer/erfassung.ts |
+| Sperre einer Action | state/reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS; klasseFest in reducer/starter.ts |
 | Offline, Update | scripts/offline-sw.js, scripts/offline-speicher.ts, lib/offline.ts, lib/update.ts |
 
 ## Feste Regeln
@@ -117,7 +116,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
   re-run, O.O.D. Deutsch: „Wertungslisten“, „Mannschaftswertung“, „Ausgleichsgewicht“.
 - Listensprache folgt dem Regelwerk (DM deutsch, UIM englisch), nicht der Oberfläche; WKR-Bögen je Liste und Parcours
   (Racecourse), AppState.wkrSprachen wie die Einteilung; Erfassung = Oberfläche.
-- Alle sichtbaren Texte über i18n: Schlüssel in de.ts UND en.ts (gleiche Platzhalter, „Einzahl | Mehrzahl“).
+- Alle sichtbaren Texte über i18n: Schlüssel in de/ UND en/<bereich>.ts (gleiche Platzhalter, „Einzahl | Mehrzahl“).
   Regelwerks- und Positionstexte in YAML (`en`, config/i18n/en.yaml), Bogentexte in config/sprache.ts.
 - Reducer rein und deterministisch: kein Date.now(), Math.random(), uid() darin oder in dem, was er ruft.
   Zeit setzt der Store, IDs und `saat` kommen mit der Action. Unverändert → dieselbe Referenz zurückgeben.
@@ -143,8 +142,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 ## Arbeitsweise für Agenten
 
 - Zuerst diese Karte und die CLAUDE.md des Bereichsordners, dann gezielt lesen: grep, Kopfkommentare, Read mit
-  offset/limit. Groß: i18n/de.ts, en.ts (je 1250 Zeilen), state/reducer.ts (1000), config/validate.ts, SettingsView.vue.
-- README.md (74 KB, sehr lange Zeilen) nie ganz lesen, nur per grep.
+  offset/limit. Groß: config/validate.ts, SettingsView.vue; README.md (74 KB, lange Zeilen) nie ganz, nur per grep.
 - Fachliche Fragen: docs/entscheidungen.md (auch „Entschieden, noch nicht umgesetzt“ und „Offen“). Bei Widerspruch
   zum Code nichts still ändern: datierten Code-Kommentar und README vergleichen, es gilt die jüngere Entscheidung;
   im Zweifel den Nutzer fragen und danach die Liste nachziehen.

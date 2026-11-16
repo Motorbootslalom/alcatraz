@@ -60,9 +60,9 @@ export interface BogenTexte {
   klasseName(id: string): string
   lauf(n: number): string
   /**
-   * Der Name eines Parcours auf dem Blatt. Der Vorgabename „Parcours n“ (state/reducer.ts) steht
-   * englisch als „Course n“ (Regel 960 Pkt. 4.3.2 „course“); ein von Hand vergebener Name ist
-   * ein Eigenname und bleibt, wie er ist.
+   * Der Name eines Parcours auf dem Blatt. Der Vorgabename „Parcours n“
+   * (state/reducer/veranstaltung.ts, verzahnung.ts) steht englisch als „Course n“ (Regel 960
+   * Pkt. 4.3.2 „course“); ein von Hand vergebener Name ist ein Eigenname und bleibt, wie er ist.
    */
   parcoursName(name: string): string
   seite(n: number, von: number): string

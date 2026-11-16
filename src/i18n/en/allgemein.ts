@@ -1,0 +1,77 @@
+import type de from '../de/allgemein'
+
+/** Englisch zu de/allgemein.ts – genau dieselben Schlüssel. */
+export default {
+  'app.toTop': 'Back to top',
+  'app.subtitle': 'Scoring for Formula Future',
+  'app.starters': '{n} driver | {n} drivers',
+  'app.footer': 'Revision {commit} · built {time}',
+  'app.unknown': 'unknown',
+  'app.language': 'Language',
+  'app.notSaved':
+    'The data could not be saved in this browser. Please download a backup under “Settings” now.',
+  'app.recovered':
+    'Restored after an interruption: the browser had lost the latest changes; they were taken from the second store (saved {time}). Please check the values entered last.',
+  'app.recovered.ok': 'Understood',
+
+  'nav.veranstaltung': 'Event',
+  'nav.starter': 'Drivers',
+  'nav.verwiegung': 'Weighing',
+  'nav.verzahnung': 'Interleaving',
+  'nav.listen': 'Lists',
+  'nav.einstellungen': 'Settings',
+  'nav.erfassung': 'Data entry',
+
+  'common.copied': '✓ Copied',
+  'common.remove': 'Remove',
+  'common.cancel': 'Cancel',
+  'common.add': 'Add',
+  'common.print': 'Print',
+  'common.class': 'Class {id}',
+  'common.classShort': 'Cl.',
+  'common.lastName': 'Surname',
+  'common.firstName': 'First name',
+  'common.nameBoth': 'Surname, first name',
+  'common.club': 'Club',
+  'common.state': 'State',
+  'common.country': 'Country',
+  'common.size': 'Size',
+  'common.birthdate': 'Date of birth',
+  'common.startNr': 'No.',
+  'common.boat.klein': 'small',
+  'common.boat.gross': 'large',
+  'common.and': 'and',
+
+  'date.pattern': 'yyyy-mm-dd',
+  'date.title': 'Date as {pattern} – also recognised: 01.12.2019, 1.12.2019 and 01/12/2019 (with a slash always day first).',
+  'date.invalid': 'Not a valid date: {text} does not exist.',
+  'date.invalidSlash': 'Not a valid date: {text} – with a slash the day always comes first (day/month/year).',
+  'date.unknown': 'No date recognised: “{text}”. Please enter as {pattern}, for example {example}.',
+
+  'licences.title': 'Third-party components and licences',
+  'licences.flags.countries': 'Country flags: package “country-flag-icons”, © 2020 @catamphetamine, under the MIT licence:',
+  'licences.flags.states': 'Flags of the German states: drawings from Wikimedia Commons, public domain (official works) – for each state the flag anyone may fly.',
+
+  // --- Darstellung: Farbschema und Hell/Dunkel ---
+  'settings.jump': 'Jump to a section',
+
+  'theme.title': 'Appearance',
+  'theme.hint': 'Colour scheme and light/dark apply to this device only, like the language. Printed lists stay black on white.',
+  'theme.scheme': 'Colour scheme',
+  'theme.mode': 'Brightness',
+  'theme.mode.auto': 'Same as device',
+  'theme.mode.light': 'Light',
+  'theme.mode.dark': 'Dark',
+  'theme.toDark': 'Switch to dark appearance',
+  'theme.toLight': 'Switch to light appearance',
+  'theme.scheme.steg': 'Teal',
+  'theme.scheme.blau': 'Blue',
+  'theme.scheme.indigo': 'Indigo',
+  'theme.scheme.violett': 'Violet',
+  'theme.scheme.beere': 'Berry',
+  'theme.scheme.rot': 'Red',
+  'theme.scheme.kupfer': 'Copper',
+  'theme.scheme.bronze': 'Bronze',
+  'theme.scheme.wald': 'Forest green',
+  'theme.scheme.graphit': 'Graphite',
+} satisfies Record<keyof typeof de, string>

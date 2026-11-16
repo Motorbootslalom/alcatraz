@@ -132,7 +132,7 @@ export interface RawRegelwerk {
   vorgabeListen?: Record<string, string[]>
   /**
    * So viele Läufe sieht das Regelwerk vor und so viele davon werden gestrichen. Die Wahl des
-   * Regelwerks stellt die Veranstaltung so ein (state/reducer.ts SET_REGELWERK); wer danach von
+   * Regelwerks stellt die Veranstaltung so ein (state/reducer/regelwerk.ts SET_REGELWERK); wer danach von
    * Hand abweicht, bekommt einen Hinweis – außer bei `nurVorgabe: true`: Dann ist die Angabe
    * nur die Voreinstellung und keine Aussage des Regelwerks, an der die Oberfläche misst.
    * `nachRegel`: Zahl der Läufe → Streichläufe, die die Einstellung „Streichläufe nach Regel“

@@ -3,7 +3,7 @@ import { mergeStarters } from '../import/starterMerge'
 import type { AppState, Starter } from '../types'
 import { starterMitEingaben } from './eingaben'
 
-// Mit einem Starter gehen seine erfassten Werte (state/reducer.ts `mitStartern`) – ohne
+// Mit einem Starter gehen seine erfassten Werte (state/reducer/starter.ts `mitStartern`) – ohne
 // Rückgängig. Jede Rückfrage vor einem solchen Schritt nennt deshalb, wie viele Starter mit
 // schon erfassten Zeiten oder Fehlern betroffen sind.
 

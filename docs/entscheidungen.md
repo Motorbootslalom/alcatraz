@@ -42,7 +42,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   gefahrenen Läufen: einer gestrichen oder beide zählen); keine Warnung unter DM. → `lib/ergebnis.ts`,
   `components/RegelLaeufeHinweis.vue`
 - 2026-11-14 · N · Wahl des Regelwerks stellt Läufe/Streichläufe: DM 3/1, UIM 2/1. → Regelwerk-YAML `wertungslaeufe`,
-  `state/reducer.ts`
+  `state/reducer/regelwerk.ts`
 - 2026-11-12 · N · Bojen und Strafpunkte wie im Prototyp; der Aushang zeigt, an welchem Tor/welcher Boje was geschah,
   nicht nur die Summe. → `components/ergebnis/ErgebnisLaufBlatt.vue`
 - 2026-11-15 · N · WKR-Listen mit Bojen: Start und Ziel je mit eigener Zelle für die linke und die rechte Boje (L, R),
@@ -118,7 +118,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   `lib/parallelStage.ts` stageDurchWiederholung, i18n parallel.results.rerunNote
 - 2026-11-15 · N · Geteilter Platz bekommt die vollen Punkte.
 - 2026-11-15 · N · „Small final“ / „kleines Finale“ für Platz 3 und 4 statt des Regelbuch-Wortlauts; Halbfinale-Vermerk
-  „Small final“ ohne Zusatz. → `i18n/de.ts`, `i18n/en.ts` parallel.*
+  „Small final“ ohne Zusatz. → `i18n/de/parallel.ts`, `i18n/en/parallel.ts` parallel.*
 - 2026-11-15 · N · „Lösen“ einer Runde heißt in der Oberfläche „Löschen“ (es löscht die Werte). →
   `components/ParallelRunden.vue`
 - 2026-11-15 · N · Liste der Attempts ohne Platz-Spalte, aber sortiert wie nach Platz (beste Zeit zuerst,
@@ -201,7 +201,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Boot. Festlegung bei der Umsetzung: Bei 0 Muster-Zeilen leere Listen wie im Manövrieren, der Hinweis sagt das. →
   `lib/parallelBogen.ts` musterRundenBoegen, `components/WkrVorschau.vue`
 - 2026-11-15 · N · Englische Wertungslisten: Kürzel nach Rulebook (Leav./Moor. statt Dep./Moor); die Sprache des
-  Rulebooks hat Vorrang. → `i18n/en.ts` results.col.stegAb/stegAn, `lib/ergebnisText.ts` SPALTEN (WKR-Bögen:
+  Rulebooks hat Vorrang. → `i18n/en/wertung.ts` results.col.stegAb/stegAn, `lib/ergebnisText.ts` SPALTEN (WKR-Bögen:
   `config/i18n/en.yaml`)
 - 2026-11-15 · N · Fahrweg-Liste „Parcours einfach“: keine Σ-Spalte (dort Disqualifikationen, keine Bojenfehler).
 - 2026-11-15 · N · Nummernzelle ohne Schraffur.
@@ -310,7 +310,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-15 · N · Regelwerk-Wechsel während eines Wettkampfs gesperrt, bis alles zurückgesetzt ist. →
   `state/reducer.ts`
 - 2026-11-15 · N · Klasse und Geburtsjahr müssen beim Import und Eintragen passen (falscher Jahrgang bleibt verboten);
-  nach dem Festschreiben steht die Klasse fest. → `import/klassenPruefung.ts`, `state/reducer.ts` klasseFest
+  nach dem Festschreiben steht die Klasse fest. → `import/klassenPruefung.ts`, `state/reducer/starter.ts` klasseFest
 - 2026-11-15 · N · Unpassender Jahrgang: Gehört er in eine andere Klasse des Regelwerks, steht unter der Meldung ein
   Vorschlag – beim Hinzufügen „In Klasse X anlegen“ (mit allen Angaben), beim Bearbeiten (Geburtsdatum geändert)
   „In Klasse X verschieben“, nur solange die Klasse nicht feststeht. Passt er in keine Klasse, nennt die Meldung die
