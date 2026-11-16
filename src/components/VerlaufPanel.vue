@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { standAus } from '../persistenz/storage'
@@ -16,7 +16,7 @@ import type { ClassId } from '../types'
  * dieselbe Frage beantwortet: Wie komme ich an einen früheren Stand? Gibt es den zweiten
  * Speicher nicht, steht hier nur das – die Anwendung läuft ohne ihn weiter.
  */
-const { dispatch, zweit } = useStore()
+const { state, dispatch, zweit } = useStore()
 const { classLabel } = useEvent()
 
 const eintraege = ref<VerlaufEintrag[]>([])
@@ -96,7 +96,15 @@ async function stelleWiederHer(e: VerlaufEintrag) {
     meldung.value = { ok: false, text: t('history.gone') }
     return
   }
-  dispatch({ type: 'LOAD_STATE', state: stand }, { art: 'verlauf', zeit: e.zeit, ...(e.name ? { name: e.name } : {}) })
+  // Der Betrieb am Wettkampftag bleibt, wie er jetzt ist: Wer eine Erfassung zurücknimmt, soll die
+  // Anzeigetafel nicht auf einen früheren Starter zurückspringen lassen. Der Reducer kann das nicht
+  // unterscheiden (LOAD_STATE übernimmt den Stand) – deshalb hier (Plan vom 16.11.2026). Nur in derselben
+  // Veranstaltung (gleiche Kennung): Ein Eintrag von vor dem Laden einer anderen Sicherung bringt seinen
+  // eigenen Betrieb mit – sonst gälten deren Läufe als begonnen, und ihre Meldung stünde auf der Tafel
+  // (BETRIEB_ANNAHMEN.speicherorte, Prüfung E1 vom 16.11.2026).
+  const jetzt = toRaw(state.value)
+  const betrieb = stand.kennung === jetzt.kennung ? jetzt.betrieb : stand.betrieb
+  dispatch({ type: 'LOAD_STATE', state: { ...stand, betrieb } }, { art: 'verlauf', zeit: e.zeit, ...(e.name ? { name: e.name } : {}) })
   // Ein anderer Stand, vielleicht eine andere Veranstaltung: Die gemerkte Auswahl gilt nicht mehr.
   vergissAuswahl()
   meldung.value = { ok: true, text: t('history.done', { time }) }

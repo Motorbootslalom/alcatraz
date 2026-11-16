@@ -1,6 +1,6 @@
 import { onUnmounted, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue'
 import { locale, type Locale } from '../i18n'
-import { adressbuch, ADRESSEN, liesAdresse, schreibeAdresse, VIEWS, type AdressTabelle, type Ort, type ReiterNamen, type ReiterView, type Sprungziel, type ViewName } from './adressen'
+import { adressbuch, ADRESSEN, liesAdresse, liesVollbild, schreibeAdresse, schreibeVollbild, VIEWS, type AdressTabelle, type Ort, type ReiterNamen, type ReiterView, type Sprungziel, type ViewName, type Vollbild } from './adressen'
 
 /**
  * Winziger Hash-Router. Bewusst kein vue-router: Der Hash funktioniert auch
@@ -33,6 +33,19 @@ function parse(hash: string): ViewName {
  */
 export function adresse<V extends ViewName>(view: V, teile: { reiter?: V extends ReiterView ? ReiterNamen[V] : never; ziel?: Sprungziel; wahl?: string } = {}): string {
   return schreibeAdresse(BUCH, locale.value, view, teile)
+}
+
+/**
+ * Ein Fenster mit eigener Wurzel (`#/anzeige[/<bereich>]`), `null` für jede gewöhnliche Adresse –
+ * src/main.ts wählt danach App oder AnzeigeApp.
+ */
+export function vollbild(hash: string = location.hash): Vollbild | null {
+  return liesVollbild(BUCH, hash)
+}
+
+/** Die Adresse eines solchen Fensters in der Sprache der Oberfläche (nur der Hash). */
+export function vollbildAdresse(v: Vollbild): string {
+  return schreibeVollbild(BUCH, locale.value, v)
 }
 
 export function navigate(view: ViewName): void {

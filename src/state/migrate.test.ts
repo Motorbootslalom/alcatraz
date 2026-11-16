@@ -218,3 +218,29 @@ describe('migrate: Logos (16.11.2026)', () => {
     expect(migrate(emptyState())).toEqual(emptyState())
   })
 })
+
+describe('migrate: Betrieb und Anzeigetafel (16.11.2026)', () => {
+  const ref = '["m","a",1]'
+  it('fehlen in älteren Ständen: nichts begonnen, Vorgaben der Anzeigetafel', () => {
+    const stand = migrate({ starters: [] })!
+    expect(stand.betrieb).toEqual({ bereiche: {} })
+    expect(stand.anzeige).toEqual(emptyState().anzeige)
+    expect(stand.anzeige).toMatchObject({ kopfzeile: null, namen: 'aushang', sprache: 'regelwerk', davor: true })
+  })
+
+  it('Gültiges bleibt; Bereiche, die es nicht gibt, und Unbrauchbares entfallen', () => {
+    const betrieb = {
+      bereiche: {
+        par_1: { begonnen: ['lauf:1'], gezeigt: [{ ref, zeit: 1000 }], ohneAnzeige: [], zurueckgestellt: [], reihenfolge: null, ausgesetzt: [], vorziehen: false, meldung: { text: 'Pause', art: 'pause' } },
+        par_7: { begonnen: ['lauf:1'] },
+        par_2: 'kaputt',
+      },
+    }
+    const anzeige = { ...emptyState().anzeige, kopfzeile: 'Musterregatta', bereiche: ['par_2', 'par_7'], skala: 1.2, namen: 'kurz', abstaende: { E: 50 } }
+    const stand = migrate({ starters: [], betrieb, anzeige })!
+    expect(stand.betrieb).toEqual({ bereiche: { par_1: betrieb.bereiche.par_1 } })
+    expect(stand.anzeige).toEqual({ ...anzeige, bereiche: ['par_2'] })
+    // Ganz kaputt: die Vorgaben.
+    expect(migrate({ starters: [], betrieb: 'x', anzeige: [1] })).toMatchObject({ betrieb: { bereiche: {} }, anzeige: emptyState().anzeige })
+  })
+})

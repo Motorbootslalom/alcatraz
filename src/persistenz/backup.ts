@@ -1,6 +1,6 @@
-import type { AppState, Starter } from '../types'
+import type { AppState, Betrieb, Starter } from '../types'
 import { migrate } from '../state/migrate'
-import { aufbauOf, hasParallel } from '../config/catalog'
+import { aufbauOf, hasParallel, PARALLEL } from '../config/catalog'
 import { mitVorlaufPlan, VORLAUF, vorlaufGebunden } from '../planung/parallelRunden'
 import { haengeUm } from '../lib/einteilung'
 import { mitTor5Umzug } from '../state/tor5'
@@ -23,16 +23,18 @@ import { starterfeldFest } from '../lib/eingaben'
  *   wird weitergegeben und enthält deshalb keine Personennamen, auch nicht die der
  *   Wettkampfrichter und der Co-Piloten. Die Boote je Klasse sind keine Personenangabe und
  *   reisen mit. Ebenso die Logos der Listen (Einstellung des Ausrichters, keine Personendaten,
- *   16.11.2026); ein Logo, das der Vorlage fehlt, lässt das hiesige stehen.
+ *   16.11.2026); ein Logo, das der Vorlage fehlt, lässt das hiesige stehen. Der Betrieb am
+ *   Wettkampftag (`betrieb`: begonnene Läufe, gezeigte Starts) gehört zur Veranstaltung und bleibt
+ *   draußen; die Einstellungen der Anzeigetafel reisen mit, nur ohne Kopfzeile (16.11.2026).
  * - `starter`: nur die Teilnehmerdaten.
  */
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
 
 /**
  * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, Co-Piloten, erfassten
- * Werten, dem Stand der Wertungslisten und der Kennung der Veranstaltung.
+ * Werten, dem Stand der Wertungslisten, der Kennung und dem Betrieb der Veranstaltung.
  */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'nichtWerten'>
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'nichtWerten' | 'betrieb'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -54,7 +56,9 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   // Vorlage beginnt eine andere Veranstaltung, deren Bögen sich von diesen unterscheiden müssen.
   // Die festgeschriebenen Pläne des Parallelslaloms nennen Starter (ihre IDs) und bleiben ebenfalls hier.
   // „Disziplin nicht werten“ ist eine Entscheidung zu den Ergebnissen dieser Veranstaltung: ebenfalls nicht.
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, nichtWerten: _nichtWerten, ...settings } = state
+  // Der Betrieb (was auf der Anzeigetafel stand) ebenso; die Kopfzeile der Anzeigetafel nennt die Veranstaltung.
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, nichtWerten: _nichtWerten, betrieb: _betrieb, ...rest } = state
+  const settings: Template = { ...rest, anzeige: { ...rest.anzeige, kopfzeile: null } }
   return { ...base, kind, settings }
 }
 
@@ -148,6 +152,12 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
         parallelPlaene: current.parallelPlaene,
         // „Disziplin nicht werten“ gehört zu den hiesigen Ergebnissen.
         nichtWerten: current.nichtWerten,
+        // Der Betrieb gehört zur Veranstaltung: Er bleibt, hängt aber wie die Einteilung auf die Parcours
+        // der Vorlage um (Parcours 1 bleibt Parcours 1). Die gezeigten Starts nennen Starter und Lauf –
+        // sie gelten weiter, die Folge wird neu abgeleitet. Der Parallelslalom hängt an keinem Parcours.
+        betrieb: betriebUmgehaengt(current, checked.parcoursList.map((p) => p.id)),
+        // Die Kopfzeile der Anzeigetafel nennt die Veranstaltung: Es bleibt die hiesige.
+        anzeige: { ...checked.anzeige, kopfzeile: current.anzeige.kopfzeile },
         // Sind Ergebnisse erfasst, bleibt das Regelwerk (wie im Reducer, SET_REGELWERK): Die
         // Werte hängen an seinen Listen und Feldern.
         ...(starterfeldFest(current) ? { regelwerk: current.regelwerk } : {}),
@@ -166,6 +176,13 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
     return { ok: true, kind, apply, savedAt }
   }
   return { ok: false }
+}
+
+/** Der Betrieb nach dem Wechsel der Parcours: je Parcours umgehängt wie die Einteilung (lib/einteilung.ts `haengeUm`). */
+function betriebUmgehaengt(current: AppState, neu: readonly string[]): Betrieb {
+  const { [PARALLEL]: parallel, ...jeParcours } = current.betrieb.bereiche
+  const bereiche = haengeUm(jeParcours, current.parcoursList.map((p) => p.id), neu)
+  return { bereiche: parallel ? { ...bereiche, [PARALLEL]: parallel } : bereiche }
 }
 
 /** Text → Teil eines Dateinamens: klein, ohne Umlaute und Sonderzeichen. */

@@ -100,6 +100,20 @@ describe('was sich geändert hat', () => {
     expect(beschreibe({ type: 'SET_WKR_RUECKSEITE', rueckseite: true }, STAND)?.art).toBe('einstellung')
     expect(beschreibe({ type: 'SET_KENNUNG', kennung: 'abc' }, STAND)).toBeNull()
   })
+
+  it('Betrieb am Wettkampftag bekommt keinen Eintrag; die Einstellungen der Anzeigetafel sind Einstellungen', () => {
+    // Wechselten Erfassung und „Nächster Start“ einander ab, entstünde sonst bei jedem Start ein neuer Eintrag.
+    const ref = '["m","a",1]'
+    expect(beschreibe({ type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:1' }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref, vorher: null }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_ZURUECK', bereich: 'par_1', ref }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_MELDUNG', bereich: '*', meldung: { text: 'Pause', art: 'pause' } }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'BETRIEB_ZURUECKSETZEN' }, STAND)).toBeNull()
+    expect(beschreibe({ type: 'SET_ANZEIGE', patch: { davor: false } }, STAND)?.art).toBe('einstellung')
+    // Ohne Beschreibung behält der letzte Eintrag seinen Namen und bekommt nur den neuen Stand.
+    const letzter = eintrag({ was: { art: 'eingabe', klasse: '4', lauf: 1 }, folge: 3 })
+    expect(eintragFuer(letzter, [null], { groesse: 120, folge: 4 }, 10, neueId)).toEqual({ ...letzter, groesse: 120, folge: 4 })
+  })
 })
 
 describe('Zusammenfassen der Einträge', () => {

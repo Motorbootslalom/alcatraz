@@ -1,0 +1,200 @@
+import { describe, expect, it } from 'vitest'
+import { emptyState, reducer, type Action } from './reducer'
+import { refKey, lage } from '../betrieb/folge'
+import { laufSchluessel } from '../lib/eingaben'
+import { betriebsStand, festgeschrieben, zeigeNaechsten } from '../testHilfen'
+import { MELDUNG_MAX, normalisiereAnzeige, normalisiereBetrieb } from './reducer/betrieb'
+import type { AppState } from '../types'
+
+// Die Actions des Betriebs (Anzeigetafel, Start-Freigabe): bedingt bzw. idempotent, unverändert = derselbe
+// Stand, rein und deterministisch. Alle Starter sind erfunden (Vor<id>/Nach<id>, Musterclub).
+
+const P1 = 'par_1'
+const P2 = 'par_2'
+const m = (starter: string, lauf: number) => refKey({ art: 'm', starter, lauf })
+const fest = () => festgeschrieben(betriebsStand())
+const beginne = (s: AppState, lauf = 1, bereich = P1) => reducer(s, { type: 'BETRIEB_BEGINNEN', bereich, punkt: `lauf:${lauf}`, zeit: 500 })
+
+describe('Betrieb: Lauf beginnen und Starts zeigen', () => {
+  it('gesperrt ohne festgeschriebene Verzahnung – derselbe Stand', () => {
+    const offen = betriebsStand()
+    expect(beginne(offen)).toBe(offen)
+    const ref = lage(offen, P1).folge[0].key
+    expect(reducer(offen, { type: 'BETRIEB_ZEIGEN', bereich: P1, ref, vorher: null })).toBe(offen)
+    // Wird die Verzahnung im Betrieb gelöst, geht es nicht weiter – zurück und Meldungen schon.
+    let s = zeigeNaechsten(beginne(fest()), P1)
+    s = reducer(s, { type: 'SET_VERZAHNUNG_LOCK', locked: false })
+    expect(zeigeNaechsten(s, P1)).toBe(s)
+    expect(reducer(s, { type: 'BETRIEB_ZURUECK', bereich: P1, ref: m('e1', 1) }).betrieb.bereiche[P1].gezeigt).toEqual([])
+  })
+
+  it('beginnen: nur Punkte des Programms, jeder einmal', () => {
+    const s = beginne(fest())
+    expect(s.betrieb.bereiche[P1].begonnen).toEqual(['lauf:1'])
+    expect(beginne(s)).toBe(s)
+    expect(reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'lauf:4' })).toBe(s)
+    expect(reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: 'gibt-es-nicht', punkt: 'lauf:1' })).toBe(s)
+    expect(reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'runde:pre' })).toBe(s)
+    // Der andere Parcours ist unabhängig.
+    expect(beginne(s, 1, P2).betrieb.bereiche[P2].begonnen).toEqual(['lauf:1'])
+  })
+
+  it('zeigen: vergleichen, dann setzen – doppelt geschickt ist ein Schritt; die Zeit kommt mit der Action', () => {
+    const s = beginne(fest())
+    const zeige = { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: m('e1', 1), vorher: null, zeit: 1234 } as const
+    const einmal = reducer(s, zeige)
+    expect(einmal.betrieb.bereiche[P1].gezeigt).toEqual([{ ref: m('e1', 1), zeit: 1234 }])
+    expect(reducer(einmal, zeige)).toBe(einmal)
+    // Wer noch den alten Stand sah (vorher = null), schaltet den Nächsten nicht weiter.
+    expect(reducer(einmal, { ...zeige, ref: m('k1', 1) })).toBe(einmal)
+    const zwei = reducer(einmal, { ...zeige, ref: m('k1', 1), vorher: m('e1', 1), zeit: 2000 })
+    expect(zwei.betrieb.bereiche[P1].gezeigt.map((g) => g.ref)).toEqual([m('e1', 1), m('k1', 1)])
+    // Nur der Nächste (oder ein nachzuholender) – nicht irgendein offener Start, nicht einer aus Lauf 2.
+    expect(reducer(zwei, { ...zeige, ref: m('k2', 1), vorher: m('k1', 1) })).toBe(zwei)
+    expect(reducer(zwei, { ...zeige, ref: m('e1', 2), vorher: m('k1', 1) })).toBe(zwei)
+    // Ohne Zeit (Tests, alte Wege) steht 0 – der Reducer fragt keine Uhr.
+    const ohneZeit = reducer(s, { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: m('e1', 1), vorher: null })
+    expect(ohneZeit.betrieb.bereiche[P1].gezeigt[0].zeit).toBe(0)
+  })
+
+  it('zurück: nur mit passendem ref, dann ist der vorige wieder im Boot', () => {
+    const s = zeigeNaechsten(zeigeNaechsten(beginne(fest()), P1), P1)
+    expect(reducer(s, { type: 'BETRIEB_ZURUECK', bereich: P1, ref: m('e1', 1) })).toBe(s)
+    expect(reducer(s, { type: 'BETRIEB_ZURUECK', bereich: P2, ref: m('k1', 1) })).toBe(s)
+    const zurueck = reducer(s, { type: 'BETRIEB_ZURUECK', bereich: P1, ref: m('k1', 1) })
+    expect(lage(zurueck, P1).aktuell?.key).toBe(m('e1', 1))
+    expect(lage(zurueck, P1).naechster?.key).toBe(m('k1', 1))
+    // Doppelt geschickt: der zweite trifft nicht mehr.
+    expect(reducer(zurueck, { type: 'BETRIEB_ZURUECK', bereich: P1, ref: m('k1', 1) })).toBe(zurueck)
+  })
+
+  it('Betrieb ändert keine Werte und keine Wertungsliste; „Werte löschen“ lässt ihn stehen, Zurücksetzen nicht', () => {
+    let s = reducer(beginne(fest()), { type: 'SET_EINGABEN', zellen: [{ lauf: laufSchluessel('manoevrieren', 1), starter: 'e1', feld: 'zeit1', wert: '80' }], zeit: 100 })
+    const vorher = s
+    s = zeigeNaechsten(s, P1, 2000)
+    expect([s.eingaben, s.listenStand, s.starters]).toEqual([vorher.eingaben, vorher.listenStand, vorher.starters])
+    expect(s.eingaben).toBe(vorher.eingaben)
+    expect(s.listenStand).toBe(vorher.listenStand)
+    const geloescht = reducer(s, { type: 'CLEAR_EINGABEN' })
+    expect(geloescht.betrieb).toBe(s.betrieb)
+    expect(reducer(s, { type: 'RESET_ALL' }).betrieb).toEqual({ bereiche: {} })
+  })
+})
+
+describe('Betrieb: Meldungen und Zurücksetzen', () => {
+  it('Meldung je Bereich oder für alle; gleiche Meldung = derselbe Stand; leer löscht', () => {
+    const s = fest()
+    const stoerung = { text: '  Boot defekt  ', art: 'stoerung' } as const
+    const eine = reducer(s, { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: stoerung })
+    expect(eine.betrieb.bereiche[P1].meldung).toEqual({ text: 'Boot defekt', art: 'stoerung' })
+    expect(eine.betrieb.bereiche[P2]).toBeUndefined()
+    expect(reducer(eine, { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: 'Boot defekt', art: 'stoerung' } })).toBe(eine)
+    const alle = reducer(eine, { type: 'BETRIEB_MELDUNG', bereich: '*', meldung: { text: 'Mittagspause', art: 'pause' } })
+    expect([alle.betrieb.bereiche[P1].meldung?.text, alle.betrieb.bereiche[P2].meldung?.text]).toEqual(['Mittagspause', 'Mittagspause'])
+    const weg = reducer(alle, { type: 'BETRIEB_MELDUNG', bereich: '*', meldung: null })
+    expect([weg.betrieb.bereiche[P1].meldung, weg.betrieb.bereiche[P2].meldung]).toEqual([null, null])
+    expect(reducer(weg, { type: 'BETRIEB_MELDUNG', bereich: '*', meldung: null })).toBe(weg)
+    // Leerer Text löscht, zu lang wird gekürzt, unbekannte Art ist ein Hinweis, unbekannter Bereich nichts.
+    expect(reducer(eine, { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: '   ', art: 'info' } }).betrieb.bereiche[P1].meldung).toBeNull()
+    const lang = reducer(s, { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: 'x'.repeat(500), art: 'laut' as 'info' } })
+    expect([lang.betrieb.bereiche[P1].meldung?.text.length, lang.betrieb.bereiche[P1].meldung?.art]).toEqual([MELDUNG_MAX, 'info'])
+    expect(reducer(s, { type: 'BETRIEB_MELDUNG', bereich: 'gibt-es-nicht', meldung: stoerung })).toBe(s)
+  })
+
+  it('zurücksetzen: einen Bereich oder alle; schon leer = derselbe Stand', () => {
+    const s = beginne(beginne(fest()), 1, P2)
+    const einer = reducer(s, { type: 'BETRIEB_ZURUECKSETZEN', bereich: P1 })
+    expect(Object.keys(einer.betrieb.bereiche)).toEqual([P2])
+    expect(reducer(einer, { type: 'BETRIEB_ZURUECKSETZEN', bereich: P1 })).toBe(einer)
+    const alle = reducer(s, { type: 'BETRIEB_ZURUECKSETZEN' })
+    expect(alle.betrieb).toEqual({ bereiche: {} })
+    expect(reducer(alle, { type: 'BETRIEB_ZURUECKSETZEN' })).toBe(alle)
+    // „constructor“ ist kein Bereich – auch nicht über das Urbild des Objekts.
+    expect(reducer(alle, { type: 'BETRIEB_ZURUECKSETZEN', bereich: 'constructor' })).toBe(alle)
+  })
+})
+
+describe('Einstellungen der Anzeigetafel (SET_ANZEIGE)', () => {
+  it('nur was im Patch steht; geprüft wie beim Laden; unverändert = derselbe Stand', () => {
+    const s = fest()
+    expect(reducer(s, { type: 'SET_ANZEIGE', patch: { davor: true } })).toBe(s)
+    const n = reducer(s, { type: 'SET_ANZEIGE', patch: { skala: 2, namen: 'kurz', amSteg: 3.6, kopfzeile: 'Musterregatta ' } })
+    expect(n.anzeige).toMatchObject({ skala: 1.3, namen: 'kurz', amSteg: 4, kopfzeile: 'Musterregatta ', davor: true })
+    // Unbrauchbares bleibt beim bisherigen bzw. der Vorgabe.
+    const kaputt = reducer(n, { type: 'SET_ANZEIGE', patch: { namen: 'alle' as 'voll', sprache: 'fr' as 'de', herkunft: 'bunt' as 'kurz' } })
+    expect([kaputt.anzeige.namen, kaputt.anzeige.sprache, kaputt.anzeige.herkunft]).toEqual(['aushang', 'regelwerk', 'lang'])
+    expect(reducer(n, { type: 'SET_ANZEIGE', patch: { abstaende: { E: 45, X: 50, '1': 5 } as never } }).anzeige.abstaende).toEqual({ E: 45, '1': 30 })
+  })
+
+  it('Normalisierer: Fremdes und Kaputtes wird die Vorgabe; unbekannte Bereiche entfallen', () => {
+    expect(normalisiereAnzeige(null)).toEqual(emptyState().anzeige)
+    expect(normalisiereAnzeige({ bereiche: ['par_1', 'par_9', 'par_1', 3], kopfzeile: 7, skala: 'groß' }, ['par_1'])).toMatchObject({ bereiche: ['par_1'], kopfzeile: null, skala: 1 })
+    expect(normalisiereBetrieb({ bereiche: [] })).toEqual({ bereiche: {} })
+    const roh = {
+      bereiche: {
+        par_1: { begonnen: ['lauf:1', 'lauf:0', 'lauf:1'], gezeigt: [{ ref: m('e1', 1), zeit: 5 }, { ref: 'kaputt', zeit: 1 }, { ref: m('k1', 1), zeit: -1 }], meldung: { text: '' }, ausgesetzt: ['E', 'Q'], vorziehen: 'ja' },
+        par_9: { begonnen: ['lauf:1'] },
+        leer: { begonnen: [] },
+      },
+    }
+    expect(normalisiereBetrieb(roh, ['par_1', 'leer'])).toEqual({
+      bereiche: {
+        par_1: {
+          begonnen: ['lauf:1'],
+          gezeigt: [{ ref: m('e1', 1), zeit: 5 }, { ref: m('k1', 1), zeit: 0 }],
+          ohneAnzeige: [],
+          zurueckgestellt: [],
+          reihenfolge: null,
+          ausgesetzt: ['E'],
+          vorziehen: false,
+          meldung: null,
+        },
+      },
+    })
+  })
+})
+
+describe('Determinismus', () => {
+  // Muster: Tafel-Prototyp, state/determinismus.test.ts – ein Ablauf wie am Wettkampftag. Würfelte der
+  // Reducer (IDs, Uhr), liefen zwei Fenster auseinander, die dieselben Actions anwenden.
+  function ablauf(): Action[] {
+    return [
+      { type: 'SET_EVENT', patch: { eventName: 'Musterpokal', laufCount: 2 }, zeit: 1 },
+      { type: 'SET_ANZEIGE', patch: { kopfzeile: '1. Musterpokal', amSteg: 1 }, zeit: 2 },
+      { type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'lauf:1', zeit: 3 },
+      { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: m('e1', 1), vorher: null, zeit: 1_000 },
+      { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: m('k1', 1), vorher: m('e1', 1), zeit: 61_000 },
+      { type: 'BETRIEB_MELDUNG', bereich: '*', meldung: { text: 'Kurze Pause', art: 'pause' }, zeit: 70_000 },
+      { type: 'BETRIEB_ZURUECK', bereich: P1, ref: m('k1', 1), zeit: 80_000 },
+      { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: m('k1', 1), vorher: m('e1', 1), zeit: 90_000 },
+      { type: 'BETRIEB_BEGINNEN', bereich: P2, punkt: 'lauf:1', zeit: 91_000 },
+      { type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null, zeit: 92_000 },
+    ]
+  }
+  const anwenden = (aktionen: Action[]) => aktionen.reduce(reducer, fest())
+
+  it('führt denselben Ablauf in zwei Fenstern zum selben Stand', () => {
+    expect(anwenden(ablauf())).toEqual(anwenden(ablauf()))
+  })
+
+  it('bleibt gleich, wenn ein Fenster die Änderungen später Schritt für Schritt nachzieht', () => {
+    const sofort = anwenden(ablauf())
+    let nachgezogen = fest()
+    for (const a of ablauf()) nachgezogen = reducer(nachgezogen, a)
+    expect(nachgezogen).toEqual(sofort)
+    expect(sofort.betrieb.bereiche[P1].gezeigt).toEqual([
+      { ref: m('e1', 1), zeit: 1_000 },
+      { ref: m('k1', 1), zeit: 90_000 },
+    ])
+    expect(sofort.betrieb.bereiche[P2].meldung).toEqual({ text: 'Kurze Pause', art: 'pause' })
+  })
+
+  it('doppelt zugestellt ändert nichts: jede Action ein zweites Mal ist derselbe Stand', () => {
+    let s = fest()
+    for (const a of ablauf()) {
+      s = reducer(s, a)
+      // SET_EVENT ersetzt immer (bestehendes Verhalten); alle Actions des Betriebs sind idempotent.
+      if (a.type.startsWith('BETRIEB_') || a.type === 'SET_ANZEIGE') expect(reducer(s, a)).toBe(s)
+    }
+  })
+})

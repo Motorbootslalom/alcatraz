@@ -17,6 +17,7 @@ import StartersView from './views/StartersView.vue'
 import VerzahnungView from './views/VerzahnungView.vue'
 import WeighingView from './views/WeighingView.vue'
 import ListsView from './views/ListsView.vue'
+import BetriebView from './views/BetriebView.vue'
 import ErfassungView from './views/ErfassungView.vue'
 import SettingsView from './views/SettingsView.vue'
 
@@ -156,6 +157,7 @@ function commitLabel(): string {
       <WeighingView v-else-if="view === 'verwiegung'" />
       <VerzahnungView v-else-if="view === 'verzahnung'" />
       <ListsView v-else-if="view === 'listen'" />
+      <BetriebView v-else-if="view === 'betrieb'" />
       <ErfassungView v-else-if="view === 'erfassung'" />
       <SettingsView v-else-if="view === 'einstellungen'" />
     </main>

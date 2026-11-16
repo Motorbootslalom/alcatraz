@@ -25,6 +25,10 @@ scanner, logoBild.
   Sprache je Parcours und Liste: setzeSprache, normalisiereSprachen; einteilungsZellen = gedruckte Zellen).
 - Seiten: `paging.ts` (WKR-Bögen, gleicht aus, Blöcke unteilbar), `seiten.ts` (übrige Listen; `gebunden` = Zeilen einer
   Zelle mit rowspan), `doppelseitig.ts`. Sprache: `konfig.ts`, `listensprache.ts`, `event.ts`.
+- Anzeigetafel (16.11.2026): `fit.ts` (fitLine/fitBlock/fitZeilen, v-fit, v-fit-block, v-fit-zeilen; nur mounted/updated,
+  kein ResizeObserver; fitBlock misst die natürliche Höhe mit `flex-grow: 0`),
+  `anzeigeFenster.ts` (oeffneAnzeige = window.open `#/anzeige[/<bereich>]`; postMessage-Rückfall, wo `storage` unter
+  file:// nicht trägt). Logik des Betriebs: src/betrieb/ (eigene Karte).
 - Betrieb: `offline.ts`, `update.ts`, `verlauf.ts` (ARTEN), `merken.ts`, `scan.ts`, `scanner.ts`, `router.ts`,
   `adressen.ts`, `theme.ts`, `build.ts`, `clipboard.ts`, `bogenZoom.ts`, `datum.ts` (liesDatum, excelSeriennummer).
 - Aus der `saat` (Reducer und Oberfläche): `beispielwerte.ts`, `beispieldaten.ts` (Beispiel-Besetzung, -gewichte),
@@ -63,6 +67,8 @@ scanner, logoBild.
 - Vorsteg mit „Versuche direkt nacheinander“: Die Zeile schreibt in jeden Versuch; löschte das ein verdecktes X eines
   späteren Versuchs, fragt ErfassungTabelle.vue erst (erfassung.ts ueberschreibtX).
 - merken.ts mit ueberNeuladen: neue Werte brauchen einen Guard für alte gemerkte Auswahl (SPAETERE_TEILE).
+- adressen.ts: Fenster mit eigener Wurzel (VOLLBILDER, `#/anzeige`/`#/display`) liest liesVollbild VOR jedem Store
+  (main.ts); ihre Wörter dürfen nie die einer Ansicht sein (adressen.test.ts). Reiter `betrieb` (en `operation`, vorläufig).
 - adressen.ts: drittes Segment `wahl` (Wert aus den Daten, kodiert, nicht übersetzt; `*` = alle) nur unter einem
   Reiter; useReiter gibt es an `beiWahl`. Danach steht nur der Reiter da – außer die Ansicht gibt `wahlFuerAdresse`
   (Herkunft der Gewichtslisten, 16.11.2026); das wird schon beim Aufbau gelesen.

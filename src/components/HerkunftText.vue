@@ -11,7 +11,8 @@ import type { HerkunftAnzeige } from '../lib/origin'
  * Die Flagge ist ein Bild fester Größe unterhalb der Zeilenhöhe (styles/app.css `.flagge`):
  * Sie darf keine Zeile höher machen, sonst stimmte die Seitenteilung der Listen nicht mehr.
  */
-const props = defineProps<{ anzeige: HerkunftAnzeige }>()
+// Nur was gezeichnet wird – so passt auch die Herkunft der Anzeigetafel (types/betrieb.ts `SichtHerkunft`).
+const props = defineProps<{ anzeige: Pick<HerkunftAnzeige, 'flagge' | 'alt' | 'text' | 'druck' | 'klartext'> }>()
 const bild = computed(() => (props.anzeige.flagge ? flaggenBild(props.anzeige.flagge) : undefined))
 // Flagge und erstes Wort gehören zusammen: Wo die Spalte umbricht (Starter-Reiter am Handy),
 // soll die Flagge nicht allein auf einer Zeile stehen. Zusammengehalten wird nur dort

@@ -19,6 +19,8 @@ export default {
   'nav.verwiegung': 'Weighing',
   'nav.verzahnung': 'Interleaving',
   'nav.listen': 'Lists',
+  // Vorläufig (Plan vom 16.11.2026): Das Rulebook hat kein Wort für den Ablauf am Steg.
+  'nav.betrieb': 'Operation',
   'nav.einstellungen': 'Settings',
   'nav.erfassung': 'Data entry',
 

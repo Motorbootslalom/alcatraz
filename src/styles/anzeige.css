@@ -1,0 +1,348 @@
+/*
+ * Anzeigetafel am zweiten Bildschirm (src/AnzeigeApp.vue, components/anzeige/). Übernommen aus dem
+ * Tafel-Prototyp (styles.css, „Tafel“, 16.11.2026); umbenannt nach „im Code anzeige“.
+ *
+ * Eigene Farben (--anzeige-*), nicht die der Listen (--blatt-*) und nicht vom Farbschema abhängig:
+ * Die Tafel steht draußen, wird aus bis zu 50 m gelesen und ist immer weiß auf schwarz – gleich, wie
+ * der Bedienrechner eingestellt ist. Eingebunden nur von AnzeigeApp.vue.
+ *
+ * Alle Schriftgrößen sind Bruchteile der Höhe eines Bereichs (--anzeige-u). Was nicht passt, schrumpft
+ * über lib/fit.ts: --fit-scale je Zeile (Breite), --block-scale je Bereich (Höhe, alles gemeinsam).
+ */
+
+.anzeige,
+.anzeige-fenster {
+  --anzeige-grund: #000;
+  --anzeige-text: #fff;
+  /* Kopfzeile des Bereichs: Parcours, Klasse */
+  --anzeige-meta: #ffd24d;
+  --anzeige-lauf: #7fd7ff;
+  --anzeige-herkunft: #d6dee8;
+  /* Das frühere Grau (#8b96a5) war aus 50 m kaum zu lesen; heller, aber nicht weiß wie der aktuelle Starter. */
+  --anzeige-vorig: #c2cad4;
+  --anzeige-leer: #6b7683;
+  --anzeige-trenner: #00ff66;
+  --anzeige-stoerung: #ff6b6b;
+  --anzeige-pause: #ffd24d;
+  --anzeige-info: #fff;
+  /* Feiner Rahmen um Flaggen: Mehrere haben oben einen schwarzen Streifen, der sonst im Grund verschwände. */
+  --anzeige-flaggenrand: #6b7683;
+}
+
+/* Das ganze Fenster schwarz – auch dort, wo die Tafel (noch) nicht hinreicht: kein weißer Blitz. */
+html.anzeige-fenster,
+html.anzeige-fenster body {
+  background: var(--anzeige-grund);
+  color: var(--anzeige-text);
+  margin: 0;
+}
+
+.anzeige {
+  --anzeige-bereiche: 1;
+  --anzeige-kopf-h: 0px;
+  --anzeige-skala: 1;
+  /* Höhe, die einem Bereich zur Verfügung steht – Grundmaß aller Schriften. */
+  --anzeige-bereich-h: calc((100vh - var(--anzeige-kopf-h)) / var(--anzeige-bereiche));
+  --anzeige-u: calc(var(--anzeige-bereich-h) * var(--anzeige-skala));
+
+  position: fixed;
+  inset: 0;
+  background: var(--anzeige-grund);
+  color: var(--anzeige-text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Arial Black', 'Arial Bold', Arial, system-ui, sans-serif;
+}
+
+/*
+ * Die Fläche unter der Kopfzeile: Bereiche untereinander – oder nebeneinander, wenn der Bildschirm so breit
+ * ist, dass auch ein halber Bereich noch breit genug für Nummer und Angaben nebeneinander bleibt (ein
+ * LED-Band; AnzeigeTafel.vue). --anzeige-bereiche zählt dann nur die Bereiche übereinander, also 1.
+ */
+.anzeige-flaeche {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.anzeige-flaeche.nebeneinander {
+  flex-direction: row;
+}
+
+/* Der Mauszeiger verschwindet nach kurzer Ruhe (AnzeigeApp.vue); `cursor` erbt die Tafel. */
+.anzeige-app.zeiger-weg {
+  cursor: none;
+}
+
+.anzeige-kopf {
+  height: var(--anzeige-kopf-h);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--anzeige-u) * 0.03);
+  padding: 0 calc(var(--anzeige-u) * 0.04);
+  flex: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.anzeige-logo {
+  height: 82%;
+  width: auto;
+  max-width: 25vw;
+  object-fit: contain;
+  flex: none;
+}
+
+.anzeige-titel {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: calc(var(--anzeige-kopf-h) * 0.5 * var(--fit-scale));
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+.anzeige-bereich {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Etwas Luft, damit nichts an der Trennlinie oder am Bildschirmrand klebt. */
+  padding: calc(var(--anzeige-u) * 0.02) calc(var(--anzeige-u) * 0.035);
+  /* Nichts darf in den Nachbar-Parcours ragen. */
+  overflow: hidden;
+}
+
+.anzeige-trenner {
+  flex: none;
+  height: 4px;
+  background: var(--anzeige-trenner);
+}
+
+.anzeige-flaeche.nebeneinander .anzeige-trenner {
+  height: auto;
+  width: 4px;
+}
+
+/*
+ * Der Inhalt eines Bereichs füllt dessen Höhe: Die Kopfzeile (Parcours, Klasse, Lauf) steht so in jedem
+ * Zustand oben – mit Starter, „bereit“ und Meldung an derselben Stelle –, der Rest steht mittig darunter
+ * (.anzeige-rumpf). Ob er hineinpasst, misst lib/fit.ts an der natürlichen Höhe (fitBlock schaltet das
+ * Wachsen dafür kurz ab); passt er nicht, senkt --block-scale das Grundmaß, und alles verkleinert sich gemeinsam.
+ */
+.anzeige-inhalt {
+  --block-scale: 1;
+  --anzeige-u: calc(var(--anzeige-bereich-h) * var(--anzeige-skala) * var(--block-scale));
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* Wachsen ja, stauchen nie: Gestaucht wäre die gemessene Höhe immer die verfügbare. */
+  flex: 1 0 auto;
+}
+
+.anzeige-rumpf {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Textzeilen schrumpfen über --fit-scale, wenn sie zu lang werden (lib/fit.ts FIT_ZEILE). */
+.anzeige-zeile {
+  --fit-scale: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  /* Arial Black hat kräftige Ober- und Unterlängen, die sich bei zu engem Zeilenabstand berühren. */
+  line-height: 1.12;
+}
+
+/*
+ * Drei Spalten: Der Parcours-Name links ordnet den Block einem Bereich des Sees zu, Klasse und Lauf
+ * stehen mittig über der Startnummer. Die 1fr-Spalten außen halten die Mitte in der Mitte; die erste
+ * wird nie schmaler als der Name (sonst liefe er unter „Klasse“), zu breit greift die Breitenanpassung.
+ */
+.anzeige-meta {
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr) auto 1fr;
+  align-items: baseline;
+  gap: calc(var(--anzeige-u) * 0.04);
+  font-size: calc(var(--anzeige-u) * 0.115 * var(--fit-scale));
+  font-weight: 900;
+  color: var(--anzeige-meta);
+  letter-spacing: 0.02em;
+}
+
+.anzeige-meta .anzeige-parcours {
+  justify-self: start;
+}
+
+.anzeige-meta .anzeige-mitte {
+  justify-self: center;
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--anzeige-u) * 0.06);
+}
+
+.anzeige-meta .anzeige-lauf {
+  color: var(--anzeige-lauf);
+}
+
+/* Klassenfarbe: ein Quadrat vor der Klasse, so hoch wie die Großbuchstaben. */
+.anzeige-klassenfarbe {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-right: 0.25em;
+  border-radius: 0.1em;
+  vertical-align: baseline;
+}
+
+/*
+ * Startnummer links, Angaben zum Starter rechts daneben: So begrenzt nur die Höhe des Bereichs die
+ * Nummer, und die Breite bleibt für die Namen. In einem hohen Bereich untereinander (`gestapelt`).
+ */
+.anzeige-haupt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--anzeige-u) * 0.06);
+  min-width: 0;
+}
+
+/* Name, Herkunft und Starter davor wirkten live zu klein, die Nummer genau richtig: gemeinsam anheben. */
+.anzeige-angaben {
+  --angaben-skala: 1.25;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  text-align: left;
+}
+
+.anzeige-startnr {
+  flex: none;
+  text-align: right;
+  font-size: calc(var(--anzeige-u) * 0.66 * var(--fit-scale));
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.anzeige-name {
+  font-size: calc(var(--anzeige-u) * 0.155 * var(--angaben-skala) * var(--fit-scale));
+  font-weight: 900;
+}
+
+.anzeige-herkunft {
+  font-size: calc(var(--anzeige-u) * 0.105 * var(--angaben-skala) * var(--fit-scale));
+  font-weight: 700;
+  color: var(--anzeige-herkunft);
+}
+
+/* Die Flagge vor der Herkunft (components/HerkunftText.vue): auf der Grundlinie, etwa so hoch wie die Großbuchstaben. */
+.anzeige-herkunft .flagge {
+  height: 0.72em;
+  width: auto;
+  vertical-align: baseline;
+  margin-right: 0.3em;
+  border: 0;
+  box-shadow: 0 0 0 max(1px, 0.025em) var(--anzeige-flaggenrand);
+}
+
+.anzeige-vorig {
+  font-size: calc(var(--anzeige-u) * 0.075 * var(--angaben-skala) * var(--fit-scale));
+  font-weight: 700;
+  color: var(--anzeige-vorig);
+  margin-top: calc(var(--anzeige-u) * 0.015);
+}
+
+.anzeige-meldung {
+  text-align: center;
+  font-weight: 900;
+  font-size: calc(var(--anzeige-u) * 0.16 * var(--fit-scale));
+  padding: 0 calc(var(--anzeige-u) * 0.03);
+  white-space: pre-wrap;
+  line-height: 1.15;
+}
+
+/* Ein Hinweis steht unter dem Starter: mindestens so groß wie der Name, kleiner als eine Meldung, die ihn ersetzt. */
+.anzeige-meldung.darunter {
+  font-size: calc(var(--anzeige-u) * 0.13 * var(--fit-scale));
+  color: var(--anzeige-pause);
+  margin-top: calc(var(--anzeige-u) * 0.025);
+}
+
+.anzeige-meldung.stoerung {
+  color: var(--anzeige-stoerung);
+}
+
+.anzeige-meldung.pause {
+  color: var(--anzeige-pause);
+}
+
+.anzeige-meldung.info:not(.darunter) {
+  color: var(--anzeige-info);
+}
+
+/*
+ * Untereinander – für hohe Bereiche (meist ein einziger Parcours): Nebeneinander bliebe für Name und
+ * Herkunft nur ein schmaler Streifen. Die Nummer wird kleiner, bleibt aber mit Abstand das Größte.
+ */
+.anzeige-inhalt.gestapelt .anzeige-haupt {
+  flex-direction: column;
+  gap: calc(var(--anzeige-u) * 0.012);
+}
+
+.anzeige-inhalt.gestapelt .anzeige-startnr {
+  font-size: calc(var(--anzeige-u) * 0.42 * var(--fit-scale));
+  text-align: center;
+}
+
+.anzeige-inhalt.gestapelt .anzeige-angaben {
+  width: 100%;
+  text-align: center;
+}
+
+.anzeige-inhalt.gestapelt .anzeige-name {
+  font-size: calc(var(--anzeige-u) * 0.13 * var(--angaben-skala) * var(--fit-scale));
+}
+
+.anzeige-inhalt.gestapelt .anzeige-herkunft {
+  font-size: calc(var(--anzeige-u) * 0.09 * var(--angaben-skala) * var(--fit-scale));
+}
+
+.anzeige-inhalt.gestapelt .anzeige-vorig {
+  font-size: calc(var(--anzeige-u) * 0.062 * var(--angaben-skala) * var(--fit-scale));
+}
+
+.anzeige-leer {
+  text-align: center;
+  font-size: calc(var(--anzeige-u) * 0.1);
+  color: var(--anzeige-leer);
+  font-weight: 700;
+}
+
+/*
+ * Weiches Erscheinen – nur Verzierung. Bewusst keine Vue-Überblendung: Die bräuchte Animationsframes,
+ * und ein verdecktes oder gedrosseltes Fenster bliebe sonst auf dem alten Starter stehen. Der Ruhezustand
+ * ist sichtbar; läuft die Animation nicht, steht der neue Starter trotzdem sofort da.
+ */
+@keyframes anzeige-erscheinen {
+  from {
+    opacity: 0;
+  }
+}
+
+.anzeige-inhalt {
+  animation: anzeige-erscheinen 130ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anzeige-inhalt {
+    animation: none;
+  }
+}

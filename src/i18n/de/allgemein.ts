@@ -17,6 +17,7 @@ export default {
   'nav.verwiegung': 'Verwiegung',
   'nav.verzahnung': 'Verzahnung',
   'nav.listen': 'Listen',
+  'nav.betrieb': 'Betrieb',
   'nav.einstellungen': 'Einstellungen',
   'nav.erfassung': 'Erfassung',
 

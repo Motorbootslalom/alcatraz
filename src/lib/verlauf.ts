@@ -193,10 +193,20 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
  * Wie eine Action im Verlauf heißt – aus ihrer Art abgeleitet. `null`: Sie bekommt keinen eigenen
  * Eintrag (die Kennung der Veranstaltung entsteht von selbst), der Stand wird trotzdem gespeichert.
  * `nachher` ist der Stand nach der Action: Die Klasse einer Eingabe folgt aus ihren Startern.
+ *
+ * Der Betrieb am Wettkampftag (BETRIEB_*: Lauf beginnen, Start zeigen, Meldung …) bekommt ebenfalls
+ * keinen: Wechselten Erfassung und „Nächster Start“ einander ab, entstünde sonst bei jedem Start ein
+ * neuer Eintrag mit dem ganzen Stand. Die Einstellungen der Anzeigetafel (SET_ANZEIGE) sind
+ * gewöhnliche Einstellungen. Plan vom 16.11.2026.
  */
 export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>): Beschreibung | null {
   switch (action.type) {
     case 'SET_KENNUNG':
+    case 'BETRIEB_BEGINNEN':
+    case 'BETRIEB_ZEIGEN':
+    case 'BETRIEB_ZURUECK':
+    case 'BETRIEB_MELDUNG':
+    case 'BETRIEB_ZURUECKSETZEN':
       return null
     case 'SET_EINGABEN': {
       const ids = new Set(action.zellen.map((z) => z.starter))

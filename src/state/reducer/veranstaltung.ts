@@ -8,6 +8,7 @@ import { istKennung } from '../../lib/qr'
 import { WKR_LEERZEILEN_CLUB, WKR_LEERZEILEN_SEITE_VORGABE, WKR_LEERZEILEN_VORGABE } from './listen'
 import { ERGEBNIS_LISTEN_VORGABE } from './wertung'
 import { LOGO_HOEHE_VORGABE_MM } from '../../lib/logo'
+import { anzeigeVorgabe, betriebLeer } from './betrieb'
 
 export type VeranstaltungAenderung =
   | { type: 'SET_EVENT'; patch: Partial<Pick<AppState, 'eventName' | 'eventJahr' | 'laufCount'>> }
@@ -65,6 +66,9 @@ export function emptyState(): AppState {
     // Anfangs keine Logos, unter jedem Regelwerk (Entscheidung des Nutzers vom 16.11.2026).
     logos: { links: null, rechts: null },
     logoHoeheMm: LOGO_HOEHE_VORGABE_MM,
+    // Betrieb am Wettkampftag: noch nichts begonnen; die Anzeigetafel mit ihren Vorgaben (16.11.2026).
+    betrieb: betriebLeer(),
+    anzeige: anzeigeVorgabe(),
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,

@@ -1,8 +1,8 @@
 import type { AppState, ClassId, OriginMode, Sprache, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, laufzettelLayoutWert, leerzeilenZahl, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
-import { aufbauOf, beschriftungOf, hasParallel, regelwerkOf } from '../config/catalog'
+import { emptyState, laufzettelLayoutWert, leerzeilenZahl, normalisiereAnzeige, normalisiereBetrieb, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
+import { aufbauOf, beschriftungOf, hasParallel, PARALLEL, regelwerkOf } from '../config/catalog'
 import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
@@ -158,6 +158,10 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     // Fehlen in Ständen vor den Logos (16.11.2026): keine, Vorgabehöhe. Fremde Adressen, Zu-Großes und Maße ≤ 0 entfallen.
     logos: { links: logoWert(loaded.logos?.links), rechts: logoWert(loaded.logos?.rechts) },
     logoHoeheMm: logoHoeheZahl(loaded.logoHoeheMm),
+    // Fehlen in Ständen vor dem Betrieb (16.11.2026): nichts begonnen, Vorgaben der Anzeigetafel. Bereiche,
+    // die es nicht (mehr) gibt, entfallen – im Betrieb wie in der Auswahl der Anzeigetafel.
+    betrieb: normalisiereBetrieb(loaded.betrieb, [...parcoursIds, PARALLEL]),
+    anzeige: normalisiereAnzeige(loaded.anzeige, [...parcoursIds, PARALLEL]),
   }
   // Ein Stand mit festgeschriebener Verzahnung aus der Zeit vor den festen Plänen bekommt seinen
   // Plan des Vorlaufs jetzt – einmal, danach wird er nicht mehr neu gerechnet. Ohne Sperre bleibt

@@ -17,10 +17,15 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 - `ListsView.vue` – Reiter „Listen“: KINDS (starter, gewicht, vorsteg, wkr, laufzettel, codes, ergebnis, pokal,
   druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`), print() setzt
   document.title (= Dateiname) und ruft window.print().
+- `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start` (useReiter; E3 startliste, E6 geraete),
+  „Anzeigetafel öffnen“ (lib/anzeigeFenster.ts), je Parcours components/betrieb/StartFreigabe.vue aus sichtOeffentlich;
+  ohne festgeschriebene Verzahnung nur der Hinweis `vor-verzahnung` (mit schon begonnenem Betrieb dazu die Karten,
+  ohne „Nächster Start“/„beginnen“); „Betrieb zurücksetzen“ mit AppDialog.
 - `ErfassungView.vue` – Bogen wählen oder scannen, Eingabetabelle; nach Laufzettel-Scan alle Blätter untereinander.
-- `SettingsView.vue` (~740 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (logos (LogosPanel),
+- `SettingsView.vue` (~880 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (logos (LogosPanel),
   wertung, streichlaeufe, ergebnislisten, pokal, wkr-listen, wkr-zeilen-je-seite, wkr-teilen-ab, wkr-leerzeilen,
-  laufzettel-layout, dateien …) und `data-feld` je Steuerelement; Kürzel, Dateien, Verlauf.
+  laufzettel-layout, anzeigetafel, dateien …) und `data-feld` je Steuerelement; Kürzel, Dateien, Verlauf.
+  Anzeigetafel: data-feld `anzeige-*` → SET_ANZEIGE; Sprungziel `#/einstellungen?anzeigetafel`.
 
 ## Abläufe
 
@@ -67,5 +72,5 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 
 Je Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meist über ListsView), z. B. Verwiegung
 (Link zu den Gewichtslisten), Ergebnislisten, ParallelErgebnis, Einzelwertung, Pokalauswertung, Laufzettel, Druckdatei,
-Seitenzahlen, Doppelseitig, SettingsView, Listenoptionen, ErfassungView, ErfassungScan, Dolphin, UimAushang (englisch).
+Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel), Betrieb (Start-Freigabe), Listenoptionen, ErfassungView, ErfassungScan, Dolphin, UimAushang (englisch).
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

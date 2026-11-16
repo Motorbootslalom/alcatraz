@@ -9,6 +9,7 @@ import listen from './de/listen'
 import listenoptionen from './de/listenoptionen'
 import aufbauten from './de/aufbauten'
 import verlauf from './de/verlauf'
+import betrieb from './de/betrieb'
 
 /**
  * Deutscher Katalog – zugleich die Quelle aller Schlüssel. Jede weitere Sprache
@@ -32,4 +33,5 @@ export default {
   ...listenoptionen,
   ...aufbauten,
   ...verlauf,
+  ...betrieb,
 } as const satisfies Record<string, string>

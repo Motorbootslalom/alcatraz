@@ -18,13 +18,15 @@
  */
 
 /** Die Ansichten in der Reihenfolge der Navigation. */
-export const VIEWS = ['veranstaltung', 'starter', 'verwiegung', 'verzahnung', 'listen', 'erfassung', 'einstellungen'] as const
+export const VIEWS = ['veranstaltung', 'starter', 'verwiegung', 'verzahnung', 'listen', 'betrieb', 'erfassung', 'einstellungen'] as const
 export type ViewName = (typeof VIEWS)[number]
 
 /** Die Reiter je Ansicht, die in der Adresse stehen (zweites Segment). */
 export interface ReiterNamen {
   listen: 'starter' | 'gewicht' | 'vorsteg' | 'wkr' | 'laufzettel' | 'codes' | 'ergebnis' | 'pokal' | 'druckdatei'
   verzahnung: 'manoever' | 'parallel'
+  /** Betrieb am Wettkampftag (Plan vom 16.11.2026): E1 nur die Start-Freigabe; `startliste` (E3) und `geraete` (E6) folgen. */
+  betrieb: 'start'
 }
 export type ReiterView = keyof ReiterNamen
 
@@ -33,12 +35,26 @@ export type ReiterView = keyof ReiterNamen
  * Einstellungen und, unter „Veranstaltung“, der Block „Besetzung“ (`besetzung`; `wkr` meint
  * darin die WKR-Einteilung) und der Block mit „Alle erfassten Werte löschen“ (`werte`).
  */
-export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline'
+export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline' | 'anzeigetafel'
+
+/**
+ * Fenster mit eigener Wurzel, ohne Kopf, Reiter und Fuß (src/main.ts wählt sie vor dem Store):
+ * die Anzeigetafel `#/anzeige[/<bereich>]` (src/AnzeigeApp.vue, Plan vom 16.11.2026). Der Bereich
+ * ist eine Kennung aus den Daten (Parcours) – kodiert, nicht übersetzt, wie `wahl`.
+ */
+export const VOLLBILDER = ['anzeige'] as const
+export type VollbildArt = (typeof VOLLBILDER)[number]
+export interface Vollbild {
+  art: VollbildArt
+  /** Nur dieser Bereich (`#/anzeige/<parcours-id>`); ohne = die gemeinsame Anzeigetafel. */
+  bereich?: string
+}
 
 export interface AdressTabelle {
   ansichten: Record<ViewName, string>
   reiter: { [V in ReiterView]: Record<ReiterNamen[V], string> }
   ziele: Record<Sprungziel, string>
+  vollbild: Record<VollbildArt, string>
 }
 
 /** Die Sprache, deren Wort gilt, wenn das eigene mehrdeutig ist (Vorgabe des Nutzers). */
@@ -57,6 +73,7 @@ export const ADRESSEN = {
       verwiegung: 'verwiegung',
       verzahnung: 'verzahnung',
       listen: 'listen',
+      betrieb: 'betrieb',
       erfassung: 'erfassung',
       einstellungen: 'einstellungen',
     },
@@ -73,8 +90,10 @@ export const ADRESSEN = {
         druckdatei: 'druckdatei',
       },
       verzahnung: { manoever: 'manoever', parallel: 'parallel' },
+      betrieb: { start: 'start' },
     },
-    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline' },
+    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel' },
+    vollbild: { anzeige: 'anzeige' },
   },
   en: {
     ansichten: {
@@ -83,6 +102,8 @@ export const ADRESSEN = {
       verwiegung: 'weighing',
       verzahnung: 'interleaving',
       listen: 'lists',
+      // Vorläufig (Plan vom 16.11.2026): Das Rulebook hat kein Wort für den Ablauf am Steg.
+      betrieb: 'operation',
       erfassung: 'entry',
       einstellungen: 'settings',
     },
@@ -100,8 +121,11 @@ export const ADRESSEN = {
         druckdatei: 'results-booklet',
       },
       verzahnung: { manoever: 'manoeuvring', parallel: 'parallel' },
+      betrieb: { start: 'start' },
     },
-    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline' },
+    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board' },
+    // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen.
+    vollbild: { anzeige: 'display' },
   },
 } as const satisfies Record<string, AdressTabelle>
 
@@ -244,6 +268,7 @@ export interface Adressbuch {
   ansichten: Wortraum
   reiter: Record<string, Wortraum>
   ziele: Wortraum
+  vollbild: Wortraum
 }
 
 /** Die Worträume aller drei Stellen der Adresse aus den Tabellen der Sprachen. */
@@ -254,6 +279,7 @@ export function adressbuch(tabellen: Readonly<Record<string, AdressTabelle>>, fa
     ansichten: je((t) => t.ansichten),
     reiter: Object.fromEntries(reiterViews.map((v) => [v, je((t) => t.reiter[v])])),
     ziele: je((t) => t.ziele),
+    vollbild: je((t) => t.vollbild),
   }
 }
 
@@ -313,4 +339,22 @@ export function schreibeAdresse(
   const wahl = teile.reiter && teile.wahl ? `/${encodeURIComponent(teile.wahl)}` : ''
   const ziel = teile.ziel ? `?${wort(buch.ziele, teile.ziel)}` : ''
   return `#/${wort(buch.ansichten, view)}${reiter}${wahl}${ziel}`
+}
+
+/**
+ * Liest ein Fenster mit eigener Wurzel (`#/anzeige`, `#/display/<bereich>`) – in jeder Sprache;
+ * `null` für jede gewöhnliche Adresse. Rein: src/main.ts fragt das, bevor ein Store entsteht.
+ */
+export function liesVollbild(buch: Adressbuch, hash: string): Vollbild | null {
+  const [pfad = ''] = hash.replace(/^#\/?/, '').split('?')
+  const [a = '', b = ''] = pfad.split('/').map(entschluesselt)
+  const art = buch.vollbild.lies[klein(a)] as VollbildArt | undefined
+  if (!art) return null
+  return b !== '' ? { art, bereich: b } : { art }
+}
+
+/** Schreibt die Adresse eines solchen Fensters in einer Sprache; der Bereich bleibt, wie er ist (kodiert). */
+export function schreibeVollbild(buch: Adressbuch, sprache: string, v: Vollbild, fallback: string = ADRESS_FALLBACK): string {
+  const wort = buch.vollbild.schreibe[sprache]?.[v.art] ?? buch.vollbild.schreibe[fallback]?.[v.art] ?? v.art
+  return `#/${wort}${v.bereich ? `/${encodeURIComponent(v.bereich)}` : ''}`
 }

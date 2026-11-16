@@ -12,6 +12,10 @@
 - `migrate.ts` – gelesenen Stand normalisieren (Objekt `stand`), normalizeStarter(); SCHEMA_VERSION aus types.ts.
 - `tor5.ts` – mitTor5Umzug: Eingaben, WKR-Namen und Sprachen der Bögen ziehen mit, wenn die Liste für Tor 5 wechselt.
 - `zweit.ts` – zweiter Speicher und Verlauf: Schreibpumpe, Start-Entscheidung, merken/wiederherstellen.
+- `leseStore.ts` – Nur-Lese-Store der Anzeigetafel (zweites Fenster): liest localStorage, folgt `storage`, schreibt nie.
+  Angelegt in main.ts statt createStore(), wenn die Adresse `#/anzeige` ist; `lies()` auch auf postMessage des openers.
+- `reducer/betrieb.ts` – BETRIEB_* (beginnen, zeigen mit `vorher`, zurück, Meldung, zurücksetzen), SET_ANZEIGE;
+  normalisiereBetrieb/-Anzeige für migrate. Logik der Folge: betrieb/ (eigene Karte).
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
 
@@ -64,6 +68,10 @@
 - ORDER_STARTERS/SHUFFLE_STARTERS (Starter-Reiter, lib/reihenfolge.ts) und MOVE_STARTER (▲▼, 16.11.2026) in
   VERZAHNUNG_ACTIONS: danach keine neue Folge; Nummern von Hand gehen weiter; unverändert ⇒ derselbe Stand. Alle drei über inFolge(): Nummern neu
   verteilt UND Starter im Array umgestellt – ohne Nummer zählt die Array-Folge (sortedByStartNr, Verzahnung, Export).
+- betrieb/anzeige (16.11.2026): betrieb in der Sicherung, nicht in der Vorlage (apply hängt ihn per haengeUm auf
+  deren Parcours um, `parallel` bleibt); anzeige reist mit, kopfzeile bleibt beim Ziel. BETRIEB_* ohne Verlaufseintrag
+  (verlauf.ts `null`); VerlaufPanel stellt mit dem jetzigen betrieb wieder her – nur bei gleicher `kennung` (sonst der des
+  Eintrags); CLEAR_EINGABEN lässt ihn stehen.
 - logos/logoHoeheMm (16.11.2026): Prüfung nur über lib/logo.ts logoWert/logoHoeheZahl (Reducer UND migrate);
   unbrauchbares SET_LOGO ändert nichts; backup.ts apply: je Seite gilt das Logo der Vorlage, fehlt es, bleibt das
   hiesige; nicht in WERTUNG.

@@ -114,6 +114,26 @@ export default {
   'listopt.logo.error.lesbar': 'Das Bild ließ sich nicht lesen. Das bisherige Logo bleibt.',
   'listopt.logo.error.speicher': 'Mit diesem Logo wäre der Speicher des Browsers voll. Das bisherige Logo bleibt – bitte ein kleineres Bild wählen.',
 
+  // Anzeigetafel (Plan vom 16.11.2026): Was sie zeigt. Die Bedienung steht im Reiter „Betrieb“ (betrieb.ts).
+  'listopt.anzeige.title': 'Anzeigetafel',
+  'listopt.anzeige.hint':
+    'Die Anzeigetafel zeigt in einem eigenen Fenster, wer gerade startet – freigegeben im Reiter „Betrieb“. Hier steht, was sie zeigt. Geburtsdaten, Gewichte und erfasste Werte zeigt sie nie.',
+  'listopt.anzeige.kopfzeile': 'Kopfzeile',
+  'listopt.anzeige.kopfzeile.zeigen': 'Kopfzeile zeigen',
+  'listopt.anzeige.kopfzeile.hint': 'Leer lassen: Name und Jahr der Veranstaltung.',
+  'listopt.anzeige.bereiche': 'Parcours auf der gemeinsamen Anzeigetafel',
+  'listopt.anzeige.bereiche.hint': 'Neben- oder untereinander, je nach Bildschirm. Unter „Betrieb“ lässt sich je Parcours auch eine eigene Anzeigetafel öffnen.',
+  'listopt.anzeige.davor': 'Vorigen Start zeigen',
+  'listopt.anzeige.parcoursName': 'Namen des Parcours zeigen',
+  'listopt.anzeige.namen': 'Namen',
+  'listopt.anzeige.namen.aushang': 'wie der Aushang ({art})',
+  'listopt.anzeige.skala': 'Schriftgröße (%)',
+  'listopt.anzeige.skala.hint': '{min} bis {max} %, Vorgabe 100 %. Zu lange Zeilen werden ohnehin kleiner, statt abgeschnitten zu werden.',
+  'listopt.anzeige.sprache': 'Sprache der Anzeigetafel',
+  'listopt.anzeige.sprache.regelwerk': 'wie die Listen ({language})',
+  'listopt.anzeige.logos': 'Logos neben der Kopfzeile',
+  'listopt.anzeige.logos.hint': 'Die Logos aus „{logos}“, links und rechts – nur auf der Anzeigetafel dieses Rechners.',
+
   'origin.style.aus': 'nicht zeigen',
   'origin.style.lang': 'ausgeschrieben',
   'origin.style.kurz': 'Kürzel',

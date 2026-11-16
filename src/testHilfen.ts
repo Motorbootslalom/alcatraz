@@ -1,5 +1,7 @@
-import { reducer, type Action } from './state/reducer'
-import type { AppState, LogoBild } from './types'
+import { emptyState, reducer, type Action } from './state/reducer'
+import { planEvent } from './planung/plan'
+import { sichtOeffentlich } from './betrieb/sicht'
+import type { AppState, ClassId, LogoBild, Starter } from './types'
 
 // Hilfen nur für Tests – kein Teil der Anwendung.
 
@@ -69,3 +71,45 @@ export function seitenKoepfe(root: Element, felder = '.sheet-title-box [data-fel
 
 /** Dieselben Köpfe ohne die Logos – zum Vergleich mit einer Fassung ohne Logos. */
 export const ohneLogos = (koepfe: SeitenKopf[]) => koepfe.map(({ kopf, colspan }) => ({ kopf, colspan }))
+
+// --- Betrieb am Wettkampftag (Anzeigetafel, Start-Freigabe) ---------------------------------------
+
+/** Ein erfundener Starter nach dem Muster Vor<id>/Nach<id>, Verein „Musterclub“. */
+export function betriebStarter(id: string, klasse: ClassId, startNr: string, mehr: Partial<Starter> = {}): Starter {
+  return { id, startNr, vorname: `Vor${id}`, nachname: `Nach${id}`, verein: 'Musterclub', bundesland: '', geburtsdatum: '', klasse, groesse: '', ...mehr }
+}
+
+/**
+ * Zwei Parcours der Vorgabe mit erfundenen Startern: Parcours 1 fährt e1, k1, e2, k2 (E und 1 verzahnt),
+ * Parcours 2 v1, f1, v2 (4 und 5); DM, 3 Läufe. Noch nicht festgeschrieben.
+ */
+export function betriebsStand(starter: readonly Starter[] = BETRIEB_STARTER): AppState {
+  return reducer({ ...emptyState(), eventName: 'Musterpokal' }, { type: 'ADD_STARTERS', starters: [...starter] })
+}
+
+export const BETRIEB_STARTER: readonly Starter[] = [
+  betriebStarter('e1', 'E', 'E01'),
+  betriebStarter('e2', 'E', 'E02'),
+  betriebStarter('k1', '1', '101'),
+  betriebStarter('k2', '1', '102'),
+  betriebStarter('v1', '4', '401'),
+  betriebStarter('v2', '4', '402'),
+  betriebStarter('f1', '5', '501'),
+]
+
+/** Verzahnung festschreiben, mit den gerade gezeigten Spuren – wie der Knopf in der Verzahnung. */
+export function festgeschrieben(state: AppState): AppState {
+  const tracks = Object.fromEntries(planEvent(state).plans.map((p) => [p.parcoursId, p.tracks]))
+  return reducer(state, { type: 'SET_VERZAHNUNG_LOCK', locked: true, tracks })
+}
+
+/**
+ * „Nächster Start“ in einem Bereich, so wie die Start-Freigabe ihn schickt: `ref` und `vorher` aus der
+ * öffentlichen Sicht, nicht aus der Lage – sonst fiele nicht auf, wenn beide auseinanderlaufen.
+ */
+export function zeigeNaechsten(state: AppState, bereich: string, zeit = 1000): AppState {
+  const b = sichtOeffentlich(state).bereiche.find((x) => x.id === bereich)
+  const naechster = b?.offen[0]
+  if (!b || !naechster) return state
+  return reducer(state, { type: 'BETRIEB_ZEIGEN', bereich, ref: naechster.key, vorher: b.aktuell?.key ?? null, zeit })
+}

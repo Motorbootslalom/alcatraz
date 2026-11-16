@@ -8,7 +8,7 @@ import { setLocale } from '../i18n'
 import { configFor } from '../config/konfig'
 import type { RawAufbau } from '../config/schema'
 import { LogoFehler, verkleinereLogo } from '../lib/logoBild'
-import { TEST_PNG_2X1, testLogo } from '../testHilfen'
+import { betriebsStand, festgeschrieben, TEST_PNG_2X1, testLogo } from '../testHilfen'
 
 /** Erfundener eigener Aufbau. */
 const hafenfest: RawAufbau = {
@@ -719,5 +719,115 @@ describe('Einstellungen: Logos', () => {
     expect(wrapper.find('[data-logo="links"] [data-fehler="speicher"]').text()).toContain('Speicher des Browsers voll')
     spy.mockRestore()
     wrapper.unmount()
+  })
+})
+
+describe('Einstellungen: Anzeigetafel', () => {
+  // Erfundene Starter (Vor<id>/Nach<id>, Musterclub) auf zwei Parcours, Verzahnung festgeschrieben.
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+    store.dispatch({ type: 'LOAD_STATE', state: festgeschrieben(betriebsStand()) })
+  })
+  afterEach(() => {
+    setLocale('de')
+    document.body.innerHTML = ''
+  })
+
+  const anzeige = () => store.state.value.anzeige
+
+  it('ein eigener Abschnitt mit Verweis auf die Start-Freigabe; jedes Feld wirkt über SET_ANZEIGE', async () => {
+    const wrapper = settings(store)
+    const abschnitt = wrapper.find('#anzeigetafel.panel')
+    expect(abschnitt.find('h2').text()).toBe('Anzeigetafel')
+    expect(abschnitt.find('.hint a').attributes('href')).toBe('#/betrieb')
+
+    await abschnitt.find('[data-feld="anzeige-davor"]').setValue(false)
+    await abschnitt.find('[data-feld="anzeige-parcours-name"]').setValue(false)
+    await abschnitt.find('[data-feld="anzeige-namen|kurz"]').trigger('click')
+    await abschnitt.find('[data-feld="anzeige-herkunft"]').setValue('aus')
+    await abschnitt.find('[data-feld="anzeige-sprache"]').setValue('en')
+    await abschnitt.find('[data-feld="anzeige-logos"]').setValue(false)
+    expect(anzeige()).toMatchObject({ davor: false, parcoursName: false, namen: 'kurz', herkunft: 'aus', sprache: 'en', logos: false })
+    expect(abschnitt.find('[data-feld="anzeige-namen|kurz"]').classes()).toContain('active')
+
+    // Größe in Prozent, geklemmt auf 70–130.
+    await abschnitt.find('[data-feld="anzeige-skala"]').setValue('120')
+    expect(anzeige().skala).toBe(1.2)
+    const skala = abschnitt.find('[data-feld="anzeige-skala"]')
+    await skala.setValue('300')
+    expect(anzeige().skala).toBe(1.3)
+    expect((skala.element as HTMLInputElement).value).toBe('130')
+    // Noch einmal zu groß: Der Stand ändert sich nicht – das Feld zeigt trotzdem den geltenden Wert.
+    await skala.setValue('250')
+    expect((skala.element as HTMLInputElement).value).toBe('130')
+    await skala.setValue('40')
+    expect([anzeige().skala, (skala.element as HTMLInputElement).value]).toEqual([0.7, '70'])
+    await skala.setValue('abc')
+    expect((skala.element as HTMLInputElement).value).toBe('70')
+    expect(abschnitt.text()).toContain('70 bis 130 %')
+    wrapper.unmount()
+  })
+
+  it('Kopfzeile: leer = Name und Jahr (Vorgabe im Feld), eigener Text, oder keine', async () => {
+    const wrapper = settings(store)
+    const feld = wrapper.find('[data-feld="anzeige-kopfzeile"]')
+    expect(feld.attributes('placeholder')).toBe('Musterpokal 2026')
+    await feld.setValue('1. Musterregatta')
+    expect(anzeige().kopfzeile).toBe('1. Musterregatta')
+    await feld.setValue('  ')
+    expect(anzeige().kopfzeile).toBeNull()
+    await wrapper.find('[data-feld="anzeige-kopfzeile-zeigen"]').setValue(false)
+    expect(anzeige().kopfzeile).toBe('')
+    expect(wrapper.find('[data-feld="anzeige-kopfzeile"]').attributes('disabled')).toBeDefined()
+    await wrapper.find('[data-feld="anzeige-kopfzeile-zeigen"]').setValue(true)
+    expect(anzeige().kopfzeile).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('Parcours der gemeinsamen Anzeigetafel: alle (leer) oder eine Auswahl; einer bleibt immer', async () => {
+    const wrapper = settings(store)
+    const haken = () => wrapper.findAll('[data-feld="anzeige-bereiche"] input')
+    expect(haken().map((h) => [h.attributes('data-bereich'), (h.element as HTMLInputElement).checked])).toEqual([
+      ['par_1', true],
+      ['par_2', true],
+    ])
+    await haken()[0].setValue(false)
+    expect(anzeige().bereiche).toEqual(['par_2'])
+    // Der letzte gewählte lässt sich nicht abwählen.
+    expect(haken()[1].attributes('disabled')).toBeDefined()
+    await haken()[0].setValue(true)
+    expect(anzeige().bereiche).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('Namen „wie der Aushang“ nennt, was der Aushang gerade zeigt; Sprache „wie die Listen“ nennt die des Regelwerks', async () => {
+    const wrapper = settings(store)
+    expect(wrapper.find('[data-feld="anzeige-namen|aushang"]').text()).toBe('wie der Aushang (voll)')
+    expect(wrapper.find('[data-feld="anzeige-sprache"] option[value="regelwerk"]').text()).toBe('wie die Listen (Deutsch)')
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    await nextTick()
+    expect(wrapper.find('[data-feld="anzeige-sprache"] option[value="regelwerk"]').text()).toBe('wie die Listen (English)')
+    wrapper.unmount()
+  })
+
+  it('Sprungziel #/einstellungen?anzeigetafel rollt zum Abschnitt', async () => {
+    const vorher = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
+    const scroll = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { value: scroll, configurable: true, writable: true })
+    location.hash = '#/einstellungen?anzeigetafel'
+    try {
+      const wrapper = settings(store, { attachTo: document.body })
+      await flushPromises()
+      expect(scroll.mock.contexts).toContain(wrapper.find('#anzeigetafel').element)
+      wrapper.unmount()
+    } finally {
+      location.hash = ''
+      if (vorher) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', vorher)
+      else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
   })
 })

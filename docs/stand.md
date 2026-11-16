@@ -30,7 +30,7 @@ Alcatraz führt die bisherigen Prototypen zusammen:
 |---|---|---|
 | `verzahnung-prototyp-vue` | Starter, Startnummern, Verzahnung, Bootbedarf, Parallel-Slalom | übernommen |
 | `fehlerpunkte-prototyp-vue` | Regelwerke, Aufbauten, WKR-Listen, Erfassung, Wertungslisten | übernommen, siehe unten |
-| `tafel` | Anzeigetafel, Startliste im Betrieb, Geräte über ntfy | offen |
+| `tafel` | Anzeigetafel, Startliste im Betrieb, Geräte über ntfy | teilweise übernommen, siehe unten |
 | `Parcours` | Parcours-Zeichnungen | eingebunden, siehe unten |
 | Excel-Auswertung | Mannschaftswertung, Verwiegung, Urkunden-Daten u. a. | größtenteils übernommen, siehe unten |
 
@@ -48,6 +48,13 @@ Alcatraz führt die bisherigen Prototypen zusammen:
 Listen und Wertung des Parallelslaloms sind inzwischen ebenfalls da
 ([Parallelslalom](parallelslalom.md)).
 
+**Aus `tafel`** ist übernommen (Plan vom 16.11.2026, Etappe E1;
+[Betrieb: Start-Freigabe und Anzeigetafel](funktionen.md#betrieb-start-freigabe-und-anzeigetafel)):
+die Anzeigetafel in einem zweiten Fenster am Bedienrechner und die Start-Freigabe dort, für das Manövrieren,
+ohne Netz. Es folgen in Etappen: Steuerung mit Zurückstellen, Aussetzen und Verschieben, die Startliste im Betrieb
+mit Zeitprognose und Zuschauerliste, der Parallelslalom auf der Anzeigetafel, dann Anzeigetafel, Zuschauer und
+Start-Freigabe auf anderen Geräten (verschlüsselt über ntfy).
+
 **Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
 (`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).
 Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
@@ -62,8 +69,9 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
 ## Was offen ist
 
 - Erfassung durch die Wettkampfrichter am eigenen Gerät (im Datenmodell vorbereitet).
-- **Mehrere Geräte:** Für Anzeigetafel und Startlisten auf anderen Geräten ist die verschlüsselte Übertragung
-  über einen ntfy-Server vorgesehen (Prototyp `tafel`, noch nicht übernommen).
+- **Mehrere Geräte:** Die Anzeigetafel läuft heute im zweiten Fenster am Bedienrechner (ohne Netz). Für Anzeigetafel,
+  Start-Freigabe und Startlisten auf anderen Geräten ist die verschlüsselte Übertragung über einen ntfy-Server
+  vorgesehen (Prototyp `tafel`, noch nicht übernommen).
 - Aus der Excel-Auswertung: Urkunden-Daten u. a.
 - Was fachlich entschieden, aber noch offen ist: [entscheidungen.md](entscheidungen.md#offen).
 
@@ -84,15 +92,19 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
   - [ ] Login und Rechtemodell ... → offen; Alcatraz hat bisher bewusst keine Anmeldung
   - [ ] Nächster Start wird erst freigegeben, wenn alle Wettkampfrichter den Lauf abgenickt haben → offen
   - [ ] Startnummer und Klasse muss sich vor jedem Start aktualisieren → offen
-  - [ ] Starterseite → offen; Anzeigetafel und Startliste im Betrieb gibt es im Prototyp `tafel`, noch nicht übernommen
-    - [ ] Anzeige von Informationen wie Startnummer, Name, Klasse und Lauf
-    - [ ] Aufgeteilt nach 'Im Boot', 'Am Steg', 'Vor Steg'
-    - [ ] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg)
-    - [ ] Reihenfolge, je nach Berechtigung, änderbar
-    - [ ] Unterschiedliche Farben für Klasse und Lauf
-    - [ ] Starter rutschen automatisch hoch nach abgeschlossenem Lauf
-    - [ ] Zeitplan (Pausen, Feierabend etc.) bei der Sortierung
-    - [ ] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg
+  - [ ] Starterseite → teilweise: die [Anzeigetafel](funktionen.md#betrieb-start-freigabe-und-anzeigetafel) im zweiten
+    Fenster am Bedienrechner („Im Boot“, davor); Startliste im Betrieb und andere Geräte folgen (Prototyp `tafel`)
+    - [x] Anzeige von Informationen wie Startnummer, Name, Klasse und Lauf → Anzeigetafel
+    - [ ] Aufgeteilt nach 'Im Boot', 'Am Steg', 'Vor Steg' → teilweise: „Im Boot“ und davor; Am/Vor Steg kommt
+      mit der Startliste im Betrieb
+    - [ ] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg) → vorbereitet (2/2 im Stand),
+      noch nicht einstellbar
+    - [ ] Reihenfolge, je nach Berechtigung, änderbar → offen: Verschieben kommt; Berechtigungen mit den Geräten
+    - [x] Unterschiedliche Farben für Klasse und Lauf → Anzeigetafel (Klasse mit Klassenfarbe, Lauf in eigener Farbe)
+    - [x] Starter rutschen automatisch hoch nach abgeschlossenem Lauf → „Nächster Start“ zeigt den Nächsten der Folge;
+      der Lauf danach wird ausdrücklich begonnen
+    - [ ] Zeitplan (Pausen, Feierabend etc.) bei der Sortierung → offen; Pausen gibt es als Meldung auf der Anzeigetafel
+    - [ ] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg → offen, kommt mit der Startliste im Betrieb
 - [x] Gedruckte WKR-Listen → [Wettkampfrichter-Listen](funktionen.md#wettkampfrichter-listen)
   - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)
     → teilweise: Ein Bogen gilt je Klasse und Lauf, die Starter stehen darauf in der Startfolge der Verzahnung.

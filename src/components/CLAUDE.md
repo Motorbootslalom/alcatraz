@@ -23,6 +23,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `oeffne`), ManualAddForm, ExcelPanel, DatumFeld (DatumFeld.test.ts durchsucht alle Vorlagen), StartNumberPanel (auch
   E/D), StarterSperre, ParcoursCard, TrackContainer, ClassChip, PauseChip, SlotCell, FlowPreview, SequenceTable,
   BoatPanel, HeatTable, ParallelRunden.
+- Betrieb (16.11.2026, lesen NUR die öffentliche Sicht, betrieb/sicht.ts): `anzeige/` AnzeigeTafel (Kopfzeile mit Logos,
+  Bereiche neben-/untereinander nach Seitenverhältnis), AnzeigeBereich (Parcours, Klasse + Lauf, Startnummer, Name,
+  Herkunft, davor, Meldung; Kopfzeile immer oben, Rest in `.anzeige-rumpf`; v-fit/v-fit-block, Hinweis v-fit-zeilen aus
+  lib/fit.ts; styles/anzeige.css); `betrieb/` StartFreigabe (Lauf beginnen mit AppDialog, Nächster Start mit `vorher`,
+  Zurück, Meldung; Actions über Prop `sende`), NachzuholenListe.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -65,6 +70,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Ansicht ab (Jahrgang), springt es zurück. Meldungen kommen als `fehler`, die Ansicht zeigt sie. Es folgt der Prop,
   nicht dem Store: ClassSection bekommt `starters` von außen, in Tests nach einem dispatch `setProps`.
 - ISSUE_KEYS (own.issue.*) doppelt: EigeneAufbautenPanel, AufbauAssistent. PARALLEL_RUNDE_LOESEN heißt „Löschen“.
+- Anzeigetafel: Farben nur --anzeige-* (styles/anzeige.css, nicht vom Farbschema), Schriften als Bruchteil von
+  --anzeige-u; kein `<Transition>` (verdecktes Fenster bliebe stehen) – ein neuer Start ist ein neuer Block (`:key`).
+  Texte per tIn(sicht.sprache), nie t(). StartFreigabe/AnzeigeTafel nie an den Store hängen: Sie laufen ab E6/E7 auf Geräten.
 - Neuer Listenkopf → KopfLogos drumherum (Bogen art=leiste, höchstens 12 mm; Laufzettel art=streifen); Logo-Maße fest in mm aus den
   Pixelmaßen, nie vom Laden; Messungen ohne ResizeObserver (LaufzettelBlatt.fit, DruckdateiListen.messeCodes) brauchen
   logoSchluessel im Watch.
@@ -72,4 +80,5 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 ## Tests
 
 `npx vitest run src/components src/styles src/lib/seiten src/lib/paging` (Messen per getBoundingClientRect-Spy).
+Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (zwei Fenster), views/Betrieb.test.ts.
 Im Zusammenhang src/views/*.test.ts; UIM-Kopfzeilen: views/UimAushang.test.ts, Beispieldaten: views/EventView.test.ts.

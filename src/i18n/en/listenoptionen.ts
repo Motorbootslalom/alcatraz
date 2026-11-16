@@ -116,6 +116,26 @@ export default {
   'listopt.logo.error.lesbar': 'The image could not be read. The previous logo stays.',
   'listopt.logo.error.speicher': 'With this logo the browser storage would be full. The previous logo stays – please choose a smaller image.',
 
+  // Anzeigetafel (Plan vom 16.11.2026): „display board“ vorläufig, gegen das Rulebook zu prüfen.
+  'listopt.anzeige.title': 'Display board',
+  'listopt.anzeige.hint':
+    'The display board shows in a window of its own who is starting – released under “Operation”. Here you set what it shows. It never shows dates of birth, weights or entered values.',
+  'listopt.anzeige.kopfzeile': 'Header',
+  'listopt.anzeige.kopfzeile.zeigen': 'Show header',
+  'listopt.anzeige.kopfzeile.hint': 'Leave empty: name and year of the event.',
+  'listopt.anzeige.bereiche': 'Courses on the shared display board',
+  'listopt.anzeige.bereiche.hint': 'Side by side or one above the other, depending on the screen. Under “Operation” each course can also get a display board of its own.',
+  'listopt.anzeige.davor': 'Show previous start',
+  'listopt.anzeige.parcoursName': 'Show course name',
+  'listopt.anzeige.namen': 'Names',
+  'listopt.anzeige.namen.aushang': 'as on the posted results ({art})',
+  'listopt.anzeige.skala': 'Font size (%)',
+  'listopt.anzeige.skala.hint': '{min} to {max} %, default 100 %. Lines that are too long get smaller anyway instead of being cut off.',
+  'listopt.anzeige.sprache': 'Language of the display board',
+  'listopt.anzeige.sprache.regelwerk': 'as the lists ({language})',
+  'listopt.anzeige.logos': 'Logos beside the header',
+  'listopt.anzeige.logos.hint': 'The logos from “{logos}”, left and right – only on the display board of this computer.',
+
   'origin.style.aus': 'hide',
   'origin.style.lang': 'full name',
   'origin.style.kurz': 'abbreviation',

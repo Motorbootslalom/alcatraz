@@ -424,6 +424,23 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 
 ## Betrieb und Offline
 
+- 2026-11-16 · N · Die Tafel wird nach dem Plan vom 16.11.2026 in Etappen übernommen (E1 Anzeigetafel im zweiten
+  Fenster und Start-Freigabe am Bedienrechner … E8 Feldtest). Der Nutzer hat die Auslegungen bestätigt („Deine
+  Annahmen zur Tafel usw. sind hiermit bestätigt“): Betrieb erst nach dem Festschreiben der Verzahnung, Knoten nicht
+  auf der Anzeigetafel, die Anzeigetafel schreibt nie ein X, Nachzügler kommen unter „Nachzuholen“ statt von selbst
+  als Nächste, Sprache der Anzeigetafel = Listensprache des Regelwerks. Die übrigen Auslegungen stehen mit Datum in
+  `BETRIEB_ANNAHMEN`. → `betrieb/annahmen.ts`
+- 2026-11-16 · N · Mehrere Geräte (ab Etappe E5–E7), mit derselben Bestätigung: vorerst kein Gerätebetrieb ohne
+  Internet (ohne Netz bleibt die Anzeigetafel am zweiten Bildschirm); Anzeigetafel und Zuschauer bekommen einen
+  Lese-Link mit QR-Code statt einer Kopplung (Zuschauer-Link erneuerbar); kein Ersatzrechner, der den Raum übernimmt
+  (neuer Raum, neu koppeln; keine Schlüssel in Sicherungen); vorerst kein „Poweruser“ – die Start-Freigabe darf das
+  Betriebliche ihrer Parcours, Einstellungen bleiben am Bedienrechner; eine öffentliche Namensregel für Anzeigetafel
+  und Zuschauer (wie der Aushang der Wertungslisten); Gerätebetrieb nur, wenn Bedienrechner und Geräte dieselbe
+  Fassung haben. → Plan §7 (F2–F7), ab E5 `geraete/`
+- 2026-11-11 · N · Für die Tafel darf ein öffentlicher ntfy-Server genutzt werden („Im Fall der ../tafel kann aber
+  auf ntfy.adminforge.de zurückgegriffen werden“): Vorgabe ntfy.adminforge.de, in den Einstellungen änderbar (wie im
+  Lastenheft der Tafel, P-9). Die frühere Notiz „Hostname bewusst nicht im Repo“ stammte nicht vom Nutzer. → ab E5
+
 - 2026-11-14 · N · Zweiter Speicher (IndexedDB) mit Verlauf: Stände ansehen, wiederherstellen, „Stand merken“ – auch zum
   Ausprobieren. → `state/zweit.ts`, `lib/verlauf.ts`, `components/VerlaufPanel.vue`
 - 2026-11-15 · N · Eine neue Fassung übernimmt die App von selbst nur bei leerem Stand („leer“ = keine Starter), sonst
@@ -449,7 +466,7 @@ Zurzeit nichts.
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
-- Mehrgeräte-Betrieb (Anzeigetafel, Startlisten) über ntfy: noch nicht übernommen; der Server ist mit dem Nutzer
-  abgestimmt (Hostname bewusst nicht im Repo).
+- Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): noch nicht gebaut; Entscheidungen dazu unter „Betrieb und Offline“.
+  Ohne Netz gibt es seit 16.11.2026 (E1) die Anzeigetafel im zweiten Fenster und die Start-Freigabe am Bedienrechner.
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`) und EINZEL_FESTLEGUNGEN (`lib/einzelwertung.ts`) legen aus, wo Regel 960
   schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste anpassen.

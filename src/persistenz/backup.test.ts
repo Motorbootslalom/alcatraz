@@ -97,6 +97,44 @@ describe('Dateien', () => {
     expect(ergaenzt.apply(hier).coPiloten).toEqual({ '2': 'Max Muster' })
   })
 
+  it('Betrieb am Wettkampftag: in der Sicherung, nicht in der Vorlage; die Anzeigetafel reist mit, außer der Kopfzeile', () => {
+    const ref = JSON.stringify(['m', starter.id, 1])
+    const imBetrieb: AppState = {
+      ...filled(),
+      betrieb: { bereiche: { par_1: { begonnen: ['lauf:1'], gezeigt: [{ ref, zeit: 1000 }], ohneAnzeige: [], zurueckgestellt: [], reihenfolge: null, ausgesetzt: [], vorziehen: false, meldung: { text: 'Mittagspause', art: 'pause' } } } },
+      anzeige: { ...filled().anzeige, kopfzeile: '30. Möwepokal am See', namen: 'kurz', skala: 1.2 },
+    }
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', imBetrieb, AT)))
+    if (!sicherung.ok || sicherung.kind !== 'sicherung') throw new Error('keine Sicherung')
+    expect([sicherung.state.betrieb, sicherung.state.anzeige]).toEqual([imBetrieb.betrieb, imBetrieb.anzeige])
+
+    const datei = makeFile('vorlage', imBetrieb, AT)
+    const text = JSON.stringify(datei)
+    for (const nie of ['betrieb', 'Mittagspause', 'Möwepokal', ref]) expect(text).not.toContain(nie)
+    if (datei.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(datei.settings.anzeige).toMatchObject({ kopfzeile: null, namen: 'kurz', skala: 1.2 })
+    const vorlage = parseFile(text)
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    // Hier: eigener Betrieb und eigene Kopfzeile – beide bleiben; die übrigen Einstellungen kommen aus der Vorlage.
+    const hier: AppState = { ...imBetrieb, anzeige: { ...emptyState().anzeige, kopfzeile: 'Hiesige Kopfzeile' } }
+    const danach = vorlage.apply(hier)
+    expect(danach.betrieb).toEqual(imBetrieb.betrieb)
+    expect(danach.anzeige).toMatchObject({ kopfzeile: 'Hiesige Kopfzeile', namen: 'kurz', skala: 1.2 })
+  })
+
+  it('eine Vorlage mit anderen Parcours hängt den Betrieb um wie die Einteilung; der Parallelslalom bleibt', () => {
+    const bereich = (text: string) => ({ begonnen: ['lauf:1' as const], gezeigt: [], ohneAnzeige: [], zurueckgestellt: [], reihenfolge: null, ausgesetzt: [], vorziehen: false, meldung: { text, art: 'info' as const } })
+    const hier: AppState = { ...filled(), betrieb: { bereiche: { par_1: bereich('eins'), par_2: bereich('zwei'), parallel: bereich('parallel') } } }
+    const parcoursList: AppState['parcoursList'] = [
+      { id: 'v_1', name: 'Parcours See', classIds: ['E', '1'], wechselFaktor: 2 },
+      { id: 'par_2', name: 'Parcours 2', classIds: ['4'], wechselFaktor: 2 },
+    ]
+    const vorlage = parseFile(JSON.stringify(makeFile('vorlage', { ...filled(), parcoursList }, AT)))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    const danach = vorlage.apply(hier)
+    expect(Object.fromEntries(Object.entries(danach.betrieb.bereiche).map(([id, b]) => [id, b.meldung?.text]))).toEqual({ v_1: 'eins', par_2: 'zwei', parallel: 'parallel' })
+  })
+
   it('Sicherung: der ganze Stand kommt zurück', () => {
     expect(roundTrip('sicherung')).toEqual({ ok: true, kind: 'sicherung', state: filled(), savedAt: AT })
   })

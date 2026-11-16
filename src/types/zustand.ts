@@ -2,6 +2,7 @@ import type { RawAufbau } from '../config/schema'
 import type { SCHEMA_VERSION } from '../types'
 import type { ClassId, StartNrMode } from './starter'
 import type { ParallelPlaene, PlanState } from './planung'
+import type { AnzeigeEinstellungen, Betrieb } from './betrieb'
 import type {
   Besetzung,
   Einteilung,
@@ -256,4 +257,18 @@ export interface AppState extends PlanState {
    * 12 mm (LOGO_HOEHE_BOGEN_MAX_MM). Beides vom Nutzer nach Beispielen bestätigt (16.11.2026).
    */
   logoHoeheMm: number
+  /**
+   * Betrieb am Wettkampftag je Bereich (Parcours, ab E4 Parallelslalom): begonnene Läufe, was auf
+   * der Anzeigetafel stand, Meldungen (types/betrieb.ts; Actions in state/reducer/betrieb.ts). Die
+   * Folge der Starts steht hier nicht – sie wird aus der Verzahnung abgeleitet (betrieb/folge.ts).
+   * Gehört zur Veranstaltung: in der Sicherung, nicht in der Vorlage (eine Vorlage hängt den
+   * hiesigen auf ihre Parcours um). „Werte löschen“ lässt ihn stehen, „Verlauf wiederherstellen“
+   * behält den jetzigen (components/VerlaufPanel.vue). Plan vom 16.11.2026.
+   */
+  betrieb: Betrieb
+  /**
+   * Einstellungen der Anzeigetafel (und der Startfolge im Betrieb). Eine Einstellung ohne
+   * Personenbezug: in Sicherung und Vorlage – außer der Kopfzeile, die zur Veranstaltung gehört.
+   */
+  anzeige: AnzeigeEinstellungen
 }

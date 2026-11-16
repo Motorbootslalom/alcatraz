@@ -1,7 +1,8 @@
 # Alcatraz – Projektkarte
 
 Statische Browser-App ohne Server, die die Excel-Auswertung für Motorbootslalom (Schlauchbootslalom) ersetzt:
-Starter, Verzahnung, Verwiegung, WKR-Bögen, Laufzettel, Erfassung, Wertungs-, Einzel- und Mannschaftswertung, Druck.
+Starter, Verzahnung, Verwiegung, WKR-Bögen, Laufzettel, Erfassung, Wertungs-, Einzel- und Mannschaftswertung, Druck;
+am Wettkampftag Start-Freigabe und Anzeigetafel im zweiten Fenster (Plan zur Übernahme der Tafel, 16.11.2026: E1).
 Regelwerke: DM-Reglement (`dm-2026`) und UIM Regel 960 „Formula Future“ (`uim-2026`, mit Parallelslalom).
 Daten nur im Browser (localStorage + IndexedDB-Verlauf, Sicherung als Datei); GitHub Pages oder eine HTML-Datei.
 
@@ -28,13 +29,15 @@ Mit CLAUDECODE/AI_AGENT gibt Vitest knapp aus wie test:leise. CI (.github/workfl
 
 ```
 src/types.ts, types/  Sammelpunkt (SCHEMA_VERSION = 1, welcher Typ wo); types/zustand (AppState), starter, planung, wertung, einstellungen, bogen (SheetDef)
-src/main.ts, App.vue  Store anlegen, Offline starten; Kopf, Reiter (lib/adressen.ts VIEWS), Banner, Fuß
+src/main.ts, App.vue  Wurzel nach Adresse; Store anlegen, Offline starten; Kopf, Reiter (lib/adressen.ts VIEWS), Banner, Fuß
+src/AnzeigeApp.vue    Wurzel der Anzeigetafel `#/anzeige[/<bereich>]`: Nur-Lese-Store, ohne Kopf/Scanner/Offline
 src/state/       *    Store, reiner Reducer (reducer.ts: Einstieg, Sperren; reducer/<bereich>.ts: die Actions), migrate(), Tor 5, zweiter Speicher
 src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/Starter (backup.ts)
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
 src/lib/         *    reine Logik: Wertung, Parallelslalom, Pokal, Bögen, Listen, Laufzettel, QR, Verlauf, Offline
-src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/; ListenDokument teilt Seiten
-src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Erfassung, Settings
+src/betrieb/     *    Betrieb am Wettkampftag, rein: Folge (abgeleitet), Lage, öffentliche Sicht, BETRIEB_ANNAHMEN
+src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/, anzeige/, betrieb/
+src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Betrieb, Erfassung, Settings
 src/domain/           Klassen, Startnummern, Kürzel, Staaten, Flaggen, Gewicht, Geschlecht, Beispielstarter
 src/planung/          Verzahnung, Boote, laufende Nummern, Parallelslalom: Paarung, Runden, Re-run
 src/import/           Excel/TSV-Import und -Export der Starter, Zusammenführen, Klassenprüfung
@@ -42,7 +45,7 @@ src/i18n/        *    de.ts (Quelle aller Schlüssel), en.ts: setzen de/, en/ na
 src/data/             Beispieldaten: erfundene Namen; Clubs teils an reale angelehnt (in Bildern nie Herkunft „Verein“)
 src/flaggen/          Flaggenbilder: Staaten aus country-flag-icons, Bundesländer als SVG (LIESMICH.md)
 src/assets/parcours/  Parcours-SVGs, nur per `npm run parcours:sync` (QUELLE.json, CC BY-NC-SA 4.0)
-src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder
+src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder; anzeige.css (--anzeige-*)
 src/testHilfen.ts     nur Tests: wechsleRegelwerk (trotz Werten), knotenHaken (Regel-960-Knoten), Testlogos
 scripts/              Offline-Speicher (sw.js), parcours-sync, Warnfilter der Tests
 docs/                 entscheidungen, funktionen, parallelslalom, betrieb, technik, stand (.md); bilder/ (README)
@@ -109,6 +112,12 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Sperre einer Action | state/reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS; klasseFest in reducer/starter.ts |
 | Logos auf den Listen | lib/logo.ts (Grenzen, logoWert, Maße), lib/logoBild.ts (Verkleinern), lib/listenLogos.ts (useListenLogos); components/KopfLogos.vue in jedem Listenkopf, LogosPanel.vue; styles/logos.css |
 | Offline, Update | scripts/offline-sw.js, scripts/offline-speicher.ts, lib/offline.ts, lib/update.ts |
+| Betrieb: Folge, Lauf beginnen, Nächster | betrieb/folge.ts (lage), state/reducer/betrieb.ts (BETRIEB_*); Auslegungen nur betrieb/annahmen.ts |
+| … was Tafel und Freigabe sehen | betrieb/sicht.ts sichtOeffentlich (EINE Stelle, Datenschutz; Form ändern → `sv`, sicht.test.ts) |
+| Anzeigetafel: Aussehen, Schrift | components/anzeige/AnzeigeTafel.vue + AnzeigeBereich.vue, styles/anzeige.css (--anzeige-*), lib/fit.ts |
+| … Fenster, Adresse, Rückfall file:// | AnzeigeApp.vue, main.ts (Wurzel), lib/adressen.ts VOLLBILDER/liesVollbild, lib/anzeigeFenster.ts |
+| … Einstellung | SettingsView `#anzeigetafel` → SET_ANZEIGE (normalisiereAnzeige); Texte listopt.anzeige.* |
+| Start-Freigabe (Bedienung) | views/BetriebView.vue, components/betrieb/StartFreigabe.vue, NachzuholenListe.vue; i18n betrieb.* |
 
 ## Feste Regeln
 
@@ -129,6 +138,9 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
   components/DatumFeld.vue: deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT, Schrägstrich = Tag zuerst; gespeichert JJJJ-MM-TT.
 - Kein Geburtsdatum auf Wertungslisten. Klasse E heißt unter DM „E“, unter UIM „Dolphin“, nie „ME“.
 - Parallelslalom nur unter UIM; unter DM fehlt er auch in Texten und Hinweisen (config/catalog.ts hasParallel).
+- Betrieb (16.11.2026): „Anzeigetafel“ (Code `anzeige`; „Tafel“ ist das Aushangbrett), „Start-Freigabe“. Tafel und
+  Start-Freigabe lesen NUR die öffentliche Sicht (betrieb/sicht.ts) – nie Geburtsdatum, Gewicht, Geschlecht, Werte.
+  Das Tafel-Fenster schreibt nie (state/leseStore.ts). Der Betrieb schreibt nie in `eingaben`.
 - Druck: Seitenzahlen zählt jede Liste selbst, nie der Browser; Rand oben/unten höchstens 8 mm (sonst druckt
   Chromium Kopf- und Fußzeilen); Listenfarben nur über --blatt-* (styles/blatt.css).
 - „X“ = nicht gestartet (lib/abmeldung.ts) muss in jedem Regelwerk stehen; „O“ wird nie vergeben.

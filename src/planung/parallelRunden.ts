@@ -287,7 +287,8 @@ export function ohneKlasse(plaene: ParallelPlaene, runde: ParallelRunde, klasse:
   return starts.length === 0 ? rest : { ...rest, [runde]: { runde, starts } }
 }
 
-const istRunde = (wert: string): wert is ParallelRunde => wert === 'pre' || wert === 'semi' || wert === 'final' || /^rerun-.+/.test(wert)
+/** Ist der Text die Kennung einer Runde? Auch für die Punkte des Betriebs (betrieb/folge.ts `istPunktId`). */
+export const istRunde = (wert: string): wert is ParallelRunde => wert === 'pre' || wert === 'semi' || wert === 'final' || /^rerun-.+/.test(wert)
 
 /** Gelesene Pläne (localStorage, Sicherung) auf ihre Form prüfen; Unbrauchbares entfällt. */
 export function normalisierePlaene(roh: unknown): ParallelPlaene {

@@ -23,7 +23,9 @@ import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
 import { formatDateTime, t, tn, locale } from '../i18n'
 import { adresse, sprungziel } from '../lib/router'
 import { starterfeldFest } from '../lib/eingaben'
-import type { ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout } from '../types'
+import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout } from '../types'
+import { bereicheZumStand } from '../betrieb/folge'
+import { SKALA_MAX, SKALA_MIN } from '../state/reducer/betrieb'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
 import LogosPanel from '../components/LogosPanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
@@ -56,11 +58,44 @@ const inhalt = ref<HTMLElement | null>(null)
 // nicht mehr hier; `#/einstellungen?wkr` führt zur Veranstaltung – lib/adressen.ts `umzug`.)
 onMounted(async () => {
   // Das Sprungziel steht in der Sprache der Oberfläche in der Adresse (lib/router.ts).
-  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline' } as Record<string, string>)[sprungziel()]
+  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline', anzeigetafel: 'anzeigetafel' } as Record<string, string>)[sprungziel()]
   if (!ziel) return
   await nextTick()
   document.getElementById(ziel)?.scrollIntoView?.({ block: 'start' })
 })
+
+// --- Anzeigetafel ----------------------------------------------------------
+// Was die Anzeigetafel zeigt (Plan vom 16.11.2026, §4); bedient wird sie im Reiter „Betrieb“. Jedes Feld geht
+// über SET_ANZEIGE, der Reducer prüft es (state/reducer/betrieb.ts normalisiereAnzeige).
+const ANZEIGE_NAMEN: AnzeigeNamen[] = ['aushang', 'voll', 'kurz', 'ohne']
+const ANZEIGE_SPRACHEN: AnzeigeSprache[] = ['regelwerk', 'de', 'en']
+const setzeAnzeige = (patch: Partial<AnzeigeEinstellungen>) => dispatch({ type: 'SET_ANZEIGE', patch })
+const anzeigeBereiche = computed(() => bereicheZumStand(state.value))
+const anzeigeGezeigt = computed(() => new Set(bereicheZumStand(state.value, { anzeige: true }).map((b) => b.id)))
+const kopfVorgabe = computed(() => (state.value.eventName.trim() ? `${state.value.eventName.trim()} ${state.value.eventJahr}` : ''))
+/** Einen Parcours auf der gemeinsamen Tafel ein- oder ausblenden; alle gewählt heißt „alle“ ([]) – auch künftige. Einer bleibt immer. */
+function setzeAnzeigeBereich(id: string, an: boolean) {
+  const alle = anzeigeBereiche.value.map((b) => b.id)
+  const neu = alle.filter((x) => (x === id ? an : anzeigeGezeigt.value.has(x)))
+  if (neu.length === 0) return
+  setzeAnzeige({ bereiche: neu.length === alle.length ? [] : neu })
+}
+/** Leer = Name und Jahr der Veranstaltung (`null`); „keine Kopfzeile“ ist der Haken daneben (''). */
+function setzeKopfzeile(e: Event) {
+  const wert = (e.target as HTMLInputElement).value
+  setzeAnzeige({ kopfzeile: wert.trim() === '' ? null : wert })
+}
+// In Prozent, gerundet: 0,7 · 100 ergäbe 70,00000000000001.
+const SKALA_MIN_PROZENT = Math.round(SKALA_MIN * 100)
+const SKALA_MAX_PROZENT = Math.round(SKALA_MAX * 100)
+function setzeSkala(e: Event) {
+  const feld = e.target as HTMLInputElement
+  const n = parseFloat(feld.value)
+  if (Number.isFinite(n)) setzeAnzeige({ skala: n / 100 })
+  // Begrenzt oder unbrauchbar: Ändert sich der Stand nicht, zeichnet Vue das Feld nicht neu – also selbst
+  // den geltenden Wert zurückschreiben (wie bei den Leerzeilen), sonst stünde 250 da und 130 gälte.
+  feld.value = String(Math.round(state.value.anzeige.skala * 100))
+}
 
 // --- Kürzel der Herkunft ---------------------------------------------------
 /**
@@ -704,6 +739,122 @@ function takeLegacy() {
       <span class="note" style="flex: 1; margin: 0">{{ t('weigh.ownNote', { rulebook: regelwerk.label }) }}</span>
       <button class="btn sm" @click="dispatch({ type: 'RESET_SOLLGEWICHT' })">{{ t('weigh.reset', { rulebook: regelwerk.label }) }}</button>
     </div>
+  </div>
+
+  <!-- Anzeigetafel (Plan vom 16.11.2026): was sie zeigt. Bedient wird sie im Reiter „Betrieb“ (Start-Freigabe). -->
+  <div id="anzeigetafel" class="panel">
+    <h2>{{ t('listopt.anzeige.title') }}</h2>
+    <p class="hint">
+      {{ t('listopt.anzeige.hint') }}
+      <a :href="adresse('betrieb')">{{ t('nav.betrieb') }} → {{ t('betrieb.title') }}</a>
+    </p>
+    <div class="row" style="align-items: flex-end; gap: 20px">
+      <label class="boat-check">
+        <input type="checkbox" data-feld="anzeige-kopfzeile-zeigen" :checked="state.anzeige.kopfzeile !== ''" @change="setzeAnzeige({ kopfzeile: ($event.target as HTMLInputElement).checked ? null : '' })" />
+        {{ t('listopt.anzeige.kopfzeile.zeigen') }}
+      </label>
+      <div class="field" style="flex: 1; min-width: 240px">
+        <label :for="`${id}-anzeige-kopfzeile`">{{ t('listopt.anzeige.kopfzeile') }}</label>
+        <input
+          :id="`${id}-anzeige-kopfzeile`"
+          class="input"
+          data-feld="anzeige-kopfzeile"
+          :value="state.anzeige.kopfzeile ?? ''"
+          :placeholder="kopfVorgabe"
+          :disabled="state.anzeige.kopfzeile === ''"
+          maxlength="120"
+          @change="setzeKopfzeile"
+        />
+      </div>
+    </div>
+    <p class="note">{{ t('listopt.anzeige.kopfzeile.hint') }}</p>
+
+    <fieldset v-if="anzeigeBereiche.length > 1" class="zusatz-listen" data-feld="anzeige-bereiche">
+      <legend>{{ t('listopt.anzeige.bereiche') }}</legend>
+      <label v-for="b in anzeigeBereiche" :key="b.id" class="boat-check">
+        <input
+          type="checkbox"
+          :data-bereich="b.id"
+          :checked="anzeigeGezeigt.has(b.id)"
+          :disabled="anzeigeGezeigt.has(b.id) && anzeigeGezeigt.size === 1"
+          @change="setzeAnzeigeBereich(b.id, ($event.target as HTMLInputElement).checked)"
+        />
+        {{ b.name }}
+      </label>
+      <p class="note">{{ t('listopt.anzeige.bereiche.hint') }}</p>
+    </fieldset>
+
+    <div class="row" style="align-items: center; gap: 20px; margin-top: 12px">
+      <label class="boat-check">
+        <input type="checkbox" data-feld="anzeige-davor" :checked="state.anzeige.davor" @change="setzeAnzeige({ davor: ($event.target as HTMLInputElement).checked })" />
+        {{ t('listopt.anzeige.davor') }}
+      </label>
+      <label class="boat-check">
+        <input type="checkbox" data-feld="anzeige-parcours-name" :checked="state.anzeige.parcoursName" @change="setzeAnzeige({ parcoursName: ($event.target as HTMLInputElement).checked })" />
+        {{ t('listopt.anzeige.parcoursName') }}
+      </label>
+    </div>
+
+    <div class="row" style="align-items: flex-end; gap: 20px; margin-top: 12px">
+      <div class="field">
+        <label>{{ t('listopt.anzeige.namen') }}</label>
+        <div class="segmented">
+          <button
+            v-for="n in ANZEIGE_NAMEN"
+            :key="n"
+            type="button"
+            :data-feld="`anzeige-namen|${n}`"
+            :class="state.anzeige.namen === n ? 'active' : ''"
+            :aria-pressed="state.anzeige.namen === n"
+            @click="setzeAnzeige({ namen: n })"
+          >
+            {{ n === 'aushang' ? t('listopt.anzeige.namen.aushang', { art: t(`listopt.results.names.${state.ergebnisListen.aushang.namen}`) }) : t(`listopt.results.names.${n}`) }}
+          </button>
+        </div>
+      </div>
+      <div v-if="state.originMode !== 'none'" class="field">
+        <label :for="`${id}-anzeige-herkunft`">{{ t('event.origin') }}</label>
+        <HerkunftWahl :id="`${id}-anzeige-herkunft`" data-feld="anzeige-herkunft" mit-aus :wert="state.anzeige.herkunft" @wahl="setzeAnzeige({ herkunft: $event })" />
+      </div>
+    </div>
+
+    <div class="row" style="align-items: flex-end; gap: 20px; margin-top: 12px">
+      <div class="field">
+        <label :for="`${id}-anzeige-sprache`">{{ t('listopt.anzeige.sprache') }}</label>
+        <select
+          :id="`${id}-anzeige-sprache`"
+          class="input"
+          data-feld="anzeige-sprache"
+          :value="state.anzeige.sprache"
+          @change="setzeAnzeige({ sprache: ($event.target as HTMLSelectElement).value as AnzeigeSprache })"
+        >
+          <option v-for="s in ANZEIGE_SPRACHEN" :key="s" :value="s">
+            {{ s === 'regelwerk' ? t('listopt.anzeige.sprache.regelwerk', { language: t(`listopt.language.${listenSprache}`) }) : t(`listopt.language.${s}`) }}
+          </option>
+        </select>
+      </div>
+      <div class="field" style="max-width: 160px">
+        <label :for="`${id}-anzeige-skala`">{{ t('listopt.anzeige.skala') }}</label>
+        <input
+          :id="`${id}-anzeige-skala`"
+          class="input"
+          type="number"
+          :min="SKALA_MIN_PROZENT"
+          :max="SKALA_MAX_PROZENT"
+          step="5"
+          data-feld="anzeige-skala"
+          :value="Math.round(state.anzeige.skala * 100)"
+          @change="setzeSkala"
+        />
+      </div>
+      <p class="note" style="flex: 1; min-width: 220px; margin: 0">{{ t('listopt.anzeige.skala.hint', { min: SKALA_MIN_PROZENT, max: SKALA_MAX_PROZENT }) }}</p>
+    </div>
+
+    <label class="boat-check" style="margin-top: 12px">
+      <input type="checkbox" data-feld="anzeige-logos" :checked="state.anzeige.logos" @change="setzeAnzeige({ logos: ($event.target as HTMLInputElement).checked })" />
+      {{ t('listopt.anzeige.logos') }}
+    </label>
+    <p class="note">{{ t('listopt.anzeige.logos.hint', { logos: t('listopt.logo.title') }) }}</p>
   </div>
 
   <EigeneAufbautenPanel />

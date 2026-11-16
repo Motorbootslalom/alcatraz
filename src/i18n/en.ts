@@ -10,6 +10,7 @@ import listen from './en/listen'
 import listenoptionen from './en/listenoptionen'
 import aufbauten from './en/aufbauten'
 import verlauf from './en/verlauf'
+import betrieb from './en/betrieb'
 
 /**
  * English catalogue. Must provide exactly the keys of `de.ts`.
@@ -27,6 +28,7 @@ const en: Catalog = {
   ...listenoptionen,
   ...aufbauten,
   ...verlauf,
+  ...betrieb,
 }
 
 export default en

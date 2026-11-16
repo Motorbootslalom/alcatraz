@@ -15,6 +15,7 @@ import { wendeParallelAn, type ParallelAenderung } from './reducer/parallel'
 import { wendeErfassungAn, type ErfassungAenderung } from './reducer/erfassung'
 import { wendeWertungAn, type WertungAenderung } from './reducer/wertung'
 import { wendeListenAn, type ListenAenderung } from './reducer/listen'
+import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
 
 // Die case-Zweige stehen nach Bereichen in reducer/<bereich>.ts (Zuordnung: switch in wendeAn() unten).
 // Hier bleiben Einstieg, Sperren und Nachbearbeitung; was die Bereiche nach außen geben, reicht
@@ -36,14 +37,18 @@ export {
   teilenAbZahl,
   laufzettelLayoutWert,
 } from './reducer/listen'
+export { anzeigeVorgabe, betriebLeer, normalisiereAnzeige, normalisiereBetrieb, meldungWert } from './reducer/betrieb'
 
 /**
  * Alle Änderungen am Zustand laufen als Action durch diesen Reducer.
  *
  * Der Reducer ist **rein und deterministisch**: Er würfelt nicht und fragt keine
- * Uhr. IDs und Zufallsdaten bringt die Action mit. Nur so lässt sich dieselbe
- * Action später auf mehreren Geräten anwenden (Mehr-Browser-Betrieb über ntfy)
- * und kommt überall zum selben Ergebnis.
+ * Uhr. IDs und Zufallsdaten bringt die Action mit. So führt dieselbe Action in jedem
+ * Fenster zum selben Stand, und Verlauf und Tests sind wiederholbar.
+ *
+ * Mehrere Geräte (Plan zur Übernahme der Tafel vom 16.11.2026): Angewandt wird allein auf dem
+ * Bedienrechner (Host). Andere Geräte bekommen nie den Stand, sondern eine Sicht daraus
+ * (betrieb/sicht.ts) und schicken nur Actions, die der Host prüft und mit seiner Zeit anwendet.
  */
 export type Action = Aenderung & {
   /**
@@ -64,6 +69,7 @@ type Aenderung =
   | ErfassungAenderung
   | WertungAenderung
   | ListenAenderung
+  | BetriebAenderung
 
 /** Was die Verzahnung verändert – gesperrt, solange sie festgeschrieben ist. */
 const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
@@ -250,6 +256,14 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_LOGO':
     case 'SET_LOGO_HOEHE':
       return wendeListenAn(state, action)
+
+    case 'BETRIEB_BEGINNEN':
+    case 'BETRIEB_ZEIGEN':
+    case 'BETRIEB_ZURUECK':
+    case 'BETRIEB_MELDUNG':
+    case 'BETRIEB_ZURUECKSETZEN':
+    case 'SET_ANZEIGE':
+      return wendeBetriebAn(state, action)
 
     default:
       // Fehlt oben eine Action aus den Bereichen, meldet das die Typprüfung hier.

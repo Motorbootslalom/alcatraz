@@ -7,6 +7,7 @@ import App from '../App.vue'
 import { createStore, storeKey, type Store } from '../state/store'
 import { STATE_KEY } from '../persistenz/storage'
 import { laufSchluessel } from '../lib/eingaben'
+import { lage } from '../betrieb/folge'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
 
@@ -115,6 +116,52 @@ describe('Verlauf in den Einstellungen', () => {
     // Wieder nach vorn: der Stand mit der Eingabe.
     await zeilen[1].find('[data-action="verlauf-wiederherstellen"]').trigger('click')
     await bis(() => expect(wert(store, 'a')).toBe('80'))
+  })
+
+  it('Wiederherstellen behält den Betrieb am Wettkampftag – die Anzeigetafel springt nicht zurück', async () => {
+    eingabe(store, 'a', '80')
+    // Je Schritt warten: Was schneller kommt, als der Speicher schreibt, wird ein Eintrag.
+    await store.zweit.fertig()
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    await store.zweit.fertig()
+    store.dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'par_2', punkt: 'lauf:1' })
+    const naechster = lage(store.state.value, 'par_2').naechster!
+    store.dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_2', ref: naechster.key, vorher: null })
+    const betrieb = store.state.value.betrieb
+    expect(betrieb.bereiche.par_2.gezeigt).toHaveLength(1)
+    const w = panel()
+    await ruhe()
+    // Der Betrieb legt keinen eigenen Eintrag an: Festschreiben, Eingabe, Starter.
+    await bis(() => expect(w.findAll('.verlauf-liste li')).toHaveLength(3))
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    // Zurück zum Stand vor dem Festschreiben: Werte und Verzahnung von damals, der Betrieb von jetzt.
+    await w.findAll('.verlauf-liste li')[1].find('[data-action="verlauf-wiederherstellen"]').trigger('click')
+    await bis(() => expect(store.state.value.verzahnungLocked).toBe(false))
+    expect(wert(store, 'a')).toBe('80')
+    expect(store.state.value.betrieb).toEqual(betrieb)
+    // Auch im Speicher – ein anderes Fenster (die Anzeigetafel) liest es von dort.
+    expect(JSON.parse(localStorage.getItem(STATE_KEY)!).betrieb).toEqual(betrieb)
+  })
+
+  it('Wiederherstellen eines Stands einer anderen Veranstaltung bringt deren Betrieb mit, nicht den jetzigen', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    await store.zweit.fertig()
+    const kennungA = store.state.value.kennung
+    // Eine andere Veranstaltung (Sicherung geladen): Läufe 1 und 2 begonnen, eine Meldung auf der Tafel.
+    const b = { ...store.state.value, kennung: 'BBBB', eventName: 'Musterregatta' }
+    store.dispatch({ type: 'LOAD_STATE', state: b }, { art: 'sicherung' })
+    for (const punkt of ['lauf:1', 'lauf:2'] as const) store.dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'par_2', punkt })
+    store.dispatch({ type: 'BETRIEB_MELDUNG', bereich: 'par_2', meldung: { text: 'Pause bei B', art: 'pause' } })
+    expect(store.state.value.betrieb.bereiche.par_2.begonnen).toEqual(['lauf:1', 'lauf:2'])
+    const w = panel()
+    await ruhe()
+    await bis(() => expect(w.findAll('.verlauf-liste li')).toHaveLength(3))
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    // Zurück zum Festschreiben der ersten Veranstaltung: ihr Betrieb von damals (noch nichts), nicht der von B.
+    await w.findAll('.verlauf-liste li')[1].find('[data-action="verlauf-wiederherstellen"]').trigger('click')
+    await bis(() => expect(store.state.value.kennung).toBe(kennungA))
+    expect(store.state.value.betrieb).toEqual({ bereiche: {} })
+    expect(JSON.stringify(store.state.value.betrieb)).not.toContain('Pause bei B')
   })
 
   it('„Stand merken“ legt den jetzigen Stand mit Namen ab; nur gemerkte lassen sich löschen', async () => {

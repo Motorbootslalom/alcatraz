@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adressbuch, ADRESSEN, liesAdresse, schreibeAdresse, VIEWS, wortraum, type AdressTabelle } from './adressen'
+import { adressbuch, ADRESSEN, liesAdresse, liesVollbild, schreibeAdresse, schreibeVollbild, VIEWS, wortraum, type AdressTabelle } from './adressen'
 import { LOCALES } from '../i18n'
 
 describe('Wörter der Adresse', () => {
@@ -88,7 +88,7 @@ describe('Wörter der Adresse', () => {
 
 describe('Tabellen der Sprachen', () => {
   const buch = adressbuch(ADRESSEN)
-  const raeume = [buch.ansichten, buch.ziele, ...Object.values(buch.reiter)]
+  const raeume = [buch.ansichten, buch.ziele, buch.vollbild, ...Object.values(buch.reiter)]
 
   it('jede Sprache der Oberfläche hat ihre Tabelle', () => {
     expect(Object.keys(ADRESSEN).sort()).toEqual(LOCALES.map((l) => l.id).sort())
@@ -190,6 +190,35 @@ describe('Tabellen der Sprachen', () => {
     expect(liesAdresse(buch, '#/listen/starterlisten')).toEqual({ view: 'listen', reiter: 'starter', ziel: '' })
     // Ein früheres Wort gilt nur in seiner Ansicht.
     expect(liesAdresse(buch, '#/verzahnung/verzahnt').reiter).toBe('verzahnt')
+  })
+
+  it('Reiter „Betrieb“ mit der Start-Freigabe; Sprungziel zu den Einstellungen der Anzeigetafel', () => {
+    expect(VIEWS.indexOf('betrieb')).toBe(VIEWS.indexOf('listen') + 1)
+    expect(schreibeAdresse(buch, 'de', 'betrieb', { reiter: 'start' })).toBe('#/betrieb/start')
+    expect(schreibeAdresse(buch, 'en', 'betrieb', { reiter: 'start' })).toBe('#/operation/start')
+    for (const a of ['#/betrieb/start', '#/operation/start', '#/Operation/Start']) expect(liesAdresse(buch, a), a).toEqual({ view: 'betrieb', reiter: 'start', ziel: '' })
+    expect(schreibeAdresse(buch, 'de', 'einstellungen', { ziel: 'anzeigetafel' })).toBe('#/einstellungen?anzeigetafel')
+    expect(schreibeAdresse(buch, 'en', 'einstellungen', { ziel: 'anzeigetafel' })).toBe('#/settings?display-board')
+    expect(liesAdresse(buch, '#/settings?display-board').ziel).toBe('anzeigetafel')
+    expect(liesAdresse(buch, '#/einstellungen?display-board').ziel).toBe('anzeigetafel')
+  })
+
+  it('Vollbild der Anzeigetafel: #/anzeige bzw. #/display, mit Bereich; in jeder Sprache gelesen', () => {
+    expect(schreibeVollbild(buch, 'de', { art: 'anzeige' })).toBe('#/anzeige')
+    expect(schreibeVollbild(buch, 'en', { art: 'anzeige' })).toBe('#/display')
+    expect(schreibeVollbild(buch, 'de', { art: 'anzeige', bereich: 'par_1' })).toBe('#/anzeige/par_1')
+    // Eine Sprache ohne Tabelle schreibt englisch.
+    expect(schreibeVollbild(buch, 'yy', { art: 'anzeige' })).toBe('#/display')
+    for (const a of ['#/anzeige', '#/display', '#/Anzeige', 'anzeige', '#anzeige', '#/display?x']) expect(liesVollbild(buch, a), a).toEqual({ art: 'anzeige' })
+    for (const a of ['#/anzeige/par_1', '#/display/par_1']) expect(liesVollbild(buch, a), a).toEqual({ art: 'anzeige', bereich: 'par_1' })
+    // Der Bereich ist eine Kennung aus den Daten: kodiert, nicht klein geschrieben, unversehrt zurück.
+    const schwierig = 'Par 2/Süd?#'
+    expect(liesVollbild(buch, schreibeVollbild(buch, 'en', { art: 'anzeige', bereich: schwierig }))).toEqual({ art: 'anzeige', bereich: schwierig })
+    // Jede gewöhnliche Adresse ist kein Vollbild – auch keine Ansicht in einer der Sprachen.
+    for (const sprache of ['de', 'en']) for (const view of VIEWS) expect(liesVollbild(buch, schreibeAdresse(buch, sprache, view))).toBeNull()
+    for (const a of ['', '#/', '#/quatsch', '#/listen/anzeige', '#/einstellungen?anzeigetafel']) expect(liesVollbild(buch, a), a).toBeNull()
+    // Kein Wort eines Vollbilds ist zugleich das einer Ansicht: Die Ansicht wäre sonst nicht mehr erreichbar.
+    for (const wort of Object.keys(buch.vollbild.lies)) expect(buch.ansichten.lies[wort], wort).toBeUndefined()
   })
 
   it('Unbekanntes bleibt, wie es dasteht; ohne Ansicht gibt es keine', () => {

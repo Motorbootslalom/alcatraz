@@ -17,6 +17,7 @@ Was noch fehlt: [stand.md](stand.md).
 - [Verzahnung](#verzahnung)
 - [Wettkampfrichter-Listen](#wettkampfrichter-listen)
 - [Laufzettel und QR-Codes](#laufzettel-und-qr-codes)
+- [Betrieb: Start-Freigabe und Anzeigetafel](#betrieb-start-freigabe-und-anzeigetafel)
 - [Erfassung](#erfassung)
 - [Wertung und Wertungslisten](#wertung-und-wertungslisten)
 - [Mannschaftswertung](#mannschaftswertung)
@@ -247,6 +248,62 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
   Von Hand: „alle untereinander“ in der Auswahl der Liste (`stapelBoegen` in `src/lib/laufzettel.ts`).
 - Blätter einer anderen Veranstaltung, eines anderen Regelwerks oder Aufbaus werden mit Begründung abgewiesen.
 - Ein Scan hinterlässt keine Spur in dem Feld, in dem der Cursor gerade stand (`src/lib/scanner.ts`, `src/lib/scan.ts`).
+
+## Betrieb: Start-Freigabe und Anzeigetafel
+
+Am Wettkampftag gibt der Bedienrechner frei, wer als Nächstes startet, und eine **Anzeigetafel** zeigt es – in einem
+zweiten Fenster, etwa auf einem Monitor am Steg (Reiter „Betrieb“, `src/views/BetriebView.vue`; Plan zur Übernahme des
+Prototyps `tafel` vom 16.11.2026, Etappe E1). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
+Mehrere Geräte über das Internet kommen später; diese Etappe braucht kein Netz.
+
+- **Voraussetzung:** Die Verzahnung ist festgeschrieben. Erst dann stehen Startnummern und Folge fest;
+  vorher zeigt der Reiter nur den Weg zur Verzahnung. Wird sie mitten am Tag gelöst, bleiben die Karten stehen:
+  „Nächster Start“ und „Lauf beginnen“ ruhen, Zurück, Meldungen und Zurücksetzen gehen weiter.
+- **Die Folge der Starts** wird nie gespeichert, sondern aus der Verzahnung abgeleitet, Lauf für Lauf – dieselbe wie
+  auf den WKR-Bögen (`src/betrieb/folge.ts`). Gespeichert wird nur, was gezeigt und begonnen wurde.
+  Mit „Versuche direkt nacheinander“ (UIM) fährt jeder Starter seine Versuche hintereinander, alle in einem Punkt.
+- **Start-Freigabe** je Parcours (`src/components/betrieb/StartFreigabe.vue`):
+  - „Lauf N beginnen“ gibt die Starts des Laufs frei. Sind im laufenden Lauf noch Starts offen, fragt es erst;
+    sie bleiben freigegeben und kommen vor dem neuen Lauf dran.
+  - „Nächster Start“ bringt den nächsten offenen Start auf die Anzeigetafel, „Zurück“ nimmt ihn zurück.
+    Ein Doppelklick schaltet nur einmal: Jeder Klick nennt den Start, der gerade steht.
+  - Am Ende eines Laufs bleibt die Anzeigetafel auf dem letzten Starter stehen, bis der nächste Lauf beginnt.
+  - **Nachzuholen:** Starts vor dem zuletzt gezeigten, die noch nicht dran waren – eine Nachmeldung, ein entferntes X,
+    ein verpasster Lauf. Sie kommen nie von selbst als Nächstes; „Jetzt zeigen“ holt einen gezielt.
+  - Ein Start mit X („nicht gestartet“) in einer Disq-Zelle des Laufs – am Steg oder am Vorsteg, wie in Wertung und
+    Erfassung – entfällt; wird das X entfernt, ist er wieder da. Der Betrieb selbst setzt nie ein X und ändert keine
+    Wertungsliste.
+  - Wird der Starter im Boot gelöscht (vor dem ersten Wert), zeigt die Anzeigetafel „bereit“; „Nächster Start“
+    geht weiter.
+  - **Meldung** je Parcours oder auf allen: Störung und Pause stehen statt des Starters auf der Anzeigetafel,
+    ein Hinweis steht darunter.
+  - „Betrieb zurücksetzen“ (mit Rückfrage) löscht Begonnenes, Gezeigtes und Meldungen; Starter, Verzahnung und Werte bleiben.
+- **Anzeigetafel** (`src/AnzeigeApp.vue`, `src/components/anzeige/`): „Anzeigetafel öffnen“ öffnet ein eigenes Fenster
+  (`#/anzeige`, englisch `#/display`; je Parcours `#/anzeige/<parcours>`). Taste F oder Doppelklick schaltet Vollbild,
+  der Mauszeiger verschwindet nach kurzer Ruhe.
+  - Je Parcours: Name des Parcours, Klasse (mit Klassenfarbe) und Lauf, groß die Startnummer, Name, Herkunft und auf
+    Wunsch der Start davor. Weiß auf Schwarz, gleich welches Farbschema die Bedienung hat.
+  - Zwei Parcours stehen untereinander; nur auf sehr breiten Bildschirmen (LED-Band) nebeneinander.
+    Zu lange Namen werden kleiner statt abgeschnitten; wird es eng, schrumpft alles gemeinsam (`src/lib/fit.ts`).
+    Ein langer Hinweis unter dem Starter schrumpft selbst (höchstens zwei Zeilen), die Startnummer bleibt groß.
+    Parcours, Klasse und Lauf stehen immer oben im Bereich – auch bei „bereit“ und bei einer Meldung.
+  - Das Fenster liest nur und schreibt nie; es folgt dem Bedienfenster sofort. Neuladen zeigt gleich den Stand.
+    Eine Eingabe in der Erfassung zeichnet die Tafel nicht neu – nur was sie zeigt, zählt.
+  - Sprache wie die Listen (DM deutsch, UIM englisch: „Course“, „Attempt“, „Class Dolphin“), umstellbar.
+- **Was die Anzeigetafel zeigt** (`src/betrieb/sicht.ts`): nur Startnummer, Name, Klasse und Herkunft der Starter,
+  die gerade vorkommen – nie Geburtsdatum, Gewicht, Geschlecht oder erfasste Werte. Dieselbe Sicht liest die
+  Start-Freigabe; so können beide später auch auf anderen Geräten laufen.
+- **Einstellungen** unter „Einstellungen → Anzeigetafel“: Kopfzeile (Vorgabe Name und Jahr der Veranstaltung,
+  eigener Text oder keine), Logos links und rechts daneben (die der Listen), welche Parcours die gemeinsame Tafel
+  zeigt, Start davor, Name des Parcours, Namen (wie der Aushang der Wertungslisten, voll, gekürzt, ohne), Herkunft,
+  Sprache und Schriftgröße (70–130 %). Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile.
+- **Gespeichert:** Der Betrieb steht in der Sicherung, nicht in der Vorlage. „Verlauf wiederherstellen“ (innerhalb
+  derselben Veranstaltung) und „Alle erfassten Werte löschen“ lassen ihn stehen; ein Stand einer anderen
+  Veranstaltung bringt seinen eigenen Betrieb mit.
+- Unter `file://` (Ein-Datei-Fassung) tragen nicht alle Browser die Nachricht zwischen zwei Fenstern; dann stößt das
+  Bedienfenster die von ihm geöffnete Anzeigetafel selbst an (`src/lib/anzeigeFenster.ts`).
+- Wie gebaut ist und was ausgelegt wurde – weder DM-Reglement noch Regel 960 regeln den Ablauf am Steg:
+  `BETRIEB_ANNAHMEN` in `src/betrieb/annahmen.ts`.
 
 ## Erfassung
 
