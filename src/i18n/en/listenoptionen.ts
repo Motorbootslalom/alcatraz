@@ -174,6 +174,17 @@ export default {
   'listopt.betrieb.abstaende.uebernehmen.hint':
     'Classes with at least {ab} measured intervals get their mean as an own value – it travels with the template to the next event.',
   'listopt.betrieb.abstaende.alleVorgabe': 'All back to the default',
+  'listopt.geraete.title': 'Devices',
+  'listopt.geraete.hint':
+    'Display board and spectator list on other devices via the internet. An ntfy server passes on the encrypted messages; device operation is switched on under',
+  'listopt.geraete.server': 'Server (ntfy)',
+  'listopt.geraete.server.vorgabe': 'Empty means: the default {server}. The setting travels with template and backup.',
+  'listopt.geraete.server.zurueck': 'Default',
+  'listopt.geraete.server.ungueltig': '“{eingabe}” is not a server address (http or https, without query, anchor or credentials). The previous one stays.',
+  'listopt.geraete.raumServer':
+    'The open room was opened with {server}; a different server only applies to a new room (Operation → Devices: end room, then switch on again – with new links).',
+  'listopt.geraete.daten':
+    'Only once device operation is switched on under “Operation → Devices” do these go via this server: start number, name (as set under “Names” of the display board), origin and class of the drivers, the order of starts with times, messages and the name of the event – encrypted and signed. The operator of the server sees no content, but times, sizes and IP addresses. Date of birth, weight, gender, entered values and logos never leave.',
 
   'origin.style.aus': 'hide',
   'origin.style.lang': 'full name',

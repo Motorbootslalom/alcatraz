@@ -3471,6 +3471,101 @@ table.starters th .sortier-kopf:disabled {
   color: var(--danger);
 }
 
+/* Gerätebetrieb (E6): Betrieb → Geräte (components/betrieb/GeraeteRaum.vue, LeseLink.vue, GeraeteLage.vue). */
+.geraete-lage {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  white-space: nowrap;
+}
+
+/* Der Punkt ist nur Beigabe: Die Lage steht immer als Wort daneben (wie .offline-punkt). */
+.geraete-punkt {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  flex: none;
+}
+
+.geraete-lage[data-lage='verbunden'] .geraete-punkt {
+  background: var(--ok-text);
+  border-color: var(--ok-text);
+}
+
+.geraete-lage[data-lage='verbinde'] .geraete-punkt,
+.geraete-lage[data-lage='gestoert'] .geraete-punkt,
+.geraete-lage[data-lage='kontingent'] .geraete-punkt {
+  background: var(--warn-text);
+  border-color: var(--warn-text);
+}
+
+.geraete-lage[data-lage='fehler'] .geraete-punkt {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.geraete-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.geraete-zeilen p {
+  margin: 0 0 8px;
+}
+
+.geraete-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.geraete-fingerabdruck {
+  font-size: 1.15em;
+  letter-spacing: 0.04em;
+}
+
+.lese-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.lese-link {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.lese-link h3 {
+  margin: 0 0 4px;
+}
+
+/* Schwarz auf weiß fest im SVG (QrCode.vue); groß genug, um ihn vom Bildschirm zu scannen. */
+.lese-link .qr-code {
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
+}
+
+.lese-link-text {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.lese-link-knoepfe {
+  gap: 8px;
+  margin-top: 8px;
+}
+
 /* ---------- Ohne Internet (Offline-Speicher) ---------- */
 /* Der Punkt ist nur Beigabe: Die Lage steht immer als Text daneben. */
 .offline-punkt {

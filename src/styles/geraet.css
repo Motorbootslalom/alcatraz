@@ -1,0 +1,78 @@
+/*
+ * Gerät mit Lese-Link (src/GeraetApp.vue, Etappe E6): Anzeigetafel bzw. Zuschauerliste wie am Bedienrechner
+ * (styles/anzeige.css, styles/zuschauer.css), dazu die Meldungen statt einer Sicht und die Leiste unten (Verbindung,
+ * Fingerabdruck, „Raum verlassen“). Über der Anzeigetafel nur Farben --anzeige-* (nicht vom Farbschema abhängig).
+ */
+
+html.geraet-fenster body {
+  margin: 0;
+}
+
+.geraet-meldung {
+  max-width: 640px;
+  margin: 15vh auto 0;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.geraet-meldung h1 {
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.geraet-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 10px 16px 16px;
+  font-size: 14px;
+}
+
+.geraet-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.geraet-fingerabdruck {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Über der Anzeigetafel: am unteren Rand, halb durchsichtig; verborgen, solange der Zeiger ruht und alles stimmt. */
+.geraet-leiste.schwebend {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  max-width: none;
+  margin: 0;
+  background: color-mix(in srgb, var(--anzeige-grund) 82%, transparent);
+  color: var(--anzeige-text);
+}
+
+.geraet-leiste.verborgen {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.geraet-leiste.schwebend .geraete-lage[data-lage='verbunden'] .geraete-punkt {
+  background: var(--anzeige-trenner);
+  border-color: var(--anzeige-trenner);
+}
+
+.geraet-leiste.schwebend .geraete-lage[data-lage='gestoert'] .geraete-punkt,
+.geraet-leiste.schwebend .geraete-lage[data-lage='kontingent'] .geraete-punkt,
+.geraet-leiste.schwebend .geraete-lage[data-lage='verbinde'] .geraete-punkt {
+  background: var(--anzeige-pause);
+  border-color: var(--anzeige-pause);
+}
+
+.geraet-leiste.schwebend .geraete-lage[data-lage='fehler'] .geraete-punkt {
+  background: var(--anzeige-stoerung);
+  border-color: var(--anzeige-stoerung);
+}

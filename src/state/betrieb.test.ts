@@ -177,6 +177,24 @@ describe('Einstellungen der Anzeigetafel (SET_ANZEIGE)', () => {
   })
 })
 
+describe('Server des Gerätebetriebs (SET_GERAETE_SERVER, E6)', () => {
+  it('leer = Vorgabe des Programms; geprüft und vereinheitlicht; Unbrauchbares ändert nichts; gleich = derselbe Stand', () => {
+    const s = fest()
+    expect(s.geraeteServer).toBe('')
+    expect(reducer(s, { type: 'SET_GERAETE_SERVER', server: '' })).toBe(s)
+    const n = reducer(s, { type: 'SET_GERAETE_SERVER', server: ' ntfy.example.org/ ' })
+    expect(n.geraeteServer).toBe('https://ntfy.example.org')
+    expect(reducer(n, { type: 'SET_GERAETE_SERVER', server: 'https://ntfy.example.org/' })).toBe(n)
+    // Kein http(s), Zugangsdaten oder Anfrage in der Adresse: bleibt beim bisherigen (die Einstellung sagt es).
+    for (const kaputt of ['ftp://ntfy.example.org', 'https://nutzer:geheim@ntfy.example.org', 'https://ntfy.example.org/?x=1', 'javascript:alert(1)'])
+      expect(reducer(n, { type: 'SET_GERAETE_SERVER', server: kaputt }), kaputt).toBe(n)
+    expect(reducer(n, { type: 'SET_GERAETE_SERVER', server: '   ' }).geraeteServer).toBe('')
+    // Eine Einstellung: Betrieb und Anzeigetafel bleiben unberührt.
+    expect(n.betrieb).toBe(s.betrieb)
+    expect(n.anzeige).toBe(s.anzeige)
+  })
+})
+
 describe('Determinismus', () => {
   // Muster: Tafel-Prototyp, state/determinismus.test.ts – ein Ablauf wie am Wettkampftag. Würfelte der
   // Reducer (IDs, Uhr), liefen zwei Fenster auseinander, die dieselben Actions anwenden.

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { bitteDauerhaft, DAUERHAFT_KEY, darfVonSelbstBitten, leseDauerhaft, offline, neueFassung, offlineLage, pruefeDauerhaft, starteOffline, sucheNeueFassung, uebernehmen, type OfflineUmgebung, type SpeicherStand } from './offline'
+import { bitteDauerhaft, DAUERHAFT_KEY, darfVonSelbstBitten, holeNeueFassung, leseDauerhaft, offline, neueFassung, offlineLage, pruefeDauerhaft, starteOffline, sucheNeueFassung, uebernehmen, type OfflineUmgebung, type SpeicherStand } from './offline'
 
 // --- Nachbau des Browsers: nur, was lib/offline.ts anfasst -------------------
 
@@ -488,6 +488,49 @@ describe('starteOffline', () => {
     s.anmeldung.update.mockRejectedValueOnce(new TypeError('offline'))
     await sucheNeueFassung()
     expect(offline.suche).toBe('kein-netz')
+  })
+})
+
+describe('holeNeueFassung: gezieltes Selbst-Update eines Geräts mit Lese-Link (E6, F7)', () => {
+  it('sucht, wartet, bis die neue Fassung vollständig bereitliegt, und übernimmt sie – ein Neuladen', async () => {
+    const s = laufend()
+    const { u, neuLaden } = umgebung(s)
+    await starteOffline(u)
+    const neu = new Worker(NEU_WARTET)
+    // Wie im Browser: update() findet die neue Fassung, der Speicher meldet `updatefound`.
+    s.anmeldung.update.mockImplementationOnce(async () => {
+      s.anmeldung.installing = neu
+      s.anmeldung.dispatchEvent(new Event('updatefound'))
+    })
+    const fertig = holeNeueFassung(5000)
+    await ruhe()
+    expect(s.anmeldung.update).toHaveBeenCalledTimes(1)
+    expect(neuLaden).not.toHaveBeenCalled()
+    // Fertig geladen: Jetzt wird übernommen.
+    s.anmeldung.installing = null
+    s.anmeldung.waiting = neu
+    neu.wird('installed')
+    expect(await fertig).toBe(true)
+    expect(neu.nachrichten).toContainEqual({ typ: 'uebernehmen' })
+    expect(neuLaden).toHaveBeenCalledTimes(1)
+  })
+
+  it('nichts Neueres, kein Netz oder kein Speicher: `false` – dann lädt das Gerät selbst neu', async () => {
+    const s = laufend()
+    const { u, neuLaden } = umgebung(s)
+    await starteOffline(u)
+    expect(await holeNeueFassung(200)).toBe(false)
+    s.anmeldung.update.mockRejectedValueOnce(new TypeError('offline'))
+    expect(await holeNeueFassung(200)).toBe(false)
+    // Lädt nur halb (veröffentlicht wird gerade): nach der Geduld aufgeben.
+    s.anmeldung.update.mockImplementationOnce(async () => {
+      s.anmeldung.installing = new Worker()
+    })
+    expect(await holeNeueFassung(50)).toBe(false)
+    expect(neuLaden).not.toHaveBeenCalled()
+
+    await starteOffline(umgebung(undefined).u)
+    expect(await holeNeueFassung(50)).toBe(false)
   })
 })
 

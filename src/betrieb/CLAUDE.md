@@ -44,8 +44,10 @@ start release.
 - Typen: types/betrieb.ts. Actions und Normalisierer: state/reducer/betrieb.ts. Nur-Lese-Store: state/leseStore.ts.
 - Oberfläche (liest nur die Sicht): components/anzeige/ (AnzeigeTafel, AnzeigeBereich; styles/anzeige.css, lib/fit.ts),
   components/betrieb/ (StartFreigabe; E2: BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb;
-  E3: StartListe; texte.ts mit ganzeFolge, verschiebeZiele, wartezeitText), views/BetriebView.vue (Unterreiter `start`,
-  `startliste`), src/AnzeigeApp.vue, E3: src/ZuschauerApp.vue + components/zuschauer/ZuschauerListe.vue
+  E3: StartListe; texte.ts mit ganzeFolge, verschiebeZiele, wartezeitText; E6: GeraeteRaum, LeseLink, GeraeteLage,
+  fingerabdruckText), views/BetriebView.vue (Unterreiter `start`, `startliste`, E6 `geraete`), src/AnzeigeApp.vue,
+  E6 src/GeraetApp.vue (Gerät mit Lese-Link: dieselbe AnzeigeTafel/ZuschauerListe aus der empfangenen Sicht; Logik
+  src/geraete/, eigene Karte), E3: src/ZuschauerApp.vue + components/zuschauer/ZuschauerListe.vue
   (styles/zuschauer.css), lib/anzeigeFenster.ts (oeffneAnzeige/oeffneZuschauer, postMessage-Rückfall), lib/uhr.ts
   (useUhr: Takt des Bildschirms). Einstellungen: SettingsView `#anzeigetafel`, `#betrieb` (Startfolge:
   `verzahnungHalten`; E3: `amSteg`/`vorSteg`, Startabstände je Klasse, „Messwerte als Vorgabe übernehmen“).

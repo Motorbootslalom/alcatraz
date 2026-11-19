@@ -25,8 +25,11 @@ export type ViewName = (typeof VIEWS)[number]
 export interface ReiterNamen {
   listen: 'starter' | 'gewicht' | 'vorsteg' | 'wkr' | 'laufzettel' | 'codes' | 'ergebnis' | 'pokal' | 'druckdatei'
   verzahnung: 'manoever' | 'parallel'
-  /** Betrieb am Wettkampftag (Plan vom 16.11.2026): Start-Freigabe (E1/E2), Startliste mit Prognose (E3); `geraete` (E6) folgt. */
-  betrieb: 'start' | 'startliste'
+  /**
+   * Betrieb am Wettkampftag (Plan vom 16.11.2026): Start-Freigabe (E1/E2), Startliste mit Prognose (E3), Geräte (E6:
+   * Gerätebetrieb einschalten, Lese-Links für Anzeigetafel und Zuschauer).
+   */
+  betrieb: 'start' | 'startliste' | 'geraete'
 }
 export type ReiterView = keyof ReiterNamen
 
@@ -34,21 +37,27 @@ export type ReiterView = keyof ReiterNamen
  * Sprungziele innerhalb einer Ansicht (`#/einstellungen?wertung`): Abschnitte der
  * Einstellungen und, unter „Veranstaltung“, der Block „Besetzung“ (`besetzung`; `wkr` meint
  * darin die WKR-Einteilung) und der Block mit „Alle erfassten Werte löschen“ (`werte`). Für den Betrieb:
- * `anzeigetafel` und `betrieb` („Startfolge im Betrieb“, geschrieben `startfolge` bzw. `start-order`).
+ * `anzeigetafel` und `betrieb` („Startfolge im Betrieb“, geschrieben `startfolge` bzw. `start-order`); `geraete` (E6:
+ * Server des Gerätebetriebs).
  */
-export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline' | 'anzeigetafel' | 'betrieb'
+export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline' | 'anzeigetafel' | 'betrieb' | 'geraete'
 
 /**
  * Fenster mit eigener Wurzel, ohne Kopf, Reiter und Fuß (src/main.ts wählt sie vor dem Store):
- * die Anzeigetafel `#/anzeige[/<bereich>]` (src/AnzeigeApp.vue, Plan vom 16.11.2026) und die
- * Zuschauerliste `#/zuschauer[/<bereich>]` (src/ZuschauerApp.vue, E3). Der Bereich ist eine Kennung
- * aus den Daten (Parcours) – kodiert, nicht übersetzt, wie `wahl`.
+ * die Anzeigetafel `#/anzeige[/<bereich>]` (src/AnzeigeApp.vue, Plan vom 16.11.2026), die
+ * Zuschauerliste `#/zuschauer[/<bereich>]` (src/ZuschauerApp.vue, E3) und ein fremdes Gerät mit
+ * Lese-Link `#/sehen/<paket>` (src/GeraetApp.vue, E6 – ohne Store). Der Bereich ist eine Kennung
+ * aus den Daten (Parcours) – kodiert, nicht übersetzt, wie `wahl`; das Paket ist Base64url
+ * (geraete/paket.ts).
  */
-export const VOLLBILDER = ['anzeige', 'zuschauer'] as const
+export const VOLLBILDER = ['anzeige', 'zuschauer', 'sehen'] as const
 export type VollbildArt = (typeof VOLLBILDER)[number]
 export interface Vollbild {
   art: VollbildArt
-  /** Nur dieser Bereich (`#/anzeige/<parcours-id>`); ohne = die gemeinsame Anzeigetafel bzw. alle Parcours. */
+  /**
+   * Zweites Segment: nur dieser Bereich (`#/anzeige/<parcours-id>`; ohne = die gemeinsame Anzeigetafel bzw. alle
+   * Parcours) – beim Lese-Link (`sehen`) das Paket.
+   */
   bereich?: string
 }
 
@@ -92,10 +101,11 @@ export const ADRESSEN = {
         druckdatei: 'druckdatei',
       },
       verzahnung: { manoever: 'manoever', parallel: 'parallel' },
-      betrieb: { start: 'start', startliste: 'startliste' },
+      betrieb: { start: 'start', startliste: 'startliste', geraete: 'geraete' },
     },
-    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge' },
-    vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer' },
+    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge', geraete: 'geraete' },
+    // `sehen` in jeder Sprache gleich (geraete/paket.ts SEHEN): Der Lese-Link kennt die Sprache des Geräts nicht.
+    vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer', sehen: 'sehen' },
   },
   en: {
     ansichten: {
@@ -124,12 +134,13 @@ export const ADRESSEN = {
       },
       verzahnung: { manoever: 'manoeuvring', parallel: 'parallel' },
       // „Starting order“ wie die Startlisten des Parallelslaloms (parallel.startlist.title); hier mit Wartezeiten.
-      betrieb: { start: 'start', startliste: 'starting-order' },
+      // Geräte (E6): andere Geräte mit Lese-Link; „devices“ wie in der Oberfläche.
+      betrieb: { start: 'start', startliste: 'starting-order', geraete: 'devices' },
     },
-    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order' },
+    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order', geraete: 'devices' },
     // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen;
-    // „spectators“ ebenso (Plan §4: `#/spectators`).
-    vollbild: { anzeige: 'display', zuschauer: 'spectators' },
+    // „spectators“ ebenso (Plan §4: `#/spectators`). `sehen` wie im Deutschen (Lese-Link, s. o.).
+    vollbild: { anzeige: 'display', zuschauer: 'spectators', sehen: 'sehen' },
   },
 } as const satisfies Record<string, AdressTabelle>
 
@@ -346,8 +357,9 @@ export function schreibeAdresse(
 }
 
 /**
- * Liest ein Fenster mit eigener Wurzel (`#/anzeige`, `#/display/<bereich>`, `#/zuschauer`) – in jeder Sprache;
- * `null` für jede gewöhnliche Adresse. Rein: src/main.ts fragt das, bevor ein Store entsteht.
+ * Liest ein Fenster mit eigener Wurzel (`#/anzeige`, `#/display/<bereich>`, `#/zuschauer`, `#/sehen/<paket>`) – in
+ * jeder Sprache; `null` für jede gewöhnliche Adresse. Rein: src/main.ts fragt das, bevor ein Store entsteht. Das
+ * zweite Segment bleibt, wie es dasteht (Groß- und Kleinschreibung zählen im Paket).
  */
 export function liesVollbild(buch: Adressbuch, hash: string): Vollbild | null {
   const [pfad = ''] = hash.replace(/^#\/?/, '').split('?')

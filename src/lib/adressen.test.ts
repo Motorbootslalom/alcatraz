@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { adressbuch, ADRESSEN, liesAdresse, liesVollbild, schreibeAdresse, schreibeVollbild, VIEWS, wortraum, type AdressTabelle } from './adressen'
+import { SEHEN, sehenAdresse } from '../geraete/paket'
 import { LOCALES } from '../i18n'
 
 describe('Wörter der Adresse', () => {
@@ -240,6 +241,27 @@ describe('Tabellen der Sprachen', () => {
     // Kein Wort der Fenster ist mehrdeutig (sonst läse eine Sprache die Adresse der anderen falsch).
     expect(buch.vollbild.fehler).toEqual([])
     expect(buch.reiter.betrieb.fehler).toEqual([])
+  })
+
+  it('E6: Unterreiter „Geräte“, Sprungziel `geraete`, Lese-Link #/sehen/<paket> in jeder Sprache gleich', () => {
+    expect(schreibeAdresse(buch, 'de', 'betrieb', { reiter: 'geraete' })).toBe('#/betrieb/geraete')
+    expect(schreibeAdresse(buch, 'en', 'betrieb', { reiter: 'geraete' })).toBe('#/operation/devices')
+    for (const a of ['#/betrieb/geraete', '#/operation/devices', '#/betrieb/devices']) expect(liesAdresse(buch, a), a).toEqual({ view: 'betrieb', reiter: 'geraete', ziel: '' })
+    expect(schreibeAdresse(buch, 'de', 'einstellungen', { ziel: 'geraete' })).toBe('#/einstellungen?geraete')
+    expect(schreibeAdresse(buch, 'en', 'einstellungen', { ziel: 'geraete' })).toBe('#/settings?devices')
+    for (const a of ['#/settings?devices', '#/einstellungen?geraete']) expect(liesAdresse(buch, a).ziel, a).toBe('geraete')
+
+    // Der Link kennt die Sprache des Geräts nicht: dasselbe Wort wie geraete/paket.ts SEHEN, in jeder Sprache.
+    for (const sprache of ['de', 'en']) expect(schreibeVollbild(buch, sprache, { art: 'sehen' })).toBe(`#/${SEHEN}`)
+    // Das Paket ist Base64url: Groß- und Kleinschreibung, „-“ und „_“ bleiben, wie sie sind.
+    const paket = 'AQUBEn-_Zz09Aa'
+    expect(liesVollbild(buch, sehenAdresse(paket))).toEqual({ art: 'sehen', bereich: paket })
+    expect(liesVollbild(buch, `#/Sehen/${paket}`)).toEqual({ art: 'sehen', bereich: paket })
+    expect(liesVollbild(buch, '#/sehen')).toEqual({ art: 'sehen' })
+    expect(liesVollbild(buch, '#/betrieb/geraete')).toBeNull()
+    expect(buch.vollbild.fehler).toEqual([])
+    expect(buch.reiter.betrieb.fehler).toEqual([])
+    expect(buch.ziele.fehler).toEqual([])
   })
 
   it('Unbekanntes bleibt, wie es dasteht; ohne Ansicht gibt es keine', () => {

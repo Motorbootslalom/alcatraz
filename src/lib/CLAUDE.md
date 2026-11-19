@@ -29,9 +29,12 @@ clipboard, scanner, logoBild.
   kein ResizeObserver; fitBlock misst die natürliche Höhe mit `flex-grow: 0` und passt vor jeder Messung die Zeilen an),
   `anzeigeFenster.ts` (oeffneAnzeige = window.open `#/anzeige[/<bereich>]`, E3 oeffneZuschauer = `#/zuschauer`;
   postMessage-Rückfall, wo `storage` unter file:// nicht trägt), `uhr.ts` (E3: useUhr(takt) = Date.now() im Takt,
-  solange die Komponente steht – Wartezeiten nie im Store). Logik des Betriebs: src/betrieb/ (eigene Karte).
-- Betrieb: `offline.ts`, `update.ts`, `verlauf.ts` (ARTEN), `merken.ts`, `scan.ts`, `scanner.ts`, `router.ts`,
-  `adressen.ts`, `theme.ts`, `build.ts`, `clipboard.ts`, `bogenZoom.ts`, `datum.ts` (liesDatum, excelSeriennummer).
+  solange die Komponente steht – Wartezeiten nie im Store), `tafelFenster.ts` (E6: useTafelFenster – Taste F/Doppelklick
+  Vollbild, Mauszeiger weg nach 2,5 s; AnzeigeApp und GeraetApp). Logik des Betriebs: src/betrieb/ (eigene Karte).
+- Betrieb: `offline.ts` (E6: holeNeueFassung = gezieltes Selbst-Update eines Geräts, nur aus GeraetApp), `update.ts`, `verlauf.ts` (ARTEN), `merken.ts`, `scan.ts`, `scanner.ts`, `router.ts`,
+  `adressen.ts`, `theme.ts`, `build.ts` (E6: PAGES_URL – Ziel der Lese-Links unter file://), `clipboard.ts`, `bogenZoom.ts`, `datum.ts` (liesDatum, excelSeriennummer),
+  `serverAdresse.ts` (E6: normalisiereServer, serverEinstellung – Adresse des ntfy-Servers, rein, ohne tweetnacl, für
+  Reducer, migrate und Einstellungen; geraete/themen.ts reicht sie weiter).
 - Aus der `saat` (Reducer und Oberfläche): `beispielwerte.ts`, `beispieldaten.ts` (Beispiel-Besetzung, -gewichte),
   `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische); `saat.ts` neueSaat – nur Oberfläche.
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
@@ -68,9 +71,11 @@ clipboard, scanner, logoBild.
 - Vorsteg mit „Versuche direkt nacheinander“: Die Zeile schreibt in jeden Versuch; löschte das ein verdecktes X eines
   späteren Versuchs, fragt ErfassungTabelle.vue erst (erfassung.ts ueberschreibtX).
 - merken.ts mit ueberNeuladen: neue Werte brauchen einen Guard für alte gemerkte Auswahl (SPAETERE_TEILE).
-- adressen.ts: Fenster mit eigener Wurzel (VOLLBILDER, `#/anzeige`/`#/display`, `#/zuschauer`/`#/spectators`) liest
-  liesVollbild VOR jedem Store (main.ts wählt danach AnzeigeApp/ZuschauerApp); ihre Wörter dürfen nie die einer Ansicht
-  sein (adressen.test.ts). Reiter `betrieb` (en `operation`, vorläufig) mit `start`, `startliste` (en `starting-order`).
+- adressen.ts: Fenster mit eigener Wurzel (VOLLBILDER, `#/anzeige`/`#/display`, `#/zuschauer`/`#/spectators`, E6
+  `#/sehen/<paket>` in jeder Sprache gleich – das Paket im zweiten Segment, Groß/klein zählt) liest
+  liesVollbild VOR jedem Store (main.ts wählt danach AnzeigeApp/ZuschauerApp/GeraetApp); ihre Wörter dürfen nie die einer Ansicht
+  sein (adressen.test.ts). Reiter `betrieb` (en `operation`, vorläufig) mit `start`, `startliste` (en `starting-order`),
+  E6 `geraete` (en `devices`); Sprungziel `geraete` (en `devices`).
 - adressen.ts: drittes Segment `wahl` (Wert aus den Daten, kodiert, nicht übersetzt; `*` = alle) nur unter einem
   Reiter; useReiter gibt es an `beiWahl`. Danach steht nur der Reiter da – außer die Ansicht gibt `wahlFuerAdresse`
   (Herkunft der Gewichtslisten, 16.11.2026); das wird schon beim Aufbau gelesen.

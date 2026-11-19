@@ -56,11 +56,13 @@ und „Einsteigen ab …“; dazu die Startliste im Betrieb mit Wartezeiten („
 Startabständen und die Zuschauerliste in einem eigenen Fenster. Unter UIM auch der Parallelslalom (E4): Runden als
 Punkte, Paare mit Racecourse A und B auf der Anzeigetafel, ohne Wartezeiten
 ([Parallelslalom](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)). Mit E5 ist der Übertragungskern
-für andere Geräte übernommen (`src/geraete/`, noch ohne Oberfläche): verschlüsselt und signiert über einen
+für andere Geräte übernommen (`src/geraete/`): verschlüsselt und signiert über einen
 ntfy-Server, mit den Lücken des Prototyps geschlossen (Anmeldung unter fremder Geräte-ID, doppelte Ausführung,
 Verlust während einer Trennung, Anhänge vor der Prüfung, Flut von Anmeldungen, zwei führende Fenster); dazu Führung
 über Web Locks, Fensterbus und die gerätelokale Ablage ([technik.md](technik.md#gerätebetrieb-sicherheitsmodell)).
-Es folgen in Etappen: Anzeigetafel und Zuschauer über Lese-Links (E6), Start-Freigabe auf dem Handy (E7).
+Mit E6 nutzt die App ihn: Anzeigetafel und Zuschauerliste auf anderen Geräten über zwei Lese-Links mit QR-Code
+(Betrieb → Geräte, erst nach bewusstem Einschalten; [Gerätebetrieb](betrieb.md#gerätebetrieb)). Es folgen
+Koppeln und Start-Freigabe auf dem Handy (E7) und der Feldtest (E8).
 
 **Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
 (`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).
@@ -76,10 +78,10 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
 ## Was offen ist
 
 - Erfassung durch die Wettkampfrichter am eigenen Gerät (im Datenmodell vorbereitet).
-- **Mehrere Geräte:** Die Anzeigetafel läuft heute im zweiten Fenster am Bedienrechner (ohne Netz). Die
-  verschlüsselte Übertragung über einen ntfy-Server ist gebaut und getestet (E5, `src/geraete/`), aber noch nicht
-  eingebunden: Lese-Links für Anzeigetafel und Zuschauer (E6), Koppeln und Start-Freigabe vom Handy (E7), Feldtest mit
-  echten Handys und echtem Server (E8).
+- **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
+  über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
+  Server getestet). Offen: Koppeln und Start-Freigabe vom Handy (E7), Feldtest mit echten Handys und echtem Server
+  (E8).
 - Aus der Excel-Auswertung: Urkunden-Daten u. a.
 - Was fachlich entschieden, aber noch offen ist: [entscheidungen.md](entscheidungen.md#offen).
 
@@ -102,7 +104,8 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
   - [ ] Startnummer und Klasse muss sich vor jedem Start aktualisieren → offen
   - [ ] Starterseite → teilweise: die [Anzeigetafel](funktionen.md#betrieb-start-freigabe-und-anzeigetafel) im zweiten
     Fenster am Bedienrechner („Im Boot“, davor), die Startliste im Betrieb und die Zuschauerliste (eigenes Fenster,
-    fürs Handy gebaut); andere Geräte folgen (Prototyp `tafel`)
+    fürs Handy gebaut), beide seit E6 auch über einen Lese-Link auf Handys und Bildschirmen; die Start-Freigabe
+    vom Handy folgt (Prototyp `tafel`, E7)
     - [x] Anzeige von Informationen wie Startnummer, Name, Klasse und Lauf → Anzeigetafel
     - [x] Aufgeteilt nach 'Im Boot', 'Am Steg', 'Vor Steg' → Zuschauerliste (Anzeigetafel: „Im Boot“ und davor)
     - [x] Starterzahl in den Bereichen konfigurierbar (1 im Boot, 2 am Steg, 2 vor Steg) → Einstellungen → Startfolge

@@ -19,7 +19,7 @@ Nicht hier: Regelwerk-/Positionstexte (config/*.yaml, config/i18n/en.yaml), fest
 | listenoptionen.ts | wkr, preview, sheet, listopt, origin, short | WKR-Einteilung, Beispielansicht, Listenoptionen, Herkunft, Kürzel |
 | aufbauten.ts | own, assist | eigene Aufbauten, Aufbau-Assistent |
 | verlauf.ts | offline, files, history, backup | Offline/Update, Dateien, Verlauf, Zurücksetzen |
-| betrieb.ts | betrieb, anzeige, meldung, zuschauer | Start-Freigabe und Startliste (Oberfläche, `betrieb.liste.*`), Anzeigetafel (Sprache der Tafel, tIn; Wartezeiten `anzeige.zeit.*`), Meldungsarten, Meldungsvorlagen (`meldung.vorlage.<id>` Tafel-Sprache, `….titel`/`meldung.gruppe.*` Oberfläche), Zuschauerliste (`zuschauer.*`, Tafel-Sprache); E4 Parallelslalom: `….runde`-Fassungen (texte.ts tBereich), `anzeige.parallel/racecourse/versuch`; ab E6 geraete |
+| betrieb.ts | betrieb, anzeige, meldung, zuschauer | Start-Freigabe und Startliste (Oberfläche, `betrieb.liste.*`), Anzeigetafel (Sprache der Tafel, tIn; Wartezeiten `anzeige.zeit.*`), Meldungsarten, Meldungsvorlagen (`meldung.vorlage.<id>` Tafel-Sprache, `….titel`/`meldung.gruppe.*` Oberfläche), Zuschauerliste (`zuschauer.*`, Tafel-Sprache); E4 Parallelslalom: `….runde`-Fassungen (texte.ts tBereich), `anzeige.parallel/racecourse/versuch`; E6 Gerätebetrieb `geraete.*` (Oberfläche: Betrieb → Geräte, `geraete.lage.*`, `geraete.fehler.<code>` je Fehlercode aus geraete/transport/typen.ts, Gerät `geraete.sehen.*` in der Sprache des Geräts) |
 
 ## Text ergänzen
 
@@ -28,7 +28,9 @@ Nicht hier: Regelwerk-/Positionstexte (config/*.yaml, config/i18n/en.yaml), fest
 - Englisch nach dem Rulebook (driver, race official, racecourse, attempt, re-run); auf Listen texteIn(), nicht t().
   „Display board“, „start release“, „operation“ sind vorläufig (Plan vom 16.11.2026) – das Rulebook hat kein Wort dafür.
   Einstellungen der Anzeigetafel: listopt.anzeige.*, der Startfolge: listopt.betrieb.* (listenoptionen.ts, auch Am/Vor
-  Steg und Startabstände); Reiter nav.betrieb (allgemein.ts), Unterreiter betrieb.reiter.*. Vorsteg = „pontoon entry“.
+  Steg und Startabstände), des Gerätebetriebs: listopt.geraete.* (Server); Reiter nav.betrieb (allgemein.ts),
+  Unterreiter betrieb.reiter.*. Vorsteg = „pontoon entry“. Ein neuer Fehlercode des Transports braucht
+  `geraete.fehler.<code>` in beiden Sprachen (sonst schlägt vue-tsc an der Vorlage fehl).
 - Neuer Präfix: in genau eine Datei, Tabelle nachtragen. Neuer Bereich: Datei in de/ und en/, in de.ts und en.ts einhängen.
 - Prüfen: `npx vue-tsc -b` (en-Teil gegen de-Teil: fehlende/überzählige Schlüssel; im Code benutzte, fehlende Schlüssel),
   `npx vitest run src/i18n` (Platzhalter, Zahlformen; teile.test.ts: Präfix in genau einem Teil, alle Teile eingehängt).

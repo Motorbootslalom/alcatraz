@@ -124,6 +124,24 @@ describe('Dateien', () => {
     expect(danach.anzeige).toMatchObject({ kopfzeile: 'Hiesige Kopfzeile', namen: 'kurz', skala: 1.2, abstaende: { E: 95, '1': 80 }, parallelAnordnung: 'b-oben' })
   })
 
+  it('Server des Gerätebetriebs (E6): eine Einstellung – in Sicherung und Vorlage; Raum und Schlüssel nie', () => {
+    const hier: AppState = { ...filled(), geraeteServer: 'https://ntfy.example.org' }
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', hier, AT)))
+    if (!sicherung.ok || sicherung.kind !== 'sicherung') throw new Error('keine Sicherung')
+    expect(sicherung.state.geraeteServer).toBe('https://ntfy.example.org')
+    const datei = makeFile('vorlage', hier, AT)
+    if (datei.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(datei.settings.geraeteServer).toBe('https://ntfy.example.org')
+    const vorlage = parseFile(JSON.stringify(datei))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(vorlage.apply(emptyState()).geraeteServer).toBe('https://ntfy.example.org')
+    // Raum und Schlüssel liegen gerätelokal (geraete/ablage.ts), nie im Stand – also in keiner Datei.
+    for (const kind of ['sicherung', 'vorlage'] as const) {
+      const text = JSON.stringify(makeFile(kind, hier, AT))
+      for (const nie of ['alcatraz.geraete', 'geheimnis', 'oeffentlich']) expect(text).not.toContain(nie)
+    }
+  })
+
   it('eine Vorlage mit anderen Parcours hängt den Betrieb um wie die Einteilung; der Parallelslalom bleibt', () => {
     const bereich = (text: string) => ({ begonnen: ['lauf:1' as const], gezeigt: [], ohneAnzeige: [], zurueckgestellt: [], reihenfolge: null, ausgesetzt: [], vorziehen: false, meldung: { text, art: 'info' as const } })
     const hier: AppState = { ...filled(), betrieb: { bereiche: { par_1: bereich('eins'), par_2: bereich('zwei'), parallel: bereich('parallel') } } }

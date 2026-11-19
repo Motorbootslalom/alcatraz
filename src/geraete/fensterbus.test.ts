@@ -310,3 +310,18 @@ describe('verwirft Fremdes und Kaputtes', () => {
     expect(angewandt[0]).not.toHaveProperty('zeit')
   })
 })
+
+describe('Befehle an das Führungsfenster (E6)', () => {
+  it('erreichen die anderen Fenster, auch über den Rückfall storage – Unbekanntes nicht', async () => {
+    const b = browser()
+    const bedien = b.oeffne('fenster-b', { kanal: 'nein' })
+    const fuehrung = b.oeffne('fenster-f', { kanal: 'nein' })
+    const befehle: string[] = []
+    fuehrung.beimBefehl((x) => befehle.push(x))
+    bedien.befiehl('zuschauer-erneuern')
+    bedien.befiehl('raum-beenden')
+    b.einspeisen(JSON.stringify({ k: 'z1', von: 'fenster-x', n: { art: 'befehl', befehl: 'alles-loeschen' } }))
+    await durch()
+    expect(befehle).toEqual(['zuschauer-erneuern', 'raum-beenden'])
+  })
+})

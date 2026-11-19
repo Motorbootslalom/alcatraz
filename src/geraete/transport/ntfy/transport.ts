@@ -5,6 +5,7 @@ import { INLINE_GRENZE, MAX_ANHANG, NtfyLeitung, type NtfyEreignis, type NtfyZei
 import {
   direktThemaVon,
   geraeteThemaVon,
+  gruppeDesLinks,
   gruppenSchluessel,
   leererGeraetStand,
   mitGruppe,
@@ -37,6 +38,7 @@ import {
 import {
   DIREKT,
   istGruppe,
+  istOeffentlich,
   OEFFENTLICH,
   PROTOKOLL_FASSUNG,
   type Ablehnung,
@@ -56,8 +58,8 @@ import { normalisiereServer, zufallsThema } from '../../themen'
  *
  * Gegenüber dem Prototyp:
  * - **Gruppen** statt eines Raumschlüssels: je Gruppe Schlüssel, Epoche, Zähler `n` und Grundlage der Differenz.
- *   `ko` ist öffentlich (Lese-Links) und wird nie neu verschlüsselt (K14); weitere Gruppen (später je Liste,
- *   K31) bekommen nach einem Entzug neue Schlüssel.
+ *   `ko` (Anzeigetafel, oA) und `kz` (Zuschauer, oZ, ab E6) sind öffentlich (Lese-Links) und werden nie neu
+ *   verschlüsselt (K14); weitere Gruppen (später je Liste, K31) bekommen nach einem Entzug neue Schlüssel.
  * - **Themen** nach geraete/themen.ts: Der Host liest g (abgeleitet), schreibt an oA/oZ (zufällig), d· und k·.
  * - **Einstieg mit `since`** (S3, K15): Ein Gerät fragt zuerst ab, nimmt den neuesten Vollstand und die
  *   Differenzen danach und abonniert dann ab der letzten Nachricht. Der Host liest g ab der zuletzt verarbeiteten.
@@ -373,17 +375,39 @@ export class HostTransport extends NtfyLeitung implements Transport {
 
   /**
    * Ein öffentliches Thema erneuern (E6: „Zuschauer-Link erneuern“, K13): neues zufälliges Thema; Schlüssel und
-   * Nummern bleiben, der andere Link (die Anzeigetafel) merkt nichts. Gleich danach ein Vollstand, damit der neue
-   * Link sofort etwas zeigt. Liefert das neue Thema.
+   * Nummern bleiben, der andere Link (die Anzeigetafel, eigene Gruppe) merkt nichts. Wartende Nachrichten der Gruppe
+   * gehen schon an das neue Thema, gleich danach ein Vollstand, damit der neue Link sofort etwas zeigt. Liefert das
+   * neue Thema.
    */
   erneuereThema(welches: 'a' | 'z'): string | null {
     const neu = { thema: null as string | null }
-    this.aendere((r) => {
+    const raum = this.aendere((r) => {
       r.oeffentlich[welches] = zufallsThema()
       neu.thema = r.oeffentlich[welches]
     })
-    if (neu.thema) this.vollstand(OEFFENTLICH)
+    if (!raum || !neu.thema) return null
+    const gruppe = gruppeDesLinks(welches)
+    for (const a of this.schlange) {
+      if (a.art !== 'gruppe' || a.gruppe !== gruppe || a.laeuft) continue
+      a.offen = themenDerGruppe(raum, gruppe)
+      a.versiegelt.clear()
+    }
+    this.vollstand(gruppe)
     return neu.thema
+  }
+
+  /**
+   * Wartet, bis alles hinaus ist, was in der Schlange steht – etwa die Meldung „Raum beendet“, bevor der Raum
+   * gelöscht wird. `false` nach `ms` oder wenn der Transport vorher stoppt (dann bleibt es liegen; die Geräte
+   * löschen ihre Sicht spätestens nach Ablauf, K20).
+   */
+  async bisGesendet(ms: number): Promise<boolean> {
+    const ende = Date.now() + ms
+    while (!this.gestoppt && this.schlange.length > 0) {
+      if (Date.now() >= ende) return false
+      await new Promise((erfuelle) => setTimeout(erfuelle, 20))
+    }
+    return !this.gestoppt
   }
 
   /** Eine nicht öffentliche Gruppe anlegen (später je Liste, K31). */
@@ -397,10 +421,10 @@ export class HostTransport extends NtfyLeitung implements Transport {
 
   /**
    * Neuer Schlüssel für eine nicht öffentliche Gruppe; ihre Geräte bekommen ihn einzeln, vor allem anderen.
-   * Für `ko` nie (K14) – `false`.
+   * Für `ko` und `kz` nie (K14) – `false`.
    */
   rotiere(gruppe: string): boolean {
-    if (gruppe === OEFFENTLICH) return false
+    if (istOeffentlich(gruppe)) return false
     let gedreht = false
     const raum = this.aendere((r) => {
       gedreht = mitNeuemSchluessel(r, gruppe)
@@ -483,7 +507,7 @@ export class HostTransport extends NtfyLeitung implements Transport {
       }
       // Ein Schlüssel gehört einem Gerät: Meldet er sich unter einer neuen ID, gilt die alte nicht mehr.
       for (const [andere, g] of Object.entries(r.geraete)) if (andere !== id && g.pk === e.pk) delete r.geraete[andere]
-      const gruppen = angaben.gruppen.filter((g) => g !== OEFFENTLICH && r.gruppen[g])
+      const gruppen = angaben.gruppen.filter((g) => !istOeffentlich(g) && r.gruppen[g])
       r.geraete[id] = { pk: e.pk, letzteNr: Math.max(vorhanden?.letzteNr ?? 0, e.nr), gruppen }
     })
     if (!raum || belegt.ja) return 'id-belegt'
@@ -807,8 +831,8 @@ export interface GeraetOptionen {
   hostBox?: Uint8Array
   /** Öffentliche Themen aus dem Link (Lese-Link: genau eines, oA oder oZ). */
   lesen: string[]
-  /** Schlüssel der öffentlichen Gruppe aus dem Link. */
-  oeffentlich?: { k: string; e: number }
+  /** Schlüssel der öffentlichen Gruppe aus dem Link; `g` = welche (Vorgabe `ko`, der Zuschauer-Link trägt `kz`). */
+  oeffentlich?: { g?: string; k: string; e: number }
   /** Koppel-Thema, solange die Anmeldung läuft (E7): `hallo` geht dorthin, die Antwort kommt dort. */
   koppeln?: string
   /** Eigene ID und Schlüsselpaar – nur gekoppelte Geräte. */
@@ -822,10 +846,14 @@ export interface GeraetOptionen {
   uhr?: () => number
 }
 
-/** Was ein Gerät empfängt. `hz` = Sendezeit des Hosts (Uhrversatz für „seit“ und „ca. in“, E6). */
+/**
+ * Was ein Gerät empfängt. `hz` = Sendezeit des Hosts (Uhrversatz für „seit“ und „ca. in“, E6). `nachgeholt`: kam aus
+ * der Abfrage beim Einstieg oder beim Schließen einer Lücke, kann also alt sein – für den Uhrversatz zählt nur, was
+ * frisch über das Abo kam (geraete/geraet.ts).
+ */
 export type Empfang =
-  | { art: 'sicht'; gruppe: string; sicht: Json; n: number; hz: number }
-  | { art: 'meldung'; gruppe: string; meldung: GruppenMeldung; n: number; hz: number }
+  | { art: 'sicht'; gruppe: string; sicht: Json; n: number; hz: number; nachgeholt: boolean }
+  | { art: 'meldung'; gruppe: string; meldung: GruppenMeldung; n: number; hz: number; nachgeholt: boolean }
   | { art: 'direkt'; nachricht: DirektNachricht; hz: number }
   /** Eine eigene Nachricht hat ntfy abgewiesen – sie ist verworfen. */
   | { art: 'verworfen'; nr: number }
@@ -869,8 +897,9 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     // E5-Prüfung 16.11.2026, zweite Sperre neben ablage.ts ichOderNeu). Die Folge steigt danach je Nachricht um 1.
     if (!abgelegt) this.stand.naechsteNr = Math.max(1, Math.floor(this.uhr()))
     const ko = this.optionen.oeffentlich
-    const bisher = this.stand.gruppen[OEFFENTLICH]
-    if (ko && (!bisher || ko.e >= bisher.e)) this.stand.gruppen[OEFFENTLICH] = { k: ko.k, e: ko.e, t: bisher?.t ?? [] }
+    const g = ko?.g ?? OEFFENTLICH
+    const bisher = this.stand.gruppen[g]
+    if (ko && istOeffentlich(g) && (!bisher || ko.e >= bisher.e)) this.stand.gruppen[g] = { k: ko.k, e: ko.e, t: bisher?.t ?? [] }
     // Der Einstieg fragt ab; abonniert wird danach ab dessen letzter Nachricht. Das alte `seit` braucht nur noch das
     // d-Thema (holeNach).
     this.seitVorher = this.stand.seit
@@ -916,7 +945,8 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
 
   protected aboThemen(): string[] {
     const themen = new Set(this.optionen.lesen)
-    for (const [g, s] of Object.entries(this.stand.gruppen)) if (g !== OEFFENTLICH) for (const t of s.t) themen.add(t)
+    // Die öffentlichen Themen kommen nur aus dem Link (`lesen`) – ein abgelegtes, inzwischen erneuertes nicht.
+    for (const [g, s] of Object.entries(this.stand.gruppen)) if (!istOeffentlich(g)) for (const t of s.t) themen.add(t)
     if (this.stand.themen) themen.add(this.stand.themen.d)
     else if (this.optionen.koppeln) themen.add(this.optionen.koppeln)
     return [...themen]
@@ -995,6 +1025,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
           await this.verarbeite(l.wire, l.thema, false, aufbau)
         }
       }
+      if (vorbei()) return false
       this.seitVorher = null
       const letzte = ereignisse[ereignisse.length - 1]
       if (letzte && typeof letzte.id === 'string') {
@@ -1044,6 +1075,9 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
   protected async empfange(ereignis: NtfyEreignis): Promise<void> {
     const gelesen = this.liesEreignis(ereignis, this.aboThemen())
     if (gelesen) await this.verarbeite(gelesen.wire, gelesen.thema, false)
+    // Gestoppt beim Verarbeiten („Raum beendet“ → Raum verlassen, E6): nichts mehr ablegen – sonst stünde die eben
+    // gelöschte Verbindung gleich wieder im Speicher des Geräts.
+    if (this.gestoppt) return
     if (typeof ereignis.id === 'string') {
       this.stand.seit = ereignis.id
       this.speichere()
@@ -1098,7 +1132,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
       // Erst merken, dann melden: „neu laden“ darf nach dem Neuladen nicht noch einmal wirken.
       this.stand.seen[wire.g] = wire.n
       this.speichere()
-      this.liefere({ art: 'meldung', gruppe: wire.g, meldung: inhalt.meldung, n: wire.n, hz: wire.hz })
+      this.liefere({ art: 'meldung', gruppe: wire.g, meldung: inhalt.meldung, n: wire.n, hz: wire.hz, nachgeholt: this.holtNach })
       return
     }
     let sicht: Json
@@ -1135,7 +1169,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
       this.stand.seen[wire.g] = wire.n
       this.speichere()
     }
-    this.liefere({ art: 'sicht', gruppe: wire.g, sicht: clone(sicht), n: wire.n, hz: wire.hz })
+    this.liefere({ art: 'sicht', gruppe: wire.g, sicht: clone(sicht), n: wire.n, hz: wire.hz, nachgeholt: this.holtNach })
   }
 
   private async direkt(wire: HostWire): Promise<void> {
@@ -1159,7 +1193,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
       neuAbo = this.uebernimmSchluessel(nachricht.gruppen)
     } else if (nachricht.art === 'entzogen') {
       // Öffentliches liest das Gerät weiter (K14); alles andere ist weg, auch Unbestätigtes.
-      for (const g of Object.keys(this.stand.gruppen)) if (g !== OEFFENTLICH) delete this.stand.gruppen[g]
+      for (const g of Object.keys(this.stand.gruppen)) if (!istOeffentlich(g)) delete this.stand.gruppen[g]
       this.stand.themen = null
       this.stand.schlange = []
       this.gesendet = null
@@ -1241,19 +1275,21 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
   }
 }
 
-/** Ein Lese-Gerät (Anzeigetafel oder Zuschauer) aus dem Paket eines Lese-Links (E6). */
+/** Ein Lese-Gerät (Anzeigetafel oder Zuschauer) aus dem Paket eines Lese-Links (E6; geraete/geraet.ts). */
 export function lesegeraet(
   paket: LesePaket,
   speicher: GeraetSpeicher,
   sichtFassung: number,
   zeiten?: Partial<NtfyZeiten>,
+  uhr?: () => number,
 ): GeraetTransport {
   return new GeraetTransport({
+    uhr,
     server: paket.u,
     raum: paket.r,
     hostSign: bytes(paket.s),
     lesen: [paket.t],
-    oeffentlich: { k: paket.k, e: paket.e },
+    oeffentlich: { g: paket.g, k: paket.k, e: paket.e },
     speicher,
     sichtFassung,
     zeiten,

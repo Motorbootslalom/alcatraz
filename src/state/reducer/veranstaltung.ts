@@ -69,6 +69,9 @@ export function emptyState(): AppState {
     // Betrieb am Wettkampftag: noch nichts begonnen; die Anzeigetafel mit ihren Vorgaben (16.11.2026).
     betrieb: betriebLeer(),
     anzeige: anzeigeVorgabe(),
+    // Gerätebetrieb (E6): die Vorgabe des Programms (geraete/themen.ts NTFY_VORGABE); verbunden wird erst, wenn
+    // jemand den Raum bewusst öffnet (Betrieb → Geräte).
+    geraeteServer: '',
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,

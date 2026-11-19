@@ -43,6 +43,10 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Paare je Seite, immer A vor B (`.betrieb-seite`, `data-racecourse`) und statt KlassenAussetzen den Hinweis `data-hinweis="parallel"`; BetriebsFolge/StartListe ohne „Verschieben …“ und Ziehen,
   StartListe Spalte „Versuch“, ohne Zahl; ZuschauerListe Paar-Karten (`.zuschauer-seite`). texte.ts: startZeile mit
   `seiten`/`nummern`/`ids`, tBereich/tnBereich (`….runde`-Texte im Parallelslalom), punktText über rundenName.
+  E6 Gerätebetrieb (Bedienrechner, darf den Store lesen): `betrieb/` GeraeteRaum (Betrieb → Geräte: einschalten,
+  Verbindung, Fingerabdruck, zwei LeseLink, erneuern/beenden mit AppDialog; Logik geraete/host.ts useGeraeteHost),
+  LeseLink (QR über QrCode.vue mit der ganzen URL, Link zum Markieren, Kopieren mit Rückmeldung, Öffnen; Slot für
+  „erneuern“), GeraeteLage (Punkt + Wort je VerbindungsLage; auch in GeraetApp); texte.ts fingerabdruckText.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -103,5 +107,5 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 `npx vitest run src/components src/styles src/lib/seiten src/lib/paging` (Messen per getBoundingClientRect-Spy).
 Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (zwei Fenster), views/Betrieb.test.ts;
 Parallelslalom auf der Tafel (englisch, keine deutschen Wörter): components/anzeige/AnzeigeParallel.test.ts;
-Zuschauerliste: src/ZuschauerApp.test.ts.
+Zuschauerliste: src/ZuschauerApp.test.ts. Gerätebetrieb: views/BetriebGeraete.test.ts, src/GeraetApp.test.ts.
 Im Zusammenhang src/views/*.test.ts; UIM-Kopfzeilen: views/UimAushang.test.ts, Beispieldaten: views/EventView.test.ts.

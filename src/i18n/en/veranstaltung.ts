@@ -4,7 +4,7 @@ import type de from '../de/veranstaltung'
 export default {
   'event.title': 'Event',
   'event.intro':
-    'All data stays in this browser. There is no server and no login – to keep the data or move it to another computer, download a backup under “Settings”.',
+    'All data stays in this browser. There is no server and no login – to keep the data or move it to another computer, download a backup under “Settings”. Only when device operation is switched on under “Operation → Devices” do start number, name, origin and class of the drivers go encrypted via a third-party server to display board and spectators.',
   'event.name': 'Name',
   'event.namePlaceholder': 'e.g. 30th Möwepokal',
   'event.year': 'Year',

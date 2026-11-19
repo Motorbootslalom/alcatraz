@@ -85,18 +85,7 @@ export function koppelThema(oA: string, code: string): string {
 }
 
 /**
- * `https://ntfy.example.org/` → `https://ntfy.example.org`; `null`, wenn es keine http(s)-Adresse ist.
- * Ohne Schema gilt https – so tippt man den Server ein.
+ * Adresse eines Servers prüfen – liegt seit E6 in lib/serverAdresse.ts, weil auch Reducer und migrate() die
+ * Einstellung `geraeteServer` damit prüfen und dort nichts aus geraete/ hineingehört (tweetnacl).
  */
-export function normalisiereServer(roh: string): string | null {
-  const getrimmt = roh.trim().replace(/\/+$/, '')
-  if (!getrimmt) return null
-  try {
-    const url = new URL(getrimmt.includes('://') ? getrimmt : `https://${getrimmt}`)
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
-    if (url.search || url.hash || url.username || url.password) return null
-    return `${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, '')}`
-  } catch {
-    return null
-  }
-}
+export { normalisiereServer } from '../lib/serverAdresse'

@@ -2,7 +2,7 @@
 export default {
   'event.title': 'Veranstaltung',
   'event.intro':
-    'Alle Daten bleiben in diesem Browser gespeichert. Es gibt keinen Server und keine Anmeldung – wer den Stand aufheben oder auf einen anderen Rechner bringen will, lädt unter „Einstellungen“ eine Sicherung herunter.',
+    'Alle Daten bleiben in diesem Browser gespeichert. Es gibt keinen Server und keine Anmeldung – wer den Stand aufheben oder auf einen anderen Rechner bringen will, lädt unter „Einstellungen“ eine Sicherung herunter. Nur wenn unter „Betrieb → Geräte“ der Gerätebetrieb eingeschaltet ist, gehen Startnummer, Name, Herkunft und Klasse der Starter verschlüsselt über einen fremden Server an Anzeigetafel und Zuschauer.',
   'event.name': 'Name',
   'event.namePlaceholder': 'z. B. 30. Möwepokal',
   'event.year': 'Jahr',

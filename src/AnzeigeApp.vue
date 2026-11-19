@@ -6,6 +6,7 @@ import { useLeseStore } from './state/leseStore'
 import { sichtOeffentlich } from './betrieb/sicht'
 import { vollbild } from './lib/router'
 import { folgeBedienfenster } from './lib/anzeigeFenster'
+import { useTafelFenster } from './lib/tafelFenster'
 import { tIn } from './i18n'
 import AnzeigeTafel from './components/anzeige/AnzeigeTafel.vue'
 
@@ -57,43 +58,19 @@ watchEffect(() => {
   document.title = [tIn(sicht.value.sprache, 'anzeige.titel'), name, sicht.value.kopf].filter(Boolean).join(' – ')
 })
 
-async function vollbildUmschalten(): Promise<void> {
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen()
-    else await document.documentElement.requestFullscreen()
-  } catch {
-    // Ohne Geste des Nutzers verweigert der Browser das Vollbild – dann eben per F11.
-  }
-}
-
-function beiTaste(e: KeyboardEvent): void {
-  if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) void vollbildUmschalten()
-}
-
-// Der Mauszeiger verschwindet nach kurzer Ruhe – auf der Tafel hat er nichts verloren.
-const zeigerWeg = ref(true)
-let zeigerTakt: ReturnType<typeof setTimeout> | undefined
-function beiMaus(): void {
-  zeigerWeg.value = false
-  clearTimeout(zeigerTakt)
-  zeigerTakt = setTimeout(() => (zeigerWeg.value = true), 2500)
-}
+// Taste F / Doppelklick = Vollbild, Mauszeiger weg nach kurzer Ruhe – wie auf einem Gerät mit Lese-Link (E6).
+const { zeigerWeg, vollbildUmschalten } = useTafelFenster()
 
 let opener: (() => void) | undefined
 onMounted(() => {
   document.documentElement.classList.add('anzeige-fenster')
-  window.addEventListener('keydown', beiTaste)
-  window.addEventListener('mousemove', beiMaus)
   window.addEventListener('hashchange', beiAdresse)
   // Rückfall, wo das storage-Ereignis nicht trägt (file://): Das Bedienfenster stößt an (lib/anzeigeFenster.ts).
   opener = folgeBedienfenster(store.lies)
 })
 onBeforeUnmount(() => {
   document.documentElement.classList.remove('anzeige-fenster')
-  window.removeEventListener('keydown', beiTaste)
-  window.removeEventListener('mousemove', beiMaus)
   window.removeEventListener('hashchange', beiAdresse)
-  clearTimeout(zeigerTakt)
   opener?.()
 })
 </script>

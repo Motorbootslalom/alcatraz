@@ -271,4 +271,12 @@ export interface AppState extends PlanState {
    * Personenbezug: in Sicherung und Vorlage – außer der Kopfzeile, die zur Veranstaltung gehört.
    */
   anzeige: AnzeigeEinstellungen
+  /**
+   * ntfy-Server für den Gerätebetrieb (Anzeigetafel und Zuschauer über Lese-Links, ab E6): '' = die Vorgabe des
+   * Programms (geraete/themen.ts NTFY_VORGABE, Entscheidung des Nutzers vom 16.11.2026: ntfy.adminforge.de,
+   * änderbar), sonst eine geprüfte Adresse (lib/serverAdresse.ts). Eine Einstellung: reist mit Sicherung und
+   * Vorlage. Raum und Schlüssel dagegen liegen nur in diesem Browser (geraete/ablage.ts), nie im Stand. Ohne
+   * bewusst geöffneten Raum verbindet sich die Anwendung mit keinem Server.
+   */
+  geraeteServer: string
 }

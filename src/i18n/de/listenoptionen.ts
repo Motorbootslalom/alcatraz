@@ -174,6 +174,18 @@ export default {
   'listopt.betrieb.abstaende.uebernehmen.hint':
     'Klassen mit mindestens {ab} gemessenen Abständen bekommen ihr Mittel als eigenen Wert – er reist mit der Vorlage zur nächsten Veranstaltung.',
   'listopt.betrieb.abstaende.alleVorgabe': 'Alle auf die Vorgabe',
+  // Gerätebetrieb (E6, SettingsView `#geraete`): der ntfy-Server; bedient wird unter Betrieb → Geräte.
+  'listopt.geraete.title': 'Geräte',
+  'listopt.geraete.hint':
+    'Anzeigetafel und Zuschauerliste auf anderen Geräten über das Internet. Die verschlüsselten Nachrichten reicht ein ntfy-Server weiter; eingeschaltet wird unter',
+  'listopt.geraete.server': 'Server (ntfy)',
+  'listopt.geraete.server.vorgabe': 'Leer heißt: die Vorgabe {server}. Die Einstellung reist mit Vorlage und Sicherung.',
+  'listopt.geraete.server.zurueck': 'Vorgabe',
+  'listopt.geraete.server.ungueltig': '„{eingabe}“ ist keine Adresse eines Servers (http oder https, ohne Anfrage, Anker und Zugangsdaten). Es bleibt bei der bisherigen.',
+  'listopt.geraete.raumServer':
+    'Der offene Raum wurde mit {server} angelegt; ein anderer Server gilt erst für einen neuen Raum (Betrieb → Geräte: Raum beenden, dann neu einschalten – mit neuen Links).',
+  'listopt.geraete.daten':
+    'Über diesen Server gehen erst, wenn unter „Betrieb → Geräte“ der Gerätebetrieb eingeschaltet ist: Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte und Logos.',
 
   'origin.style.aus': 'nicht zeigen',
   'origin.style.lang': 'ausgeschrieben',

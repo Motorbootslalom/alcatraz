@@ -2,6 +2,7 @@ import { createApp, type Component } from 'vue'
 import App from './App.vue'
 import AnzeigeApp from './AnzeigeApp.vue'
 import ZuschauerApp from './ZuschauerApp.vue'
+import GeraetApp from './GeraetApp.vue'
 import { createStore, storeKey } from './state/store'
 import { createLeseStore, leseStoreKey } from './state/leseStore'
 import './styles/app.css'
@@ -20,11 +21,13 @@ import { offlineBrowser, starteOffline } from './lib/offline'
 import { standLeer } from './lib/eingaben'
 import { vollbild } from './lib/router'
 import { verbindeAnzeigen } from './lib/anzeigeFenster'
+import { geraeteHostKey, starteGeraeteHost } from './geraete/host'
 
 // Die Wurzel folgt der Adresse – und zwar VOR jedem Store: Die Fenster der Anzeigetafel (`#/anzeige`) und der
 // Zuschauerliste (`#/zuschauer`) dürfen nie den vollen Store anlegen, der beim Start schreibt (Kennung, zweiter
-// Speicher). Wechselt die Adresse später auf eine andere Wurzel (Anzeigetafel, Zuschauerliste, gewöhnliche
-// Ansicht), lädt das Fenster neu und wählt sie so.
+// Speicher); ein fremdes Gerät mit Lese-Link (`#/sehen/<paket>`, E6) hat gar keinen Store – es berührt den Stand
+// einer Veranstaltung nie. Wechselt die Adresse später auf eine andere Wurzel (Anzeigetafel, Zuschauerliste,
+// Lese-Link, gewöhnliche Ansicht), lädt das Fenster neu und wählt sie so.
 const fenster = vollbild()?.art ?? null
 window.addEventListener('hashchange', () => {
   if ((vollbild()?.art ?? null) !== fenster) location.reload()
@@ -32,6 +35,7 @@ window.addEventListener('hashchange', () => {
 
 if (fenster === 'anzeige') starteNurLesen(AnzeigeApp)
 else if (fenster === 'zuschauer') starteNurLesen(ZuschauerApp)
+else if (fenster === 'sehen') starteGeraet()
 else starteBedienung()
 
 /**
@@ -42,9 +46,22 @@ function starteNurLesen(wurzel: Component) {
   createApp(wurzel).provide(leseStoreKey, createLeseStore()).mount('#app')
 }
 
+/**
+ * Ein fremdes Gerät mit Lese-Link (src/GeraetApp.vue, E6): ohne Store, ohne Handscanner, ohne Kopf. Der
+ * Offline-Speicher bleibt (Neuladen ohne Netz zeigt die abgelegte Sicht), übernimmt eine neue Fassung aber nie von
+ * selbst – nur gezielt, wenn der Bedienrechner eine neuere spricht (Plan §4, F7; GeraetApp.vue `aktualisiere`).
+ */
+function starteGeraet() {
+  createApp(GeraetApp).mount('#app')
+  void starteOffline(offlineBrowser())
+}
+
 function starteBedienung() {
   const store = createStore()
-  createApp(App).provide(storeKey, store).mount('#app')
+  // Gerätebetrieb (E6): verbindet sich erst, wenn unter Betrieb → Geräte ein Raum geöffnet ist (geraete/host.ts) –
+  // bis dahin verlässt nichts den Browser.
+  const geraete = starteGeraeteHost(store)
+  createApp(App).provide(storeKey, store).provide(geraeteHostKey, geraete).mount('#app')
 
   // Die Anzeigetafeln, die dieses Fenster geöffnet hat, nach jeder Änderung anstoßen – Rückfall, wo das
   // storage-Ereignis zwischen Fenstern nicht trägt (file://; lib/anzeigeFenster.ts).

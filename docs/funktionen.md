@@ -253,9 +253,10 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
 
 Am Wettkampftag gibt der Bedienrechner frei, wer als Nächstes startet, und eine **Anzeigetafel** zeigt es – in einem
 zweiten Fenster, etwa auf einem Monitor am Steg (Reiter „Betrieb“, `src/views/BetriebView.vue`; Plan zur Übernahme des
-Prototyps `tafel` vom 16.11.2026, Etappen E1 bis E4). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
-Dazu kommen eine **Startliste** mit geschätzten Wartezeiten und eine **Zuschauerliste**. Mehrere Geräte über das
-Internet kommen später; bisher braucht nichts davon ein Netz.
+Prototyps `tafel` vom 16.11.2026, Etappen E1 bis E4 und E6). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
+Dazu kommen eine **Startliste** mit geschätzten Wartezeiten und eine **Zuschauerliste**. Nichts davon braucht ein Netz;
+nur wer Anzeigetafel oder Zuschauerliste auch auf anderen Geräten zeigen will, schaltet den **Gerätebetrieb** ein
+(Lese-Links über das Internet, siehe unten).
 
 - **Voraussetzung:** Die Verzahnung ist festgeschrieben. Erst dann stehen Startnummern und Folge fest;
   vorher zeigt der Reiter nur den Weg zur Verzahnung. Wird sie mitten am Tag gelöst, bleiben die Karten stehen:
@@ -363,8 +364,8 @@ Internet kommen später; bisher braucht nichts davon ein Netz.
   begonnen haben, stehen nicht darin. Bei Pause oder Störung auf der Anzeigetafel steht die Meldung oben, die Gruppen
   bleiben, Zahlen gibt es keine. Filter nach Klasse (nur die Klassen der gezeigten Parcours) – er blendet nur aus,
   Steg-Gruppen und Wartezeiten zählen alle Klassen; das Fenster merkt ihn sich auch über das Neuladen. Schmal genug fürs Handy, in der Sprache der
-  Anzeigetafel, im Farbschema der Bedienung. Das Fenster liest nur und schreibt nie, wie die Anzeigetafel. Fürs Handy
-  der Zuschauer über das Internet kommt später ein Link (dieselbe Seite).
+  Anzeigetafel, im Farbschema der Bedienung. Das Fenster liest nur und schreibt nie, wie die Anzeigetafel. Aufs Handy
+  der Zuschauer kommt sie über den Zuschauer-Link (Gerätebetrieb, dieselbe Liste).
 - **Parallelslalom** (nur unter UIM, Etappe E4; Einzelheiten in [parallelslalom.md](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)):
   ein eigener Bereich „Parallel slalom“ hinter den Parcours. Seine Punkte sind die festgeschriebenen Runden (Vorlauf,
   Re-run, Halbfinale, Finals), seine Starts die Paare des Plans; die Anzeigetafel zeigt Racecourse A und B
@@ -374,7 +375,8 @@ Internet kommen später; bisher braucht nichts davon ein Netz.
   Tafel gibt es über „Eigene Anzeigetafel“ (`#/anzeige/parallel`).
 - **Was die Anzeigetafel zeigt** (`src/betrieb/sicht.ts`): nur Startnummer, Name, Klasse und Herkunft der Starter,
   die gerade vorkommen – nie Geburtsdatum, Gewicht, Geschlecht oder erfasste Werte. Dieselbe Sicht liest die
-  Start-Freigabe; so können beide später auch auf anderen Geräten laufen. Die Zuschauerliste liest eine noch
+  Start-Freigabe; so läuft die Anzeigetafel unverändert auch auf anderen Geräten (Lese-Link), die Start-Freigabe
+  später ebenso (Etappe E7). Die Zuschauerliste liest eine noch
   schmalere Sicht (`sichtZuschauer`): ohne alles, was nur die Bedienung braucht – wer zurückgestellt ist, wer
   nachzuholen ist, die Starts späterer Läufe –, und nur die Starter, die darin vorkommen.
 - **Einstellungen** unter „Einstellungen → Anzeigetafel“: Kopfzeile (Vorgabe Name und Jahr der Veranstaltung,
@@ -387,6 +389,24 @@ Internet kommen später; bisher braucht nichts davon ein Netz.
   **„Messwerte als Vorgabe übernehmen“** macht das Mittel jeder Klasse mit mindestens drei Messungen zum eigenen Wert;
   „Alle auf die Vorgabe“ nimmt die eigenen zurück. Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile – so
   kommen übernommene Startabstände zur nächsten Veranstaltung mit.
+- **Gerätebetrieb** (Unterreiter „Geräte“, `#/betrieb/geraete`, englisch `#/operation/devices`;
+  `src/components/betrieb/GeraeteRaum.vue`, `src/geraete/`; Bedienung und Grenzen in
+  [betrieb.md](betrieb.md#gerätebetrieb)): Anzeigetafel und Zuschauerliste auf anderen Geräten über das Internet.
+  - Erst **„Gerätebetrieb einschalten“** verbindet – bis dahin verlässt nichts den Browser. Der Text davor sagt, was
+    dann über welchen Server geht: Startnummer, Name (nach der Einstellung „Namen“), Herkunft, Klasse, die Folge der
+    Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung, verschlüsselt und signiert; nie Geburtsdatum,
+    Gewicht, Geschlecht, Werte oder Logos.
+  - Zwei **Lese-Links** mit QR-Code, „Link kopieren“ und „Öffnen“: „Anzeigetafel“ (die Tafel, ohne Logos) und
+    „Zuschauer“ (die Zuschauerliste). Keine Anmeldung, keine Kopplung. Unter `file://` führen sie zur App auf Pages.
+  - **Fingerabdruck** zum Vergleichen mit dem Gerät; **„Zuschauer-Link erneuern“** (der alte bekommt nichts mehr, die
+    Anzeigetafel bleibt); **„Raum beenden“** (die Geräte löschen, was sie zeigen); die **Verbindung** (verbunden,
+    gestört, zu viele Anfragen, keine) – auch im Kopf der anderen Unterreiter und in jedem weiteren Fenster.
+  - **Auf dem Gerät** (`#/sehen/<paket>`, `src/GeraetApp.vue`): dieselbe Anzeigetafel bzw. Zuschauerliste wie am
+    Bedienrechner, „seit“ und „ca. in“ mit der Uhr des Bedienrechners, Fingerabdruck, Vollbild, „Raum verlassen“.
+    Was es zeigt, verfällt 36 Stunden nach der letzten Nachricht. Andere Fassung: „Bedienrechner aktualisieren“ bzw.
+    gezieltes Neuladen, wenn der Bedienrechner neuer ist.
+  - **Einstellung** „Einstellungen → Geräte“: der ntfy-Server (leer = Vorgabe `ntfy.adminforge.de`); geprüft, reist
+    mit Vorlage und Sicherung. Ein anderer Server gilt erst für einen neuen Raum.
 - **Gespeichert:** Der Betrieb steht in der Sicherung, nicht in der Vorlage. „Verlauf wiederherstellen“ (innerhalb
   derselben Veranstaltung) und „Alle erfassten Werte löschen“ lassen ihn stehen; ein Stand einer anderen
   Veranstaltung bringt seinen eigenen Betrieb mit.

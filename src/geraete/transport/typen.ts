@@ -55,3 +55,19 @@ export interface Transport {
   start(): Promise<void>
   stop(): void
 }
+
+/**
+ * Wie die Oberfläche die Verbindung zeigt (E6, Betrieb → Geräte und auf dem Gerät): verbunden, gestört (es wird neu
+ * verbunden), Kontingent (ntfy: zu viele Anfragen, 429 – es geht nach einer Pause weiter), Fehler (Start unmöglich,
+ * Code in `fehler`). Andere Fehlercodes bei bestehender Verbindung (etwa `ablage-voll`, `abgewiesen`) zeigt die
+ * Oberfläche zusätzlich als Hinweis.
+ */
+export type VerbindungsLage = 'aus' | 'verbinde' | 'verbunden' | 'gestoert' | 'kontingent' | 'fehler'
+
+export function verbindungsLage(status: Verbindungsstand, fehler: TransportFehler | null): VerbindungsLage {
+  if (status === 'fehler') return 'fehler'
+  if (status === 'aus') return 'aus'
+  if (fehler?.code === 'zu-viele-anfragen') return 'kontingent'
+  if (status === 'neu-verbinden' || fehler?.code === 'verbindung-gestoert') return 'gestoert'
+  return status === 'verbinde' ? 'verbinde' : 'verbunden'
+}

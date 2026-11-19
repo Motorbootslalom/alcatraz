@@ -436,7 +436,8 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   (neuer Raum, neu koppeln; keine Schlüssel in Sicherungen); vorerst kein „Poweruser“ – die Start-Freigabe darf das
   Betriebliche ihrer Parcours, Einstellungen bleiben am Bedienrechner; eine öffentliche Namensregel für Anzeigetafel
   und Zuschauer (wie der Aushang der Wertungslisten); Gerätebetrieb nur, wenn Bedienrechner und Geräte dieselbe
-  Fassung haben. → Plan §7 (F2–F7), ab E5 `geraete/`
+  Fassung haben. → Plan §7 (F2–F7), ab E5 `geraete/`; E6 Lese-Links mit QR (Betrieb → Geräte,
+  `components/betrieb/GeraeteRaum.vue`), Gerät `GeraetApp.vue` (`#/sehen/<paket>`), Fassungsprüfung `geraete/geraet.ts`
 - 2026-11-16 · N · Anordnung A/B einstellbar, standortabhängig: Auf der Anzeigetafel des Parallelslaloms lässt sich
   einstellen, ob Racecourse A und B neben- oder untereinander stehen und welcher links bzw. oben („Bei der
   Parallel-Tafel bitte einstellbar machen, ob horizontal oder vertikal geteilt wird. Das ist standortabhängig.“ –
@@ -447,6 +448,8 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-11 · N · Für die Tafel darf ein öffentlicher ntfy-Server genutzt werden („Im Fall der ../tafel kann aber
   auf ntfy.adminforge.de zurückgegriffen werden“): Vorgabe ntfy.adminforge.de, in den Einstellungen änderbar (wie im
   Lastenheft der Tafel, P-9). Die frühere Notiz „Hostname bewusst nicht im Repo“ stammte nicht vom Nutzer. → ab E5
+  `geraete/themen.ts` NTFY_VORGABE; E6 Einstellung `geraeteServer` (Einstellungen → Geräte; leer = Vorgabe, reist mit
+  Vorlage und Sicherung)
 
 - 2026-11-14 · N · Zweiter Speicher (IndexedDB) mit Verlauf: Stände ansehen, wiederherstellen, „Stand merken“ – auch zum
   Ausprobieren. → `state/zweit.ts`, `lib/verlauf.ts`, `components/VerlaufPanel.vue`
@@ -473,7 +476,15 @@ Zurzeit nichts.
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
-- Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): noch nicht gebaut; Entscheidungen dazu unter „Betrieb und Offline“.
-  Ohne Netz gibt es seit 16.11.2026 (E1) die Anzeigetafel im zweiten Fenster und die Start-Freigabe am Bedienrechner.
+- Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
+  Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;
+  offen sind E7 (Koppeln, Start-Freigabe vom Handy) und E8 (Feldtest). Entscheidungen dazu unter „Betrieb und
+  Offline“ (F1, F3, F6, F7 umgesetzt). Beim Bau von E6 ausgelegt und vom Nutzer noch zu bestätigen (16.11.2026):
+  Anzeigetafel und Zuschauer als zwei Gruppen mit eigenem Schlüssel; Uhrversatz aus frisch Empfangenem; wann der Raum
+  endet (andere Veranstaltung trennt nur, anderer Server erst für einen neuen Raum, ohne Netz beendet ohne Meldung);
+  Fassungsprüfung samt Sperre gegen Neulade-Schleifen; Links unter `file://` auf Pages, Paket bleibt in der Adresse,
+  Leiste über der Tafel – alles in `BETRIEB_ANNAHMEN` (lesenJeLink, uhrversatzFrisch, raumEnde, fassungGleich,
+  leseLinkOberflaeche). Ohne Netz gibt es seit 16.11.2026 (E1) die Anzeigetafel im zweiten Fenster und die
+  Start-Freigabe am Bedienrechner.
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`) und EINZEL_FESTLEGUNGEN (`lib/einzelwertung.ts`) legen aus, wo Regel 960
   schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste anpassen.

@@ -35,6 +35,13 @@ import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabst
 // Anzeigetafel liegen (Einstellung nach dem Standort, 16.11.2026); Start-Freigabe und Zuschauersicht bleiben bei A
 // vor B (BETRIEB_ANNAHMEN.parallelAnordnungNurTafel).
 
+/**
+ * Fassung der Sicht (`sv`), wie sie in jeder Nachricht des Hosts steht (geraete/, Plan F7): Ändert sich die Form der
+ * öffentlichen oder der Zuschauersicht, zählt sie hoch – Geräte zeigen nur dieselbe Fassung (Entscheidung des Nutzers
+ * vom 16.11.2026: Gerätebetrieb nur bei gleicher Fassung).
+ */
+export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 5
+
 export interface SichtOptionen {
   /**
    * Logos mitgeben (wenn `anzeige.logos` an ist und es welche gibt); Vorgabe ja – für die Anzeigetafel am
@@ -219,7 +226,7 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
 
   const mitLogos = (optionen.logos ?? true) && stand.anzeige.logos && (stand.logos.links !== null || stand.logos.rechts !== null)
   return {
-    sv: 5,
+    sv: SICHT_FASSUNG,
     kopf: kopfzeile(stand),
     veranstaltung: stand.eventName.trim(),
     sprache,

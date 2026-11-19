@@ -17,8 +17,9 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 - `ListsView.vue` – Reiter „Listen“: KINDS (starter, gewicht, vorsteg, wkr, laufzettel, codes, ergebnis, pokal,
   druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`), print() setzt
   document.title (= Dateiname) und ruft window.print().
-- `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start` und `startliste` (useReiter, Knöpfe
-  `data-reiter`; E6 geraete), „Anzeigetafel öffnen“ und „Zuschauerliste öffnen“ (lib/anzeigeFenster.ts), Verweise auf
+- `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start`, `startliste` und (E6) `geraete`
+  (useReiter, Knöpfe `data-reiter`; `geraete` = components/betrieb/GeraeteRaum.vue, ohne Kopf-Knöpfe und Karten; ist ein
+  Raum offen, steht auf den anderen Unterreitern `data-teil="geraete-lage"` im Kopf, Klick → `geraete`), „Anzeigetafel öffnen“ und „Zuschauerliste öffnen“ (lib/anzeigeFenster.ts), Verweise auf
   `#anzeigetafel` und `#betrieb` (Startfolge), je Parcours components/betrieb/StartFreigabe.vue bzw. (E3) StartListe.vue
   aus sichtOeffentlich, darüber die Startabstände der Sicht (`data-teil="abstaende"`); Uhr lib/uhr.ts (1 s), nur im
   Zweig der Startliste gelesen; ohne festgeschriebene Verzahnung nur der Hinweis `vor-verzahnung` (mit schon begonnenem
@@ -32,7 +33,10 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
   Betrieb (`#betrieb`, Sprungziel `?startfolge`/`?start-order`): `betrieb-verzahnung-halten` → SET_ANZEIGE {verzahnungHalten};
   E3: `betrieb-am-steg`/`betrieb-vor-steg` (0–STEG_MAX), Tabelle `startabstaende` (betrieb/prognose.ts
   startabstandZeilen; `betrieb-abstand|<klasse>` = eigener Wert, leer oder gleich der Vorgabe ⇒ keiner),
-  `messwerte-uebernehmen` (messwerteAlsVorgabe), `abstaende-vorgabe` (alle eigenen weg).
+  `messwerte-uebernehmen` (messwerteAlsVorgabe), `abstaende-vorgabe` (alle eigenen weg). Geräte (E6, `#geraete`,
+  Sprungziel `?geraete`/`?devices`): `geraete-server` (lib/serverAdresse.ts serverEinstellung; ungültig → Hinweis
+  `geraete-server-ungueltig`, Stand bleibt), `geraete-server-vorgabe`, Hinweis `geraete-raum-server` (offener Raum mit
+  anderem Server, useGeraeteHost) und `geraete-daten` (was über den Server geht).
 
 ## Abläufe
 
@@ -79,7 +83,7 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 
 Je Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meist über ListsView), z. B. Verwiegung
 (Link zu den Gewichtslisten), Ergebnislisten, ParallelErgebnis, Einzelwertung, Pokalauswertung, Laufzettel, Druckdatei,
-Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel, Startfolge, Startabstände), Betrieb (Start-Freigabe,
-E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), Listenoptionen, ErfassungView, ErfassungScan, Dolphin,
+Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel, Startfolge, Startabstände, Geräte), Betrieb (Start-Freigabe,
+E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), BetriebGeraete (E6, echter Host gegen nachgebauten ntfy), Listenoptionen, ErfassungView, ErfassungScan, Dolphin,
 UimAushang (englisch). Zuschauerliste: src/ZuschauerApp.test.ts.
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

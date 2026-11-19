@@ -10,6 +10,7 @@ import type { RawAufbau } from '../config/schema'
 import { LogoFehler, verkleinereLogo } from '../lib/logoBild'
 import { betriebsStand, festgeschrieben, TEST_PNG_2X1, testLogo, uimParallelStand, zeigeNaechsten } from '../testHilfen'
 import { reducer } from '../state/reducer'
+import { NTFY_VORGABE } from '../geraete/themen'
 
 /** Erfundener eigener Aufbau. */
 const hafenfest: RawAufbau = {
@@ -1003,5 +1004,85 @@ describe('Einstellungen: Anzeigetafel', () => {
     // Schon übernommen: nichts mehr zu tun.
     expect(wrapper.find('[data-action="messwerte-uebernehmen"]').attributes('disabled')).toBeDefined()
     wrapper.unmount()
+  })
+})
+
+describe('Einstellungen: Geräte (E6, Server des Gerätebetriebs)', () => {
+  // Server erfunden (example.org); nichts verbindet sich – der Abschnitt stellt nur ein.
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+  })
+  afterEach(() => {
+    setLocale('de')
+    location.hash = ''
+    document.body.innerHTML = ''
+  })
+
+  const feld = (w: ReturnType<typeof settings>) => w.find<HTMLInputElement>('#geraete [data-feld="geraete-server"]')
+  async function tippe(w: ReturnType<typeof settings>, text: string) {
+    await feld(w).setValue(text)
+    await nextTick()
+  }
+
+  it('leer = Vorgabe (als Platzhalter); eine Adresse wird vereinheitlicht gespeichert, „Vorgabe“ nimmt sie zurück', async () => {
+    const w = settings(store)
+    const abschnitt = w.find('#geraete.panel')
+    expect(abschnitt.find('h2').text()).toBe('Geräte')
+    expect(feld(w).attributes('placeholder')).toBe(NTFY_VORGABE)
+    expect(feld(w).element.value).toBe('')
+    expect(abschnitt.text()).toContain(`Vorgabe ${NTFY_VORGABE}`)
+    // Was über den Server geht – und was nie.
+    const daten = abschnitt.find('[data-hinweis="geraete-daten"]').text()
+    for (const wort of ['Startnummer', 'Name', 'Herkunft', 'Klasse', 'verschlüsselt', 'Geburtsdatum', 'Gewicht', 'IP-Adressen']) expect(daten).toContain(wort)
+    // Verweis dorthin, wo eingeschaltet wird.
+    expect(abschnitt.find('a[href="#/betrieb/geraete"]').exists()).toBe(true)
+
+    await tippe(w, ' ntfy.example.org/ ')
+    expect(store.state.value.geraeteServer).toBe('https://ntfy.example.org')
+    expect(feld(w).element.value).toBe('https://ntfy.example.org')
+    expect(w.find('[data-hinweis="geraete-server-ungueltig"]').exists()).toBe(false)
+
+    await w.find('[data-action="geraete-server-vorgabe"]').trigger('click')
+    expect(store.state.value.geraeteServer).toBe('')
+    expect(w.find('[data-action="geraete-server-vorgabe"]').attributes('disabled')).toBeDefined()
+    w.unmount()
+  })
+
+  it('keine Adresse: gemeldet, die bisherige bleibt; leer = wieder die Vorgabe', async () => {
+    store.dispatch({ type: 'SET_GERAETE_SERVER', server: 'https://ntfy.example.org' })
+    const w = settings(store)
+    for (const kaputt of ['ftp://ntfy.example.org', 'https://nutzer:geheim@ntfy.example.org', 'https://ntfy.example.org/?x=1']) {
+      await tippe(w, kaputt)
+      expect(store.state.value.geraeteServer, kaputt).toBe('https://ntfy.example.org')
+      expect(feld(w).element.value).toBe('https://ntfy.example.org')
+      expect(w.find('[data-hinweis="geraete-server-ungueltig"]').text()).toContain(kaputt)
+    }
+    await tippe(w, '   ')
+    expect(store.state.value.geraeteServer).toBe('')
+    expect(w.find('[data-hinweis="geraete-server-ungueltig"]').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('englisch; Sprungziel #/settings?devices rollt zum Abschnitt', async () => {
+    setLocale('en')
+    const vorher = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
+    const scroll = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { value: scroll, configurable: true, writable: true })
+    location.hash = '#/settings?devices'
+    try {
+      const w = settings(store, { attachTo: document.body })
+      await flushPromises()
+      expect(scroll.mock.contexts).toContain(w.find('#geraete').element)
+      expect(w.find('#geraete h2').text()).toBe('Devices')
+      expect(w.find('#geraete a[href="#/operation/devices"]').exists()).toBe(true)
+      w.unmount()
+    } finally {
+      if (vorher) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', vorher)
+      else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
   })
 })

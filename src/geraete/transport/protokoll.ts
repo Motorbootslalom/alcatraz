@@ -9,8 +9,8 @@ import type { Json, Op } from './ntfy/patch'
  * (betrieb/sicht.ts), und schicken nur Nachrichten an den Host – Actions prüft und wendet allein er an.
  *
  * Drei Wege:
- * - **Host → Gruppe** (Thema der Gruppe; `ko` = öffentlich: oA und oZ): Vollstand, Differenz oder Meldung,
- *   mit dem Gruppenschlüssel verschlüsselt (secretbox) und vom Host signiert.
+ * - **Host → Gruppe** (Thema der Gruppe; `ko` = Anzeigetafel auf oA, `kz` = Zuschauer auf oZ): Vollstand,
+ *   Differenz oder Meldung, mit dem Gruppenschlüssel verschlüsselt (secretbox) und vom Host signiert.
  * - **Host → ein Gerät** (d-Thema, beim Koppeln das Koppel-Thema): an den Schlüssel des Geräts (box), signiert.
  * - **Gerät → Host** (g-Thema, beim Koppeln das Koppel-Thema): an den Schlüssel des Hosts (box) – mit
  *   fortlaufender Nummer `nr` je Gerät. Der Host merkt sich die letzte dauerhaft; Doppelte bekommen nur erneut
@@ -24,8 +24,26 @@ import type { Json, Op } from './ntfy/patch'
 /** Fassung dieses Protokolls; steht (signiert) in jeder Nachricht des Hosts, `v`. */
 export const PROTOKOLL_FASSUNG = 1
 
-/** Gruppe der öffentlichen Sicht (Anzeigetafel und Zuschauer). Sie wird nie neu verschlüsselt (K14). */
+/**
+ * Gruppe der öffentlichen Sicht für die Anzeigetafel (Thema oA; betrieb/sicht.ts sichtOeffentlich ohne Logos). Auch die
+ * Start-Freigabe liest sie (E7). Sie wird nie neu verschlüsselt (K14): Ausgehängte Links blieben sonst tot.
+ */
 export const OEFFENTLICH = 'ko'
+
+/**
+ * Gruppe der Zuschauersicht (Thema oZ; sichtZuschauer, schmaler als die öffentliche) – eigener Schlüssel, eigene
+ * Nummern, eigene Grundlage der Differenzen (E6, 16.11.2026). So trägt der Zuschauer-Link nur, was die Zuschauerliste
+ * zeigt (BETRIEB_ANNAHMEN.zuschauerSchmal), und sein Schlüssel öffnet die Nachrichten der Anzeigetafel nicht. Wie `ko`
+ * nie neu verschlüsselt; „Zuschauer-Link erneuern“ wechselt nur das Thema.
+ */
+export const ZUSCHAUER = 'kz'
+
+/** Die Gruppen der Lese-Links: öffentlich, ohne Kopplung, nie neu verschlüsselt, an kein Gerät gebunden. */
+export const OEFFENTLICHE_GRUPPEN: readonly string[] = [OEFFENTLICH, ZUSCHAUER]
+
+export function istOeffentlich(gruppe: string): boolean {
+  return OEFFENTLICHE_GRUPPEN.includes(gruppe)
+}
 
 /** Steht statt einer Gruppe in Nachrichten an ein einzelnes Gerät. Keine Gruppe kann so heißen. */
 export const DIREKT = '-'
@@ -134,7 +152,7 @@ export type DirektNachricht =
   | { art: 'abgelehnt'; auf: number; grund: Ablehnung }
   /** Bestätigt die Nachricht `auf`; erst dann schickt das Gerät die nächste. */
   | { art: 'quittung'; auf: number; ergebnis: Ergebnis; grund?: Ablehnung }
-  /** Neue Schlüssel nach einem Wechsel (Entzug eines anderen Geräts) – nie für `ko`. */
+  /** Neue Schlüssel nach einem Wechsel (Entzug eines anderen Geräts) – nie für `ko` und `kz`. */
   | { art: 'schluessel'; gruppen: GruppenSchluessel[] }
   /** Geänderte Rechte, wirken sofort (Lastenheft der Tafel P-6). */
   | { art: 'aufgaben'; aufgaben: unknown[] }

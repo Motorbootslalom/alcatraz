@@ -42,8 +42,13 @@ export const ABLAGE = {
    * nur zusammen verloren gehen ({@link ichOderNeu}).
    */
   verbindung: 'alcatraz.geraet.verbindung',
-  /** Gerät: zuletzt empfangene Sicht mit Ablauf (K20; gefüllt ab E6). */
+  /** Gerät: zuletzt empfangene Sicht mit Ablauf (K20; gefüllt ab E6, geraete/geraet.ts). */
   sicht: 'alcatraz.geraet.sicht',
+  /**
+   * Gerät: Wann es zuletzt wegen einer neueren Fassung des Hosts neu geladen hat und für welche (F7, E6) – damit ein
+   * Gerät, dessen Programm sich nicht erneuern lässt, nicht immer wieder neu lädt. Ohne Personenbezug.
+   */
+  aktualisiert: 'alcatraz.geraet.aktualisiert',
 } as const
 
 /** Präfixe der Ablage: Host und Gerät. Nichts davon gehört in `alcatraz:state:v1`. */

@@ -1,12 +1,15 @@
 # Alcatraz – Projektkarte
 
-Statische Browser-App ohne Server, die die Excel-Auswertung für Motorbootslalom (Schlauchbootslalom) ersetzt:
+Statische Browser-App ohne eigenen Server, die die Excel-Auswertung für Motorbootslalom (Schlauchbootslalom) ersetzt:
 Starter, Verzahnung, Verwiegung, WKR-Bögen, Laufzettel, Erfassung, Wertungs-, Einzel- und Mannschaftswertung, Druck;
 am Wettkampftag Start-Freigabe, Anzeigetafel im zweiten Fenster, Startliste mit Wartezeiten und Zuschauerliste,
-unter UIM auch für den Parallelslalom (Plan zur Übernahme der Tafel, 16.11.2026: E1–E4; E5 = Übertragungskern für
-andere Geräte über ntfy, noch ohne Oberfläche und von der App nicht geladen).
+unter UIM auch für den Parallelslalom (Plan zur Übernahme der Tafel, 16.11.2026: E1–E4); E5/E6 = Gerätebetrieb:
+Anzeigetafel und Zuschauerliste über Lese-Links (QR) auf anderen Geräten, verschlüsselt über einen fremden ntfy-Server.
 Regelwerke: DM-Reglement (`dm-2026`) und UIM Regel 960 „Formula Future“ (`uim-2026`, mit Parallelslalom).
 Daten nur im Browser (localStorage + IndexedDB-Verlauf, Sicherung als Datei); GitHub Pages oder eine HTML-Datei.
+Einzige Ausnahme: der bewusst eingeschaltete Gerätebetrieb (Betrieb → Geräte) – dann gehen Startnummer, Name nach
+der öffentlichen Namensregel, Herkunft, Klasse, Startfolge und Meldungen verschlüsselt über den ntfy-Server; ohne
+Einschalten keine Verbindung (src/main.geraete.test.ts).
 
 Technik: Vue 3 `<script setup lang="ts">`, TypeScript strict, Vite 7, Vitest + happy-dom, js-yaml; tweetnacl (geraete/).
 Kein Router- und kein Store-Paket: Hash-Router `lib/router.ts`, eigener reiner Reducer `state/reducer.ts`.
@@ -34,12 +37,13 @@ src/types.ts, types/  Sammelpunkt (SCHEMA_VERSION = 1, welcher Typ wo); types/zu
 src/main.ts, App.vue  Wurzel nach Adresse; Store anlegen, Offline starten; Kopf, Reiter (lib/adressen.ts VIEWS), Banner, Fuß
 src/AnzeigeApp.vue    Wurzel der Anzeigetafel `#/anzeige[/<bereich>]`: Nur-Lese-Store, ohne Kopf/Scanner/Offline
 src/ZuschauerApp.vue  Wurzel der Zuschauerliste `#/zuschauer[/<bereich>]` (E3): ebenso, liest nur sichtZuschauer
+src/GeraetApp.vue     Wurzel eines Geräts mit Lese-Link `#/sehen/<paket>` (E6): OHNE Store, Sicht aus geraete/geraet.ts
 src/state/       *    Store, reiner Reducer (reducer.ts: Einstieg, Sperren; reducer/<bereich>.ts: die Actions), migrate(), Tor 5, zweiter Speicher
 src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/Starter (backup.ts)
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
 src/lib/         *    reine Logik: Wertung, Parallelslalom, Pokal, Bögen, Listen, Laufzettel, QR, Verlauf, Offline
 src/betrieb/     *    Betrieb am Wettkampftag, rein: Folge (abgeleitet), Lage, Schritte, Sicht, Prognose, BETRIEB_ANNAHMEN
-src/geraete/     *    Gerätebetrieb über ntfy (ab E5, ohne Oberfläche): transport/ (Protokoll, Leitung, Host/Gerät), Themen, Führung, Fensterbus, Ablage (gerätelokal)
+src/geraete/     *    Gerätebetrieb über ntfy (E5 Kern, E6 Lese-Links): transport/, Themen, Führung, Fensterbus, Ablage (gerätelokal), paket, host (Bedienfenster), geraet (Gerät)
 src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/, anzeige/, betrieb/, zuschauer/
 src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Betrieb, Erfassung, Settings
 src/domain/           Klassen, Startnummern, Kürzel, Staaten, Flaggen, Gewicht, Geschlecht, Beispielstarter
@@ -120,7 +124,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … umstellen (zurückstellen, aussetzen, verschieben, einsteigen) | betrieb/schritte.ts (Schnappschuss, Abgleich, webeNeu); Actions in state/reducer/betrieb.ts |
 | … was Tafel und Freigabe sehen | betrieb/sicht.ts sichtOeffentlich (EINE Stelle, Datenschutz; Form ändern → `sv`, sicht.test.ts) |
 | Anzeigetafel: Aussehen, Schrift | components/anzeige/AnzeigeTafel.vue + AnzeigeBereich.vue, styles/anzeige.css (--anzeige-*), lib/fit.ts |
-| … Fenster, Adresse, Rückfall file:// | AnzeigeApp.vue/ZuschauerApp.vue, main.ts (Wurzel), lib/adressen.ts VOLLBILDER/liesVollbild, lib/anzeigeFenster.ts |
+| … Fenster, Adresse, Rückfall file:// | AnzeigeApp.vue/ZuschauerApp.vue/GeraetApp.vue, main.ts (Wurzel), lib/adressen.ts VOLLBILDER/liesVollbild, lib/anzeigeFenster.ts; Vollbild/Mauszeiger lib/tafelFenster.ts |
 | … Einstellung | SettingsView `#anzeigetafel`, `#betrieb` (Startfolge, Am/Vor Steg, Startabstände) → SET_ANZEIGE (normalisiereAnzeige); Texte listopt.anzeige.*, listopt.betrieb.* |
 | Start-Freigabe (Bedienung) | views/BetriebView.vue, components/betrieb/ (StartFreigabe + BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb; texte.ts); i18n betrieb.* |
 | Startliste, Wartezeiten („ca. in“, Zum Vorsteg) | betrieb/prognose.ts (Messung auf dem Stand, wartezeiten auf dem Bildschirm), components/betrieb/StartListe.vue, lib/uhr.ts; Vorgabe einstellungen.yaml `startabstaende` → config/catalog.ts startabstandOf |
@@ -130,6 +134,9 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … Themen, Vorgabe-Server | geraete/themen.ts (`NTFY_VORGABE` – einzige Stelle des Hostnamens) |
 | … wo Raum/Schlüssel liegen | geraete/ablage.ts ABLAGE (`alcatraz.geraete.*`, `alcatraz.geraet.*`), nie AppState |
 | … welches Fenster verbindet, wo Geräte-Actions angewandt werden | geraete/fuehrung.ts (Web Locks, Lease), geraete/fensterbus.ts (Schreibfenster, 1 s Rückfall) |
+| … Bedienung (einschalten, Links, QR, erneuern, beenden, Verbindung) | components/betrieb/GeraeteRaum.vue (+ LeseLink.vue, GeraeteLage.vue), BetriebView `geraete`; Logik geraete/host.ts (useGeraeteHost); i18n geraete.* (betrieb.ts) |
+| … Lese-Link, Gerät, Fassung (F7) | geraete/paket.ts (`#/sehen/<paket>`, leseLinkUrl, lib/build.ts PAGES_URL), geraete/geraet.ts, src/GeraetApp.vue; Selbst-Update lib/offline.ts holeNeueFassung |
+| … Server (Einstellung) | AppState.geraeteServer (SET_GERAETE_SERVER, lib/serverAdresse.ts), SettingsView `#geraete`; i18n listopt.geraete.* |
 
 ## Feste Regeln
 
@@ -156,6 +163,8 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 - Gerätebetrieb (ab E5): Raum, Schlüssel und Register nur gerätelokal (geraete/ablage.ts), nie im AppState, also nie
   in Sicherung, Vorlage oder Verlauf; nichts aus geraete/ im Reducer. Auf die Leitung nur Sichten, nie der AppState;
   Fehler als Codes. Den Server bekommt der Transport immer von außen (Vorgabe nur themen.ts NTFY_VORGABE).
+  Ohne bewusst geöffneten Raum keine Verbindung (kein WebSocket, kein fetch) – neue Wege ins Netz nur hinter diesem
+  Schalter, Test src/main.geraete.test.ts. Geräte (`#/sehen`) haben keinen Store und zeigen dieselben Komponenten.
 - Druck: Seitenzahlen zählt jede Liste selbst, nie der Browser; Rand oben/unten höchstens 8 mm (sonst druckt
   Chromium Kopf- und Fußzeilen); Listenfarben nur über --blatt-* (styles/blatt.css).
 - „X“ = nicht gestartet (lib/abmeldung.ts) muss in jedem Regelwerk stehen; „O“ wird nie vergeben.

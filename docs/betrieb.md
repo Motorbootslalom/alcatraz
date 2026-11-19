@@ -1,7 +1,7 @@
 # Betrieb am Wettkampfort
 
 Was Auswerter vor und während eines Wettkampfs wissen sollten:
-ohne Internet arbeiten, neue Fassungen, Sicherung und Verlauf.
+ohne Internet arbeiten, neue Fassungen, Sicherung und Verlauf – und der Gerätebetrieb, der als einziger Teil ins Netz geht.
 Was die App fachlich kann: [funktionen.md](funktionen.md).
 Wie der Offline-Speicher gebaut ist: [technik.md](technik.md#offline-speicher).
 
@@ -15,18 +15,20 @@ Wie der Offline-Speicher gebaut ist: [technik.md](technik.md#offline-speicher).
 - [Verlauf](#verlauf)
 - [Grenzen](#grenzen)
 - [Die Ein-Datei-Fassung](#die-ein-datei-fassung)
+- [Gerätebetrieb](#gerätebetrieb)
 
 ## Ohne Internet
 
 Am Wettkampfort gibt es oft kein Netz.
 Alcatraz lädt im Betrieb nichts nach; die Daten liegen im Browser.
+Die einzige Ausnahme ist der [Gerätebetrieb](#gerätebetrieb) – und auch der erst, wenn ihn jemand einschaltet.
 Damit auch **Neuladen, ein neuer Tab und ein Neustart des Browsers** ohne Netz gehen,
 legt die Pages-Fassung beim ersten Aufruf einen Offline-Speicher für das Programm an (Service Worker).
 Alle Dateien – Seite, Programm, Gestaltung, Bilder und die Ein-Datei-Fassung – liegen danach auf dem Gerät.
 
 **Was ohne Netz geht:** alles – jede Ansicht, Drucken, Sicherung herunter- und einspielen,
-auch das Herunterladen der Ein-Datei-Fassung.
-Nur die Suche nach einer neuen Fassung braucht Netz.
+auch das Herunterladen der Ein-Datei-Fassung, die Anzeigetafel und die Zuschauerliste im zweiten Fenster.
+Netz brauchen nur die Suche nach einer neuen Fassung und der Gerätebetrieb (Anzeigetafel und Zuschauer auf anderen Geräten).
 
 ## Vor dem Wettkampf (mit Netz)
 
@@ -141,3 +143,58 @@ Sie läuft per Doppelklick vom Stick, braucht nie ein Netz und bekommt keine neu
 solange niemand die Datei ersetzt.
 Sie hat ihren **eigenen Datenspeicher**: Stände wandern zwischen Pages-Fassung und Datei –
 und zwischen zwei Kopien der Datei an verschiedenen Orten – nur über eine Sicherung.
+
+## Gerätebetrieb
+
+Anzeigetafel und Zuschauerliste lassen sich auch auf anderen Geräten zeigen – einem Bildschirm am Steg, einem Tablet,
+den Handys der Zuschauer (Etappe E6 des Plans vom 16.11.2026). Dafür gibt es zwei **Lese-Links** mit QR-Code, ohne
+Anmeldung und ohne Kopplung: wer den Link hat, kann lesen, aber nichts ändern.
+
+**Nichts geht von selbst hinaus.** Solange niemand unter „Betrieb → Geräte“ auf **„Gerätebetrieb einschalten“** drückt,
+baut Alcatraz keine Verbindung zu irgendeinem Server auf (dafür gibt es einen eigenen Test). Eingeschaltet gilt:
+
+- **Was über den Server geht:** Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel, Vorgabe wie der
+  Aushang der Wertungslisten), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der
+  Name der Veranstaltung. Alles verschlüsselt und vom Bedienrechner signiert.
+- **Was nie hinausgeht:** Geburtsdatum, Gewicht, Geschlecht, erfasste Werte, Abmeldungen, Logos, die Sicherung –
+  überhaupt nie der Stand der Veranstaltung, nur eine zugeschnittene Sicht.
+- **Der Server** ist ein fremder ntfy-Server (Vorgabe `ntfy.adminforge.de`, ehrenamtlich betrieben, ohne Zusage;
+  änderbar unter „Einstellungen → Geräte“, reist mit Vorlage und Sicherung). Sein Betreiber sieht keine Inhalte, wohl
+  aber Zeitpunkte, Größen und IP-Adressen.
+
+Am Bedienrechner (Reiter „Betrieb“, Unterreiter „Geräte“):
+
+- **Zwei Links:** „Anzeigetafel“ (für einen Bildschirm; die Tafel wie im zweiten Fenster, ohne Logos) und
+  „Zuschauer“ (die Zuschauerliste fürs Handy). Je Link ein QR-Code, „Link kopieren“ und „Öffnen“ zum Ausprobieren.
+  Läuft der Bedienrechner als Ein-Datei-Fassung von `file://`, führen die Links zur App auf GitHub Pages.
+- **Fingerabdruck:** steht am Bedienrechner und auf jedem Gerät. Gleich heißt: Das Gerät zeigt wirklich diesen
+  Bedienrechner – ein unterwegs ausgetauschter Link fiele hier auf. Deshalb QR-Codes möglichst vor Ort aushängen.
+- **„Zuschauer-Link erneuern“** (mit Rückfrage), wenn ein Link in falsche Hände geraten ist: Der alte bekommt nichts
+  mehr, die Anzeigetafel merkt nichts.
+- **Verbindung:** verbunden, gestört (es wird neu verbunden), „zu viele Anfragen“ (der Server bremst; es geht nach einer
+  Pause weiter) oder keine. Auf den anderen Unterreitern steht sie oben im Kopf.
+- **Mehrere Fenster:** Mit dem Server spricht nur ein Fenster des Bedienrechners; die anderen zeigen dieselben Links und
+  die Verbindung, ihre Knöpfe wirken über das führende Fenster. Schließt es, übernimmt ein anderes.
+- **Der Raum bleibt offen**, auch über Neuladen und Neustart, bis **„Raum beenden“** (mit Rückfrage). Dann bekommen die
+  Geräte die Meldung „Raum beendet“ und löschen, was sie zeigen; ohne Netz geschieht das auf den Geräten erst nach
+  36 Stunden. Eine andere Veranstaltung im Browser trennt nur; der Raum gilt wieder, wenn sie zurückkommt.
+- **Ein anderer Server** in den Einstellungen gilt erst für einen neuen Raum: Raum beenden, neu einschalten, neue Links
+  aushängen.
+
+Auf dem Gerät:
+
+- Es zeigt die Anzeigetafel bzw. die Zuschauerliste, sobald der Bedienrechner etwas schickt; davor „Warte auf den
+  Bedienrechner …“. Nach dem Neuladen steht sofort das zuletzt Gesehene da, auch ohne Netz.
+- Über der Anzeigetafel erscheint die Leiste (Verbindung, Fingerabdruck, Vollbild, „Raum verlassen“) mit der Maus oder
+  einer Berührung – und immer, wenn etwas nicht stimmt. Taste F oder Doppelklick schaltet Vollbild.
+- „Seit“ und „ca. in“ rechnet das Gerät mit der Uhr des Bedienrechners (der Abstand der Uhren wird mitgemessen).
+- **Raum verlassen** löscht alles, was das Gerät vom Bedienrechner hat. Was es zeigte, verfällt ohnehin 36 Stunden nach
+  der letzten Nachricht.
+- **Fassungen:** Bedienrechner und Geräte müssen dieselbe Fassung haben. Ist der Bedienrechner älter (etwa eine alte
+  Datei auf dem Stick), steht auf dem Gerät „Bedienrechner aktualisieren“; ist er neuer, holt sich das Gerät die neue
+  Fassung selbst. Sonst lädt ein Gerät nie von selbst neu.
+
+Grenzen: Ohne Internet am Steg stehen alle fremden Geräte; die Anzeigetafel im zweiten Fenster geht immer.
+Ein Hotspot teilt sich das Kontingent des Servers (Anfragen je IP-Adresse und Tag). Mit echten Handys (iPhone, Android
+im Hintergrund) und dem echten Server ist der Gerätebetrieb noch nicht im Feld geprüft (Etappe E8).
+Wie es gebaut ist: [technik.md](technik.md#gerätebetrieb-sicherheitsmodell).

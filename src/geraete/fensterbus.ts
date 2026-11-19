@@ -15,7 +15,8 @@ import type { Fehlercode, TransportFehler, Verbindungsstand } from './transport/
  * Antwortet das Schreibfenster nicht binnen {@link WEITERREICHEN_MS}, wendet das Führungsfenster selbst an (Plan §5);
  * die Actions sind bedingt oder idempotent (K30), ein spät doch noch angewandtes Doppel bewirkt nichts.
  *
- * Außerdem meldet das Führungsfenster seinen Verbindungsstand, damit jedes Fenster ihn zeigen kann.
+ * Außerdem meldet das Führungsfenster seinen Verbindungsstand, damit jedes Fenster ihn zeigen kann, und nimmt Befehle
+ * der übrigen an (E6: „Zuschauer-Link erneuern“, „Raum beenden“) – den Raum schreibt nur das Führungsfenster.
  *
  * Getragen wird jede Nachricht auf zwei Wegen, wie im Prototyp (tafel transport/local.ts): **BroadcastChannel**
  * `alcatraz-fenster` und der **storage-Schlüssel** {@link ABLAGE.fensterbus} – BroadcastChannel fehlt in manchen
@@ -36,6 +37,13 @@ export const BEDIENT_ABSTAND_MS = 2000
 /** Was das Schreibfenster zurückmeldet. Abgelehnt wird vorher, im Führungsfenster (`darf`, E7). */
 export type Anwendung = Extract<Ergebnis, 'angewandt' | 'unveraendert'>
 
+/**
+ * Befehle an das Führungsfenster (E6, geraete/host.ts): Nur es hält den HostTransport und schreibt den Raum – ein
+ * anderes Fenster schriebe sonst neben ihm (Nummern doppelt, Thema zurückgedreht).
+ */
+export const BEFEHLE = ['zuschauer-erneuern', 'raum-beenden'] as const
+export type Befehl = (typeof BEFEHLE)[number]
+
 export interface VerbindungsMeldung {
   status: Verbindungsstand
   fehler: TransportFehler | null
@@ -49,6 +57,7 @@ type BusNachricht =
   | { art: 'anwenden'; an: string; auftrag: string; action: GeraeteAction }
   | { art: 'angewandt'; an: string; auftrag: string; ergebnis: Anwendung }
   | { art: 'verbindung'; meldung: VerbindungsMeldung | null }
+  | { art: 'befehl'; befehl: Befehl }
 
 interface Umschlag {
   /** Kennung der Nachricht – gegen Doppelte über beide Wege. */
@@ -92,6 +101,10 @@ export interface Fensterbus {
    * nicht rechtzeitig, `selbst`. Erst danach die Quittung an das Gerät (HostTransport.quittiere).
    */
   reicheWeiter(action: GeraeteAction, selbst: (action: GeraeteAction) => Anwendung): Promise<Anwendung>
+  /** Ein Befehl an die anderen Fenster; ausführen tut ihn nur das Führungsfenster (dessen `beimBefehl`). */
+  befiehl(befehl: Befehl): void
+  /** Befehle anderer Fenster; der Aufrufer prüft, ob er führt. */
+  beimBefehl(fn: (befehl: Befehl) => void): () => void
   schliesse(): void
 }
 
@@ -157,6 +170,8 @@ function liesUmschlag(roh: unknown): Umschlag | null {
       const meldung = liesMeldung(n.meldung)
       return meldung === undefined ? null : { ...kopf, n: { art: 'verbindung', meldung } }
     }
+    case 'befehl':
+      return (BEFEHLE as readonly unknown[]).includes(n.befehl) ? { ...kopf, n: { art: 'befehl', befehl: n.befehl as Befehl } } : null
     default:
       return null
   }
@@ -193,6 +208,7 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
   let verbindungVon: string | null = null
   let eigeneMeldung: VerbindungsMeldung | null = null
   let anwender: ((action: GeraeteAction) => Anwendung) | null = null
+  const befehlsEmpfaenger = new Set<(befehl: Befehl) => void>()
   const offen = new Map<string, { erfuelle: (e: Anwendung) => void; zeitgeber: ReturnType<typeof setTimeout> }>()
   const gesehen: string[] = []
   const gesehenSet = new Set<string>()
@@ -274,6 +290,9 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
         verbindung.value = n.meldung
         verbindungVon = n.meldung ? u.von : null
         return
+      case 'befehl':
+        for (const fn of [...befehlsEmpfaenger]) fn(n.befehl)
+        return
     }
   }
 
@@ -334,6 +353,13 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
         offen.set(auftrag, { erfuelle, zeitgeber })
         sende({ art: 'anwenden', an: ziel, auftrag, action })
       })
+    },
+    befiehl(befehl) {
+      sende({ art: 'befehl', befehl })
+    },
+    beimBefehl(fn) {
+      befehlsEmpfaenger.add(fn)
+      return () => befehlsEmpfaenger.delete(fn)
     },
     schliesse() {
       if (geschlossen) return

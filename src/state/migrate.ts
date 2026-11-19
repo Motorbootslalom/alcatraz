@@ -21,6 +21,7 @@ import { mitVorlaufPlan, normalisierePlaene } from '../planung/parallelRunden'
 import { normalisiereNichtWerten } from '../lib/disziplinen'
 import { istGeschlecht } from '../domain/geschlecht'
 import { logoHoeheZahl, logoWert } from '../lib/logo'
+import { serverEinstellung } from '../lib/serverAdresse'
 
 /** Herkunft auf den Wertungslisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
 const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
@@ -162,6 +163,8 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     // die es nicht (mehr) gibt, entfallen – im Betrieb wie in der Auswahl der Anzeigetafel.
     betrieb: normalisiereBetrieb(loaded.betrieb, [...parcoursIds, PARALLEL]),
     anzeige: normalisiereAnzeige(loaded.anzeige, [...parcoursIds, PARALLEL]),
+    // Fehlt in Ständen vor dem Gerätebetrieb (E6, 16.11.2026); Unbrauchbares heißt: die Vorgabe des Programms.
+    geraeteServer: serverEinstellung(loaded.geraeteServer) ?? '',
   }
   // Ein Stand mit festgeschriebener Verzahnung aus der Zeit vor den festen Plänen bekommt seinen
   // Plan des Vorlaufs jetzt – einmal, danach wird er nicht mehr neu gerechnet. Ohne Sperre bleibt

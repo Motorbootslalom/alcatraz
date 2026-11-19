@@ -270,6 +270,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'BETRIEB_VERSCHIEBEN':
     case 'BETRIEB_AB':
     case 'SET_ANZEIGE':
+    case 'SET_GERAETE_SERVER':
       return wendeBetriebAn(state, action)
 
     default:

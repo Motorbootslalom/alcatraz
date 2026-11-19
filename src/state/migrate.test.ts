@@ -246,3 +246,13 @@ describe('migrate: Betrieb und Anzeigetafel (16.11.2026)', () => {
     expect(migrate({ starters: [], anzeige: { ...anzeige, parallelAnordnung: 'quer' } })!.anzeige).toMatchObject({ parallelAnordnung: 'a-links', namen: 'kurz', skala: 1.2 })
   })
 })
+
+describe('migrate: Server des Gerätebetriebs (E6, 16.11.2026)', () => {
+  it('fehlt → Vorgabe des Programms; Adresse vereinheitlicht; Unbrauchbares → Vorgabe', () => {
+    expect(migrate({ starters: [] })!.geraeteServer).toBe('')
+    expect(migrate({ starters: [], geraeteServer: 'ntfy.example.org/' })!.geraeteServer).toBe('https://ntfy.example.org')
+    expect(migrate({ starters: [], geraeteServer: 'http://192.168.1.20:8080' })!.geraeteServer).toBe('http://192.168.1.20:8080')
+    for (const kaputt of ['javascript:alert(1)', 'https://nutzer:geheim@ntfy.example.org', 42, null, { u: 'x' }])
+      expect(migrate({ starters: [], geraeteServer: kaputt })!.geraeteServer, String(kaputt)).toBe('')
+  })
+})

@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 
 /**
  * Offline-Speicher für das Programm und die Zusage des Browsers, die Daten zu behalten.
@@ -409,6 +409,36 @@ export async function sucheNeueFassung(): Promise<void> {
   } catch {
     offline.suche = 'kein-netz'
   }
+}
+
+/**
+ * Gezieltes Selbst-Update eines Geräts mit Lese-Link (E6, src/GeraetApp.vue; Plan §4 und F7): Der Bedienrechner
+ * spricht eine neuere Fassung. Dann jetzt nach ihr suchen, warten, bis sie vollständig bereitliegt (höchstens
+ * `geduld` ms), und sie übernehmen – das lädt das Fenster neu. `false`, wenn das nicht ging (kein Offline-Speicher,
+ * kein Netz, nichts Neueres gefunden): Dann lädt das Gerät selbst neu – ohne Speicher holt das die Fassung aus dem
+ * Netz. Ein Gerät schützt keine Daten; anders als am Bedienrechner gibt es keinen Knopf „Update“.
+ */
+export async function holeNeueFassung(geduld = 60_000): Promise<boolean> {
+  if (!offline.neu) {
+    await sucheNeueFassung()
+    // „gefunden“ (laedt) bzw. „geladen“ (neu) ist noch nicht „liegt bereit“: Das meldet erst die Abfrage des Speichers
+    // (`offline.neu`). Bis dahin warten – oder bis feststeht, dass es nichts wird.
+    if (!offline.neu && (offline.suche === 'laedt' || offline.suche === 'neu')) {
+      await new Promise<void>((fertig) => {
+        const ende = () => {
+          clearTimeout(zeit)
+          halt()
+          fertig()
+        }
+        const zeit = setTimeout(ende, geduld)
+        const halt = watch(
+          () => offline.neu || (offline.suche !== 'laedt' && offline.suche !== 'neu'),
+          (entschieden) => entschieden && ende(),
+        )
+      })
+    }
+  }
+  return offline.neu ? uebernehmen() : false
 }
 
 // --- Zusage des Browsers (navigator.storage.persist) --------------------------

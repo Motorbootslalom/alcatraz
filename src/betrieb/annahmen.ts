@@ -416,9 +416,58 @@ export const BETRIEB_ANNAHMEN = {
   /**
    * (14) Logos zeigt nur die Anzeigetafel am Bedienrechner; entfernte Anzeigen (E6) bekommen keine,
    * weil der Vollstand sonst bei jedem Einstieg die Bilder trüge. Vorgabe von
-   * `sichtOeffentlich(stand, { logos })`. 16.11.2026.
+   * `sichtOeffentlich(stand, { logos })`. 16.11.2026. Umgesetzt in geraete/host.ts (E6).
    */
   logosNurLokal: true,
+  /**
+   * E6 (Gerätebetrieb, beim Bau 16.11.2026 – vom Nutzer zu bestätigen): Anzeigetafel- und Zuschauer-Link sind zwei
+   * Gruppen mit eigenem Schlüssel, eigenen Nummern und eigenem Thema – `ko` (oA) trägt die öffentliche Sicht ohne
+   * Logos, `kz` (oZ) die Zuschauersicht (`sichtZuschauer`). Der Plan (§5) sah eine Gruppe mit zwei Themen vor; die
+   * schmalere Zuschauersicht kam erst mit E3. So trägt der Zuschauer-Link nur, was die Zuschauerliste zeigt, und sein
+   * Schlüssel öffnet die Nachrichten der Anzeigetafel nicht. „Zuschauer-Link erneuern“ wechselt nur das Thema oZ
+   * (Schlüssel und Nummern bleiben, der alte Link bekommt nichts mehr, die Anzeigetafel merkt nichts).
+   */
+  lesenJeLink: true,
+  /**
+   * E6 (beim Bau 16.11.2026 – vom Nutzer zu bestätigen): Der Uhrversatz eines Geräts („seit“, „ca. in“) ist der größte
+   * Wert von „Sendezeit des Hosts minus Empfang“ über die letzten 20 frisch über das Abo gekommenen Nachrichten (die
+   * Laufzeit ist nie negativ, der größte Wert liegt dem wahren Versatz am nächsten). Nachgeholtes aus der Abfrage zählt
+   * nicht – ein Vollstand dort kann eine Stunde alt sein; bis zur ersten frischen Nachricht gilt 0 (geraete/geraet.ts).
+   */
+  uhrversatzFrisch: true,
+  /**
+   * E6 (beim Bau 16.11.2026 – vom Nutzer zu bestätigen): Wann der Gerätebetrieb endet. Nur „Raum beenden“ schickt das
+   * signierte „Raum beendet“ an beide Links (Geräte löschen Sicht und Verbindung) – ohne Netz wird nach höchstens 8 s
+   * ohne Meldung gelöscht, die Geräte löschen dann nach 36 h. Eine andere Veranstaltung (andere Kennung) trennt nur:
+   * Der Raum bleibt liegen und gilt wieder, wenn die Veranstaltung zurückkommt; ein neu geöffneter Raum ersetzt ihn. Ein
+   * anderer Server in den Einstellungen beendet den Raum nicht, sondern meldet `raum-anderer-server`, bis der Server
+   * zurückgestellt oder der Raum beendet und neu geöffnet ist (geraete/host.ts).
+   */
+  raumEnde: true,
+  /**
+   * E6 (Entscheidung des Nutzers F7, 16.11.2026: Gerätebetrieb nur bei gleicher Fassung; Ausgestaltung beim Bau – vom
+   * Nutzer zu bestätigen): Ein Gerät lädt nur neu, wenn der Host signiert eine neuere Fassung spricht oder der Link eine
+   * neuere Paket-Fassung trägt – je Fassung höchstens einmal in 10 Minuten (geraete/geraet.ts NEULADEN_SPERRE_MS),
+   * danach bleibt „Update nötig“ stehen. Ist der Host älter: „Bedienrechner aktualisieren“, kein Neuladen.
+   */
+  fassungGleich: true,
+  /**
+   * E6, Oberfläche (beim Bau 16.11.2026 – vom Nutzer zu bestätigen):
+   * - Ein Lese-Link zeigt auf die Seite des Bedienrechners (ohne Anfrage und Anker), unter `file://` (Ein-Datei-Fassung)
+   *   auf die App auf Pages (lib/build.ts PAGES_URL) – dort läuft oft eine neuere Fassung, dann sagt das Gerät
+   *   „Bedienrechner aktualisieren“ (F7).
+   * - Das Paket bleibt in der Adresse des Geräts (Abweichung von Plan §4, „per location.replace entfernen“): Lesezeichen
+   *   und Neuladen brauchen es, das Gerät legt den Link-Text nicht ab. „Raum verlassen“ fragt erst und lässt `#/sehen`
+   *   ohne Paket stehen.
+   * - Über der Anzeigetafel eines Geräts steht die Leiste (Verbindung, Fingerabdruck, Vollbild, „Raum verlassen“) nur
+   *   mit dem Mauszeiger bzw. nach einer Berührung – und immer, wenn die Verbindung nicht steht oder die Fassung nicht
+   *   passt; unter der Zuschauerliste immer.
+   * - Ein Gerät hat den Offline-Speicher, übernimmt eine neue Fassung aber nie von selbst – nur gezielt, wenn der
+   *   Bedienrechner eine neuere spricht (lib/offline.ts holeNeueFassung, geht das nicht: Neuladen).
+   * - „Zuschauer-Link erneuern“ und „Raum beenden“ fragen erst; „Gerätebetrieb einschalten“ nicht – der Text davor sagt,
+   *   was dann über welchen Server geht.
+   */
+  leseLinkOberflaeche: true,
   /**
    * (15) Speicherorte: `betrieb` in der Sicherung, nicht in der Vorlage – eine Vorlage hängt den
    * hiesigen auf ihre Parcours um; „Verlauf wiederherstellen“ behält den jetzigen Betrieb; „Werte

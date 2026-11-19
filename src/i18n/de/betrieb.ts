@@ -4,7 +4,8 @@
  * und die Arten einer Meldung (`meldung.*`). Begriffe: „Anzeigetafel“, nicht „Tafel“ – das ist das
  * Aushangbrett; „Start-Freigabe“ ist der Steg, der die Starts freigibt. Ab E3 die Startliste im Betrieb
  * (`betrieb.liste.*`, Oberfläche) und die Zuschauerliste (`zuschauer.*`, Sprache der Tafel über tIn – wie
- * `anzeige.*`, dort auch die Wartezeiten `anzeige.zeit.*`). Ab E6 kommt `geraete.*` dazu.
+ * `anzeige.*`, dort auch die Wartezeiten `anzeige.zeit.*`). Ab E6 der Gerätebetrieb `geraete.*` (Oberfläche: Reiter
+ * Betrieb → Geräte und das Gerät mit Lese-Link; Fehlercodes `geraete.fehler.<code>`).
  * Die Einstellungen der Anzeigetafel stehen unter `listopt.anzeige.*`, die der Startfolge unter
  * `listopt.betrieb.*` (listenoptionen.ts).
  */
@@ -20,6 +21,9 @@ export default {
   'betrieb.einstellungen.folge': 'Startfolge',
   'betrieb.reiter.start': 'Start-Freigabe',
   'betrieb.reiter.startliste': 'Startliste',
+  'betrieb.reiter.geraete': 'Geräte',
+  'betrieb.geraete.hint':
+    'Anzeigetafel und Zuschauerliste auf anderen Geräten – über das Internet, per Link oder QR-Code, ohne Anmeldung und ohne Kopplung. Erst wenn der Gerätebetrieb hier eingeschaltet ist, geht etwas hinaus.',
   'betrieb.zuschauer': 'Zuschauerliste öffnen',
   'betrieb.zuschauer.title': 'Wer im Boot, am Steg und vor Steg ist, mit Wartezeiten – in einem eigenen Fenster, auch schmal wie ein Handy',
   'betrieb.vorVerzahnung':
@@ -260,4 +264,84 @@ export default {
   'meldung.vorlage.bojen': 'Wir sortieren noch kurz die Bojen –\ngleich geht es weiter',
   'meldung.vorlage.wind.titel': 'Warten auf ruhigeres Wasser',
   'meldung.vorlage.wind': 'Kurze Unterbrechung –\nwir warten auf ruhigeres Wasser',
+
+  // Gerätebetrieb (E6, Oberfläche): Reiter Betrieb → Geräte (components/betrieb/GeraeteRaum.vue, LeseLink.vue,
+  // GeraeteLage.vue) und das Gerät mit Lese-Link (src/GeraetApp.vue, `geraete.sehen.*`). Fehlercodes der Leitung
+  // (geraete/transport/typen.ts Fehlercode) als `geraete.fehler.<code>`.
+  'geraete.nichtVerfuegbar': 'In diesem Fenster gibt es keinen Gerätebetrieb.',
+  'geraete.aus': 'Der Gerätebetrieb ist aus. Bis er eingeschaltet wird, verlässt nichts diesen Browser.',
+  'geraete.wasGeht':
+    'Eingeschaltet gehen Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung über den Server {server} – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte, Logos und die Sicherung.',
+  'geraete.einschalten': 'Gerätebetrieb einschalten',
+  'geraete.einschalten.hint':
+    'Legt einen Raum für diese Veranstaltung an, mit zwei Links samt QR-Code: einem für die Anzeigetafel und einem für die Zuschauer. Ohne Anmeldung – wer den Link hat, kann lesen. Der Raum bleibt über das Neuladen hinweg offen, bis „Raum beenden“.',
+  'geraete.server': 'Server: {server}',
+  'geraete.server.einstellen': 'Server einstellen',
+  'geraete.verbindung': 'Verbindung',
+  'geraete.lage.aus': 'aus',
+  'geraete.lage.verbinde': 'verbindet …',
+  'geraete.lage.verbunden': 'verbunden',
+  'geraete.lage.gestoert': 'gestört – verbindet neu',
+  'geraete.lage.kontingent': 'zu viele Anfragen – weiter nach einer Pause',
+  'geraete.lage.fehler': 'keine Verbindung',
+  'geraete.chip.title': 'Gerätebetrieb: Lese-Links und Verbindung',
+  'geraete.anderesFenster': 'Die Verbindung hält ein anderes Fenster dieses Browsers; Knöpfe hier wirken über dieses.',
+  'geraete.fingerabdruck': 'Fingerabdruck',
+  'geraete.fingerabdruck.hint': 'Steht auch auf jedem Gerät mit diesen Links. Gleich heißt: Das Gerät zeigt wirklich diesen Bedienrechner.',
+  'geraete.link.anzeige': 'Anzeigetafel',
+  'geraete.link.anzeige.hint': 'Für einen Bildschirm am Steg oder ein Tablet: die Anzeigetafel wie im zweiten Fenster, ohne Logos.',
+  'geraete.link.zuschauer': 'Zuschauer',
+  'geraete.link.zuschauer.hint': 'Zum Aushängen und Weitergeben: die Zuschauerliste auf dem Handy.',
+  'geraete.link.text': 'Link: {art}',
+  'geraete.link.kopieren': 'Link kopieren',
+  'geraete.link.kopiert': 'Kopiert.',
+  'geraete.link.nichtKopiert': 'Kopieren ging nicht – den Link markieren und von Hand kopieren.',
+  'geraete.link.oeffnen': 'Öffnen',
+  'geraete.link.oeffnen.title': 'Den Link in einem neuen Tab öffnen – zum Ausprobieren',
+  'geraete.link.pages': 'Diese Fassung läuft als Datei: Die Links führen zur App auf {pages}.',
+  'geraete.zuschauerErneuern': 'Zuschauer-Link erneuern',
+  'geraete.zuschauerErneuern.frage': 'Zuschauer-Link erneuern?',
+  'geraete.zuschauerErneuern.text':
+    'Der bisherige Zuschauer-Link bekommt nichts Neues mehr; wer ihn hat, braucht den neuen Link oder QR-Code. Die Anzeigetafel bleibt verbunden.',
+  'geraete.zuschauerErneuern.ja': 'Erneuern',
+  'geraete.zuschauerErneuert': 'Neuer Zuschauer-Link – den alten nicht mehr weitergeben.',
+  'geraete.beenden': 'Raum beenden',
+  'geraete.beenden.frage': 'Raum beenden?',
+  'geraete.beenden.text':
+    'Beide Links gelten danach nicht mehr: Die Geräte bekommen die Meldung „Raum beendet“ und löschen, was sie zeigen. Ein neuer Raum hat neue Links.',
+  'geraete.beenden.ja': 'Beenden',
+  'geraete.beenden.laeuft': 'Wird beendet …',
+  'geraete.beendet.gemeldet': 'Raum beendet. Die Geräte haben die Meldung bekommen.',
+  'geraete.beendet.ohneMeldung': 'Raum beendet, aber ohne Verbindung: Geräte zeigen den letzten Stand noch bis zu 36 Stunden.',
+  'geraete.fehler.browser-zu-alt': 'Dieser Browser ist zu alt dafür (ihm fehlt das Entpacken). Bitte einen aktuellen Browser nehmen.',
+  'geraete.fehler.server-ungueltig': 'Die Adresse des Servers taugt nicht – unter „Einstellungen → Geräte“ prüfen.',
+  'geraete.fehler.raum-fehlt': 'Raum und Schlüssel fehlen auf diesem Rechner.',
+  'geraete.fehler.raum-anderer-server':
+    'Der Raum wurde mit einem anderen Server angelegt als dem in den Einstellungen. Den Server zurückstellen – oder den Raum beenden und neu einschalten (neue Links).',
+  'geraete.fehler.link-ungueltig': 'Der Link ist unvollständig oder beschädigt. Bitte den QR-Code noch einmal scannen oder den ganzen Link öffnen.',
+  'geraete.fehler.verbindung-gestoert': 'Die Verbindung zum Server ist gestört; es wird neu verbunden.',
+  'geraete.fehler.zu-viele-anfragen': 'Der Server meldet zu viele Anfragen; es geht nach einer Pause weiter.',
+  'geraete.fehler.abgewiesen': 'Der Server hat eine Nachricht abgewiesen.',
+  'geraete.fehler.zu-gross': 'Eine Nachricht war zu groß und wurde verworfen.',
+  'geraete.fehler.fassung': 'Bedienrechner und Gerät laufen mit verschiedenen Fassungen.',
+  'geraete.fehler.ablage-voll': 'Der Speicher dieses Browsers ist voll: Es läuft weiter, übersteht aber womöglich kein Neuladen.',
+
+  // Das Gerät mit Lese-Link (src/GeraetApp.vue) – Sprache der Oberfläche des Geräts; Tafel und Liste selbst in ihrer.
+  'geraete.sehen.titel': 'Lese-Link',
+  'geraete.sehen.warte': 'Warte auf den Bedienrechner …',
+  'geraete.sehen.warte.hint': 'Die Anzeige erscheint, sobald der Bedienrechner verbunden ist und etwas schickt.',
+  'geraete.sehen.keinLink': 'Kein Lese-Link geöffnet.',
+  'geraete.sehen.keinLink.hint': 'Den QR-Code scannen oder den Link öffnen, den die Auswertung weitergibt.',
+  'geraete.sehen.verlassen': 'Raum verlassen',
+  'geraete.sehen.verlassen.frage': 'Raum verlassen?',
+  'geraete.sehen.verlassen.text':
+    'Dieses Gerät löscht, was es vom Bedienrechner bekommen hat, und empfängt nichts mehr. Mit dem Link oder QR-Code geht es wieder.',
+  'geraete.sehen.verlassen.ja': 'Verlassen',
+  'geraete.sehen.verlassen.fertig': 'Raum verlassen. Auf diesem Gerät liegt nichts mehr davon.',
+  'geraete.sehen.beendet': 'Der Bedienrechner hat den Raum beendet. Auf diesem Gerät liegt nichts mehr davon.',
+  'geraete.sehen.hostAelter': 'Bedienrechner aktualisieren: Er läuft mit einer älteren Fassung als dieses Gerät. Bis dahin bleibt die Anzeige stehen.',
+  'geraete.sehen.hostNeuer': 'Der Bedienrechner läuft mit einer neueren Fassung – diese Seite wird aktualisiert. Geschieht nichts, bitte neu laden.',
+  'geraete.sehen.neuLaden': 'Neu laden',
+  'geraete.sehen.fingerabdruck': 'Fingerabdruck {f}',
+  'geraete.sehen.vollbild': 'Vollbild',
 } as const satisfies Record<string, string>

@@ -1,7 +1,7 @@
 import nacl from 'tweetnacl'
 import { fromBase64Url, isBase64Url, toBase64Url } from './codec'
 import { direktThema, geraeteThema, gruppenThema, istThema, normalisiereServer, zufallsThema } from '../../themen'
-import { DIREKT, istGeraetId, istGruppe, OEFFENTLICH, type GeraeteNachricht, type GruppenSchluessel } from '../protokoll'
+import { DIREKT, istGeraetId, istGruppe, istOeffentlich, OEFFENTLICH, ZUSCHAUER, type GeraeteNachricht, type GruppenSchluessel } from '../protokoll'
 
 /**
  * Raum und Schlüssel für den Betrieb über ntfy (Vorbild tafel transport/ntfy/room.ts, 16.11.2026 neu geschrieben
@@ -9,8 +9,9 @@ import { DIREKT, istGeraetId, istGruppe, OEFFENTLICH, type GeraeteNachricht, typ
  *
  * Der **Host** legt einen Raum einmal an und behält ihn: Raum-ID, ein Geheimnis (Quelle der abgeleiteten
  * Themen), ein Schlüsselpaar zum Verschlüsseln (X25519) und eines zum Signieren (Ed25519), zwei zufällige
- * öffentliche Themen (oA, oZ) und je Gruppe Schlüssel, Epoche und Zähler. Ein neuer Raum heißt: Lese-Links neu
- * aushängen, Geräte neu koppeln (Entscheidung 16.11.2026: kein Ersatzrechner).
+ * öffentliche Themen (oA, oZ) und je Gruppe Schlüssel, Epoche und Zähler – von Anfang an die beiden öffentlichen
+ * Gruppen `ko` (Anzeigetafel, oA) und `kz` (Zuschauer, oZ). Ein neuer Raum heißt: Lese-Links neu aushängen, Geräte
+ * neu koppeln (Entscheidung 16.11.2026: kein Ersatzrechner).
  *
  * Wo das liegt, entscheidet nicht dieses Modul: Es arbeitet über {@link HostSpeicher} bzw. {@link GeraetSpeicher}.
  * geraete/ablage.ts legt beides gerätelokal ab (`alcatraz.geraete.*` / `alcatraz.geraet.*`) – nie im AppState,
@@ -66,7 +67,7 @@ export interface HostRaum {
   sign: { pk: string; sk: string }
   /** Öffentliche Themen: a = Anzeigetafel-Link (oA), z = Zuschauer-Link (oZ). */
   oeffentlich: { a: string; z: string }
-  /** Immer mit `ko`. */
+  /** Immer mit `ko` und `kz`. */
   gruppen: Record<string, HostGruppe>
   /** Nummer der zuletzt vergebenen direkten Nachricht. */
   uhr: number
@@ -98,7 +99,7 @@ export function neuerRaum(server: string): HostRaum {
     box: { pk: toBase64Url(box.publicKey), sk: toBase64Url(box.secretKey) },
     sign: { pk: toBase64Url(sign.publicKey), sk: toBase64Url(sign.secretKey) },
     oeffentlich: { a: zufallsThema(), z: zufallsThema() },
-    gruppen: { [OEFFENTLICH]: { k: neuerSchluessel(), e: 1, n: 0 } },
+    gruppen: { [OEFFENTLICH]: { k: neuerSchluessel(), e: 1, n: 0 }, [ZUSCHAUER]: { k: neuerSchluessel(), e: 1, n: 0 } },
     uhr: 0,
     seit: null,
     geraete: {},
@@ -117,7 +118,7 @@ export function istHostRaum(wert: unknown): wert is HostRaum {
   if (!istObjekt(box) || !isBase64Url(box.pk, 32) || !isBase64Url(box.sk, 32)) return false
   if (!istObjekt(sign) || !isBase64Url(sign.pk, 32) || !isBase64Url(sign.sk, 64)) return false
   if (!istObjekt(oeffentlich) || !istThema(oeffentlich.a) || !istThema(oeffentlich.z)) return false
-  if (!istObjekt(gruppen) || !istObjekt(gruppen[OEFFENTLICH])) return false
+  if (!istObjekt(gruppen) || !istObjekt(gruppen[OEFFENTLICH]) || !istObjekt(gruppen[ZUSCHAUER])) return false
   for (const [g, gruppe] of Object.entries(gruppen)) {
     if (!istGruppe(g) || !istObjekt(gruppe) || !isBase64Url(gruppe.k, 32) || !istZahl(gruppe.e) || !istZahl(gruppe.n)) return false
   }
@@ -145,18 +146,28 @@ export function direktThemaVon(raum: HostRaum, id: string): string {
   return direktThema(bytes(raum.geheimnis), id)
 }
 
-/** Themen, auf denen eine Gruppe sendet: öffentlich oA und oZ, sonst ihr abgeleitetes k·. */
+/** Welcher Lese-Link zu einer öffentlichen Gruppe gehört: `ko` → Anzeigetafel (a), `kz` → Zuschauer (z). */
+export function linkDerGruppe(gruppe: string): 'a' | 'z' | null {
+  return gruppe === OEFFENTLICH ? 'a' : gruppe === ZUSCHAUER ? 'z' : null
+}
+
+/** Die öffentliche Gruppe eines Lese-Links. */
+export function gruppeDesLinks(welches: 'a' | 'z'): string {
+  return welches === 'a' ? OEFFENTLICH : ZUSCHAUER
+}
+
+/** Themen, auf denen eine Gruppe sendet: `ko` auf oA, `kz` auf oZ, sonst ihr abgeleitetes k·. */
 export function themenDerGruppe(raum: HostRaum, gruppe: string): string[] {
-  if (gruppe === OEFFENTLICH) return [raum.oeffentlich.a, raum.oeffentlich.z]
+  const link = linkDerGruppe(gruppe)
+  if (link) return [raum.oeffentlich[link]]
   return [gruppenThema(bytes(raum.geheimnis), gruppe)]
 }
 
-/** Schlüssel einer Gruppe, wie ein gekoppeltes Gerät ihn bekommt. Öffentlich: nur oA (die Start-Freigabe, Plan §5). */
+/** Schlüssel einer Gruppe, wie ein gekoppeltes Gerät ihn bekommt (`ko`: die Start-Freigabe liest oA, Plan §5). */
 export function gruppenSchluessel(raum: HostRaum, gruppe: string): GruppenSchluessel | null {
   const g = raum.gruppen[gruppe]
   if (!g) return null
-  const t = gruppe === OEFFENTLICH ? [raum.oeffentlich.a] : themenDerGruppe(raum, gruppe)
-  return { g: gruppe, k: g.k, e: g.e, t }
+  return { g: gruppe, k: g.k, e: g.e, t: themenDerGruppe(raum, gruppe) }
 }
 
 /** Neue Gruppe (später je Liste, K31) mit eigenem Schlüssel, eigener Epoche, eigenem Zähler. */
@@ -167,12 +178,12 @@ export function mitGruppe(raum: HostRaum, gruppe: string): boolean {
 }
 
 /**
- * Neuer Schlüssel für eine nicht öffentliche Gruppe, Epoche + 1. Die öffentliche Gruppe nie (K14): Ausgehängte
- * Lese-Links blieben sonst tot, und ihr Inhalt ist ohnehin öffentlich.
+ * Neuer Schlüssel für eine nicht öffentliche Gruppe, Epoche + 1. Die öffentlichen Gruppen (`ko`, `kz`) nie (K14):
+ * Ausgehängte Lese-Links blieben sonst tot, und ihr Inhalt ist ohnehin öffentlich.
  */
 export function mitNeuemSchluessel(raum: HostRaum, gruppe: string): boolean {
   const g = raum.gruppen[gruppe]
-  if (!g || gruppe === OEFFENTLICH) return false
+  if (!g || istOeffentlich(gruppe)) return false
   raum.gruppen[gruppe] = { ...g, k: neuerSchluessel(), e: g.e + 1 }
   return true
 }
@@ -182,30 +193,33 @@ export function mitNeuemSchluessel(raum: HostRaum, gruppe: string): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Was ein Lese-Link trägt (Entscheidung 16.11.2026, F3): Server, Raum, das EINE öffentliche Thema, den
- * öffentlichen Gruppenschlüssel und den Signaturschlüssel des Hosts. Nie g, nie das Geheimnis, nie das andere
- * öffentliche Thema (K13) – wer den Zuschauer-Link missbraucht, stört die Tafel nicht.
+ * Was ein Lese-Link trägt (Entscheidung 16.11.2026, F3): Server, Raum, das EINE öffentliche Thema, die Gruppe dazu
+ * (`ko` Anzeigetafel, `kz` Zuschauer) mit ihrem Schlüssel und den Signaturschlüssel des Hosts. Nie g, nie das
+ * Geheimnis, nie das andere öffentliche Thema und nie den Schlüssel der anderen Gruppe (K13) – wer den Zuschauer-Link
+ * missbraucht, stört die Tafel nicht und liest ihre Nachrichten nicht. Im Link steht es gepackt (geraete/paket.ts).
  */
 export interface LesePaket {
   u: string
   r: string
   t: string
+  g: string
   k: string
   e: number
   s: string
 }
 
 export function lesePaket(raum: HostRaum, welches: 'a' | 'z'): LesePaket {
-  const ko = raum.gruppen[OEFFENTLICH]
-  return { u: raum.server, r: raum.r, t: raum.oeffentlich[welches], k: ko.k, e: ko.e, s: raum.sign.pk }
+  const g = gruppeDesLinks(welches)
+  const gruppe = raum.gruppen[g]
+  return { u: raum.server, r: raum.r, t: raum.oeffentlich[welches], g, k: gruppe.k, e: gruppe.e, s: raum.sign.pk }
 }
 
 export function liesLesePaket(wert: unknown): LesePaket | null {
   if (!istObjekt(wert)) return null
   const u = typeof wert.u === 'string' ? normalisiereServer(wert.u) : null
   if (!u || !isBase64Url(wert.r) || !istThema(wert.t) || !isBase64Url(wert.k, 32) || !istZahl(wert.e)) return null
-  if (!isBase64Url(wert.s, 32)) return null
-  return { u, r: wert.r, t: wert.t, k: wert.k, e: wert.e, s: wert.s }
+  if (typeof wert.g !== 'string' || !istOeffentlich(wert.g) || !isBase64Url(wert.s, 32)) return null
+  return { u, r: wert.r, t: wert.t, g: wert.g, k: wert.k, e: wert.e, s: wert.s }
 }
 
 /** Die öffentlichen Schlüssel des Hosts in einem Stück (Box + Signatur, 64 Byte) – für QR-Code und Kopplung. */
@@ -290,7 +304,7 @@ export interface Unbestaetigt {
 
 /** Was ein Gerät über die Verbindung weiß – gerätelokal, nie im AppState (`alcatraz.geraet.verbindung`). */
 export interface GeraetStand {
-  /** Gruppenschlüssel: `ko` aus dem Lese-Link, weitere per willkommen/schluessel. */
+  /** Gruppenschlüssel: `ko` bzw. `kz` aus dem Lese-Link, weitere per willkommen/schluessel. */
   gruppen: Record<string, { k: string; e: number; t: string[] }>
   /** Höchste angenommene Nummer je Gruppe; {@link DIREKT} für Nachrichten an dieses Gerät. */
   seen: Record<string, number>

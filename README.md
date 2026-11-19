@@ -7,6 +7,9 @@ Regelwerke: das DM-Reglement und UIM Regel 960 „Formula Future“ mit Parallel
 
 Es gibt **keinen Server, keine Datenbank und keine Anmeldung**:
 Alle Daten liegen im Browser des Auswertungsrechners und lassen sich als Datei sichern.
+Einzige Ausnahme ist der Gerätebetrieb, und nur, wenn man ihn bewusst einschaltet (Betrieb → Geräte):
+Dann gehen Startnummer, Name, Herkunft und Klasse der Starter verschlüsselt über einen fremden ntfy-Server
+an Anzeigetafel und Zuschauer-Handys ([Gerätebetrieb](docs/betrieb.md#gerätebetrieb)).
 
 - **App:** <https://motorbootslalom.github.io/alcatraz/> – ausgeliefert über GitHub Pages,
   nach dem ersten Aufruf auch ohne Internet.
@@ -34,6 +37,8 @@ Alle Daten liegen im Browser des Auswertungsrechners und lassen sich als Datei s
 - **Parallelslalom** mit Vorlauf, Halbfinale, Finale und Wiederholung (Re-run);
   Einzelwertung über Manövrieren und Parallelslalom.
 - **Mannschaftswertung** je Verein, Bundesland oder Land; **Druckdatei** für alle Gruppen nach dem Wettkampf.
+- **Am Wettkampftag:** Start-Freigabe, Anzeigetafel im zweiten Fenster, Startliste mit Wartezeiten, Zuschauerliste –
+  auf Wunsch auch auf anderen Geräten über einen Link mit QR-Code.
 - Oberfläche deutsch und englisch; die Listen stehen in der Sprache des Regelwerks.
 - Läuft ohne Internet, mit zweitem Speicher gegen harte Abbrüche und einem Verlauf zum Zurückholen.
 

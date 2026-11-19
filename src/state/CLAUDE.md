@@ -22,7 +22,9 @@
   AUSSETZEN/VORZIEHEN/KLASSE_VOR/VERSCHIEBEN ändern dort nichts (umstellenErlaubt); Pläne ändert der Betrieb nie.
   SET_ANZEIGE trägt auch die Startfolge im Betrieb (`verzahnungHalten`, ab E3 amSteg/vorSteg/abstaende; SettingsView
   `#betrieb`) und die Lage von Racecourse A und B (`parallelAnordnung`, PARALLEL_ANORDNUNGEN, Vorgabe `a-links`);
-  geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`.
+  geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`. E6: SET_GERAETE_SERVER
+  (`geraeteServer`, '' = Vorgabe geraete/themen.ts NTFY_VORGABE; geprüft mit lib/serverAdresse.ts – nichts aus
+  geraete/ im Reducer; reist als Einstellung mit Sicherung und Vorlage, migrate: Unbrauchbares → '').
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
 

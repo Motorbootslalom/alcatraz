@@ -96,8 +96,18 @@ Was Auswerter davon sehen und tun müssen, steht in [betrieb.md](betrieb.md).
 
 ## Gerätebetrieb: Sicherheitsmodell
 
-Stand Etappe E5 (16.11.2026): Der Übertragungskern ist gebaut und getestet, die App nutzt ihn noch nicht.
+Stand Etappe E6 (16.11.2026): Anzeigetafel und Zuschauerliste gehen über Lese-Links auf andere Geräte (Bedienung:
+[betrieb.md](betrieb.md#gerätebetrieb)); Koppeln und die Start-Freigabe vom Handy folgen (E7).
 Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offline); Ordnerkarte `src/geraete/CLAUDE.md`.
+
+- **Ohne Einschalten keine Verbindung:** Erst „Gerätebetrieb einschalten“ legt einen Raum an; bis dahin öffnet die App
+  weder WebSocket noch Abfrage noch Fensterbus (`src/main.geraete.test.ts`, `src/geraete/host.test.ts`). Ein Gerät mit
+  Lese-Link spricht nur mit dem Server, der im Link steht (`src/main.sehen.test.ts`).
+- **Lese-Links:** `#/sehen/<paket>` (`src/geraete/paket.ts`), gepackt für einen kleinen QR-Code (Version 10). Das Paket
+  trägt Server, Raum, Thema, den Schlüssel seiner Gruppe und den öffentlichen Schlüssel des Bedienrechners – nie das
+  Geheimnis, nie das Thema der Geräte. Anzeigetafel und Zuschauer sind zwei Gruppen mit eigenem Schlüssel: Der
+  Zuschauer-Link öffnet nur die Zuschauersicht. Ein Gerät (`src/GeraetApp.vue`) hat keinen Store und berührt den
+  Stand einer Veranstaltung nie.
 
 - **Ein fremder Server, kein eigener:** Nachrichten gehen über einen ntfy-Server (Vorgabe `ntfy.adminforge.de`,
   änderbar). Er sieht Themen, Zeitpunkte, Größen und IP-Adressen, aber keine Inhalte.

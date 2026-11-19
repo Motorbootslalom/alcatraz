@@ -215,3 +215,11 @@ export function wartezeitText(sekunden: number, sprache: Locale): string {
   if (w.art === 'min') return tIn(sprache, 'anzeige.zeit.min', { n: w.min })
   return tIn(sprache, 'anzeige.zeit.h', { h: w.h, min: String(w.min).padStart(2, '0') })
 }
+
+/**
+ * Der Kurz-Fingerabdruck des Hosts (geraete/transport/ntfy/raum.ts `fingerabdruck`) zum Vergleichen mit dem Auge: in
+ * Vierergruppen, wie am Bedienrechner (Betrieb → Geräte) so auf dem Gerät (GeraetApp.vue) – gleich heißt echt (Plan §8).
+ */
+export function fingerabdruckText(f: string): string {
+  return f.replace(/(.{4})(?=.)/g, '$1 ')
+}

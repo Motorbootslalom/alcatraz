@@ -10,6 +10,7 @@ import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, Bere
 import { CLASS_IDS } from '../../domain/classes'
 import { STARTABSTAND_MAX, STARTABSTAND_MIN } from '../../config/schema'
 import { istOriginStyle } from '../../lib/origin'
+import { serverEinstellung } from '../../lib/serverAdresse'
 import { BETRIEB_ANNAHMEN } from '../../betrieb/annahmen'
 import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istParallel, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, type BereichLage } from '../../betrieb/folge'
 import { ansPunktende, beweglich, einsteigen, hinterDenZeiger, klasseVor, paarStarts, planPartner, schnappschuss, verschiebe, webeNeu } from '../../betrieb/schritte'
@@ -33,6 +34,11 @@ export type BetriebAenderung =
   | { type: 'BETRIEB_ZURUECKSETZEN'; bereich?: BereichId }
   /** Einstellungen der Anzeigetafel; nur was im Patch steht, ändert sich (geprüft wie beim Laden). */
   | { type: 'SET_ANZEIGE'; patch: Partial<AnzeigeEinstellungen> }
+  /**
+   * ntfy-Server für den Gerätebetrieb (E6): '' = Vorgabe des Programms, sonst eine Adresse – geprüft und
+   * vereinheitlicht wie beim Laden (lib/serverAdresse.ts); eine unbrauchbare ändert nichts (die Einstellung sagt es).
+   */
+  | { type: 'SET_GERAETE_SERVER'; server: string }
   // --- E2: Steuerung an der Start-Freigabe (betrieb/schritte.ts) ---
   /** Einen Start zurückstellen (B-3): Er fährt nicht, bleibt aber sichtbar. Nur offene, nachzuholende und „Boot fehlt“-Starts. */
   | { type: 'BETRIEB_ZURUECKSTELLEN'; bereich: BereichId; ref: string }
@@ -429,6 +435,11 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
     case 'SET_ANZEIGE': {
       const anzeige = normalisiereAnzeige({ ...state.anzeige, ...action.patch }, bereichKennungen(state))
       return gleich(anzeige, state.anzeige) ? state : { ...state, anzeige }
+    }
+
+    case 'SET_GERAETE_SERVER': {
+      const server = serverEinstellung(action.server)
+      return server === null || server === state.geraeteServer ? state : { ...state, geraeteServer: server }
     }
   }
 }

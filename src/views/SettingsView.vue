@@ -38,6 +38,9 @@ import { vergissAuswahl } from '../lib/merken'
 import EingabenHinweis from '../components/EingabenHinweis.vue'
 import VerlaufPanel from '../components/VerlaufPanel.vue'
 import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
+import { serverEinstellung } from '../lib/serverAdresse'
+import { NTFY_VORGABE } from '../geraete/themen'
+import { hostServer, useGeraeteHost } from '../geraete/host'
 
 /**
  * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten, und die
@@ -60,7 +63,7 @@ const inhalt = ref<HTMLElement | null>(null)
 // nicht mehr hier; `#/einstellungen?wkr` führt zur Veranstaltung – lib/adressen.ts `umzug`.)
 onMounted(async () => {
   // Das Sprungziel steht in der Sprache der Oberfläche in der Adresse (lib/router.ts).
-  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'betrieb' } as Record<string, string>)[sprungziel()]
+  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'betrieb', geraete: 'geraete' } as Record<string, string>)[sprungziel()]
   if (!ziel) return
   await nextTick()
   document.getElementById(ziel)?.scrollIntoView?.({ block: 'start' })
@@ -145,6 +148,32 @@ const uebernommen = computed(() => inKlassenFolge(messwerteAlsVorgabe(state.valu
 const uebernehmenAendert = computed(() => JSON.stringify(uebernommen.value) !== JSON.stringify(inKlassenFolge(state.value.anzeige.abstaende)))
 const hatEigeneAbstaende = computed(() => Object.keys(state.value.anzeige.abstaende).length > 0)
 const sekunden = (n: number) => `${Math.round(n)} s`
+
+// --- Geräte (E6): der ntfy-Server ---------------------------------------------
+// Bedient wird der Gerätebetrieb unter Betrieb → Geräte; hier steht nur, über welchen Server er läuft (Entscheidung des
+// Nutzers vom 11./16.11.2026: Vorgabe geraete/themen.ts NTFY_VORGABE, änderbar). Leer = Vorgabe; eine Eingabe, die
+// keine Adresse ist, ändert nichts und wird gemeldet (lib/serverAdresse.ts serverEinstellung, dieselbe Prüfung wie
+// im Reducer). Der Raum merkt sich seinen Server: Ein anderer gilt erst für einen neuen Raum (BETRIEB_ANNAHMEN.raumEnde).
+const geraeteHost = useGeraeteHost()
+const serverFehler = ref('')
+function setzeServer(e: Event) {
+  const el = e.target as HTMLInputElement
+  const roh = el.value
+  const wert = serverEinstellung(roh)
+  if (wert === null) serverFehler.value = roh.trim()
+  else {
+    serverFehler.value = ''
+    dispatch({ type: 'SET_GERAETE_SERVER', server: wert })
+  }
+  // Vereinheitlicht („ntfy.example.org/“ → „https://ntfy.example.org“) oder abgewiesen: den geltenden Wert zeigen –
+  // ändert sich der Stand nicht, zeichnet Vue das Feld nicht neu.
+  el.value = state.value.geraeteServer
+}
+/** Der offene Raum läuft über einen anderen Server als eingestellt: sagen, dass der neue erst für einen neuen Raum gilt. */
+const raumServer = computed(() => {
+  const r = geraeteHost?.raum.value
+  return r && r.server !== hostServer(state.value) ? r.server : null
+})
 
 // --- Kürzel der Herkunft ---------------------------------------------------
 /**
@@ -1037,6 +1066,40 @@ function takeLegacy() {
       <span class="note" data-teil="messungen">{{ tn('listopt.betrieb.abstaende.messungen', messZahl) }}</span>
     </div>
     <p class="note">{{ t('listopt.betrieb.abstaende.uebernehmen.hint', { ab: MESS_AB }) }}</p>
+  </div>
+
+  <!-- Geräte (E6): über welchen Server Anzeigetafel und Zuschauerliste auf andere Geräte gehen. Eingeschaltet wird unter
+       Betrieb → Geräte; hier nur die Einstellung und was über den Server geht (ehrlich: „kein Server“ gilt bis dahin). -->
+  <div id="geraete" class="panel">
+    <h2>{{ t('listopt.geraete.title') }}</h2>
+    <p class="hint">
+      {{ t('listopt.geraete.hint') }}
+      <a :href="adresse('betrieb', { reiter: 'geraete' })">{{ t('nav.betrieb') }} → {{ t('betrieb.reiter.geraete') }}</a>.
+    </p>
+    <div class="row" style="align-items: flex-end; gap: 12px">
+      <div class="field" style="flex: 1; min-width: 260px">
+        <label :for="`${id}-geraete-server`">{{ t('listopt.geraete.server') }}</label>
+        <input
+          :id="`${id}-geraete-server`"
+          class="input"
+          :class="state.geraeteServer ? 'own' : ''"
+          inputmode="url"
+          autocomplete="off"
+          spellcheck="false"
+          data-feld="geraete-server"
+          :value="state.geraeteServer"
+          :placeholder="NTFY_VORGABE"
+          @change="setzeServer"
+        />
+      </div>
+      <button type="button" class="btn" data-action="geraete-server-vorgabe" :disabled="!state.geraeteServer" @click="(serverFehler = ''), dispatch({ type: 'SET_GERAETE_SERVER', server: '' })">
+        {{ t('listopt.geraete.server.zurueck') }}
+      </button>
+    </div>
+    <p class="note">{{ t('listopt.geraete.server.vorgabe', { server: NTFY_VORGABE }) }}</p>
+    <p v-if="serverFehler" class="boat-banner warn" role="alert" data-hinweis="geraete-server-ungueltig">{{ t('listopt.geraete.server.ungueltig', { eingabe: serverFehler }) }}</p>
+    <p v-if="raumServer" class="boat-banner warn" role="status" data-hinweis="geraete-raum-server">{{ t('listopt.geraete.raumServer', { server: raumServer }) }}</p>
+    <p class="note" data-hinweis="geraete-daten">{{ t('listopt.geraete.daten') }}</p>
   </div>
 
   <EigeneAufbautenPanel />

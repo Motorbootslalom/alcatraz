@@ -13,12 +13,19 @@ import { t } from '../i18n'
 import AppDialog from '../components/AppDialog.vue'
 import StartFreigabe from '../components/betrieb/StartFreigabe.vue'
 import StartListe from '../components/betrieb/StartListe.vue'
+import GeraeteRaum from '../components/betrieb/GeraeteRaum.vue'
+import GeraeteLage from '../components/betrieb/GeraeteLage.vue'
+import { useGeraeteHost } from '../geraete/host'
+import { verbindungsLage } from '../geraete/transport/typen'
 
 /**
  * Reiter „Betrieb“ am Wettkampftag (Plan vom 16.11.2026): Unterreiter `start` – die Start-Freigabe je Parcours (E1,
- * mit der Steuerung der Etappe E2) – und `startliste` – die ganze Folge mit Wartezeiten (E3); die Geräte (E6) kommen
- * dazu. Dazu die Knöpfe, die Anzeigetafel und Zuschauerliste in eigenen Fenstern öffnen. Einstellungen (Anzeigetafel,
- * Startfolge, Startabstände) stehen unter „Einstellungen“, nicht hier – verlinkt.
+ * mit der Steuerung der Etappe E2) –, `startliste` – die ganze Folge mit Wartezeiten (E3) – und `geraete` – der
+ * Gerätebetrieb mit Lese-Links für Anzeigetafel und Zuschauer (E6, components/betrieb/GeraeteRaum.vue). Dazu die
+ * Knöpfe, die Anzeigetafel und Zuschauerliste in eigenen Fenstern öffnen. Einstellungen (Anzeigetafel, Startfolge,
+ * Startabstände, Server der Geräte) stehen unter „Einstellungen“, nicht hier – verlinkt. Ist ein Raum offen, steht
+ * dessen Verbindung auch auf den anderen Unterreitern im Kopf: Wer die Start-Freigabe bedient, soll sehen, wenn die
+ * Geräte nichts mehr bekommen.
  *
  * Die Karten lesen nur die öffentliche Sicht (betrieb/sicht.ts) – dieselben Komponenten bedienen später
  * vom Handy aus. Ohne festgeschriebene Verzahnung gibt es keine Bedienung, nur den Weg dorthin – außer es
@@ -30,7 +37,8 @@ import StartListe from '../components/betrieb/StartListe.vue'
  */
 const { state, dispatch } = useStore()
 
-const REITER = ['start', 'startliste'] as const
+const REITER = ['start', 'startliste', 'geraete'] as const
+const HINWEIS = { start: 'betrieb.hint', startliste: 'betrieb.liste.hint', geraete: 'betrieb.geraete.hint' } as const
 const reiter = merke<(typeof REITER)[number]>('betrieb.reiter', 'start')
 useReiter('betrieb', reiter, REITER)
 
@@ -50,6 +58,14 @@ const abstaende = computed(() =>
   })),
 )
 
+// Gerätebetrieb (E6): `null` in Tests ohne Host – dann gibt es auch keine Anzeige der Verbindung im Kopf.
+const geraete = useGeraeteHost()
+const geraeteLage = computed(() => {
+  if (!geraete?.raum.value) return null
+  const m = geraete.verbindung.value
+  return m ? verbindungsLage(m.status, m.fehler) : 'verbinde'
+})
+
 const frageZuruecksetzen = ref(false)
 function zuruecksetzen() {
   frageZuruecksetzen.value = false
@@ -68,8 +84,8 @@ function zuruecksetzen() {
 
   <div class="panel betrieb-kopf">
     <h2>{{ t(`betrieb.reiter.${reiter}`) }}</h2>
-    <p class="hint">{{ t(reiter === 'start' ? 'betrieb.hint' : 'betrieb.liste.hint') }}</p>
-    <div class="row betrieb-kopf-knoepfe">
+    <p class="hint">{{ t(HINWEIS[reiter]) }}</p>
+    <div v-if="reiter !== 'geraete'" class="row betrieb-kopf-knoepfe">
       <button type="button" class="btn primary" data-action="anzeige-oeffnen" @click="oeffneAnzeige()">{{ t('betrieb.oeffnen') }}</button>
       <button type="button" class="btn" data-action="zuschauer-oeffnen" :title="t('betrieb.zuschauer.title')" @click="oeffneZuschauer()">{{ t('betrieb.zuschauer') }}</button>
       <span class="note">{{ t('betrieb.oeffnen.hint') }}</span>
@@ -78,10 +94,14 @@ function zuruecksetzen() {
       <button v-if="hatBetrieb" type="button" class="btn danger" data-action="betrieb-zuruecksetzen" @click="frageZuruecksetzen = true">
         {{ t('betrieb.zuruecksetzen') }}
       </button>
+      <button v-if="geraeteLage" type="button" class="btn sm geraete-chip" data-teil="geraete-lage" :data-lage="geraeteLage" :title="t('geraete.chip.title')" @click="reiter = 'geraete'">
+        {{ t('betrieb.reiter.geraete') }}: <GeraeteLage :lage="geraeteLage" />
+      </button>
     </div>
   </div>
 
-  <div v-if="sicht.bereiche.length === 0" class="panel empty">{{ t('betrieb.leer') }}</div>
+  <GeraeteRaum v-if="reiter === 'geraete'" />
+  <div v-else-if="sicht.bereiche.length === 0" class="panel empty">{{ t('betrieb.leer') }}</div>
   <p v-else-if="!fest" class="boat-banner warn" role="status" data-hinweis="vor-verzahnung">
     {{ t(hatBetrieb ? 'betrieb.geloest' : 'betrieb.vorVerzahnung') }} <a :href="adresse('verzahnung')">{{ t('nav.verzahnung') }}</a
     >.
@@ -89,7 +109,7 @@ function zuruecksetzen() {
   <!-- Ist schon Betrieb da, bleiben die Karten auch bei gelöster Verzahnung: Zurück, Meldungen und Zurücksetzen gehen
        immer (BETRIEB_ANNAHMEN.nurFestgeschrieben); Zeigen, Beginnen und die Schritte der Folge (zurückstellen, Klassen
        aussetzen, verschieben, einsteigen – BETRIEB_ANNAHMEN.schritteNurFestgeschrieben) sperrt die Karte selbst (`fest`). -->
-  <template v-if="sicht.bereiche.length > 0 && (fest || hatBetrieb)">
+  <template v-if="reiter !== 'geraete' && sicht.bereiche.length > 0 && (fest || hatBetrieb)">
     <div v-if="reiter === 'start'" class="betrieb-karten">
       <StartFreigabe
         v-for="b in sicht.bereiche"
