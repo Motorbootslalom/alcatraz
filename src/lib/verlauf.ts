@@ -63,6 +63,9 @@ export type VerlaufArt =
   /** Beispieldaten: erfundene WKR-Einteilung bzw. erfundene Gewichte (lib/beispieldaten.ts). */
   | 'beispielBesetzung'
   | 'beispielGewichte'
+  /** Beispieldaten: erfundene Boote bzw. Co-Piloten je Klasse (19.11.2026). */
+  | 'beispielBoote'
+  | 'beispielCoPiloten'
   | 'import'
   | 'starterNeu'
   | 'beispielStarter'
@@ -102,6 +105,8 @@ export type VerlaufArt =
   /** Parallelslalom: eine Runde für eine Klasse festgeschrieben bzw. gelöst (`klasse`, `runde`). */
   | 'rundeFest'
   | 'rundeGeloest'
+  /** Parallelslalom: „Alle Klassen weiter“ – die nächste Runde für `n` Klassen in einem Schritt (19.11.2026). */
+  | 'rundenFestAlle'
   /** „Disziplin nicht werten“ gesetzt oder gelöst (Entscheidung des O.O.D., lib/disziplinen.ts). */
   | 'nichtWerten'
 
@@ -126,6 +131,8 @@ const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'beispielwerte',
   'beispielBesetzung',
   'beispielGewichte',
+  'beispielBoote',
+  'beispielCoPiloten',
   'import',
   'starterNeu',
   'klasseGewechselt',
@@ -144,6 +151,7 @@ const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'gemerkt',
   'rundeFest',
   'rundeGeloest',
+  'rundenFestAlle',
 ])
 
 const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
@@ -152,6 +160,8 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   FILL_BEISPIELWERTE: 'beispielwerte',
   FILL_BEISPIEL_BESETZUNG: 'beispielBesetzung',
   FILL_BEISPIELGEWICHTE: 'beispielGewichte',
+  FILL_BEISPIEL_BOOTE: 'beispielBoote',
+  FILL_BEISPIEL_CO_PILOTEN: 'beispielCoPiloten',
   UPDATE_STARTER: 'starter',
   MOVE_STARTER: 'starter',
   SET_START_NR_MODE: 'starter',
@@ -236,6 +246,9 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'PARALLEL_RUNDE_FESTSCHREIBEN':
     case 'PARALLEL_RUNDE_LOESEN':
       return { art: action.type === 'PARALLEL_RUNDE_LOESEN' ? 'rundeGeloest' : 'rundeFest', klasse: action.klasse, runde: action.runde }
+    case 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN':
+      // Ein Eintrag für alle Klassen (Wunsch des Nutzers vom 19.11.2026), mit ihrer Zahl.
+      return { art: 'rundenFestAlle', n: action.schritte.length }
     case 'ORDER_STARTERS':
     case 'SHUFFLE_STARTERS':
       // Eine Klasse wird genannt; „alle Klassen“ zugleich (Knopf oben im Reiter) steht ohne.

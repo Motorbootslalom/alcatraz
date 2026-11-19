@@ -308,9 +308,10 @@ export function paarStarts(l: Pick<BereichLage, 'folge'>, key: string): FolgeEin
 }
 
 /**
- * Der andere Attempt eines Paares, der im Plan DIREKT hinter diesem Start steht – so legen Halbfinale, Finals und
- * Re-runs ihre Paare an (planung/parallelRunden.ts `mitKlasse`). Im Vorlauf wechseln die Blöcke die Bootstypen
- * (1. Attempt klein, 1. Attempt groß, 2. Attempt klein …): Dort gibt es keinen, die Folge des Plans bleibt. Sonst `null`.
+ * Der andere Attempt eines Paares, der im Plan DIREKT hinter diesem Start steht – so stehen die Paare eines 2er-Blocks
+ * (nur ein Bootstyp; planung/parallel.ts `verzahne`). Wechseln die Blöcke die Bootstypen (1. Attempt klein, 1. Attempt
+ * groß, 2. Attempt klein …) – im Vorlauf und seit 19.11.2026 auch in Halbfinale, Finals und Re-runs
+ * (planung/parallelRunden.ts `verzahneRunde`) –, gibt es keinen, die Folge des Plans bleibt. Sonst `null`.
  * Für BETRIEB_ANNAHMEN.parallelPaarZuEnde und das gezielte Zeigen (parallelPaarAlsEinheit).
  */
 export function planPartner(abgeleitet: readonly FolgeEintrag[], key: string): string | null {

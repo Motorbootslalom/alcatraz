@@ -267,9 +267,25 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
 - Je Klasse zeigt die Ansicht, wo sie steht.
   Sie bietet die nächste Runde zum Festschreiben an, sobald die Runde davor vollständig erfasst ist
   (Actions `PARALLEL_RUNDE_FESTSCHREIBEN` / `PARALLEL_RUNDE_LOESEN`; wer fährt, rechnet der Reducer).
-- Der Plan einer Runde (`parallelPlaene.semi`, `.final`, `rerun-<runde>-<n>`) sammelt die Starts aller Klassen
-  in der Folge des Festschreibens.
+- **„Alle Klassen weiter“** (19.11.2026): ein Knopf über den Klassen, sobald mindestens zwei so weit sind.
+  Er schreibt für alle Klassen, für die Halbfinale bzw. Finals anstehen, die nächste Runde in einem Schritt fest
+  (Action `PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN`, ein Verlaufseintrag; dieselbe Prüfung wie je Klasse:
+  `alleWeiter` in `src/lib/parallelStage.ts`). Es bleiben – und stehen im Hinweis darunter: Klassen, deren Runde
+  noch nicht vollständig ist, Klassen mit einem Gleichstand an der Grenze (der Re-run wird je Klasse
+  festgeschrieben) und Klassen mit einem veralteten Plan.
+- Der Plan einer Runde (`parallelPlaene.semi`, `.final`, `rerun-<runde>-<n>`) sammelt die Starts aller Klassen.
   Jeder Start trägt seine `klasse`, in den Finals `finale` (1 = um Platz 1 und 2, 3 = um Platz 3 und 4).
+- **Verzahnt wie der Vorlauf** (19.11.2026, „Es fährt immer großes Boot/kleines Boot im Wechsel“):
+  ein Block ist klein 1. Attempt, groß 1. Attempt, klein 2. Attempt, groß 2. Attempt; ist ein Bootstyp
+  aufgebraucht, fährt jedes übrige Paar seine beiden Attempts als 2er-Block. Die Klassen stehen je Bootstyp in
+  ihrer Folge im Vorlauf, innerhalb der Klasse die Paare in ihrer Folge (Kleines Finale vor dem Finale)
+  (`verzahne` in `src/planung/parallel.ts`, `verzahneRunde` in `src/planung/parallelRunden.ts`).
+  Wird eine Klasse einzeln festgeschrieben oder gelöscht, ordnet das die Runde neu, solange darin nichts erfasst
+  und sie im Betrieb nicht begonnen ist; danach kommt eine Klasse nur ans Ende, damit nichts Gedrucktes wandert
+  (`PARALLEL_ANNAHMEN.rundenVerzahnen`). Das X, das ein Abgemeldeter beim Festschreiben bekommt, zählt dabei nicht
+  als erfasst. Würde das Festschreiben (je Klasse oder „Alle Klassen weiter“) die Starts anderer Klassen der Runde
+  verschieben, fragt die Ansicht erst nach: Schon gedruckte Listen und Laufzettel passten danach nicht mehr
+  (`rundenNeuGeordnet` in `src/state/reducer/parallel.ts`, wie die Rückfrage beim Löschen).
 - Damit gibt es für jede Runde dieselben Listen wie für den Vorlauf:
   WKR-Listen, Laufzettel und QR-Code je Runde, die Runden-Auswahl in der Erfassung,
   Beispielwerte („Leere Zeilen der Runde füllen“), Wertungslisten (Attempts, Result) mit eigenem Zeitstempel.
@@ -323,7 +339,8 @@ Sie sind vom Veranstalter noch zu bestätigen, im Code gekennzeichnet und an ein
 - Disqualifikation in einer Wiederholung (zum Vorlauf wie zum Halbfinale): hinterer Platz der Gruppe mit dessen Punkten
   (zum Vorlauf Entscheidung vom 15.11.2026).
   Werden alle der Gruppe disqualifiziert, teilen sie sich diesen Platz.
-- Das Kleine Finale (Platz 3 und 4) wird zuerst gefahren; jedes Paar fährt seine beiden Attempts nacheinander.
+- Das Kleine Finale (Platz 3 und 4) wird zuerst gefahren; jedes Paar fährt seine beiden Attempts im selben Block
+  (bei beiden Bootstypen verzahnt, sonst direkt nacheinander).
 
 **Gesamtergebnis der Stage** (`stageErgebnis`, Blatt `components/ergebnis/ParallelStageBlatt.vue`, „Overall results“):
 
@@ -375,6 +392,9 @@ Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts
   Die Kennung eines Starts bilden Runde, Attempt und die gespeicherten IDs auf A und B (`parallelPlaene[runde].starts`),
   nie die aufgelösten Paare: Wird ein Starter gelöscht, bleibt ein schon gezeigter Start derselbe und taucht nicht
   wieder als offen auf (Kritik K8).
+  Seit 19.11.2026 sind auch Halbfinale, Finals und Re-runs verzahnt (klein/groß im Wechsel); Start-Freigabe,
+  Anzeigetafel und Zuschauerliste übernehmen diese Folge ohne eigene Regel. Ein gezielt gezeigtes Paar nimmt seinen
+  2. Attempt dann nicht mit – dazwischen fährt der andere Bootstyp, wie im Vorlauf (`planPartner`).
 - **Leere Seite:** Steht auf einer Seite ein Dummy, ein gelöschter Starter oder ein X „nicht gestartet“ in diesem
   Attempt, zeigt die Anzeigetafel sie leer („–“); der Gegner fährt – so fährt ein Halbfinale mit einer abgemeldeten
   Seite. Der Start entfällt erst, wenn auf keiner Seite jemand fährt (beide gelöscht, beide X, Dummy gegen X).

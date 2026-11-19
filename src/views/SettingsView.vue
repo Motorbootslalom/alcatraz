@@ -30,6 +30,7 @@ import { BETRIEB_ANNAHMEN } from '../betrieb/annahmen'
 import { ABSTAND_MAX, ABSTAND_MIN, PARALLEL_ANORDNUNGEN, SKALA_MAX, SKALA_MIN, STEG_MAX } from '../state/reducer/betrieb'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
 import LogosPanel from '../components/LogosPanel.vue'
+import StartNrBereichePanel from '../components/StartNrBereichePanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
 import SettingsNav from '../components/SettingsNav.vue'
 import OfflinePanel from '../components/OfflinePanel.vue'
@@ -818,6 +819,9 @@ function takeLegacy() {
       <button class="btn sm" @click="dispatch({ type: 'RESET_SOLLGEWICHT' })">{{ t('weigh.reset', { rulebook: regelwerk.label }) }}</button>
     </div>
   </div>
+
+  <!-- Startnummern nach Westengröße (19.11.2026): Bereiche je Klasse und fehlende Westen. -->
+  <StartNrBereichePanel />
 
   <!-- Anzeigetafel (Plan vom 16.11.2026): was sie zeigt. Bedient wird sie im Reiter „Betrieb“ (Start-Freigabe). -->
   <div id="anzeigetafel" class="panel">

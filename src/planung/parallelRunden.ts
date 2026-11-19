@@ -1,6 +1,6 @@
 import type { BoatType, ClassId, ParallelPlaene, ParallelPlanFest, ParallelRunde, ParallelStartFest, PlanState, Starter } from '../types'
 import { boatTypeOf, CLASS_IDS } from '../domain/classes'
-import { buildParallelPlan, cmpStartNr, parallelActiveClasses, planAusStarts, type ParallelPlan, type ParallelSlot } from './parallel'
+import { buildParallelPlan, cmpStartNr, parallelActiveClasses, planAusStarts, verzahne, type ParallelPlan, type ParallelSlot } from './parallel'
 import { rundeHatEingaben, zerlegeAttempt } from '../lib/parallelSchluessel'
 
 export type { ParallelPlaene, ParallelPlanFest, ParallelRunde, ParallelStartFest }
@@ -208,9 +208,12 @@ export function plaetzeVon(fest: ParallelPlanFest, starterId: string): { attempt
 //
 // Halbfinale, Finals und Wiederholungen werden je Klasse festgeschrieben, sobald das Ergebnis
 // der Runde davor feststeht (lib/parallelStage.ts sagt, wer fährt). Der Plan einer Runde sammelt
-// die Starts aller Klassen in der Folge, in der sie festgeschrieben wurden – so sind die Listen
-// der race officials wie im Vorlauf klassenübergreifend, und eine später festgeschriebene Klasse
-// verschiebt keine Zeile einer früheren.
+// die Starts aller Klassen – so sind die Listen der race officials wie im Vorlauf
+// klassenübergreifend. Seit 19.11.2026 (Wunsch des Nutzers) wird die Runde als Ganzes verzahnt
+// wie der Vorlauf ({@link verzahneRunde}): klein und groß im Wechsel. Eine später
+// festgeschriebene Klasse ordnet die Runde neu, solange darin nichts erfasst und sie im Betrieb
+// nicht begonnen ist; danach kommt sie nur ans Ende und verschiebt keine Zeile einer früheren
+// (state/reducer/parallel.ts, PARALLEL_ANNAHMEN.rundenVerzahnen).
 
 /** Ein Paar einer Runde nach dem Vorlauf: zwei Starter (IDs), `b: null` ist der Dummy. */
 export interface RundenPaar {
@@ -276,6 +279,36 @@ export function mitKlasse(plaene: ParallelPlaene, runde: ParallelRunde, klasse: 
     block++
   }
   return { ...plaene, [runde]: { runde, starts: [...bleibt, ...neu] } }
+}
+
+/**
+ * Die Runde als Ganzes verzahnen wie den Vorlauf (Wunsch des Nutzers vom 19.11.2026: „Es fährt
+ * immer großes Boot/kleines Boot im Wechsel“): die Paare aller Klassen der Runde, je Bootstyp
+ * nach `klassenFolge` (die Folge der Klassen im Vorlauf, sonst ihre feste Folge) und innerhalb
+ * der Klasse in ihrer Folge (Finale um Platz 3 und 4 vor dem um 1 und 2) – dann klein und groß im
+ * Wechsel ({@link verzahne}, dieselbe Stelle wie im Vorlauf). Jedes Paar behält seine beiden
+ * Attempts mit getauschten Racecourses. Ob die Runde neu geordnet werden DARF (noch nichts
+ * erfasst, im Betrieb nicht begonnen), entscheidet der Aufrufer (state/reducer/parallel.ts).
+ */
+export function verzahneRunde(plaene: ParallelPlaene, runde: ParallelRunde, klassenFolge: readonly ClassId[]): ParallelPlaene {
+  const plan = plaene[runde]
+  if (!plan || runde === VORLAUF) return plaene
+  const rang = (k: ClassId | undefined) => {
+    const i = k === undefined ? -1 : klassenFolge.indexOf(k)
+    return i >= 0 ? i : klassenFolge.length + (k === undefined ? CLASS_IDS.length : CLASS_IDS.indexOf(k))
+  }
+  // Die Paare: je 1. Attempt eines, mit seinem 2. Attempt (sonst die getauschten Racecourses).
+  const erste = plan.starts.filter((s) => s.attempt === 1)
+  const paare = erste
+    .map((s, i) => ({ s, i, zweiter: plan.starts.find((z) => z.attempt === 2 && z.block === s.block && z.klasse === s.klasse && z.a === s.b && z.b === s.a) }))
+    .sort((x, y) => rang(x.s.klasse) - rang(y.s.klasse) || x.i - y.i)
+  const starts = verzahne(
+    paare.filter((p) => p.s.boot === 'klein'),
+    paare.filter((p) => p.s.boot === 'gross'),
+  ).map(({ paar, run, block }): ParallelStartFest => (run === 1 ? { ...paar.s, block } : { ...(paar.zweiter ?? { ...paar.s, a: paar.s.b, b: paar.s.a, attempt: 2 }), block }))
+  // Hat sich nichts geändert, bleibt der Plan derselbe (Reducer: unverändert → dieselbe Referenz).
+  const gleich = starts.length === plan.starts.length && starts.every((s, i) => JSON.stringify(s) === JSON.stringify(plan.starts[i]))
+  return gleich ? plaene : { ...plaene, [runde]: { runde, starts } }
 }
 
 /** Eine Klasse aus einer Runde lösen; ein Plan ohne Starts entfällt. Die Starts der anderen Klassen bleiben in ihrer Folge. */

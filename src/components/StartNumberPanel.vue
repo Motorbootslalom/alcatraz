@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
-import { t } from '../i18n'
+import { t, tn } from '../i18n'
+import { startNrRegeln } from '../config/catalog'
+import { startNrAbweichungen } from '../domain/startnrBereiche'
 import type { RunningNumberConfig, RunningNumberSource, StartNrMode } from '../types'
 
 /**
@@ -19,6 +21,14 @@ const emit = defineEmits<{ assigned: [] }>()
 const MODES: StartNrMode[] = ['klasse', 'klassisch']
 const SOURCES: RunningNumberSource[] = ['manoever', 'parallel']
 const rn = computed(() => state.value.runningNumbers)
+
+/**
+ * Wer keine Nummer aus dem Bereich seiner Westengröße trägt (Startnummern-Bereiche, 19.11.2026):
+ * ausgewichen, übergelaufen, ohne Größe oder mit der Nummer einer fehlenden Weste. Nur klassenbasiert.
+ */
+const abweichungen = computed(() =>
+  state.value.startNrMode !== 'klasse' ? [] : regelwerk.value.klassen.flatMap((k) => startNrAbweichungen(state.value.starters, k, startNrRegeln(state.value, k))),
+)
 
 const set = (patch: Partial<RunningNumberConfig>) => dispatch({ type: 'SET_RUNNING_NUMBERS', patch })
 
@@ -57,6 +67,14 @@ function assign() {
       </button>
     </div>
     <p class="hint">{{ t(`numbers.hint.${state.startNrMode}`) }}</p>
+    <div v-if="abweichungen.length > 0" class="note" data-teil="startnr-abweichungen">
+      {{ tn('numbers.abweichung', abweichungen.length) }}
+      <ul>
+        <li v-for="a in abweichungen" :key="a.starter.id" :data-starter="a.starter.id">
+          <b>{{ a.starter.startNr }}</b> {{ a.starter.vorname }} {{ a.starter.nachname }}<template v-if="a.starter.groesse"> ({{ a.starter.groesse }})</template>: {{ t(`numbers.abweichung.${a.art}`) }}
+        </li>
+      </ul>
+    </div>
 
     <div v-if="dolphin && state.startNrMode === 'klasse'" class="field" style="width: auto" data-feld="dolphin-praefix">
       <label>{{ t('numbers.dolphinPrefix') }}</label>

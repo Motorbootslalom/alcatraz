@@ -1,4 +1,5 @@
 import type { RawAufbau } from '../config/schema'
+import type { StartNrBereiche } from '../domain/startnrBereiche'
 import type { SCHEMA_VERSION } from '../types'
 import type { ClassId, StartNrMode } from './starter'
 import type { ParallelPlaene, PlanState } from './planung'
@@ -239,6 +240,19 @@ export interface AppState extends PlanState {
    * und Vorlage.
    */
   dolphinPraefix: 'E' | 'D'
+  /**
+   * Eigene Nummernbereiche der klassenbasierten Startnummern je Klasse nach Größengruppe der Westen
+   * (Wunsch des Nutzers vom 19.11.2026). Nur Abweichungen: Fehlt eine Klasse, gilt die Vorgabe des
+   * Regelwerks (config/catalog.ts `startNrBereicheOf`, DM: DMYV-Liste); eine leere Liste heißt
+   * „bewusst ohne Bereiche“. Eine Einstellung: in Sicherung und Vorlage.
+   */
+  startNrBereiche: StartNrBereiche
+  /**
+   * Startnummern, deren Weste fehlt (verloren, kaputt), wie auf der Weste geschrieben („512“,
+   * „E105“): Die Vergabe überspringt sie (domain/startnrBereiche.ts). Über alle Klassen, eine
+   * Einstellung des Ausrichters: in Sicherung und Vorlage.
+   */
+  fehlendeStartNr: string[]
   /**
    * Listen der race officials im Parallelslalom: jede zweite Zeile grau (Listen-Option, Vorgabe
    * an – Entscheidung des Nutzers vom 15.11.2026). Die Zeile ohne Eingabe (Dummy, entfallener

@@ -51,3 +51,19 @@ export function coPilotVorgesehen(regelwerk: string, klasse: ClassId): boolean {
 export function zeigtCoPilot(stand: { regelwerk: string; coPiloten: Besetzung }, klasse: ClassId): boolean {
   return coPilotVorgesehen(stand.regelwerk, klasse) || besetzungText(stand.coPiloten, klasse) !== ''
 }
+
+/**
+ * Die Klassen, deren Boot die Beispiel-Boote füllen: die des Regelwerks und jede, in der noch
+ * Starter stehen – dieselben, die der Block „Besetzung“ zeigt (lib/event.ts `classes`), in
+ * derselben Folge. Rein, damit Oberfläche (Rückfrage) und Reducer dieselben zählen.
+ */
+export function besetzungsKlassen(stand: { regelwerk: string; starters: readonly { klasse: ClassId }[] }): ClassId[] {
+  const rw = regelwerkOf(stand.regelwerk).klassen
+  const benutzt = new Set(stand.starters.map((p) => p.klasse))
+  return CLASS_IDS.filter((k) => rw.includes(k) || benutzt.has(k))
+}
+
+/** Die Klassen, deren Co-Piloten die Beispiel-Co-Piloten füllen: davon die, in denen das Regelwerk einen vorsieht. */
+export function coPilotKlassen(stand: { regelwerk: string; starters: readonly { klasse: ClassId }[] }): ClassId[] {
+  return besetzungsKlassen(stand).filter((k) => coPilotVorgesehen(stand.regelwerk, k))
+}

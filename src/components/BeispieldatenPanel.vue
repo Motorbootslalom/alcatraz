@@ -2,7 +2,8 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
-import { startNrPraefixe } from '../config/catalog'
+import { startNrPraefixe, startNrRegeln } from '../config/catalog'
+import { vergibKlasse } from '../domain/startnrBereiche'
 import type { Zeitnahme } from '../lib/beispielwerte'
 import { classColor } from '../domain/classes'
 import { beispielHerkuenfte, generateStarters } from '../domain/generate'
@@ -16,6 +17,7 @@ import StarterSperre from './StarterSperre.vue'
 import { rundenName, vergleicheRunden, VORLAUF, vorlaufGebunden } from '../planung/parallelRunden'
 import { festeRunden, parallelListen } from '../lib/parallelBogen'
 import { einteilungsZellen } from '../lib/einteilung'
+import { useBeispielBoote } from '../lib/beispielBoote'
 import type { ParallelRunde } from '../types'
 import { t, tn } from '../i18n'
 import type { ClassId, Starter } from '../types'
@@ -101,7 +103,9 @@ function generate() {
   for (const c of CLASSES.value) {
     if (countOf(c.id) > 0) {
       // Das Geschlecht nur, wo eine Liste danach fragt (Regel 960, Pkt. 3.7): unter der DM nicht.
-      starters = starters.concat(generateStarters(c.id, countOf(c.id), state.value.eventJahr, origin, starters, startNrPraefixe(state.value), feste, parallel.value))
+      const neu = generateStarters(c.id, countOf(c.id), state.value.eventJahr, origin, starters, startNrPraefixe(state.value), feste, parallel.value)
+      // Klassenbasiert wie „Startnummern vergeben“: aus dem Bereich der Größe, ohne fehlende Westen (19.11.2026).
+      starters = starters.concat(state.value.startNrMode === 'klasse' ? vergibKlasse(neu, c.id, startNrRegeln(state.value, c.id)) : neu)
     }
   }
   dispatch({ type: 'CLEAR_ALL_STARTERS' })
@@ -132,6 +136,9 @@ function beispielBesetzung() {
   if (besetzt.value > 0 && !confirm(tn('demo.crew.confirm', besetzt.value))) return
   dispatch({ type: 'FILL_BEISPIEL_BESETZUNG', saat: neueSaat() })
 }
+
+// Boote und Co-Piloten je Klasse (19.11.2026): dieselben Knöpfe wie im Block „Besetzung“.
+const { bootKlassen, coKlassen, beispielBoote, beispielCoPiloten } = useBeispielBoote()
 
 const gewogen = computed(() => state.value.starters.filter((p) => p.gewicht !== undefined).length)
 
@@ -254,6 +261,18 @@ function werteLoeschen() {
       <span class="row" style="align-items: center; gap: 10px">
         <button class="btn" data-action="beispielgewichte" :disabled="state.starters.length === 0" @click="beispielGewichte">{{ t('demo.weights.fill') }}</button>
         <span class="note" data-hinweis="beispiel-gewichte" role="status" style="margin: 0">{{ t('weigh.progress', { done: gewogen, total: state.starters.length }) }}</span>
+      </span>
+      <span class="row" style="align-items: center; gap: 10px">
+        <button class="btn" data-action="beispiel-boote" :disabled="bootKlassen.length === 0" :title="t('crew.sample.boatsTitle')" @click="beispielBoote">{{ t('crew.sample.boats') }}</button>
+        <button
+          class="btn"
+          data-action="beispiel-copiloten"
+          :disabled="coKlassen.length === 0"
+          :title="coKlassen.length === 0 ? t('crew.sample.noCoPilots') : t('crew.sample.coPilotsTitle')"
+          @click="beispielCoPiloten"
+        >
+          {{ t('crew.sample.coPilots') }}
+        </button>
       </span>
     </div>
 

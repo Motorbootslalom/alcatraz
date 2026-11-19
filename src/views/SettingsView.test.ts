@@ -1086,3 +1086,54 @@ describe('Einstellungen: Geräte (E6, Server des Gerätebetriebs)', () => {
     }
   })
 })
+
+describe('Einstellungen: Startnummern nach Westengröße (19.11.2026)', () => {
+  let store: Store
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+  })
+
+  it('zeigt die DMYV-Vorgabe je Klasse, ändert, ergänzt, entfernt und stellt die Vorgabe wieder her', async () => {
+    const wrapper = settings(store)
+    const zeile = (k: string) => wrapper.find(`[data-teil="startnr-bereiche"] tr[data-klasse="${k}"]`)
+    const wert = (el: { element: Element }) => (el.element as HTMLInputElement).value
+    expect(zeile('5').findAll('[data-bereich]').map((b) => `${wert(b.find('[data-feld="von"]'))}-${wert(b.find('[data-feld="bis"]'))} ${wert(b.find('[data-feld="gruppe"]'))}`)).toEqual([
+      '501-510 S-M',
+      '511-528 L-XL',
+      '529-530 XXL',
+    ])
+    expect(zeile('5').find('[data-action="bereich-vorgabe"]').exists()).toBe(false)
+
+    // Klasse 3: einen L-XL-Bereich ergänzen (schließt an 301–330 an), dann den Anfang ändern.
+    await zeile('3').find('[data-action="bereich-neu"]').trigger('click')
+    expect(store.state.value.startNrBereiche['3']).toEqual([
+      { von: '301', bis: '330', gruppe: 'S-M' },
+      { von: '331', bis: '360', gruppe: 'L-XL' },
+    ])
+    await zeile('3').find('[data-bereich="1"] [data-feld="bis"]').setValue('340')
+    expect(store.state.value.startNrBereiche['3']?.[1].bis).toBe('340')
+    // Unlesbar: wird markiert, nicht verwendet.
+    await zeile('3').find('[data-bereich="1"] [data-feld="von"]').setValue('399')
+    expect(zeile('3').find('[data-teil="unlesbar"]').exists()).toBe(true)
+    await zeile('3').find('[data-bereich="1"] [data-action="bereich-entfernen"]').trigger('click')
+    expect(store.state.value.startNrBereiche['3']).toEqual([{ von: '301', bis: '330', gruppe: 'S-M' }])
+    await zeile('3').find('[data-action="bereich-vorgabe"]').trigger('click')
+    expect(store.state.value.startNrBereiche).toEqual({})
+    wrapper.unmount()
+  })
+
+  it('fehlende Nummern: tolerant gelesen, Unbekanntes gemeldet', async () => {
+    const wrapper = settings(store)
+    const feld = wrapper.find('[data-feld="fehlende-startnr"]')
+    // setValue löst auch `change` aus – wie das Verlassen des Felds.
+    await feld.setValue('512; 517 623, x9')
+    expect(store.state.value.fehlendeStartNr).toEqual(['512', '517', '623'])
+    expect(wrapper.find('[data-teil="fehlend-unbekannt"]').text()).toContain('X9')
+    expect((feld.element as HTMLInputElement).value).toBe('512, 517, 623')
+    wrapper.unmount()
+  })
+})

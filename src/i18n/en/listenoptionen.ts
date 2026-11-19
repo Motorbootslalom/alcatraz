@@ -174,6 +174,23 @@ export default {
   'listopt.betrieb.abstaende.uebernehmen.hint':
     'Classes with at least {ab} measured intervals get their mean as an own value – it travels with the template to the next event.',
   'listopt.betrieb.abstaende.alleVorgabe': 'All back to the default',
+  'listopt.startnr.title': 'Race numbers by vest size',
+  'listopt.startnr.hint':
+    'Only for race numbers by class: in each class a range of numbers belongs to one size group of the vests (XS counts as S–M, XXXL as XXL). “Assign automatically” gives every driver the next free number from the range of their size; if it is full or missing, from a larger one, then a smaller one, otherwise consecutively behind. Existing numbers stay until they are reassigned.',
+  'listopt.startnr.klasse': 'Class',
+  'listopt.startnr.von': 'from',
+  'listopt.startnr.bis': 'to',
+  'listopt.startnr.gruppe': 'Size',
+  'listopt.startnr.keine': 'no ranges – consecutive',
+  'listopt.startnr.neu': '+ Range',
+  'listopt.startnr.entfernen': 'Remove range',
+  'listopt.startnr.vorgabe': 'Default ({rulebook})',
+  'listopt.startnr.eigen': 'own',
+  'listopt.startnr.unlesbar': 'Not an ascending run of race numbers of this class – not used.',
+  'listopt.startnr.fehlend': 'Missing numbers',
+  'listopt.startnr.fehlend.hint': 'Vests that are missing (lost, broken): these numbers are never assigned, e.g. “512, 517, 623”. Applies at the next assignment.',
+  'listopt.startnr.fehlend.unbekannt': 'Not a race number of any class: {werte}',
+
   'listopt.geraete.title': 'Devices',
   'listopt.geraete.hint':
     'Display board and spectator list on other devices via the internet. An ntfy server passes on the encrypted messages; device operation is switched on under',

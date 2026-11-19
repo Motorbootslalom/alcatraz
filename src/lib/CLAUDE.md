@@ -14,7 +14,7 @@ clipboard, scanner, logoBild.
   (Zeitpunkt je Liste, WERTUNG), `disziplinen.ts`. Einzel/Mannschaft: `einzelwertung.ts` (EINZEL_FESTLEGUNGEN),
   `pokal.ts` (pokalKlassen + disziplinen → einzelwertungen), `pokalBlaetter.ts` (usePokalWertung), `teamListe.ts`.
 - Parallelslalom: `parallelErgebnis.ts` (Runde, Qualifikation, Re-run, PARALLEL_ANNAHMEN), `parallelStage.ts`
-  (klassenStand, schreibeRundeFest, stageErgebnis), `parallelSchluessel.ts`, `parallelBogen.ts` (Listen je Racecourse,
+  (klassenStand, schreibeRundeFest, alleWeiter, stageErgebnis), `parallelSchluessel.ts`, `parallelBogen.ts` (Listen je Racecourse,
   rundenZettel A/B, messKennungRunde, musterRundenBoegen), `parallelStartliste.ts` (Blatt: ParallelStartlisten.vue).
   Ablauf: PARALLEL_RUNDE_FESTSCHREIBEN (state/reducer/parallel.ts) → parallelStage.schreibeRundeFest → parallelBoegen
   → Werte unter `parallel:<runde>/<attempt>` → rundenErgebnis (mitWiederholungen) → klassenStand → stageErgebnis.
@@ -35,7 +35,8 @@ clipboard, scanner, logoBild.
   `adressen.ts`, `theme.ts`, `build.ts` (E6: PAGES_URL – Ziel der Lese-Links unter file://), `clipboard.ts`, `bogenZoom.ts`, `datum.ts` (liesDatum, excelSeriennummer),
   `serverAdresse.ts` (E6: normalisiereServer, serverEinstellung – Adresse des ntfy-Servers, rein, ohne tweetnacl, für
   Reducer, migrate und Einstellungen; geraete/themen.ts reicht sie weiter).
-- Aus der `saat` (Reducer und Oberfläche): `beispielwerte.ts`, `beispieldaten.ts` (Beispiel-Besetzung, -gewichte),
+- Aus der `saat` (Reducer und Oberfläche): `beispielwerte.ts`, `beispieldaten.ts` (Beispiel-Besetzung, -gewichte,
+  19.11.2026 -boote, -Co-Piloten; Knöpfe und Rückfrage `beispielBoote.ts`, mit Vue),
   `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische); `saat.ts` neueSaat – nur Oberfläche.
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
 - Logos (16.11.2026): `logo.ts` (rein: Grenzen, logoTeile = eine Lesart der data-URL, logoWert, logoHoeheZahl, Maße,

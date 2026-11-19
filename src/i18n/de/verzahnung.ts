@@ -1,18 +1,23 @@
 /** Reiter „Verzahnung“: Parcours, Klassenaufteilung, Boote, Startnummern und laufende Nummern. */
 export default {
   'numbers.dolphinPrefix': 'Buchstabe der Dolphin-Nummern',
-  'numbers.dolphinPrefix.hint': 'E01 oder D01. Gilt für Nummern, die neu vergeben werden; vorhandene bleiben, bis „Startnummern neu vergeben“ sie ersetzt. Sortiert wird in beiden Fällen wie mit einer 0 davor – also vor den übrigen Klassen.',
+  'numbers.dolphinPrefix.hint': 'E101 oder D101 (ohne Bereiche E01 oder D01). Gilt für Nummern, die neu vergeben werden; vorhandene bleiben, bis „Startnummern neu vergeben“ sie ersetzt. Sortiert wird in beiden Fällen wie mit einer 0 davor – also vor den übrigen Klassen.',
 
   'numbers.title': 'Startnummern',
+  'numbers.abweichung': '{n} Nummer passt nicht zur Westengröße: | {n} Nummern passen nicht zur Westengröße:',
+  'numbers.abweichung.fehlend': 'Weste fehlt',
+  'numbers.abweichung.fremd': 'Bereich einer anderen Größe',
+  'numbers.abweichung.ausserhalb': 'außerhalb der Bereiche',
+  'numbers.abweichung.ohneGroesse': 'ohne Größe',
   'numbers.mode.klasse': 'Klassenbasiert',
   'numbers.mode.klassisch': 'Klassisch',
   'numbers.hint.klasse':
-    'Jede Klasse hat ihren eigenen Nummernkreis (E01, E02 …, 101, 102 …). „Automatisch vergeben“ nummeriert jede Klasse in der aktuellen Reihenfolge frisch durch. Einzelne Nummern lassen sich unter „Bearbeiten“ von Hand setzen.',
+    'Jede Klasse hat ihren eigenen Nummernkreis. Hat die Klasse Bereiche nach Westengröße (Einstellungen, „Startnummern nach Westengröße“), bekommt jeder Starter in der aktuellen Reihenfolge die nächste freie Nummer aus dem Bereich seiner Größe (z. B. 501, 511, 529); fehlende Westen werden übersprungen. Ohne Bereiche nummeriert „Automatisch vergeben“ jede Klasse fortlaufend ab 01. Einzelne Nummern lassen sich unter „Bearbeiten“ von Hand setzen.',
   'numbers.hint.klassisch':
     'Alle Starter teilen sich einen fortlaufenden Nummernkreis (1, 2, 3 …). „Automatisch vergeben“ nummeriert in der Startreihenfolge der Verzahnung. Einzelne Nummern lassen sich unter „Bearbeiten“ von Hand setzen.',
   'numbers.assign': 'Automatisch vergeben',
   'numbers.confirm.klasse':
-    'Alle Startnummern neu vergeben?\n\nJe Klasse fortlaufend ab 01 in der aktuellen Reihenfolge. Die bisherigen Nummern werden überschrieben.',
+    'Alle Startnummern neu vergeben?\n\nJe Klasse in der aktuellen Reihenfolge: mit Bereichen nach Westengröße aus dem Bereich der Größe, fehlende Westen übersprungen; ohne Bereiche fortlaufend ab 01. Die bisherigen Nummern werden überschrieben.',
   'numbers.confirm.klassisch':
     'Alle Startnummern neu vergeben?\n\nFortlaufend in der Reihenfolge der Verzahnung. Die bisherigen Nummern werden überschrieben.',
 

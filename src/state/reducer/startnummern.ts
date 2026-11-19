@@ -2,10 +2,11 @@
 
 import type { AppState, ClassId, RunningNumberConfig, StartNrMode, Starter } from '../../types'
 import { CLASS_IDS } from '../../domain/classes'
-import { moveInOrder, redistributeNumbers, renumberSequential, sortedByStartNr } from '../../domain/startnumbers'
+import { moveInOrder, redistributeNumbers, sortedByStartNr } from '../../domain/startnumbers'
+import { normalisiereBereichsListe, verteileInBereichen, vergibKlasse, type StartNrBereich, type StartNrBereiche } from '../../domain/startnrBereiche'
 import { mische, ordneNach, type SortierSpalte } from '../../lib/reihenfolge'
 import { canonicalRunningNumbers } from '../../planung/running'
-import { startNrPraefixe } from '../../config/catalog'
+import { startNrRegeln } from '../../config/catalog'
 
 export type StartnummernAenderung =
   | { type: 'SET_RUNNING_NUMBERS'; patch: Partial<RunningNumberConfig> }
@@ -24,6 +25,13 @@ export type StartnummernAenderung =
   | { type: 'ASSIGN_START_NUMBERS' }
   /** Der Buchstabe vor den Startnummern der Klasse Dolphin (E oder D); gilt für neu vergebene Nummern. */
   | { type: 'SET_DOLPHIN_PRAEFIX'; praefix: 'E' | 'D' }
+  /**
+   * Eigene Startnummern-Bereiche einer Klasse (19.11.2026); `null` = wieder die Vorgabe des
+   * Regelwerks, `[]` = bewusst ohne Bereiche. Vorhandene Nummern bleiben, bis neu vergeben wird.
+   */
+  | { type: 'SET_START_NR_BEREICHE'; klasse: ClassId; bereiche: StartNrBereich[] | null }
+  /** Die Startnummern, deren Weste fehlt (19.11.2026), wie auf der Weste geschrieben. */
+  | { type: 'SET_FEHLENDE_START_NR'; nummern: string[] }
 
 /** Übernimmt die geänderten Starter aus `updated` (per ID); die Reihenfolge bleibt. */
 function replaceById(starters: Starter[], updated: Starter[]): Starter[] {
@@ -40,10 +48,18 @@ function replaceById(starters: Starter[], updated: Starter[]): Starter[] {
  * (Prüfbefund zu Paket F, 16.11.2026). `vorher` ist die Klasse nach Startnummer; steht `geordnet`
  * schon so, bleibt das Array dasselbe.
  */
-function inFolge(starters: Starter[], vorher: readonly Starter[], geordnet: readonly Starter[]): Starter[] {
+function inFolge(state: AppState, starters: Starter[], vorher: readonly Starter[], geordnet: readonly Starter[]): Starter[] {
   if (geordnet.length === 0 || geordnet.every((p, i) => p.id === vorher[i]?.id)) return starters
-  const neu = redistributeNumbers([...geordnet])
   const klasse = geordnet[0].klasse
+  let neu = redistributeNumbers([...geordnet])
+  // Mit Startnummern-Bereichen (19.11.2026) bleiben die Nummern in ihrem Bereich: Die neue Folge gilt
+  // nur innerhalb jeder Größengruppe, und das Array folgt den Nummern. Ändert sich so nichts, bleibt der Stand.
+  // Fehlt noch jemandem die Nummer, ist nichts vergeben, das zu halten wäre: dann wie bisher.
+  const regeln = startNrRegeln(state, klasse)
+  if (state.startNrMode === 'klasse' && regeln.bereiche.length > 0 && geordnet.every((p) => p.startNr.trim() !== '')) {
+    neu = sortedByStartNr(verteileInBereichen(geordnet, klasse, regeln))
+    if (neu.every((p, i) => p.id === vorher[i]?.id && p.startNr === vorher[i]?.startNr)) return starters
+  }
   let i = 0
   return starters.map((p) => (p.klasse === klasse ? neu[i++] : p))
 }
@@ -52,8 +68,9 @@ function inFolge(starters: Starter[], vorher: readonly Starter[], geordnet: read
  * Alle Startnummern frisch vergeben – die einzige Stelle, die das tut; Lücken
  * und importierte Nummern gehen dabei verloren.
  *
- * - klassenbasiert: je Klasse fortlaufend (E01, E02 …, 101, 102 …) in der
- *   aktuellen Reihenfolge.
+ * - klassenbasiert: je Klasse in der aktuellen Reihenfolge – fortlaufend (E01, E02 …, 101,
+ *   102 …) oder, wo es Startnummern-Bereiche gibt, aus dem Bereich der Größe jedes Starters;
+ *   fehlende Westen werden übersprungen (domain/startnrBereiche.ts vergibKlasse, 19.11.2026).
  * - klassisch: fortlaufend in der Reihenfolge der Verzahnung (Manövrieren oder
  *   Parallel-Slalom), ab dem Startwert und ohne die zu überspringenden Nummern.
  *   Wer in dieser Reihenfolge nicht vorkommt (Klasse auf keinem Parcours),
@@ -62,7 +79,7 @@ function inFolge(starters: Starter[], vorher: readonly Starter[], geordnet: read
 export function assignStartNumbers(state: AppState): Starter[] {
   if (state.startNrMode === 'klasse') {
     const renumbered = CLASS_IDS.flatMap((k) =>
-      renumberSequential(sortedByStartNr(state.starters.filter((p) => p.klasse === k)), startNrPraefixe(state)),
+      vergibKlasse(sortedByStartNr(state.starters.filter((p) => p.klasse === k)), k, startNrRegeln(state, k)),
     )
     return replaceById(state.starters, renumbered)
   }
@@ -79,7 +96,7 @@ export function wendeStartnummernAn(state: AppState, action: StartnummernAenderu
       const target = state.starters.find((p) => p.id === action.id)
       if (!target) return state
       const inClass = sortedByStartNr(state.starters.filter((p) => p.klasse === target.klasse))
-      const starters = inFolge(state.starters, inClass, moveInOrder(inClass, action.id, action.target))
+      const starters = inFolge(state, state.starters, inClass, moveInOrder(inClass, action.id, action.target))
       return starters === state.starters ? state : { ...state, starters }
     }
 
@@ -91,7 +108,7 @@ export function wendeStartnummernAn(state: AppState, action: StartnummernAenderu
         const inClass = sortedByStartNr(state.starters.filter((p) => p.klasse === klasse))
         if (inClass.length < 2) continue
         const geordnet = action.type === 'ORDER_STARTERS' ? ordneNach(inClass, { spalte: action.nach, absteigend: action.absteigend }, state.originMode) : mische(inClass, action.saat + CLASS_IDS.indexOf(klasse))
-        starters = inFolge(starters, inClass, geordnet)
+        starters = inFolge(state, starters, inClass, geordnet)
       }
       return starters === state.starters ? state : { ...state, starters }
     }
@@ -107,5 +124,40 @@ export function wendeStartnummernAn(state: AppState, action: StartnummernAenderu
       const dolphinPraefix = action.praefix === 'D' ? 'D' : 'E'
       return dolphinPraefix === state.dolphinPraefix ? state : { ...state, dolphinPraefix }
     }
+
+    case 'SET_START_NR_BEREICHE': {
+      if (!CLASS_IDS.includes(action.klasse)) return state
+      const { [action.klasse]: _alt, ...andere } = state.startNrBereiche
+      const liste = action.bereiche === null ? null : normalisiereBereichsListe(action.bereiche)
+      const startNrBereiche: StartNrBereiche = liste === null ? andere : { ...andere, [action.klasse]: liste }
+      return JSON.stringify(startNrBereiche) === JSON.stringify(state.startNrBereiche) ? state : { ...state, startNrBereiche }
+    }
+
+    case 'SET_FEHLENDE_START_NR': {
+      const fehlendeStartNr = normalisiereFehlende(action.nummern)
+      return JSON.stringify(fehlendeStartNr) === JSON.stringify(state.fehlendeStartNr) ? state : { ...state, fehlendeStartNr }
+    }
   }
+}
+
+/** Eigene Startnummern-Bereiche aus einem gelesenen Stand (migrate): nur bekannte Klassen, brauchbare Einträge. */
+export function normalisiereStartNrBereiche(roh: unknown): StartNrBereiche {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
+  const out: StartNrBereiche = {}
+  for (const k of CLASS_IDS) {
+    const liste = normalisiereBereichsListe((roh as Record<string, unknown>)[k])
+    if (liste) out[k] = liste
+  }
+  return out
+}
+
+/** Fehlende Startnummern: Texte, getrimmt, groß geschrieben, ohne Leere und Doppelte. */
+export function normalisiereFehlende(roh: unknown): string[] {
+  if (!Array.isArray(roh)) return []
+  const out: string[] = []
+  for (const x of roh) {
+    const s = typeof x === 'string' || typeof x === 'number' ? String(x).trim().toUpperCase() : ''
+    if (s && !out.includes(s)) out.push(s)
+  }
+  return out
 }

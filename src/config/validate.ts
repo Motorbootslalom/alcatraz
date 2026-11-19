@@ -3,6 +3,8 @@ import { feldKennungen, spaltenKennung } from './feld.ts'
 import { findeKombi, kombiReihenfolge } from './kombi.ts'
 import { abwandlung, aufbauIds, eintragId, GERAETE, mitZeiten, nummerierung } from './zeitnahme.ts'
 import { AUFGABEN, aufloesen, BLICKE, BOJEN_IDS, hochziehen, istInlineKurzform, istKurzform } from './kurzform.ts'
+import { bereichsGrenzen, GROESSEN_GRUPPEN, istGroessenGruppe } from '../domain/startnrBereiche.ts'
+import type { ClassId } from '../types'
 import { POKAL_PLATZ_VARIANTEN, POKAL_VARIANTEN, STARTABSTAND_MAX, STARTABSTAND_MIN, STICH_KRITERIEN } from './schema.ts'
 import type {
   RawAufbau,
@@ -51,6 +53,8 @@ export type ConfigInput = {
   pokal?: { vorgabe?: string[]; uim?: { punkte?: number[]; beste?: number; mindestens?: number }; stichentscheid?: { zaehlt?: string; plaetze?: number } }
   pokalPunkte?: Record<string, number[]>
   startabstaende?: Record<string, unknown>
+  startNrPraefix?: Record<string, unknown>
+  startNrBereiche?: unknown
   disqualifikationen?: Array<Partial<RawDisq>>
   kataloge?: Record<string, Partial<RawKatalog>>
   hinweise?: Record<string, string>
@@ -704,6 +708,40 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
         if (!VALID_KLASSEN.has(klasse)) err('UNKNOWN_STARTABSTAND_KLASSE', `startabstaende nennt die unbekannte Klasse "${klasse}".`, 'startabstaende')
         if (!(typeof sekunden === 'number' && Number.isInteger(sekunden) && sekunden >= STARTABSTAND_MIN && sekunden <= STARTABSTAND_MAX))
           err('BAD_STARTABSTAND', `startabstaende.${klasse} muss eine ganze Zahl von ${STARTABSTAND_MIN} bis ${STARTABSTAND_MAX} Sekunden sein.`, 'startabstaende')
+      }
+  }
+
+  // ---- Startnummern-Bereiche (Westen nach Größe, 19.11.2026): bekannte Klassen, lesbare Nummern, ----
+  // von ≤ bis, bekannte Größengruppe, keine Überschneidung innerhalb der Klasse. Gelesen wird wie bei
+  // der Vergabe (domain/startnrBereiche.ts nummerDerKlasse) mit dem Präfix des Regelwerks.
+  if (raw.startNrBereiche !== undefined) {
+    const je: unknown = raw.startNrBereiche
+    const praefixe = Object.fromEntries(Object.entries(raw.startNrPraefix ?? {}).map(([k, v]) => [k, String(v)]))
+    if (!je || typeof je !== 'object' || Array.isArray(je)) err('BAD_STARTNR_BEREICHE', 'startNrBereiche nennt je Klasse eine Liste von Bereichen, z. B. { 5: [{ von: 501, bis: 510, gruppe: S-M }] }.', 'startNrBereiche')
+    else
+      for (const [klasse, liste] of Object.entries(je)) {
+        const wo = `startNrBereiche.${klasse}`
+        if (!VALID_KLASSEN.has(klasse)) {
+          err('UNKNOWN_STARTNR_KLASSE', `startNrBereiche nennt die unbekannte Klasse "${klasse}".`, 'startNrBereiche')
+          continue
+        }
+        if (!Array.isArray(liste)) {
+          err('BAD_STARTNR_BEREICHE', `${wo} muss eine Liste von Bereichen sein.`, wo)
+          continue
+        }
+        const gelesen: { von: number; bis: number }[] = []
+        for (const b of liste as Array<Record<string, unknown>>) {
+          const von = String(b?.von ?? '')
+          const bis = String(b?.bis ?? '')
+          if (!istGroessenGruppe(b?.gruppe)) err('BAD_STARTNR_GRUPPE', `${wo}: Größengruppe "${String(b?.gruppe)}" unbekannt (erlaubt: ${GROESSEN_GRUPPEN.join(', ')}).`, wo)
+          const g = bereichsGrenzen({ von, bis, gruppe: 'S-M' }, klasse as ClassId, praefixe)
+          if (!g) {
+            err('BAD_STARTNR_BEREICH', `${wo}: Bereich ${von}–${bis} ist keine aufsteigende Folge von Startnummern der Klasse.`, wo)
+            continue
+          }
+          if (gelesen.some((x) => g.von <= x.bis && x.von <= g.bis)) err('DUP_STARTNR_BEREICH', `${wo}: Bereich ${von}–${bis} überschneidet einen anderen.`, wo)
+          gelesen.push(g)
+        }
       }
   }
 

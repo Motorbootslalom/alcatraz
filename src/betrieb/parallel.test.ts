@@ -293,6 +293,33 @@ describe('Parallelslalom im Betrieb: Schritte der Start-Freigabe', () => {
     expect(frei(gross)).toEqual([p('pre', 1, 'E-1', 'E-2'), p('pre', 2, 'E-2', 'E-1'), p('pre', 2, '4-2', '4-1')])
   })
 
+  it('Halbfinale über „Alle Klassen weiter“: die Folge im Betrieb ist verzahnt (klein/groß im Wechsel, 19.11.2026)', () => {
+    const v = (k: string) => ({ [`${k}-1`]: [40, 40], [`${k}-2`]: [41, 41], [`${k}-3`]: [42, 42], [`${k}-4`]: [43, 43] })
+    let s = fahre(uim([...mk('E', 4), ...mk('4', 4)]), 'pre', { ...v('E'), ...v('4') })
+    s = reducer(s, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [{ klasse: 'E', runde: 'semi' }, { klasse: '4', runde: 'semi' }] })
+    s = beginne(s, 'semi')
+    const semi = lage(s, P).folge.filter((e) => e.punkt === 'runde:semi')
+    expect(semi.map((e) => e.key)).toEqual([
+      p('semi', 1, 'E-1', 'E-2'),
+      p('semi', 1, '4-1', '4-2'),
+      p('semi', 2, 'E-2', 'E-1'),
+      p('semi', 2, '4-2', '4-1'),
+      p('semi', 1, 'E-3', 'E-4'),
+      p('semi', 1, '4-3', '4-4'),
+      p('semi', 2, 'E-4', 'E-3'),
+      p('semi', 2, '4-4', '4-3'),
+    ])
+    // Die Start-Freigabe und die Anzeigetafel zeigen diese Folge: Nächster ist das kleine Boot, danach das große.
+    s = naechster(s)
+    const b = bereich(sichtOeffentlich(s))
+    expect(b.aktuell?.paar).toMatchObject({ attempt: 1 })
+    expect(b.aktuell?.key).toBe(p('semi', 1, 'E-1', 'E-2'))
+    expect(b.offen[0].key).toBe(p('semi', 1, '4-1', '4-2'))
+    // Gezielt das große Paar zeigen: Sein 2. Attempt rückt nicht vor – dazwischen fährt der andere Bootstyp.
+    s = reducer(s, { type: 'BETRIEB_ZEIGEN', bereich: P, ref: p('semi', 1, '4-1', '4-2'), vorher: b.aktuell!.key, zeit: 2000 })
+    expect(frei(s).slice(0, 2)).toEqual([p('semi', 2, 'E-2', 'E-1'), p('semi', 2, '4-2', '4-1')])
+  })
+
   it('Verschieben, Klasse aussetzen, vorziehen und Klasse vor sind gesperrt – der Plan gibt die Folge vor', () => {
     const s = naechster(beginne(uim(), 'pre'))
     const ref = p('pre', 1, 'E-3', null)

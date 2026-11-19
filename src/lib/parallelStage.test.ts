@@ -8,7 +8,7 @@ import { gesamtZeit } from './listenStand'
 import { parallelBoegen } from './parallelBogen'
 import { durchWiederholung, PARALLEL_ANNAHMEN, rundenErgebnis, rundenVermerke } from './parallelErgebnis'
 import { attemptSchluessel, rundenDisziplin } from './parallelSchluessel'
-import { klassenStand, offeneKlassen, stageBlaetter, stageDurchWiederholung, stageErgebnis } from './parallelStage'
+import { alleWeiter, klassenStaende, klassenStand, offeneKlassen, stageBlaetter, stageDurchWiederholung, stageErgebnis } from './parallelStage'
 import { beschreibe } from './verlauf'
 import { klassenPaare, normalisierePlaene, rundenName, vergleicheRunden, zerlegeRerun } from '../planung/parallelRunden'
 import type { AppState, ClassId, ParallelRunde, Starter } from '../types'
@@ -389,28 +389,177 @@ describe('Wiederholung (Pkt. 5.2.6)', () => {
 })
 
 describe('Festschreiben und Lösen im Reducer', () => {
-  it('eine zweite Klasse kommt hinter die erste in denselben Plan – deren Zeilen verschieben sich nicht', () => {
+  it('eine zweite Klasse kommt in denselben Plan, die Runde wird verzahnt wie der Vorlauf: klein/groß im Wechsel (19.11.2026)', () => {
     let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
     state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
     state = fest(state, 'semi', '4')
-    const zuerst = state.parallelPlaene.semi!.starts
     state = fest(state, 'semi', '1')
-    expect(state.parallelPlaene.semi!.starts.slice(0, 4)).toEqual(zuerst)
-    expect(state.parallelPlaene.semi!.starts.map((s) => [s.klasse, s.block, s.boot])).toEqual([
-      ['4', 0, 'gross'],
-      ['4', 0, 'gross'],
-      ['4', 1, 'gross'],
-      ['4', 1, 'gross'],
-      ['1', 2, 'klein'],
-      ['1', 2, 'klein'],
-      ['1', 3, 'klein'],
-      ['1', 3, 'klein'],
+    // Die Klassen in ihrer Folge im Vorlauf: Klasse 1 (klein) zuerst im Block, dann Klasse 4 (groß).
+    expect(state.parallelPlaene.semi!.starts.map((s) => [s.klasse, s.block, s.boot, s.attempt])).toEqual([
+      ['1', 0, 'klein', 1],
+      ['4', 0, 'gross', 1],
+      ['1', 0, 'klein', 2],
+      ['4', 0, 'gross', 2],
+      ['1', 1, 'klein', 1],
+      ['4', 1, 'gross', 1],
+      ['1', 1, 'klein', 2],
+      ['4', 1, 'gross', 2],
     ])
+    // Die Paare bleiben dieselben, im 2. Attempt mit getauschten Racecourses.
+    expect(paare(state, 'semi', '1')).toEqual([{ a: '1-1', b: '1-2' }, { a: '1-3', b: '1-4' }])
+    expect(paare(state, 'semi', '4')).toEqual([{ a: '4-1', b: '4-2' }, { a: '4-3', b: '4-4' }])
     // Listen der race officials gibt es damit auch für das Halbfinale: je Racecourse drei, klassenübergreifend.
     const boegen = parallelBoegen(state, konfig)
     expect(boegen.runden).toEqual(['pre', 'semi'])
     expect(boegen.boegen.filter((b) => b.runde?.runde === 'semi')).toHaveLength(6)
-    expect(boegen.boegen.find((b) => b.runde?.runde === 'semi')!.auftrag.zeilen.map((z) => z.nr)).toEqual(['401', '402', '403', '404', '101', '102', '103', '104'])
+  })
+
+  it('ist in der Runde schon etwas erfasst, kommt eine später festgeschriebene Klasse nur ans Ende', () => {
+    let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    state = fahre(fest(state, 'semi', '4'), 'semi', { '4-1': [40] }, 5000)
+    const zuerst = state.parallelPlaene.semi!.starts
+    state = fest(state, 'semi', '1')
+    expect(state.parallelPlaene.semi!.starts.slice(0, 4)).toEqual(zuerst)
+    expect(state.parallelPlaene.semi!.starts.map((s) => [s.klasse, s.block])).toEqual([
+      ['4', 0],
+      ['4', 0],
+      ['4', 1],
+      ['4', 1],
+      ['1', 2],
+      ['1', 2],
+      ['1', 3],
+      ['1', 3],
+    ])
+  })
+
+  it('im Betrieb begonnen: die Runde wird nicht mehr neu geordnet', () => {
+    let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    state = reducer(fest(state, 'semi', '4'), { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:semi', zeit: 6000 })
+    expect(state.betrieb.bereiche.parallel?.begonnen).toContain('runde:semi')
+    state = fest(state, 'semi', '1')
+    expect(state.parallelPlaene.semi!.starts.map((s) => s.klasse)).toEqual(['4', '4', '4', '4', '1', '1', '1', '1'])
+  })
+
+  it('„Alle Klassen weiter“: alle Klassen, die so weit sind, in einem Schritt; die übrigen bleiben', () => {
+    let state = uim([...mk('1', 4), ...mk('4', 4), ...mk('2', 4)])
+    state = fahre(state, 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    // Klasse 2 ist noch nicht fertig.
+    state = fahre(state, 'pre', { '2-1': [40, 40] })
+    const alle = alleWeiter(klassenStaende(state, konfig))
+    expect(alle.weiter).toEqual([
+      { klasse: '1', runde: 'semi' },
+      { klasse: '4', runde: 'semi' },
+    ])
+    expect(alle.bleiben).toEqual([{ klasse: '2', runde: 'pre', grund: 'laeuft' }])
+    // Die Action nennt auch Klasse 2 (veraltete Anzeige) – sie bleibt trotzdem.
+    const next = reducer(state, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [...alle.weiter, { klasse: '2', runde: 'semi' }], zeit: 7000 })
+    expect(next.parallelPlaene.semi!.starts.map((s) => [s.klasse, s.boot])).toEqual([
+      ['1', 'klein'],
+      ['4', 'gross'],
+      ['1', 'klein'],
+      ['4', 'gross'],
+      ['1', 'klein'],
+      ['4', 'gross'],
+      ['1', 'klein'],
+      ['4', 'gross'],
+    ])
+    expect(beschreibe({ type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: alle.weiter, zeit: 7000 }, next)).toEqual({ art: 'rundenFestAlle', n: 2 })
+    // Ein zweiter Klick ändert nichts – dieselbe Referenz.
+    expect(reducer(next, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: alle.weiter, zeit: 8000 })).toBe(next)
+  })
+
+  it('das Abmelde-X einer schon festgeschriebenen Klasse hält die Runde nicht fest: die nächste wird trotzdem verzahnt (Korrektur 19.11.2026)', () => {
+    let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    state = reducer(state, { type: 'ABMELDEN_STARTER', id: '1-2' })
+    state = fest(state, 'semi', '1')
+    // Das X steht schon in der Runde – erfasst hat aber niemand etwas.
+    expect(state.eingaben[attemptSchluessel('semi', 1)]['1-2']).toEqual({ [X]: 'X' })
+    state = fest(state, 'semi', '4')
+    expect(state.parallelPlaene.semi!.starts.map((s) => [s.klasse, s.block])).toEqual([
+      ['1', 0],
+      ['4', 0],
+      ['1', 0],
+      ['4', 0],
+      ['1', 1],
+      ['4', 1],
+      ['1', 1],
+      ['4', 1],
+    ])
+  })
+
+  it('ein von Hand erfasstes X eines nicht Abgemeldeten hält die Runde dagegen fest', () => {
+    let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    state = fest(state, 'semi', '1')
+    state = reducer(state, { type: 'SET_EINGABEN', zellen: [{ lauf: attemptSchluessel('semi', 1), starter: '1-2', feld: X, wert: 'X' }] })
+    state = fest(state, 'semi', '4')
+    expect(state.parallelPlaene.semi!.starts.map((s) => s.klasse)).toEqual(['1', '1', '1', '1', '4', '4', '4', '4'])
+  })
+
+  it('Lösen einer Klasse: die übrige rückt zusammen, als 2er-Blöcke ab Block 0', () => {
+    let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    state = reducer(state, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: alleWeiter(klassenStaende(state, konfig)).weiter })
+    const geloest = reducer(state, { type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'semi' })
+    expect(geloest.parallelPlaene.semi!.starts.map((s) => [s.klasse, s.block, s.attempt])).toEqual([
+      ['4', 0, 1],
+      ['4', 0, 2],
+      ['4', 1, 1],
+      ['4', 1, 2],
+    ])
+  })
+
+  it('„Alle Klassen weiter“: eine Klasse mit veraltetem Plan bleibt, auch wenn die Action sie nennt', () => {
+    let state = uim([...mk('1', 6), ...mk('4', 4)])
+    state = fahre(state, 'pre', { ...VORLAUF6, '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    state = fest(state, 'semi', '1')
+    // Protest im Vorlauf: Der Plan des Halbfinales von Klasse 1 ist veraltet.
+    state = fahre(state, 'pre', { '1-4': [43, null] })
+    const alle = alleWeiter(klassenStaende(state, konfig))
+    expect(alle.weiter).toEqual([{ klasse: '4', runde: 'semi' }])
+    expect(alle.bleiben).toEqual([{ klasse: '1', runde: 'semi', grund: 'veraltet' }])
+    const plan1 = klassenPaare(state.parallelPlaene.semi, '1')
+    const next = reducer(state, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [...alle.weiter, { klasse: '1', runde: 'semi' }, { klasse: '1', runde: 'final' }] })
+    expect(klassenPaare(next.parallelPlaene.semi, '1')).toEqual(plan1)
+    expect(next.parallelPlaene.final).toBeUndefined()
+    expect(klassenPaare(next.parallelPlaene.semi, '4')).toHaveLength(2)
+  })
+
+  it('„Alle Klassen weiter“ unter DM: nichts (Parallelslalom nur unter UIM)', () => {
+    const dm = reducer({ ...emptyState(), eventName: 'Musterpokal' }, { type: 'ADD_STARTERS', starters: [...mk('1', 4), ...mk('4', 4)] })
+    expect(reducer(dm, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [{ klasse: '1', runde: 'semi' }] })).toBe(dm)
+  })
+
+  it('„Alle Klassen weiter“: ein Gleichstand an der Grenze bleibt – die Wiederholung je Klasse', () => {
+    let state = uim([...mk('1', 6), ...mk('4', 4)])
+    state = fahre(state, 'pre', { ...VORLAUF6, '1-4': [43, 43], '1-5': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    const alle = alleWeiter(klassenStaende(state, konfig))
+    expect(alle.weiter).toEqual([{ klasse: '4', runde: 'semi' }])
+    expect(alle.bleiben).toEqual([{ klasse: '1', runde: 'rerun-pre-1', grund: 'rerun' }])
+  })
+
+  it('Finals nach dem Halbfinale für alle Klassen zugleich, verzahnt; um Platz 3 und 4 zuerst', () => {
+    let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    const alleFest = (s: AppState) => reducer(s, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: alleWeiter(klassenStaende(s, konfig)).weiter, zeit: 9000 })
+    state = alleFest(state)
+    state = fahre(state, 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43], '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] }, 10000)
+    state = alleFest(state)
+    expect(state.parallelPlaene.final!.starts.map((s) => [s.klasse, s.finale, s.block])).toEqual([
+      ['1', 3, 0],
+      ['4', 3, 0],
+      ['1', 3, 0],
+      ['4', 3, 0],
+      ['1', 1, 1],
+      ['4', 1, 1],
+      ['1', 1, 1],
+      ['4', 1, 1],
+    ])
   })
 
   it('Lösen nimmt die Starts der Klasse und ihre Werte der Runde; die andere Klasse bleibt', () => {

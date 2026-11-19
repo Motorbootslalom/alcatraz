@@ -119,6 +119,19 @@ describe('Konfigurations-Validierung', () => {
     expect(neu(120)).toEqual(['BAD_STARTABSTAENDE'])
   })
 
+  it('startNrBereiche (19.11.2026): bekannte Klassen, Nummern der Klasse, von ≤ bis, Größengruppe, keine Überschneidung', () => {
+    const codes = (mehr: Record<string, unknown>) => validateRawConfig(mehr as Parameters<typeof validateRawConfig>[0]).map((i) => i.code)
+    const neu = (startNrBereiche: unknown) => codes({ startNrPraefix: { E: 'E' }, startNrBereiche }).filter((c) => !codes({}).includes(c))
+    expect(neu({ E: [{ von: 'E101', bis: 'E130', gruppe: 'S-M' }], 5: [{ von: 501, bis: 510, gruppe: 'S-M' }, { von: 511, bis: 530, gruppe: 'L-XL' }] })).toEqual([])
+    expect(neu({ 5: [{ von: 510, bis: 501, gruppe: 'S-M' }] })).toEqual(['BAD_STARTNR_BEREICH'])
+    expect(neu({ 5: [{ von: 601, bis: 610, gruppe: 'S-M' }] })).toEqual(['BAD_STARTNR_BEREICH'])
+    expect(neu({ 5: [{ von: 501, bis: 510, gruppe: 'XL' }] })).toEqual(['BAD_STARTNR_GRUPPE'])
+    expect(neu({ 5: [{ von: 501, bis: 510, gruppe: 'S-M' }, { von: 510, bis: 520, gruppe: 'L-XL' }] })).toEqual(['DUP_STARTNR_BEREICH'])
+    expect(neu({ M: [] })).toEqual(['UNKNOWN_STARTNR_KLASSE'])
+    expect(neu({ 5: 'x' })).toEqual(['BAD_STARTNR_BEREICHE'])
+    expect(neu([1])).toEqual(['BAD_STARTNR_BEREICHE'])
+  })
+
   it('startabstaende: einstellungen.yaml nennt jede Klasse; ein Regelwerk ersetzt je Klasse und wird mitgeprüft', () => {
     const allgemein = (yamlLoad(texte.positionen) as RawQuelle).startabstaende ?? {}
     for (const k of ['E', '1', '2', '3', '4', '5', '6', '7']) expect(allgemein[k], `Klasse ${k}`).toBeGreaterThanOrEqual(30)

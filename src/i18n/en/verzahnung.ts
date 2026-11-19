@@ -3,18 +3,23 @@ import type de from '../de/verzahnung'
 /** Englisch zu de/verzahnung.ts – genau dieselben Schlüssel. */
 export default {
   'numbers.dolphinPrefix': 'Letter of the Dolphin numbers',
-  'numbers.dolphinPrefix.hint': 'E01 or D01. Applies to numbers that are newly assigned; existing ones stay until “Reassign race numbers” replaces them. Either way they sort as with a leading 0 – before the other classes.',
+  'numbers.dolphinPrefix.hint': 'E101 or D101 (without ranges E01 or D01). Applies to numbers that are newly assigned; existing ones stay until “Reassign race numbers” replaces them. Either way they sort as with a leading 0 – before the other classes.',
 
   'numbers.title': 'Race numbers',
+  'numbers.abweichung': '{n} number does not match the vest size: | {n} numbers do not match the vest size:',
+  'numbers.abweichung.fehlend': 'vest missing',
+  'numbers.abweichung.fremd': 'range of another size',
+  'numbers.abweichung.ausserhalb': 'outside the ranges',
+  'numbers.abweichung.ohneGroesse': 'no size',
   'numbers.mode.klasse': 'By class',
   'numbers.mode.klassisch': 'Consecutive',
   'numbers.hint.klasse':
-    'Each class has its own range of numbers (E01, E02 …, 101, 102 …). “Assign automatically” renumbers every class in its current order. Single numbers can be set by hand under “Edit”.',
+    'Each class has its own numbers. If the class has ranges by vest size (Settings, “Race numbers by vest size”), each driver gets, in the current order, the next free number from the range of their size (e.g. 501, 511, 529); missing vests are skipped. Without ranges, “Assign automatically” numbers every class consecutively from 01. Single numbers can be set by hand under “Edit”.',
   'numbers.hint.klassisch':
     'All drivers share one consecutive range (1, 2, 3 …). “Assign automatically” numbers them in interleaving order. Single numbers can be set by hand under “Edit”.',
   'numbers.assign': 'Assign automatically',
   'numbers.confirm.klasse':
-    'Assign all race numbers afresh?\n\nConsecutively from 01 within each class, in the current order. The existing numbers are overwritten.',
+    'Assign all race numbers afresh?\n\nWithin each class in the current order: with ranges by vest size from the range of the size, missing vests skipped; without ranges consecutively from 01. The existing numbers are overwritten.',
   'numbers.confirm.klassisch':
     'Assign all race numbers afresh?\n\nConsecutively in interleaving order. The existing numbers are overwritten.',
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BESETZUNG_HOECHSTENS, beispielEinteilung, beispielGewichte, besetzungsText } from './beispieldaten'
+import { BESETZUNG_HOECHSTENS, beispielBoote, beispielCoPiloten, beispielEinteilung, beispielGewichte, besetzungsText } from './beispieldaten'
+import { BOOTSNAMEN } from '../data/boote'
 import { zufallAus } from './beispielwerte'
 import { einteilungsZellen } from './einteilung'
 import { beschreibe } from './verlauf'
@@ -166,5 +167,51 @@ describe('Beispielgewichte', () => {
     expect(beispielGewichte(vorher, () => 0, zufallAus(1))).toEqual(vorher)
     const leer = emptyState()
     expect(reducer(leer, { type: 'FILL_BEISPIELGEWICHTE', saat: 1 })).toBe(leer)
+  })
+})
+
+describe('Beispiel-Boote und -Co-Piloten (19.11.2026)', () => {
+  it('DM: ein erfundener Bootsname für jede Klasse, keiner doppelt; Co-Piloten nur, wo das Regelwerk einen vorsieht', () => {
+    const stand = reducer(reducer(emptyState(), { type: 'FILL_BEISPIEL_BOOTE', saat: 3 }), { type: 'FILL_BEISPIEL_CO_PILOTEN', saat: 3 })
+    expect(Object.keys(stand.boote).sort()).toEqual(['1', '2', '3', '4', '5', '6', '7', 'E'])
+    const namen = Object.values(stand.boote)
+    expect(namen.every((n) => BOOTSNAMEN.includes(n!))).toBe(true)
+    expect(new Set(namen).size).toBe(namen.length)
+    // DM-Reglement C3 bzw. coPilot im YAML: E, 1, 2, 3.
+    expect(Object.keys(stand.coPiloten).sort()).toEqual(['1', '2', '3', 'E'])
+    for (const co of Object.values(stand.coPiloten)) {
+      const [vorname, nachname] = co!.split(' ')
+      expect(vornamen.has(vorname)).toBe(true)
+      expect(nachnamen.has(nachname)).toBe(true)
+    }
+    expect(new Set(Object.values(stand.coPiloten).map((c) => c!.split(' ')[1])).size).toBe(4)
+  })
+
+  it('UIM: nur die Klassen des Regelwerks; Klassen mit Startern außerhalb bekommen auch ein Boot', () => {
+    let stand = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    expect(Object.keys(reducer(stand, { type: 'FILL_BEISPIEL_BOOTE', saat: 1 }).boote).sort()).toEqual(['1', '2', '3', '4', '5', 'E'])
+    stand = { ...stand, starters: [starter('a', '7')] }
+    expect(Object.keys(reducer(stand, { type: 'FILL_BEISPIEL_BOOTE', saat: 1 }).boote)).toContain('7')
+  })
+
+  it('ersetzt die Angaben der gefüllten Klassen, übrige bleiben; deterministisch über die Saat', () => {
+    const vorher = { '4': 'Boot von Hand' }
+    const a = beispielBoote(vorher, ['E', '1'], zufallAus(5))
+    expect(a['4']).toBe('Boot von Hand')
+    expect(a).toEqual(beispielBoote(vorher, ['E', '1'], zufallAus(5)))
+    const co = beispielCoPiloten({ '5': 'Vor1 Nach1', E: 'Vor2 Nach2' }, ['E'], zufallAus(5))
+    expect(co['5']).toBe('Vor1 Nach1')
+    expect(co.E).not.toBe('Vor2 Nach2')
+    expect(co).toEqual(beispielCoPiloten({ '5': 'Vor1 Nach1', E: 'Vor2 Nach2' }, ['E'], zufallAus(5)))
+  })
+
+  it('reicht der Vorrat nicht, kommen Namen wieder – jede Klasse bekommt trotzdem einen', () => {
+    const klassen = Array.from({ length: BOOTSNAMEN.length + 2 }, () => 'E' as ClassId)
+    expect(() => beispielBoote({}, klassen, zufallAus(2))).not.toThrow()
+  })
+
+  it('steht im Verlauf als eigener Eintrag', () => {
+    expect(beschreibe({ type: 'FILL_BEISPIEL_BOOTE', saat: 1 }, emptyState())?.art).toBe('beispielBoote')
+    expect(beschreibe({ type: 'FILL_BEISPIEL_CO_PILOTEN', saat: 1 }, emptyState())?.art).toBe('beispielCoPiloten')
   })
 })

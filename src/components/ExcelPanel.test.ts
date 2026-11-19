@@ -177,6 +177,8 @@ describe('Einfügen aus Excel: Klasse gegen Geburtsjahr, Sperre nach den ersten 
 
   // Entscheidung 16.11.2026: Nummern, die erst der Import vergibt, zählen beim Wiedererkennen nicht.
   it('„Liste ersetzen“ ohne Startnummern: Wiedererkannte behalten Nummer und Gewicht, Neue erben nichts', async () => {
+    // Ohne Startnummern-Bereiche (19.11.2026): Mit der DM-Vorgabe bekäme Neu1 die frei gewordene Weste 101.
+    store.dispatch({ type: 'SET_START_NR_BEREICHE', klasse: '1', bereiche: [] })
     // Erfunden: Klasse 1 hat 101–103 mit Gewichten; die neue Liste ohne Nummern hat Alt2, Alt3 und Neu1.
     store.dispatch({
       type: 'IMPORT_STARTERS',
@@ -196,6 +198,32 @@ describe('Einfügen aus Excel: Klasse gegen Geburtsjahr, Sperre nach den ersten 
     expect(meldung).toContain('✓ 3 Starter übernommen')
     expect(meldung).toContain('1 Starter ohne Startnummer – ergänzt, alle anderen unverändert')
     expect(meldung).toContain('2 Starter ohne Startnummer an Klasse und Namen wiedererkannt – bisherige Nummern behalten')
+    wrapper.unmount()
+  })
+
+  it('„Liste ersetzen“ unter der DM-Vorgabe: Neu1 bekommt die frei gewordene Weste 101, erbt aber kein Gewicht (19.11.2026)', async () => {
+    store.dispatch({
+      type: 'IMPORT_STARTERS',
+      mode: 'replace',
+      starters: [1, 2, 3].map((n) => ({ id: `alt${n}`, startNr: `10${n}`, klasse: '1' as const, nachname: `Alt${n}`, vorname: 'X', verein: '', bundesland: '', geburtsdatum: '', groesse: 'M', gewicht: 40 + n })),
+    })
+    const wrapper = ansicht()
+    await wrapper.find('.export-head button[aria-expanded]').trigger('click')
+    await wrapper.find('textarea').setValue('Klasse\tNachname\tVorname\tGröße\n1\tNeu1\tY\tM\n1\tAlt3\tX\tM\n1\tAlt2\tX\tM')
+    await wrapper.find('.row button.primary').trigger('click')
+    const [neu, ...bisher] = store.state.value.starters
+    expect(`${neu.nachname}:${neu.startNr}:${neu.gewicht ?? '-'}`).toBe('Neu1:101:-')
+    expect(bisher.map((s) => `${s.id}:${s.startNr}:${s.gewicht}`)).toEqual(['alt3:103:43', 'alt2:102:42'])
+    wrapper.unmount()
+  })
+
+  it('Import einer ganzen Klasse ohne Nummern unter der DM-Vorgabe: je Größe aus ihrem Bereich, fehlende Westen übersprungen', async () => {
+    store.dispatch({ type: 'SET_FEHLENDE_START_NR', nummern: ['511'] })
+    const wrapper = ansicht()
+    await wrapper.find('textarea').setValue('Klasse\tNachname\tVorname\tGröße\n5\tNach1\tVor1\tXXL\n5\tNach2\tVor2\tS\n5\tNach3\tVor3\tL')
+    await wrapper.find('.row button.primary').trigger('click')
+    const nr = Object.fromEntries(store.state.value.starters.map((s) => [s.nachname, s.startNr]))
+    expect(nr).toEqual({ Nach1: '529', Nach2: '501', Nach3: '512' })
     wrapper.unmount()
   })
 

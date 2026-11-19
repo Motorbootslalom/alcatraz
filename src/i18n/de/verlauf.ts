@@ -105,6 +105,8 @@ export default {
   'history.what.beispielwerte': 'Beispielwerte eingetragen',
   'history.what.beispielBesetzung': 'Beispiel-Besetzung eingetragen',
   'history.what.beispielGewichte': 'Beispielgewichte eingetragen',
+  'history.what.beispielBoote': 'Beispiel-Boote eingetragen',
+  'history.what.beispielCoPiloten': 'Beispiel-Co-Piloten eingetragen',
   'history.what.import': '{n} Starter importiert | {n} Starter importiert',
   'history.what.starterNeu': '{n} Starter hinzugefügt | {n} Starter hinzugefügt',
   'history.what.beispielStarter': 'Beispiel-Starterfeld angelegt ({n} Starter) | Beispiel-Starterfeld angelegt ({n} Starter)',
@@ -136,6 +138,7 @@ export default {
   'history.what.gemerkt': 'Gemerkter Stand',
   'history.what.rundeFest': 'Parallel-Slalom: {round} festgeschrieben ({class})',
   'history.what.rundeGeloest': 'Parallel-Slalom: {round} gelöscht ({class})',
+  'history.what.rundenFestAlle': 'Parallel-Slalom: nächste Runde für {n} Klasse festgeschrieben | Parallel-Slalom: nächste Runde für {n} Klassen festgeschrieben',
   'history.what.nichtWerten': '„Disziplin nicht werten“ geändert',
 
   'backup.reset': 'Alles zurücksetzen',

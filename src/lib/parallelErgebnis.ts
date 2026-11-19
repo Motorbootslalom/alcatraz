@@ -86,6 +86,17 @@ export const PARALLEL_ANNAHMEN = {
    * stage“, letzter Platz ohne Punkte, die Dahinterliegenden rücken auf.)
    */
   disqInWiederholungDesVorlaufs: 'heat' as 'stage' | 'heat',
+  /**
+   * Verzahnung der Runden nach dem Vorlauf – Organisation, nicht Regel 960. WUNSCH DES NUTZERS
+   * vom 19.11.2026: „Es fährt immer großes Boot/kleines Boot im Wechsel“ – auch in Halbfinale,
+   * Finals und Wiederholungen, wie im Vorlauf (planung/parallelRunden.ts `verzahneRunde`). Die
+   * Klassen eines Bootstyps stehen in ihrer Folge im Vorlauf. Auslegung: Wird eine Klasse später
+   * festgeschrieben (oder gelöscht), ordnet das die Runde neu, solange darin nichts erfasst und
+   * sie im Betrieb nicht begonnen ist; danach kommt eine Klasse nur ans Ende (wie bisher je Paar
+   * ein 2er-Block), damit keine Zeile auf gedrucktem Papier oder auf der Tafel wandert.
+   * `false`: jede Klasse ans Ende, nie neu ordnen.
+   */
+  rundenVerzahnen: true as boolean,
 } as const
 
 /** Was die Wertung einer Runde von der Konfiguration braucht (config/konfig.ts `Konfig`). */

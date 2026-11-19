@@ -4,6 +4,7 @@ import type { KuerzelNorm } from '../domain/kuerzel'
 import { configFor, eigeneAuswahl, ROH_QUELLE, ROH_REGELWERKE, type RohRegelwerk } from './konfig'
 import { regelwerkInfo, type DisziplinWertung } from './build'
 import type { RawAufbau, StichKriterium } from './schema'
+import { normalisiereBereichsListe, type StartNrBereich, type StartNrBereiche, type StartNrRegeln } from '../domain/startnrBereiche'
 
 /**
  * Was eine Veranstaltung zur Auswahl hat: Regelwerke (aus der Ausschreibung) und
@@ -60,6 +61,8 @@ export interface Regelwerk {
   laenderKuerzel: KuerzelNorm
   /** Eigene Startabstände des Regelwerks je Klasse in Sekunden; ersetzen die allgemeinen ({@link STARTABSTAENDE}). */
   startabstaende: Partial<Record<ClassId, number>>
+  /** Nummernbereiche der Startnummern je Klasse nach Größengruppe der Westen (YAML `startNrBereiche`, 19.11.2026). */
+  startNrBereiche: StartNrBereiche
 }
 
 export interface Aufbau {
@@ -108,7 +111,19 @@ function readRegelwerk(raw: RohRegelwerk): Regelwerk {
     ...(info.versucheNacheinander === undefined ? {} : { versucheNacheinander: info.versucheNacheinander }),
     laenderKuerzel: info.laenderKuerzel,
     startabstaende: zahlenJeKlasse(raw.startabstaende),
+    startNrBereiche: bereicheJeKlasse(raw.startNrBereiche),
   }
+}
+
+/** Startnummern-Bereiche aus dem YAML: nur bekannte Klassen und brauchbare Einträge (geprüft in validate.ts). */
+function bereicheJeKlasse(roh: unknown): StartNrBereiche {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
+  const out: StartNrBereiche = {}
+  for (const [klasse, liste] of Object.entries(roh)) {
+    const bereiche = normalisiereBereichsListe(liste)
+    if (isClassId(klasse) && bereiche && bereiche.length > 0) out[klasse] = bereiche
+  }
+  return out
 }
 
 /** Regelwerke in Menü-Reihenfolge; das erste ist die Vorgabe. */
@@ -171,6 +186,29 @@ export function versucheNacheinander(stand: { regelwerk: string; versucheNachein
 export function startNrPraefixe(stand: { regelwerk: string; dolphinPraefix?: 'E' | 'D' }): Partial<Record<ClassId, string>> {
   const rw = regelwerkOf(stand.regelwerk)
   return rw.klassenNamen.E === undefined || stand.dolphinPraefix === undefined ? rw.startNrPraefix : { ...rw.startNrPraefix, E: stand.dolphinPraefix }
+}
+
+/** Die Startnummern-Bereiche des Regelwerks für eine Klasse; leer, wenn es keine nennt. */
+export function startNrBereicheVorgabe(regelwerkId: string, klasse: ClassId): StartNrBereich[] {
+  return regelwerkOf(regelwerkId).startNrBereiche[klasse] ?? []
+}
+
+/**
+ * Die Startnummern-Bereiche einer Klasse, wie die Vergabe sie nimmt: die eigenen der Veranstaltung
+ * (`AppState.startNrBereiche`, auch eine leere Liste = bewusst ohne Bereiche), sonst die des
+ * Regelwerks. Wie {@link startabstandOf} erst beim Lesen aufgelöst: Im Stand stehen nur eigene,
+ * ein Wechsel des Regelwerks bringt dessen Vorgabe mit (Entscheidung vom 19.11.2026).
+ */
+export function startNrBereicheOf(stand: { regelwerk: string; startNrBereiche: StartNrBereiche }, klasse: ClassId): StartNrBereich[] {
+  return stand.startNrBereiche[klasse] ?? startNrBereicheVorgabe(stand.regelwerk, klasse)
+}
+
+/** Alles, was die Vergabe der Startnummern einer Klasse braucht (domain/startnrBereiche.ts). */
+export function startNrRegeln(
+  stand: { regelwerk: string; dolphinPraefix?: 'E' | 'D'; startNrBereiche: StartNrBereiche; fehlendeStartNr: readonly string[] },
+  klasse: ClassId,
+): StartNrRegeln {
+  return { bereiche: startNrBereicheOf(stand, klasse), fehlend: stand.fehlendeStartNr, praefixe: startNrPraefixe(stand) }
 }
 
 /** Der wählbare Aufbau mit dieser Kennung; unbekannte (auch gelöschte oder abgelehnte eigene) fallen auf die Vorgabe zurück. */

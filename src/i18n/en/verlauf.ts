@@ -107,6 +107,8 @@ export default {
   'history.what.beispielwerte': 'Sample values filled in',
   'history.what.beispielBesetzung': 'Sample race officials filled in',
   'history.what.beispielGewichte': 'Sample weights filled in',
+  'history.what.beispielBoote': 'Sample boats filled in',
+  'history.what.beispielCoPiloten': 'Sample co-drivers filled in',
   'history.what.import': '{n} driver imported | {n} drivers imported',
   'history.what.starterNeu': '{n} driver added | {n} drivers added',
   'history.what.beispielStarter': 'Sample field created ({n} driver) | Sample field created ({n} drivers)',
@@ -138,6 +140,7 @@ export default {
   'history.what.gemerkt': 'Kept state',
   'history.what.rundeFest': 'Parallel slalom: {round} locked ({class})',
   'history.what.rundeGeloest': 'Parallel slalom: {round} deleted ({class})',
+  'history.what.rundenFestAlle': 'Parallel slalom: next heat locked for {n} class | Parallel slalom: next heat locked for {n} classes',
   'history.what.nichtWerten': '“Do not score a discipline” changed',
 
   'backup.reset': 'Reset everything',

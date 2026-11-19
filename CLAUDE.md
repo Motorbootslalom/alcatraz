@@ -88,6 +88,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Disq-Buchstabe, Fehlercode | config/regelwerke/<id>.yaml `disqualifikationen`/`kataloge`; regelwerke.test.ts |
 | Läufe, Stichentscheid | Regelwerk-YAML `wertungslaeufe`/`stichentscheid`; lib/ergebnis.ts; STICH_KRITERIEN |
 | Wertung Parallelslalom | lib/parallelErgebnis.ts PARALLEL_ANNAHMEN, parallelStage.ts; uim-2026.yaml |
+| Runden nach dem Vorlauf: Verzahnung, „Alle Klassen weiter“ | planung/parallel.ts verzahne (auch Vorlauf), parallelRunden.ts verzahneRunde; lib/parallelStage.ts alleWeiter; state/reducer/parallel.ts (gebunden: erfasst ohne Abmelde-X/begonnen; rundenNeuGeordnet → Rückfrage); components/ParallelRunden.vue |
 | Re-run: Wertung | lib/parallelErgebnis.ts qualifikation, mitWiederholung(en), rundenVermerke; „*“: durchWiederholung |
 | Re-run: Runde, Name | planung/parallelRunden.ts rerunRunde/zerlegeRerun/rundenName + sprache.ts bogenTexte().runde (Rundennamen doppelt: beide) |
 | Einzelwertung | lib/einzelwertung.ts EINZEL_FESTLEGUNGEN; lib/disziplinen.ts (nichtWerten) |
@@ -111,12 +112,14 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Datumsfeld | components/DatumFeld.vue (Textfeld, `sofort` = Formular); lib/datum.ts liesDatum; Import: import/tsv.ts |
 | Jahrgang passt nicht zur Klasse | import/klassenPruefung.ts (klassenFuerJahr, startendeJahrgaenge); Vorschlag in ManualAddForm, ClassSection (MOVE_STARTER_TO_CLASS), ExcelPanel (klasseJeZeile) |
 | Querverweis mit Auswahl | lib/adressen.ts drittes Segment `wahl` → router.ts useReiter `beiWahl`, bleibt per `wahlFuerAdresse` (Muster: WeighingView → ListsView gewichtHerkunft) |
+| Startnummern nach Westengröße, fehlende Westen | domain/startnrBereiche.ts (vergibKlasse, naechsteStartNr, verteileInBereichen); YAML `startNrBereiche` → config/catalog.ts startNrBereicheOf/startNrRegeln; AppState.startNrBereiche/fehlendeStartNr (state/reducer/startnummern.ts); components/StartNrBereichePanel.vue |
 | Dolphin-Präfix E/D | AppState.dolphinPraefix (state/reducer/startnummern.ts) → config/catalog.ts startNrPraefixe; components/StartNumberPanel.vue |
 | Herkunft der Veranstaltung | AppState.originMode, SET_ORIGIN_MODE (views/EventView.vue, state/reducer/veranstaltung.ts); Anzeige lib/origin.ts |
 | Neues Regelwerk / neue Angabe | regelwerke/<id>.yaml + regelwerke.yaml; Angabe: schema → validate → build → catalog |
 | Neuer Aufbau | config/aufbauten/<name>.yaml + aufbauten.yaml `dateien`; en.yaml; Snapshot erneuern |
 | Beispieldaten | components/BeispieldatenPanel.vue (Herkunft wie Veranstaltung, saat, Rückfragen); domain/generate.ts, data/*; |
 | … Werte, Besetzung, Gewichte | lib/beispielwerte.ts; lib/beispieldaten.ts; Actions FILL_BEISPIEL* in state/reducer/erfassung.ts |
+| … Boote, Co-Piloten (Beispiel) | data/boote.ts; lib/beispieldaten.ts beispielBoote/-CoPiloten, lib/besetzung.ts besetzungsKlassen/coPilotKlassen; Knöpfe lib/beispielBoote.ts (BesetzungPanel, BeispieldatenPanel) |
 | Sperre einer Action | state/reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS; klasseFest in reducer/starter.ts |
 | Logos auf den Listen | lib/logo.ts (Grenzen, logoWert, Maße), lib/logoBild.ts (Verkleinern), lib/listenLogos.ts (useListenLogos); components/KopfLogos.vue in jedem Listenkopf, LogosPanel.vue; styles/logos.css |
 | Offline, Update | scripts/offline-sw.js, scripts/offline-speicher.ts, lib/offline.ts, lib/update.ts |

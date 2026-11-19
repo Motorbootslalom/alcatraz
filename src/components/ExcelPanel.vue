@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useStore } from '../state/store'
-import { startNrPraefixe } from '../config/catalog'
+import { startNrPraefixe, startNrRegeln } from '../config/catalog'
 import {
   ergaenzteNummern,
   formatStartersTsv,
@@ -46,6 +46,7 @@ const parse = (text: string, mode: 'replace' | 'merge' = 'replace') =>
     assignMissing: state.value.startNrMode === 'klasse',
     landIstStaat: state.value.originMode === 'land',
     startNrPraefix: startNrPraefixe(state.value),
+    startNrRegeln: (k: ClassId) => startNrRegeln(state.value, k),
     klasseJeZeile: Object.fromEntries(Object.entries(umklassen.value).map(([zeile, u]) => [zeile, u.klasse])),
     ohneZeilen: Object.keys(weglassen.value).map(Number),
     ...(mode === 'merge' ? { vorhandene: state.value.starters } : { bisherige: state.value.starters }),

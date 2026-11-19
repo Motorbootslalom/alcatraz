@@ -22,6 +22,7 @@ import { normalisiereNichtWerten } from '../lib/disziplinen'
 import { istGeschlecht } from '../domain/geschlecht'
 import { logoHoeheZahl, logoWert } from '../lib/logo'
 import { serverEinstellung } from '../lib/serverAdresse'
+import { normalisiereFehlende, normalisiereStartNrBereiche } from './reducer/startnummern'
 
 /** Herkunft auf den Wertungslisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
 const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
@@ -154,6 +155,9 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     // Fehlen in Ständen vor diesen Angaben: jede gefahrene Disziplin zählt, Dolphin-Nummern mit E.
     nichtWerten: normalisiereNichtWerten(loaded.nichtWerten),
     dolphinPraefix: loaded.dolphinPraefix === 'D' ? 'D' : 'E',
+    // Fehlen in Ständen vor den Startnummern-Bereichen (19.11.2026): die Vorgabe des Regelwerks, keine fehlenden.
+    startNrBereiche: normalisiereStartNrBereiche(loaded.startNrBereiche),
+    fehlendeStartNr: normalisiereFehlende(loaded.fehlendeStartNr),
     // Vorgabe an (Entscheidung des Nutzers vom 15.11.2026); nur ein ausdrückliches „aus“ bleibt aus.
     parallelZebra: loaded.parallelZebra !== false,
     // Fehlen in Ständen vor den Logos (16.11.2026): keine, Vorgabehöhe. Fremde Adressen, Zu-Großes und Maße ≤ 0 entfallen.

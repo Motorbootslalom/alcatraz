@@ -190,6 +190,39 @@ export function schreibeRundeFest(stand: StageStand, konfig: StageKonfig, klasse
   return mitKlasse(stand.parallelPlaene ?? {}, runde, klasse, schritt.paare, boatTypeOf(klasse, stand.class4Small === true))
 }
 
+/** Warum eine Klasse bei „Alle Klassen weiter“ bleibt, wo sie ist. */
+export type BleibGrund = 'laeuft' | 'rerun' | 'veraltet'
+
+/** Was „Alle Klassen weiter“ tut: welche Klassen in ihre nächste Runde kommen und welche bleiben. */
+export interface AlleWeiter {
+  /** Je Klasse die Runde, die jetzt festgeschrieben wird (Halbfinale oder Finals), in der Folge des Vorlaufs. */
+  weiter: { klasse: ClassId; runde: ParallelRunde }[]
+  /** Klassen, deren Stage nicht fertig ist und die nicht mitkommen – mit der Runde, an der es hängt. */
+  bleiben: { klasse: ClassId; runde: ParallelRunde; grund: BleibGrund }[]
+}
+
+/**
+ * „Alle Klassen weiter“ (Wunsch des Nutzers vom 19.11.2026: „Nach den Vorläufen und dem Halbfinale
+ * wird als Ganzes weitergewechselt“): Jede Klasse, für die jetzt Halbfinale oder Finals anstehen
+ * (`naechste` aus {@link klassenStand} – dieselbe Prüfung wie beim Knopf je Klasse), kommt mit.
+ * Es bleiben: Klassen, deren Runde noch läuft; Klassen mit einem Gleichstand an der Grenze – die
+ * Wiederholung (Pkt. 5.2.6) wird weiter je Klasse festgeschrieben, weil sie nur die Gleichstehenden
+ * betrifft; Klassen mit einer veralteten Runde (erst lösen). Fertige Klassen fehlen in beiden Listen.
+ */
+export function alleWeiter(staende: readonly KlassenStand[]): AlleWeiter {
+  const weiter: AlleWeiter['weiter'] = []
+  const bleiben: AlleWeiter['bleiben'] = []
+  for (const ks of staende) {
+    if (ks.fertig) continue
+    const offen = offeneRunde(ks)
+    if (offen.veraltet) bleiben.push({ klasse: ks.klasse, runde: offen.runde, grund: 'veraltet' })
+    else if (ks.naechste && zerlegeRerun(ks.naechste.runde)) bleiben.push({ klasse: ks.klasse, runde: ks.naechste.runde, grund: 'rerun' })
+    else if (ks.naechste && ks.naechste.paare.length > 0) weiter.push({ klasse: ks.klasse, runde: ks.naechste.runde })
+    else bleiben.push({ klasse: ks.klasse, runde: offen.runde, grund: 'laeuft' })
+  }
+  return { weiter, bleiben }
+}
+
 /** Die Zeilen (Starter-IDs) einer Runde, zu denen Werte erfasst sind. */
 export function rundenWerte(eingaben: Eingaben, runde: ParallelRunde, ids: readonly string[]): string[] {
   return ids.filter((id) => [1, 2].some((attempt) => Object.keys(eingaben[attemptSchluessel(runde, attempt)]?.[id] ?? {}).length > 0))

@@ -196,27 +196,39 @@ export function buildParallelPlan(starters: Starter[], opts: ParallelOptions): P
   const klein = pool('klein')
   const gross = pool('gross')
 
-  const starts: ParallelStart[] = []
-  let block = 0
-  const emit = (pair: ParallelPair, run: 1 | 2) =>
-    starts.push({ boat: pair.boat, a: run === 1 ? pair.a : pair.b, b: run === 1 ? pair.b : pair.a, run, block })
+  const starts = verzahne(klein, gross).map(({ paar, run, block }): ParallelStart => ({ boat: paar.boat, a: run === 1 ? paar.a : paar.b, b: run === 1 ? paar.b : paar.a, run, block }))
+  return planAusStarts(starts)
+}
 
-  // Solange beide Bootstypen ein Paar liefern: 4er-Block mit Bootstyp-Wechsel.
+/** Ein Attempt eines Paares in der verzahnten Folge: Paar, 1. oder 2. Attempt, Block. */
+export interface VerzahnterStart<P> {
+  paar: P
+  run: 1 | 2
+  block: number
+}
+
+/**
+ * Die Paare beider Bootstypen verzahnen – die EINE Stelle dafür, im Vorlauf ({@link buildParallelPlan})
+ * wie in den Runden danach (planung/parallelRunden.ts `verzahneRunde`, Wunsch des Nutzers vom
+ * 19.11.2026: „Es fährt immer großes Boot/kleines Boot im Wechsel“). Organisation, nicht Regel 960:
+ * Solange beide Bootstypen ein Paar liefern, ist ein Block klein 1. Attempt, groß 1. Attempt, klein
+ * 2. Attempt, groß 2. Attempt – so hat jeder zwischen seinen Attempts Zeit für den Bootstausch.
+ * Die übrigen Paare des längeren Bootstyps laufen als 2er-Blöcke (1. Attempt, 2. Attempt).
+ */
+export function verzahne<P>(klein: readonly P[], gross: readonly P[]): VerzahnterStart<P>[] {
+  const folge: VerzahnterStart<P>[] = []
+  let block = 0
   const mixed = Math.min(klein.length, gross.length)
   for (let i = 0; i < mixed; i++) {
-    emit(klein[i], 1)
-    emit(gross[i], 1)
-    emit(klein[i], 2)
-    emit(gross[i], 2)
+    folge.push({ paar: klein[i], run: 1, block }, { paar: gross[i], run: 1, block }, { paar: klein[i], run: 2, block }, { paar: gross[i], run: 2, block })
     block++
   }
-  // Überzählige Paare des längeren Bootstyps (nur einer kann übrig sein): je Paar ein 2er-Block.
-  for (const pair of klein.slice(mixed).concat(gross.slice(mixed))) {
-    emit(pair, 1)
-    emit(pair, 2)
+  // Nur ein Bootstyp kann übrig sein: je Paar ein 2er-Block.
+  for (const paar of klein.slice(mixed).concat(gross.slice(mixed))) {
+    folge.push({ paar, run: 1, block }, { paar, run: 2, block })
     block++
   }
-  return planAusStarts(starts)
+  return folge
 }
 
 /** Kurzbeschreibung eines Startplatzes (Startnummer bzw. „Dummy") für Text-Export. */

@@ -1,12 +1,12 @@
 // Starterfeld: anlegen, importieren, ändern, in andere Klasse, entfernen, ab- und anmelden; Gewichte der Verwiegung.
 
 import type { AppState, ClassId, Starter } from '../../types'
-import { makeStartNr, parseClassNumber } from '../../domain/startnumbers'
+import { naechsteStartNr } from '../../domain/startnrBereiche'
 import { dublettenSchluessel, mergeStarters } from '../../import/starterMerge'
 import { nurStarter, setzeWerte, starterfeldFest } from '../../lib/eingaben'
 import { abmeldeZellen, mitAbmeldung, mitAbmeldungInRunden } from '../../lib/abmeldung'
 import { VORLAUF } from '../../planung/parallelRunden'
-import { regelwerkOf, startNrPraefixe } from '../../config/catalog'
+import { regelwerkOf, startNrRegeln } from '../../config/catalog'
 import { istGeschlecht } from '../../domain/geschlecht'
 import { konfigVon } from './gemeinsam'
 
@@ -120,13 +120,8 @@ export function wendeStarterAn(state: AppState, action: StarterAenderung): AppSt
       if (klasseFest(state)) return state
       const starter = state.starters.find((p) => p.id === action.id)
       if (!starter || starter.klasse === action.klasse) return state
-      const praefixe = startNrPraefixe(state)
-      let startNr = starter.startNr
-      if (state.startNrMode === 'klasse') {
-        let max = 0
-        for (const p of state.starters) if (p.klasse === action.klasse) max = Math.max(max, parseClassNumber(p.startNr, action.klasse, praefixe) ?? 0)
-        startNr = makeStartNr(action.klasse, max + 1, praefixe)
-      }
+      // Mit Startnummern-Bereichen (19.11.2026) die erste freie aus dem Bereich seiner Größe.
+      const startNr = state.startNrMode === 'klasse' ? naechsteStartNr(state.starters, action.klasse, starter.groesse, startNrRegeln(state, action.klasse)) : starter.startNr
       const geburtsdatum = action.geburtsdatum ?? starter.geburtsdatum
       return { ...state, starters: state.starters.map((p) => (p.id === starter.id ? { ...p, klasse: action.klasse, startNr, geburtsdatum } : p)) }
     }

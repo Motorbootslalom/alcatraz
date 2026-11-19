@@ -1,8 +1,9 @@
-// Erfassung: Werte setzen und löschen (alle oder Läufe/Runden); Beispielwerte, -Besetzung und -Gewichte aus der `saat`.
+// Erfassung: Werte setzen und löschen (alle oder Läufe/Runden); Beispielwerte, -Besetzung, -Gewichte, -Boote und -Co-Piloten aus der `saat`.
 
 import type { AppState, ParallelRunde } from '../../types'
 import { einteilungsZellen } from '../../lib/einteilung'
-import { beispielEinteilung, beispielGewichte } from '../../lib/beispieldaten'
+import { beispielBoote, beispielCoPiloten, beispielEinteilung, beispielGewichte } from '../../lib/beispieldaten'
+import { besetzungsKlassen, coPilotKlassen } from '../../lib/besetzung'
 import { parallelListen } from '../../lib/parallelBogen'
 import { gueltigeZellen, laufSchluessel, OHNE_LAUF, setzeWerte, type EingabeZelle } from '../../lib/eingaben'
 import { attemptSchluessel } from '../../lib/parallelSchluessel'
@@ -50,6 +51,14 @@ export type ErfassungAenderung =
    */
   | { type: 'FILL_BEISPIELGEWICHTE'; saat: number }
   /**
+   * Beispiel-Boote bzw. -Co-Piloten (Wunsch des Nutzers vom 19.11.2026): ein erfundener Bootsname
+   * für jede Klasse der Veranstaltung, eine erfundene Person für jede Klasse, in der das Regelwerk
+   * einen Co-Piloten vorsieht (lib/besetzung.ts besetzungsKlassen/coPilotKlassen). Ersetzt deren
+   * Angaben; die Rückfrage stellt die Oberfläche. Der Zufall steckt in der `saat`.
+   */
+  | { type: 'FILL_BEISPIEL_BOOTE'; saat: number }
+  | { type: 'FILL_BEISPIEL_CO_PILOTEN'; saat: number }
+  /**
    * Die erfassten Werte des Gewählten verwerfen: Läufe des Manövrierens (mit dem 1. Lauf auch die
    * Listen ohne Lauf, die Knoten – so, wie die Beispielwerte sie füllen) und/oder Runden des
    * Parallelslaloms (beide Attempts). Festgeschriebene Pläne bleiben. Bleibt danach kein Wert
@@ -96,6 +105,14 @@ export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): A
     case 'FILL_BEISPIELGEWICHTE': {
       if (state.starters.length === 0) return state
       return { ...state, starters: beispielGewichte(state.starters, (klasse) => sollgewichtOf(state.regelwerk, state.sollgewicht, klasse), zufallAus(action.saat)) }
+    }
+    case 'FILL_BEISPIEL_BOOTE': {
+      const klassen = besetzungsKlassen(state)
+      return klassen.length === 0 ? state : { ...state, boote: beispielBoote(state.boote, klassen, zufallAus(action.saat)) }
+    }
+    case 'FILL_BEISPIEL_CO_PILOTEN': {
+      const klassen = coPilotKlassen(state)
+      return klassen.length === 0 ? state : { ...state, coPiloten: beispielCoPiloten(state.coPiloten, klassen, zufallAus(action.saat)) }
     }
     case 'CLEAR_EINGABEN_TEIL': {
       const disziplin = konfigVon(state).getAufbau(state.aufbau).disziplin

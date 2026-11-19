@@ -22,6 +22,7 @@ import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
 // diese Datei weiter, damit jeder Import aus '…/state/reducer' bleibt.
 export { emptyState } from './reducer/veranstaltung'
 export { klasseFest } from './reducer/starter'
+export { rundenNeuGeordnet } from './reducer/parallel'
 export { assignStartNumbers } from './reducer/startnummern'
 export { ERGEBNIS_LISTEN_VORGABE, streichlaeufeWert } from './reducer/wertung'
 export {
@@ -199,6 +200,8 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_START_NR_MODE':
     case 'ASSIGN_START_NUMBERS':
     case 'SET_DOLPHIN_PRAEFIX':
+    case 'SET_START_NR_BEREICHE':
+    case 'SET_FEHLENDE_START_NR':
       return wendeStartnummernAn(state, action)
 
     case 'SET_VERZAHNUNG_LOCK':
@@ -217,6 +220,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_PARALLEL_ORDER_BY_STARTNR':
     case 'SET_PARALLEL_STRENG':
     case 'PARALLEL_RUNDE_FESTSCHREIBEN':
+    case 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN':
     case 'PARALLEL_RUNDE_LOESEN':
       return wendeParallelAn(state, action)
 
@@ -225,6 +229,8 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'FILL_BEISPIELWERTE':
     case 'FILL_BEISPIEL_BESETZUNG':
     case 'FILL_BEISPIELGEWICHTE':
+    case 'FILL_BEISPIEL_BOOTE':
+    case 'FILL_BEISPIEL_CO_PILOTEN':
     case 'CLEAR_EINGABEN_TEIL':
       return wendeErfassungAn(state, action)
 

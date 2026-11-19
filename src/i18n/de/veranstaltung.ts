@@ -83,6 +83,13 @@ export default {
   'crew.coPilotFor': 'Co-Pilot für {name}',
   'crew.boatPlaceholder': 'z. B. Boot 1',
   'crew.coPilotNone': 'nicht vorgesehen',
+  'crew.sample.boats': 'Beispiel-Boote',
+  'crew.sample.boatsTitle': 'Erfundene Bootsnamen für alle Klassen eintragen – zum Ausprobieren',
+  'crew.sample.boatsConfirm': 'Für {n} Klasse ist schon ein Boot eingetragen. Durch einen erfundenen Namen ersetzen? | Für {n} Klassen sind schon Boote eingetragen. Durch erfundene Namen ersetzen?',
+  'crew.sample.coPilots': 'Beispiel-Co-Piloten',
+  'crew.sample.coPilotsTitle': 'Erfundene Co-Piloten für die Klassen eintragen, in denen das Regelwerk einen vorsieht – zum Ausprobieren',
+  'crew.sample.coPilotsConfirm': 'Für {n} Klasse ist schon ein Co-Pilot eingetragen. Durch einen erfundenen Namen ersetzen? | Für {n} Klassen sind schon Co-Piloten eingetragen. Durch erfundene Namen ersetzen?',
+  'crew.sample.noCoPilots': 'Das Regelwerk sieht in keiner Klasse einen Co-Piloten vor.',
   'crew.privacyNote': 'Die Boote stehen auch in der Vorlage. Die Namen der Co-Piloten stehen – wie die der Wettkampfrichter – nur in der Sicherung: Eine Vorlage enthält keine Personennamen.',
   'crew.moved': 'Wer an welcher Liste sitzt (WKR-Einteilung), die Co-Piloten und die Boote stehen unter',
 } as const satisfies Record<string, string>

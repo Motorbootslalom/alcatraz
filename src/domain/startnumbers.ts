@@ -53,12 +53,16 @@ export function parseClassNumber(startNr: string, klasse: ClassId, praefixe?: St
  * nach der ganzen Nummer (E01 < E02 < E10, 301 < 311, 7 < 12). Ein Präfix aus Buchstaben vor
  * den Ziffern zählt wie eine 0 (Entscheidung des Nutzers vom 15.11.2026): E01 und D01 stehen wie
  * 001 vor 101, 201 … – die Klasse mit Präfix ist die jüngste und fährt zuerst. Ohne das stünden
- * Buchstaben hinter allen Ziffern. Bei gleichem Wert (E01 und 1) entscheidet die Schreibweise,
- * damit die Reihenfolge fest ist.
+ * Buchstaben hinter allen Ziffern. Bei gleichem Wert steht die Nummer mit Präfix vorn (E101 vor
+ * 101, E01 vor 1 – seit den DMYV-Westen E101–E130 vom 19.11.2026 haben E und 1 dieselben Zahlen,
+ * und die Klasse E fährt zuerst, z. B. beim Ordnen der Klassen nach ihrer kleinsten Nummer);
+ * sonst entscheidet die Schreibweise, damit die Reihenfolge fest ist.
  */
 export function vergleicheStartNr(a: string, b: string): number {
-  const wert = (nr: string) => nr.trim().replace(/^[A-Za-zÄÖÜäöü]+(?=\d)/, '0')
-  return wert(a).localeCompare(wert(b), 'de', { numeric: true }) || a.trim().localeCompare(b.trim(), 'de', { numeric: true })
+  const praefix = /^[A-Za-zÄÖÜäöü]+(?=\d)/
+  const wert = (nr: string) => nr.trim().replace(praefix, '0')
+  const mitPraefix = (nr: string) => (praefix.test(nr.trim()) ? 0 : 1)
+  return wert(a).localeCompare(wert(b), 'de', { numeric: true }) || mitPraefix(a) - mitPraefix(b) || a.trim().localeCompare(b.trim(), 'de', { numeric: true })
 }
 
 /**

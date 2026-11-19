@@ -3,7 +3,8 @@ import { geschlechtKuerzel, parseGeschlecht } from '../domain/geschlecht'
 import { uid } from '../domain/ids'
 import { CLASS_IDS } from '../domain/classes'
 import { normalizeSize } from '../domain/sizes'
-import { makeStartNr, orderBySize, parseClassNumber, sortedByStartNr, type StartNrPraefixe } from '../domain/startnumbers'
+import { orderBySize, parseClassNumber, sortedByStartNr, type StartNrPraefixe } from '../domain/startnumbers'
+import { naechsteStartNr, vergibKlasse, type StartNrRegeln } from '../domain/startnrBereiche'
 import { planEvent } from '../planung/plan'
 import { canonicalRunningNumbers } from '../planung/running'
 import { originOf } from '../lib/origin'
@@ -197,6 +198,8 @@ export function parseStartersTsv(
     assignMissing?: boolean
     landIstStaat?: boolean
     startNrPraefix?: StartNrPraefixe
+    /** Startnummern-Bereiche und fehlende Westen je Klasse (19.11.2026, config/catalog.ts startNrRegeln); fehlt = fortlaufend. */
+    startNrRegeln?: (klasse: ClassId) => StartNrRegeln
     vorhandene?: readonly Starter[]
     bisherige?: readonly Starter[]
     klasseJeZeile?: Readonly<Record<number, ClassId>>
@@ -281,7 +284,7 @@ export function parseStartersTsv(
   // Klassenbasierte Nummern lassen sich ergänzen; klassische vergibt die Verzahnung.
   const ergaenzen = options.assignMissing ?? true
   const nummerBehalten = ergaenzen && options.bisherige ? bisherigeNummern(starters, options.bisherige) : 0
-  const vergeben = ergaenzen ? fillMissingStartNumbers(starters, options.startNrPraefix, options.vorhandene) : []
+  const vergeben = ergaenzen ? fillMissingStartNumbers(starters, (k) => options.startNrRegeln?.(k) ?? { bereiche: [], fehlend: [], praefixe: options.startNrPraefix }, options.vorhandene) : []
 
   return {
     starters,
@@ -330,7 +333,7 @@ function bisherigeNummern(starters: Starter[], bisherige: readonly Starter[]): n
  * zählen die Starter der Veranstaltung mit (`vorhandene`): Hat die Klasse dort schon
  * Starter, fehlen aus ihrer Sicht nur einzelne Nummern. Liefert die Starter, die eine bekamen.
  */
-function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe, vorhandene: readonly Starter[] = []): Starter[] {
+function fillMissingStartNumbers(starters: Starter[], regelnFuer: (klasse: ClassId) => StartNrRegeln, vorhandene: readonly Starter[] = []): Starter[] {
   const uebergangen = new Set(vorhandene.map(dublettenSchluessel))
   const assigned: Starter[] = []
   for (const klasse of CLASS_IDS) {
@@ -340,14 +343,16 @@ function fillMissingStartNumbers(starters: Starter[], praefixe?: StartNrPraefixe
     if (missing.length === 0) continue
     assigned.push(...missing)
     if (bisher.length === 0 && missing.length === inClass.length) {
-      // Ganze Klasse ohne Nummern → nach Größe vergeben.
-      orderBySize(inClass).forEach((p, i) => {
-        p.startNr = makeStartNr(klasse, i + 1, praefixe)
+      // Ganze Klasse ohne Nummern → nach Größe vergeben; mit Startnummern-Bereichen aus dem Bereich
+      // jeder Größe, fehlende Westen übersprungen (domain/startnrBereiche.ts, 19.11.2026).
+      const geordnet = orderBySize(inClass)
+      const neu = vergibKlasse(geordnet, klasse, regelnFuer(klasse))
+      geordnet.forEach((p, i) => {
+        p.startNr = neu[i].startNr
       })
     } else {
-      let max = 0
-      for (const p of [...bisher, ...inClass]) max = Math.max(max, parseClassNumber(p.startNr, klasse, praefixe) ?? 0)
-      for (const p of missing) p.startNr = makeStartNr(klasse, ++max, praefixe)
+      // Einzelne fehlen: je Starter die nächste freie (mit Bereichen aus dem seiner Größe), in Eingangsfolge.
+      for (const p of missing) p.startNr = naechsteStartNr([...bisher, ...inClass], klasse, p.groesse, regelnFuer(klasse))
     }
   }
   return assigned

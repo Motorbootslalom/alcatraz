@@ -62,6 +62,9 @@ export function emptyState(): AppState {
     pokal: POKAL_LEER,
     nichtWerten: {},
     dolphinPraefix: 'E',
+    // Startnummern-Bereiche: die Vorgabe des Regelwerks (beim Lesen aufgelöst), keine fehlenden Westen (19.11.2026).
+    startNrBereiche: {},
+    fehlendeStartNr: [],
     parallelZebra: true,
     // Anfangs keine Logos, unter jedem Regelwerk (Entscheidung des Nutzers vom 16.11.2026).
     logos: { links: null, rechts: null },

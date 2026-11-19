@@ -119,6 +119,24 @@ describe('DM 2026', () => {
   })
 })
 
+describe('Startnummern-Bereiche (DMYV-Liste, 19.11.2026)', () => {
+  it('DM 2026 trägt die DMYV-Liste; Klasse 3 ohne L-XL; UIM ohne Bereiche', () => {
+    const kurz = (id: string) =>
+      Object.fromEntries(Object.entries(regelwerkOf(id).startNrBereiche).map(([k, l]) => [k, (l ?? []).map((b) => `${b.von}-${b.bis} ${b.gruppe}`).join(', ')]))
+    expect(kurz('dm-2026')).toEqual({
+      E: 'E101-E130 S-M',
+      1: '101-130 S-M',
+      2: '201-230 S-M',
+      3: '301-330 S-M',
+      4: '401-420 S-M, 421-430 L-XL',
+      5: '501-510 S-M, 511-528 L-XL, 529-530 XXL',
+      6: '601-610 S-M, 611-625 L-XL, 626-630 XXL',
+      7: '701-710 S-M, 711-725 L-XL, 726-730 XXL',
+    })
+    expect(regelwerkOf('uim-2026').startNrBereiche).toEqual({})
+  })
+})
+
 describe('UIM 2026', () => {
   it('kennt nur die Klassen E bis 5', () => {
     applyRegelwerk('uim-2026')

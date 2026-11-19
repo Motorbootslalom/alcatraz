@@ -3,8 +3,8 @@ import { computed, ref } from 'vue'
 import { useStore } from '../state/store'
 import { birthYearRange } from '../domain/classes'
 import { SIZES } from '../domain/sizes'
-import { makeStartNr, parseClassNumber } from '../domain/startnumbers'
-import { startNrPraefixe } from '../config/catalog'
+import { naechsteStartNr } from '../domain/startnrBereiche'
+import { startNrRegeln } from '../config/catalog'
 import { uid } from '../domain/ids'
 import { useEvent } from '../lib/event'
 import { originField, originLabelKey } from '../lib/origin'
@@ -27,13 +27,13 @@ const groesse = ref('')
 /** Meldung des Datumsfelds: ein Datum, das es nicht gibt, oder ein unbekanntes Muster. */
 const datumFehler = ref('')
 
-/** Klassenbasiert folgt die nächste Nummer der Klasse; klassische bleiben leer, bis sie vergeben werden. */
+/**
+ * Klassenbasiert folgt die nächste freie Nummer der Klasse – mit Startnummern-Bereichen die erste
+ * freie aus dem Bereich der Größe (19.11.2026); klassische bleiben leer, bis sie vergeben werden.
+ */
 function nextStartNr(klasse: ClassId): string {
   if (state.value.startNrMode === 'klassisch') return ''
-  let max = 0
-  const praefixe = startNrPraefixe(state.value)
-  for (const p of state.value.starters) if (p.klasse === klasse) max = Math.max(max, parseClassNumber(p.startNr, klasse, praefixe) ?? 0)
-  return makeStartNr(klasse, max + 1, praefixe)
+  return naechsteStartNr(state.value.starters, klasse, groesse.value, startNrRegeln(state.value, klasse))
 }
 
 /**

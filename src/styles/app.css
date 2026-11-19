@@ -2588,6 +2588,12 @@ fieldset.lockable:disabled .drag-handle {
   border-style: dashed;
 }
 
+/* Beispiel-Boote und -Co-Piloten (19.11.2026): klein unter der Tabelle, sie sind nur zum Ausprobieren. */
+.besetzung-beispiel {
+  gap: 8px;
+  margin-top: 8px;
+}
+
 /* Schmal (Handy): je Klasse ein Block, „Boot“ und „Co-Pilot“ stehen vor ihrem Feld – nichts rollt quer. */
 @media (max-width: 560px) {
   .besetzung-stand {
@@ -3448,6 +3454,43 @@ table.starters th .sortier-kopf:disabled {
 .betrieb-abstand {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* Startnummern nach Westengröße (Einstellungen, components/StartNrBereichePanel.vue, 19.11.2026). */
+.startnr-bereiche th,
+.startnr-bereiche td {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.startnr-bereiche th {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.startnr-bereich {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-bottom: 4px;
+}
+
+.startnr-bereich .input {
+  width: 5.5em;
+}
+
+.startnr-bereich .input.invalid {
+  border-color: var(--danger, #dc2626);
+}
+
+.startnr-knoepfe {
+  white-space: nowrap;
+}
+
+.startnr-warn {
+  color: var(--danger);
 }
 
 /* Startabstände in den Einstellungen (SettingsView `#betrieb`). */

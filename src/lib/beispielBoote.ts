@@ -1,0 +1,33 @@
+import { computed } from 'vue'
+import { useStore } from '../state/store'
+import { besetzungsKlassen, besetzungText, coPilotKlassen } from './besetzung'
+import { neueSaat } from './saat'
+import { tn } from '../i18n'
+
+/**
+ * Knöpfe „Beispiel-Boote“ und „Beispiel-Co-Piloten“ (Wunsch des Nutzers vom 19.11.2026): im
+ * Block „Besetzung“ (BesetzungPanel.vue), wo beides gepflegt wird, und unter „Beispieldaten“
+ * (BeispieldatenPanel.vue) neben der Beispiel-Besetzung der WKR. Eine Stelle für Zählung und
+ * Rückfrage, damit beide Knöpfe dasselbe fragen. Was schon eingetragen ist, wird nie still
+ * ersetzt – wie bei den übrigen Beispieldaten erst nach Rückfrage. Gefüllt werden dieselben
+ * Klassen, die der Reducer füllt (lib/besetzung.ts besetzungsKlassen/coPilotKlassen).
+ */
+export function useBeispielBoote() {
+  const { state, dispatch } = useStore()
+  const bootKlassen = computed(() => besetzungsKlassen(state.value))
+  const coKlassen = computed(() => coPilotKlassen(state.value))
+  const booteDa = computed(() => bootKlassen.value.filter((k) => besetzungText(state.value.boote, k) !== '').length)
+  const coPilotenDa = computed(() => coKlassen.value.filter((k) => besetzungText(state.value.coPiloten, k) !== '').length)
+
+  function beispielBoote() {
+    if (booteDa.value > 0 && !confirm(tn('crew.sample.boatsConfirm', booteDa.value))) return
+    dispatch({ type: 'FILL_BEISPIEL_BOOTE', saat: neueSaat() })
+  }
+
+  function beispielCoPiloten() {
+    if (coPilotenDa.value > 0 && !confirm(tn('crew.sample.coPilotsConfirm', coPilotenDa.value))) return
+    dispatch({ type: 'FILL_BEISPIEL_CO_PILOTEN', saat: neueSaat() })
+  }
+
+  return { bootKlassen, coKlassen, beispielBoote, beispielCoPiloten }
+}

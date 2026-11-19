@@ -1,8 +1,12 @@
 // Parallelslalom: Schalter des Startplans (Reihenfolge, strenge Klassentrennung) und Runden festschreiben bzw. lösen.
 
 import type { AppState, ClassId, ParallelRunde } from '../../types'
-import { mitAbmeldungenInRunden } from '../../lib/abmeldung'
-import { loeseRunde, schreibeRundeFest } from '../../lib/parallelStage'
+import { mitAbmeldungenInRunden, NICHT_GESTARTET } from '../../lib/abmeldung'
+import { alleWeiter, klassenStaende, loeseRunde, schreibeRundeFest } from '../../lib/parallelStage'
+import { klassenDerRunde, PARALLEL_ANNAHMEN } from '../../lib/parallelErgebnis'
+import { zerlegeAttempt } from '../../lib/parallelSchluessel'
+import { VORLAUF, verzahneRunde } from '../../planung/parallelRunden'
+import { betriebVon, PARALLEL_BEREICH, rundenPunkt } from '../../betrieb/folge'
 import { hasParallel } from '../../config/catalog'
 import { konfigVon } from './gemeinsam'
 
@@ -18,6 +22,81 @@ export type ParallelAenderung =
    */
   | { type: 'PARALLEL_RUNDE_FESTSCHREIBEN'; klasse: ClassId; runde: ParallelRunde }
   | { type: 'PARALLEL_RUNDE_LOESEN'; klasse: ClassId; runde: ParallelRunde }
+  /**
+   * „Alle Klassen weiter“ (Wunsch des Nutzers vom 19.11.2026): für jede genannte Klasse ihre
+   * nächste Runde in EINEM Schritt (ein Eintrag im Verlauf). Die Action nennt, was die Oberfläche
+   * gezeigt hat; es wirkt nur, was jetzt noch ansteht (lib/parallelStage.ts `alleWeiter`, dieselbe
+   * Prüfung wie beim Knopf je Klasse) – ein zweites Fenster oder ein doppelter Klick ändert nichts.
+   */
+  | { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN'; schritte: { klasse: ClassId; runde: ParallelRunde }[] }
+
+/**
+ * Ist in der Runde etwas erfasst? Nicht mit: das X eines Abgemeldeten, das festschreiben() beim
+ * Festschreiben einer Klasse selbst einträgt (lib/abmeldung.ts) – sonst hielte das Festschreiben
+ * der einen Klasse die Runde für die nächste schon fest, obwohl niemand etwas erfasst hat, und die
+ * nächste Klasse käme ohne den Wechsel klein/groß ans Ende (Korrektur vom 19.11.2026).
+ */
+function rundeErfasst(state: AppState, runde: ParallelRunde): boolean {
+  const ab = new Set(state.abgemeldet)
+  return Object.entries(state.eingaben).some(
+    ([schluessel, zeilen]) =>
+      zerlegeAttempt(schluessel)?.runde === runde &&
+      Object.entries(zeilen).some(([starter, werte]) => !(ab.has(starter) && Object.values(werte).every((w) => w === NICHT_GESTARTET))),
+  )
+}
+
+/**
+ * Darf die Runde nicht mehr neu geordnet werden? Sobald darin etwas erfasst ist (die Zeilen stehen
+ * auf Papier und in der Erfassung) oder sie im Betrieb begonnen ist (die Tafel zeigt ihre Folge),
+ * kommt eine Klasse nur noch ans Ende – PARALLEL_ANNAHMEN.rundenVerzahnen.
+ */
+function rundeGebunden(state: AppState, runde: ParallelRunde): boolean {
+  return rundeErfasst(state, runde) || betriebVon(state, PARALLEL_BEREICH).begonnen.includes(rundenPunkt(runde))
+}
+
+/**
+ * Welche Runden das Festschreiben dieser Schritte neu ordnete: Sie haben schon Starts anderer
+ * Klassen und sind nicht gebunden – deren Zeilen rücken also. Die Oberfläche fragt dann nach
+ * (components/ParallelRunden.vue), weil schon gedruckte Listen der Runde nicht mehr passten
+ * (Prüfbefund vom 19.11.2026: beim Löschen gab es die Warnung schon, beim Festschreiben nicht).
+ */
+export function rundenNeuGeordnet(state: AppState, schritte: readonly { klasse: ClassId; runde: ParallelRunde }[]): ParallelRunde[] {
+  if (!PARALLEL_ANNAHMEN.rundenVerzahnen) return []
+  const runden = [...new Set(schritte.map((s) => s.runde))]
+  return runden.filter((runde) => {
+    const neu = new Set(schritte.filter((s) => s.runde === runde).map((s) => s.klasse))
+    const plan = state.parallelPlaene[runde]
+    return !!plan && plan.starts.some((s) => s.klasse !== undefined && !neu.has(s.klasse)) && !rundeGebunden(state, runde)
+  })
+}
+
+/** Die Runden `runden` als Ganzes verzahnen (klein/groß im Wechsel, Klassen in der Folge des Vorlaufs). */
+function verzahnt(state: AppState, runden: Iterable<ParallelRunde>): AppState {
+  if (!PARALLEL_ANNAHMEN.rundenVerzahnen) return state
+  const folge = klassenDerRunde(state, VORLAUF)
+  let parallelPlaene = state.parallelPlaene
+  for (const runde of runden) parallelPlaene = verzahneRunde(parallelPlaene, runde, folge)
+  return parallelPlaene === state.parallelPlaene ? state : { ...state, parallelPlaene }
+}
+
+/** Runden je Klasse festschreiben – für den Knopf je Klasse und für „Alle Klassen weiter“. */
+function festschreiben(state: AppState, schritte: readonly { klasse: ClassId; runde: ParallelRunde }[]): AppState {
+  if (!hasParallel(state.regelwerk)) return state
+  const konfig = konfigVon(state)
+  // Gebunden oder nicht entscheidet der Stand VOR dem Schritt: Das X eines Abgemeldeten, das beim
+  // Festschreiben gleich eingetragen wird, ist kein erfasster Wert, der die Runde festhielte.
+  const ordnen = new Set(schritte.map((s) => s.runde).filter((r) => !rundeGebunden(state, r)))
+  let next = state
+  for (const { klasse, runde } of schritte) {
+    const parallelPlaene = schreibeRundeFest(next, konfig, klasse, runde)
+    if (!parallelPlaene) continue
+    // Wer abgemeldet ist und trotzdem in der Runde steht, bekommt dort gleich sein X – nur in
+    // der Klasse, die festgeschrieben wird: Ein X, das in einer anderen Klasse derselben Runde
+    // von Hand entfernt wurde (er fährt doch), bleibt entfernt.
+    next = mitAbmeldungenInRunden({ ...next, parallelPlaene }, konfig, [runde], klasse)
+  }
+  return next === state ? state : verzahnt(next, ordnen)
+}
 
 export function wendeParallelAn(state: AppState, action: ParallelAenderung): AppState {
   switch (action.type) {
@@ -27,19 +106,25 @@ export function wendeParallelAn(state: AppState, action: ParallelAenderung): App
     case 'SET_PARALLEL_STRENG':
       return action.value === state.parallelStreng ? state : { ...state, parallelStreng: action.value }
 
-    case 'PARALLEL_RUNDE_FESTSCHREIBEN': {
-      const konfig = konfigVon(state)
-      const parallelPlaene = hasParallel(state.regelwerk) ? schreibeRundeFest(state, konfig, action.klasse, action.runde) : null
-      if (!parallelPlaene) return state
-      // Wer abgemeldet ist und trotzdem in der Runde steht, bekommt dort gleich sein X – nur in
-      // der Klasse, die festgeschrieben wird: Ein X, das in einer anderen Klasse derselben Runde
-      // von Hand entfernt wurde (er fährt doch), bleibt entfernt.
-      return mitAbmeldungenInRunden({ ...state, parallelPlaene }, konfig, [action.runde], action.klasse)
+    case 'PARALLEL_RUNDE_FESTSCHREIBEN':
+      return festschreiben(state, [{ klasse: action.klasse, runde: action.runde }])
+
+    case 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN': {
+      if (!hasParallel(state.regelwerk)) return state
+      const jetzt = new Set(alleWeiter(klassenStaende(state, konfigVon(state))).weiter.map((s) => `${s.klasse}|${s.runde}`))
+      return festschreiben(
+        state,
+        action.schritte.filter((s) => jetzt.has(`${s.klasse}|${s.runde}`)),
+      )
     }
 
     case 'PARALLEL_RUNDE_LOESEN': {
       const geloest = loeseRunde(state, konfigVon(state), action.klasse, action.runde)
-      return geloest ? { ...state, ...geloest } : state
+      if (!geloest) return state
+      const next = { ...state, ...geloest }
+      // Ohne die Klasse rückt die Runde wieder zusammen – nur, solange darin nichts erfasst und sie
+      // im Betrieb nicht begonnen ist (PARALLEL_ANNAHMEN.rundenVerzahnen).
+      return rundeGebunden(next, action.runde) ? next : verzahnt(next, [action.runde])
     }
   }
 }

@@ -186,8 +186,8 @@ export function baue(
   const scheme = positionen.beschriftungen?.find((b) => b.id === wahl.beschriftung)
   // `disziplinen` des Regelwerks (Kennungen) gehört nicht in die Listen-Konfiguration;
   // dort sind es die Disziplinen der Positionsdateien. Ebenso die Startabstände (nur für den Betrieb,
-  // config/catalog.ts startabstandOf): Zusammengelegt verdeckten die allgemeinen die des Regelwerks.
-  const { disziplinen: _disziplinen, gewichte: _gewichte, coPilot: _coPilot, startabstaende: _abstaende, ...ohneDisziplinen } = regelwerk as RohRegelwerk
+  // config/catalog.ts startabstandOf) und die Startnummern-Bereiche (nur für die Vergabe): Zusammengelegt verdeckten die allgemeinen die des Regelwerks.
+  const { disziplinen: _disziplinen, gewichte: _gewichte, coPilot: _coPilot, startabstaende: _abstaende, startNrBereiche: _bereiche, ...ohneDisziplinen } = regelwerk as RohRegelwerk
   const { startabstaende: _allgemein, ...positionenOhneAbstaende } = positionen
   const raw: RawConfig = {
     ...ohneDisziplinen,

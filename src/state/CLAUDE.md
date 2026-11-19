@@ -68,8 +68,10 @@
 - Tor 5 zieht zentral in reducer() um, nicht je Action; LOAD_STATE/RESET_ALL nicht, Vorlage in apply() selbst.
 - wkrSprachen wie einteilung (Parcours → Liste → Sprache): SET_PARCOURS_PRESET/REMOVE_PARCOURS hängen beide um; migrate
   verteilt Altes je Liste auf alle Parcours (normalisiereSprachen); als Einstellung in der Vorlage (mit deren Parcours).
-- Beispieldaten-Actions (FILL_BEISPIELWERTE, FILL_BEISPIEL_BESETZUNG, FILL_BEISPIELGEWICHTE) bringen nur die `saat`; was
-  gefüllt wird, rechnet der Reducer aus dem Stand (konfigVon). Die Rückfrage vor dem Ersetzen stellt BeispieldatenPanel.
+- Beispieldaten-Actions (FILL_BEISPIELWERTE, FILL_BEISPIEL_BESETZUNG, FILL_BEISPIELGEWICHTE, FILL_BEISPIEL_BOOTE,
+  FILL_BEISPIEL_CO_PILOTEN) bringen nur die `saat`; was gefüllt wird, rechnet der Reducer aus dem Stand (konfigVon,
+  lib/besetzung.ts besetzungsKlassen/coPilotKlassen). Die Rückfrage vor dem Ersetzen stellt die Oberfläche
+  (BeispieldatenPanel, lib/beispielBoote.ts).
 - CLEAR_EINGABEN löscht auch abgemeldet, abgemeldetBis, nichtWerten und alle Runden nach dem Vorlauf; ein einzeln
   geleertes Feld löst den Vorlaufplan nicht (15.11.2026). CLEAR_EINGABEN_TEIL, das alles leert, ruft den case direkt.
 - Werte erfasst (lib/eingaben.ts starterfeldFest) ⇒ Starterfeld, Regelwerk gesperrt; Tests: testHilfen.wechsleRegelwerk.

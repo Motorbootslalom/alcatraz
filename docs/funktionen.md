@@ -61,6 +61,8 @@ Herkunft (Verein, Bundesland, Land oder ohne), Regelwerk und Aufbau auf.
   Sie zeigt die Namen der Einteilung nur an.
 - Der Name des Co-Piloten steht – wie die Namen der Wettkampfrichter – nur in der Sicherung, nie in der Vorlage.
   Das Boot der Klasse steht auch in der Vorlage (`src/lib/besetzung.ts`).
+- Unter der Tabelle füllen „Beispiel-Boote“ und „Beispiel-Co-Piloten“ sie mit erfundenen Angaben
+  (siehe [Beispieldaten](#beispieldaten)).
 - Eigene Aufbauten entstehen unter „Einstellungen“ (Assistent und YAML-Austausch).
 - Die Beispieldaten stehen am Ende der Ansicht, siehe [Beispieldaten](#beispieldaten).
 
@@ -82,6 +84,28 @@ Austausch mit Excel (`src/components/ExcelPanel.vue`, `src/import/tsv.ts`, `src/
   (M, W, D, k. A. bzw. M, F, D, n/a); der Import liest beide Schreibweisen.
 „Automatisch vergeben“ nummeriert klassenbasiert jede Klasse in ihrer aktuellen Reihenfolge,
 klassisch in der Startreihenfolge der Verzahnung.
+
+**Startnummern nach Westengröße** (19.11.2026, `src/domain/startnrBereiche.ts`, Einstellungen → „Startnummern nach
+Westengröße“, `components/StartNrBereichePanel.vue`): Klassenbasierte Nummern stehen auf Westen in Konfektionsgrößen.
+Je Klasse gehört ein Nummernbereich zu einer Größengruppe (S–M, L–XL, XXL; XS zählt zu S–M, XXXL zu XXL).
+Unter der DM ist die DMYV-Startnummernliste die Vorgabe (`dm-2026.yaml` `startNrBereiche`), unter UIM gibt es keine.
+Die Veranstaltung kann je Klasse eigene Bereiche setzen (auch keine) und zur Vorgabe zurückkehren
+(`AppState.startNrBereiche`, nur Abweichungen) und Nummern fehlender Westen eintragen (`AppState.fehlendeStartNr`,
+z. B. „512, 517, 623“; Unlesbares wird genannt). Beides reist mit Sicherung und Vorlage.
+
+- „Automatisch vergeben“: jeder Starter bekommt in der Folge des Reiters die nächste freie Nummer aus dem Bereich
+  seiner Größe; erst danach weichen die übrigen aus (Bereich voll oder fehlt, Größe leer): zuerst in größere,
+  dann in kleinere Bereiche, sonst fortlaufend hinter dem höchsten Bereich. Fehlende Westen werden immer übersprungen,
+  auch in Klassen ohne Bereiche (dort fortlaufend wie bisher). Ohne Größe zählt ein Starter wie die größte Gruppe.
+- Neue Starter (von Hand, „In Klasse X verschieben“, Excel-Import, Beispielstarter) bekommen ebenso die erste freie
+  Nummer ihres Bereichs.
+- Verschieben, „Sortierung ändern“ und „Zufall“ halten jede Nummer in ihrem Bereich – die neue Folge gilt nur
+  innerhalb einer Größengruppe. Fehlt noch jemandem in der Klasse die Nummer, wie bisher. Bewirkt ein Verschieben
+  deshalb nichts (ein XXL-Starter vor die S–M-Starter), sagt ein Hinweis unter der Klasse warum.
+- Belegt ist eine Nummer nur, wenn sie genau so geschrieben ist, wie die Vergabe sie schreibt: Ein Tippfehler wie
+  „5012“ in Klasse 5 belegt nicht die 512 und steht im Hinweis als „außerhalb der Bereiche“.
+- Der Reiter „Starter“ nennt unter „Startnummern“, wessen Nummer nicht zu seiner Größe passt
+  (anderer Bereich, außerhalb, ohne Größe, Weste fehlt).
 Was ab wann gesperrt ist und was geprüft wird, steht unter [Sperren und Prüfungen](#sperren-und-prüfungen).
 Wer für die Mannschaftswertung zählt, lässt sich wählen (siehe [Mannschaftswertung](#mannschaftswertung)).
 
@@ -188,7 +212,9 @@ Die Verzahnung legt die Startreihenfolge fest und damit Startnummern und alle Li
 - Der Bootbedarf wird gegen die vorhandenen kleinen und großen Boote geprüft.
 - „Verzahnung festschreiben“ sperrt Parcours, Spuren und Boote, damit Startnummern und Listen gültig bleiben.
 - Unter UIM steht hier auch der Startplan des Parallelslaloms
-  (siehe [Startplan](parallelslalom.md#startplan-des-vorlaufs)).
+  (siehe [Startplan](parallelslalom.md#startplan-des-vorlaufs)), darunter die Runden danach: je Klasse oder mit
+  „Alle Klassen weiter“ für alle zugleich, verzahnt wie der Vorlauf (klein/groß im Wechsel, 19.11.2026; siehe
+  [Runden nach dem Vorlauf](parallelslalom.md#runden-nach-dem-vorlauf)).
 
 ## Wettkampfrichter-Listen
 
@@ -813,4 +839,13 @@ deterministisch über `saat`).
 - Die Gewichte liegen um das Durchschnittsgewicht der Klasse (Regelwerk oder Wert der Veranstaltung).
   40 % je Klasse sind leichter, damit Ausgleichsgewichte entstehen; auf 0,1 kg wie in der Verwiegung.
 - Stehen schon Namen bzw. Gewichte da, fragt die App vor dem Ersetzen.
+  Beide bekommen einen eigenen Eintrag im Verlauf.
+
+**Beispiel-Boote** und **Beispiel-Co-Piloten** (19.11.2026) stehen im Block „Besetzung“ unter der Tabelle
+und hier neben der Beispiel-Besetzung (`src/lib/beispielBoote.ts`, Actions `FILL_BEISPIEL_BOOTE` und
+`FILL_BEISPIEL_CO_PILOTEN`, deterministisch über `saat`).
+
+- Jede Klasse der Veranstaltung bekommt einen erfundenen Bootsnamen (`src/data/boote.ts`), keinen doppelt.
+- Co-Piloten nur in den Klassen, in denen das Regelwerk einen vorsieht – je Klasse eine erfundene Person.
+- Steht schon etwas da, fragt die App vor dem Ersetzen; Angaben anderer Klassen bleiben.
   Beide bekommen einen eigenen Eintrag im Verlauf.

@@ -85,6 +85,13 @@ export default {
   'crew.coPilotFor': 'Co-driver for {name}',
   'crew.boatPlaceholder': 'e.g. boat 1',
   'crew.coPilotNone': 'not required',
+  'crew.sample.boats': 'Sample boats',
+  'crew.sample.boatsTitle': 'Fill in made-up boat names for all classes – for trying things out',
+  'crew.sample.boatsConfirm': 'A boat is already entered for {n} class. Replace it with a made-up name? | Boats are already entered for {n} classes. Replace them with made-up names?',
+  'crew.sample.coPilots': 'Sample co-drivers',
+  'crew.sample.coPilotsTitle': 'Fill in made-up co-drivers for the classes in which the rulebook requires one – for trying things out',
+  'crew.sample.coPilotsConfirm': 'A co-driver is already entered for {n} class. Replace them with a made-up name? | Co-drivers are already entered for {n} classes. Replace them with made-up names?',
+  'crew.sample.noCoPilots': 'The rulebook requires a co-driver in no class.',
   'crew.privacyNote': 'The boats are part of the template too. The names of the co-drivers – like those of the race officials – are stored in the backup only: a template contains no personal names.',
   'crew.moved': 'Who sits at which list (race officials), the co-drivers and the boats are set under',
 } satisfies Record<keyof typeof de, string>

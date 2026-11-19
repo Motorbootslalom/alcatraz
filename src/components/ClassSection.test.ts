@@ -166,7 +166,7 @@ describe('Jahrgang und Klasse', () => {
     expect(knopf.attributes('data-klasse')).toBe('E')
     await knopf.trigger('click')
     const neu = store.state.value.starters[1]
-    expect(neu).toMatchObject({ vorname: 'Vor9', nachname: 'Nach9', verein: 'Musterclub', geburtsdatum: '2019-05-05', klasse: 'E', groesse: 'M', startNr: 'E01' })
+    expect(neu).toMatchObject({ vorname: 'Vor9', nachname: 'Nach9', verein: 'Musterclub', geburtsdatum: '2019-05-05', klasse: 'E', groesse: 'M', startNr: 'E101' })
     expect(wrapper.find('form.add-form').exists()).toBe(false)
     expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor9 Nach9 ist in Klasse E angelegt.')
     expect(wrapper.emitted('oeffne')).toEqual([['E']])
@@ -257,8 +257,9 @@ describe('Jahrgang und Klasse', () => {
     expect(knopf.text()).toBe('In Klasse E verschieben')
     expect(knopf.attributes('title')).toContain('Startnummer wird dort neu vergeben')
     await knopf.trigger('click')
-    expect(store.state.value.starters[0]).toMatchObject({ klasse: 'E', geburtsdatum: '2019-05-05', startNr: 'E01' })
-    expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor1 Nach1 steht jetzt in Klasse E, mit der Startnummer E01.')
+    // DM-Vorgabe der Startnummern-Bereiche (19.11.2026): Klasse E beginnt bei E101.
+    expect(store.state.value.starters[0]).toMatchObject({ klasse: 'E', geburtsdatum: '2019-05-05', startNr: 'E101' })
+    expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor1 Nach1 steht jetzt in Klasse E, mit der Startnummer E101.')
     expect(wrapper.emitted('oeffne')).toEqual([['E']])
     wrapper.unmount()
   })
@@ -310,6 +311,8 @@ describe('Jahrgang und Klasse', () => {
   })
 
   it('Verschieben: klassische Startnummern bleiben, klassenbasierte schließen in der neuen Klasse an', () => {
+    // Ohne Startnummern-Bereiche der Klasse E (sonst E101, siehe oben): die höchste + 1.
+    store.dispatch({ type: 'SET_START_NR_BEREICHE', klasse: 'E', bereiche: [] })
     store.dispatch({ type: 'ADD_STARTERS', starters: [{ ...starter(2), id: 'e1', startNr: 'E03', klasse: 'E' }] })
     store.dispatch({ type: 'MOVE_STARTER_TO_CLASS', id: 'p1', klasse: 'E', geburtsdatum: '2019-05-05' })
     expect(store.state.value.starters.find((p) => p.id === 'p1')!.startNr).toBe('E04')
@@ -379,5 +382,33 @@ describe('Geschlecht im Starter-Reiter', () => {
     expect(hinweis).toContain('In the German interface M, W, D, k. A.')
     expect(hinweis).not.toMatch(/German lists?/i)
     englisch.unmount()
+  })
+})
+
+describe('Verschieben mit Startnummern-Bereichen (19.11.2026)', () => {
+  it('lässt sich ein Starter nicht vor eine andere Größengruppe ziehen, sagt ein Hinweis warum', async () => {
+    localStorage.clear()
+    setLocale('de')
+    const store = createStore()
+    // Vorgabe: klassenbasiert, DM 2026 mit den Bereichen des DMYV (Klasse 4: 401–420 S–M, 421–430 L–XL).
+    store.dispatch({
+      type: 'ADD_STARTERS',
+      starters: [
+        { ...starter(1), startNr: '401', groesse: 'S' },
+        { ...starter(2), startNr: '421', groesse: 'XL' },
+      ],
+    })
+    const wrapper = mount(ClassSection, {
+      props: { classId: '4', starters: store.state.value.starters, duplicates: new Set<string>(), open: true, sortTick: 0 },
+      global: { provide: { [storeKey as symbol]: store } },
+    })
+    await wrapper.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
+    expect(wrapper.find('[data-hinweis="bereich-sperrt"]').exists()).toBe(false)
+    const vorher = store.state.value
+    const hoch = wrapper.findAll('button.mv').find((b) => b.attributes('aria-label') === 'Eins nach oben' && b.attributes('disabled') === undefined)!
+    await hoch.trigger('click')
+    expect(store.state.value).toBe(vorher)
+    expect(wrapper.find('[data-hinweis="bereich-sperrt"]').text()).toContain('Westengröße')
+    wrapper.unmount()
   })
 })

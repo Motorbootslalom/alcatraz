@@ -175,6 +175,23 @@ export default {
     'Klassen mit mindestens {ab} gemessenen Abständen bekommen ihr Mittel als eigenen Wert – er reist mit der Vorlage zur nächsten Veranstaltung.',
   'listopt.betrieb.abstaende.alleVorgabe': 'Alle auf die Vorgabe',
   // Gerätebetrieb (E6, SettingsView `#geraete`): der ntfy-Server; bedient wird unter Betrieb → Geräte.
+  'listopt.startnr.title': 'Startnummern nach Westengröße',
+  'listopt.startnr.hint':
+    'Nur für klassenbasierte Startnummern: Je Klasse gehört ein Nummernbereich zu einer Größengruppe der Westen (XS zählt zu S–M, XXXL zu XXL). „Startnummern vergeben“ gibt jedem Starter die nächste freie Nummer aus dem Bereich seiner Größe; ist er voll oder fehlt er, aus einem größeren, dann aus einem kleineren, sonst fortlaufend dahinter. Vorhandene Nummern bleiben, bis neu vergeben wird.',
+  'listopt.startnr.klasse': 'Klasse',
+  'listopt.startnr.von': 'von',
+  'listopt.startnr.bis': 'bis',
+  'listopt.startnr.gruppe': 'Größe',
+  'listopt.startnr.keine': 'keine Bereiche – fortlaufend',
+  'listopt.startnr.neu': '+ Bereich',
+  'listopt.startnr.entfernen': 'Bereich entfernen',
+  'listopt.startnr.vorgabe': 'Vorgabe ({rulebook})',
+  'listopt.startnr.eigen': 'eigene',
+  'listopt.startnr.unlesbar': 'Keine aufsteigende Folge von Startnummern dieser Klasse – wird nicht verwendet.',
+  'listopt.startnr.fehlend': 'Fehlende Nummern',
+  'listopt.startnr.fehlend.hint': 'Westen, die fehlen (verloren, kaputt): Diese Nummern werden nie vergeben, z. B. „512, 517, 623“. Gilt beim nächsten Vergeben.',
+  'listopt.startnr.fehlend.unbekannt': 'Keine Startnummer einer Klasse: {werte}',
+
   'listopt.geraete.title': 'Geräte',
   'listopt.geraete.hint':
     'Anzeigetafel und Zuschauerliste auf anderen Geräten über das Internet. Die verschlüsselten Nachrichten reicht ein ntfy-Server weiter; eingeschaltet wird unter',

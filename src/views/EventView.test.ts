@@ -8,7 +8,9 @@ import { nextTick } from 'vue'
 import { logoFolge, setzeTestLogos, wechsleRegelwerk } from '../testHilfen'
 import { LAENDER } from '../domain/generate'
 import { BUNDESLAENDER, CLUBS } from '../data/clubs'
-import { regelwerkOf } from '../config/catalog'
+import { regelwerkOf, startNrBereicheVorgabe } from '../config/catalog'
+import { nummerDerKlasse } from '../domain/startnrBereiche'
+import type { ClassId } from '../types'
 import { herkunftAnzeige } from '../lib/origin'
 
 describe('Veranstaltung', () => {
@@ -65,6 +67,35 @@ describe('Veranstaltung', () => {
     expect(wrapper.findAll('.besetzung-tabelle tbody tr').map((tr) => tr.attributes('data-klasse'))).toEqual(['E', '1', '2', '3', '4', '5'])
     expect(wrapper.findAll('.besetzung-tabelle thead th').map((th) => th.text())).toEqual(['Class', 'Boat', 'Co-driver'])
     expect(wrapper.find('[data-block="besetzung"] summary').text()).toContain('Assignments')
+    wrapper.unmount()
+  })
+
+  it('Besetzung: Beispiel-Boote und -Co-Piloten (19.11.2026) füllen die Tabelle, mit Rückfrage, wenn schon etwas steht', async () => {
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    const block = wrapper.find('[data-block="besetzung"]')
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal('confirm', confirm)
+    // Leer: ohne Rückfrage.
+    await block.find('[data-action="beispiel-boote"]').trigger('click')
+    await block.find('[data-action="beispiel-copiloten"]').trigger('click')
+    expect(confirm).not.toHaveBeenCalled()
+    expect(Object.keys(store.state.value.boote)).toHaveLength(8)
+    expect(Object.keys(store.state.value.coPiloten).sort()).toEqual(['1', '2', '3', 'E'])
+    expect((block.find('input[data-feld="boot|E"]').element as HTMLInputElement).value).toBe(store.state.value.boote.E)
+    // Schon eingetragen: Rückfrage; Nein lässt alles stehen.
+    const boote = store.state.value.boote
+    await block.find('[data-action="beispiel-boote"]').trigger('click')
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(confirm.mock.calls[0].join()).toContain('Für 8 Klassen sind schon Boote eingetragen')
+    expect(store.state.value.boote).toBe(boote)
+    await block.find('[data-action="beispiel-copiloten"]').trigger('click')
+    expect(confirm.mock.calls[1].join()).toContain('Für 4 Klassen sind schon Co-Piloten eingetragen')
+    // Dieselben Knöpfe unter „Beispieldaten“.
+    confirm.mockReturnValue(true)
+    await wrapper.find('[data-block="beispieldaten"] [data-action="beispiel-boote"]').trigger('click')
+    expect(confirm).toHaveBeenCalledTimes(3)
+    expect(store.state.value.boote).not.toBe(boote)
+    vi.unstubAllGlobals()
     wrapper.unmount()
   })
 
@@ -266,6 +297,12 @@ describe('Veranstaltung', () => {
       // Sechs je Klasse der DM (E, 1–7).
       expect(store.state.value.starters).toHaveLength(48)
       expect(store.state.value.beispielStarter).toBe(true)
+      // Startnummern nach Westengröße (DM-Vorgabe, 19.11.2026): jede aus einem Bereich ihrer Klasse.
+      const bereiche = (k: string) => startNrBereicheVorgabe('dm-2026', k as ClassId)
+      for (const p of store.state.value.starters) {
+        const n = nummerDerKlasse(p.startNr, p.klasse, { E: 'E' })
+        expect(n !== null && bereiche(p.klasse).some((b) => n >= nummerDerKlasse(b.von, p.klasse, { E: 'E' })! && n <= nummerDerKlasse(b.bis, p.klasse, { E: 'E' })!), `${p.klasse} ${p.startNr}`).toBe(true)
+      }
       expect(offen(wrapper)).toBe(true)
       wrapper.unmount()
 

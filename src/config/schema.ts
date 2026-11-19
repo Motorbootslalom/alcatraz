@@ -120,6 +120,14 @@ export interface RawRegelwerk {
    * Klasse (`klassenNamen`) ändert die Startnummern nicht.
    */
   startNrPraefix?: Record<string, string | number>
+  /**
+   * Nummernbereiche der Startnummern je Klasse nach Größengruppe der Westen (S-M, L-XL, XXL), so
+   * geschrieben wie auf den Westen: { 5: [{ von: 501, bis: 510, gruppe: S-M }, …] }. Vorgabe für die
+   * klassenbasierte Vergabe (domain/startnrBereiche.ts); die Veranstaltung kann je Klasse eigene setzen
+   * (AppState.startNrBereiche, config/catalog.ts startNrBereicheOf). Nur für den Zustand – baue() nimmt
+   * es heraus. Eingeführt am 19.11.2026 (DMYV-Startnummernliste).
+   */
+  startNrBereiche?: Record<string, Array<{ von?: string | number; bis?: string | number; gruppe?: string }>>
   /** Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende. */
   fehlerHinweis?: string
   fehlerHinweisEn?: string

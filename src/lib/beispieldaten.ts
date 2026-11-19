@@ -1,5 +1,6 @@
-import type { ClassId, Einteilung, Starter } from '../types'
+import type { Besetzung, ClassId, Einteilung, Starter } from '../types'
 import { NACHNAMEN, VORNAMEN_M, VORNAMEN_W } from '../data/names'
+import { BOOTSNAMEN } from '../data/boote'
 import { parseGewicht } from '../domain/gewicht'
 import { setzeName, type WkrZelle } from './einteilung'
 
@@ -71,6 +72,39 @@ export function beispielEinteilung(einteilung: Einteilung, zellen: readonly WkrZ
     e = setzeName(e, parcoursId, typeId, besetzungsText(personen))
   }
   return e
+}
+
+/**
+ * Beispiel-Boote (Wunsch des Nutzers vom 19.11.2026): ein erfundener Bootsname (src/data/boote.ts)
+ * für jede genannte Klasse, kein Name doppelt, solange der Vorrat reicht – so sieht man im Kopf
+ * der Ausgleichsgewichte, welche Klasse welches Boot fährt. Ersetzt die Angaben dieser Klassen
+ * (gefragt hat vorher die Oberfläche); die übrigen bleiben.
+ */
+export function beispielBoote(boote: Besetzung, klassen: readonly ClassId[], zufall: Zufall): Besetzung {
+  let vorrat: string[] = []
+  const neu: Besetzung = { ...boote }
+  for (const klasse of klassen) {
+    if (vorrat.length === 0) vorrat = mische(BOOTSNAMEN, zufall)
+    neu[klasse] = vorrat.pop()!
+  }
+  return neu
+}
+
+/**
+ * Beispiel-Co-Piloten (Wunsch des Nutzers vom 19.11.2026): eine erfundene Person aus src/data
+ * für jede genannte Klasse – eine je Klasse, denn „within the same class is to be the same
+ * co-driver“ (UIM 960 Pkt. 2). Kein Nachname doppelt, solange der Vorrat reicht. Welche Klassen,
+ * entscheidet der Aufrufer (die, in denen das Regelwerk einen Co-Piloten vorsieht); ersetzt
+ * deren Angaben, die übrigen bleiben.
+ */
+export function beispielCoPiloten(coPiloten: Besetzung, klassen: readonly ClassId[], zufall: Zufall): Besetzung {
+  let vorrat: string[] = []
+  const neu: Besetzung = { ...coPiloten }
+  for (const klasse of klassen) {
+    if (vorrat.length === 0) vorrat = mische(NACHNAMEN, zufall)
+    neu[klasse] = `${waehle(zufall() < 0.5 ? VORNAMEN_W : VORNAMEN_M, zufall)} ${vorrat.pop()!}`
+  }
+  return neu
 }
 
 /**

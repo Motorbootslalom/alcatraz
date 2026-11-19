@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loeseAuf, mitVorlaufPlan, normalisierePlaene, plaetzeVon, rechneVorlauf, rundenText, schreibeFest, vorlaufPlan, type PlanQuelle } from './parallelRunden'
+import { loeseAuf, mitKlasse, mitVorlaufPlan, verzahneRunde, normalisierePlaene, plaetzeVon, rechneVorlauf, rundenText, schreibeFest, vorlaufPlan, type PlanQuelle } from './parallelRunden'
 import type { ClassId, ParallelPlaene, Starter } from '../types'
 
 // Erfundene Starter – keine echten Personen.
@@ -166,5 +166,25 @@ describe('Namen der Runden', () => {
     expect(rundenText('semi')).toBe('parallel.round.semi')
     expect(rundenText('final')).toBe('parallel.round.final')
     expect(rundenText('rerun-pre-1')).toBe('parallel.round.rerun')
+  })
+})
+
+describe('verzahneRunde (19.11.2026): die Runden nach dem Vorlauf klein/groß im Wechsel wie der Vorlauf', () => {
+  const paar = (k: string, n: number) => ({ a: `${k}-${n}`, b: `${k}-${n + 1}` })
+  it('Klassen nach der Folge im Vorlauf, je Bootstyp; überzählige Paare als 2er-Blöcke', () => {
+    let plaene: ParallelPlaene = {}
+    plaene = mitKlasse(plaene, 'semi', '4', [paar('4', 1), paar('4', 3)], 'gross')
+    plaene = mitKlasse(plaene, 'semi', '2', [paar('2', 1)], 'klein')
+    plaene = mitKlasse(plaene, 'semi', '1', [paar('1', 1), paar('1', 3)], 'klein')
+    const neu = verzahneRunde(plaene, 'semi', ['1', '4', '2'])
+    expect(neu.semi!.starts.map((s) => `${s.a}/${s.b}/${s.attempt}/${s.block}`)).toEqual([
+      '1-1/1-2/1/0', '4-1/4-2/1/0', '1-2/1-1/2/0', '4-2/4-1/2/0',
+      '1-3/1-4/1/1', '4-3/4-4/1/1', '1-4/1-3/2/1', '4-4/4-3/2/1',
+      '2-1/2-2/1/2', '2-2/2-1/2/2',
+    ])
+    // Schon verzahnt: derselbe Plan (Reducer: unverändert → dieselbe Referenz).
+    expect(verzahneRunde(neu, 'semi', ['1', '4', '2'])).toBe(neu)
+    // Den Vorlauf und eine Runde ohne Plan fasst sie nicht an.
+    expect(verzahneRunde(neu, 'final', ['1'])).toBe(neu)
   })
 })

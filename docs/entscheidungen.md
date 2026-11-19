@@ -136,6 +136,17 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Druckdatei (N). Sie ist intern und trägt Geburtsdatum (abschaltbar) und Geschlecht (N). → `lib/teamListe.ts`
 - 2026-11-15 · N · Parallel-Steg-Liste (pontoon) ohne Spalte „Bemerkung“, dafür mit der Summe der Fehlerpunkte je
   Zeile. → `config/aufbauten/parallel.yaml`
+- 2026-11-19 · N · „Alle Klassen weiter“: Nach Vorlauf und Halbfinale wird als Ganzes weitergeschaltet, mit EINEM
+  Knopf (ein Schritt, ein Verlaufseintrag) für alle Klassen, für die Halbfinale bzw. Finals anstehen. Auslegung: Wer
+  noch fährt, einen Gleichstand an der Grenze hat (Re-run bleibt je Klasse) oder einen veralteten Plan hat, bleibt und
+  steht im Hinweis; keine Rückfrage (wie beim Knopf je Klasse); der Knopf erst ab zwei Klassen. →
+  `lib/parallelStage.ts` alleWeiter, Action PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN, `components/ParallelRunden.vue`
+- 2026-11-19 · N · Auch Halbfinale, Finals und Re-runs fahren verzahnt wie der Vorlauf: großes/kleines Boot im Wechsel
+  (Block: klein 1. Attempt, groß 1. Attempt, klein 2. Attempt, groß 2. Attempt; Rest als 2er-Blöcke). Auslegung: die
+  Klassen je Bootstyp in ihrer Folge im Vorlauf; eine später (oder einzeln) festgeschriebene oder gelöschte Klasse
+  ordnet die Runde neu, solange darin nichts erfasst und sie im Betrieb nicht begonnen ist – danach kommt sie nur ans
+  Ende. → `planung/parallel.ts` verzahne, `planung/parallelRunden.ts` verzahneRunde,
+  PARALLEL_ANNAHMEN.rundenVerzahnen, `state/reducer/parallel.ts`
 
 ## Einzelwertung (Regel 960, Pkt. 5.2.3 und 5.2.6)
 
@@ -376,6 +387,16 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   nennt eine eigene Zeile. → `components/ExcelPanel.vue`
 - 2026-11-16 · N · ▲▼ im Starter-Reiter ist nach dem Festschreiben der Verzahnung gesperrt wie „Sortierung ändern“ und
   „Zufall“; Startnummern von Hand bleiben frei, für Korrekturen. → `state/reducer.ts` VERZAHNUNG_ACTIONS
+- 2026-11-19 · N · Klassenbasierte Startnummern nach Größenbereichen der Westen; einzelne Nummern (fehlende Westen)
+  lassen sich ausschließen. Die DMYV-Startnummernliste ist Vorgabe der DM 2026. Festlegungen bei der Umsetzung (vom
+  Nutzer zu bestätigen, siehe „Offen“): Größengruppen S–M, L–XL, XXL (XS → S–M, XXXL → XXL); Überlauf erst in
+  größere, dann kleinere Bereiche, sonst hinter dem höchsten; ohne Größe wie die größte Gruppe; erst die Passenden, dann
+  die Ausweichenden; die Veranstaltung speichert nur abweichende Bereiche je Klasse (Vorgabe wechselt mit dem
+  Regelwerk); Umstellen (▲▼, Sortieren, Zufall) bleibt in den Bereichen; neue Starter bekommen die erste freie Nummer
+  ihres Bereichs – auch eine frei gewordene (vorher: höchste + 1). Bei gleichem Zahlwert sortiert die Nummer mit
+  Präfix vorn (E101 vor 101). → `domain/startnrBereiche.ts`, `dm-2026.yaml` `startNrBereiche`,
+  `config/catalog.ts` startNrBereicheOf/startNrRegeln, AppState.startNrBereiche/fehlendeStartNr,
+  `components/StartNrBereichePanel.vue`
 
 ## Beispieldaten
 
@@ -404,6 +425,14 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   bekommen. → `lib/beispielwerte.ts`
 - 2026-11-16 · N · Die Zahlen im Beispieldaten-Block (Starter je Klasse, Herkünfte, Wahl der Beispielwerte) überstehen
   ein Neuladen nur im selben Tab; das reicht. → `components/BeispieldatenPanel.vue`
+- 2026-11-19 · N · Beispiel-Boote und Beispiel-Co-Piloten, je ein Knopf im Block „Besetzung“ (wo beides gepflegt wird)
+  und unter „Beispieldaten“ neben der Beispiel-Besetzung (Wunsch des Nutzers). Auslegung bei der Umsetzung: Boote für
+  jede Klasse der Veranstaltung (Regelwerk und Klassen mit Startern, wie die Tabelle), je Klasse ein anderer erfundener
+  Name (Tiere am Wasser, `data/boote.ts`, ohne „Delfin“ wegen „Dolphin“); Co-Piloten nur in den Klassen, in denen das
+  Regelwerk einen vorsieht (`coPilot` im YAML), eine erfundene Person je Klasse aus `data/names.ts`. Steht schon etwas:
+  erst Rückfrage, dann werden die Angaben dieser Klassen ersetzt, die übrigen bleiben. Eigener Verlaufseintrag;
+  deterministisch über `saat`. → `lib/beispieldaten.ts`, `lib/beispielBoote.ts`, Actions `FILL_BEISPIEL_BOOTE`,
+  `FILL_BEISPIEL_CO_PILOTEN`
 
 ## Begriffe
 
@@ -475,6 +504,16 @@ Zurzeit nichts.
 - Geburtstags-Ausnahme des DM-Reglements (ME ab dem 6. Geburtstag, M7 bis zum 27. Geburtstag): abschaltbar in den
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
+- Startnummern nach Westengröße (19.11.2026): Klasse E steht auf der DMYV-Liste als E101–E130 und ist so übernommen
+  (vorher E01 …) – oder E01–E30? Klasse 3 hat eine Zeile „L–XL“ ohne lesbaren Bereich – welche Nummern? Überlaufregel
+  (erst größer, dann kleiner, sonst dahinter) und „ohne Größe = größte Gruppe“ bestätigen. → `dm-2026.yaml`
+- Beispiel-Boote (19.11.2026): je Klasse ein eigener erfundener Bootsname. Realistischer wäre vielleicht ein Name
+  je Bootstyp (Klassen mit kleinem Boot teilen sich eins) – mit dem Nutzer klären. → `lib/beispieldaten.ts` beispielBoote
+- Startnummern nach Westengröße, Verschieben (19.11.2026): Ein Starter lässt sich nur innerhalb seiner Größengruppe
+  verschieben (sonst wanderte eine Weste); die Ansicht sagt es mit einem Hinweis. Bestätigen. → `state/reducer/startnummern.ts`
+- Parallelslalom, Runden neu ordnen (19.11.2026, Prüfbefund): Bis in der Runde etwas erfasst oder sie im Betrieb
+  begonnen ist, ordnet eine später festgeschriebene Klasse die Runde neu – nach Rückfrage, weil Gedrucktes nicht mehr
+  passt. Ob schon gedruckte Runden ganz als gebunden gelten sollen (Druck wird nicht erfasst), ist offen.
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
 - Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
   Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;

@@ -71,6 +71,9 @@
 #                    (ganze Sekunden, 30 bis 600). Ersetzt je Klasse die allgemeinen aus
 #                    einstellungen.yaml; fehlt = die allgemeinen. Weder DM noch UIM nennen
 #                    bisher eigene – die allgemeinen stammen aus der DM 2025.
+#   startNrBereiche  { <Klasse>: [{ von, bis, gruppe }] }: Nummernbereiche der Startnummern
+#                    nach Größengruppe der Westen (S-M, L-XL, XXL), wie auf den Westen
+#                    geschrieben. Vorgabe der klassenbasierten Vergabe; fehlt = fortlaufend.
 id: dm-2026
 name: DM
 version: 2026
@@ -95,6 +98,24 @@ klassen: [E, 1, 2, 3, 4, 5, 6, 7]
 # Was vor der laufenden Nummer einer klassenbezogenen Startnummer steht (E01, 101 …). Ohne
 # Angabe ist es die Kennung der Klasse; für die Klasse E steht der Buchstabe hier ausdrücklich.
 startNrPraefix: { E: E }
+# Startnummern nach Größe der Westen (nur bei klassenbasierten Nummern): Je Klasse gehört ein
+# Nummernbereich zu einer Größengruppe (S-M, L-XL, XXL; XS zählt zu S-M, XXXL zu XXL). Quelle:
+# DMYV-Startnummernliste, vom Nutzer als Foto übergeben am 19.11.2026 – Vorgabe, je Veranstaltung
+# änderbar (Einstellungen → Startnummern). Die Nummern sind so geschrieben, wie sie auf den Westen
+# stehen. Offen (an den Nutzer gemeldet, 19.11.2026):
+# - Klasse E steht auf dem Zettel als E101–E130 (wörtlich übernommen; die App vergab vorher E01 …).
+#   Sollen es E01–E30 sein, hier einfach { von: E01, bis: E30, … } eintragen.
+# - Klasse 3 hat auf dem Zettel eine Zeile „L–XL“ ohne lesbaren Bereich – deshalb hier keiner;
+#   L/XL-Starter der Klasse 3 weichen nach der Regel aus (domain/startnrBereiche.ts ausweichFolge).
+startNrBereiche:
+  E: [{ von: E101, bis: E130, gruppe: S-M }]
+  1: [{ von: 101, bis: 130, gruppe: S-M }]
+  2: [{ von: 201, bis: 230, gruppe: S-M }]
+  3: [{ von: 301, bis: 330, gruppe: S-M }]
+  4: [{ von: 401, bis: 420, gruppe: S-M }, { von: 421, bis: 430, gruppe: L-XL }]
+  5: [{ von: 501, bis: 510, gruppe: S-M }, { von: 511, bis: 528, gruppe: L-XL }, { von: 529, bis: 530, gruppe: XXL }]
+  6: [{ von: 601, bis: 610, gruppe: S-M }, { von: 611, bis: 625, gruppe: L-XL }, { von: 626, bis: 630, gruppe: XXL }]
+  7: [{ von: 701, bis: 710, gruppe: S-M }, { von: 711, bis: 725, gruppe: L-XL }, { von: 726, bis: 730, gruppe: XXL }]
 disziplinen: [manoevrieren]
 # Reglement C3 „Co-Pilot und Gewichte“, Tabelle „Stat. Durchschnittsgewicht“: „Jugendliche,
 # deren Körpergewicht geringer als das statistische Durchschnittsgewicht der folgenden Tabelle
