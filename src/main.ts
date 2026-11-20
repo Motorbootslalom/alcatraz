@@ -20,6 +20,7 @@ import './lib/theme'
 import { offlineBrowser, starteOffline } from './lib/offline'
 import { standLeer } from './lib/eingaben'
 import { vollbild } from './lib/router'
+import type { VollbildArt } from './lib/adressen'
 import { verbindeAnzeigen } from './lib/anzeigeFenster'
 import { geraeteHostKey, starteGeraeteHost } from './geraete/host'
 
@@ -27,15 +28,18 @@ import { geraeteHostKey, starteGeraeteHost } from './geraete/host'
 // Zuschauerliste (`#/zuschauer`) dürfen nie den vollen Store anlegen, der beim Start schreibt (Kennung, zweiter
 // Speicher); ein fremdes Gerät mit Lese-Link (`#/sehen/<paket>`, E6) hat gar keinen Store – es berührt den Stand
 // einer Veranstaltung nie. Wechselt die Adresse später auf eine andere Wurzel (Anzeigetafel, Zuschauerliste,
-// Lese-Link, gewöhnliche Ansicht), lädt das Fenster neu und wählt sie so.
-const fenster = vollbild()?.art ?? null
+// Gerät, gewöhnliche Ansicht), lädt das Fenster neu und wählt sie so. Lese-Link, Koppel-Link (`#/koppeln/<paket>`,
+// E7) und gekoppeltes Gerät (`#/geraet`) sind EINE Wurzel: GeraetApp ersetzt den Koppel-Link selbst durch `#/geraet`
+// (das Paket mit dem QR-Token soll nicht in der Adresse bleiben) – ein Neuladen dabei verlöre die Anmeldung.
+const wurzel = (art: VollbildArt | null) => (art === 'sehen' || art === 'koppeln' || art === 'geraet' ? 'geraet' : art)
+const fenster = wurzel(vollbild()?.art ?? null)
 window.addEventListener('hashchange', () => {
-  if ((vollbild()?.art ?? null) !== fenster) location.reload()
+  if (wurzel(vollbild()?.art ?? null) !== fenster) location.reload()
 })
 
 if (fenster === 'anzeige') starteNurLesen(AnzeigeApp)
 else if (fenster === 'zuschauer') starteNurLesen(ZuschauerApp)
-else if (fenster === 'sehen') starteGeraet()
+else if (fenster === 'geraet') starteGeraet()
 else starteBedienung()
 
 /**
@@ -47,7 +51,7 @@ function starteNurLesen(wurzel: Component) {
 }
 
 /**
- * Ein fremdes Gerät mit Lese-Link (src/GeraetApp.vue, E6): ohne Store, ohne Handscanner, ohne Kopf. Der
+ * Ein fremdes Gerät mit Lese-Link (src/GeraetApp.vue, E6) oder gekoppelt für die Start-Freigabe (E7): ohne Store, ohne Handscanner, ohne Kopf. Der
  * Offline-Speicher bleibt (Neuladen ohne Netz zeigt die abgelegte Sicht), übernimmt eine neue Fassung aber nie von
  * selbst – nur gezielt, wenn der Bedienrechner eine neuere spricht (Plan §4, F7; GeraetApp.vue `aktualisiere`).
  */

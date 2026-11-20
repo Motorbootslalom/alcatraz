@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { adressbuch, ADRESSEN, liesAdresse, liesVollbild, schreibeAdresse, schreibeVollbild, VIEWS, wortraum, type AdressTabelle } from './adressen'
-import { SEHEN, sehenAdresse } from '../geraete/paket'
+import { GERAET, KOPPELN, koppelnAdresse, SEHEN, sehenAdresse } from '../geraete/paket'
 import { LOCALES } from '../i18n'
 
 describe('Wörter der Adresse', () => {
@@ -262,6 +262,17 @@ describe('Tabellen der Sprachen', () => {
     expect(buch.vollbild.fehler).toEqual([])
     expect(buch.reiter.betrieb.fehler).toEqual([])
     expect(buch.ziele.fehler).toEqual([])
+  })
+
+  it('E7: Koppel-Link #/koppeln/<paket> und gekoppeltes Gerät #/geraet, in jeder Sprache gleich', () => {
+    for (const sprache of ['de', 'en']) {
+      expect(schreibeVollbild(buch, sprache, { art: 'koppeln' })).toBe(`#/${KOPPELN}`)
+      expect(schreibeVollbild(buch, sprache, { art: 'geraet' })).toBe(`#/${GERAET}`)
+    }
+    const paket = 'AQUBEn-_Zz09Aa'
+    expect(liesVollbild(buch, koppelnAdresse(paket))).toEqual({ art: 'koppeln', bereich: paket })
+    expect(liesVollbild(buch, '#/geraet')).toEqual({ art: 'geraet' })
+    expect(buch.vollbild.fehler).toEqual([])
   })
 
   it('Unbekanntes bleibt, wie es dasteht; ohne Ansicht gibt es keine', () => {

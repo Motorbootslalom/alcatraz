@@ -469,6 +469,67 @@ export const BETRIEB_ANNAHMEN = {
    */
   leseLinkOberflaeche: true,
   /**
+   * E7, Rechte der Start-Freigabe (Entscheidung F5 vom 16.11.2026; Ausgestaltung beim Bau 20.11.2026 – vom Nutzer zu
+   * bestätigen): Positivliste geraete/aufgaben.ts STARTFREIGABE_ACTIONS = alle BETRIEB_* außer ZURUECKSETZEN, nur in
+   * den Bereichen der Aufgabe, und nur Bereiche, die es im Stand gibt. Eine Meldung an ALLE Bereiche (`'*'`) darf kein
+   * Gerät – auch eines mit allen Bereichen nicht: Sie schriebe auch auf Bereiche, die später dazukommen. Das Gerät
+   * prüft dieselbe Liste nur, um Knöpfe zu sperren; maßgeblich ist der Host (Register, nie die Behauptung des Geräts).
+   */
+  startfreigabeRechte: true,
+  /**
+   * E7, Koppeln (Lastenheft der Tafel P-3/P-4; beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * - Geräte-Code (6 Zeichen, 5 min, EIN Gerät) braucht auf dem Handy den **Koppel-Link** (`#/koppeln/<paket>`: alles
+   *   des Anzeigetafel-Links plus der öffentliche Box-Schlüssel des Hosts). Der Link wird vorab verteilt, der Code kommt
+   *   über Funk. Thema H(oA ‖ 'koppeln' ‖ code); ein Code gilt nur auf seinem Thema.
+   * - QR-Code: Paket mit Token (30 s, der vorige noch 30 s Gnade – Prüfung E7: langsames erstes Laden) und dem
+   *   ZUFÄLLIGEN Thema der QR-Sitzung; die Sitzung bleibt höchstens 10 Minuten offen (geraete/koppeln.ts
+   *   QR_SITZUNG_MS), damit kein vergessenes Fenster ewig dreht. Scheitert ein gescannter Code, sagt das Gerät
+   *   „noch einmal scannen“ (geraete.freigabe.qrNochmal).
+   * - Ohne Antwort wiederholt ein Gerät mit wachsendem Abstand (10 s, 20 s, … höchstens 5 min; transport.ts
+   *   wiederholAbstand) – ein vergessenes Handy mit falschem Code verbraucht so kaum Kontingent am gemeinsamen Hotspot.
+   *   Die Anmeldung wird dabei nicht verworfen: Eine späte Antwort koppelt noch (Prüfung E7, 20.11.2026).
+   * - Abgelaufene Koppel-Themen liest der Host noch 2 Minuten (KOPPEL_NACHLAUF_MS): Ein eben gekoppeltes Gerät, dessen
+   *   `willkommen` verloren ging, meldet sich dort noch einmal und wird erneut begrüßt.
+   * - Hingenommen: Der Betreiber des ntfy-Servers sieht oA und das Koppel-Thema und könnte den 6-stelligen Code
+   *   zurückrechnen (≈ 6·10⁸ Versuche). Ihm fehlt der Box-Schlüssel des Hosts (steht nur im Koppel-Link), der Code gilt
+   *   5 Minuten für ein Gerät, und ein fremdes Gerät stünde in der Geräteliste.
+   */
+  koppelnZeiten: true,
+  /**
+   * E7, gekoppelte Geräte (beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * - Ein bekanntes Gerät (ID UND Schlüssel im Register) meldet sich nach jedem Start selbst an (P-7) und bekommt seine
+   *   jetzigen Rechte. Rechte ändert der Bedienrechner in der Geräteliste (wirkt sofort). Ein neuer gültiger Code, über
+   *   sein Koppel-Thema eingegeben, setzt auch für ein schon gebundenes Gerät die Rechte des Codes (der Bedienrechner
+   *   hat sie so ausgegeben; Fall: `willkommen` ging verloren, das Gerät steht noch auf „koppelt“ und bekommt einen
+   *   neuen Code) – Name und ID bleiben (geraete/koppelEntscheid.ts; Prüfung E7, 20.11.2026). Ein Gerät, das schon
+   *   „gekoppelt“ ist, zeigt kein Code-Formular und meldet sich ohne Code an: Seine Rechte bleiben.
+   * - Ein entzogenes Gerät liest die öffentliche Sicht weiter (K14) und kann mit einem neuen Code wieder gekoppelt
+   *   werden (derselbe Schlüssel – der Host hatte ihn aus dem Register genommen).
+   * - Schreibfenster: Jedes `pointerdown`/`keydown` in einem Fenster mit vollem Store gilt als Bedienung (geraete/host.ts);
+   *   Geräte-Actions wendet das zuletzt bediente Fenster an, nach 1 s ohne Antwort das Führungsfenster.
+   */
+  gekoppelteGeraete: true,
+  /**
+   * E7, Oberfläche (beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * - Keine Rückfrage „Gerät annehmen?“ am Bedienrechner: Gültiger Code bzw. QR-Token koppelt sofort mit den Rechten,
+   *   die beim Ausgeben gewählt waren (components/betrieb/GeraeteKoppeln.vue). Den Code gibt nur, wer am Bedienrechner
+   *   sitzt; ein fremdes Gerät stünde sofort in der Geräteliste und lässt sich entziehen.
+   * - Ein gescannter QR-Code koppelt auf dem Handy ohne weitere Eingabe mit dem vorgeschlagenen Namen („iPhone“; der
+   *   Host macht ihn eindeutig, umbenennen am Bedienrechner); der Token gälte nach 30 s + 30 s ohnehin nicht mehr.
+   * - Ein einziger Bereich (ein Parcours) ist für das nächste Gerät vorgewählt; bei mehreren wählt der Bedienrechner.
+   * - Auf dem Gerät nur die EIGENEN Bereiche, mit derselben StartFreigabe wie am Bedienrechner, ohne „Meldung auf
+   *   allen“; alle Knöpfe gesperrt, solange eine Action ohne Quittung ist (nicht nur der gedrückte – die Sicht kann
+   *   sich bis dahin ändern); nach 10 s „Keine Bestätigung – Verbindung prüfen“.
+   * - Auf eine Anmeldung mit falschem Code antwortet niemand (sein Thema hört der Host nicht): nach 15 s „Keine
+   *   Antwort“ und das Formular wieder; eine neue Anmeldung ersetzt die alte in der Schlange (transport.ts
+   *   verwirfAnmeldung).
+   * - Entzogen: Das Gerät zeigt nur lesend, wer im Boot sitzt und wer als Nächstes (K14), nicht die Anzeigetafel.
+   * - „Gerät entkoppeln“ löscht nur auf dem Gerät; der Host erfährt es nicht, das Gerät bleibt in seiner Liste, bis
+   *   es dort entzogen wird.
+   * - Die Geräteliste zeigt „zuletzt gehört“, nicht „verbunden“: Geräte senden keinen Herzschlag (Kontingent).
+   */
+  koppelnOberflaeche: true,
+  /**
    * (15) Speicherorte: `betrieb` in der Sicherung, nicht in der Vorlage – eine Vorlage hängt den
    * hiesigen auf ihre Parcours um; „Verlauf wiederherstellen“ behält den jetzigen Betrieb; „Werte
    * löschen“ lässt ihn stehen; `anzeige` reist mit der Vorlage, außer der Kopfzeile

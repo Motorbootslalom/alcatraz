@@ -134,7 +134,18 @@ export function oeffneLeseLink(text: unknown, umgebung: LeseUmgebung = {}): Lese
   return { ok: true, geraet: lesegeraetAus(gelesen.paket, gelesen.welches === 'a' ? 'anzeige' : 'zuschauer', umgebung, ablage, uhr) }
 }
 
-function lesegeraetAus(paket: LesePaket, art: LeseArt, umgebung: LeseUmgebung, ablage: Ablage | null, uhr: () => number): LeseGeraet {
+/**
+ * Der Kern eines Geräts, das eine Sicht zeigt – für den Lese-Link und (E7, geraete/gekoppelt.ts) die gekoppelte
+ * Start-Freigabe, die dieselbe öffentliche Sicht liest. `t`: der Transport (Vorgabe: ein Lese-Gerät aus dem Paket).
+ */
+export function lesegeraetAus(
+  paket: LesePaket,
+  art: LeseArt,
+  umgebung: LeseUmgebung,
+  ablage: Ablage | null,
+  uhr: () => number,
+  t: GeraetTransport = lesegeraet(paket, geraetAblage({ u: paket.u, r: paket.r, s: paket.s }, ablage), SICHT_FASSUNG, umgebung.zeiten, uhr),
+): LeseGeraet {
   const bezug: RaumBezug = { u: paket.u, r: paket.r, s: paket.s }
   // Ein anderer Raum (neuer Raum desselben Rechners, anderer Host): dessen Verbindung und Sicht weg (Plan §3).
   pruefeRaum(bezug, ablage)
@@ -169,7 +180,6 @@ function lesegeraetAus(paket: LesePaket, art: LeseArt, umgebung: LeseUmgebung, a
   const abgelegt = sichten.lies()
   if (istObjekt(abgelegt) && abgelegt.art === art && istSicht(abgelegt.sicht, art)) setze(abgelegt.sicht)
 
-  const t = lesegeraet(paket, geraetAblage(bezug, ablage), SICHT_FASSUNG, umgebung.zeiten, uhr)
   transport = t
 
   t.beiEmpfang((e) => {

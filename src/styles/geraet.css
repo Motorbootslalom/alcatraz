@@ -76,3 +76,96 @@ html.geraet-fenster body {
   background: var(--anzeige-stoerung);
   border-color: var(--anzeige-stoerung);
 }
+
+/*
+ * Start-Freigabe auf einem gekoppelten Gerät (components/betrieb/GeraetFreigabe.vue, E7): für das Handy am Steg –
+ * schmal, große Knöpfe, nichts nebeneinander, was nicht passt. Farben aus dem Farbschema wie am Bedienrechner.
+ */
+.geraet-freigabe {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 12px 0;
+}
+
+.geraet-freigabe .geraet-meldung {
+  margin-top: 10vh;
+}
+
+.geraet-banner {
+  margin: 0 0 10px;
+}
+
+/* Gesperrt bis zur Quittung: Fieldset ohne Rahmen, die Karten darin wie gewohnt. */
+.geraet-sperre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.geraet-sperre:disabled {
+  opacity: 0.65;
+}
+
+@media (max-width: 700px) {
+  .geraet-freigabe .betrieb-knoepfe {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .geraet-freigabe .betrieb-knoepfe .btn {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .geraet-freigabe .btn.betrieb-gross {
+    grid-column: 1 / -1;
+    min-height: 64px;
+    font-size: 20px;
+  }
+}
+
+.geraet-koppeln {
+  max-width: 480px;
+  margin: 24px auto;
+}
+
+.geraet-koppel-form {
+  display: grid;
+  gap: 12px;
+}
+
+.geraet-koppel-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.geraet-code {
+  font-family: ui-monospace, monospace;
+  font-size: 28px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.geraet-lesend {
+  display: grid;
+  gap: 10px;
+}
+
+.geraet-lesend-bereich h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.geraet-lesend-bereich p {
+  margin: 4px 0;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.geraet-freigabe .geraet-leiste {
+  padding-left: 0;
+  padding-right: 0;
+}

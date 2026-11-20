@@ -96,8 +96,10 @@ Was Auswerter davon sehen und tun müssen, steht in [betrieb.md](betrieb.md).
 
 ## Gerätebetrieb: Sicherheitsmodell
 
-Stand Etappe E6 (16.11.2026): Anzeigetafel und Zuschauerliste gehen über Lese-Links auf andere Geräte (Bedienung:
-[betrieb.md](betrieb.md#gerätebetrieb)); Koppeln und die Start-Freigabe vom Handy folgen (E7).
+Stand Etappe E7 (20.11.2026): Anzeigetafel und Zuschauerliste gehen über Lese-Links auf andere Geräte, gekoppelte
+Handys bedienen die Start-Freigabe ihrer Bereiche (Bedienung: [betrieb.md](betrieb.md#gerätebetrieb)). Geprüft und
+angewandt wird nur am Bedienrechner: Positivliste `src/geraete/aufgaben.ts` nach dem Register des Hosts, nie nach dem,
+was ein Gerät von sich sagt; jede Action trägt eine Nummer (Doppelte nur quittiert), Entzug sperrt sofort.
 Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offline); Ordnerkarte `src/geraete/CLAUDE.md`.
 
 - **Ohne Einschalten keine Verbindung:** Erst „Gerätebetrieb einschalten“ legt einen Raum an; bis dahin öffnet die App

@@ -27,6 +27,9 @@ export function useTafelFenster(): TafelFenster {
   }
 
   function beiTaste(e: KeyboardEvent): void {
+    // Nicht beim Tippen: Auf dem gekoppelten Gerät (E7) stehen Geräte-Code und Meldung in derselben Wurzel.
+    const ziel = e.target as HTMLElement | null
+    if (ziel && (ziel.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(ziel.tagName))) return
     if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) void vollbildUmschalten()
   }
 

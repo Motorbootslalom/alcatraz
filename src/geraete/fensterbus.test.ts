@@ -316,12 +316,25 @@ describe('Befehle an das Führungsfenster (E6)', () => {
     const b = browser()
     const bedien = b.oeffne('fenster-b', { kanal: 'nein' })
     const fuehrung = b.oeffne('fenster-f', { kanal: 'nein' })
-    const befehle: string[] = []
+    const befehle: unknown[] = []
     fuehrung.beimBefehl((x) => befehle.push(x))
     bedien.befiehl('zuschauer-erneuern')
     bedien.befiehl('raum-beenden')
+    // E7: Befehle mit Angaben (Koppeln, Rechte, Entzug) – geprüft nach Form, Aufgaben bereinigt.
+    bedien.befiehl({ art: 'aufgaben', id: 'g1', aufgaben: [{ art: 'startfreigabe', bereiche: ['see'] }] })
+    bedien.befiehl({ art: 'entziehen', id: 'g1' })
     b.einspeisen(JSON.stringify({ k: 'z1', von: 'fenster-x', n: { art: 'befehl', befehl: 'alles-loeschen' } }))
+    b.einspeisen(JSON.stringify({ k: 'z2', von: 'fenster-x', n: { art: 'befehl', befehl: { art: 'entziehen', id: '' } } }))
+    b.einspeisen(JSON.stringify({ k: 'z3', von: 'fenster-x', n: { art: 'befehl', befehl: { art: 'code', aufgaben: [{ art: 'admin' }] } } }))
     await durch()
-    expect(befehle).toEqual(['zuschauer-erneuern', 'raum-beenden'])
+    // Der Rückfall storage stellt in anderer Reihenfolge zu als die eingespeisten Zeilen – es zählt, was ankommt.
+    expect(befehle).toHaveLength(5)
+    expect(befehle).toEqual(expect.arrayContaining([
+      'zuschauer-erneuern',
+      'raum-beenden',
+      { art: 'aufgaben', id: 'g1', aufgaben: [{ art: 'startfreigabe', bereiche: ['see'] }] },
+      { art: 'entziehen', id: 'g1' },
+      { art: 'code', aufgaben: [] },
+    ]))
   })
 })

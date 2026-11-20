@@ -3609,6 +3609,90 @@ table.starters th .sortier-kopf:disabled {
   margin-top: 8px;
 }
 
+/* E7: Koppeln und Geräteliste (GeraeteKoppeln.vue, GeraeteListe.vue). */
+.geraete-koppeln,
+.geraete-liste {
+  margin-top: 20px;
+}
+
+.geraete-koppeln h3,
+.geraete-liste h3 {
+  margin: 0 0 4px;
+}
+
+.geraete-bereiche {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  border: 0;
+  margin: 8px 0;
+  padding: 0;
+}
+
+.geraete-bereiche legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.geraete-bereich {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.geraete-koppel-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+/* Der Geräte-Code wird über Funk durchgesagt: groß und in festen Breiten, damit niemand 0 und O verwechselt. */
+.koppel-code-wert {
+  margin: 8px 0;
+  font-family: ui-monospace, monospace;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.koppel-code[data-lage='abgelaufen'] .koppel-code-wert,
+.koppel-code[data-lage='benutzt'] .koppel-code-wert {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.geraete-eintraege {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.geraete-eintrag {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.geraete-eintrag-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.geraete-name {
+  width: 16em;
+  max-width: 100%;
+  font-weight: 600;
+}
+
+.geraete-eintrag-kopf .btn {
+  margin-left: auto;
+}
+
 /* ---------- Ohne Internet (Offline-Speicher) ---------- */
 /* Der Punkt ist nur Beigabe: Die Lage steht immer als Text daneben. */
 .offline-punkt {

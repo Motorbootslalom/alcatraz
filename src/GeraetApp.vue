@@ -16,6 +16,7 @@ import AnzeigeTafel from './components/anzeige/AnzeigeTafel.vue'
 import ZuschauerListe from './components/zuschauer/ZuschauerListe.vue'
 import GeraeteLage from './components/betrieb/GeraeteLage.vue'
 import AppDialog from './components/AppDialog.vue'
+import GeraetFreigabe from './components/betrieb/GeraetFreigabe.vue'
 
 /**
  * Eigene Wurzel für ein fremdes Gerät mit Lese-Link (`#/sehen/<paket>`, Etappe E6, Plan vom 16.11.2026 §4; src/main.ts
@@ -29,7 +30,11 @@ import AppDialog from './components/AppDialog.vue'
  * beendeten Raum und verschiedene Fassungen (F7: ist der Bedienrechner älter, „Bedienrechner aktualisieren“; ist er
  * neuer, lädt das Gerät gezielt die neue Fassung – sonst nie von selbst).
  *
- * Das Paket bleibt in der Adresse (Abweichung von Plan §4, beim Bau von E6 am 16.11.2026 – vom Nutzer zu bestätigen):
+ * E7 (20.11.2026): Koppel-Link `#/koppeln/<paket>` und gekoppeltes Gerät `#/geraet` zeigen statt dessen die
+ * Start-Freigabe (components/betrieb/GeraetFreigabe.vue) – dieselbe Wurzel, ohne Store; dort wird der Koppel-Link
+ * sofort durch `#/geraet` ersetzt (QR-Token nicht in Verlauf und Lesezeichen).
+ *
+ * Das Paket des Lese-Links bleibt in der Adresse (Abweichung von Plan §4, beim Bau von E6 am 16.11.2026 – vom Nutzer zu bestätigen):
  * Lesezeichen und Neuladen brauchen es, und geraet.ts legt den Link-Text nicht ab. Nach „Raum verlassen“ steht nur
  * noch `#/sehen` da.
  */
@@ -48,6 +53,8 @@ type Lage =
   | { art: 'geraet'; geraet: LeseGeraet }
 
 const lage = shallowRef<Lage>({ art: 'ohne' })
+/** E7: Koppel-Link oder gekoppeltes Gerät – dann führt GeraetFreigabe, die Lese-Teile hier ruhen. */
+const freigabe = ref<{ paket?: string } | null>(null)
 /** Das Paket, das gerade gilt – eine Adresse mit demselben (auch nach dem eigenen `location.replace`) ändert nichts. */
 let paket: string | undefined
 
@@ -107,8 +114,11 @@ watchEffect(() => {
   html.classList.toggle('anzeige-fenster', art.value === 'anzeige')
   html.classList.toggle('zuschauer-fenster', art.value === 'zuschauer')
   html.classList.add('geraet-fenster')
+  html.classList.toggle('freigabe-fenster', !!freigabe.value)
 })
 watchEffect(() => {
+  // Den Titel der Start-Freigabe setzt GeraetFreigabe selbst.
+  if (freigabe.value) return
   const s = tafel.value ?? liste.value
   const titel = s ? tIn(s.sprache, art.value === 'anzeige' ? 'anzeige.titel' : 'zuschauer.titel') : t('geraete.sehen.titel')
   document.title = [titel, s?.kopf].filter(Boolean).join(' – ')
@@ -126,23 +136,34 @@ function verlasse(): void {
 }
 
 function beiAdresse(): void {
-  const neu = vollbild()?.bereich
+  const v = vollbild()
+  if (v?.art === 'koppeln' || v?.art === 'geraet') {
+    if (lage.value.art === 'geraet') lage.value.geraet.stop()
+    lage.value = { art: 'ohne' }
+    paket = undefined
+    // `#/geraet` nach dem eigenen Ersetzen: GeraetFreigabe behält ihr Gerät (sie öffnet nur ein neues Paket).
+    freigabe.value = v.art === 'koppeln' ? { paket: v.bereich } : { paket: freigabe.value?.paket }
+    return
+  }
+  freigabe.value = null
+  const neu = v?.bereich
   if (neu !== paket) oeffne(neu)
 }
 
 onMounted(() => {
   window.addEventListener('hashchange', beiAdresse)
-  oeffne(vollbild()?.bereich)
+  beiAdresse()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('hashchange', beiAdresse)
   if (lage.value.art === 'geraet') lage.value.geraet.stop()
-  document.documentElement.classList.remove('anzeige-fenster', 'zuschauer-fenster', 'geraet-fenster')
+  document.documentElement.classList.remove('anzeige-fenster', 'zuschauer-fenster', 'geraet-fenster', 'freigabe-fenster')
 })
 </script>
 
 <template>
-  <div class="geraet-app" :data-art="art ?? lage.art" @dblclick="art === 'anzeige' && vollbildUmschalten()">
+  <GeraetFreigabe v-if="freigabe" :paket="freigabe.paket" :umgebung="umgebung" :aktualisiere="aktualisiere" />
+  <div v-else class="geraet-app" :data-art="art ?? lage.art" @dblclick="art === 'anzeige' && vollbildUmschalten()">
     <!-- Die Anzeigetafel wie im zweiten Fenster, ohne Logos (BETRIEB_ANNAHMEN.logosNurLokal). -->
     <div v-if="art === 'anzeige' && tafel" class="anzeige-app" :class="{ 'zeiger-weg': zeigerWeg }">
       <AnzeigeTafel :sicht="tafel" />

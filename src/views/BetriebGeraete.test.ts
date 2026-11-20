@@ -162,6 +162,12 @@ describe('Betrieb → Geräte: einschalten, Links, Fingerabdruck', () => {
       },
       erneuereZuschauer: () => {},
       beende: async () => 'ohne-meldung' as const,
+      gibCode: () => {},
+      oeffneQr: () => {},
+      beendeKoppeln: () => {},
+      setzeAufgaben: () => {},
+      benenne: () => {},
+      entziehe: () => {},
       stop: () => {},
     } satisfies GeraeteHost
     location.hash = '#/betrieb/geraete'

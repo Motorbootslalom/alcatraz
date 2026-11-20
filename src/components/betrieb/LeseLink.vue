@@ -9,7 +9,8 @@ import QrCode from '../QrCode.vue'
  * kopieren“ und „Öffnen“ (zum Ausprobieren in einem neuen Tab). Was der Link trägt, steht in geraete/paket.ts – er
  * enthält den Schlüssel seiner Gruppe; wer ihn hat, kann lesen, nicht schreiben.
  */
-const props = defineProps<{ art: 'anzeige' | 'zuschauer'; url: string }>()
+// E7: auch der Koppel-Link (`koppeln`) – er liest wie der Anzeigetafel-Link und trägt dazu den Box-Schlüssel des Hosts.
+const props = defineProps<{ art: 'anzeige' | 'zuschauer' | 'koppeln'; url: string }>()
 
 const kopiert = ref<'' | 'ja' | 'nein'>('')
 let takt: ReturnType<typeof setTimeout> | undefined

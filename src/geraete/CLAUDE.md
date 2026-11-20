@@ -4,7 +4,7 @@ Plan zur Übernahme der Tafel vom 16.11.2026, §1/§2/§5. E5 = Übertragungsker
 Lese-Links (host.ts im Bedienfenster, geraet.ts auf dem Gerät, paket.ts, Einstellung `geraeteServer`) – main.ts legt
 den Host an, tweetnacl steckt damit in dist/. Oberfläche E6: Betrieb → Geräte (components/betrieb/GeraeteRaum.vue,
 LeseLink.vue, GeraeteLage.vue), src/GeraetApp.vue (`#/sehen/<paket>`, ohne Store), SettingsView `#geraete`. E7 Koppeln
-und Start-Freigabe vom Handy.
+und Start-Freigabe vom Handy (Kern + Oberfläche 20.11.2026: GeraeteKoppeln.vue, GeraeteListe.vue, GeraetFreigabe.vue).
 **Ohne bewusst geöffneten Raum keine Verbindung** (bis dahin verlässt nichts den Browser): host.ts öffnet ohne Raum
 weder Fensterbus noch Schloss noch WebSocket (host.test.ts, src/main.geraete.test.ts).
 Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppState, sondern eine Sicht
@@ -46,6 +46,23 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - `geraet.ts` (E6) – oeffneLeseLink(text, umgebung?) → {ok, geraet: LeseGeraet} | link-ungueltig | fassung (lage);
   LeseGeraet {art anzeige|zuschauer, paket, fingerabdruck, anzeige/zuschauer (shallowRef, nach Inhalt), versatz,
   hostZeit(jetzt), status, fehler, fassung host-neuer|host-aelter, beendet, start, stop, verlasse}; NEULADEN_SPERRE_MS.
+- E7 Kern (20.11.2026, Oberfläche folgt): `aufgaben.ts` (Aufgabe `startfreigabe` {bereiche}; STARTFREIGABE_ACTIONS =
+  Positivliste BETRIEB_* ohne ZURUECKSETZEN; bereinige → nur Reducer-Felder; erlaubteAction/darf(action, aufgaben,
+  stand); Meldung '*' nie), `geraeteName.ts` (geraeteArt → i18n `geraete.name.<art>`, eindeutigerName), `koppeln.ts`
+  (Code 6 Zeichen/5 min/ein Gerät, Thema koppelThema(oA, code); QR-Sitzung mit zufälligem Thema, Token 30 s + 30 s
+  Gnade, Sitzung ≤ 10 min; Nachlauf 2 min; pruefeKoppeln nur auf dem eigenen Thema), `koppelEntscheid.ts`
+  (entscheideAnmeldung: bekannt = ID UND Schlüssel; S1 belegte ID → neue ID), `register.ts` (rein über HostRaum:
+  geraete[id].name/aufgaben/seit/zuletzt, raum.entzogen, raum.koppeln), `gekoppelt.ts` (Gerät der Start-Freigabe:
+  oeffneKoppelLink/oeffneGekoppelt → lage, aufgaben, offen (ohne Anmeldung), meldetSich (P-7), quittung,
+  koppeln(name, code?), sende, darf; Kern =
+  geraet.ts lesegeraetAus mit eigenem Transport). paket.ts: Koppel-Link `#/koppeln/<paket>` (Merker Bit 1, mit QR
+  Bit 3: Token + Thema; Box-Schlüssel `b`), koppelPaketAus. ablage.ts: `alcatraz.geraet.kopplung` (liesKopplung/
+  schreibeKopplung; pruefeRaum/verlasseRaum räumen sie mit). transport.ts: begruesse schreibt name/aufgaben/seit/
+  zuletzt mit; HostTransport.verwalte/raumJetzt; GeraetTransport.koppleUeber(thema). fensterbus.ts: GeraeteBefehl
+  (code, qr, koppeln-ende, aufgaben, umbenennen, entziehen; liesBefehl). host.ts: HostStore.dispatch, RaumInfo +
+  koppelLink/koppeln/geraete/entzogen, gibCode/oeffneQr/beendeKoppeln/setzeAufgaben/benenne/entziehe, nimmAn,
+  pflegeKoppeln (Takt `koppelTaktMs`), Bedienung = pointerdown/keydown → bus.bedient(). Annahmen:
+  BETRIEB_ANNAHMEN.startfreigabeRechte/koppelnZeiten/gekoppelteGeraete. Tests: kopplung.test.ts (Ende zu Ende).
 - `testBrowser.ts` – nur Tests: nachgebauter Browser (Fenster mit gemeinsamem Speicher + storage-Ereignis,
   BroadcastChannel, Web Locks).
 - `fuehrung.ts` – waehleFuehrung(id?, umgebung?) → `{fuehrt, art: 'sperre'|'lease', stop}`: Web Lock
@@ -105,6 +122,23 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   oder g in einem Link. Nie auf der Leitung: AppState, Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen, Logos,
   Geräteliste, Geheimnis (Schlüssel-Durchlauf über alle entschlüsselten Inhalte: geraet.test.ts „Leitung“).
 
+- Oberfläche (E7, 20.11.2026; Annahmen BETRIEB_ANNAHMEN.koppelnOberflaeche): Betrieb → Geräte unter den Lese-Links
+  GeraeteKoppeln.vue (Bereiche für das nächste Gerät, merke `geraete.koppeln.bereiche`, einer vorgewählt; „QR-Code
+  zeigen“ → oeffneQr, QR = koppelLinkUrl(raum.koppeln.qr.paket) mit Wechsel-/Ende-Zeit; „Geräte-Code ausgeben“ →
+  gibCode, Code groß mit Ablauf/benutzt; Koppel-Link als LeseLink art `koppeln`) und GeraeteListe.vue (Name → benenne
+  bei change, Häkchen → setzeAufgaben sofort, seit/zuletzt gehört über texte.ts uhrzeitText, „Entziehen“ mit
+  AppDialog; entzogene darunter). Keine Rückfrage „annehmen?“ – der Entscheid ist koppelEntscheid.ts.
+  Gerät: main.ts wählt GeraetApp für `sehen`, `koppeln` UND `geraet` (eine Wurzel – sonst lüde das Ersetzen der
+  Adresse neu). GeraetApp zeigt für koppeln/geraet components/betrieb/GeraetFreigabe.vue: oeffneKoppelLink →
+  `location.replace('#/geraet')` (QR-Token raus aus der Adresse; Kopplung liegt schon ungekoppelt in der Ablage) →
+  start(); mit QR-Token sofort koppeln(Vorschlag `geraete.name.<art>`); ohne: Formular Code + Name → koppeln(name,
+  code). `#/geraet` → oeffneGekoppelt. Gekoppelt: StartFreigabe je eigenem Bereich (`nur-dieser`: ohne „Meldung auf
+  allen“), in `<fieldset disabled>` solange `offen` (K32), „Wird gesendet …“, nach 10 s „Keine Bestätigung“;
+  Quittung abgelehnt/unveraendert der letzten eigenen Nummer als Satz (`geraete.ablehnung.<grund>`). `koppelt` ohne
+  Antwort 15 s → „Keine Antwort“ + Formular (falscher Code: niemand hört das Thema); neue Anmeldung verwirft die alte
+  (transport.ts GeraetTransport.verwirfAnmeldung). Entzogen: nur lesend Im Boot/Als Nächstes je Bereich + <details>
+  „wieder koppeln“. „Gerät entkoppeln“ = verlasse (nur gerätelokal).
+
 ## Fallen
 
 - Öffentliche Gruppen `ko`/`kz` werden nie neu verschlüsselt (K14) – zwei Sperren: raum.ts mitNeuemSchluessel UND
@@ -123,6 +157,9 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - Nummern eines Geräts: Ein neuer Stand beginnt bei der Uhrzeit (ms), nie bei 1 – und ablage.ts hält Kennung und
   Stand in EINEM Eintrag. Beides, damit ein Schlüssel nie mit Nummern unter `letzteNr` sendet (still verworfen).
 - Unbekannte Schlüssel auf g öffnet der Host nie (dort schreiben nur Gekoppelte); Koppel-Themen je eigener Eimer.
+  Ausnahme ohne Öffnen: Ein Schlüssel aus `raum.entzogen` (pk) bekommt gedrosselt noch einmal `entzogen` auf sein
+  d-Thema (erinnereEntzogenes) – sonst erführe ein Gerät, das länger als 12 h aus war, den Entzug nie (Prüfung E7).
+- Geräte wiederholen ohne Antwort mit wachsendem Abstand (wiederholAbstand: quittungMs, ×2, ≤ 5 min) – Kontingent.
   Zweite Antworten an Gekoppelte (doppelt, erneute Begrüßung) gedrosselt: Abstand wächst, Summe ≤ 12/min.
 - Eine Anmeldung eines GEBUNDENEN Schlüssels über ein Koppel-Thema mit nr = letzteNr heißt: willkommen ging verloren →
   wird als `gebunden: true` erneut geliefert, E7 begrüßt wieder (`begruesse` antwortet auf das Thema, über das sie kam).
@@ -141,8 +178,11 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 
 ## Tests
 
-`npx vitest run src/geraete src/main.geraete src/main.sehen src/GeraetApp src/views/BetriebGeraete` (nachgebauter
-ntfy, kein Netz). Oberfläche E6: views/BetriebGeraete.test.ts (einschalten, Links/QR, Kopieren, erneuern, beenden,
+`npx vitest run src/geraete src/main.geraete src/main.sehen src/GeraetApp src/GeraetKoppeln src/views/BetriebGeraete
+src/views/BetriebKoppeln` (nachgebauter ntfy, kein Netz). Oberfläche E7: src/GeraetKoppeln.test.ts (Code, falsches
+Format, benutzter Code, QR ohne Eingabe, #/geraet ohne Kopplung, Knöpfe schalten am Host und sperren bis zur
+Quittung, Rechte ändern, Entzug, Neuladen und entkoppeln), views/BetriebKoppeln.test.ts (Bereiche, Code mit Ablauf,
+QR mit Token, Koppel-Link, Geräteliste: ändern, umbenennen, entziehen mit Rückfrage). Oberfläche E6: views/BetriebGeraete.test.ts (einschalten, Links/QR, Kopieren, erneuern, beenden,
 Kopf-Anzeige, zweites Fenster, Hinweis in den Einstellungen), src/GeraetApp.test.ts (Tafel/Liste, warte, kaputter Link,
 Paket- und Host-Fassung, verlassen, beendet, Neuladen ohne Netz), src/main.sehen.test.ts (echter Start: kein Store,
 nur der Server aus dem Link), SettingsView.test.ts „Geräte“. Kern (E6): paket.test.ts

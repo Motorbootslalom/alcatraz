@@ -148,7 +148,8 @@ und zwischen zwei Kopien der Datei an verschiedenen Orten – nur über eine Sic
 
 Anzeigetafel und Zuschauerliste lassen sich auch auf anderen Geräten zeigen – einem Bildschirm am Steg, einem Tablet,
 den Handys der Zuschauer (Etappe E6 des Plans vom 16.11.2026). Dafür gibt es zwei **Lese-Links** mit QR-Code, ohne
-Anmeldung und ohne Kopplung: wer den Link hat, kann lesen, aber nichts ändern.
+Anmeldung und ohne Kopplung: wer den Link hat, kann lesen, aber nichts ändern. Seit E7 kann ein gekoppeltes Handy
+außerdem die Start-Freigabe bedienen ([unten](#start-freigabe-vom-handy-koppeln)).
 
 **Nichts geht von selbst hinaus.** Solange niemand unter „Betrieb → Geräte“ auf **„Gerätebetrieb einschalten“** drückt,
 baut Alcatraz keine Verbindung zu irgendeinem Server auf (dafür gibt es einen eigenen Test). Eingeschaltet gilt:
@@ -193,6 +194,47 @@ Auf dem Gerät:
 - **Fassungen:** Bedienrechner und Geräte müssen dieselbe Fassung haben. Ist der Bedienrechner älter (etwa eine alte
   Datei auf dem Stick), steht auf dem Gerät „Bedienrechner aktualisieren“; ist er neuer, holt sich das Gerät die neue
   Fassung selbst. Sonst lädt ein Gerät nie von selbst neu.
+
+### Start-Freigabe vom Handy (Koppeln)
+
+Seit Etappe E7 (20.11.2026) bedient ein **gekoppeltes** Handy oder Tablet die Start-Freigabe – mit denselben Knöpfen
+wie am Bedienrechner („Nächster Start“, „Lauf N beginnen“, Zurückstellen, Meldung, Einsteigen …), aber nur für die
+Parcours, die der Bedienrechner ihm gibt. „Betrieb zurücksetzen“, Einstellungen und alles außerhalb des Betriebs
+bleiben am Bedienrechner. Entschieden und angewandt wird immer am Bedienrechner; das Handy schickt nur Wünsche.
+
+Am Bedienrechner (Betrieb → Geräte, unter den Lese-Links):
+
+- **Für das nächste Gerät freigeben:** die Parcours (unter UIM auch den Parallelslalom) ankreuzen; bei nur einem
+  Parcours ist er vorgewählt.
+- **„QR-Code zeigen“:** Das Handy scannt ihn vom Bildschirm und ist sofort gekoppelt, ohne etwas zu tippen. Der Code
+  wechselt alle 30 Sekunden (der vorige gilt noch 30 Sekunden, ein Foto taugt also kaum) und schließt sich nach
+  höchstens 10 Minuten.
+- **„Geräte-Code ausgeben“:** 6 Zeichen, 5 Minuten gültig, für **ein** Gerät – für Handys, die den Bildschirm nicht
+  sehen. Das Handy braucht dazu vorab den **Koppel-Link** (steht daneben mit QR-Code und „Link kopieren“); den Code
+  sagt man über Funk durch. Der Koppel-Link allein zeigt nur, was auf der Anzeigetafel steht.
+- **Gekoppelte Geräte:** je Gerät der Name (änderbar), die Parcours seiner Start-Freigabe (Häkchen – wirkt sofort auf
+  dem Gerät), gekoppelt seit und „zuletzt gehört“. Ein Gerät meldet sich nur, wenn es schaltet oder neu startet;
+  „zuletzt gehört“ sagt also nicht, ob es gerade verbunden ist.
+- **„Entziehen“** (mit Rückfrage): Das Gerät kann nichts mehr schalten, zeigt aber weiter, wer im Boot sitzt und wer
+  als Nächstes kommt. Wieder koppeln geht mit einem neuen Code.
+
+Auf dem Handy (`#/koppeln/…`, danach `#/geraet`):
+
+- Nach dem QR-Code oder dem Code steht die Start-Freigabe der eigenen Parcours da, für schmale Bildschirme mit großen
+  Knöpfen. Der Koppel-Link verschwindet dabei aus der Adresse; neu laden oder später wieder öffnen über `#/geraet`.
+- Nach jedem Druck sind alle Knöpfe gesperrt („Wird gesendet …“), bis der Bedienrechner bestätigt; nach 10 Sekunden
+  ohne Bestätigung steht „Verbindung prüfen“ da, gesendet wird weiter (mit wachsendem Abstand, höchstens alle
+  5 Minuten – schont das Kontingent). Ein doppelter Druck schaltet nie zweimal. Nach dem Neuladen meldet sich das
+  Handy selbst beim Bedienrechner („Verbinde …“); die Knöpfe bleiben dabei frei.
+  Lehnt der Bedienrechner ab (anderer Parcours, inzwischen entzogen) oder war jemand schneller, steht das als Satz da.
+- Auf einen falschen oder abgelaufenen Code antwortet niemand: Nach 15 Sekunden „Keine Antwort“ und das Formular
+  wieder. Ein schon benutzter Code wird abgelehnt. Scheitert ein gescannter QR-Code, ihn noch einmal scannen.
+- War ein Handy beim Entziehen aus (auch länger als die 12 Stunden, die der Server Nachrichten hält), erfährt es den
+  Entzug beim nächsten Start.
+- **„Gerät entkoppeln“** löscht Kopplung und Schlüssel auf dem Handy. In der Geräteliste des Bedienrechners steht es
+  weiter, bis es dort entzogen wird.
+- Bei Ausfall des Bedienrechners übernimmt kein Ersatzrechner die Kopplungen (Entscheidung F4): neuer Raum, Links
+  neu aushängen, Handys neu koppeln.
 
 Grenzen: Ohne Internet am Steg stehen alle fremden Geräte; die Anzeigetafel im zweiten Fenster geht immer.
 Ein Hotspot teilt sich das Kontingent des Servers (Anfragen je IP-Adresse und Tag). Mit echten Handys (iPhone, Android

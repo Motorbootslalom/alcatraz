@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 import { ABLAGE, type Ablage } from './ablage'
 import { neueFensterId } from './fuehrung'
 import { liesGeraeteNachricht, type Ergebnis, type GeraeteAction } from './transport/protokoll'
+import { liesAufgaben, type Aufgabe } from './aufgaben'
 import type { Fehlercode, TransportFehler, Verbindungsstand } from './transport/typen'
 
 /**
@@ -42,7 +43,39 @@ export type Anwendung = Extract<Ergebnis, 'angewandt' | 'unveraendert'>
  * anderes Fenster schriebe sonst neben ihm (Nummern doppelt, Thema zurückgedreht).
  */
 export const BEFEHLE = ['zuschauer-erneuern', 'raum-beenden'] as const
-export type Befehl = (typeof BEFEHLE)[number]
+/**
+ * E7 (20.11.2026): Befehle mit Angaben – Koppeln, Rechte ändern, Entzug. Auch sie schreibt nur das Führungsfenster in den
+ * Raum (Register, Koppel-Stand); die Oberfläche kann in jedem Fenster stehen.
+ */
+export type GeraeteBefehl =
+  | { art: 'code'; aufgaben: Aufgabe[] }
+  | { art: 'qr'; aufgaben: Aufgabe[] }
+  | { art: 'koppeln-ende'; was: 'code' | 'qr' | 'alle' }
+  | { art: 'aufgaben'; id: string; aufgaben: Aufgabe[] }
+  | { art: 'umbenennen'; id: string; name: string }
+  | { art: 'entziehen'; id: string }
+export type Befehl = (typeof BEFEHLE)[number] | GeraeteBefehl
+
+/** Prüft einen Befehl aus einem anderen Fenster (nur die Form – es ist derselbe Ursprung). */
+export function liesBefehl(wert: unknown): Befehl | null {
+  if ((BEFEHLE as readonly unknown[]).includes(wert)) return wert as Befehl
+  if (!istObjekt(wert)) return null
+  switch (wert.art) {
+    case 'code':
+    case 'qr':
+      return Array.isArray(wert.aufgaben) ? { art: wert.art, aufgaben: liesAufgaben(wert.aufgaben) } : null
+    case 'koppeln-ende':
+      return wert.was === 'code' || wert.was === 'qr' || wert.was === 'alle' ? { art: 'koppeln-ende', was: wert.was } : null
+    case 'aufgaben':
+      return istKennung(wert.id) && Array.isArray(wert.aufgaben) ? { art: 'aufgaben', id: wert.id, aufgaben: liesAufgaben(wert.aufgaben) } : null
+    case 'umbenennen':
+      return istKennung(wert.id) && typeof wert.name === 'string' && wert.name.length <= 60 ? { art: 'umbenennen', id: wert.id, name: wert.name } : null
+    case 'entziehen':
+      return istKennung(wert.id) ? { art: 'entziehen', id: wert.id } : null
+    default:
+      return null
+  }
+}
 
 export interface VerbindungsMeldung {
   status: Verbindungsstand
@@ -170,8 +203,10 @@ function liesUmschlag(roh: unknown): Umschlag | null {
       const meldung = liesMeldung(n.meldung)
       return meldung === undefined ? null : { ...kopf, n: { art: 'verbindung', meldung } }
     }
-    case 'befehl':
-      return (BEFEHLE as readonly unknown[]).includes(n.befehl) ? { ...kopf, n: { art: 'befehl', befehl: n.befehl as Befehl } } : null
+    case 'befehl': {
+      const befehl = liesBefehl(n.befehl)
+      return befehl ? { ...kopf, n: { art: 'befehl', befehl } } : null
+    }
     default:
       return null
   }

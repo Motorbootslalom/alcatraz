@@ -40,6 +40,11 @@ const props = defineProps<{
   sende: (action: BetriebAenderung) => void
   /** Nur am Bedienrechner: eine eigene Anzeigetafel für diesen Bereich öffnen. */
   anzeigeOeffnen?: () => void
+  /**
+   * Auf einem gekoppelten Gerät (E7): ohne „Meldung auf allen“ – ein Gerät schreibt nie auf die Anzeigetafel anderer
+   * Bereiche (geraete/aufgaben.ts lehnt Bereich '*' ab; der Knopf soll gar nicht erst locken).
+   */
+  nurDieser?: boolean
 }>()
 
 const b = computed(() => props.bereich)
@@ -137,7 +142,7 @@ watch(
     if (neu) art.value = neu.art
   },
 )
-const mehrere = computed(() => props.sicht.bereiche.length > 1)
+const mehrere = computed(() => props.sicht.bereiche.length > 1 && !props.nurDieser)
 /** Eine Vorlage füllt nur den Entwurf (B-8); auf die Anzeigetafel kommt sie erst mit „Meldung zeigen“. */
 function vorlage(m: Meldung) {
   text.value = m.text

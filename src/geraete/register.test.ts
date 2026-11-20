@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest'
+import { aufgabenVon, bekannteGeraete, benenne, beruehre, entzogeneListe, geraeteListe, koppelStandVon, setzeAufgaben, setzeKoppelStand, vermerkeEntzug } from './register'
+import { gibCode, leererKoppelStand } from './koppeln'
+import { istHostRaum, neuerRaum, ENTZOGEN_HOECHSTENS } from './transport/ntfy/raum'
+import { SERVER } from './transport/ntfy/testNtfy'
+
+/** Register im Raum des Hosts (E7) – rein; Gerätenamen erfunden. */
+
+const PK = 'A'.repeat(43)
+
+function raumMitGeraet() {
+  const raum = neuerRaum(SERVER)
+  raum.geraete.g1 = { pk: PK, letzteNr: 5, gruppen: [], name: 'Steg Nord', aufgaben: [{ art: 'startfreigabe', bereiche: ['see'] }], seit: 10, zuletzt: 20 }
+  raum.geraete.g2 = { pk: 'B'.repeat(43), letzteNr: 1, gruppen: [] }
+  return raum
+}
+
+describe('Register', () => {
+  it('Liste ohne Schlüssel und Nummern, nach Name; Kaputtes in Aufgaben fällt weg', () => {
+    const raum = raumMitGeraet()
+    raum.geraete.g2.aufgaben = [{ art: 'admin' }]
+    const liste = geraeteListe(raum)
+    expect(liste.map((g) => g.id)).toEqual(['g2', 'g1'])
+    expect(liste[1]).toEqual({ id: 'g1', name: 'Steg Nord', aufgaben: [{ art: 'startfreigabe', bereiche: ['see'] }], seit: 10, zuletzt: 20 })
+    expect(liste[0].aufgaben).toEqual([])
+    expect(JSON.stringify(liste)).not.toContain(PK)
+    expect(bekannteGeraete(raum).g1).toEqual({ pk: PK, name: 'Steg Nord', aufgaben: [{ art: 'startfreigabe', bereiche: ['see'] }] })
+  })
+
+  it('Rechte ändern, umbenennen, berühren – nur für Eingetragene; der Raum bleibt gültig', () => {
+    const raum = raumMitGeraet()
+    expect(setzeAufgaben(raum, 'g1', [{ art: 'startfreigabe', bereiche: ['land'] }])).toBe(true)
+    expect(aufgabenVon(raum, 'g1')).toEqual([{ art: 'startfreigabe', bereiche: ['land'] }])
+    expect(setzeAufgaben(raum, 'weg', [])).toBe(false)
+    expect(aufgabenVon(raum, 'weg')).toEqual([])
+    expect(benenne(raum, 'g1', 'Steg Süd')).toBe(true)
+    beruehre(raum, 'g1', 99)
+    expect(raum.geraete.g1).toMatchObject({ name: 'Steg Süd', zuletzt: 99 })
+    expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
+  })
+
+  it('Entzug vermerkt, begrenzt, neueste zuerst; Koppel-Stand rund', () => {
+    const raum = raumMitGeraet()
+    for (let i = 0; i < ENTZOGEN_HOECHSTENS + 5; i++) vermerkeEntzug(raum, { id: `x${i}`, name: 'Alt', um: i })
+    vermerkeEntzug(raum, { id: 'g1', name: 'Steg Nord', um: 1000 })
+    expect(raum.entzogen).toHaveLength(ENTZOGEN_HOECHSTENS)
+    expect(entzogeneListe(raum)[0]).toEqual({ id: 'g1', name: 'Steg Nord', um: 1000 })
+    const k = gibCode(leererKoppelStand(), raum.oeffentlich.a, [], 5)
+    setzeKoppelStand(raum, k)
+    expect(koppelStandVon(JSON.parse(JSON.stringify(raum)))).toEqual(k)
+    setzeKoppelStand(raum, leererKoppelStand())
+    expect('koppeln' in raum).toBe(false)
+    expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
+  })
+})

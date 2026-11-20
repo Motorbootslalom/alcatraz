@@ -405,7 +405,7 @@ nur wer Anzeigetafel oder Zuschauerliste auch auf anderen Geräten zeigen will, 
 - **Was die Anzeigetafel zeigt** (`src/betrieb/sicht.ts`): nur Startnummer, Name, Klasse und Herkunft der Starter,
   die gerade vorkommen – nie Geburtsdatum, Gewicht, Geschlecht oder erfasste Werte. Dieselbe Sicht liest die
   Start-Freigabe; so läuft die Anzeigetafel unverändert auch auf anderen Geräten (Lese-Link), die Start-Freigabe
-  später ebenso (Etappe E7). Die Zuschauerliste liest eine noch
+  ebenso auf einem gekoppelten Handy (Etappe E7). Die Zuschauerliste liest eine noch
   schmalere Sicht (`sichtZuschauer`): ohne alles, was nur die Bedienung braucht – wer zurückgestellt ist, wer
   nachzuholen ist, die Starts späterer Läufe –, und nur die Starter, die darin vorkommen.
 - **Einstellungen** unter „Einstellungen → Anzeigetafel“: Kopfzeile (Vorgabe Name und Jahr der Veranstaltung,
@@ -434,6 +434,17 @@ nur wer Anzeigetafel oder Zuschauerliste auch auf anderen Geräten zeigen will, 
     Bedienrechner, „seit“ und „ca. in“ mit der Uhr des Bedienrechners, Fingerabdruck, Vollbild, „Raum verlassen“.
     Was es zeigt, verfällt 36 Stunden nach der letzten Nachricht. Andere Fassung: „Bedienrechner aktualisieren“ bzw.
     gezieltes Neuladen, wenn der Bedienrechner neuer ist.
+  - **Koppeln** (E7, `GeraeteKoppeln.vue`): Parcours für das nächste Gerät wählen, dann **QR-Code** (Token wechselt
+    alle 30 s, Sitzung höchstens 10 min; das Handy koppelt ohne Eingabe) oder **Geräte-Code** (6 Zeichen, 5 min, ein
+    Gerät; dazu der **Koppel-Link** `#/koppeln/<paket>` zum Weitergeben). Keine Rückfrage „annehmen?“ – wer den Code
+    gibt, sitzt am Bedienrechner.
+  - **Gekoppelte Geräte** (E7, `GeraeteListe.vue`): Name ändern, Parcours der Start-Freigabe ankreuzen (wirkt sofort),
+    gekoppelt seit, zuletzt gehört, **„Entziehen“** mit Rückfrage; darunter die zuletzt entzogenen.
+  - **Start-Freigabe auf dem Handy** (E7, `#/koppeln/<paket>` → `#/geraet`, `GeraetFreigabe.vue`): dieselbe
+    StartFreigabe wie am Bedienrechner, nur die eigenen Parcours und ohne „Meldung auf allen“; alle Knöpfe gesperrt bis
+    zur Bestätigung (nach 10 s „Verbindung prüfen“); Ablehnung, „jemand war schneller“, „entzogen“ als Satz; entzogen
+    nur lesend „Im Boot“/„Als Nächstes“; „Gerät entkoppeln“. Rechte: alle `BETRIEB_*` außer „Betrieb zurücksetzen“, nur
+    in den eigenen Bereichen (`src/geraete/aufgaben.ts`).
   - **Einstellung** „Einstellungen → Geräte“: der ntfy-Server (leer = Vorgabe `ntfy.adminforge.de`); geprüft, reist
     mit Vorlage und Sicherung. Ein anderer Server gilt erst für einen neuen Raum.
 - **Gespeichert:** Der Betrieb steht in der Sicherung, nicht in der Vorlage. „Verlauf wiederherstellen“ (innerhalb

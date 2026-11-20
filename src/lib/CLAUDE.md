@@ -73,7 +73,8 @@ clipboard, scanner, logoBild.
   späteren Versuchs, fragt ErfassungTabelle.vue erst (erfassung.ts ueberschreibtX).
 - merken.ts mit ueberNeuladen: neue Werte brauchen einen Guard für alte gemerkte Auswahl (SPAETERE_TEILE).
 - adressen.ts: Fenster mit eigener Wurzel (VOLLBILDER, `#/anzeige`/`#/display`, `#/zuschauer`/`#/spectators`, E6
-  `#/sehen/<paket>` in jeder Sprache gleich – das Paket im zweiten Segment, Groß/klein zählt) liest
+  `#/sehen/<paket>`, E7 `#/koppeln/<paket>` und `#/geraet` in jeder Sprache gleich – das Paket im zweiten Segment,
+  Groß/klein zählt; sehen/koppeln/geraet = EINE Wurzel GeraetApp, main.ts `wurzel`) liest
   liesVollbild VOR jedem Store (main.ts wählt danach AnzeigeApp/ZuschauerApp/GeraetApp); ihre Wörter dürfen nie die einer Ansicht
   sein (adressen.test.ts). Reiter `betrieb` (en `operation`, vorläufig) mit `start`, `startliste` (en `starting-order`),
   E6 `geraete` (en `devices`); Sprungziel `geraete` (en `devices`).

@@ -39,6 +39,26 @@ export interface GebundenesGeraet {
   letzteNr: number
   /** Nicht öffentliche Gruppen, deren Schlüssel es hat – nach einem Entzug bekommen sie neue. */
   gruppen: string[]
+  // Register (E7, geraete/register.ts): Beschriftung und Rechte. Freiwillig, damit der Kern ohne sie auskommt.
+  /** Name in der Geräteliste (eindeutig gemacht vom Host, geraete/geraeteName.ts). */
+  name?: string
+  /** Aufgaben (geraete/aufgaben.ts) – maßgeblich für `darf`, nie was das Gerät behauptet. */
+  aufgaben?: unknown[]
+  /** Wann gekoppelt bzw. zuletzt gehört (Uhr des Hosts, ms). */
+  seit?: number
+  zuletzt?: number
+}
+
+/** Ein entzogenes Gerät, für die Geräteliste (E7): ohne Gruppenschlüssel – es kann nichts mehr. */
+export interface EntzogenesGeraet {
+  id: string
+  name: string
+  um: number
+  /**
+   * Sein öffentlicher Schlüssel – nur, um ihm `entzogen` noch einmal zu schicken, wenn es sich nach langer Pause auf g
+   * meldet (transport.ts erinnereEntzogenes, Befund der E7-Prüfung 20.11.2026). Öffentlich, gibt also nichts preis.
+   */
+  pk?: string
 }
 
 /**
@@ -76,7 +96,14 @@ export interface HostRaum {
   geraete: Record<string, GebundenesGeraet>
   /** Verwaltungsnachrichten, die noch nicht bei ntfy angekommen sind. */
   ausstehend: Ausstehend[]
+  /** E7: laufender Geräte-Code und QR-Sitzung (geraete/koppeln.ts KoppelStand; gelesen mit liesKoppelStand). */
+  koppeln?: unknown
+  /** E7: zuletzt entzogene Geräte (höchstens {@link ENTZOGEN_HOECHSTENS}), nur zur Anzeige. */
+  entzogen?: EntzogenesGeraet[]
 }
+
+/** So viele entzogene Geräte merkt sich der Raum für die Geräteliste. */
+export const ENTZOGEN_HOECHSTENS = 50
 
 /** Vermerkt eine Verwaltungsnachricht (einmal je Gerät und Art). */
 export function vermerke(raum: HostRaum, eintrag: Ausstehend): void {
@@ -126,6 +153,14 @@ export function istHostRaum(wert: unknown): wert is HostRaum {
   for (const [id, g] of Object.entries(geraete)) {
     if (!istGeraetId(id) || !istObjekt(g) || !isBase64Url(g.pk, 32) || !istZahl(g.letzteNr)) return false
     if (!Array.isArray(g.gruppen) || !g.gruppen.every(istGruppe)) return false
+    if (g.name !== undefined && (typeof g.name !== 'string' || g.name.length > 60)) return false
+    if (g.aufgaben !== undefined && !Array.isArray(g.aufgaben)) return false
+    if ((g.seit !== undefined && !istZahl(g.seit)) || (g.zuletzt !== undefined && !istZahl(g.zuletzt))) return false
+  }
+  if (wert.koppeln !== undefined && wert.koppeln !== null && !istObjekt(wert.koppeln)) return false
+  if (wert.entzogen !== undefined) {
+    if (!Array.isArray(wert.entzogen)) return false
+    for (const e of wert.entzogen as unknown[]) if (!istObjekt(e) || !istGeraetId(e.id) || typeof e.name !== 'string' || !istZahl(e.um) || (e.pk !== undefined && !isBase64Url(e.pk, 32))) return false
   }
   if (!Array.isArray(wert.ausstehend)) return false
   for (const a of wert.ausstehend as unknown[]) {

@@ -1,5 +1,5 @@
 import type { OeffentlicheSicht, PunktId, SichtBereich, SichtPunkt, SichtStart, VerschiebeZiel } from '../../types'
-import { t, tIn, tn, type Locale, type MessageKey } from '../../i18n'
+import { locale, t, tIn, tn, type Locale, type MessageKey } from '../../i18n'
 import { wartezeitAnzeige } from '../../betrieb/prognose'
 import { rundeVonPunkt } from '../../betrieb/folge'
 import { rundenName } from '../../planung/parallelRunden'
@@ -222,4 +222,18 @@ export function wartezeitText(sekunden: number, sprache: Locale): string {
  */
 export function fingerabdruckText(f: string): string {
   return f.replace(/(.{4})(?=.)/g, '$1 ')
+}
+
+/**
+ * Uhrzeit (Stunde:Minute) in der Sprache der Oberfläche – Geräteliste (E7: gekoppelt, zuletzt gehört). Liegt das
+ * Datum nicht heute, steht es davor: Ein Raum bleibt über Nacht offen, „zuletzt 14:32“ von gestern führte in die Irre.
+ */
+export function uhrzeitText(ms: number, jetzt: number = Date.now()): string {
+  const d = new Date(ms)
+  const zwei = (n: number) => String(n).padStart(2, '0')
+  // Von Hand statt toLocale…: Englisch gäbe 12-Stunden-Zeit und Monat/Tag – mm/dd „darf es nie geben“ (Wurzel-CLAUDE.md).
+  const zeit = `${zwei(d.getHours())}:${zwei(d.getMinutes())}`
+  if (d.toDateString() === new Date(jetzt).toDateString()) return zeit
+  const datum = locale.value === 'de' ? `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.` : `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}`
+  return `${datum} ${zeit}`
 }

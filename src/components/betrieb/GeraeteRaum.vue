@@ -11,6 +11,8 @@ import { fingerabdruckText } from './texte'
 import AppDialog from '../AppDialog.vue'
 import GeraeteLage from './GeraeteLage.vue'
 import LeseLink from './LeseLink.vue'
+import GeraeteKoppeln from './GeraeteKoppeln.vue'
+import GeraeteListe from './GeraeteListe.vue'
 
 /**
  * Betrieb → Geräte (Etappe E6, Plan vom 16.11.2026 §4): Gerätebetrieb bewusst einschalten (Raum öffnen), die zwei
@@ -21,7 +23,8 @@ import LeseLink from './LeseLink.vue'
  * Bis „Gerätebetrieb einschalten“ verlässt nichts den Browser (Wurzel-CLAUDE.md, src/main.geraete.test.ts); der Text
  * davor sagt, was dann über den fremden Server geht. Ein zweites Fenster derselben Veranstaltung zeigt denselben Raum
  * und die Verbindung, die das Führungsfenster über den Fensterbus meldet; seine Knöpfe gehen als Befehl dorthin.
- * Kein Koppeln, keine Geräteliste – das ist E7.
+ * E7 (20.11.2026): darunter Koppeln (GeraeteKoppeln.vue: Bereiche, QR-Code, Geräte-Code, Koppel-Link) und die
+ * Geräteliste (GeraeteListe.vue: Name, Bereiche, zuletzt gehört, Entziehen).
  */
 const { state } = useStore()
 const host = useGeraeteHost()
@@ -137,6 +140,9 @@ async function beenden(): Promise<void> {
         </LeseLink>
       </div>
       <p v-if="erneuert" class="boat-banner ok" role="status" data-teil="zuschauer-erneuert">{{ t('geraete.zuschauerErneuert') }}</p>
+
+      <GeraeteKoppeln />
+      <GeraeteListe />
 
       <div class="row" style="margin-top: 14px">
         <button type="button" class="btn danger" data-action="raum-beenden" :disabled="beendet" @click="frageBeenden = true">

@@ -1,7 +1,7 @@
 import nacl from 'tweetnacl'
 import { fromBase64Url, fromUtf8, toBase64Url, utf8 } from './transport/ntfy/codec'
-import { normalisiereServer } from './themen'
-import { gruppeDesLinks, liesLesePaket, linkDerGruppe, type LesePaket } from './transport/ntfy/raum'
+import { istThema, normalisiereServer } from './themen'
+import { gruppeDesLinks, lesePaket, liesLesePaket, linkDerGruppe, type HostRaum, type LesePaket } from './transport/ntfy/raum'
 
 /**
  * Das Paket eines Lese-Links in der Adresse (`#/sehen/<paket>`, Etappe E6, 16.11.2026): Anzeigetafel oder
@@ -17,7 +17,8 @@ import { gruppeDesLinks, liesLesePaket, linkDerGruppe, type LesePaket } from './
  *
  * Bytes der Reihe nach:
  * 1. Fassung des Pakets ({@link PAKET_FASSUNG});
- * 2. Merker: Bit 0 Zuschauer-Link (sonst Anzeigetafel), Bit 2 Server ohne `https://` (Bit 1 frei);
+ * 2. Merker: Bit 0 Zuschauer-Link (sonst Anzeigetafel), Bit 2 Server ohne `https://`; E7: Bit 1 Koppel-Link, Bit 3 mit
+ *    QR-Token (siehe {@link packeKoppelPaket});
  * 3. Epoche des Gruppenschlüssels (LEB128), Raum-ID und Thema (je Länge + Bytes), Gruppenschlüssel (32 Byte),
  *    Signaturschlüssel des Hosts (32 Byte), Server (Länge + UTF-8);
  * 4. Prüfsumme: die ersten 4 Byte von SHA-512 über alles davor.
@@ -58,6 +59,11 @@ function pruefsumme(daten: Uint8Array): Uint8Array {
 export function packeLesePaket(paket: LesePaket): string {
   const welches = linkDerGruppe(paket.g)
   if (!welches) throw new Error('paket-gruppe')
+  return packe(paket, welches === 'z' ? BIT_ZUSCHAUER : 0, [])
+}
+
+/** Bytes eines Pakets: Kopf und Lese-Teil wie oben, dann `mehr` (Koppel-Link, E7), dann die Prüfsumme. */
+function packe(paket: LesePaket, merker: number, mehr: number[]): string {
   const server = normalisiereServer(paket.u)
   if (!server) throw new Error('paket-server')
   const r = base64Bytes(paket.r)
@@ -69,14 +75,14 @@ export function packeLesePaket(paket: LesePaket): string {
   const serverBytes = utf8(https ? server.slice('https://'.length) : server)
   if (serverBytes.length > 255) throw new Error('paket-server')
 
-  const teile: number[] = [PAKET_FASSUNG, (welches === 'z' ? BIT_ZUSCHAUER : 0) | (https ? BIT_HTTPS : 0)]
+  const teile: number[] = [PAKET_FASSUNG, merker | (https ? BIT_HTTPS : 0)]
   for (let e = paket.e; ; ) {
     const unten = e % 128
     e = Math.floor(e / 128)
     teile.push(e > 0 ? unten | 128 : unten)
     if (e === 0) break
   }
-  teile.push(r.length, ...r, t.length, ...t, ...k, ...s, serverBytes.length, ...serverBytes)
+  teile.push(r.length, ...r, t.length, ...t, ...k, ...s, serverBytes.length, ...serverBytes, ...mehr)
   const daten = Uint8Array.from(teile)
   const ganz = new Uint8Array(daten.length + PRUEF)
   ganz.set(daten, 0)
@@ -84,8 +90,13 @@ export function packeLesePaket(paket: LesePaket): string {
   return toBase64Url(ganz)
 }
 
-/** Liest das Paket aus der Adresse – geprüft (Prüfsumme, Felder wie raum.ts liesLesePaket). Wirft nie. */
-export function liesLeseLink(text: unknown): LeseLink {
+/** Gelesene Bytes nach Prüfsumme und Fassung: Merker, Lese-Teil, und ein Leser für den Rest. */
+type Roh =
+  | { ok: true; merker: number; paket: LesePaket; nimm: (n: number) => Uint8Array; fertig: () => boolean }
+  | { ok: false; code: 'link-ungueltig' }
+  | { ok: false; code: 'fassung'; fassung: number }
+
+function entpacke(text: unknown, erlaubt: number, gruppe: (merker: number) => string): Roh {
   const kaputt = { ok: false, code: 'link-ungueltig' } as const
   if (typeof text !== 'string' || text.length < 8 || text.length > 1024) return kaputt
   const ganz = fromBase64Url(text.trim())
@@ -104,6 +115,7 @@ export function liesLeseLink(text: unknown): LeseLink {
       return stueck
     }
     const merker = nimm(1)[0]
+    if (merker & ~erlaubt) return kaputt
     let e = 0
     for (let faktor = 1; ; faktor *= 128) {
       const b = nimm(1)[0]
@@ -117,13 +129,91 @@ export function liesLeseLink(text: unknown): LeseLink {
     const s = toBase64Url(nimm(SCHLUESSEL))
     const roh = fromUtf8(nimm(nimm(1)[0]))
     const u = merker & BIT_HTTPS ? `https://${roh}` : roh
-    if (i !== daten.length || merker & ~(BIT_ZUSCHAUER | BIT_HTTPS)) return kaputt
-    const welches = merker & BIT_ZUSCHAUER ? 'z' : 'a'
-    const paket = liesLesePaket({ u, r, t, g: gruppeDesLinks(welches), k, e, s })
-    return paket ? { ok: true, paket, welches } : kaputt
+    const paket = liesLesePaket({ u, r, t, g: gruppe(merker), k, e, s })
+    return paket ? { ok: true, merker, paket, nimm, fertig: () => i === daten.length } : kaputt
   } catch {
     return kaputt
   }
+}
+
+/** Liest das Paket aus der Adresse – geprüft (Prüfsumme, Felder wie raum.ts liesLesePaket). Wirft nie. */
+export function liesLeseLink(text: unknown): LeseLink {
+  const kaputt = { ok: false, code: 'link-ungueltig' } as const
+  const roh = entpacke(text, BIT_ZUSCHAUER | BIT_HTTPS, (m) => gruppeDesLinks(m & BIT_ZUSCHAUER ? 'z' : 'a'))
+  if (!roh.ok) return roh
+  if (!roh.fertig()) return kaputt
+  return { ok: true, paket: roh.paket, welches: roh.merker & BIT_ZUSCHAUER ? 'z' : 'a' }
+}
+
+// ---------------------------------------------------------------------------
+// Koppel-Link (E7)
+// ---------------------------------------------------------------------------
+
+/**
+ * Was ein Gerät zum Koppeln für die Start-Freigabe braucht (E7, 20.11.2026): alles eines Anzeigetafel-Links (die
+ * Start-Freigabe liest die öffentliche Sicht auf oA, Plan §5), dazu den Box-Schlüssel des Hosts (`b`) – nur damit
+ * kann es dem Host schreiben. Ohne `q` ist es der **Koppel-Link** für den Geräte-Code (wird verteilt, der Code
+ * kommt über Funk; Thema H(oA ‖ 'koppeln' ‖ code)); mit `q` der **QR-Code** des Bedienrechners: Token (30 s) und
+ * das zufällige Thema der QR-Sitzung (geraete/koppeln.ts). Kein Geheimnis darin außer dem kurzlebigen Token – die
+ * Schlüssel sind öffentlich, die Rechte bestimmt allein der Host.
+ */
+export interface KoppelPaket extends LesePaket {
+  b: string
+  q?: { token: string; thema: string }
+}
+
+export type KoppelLink =
+  | { ok: true; paket: KoppelPaket }
+  | { ok: false; code: 'link-ungueltig' }
+  | { ok: false; code: 'fassung'; fassung: number }
+
+/** Das Wort der Adresse eines Koppel-Links bzw. QR-Codes: `#/koppeln/<paket>` (in jeder Sprache gleich). */
+export const KOPPELN = 'koppeln'
+
+const BIT_KOPPELN = 2
+const BIT_QR = 8
+const TOKEN_HOECHSTENS = 64
+
+/** Packt einen Koppel-Link (bzw. mit `q` den Inhalt des QR-Codes). Wirft, wenn ein Feld sich nicht packen lässt. */
+export function packeKoppelPaket(paket: KoppelPaket): string {
+  if (paket.g !== gruppeDesLinks('a')) throw new Error('paket-gruppe')
+  const b = base64Bytes(paket.b)
+  if (b.length !== SCHLUESSEL) throw new Error('paket-feld')
+  const mehr = [...b]
+  if (paket.q) {
+    const token = utf8(paket.q.token)
+    const thema = base64Bytes(paket.q.thema)
+    if (!token.length || token.length > TOKEN_HOECHSTENS || thema.length > 255) throw new Error('paket-feld')
+    mehr.push(token.length, ...token, thema.length, ...thema)
+  }
+  return packe(paket, BIT_KOPPELN | (paket.q ? BIT_QR : 0), mehr)
+}
+
+/** Liest einen Koppel-Link – ein Lese-Link ist keiner (und umgekehrt). Wirft nie. */
+export function liesKoppelLink(text: unknown): KoppelLink {
+  const kaputt = { ok: false, code: 'link-ungueltig' } as const
+  const roh = entpacke(text, BIT_KOPPELN | BIT_QR | BIT_HTTPS, () => gruppeDesLinks('a'))
+  if (!roh.ok) return roh
+  if (!(roh.merker & BIT_KOPPELN)) return kaputt
+  try {
+    const paket: KoppelPaket = { ...roh.paket, b: toBase64Url(roh.nimm(SCHLUESSEL)) }
+    if (roh.merker & BIT_QR) {
+      const tokenLaenge = roh.nimm(1)[0]
+      if (!tokenLaenge || tokenLaenge > TOKEN_HOECHSTENS) return kaputt
+      const token = fromUtf8(roh.nimm(tokenLaenge))
+      const thema = toBase64Url(roh.nimm(roh.nimm(1)[0]))
+      if (!istThema(thema)) return kaputt
+      paket.q = { token, thema }
+    }
+    return roh.fertig() ? { ok: true, paket } : kaputt
+  } catch {
+    return kaputt
+  }
+}
+
+/** Der Anker eines Koppel-Links: `#/koppeln/<paket>`. */
+export function koppelnAdresse(text: string): string {
+  return `#/${KOPPELN}/${text}`
 }
 
 /** Der Anker eines Lese-Links: `#/sehen/<paket>`. Davor gehört die Adresse der Seite (unter file:// die von Pages). */
@@ -148,4 +238,24 @@ export interface SeitenOrt {
 export function leseLinkUrl(paket: string, seite: SeitenOrt, pages: string): string {
   const basis = seite.protocol === 'https:' || seite.protocol === 'http:' ? `${seite.origin}${seite.pathname}` : pages
   return `${basis}${sehenAdresse(paket)}`
+}
+
+/**
+ * Der ganze Koppel-Link (E7) für QR-Code und Kopieren – wie {@link leseLinkUrl}, mit `#/koppeln/<paket>`. Mit einem
+ * QR-Token im Paket ist es der Inhalt des wechselnden QR-Codes der QR-Sitzung.
+ */
+export function koppelLinkUrl(paket: string, seite: SeitenOrt, pages: string): string {
+  const basis = seite.protocol === 'https:' || seite.protocol === 'http:' ? `${seite.origin}${seite.pathname}` : pages
+  return `${basis}${koppelnAdresse(paket)}`
+}
+
+/**
+ * Adresse eines gekoppelten Geräts ohne Paket (E7): Nach dem Lesen des Koppel-Links ersetzt GeraetApp die Adresse
+ * hierdurch – der QR-Token soll nicht in Verlauf und Lesezeichen stehen; die Kopplung liegt gerätelokal (ablage.ts).
+ */
+export const GERAET = 'geraet'
+
+/** Der Koppel-Link eines Raums – mit `q` der Inhalt des QR-Codes einer laufenden QR-Sitzung (E7). */
+export function koppelPaketAus(raum: HostRaum, q?: { token: string; thema: string }): KoppelPaket {
+  return { ...lesePaket(raum, 'a'), b: raum.box.pk, ...(q ? { q } : {}) }
 }

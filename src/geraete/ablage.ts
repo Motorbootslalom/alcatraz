@@ -45,6 +45,12 @@ export const ABLAGE = {
   /** Gerät: zuletzt empfangene Sicht mit Ablauf (K20; gefüllt ab E6, geraete/geraet.ts). */
   sicht: 'alcatraz.geraet.sicht',
   /**
+   * Gerät (E7): die Kopplung für die Start-Freigabe – Koppel-Link (ohne QR-Token), Lage, eigene Aufgaben, Name, Koppel-
+   * Thema während der Anmeldung. Damit findet das Gerät nach dem Neuladen (`#/geraet`, ohne Paket in der Adresse)
+   * zurück. Gehört zum Raum wie Verbindung und Sicht und geht mit ihnen ({@link pruefeRaum}, {@link verlasseRaum}).
+   */
+  kopplung: 'alcatraz.geraet.kopplung',
+  /**
    * Gerät: Wann es zuletzt wegen einer neueren Fassung des Hosts neu geladen hat und für welche (F7, E6) – damit ein
    * Gerät, dessen Programm sich nicht erneuern lässt, nicht immer wieder neu lädt. Ohne Personenbezug.
    */
@@ -300,7 +306,7 @@ export function sichtAblage(bezug: RaumBezug, ablage: Ablage | null = vorgabe(),
  * Einstieg über einen neuen Link (Plan §3: „gelöscht … bei anderer Raum-ID“).
  */
 export function pruefeRaum(bezug: RaumBezug, ablage: Ablage | null = vorgabe()): void {
-  for (const schluessel of [ABLAGE.verbindung, ABLAGE.sicht]) {
+  for (const schluessel of [ABLAGE.verbindung, ABLAGE.sicht, ABLAGE.kopplung]) {
     const wert = liesJson(ablage, schluessel)
     if (wert !== null && !gleicherRaum(wert, bezug)) entferne(ablage, schluessel)
   }
@@ -314,4 +320,39 @@ export function pruefeRaum(bezug: RaumBezug, ablage: Ablage | null = vorgabe()):
 export function verlasseRaum(ablage: Ablage | null = vorgabe()): void {
   entferne(ablage, ABLAGE.verbindung)
   entferne(ablage, ABLAGE.sicht)
+  entferne(ablage, ABLAGE.kopplung)
+}
+
+/** Wie weit ein gekoppeltes Gerät ist (E7). */
+export type KoppelLage = 'ungekoppelt' | 'koppelt' | 'gekoppelt' | 'abgelehnt' | 'entzogen'
+
+/** Die abgelegte Kopplung eines Geräts (E7) – für genau einen Raum. */
+export interface Kopplung extends RaumBezug {
+  /** Koppel-Link (geraete/paket.ts, ohne QR-Token). */
+  paket: string
+  lage: KoppelLage
+  name: string
+  /** Eigene Aufgaben, wie der Host sie zuletzt schickte – nur für die Oberfläche; geprüft wird am Host. */
+  aufgaben: unknown[]
+  /** Koppel-Thema, solange die Anmeldung läuft (Wiederholung nach dem Neuladen). */
+  thema: string | null
+}
+
+const KOPPEL_LAGEN: readonly KoppelLage[] = ['ungekoppelt', 'koppelt', 'gekoppelt', 'abgelehnt', 'entzogen']
+
+function istKopplung(wert: unknown): wert is Kopplung {
+  if (!istObjekt(wert) || typeof wert.u !== 'string' || typeof wert.r !== 'string' || typeof wert.s !== 'string') return false
+  if (typeof wert.paket !== 'string' || !KOPPEL_LAGEN.includes(wert.lage as KoppelLage) || typeof wert.name !== 'string') return false
+  return Array.isArray(wert.aufgaben) && (wert.thema === null || typeof wert.thema === 'string')
+}
+
+/** Die abgelegte Kopplung, gleich welcher Raum – für `#/geraet` nach dem Neuladen. `null`: keine oder kaputt. */
+export function liesKopplung(ablage: Ablage | null = vorgabe()): Kopplung | null {
+  const wert = liesJson(ablage, ABLAGE.kopplung)
+  return istKopplung(wert) ? wert : null
+}
+
+/** Kopplung ablegen; `false`, wenn der Speicher sie nicht nimmt. */
+export function schreibeKopplung(kopplung: Kopplung, ablage: Ablage | null = vorgabe()): boolean {
+  return schreibeJson(ablage, ABLAGE.kopplung, kopplung)
 }

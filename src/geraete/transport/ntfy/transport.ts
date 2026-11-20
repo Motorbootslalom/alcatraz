@@ -101,6 +101,20 @@ const ABLEHNUNG_ABSTAND_MS = 30_000
 const NOCHMAL_JE_MINUTE = 12
 const NOCHMAL_HOECHSTENS_MS = 5 * 60_000
 
+/**
+ * Wiederholungen eines Geräts ohne Antwort (Befund der E7-Prüfung 20.11.2026): erst nach quittungMs, dann mit
+ * doppeltem Abstand bis höchstens {@link WIEDERHOLEN_HOECHSTENS_MS}. Sonst schickte ein Handy, dessen Anmeldung niemand
+ * beantwortet (falscher Code, Bedienrechner aus), ohne Ende alle 10 s – rund 360 POSTs je Stunde aus demselben Hotspot
+ * wie der Bedienrechner, dessen Kontingent je IP es mit aufbraucht. Verloren geht dabei nichts: Was ntfy angenommen
+ * hat, liest der Host ohnehin mit `since` nach; die Wiederholung hilft nur, wenn eine Nachricht unterwegs verschwand.
+ */
+const WIEDERHOLEN_HOECHSTENS_MS = 5 * 60_000
+
+/** Abstand vor der nächsten Wiederholung einer Nachricht, die schon `mal`-mal hinausging. */
+export function wiederholAbstand(quittungMs: number, mal: number): number {
+  return Math.min(quittungMs * 2 ** Math.max(0, mal - 1), Math.max(quittungMs, WIEDERHOLEN_HOECHSTENS_MS))
+}
+
 /** Einfacher Eimer: höchstens `menge` in `fensterMs`. */
 class Eimer {
   private zeiten: number[] = []
@@ -205,6 +219,9 @@ export class HostTransport extends NtfyLeitung implements Transport {
   /** Zweite Antworten je Geräte-ID: auf welche Nummer, wie oft schon, wann zuletzt. */
   private nochmal = new Map<string, { nr: number; mal: number; zuletzt: number }>()
   private nochmalEimer = new Eimer(NOCHMAL_JE_MINUTE, 60_000)
+  /** Erneutes `entzogen` an entzogene Geräte, die sich auf g melden: je Gerät wachsender Abstand, eigener Eimer. */
+  private entzogenNochmal = new Map<string, { nr: number; mal: number; zuletzt: number }>()
+  private entzogenEimer = new Eimer(ABLEHNUNGEN_JE_MINUTE, 60_000)
   /** Je Koppel-Thema ein Eimer für Unbekannte: Eine Flut auf einem Thema hungert kein anderes aus. */
   private unbekannt = new Map<string, Eimer>()
   private ablehnungen = new Eimer(ABLEHNUNGEN_JE_MINUTE, 60_000)
@@ -496,9 +513,10 @@ export class HostTransport extends NtfyLeitung implements Transport {
    * schon einem anderen Schlüssel, bleibt alles, wie es ist (`'id-belegt'`; E7 vergibt dann eine neue ID oder
    * lehnt ab). Die Nummer der Anmeldung zählt ab jetzt als letzte.
    */
-  begruesse(e: Eingang, angaben: { id?: string; gruppen: string[]; aufgaben: unknown[] }): 'gebunden' | 'id-belegt' {
+  begruesse(e: Eingang, angaben: { id?: string; gruppen: string[]; aufgaben: unknown[]; name?: string }): 'gebunden' | 'id-belegt' {
     const id = angaben.id ?? e.id
     const belegt = { ja: false }
+    const jetzt = this.uhr()
     const raum = this.aendere((r) => {
       const vorhanden = r.geraete[id]
       if (vorhanden && vorhanden.pk !== e.pk) {
@@ -508,7 +526,17 @@ export class HostTransport extends NtfyLeitung implements Transport {
       // Ein Schlüssel gehört einem Gerät: Meldet er sich unter einer neuen ID, gilt die alte nicht mehr.
       for (const [andere, g] of Object.entries(r.geraete)) if (andere !== id && g.pk === e.pk) delete r.geraete[andere]
       const gruppen = angaben.gruppen.filter((g) => !istOeffentlich(g) && r.gruppen[g])
-      r.geraete[id] = { pk: e.pk, letzteNr: Math.max(vorhanden?.letzteNr ?? 0, e.nr), gruppen }
+      // Register (E7): Name und Aufgaben im selben Schreiben wie die Bindung – eine Kopplung ohne Rechte gibt es so nie.
+      r.geraete[id] = {
+        ...vorhanden,
+        pk: e.pk,
+        letzteNr: Math.max(vorhanden?.letzteNr ?? 0, e.nr),
+        gruppen,
+        aufgaben: angaben.aufgaben,
+        ...(angaben.name !== undefined ? { name: angaben.name } : {}),
+        seit: vorhanden?.seit ?? jetzt,
+        zuletzt: jetzt,
+      }
     })
     if (!raum || belegt.ja) return 'id-belegt'
     this.inArbeit.delete(e.id)
@@ -568,6 +596,19 @@ export class HostTransport extends NtfyLeitung implements Transport {
     const nachricht: DirektNachricht = { art: 'quittung', auf: e.nr, ergebnis }
     if (grund) nachricht.grund = grund
     this.direkt(direktThemaVon(raum, e.id), e.pk, nachricht)
+  }
+
+  /**
+   * Den Raum ändern, ohne den Transport zu umgehen (E7: Register, Koppel-Stand – geraete/host.ts): liest frisch, wendet
+   * an, schreibt; danach gilt der neue Raum auch hier. Nur im Führungsfenster, wie alles Schreiben des Raums.
+   */
+  verwalte(f: (raum: HostRaum) => void): HostRaum | null {
+    return this.aendere(f)
+  }
+
+  /** Der Raum, wie dieser Transport ihn zuletzt gelesen oder geschrieben hat (nach start()). */
+  raumJetzt(): HostRaum | null {
+    return this.raum
   }
 
   /** Etwas an ein gekoppeltes Gerät (geänderte Aufgaben). `false`, wenn es nicht gekoppelt ist. */
@@ -637,7 +678,10 @@ export class HostTransport extends NtfyLeitung implements Transport {
       // Auf g schreiben nur gekoppelte Geräte; Ungekoppelte melden sich über ein Koppel-Thema an. Unbekanntes auf g
       // öffnet der Host also gar nicht – sonst hungerte, wer g kennt (jedes gekoppelte und jedes entzogene Gerät),
       // mit zehn Nachrichten je Minute jede Kopplung aus (Befund E5-Prüfung 16.11.2026).
-      if (thema === g) return
+      if (thema === g) {
+        this.erinnereEntzogenes(raum, pk)
+        return
+      }
       // Unbekannte Schlüssel kosten Rechenzeit (box) und Antworten – nur wenige je Minute und Koppel-Thema (S6).
       let eimer = this.unbekannt.get(thema)
       if (!eimer) this.unbekannt.set(thema, (eimer = new Eimer(UNBEKANNT_JE_MINUTE, 60_000)))
@@ -671,17 +715,30 @@ export class HostTransport extends NtfyLeitung implements Transport {
     this.liefere({ id: klar.id, pk, nr: klar.nr, thema, nachricht: klar.nachricht, gebunden: false })
   }
 
+  /**
+   * Ein entzogenes Gerät meldet sich auf g (Befund der E7-Prüfung 20.11.2026): Es war aus, als `entzogen` kam, und
+   * länger als ntfy vorhält (12 h) – holeNach findet nichts mehr, das Gerät hält sich für gekoppelt und meldet sich
+   * selbst an (P-7). Ohne Antwort stünde dort für immer „Keine Bestätigung“ statt des Entzugs. Erkannt nur am
+   * öffentlichen Schlüssel aus `raum.entzogen` (geöffnet wird nichts); `entzogen` geht auf sein d-Thema, gedrosselt
+   * je Gerät (wachsender Abstand) und insgesamt. Andere unbekannte Schlüssel auf g bleiben unbeantwortet.
+   */
+  private erinnereEntzogenes(raum: HostRaum, pk: string): void {
+    const e = raum.entzogen?.find((x) => x.pk === pk)
+    if (!e || raum.geraete[e.id] || !this.nochmalErlaubt(e.id, 0, this.entzogenNochmal, this.entzogenEimer)) return
+    this.direkt(direktThemaVon(raum, e.id), pk, { art: 'entzogen' })
+  }
+
   /** Darf der Host einem gekoppelten Gerät noch einmal auf `nr` antworten? Abstand je Gerät wächst, Summe gedeckelt. */
-  private nochmalErlaubt(id: string, nr: number): boolean {
+  private nochmalErlaubt(id: string, nr: number, liste = this.nochmal, eimer = this.nochmalEimer): boolean {
     const jetzt = Date.now()
-    const bisher = this.nochmal.get(id)
+    const bisher = liste.get(id)
     const mal = bisher?.nr === nr ? bisher.mal : 0
     if (bisher && mal > 0) {
       const abstand = Math.min((this.zeiten.quittungMs / 2) * 2 ** (mal - 1), NOCHMAL_HOECHSTENS_MS)
       if (jetzt - bisher.zuletzt < abstand) return false
     }
-    if (!this.nochmalEimer.nimm(jetzt)) return false
-    this.nochmal.set(id, { nr, mal: mal + 1, zuletzt: jetzt })
+    if (!eimer.nimm(jetzt)) return false
+    liste.set(id, { nr, mal: mal + 1, zuletzt: jetzt })
     return true
   }
 
@@ -873,15 +930,30 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
   private eingestiegen = false
   private holtNach = false
   private letzterEinstieg = Number.NEGATIVE_INFINITY
-  /** Zuletzt gesendete Nummer und wann – bis zur Quittung. */
-  private gesendet: { nr: number; um: number } | null = null
+  /** Zuletzt gesendete Nummer, wann und wie oft schon – bis zur Quittung. */
+  private gesendet: { nr: number; um: number; mal: number } | null = null
   /** Abgelegtes `seit` vom letzten Lauf: Ab dort holt der erste Einstieg die Nachrichten an dieses Gerät nach. */
   private seitVorher: string | null = null
   private readonly uhr: () => number
+  /** Koppel-Thema der laufenden Anmeldung (E7: beim Geräte-Code erst bekannt, wenn er getippt ist). */
+  private koppelThema: string | undefined
 
   constructor(private readonly optionen: GeraetOptionen) {
     super(normalisiereServer(optionen.server) ?? '', optionen.zeiten)
     this.uhr = optionen.uhr ?? Date.now
+    this.koppelThema = optionen.koppeln
+  }
+
+  /**
+   * Über dieses Koppel-Thema anmelden (E7, geraete/gekoppelt.ts): Der Geräte-Code wird erst auf dem Gerät getippt,
+   * das Thema H(oA ‖ 'koppeln' ‖ code) folgt daraus. Liest ab jetzt dort (die Antwort kommt dort) und schickt eine
+   * wartende Anmeldung dorthin. Ohne `ich`/`hostBox` sendet das Gerät ohnehin nichts.
+   */
+  koppleUeber(thema: string): void {
+    if (this.koppelThema === thema) return
+    this.koppelThema = thema
+    if (!this.gestoppt && !this.stand.themen) this.neuAbonnieren()
+    this.kick()
   }
 
   async start(): Promise<void> {
@@ -928,6 +1000,24 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     return nr
   }
 
+  /**
+   * Eine noch unbeantwortete Anmeldung zurücknehmen (E7, Oberfläche 20.11.2026): Auf einen falschen oder abgelaufenen
+   * Code antwortet niemand (auf dessen Thema hört der Host nicht) – die Anmeldung stünde sonst ewig vorn in der
+   * Schlange, und eine neue mit dem richtigen Code käme nie an die Reihe. Nur `hallo`; Actions bleiben.
+   */
+  verwirfAnmeldung(): void {
+    const vorher = this.stand.schlange.length
+    this.stand.schlange = this.stand.schlange.filter((u) => u.nachricht.art !== 'hallo')
+    if (this.stand.schlange.length === vorher) return
+    this.gesendet = null
+    this.speichere()
+  }
+
+  /** Nummer einer wartenden Anmeldung (`hallo`), sonst `null` – die Oberfläche trennt sie von Actions (E7). */
+  offeneAnmeldung(): number | null {
+    return this.stand.schlange.find((u) => u.nachricht.art === 'hallo')?.nr ?? null
+  }
+
   /** Nummern, für die noch keine Quittung da ist. */
   unbestaetigt(): number[] {
     return this.stand.schlange.map((u) => u.nr)
@@ -948,7 +1038,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     // Die öffentlichen Themen kommen nur aus dem Link (`lesen`) – ein abgelegtes, inzwischen erneuertes nicht.
     for (const [g, s] of Object.entries(this.stand.gruppen)) if (!istOeffentlich(g)) for (const t of s.t) themen.add(t)
     if (this.stand.themen) themen.add(this.stand.themen.d)
-    else if (this.optionen.koppeln) themen.add(this.optionen.koppeln)
+    else if (this.koppelThema) themen.add(this.koppelThema)
     return [...themen]
   }
 
@@ -1235,11 +1325,11 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     const vorbei = () => this.gestoppt || sitzung !== this.sitzung
     while (!vorbei() && this.abonniert && this.stand.schlange.length > 0) {
       const kopf = this.stand.schlange[0]
-      const ziel = kopf.nachricht.art === 'hallo' && !this.stand.themen ? this.optionen.koppeln : this.stand.themen?.g
+      const ziel = kopf.nachricht.art === 'hallo' && !this.stand.themen ? this.koppelThema : this.stand.themen?.g
       // Ohne Thema (noch nicht gekoppelt) wartet die Schlange auf `willkommen`.
       if (!ziel) return
       if (this.gesendet?.nr === kopf.nr) {
-        const rest = this.gesendet.um + this.zeiten.quittungMs - Date.now()
+        const rest = this.gesendet.um + wiederholAbstand(this.zeiten.quittungMs, this.gesendet.mal) - Date.now()
         if (rest > 0) {
           await this.schlafe(rest, true)
           continue
@@ -1256,7 +1346,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
       const ergebnis = await this.post(ziel, text)
       if (vorbei()) return
       if (ergebnis.art === 'ok') {
-        this.gesendet = { nr: kopf.nr, um: Date.now() }
+        this.gesendet = { nr: kopf.nr, um: Date.now(), mal: this.gesendet?.nr === kopf.nr ? this.gesendet.mal + 1 : 1 }
         continue
       }
       if (ergebnis.art === 'verworfen') {

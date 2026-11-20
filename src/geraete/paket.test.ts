@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import nacl from 'tweetnacl'
-import { leseLinkUrl, liesLeseLink, packeLesePaket, PAKET_FASSUNG, sehenAdresse } from './paket'
+import { koppelnAdresse, koppelPaketAus, leseLinkUrl, liesKoppelLink, liesLeseLink, packeKoppelPaket, packeLesePaket, PAKET_FASSUNG, sehenAdresse } from './paket'
 import { PAGES_URL } from '../lib/build'
 import { qrModules } from '../lib/qr'
 import { fromBase64Url, toBase64Url } from './transport/ntfy/codec'
 import { geraeteThemaVon, lesePaket, neuerRaum } from './transport/ntfy/raum'
 import { OEFFENTLICH, ZUSCHAUER } from './transport/protokoll'
-import { NTFY_VORGABE } from './themen'
+import { NTFY_VORGABE, zufallsThema } from './themen'
 
 /**
  * Das Paket eines Lese-Links in der Adresse (`#/sehen/<paket>`, E6). Server und Schlüssel sind erfunden bzw. für den
@@ -102,5 +102,31 @@ describe('Lese-Link packen und lesen', () => {
     // Version 10 = 57 Module: noch vom Bildschirm und vom A4-Aushang zu scannen.
     expect(qrModules(datei).length).toBeLessThanOrEqual(57)
     expect(liesLeseLink(datei.split('#/sehen/')[1]).ok).toBe(true)
+  })
+})
+
+describe('Koppel-Link (E7)', () => {
+  it('kommt unverändert zurück – ohne und mit QR-Token; trägt den Box-Schlüssel des Hosts, nie Geheimes', () => {
+    const raum = neuerRaum(NTFY_VORGABE)
+    const ohne = koppelPaketAus(raum)
+    const text = packeKoppelPaket(ohne)
+    expect(liesKoppelLink(text)).toEqual({ ok: true, paket: ohne })
+    const mit = koppelPaketAus(raum, { token: 'A3FK7MXY12CDEFGH', thema: zufallsThema() })
+    const qr = packeKoppelPaket(mit)
+    expect(liesKoppelLink(qr)).toEqual({ ok: true, paket: mit })
+    expect(mit.b).toBe(raum.box.pk)
+    const bytes = fromBase64Url(qr)!
+    for (const geheim of [raum.geheimnis, raum.box.sk, raum.sign.sk, raum.gruppen[ZUSCHAUER].k]) expect(enthaelt(bytes, fromBase64Url(geheim)!)).toBe(false)
+    expect(qr).not.toContain(geraeteThemaVon(raum))
+    // Passt mit der Adresse der Seite in einen QR-Code (Version 13, M): Das Handy am Steg scannt vom Bildschirm.
+    expect(qrModules(`${PAGES_URL}${koppelnAdresse(qr)}`).length).toBeLessThanOrEqual(17 + 4 * 13)
+  })
+
+  it('ein Lese-Link ist kein Koppel-Link und umgekehrt', () => {
+    const raum = neuerRaum(NTFY_VORGABE)
+    expect(liesKoppelLink(packeLesePaket(lesePaket(raum, 'a'))).ok).toBe(false)
+    expect(liesLeseLink(packeKoppelPaket(koppelPaketAus(raum))).ok).toBe(false)
+    expect(() => packeKoppelPaket({ ...lesePaket(raum, 'z'), b: raum.box.pk })).toThrow()
+    expect(koppelnAdresse('x')).toBe('#/koppeln/x')
   })
 })

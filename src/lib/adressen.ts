@@ -46,17 +46,18 @@ export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'p
  * Fenster mit eigener Wurzel, ohne Kopf, Reiter und Fuß (src/main.ts wählt sie vor dem Store):
  * die Anzeigetafel `#/anzeige[/<bereich>]` (src/AnzeigeApp.vue, Plan vom 16.11.2026), die
  * Zuschauerliste `#/zuschauer[/<bereich>]` (src/ZuschauerApp.vue, E3) und ein fremdes Gerät mit
- * Lese-Link `#/sehen/<paket>` (src/GeraetApp.vue, E6 – ohne Store). Der Bereich ist eine Kennung
+ * Lese-Link `#/sehen/<paket>` (src/GeraetApp.vue, E6 – ohne Store), dazu E7 der Koppel-Link `#/koppeln/<paket>` und
+ * das gekoppelte Gerät `#/geraet` (Start-Freigabe vom Handy, ebenfalls GeraetApp). Der Bereich ist eine Kennung
  * aus den Daten (Parcours) – kodiert, nicht übersetzt, wie `wahl`; das Paket ist Base64url
  * (geraete/paket.ts).
  */
-export const VOLLBILDER = ['anzeige', 'zuschauer', 'sehen'] as const
+export const VOLLBILDER = ['anzeige', 'zuschauer', 'sehen', 'koppeln', 'geraet'] as const
 export type VollbildArt = (typeof VOLLBILDER)[number]
 export interface Vollbild {
   art: VollbildArt
   /**
    * Zweites Segment: nur dieser Bereich (`#/anzeige/<parcours-id>`; ohne = die gemeinsame Anzeigetafel bzw. alle
-   * Parcours) – beim Lese-Link (`sehen`) das Paket.
+   * Parcours) – beim Lese- und Koppel-Link (`sehen`, `koppeln`) das Paket.
    */
   bereich?: string
 }
@@ -104,8 +105,9 @@ export const ADRESSEN = {
       betrieb: { start: 'start', startliste: 'startliste', geraete: 'geraete' },
     },
     ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge', geraete: 'geraete' },
-    // `sehen` in jeder Sprache gleich (geraete/paket.ts SEHEN): Der Lese-Link kennt die Sprache des Geräts nicht.
-    vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer', sehen: 'sehen' },
+    // `sehen`, `koppeln` und `geraet` in jeder Sprache gleich (geraete/paket.ts SEHEN/KOPPELN, GERAET): Lese- und
+    // Koppel-Link kennen die Sprache des Geräts nicht.
+    vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer', sehen: 'sehen', koppeln: 'koppeln', geraet: 'geraet' },
   },
   en: {
     ansichten: {
@@ -140,7 +142,7 @@ export const ADRESSEN = {
     ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order', geraete: 'devices' },
     // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen;
     // „spectators“ ebenso (Plan §4: `#/spectators`). `sehen` wie im Deutschen (Lese-Link, s. o.).
-    vollbild: { anzeige: 'display', zuschauer: 'spectators', sehen: 'sehen' },
+    vollbild: { anzeige: 'display', zuschauer: 'spectators', sehen: 'sehen', koppeln: 'koppeln', geraet: 'geraet' },
   },
 } as const satisfies Record<string, AdressTabelle>
 

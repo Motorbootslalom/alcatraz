@@ -46,7 +46,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   E6 Gerätebetrieb (Bedienrechner, darf den Store lesen): `betrieb/` GeraeteRaum (Betrieb → Geräte: einschalten,
   Verbindung, Fingerabdruck, zwei LeseLink, erneuern/beenden mit AppDialog; Logik geraete/host.ts useGeraeteHost),
   LeseLink (QR über QrCode.vue mit der ganzen URL, Link zum Markieren, Kopieren mit Rückmeldung, Öffnen; Slot für
-  „erneuern“), GeraeteLage (Punkt + Wort je VerbindungsLage; auch in GeraetApp); texte.ts fingerabdruckText.
+  „erneuern“; E7 auch art `koppeln`), GeraeteLage (Punkt + Wort je VerbindungsLage; auch in GeraetApp); texte.ts
+  fingerabdruckText, uhrzeitText (E7, nie mm/dd). E7: GeraeteKoppeln (Bereiche, QR-Code, Geräte-Code, Koppel-Link),
+  GeraeteListe (Name, Bereiche, entziehen) – beide in GeraeteRaum; GeraetFreigabe (auf dem Gerät, OHNE Store: koppeln,
+  StartFreigabe `nur-dieser` je eigenem Bereich in `<fieldset disabled>` bis zur Quittung, entzogen, entkoppeln;
+  styles/geraet.css).
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,

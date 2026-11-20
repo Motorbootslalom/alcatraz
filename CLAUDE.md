@@ -3,8 +3,9 @@
 Statische Browser-App ohne eigenen Server, die die Excel-Auswertung für Motorbootslalom (Schlauchbootslalom) ersetzt:
 Starter, Verzahnung, Verwiegung, WKR-Bögen, Laufzettel, Erfassung, Wertungs-, Einzel- und Mannschaftswertung, Druck;
 am Wettkampftag Start-Freigabe, Anzeigetafel im zweiten Fenster, Startliste mit Wartezeiten und Zuschauerliste,
-unter UIM auch für den Parallelslalom (Plan zur Übernahme der Tafel, 16.11.2026: E1–E4); E5/E6 = Gerätebetrieb:
-Anzeigetafel und Zuschauerliste über Lese-Links (QR) auf anderen Geräten, verschlüsselt über einen fremden ntfy-Server.
+unter UIM auch für den Parallelslalom (Plan zur Übernahme der Tafel, 16.11.2026: E1–E4); E5–E7 = Gerätebetrieb:
+Anzeigetafel und Zuschauerliste über Lese-Links (QR) auf anderen Geräten, Start-Freigabe vom gekoppelten Handy (E7),
+verschlüsselt über einen fremden ntfy-Server.
 Regelwerke: DM-Reglement (`dm-2026`) und UIM Regel 960 „Formula Future“ (`uim-2026`, mit Parallelslalom).
 Daten nur im Browser (localStorage + IndexedDB-Verlauf, Sicherung als Datei); GitHub Pages oder eine HTML-Datei.
 Einzige Ausnahme: der bewusst eingeschaltete Gerätebetrieb (Betrieb → Geräte) – dann gehen Startnummer, Name nach
@@ -37,7 +38,7 @@ src/types.ts, types/  Sammelpunkt (SCHEMA_VERSION = 1, welcher Typ wo); types/zu
 src/main.ts, App.vue  Wurzel nach Adresse; Store anlegen, Offline starten; Kopf, Reiter (lib/adressen.ts VIEWS), Banner, Fuß
 src/AnzeigeApp.vue    Wurzel der Anzeigetafel `#/anzeige[/<bereich>]`: Nur-Lese-Store, ohne Kopf/Scanner/Offline
 src/ZuschauerApp.vue  Wurzel der Zuschauerliste `#/zuschauer[/<bereich>]` (E3): ebenso, liest nur sichtZuschauer
-src/GeraetApp.vue     Wurzel eines Geräts mit Lese-Link `#/sehen/<paket>` (E6): OHNE Store, Sicht aus geraete/geraet.ts
+src/GeraetApp.vue     Wurzel eines Geräts `#/sehen/<paket>` (E6), `#/koppeln/<paket>`/`#/geraet` (E7): OHNE Store
 src/state/       *    Store, reiner Reducer (reducer.ts: Einstieg, Sperren; reducer/<bereich>.ts: die Actions), migrate(), Tor 5, zweiter Speicher
 src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/Starter (backup.ts)
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
@@ -139,6 +140,8 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … wo Raum/Schlüssel liegen | geraete/ablage.ts ABLAGE (`alcatraz.geraete.*`, `alcatraz.geraet.*`), nie AppState |
 | … welches Fenster verbindet, wo Geräte-Actions angewandt werden | geraete/fuehrung.ts (Web Locks, Lease), geraete/fensterbus.ts (Schreibfenster, 1 s Rückfall) |
 | … Bedienung (einschalten, Links, QR, erneuern, beenden, Verbindung) | components/betrieb/GeraeteRaum.vue (+ LeseLink.vue, GeraeteLage.vue), BetriebView `geraete`; Logik geraete/host.ts (useGeraeteHost); i18n geraete.* (betrieb.ts) |
+| … Koppeln, Geräteliste (E7) | components/betrieb/GeraeteKoppeln.vue (QR, Geräte-Code, Koppel-Link), GeraeteListe.vue (Name, Bereiche, entziehen); host.ts gibCode/oeffneQr/setzeAufgaben/entziehe; Rechte geraete/aufgaben.ts (Positivliste) |
+| … Start-Freigabe auf dem Handy (E7) | components/betrieb/GeraetFreigabe.vue (in GeraetApp für `#/koppeln`, `#/geraet`; StartFreigabe `nur-dieser`, Sperre bis Quittung); geraete/gekoppelt.ts; i18n geraete.freigabe.*, geraete.ablehnung.* |
 | … Lese-Link, Gerät, Fassung (F7) | geraete/paket.ts (`#/sehen/<paket>`, leseLinkUrl, lib/build.ts PAGES_URL), geraete/geraet.ts, src/GeraetApp.vue; Selbst-Update lib/offline.ts holeNeueFassung |
 | … Server (Einstellung) | AppState.geraeteServer (SET_GERAETE_SERVER, lib/serverAdresse.ts), SettingsView `#geraete`; i18n listopt.geraete.* |
 
