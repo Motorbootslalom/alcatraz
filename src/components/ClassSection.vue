@@ -24,7 +24,6 @@ import type { ClassId, Starter } from '../types'
 import { GESCHLECHTER, geschlechtKuerzel, istGeschlecht } from '../domain/geschlecht'
 import { istGeordnet, sortierSpalten, spaltenText, type SortierSpalte, type Sortierung } from '../lib/reihenfolge'
 import { neueSaat } from '../lib/saat'
-import { startNrRegeln } from '../config/catalog'
 
 const props = defineProps<{
   classId: ClassId
@@ -99,28 +98,17 @@ watch(
   () => {
     if (resort.value) sortNow()
     resort.value = false
-    bereichSperrt.value = false
   },
 )
-
-/**
- * Verschieben ohne Wirkung, weil Startnummern-Bereiche gelten (19.11.2026): Die Nummern bleiben in
- * ihrem Größenbereich, ein Starter lässt sich also nicht vor oder hinter eine andere Größengruppe
- * ziehen. Ohne Hinweis spränge die Zeile wortlos zurück (Prüfbefund vom 19.11.2026).
- */
-const bereichSperrt = ref(false)
 
 function reorder(action: Parameters<typeof dispatch>[0]) {
   const vorher = state.value
   resort.value = true
-  bereichSperrt.value = false
   dispatch(action)
   // Stand schon so (oder gesperrt): Es kommt keine neue Liste – sonst ordnete die nächste
   // Änderung von Hand die Tabelle unerwartet um.
   if (state.value === vorher) {
     resort.value = false
-    bereichSperrt.value =
-      action.type === 'MOVE_STARTER' && state.value.startNrMode === 'klasse' && !verzahnungFest.value && startNrRegeln(state.value, props.classId).bereiche.length > 0
   }
 }
 
@@ -422,7 +410,6 @@ const MOVES = [
       </div>
     </div>
     <p v-if="woanders" class="boat-banner ok" role="status" data-hinweis="in-anderer-klasse">{{ woanders }}</p>
-    <p v-if="bereichSperrt" class="boat-banner warn" role="status" data-hinweis="bereich-sperrt">{{ t('starters.move.bereich') }}</p>
 
     <template v-if="open">
       <div v-if="starters.length === 0" class="empty">{{ t('starters.empty') }}</div>

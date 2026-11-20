@@ -56,8 +56,11 @@ const props = defineProps<{
   starterGesperrt?: boolean
 }>()
 const emit = defineEmits<{
-  /** Wie viele Listen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname). */
-  stand: [stand: { anzahl: number; auswahl: string }]
+  /**
+   * Wie viele Listen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname); `runden` =
+   * die Runden des Parallelslaloms, deren Startliste darin steht – ihr Druck bindet sie (ListsView).
+   */
+  stand: [stand: { anzahl: number; auswahl: string; runden: ParallelRunde[] }]
 }>()
 
 const { state } = useStore()
@@ -226,7 +229,15 @@ const offen = computed(() => {
 })
 
 /** Die Auswahl in Worten, für Fenstertitel und Dateiname – in der Sprache der Oberfläche. */
-watchEffect(() => emit('stand', { anzahl: fertig.value ? folge.value.length : 0, auswahl: t(`booklet.version.${wahl.value.fassung}`) }))
+// Die Startlisten der Runden (Regel 960) sind dieselbe Folge wie im Reiter „Startliste“: Werden sie
+// mit der Druckdatei gedruckt, gilt die Runde als gedruckt wie dort (Befund der Prüfung vom 20.11.2026).
+watchEffect(() =>
+  emit('stand', {
+    anzahl: fertig.value ? folge.value.length : 0,
+    auswahl: t(`booklet.version.${wahl.value.fassung}`),
+    runden: folge.value.filter((d) => d.teil === 'startliste').map((d) => d.id as ParallelRunde),
+  }),
+)
 
 // ---- Doppelseitig (lib/doppelseitig.ts): Die Listen zählen ihre Seiten selbst; der Aushang
 // der Codes ist ein Blatt, das der Browser umbricht. Seine Seitenzahl folgt aus seiner Höhe –

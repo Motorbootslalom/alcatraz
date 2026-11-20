@@ -74,7 +74,6 @@ export default {
   'starters.move.up': 'Eins nach oben',
   'starters.move.down': 'Eins nach unten',
   'starters.move.last': 'Ans Ende',
-  'starters.move.bereich': 'Nicht verschoben: Die Startnummern bleiben im Bereich ihrer Westengröße – verschieben geht nur innerhalb derselben Größengruppe.',
   'starters.birthLabel': 'Geb.-Datum (Jahrgang {from}–{to})',
 
   'starters.sort': 'Sortieren',

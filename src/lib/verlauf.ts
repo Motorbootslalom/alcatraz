@@ -107,6 +107,8 @@ export type VerlaufArt =
   | 'rundeGeloest'
   /** Parallelslalom: „Alle Klassen weiter“ – die nächste Runde für `n` Klassen in einem Schritt (19.11.2026). */
   | 'rundenFestAlle'
+  /** Parallelslalom: „Druck lösen“ – die Runde (`runde`) darf wieder neu geordnet werden (20.11.2026). */
+  | 'druckGeloest'
   /** „Disziplin nicht werten“ gesetzt oder gelöst (Entscheidung des O.O.D., lib/disziplinen.ts). */
   | 'nichtWerten'
 
@@ -152,6 +154,7 @@ const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'rundeFest',
   'rundeGeloest',
   'rundenFestAlle',
+  'druckGeloest',
 ])
 
 const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
@@ -224,6 +227,8 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'BETRIEB_KLASSE_VOR':
     case 'BETRIEB_VERSCHIEBEN':
     case 'BETRIEB_AB':
+    // Der Druckvermerk einer Runde entsteht beim Drucken von selbst – kein eigener Eintrag (wie die Kennung).
+    case 'PARALLEL_RUNDEN_GEDRUCKT':
       return null
     case 'SET_EINGABEN': {
       const ids = new Set(action.zellen.map((z) => z.starter))
@@ -246,6 +251,8 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'PARALLEL_RUNDE_FESTSCHREIBEN':
     case 'PARALLEL_RUNDE_LOESEN':
       return { art: action.type === 'PARALLEL_RUNDE_LOESEN' ? 'rundeGeloest' : 'rundeFest', klasse: action.klasse, runde: action.runde }
+    case 'PARALLEL_DRUCK_LOESEN':
+      return { art: 'druckGeloest', runde: action.runde }
     case 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN':
       // Ein Eintrag für alle Klassen (Wunsch des Nutzers vom 19.11.2026), mit ihrer Zahl.
       return { art: 'rundenFestAlle', n: action.schritte.length }

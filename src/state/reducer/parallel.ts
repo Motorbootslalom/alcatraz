@@ -1,11 +1,11 @@
 // Parallelslalom: Schalter des Startplans (Reihenfolge, strenge Klassentrennung) und Runden festschreiben bzw. lösen.
 
-import type { AppState, ClassId, ParallelRunde } from '../../types'
+import type { AppState, ClassId, ParallelPlaene, ParallelRunde } from '../../types'
 import { mitAbmeldungenInRunden, NICHT_GESTARTET } from '../../lib/abmeldung'
 import { alleWeiter, klassenStaende, loeseRunde, schreibeRundeFest } from '../../lib/parallelStage'
 import { klassenDerRunde, PARALLEL_ANNAHMEN } from '../../lib/parallelErgebnis'
 import { zerlegeAttempt } from '../../lib/parallelSchluessel'
-import { VORLAUF, verzahneRunde } from '../../planung/parallelRunden'
+import { istRunde, VORLAUF, verzahneRunde } from '../../planung/parallelRunden'
 import { betriebVon, PARALLEL_BEREICH, rundenPunkt } from '../../betrieb/folge'
 import { hasParallel } from '../../config/catalog'
 import { konfigVon } from './gemeinsam'
@@ -29,6 +29,20 @@ export type ParallelAenderung =
    * Prüfung wie beim Knopf je Klasse) – ein zweites Fenster oder ein doppelter Klick ändert nichts.
    */
   | { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN'; schritte: { klasse: ClassId; runde: ParallelRunde }[] }
+  /**
+   * Die Listen dieser Runden wurden gedruckt (Antwort des Nutzers vom 20.11.2026: „Ja, auf jeden
+   * Fall“): Ab jetzt ordnet eine später festgeschriebene Klasse sie nicht mehr neu, sie kommt nur
+   * ans Ende. Geschickt beim Drucken unter „Listen“ (views/ListsView.vue, `beforeprint`), nie vom
+   * Reducer selbst; den Zeitpunkt setzt der Store. Der Vorlauf zählt nicht – er hängt an der
+   * Verzahnung. Schon Gedrucktes behält seinen ersten Zeitpunkt (unverändert ⇒ derselbe Stand).
+   */
+  | { type: 'PARALLEL_RUNDEN_GEDRUCKT'; runden: ParallelRunde[] }
+  /**
+   * „Druck lösen“ (20.11.2026, „Man muss es aber wieder lösen können, wenn später ein Fehler
+   * auffällt und neu gedruckt werden muss“): hebt die Bindung durch den Druck auf. Erfasste Werte
+   * oder ein im Betrieb begonnener Lauf binden die Runde weiter.
+   */
+  | { type: 'PARALLEL_DRUCK_LOESEN'; runde: ParallelRunde }
 
 /**
  * Ist in der Runde etwas erfasst? Nicht mit: das X eines Abgemeldeten, das festschreiben() beim
@@ -47,11 +61,28 @@ function rundeErfasst(state: AppState, runde: ParallelRunde): boolean {
 
 /**
  * Darf die Runde nicht mehr neu geordnet werden? Sobald darin etwas erfasst ist (die Zeilen stehen
- * auf Papier und in der Erfassung) oder sie im Betrieb begonnen ist (die Tafel zeigt ihre Folge),
- * kommt eine Klasse nur noch ans Ende – PARALLEL_ANNAHMEN.rundenVerzahnen.
+ * auf Papier und in der Erfassung), sie im Betrieb begonnen ist (die Tafel zeigt ihre Folge) oder
+ * ihre Listen gedruckt sind (`parallelGedruckt`, Antwort des Nutzers vom 20.11.2026), kommt eine
+ * Klasse nur noch ans Ende – PARALLEL_ANNAHMEN.rundenVerzahnen.
  */
 function rundeGebunden(state: AppState, runde: ParallelRunde): boolean {
-  return rundeErfasst(state, runde) || betriebVon(state, PARALLEL_BEREICH).begonnen.includes(rundenPunkt(runde))
+  return rundeGedruckt(state, runde) || rundeErfasst(state, runde) || betriebVon(state, PARALLEL_BEREICH).begonnen.includes(rundenPunkt(runde))
+}
+
+/** Sind die Listen der Runde gedruckt (und nicht wieder gelöst)? Nur mit Plan – siehe {@link ohneVerwaistenDruck}. */
+export function rundeGedruckt(state: Pick<AppState, 'parallelGedruckt' | 'parallelPlaene'>, runde: ParallelRunde): boolean {
+  return state.parallelGedruckt[runde] !== undefined && state.parallelPlaene[runde] !== undefined
+}
+
+/**
+ * Der Druckvermerk einer Runde, deren Plan es nicht mehr gibt (letzte Klasse gelöscht, „Werte
+ * löschen“, andere Sicherung), fällt weg: Ein neu festgeschriebener Plan derselben Runde ist noch
+ * nicht gedruckt. Aufgerufen in reducer() nach jeder Action.
+ */
+export function ohneVerwaistenDruck(state: AppState): AppState {
+  const runden = Object.keys(state.parallelGedruckt) as ParallelRunde[]
+  if (runden.every((r) => state.parallelPlaene[r] !== undefined)) return state
+  return { ...state, parallelGedruckt: Object.fromEntries(runden.filter((r) => state.parallelPlaene[r] !== undefined).map((r) => [r, state.parallelGedruckt[r]])) }
 }
 
 /**
@@ -98,7 +129,18 @@ function festschreiben(state: AppState, schritte: readonly { klasse: ClassId; ru
   return next === state ? state : verzahnt(next, ordnen)
 }
 
-export function wendeParallelAn(state: AppState, action: ParallelAenderung): AppState {
+/**
+ * Für migrate(): nur Runden nach dem Vorlauf mit Plan und gültigem Zeitpunkt (Zahl ≥ 0);
+ * Unbrauchbares fällt weg – dann gilt die Runde als nicht gedruckt.
+ */
+export function normalisiereGedruckt(roh: unknown, plaene: ParallelPlaene): AppState['parallelGedruckt'] {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
+  return Object.fromEntries(
+    Object.entries(roh).filter(([r, z]) => istRunde(r) && r !== VORLAUF && plaene[r] !== undefined && typeof z === 'number' && Number.isFinite(z) && z >= 0),
+  )
+}
+
+export function wendeParallelAn(state: AppState, action: ParallelAenderung & { zeit?: number }): AppState {
   switch (action.type) {
     case 'SET_PARALLEL_ORDER_BY_STARTNR':
       return { ...state, parallelOrderByStartNr: action.value }
@@ -116,6 +158,19 @@ export function wendeParallelAn(state: AppState, action: ParallelAenderung): App
         state,
         action.schritte.filter((s) => jetzt.has(`${s.klasse}|${s.runde}`)),
       )
+    }
+
+    case 'PARALLEL_RUNDEN_GEDRUCKT': {
+      if (!hasParallel(state.regelwerk)) return state
+      const neu = [...new Set(action.runden)].filter((r) => r !== VORLAUF && state.parallelPlaene[r] !== undefined && state.parallelGedruckt[r] === undefined)
+      if (neu.length === 0) return state
+      return { ...state, parallelGedruckt: { ...state.parallelGedruckt, ...Object.fromEntries(neu.map((r) => [r, action.zeit ?? 0])) } }
+    }
+
+    case 'PARALLEL_DRUCK_LOESEN': {
+      if (state.parallelGedruckt[action.runde] === undefined) return state
+      const { [action.runde]: _alt, ...parallelGedruckt } = state.parallelGedruckt
+      return { ...state, parallelGedruckt }
     }
 
     case 'PARALLEL_RUNDE_LOESEN': {

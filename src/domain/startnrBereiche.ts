@@ -282,3 +282,31 @@ export function normalisiereBereichsListe(roh: unknown): StartNrBereich[] | null
   }
   return out
 }
+
+/** Die Größe, die eine Gruppe bei den Beispielstartern vertritt. */
+const GROESSE_DER_GRUPPE = { 'S-M': 'M', 'L-XL': 'XL', XXL: 'XXL' } as const
+
+/**
+ * Größen der Beispielstarter (components/BeispieldatenPanel.vue): Sie sind zufällig. Mit
+ * Startnummern-Bereichen bliebe ein XXL in Klasse 4 (kein XXL-Bereich) ohne Nummer – richtig für
+ * echte Starter (von Hand, 20.11.2026), für Beispiele aber nur Lärm: Ihre Größe rückt deshalb in
+ * die nächste Gruppe, für die die Klasse einen Bereich hat. Ebenso, wenn der Bereich ihrer Gruppe
+ * schon voll ist (Klasse 5 hat nur zwei XXL-Nummern; ein dritter XXL blieb sonst zufällig ohne
+ * Nummer – Befund der Prüfung vom 20.11.2026). Erst wenn alle Bereiche voll sind, bleibt es dabei.
+ */
+export function beispielGroessen(neu: readonly Starter[], klasse: ClassId, regeln: StartNrRegeln): Starter[] {
+  const alle = toepfe(klasse, regeln)
+  // Eine Gruppe gilt für alle Größen (E–3): nichts zu rücken.
+  if (new Set(alle.map((t) => t.gruppe)).size < 2) return [...neu]
+  const frei = new Map<GroessenGruppe, number>()
+  for (const t of alle) frei.set(t.gruppe, (frei.get(t.gruppe) ?? 0) + t.nummern.length)
+  return neu.map((p) => {
+    const g = gruppeDerGroesse(p.groesse)
+    const i = g === null ? GROESSEN_GRUPPEN.length : GROESSEN_GRUPPEN.indexOf(g)
+    const mitPlatz = GROESSEN_GRUPPEN.filter((x) => (frei.get(x) ?? 0) > 0)
+    const ziel = g !== null && mitPlatz.includes(g) ? g : [...mitPlatz].sort((a, b) => Math.abs(GROESSEN_GRUPPEN.indexOf(a) - i) - Math.abs(GROESSEN_GRUPPEN.indexOf(b) - i))[0]
+    if (ziel === undefined) return p
+    frei.set(ziel, frei.get(ziel)! - 1)
+    return ziel === g ? p : { ...p, groesse: GROESSE_DER_GRUPPE[ziel] }
+  })
+}

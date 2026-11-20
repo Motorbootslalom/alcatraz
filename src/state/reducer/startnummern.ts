@@ -48,15 +48,26 @@ function replaceById(starters: Starter[], updated: Starter[]): Starter[] {
  * (Prüfbefund zu Paket F, 16.11.2026). `vorher` ist die Klasse nach Startnummer; steht `geordnet`
  * schon so, bleibt das Array dasselbe.
  */
-function inFolge(state: AppState, starters: Starter[], vorher: readonly Starter[], geordnet: readonly Starter[]): Starter[] {
+function inFolge(
+  state: AppState,
+  starters: Starter[],
+  vorher: readonly Starter[],
+  geordnet: readonly Starter[],
+  inBereichen: boolean,
+): Starter[] {
   if (geordnet.length === 0 || geordnet.every((p, i) => p.id === vorher[i]?.id)) return starters
   const klasse = geordnet[0].klasse
   let neu = redistributeNumbers([...geordnet])
-  // Mit Startnummern-Bereichen (19.11.2026) bleiben die Nummern in ihrem Bereich: Die neue Folge gilt
-  // nur innerhalb jeder Größengruppe, und das Array folgt den Nummern. Ändert sich so nichts, bleibt der Stand.
-  // Starter ohne Nummer (Bereich voll, von Hand zu vergeben) bilden eine eigene Gruppe und bleiben leer.
+  // Mit Startnummern-Bereichen (19.11.2026) bleiben beim Sortieren und Mischen die Nummern in ihrem
+  // Bereich: Die neue Folge gilt nur innerhalb jeder Größengruppe, und das Array folgt den Nummern.
+  // Ändert sich so nichts, bleibt der Stand. Starter ohne Nummer (Bereich voll, von Hand zu vergeben)
+  // bilden dabei eine eigene Gruppe und bleiben leer. Verschieben (▲▼) wirkt dagegen frei wie ohne
+  // Bereiche (`inBereichen` false, Antwort des Nutzers vom 20.11.2026): Die Nummern wandern mit der
+  // Folge – die leere auch: Rückt ein Starter ohne Nummer vor einen mit, tauschen sie (der leere Platz
+  // steht hinten); passt danach eine nicht zur Größe oder fehlt sie, nennt „Von Hand prüfen“ den
+  // Starter (startNrAbweichungen).
   const regeln = startNrRegeln(state, klasse)
-  if (state.startNrMode === 'klasse' && regeln.bereiche.length > 0) {
+  if (inBereichen && state.startNrMode === 'klasse' && regeln.bereiche.length > 0) {
     neu = sortedByStartNr(verteileInBereichen(geordnet, klasse, regeln))
     if (neu.every((p, i) => p.id === vorher[i]?.id && p.startNr === vorher[i]?.startNr)) return starters
   }
@@ -96,7 +107,7 @@ export function wendeStartnummernAn(state: AppState, action: StartnummernAenderu
       const target = state.starters.find((p) => p.id === action.id)
       if (!target) return state
       const inClass = sortedByStartNr(state.starters.filter((p) => p.klasse === target.klasse))
-      const starters = inFolge(state, state.starters, inClass, moveInOrder(inClass, action.id, action.target))
+      const starters = inFolge(state, state.starters, inClass, moveInOrder(inClass, action.id, action.target), false)
       return starters === state.starters ? state : { ...state, starters }
     }
 
@@ -108,7 +119,9 @@ export function wendeStartnummernAn(state: AppState, action: StartnummernAenderu
         const inClass = sortedByStartNr(state.starters.filter((p) => p.klasse === klasse))
         if (inClass.length < 2) continue
         const geordnet = action.type === 'ORDER_STARTERS' ? ordneNach(inClass, { spalte: action.nach, absteigend: action.absteigend }, state.originMode) : mische(inClass, action.saat + CLASS_IDS.indexOf(klasse))
-        starters = inFolge(state, starters, inClass, geordnet)
+        // Sortieren und Zufall bleiben in den Bereichen (Auslegung 20.11.2026): Die Größen stehen fest,
+        // gefragt war nur nach dem Verschieben von Hand.
+        starters = inFolge(state, starters, inClass, geordnet, true)
       }
       return starters === state.starters ? state : { ...state, starters }
     }

@@ -385,8 +385,8 @@ describe('Geschlecht im Starter-Reiter', () => {
   })
 })
 
-describe('Verschieben mit Startnummern-Bereichen (19.11.2026)', () => {
-  it('lässt sich ein Starter nicht vor eine andere Größengruppe ziehen, sagt ein Hinweis warum', async () => {
+describe('Verschieben mit Startnummern-Bereichen (20.11.2026)', () => {
+  it('verschiebt frei über die Größengruppe hinweg; kein Sperrhinweis mehr', async () => {
     localStorage.clear()
     setLocale('de')
     const store = createStore()
@@ -403,12 +403,11 @@ describe('Verschieben mit Startnummern-Bereichen (19.11.2026)', () => {
       global: { provide: { [storeKey as symbol]: store } },
     })
     await wrapper.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
-    expect(wrapper.find('[data-hinweis="bereich-sperrt"]').exists()).toBe(false)
-    const vorher = store.state.value
     const hoch = wrapper.findAll('button.mv').find((b) => b.attributes('aria-label') === 'Eins nach oben' && b.attributes('disabled') === undefined)!
     await hoch.trigger('click')
-    expect(store.state.value).toBe(vorher)
-    expect(wrapper.find('[data-hinweis="bereich-sperrt"]').text()).toContain('Westengröße')
+    const nr = Object.fromEntries(store.state.value.starters.map((p) => [p.groesse, p.startNr]))
+    expect(nr).toEqual({ XL: '401', S: '421' })
+    expect(wrapper.find('[data-hinweis="bereich-sperrt"]').exists()).toBe(false)
     wrapper.unmount()
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import { merke } from '../lib/merken'
 import { useReiter } from '../lib/router'
 import type { ReiterNamen } from '../lib/adressen'
@@ -31,7 +31,7 @@ import { adresse } from '../lib/router'
 import { gibDoppelseitig, istDoppelseitigArt, istDoppelseitigWahl, type DoppelseitigArt } from '../lib/doppelseitig'
 import { ALLE, herkuenfte, istStarterArt, istStarterWahl, ohneHerkunft, PARALLEL_STARTLISTEN, STARTER_ARTEN, STARTER_WAHL, starterDokumente, type ParallelStartlisteForm, type StarterArt, type StarterDokument, type StarterWahl } from '../lib/starterlisten'
 import { festeRunden } from '../lib/parallelBogen'
-import { rundenName } from '../planung/parallelRunden'
+import { rundenName, VORLAUF } from '../planung/parallelRunden'
 import ParallelStartlisten from '../components/ParallelStartlisten.vue'
 
 /**
@@ -47,7 +47,7 @@ import ParallelStartlisten from '../components/ParallelStartlisten.vue'
 const KINDS = ['starter', 'gewicht', 'vorsteg', 'wkr', 'laufzettel', 'codes', 'ergebnis', 'pokal', 'druckdatei'] as const satisfies readonly ReiterNamen['listen'][]
 type Kind = (typeof KINDS)[number]
 
-const { state } = useStore()
+const { state, dispatch } = useStore()
 // Eine gemerkte Listenart, die es nicht mehr gibt (die früheren zwei Starter-Reiter), gilt als die Vorgabe.
 const kind = merke<Kind>('listen.art', 'starter', { gueltig: (x) => (KINDS as readonly unknown[]).includes(x) })
 // Was im Reiter „Starterlisten“ gewählt ist, bleibt über Ansichtswechsel und Neuladen stehen.
@@ -187,13 +187,13 @@ const vorVerzahnung = computed(() => (kind.value === 'wkr' || kind.value === 'la
 // Wettkampfrichter-Listen zeichnet eine eigene Ansicht (components/WkrListen.vue); sie
 // meldet, wie viele Bögen die Auswahl zeigt und wie die Auswahl heißt.
 const wkrList = computed(() => kind.value === 'wkr')
-const wkrStand = ref({ anzahl: 0, auswahl: '' })
+const wkrStand = ref<{ anzahl: number; auswahl: string; runden?: ParallelRunde[] }>({ anzahl: 0, auswahl: '' })
 // Wertungslisten ebenso (components/ErgebnisListen.vue).
 const resultList = computed(() => kind.value === 'ergebnis')
 const resultStand = ref({ anzahl: 0, auswahl: '' })
 // Und die Laufzettel (components/LaufzettelListen.vue).
 const runSheets = computed(() => kind.value === 'laufzettel')
-const runSheetStand = ref({ anzahl: 0, auswahl: '' })
+const runSheetStand = ref<{ anzahl: number; auswahl: string; runden?: ParallelRunde[] }>({ anzahl: 0, auswahl: '' })
 // Und die Pokalauswertung (components/PokalListen.vue); sie sagt auch selbst, warum es keine gibt.
 const cupList = computed(() => kind.value === 'pokal')
 const cupStand = ref({ anzahl: 0, auswahl: '' })
@@ -202,7 +202,7 @@ const teamStand = computed(() => ({ anzahl: teamListenAlle.value.length, auswahl
 const stegStand = computed(() => ({ anzahl: stegListen.value.length, auswahl: [t('lists.title.ausgleich'), stegKlasse.value === ALLE ? '' : classLabel(stegKlasse.value as ClassId)].filter(Boolean).join(' ') }))
 // Und die Druckdatei (components/DruckdateiListen.vue): Starterliste, Mannschaftswertungen, Codes und Wertungslisten in einem Druck.
 const bookletList = computed(() => kind.value === 'druckdatei')
-const bookletStand = ref({ anzahl: 0, auswahl: '' })
+const bookletStand = ref<{ anzahl: number; auswahl: string; runden: ParallelRunde[] }>({ anzahl: 0, auswahl: '', runden: [] })
 const ownView = computed(() => wkrList.value || resultList.value || runSheets.value || cupList.value || stegList.value || teamList.value || bookletList.value || parallelStart.value)
 const ownStand = computed(() =>
   parallelStart.value
@@ -281,6 +281,27 @@ const heading = computed(() => [state.value.eventName, state.value.eventJahr].fi
 
 /** Dokumente (nicht Seiten), die die Auswahl zeigt. */
 const dokumente = computed(() => sections.value.length)
+
+/**
+ * Die Runden des Parallelslaloms nach dem Vorlauf, deren Listen die Auswahl gerade zeigt: WKR-Bögen,
+ * Laufzettel, Startlisten – auch die Startlisten in der Druckdatei (Regel 960). Werden sie gedruckt,
+ * gilt die Runde als gebunden (Antwort des Nutzers vom 20.11.2026: „Ja, auf jeden Fall“) – eine
+ * später festgeschriebene Klasse ordnet sie nicht mehr neu (state/reducer/parallel.ts).
+ * Wertungslisten zählen nicht: Sie folgen den Werten, nicht der Folge.
+ */
+const gedruckteRunden = computed<ParallelRunde[]>(() => {
+  if (!parallel.value || blocked.value) return []
+  const runden = wkrList.value && imParallel.value ? (wkrStand.value.runden ?? []) : runSheets.value && imParallel.value ? (runSheetStand.value.runden ?? []) : parallelStart.value ? startDokumente.value.flatMap((d) => d.runden) : bookletList.value ? bookletStand.value.runden : []
+  return [...new Set(runden)].filter((r) => r !== VORLAUF)
+})
+
+// Gemerkt wird beim Drucken selbst (`beforeprint`): So zählen der Knopf und Strg+P gleich. Der
+// Reducer ändert nur, was noch nicht vermerkt ist; den Zeitpunkt setzt der Store.
+function merkeGedruckt() {
+  if (gedruckteRunden.value.length > 0) dispatch({ type: 'PARALLEL_RUNDEN_GEDRUCKT', runden: gedruckteRunden.value })
+}
+onMounted(() => window.addEventListener('beforeprint', merkeGedruckt))
+onBeforeUnmount(() => window.removeEventListener('beforeprint', merkeGedruckt))
 
 /**
  * Drucken. Der Browser schlägt den Fenstertitel als Dateinamen für „Als PDF

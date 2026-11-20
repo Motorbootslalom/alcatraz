@@ -100,9 +100,10 @@ z. B. „512, 517, 623“; Unlesbares wird genannt). Beides reist mit Sicherung 
   automatisches Ausweichen). Fehlende Westen werden immer übersprungen, auch in Klassen ohne Bereiche.
 - Neue Starter (von Hand, „In Klasse X verschieben“, Excel-Import, Beispielstarter) bekommen ebenso die erste freie
   Nummer ihres Bereichs.
-- Verschieben, „Sortierung ändern“ und „Zufall“ halten jede Nummer in ihrem Bereich – die neue Folge gilt nur
-  innerhalb einer Größengruppe. Fehlt noch jemandem in der Klasse die Nummer, wie bisher. Bewirkt ein Verschieben
-  deshalb nichts (ein XXL-Starter vor die S–M-Starter), sagt ein Hinweis unter der Klasse warum.
+- Verschieben (▲▼) wirkt frei wie ohne Bereiche (Nutzer, 20.11.2026): Die Nummern wandern mit der Folge. Passt
+  danach eine Nummer nicht zur Größe, nennt „Von Hand prüfen“ den Starter.
+- „Sortierung ändern“ und „Zufall“ halten jede Nummer in ihrem Bereich – die neue Folge gilt nur innerhalb einer
+  Größengruppe (Auslegung, 20.11.2026: die Größen stehen fest). Fehlt noch jemandem in der Klasse die Nummer, wie bisher.
 - Belegt ist eine Nummer nur, wenn sie genau so geschrieben ist, wie die Vergabe sie schreibt: Ein Tippfehler wie
   „5012“ in Klasse 5 belegt nicht die 512 und steht im Hinweis als „außerhalb der Bereiche“.
 - Der Reiter „Starter“ nennt unter „Startnummern“, wessen Nummer nicht zu seiner Größe passt
@@ -215,7 +216,8 @@ Die Verzahnung legt die Startreihenfolge fest und damit Startnummern und alle Li
 - Unter UIM steht hier auch der Startplan des Parallelslaloms
   (siehe [Startplan](parallelslalom.md#startplan-des-vorlaufs)), darunter die Runden danach: je Klasse oder mit
   „Alle Klassen weiter“ für alle zugleich, verzahnt wie der Vorlauf (klein/groß im Wechsel, 19.11.2026; siehe
-  [Runden nach dem Vorlauf](parallelslalom.md#runden-nach-dem-vorlauf)).
+  [Runden nach dem Vorlauf](parallelslalom.md#runden-nach-dem-vorlauf)). Sind die Listen einer Runde gedruckt, steht
+  das dort; ihre Folge bleibt dann, bis „Druck lösen“ (20.11.2026).
 
 ## Wettkampfrichter-Listen
 

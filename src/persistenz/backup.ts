@@ -34,7 +34,7 @@ export type FileKind = 'sicherung' | 'vorlage' | 'starter'
  * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, Co-Piloten, erfassten
  * Werten, dem Stand der Wertungslisten, der Kennung und dem Betrieb der Veranstaltung.
  */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'nichtWerten' | 'betrieb'>
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'parallelGedruckt' | 'nichtWerten' | 'betrieb'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -57,7 +57,7 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   // Die festgeschriebenen Pläne des Parallelslaloms nennen Starter (ihre IDs) und bleiben ebenfalls hier.
   // „Disziplin nicht werten“ ist eine Entscheidung zu den Ergebnissen dieser Veranstaltung: ebenfalls nicht.
   // Der Betrieb (was auf der Anzeigetafel stand) ebenso; die Kopfzeile der Anzeigetafel nennt die Veranstaltung.
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, nichtWerten: _nichtWerten, betrieb: _betrieb, ...rest } = state
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, parallelGedruckt: _gedruckt, nichtWerten: _nichtWerten, betrieb: _betrieb, ...rest } = state
   const settings: Template = { ...rest, anzeige: { ...rest.anzeige, kopfzeile: null } }
   return { ...base, kind, settings }
 }
@@ -150,6 +150,8 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
         coPiloten: current.coPiloten,
         // Festgeschriebene Pläne des Parallelslaloms hängen an den hiesigen Startern: Sie bleiben.
         parallelPlaene: current.parallelPlaene,
+        // Ebenso, welche ihrer Runden gedruckt sind (20.11.2026).
+        parallelGedruckt: current.parallelGedruckt,
         // „Disziplin nicht werten“ gehört zu den hiesigen Ergebnissen.
         nichtWerten: current.nichtWerten,
         // Der Betrieb gehört zur Veranstaltung: Er bleibt, hängt aber wie die Einteilung auf die Parcours

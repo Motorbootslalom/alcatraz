@@ -23,6 +23,7 @@ import { istGeschlecht } from '../domain/geschlecht'
 import { logoHoeheZahl, logoWert } from '../lib/logo'
 import { serverEinstellung } from '../lib/serverAdresse'
 import { normalisiereFehlende, normalisiereStartNrBereiche } from './reducer/startnummern'
+import { normalisiereGedruckt } from './reducer/parallel'
 
 /** Herkunft auf den Wertungslisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
 const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
@@ -152,6 +153,8 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     // Pkt. 4.4 „Two drivers from the same class“) – die frühere Paarung nur nach Bootstyp gibt es nicht mehr.
     parallelStreng: loaded.parallelStreng !== false,
     parallelPlaene: normalisierePlaene(loaded.parallelPlaene),
+    // Fehlt in Ständen vor dem Druckvermerk (20.11.2026): keine Runde gilt als gedruckt.
+    parallelGedruckt: normalisiereGedruckt(loaded.parallelGedruckt, normalisierePlaene(loaded.parallelPlaene)),
     // Fehlen in Ständen vor diesen Angaben: jede gefahrene Disziplin zählt, Dolphin-Nummern mit E.
     nichtWerten: normalisiereNichtWerten(loaded.nichtWerten),
     dolphinPraefix: loaded.dolphinPraefix === 'D' ? 'D' : 'E',

@@ -90,6 +90,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Wertung Parallelslalom | lib/parallelErgebnis.ts PARALLEL_ANNAHMEN, parallelStage.ts; uim-2026.yaml |
 | Runden nach dem Vorlauf: Verzahnung, „Alle Klassen weiter“ | planung/parallel.ts verzahne (auch Vorlauf), parallelRunden.ts verzahneRunde; lib/parallelStage.ts alleWeiter; state/reducer/parallel.ts (gebunden: erfasst ohne Abmelde-X/begonnen; rundenNeuGeordnet → Rückfrage); components/ParallelRunden.vue |
 | Re-run: Wertung | lib/parallelErgebnis.ts qualifikation, mitWiederholung(en), rundenVermerke; „*“: durchWiederholung |
+| Runde gedruckt (fest), „Druck lösen“ | AppState.parallelGedruckt; views/ListsView.vue `beforeprint` → PARALLEL_RUNDEN_GEDRUCKT; state/reducer/parallel.ts rundeGebunden; components/ParallelRunden.vue |
 | Re-run: Runde, Name | planung/parallelRunden.ts rerunRunde/zerlegeRerun/rundenName + sprache.ts bogenTexte().runde (Rundennamen doppelt: beide) |
 | Einzelwertung | lib/einzelwertung.ts EINZEL_FESTLEGUNGEN; lib/disziplinen.ts (nichtWerten) |
 | Mannschaftswertung | config/einstellungen.yaml pokalPunkte; Regelwerk-YAML `pokal`; config/pokal.ts; lib/pokal.ts |

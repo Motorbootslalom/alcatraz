@@ -138,6 +138,7 @@ export default {
   'history.what.gemerkt': 'Gemerkter Stand',
   'history.what.rundeFest': 'Parallel-Slalom: {round} festgeschrieben ({class})',
   'history.what.rundeGeloest': 'Parallel-Slalom: {round} gelöscht ({class})',
+  'history.what.druckGeloest': 'Parallel-Slalom: Druck von {round} gelöst',
   'history.what.rundenFestAlle': 'Parallel-Slalom: nächste Runde für {n} Klasse festgeschrieben | Parallel-Slalom: nächste Runde für {n} Klassen festgeschrieben',
   'history.what.nichtWerten': '„Disziplin nicht werten“ geändert',
 

@@ -91,6 +91,7 @@ export function emptyState(): AppState {
     parallelOrderByStartNr: false,
     parallelStreng: true,
     parallelPlaene: {},
+    parallelGedruckt: {},
     runningNumbers: { enabled: false, source: 'manoever', start: 1, skipText: '' },
   }
 }

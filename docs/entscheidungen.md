@@ -141,6 +141,21 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   noch fährt, einen Gleichstand an der Grenze hat (Re-run bleibt je Klasse) oder einen veralteten Plan hat, bleibt und
   steht im Hinweis; keine Rückfrage (wie beim Knopf je Klasse); der Knopf erst ab zwei Klassen. →
   `lib/parallelStage.ts` alleWeiter, Action PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN, `components/ParallelRunden.vue`
+- 2026-11-20 · N · Re-run im Parallelslalom (Antwort des Nutzers): „Der nötige Re-run ist erst nach der Auswertung des
+  Laufes für wenige Starter nötig und kommt fast nie vor. Hier kannst du also die normale Verzahnung (großes
+  Boot/kleines Boot) machen.“ Er bleibt je Klasse festzuschreiben (nicht über „Alle Klassen weiter“), seine Runde wird
+  verzahnt wie die übrigen. → `planung/parallelRunden.ts` verzahneRunde, PARALLEL_ANNAHMEN.rundenVerzahnen (bestätigt)
+- 2026-11-20 · N · „Alle Klassen weiter“ schon bei einer bereiten Klasse? „Nein, eigentlich nicht.“ Der Knopf bleibt ab
+  zwei Klassen. → `components/ParallelRunden.vue`
+- 2026-11-20 · N · Gedruckte Runden sind fest (Antwort des Nutzers): „Ja, auf jeden Fall. Man muss es aber wieder lösen
+  können, wenn später ein Fehler auffällt und neu gedruckt werden muss.“ Werden WKR-Bögen, Laufzettel oder Startlisten
+  einer Runde nach dem Vorlauf unter „Listen“ gedruckt, ordnet eine später festgeschriebene oder gelöschte Klasse die
+  Runde nicht mehr neu (nur ans Ende). „Druck lösen …“ mit Rückfrage gibt sie wieder frei; erfasste Werte und ein im
+  Betrieb begonnener Lauf binden weiter. Festlegungen bei der Umsetzung: vermerkt beim `beforeprint` (Knopf und
+  Strg+P), Wertungslisten zählen nicht, die Startlisten der Runden in der Druckdatei (Regel 960) schon, der Vorlauf nicht (hängt an der Verzahnung); Zeitpunkt des ersten Drucks; in
+  der Sicherung, nicht in der Vorlage; ohne Plan fällt der Vermerk weg. → AppState.parallelGedruckt, Actions
+  PARALLEL_RUNDEN_GEDRUCKT/PARALLEL_DRUCK_LOESEN (`state/reducer/parallel.ts`), `views/ListsView.vue`,
+  `components/ParallelRunden.vue`
 - 2026-11-19 · N · Auch Halbfinale, Finals und Re-runs fahren verzahnt wie der Vorlauf: großes/kleines Boot im Wechsel
   (Block: klein 1. Attempt, groß 1. Attempt, klein 2. Attempt, groß 2. Attempt; Rest als 2er-Blöcke). Auslegung: die
   Klassen je Bootstyp in ihrer Folge im Vorlauf; eine später (oder einzeln) festgeschriebene oder gelöschte Klasse
@@ -388,11 +403,11 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-16 · N · ▲▼ im Starter-Reiter ist nach dem Festschreiben der Verzahnung gesperrt wie „Sortierung ändern“ und
   „Zufall“; Startnummern von Hand bleiben frei, für Korrekturen. → `state/reducer.ts` VERZAHNUNG_ACTIONS
 - 2026-11-19 · N · Klassenbasierte Startnummern nach Größenbereichen der Westen; einzelne Nummern (fehlende Westen)
-  lassen sich ausschließen. Die DMYV-Startnummernliste ist Vorgabe der DM 2026. Festlegungen bei der Umsetzung (vom
-  Nutzer zu bestätigen, siehe „Offen“): Größengruppen S–M, L–XL, XXL (XS → S–M, XXXL → XXL); Überlauf erst in
-  größere, dann kleinere Bereiche, sonst hinter dem höchsten; ohne Größe wie die größte Gruppe; erst die Passenden, dann
+  lassen sich ausschließen. Die DMYV-Startnummernliste ist Vorgabe der DM 2026. Festlegungen bei der Umsetzung (am
+  20.11. vom Nutzer beantwortet, siehe die Einträge darunter: Überlauf ersetzt, ▲▼ frei, Auffüllen hinfällig):
+  Größengruppen S–M, L–XL, XXL (XS → S–M, XXXL → XXL); Überlauf erst in größere, dann kleinere Bereiche, sonst hinter dem höchsten; ohne Größe wie die größte Gruppe; erst die Passenden, dann
   die Ausweichenden; die Veranstaltung speichert nur abweichende Bereiche je Klasse (Vorgabe wechselt mit dem
-  Regelwerk); Umstellen (▲▼, Sortieren, Zufall) bleibt in den Bereichen; neue Starter bekommen die erste freie Nummer
+  Regelwerk); Umstellen (▲▼, Sortieren, Zufall) bleibt in den Bereichen (▲▼ seit 20.11. frei); neue Starter bekommen die erste freie Nummer
   ihres Bereichs – auch eine frei gewordene (vorher: höchste + 1). Bei gleichem Zahlwert sortiert die Nummer mit
   Präfix vorn (E101 vor 101). → `domain/startnrBereiche.ts`, `dm-2026.yaml` `startNrBereiche`,
   `config/catalog.ts` startNrBereicheOf/startNrRegeln, AppState.startNrBereiche/fehlendeStartNr,
@@ -404,6 +419,14 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   voll oder fehlt er, bleibt die Nummer leer und der Starter-Reiter nennt den Starter – „dann muss eh manuell geschaut
   werden, wer eher in eine kleinere oder größere rutschen muss“. Hat eine Klasse nur Bereiche einer Gruppe (E–3), gilt
   er für alle Größen. → `domain/startnrBereiche.ts` gruppeFuer
+- 2026-11-20 · N · Starterfeld steht mit dem Wettkampf fest (Antwort des Nutzers): „Wenn der Wettkampf anfängt, wird
+  die Starterliste importiert und die Gewichtsliste gedruckt, danach steht fest, wer teilnimmt. Danach wird kein
+  Starter mehr gelöscht oder hinzugefügt.“ Die Frage, ob neue Starter frei gewordene Nummern ihres Bereichs auffüllen
+  sollen, ist damit hinfällig; es bleibt, wie gebaut (erste freie Nummer).
+- 2026-11-20 · N · Startnummern-Bereiche, Verschieben (Antwort „Nein“ auf „nur innerhalb der Größengruppe?“): ▲▼ wirkt
+  frei wie ohne Bereiche, die Nummern wandern mit der Folge; passt danach eine nicht zur Größe, nennt „Von Hand
+  prüfen“ den Starter. Der Hinweis, dass Verschieben nicht ging, entfällt. Auslegung (nicht gefragt): „Sortierung
+  ändern“ und „Zufall“ bleiben in den Bereichen – die Größen stehen fest. → `state/reducer/startnummern.ts` inFolge
 - 2026-11-20 · N · Beispiel-Boote: lustige erfundene Namen (Flash, Merlin …), jedes Boot anders – Antwort des Nutzers,
   damit ist die Frage „je Bootstyp oder je Klasse“ erledigt. → `data/boote.ts`
 
@@ -513,11 +536,6 @@ Zurzeit nichts.
 - Geburtstags-Ausnahme des DM-Reglements (ME ab dem 6. Geburtstag, M7 bis zum 27. Geburtstag): abschaltbar in den
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
-- Startnummern nach Westengröße, Verschieben (19.11.2026): Ein Starter lässt sich nur innerhalb seiner Größengruppe
-  verschieben (sonst wanderte eine Weste); die Ansicht sagt es mit einem Hinweis. Bestätigen. → `state/reducer/startnummern.ts`
-- Parallelslalom, Runden neu ordnen (19.11.2026, Prüfbefund): Bis in der Runde etwas erfasst oder sie im Betrieb
-  begonnen ist, ordnet eine später festgeschriebene Klasse die Runde neu – nach Rückfrage, weil Gedrucktes nicht mehr
-  passt. Ob schon gedruckte Runden ganz als gebunden gelten sollen (Druck wird nicht erfasst), ist offen.
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
 - Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
   Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;

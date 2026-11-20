@@ -37,7 +37,8 @@ import ParallelMessung from './ParallelMessung.vue'
  * Aushang je Stage (Pkt. 5.2).
  */
 const props = defineProps<{ gesperrt?: boolean }>()
-const emit = defineEmits<{ stand: [stand: { anzahl: number; auswahl: string }] }>()
+// Mit den Runden der Zettel: Sie gelten nach dem Drucken als gebunden (views/ListsView.vue, 20.11.2026).
+const emit = defineEmits<{ stand: [stand: { anzahl: number; auswahl: string; runden: ParallelRunde[] }] }>()
 
 const { state } = useStore()
 const konfig = useKonfig()
@@ -52,7 +53,7 @@ const seitenVon = (runde: ParallelRunde, typeId: string, racecourse: Racecourse)
     teilenAb: state.value.wkrTeilenAb,
   })
 const zettel = computed(() => (props.gesperrt ? [] : rundenZettel(state.value, parallel.value, seitenVon)))
-watchEffect(() => emit('stand', { anzahl: zettel.value.length, auswahl: t('parallel.title') }))
+watchEffect(() => emit('stand', { anzahl: zettel.value.length, auswahl: t('parallel.title'), runden: [...new Set(zettel.value.map((z) => z.runde))] }))
 
 const eventName = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 const titel = computed(() => [lt('runsheet.title'), eventName.value].filter(Boolean).join(' · '))

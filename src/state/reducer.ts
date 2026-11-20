@@ -11,7 +11,7 @@ import { wendeRegelwerkAn, type RegelwerkAenderung } from './reducer/regelwerk'
 import { wendeStarterAn, type StarterAenderung } from './reducer/starter'
 import { wendeStartnummernAn, type StartnummernAenderung } from './reducer/startnummern'
 import { wendeVerzahnungAn, type VerzahnungAenderung } from './reducer/verzahnung'
-import { wendeParallelAn, type ParallelAenderung } from './reducer/parallel'
+import { ohneVerwaistenDruck, wendeParallelAn, type ParallelAenderung } from './reducer/parallel'
 import { wendeErfassungAn, type ErfassungAenderung } from './reducer/erfassung'
 import { wendeWertungAn, type WertungAenderung } from './reducer/wertung'
 import { wendeListenAn, type ListenAenderung } from './reducer/listen'
@@ -22,7 +22,7 @@ import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
 // diese Datei weiter, damit jeder Import aus '…/state/reducer' bleibt.
 export { emptyState } from './reducer/veranstaltung'
 export { klasseFest } from './reducer/starter'
-export { rundenNeuGeordnet } from './reducer/parallel'
+export { rundenNeuGeordnet, rundeGedruckt } from './reducer/parallel'
 export { assignStartNumbers } from './reducer/startnummern'
 export { ERGEBNIS_LISTEN_VORGABE, streichlaeufeWert } from './reducer/wertung'
 export {
@@ -130,7 +130,9 @@ export function reducer(state: AppState, action: Action): AppState {
       ? umgezogen
       : ergaenzeAbmeldungen(state, umgezogen, konfigVon(state), konfigVon(umgezogen))
   // Ohne Starter gibt es kein Beispiel-Starterfeld mehr – gleich, wie die Starter gingen.
-  const next = angewandt.beispielStarter && angewandt.starters.length === 0 ? { ...angewandt, beispielStarter: false } : angewandt
+  const ohneBeispiel = angewandt.beispielStarter && angewandt.starters.length === 0 ? { ...angewandt, beispielStarter: false } : angewandt
+  // Ein Druckvermerk gilt nur, solange es den Plan seiner Runde gibt (20.11.2026).
+  const next = ohneVerwaistenDruck(ohneBeispiel)
   // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
   const klassen =
     action.type === 'SET_EINGABEN'
@@ -222,6 +224,8 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'PARALLEL_RUNDE_FESTSCHREIBEN':
     case 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN':
     case 'PARALLEL_RUNDE_LOESEN':
+    case 'PARALLEL_RUNDEN_GEDRUCKT':
+    case 'PARALLEL_DRUCK_LOESEN':
       return wendeParallelAn(state, action)
 
     case 'SET_EINGABEN':

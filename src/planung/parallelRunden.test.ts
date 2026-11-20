@@ -187,4 +187,15 @@ describe('verzahneRunde (19.11.2026): die Runden nach dem Vorlauf klein/groß im
     // Den Vorlauf und eine Runde ohne Plan fasst sie nicht an.
     expect(verzahneRunde(neu, 'final', ['1'])).toBe(neu)
   })
+
+  it('verzahnt eine Re-run-Runde genauso (Antwort des Nutzers vom 20.11.2026: „die normale Verzahnung“)', () => {
+    let plaene: ParallelPlaene = {}
+    // Je Klasse festgeschrieben (der Re-run bleibt je Klasse), erst die große, dann die kleine.
+    plaene = mitKlasse(plaene, 'rerun-pre-1', '4', [paar('4', 1)], 'gross')
+    plaene = mitKlasse(plaene, 'rerun-pre-1', '1', [paar('1', 1)], 'klein')
+    const neu = verzahneRunde(plaene, 'rerun-pre-1', ['1', '4'])
+    expect(neu['rerun-pre-1']!.starts.map((s) => `${s.a}/${s.b}/${s.attempt}/${s.boot}`)).toEqual([
+      '1-1/1-2/1/klein', '4-1/4-2/1/gross', '1-2/1-1/2/klein', '4-2/4-1/2/gross',
+    ])
+  })
 })

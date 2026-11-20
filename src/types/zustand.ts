@@ -2,7 +2,7 @@ import type { RawAufbau } from '../config/schema'
 import type { StartNrBereiche } from '../domain/startnrBereiche'
 import type { SCHEMA_VERSION } from '../types'
 import type { ClassId, StartNrMode } from './starter'
-import type { ParallelPlaene, PlanState } from './planung'
+import type { ParallelPlaene, ParallelRunde, PlanState } from './planung'
 import type { AnzeigeEinstellungen, Betrieb } from './betrieb'
 import type {
   Besetzung,
@@ -67,6 +67,14 @@ export interface AppState extends PlanState {
    * (ihren IDs): in der Sicherung, nicht in der Vorlage.
    */
   parallelPlaene: ParallelPlaene
+  /**
+   * Im Stand immer gesetzt. Runden nach dem Vorlauf, deren Listen (WKR-Bögen, Laufzettel,
+   * Startlisten) unter „Listen“ gedruckt wurden: Runde → Zeitpunkt des ersten Drucks (ms). Eine
+   * gedruckte Runde ordnet eine später festgeschriebene Klasse nicht mehr neu (Antwort des Nutzers
+   * vom 20.11.2026); „Druck lösen“ nimmt den Eintrag weg. Gilt nur, solange es den Plan der Runde
+   * gibt. Hängt an den Plänen: in der Sicherung, nicht in der Vorlage (wie `parallelPlaene`).
+   */
+  parallelGedruckt: Partial<Record<ParallelRunde, number>>
   /** Geburtsdatum auf den gedruckten Listen zeigen. */
   showBirthdate: boolean
   /** Herkunft auf den Startlisten: ausgeschriebener Name oder Kürzel, auf Wunsch mit Flagge. */

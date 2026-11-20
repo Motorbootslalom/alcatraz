@@ -28,8 +28,11 @@ import BogenBlatt from './bogen/BogenBlatt.vue'
  */
 const props = defineProps<{ gesperrt?: boolean }>()
 const emit = defineEmits<{
-  /** Wie viele Bögen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname). */
-  stand: [stand: { anzahl: number; auswahl: string }]
+  /**
+   * Wie viele Bögen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname), dazu
+   * ihre Runden – die gelten nach dem Drucken als gebunden (views/ListsView.vue, 20.11.2026).
+   */
+  stand: [stand: { anzahl: number; auswahl: string; runden: ParallelRunde[] }]
 }>()
 
 const { state } = useStore()
@@ -78,7 +81,9 @@ const auswahlText = computed(() => {
     .join(' - ')
     .replace(/\s*[/\\:]\s*/g, '-')
 })
-watchEffect(() => emit('stand', { anzahl: boegen.value.length, auswahl: auswahlText.value }))
+watchEffect(() =>
+  emit('stand', { anzahl: boegen.value.length, auswahl: auswahlText.value, runden: [...new Set(boegen.value.flatMap((b) => (b.runde ? [b.runde.runde] : [])))] }),
+)
 
 const stapel = ref<HTMLElement | null>(null)
 const { zoom } = useBogenZoom(stapel)

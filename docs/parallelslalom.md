@@ -272,7 +272,8 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
   (Action `PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN`, ein Verlaufseintrag; dieselbe Prüfung wie je Klasse:
   `alleWeiter` in `src/lib/parallelStage.ts`). Es bleiben – und stehen im Hinweis darunter: Klassen, deren Runde
   noch nicht vollständig ist, Klassen mit einem Gleichstand an der Grenze (der Re-run wird je Klasse
-  festgeschrieben) und Klassen mit einem veralteten Plan.
+  festgeschrieben) und Klassen mit einem veralteten Plan. Der Knopf bleibt ab zwei Klassen; für eine reicht ihr
+  eigener (Nutzer, 20.11.2026: „Nein, eigentlich nicht“).
 - Der Plan einer Runde (`parallelPlaene.semi`, `.final`, `rerun-<runde>-<n>`) sammelt die Starts aller Klassen.
   Jeder Start trägt seine `klasse`, in den Finals `finale` (1 = um Platz 1 und 2, 3 = um Platz 3 und 4).
 - **Verzahnt wie der Vorlauf** (19.11.2026, „Es fährt immer großes Boot/kleines Boot im Wechsel“):
@@ -280,12 +281,23 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
   aufgebraucht, fährt jedes übrige Paar seine beiden Attempts als 2er-Block. Die Klassen stehen je Bootstyp in
   ihrer Folge im Vorlauf, innerhalb der Klasse die Paare in ihrer Folge (Kleines Finale vor dem Finale)
   (`verzahne` in `src/planung/parallel.ts`, `verzahneRunde` in `src/planung/parallelRunden.ts`).
-  Wird eine Klasse einzeln festgeschrieben oder gelöscht, ordnet das die Runde neu, solange darin nichts erfasst
-  und sie im Betrieb nicht begonnen ist; danach kommt eine Klasse nur ans Ende, damit nichts Gedrucktes wandert
-  (`PARALLEL_ANNAHMEN.rundenVerzahnen`). Das X, das ein Abgemeldeter beim Festschreiben bekommt, zählt dabei nicht
+  Auch der Re-run fährt so verzahnt („die normale Verzahnung“, Nutzer 20.11.2026); festgeschrieben wird er weiter je
+  Klasse, weil er nur selten und für wenige Starter nötig ist.
+  Wird eine Klasse einzeln festgeschrieben oder gelöscht, ordnet das die Runde neu, solange darin nichts erfasst,
+  sie im Betrieb nicht begonnen und ihre Listen nicht gedruckt sind; danach kommt eine Klasse nur ans Ende, damit
+  nichts Gedrucktes wandert (`PARALLEL_ANNAHMEN.rundenVerzahnen`). Das X, das ein Abgemeldeter beim Festschreiben bekommt, zählt dabei nicht
   als erfasst. Würde das Festschreiben (je Klasse oder „Alle Klassen weiter“) die Starts anderer Klassen der Runde
   verschieben, fragt die Ansicht erst nach: Schon gedruckte Listen und Laufzettel passten danach nicht mehr
   (`rundenNeuGeordnet` in `src/state/reducer/parallel.ts`, wie die Rückfrage beim Löschen).
+- **Gedruckte Runden** (20.11.2026, „Ja, auf jeden Fall. Man muss es aber wieder lösen können, wenn später ein Fehler
+  auffällt und neu gedruckt werden muss“): Werden unter „Listen“ WKR-Bögen, Laufzettel oder Startlisten einer Runde
+  nach dem Vorlauf gedruckt (Knopf oder Strg+P, `beforeprint` in `src/views/ListsView.vue`), vermerkt die Action
+  `PARALLEL_RUNDEN_GEDRUCKT` die Runde mit dem Zeitpunkt des ersten Drucks (`AppState.parallelGedruckt`; in der
+  Sicherung, nicht in der Vorlage, wie die Pläne). Wertungslisten zählen nicht, die Startlisten der Runden in der
+  Druckdatei (Regel 960) schon. Die Ansicht zeigt „Listen gedruckt“
+  an der Runde; die Folge bleibt, eine später festgeschriebene Klasse kommt ohne Rückfrage ans Ende. „Druck lösen …“
+  (nach Rückfrage, Action `PARALLEL_DRUCK_LOESEN`, eigener Verlaufseintrag) hebt das auf; erfasste Werte und ein
+  begonnener Lauf binden weiter. Ohne Plan der Runde (gelöscht, „Werte löschen“) fällt der Vermerk weg.
 - Damit gibt es für jede Runde dieselben Listen wie für den Vorlauf:
   WKR-Listen, Laufzettel und QR-Code je Runde, die Runden-Auswahl in der Erfassung,
   Beispielwerte („Leere Zeilen der Runde füllen“), Wertungslisten (Attempts, Result) mit eigenem Zeitstempel.

@@ -169,6 +169,113 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     expect(store.state.value.parallelPlaene.semi!.starts.map((s) => s.klasse)).toEqual(['4', '4', '4', '4', '1', '1', '1', '1'])
   })
 
+  it('gedruckte Runde (20.11.2026): Drucken unter „Listen“ bindet sie, „Druck lösen“ fragt und gibt sie wieder frei', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: false })
+    store.dispatch({ type: 'ADD_STARTERS', starters: mk('4', 4) })
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    fahre('pre', { ...VORLAUF, '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '4', runde: 'semi' })
+    // Die Laufzettel des Parallelslaloms drucken (Strg+P oder Knopf: beides löst `beforeprint` aus).
+    const liste = mount(ListsView, mit(store))
+    await liste.find('.list-kinds button[data-kind="laufzettel"]').trigger('click')
+    await liste.find('.disziplin-wahl button[data-disziplin="parallel"]').trigger('click')
+    await warte()
+    expect(store.state.value.parallelGedruckt).toEqual({})
+    window.dispatchEvent(new Event('beforeprint'))
+    await warte()
+    // Der Vorlauf zählt nicht (er hängt an der Verzahnung); den Zeitpunkt setzt der Store.
+    expect(Object.keys(store.state.value.parallelGedruckt)).toEqual(['semi'])
+    expect(store.state.value.parallelGedruckt.semi).toBeGreaterThan(0)
+    liste.unmount()
+
+    const wrapper = await verzahnung()
+    expect(wrapper.find('[data-hinweis="runden-gedruckt"]').text()).toContain('Halbfinale: Listen gedruckt am')
+    expect(wrapper.find('.parallel-klasse[data-klasse="4"] li[data-runde="semi"] [data-gedruckt]').exists()).toBe(true)
+    // Gedruckt: Klasse 1 kommt ohne Rückfrage ans Ende, nichts rückt.
+    await wrapper.find('.parallel-klasse[data-klasse="1"] [data-action="runde-fest"]').trigger('click')
+    await warte()
+    expect(wrapper.find('[data-dialog="runde-neu-ordnen"]').exists()).toBe(false)
+    expect(store.state.value.parallelPlaene.semi!.starts.map((s) => s.klasse)).toEqual(['4', '4', '4', '4', '1', '1', '1', '1'])
+
+    // „Druck lösen“: erst Rückfrage, Abbrechen lässt den Vermerk stehen.
+    await wrapper.find('[data-action="druck-loesen"][data-runde="semi"]').trigger('click')
+    expect(wrapper.find('[data-dialog="druck-loesen"] h2').text()).toBe('Druck von Halbfinale lösen?')
+    await wrapper.find('[data-dialog="druck-loesen"] [data-action="dialog-abbrechen"]').trigger('click')
+    expect(store.state.value.parallelGedruckt.semi).toBeDefined()
+    await wrapper.find('[data-action="druck-loesen"][data-runde="semi"]').trigger('click')
+    await wrapper.find('[data-action="druck-loesen-bestaetigen"]').trigger('click')
+    await warte()
+    expect(store.state.value.parallelGedruckt).toEqual({})
+    expect(wrapper.find('[data-hinweis="runden-gedruckt"]').exists()).toBe(false)
+    expect(wrapper.find('[data-gedruckt]').exists()).toBe(false)
+    // Jetzt ordnet ein neues Festschreiben wieder neu – nach der bisherigen Rückfrage.
+    store.dispatch({ type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'semi' })
+    await warte()
+    await wrapper.find('.parallel-klasse[data-klasse="1"] [data-action="runde-fest"]').trigger('click')
+    await warte()
+    expect(wrapper.find('[data-dialog="runde-neu-ordnen"]').exists()).toBe(true)
+  })
+
+  it('gedruckte Runde: auch über WKR-Bögen, Startlisten und Druckdatei; bei gesperrtem Druck nichts', async () => {
+    fahre('pre', VORLAUF)
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
+    const drucke = async (wahl: (liste: VueWrapper) => Promise<void>) => {
+      store.dispatch({ type: 'PARALLEL_DRUCK_LOESEN', runde: 'semi' })
+      const liste = mount(ListsView, mit(store))
+      await wahl(liste)
+      await warte()
+      window.dispatchEvent(new Event('beforeprint'))
+      await warte()
+      liste.unmount()
+      return Object.keys(store.state.value.parallelGedruckt)
+    }
+    // WKR-Bögen des Parallelslaloms (ParallelWkrListen.vue meldet ihre Runden).
+    expect(
+      await drucke(async (l) => {
+        await l.find('.list-kinds button[data-kind="wkr"]').trigger('click')
+        await l.find('.disziplin-wahl button[data-disziplin="parallel"]').trigger('click')
+      }),
+    ).toEqual(['semi'])
+    // Startlisten der Runden.
+    expect(
+      await drucke(async (l) => {
+        await l.find('.list-kinds button[data-kind="starter"]').trigger('click')
+        await l.find('.starter-arten button[data-art="parallel"]').trigger('click')
+      }),
+    ).toEqual(['semi'])
+    // Druckdatei (Regel 960): Vor den Wertungslisten jeder Runde steht ihre Startliste.
+    fahre('semi', { '1-1': [40, 40] }, 2000)
+    expect(
+      await drucke(async (l) => {
+        await l.find('.list-kinds button[data-kind="druckdatei"]').trigger('click')
+        await warteAufDruckdatei(l)
+        expect(l.find('.druckdatei-teil[data-teil="startliste"][data-runde="semi"]').exists()).toBe(true)
+      }),
+    ).toEqual(['semi'])
+    // Fehlt eine Startnummer, ist der Druck gesperrt: nichts vermerkt.
+    store.dispatch({ type: 'UPDATE_STARTER', id: '1-6', patch: { startNr: '' } })
+    expect(
+      await drucke(async (l) => {
+        await l.find('.list-kinds button[data-kind="wkr"]').trigger('click')
+        await l.find('.disziplin-wahl button[data-disziplin="parallel"]').trigger('click')
+      }),
+    ).toEqual([])
+  })
+
+  it('unter DM vermerkt Drucken nichts', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: false })
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    const vorher = store.state.value
+    const liste = mount(ListsView, mit(store))
+    await liste.find('.list-kinds button[data-kind="wkr"]').trigger('click')
+    await warte()
+    window.dispatchEvent(new Event('beforeprint'))
+    await warte()
+    expect(store.state.value).toBe(vorher)
+    liste.unmount()
+  })
+
   it('Löschen fragt nach und nennt, wie viele erfasste Werte der Runde mitgehen', async () => {
     fahre('pre', VORLAUF)
     store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })

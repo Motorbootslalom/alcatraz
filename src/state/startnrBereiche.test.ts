@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { emptyState, reducer } from './reducer'
 import { migrate } from './migrate'
 import { makeFile, parseFile } from '../persistenz/backup'
-import { startNrBereicheOf } from '../config/catalog'
+import { startNrBereicheOf, startNrRegeln } from '../config/catalog'
+import { startNrAbweichungen } from '../domain/startnrBereiche'
 import type { AppState, ClassId, Starter } from '../types'
 
 /** Erfundener Starter (Muster Vor1/Nach1). */
@@ -46,13 +47,35 @@ describe('Startnummern-Bereiche im Zustand (19.11.2026)', () => {
     expect(reducer(zurueck, { type: 'SET_FEHLENDE_START_NR', nummern: [] })).toBe(zurueck)
   })
 
-  it('Verschieben, Sortieren und Zufall lassen jede Nummer in ihrem Größenbereich', () => {
+  it('Verschieben wirkt frei wie ohne Bereiche (20.11.2026), „Von Hand prüfen“ nennt die unpassende Nummer', () => {
+    let s = dmMit([st('5', 1, 'S'), st('5', 2, 'M'), st('5', 3, 'L'), st('5', 4, 'XXL')])
+    s = reducer(s, { type: 'ASSIGN_START_NUMBERS' })
+    const hoch = reducer(s, { type: 'MOVE_STARTER', id: '5-4', target: 'first' })
+    expect(nrVon(hoch)).toEqual({ '5-4': '501', '5-1': '502', '5-2': '511', '5-3': '529' })
+    expect(hoch.starters.filter((p) => p.klasse === '5').map((p) => p.id)).toEqual(['5-4', '5-1', '5-2', '5-3'])
+    const abw = startNrAbweichungen(hoch.starters, '5', startNrRegeln(hoch, '5'))
+    expect(abw.map((a) => `${a.starter.id} ${a.art}`)).toEqual(['5-4 fremd', '5-2 fremd', '5-3 fremd'])
+  })
+
+  it('Verschieben eines Starters ohne Nummer (Bereich voll): Die Nummern wandern mit der Folge, die leere auch', () => {
+    // Wie ohne Bereiche (20.11.2026): Wer hinter den Leeren rutscht, verliert seine Nummer und steht unter „Von Hand prüfen“.
+    let s = dmMit([st('5', 1, 'S'), st('5', 2, 'M')])
+    s = reducer(s, { type: 'SET_START_NR_BEREICHE', klasse: '5', bereiche: [{ von: '501', bis: '501', gruppe: 'S-M' }] })
+    s = reducer(s, { type: 'ASSIGN_START_NUMBERS' })
+    expect(nrVon(s)).toEqual({ '5-1': '501', '5-2': '' })
+    const hoch = reducer(s, { type: 'MOVE_STARTER', id: '5-2', target: 'up' })
+    expect(nrVon(hoch)).toEqual({ '5-1': '', '5-2': '501' })
+    expect(hoch.starters.map((p) => p.id)).toEqual(['5-2', '5-1'])
+    const abw = startNrAbweichungen(hoch.starters, '5', startNrRegeln(hoch, '5'))
+    expect(abw.map((a) => `${a.starter.id} ${a.art}`)).toEqual(['5-1 voll'])
+  })
+
+  it('Sortieren und Zufall lassen jede Nummer in ihrem Größenbereich', () => {
     let s = dmMit([st('5', 1, 'S'), st('5', 2, 'M'), st('5', 3, 'L'), st('5', 4, 'XXL')])
     s = reducer(s, { type: 'ASSIGN_START_NUMBERS' })
     expect(nrVon(s)).toEqual({ '5-1': '501', '5-2': '502', '5-3': '511', '5-4': '529' })
-    const hoch = reducer(s, { type: 'MOVE_STARTER', id: '5-4', target: 'first' })
-    // Der XXL-Starter ist in seinem Bereich schon vorn: nichts ändert sich.
-    expect(hoch).toBe(s)
+    const sortiert = reducer(s, { type: 'ORDER_STARTERS', klassen: ['5'], nach: 'nachname', absteigend: true })
+    expect(nrVon(sortiert)).toEqual({ '5-1': '502', '5-2': '501', '5-3': '511', '5-4': '529' })
     const getauscht = reducer(s, { type: 'MOVE_STARTER', id: '5-2', target: 'first' })
     expect(nrVon(getauscht)).toEqual({ '5-1': '502', '5-2': '501', '5-3': '511', '5-4': '529' })
     const gemischt = reducer(s, { type: 'SHUFFLE_STARTERS', klassen: ['5'], saat: 7 })

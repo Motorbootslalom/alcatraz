@@ -140,6 +140,7 @@ export default {
   'history.what.gemerkt': 'Kept state',
   'history.what.rundeFest': 'Parallel slalom: {round} locked ({class})',
   'history.what.rundeGeloest': 'Parallel slalom: {round} deleted ({class})',
+  'history.what.druckGeloest': 'Parallel slalom: print lock of {round} released',
   'history.what.rundenFestAlle': 'Parallel slalom: next heat locked for {n} class | Parallel slalom: next heat locked for {n} classes',
   'history.what.nichtWerten': '“Do not score a discipline” changed',
 

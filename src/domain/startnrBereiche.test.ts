@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  beispielGroessen,
   gruppeDerGroesse,
   liesFehlende,
   naechsteStartNr,
@@ -112,5 +113,17 @@ describe('Startnummern nach Größenbereichen (DMYV-Liste, 19.11.2026)', () => {
 
   it('Sortierung: E101 vor 101, die Klasse E bleibt vorn', () => {
     expect(['102', 'E102', '101', 'E101'].sort(vergleicheStartNr)).toEqual(['E101', '101', 'E102', '102'])
+  })
+
+  it('Beispielstarter: Größe rückt in eine Gruppe mit Bereich und freier Nummer (20.11.2026)', () => {
+    // Klasse 5: XXL hat nur 529–530 – drei XXL: der dritte wird XL (nächste Gruppe), jeder bekommt eine Nummer.
+    const fuenf = beispielGroessen([st('5', 1, 'XXL'), st('5', 2, 'XXXL'), st('5', 3, 'XXL'), st('5', 4, 'S')], '5', dm('5'))
+    expect(fuenf.map((p) => p.groesse)).toEqual(['XXL', 'XXXL', 'XL', 'S'])
+    expect(nummern(vergibKlasse(fuenf, '5', dm('5')))).toEqual(['529', '530', '511', '501'])
+    // Eine fehlende Weste verkleinert den Bereich.
+    expect(beispielGroessen([st('5', 1, 'XXL'), st('5', 2, 'XXL')], '5', dm('5', ['530'])).map((p) => p.groesse)).toEqual(['XXL', 'XL'])
+    // Klasse 4 hat kein XXL; E–3 nur eine Gruppe: dort bleibt jede Größe.
+    expect(beispielGroessen([st('4', 1, 'XXL')], '4', dm('4')).map((p) => p.groesse)).toEqual(['XL'])
+    expect(beispielGroessen([st('3', 1, 'XXL')], '3', dm('3')).map((p) => p.groesse)).toEqual(['XXL'])
   })
 })

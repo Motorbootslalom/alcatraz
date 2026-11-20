@@ -7,8 +7,8 @@ import { festeRunden } from '../lib/parallelBogen'
 import { alleWeiter, klassenStaende, rundenWerteZahl, type KlassenStand, type RundenSchritt } from '../lib/parallelStage'
 import { klassenTeilnehmer, loeseAuf, rundenName, VORLAUF } from '../planung/parallelRunden'
 import { adresse } from '../lib/router'
-import { rundenNeuGeordnet } from '../state/reducer'
-import { t, tn } from '../i18n'
+import { rundenNeuGeordnet, rundeGedruckt } from '../state/reducer'
+import { formatDateTime, t, tn } from '../i18n'
 import type { ClassId, ParallelRunde } from '../types'
 import AppDialog from './AppDialog.vue'
 import HeatTable from './HeatTable.vue'
@@ -24,7 +24,8 @@ import HeatTable from './HeatTable.vue'
  *
  * Darunter die festgeschriebenen Pläne der Runden, klassenübergreifend und verzahnt wie der
  * Vorlauf (klein/groß im Wechsel, 19.11.2026) – so stehen sie auf den Listen der race officials.
- * Oben „Alle Klassen weiter“: die nächste Runde aller Klassen, die so weit sind, in einem Schritt.
+ * Oben „Alle Klassen weiter“: die nächste Runde aller Klassen, die so weit sind, in einem Schritt,
+ * und davor die gedruckten Runden mit „Druck lösen“ (20.11.2026).
  */
 const { state, dispatch } = useStore()
 const konfig = useKonfig()
@@ -89,6 +90,25 @@ watch(staende, (alle) => {
   if (f && !alle.find((ks) => ks.klasse === f.klasse)?.loesbar.includes(f.runde)) frage.value = null
 })
 
+// Gedruckte Runden (Antwort des Nutzers vom 20.11.2026): Ihre Folge bleibt, eine später festgeschriebene
+// Klasse kommt nur ans Ende. „Druck lösen“ hebt das nach Rückfrage auf – „wenn später ein Fehler
+// auffällt und neu gedruckt werden muss“. Erfasste Werte und ein begonnener Lauf binden weiter.
+const gedruckt = computed(() =>
+  festeRunden(state.value.parallelPlaene)
+    .filter((r) => r !== VORLAUF && rundeGedruckt(state.value, r))
+    .map((runde) => ({ runde, zeit: state.value.parallelGedruckt[runde] ?? 0 })),
+)
+const istGedruckt = (runde: ParallelRunde) => gedruckt.value.some((g) => g.runde === runde)
+const druckFrage = ref<ParallelRunde | null>(null)
+function druckLoesen() {
+  if (druckFrage.value) dispatch({ type: 'PARALLEL_DRUCK_LOESEN', runde: druckFrage.value })
+  druckFrage.value = null
+}
+// Anders gelöst (zweites Fenster) oder die Runde ist weg: Der Dialog geht zu.
+watch(gedruckt, () => {
+  if (druckFrage.value && !istGedruckt(druckFrage.value)) druckFrage.value = null
+})
+
 // Die festgeschriebenen Pläne der Runden nach dem Vorlauf, mit Klasse und Finale je Start.
 const plaene = computed(() =>
   festeRunden(state.value.parallelPlaene)
@@ -110,6 +130,12 @@ const plaene = computed(() =>
     <p class="hint">{{ t('parallel.rounds.hint') }}</p>
     <p class="note" data-hinweis="parallel-annahmen">{{ t('parallel.rounds.assumptions') }}</p>
     <p v-if="staende.length === 0" class="note" data-hinweis="runden-ohne-plan">{{ t('parallel.rounds.none') }}</p>
+    <div v-if="gedruckt.length > 0" class="parallel-gedruckt" data-hinweis="runden-gedruckt">
+      <p v-for="g in gedruckt" :key="g.runde" class="note" :data-runde="g.runde">
+        {{ t('parallel.rounds.printed', { round: name(g.runde), time: formatDateTime(g.zeit) }) }}
+        <button type="button" class="btn ghost" data-action="druck-loesen" :data-runde="g.runde" @click="druckFrage = g.runde">{{ t('parallel.rounds.unprint') }}</button>
+      </p>
+    </div>
     <div v-if="alle.weiter.length >= 2" class="parallel-alle" data-hinweis="runden-alle">
       <p class="hint">{{ t('parallel.rounds.allHint', { classes: alleKlassen }) }}</p>
       <button type="button" class="btn primary" data-action="runden-alle-fest" @click="alleFest">{{ t('parallel.rounds.all', { rounds: alleRunden }) }}</button>
@@ -121,6 +147,7 @@ const plaene = computed(() =>
         <li v-for="r in ks.runden" :key="r.runde" :data-runde="r.runde" :data-zustand="r.zustand" :data-veraltet="r.veraltet || undefined">
           <b>{{ name(r.runde) }}</b
           >: {{ t(`parallel.rounds.state.${r.zustand}`) }}
+          <span v-if="istGedruckt(r.runde)" class="parallel-gedruckt-marke" data-gedruckt="true"> – {{ t('parallel.rounds.printedShort') }}</span>
           <span v-if="r.veraltet" class="parallel-veraltet"> – {{ t('parallel.rounds.staleShort') }}</span>
           <button v-if="ks.loesbar.includes(r.runde)" type="button" class="btn ghost" data-action="runde-loeschen" :data-runde="r.runde" @click="frage = { klasse: ks.klasse, runde: r.runde }">
             {{ t('parallel.rounds.release', { round: name(r.runde) }) }}
@@ -158,6 +185,14 @@ const plaene = computed(() =>
     <template #knoepfe>
       <button type="button" class="btn primary" data-action="runde-neu-ordnen-bestaetigen" @click="neuOrdnenBestaetigt">{{ t('parallel.rounds.reorder.confirm') }}</button>
       <button type="button" class="btn" data-action="dialog-abbrechen" autofocus @click="neuOrdnen = null">{{ t('common.cancel') }}</button>
+    </template>
+  </AppDialog>
+
+  <AppDialog v-if="druckFrage" :titel="t('parallel.rounds.unprint.heading', { round: name(druckFrage) })" data-dialog="druck-loesen" @abbrechen="druckFrage = null">
+    <p>{{ t('parallel.rounds.unprint.text', { round: name(druckFrage) }) }}</p>
+    <template #knoepfe>
+      <button type="button" class="btn primary" data-action="druck-loesen-bestaetigen" @click="druckLoesen">{{ t('parallel.rounds.unprint.confirm') }}</button>
+      <button type="button" class="btn" data-action="dialog-abbrechen" autofocus @click="druckFrage = null">{{ t('common.cancel') }}</button>
     </template>
   </AppDialog>
 

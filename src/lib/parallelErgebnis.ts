@@ -90,10 +90,15 @@ export const PARALLEL_ANNAHMEN = {
    * Verzahnung der Runden nach dem Vorlauf – Organisation, nicht Regel 960. WUNSCH DES NUTZERS
    * vom 19.11.2026: „Es fährt immer großes Boot/kleines Boot im Wechsel“ – auch in Halbfinale,
    * Finals und Wiederholungen, wie im Vorlauf (planung/parallelRunden.ts `verzahneRunde`). Die
-   * Klassen eines Bootstyps stehen in ihrer Folge im Vorlauf. Auslegung: Wird eine Klasse später
-   * festgeschrieben (oder gelöscht), ordnet das die Runde neu, solange darin nichts erfasst und
-   * sie im Betrieb nicht begonnen ist; danach kommt eine Klasse nur ans Ende (wie bisher je Paar
-   * ein 2er-Block), damit keine Zeile auf gedrucktem Papier oder auf der Tafel wandert.
+   * Klassen eines Bootstyps stehen in ihrer Folge im Vorlauf. Wird eine Klasse später
+   * festgeschrieben (oder gelöscht), ordnet das die Runde neu, solange darin nichts erfasst, sie
+   * im Betrieb nicht begonnen und ihre Listen nicht gedruckt sind; danach kommt eine Klasse nur ans
+   * Ende (wie bisher je Paar ein 2er-Block), damit keine Zeile auf gedrucktem Papier oder auf der
+   * Tafel wandert. BESTÄTIGT vom Nutzer am 20.11.2026: Eine gedruckte Runde gilt als fest („Ja, auf
+   * jeden Fall“), lässt sich aber mit „Druck lösen“ wieder freigeben („wenn später ein Fehler
+   * auffällt und neu gedruckt werden muss“) – AppState.parallelGedruckt. Auch der Re-run fährt
+   * „die normale Verzahnung (großes Boot/kleines Boot)“; er bleibt je Klasse festzuschreiben
+   * (nicht über „Alle Klassen weiter“), weil er „fast nie vorkommt“.
    * `false`: jede Klasse ans Ende, nie neu ordnen.
    */
   rundenVerzahnen: true as boolean,

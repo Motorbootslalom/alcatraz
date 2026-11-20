@@ -211,9 +211,10 @@ export function plaetzeVon(fest: ParallelPlanFest, starterId: string): { attempt
 // die Starts aller Klassen – so sind die Listen der race officials wie im Vorlauf
 // klassenübergreifend. Seit 19.11.2026 (Wunsch des Nutzers) wird die Runde als Ganzes verzahnt
 // wie der Vorlauf ({@link verzahneRunde}): klein und groß im Wechsel. Eine später
-// festgeschriebene Klasse ordnet die Runde neu, solange darin nichts erfasst und sie im Betrieb
-// nicht begonnen ist; danach kommt sie nur ans Ende und verschiebt keine Zeile einer früheren
-// (state/reducer/parallel.ts, PARALLEL_ANNAHMEN.rundenVerzahnen).
+// festgeschriebene Klasse ordnet die Runde neu, solange darin nichts erfasst, sie im Betrieb
+// nicht begonnen und (20.11.2026) ihre Listen nicht gedruckt sind; danach kommt sie nur ans Ende
+// und verschiebt keine Zeile einer früheren (state/reducer/parallel.ts, PARALLEL_ANNAHMEN.rundenVerzahnen).
+// Re-run-Runden (`rerun-…`) werden genauso verzahnt (Antwort des Nutzers vom 20.11.2026).
 
 /** Ein Paar einer Runde nach dem Vorlauf: zwei Starter (IDs), `b: null` ist der Dummy. */
 export interface RundenPaar {

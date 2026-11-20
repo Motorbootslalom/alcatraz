@@ -68,6 +68,10 @@ function was(b: Beschreibung): string {
     const runde = rundeVon(`parallel:${b.runde ?? ''}`)
     return t(`history.what.${b.art}`, { round: runde ? rundenName(runde, t) : '', class: b.klasse ? classLabel(b.klasse as ClassId) : '' })
   }
+  if (b.art === 'druckGeloest') {
+    const runde = rundeVon(`parallel:${b.runde ?? ''}`)
+    return t('history.what.druckGeloest', { round: runde ? rundenName(runde, t) : '' })
+  }
   if (b.art === 'klasseGewechselt') return t('history.what.klasseGewechselt', { class: b.klasse ? classLabel(b.klasse as ClassId) : '' })
   if (b.art === 'reihenfolge') return b.klasse ? t('history.what.reihenfolge', { class: classLabel(b.klasse as ClassId) }) : t('history.what.reihenfolgeAlle')
   if (b.art === 'verlauf') {

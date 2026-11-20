@@ -80,6 +80,9 @@
 - ORDER_STARTERS/SHUFFLE_STARTERS (Starter-Reiter, lib/reihenfolge.ts) und MOVE_STARTER (▲▼, 16.11.2026) in
   VERZAHNUNG_ACTIONS: danach keine neue Folge; Nummern von Hand gehen weiter; unverändert ⇒ derselbe Stand. Alle drei über inFolge(): Nummern neu
   verteilt UND Starter im Array umgestellt – ohne Nummer zählt die Array-Folge (sortedByStartNr, Verzahnung, Export).
+  Mit Startnummern-Bereichen bleiben nur Sortieren/Zufall in den Bereichen; ▲▼ wirkt frei (20.11.2026, `inBereichen`).
+- parallelGedruckt (20.11.2026): Runde → Zeit des ersten Drucks, bindet die Runde wie erfasste Werte (rundeGebunden);
+  reducer() wirft Vermerke ohne Plan weg (ohneVerwaistenDruck); Sicherung ja, Vorlage nein (wie parallelPlaene).
 - betrieb/anzeige (16.11.2026): betrieb in der Sicherung, nicht in der Vorlage (apply hängt ihn per haengeUm auf
   deren Parcours um, `parallel` bleibt); anzeige reist mit, kopfzeile bleibt beim Ziel. BETRIEB_* ohne Verlaufseintrag
   (verlauf.ts `null`); VerlaufPanel stellt mit dem jetzigen betrieb wieder her – nur bei gleicher `kennung` (sonst der des

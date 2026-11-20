@@ -76,7 +76,6 @@ export default {
   'starters.move.up': 'Up one',
   'starters.move.down': 'Down one',
   'starters.move.last': 'To the bottom',
-  'starters.move.bereich': 'Not moved: race numbers stay within the range of their vest size – moving works only within the same size group.',
   'starters.birthLabel': 'Date of birth (born {from}–{to})',
 
   'starters.sort': 'Sort',
