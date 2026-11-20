@@ -124,7 +124,7 @@ describe('Startnummern-Bereiche (DMYV-Liste, 19.11.2026)', () => {
     const kurz = (id: string) =>
       Object.fromEntries(Object.entries(regelwerkOf(id).startNrBereiche).map(([k, l]) => [k, (l ?? []).map((b) => `${b.von}-${b.bis} ${b.gruppe}`).join(', ')]))
     expect(kurz('dm-2026')).toEqual({
-      E: 'E101-E130 S-M',
+      E: 'E01-E30 S-M',
       1: '101-130 S-M',
       2: '201-230 S-M',
       3: '301-330 S-M',

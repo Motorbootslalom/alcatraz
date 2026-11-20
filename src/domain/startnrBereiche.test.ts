@@ -63,9 +63,9 @@ describe('Startnummern nach Größenbereichen (DMYV-Liste, 19.11.2026)', () => {
     expect(nummern(vergibKlasse([st('6', 1, ''), st('6', 2, 'M')], '6', dm('6')))).toEqual(['626', '601'])
   })
 
-  it('Klasse E wörtlich E101–E130; auch mit dem Buchstaben D', () => {
-    expect(nummern(vergibKlasse([st('E', 1, 'S'), st('E', 2, 'M')], 'E', dm('E', ['E101'])))).toEqual(['E102', 'E103'])
-    expect(nummern(vergibKlasse([st('E', 1, 'S')], 'E', { ...dm('E'), praefixe: { E: 'D' } }))).toEqual(['D101'])
+  it('Klasse E: E01–E30; auch mit dem Buchstaben D', () => {
+    expect(nummern(vergibKlasse([st('E', 1, 'S'), st('E', 2, 'M')], 'E', dm('E', ['E01'])))).toEqual(['E02', 'E03'])
+    expect(nummern(vergibKlasse([st('E', 1, 'S')], 'E', { ...dm('E'), praefixe: { E: 'D' } }))).toEqual(['D01'])
   })
 
   it('ohne Bereiche fortlaufend wie bisher – fehlende Westen trotzdem übersprungen', () => {

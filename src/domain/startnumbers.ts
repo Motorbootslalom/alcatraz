@@ -53,9 +53,9 @@ export function parseClassNumber(startNr: string, klasse: ClassId, praefixe?: St
  * nach der ganzen Nummer (E01 < E02 < E10, 301 < 311, 7 < 12). Ein Präfix aus Buchstaben vor
  * den Ziffern zählt wie eine 0 (Entscheidung des Nutzers vom 15.11.2026): E01 und D01 stehen wie
  * 001 vor 101, 201 … – die Klasse mit Präfix ist die jüngste und fährt zuerst. Ohne das stünden
- * Buchstaben hinter allen Ziffern. Bei gleichem Wert steht die Nummer mit Präfix vorn (E101 vor
- * 101, E01 vor 1 – seit den DMYV-Westen E101–E130 vom 19.11.2026 haben E und 1 dieselben Zahlen,
- * und die Klasse E fährt zuerst, z. B. beim Ordnen der Klassen nach ihrer kleinsten Nummer);
+ * Buchstaben hinter allen Ziffern. Bei gleichem Wert steht die Nummer mit Präfix vorn (E01 vor 1,
+ * E101 vor 101 – falls Bereiche E und 1 dieselben Zahlen geben, fährt die Klasse E zuerst, z. B.
+ * beim Ordnen der Klassen nach ihrer kleinsten Nummer);
  * sonst entscheidet die Schreibweise, damit die Reihenfolge fest ist.
  */
 export function vergleicheStartNr(a: string, b: string): number {

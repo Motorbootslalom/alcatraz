@@ -397,6 +397,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Präfix vorn (E101 vor 101). → `domain/startnrBereiche.ts`, `dm-2026.yaml` `startNrBereiche`,
   `config/catalog.ts` startNrBereicheOf/startNrRegeln, AppState.startNrBereiche/fehlendeStartNr,
   `components/StartNrBereichePanel.vue`
+- 2026-11-20 · N · DMYV-Liste geklärt (Antwort des Nutzers): Klasse E ist E01–E30 (auf dem Zettel versehentlich
+  E101–E130); die Klassen E bis 3 haben nur S–M, erst ab Klasse 4 ist nach Größen aufgeteilt; Klasse 7: 701–710 S–M,
+  711–725 L–XL, 726–730 XXL. → `dm-2026.yaml` `startNrBereiche`
 
 ## Beispieldaten
 
@@ -504,9 +507,8 @@ Zurzeit nichts.
 - Geburtstags-Ausnahme des DM-Reglements (ME ab dem 6. Geburtstag, M7 bis zum 27. Geburtstag): abschaltbar in den
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
-- Startnummern nach Westengröße (19.11.2026): Klasse E steht auf der DMYV-Liste als E101–E130 und ist so übernommen
-  (vorher E01 …) – oder E01–E30? Klasse 3 hat eine Zeile „L–XL“ ohne lesbaren Bereich – welche Nummern? Überlaufregel
-  (erst größer, dann kleiner, sonst dahinter) und „ohne Größe = größte Gruppe“ bestätigen. → `dm-2026.yaml`
+- Startnummern nach Westengröße (19.11.2026): Überlaufregel (erst größer, dann kleiner, sonst dahinter) und „ohne
+  Größe = größte Gruppe“ bestätigen. → `domain/startnrBereiche.ts`
 - Beispiel-Boote (19.11.2026): je Klasse ein eigener erfundener Bootsname. Realistischer wäre vielleicht ein Name
   je Bootstyp (Klassen mit kleinem Boot teilen sich eins) – mit dem Nutzer klären. → `lib/beispieldaten.ts` beispielBoote
 - Startnummern nach Westengröße, Verschieben (19.11.2026): Ein Starter lässt sich nur innerhalb seiner Größengruppe

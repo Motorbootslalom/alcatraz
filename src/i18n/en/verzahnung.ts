@@ -3,7 +3,7 @@ import type de from '../de/verzahnung'
 /** Englisch zu de/verzahnung.ts – genau dieselben Schlüssel. */
 export default {
   'numbers.dolphinPrefix': 'Letter of the Dolphin numbers',
-  'numbers.dolphinPrefix.hint': 'E101 or D101 (without ranges E01 or D01). Applies to numbers that are newly assigned; existing ones stay until “Reassign race numbers” replaces them. Either way they sort as with a leading 0 – before the other classes.',
+  'numbers.dolphinPrefix.hint': 'E01 or D01. Applies to numbers that are newly assigned; existing ones stay until “Reassign race numbers” replaces them. Either way they sort as with a leading 0 – before the other classes.',
 
   'numbers.title': 'Race numbers',
   'numbers.abweichung': '{n} number does not match the vest size: | {n} numbers do not match the vest size:',

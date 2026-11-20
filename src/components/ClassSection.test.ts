@@ -166,7 +166,7 @@ describe('Jahrgang und Klasse', () => {
     expect(knopf.attributes('data-klasse')).toBe('E')
     await knopf.trigger('click')
     const neu = store.state.value.starters[1]
-    expect(neu).toMatchObject({ vorname: 'Vor9', nachname: 'Nach9', verein: 'Musterclub', geburtsdatum: '2019-05-05', klasse: 'E', groesse: 'M', startNr: 'E101' })
+    expect(neu).toMatchObject({ vorname: 'Vor9', nachname: 'Nach9', verein: 'Musterclub', geburtsdatum: '2019-05-05', klasse: 'E', groesse: 'M', startNr: 'E01' })
     expect(wrapper.find('form.add-form').exists()).toBe(false)
     expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor9 Nach9 ist in Klasse E angelegt.')
     expect(wrapper.emitted('oeffne')).toEqual([['E']])
@@ -257,9 +257,9 @@ describe('Jahrgang und Klasse', () => {
     expect(knopf.text()).toBe('In Klasse E verschieben')
     expect(knopf.attributes('title')).toContain('Startnummer wird dort neu vergeben')
     await knopf.trigger('click')
-    // DM-Vorgabe der Startnummern-Bereiche (19.11.2026): Klasse E beginnt bei E101.
-    expect(store.state.value.starters[0]).toMatchObject({ klasse: 'E', geburtsdatum: '2019-05-05', startNr: 'E101' })
-    expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor1 Nach1 steht jetzt in Klasse E, mit der Startnummer E101.')
+    // DM-Vorgabe der Startnummern-Bereiche (19.11.2026): Klasse E beginnt bei E01.
+    expect(store.state.value.starters[0]).toMatchObject({ klasse: 'E', geburtsdatum: '2019-05-05', startNr: 'E01' })
+    expect(wrapper.find('[data-hinweis="in-anderer-klasse"]').text()).toBe('Vor1 Nach1 steht jetzt in Klasse E, mit der Startnummer E01.')
     expect(wrapper.emitted('oeffne')).toEqual([['E']])
     wrapper.unmount()
   })
@@ -311,7 +311,7 @@ describe('Jahrgang und Klasse', () => {
   })
 
   it('Verschieben: klassische Startnummern bleiben, klassenbasierte schließen in der neuen Klasse an', () => {
-    // Ohne Startnummern-Bereiche der Klasse E (sonst E101, siehe oben): die höchste + 1.
+    // Ohne Startnummern-Bereiche der Klasse E (sonst E01, siehe oben): die höchste + 1.
     store.dispatch({ type: 'SET_START_NR_BEREICHE', klasse: 'E', bereiche: [] })
     store.dispatch({ type: 'ADD_STARTERS', starters: [{ ...starter(2), id: 'e1', startNr: 'E03', klasse: 'E' }] })
     store.dispatch({ type: 'MOVE_STARTER_TO_CLASS', id: 'p1', klasse: 'E', geburtsdatum: '2019-05-05' })

@@ -21,17 +21,17 @@ describe('Startnummern-Bereiche im Zustand (19.11.2026)', () => {
   it('Vorgabe des Regelwerks: DM mit der DMYV-Liste, UIM ohne', () => {
     const dm = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
     expect(startNrBereicheOf(dm, '6').map((b) => `${b.von}-${b.bis} ${b.gruppe}`)).toEqual(['601-610 S-M', '611-625 L-XL', '626-630 XXL'])
-    expect(startNrBereicheOf(dm, 'E')[0]).toEqual({ von: 'E101', bis: 'E130', gruppe: 'S-M' })
+    expect(startNrBereicheOf(dm, 'E')[0]).toEqual({ von: 'E01', bis: 'E30', gruppe: 'S-M' })
     const uim = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     expect(startNrBereicheOf(uim, '6')).toEqual([])
   })
 
   it('„Startnummern vergeben“ nimmt die Bereiche und überspringt fehlende Westen', () => {
     let s = dmMit([st('6', 1, 'XL'), st('6', 2, 'S'), st('6', 3, 'XXL'), st('E', 1, 'M')])
-    s = reducer(s, { type: 'SET_FEHLENDE_START_NR', nummern: ['611', 'e101'] })
-    expect(s.fehlendeStartNr).toEqual(['611', 'E101'])
+    s = reducer(s, { type: 'SET_FEHLENDE_START_NR', nummern: ['611', 'e01'] })
+    expect(s.fehlendeStartNr).toEqual(['611', 'E01'])
     s = reducer(s, { type: 'ASSIGN_START_NUMBERS' })
-    expect(nrVon(s)).toEqual({ '6-1': '612', '6-2': '601', '6-3': '626', 'E-1': 'E102' })
+    expect(nrVon(s)).toEqual({ '6-1': '612', '6-2': '601', '6-3': '626', 'E-1': 'E02' })
   })
 
   it('eigene Bereiche je Klasse ersetzen die Vorgabe; null stellt sie wieder her; Unverändertes bleibt derselbe Stand', () => {
