@@ -63,6 +63,21 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   koppelLink/koppeln/geraete/entzogen, gibCode/oeffneQr/beendeKoppeln/setzeAufgaben/benenne/entziehe, nimmAn,
   pflegeKoppeln (Takt `koppelTaktMs`), Bedienung = pointerdown/keydown → bus.bedient(). Annahmen:
   BETRIEB_ANNAHMEN.startfreigabeRechte/koppelnZeiten/gekoppelteGeraete. Tests: kopplung.test.ts (Ende zu Ende).
+- E8 (20.11.2026): `kontingent.ts` (KONTINGENT = Grenzen je Server: adminforge 17 280, ntfy.sh 250 Nachrichten/Tag je IP, sonst
+  unbekannt → nur 429; tagesGrenze(server); Warnung ab 80 %; Überschlag eines
+  Wettkampftags ≈ 600–850 im Kopfkommentar; kontingentZaehler(ablage, uhr) je lokalem Tag, `alcatraz.geraete.kontingent`;
+  NtfyLeitung zählt über den 3. Konstruktor-Parameter `zaehle` – Anfragen (POST, Abfrage, Anhang, Abo), angenommene
+  Nachrichten, 429). host.ts: `kontingent`, `ladeAlleNeu()` → gesendet|nicht-verbunden (nur bei stehender Verbindung; Befehl `alle-neu-laden` →
+  melde(ko|kz, neu-laden); in der Schlange verfällt die Meldung nach transport.ts NEULADEN_SENDEN_MS 1 min),
+  `neueFassung`/`fassungGesehen()` (Fassung = Commit + Build-Zeit, `alcatraz.geraete.fassung`; HostUmgebung.fassung).
+  geraet.ts: Meldung `neu-laden` → `aktualisiere` je Befehl `r:g:n` einmal (`alcatraz.geraet.neugeladen`, ohne
+  Speicher nie), nur frisch (NEULADEN_BEFEHL_GUELTIG_MS 10 min). PROTOKOLL_FASSUNG bleibt 1 (`neu-laden` gab es seit E5).
+  Annahmen BETRIEB_ANNAHMEN.wachBleiben/alleNeuLaden/kontingent. Tests: neuLaden.test.ts, kontingent.test.ts;
+  haertung.test.ts (Start-Freigabe im Parallelslalom: Rechte je Bereich – A und B sind EIN Bereich –, Paar als Einheit;
+  Zeitgrenzen: Wiederholabstand bis 5 min auch mit Fake-Uhr, Führungswechsel mit offener Action, Code/QR abgelaufen,
+  Gerät länger weg als das Einstiegsfenster), src/GeraetParallel.test.ts (Oberfläche: Paar A/B, „Keine Bestätigung“).
+  Doku: docs/betrieb.md (Ablauf am Wettkampftag, Wake Lock, Alle Geräte neu laden, Kontingent), Checkliste
+  docs/feldtest.md – offene Punkte des Feldtests dort und in docs/entscheidungen.md „Offen“.
 - `testBrowser.ts` – nur Tests: nachgebauter Browser (Fenster mit gemeinsamem Speicher + storage-Ereignis,
   BroadcastChannel, Web Locks).
 - `fuehrung.ts` – waehleFuehrung(id?, umgebung?) → `{fuehrt, art: 'sperre'|'lease', stop}`: Web Lock
@@ -76,7 +91,7 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   `schreibfenster` (spätere Bedienung gewinnt); `reicheWeiter(action, selbst)` im Führungsfenster → Schreibfenster
   wendet per `beimAnwenden` an (Ergebnis angewandt|unveraendert), nach 1 s ohne Antwort `selbst`;
   `meldeVerbindung` → `verbindung` in allen Fenstern; neues Fenster fragt, `pagehide`/`schliesse` meldet „weg“.
-  E6: `befiehl(befehl)`/`beimBefehl` (BEFEHLE: zuschauer-erneuern, raum-beenden) – ausführen nur das Führungsfenster.
+  E6: `befiehl(befehl)`/`beimBefehl` (BEFEHLE: zuschauer-erneuern, raum-beenden, E8 alle-neu-laden) – ausführen nur das Führungsfenster.
 - `ablage.ts` – ALLE localStorage-Schlüssel (`ABLAGE`): Host `alcatraz.geraete.*` (raum, fuehrung, fensterbus), Gerät
   `alcatraz.geraet.*` (verbindung, sicht). hostAblage(kennung) = HostSpeicher, an AppState.kennung gebunden
   (andere Veranstaltung = kein Raum; Speicher voll → weiter im Arbeitsspeicher, `voll()`); legeRaumAn/beendeRaum/
@@ -84,7 +99,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   nur zusammen, Abweichung von Plan §3 `alcatraz.geraet.ich`); geraetAblage(bezug {u,r,s}) = GeraetSpeicher nur für
   diesen Raum; sichtAblage (Ablauf 36 h, SICHT_GUELTIG_MS; E6 legt `{art, sicht}` ab); pruefeRaum (anderer Raum →
   Verbindung samt Kennung und Sicht weg), verlasseRaum (dasselbe; neu koppeln = neuer Schlüssel); E6
-  `alcatraz.geraet.aktualisiert` (Sperre gegen Neulade-Schleifen, ohne Personenbezug).
+  `alcatraz.geraet.aktualisiert` (Sperre gegen Neulade-Schleifen, ohne Personenbezug); E8 `alcatraz.geraet.neugeladen`,
+  `alcatraz.geraete.kontingent`, `alcatraz.geraete.fassung`.
 
 ## Abläufe
 
@@ -173,7 +189,7 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - Lease ist best effort (localStorage ohne atomares Setzen; gedrosselte Hintergrund-Tabs): Web Locks sind der Schutz;
   dazu liest HostSpeicher.aendere vor jedem Schreiben frisch und `n` steht im Raum.
 - Fensterbus vertraut allen Fenstern derselben Herkunft (die könnten ohnehin den Stand schreiben), prüft nur die Form.
-- Echter ntfy ungeprüft (nur der Nachbau): in E6/E8 `since=<id>` über mehrere Themen und mit abgelaufener ID, und dass
+- Echter ntfy ungeprüft (nur der Nachbau; Checkliste docs/feldtest.md): in E6/E8 `since=<id>` über mehrere Themen und mit abgelaufener ID, und dass
   `attachment.url` mit der eingegebenen Server-Adresse beginnt (sonst verwirft der Host jeden Vollstand mit `zu-gross`).
 
 ## Tests

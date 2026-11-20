@@ -7,6 +7,7 @@ import { sichtOeffentlich, sichtZuschauer } from './betrieb/sicht'
 import { vollbild } from './lib/router'
 import { folgeBedienfenster } from './lib/anzeigeFenster'
 import { useUhr } from './lib/uhr'
+import { useWachBleiben } from './lib/wachBleiben'
 import { tIn } from './i18n'
 import ZuschauerListe from './components/zuschauer/ZuschauerListe.vue'
 
@@ -46,6 +47,8 @@ watch(
 
 // Die Uhr für die Wartezeiten: am Bedienrechner ohne Versatz. Minuten genügen – ein Takt von 5 s reicht.
 const jetzt = useUhr(5000)
+// Wie die Anzeigetafel im zweiten Fenster: Bildschirm wach halten (E8, 20.11.2026), still ohne API.
+useWachBleiben()
 
 // Welcher Bereich: `#/zuschauer/<bereich>` zeigt nur ihn – gibt es ihn (noch) nicht, alle.
 const ort = ref(vollbild())

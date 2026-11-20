@@ -33,6 +33,8 @@ import {
 import type { NtfyZeiten } from './transport/ntfy/leitung'
 import type { Json } from './transport/ntfy/patch'
 import { OEFFENTLICH, ZUSCHAUER } from './transport/protokoll'
+import { kontingentZaehler, type KontingentStand, type Zaehlart } from './kontingent'
+import { BUILD_COMMIT, BUILD_TIME } from '../lib/build'
 
 /**
  * Der Bedienrechner als Host des Gerätebetriebs (Etappe E6, Plan vom 16.11.2026 §1/§3/§5): Anzeigetafel und
@@ -88,6 +90,8 @@ export interface KoppelInfo {
 
 /** Ausgang von „Raum beenden“: Ging die signierte Meldung „Raum beendet“ hinaus, löschen die Geräte ihre Sicht sofort. */
 export type RaumEnde = 'gemeldet' | 'ohne-meldung'
+/** Ergebnis von „Alle Geräte neu laden“ (E8): ohne stehende Verbindung geht nichts hinaus. */
+export type NeuLadenErgebnis = 'gesendet' | 'nicht-verbunden'
 
 export interface GeraeteHost {
   /** Der Raum dieser Veranstaltung; `null` = Gerätebetrieb aus (keine Verbindung). */
@@ -117,6 +121,24 @@ export interface GeraeteHost {
   benenne(id: string, name: string): void
   /** Entzug: aus dem Register, `entzogen` an das Gerät; es liest Öffentliches weiter (K14). */
   entziehe(id: string): void
+  // --- E8 (20.11.2026) ---
+  /**
+   * „Alle Geräte neu laden“: signiert `neu laden` an beide Lese-Gruppen (`ko` trägt auch die gekoppelten Handys). Die
+   * Geräte holen eine neue Fassung bzw. laden neu, je Befehl einmal (geraet.ts). Über das Führungsfenster.
+   * `nicht-verbunden`: Die Verbindung steht gerade nicht – nichts gesendet, auch nicht später (Prüfung E8, 21.11.2026:
+   * ein nachgeholter Befehl lüde alle Geräte zur Unzeit neu; ebenso verfällt einer, der in der Schlange hängen bleibt,
+   * transport.ts NEULADEN_SENDEN_MS).
+   */
+  ladeAlleNeu(): NeuLadenErgebnis
+  /**
+   * Läuft der Bedienrechner mit einer anderen Fassung als zuletzt im Gerätebetrieb (nach „Update“)? Dann bietet
+   * Betrieb → Geräte „Alle Geräte neu laden“ an. `false` ohne Raum.
+   */
+  readonly neueFassung: Readonly<Ref<boolean>>
+  /** Den Hinweis auf die neue Fassung wegklicken (auch durch {@link ladeAlleNeu}). */
+  fassungGesehen(): void
+  /** Heute an den ntfy-Server Gesendetes (geraete/kontingent.ts) – gerätelokal, alle Fenster. */
+  readonly kontingent: Readonly<Ref<KontingentStand>>
   /** Alles abbauen (Tests; die Anwendung braucht es nicht). */
   stop(): void
 }
@@ -137,6 +159,8 @@ export interface HostUmgebung {
   sammelnMs?: number
   /** „Raum beenden“: so lange höchstens warten, bis die Meldung hinaus ist. */
   endeWartenMs?: number
+  /** E8: Fassung des Programms (Vorgabe Commit und Build-Zeit, lib/build.ts); '' = unbekannt, kein Hinweis. */
+  fassung?: string
 }
 
 /** Änderungen sammeln: Tippen in der Erfassung rechnet die Sicht nicht bei jedem Zeichen neu. */
@@ -242,6 +266,39 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
   const raum = shallowRef<RaumInfo | null>(null)
   const fuehrt = ref(false)
   const verbindung = shallowRef<VerbindungsMeldung | null>(null)
+  // E8: Kontingent – jedes Fenster liest denselben Eintrag, gezählt wird im Führungsfenster (dort sendet der Transport).
+  const zaehler = kontingentZaehler(ablage, uhr)
+  const kontingent = shallowRef<KontingentStand>(zaehler.lies())
+  const zaehle = (art: Zaehlart) => {
+    kontingent.value = zaehler.zaehle(art)
+  }
+  // E8: Fassung, mit der der Gerätebetrieb zuletzt lief (ABLAGE.fassung).
+  const fassung = umgebung.fassung ?? [BUILD_COMMIT, BUILD_TIME].filter(Boolean).join(' ')
+  const neueFassung = ref(false)
+  const merkeFassung = () => {
+    neueFassung.value = false
+    if (!fassung) return
+    try {
+      ablage?.setItem(ABLAGE.fassung, fassung)
+    } catch {
+      // Ohne Speicher eben kein Hinweis nach dem nächsten Update.
+    }
+  }
+  const pruefeFassung = (mitRaum: boolean) => {
+    if (!mitRaum || !fassung) {
+      neueFassung.value = false
+      return
+    }
+    let gemerkt: string | null = null
+    try {
+      gemerkt = ablage?.getItem(ABLAGE.fassung) ?? null
+    } catch {
+      gemerkt = null
+    }
+    // Noch nichts gemerkt (Raum aus der Zeit vor E8): die laufende gilt als gesehen.
+    if (gemerkt === null) merkeFassung()
+    else neueFassung.value = gemerkt !== fassung
+  }
   let aktiv: Aktiv | null = null
   let gestoppt = false
   let infoText = 'null'
@@ -262,6 +319,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (gestoppt) return
     const r = liesRaum()
     setzeInfo(r)
+    pruefeFassung(!!r)
     if (aktiv && (!r || aktiv.kennung !== kennung())) deaktiviere()
     if (r && !aktiv) aktiviere(kennung())
   }
@@ -329,6 +387,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       sichtFassung: SICHT_FASSUNG,
       zeiten: umgebung.zeiten,
       uhr: umgebung.uhr,
+      zaehle,
     })
     a.transport = t
     a.letzte = ''
@@ -522,6 +581,13 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       fuehreGeraeteBefehlAus(a, befehl)
       return 'ohne-meldung'
     }
+    if (befehl === 'alle-neu-laden') {
+      // Nur über den laufenden Transport; ladeAlleNeu prüft vorher die Verbindung, und was trotzdem in der Schlange
+      // hängen bleibt (Abriss genau jetzt), verfällt dort nach NEULADEN_SENDEN_MS.
+      a.transport?.melde(OEFFENTLICH, { art: 'neu-laden' })
+      a.transport?.melde(ZUSCHAUER, { art: 'neu-laden' })
+      return 'ohne-meldung'
+    }
     if (befehl === 'zuschauer-erneuern') {
       // Auch ohne laufende Verbindung (Fehler): Das Thema wechselt im Raum; der Vollstand folgt, sobald verbunden ist.
       const t = a.transport ?? new HostTransport({ server: hostServer(store.state.value) ?? '', speicher: hostAblage(a.kennung, ablage), sichtFassung: SICHT_FASSUNG })
@@ -548,7 +614,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (gespeichert && (!t || t.status.value === 'fehler')) {
       // Keine Verbindung über die Einstellung (etwa ein anderer Server als beim Anlegen): über den Server des Raums
       // verabschieden – dort lesen die Geräte.
-      eigener = new HostTransport({ server: gespeichert.server, speicher: hostAblage(a.kennung, ablage), sichtFassung: SICHT_FASSUNG, zeiten: umgebung.zeiten, uhr: umgebung.uhr })
+      eigener = new HostTransport({ server: gespeichert.server, speicher: hostAblage(a.kennung, ablage), sichtFassung: SICHT_FASSUNG, zeiten: umgebung.zeiten, uhr: umgebung.uhr, zaehle })
       void eigener.start()
       t = eigener
     }
@@ -587,7 +653,10 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
   }
 
   const beiSpeicher = (e: Event) => {
-    if ((e as StorageEvent).key === ABLAGE.raum || (e as StorageEvent).key === null) pruefe()
+    const key = (e as StorageEvent).key
+    if (key === ABLAGE.raum || key === null) pruefe()
+    if (key === ABLAGE.kontingent || key === null) kontingent.value = zaehler.lies()
+    if (key === ABLAGE.fassung) pruefeFassung(!!liesRaum())
   }
   fenster?.addEventListener('storage', beiSpeicher)
   const oben = effectScope(true)
@@ -610,6 +679,8 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       const server = hostServer(store.state.value)
       if (!server || !kennung()) throw new Error('server-ungueltig')
       const neu = legeRaumAn(kennung(), server, ablage)
+      // Ein neuer Raum hat nur Geräte mit dieser Fassung – kein Hinweis aus einem früheren Raum.
+      merkeFassung()
       pruefe()
       const info = raumInfo(neu)
       if (!info) throw new Error('server-ungueltig')
@@ -627,6 +698,17 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     setzeAufgaben: (id, aufgaben) => geraeteBefehl({ art: 'aufgaben', id, aufgaben }),
     benenne: (id, name) => geraeteBefehl({ art: 'umbenennen', id, name }),
     entziehe: (id) => geraeteBefehl({ art: 'entziehen', id }),
+    neueFassung,
+    kontingent,
+    fassungGesehen: merkeFassung,
+    ladeAlleNeu() {
+      const a = aktiv
+      if (!a || verbindung.value?.status !== 'verbunden') return 'nicht-verbunden'
+      merkeFassung()
+      if (a.fuehrung?.fuehrt.value) void fuehreAus(a, 'alle-neu-laden')
+      else a.bus.befiehl('alle-neu-laden')
+      return 'gesendet'
+    },
     async beende() {
       const a = aktiv
       if (!a) {

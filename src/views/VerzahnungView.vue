@@ -13,6 +13,8 @@ import BoatPanel from '../components/BoatPanel.vue'
 import ParcoursCard from '../components/ParcoursCard.vue'
 import ParallelView from './ParallelView.vue'
 import ParallelRunden from '../components/ParallelRunden.vue'
+import { festeRunden } from '../lib/parallelBogen'
+import { VORLAUF } from '../planung/parallelRunden'
 import type { ClassId } from '../types'
 
 /** Vorlagen für die Aufteilung der Klassen auf Parcours. */
@@ -55,6 +57,8 @@ const planById = computed(() => new Map(eventPlan.value.plans.map((p) => [p.parc
 // Die Verzahnung bestimmt Startnummern und damit alle Listen. Ist sie
 // festgeschrieben, bleibt alles, was sie verändern würde, gesperrt.
 const locked = computed(() => state.value.verzahnungLocked)
+/** Ist eine Runde nach dem Vorlauf festgeschrieben, steht der Vorlauf unter den Runden (ParallelRunden.vue). */
+const spaetereRunden = computed(() => festeRunden(state.value.parallelPlaene).some((r) => r !== VORLAUF))
 
 function lock() {
   // Die gezeigten Spuren werden zur festen Anordnung – spätere Nachmeldungen verschieben keine Klasse mehr.
@@ -129,7 +133,11 @@ function applyPreset(groups: readonly (readonly ClassId[])[]) {
   </div>
 
   <fieldset class="lockable" :disabled="locked">
-  <ParallelView v-if="discipline === 'parallel'" />
+  <template v-if="discipline === 'parallel'">
+    <ParallelView teil="kopf" />
+    <!-- Solange es keine spätere Runde gibt, ist der Vorlauf das Aktuelle und steht oben. -->
+    <ParallelView v-if="!spaetereRunden" teil="vorlauf" />
+  </template>
 
   <template v-else>
   <div class="panel">
@@ -169,4 +177,8 @@ function applyPreset(groups: readonly (readonly ClassId[])[]) {
        der Vorlauf entschieden ist. Außerhalb der Sperre – gerade bei festgeschriebener Verzahnung
        (und damit festem Vorlauf) wird hier weitergearbeitet. -->
   <ParallelRunden v-if="discipline === 'parallel'" />
+  <!-- Mit späteren Runden: der erledigte Vorlauf unten, das Aktuelle oben (Wunsch des Nutzers vom 21.11.2026). -->
+  <fieldset v-if="discipline === 'parallel' && spaetereRunden" class="lockable" :disabled="locked">
+    <ParallelView teil="vorlauf" />
+  </fieldset>
 </template>

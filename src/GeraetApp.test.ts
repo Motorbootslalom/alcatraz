@@ -279,3 +279,30 @@ describe('Gerät mit Lese-Link: Meldungen statt einer Sicht', () => {
     expect(w.text()).toContain('The link is incomplete or damaged')
   })
 })
+
+describe('Bildschirm wach halten (E8)', () => {
+  afterEach(() => {
+    delete (navigator as { wakeLock?: unknown }).wakeLock
+  })
+
+  it('mit Wake Lock: angefordert, solange der Link läuft, und nach „Raum verlassen“ abgegeben; kein Hinweis', async () => {
+    const frei = vi.fn(async () => {})
+    const request = vi.fn(async () => ({ release: frei, addEventListener: () => {} }))
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request } })
+    const raum = neuerRaum(SERVER)
+    const w = geraet(sehenAdresse(packeLesePaket(lesePaket(raum, 'a'))))
+    await zeigt(() => request.mock.calls.length === 1)
+    expect(request).toHaveBeenCalledWith('screen')
+    expect(w.find('[data-teil="wach"]').exists()).toBe(false)
+    await w.find('[data-action="raum-verlassen"]').trigger('click')
+    await w.find('[data-action="verlassen-ja"]').trigger('click')
+    await zeigt(() => frei.mock.calls.length === 1)
+  })
+
+  it('ohne Wake Lock (altes iPhone, http): leiser Hinweis in der Leiste, sonst läuft alles', async () => {
+    const raum = neuerRaum(SERVER)
+    const w = geraet(sehenAdresse(packeLesePaket(lesePaket(raum, 'z'))))
+    await zeigt(() => w.find('[data-teil="leiste"] [data-teil="wach"]').exists())
+    expect(w.find('[data-teil="wach"]').text()).toContain('Bildschirm kann ausgehen')
+  })
+})

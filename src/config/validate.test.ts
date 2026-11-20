@@ -245,7 +245,7 @@ describe('Konfigurations-Validierung', () => {
     })
 
     it('weist auf eine Ergebnisspalte ohne bekanntes Feld hin', () => {
-      expect(codes((t) => t.replace('felder: [b5]', 'felder: [b5, tippfehler]'))).toContain('UNKNOWN_ERGEBNIS_FELD')
+      expect(codes((t) => t.replace('{ feld: b5, label: "5" }', '{ feld: tippfehler, label: "5" }'))).toContain('UNKNOWN_ERGEBNIS_FELD')
     })
   })
 

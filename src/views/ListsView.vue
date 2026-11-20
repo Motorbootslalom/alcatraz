@@ -29,7 +29,8 @@ import { useEvent } from '../lib/event'
 import type { ClassId, ParallelRunde } from '../types'
 import { adresse } from '../lib/router'
 import { gibDoppelseitig, istDoppelseitigArt, istDoppelseitigWahl, type DoppelseitigArt } from '../lib/doppelseitig'
-import { ALLE, herkuenfte, istStarterArt, istStarterWahl, ohneHerkunft, PARALLEL_STARTLISTEN, STARTER_ARTEN, STARTER_WAHL, starterDokumente, type ParallelStartlisteForm, type StarterArt, type StarterDokument, type StarterWahl } from '../lib/starterlisten'
+import { ALLE, gewaehlteHerkuenfte, herkuenfte, istStarterArt, istStarterWahl, ohneHerkunft, PARALLEL_STARTLISTEN, STARTER_ARTEN, STARTER_WAHL, starterDokumente, type ParallelStartlisteForm, type StarterArt, type StarterDokument, type StarterWahl, type Herkunft } from '../lib/starterlisten'
+import { hatEigene, rundenStartliste } from '../lib/parallelStartliste'
 import { festeRunden } from '../lib/parallelBogen'
 import { rundenName, VORLAUF } from '../planung/parallelRunden'
 import ParallelStartlisten from '../components/ParallelStartlisten.vue'
@@ -117,14 +118,29 @@ const startRunden = computed<ParallelRunde[]>(() => (parallel.value ? festeRunde
 const startRunde = computed(() => (startRunden.value.some((r) => r === starterWahl.value.runde) ? (starterWahl.value.runde as ParallelRunde) : ALLE))
 const startForm = computed<ParallelStartlisteForm>(() => starterWahl.value.racecourse ?? 'nebeneinander')
 /** Die Dokumente: je gewählter Runde die gemeinsame Liste oder die eines bzw. beider Racecourses. */
+// Mit Markierung (Wunsch des Nutzers vom 21.11.2026, wie verzahnt): je Herkunft der ganze Satz;
+// eine Runde bzw. ein Racecourse, auf dem die Herkunft niemanden am Start hat, entfällt für sie.
 const startDokumente = computed(() => {
   const runden = startRunde.value === ALLE ? startRunden.value : [startRunde.value as ParallelRunde]
   const formen = startForm.value === 'je' ? (['A', 'B'] as const) : startForm.value === 'nebeneinander' ? [undefined] : [startForm.value]
-  return formen.map((racecourse) => ({ racecourse, runden }))
+  const fuer = parallelStart.value && markierung.value !== '' ? gewaehlteHerkuenfte(alleHerkuenfte.value, markierung.value) : []
+  if (fuer.length === 0) return formen.map((racecourse) => ({ key: racecourse ?? 'ab', racecourse, runden, herkunft: undefined as Herkunft | undefined }))
+  const listen = new Map(runden.map((r) => [r, rundenStartliste(state.value, r)]))
+  return fuer.flatMap((h) => {
+    const eigene = new Set(h.starter.map((p) => p.id))
+    return formen
+      .map((racecourse) => ({ key: `${racecourse ?? 'ab'}|${h.schluessel}`, racecourse, herkunft: h as Herkunft | undefined, runden: runden.filter((r) => { const l = listen.get(r); return !!l && hatEigene(l, eigene, racecourse) }) }))
+      .filter((d) => d.runden.length > 0)
+  })
 })
 const parallelStartStand = computed(() => ({
   anzahl: startDokumente.value.reduce((n, d) => n + d.runden.length, 0),
-  auswahl: [t('lists.starter.art.parallel'), startRunde.value === ALLE ? '' : rundenName(startRunde.value as ParallelRunde, t), t(`lists.starter.parallel.${startForm.value}`)].filter(Boolean).join(' '),
+  auswahl: [
+    [t('lists.starter.art.parallel'), startRunde.value === ALLE ? '' : rundenName(startRunde.value as ParallelRunde, t), t(`lists.starter.parallel.${startForm.value}`)].filter(Boolean).join(' '),
+    markierung.value === '' ? '' : (alleHerkuenfte.value.find((h) => h.schluessel === markierung.value)?.name ?? `${t(originLabelKey(state.value.originMode))}: ${t('lists.wkr.all')}`),
+  ]
+    .filter(Boolean)
+    .join(', '),
 }))
 /** Verzahnt: die Markierung, die gilt – '' = keine. Eine Herkunft, die es nicht mehr gibt, zählt wie „ohne Markierung“. */
 const markierung = computed(() => {
@@ -358,7 +374,7 @@ function print() {
           </button>
         </div>
       </div>
-      <div v-if="starterArt === 'verzahnt' && !ohneHerkunftsArt" class="field">
+      <div v-if="(starterArt === 'verzahnt' || starterArt === 'parallel') && !ohneHerkunftsArt" class="field">
         <label :for="`${id}-markierung`">{{ t('lists.starter.for', { origin: t(originLabelKey(state.originMode)) }) }}</label>
         <select :id="`${id}-markierung`" class="input" data-feld="starter-markierung" :value="markierung" @change="starterWahl.markierung = ($event.target as HTMLSelectElement).value">
           <option value="">{{ t('lists.starter.unmarked') }}</option>
@@ -390,7 +406,7 @@ function print() {
       </template>
       <p v-if="!blocked" class="note ergebnis-zahl" role="status">{{ tn('results.count', parallelStart ? parallelStartStand.anzahl : dokumente) }}</p>
     </div>
-    <p class="note" data-hinweis="starter-art">{{ t(starterArt === 'verzahnt' && markierung !== '' ? 'lists.starter.hint.verzahnt.marked' : `lists.starter.hint.${starterArt}`, { origin: t(originLabelKey(state.originMode)) }) }}</p>
+    <p class="note" data-hinweis="starter-art">{{ t((starterArt === 'verzahnt' || starterArt === 'parallel') && markierung !== '' ? `lists.starter.hint.${starterArt}.marked` : `lists.starter.hint.${starterArt}`, { origin: t(originLabelKey(state.originMode)) }) }}</p>
     <p v-if="parallelStart && startRunden.length === 0" class="boat-banner warn" role="status" data-hinweis="parallel-plan">
       {{ t('parallel.lists.needPlan') }} <a :href="adresse('verzahnung', { reiter: 'parallel' })">{{ t('nav.verzahnung') }} → {{ t('parallel.title') }}</a>
     </p>
@@ -507,7 +523,7 @@ function print() {
   <template v-else-if="stegList"><AusgleichListen v-if="!blocked" :listen="stegListen" /></template>
   <!-- Startliste einer Runde des Parallelslaloms: gemeinsam oder je Racecourse; vor gültigen Startnummern keine. -->
   <template v-else-if="parallelStart">
-    <template v-if="!blocked"><ParallelStartlisten v-for="d in startDokumente" :key="d.racecourse ?? 'ab'" :runden="d.runden" :racecourse="d.racecourse" :herkunft="state.listOrigin" /></template>
+    <template v-if="!blocked"><ParallelStartlisten v-for="d in startDokumente" :key="d.key" :runden="d.runden" :racecourse="d.racecourse" :herkunft="state.listOrigin" :markierung="d.herkunft" /></template>
   </template>
   <!-- Die Liste je Team nennt die Race number (Pkt. 3.7) und braucht gültige Startnummern wie die für den Steg. -->
   <template v-else-if="teamList"><TeamListen v-if="!blocked" :listen="teamListenAlle" :geburtsdatum="state.showBirthdate" /></template>

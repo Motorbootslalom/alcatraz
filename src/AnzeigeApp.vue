@@ -7,6 +7,7 @@ import { sichtOeffentlich } from './betrieb/sicht'
 import { vollbild } from './lib/router'
 import { folgeBedienfenster } from './lib/anzeigeFenster'
 import { useTafelFenster } from './lib/tafelFenster'
+import { useWachBleiben } from './lib/wachBleiben'
 import { tIn } from './i18n'
 import AnzeigeTafel from './components/anzeige/AnzeigeTafel.vue'
 
@@ -60,6 +61,9 @@ watchEffect(() => {
 
 // Taste F / Doppelklick = Vollbild, Mauszeiger weg nach kurzer Ruhe – wie auf einem Gerät mit Lese-Link (E6).
 const { zeigerWeg, vollbildUmschalten } = useTafelFenster()
+// Bildschirm wach halten, solange das Fenster offen ist (E8, 20.11.2026): Eine Tafel, die nach Minuten dunkel wird,
+// nützt am Steg nichts. Ohne API (file://, alter Browser) still – am Bedienrechner hilft dann die Energieeinstellung.
+useWachBleiben()
 
 let opener: (() => void) | undefined
 onMounted(() => {

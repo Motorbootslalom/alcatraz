@@ -87,6 +87,7 @@ export default {
   'results.col.stegAb': 'Steg AB',
   'results.col.stegAn': 'Steg AN',
   'results.col.ziel': 'Ziel',
+  'results.col.boje': 'Boje',
   'results.col.mueb': 'MüB',
   'results.changed': 'Letzte Änderung',
   'results.uimPoints': 'UIM-Punkte',

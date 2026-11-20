@@ -121,8 +121,22 @@ export abstract class NtfyLeitung {
   constructor(
     protected readonly server: string,
     zeiten: Partial<NtfyZeiten> = {},
+    /**
+     * E8 (20.11.2026): zählt, was an den Server geht – Anfragen (POST, Abfrage, Anhang, Abo), angenommene Nachrichten
+     * und 429. Der Host gibt den Kontingent-Zähler (geraete/kontingent.ts); Geräte zählen nicht.
+     */
+    private readonly zaehle: (art: 'nachricht' | 'anfrage' | 'gedrosselt') => void = () => {},
   ) {
     this.zeiten = { ...NTFY_ZEITEN, ...zeiten }
+  }
+
+  /** Zählen darf nie das Senden stören. */
+  private zaehleStill(art: 'nachricht' | 'anfrage' | 'gedrosselt'): void {
+    try {
+      this.zaehle(art)
+    } catch {
+      // Zähler kaputt – senden geht vor.
+    }
   }
 
   /** Themen des Abos – ändern sie sich, ruft die Unterklasse {@link neuAbonnieren}. */
@@ -199,6 +213,7 @@ export abstract class NtfyLeitung {
     const seit = this.aboSeit()
     const url = `${this.server.replace(/^http/, 'ws')}/${themen.join(',')}/ws${seit ? `?since=${encodeURIComponent(seit)}` : ''}`
     let socket: WebSocket
+    this.zaehleStill('anfrage')
     try {
       socket = new WebSocket(url)
     } catch {
@@ -289,10 +304,14 @@ export abstract class NtfyLeitung {
 
   /** Was auf den Themen seit `seit` liegt (ntfy `poll=1`); `null`, wenn die Abfrage scheitert. */
   protected async abfrage(themen: string[], seit: string): Promise<NtfyEreignis[] | null> {
+    this.zaehleStill('anfrage')
     try {
       const antwort = await fetch(`${this.server}/${themen.join(',')}/json?poll=1&since=${encodeURIComponent(seit)}`)
       if (!antwort.ok) {
-        if (antwort.status === 429) this.meldeSendefehler({ code: 'zu-viele-anfragen' })
+        if (antwort.status === 429) {
+          this.zaehleStill('gedrosselt')
+          this.meldeSendefehler({ code: 'zu-viele-anfragen' })
+        }
         return null
       }
       const ereignisse: NtfyEreignis[] = []
@@ -317,6 +336,7 @@ export abstract class NtfyLeitung {
    */
   protected async ladeAnhang(url: string, bytes: number): Promise<string | null> {
     if (!url.startsWith(`${this.server}/file/`) || bytes > MAX_ANHANG) return null
+    this.zaehleStill('anfrage')
     try {
       const antwort = await fetch(url)
       if (!antwort.ok) return null
@@ -376,9 +396,11 @@ export abstract class NtfyLeitung {
   }
 
   protected async post(thema: string, text: string): Promise<PostErgebnis> {
+    this.zaehleStill('anfrage')
     try {
       const antwort = await fetch(`${this.server}/${thema}`, { method: 'POST', body: text })
       if (antwort.ok) {
+        this.zaehleStill('nachricht')
         this.fehlschlaege = 0
         if (this.sendeFehler) {
           this.fehler.value = null
@@ -394,6 +416,7 @@ export abstract class NtfyLeitung {
         return { art: 'ok', antwort: ereignis }
       }
       if (antwort.status === 429) {
+        this.zaehleStill('gedrosselt')
         this.meldeSendefehler({ code: 'zu-viele-anfragen' })
         return { art: 'warten' }
       }

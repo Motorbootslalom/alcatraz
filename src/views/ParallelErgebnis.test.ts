@@ -102,7 +102,9 @@ describe('Parallelslalom: Wertungslisten des Vorlaufs', () => {
     // Ohne Spalte „Rank.“: Es zählt die Summe beider Attempts, nicht der Platz im einzelnen.
     expect(kopf.slice(0, 4)).toEqual(['No.', 'Surname', 'First name', 'Club'])
     expect(kopf.slice(4, 7)).toEqual(['Racecourse', 'Time', 'Sec.'])
-    expect(kopf.slice(7, 20)).toEqual(['Leav.', 'Start', '1', '2', '3', '4', '5', '4', '3', '2', '1', 'Fin.', 'Moor.'])
+    // Die Bojen unter EINER Überschrift „Buoy“, die Nummern darunter (21.11.2026).
+    expect(kopf.slice(7, 12)).toEqual(['Leav.', 'Start', 'Buoy', 'Fin.', 'Moor.'])
+    expect(attempts.findAll('.erg-unterkopf th').map((t) => t.text())).toEqual(['L', 'R', '1', '2', '3', '4', '5', '4', '3', '2', '1', 'L', 'R'])
     expect(attempts.findAll('tbody')).toHaveLength(2)
     expect(attempts.findAll('tbody tr[data-starter]')).toHaveLength(12)
     // Im 2. Attempt fährt jeder auf dem anderen Racecourse.

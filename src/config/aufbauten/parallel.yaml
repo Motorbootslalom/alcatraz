@@ -23,15 +23,19 @@ disziplinen:
     ergebnisspalten:
       - { label: "Steg AB", felder: ["katalog:stegAblegen"] }
       - { label: "Start", unter: ["start|seiteB", "start|seiteA"] }
-      - { label: "1", felder: [b1a] }
-      - { label: "2", felder: [b2a] }
-      - { label: "3", felder: [b3a] }
-      - { label: "4", felder: [b4a] }
-      - { label: "5", felder: [b5] }
-      - { label: "4", felder: [b4b] }
-      - { label: "3", felder: [b3b] }
-      - { label: "2", felder: [b2b] }
-      - { label: "1", felder: [b1b] }
+      # Die Bojen unter EINER Überschrift „Boje“, die Nummern darunter – wie „Start“ über L und R
+      # (Wunsch des Nutzers vom 21.11.2026: „Boje über den Zahlen, im Prototypen war das besser“).
+      - label: "Boje"
+        unter:
+          - { feld: b1a, label: "1" }
+          - { feld: b2a, label: "2" }
+          - { feld: b3a, label: "3" }
+          - { feld: b4a, label: "4" }
+          - { feld: b5, label: "5" }
+          - { feld: b4b, label: "4" }
+          - { feld: b3b, label: "3" }
+          - { feld: b2b, label: "2" }
+          - { feld: b1b, label: "1" }
       - { label: "Ziel", unter: ["ziel|seiteB", "ziel|seiteA"] }
       - { label: "Steg AN", felder: ["katalog:stegAnlegen"] }
 

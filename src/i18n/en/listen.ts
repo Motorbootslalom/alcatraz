@@ -46,7 +46,9 @@ export default {
   'lists.starter.hint.herkunft': 'Only the drivers of one origin, by number – regardless of the course. One document per {origin}.',
   'lists.starter.hint.klasse': 'All drivers by class and number in one document.',
   'lists.starter.hint.parallel':
-    'The starting order of a locked heat of the parallel slalom: A and B side by side (as in the print file) or a separate list per racecourse to post at that racecourse – with start, attempt, class, race number, name and origin. The start numbers are the same as on the joint list and the sheets of the race officials; a dummy is a hatched row. The lists per racecourse are not part of the print file.',
+    'The starting order of a locked heat of the parallel slalom: A and B side by side in landscape (as in the print file) or a separate list per racecourse to post at that racecourse – with start, attempt, class, race number, name and origin. The start numbers are the same as on the joint list and the sheets of the race officials; a dummy is a hatched row. The lists per racecourse are not part of the print file.',
+  'lists.starter.hint.parallel.marked':
+    'The complete starting order of a locked heat; the drivers of the chosen origin are set in bold with a triangle at the edge – on the joint list on the left for racecourse A, on the right for B. So the team manager sees when and where the own drivers start. “all” prints the lists for every origin one after the other; a heat in which it has nobody at the start is left out.',
   'lists.starter.noOrigin': 'No origin is chosen for this event – so there are no lists per origin and no marking. The origin is chosen under',
   'lists.starter.withoutOrigin': '{n} driver has no origin ({origin}) and belongs to none of these lists. | {n} drivers have no origin ({origin}) and belong to none of these lists.',
   'lists.kind.vorsteg': 'Pontoon entry list',

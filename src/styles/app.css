@@ -1450,11 +1450,17 @@ label.class-count {
   font-weight: 700;
 }
 
+/* Startliste des Parallelslaloms, A und B nebeneinander (ParallelStartlisten.vue): Ein Starter
+   der Herkunft auf A bekommt das Dreieck links, auf B rechts; fett ist nur seine Hälfte. */
+.sheet-table tbody tr.markiert-a td:first-child,
+.sheet-table tbody tr.markiert-b td:last-child,
 .sheet-table tbody tr.markiert td:first-child,
 .sheet-table tbody tr.markiert td:last-child {
   position: relative;
 }
 
+.sheet-table tbody tr.markiert-a td:first-child::before,
+.sheet-table tbody tr.markiert-b td:last-child::after,
 .sheet-table tbody tr.markiert td:first-child::before,
 .sheet-table tbody tr.markiert td:last-child::after {
   content: '';
@@ -1467,12 +1473,14 @@ label.class-count {
 }
 
 /* 0,9 mm Abstand zum Rahmen der Tabelle (2 px) – das Dreieck steht frei daneben. */
+.sheet-table tbody tr.markiert-a td:first-child::before,
 .sheet-table tbody tr.markiert td:first-child::before {
   right: calc(100% + 1.4mm);
   border-right-width: 0;
   border-left: 2.6mm solid var(--blatt-text);
 }
 
+.sheet-table tbody tr.markiert-b td:last-child::after,
 .sheet-table tbody tr.markiert td:last-child::after {
   left: calc(100% + 1.4mm);
   border-left-width: 0;
@@ -4031,6 +4039,30 @@ table.starters th .sortier-kopf:disabled {
 
 .parallel-startliste .sheet-table td.psl-name {
   text-align: left;
+}
+
+/* A und B nebeneinander: Die Breiten gibt die colgroup vor (186 mm geteilt) – lange Herkünfte
+   werden kleiner gesetzt statt die Tabelle über das Blatt hinaus zu dehnen (21.11.2026). */
+/* Kein overflow: hidden an den Zellen – die Dreiecke der Markierung stehen außerhalb der ersten und letzten Zelle. */
+.parallel-startliste .sheet-table.psl-fest {
+  table-layout: fixed;
+}
+
+/* A und B nebeneinander im Querformat (21.11.2026) – so breit wie die Gewichtslisten. */
+.sheet.parallel-startliste.quer .sheet-section {
+  width: 273mm;
+}
+
+/* Umbruch in der Zelle, wenn auch die kleinste Schrift der Spalte nicht reicht. */
+.parallel-startliste .sheet-table td.psl-umbruch {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+/* Markierung einer Herkunft: Die Hälfte ihres Starters ist fett. */
+.parallel-startliste .sheet-table td.psl-eigen {
+  font-weight: 700;
 }
 
 /* Dummy und entfallener Start: schraffiert auf Weiß – auch in einer grauen Zeile (`shade`, jede

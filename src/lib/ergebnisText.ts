@@ -15,6 +15,7 @@ const SPALTEN: Record<string, MessageKey> = {
   'Steg AB': 'results.col.stegAb',
   'Steg AN': 'results.col.stegAn',
   Ziel: 'results.col.ziel',
+  Boje: 'results.col.boje',
   MüB: 'results.col.mueb',
 }
 

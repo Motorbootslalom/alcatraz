@@ -109,10 +109,13 @@ watch(gedruckt, () => {
   if (druckFrage.value && !istGedruckt(druckFrage.value)) druckFrage.value = null
 })
 
-// Die festgeschriebenen Pläne der Runden nach dem Vorlauf, mit Klasse und Finale je Start.
+// Die festgeschriebenen Pläne der Runden nach dem Vorlauf, mit Klasse und Finale je Start – die
+// jüngste oben: Das Aktuelle steht vorn, Erledigtes rutscht nach unten, der Vorlauf ganz unten
+// (VerzahnungView.vue; Wunsch des Nutzers vom 21.11.2026).
 const plaene = computed(() =>
   festeRunden(state.value.parallelPlaene)
     .filter((r) => r !== VORLAUF)
+    .reverse()
     .map((runde) => {
       const fest = state.value.parallelPlaene[runde]!
       return {

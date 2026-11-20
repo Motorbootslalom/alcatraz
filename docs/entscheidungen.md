@@ -539,7 +539,8 @@ Zurzeit nichts.
 - Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
 - Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
   Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;
-  offen sind E7 (Koppeln, Start-Freigabe vom Handy) und E8 (Feldtest). Entscheidungen dazu unter „Betrieb und
+  E7 (Koppeln, Start-Freigabe vom Handy, 20.11.2026) ebenso; E8 ist vorbereitet, offen ist der Feldtest
+  ([feldtest.md](feldtest.md)). Entscheidungen dazu unter „Betrieb und
   Offline“ (F1, F3, F6, F7 umgesetzt). Beim Bau von E6 ausgelegt und vom Nutzer noch zu bestätigen (16.11.2026):
   Anzeigetafel und Zuschauer als zwei Gruppen mit eigenem Schlüssel; Uhrversatz aus frisch Empfangenem; wann der Raum
   endet (andere Veranstaltung trennt nur, anderer Server erst für einen neuen Raum, ohne Netz beendet ohne Meldung);
@@ -547,5 +548,17 @@ Zurzeit nichts.
   Leiste über der Tafel – alles in `BETRIEB_ANNAHMEN` (lesenJeLink, uhrversatzFrisch, raumEnde, fassungGleich,
   leseLinkOberflaeche). Ohne Netz gibt es seit 16.11.2026 (E1) die Anzeigetafel im zweiten Fenster und die
   Start-Freigabe am Bedienrechner.
+- E8, beim Bau ausgelegt und vom Nutzer zu bestätigen (20.11.2026, `BETRIEB_ANNAHMEN` wachBleiben, alleNeuLaden,
+  kontingent): Bildschirm wach halten auf jedem verbundenen Gerät und im zweiten Fenster, sonst nur ein leiser Hinweis;
+  „Alle Geräte neu laden“ wirkt je Befehl einmal, nur höchstens 10 min alt, ohne Speicher nie, wird nicht nachgeholt,
+  Hinweis nach einem Update des Bedienrechners; Kontingent je Server (21.11.2026: adminforge 17 280, ntfy.sh 250 je Tag und IP, vom Nutzer bestätigt), Warnung ab 80 %
+  oder nach „zu viele Anfragen“, gezählt nur am Bedienrechner.
+- Handy-Quittung nach Führungswechsel: Geht die Führung zwischen Anwenden und Quittung verloren, hört das Handy
+  „unverändert“, obwohl seine Action gewirkt hat (sie wirkt immer nur einmal). Gelöst nur im Wortlaut („schon
+  geschehen oder jemand anderes war schneller“); sicher wäre `letzteNr` vor dem Anwenden – widerspricht der Regel
+  „letzteNr erst in quittiere“. Reicht der Wortlaut?
+- Abgelaufener Geräte-Code nach dem Nachlauf (2 min) bekommt keine Antwort, das Handy zeigt nach 15 s „Keine
+  Antwort“ – so gewollt, aber noch keine bestätigte Auslegung. Ein QR-Token nach der Gnadenfrist heißt je nach Takt
+  „ungültig“ statt „abgelaufen“.
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`) und EINZEL_FESTLEGUNGEN (`lib/einzelwertung.ts`) legen aus, wo Regel 960
   schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste anpassen.

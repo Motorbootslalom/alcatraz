@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowRef } from 'vue'
 import { starteGeraeteHost, type GeraeteHost, type HostUmgebung } from './host'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from './gekoppelt'
+import type { LeseUmgebung } from './geraet'
 import { ABLAGE, liesKopplung, type Ablage } from './ablage'
 import type { Aufgabe } from './aufgaben'
 import { nachgebauterBrowser, type TestFenster } from './testBrowser'
@@ -99,19 +100,19 @@ function handy(): Ablage & { daten: Map<string, string> } {
   return { daten, getItem: (k) => daten.get(k) ?? null, setItem: (k, v) => void daten.set(k, String(v)), removeItem: (k) => void daten.delete(k) }
 }
 
-function oeffne(link: string, speicher: Ablage = handy()): GekoppeltesGeraet {
-  const r = oeffneKoppelLink(link, { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20 })
+function oeffne(link: string, speicher: Ablage = handy(), mehr: LeseUmgebung = {}): GekoppeltesGeraet {
+  const r = oeffneKoppelLink(link, { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20, ...mehr })
   if (!r.ok) throw new Error(`Link: ${r.code}`)
   geraete.push(r.geraet)
   return r.geraet
 }
 
 /** Ein Steg-Handy über Koppel-Link und Geräte-Code mit diesen Rechten – gekoppelt und mit Sicht. */
-async function stegHandy(h: GeraeteHost, aufgaben: Aufgabe[], name = 'iPhone', speicher: Ablage = handy()) {
+async function stegHandy(h: GeraeteHost, aufgaben: Aufgabe[], name = 'iPhone', speicher: Ablage = handy(), mehr: LeseUmgebung = {}) {
   h.gibCode(aufgaben)
   await bis(() => !!h.raum.value?.koppeln.code && h.raum.value.koppeln.code.benutzt === null)
   const code = h.raum.value!.koppeln.code!.wert
-  const g = oeffne(h.raum.value!.koppelLink, speicher)
+  const g = oeffne(h.raum.value!.koppelLink, speicher, mehr)
   await g.start()
   expect(g.koppeln(name, code.toLowerCase())).toBe('gesendet')
   await bis(() => g.lage.value === 'gekoppelt' && g.anzeige.value !== null)
@@ -371,6 +372,34 @@ describe('Befunde der E7-Prüfung (20.11.2026)', () => {
     expect(gesendet).toBeGreaterThanOrEqual(1)
     expect(gesendet).toBeLessThanOrEqual(5)
     expect(g.lage.value).toBe('koppelt')
+  })
+})
+
+describe('Alle Geräte neu laden (E8, Prüfung 21.11.2026)', () => {
+  it('das gekoppelte Handy lädt einmal neu, bleibt gekoppelt, und eine offene Action kommt genau einmal an', async () => {
+    const { h, s } = await bedienrechner()
+    const speicher = handy()
+    const lade = vi.fn()
+    const { g } = await stegHandy(h, NUR_1, 'iPhone', speicher, { aktualisiere: lade })
+    // Eine Action ist unterwegs, als der Befehl kommt.
+    expect(g.sende(beginnen('par_1'))).not.toBeNull()
+    expect(h.ladeAlleNeu()).toBe('gesendet')
+    await bis(() => lade.mock.calls.length === 1)
+    // „Neu laden“: dasselbe Handy startet aus seiner Ablage.
+    g.stop()
+    geraete.splice(geraete.indexOf(g), 1)
+    const wieder = oeffneGekoppelt({ ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20, aktualisiere: lade })!
+    expect(wieder).not.toBeNull()
+    geraete.push(wieder)
+    expect(wieder.lage.value).toBe('gekoppelt')
+    await wieder.start()
+    await bis(() => wieder.anzeige.value !== null && wieder.offen.value.length === 0)
+    expect(begonnen(s.state.value, 'par_1')).toEqual(['lauf:1'])
+    expect(wieder.lage.value).toBe('gekoppelt')
+    // Die Rechte bleiben; derselbe Befehl wirkt nach dem Neuladen nicht noch einmal.
+    expect(wieder.darf(beginnen('par_1'))).toBe(true)
+    await ruhe(150)
+    expect(lade).toHaveBeenCalledOnce()
   })
 })
 

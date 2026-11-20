@@ -64,7 +64,9 @@ Mit E6 nutzt die App ihn: Anzeigetafel und Zuschauerliste auf anderen Geräten �
 (Betrieb → Geräte, erst nach bewusstem Einschalten; [Gerätebetrieb](betrieb.md#gerätebetrieb)). Mit E7
 (20.11.2026) koppelt ein Handy per QR-Code oder Geräte-Code und bedient die Start-Freigabe seiner Parcours mit
 denselben Knöpfen wie der Bedienrechner; Rechte ändern und entziehen in der Geräteliste
-([Start-Freigabe vom Handy](betrieb.md#start-freigabe-vom-handy-koppeln)). Es folgt der Feldtest (E8).
+([Start-Freigabe vom Handy](betrieb.md#start-freigabe-vom-handy-koppeln)). E8 ist vorbereitet (20.11.2026):
+Bildschirm wach halten, „Alle Geräte neu laden“, Kontingent-Zähler, Härtungstests und der
+[Ablauf am Wettkampftag](betrieb.md#ablauf-am-wettkampftag); offen ist der Feldtest ([feldtest.md](feldtest.md)).
 
 **Aus `Parcours`:** Klasse E, 1–7 und Möwe sind eingebunden
 (`src/assets/parcours`, `npm run parcours:sync`; Lizenz: [README](../README.md#lizenzen)).
@@ -83,7 +85,7 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
   Server getestet); seit E7 auch die Start-Freigabe vom gekoppelten Handy. Offen: Feldtest mit echten Handys und
-  echtem Server (E8: Hintergrund, Wake Lock, Kontingent, „Alle Geräte neu laden“).
+  echtem Server (E8, Checkliste [feldtest.md](feldtest.md): Hintergrund, Wake Lock, iPhone, Kontingent).
 - Aus der Excel-Auswertung: Urkunden-Daten u. a.
 - Was fachlich entschieden, aber noch offen ist: [entscheidungen.md](entscheidungen.md#offen).
 

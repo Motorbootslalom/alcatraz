@@ -530,6 +530,40 @@ export const BETRIEB_ANNAHMEN = {
    */
   koppelnOberflaeche: true,
   /**
+   * E8, Bildschirm wach halten (beim Bau 20.11.2026 – vom Nutzer zu bestätigen; lib/wachBleiben.ts): Wake Lock auf
+   * jedem Gerät mit Lese-Link oder Start-Freigabe (GeraetApp, solange verbunden – nicht nach „Raum beendet“/„verlassen“)
+   * und im zweiten Fenster für Anzeigetafel und Zuschauerliste. Neu angefordert, sobald die Seite wieder sichtbar ist.
+   * Fehlt die API oder weist der Browser ab (iPhone vor iOS 16.4, http://, file://, Energiesparen), still; auf dem Gerät
+   * nur ein leiser Satz in der Leiste („Bildschirm kann ausgehen …“) – über der Anzeigetafel nur mit Zeiger/Berührung.
+   */
+  wachBleiben: true,
+  /**
+   * E8, „Alle Geräte neu laden“ (beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * - Signierte Gruppenmeldung `neu-laden` an `ko` und `kz` (gab es seit E5 im Protokoll; PROTOKOLL_FASSUNG bleibt 1 –
+   *   ältere Geräte überhören sie). Gekoppelte Handys lesen `ko` und laden mit.
+   * - Das Gerät holt wie bei einer neueren Fassung des Hosts das Programm (lib/offline.ts holeNeueFassung, geht das
+   *   nicht: location.reload) – je Befehl (Raum, Gruppe, Nummer) einmal, gemerkt in der Geräteablage VOR dem Laden;
+   *   ohne Speicher gar nicht. Nur frische Befehle (höchstens 10 min alt, geraet.ts NEULADEN_BEFEHL_GUELTIG_MS): Ein
+   *   Gerät, das Stunden aus war, lädt nicht nach.
+   * - Rückfrage am Bedienrechner. Läuft der Bedienrechner mit einer anderen Fassung als zuletzt im Gerätebetrieb
+   *   (Commit und Build-Zeit, gemerkt in der Host-Ablage), bietet Betrieb → Geräte den Knopf als Hinweis an („Nicht
+   *   nötig“ blendet ihn aus). Ein neuer Raum merkt die laufende Fassung gleich.
+   * - Ohne Verbindung geht der Befehl nicht hinaus, auch nicht später (Prüfung 21.11.2026): Der Knopf sendet nur bei
+   *   stehender Verbindung (sonst „Keine Verbindung – nichts gesendet“), und eine Meldung, die trotzdem in der Schlange
+   *   hängen bleibt (Abriss im selben Augenblick), verfällt nach 1 min (transport.ts NEULADEN_SENDEN_MS). Ein Gerät,
+   *   das binnen 10 min nach dem Befehl wieder verbunden ist oder einen Link öffnet, lädt dagegen noch nach.
+   */
+  alleNeuLaden: true,
+  /**
+   * E8, Kontingent (beim Bau 20.11.2026; Grenzen vom Nutzer bestätigt 21.11.2026; geraete/kontingent.ts KONTINGENT,
+   * tagesGrenze): Grenze je Server – ntfy.adminforge.de 17 280, ntfy.sh 250 Nachrichten je Tag und IP (abgefragt über
+   * /v1/account, November 2026), andere Server unbekannt (nur zählen, warnen bei 429). Warnung ab 80 % oder sobald
+   * der Server heute „zu viele Anfragen“ (429) gemeldet hat. Gezählt wird nur am Bedienrechner (Nachrichten = von ntfy
+   * angenommene POSTs; Anfragen = alle POSTs, Abfragen, Anhänge, Abos), je lokalem Kalendertag, gerätelokal.
+   * Überschlag: ein Wettkampftag erzeugt ≈ 600–850 Nachrichten – weit unter 17 280; ntfy.sh (250) reicht nicht.
+   */
+  kontingent: true,
+  /**
    * (15) Speicherorte: `betrieb` in der Sicherung, nicht in der Vorlage – eine Vorlage hängt den
    * hiesigen auf ihre Parcours um; „Verlauf wiederherstellen“ behält den jetzigen Betrieb; „Werte
    * löschen“ lässt ihn stehen; `anzeige` reist mit der Vorlage, außer der Kopfzeile

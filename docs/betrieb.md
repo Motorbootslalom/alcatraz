@@ -2,6 +2,7 @@
 
 Was Auswerter vor und während eines Wettkampfs wissen sollten:
 ohne Internet arbeiten, neue Fassungen, Sicherung und Verlauf – und der Gerätebetrieb, der als einziger Teil ins Netz geht.
+Schritt für Schritt: [Ablauf am Wettkampftag](#ablauf-am-wettkampftag); Feldtest der Geräte: [feldtest.md](feldtest.md).
 Was die App fachlich kann: [funktionen.md](funktionen.md).
 Wie der Offline-Speicher gebaut ist: [technik.md](technik.md#offline-speicher).
 
@@ -16,6 +17,7 @@ Wie der Offline-Speicher gebaut ist: [technik.md](technik.md#offline-speicher).
 - [Grenzen](#grenzen)
 - [Die Ein-Datei-Fassung](#die-ein-datei-fassung)
 - [Gerätebetrieb](#gerätebetrieb)
+- [Ablauf am Wettkampftag](#ablauf-am-wettkampftag)
 
 ## Ohne Internet
 
@@ -237,6 +239,115 @@ Auf dem Handy (`#/koppeln/…`, danach `#/geraet`):
   neu aushängen, Handys neu koppeln.
 
 Grenzen: Ohne Internet am Steg stehen alle fremden Geräte; die Anzeigetafel im zweiten Fenster geht immer.
-Ein Hotspot teilt sich das Kontingent des Servers (Anfragen je IP-Adresse und Tag). Mit echten Handys (iPhone, Android
-im Hintergrund) und dem echten Server ist der Gerätebetrieb noch nicht im Feld geprüft (Etappe E8).
+Ein Hotspot teilt sich das [Kontingent](#kontingent-des-servers) des Servers. Mit echten Handys (iPhone, Android
+im Hintergrund) und dem echten Server ist der Gerätebetrieb noch nicht im Feld geprüft – dafür gibt es die
+Checkliste [feldtest.md](feldtest.md) (Etappe E8).
 Wie es gebaut ist: [technik.md](technik.md#gerätebetrieb-sicherheitsmodell).
+
+### Bildschirm wach halten
+
+Seit E8 (20.11.2026) bittet Alcatraz den Browser, den Bildschirm nicht abzuschalten (Screen Wake Lock): im zweiten
+Fenster der Anzeigetafel und der Zuschauerliste immer, auf einem Gerät mit Lese-Link oder Start-Freigabe, solange es
+verbunden ist (nicht mehr nach „Raum beendet“ oder „Raum verlassen“). Kommt die Seite aus dem Hintergrund zurück,
+fragt sie erneut.
+
+Nicht jeder Browser macht mit: iPhones erst ab iOS 16.4, nie unter `http://` oder `file://`, im Energiesparmodus oft
+nicht. Dann steht auf dem Gerät leise **„Bildschirm kann ausgehen – Gerät eingesteckt lassen und die Bildschirmsperre
+ausschalten“** (über der Anzeigetafel nur, wenn die Leiste zu sehen ist). Abhilfe: in den Systemeinstellungen die
+automatische Sperre ausschalten und das Gerät ans Ladekabel. Ob es auf echten Geräten wirkt, prüft der
+[Feldtest](feldtest.md).
+
+### Alle Geräte neu laden
+
+**„Alle Geräte neu laden“** (Betrieb → Geräte, neben „Raum beenden“, mit Rückfrage) schickt allen verbundenen Geräten –
+Anzeigetafel, Zuschauer-Handys und gekoppelten Start-Freigaben – den Befehl, sich die neueste Fassung der App zu holen
+bzw. neu zu laden. Die Anzeige ist dabei einige Sekunden weg; gekoppelte Handys bleiben gekoppelt.
+
+- Jeder Befehl wirkt auf einem Gerät nur einmal (keine Neulade-Schleife), und nur, wenn er höchstens 10 Minuten alt
+  ist: Ein Gerät, das binnen 10 Minuten wieder verbunden ist oder dann erst einen Link öffnet, lädt noch nach; eines,
+  das länger weg war, nicht – dort bei Bedarf von Hand neu laden.
+- Ohne Verbindung am Bedienrechner sendet der Knopf nichts („Keine Verbindung zum Server – nichts gesendet“), auch
+  nicht später, wenn die Verbindung zurückkommt – sonst lüden alle Geräte zur Unzeit neu. Dann erneut drücken.
+- **Nach einem Update** des Bedienrechners bietet Betrieb → Geräte den Knopf als Hinweis an („Dieser Bedienrechner
+  läuft mit einer neuen Fassung …“); „Nicht nötig“ blendet ihn aus. Geräte, die neuer als der Bedienrechner sind,
+  zeigen ohnehin „Bedienrechner aktualisieren“; ältere holen sich die neue Fassung beim nächsten Kontakt selbst.
+
+### Kontingent des Servers
+
+Öffentliche ntfy-Server erlauben ohne Konto nur eine bestimmte Zahl Nachrichten je Tag und Internetanschluss
+(IP-Adresse). Abgefragt über `/v1/account` (November 2026): **ntfy.adminforge.de 17 280**, ntfy.sh 250. Alcatraz
+kennt diese beiden Grenzen; bei einem anderen Server zählt es nur und warnt, sobald der Server bremst (21.11.2026).
+
+- Betrieb → Geräte zeigt **„Heute an den Server: n Nachrichten (m Anfragen insgesamt)“** – gezählt am Bedienrechner,
+  je Kalendertag. Die Handys zählen sich nicht mit, teilen aber über einen gemeinsamen Hotspot dieselbe IP-Adresse.
+- Ab 80 % oder sobald der Server heute gebremst hat („zu viele Anfragen“), erscheint eine Warnung mit „Zuletzt
+  gebremst um …“. Gebremst heißt: Nachrichten kommen verspätet an, es geht nach einer Pause weiter.
+- **Überschlag:** Ein Wettkampftag mit 120 Startern und zwei Läufen braucht etwa 600 Nachrichten, mit Start-Freigabe vom
+  Handy etwa 850 – weit unter 17 280 (adminforge), aber zu viel für ntfy.sh. Der Feldtest misst nach. Der Plan
+  vom 16.11. nannte 1.000–3.000 (Zahlen eines Prototyps mit halbstündlichen Vollständen und Bestätigungen je
+  Änderung); Alcatraz sendet Vollstände nur stündlich, und Lese-Geräte senden nichts zurück.
+- Sparen: Gerätebetrieb erst einschalten, wenn er gebraucht wird; den Raum abends beenden; Lese-Links nur dort, wo
+  sie nötig sind – die Anzeigetafel am zweiten Monitor kostet nichts.
+
+## Ablauf am Wettkampftag
+
+Für die Person am Bedienrechner, Schritt für Schritt. Ohne Gerätebetrieb entfallen alle Punkte zu Handys und Server.
+
+### Vorher (am Vortag, mit Netz)
+
+1. Fassung aktuell: Bedienrechner öffnen, „Offline bereit“ abwarten, ein bereitliegendes „Update“ jetzt einspielen
+   ([Neue Fassung](#neue-fassung)) – nicht am Wettkampftag.
+2. Server prüfen: „Einstellungen → Geräte“ (leer = Vorgabe `ntfy.adminforge.de`). Ein anderer Server gilt erst für
+   einen neuen Raum.
+3. Probelauf: Gerätebetrieb einschalten, je einen Lese-Link und ein Handy koppeln, einige Starts freigeben, die
+   Anzeige des Kontingents ansehen, Raum beenden. Besser gleich der [Feldtest](feldtest.md).
+4. Handys und Tablets: geladen, Ladekabel/Powerbank dabei, Bildschirmsperre aus, aktueller Browser (Chrome auf Android,
+   Safari ab iOS 16.4). Kein privates Fenster – darin gehen Kopplung und Gesehenes beim Schließen verloren.
+5. Eine Sicherung herunterladen.
+
+### Aufbau
+
+1. Bedienrechner starten, Alcatraz öffnen, Betrieb-Reiter.
+2. Anzeigetafel: am zweiten Monitor über „Anzeigetafel öffnen“ (Taste F = Vollbild; geht ohne Netz) oder auf einem
+   eigenen Bildschirm über den Lese-Link „Anzeigetafel“.
+3. Gerätebetrieb einschalten (Betrieb → Geräte). Erst jetzt geht etwas ins Netz.
+4. Zuschauer-QR-Code ausdrucken oder am Bildschirm zeigen und **vor Ort** aushängen; Fingerabdruck auf einem Handy
+   gegen den des Bedienrechners prüfen.
+5. Handys für die Start-Freigabe koppeln: Parcours (Bereiche) ankreuzen, „QR-Code zeigen“ und scannen lassen – oder
+   „Geräte-Code ausgeben“ und über Funk durchsagen. Jedem Gerät in der Liste einen Namen geben („Steg A“).
+
+### Während des Wettkampfs
+
+- Start-Freigabe am Bedienrechner oder vom Handy; auf dem Handy erst weiterdrücken, wenn „Wird gesendet …“
+  verschwunden ist (bis dahin sind die Knöpfe gesperrt).
+- Verbindung lesen: „verbunden“ ist gut; „gestört – verbindet neu“ und „zu viele Anfragen – weiter nach einer Pause“
+  lösen sich meist von selbst; „keine Verbindung“ länger als einige Minuten → [Störungen](#störungen).
+- Kontingent ab und zu ansehen; bei Warnung sparsamer schalten (siehe [Kontingent](#kontingent-des-servers)).
+- Gerät verloren oder in falschen Händen: in der Geräteliste **„Entziehen“**. Zuschauer-Link verbreitet, wo er nicht
+  hin soll: „Zuschauer-Link erneuern“ und neu aushängen.
+- Bedienrechner neu laden oder neu starten schadet nicht: Der Raum bleibt offen, Geräte und Handys verbinden sich
+  wieder. Ein zweites Fenster am Bedienrechner ist erlaubt; mit dem Server spricht nur eines.
+- Update während des Wettkampfs nur in einer Pause. Danach **„Alle Geräte neu laden“**.
+- Zwischendurch eine Sicherung herunterladen.
+
+### Störungen
+
+- **Kein Netz:** Am Bedienrechner weiterarbeiten – Start-Freigabe, Erfassung und Listen brauchen kein Netz. Die
+  Anzeigetafel am zweiten Monitor läuft weiter. Geräte zeigen den zuletzt gesehenen Stand mit gestörter Verbindung und
+  holen nach, sobald das Netz zurück ist. Handys der Start-Freigabe können solange nicht schalten.
+- **Server bremst** („zu viele Anfragen“): abwarten, es geht weiter; Nachrichten kommen verspätet. Hält es an:
+  Start-Freigabe am Bedienrechner, Anzeigetafel am zweiten Monitor.
+- **Handy schläft ein** oder war im Hintergrund: Bildschirm an, Seite nach vorn holen – es verbindet neu und holt den
+  Stand. Hilft das nicht, neu laden; die Kopplung bleibt. Gegen das Einschlafen: Ladekabel, Bildschirmsperre aus.
+- **Gerät zeigt „Bedienrechner aktualisieren“:** Der Bedienrechner läuft mit einer älteren Fassung (etwa als Datei vom
+  Stick) – dort aktualisieren oder das Gerät mit derselben Fassung betreiben.
+- **Bedienrechner fällt aus:** Ersatzrechner mit der letzten Sicherung (sonst „Einsteigen ab …“), neuer Raum, Links
+  neu aushängen, Handys neu koppeln.
+
+### Ende
+
+1. **„Raum beenden“** – die Geräte löschen, was sie zeigen, und die Verbindung endet. Bei mehreren Tagen kann der
+   Raum über Nacht offen bleiben; ohne Änderungen kostet er wenig (je Link ein Vollstand in der Stunde).
+2. Eine Sicherung herunterladen und getrennt vom Bedienrechner aufbewahren.
+3. Beobachtungen zum Gerätebetrieb (Abbrüche, Bremsen, Kontingent am Abend) notieren – siehe
+   [feldtest.md](feldtest.md#was-danach-zu-melden-ist).

@@ -21,7 +21,8 @@ import type { TransportFehler, Verbindungsstand } from './transport/typen'
  *   Versatz ({@link LeseGeraet.hostZeit}); die Sicht selbst ist zeitunabhängig (K28).
  * - Fassung (F7, Entscheidung des Nutzers vom 16.11.2026: Gerätebetrieb nur bei gleicher Fassung): Ist der Host
  *   neuer, lädt das Gerät gezielt neu (`aktualisiere`, einmal je Fassung in {@link NEULADEN_SPERRE_MS}); ist er älter,
- *   zeigt es „Bedienrechner aktualisieren“ ({@link LeseGeraet.fassung}). Sonst lädt es nie von selbst neu.
+ *   zeigt es „Bedienrechner aktualisieren“ ({@link LeseGeraet.fassung}). Sonst lädt es nur auf den signierten Befehl
+ *   „Alle Geräte neu laden“ (E8, Meldung `neu-laden`, je Befehl einmal, nur frisch) neu – nie von selbst.
  * - Signiertes „Raum beendet“ und „Raum verlassen“ löschen Verbindung und Sicht auf dem Gerät (K20).
  */
 
@@ -33,6 +34,13 @@ export type FassungsLage = 'host-neuer' | 'host-aelter'
 
 /** So lange nach einem gezielten Neuladen für dieselbe Fassung kein zweites – sonst eine Schleife ohne neues Programm. */
 export const NEULADEN_SPERRE_MS = 10 * 60_000
+
+/**
+ * „Alle Geräte neu laden“ (E8): Ein Befehl, der älter ist (Sendezeit des Hosts gegen die Uhr des Geräts plus Versatz),
+ * wirkt nicht mehr – ein Gerät, das Stunden aus war, holt ihn per Abfrage nach und soll dann nicht laden. Großzügig,
+ * weil die Uhr eines Handys vor dem ersten frischen Empfang ungeprüft ist.
+ */
+export const NEULADEN_BEFEHL_GUELTIG_MS = 10 * 60_000
 
 /** Beobachtungen des Uhrversatzes, über die das Größte zählt (das mit der kürzesten Laufzeit). */
 const VERSATZ_FENSTER = 20
@@ -118,6 +126,23 @@ function aktualisiereEinmal(ziel: string, umgebung: LeseUmgebung, ablage: Ablage
 }
 
 /**
+ * Einen Befehl „neu laden“ höchstens einmal ausführen (E8, 20.11.2026): Kennung = Raum, Gruppe, Nummer – gemerkt in
+ * ABLAGE.neuGeladen, VOR dem Laden. Der Transport merkt die Nummer ohnehin als gesehen; das hier hält auch, wenn dessen
+ * Ablage voll ist. Ohne Speicher lieber nicht laden als womöglich immer wieder.
+ */
+function neuLadenEinmal(kennung: string, umgebung: LeseUmgebung, ablage: Ablage | null): void {
+  if (!umgebung.aktualisiere || !ablage) return
+  try {
+    if (ablage.getItem(ABLAGE.neuGeladen) === kennung) return
+    ablage.setItem(ABLAGE.neuGeladen, kennung)
+    if (ablage.getItem(ABLAGE.neuGeladen) !== kennung) return
+  } catch {
+    return
+  }
+  umgebung.aktualisiere()
+}
+
+/**
  * Einen Lese-Link öffnen (Text aus `#/sehen/<paket>`). Liest und prüft das Paket, räumt Abgelegtes eines anderen Raums
  * weg und legt das Gerät an – verbunden wird erst mit {@link LeseGeraet.start}.
  */
@@ -194,7 +219,10 @@ export function lesegeraetAus(
     }
     if (e.art === 'meldung') {
       if (e.meldung.art === 'ende') beende()
-      // „neu laden“ (E8, „Alle Geräte neu laden“) ist noch nicht gebaut; ein Lese-Gerät lädt nur bei neuerer Fassung.
+      // „Alle Geräte neu laden“ (E8): neue Fassung holen bzw. neu laden – je Befehl einmal, nur frische Befehle.
+      else if (e.meldung.art === 'neu-laden' && Math.abs(uhr() + versatz.value - e.hz) <= NEULADEN_BEFEHL_GUELTIG_MS) {
+        neuLadenEinmal(`${paket.r}:${e.gruppe}:${e.n}`, umgebung, ablage)
+      }
       return
     }
     if (!istSicht(e.sicht, art)) return

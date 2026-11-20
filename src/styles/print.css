@@ -97,7 +97,8 @@
 }
 
 @media print {
-  .sheet.weights {
+  .sheet.weights,
+  .sheet.parallel-startliste.quer {
     page: quer;
   }
 }

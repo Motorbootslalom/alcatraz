@@ -313,6 +313,23 @@ export default {
   'geraete.beenden.laeuft': 'Wird beendet …',
   'geraete.beendet.gemeldet': 'Raum beendet. Die Geräte haben die Meldung bekommen.',
   'geraete.beendet.ohneMeldung': 'Raum beendet, aber ohne Verbindung: Geräte zeigen den letzten Stand noch bis zu 36 Stunden.',
+  // E8 (20.11.2026): Alle Geräte neu laden, Hinweis nach einem Update, Kontingent-Zähler.
+  'geraete.neuLaden': 'Alle Geräte neu laden',
+  'geraete.neuLaden.frage': 'Alle Geräte neu laden?',
+  'geraete.neuLaden.text':
+    'Jedes verbundene Gerät – Anzeigetafel, Zuschauer-Handys und gekoppelte Start-Freigaben – holt sich die neueste Fassung der App bzw. lädt neu. Die Anzeige ist dabei einige Sekunden weg; gekoppelte Handys bleiben gekoppelt.',
+  'geraete.neuLaden.ja': 'Neu laden',
+  'geraete.neuLaden.gesendet': 'Befehl „neu laden“ gesendet. Geräte, die binnen 10 Minuten wieder verbunden sind oder einen Link öffnen, laden nach; später nicht.',
+  'geraete.neuLaden.nichtVerbunden': 'Keine Verbindung zum Server – nichts gesendet. Erst wieder versuchen, wenn die Verbindung steht.',
+  'geraete.neueFassung': 'Dieser Bedienrechner läuft mit einer neuen Fassung. Die Geräte laufen womöglich noch mit der alten.',
+  'geraete.neueFassung.spaeter': 'Nicht nötig',
+  'geraete.kontingent': 'Heute an den Server',
+  'geraete.kontingent.gesendet': '{n} Nachricht | {n} Nachrichten',
+  'geraete.kontingent.anfragen': '({n} Anfrage insgesamt) | ({n} Anfragen insgesamt)',
+  'geraete.kontingent.warnung':
+    'Dieser Server erlaubt ohne Konto {grenze} Nachrichten je Tag und Internetanschluss (Geräte am selben Hotspot zählen mit). Wird es knapp, verzögert der Server – dann seltener ändern oder einen anderen Server einstellen.',
+  'geraete.kontingent.gebremst': 'Der Server bremst: Er hat heute „zu viele Anfragen“ gemeldet. Seltener ändern oder einen anderen Server einstellen.',
+  'geraete.kontingent.gedrosselt': 'Zuletzt gebremst um {zeit}.',
   'geraete.fehler.browser-zu-alt': 'Dieser Browser ist zu alt dafür (ihm fehlt das Entpacken). Bitte einen aktuellen Browser nehmen.',
   'geraete.fehler.server-ungueltig': 'Die Adresse des Servers taugt nicht – unter „Einstellungen → Geräte“ prüfen.',
   'geraete.fehler.raum-fehlt': 'Raum und Schlüssel fehlen auf diesem Rechner.',
@@ -344,6 +361,7 @@ export default {
   'geraete.sehen.neuLaden': 'Neu laden',
   'geraete.sehen.fingerabdruck': 'Fingerabdruck {f}',
   'geraete.sehen.vollbild': 'Vollbild',
+  'geraete.sehen.bildschirmKannAus': 'Bildschirm kann ausgehen – Gerät eingesteckt lassen und die Bildschirmsperre ausschalten.',
   // E7: Vorschlag für den Namen eines gekoppelten Geräts (geraete/geraeteName.ts GERAETE_ARTEN); `geraet` auch, wenn ein
   // Gerät keinen Namen schickt.
   'geraete.name.iphone': 'iPhone',
@@ -407,7 +425,7 @@ export default {
   'geraete.freigabe.keineBereiche': 'Gekoppelt, aber noch für keinen Parcours freigegeben. Der Bedienrechner teilt ihn in der Geräteliste zu.',
   'geraete.freigabe.sendet': 'Wird gesendet …',
   'geraete.freigabe.ohneQuittung': 'Keine Bestätigung – Verbindung prüfen. Es wird weiter versucht.',
-  'geraete.freigabe.unveraendert': 'Nichts geändert – jemand anderes war schneller. Bitte die Anzeige prüfen.',
+  'geraete.freigabe.unveraendert': 'Nichts geändert – schon geschehen oder jemand anderes war schneller. Bitte die Anzeige prüfen.',
   'geraete.freigabe.abgelehnt': 'Abgelehnt: {grund}',
   'geraete.freigabe.entzogen': 'Der Bedienrechner hat diesem Gerät die Start-Freigabe entzogen. Es zeigt weiter, wer dran ist.',
   'geraete.freigabe.wiederKoppeln': 'Mit einem neuen Code wieder koppeln',

@@ -57,7 +57,7 @@ src/assets/parcours/  Parcours-SVGs, nur per `npm run parcours:sync` (QUELLE.jso
 src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder; anzeige.css (--anzeige-*), zuschauer.css
 src/testHilfen.ts     nur Tests: wechsleRegelwerk (trotz Werten), knotenHaken (Regel-960-Knoten), Testlogos
 scripts/              Offline-Speicher (sw.js), parcours-sync, Warnfilter der Tests
-docs/                 entscheidungen, funktionen, parallelslalom, betrieb, technik, stand (.md); bilder/ (README)
+docs/                 entscheidungen, funktionen, parallelslalom, betrieb (Ablauf am Wettkampftag), feldtest (E8), technik, stand (.md); bilder/ (README)
 ```
 
 ## Datenfluss
@@ -143,6 +143,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … Koppeln, Geräteliste (E7) | components/betrieb/GeraeteKoppeln.vue (QR, Geräte-Code, Koppel-Link), GeraeteListe.vue (Name, Bereiche, entziehen); host.ts gibCode/oeffneQr/setzeAufgaben/entziehe; Rechte geraete/aufgaben.ts (Positivliste) |
 | … Start-Freigabe auf dem Handy (E7) | components/betrieb/GeraetFreigabe.vue (in GeraetApp für `#/koppeln`, `#/geraet`; StartFreigabe `nur-dieser`, Sperre bis Quittung); geraete/gekoppelt.ts; i18n geraete.freigabe.*, geraete.ablehnung.* |
 | … Lese-Link, Gerät, Fassung (F7) | geraete/paket.ts (`#/sehen/<paket>`, leseLinkUrl, lib/build.ts PAGES_URL), geraete/geraet.ts, src/GeraetApp.vue; Selbst-Update lib/offline.ts holeNeueFassung |
+| … Wake Lock, „Alle Geräte neu laden“, Kontingent (E8) | lib/wachBleiben.ts (GeraetApp-Hinweis `geraete.sehen.bildschirmKannAus`); host.ts ladeAlleNeu/neueFassung + geraet.ts NEULADEN_BEFEHL_GUELTIG_MS; geraete/kontingent.ts KONTINGENT; Oberfläche GeraeteRaum.vue; Bedienung docs/betrieb.md, Feldtest docs/feldtest.md |
 | … Server (Einstellung) | AppState.geraeteServer (SET_GERAETE_SERVER, lib/serverAdresse.ts), SettingsView `#geraete`; i18n listopt.geraete.* |
 
 ## Feste Regeln

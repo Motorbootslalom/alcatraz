@@ -166,6 +166,51 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     wrapper.unmount()
   })
 
+  it('Starterlisten mit Markierung (21.11.2026): je Herkunft die ganze Liste, eigene Starter fett mit Dreieck – A links, B rechts; ohne eigene entfällt die Liste', async () => {
+    // Zwei Starter vom Musterclub, beide in Klasse 1 – sie fahren im selben Start gegeneinander.
+    for (const id of ['1-1', '1-2']) store.dispatch({ type: 'UPDATE_STARTER', id, patch: { verein: 'Musterclub' } })
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    const wrapper = mount(ListsView, mit(store))
+    await wrapper.find('.list-kinds button[data-kind="starter"]').trigger('click')
+    await wrapper.find('.starter-arten button[data-art="parallel"]').trigger('click')
+    await warte()
+    // Gemeinsame Liste ohne Markierung: feste Breiten (colgroup), nichts markiert.
+    expect(wrapper.find('.parallel-startliste table.psl-fest colgroup').exists()).toBe(true)
+    expect(wrapper.findAll('.parallel-startliste tr[data-markiert]')).toHaveLength(0)
+    const wahl = wrapper.find('select[data-feld="starter-markierung"]')
+    const musterclub = wahl.findAll('option').find((o) => o.text() === 'Musterclub')!.attributes('value')!
+    await wahl.setValue(musterclub)
+    await warte()
+    expect(wrapper.find('[data-hinweis="starter-art"]').text()).toContain('Dreieck')
+    const liste = wrapper.find('.parallel-startliste .sheet-section')
+    expect(liste.find('[data-feld="herkunft"]').text()).toBe('Musterclub')
+    expect(liste.find('table').classes()).toContain('sheet-table--markierung')
+    // Beide Attempts der Klasse 1: einmal 1-1 auf A und 1-2 auf B, dann getauscht – je Zeile beide markiert.
+    const markiert = liste.findAll('tr[data-markiert]')
+    expect(markiert).toHaveLength(2)
+    for (const r of markiert) {
+      expect(r.attributes('data-markiert')).toBe('ab')
+      expect(r.classes()).toEqual(expect.arrayContaining(['markiert-a', 'markiert-b']))
+      expect(r.findAll('td.psl-eigen').length).toBeGreaterThanOrEqual(4)
+    }
+    // Ein Starter allein: nur seine Hälfte fett.
+    store.dispatch({ type: 'UPDATE_STARTER', id: '1-2', patch: { verein: 'Club' } })
+    await warte()
+    const halb = wrapper.findAll('.parallel-startliste tr[data-markiert]')
+    expect(halb.map((r) => r.attributes('data-markiert')).sort()).toEqual(['a', 'b'])
+    for (const r of halb) expect(r.findAll('td.psl-eigen').every((td) => td.classes().includes(r.attributes('data-markiert') === 'a' ? 'psl-a' : 'psl-b') || !td.classes().some((c) => c === 'psl-a' || c === 'psl-b'))).toBe(true)
+    // Je Racecourse: die ganze Zeile markiert, wie auf der verzahnten Liste.
+    await wrapper.find('select[data-feld="start-racecourse"]').setValue('je')
+    await warte()
+    const je = wrapper.findAll('.parallel-startliste .sheet-section')
+    expect(je.map((l) => l.findAll('tr.markiert').length)).toEqual([1, 1])
+    // „alle“: je Herkunft ein Satz – Club hat Starter auf A und B, Musterclub auch.
+    await wahl.setValue('*')
+    await warte()
+    expect(wrapper.findAll('.parallel-startliste .sheet-section')).toHaveLength(4)
+    wrapper.unmount()
+  })
+
   const startlisten = async (racecourse?: 'je'): Promise<VueWrapper> => {
     const wrapper = mount(ListsView, mit(store))
     await wrapper.find('.list-kinds button[data-kind="starter"]').trigger('click')
@@ -223,12 +268,13 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     }
     afterEach(() => vi.restoreAllMocks())
 
+    // Je Racecourse hoch, A und B nebeneinander quer (21.11.2026) – quer passen weniger Zeilen auf die Seite.
     it.each([
-      // 9 Zeilen je Seite: Der dritte 4er-Block passt nicht mehr – 8 + 8 statt 9 + 7.
-      [100, [8, 8]],
-      // 13 Zeilen je Seite: Der erste 2er-Block passt nicht mehr – 12 + 4; die kurze letzte Seite bleibt (kein Ausgleich auf 8 + 8).
-      [70, [12, 4]],
-    ])('Zeile %i px → Zeilen je Seite %j – gemeinsam und je Racecourse', async (px, erwartet) => {
+      // Hoch 9 Zeilen je Seite: Der dritte 4er-Block passt nicht mehr – 8 + 8 statt 9 + 7. Quer 5: je Seite ein Block.
+      [100, [8, 8], [4, 4, 4, 4]],
+      // Hoch 13: Der erste 2er-Block passt nicht mehr – 12 + 4; die kurze letzte Seite bleibt (kein Ausgleich auf 8 + 8). Quer 8.
+      [70, [12, 4], [8, 8]],
+    ])('Zeile %i px → Zeilen je Seite %j hoch, %j quer – je Racecourse und gemeinsam', async (px, hoch, quer) => {
       zeilePx = px
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(rect)
       // Klein: E (2 Paare, eins mit Dummy), 1 (1 Paar), 2 (2 Paare) → 5 Paare; groß: 4 (1 Paar), 5 (2 Paare) → 3.
@@ -239,6 +285,7 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
         const wrapper = await startlisten(art)
         const listen = wrapper.findAll('.parallel-startliste .sheet-section')
         expect(listen).toHaveLength(art ? 2 : 1)
+        const erwartet = art ? hoch : quer
         for (const liste of listen) {
           const seiten = liste.findAll('.listen-seite')
           expect(seiten.map((s) => s.findAll('tbody tr').length)).toEqual(erwartet)

@@ -55,6 +55,18 @@ export const ABLAGE = {
    * Gerät, dessen Programm sich nicht erneuern lässt, nicht immer wieder neu lädt. Ohne Personenbezug.
    */
   aktualisiert: 'alcatraz.geraet.aktualisiert',
+  /**
+   * Gerät (E8, 20.11.2026): welcher Befehl „Alle Geräte neu laden“ (Raum, Gruppe, Nummer) zuletzt gewirkt hat – damit
+   * derselbe Befehl nach dem Neuladen nicht noch einmal lädt. Ohne Personenbezug.
+   */
+  neuGeladen: 'alcatraz.geraet.neugeladen',
+  /** Host (E8): Zähler der an ntfy gesendeten Nachrichten und Anfragen von heute (geraete/kontingent.ts). */
+  kontingent: 'alcatraz.geraete.kontingent',
+  /**
+   * Host (E8): die Fassung des Programms, mit der der Gerätebetrieb zuletzt lief – weicht die laufende ab (nach
+   * „Update“), bietet Betrieb → Geräte „Alle Geräte neu laden“ an (host.ts `neueFassung`).
+   */
+  fassung: 'alcatraz.geraete.fassung',
 } as const
 
 /** Präfixe der Ablage: Host und Gerät. Nichts davon gehört in `alcatraz:state:v1`. */

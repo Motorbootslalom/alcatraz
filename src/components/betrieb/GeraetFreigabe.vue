@@ -39,6 +39,8 @@ const props = defineProps<{
   umgebung?: LeseUmgebung
   /** Der Host spricht eine neuere Fassung (F7) – GeraetApp lädt gezielt neu. */
   aktualisiere: () => void
+  /** E8: Der Bildschirm lässt sich nicht wach halten (GeraetApp, lib/wachBleiben.ts) – leiser Hinweis in der Leiste. */
+  bildschirmKannAus?: boolean
 }>()
 
 /** So lange bleibt eine Action ohne Quittung „Wird gesendet …“, dann der Hinweis auf die Verbindung (Plan §4, K32). */
@@ -292,6 +294,7 @@ function entkopple(): void {
         {{ t(fassung === 'host-neuer' ? 'geraete.sehen.hostNeuer' : 'geraete.sehen.hostAelter') }}
         <button v-if="fassung === 'host-neuer'" type="button" class="btn sm" data-action="neu-laden" @click="aktualisiere">{{ t('geraete.sehen.neuLaden') }}</button>
       </span>
+      <span v-if="bildschirmKannAus" class="note" data-teil="wach">{{ t('geraete.sehen.bildschirmKannAus') }}</span>
       <span class="geraet-fingerabdruck" data-teil="fingerabdruck">{{ t('geraete.sehen.fingerabdruck', { f: fingerabdruckText(geraet.fingerabdruck) }) }}</span>
       <span class="geraet-knoepfe">
         <button type="button" class="btn sm" data-action="entkoppeln" @click="frageEntkoppeln = true">{{ t('geraete.freigabe.entkoppeln') }}</button>

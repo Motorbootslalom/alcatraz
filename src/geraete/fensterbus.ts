@@ -42,7 +42,7 @@ export type Anwendung = Extract<Ergebnis, 'angewandt' | 'unveraendert'>
  * Befehle an das Führungsfenster (E6, geraete/host.ts): Nur es hält den HostTransport und schreibt den Raum – ein
  * anderes Fenster schriebe sonst neben ihm (Nummern doppelt, Thema zurückgedreht).
  */
-export const BEFEHLE = ['zuschauer-erneuern', 'raum-beenden'] as const
+export const BEFEHLE = ['zuschauer-erneuern', 'raum-beenden', 'alle-neu-laden'] as const
 /**
  * E7 (20.11.2026): Befehle mit Angaben – Koppeln, Rechte ändern, Entzug. Auch sie schreibt nur das Führungsfenster in den
  * Raum (Register, Koppel-Stand); die Oberfläche kann in jedem Fenster stehen.

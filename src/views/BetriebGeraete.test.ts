@@ -168,6 +168,10 @@ describe('Betrieb → Geräte: einschalten, Links, Fingerabdruck', () => {
       setzeAufgaben: () => {},
       benenne: () => {},
       entziehe: () => {},
+      ladeAlleNeu: () => 'gesendet' as const,
+      neueFassung: shallowRef(false),
+      fassungGesehen: () => {},
+      kontingent: shallowRef({ tag: '2026-11-20', gesendet: 0, anfragen: 0, gedrosselt: null }),
       stop: () => {},
     } satisfies GeraeteHost
     location.hash = '#/betrieb/geraete'
@@ -253,6 +257,72 @@ describe('Betrieb → Geräte: erneuern, beenden, Verbindung im Kopf', () => {
     await w.find('[data-action="geraete-einschalten"]').trigger('click')
     await zeigt(() => w.find('.lese-link').exists())
     expect(w.find('[data-teil="geraete-ende"]').exists()).toBe(false)
+  })
+
+  it('E8: „Alle Geräte neu laden“ fragt erst und schickt dann die Meldung an beide Links; Kontingent heute', async () => {
+    const host = hostIn(nachgebauterBrowser().fenster())
+    const info = host.oeffne()
+    location.hash = '#/betrieb/geraete'
+    const w = betrieb(host)
+    await zeigt(() => host.verbindung.value?.status === 'verbunden')
+    await zeigt(() => host.kontingent.value.gesendet >= 2)
+    const kontingent = w.find('[data-teil="kontingent"]')
+    expect(kontingent.text()).toContain(`${host.kontingent.value.gesendet} Nachrichten`)
+    expect(kontingent.attributes('data-lage')).toBe('ok')
+    expect(w.find('[data-teil="kontingent-warnung"]').exists()).toBe(false)
+    expect(w.find('[data-teil="neue-fassung"]').exists()).toBe(false)
+
+    const themen = [liesLeseLink(info.anzeige), liesLeseLink(info.zuschauer)].map((r) => (r.ok ? r.paket.t : ''))
+    const zahl = () => themen.map((th) => ntfy.gespeichert.filter((g) => g.topic === th).length)
+    const vorher = zahl()
+    await w.find('[data-action="alle-neu-laden"]').trigger('click')
+    expect(w.find('[data-dialog="alle-neu-laden"]').text()).toContain('gekoppelte Handys bleiben gekoppelt')
+    await w.find('[data-action="neu-laden-nein"]').trigger('click')
+    expect(w.find('[data-dialog="alle-neu-laden"]').exists()).toBe(false)
+    await w.find('[data-action="alle-neu-laden"]').trigger('click')
+    await w.find('[data-action="neu-laden-ja"]').trigger('click')
+    expect(w.find('[data-teil="neu-geladen"]').exists()).toBe(true)
+    await bis(() => zahl().every((n, i) => n > vorher[i]))
+
+    // Ohne Verbindung (Prüfung 21.11.2026): nichts gesendet, statt „gesendet“ ein Hinweis.
+    vi.stubGlobal('WebSocket', class extends NachgebauterSocket {
+      constructor(url: string) {
+        super(url)
+        this.close()
+      }
+    })
+    for (const sock of [...ntfy.sockets]) sock.close()
+    await zeigt(() => host.verbindung.value?.status !== 'verbunden')
+    const danach = zahl()
+    await w.find('[data-action="alle-neu-laden"]').trigger('click')
+    await w.find('[data-action="neu-laden-ja"]').trigger('click')
+    expect(w.find('[data-teil="neu-geladen"]').exists()).toBe(false)
+    expect(w.find('[data-teil="neu-laden-nicht-verbunden"]').text()).toContain('nichts gesendet')
+    expect(zahl()).toEqual(danach)
+  })
+
+  it('E8: nach einem Update bietet der Bedienrechner „Alle Geräte neu laden“ an; „Nicht nötig“ blendet es aus', async () => {
+    const f = nachgebauterBrowser().fenster()
+    f.ablage.setItem(ABLAGE.fassung, 'abc1234 alt')
+    const host = starteGeraeteHost(store, { ablage: f.ablage, fenster: f.fenster, fuehrung: f.fuehrung, bus: f.bus, zeiten: SCHNELL, sammelnMs: 0, fassung: 'def5678 neu' })
+    hosts.push(host)
+    // Ein Raum aus der Zeit vor dem Update (hier: gleich angelegt und die alte Fassung zurückgeschrieben).
+    host.oeffne()
+    f.ablage.setItem(ABLAGE.fassung, 'abc1234 alt')
+    host.stop()
+    const neu = starteGeraeteHost(store, { ablage: f.ablage, fenster: f.fenster, fuehrung: f.fuehrung, bus: f.bus, zeiten: SCHNELL, sammelnMs: 0, fassung: 'def5678 neu' })
+    hosts.push(neu)
+    location.hash = '#/betrieb/geraete'
+    const w = betrieb(neu)
+    await nextTick()
+    const hinweis = w.find('[data-teil="neue-fassung"]')
+    expect(hinweis.text()).toContain('neuen Fassung')
+    await hinweis.find('[data-action="neue-fassung-laden"]').trigger('click')
+    expect(w.find('[data-dialog="alle-neu-laden"]').exists()).toBe(true)
+    await w.find('[data-action="neu-laden-nein"]').trigger('click')
+    await w.find('[data-action="neue-fassung-spaeter"]').trigger('click')
+    expect(w.find('[data-teil="neue-fassung"]').exists()).toBe(false)
+    expect(f.ablage.getItem(ABLAGE.fassung)).toBe('def5678 neu')
   })
 
   it('auf den anderen Unterreitern steht die Verbindung im Kopf – ein Klick führt zu den Geräten', async () => {

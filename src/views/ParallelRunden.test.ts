@@ -87,7 +87,11 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
 
   it('Halbfinale und Finale festschreiben – auch bei festgeschriebener Verzahnung; die Pläne stehen darunter', async () => {
     const wrapper = await verzahnung()
-    // Der Vorlauf läuft: noch nichts festzuschreiben.
+    // Reihenfolge der Panels (21.11.2026): das Aktuelle oben, Erledigtes darunter, der Vorlauf ganz unten.
+    // Aus dem Dokument gelesen: findAll eines Wrappers mit mehreren Wurzeln nennt die Wurzeln vor den verschachtelten.
+    const folge = () => [...document.querySelectorAll<HTMLElement>('.panel')].map((p) => p.dataset.runde ?? p.dataset.panel ?? '').filter(Boolean)
+    // Der Vorlauf läuft: noch nichts festzuschreiben – er ist das Aktuelle und steht über den Runden.
+    expect(folge()).toEqual(['pre', 'parallel-runden'])
     expect(weg(wrapper)).toEqual(['pre=leer'])
     expect(wrapper.find('[data-action="runde-fest"]').exists()).toBe(false)
     fahre('pre', VORLAUF)
@@ -112,6 +116,7 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     expect(wrapper.findAll('.panel[data-runde="final"] td[data-spalte="vermerk"]').map((z) => z.text())).toEqual(['Klasse 1 · Kleines Finale (Platz 3 und 4)', 'Klasse 1 · Kleines Finale (Platz 3 und 4)', 'Klasse 1 · Finale', 'Klasse 1 · Finale'])
     fahre('final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
     await warte()
+    expect(folge()).toEqual(['parallel-runden', 'final', 'semi', 'pre'])
     expect(wrapper.find('.parallel-klasse[data-klasse="1"]').attributes('data-fertig')).toBe('true')
     expect(wrapper.find('[data-hinweis="runde-fertig"]').exists()).toBe(true)
   })

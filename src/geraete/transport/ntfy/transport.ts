@@ -51,6 +51,7 @@ import {
 } from '../protokoll'
 import type { Transport } from '../typen'
 import { normalisiereServer, zufallsThema } from '../../themen'
+import type { Zaehlart } from '../../kontingent'
 
 /**
  * Host und Gerät über einen ntfy-Server – ohne eigenes Relais (aus dem Prototyp tafel, transport/ntfy/
@@ -102,6 +103,15 @@ const NOCHMAL_JE_MINUTE = 12
 const NOCHMAL_HOECHSTENS_MS = 5 * 60_000
 
 /**
+ * Wie lange eine Meldung „neu laden“ höchstens auf das Senden wartet (Prüfung E8, 21.11.2026 – vom Nutzer zu
+ * bestätigen, BETRIEB_ANNAHMEN.alleNeuLaden). Ohne Abo sendet der Host nichts; käme die Verbindung erst nach einer
+ * Stunde zurück, ginge der Befehl mit frischem `hz` hinaus, bestünde die Frische-Prüfung der Geräte (geraet.ts
+ * NEULADEN_BEFEHL_GUELTIG_MS) und lüde alle Geräte mitten im Lauf neu. Eine Minute deckt kurze Wackler (Wiederholung
+ * des POST) und nicht mehr.
+ */
+export const NEULADEN_SENDEN_MS = 60_000
+
+/**
  * Wiederholungen eines Geräts ohne Antwort (Befund der E7-Prüfung 20.11.2026): erst nach quittungMs, dann mit
  * doppeltem Abstand bis höchstens {@link WIEDERHOLEN_HOECHSTENS_MS}. Sonst schickte ein Handy, dessen Anmeldung niemand
  * beantwortet (falscher Code, Bedienrechner aus), ohne Ende alle 10 s – rund 360 POSTs je Stunde aus demselben Hotspot
@@ -145,6 +155,8 @@ export interface HostOptionen {
   zeiten?: Partial<NtfyZeiten>
   /** Uhr für die Sendezeit `hz` (Tests). */
   uhr?: () => number
+  /** E8: Kontingent-Zähler (geraete/kontingent.ts) – was an den Server geht. */
+  zaehle?: (art: Zaehlart) => void
 }
 
 /** Eine Nachricht eines Geräts, wie der Host sie bekommt. Antworten gehen über {@link HostTransport}. */
@@ -183,6 +195,8 @@ type HostAuftrag =
       sicht?: Json
       basis?: Basis | null
       meldung?: GruppenMeldung
+      /** Nur „neu laden“: Bis wann (Host-Uhr) die Meldung noch hinaus darf – siehe {@link NEULADEN_SENDEN_MS}. */
+      verfall?: number
       inhalt?: GruppenInhalt
       offen: string[]
       versiegelt: Map<string, Versiegelt>
@@ -231,7 +245,7 @@ export class HostTransport extends NtfyLeitung implements Transport {
   private readonly uhr: () => number
 
   constructor(private readonly optionen: HostOptionen) {
-    super(normalisiereServer(optionen.server) ?? '', optionen.zeiten)
+    super(normalisiereServer(optionen.server) ?? '', optionen.zeiten, optionen.zaehle)
     this.uhr = optionen.uhr ?? Date.now
   }
 
@@ -350,12 +364,12 @@ export class HostTransport extends NtfyLeitung implements Transport {
     const wartend = (a: HostAuftrag) => a.art === 'gruppe' && a.gruppe === gruppe && a.sicht !== undefined && !a.laeuft
     const ersetzt = this.schlange.some(wartend)
     this.schlange = this.schlange.filter((a) => !wartend(a))
-    this.reiheEin(gruppe, { meldung }, true)
+    this.reiheEin(gruppe, { meldung }, true, this.uhr() + NEULADEN_SENDEN_MS)
     const kopf = this.kopfstand.get(gruppe)
     if (ersetzt && kopf) this.reiheEin(gruppe, { sicht: kopf.sicht, basis: null })
   }
 
-  private reiheEin(gruppe: string, inhalt: { sicht: Json; basis: Basis | null } | { meldung: GruppenMeldung }, vorn = false): void {
+  private reiheEin(gruppe: string, inhalt: { sicht: Json; basis: Basis | null } | { meldung: GruppenMeldung }, vorn = false, verfall?: number): void {
     // Die Nummer steigt dauerhaft: frisch gelesen, erhöht, geschrieben – auch ein zweites Fenster vergibt sie nie doppelt.
     let n = 0
     const raum = this.aendere((r) => {
@@ -369,7 +383,7 @@ export class HostTransport extends NtfyLeitung implements Transport {
       this.vollNoetig.delete(gruppe)
       this.kopfstand.set(gruppe, { n, sicht: inhalt.sicht })
     }
-    const auftrag: HostAuftrag = { art: 'gruppe', gruppe, n, ...inhalt, offen: themenDerGruppe(raum, gruppe), versiegelt: new Map(), laeuft: false }
+    const auftrag: HostAuftrag = { art: 'gruppe', gruppe, n, ...inhalt, ...(verfall !== undefined ? { verfall } : {}), offen: themenDerGruppe(raum, gruppe), versiegelt: new Map(), laeuft: false }
     if (vorn) this.vorne([auftrag])
     else this.schlange.push(auftrag)
     this.kick()
@@ -798,6 +812,9 @@ export class HostTransport extends NtfyLeitung implements Transport {
   /** Ein Thema eines Auftrags: versiegeln (einmal), senden – groß als Anhang mit signierter Ankündigung. */
   private async sendeSchritt(auftrag: HostAuftrag): Promise<PostErgebnis> {
     const thema = auftrag.art === 'gruppe' ? auftrag.offen[0] : auftrag.thema
+    // „Neu laden“, das zu lange auf die Verbindung gewartet hat, verfällt (Prüfung E8, 21.11.2026): Sonst ginge es nach
+    // einem Ausfall mit frischem `hz` hinaus, und alle Geräte lüden mitten im Lauf neu.
+    if (auftrag.art === 'gruppe' && auftrag.verfall !== undefined && this.uhr() > auftrag.verfall) return { art: 'verworfen', status: 0 }
     let v = (auftrag.art === 'gruppe' ? auftrag.versiegelt.get(thema) : auftrag.versiegelt) ?? null
     if (!v) {
       v = await this.versiegle(auftrag, thema)

@@ -8,6 +8,13 @@ import type { Starter } from '../types'
 
 const { state, dispatch } = useStore()
 
+/**
+ * Welcher Teil: `kopf` = Einstellungen des Parallelslaloms, `vorlauf` = Plan des Vorlaufs. Getrennt,
+ * damit VerzahnungView den erledigten Vorlauf UNTER die späteren Runden stellen kann – das Aktuelle
+ * oben (Wunsch des Nutzers vom 21.11.2026). Fehlt = beides wie bisher.
+ */
+const props = defineProps<{ teil?: 'kopf' | 'vorlauf' }>()
+
 // Der gültige Plan des Vorlaufs: der festgeschriebene, sonst der aus dem Starterfeld gerechnete –
 // derselbe, nach dem die klassischen Startnummern vergeben werden (planung/running.ts).
 const vorlauf = computed(() => vorlaufPlan(state.value))
@@ -26,7 +33,7 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked
 </script>
 
 <template>
-  <div class="panel">
+  <div v-if="props.teil !== 'vorlauf'" class="panel">
     <h2>{{ t('parallel.title') }}</h2>
     <p class="hint">{{ t('parallel.hint') }}</p>
 
@@ -76,7 +83,7 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked
     </div>
   </div>
 
-  <div class="panel" data-runde="pre" :data-fest="vorlauf.fest">
+  <div v-if="props.teil !== 'kopf'" class="panel" data-runde="pre" :data-fest="vorlauf.fest">
     <h2>{{ rundenName(VORLAUF, t) }}</h2>
     <p class="hint" data-hinweis="plan-stand">{{ vorlauf.fest ? t('parallel.fixed') : t('parallel.live') }}</p>
     <p v-if="gebunden" class="boat-banner warn" role="status" data-hinweis="plan-gebunden">{{ t('parallel.plan.kept') }}</p>

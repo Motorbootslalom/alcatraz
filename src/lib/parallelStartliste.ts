@@ -60,3 +60,16 @@ export function rundenStartliste(stand: Pick<AppState, 'starters' | 'parallelPla
   })
   return { runde, bloecke }
 }
+
+/**
+ * Fährt einer der `eigenen` Starter in dieser Runde – auf dem gewählten Racecourse oder (ohne)
+ * auf einem der beiden? Die markierte Startliste einer Herkunft (Wunsch des Nutzers vom
+ * 21.11.2026, wie die verzahnte Starterliste mit Markierung) entfällt sonst für sie: Der
+ * Mannschaftsleiter braucht keine Liste, auf der niemand von ihm steht. Ein entfallener Start
+ * zählt nicht.
+ */
+export function hatEigene(l: RundenStartliste, eigene: ReadonlySet<string>, racecourse?: 'A' | 'B'): boolean {
+  return l.bloecke.some((b) =>
+    b.some((z) => !z.entfaellt && [racecourse === 'B' ? null : z.a, racecourse === 'A' ? null : z.b].some((p) => p !== null && eigene.has(p.id))),
+  )
+}

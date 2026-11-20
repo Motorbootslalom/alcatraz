@@ -89,6 +89,7 @@ export default {
   'results.col.stegAb': 'Leav.',
   'results.col.stegAn': 'Moor.',
   'results.col.ziel': 'Fin.',
+  'results.col.boje': 'Buoy',
   'results.col.mueb': 'MOB',
   'results.changed': 'Last change',
   'results.uimPoints': 'UIM points',

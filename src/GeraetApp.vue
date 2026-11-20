@@ -10,6 +10,7 @@ import { vollbild } from './lib/router'
 import { holeNeueFassung } from './lib/offline'
 import { useTafelFenster } from './lib/tafelFenster'
 import { useUhr } from './lib/uhr'
+import { useWachBleiben } from './lib/wachBleiben'
 import { t, tIn } from './i18n'
 import { fingerabdruckText } from './components/betrieb/texte'
 import AnzeigeTafel from './components/anzeige/AnzeigeTafel.vue'
@@ -108,6 +109,11 @@ const hostJetzt = computed(() => geraet.value?.hostZeit(uhr.value) ?? uhr.value)
 // Vollbild (F, Doppelklick) und Mauszeiger wie im zweiten Fenster; die Leiste unten erscheint mit dem Zeiger.
 const { zeigerWeg, vollbildUmschalten, regung } = useTafelFenster()
 
+// Bildschirm wach halten (E8, 20.11.2026), solange ein Lese-Link läuft oder die Start-Freigabe offen ist – nicht mehr
+// nach „Raum beendet“/„Raum verlassen“. Geht das nicht (altes iPhone, Energiesparen), sagt es die Leiste leise.
+const wach = useWachBleiben(() => !!freigabe.value || (!!geraet.value && !geraet.value.beendet.value))
+const bildschirmKannAus = computed(() => wach.value === 'nicht-moeglich')
+
 // Fenster nach Art: schwarz für die Anzeigetafel (kein weißer Blitz), sonst wie die Zuschauerliste.
 watchEffect(() => {
   const html = document.documentElement
@@ -162,7 +168,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <GeraetFreigabe v-if="freigabe" :paket="freigabe.paket" :umgebung="umgebung" :aktualisiere="aktualisiere" />
+  <GeraetFreigabe v-if="freigabe" :paket="freigabe.paket" :umgebung="umgebung" :aktualisiere="aktualisiere" :bildschirm-kann-aus="bildschirmKannAus" />
   <div v-else class="geraet-app" :data-art="art ?? lage.art" @dblclick="art === 'anzeige' && vollbildUmschalten()">
     <!-- Die Anzeigetafel wie im zweiten Fenster, ohne Logos (BETRIEB_ANNAHMEN.logosNurLokal). -->
     <div v-if="art === 'anzeige' && tafel" class="anzeige-app" :class="{ 'zeiger-weg': zeigerWeg }">
@@ -216,6 +222,7 @@ onBeforeUnmount(() => {
         {{ t(fassung === 'host-neuer' ? 'geraete.sehen.hostNeuer' : 'geraete.sehen.hostAelter') }}
         <button v-if="fassung === 'host-neuer'" type="button" class="btn sm" data-action="neu-laden" @click="aktualisiere">{{ t('geraete.sehen.neuLaden') }}</button>
       </span>
+      <span v-if="bildschirmKannAus" class="note" data-teil="wach">{{ t('geraete.sehen.bildschirmKannAus') }}</span>
       <span class="geraet-fingerabdruck" data-teil="fingerabdruck">{{ t('geraete.sehen.fingerabdruck', { f: fingerabdruckText(geraet.fingerabdruck) }) }}</span>
       <span class="geraet-knoepfe">
         <button v-if="art === 'anzeige'" type="button" class="btn sm" data-action="vollbild" @click="vollbildUmschalten">{{ t('geraete.sehen.vollbild') }}</button>

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useStore } from '../../state/store'
-import { hostServer, useGeraeteHost, type RaumEnde } from '../../geraete/host'
+import { hostServer, useGeraeteHost, type NeuLadenErgebnis, type RaumEnde } from '../../geraete/host'
 import { leseLinkUrl, type SeitenOrt } from '../../geraete/paket'
 import { verbindungsLage, type Fehlercode, type VerbindungsLage } from '../../geraete/transport/typen'
 import { PAGES_URL } from '../../lib/build'
 import { adresse } from '../../lib/router'
-import { t } from '../../i18n'
-import { fingerabdruckText } from './texte'
+import { locale, t, tn } from '../../i18n'
+import { fingerabdruckText, uhrzeitText } from './texte'
+import { kontingentLage, tagesGrenze, tagVon } from '../../geraete/kontingent'
+import { useUhr } from '../../lib/uhr'
 import AppDialog from '../AppDialog.vue'
 import GeraeteLage from './GeraeteLage.vue'
 import LeseLink from './LeseLink.vue'
@@ -25,6 +27,9 @@ import GeraeteListe from './GeraeteListe.vue'
  * und die Verbindung, die das Führungsfenster über den Fensterbus meldet; seine Knöpfe gehen als Befehl dorthin.
  * E7 (20.11.2026): darunter Koppeln (GeraeteKoppeln.vue: Bereiche, QR-Code, Geräte-Code, Koppel-Link) und die
  * Geräteliste (GeraeteListe.vue: Name, Bereiche, zuletzt gehört, Entziehen).
+ * E8 (20.11.2026): „Alle Geräte neu laden“ mit Rückfrage – nach einem „Update“ des Bedienrechners als Hinweis
+ * angeboten (host.ts `neueFassung`) – und der Kontingent-Zähler (heute an den Server gesendet, Warnung ab
+ * KONTINGENT.warnenAb der Grenze des Servers (tagesGrenze), zuletzt gedrosselt; geraete/kontingent.ts, BETRIEB_ANNAHMEN.kontingent).
  */
 const { state } = useStore()
 const host = useGeraeteHost()
@@ -60,6 +65,7 @@ function einschalten(): void {
   einschaltFehler.value = null
   ende.value = null
   erneuert.value = false
+  neuGeladen.value = null
   try {
     host.oeffne()
   } catch (e) {
@@ -74,6 +80,23 @@ function erneuern(): void {
   frageErneuern.value = false
   host?.erneuereZuschauer()
   erneuert.value = true
+}
+
+// E8: Kontingent von heute – ein Eintrag von gestern zählt nach Mitternacht als 0 (Uhr im Minutentakt).
+const uhr = useUhr(60_000)
+const kontingent = computed(() => {
+  const k = host?.kontingent.value
+  return k && k.tag === tagVon(uhr.value) ? k : { tag: tagVon(uhr.value), gesendet: 0, anfragen: 0, gedrosselt: null }
+})
+const grenze = computed(() => tagesGrenze(server.value))
+const kontingentWarnung = computed(() => kontingentLage(kontingent.value, grenze.value))
+
+// E8: „Alle Geräte neu laden“.
+const frageNeuLaden = ref(false)
+const neuGeladen = ref<NeuLadenErgebnis | null>(null)
+function neuLaden(): void {
+  frageNeuLaden.value = false
+  neuGeladen.value = host?.ladeAlleNeu() ?? 'nicht-verbunden'
 }
 
 const frageBeenden = ref(false)
@@ -130,6 +153,19 @@ async function beenden(): Promise<void> {
           <b>{{ t('geraete.fingerabdruck') }}:</b> <code class="geraete-fingerabdruck" data-teil="fingerabdruck">{{ fingerabdruckText(raum.fingerabdruck) }}</code>
           <span class="note">{{ t('geraete.fingerabdruck.hint') }}</span>
         </p>
+        <p class="geraete-zeile" data-teil="kontingent" :data-lage="kontingentWarnung">
+          <b>{{ t('geraete.kontingent') }}:</b> {{ tn('geraete.kontingent.gesendet', kontingent.gesendet) }}
+          <span class="note">{{ tn('geraete.kontingent.anfragen', kontingent.anfragen) }}</span>
+        </p>
+        <p v-if="kontingentWarnung !== 'ok'" class="boat-banner warn" role="status" data-teil="kontingent-warnung">
+          {{ grenze === null ? t('geraete.kontingent.gebremst') : t('geraete.kontingent.warnung', { grenze: grenze.toLocaleString(locale) }) }}
+          <template v-if="kontingent.gedrosselt !== null"> {{ t('geraete.kontingent.gedrosselt', { zeit: uhrzeitText(kontingent.gedrosselt, uhr) }) }}</template>
+        </p>
+        <p v-if="host.neueFassung.value" class="boat-banner" role="status" data-teil="neue-fassung">
+          {{ t('geraete.neueFassung') }}
+          <button type="button" class="btn sm primary" data-action="neue-fassung-laden" @click="frageNeuLaden = true">{{ t('geraete.neuLaden') }}</button>
+          <button type="button" class="btn sm" data-action="neue-fassung-spaeter" @click="host.fassungGesehen()">{{ t('geraete.neueFassung.spaeter') }}</button>
+        </p>
         <p v-if="alsDatei" class="note" data-hinweis="links-pages">{{ t('geraete.link.pages', { pages: PAGES_URL }) }}</p>
       </div>
 
@@ -144,7 +180,10 @@ async function beenden(): Promise<void> {
       <GeraeteKoppeln />
       <GeraeteListe />
 
-      <div class="row" style="margin-top: 14px">
+      <p v-if="neuGeladen === 'gesendet'" class="boat-banner ok" role="status" data-teil="neu-geladen">{{ t('geraete.neuLaden.gesendet') }}</p>
+      <p v-else-if="neuGeladen === 'nicht-verbunden'" class="boat-banner warn" role="status" data-teil="neu-laden-nicht-verbunden">{{ t('geraete.neuLaden.nichtVerbunden') }}</p>
+      <div class="row" style="margin-top: 14px; gap: 8px">
+        <button type="button" class="btn" data-action="alle-neu-laden" @click="frageNeuLaden = true">{{ t('geraete.neuLaden') }}</button>
         <button type="button" class="btn danger" data-action="raum-beenden" :disabled="beendet" @click="frageBeenden = true">
           {{ beendet ? t('geraete.beenden.laeuft') : t('geraete.beenden') }}
         </button>
@@ -156,6 +195,13 @@ async function beenden(): Promise<void> {
       <template #knoepfe>
         <button type="button" class="btn primary" data-action="erneuern-ja" @click="erneuern">{{ t('geraete.zuschauerErneuern.ja') }}</button>
         <button type="button" class="btn" data-action="erneuern-nein" autofocus @click="frageErneuern = false">{{ t('common.cancel') }}</button>
+      </template>
+    </AppDialog>
+    <AppDialog v-if="frageNeuLaden" :titel="t('geraete.neuLaden.frage')" data-dialog="alle-neu-laden" @abbrechen="frageNeuLaden = false">
+      <p>{{ t('geraete.neuLaden.text') }}</p>
+      <template #knoepfe>
+        <button type="button" class="btn primary" data-action="neu-laden-ja" @click="neuLaden">{{ t('geraete.neuLaden.ja') }}</button>
+        <button type="button" class="btn" data-action="neu-laden-nein" autofocus @click="frageNeuLaden = false">{{ t('common.cancel') }}</button>
       </template>
     </AppDialog>
     <AppDialog v-if="frageBeenden" :titel="t('geraete.beenden.frage')" data-dialog="raum-beenden" @abbrechen="frageBeenden = false">

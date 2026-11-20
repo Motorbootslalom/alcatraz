@@ -44,7 +44,9 @@ export default {
   'lists.starter.hint.herkunft': 'Nur die Starter einer Herkunft, nach Startnummer – unabhängig vom Parcours. Je {origin} ein eigenes Dokument.',
   'lists.starter.hint.klasse': 'Alle Starter nach Klasse und Startnummer in einem Dokument.',
   'lists.starter.hint.parallel':
-    'Die Startliste einer festgeschriebenen Runde des Parallel-Slaloms: A und B nebeneinander (so steht sie in der Druckdatei) oder je Racecourse eine eigene Liste zum Aushang am jeweiligen Parcours – mit Start, Versuch, Klasse, Startnummer, Name und Herkunft. Die Start-Nummern sind dieselben wie auf der gemeinsamen Liste und den Listen der Wettkampfrichter; ein Dummy steht als schraffierte Zeile da. Die Listen je Racecourse stehen nicht in der Druckdatei.',
+    'Die Startliste einer festgeschriebenen Runde des Parallel-Slaloms: A und B nebeneinander im Querformat (so steht sie in der Druckdatei) oder je Racecourse eine eigene Liste zum Aushang am jeweiligen Parcours – mit Start, Versuch, Klasse, Startnummer, Name und Herkunft. Die Start-Nummern sind dieselben wie auf der gemeinsamen Liste und den Listen der Wettkampfrichter; ein Dummy steht als schraffierte Zeile da. Die Listen je Racecourse stehen nicht in der Druckdatei.',
+  'lists.starter.hint.parallel.marked':
+    'Die vollständige Startliste einer festgeschriebenen Runde; die Starter der gewählten Herkunft stehen fett, mit einem Dreieck am Rand – auf der gemeinsamen Liste links für Racecourse A, rechts für B. So sieht der Mannschaftsleiter, wann und wo die eigenen Starter fahren. „alle“ druckt die Listen für jede Herkunft hintereinander; eine Runde, in der sie niemanden am Start hat, entfällt.',
   'lists.starter.noOrigin': 'Für diese Veranstaltung ist keine Herkunft gewählt – Listen je Herkunft und die Markierung gibt es deshalb nicht. Die Herkunft wählt man unter',
   'lists.starter.withoutOrigin': '{n} Starter hat keine Herkunft ({origin}) und gehört zu keiner dieser Listen. | {n} Starter haben keine Herkunft ({origin}) und gehören zu keiner dieser Listen.',
   'lists.kind.vorsteg': 'Vorsteg-Liste',
