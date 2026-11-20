@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { startNrPraefixe, startNrRegeln } from '../config/catalog'
-import { vergibKlasse } from '../domain/startnrBereiche'
+import { GROESSEN_GRUPPEN, gruppeDerGroesse, vergibKlasse, type StartNrRegeln } from '../domain/startnrBereiche'
 import type { Zeitnahme } from '../lib/beispielwerte'
 import { classColor } from '../domain/classes'
 import { beispielHerkuenfte, generateStarters } from '../domain/generate'
@@ -21,6 +21,23 @@ import { useBeispielBoote } from '../lib/beispielBoote'
 import type { ParallelRunde } from '../types'
 import { t, tn } from '../i18n'
 import type { ClassId, Starter } from '../types'
+
+// Beispielstarter bekommen zufällige Größen. Mit Startnummern-Bereichen bliebe ein XXL in Klasse 4
+// (kein XXL-Bereich) ohne Nummer – richtig für echte Starter (von Hand, 20.11.2026), für Beispiele
+// aber nur Lärm: Ihre Größe rückt deshalb in die nächste Gruppe, für die die Klasse einen Bereich hat.
+const GROESSE_DER_GRUPPE = { 'S-M': 'M', 'L-XL': 'XL', XXL: 'XXL' } as const
+function passendeGroessen(neu: Starter[], regeln: StartNrRegeln): Starter[] {
+  const da = GROESSEN_GRUPPEN.filter((g) => regeln.bereiche.some((b) => b.gruppe === g))
+  if (da.length < 2) return neu
+  return neu.map((p) => {
+    const g = gruppeDerGroesse(p.groesse)
+    if (g !== null && da.includes(g)) return p
+    const i = g === null ? GROESSEN_GRUPPEN.length : GROESSEN_GRUPPEN.indexOf(g)
+    const naechste = [...da].sort((a, b) => Math.abs(GROESSEN_GRUPPEN.indexOf(a) - i) - Math.abs(GROESSEN_GRUPPEN.indexOf(b) - i))[0]
+    return { ...p, groesse: GROESSE_DER_GRUPPE[naechste] }
+  })
+}
+
 
 /**
  * Beispieldaten am Ende der Ansicht „Veranstaltung“: ein erfundenes Starterfeld, eine erfundene
@@ -105,7 +122,11 @@ function generate() {
       // Das Geschlecht nur, wo eine Liste danach fragt (Regel 960, Pkt. 3.7): unter der DM nicht.
       const neu = generateStarters(c.id, countOf(c.id), state.value.eventJahr, origin, starters, startNrPraefixe(state.value), feste, parallel.value)
       // Klassenbasiert wie „Startnummern vergeben“: aus dem Bereich der Größe, ohne fehlende Westen (19.11.2026).
-      starters = starters.concat(state.value.startNrMode === 'klasse' ? vergibKlasse(neu, c.id, startNrRegeln(state.value, c.id)) : neu)
+      if (state.value.startNrMode !== 'klasse') starters = starters.concat(neu)
+      else {
+        const regeln = startNrRegeln(state.value, c.id)
+        starters = starters.concat(vergibKlasse(passendeGroessen(neu, regeln), c.id, regeln))
+      }
     }
   }
   dispatch({ type: 'CLEAR_ALL_STARTERS' })

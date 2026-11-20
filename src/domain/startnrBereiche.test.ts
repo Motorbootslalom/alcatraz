@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ausweichFolge,
   gruppeDerGroesse,
   liesFehlende,
   naechsteStartNr,
@@ -30,11 +29,8 @@ describe('Startnummern nach Größenbereichen (DMYV-Liste, 19.11.2026)', () => {
     expect([nummerDerKlasse('51', '5'), nummerDerKlasse('5012', '5'), nummerDerKlasse('612', '5')]).toEqual([null, null, null])
   })
 
-  it('Größengruppen: XS zu S–M, XXXL zu XXL; Ausweichen erst nach oben, dann nach unten', () => {
+  it('Größengruppen: XS zu S–M, XXXL zu XXL', () => {
     expect(['XS', 'm', 'XL', '3XL', '', 'Kind'].map(gruppeDerGroesse)).toEqual(['S-M', 'S-M', 'L-XL', 'XXL', null, null])
-    expect(ausweichFolge('L-XL')).toEqual(['XXL', 'S-M'])
-    expect(ausweichFolge('S-M')).toEqual(['L-XL', 'XXL'])
-    expect(ausweichFolge(null)).toEqual(['XXL', 'L-XL', 'S-M'])
   })
 
   it('vergibt je Größe aus ihrem Bereich, in der Folge der Liste, und überspringt fehlende Westen', () => {
@@ -42,25 +38,25 @@ describe('Startnummern nach Größenbereichen (DMYV-Liste, 19.11.2026)', () => {
     expect(nummern(vergibKlasse(liste, '5', dm('5', ['512', '502'])))).toEqual(['511', '501', '529', '513', '503'])
   })
 
-  it('Überlauf: voller Bereich weicht in den größeren aus, dann in den kleineren, dann hinter alle Bereiche', () => {
-    // Klasse 5: XXL hat nur 529 und 530 (530 fehlt) – der zweite XXL bekommt eine L–XL-Weste, der dritte auch.
+  it('kein Ausweichen (20.11.2026): Bereich voll oder fehlt → Nummer leer, von Hand zu vergeben', () => {
+    // Klasse 5: XXL hat nur 529 und 530 (530 fehlt) – der zweite und dritte XXL bleiben leer.
     const xxl = [st('5', 1, 'XXL'), st('5', 2, 'XXL'), st('5', 3, 'XXL')]
-    expect(nummern(vergibKlasse(xxl, '5', dm('5', ['530'])))).toEqual(['529', '511', '512'])
-    // Klasse 3 hat keinen L–XL-Bereich (Zettel unleserlich): L weicht nach unten in S–M aus.
-    expect(nummern(vergibKlasse([st('3', 1, 'L'), st('3', 2, 'S')], '3', dm('3')))).toEqual(['302', '301'])
-    // Alle Westen der Klasse 1 vergeben: fortlaufend hinter 130, fehlende übersprungen.
+    expect(nummern(vergibKlasse(xxl, '5', dm('5', ['530'])))).toEqual(['529', '', ''])
+    // Klasse 4 hat keinen XXL-Bereich: leer; ein später Kleiner bekommt trotzdem seine Weste.
+    expect(nummern(vergibKlasse([st('4', 1, 'XXL'), st('4', 2, 'S')], '4', dm('4')))).toEqual(['', '401'])
+    // Alle Westen der Klasse 1 vergeben: die übrigen bleiben leer.
     const viele = Array.from({ length: 32 }, (_, i) => st('1', i + 1, 'M'))
-    expect(nummern(vergibKlasse(viele, '1', dm('1', ['131']))).slice(-2)).toEqual(['132', '133'])
+    expect(nummern(vergibKlasse(viele, '1', dm('1'))).slice(-3)).toEqual(['130', '', ''])
+    const arten = startNrAbweichungen(vergibKlasse([...xxl, st('5', 4, ''), st('4', 1, 'XXL')], '5', dm('5', ['530'])), '5', dm('5', ['530'])).map((a) => a.art)
+    expect(arten).toEqual(['voll', 'voll', 'keineGroesse'])
+    expect(startNrAbweichungen([st('4', 1, 'XXL')], '4', dm('4')).map((a) => a.art)).toEqual(['keinBereich'])
   })
 
-  it('erst die Passenden, dann die Ausweichenden: Ein früher Großer nimmt einem späten Kleinen nichts weg', () => {
-    // Klasse 4: L–XL 421–430. Der XXL (kein Bereich) steht vorn, weicht aber erst nach den S–M-Startern nach unten aus.
-    const regeln: StartNrRegeln = { bereiche: [{ von: '401', bis: '402', gruppe: 'S-M' }], fehlend: [] }
-    expect(nummern(vergibKlasse([st('4', 1, 'XXL'), st('4', 2, 'S'), st('4', 3, 'M')], '4', regeln))).toEqual(['403', '401', '402'])
-  })
-
-  it('ohne Größe: wie die größte Gruppe, also XXL zuerst', () => {
-    expect(nummern(vergibKlasse([st('6', 1, ''), st('6', 2, 'M')], '6', dm('6')))).toEqual(['626', '601'])
+  it('Klassen mit nur einer Gruppe (E–3: nur S–M): gilt für alle Größen, auch ohne Größe, ohne Hinweis', () => {
+    const liste = [st('3', 1, 'L'), st('3', 2, 'S'), st('3', 3, '')]
+    const neu = vergibKlasse(liste, '3', dm('3'))
+    expect(nummern(neu)).toEqual(['301', '302', '303'])
+    expect(startNrAbweichungen(neu, '3', dm('3'))).toEqual([])
   })
 
   it('Klasse E: E01–E30; auch mit dem Buchstaben D', () => {
@@ -77,7 +73,9 @@ describe('Startnummern nach Größenbereichen (DMYV-Liste, 19.11.2026)', () => {
     const da = [st('5', 1, 'S', '501'), st('5', 2, 'L', '511')]
     expect(naechsteStartNr(da, '5', 'XL', dm('5', ['512']))).toBe('513')
     expect(naechsteStartNr(da, '5', 'M', dm('5'))).toBe('502')
-    expect(naechsteStartNr(da, '5', '', dm('5'))).toBe('529')
+    expect(naechsteStartNr(da, '5', '', dm('5'))).toBe('')
+    expect(naechsteStartNr([], '4', 'XXL', dm('4'))).toBe('')
+    expect(naechsteStartNr([], '2', 'XL', dm('2'))).toBe('201')
     expect(naechsteStartNr(da, '5', 'S', { bereiche: [], fehlend: ['512'] })).toBe('513')
   })
 

@@ -176,7 +176,8 @@ describe('Reducer: ORDER_STARTERS und SHUFFLE_STARTERS', () => {
           mk('e', '404', { nachname: 'Eibe' }),
         ],
       }
-      const s = tu(teils, { type: 'ORDER_STARTERS', klassen: ['4'], nach: 'nachname', absteigend: false })
+      // Ohne Startnummern-Bereiche (sonst bliebe jede Nummer in ihrem Bereich und ginge nicht an Starter ohne Nummer, 20.11.2026).
+      const s = tu({ ...teils, startNrBereiche: { 4: [] } }, { type: 'ORDER_STARTERS', klassen: ['4'], nach: 'nachname', absteigend: false })
       expect(gezeigt(s, '4')).toEqual(['402 Buche', '404 Eibe', '406 Hasel', '– Sanddorn', '– Weide', '– Weide'])
       expect(gezeigt(tu(s, { type: 'ORDER_STARTERS', klassen: ['4'], nach: 'nachname', absteigend: true }), '4')).toEqual(['402 Weide', '404 Weide', '406 Sanddorn', '– Hasel', '– Eibe', '– Buche'])
       // Klassisch vergibt die Verzahnung danach in genau dieser Folge – Starter ohne Nummer stehen

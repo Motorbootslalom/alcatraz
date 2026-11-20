@@ -94,9 +94,10 @@ Die Veranstaltung kann je Klasse eigene Bereiche setzen (auch keine) und zur Vor
 z. B. „512, 517, 623“; Unlesbares wird genannt). Beides reist mit Sicherung und Vorlage.
 
 - „Automatisch vergeben“: jeder Starter bekommt in der Folge des Reiters die nächste freie Nummer aus dem Bereich
-  seiner Größe; erst danach weichen die übrigen aus (Bereich voll oder fehlt, Größe leer): zuerst in größere,
-  dann in kleinere Bereiche, sonst fortlaufend hinter dem höchsten Bereich. Fehlende Westen werden immer übersprungen,
-  auch in Klassen ohne Bereiche (dort fortlaufend wie bisher). Ohne Größe zählt ein Starter wie die größte Gruppe.
+  seiner Größe. Hat eine Klasse nur Bereiche einer Gruppe (DMYV: E bis 3 nur S–M), gilt er für alle, auch ohne
+  Größe. Ist der Bereich voll oder fehlt er (oder fehlt die Größe in einer aufgeteilten Klasse), bleibt die Nummer
+  leer: Der Starter-Reiter nennt ihn unter „Von Hand prüfen“, die Nummer vergibt man selbst (Nutzer, 20.11.2026: kein
+  automatisches Ausweichen). Fehlende Westen werden immer übersprungen, auch in Klassen ohne Bereiche.
 - Neue Starter (von Hand, „In Klasse X verschieben“, Excel-Import, Beispielstarter) bekommen ebenso die erste freie
   Nummer ihres Bereichs.
 - Verschieben, „Sortierung ändern“ und „Zufall“ halten jede Nummer in ihrem Bereich – die neue Folge gilt nur

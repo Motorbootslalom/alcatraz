@@ -177,7 +177,7 @@ export default {
   // Gerätebetrieb (E6, SettingsView `#geraete`): der ntfy-Server; bedient wird unter Betrieb → Geräte.
   'listopt.startnr.title': 'Startnummern nach Westengröße',
   'listopt.startnr.hint':
-    'Nur für klassenbasierte Startnummern: Je Klasse gehört ein Nummernbereich zu einer Größengruppe der Westen (XS zählt zu S–M, XXXL zu XXL). „Startnummern vergeben“ gibt jedem Starter die nächste freie Nummer aus dem Bereich seiner Größe; ist er voll oder fehlt er, aus einem größeren, dann aus einem kleineren, sonst fortlaufend dahinter. Vorhandene Nummern bleiben, bis neu vergeben wird.',
+    'Nur für klassenbasierte Startnummern: Je Klasse gehört ein Nummernbereich zu einer Größengruppe der Westen (XS zählt zu S–M, XXXL zu XXL). „Startnummern vergeben“ gibt jedem Starter die nächste freie Nummer aus dem Bereich seiner Größe; hat eine Klasse nur Bereiche einer Größe, gilt er für alle. Ist der Bereich voll oder fehlt er, bleibt die Nummer leer und der Starter-Reiter nennt den Starter – die Nummer vergibt man dann von Hand. Vorhandene Nummern bleiben, bis neu vergeben wird.',
   'listopt.startnr.klasse': 'Klasse',
   'listopt.startnr.von': 'von',
   'listopt.startnr.bis': 'bis',

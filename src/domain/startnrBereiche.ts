@@ -10,7 +10,7 @@ import { makeStartNr, parseClassNumber, redistributeNumbers, sortedByStartNr, st
  * (state/reducer/startnummern.ts) und die Oberfläche rechnen hiermit.
  */
 
-/** Die Größengruppen der Westen, klein → groß. Die Reihenfolge trägt die Ausweichregel ({@link ausweichFolge}). */
+/** Die Größengruppen der Westen, klein → groß. */
 export const GROESSEN_GRUPPEN = ['S-M', 'L-XL', 'XXL'] as const
 export type GroessenGruppe = (typeof GROESSEN_GRUPPEN)[number]
 
@@ -96,14 +96,18 @@ function toepfe(klasse: ClassId, regeln: StartNrRegeln): Topf[] {
 }
 
 /**
- * Wohin ein Starter ausweicht, wenn der Bereich seiner Gruppe voll ist oder fehlt: zuerst die
- * größeren Gruppen (aufsteigend), dann die kleineren (absteigend) – eine größere Weste passt noch,
- * eine kleinere nicht (Vorgabe vom 19.11.2026). Ohne bekannte Größe gilt der Starter wie in der
- * Sortierung nach Größe (sizeRank) als größer als alle: also XXL, L–XL, S–M.
+ * Aus welcher Gruppe ein Starter seine Nummer bekommt: Hat die Klasse Bereiche nur EINER Gruppe
+ * (DMYV: E bis 3 nur S–M, „erst ab Klasse 4 aufgeteilt“), gilt dieser für alle, mit und ohne
+ * Größe. Sonst die Gruppe seiner Größe, wenn die Klasse für sie einen Bereich hat; sonst `null`.
+ * Kein Ausweichen in andere Gruppen (Nutzer, 20.11.2026: „Wenn die Größe der Nummern voll ist,
+ * dann muss eh manuell geschaut werden, wer eher in eine kleinere oder größere rutschen muss.
+ * Daher brauchst du da nichts selbst erfinden“) – wer keine Nummer bekommt, vergibt man von Hand.
  */
-export function ausweichFolge(gruppe: GroessenGruppe | null): GroessenGruppe[] {
-  const i = gruppe === null ? GROESSEN_GRUPPEN.length : GROESSEN_GRUPPEN.indexOf(gruppe)
-  return [...GROESSEN_GRUPPEN.slice(i + 1), ...GROESSEN_GRUPPEN.slice(0, i).reverse()]
+function gruppeFuer(groesse: string, alle: readonly Topf[]): GroessenGruppe | null {
+  const gruppen = new Set(alle.map((t) => t.gruppe))
+  if (gruppen.size === 1) return [...gruppen][0]
+  const g = gruppeDerGroesse(groesse)
+  return g !== null && gruppen.has(g) ? g : null
 }
 
 /** Hat die Klasse mindestens einen brauchbaren Bereich? */
@@ -113,11 +117,10 @@ export function hatBereiche(klasse: ClassId, regeln: StartNrRegeln): boolean {
 
 /**
  * Vergibt die Startnummern EINER Klasse frisch, in der Reihenfolge von `ordered` (wie heute: die
- * Folge des Starter-Reiters). Mit Bereichen in zwei Durchgängen: Erst bekommt jeder, dessen Gruppe
- * einen Bereich mit freier Nummer hat, die nächste freie daraus – so nimmt kein Ausweichender einem
- * später Kommenden seine Weste weg. Dann die Übrigen (Bereich voll oder fehlt, Größe leer/unbekannt)
- * nach {@link ausweichFolge}, und reicht auch das nicht, fortlaufend hinter dem höchsten Bereich.
- * Ohne Bereiche fortlaufend ab 1. Fehlende Nummern werden immer übersprungen.
+ * Folge des Starter-Reiters). Mit Bereichen bekommt jeder die nächste freie Nummer aus dem Bereich
+ * seiner Gruppe ({@link gruppeFuer}); ist er voll oder fehlt er, bleibt die Nummer leer – die
+ * Ansicht nennt den Starter, die Nummer vergibt man von Hand (20.11.2026). Ohne Bereiche
+ * fortlaufend ab 1. Fehlende Nummern werden immer übersprungen.
  */
 export function vergibKlasse(ordered: readonly Starter[], klasse: ClassId, regeln: StartNrRegeln): Starter[] {
   const fehlend = fehlendeDerKlasse(regeln.fehlend, klasse, regeln.praefixe)
@@ -142,33 +145,18 @@ export function vergibKlasse(ordered: readonly Starter[], klasse: ClassId, regel
           }
     return null
   }
-  const vergeben = new Map<string, number>()
-  const rest: Starter[] = []
-  for (const p of ordered) {
-    const g = gruppeDerGroesse(p.groesse)
+  return ordered.map((p) => {
+    const g = gruppeFuer(p.groesse, alle)
     const n = g ? nimm(g) : null
-    if (n === null) rest.push(p)
-    else vergeben.set(p.id, n)
-  }
-  let hinten = Math.max(...alle.map((t) => t.bis))
-  for (const p of rest) {
-    let n: number | null = null
-    for (const g of ausweichFolge(gruppeDerGroesse(p.groesse))) if (n === null) n = nimm(g)
-    if (n === null) {
-      do hinten++
-      while (fehlend.has(hinten) || belegt.has(hinten))
-      n = hinten
-      belegt.add(n)
-    }
-    vergeben.set(p.id, n)
-  }
-  return ordered.map((p) => ({ ...p, startNr: nr(vergeben.get(p.id)!) }))
+    return { ...p, startNr: n === null ? '' : nr(n) }
+  })
 }
 
 /**
  * Die nächste freie Nummer für EINEN neuen Starter der Klasse (von Hand, Umzug in eine andere
- * Klasse, Import): mit Bereichen die erste freie seiner Gruppe, sonst nach {@link ausweichFolge},
- * sonst hinter allem; ohne Bereiche wie bisher die höchste vergebene + 1. Fehlende überspringen.
+ * Klasse, Import): mit Bereichen die erste freie seiner Gruppe ({@link gruppeFuer}), sonst leer
+ * (von Hand vergeben, 20.11.2026); ohne Bereiche wie bisher die höchste vergebene + 1. Fehlende
+ * überspringen.
  */
 export function naechsteStartNr(vorhandene: readonly Starter[], klasse: ClassId, groesse: string, regeln: StartNrRegeln): string {
   const fehlend = fehlendeDerKlasse(regeln.fehlend, klasse, regeln.praefixe)
@@ -184,10 +172,12 @@ export function naechsteStartNr(vorhandene: readonly Starter[], klasse: ClassId,
     max = Math.max(max, n)
   }
   const alle = toepfe(klasse, regeln)
-  const g = gruppeDerGroesse(groesse)
-  for (const gruppe of [...(g ? [g] : []), ...ausweichFolge(g)])
-    for (const t of alle) if (t.gruppe === gruppe) for (const n of t.nummern) if (!belegt.has(n)) return makeStartNr(klasse, n, regeln.praefixe)
-  let n = Math.max(max, ...alle.map((t) => t.bis))
+  if (alle.length > 0) {
+    const g = gruppeFuer(groesse, alle)
+    for (const t of alle) if (t.gruppe === g) for (const n of t.nummern) if (!belegt.has(n)) return makeStartNr(klasse, n, regeln.praefixe)
+    return ''
+  }
+  let n = max
   do n++
   while (fehlend.has(n) || belegt.has(n))
   return makeStartNr(klasse, n, regeln.praefixe)
@@ -219,20 +209,30 @@ export function verteileInBereichen(ordered: readonly Starter[], klasse: ClassId
 }
 
 /**
- * Warum eine Nummer nicht zur Weste des Starters passt (Hinweis im Starter-Reiter):
+ * Was bei der Nummer eines Starters von Hand zu prüfen ist (Hinweis im Starter-Reiter):
  * `fehlend` – die Nummer steht in der Liste der fehlenden Westen; `fremd` – sie liegt im Bereich
- * einer anderen Größengruppe; `ausserhalb` – in keinem Bereich (Überlauf oder von Hand);
- * `ohneGroesse` – der Starter hat keine bekannte Größe.
+ * einer anderen Größengruppe; `ausserhalb` – in keinem Bereich (von Hand vergeben);
+ * `ohneGroesse` – der Starter hat keine bekannte Größe, die Klasse aber mehrere Gruppen.
+ * Ohne Nummer (nur mit Bereichen): `voll` – der Bereich seiner Gruppe ist voll; `keinBereich` –
+ * die Klasse hat für seine Größe keinen; `keineGroesse` – ohne Größe passt kein Bereich.
  */
-export type StartNrAbweichung = 'fehlend' | 'fremd' | 'ausserhalb' | 'ohneGroesse'
+export type StartNrAbweichung = 'fehlend' | 'fremd' | 'ausserhalb' | 'ohneGroesse' | 'voll' | 'keinBereich' | 'keineGroesse'
 
-/** Die Starter einer Klasse, deren Nummer nicht zu ihrer Größe passt, mit Grund. Starter ohne Nummer zählen nicht. */
+/** Die Starter einer Klasse, deren Nummer von Hand zu prüfen oder zu vergeben ist, mit Grund. */
 export function startNrAbweichungen(starters: readonly Starter[], klasse: ClassId, regeln: StartNrRegeln): { starter: Starter; art: StartNrAbweichung }[] {
   const fehlend = fehlendeDerKlasse(regeln.fehlend, klasse, regeln.praefixe)
   const alle = toepfe(klasse, regeln)
   const out: { starter: Starter; art: StartNrAbweichung }[] = []
   for (const p of sortedByStartNr(starters.filter((s) => s.klasse === klasse))) {
-    if (!p.startNr.trim()) continue
+    if (!p.startNr.trim()) {
+      // Ohne Bereiche ist eine leere Nummer nichts Besonderes (noch nicht vergeben); mit Bereichen
+      // heißt sie: Die Vergabe fand keine Weste – von Hand vergeben (20.11.2026).
+      if (alle.length === 0) continue
+      const g = gruppeFuer(p.groesse, alle)
+      const art: StartNrAbweichung = g !== null ? 'voll' : gruppeDerGroesse(p.groesse) === null ? 'keineGroesse' : 'keinBereich'
+      out.push({ starter: p, art })
+      continue
+    }
     // Streng gelesen: „5012“ in Klasse 5 ist keine Nummer eines Bereichs, sondern „außerhalb“.
     const n = nummerDerKlasse(p.startNr, klasse, regeln.praefixe)
     if (n === null) {
@@ -243,9 +243,9 @@ export function startNrAbweichungen(starters: readonly Starter[], klasse: ClassI
     else if (alle.length === 0) continue
     else {
       const t = alle.find((x) => n >= x.von && n <= x.bis)
-      const g = gruppeDerGroesse(p.groesse)
+      const g = gruppeFuer(p.groesse, alle)
       if (!t) out.push({ starter: p, art: 'ausserhalb' })
-      else if (g === null) out.push({ starter: p, art: 'ohneGroesse' })
+      else if (g === null && gruppeDerGroesse(p.groesse) === null) out.push({ starter: p, art: 'ohneGroesse' })
       else if (t.gruppe !== g) out.push({ starter: p, art: 'fremd' })
     }
   }

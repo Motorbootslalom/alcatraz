@@ -400,6 +400,12 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-20 · N · DMYV-Liste geklärt (Antwort des Nutzers): Klasse E ist E01–E30 (auf dem Zettel versehentlich
   E101–E130); die Klassen E bis 3 haben nur S–M, erst ab Klasse 4 ist nach Größen aufgeteilt; Klasse 7: 701–710 S–M,
   711–725 L–XL, 726–730 XXL. → `dm-2026.yaml` `startNrBereiche`
+- 2026-11-20 · N · Kein automatisches Ausweichen (ersetzt die Überlaufregel vom 19.11.): Ist der Bereich einer Größe
+  voll oder fehlt er, bleibt die Nummer leer und der Starter-Reiter nennt den Starter – „dann muss eh manuell geschaut
+  werden, wer eher in eine kleinere oder größere rutschen muss“. Hat eine Klasse nur Bereiche einer Gruppe (E–3), gilt
+  er für alle Größen. → `domain/startnrBereiche.ts` gruppeFuer
+- 2026-11-20 · N · Beispiel-Boote: lustige erfundene Namen (Flash, Merlin …), jedes Boot anders – Antwort des Nutzers,
+  damit ist die Frage „je Bootstyp oder je Klasse“ erledigt. → `data/boote.ts`
 
 ## Beispieldaten
 
@@ -431,7 +437,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-19 · N · Beispiel-Boote und Beispiel-Co-Piloten, je ein Knopf im Block „Besetzung“ (wo beides gepflegt wird)
   und unter „Beispieldaten“ neben der Beispiel-Besetzung (Wunsch des Nutzers). Auslegung bei der Umsetzung: Boote für
   jede Klasse der Veranstaltung (Regelwerk und Klassen mit Startern, wie die Tabelle), je Klasse ein anderer erfundener
-  Name (Tiere am Wasser, `data/boote.ts`, ohne „Delfin“ wegen „Dolphin“); Co-Piloten nur in den Klassen, in denen das
+  Name (seit 20.11.2026 lustige Namen wie Flash, Merlin, `data/boote.ts`, ohne „Delfin“ wegen „Dolphin“); Co-Piloten nur in den Klassen, in denen das
   Regelwerk einen vorsieht (`coPilot` im YAML), eine erfundene Person je Klasse aus `data/names.ts`. Steht schon etwas:
   erst Rückfrage, dann werden die Angaben dieser Klassen ersetzt, die übrigen bleiben. Eigener Verlaufseintrag;
   deterministisch über `saat`. → `lib/beispieldaten.ts`, `lib/beispielBoote.ts`, Actions `FILL_BEISPIEL_BOOTE`,
@@ -507,10 +513,6 @@ Zurzeit nichts.
 - Geburtstags-Ausnahme des DM-Reglements (ME ab dem 6. Geburtstag, M7 bis zum 27. Geburtstag): abschaltbar in den
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
-- Startnummern nach Westengröße (19.11.2026): Überlaufregel (erst größer, dann kleiner, sonst dahinter) und „ohne
-  Größe = größte Gruppe“ bestätigen. → `domain/startnrBereiche.ts`
-- Beispiel-Boote (19.11.2026): je Klasse ein eigener erfundener Bootsname. Realistischer wäre vielleicht ein Name
-  je Bootstyp (Klassen mit kleinem Boot teilen sich eins) – mit dem Nutzer klären. → `lib/beispieldaten.ts` beispielBoote
 - Startnummern nach Westengröße, Verschieben (19.11.2026): Ein Starter lässt sich nur innerhalb seiner Größengruppe
   verschieben (sonst wanderte eine Weste); die Ansicht sagt es mit einem Hinweis. Bestätigen. → `state/reducer/startnummern.ts`
 - Parallelslalom, Runden neu ordnen (19.11.2026, Prüfbefund): Bis in der Runde etwas erfasst oder sie im Betrieb

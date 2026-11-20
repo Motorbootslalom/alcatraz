@@ -54,9 +54,9 @@ function inFolge(state: AppState, starters: Starter[], vorher: readonly Starter[
   let neu = redistributeNumbers([...geordnet])
   // Mit Startnummern-Bereichen (19.11.2026) bleiben die Nummern in ihrem Bereich: Die neue Folge gilt
   // nur innerhalb jeder Größengruppe, und das Array folgt den Nummern. Ändert sich so nichts, bleibt der Stand.
-  // Fehlt noch jemandem die Nummer, ist nichts vergeben, das zu halten wäre: dann wie bisher.
+  // Starter ohne Nummer (Bereich voll, von Hand zu vergeben) bilden eine eigene Gruppe und bleiben leer.
   const regeln = startNrRegeln(state, klasse)
-  if (state.startNrMode === 'klasse' && regeln.bereiche.length > 0 && geordnet.every((p) => p.startNr.trim() !== '')) {
+  if (state.startNrMode === 'klasse' && regeln.bereiche.length > 0) {
     neu = sortedByStartNr(verteileInBereichen(geordnet, klasse, regeln))
     if (neu.every((p, i) => p.id === vorher[i]?.id && p.startNr === vorher[i]?.startNr)) return starters
   }

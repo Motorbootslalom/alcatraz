@@ -176,7 +176,7 @@ export default {
   'listopt.betrieb.abstaende.alleVorgabe': 'All back to the default',
   'listopt.startnr.title': 'Race numbers by vest size',
   'listopt.startnr.hint':
-    'Only for race numbers by class: in each class a range of numbers belongs to one size group of the vests (XS counts as S–M, XXXL as XXL). “Assign automatically” gives every driver the next free number from the range of their size; if it is full or missing, from a larger one, then a smaller one, otherwise consecutively behind. Existing numbers stay until they are reassigned.',
+    'Only for race numbers by class: in each class a range of numbers belongs to one size group of the vests (XS counts as S–M, XXXL as XXL). “Assign automatically” gives every driver the next free number from the range of their size; if a class only has ranges of one size, it applies to everyone. If the range is full or missing, the number stays empty and the Drivers tab names the driver – assign the number by hand. Existing numbers stay until they are reassigned.',
   'listopt.startnr.klasse': 'Class',
   'listopt.startnr.von': 'from',
   'listopt.startnr.bis': 'to',

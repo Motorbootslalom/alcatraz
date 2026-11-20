@@ -136,9 +136,9 @@ describe('Startnummern vergeben', () => {
     let ohne = field()
     for (const klasse of ['E', '1', '5'] as const) ohne = reducer(ohne, { type: 'SET_START_NR_BEREICHE', klasse, bereiche: [] })
     expect(reducer(ohne, { type: 'ASSIGN_START_NUMBERS' }).starters.map((s) => s.startNr)).toEqual(['E01', 'E02', '101', '501'])
-    // DM-Vorgabe (19.11.2026): E01 …; ohne Größe gilt der Starter als der größte (Klasse 5: XXL ab 529).
+    // DM-Vorgabe: E01 …; Klasse 5 ist nach Größen aufgeteilt – ohne Größe keine Nummer, von Hand (20.11.2026).
     const after = reducer(field(), { type: 'ASSIGN_START_NUMBERS' })
-    expect(after.starters.map((s) => s.startNr)).toEqual(['E01', 'E02', '101', '529'])
+    expect(after.starters.map((s) => s.startNr)).toEqual(['E01', 'E02', '101', ''])
   })
 
   it('klassisch: fortlaufend in der Reihenfolge der Verzahnung, mit Startwert und Lücken', () => {

@@ -104,8 +104,8 @@ startNrPraefix: { E: E }
 # änderbar (Einstellungen → Startnummern). Die Nummern sind so geschrieben, wie sie auf den Westen
 # stehen. Bestätigt vom Nutzer (20.11.2026): Klasse E ist E01–E30 (auf dem Zettel stand
 # versehentlich E101–E130); die Klassen E bis 3 haben nur S–M, erst ab Klasse 4 ist nach Größen
-# aufgeteilt; Klasse 7 wie gelesen. L/XL-Starter der Klassen E–3 weichen nach der Regel aus
-# (domain/startnrBereiche.ts ausweichFolge).
+# aufgeteilt; Klasse 7 wie gelesen. Hat eine Klasse nur eine Gruppe, gilt sie für alle Größen;
+# sonst kein Ausweichen, die Nummer vergibt man von Hand (domain/startnrBereiche.ts gruppeFuer).
 startNrBereiche:
   E: [{ von: E01, bis: E30, gruppe: S-M }]
   1: [{ von: 101, bis: 130, gruppe: S-M }]

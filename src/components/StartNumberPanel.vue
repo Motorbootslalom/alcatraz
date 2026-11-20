@@ -71,7 +71,7 @@ function assign() {
       {{ tn('numbers.abweichung', abweichungen.length) }}
       <ul>
         <li v-for="a in abweichungen" :key="a.starter.id" :data-starter="a.starter.id">
-          <b>{{ a.starter.startNr }}</b> {{ a.starter.vorname }} {{ a.starter.nachname }}<template v-if="a.starter.groesse"> ({{ a.starter.groesse }})</template>: {{ t(`numbers.abweichung.${a.art}`) }}
+          <b>{{ a.starter.startNr || '–' }}</b> {{ a.starter.vorname }} {{ a.starter.nachname }}<template v-if="a.starter.groesse"> ({{ a.starter.groesse }})</template>: {{ t(`numbers.abweichung.${a.art}`) }}
         </li>
       </ul>
     </div>

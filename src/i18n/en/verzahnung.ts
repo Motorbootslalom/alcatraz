@@ -6,11 +6,14 @@ export default {
   'numbers.dolphinPrefix.hint': 'E01 or D01. Applies to numbers that are newly assigned; existing ones stay until “Reassign race numbers” replaces them. Either way they sort as with a leading 0 – before the other classes.',
 
   'numbers.title': 'Race numbers',
-  'numbers.abweichung': '{n} number does not match the vest size: | {n} numbers do not match the vest size:',
+  'numbers.abweichung': 'Check by hand ({n} driver): | Check by hand ({n} drivers):',
   'numbers.abweichung.fehlend': 'vest missing',
   'numbers.abweichung.fremd': 'range of another size',
   'numbers.abweichung.ausserhalb': 'outside the ranges',
   'numbers.abweichung.ohneGroesse': 'no size',
+  'numbers.abweichung.voll': 'no number – range for this size is full, please assign by hand',
+  'numbers.abweichung.keinBereich': 'no number – no range for this size, please assign by hand',
+  'numbers.abweichung.keineGroesse': 'no number – no size, please enter a size or assign by hand',
   'numbers.mode.klasse': 'By class',
   'numbers.mode.klassisch': 'Consecutive',
   'numbers.hint.klasse':

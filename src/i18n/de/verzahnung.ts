@@ -4,11 +4,14 @@ export default {
   'numbers.dolphinPrefix.hint': 'E01 oder D01. Gilt für Nummern, die neu vergeben werden; vorhandene bleiben, bis „Startnummern neu vergeben“ sie ersetzt. Sortiert wird in beiden Fällen wie mit einer 0 davor – also vor den übrigen Klassen.',
 
   'numbers.title': 'Startnummern',
-  'numbers.abweichung': '{n} Nummer passt nicht zur Westengröße: | {n} Nummern passen nicht zur Westengröße:',
+  'numbers.abweichung': 'Von Hand prüfen ({n} Starter): | Von Hand prüfen ({n} Starter):',
   'numbers.abweichung.fehlend': 'Weste fehlt',
   'numbers.abweichung.fremd': 'Bereich einer anderen Größe',
   'numbers.abweichung.ausserhalb': 'außerhalb der Bereiche',
   'numbers.abweichung.ohneGroesse': 'ohne Größe',
+  'numbers.abweichung.voll': 'keine Nummer – Bereich seiner Größe voll, bitte von Hand vergeben',
+  'numbers.abweichung.keinBereich': 'keine Nummer – kein Bereich für seine Größe, bitte von Hand vergeben',
+  'numbers.abweichung.keineGroesse': 'keine Nummer – ohne Größe, bitte Größe eintragen oder von Hand vergeben',
   'numbers.mode.klasse': 'Klassenbasiert',
   'numbers.mode.klassisch': 'Klassisch',
   'numbers.hint.klasse':
