@@ -21,6 +21,10 @@ import { effectScope, ref, watch, type Ref } from 'vue'
  * Wahl bei den Beispieldaten (Zahl je Klasse, Herkünfte, Beispielwerte).
  * Mit der Veranstaltung endet das: `vergissAuswahl` (Zurücksetzen, Laden einer Sicherung).
  *
+ * Ausnahme `dauerhaft` (21.11.2026, Team-Filter der Zuschauerliste): im localStorage statt im sessionStorage – ein
+ * Bildschirm am Steg oder ein Zuschauer-Handy soll seine Wahl auch nach dem Schließen des Tabs behalten. Nur für
+ * Ansichten ohne Stand (Zuschauerliste, Lese-Link-Geräte); es bleibt Bedienung dieses Browsers, nie im AppState.
+ *
  * Ein gemerkter Wert kann veralten (die Klasse, die Herkunft gibt es nicht mehr): Gelesen wird
  * nur, was die Form des Anfangswerts hat oder `gueltig` besteht; ob es das Gewählte noch gibt,
  * prüft jede Ansicht dort, wo sie es verwendet.
@@ -28,17 +32,18 @@ import { effectScope, ref, watch, type Ref } from 'vue'
 const speicher = new Map<string, { wert: Ref<unknown>; anfang: () => unknown }>()
 const PREFIX = 'alcatraz.merke.'
 
-function lager(): Storage | undefined {
+function lager(dauerhaft = false): Storage | undefined {
   try {
+    if (dauerhaft) return typeof localStorage === 'undefined' ? undefined : localStorage
     return typeof sessionStorage === 'undefined' ? undefined : sessionStorage
   } catch {
     return undefined
   }
 }
 
-function lies(schluessel: string): unknown {
+function lies(schluessel: string, dauerhaft = false): unknown {
   try {
-    const roh = lager()?.getItem(PREFIX + schluessel)
+    const roh = lager(dauerhaft)?.getItem(PREFIX + schluessel)
     return roh ? JSON.parse(roh) : undefined
   } catch {
     return undefined
@@ -51,6 +56,8 @@ export function merke<T>(
   anfang: T | (() => T),
   optionen: {
     ueberNeuladen?: boolean
+    /** Im localStorage (übersteht auch das Schließen des Tabs); schließt `ueberNeuladen` ein. */
+    dauerhaft?: boolean
     /**
      * Prüft, was nach dem Neuladen gelesen wurde – nötig, wo der Anfangswert die Form nicht
      * verrät (`undefined`) oder nur bestimmte Werte gelten. Ob es das Gewählte noch GIBT (eine
@@ -63,13 +70,15 @@ export function merke<T>(
   if (!r) {
     const beginn = () => (typeof anfang === 'function' ? (anfang as () => T)() : anfang)
     const start = beginn()
-    const gelesen = optionen.ueberNeuladen ? lies(schluessel) : undefined
+    const dauerhaft = optionen.dauerhaft === true
+    const ueberNeuladen = optionen.ueberNeuladen === true || dauerhaft
+    const gelesen = ueberNeuladen ? lies(schluessel, dauerhaft) : undefined
     // Nur übernehmen, was die Form des Anfangswerts hat (ein Objekt bleibt ein Objekt).
     const form = optionen.gueltig ? optionen.gueltig(gelesen) : typeof gelesen === typeof start && Array.isArray(gelesen) === Array.isArray(start)
     const passt = gelesen !== undefined && gelesen !== null && form
     r = ref(passt ? gelesen : start) as Ref<T>
     speicher.set(schluessel, { wert: r as Ref<unknown>, anfang: beginn })
-    if (optionen.ueberNeuladen) {
+    if (ueberNeuladen) {
       const wert = r
       // Losgelöst von der Ansicht, die zuerst fragt: Der Wert lebt so lange wie das Fenster.
       // Ein Beobachter im Geltungsbereich der Ansicht endete mit ihr – wer die Ansicht verlässt
@@ -79,7 +88,7 @@ export function merke<T>(
           wert,
           (neu) => {
             try {
-              lager()?.setItem(PREFIX + schluessel, JSON.stringify(neu))
+              lager(dauerhaft)?.setItem(PREFIX + schluessel, JSON.stringify(neu))
             } catch {
               // Voller oder gesperrter Speicher: Dann gilt die Auswahl eben nur bis zum Neuladen.
             }
@@ -111,14 +120,16 @@ export function vergissAlles(): void {
 }
 
 function raeumeLager(): void {
-  try {
-    const s = lager()
-    if (!s) return
-    for (let i = s.length - 1; i >= 0; i--) {
-      const k = s.key(i)
-      if (k?.startsWith(PREFIX)) s.removeItem(k)
+  for (const dauerhaft of [false, true]) {
+    try {
+      const s = lager(dauerhaft)
+      if (!s) continue
+      for (let i = s.length - 1; i >= 0; i--) {
+        const k = s.key(i)
+        if (k?.startsWith(PREFIX)) s.removeItem(k)
+      }
+    } catch {
+      // ohne Speicher gibt es nichts zu vergessen
     }
-  } catch {
-    // ohne Speicher gibt es nichts zu vergessen
   }
 }

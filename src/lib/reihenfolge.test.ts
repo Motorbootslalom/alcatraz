@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptyState, reducer, type Action } from '../state/reducer'
 import { beschreibe } from './verlauf'
-import { istGeordnet, mische, ordneNach, sortierSpalten } from './reihenfolge'
+import { gleicheFolge, istGeordnet, istSortierWahl, mische, naechsteSortierung, ordneNach, sortierPfeil, sortierSpalten } from './reihenfolge'
 import { sortedByStartNr } from '../domain/startnumbers'
 import type { AppState, ClassId, Starter } from '../types'
 
@@ -191,5 +191,42 @@ describe('Reducer: ORDER_STARTERS und SHUFFLE_STARTERS', () => {
   it('Verlauf: „Reihenfolge geändert“ mit der Klasse, für alle Klassen ohne', () => {
     expect(beschreibe({ type: 'ORDER_STARTERS', klassen: ['4'], nach: 'groesse', absteigend: false }, { starters: [] })).toEqual({ art: 'reihenfolge', klasse: '4' })
     expect(beschreibe({ type: 'SHUFFLE_STARTERS', klassen: ['3', '4'], saat: 1 }, { starters: [] })).toEqual({ art: 'reihenfolge' })
+  })
+})
+
+// Drei Stufen je Spaltenkopf (Wunsch des Nutzers vom 21.11.2026, Befund 16).
+describe('Stufen der Sortierung', () => {
+  it('Klick 1 absteigend, Klick 2 aufsteigend, Klick 3 keine; eine andere Spalte beginnt bei Stufe 1', () => {
+    const k1 = naechsteSortierung(null, 'herkunft')
+    expect(k1).toEqual({ spalte: 'herkunft', absteigend: true })
+    const k2 = naechsteSortierung(k1, 'herkunft')
+    expect(k2).toEqual({ spalte: 'herkunft', absteigend: false })
+    expect(naechsteSortierung(k2, 'herkunft')).toBeNull()
+    expect(naechsteSortierung(k2, 'nachname')).toEqual({ spalte: 'nachname', absteigend: true })
+    expect(naechsteSortierung(k1, 'nachname')).toEqual({ spalte: 'nachname', absteigend: true })
+  })
+
+  it('Pfeile ↓ ↑ ↕', () => {
+    expect(sortierPfeil({ spalte: 'vorname', absteigend: true }, 'vorname')).toBe('↓')
+    expect(sortierPfeil({ spalte: 'vorname', absteigend: false }, 'vorname')).toBe('↑')
+    expect(sortierPfeil({ spalte: 'vorname', absteigend: false }, 'nachname')).toBe('↕')
+    expect(sortierPfeil(null, 'nachname')).toBe('↕')
+  })
+
+  it('absteigend: Z→A, ohne Angabe hinten', () => {
+    const feld = [mk('a', '401', { verein: 'Club A' }), mk('b', '402', { verein: '' }), mk('c', '403', { verein: 'Club Z' })]
+    expect(ordneNach(feld, { spalte: 'herkunft', absteigend: true }, 'verein').map((p) => p.id)).toEqual(['c', 'a', 'b'])
+  })
+
+  it('gleicheFolge und istSortierWahl (gemerkte Auswahl)', () => {
+    const feld = [mk('a', '401'), mk('b', '402')]
+    expect(gleicheFolge(['a', 'b'], feld)).toBe(true)
+    expect(gleicheFolge(['b', 'a'], feld)).toBe(false)
+    expect(gleicheFolge(['a'], feld)).toBe(false)
+    expect(gleicheFolge(undefined, feld)).toBe(false)
+    expect(istSortierWahl({ spalte: 'nachname', absteigend: true, folge: { 4: ['a', 'b'] } })).toBe(true)
+    expect(istSortierWahl({ spalte: 'quatsch', absteigend: true, folge: {} })).toBe(false)
+    expect(istSortierWahl({ spalte: 'nachname', absteigend: true, folge: { 4: [1] } })).toBe(false)
+    expect(istSortierWahl(null)).toBe(false)
   })
 })

@@ -6,6 +6,7 @@ import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from '../..
 import type { FassungsLage, LeseUmgebung } from '../../geraete/geraet'
 import { freigabeBereiche, listenAufgaben } from '../../geraete/aufgaben'
 import { oeffneErfassung, type Erfassung } from '../../geraete/erfassen'
+import { oeffneTabWache } from '../../geraete/tabWache'
 import { liesListe } from '../../wkr/liste'
 import { geraeteArt } from '../../geraete/geraeteName'
 import { normalisiereCode } from '../../geraete/koppeln'
@@ -61,7 +62,7 @@ const OHNE_QUITTUNG_MS = 10_000
 /** So lange wartet eine Anmeldung auf Antwort: Auf einen falschen Code antwortet niemand (sein Thema hört keiner). */
 const KEINE_ANTWORT_MS = 15_000
 
-type Lage = { art: 'ohne' } | { art: 'entkoppelt' } | { art: 'ungueltig' } | { art: 'fassung'; lage: FassungsLage } | { art: 'geraet'; geraet: GekoppeltesGeraet }
+type Lage = { art: 'ohne' } | { art: 'entkoppelt' } | { art: 'andererTab' } | { art: 'ungueltig' } | { art: 'fassung'; lage: FassungsLage } | { art: 'geraet'; geraet: GekoppeltesGeraet }
 const lage = shallowRef<Lage>({ art: 'ohne' })
 const geraet = computed(() => (lage.value.art === 'geraet' ? lage.value.geraet : null))
 let geoeffnet: string | undefined
@@ -71,18 +72,41 @@ const name = ref(vorschlag())
 const code = ref('')
 const codeFalsch = ref(false)
 
+/**
+ * Befund 15 (21.11.2026): Nur EIN Tab je Gerät sendet und schreibt die Geräte-Ablage – der zuletzt geöffnete
+ * (geraete/tabWache.ts). Gerät und Erfassung bekommen die bewachte Ablage; wird dieser Tab verdrängt, stoppen beide
+ * sofort (flush 'sync': vor dem nächsten POST) und die Seite bietet „Hier weitermachen“ an.
+ */
+const wache = oeffneTabWache(props.umgebung?.ablage !== undefined ? { ablage: props.umgebung.ablage } : {})
+const umgebungBewacht = (): LeseUmgebung => ({ ...props.umgebung, ablage: wache.ablage, aktualisiere: props.aktualisiere })
+watch(
+  wache.verdraengt,
+  (weg) => {
+    if (!weg) return
+    stoppeWkr()
+    geraet.value?.stop()
+    lage.value = { art: 'andererTab' }
+  },
+  { flush: 'sync' },
+)
+function hierWeiter(): void {
+  wache.uebernimm()
+  oeffne(undefined)
+}
+
 function oeffne(text: string | undefined): void {
   geraet.value?.stop()
   geoeffnet = text
+  if (!wache.meins()) return
   if (!text) {
-    const g = oeffneGekoppelt({ ...props.umgebung, aktualisiere: props.aktualisiere })
+    const g = oeffneGekoppelt(umgebungBewacht())
     lage.value = g ? { art: 'geraet', geraet: g } : { art: 'ohne' }
     // Nach dem Neuladen mitten im Koppeln: Die Wartezeit auf die Antwort beginnt jetzt.
     if (g?.lage.value === 'koppelt') seitKoppeln.value = Date.now()
     if (g) void g.start()
     return
   }
-  const r = oeffneKoppelLink(text, { ...props.umgebung, aktualisiere: props.aktualisiere })
+  const r = oeffneKoppelLink(text, umgebungBewacht())
   if (!r.ok) {
     lage.value = r.code === 'fassung' ? { art: 'fassung', lage: r.lage } : { art: 'ungueltig' }
     return
@@ -112,6 +136,7 @@ onMounted(() => oeffne(props.paket))
 onBeforeUnmount(() => {
   stoppeWkr()
   geraet.value?.stop()
+  wache.stop()
 })
 
 // --- Koppeln ---
@@ -165,7 +190,7 @@ watch(
     if (wkrVon && wkrVon !== g) stoppeWkr()
     if (!g || wkr.value || listenAufgaben(g.aufgaben.value).length === 0) return
     const u = props.umgebung
-    wkr.value = oeffneErfassung(g, { ...(u?.ablage !== undefined ? { ablage: u.ablage } : {}), ...(u?.uhr ? { uhr: u.uhr } : {}) })
+    wkr.value = oeffneErfassung(g, { ablage: wache.ablage, ...(u?.uhr ? { uhr: u.uhr } : {}) })
     wkrVon = g
   },
   { immediate: true },
@@ -242,7 +267,14 @@ function entkopple(): void {
   <div class="geraet-freigabe" :data-lage="geraet ? (geraet.beendet.value ? 'beendet' : koppelLage) : lage.art">
     <!-- Ohne Gerät: kein oder kaputter Link, andere Fassung, eben entkoppelt. -->
     <section v-if="!geraet" class="geraet-meldung" role="status" :data-meldung="lage.art">
-      <template v-if="lage.art === 'entkoppelt'">
+      <template v-if="lage.art === 'andererTab'">
+        <h1>{{ t('geraete.freigabe.andererTab') }}</h1>
+        <p>{{ t('geraete.freigabe.andererTab.hint') }}</p>
+        <p>
+          <button type="button" class="btn primary" data-action="hier-weiter" @click="hierWeiter">{{ t('geraete.freigabe.hierWeiter') }}</button>
+        </p>
+      </template>
+      <template v-else-if="lage.art === 'entkoppelt'">
         <h1>{{ t('geraete.freigabe.entkoppelt') }}</h1>
         <p>{{ t('geraete.freigabe.keinGeraet.hint') }}</p>
       </template>
@@ -288,7 +320,7 @@ function entkopple(): void {
 
       <!-- Gekoppelt: dieselbe Start-Freigabe wie am Bedienrechner, nur die eigenen Bereiche. -->
       <template v-else-if="koppelLage === 'gekoppelt'">
-        <WkrGeraet v-if="zeigeWkr && wkr" :class="{ 'wkr-mit-reiter': mitFreigabe && wkrListen.length > 0 }" :quelle="wkr" :ablage="umgebung?.ablage" :nur-liste="wkrListe" :meldung-fuer="meldungFuer" :raum="raum" />
+        <WkrGeraet v-if="zeigeWkr && wkr" :class="{ 'wkr-mit-reiter': mitFreigabe && wkrListen.length > 0 }" :quelle="wkr" :ablage="umgebung?.ablage" :nur-liste="wkrListe" :meldung-fuer="meldungFuer" :raum="raum" :bildschirm-kann-aus="bildschirmKannAus" />
         <section v-else-if="!sicht" class="geraet-meldung" role="status" data-meldung="warte">
           <h1>{{ t('geraete.freigabe.warte') }}</h1>
         </section>
@@ -339,6 +371,8 @@ function entkopple(): void {
         <p v-else-if="keineAntwort" class="boat-banner warn" role="alert" data-teil="keine-antwort">{{ t('geraete.freigabe.keineAntwort') }}</p>
         <!-- Gescannt und gescheitert (etwa Token abgelaufen, bevor die Anmeldung hinausging): Wer gescannt hat, hat keinen Code. -->
         <p v-if="ueberQr && (koppelLage === 'abgelehnt' || keineAntwort)" class="note" data-teil="qr-nochmal">{{ t('geraete.freigabe.qrNochmal') }}</p>
+        <!-- Befund 6 (21.11.2026): Wer den Koppel-Link (ohne Token) gescannt hat, wollte meist den QR-Code zum Koppeln. -->
+        <p v-if="koppelLage === 'ungekoppelt' && !ueberQr" class="boat-banner" role="note" data-teil="ohne-token">{{ t('geraete.freigabe.ohneToken') }}</p>
         <p class="note">{{ t('geraete.freigabe.koppeln.hint') }}</p>
         <form class="geraet-koppel-form" @submit.prevent="koppeln">
           <label>

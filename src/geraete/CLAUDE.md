@@ -115,6 +115,13 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   gesehen, stop. gekoppelt.ts: `kanal` (empfange, schicke, unbestaetigt, bestaetige, id, zuletztGesendet);
   transport.ts GeraetTransport.eigeneId(). ablage.ts: `alcatraz.geraet.wkr` (geraetWkrAblage: Raum + 36 h; pruefeRaum/
   verlasseRaum räumen ihn). Tests: wkr.test.ts (Ende zu Ende mit echtem Reducer).
+- `tabWache.ts` (Befund 15, 21.11.2026) – oeffneTabWache({ablage?, fenster?, id?}) → {ablage (bewacht: schreibt
+  `alcatraz.geraet.*` nur, solange dieser Tab der aktive ist), verdraengt, meins(), uebernimm(), stop()}: Der zuletzt
+  geöffnete Tab schreibt seine Kennung nach `alcatraz.geraet.tab` (ABLAGE.geraetTab) und gewinnt; ein älterer merkt
+  es am storage-Ereignis bzw. beim nächsten Schreiben. GeraetFreigabe.vue gibt Gerät UND Erfassung die bewachte
+  Ablage, stoppt beide bei `verdraengt` (flush 'sync') und zeigt `data-meldung="andererTab"` mit „Hier weitermachen“
+  (`hier-weiter`). Kein Web Lock (fehlt über http, hielte den neuen Tab draußen). Tests: tabWache.test.ts,
+  src/GeraetWkr.test.ts „Befund 15“.
 - `testBrowser.ts` – nur Tests: nachgebauter Browser (Fenster mit gemeinsamem Speicher + storage-Ereignis,
   BroadcastChannel, Web Locks).
 - `fuehrung.ts` – waehleFuehrung(id?, umgebung?) → `{fuehrt, art: 'sperre'|'lease', stop}`: Web Lock
@@ -284,6 +291,10 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   wenn das Fenster dazwischen schließt. Eine Geräte-ID wird nie an einen anderen Schlüssel gebunden (S1, `id-belegt`).
 - Nummern eines Geräts: Ein neuer Stand beginnt bei der Uhrzeit (ms), nie bei 1 – und ablage.ts hält Kennung und
   Stand in EINEM Eintrag. Beides, damit ein Schlüssel nie mit Nummern unter `letzteNr` sendet (still verworfen).
+  Dazu liest GeraetTransport die Nummer vor jedem Senden und Ablegen frisch nach (nimmHoechsteNr, 21.11.2026): Zwei Tabs
+  derselben Kopplung vergaben sonst dieselben Nummern – das Gerät zeigte ✓ (`bis` deckt sie), der Host hatte nichts.
+  Das allein reicht nicht (Reihenfolge zweier Schlangen, gegenseitiges Überschreiben von Schlange und Ausgang): Nur
+  EIN Tab sendet (tabWache.ts). Wer ein Gerät ohne GeraetFreigabe öffnet, gibt ihm selbst eine bewachte Ablage.
 - Unbekannte Schlüssel auf g öffnet der Host nie (dort schreiben nur Gekoppelte); Koppel-Themen je eigener Eimer.
   Ausnahme ohne Öffnen: Ein Schlüssel aus `raum.entzogen` (pk) bekommt gedrosselt noch einmal `entzogen` auf sein
   d-Thema (erinnereEntzogenes) – sonst erführe ein Gerät, das länger als 12 h aus war, den Entzug nie (Prüfung E7).

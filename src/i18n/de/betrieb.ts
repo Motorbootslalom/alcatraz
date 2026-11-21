@@ -199,6 +199,9 @@ export default {
   'zuschauer.danach': 'Danach',
   'zuschauer.klasse': 'Klasse',
   'zuschauer.alle': 'Alle',
+  // Team-Filter (Feldtest 21.11.2026): Team = Herkunft der Veranstaltung (Verein, Landesverband, Nation).
+  'zuschauer.team': 'Team',
+  'zuschauer.team.gewaehlt': '{n} gewählt',
   'zuschauer.caIn': 'ca. in {zeit}',
   'zuschauer.vorsteg': 'zum Vorsteg in {zeit}',
   'zuschauer.vorsteg.gleich': 'gleich zum Vorsteg',
@@ -208,7 +211,7 @@ export default {
   'zuschauer.zuEnde': 'Alle Läufe sind zu Ende.',
   'zuschauer.zuEnde.runde': 'Alle Runden sind zu Ende.',
   'zuschauer.ohneZeit': 'Im Parallel-Slalom ohne Wartezeiten.',
-  'zuschauer.leer': 'Keine Starts dieser Klasse.',
+  'zuschauer.leer': 'Keine Starts für diese Auswahl.',
   'zuschauer.hinweis': 'Wartezeiten sind Schätzungen aus den bisherigen Startabständen; für einen Lauf, der noch nicht begonnen hat, und während einer Pause oder Störung gibt es keine.',
 
   'meldung.info': 'Hinweis',
@@ -380,6 +383,11 @@ export default {
   'geraete.koppeln.bereiche': 'Für das nächste Gerät freigeben',
   'geraete.koppeln.bereicheFehlen': 'Erst einen Parcours zum Freigeben oder eine WKR-Liste wählen.',
   'geraete.koppeln.qr': 'QR-Code zeigen',
+  // Feldtest 21.11.2026 (Befund 6): QR-Code als Hauptweg, Geräte-Code + Koppel-Link als zugeklappter zweiter Weg.
+  'geraete.koppeln.qr.kurz': 'Mit dem Handy scannen – fertig, kein Code nötig.',
+  'geraete.koppeln.wegCode': 'Anderer Weg: Geräte-Code über Funk',
+  'geraete.koppeln.wegCode.hint':
+    'Nur, wenn das Handy den QR-Code nicht scannen kann: Koppel-Link vorab aufs Handy geben, dann einen Geräte-Code ausgeben und durchsagen.',
   'geraete.koppeln.code': 'Geräte-Code ausgeben',
   'geraete.koppeln.qr.titel': 'QR-Code zum Koppeln',
   'geraete.koppeln.qr.hint': 'Mit dem Handy scannen – es koppelt sich sofort. Der Code wechselt alle 30 Sekunden; ein Foto davon taugt nicht.',
@@ -434,6 +442,9 @@ export default {
   'geraete.freigabe.titel': 'Start-Freigabe',
   'geraete.freigabe.koppeln': 'Dieses Gerät koppeln',
   'geraete.freigabe.koppeln.hint': 'Den Geräte-Code eingeben, den der Bedienrechner zeigt (6 Zeichen).',
+  // Befund 6: Koppel-Link ohne Token geöffnet (statt des QR-Codes gescannt) – wohin es eigentlich geht.
+  'geraete.freigabe.ohneToken':
+    'Am einfachsten: am Bedienrechner unter „QR-Code zeigen“ den QR-Code scannen – dann ist kein Code nötig. Oder den Geräte-Code eingeben.',
   'geraete.freigabe.name': 'Name dieses Geräts',
   'geraete.freigabe.code': 'Geräte-Code',
   'geraete.freigabe.code.falsch': 'Das ist kein Geräte-Code (6 Zeichen, Buchstaben und Ziffern).',
@@ -452,6 +463,9 @@ export default {
   'geraete.freigabe.wiederKoppeln': 'Mit einem neuen Code wieder koppeln',
   'geraete.freigabe.keinGeraet': 'Dieses Gerät ist nicht gekoppelt.',
   'geraete.freigabe.keinGeraet.hint': 'Den QR-Code am Bedienrechner scannen oder den Koppel-Link öffnen.',
+  'geraete.freigabe.andererTab': 'In einem anderen Tab geöffnet.',
+  'geraete.freigabe.andererTab.hint': 'Nur ein Tab darf senden – sonst gehen Eingaben verloren. Den anderen Tab schließen oder hier weitermachen.',
+  'geraete.freigabe.hierWeiter': 'Hier weitermachen',
   'geraete.freigabe.entkoppeln': 'Gerät entkoppeln',
   'geraete.freigabe.entkoppeln.frage': 'Gerät entkoppeln?',
   'geraete.freigabe.entkoppeln.text':
@@ -562,14 +576,23 @@ export default {
   // W2.4: Geräteleiste und Rückstand in der Start-Freigabe (Bedienrechner und Freigabe-Handy).
   'betrieb.freigabe.leiste': 'WKR-Erfassung',
   'betrieb.freigabe.leiste.title': 'Stand der WKR-Erfassung – zum Unterreiter WKR',
-  'betrieb.freigabe.offen': '{n} offen',
-  'betrieb.freigabe.fertig': 'nichts offen',
+  // Feldtest 21.11.2026 (WKR_ANNAHMEN N9): Zeichen nach Erfassungsstand, Verbindung klein dahinter.
+  'betrieb.freigabe.fertig': 'fertig',
+  'betrieb.freigabe.wartet': 'wartet {n}',
+  'betrieb.freigabe.weg': 'Gerät weg',
+  'betrieb.freigabe.imGeraet': '{n} im Gerät',
+  'betrieb.freigabe.verbindung': 'Verbindung: {ampel}',
+  'betrieb.freigabe.legende': '✓ fertig · ⧗ wartet auf den WKR · ✕ Gerät weg · ▭ Papier; klein dahinter die Verbindung (● gehört, ◐ still, ○ ruht)',
   'betrieb.freigabe.papier': 'Papierbogen',
   'betrieb.freigabe.ohneGeraet': 'kein Gerät',
   'betrieb.freigabe.rueckstand': 'Rückstand der WKR-Erfassung:',
-  'betrieb.freigabe.frage': 'Trotzdem freigeben?',
-  'betrieb.freigabe.frage.text': 'Die WKR-Erfassung ist im Rückstand. Gesperrt wird nicht – der Start kann trotzdem gezeigt werden.',
-  'betrieb.freigabe.frage.ja': 'Trotzdem freigeben',
+  'betrieb.freigabe.rueckstand.liste': '{liste} {n} offen ({nr})',
+  // N8/N10: Rückfrage schon ab einem offenen Start, nennt Liste und Startnummern; gesperrt wird nie.
+  'betrieb.freigabe.frage': 'Trotzdem weiter?',
+  'betrieb.freigabe.frage.liste': '{liste} hat {nr} noch nicht abgeschickt. | {liste} hat {nr} noch nicht abgeschickt ({n} Starts).',
+  'betrieb.freigabe.frage.text':
+    'Gesperrt wird nicht – fällt ein Gerät aus, kann der Start trotzdem gezeigt werden. Bleibt eine Liste länger zurück: am Bedienrechner unter Betrieb → WKR „Papier ab“ wählen.',
+  'betrieb.freigabe.frage.ja': 'Trotzdem weiter',
   'betrieb.wkr.eingang.kopf': 'Start {nr} · {liste} · {punkt} · {geraet}, {zeit}',
   'betrieb.wkr.entkoppelt': 'entkoppeltes Gerät',
   'betrieb.wkr.eingang.zelle': '{feld}: Gerät {wert} · steht {steht}',

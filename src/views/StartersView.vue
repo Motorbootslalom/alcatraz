@@ -13,7 +13,7 @@ import StartNumberPanel from '../components/StartNumberPanel.vue'
 import ExcelPanel from '../components/ExcelPanel.vue'
 import ClassSection from '../components/ClassSection.vue'
 import StarterSperre from '../components/StarterSperre.vue'
-import { istGeordnet, sortierSpalten, spaltenText, type SortierSpalte, type Sortierung } from '../lib/reihenfolge'
+import { gleicheFolge, istSortierWahl, naechsteSortierung, sortierPfeil, sortierSpalten, spaltenText, type SortierSpalte, type SortierWahl } from '../lib/reihenfolge'
 import { neueSaat } from '../lib/saat'
 import type { ClassId, Starter } from '../types'
 
@@ -77,30 +77,42 @@ const sortierenAlle = ref(false)
 const mitGeschlecht = computed(() => parallel.value || state.value.starters.some((p) => p.geschlecht !== undefined))
 const spaltenAlle = computed(() => sortierSpalten(state.value.originMode, mitGeschlecht.value))
 const klassenMitStartern = computed(() => classes.value.map((c) => c.id).filter((k) => byClass.value.get(k)!.length > 0))
-const alleLetzte = ref<Sortierung | null>(null)
-/** Die Richtung gilt nur, solange jede Klasse noch so steht. */
+/**
+ * Drei Stufen wie in jeder Klasse (21.11.2026, lib/reihenfolge.ts naechsteSortierung): ↓, ↑, Markierung weg.
+ * Bedienauswahl mit der Folge jeder Klasse nach dem Sortieren – die Markierung gilt, solange jede Klasse
+ * noch so steht (mit Startnummern-Bereichen sortiert der Reducer nur je Größengruppe, istGeordnet trüge nicht).
+ */
+const alleWahl = merke<SortierWahl | null>('starter.sortierung.alle', null, { ueberNeuladen: true, gueltig: istSortierWahl })
 const alleAktiv = computed(() => {
-  const s = alleLetzte.value
-  return s && klassenMitStartern.value.every((k) => istGeordnet(byClass.value.get(k)!, s, state.value.originMode)) ? s : null
+  const w = alleWahl.value
+  return w && klassenMitStartern.value.every((k) => gleicheFolge(w.folge[k], byClass.value.get(k)!)) ? w : null
 })
 
 function sortiereAlle(spalte: SortierSpalte) {
-  const absteigend = alleAktiv.value?.spalte === spalte ? !alleAktiv.value.absteigend : false
-  alleLetzte.value = { spalte, absteigend }
-  dispatch({ type: 'ORDER_STARTERS', klassen: klassenMitStartern.value, nach: spalte, absteigend })
+  const neu = naechsteSortierung(alleAktiv.value, spalte)
+  if (!neu) {
+    // Stufe 3: Markierung weg (auch in den Klassen, die sie von hier hatten), die Reihenfolge bleibt.
+    alleWahl.value = null
+    return
+  }
+  const klassen = klassenMitStartern.value
+  dispatch({ type: 'ORDER_STARTERS', klassen, nach: spalte, absteigend: neu.absteigend })
+  // Die Folge direkt aus dem Stand: byClass rechnet erst beim nächsten Lesen nach, liest aber denselben Stand.
+  alleWahl.value = { ...neu, folge: Object.fromEntries(klassen.map((k) => [k, byClass.value.get(k)!.map((p) => p.id)])) }
   sortTick.value++
 }
 
 function mischeAlle() {
-  alleLetzte.value = null
+  alleWahl.value = null
   dispatch({ type: 'SHUFFLE_STARTERS', klassen: klassenMitStartern.value, saat: neueSaat() })
   sortTick.value++
 }
 
-const pfeilAlle = (spalte: SortierSpalte) => (alleAktiv.value?.spalte === spalte ? (alleAktiv.value.absteigend ? '▼' : '▲') : '↕')
+const pfeilAlle = (spalte: SortierSpalte) => sortierPfeil(alleAktiv.value, spalte)
 function titelAlle(spalte: SortierSpalte) {
   const column = t(spaltenText(spalte, state.value.originMode))
-  return alleAktiv.value?.spalte === spalte ? t('starters.order.byActive', { column, direction: t(alleAktiv.value.absteigend ? 'starters.order.desc' : 'starters.order.asc') }) : t('starters.order.by', { column })
+  if (alleAktiv.value?.spalte !== spalte) return t('starters.order.by', { column })
+  return t(alleAktiv.value.absteigend ? 'starters.order.byDesc' : 'starters.order.byAsc', { column })
 }
 </script>
 
@@ -191,7 +203,7 @@ function titelAlle(spalte: SortierSpalte) {
       :sort-tick="sortTick"
       :open="expanded.has(c.id)"
       :pokal-auswahl="pokalAuswahl"
-      :sortierung="alleLetzte"
+      :sortierung="alleWahl"
       @toggle="toggle(c.id)"
       @oeffne="oeffne"
     />

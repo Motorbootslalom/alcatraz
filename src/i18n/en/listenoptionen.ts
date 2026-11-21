@@ -157,12 +157,12 @@ export default {
   'listopt.betrieb.steg.hint':
     'After the start in the boat, this many starts are “at the pontoon”, the next ones “at pontoon entry” (0 to {max} each) – on the spectator list and in the starting order. “Time until pontoon entry”: whoever belongs to them must be at pontoon entry.',
   'listopt.betrieb.wkr': 'Backlog of the race officials’ entry',
-  'listopt.betrieb.wkrRueckstand': 'Warn from more than … open starts',
+  'listopt.betrieb.wkrRueckstand': 'Warn from … open starts',
   'listopt.betrieb.wkrWarnung': 'On a backlog',
   'listopt.betrieb.wkrWarnung.warnen': 'only warn',
   'listopt.betrieb.wkrWarnung.nachfragen': 'ask before showing',
   'listopt.betrieb.wkr.hint':
-    'Only for lists the race officials enter on a device: if more shown starts are open on a list than set here ({min} to {max}), a warning appears above “Next start”; with “ask”, start release asks before every start it shows. Paused, signed-off and paper lists never count. Nothing is ever blocked – a silent phone would otherwise stop the competition.',
+    'Only for lists the race officials enter on a device: if at least as many shown starts are open on a list as set here ({min} to {max}; 1 = the race official has not sent the last start yet), a warning appears above “Next start”; with “ask”, start release asks before every start it shows – on the control computer and on the start release phone. If you enter gate 5 or mooring digitally with several boats on the water, set a higher number. Paused, signed-off and paper lists never count. Nothing is ever blocked – a failed phone would otherwise stop the competition.',
   'listopt.betrieb.abstaende': 'Intervals between starts',
   'listopt.betrieb.abstaende.hint':
     'Interval between two starts in seconds ({min} to {max}), run and boat change together – the starting order and the spectator list estimate waiting times from it. From {ab} measured intervals of a class on, the mean of the measurement applies, before that the own value, otherwise the default: that of the rulebook or the means of the DM 2025. Clearing a field means: the default again.',

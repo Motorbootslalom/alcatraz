@@ -127,8 +127,7 @@ function leser(raum: HostRaum, welches: 'a' | 'z' = 'a', mehr: Partial<NtfyZeite
 }
 
 /** Ein Gerät, das sich mit dem Code koppeln will (noch ohne Antwort). */
-function geraet(raum: HostRaum, id: string, schluessel = neueGeraeteSchluessel(), uhr?: () => number, zeiten: Partial<NtfyZeiten> = SCHNELL) {
-  const speicher = geraetSpeicherImSpeicher()
+function geraet(raum: HostRaum, id: string, schluessel = neueGeraeteSchluessel(), uhr?: () => number, zeiten: Partial<NtfyZeiten> = SCHNELL, speicher = geraetSpeicherImSpeicher()) {
   const t = new GeraetTransport({
     server: SERVER,
     raum: raum.r,
@@ -411,6 +410,20 @@ describe('Geräte koppeln und Actions', () => {
     expect(ntfy.bodies(geraeteThemaVon(h.speicher.lies()!)).length).toBeGreaterThanOrEqual(3)
     expect(hostWires(direktThemaVon(h.raum, 'geraet-a')).length).toBeGreaterThanOrEqual(3)
     expect(h.speicher.lies()!.geraete['geraet-a'].letzteNr).toBe(nrn[2])
+  })
+
+  it('zwei Tabs mit derselben Kopplung (ein Speicher): nie dieselbe Nummer – jede Action kommt an (Befund 15, 21.11.2026)', async () => {
+    const h = host()
+    const actions = bediene(h)
+    await starte(h)
+    const a = await gekoppelt(h.raum, 'geraet-a')
+    // Der zweite Tab liest den abgelegten Stand – danach zählt jeder für sich weiter, solange er nicht nachliest.
+    const b = geraet(h.raum, 'geraet-a', a.schluessel, undefined, SCHNELL, a.speicher)
+    await b.t.start()
+    const nrn = [a.t.sende(action()), b.t.sende(action()), a.t.sende(action()), b.t.sende(action())]
+    expect(new Set(nrn).size).toBe(4)
+    await bis(() => a.t.unbestaetigt().length === 0 && b.t.unbestaetigt().length === 0)
+    expect(new Set(actions.map((e) => e.nr))).toEqual(new Set(nrn))
   })
 
   it('nimmt von einem nicht gekoppelten Gerät nur die Anmeldung an', async () => {

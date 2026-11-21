@@ -22,7 +22,9 @@ import { klasseFest } from '../state/reducer'
 import { adresse } from '../lib/router'
 import type { ClassId, Starter } from '../types'
 import { GESCHLECHTER, geschlechtKuerzel, istGeschlecht } from '../domain/geschlecht'
-import { istGeordnet, sortierSpalten, spaltenText, type SortierSpalte, type Sortierung } from '../lib/reihenfolge'
+import { gleicheFolge, istSortierWahl, naechsteSortierung, sortierPfeil, sortierSpalten, spaltenText, type SortierSpalte, type SortierWahl } from '../lib/reihenfolge'
+import { merke } from '../lib/merken'
+import { sortedByStartNr } from '../domain/startnumbers'
 import { neueSaat } from '../lib/saat'
 
 const props = defineProps<{
@@ -35,8 +37,8 @@ const props = defineProps<{
   sortTick: number
   /** Spalte „zählt für die Pokalauswertung“ zeigen (Einstellungen: nur ausgewählte Starter zählen). */
   pokalAuswahl?: boolean
-  /** Zuletzt oben für alle Klassen gewählte Sortierung – der Spaltenkopf zeigt sie auch hier. */
-  sortierung?: Sortierung | null
+  /** Zuletzt oben für alle Klassen gewählte Sortierung (mit der Folge je Klasse) – der Spaltenkopf zeigt sie auch hier. */
+  sortierung?: SortierWahl | null
 }>()
 
 const emit = defineEmits<{
@@ -114,23 +116,31 @@ function reorder(action: Parameters<typeof dispatch>[0]) {
 
 /**
  * „Sortierung ändern“ (Entscheidung des Nutzers vom 15.11.2026): Die Spaltenköpfe werden zu
- * Knöpfen. Ein Klick sortiert nach der Spalte aufsteigend, ein zweiter auf dieselbe dreht die
- * Richtung um; bei Gleichstand bleibt die bisherige Reihenfolge (lib/reihenfolge.ts). „Zufall“
- * mischt jedes Mal neu. Nur solange die Verzahnung offen ist – danach sperrt auch der Reducer.
+ * Knöpfen, je Kopf drei Stufen (21.11.2026, lib/reihenfolge.ts naechsteSortierung): absteigend ↓,
+ * aufsteigend ↑, Markierung weg ↕ (ohne Action – die Reihenfolge bleibt). Bei Gleichstand bleibt die
+ * bisherige Reihenfolge. „Zufall“ mischt jedes Mal neu. Nur solange die Verzahnung offen ist – danach
+ * sperrt auch der Reducer.
  */
 const sortieren = ref(false)
 const verzahnungFest = computed(() => state.value.verzahnungLocked)
 const kopfKlickbar = computed(() => sortieren.value && !verzahnungFest.value)
 const spalten = computed(() => sortierSpalten(state.value.originMode, mitGeschlecht.value))
 const BREITE: Partial<Record<SortierSpalte, string>> = { groesse: '64px', geschlecht: '64px', geburtsdatum: '130px' }
-/** Die zuletzt gewählte Sortierung – hier oder oben für alle Klassen. */
-const letzte = ref<Sortierung | null>(null)
+/**
+ * Die gewählte Stufe – hier oder oben für alle Klassen; Bedienauswahl (lib/merken.ts), damit sie den
+ * Wechsel des Reiters und das Neuladen übersteht (wie die aufgeklappten Klassen). Mit der Folge der
+ * Klasse nach dem Sortieren: Die Markierung gilt, solange die Klasse noch so steht (nicht nach
+ * Verschieben, Nummern von Hand, neuen Startern). Früher prüfte das istGeordnet – mit Startnummern-Bereichen sortiert der Reducer aber nur je Größengruppe, die Markierung
+ * verschwand sofort und der zweite Klick drehte nicht um (Befund 16 des Feldtests, 21.11.2026).
+ */
+const wahl = merke<SortierWahl | null>(`starter.sortierung.${props.classId}`, null, { ueberNeuladen: true, gueltig: istSortierWahl })
 watch(
   () => props.sortierung,
-  (s) => (letzte.value = s ?? null),
+  (s) => (wahl.value = s ?? null),
 )
-/** Die Richtung am Kopf gilt nur, solange die Klasse noch so steht (nicht nach Verschieben oder Nummern von Hand). */
-const aktiv = computed(() => (letzte.value && istGeordnet(props.starters, letzte.value, state.value.originMode) ? letzte.value : null))
+const aktiv = computed(() => (wahl.value && gleicheFolge(wahl.value.folge[props.classId], props.starters) ? wahl.value : null))
+/** Folge der Klasse direkt aus dem Stand – `props.starters` kommt erst mit dem nächsten Zeichnen nach. */
+const folgeImStand = () => sortedByStartNr(state.value.starters.filter((p) => p.klasse === props.classId)).map((p) => p.id)
 
 function schalteSortieren() {
   sortieren.value = !sortieren.value
@@ -138,21 +148,27 @@ function schalteSortieren() {
 }
 
 function sortiere(spalte: SortierSpalte) {
-  const absteigend = aktiv.value?.spalte === spalte ? !aktiv.value.absteigend : false
-  letzte.value = { spalte, absteigend }
-  reorder({ type: 'ORDER_STARTERS', klassen: [props.classId], nach: spalte, absteigend })
+  const neu = naechsteSortierung(aktiv.value, spalte)
+  if (!neu) {
+    // Stufe 3: nur die Markierung weg, die Reihenfolge bleibt, wie sie ist.
+    wahl.value = null
+    return
+  }
+  reorder({ type: 'ORDER_STARTERS', klassen: [props.classId], nach: spalte, absteigend: neu.absteigend })
+  wahl.value = { ...neu, folge: { [props.classId]: folgeImStand() } }
 }
 
 function mischen() {
-  letzte.value = null
+  wahl.value = null
   reorder({ type: 'SHUFFLE_STARTERS', klassen: [props.classId], saat: neueSaat() })
 }
 
-const pfeil = (spalte: SortierSpalte) => (aktiv.value?.spalte === spalte ? (aktiv.value.absteigend ? '▼' : '▲') : '↕')
+const pfeil = (spalte: SortierSpalte) => sortierPfeil(aktiv.value, spalte)
 function kopfTitel(spalte: SortierSpalte) {
   if (unsorted.value) return t('starters.order.unsorted')
   const column = t(spaltenText(spalte, state.value.originMode))
-  return aktiv.value?.spalte === spalte ? t('starters.order.byActive', { column, direction: t(aktiv.value.absteigend ? 'starters.order.desc' : 'starters.order.asc') }) : t('starters.order.by', { column })
+  if (aktiv.value?.spalte !== spalte) return t('starters.order.by', { column })
+  return t(aktiv.value.absteigend ? 'starters.order.byDesc' : 'starters.order.byAsc', { column })
 }
 const ariaSort = (spalte: SortierSpalte) => (kopfKlickbar.value && aktiv.value?.spalte === spalte ? (aktiv.value.absteigend ? 'descending' : 'ascending') : undefined)
 
@@ -437,8 +453,24 @@ const MOVES = [
               {{ t('common.startNr') }}
             </th>
             <!-- Dieselben Spalten in derselben Folge wie die Zellen darunter (lib/reihenfolge.ts sortierSpalten). -->
-            <th v-for="s in spalten" :key="s" :style="BREITE[s] ? { width: BREITE[s] } : undefined" :data-spalte="s" :aria-sort="ariaSort(s)">
-              <button v-if="kopfKlickbar" type="button" class="sortier-kopf" :data-sortier="s" :disabled="unsorted" :title="kopfTitel(s)" @click="sortiere(s)">
+            <th
+              v-for="s in spalten"
+              :key="s"
+              :class="kopfKlickbar && aktiv?.spalte === s ? 'sortier-aktiv' : undefined"
+              :style="BREITE[s] ? { width: BREITE[s] } : undefined"
+              :data-spalte="s"
+              :aria-sort="ariaSort(s)"
+            >
+              <button
+                v-if="kopfKlickbar"
+                type="button"
+                :class="['sortier-kopf', aktiv?.spalte === s ? 'aktiv' : '']"
+                :data-sortier="s"
+                :aria-pressed="aktiv?.spalte === s"
+                :disabled="unsorted"
+                :title="kopfTitel(s)"
+                @click="sortiere(s)"
+              >
                 {{ t(spaltenText(s, state.originMode)) }}<span :class="['sortier-pfeil', aktiv?.spalte === s ? 'aktiv' : '']" aria-hidden="true">{{ pfeil(s) }}</span>
               </button>
               <template v-else>{{ t(spaltenText(s, state.originMode)) }}</template>

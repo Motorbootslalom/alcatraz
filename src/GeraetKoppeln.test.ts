@@ -117,6 +117,19 @@ describe('Gerät: koppeln', () => {
     expect(document.title).toContain('Start-Freigabe')
   })
 
+  it('Befund 6: Koppel-Link ohne Token nennt den QR-Code am Bedienrechner; gescannter QR-Code braucht den Hinweis nicht', async () => {
+    const { h } = await bedienrechner()
+    const w = geraet(koppelnAdresse(h.raum.value!.koppelLink))
+    await zeigt(() => w.find('input[data-feld="code"]').exists())
+    expect(w.find('[data-teil="ohne-token"]').text()).toContain('„QR-Code zeigen“')
+    expect(w.find('[data-teil="ohne-token"]').text()).toContain('Geräte-Code eingeben')
+    h.oeffneQr(NUR_2)
+    await bis(() => !!h.raum.value?.koppeln.qr)
+    const w2 = geraet(koppelnAdresse(h.raum.value!.koppeln.qr!.paket))
+    await zeigt(() => karte(w2, 'par_2').exists())
+    expect(w2.find('[data-teil="ohne-token"]').exists()).toBe(false)
+  })
+
   it('kein Code-Format: Hinweis, nichts gesendet', async () => {
     const { h } = await bedienrechner()
     const w = geraet(koppelnAdresse(h.raum.value!.koppelLink))
@@ -247,7 +260,7 @@ describe('Gerät: Stand der WKR-Erfassung in der Start-Freigabe (W2.4)', () => {
     const dispatch = (a: Action) => (state.value = reducer(state.value, { ...a, zeit: 20_000 } as Action))
     dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:1' })
     dispatch({ type: 'WKR_LISTE', liste: TOR, modus: 'digital' })
-    dispatch({ type: 'SET_ANZEIGE', patch: { wkrWarnung: 'nachfragen' } })
+    // „nachfragen“ ist seit dem Feldtest 21.11.2026 die Vorgabe (N8) – kein SET_ANZEIGE nötig.
     const zeigeAmHost = () => {
       const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === 'par_1')!
       dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
@@ -256,7 +269,10 @@ describe('Gerät: Stand der WKR-Erfassung in der Start-Freigabe (W2.4)', () => {
     const { w } = await mitCode(h, NUR_1)
     await zeigt(() => karte(w, 'par_1').find('[data-teil="wkr-rueckstand"]').exists())
     const feld = karte(w, 'par_1').find(`[data-teil="wkr-leiste"] [data-liste="${TITEL}"]`)
-    expect(feld.text()).toContain('3 offen')
+    // Ohne Gerät an der Liste sendet niemand: ✕ rot „kein Gerät · wartet 3“ statt „⧗ wartet“ (Prüfbefund 21.11.2026).
+    expect(feld.text()).toContain('kein Gerät · wartet 3')
+    expect(feld.attributes('data-erf')).toBe('weg')
+    expect(feld.attributes('data-rot')).toBeDefined()
     // Auf dem Handy kein Sprung zum Unterreiter (kein Knopf), keine Gerätenamen.
     expect(karte(w, 'par_1').find('[data-action="zur-erfassung"]').exists()).toBe(false)
     expect(karte(w, 'par_1').find('[data-teil="wkr-leiste"]').classes()).not.toContain('klickbar')
@@ -265,8 +281,47 @@ describe('Gerät: Stand der WKR-Erfassung in der Start-Freigabe (W2.4)', () => {
     await karte(w, 'par_1').find('[data-action="zeigen"]').trigger('click')
     await nextTick()
     expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).not.toBeNull()
+    // N10: der Satz mit Liste und Startnummern auch auf dem Handy.
+    expect(document.querySelector('[data-teil="frage-liste"]')!.textContent).toContain(`${TITEL} hat 101–103 noch nicht abgeschickt (3 Starts).`)
     expect(state.value.betrieb.bereiche.par_1.gezeigt.length).toBe(vorher)
     ;(document.querySelector('[data-action="trotzdem-freigeben"]') as HTMLButtonElement).click()
+    await bis(() => state.value.betrieb.bereiche.par_1.gezeigt.length === vorher + 1)
+  })
+
+  it('N8 auf dem Handy: schon EIN offener Start fragt mit seiner Nummer; abgeschickt → ✓, Zeigen ohne Frage', async () => {
+    const starter = Array.from({ length: 6 }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(101 + i)))
+    const { state, h } = await bedienrechner(festgeschrieben(betriebsStand(starter)))
+    const TOR = listenKennung({ bereich: 'par_1', typeId: 'gate135', racecourse: null })
+    const TITEL = configFor({ regelwerk: 'dm-2026' }).getSheetDef('gate135').title
+    const dispatch = (a: Action) => (state.value = reducer(state.value, { ...a, zeit: 20_000 } as Action))
+    dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:1' })
+    dispatch({ type: 'WKR_LISTE', liste: TOR, modus: 'digital' })
+    for (let i = 0; i < 3; i++) {
+      const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === 'par_1')!
+      dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
+    }
+    // „Abgeschickt“ wie vom WKR-Gerät: der Haken der Liste in der Erfassung (DM, Lauf 1 Manövrieren).
+    const erfasse = (nr: string) => {
+      const id = state.value.starters.find((x) => x.startNr === nr)!.id
+      dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: id, feld: 'erfasst@gate135', wert: '1' }] } as Action)
+    }
+    erfasse('101')
+    erfasse('102')
+    const { w } = await mitCode(h, NUR_1)
+    const feld = () => karte(w, 'par_1').find(`[data-teil="wkr-leiste"] [data-liste="${TITEL}"]`)
+    await zeigt(() => feld().exists() && feld().text().includes('wartet 1'))
+    await karte(w, 'par_1').find('[data-action="zeigen"]').trigger('click')
+    await nextTick()
+    expect(document.querySelector('[data-teil="frage-liste"]')!.textContent!.trim()).toBe(`${TITEL} hat 103 noch nicht abgeschickt.`)
+    ;(document.querySelector('[data-action="trotzdem-nein"]') as HTMLButtonElement).click()
+    await nextTick()
+    erfasse('103')
+    await zeigt(() => feld().attributes('data-erf') === 'fertig')
+    expect(feld().find('.wkr-leiste-erf').text()).toBe('✓')
+    const vorher = state.value.betrieb.bereiche.par_1.gezeigt.length
+    await karte(w, 'par_1').find('[data-action="zeigen"]').trigger('click')
+    await nextTick()
+    expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).toBeNull()
     await bis(() => state.value.betrieb.bereiche.par_1.gezeigt.length === vorher + 1)
   })
 })

@@ -30,8 +30,11 @@ const anzahl = (e: Entwurf, feld: string, code: string) => (e.codes[feld] ?? [])
         @click="emit('tippe', t.feld, c.code)"
       >
         <span class="wkr-code-nr">{{ c.code }}</span>
-        <span class="wkr-code-text">{{ c.text }}</span>
-        <span class="wkr-code-punkte">{{ w('wkr.geraet.punkte', { n: c.punkte }) }}</span>
+        <!-- Text und Punkte umbrechen gemeinsam: Punkte rechts daneben, notfalls darunter (Befund 1, 21.11.2026). -->
+        <span class="wkr-code-mitte">
+          <span class="wkr-code-text">{{ c.text }}</span>
+          <span class="wkr-code-punkte">{{ w('wkr.geraet.punkte', { n: c.punkte }) }}</span>
+        </span>
         <span class="wkr-code-zaehler" data-teil="zaehler">{{ anzahl(entwurf, t.feld, c.code) > 0 ? `×${anzahl(entwurf, t.feld, c.code)}` : '' }}</span>
       </button>
     </section>

@@ -109,8 +109,25 @@ export function anzeigeVorgabe(): AnzeigeEinstellungen {
     verzahnungHalten: true,
     abstaende: {},
     wkrRueckstand: WKR_ANNAHMEN.rueckstandVorgabe,
-    wkrWarnung: 'warnen',
+    wkrWarnung: WKR_ANNAHMEN.warnungVorgabe,
+    wkrFassung: WKR_VORGABE_FASSUNG,
   }
+}
+
+/**
+ * Fassung der WKR-Vorgaben im Stand (Prüfbefund 21.11.2026): Bis zum Feldtest galt R = 2 / „warnen“ (W2, F4), seit N8
+ * R = 1 / „nachfragen“ mit „ab R“ statt „mehr als R“. Wer mit W2 Beispieldaten angelegt hatte, trug die alte Vorgabe
+ * ausdrücklich im Stand – N8 wirkte bei ihm nicht. migrate() hebt deshalb einen Stand OHNE diese Fassung, der genau
+ * die alte Vorgabe trägt, einmal auf die neue; danach steht die Fassung im Stand und eine eigene Wahl bleibt.
+ */
+export const WKR_VORGABE_FASSUNG = 2
+
+/** Einmaliger Übergang W2 → N8 (siehe {@link WKR_VORGABE_FASSUNG}); nur in migrate(). */
+export function hebeWkrVorgabe(anzeige: AnzeigeEinstellungen, roh: unknown): AnzeigeEinstellungen {
+  const r = roh && typeof roh === 'object' && !Array.isArray(roh) ? (roh as Record<string, unknown>) : null
+  if (!r || r.wkrFassung === WKR_VORGABE_FASSUNG) return anzeige
+  if (r.wkrRueckstand !== 2 || r.wkrWarnung !== 'warnen') return anzeige
+  return { ...anzeige, wkrRueckstand: WKR_ANNAHMEN.rueckstandVorgabe, wkrWarnung: WKR_ANNAHMEN.warnungVorgabe }
 }
 
 /** Der leere Betrieb: Kein Bereich hat begonnen. */
@@ -166,6 +183,8 @@ export function normalisiereAnzeige(raw: unknown, bereichIds?: readonly string[]
     abstaende,
     wkrRueckstand: ganz(a.wkrRueckstand, WKR_ANNAHMEN.rueckstandMin, WKR_ANNAHMEN.rueckstandMax) ?? v.wkrRueckstand,
     wkrWarnung: WKR_WARNUNGEN.find((w) => w === a.wkrWarnung) ?? v.wkrWarnung,
+    // Immer die jetzige: Was hier durchläuft, ist ab jetzt ein Stand mit den Vorgaben seit N8 (migrate hebt vorher).
+    wkrFassung: WKR_VORGABE_FASSUNG,
   }
 }
 

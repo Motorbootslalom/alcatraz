@@ -26,7 +26,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   art `geraet` vor der ersten Änderung eines Gerätewerts, gilt bis focusout der Zelle und nur für diesen Gerätewert (Zeit
   des Herkunftseintrags); Zeitfelder: „Ersetzen“ schreibt nichts, nur Freigabe + Fokus zurück; Stile styles/erfassung.css),
   ZeitZelle, ScanHinweis.
-- Starter/Verzahnung: ClassSection (Sortierköpfe + Zufall, `sortierung` von oben; „In Klasse X verschieben“, emit
+- Starter/Verzahnung: ClassSection (Sortierköpfe + Zufall, drei Stufen ↓ ↑ ↕ mit `th.sortier-aktiv`/`.sortier-kopf.aktiv`,
+  merke `starter.sortierung.<klasse>`, `sortierung` (SortierWahl) von oben; „In Klasse X verschieben“, emit
   `oeffne`), ManualAddForm, ExcelPanel, DatumFeld (DatumFeld.test.ts durchsucht alle Vorlagen), StartNumberPanel (auch
   E/D), StarterSperre, ParcoursCard, TrackContainer, ClassChip, PauseChip, SlotCell, FlowPreview, SequenceTable,
   BoatPanel, HeatTable, ParallelRunden (je Klasse ein Knopf je `schritte`-Eintrag – nach dem Halbfinale Kleines Finale
@@ -43,7 +44,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   „Zum Vorsteg“, seit m:ss; Ziehen = BETRIEB_VERSCHIEBEN {vor|nach}, Menü wie BetriebsFolge; Prop `jetzt`); texte.ts
   (punktText, startZeile, ganzeFolge, verschiebeZiele – Oberflächensprache; wartezeitText(sek, sprache)).
   `zuschauer/` ZuschauerListe (E3; liest NUR ZuschauerSicht + `jetzt`: Im Boot, Am Steg, Vor Steg, Danach, Boot fehlt;
-  Klassenfilter merke `zuschauer.klasse`; Texte tIn(sicht.sprache); styles/zuschauer.css, fürs Handy).
+  Klassenfilter merke `zuschauer.klasse`; Team-Filter (21.11.2026) `<details data-teil="team-filter">` mit Knöpfen
+  `data-team` = Klartext der Herkunft, Mehrfachwahl, merke `zuschauer.teams` `dauerhaft` (localStorage, auch auf
+  Lese-Link-Geräten); Texte tIn(sicht.sprache); styles/zuschauer.css, fürs Handy).
   E4 Parallelslalom (nur UIM): AnzeigeBereich zweigt bei `aktuell.paar` ab (Racecourse A/B, `.anzeige-bahn`,
   leere Seite `.leer` mit „–“; Lage nach `sicht.einst.parallelAnordnung` als Folge im DOM, `.anzeige-paar` mit
   `data-lage` und Klasse `untereinander` (Raster, waagerechte Linie) bzw. dazu `flach` (AnzeigeTafel `paarFlach`: je
@@ -55,7 +58,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Verbindung, Fingerabdruck, zwei LeseLink, erneuern/beenden mit AppDialog; Logik geraete/host.ts useGeraeteHost),
   LeseLink (QR über QrCode.vue mit der ganzen URL, Link zum Markieren, Kopieren mit Rückmeldung, Öffnen; Slot für
   „erneuern“; E7 auch art `koppeln`), GeraeteLage (Punkt + Wort je VerbindungsLage; auch in GeraetApp); texte.ts
-  fingerabdruckText, uhrzeitText (E7, nie mm/dd). E7: GeraeteKoppeln (Bereiche, QR-Code, Geräte-Code, Koppel-Link),
+  fingerabdruckText, uhrzeitText (E7, nie mm/dd). E7: GeraeteKoppeln (Bereiche, QR-Code als Hauptweg
+  `koppeln-hauptweg`; Geräte-Code und Koppel-Link nur im zugeklappten `<details data-teil="koppeln-weg-code">`, offen
+  nach „Geräte-Code ausgeben“ – Befund 6, 21.11.2026; GeraetFreigabe zeigt ohne Token `data-teil="ohne-token"`),
   GeraeteListe (Name, Bereiche, entziehen) – beide in GeraeteRaum; GeraetFreigabe (auf dem Gerät, OHNE Store: koppeln,
   StartFreigabe `nur-dieser` je eigenem Bereich in `<fieldset disabled>` bis zur Quittung, entzogen, entkoppeln;
   styles/geraet.css).
@@ -72,10 +77,15 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   W2.4 (21.11.2026): StartFreigabe Prop `erfassung?: FreigabeErfassung` (wkr/freigabe.ts, reine Daten, kein Store) und
   `erfassungOeffnen?` (nur Bedienrechner: Klick auf die Leiste bzw. Knopf `zur-erfassung` → Unterreiter `wkr`; kein `:type`/`<component>`-Knopf, DatumFeld.test.ts): Geräteleiste `data-teil="wkr-leiste"`
   je Liste (`data-liste`, `data-stand`, `data-ampel`, `data-rot` bei ✕/„!“, `data-neu` 4 s hervorgehoben, ohne Animation – blatt.test.ts liest app.css ohne @keyframes),
-  Rückstandszeile `wkr-rueckstand` und `.betrieb-naechster--rueckstand` (gelber Rand, Token `--rueckstand`) um „Als Nächstes“; bei
+  Rückstandszeile `wkr-rueckstand` (ab R offenen, Vorgabe 1) und `.betrieb-naechster--rueckstand` (gelber Rand, Token `--rueckstand`) um „Als Nächstes“; bei
   `warnung === 'nachfragen'` und warnender Liste geht JEDES BETRIEB_ZEIGEN (Nächster Start, BetriebsFolge über
   `sendeGeprueft`, Einreihen-Listen) erst nach AppDialog `trotzdem-freigeben` hinaus – nie gesperrt (F4, A8, D5).
   GeraetFreigabe reicht `geraet.freigabe[b.id]` durch (Freigabe-Gruppe), i18n betrieb.freigabe.*.
+  Feldtest 21.11.2026 (WKR_ANNAHMEN N8–N10): je Feld `data-erf` fertig|wartet|weg|papier mit großem Zeichen
+  `.wkr-leiste-erf` (✓ ⧗ ✕ ▭; Vorrang papier/pausiert/abgemeldet → weg → wartet → fertig), Verbindung klein
+  `.wkr-leiste-verbindung` (`data-teil="leiste-verbindung"`, ● ◐ ○ –; nicht bei Papier), „n im Gerät“
+  `.wkr-leiste-imgeraet`; Legende als `title` der Leiste; Dialog „Trotzdem weiter?“ mit einem Satz je warnender Liste
+  (`data-teil="frage-liste"`). Klassen der Leiste nie `wkr-verbindung` o. Ä. – die heißen in der Handy-Maske gleich.
   W3.2 (21.11.2026, Liste zuweisen): `betrieb/wkrListenWahl.ts` useListenWahl (gruppen nach Parcours bzw.
   „Parallelslalom · Racecourse A“, Titel in Oberflächensprache, `teilbar`, `ohneMaske`; listeText „Steg (Parcours 1,
   nur Ablegen)“) und istHandyName (G3/J2). GeraeteKoppeln: `<select data-feld="koppeln-liste">` (Wahl, kein Befehl) +
@@ -109,6 +119,14 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `:key` je Start + `gesperrt`, gedaechtnis.ts („So lassen“/„behalten“ je Quelle und Liste), Ausweichen-Tasten aus den
   Buchstaben der Startnummern, `.wkr-unten` sticky (`.wkr-mit-reiter`), „Rückgängig“ in der Leisten-Zeile,
   „Keine Bestätigung“ `.wkr-kopf-ueber`; auch `<a>` braucht `.wkr-knopf` + `data-ziel`.
+  Feldtest 21.11.2026 (N1–N7 in WKR_ANNAHMEN): WkrUebertragen (Overlay `data-teil="uebertragen"` über der ganzen Maske
+  nach dem Abschicken, ohne Knöpfe, `data-phase` laeuft|beantwortet; auch in WkrProbe), WkrKopf `bestaetigungFolgt`
+  (`.wkr-kopf-ueber`), WkrFuss „DISQ“ ↔ „FEHLER“ (nennt das Ziel), WkrDisq `titel` („Disq.“ über der offenen Liste),
+  WkrAusweichen „Andere Startnummer …“ `.wkr-knopf--breit`, WkrProbe-Ende (`probe-ende`, `probe-wiederholen`, `uebung`),
+  WkrGeraet `bildschirmKannAus` → Band `wach-hinweis` (Ausblenden: gedaechtnis.ts wachHinweisWeg; Prop von GeraetApp über
+  GeraetFreigabe bzw. WkrUebung). Klassen der Maske NUR in styles/wkr-geraet.css (app.css lädt danach und gewann bei
+  gleichen Namen – umbenannt: wkr-starterkarte*, wkr-zuletzt-leiste*, wkr-grau-text, wkr-feldgruppe; Test prüft alle
+  Stylesheets); Code-Knopf: `.wkr-code-nr` + `.wkr-code-mitte` (Text + Punkte) + Zähler.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,

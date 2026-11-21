@@ -208,12 +208,14 @@ Am Bedienrechner (Betrieb → Geräte, unter den Lese-Links):
 
 - **Für das nächste Gerät freigeben:** die Parcours (unter UIM auch den Parallelslalom) ankreuzen; bei nur einem
   Parcours ist er vorgewählt.
-- **„QR-Code zeigen“:** Das Handy scannt ihn vom Bildschirm und ist sofort gekoppelt, ohne etwas zu tippen. Der Code
+- **„QR-Code zeigen“** (der Hauptweg): Das Handy scannt ihn vom Bildschirm und ist sofort gekoppelt, ohne etwas zu tippen – kein Code nötig. Der Code
   wechselt alle 30 Sekunden (der vorige gilt noch 30 Sekunden, ein Foto taugt also kaum) und schließt sich nach
   höchstens 10 Minuten.
-- **„Geräte-Code ausgeben“:** 6 Zeichen, 5 Minuten gültig, für **ein** Gerät – für Handys, die den Bildschirm nicht
-  sehen. Das Handy braucht dazu vorab den **Koppel-Link** (steht daneben mit QR-Code und „Link kopieren“); den Code
-  sagt man über Funk durch. Der Koppel-Link allein zeigt nur, was auf der Anzeigetafel steht.
+- **„Anderer Weg: Geräte-Code über Funk“** (zugeklappt, seit dem Feldtest 21.11.2026): darin „Geräte-Code ausgeben“
+  (6 Zeichen, 5 Minuten gültig, für **ein** Gerät – für Handys, die den Bildschirm nicht sehen) und der **Koppel-Link**
+  mit QR-Code und „Link kopieren“, den das Handy vorab braucht; den Code sagt man über Funk durch. Der Koppel-Link
+  allein zeigt nur, was auf der Anzeigetafel steht – wer ihn statt des QR-Codes scannt, wird nach einem Code gefragt;
+  das Handy sagt dann, wo der QR-Code zum Koppeln zu finden ist.
 - **Gekoppelte Geräte:** je Gerät der Name (änderbar), die Parcours seiner Start-Freigabe (Häkchen – wirkt sofort auf
   dem Gerät), gekoppelt seit und „zuletzt gehört“. Ein Gerät meldet sich nur, wenn es schaltet oder neu startet;
   „zuletzt gehört“ sagt also nicht, ob es gerade verbunden ist.
@@ -318,9 +320,14 @@ Am Bedienrechner (W2, gebaut 21.11.2026, Plan [plan-wkr-w2.md](plan-wkr-w2.md); 
   Darunter der **Eingang**: Rückfragen (Gerät übernehmen oder behalten) und Vorschläge (übernehmen oder verwerfen).
 - **Erfassung**: ◆ an Werten vom Gerät; ▭ „Papier ansehen“ an Zeilen bzw. Zellen, für die der Bogen gebraucht wird;
   wer einen Gerätewert überschreibt, wird einmal gefragt.
-- **Start-Freigabe**: eine Zeile mit dem Stand jeder Liste (Ampel, „n offen“, ⧗ wartend, ! Rückfrage); sind bei einer
-  Liste mehr Starts offen als eingestellt (Einstellungen → Startfolge, Vorgabe 2), steht der Rückstand über „Als
-  Nächstes“ mit gelbem Rand. Mit „nachfragen“ kommt vor jedem Zeigen „Trotzdem freigeben?“ – gesperrt wird nie.
+- **Start-Freigabe**: eine Zeile mit dem Stand jeder Liste – großes Zeichen nach Erfassungsstand: ✓ fertig, ⧗ wartet n
+  (der WKR hat n gezeigte Starts noch nicht abgeschickt), ✕ Gerät weg, ▭ Papier; klein dahinter die Verbindung
+  (● gehört, ◐ still, ○ ruht), „n im Gerät“ für Zeilen unterwegs, ! Rückfrage. Sind bei einer Liste mindestens so viele
+  Starts offen wie eingestellt (Einstellungen → Startfolge, Vorgabe 1 seit dem Feldtest 21.11.2026), steht der
+  Rückstand über „Als Nächstes“ mit gelbem Rand, und vor jedem Zeigen fragt „Trotzdem weiter?“ mit Liste und
+  Startnummern („Mann-über-Bord hat 604 noch nicht abgeschickt.“) – gesperrt wird nie; fällt ein Gerät aus, „Trotzdem
+  weiter“ und unter Betrieb → WKR „Papier ab“. „Nur warnen“ und eine höhere Zahl (etwa für Tor 5 mit mehreren Booten
+  auf dem Wasser) in den Einstellungen.
   Klick auf die Zeile führt zu Betrieb → WKR. Pausierte und abgemeldete Listen zählen nicht.
 - **Freigabe-Handy**: dieselbe Zeile, ohne Werte und ohne Gerätenamen, über eine eigene verschlüsselte Gruppe – nie
   auf Anzeigetafel oder Zuschauerliste. Schon gekoppelte Handys bekommen sie ohne neues Koppeln.

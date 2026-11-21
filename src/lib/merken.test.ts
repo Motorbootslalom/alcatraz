@@ -27,6 +27,18 @@ describe('Gemerktes über das Neuladen', () => {
     expect(wieder('t.wahl', '', { ueberNeuladen: true }).value).toBe('Musterclub')
   })
 
+  it('`dauerhaft` (Team-Filter der Zuschauerliste): im localStorage, übersteht auch einen neuen Tab; vergissAlles räumt', async () => {
+    localStorage.removeItem('alcatraz.merke.t.teams')
+    const merke = await neuGeladen()
+    merke<string[]>('t.teams', [], { dauerhaft: true }).value = ['Musterclub']
+    expect(localStorage.getItem('alcatraz.merke.t.teams')).toBe('["Musterclub"]')
+    expect(sessionStorage.getItem('alcatraz.merke.t.teams')).toBeNull()
+    sessionStorage.clear()
+    expect((await neuGeladen())<string[]>('t.teams', [], { dauerhaft: true }).value).toEqual(['Musterclub'])
+    ;(await import('./merken')).vergissAlles()
+    expect(localStorage.getItem('alcatraz.merke.t.teams')).toBeNull()
+  })
+
   it('was die Form des Anfangswerts nicht hat oder `gueltig` nicht besteht, zählt nicht', async () => {
     sessionStorage.setItem('alcatraz.merke.t.liste', '"keine Liste"')
     sessionStorage.setItem('alcatraz.merke.t.zahl', '{kaputt')

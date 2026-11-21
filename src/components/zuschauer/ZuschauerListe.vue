@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { ClassId, SichtKlasse, SichtStart, SichtStarter, ZuschauerBereich, ZuschauerSicht } from '../../types'
 import { tIn, type MessageKey } from '../../i18n'
 import { CLASS_IDS } from '../../domain/classes'
@@ -27,6 +27,11 @@ import HerkunftText from '../HerkunftText.vue'
  * Parallelslalom (E4): je Karte ein Paar – Racecourse A und B untereinander, eine leere Seite als „–“; ohne Wartezeit
  * (BETRIEB_ANNAHMEN.parallelOhnePrognose), die Gruppen Am Steg/Vor Steg bleiben. Der Klassenfilter zeigt ein Paar,
  * wenn eine Seite in der Klasse fährt.
+ *
+ * Team-Filter (Feldtest 21.11.2026, Wunsch des Nutzers; BETRIEB_ANNAHMEN.zuschauerTeamFilter): Team = Herkunft der
+ * Veranstaltung (Verein, Landesverband, Nation – so, wie die Sicht sie nennt), Mehrfachwahl, keine Wahl = „Alle“. Nur
+ * aus der Sicht gerechnet, gemerkt im localStorage dieses Bildschirms (merke `dauerhaft`) – auch auf Lese-Link-Geräten,
+ * nichts geht übers Netz. Mit dem Klassenfilter UND-verknüpft; ein Paar passt, wenn eine Seite passt.
  */
 const props = defineProps<{
   sicht: ZuschauerSicht
@@ -54,6 +59,42 @@ const klassen = computed(() => {
   return CLASS_IDS.filter((k) => da.has(k) && props.sicht.klassen[k]).map((k) => ({ id: k, ...props.sicht.klassen[k]! }))
 })
 const filter = computed<ClassId | ''>(() => (klassen.value.some((k) => k.id === gemerkt.value) ? (gemerkt.value as ClassId) : ''))
+
+// Team-Filter: Schlüssel einer Herkunft ist ihr Klartext (sonst Text, Kürzel). Angeboten nur Teams der gezeigten
+// Parcours, wie beim Klassenfilter einschließlich des Starts im Boot; Gewähltes, das es nicht (mehr) gibt, zählt nicht.
+const teamSchluessel = (h: SichtStarter['herkunft']): string => (h ? h.klartext || h.text || h.druck || h.alt : '')
+const teamsVon = (s: SichtStart): string[] => starterVon(s).map((id) => teamSchluessel(props.sicht.starter[id]?.herkunft ?? null)).filter(Boolean)
+const teamsGemerkt = merke<string[]>('zuschauer.teams', [], { dauerhaft: true, gueltig: (x) => Array.isArray(x) && x.every((t) => typeof t === 'string') })
+const teams = computed(() => {
+  const da = new Map<string, NonNullable<SichtStarter['herkunft']>>()
+  for (const b of gezeigt.value) {
+    for (const s of [...(b.aktuell ? [b.aktuell] : []), ...b.frei, ...b.bootFehlt]) {
+      for (const id of starterVon(s)) {
+        const h = props.sicht.starter[id]?.herkunft
+        const k = teamSchluessel(h ?? null)
+        if (h && k && !da.has(k)) da.set(k, h)
+      }
+    }
+  }
+  // Gewählte Teams, die gerade nicht dabei sind (alle gefahren, erst in einem späteren Lauf), bleiben als Knopf –
+  // sonst ließen sie sich nicht abwählen und die Wahl wirkte unsichtbar (Prüfbefund 21.11.2026).
+  const liste: { id: string; herkunft: SichtStarter['herkunft'] }[] = [...da.entries()].map(([id, herkunft]) => ({ id, herkunft }))
+  for (const k of teamsGemerkt.value) if (!da.has(k)) liste.push({ id: k, herkunft: null })
+  return liste.sort((a, b) => a.id.localeCompare(b.id, props.sicht.sprache))
+})
+/**
+ * Prüfbefund 21.11.2026: Die Wahl gilt, auch wenn ein gewähltes Team gerade keine Starts hat – dann steht „Keine
+ * Starts für diese Auswahl“ da, statt still auf „Alle“ zu fallen; und kommt das Team im nächsten Lauf wieder, ist es
+ * noch gewählt (vorher kürzte jedes Umschalten die gemerkte Wahl auf die gerade sichtbaren Teams).
+ */
+const teamFilter = computed(() => teamsGemerkt.value)
+// Zugeklappt, solange keins gewählt ist (lange Vereinslisten verdrängten am Handy sonst die Starts); aufgeklappt bleibt
+// es, bis man es selbst zuklappt – ein Tipp auf „Alle“ soll die Liste nicht wegspringen lassen.
+const teamsOffen = ref(teamsGemerkt.value.length > 0)
+function schalteTeam(id: string): void {
+  // Nur das angetippte Team ändert sich; Gemerktes, das gerade nicht zu sehen ist, bleibt.
+  teamsGemerkt.value = teamsGemerkt.value.includes(id) ? teamsGemerkt.value.filter((k) => k !== id) : [...teamsGemerkt.value, id]
+}
 
 /** Eine Seite eines Paares (Parallelslalom). */
 interface Seite {
@@ -135,7 +176,8 @@ const ansichten = computed<Ansicht[]>(() =>
   gezeigt.value.map((b) => {
     // Die Wartezeiten über die GANZE Folge – der Filter blendet nur aus, die Stellen bleiben.
     const zeiten = wartezeiten(props.sicht, b, props.jetzt)
-    const passt = (s: SichtStart) => !filter.value || klassenVon(s).includes(filter.value)
+    const passt = (s: SichtStart) =>
+      (!filter.value || klassenVon(s).includes(filter.value)) && (teamFilter.value.length === 0 || teamsVon(s).some((k) => teamFilter.value.includes(k)))
     const gruppen: Gruppe[] = [
       { art: 'amSteg', titel: tx('zuschauer.amSteg'), zeilen: [] },
       { art: 'vorSteg', titel: tx('zuschauer.vorSteg'), zeilen: [] },
@@ -190,6 +232,31 @@ const mitWartezeiten = computed(() => ansichten.value.length === 0 || ansichten.
         <span class="class-badge" :style="{ background: k.farbe }">{{ k.name }}</span>
       </button>
     </div>
+
+    <details v-if="teams.length > 1" class="zuschauer-teams" data-teil="team-filter" :open="teamsOffen" @toggle="teamsOffen = ($event.target as HTMLDetailsElement).open">
+      <summary>
+        {{ tx('zuschauer.team') }}:
+        <span data-teil="team-wahl">{{ teamFilter.length === 0 ? tx('zuschauer.alle') : tx('zuschauer.team.gewaehlt', { n: teamFilter.length }) }}</span>
+      </summary>
+      <div class="zuschauer-filter" role="group" :aria-label="tx('zuschauer.team')">
+        <button type="button" :class="['zuschauer-chip', teamFilter.length === 0 ? 'active' : '']" :aria-pressed="teamFilter.length === 0" data-team="" @click="teamsGemerkt = []">
+          {{ tx('zuschauer.alle') }}
+        </button>
+        <button
+          v-for="tm in teams"
+          :key="tm.id"
+          type="button"
+          :class="['zuschauer-chip', 'zuschauer-team', teamFilter.includes(tm.id) ? 'active' : '']"
+          :aria-pressed="teamFilter.includes(tm.id)"
+          :data-team="tm.id"
+          :title="tm.id"
+          @click="schalteTeam(tm.id)"
+        >
+          <HerkunftText v-if="tm.herkunft" :anzeige="tm.herkunft" />
+          <span v-else data-teil="team-ohne-start">{{ tm.id }}</span>
+        </button>
+      </div>
+    </details>
 
     <p v-if="ansichten.length === 0" class="zuschauer-leer">{{ tx('anzeige.keineStarter') }}</p>
 

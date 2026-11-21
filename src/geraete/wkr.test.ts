@@ -24,7 +24,7 @@ import { disqFuer, entwurfAus, leererEntwurf, maskeFuer, mitBemerkung, tippe, ti
 import { erfassungsLage } from '../wkr/lage'
 import { geraetAngaben } from './register'
 import { configFor } from '../config/konfig'
-import { uimParallelStand, wkrBetriebsStand } from '../testHilfen'
+import { uimParallelStand, wkrBetriebsStand, betriebStarter } from '../testHilfen'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import GeraeteKoppeln from '../components/betrieb/GeraeteKoppeln.vue'
@@ -925,5 +925,41 @@ describe('W3.2: Liste aus der Oberfläche zuweisen (Ende zu Ende)', () => {
     } finally {
       w.unmount()
     }
+  })
+})
+
+describe('Befund 15 des Handy-Tests (21.11.2026): „Mann-über-Bord 3 offen“, am Handy alles ✓', () => {
+  // Ablauf wie beim Nutzer: DM, Klasse 6 (mit Mann-über-Bord), Liste gekoppelt, die Start-Freigabe zeigt nacheinander,
+  // das Handy schickt je Start „Fehlerfrei“. Dazu ein zweiter Tab mit derselben Kopplung (QR-Code noch einmal
+  // gescannt bzw. alter Tab nach dem Neuladen wieder wach), der ein Lebenszeichen schickt. Vorher vergaben beide Tabs
+  // dieselben Nummern: Der Host nahm die Zeile als schon bearbeitet, `bis` der Sicht deckte sie – ✓ am Handy, kein
+  // Haken am Bedienrechner, Rückstand wuchs.
+  const STARTER = [...Array.from({ length: 6 }, (_, i) => betriebStarter(`s6${i}`, '6', `60${i + 1}`)), ...Array.from({ length: 3 }, (_, i) => betriebStarter(`s4${i}`, '4', `40${i + 1}`))]
+  const P2 = 'par_2'
+  const MUEB = listenKennung({ bereich: P2, typeId: 'mueb', racecourse: null })
+
+  it('zwei Tabs auf dem Handy: jede Zeile mit ✓ trägt am Bedienrechner den Haken, kein Rückstand', async () => {
+    const { s, h } = await bedienrechner(() => wkrBetriebsStand(STARTER))
+    zeige(s, P2)
+    const { e, speicher } = await wkrHandy(h, [{ art: 'liste', liste: MUEB }])
+    await bis(() => s.state.value.wkr.listen[MUEB]?.modus === 'digital')
+    let versatz = 0
+    const zweiter = await neuGeladen(speicher, { uhr: () => Date.now() + versatz })
+    await bis(() => zweiter.g.status.value === 'verbunden')
+    const konfig = configFor({ regelwerk: s.state.value.regelwerk })
+    const muebLage = () => erfassungsLage(s.state.value, konfig, P2, geraetAngaben(h.raum.value?.geraete ?? []), Date.now()).listen.find((l) => l.liste === MUEB)!
+    // Der zweite Tab war still: Er meldet sich mit einem Lebenszeichen.
+    versatz = 61_000
+    for (let i = 0; i < 4; i++) {
+      zeige(s, P2)
+      const a = aktuell(s.state.value, P2)
+      await bis(() => !!e.schlange.value[MUEB]?.some((x) => x.key === a.key))
+      const start = e.schlange.value[MUEB].find((x) => x.key === a.key)!
+      const z = e.schicke(MUEB, { s: start.key, zellen: zellenAus(leererEntwurf(), maskeFuer(e.sichten.value[MUEB]!, start.klasse, 'liste')!) })!
+      await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+      expect(werte(s.state.value, a.eintrag!.starter)['erfasst@mueb']).toBe('1')
+    }
+    expect(muebLage().rueckstand).toBeNull()
+    expect(s.state.value.wkr.rueckfragen).toEqual([])
   })
 })

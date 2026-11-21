@@ -2,10 +2,11 @@
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { ListenTeil } from '../../wkr/liste'
-import { disqFuer, eintraege, leererEntwurf, punkteVon, teileFuer, tippe, tippeDisq, wechselTakt, zurueck, type Entwurf, type MaskenAufbau } from '../../wkr/maske'
+import { disqFuer, eintraege, leererEntwurf, punkteVon, teileFuer, tippe, tippeDisq, wechselNach, wechselTakt, zurueck, type Entwurf, type MaskenAufbau } from '../../wkr/maske'
 import WkrFuss from './WkrFuss.vue'
 import WkrKnoepfe from './WkrKnoepfe.vue'
 import WkrStarterKarte from './WkrStarterKarte.vue'
+import WkrUebertragen from './WkrUebertragen.vue'
 import WkrVorsteg from './WkrVorsteg.vue'
 import { useWkrText } from './texte'
 
@@ -18,13 +19,20 @@ import { useWkrText } from './texte'
  *   Ablegen/Anlegen OK).
  * - Vorsteg: zweimal X, dann „Abbrechen“ (die große Rückfrage, F5) → „In Ordnung“.
  *
- * Der letzte Schritt zeigt das Weiterspringen samt Sperre (G5, wkr/maske.ts wechselTakt): 2 s „● gesendet“, Blitz,
- * 1 s keine Eingabe – erst dann „Probe fertig“. WkrGeraet merkt die Probe je Raum und Liste (ablage.ts `probe`).
+ * Der letzte Schritt zeigt das Weiterspringen samt Sperre (G5, wkr/maske.ts wechselTakt): Overlay „wird übertragen …“
+ * (WkrUebertragen), nach `uebungQuittungMs` gespielter Quittung „✓ übernommen“, Blitz, 1 s keine Eingabe – erst dann
+ * „Probe fertig“. WkrGeraet merkt die Probe je Raum und Liste (ablage.ts `probe`).
+ *
+ * Ende (Feldtest 21.11.2026, Befund 4 – N5: „Was denn nun?!“): ein Satz, was ab jetzt geschieht („Ab jetzt wird
+ * gesendet: Jeder Start, den die Start-Freigabe zeigt, erscheint hier.“; in der Übung: gesendet wird nichts), „Los
+ * geht's“ und klein „Probe wiederholen“; das gelbe Band sagt dann „Probe beendet“.
  */
 const props = defineProps<{
   aufbau: MaskenAufbau
   teil?: ListenTeil
   hand: 'rechts' | 'links'
+  /** In der Übung (N5): Am Ende wird nicht „ab jetzt gesendet“, sondern weiter geübt. */
+  uebung?: boolean
 }>()
 const emit = defineEmits<{ fertig: [] }>()
 const { w } = useWkrText()
@@ -56,7 +64,13 @@ function nach(ms: number, f: () => void): void {
 onBeforeUnmount(() => {
   for (const id of zeitgeber) clearTimeout(id)
 })
-const takt = computed(() => wechselTakt(gesendetUm.value, jetzt.value))
+/** Die Probe spielt die Quittung (wie die Übung nach uebungQuittungMs) – so sieht sie aus wie das echte Abschicken. */
+const quittungUm = computed(() => (gesendetUm.value === null ? null : gesendetUm.value + WKR_ANNAHMEN.uebungQuittungMs))
+const takt = computed(() => wechselTakt(gesendetUm.value, jetzt.value, quittungUm.value))
+const imOverlay = computed(() => takt.value === 'gesendet' || takt.value === 'uebernommen')
+const probeStufe = computed(() =>
+  takt.value === 'uebernommen' ? ({ stufe: 'uebernommen' } as const) : ({ stufe: 'unterwegs', gesendet: false } as const),
+)
 const gesperrt = computed(() => gesendetUm.value !== null)
 const blitz = ref(false)
 const fertig = computed(() => gesendetUm.value !== null && takt.value === 'frei')
@@ -84,7 +98,9 @@ function haupt(): void {
   const um = Date.now()
   gesendetUm.value = um
   jetzt.value = um
-  nach(WKR_ANNAHMEN.weiterNachMs, () => {
+  const wechsel = wechselNach(um, quittungUm.value)
+  nach(Math.max(WKR_ANNAHMEN.uebertragenMinMs, WKR_ANNAHMEN.uebungQuittungMs), () => (jetzt.value = Date.now()))
+  nach(wechsel, () => {
     jetzt.value = Date.now()
     blitz.value = true
     try {
@@ -94,7 +110,17 @@ function haupt(): void {
     }
     nach(150, () => (blitz.value = false))
   })
-  nach(WKR_ANNAHMEN.weiterNachMs + WKR_ANNAHMEN.sperreMs, () => (jetzt.value = Date.now()))
+  nach(wechsel + WKR_ANNAHMEN.sperreMs, () => (jetzt.value = Date.now()))
+}
+/** „Probe wiederholen“: alles auf Anfang, ohne die Probe zu verlassen. */
+function wiederhole(): void {
+  for (const id of zeitgeber) clearTimeout(id)
+  zeitgeber.clear()
+  schritt.value = 0
+  entwurf.value = leererEntwurf()
+  gesendetUm.value = null
+  blitz.value = false
+  jetzt.value = Date.now()
 }
 
 const anweisung = computed(() => {
@@ -117,14 +143,16 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
 <template>
   <div class="wkr-probe" data-teil="probe" :data-schritt="fertig ? 'fertig' : gesperrt ? 'takt' : art" :data-takt="takt">
     <p class="wkr-band wkr-band--hinweis" data-teil="probe-band">
-      <b>{{ w('wkr.geraet.probe.band') }}</b>
+      <b>{{ w(fertig ? 'wkr.geraet.probe.bandFertig' : 'wkr.geraet.probe.band') }}</b>
       <button v-if="!fertig" type="button" class="wkr-knopf" data-ziel="klein" data-action="probe-ueberspringen" @click="emit('fertig')">{{ w('wkr.geraet.probe.ueberspringen') }}</button>
     </p>
 
     <template v-if="fertig">
       <section class="wkr-ruhe" role="status" data-teil="probe-fertig">
         <h2>{{ w('wkr.geraet.probe.fertig') }}</h2>
+        <p class="wkr-probe-ende" data-teil="probe-ende">{{ w(uebung ? 'wkr.geraet.probe.endeUebung' : 'wkr.geraet.probe.ende') }}</p>
         <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="probe-fertig" @click="emit('fertig')">{{ w('wkr.geraet.probe.los') }}</button>
+        <button type="button" class="wkr-knopf wkr-knopf--klein-text" data-ziel="klein" data-action="probe-wiederholen" @click="wiederhole">{{ w('wkr.geraet.probe.wiederholen') }}</button>
       </section>
     </template>
     <template v-else>
@@ -132,7 +160,7 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
         <template v-if="gesperrt">{{ w('wkr.geraet.probe.warte') }}</template>
         <template v-else>{{ w('wkr.geraet.probe.schritt', { i: schritt + 1, n: schritte.length }) }} {{ anweisung }}</template>
       </p>
-      <WkrStarterKarte :start="start" :klasse="aufbau.titel" :gesendet="takt === 'gesendet'" />
+      <WkrStarterKarte :start="start" :klasse="aufbau.titel" :gesendet="imOverlay" />
       <div class="wkr-mitte" :inert="gesperrt" data-teil="mitte">
         <WkrVorsteg v-if="vorsteg" :codes="disqCodes" :gesetzt="entwurf.disq" start-nr="P" @setze="setzeDisq" @x-nein="xNein" />
         <WkrKnoepfe v-else :teile="teile" :entwurf="entwurf" @tippe="tippeCode" />
@@ -153,6 +181,7 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
         />
       </div>
     </template>
+    <WkrUebertragen v-if="imOverlay" start-nr="P" :takt="takt" :stufe="probeStufe" probe />
     <div v-if="blitz" class="wkr-blitz" data-teil="blitz" aria-hidden="true" />
   </div>
 </template>

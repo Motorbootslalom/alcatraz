@@ -61,10 +61,10 @@ const stufeWort = (z: ZuletztZeile) => w(`wkr.geraet.stufe.${z.stufe.stufe}`)
 
     <!-- Leiste und „Rückgängig“ in einer Zeile fester Höhe: Das Verschwinden nach 6 s verschiebt nichts (Prüfbefund W3). -->
     <div v-if="rueckgaengig || leiste.length > 0 || entwuerfe.length > 0" class="wkr-zuletzt-kopf">
-      <button v-if="leiste.length > 0 || entwuerfe.length > 0" type="button" class="wkr-knopf wkr-leiste" data-ziel="klein" data-action="zuletzt" :aria-expanded="offen" @click="offen = !offen">
-        <span class="wkr-leiste-titel">{{ w('wkr.geraet.zuletzt') }}</span>
-        <span v-for="z in leiste" :key="z.z" class="wkr-leiste-zeile" data-teil="leiste-zeile" :data-stufe="z.stufe.stufe">{{ nr(z) }} {{ stufeZeichen(z.stufe) }}</span>
-        <span v-if="entwuerfe.length > 0" class="wkr-leiste-zeile" data-teil="entwuerfe">{{ w('wkr.geraet.entwuerfe', { n: entwuerfe.length }) }}</span>
+      <button v-if="leiste.length > 0 || entwuerfe.length > 0" type="button" class="wkr-knopf wkr-zuletzt-leiste" data-ziel="klein" data-action="zuletzt" :aria-expanded="offen" @click="offen = !offen">
+        <span class="wkr-zuletzt-leiste-titel">{{ w('wkr.geraet.zuletzt') }}</span>
+        <span v-for="z in leiste" :key="z.z" class="wkr-zuletzt-leiste-zeile" data-teil="leiste-zeile" :data-stufe="z.stufe.stufe">{{ nr(z) }} {{ stufeZeichen(z.stufe) }}</span>
+        <span v-if="entwuerfe.length > 0" class="wkr-zuletzt-leiste-zeile" data-teil="entwuerfe">{{ w('wkr.geraet.entwuerfe', { n: entwuerfe.length }) }}</span>
       </button>
       <span v-if="rueckgaengig" class="wkr-rueckgaengig" role="status" data-teil="rueckgaengig-band" :title="w('wkr.geraet.gesendetNr', { nr: rueckgaengig.sn })">
         <span>● {{ rueckgaengig.sn }}</span>

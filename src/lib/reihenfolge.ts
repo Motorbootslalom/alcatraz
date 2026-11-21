@@ -7,8 +7,7 @@ import { zufallAus } from './beispielwerte'
 
 /**
  * Reihenfolge der Starter einer Klasse im Reiter „Starter“ (Entscheidung des Nutzers vom
- * 15.11.2026): nach einer Spalte – ein Klick sortiert aufsteigend, ein zweiter auf dieselbe
- * Spalte dreht die Richtung um – oder zufällig. Die vorhandenen Startnummern der Klasse werden
+ * 15.11.2026): nach einer Spalte in drei Stufen (21.11.2026, naechsteSortierung) – oder zufällig. Die vorhandenen Startnummern der Klasse werden
  * danach nur neu verteilt (domain/startnumbers.ts redistributeNumbers; Action ORDER_STARTERS bzw.
  * SHUFFLE_STARTERS). Rein: Der Reducer ruft das hier, der Zufall kommt als `saat`.
  */
@@ -98,6 +97,51 @@ export function ordneNach(list: readonly Starter[], sortierung: Sortierung, orig
     return v * richtung
   })
 }
+
+/**
+ * Die drei Stufen eines Spaltenkopfs (Wunsch des Nutzers vom 21.11.2026, ersetzt „erst aufsteigend,
+ * dann umdrehen“ vom 15.11.2026): erster Klick absteigend (Pfeil ↓), zweiter aufsteigend (↑), dritter
+ * hebt die Markierung auf (`null`) – die Reihenfolge bleibt dann, wie sie gerade ist (keine Action).
+ * Eine andere Spalte beginnt immer bei Stufe 1.
+ * Auslegung, noch zu bestätigen (21.11.2026): „absteigend“ = Z→A bzw. größter Wert zuerst (Größe XL
+ * vor XS, Geburtsdatum die Jüngsten zuerst); ohne Angabe steht weiter hinten (ordneNach).
+ */
+export function naechsteSortierung(jetzt: Sortierung | null, spalte: SortierSpalte): Sortierung | null {
+  if (jetzt?.spalte !== spalte) return { spalte, absteigend: true }
+  return jetzt.absteigend ? { spalte, absteigend: false } : null
+}
+
+/**
+ * Die gewählte Stufe als Bedienauswahl (lib/merken.ts, nie im AppState) – mit der Folge der Starter-IDs je
+ * Klasse, wie sie nach dem Sortieren stand. Die Markierung gilt nur, solange die Klasse noch so steht
+ * (gleicheFolge). Warum nicht istGeordnet (21.11.2026, Befund 16): Mit Startnummern-Bereichen (DM,
+ * Westengrößen) sortiert der Reducer nur innerhalb jeder Größengruppe – die Klasse steht danach nie
+ * „ganz“ nach der Spalte, die Markierung verschwand sofort und der zweite Klick sortierte erneut
+ * in der ersten Richtung statt umzuschalten.
+ */
+export interface SortierWahl extends Sortierung {
+  folge: Record<string, string[]>
+}
+
+export function istSortierWahl(x: unknown): x is SortierWahl {
+  if (typeof x !== 'object' || x === null) return false
+  const w = x as Partial<SortierWahl>
+  return (
+    istSortierSpalte(w.spalte) &&
+    typeof w.absteigend === 'boolean' &&
+    typeof w.folge === 'object' &&
+    w.folge !== null &&
+    Object.values(w.folge).every((f) => Array.isArray(f) && f.every((id) => typeof id === 'string'))
+  )
+}
+
+/** Steht die Klasse noch in der beim Sortieren gemerkten Folge? */
+export function gleicheFolge(folge: readonly string[] | undefined, list: readonly Starter[]): boolean {
+  return folge !== undefined && folge.length === list.length && list.every((p, i) => p.id === folge[i])
+}
+
+/** Pfeil im Spaltenkopf: ↓ absteigend, ↑ aufsteigend, ↕ nicht gewählt. */
+export const sortierPfeil = (s: Sortierung | null, spalte: SortierSpalte): string => (s?.spalte === spalte ? (s.absteigend ? '↓' : '↑') : '↕')
 
 /** Stehen die Starter schon so, wie die Sortierung sie stellte? Dann zeigt der Spaltenkopf die Richtung. */
 export function istGeordnet(list: readonly Starter[], sortierung: Sortierung, originMode: OriginMode): boolean {

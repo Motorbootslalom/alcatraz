@@ -8,6 +8,8 @@ import { useWkrText } from './texte'
  * (Steg „Ablegen OK ✓“/„Anlegen OK ✓“, Vorsteg „In Ordnung ✓“), mit Einträgen „Abschicken · n Pkt.“, in der
  * Korrektur „Korrektur abschicken“ bzw. nach dem Abschluss „Als Vorschlag senden“ (F7). DISQ steht links, der
  * Hauptknopf rechts, dazwischen mindestens 24 px (styles/wkr-geraet.css `--wkr-disq-abstand`); Linkshand spiegelt.
+ * Der Umschaltknopf nennt immer, WOHIN er wechselt: „DISQ“ bei offenen Codes, „FEHLER“ bei offenen Disq.-Buchstaben
+ * (Befund 10, Feldtest 21.11.2026: „Wenn man Disq offen hat, dann sollte hier Fehler stehen“).
  */
 const props = defineProps<{
   art: 'katalog' | 'vorsteg'
@@ -50,9 +52,10 @@ const haupt = computed(() => {
         data-ziel="gross"
         data-action="disq"
         :aria-expanded="disqOffen"
+        :data-ziel-liste="disqOffen ? 'fehler' : 'disq'"
         @click="emit('disq')"
       >
-        {{ w('wkr.geraet.disqKnopf') }}
+        {{ w(disqOffen ? 'wkr.geraet.fehlerKnopf' : 'wkr.geraet.disqKnopf') }}
       </button>
     </div>
     <button

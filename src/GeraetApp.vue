@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <WkrUebung v-if="uebung" :ablage="umgebung?.ablage" />
+  <WkrUebung v-if="uebung" :ablage="umgebung?.ablage" :bildschirm-kann-aus="bildschirmKannAus" />
   <GeraetFreigabe v-else-if="freigabe" :paket="freigabe.paket" :umgebung="umgebung" :aktualisiere="aktualisiere" :bildschirm-kann-aus="bildschirmKannAus" />
   <div v-else class="geraet-app" :data-art="art ?? lage.art" @dblclick="art === 'anzeige' && vollbildUmschalten()">
     <!-- Die Anzeigetafel wie im zweiten Fenster, ohne Logos (BETRIEB_ANNAHMEN.logosNurLokal). -->

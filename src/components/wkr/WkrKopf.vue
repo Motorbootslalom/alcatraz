@@ -20,6 +20,11 @@ const props = defineProps<{
   getrenntSek: number
   wartend: number
   ohneQuittung: boolean
+  /**
+   * N2 (Feldtest 21.11.2026): Das Overlay nach dem Abschicken ging ohne Antwort weg – Startnummer der Zeile, deren
+   * Bestätigung noch folgt. Liegt wie „Keine Bestätigung“ über dem Kopf (verschiebt keine Codes), tritt hinter ihr zurück.
+   */
+  bestaetigungFolgt?: string | null
   /** Ab `papierHinweisSek` ohne Verbindung: erster nicht abgeschickter Start. */
   papierAb: string | null
   hinweis: { id: number; code: WkrHinweis; startNr?: string } | null
@@ -52,6 +57,9 @@ const minuten = () => Math.max(1, Math.round(props.getrenntSek / 60))
     </p>
     <!-- Über dem Kopf statt darunter: Es kommt ohne Tipp und darf die Knöpfe nicht verschieben (Prüfbefund W3). -->
     <p v-else-if="ohneQuittung" class="wkr-band wkr-band--warn wkr-kopf-ueber" role="status" data-teil="ohne-quittung">{{ w('wkr.geraet.ohneQuittung') }}</p>
+    <p v-else-if="bestaetigungFolgt" class="wkr-band wkr-band--hinweis wkr-kopf-ueber" role="status" data-teil="bestaetigung-folgt">
+      {{ w('wkr.geraet.uebertragen.folgt', { nr: bestaetigungFolgt }) }}
+    </p>
 
     <div v-if="hinweis" class="wkr-band wkr-band--hinweis" role="alert" data-teil="hinweis" :data-code="hinweis.code">
       <b>{{ w(`wkr.geraet.hinweis.${hinweis.code}`, { nr: hinweis.startNr ?? '–' }) }}</b>

@@ -126,12 +126,21 @@ export interface AnzeigeEinstellungen {
   /** E3: eigene Startabstände je Klasse in Sekunden; nur Abweichungen, die Vorgabe wird beim Lesen aufgelöst. */
   abstaende: Partial<Record<ClassId, number>>
   /**
-   * W2 (F4, 21.11.2026): Rückstand einer digital erfassten Liste, ab dem die Start-Freigabe warnt – gewarnt wird bei
-   * MEHR als so vielen offenen gezeigten Starts (1–20, Vorgabe WKR_ANNAHMEN.rueckstandVorgabe; wkr/lage.ts).
+   * W2 (F4, 21.11.2026): Rückstand einer digital erfassten Liste, ab dem die Start-Freigabe warnt – seit dem Feldtest
+   * 21.11.2026 (Befund 8, WKR_ANNAHMEN N8) AB so vielen offenen gezeigten Starts, vorher „mehr als“ (1–20, Vorgabe
+   * WKR_ANNAHMEN.rueckstandVorgabe = 1; wkr/lage.ts).
    */
   wkrRueckstand: number
-  /** W2 (F4): bei Rückstand nur warnen (Zeile über „Nächster Start“) oder vor jedem Zeigen nachfragen – gesperrt wird nie. */
+  /**
+   * W2 (F4): bei Rückstand nur warnen (Zeile über „Nächster Start“) oder vor jedem Zeigen nachfragen – gesperrt wird
+   * nie. Vorgabe seit dem Feldtest 21.11.2026 „nachfragen“ (WKR_ANNAHMEN.warnungVorgabe).
+   */
   wkrWarnung: WkrWarnung
+  /**
+   * Fassung der WKR-Vorgaben (Prüfbefund 21.11.2026): 2 = seit dem Feldtest (N8, R = 1/„nachfragen“). Ein Stand ohne
+   * sie stammt aus W2; migrate() hebt dort genau die alte Vorgabe 2/„warnen“ einmal auf die neue (WKR_VORGABE_FASSUNG).
+   */
+  wkrFassung: number
 }
 
 /** Wie die Start-Freigabe auf Rückstand der WKR-Erfassung reagiert (F4): nie sperren. */

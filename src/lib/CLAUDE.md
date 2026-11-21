@@ -43,7 +43,8 @@ clipboard, scanner, logoBild.
   Reducer, migrate und Einstellungen; geraete/themen.ts reicht sie weiter).
 - Aus der `saat` (Reducer und Oberfläche): `beispielwerte.ts`, `beispieldaten.ts` (Beispiel-Besetzung, -gewichte,
   19.11.2026 -boote, -Co-Piloten; Knöpfe und Rückfrage `beispielBoote.ts`, mit Vue),
-  `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische); `saat.ts` neueSaat – nur Oberfläche.
+  `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische; 21.11.2026 Stufen naechsteSortierung ↓ ↑ keine,
+  SortierWahl = Stufe + Folge je Klasse, gleicheFolge statt istGeordnet – mit Startnummern-Bereichen sortiert der Reducer je Größengruppe); `saat.ts` neueSaat – nur Oberfläche.
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
 - Logos (16.11.2026): `logo.ts` (rein: Grenzen, logoTeile = eine Lesart der data-URL, logoWert, logoHoeheZahl, Maße,
   zielMasse), `logoBild.ts` (nur Browser: verkleinereLogo; testbar svgMasse, svgFuerZiel = viewBox ergänzen),
@@ -79,6 +80,8 @@ clipboard, scanner, logoBild.
 - Vorsteg mit „Versuche direkt nacheinander“: Die Zeile schreibt in jeden Versuch; löschte das ein verdecktes X eines
   späteren Versuchs, fragt ErfassungTabelle.vue erst (erfassung.ts ueberschreibtX).
 - merken.ts mit ueberNeuladen: neue Werte brauchen einen Guard für alte gemerkte Auswahl (SPAETERE_TEILE).
+  `dauerhaft` (21.11.2026, nur Team-Filter der Zuschauerliste): localStorage statt sessionStorage; vergissAuswahl/
+  vergissAlles räumen beide Speicher (Präfix `alcatraz.merke.`).
 - adressen.ts: Fenster mit eigener Wurzel (VOLLBILDER, `#/anzeige`/`#/display`, `#/zuschauer`/`#/spectators`, E6
   `#/sehen/<paket>`, E7 `#/koppeln/<paket>` und `#/geraet` in jeder Sprache gleich – das Paket im zweiten Segment,
   Groß/klein zählt; sehen/koppeln/geraet = EINE Wurzel GeraetApp, main.ts `wurzel`) liest

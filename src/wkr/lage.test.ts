@@ -71,8 +71,10 @@ describe('erfassungsLage – Zellstände', () => {
   it('offen, überfällig ab mehr als R jüngeren, ✓ mit Haken, X, Liste ohne Eintrag = Papier', () => {
     const { s: s0, keys } = drei()
     let l = lageVon(s0, 'gate135')
-    // R = 1: Der erste hat zwei jüngere hinter sich → überfällig.
-    expect(zellen(l, keys)).toEqual(['ueberfaellig', 'offen', 'offen'])
+    // R = 1, aber „überfällig“ erst bei mehr als max(R, ueberfaelligMin = 2) jüngeren (N8, Feldtest 21.11.2026):
+    // zwei jüngere reichen nicht, drei schon.
+    expect(zellen(l, keys)).toEqual(['offen', 'offen', 'offen'])
+    expect(lageVon(zeige(s0, 1, 1300), 'gate135').zellen[keys[0]].zelle).toBe('ueberfaellig')
     let s = setze(s0, starterVon(keys[1]), 'erfasst@gate135', '1')
     s = setze(s, starterVon(keys[0]), 'disq@steg', 'X')
     l = lageVon(s, 'gate135')
@@ -156,11 +158,13 @@ describe('erfassungsLage – Spalten (A2)', () => {
 })
 
 describe('erfassungsLage – Rückstand (A4, F1)', () => {
-  it('Zahl und Startnummern; warnt erst bei mehr als R', () => {
+  it('Zahl und Startnummern; warnt ab R offenen (N8, Feldtest 21.11.2026; vorher mehr als R)', () => {
     const { s, keys } = drei()
     expect(lageVon(s, 'gate135')).toMatchObject({ rueckstand: { zahl: 3, von: nr(s, keys[0]), bis: nr(s, keys[2]) }, warnt: true })
     const r3 = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 3 } })
-    expect(lageVon(r3, 'gate135')).toMatchObject({ rueckstand: { zahl: 3 }, warnt: false })
+    expect(lageVon(r3, 'gate135')).toMatchObject({ rueckstand: { zahl: 3 }, warnt: true })
+    const r4 = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 4 } })
+    expect(lageVon(r4, 'gate135')).toMatchObject({ rueckstand: { zahl: 3 }, warnt: false })
   })
 
   it('pausiert, abgemeldet, Papier: kein Rückstand, keine Warnung', () => {
@@ -252,14 +256,15 @@ describe('erfassungsLage – Parallelslalom', () => {
 describe('zeilenMarken (A5)', () => {
   it('Papier und überfällig an der Zeile; offen nur, wenn jedes Gerät weg ist; ohne Geräte nie', () => {
     const { s: s0, keys } = drei()
-    const s = reducer(s0, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1 } })
+    // Ein vierter Start: Der erste hat drei jüngere hinter sich → überfällig (ueberfaelligMin 2, N8).
+    const s = zeige(reducer(s0, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1 } }), 1, 1300)
     const jetzt = 1_000_000
     const zeile = (k: string) => `${L1}|${starterVon(k)}`
     let m = zeilenMarken(s, DM, L('gate135'), [L1])
     expect(m.get(zeile(keys[0]))).toEqual({ marke: 'papier-ansehen', zellen: {} })
     expect(m.has(zeile(keys[1]))).toBe(false)
     m = zeilenMarken(s, DM, L('gate135'), [L1], [geraet(K('gate135'), jetzt - 400_000)], jetzt)
-    expect([...m.keys()].sort()).toEqual(keys.map(zeile).sort())
+    expect([...m.keys()].sort()).toEqual(gezeigt(s).map(zeile).sort())
     m = zeilenMarken(s, DM, L('gate135'), [L1], [geraet(K('gate135'), jetzt - 400_000), geraet(K('gate135'), jetzt - 1000)], jetzt)
     expect(m.has(zeile(keys[1]))).toBe(false)
     // Anderer Lauf im Bogen: keine Marken.
@@ -317,8 +322,8 @@ describe('Prüfbefunde W2', () => {
     s = setze(s, starterVon(keys[0]), 't1a|hin seiteA', '5')
     expect(lageVon(s, 'gate135').zellen[keys[0]].zelle).toBe('ok')
     expect(zeilenMarken(s, DM, L('gate135'), [L1]).has(zeile(keys[0]))).toBe(false)
-    // „beides“: abgetippte Starts zählen nicht als Rückstand (R = 1, drei offen → warnt; zwei abgetippt → nicht mehr).
-    let b = setzeListe(drei().s, L('gate135'), 2000, 'beides')
+    // „beides“: abgetippte Starts zählen nicht als Rückstand (R = 2, drei offen → warnt; zwei abgetippt → nicht mehr).
+    let b = reducer(setzeListe(drei().s, L('gate135'), 2000, 'beides'), { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 2 } })
     expect(lageVon(b, 'gate135').warnt).toBe(true)
     b = setze(setze(b, starterVon(keys[0]), 't1a|hin seiteA', '5'), starterVon(keys[1]), 't1a|hin seiteA', '0')
     const l = lageVon(b, 'gate135')

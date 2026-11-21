@@ -8,6 +8,7 @@ import { reducer } from './state/reducer'
 import { refKey } from './betrieb/folge'
 import { betriebsStand, betriebStarter, festgeschrieben, uimParallelStand, zeigeNaechsten } from './testHilfen'
 import { setLocale } from './i18n'
+import { vergissAlles } from './lib/merken'
 import type { AppState } from './types'
 
 // Die Zuschauerliste (`#/zuschauer`, Etappe E3): eigene Wurzel mit Nur-Lese-Store, liest nur die Zuschauersicht.
@@ -154,6 +155,78 @@ describe('Zuschauerliste', () => {
 
     await w.find('[data-teil="filter"] [data-klasse=""]').trigger('click')
     expect(gruppe(w, 'danach')).toEqual([m('k3'), m('e4'), m('k4')])
+  })
+
+  it('Team-Filter (Feldtest 21.11.2026): Herkunft, Mehrfachwahl + „Alle“, mit Klassenfilter UND; dauerhaft gemerkt, nichts im Stand', async () => {
+    vergissAlles()
+    const s0 = imBetrieb()
+    // Zwei erfundene Vereine: k1 und k2 fahren für den „Testverein Nord“, alle übrigen für den Musterclub.
+    const s = { ...s0, starters: s0.starters.map((p) => (p.id === 'k1' || p.id === 'k2' ? { ...p, verein: 'Testverein Nord' } : p)) }
+    const w = await zuschauer(s)
+    const teil = w.find<HTMLDetailsElement>('[data-teil="team-filter"]')
+    expect(teil.element.open).toBe(false)
+    expect(text(teil.find('[data-teil="team-wahl"]'))).toBe('Alle')
+    expect(teil.findAll('button').map((b) => b.attributes('data-team'))).toEqual(['', 'Musterclub', 'Testverein Nord'])
+    const offen = () => [...gruppe(w, 'amSteg'), ...gruppe(w, 'vorSteg'), ...gruppe(w, 'danach')]
+    const alle = offen()
+
+    await teil.find('[data-team="Testverein Nord"]').trigger('click')
+    expect(offen()).toEqual([m('k1'), m('k2')])
+    expect(text(w.find('[data-teil="team-wahl"]'))).toBe('1 gewählt')
+    // Die Stelle in der Folge zählt weiter alle: k2 kommt wie ohne Filter in 5 min.
+    expect(text(zeile(w, m('k2')).find('[data-teil="ca"]'))).toBe('ca. in 5 min')
+    // Mehrfachwahl: beide Teams = alle Starts.
+    await teil.find('[data-team="Musterclub"]').trigger('click')
+    expect(offen()).toEqual(alle)
+    expect(text(w.find('[data-teil="team-wahl"]'))).toBe('2 gewählt')
+    await teil.find('[data-team="Musterclub"]').trigger('click')
+    // Mit dem Klassenfilter E: kein Start des Testvereins übrig – Hinweis statt leerer Liste.
+    await w.find('[data-teil="filter"] [data-klasse="E"]').trigger('click')
+    expect(offen()).toEqual([])
+    expect(w.find('[data-teil="leer"]').text()).toBe('Keine Starts für diese Auswahl.')
+    await w.find('[data-teil="filter"] [data-klasse=""]').trigger('click')
+
+    // Gemerkt je Bildschirm im localStorage (übersteht das Schließen des Tabs), nie im Stand der Veranstaltung.
+    expect(JSON.parse(localStorage.getItem('alcatraz.merke.zuschauer.teams')!)).toEqual(['Testverein Nord'])
+    expect(JSON.parse(localStorage.getItem(STATE_KEY)!)).not.toHaveProperty('zuschauer')
+    expect(localStorage.getItem(STATE_KEY)).not.toContain('teams')
+    // Neu geöffnet: Wahl steht noch, der Filter ist aufgeklappt.
+    wrapper!.unmount()
+    lese!.beende()
+    const gemerkt = localStorage.getItem('alcatraz.merke.zuschauer.teams')
+    vergissAlles()
+    localStorage.setItem('alcatraz.merke.zuschauer.teams', gemerkt!)
+    const w2 = await zuschauer(s)
+    expect(w2.find<HTMLDetailsElement>('[data-teil="team-filter"]').element.open).toBe(true)
+    expect([...gruppe(w2, 'amSteg'), ...gruppe(w2, 'vorSteg'), ...gruppe(w2, 'danach')]).toEqual([m('k1'), m('k2')])
+    await w2.find('[data-team=""]').trigger('click')
+    expect(gruppe(w2, 'danach')).toEqual([m('k3'), m('e4'), m('k4')])
+    vergissAlles()
+  })
+
+  it('Team-Filter (Prüfbefund 21.11.2026): ein gewähltes Team ohne Starts bleibt gewählt – „Keine Starts“ statt „Alle“, Umschalten kürzt die Wahl nicht', async () => {
+    vergissAlles()
+    localStorage.setItem('alcatraz.merke.zuschauer.teams', JSON.stringify(['Altverein']))
+    const s0 = imBetrieb()
+    const s = { ...s0, starters: s0.starters.map((p) => (p.id === 'k1' || p.id === 'k2' ? { ...p, verein: 'Testverein Nord' } : p)) }
+    const w = await zuschauer(s)
+    const offen = () => [...gruppe(w, 'amSteg'), ...gruppe(w, 'vorSteg'), ...gruppe(w, 'danach')]
+    expect(offen()).toEqual([])
+    expect(w.find('[data-teil="leer"]').text()).toBe('Keine Starts für diese Auswahl.')
+    expect(text(w.find('[data-teil="team-wahl"]'))).toBe('1 gewählt')
+    expect(w.find('[data-team="Altverein"] [data-teil="team-ohne-start"]').exists()).toBe(true)
+    await w.find('[data-team="Testverein Nord"]').trigger('click')
+    expect(offen()).toEqual([m('k1'), m('k2')])
+    expect(JSON.parse(localStorage.getItem('alcatraz.merke.zuschauer.teams')!)).toEqual(['Altverein', 'Testverein Nord'])
+    await w.find('[data-team="Altverein"]').trigger('click')
+    expect(JSON.parse(localStorage.getItem('alcatraz.merke.zuschauer.teams')!)).toEqual(['Testverein Nord'])
+    vergissAlles()
+  })
+
+  it('Team-Filter: nur eine Herkunft – kein Filter', async () => {
+    vergissAlles()
+    const w = await zuschauer(imBetrieb())
+    expect(w.find('[data-teil="team-filter"]').exists()).toBe(false)
   })
 
   it('Klassenfilter je Parcours: #/zuschauer/<bereich> bietet nur dessen Klassen an', async () => {

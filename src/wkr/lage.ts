@@ -94,7 +94,7 @@ export interface ListenLage {
   zellen: Record<string, ZellLage>
   /** Offene gezeigte Starts (Startnummern von–bis); `null`, wenn keiner offen ist (A4). */
   rueckstand: { zahl: number; von: string; bis: string } | null
-  /** Mehr als R offen, Liste digital und aktiv (F1, F4). */
+  /** Mindestens R offen (seit 21.11.2026, Befund 8; vorher mehr als R), Liste digital und aktiv (F1, F4). */
   warnt: boolean
   rueckfragen: number
   vorschlaege: number
@@ -140,7 +140,7 @@ function nummernVon(stand: AppState, ref: StartRef): string[] {
 /**
  * Rechnet Zellstände einer Liste – je Liste einmal gebaut (Schlangen, Papier, Rückfragen), dann je Start billig.
  * `gezeigt`: alle gezeigten Starts des Bereichs in ihrer Folge (für „überfällig“: mehr als R jüngere gezeigte Starts
- * derselben Liste dahinter).
+ * derselben Liste dahinter, mindestens WKR_ANNAHMEN.ueberfaelligMin – N8, Feldtest 21.11.2026).
  */
 function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
   const kennung = listenKennung(liste)
@@ -149,7 +149,9 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
   const teile = teileVon(liste.typeId)
   const geteilt = !!teile
   const { istX } = leser(stand, konfig, liste)
-  const R = stand.anzeige.wkrRueckstand
+  // „Überfällig“ (A5) nie schärfer als vor dem Feldtest: R = 1 soll die Start-Freigabe fragen lassen, nicht jede eben
+  // gezeigte Zeile in der Erfassung zu „Papier ansehen“ machen (N8).
+  const R = Math.max(stand.anzeige.wkrRueckstand, WKR_ANNAHMEN.ueberfaelligMin)
 
   // Schlange je Rahmen (ganze Liste, bei geteilten Listen je Teil), nach Zelle (Lauf|Starter): Am Vorsteg mit
   // „Versuche nacheinander“ steht ein Starter einmal da, gezeigt wird er je Versuch.
@@ -343,7 +345,8 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
       geraete: geraeteHier,
       zellen,
       rueckstand,
-      warnt: !!rueckstand && r.digital && status === 'aktiv' && rueckstand.zahl > R,
+      // Ab R offenen Starts (Feldtest 21.11.2026, Befund 8; vorher „mehr als R“, F4/A4) – WKR_ANNAHMEN.rueckstandAbR.
+      warnt: !!rueckstand && r.digital && status === 'aktiv' && rueckstand.zahl >= R,
       rueckfragen: r.offeneRueckfragen.length,
       vorschlaege: r.offeneVorschlaege.length,
       abschluss: abschluesseVon(stand.wkr, r.kennung).map(({ punkt: p, teil, abschluss: a }) => {

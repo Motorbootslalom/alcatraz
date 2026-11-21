@@ -406,6 +406,19 @@ export const BETRIEB_ANNAHMEN = {
    */
   zuschauerGruppen: true,
   /**
+   * Team-Filter der Zuschauerliste (Feldtest 21.11.2026, Wunsch des Nutzers: „Es sollte aber auch ein Team-Filter
+   * geben“). Auslegung beim Bau, noch zu bestätigen:
+   * - Team = Herkunft der Veranstaltung, wie die Sicht sie nennt (Verein, Landesverband oder Nation nach `originMode`);
+   *   Schlüssel ist ihr Klartext. Ohne Herkunft (Clubmeisterschaft, aus) oder mit nur einer gibt es keinen Filter.
+   * - Mehrfachwahl, keine Wahl = „Alle“; UND mit dem Klassenfilter; ein Paar (Parallelslalom) passt, wenn eine Seite
+   *   passt. Wie der Klassenfilter blendet er nur aus – Gruppe und Wartezeit zählen alle.
+   * - Gemerkt je Bildschirm im localStorage (lib/merken.ts `dauerhaft`, Schlüssel `zuschauer.teams`), auf Lese-Link-
+   *   Geräten genauso; nichts davon geht übers Netz oder in den Stand. Zugeklappt, solange nichts gewählt ist (lange
+   *   Vereinslisten verdrängten am Handy die Starts).
+   * Die Sicht bleibt unverändert (kein neues Feld, `sv` gleich) – die Herkunft stand schon darin.
+   */
+  zuschauerTeamFilter: true,
+  /**
    * (11) Am Ende eines Punkts bleibt die Anzeigetafel auf dem letzten Starter stehen, bis der nächste
    * Punkt beginnt und dessen erster Start gezeigt wird. 16.11.2026.
    */
@@ -531,6 +544,15 @@ export const BETRIEB_ANNAHMEN = {
    * - Die Geräteliste zeigt „zuletzt gehört“, nicht „verbunden“: Geräte senden keinen Herzschlag (Kontingent).
    */
   koppelnOberflaeche: true,
+  /**
+   * Feldtest 21.11.2026 (Befund 6, Auftrag des Nutzers): Der offen stehende Koppel-Link-QR (ohne Token) wurde statt des
+   * QR-Codes zum Koppeln gescannt. Seitdem: „QR-Code zeigen“ ist der Hauptweg („scannen – fertig, kein Code nötig“);
+   * Geräte-Code und Koppel-Link stehen zusammen im zugeklappten Weg „Anderer Weg: Geräte-Code über Funk“ (öffnet sich
+   * beim Ausgeben eines Codes; der Koppel-Link wird erst bei offenem Weg gezeigt). Auf dem Handy mit Link ohne Token steht
+   * über dem Code-Feld, wo der QR-Code zu finden ist. Auslegung: Aufgeklappt ist Bedienung ohne Merken (nach dem
+   * Neuladen wieder zu).
+   */
+  koppelnWege: true,
   /**
    * E8, Bildschirm wach halten (beim Bau 20.11.2026 – vom Nutzer zu bestätigen; lib/wachBleiben.ts): Wake Lock auf
    * jedem Gerät mit Lese-Link oder Start-Freigabe (GeraetApp, solange verbunden – nicht nach „Raum beendet“/„verlassen“)

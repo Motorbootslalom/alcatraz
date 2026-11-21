@@ -5,6 +5,14 @@
  * (`data-modus` an .wkr-geraet). Zielgrößen über `data-ziel` an jedem Knopf: `gross` ≥ --wkr-ziel (64 px: Codes,
  * Hauptknopf, Disq.), `klein` ≥ --wkr-ziel-min (48 px: Reiter, Ausweichen, Zuletzt) – nie darunter. Keine Animation
  * und kein Übergang außer dem Blitz beim Wechsel des Starts (Akku; styles/wkr-geraet.test.ts prüft das).
+ *
+ * Feldtest 21.11.2026 (N3, N4 in WKR_ANNAHMEN):
+ * - Klassen der Maske gibt es NUR hier: app.css wird nach dieser Datei geladen und gewann bei gleichen Namen
+ *   (.wkr-karte, .wkr-leiste, .wkr-entfaellt, .wkr-gruppe – die Starterkarte bekam den Rand der App, die Leiste
+ *   „Zuletzt“ deren dunkle Fläche unter System-Dunkelmodus). Umbenannt; der Test prüft jeden Namen gegen alle
+ *   anderen Stylesheets. Jede Fläche mit eigenem Grund setzt auch ihre Schriftfarbe (nichts erbt Farben der App).
+ * - Text wird nie abgeschnitten: Umbruch überall (overflow-wrap: anywhere – zählt auch für die Mindestbreite, sonst
+ *   schob ein langes Wort die ganze Spalte über den Rand), Silbentrennung nach `lang`; nur Nummern brechen nie.
  */
 
 .wkr-geraet {
@@ -31,10 +39,14 @@
   --wkr-schrift: 20px;
   --wkr-startnr: 96px;
 
+  /* Formularteile, Bildlauf und Auswahl des Browsers passend zum Modus – nicht zum Farbschema der App (N4). */
+  color-scheme: light;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--wkr-abstand);
+  width: 100%;
+  min-width: 0;
   max-width: 560px;
   min-height: 100vh;
   margin: 0 auto;
@@ -43,6 +55,8 @@
   color: var(--wkr-text);
   font-size: var(--wkr-schrift);
   line-height: 1.25;
+  overflow-wrap: anywhere;
+  hyphens: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -66,6 +80,7 @@
   --wkr-haupt-text: #000000;
   --wkr-blitz: #ffffff;
   --wkr-grau: #aaaaaa;
+  color-scheme: dark;
 }
 
 /*
@@ -107,6 +122,10 @@
   color: var(--wkr-text);
   font: inherit;
   font-weight: 600;
+  text-align: center;
+  white-space: normal;
+  min-width: 0;
+  max-width: 100%;
   text-decoration: none;
   touch-action: manipulation;
   user-select: none;
@@ -133,10 +152,11 @@
   color: var(--wkr-haupt-text);
 }
 
+/* Schmale Handys bzw. große Systemschrift (Befund 1): etwas kleiner, bevor ein Wort („penalty“) zerbrechen müsste. */
 .wkr-knopf--haupt {
   background: var(--wkr-haupt);
   color: var(--wkr-haupt-text);
-  font-size: 24px;
+  font-size: clamp(18px, 6.5vw, 24px);
 }
 
 .wkr-knopf--riesig {
@@ -184,13 +204,14 @@
 /*
  * Bänder, die kommen und gehen, ohne dass jemand tippt („Keine Bestätigung“), legen sich ÜBER den Kopf statt ihn zu
  * verlängern: Sonst rutschten alle Code-Knöpfe um eine Bandhöhe, und ein Tipp in dem Moment träfe den Nachbarn
- * (Prüfbefund W3, 21.11.2026).
+ * (Prüfbefund W3, 21.11.2026). Abgeschnitten wird dabei nichts (N3): Das Band deckt mindestens den Kopf und wächst
+ * mit langem Text (englisch, schmales Handy) nach unten über die Maske, statt ihn zu kappen (Prüfbefund 21.11.2026).
  */
 .wkr-kopf-ueber {
   position: absolute;
-  inset: 0 0 6px;
+  inset: 0 0 auto;
+  min-height: calc(100% - 6px);
   z-index: 2;
-  overflow: hidden;
 }
 
 .wkr-invers {
@@ -219,6 +240,13 @@
   border: var(--wkr-rand) solid var(--wkr-rand-farbe);
   border-radius: 6px;
   background: var(--wkr-flaeche);
+  color: var(--wkr-text);
+}
+
+.wkr-band > b,
+.wkr-band > span:first-child {
+  flex: 1 1 12em;
+  min-width: 0;
 }
 
 .wkr-band--rot {
@@ -243,26 +271,29 @@
 
 /* --- Starterkarte: Nummer riesig, nie ein Name --- */
 
-.wkr-karte {
+.wkr-starterkarte {
   padding: 8px 12px;
   border: var(--wkr-rand) solid var(--wkr-rand-farbe);
   border-radius: 8px;
   background: var(--wkr-flaeche);
+  color: var(--wkr-text);
 }
 
-.wkr-karte--ausser {
+.wkr-starterkarte--ausser {
   border-width: 6px;
   border-style: double;
 }
 
-.wkr-karte--korrektur {
+.wkr-starterkarte--korrektur {
   border-style: dashed;
 }
 
-.wkr-karte-zeile {
+/* Nummer fester Platz links; passen die Angaben nicht daneben, stehen sie darunter (nie abgeschnitten, Befund 1). */
+.wkr-starterkarte-zeile {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 4px 16px;
 }
 
 .wkr-startnr {
@@ -270,25 +301,29 @@
   font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
-.wkr-karte-angaben {
+.wkr-starterkarte-angaben {
   display: flex;
+  flex: 1 1 8em;
   flex-direction: column;
+  min-width: 0;
   font-weight: 700;
 }
 
-.wkr-karte-klein {
+.wkr-starterkarte-klein {
   font-weight: 400;
 }
 
-.wkr-karte-art,
-.wkr-karte-marke {
+.wkr-starterkarte-art,
+.wkr-starterkarte-marke {
   margin: 4px 0 0;
   font-weight: 700;
 }
 
-.wkr-karte-marke--gesendet {
+.wkr-starterkarte-marke--gesendet {
   font-size: 26px;
 }
 
@@ -339,10 +374,16 @@
   font-size: var(--wkr-schrift);
 }
 
+/*
+ * Code- und Disq.-Knopf (Befund 1, 21.11.2026): Nummer in fester Spalte links (bricht nie), daneben Text und Punkte –
+ * die Punkte rechts neben dem Text, notfalls darunter; der Zähler ×n rechts in fester Spalte, damit der erste Tipp
+ * nichts verschiebt. minmax(0, 1fr): Die Textspalte darf schmaler werden als ihr längstes Wort.
+ */
 .wkr-code,
 .wkr-disq-knopf {
   display: grid;
-  grid-template-columns: 3.2em 1fr auto auto;
+  grid-template-columns: 2.2em minmax(0, 1fr) auto;
+  align-items: center;
   justify-items: start;
   text-align: left;
   width: 100%;
@@ -351,14 +392,45 @@
 .wkr-code-nr {
   font-size: 28px;
   font-weight: 800;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.wkr-code-mitte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--wkr-abstand);
+  width: 100%;
+  min-width: 0;
 }
 
 .wkr-code-text {
+  flex: 1 1 8em;
+  min-width: 0;
   font-weight: 400;
 }
 
+.wkr-code-punkte {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .wkr-code-zaehler {
+  min-width: 2em;
   font-size: 26px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Disq.: Der Zustand („noch einmal tippen“) ist Text, keine Zahl – rechts neben dem Kurztext, notfalls darunter. */
+.wkr-disq-knopf {
+  grid-template-columns: 2.2em minmax(0, 1fr);
+}
+
+.wkr-disq-zustand {
+  margin-left: auto;
   font-weight: 800;
 }
 
@@ -391,12 +463,14 @@
 
 .wkr-fuss-neben {
   display: flex;
+  flex: 0 1 45%;
   flex-direction: column;
   gap: var(--wkr-abstand);
+  min-width: 0;
 }
 
 .wkr-fuss .wkr-knopf--haupt {
-  flex: 1;
+  flex: 1 1 0;
 }
 
 /* --- Ausweichen, Ziffernfeld --- */
@@ -442,9 +516,11 @@
   gap: var(--wkr-abstand);
 }
 
-.wkr-leiste {
+.wkr-zuletzt-leiste {
   flex: 1;
   min-width: 0;
+  background: var(--wkr-flaeche);
+  color: var(--wkr-text);
   justify-content: flex-start;
   flex-wrap: nowrap;
   overflow: hidden;
@@ -459,7 +535,7 @@
   white-space: nowrap;
 }
 
-.wkr-leiste-zeile {
+.wkr-zuletzt-leiste-zeile {
   font-variant-numeric: tabular-nums;
 }
 
@@ -504,6 +580,7 @@
 }
 
 .wkr-eingabe {
+  min-width: 0;
   min-height: var(--wkr-ziel-min);
   padding: 6px 10px;
   border: var(--wkr-rand) solid var(--wkr-rand-farbe);
@@ -531,7 +608,7 @@
 }
 
 /* „entfällt“: das einzige Grau – und immer mit Wort (§5.8). */
-.wkr-entfaellt {
+.wkr-grau-text {
   color: var(--wkr-grau);
 }
 
@@ -559,7 +636,7 @@
 
 /* --- W3.4: Gruppen unter „Mehr“, Liste abschließen, Probe, Übung --- */
 
-.wkr-gruppe {
+.wkr-feldgruppe {
   display: flex;
   flex-direction: column;
   gap: var(--wkr-abstand);
@@ -569,7 +646,7 @@
   border-radius: 6px;
 }
 
-.wkr-gruppe legend {
+.wkr-feldgruppe legend {
   padding: 0 4px;
   font-weight: 800;
 }
@@ -708,4 +785,87 @@
 .geraet-reiter .btn[aria-selected='true'] {
   font-weight: 800;
   outline: 3px solid currentColor;
+}
+
+/* --- Feldtest 21.11.2026: Ausweichen, Overlay nach dem Abschicken, Probe-Ende --- */
+
+.wkr-ausweichen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+/* „Andere Startnummer …“ (Befund 3): über die volle Breite statt eines kleinen „Nr.“. */
+.wkr-knopf--breit {
+  width: 100%;
+}
+
+/* „Probe wiederholen“: klein unter „Los geht's“ – ein Ziel ≥ 48 px, aber leiser als der Hauptknopf. */
+.wkr-knopf--klein-text {
+  align-self: center;
+  font-weight: 400;
+}
+
+.wkr-probe-ende {
+  margin: 0;
+  font-weight: 700;
+}
+
+/*
+ * N1 (Befund 13): Overlay über der GANZEN Maske nach „Fehlerfrei“/„Abschicken“ – unter dem Blitz (z-index 50), über
+ * Kopf, Leiste und klebendem Fuß. Fängt jeden Tipp (Doppeltipp-Schutz), ohne Knöpfe; Grund leicht durchscheinend,
+ * damit die Nummer der Karte darunter erkennbar bleibt.
+ */
+.wkr-uebertragen {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--wkr-grund) 85%, transparent);
+  color: var(--wkr-text);
+  pointer-events: auto;
+}
+
+.wkr-uebertragen-kasten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  width: 100%;
+  max-width: 480px;
+  padding: 20px 16px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 10px;
+  background: var(--wkr-flaeche);
+  color: var(--wkr-text);
+  text-align: center;
+}
+
+.wkr-uebertragen-kasten--rot {
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+.wkr-uebertragen-nr {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wkr-uebertragen-zeile {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.wkr-uebertragen-probe {
+  margin: 0;
+}
+
+/* Umschaltknopf DISQ/FEHLER (Befund 10): auf schmalen Handys etwas kleiner, damit „PENALTY“ ganz bleibt. */
+.wkr-knopf--disq {
+  font-size: clamp(16px, 5.5vw, 20px);
 }

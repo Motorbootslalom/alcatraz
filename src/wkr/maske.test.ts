@@ -18,6 +18,7 @@ import {
   punkteVon,
   tippe,
   tippeDisq,
+  wechselNach,
   wechselTakt,
   zellenAus,
   zurueck,
@@ -277,18 +278,38 @@ describe('Zweite Sprache (F13)', () => {
   })
 })
 
-describe('Takt des Weiterspringens (G5)', () => {
-  it('2 s gesendet, dann 1 s Sperre, dann frei – an den Grenzen genau', () => {
+describe('Takt des Weiterspringens (G5, Overlay seit dem Feldtest 21.11.2026: N1)', () => {
+  const A = WKR_ANNAHMEN
+  it('ohne Quittung: Overlay bis uebertragenMaxMs, dann 1 s Sperre, dann frei – an den Grenzen genau', () => {
     expect(wechselTakt(null, 5000)).toBe('frei')
     const t0 = 10_000
     expect(wechselTakt(t0, t0)).toBe('gesendet')
-    expect(wechselTakt(t0, t0 + WKR_ANNAHMEN.weiterNachMs - 1)).toBe('gesendet')
-    expect(wechselTakt(t0, t0 + WKR_ANNAHMEN.weiterNachMs)).toBe('sperre')
-    expect(wechselTakt(t0, t0 + WKR_ANNAHMEN.weiterNachMs + WKR_ANNAHMEN.sperreMs - 1)).toBe('sperre')
-    expect(wechselTakt(t0, t0 + WKR_ANNAHMEN.weiterNachMs + WKR_ANNAHMEN.sperreMs)).toBe('frei')
+    expect(wechselTakt(t0, t0 + A.uebertragenMaxMs - 1)).toBe('gesendet')
+    expect(wechselTakt(t0, t0 + A.uebertragenMaxMs)).toBe('sperre')
+    expect(wechselTakt(t0, t0 + A.uebertragenMaxMs + A.sperreMs - 1)).toBe('sperre')
+    expect(wechselTakt(t0, t0 + A.uebertragenMaxMs + A.sperreMs)).toBe('frei')
     // Uhr rückwärts: lieber warten.
     expect(wechselTakt(t0, t0 - 500)).toBe('gesendet')
-    expect([WKR_ANNAHMEN.weiterNachMs, WKR_ANNAHMEN.sperreMs]).toEqual([2000, 1000])
+    expect([A.uebertragenMinMs, A.uebernommenMs, A.uebertragenMaxMs, A.sperreMs]).toEqual([600, 800, 3000, 1000])
+  })
+
+  it('schnelle Quittung: „übernommen“ erst ab uebertragenMinMs, dann uebernommenMs, dann Sperre', () => {
+    const t0 = 10_000
+    const q = t0 + 100
+    expect(wechselNach(t0, q)).toBe(A.uebertragenMinMs + A.uebernommenMs)
+    expect(wechselTakt(t0, t0 + A.uebertragenMinMs - 1, q)).toBe('gesendet')
+    expect(wechselTakt(t0, t0 + A.uebertragenMinMs, q)).toBe('uebernommen')
+    expect(wechselTakt(t0, t0 + A.uebertragenMinMs + A.uebernommenMs - 1, q)).toBe('uebernommen')
+    expect(wechselTakt(t0, t0 + A.uebertragenMinMs + A.uebernommenMs, q)).toBe('sperre')
+    expect(wechselTakt(t0, t0 + A.uebertragenMinMs + A.uebernommenMs + A.sperreMs, q)).toBe('frei')
+  })
+
+  it('späte Quittung: ab ihr „übernommen“; nach dem Höchstwert ändert sie nichts mehr', () => {
+    const t0 = 10_000
+    expect(wechselTakt(t0, t0 + 2000, t0 + 1500)).toBe('uebernommen')
+    expect(wechselNach(t0, t0 + 1500)).toBe(1500 + A.uebernommenMs)
+    expect(wechselNach(t0, t0 + A.uebertragenMaxMs + 10)).toBe(A.uebertragenMaxMs)
+    expect(wechselTakt(t0, t0 + A.uebertragenMaxMs + 20, t0 + A.uebertragenMaxMs + 10)).toBe('sperre')
   })
 })
 

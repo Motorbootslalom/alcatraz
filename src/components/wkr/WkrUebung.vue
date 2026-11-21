@@ -23,6 +23,8 @@ const props = defineProps<{
   ablage?: Ablage | null
   /** Nur Tests: Takt neuer Starts. */
   taktMs?: number
+  /** Der Bildschirm lässt sich nicht wach halten (GeraetApp) – die Maske sagt es oben (N7, 21.11.2026). */
+  bildschirmKannAus?: boolean
 }>()
 
 /** Zurück zum Koppeln: die Adresse eines Geräts ohne Paket (geraete/paket.ts GERAET), nie fest im Text. */
@@ -62,12 +64,12 @@ onBeforeUnmount(ende)
 </script>
 
 <template>
-  <WkrGeraet v-if="quelle" :quelle="quelle" :ablage="ablage" @uebung-ende="ende" />
+  <WkrGeraet v-if="quelle" :quelle="quelle" :ablage="ablage" :bildschirm-kann-aus="bildschirmKannAus" @uebung-ende="ende" />
   <div v-else class="wkr-geraet wkr-uebung-wahl" data-teil="uebung-wahl" :data-modus="modus" data-uebung="true">
     <p class="wkr-uebung wkr-uebung--band" data-teil="uebung">{{ t('wkr.geraet.uebung') }}</p>
     <h1>{{ t('wkr.geraet.uebung.titel') }}</h1>
     <p class="wkr-hinweis">{{ t('wkr.geraet.uebung.hint') }}</p>
-    <fieldset class="wkr-gruppe">
+    <fieldset class="wkr-feldgruppe">
       <legend>{{ t('wkr.geraet.uebung.regelwerk') }}</legend>
       <div class="wkr-reihe">
         <button
@@ -85,7 +87,7 @@ onBeforeUnmount(ende)
         </button>
       </div>
     </fieldset>
-    <fieldset class="wkr-gruppe">
+    <fieldset class="wkr-feldgruppe">
       <legend>{{ t('wkr.geraet.uebung.liste') }}</legend>
       <div class="wkr-uebung-listen">
         <button

@@ -85,7 +85,7 @@ function tue(f: () => void): void {
         {{ w('wkr.geraet.abschluss') }}
       </button>
 
-      <fieldset class="wkr-gruppe" data-teil="ansicht">
+      <fieldset class="wkr-feldgruppe" data-teil="ansicht">
         <legend>{{ w('wkr.geraet.ansicht') }}</legend>
         <div class="wkr-reihe">
           <button
@@ -114,7 +114,7 @@ function tue(f: () => void): void {
         </button>
       </fieldset>
 
-      <fieldset class="wkr-gruppe" data-teil="sprache">
+      <fieldset class="wkr-feldgruppe" data-teil="sprache">
         <legend>{{ w('wkr.geraet.sprache') }}</legend>
         <div class="wkr-reihe">
           <button

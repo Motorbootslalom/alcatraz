@@ -366,6 +366,15 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Verzahnung) ordnen Sortieren, Zufall und Verschieben die Starter selbst um; die Verzahnung vergibt die Nummern
   dann in dieser Folge. Fehlen nur einige, gehen die vorhandenen an die ersten, die übrigen folgen sortiert. → `lib/reihenfolge.ts`, `components/ClassSection.vue`,
   `views/StartersView.vue`, Actions ORDER_STARTERS/SHUFFLE_STARTERS in `state/reducer.ts` VERZAHNUNG_ACTIONS
+- 2026-11-21 · N · Sortierung im Starter-Reiter in drei Stufen (Feldtest, ersetzt „zweiter Klick dreht um“): Klick 1
+  markiert die Spalte deutlich und sortiert absteigend (Pfeil ↓), Klick 2 aufsteigend (↑), Klick 3 löscht die
+  Markierung, die Reihenfolge bleibt (keine Action); eine andere Spalte beginnt bei Stufe 1. Je Klasse und für alle
+  Klassen. Auslegung, noch zu bestätigen: „absteigend“ = Z→A bzw. größter Wert zuerst (Größe XL vor XS,
+  Geburtsdatum Jüngste zuerst), ohne Angabe weiter hinten. Ursache der fehlenden Markierung: Mit Startnummern-Bereichen
+  sortiert der Reducer nur je Größengruppe, die Markierung hing aber daran, dass die ganze Klasse nach der Spalte
+  steht – sie verschwand sofort, und der zweite Klick sortierte erneut in derselben Richtung. Jetzt gilt sie, solange
+  die Klasse in der Folge nach dem Sortieren steht (Bedienauswahl, lib/merken.ts). → `lib/reihenfolge.ts`
+  naechsteSortierung/SortierWahl, `components/ClassSection.vue`, `views/StartersView.vue`
 - 2026-11-15 · N · Unter UIM ist der Buchstabe der Dolphin-Nummern wählbar: E (Vorgabe, E01) oder D. Er gilt für neu
   vergebene Nummern; beim Weiterzählen zählen E und D gemeinsam (parseClassNumber). Ein Buchstaben-Präfix sortiert wie
   0, also vorn. → AppState.dolphinPraefix, `config/catalog.ts` startNrPraefixe, `components/StartNumberPanel.vue`,
@@ -635,7 +644,14 @@ plan-wkr-w3.md §9–§13):
   schon zwei Halte (`t1b` „1 R“, `t1c` „1 R“ Speedrunde, `config/kurzform.ts`), also je Durchfahrt ein Schalter.
 - 2026-11-21 · F3 · Digitale WKR nur mit Start-Freigabe.
 - 2026-11-21 · F4 · Warnen ab R = 2, „nachfragen“ wählbar, nie sperren; dazu in der Erfassung am Bedienrechner eine
-  Markierung an Zeile/Zelle, deren Gerätewert fehlt („Papier ansehen“).
+  Markierung an Zeile/Zelle, deren Gerätewert fehlt („Papier ansehen“). **Geändert nach dem Feldtest 21.11.2026**
+  (Befund 8, Nutzer: „Hier sollte nächster Starter nicht einfach möglich sein, wenn der WKR noch nicht fertig ist“):
+  Rückfrage schon ab **einem** offenen Start („Mann-über-Bord hat 604 noch nicht abgeschickt – trotzdem weiter?“),
+  Vorgabe R = 1 und „nachfragen“, R zählt jetzt „ab“ statt „mehr als“; weiter **kein hartes Sperren** (ein Gerät kann
+  ausfallen, der Bediener entscheidet, „Papier ab“ bleibt); gilt auch auf dem Freigabe-Handy. „Papier ansehen“ in der
+  Erfassung bleibt so streng wie vorher (überfällig erst bei mehr als max(R, 2) jüngeren Starts). Geräteleiste: das
+  Zeichen nennt den Erfassungsstand (✓ fertig, ⧗ wartet n, ✕ Gerät weg, ▭ Papier), die Verbindung steht klein
+  dahinter (Befunde 9, 12). WKR_ANNAHMEN N8–N10, noch zu bestätigen.
 - 2026-11-21 · F5 · X vom Gerät nur bei Steg-Ablegen und Vorsteg, mit Rückfrage und Hervorhebung am Bedienrechner.
 - 2026-11-21 · F6 · Kein Name auf dem WKR-Gerät (Startnummer, Klasse, ggf. Boot).
 - 2026-11-21 · F7 · Korrektur über „Zuletzt“ (die letzten abgeschickten Zeilen bleiben auf dem Gerät erreichbar).

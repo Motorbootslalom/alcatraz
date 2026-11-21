@@ -91,6 +91,13 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   W3 „Handy, Katalog“ ist gebaut ([plan-wkr-w3.md](plan-wkr-w3.md): Maske „Knöpfe“ für Steg, Tor 5, MüB und
   Vorsteg mit Doppeltipp-Schutz, Liste zuweisen, „Liste abschließen“, Sonnenmodus, Probe, Übung ohne Netz `#/uebung`;
   Prüfbefunde vom 21.11.2026 behoben, Auslegungen noch zu bestätigen).
+  Erster Handy-Test (21.11.2026, Befunde 1–16, N1–N10 in WKR_ANNAHMEN) eingearbeitet: Text nie abgeschnitten,
+  Farben nur der Maske, Overlay „wird übertragen …“, DISQ/FEHLER, Ende der Probe, Wake-Lock-Hinweis und
+  `npm run dev:https`, Koppeln über den QR-Code als Hauptweg, Team-Filter der Zuschauerliste, Rückfrage schon ab
+  einem offenen Start (alte W2-Vorgabe 2/„warnen“ wird beim Laden einmal gehoben), Geräteleiste ✓/⧗/✕/▭ (ohne Gerät
+  ✕), Sortierung im Reiter „Starter“ in drei Stufen. Zählfehler „3 offen“ trotz ✓ am Handy (Befund 15): zwei Tabs
+  derselben Kopplung – jetzt sendet nur der zuletzt geöffnete Tab (geraete/tabWache.ts), der ältere bietet „Hier
+  weitermachen“. Offen zur Entscheidung: R je Listenart (WKR_ANNAHMEN N8).
   Offen: Bojen-Masken und Pad (W4), Knoten und Zeit-Listen (W5), Feldtest.
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten

@@ -148,6 +148,20 @@ describe('Gerät mit Lese-Link: dieselben Komponenten wie am Bedienrechner', () 
     expect(document.title).toBe('Startfolge – Musterpokal 2026')
   })
 
+  it('Zuschauer-Link: Team-Filter auch auf dem Gerät, gemerkt im Browser des Geräts (21.11.2026)', async () => {
+    const { state, info } = await bedienrechner()
+    // Zwei erfundene Vereine, damit der Filter erscheint.
+    state.value = { ...state.value, starters: state.value.starters.map((p) => (p.id === 'k2' ? { ...p, verein: 'Testverein Nord' } : p)) }
+    const w = geraet(sehenAdresse(info.zuschauer))
+    await zeigt(() => w.find('[data-teil="team-filter"]').exists())
+    await w.find('[data-team="Testverein Nord"]').trigger('click')
+    expect(w.findAll('[data-gruppe] [data-start]').length).toBe(1)
+    // Im localStorage dieses Browsers – nicht in der Ablage des Geräts (Raum, Schlüssel), nicht auf der Leitung: Ein
+    // ZuschauerListe rechnet nur aus der empfangenen Sicht und kennt keinen Transport.
+    expect(JSON.parse(localStorage.getItem('alcatraz.merke.zuschauer.teams')!)).toEqual(['Testverein Nord'])
+    vergissAlles()
+  })
+
   it('ein anderer Link in der Adresse wechselt das Gerät; der gleiche bleibt', async () => {
     const { info } = await bedienrechner()
     const w = geraet(sehenAdresse(info.anzeige))

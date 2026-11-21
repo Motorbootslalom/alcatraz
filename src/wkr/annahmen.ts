@@ -134,12 +134,25 @@ export const WKR_ANNAHMEN = {
    */
   ruhtOhnePunkt: true,
   /**
-   * (A4, F4) Rückstand = offene gezeigte Starts der Liste (Schlange ohne Vorsteg-Vorschau und „entfällt“); gewarnt wird
-   * bei MEHR als R (`anzeige.wkrRueckstand`, Vorgabe `rueckstandVorgabe`). Am Steg mit Teil-Geräten zählt der Teil, der
-   * weiter zurück ist. Pausiert, abgemeldet und Papier zählen nie (F1) – sonst wäre Pausieren sinnlos. Mit 2–3 Booten
-   * auf dem Wasser sind 2 offene Starts für Tor 5 und Anlegen normal.
+   * (A4, F4) Rückstand = offene gezeigte Starts der Liste (Schlange ohne Vorsteg-Vorschau und „entfällt“). Am Steg mit
+   * Teil-Geräten zählt der Teil, der weiter zurück ist. Pausiert, abgemeldet und Papier zählen nie (F1) – sonst wäre
+   * Pausieren sinnlos.
+   * Geändert nach dem Feldtest 21.11.2026 (Befund 8, Nutzer: „nächster Starter sollte nicht einfach möglich sein, wenn
+   * der WKR noch nicht fertig ist“): gewarnt wird AB R offenen Starts (`rueckstandAbR`, vorher „mehr als R“), Vorgabe
+   * R = 1 (vorher 2) und „nachfragen“ (`warnungVorgabe`, vorher „warnen“). Wer mit 2–3 Booten auf dem Wasser Tor 5 oder
+   * Anlegen digital führt, stellt R in den Einstellungen höher. Gesperrt wird weiter nie (N8).
    */
-  rueckstandVorgabe: 2,
+  rueckstandVorgabe: 1,
+  /** (N8) `warnt` ab `zahl >= R` (wkr/lage.ts erfassungsLage); „überfällig“ (A5) bleibt bei MEHR als R jüngeren Starts. */
+  rueckstandAbR: true,
+  /**
+   * (N8) „Überfällig“ (A5, „Papier ansehen“ in der Erfassung) erst bei mehr als max(R, `ueberfaelligMin`) jüngeren
+   * gezeigten Starts – so streng wie bis zum Feldtest mit der alten Vorgabe R = 2. Die strengere Vorgabe R = 1 gilt der
+   * Rückfrage der Start-Freigabe, nicht den Marken der Erfassung (sonst wäre bei Tor 5 fast jede Zeile markiert).
+   */
+  ueberfaelligMin: 2,
+  /** (N8) Vorgabe der Einstellung „Bei Rückstand“ (`anzeige.wkrWarnung`): vor jedem Zeigen nachfragen. */
+  warnungVorgabe: 'nachfragen',
   /** Grenzen von R in der Einstellung (SettingsView `#betrieb`). */
   rueckstandMin: 1,
   rueckstandMax: 20,
@@ -314,12 +327,24 @@ export const WKR_ANNAHMEN = {
   /** (G4, F14) Maskenvorgabe `maske`/`fest` an der Aufgabe; in W3 nur `knoepfe`, ohne Wahl – nur Anzeige. */
   maskeVorgabeNurKnoepfe: true,
   /**
-   * (G5) Doppeltipp-Schutz: Nach dem Abschicken bleibt die Startnummer `weiterNachMs` mit „● gesendet“ stehen, dann
-   * wechselt sie (Blitz, Vibration), und `sperreMs` lang nimmt die Maske KEINE Eingabe an – auch Codes und Disq.,
-   * nicht nur den Hauptknopf (ein Tropfen auf „Code 1“ ist so schlimm wie auf „Fehlerfrei“).
+   * (G5) Doppeltipp-Schutz: Nach dem Abschicken bleibt die Startnummer stehen, dann wechselt sie (Blitz, Vibration),
+   * und `sperreMs` lang nimmt die Maske KEINE Eingabe an – auch Codes und Disq., nicht nur den Hauptknopf (ein Tropfen
+   * auf „Code 1“ ist so schlimm wie auf „Fehlerfrei“). Bis zum Feldtest 21.11.2026 stand die Nummer fest 2 s mit
+   * „● gesendet“ (`weiterNachMs`) – „als ob es ein Problem gibt“; seitdem Overlay mit Quittung, siehe N1.
    */
-  weiterNachMs: 2000,
   sperreMs: 1000,
+  /**
+   * (N1, Feldtest 21.11.2026, Befund 13; noch zu bestätigen) Nach „Fehlerfrei“/„Abschicken“ sofort ein Overlay über die
+   * ganze Maske: „wird übertragen …“ (im Ausgang) bzw. „gesendet – wartet auf Bestätigung …“, mindestens
+   * `uebertragenMinMs` (kein Flackern), bis zur Quittung; dann `uebernommenMs` „✓ übernommen“ (bei Rückfrage/Ablehnung
+   * deren Zeichen und Wort), dann der nächste Start. Ohne Quittung nach `uebertragenMaxMs` weg (nie dauerhaft
+   * gesperrt), siehe N2. Das Overlay hat keine Knöpfe (ein zweiter Tipp landet auf ihm, nicht auf der Maske);
+   * „Rückgängig“ ist danach wieder erreichbar (G8: wartet die Zeile nicht mehr, öffnet es die Korrektur).
+   * wkr/maske.ts wechselTakt/wechselNach, components/wkr/WkrUebertragen.vue.
+   */
+  uebertragenMinMs: 600,
+  uebernommenMs: 800,
+  uebertragenMaxMs: 3000,
   /** (§5.2) Ohne Quittung nach so vielen ms im Kopf „Keine Bestätigung – Verbindung prüfen“ – nie gesperrt. */
   ohneQuittungMs: 10_000,
   /** (§5.6) Ohne Verbindung ab so vielen Sekunden „Länger weg? Papierbogen ab Nr. x“. */
@@ -419,10 +444,10 @@ export const WKR_ANNAHMEN = {
    */
   disqZweiterTipp: true,
   /**
-   * (K2) Gesperrt (inert + Prüfung in jedem Tipp) ist die Mitte samt Ausweichen und der Fuß während der ganzen
-   * `weiterNachMs` + `sperreMs` – auch während „● gesendet“, nicht erst nach dem Wechsel (sonst landete ein Tipp auf
-   * dem schon gesendeten Start). „Zuletzt“, „Rückgängig“ und die Bänder liegen außerhalb; eine Korrektur oder
-   * „Rückgängig“ beendet den Takt.
+   * (K2) Gesperrt (inert + Prüfung in jedem Tipp) ist die Mitte samt Ausweichen und der Fuß vom Abschicken bis zum
+   * Ende von `sperreMs` nach dem Wechsel – auch während des Overlays (N1), nicht erst nach dem Wechsel (sonst landete
+   * ein Tipp auf dem schon gesendeten Start). „Zuletzt“, „Rückgängig“ und die Bänder liegen außerhalb (seit N1 vom
+   * Overlay verdeckt, solange es steht); eine Korrektur oder „Rückgängig“ beendet den Takt.
    */
   sperreAuchGesendet: true,
   /**
@@ -533,4 +558,80 @@ export const WKR_ANNAHMEN = {
    * beim Ablegen nannte (im Ausgang mitgemerkt, `papier`) – nie ein Name.
    */
   entwurfFuersPapier: true,
+  // --- Feldtest mit echtem Handy (21.11.2026, Befunde 1–4, 10, 11, 13, 14; N1–N7, alle noch zu bestätigen) ---
+  // N1 steht bei den Zahlen oben (uebertragenMinMs, uebernommenMs, uebertragenMaxMs).
+  /**
+   * (N2) Ohne Quittung nach `uebertragenMaxMs`: Overlay weg, über dem Kopf (wie „Keine Bestätigung“, ohne die Codes
+   * zu verschieben) „Start n gesendet – Bestätigung folgt“, bis die Zeile eine Antwort hat; ab `ohneQuittungMs`
+   * übernimmt „Keine Bestätigung – Verbindung prüfen“.
+   */
+  bestaetigungFolgtBand: true,
+  /**
+   * (N3) Nie abgeschnittener Text (Befund 1): Umbruch überall, Silbentrennung nach Sprache, Nummern brechen nie; Code-
+   * Knopf mit fester Spalte für Nummer und Zähler (der erste Tipp verschiebt nichts), Punkte neben dem Text, notfalls
+   * darunter; Fuß: Nebenknöpfe höchstens 45 % der Breite. Ausnahme bleibt die Leiste „Zuletzt“ (M5: eine Zeile fester
+   * Höhe, rechts fallen ältere Nummern weg – die Liste dahinter zeigt alle).
+   */
+  textNieAbschneiden: true,
+  /**
+   * (N4) Farben (Befunde 2, 11): Ursache waren gleichnamige Klassen in styles/app.css, die nach wkr-geraet.css geladen
+   * werden und gewannen (Leiste „Zuletzt“ bekam unter System-Dunkelmodus die dunkle Fläche der App). Klassen der Maske
+   * gibt es nur noch in wkr-geraet.css (Test), jede Fläche setzt Grund UND Schrift, `color-scheme` folgt dem Modus der
+   * Maske, nie dem System.
+   */
+  farbenNurMaske: true,
+  /**
+   * (N5) Ende der Probe (Befund 4): „Probe fertig. Ab jetzt wird gesendet: …“ mit „Los geht's“ und klein „Probe
+   * wiederholen“; das gelbe Band sagt dann „Probe beendet“. In der Übung statt „wird gesendet“ „gesendet wird nichts“.
+   */
+  probeEndeSatz: true,
+  /**
+   * (N6) Umschaltknopf im Fuß (Befund 10) nennt das Ziel: „DISQ“ bei offenen Codes, „FEHLER“ bei offenen
+   * Disq.-Buchstaben (englisch „PENALTY“, kurz für schmale Handys); über der offenen Liste steht „Disq.“ wie „Fehler“
+   * über den Codes. „Nr.“ heißt „Andere Startnummer …“ und steht über die volle Breite (Befund 3).
+   */
+  umschaltenNenntZiel: true,
+  /**
+   * (N7) Bildschirm (Befund 14a): Kann die Maske den Bildschirm nicht wach halten (lib/wachBleiben.ts: http ohne
+   * Zertifikat, altes Gerät, Energiesparen), steht oben ein gelbes Band mit dem Tipp „Display-Zeit am Handy
+   * verlängern“; „Ausblenden“ gilt bis zum Neuladen der Seite (nicht gemerkt – am nächsten Tag soll es wieder da sein).
+   */
+  wachHinweisInMaske: true,
+  // --- Feldtest 21.11.2026, Start-Freigabe (Befunde 8, 9, 12; N8–N10, noch zu bestätigen) ---------------------------
+  /**
+   * (N8, Befund 8, ändert F4/A4) Die Start-Freigabe fragt schon ab EINEM offenen Start nach („Mann-über-Bord hat 604
+   * noch nicht abgeschickt – trotzdem weiter?“), Vorgaben `rueckstandVorgabe` 1 und `warnungVorgabe` „nachfragen“.
+   * Hart gesperrt wird nie: Ein Gerät kann ausfallen, der Bediener entscheidet; „Papier ab“ bleibt der Weg, eine Liste
+   * aufs Papier zu nehmen. Das Freigabe-Handy fragt genauso (`warnt` und `warnung` rechnet der Host, D2).
+   * Prüfbefund 21.11.2026, OFFEN (dem Nutzer vorgelegt): Der gerade gezeigte Start zählt schon als offen. Bei Listen,
+   * die erst abschließen können, wenn das Boot den Parcours verlassen hat (Mann-über-Bord, Tor 5, Steg-Anlegen),
+   * käme mit 2–3 Booten auf dem Wasser vor JEDEM „Nächster Start“ die Frage – Gewöhnung an den Dialog. Denkbar: R je
+   * Listenart (1 für Ablegen/Vorsteg, 2 für Listen mit Boot auf dem Wasser) oder der zuletzt gezeigte Start zählt
+   * nicht, solange er läuft. Bis zur Entscheidung gilt R = 1 für alle Listen; wer es lockerer will, stellt R höher.
+   * Ein W2-Stand mit der alten Vorgabe 2/„warnen“ wird beim Laden einmal auf 1/„nachfragen“ gehoben
+   * (state/reducer/betrieb.ts WKR_VORGABE_FASSUNG), sonst wirkte N8 bei schon angelegten Veranstaltungen nicht.
+   */
+  nachfrageAbEinem: true,
+  /**
+   * (N9, Befunde 9 und 12) Das Zeichen eines Feldes der Geräteleiste nennt den ERFASSUNGSSTAND, nicht die Verbindung:
+   * ✓ fertig (grün, nichts offen), ⧗ wartet n (gelb/orange), ✕ Gerät weg (rot, schlechteste Ampel `weg` – auch wenn
+   * noch etwas offen ist), ▭ Papier (kein Eintrag, Modus Papier, pausiert, abgemeldet). Die Verbindung steht klein
+   * dahinter (● ◐ ○, ohne Gerät „–“); der grüne Punkt neben „1 offen“ las sich als „fertig“. Zeilen, die laut
+   * Lebenszeichen noch im Gerät warten (A11), heißen „n im Gerät“ – ⧗ ist jetzt „wartet“.
+   * Prüfbefund 21.11.2026: Digital und aktiv mit offenen Starts, aber OHNE Gerät (nie gekoppelt, entzogen) – da sendet
+   * niemand, „⧗ wartet“ hieße „kommt gleich“. Also wie „Gerät weg“: ✕ rot, Text „kein Gerät · wartet n“.
+   */
+  leisteZeichenNachStand: true,
+  /**
+   * (N10, Befund 8) Der Dialog nennt je warnender Liste, welche Startnummern noch nicht abgeschickt sind; Titel
+   * „Trotzdem weiter?“, Knopf „Trotzdem weiter“. Die Fokus-Vorgabe bleibt „Abbrechen“ (ein Enter zeigt nicht still).
+   */
+  frageNenntNummern: true,
+  /**
+   * (Befund 15, Prüfbefund 21.11.2026) Je Gerät sendet nur EIN Tab: der zuletzt geöffnete (geraete/tabWache.ts). Zwei
+   * Tabs derselben Kopplung hielten je eine Sende-Schlange; kam die höhere Nummer des einen vor der niedrigeren des
+   * anderen an, verwarf der Host die niedrigere still – ✓ am Handy, offen am Bedienrechner. Der ältere Tab zeigt
+   * „In einem anderen Tab geöffnet“ mit „Hier weitermachen“.
+   */
+  einTabSendet: true,
 } as const

@@ -2996,12 +2996,34 @@ table.starters th .sortier-kopf:disabled {
   cursor: not-allowed;
 }
 
+/* Fokusring nach innen: Der Rahmen der Tabelle (.starters-rahmen, overflow-x) schnitt ihn sonst ab – auf
+   dem Bildschirmfoto des Feldtests (21.11.2026, Befund 16) war er das einzige Zeichen der geklickten Spalte. */
+table.starters th .sortier-kopf:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* Gewählte Spalte deutlich markiert (21.11.2026): Fläche in --accent-soft, Text fett, Pfeil groß – in hell
+   und dunkel über dieselben Tokens. */
+table.starters th.sortier-aktiv {
+  background: var(--accent-soft);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+table.starters th .sortier-kopf.aktiv {
+  font-weight: 800;
+  color: var(--text);
+}
+
 .sortier-pfeil {
   font-size: 10px;
   opacity: 0.45;
 }
 
 .sortier-pfeil.aktiv {
+  font-size: 14px;
+  font-weight: 800;
   opacity: 1;
 }
 
@@ -3685,6 +3707,26 @@ table.starters th .sortier-kopf:disabled {
   margin-top: 12px;
 }
 
+/* Befund 6 (21.11.2026): QR-Code ist der Hauptweg, Geräte-Code + Koppel-Link ein zugeklappter zweiter Weg. */
+.koppel-hauptweg {
+  align-items: center;
+}
+
+.koppel-qr {
+  margin-top: 12px;
+  max-width: 420px;
+}
+
+.koppel-weg-code {
+  margin-top: 16px;
+}
+
+.koppel-weg-code > summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 32px;
+}
+
 /* Der Geräte-Code wird über Funk durchgesagt: groß und in festen Breiten, damit niemand 0 und O verwechselt. */
 .koppel-code-wert {
   margin: 8px 0;
@@ -4011,6 +4053,40 @@ table.starters th .sortier-kopf:disabled {
 
 .wkr-leiste-feld {
   white-space: nowrap;
+}
+
+/* Feldtest 21.11.2026 (WKR_ANNAHMEN N9): das große Zeichen nennt den Erfassungsstand, die Verbindung steht klein dahinter. */
+.wkr-leiste-erf {
+  display: inline-block;
+  min-width: 1.1em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.wkr-leiste-erf[data-erf='fertig'] {
+  color: var(--ok-text);
+}
+
+.wkr-leiste-erf[data-erf='wartet'] {
+  color: var(--rueckstand);
+}
+
+.wkr-leiste-erf[data-erf='weg'] {
+  color: var(--danger);
+}
+
+.wkr-leiste-erf[data-erf='papier'] {
+  color: var(--muted);
+}
+
+.wkr-leiste-verbindung,
+.wkr-leiste-imgeraet {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+.wkr-leiste-verbindung .wkr-ampel {
+  width: auto;
 }
 
 .wkr-leiste-feld.rot {

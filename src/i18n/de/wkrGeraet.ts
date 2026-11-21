@@ -31,7 +31,9 @@ export default {
   'wkr.geraet.vorab': 'noch nicht gezeigt',
   'wkr.geraet.ausserDerReihe': 'außer der Reihe',
 
-  'wkr.geraet.suche': 'Nr.',
+  // Feldtest 21.11.2026, Befund 3: „Nr.“ war unklar.
+  'wkr.geraet.suche': 'Andere Startnummer …',
+  'wkr.geraet.sucheZu': 'Andere Startnummer – schließen',
   'wkr.geraet.sucheOk': 'Diesen Start',
   'wkr.geraet.nichtGefunden': 'Nr. {nr} ist nicht in der Folge dieser Liste.',
   'wkr.geraet.abbrechen': 'Abbrechen',
@@ -41,6 +43,18 @@ export default {
   'wkr.geraet.steg.an': 'Anlegen',
   'wkr.geraet.disq': 'Disq.',
   'wkr.geraet.disqKnopf': 'DISQ',
+  // Befund 10 (21.11.2026): Der Umschaltknopf nennt das Ziel – bei offenen Disq.-Buchstaben zurück zu den Fehlern.
+  'wkr.geraet.fehlerKnopf': 'FEHLER',
+  // N1/N2 (21.11.2026): Overlay nach dem Abschicken, Band ohne Antwort.
+  'wkr.geraet.uebertragen.start': 'Start {nr}',
+  'wkr.geraet.uebertragen.laeuft': 'wird übertragen …',
+  'wkr.geraet.uebertragen.wartet': 'gesendet – wartet auf Bestätigung …',
+  'wkr.geraet.uebertragen.folgt': 'Start {nr} gesendet – Bestätigung folgt',
+  // N7 (21.11.2026): Bildschirm kann ausgehen.
+  'wkr.geraet.wach.titel': 'Bildschirm kann ausgehen.',
+  'wkr.geraet.wach.tipp': 'Display-Zeit am Handy verlängern (Einstellungen → Display → Bildschirm-Timeout).',
+  'wkr.geraet.wach.ohneHttps': 'Ohne https hält die Seite ihn nicht an – Display-Zeit am Handy verlängern (Einstellungen → Display → Bildschirm-Timeout).',
+  'wkr.geraet.wach.ausblenden': 'Ausblenden',
   'wkr.geraet.disq.gesetzt': 'gesetzt',
   'wkr.geraet.disq.nochmal': 'noch einmal tippen',
   'wkr.geraet.x.frage': 'Start {nr}: nicht gestartet (X)?',
@@ -141,6 +155,10 @@ export default {
   'wkr.geraet.punkt.lauf': '{n}. Lauf',
 
   'wkr.geraet.probe.band': 'Probe – nichts wird gesendet',
+  'wkr.geraet.probe.bandFertig': 'Probe beendet',
+  'wkr.geraet.probe.ende': 'Ab jetzt wird gesendet: Jeder Start, den die Start-Freigabe zeigt, erscheint hier.',
+  'wkr.geraet.probe.endeUebung': 'Weiter mit der Übung: Jeder Übungsstart erscheint hier – gesendet wird nichts.',
+  'wkr.geraet.probe.wiederholen': 'Probe wiederholen',
   'wkr.geraet.probe.titel': 'Probe',
   'wkr.geraet.probe.ueberspringen': 'Überspringen',
   'wkr.geraet.probe.schritt': 'Schritt {i} von {n}:',
@@ -149,7 +167,7 @@ export default {
   'wkr.geraet.probe.haupt': 'Tippe „{knopf}“ – die Maske springt weiter.',
   'wkr.geraet.probe.x': 'Tippe zweimal X, dann „{knopf}“.',
   'wkr.geraet.probe.warte': 'So springt die Maske weiter: Die Nummer bleibt kurz stehen, dann Blitz – 1 s lang nimmt sie nichts an.',
-  'wkr.geraet.probe.fertig': 'Probe fertig – so arbeitet die Maske.',
+  'wkr.geraet.probe.fertig': 'Probe fertig.',
   'wkr.geraet.probe.los': 'Los geht’s',
 
   'wkr.geraet.uebung.titel': 'Üben ohne Verbindung',

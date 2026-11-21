@@ -72,7 +72,9 @@ start release.
   Bedienfenster stößt per postMessage an (verbindeAnzeigen in main.ts), die Tafel meldet sich beim opener.
   Zuschauerliste (E3) genauso: `#/zuschauer[/<bereich>]` (en `#/spectators`) → ZuschauerApp → sichtZuschauer(sicht…
   {logos:false}) nach JSON verglichen → ZuschauerListe(sicht, jetzt aus useUhr(5000)); Klassenfilter merke
-  `zuschauer.klasse` (ueberNeuladen, sessionStorage), nur Klassen der gezeigten Bereiche (`#/zuschauer/<bereich>`).
+  `zuschauer.klasse` (ueberNeuladen, sessionStorage), nur Klassen der gezeigten Bereiche (`#/zuschauer/<bereich>`);
+  Team-Filter (21.11.2026) nach Herkunft, Mehrfachwahl, merke `zuschauer.teams` (dauerhaft, localStorage) –
+  BETRIEB_ANNAHMEN.zuschauerTeamFilter; die Sicht bleibt unverändert.
 - Startliste (E3): BetriebView `startliste` → je Bereich StartListe(sicht, bereich, jetzt aus useUhr(1000)) →
   wartezeiten() je Render. Ziehen auf einen offenen Start = BETRIEB_VERSCHIEBEN {vor} (nach oben) bzw. {nach} (nach
   unten), dazu das Menü „Verschieben …“ (verschiebeZiele, wie BetriebsFolge) – BETRIEB_ANNAHMEN.ziehenInDerStartliste.

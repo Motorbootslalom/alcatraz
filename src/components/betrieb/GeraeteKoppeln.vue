@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { BereichId } from '../../types'
 import { useStore } from '../../state/store'
 import { useGeraeteHost } from '../../geraete/host'
@@ -39,6 +39,11 @@ import type { ListenTeil } from '../../wkr/liste'
  *
  * Alles geht über den Host (useGeraeteHost) und damit über das Führungsfenster; hier wird nur gezeigt und gewählt. Die
  * Wahl der Bereiche ist Bedienung (lib/merken.ts), nicht Stand.
+ *
+ * Feldtest 21.11.2026 (Befund 6, BETRIEB_ANNAHMEN.koppelnWege): Der Koppel-Link (ohne Token) stand mit großem QR-Code
+ * offen da und wurde statt des QR-Codes zum Koppeln gescannt – das Handy fragte dann nach einem Geräte-Code. Jetzt ist
+ * „QR-Code zeigen“ der Hauptweg („scannen – fertig, kein Code nötig“); Geräte-Code UND Koppel-Link stehen zusammen in
+ * einem zugeklappten Weg `data-teil="koppeln-weg-code"`, der sich erst beim Aufklappen oder Ausgeben eines Codes öffnet.
  */
 const { state } = useStore()
 const host = useGeraeteHost()
@@ -103,6 +108,13 @@ const qr = computed(() => raum.value?.koppeln.qr ?? null)
 const qrUrl = computed(() => (qr.value ? koppelLinkUrl(qr.value.paket, seite, PAGES_URL) : ''))
 // Läuft die Sitzung ab, räumt das Führungsfenster sie im nächsten Takt weg; bis dahin nicht mehr scannen lassen.
 const qrOffen = computed(() => !!qr.value && restSekunden(qr.value.endet, jetzt.value) > 0)
+
+// Weg „Geräte-Code“ (Befund 6): zugeklappt, bis jemand ihn öffnet oder ein Code ausgegeben ist. Nur Bedienung, nicht
+// gemerkt: Nach dem Neuladen steht wieder der Hauptweg QR-Code vorn.
+const wegCodeOffen = ref(false)
+watch(code, (c) => {
+  if (c) wegCodeOffen.value = true
+}, { immediate: true })
 </script>
 
 <template>
@@ -145,47 +157,56 @@ const qrOffen = computed(() => !!qr.value && restSekunden(qr.value.endet, jetzt.
     </fieldset>
     <p v-if="leer" class="note" data-hinweis="bereiche-fehlen">{{ t('geraete.koppeln.bereicheFehlen') }}</p>
 
-    <div class="row">
+    <!-- Hauptweg: QR-Code mit Token – scannen, fertig. -->
+    <div class="row koppel-hauptweg" data-teil="koppeln-hauptweg">
       <button type="button" class="btn primary" data-action="koppeln-qr" :disabled="leer" @click="host?.oeffneQr(aufgaben)">{{ t('geraete.koppeln.qr') }}</button>
-      <button type="button" class="btn" data-action="koppeln-code" :disabled="leer" @click="host?.gibCode(aufgaben)">{{ t('geraete.koppeln.code') }}</button>
+      <span class="note">{{ t('geraete.koppeln.qr.kurz') }}</span>
     </div>
 
-    <div class="geraete-koppel-karten">
-      <div v-if="qr && qrOffen" class="lese-link koppel-qr" data-teil="koppeln-qr">
-        <h3>{{ t('geraete.koppeln.qr.titel') }}</h3>
-        <p class="note">{{ t('geraete.koppeln.qr.hint') }}</p>
-        <QrCode :inhalt="qrUrl" />
-        <p class="note" data-teil="qr-zeit">
-          {{ t('geraete.koppeln.qr.endet', { s: restSekunden(qr.tokenBis, jetzt), zeit: mmss(restSekunden(qr.endet, jetzt)) }) }}
-        </p>
-        <p class="note" data-teil="qr-fuer">{{ fuerText(qr.aufgaben) }}</p>
-        <div class="row">
-          <button type="button" class="btn" data-action="qr-beenden" @click="host?.beendeKoppeln('qr')">{{ t('geraete.koppeln.qr.beenden') }}</button>
-        </div>
+    <div v-if="qr && qrOffen" class="lese-link koppel-qr" data-teil="koppeln-qr">
+      <h3>{{ t('geraete.koppeln.qr.titel') }}</h3>
+      <p class="note">{{ t('geraete.koppeln.qr.hint') }}</p>
+      <QrCode :inhalt="qrUrl" />
+      <p class="note" data-teil="qr-zeit">
+        {{ t('geraete.koppeln.qr.endet', { s: restSekunden(qr.tokenBis, jetzt), zeit: mmss(restSekunden(qr.endet, jetzt)) }) }}
+      </p>
+      <p class="note" data-teil="qr-fuer">{{ fuerText(qr.aufgaben) }}</p>
+      <div class="row">
+        <button type="button" class="btn" data-action="qr-beenden" @click="host?.beendeKoppeln('qr')">{{ t('geraete.koppeln.qr.beenden') }}</button>
       </div>
-
-      <div v-if="code" class="lese-link koppel-code" data-teil="koppeln-code" :data-lage="code.benutzt !== null ? 'benutzt' : codeRest > 0 ? 'gilt' : 'abgelaufen'">
-        <h3>{{ t('geraete.koppeln.code.titel') }}</h3>
-        <p class="note">{{ t('geraete.koppeln.code.hint') }}</p>
-        <p class="koppel-code-wert" data-teil="code">{{ formatiereCode(code.wert) }}</p>
-        <p class="note" data-teil="code-zeit">
-          {{
-            code.benutzt !== null
-              ? t('geraete.koppeln.code.benutzt')
-              : codeRest > 0
-                ? t('geraete.koppeln.code.gilt', { zeit: mmss(codeRest) })
-                : t('geraete.koppeln.code.abgelaufen')
-          }}
-        </p>
-        <p class="note" data-teil="code-fuer">{{ fuerText(code.aufgaben) }}</p>
-        <div class="row">
-          <button v-if="code.benutzt === null && codeRest > 0" type="button" class="btn" data-action="code-beenden" @click="host?.beendeKoppeln('code')">
-            {{ t('geraete.koppeln.code.beenden') }}
-          </button>
-        </div>
-      </div>
-
-      <LeseLink v-if="koppelLink" art="koppeln" :url="koppelLink" />
     </div>
+
+    <!-- Zweiter Weg (über Funk): Geräte-Code + Koppel-Link – zugeklappt, damit niemand den Link statt des QR-Codes scannt. -->
+    <details class="koppel-weg-code" data-teil="koppeln-weg-code" :open="wegCodeOffen" @toggle="wegCodeOffen = ($event.target as HTMLDetailsElement).open">
+      <summary>{{ t('geraete.koppeln.wegCode') }}</summary>
+      <p class="note">{{ t('geraete.koppeln.wegCode.hint') }}</p>
+      <div class="row">
+        <button type="button" class="btn" data-action="koppeln-code" :disabled="leer" @click="host?.gibCode(aufgaben)">{{ t('geraete.koppeln.code') }}</button>
+      </div>
+      <div class="geraete-koppel-karten">
+        <div v-if="code" class="lese-link koppel-code" data-teil="koppeln-code" :data-lage="code.benutzt !== null ? 'benutzt' : codeRest > 0 ? 'gilt' : 'abgelaufen'">
+          <h3>{{ t('geraete.koppeln.code.titel') }}</h3>
+          <p class="note">{{ t('geraete.koppeln.code.hint') }}</p>
+          <p class="koppel-code-wert" data-teil="code">{{ formatiereCode(code.wert) }}</p>
+          <p class="note" data-teil="code-zeit">
+            {{
+              code.benutzt !== null
+                ? t('geraete.koppeln.code.benutzt')
+                : codeRest > 0
+                  ? t('geraete.koppeln.code.gilt', { zeit: mmss(codeRest) })
+                  : t('geraete.koppeln.code.abgelaufen')
+            }}
+          </p>
+          <p class="note" data-teil="code-fuer">{{ fuerText(code.aufgaben) }}</p>
+          <div class="row">
+            <button v-if="code.benutzt === null && codeRest > 0" type="button" class="btn" data-action="code-beenden" @click="host?.beendeKoppeln('code')">
+              {{ t('geraete.koppeln.code.beenden') }}
+            </button>
+          </div>
+        </div>
+
+        <LeseLink v-if="koppelLink && wegCodeOffen" art="koppeln" :url="koppelLink" />
+      </div>
+    </details>
   </section>
 </template>

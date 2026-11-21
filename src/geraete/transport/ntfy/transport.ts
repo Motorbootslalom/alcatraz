@@ -1035,6 +1035,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
    * mit dieser Nummer kommt (K32).
    */
   sende(nachricht: GeraeteNachricht): number {
+    this.nimmHoechsteNr()
     const nr = this.stand.naechsteNr
     this.stand.naechsteNr += 1
     this.stand.schlange.push({ nr, nachricht })
@@ -1094,7 +1095,21 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     for (const fn of this.handler) fn(e)
   }
 
+  /**
+   * Die Nummer frisch aus dem Speicher nachziehen (Befund 15 des Handy-Tests, 21.11.2026): Zwei Tabs mit derselben
+   * Kopplung (QR-Code noch einmal gescannt, alter Tab nach dem Neuladen wieder wach) hielten sonst je ihren eigenen
+   * Zähler und vergäben dieselben Nummern. Der Host zählt die zweite als schon bearbeitet (`nr ≤ letzteNr`), und weil
+   * `bis` der Sicht sie deckt, hält das Gerät die Zeile für übernommen – ✓ am Handy, kein Haken am Bedienrechner
+   * („Mann-über-Bord 3 offen“). Wie beim Host (reiheEin): gelesen, erhöht, geschrieben – die Nummer sinkt nie, auch
+   * nicht, wenn ein Tab seinen älteren Stand ablegt.
+   */
+  private nimmHoechsteNr(): void {
+    const abgelegt = this.optionen.speicher.lies()
+    if (abgelegt && abgelegt.naechsteNr > this.stand.naechsteNr) this.stand.naechsteNr = abgelegt.naechsteNr
+  }
+
   private speichere(): void {
+    this.nimmHoechsteNr()
     // Weiter mit dem Stand im Arbeitsspeicher; nach einem Neuladen fehlte aber, was nicht abgelegt ist – melden.
     if (this.optionen.speicher.schreibe(this.stand) === false) this.fehler.value = { code: 'ablage-voll' }
     else if (this.fehler.value?.code === 'ablage-voll') this.fehler.value = null

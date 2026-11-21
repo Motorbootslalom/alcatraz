@@ -16,14 +16,14 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - `annahmen.ts` – WKR_ANNAHMEN: alle Auslegungen mit Datum (Plan §9, „noch zu bestätigen“), Zahlen (Bündel 8, Schlange
   12, danach 5, zuletzt 20, Lebenszeichen 60 s), Steg-Teile nach Spalten-Key (`fehlerAB`/`fehlerAN`, gemeinsam
   `disq`/`bemerkung`), X nur Steg-Ablegen und Vorsteg (F5), `vorabListen` (Vorsteg sieht die nächsten), Knoten erst W5.
-  W2 (A1–A13, 21.11.2026, noch zu bestätigen): matrixStarts 12, rueckstandVorgabe 2 (Grenzen 1–20), ampelStillSek 90,
+  W2 (A1–A13, 21.11.2026, noch zu bestätigen): matrixStarts 12, rueckstandVorgabe 2 → seit N8 1 (Grenzen 1–20), ampelStillSek 90,
   ampelWegSek 300, papierStartVorschlag (A6), papierAbMeldetAb (A10), papierAnsehen (A5) …; W2.2 beim Bau B1–B6
   (Zähler nur Rückfragen, Modus ohne Gerät, „Weiter“ mit Hinweis, Papier-ab-Vorgabe, Karte, `zuletzt` gedrosselt);
   W2.3 beim Bau C1–C4 (◆ an jeder Liste, Nachfrage bei der ersten Änderung, Zahl mit Zellmarken, Uhr 30 s);
   W2.4 beim Bau D1–D5 (Leiste mit allen Listen, Rückfragen nur als Zahl + `warnt`, Titel in Tafel-Sprache,
   freigabeTaktSek 15, Nachfrage vor jedem Zeigen); Prüfbefunde W2 E1–E4 (abgetippt = erledigt in lage.ts, ◆ nach
   Entscheid, Hinweise je Steg-Teil, Freigabe je Gerätewert/Zeitfelder; plan-wkr-w2.md §10).
-  W3 (G1–G16, plan-wkr-w3.md §9): weiterNachMs 2000, sperreMs 1000, ohneQuittungMs 10000, papierHinweisSek 300,
+  W3 (G1–G16, plan-wkr-w3.md §9): sperreMs 1000 (weiterNachMs 2000 ersetzt durch N1), ohneQuittungMs 10000, papierHinweisSek 300,
   rueckgaengigMs 6000, zuletztLeiste 5, uebungQuittungMs 300, uebungRueckfrageBei 5, uebungStarts 20, uebungTaktSek 30;
   W3.1 beim Bau H1–H5 (Disq. als Schalter, ohne Disq.-Feld ins erste Code-Feld; „zurück“ = letzter Tipp; Schlange je
   Steg-Teil auf dem Gerät; Entwürfe im Ausgang; Übung in der Sprache des Regelwerks); W3.2 beim Bau J1–J5 („Maske
@@ -35,6 +35,14 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   eigene Wahl, Probe nur mit Maske/Übung nur über „Mehr“, Übungsadresse fest, „Mehr“ auch ohne Arbeit, Zeile ohne
   Ausgang = übernommen); Prüfbefunde W3 M1–M6 (gemeinsame Steg-Felder je Teil, Korrektur aus `stand`, Vormerken je
   Start, Gedächtnis über Reiter, Bildschirm ohne Nachrutschen, Entwürfe fürs Papier; plan-wkr-w3.md §14).
+  Feldtest mit echtem Handy 21.11.2026 N1–N7 (alle noch zu bestätigen): Overlay nach dem Abschicken mit Quittung
+  (uebertragenMinMs 600, uebernommenMs 800, uebertragenMaxMs 3000 – wkr/maske.ts wechselTakt/wechselNach, Takt
+  `uebernommen`), „Bestätigung folgt“ über dem Kopf, nie abgeschnittener Text, Farben nur der Maske (Klassen-Kollision
+  mit app.css), Ende der Probe, Knopf DISQ/FEHLER nennt das Ziel + „Andere Startnummer …“, Hinweis „Bildschirm kann
+  ausgehen“ in der Maske. Start-Freigabe N8–N10 (Feldtest 21.11.2026, Befunde 8/9/12, ändert F4): `warnt` AB R
+  (`rueckstandAbR`, vorher mehr als R), Vorgabe R = 1 und `warnungVorgabe` „nachfragen“, „überfällig“ erst bei mehr
+  als max(R, `ueberfaelligMin` 2) jüngeren; Leiste mit Zeichen nach Erfassungsstand ✓/⧗/✕/▭, Verbindung klein;
+  Rückfrage nennt Liste und Startnummern. Nie gesperrt.
 - `liste.ts` – ListenKennung `JSON.stringify(['l', bereich, typeId, racecourse|null])`, listenKennung/liesListe,
   listenDerVeranstaltung (Bereiche × Listen mit Lauf, Parallel × A/B), teileVon/teilVonZelle, istHaken/teilHaken
   (aus lib/eingaben.ts), startAufListe (Starter, Lauf-Schlüssel, `weitere` am Vorsteg mit „Versuche nacheinander“, Punkt;
@@ -90,7 +98,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   (listeVonBogen + zeilenMarken einmal je Bogen, ◆ über geraete/wkrEingang.ts herkunftGilt).
 - `freigabe.ts` (W2.4, 21.11.2026) – sichtFreigabe(bereich, lagen, warnung) → FreigabeErfassung {fv:
   FREIGABE_SICHT_FASSUNG = 1, bereich, warnung, listen: FreigabeListe {titel, stand aktiv|pausiert|abgemeldet|papier,
-  ampel|null, offen, von, bis, wartend?, rueckfragen, warnt}} – Feld für Feld, leer ohne Eintrag im Bereich; liesFreigabe
+  ampel|null, offen, von, bis, wartend?, rueckfragen, warnt (≥ R seit N8)}} – Feld für Feld, leer ohne Eintrag im Bereich; liesFreigabe
   (Gerät: Form prüfen, Fremdes fällt weg). Nutzer: StartFreigabe.vue Prop `erfassung` (BetriebView rechnet sie aus
   erfassungsLage, GeraetFreigabe bekommt sie über geraete/gekoppelt.ts `freigabe`), geraete/host.ts verteileFreigabe
   (Freigabe-Gruppe je Bereich, geraete/wkrGruppen.ts gruppeDerFreigabe). Nie über ko/kz (F17).

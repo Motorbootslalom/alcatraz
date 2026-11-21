@@ -45,12 +45,15 @@ defineExpose({ zu })
 
 <template>
   <div class="wkr-ausweichen" data-teil="ausweichen">
-    <div class="wkr-reihe">
+    <div v-if="naechste.length > 0" class="wkr-reihe">
       <button v-for="n in naechste" :key="n.key" type="button" class="wkr-knopf" data-ziel="klein" data-action="ausweichen" :data-start="n.key" @click="emit('waehle', n.key)">
         {{ n.startNr }}
       </button>
-      <button type="button" class="wkr-knopf" data-ziel="klein" data-action="suche" :aria-expanded="offen" @click="offen ? zu() : (offen = true)">{{ w('wkr.geraet.suche') }}</button>
     </div>
+    <!-- Befund 3 (Feldtest 21.11.2026): „Nr.“ war zu klein und unklar – jetzt ein Satz über die volle Breite. -->
+    <button type="button" class="wkr-knopf wkr-knopf--breit" data-ziel="klein" data-action="suche" :aria-expanded="offen" @click="offen ? zu() : (offen = true)">
+      {{ w(offen ? 'wkr.geraet.sucheZu' : 'wkr.geraet.suche') }}
+    </button>
     <div v-if="offen" class="wkr-ziffern" data-teil="ziffernfeld">
       <p class="wkr-ziffern-anzeige" data-teil="eingabe" aria-live="polite">{{ eingabe || '–' }}</p>
       <p v-if="nichtGefunden" class="wkr-band wkr-band--warn" role="alert" data-teil="nicht-gefunden">{{ w('wkr.geraet.nichtGefunden', { nr: nichtGefunden }) }}</p>

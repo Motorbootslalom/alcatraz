@@ -248,12 +248,21 @@ describe('migrate: Betrieb und Anzeigetafel (16.11.2026)', () => {
     expect(migrate({ starters: [], anzeige: { ...anzeige, parallelAnordnung: 'quer' } })!.anzeige).toMatchObject({ parallelAnordnung: 'a-links', namen: 'kurz', skala: 1.2 })
   })
 
-  it('WKR-Rückstand (W2, 21.11.2026): Vorgabe 2/warnen, begrenzt auf 1–20, Unbekanntes wird die Vorgabe', () => {
-    expect(migrate({ starters: [] })!.anzeige).toMatchObject({ wkrRueckstand: 2, wkrWarnung: 'warnen' })
+  it('WKR-Rückstand (W2, 21.11.2026; Vorgabe seit dem Feldtest N8: 1/nachfragen): begrenzt auf 1–20, Unbekanntes wird die Vorgabe', () => {
+    expect(migrate({ starters: [] })!.anzeige).toMatchObject({ wkrRueckstand: 1, wkrWarnung: 'nachfragen' })
     expect(migrate({ starters: [], anzeige: { wkrRueckstand: 5, wkrWarnung: 'nachfragen' } })!.anzeige).toMatchObject({ wkrRueckstand: 5, wkrWarnung: 'nachfragen' })
-    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 99, wkrWarnung: 'sperren' } })!.anzeige).toMatchObject({ wkrRueckstand: 20, wkrWarnung: 'warnen' })
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 99, wkrWarnung: 'sperren' } })!.anzeige).toMatchObject({ wkrRueckstand: 20, wkrWarnung: 'nachfragen' })
     expect(migrate({ starters: [], anzeige: { wkrRueckstand: 0 } })!.anzeige.wkrRueckstand).toBe(1)
-    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 'drei' } })!.anzeige.wkrRueckstand).toBe(2)
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 'drei' } })!.anzeige.wkrRueckstand).toBe(1)
+  })
+
+  it('Prüfbefund 21.11.2026: ein W2-Stand mit der alten Vorgabe 2/warnen wird einmal 1/nachfragen; eine spätere Wahl bleibt', () => {
+    const w2 = migrate({ starters: [], anzeige: { wkrRueckstand: 2, wkrWarnung: 'warnen' } })!.anzeige
+    expect(w2).toMatchObject({ wkrRueckstand: 1, wkrWarnung: 'nachfragen', wkrFassung: 2 })
+    // Eigene Wahl im W2-Stand (nicht genau die Vorgabe) bleibt.
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 3, wkrWarnung: 'warnen' } })!.anzeige).toMatchObject({ wkrRueckstand: 3, wkrWarnung: 'warnen' })
+    // Nach dem Übergang (Fassung im Stand) ist 2/warnen eine bewusste Wahl.
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 2, wkrWarnung: 'warnen', wkrFassung: 2 } })!.anzeige).toMatchObject({ wkrRueckstand: 2, wkrWarnung: 'warnen' })
   })
 })
 

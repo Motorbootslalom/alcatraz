@@ -95,6 +95,11 @@ export const ABLAGE = {
    * = neue Probe) und geht mit {@link verlasseRaum}/{@link pruefeRaum}.
    */
   probe: 'alcatraz.geraet.probe',
+  /**
+   * Gerät (Befund 15, 21.11.2026): welcher Tab die Geräte-Ablage gerade schreiben darf – der zuletzt geöffnete
+   * (geraete/tabWache.ts). Nur eine zufällige Tab-Kennung, ohne Personenbezug; bleibt nach „Raum verlassen“.
+   */
+  geraetTab: 'alcatraz.geraet.tab',
 } as const
 
 /** Präfixe der Ablage: Host und Gerät. Nichts davon gehört in `alcatraz:state:v1`. */

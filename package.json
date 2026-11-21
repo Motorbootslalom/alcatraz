@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite",
     "dev:host": "vite --host",
+    "dev:https": "vite --host --mode https",
     "build": "vue-tsc -b && vite build",
     "build:single": "vue-tsc -b && vite build --mode single",
     "build:all": "npm run build && npm run build:single",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.0.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.5.1",
     "country-flag-icons": "^1.6.20",

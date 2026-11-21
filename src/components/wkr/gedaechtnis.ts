@@ -26,3 +26,9 @@ export function gedaechtnis(quelle: ErfassungsQuelle, liste: string): MaskenGeda
   if (!g) jeListe.set(liste, (g = { erledigt: new Set(), gefragt: new Set() }))
   return g
 }
+
+/**
+ * „Ausblenden“ des Hinweises „Bildschirm kann ausgehen“ (N7, Feldtest 21.11.2026): nur im Arbeitsspeicher, über den
+ * Neuaufbau der Maske (Reiter Freigabe ↔ Liste) hinweg – nach dem Neuladen (am nächsten Tag) ist er wieder da.
+ */
+export const wachHinweisWeg = { weg: false }

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -58,9 +59,16 @@ function offlineSpeicher(fassung: OfflineFassung): Plugin {
  * - `--mode single` (`npm run build:single`) → `dist-single/index.html`: eine
  *   einzige HTML-Datei mit allem darin. Sie lässt sich per Doppelklick direkt
  *   aus dem Dateisystem öffnen (file://) – ohne Webserver und ohne Internet.
+ *
+ * Dazu für den Entwicklungsserver `--mode https` (`npm run dev:https`, Feldtest 21.11.2026, Befund 14b): HTTPS mit
+ * selbst signiertem Zertifikat (@vitejs/plugin-basic-ssl, nur devDependency), damit Handys im WLAN einen sicheren
+ * Kontext haben – sonst fehlen Wake Lock (Bildschirm sperrt) und Web Locks. Den Offline-Speicher bringt es NICHT: Im
+ * Entwicklungsserver ist er immer aus (lib/offline.ts), und Service Worker lehnen selbst signierte Zertifikate ab –
+ * Offline nur über GitHub Pages (Prüfbefund 21.11.2026). Die Warnung des Browsers zum Zertifikat einmal bestätigen. Auf den Build wirkt der Modus nicht (gebaut wird nur mit Vorgabe oder `single`).
  */
 export default defineConfig(({ mode }) => {
   const single = mode === 'single'
+  const https = mode === 'https'
   const stand = gitStand()
   // Ein Zeitpunkt für Seite und Offline-Speicher: Beide nennen dieselbe Fassung.
   const bauZeit = new Date().toISOString()
@@ -71,7 +79,7 @@ export default defineConfig(({ mode }) => {
       __BUILD_COMMIT__: JSON.stringify(stand.commit),
       __BUILD_COMMIT_TIME__: JSON.stringify(stand.time),
     },
-    plugins: [vue(), ...(single ? [viteSingleFile({ removeViteModuleLoader: true })] : [offlineSpeicher({ fassung: stand.commit, commitZeit: stand.time, zeit: bauZeit })])],
+    plugins: [vue(), ...(https ? [basicSsl({ name: 'alcatraz-entwicklung' })] : []), ...(single ? [viteSingleFile({ removeViteModuleLoader: true })] : [offlineSpeicher({ fassung: stand.commit, commitZeit: stand.time, zeit: bauZeit })])],
     // Manifest und Zeichen (public/) gehören nur zum Pages-Build.
     publicDir: single ? false : 'public',
     build: single

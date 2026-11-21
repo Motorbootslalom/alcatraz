@@ -71,7 +71,7 @@ function werte(e: EntwurfEintrag): string {
       <p>{{ w('wkr.geraet.ruhe.abgeschlossen.hint') }}</p>
     </template>
     <template v-else-if="art === 'entfaellt'">
-      <h2 class="wkr-entfaellt">{{ w('wkr.geraet.ruhe.entfaellt', { liste: liste ?? '', klasse: klasse ?? '' }) }}</h2>
+      <h2 class="wkr-grau-text">{{ w('wkr.geraet.ruhe.entfaellt', { liste: liste ?? '', klasse: klasse ?? '' }) }}</h2>
     </template>
     <template v-else-if="art === 'spaeter'">
       <h2>{{ w('wkr.geraet.ruhe.spaeter') }}</h2>

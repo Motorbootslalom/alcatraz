@@ -948,7 +948,8 @@ describe('Einstellungen: Anzeigetafel', () => {
   it('Rückstand der WKR-Erfassung (W2, F4): Zahl 1–20 und warnen/nachfragen als Optionsfelder, über SET_ANZEIGE', async () => {
     const wrapper = settings(store)
     const zahl = wrapper.find('[data-feld="betrieb-wkr-rueckstand"]')
-    expect((zahl.element as HTMLInputElement).value).toBe('2')
+    // Vorgabe seit dem Feldtest 21.11.2026 (N8): ab 1 offenem Start nachfragen.
+    expect((zahl.element as HTMLInputElement).value).toBe('1')
     await zahl.setValue('4')
     expect(anzeige().wkrRueckstand).toBe(4)
     await zahl.setValue('99')
@@ -959,7 +960,9 @@ describe('Einstellungen: Anzeigetafel', () => {
     expect(warnung.find('select').exists()).toBe(false)
     const radios = warnung.findAll('input[type="radio"]')
     expect(radios.map((r) => r.attributes('data-wert'))).toEqual(['warnen', 'nachfragen'])
-    expect((radios[0].element as HTMLInputElement).checked).toBe(true)
+    expect((radios[1].element as HTMLInputElement).checked).toBe(true)
+    await radios[0].setValue(true)
+    expect(anzeige().wkrWarnung).toBe('warnen')
     await radios[1].setValue(true)
     expect(anzeige().wkrWarnung).toBe('nachfragen')
     expect(store.state.value.betrieb).toEqual({ bereiche: {} })

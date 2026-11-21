@@ -63,7 +63,7 @@ describe('WKR-Maske: Mindestgrößen und Sonnenmodus (styles/wkr-geraet.css)', (
     const gesetzt = regel('.wkr-knopf.wkr-disq-knopf--gesetzt')
     expect(gesetzt.background).toBe('var(--wkr-rot)')
     expect(css.indexOf('.wkr-knopf.wkr-disq-knopf--gesetzt {')).toBeGreaterThan(css.indexOf(".wkr-knopf[aria-pressed='true']"))
-    expect(regel('.wkr-entfaellt').color).toBe('var(--wkr-grau)')
+    expect(regel('.wkr-grau-text').color).toBe('var(--wkr-grau)')
     const kontrast = (a: string, b: string) => {
       const l = (hex: string) => {
         const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
@@ -99,3 +99,119 @@ describe('WKR-Maske: Mindestgrößen und Sonnenmodus (styles/wkr-geraet.css)', (
     expect(regel('.wkr-knopf')['touch-action']).toBe('manipulation')
   })
 })
+
+/** Kontrast nach WCAG zwischen zwei #rrggbb-Farben. */
+function kontrastVon(a: string, b: string): number {
+  const l = (hex: string) => {
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+  }
+  const [x, y] = [l(a), l(b)].sort((p, q) => q - p)
+  return (x + 0.05) / (y + 0.05)
+}
+/** Klassen, die in Selektoren eines Stylesheets stehen (Rümpfe und Kommentare weg). */
+function klassenIn(text: string): Set<string> {
+  const ohne = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{[^}]*\}/g, '{}')
+  return new Set([...ohne.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]))
+}
+
+describe('Feldtest 21.11.2026: Farben in jedem Modus, keine fremden Regeln, kein abgeschnittener Text', () => {
+  it('Befund 5/N4: keine Klasse der Maske steht in einem anderen Stylesheet (app.css gewann bei gleichem Namen)', () => {
+    const eigene = klassenIn(css)
+    const ordnerCss = `${process.cwd()}/src/styles`
+    // `.btn` gehört nicht der Maske: Nur die Reiter unter ihr (GeraetFreigabe) schärfen den Knopf der App.
+    const erlaubt = new Set(['btn'])
+    for (const datei of readdirSync(ordnerCss).filter((d) => d.endsWith('.css') && d !== 'wkr-geraet.css')) {
+      const fremd = klassenIn(readFileSync(`${ordnerCss}/${datei}`, 'utf8'))
+      const doppelt = [...eigene].filter((k) => fremd.has(k) && !erlaubt.has(k))
+      expect(doppelt, datei).toEqual([])
+    }
+  })
+
+  it('Befund 5: jeder Selektor beginnt mit einer Klasse der Maske – kein Element-, Kennungs- oder App-Selektor leckt hinaus', () => {
+    // Die Maske hängt unter `.wkr-geraet`; eine Regel wie `button {` oder `.btn {` träfe die ganze App (Matrix, Freigabe).
+    // Ausnahme: die Reiter und der Übungs-Verweis von GeraetFreigabe, die eigene `geraet-*`-Klassen tragen.
+    const ohne = css.replace(/@media[^{]*\{/g, '')
+    const selektoren = [...ohne.matchAll(/([^{}]+)\{/g)].flatMap((m) => m[1].split(',').map((x) => x.trim())).filter(Boolean)
+    expect(selektoren.length).toBeGreaterThan(50)
+    const erlaubt = /^\.(wkr-[\w-]+|geraet-reiter|geraet-ueben)(?![\w-])/
+    expect(selektoren.filter((sel) => !erlaubt.test(sel))).toEqual([])
+    // Und die Wurzel-Klasse `.wkr-geraet` gehört allein der Maske (Matrix: `.wkr-mgeraet`, Commit 9ff56c0).
+    const app = readFileSync(`${process.cwd()}/src/styles/app.css`, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(app).not.toMatch(/\.wkr-geraet(?![\w-])/)
+  })
+
+  it('Befund 5: Klassen der Maske (wkr-, ohne die des Bedienrechners) werden nur unter components/wkr/ benutzt', () => {
+    const eigene = [...klassenIn(css)].filter((k) => k.startsWith('wkr-'))
+    const quellen = `${process.cwd()}/src`
+    const fremd: string[] = []
+    const lies = (dir: string) => {
+      for (const d of readdirSync(dir, { withFileTypes: true })) {
+        const pfad = `${dir}/${d.name}`
+        if (d.isDirectory()) {
+          if (!pfad.endsWith('/components/wkr')) lies(pfad)
+        } else if (d.name.endsWith('.vue')) {
+          // Nur Klassen-Attribute (class="…", :class="…") – data-action="wkr-geraet" ist keine Klasse.
+          const klassen = [...readFileSync(pfad, 'utf8').matchAll(/:?class="([^"]*)"/g)].map((m) => m[1]).join(' ')
+          for (const k of eigene) if (new RegExp(`(^|[\\s'{])${k}(?![\\w-])`).test(klassen)) fremd.push(`${pfad.slice(quellen.length)}: ${k}`)
+        }
+      }
+    }
+    lies(quellen)
+    // Einzige Ausnahme: GeraetFreigabe setzt an der Wurzel der Maske, ob unter ihr die Reiter kleben (Fuß darüber).
+    expect(fremd).toEqual(['/components/betrieb/GeraetFreigabe.vue: wkr-mit-reiter'])
+  })
+
+  it('Befunde 2/11: jede Fläche mit eigenem Grund setzt auch ihre Schrift; color-scheme folgt dem Modus der Maske', () => {
+    for (const sel of ['.wkr-knopf', '.wkr-band', '.wkr-starterkarte', '.wkr-zuletzt-leiste', '.wkr-eingabe', '.wkr-uebertragen-kasten']) {
+      const r = regel(sel, true)
+      expect(r.background, sel).toMatch(/^var\(--wkr-/)
+      expect(r.color, sel).toMatch(/^var\(--wkr-/)
+    }
+    expect(regel('.wkr-geraet')['color-scheme']).toBe('light')
+    expect(regel(".wkr-geraet[data-modus='dunkel']")['color-scheme']).toBe('dark')
+  })
+
+  it('Befund 2: Kontrast Text/Fläche, Haupt, Warnung, Rot, Übung ≥ 4,5:1 in Sonne, Hell und Dunkel', () => {
+    const sonne = regel('.wkr-geraet')
+    const modi = {
+      sonne,
+      hell: { ...sonne, ...regel(".wkr-geraet[data-modus='hell']") },
+      dunkel: { ...sonne, ...regel(".wkr-geraet[data-modus='dunkel']") },
+    }
+    for (const [name, t] of Object.entries(modi)) {
+      for (const [vorne, hinten] of [
+        ['--wkr-text', '--wkr-flaeche'],
+        ['--wkr-text', '--wkr-grund'],
+        ['--wkr-haupt-text', '--wkr-haupt'],
+        ['--wkr-warn-text', '--wkr-warn'],
+        ['--wkr-rot-text', '--wkr-rot'],
+        ['--wkr-uebung-text', '--wkr-uebung'],
+      ]) {
+        expect(kontrastVon(t[vorne], t[hinten]), `${name}: ${vorne} auf ${hinten}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  it('Befund 1/N3: Umbruch überall, Nummern brechen nie, Code-Text darf schmaler als sein längstes Wort werden', () => {
+    const wurzel = regel('.wkr-geraet')
+    expect([wurzel['overflow-wrap'], wurzel.hyphens, wurzel['min-width']]).toEqual(['anywhere', 'auto', '0'])
+    expect(regel('.wkr-knopf')['white-space']).toBe('normal')
+    expect(css).toMatch(/\.wkr-code,\s*\.wkr-disq-knopf \{[^}]*grid-template-columns: 2\.2em minmax\(0, 1fr\) auto;/)
+    for (const sel of ['.wkr-code-nr', '.wkr-startnr']) expect(regel(sel)['white-space'], sel).toBe('nowrap')
+    expect(regel('.wkr-code-mitte')['flex-wrap']).toBe('wrap')
+    expect(regel('.wkr-starterkarte-zeile')['flex-wrap']).toBe('wrap')
+    // Abgeschnitten (overflow: hidden) wird nur die Leiste „Zuletzt“ (M5: eine Zeile fester Höhe, nur Nummern).
+    const versteckt = [...css.matchAll(/([^{}]+)\{[^}]*overflow:\s*hidden/g)].map((m) => m[1].trim())
+    expect(versteckt).toEqual(['.wkr-zuletzt-leiste'])
+    // Das Band über dem Kopf („Keine Bestätigung“, „Bestätigung folgt“) wächst mit dem Text (Prüfbefund 21.11.2026).
+    expect([regel('.wkr-kopf-ueber').inset, regel('.wkr-kopf-ueber')['min-height']]).toEqual(['0 0 auto', 'calc(100% - 6px)'])
+  })
+
+  it('N1: Overlay über der ganzen Maske, unter dem Blitz, fängt Tipps', () => {
+    const o = regel('.wkr-uebertragen')
+    expect([o.position, o.inset, o['pointer-events']]).toEqual(['fixed', '0', 'auto'])
+    expect(Number(o['z-index'])).toBeLessThan(Number(regel('.wkr-blitz')['z-index']))
+  })
+})
+

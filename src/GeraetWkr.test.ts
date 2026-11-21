@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
-import { nextTick, shallowRef } from 'vue'
+import { computed, nextTick, shallowRef } from 'vue'
 import GeraetApp from './GeraetApp.vue'
 import WkrGeraet from './components/wkr/WkrGeraet.vue'
 import { starteGeraeteHost, type GeraeteHost } from './geraete/host'
@@ -387,9 +387,9 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
     await klick(w, '[data-action="haupt"]')
     await bis(() => werte(state.value, s.starter)['katalog:stegAnlegen'] === '9')
     // Nach dem Takt bleibt der Reiter „Anlegen“ – kein Sprung zum Ablegen.
-    await ruhe(WKR_ANNAHMEN.weiterNachMs + WKR_ANNAHMEN.sperreMs + 100)
+    await ruhe(WKR_ANNAHMEN.uebertragenMaxMs + WKR_ANNAHMEN.sperreMs + 100)
     expect(w.find('[data-action="steg-teil"][data-steg="an"]').attributes('aria-selected')).toBe('true')
-  }, 10_000)
+  }, 12_000)
 
   it('Steg-Teil-Gerät (nur Anlegen): nur der eigene Reiter', async () => {
     const r = await bedienrechner()
@@ -450,6 +450,9 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
   })
 })
 
+/** In der Übung (Quittung nach uebungQuittungMs < uebertragenMinMs): ab hier wechselt die Nummer (N1). */
+const BIS_WECHSEL = WKR_ANNAHMEN.uebertragenMinMs + WKR_ANNAHMEN.uebernommenMs
+
 describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () => {
   function uebung(typeId = 'tor5') {
     const q = oeffneUebung({ regelwerk: 'dm-2026', typeId, taktMs: 3_600_000 })
@@ -459,7 +462,7 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
     return { q, w }
   }
 
-  it('nach dem Abschicken 2 s „gesendet“, dann Wechsel mit Blitz und Vibration, 1 s ohne Eingabe', async () => {
+  it('N1 (Feldtest 21.11.2026): sofort Overlay „wird übertragen …“, mit der Quittung „✓ übernommen“, dann Wechsel mit Blitz und Vibration, 1 s ohne Eingabe', async () => {
     vi.useFakeTimers()
     const vibrate = vi.fn()
     vi.stubGlobal('navigator', { ...navigator, vibrate })
@@ -467,9 +470,15 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
     await nextTick()
     const erste = startNr(w)
     expect(w.find('[data-teil="uebung"]').text()).toBe('ÜBUNG')
+    expect(w.find('[data-teil="uebertragen"]').exists()).toBe(false)
     await klick(w, '[data-action="haupt"]')
     expect(q.zuletzt.value).toHaveLength(1)
     expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('gesendet')
+    // Sofort, ohne auf irgendetwas zu warten: das Overlay über allem, ohne Knöpfe.
+    const overlay = () => w.find('[data-teil="uebertragen"]')
+    expect(overlay().find('[data-teil="uebertragen-nr"]').text()).toBe(`Start ${erste}`)
+    expect(overlay().find('[data-teil="uebertragen-zeile"]').text()).toMatch(/wird übertragen|wartet auf Bestätigung/)
+    expect(overlay().findAll('button')).toHaveLength(0)
     expect(w.find('[data-teil="mitte"]').attributes('inert')).toBeDefined()
     // Doppeltipp: wirkt nicht, die Nummer bleibt stehen.
     await klick(w, '[data-action="haupt"]')
@@ -477,9 +486,18 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
     expect(q.zuletzt.value).toHaveLength(1)
     expect(startNr(w)).toBe(erste)
 
-    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.weiterNachMs)
+    // Die Übung quittiert nach uebungQuittungMs – sichtbar ab uebertragenMinMs.
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.uebertragenMinMs)
+    await nextTick()
+    expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('uebernommen')
+    expect(overlay().attributes('data-phase')).toBe('beantwortet')
+    expect(overlay().find('[data-teil="uebertragen-zeile"]').text()).toBe('✓ übernommen')
+    expect(startNr(w)).toBe(erste)
+
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.uebernommenMs)
     await nextTick()
     expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('sperre')
+    expect(overlay().exists()).toBe(false)
     expect(w.find('[data-teil="blitz"]').exists()).toBe(true)
     expect(vibrate).toHaveBeenCalledWith(60)
     expect(startNr(w)).not.toBe(erste)
@@ -492,9 +510,37 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
     await nextTick()
     expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('frei')
     expect(w.find('[data-teil="blitz"]').exists()).toBe(false)
+    expect(w.find('[data-teil="bestaetigung-folgt"]').exists()).toBe(false)
     await klick(w, '[data-action="code"][data-code="1"]')
     await klick(w, '[data-action="haupt"]')
     expect(q.zuletzt.value).toHaveLength(2)
+  })
+
+  it('N2: ohne Quittung geht das Overlay nach uebertragenMaxMs trotzdem – „Bestätigung folgt“ über dem Kopf, bis die Antwort kommt', async () => {
+    vi.useFakeTimers()
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000 })
+    quellen.push(q)
+    // Dieselbe Übung, deren Zeilen (vorerst) unbeantwortet bleiben – wie ein Bedienrechner, der nicht antwortet.
+    const stumm = shallowRef(true)
+    const zuletzt = computed(() => q.zuletzt.value.map((z) => (stumm.value ? { ...z, stufe: { stufe: 'unterwegs' as const, gesendet: true } } : z)))
+    const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: { ...q, zuletzt }, ablage: handy() } })
+    wrappers.push(w)
+    await nextTick()
+    const erste = startNr(w)
+    await klick(w, '[data-action="haupt"]')
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.uebertragenMinMs + WKR_ANNAHMEN.uebernommenMs)
+    await nextTick()
+    expect(w.find('[data-teil="uebertragen-zeile"]').text()).toBe('⧗ gesendet – wartet auf Bestätigung …')
+    expect(startNr(w)).toBe(erste)
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.uebertragenMaxMs - WKR_ANNAHMEN.uebertragenMinMs - WKR_ANNAHMEN.uebernommenMs)
+    await nextTick()
+    expect(w.find('[data-teil="uebertragen"]').exists()).toBe(false)
+    expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('sperre')
+    expect(startNr(w)).not.toBe(erste)
+    expect(w.find('[data-teil="bestaetigung-folgt"]').text()).toBe(`Start ${erste} gesendet – Bestätigung folgt`)
+    stumm.value = false
+    await nextTick()
+    expect(w.find('[data-teil="bestaetigung-folgt"]').exists()).toBe(false)
   })
 
   it('Rückgängig: die wartende Zeile kommt zurück, Werte wieder im Entwurf', async () => {
@@ -522,7 +568,7 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
     expect(w.find(disqA).attributes('data-stand')).toBe('vorgemerkt')
     await klick(w, '[data-action="haupt"]')
     expect(Object.values(q.zuletzt.value[0].zellen).join('')).not.toContain('M')
-    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.weiterNachMs)
+    await vi.advanceTimersByTimeAsync(BIS_WECHSEL)
     await nextTick()
     // In der Sperre: kein Vormerken (ein Tropfen darf den nächsten Tipp nicht zum Ein-Tipp machen).
     await klick(w, disqA)
@@ -832,7 +878,8 @@ describe('Probe beim Einrichten (W3.4, G10)', () => {
     expect(w.find('[data-teil="probe"]').attributes('data-schritt')).toBe('haupt')
     expect(haupt(w).text()).toBe('In Ordnung ✓')
     await klick(w, '[data-action="haupt"]')
-    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.weiterNachMs)
+    expect(w.find('[data-teil="uebertragen"]').text()).toContain('nichts wird gesendet')
+    await vi.advanceTimersByTimeAsync(BIS_WECHSEL)
     await nextTick()
     expect(w.find('[data-teil="probe"]').attributes('data-takt')).toBe('sperre')
     expect(w.find('[data-teil="blitz"]').exists()).toBe(true)
@@ -842,6 +889,118 @@ describe('Probe beim Einrichten (W3.4, G10)', () => {
     expect(w.find('[data-teil="maske"]').exists()).toBe(true)
     expect(q.zuletzt.value).toHaveLength(0)
     expect(q.entwuerfe.value).toHaveLength(0)
+  })
+})
+
+describe('Feldtest mit echtem Handy (21.11.2026)', () => {
+  it('Befund 4 (N5): Ende der Probe sagt, was jetzt geschieht; „Probe wiederholen“ fängt von vorn an', async () => {
+    vi.useFakeTimers()
+    const { w } = uebe('dm-2026', 'tor5')
+    await nextTick()
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="probe"]')
+    const probe = () => w.find('[data-teil="probe"]')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="zurueck"]')
+    await klick(w, '[data-action="haupt"]')
+    await vi.advanceTimersByTimeAsync(BIS_WECHSEL + WKR_ANNAHMEN.sperreMs)
+    await nextTick()
+    expect(probe().attributes('data-schritt')).toBe('fertig')
+    expect(probe().find('[data-teil="probe-band"]').text()).toBe('Probe beendet')
+    expect(w.find('[data-teil="probe-fertig"] h2').text()).toBe('Probe fertig.')
+    // In der Übung wird auch danach nichts gesendet – der Satz sagt es (der echte sagt „Ab jetzt wird gesendet“).
+    expect(w.find('[data-teil="probe-ende"]').text()).toContain('gesendet wird nichts')
+    expect(w.find('[data-action="probe-fertig"]').text()).toBe('Los geht’s')
+    await klick(w, '[data-action="probe-wiederholen"]')
+    expect(probe().attributes('data-schritt')).toBe('code')
+    expect(probe().find('[data-teil="probe-band"]').text()).toContain('nichts wird gesendet')
+  })
+
+  it('Befund 10 (N6): der Umschaltknopf nennt das Ziel (DISQ ↔ FEHLER), über der offenen Liste steht „Disq.“', async () => {
+    const { w } = uebe('dm-2026', 'steg')
+    await nextTick()
+    const knopf = () => w.find('[data-action="disq"]')
+    expect(knopf().text()).toBe('DISQ')
+    expect(w.find('[data-teil="disq-titel"]').exists()).toBe(false)
+    await klick(w, '[data-action="disq"]')
+    expect(knopf().text()).toBe('FEHLER')
+    expect(knopf().attributes('aria-expanded')).toBe('true')
+    expect(w.find('[data-teil="disq-titel"]').text()).toBe('Disq.')
+    await klick(w, '[data-action="disq"]')
+    expect(knopf().text()).toBe('DISQ')
+    expect(w.find('[data-teil="knoepfe"]').exists()).toBe(true)
+  })
+
+  it('Befund 3 (N6): „Andere Startnummer …“ über die volle Breite statt „Nr.“', async () => {
+    const { w } = uebe('dm-2026', 'tor5')
+    await nextTick()
+    const suche = w.find('[data-action="suche"]')
+    expect(suche.text()).toBe('Andere Startnummer …')
+    expect(suche.classes()).toContain('wkr-knopf--breit')
+    await suche.trigger('click')
+    expect(w.find('[data-teil="ziffernfeld"]').exists()).toBe(true)
+  })
+
+  it('Befund 1 (N3): Code-Knopf – Nummer eigene Spalte, Text und Punkte gemeinsam umbrechend, Zähler fest', async () => {
+    const { w } = uebe('dm-2026', 'mueb')
+    await nextTick()
+    for (const k of w.findAll('[data-action="code"]')) {
+      expect(k.element.children[0].className).toBe('wkr-code-nr')
+      expect(k.element.children[1].className).toBe('wkr-code-mitte')
+      expect(k.find('.wkr-code-mitte .wkr-code-text').exists()).toBe(true)
+      expect(k.find('.wkr-code-mitte .wkr-code-punkte').exists()).toBe(true)
+    }
+  })
+
+  it('Befund 1 (Prüfbefund): die längsten Katalog- und Disq.-Texte von DM und UIM stehen ganz da – Nummer eigene Spalte, kein nowrap, nichts abgeschnitten', async () => {
+    const { readFileSync } = await import('node:fs')
+    const css = readFileSync(`${process.cwd()}/src/styles/wkr-geraet.css`, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const regel = (sel: string) => css.match(new RegExp(`(^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`))?.[2] ?? ''
+    for (const sel of ['.wkr-code-text', '.wkr-code-mitte']) expect(regel(sel), sel).not.toMatch(/nowrap|text-overflow|overflow:\s*hidden/)
+    for (const regelwerk of ['dm-2026', 'uim-2026']) {
+      const texte: { text: string; knopf: Element }[] = []
+      for (const typeId of ['tor5', 'mueb', 'steg', 'vorsteg']) {
+        const { w } = uebe(regelwerk, typeId)
+        await nextTick()
+        const sammle = () => {
+          for (const t of w.findAll('.wkr-code-text')) texte.push({ text: t.text(), knopf: t.element.closest('button')! })
+        }
+        sammle()
+        if (w.find('[data-action="disq"]').exists()) {
+          await klick(w, '[data-action="disq"]')
+          sammle()
+        }
+      }
+      expect(texte.length, regelwerk).toBeGreaterThan(5)
+      const laengste = [...texte].sort((a, b) => b.text.length - a.text.length).slice(0, 5)
+      for (const { text, knopf } of laengste) {
+        // Ganz im DOM (kein Kürzel, keine Auslassung), Nummer in eigener Spalte vor dem Text, kein Stil am Element.
+        expect(text.length, text).toBeGreaterThan(10)
+        expect(text).not.toMatch(/…$/)
+        expect(knopf.children[0].className, text).toBe('wkr-code-nr')
+        expect(knopf.getAttribute('style') ?? '', text).not.toMatch(/nowrap|overflow/)
+      }
+    }
+  })
+
+  it('Befund 14a (N7): Bildschirm kann ausgehen → gelbes Band mit Tipp, „Ausblenden“ hält über den Neuaufbau', async () => {
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000 })
+    quellen.push(q)
+    const ohne = mount(WkrGeraet, { props: { quelle: q, ablage: handy() } })
+    wrappers.push(ohne)
+    expect(ohne.find('[data-teil="wach-hinweis"]').exists()).toBe(false)
+    const w = mount(WkrGeraet, { props: { quelle: q, ablage: handy(), bildschirmKannAus: true } })
+    wrappers.push(w)
+    const band = w.find('[data-teil="wach-hinweis"]')
+    expect(band.text()).toContain('Bildschirm kann ausgehen.')
+    expect(band.text()).toContain('Display-Zeit am Handy verlängern')
+    await klick(w, '[data-action="wach-ausblenden"]')
+    expect(w.find('[data-teil="wach-hinweis"]').exists()).toBe(false)
+    const neu = mount(WkrGeraet, { props: { quelle: q, ablage: handy(), bildschirmKannAus: true } })
+    wrappers.push(neu)
+    expect(neu.find('[data-teil="wach-hinweis"]').exists()).toBe(false)
+    const { wachHinweisWeg } = await import('./components/wkr/gedaechtnis')
+    wachHinweisWeg.weg = false
   })
 })
 
@@ -865,5 +1024,28 @@ describe('Übung erreichbar ohne Kopplung (W3.4, G13)', () => {
     expect(w.find('[data-teil="wkr-kopf"] [data-teil="uebung"]').text()).toBe('ÜBUNG')
     expect(haupt(w).text()).toBe('In Ordnung ✓')
     expect(w.html()).not.toMatch(NAMEN)
+  })
+})
+
+describe('Befund 15 (21.11.2026): zwei Tabs derselben Kopplung', () => {
+  it('der zuletzt geöffnete Tab sendet allein; der alte zeigt „In einem anderen Tab geöffnet“, jede Zeile kommt an', async () => {
+    const r = await listeMitStart('tor5')
+    location.hash = '#/geraet'
+    const w2 = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: r.speicher, zeiten: SCHNELL, ablaufTaktMs: 20 } } })
+    wrappers.push(w2)
+    await zeigt(() => w2.find('[data-teil="karte"]').exists() && startNr(w2) === r.s.startNr)
+    // Der alte Tab merkt es spätestens beim nächsten Schreiben (im Browser schon am storage-Ereignis) und stoppt.
+    await zeigt(() => r.w.find('[data-meldung="andererTab"]').exists())
+    expect(r.w.find('[data-teil="wkr-geraet"]').exists()).toBe(false)
+    await klick(w2, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, r.s.starter)['erfasst@tor5'])
+    const s2 = r.zeige()
+    await zeigt(() => startNr(w2) === s2.startNr && w2.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 5000)
+    await klick(w2, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, s2.starter)['erfasst@tor5'])
+    // „Hier weitermachen“ im alten Tab: jetzt ist der neue verdrängt.
+    await klick(r.w, '[data-action="hier-weiter"]')
+    await zeigt(() => r.w.find('[data-teil="wkr-geraet"]').exists())
+    await zeigt(() => w2.find('[data-meldung="andererTab"]').exists())
   })
 })

@@ -33,7 +33,7 @@ export interface FreigabeListe {
   wartend?: number
   /** Offene Rückfragen der Liste (nur die Zahl; entschieden wird am Bedienrechner). */
   rueckfragen: number
-  /** Mehr als R offen, Liste digital und aktiv (F1, F4). */
+  /** Mindestens R offen (seit 21.11.2026, Befund 8; vorher mehr als R), Liste digital und aktiv (F1, F4). */
   warnt: boolean
 }
 

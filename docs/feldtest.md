@@ -54,7 +54,11 @@ Je Punkt abhaken, wenn das erwartete Ergebnis eintritt; sonst unter „Beobachtu
 ## Hintergrund und Bildschirm
 
 - [ ] **Wake Lock** (Bildschirmsperre auf 30 s stellen, Handy liegen lassen, 2 min). Erwartet: Bildschirm bleibt an;
-  sonst steht „Bildschirm kann ausgehen …“ in der Leiste. Android: ______ iPhone: ______ Home-App: ______
+  sonst steht „Bildschirm kann ausgehen …“ in der Leiste, in der WKR-Maske als gelbes Band oben mit dem Tipp
+  „Display-Zeit am Handy verlängern“ (seit 21.11.2026; über `npm run dev:host`, also http, immer – dort gibt es keine
+  Wake Lock; für lokale Tests mit Wake Lock `npm run dev:https` und die Zertifikatswarnung auf jedem Gerät einmal
+  bestätigen, docs/technik.md „Mit HTTPS im WLAN“; den Offline-Speicher bringt das nicht – Offline nur über GitHub Pages).
+  Android: ______ iPhone: ______ Home-App: ______
 - [ ] **Handy 5 min weglegen** (Bildschirm aus), währenddessen 3 Starts am Bedienrechner. Erwartet nach dem Einschalten:
   binnen etwa 10 s der aktuelle Stand, Verbindung „verbunden“. Android: ______ iPhone: ______
 - [ ] **Handy 15 min weglegen**, dazu einmal eine andere App im Vordergrund. Erwartet: wie oben; auf dem iPhone ist der
@@ -143,4 +147,7 @@ Bildschirmgrößen geprüft – Zielgrößen stehen nur im CSS. Bedienung:
   der Überschlag (600–850 Nachrichten je Wettkampftag) prüfen und entscheiden, ob `ntfy.adminforge.de` reicht.
 - Was am Bedienrechner unklar war (Texte, Knöpfe).
 - WKR-Maske: Fehlgriffe mit Handschuhen, Lesbarkeit in der Sonne, ob der Doppeltipp-Schutz zu lang oder zu kurz ist
-  (2 s + 1 s, WKR_ANNAHMEN.weiterNachMs/sperreMs), Blitz ohne Vibration auf dem iPhone, Akku.
+  (seit 21.11.2026 Overlay „wird übertragen …“ → „✓ übernommen“: mindestens 0,6 s, dann 0,8 s, ohne Quittung
+  höchstens 3 s, danach 1 s Sperre – WKR_ANNAHMEN N1, uebertragenMinMs/uebernommenMs/uebertragenMaxMs/sperreMs), Blitz
+  ohne Vibration auf dem iPhone, Akku; Texte bei großer Systemschrift (nichts abgeschnitten, N3), Farben unter
+  System-Dunkelmodus in allen drei Ansichten (N4).

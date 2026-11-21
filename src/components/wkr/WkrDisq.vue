@@ -15,6 +15,11 @@ const props = defineProps<{
   startNr: string
   /** Takt nach dem Abschicken (G5): Ein Tipp jetzt ist ein Tropfen – er merkt auch nichts vor (Prüfbefund W3). */
   gesperrt?: boolean
+  /**
+   * Überschrift über der offenen Liste („Disq.“) – wie „Fehler“ über den Codes, damit klar ist, welche Liste gerade
+   * offen ist (Befund 10, 21.11.2026). Der Vorsteg braucht keine: Dort gibt es nur diese Liste.
+   */
+  titel?: string
 }>()
 // `xNein`: die große Rückfrage zu X mit „Abbrechen“ geschlossen (W3.4: Schritt der Probe am Vorsteg).
 const emit = defineEmits<{ setze: [code: string]; xNein: [] }>()
@@ -50,6 +55,7 @@ function xJa(): void {
 
 <template>
   <div class="wkr-disq" data-teil="disq">
+    <h2 v-if="titel" class="wkr-katalog-titel" data-teil="disq-titel">{{ titel }}</h2>
     <button
       v-for="c in codes"
       :key="c.code"
@@ -64,10 +70,12 @@ function xJa(): void {
       @click="tippe(c.code)"
     >
       <span class="wkr-code-nr">{{ c.code }}</span>
-      <span class="wkr-code-text">{{ c.text }}</span>
-      <span class="wkr-code-zaehler">
-        <template v-if="gesetzt.includes(c.code)">✓ {{ w('wkr.geraet.disq.gesetzt') }}</template>
-        <template v-else-if="vorgemerkt === c.code">{{ w('wkr.geraet.disq.nochmal') }}</template>
+      <span class="wkr-code-mitte">
+        <span class="wkr-code-text">{{ c.text }}</span>
+        <span class="wkr-disq-zustand">
+          <template v-if="gesetzt.includes(c.code)">✓ {{ w('wkr.geraet.disq.gesetzt') }}</template>
+          <template v-else-if="vorgemerkt === c.code">{{ w('wkr.geraet.disq.nochmal') }}</template>
+        </span>
       </span>
     </button>
     <AppDialog v-if="frageX" class="wkr-dialog" :titel="w('wkr.geraet.x.frage', { nr: startNr })" data-dialog="wkr-x" @abbrechen="xNein">

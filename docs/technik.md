@@ -144,6 +144,7 @@ Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offli
 npm install
 npm run dev             # Entwicklungsserver (nur dieser Rechner)
 npm run dev:host        # dasselbe im lokalen Netz, für Tests mit Handy und Pad
+npm run dev:https       # dasselbe mit HTTPS (selbst signiert): Wake Lock und Web Locks (kein Offline-Speicher)
 npm run preview:host    # gebaute Fassung (nach build) im lokalen Netz
 npm run check           # Typprüfung und Tests
 npm run build:all       # dist/ (GitHub Pages) und dist-single/ (eine Datei)
@@ -155,6 +156,16 @@ npm run parcours:sync   # von Hand: Parcours-Zeichnungen aus ../Parcours holen (
 Koppel-Links nehmen die Adresse des Bedienfensters, und `localhost` erreicht kein Handy. Ohne HTTPS fehlen den Geräten
 einige Browser-Funktionen: Bildschirm-Wachhalten (Wake Lock), Offline-Speicher und Web Locks. Die App läuft trotzdem
 (Rückfall ohne Wake Lock, Fensterführung über die Lease). Für den Feldtest mit allem deshalb die Fassung auf GitHub Pages.
+
+**Mit HTTPS im WLAN** (`dev:https`, 21.11.2026): wie `dev:host`, aber über `https://192.168.…:5173/` mit einem selbst
+signierten Zertifikat (`@vitejs/plugin-basic-ssl`, nur devDependency; vite.config.ts `--mode https`). Der Browser warnt
+einmal je Gerät („Verbindung ist nicht privat“) – auf dem Bedienrechner UND auf jedem Handy „Erweitert → Weiter zu …“
+bestätigen; danach ist es ein sicherer Kontext: Das Handy hält den Bildschirm wach (Wake Lock), der Bedienrechner führt
+seine Fenster über Web Locks. Den Bedienrechner auch hier über die Netzadresse öffnen, nicht über `localhost`. Das
+Zertifikat legt das Plugin unter `node_modules/.vite/basic-ssl/` ab; es gilt nur für die Entwicklung. Den
+Offline-Speicher gibt es auch so NICHT: Im Entwicklungsserver ist er immer aus („nicht verfügbar“, lib/offline.ts), und
+Service Worker lassen sich mit selbst signiertem Zertifikat nicht registrieren – Offline prüfen nur über GitHub Pages
+(Prüfbefund 21.11.2026).
 
 Die Parcours-Zeichnungen unter `src/assets/parcours/` kommen nur über `npm run parcours:sync`
 (Herkunft und Lizenz: [`src/assets/parcours/LICENSE.md`](../src/assets/parcours/LICENSE.md)).

@@ -108,8 +108,11 @@ export function halteWach(umgebung: WachUmgebung = {}): WachHalter {
   const beiSicht = () => {
     if (sichtbar() && fordert) nochmal = true
     else if (sichtbar()) void fordere()
-    else if (lage.value === 'wach') {
-      // Der Browser gibt die Sperre selbst frei; hier nur den Stand nachziehen.
+    else if (lage.value === 'wach' || (api && !sperre && lage.value === 'nicht-moeglich')) {
+      // Der Browser gibt die Sperre selbst frei; hier nur den Stand nachziehen. Auch wenn sein `release` VOR dem
+      // Verstecken kam (Lage stand schon auf „nicht möglich“): Versteckt heißt „aus“, sonst blitzte der Hinweis
+      // „Bildschirm kann ausgehen“ nach jedem Einschalten kurz auf (Feldtest 21.11.2026, Befund 14c). Ohne API bleibt
+      // es bei „nicht möglich“ – das gilt dann auch nach dem Sichtbarwerden.
       sperre = null
       lage.value = 'aus'
     }

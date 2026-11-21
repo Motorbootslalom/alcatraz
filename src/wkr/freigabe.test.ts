@@ -77,7 +77,7 @@ describe('sichtFreigabe', () => {
     const nimm = (st: AppState) => sicht(st, geraete).listen.find((l) => l.titel === titel)!
     expect(nimm(reducer(s, { type: 'WKR_LISTE', liste: TOR, status: 'pausiert', zeit: 6000 }))).toMatchObject({ stand: 'pausiert', offen: 0, warnt: false })
     expect(nimm(reducer(s, { type: 'WKR_LISTE', liste: TOR, modus: 'papier', zeit: 6000 }))).toMatchObject({ stand: 'papier', offen: 0, warnt: false })
-    expect(nimm(reducer(s, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 3 } }))).toMatchObject({ offen: 3, warnt: false })
+    expect(nimm(reducer(s, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 4 } }))).toMatchObject({ offen: 3, warnt: false })
   })
 
   it('Ampel: das Gerät geht mit der Uhr auf ✕ (A13)', () => {

@@ -91,6 +91,14 @@ describe('Betrieb → Geräte: Koppeln', () => {
     await k.find('[data-teil="koppeln-bereiche"] input[data-bereich="par_1"]').setValue(true)
     expect(k.find<HTMLButtonElement>('[data-action="koppeln-code"]').element.disabled).toBe(false)
 
+    // Befund 6 (Feldtest 21.11.2026): QR-Code ist der Hauptweg; Geräte-Code und Koppel-Link stehen zugeklappt im
+    // zweiten Weg – der Link (ohne Token) ist erst nach dem Aufklappen da, damit ihn niemand statt des QR-Codes scannt.
+    expect(k.find('[data-teil="koppeln-hauptweg"]').text()).toContain('kein Code nötig')
+    const weg = k.find<HTMLDetailsElement>('[data-teil="koppeln-weg-code"]')
+    expect(weg.element.open).toBe(false)
+    expect(w.find('.lese-link[data-link="koppeln"]').exists()).toBe(false)
+    weg.element.open = true
+    await weg.trigger('toggle')
     // Koppel-Link: ohne Token, mit Box-Schlüssel.
     const link = w.find('.lese-link[data-link="koppeln"] .lese-link-text').element as HTMLInputElement
     const gelesen = paketAus(link.value)
@@ -114,6 +122,17 @@ describe('Betrieb → Geräte: Koppeln', () => {
     await zeigt(() => !w.find('[data-teil="koppeln-qr"]').exists())
     await w.find('[data-action="code-beenden"]').trigger('click')
     await zeigt(() => !w.find('[data-teil="koppeln-code"]').exists())
+  })
+
+  it('Befund 6: „Geräte-Code ausgeben“ klappt den zweiten Weg mit dem Koppel-Link auf', async () => {
+    const { w } = await offen()
+    const k = w.find('[data-teil="koppeln"]')
+    await k.find('[data-teil="koppeln-bereiche"] input[data-bereich="par_1"]').setValue(true)
+    expect(k.find<HTMLDetailsElement>('[data-teil="koppeln-weg-code"]').element.open).toBe(false)
+    await k.find('[data-action="koppeln-code"]').trigger('click')
+    await zeigt(() => w.find('[data-teil="koppeln-code"]').exists())
+    expect(k.find<HTMLDetailsElement>('[data-teil="koppeln-weg-code"]').element.open).toBe(true)
+    expect(w.find('[data-teil="koppeln-weg-code"] .lese-link[data-link="koppeln"]').exists()).toBe(true)
   })
 
   it('Geräteliste: gekoppeltes Gerät mit Name und Bereichen; ändern wirkt sofort, entziehen mit Rückfrage', async () => {

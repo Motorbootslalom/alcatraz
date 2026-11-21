@@ -8,6 +8,7 @@ import WkrMaske from './WkrMaske.vue'
 import WkrProbe from './WkrProbe.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import { stelleWkrText } from './texte'
+import { wachHinweisWeg } from './gedaechtnis'
 import '../../styles/wkr-geraet.css'
 
 /**
@@ -36,6 +37,11 @@ const props = defineProps<{
   meldungFuer?: (liste: string) => string | null
   /** Raum des gekoppelten Geräts – für die Probe einmal je Raum und Liste (G10). Ohne (Übung): keine Probe von selbst. */
   raum?: RaumBezug | null
+  /**
+   * Der Bildschirm lässt sich nicht wach halten (GeraetApp, lib/wachBleiben.ts) – N7 vom Feldtest 21.11.2026: Über
+   * http://192.168…:5173 gibt es keine Wake Lock, das Handy sperrte mitten in der Erfassung. Gut sichtbar oben.
+   */
+  bildschirmKannAus?: boolean
 }>()
 const emit = defineEmits<{ uebungEnde: [] }>()
 
@@ -86,14 +92,29 @@ function probeFertig(): void {
   probe.value = null
   if (l && props.raum) merkeProbe(props.raum, l, ablage())
 }
+// --- Bildschirm kann ausgehen (N7): „Ausblenden“ gilt bis zum Neuladen, auch über den Neuaufbau (Reiterwechsel). ---
+const wachWeg = ref(wachHinweisWeg.weg)
+function blendeWachAus(): void {
+  wachWeg.value = wachHinweisWeg.weg = true
+}
+/** Ohne https (http im WLAN) hat der Browser gar keine Sperre – dann sagt der Satz auch warum. */
+const ohneHttps = typeof window !== 'undefined' && window.isSecureContext === false
+
 const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab') : undefined))
 </script>
 
 <template>
   <div class="wkr-geraet" data-teil="wkr-geraet" :data-modus="ansicht.modus" :data-hand="ansicht.hand" :data-uebung="quelle.uebung || undefined" :lang="sprache">
+    <p v-if="bildschirmKannAus && !wachWeg" class="wkr-band wkr-band--warn" role="status" data-teil="wach-hinweis">
+      <span>
+        <b>{{ w('wkr.geraet.wach.titel') }}</b>
+        {{ w(ohneHttps ? 'wkr.geraet.wach.ohneHttps' : 'wkr.geraet.wach.tipp') }}
+      </span>
+      <button type="button" class="wkr-knopf" data-ziel="klein" data-action="wach-ausblenden" @click="blendeWachAus">{{ w('wkr.geraet.wach.ausblenden') }}</button>
+    </p>
     <WkrRuhe v-if="quelle.entzogen.value" art="entzogen" :entwuerfe="quelle.entwuerfe.value" />
     <WkrRuhe v-else-if="!aktiv" art="keine-liste" />
-    <WkrProbe v-else-if="probe === aktiv.liste && probeAufbau" :key="`probe|${aktiv.liste}`" :aufbau="probeAufbau" :teil="probeTeil" :hand="ansicht.hand" @fertig="probeFertig" />
+    <WkrProbe v-else-if="probe === aktiv.liste && probeAufbau" :key="`probe|${aktiv.liste}`" :aufbau="probeAufbau" :teil="probeTeil" :hand="ansicht.hand" :uebung="quelle.uebung" @fertig="probeFertig" />
     <WkrMaske
       v-else
       :key="aktiv.liste"

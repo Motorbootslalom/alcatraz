@@ -9,7 +9,8 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
   Besetzung, Beispieldaten (components/BeispieldatenPanel.vue, zugeklappt; Test EventView.test.ts `beispielstarter`,
   `beispielbesetzung`, `beispielgewichte`; Herkunft der Beispielstarter = originMode, nie umgestellt).
 - `StartersView.vue` – Starter je Klasse, Startnummern, Excel-Austausch, Schalter „zählt für Mannschaftswertung“;
-  Leiste „Alle Klassen“ (`sortierung-alle`): Sortierung ändern/Zufall für alle, Spaltenköpfe in ClassSection.vue.
+  Leiste „Alle Klassen“ (`sortierung-alle`): Sortierung ändern/Zufall für alle, Spaltenköpfe in ClassSection.vue;
+  drei Stufen wie je Klasse (21.11.2026), merke `starter.sortierung.alle`, Test StartersView.test.ts.
 - `WeighingView.vue` – Verwiegung: Gewichte je Herkunft in Ausdruck-Reihenfolge abtippen (SET_WEIGHT); Link
   „Gewichtslisten drucken“ → `#/listen/gewicht/<Herkunft>` (`*` = alle), ListsView übernimmt sie (gewichtHerkunft).
 - `VerzahnungView.vue` – Parcours, Klassen, Sperre (Festschreiben), Startnummern; Unterreiter Parallelslalom, useReiter.
@@ -91,7 +92,7 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 Je Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meist über ListsView), z. B. Verwiegung
 (Link zu den Gewichtslisten), Ergebnislisten, ParallelErgebnis, Einzelwertung, Pokalauswertung, Laufzettel, Druckdatei,
 Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel, Startfolge, Startabstände, Geräte), Betrieb (Start-Freigabe,
-E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), BetriebGeraete (E6, echter Host gegen nachgebauten ntfy), BetriebWkr (W2.2, Host-Doppel; W2.4 Start-Freigabe: Leiste, warnen, nachfragen, nie gesperrt, Klick → WKR), Listenoptionen, ErfassungView, ErfassungScan, ErfassungWkr (W2.3: ◆, „Papier
+E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), BetriebGeraete (E6, echter Host gegen nachgebauten ntfy), BetriebWkr (W2.2, Host-Doppel; W2.4 Start-Freigabe: Leiste, warnen, nachfragen, nie gesperrt, Klick → WKR; N8–N10: ab 1 offen fragen, ✓/⧗/✕/▭), Listenoptionen, ErfassungView, ErfassungScan, ErfassungWkr (W2.3: ◆, „Papier
 ansehen“, Rückfrage, Nachfrage beim Überschreiben; Host-Doppel), Dolphin,
 UimAushang (englisch), WkrAufbau (Ladebalken, schrittweise; Druck erst danach). Zuschauerliste: src/ZuschauerApp.test.ts.
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

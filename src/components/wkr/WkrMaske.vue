@@ -19,6 +19,7 @@ import {
   teileFuer,
   tippe,
   tippeDisq,
+  wechselNach,
   wechselTakt,
   zellenAus,
   zurueck,
@@ -36,6 +37,7 @@ import WkrMehr from './WkrMehr.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import WkrStarterKarte from './WkrStarterKarte.vue'
 import WkrStegReiter from './WkrStegReiter.vue'
+import WkrUebertragen from './WkrUebertragen.vue'
 import WkrVorsteg from './WkrVorsteg.vue'
 import WkrZuletzt from './WkrZuletzt.vue'
 import { gedaechtnis } from './gedaechtnis'
@@ -51,10 +53,11 @@ import { useWkrText, zellenText } from './texte'
  * - **Entwurf**: jede Änderung geht sofort in den Ausgang (merkeEntwurf) – ein Wechsel verliert nichts, und beim
  *   nächsten Erscheinen des Starts ist er wieder da. Verschwindet ein Start mit Entwurf aus der Folge (zurückgestellt),
  *   fragt ein Band einmal „behalten / verwerfen“.
- * - **Takt** (G5, wkr/maske.ts wechselTakt): Nach dem Abschicken bleibt die Nummer 2 s mit „● gesendet“ stehen, dann
- *   Wechsel mit Blitz (und Vibration, wo es sie gibt), 1 s lang nimmt die Mitte und der Fuß nichts an (`inert` UND
- *   Prüfung in jedem Tipp – ein Tropfen auf „Code 1“ ist so schlimm wie auf „Fehlerfrei“). Nie gesperrt bis zur
- *   Quittung (§5.2); „Rückgängig“ 6 s (G8).
+ * - **Takt** (G5, wkr/maske.ts wechselTakt): Nach dem Abschicken sofort das Overlay „wird übertragen …“ über der
+ *   ganzen Maske (WkrUebertragen, N1 vom Feldtest 21.11.2026), mit der Quittung kurz „✓ übernommen“, dann Wechsel mit
+ *   Blitz (und Vibration, wo es sie gibt), 1 s lang nimmt die Mitte und der Fuß nichts an (`inert` UND Prüfung in
+ *   jedem Tipp – ein Tropfen auf „Code 1“ ist so schlimm wie auf „Fehlerfrei“). Nie gesperrt bis zur Quittung (§5.2):
+ *   ohne Antwort geht das Overlay nach uebertragenMaxMs, darüber „Bestätigung folgt“ (N2); „Rückgängig“ 6 s (G8).
  * - **Korrektur** (F7): eine Zeile aus „Zuletzt“ öffnet dieselbe Maske mit ihren Werten; „Korrektur abschicken“ bzw.
  *   nach dem Abschluss „Als Vorschlag senden“ fragt groß „alt → neu“.
  * - **Liste abschließen** (W3.4, F7/F8, G16): unter „Mehr“ immer (der laufende Punkt, sonst der letzte eigene), als
@@ -191,7 +194,7 @@ function aendere(neu: Entwurf): void {
   props.quelle.merkeEntwurf(liste.value, a.key, teil.value, zellenAus(neu, b, teil.value))
 }
 
-// --- Takt nach dem Abschicken (G5) ---
+// --- Takt nach dem Abschicken (G5; Overlay mit Quittung seit dem Feldtest 21.11.2026, N1/N2) ---
 interface Gesendet {
   um: number
   z: number
@@ -201,8 +204,22 @@ interface Gesendet {
   klasse: string
 }
 const gesendet = shallowRef<Gesendet | null>(null)
-const takt = computed(() => wechselTakt(gesendet.value?.um ?? null, jetzt.value))
+/** Wann die eben gesendete Zeile ihre Antwort bekam (Quittung, Rückfrage, Ablehnung) – beendet das Overlay früher. */
+const quittungUm = ref<number | null>(null)
+/** Stufe der eben gesendeten Zeile, wie der Kern sie in „Zuletzt“ führt. */
+const gesendeteStufe = computed(() => {
+  const g = gesendet.value
+  return g ? (props.quelle.zuletzt.value.find((x) => x.z === g.z)?.stufe ?? null) : null
+})
+const takt = computed(() => wechselTakt(gesendet.value?.um ?? null, jetzt.value, quittungUm.value))
 const gesperrt = computed(() => takt.value !== 'frei')
+/** Overlay „wird übertragen …“ / „✓ übernommen“: die Nummer steht noch, die Maske darunter nimmt nichts an. */
+const imOverlay = computed(() => takt.value === 'gesendet' || takt.value === 'uebernommen')
+/** N2: Overlay ohne Antwort weg – über dem Kopf „Start n gesendet – Bestätigung folgt“, bis die Antwort kommt. */
+const bestaetigungFolgt = computed(() => {
+  const g = gesendet.value
+  return g && !imOverlay.value && quittungUm.value === null && gesendeteStufe.value?.stufe === 'unterwegs' ? g.start.startNr : null
+})
 const blitz = ref(false)
 function blitze(): void {
   blitz.value = true
@@ -214,15 +231,38 @@ function blitze(): void {
   }
   nach(150, () => (blitz.value = false))
 }
-function starteTakt(um: number): void {
-  jetzt.value = um
-  nach(WKR_ANNAHMEN.weiterNachMs, () => {
-    jetzt.value = Date.now()
-    blitze()
-  })
-  nach(WKR_ANNAHMEN.weiterNachMs + WKR_ANNAHMEN.sperreMs, () => (jetzt.value = Date.now()))
-  nach(WKR_ANNAHMEN.rueckgaengigMs, () => (jetzt.value = Date.now()))
+const tick = () => (jetzt.value = Date.now())
+/** Die Uhr genau an den Grenzen des Takts nachziehen (der Sekundentakt allein wäre bis zu 1 s zu spät). */
+function planeWechsel(g: Gesendet, ab: number): void {
+  const wechsel = g.um + wechselNach(g.um, quittungUm.value)
+  nach(Math.max(0, wechsel - ab), tick)
+  nach(Math.max(0, wechsel + WKR_ANNAHMEN.sperreMs - ab), tick)
 }
+function starteTakt(g: Gesendet): void {
+  jetzt.value = g.um
+  quittungUm.value = null
+  nach(WKR_ANNAHMEN.uebertragenMinMs, tick)
+  planeWechsel(g, g.um)
+  nach(WKR_ANNAHMEN.rueckgaengigMs, tick)
+}
+function beendeTakt(): void {
+  gesendet.value = null
+  quittungUm.value = null
+}
+// Die Antwort auf die eben gesendete Zeile: Zeitpunkt merken und den früheren Wechsel planen (nach dem Höchstwert
+// ändert sie nichts mehr – wechselTakt übergeht sie dann).
+watch(gesendeteStufe, (st) => {
+  const g = gesendet.value
+  if (!g || quittungUm.value !== null || !st || st.stufe === 'unterwegs') return
+  const um = Date.now()
+  quittungUm.value = um
+  jetzt.value = um
+  planeWechsel(g, um)
+})
+// Der Wechsel der Nummer blitzt – gleich ob nach der Quittung oder nach dem Höchstwert.
+watch(takt, (neu, alt) => {
+  if (neu === 'sperre' && (alt === 'gesendet' || alt === 'uebernommen')) blitze()
+})
 const rueckgaengig = computed(() => {
   const g = gesendet.value
   return g && jetzt.value - g.um < WKR_ANNAHMEN.rueckgaengigMs ? { z: g.z, sn: g.start.startNr } : null
@@ -231,7 +271,7 @@ const rueckgaengig = computed(() => {
 // --- Was die Mitte zeigt: gesendet (Takt), Korrektur oder der aktuelle Start ---
 const zeige = computed(() => {
   const g = gesendet.value
-  if (g && takt.value === 'gesendet') return { start: g.start as Pick<SchlangenEintrag, 'key' | 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab'>, aufbau: g.aufbau, entwurf: g.entwurf, klasse: g.klasse }
+  if (g && imOverlay.value) return { start: g.start as Pick<SchlangenEintrag, 'key' | 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab'>, aufbau: g.aufbau, entwurf: g.entwurf, klasse: g.klasse }
   const k = korrektur.value
   if (k) {
     const bekannt = [...schlange.value, ...danach.value].find((x) => x.key === k.s)
@@ -254,7 +294,7 @@ const ruhe = computed<Ruhe | null>(() => {
   if (!s) return 'warte'
   if (s.modus === 'papier') return 'papier'
   if (status.value !== 'aktiv') return status.value
-  if (korrektur.value || takt.value === 'gesendet') return null
+  if (korrektur.value || imOverlay.value) return null
   if (listeSpaeter.value) return 'spaeter'
   const a = aktuell.value
   if (!a) return s.punkt && abgeschlossenIn(teil.value).includes(s.punkt.id) ? 'abgeschlossen' : 'leer'
@@ -437,11 +477,12 @@ function haupt(): void {
   if (!a || !b) return
   const z = props.quelle.schicke(liste.value, { s: a.key, zellen: zellenAus(entwurf.value, b, teil.value), ...(teil.value ? { teil: teil.value } : {}) })
   if (z === null) return
-  const um = Date.now()
-  gesendet.value = { um, z, start: a, entwurf: entwurf.value, aufbau: b, klasse: klassenTitel(a.klasse) }
+  const g: Gesendet = { um: Date.now(), z, start: a, entwurf: entwurf.value, aufbau: b, klasse: klassenTitel(a.klasse) }
+  quittungUm.value = null
+  gesendet.value = g
   gewaehlt.value = null
   disqOffen.value = false
-  starteTakt(um)
+  starteTakt(g)
   ladeEntwurf()
 }
 
@@ -450,8 +491,8 @@ function oeffneKorrektur(z: number): void {
   if (!k) return
   if (k.teil && geteilt.value && !props.aufgabe.teil) stegWahl.value = k.teil
   // Die Korrektur ist eine bewusste Wahl (oben, außerhalb der gesperrten Fläche): Sie beendet den Takt des letzten
-  // Abschickens, sonst zeigte die Mitte noch 2 s den gesendeten Start.
-  gesendet.value = null
+  // Abschickens, sonst zeigte die Mitte noch den gesendeten Start.
+  beendeTakt()
   korrektur.value = k
   disqOffen.value = false
   const b = aufbauVon(klasseVon(k.s, k.punkt))
@@ -476,7 +517,7 @@ function korrekturJa(): void {
 function zurueckHolen(): void {
   const g = gesendet.value
   if (!g) return
-  gesendet.value = null
+  beendeTakt()
   jetzt.value = Date.now()
   const r = props.quelle.holeZurueck(g.z)
   if (!r) {
@@ -512,6 +553,7 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
       :getrennt-sek="getrenntSek"
       :wartend="quelle.wartend.value"
       :ohne-quittung="ohneQuittung"
+      :bestaetigung-folgt="bestaetigungFolgt"
       :papier-ab="papierAb"
       :hinweis="hinweis"
       @gesehen="(id) => quelle.gesehen(id)"
@@ -573,7 +615,7 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
         @pausiere="quelle.pausiere(liste)"
       />
       <template v-else-if="zeige">
-        <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="takt === 'gesendet'" :korrektur="korrekturArt" />
+        <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" />
         <button v-if="korrektur" type="button" class="wkr-knopf" data-ziel="klein" data-action="korrektur-abbrechen" @click="brichKorrekturAb">{{ w('wkr.geraet.korrektur.abbrechen') }}</button>
 
         <div class="wkr-mitte" :inert="gesperrt" data-teil="mitte">
@@ -600,6 +642,7 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
           <WkrDisq
             v-else-if="disqOffen"
             :key="`${zeige.start.key}|${teil ?? ''}|${korrektur?.z ?? ''}`"
+            :titel="w('wkr.geraet.disq')"
             :codes="disqCodes"
             :gesetzt="zeige.entwurf.disq"
             :start-nr="zeige.start.startNr"
@@ -669,6 +712,8 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
       />
     </template>
 
+    <!-- N1 (Feldtest 21.11.2026): sofort nach „Fehlerfrei“/„Abschicken“ über der ganzen Maske, ohne Knöpfe. -->
+    <WkrUebertragen v-if="gesendet && imOverlay" :start-nr="gesendet.start.startNr" :takt="takt" :stufe="gesendeteStufe" />
     <div v-if="blitz" class="wkr-blitz" data-teil="blitz" aria-hidden="true" />
 
     <AppDialog

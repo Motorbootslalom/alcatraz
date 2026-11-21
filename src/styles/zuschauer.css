@@ -45,6 +45,30 @@
   background: var(--accent-soft);
 }
 
+/* Team-Filter (21.11.2026): zugeklappt unter dem Klassenfilter; Herkünfte als Knöpfe, Flagge und Name. */
+.zuschauer-teams {
+  margin: -8px 0 16px;
+}
+
+.zuschauer-teams > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.zuschauer-teams .zuschauer-filter {
+  margin: 8px 0 0;
+}
+
+.zuschauer-team {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
 .zuschauer-chip .class-badge {
   font-size: 14px;
   height: 26px;

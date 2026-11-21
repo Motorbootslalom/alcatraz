@@ -392,7 +392,10 @@ nur wer Anzeigetafel oder Zuschauerliste auch auf anderen Geräten zeigen will, 
   „Vor Steg“, „Danach“ (mit „ca. in“ und „zum Vorsteg in“) und zuletzt „Boot fehlt“ ohne Zahl; Läufe, die noch nicht
   begonnen haben, stehen nicht darin. Bei Pause oder Störung auf der Anzeigetafel steht die Meldung oben, die Gruppen
   bleiben, Zahlen gibt es keine. Filter nach Klasse (nur die Klassen der gezeigten Parcours) – er blendet nur aus,
-  Steg-Gruppen und Wartezeiten zählen alle Klassen; das Fenster merkt ihn sich auch über das Neuladen. Schmal genug fürs Handy, in der Sprache der
+  Steg-Gruppen und Wartezeiten zählen alle Klassen; das Fenster merkt ihn sich auch über das Neuladen. Dazu (Feldtest
+  21.11.2026) ein **Team-Filter** nach Herkunft (Verein, Landesverband oder Nation wie die Veranstaltung), zugeklappt,
+  mehrere wählbar, „Alle“ = keiner; gemerkt je Bildschirm im Browser (localStorage), auch auf Lese-Link-Geräten,
+  nichts davon geht übers Netz. Schmal genug fürs Handy, in der Sprache der
   Anzeigetafel, im Farbschema der Bedienung. Das Fenster liest nur und schreibt nie, wie die Anzeigetafel. Aufs Handy
   der Zuschauer kommt sie über den Zuschauer-Link (Gerätebetrieb, dieselbe Liste).
 - **Parallelslalom** (nur unter UIM, Etappe E4; Einzelheiten in [parallelslalom.md](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)):
@@ -742,7 +745,11 @@ Die Punkte mit Datum sind Entscheidungen vom 15.11.2026.
 - **Reihenfolge der Starter** (15.11.2026): Im Reiter „Starter“ macht „Sortierung ändern“
   die Spaltenköpfe Name, Vorname, Herkunft, Größe, Geschlecht und Geburtsdatum zu Knöpfen.
   - Das gibt es je Klasse und oben für alle Klassen zugleich (jede Klasse in sich, die Folge der Klassen bleibt).
-  - Ein Klick sortiert aufsteigend, ein zweiter dreht die Richtung um; die Richtung steht am Kopf.
+  - Drei Stufen je Kopf (21.11.2026, ersetzt „aufsteigend, dann umdrehen“): Klick 1 sortiert absteigend
+    (Z→A, größter Wert zuerst; Pfeil ↓), Klick 2 aufsteigend (↑), Klick 3 hebt die Markierung auf (↕) und lässt die
+    Reihenfolge, wie sie ist. Eine andere Spalte beginnt bei Stufe 1. Die gewählte Spalte ist farbig hinterlegt;
+    die Stufe ist Bedienauswahl (merke `starter.sortierung.*`) und gilt, solange die Klasse noch so steht – auch
+    mit Startnummern-Bereichen, wo nur je Größengruppe sortiert wird.
     Gleiche Werte behalten ihre Reihenfolge (erst Vorname, dann Name = nach Name und Vorname).
     Ohne Angabe steht in beiden Richtungen hinten.
   - „Zufall“ mischt jedes Mal neu (Saat in der Action).

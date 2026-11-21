@@ -286,16 +286,39 @@ export function entwurfAus(zellen: Readonly<Record<string, string>>, aufbau: Mas
 // ---------------------------------------------------------------------------
 
 /**
- * Wo die Maske nach dem Abschicken steht: `gesendet` (Nummer bleibt mit „● gesendet“ stehen, WKR_ANNAHMEN.weiterNachMs),
- * `sperre` (Nummer gewechselt, keine Eingabe, sperreMs), `frei`. Die Uhr wird hineingereicht (kein Date.now()).
+ * Wo die Maske nach dem Abschicken steht (G5, neu nach dem Feldtest 21.11.2026, Befund 13 – N1 in WKR_ANNAHMEN):
+ *
+ * - `gesendet`: Overlay „wird übertragen …“ über der ganzen Maske, die Nummer steht noch – mindestens
+ *   `uebertragenMinMs`, bis die Quittung da ist, höchstens `uebertragenMaxMs`.
+ * - `uebernommen`: Quittung da – „✓ übernommen“ (bzw. Rückfrage/abgelehnt) `uebernommenMs` lang.
+ * - `sperre`: Nummer gewechselt (Blitz), `sperreMs` keine Eingabe (Doppeltipp-Schutz bleibt).
+ * - `frei`.
+ *
+ * Ohne Quittung geht das Overlay nach `uebertragenMaxMs` trotzdem weg (die Maske sperrt nie bis zur Quittung, §5.2);
+ * eine spätere Quittung ändert am Takt nichts mehr. Die Uhr wird hineingereicht (kein Date.now()).
  */
-export type Takt = 'gesendet' | 'sperre' | 'frei'
+export type Takt = 'gesendet' | 'uebernommen' | 'sperre' | 'frei'
 
-export function wechselTakt(gesendetUm: number | null, jetzt: number): Takt {
+/** Ab wann nach dem Abschicken (ms) die Nummer wechselt – mit Quittung früher, ohne nach `uebertragenMaxMs`. */
+export function wechselNach(gesendetUm: number, quittungUm: number | null = null): number {
+  const q = quittungAb(gesendetUm, quittungUm)
+  return q === null ? WKR_ANNAHMEN.uebertragenMaxMs : q + WKR_ANNAHMEN.uebernommenMs
+}
+
+/** Ab wann (ms nach dem Abschicken) „✓ übernommen“ steht – nie vor `uebertragenMinMs`; `null` = keine Quittung bis zum Höchstwert. */
+function quittungAb(gesendetUm: number, quittungUm: number | null): number | null {
+  if (quittungUm === null) return null
+  const q = Math.max(quittungUm - gesendetUm, WKR_ANNAHMEN.uebertragenMinMs)
+  return q < WKR_ANNAHMEN.uebertragenMaxMs ? q : null
+}
+
+export function wechselTakt(gesendetUm: number | null, jetzt: number, quittungUm: number | null = null): Takt {
   if (gesendetUm === null) return 'frei'
   const d = jetzt - gesendetUm
+  const q = quittungAb(gesendetUm, quittungUm)
+  const wechsel = wechselNach(gesendetUm, quittungUm)
   // Eine rückwärts gestellte Uhr gilt als „gerade gesendet“ – lieber kurz warten als einen Tropfen durchlassen.
-  if (d < WKR_ANNAHMEN.weiterNachMs) return 'gesendet'
-  if (d < WKR_ANNAHMEN.weiterNachMs + WKR_ANNAHMEN.sperreMs) return 'sperre'
+  if (d < wechsel) return q !== null && d >= q ? 'uebernommen' : 'gesendet'
+  if (d < wechsel + WKR_ANNAHMEN.sperreMs) return 'sperre'
   return 'frei'
 }

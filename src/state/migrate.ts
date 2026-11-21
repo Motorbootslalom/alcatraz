@@ -24,6 +24,7 @@ import { logoHoeheZahl, logoWert } from '../lib/logo'
 import { serverEinstellung } from '../lib/serverAdresse'
 import { normalisiereFehlende, normalisiereStartNrBereiche } from './reducer/startnummern'
 import { normalisiereGedruckt } from './reducer/parallel'
+import { hebeWkrVorgabe } from './reducer/betrieb'
 
 /** Herkunft auf den Wertungslisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
 const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
@@ -170,7 +171,8 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     // Fehlen in Ständen vor dem Betrieb (16.11.2026): nichts begonnen, Vorgaben der Anzeigetafel. Bereiche,
     // die es nicht (mehr) gibt, entfallen – im Betrieb wie in der Auswahl der Anzeigetafel.
     betrieb: normalisiereBetrieb(loaded.betrieb, [...parcoursIds, PARALLEL]),
-    anzeige: normalisiereAnzeige(loaded.anzeige, [...parcoursIds, PARALLEL]),
+    // Prüfbefund 21.11.2026: ein W2-Stand mit der alten Vorgabe 2/„warnen“ bekommt einmal die neue (N8).
+    anzeige: hebeWkrVorgabe(normalisiereAnzeige(loaded.anzeige, [...parcoursIds, PARALLEL]), loaded.anzeige),
     // Fehlt in Ständen vor dem Gerätebetrieb (E6, 16.11.2026); Unbrauchbares heißt: die Vorgabe des Programms.
     geraeteServer: serverEinstellung(loaded.geraeteServer) ?? '',
     // Fehlt in Ständen vor der digitalen WKR-Erfassung (W1, 21.11.2026): keine Liste digital, nichts offen.

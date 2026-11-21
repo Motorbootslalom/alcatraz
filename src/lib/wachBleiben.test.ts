@@ -103,6 +103,34 @@ describe('Bildschirm wach halten (Wake Lock)', () => {
     w.stop()
   })
 
+  it('Feldtest 21.11.2026 (Befund 14c): Browser nimmt die Sperre noch VOR dem Verstecken (release zuerst), Handy aus und wieder an → neu angefordert', async () => {
+    const n = nachbau()
+    const w = halteWach(n.umgebung)
+    w.setze(true)
+    await ruhe()
+    expect(w.lage.value).toBe('wach')
+    // Reihenfolge wie manche Android-Browser: erst `release`, dann `visibilitychange` → versteckt.
+    for (const g of n.gehalten) if (!g.frei) { g.frei = true; for (const fn of g.beiFrei) fn() }
+    expect(w.lage.value).toBe('nicht-moeglich')
+    n.zeige(false)
+    await ruhe()
+    expect(w.lage.value).toBe('aus')
+    n.zeige(true)
+    await ruhe()
+    expect(n.request).toHaveBeenCalledTimes(2)
+    expect(w.lage.value).toBe('wach')
+    // Mehrfach hintereinander (Bildschirm aus/an im Takt der Starts): jedes Mal genau eine neue Sperre.
+    for (let i = 0; i < 3; i++) {
+      n.zeige(false)
+      await ruhe()
+      n.zeige(true)
+      await ruhe()
+    }
+    expect(n.request).toHaveBeenCalledTimes(5)
+    expect(n.offen()).toBe(1)
+    w.stop()
+  })
+
   it('useWachBleiben: hält, solange aktiv und die Komponente steht', async () => {
     const n = nachbau()
     const aktiv = ref(false)

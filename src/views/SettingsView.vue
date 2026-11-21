@@ -1027,6 +1027,7 @@ function takeLegacy() {
     </div>
 
     <!-- Rückstand der WKR-Erfassung (W2, F4 vom 21.11.2026): ab wann die Start-Freigabe warnt, warnen oder nachfragen.
+         Seit dem Feldtest 21.11.2026 (WKR_ANNAHMEN N8): „ab R“ statt „mehr als R“, Vorgabe 1 und nachfragen.
          Optionsfelder statt Auswahlliste (kein select-change). Unter DM und UIM gleich. -->
     <h3>{{ t('listopt.betrieb.wkr') }}</h3>
     <div class="row" style="align-items: flex-end; gap: 20px">

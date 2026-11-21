@@ -39,9 +39,12 @@ import { beginnenText, punktText, startZeile, tBereich, tnBereich, type StartZei
  * WKR-Erfassung (W2.4, Plan docs/plan-wkr-w2.md §6.3, 21.11.2026): optional `erfassung` – reine Daten (wkr/freigabe.ts
  * FreigabeErfassung), am Bedienrechner aus erfassungsLage, auf dem Handy aus der Freigabe-Gruppe; keine Store-Abhängigkeit.
  * Geräteleiste je Liste, sobald eine Liste des Bereichs einen Eintrag hat; ein Feld, das neu auf ✕ oder „!“ geht, wird
- * einmal hervorgehoben und bleibt rot (kein Ton, kein Dialog). Warnt eine Liste (Rückstand > R): Rückstandszeile und
- * gelber Rand um „Als Nächstes“; bei „nachfragen“ vor JEDEM Zeigen ein AppDialog „Trotzdem freigeben?“ (auch aus
- * „Anderen Starter wählen“, A8/D5). Gesperrt wird nie (F4).
+ * einmal hervorgehoben und bleibt rot (kein Ton, kein Dialog). Warnt eine Liste (Rückstand ≥ R): Rückstandszeile und
+ * gelber Rand um „Als Nächstes“; bei „nachfragen“ vor JEDEM Zeigen ein AppDialog „Trotzdem weiter?“ mit Liste und
+ * Startnummern (auch aus „Anderen Starter wählen“, A8/D5). Gesperrt wird nie (F4).
+ * Feldtest 21.11.2026 (WKR_ANNAHMEN N8–N10): Vorgabe ab 1 offenem Start nachfragen; das große Zeichen je Feld nennt den
+ * Erfassungsstand (✓ fertig, ⧗ wartet n, ✕ Gerät weg, ▭ Papier), die Verbindung steht klein dahinter – der grüne
+ * Punkt neben „1 offen“ las sich als „fertig“.
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -96,29 +99,52 @@ const ohneNaechsten = computed(() => {
 })
 
 // --- WKR-Erfassung (W2.4) ---
+/** Die Verbindung, klein hinter dem Namen (N9) – nicht mehr das große Zeichen. */
 const AMPEL: Record<Ampel, string> = { gehoert: '●', still: '◐', weg: '✕', ruht: '○' }
 const leiste = computed<FreigabeListe[]>(() => props.erfassung?.listen ?? [])
 const warnende = computed(() => leiste.value.filter((l) => l.warnt && l.offen > 0))
 const nachfragen = computed(() => warnende.value.length > 0 && props.erfassung?.warnung === 'nachfragen')
-const istRot = (l: FreigabeListe) => l.stand !== 'papier' && (l.ampel === 'weg' || l.rueckfragen > 0)
-function zeichen(l: FreigabeListe): string {
-  if (l.stand === 'papier') return '▭'
-  return l.ampel ? AMPEL[l.ampel] : '–'
+/**
+ * Digital, aktiv, offene Starts, aber kein Gerät (nie gekoppelt oder entzogen; Prüfbefund 21.11.2026): Da sendet
+ * niemand – „⧗ wartet“ läse sich wie „kommt gleich“ (genau die Verwechslung aus N9). Also wie „Gerät weg“: ✕ rot.
+ */
+const ohneGeraet = (l: FreigabeListe) => l.stand === 'aktiv' && !l.ampel && l.offen > 0
+const istRot = (l: FreigabeListe) => l.stand !== 'papier' && (l.ampel === 'weg' || ohneGeraet(l) || l.rueckfragen > 0)
+
+/**
+ * Erfassungsstand eines Feldes (N9, Befunde 9 und 12): Papier (auch pausiert/abgemeldet – dann gilt der Bogen) vor
+ * „Gerät weg“ (schlechteste Ampel ✕, auch mit offenen Starts: dann hilft Warten nicht) vor „wartet“ vor „fertig“.
+ */
+type ErfStand = 'fertig' | 'wartet' | 'weg' | 'papier'
+const ERF_ZEICHEN: Record<ErfStand, string> = { fertig: '✓', wartet: '⧗', weg: '✕', papier: '▭' }
+function erfStand(l: FreigabeListe): ErfStand {
+  if (l.stand !== 'aktiv') return 'papier'
+  if (l.ampel === 'weg' || ohneGeraet(l)) return 'weg'
+  return l.offen > 0 ? 'wartet' : 'fertig'
 }
 function feldText(l: FreigabeListe): string {
   if (l.stand === 'papier') return ''
   if (l.stand !== 'aktiv') return t(`betrieb.wkr.stand.${l.stand}`)
-  return l.offen > 0 ? t('betrieb.freigabe.offen', { n: l.offen }) : '✓'
+  const e = erfStand(l)
+  const wegText = ohneGeraet(l) ? t('betrieb.freigabe.ohneGeraet') : t('betrieb.freigabe.weg')
+  if (e === 'weg') return l.offen > 0 ? `${wegText} · ${t('betrieb.freigabe.wartet', { n: l.offen })}` : wegText
+  return e === 'wartet' ? t('betrieb.freigabe.wartet', { n: l.offen }) : t('betrieb.freigabe.fertig')
 }
+const nummern = (l: FreigabeListe) => (l.von === l.bis ? l.von : `${l.von}–${l.bis}`)
 function feldTitel(l: FreigabeListe): string {
   if (l.stand === 'papier') return `${l.titel}: ${t('betrieb.freigabe.papier')}`
-  const teile = [l.ampel ? t(`betrieb.wkr.ampel.${l.ampel}`) : t('betrieb.freigabe.ohneGeraet')]
-  teile.push(l.offen > 0 ? t('betrieb.wkr.stand.offen', { n: l.offen, von: l.von, bis: l.bis }) : t('betrieb.freigabe.fertig'))
+  const teile: string[] = []
+  if (l.stand !== 'aktiv') teile.push(t(`betrieb.wkr.stand.${l.stand}`))
+  else teile.push(l.offen > 0 ? t('betrieb.wkr.stand.offen', { n: l.offen, von: l.von, bis: l.bis }) : t('betrieb.freigabe.fertig'))
+  teile.push(t('betrieb.freigabe.verbindung', { ampel: l.ampel ? t(`betrieb.wkr.ampel.${l.ampel}`) : t('betrieb.freigabe.ohneGeraet') }))
   if (l.wartend) teile.push(tn('betrieb.wkr.stand.wartend', l.wartend))
   if (l.rueckfragen) teile.push(tn('betrieb.wkr.stand.rueckfragen', l.rueckfragen))
   return `${l.titel}: ${teile.join(' · ')}`
 }
-const rueckstandText = computed(() => warnende.value.map((l) => `${l.titel} ${t('betrieb.wkr.stand.offen', { n: l.offen, von: l.von, bis: l.bis })}`).join(' · '))
+const leisteTitel = computed(() => (props.erfassungOeffnen ? `${t('betrieb.freigabe.legende')} – ${t('betrieb.freigabe.leiste.title')}` : t('betrieb.freigabe.legende')))
+const rueckstandText = computed(() => warnende.value.map((l) => t('betrieb.freigabe.rueckstand.liste', { liste: l.titel, n: l.offen, nr: nummern(l) })).join(' · '))
+/** Je warnender Liste ein Satz für die Rückfrage (N10): „Mann-über-Bord hat 604 noch nicht abgeschickt.“ */
+const frageSaetze = computed(() => warnende.value.map((l) => tn('betrieb.freigabe.frage.liste', l.offen, { liste: l.titel, nr: nummern(l) })))
 /** Felder, die eben neu rot wurden – einmal hervorgehoben (D1), danach nur noch rot. */
 const neuRot = ref<Set<string>>(new Set())
 const HERVORHEBEN_MS = 4000
@@ -273,7 +299,7 @@ function meldungLoeschen() {
       data-teil="wkr-leiste"
       role="group"
       :aria-label="t('betrieb.freigabe.leiste')"
-      :title="erfassungOeffnen ? t('betrieb.freigabe.leiste.title') : undefined"
+      :title="leisteTitel"
       @click="erfassungOeffnen?.()"
     >
       <span
@@ -283,13 +309,16 @@ function meldungLoeschen() {
         :data-liste="l.titel"
         :data-stand="l.stand"
         :data-ampel="l.ampel ?? undefined"
+        :data-erf="erfStand(l)"
         :data-rot="istRot(l) ? '' : undefined"
         :data-neu="neuRot.has(l.titel) ? '' : undefined"
         :title="feldTitel(l)"
       >
-        <span class="wkr-ampel" :data-ampel="l.ampel ?? undefined" aria-hidden="true">{{ zeichen(l) }}</span>
-        {{ l.titel }}<template v-if="feldText(l)">{{ ' ' }}{{ feldText(l) }}</template
-        ><template v-if="l.wartend">{{ ' ' }}⧗{{ l.wartend }}</template
+        <span class="wkr-leiste-erf" :data-erf="erfStand(l)" aria-hidden="true">{{ ERF_ZEICHEN[erfStand(l)] }}</span>
+        {{ l.titel
+        }}<small v-if="l.stand !== 'papier'" class="wkr-leiste-verbindung" data-teil="leiste-verbindung" :data-ampel="l.ampel ?? undefined" aria-hidden="true">{{ ' ' }}<span class="wkr-ampel" :data-ampel="l.ampel ?? undefined">{{ l.ampel ? AMPEL[l.ampel] : '–' }}</span></small
+        ><template v-if="feldText(l)">{{ ' ' }}{{ feldText(l) }}</template
+        ><small v-if="l.wartend" class="wkr-leiste-imgeraet">{{ ' ' }}({{ t('betrieb.freigabe.imGeraet', { n: l.wartend }) }})</small
         ><b v-if="l.rueckfragen" class="wkr-leiste-frage">{{ ' ' }}!</b>
       </span>
       <button v-if="erfassungOeffnen" type="button" class="btn sm wkr-leiste-knopf" data-action="zur-erfassung">{{ t('betrieb.reiter.wkr') }} →</button>
@@ -389,8 +418,10 @@ function meldungLoeschen() {
     <EinsteigenAb :sicht="sicht" :bereich="bereich" :sende="sende" :gesperrt="gesperrt" />
 
     <AppDialog v-if="frageZeigen" :titel="t('betrieb.freigabe.frage')" data-dialog="trotzdem-freigeben" @abbrechen="frageZeigen = null">
-      <p>{{ t('betrieb.freigabe.frage.text') }}</p>
-      <p class="note">{{ t('betrieb.freigabe.rueckstand') }} {{ rueckstandText }}</p>
+      <p v-for="(satz, i) in frageSaetze" :key="i" data-teil="frage-liste">
+        <b>{{ satz }}</b>
+      </p>
+      <p class="note">{{ t('betrieb.freigabe.frage.text') }}</p>
       <template #knoepfe>
         <button type="button" class="btn primary" data-action="trotzdem-freigeben" @click="zeigenJa">{{ t('betrieb.freigabe.frage.ja') }}</button>
         <button type="button" class="btn" data-action="trotzdem-nein" autofocus @click="frageZeigen = null">{{ t('common.cancel') }}</button>
