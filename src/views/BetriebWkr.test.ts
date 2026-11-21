@@ -14,6 +14,7 @@ import type { WkrEingang, WkrHerkunft } from '../geraete/wkrEingang'
 import { listenKennung, type Liste } from '../wkr/liste'
 import { pruefeZeile } from '../wkr/zeile'
 import { betriebStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { sichtOeffentlich } from '../betrieb/sicht'
 import type { AppState } from '../types'
 
 /**
@@ -137,6 +138,30 @@ describe('Betrieb → WKR: Matrix', () => {
     expect(w.find('[data-reiter="geraete"]').classes()).toContain('active')
   })
 
+  it('W4.3: „nicht vorbeigekommen“ als ⊘ mit Wort, Legende, Abschluss nennt die Nummer; Start-Freigabe warnt nicht', async () => {
+    let s = stand()
+    const keys = gezeigt(s)
+    for (const [i, key] of keys.entries()) {
+      const r = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: i + 1, s: key, c: [], ...(i === 1 ? { n: true as const } : {}) })
+      if ('fehler' in r) throw new Error(r.fehler)
+      s = reducer(s, { type: 'WKR_ZEILEN', liste: TOR, quelle: { geraet: 'gNord', name: 'Handy Nord' }, zeilen: [r], zeit: 5000 + i })
+    }
+    s = reducer(s, { type: 'WKR_ABSCHLUSS', liste: TOR, punkt: 'lauf:1', name: 'Erika Musterrichterin', pruefsummen: {}, restPapier: false, zeit: 9000 })
+    const w = await betrieb(s, hostDoppel().host)
+    expect(zellen(w, TOR)).toEqual(['ok', 'nv', 'ok'])
+    const z = reihe(w, TOR).find('.wkr-mzelle[data-zelle="nv"]')
+    expect(z.text()).toContain('⊘')
+    expect(z.text()).toContain('nicht vorbei')
+    expect(z.attributes('title')).toContain('nicht vorbeigekommen')
+    expect(w.find('[data-teil="wkr-legende"]').text()).toContain('⊘ nicht vorbeigekommen')
+    expect(reihe(w, TOR).find('[data-teil="wkr-stand"]').text()).toContain('nichts offen')
+    await reihe(w, TOR).find('[data-action="wkr-bedienung"]').trigger('click')
+    expect(w.find('[data-teil="abschluss-nicht-vorbei"]').text()).toContain('1 nicht vorbeigekommen: 102')
+    await w.find('[data-reiter="start"]').trigger('click')
+    await nextTick()
+    expect(w.find('[data-teil="wkr-rueckstand"]').exists()).toBe(false)
+  })
+
   it('W3.2: Liste ohne Gerät mit Verweis „Gerät koppeln“ → Betrieb → Geräte mit vorgewählter Liste', async () => {
     const { host } = hostDoppel()
     const w = await betrieb(stand(), host)
@@ -258,6 +283,33 @@ describe('Betrieb → WKR: Eingang', () => {
     expect(werteVon(store.state.value.eingaben, LAUF, starterVon(keys[2]))[FELD]).toBeUndefined()
     expect(store.state.value.wkr.vorschlaege).toEqual([])
     expect(merkeEntscheid).not.toHaveBeenCalled()
+  })
+})
+
+describe('Betrieb → WKR: Eingang „nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026)', () => {
+  it('Vorschlag und Rückfrage zeigen ⊘ mit Wort; „Übernehmen“ setzt ⊘ in der Matrix, nicht ✓', async () => {
+    let s = stand()
+    const keys = gezeigt(s)
+    // Vorschlag: Start ging aufs Papier.
+    s = reducer(s, { type: 'WKR_PAPIER_AB', liste: TOR, ref: keys[1], zeit: 4000 })
+    const r = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: 1, s: keys[1], c: [], n: true })
+    if ('fehler' in r) throw new Error(r.fehler)
+    s = reducer(s, { type: 'WKR_ZEILEN', liste: TOR, quelle: { geraet: 'gNord', name: 'Handy Nord' }, zeilen: [r], zeit: 5000 })
+    // Rückfrage: ein Start, der noch nicht gezeigt wurde.
+    const offen = sichtOeffentlich(s).bereiche.find((b) => b.id === P1)!.offen[0].key
+    const r2 = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: 2, s: offen, c: [], n: true })
+    if ('fehler' in r2) throw new Error(r2.fehler)
+    s = reducer(s, { type: 'WKR_ZEILEN', liste: TOR, quelle: { geraet: 'gNord', name: 'Handy Nord' }, zeilen: [r2], zeit: 5100 })
+    expect(s.wkr.vorschlaege).toHaveLength(1)
+    expect(s.wkr.rueckfragen).toHaveLength(1)
+    const w = await betrieb(s, hostDoppel().host)
+    expect(w.find('[data-teil="wkr-vorschlag"] [data-teil="wkr-nv"]').text()).toBe('⊘ nicht vorbeigekommen')
+    expect(w.find('[data-teil="wkr-rueckfrage-zeile"] [data-teil="wkr-nv"]').text()).toBe('⊘ nicht vorbeigekommen')
+    await w.find('[data-teil="wkr-vorschlag"] [data-action="wkr-uebernehmen"]').trigger('click')
+    await w.find('[data-teil="wkr-rueckfrage-zeile"] [data-action="wkr-geraet"]').trigger('click')
+    expect(store.state.value.wkr.nichtVorbei[TOR]).toEqual([`${LAUF}|${starterVon(keys[1])}`, `${LAUF}|${starterVon(offen)}`])
+    await nextTick()
+    expect(reihe(w, TOR).find(`.wkr-mzelle[data-zelle="nv"]`).exists()).toBe(true)
   })
 })
 

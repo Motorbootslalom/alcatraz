@@ -1,6 +1,7 @@
 import type { AppState, CellKind, ClassId, PunktId, Sprache, StartRef, WkrStatus } from '../types'
 import { configFor, type Konfig } from '../config/konfig'
 import type { BogenTexte } from '../config/sprache'
+import type { Column } from '../types'
 import { bereicheZumStand, laeufeVonPunkt, lage, rundeVonPunkt } from '../betrieb/folge'
 import { defFuerKlasse } from '../lib/bogen'
 import { erfasstKennung, listenFelder, teilHaken, werteVon } from '../lib/eingaben'
@@ -9,6 +10,7 @@ import { RACECOURSE_PARCOURS } from '../lib/parallelSchluessel'
 import { geraetVonZeile } from '../state/reducer/wkr'
 import { abgeschlossenePunkte, abschlussVon, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
+import { bojenHalt } from './bojen'
 import { listenKennung, teileVon, teilVonZelle, type Liste } from './liste'
 import { danach, schlange, type SchlangenStart } from './schlange'
 
@@ -28,8 +30,14 @@ import { danach, schlange, type SchlangenStart } from './schlange'
  * Fassung der Sicht der Liste: zählt hoch, wenn sich ihre Form ändert (Geräte zeigen nur dieselbe Fassung).
  * 3 seit W3 (21.11.2026): `andere` (zweite Sprache der Maske, F13); bei zweisprachiger Liste stehen die Masken
  * (`klassen`) deutsch, die englischen in `andere` (G9).
+ * 4 seit W4.1 (21.11.2026): `MaskenFeld.boje` und `AndereFeld.boje` (Bojen-Maske, P15) – ein Gerät mit altem Programm
+ * zeigte eine Bojen-Liste sonst als „Maske folgt“ bzw. ohne Halte.
+ * 5 seit W4.3 (21.11.2026): „Nicht vorbeigekommen“ (GeraeteZeile.n, Ablehnung `nv-nicht-erlaubt`). Die Form der Sicht
+ * bleibt; die Fassung zählt trotzdem hoch, damit ein Gerät mit altem Programm „aktualisieren“ zeigt, statt einen
+ * solchen Start ohne Meldung zu verlieren, und kein alter Bedienrechner eine Zeile mit `n` als „fehlerfrei“ übernimmt
+ * (er schickte Fassung 4 – das neue Gerät liest sie nicht; P16).
  */
-export const LISTEN_SICHT_FASSUNG = 3
+export const LISTEN_SICHT_FASSUNG = 5
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier
@@ -74,6 +82,27 @@ export interface MaskenFeld {
   katalog?: { code: string; punkte: number; text: string }[]
   /** Disq.-Buchstaben, die hier gelten (`buoy`, `code`, `disq`); X nur, wo das Gerät es darf (F5). */
   disq?: { code: string; text: string }[]
+  /** Nur Bojen auf dem Fahrweg (W4, P15): wo die Boje liegt und wie ihr Kopf auf dem Bogen heißt. */
+  boje?: MaskenBojeAngabe
+}
+
+/**
+ * Die Bojen-Angabe eines Felds (W4.1, Plan docs/plan-wkr-w4.md §4.2, 21.11.2026): nur Fahrweg-Angaben aus wkr/bojen.ts
+ * und Bogentexte – das Gerät kennt den Aufbau nicht, und der Kopf der Unterspalte (Beschriftungsschema R/L, I/A,
+ * Land/See, Pfeile) steht nur am Host.
+ */
+export interface MaskenBojeAngabe {
+  halt: string
+  weg: 'hin' | 'rueck'
+  folge: number
+  /** Kopf der Spalte („Tor 1“, „Sp. 2“, „Boje 3“) in der Sprache der Maske. */
+  titel: string
+  /** Kopf der Unterspalte wie auf dem Bogen („H L“; Start/Ziel nur „L“); '' ohne Unterspalte. */
+  unter: string
+  /** Knopfspalte aus Sicht des WKR (P7): Reihenfolge der Seiten auf dem Bogen; `null` = volle Breite. */
+  spalte: 0 | 1 | null
+  zaehler?: true
+  durchfahrt?: 2
 }
 
 /** Was der Host je Gerät der Liste dazugibt (aus seinem Register und dem Gesprächsstand, nie aus dem AppState). */
@@ -102,6 +131,8 @@ export interface AndereFeld {
   label: string
   katalog?: { code: string; text: string }[]
   disq?: { code: string; text: string }[]
+  /** Nur die Bogentexte der Boje in der anderen Sprache (W4.1). */
+  boje?: { titel: string; unter: string }
 }
 
 /**
@@ -142,6 +173,28 @@ export interface ListenSicht {
 export type MaskenJeKlasse = ListenSicht['klassen']
 
 /**
+ * Reihenfolge der Seiten (seiteA/seiteB), wie sie auf dem Bogen dieser Liste nebeneinander stehen (P7): aus der ersten
+ * Spalte mit zwei verschiedenen Bojen. Die Kurzform ordnet die Unterspalten schon nach `blick` (von vorne die obere
+ * links) – so stehen die Knöpfe, wie der WKR das Tor sieht. Ohne eine solche Spalte (nur Einzelbojen): `null`.
+ */
+function seitenFolge(columns: readonly Column[]): ('seiteA' | 'seiteB')[] | null {
+  for (const col of columns) {
+    if (col.kind !== 'buoy') continue
+    const seiten = (col.felder ?? []).map((f) => bojenHalt(f)?.seite ?? null)
+    if (seiten.length === 2 && seiten[0] && seiten[1] && seiten[0] !== seiten[1]) return [seiten[0], seiten[1]]
+  }
+  return null
+}
+
+/** Kopf der Spalte und der Unterspalte eines Felds (Feld.zelle `key` bzw. `key#i`) auf dem Bogen der Klasse. */
+function bojenTexte(columns: readonly Column[], zelle: string): { titel: string; unter: string } {
+  const [key, idx] = zelle.split('#')
+  const col = columns.find((c) => c.key === key)
+  if (!col) return { titel: '', unter: '' }
+  return { titel: col.label, unter: idx !== undefined ? (col.sub?.[Number(idx)] ?? '') : '' }
+}
+
+/**
  * Die Masken je Klasse einer Liste, in der Sprache von `sprachKonfig` – geteilt von {@link sichtListe} und der Übung
  * (wkr/uebung.ts), damit beide dieselbe Maske bauen. `konfig` ist die des Stands (welche Klasse die Liste hat);
  * `null` = die Klasse hat diese Liste nicht (entfällt) oder die Liste ist unbekannt. X „nicht gestartet“ nur, wo F5 es
@@ -157,7 +210,10 @@ export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: str
       klassen[k] = { titel: texte.klasse(k), felder: null }
       continue
     }
-    const disqTabelle = defFuerKlasse(sprachKonfig.getSheetDef(typeId), k).disqTable ?? []
+    const def = defFuerKlasse(sprachKonfig.getSheetDef(typeId), k)
+    const disqTabelle = def.disqTable ?? []
+    // Seiten aus der ganzen Liste, nicht nur der Klasse: dieselbe Boje steht in jeder Klasse in derselben Spalte.
+    const seiten = seitenFolge(sprachKonfig.getSheetDef(typeId).columns)
     const felder = listenFelder(sprachKonfig, typeId, k).map((f): MaskenFeld => {
       const out: MaskenFeld = { kennung: f.kennung, kind: f.kind, label: f.label }
       const teil = teilVonZelle(typeId, f.zelle)
@@ -168,6 +224,14 @@ export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: str
         // Bedienrechner die Zeile ohnehin ab; die Maske bietet es gar nicht erst an.
         const xHier = xErlaubt && (!teile || teil === WKR_ANNAHMEN.xTeil || teil === 'gemeinsam')
         out.disq = disqTabelle.filter((d) => d.code !== 'X' || xHier).map((d) => ({ code: d.code, text: d.text }))
+      }
+      const halt = f.kind === 'buoy' ? bojenHalt(f.kennung) : null
+      if (halt) {
+        const i = halt.seite && seiten ? seiten.indexOf(halt.seite) : -1
+        const boje: MaskenBojeAngabe = { halt: halt.halt, weg: halt.weg, folge: halt.folge, ...bojenTexte(def.columns, f.zelle), spalte: i === 0 || i === 1 ? i : null }
+        if (halt.zaehler) boje.zaehler = true
+        if (halt.durchfahrt) boje.durchfahrt = halt.durchfahrt
+        out.boje = boje
       }
       return out
     })
@@ -187,6 +251,7 @@ export function maskenTexte(klassen: MaskenJeKlasse): ListenAndere['klassen'] {
           const a: AndereFeld = { kennung: f.kennung, label: f.label }
           if (f.katalog) a.katalog = f.katalog.map((e) => ({ code: e.code, text: e.text }))
           if (f.disq) a.disq = f.disq.map((d) => ({ code: d.code, text: d.text }))
+          if (f.boje) a.boje = { titel: f.boje.titel, unter: f.boje.unter }
           return a
         }) ?? null,
     }

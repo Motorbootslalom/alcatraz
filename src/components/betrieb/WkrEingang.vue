@@ -17,7 +17,8 @@ import { punktText, punktVon, uhrzeitText } from './texte'
  * Geräts gruppiert (eine Zeile kann mehrere Zellen betreffen), mit „Gerät übernehmen“/„Behalten“ je Zelle und für die
  * ganze Zeile, und die Vorschläge mit „Übernehmen“/„Verwerfen“. Der Grund steht als Satz da (Zelle anders belegt,
  * Start nicht gezeigt, Buchstabe fiele weg; Liste abgeschlossen, Start auf Papier). Ein „X“ (nicht gestartet) vom
- * Gerät ist hervorgehoben (F5) – es nimmt den Starter aus der Wertung des Laufs.
+ * Gerät ist hervorgehoben (F5) – es nimmt den Starter aus der Wertung des Laufs. „Nicht vorbeigekommen“ steht als
+ * „⊘ nicht vorbeigekommen“ am Kopf (W4.3, Prüfbefund 21.11.2026); erst die Entscheidung für das Gerät setzt es.
  *
  * Gerätenamen stehen nie im Stand (F10): Sie kommen nur aus dem Register des Hosts über die Geräte-ID der Zeile
  * (`geraetVonZeile`); ein Gerät, das es dort nicht mehr gibt, heißt „entkoppeltes Gerät“. Werte zeigt nur der
@@ -63,6 +64,8 @@ const VORSCHLAG_GRUND = { abgeschlossen: 'betrieb.wkr.vorschlag.abgeschlossen', 
 interface Gruppe {
   key: string
   kopf: string
+  /** „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): sonst sähe die Zeile wie ein bloßer Haken aus. */
+  nv: boolean
   zellen: { rf: WkrRueckfrage; label: string; x: boolean }[]
 }
 
@@ -71,7 +74,7 @@ const gruppen = computed<Gruppe[]>(() => {
   for (const rf of state.value.wkr.rueckfragen) {
     const key = `${rf.zeile}|${rf.lauf}|${rf.starter}`
     let g = out.get(key)
-    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), zellen: [] }))
+    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), nv: !!rf.nichtVorbei, zellen: [] }))
     const f = felderVon(rf.liste, rf.starter).find((x) => x.kennung === rf.feld)
     g.zellen.push({ rf, label: f?.label ?? rf.feld, x: istX(f, rf.wert) })
   }
@@ -124,6 +127,7 @@ function alle(g: Gruppe, wahl: 'geraet' | 'behalten'): void {
         <li v-for="g in gruppen" :key="g.key" class="wkr-eingang-eintrag" data-teil="wkr-rueckfrage-zeile">
           <div class="wkr-eingang-kopf">
             <strong>{{ g.kopf }}</strong>
+            <span v-if="g.nv" class="wkr-nv" data-teil="wkr-nv">⊘ {{ t('betrieb.wkr.eingang.nichtVorbei') }}</span>
             <template v-if="g.zellen.length > 1">
               <button type="button" class="btn sm" data-action="wkr-alle-geraet" @click="alle(g, 'geraet')">{{ t('betrieb.wkr.alleGeraet') }}</button>
               <button type="button" class="btn sm" data-action="wkr-alle-behalten" @click="alle(g, 'behalten')">{{ t('betrieb.wkr.alleBehalten') }}</button>
@@ -146,7 +150,10 @@ function alle(g: Gruppe, wahl: 'geraet' | 'behalten'): void {
       <h4>{{ t('betrieb.wkr.eingang.vorschlaege', { n: vorschlaege.length }) }}</h4>
       <ul class="wkr-eingang-liste">
         <li v-for="e in vorschlaege" :key="e.v.id + e.v.lauf + e.v.starter" class="wkr-eingang-eintrag" data-teil="wkr-vorschlag" :data-vorschlag="e.v.id">
-          <div class="wkr-eingang-kopf"><strong>{{ e.kopf }}</strong></div>
+          <div class="wkr-eingang-kopf">
+            <strong>{{ e.kopf }}</strong>
+            <span v-if="e.v.nichtVorbei" class="wkr-nv" data-teil="wkr-nv">⊘ {{ t('betrieb.wkr.eingang.nichtVorbei') }}</span>
+          </div>
           <p class="note">{{ t(VORSCHLAG_GRUND[e.v.grund]) }}</p>
           <ul>
             <li v-for="z in e.zellen" :key="z.feld" :data-x="z.x || undefined">

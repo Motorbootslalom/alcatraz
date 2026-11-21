@@ -259,7 +259,7 @@ describe('Verteilen an Lese-Geräte (Anzeigetafel, Zuschauer)', () => {
     for (let i = 1; i <= 10; i++) h.t.verteile(OEFFENTLICH, { stand: i })
     const t = leser(h.raum)
     await t.t.start()
-    await bis(() => gleich(t.letzte(), { stand: 10 }), 4000)
+    await bis(() => gleich(t.letzte(), { stand: 10 }))
     expect(hostWires(h.raum.oeffentlich.a).length).toBeLessThanOrEqual(3)
   })
 
@@ -1164,7 +1164,7 @@ describe('W1: stille Quittung und gesammelte Bestätigung', () => {
     await starte(h)
     const g = await gekoppelt(h.raum, 'geraet-a')
     const nr = g.t.sende(action())
-    await bis(() => g.t.unbestaetigt().length === 0, 4000)
+    await bis(() => g.t.unbestaetigt().length === 0)
     expect(eingaenge).toHaveLength(1)
     expect(g.empfang.filter((e) => e.art === 'direkt' && e.nachricht.art === 'quittung').at(-1)).toMatchObject({ nachricht: { auf: nr, ergebnis: 'doppelt' } })
   })

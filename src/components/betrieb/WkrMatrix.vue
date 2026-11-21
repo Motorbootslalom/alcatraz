@@ -61,7 +61,7 @@ const imBoot = computed(() => {
   return key ? (lage.value?.starts.find((s) => s.key === key)?.nummern.join('/') ?? null) : null
 })
 
-const ZEICHEN: Record<Zelle, string> = { ok: '✓', halb: '½', offen: '○', ueberfaellig: '○!', rueckfrage: '!', vorschlag: 'V', entfaellt: '–', papier: 'P', x: '✕', vorab: '»' }
+const ZEICHEN: Record<Zelle, string> = { ok: '✓', halb: '½', offen: '○', ueberfaellig: '○!', rueckfrage: '!', vorschlag: 'V', entfaellt: '–', papier: 'P', x: '✕', vorab: '»', nv: '⊘' }
 const ZELLEN = Object.keys(ZEICHEN) as Zelle[]
 const AMPEL: Record<Ampel, string> = { gehoert: '●', still: '◐', weg: '✕', ruht: '○' }
 
@@ -221,6 +221,8 @@ function zumEingang(): void {
                     @click="karte = { liste: l.liste, key: s.key }"
                   >
                     {{ ZEICHEN[l.zellen[s.key].zelle] }}
+                    <!-- „Nicht vorbeigekommen“ (W4.3, R4): Zeichen UND Wort – ⊘ allein läse sich wie „leer“. -->
+                    <span v-if="l.zellen[s.key].zelle === 'nv'" class="wkr-mzelle-wort">{{ t('betrieb.wkr.zelle.nv.kurz') }}</span>
                   </button>
                 </td>
                 <td class="wkr-stand" data-teil="wkr-stand">

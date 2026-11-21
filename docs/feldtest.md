@@ -101,7 +101,7 @@ Je Punkt abhaken, wenn das erwartete Ergebnis eintritt; sonst unter „Beobachtu
 
 Gebaut 21.11.2026 (Plan [plan-wkr-w3.md](plan-wkr-w3.md)), bisher nur mit nachgebautem Server und ohne echte
 Bildschirmgrößen geprüft – Zielgrößen stehen nur im CSS. Bedienung:
-[betrieb.md](betrieb.md#wkr-erfassung-w1-kern-w2-bedienrechner-w3-handy-maske-knöpfe). Je Handy eine Liste koppeln
+[betrieb.md](betrieb.md#wkr-erfassung-w1-kern-w2-bedienrechner-w3-handy-maske-knöpfe-w4-bojen). Je Handy eine Liste koppeln
 (Tor 5, Steg nur Ablegen, Vorsteg), Probe durchtippen, dann einen Lauf mit Beispieldaten erfassen.
 
 - [ ] **Handschuhe** (dünne Arbeits- und dicke Segelhandschuhe): Codes, Hauptknopf, Disq., „− letzte zurück“,
@@ -126,6 +126,33 @@ Bildschirmgrößen geprüft – Zielgrößen stehen nur im CSS. Bedienung:
 - [ ] **Übung** („Üben ohne Verbindung“ im Koppel-Formular) im Flugmodus. Erwartet: Maske arbeitet ohne Netz, Kopf
   „ÜBUNG“. Taugt sie für die Einweisung? Beobachtung:
 - [ ] **Akku** nach einem Lauf mit Maske offen (Wake Lock): Anfang ______ % Ende ______ % Dauer ______ min.
+
+## Bojen-Maske (W4)
+
+Gebaut 21.11.2026 (Plan [plan-wkr-w4.md](plan-wkr-w4.md)), nur mit nachgebautem Server geprüft. Je Handy eine
+Bojen-Liste koppeln (Tor 1/3/5, Tor 2/4/5, Parcours; unter UIM Parallelslalom Racecourse A), Probe durchtippen, einen
+Lauf mit Klassen 4 bis 7 erfassen.
+
+- [ ] **Bojen-Punkte** (Plan §9): Jede Berührung 5, Tor 5 je Berührung; am Bedienrechner steht in der Erfassung genau
+  der Wert, den der WKR auf Papier schriebe („5“, Tor 5 „15“). Erwartet: Summe in „Abschicken · n Pkt.“ = Summe der
+  Zeile in der Wertung. Beobachtung:
+- [ ] **Zwei Boote im Parcours** (Tor 1/3/5: das ältere Boot auf dem Rückweg, das nächste auf dem Hinweg): über
+  „Ausweichen“ zwischen den Starts wechseln, Seite je Start bleibt gemerkt. Erwartet: keine Berührung beim falschen
+  Start; reicht das am Wasser oder braucht es zwei Starts nebeneinander? Beobachtung:
+- [ ] **Seiten nach Blick** bei `rechts`/`links` (Baden-Württemberg, Berlin, Möwe 2/4/5 – die zwei Bojen liegen nah
+  und fern, nicht links und rechts): Erwartet: die Knöpfe stehen wie die Unterspalten auf dem Bogen. Wäre „oben/unten“
+  besser? Beobachtung:
+- [ ] **Klasse 7 auf kleinem Handy** (≤ 700 px hoch, Handschuhe): Umschalter Hinweg/Rückweg, zehn Zeilen; kein Text
+  abgeschnitten, kein Nachbarknopf getroffen. Grenze sieben Zeilen passend? Beobachtung:
+- [ ] **Tor-5-Zähler bei 360 px** (Prüfbefund 21.11.2026, S4): Zähler bis 9 tippen, auch englisch. Erwartet: „9× = 45“
+  und „höchstens 9×“ in zwei Zeilen im Knopf, nichts über den Rand, kein waagerechtes Scrollen. Beobachtung:
+- [ ] **Prellschutz** (S1): Bojen-Schalter mit Handschuh antippen. Erwartet: ein Tipp setzt, ein prellender zweiter
+  nimmt nichts weg; bewusst nach ½ s erneut tippen nimmt weg. 400 ms passend? Beobachtung:
+- [ ] **Klassenwechsel** (Klasse 4 nach 7): Band „Klasse n – andere Halte“ 2 s. Erwartet: kein Tipp auf die falsche
+  Zeile. Beobachtung:
+- [ ] **Nicht vorbeigekommen** (Mehr → Rückfrage): Erwartet: Matrix „⊘ nicht vorbei“ gelb, kein Rückstand, Erfassung
+  „Papier ansehen“; am Vorsteg und im Steg-Ablegen nicht angeboten. Versehentlich gemeldet → „Zuletzt“ → Korrektur
+  hebt es auf. Wird es am Wasser gebraucht, oder reicht X? Beobachtung:
 
 ## Nur iPhone
 

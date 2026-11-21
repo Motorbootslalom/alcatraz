@@ -32,6 +32,10 @@
   Punkte; wkr/abschluss.ts); W2: WKR_PAPIER_AB (abgemeldet, Pause ab Zeit des Starts mit `ab`, P = Schlange ab dort),
   Zeile zu P-Start → Vorschlag (A6); wkrLeer,
   normalisiereWkr (migrate), wkrOhneLaeufe (CLEAR_EINGABEN/_TEIL), wkrNurStarter (mitStartern). Logik: src/wkr/.
+  W4.3 (21.11.2026): WkrStand.nichtVorbei („nicht vorbeigekommen“, wkr/nichtVorbei.ts) – WKR_ZEILEN setzt es bei direkter
+  Übernahme einer Zeile mit `nichtVorbei`, jede direkt geltende Zeile ohne löscht es (nvWirkung); Rückfrage/Vorschlag
+  tragen `nichtVorbei`/`teil` und wirken erst bei WKR_RUECKFRAGE `geraet` bzw. WKR_VORSCHLAG `uebernehmen` (Prüfbefund); reducer() hebt es nach jeder Änderung von
+  `eingaben` auf, sobald die Zelle eigene Werte der Liste hat (ohneUeberholteNichtVorbei, nicht bei LOAD_STATE/RESET_ALL).
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
 

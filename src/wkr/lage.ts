@@ -6,6 +6,7 @@ import { abschluesseVon, punktVonRef, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
 import { listenDerVeranstaltung, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
 import { leser, naechsteFreie, schlange, type SchlangenStart } from './schlange'
+import { istNichtVorbei, liesNvSchluessel } from './nichtVorbei'
 
 // Lage der digitalen WKR-Erfassung am Bedienrechner (W2, Plan docs/plan-wkr-w2.md §3, 21.11.2026): je Liste und Start,
 // was da ist und was fehlt – EINE Stelle für Matrix, Geräteleiste, Rückstandswarnung, Marken der Erfassung und die
@@ -33,9 +34,10 @@ export type Ampel = 'gehoert' | 'still' | 'weg' | 'ruht'
 /**
  * Stand einer Zelle der Matrix (Liste × Start): ✓ `ok`, ½ `halb` (Steg: ein Teil da), ○ `offen`, ○! `ueberfaellig`,
  * ! `rueckfrage`, V `vorschlag`, – `entfaellt` (Klasse ohne Liste, leere Seite), P `papier`, ✕ `x` (nicht gestartet),
- * `vorab` (Vorsteg: noch nicht gezeigt, schon zu erfassen).
+ * `vorab` (Vorsteg: noch nicht gezeigt, schon zu erfassen), ⊘ `nv` (nicht vorbeigekommen, W4.3: Haken gesetzt, kein
+ * Rückstand, „Papier ansehen“ – WKR_ANNAHMEN.nichtVorbeiZelle).
  */
-export type Zelle = 'ok' | 'halb' | 'offen' | 'ueberfaellig' | 'rueckfrage' | 'vorschlag' | 'entfaellt' | 'papier' | 'x' | 'vorab'
+export type Zelle = 'ok' | 'halb' | 'offen' | 'ueberfaellig' | 'rueckfrage' | 'vorschlag' | 'entfaellt' | 'papier' | 'x' | 'vorab' | 'nv'
 
 export interface ZellLage {
   zelle: Zelle
@@ -74,6 +76,11 @@ export interface ListenAbschluss {
   /** Startnummern der abweichenden bzw. aufs Papier gegangenen Starts. */
   abweichend: string[]
   papier: string[]
+  /**
+   * Startnummern der Starts dieses Punkts (am Steg mit Teil: nur Anlegen) mit Kennzeichen „nicht vorbeigekommen“ –
+   * jetzt gelesen, nicht im Abschluss gespeichert (W4.3, WKR_ANNAHMEN.nichtVorbeiImAbschluss).
+   */
+  nichtVorbei: string[]
 }
 
 export interface ListenLage {
@@ -207,8 +214,12 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
     return !!werte[erfasstKennung(liste.typeId)] || (t !== undefined && !!werte[teilHaken(liste.typeId, t)]) || abgetippt(werte, klasse, t)
   }
 
+  /** „Nicht vorbeigekommen“ für diese Zelle (am Steg: nur Anlegen, R1). */
+  const nv = (lauf: string, starter: string, t: ListenTeil | undefined) => istNichtVorbei(stand.wkr, kennung, lauf, starter, geteilt ? t : undefined)
+
   /** Stand eines Teils (bzw. der ganzen Liste) für eine Zelle ohne ganzen Haken. */
-  const teilZelle = (k: string, werte: Readonly<Record<string, string>>, klasse: string, t: ListenTeil | undefined): Zelle => {
+  const teilZelle = (k: string, werte: Readonly<Record<string, string>>, klasse: string, t: ListenTeil | undefined, lauf: string, starter: string): Zelle => {
+    if (t !== undefined && nv(lauf, starter, t)) return 'nv'
     if (t !== undefined && (werte[teilHaken(liste.typeId, t)] || abgetippt(werte, klasse, t))) return 'ok'
     // Ohne Eintrag oder auf Papier, vor `seit`, in einer Pause, „Papier ab“, „Rest auf Papier“: vom Bogen.
     if (!digital) return 'papier'
@@ -233,17 +244,27 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
     if (rueckfrageZellen.has(k)) return { ...basis, zelle: 'rueckfrage' }
     if (vorschlagZellen.has(k)) return { ...basis, zelle: 'vorschlag' }
     const werte = werteVon(stand.eingaben, start.lauf, start.starter.id)
-    if (werte[erfasstKennung(liste.typeId)]) return { ...basis, zelle: 'ok' }
-    if (!geteilt) return { ...basis, zelle: abgetippt(werte, start.starter.klasse, undefined) ? 'ok' : teilZelle(k, werte, start.starter.klasse, undefined) }
-    const je = { ab: teilZelle(k, werte, start.starter.klasse, 'ab'), an: teilZelle(k, werte, start.starter.klasse, 'an') }
+    // „Nicht vorbeigekommen“ (W4.3, R4) vor dem Haken: Die Zeile hat den Haken, aber keine Werte.
+    if (!geteilt && nv(start.lauf, start.starter.id, undefined)) return { ...basis, zelle: 'nv' }
+    const ganz = !!werte[erfasstKennung(liste.typeId)]
+    if (ganz && !(geteilt && nv(start.lauf, start.starter.id, 'an'))) return { ...basis, zelle: 'ok' }
+    if (!geteilt) return { ...basis, zelle: abgetippt(werte, start.starter.klasse, undefined) ? 'ok' : teilZelle(k, werte, start.starter.klasse, undefined, start.lauf, start.starter.id) }
+    const je = {
+      ab: ganz ? ('ok' as const) : teilZelle(k, werte, start.starter.klasse, 'ab', start.lauf, start.starter.id),
+      an: teilZelle(k, werte, start.starter.klasse, 'an', start.lauf, start.starter.id),
+    }
     return { ...basis, zelle: zusammen(je), teile: je }
   }
 
   return { kennung, eintrag, digital, geteilt, teile, schlangeVon, zelleVon, erledigt, rueckfrageZellen, offeneRueckfragen, offeneVorschlaege }
 }
 
-/** Zellstand einer geteilten Liste aus den Teilen: ein Teil da → ½, sonst der dringendere Teil. */
+/**
+ * Zellstand einer geteilten Liste aus den Teilen: ein Teil da → ½, sonst der dringendere Teil. „Nicht vorbeigekommen“
+ * im Anlegen zählt als erledigt: Ablegen da und Anlegen ⊘ → ⊘ (R4).
+ */
 function zusammen(je: { ab: Zelle; an: Zelle }): Zelle {
+  if (je.an === 'nv') return je.ab === 'ok' ? 'nv' : 'halb'
   if (je.ab === 'ok' && je.an === 'ok') return 'ok'
   if (je.ab === 'ok' || je.an === 'ok') return 'halb'
   for (const z of ['ueberfaellig', 'offen', 'vorab'] as const) if (je.ab === z || je.an === z) return z
@@ -305,6 +326,31 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
     }
   }
   const R = stand.anzeige.wkrRueckstand
+  // Punkt und Startnummern der gezeigten Starts je Zelle – für „nicht vorbeigekommen“ im Abschluss (das Kennzeichen
+  // entsteht nur an gezeigten Starts, WKR_ANNAHMEN.nichtVorbeiNurDirekt).
+  const gezeigtJe = new Map<Liste, Map<string, { punkt: PunktId | null; nummer: string }>>()
+  const gezeigtVon = (liste: Liste) => {
+    let m = gezeigtJe.get(liste)
+    if (m) return m
+    m = new Map()
+    for (const g of betriebVon(stand, bereich).gezeigt) {
+      const ref = liesRef(g.ref)
+      const s = ref ? startAufListe(stand, konfig, liste, ref) : null
+      if (s) m.set(zellSchluessel(s.lauf, s.starter.id), { punkt: punktVonRef(stand, g.ref), nummer: s.starter.startNr ?? '' })
+    }
+    gezeigtJe.set(liste, m)
+    return m
+  }
+  const nvNummern = (liste: Liste, kennung: string, p: PunktId, teil: ListenTeil | undefined): string[] => {
+    const keys = Object.hasOwn(stand.wkr.nichtVorbei, kennung) ? stand.wkr.nichtVorbei[kennung] : []
+    if (keys.length === 0 || teil === 'ab') return []
+    const m = gezeigtVon(liste)
+    return keys.flatMap((k) => {
+      const z = liesNvSchluessel(k)
+      const g = z ? m.get(zellSchluessel(z.lauf, z.starter)) : undefined
+      return g && g.punkt === p ? [g.nummer] : []
+    })
+  }
   const lagen = listen.map((liste): ListenLage => {
     const r = rechner(stand, konfig, liste)
     const zellen: Record<string, ZellLage> = {}
@@ -355,7 +401,7 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
             const ref = liesRef(k)
             return ref ? nummernVon(stand, ref).join('/') : ''
           })
-        return { punkt: p, ...(teil !== undefined ? { teil } : {}), name: a.name, zeit: a.zeit, abweichend: nummern(a.abweichend), papier: nummern(a.papier) }
+        return { punkt: p, ...(teil !== undefined ? { teil } : {}), name: a.name, zeit: a.zeit, abweichend: nummern(a.abweichend), papier: nummern(a.papier), nichtVorbei: nvNummern(liste, r.kennung, p, teil) }
       }),
     }
     if (r.geteilt && e) out.teile = { ab: { status: e.teile?.ab?.status ?? 'aktiv' }, an: { status: e.teile?.an?.status ?? 'aktiv' } }
@@ -393,7 +439,8 @@ export function zeilenMarken(stand: AppState, konfig: Konfig, liste: Liste, laeu
     const g = hier.filter((x) => t === undefined || x.teil === undefined || x.teil === t)
     return g.length > 0 && g.every((x) => x.ampel === 'weg')
   }
-  const verdaechtig = (z: Zelle, t: ListenTeil | undefined) => z === 'papier' || z === 'ueberfaellig' || (z === 'offen' && alleWeg(t))
+  // „Nicht vorbeigekommen“ (W4.3, R4): immer „Papier ansehen“ – ob der Bogen etwas sagt.
+  const verdaechtig = (z: Zelle, t: ListenTeil | undefined) => z === 'papier' || z === 'ueberfaellig' || z === 'nv' || (z === 'offen' && alleWeg(t))
   const gesehen = new Set<string>()
   for (const g of betriebVon(stand, liste.bereich).gezeigt) {
     const z = r.zelleVon(g.ref)

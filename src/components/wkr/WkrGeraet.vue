@@ -75,6 +75,7 @@ const { w } = stelleWkrText(sprache)
 const titelVon = (liste: string) => props.quelle.sichten.value[liste]?.titel ?? '…'
 
 // --- Probe (G10) ---
+// Bojen-Listen haben seit W4.2 (21.11.2026) ihre eigenen Probe-Schritte (WkrProbe, P11).
 const probeAufbau = computed(() => (sicht.value ? probeMaske(sicht.value, spracheWahl.value) : null))
 /** Liste, deren Probe gerade läuft. */
 const probe = ref<string | null>(null)

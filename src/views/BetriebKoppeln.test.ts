@@ -235,8 +235,11 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     // Gruppen je Parcours, Titel in Oberflächensprache; Bojen-Listen „Maske folgt – Papier“, Steg nicht.
     expect(wahl.findAll('optgroup').length).toBe(2)
     expect(wahl.find(`option[value='${STEG}']`).text()).toBe('Steg')
-    expect(wahl.find(`option[value='${GATE}']`).text()).toBe('Tor 1 / 3 / 5 (Maske folgt – Papier)')
-    expect(wahl.find(`option[value='${GATE}']`).attributes('data-ohne-maske')).toBe('')
+    // Seit W4.2 (21.11.2026) haben Bojen-Listen eine Maske; ohne bleiben Listen mit Zeitfeldern (W5).
+    expect(wahl.find(`option[value='${GATE}']`).text()).toBe('Tor 1 / 3 / 5')
+    expect(wahl.find(`option[value='${GATE}']`).attributes('data-ohne-maske')).toBeUndefined()
+    expect(wahl.find(`option[value='${L('par_1', 'zeit')}']`).text()).toMatch(/\(Maske folgt – Papier\)$/)
+    expect(wahl.find(`option[value='${L('par_1', 'zeit')}']`).attributes('data-ohne-maske')).toBe('')
 
     // Nur eine Liste genügt zum Koppeln (keine Freigabe).
     await wahl.setValue(STEG)
@@ -286,7 +289,7 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     expect(pad2.find('select[data-feld="liste-dazu"]').exists()).toBe(false)
     expect(pad2.find('[data-hinweis="listen-voll"]').text()).toBe('Höchstens 2 Listen je Gerät.')
     expect(pad2.find('[data-hinweis="pad-zwei"]').exists()).toBe(true)
-    expect(pad2.find(`.geraete-liste-eintrag[data-liste='${GATE}'] [data-teil="liste-maske"]`).text()).toBe('Maske folgt – Papier')
+    expect(pad2.find(`.geraete-liste-eintrag[data-liste='${GATE}'] [data-teil="liste-maske"]`).text()).toBe('Maske: Knöpfe')
 
     // Entfernen.
     await pad2.find(`.geraete-liste-eintrag[data-liste='${STEG}'] [data-action="liste-entfernen"]`).trigger('click')

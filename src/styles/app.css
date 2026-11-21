@@ -1158,6 +1158,9 @@ table.starters tr.starter-abgemeldet td {
   --warn-border: #fecaca;
   /* W2.4: gelber Rand um „Als Nächstes“, wenn die WKR-Erfassung im Rückstand ist (Warnung, kein Fehler). */
   --rueckstand: #d97706;
+  /* Text und Fläche in dieser Farbe (Prüfbefund 21.11.2026): #d97706 auf Weiß hat nur ~3,2:1 – Schrift braucht ≥ 4,5:1. */
+  --rueckstand-text: #92400e;
+  --rueckstand-soft: #fef3c7;
 }
 
 @media screen {
@@ -1180,6 +1183,8 @@ table.starters tr.starter-abgemeldet td {
     --warn-text: #fecaca;
     --warn-border: #7f1d1d;
     --rueckstand: #fbbf24;
+    --rueckstand-text: #fbbf24;
+    --rueckstand-soft: #422006;
   }
 }
 
@@ -3901,6 +3906,26 @@ table.starters th .sortier-kopf.aktiv {
   border-color: var(--accent);
 }
 
+/*
+ * „Nicht vorbeigekommen“ (W4.3, 21.11.2026): gelb wie der Rückstand, mit Wort darunter (WkrMatrix). Gelb nur als Rand
+ * und Fläche, die Schrift dunkel (--rueckstand-text): Das Wort ist der Hinweis neben „⊘“ und muss im hellen Zelt
+ * lesbar sein (Prüfbefund 21.11.2026, WCAG AA).
+ */
+.wkr-mzelle[data-zelle='nv'] {
+  background: var(--rueckstand-soft);
+  color: var(--rueckstand-text);
+  border-color: var(--rueckstand);
+  font-weight: 700;
+}
+
+.wkr-mzelle-wort {
+  display: block;
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 .wkr-mzelle[data-zelle='papier'],
 .wkr-mzelle[data-zelle='entfaellt'],
 .wkr-mzelle[data-zelle='vorab'] {
@@ -4018,6 +4043,16 @@ table.starters th .sortier-kopf.aktiv {
 
 .wkr-x {
   color: var(--danger);
+  font-weight: 700;
+}
+
+/* Eingang: Zeile „nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026) – wie die Matrix-Zelle, Zeichen UND Wort. */
+.wkr-nv {
+  padding: 0 4px;
+  border: 1px solid var(--rueckstand);
+  border-radius: 4px;
+  background: var(--rueckstand-soft);
+  color: var(--rueckstand-text);
   font-weight: 700;
 }
 

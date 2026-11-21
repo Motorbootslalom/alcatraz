@@ -460,7 +460,7 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
   const starters = [{ id: 'a', klasse: '1', nachname: 'Nach1' }]
 
   it('fehlt oder kaputt → leer', () => {
-    const leer = { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {} }
+    const leer = { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {} }
     expect(migrate({ starters })!.wkr).toEqual(leer)
     for (const kaputt of ['x', 7, null, [], { listen: 'x', rueckfragen: {}, vorschlaege: 3, abschluss: [] }]) expect(migrate({ starters, wkr: kaputt })!.wkr).toEqual(leer)
   })
@@ -485,6 +485,7 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
       rueckfragen: [rf('a')],
       vorschlaege: [wkr.vorschlaege[0]],
       abschluss: { [liste]: { 'lauf:1': { name: 'Vor1', zeit: 9, abweichend: [], papier: ['k'] } } },
+      nichtVorbei: {},
     })
   })
 
@@ -539,5 +540,22 @@ describe('migrate: „Papier ab“ der WKR-Erfassung (W2, 21.11.2026)', () => {
       { von: 200, bis: 300, papier: [] },
       { von: 400, bis: null, papier: [ab], ab },
     ])
+  })
+})
+
+describe('migrate: „Nicht vorbeigekommen“ (W4.3, 21.11.2026)', () => {
+  const starters = [{ id: 'a', klasse: '1', nachname: 'Nach1' }]
+  const gate = JSON.stringify(['l', 'par_1', 'gate135', null])
+  const steg = JSON.stringify(['l', 'par_1', 'steg', null])
+
+  it('lesbare Schlüssel gültiger Zellen bleiben; Teil nur am Steg und nur `an`; Doppelte, fremde Starter, Kaputtes fallen weg', () => {
+    const nichtVorbei = {
+      [gate]: ['manoevrieren/1|a', 'manoevrieren/1|a', 'manoevrieren/1|weg', 'manoevrieren/1|a|an', 'kaputt|a', 7],
+      [steg]: ['manoevrieren/1|a|an', 'manoevrieren/2|a|ab', 'manoevrieren/2|a'],
+      kaputt: ['manoevrieren/1|a'],
+      [JSON.stringify(['l', 'par_1', 'tor5', null])]: 'x',
+    }
+    expect(migrate({ starters, wkr: { nichtVorbei } })!.wkr.nichtVorbei).toEqual({ [gate]: ['manoevrieren/1|a'], [steg]: ['manoevrieren/1|a|an'] })
+    expect(migrate({ starters, wkr: { nichtVorbei: [] } })!.wkr.nichtVorbei).toEqual({})
   })
 })

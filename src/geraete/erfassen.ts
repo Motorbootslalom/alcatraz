@@ -55,7 +55,15 @@ export interface MaskenZeile {
   s: string
   zellen: Readonly<Record<string, string>>
   teil?: ListenTeil
+  /**
+   * „Nicht vorbeigekommen“ (W4.3, P16): Die Zeile geht ohne Zellen und mit `n` – `zellen` wird nicht gelesen. Nicht
+   * am Vorsteg und nicht im Steg-Ablegen (der Bedienrechner lehnt dort mit `nv-nicht-erlaubt` ab).
+   */
+  nv?: true
 }
+
+/** Verbindung, wie die Maske sie zeigt: neutral beim Aufbau, rot erst nach Karenz oder Abriss. */
+export type VerbindungsAnzeige = 'verbinde' | 'verbunden' | 'getrennt'
 
 /** Ein Eintrag der Schlange: aus der Sicht; `geschaetzt` = ohne Verbindung aus „danach“ (vielleicht noch nicht gezeigt). */
 export interface SchlangenEintrag extends ListenStart {
@@ -75,6 +83,8 @@ export interface ZuletztZeile {
   korrektur: boolean
   zellen: Record<string, string>
   stufe: ZeilenStufe
+  /** „Nicht vorbeigekommen“ (W4.3): Zuletzt zeigt „⊘ nicht vorbeigekommen“ statt der Zellen. */
+  nv?: true
 }
 
 export type AbschlussStufe = 'unterwegs' | 'angenommen' | 'abgelehnt'
@@ -118,6 +128,8 @@ export interface PruefZeile {
   stufe: ZeilenStufe | null
   /** Enthält ein X „nicht gestartet“ (F5). */
   x: boolean
+  /** Zuletzt als „nicht vorbeigekommen“ gemeldet (W4.3) – ohne Werte, kein X. */
+  nv: boolean
 }
 
 /** Prüfansicht eines Punkts (F7, Plan §5.7): eigene Zeilen, offene Starts, X – nur aus Ausgang und Sicht. */
@@ -127,6 +139,8 @@ export interface Pruefung {
   offen: SchlangenEintrag[]
   /** Startnummern der Zeilen mit X. */
   x: string[]
+  /** Startnummern der Zeilen „nicht vorbeigekommen“ (W4.3, WKR_ANNAHMEN.nichtVorbeiImAbschluss). */
+  nichtVorbei: string[]
 }
 
 export interface ErfassenUmgebung {
@@ -151,6 +165,12 @@ export interface Erfassung {
   readonly uebung: boolean
   /** Verbunden mit dem Bedienrechner (Übung: immer). */
   readonly verbunden: ComputedRef<boolean>
+  /**
+   * Was die Maske über die Verbindung sagt (Feldtest 21.11.2026, Befund nach dem Neuladen, WKR_ANNAHMEN.verbindeKarenzSek):
+   * `verbinde` – nach dem Öffnen noch nie verbunden und die Karenz läuft (neutral, keine Schätzung); `getrennt` – eine
+   * bestehende Verbindung riss ab oder die Karenz ist um; `verbunden`. Übung: immer `verbunden`.
+   */
+  readonly verbindung: ComputedRef<VerbindungsAnzeige>
   /** Rechte entzogen: Entwürfe nur noch lesend (§5.6). */
   readonly entzogen: ComputedRef<boolean>
   /** Eigene Listen (Kennungen) mit Teil, wie die Aufgaben sie geben (F15: höchstens zwei). */
@@ -248,6 +268,8 @@ interface AusZeile {
   klasse: string | null
   punkt: PunktId | null
   c: [string, string, string][]
+  /** „Nicht vorbeigekommen“ (W4.3): `c` ist leer. */
+  n?: true
   /** Nummer der Nachricht, in der sie ging (`null`: wartet). */
   nr: number | null
   /** Wird Vorschlag: Liste auf Papier bzw. Punkt (vom eigenen Abschluss) abgeschlossen. */
@@ -308,6 +330,11 @@ interface WerteEintrag {
   wt?: Partial<Record<ListenTeil, Record<string, string>>>
   sn?: string
   t?: ('ab' | 'an' | 'g')[]
+  /**
+   * Zuletzt „nicht vorbeigekommen“ gemeldet (W4.3) – für welchen Teil (`g` = ganze Zeile). Eine spätere Zeile desselben
+   * Teils ohne `n` (bzw. eine ganze Zeile) hebt es auf, wie am Bedienrechner (WKR_ANNAHMEN.nichtVorbeiAufheben).
+   */
+  n?: 'ab' | 'an' | 'g'
 }
 
 /** Teile eines gemeinsamen Werts: Bemerkungen nach „; “, Disq. als Buchstaben. */
@@ -346,6 +373,7 @@ function istAusZeile(v: unknown): v is AusZeile {
   if (v.nr !== null && !istNr(v.nr)) return false
   if (v.punkt !== null && !istText(v.punkt)) return false
   if (v.klasse !== null && !istText(v.klasse)) return false
+  if (v.n !== undefined && (v.n !== true || !Array.isArray(v.c) || v.c.length > 0)) return false
   return Array.isArray(v.c) && v.c.every((c) => Array.isArray(c) && c.length === 3 && c.every(istText))
 }
 
@@ -389,6 +417,7 @@ function liesInhalt(roh: Record<string, unknown> | null, uhr: () => number): Inh
           const eintrag: WerteEintrag = { k: e.k as string | null, w }
           if (istText(e.sn)) eintrag.sn = e.sn
           if (Array.isArray(e.t)) eintrag.t = e.t.filter((x): x is 'ab' | 'an' | 'g' => x === 'ab' || x === 'an' || x === 'g')
+          if (e.n === 'ab' || e.n === 'an' || e.n === 'g') eintrag.n = e.n
           if (istObjekt(e.wt)) {
             for (const t of ['ab', 'an'] as const) {
               const jt = e.wt[t]
@@ -581,6 +610,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       ...(z.k ? { k: true as const } : {}),
       ...(z.seite ? { seite: z.seite } : {}),
       c: z.c.map((c) => [...c]),
+      ...(z.n ? { n: true as const } : {}),
     }))
     const nr = kanal.schicke({ art: 'action', action: { type: 'WKR_ZEILEN', liste, zeilen } })
     if (nr === null) return
@@ -699,6 +729,18 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     }),
   )!
 
+  // --- Verbindung, wie die Maske sie zeigt (Feldtest 21.11.2026: nach dem Neuladen sofort „Keine Verbindung“) ---
+  const verbunden = scope.run(() => computed(() => geraet.status.value === 'verbunden'))!
+  /** Schon einmal verbunden, seit diese Erfassung offen ist – ein Abriss danach ist sofort „getrennt“. */
+  const warVerbunden = ref(verbunden.value)
+  /** Die Karenz nach dem Öffnen ist um: Wer bis dahin keine Verbindung bekam, ist „getrennt“. */
+  const karenzUm = ref(false)
+  const karenz = setTimeout(() => (karenzUm.value = true), WKR_ANNAHMEN.verbindeKarenzSek * 1000)
+  scope.run(() => watch(verbunden, (v) => v && (warVerbunden.value = true)))
+  const verbindung = scope.run(() =>
+    computed<VerbindungsAnzeige>(() => (verbunden.value ? 'verbunden' : warVerbunden.value || karenzUm.value ? 'getrennt' : 'verbinde')),
+  )!
+
   /**
    * Die Schlangen einer Liste: `ganz` (ungeteilte Liste bzw. Gerät für den ganzen Steg: solange EIN Teil offen ist)
    * und je Teil (H3). Eigene Zeilen zählen nach Start UND Teil – eine ganze Zeile (ohne Teil) für beide Teile; vor W3
@@ -707,7 +749,8 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
   const schlangen = scope.run(() =>
     computed(() => {
       void rev.value
-      const verbunden = geraet.status.value === 'verbunden'
+      // Geschätzt erst, wenn die Maske „getrennt“ sagt – beim Verbindungsaufbau nach dem Neuladen nicht (Befund 21.11.2026).
+      const verbunden = verbindung.value !== 'getrennt'
       const out: Record<string, Record<'ganz' | ListenTeil, SchlangenEintrag[]>> = {}
       for (const a of listen.value) {
         const sicht = sichten.value[a.liste]
@@ -773,6 +816,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
           korrektur: !!z.k,
           zellen: Object.fromEntries(z.c.map(([f, w]) => [f, w])),
           stufe: stufeVon(z),
+          ...(z.n ? { nv: true as const } : {}),
         }))
     }),
   )!
@@ -888,6 +932,9 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     const t = z.t ?? 'g'
     if (!e.t?.includes(t)) e.t = [...(e.t ?? []), t]
     for (const [f, w] of z.c) setzeWert(e, z.liste, z.t, f, w)
+    // „Nicht vorbeigekommen“ (W4.3): merken bzw. von einer Zeile desselben Teils (oder einer ganzen) aufheben.
+    if (z.n) e.n = t
+    else if (e.n !== undefined && (t === 'g' || t === e.n)) delete e.n
   }
 
   /** Entwürfe sind Zellwerte; ein Entwurf ohne einen einzigen Wert ist keiner. */
@@ -930,7 +977,6 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     }),
   )!
 
-  const verbunden = scope.run(() => computed(() => geraet.status.value === 'verbunden'))!
   const entzogen = scope.run(() => computed(() => geraet.lage.value === 'entzogen'))!
   // Wanduhr wie in der Maske (jetzt = Date.now()), nicht `uhr` – die Maske vergleicht damit ihre Sekunde.
   const getrenntSeit = shallowRef<number | null>(verbunden.value ? null : Date.now())
@@ -962,6 +1008,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
   return {
     uebung: false,
     verbunden,
+    verbindung,
     entzogen,
     listen,
     sichten,
@@ -984,9 +1031,13 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       const punkt = sicht?.punkt?.id ?? null
       const eintrag = werteVon(liste, punkt, zeile.s)
       const vorher = (f: string) => vorherVon(eintrag, liste, teil, f)
-      const c: [string, string, string][] = Object.entries(zeile.zellen)
-        .filter(([f, w]) => typeof w === 'string' && (w !== '' || vorher(f) !== ''))
-        .map(([f, w]) => [f, w, vorher(f)])
+      // „Nicht vorbeigekommen“ (W4.3): ohne Zellen – die Zeile sagt nur „hier kam keiner“, nichts wird eingetragen.
+      const nv = zeile.nv === true
+      const c: [string, string, string][] = nv
+        ? []
+        : Object.entries(zeile.zellen)
+            .filter(([f, w]) => typeof w === 'string' && (w !== '' || vorher(f) !== ''))
+            .map(([f, w]) => [f, w, vorher(f)])
       const vs = vorschlagWeil(liste, punkt, teil)
       // Abgeschickt: der Entwurf dieses Starts und Teils ist erledigt (H4).
       const ew = inhalt.entwuerfe[liste]
@@ -1005,6 +1056,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
         klasse: start?.klasse ?? werteVon(liste, punkt, zeile.s)?.k ?? null,
         punkt,
         c,
+        ...(nv ? { n: true as const } : {}),
         nr: null,
         ...(vs ? { vs } : {}),
       })
@@ -1021,7 +1073,12 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       const vorher = (f: string) => vorherVon(eintrag, alt.liste, alt.t, f)
       if (alt.nr === null && !alt.ab) {
         // Noch im Ausgang: die wartende Zeile ändern statt einer zweiten (eine Nachricht weniger). Unveränderte Felder
-        // außerhalb der Zeile bleiben draußen.
+        // außerhalb der Zeile bleiben draußen. Eine wartende „nicht vorbeigekommen“ wird so zur Zeile mit Werten.
+        if (alt.n) {
+          delete alt.n
+          const e = werteVon(alt.liste, alt.punkt, alt.s)
+          if (e?.n !== undefined && e.n === (alt.t ?? 'g')) delete e.n
+        }
         for (const [f, w] of Object.entries(zellen)) {
           if (typeof w !== 'string') continue
           const i = alt.c.findIndex((c) => c[0] === f)
@@ -1035,7 +1092,10 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       const c: [string, string, string][] = Object.entries(zellen)
         .filter(([f, w]) => typeof w === 'string' && vorher(f) !== w)
         .map(([f, w]) => [f, w, vorher(f)])
-      if (c.length === 0) return alt.z
+      // „Doch vorbei“ nach „nicht vorbeigekommen“ (W4.3, R3/R6): auch ohne Werte (fehlerfrei) geht eine Zeile – sie hebt
+      // das Kennzeichen am Bedienrechner auf.
+      const warNv = eintrag?.n !== undefined && eintrag.n === (alt.t ?? 'g')
+      if (c.length === 0 && !warNv) return alt.z
       const vs = vorschlagWeil(alt.liste, alt.punkt, alt.t)
       return stelleAn({
         z: neueId(),
@@ -1143,18 +1203,21 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       for (const [s, e] of Object.entries(inhalt.werte[liste]?.[punkt] ?? {})) {
         if (teil !== undefined && !(e.t ?? []).some((t) => t === teil || t === 'g')) continue
         const letzte = inhalt.zeilen.filter((z) => z.liste === liste && z.s === s && z.punkt === punkt).at(-1)
-        zeilen.push({ s, ...(e.sn !== undefined ? { sn: e.sn } : {}), klasse: e.k, zellen: standVon(e, liste, teil), stufe: letzte ? stufeVon(letzte) : null, x: Object.values(e.w).some(hatX) })
+        // „Nicht vorbeigekommen“ zählt für diesen Teil (bzw. die ganze Zeile); am Steg trägt nur das Anlegen es.
+        const nv = e.n !== undefined && (teil === undefined || e.n === teil || e.n === 'g')
+        zeilen.push({ s, ...(e.sn !== undefined ? { sn: e.sn } : {}), klasse: e.k, zellen: standVon(e, liste, teil), stufe: letzte ? stufeVon(letzte) : null, x: Object.values(e.w).some(hatX), nv })
       }
       const sicht = inhalt.sichten[liste]
       const je = schlangen.value[liste]
       const quelle = !je || sicht?.punkt?.id !== punkt ? [] : teil !== undefined && sicht?.teile ? je[teil] : je.ganz
       const offen = quelle.filter((s) => !s.vorab && !s.entfaellt).map((s) => ({ ...s }))
-      return { zeilen, offen, x: zeilen.filter((z) => z.x).map((z) => z.sn ?? z.s) }
+      return { zeilen, offen, x: zeilen.filter((z) => z.x).map((z) => z.sn ?? z.s), nichtVorbei: zeilen.filter((z) => z.nv).map((z) => z.sn ?? z.s) }
     },
     stop() {
       if (gestoppt) return
       gestoppt = true
       clearInterval(takt)
+      clearTimeout(karenz)
       ab()
       scope.stop()
     },

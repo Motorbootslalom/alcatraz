@@ -245,3 +245,34 @@ describe('pruefeZeile – Vorsteg mit „Versuche direkt nacheinander“', () =>
     expect(pruefeZeile(s, UIM, L('steg', bereich), undefined, 'g1', zeile(e.key, []))).toMatchObject({ lauf: 'manoevrieren/1', weitere: [] })
   })
 })
+
+describe('pruefeZeile – „Nicht vorbeigekommen“ (W4.3, P16)', () => {
+  const fall = (typeId: string, c: GeraeteZeile['c'], teil?: 'ab' | 'an', mehr: Partial<GeraeteZeile> = {}) => {
+    const { s, erster } = gezeigt()
+    return pruefeZeile(s, DM, L(typeId), teil, 'g1', zeile(m(erster), c, { n: true, ...mehr }))
+  }
+
+  it('Zeile ohne Zellen mit `n`: Haken und Kennzeichen, keine Zellen', () => {
+    expect(fall('gate135', [])).toMatchObject({ zellen: [], haken: ['erfasst@gate135'], nichtVorbei: true })
+    expect(fall('tor5', [])).toMatchObject({ nichtVorbei: true })
+  })
+
+  it('`n` nur mit leerem `c` und nur als true – sonst wert-ungueltig', () => {
+    expect(fall('gate135', [['t1a|hin seiteA', '5', '']])).toEqual({ fehler: 'wert-ungueltig' })
+    expect(fall('gate135', [], undefined, { n: 1 as unknown as true })).toEqual({ fehler: 'wert-ungueltig' })
+  })
+
+  it('nicht am Vorsteg und nicht im Steg-Ablegen (dort X, F5): nv-nicht-erlaubt; Steg-Anlegen ja', () => {
+    expect(fall('vorsteg', [])).toEqual({ fehler: 'nv-nicht-erlaubt' })
+    expect(fall('steg', [], 'ab')).toEqual({ fehler: 'nv-nicht-erlaubt' })
+    // Ein Gerät für den ganzen Steg: ohne Teil nicht (das schlösse das Ablegen ein), mit Teil `an` schon.
+    expect(fall('steg', [])).toEqual({ fehler: 'nv-nicht-erlaubt' })
+    expect(fall('steg', [], undefined, { t: 'an' })).toMatchObject({ teil: 'an', haken: ['erfasst.an@steg'], nichtVorbei: true })
+    expect(fall('steg', [], 'an')).toMatchObject({ teil: 'an', nichtVorbei: true })
+  })
+
+  it('ohne `n` fehlt das Kennzeichen in der aufgelösten Zeile', () => {
+    const { s, erster } = gezeigt()
+    expect(pruefeZeile(s, DM, L('gate135'), undefined, 'g1', zeile(m(erster), []))).not.toHaveProperty('nichtVorbei')
+  })
+})

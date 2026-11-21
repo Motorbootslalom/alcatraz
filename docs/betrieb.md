@@ -291,12 +291,13 @@ kennt diese beiden Grenzen; bei einem anderen Server zählt es nur und warnt, so
 - Sparen: Gerätebetrieb erst einschalten, wenn er gebraucht wird; den Raum abends beenden; Lese-Links nur dort, wo
   sie nötig sind – die Anzeigetafel am zweiten Monitor kostet nichts.
 
-### WKR-Erfassung (W1 Kern, W2 Bedienrechner, W3 Handy-Maske „Knöpfe“)
+### WKR-Erfassung (W1 Kern, W2 Bedienrechner, W3 Handy-Maske „Knöpfe“, W4 Bojen)
 
 Stand 21.11.2026: Der **Kern** der digitalen Erfassung durch die Wettkampfrichter, die **Oberfläche am
 Bedienrechner** (W2) und die **Maske auf dem Handy** für Steg, Tor 5, Mann-über-Bord und Vorsteg (W3, unten) sind
 gebaut und gegen den nachgebauten Server geprüft – noch **ohne Feldtest** ([feldtest.md](feldtest.md#wkr-maske-auf-dem-handy-w3)).
-Listen mit Bojen, Zeit oder Knoten bleiben auf Papier (W4/W5). Was gilt (Plan
+Seit W4 (21.11.2026) haben auch die Listen mit Bojen ihre Maske (unten „Bojen“); Listen mit Zeit oder Knoten
+bleiben auf Papier (W5). Was gilt (Plan
 [plan-wkr-w1.md](plan-wkr-w1.md), Vorschlag [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md)):
 
 - Ein Gerät bekommt beim Koppeln **eine Liste** (Pad höchstens zwei; am Steg auch nur Ablegen oder Anlegen). Damit
@@ -335,7 +336,7 @@ Am Bedienrechner (W2, gebaut 21.11.2026, Plan [plan-wkr-w2.md](plan-wkr-w2.md); 
 Auf dem Handy (W3, gebaut 21.11.2026, Plan [plan-wkr-w3.md](plan-wkr-w3.md); Auslegungen G1–G16, H–L noch zu bestätigen):
 
 - **Gerät für eine Liste koppeln**: Betrieb → Geräte → „Koppeln“: unter „WKR-Liste“ die Liste wählen (Parcours bzw.
-  Racecourse; Listen mit Bojen tragen „Maske folgt – Papier“), am Steg „ganz / nur Ablegen / nur Anlegen“, dann QR-Code
+  Racecourse; Listen mit Zeit oder Knoten tragen „Maske folgt – Papier“), am Steg „ganz / nur Ablegen / nur Anlegen“, dann QR-Code
   zeigen oder Geräte-Code ausgeben wie bei der Start-Freigabe. In der Geräteliste lässt sich die Liste je Gerät ändern
   (Handy eine, Pad höchstens zwei). Aus Betrieb → WKR führt „Gerät koppeln“ an einer Liste ohne Gerät direkt dorthin.
 - **Probe**: Nach dem ersten Empfang der Liste zeigt das Handy einmal je Raum und Liste die Probe mit dem Start „P“ –
@@ -356,6 +357,22 @@ Auf dem Handy (W3, gebaut 21.11.2026, Plan [plan-wkr-w3.md](plan-wkr-w3.md); Aus
 - **Übung**: „Üben ohne Verbindung“ im Koppel-Formular (oder Adresse `#/uebung`): Regelwerk DM/UIM und Liste wählen,
   dann dieselbe Maske mit erfundenen Starts – kein Netz, kein Bedienrechner, Kopf dauerhaft „ÜBUNG“. Gut für die
   Einweisung am Vortag; gespeichert wird nur die Ansicht.
+
+Bojen (W4, gebaut 21.11.2026, Plan [plan-wkr-w4.md](plan-wkr-w4.md); Auslegungen P1–P17, Q1–Q7, R1–R8 noch zu
+bestätigen):
+
+- **Bojen-Maske** für Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel, die Listen der Aufbauten und unter UIM den
+  Parallelslalom: je Halt eine Zeile in Fahrtfolge, die beiden Bojen eines Tores nebeneinander so, wie sie auf dem
+  Bogen stehen (R/L, Land/See …). Ein Tipp = eine Berührung (5), zweiter Tipp nimmt sie weg; die Torbojen von Tor 5
+  zählen jede Berührung (höchstens 9). Tor 1 auf der Rückfahrt hat zwei Zeilen (2. Durchfahrt = Speedrunde). Disq.
+  geht immer ins Disq.-Feld. Hat eine Klasse mehr als sieben Zeilen, teilt ein Umschalter „HINWEG · n | RÜCKWEG · n“ –
+  er wechselt nie von selbst; wechselt die Klasse, steht 2 s „Klasse n – andere Halte“.
+- **Nicht vorbeigekommen** (Mehr → „⊘ Nicht vorbeigekommen“, große Rückfrage „23 ist hier nicht vorbeigekommen? Es
+  wird nichts eingetragen.“): für ein Boot, das vorher aufgegeben hat. Am Bedienrechner hat der Start damit den Haken
+  (kein Rückstand, die Start-Freigabe wartet nicht), in der Matrix steht gelb „⊘ nicht vorbei“, in der Erfassung
+  „Papier ansehen“; ein X ist es nicht. Am Vorsteg und im Steg-Ablegen gibt es das nicht – dort heißt es X. Wer sich
+  geirrt hat, korrigiert über „Zuletzt“ (auch „fehlerfrei“); eingetippte Werte am Bedienrechner heben es ebenso auf.
+  Die Prüfansicht beim Abschluss zählt „n nicht vorbeigekommen: …“, Betrieb → WKR nennt es beim Abschluss.
 
 ## Ablauf am Wettkampftag
 
@@ -384,7 +401,7 @@ Für die Person am Bedienrechner, Schritt für Schritt. Ohne Gerätebetrieb entf
 5. Handys für die Start-Freigabe koppeln: Parcours (Bereiche) ankreuzen, „QR-Code zeigen“ und scannen lassen – oder
    „Geräte-Code ausgeben“ und über Funk durchsagen. Jedem Gerät in der Liste einen Namen geben („Steg A“).
 6. Mit digitaler WKR-Erfassung: je Wettkampfrichter ein Handy mit seiner Liste koppeln
-   ([WKR-Erfassung](#wkr-erfassung-w1-kern-w2-bedienrechner-w3-handy-maske-knöpfe)); die Probe am Handy gleich
+   ([WKR-Erfassung](#wkr-erfassung-w1-kern-w2-bedienrechner-w3-handy-maske-knöpfe-w4-bojen)); die Probe am Handy gleich
    gemeinsam durchtippen. Wer vorher üben will: „Üben ohne Verbindung“.
 
 ### Während des Wettkampfs

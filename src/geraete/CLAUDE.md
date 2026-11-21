@@ -204,7 +204,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - Prüfbefunde W3 (21.11.2026, plan-wkr-w3.md §14): erfassen.ts WerteEintrag.`wt` = gemeinsame Steg-Felder je Teil
   (`vorher` einer Teil-Zeile nur aus DIESEM Teil; `w` vereinigt wie der Bedienrechner; Feldteil an der Sicht,
   feldTeil), `stand(z)` (eigener Stand des Starts und Teils – Grundlage jeder Korrektur, auch uebung.ts),
-  `getrenntSeit`/`wartendSeit` (Wanduhr), EntwurfEintrag.`papier` {titel, bereich, felder} aus der Sicht beim Ablegen.
+  `getrenntSeit`/`wartendSeit` (Wanduhr), `verbindung` (21.11.2026, N11: verbinde in der Karenz
+  WKR_ANNAHMEN.verbindeKarenzSek nach dem Öffnen, getrennt nach Karenz oder Abriss; „geschätzt“ nur bei getrennt), EntwurfEintrag.`papier` {titel, bereich, felder} aus der Sicht beim Ablegen.
 - W3.4 (21.11.2026, Plan docs/plan-wkr-w3.md §5.7–§5.9): kein neuer Kern, kein neues Protokoll. Oberfläche nutzt
   `pruefung`/`schliesseAb`/`abschluesse` (WkrAbschluss), ablage.ts `schreibeAnsicht` (Ansicht, Sprache, WKR-Name – der
   Name nie aus der Übung) und `probeErledigt`/`merkeProbe` (Probe je Raum und Liste; den Raum gibt GeraetFreigabe aus
@@ -212,6 +213,17 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   components/wkr/WkrUebung.vue → `oeffneUebung`): kein Transport, keine Ablage außer der Ansicht, kein Netz
   (src/main.uebung.test.ts wie main.geraete.test.ts). Verweis „Üben ohne Verbindung“ im Koppel-Formular von
   GeraetFreigabe (und ohne Gerät).
+- W4.2 (21.11.2026, Plan docs/plan-wkr-w4.md §5): kein neuer Kern, kein neues Protokoll – die Bojen-Maske liest
+  dieselbe ErfassungsQuelle; uebung.ts unverändert (Bojen-Listen über maskenJeKlasse). Ende zu Ende: wkr.test.ts
+  „W4.2“ (gate135 jede Boje + Disq. in einer Zeile, moewe135 Bojen + Einfahrt Tor 5 über SET_AUFBAU `moewe`).
+- W4.3 (21.11.2026, Plan docs/plan-wkr-w4.md §6, P16/R1–R8): **„Nicht vorbeigekommen“** – erfassen.ts
+  MaskenZeile.`nv` → `schicke` legt eine Zeile OHNE Zellen mit `n` (AusZeile.n, auf der Leitung GeraeteZeile.n);
+  WerteEintrag.`n` = Teil der Meldung (`g` = ganz), eine spätere Zeile desselben Teils ohne `n` löscht es;
+  `korrigiere` schickt nach einer ⊘-Zeile auch ohne geänderte Werte („doch vorbei, fehlerfrei“) bzw. macht aus der
+  wartenden ⊘-Zeile eine mit Werten; ZuletztZeile.`nv`, PruefZeile.`nv`, Pruefung.`nichtVorbei` (Startnummern).
+  uebung.ts ebenso (UebZeile.n, keine Beispiel-Rückfrage auf einer ⊘-Zeile). protokoll.ts ABLEHNUNGEN + `nv-nicht-erlaubt`
+  (Text geraete.ablehnung.nv-nicht-erlaubt). PROTOKOLL_FASSUNG bleibt 2; LISTEN_SICHT_FASSUNG 5 trennt alte Geräte.
+  Tests: src/GeraetWkr.test.ts „Nicht vorbeigekommen (W4.3)“ (Ende zu Ende über die Maske), uebung.test.ts.
 
 ## Abläufe
 

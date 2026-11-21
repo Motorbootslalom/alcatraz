@@ -98,7 +98,10 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   ✕), Sortierung im Reiter „Starter“ in drei Stufen. Zählfehler „3 offen“ trotz ✓ am Handy (Befund 15): zwei Tabs
   derselben Kopplung – jetzt sendet nur der zuletzt geöffnete Tab (geraete/tabWache.ts), der ältere bietet „Hier
   weitermachen“. Offen zur Entscheidung: R je Listenart (WKR_ANNAHMEN N8).
-  Offen: Bojen-Masken und Pad (W4), Knoten und Zeit-Listen (W5), Feldtest.
+  W4 „Handy, Bojen“ ist gebaut ([plan-wkr-w4.md](plan-wkr-w4.md): Bojen-Maske in Fahrtfolge mit Umschalter
+  Hinweg/Rückweg, Tor-5-Zähler, „Nicht vorbeigekommen“; Prüfbefunde vom 21.11.2026 behoben, §12, Auslegungen
+  P1–P17, Q1–Q7, R1–R8, S1–S5 noch zu bestätigen).
+  Offen: Pad, Knoten und Zeit-Listen (W5), Feldtest.
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
   Server getestet); seit E7 auch die Start-Freigabe vom gekoppelten Handy. Offen: Feldtest mit echten Handys und

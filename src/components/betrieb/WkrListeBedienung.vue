@@ -179,6 +179,7 @@ function loese(): void {
         {{ abschlussText(a) }}
         <span v-if="a.abweichend.length" class="wkr-abweichend">· {{ t('betrieb.wkr.abschluss.abweichend', { nummern: a.abweichend.join(', ') }) }}</span>
         <span v-if="a.papier.length" class="note">· {{ t('betrieb.wkr.abschluss.papier', { nummern: a.papier.join(', ') }) }}</span>
+        <span v-if="a.nichtVorbei.length" class="note" data-teil="abschluss-nicht-vorbei">· {{ t('betrieb.wkr.abschluss.nichtVorbei', { n: a.nichtVorbei.length, nummern: a.nichtVorbei.join(', ') }) }}</span>
         <button type="button" class="btn sm" data-action="wkr-abschluss-loesen" @click="loesen = { punkt: a.punkt, ...(a.teil ? { teil: a.teil } : {}) }">
           {{ t('betrieb.wkr.loesen') }}
         </button>

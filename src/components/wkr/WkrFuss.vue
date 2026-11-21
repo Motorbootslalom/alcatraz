@@ -10,9 +10,11 @@ import { useWkrText } from './texte'
  * Hauptknopf rechts, dazwischen mindestens 24 px (styles/wkr-geraet.css `--wkr-disq-abstand`); Linkshand spiegelt.
  * Der Umschaltknopf nennt immer, WOHIN er wechselt: „DISQ“ bei offenen Codes, „FEHLER“ bei offenen Disq.-Buchstaben
  * (Befund 10, Feldtest 21.11.2026: „Wenn man Disq offen hat, dann sollte hier Fehler stehen“).
+ * Bojen-Maske (W4.2, 21.11.2026, P13): `bojen` wie `katalog` – „Fehlerfrei ✓“ bzw. „Abschicken · n Pkt.“ (Bojen und
+ * Codes zählen), DISQ/FEHLER schaltet zwischen Disq.-Liste und Bojen.
  */
 const props = defineProps<{
-  art: 'katalog' | 'vorsteg'
+  art: 'katalog' | 'vorsteg' | 'bojen'
   teil?: ListenTeil
   eintraege: number
   punkte: number
@@ -46,7 +48,7 @@ const haupt = computed(() => {
     <div class="wkr-fuss-neben">
       <button type="button" class="wkr-knopf" data-ziel="klein" data-action="zurueck" :disabled="eintraege === 0" @click="emit('zurueck')">{{ w('wkr.geraet.zurueck') }}</button>
       <button
-        v-if="art === 'katalog' && mitDisq"
+        v-if="art !== 'vorsteg' && mitDisq"
         type="button"
         class="wkr-knopf wkr-knopf--disq"
         data-ziel="gross"

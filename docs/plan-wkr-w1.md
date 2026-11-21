@@ -1,10 +1,10 @@
 # Plan W1 „Kern“ der digitalen WKR-Erfassung
 
-Stand 21.11.2026 (W1.1–W1.4 gebaut, Prüfbefunde behoben – §10; Auslegungen §9 noch zu bestätigen) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) (§2, §5, §6, §9, §10, §11 W1,
+Stand 21.11.2026 (W1.1–W1.4 gebaut, Prüfbefunde behoben – §10; Auslegungen §9/§10 vom Nutzer bestätigt 21.11.2026) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) (§2, §5, §6, §9, §10, §11 W1,
 §12 Antworten F1–F17) und der Gerätebetrieb E5–E8 (`src/geraete/`, [betrieb.md](betrieb.md)). Gebaut und geprüft
 **ohne echte Geräte und ohne Handy-Masken** (die kommen mit W3/W4): Prüfung über den nachgebauten ntfy
-(`geraete/transport/ntfy/testNtfy.ts`) und einen Geräte-Kern ohne Oberfläche. Auslegungen, die der Nutzer noch
-bestätigen soll, stehen datiert in §9 und als Kommentar in `src/wkr/annahmen.ts` (WKR_ANNAHMEN).
+(`geraete/transport/ntfy/testNtfy.ts`) und einen Geräte-Kern ohne Oberfläche. Auslegungen (vom Nutzer am
+21.11.2026 bestätigt) stehen datiert in §9 und als Kommentar in `src/wkr/annahmen.ts` (WKR_ANNAHMEN).
 
 ## 1. Ziel und Grenzen
 
@@ -224,7 +224,7 @@ Je Zeile: eine Gerätenachricht (gebündelt nach Funkloch) und eine Gruppennachr
 Listen ohne Änderung senden nichts (Vergleich nach Inhalt). Die Kontingent-Zählung (E8) bleibt; getrennte Anzeige der
 Erfassung erst W2.
 
-## 9. Auslegungen (21.11.2026, vom Nutzer zu bestätigen)
+## 9. Auslegungen (21.11.2026, vom Nutzer bestätigt 21.11.2026: „passt“, Fragen W1-01…W1-15)
 
 1. **Übernahmeregel**: übernommen wird, wenn der Stand gleich `vorher` (das, was das Gerät dort erwartet; beim ersten
    Mal leer) oder gleich dem neuen Wert ist. Hat der Bediener eine vom Gerät gesetzte Zelle geleert, ist das eine
@@ -263,11 +263,11 @@ zwei Geräten: AB schließt ab …“, `geraete/aufgaben.test.ts`, `state/migrat
 2. **„offen“ am Host** gemessen am eigenen Eintrag vorher/nachher bzw. `unveraendert`, nicht an „gibt es einen Eintrag“.
 3. **Schlange nach „Rest auf Papier“:** Starts aus `abschluss.papier` und abgeschlossene Punkte fehlen.
 4. **Pause/Abmelden je Teil:** WKR_STATUS eines Teil-Geräts wirkt nur auf seinen Teil (`WkrListe.teile`); das andere
-   Handy erfasst weiter (F1 mit F16). WKR_ANNAHMEN.pauseJeTeil, noch zu bestätigen.
+   Handy erfasst weiter (F1 mit F16). WKR_ANNAHMEN.pauseJeTeil, bestätigt 21.11.2026.
 5. **Rückfrage `start` auf gemeinsamen Steg-Zellen:** `vereinige: {vorher}`; „Gerätewert“ vereinigt mit dem, was dann
    steht (`wkr/uebernahme.ts vereinigt`) – der Buchstabe des anderen Teils bleibt.
 6. **Abschluss nur für begonnene Punkte** (`punktBegonnen`, in `erlaubteWkr` → `nicht-erlaubt` und im Reducer);
    P aus Pausen steht mit im `papier` des Abschlusses (auch bei pausierter Liste).
 7. **`steht` in der Sicht:** Die Doku sagte „nur für das auslösende Gerät“; tatsächlich lesen alle Geräte derselben
    Liste die Gruppe. Doku korrigiert (sicht.ts, protokoll.ts, CLAUDE.md), Auslegung WKR_ANNAHMEN.rueckfrageInListe
-   (noch zu bestätigen) – eine Nachricht je Gerät kostete Kontingent.
+   (bestätigt 21.11.2026) – eine Nachricht je Gerät kostete Kontingent.

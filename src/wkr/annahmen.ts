@@ -1,6 +1,7 @@
 // Auslegungen der digitalen WKR-Erfassung (Etappe W1) – an EINER Stelle, nach dem Muster von BETRIEB_ANNAHMEN und
 // PARALLEL_ANNAHMEN. Grundlage: docs/vorschlag-wkr-erfassung.md (§12, Antworten des Nutzers vom 21.11.2026 auf F1–F17)
-// und docs/plan-wkr-w1.md §9. Was mit „noch zu bestätigen“ markiert ist, hat der Nutzer noch nicht gesehen. Die
+// und docs/plan-wkr-w1.md §9. Was mit „noch zu bestätigen“ markiert ist, hat der Nutzer noch nicht gesehen; alle
+// Auslegungen aus W1 und W2 (Fragen W1-01…W1-15, W2-01…W2-30) hat er am 21.11.2026 mit „passt“ bestätigt. Die
 // Werte, die der Code liest, sind hier umstellbar; die übrigen Einträge halten fest, wie der Code gebaut ist.
 
 import type { ListenTeil } from '../lib/eingaben'
@@ -18,13 +19,13 @@ export const WKR_ANNAHMEN = {
    * (Plan §9.1) Übernahmeregel: Ein Wert vom Gerät wird übernommen, wenn der Stand gleich `vorher` (das, was das
    * Gerät dort erwartet; beim ersten Mal leer) oder gleich dem neuen Wert ist. Sonst bleibt der Stand und es entsteht
    * eine Rückfrage – nie still überschrieben. Hat der Bediener eine vom Gerät gesetzte Zelle geleert, ist das eine
-   * Rückfrage, keine leere Zelle. 21.11.2026, noch zu bestätigen.
+   * Rückfrage, keine leere Zelle. 21.11.2026, bestätigt 21.11.2026.
    */
   uebernahmeNurVorher: true,
   /**
    * (Plan §9.3) Zeilen zu nicht gezeigten Starts (auch die ohne Netz geschätzten) werden ganz zur Rückfrage (Grund
    * `start`), nie still übernommen. Ausnahme: der Vorsteg sieht die nächsten freien Starts schon vor dem Zeigen
-   * (Vorschlag §2). 21.11.2026, noch zu bestätigen.
+   * (Vorschlag §2). 21.11.2026, bestätigt 21.11.2026.
    */
   nichtGezeigtRueckfrage: true,
   /**
@@ -33,7 +34,7 @@ export const WKR_ANNAHMEN = {
    * `fehlerAB`/`fehlerAN` (Spalten-Keys aus config/aufbauten/gemeinsam.yaml, die Feld-Kennungen sind die Kataloge);
    * Disq. und Bemerkung gehören beiden (Disq. vereinigt, Bemerkung mit „; “ angehängt, nie ersetzt). Die
    * Anlegen-Schlange sind alle gezeigten Starts ohne Anlegen-Haken, auch wenn das Ablegen auf Papier ist.
-   * 21.11.2026, noch zu bestätigen.
+   * 21.11.2026, bestätigt 21.11.2026.
    */
   teile: { steg: { ab: ['fehlerAB'], an: ['fehlerAN'], gemeinsam: ['disq', 'bemerkung'] } } as Readonly<Record<string, ListenTeile>>,
   /**
@@ -46,28 +47,28 @@ export const WKR_ANNAHMEN = {
   xTeil: 'ab' as ListenTeil,
   /**
    * (Plan §9.5, F1) Pausieren und Abmelden gelten für die Liste, nicht für ein Gerät. P („Papier“) = die Starts,
-   * die beim Pausieren offen waren, und alle, die während der Pause gezeigt wurden. 21.11.2026, noch zu bestätigen.
+   * die beim Pausieren offen waren, und alle, die während der Pause gezeigt wurden. 21.11.2026, bestätigt 21.11.2026.
    */
   pauseJeListe: true,
   /**
    * (Plan §9.5 mit F16, Prüfbefund 21.11.2026) Am Steg mit Teil-Kopplung pausiert bzw. meldet ein Teil-Gerät nur
    * SEINEN Teil ab (WkrListe.teile): Das andere Handy erfasst weiter, P gilt nur für diesen Teil. Ein Gerät für den
    * ganzen Steg und der Bedienrechner wirken auf die ganze Liste. Sonst wartete die Freigabe auf einen Teil, der
-   * längst auf Papier ist – gegen F1. 21.11.2026, noch zu bestätigen.
+   * längst auf Papier ist – gegen F1. 21.11.2026, bestätigt 21.11.2026.
    */
   pauseJeTeil: true,
   /**
    * (Plan §9.6) Modus: Eine Liste ohne Eintrag ist Papier; das erste „digital“ (oder „beides“) setzt `seit`. Die
    * Schlange beginnt erst dort – ältere Starts tippt man vom Bogen ab. Ein Wechsel von Papier zurück auf digital
-   * setzt `seit` neu. Zeilen einer Liste auf Papier (oder ohne Eintrag) werden Vorschläge. 21.11.2026, noch zu
-   * bestätigen.
+   * setzt `seit` neu. Zeilen einer Liste auf Papier (oder ohne Eintrag) werden Vorschläge. 21.11.2026, bestätigt
+   * 21.11.2026.
    */
   ohneEintragPapier: true,
   /**
    * (Plan §9.7, F7, F8) Abschluss je Liste und Punkt (Lauf bzw. Runde), mit Namen des Wettkampfrichters – die
    * digitale Unterschrift. Er wird angenommen, wenn nichts mehr offen ist oder „Rest auf Papier“ gewählt ist; sonst
    * ändert er nichts. Weicht die geprüfte Fassung des Geräts vom Stand ab, wird das je Start vermerkt (W2 zeigt es),
-   * ohne Sperre. Danach werden Korrekturen vom Gerät zu Vorschlägen. 21.11.2026, noch zu bestätigen.
+   * ohne Sperre. Danach werden Korrekturen vom Gerät zu Vorschlägen. 21.11.2026, bestätigt 21.11.2026.
    * Prüfbefunde 21.11.2026: Am Steg je Teil (eigener Eintrag `punkt|ab`/`punkt|an`, wkr/abschluss.ts) – der Abschluss
    * des Ablegens macht Zeilen des Anlegens nicht zu Vorschlägen und überschreibt nie dessen Unterschrift; die ganze
    * Liste gilt mit beiden Teilen als abgeschlossen. Nur für einen Punkt, der im Bereich begonnen hat. Starts, die mit
@@ -78,7 +79,7 @@ export const WKR_ANNAHMEN = {
    * (F11, Prüfbefund 21.11.2026) Die Sicht der Liste ist EIN Inhalt der Listen-Gruppe: `steht` einer Rückfrage,
    * Ablehnungen und Hinweise sieht jedes Gerät DERSELBEN Liste (am Steg auch das des anderen Teils), nie ein Gerät
    * einer anderen Liste oder der Tafel. Es sind dieselben Wettkampfrichter derselben Liste; eine eigene Nachricht je
-   * Gerät (d-Thema) kostete Kontingent. 21.11.2026, noch zu bestätigen.
+   * Gerät (d-Thema) kostete Kontingent. 21.11.2026, bestätigt 21.11.2026.
    */
   rueckfrageInListe: true,
   /**
@@ -90,7 +91,7 @@ export const WKR_ANNAHMEN = {
   /**
    * Ein Start, dessen Klasse die Liste nicht hat (MüB erst ab Klasse 4), steht in der Schlange grau als „entfällt“
    * – nur solange er der zuletzt gezeigte Start des Bereichs ist; mit dem nächsten Start schließt er sich von
-   * selbst (Vorschlag §2). Beim Bau von W1.1, 21.11.2026, noch zu bestätigen.
+   * selbst (Vorschlag §2). Beim Bau von W1.1, 21.11.2026, bestätigt 21.11.2026.
    */
   entfaelltNurAktuell: true,
   /**
@@ -117,7 +118,7 @@ export const WKR_ANNAHMEN = {
   /** (Plan §6, F7) Modus beim ersten Koppeln einer Liste – nur wenn sie noch keinen Eintrag hat. */
   modusBeimKoppeln: 'digital',
 
-  // --- W2 Bedienrechner (docs/plan-wkr-w2.md §9, 21.11.2026, alle noch zu bestätigen) ----------------------------
+  // --- W2 Bedienrechner (docs/plan-wkr-w2.md §9, 21.11.2026, alle bestätigt 21.11.2026) ------------------
   /**
    * (A1) Der Unterreiter im Betrieb heißt „WKR“ (englisch „Race officials“), nicht „Erfassung“ – das ist schon der
    * Hauptreiter zum Abtippen; zwei Dinge mit demselben Namen führen am Wettkampftag zu „wo war das noch?“.
@@ -141,6 +142,7 @@ export const WKR_ANNAHMEN = {
    * der WKR noch nicht fertig ist“): gewarnt wird AB R offenen Starts (`rueckstandAbR`, vorher „mehr als R“), Vorgabe
    * R = 1 (vorher 2) und „nachfragen“ (`warnungVorgabe`, vorher „warnen“). Wer mit 2–3 Booten auf dem Wasser Tor 5 oder
    * Anlegen digital führt, stellt R in den Einstellungen höher. Gesperrt wird weiter nie (N8).
+   * A4 bestätigt 21.11.2026 – in DIESER geänderten Fassung (R = 1, nachfragen); N8 selbst bleibt unten offen.
    */
   rueckstandVorgabe: 1,
   /** (N8) `warnt` ab `zahl >= R` (wkr/lage.ts erfassungsLage); „überfällig“ (A5) bleibt bei MEHR als R jüngeren Starts. */
@@ -197,7 +199,7 @@ export const WKR_ANNAHMEN = {
   /** (A13, Vorschlag §6.1) Gerätezustand: ● unter `ampelStillSek`, ◐ bis `ampelWegSek`, ✕ darüber; Akku nur, wo gemeldet. */
   ampelStillSek: 90,
   ampelWegSek: 300,
-  // --- W2.2 Matrix und Eingang, beim Bau 21.11.2026 (noch zu bestätigen) ------------------------------------------
+  // --- W2.2 Matrix und Eingang, beim Bau 21.11.2026 (bestätigt 21.11.2026) ----------------------------------------
   /**
    * (B1) Unterreiter in der Folge Start-Freigabe, Startliste, WKR, Geräte (Adresse `#/betrieb/wkr`, englisch
    * `#/operation/officials` – „race-officials“ heißt schon die WKR-Liste unter „Lists“). Der Zähler „WKR: ! n“ im
@@ -229,7 +231,7 @@ export const WKR_ANNAHMEN = {
    * nach echter Zeit): Die Ampel kennt Stufen von 90 s und 5 min, schneller muss die Oberfläche nicht folgen.
    */
   zuletztGedrosselt: true,
-  // --- W2.3 Erfassung: ◆ und „Papier ansehen“, beim Bau 21.11.2026 (noch zu bestätigen) ---------------------------
+  // --- W2.3 Erfassung: ◆ und „Papier ansehen“, beim Bau 21.11.2026 (bestätigt 21.11.2026) -------------------------
   /**
    * (C1) ◆ steht an JEDER Zelle, deren Wert noch der vom Gerät ist – auch wenn das Feld auf mehreren Listen steht
    * (gemeinsame Felder); der Titel nennt die Liste des Geräts. Marken („Papier ansehen“, Rückfrage) dagegen nur für die
@@ -253,7 +255,7 @@ export const WKR_ANNAHMEN = {
   papierZahlMitZellen: true,
   /** (C4) Die Erfassung rechnet „Gerät weg“ (A5) mit einer Uhr im 30-s-Takt – die Ampel kennt Stufen von 90 s und 5 min. */
   erfassungUhrSek: 30,
-  // --- W2.4 Start-Freigabe und Freigabe-Handy, beim Bau 21.11.2026 (noch zu bestätigen) ---------------------------
+  // --- W2.4 Start-Freigabe und Freigabe-Handy, beim Bau 21.11.2026 (bestätigt 21.11.2026) -------------------------
   /**
    * (D1) Die Geräteleiste der Start-Freigabe nennt JEDE Liste des Bereichs, sobald eine einen Eintrag hat – Listen
    * ohne Eintrag als ▭ (Papier). Je Liste: schlechteste Ampel ihrer Geräte, „n offen“ bzw. ✓, ⧗ wartende Zeilen, „!“
@@ -284,7 +286,7 @@ export const WKR_ANNAHMEN = {
    * Zurückstellen fragen nicht (sie zeigen keinen neuen Start). Am Handy genauso, sobald die Freigabe-Sicht dort ist.
    */
   nachfragenVorJedemZeigen: true,
-  // --- Prüfbefunde W2, 21.11.2026 (noch zu bestätigen) --------------------------------------------------------------
+  // --- Prüfbefunde W2, 21.11.2026 (bestätigt 21.11.2026) ------------------------------------------------------------
   /**
    * (E1) „Erledigt“ für Zellstand, Rückstand und „Papier ansehen“ (wkr/lage.ts): Haken ODER eigene Werte der Liste –
    * wie lib/erfassung.ts zeileErfasst; am Steg je Teil nur die Felder des Teils (gemeinsame Disq./Bemerkung zählen
@@ -319,7 +321,8 @@ export const WKR_ANNAHMEN = {
   /**
    * (G2) Masken nur für Listen, deren Felder alle Katalog, Disq. oder Text sind (Steg, Vorsteg, Tor 5, Tor 5 +
    * Parcours ohne Bojen, MüB) – erkannt an den Feldarten (wkr/maske.ts maskenArt), nicht an der Listen-ID: eigene
-   * Aufbauten gelten so von selbst. Listen mit Bojen, Zeit oder Punkten sind `spaeter` (W4/W5).
+   * Aufbauten gelten so von selbst. Listen mit Bojen, Zeit oder Punkten sind `spaeter` (W4/W5) – Bojen auf dem
+   * Fahrweg haben seit W4.1 die Maske `bojen` (P1).
    */
   maskeNachFeldarten: true,
   /** (G3, F15) Handy eine Liste, Pad zwei – nur als Hinweis am Bedienrechner; erzwungen bleibt LISTEN_JE_GERAET = 2. */
@@ -384,7 +387,10 @@ export const WKR_ANNAHMEN = {
   uebungTaktSek: 30,
   /** (G14) Liste ohne Maske: Das Gerät sagt „Papier“ und bietet „Pausieren“ an; der Bedienrechner kennzeichnet sie beim Koppeln. */
   ohneMaskePapier: true,
-  /** (G15) „Nicht vorbeigekommen“ erst mit W4 (Protokoll, Reducer, Matrix); bis dahin Bemerkung oder nichts schicken. */
+  /**
+   * (G15) „Nicht vorbeigekommen“ erst mit W4 (Protokoll, Reducer, Matrix); bis dahin Bemerkung oder nichts schicken.
+   * Eingelöst mit W4.3 (21.11.2026, P16 – `nichtVorbei*` unten).
+   */
   nichtVorbeigekommenErstW4: true,
   /** (G16) Band „Liste abschließen“, sobald der eigene Punkt nicht mehr läuft und nicht abgeschlossen ist; unter „Mehr“ immer. */
   abschlussBand: true,
@@ -634,4 +640,270 @@ export const WKR_ANNAHMEN = {
    * „In einem anderen Tab geöffnet“ mit „Hier weitermachen“.
    */
   einTabSendet: true,
+  // --- Feldtest 21.11.2026, nach dem Neuladen und „Bitte Nr. prüfen“ (N11–N13, noch zu bestätigen) ---------------
+  /**
+   * (N11, Befund mit Bild: nach dem Neuladen sofort roter Kasten „Keine Verbindung – weiter erfassen, 0 Zeilen
+   * warten“, „○ getrennt“ und „geschätzt (ohne Verbindung)“, obwohl nur der Aufbau lief) In den ersten
+   * `verbindeKarenzSek` nach dem Öffnen der Erfassung zeigt die Maske neutral „◌ verbinde …“ – kein Rot, keine
+   * geschätzten Starts. Rot erst, wenn die Karenz ohne Verbindung um ist oder eine bestehende Verbindung abreißt
+   * (geraete/erfassen.ts `verbindung`). 12 s: Der Aufbau (WebSocket, Abo mit `since`, Begrüßung) dauert im Mobilnetz
+   * meist 1–5 s; ein Funkloch, das länger dauert, soll der WKR bald sehen. 21.11.2026, noch zu bestätigen.
+   */
+  verbindeKarenzSek: 12,
+  /**
+   * (N12, selber Befund) Die Zahl wartender Zeilen steht nur, wenn sie größer als 0 ist – „0 Zeilen warten“ hieß nichts
+   * und las sich wie ein Fehler. Ohne wartende Zeile sagt das Band nur „Keine Verbindung – weiter erfassen“.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  wartendNurUeberNull: true,
+  /**
+   * (N13, Nutzer: „Da kommt nur eine gelbe Meldung und ein Gesehen-Button. Ich komme aber nicht in diese Startnummer
+   * rein.“) „Bitte Nr. prüfen“ vom Bedienrechner zeigt auf dem Handy „Bediener bittet: Start 601 prüfen“ mit dem
+   * Hauptknopf „601 öffnen“: schon gesendet → Korrektur mit den bisherigen eigenen Werten (`stand(z)`); noch offen in
+   * der Schlange bzw. „danach“ → Eingabe dieses Starts; auf dem Gerät unbekannt → Suche mit 601 vorbelegt (und dem
+   * Satz „nicht in der Folge“). Gesendet geht vor offen, außer die eigene Zeile wurde abgelehnt (dann steht der Start
+   * wieder offen). Das Öffnen meldet den Hinweis zugleich als gesehen – der WKR hat reagiert; „Gesehen“ steht klein
+   * daneben für „schon erledigt“. 21.11.2026, noch zu bestätigen.
+   */
+  pruefenOeffnet: true,
+  // --- W4 Bojen-Maske (docs/plan-wkr-w4.md §10, P1–P15 und P17; 21.11.2026 beim Planen bzw. Bau W4.1, alle noch zu bestätigen) ---
+  /**
+   * (P1) Bojen-Maske an den Feldern erkannt: Ein `buoy`-Feld ist eine Boje der Maske, wenn seine Kennung auf dem
+   * Fahrweg (config/kurzform.ts FAHRWEG) oder dem Parallel-Fahrweg (wkr/bojen.ts PARALLEL_FAHRWEG) liegt; sonst
+   * (Knoten, eigene ausführliche Aufbauten) bleibt die Liste Papier. Listen mit Zeit- oder Punktfeldern bleiben
+   * `spaeter` (W5). Gemischte Listen (Bojen + Einfahrt Tor 5 / MüB, Disq., Bemerkung) bekommen EINE Maske.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  bojenAmFahrweg: true,
+  /**
+   * (P2, F2) Schalter und Zähler: Zähler nur die Torbojen von Tor 5 (je Richtung ein Feld); Start/Ziel, Tore 1–4,
+   * Speedbojen und die Bojen des Parallelslaloms sind Schalter. Unter UIM gleich (Regel 960 Pkt. 5.3 nennt nur
+   * „Touching of a buoy“; die Spalten sind dieselben). 21.11.2026, noch zu bestätigen.
+   */
+  zaehlerNurTor5: true,
+  /**
+   * (P3) Tor 1 auf der Rückfahrt: zwei Zeilen mit je einem Schalter je Boje (Felder `t1b`, `t1c`); die zweite
+   * („2. Durchfahrt“, `durchfahrt: 2`) an ihrem Platz nach Sp. 2 – kein Zähler 0–2, weil der Bogen zwei Spalten hat.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  tor1ZweiZeilen: true,
+  /**
+   * (P4) Punkte je Berührung fest 5 – DM „je Boje und je Fahrtrichtung 5“, „Tor 5 … je Boje und Berührung 5“, UIM
+   * „Touching of a buoy 5“ (Regelwerk `direktpunkte`, wkr/bojen.test.ts vergleicht). Zellwert = Punkte („5“, Zähler
+   * „10“), wie auf dem Papier. 21.11.2026, noch zu bestätigen.
+   */
+  bojenPunkte: 5,
+  /**
+   * (P5) Ein Zähler nimmt höchstens so viele Tipps je Feld an (danach sagt der Knopf es kurz); zurück nur über
+   * „− letzte zurück“. 9 × 5 = 45 Punkte an einer Torboje – mehr ist am Wasser nicht zu sehen, ein Hänger am Knopf
+   * soll keine Zahl erzeugen, die keiner bemerkt. 21.11.2026, noch zu bestätigen.
+   */
+  bojenZaehlerMax: 9,
+  /**
+   * (P6) Fahrtfolge: Zeilen nach FAHRWEG, nicht nach den Spalten des Bogens (frontal135 hat dieselbe Folge wie
+   * gate135, obwohl der Bogen Tor 5 rück vor hin stellt); Katalog-Abschnitte an ihrem Platz – Einfahrt Tor 5
+   * zwischen Tor 5 hin und rück (zählt zum Hinweg), MüB nach Tor 1 R (Rückweg), ein Katalog ohne Platz ans Ende.
+   * Parallelslalom: Folge der Spalten, Boje 5 (Wende) zum Hinweg. 21.11.2026, noch zu bestätigen.
+   */
+  fahrtfolge: true,
+  /**
+   * (P7) Seiten nach Blick: zwei Knopfspalten in der Reihenfolge der Unterspalten auf dem Bogen dieser Liste (die
+   * Kurzform ordnet sie nach `blick`; maßgeblich ist die erste Spalte mit zwei verschiedenen Bojen); Einzelboje in der
+   * Spalte ihrer Seite; Speedboje, Parallel-Bojen 1–5 und Listen ganz ohne zweibojiges Tor volle Breite. Beschriftung
+   * = Kopf der Unterspalte wie auf dem Bogen (Beschriftungsschema wirkt von selbst). 21.11.2026, noch zu bestätigen.
+   */
+  seitenNachBlick: true,
+  /**
+   * (P8) Umschalter Hinweg/Rückweg erst bei MEHR als so vielen Zeilen (Halte + Codes der Katalog-Abschnitte) der
+   * Klasse – gate135 Klasse 4 (7 Zeilen) ohne, Klassen 5–7 mit. Wechselt nie von selbst; neuer Start auf „Hinweg“,
+   * ein Start mit Entwurf auf seiner letzten Seite; Zahl der Einträge je Seite am Reiter (wkr/maske.ts eintraegeAuf).
+   * 21.11.2026, noch zu bestätigen.
+   */
+  bojenZeilenEineSeite: 7,
+  /**
+   * (P9) Disq. auf Bojen-Listen immer ins Disq.-Feld der Liste (jede hat eines); kein „an welcher Boje?“, das Gerät
+   * schreibt nie Buchstaben in Bojenzellen. 21.11.2026, noch zu bestätigen.
+   */
+  disqNieInBoje: true,
+  /**
+   * (P10) Klassenwechsel: Hat der Start andere Halte als der zuvor gezeigte, liegt so lange ein Band „Klasse n –
+   * andere Halte“ über der Mitte, ohne Knöpfe zu verschieben und ohne einen Tipp zu nehmen. 21.11.2026, noch zu
+   * bestätigen.
+   */
+  klassenWechselMs: 2000,
+  /**
+   * (P11) Probe auf Bojen-Listen an der Klasse mit den meisten Zeilen (wkr/maske.ts probeMaske; zeigt Speedrunde und
+   * Umschalter), mit Bojen-Schritten (Schalter, zurück, ggf. Zähler, ggf. Umschalter, Fehlerfrei); Katalog-Teile
+   * gemischter Listen übt sie nicht. 21.11.2026, noch zu bestätigen.
+   */
+  probeMeisteZeilen: true,
+  /**
+   * (P12) Übung mit Bojen-Listen: Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel; unter UIM Parallelslalom
+   * Racecourse A nur als Maske (ohne Paar, ohne Attempt-Wechsel). 21.11.2026, noch zu bestätigen.
+   */
+  uebungBojen: true,
+  /**
+   * (P13) „Fehlerfrei“ auf Bojen-Listen = Zeile mit leeren Feldern wie W3; „Abschicken · n Pkt.“ zählt Bojen und
+   * Codes (wkr/maske.ts punkteVon). 21.11.2026, noch zu bestätigen.
+   */
+  bojenFehlerfrei: true,
+  /**
+   * (P14) Texte in Zuletzt, Korrektur und Prüfansicht: „Tor 1 H L: 5 · Tor 5 H R: 10“ (Kopf wie auf dem Bogen);
+   * Punkte in der Prüfansicht auch bei Bojen. 21.11.2026, noch zu bestätigen.
+   */
+  bojenTexteWieBogen: true,
+  /**
+   * (P15) Sicht: `MaskenFeld.boje` {halt, weg, folge, titel, unter, spalte, zaehler?, durchfahrt?} – nur Bogentexte
+   * und Fahrweg-Angaben, keine Werte; `AndereFeld.boje` {titel, unter}; LISTEN_SICHT_FASSUNG 4. Die Seitenfolge
+   * kommt aus der ganzen Liste, nicht der Klasse (dieselbe Boje steht in jeder Klasse in derselben Spalte).
+   * 21.11.2026, noch zu bestätigen.
+   */
+  bojenInSicht: true,
+  /**
+   * (P17) Startnummer auf Bojen-Listen 80 px statt 96 px (styles/wkr-geraet.css `.wkr-maske--bojen`) – die Zeilen
+   * brauchen den Platz; sonst wie W3. 21.11.2026, noch zu bestätigen.
+   */
+  bojenStartnr80: true,
+  // --- W4.2 beim Bau (Oberfläche Bojen-Maske, 21.11.2026, Q1–Q7, alle noch zu bestätigen) ---
+  /**
+   * (Q1) Probe, erster Schritt: der LINKE Knopf (Spalte 0) der ersten zweibojigen Zeile – gate135 „Tor 1 · H R“. Der
+   * Plan §5.3 nennt die Regel „linker Knopf“, sein Beispiel aber „H L“ (rechts); es gilt die Regel. Nach dem
+   * Zähler-Schritt stehen Berührungen im Entwurf: Der letzte Schritt heißt dann „Abschicken“ statt „Fehlerfrei“.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  probeLinkerKnopf: true,
+  /**
+   * (Q2) Klassenwechsel-Band (P10) liegt unter der Starterkarte über dem Anfang der Mitte (absolut): Die Startnummer
+   * bleibt lesbar, kein Knopf rutscht; Tipps auf seiner Fläche fängt es ab (darunter liegen höchstens „Ausweichen“
+   * bzw. die ersten Knöpfe). Nicht beim ersten Start der Maske, nicht in der Korrektur; nur auf Bojen-Listen.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  klassenWechselUnterKarte: true,
+  /**
+   * (Q3) Zähler am Höchstwert (P5): „höchstens 9×“ steht dauerhaft im Knopf neben „9× = 45“ statt einer kurzen
+   * Meldung – eine kommende und gehende Zeile würde die Knöpfe darunter verschieben (M5). 21.11.2026, noch zu bestätigen.
+   */
+  zaehlerMaxImKnopf: true,
+  /**
+   * (Q4) Seite des Umschalters je Start und Steg-Teil im Gedächtnis der Maske (components/wkr/gedaechtnis.ts `wege`,
+   * je Quelle und Liste, nur Arbeitsspeicher): übersteht Ausweichen und Reiterwechsel, nicht das Neuladen. Eine
+   * Korrektur beginnt wie ein neuer Start auf „Hinweg“. 21.11.2026, noch zu bestätigen.
+   */
+  wegJeStart: true,
+  /**
+   * (Q5) Beschriftung: Eine Boje ohne Unterspalte (Speedboje, Parallel-Bojen 1–5) heißt im Knopf „Berührt“ (der
+   * Titel steht schon links); in Zuletzt/Korrektur/Prüfansicht trägt die 2. Durchfahrt den Vermerk „(2. Durchf.)“
+   * („Tor 1 (2. Durchf.) R L: 5“), und die Texte folgen der Maske (Fahrtfolge, Disq., Bemerkung), nicht den Zellen.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  bojenBeschriftung: true,
+  /**
+   * (Q6) Ohne Umschalter (≤ bojenZeilenEineSeite Zeilen) stehen beide Wege untereinander mit den Kopfzeilen HINWEG
+   * und RÜCKWEG (nur wenn es beide gibt) – der Plan zeigt sie nur am Umschalter. 21.11.2026, noch zu bestätigen.
+   */
+  wegKopfOhneUmschalter: true,
+  /**
+   * (Q7) Übung (P12): Zur Wahl stehen nur Listen des gewählten Regelwerks – der Parallelslalom nur unter UIM
+   * (config/catalog.ts hasParallel); wer mit „Parallelslalom“ gewählt auf DM wechselt, landet bei Tor 5. In der Übung
+   * hat der Parallelslalom normale Übungsstarts (Klasse, Lauf), kein Paar und keinen Attempt-Wechsel. 21.11.2026,
+   * noch zu bestätigen.
+   */
+  uebungListenDesRegelwerks: true,
+  // --- Prüfbefunde W4 (21.11.2026, S1–S6, alle noch zu bestätigen) ---
+  /**
+   * (S1) Prellschutz der Bojen-Schalter: Ein zweiter Tipp auf denselben Schalter innerhalb dieser Zeit wird verworfen
+   * (components/wkr/WkrMaske.vue tippeBojeKnopf, Zeitmarke je Feld). Sonst nähme ein prellender Handschuh-Tipp oder ein
+   * ungeduldiger zweiter Tipp die Berührung still wieder weg, und „Fehlerfrei“ schickte den Start ohne die 5 Punkte.
+   * Wegnehmen bleibt per Tipp möglich (danach, oder über „− letzte zurück“). Zähler (Tor 5) zählen jeden Tipp – die
+   * Zahl zeigt es. 400 ms: länger als ein Prellen, kürzer als ein bewusstes „doch nicht“. 21.11.2026, noch zu bestätigen.
+   */
+  bojenSchalterPrellMs: 400,
+  /**
+   * (S2) „Bitte Nr. prüfen“ (N13) sucht die gesendete Zeile nur im laufenden Punkt (Lauf, Attempt): „Zuletzt“ reicht
+   * über Punkte hinweg, die Nummer kommt in Lauf 1 und 2 vor. Keine Zeile im laufenden Punkt → offen bzw. unbekannt
+   * (Suche vorbelegt; von dort erreicht der WKR auch eine Zeile eines früheren Punkts). 21.11.2026, noch zu bestätigen.
+   */
+  pruefenNurLaufenderPunkt: true,
+  /**
+   * (S3) Das Band „Nr. n ist nicht in der Folge“ nach „n öffnen“ in der Ruhe verschwindet, sobald ein Start gezeigt
+   * wird, beim Abschicken, „Nicht vorbeigekommen“ und Öffnen einer Korrektur – und hat „Gesehen“. 21.11.2026, noch zu
+   * bestätigen.
+   */
+  unbekanntBandKurz: true,
+  /**
+   * (S4) Tor-5-Zähler bei 360 px: Ohne Berührung steht „0×“ statt „Berührungen“ (das Wort passte nicht in den halben
+   * Knopf); am Höchstwert steht „höchstens 9×“ als eigene Zeile unter „9× = 45“, der Stand bricht an Leerzeichen um,
+   * die Zahl nie (N3: nichts abgeschnitten, nichts über den Knopfrand). 21.11.2026, noch zu bestätigen.
+   */
+  zaehlerStandZweiZeilen: true,
+  /**
+   * (S5) „Bediener bittet: Start n prüfen“ kommt ohne Tipp: Es liegt wie „Keine Bestätigung“ ÜBER Kopf und Karte
+   * (`.wkr-kopf-ueber`), statt den Kopf zu verlängern – sonst rutschten alle Bojen- und Code-Knöpfe um gut 100 px,
+   * und ein Tipp in dem Moment träfe eine andere Boje (M5). Es deckt solange die Starterkarte; „n öffnen“ bzw.
+   * „Gesehen“ nehmen es weg. Vorrang: getrennt (rot) bleibt im Fluss, der Hinweis liegt über „Keine Bestätigung“.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  hinweisUeberKopf: true,
+  // --- W4.3 „Nicht vorbeigekommen“ (Plan docs/plan-wkr-w4.md §6, 21.11.2026, P16 und R1–R8 beim Bau, alle noch zu bestätigen) ---
+  /**
+   * (P16, löst G15 ein) „Nicht vorbeigekommen“ unter „Mehr“ mit großer Rückfrage: Zeile ohne Zellen mit `n`
+   * (GeraeteZeile.n, nur mit leerem `c`, sonst `wert-ungueltig`), setzt den Haken (Schlange und Rückstand gehen weiter
+   * – das Boot kommt ja nicht) und das Kennzeichen WkrStand.nichtVorbei; kein X, keine Wertung. Matrix „⊘“ gelb mit
+   * Wort, Erfassung „Papier ansehen“, LISTEN_SICHT_FASSUNG 5. 21.11.2026, noch zu bestätigen.
+   */
+  nichtVorbei: true,
+  /**
+   * (P16, R1) Nicht dort, wo X erlaubt ist (`xListen`/`xTeil`, F5): Vorsteg und Steg-Ablegen – dort kommt jedes Boot
+   * vorbei oder startet nicht. Abgelehnt mit eigenem Code `nv-nicht-erlaubt` (nicht `teil-fremd`, damit das Gerät
+   * sagen kann, warum). Ein Gerät für den ganzen Steg schickt es nur für den Teil Anlegen; die Maske bietet es dort
+   * nur im Reiter „Anlegen“ an. 21.11.2026, noch zu bestätigen.
+   */
+  nichtVorbeiNichtBeiX: true,
+  /**
+   * (R2) Kennzeichen am Bedienrechner nur, wo die Zeile gilt: direkt übernommen, oder als Vorschlag (Punkt
+   * abgeschlossen, Papier) bzw. Rückfrage (Start nicht gezeigt) erst mit „Übernehmen“ bzw. „Gerät übernehmen“. Vorschlag
+   * und Rückfrage tragen es mit (WkrVorschlag/WkrRueckfrage `nichtVorbei`, `teil`), der Eingang zeigt „⊘ nicht
+   * vorbeigekommen“. Geändert mit dem Prüfbefund 21.11.2026 (vorher fiel es dort still weg, die Matrix zeigte ✓).
+   * 21.11.2026, noch zu bestätigen.
+   */
+  nichtVorbeiNurDirekt: true,
+  /**
+   * (R3) Aufgehoben wird das Kennzeichen von jeder späteren Zeile desselben Starts (und Teils) OHNE `n` – auch einer
+   * leeren „fehlerfrei“-Korrektur („doch vorbei“) –, aber wie beim Setzen (R2) erst, wenn sie gilt: direkt übernommen
+   * bzw. Vorschlag übernommen / Rückfrage für das Gerät entschieden; ein verworfener Vorschlag lässt ⊘ stehen
+   * (Prüfbefund 21.11.2026). Ebenso von eigenen Werten der Liste in der Zelle (Abtippen am Bedienrechner; am Steg Werte
+   * des Anlegens). Der Haken bleibt. 21.11.2026, noch zu bestätigen.
+   */
+  nichtVorbeiAufheben: true,
+  /**
+   * (R4) Zellstand `nv` in der Matrix (wkr/lage.ts): Vorrang nach Rückfrage und Vorschlag, vor dem Haken; zählt nicht
+   * als Rückstand (der Haken ist ja gesetzt); am Steg: Anlegen `nv` und Ablegen erfasst → ganze Zelle `nv`. Die
+   * Erfassung markiert die Zeile „Papier ansehen“ (am Steg die Zellen des Anlegens) – ob der Bogen etwas sagt. Die
+   * Start-Freigabe warnt nicht. 21.11.2026, noch zu bestätigen.
+   */
+  nichtVorbeiZelle: true,
+  /**
+   * (R5) Abschluss: Der Bedienrechner nennt je Abschluss die Startnummern mit Kennzeichen in diesem Punkt (und Teil)
+   * („1 nicht vorbeigekommen: 27“); die Prüfansicht des Geräts zählt sie aus dem eigenen Ausgang. Der Abschluss selbst
+   * speichert sie nicht (das Kennzeichen kann später fallen). 21.11.2026, noch zu bestätigen.
+   */
+  nichtVorbeiImAbschluss: true,
+  /**
+   * (R6) Gerät: „Nicht vorbeigekommen“ unter „Mehr“ nur, wenn ein Start gezeigt wird, nicht in der Korrektur, nicht in
+   * der Probe; es verwirft einen Entwurf dieses Starts (die Rückfrage sagt „Es wird nichts eingetragen.“). Eine
+   * Korrektur einer ⊘-Zeile beginnt leer; „Abschicken“ (auch leer = fehlerfrei) hebt es auf. 21.11.2026, noch zu
+   * bestätigen.
+   */
+  nichtVorbeiMehr: true,
+  /**
+   * (R7) Verlauf: WKR_ZEILEN, deren Zeilen alle „nicht vorbeigekommen“ sind, heißen `wkrNichtVorbei` (Liste + Gerät);
+   * gemischte Bündel bleiben `eingabeGeraet`. 21.11.2026, noch zu bestätigen.
+   */
+  nichtVorbeiVerlauf: true,
+  /**
+   * (R8) Übung (geraete/uebung.ts): „Nicht vorbeigekommen“ geht wie echt (Zuletzt ⊘, Prüfansicht), erledigt den Start;
+   * die Ablehnung am Vorsteg/Ablegen prüft die Übung nicht nach – die Maske bietet es dort gar nicht an. 21.11.2026,
+   * noch zu bestätigen.
+   */
+  nichtVorbeiUebung: true,
 } as const

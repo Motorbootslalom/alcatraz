@@ -38,6 +38,24 @@ describe('Übungs-Sicht', () => {
   })
 })
 
+describe('Übung mit Bojen-Listen (W4.1, P12)', () => {
+  it('Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel (DM) und Parallelslalom (UIM): Bojen-Masken, ohne Namen und Boot', () => {
+    for (const [regelwerk, typeId] of [['dm-2026', 'gate135'], ['dm-2026', 'gate245'], ['dm-2026', 'parcoursms'], ['uim-2026', 'gate135'], ['uim-2026', 'parallelparcours']] as const) {
+      const sicht = uebungsSicht(uebungsStand(regelwerk, typeId))
+      expect(sicht.lv, typeId).toBe(LISTEN_SICHT_FASSUNG)
+      for (const s of [...sicht.schlange, ...sicht.danach]) {
+        const m = maskeFuer(sicht, s.klasse)!
+        expect(m.art, `${regelwerk}/${typeId}/${s.klasse}`).toBe('bojen')
+        expect(m.abschnitte.length).toBeGreaterThan(0)
+      }
+      const text = JSON.stringify(sicht)
+      const namen = [...VORNAMEN_M, ...VORNAMEN_W, ...NACHNAMEN].filter((n) => n.length > 3)
+      for (const n of namen) expect(text, n).not.toContain(`"${n}`)
+      expect(text).not.toContain('"boot"')
+    }
+  })
+})
+
 describe('Übungs-Schritt', () => {
   it('erledigter Start fällt weg, der nächste rückt nach; Takt zeigt weitere, höchstens die Schlange', () => {
     let st = uebungsStand('dm-2026', 'tor5')

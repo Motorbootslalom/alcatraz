@@ -241,7 +241,7 @@ describe('Zeitgrenzen (E8)', () => {
     const f2 = b.fenster()
     const s2 = fensterStore(f2, s.state.value)
     hostIn(f2, s2)
-    await bis(() => g.quittung.value?.nr === nr, 5000)
+    await bis(() => g.quittung.value?.nr === nr)
     expect(g.quittung.value!.ergebnis).toBe('angewandt')
     expect(g.offen.value).toEqual([])
     expect(betrieb(s2.state.value, P).begonnen).toEqual(['runde:pre'])
@@ -258,24 +258,24 @@ describe('Zeitgrenzen (E8)', () => {
     h.stop()
     const vorher = ntfy.gespeichert.filter((x) => x.topic === g1).length
     const nr = g.sende(beginnen(P, 'runde:pre'))!
-    const start = Date.now()
-    const zeiten: number[] = []
+    const start = Math.floor(Date.now() / 1000)
     // 13 Minuten Uhrzeit in Sekundenschritten.
-    for (let sek = 0; sek < 13 * 60; sek += 1) {
-      await vi.advanceTimersByTimeAsync(1000)
-      const jetzt = ntfy.gespeichert.filter((x) => x.topic === g1).length
-      while (zeiten.length < jetzt - vorher) zeiten.push(Math.round((Date.now() - start) / 1000))
-    }
+    for (let sek = 0; sek < 13 * 60; sek += 1) await vi.advanceTimersByTimeAsync(1000)
     expect(g.offen.value).toEqual([nr])
+    // Gemessen wird der Zeitstempel, den der nachgebaute ntfy beim Eingang setzt (falsche Uhr im Moment des Sendens),
+    // nicht der Moment, in dem die Schleife ihn bemerkt: `shouldAdvanceTime` (für die asynchronen Teile nötig) gibt
+    // unter Last echte Zeit dazu, die vorher in die Abstände einlief – CI rot bei ad745a9 (16 > 14,5) und 6a7753e
+    // (erste Sendung bei 3 s), 21.11.2026.
+    const zeiten = ntfy.gespeichert.filter((x) => x.topic === g1).slice(vorher).map((x) => x.time - start)
     const abstaende = zeiten.slice(1).map((t, i) => t - zeiten[i])
-    // Erste Sendung sofort, dann 10, 20, 40, 80, 160, 300 s (2 s für die Sekundenschritte). Nie früher; später nur
-    // um die echte Zeit, die `shouldAdvanceTime` unter Last dazugibt (volle Suite: 160 → 171 s gesehen, 21.11.2026).
-    expect(zeiten[0]).toBeLessThanOrEqual(2)
+    // Erste Sendung sofort, dann 10, 20, 40, 80, 160, 300 s. Nie früher (1 s für das Abrunden auf Sekunden); später
+    // nur um einen Sekundenschritt und die Echtzeit darin.
+    expect(zeiten[0]).toBeLessThanOrEqual(3)
     const soll = [10, 20, 40, 80, 160, 300]
-    const spiel = (s: number) => s * 0.25 + 2
+    const spiel = (s: number) => s * 0.1 + 3
     expect(abstaende.length).toBeGreaterThanOrEqual(soll.length)
     soll.forEach((s, i) => {
-      expect(abstaende[i]).toBeGreaterThanOrEqual(s - 2)
+      expect(abstaende[i]).toBeGreaterThanOrEqual(s - 1)
       expect(abstaende[i]).toBeLessThanOrEqual(s + spiel(s))
     })
     for (const a of abstaende) expect(a).toBeLessThanOrEqual(300 + spiel(300))
@@ -301,8 +301,8 @@ describe('Zeitgrenzen (E8)', () => {
       if (warte) await ruhe(warte)
       hosts.splice(hosts.indexOf(h), 1)
       h.stop()
-      await bis(() => h2.fuehrt.value, 5000)
-      await bis(() => g.quittung.value?.nr === nr, 8000)
+      await bis(() => h2.fuehrt.value)
+      await bis(() => g.quittung.value?.nr === nr)
       expect(['angewandt', 'unveraendert', 'doppelt']).toContain(g.quittung.value!.ergebnis)
       await bis(() => gezeigt(s2.state.value) >= 1)
       // Genau ein Start gezeigt – in beiden Fenstern und im gemeinsamen Speicher.
@@ -338,8 +338,8 @@ describe('Zeitgrenzen (E8)', () => {
     await ruhe(50)
     const zeigen = naechster(g, P)
     const nr = g.sende(zeigen)!
-    await bis(() => h2.fuehrt.value, 5000)
-    await bis(() => g.quittung.value?.nr === nr, 8000)
+    await bis(() => h2.fuehrt.value)
+    await bis(() => g.quittung.value?.nr === nr)
     // Gewirkt hat es einmal; die zweite Anwendung ändert nichts (bedingt über `vorher`, K30). Das Handy hört deshalb
     // „unverändert“, obwohl SEINE Action gewirkt hat (selten: Führung weg genau zwischen Anwenden und Quittung). Der Satz
     // dazu nennt deshalb seit E8 (20.11.2026) auch „schon geschehen“ und bittet, die Anzeige zu prüfen.
@@ -428,7 +428,7 @@ describe('Zeitgrenzen (E8)', () => {
     const zurueck = r2.geraet
     geraete.push(zurueck)
     await zurueck.start()
-    await bis(() => zurueck.anzeige.value?.bereiche.find((x) => x.id === 'par_1')?.meldung?.text === 'Gleich geht es weiter', 5000)
+    await bis(() => zurueck.anzeige.value?.bereiche.find((x) => x.id === 'par_1')?.meldung?.text === 'Gleich geht es weiter')
     expect(zurueck.anzeige.value!.bereiche.find((x) => x.id === 'par_1')!.punkt?.id).toBe('lauf:1')
     // Nur, was in die letzten 2 s fiel, wurde abgefragt.
     expect(ntfy.abrufe.filter((u) => u.includes('since=2s')).length).toBeGreaterThanOrEqual(1)

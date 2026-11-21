@@ -214,6 +214,11 @@
   z-index: 2;
 }
 
+/* „Bitte Nr. prüfen“ (S5, Prüfbefund 21.11.2026): über „Keine Bestätigung“, falls beide zugleich anstehen. */
+.wkr-kopf-hinweis {
+  z-index: 3;
+}
+
 .wkr-invers {
   padding: 0 6px;
   background: var(--wkr-text);
@@ -557,6 +562,128 @@
 .wkr-zuletzt-nr {
   font-size: 26px;
   font-weight: 800;
+}
+
+/*
+ * --- Bojen-Maske (W4.2, Plan docs/plan-wkr-w4.md §5, 21.11.2026) ---
+ * Je Halt eine Zeile: Titel links schmal, die Knöpfe teilen den Rest in zwei Spalten (P7 – wie die Unterspalten auf
+ * dem Bogen); eine Boje ohne Seite (Speedboje, Parallel-Bojen 1–5) volle Breite (gridColumn am Knopf). Passt der
+ * Titel nicht daneben (schmales Handy, große Schrift), steht er darüber – nichts wird abgeschnitten (N3).
+ */
+.wkr-bojen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-bojen-weg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-bojen-weg-knopf {
+  font-weight: 800;
+}
+
+.wkr-bojen-kopf {
+  margin: 4px 0 0;
+  font-size: var(--wkr-schrift);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.wkr-bojen-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--wkr-abstand);
+  padding-top: 4px;
+  border-top: 1px solid var(--wkr-rand-farbe);
+}
+
+.wkr-bojen-durchfahrt {
+  flex-basis: 100%;
+  margin: 0;
+  font-weight: 700;
+}
+
+.wkr-bojen-titel {
+  flex: 0 0 4.2em;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--wkr-schrift);
+  font-weight: 800;
+}
+
+.wkr-bojen-knoepfe {
+  display: grid;
+  flex: 1 1 10em;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--wkr-abstand);
+  min-width: 0;
+}
+
+.wkr-bojen-knopf {
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  padding: 4px 8px;
+}
+
+.wkr-bojen-unter {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+/*
+ * Stand im halben Knopf (bei 360 px rund 96 px Inhalt, Prüfbefund 21.11.2026): darf an Leerzeichen umbrechen, die Zahl
+ * „9× = 45“ selbst nie; „höchstens 9×“ steht als eigene Zeile darunter. Kleinere Schrift als die Beschriftung, damit
+ * auch das Englische („at most 9×“) in zwei Zeilen passt; notfalls bricht ein langes Wort, statt über den Rand zu ragen.
+ */
+.wkr-bojen-stand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  font-size: clamp(14px, 4.5vw, 18px);
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wkr-bojen-zahl {
+  white-space: nowrap;
+}
+
+.wkr-bojen-max {
+  font-weight: 700;
+}
+
+/* Gesetzt (Schalter über aria-pressed, Zähler über die Klasse): schwarz hinterlegt wie der Hauptknopf, dazu „✔ 5“. */
+.wkr-knopf.wkr-bojen-knopf--gesetzt {
+  background: var(--wkr-haupt);
+  color: var(--wkr-haupt-text);
+}
+
+/* P17: Auf Bojen-Listen braucht die Mitte den Platz – Nummer 80 px (wie bei niedrigen Handys). */
+.wkr-maske--bojen {
+  --wkr-startnr: 80px;
+}
+
+/* P10: Klassenwechsel-Band liegt unter der Karte über dem Anfang der Mitte – absolut, verschiebt also nichts. */
+.wkr-karten-platz {
+  position: relative;
+}
+
+.wkr-klassen-wechsel {
+  position: absolute;
+  inset: 100% 0 auto;
+  z-index: 3;
+  margin-top: 4px;
+  font-size: 24px;
+  pointer-events: auto;
 }
 
 /* --- Steg-Reiter, Listen-Reiter --- */

@@ -20,11 +20,11 @@ import { lage } from '../betrieb/folge'
 import { sichtOeffentlich } from '../betrieb/sicht'
 import { werteVon } from '../lib/eingaben'
 import { listenKennung } from '../wkr/liste'
-import { disqFuer, entwurfAus, leererEntwurf, maskeFuer, mitBemerkung, tippe, tippeDisq, zellenAus } from '../wkr/maske'
+import { bojenVon, disqFuer, entwurfAus, leererEntwurf, maskeFuer, mitBemerkung, tippe, tippeBoje, tippeDisq, zellenAus } from '../wkr/maske'
 import { erfassungsLage } from '../wkr/lage'
 import { geraetAngaben } from './register'
 import { configFor } from '../config/konfig'
-import { uimParallelStand, wkrBetriebsStand, betriebStarter } from '../testHilfen'
+import { uimParallelStand, wkrBetriebsStand, betriebStarter, betriebsStand, festgeschrieben } from '../testHilfen'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import GeraeteKoppeln from '../components/betrieb/GeraeteKoppeln.vue'
@@ -286,7 +286,7 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
     h1.stop()
     const z = e.schicke(TOR, { s: key, zellen: { [FELD]: '5' } })!
     await bis(() => h2.fuehrt.value)
-    await bis(() => e.stufen.value[z].stufe === 'uebernommen', 5000)
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
     expect(werte(s2.state.value, starter)[FELD]).toBe('5')
     expect([...s1.angewandt, ...s2.angewandt].filter((a) => a.type === 'WKR_ZEILEN')).toHaveLength(1)
   })
@@ -708,7 +708,7 @@ describe('W2.4: Freigabe-Handy und Freigabe-Gruppe', () => {
     const { g } = await neuGeladen(frei.speicher)
     s2.dispatch({ type: 'WKR_LISTE', liste: TOR, modus: 'digital' })
     zeige(s2)
-    await bis(() => g.freigabe.value[P1]?.listen.some((l) => l.titel === TITEL && l.offen === 1), 5000)
+    await bis(() => g.freigabe.value[P1]?.listen.some((l) => l.titel === TITEL && l.offen === 1))
   }, 15_000)
 
   it('Rechte: Bereich weg → neuer Schlüssel der Freigabe-Gruppe, das Gerät liest sie nicht mehr', () => {
@@ -811,14 +811,14 @@ describe('W3.1: Gerätekern für die Maske (Schlange je Teil, Entwürfe, Zurück
     const za = e.schicke(STEG, { s: erster.key, teil: 'ab', zellen: { 'disq@steg': 'X' } })!
     await bis(() => e.stufen.value[za].stufe === 'uebernommen')
     const ab = e.pruefung(STEG, 'lauf:1', 'ab')
-    expect(ab.zeilen).toEqual([{ s: erster.key, sn: sn(erster.starter), klasse: expect.any(String), zellen: { 'disq@steg': 'X' }, stufe: { stufe: 'uebernommen' }, x: true }])
+    expect(ab.zeilen).toEqual([{ s: erster.key, sn: sn(erster.starter), klasse: expect.any(String), zellen: { 'disq@steg': 'X' }, stufe: { stufe: 'uebernommen' }, x: true, nv: false }])
     expect(ab.x).toEqual([sn(erster.starter)])
     expect(ab.offen.map((x) => x.key)).toContain(zweiter.key)
     expect(ab.offen.map((x) => x.key)).not.toContain(erster.key)
     // Anlegen: noch keine eigene Zeile.
     expect(e.pruefung(STEG, 'lauf:1', 'an').zeilen).toEqual([])
     // Anderer Punkt: nichts offen, keine Zeilen.
-    expect(e.pruefung(STEG, 'lauf:2')).toEqual({ zeilen: [], offen: [], x: [] })
+    expect(e.pruefung(STEG, 'lauf:2')).toEqual({ zeilen: [], offen: [], x: [], nichtVorbei: [] })
     // Kein Name in der Prüfansicht.
     expect(JSON.stringify(ab)).not.toMatch(/Vor\d|Nach\d|Musterclub/)
   })
@@ -961,5 +961,65 @@ describe('Befund 15 des Handy-Tests (21.11.2026): „Mann-über-Bord 3 offen“,
     }
     expect(muebLage().rueckstand).toBeNull()
     expect(s.state.value.wkr.rueckfragen).toEqual([])
+  })
+})
+
+describe('W4.2: Bojen-Maske Ende zu Ende (21.11.2026, Plan docs/plan-wkr-w4.md §8.2)', () => {
+  /** Die Maske des Starts (Klasse aus der Sicht), wie WkrMaske sie baut. */
+  function aufbauFuer(e: Erfassung, liste: string, key: string) {
+    const sicht = e.sichten.value[liste]!
+    const klasse = [...sicht.schlange, ...sicht.danach].find((x) => x.key === key)!.klasse
+    return maskeFuer(sicht, klasse)!
+  }
+
+  it('gate135: jede Boje einmal (Tor 5 zweimal) und Disq. in EINER Zeile → genau diese Zellen am Bedienrechner', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const { key, starter } = await mitStart(s, e, TOR)
+    const a = aufbauFuer(e, TOR, key)
+    expect(a.art).toBe('bojen')
+    let entwurf = leererEntwurf()
+    for (const b of bojenVon(a)) {
+      entwurf = tippeBoje(entwurf, b)
+      if (b.zaehler) entwurf = tippeBoje(entwurf, b)
+    }
+    const code = disqFuer(a).find((c) => c.code !== 'X')!.code
+    entwurf = tippeDisq(entwurf, code)
+    const zellen = zellenAus(entwurf, a)
+    const z = e.schicke(TOR, { s: key, zellen })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    const w = werte(s.state.value, starter)
+    for (const b of bojenVon(a)) expect(w[b.feld], b.feld).toBe(b.zaehler ? '10' : '5')
+    expect(w[a.disq!.feld]).toBe(code)
+    expect(w['erfasst@gate135']).toBeTruthy()
+    // Keine Rückfrage, kein Vorschlag: Jeder Wert ging unverändert durch wertGilt.
+    expect(s.state.value.wkr.rueckfragen).toEqual([])
+    expect(entwurfAus(e.stand(z)!, a).bojen).toEqual(entwurf.bojen)
+  })
+
+  it('moewe135: Bojen UND Einfahrt Tor 5 (Katalog) in einer Zeile', async () => {
+    const start = () => {
+      let st = festgeschrieben(reducer(betriebsStand(), { type: 'SET_AUFBAU', aufbau: 'moewe' }))
+      for (const bereich of ['par_1', 'par_2']) st = reducer(st, { type: 'BETRIEB_BEGINNEN', bereich, punkt: 'lauf:1', zeit: 500 })
+      return st
+    }
+    const MOEWE = listenKennung({ bereich: P1, typeId: 'moewe135', racecourse: null })
+    const { s, h } = await bedienrechner(start)
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: MOEWE }])
+    const { key, starter } = await mitStart(s, e, MOEWE)
+    const a = aufbauFuer(e, MOEWE, key)
+    expect(a.art).toBe('bojen')
+    const einfahrt = a.abschnitte.find((x) => x.art === 'katalog')
+    if (!einfahrt || einfahrt.art !== 'katalog') throw new Error('kein Einfahrt-Katalog')
+    const tor1 = bojenVon(a).find((b) => b.feld.startsWith('t1a|'))!
+    const tor5 = bojenVon(a).find((b) => b.zaehler)!
+    let entwurf = tippeBoje(tippeBoje(tippeBoje(leererEntwurf(), tor1), tor5), tor5)
+    entwurf = tippe(entwurf, einfahrt.teil.feld, einfahrt.teil.codes[0].code)
+    const z = e.schicke(MOEWE, { s: key, zellen: zellenAus(entwurf, a) })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    const w = werte(s.state.value, starter)
+    expect([w[tor1.feld], w[tor5.feld], w[einfahrt.teil.feld]]).toEqual(['5', '10', einfahrt.teil.codes[0].code])
+    expect(w['erfasst@moewe135']).toBeTruthy()
+    expect(zeilenNachrichten(s).filter((x) => x.liste === MOEWE)).toHaveLength(1)
   })
 })

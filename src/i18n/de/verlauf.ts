@@ -147,6 +147,7 @@ export default {
   'history.what.wkrListe': 'Erfassung der Liste {list} umgestellt',
   'history.what.wkrAbschluss': 'Abschluss der Liste {list} geändert',
   'history.what.wkrPapierAb': 'Liste {list} ab einem Start auf Papier gestellt',
+  'history.what.wkrNichtVorbei': '„Nicht vorbeigekommen“ vom Gerät „{device}“ ({list})',
 
   'backup.reset': 'Alles zurücksetzen',
   'backup.resetConfirm':

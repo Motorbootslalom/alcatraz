@@ -1,6 +1,6 @@
 # Plan W2 „Bedienrechner“ der digitalen WKR-Erfassung
 
-Stand 21.11.2026 (Scheiben 1–4 gebaut: „Lage und Stand“, „Matrix und Eingang“, „Erfassung“, „Start-Freigabe und Freigabe-Handy“; Prüfbefunde dazu behoben, §10; Auslegungen §9 und §10 noch zu bestätigen) · Grundlage:
+Stand 21.11.2026 (Scheiben 1–4 gebaut: „Lage und Stand“, „Matrix und Eingang“, „Erfassung“, „Start-Freigabe und Freigabe-Handy“; Prüfbefunde dazu behoben, §10; Auslegungen §9 und §10 vom Nutzer bestätigt 21.11.2026) · Grundlage:
 [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §5 (Herkunft ◆), §6 (Matrix, Geräteleiste, Warnung), §7
 (Sonderfälle), §8 (Papier und Vorrang), §11 W2, §12 (F1, F4, F5, F10, F12, F17) und der gebaute Kern W1
 ([plan-wkr-w1.md](plan-wkr-w1.md); Code `src/wkr/`, `state/reducer/wkr.ts`, `types/wkr.ts`, `geraete/host.ts`,
@@ -261,7 +261,11 @@ Nach jeder Scheibe `npx vue-tsc -b`, gezielte Tests, `npx vitest run src/i18n`; 
 - **Freigabe-Gruppe für schon gekoppelte Handys**: Ohne den Schlüssel bleibt die Leiste dort leer (kein Fehler);
   Test „Bestandsgerät bekommt den Schlüssel“.
 
-## 9. Auslegungen W2 (21.11.2026, noch zu bestätigen) – mit Hintergrund
+## 9. Auslegungen W2 (21.11.2026, bestätigt 21.11.2026) – mit Hintergrund
+
+Der Nutzer hat alle Auslegungen W2 (Fragen W2-01…W2-30: A1–A13, B1–B6, C1–C4, D1–D5, E1–E4) am 21.11.2026 mit
+„passt“ bestätigt. A4 gilt in der nach dem Feldtest geänderten Fassung (Warnung AB R, Vorgabe R = 1, „nachfragen“;
+WKR_ANNAHMEN N8).
 
 Alle kommen datiert in `WKR_ANNAHMEN` (`src/wkr/annahmen.ts`), Zahlen dort umstellbar.
 
@@ -304,7 +308,7 @@ Alle kommen datiert in `WKR_ANNAHMEN` (`src/wkr/annahmen.ts`), Zahlen dort umste
   angekündigt; sinnvoll ist sie erst mit echten Zahlen vom Wasser, die Gesamtzählung (E8) warnt weiterhin.
 - **A13 Gerätezustand: ● unter 90 s, ◐ bis 5 min, ✕ darüber**, wie im Vorschlag §6.1; Akku nur, wo das Gerät ihn meldet.
 
-Beim Bau von Scheibe 4 dazu (21.11.2026, noch zu bestätigen, `WKR_ANNAHMEN` D1–D5):
+Beim Bau von Scheibe 4 dazu (21.11.2026, bestätigt 21.11.2026, `WKR_ANNAHMEN` D1–D5):
 
 - **D1 Leiste mit allen Listen des Bereichs**, sobald eine einen Eintrag hat (ohne Eintrag ▭); rot bei ✕ oder „!“.
   *Hintergrund:* Am Steg soll man auf einen Blick sehen, welche Listen vom Bogen kommen – sonst fragt jemand „wo ist
@@ -318,7 +322,7 @@ Beim Bau von Scheibe 4 dazu (21.11.2026, noch zu bestätigen, `WKR_ANNAHMEN` D1�
 - **D5 Nachfrage vor jedem Zeigen, nicht bei „Lauf beginnen“, „Zurück“, Zurückstellen**. *Hintergrund:* Nur das
   Zeigen holt den nächsten Starter aufs Wasser; die anderen Griffe ändern nichts an der Last der WKR.
 
-## 10. Prüfbefunde W2 (21.11.2026) – behoben, Auslegungen E1–E4 noch zu bestätigen
+## 10. Prüfbefunde W2 (21.11.2026) – behoben, Auslegungen E1–E4 bestätigt 21.11.2026
 
 Zwei Prüfer fanden 14 Befunde (zwei davon doppelt), 13 behoben, keiner verworfen; `WKR_ANNAHMEN` E1–E4.
 

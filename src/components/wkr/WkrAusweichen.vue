@@ -40,7 +40,12 @@ function zu(): void {
   eingabe.value = ''
   emit('schliesse')
 }
-defineExpose({ zu })
+/** N13 (Feldtest 21.11.2026): „Bitte Nr. prüfen“ für eine Nummer, die das Gerät nicht kennt – Feld offen und vorbelegt. */
+function oeffne(nr: string): void {
+  offen.value = true
+  eingabe.value = nr.slice(0, 5)
+}
+defineExpose({ zu, oeffne })
 </script>
 
 <template>

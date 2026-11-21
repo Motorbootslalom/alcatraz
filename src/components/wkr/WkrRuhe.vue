@@ -12,7 +12,7 @@ import { useWkrText } from './texte'
  * - `papier`: Der Bedienrechner hat die Liste auf Papier gestellt – nichts zu tippen;
  * - `abgeschlossen`: Punkt abgeschlossen, Korrekturen nur noch als Vorschlag;
  * - `entfaellt`: Die Klasse hat diese Liste nicht (grau, mit Wort);
- * - `spaeter`: Liste mit Bojen/Zeit/Knoten – Maske folgt (W4/W5), bitte Papier, „Pausieren“ angeboten (G14);
+ * - `spaeter`: Liste mit Zeit/Knoten (Bojen seit W4.2 mit Maske) – Maske folgt (W5), bitte Papier, „Pausieren“ angeboten (G14);
  * - `entzogen`: Rechte weg; Entwürfe nur lesend zum Übertragen aufs Papier.
  */
 defineProps<{

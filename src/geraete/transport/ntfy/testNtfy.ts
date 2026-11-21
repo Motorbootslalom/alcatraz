@@ -170,7 +170,10 @@ export async function nachgebautesFetch(input: string | URL, init?: { method?: s
   return antwort(404, '')
 }
 
-export async function bis(bedingung: () => boolean, ms = 3000): Promise<void> {
+// 10 s statt 3 s (21.11.2026): In der vollen Suite (viele Dateien gleichzeitig, CI mit zwei Kernen) lief z. B.
+// kopplung.test.ts „das Steg-Handy schaltet nur seine Bereiche“ gelegentlich in die Grenze. Ein grüner Test wartet
+// nicht länger – die Grenze greift nur, wenn etwas wirklich hängt.
+export async function bis(bedingung: () => boolean, ms = 10_000): Promise<void> {
   const start = Date.now()
   while (!bedingung()) {
     if (Date.now() - start > ms) throw new Error('Zeit abgelaufen')

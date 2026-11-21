@@ -149,6 +149,7 @@ export default {
   'history.what.wkrListe': 'Entry mode of list {list} changed',
   'history.what.wkrAbschluss': 'Sign-off of list {list} changed',
   'history.what.wkrPapierAb': 'List {list} switched to paper from a start on',
+  'history.what.wkrNichtVorbei': '“Did not pass” from device “{device}” ({list})',
 
   'backup.reset': 'Reset everything',
   'backup.resetConfirm':

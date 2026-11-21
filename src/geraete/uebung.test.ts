@@ -125,3 +125,23 @@ describe('Übungs-Kern', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 })
+
+describe('Übung: „Nicht vorbeigekommen“ (W4.3, R8)', () => {
+  it('Zeile ohne Zellen erledigt den Start; Zuletzt ⊘, Prüfansicht zählt; Korrektur hebt es auf; nie Netz', () => {
+    const { q, liste } = uebe({ regelwerk: 'dm-2026', typeId: 'gate135' })
+    const kopf = q.schlange.value[liste][0]
+    const punkt = q.sichten.value[liste]!.punkt!.id
+    const z = q.schicke(liste, { s: kopf.key, zellen: { 't1a|hin seiteA': '5' }, nv: true })!
+    expect(q.schlange.value[liste].map((s) => s.key)).not.toContain(kopf.key)
+    expect(q.zuletzt.value[0]).toMatchObject({ z, nv: true, zellen: {} })
+    vi.advanceTimersByTime(WKR_ANNAHMEN.uebungQuittungMs)
+    let p = q.pruefung(liste, punkt)
+    expect(p.nichtVorbei).toEqual([kopf.startNr])
+    expect(p.zeilen[0]).toMatchObject({ nv: true, zellen: {} })
+    q.korrigiere(z, {})
+    p = q.pruefung(liste, punkt)
+    expect(p.nichtVorbei).toEqual([])
+    expect(netz.fetch).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(0)
+  })
+})

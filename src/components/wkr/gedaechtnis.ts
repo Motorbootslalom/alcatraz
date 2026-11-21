@@ -1,5 +1,6 @@
 import { toRaw } from 'vue'
 import type { ErfassungsQuelle } from '../../geraete/erfassen'
+import type { Weg } from '../../wkr/bojen'
 
 /**
  * Was die Maske einer Liste über ihr eigenes Leben hinaus behält (Prüfbefund W3, 21.11.2026): Ein Wechsel des Reiters
@@ -12,6 +13,12 @@ export interface MaskenGedaechtnis {
   erledigt: ReadonlySet<number>
   /** Verwaiste Entwürfe (`${s}|${teil}`), zu denen „behalten“ schon gewählt ist. */
   gefragt: ReadonlySet<string>
+  /**
+   * Bojen-Maske (W4.2, 21.11.2026, P8): die Seite des Umschalters je Start (`${s}|${teil}`), auf der der WKR ihn
+   * verlassen hat – ein Start, zu dem er über Ausweichen zurückkehrt (zwei Boote im Parcours), steht wieder dort.
+   * Ein Start ohne Eintrag beginnt auf „Hinweg“. Nur Arbeitsspeicher, nie abgelegt.
+   */
+  wege: ReadonlyMap<string, Weg>
 }
 
 const ablage = new WeakMap<ErfassungsQuelle, Map<string, MaskenGedaechtnis>>()
@@ -23,7 +30,7 @@ export function gedaechtnis(quelle: ErfassungsQuelle, liste: string): MaskenGeda
   let jeListe = ablage.get(roh)
   if (!jeListe) ablage.set(roh, (jeListe = new Map()))
   let g = jeListe.get(liste)
-  if (!g) jeListe.set(liste, (g = { erledigt: new Set(), gefragt: new Set() }))
+  if (!g) jeListe.set(liste, (g = { erledigt: new Set(), gefragt: new Set(), wege: new Map() }))
   return g
 }
 

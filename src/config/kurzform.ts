@@ -50,7 +50,10 @@ export interface Halt {
   klassen?: string[]
 }
 
-/** Der Kurs in der Reihenfolge der Fahrt (KONZEPT-POSITIONEN.md §4.3). */
+/**
+ * Der Kurs in der Reihenfolge der Fahrt (KONZEPT-POSITIONEN.md §4.3). Auch die Zeilenfolge der WKR-Bojen-Maske
+ * (src/wkr/bojen.ts bojenHalt/katalogFolge, 21.11.2026): ein neuer Halt erscheint dort von selbst.
+ */
 export const FAHRWEG: readonly Halt[] = [
   { key: 'start', label: 'Start', richtung: 'hin', tor: 'StartZiel', kurz: 'Start', name: 'Start' },
   { key: 't1a', label: 'Tor 1', richtung: 'hin', tor: 'Tor1', kurz: '1 H', name: 'Tor 1' },

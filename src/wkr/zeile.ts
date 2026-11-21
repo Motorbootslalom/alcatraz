@@ -31,6 +31,12 @@ export interface GeraeteZeile {
   seite?: 'A' | 'B'
   /** Zellen: Feld-Kennung, neuer Wert, erwarteter Wert (`vorher`, beim ersten Abschicken leer). */
   c: [feld: string, wert: string, vorher: string][]
+  /**
+   * „Nicht vorbeigekommen“ (W4.3, 21.11.2026, P16, löst G15 ein): Das Boot kam an diesem Platz nicht vorbei (vorher
+   * aufgegeben, Abbruch). Nur mit leerem `c` – die Zeile trägt keinen Wert, nur Haken und Kennzeichen; nicht am Vorsteg
+   * und nicht im Steg-Ablegen (dort ist es X, F5).
+   */
+  n?: true
 }
 
 /**
@@ -41,8 +47,9 @@ export interface GeraeteZeile {
  * - `x-nicht-erlaubt`: X „nicht gestartet“ außerhalb von Steg-Ablegen und Vorsteg (F5).
  * - `teil-fremd`: Teil passt nicht zur Liste oder zur Kopplung; Feld eines anderen Teils.
  * - `seite-anders`: Im Parallelslalom eine andere Seite als die der Liste.
+ * - `nv-nicht-erlaubt`: „Nicht vorbeigekommen“ am Vorsteg oder im Steg-Ablegen (dort gibt es X, F5) – W4.3, P16.
  */
-export type ZeilenFehler = 'start-unbekannt' | 'feld-fremd' | 'wert-ungueltig' | 'x-nicht-erlaubt' | 'teil-fremd' | 'seite-anders'
+export type ZeilenFehler = 'start-unbekannt' | 'feld-fremd' | 'wert-ungueltig' | 'x-nicht-erlaubt' | 'teil-fremd' | 'seite-anders' | 'nv-nicht-erlaubt'
 
 const istText = (x: unknown): x is string => typeof x === 'string'
 const istTeil = (x: unknown): x is ListenTeil => x === 'ab' || x === 'an'
@@ -55,6 +62,8 @@ function formOk(zeile: unknown): zeile is GeraeteZeile {
   if (z.t !== undefined && !istTeil(z.t)) return false
   if (z.k !== undefined && z.k !== true) return false
   if (z.seite !== undefined && z.seite !== 'A' && z.seite !== 'B') return false
+  // „Nicht vorbeigekommen“ nur ohne Zellen (W4.3): ein Wert dabei hieße doch vorbei – widersprüchlich, nicht raten.
+  if (z.n !== undefined && (z.n !== true || !Array.isArray(z.c) || z.c.length > 0)) return false
   return Array.isArray(z.c) && z.c.every((c) => Array.isArray(c) && c.length === 3 && c.every(istText))
 }
 
@@ -105,6 +114,10 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
   if ((teil !== undefined || zeile.t !== undefined) && !teile) return { fehler: 'teil-fremd' }
   if (teil !== undefined && zeile.t !== undefined && zeile.t !== teil) return { fehler: 'teil-fremd' }
   const eigenerTeil = zeile.t ?? teil
+  // „Nicht vorbeigekommen“ (W4.3, WKR_ANNAHMEN.nichtVorbeiNichtBeiX): Wo X erlaubt ist (Vorsteg, Steg-Ablegen, F5),
+  // kommt jedes Boot vorbei oder startet nicht – dort ist es X. Ein Gerät für den ganzen Steg schickt es nur mit Teil `an`.
+  const xHier = WKR_ANNAHMEN.xListen.includes(liste.typeId) && (!teile || eigenerTeil === undefined || eigenerTeil === WKR_ANNAHMEN.xTeil)
+  if (zeile.n && xHier) return { fehler: 'nv-nicht-erlaubt' }
 
   if (zeile.seite !== undefined && zeile.seite !== liste.racecourse) return { fehler: 'seite-anders' }
   const ref = liesRef(zeile.s)
@@ -148,6 +161,7 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
     haken: [eigenerTeil === undefined ? erfasstKennung(liste.typeId) : teilHaken(liste.typeId, eigenerTeil)],
     gezeigt: istGezeigt(stand, liste, zeile.s, start.starter.id, start.weitere.length > 0),
     korrektur: zeile.k === true,
+    ...(zeile.n ? { nichtVorbei: true as const } : {}),
   }
 }
 

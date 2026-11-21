@@ -75,7 +75,7 @@ async function kommtNach(s: { state: { value: AppState } }, bereich: string, g: 
   await ruhe()
   const vorher = JSON.stringify(g.anzeige.value)
   s.state.value = zeigeNaechsten(s.state.value, bereich, 90_000)
-  await bis(() => JSON.stringify(g.anzeige.value) !== vorher, 5000)
+  await bis(() => JSON.stringify(g.anzeige.value) !== vorher)
 }
 
 describe('Alle Geräte neu laden (E8)', () => {
@@ -164,7 +164,7 @@ describe('Alle Geräte neu laden (E8)', () => {
     // 20 Minuten später ist das Netz wieder da.
     jetzt += 20 * 60_000
     weg = false
-    await bis(() => h.verbindung.value?.status === 'verbunden', 5000)
+    await bis(() => h.verbindung.value?.status === 'verbunden')
     await kommtNach(s, bereich, tafel)
     expect(lade).not.toHaveBeenCalled()
   })

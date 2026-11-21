@@ -59,14 +59,26 @@ export function stufeZeichen(s: ZeilenStufe): string {
 /**
  * Zellwerte einer Zeile als kurzer Text für Rückfragen und „Zuletzt“: „Einfahrt Tor 5: 1, 2x20 · Disq.: A“; leere
  * Felder fallen weg, ganz leer = `leer` („fehlerfrei“). Ohne Aufbau (Klasse unbekannt) nur die Werte.
+ * Bojen (W4.2, 21.11.2026, P14): Kopf wie auf dem Bogen – „Tor 1 H L: 5 · Tor 5 H R: 10“, die 2. Durchfahrt mit
+ * Kurzvermerk, eine Boje ohne Unterspalte (Speedboje) nur mit dem Titel. Reihenfolge der Maske (Fahrtfolge, dann
+ * Disq., Bemerkung) – nicht die der Zellen: „alt → neu“ einer Korrektur soll dieselbe Folge zeigen.
  */
 export function zellenText(zellen: Readonly<Record<string, string>>, aufbau: MaskenAufbau | null, t: WkrText, leer: string): string {
   const teile: string[] = []
   const titel = new Map<string, string>()
-  for (const m of aufbau?.teile ?? []) titel.set(m.feld, m.titel.replace(/:\s*$/, ''))
+  for (const a of aufbau?.abschnitte ?? []) {
+    if (a.art === 'katalog') titel.set(a.teil.feld, a.teil.titel.replace(/:\s*$/, ''))
+    else {
+      const kopf = [a.halt.titel, a.halt.durchfahrt ? t.w('wkr.geraet.bojen.durchfahrtKurz') : ''].filter(Boolean).join(' ')
+      for (const b of a.halt.bojen) titel.set(b.feld, [kopf, b.unter].filter(Boolean).join(' '))
+    }
+  }
+  for (const m of aufbau?.teile ?? []) if (!titel.has(m.feld)) titel.set(m.feld, m.titel.replace(/:\s*$/, ''))
   if (aufbau?.disq && !titel.has(aufbau.disq.feld)) titel.set(aufbau.disq.feld, t.w('wkr.geraet.disq'))
   if (aufbau?.bemerkung) titel.set(aufbau.bemerkung, t.w('wkr.geraet.bemerkung'))
-  for (const [feld, wert] of Object.entries(zellen)) {
+  const folge = [...new Set([...titel.keys(), ...Object.keys(zellen)])]
+  for (const feld of folge) {
+    const wert = zellen[feld]
     if (!wert) continue
     const name = titel.get(feld)
     teile.push(name ? `${name}: ${feld === aufbau?.bemerkung ? `„${wert}“` : wert}` : wert)

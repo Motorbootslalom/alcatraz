@@ -127,6 +127,32 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   GeraetFreigabe bzw. WkrUebung). Klassen der Maske NUR in styles/wkr-geraet.css (app.css lädt danach und gewann bei
   gleichen Namen – umbenannt: wkr-starterkarte*, wkr-zuletzt-leiste*, wkr-grau-text, wkr-feldgruppe; Test prüft alle
   Stylesheets); Code-Knopf: `.wkr-code-nr` + `.wkr-code-mitte` (Text + Punkte) + Zähler.
+  Neuladen/Hinweis (21.11.2026, N11–N13): WkrKopf Prop `verbindung` verbinde|verbunden|getrennt (`data-lage`, Band
+  `getrennt` nur bei `getrennt`, Zahl nur > 0); Hinweis `pruefen` mit `hinweis-oeffnen` („601 öffnen“) → WkrMaske
+  oeffneHinweis (gesendet → Korrektur, offen → Eingabe, unbekannt → WkrAusweichen.oeffne(nr) bzw. `hinweis-unbekannt`).
+  Prüfbefunde W4 (21.11.2026, S1–S5): „gesendet“ nur im laufenden Punkt; `hinweis-unbekannt` mit „Gesehen“
+  (`hinweis-unbekannt-weg`), weg sobald ein Start erscheint; Hinweis im Kopf `.wkr-kopf-ueber.wkr-kopf-hinweis`;
+  Bojen-Schalter mit Prellschutz (tippeBojeKnopf); WkrBojen Stand `.wkr-bojen-zahl` + `.wkr-bojen-max` (`boje-max`).
+  W4.2 (21.11.2026, Bojen-Maske, Plan docs/plan-wkr-w4.md §5): WkrBojen (Mitte: Abschnitte in Fahrtfolge, je Halt
+  `data-teil="halt"` mit `data-halt`/`data-weg`/`data-durchfahrt`, Knöpfe `data-action="boje"` `data-feld`
+  `data-art` schalter|zaehler `data-anzahl`, zwei Spalten nach `boje.spalte` über gridColumn, volle Breite ohne
+  Seite; Katalog-Abschnitte über WkrKnoepfe; ohne Umschalter Kopfzeilen `weg-kopf`), WkrWegUmschalter (`data-action=
+  "weg"` `data-weg` hin|rueck, „HINWEG · n“, wechselt nie von selbst). WkrMaske: art `bojen`, Seite je Start und Teil
+  in gedaechtnis.ts `wege` (Korrektur `k|z`, beginnt auf Hinweg), Klassenwechsel-Band `klassen-wechsel` in
+  `.wkr-karten-platz` (absolut unter der Karte, klassenWechselMs), `.wkr-maske--bojen` (Nummer 80 px). WkrFuss art
+  `bojen` wie Katalog. WkrProbe: Schritte boje → zurueck → zaehler → rueckweg → haupt (Q1). WkrUebung: Listen
+  gate135/gate245/parcoursms, `parallel` nur unter UIM (hasParallel). texte.ts zellenText: Bojen „Tor 1 H L: 5“, in
+  der Folge der Maske. Stile `.wkr-bojen*`, `.wkr-klassen-wechsel`, `.wkr-karten-platz` (nur --wkr-*).
+  W4.3 (21.11.2026, „Nicht vorbeigekommen“, P16/R1–R8): WkrMehr Prop `nicht-vorbei` (Startnummer oder null) → Knopf
+  `data-action="nicht-vorbei"` „⊘ Nicht vorbeigekommen“, AppDialog `wkr-nicht-vorbei` („23 ist hier nicht
+  vorbeigekommen? Es wird nichts eingetragen.“, `nicht-vorbei-ja`/`-nein`), Ereignis `nichtVorbei`; WkrMaske
+  `nichtVorbeiNr` (nicht wo X gilt: Vorsteg, Steg-Ablegen; nicht in der Korrektur) und `nichtVorbei()` (verwirft den
+  Entwurf, schicke {nv}, Overlay wie beim Abschicken); Zuletzt, Korrektur-Dialog (alt) und Prüfansicht zeigen
+  „⊘ nicht vorbeigekommen“ statt „fehlerfrei“; WkrAbschluss Summe „1 nicht vorbeigekommen: 27“, Zeile `data-nv`.
+  Bedienrechner: WkrMatrix Zelle `nv` = „⊘“ mit Wort `.wkr-mzelle-wort` („nicht vorbei“), Rand --rueckstand, Schrift
+  --rueckstand-text, Fläche --rueckstand-soft (app.css, Kontrast, Prüfbefund 21.11.2026), Legende; WkrEingang
+  `data-teil="wkr-nv"` („⊘ nicht vorbeigekommen“) an Rückfrage-Zeile und Vorschlag; WkrListeBedienung `abschluss-nicht-vorbei`; ErfassungTabelle markiert von selbst „Papier ansehen“
+  (wkr/lage.ts zeilenMarken); VerlaufPanel `wkrNichtVorbei`.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -195,5 +221,6 @@ Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (z
 Parallelslalom auf der Tafel (englisch, keine deutschen Wörter): components/anzeige/AnzeigeParallel.test.ts;
 Zuschauerliste: src/ZuschauerApp.test.ts. Gerätebetrieb: views/BetriebGeraete.test.ts, src/GeraetApp.test.ts.
 WKR-Maske: src/GeraetWkr.test.ts (Host + nachgebauter ntfy; Takt mit Fake-Uhr gegen die Übung; Hilfe `mitCode`
-überspringt die Probe, `'lassen'` behält sie), styles/wkr-geraet.test.ts, src/main.uebung.test.ts (Übung ohne Netz).
+überspringt die Probe, `'lassen'` behält sie – ohne Probe nur Listen ohne Maske: zeit, moewezeit, bstartziel, knoten;
+„Bojen (W4.2)“ mit Klassen 4/7 auf Parcours 2, `bedienrechner(stand, bereich)`), styles/wkr-geraet.test.ts, src/main.uebung.test.ts (Übung ohne Netz).
 Im Zusammenhang src/views/*.test.ts; UIM-Kopfzeilen: views/UimAushang.test.ts, Beispieldaten: views/EventView.test.ts.

@@ -255,8 +255,8 @@ describe('WKR-Erfassung am Host (W1.3)', () => {
     h1.stop()
     g.t.sende(g.zeile(1, starter, [[FELD, '5', '']]))
     await bis(() => h2.fuehrt.value)
-    await bis(() => werte(s2.state.value, starter)[FELD] === '5', 5000)
-    await bis(() => g.t.unbestaetigt().length === 0, 5000)
+    await bis(() => werte(s2.state.value, starter)[FELD] === '5')
+    await bis(() => g.t.unbestaetigt().length === 0)
     expect([...s1.angewandt, ...s2.angewandt].filter((a) => a.type === 'WKR_ZEILEN')).toHaveLength(1)
   })
 

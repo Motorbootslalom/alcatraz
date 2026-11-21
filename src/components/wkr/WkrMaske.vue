@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { ClassId, PunktId } from '../../types'
 import type { EntwurfEintrag, ErfassungsQuelle, PruefZeile, SchlangenEintrag, ZuletztZeile } from '../../geraete/erfassen'
 import type { AnsichtModus, GeraetAnsicht } from '../../geraete/ablage'
 import type { ListenAufgabe } from '../../geraete/aufgaben'
 import { liesRef } from '../../betrieb/folge'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
-import type { ListenTeil } from '../../wkr/liste'
+import { liesListe, type ListenTeil } from '../../wkr/liste'
 import {
   disqFuer,
   eintraege,
@@ -18,6 +18,7 @@ import {
   punkteVon,
   teileFuer,
   tippe,
+  tippeBoje,
   tippeDisq,
   wechselNach,
   wechselTakt,
@@ -25,10 +26,13 @@ import {
   zurueck,
   type Entwurf,
   type MaskenAufbau,
+  type MaskenBoje,
 } from '../../wkr/maske'
+import type { Weg } from '../../wkr/bojen'
 import AppDialog from '../AppDialog.vue'
 import WkrAbschluss from './WkrAbschluss.vue'
 import WkrAusweichen from './WkrAusweichen.vue'
+import WkrBojen from './WkrBojen.vue'
 import WkrDisq from './WkrDisq.vue'
 import WkrFuss from './WkrFuss.vue'
 import WkrKnoepfe from './WkrKnoepfe.vue'
@@ -65,6 +69,10 @@ import { useWkrText, zellenText } from './texte'
  *   abgeschlossen noch mit eigenem Abschluss unterwegs ist (Auslegung L2). Die Prüfansicht (WkrAbschluss) ersetzt die
  *   Mitte; Tipp auf eine Zeile → Korrektur.
  * - **Ansicht, Sprache, Probe, Übung verlassen** gehen als Ereignis an WkrGeraet (dort gemerkt bzw. ausgeführt).
+ * - **Bojen** (W4.2, Plan docs/plan-wkr-w4.md §5, 21.11.2026): Mitte = WkrBojen; Seite des Umschalters je Start und
+ *   Teil im Gedächtnis (gedaechtnis.ts `wege`, neuer Start = Hinweg, wechselt nie von selbst, P8); Klassenwechsel-Band
+ *   (P10) `klassenWechselMs` lang ÜBER der Karte (absolut, verschiebt nichts, fängt seine Fläche ab); Startnummer
+ *   80 px (`.wkr-maske--bojen`, P17).
  */
 const props = defineProps<{
   quelle: ErfassungsQuelle
@@ -309,6 +317,8 @@ const naechsterStart = computed(() => {
 
 // --- Verbindung, Quittung ---
 const verbunden = computed(() => props.quelle.verbunden.value)
+/** N11 (Feldtest 21.11.2026): neutral beim Aufbau, rot erst nach Karenz oder Abriss – der Kern entscheidet. */
+const verbindung = computed(() => props.quelle.verbindung.value)
 // Seit wann getrennt bzw. ohne Quittung: aus der Quelle, nicht hier gemerkt – ein Reiterwechsel baut die Maske neu auf.
 const getrenntSeit = computed(() => props.quelle.getrenntSeit.value)
 const getrenntSek = computed(() => (getrenntSeit.value === null ? 0 : Math.max(0, Math.floor((jetzt.value - getrenntSeit.value) / 1000))))
@@ -332,7 +342,8 @@ const legeWeg = (z: number) => (erledigt.value = gedacht.erledigt = new Set([...
 const andereEntwuerfe = computed(() =>
   props.quelle.entwuerfe.value.filter((e) => e.liste === liste.value && !(e.s === aktuell.value?.key && (e.teil ?? '') === (teil.value ?? ''))),
 )
-const zeilenText = (z: ZuletztZeile) => zellenText(z.zellen, aufbauVon(klasseVon(z.s, z.punkt)), text, w('wkr.geraet.fehlerfreiText'))
+// „Nicht vorbeigekommen“ (W4.3): statt der (leeren) Zellen das Kennzeichen – „fehlerfrei“ wäre falsch.
+const zeilenText = (z: ZuletztZeile) => (z.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(z.zellen, aufbauVon(klasseVon(z.s, z.punkt)), text, w('wkr.geraet.fehlerfreiText')))
 
 /** Entwürfe zu Starts, die nicht mehr in der Folge stehen (zurückgestellt) – einmal fragen. */
 const gefragt = ref<ReadonlySet<string>>(gedacht.gefragt)
@@ -396,10 +407,12 @@ function korrigiereAusPruefung(s: string): void {
 function pruefText(z: PruefZeile): { klasse: string; codes: string; punkte: number | null } {
   const k = (z.klasse as ClassId | null) ?? null
   const b = aufbauVon(k)
+  if (z.nv) return { klasse: klassenTitel(k), codes: `⊘ ${w('wkr.geraet.nichtVorbei.text')}`, punkte: null }
   return {
     klasse: klassenTitel(k),
     codes: zellenText(z.zellen, b, text, w('wkr.geraet.fehlerfreiText')),
-    punkte: b && b.art === 'katalog' ? punkteVon(entwurfAus(z.zellen, b), b, abschlussTeil.value) : null,
+    // Punkte auch bei Bojen (P14): dort steht die Summe der Berührungen und Codes.
+    punkte: b && (b.art === 'katalog' || b.art === 'bojen') ? punkteVon(entwurfAus(z.zellen, b), b, abschlussTeil.value) : null,
   }
 }
 const listenSprache = computed(() => (sicht.value?.sprache === 'en' ? ('en' as const) : ('de' as const)))
@@ -408,11 +421,36 @@ const listenSprache = computed(() => (sicht.value?.sprache === 'en' ? ('en' as c
 const disqOffen = ref(false)
 const ausweichen = ref<InstanceType<typeof WkrAusweichen> | null>(null)
 const nichtGefunden = ref<string | null>(null)
+/** N13: Nummer eines „Bitte prüfen“, die das Gerät nicht kennt, solange keine Suche offen sein kann (Ruhe). */
+const hinweisUnbekannt = ref<string | null>(null)
 const frageKorrektur = ref(false)
+// Das Band „nicht in der Folge“ (N13) gilt nur bis zur nächsten Arbeit: Sobald ein Start gezeigt wird (die Suche ist
+// dann erreichbar), ist es überholt – sonst stünde es die ganze Erfassung über und schöbe die Knöpfe (Prüfbefund 21.11.2026).
+watch(
+  () => !!zeige.value,
+  (da) => {
+    if (da) hinweisUnbekannt.value = null
+  },
+)
 
 function tippeCode(feld: string, code: string): void {
   if (gesperrt.value) return
   aendere(tippe(entwurf.value, feld, code))
+}
+/** Letzter Tipp je Schalter-Feld (Zeitmarke) – nur für den Prellschutz, nie im reinen wkr/maske.ts. */
+const bojenTipp = new Map<string, number>()
+function tippeBojeKnopf(b: MaskenBoje): void {
+  if (gesperrt.value) return
+  // Prellschutz (WKR_ANNAHMEN.bojenSchalterPrellMs, Prüfbefund 21.11.2026): Ein zweiter Tipp auf denselben Schalter
+  // kurz nach dem ersten nähme die Berührung still wieder weg (Handschuh, Warten auf die Rückmeldung) – verworfen.
+  // Zähler zählen jeden Tipp (sichtbar in der Zahl), dort kein Schutz.
+  if (!b.zaehler) {
+    const um = Date.now()
+    const vorher = bojenTipp.get(b.feld)
+    bojenTipp.set(b.feld, um)
+    if (vorher !== undefined && um - vorher < WKR_ANNAHMEN.bojenSchalterPrellMs) return
+  }
+  aendere(tippeBoje(entwurf.value, b))
 }
 function setzeDisq(code: string): void {
   if (gesperrt.value) return
@@ -434,6 +472,7 @@ function waehleTeil(t: ListenTeil): void {
 function waehle(key: string): void {
   if (gesperrt.value) return
   korrektur.value = null
+  hinweisUnbekannt.value = null
   gewaehlt.value = key === kopf.value?.key ? null : key
   disqOffen.value = false
   ladeEntwurf()
@@ -466,8 +505,48 @@ function suche(nr: string): void {
   nichtGefunden.value = nr
 }
 
+/**
+ * N13 (Feldtest 21.11.2026): „Bitte Nr. prüfen“ → „601 öffnen“. Schon gesendet → Korrektur mit dem eigenen Stand
+ * (oeffneKorrektur liest quelle.stand); noch offen (Schlange, danach, am ganzen Steg auch der andere Teil) → Eingabe
+ * dieses Starts; unbekannt → Suche mit der Nummer vorbelegt. Das Öffnen meldet den Hinweis als gesehen.
+ */
+async function oeffneHinweis(id: number, nr: string): Promise<void> {
+  props.quelle.gesehen(id)
+  abschluss.value = null
+  hinweisUnbekannt.value = null
+  const gesucht = nummer(nr)
+  // Nur Zeilen des laufenden Punkts (Prüfbefund 21.11.2026): „Zuletzt“ reicht über Läufe hinweg, und dieselbe Nummer
+  // steht in Lauf 1 und 2 (Parallelslalom: Attempt 1 und 2) – sonst öffnete die Bitte zu Lauf 2 die Korrektur von Lauf 1.
+  const punkt = sicht.value?.punkt?.id ?? null
+  const z = punkt ? zeilen.value.find((x) => x.punkt === punkt && x.sn !== undefined && nummer(x.sn) === gesucht) : undefined
+  // Abgelehnt steht der Start wieder offen – dann die Eingabe statt einer Korrektur der verworfenen Zeile.
+  if (z && z.stufe.stufe !== 'abgelehnt') {
+    oeffneKorrektur(z.z)
+    return
+  }
+  beendeTakt()
+  jetzt.value = Date.now()
+  korrektur.value = null
+  frageKorrektur.value = false
+  const teile: (ListenTeil | undefined)[] = geteilt.value && !props.aufgabe.teil ? [teil.value, teil.value === 'an' ? 'ab' : 'an'] : [teil.value]
+  for (const t of teile) {
+    const treffer = [...schlangeVon(t), ...danach.value].find((x) => nummer(x.startNr) === gesucht)
+    if (!treffer) continue
+    if (t && t !== teil.value) stegWahl.value = t
+    gewaehlt.value = null
+    waehle(treffer.key)
+    return
+  }
+  // Unbekannt: Suche vorbelegt – der WKR sieht die Nummer und den Satz „nicht in der Folge“ und kann sie ändern.
+  nichtGefunden.value = nr
+  await nextTick()
+  if (ausweichen.value) ausweichen.value.oeffne(nr)
+  else hinweisUnbekannt.value = nr
+}
+
 function haupt(): void {
   if (gesperrt.value) return
+  hinweisUnbekannt.value = null
   if (korrektur.value) {
     if (aufbau.value) frageKorrektur.value = true
     return
@@ -486,6 +565,36 @@ function haupt(): void {
   ladeEntwurf()
 }
 
+/**
+ * „Nicht vorbeigekommen“ (W4.3, P16/R6) für den gezeigten Start: wo X nicht gilt (nicht Vorsteg, am Steg nur
+ * Anlegen – WKR_ANNAHMEN.nichtVorbeiNichtBeiX), nicht in der Korrektur. Die Startnummer für die Rückfrage; sonst `null`.
+ */
+const nichtVorbeiNr = computed(() => {
+  const a = aktuell.value
+  const typeId = liesListe(liste.value)?.typeId
+  if (!a || korrektur.value || !typeId) return null
+  const xHier = WKR_ANNAHMEN.xListen.includes(typeId) && (!geteilt.value || teil.value === undefined || teil.value === WKR_ANNAHMEN.xTeil)
+  return xHier ? null : a.startNr
+})
+function nichtVorbei(): void {
+  if (gesperrt.value || !nichtVorbeiNr.value) return
+  hinweisUnbekannt.value = null
+  const a = aktuell.value
+  const b = aufbau.value
+  if (!a || !b) return
+  // Ein Entwurf dieses Starts ist damit hinfällig – „Es wird nichts eingetragen“ (R6).
+  props.quelle.verwirfEntwurf(liste.value, a.key, teil.value)
+  const z = props.quelle.schicke(liste.value, { s: a.key, zellen: {}, nv: true, ...(teil.value ? { teil: teil.value } : {}) })
+  if (z === null) return
+  const g: Gesendet = { um: Date.now(), z, start: a, entwurf: leererEntwurf(), aufbau: b, klasse: klassenTitel(a.klasse) }
+  quittungUm.value = null
+  gesendet.value = g
+  gewaehlt.value = null
+  disqOffen.value = false
+  starteTakt(g)
+  ladeEntwurf()
+}
+
 function oeffneKorrektur(z: number): void {
   const k = props.quelle.zuletzt.value.find((x) => x.z === z)
   if (!k) return
@@ -493,6 +602,7 @@ function oeffneKorrektur(z: number): void {
   // Die Korrektur ist eine bewusste Wahl (oben, außerhalb der gesperrten Fläche): Sie beendet den Takt des letzten
   // Abschickens, sonst zeigte die Mitte noch den gesendeten Start.
   beendeTakt()
+  hinweisUnbekannt.value = null
   korrektur.value = k
   disqOffen.value = false
   const b = aufbauVon(klasseVon(k.s, k.punkt))
@@ -535,13 +645,46 @@ function oeffneEntwurf(e: EntwurfEintrag): void {
   if ([...schlangeVon(e.teil), ...danach.value].some((x) => x.key === e.s)) waehle(e.s)
 }
 
-const art = computed(() => (zeige.value?.aufbau.art === 'vorsteg' ? 'vorsteg' : 'katalog'))
+const art = computed(() => (zeige.value?.aufbau.art === 'vorsteg' ? 'vorsteg' : zeige.value?.aufbau.art === 'bojen' ? 'bojen' : 'katalog'))
+
+// --- Bojen: Seite des Umschalters je Start (P8) und Klassenwechsel-Band (P10) ---
+const wege = ref<ReadonlyMap<string, Weg>>(gedacht.wege)
+/** Je Start und Teil; die Korrektur hat ihren eigenen Schlüssel (sie beginnt auf „Hinweg“ wie ein neuer Start). */
+const wegSchluessel = computed(() => (korrektur.value ? `k|${korrektur.value.z}` : zeige.value ? `${zeige.value.start.key}|${teil.value ?? ''}` : ''))
+const weg = computed<Weg>(() => wege.value.get(wegSchluessel.value) ?? 'hin')
+function waehleWeg(x: Weg): void {
+  if (gesperrt.value) return
+  const neu = new Map(wege.value)
+  neu.set(wegSchluessel.value, x)
+  wege.value = gedacht.wege = neu
+}
+/** Halte einer Maske als Kennzeichen – „andere Halte“ heißt: anderes Kennzeichen als beim zuvor gezeigten Start. */
+const halteVon = (a: MaskenAufbau | null) => (a && a.art === 'bojen' ? a.abschnitte.map((x) => (x.art === 'halt' ? `${x.halt.halt}|${x.halt.weg}` : x.teil.feld)).join(',') : null)
+const wechselBis = ref<number | null>(null)
+const wechselKlasse = ref('')
+let letzteHalte: string | null = null
+watch(
+  () => (zeige.value && !imOverlay.value && !korrektur.value ? { key: zeige.value.start.key, halte: halteVon(zeige.value.aufbau), klasse: zeige.value.klasse } : null),
+  (z) => {
+    if (!z || z.halte === null) return
+    if (letzteHalte !== null && z.halte !== letzteHalte) {
+      const um = Date.now()
+      jetzt.value = um
+      wechselBis.value = um + WKR_ANNAHMEN.klassenWechselMs
+      wechselKlasse.value = z.klasse
+      nach(WKR_ANNAHMEN.klassenWechselMs, tick)
+    }
+    letzteHalte = z.halte
+  },
+  { immediate: true },
+)
+const klassenWechsel = computed(() => (wechselBis.value !== null && jetzt.value < wechselBis.value ? wechselKlasse.value : null))
 const disqCodes = computed(() => (zeige.value ? disqFuer(zeige.value.aufbau, teil.value) : []))
 const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufbau, teil.value) : []))
 </script>
 
 <template>
-  <div class="wkr-maske" data-teil="maske" :data-liste="liste" :data-takt="takt" :data-gesperrt="gesperrt || undefined" :data-steg="teil">
+  <div class="wkr-maske" :class="{ 'wkr-maske--bojen': art === 'bojen' }" data-teil="maske" :data-liste="liste" :data-takt="takt" :data-gesperrt="gesperrt || undefined" :data-steg="teil">
     <WkrKopf
       v-if="sicht"
       :titel="kopfTitel.titel"
@@ -549,7 +692,7 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
       :lauf="zeige?.start.titel ?? sicht.punkt?.titel ?? null"
       :invers="invers"
       :uebung="quelle.uebung"
-      :verbunden="verbunden"
+      :verbindung="verbindung"
       :getrennt-sek="getrenntSek"
       :wartend="quelle.wartend.value"
       :ohne-quittung="ohneQuittung"
@@ -557,7 +700,12 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
       :papier-ab="papierAb"
       :hinweis="hinweis"
       @gesehen="(id) => quelle.gesehen(id)"
+      @oeffne="oeffneHinweis"
     />
+    <div v-if="hinweisUnbekannt" class="wkr-band wkr-band--warn" role="alert" data-teil="hinweis-unbekannt">
+      <b>{{ w('wkr.geraet.nichtGefunden', { nr: hinweisUnbekannt }) }}</b>
+      <button type="button" class="wkr-knopf" data-ziel="klein" data-action="hinweis-unbekannt-weg" @click="hinweisUnbekannt = null">{{ w('wkr.geraet.gesehen') }}</button>
+    </div>
 
     <WkrAbschluss
       v-if="abschluss"
@@ -615,7 +763,13 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
         @pausiere="quelle.pausiere(liste)"
       />
       <template v-else-if="zeige">
-        <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" />
+        <div class="wkr-karten-platz">
+          <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" />
+          <!-- P10: liegt über der Karte (absolut) – verschiebt keinen Knopf, fängt Tipps auf seiner Fläche ab. -->
+          <p v-if="klassenWechsel && art === 'bojen'" class="wkr-band wkr-band--warn wkr-klassen-wechsel" role="status" data-teil="klassen-wechsel">
+            <b>{{ w('wkr.geraet.bojen.klassenWechsel', { klasse: klassenWechsel }) }}</b>
+          </p>
+        </div>
         <button v-if="korrektur" type="button" class="wkr-knopf" data-ziel="klein" data-action="korrektur-abbrechen" @click="brichKorrekturAb">{{ w('wkr.geraet.korrektur.abbrechen') }}</button>
 
         <div class="wkr-mitte" :inert="gesperrt" data-teil="mitte">
@@ -649,6 +803,7 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
             :gesperrt="gesperrt"
             @setze="setzeDisq"
           />
+          <WkrBojen v-else-if="art === 'bojen'" :aufbau="zeige.aufbau" :entwurf="zeige.entwurf" :weg="weg" @boje="tippeBojeKnopf" @tippe="tippeCode" @weg="waehleWeg" />
           <WkrKnoepfe v-else :teile="sichtbareTeile" :entwurf="zeige.entwurf" @tippe="tippeCode" />
           <WkrMehr
             :mit-bemerkung="!!zeige.aufbau.bemerkung"
@@ -661,6 +816,8 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
             :mit-andere="!!sicht?.andere"
             :kann-abschliessen="!!abschlussMoeglich"
             :uebung="quelle.uebung"
+            :nicht-vorbei="nichtVorbeiNr"
+            @nicht-vorbei="nichtVorbei"
             @bemerkung="bemerkung"
             @pausiere="quelle.pausiere(liste)"
             @melde-ab="quelle.meldeAb(liste)"
@@ -723,7 +880,7 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
       data-dialog="wkr-korrektur"
       @abbrechen="frageKorrektur = false"
     >
-      <p class="wkr-korrektur-alt" data-teil="alt">{{ zellenText(korrekturAlt, aufbau, text, w('wkr.geraet.fehlerfreiText')) }}</p>
+      <p class="wkr-korrektur-alt" data-teil="alt">{{ korrektur.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(korrekturAlt, aufbau, text, w('wkr.geraet.fehlerfreiText')) }}</p>
       <p class="wkr-korrektur-pfeil" aria-hidden="true">↓</p>
       <p class="wkr-korrektur-neu" data-teil="neu">{{ zellenText(korrekturNeu, aufbau, text, w('wkr.geraet.fehlerfreiText')) }}</p>
       <template #knoepfe>

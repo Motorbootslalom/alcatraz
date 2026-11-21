@@ -206,6 +206,10 @@ describe('Feldtest 21.11.2026: Farben in jedem Modus, keine fremden Regeln, kein
     expect(versteckt).toEqual(['.wkr-zuletzt-leiste'])
     // Das Band über dem Kopf („Keine Bestätigung“, „Bestätigung folgt“) wächst mit dem Text (Prüfbefund 21.11.2026).
     expect([regel('.wkr-kopf-ueber').inset, regel('.wkr-kopf-ueber')['min-height']]).toEqual(['0 0 auto', 'calc(100% - 6px)'])
+    // „Bitte Nr. prüfen“ kommt ebenso ohne Tipp: über dem Kopf, über „Keine Bestätigung“ (S5, Prüfbefund 21.11.2026).
+    const kopf = vorlagen.find((v) => v.datei === 'WkrKopf.vue')!.text
+    expect(kopf).toMatch(/class="wkr-band wkr-band--hinweis wkr-kopf-ueber wkr-kopf-hinweis"[^>]*data-teil="hinweis"/)
+    expect(Number(regel('.wkr-kopf-hinweis')['z-index'])).toBeGreaterThan(Number(regel('.wkr-kopf-ueber')['z-index']))
   })
 
   it('N1: Overlay über der ganzen Maske, unter dem Blitz, fängt Tipps', () => {
@@ -215,3 +219,33 @@ describe('Feldtest 21.11.2026: Farben in jedem Modus, keine fremden Regeln, kein
   })
 })
 
+
+describe('W4.2 Bojen-Maske (21.11.2026, Plan docs/plan-wkr-w4.md §5.2)', () => {
+  it('Bojen- und Umschalter-Knöpfe sind große Ziele (≥ 64 px über data-ziel="gross"), zwei Spalten mit ≥ 8 px Abstand', () => {
+    const bojen = vorlagen.find((v) => v.datei === 'WkrBojen.vue')!.text
+    const weg = vorlagen.find((v) => v.datei === 'WkrWegUmschalter.vue')!.text
+    expect(bojen).toMatch(/class="wkr-knopf wkr-bojen-knopf"[^<]*data-ziel="gross"/)
+    expect(weg).toMatch(/class="wkr-knopf wkr-bojen-weg-knopf"[^<]*data-ziel="gross"/)
+    const knoepfe = regel('.wkr-bojen-knoepfe')
+    expect(knoepfe['grid-template-columns']).toBe('minmax(0, 1fr) minmax(0, 1fr)')
+    expect(knoepfe.gap).toBe('var(--wkr-abstand)')
+    expect(regel('.wkr-bojen-weg').gap).toBe('var(--wkr-abstand)')
+    // Die Zahl („✔ 5“, „3× = 15“) bricht nie mitten durch; der Stand bricht an Leerzeichen um, „höchstens 9×“ ist eine
+    // eigene Zeile – bei 360 px ragt nichts über den Knopfrand (Prüfbefund 21.11.2026, S4); der Titel darf umbrechen (N3).
+    expect(regel('.wkr-bojen-zahl')['white-space']).toBe('nowrap')
+    expect(regel('.wkr-bojen-stand')['white-space']).toBe('normal')
+    expect(regel('.wkr-bojen-stand')['flex-direction']).toBe('column')
+    expect(regel('.wkr-bojen-stand')['font-size']).toBe('clamp(14px, 4.5vw, 18px)')
+    expect(bojen).toMatch(/class="wkr-bojen-max"/)
+    expect(regel('.wkr-bojen-titel')['min-width']).toBe('0')
+  })
+
+  it('Gesetzt = Haupt-Farben (Kontrast über die Tokens geprüft), Startnummer 80 px auf Bojen-Listen, Klassenwechsel-Band absolut', () => {
+    const gesetzt = regel('.wkr-knopf.wkr-bojen-knopf--gesetzt')
+    expect([gesetzt.background, gesetzt.color]).toEqual(['var(--wkr-haupt)', 'var(--wkr-haupt-text)'])
+    expect(regel('.wkr-maske--bojen')['--wkr-startnr']).toBe('80px')
+    const band = regel('.wkr-klassen-wechsel')
+    expect([band.position, band.inset]).toEqual(['absolute', '100% 0 auto'])
+    expect(regel('.wkr-karten-platz').position).toBe('relative')
+  })
+})

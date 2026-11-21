@@ -15,6 +15,7 @@ import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { liesListe, startAufListe, teileVon, teilHaken, teilVonZelle } from '../../wkr/liste'
 import { papierStarts, schlange } from '../../wkr/schlange'
 import { vereinigt, wendeZeileAn, zeilenPruefsumme } from '../../wkr/uebernahme'
+import { liesNvSchluessel, mitNichtVorbei, nvSchluessel } from '../../wkr/nichtVorbei'
 import { konfigVon } from './gemeinsam'
 
 export type WkrAenderung =
@@ -59,7 +60,7 @@ export type WkrAenderung =
 
 /** Nichts digital, nichts offen. */
 export function wkrLeer(): WkrStand {
-  return { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {} }
+  return { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {} }
 }
 
 const MODI: readonly WkrModus[] = ['digital', 'papier', 'beides']
@@ -114,6 +115,29 @@ function mitRueckfrage(liste: WkrRueckfrage[], rf: WkrRueckfrage): WkrRueckfrage
   return liste.some((x) => x.id === rf.id) ? liste : [...liste, rf]
 }
 
+/** Ist die Liste am Steg geteilt (Schlüssel des Kennzeichens mit Teil)? */
+function istGeteilt(liste: string): boolean {
+  const l = liesListe(liste)
+  return !!l && !!teileVon(l.typeId)
+}
+
+/**
+ * Was eine geltende Zeile mit dem Kennzeichen „nicht vorbeigekommen“ macht (W4.3, R2/R3): mit Kennzeichen setzen,
+ * ohne aufheben – am Steg je Teil, eine ganze Steg-Zeile hebt auch das des Anlegens auf. Unverändert = dasselbe Objekt.
+ */
+function nvWirkung(
+  nv: WkrStand['nichtVorbei'],
+  liste: string,
+  geteilt: boolean,
+  z: { lauf: string; starter: string; nichtVorbei?: true; teil?: ListenTeil },
+): WkrStand['nichtVorbei'] {
+  const teil = geteilt ? z.teil : undefined
+  if (z.nichtVorbei) return mitNichtVorbei(nv, liste, nvSchluessel(z.lauf, z.starter, teil), true)
+  let out = mitNichtVorbei(nv, liste, nvSchluessel(z.lauf, z.starter, teil), false)
+  if (geteilt && teil === undefined) out = mitNichtVorbei(out, liste, nvSchluessel(z.lauf, z.starter, 'an'), false)
+  return out
+}
+
 export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: number }): AppState {
   const zeit = action.zeit ?? 0
   switch (action.type) {
@@ -127,6 +151,7 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       let eingaben = state.eingaben
       let rueckfragen = state.wkr.rueckfragen
       let vorschlaege = state.wkr.vorschlaege
+      let nichtVorbei = state.wkr.nichtVorbei
       // P je Teil (A6): Starts, die schon aufs Papier gingen – einmal je Teil gerechnet. Eine ganze Zeile einer
       // geteilten Liste trifft es schon, wenn EIN Teil den Start auf Papier hat (wie zeileAbgeschlossen).
       const pJe = new Map<ListenTeil | undefined, Set<string>>()
@@ -146,6 +171,11 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
         const punkt = punktVon(state, zeile.ref)
         if (punkt === null) continue
         // Am Steg je Teil (F16): Hat das Ablegen abgeschlossen, gehen Zeilen des Anlegens weiter direkt durch.
+        // „Nicht vorbeigekommen“ (W4.3, R2/R3): Kennzeichen setzen bzw. („doch vorbei“) aufheben nur, wo die Zeile direkt
+        // gilt; Rückfrage und Vorschlag tragen es mit und wirken erst mit der Entscheidung für das Gerät (Prüfbefund
+        // 21.11.2026: ein verworfener Vorschlag ließ ⊘ sonst still verschwinden).
+        const nv = { ...(zeile.nichtVorbei ? { nichtVorbei: true as const } : {}), ...(geteilt && zeile.teil ? { teil: zeile.teil } : {}) }
+        const wirke = () => (nichtVorbei = nvWirkung(nichtVorbei, action.liste, geteilt, { lauf: zeile.lauf, starter: zeile.starter, ...nv }))
         const abgeschlossen = zeileAbgeschlossen(state.wkr, action.liste, punkt, zeile.teil, geteilt)
         const aufPapier = papier || (WKR_ANNAHMEN.papierStartVorschlag && pVon(zeile.teil).has(zeile.ref))
         if (aufPapier || abgeschlossen) {
@@ -160,6 +190,7 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
             zellen: zeile.zellen.map(({ feld, wert }) => ({ feld, wert })),
             haken: zeile.haken,
             grund: abgeschlossen ? 'abgeschlossen' : 'papier',
+            ...nv,
             zeit,
           }
           vorschlaege = [...vorschlaege, v]
@@ -184,6 +215,7 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
           grund,
           ...(vereinige ? { vereinige } : {}),
           haken: zeile.haken,
+          ...nv,
           zeit,
         })
         if (!zeile.gezeigt && WKR_ANNAHMEN.nichtGezeigtRueckfrage) {
@@ -196,15 +228,22 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
             const ziel = z.vereinige ? vereinigt(z.feld, steht, z.wert, z.vorher) : z.wert
             if (steht !== ziel) rueckfragen = mitRueckfrage(rueckfragen, rueckfrage(z.feld, z.wert, steht, 'start', z.vereinige ? { vorher: z.vorher } : undefined))
           }
+          // Steht schon alles so (nichts zu fragen), gilt die Zeile wie direkt übernommen.
+          if (!rueckfragen.some((rf) => rf.zeile === zeile.id)) wirke()
           continue
         }
         const r = wendeZeileAn(eingaben, zeile)
         eingaben = r.eingaben
         for (const k of r.konflikte) rueckfragen = mitRueckfrage(rueckfragen, rueckfrage(k.feld, k.wert, k.steht, k.grund))
-        if (r.konflikte.length === 0 && !rueckfragen.some((rf) => rf.zeile === zeile.id)) eingaben = mitHaken(state, eingaben, laeufe, zeile.starter, zeile.haken)
+        if (r.konflikte.length === 0 && !rueckfragen.some((rf) => rf.zeile === zeile.id)) {
+          eingaben = mitHaken(state, eingaben, laeufe, zeile.starter, zeile.haken)
+          // Kennzeichen nur, wo die Zeile direkt übernommen wird (WKR_ANNAHMEN.nichtVorbeiNurDirekt, R2): Der Haken ist
+          // gesetzt (Schlange und Rückstand gehen weiter), die Matrix zeigt ⊘ statt ✓. Ohne Kennzeichen: aufheben (R3).
+          wirke()
+        }
       }
-      if (eingaben === state.eingaben && rueckfragen === state.wkr.rueckfragen && vorschlaege === state.wkr.vorschlaege) return state
-      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, vorschlaege } }
+      if (eingaben === state.eingaben && rueckfragen === state.wkr.rueckfragen && vorschlaege === state.wkr.vorschlaege && nichtVorbei === state.wkr.nichtVorbei) return state
+      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, vorschlaege, nichtVorbei } }
     }
 
     case 'WKR_RUECKFRAGE': {
@@ -216,7 +255,9 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       let eingaben = action.wahl === 'geraet' ? setzeWerte(state.eingaben, zellenIn(state, laeufe, rf.starter, [{ feld: rf.feld, wert }])) : state.eingaben
       const rueckfragen = state.wkr.rueckfragen.filter((x) => x.id !== rf.id)
       if (!rueckfragen.some((x) => x.zeile === rf.zeile)) eingaben = mitHaken(state, eingaben, laeufe, rf.starter, rf.haken)
-      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen } }
+      // Für das Gerät entschieden: das Kennzeichen der Zeile gilt (setzen bzw. „doch vorbei“ aufheben, R2/R3).
+      const nichtVorbei = action.wahl === 'geraet' ? nvWirkung(state.wkr.nichtVorbei, rf.liste, istGeteilt(rf.liste), rf) : state.wkr.nichtVorbei
+      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, nichtVorbei } }
     }
 
     case 'WKR_VORSCHLAG': {
@@ -225,7 +266,9 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       const laeufe = [v.lauf, ...v.weitere]
       const eingaben =
         action.wahl === 'uebernehmen' ? mitHaken(state, setzeWerte(state.eingaben, zellenIn(state, laeufe, v.starter, v.zellen)), laeufe, v.starter, v.haken) : state.eingaben
-      return { ...state, eingaben, wkr: { ...state.wkr, vorschlaege: state.wkr.vorschlaege.filter((x) => x !== v) } }
+      // Übernommen: das Kennzeichen der Zeile gilt; verworfen: alles bleibt, wie es war – auch ein stehendes ⊘ (R3).
+      const nichtVorbei = action.wahl === 'uebernehmen' ? nvWirkung(state.wkr.nichtVorbei, v.liste, istGeteilt(v.liste), v) : state.wkr.nichtVorbei
+      return { ...state, eingaben, wkr: { ...state.wkr, vorschlaege: state.wkr.vorschlaege.filter((x) => x !== v), nichtVorbei } }
     }
 
     case 'WKR_LISTE': {
@@ -361,16 +404,33 @@ export function wkrOhneLaeufe(wkr: WkrStand, wegLauf: (lauf: string) => boolean,
     if (bleibt.length !== Object.keys(jePunkt).length) abschlussGeaendert = true
     if (bleibt.length > 0) abschluss[liste] = Object.fromEntries(bleibt)
   }
-  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && !abschlussGeaendert) return wkr
-  return { ...wkr, rueckfragen, vorschlaege, abschluss: abschlussGeaendert ? abschluss : wkr.abschluss }
+  const nichtVorbei = nvNur(wkr.nichtVorbei, (z) => !wegLauf(z.lauf))
+  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && !abschlussGeaendert && nichtVorbei === wkr.nichtVorbei) return wkr
+  return { ...wkr, rueckfragen, vorschlaege, abschluss: abschlussGeaendert ? abschluss : wkr.abschluss, nichtVorbei }
+}
+
+/** Nur die Kennzeichen „nicht vorbeigekommen“, deren Zelle `bleibt`; unverändert = dasselbe Objekt. */
+function nvNur(nv: WkrStand['nichtVorbei'], bleibt: (z: { lauf: string; starter: string }) => boolean): WkrStand['nichtVorbei'] {
+  let geaendert = false
+  const out: WkrStand['nichtVorbei'] = {}
+  for (const [liste, keys] of Object.entries(nv)) {
+    const rest = keys.filter((k) => {
+      const z = liesNvSchluessel(k)
+      return !!z && bleibt(z)
+    })
+    if (rest.length !== keys.length) geaendert = true
+    if (rest.length > 0) out[liste] = rest
+  }
+  return geaendert ? out : nv
 }
 
 /** Nur Rückfragen und Vorschläge der genannten Starter: Wer gelöscht ist, nimmt seine mit. Unverändert = dasselbe Objekt. */
 export function wkrNurStarter(wkr: WkrStand, ids: ReadonlySet<string>): WkrStand {
   const rueckfragen = wkr.rueckfragen.filter((rf) => ids.has(rf.starter))
   const vorschlaege = wkr.vorschlaege.filter((v) => ids.has(v.starter))
-  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length) return wkr
-  return { ...wkr, rueckfragen, vorschlaege }
+  const nichtVorbei = nvNur(wkr.nichtVorbei, (z) => ids.has(z.starter))
+  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && nichtVorbei === wkr.nichtVorbei) return wkr
+  return { ...wkr, rueckfragen, vorschlaege, nichtVorbei }
 }
 
 // --- Laden ---------------------------------------------------------------------------------------
@@ -417,6 +477,11 @@ function liesListeneintrag(raw: unknown, geteilt: boolean): WkrListe | null {
 /** Gilt die Zelle (Lauf-Schlüssel, Starter) – derselbe Maßstab wie für Eingaben (lib/eingaben.ts `gueltigeZellen`)? */
 const zelleGilt = (lauf: string, starter: string, ids: ReadonlySet<string>) => gueltigeZellen([{ lauf, starter, feld: 'x', wert: '' }], ids).length === 1
 
+/** Kennzeichen und Steg-Teil einer Rückfrage bzw. eines Vorschlags (W4.3, Prüfbefund 21.11.2026): nur genau `true` bzw. ab/an. */
+function nvTeil(raw: Record<string, unknown>): { nichtVorbei?: true; teil?: ListenTeil } {
+  return { ...(raw.nichtVorbei === true ? { nichtVorbei: true as const } : {}), ...(raw.teil === 'ab' || raw.teil === 'an' ? { teil: raw.teil } : {}) }
+}
+
 function liesRueckfrage(raw: unknown, ids: ReadonlySet<string>): WkrRueckfrage | null {
   if (!istObj(raw)) return null
   const { id, zeile, liste, ref, lauf, starter, feld, wert, steht, grund, zeit } = raw
@@ -427,7 +492,7 @@ function liesRueckfrage(raw: unknown, ids: ReadonlySet<string>): WkrRueckfrage |
   if (!weitere || !h || !liesListe(liste) || !zelleGilt(lauf as string, starter as string, ids) || !weitere.every((l) => zelleGilt(l, starter as string, ids))) return null
   const v = raw.vereinige
   const vereinige = grund === 'start' && istObj(v) && istText(v.vorher) ? { vereinige: { vorher: v.vorher } } : {}
-  return { id, zeile, liste, ref, lauf, weitere, starter, feld, wert, steht, grund, ...vereinige, haken: h, zeit } as WkrRueckfrage
+  return { id, zeile, liste, ref, lauf, weitere, starter, feld, wert, steht, grund, ...vereinige, haken: h, ...nvTeil(raw), zeit } as WkrRueckfrage
 }
 
 function liesVorschlag(raw: unknown, ids: ReadonlySet<string>): WkrVorschlag | null {
@@ -438,7 +503,7 @@ function liesVorschlag(raw: unknown, ids: ReadonlySet<string>): WkrVorschlag | n
   const h = haken(raw.haken)
   const zellen = Array.isArray(raw.zellen) && raw.zellen.every((z) => istObj(z) && istText(z.feld) && istText(z.wert)) ? (raw.zellen as { feld: string; wert: string }[]).map(({ feld, wert }) => ({ feld, wert })) : null
   if (!weitere || !h || !zellen || !liesListe(liste) || !zelleGilt(lauf as string, starter as string, ids) || !weitere.every((l) => zelleGilt(l, starter as string, ids))) return null
-  return { id, liste, ref, lauf, weitere, starter, zellen, haken: h, grund, zeit } as WkrVorschlag
+  return { id, liste, ref, lauf, weitere, starter, zellen, haken: h, grund, ...nvTeil(raw), zeit } as WkrVorschlag
 }
 
 function liesAbschluss(raw: unknown): WkrAbschluss | null {
@@ -485,5 +550,23 @@ export function normalisiereWkr(raw: unknown, starterIds: ReadonlySet<string>): 
         }),
       )
     : {}
-  return { listen, rueckfragen, vorschlaege, abschluss }
+  // „Nicht vorbeigekommen“ (W4.3): je lesbarer Liste die lesbaren Schlüssel gültiger Zellen, ohne Doppelte; ein Teil
+  // nur bei geteilten Listen und nur `an` (im Ablegen gibt es X, R1).
+  const nichtVorbei = istObj(raw.nichtVorbei)
+    ? Object.fromEntries(
+        Object.entries(raw.nichtVorbei).flatMap(([k, v]): [string, string[]][] => {
+          const liste = liesListe(k)
+          // Einzeln: ein kaputter Eintrag nimmt die übrigen der Liste nicht mit.
+          const keys = Array.isArray(v) ? v.filter(istText) : null
+          if (!liste || !keys) return []
+          const geteilt = !!teileVon(liste.typeId)
+          const gut = [...new Set(keys)].filter((x) => {
+            const z = liesNvSchluessel(x)
+            return !!z && (z.teil === undefined ? !geteilt : geteilt && z.teil === 'an') && zelleGilt(z.lauf, z.starter, starterIds)
+          })
+          return gut.length > 0 ? [[k, gut]] : []
+        }),
+      )
+    : {}
+  return { listen, rueckfragen, vorschlaege, abschluss, nichtVorbei }
 }

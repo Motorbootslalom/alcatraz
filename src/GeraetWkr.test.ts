@@ -3,6 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { computed, nextTick, shallowRef } from 'vue'
 import GeraetApp from './GeraetApp.vue'
 import WkrGeraet from './components/wkr/WkrGeraet.vue'
+import WkrUebung from './components/wkr/WkrUebung.vue'
 import { starteGeraeteHost, type GeraeteHost } from './geraete/host'
 import type { Ablage } from './geraete/ablage'
 import type { Aufgabe } from './geraete/aufgaben'
@@ -15,7 +16,7 @@ import type { NtfyZeiten } from './geraete/transport/ntfy/leitung'
 import { reducer, type Action } from './state/reducer'
 import { setLocale } from './i18n'
 import { vergissAlles } from './lib/merken'
-import { wkrBetriebsStand } from './testHilfen'
+import { betriebStarter, uimParallelStand, wkrBetriebsStand } from './testHilfen'
 import { lage } from './betrieb/folge'
 import { sichtOeffentlich } from './betrieb/sicht'
 import { werteVon } from './lib/eingaben'
@@ -40,7 +41,8 @@ const TOR5 = liste('tor5')
 const STEG = liste('steg')
 const VORSTEG = liste('vorsteg')
 const MUEB = liste('mueb')
-const GATE = liste('gate135')
+// Eine Liste, die auch nach W4 „Maske folgt“ zeigt (Zeitfelder → W5).
+const ZEITLISTE = liste('zeit')
 const NAMEN = /Vor[ekvf]\d|Nach[ekvf]\d|Musterclub/
 
 let ntfy: NachgebautesNtfy
@@ -72,7 +74,7 @@ function handy(): Ablage & { daten: Map<string, string> } {
   return { daten, getItem: (k) => daten.get(k) ?? null, setItem: (k, v) => void daten.set(k, String(v)), removeItem: (k) => void daten.delete(k) }
 }
 
-async function bedienrechner(start: AppState = wkrBetriebsStand()) {
+async function bedienrechner(start: AppState = wkrBetriebsStand(), bereich = P1) {
   const state = shallowRef<AppState>({ ...start, kennung: 'MUSTERW33', geraeteServer: SERVER })
   let uhr = 10_000
   const dispatch = (action: Action) => {
@@ -87,9 +89,9 @@ async function bedienrechner(start: AppState = wkrBetriebsStand()) {
   await bis(() => h.verbindung.value?.status === 'verbunden')
   /** „Nächster Start“ am Bedienrechner. */
   const zeige = () => {
-    const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === P1)!
-    dispatch({ type: 'BETRIEB_ZEIGEN', bereich: P1, ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
-    const a = lage(state.value, P1).aktuell!
+    const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === bereich)!
+    dispatch({ type: 'BETRIEB_ZEIGEN', bereich, ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
+    const a = lage(state.value, bereich).aktuell!
     return { key: a.key, starter: a.eintrag!.starter, startNr: state.value.starters.find((s) => s.id === a.eintrag!.starter)!.startNr }
   }
   return { state, dispatch, h, zeige }
@@ -118,7 +120,8 @@ async function mitCode(h: GeraeteHost, aufgaben: Aufgabe[], speicher: Ablage = h
   await w.find('.geraet-koppel-form').trigger('submit')
   const nurFreigabe = aufgaben.some((a) => a.art === 'startfreigabe')
   await zeigt(() => (nurFreigabe ? w.find('.betrieb-karte').exists() : w.find('[data-teil="wkr-geraet"]').exists()))
-  const mitMaske = aufgaben.some((a) => a.art === 'liste' && !a.liste.includes('gate'))
+  // Listen ohne Maske (Zeit, Knoten – W5) haben keine Probe; Bojen-Listen seit W4.2 schon.
+  const mitMaske = aufgaben.some((a) => a.art === 'liste' && !/"(zeit|moewezeit|bstartziel|knoten)"/.test(a.liste))
   if (!nurFreigabe && mitMaske && probe === 'ueberspringen') {
     // Ohne Klasse mit Maske (alle Starter ohne die Liste) gibt es keine Probe – dann steht gleich die Maske da.
     await zeigt(() => w.find('[data-teil="probe"]').exists() || w.find('[data-teil="karte"]').exists() || (w.find('[data-teil="ruhe"]').exists() && ruheArt(w) !== 'warte'))
@@ -279,7 +282,7 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
     const { w, h } = await listeMitStart('tor5')
     h.hinweis(TOR5, 'pruefen', '101')
     await zeigt(() => w.find('[data-teil="hinweis"]').exists())
-    expect(w.find('[data-teil="hinweis"]').text()).toContain('Bitte Nr. 101 prüfen')
+    expect(w.find('[data-teil="hinweis"]').text()).toContain('Bediener bittet: Start 101 prüfen')
     await klick(w, '[data-teil="hinweis"] [data-action="gesehen"]')
     await zeigt(() => !w.find('[data-teil="hinweis"]').exists())
   })
@@ -425,8 +428,9 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
     expect(w.find('[data-action="code"]').exists()).toBe(false)
   })
 
-  it('Liste mit Bojen: „Maske folgt – Papier“ mit „Pausieren“ (G14)', async () => {
+  it('Liste mit Zeitfeldern: „Maske folgt – Papier“ mit „Pausieren“ (G14; Bojen-Listen haben seit W4.2 ihre Maske)', async () => {
     const r = await bedienrechner()
+    const GATE = ZEITLISTE
     const { w } = await mitCode(r.h, [{ art: 'liste', liste: GATE }])
     await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'spaeter')
     expect(w.find('[data-teil="ruhe"]').text()).toContain('bitte auf dem Papierbogen erfassen')
@@ -1048,4 +1052,490 @@ describe('Befund 15 (21.11.2026): zwei Tabs derselben Kopplung', () => {
     await zeigt(() => r.w.find('[data-teil="wkr-geraet"]').exists())
     await zeigt(() => w2.find('[data-meldung="andererTab"]').exists())
   })
+})
+
+describe('Feldtest 21.11.2026: Neuladen (N11, N12) und „Bitte Nr. prüfen“ (N13)', () => {
+  /** Das Handy lädt neu: alte Seite weg, dieselbe Ablage, Adresse `#/geraet`. */
+  async function neuLaden(alt: VueWrapper, speicher: Ablage): Promise<VueWrapper> {
+    alt.unmount()
+    wrappers.splice(wrappers.indexOf(alt), 1)
+    location.hash = '#/geraet'
+    const w = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20 } } })
+    wrappers.push(w)
+    return w
+  }
+
+  it('nach dem Neuladen neutral „verbinde …“ (kein Rot, keine Schätzung), dann verbunden; die nächste Zeile kommt an', async () => {
+    const r = await listeMitStart('tor5')
+    await klick(r.w, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, r.s.starter)['erfasst@tor5'])
+    const s2 = r.zeige()
+    r.zeige()
+    await zeigt(() => startNr(r.w) === s2.startNr && r.w.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 5000)
+
+    const w = await neuLaden(r.w, r.speicher)
+    // Die abgelegte Sicht zeigt die Maske sofort – während die Verbindung erst aufgebaut wird.
+    await zeigt(() => w.find('[data-teil="verbindung"]').exists())
+    expect(w.find('[data-teil="verbindung"]').attributes('data-lage')).toBe('verbinde')
+    expect(w.find('[data-teil="verbindung"]').text()).toBe('◌ verbinde …')
+    expect(w.find('[data-teil="getrennt"]').exists()).toBe(false)
+    expect(w.find('[data-teil="geschaetzt"]').exists()).toBe(false)
+    expect(w.html()).not.toContain('0 Zeilen')
+    await zeigt(() => w.find('[data-teil="verbindung"]').attributes('data-lage') === 'verbunden', 5000)
+    expect(w.find('[data-teil="getrennt"]').exists()).toBe(false)
+    await zeigt(() => startNr(w) === s2.startNr)
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(r.state.value, s2.starter)['katalog:tor5'] === '1')
+    // Auch ein Start, der erst nach dem Neuladen gezeigt wird, kommt auf das Handy (Abo steht wieder).
+    const s4 = r.zeige()
+    await zeigt(() => w.findAll('[data-action="ausweichen"]').some((b) => b.text() === s4.startNr) || startNr(w) === s4.startNr, 5000)
+  })
+
+  it('kommt die Verbindung nach dem Neuladen nicht, wird es erst nach der Karenz rot – ohne „0 Zeilen warten“', async () => {
+    const r = await listeMitStart('tor5')
+    vi.stubGlobal(
+      'WebSocket',
+      class extends NachgebauterSocket {
+        constructor(url: string) {
+          super(url)
+          this.close()
+        }
+      },
+    )
+    const karenz = WKR_ANNAHMEN.verbindeKarenzSek
+    // Nur hier kürzer, damit der Test nicht 12 s wartet; der Wert selbst steht in WKR_ANNAHMEN.
+    ;(WKR_ANNAHMEN as { verbindeKarenzSek: number }).verbindeKarenzSek = 0.4
+    try {
+      const w = await neuLaden(r.w, r.speicher)
+      await zeigt(() => w.find('[data-teil="verbindung"]').exists())
+      expect(w.find('[data-teil="verbindung"]').attributes('data-lage')).toBe('verbinde')
+      expect(w.find('[data-teil="getrennt"]').exists()).toBe(false)
+      await zeigt(() => w.find('[data-teil="getrennt"]').exists(), 3000)
+      expect(w.find('[data-teil="verbindung"]').attributes('data-lage')).toBe('getrennt')
+      expect(w.find('[data-teil="getrennt"]').text()).toBe('Keine Verbindung – weiter erfassen')
+    } finally {
+      ;(WKR_ANNAHMEN as { verbindeKarenzSek: number }).verbindeKarenzSek = karenz
+    }
+  })
+
+  it('„601 öffnen“: noch offen → Eingabe dieses Starts; gesendet → Korrektur mit den bisherigen Werten; unbekannt → Suche vorbelegt', async () => {
+    const { w, h, zeige, s, state } = await listeMitStart('tor5')
+    const s2 = zeige()
+    await zeigt(() => w.findAll('[data-action="ausweichen"]').length === 1)
+
+    // Noch offen (zweiter in der Schlange): direkt in die Eingabe.
+    h.hinweis(TOR5, 'pruefen', s2.startNr)
+    await zeigt(() => w.find('[data-action="hinweis-oeffnen"]').exists())
+    expect(w.find('[data-teil="hinweis"]').text()).toContain(`Bediener bittet: Start ${s2.startNr} prüfen`)
+    expect(w.find('[data-action="hinweis-oeffnen"]').text()).toBe(`${s2.startNr} öffnen`)
+    expect(w.find('[data-teil="hinweis"] [data-action="gesehen"]').exists()).toBe(true)
+    await klick(w, '[data-action="hinweis-oeffnen"]')
+    expect(startNr(w)).toBe(s2.startNr)
+    expect(w.find('[data-teil="ausser"]').exists()).toBe(true)
+    // Öffnen gilt als gesehen.
+    await zeigt(() => !w.find('[data-teil="hinweis"]').exists())
+
+    // Den ersten mit Code 1 abschicken, dann bittet der Bediener um Prüfung: Korrektur mit „1“.
+    await klick(w, '[data-action="ausweichen"]')
+    expect(startNr(w)).toBe(s.startNr)
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '1')
+    h.hinweis(TOR5, 'pruefen', s.startNr)
+    await zeigt(() => w.find('[data-action="hinweis-oeffnen"]').exists())
+    await klick(w, '[data-action="hinweis-oeffnen"]')
+    expect(w.find('[data-teil="korrektur"]').text()).toBe(`Korrektur Start ${s.startNr}`)
+    expect(w.find('[data-action="code"][data-code="1"]').attributes('data-anzahl')).toBe('1')
+    await klick(w, '[data-action="korrektur-abbrechen"]')
+
+    // Unbekannt auf dem Gerät: Suche offen, Nummer vorbelegt, Satz „nicht in der Folge“.
+    h.hinweis(TOR5, 'pruefen', '987')
+    await zeigt(() => w.find('[data-action="hinweis-oeffnen"]').exists())
+    await klick(w, '[data-action="hinweis-oeffnen"]')
+    await nextTick()
+    expect(w.find('[data-teil="ziffernfeld"] [data-teil="eingabe"]').text()).toBe('987')
+    expect(w.find('[data-teil="nicht-gefunden"]').text()).toContain('987')
+  })
+
+  it('„601 öffnen“ in Lauf 2: die gesendete Zeile aus Lauf 1 zählt nicht – Eingabe des Lauf-2-Starts, keine Korrektur', async () => {
+    // Ein einziger Starter: Nach seinem Lauf 1 kommt derselbe Start in Lauf 2 (dieselbe Nummer, anderer Punkt).
+    const { state, dispatch, h, zeige } = await bedienrechner(wkrBetriebsStand([betriebStarter('e1', 'E', 'E01')]))
+    const { w } = await mitCode(h, [{ art: 'liste', liste: TOR5 }])
+    await bis(() => state.value.wkr.listen[TOR5]?.modus === 'digital')
+    const s = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '1')
+    await zeigt(() => w.find('[data-teil="leiste-zeile"]').attributes('data-stufe') === 'uebernommen')
+    dispatch({ type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'lauf:2' })
+    const s2 = zeige()
+    expect(s2.startNr).toBe(s.startNr)
+    expect(s2.key).not.toBe(s.key)
+    await zeigt(() => w.find('[data-teil="maske"]').attributes('data-takt') === 'frei' && w.find('[data-teil="karte"]').exists() && w.find('[data-teil="lauf"]').text().includes('2'), 6000)
+    h.hinweis(TOR5, 'pruefen', s.startNr)
+    await zeigt(() => w.find('[data-action="hinweis-oeffnen"]').exists())
+    await klick(w, '[data-action="hinweis-oeffnen"]')
+    expect(w.find('[data-teil="korrektur"]').exists()).toBe(false)
+    expect(startNr(w)).toBe(s.startNr)
+    expect(w.find('[data-teil="lauf"]').text()).toContain('2')
+    expect(w.find('[data-action="code"][data-code="1"]').attributes('data-anzahl') ?? '0').toBe('0')
+  }, 15_000)
+
+  it('„987 öffnen“ in der Ruhe: Band „nicht in der Folge“ mit „Gesehen“, weg sobald ein Start erscheint', async () => {
+    const r = await bedienrechner()
+    const g = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }])
+    await bis(() => r.state.value.wkr.listen[TOR5]?.modus === 'digital')
+    const w = g.w
+    await zeigt(() => w.find('[data-teil="wkr-kopf"]').exists())
+    r.h.hinweis(TOR5, 'pruefen', '987')
+    await zeigt(() => w.find('[data-action="hinweis-oeffnen"]').exists())
+    await klick(w, '[data-action="hinweis-oeffnen"]')
+    await zeigt(() => w.find('[data-teil="hinweis-unbekannt"]').exists())
+    expect(w.find('[data-teil="hinweis-unbekannt"] [data-action="hinweis-unbekannt-weg"]').exists()).toBe(true)
+    const s = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    expect(w.find('[data-teil="hinweis-unbekannt"]').exists()).toBe(false)
+    // Der nächste Hinweis liegt über dem Kopf (S5) – sein Erscheinen verschiebt keinen Knopf.
+    r.h.hinweis(TOR5, 'pruefen', '988')
+    await zeigt(() => w.find('[data-action="hinweis-oeffnen"]').exists())
+    expect(w.find('[data-teil="hinweis"]').classes()).toContain('wkr-kopf-ueber')
+  })
+
+  it('andere Hinweise (Papier ab) behalten nur „Gesehen“', async () => {
+    const { w, h, s } = await listeMitStart('tor5')
+    h.hinweis(TOR5, 'papier', s.startNr)
+    await zeigt(() => w.find('[data-teil="hinweis"]').exists())
+    expect(w.find('[data-action="hinweis-oeffnen"]').exists()).toBe(false)
+    expect(w.find('[data-teil="hinweis"] [data-action="gesehen"]').exists()).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W4.2: Bojen-Maske (Plan docs/plan-wkr-w4.md §5, 21.11.2026)
+// ---------------------------------------------------------------------------
+
+describe('Bojen (W4.2)', () => {
+  // Erfundene Starter: Klassen 4 und 7 landen auf Parcours 2 und fahren abwechselnd (401, 701, 402, 702).
+  const P2 = 'par_2'
+  const GATE2 = listenKennung({ bereich: P2, typeId: 'gate135', racecourse: null })
+  const bojenStand = () =>
+    wkrBetriebsStand([betriebStarter('a1', '7', '701'), betriebStarter('a2', '7', '702'), betriebStarter('b1', '4', '401'), betriebStarter('b2', '4', '402')])
+  const boje = (feld: string) => `[data-action="boje"][data-feld="${feld}"]`
+
+  async function torListe() {
+    const r = await bedienrechner(bojenStand(), P2)
+    const g = await mitCode(r.h, [{ art: 'liste', liste: GATE2 }])
+    await bis(() => r.state.value.wkr.listen[GATE2]?.modus === 'digital')
+    return { ...r, ...g }
+  }
+
+  it('gate135: Kl. 4 ohne Tor 1 R und ohne Umschalter, Fehlerfrei → Haken ohne Zellen; Kl. 7 mit Band, Umschalter, Schalter, Zähler „15“, Tor 1 R + 2. Durchfahrt, Disq. → Erfassung am Host', async () => {
+    const { w, state, zeige } = await torListe()
+    const v1 = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === v1.startNr)
+    expect(v1.startNr).toBe('401')
+    // Klasse 4: sieben Zeilen, kein Umschalter, kein Tor 1 auf der Rückfahrt.
+    expect(w.find('[data-teil="weg-umschalter"]').exists()).toBe(false)
+    expect(w.findAll('[data-teil="halt"]').map((h) => h.attributes('data-halt'))).toEqual(['start', 't1a', 't3a', 't5', 't5', 't3b', 'ziel'])
+    expect(w.find('[data-feld^="t1b"]').exists()).toBe(false)
+    expect(w.findAll('[data-teil="weg-kopf"]').map((k) => k.text())).toEqual(['HINWEG', 'RÜCKWEG'])
+    expect(w.find('[data-teil="maske"]').classes()).toContain('wkr-maske--bojen')
+    expect(haupt(w).text()).toBe('Fehlerfrei ✓')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(state.value, v1.starter)['erfasst@gate135'])
+    expect(Object.keys(werte(state.value, v1.starter)).filter((k) => k !== 'erfasst@gate135')).toEqual([])
+
+    // Klasse 7: andere Halte → Band über der Karte (verschiebt nichts), Umschalter auf „Hinweg“.
+    const s7 = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s7.startNr, 6000)
+    expect(w.find('[data-teil="klassen-wechsel"]').text()).toBe('Klasse 7 – andere Halte')
+    expect(w.find('.wkr-karten-platz [data-teil="klassen-wechsel"]').exists()).toBe(true)
+    const mitte = w.find('[data-teil="bojen"]').html()
+    await zeigt(() => !w.find('[data-teil="klassen-wechsel"]').exists(), WKR_ANNAHMEN.klassenWechselMs + 1500)
+    expect(w.find('[data-teil="bojen"]').html()).toBe(mitte)
+    expect(w.find('[data-action="weg"][data-weg="hin"]').attributes('aria-selected')).toBe('true')
+    expect(w.findAll('[data-teil="halt"]').map((h) => h.attributes('data-halt'))).toEqual(['start', 't1a', 't3a', 't5'])
+
+    // Schalter: Tipp setzt („✔ 5“), ein prellender zweiter Tipp gleich danach zählt nicht (bojenSchalterPrellMs),
+    // ein späterer nimmt weg, der nächste setzt wieder.
+    vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })
+    const weiter = () => vi.setSystemTime(Date.now() + WKR_ANNAHMEN.bojenSchalterPrellMs + 100)
+    await klick(w, boje('t1a|hin seiteB'))
+    expect(w.find(boje('t1a|hin seiteB')).text()).toBe('H L✔ 5')
+    expect(w.find(boje('t1a|hin seiteB')).attributes('aria-pressed')).toBe('true')
+    expect(haupt(w).text()).toBe('Abschicken · 5 Pkt.')
+    await klick(w, boje('t1a|hin seiteB'))
+    expect(w.find(boje('t1a|hin seiteB')).attributes('aria-pressed')).toBe('true')
+    weiter()
+    await klick(w, boje('t1a|hin seiteB'))
+    expect(haupt(w).text()).toBe('Fehlerfrei ✓')
+    weiter()
+    await klick(w, boje('t1a|hin seiteB'))
+    // Zähler Tor 5: dreimal → „3× = 15“.
+    for (let i = 0; i < 3; i++) await klick(w, boje('t5|hin seiteA'))
+    expect(w.find(boje('t5|hin seiteA')).find('[data-teil="boje-stand"]').text()).toBe('3× = 15')
+    expect(w.find(boje('t5|hin seiteA')).find('[data-teil="boje-max"]').exists()).toBe(false)
+    expect(w.find('[data-action="weg"][data-weg="hin"]').text()).toBe('HINWEG · 4')
+    expect(w.find('[data-action="weg"][data-weg="rueck"]').text()).toBe('RÜCKWEG · 0')
+    // Rückweg: Tor 1 R und die 2. Durchfahrt nach Sp. 2 (wie das Boot fährt).
+    await klick(w, '[data-action="weg"][data-weg="rueck"]')
+    expect(w.findAll('[data-teil="halt"]').map((h) => `${h.attributes('data-halt')}${h.attributes('data-durchfahrt') ?? ''}`)).toEqual(['t5', 't3b', 't1b', 'speed2', 't1c2', 'ziel'])
+    expect(w.find('[data-halt="t1c"] [data-teil="durchfahrt"]').text()).toBe('2. Durchfahrt (Speedrunde)')
+    await klick(w, boje('t1b|rueck seiteA'))
+    await klick(w, boje('t1c|rueck seiteB'))
+    expect(w.find('[data-action="weg"][data-weg="rueck"]').text()).toBe('RÜCKWEG · 2')
+    // Disq.: ins Disq.-Feld der Liste, nie in eine Bojenzelle.
+    await klick(w, '[data-action="disq"]')
+    const code = w.findAll('[data-action="disq-code"]').map((b) => b.attributes('data-code')!).find((c) => c !== 'X')!
+    await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
+    await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
+    expect(haupt(w).text()).toBe(`Abschicken · 30 Pkt. · Disq. ${code}`)
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s7.starter)['t5|hin seiteA'] === '15')
+    const v = werte(state.value, s7.starter)
+    expect([v['t1a|hin seiteB'], v['t1b|rueck seiteA'], v['t1c|rueck seiteB'], v['disq@gate135']]).toEqual(['5', '5', '5', code])
+    expect(v['t1a|hin seiteA'] ?? '').toBe('')
+    expect(w.html()).not.toMatch(NAMEN)
+  }, 20_000)
+
+  it('Umschalter wechselt nie von selbst; Seite je Start gemerkt, ein anderer Start beginnt auf „Hinweg“', async () => {
+    const { w, zeige, state } = await torListe()
+    const s4 = zeige()
+    const s7 = zeige()
+    zeige()
+    const s72 = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s4.startNr)
+    // 401 (Kl. 4) fehlerfrei – dann steht 701 vorn, 402 und 702 zum Ausweichen.
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(state.value, s4.starter)['erfasst@gate135'])
+    await zeigt(() => startNr(w) === s7.startNr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 6000)
+    await klick(w, '[data-action="weg"][data-weg="rueck"]')
+    await klick(w, boje('t3b|rueck seiteB'))
+    expect(w.find('[data-action="weg"][data-weg="rueck"]').attributes('aria-selected')).toBe('true')
+    // Zu 702: neuer Start, Hinweg.
+    const nach702 = w.findAll('[data-action="ausweichen"]').find((b) => b.text() === s72.startNr)
+    if (!nach702) throw new Error(`702 nicht unter ${w.findAll('[data-action="ausweichen"]').map((b) => b.text())}`)
+    await nach702.trigger('click')
+    await nextTick()
+    expect(startNr(w)).toBe(s72.startNr)
+    expect(w.find('[data-action="weg"][data-weg="hin"]').attributes('aria-selected')).toBe('true')
+    // Zurück zu 701: wieder Rückweg, der Tipp steht noch.
+    await w.findAll('[data-action="ausweichen"]').find((b) => b.text() === s7.startNr)!.trigger('click')
+    await nextTick()
+    expect(startNr(w)).toBe(s7.startNr)
+    expect(w.find('[data-action="weg"][data-weg="rueck"]').attributes('aria-selected')).toBe('true')
+    expect(w.find(boje('t3b|rueck seiteB')).attributes('data-anzahl')).toBe('1')
+  }, 15_000)
+
+  it('Korrektur aus Zuletzt: „Tor 1 H L: 5 → Tor 1 H L: 5 · Tor 3 R L: 5“, am Host danach beide', async () => {
+    const { w, state, zeige } = await torListe()
+    const s4 = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s4.startNr)
+    await klick(w, boje('t1a|hin seiteB'))
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s4.starter)['t1a|hin seiteB'] === '5')
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists())
+    await klick(w, '[data-action="zuletzt"]')
+    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('Tor 1 H L: 5')
+    await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
+    expect(w.find(boje('t1a|hin seiteB')).attributes('data-anzahl')).toBe('1')
+    await klick(w, boje('t3b|rueck seiteB'))
+    await klick(w, '[data-action="haupt"]')
+    const d = w.find('[data-dialog="wkr-korrektur"]')
+    expect(d.find('[data-teil="alt"]').text()).toBe('Tor 1 H L: 5')
+    expect(d.find('[data-teil="neu"]').text()).toBe('Tor 1 H L: 5 · Tor 3 R L: 5')
+    await klick(w, '[data-action="korrektur-ja"]')
+    await bis(() => werte(state.value, s4.starter)['t3b|rueck seiteB'] === '5')
+    expect(werte(state.value, s4.starter)['t1a|hin seiteB']).toBe('5')
+  }, 15_000)
+
+  it('Doppeltipp in der Sperre wirkt nicht (Fake-Uhr, Übung Tor 1/3/5)', async () => {
+    vi.useFakeTimers()
+    const { q, w } = uebe('dm-2026', 'gate135')
+    await nextTick()
+    const erste = startNr(w)
+    const knopf = () => w.find('[data-action="boje"]')
+    const feld = knopf().attributes('data-feld')
+    await klick(w, '[data-action="haupt"]')
+    await knopf().trigger('click')
+    await nextTick()
+    expect(q.zuletzt.value).toHaveLength(1)
+    expect(Object.values(q.zuletzt.value[0].zellen).join('')).toBe('')
+    await vi.advanceTimersByTimeAsync(BIS_WECHSEL)
+    await nextTick()
+    expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('sperre')
+    expect(startNr(w)).not.toBe(erste)
+    await w.find(`[data-action="boje"][data-feld="${feld}"]`).trigger('click')
+    await nextTick()
+    expect(w.find(`[data-action="boje"][data-feld="${feld}"]`).attributes('data-anzahl')).toBe('0')
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.sperreMs)
+    await nextTick()
+    await w.find(`[data-action="boje"][data-feld="${feld}"]`).trigger('click')
+    await nextTick()
+    expect(w.find(`[data-action="boje"][data-feld="${feld}"]`).attributes('data-anzahl')).toBe('1')
+  })
+
+  it('Probe: Boje, zurück, Tor 5 zweimal, Rückweg, Abschicken – nichts gesendet (Übung Tor 1/3/5, Klasse 7)', async () => {
+    vi.useFakeTimers()
+    const { q, w } = uebe('dm-2026', 'gate135')
+    await nextTick()
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="probe"]')
+    const probe = () => w.find('[data-teil="probe"]')
+    expect(w.find('[data-teil="karte"] [data-teil="klasse"]').text()).toBe('Klasse 7')
+    expect(probe().attributes('data-schritt')).toBe('boje')
+    expect(w.find('[data-teil="probe-schritt"]').text()).toBe('Schritt 1 von 5: Tippe bei „Tor 1“ den Knopf „H R“ an.')
+    await klick(w, boje('t1a|hin seiteA'))
+    expect(probe().attributes('data-schritt')).toBe('zurueck')
+    await klick(w, '[data-action="zurueck"]')
+    expect(probe().attributes('data-schritt')).toBe('zaehler')
+    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('zweimal auf „H R“ – das zählt 2 Berührungen (10)')
+    await klick(w, boje('t5|hin seiteA'))
+    expect(probe().attributes('data-schritt')).toBe('zaehler')
+    await klick(w, boje('t5|hin seiteA'))
+    expect(probe().attributes('data-schritt')).toBe('rueckweg')
+    await klick(w, '[data-action="weg"][data-weg="rueck"]')
+    expect(probe().attributes('data-schritt')).toBe('haupt')
+    expect(haupt(w).text()).toBe('Abschicken · 10 Pkt.')
+    await klick(w, '[data-action="haupt"]')
+    await vi.advanceTimersByTimeAsync(BIS_WECHSEL + WKR_ANNAHMEN.sperreMs)
+    await nextTick()
+    expect(probe().attributes('data-schritt')).toBe('fertig')
+    await klick(w, '[data-action="probe-fertig"]')
+    expect(q.zuletzt.value).toHaveLength(0)
+    expect(q.entwuerfe.value).toHaveLength(0)
+  })
+
+  it('Übung: Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel; Parallelslalom nur unter UIM', async () => {
+    const w = mount(WkrUebung, { attachTo: document.body, props: { ablage: handy(), taktMs: 3_600_000 } })
+    wrappers.push(w)
+    const listen = () => w.findAll('[data-action="uebung-liste"]').map((b) => b.attributes('data-liste'))
+    expect(listen()).toEqual(expect.arrayContaining(['gate135', 'gate245', 'parcoursms']))
+    expect(listen()).not.toContain('parallel')
+    await klick(w, '[data-action="uebung-regelwerk"][data-regelwerk="uim-2026"]')
+    expect(w.find('[data-action="uebung-liste"][data-liste="parallel"]').text()).toBe('Parallelslalom, Racecourse A')
+    await klick(w, '[data-action="uebung-liste"][data-liste="parallel"]')
+    // Zurück zu DM: Der Parallelslalom fällt weg, die Wahl springt auf Tor 5.
+    await klick(w, '[data-action="uebung-regelwerk"][data-regelwerk="dm-2026"]')
+    expect(listen()).not.toContain('parallel')
+    expect(w.find('[data-action="uebung-liste"][data-liste="tor5"]').attributes('aria-pressed')).toBe('true')
+    await klick(w, '[data-action="uebung-liste"][data-liste="gate135"]')
+    await klick(w, '[data-action="uebung-start"]')
+    expect(w.find('[data-teil="bojen"]').exists()).toBe(true)
+    expect(w.find('[data-teil="wkr-kopf"] [data-teil="titel"]').text()).toContain('Tor 1 / 3 / 5')
+    expect(w.find('[data-teil="probe"]').exists()).toBe(false)
+  })
+
+  it('UIM Parallelslalom Racecourse A: Buoy 1 → „parallel:…“ am Host, Seite A', async () => {
+    setLocale('en')
+    const start = reducer(uimParallelStand(), { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    const r = await bedienrechner(start, 'parallel')
+    const A = listenKennung({ bereich: 'parallel', typeId: 'parallelparcours', racecourse: 'A' })
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: A }])
+    await bis(() => r.state.value.wkr.listen[A]?.modus === 'digital')
+    // Den ersten Start zeigen, in dem auf Seite A jemand fährt.
+    let paar: { a: string | null } | undefined
+    for (let i = 0; i < 10 && !paar?.a; i++) {
+      r.zeige()
+      paar = lage(r.state.value, 'parallel').aktuell!.eintrag!.paar ?? undefined
+    }
+    const nr = r.state.value.starters.find((x) => x.id === paar!.a)!.startNr
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === nr, 5000)
+    expect(w.findAll('[data-teil="halt-titel"]').map((h) => h.text())).toEqual(['Start', 'Buoy 1', 'Buoy 2', 'Buoy 3', 'Buoy 4', 'Buoy 5'])
+    expect(w.find(boje('b1a')).text()).toBe('Touched')
+    await klick(w, boje('b1a'))
+    expect(w.find(boje('b1a')).text()).toBe('Touched✔ 5')
+    await klick(w, '[data-action="haupt"]')
+    const lauf = () => Object.keys(r.state.value.eingaben).find((l) => r.state.value.eingaben[l]?.[paar!.a!]?.['b1a'] === '5')
+    await bis(() => !!lauf())
+    expect(lauf()).toMatch(/^parallel:[^/]+\/\d+$/)
+    expect(r.state.value.eingaben[lauf()!][paar!.a!]['erfasst@parallelparcours']).toBeTruthy()
+  }, 20_000)
+})
+
+// W4.3 (Plan docs/plan-wkr-w4.md §6, 21.11.2026, P16, R1–R6): „Nicht vorbeigekommen“ unter „Mehr“.
+describe('„Nicht vorbeigekommen“ (W4.3)', () => {
+  const nvMehr = async (w: VueWrapper) => {
+    await klick(w, '[data-action="mehr"]')
+    return w.find('[data-action="nicht-vorbei"]')
+  }
+
+  it('Mehr → große Rückfrage → Haken und ⊘ am Bedienrechner, nichts eingetragen; Zuletzt ⊘; Prüfansicht zählt', async () => {
+    const { w, state, s, l } = await listeMitStart('tor5')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    const knopf = await nvMehr(w)
+    expect(knopf.text()).toContain('Nicht vorbeigekommen')
+    await knopf.trigger('click')
+    await nextTick()
+    const d = w.find('[data-dialog="wkr-nicht-vorbei"]')
+    expect(d.text()).toContain(`${s.startNr} ist hier nicht vorbeigekommen?`)
+    expect(d.text()).toContain('Es wird nichts eingetragen.')
+    // Abbrechen ändert nichts.
+    await klick(w, '[data-action="nicht-vorbei-nein"]')
+    expect(w.find('[data-dialog="wkr-nicht-vorbei"]').exists()).toBe(false)
+    expect(startNr(w)).toBe(s.startNr)
+    // „Mehr“ bleibt nach dem Abbrechen offen.
+    await klick(w, '[data-action="nicht-vorbei"]')
+    await klick(w, '[data-action="nicht-vorbei-ja"]')
+    // Overlay wie beim Abschicken (N1).
+    expect(w.find('[data-teil="uebertragen"]').exists()).toBe(true)
+    await bis(() => state.value.wkr.nichtVorbei[l]?.length === 1)
+    expect(werte(state.value, s.starter)).toEqual({ 'erfasst@tor5': '1' })
+    // Der getippte Code war ein Entwurf – er geht nicht mit und ist verworfen.
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists())
+    expect(w.find('[data-teil="entwuerfe"]').exists()).toBe(false)
+    await klick(w, '[data-action="zuletzt"]')
+    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('⊘ nicht vorbeigekommen')
+    await klick(w, '[data-action="zuletzt"]')
+    await zeigt(() => w.find('[data-teil="maske"]').attributes('data-takt') === 'frei' || w.find('[data-teil="ruhe"]').exists(), 5000)
+    await oeffneAbschlussUeberMehr(w)
+    expect(w.find('[data-teil="summe"]').text()).toContain(`1 nicht vorbeigekommen: ${s.startNr}`)
+    const zeile = w.find('[data-teil="pruef-zeile"]')
+    expect(zeile.attributes('data-nv')).toBe('true')
+    expect(zeile.find('[data-teil="codes"]').text()).toBe('⊘ nicht vorbeigekommen')
+    expect(zeile.find('[data-teil="punkte"]').exists()).toBe(false)
+    expect(w.html()).not.toMatch(NAMEN)
+  }, 12_000)
+
+  it('Korrektur „doch vorbei“: alt ⊘, auch leer (fehlerfrei) hebt das Kennzeichen am Bedienrechner auf', async () => {
+    const { w, state, s, l } = await listeMitStart('tor5')
+    await (await nvMehr(w)).trigger('click')
+    await nextTick()
+    await klick(w, '[data-action="nicht-vorbei-ja"]')
+    await bis(() => state.value.wkr.nichtVorbei[l]?.length === 1)
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists())
+    await klick(w, '[data-action="zuletzt"]')
+    await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
+    expect(w.find('[data-action="nicht-vorbei"]').exists()).toBe(false)
+    await klick(w, '[data-action="haupt"]')
+    const d = w.find('[data-dialog="wkr-korrektur"]')
+    expect(d.find('[data-teil="alt"]').text()).toBe('⊘ nicht vorbeigekommen')
+    expect(d.find('[data-teil="neu"]').text()).toBe('fehlerfrei')
+    await klick(w, '[data-action="korrektur-ja"]')
+    await bis(() => state.value.wkr.nichtVorbei[l] === undefined)
+    expect(werte(state.value, s.starter)['erfasst@tor5']).toBe('1')
+  }, 12_000)
+
+  it('nicht am Vorsteg; am Steg nur im Reiter „Anlegen“ (dort X, F5)', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: VORSTEG }])
+    await bis(() => r.state.value.wkr.listen[VORSTEG]?.modus === 'digital')
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    expect((await nvMehr(w)).exists()).toBe(false)
+
+    const st = await listeMitStart('steg')
+    expect((await nvMehr(st.w)).exists()).toBe(false)
+    await klick(st.w, '[data-action="mehr"]')
+    await klick(st.w, '[data-action="steg-teil"][data-steg="an"]')
+    const knopf = await nvMehr(st.w)
+    expect(knopf.exists()).toBe(true)
+    await knopf.trigger('click')
+    await nextTick()
+    await klick(st.w, '[data-action="nicht-vorbei-ja"]')
+    await bis(() => st.state.value.wkr.nichtVorbei[st.l]?.length === 1)
+    expect(st.state.value.wkr.nichtVorbei[st.l][0]).toMatch(/\|an$/)
+    expect(werte(st.state.value, st.s.starter)).toEqual({ 'erfasst.an@steg': '1' })
+  }, 15_000)
 })

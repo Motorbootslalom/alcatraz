@@ -561,7 +561,7 @@ schlüssig, weitermachen“). Etappen W1–W6 ebd. §11; **W1 (Kern) gebaut 21.1
 [plan-wkr-w1.md](plan-wkr-w1.md) – ohne Masken und ohne Oberfläche am Bedienrechner, nur gegen den nachgebauten
 Server geprüft (`src/wkr/`, `state/reducer/wkr.ts`, `geraete/erfassen.ts`, Ende zu Ende `geraete/wkr.test.ts`).
 
-Beim Bau von W1 ausgelegt, **noch zu bestätigen** (Plan §9, im Code `src/wkr/annahmen.ts` WKR_ANNAHMEN):
+Beim Bau von W1 ausgelegt, **bestätigt 21.11.2026** (Plan §9, im Code `src/wkr/annahmen.ts` WKR_ANNAHMEN):
 
 1. Übernahme nur, wenn der Stand gleich `vorher` (beim ersten Mal leer) oder gleich dem neuen Wert ist; eine vom
    Bediener geleerte Gerätezelle ist eine Rückfrage.
@@ -585,13 +585,13 @@ Beim Bau von W1 ausgelegt, **noch zu bestätigen** (Plan §9, im Code `src/wkr/a
 ab Start …“, Betrieb → WKR (Matrix Listen × Starts, Bedienung je Liste, Eingang mit Rückfragen und Vorschlägen), ◆ und
 „Papier ansehen“ in der Erfassung, Geräteleiste und Rückstandswarnung in der Start-Freigabe am Bedienrechner und auf dem
 Freigabe-Handy (eigene verschlüsselte Gruppe je Bereich, nie über Anzeigetafel/Zuschauer). Weiterhin nur gegen den
-nachgebauten Server geprüft. Beim Bau ausgelegt, **noch zu bestätigen** (im Code `WKR_ANNAHMEN`, Hintergrund je Punkt in
+nachgebauten Server geprüft. Beim Bau ausgelegt, **bestätigt 21.11.2026** (im Code `WKR_ANNAHMEN`, Hintergrund je Punkt in
 plan-wkr-w2.md §9):
 
 - A1 Unterreiter heißt „WKR“ (englisch „Race officials“), nicht „Erfassung“ (das ist schon ein Hauptreiter).
 - A2 Matrix: die letzten 12 gezeigten Starts des laufenden Laufs, umschaltbar auf alle.
 - A3 Ohne laufenden Lauf „ruht“ jedes Gerät (grau) statt ✕ – Geräte schicken dann kein Lebenszeichen.
-- A4 Rückstand = offene gezeigte Starts der Liste; Warnung ab mehr als R (Vorgabe 2); am Steg zählt der Teil, der
+- A4 Rückstand = offene gezeigte Starts der Liste; Warnung ab R (Vorgabe 1, „nachfragen“ – Fassung nach dem Feldtest, N8); am Steg zählt der Teil, der
   weiter zurück ist; pausiert/abgemeldet/Papier zählen nie.
 - A5 „Papier ansehen“ an der Zeile (Start auf Papier, überfällig, Gerät seit über 5 min weg), an der Zelle (nur ein
   Steg-Teil fehlt, Rückfrage genau dort).
@@ -626,8 +626,8 @@ plan-wkr-w3.md §9–§13):
   G8 Rückgängig 6 s. G9 Sprache: Vorgabe die der Liste (`de+en` → deutsch); Kataloge wechseln nur unter UIM.
   G10 Probe einmal je Raum und Liste, überspringbar, nichts gesendet. G11 WKR-Name nur beim Abschluss. G12 letzter
   WKR-Name vorbelegt, gelöscht mit „Raum verlassen“. G13 Übung mit erfundenen Starts, ohne Kopplung, nichts außer der
-  Ansicht abgelegt. G14 Liste ohne Maske: „Papier“ mit „Pausieren“. G15 „Nicht vorbeigekommen“ erst mit W4. G16 Band
-  „Liste abschließen“, sobald der eigene Punkt nicht mehr läuft.
+  Ansicht abgelegt. G14 Liste ohne Maske: „Papier“ mit „Pausieren“. G15 „Nicht vorbeigekommen“ erst mit W4 (gebaut
+  mit W4.3). G16 Band „Liste abschließen“, sobald der eigene Punkt nicht mehr läuft.
 - Beim Bau dazu H1–H5 (Disq. als Schalter, „zurück“ = letzter Tipp, Schlange je Steg-Teil, Entwürfe im Ausgang, Übung
   in der Sprache des Regelwerks), J1–J5 (Liste zuweisen: „Maske folgt“ nach den Klassen der Starter, Handy am Namen
   erkannt, Freigabe-Vorwahl nur ohne Liste, beim Koppeln eine Liste, Verweis „Gerät koppeln“ immer), K1–K9 (Disq.
@@ -636,6 +636,32 @@ plan-wkr-w3.md §9–§13):
   aus der Prüfansicht nur über „Zuletzt“, Regel des Abschluss-Bands, welcher Punkt abgeschlossen wird, Name beim
   Abschicken gemerkt – in der Übung nie, Sprache der Liste = keine eigene Wahl, Probe nur mit Maske und in der Übung
   nur über „Mehr“, Übungsadresse fest, „Mehr“ auch ohne Arbeit, Zeile ohne Ausgang = übernommen).
+
+**W4 (Handy, Bojen) gebaut 21.11.2026** nach [plan-wkr-w4.md](plan-wkr-w4.md), Scheiben W4.1–W4.3: Bojen-Maske in
+Fahrtfolge für jede Liste, deren Bojen auf dem Fahrweg liegen (Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel, die
+Listen der Aufbauten, Parallelslalom Racecourse A/B), je Boje und Richtung ein Schalter, Tor 5 Zähler, Tor 1 auf der
+Rückfahrt zwei Zeilen (F2), Seiten nach Blick wie auf dem Bogen, Umschalter Hinweg/Rückweg ab acht Zeilen, Probe und
+Übung mit Bojen-Listen; **„Nicht vorbeigekommen“** unter „Mehr“ (löst G15 ein): Zeile ohne Werte, Haken und Kennzeichen
+am Bedienrechner (Matrix „⊘ nicht vorbei“ gelb, „Papier ansehen“ in der Erfassung, kein Rückstand, kein X), nicht am
+Vorsteg und nicht im Steg-Ablegen (dort X), spätere Werte heben es auf. Zeit- und Knotenlisten bleiben Papier (W5).
+Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgelegt, **noch zu bestätigen** (im Code
+`WKR_ANNAHMEN`, Hintergrund plan-wkr-w4.md §10):
+
+- P1 Bojen-Maske an den Feldern erkannt (Boje auf dem Fahrweg; sonst Papier). P2 Zähler nur Tor 5, sonst Schalter
+  (auch UIM). P3 Tor 1 Rückfahrt zwei Zeilen statt Zähler 0–2. P4 je Berührung 5 Punkte, Zellwert = Punkte. P5 Zähler
+  höchstens 9. P6 Zeilen in Fahrtfolge, Einfahrt Tor 5 zwischen Tor 5 hin/rück, MüB nach Tor 1 R. P7 Knopfspalten nach
+  Blick wie die Unterspalten des Bogens. P8 Umschalter erst bei mehr als 7 Zeilen, wechselt nie von selbst. P9 Disq.
+  immer ins Disq.-Feld. P10 Band „Klasse n – andere Halte“ 2 s. P11 Probe an der Klasse mit den meisten Zeilen. P12
+  Übung Tor 1/3/5, Tor 2/4/5, Parcours, unter UIM Parallelslalom. P13 Fehlerfrei = Zeile ohne Zellen. P14 Texte „Tor 1
+  H L: 5“. P15 Bojen-Angaben in der Sicht. P16 „Nicht vorbeigekommen“ wie oben. P17 Startnummer 80 px auf Bojen-Listen.
+- Beim Bau W4.2 dazu Q1–Q7 (Probe beginnt mit dem linken Knopf, Klassenwechsel-Band unter der Karte, „höchstens 9×“ im
+  Knopf, Seite je Start gemerkt, „Berührt“ und „(2. Durchf.)“, Kopfzeilen HINWEG/RÜCKWEG ohne Umschalter, Übung nur
+  mit Listen des Regelwerks) und beim Bau W4.3 R1–R8 (eigener Ablehnungscode `nv-nicht-erlaubt`; Kennzeichen nur wo
+  die Zeile gilt – direkt, bei Rückfrage/Vorschlag erst mit der Entscheidung für das Gerät, Prüfbefund 21.11.2026;
+  jede geltende Zeile ohne Kennzeichen und eigene Werte heben es auf, auch eine leere Korrektur „doch vorbei“, ein
+  verworfener Vorschlag nicht; Matrix ⊘ vor ✓, am Steg Anlegen ⊘ + Ablegen ✓ = ⊘; Abschluss nennt die
+  Startnummern; Angebot nur beim gezeigten Start, nicht in Korrektur/Probe, verwirft den Entwurf; Verlauf
+  „wkrNichtVorbei“; Übung wie echt).
 
 - 2026-11-21 · F1 · Papier bzw. „beides“ ist **immer** je Liste wählbar, nicht nur beim ersten Wettkampf. Das Gerät kann
   sich „pausieren“ oder „abmelden“; dann zählt die Liste nicht als Rückstand, die Freigabe wartet nicht darauf.
@@ -669,6 +695,10 @@ plan-wkr-w3.md §9–§13):
 - 2026-11-21 · F15 · Handy genau eine Liste, Pad höchstens zwei.
 - 2026-11-21 · F16 · Teilkopplung nur am Steg (Ablegen/Anlegen); Disq./Bemerkung werden vereinigt.
 - 2026-11-21 · F17 · Nichts davon auf der Anzeigetafel oder Zuschauerliste.
+- 2026-11-21 · W1/W2 · Alle Auslegungen aus W1 und W2 (Fragen W1-01…W1-15, W2-01…W2-30 der Fragenseite; WKR_ANNAHMEN
+  bis „Prüfbefunde W2“, A1–A13, B1–B6, C1–C4, D1–D5, E1–E4) vom Nutzer mit „passt“ bestätigt. Die Rückstandswarnung
+  (A4) gilt in der Fassung nach dem Feldtest (R = 1, „nachfragen“, ab R). W3-Auslegungen und die des Feldtests (N…)
+  bleiben offen.
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
@@ -676,9 +706,11 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 
 - Digitale WKR-Erfassung (Antworten 21.11.2026, Abschnitt oben): Etappen W1–W6 nach
   [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern), W2 (Bedienrechner) und W3 (Handy-Maske
-  „Knöpfe“, Übung) gebaut 21.11.2026, W4–W6 offen (Bojen-Masken, Pad quer, Bild/Text, Knoten/Zeit-Listen); Auslegungen
-  W2 A1–A13, B1–B6, C1–C4, D1–D5 und W3 G1–G16, H1–H5, J1–J5, K1–K9, L1–L9 noch zu bestätigen; Feldtest offen
-  (docs/feldtest.md „WKR-Maske“).
+  „Knöpfe“, Übung) und W4 (Bojen-Maske, „Nicht vorbeigekommen“) gebaut 21.11.2026, W5–W6 offen (Pad quer, Bild/Text,
+  Knoten/Zeit-Listen); Auslegungen W1 und W2 bestätigt 21.11.2026, W3 G1–G16, H1–H5, J1–J5, K1–K9, L1–L9 und W4 P1–P17,
+  Q1–Q7, R1–R8 und die Prüfbefunde S1–S5 (Prellschutz der Bojen-Schalter 400 ms, „Bitte Nr. prüfen“ nur im laufenden
+  Punkt, Band „nicht in der Folge“ kurz, Tor-5-Zähler „0×“ und zweizeilig, Hinweis über dem Kopf) noch zu bestätigen;
+  Feldtest offen (docs/feldtest.md „WKR-Maske“, „Bojen-Maske“).
 
 ## Offen
 

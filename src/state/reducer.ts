@@ -17,6 +17,7 @@ import { wendeWertungAn, type WertungAenderung } from './reducer/wertung'
 import { wendeListenAn, type ListenAenderung } from './reducer/listen'
 import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
 import { wendeWkrAn, type WkrAenderung } from './reducer/wkr'
+import { ohneUeberholteNichtVorbei } from '../wkr/nichtVorbei'
 
 // Die case-Zweige stehen nach Bereichen in reducer/<bereich>.ts (Zuordnung: switch in wendeAn() unten).
 // Hier bleiben Einstieg, Sperren und Nachbearbeitung; was die Bereiche nach außen geben, reicht
@@ -135,7 +136,10 @@ export function reducer(state: AppState, action: Action): AppState {
   // Ohne Starter gibt es kein Beispiel-Starterfeld mehr – gleich, wie die Starter gingen.
   const ohneBeispiel = angewandt.beispielStarter && angewandt.starters.length === 0 ? { ...angewandt, beispielStarter: false } : angewandt
   // Ein Druckvermerk gilt nur, solange es den Plan seiner Runde gibt (20.11.2026).
-  const next = ohneVerwaistenDruck(ohneBeispiel)
+  const ohneDruck = ohneVerwaistenDruck(ohneBeispiel)
+  // „Nicht vorbeigekommen“ (W4.3, WKR_ANNAHMEN.nichtVorbeiAufheben): Eigene Werte der Liste in der Zelle heben das
+  // Kennzeichen auf – gleich auf welchem Weg sie kamen (Abtippen, Rückfrage, Vorschlag, Gerät). Nur bei geänderten Eingaben.
+  const next = !frisch && ohneDruck.eingaben !== state.eingaben ? ohneUeberholteNichtVorbei(ohneDruck, konfigVon(ohneDruck)) : ohneDruck
   // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
   const klassen =
     action.type === 'SET_EINGABEN'

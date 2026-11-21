@@ -12,7 +12,7 @@ import { tIn, t, type MessageKey } from '../../i18n'
  * (Aufgabe für das nächste Gerät) und GeraeteListe.vue (Listen eines gekoppelten Geräts ändern). Welche Listen es gibt,
  * sagt allein wkr/liste.ts listenDerVeranstaltung (dieselbe Prüfung wie am Host, erlaubteWkr); die Titel stehen in der
  * Sprache der Oberfläche wie in der Matrix (WkrMatrix.vue), gruppiert nach Parcours bzw. im Parallelslalom nach
- * Racecourse. Listen ohne Maske in W3 (Bojen, Zeit – wkr/maske.ts listeMitMaske, J1) tragen `ohneMaske`.
+ * Racecourse. Listen ohne Maske (Zeit, Knoten; Bojen seit W4 mit Maske – wkr/maske.ts listeMitMaske, J1) tragen `ohneMaske`.
  */
 
 export interface ListenWahl {

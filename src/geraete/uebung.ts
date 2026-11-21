@@ -48,6 +48,8 @@ interface UebZeile {
   k?: true
   punkt: PunktId | null
   zellen: Record<string, string>
+  /** „Nicht vorbeigekommen“ (W4.3, R8): ohne Zellen, wie im echten Kern. */
+  n?: true
   stufe: ZeilenStufe
   /** Stand der Übung vor dieser Zeile – zum Zurückholen, solange nichts anderes geschah. */
   vorher: UebungsStand
@@ -114,7 +116,8 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
     zeilen.push(zeile)
     zeilen = zeilen.slice(-WKR_ANNAHMEN.zuletzt)
     if (!z.k) neue++
-    quittiere(zeile, !z.k && neue === WKR_ANNAHMEN.uebungRueckfrageBei)
+    // Die Beispiel-Rückfrage braucht ein Feld – eine Zeile „nicht vorbeigekommen“ hat keins.
+    quittiere(zeile, !z.k && !z.n && neue === WKR_ANNAHMEN.uebungRueckfrageBei)
     geaendert()
     return zeile.z
   }
@@ -147,6 +150,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
           korrektur: !!z.k,
           zellen: { ...z.zellen },
           stufe: z.stufe,
+          ...(z.n ? { nv: true as const } : {}),
         }))
     }),
   )!
@@ -189,16 +193,17 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   }
 
   function pruefung(liste: string, punkt: PunktId, t?: ListenTeil): Pruefung {
-    if (!eigen(liste)) return { zeilen: [], offen: [], x: [] }
+    if (!eigen(liste)) return { zeilen: [], offen: [], x: [], nichtVorbei: [] }
     const jeStart = new Map<string, PruefZeile>()
     for (const z of zeilen) {
       if (z.punkt !== punkt || (t !== undefined && z.t !== undefined && z.t !== t)) continue
       const zellen = stapel(zeilen.filter((x) => x.s === z.s && x.punkt === punkt && x.z <= z.z && (t === undefined || x.t === undefined || x.t === t)))
-      jeStart.set(z.s, { s: z.s, ...(z.sn !== undefined ? { sn: z.sn } : {}), klasse: z.klasse, zellen, stufe: z.stufe, x: Object.values(zellen).some((w) => w.split(/[\s,;/]+/).includes('X')) })
+      // Die jüngste Zeile des Starts entscheidet: „nicht vorbeigekommen“ oder doch vorbei (Korrektur).
+      jeStart.set(z.s, { s: z.s, ...(z.sn !== undefined ? { sn: z.sn } : {}), klasse: z.klasse, zellen, stufe: z.stufe, x: Object.values(zellen).some((w) => w.split(/[\s,;/]+/).includes('X')), nv: !!z.n })
     }
     const out = [...jeStart.values()]
     const offen = sicht().punkt?.id === punkt ? sicht().schlange.filter((s) => !s.vorab && !s.entfaellt && passt(s, t)).map((s) => ({ ...s })) : []
-    return { zeilen: out, offen, x: out.filter((z) => z.x).map((z) => z.sn ?? z.s) }
+    return { zeilen: out, offen, x: out.filter((z) => z.x).map((z) => z.sn ?? z.s), nichtVorbei: out.filter((z) => z.nv).map((z) => z.sn ?? z.s) }
   }
 
   function status(liste: string, st: ListenSicht['status']): number | null {
@@ -210,6 +215,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   return {
     uebung: true,
     verbunden: scope.run(() => computed(() => true))!,
+    verbindung: scope.run(() => computed(() => 'verbunden' as const))!,
     entzogen: scope.run(() => computed(() => false))!,
     listen,
     sichten,
@@ -239,7 +245,8 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       // Ein Teil-Gerät übt allein: Den anderen Teil erledigt „das andere Handy“ gleich mit, sonst stauten sich die
       // Starts in der Übung. Nur das Gerät für den ganzen Steg erledigt je Teil.
       setzeStand(uebungsSchritt(stand, { s: zeile.s, ...(!teil && t ? { teil: t } : {}) }))
-      return neueZeile({ s: zeile.s, ...(start ? { sn: start.startNr } : {}), klasse: start?.klasse ?? null, ...(t ? { t } : {}), punkt, zellen: { ...zeile.zellen } }, vorher)
+      const nv = zeile.nv === true
+      return neueZeile({ s: zeile.s, ...(start ? { sn: start.startNr } : {}), klasse: start?.klasse ?? null, ...(t ? { t } : {}), punkt, zellen: nv ? {} : { ...zeile.zellen }, ...(nv ? { n: true as const } : {}) }, vorher)
     },
     stand(z) {
       const alt = zeilen.find((x) => x.z === z)

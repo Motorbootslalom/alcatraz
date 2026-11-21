@@ -11,6 +11,9 @@ import { useWkrText } from './texte'
  * Dunkel, Linkshand; G1), die Sprache (F13/G9: Vorgabe die der Liste; schaltet die Bedientexte immer, Codes und
  * Titel nur, wenn die Sicht `andere` trägt – sonst sagt ein Satz, warum sie bleiben), „Probe“ (G10) und in der Übung
  * „Übung verlassen“. Die Bemerkung zählt nicht als Tipp (H2) und geht mit der Zeile des Starts.
+ * W4.3 (21.11.2026, P16/R6): „Nicht vorbeigekommen“ für den gezeigten Start (`nichtVorbei` = Startnummer, sonst nicht
+ * angeboten) – erst nach einer großen Rückfrage („23 ist hier nicht vorbeigekommen? Es wird nichts eingetragen.“),
+ * weil die Zeile den Start ohne Werte abhakt.
  *
  * Diese Komponente schreibt nichts selbst ab: Ansicht und Sprache gehen als `ansicht` hinauf bis WkrGeraet, das sie
  * gerätelokal merkt (ablage.ts `alcatraz.geraet.ansicht`).
@@ -33,8 +36,10 @@ const props = withDefaults(
     /** Gibt es einen Punkt zum Abschließen? */
     kannAbschliessen: boolean
     uebung: boolean
+    /** Startnummer des gezeigten Starts, wenn er „nicht vorbeigekommen“ melden darf (nicht Vorsteg/Ablegen, nicht Korrektur). */
+    nichtVorbei?: string | null
   }>(),
-  { mitStatus: true },
+  { mitStatus: true, nichtVorbei: null },
 )
 const emit = defineEmits<{
   bemerkung: [text: string]
@@ -45,6 +50,7 @@ const emit = defineEmits<{
   probe: []
   ansicht: [aenderung: Partial<GeraetAnsicht>]
   uebungEnde: []
+  nichtVorbei: []
 }>()
 const { w } = useWkrText()
 
@@ -55,6 +61,7 @@ watch(
   (b) => (text.value = b),
 )
 const frageAb = ref(false)
+const frageNv = ref(false)
 
 const MODI: AnsichtModus[] = ['sonne', 'hell', 'dunkel']
 const SPRACHEN: ('de' | 'en')[] = ['de', 'en']
@@ -81,6 +88,7 @@ function tue(f: () => void): void {
         <button v-if="status === 'aktiv'" type="button" class="wkr-knopf" data-ziel="klein" data-action="abmelden" @click="frageAb = true">{{ w('wkr.geraet.abmelden') }}</button>
         <button v-else type="button" class="wkr-knopf" data-ziel="klein" data-action="weiter" @click="emit('weiter')">{{ w('wkr.geraet.weiter') }}</button>
       </div>
+      <button v-if="nichtVorbei" type="button" class="wkr-knopf" data-ziel="klein" data-action="nicht-vorbei" @click="frageNv = true">⊘ {{ w('wkr.geraet.nichtVorbei') }}</button>
       <button type="button" class="wkr-knopf" data-ziel="klein" data-action="abschliessen" :disabled="!kannAbschliessen" @click="tue(() => emit('abschluss'))">
         {{ w('wkr.geraet.abschluss') }}
       </button>
@@ -140,6 +148,21 @@ function tue(f: () => void): void {
         <button v-if="uebung" type="button" class="wkr-knopf" data-ziel="klein" data-action="uebung-ende" @click="tue(() => emit('uebungEnde'))">{{ w('wkr.geraet.uebung.ende') }}</button>
       </div>
     </div>
+    <AppDialog
+      v-if="frageNv && nichtVorbei"
+      class="wkr-dialog"
+      :titel="w('wkr.geraet.nichtVorbei.frage', { nr: nichtVorbei })"
+      data-dialog="wkr-nicht-vorbei"
+      @abbrechen="frageNv = false"
+    >
+      <p>{{ w('wkr.geraet.nichtVorbei.hint') }}</p>
+      <template #knoepfe>
+        <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="nicht-vorbei-ja" @click="(frageNv = false), tue(() => emit('nichtVorbei'))">
+          ⊘ {{ w('wkr.geraet.nichtVorbei') }}
+        </button>
+        <button type="button" class="wkr-knopf" data-ziel="gross" data-action="nicht-vorbei-nein" autofocus @click="frageNv = false">{{ w('wkr.geraet.abbrechen') }}</button>
+      </template>
+    </AppDialog>
     <AppDialog v-if="frageAb" class="wkr-dialog" :titel="w('wkr.geraet.abmelden.frage')" data-dialog="wkr-abmelden" @abbrechen="frageAb = false">
       <p>{{ w('wkr.geraet.abmelden.text') }}</p>
       <template #knoepfe>

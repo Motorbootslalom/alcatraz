@@ -3,9 +3,9 @@ import { reducer } from '../state/reducer'
 import { configFor } from '../config/konfig'
 import { lage, refKey } from '../betrieb/folge'
 import { sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
-import { BETRIEB_STARTER, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { BETRIEB_STARTER, betriebStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState, WkrZeile } from '../types'
-import { LISTEN_SICHT_FASSUNG, sichtListe, type ListenSicht, type ListenSichtExtra } from './sicht'
+import { LISTEN_SICHT_FASSUNG, maskenJeKlasse, sichtListe, type ListenSicht, type ListenSichtExtra } from './sicht'
 import { listenKennung, type Liste } from './liste'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
 import { listenFelder } from '../lib/eingaben'
@@ -42,6 +42,10 @@ function zeile(s: AppState, typeId: string, starter: string, c: GeraeteZeile['c'
   if ('fehler' in r) throw new Error(r.fehler)
   return r
 }
+
+/** Die Masken einer Liste für Klassen, die der Teststand nicht fährt (Bojen der Klasse 7), mit Beschriftung. */
+const masken = (typeId: string, klasse: '5' | '7', beschriftung?: string) =>
+  maskenJeKlasse(DM, configFor({ regelwerk: 'dm-2026', ...(beschriftung ? { beschriftung } : {}) }), typeId, [klasse], false)[klasse]!.felder!
 
 const sende = (s: AppState, typeId: string, zeilen: WkrZeile[], geraet = 'g1') => reducer(s, { type: 'WKR_ZEILEN', liste: K(typeId), quelle: { geraet, name: 'Handy Tor 1' }, zeilen, zeit: 5000 })
 
@@ -239,6 +243,79 @@ describe('Sicht der Liste – Sprache (F13)', () => {
   })
 })
 
+describe('Sicht der Liste – Bojen (W4.1, P7, P15)', () => {
+  const bojeSchluessel = new Set(['halt', 'weg', 'folge', 'titel', 'unter', 'spalte', 'zaehler', 'durchfahrt'])
+
+  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 5 (seit W4.3)', () => {
+    const { s } = bereit('gate135')
+    const sicht = sichtListe(s, DM, L('gate135'), EXTRA)
+    expect(LISTEN_SICHT_FASSUNG).toBe(5)
+    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'boje', ...bojeSchluessel])
+    for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
+    let zahl = 0
+    for (const k of Object.values(sicht.klassen))
+      for (const f of k!.felder ?? []) {
+        expect(!!f.boje, f.kennung).toBe(f.kind === 'buoy')
+        if (f.boje) {
+          for (const x of Object.keys(f.boje)) expect(bojeSchluessel.has(x), x).toBe(true)
+          zahl++
+        }
+      }
+    expect(zahl).toBeGreaterThan(10)
+    const k7 = masken('gate135', '7')
+    expect(k7.find((f) => f.kennung === 't1c|rueck seiteB')!.boje).toEqual({ halt: 't1c', weg: 'rueck', folge: 15, titel: 'Tor 1', unter: 'R L', spalte: 1, durchfahrt: 2 })
+    expect(k7.find((f) => f.kennung === 't5|hin seiteA')!.boje).toEqual({ halt: 't5', weg: 'hin', folge: 5, titel: 'Tor 5', unter: 'H R', spalte: 0, zaehler: true })
+    expect(k7.find((f) => f.kennung === 'speed2')!.boje).toEqual({ halt: 'speed2', weg: 'rueck', folge: 14, titel: 'Sp. 2', unter: '', spalte: null })
+    // Knoten tragen keine Bojen-Angabe (bleiben Papier, P1).
+    for (const f of masken('knoten', '5')) expect(f.boje, f.kennung).toBeUndefined()
+  })
+
+  it('Spalte nach Blick: gate135 (von hinten) R links, frontal135 (von vorne) L links – wie die Unterspalten des Bogens', () => {
+    const spalte = (typeId: string, kennung: string) => masken(typeId, '5').find((f) => f.kennung === kennung)!.boje!
+    expect([spalte('gate135', 't1a|hin seiteA').spalte, spalte('gate135', 't1a|hin seiteB').spalte]).toEqual([0, 1])
+    expect([spalte('frontal135', 't1a|hin seiteA').spalte, spalte('frontal135', 't1a|hin seiteB').spalte]).toEqual([1, 0])
+    // Einzelboje (Start) in der Spalte ihrer Seite; die Fahrweg-Folge ist in beiden Listen dieselbe.
+    expect([spalte('gate135', 'start|hin seiteA').spalte, spalte('frontal135', 'start|hin seiteA').spalte]).toEqual([0, 1])
+    expect(spalte('frontal135', 't5|rueck seiteA').folge).toBe(spalte('gate135', 't5|rueck seiteA').folge)
+  })
+
+  it('Beschriftung wirkt von selbst: Land/See (ls) und Innen/Außen (ia) im Kopf der Unterspalte', () => {
+    const unter = (beschriftung: string, kennung: string) => masken('gate135', '5', beschriftung).find((f) => f.kennung === kennung)!.boje!.unter
+    expect([unter('ls', 't1a|hin seiteA'), unter('ls', 't1a|hin seiteB')]).toEqual(['H L', 'H S'])
+    // I/A gilt nur für die Tore 1–4 (Tor 1: die obere Boje innen); Tor 5 bleibt R/L.
+    expect([unter('ia', 't1a|hin seiteA'), unter('ia', 't1a|hin seiteB'), unter('ia', 't5|hin seiteA')]).toEqual(['H A', 'H I', 'H R'])
+  })
+
+  it('UIM: Köpfe englisch, `andere` mit deutschen Bojen-Texten (nur titel/unter); Größe komprimiert < 4 kB', () => {
+    let u = uimParallelStand()
+    u = reducer(u, { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    const A: Liste = { bereich: 'parallel', typeId: 'parallelparcours', racecourse: 'A' }
+    const sicht = sichtListe(u, UIM, A, EXTRA)
+    const en = sicht.klassen['1']!.felder!
+    expect(en.find((f) => f.kennung === 'b3a')!.boje).toEqual({ halt: 'b3a', weg: 'hin', folge: 3, titel: 'Buoy 3', unter: '', spalte: null })
+    expect(en.find((f) => f.kennung === 'start|seiteB')!.boje).toMatchObject({ weg: 'hin', spalte: 0, unter: 'L' })
+    const de = sicht.andere!.klassen['1']!.felder!
+    expect(de.find((f) => f.kennung === 'b3a')!.boje).toEqual({ titel: 'Boje 3', unter: '' })
+    const andereSchluessel = new Set(['titel', 'felder', 'kennung', 'label', 'katalog', 'disq', 'code', 'text', 'boje', 'unter'])
+    for (const k of schluessel(Object.values(sicht.andere!.klassen))) expect(andereSchluessel.has(k), k).toBe(true)
+    expect(deflateRawSync(Buffer.from(JSON.stringify(sicht))).length).toBeLessThan(4096)
+  })
+
+  it('Größe: gate135 DM, alle Klassen, 12 Starts bleibt komprimiert unter der Inline-Grenze (4096 Byte)', () => {
+    // Alle Klassen auf beiden Parcours, je vier erfundene Starter – mehr Masken und Starts als je an einer Liste.
+    const klassen = ['E', '1', '2', '3', '4', '5', '6', '7'] as const
+    const viele = klassen.flatMap((k) => [1, 2, 3, 4].map((n) => betriebStarter(`s${k}${n}`, k, `${k === 'E' ? 'E0' : k}${10 + n}`)))
+    let s = reducer(wkrBetriebsStand(viele), { type: 'WKR_LISTE', liste: K('gate135'), modus: 'digital', zeit: 100 })
+    for (let i = 0; i < 14; i++) s = zeigeNaechsten(s, P1, 2000 + i * 100)
+    const echt = sichtListe(s, DM, L('gate135'), EXTRA)
+    expect(echt.schlange.length).toBeGreaterThanOrEqual(12)
+    // Der Parcours fährt nur einen Teil der Klassen; schlimmster Fall: die Masken ALLER Klassen in einer Sicht.
+    const sicht = { ...echt, klassen: maskenJeKlasse(DM, DM, 'gate135', klassen, false) }
+    expect(Object.keys(sicht.klassen)).toHaveLength(8)
+    expect(deflateRawSync(Buffer.from(JSON.stringify(sicht))).length).toBeLessThan(4096)
+  })
+})
+
 describe('Sicht der Liste – Parallelslalom', () => {
   it('nur die eigene Seite: Seite, Attempt-Titel, Lauf-Schlüssel der Runde', () => {
     let s = uimParallelStand()
@@ -269,6 +346,29 @@ describe('F17: nichts auf der Anzeigetafel', () => {
     expect(mit.eingaben).not.toEqual(s.eingaben)
     expect(sichtOeffentlich(mit)).toEqual(sichtOeffentlich(s))
     expect(sichtZuschauer(sichtOeffentlich(mit))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
+  })
+})
+
+describe('F17 (W4.3): „Nicht vorbeigekommen“ kommt weder auf die Tafel noch auf die Zuschauerliste', () => {
+  it('sichtOeffentlich/sichtZuschauer gleich nach einer Zeile mit `n` (auch Steg-Anlegen) und nach ihrem Aufheben; nichts davon in der Listen-Sicht', () => {
+    const { s, erste } = bereit('gate135', 'steg')
+    const nv = (st: AppState, typeId: string, starter: string, z: number, teil?: 'ab' | 'an') => {
+      const r = pruefeZeile(st, DM, L(typeId), teil, 'g1', { z, s: m(starter), c: [], n: true })
+      if ('fehler' in r) throw new Error(r.fehler)
+      return sende(st, typeId, [r])
+    }
+    let mit = nv(s, 'gate135', erste[0], 1)
+    mit = nv(mit, 'steg', erste[1], 2, 'an')
+    expect(Object.keys(mit.wkr.nichtVorbei)).toHaveLength(2)
+    expect(sichtOeffentlich(mit)).toEqual(sichtOeffentlich(s))
+    expect(sichtZuschauer(sichtOeffentlich(mit))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
+    const auf = reducer(mit, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: erste[0], feld: 't1a|hin seiteA', wert: '5' }] })
+    expect(auf.wkr.nichtVorbei[K('gate135')]).toBeUndefined()
+    expect(sichtOeffentlich(auf)).toEqual(sichtOeffentlich(s))
+    // Die Sicht der Liste trägt kein Kennzeichen (Positivliste oben): kein Wort „nichtVorbei“, kein `nv`.
+    const text = JSON.stringify(sichtListe(mit, DM, L('gate135'), EXTRA))
+    expect(text).not.toContain('nichtVorbei')
+    expect(text).not.toContain('"nv"')
   })
 })
 

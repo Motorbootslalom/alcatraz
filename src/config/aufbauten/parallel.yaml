@@ -50,6 +50,8 @@ positionen:
     # Start und Ziel: die linke und die rechte Boje je in eigener Zelle, durchgezogen getrennt –
     # genau erkennbar, welche berührt wurde (Entscheidung des Nutzers vom 15.11.2026; vorher
     # beide in einer Zelle „L R“).
+    # Die Folge der Bojen-Spalten ist auch der Fahrweg der WKR-Bojen-Maske (src/wkr/bojen.ts PARALLEL_FAHRWEG,
+    # 21.11.2026; wkr/bojen.test.ts vergleicht) – Spalten hier ändern heißt dort mitziehen.
     spalten:
       - { key: start, label: "Start", typ: boje, sub: ["seiteB", "seiteA"], subTrenner: linie }
       - { key: b1a, label: "Boje 1", typ: boje }

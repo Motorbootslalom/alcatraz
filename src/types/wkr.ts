@@ -82,6 +82,11 @@ export interface WkrZeile {
   /** Ist der Start im Betrieb gezeigt (Vorsteg: auch einer der nächsten)? Sonst wird die ganze Zeile Rückfrage. */
   gezeigt: boolean
   korrektur: boolean
+  /**
+   * „Nicht vorbeigekommen“ (W4.3, 21.11.2026, P16): Zeile ohne Zellen; setzt den Haken und das Kennzeichen in
+   * {@link WkrStand.nichtVorbei} – kein X, keine Wertung.
+   */
+  nichtVorbei?: true
 }
 
 /** Warum eine Rückfrage entstand: Zelle anders belegt, Start nicht gezeigt, oder ein Disq.-Buchstabe soll wegfallen. */
@@ -113,6 +118,14 @@ export interface WkrRueckfrage {
   vereinige?: { vorher: string }
   /** Die Haken der Zeile: Ist die letzte Rückfrage der Zeile entschieden, werden sie gesetzt. */
   haken: string[]
+  /**
+   * „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): Die Zeile des Geräts trug das Kennzeichen – der Eingang
+   * zeigt „⊘ nicht vorbeigekommen“, und erst die Entscheidung für das Gerät setzt es (WKR_ANNAHMEN.nichtVorbeiNurDirekt).
+   * Ohne: die Zeile sagt „doch vorbei“, die Entscheidung für das Gerät hebt ein stehendes Kennzeichen auf (R3).
+   */
+  nichtVorbei?: true
+  /** Teil der Zeile am Steg (nur geteilte Listen) – für den Schlüssel des Kennzeichens (wkr/nichtVorbei.ts). */
+  teil?: 'ab' | 'an'
   zeit: number
 }
 
@@ -128,6 +141,14 @@ export interface WkrVorschlag {
   zellen: { feld: string; wert: string }[]
   haken: string[]
   grund: 'abgeschlossen' | 'papier'
+  /**
+   * „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): Die Zeile des Geräts trug das Kennzeichen – der Eingang
+   * zeigt „⊘ nicht vorbeigekommen“, und erst die Entscheidung für das Gerät setzt es (WKR_ANNAHMEN.nichtVorbeiNurDirekt).
+   * Ohne: die Zeile sagt „doch vorbei“, die Entscheidung für das Gerät hebt ein stehendes Kennzeichen auf (R3).
+   */
+  nichtVorbei?: true
+  /** Teil der Zeile am Steg (nur geteilte Listen) – für den Schlüssel des Kennzeichens (wkr/nichtVorbei.ts). */
+  teil?: 'ab' | 'an'
   zeit: number
 }
 
@@ -142,4 +163,11 @@ export interface WkrStand {
    * (ein Teil des Stegs, F16) – Lesen und Schreiben nur über wkr/abschluss.ts.
    */
   abschluss: Record<string, Record<string, WkrAbschluss>>
+  /**
+   * „Nicht vorbeigekommen“ (W4.3, 21.11.2026, P16) je Listen-Kennung: Zellen `${lauf}|${starter}`, am Steg mit Teil
+   * `${lauf}|${starter}|an` (nur Anlegen – im Ablegen ist es X). Gesetzt von WKR_ZEILEN mit `nichtVorbei`, gelöscht von
+   * einer späteren Zeile ohne Kennzeichen (doch vorbei) und von eigenen Werten der Liste (Abtippen, Rückfrage,
+   * Vorschlag). Lesen über wkr/lage.ts; in der Sicherung wie Rückfragen, nie auf Tafel oder Zuschauerliste (F17).
+   */
+  nichtVorbei: Record<string, string[]>
 }
