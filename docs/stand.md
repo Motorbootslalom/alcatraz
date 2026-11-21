@@ -81,7 +81,8 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
 
 ## Was offen ist
 
-- Erfassung durch die Wettkampfrichter am eigenen Gerät (im Datenmodell vorbereitet).
+- Erfassung durch die Wettkampfrichter am eigenen Gerät (im Datenmodell vorbereitet); geplant nach dem
+  [Vorschlag vom 21.11.2026](vorschlag-wkr-erfassung.md) (Masken für Handy und Pad, Erfassungs-Matrix, offene Fragen).
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
   Server getestet); seit E7 auch die Start-Freigabe vom gekoppelten Handy. Offen: Feldtest mit echten Handys und
