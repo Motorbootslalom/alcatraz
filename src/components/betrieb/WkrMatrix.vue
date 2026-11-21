@@ -196,7 +196,7 @@ function zumEingang(): void {
                     v-for="g in l.geraete"
                     :key="g.id"
                     type="button"
-                    class="wkr-geraet"
+                    class="wkr-mgeraet"
                     :data-geraet="g.id"
                     :data-ampel="g.ampel"
                     :title="geraetTitel(g)"

@@ -6,7 +6,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 ## Dateien (alle .vue, gruppiert)
 
 - Rahmen: ListenDokument (misst, listenSeiten, Seitenzahl, data-druckseite), LeereRueckseite, HerkunftText, QrCode,
-  KopfLogos (Logos links/rechts im Kopf; ohne Logo nur der Slot).
+  KopfLogos (Logos links/rechts im Kopf; ohne Logo nur der Slot), AufbauBalken (21.11.2026: Ladebalken mit echtem Stand
+  `data-teil="aufbau"`, Zeile `aufbau-zeile` als „Abspann“, erst nach AUFBAU.anzeigeAbMs; Satz `aufbau-druck` nur auf Papier).
 - WKR-Bögen `bogen/`: BogenBlatt (misst erste Seite, bogenSeiten, meldet seiten/kapazitaet), BogenSeite, BogenKopf
   (schwebender QR), BogenLegende, BogenBild, BogenRueckseite (180° gedreht). Reiter: WkrListen, ParallelWkrListen,
   WkrVorschau (nie gedruckt; UIM: auch Muster-Runde), WkrEinteilung (Name + Sprache je Parcours/Racecourse × Liste,
@@ -131,6 +132,12 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 
 ## Fallen
 
+- WkrListen/ParallelWkrListen hängen die Bögen schrittweise ein (lib/aufbau.ts useSchrittweise, `aufbau.sichtbar`):
+  Bis `fertig` ist der Stapel `no-print` mit `data-aufbau="laeuft"`, `stand.fertig` false sperrt den Druckknopf und
+  bindet keine Parallel-Runde (ListsView gedruckteRunden). Balken einhängen mit `!fertig || zeigen` (Mindestdauer
+  AUFBAU.mindestensMs, Platz bis zum Erscheinen unsichtbar frei, klebt unter der Kopfleiste über --kopf-hoehe).
+  Tests laufen ohne Schritte (src/test-setup.ts); wer den Aufbau prüft: setzeSchrittweise(true) (views/WkrAufbau.test.ts).
+  Muster für weitere langsame Listen (Laufzettel ~1 s gemessen): Liste durch useSchrittweise, Balken, `fertig` melden.
 - Auf gedruckten Blättern lt()/texteIn(sprache) aus useListenSprache(), nie t() (sonst Oberflächensprache).
 - Feste mm an zwei Stellen gleich halten: SEITENZAHL_MM 5 ↔ app.css .listen-seitenzahl; ERGEBNIS_FUSS_MM 12 ↔
   .erg-fuss; ERGEBNIS_FUSS_UNTERSCHRIFT_MM 22 ↔ .erg-fuss--unterschrift; paging.ts PRINT_MARGIN_MM 8 ↔ @page.

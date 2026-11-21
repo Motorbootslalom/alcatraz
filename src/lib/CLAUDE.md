@@ -26,6 +26,8 @@ clipboard, scanner, logoBild.
   buildLaufzettel, zettelSchritte), `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`, `namen.ts`,
   `origin.ts` (Herkunft, Kürzel, Flagge), `ausgleich.ts`, `besetzung.ts`, `qr.ts`, `einteilung.ts` (WKR-Namen UND
   Sprache je Parcours und Liste: setzeSprache, normalisiereSprachen; einteilungsZellen = gedruckte Zellen).
+- Aufbau (21.11.2026, mit Vue): `aufbau.ts` useSchrittweise – lange Listen Stück für Stück einhängen (Ladebalken,
+  AUFBAU, setzeSchrittweise; Tests: aus). Teuer war das Zeichnen/Messen, nicht die Berechnung (Kopfkommentar).
 - Seiten: `paging.ts` (WKR-Bögen, gleicht aus, Blöcke unteilbar), `seiten.ts` (übrige Listen; `gebunden` = Zeilen einer
   Zelle mit rowspan), `doppelseitig.ts`. Sprache: `konfig.ts`, `listensprache.ts`, `event.ts`.
 - Anzeigetafel (16.11.2026): `fit.ts` (fitLine/fitBlock/fitZeilen, v-fit, v-fit-block, v-fit-zeilen; nur mounted/updated,

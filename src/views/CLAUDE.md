@@ -16,7 +16,8 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 - `ParallelView.vue` – Vorlauf-Plan: Schalter streng/nach Startnummer, Heat-Tabelle (Runden: ParallelRunden.vue;
   pre, semi, small = Kleines Finale, final – je eigene Listen/Erfassung/Scan, Test views/ParallelRunden.test.ts).
 - `ListsView.vue` – Reiter „Listen“: KINDS (starter, gewicht, vorsteg, wkr, laufzettel, codes, ergebnis, pokal,
-  druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`), print() setzt
+  druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`, `imAufbau` = Stand meldet
+  `fertig: false` beim schrittweisen Aufbau der WKR-Bögen, lib/aufbau.ts, 21.11.2026), print() setzt
   document.title (= Dateiname) und ruft window.print().
 - `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start`, `startliste`, (W2.2) `wkr` (WkrMatrix +
   WkrEingang; Kopf-Zähler `data-teil="wkr-chip"` bei offenen Rückfragen; `#/betrieb/wkr/<parcours>` wählt den Bereich) und (E6) `geraete`
@@ -92,5 +93,5 @@ Je Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meis
 Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel, Startfolge, Startabstände, Geräte), Betrieb (Start-Freigabe,
 E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), BetriebGeraete (E6, echter Host gegen nachgebauten ntfy), BetriebWkr (W2.2, Host-Doppel; W2.4 Start-Freigabe: Leiste, warnen, nachfragen, nie gesperrt, Klick → WKR), Listenoptionen, ErfassungView, ErfassungScan, ErfassungWkr (W2.3: ◆, „Papier
 ansehen“, Rückfrage, Nachfrage beim Überschreiben; Host-Doppel), Dolphin,
-UimAushang (englisch). Zuschauerliste: src/ZuschauerApp.test.ts.
+UimAushang (englisch), WkrAufbau (Ladebalken, schrittweise; Druck erst danach). Zuschauerliste: src/ZuschauerApp.test.ts.
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

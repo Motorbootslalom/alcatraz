@@ -50,3 +50,9 @@ import { beforeEach } from 'vitest'
 import { vergissAlles } from './lib/merken'
 
 beforeEach(() => vergissAlles())
+
+// Lange Listen entstehen in der App schrittweise (lib/aufbau.ts); die Tests lesen die Bögen gleich nach
+// dem Einhängen. Wer den Aufbau selbst prüft, schaltet ihn mit setzeSchrittweise(true) wieder ein.
+import { setzeSchrittweise } from './lib/aufbau'
+
+beforeEach(() => setzeSchrittweise(false))

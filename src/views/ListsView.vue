@@ -203,7 +203,7 @@ const vorVerzahnung = computed(() => (kind.value === 'wkr' || kind.value === 'la
 // Wettkampfrichter-Listen zeichnet eine eigene Ansicht (components/WkrListen.vue); sie
 // meldet, wie viele Bögen die Auswahl zeigt und wie die Auswahl heißt.
 const wkrList = computed(() => kind.value === 'wkr')
-const wkrStand = ref<{ anzahl: number; auswahl: string; runden?: ParallelRunde[] }>({ anzahl: 0, auswahl: '' })
+const wkrStand = ref<{ anzahl: number; auswahl: string; runden?: ParallelRunde[]; fertig?: boolean }>({ anzahl: 0, auswahl: '' })
 // Wertungslisten ebenso (components/ErgebnisListen.vue).
 const resultList = computed(() => kind.value === 'ergebnis')
 const resultStand = ref({ anzahl: 0, auswahl: '' })
@@ -237,6 +237,9 @@ const ownStand = computed(() =>
                 ? bookletStand.value
                 : runSheetStand.value,
 )
+// Die WKR-Bögen entstehen schrittweise mit Ladebalken (lib/aufbau.ts, 21.11.2026): Bis alle stehen,
+// bleibt der Knopf gesperrt – sonst druckte er einen halben Stapel. Strg+P bringt dann nur den Hinweis.
+const imAufbau = computed(() => ownView.value && 'fertig' in ownStand.value && ownStand.value.fertig === false)
 const nothingToPrint = computed(() => !codeList.value && (ownView.value ? ownStand.value.anzahl === 0 : sections.value.length === 0))
 
 const sections = computed<StarterDokument[]>(() => {
@@ -306,7 +309,8 @@ const dokumente = computed(() => sections.value.length)
  * Wertungslisten zählen nicht: Sie folgen den Werten, nicht der Folge.
  */
 const gedruckteRunden = computed<ParallelRunde[]>(() => {
-  if (!parallel.value || blocked.value) return []
+  // Im Aufbau druckt der Stapel nicht (nur der Hinweis): Strg+P bindet dann keine Runde (Prüfung 21.11.2026).
+  if (!parallel.value || blocked.value || imAufbau.value) return []
   const runden = wkrList.value && imParallel.value ? (wkrStand.value.runden ?? []) : runSheets.value && imParallel.value ? (runSheetStand.value.runden ?? []) : parallelStart.value ? startDokumente.value.flatMap((d) => d.runden) : bookletList.value ? bookletStand.value.runden : []
   return [...new Set(runden)].filter((r) => r !== VORLAUF)
 })
@@ -350,7 +354,7 @@ function print() {
         <input type="checkbox" data-feld="doppelseitig" :checked="doppelseitig" @change="setzeDoppelseitig" />
         {{ t('lists.duplex') }}
       </label>
-      <button class="btn primary" :disabled="nothingToPrint || blocked || vorVerzahnung" @click="print">{{ t('common.print') }}</button>
+      <button class="btn primary" :disabled="nothingToPrint || blocked || vorVerzahnung || imAufbau" :data-aufbau="imAufbau ? 'laeuft' : undefined" @click="print">{{ t('common.print') }}</button>
     </div>
   </div>
 

@@ -12,6 +12,8 @@ import type { ClassId } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import ParcoursNachweis from './ParcoursNachweis.vue'
 import { veranstaltungsListen } from '../lib/listen'
+import { useSchrittweise } from '../lib/aufbau'
+import AufbauBalken from './AufbauBalken.vue'
 
 /**
  * Die Wettkampfrichter-Listen der Veranstaltung unter „Listen“: je Parcours, Klasse, Lauf
@@ -28,8 +30,11 @@ import { veranstaltungsListen } from '../lib/listen'
  */
 const props = defineProps<{ gesperrt?: boolean; druckGesperrt?: boolean }>()
 const emit = defineEmits<{
-  /** Wie viele Bögen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname). */
-  stand: [stand: { anzahl: number; auswahl: string }]
+  /**
+   * Wie viele Bögen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname);
+   * `fertig`: alle Bögen stehen (schrittweiser Aufbau, lib/aufbau.ts) – vorher druckt ListsView nicht.
+   */
+  stand: [stand: { anzahl: number; auswahl: string; fertig: boolean }]
 }>()
 
 const { state } = useStore()
@@ -94,7 +99,22 @@ const auswahlText = computed(() => {
     // Der Titel wird zum Dateinamen des PDF: „Tor 1 / 3 / 5“ ergäbe dort „Tor 1 _ 3 _ 5“.
     .replace(/\s*[/\\:]\s*/g, '-')
 })
-watchEffect(() => emit('stand', { anzahl: boegen.value.length, auswahl: auswahlText.value }))
+// Viele Bögen brauchen zum Zeichnen und Messen Sekunden (Messung 21.11.2026: lib/aufbau.ts). Sie
+// entstehen deshalb Schritt für Schritt mit Ladebalken; jeder Bogen teilt sich wie zuvor selbst.
+const aufbau = useSchrittweise(boegen, (b) => b.id)
+const aufbauZeile = computed(() => {
+  const b = aufbau.naechster.value
+  if (!b) return undefined
+  return [
+    state.value.parcoursList.length > 1 ? b.parcoursName : undefined,
+    listenArten.value.find((l) => l.typeId === b.typeId)?.titel ?? b.titel,
+    b.klassen.map((k) => classLabel(k)).join(', '),
+    t('lists.wkr.runN', { n: b.lauf }),
+  ]
+    .filter(Boolean)
+    .join(' · ')
+})
+watchEffect(() => emit('stand', { anzahl: boegen.value.length, auswahl: auswahlText.value, fertig: aufbau.fertig.value }))
 
 const mitBild = computed(() => boegen.value.some((b) => konfig.value.getSheetDef(b.typeId).bildErzeugen))
 const ohneListe = computed(() => listen.value.ohneListe.map((k: ClassId) => classLabel(k)).join(', '))
@@ -150,9 +170,18 @@ const { zoom } = useBogenZoom(stapel)
 
   <div v-if="!gesperrt && alle.length > 0 && boegen.length === 0" class="panel empty no-print">{{ t('lists.wkr.noSheets') }}</div>
 
-  <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). -->
-  <div ref="stapel" :class="['bogen-stapel', 'wkr-listen', druckGesperrt ? 'no-print' : '']" :data-druck-gesperrt="druckGesperrt || undefined" :style="zoom">
-    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
+  <AufbauBalken v-if="!aufbau.fertig.value || aufbau.zeigen.value" :fertig="aufbau.fertigAnzahl.value" :gesamt="aufbau.gesamt.value" :zeigen="aufbau.zeigen.value" :zeile="aufbauZeile" :ohne-druckhinweis="druckGesperrt || aufbau.fertig.value" />
+  <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). Solange
+       er noch entsteht, druckt er nicht (Strg+P bringt nur den Hinweis aus AufbauBalken). -->
+  <div
+    ref="stapel"
+    :class="['bogen-stapel', 'wkr-listen', druckGesperrt || !aufbau.fertig.value ? 'no-print' : '']"
+    :data-druck-gesperrt="druckGesperrt || undefined"
+    :data-aufbau="aufbau.fertig.value ? undefined : 'laeuft'"
+    :aria-busy="!aufbau.fertig.value"
+    :style="zoom"
+  >
+    <BogenBlatt v-for="b in aufbau.sichtbar.value" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
   </div>
   <div v-if="mitBild" class="no-print"><ParcoursNachweis /></div>
 </template>

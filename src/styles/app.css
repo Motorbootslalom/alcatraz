@@ -3782,7 +3782,10 @@ table.starters th .sortier-kopf:disabled {
   min-width: 10em;
 }
 
-.wkr-geraet {
+/* Geräteknopf in der WKR-Übersicht (components/betrieb/WkrMatrix.vue). Nicht `.wkr-geraet`: So heißt die
+   Wurzel der Handy-Maske (styles/wkr-geraet.css, schaltet Übergänge ab und setzt Farben) – der gleiche Name
+   zog deren Regeln in die Übersicht (umbenannt 21.11.2026). */
+.wkr-mgeraet {
   display: block;
   border: 0;
   background: none;
@@ -4415,4 +4418,92 @@ table.starters th .sortier-kopf:disabled {
 .sheet.team-liste .sheet-table td.ungewogen {
   font-size: 0.85em;
   font-style: italic;
+}
+
+/* Ladebalken beim schrittweisen Aufbau langer Listen (components/AufbauBalken.vue, lib/aufbau.ts; 21.11.2026).
+   Klebt beim Rollen unter der ebenfalls klebenden Kopfleiste (.topbar, z-index 10): --kopf-hoehe misst
+   AufbauBalken.vue – mit top: 8px rutschte er darunter (Prüfung 21.11.2026). Ohne Animation: Er bewegt
+   sich mit dem echten Stand. */
+.aufbau-balken {
+  position: sticky;
+  top: calc(var(--kopf-hoehe, 0px) + 8px);
+  z-index: 5;
+  box-shadow: var(--shadow);
+}
+
+/* Bis er erscheint, hält er seinen Platz frei: Die Bögen rutschen beim Erscheinen nicht nach unten. */
+.aufbau-balken--wartet {
+  visibility: hidden;
+}
+
+.aufbau-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.aufbau-zahl {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.aufbau-bahn {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+
+.aufbau-fuellung {
+  height: 100%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aufbau-fuellung {
+    transition: none;
+  }
+}
+
+/* Der „Abspann“: Was gerade entsteht, darüber verblassend die Schritte davor. */
+.aufbau-abspann {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.aufbau-alt {
+  color: var(--muted);
+}
+
+.aufbau-alt--3 {
+  opacity: 0.35;
+}
+
+.aufbau-alt--2 {
+  opacity: 0.6;
+}
+
+.aufbau-jetzt {
+  font-weight: 600;
+}
+
+/* Nur auf Papier: Wer während des Aufbaus Strg+P drückt, bekommt diesen Satz statt halber Listen. */
+.aufbau-druckhinweis {
+  display: none;
+}
+
+@media print {
+  .aufbau-druckhinweis {
+    display: block;
+    margin: 0 0 16px;
+    font-size: 14px;
+  }
 }

@@ -11,6 +11,8 @@ import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
 import type { ParallelRunde } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
+import AufbauBalken from './AufbauBalken.vue'
+import { useSchrittweise } from '../lib/aufbau'
 
 /**
  * Die Wettkampfrichter-Listen des Parallelslaloms unter „Listen“: je Runde sechs Listen – je
@@ -32,7 +34,7 @@ const emit = defineEmits<{
    * Wie viele Bögen die Auswahl zeigt und wie sie heißt (für Fenstertitel und Dateiname), dazu
    * ihre Runden – die gelten nach dem Drucken als gebunden (views/ListsView.vue, 20.11.2026).
    */
-  stand: [stand: { anzahl: number; auswahl: string; runden: ParallelRunde[] }]
+  stand: [stand: { anzahl: number; auswahl: string; runden: ParallelRunde[]; fertig: boolean }]
 }>()
 
 const { state } = useStore()
@@ -81,8 +83,26 @@ const auswahlText = computed(() => {
     .join(' - ')
     .replace(/\s*[/\\:]\s*/g, '-')
 })
+// Schritt für Schritt mit Ladebalken wie WkrListen.vue (lib/aufbau.ts, 21.11.2026).
+const aufbau = useSchrittweise(boegen, (b) => b.id)
+const aufbauZeile = computed(() => {
+  const b = aufbau.naechster.value
+  if (!b) return undefined
+  return [
+    b.runde ? rundenName(b.runde.runde) : undefined,
+    b.runde ? racecourseName(b.runde.racecourse) : b.parcoursName,
+    listenArten.value.find((l) => l.typeId === b.typeId)?.titel ?? b.titel,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+})
 watchEffect(() =>
-  emit('stand', { anzahl: boegen.value.length, auswahl: auswahlText.value, runden: [...new Set(boegen.value.flatMap((b) => (b.runde ? [b.runde.runde] : [])))] }),
+  emit('stand', {
+    anzahl: boegen.value.length,
+    auswahl: auswahlText.value,
+    runden: [...new Set(boegen.value.flatMap((b) => (b.runde ? [b.runde.runde] : [])))],
+    fertig: aufbau.fertig.value,
+  }),
 )
 
 const stapel = ref<HTMLElement | null>(null)
@@ -131,8 +151,9 @@ const { zoom } = useBogenZoom(stapel)
     </template>
   </div>
 
-  <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). -->
-  <div ref="stapel" class="bogen-stapel wkr-listen" :style="zoom">
-    <BogenBlatt v-for="b in boegen" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
+  <AufbauBalken v-if="!aufbau.fertig.value || aufbau.zeigen.value" :fertig="aufbau.fertigAnzahl.value" :gesamt="aufbau.gesamt.value" :zeigen="aufbau.zeigen.value" :zeile="aufbauZeile" :ohne-druckhinweis="aufbau.fertig.value" />
+  <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts); im Aufbau druckt er nicht. -->
+  <div ref="stapel" :class="['bogen-stapel', 'wkr-listen', aufbau.fertig.value ? '' : 'no-print']" :data-aufbau="aufbau.fertig.value ? undefined : 'laeuft'" :aria-busy="!aufbau.fertig.value" :style="zoom">
+    <BogenBlatt v-for="b in aufbau.sichtbar.value" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
   </div>
 </template>

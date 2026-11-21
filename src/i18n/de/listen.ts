@@ -74,6 +74,10 @@ export default {
   'lists.wkr.list': 'Liste',
   'lists.wkr.count': '{n} Bogen | {n} Bögen',
   'lists.wkr.noSheets': 'Für diese Auswahl gibt es keinen Bogen.',
+  // Ladebalken beim schrittweisen Aufbau (components/AufbauBalken.vue, 21.11.2026).
+  'lists.aufbau.titel': 'Die Listen werden erzeugt …',
+  'lists.aufbau.stand': '{fertig} von {n} Bogen fertig | {fertig} von {n} Bögen fertig',
+  'lists.aufbau.druck': 'Die Listen wurden noch erzeugt, als der Druck begann. Bitte warten, bis der Balken unter „Listen“ verschwunden ist, und dann noch einmal drucken.',
   'lists.wkr.without': 'Kein Bogen für {classes}: Die Klasse fährt auf keinem Parcours, oder Regelwerk und Aufbau haben keine Liste für sie. Die Klassen der Parcours stehen unter',
   'lists.wkr.duplex': 'Die Beschreibung steht auf der Rückseite: bitte doppelseitig drucken und an der langen Kante wenden.',
   'lists.wkr.settings': 'Leerzeilen für Nachmeldungen und die Beschreibung auf der Rückseite stehen unter',

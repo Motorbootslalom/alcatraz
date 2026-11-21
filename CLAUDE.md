@@ -111,6 +111,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … Abgleich beim Import | import/starterMerge.ts FIELDS + Merge-Regel bei freiwilliger Spalte (Muster geschlecht) |
 | Startnummern | domain/startnumbers.ts (parseClassNumber); YAML `startNrPraefix`; state/reducer/startnummern.ts assignStartNumbers |
 | Reihenfolge im Starter-Reiter | lib/reihenfolge.ts (Spalten, stabil, mische); ClassSection.vue, StartersView.vue; ORDER_/SHUFFLE_STARTERS in state/reducer/startnummern.ts |
+| Ladebalken langer Listen (schrittweiser Aufbau) | lib/aufbau.ts useSchrittweise/AUFBAU (Messung im Kopfkommentar), components/AufbauBalken.vue; WkrListen/ParallelWkrListen `stand.fertig` → ListsView `imAufbau` (Knopf), Stapel `no-print` + `data-aufbau`; Tests aus über test-setup.ts setzeSchrittweise(false); i18n lists.aufbau.* |
 | Druck erst nach Verzahnung | views/ListsView.vue vorVerzahnung → WkrListen/LaufzettelListen `druckGesperrt` (Stapel no-print) |
 | Datumsfeld | components/DatumFeld.vue (Textfeld, `sofort` = Formular); lib/datum.ts liesDatum; Import: import/tsv.ts |
 | Jahrgang passt nicht zur Klasse | import/klassenPruefung.ts (klassenFuerJahr, startendeJahrgaenge); Vorschlag in ManualAddForm, ClassSection (MOVE_STARTER_TO_CLASS), ExcelPanel (klasseJeZeile) |
