@@ -27,9 +27,10 @@ export interface ReiterNamen {
   verzahnung: 'manoever' | 'parallel'
   /**
    * Betrieb am Wettkampftag (Plan vom 16.11.2026): Start-Freigabe (E1/E2), Startliste mit Prognose (E3), Geräte (E6:
-   * Gerätebetrieb einschalten, Lese-Links für Anzeigetafel und Zuschauer).
+   * Gerätebetrieb einschalten, Lese-Links für Anzeigetafel und Zuschauer), WKR (W2.2, 21.11.2026: digitale Erfassung
+   * der Wettkampfrichter – Matrix, Bedienung je Liste, Rückfragen; nicht „Erfassung“, das ist ein Hauptreiter, A1).
    */
-  betrieb: 'start' | 'startliste' | 'geraete'
+  betrieb: 'start' | 'startliste' | 'geraete' | 'wkr'
 }
 export type ReiterView = keyof ReiterNamen
 
@@ -102,7 +103,7 @@ export const ADRESSEN = {
         druckdatei: 'druckdatei',
       },
       verzahnung: { manoever: 'manoever', parallel: 'parallel' },
-      betrieb: { start: 'start', startliste: 'startliste', geraete: 'geraete' },
+      betrieb: { start: 'start', startliste: 'startliste', geraete: 'geraete', wkr: 'wkr' },
     },
     ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge', geraete: 'geraete' },
     // `sehen`, `koppeln` und `geraet` in jeder Sprache gleich (geraete/paket.ts SEHEN/KOPPELN, GERAET): Lese- und
@@ -137,7 +138,8 @@ export const ADRESSEN = {
       verzahnung: { manoever: 'manoeuvring', parallel: 'parallel' },
       // „Starting order“ wie die Startlisten des Parallelslaloms (parallel.startlist.title); hier mit Wartezeiten.
       // Geräte (E6): andere Geräte mit Lese-Link; „devices“ wie in der Oberfläche.
-      betrieb: { start: 'start', startliste: 'starting-order', geraete: 'devices' },
+      // WKR (W2.2): „officials“ – „race-officials“ heißt schon die WKR-Liste unter „Lists“ (Rulebook „race official“).
+      betrieb: { start: 'start', startliste: 'starting-order', geraete: 'devices', wkr: 'officials' },
     },
     ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order', geraete: 'devices' },
     // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen;

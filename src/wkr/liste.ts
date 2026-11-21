@@ -1,9 +1,10 @@
 import type { AppState, BereichId, PunktId, StartRef, Starter } from '../types'
 import type { Konfig } from '../config/konfig'
-import { bereicheZumStand, istParallel, laeufeVonPunkt, laufPunkt, punktVonLauf, rundenPunkt } from '../betrieb/folge'
+import { bereicheZumStand, istParallel, laeufeVonPunkt, laufPunkt, PARALLEL_BEREICH, punktVonLauf, rundenPunkt } from '../betrieb/folge'
 import { veranstaltungsListen } from '../lib/listen'
 import { parallelListen } from '../lib/parallelBogen'
-import { attemptSchluessel, RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
+import { attemptSchluessel, RACECOURSE_PARCOURS, RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
+import type { WkrBogen } from '../lib/wkrListen'
 import { istHaken, laufSchluessel, listenLauf, teilHaken, type ListenTeil } from '../lib/eingaben'
 import { WKR_ANNAHMEN, type ListenTeile } from './annahmen'
 
@@ -64,6 +65,20 @@ export function listenDerVeranstaltung(stand: AppState, konfig: Konfig): Liste[]
     }
   }
   return out
+}
+
+/**
+ * Die Liste eines Bogens der Erfassung (W2: Marken „Papier ansehen“, ◆): Manövrieren = Parcours des Bogens und Position,
+ * Parallelslalom = Bereich `parallel` mit dem Racecourse (aus der Runde des Bogens, sonst rückwärts über
+ * RACECOURSE_PARCOURS). `null` für Bögen ohne Liste der WKR-Erfassung: Knoten und andere Listen ohne Lauf (W5) und
+ * Positionen, die das Regelwerk nicht kennt.
+ */
+export function listeVonBogen(bogen: Pick<WkrBogen, 'parcoursId' | 'typeId' | 'runde'>, konfig: Konfig): Liste | null {
+  if (!konfig.getPositions().some((p) => p.typeId === bogen.typeId)) return null
+  if (konfig.getSheetDef(bogen.typeId).showLauf === false && WKR_ANNAHMEN.listenOhneLaufErstW5) return null
+  const racecourse = bogen.runde?.racecourse ?? RACECOURSES.find((rc) => RACECOURSE_PARCOURS[rc] === bogen.parcoursId) ?? null
+  if (racecourse !== null) return { bereich: PARALLEL_BEREICH, typeId: bogen.typeId, racecourse }
+  return { bereich: bogen.parcoursId, typeId: bogen.typeId, racecourse: null }
 }
 
 /** Die Teile einer Liste (Steg: Ablegen/Anlegen); `undefined`, wenn sie nicht geteilt wird. */

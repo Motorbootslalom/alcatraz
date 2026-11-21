@@ -57,8 +57,11 @@ function rahmen(stand: AppState, kennung: string, eintrag: WkrListe, teil: Liste
   return { aktiv, offen }
 }
 
-/** Liest Starts einer Liste: Auflösen, Klasse prüfen, X erkennen, Haken lesen – je Aufruf einmal gebaut. */
-function leser(stand: AppState, konfig: Konfig, liste: Liste) {
+/**
+ * Liest Starts einer Liste: Auflösen, Klasse prüfen, X erkennen, Haken lesen – je Aufruf einmal gebaut. Auch für die
+ * Lage (wkr/lage.ts), damit X und Haken dort nach denselben Regeln gelesen werden.
+ */
+export function leser(stand: AppState, konfig: Konfig, liste: Liste) {
   const vorrang = istParallel(liste.bereich) ? parallelListen(konfig) : []
   const felder = new Map<ClassId, ReadonlyMap<string, Feld>>()
   const felderVon = (klasse: ClassId) => {
@@ -66,13 +69,14 @@ function leser(stand: AppState, konfig: Konfig, liste: Liste) {
     if (!f) felder.set(klasse, (f = felderJeKennung(konfig, klasse, vorrang)))
     return f
   }
+  /** Trägt der Starter im Lauf ein X „nicht gestartet“ (auf irgendeiner Liste)? */
+  const istX = (lauf: string, starter: string, klasse: ClassId) => nichtGestartet(werteVon(stand.eingaben, lauf, starter), felderVon(klasse))
   /** Der Start auf dieser Liste; `null`, wenn er hier nicht vorkommt oder ein X trägt (er fällt weg). */
   const lies = (key: string, ref: StartRef | null = liesRef(key)): SchlangenStart | null => {
     if (!ref) return null
     const start = startAufListe(stand, konfig, liste, ref)
     if (!start) return null
-    const werte = werteVon(stand.eingaben, start.lauf, start.starter.id)
-    if (nichtGestartet(werte, felderVon(start.starter.klasse))) return null
+    if (istX(start.lauf, start.starter.id, start.starter.klasse)) return null
     const out: SchlangenStart = { key, ref, starter: start.starter.id, klasse: start.starter.klasse, lauf: start.lauf, weitere: start.weitere, punkt: start.punkt }
     if (!konfig.positionAllowsClass(liste.typeId, start.starter.klasse)) out.entfaellt = 'klasse'
     return out
@@ -82,7 +86,7 @@ function leser(stand: AppState, konfig: Konfig, liste: Liste) {
     const werte = werteVon(stand.eingaben, s.lauf, s.starter)
     return !!werte[erfasstKennung(liste.typeId)] || (teil !== undefined && !!werte[teilHaken(liste.typeId, teil)])
   }
-  return { lies, erledigt }
+  return { lies, erledigt, istX }
 }
 
 /**

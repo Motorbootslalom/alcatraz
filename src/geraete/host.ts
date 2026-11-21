@@ -4,7 +4,7 @@ import type { AppState } from '../types'
 import type { Action } from '../state/reducer'
 import { t as text } from '../i18n'
 import { BETRIEB_ANNAHMEN } from '../betrieb/annahmen'
-import { SICHT_FASSUNG, sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
+import { anzeigeSprache, SICHT_FASSUNG, sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
 import { ABLAGE, beendeRaum, hostAblage, legeRaumAn, liesHerkunft, liesWkrEingang, schreibeHerkunft, schreibeWkrEingang, type Ablage } from './ablage'
 import { oeffneFensterbus, type Anwendung, type Befehl, type BusUmgebung, type Fensterbus, type GeraeteBefehl, type VerbindungsMeldung } from './fensterbus'
 import { waehleFuehrung, type Fuehrung, type FuehrungsUmgebung } from './fuehrung'
@@ -13,14 +13,17 @@ import { koppelPaketAus, packeKoppelPaket, packeLesePaket } from './paket'
 import { fingerabdruck, lesePaket, type HostRaum } from './transport/ntfy/raum'
 import { HostTransport, type Eingang } from './transport/ntfy/transport'
 import { toBase64Url } from './transport/ntfy/codec'
-import { erlaubteAction, erlaubteWkr, liesAufgaben, listenAufgaben, WKR_ACTIONS, type Aufgabe } from './aufgaben'
-import { gruppeDerListe, gruppenFuer } from './wkrGruppen'
-import { extraFuer, mitAbgelehnt, mitHerkunft, mitHinweis, ohneGeraet, ohneHinweis, type HerkunftEintrag } from './wkrEingang'
+import { erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, listenAufgaben, WKR_ACTIONS, type Aufgabe } from './aufgaben'
+import { gruppeDerFreigabe, gruppeDerListe, gruppenFuer } from './wkrGruppen'
+import { extraFuer, leereHerkunft, leererEingang, mitAbgelehnt, mitHerkunft, mitHinweis, ohneGeraet, ohneHinweis, type HerkunftEintrag, type WkrEingang, type WkrHerkunft } from './wkrEingang'
 import { configFor } from '../config/konfig'
 import { werteVon } from '../lib/eingaben'
 import { abschlussVon } from '../wkr/abschluss'
+import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import { liesListe } from '../wkr/liste'
 import { sichtListe } from '../wkr/sicht'
+import { erfassungsLage } from '../wkr/lage'
+import { sichtFreigabe } from '../wkr/freigabe'
 import { entscheideAnmeldung } from './koppelEntscheid'
 import { dreheQr, gibCode, koppelThemen, markiereBenutzt, oeffneQr, qrFaellig, raeumeAuf, schliesseKoppeln } from './koppeln'
 import {
@@ -29,6 +32,7 @@ import {
   benenne,
   beruehre,
   entzogeneListe,
+  geraetAngaben,
   geraeteListe,
   gruppenNachAufgaben,
   hatGruppe,
@@ -42,7 +46,7 @@ import {
 } from './register'
 import type { NtfyZeiten } from './transport/ntfy/leitung'
 import type { Json } from './transport/ntfy/patch'
-import { OEFFENTLICH, ZUSCHAUER, type Ablehnung, type Hinweis } from './transport/protokoll'
+import { istOeffentlich, OEFFENTLICH, ZUSCHAUER, type Ablehnung, type Hinweis } from './transport/protokoll'
 import { kontingentZaehler, type KontingentStand, type Zaehlart } from './kontingent'
 import { BUILD_COMMIT, BUILD_TIME } from '../lib/build'
 
@@ -152,11 +156,35 @@ export interface GeraeteHost {
   // --- W1 (21.11.2026): digitale WKR-Erfassung ---
   /**
    * Hinweis an die Geräte einer Liste (Rückkanal: nur Code und Startnummer, Plan §5) – steht in der Sicht der Liste,
-   * bis jedes Gerät ihn als gesehen meldet. Über das Führungsfenster.
+   * bis jedes Gerät ihn als gesehen meldet. Über das Führungsfenster. Mit `teil` (Steg, F16) nur an die Geräte dieses
+   * Teils und die ohne Teil – „Papier ab“/„Weiter“ wirken je Teil (Prüfbefund 21.11.2026).
    */
-  hinweis(liste: string, code: Hinweis, startNr?: string): void
+  hinweis(liste: string, code: Hinweis, startNr?: string, teil?: 'ab' | 'an'): void
+  /**
+   * Herkunft ◆ nach einer Entscheidung im Eingang (Rückfrage „Gerät übernehmen“, Vorschlag „Übernehmen“; Prüfbefund
+   * 21.11.2026, Vorschlag §5/§6.2): nach dem dispatch gerufen, schreibt ◆ für die Zellen, in denen jetzt der Wert des
+   * Geräts steht. Gerätelokal (ABLAGE.herkunft) – in jedem Fenster, auch ohne Raum.
+   */
+  merkeEntscheid(liste: string, geraet: string, zeilen: readonly HerkunftZeile[]): void
+  // --- W2.2 (21.11.2026, Plan docs/plan-wkr-w2.md §5): Lesen für Matrix, Eingang und Erfassung ---
+  /**
+   * Herkunft ◆ dieser Veranstaltung (ABLAGE.herkunft, F10) – gelesen beim Start, nach eigenem Schreiben und beim
+   * storage-Ereignis (andere Fenster). Auch ohne Raum lesbar (◆ bleibt nach „Raum beenden“), ohne dafür Verbindung,
+   * Fensterbus oder Schloss zu öffnen.
+   */
+  readonly herkunft: Readonly<ShallowRef<WkrHerkunft>>
+  /** Gesprächsstand mit den WKR-Geräten (ABLAGE.wkr: abgelehnte Zeilen, offene Hinweise) – gelesen wie {@link herkunft}. */
+  readonly eingang: Readonly<ShallowRef<WkrEingang>>
   /** Alles abbauen (Tests; die Anwendung braucht es nicht). */
   stop(): void
+}
+
+/** Zellen einer übernommenen Zeile (für ◆): Lauf-Schlüssel, weitere (Vorsteg), Starter, Feld und Wert des Geräts. */
+export interface HerkunftZeile {
+  lauf: string
+  weitere: readonly string[]
+  starter: string
+  zellen: readonly { feld: string; wert: string }[]
 }
 
 export interface HostUmgebung {
@@ -202,9 +230,25 @@ export interface HostStore {
 
 /** Konfiguration des Stands für Rechte und Sicht der Listen (wie lib/listenStand.ts; configFor merkt sie sich). */
 const konfigVon = (s: AppState) => configFor({ regelwerk: s.regelwerk, eigeneAufbauten: s.eigeneAufbauten })
+/** W2.4: Die Listennamen der Freigabe-Sicht in der Sprache der Anzeigetafel – wie Parcours und Klassen der Start-Freigabe. */
+const konfigDerTafel = (s: AppState) => configFor({ regelwerk: s.regelwerk, eigeneAufbauten: s.eigeneAufbauten, sprache: anzeigeSprache(s) })
+
+/**
+ * W2.4 (Plan W2 §5, 21.11.2026): So oft rechnet das Führungsfenster die Freigabe-Sicht auch ohne Änderung des Stands
+ * neu – die Ampel der Geräte altert mit der Uhr (◐ ab 90 s, ✕ ab 5 min), ohne dass eine Nachricht kommt. Gesendet wird
+ * nur, wenn sich der Inhalt ändert (Kontingent; WKR_ANNAHMEN.freigabeTaktSek).
+ */
+export const FREIGABE_TAKT_MS = WKR_ANNAHMEN.freigabeTaktSek * 1000
 
 /** E7: Takt des Führungsfensters für das Koppeln – QR-Token so früh drehen, dass keine Lücke entsteht. */
 const KOPPEL_TAKT_MS = 1000
+
+/**
+ * W2.2 (Plan W2 §5, 21.11.2026): Im Führungsfenster zieht der Host `zuletzt gehört` der Geräteliste höchstens so oft
+ * nach (Ampel der Matrix) – jede Nachricht eines Geräts berührt das Register, die Oberfläche braucht es nicht so oft.
+ * Die anderen Fenster bekommen den Raum ohnehin über das storage-Ereignis.
+ */
+export const ZULETZT_NACHZIEHEN_MS = 5000
 
 interface Aktiv {
   kennung: string
@@ -228,6 +272,11 @@ interface Aktiv {
   /** E7, nur im Führungsfenster: Takt des Koppelns und die Koppel-Themen, die gerade mitgelesen werden. */
   koppelTakt: ReturnType<typeof setInterval> | null
   koppelThemen: Set<string>
+  /** W2.2: `zuletzt` nachziehen – wann zuletzt, und der Timer für das gedrosselte nächste Mal. */
+  zuletztZeit: number
+  zuletztTimer: ReturnType<typeof setTimeout> | null
+  /** W2.4: wann die Freigabe-Sicht zuletzt im Takt gerechnet wurde (Uhr des Hosts). */
+  freigabeZeit: number
 }
 
 function vorgabeAblage(): Ablage | null {
@@ -325,6 +374,43 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
   let gestoppt = false
   let infoText = 'null'
 
+  // W2.2: Herkunft ◆ und Gesprächsstand reaktiv – nur Lesen der Ablage, also auch ohne Raum (keine Verbindung).
+  const herkunft = shallowRef<WkrHerkunft>(leereHerkunft(''))
+  const eingang = shallowRef<WkrEingang>(leererEingang(''))
+  /** Zuletzt gelesener Rohtext je Schlüssel: Gleiches wird nicht neu geprüft (die Herkunft kann groß werden). */
+  const roh = { herkunft: '\u0000', wkr: '\u0000', kennung: '\u0000' }
+  const liesRoh = (key: string): string | null => {
+    try {
+      return ablage?.getItem(key) ?? null
+    } catch {
+      return null
+    }
+  }
+  /** Herkunft und Eingang neu lesen. Ohne Kennung leer – und nichts löschen (liesHerkunft räumt fremde Kennungen). */
+  function liesWkr(): void {
+    const k = store.state.value.kennung
+    const neuKennung = roh.kennung !== k
+    roh.kennung = k
+    const h = liesRoh(ABLAGE.herkunft)
+    if (neuKennung || h !== roh.herkunft) {
+      herkunft.value = k ? liesHerkunft(k, ablage) : leereHerkunft('')
+      roh.herkunft = liesRoh(ABLAGE.herkunft) ?? ''
+    }
+    const w = liesRoh(ABLAGE.wkr)
+    if (neuKennung || w !== roh.wkr) {
+      eingang.value = k ? liesWkrEingang(k, ablage) : leererEingang('')
+      roh.wkr = liesRoh(ABLAGE.wkr) ?? ''
+    }
+  }
+  const schreibeEingang = (e: WkrEingang) => {
+    schreibeWkrEingang(e, ablage)
+    liesWkr()
+  }
+  const schreibeHerk = (h: WkrHerkunft) => {
+    schreibeHerkunft(h, ablage)
+    liesWkr()
+  }
+
   const kennung = () => store.state.value.kennung
   const liesRaum = (): HostRaum | null => (kennung() ? hostAblage(kennung(), ablage).lies() : null)
 
@@ -350,7 +436,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     const bus = oeffneFensterbus(undefined, umgebung.bus)
     const a: Aktiv = {
       kennung: k, bus, fuehrung: null, scope: effectScope(true), transport: null, leitung: null, timer: null, letzte: '', listen: new Map(), listenVoll: new Set(), endet: false,
-      wegBefehl: () => {}, wegAnwenden: () => {}, koppelTakt: null, koppelThemen: new Set(),
+      wegBefehl: () => {}, wegAnwenden: () => {}, koppelTakt: null, koppelThemen: new Set(), zuletztZeit: 0, zuletztTimer: null, freigabeZeit: 0,
     }
     aktiv = a
     a.wegBefehl = bus.beimBefehl((befehl) => {
@@ -431,16 +517,65 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     })
     // start() legt ohne Warten los (gestoppt = false), danach kann gleich verteilt werden; das Senden wartet aufs Abo.
     void t.start()
+    ergaenzeGruppen(a, t)
     verteile(a)
     // Koppeln: laufende Codes aus dem Raum (auch eines früheren Führungsfensters) wieder mitlesen; QR-Token drehen.
     pflegeKoppeln(a)
-    a.koppelTakt = setInterval(() => pflegeKoppeln(a), koppelTaktMs)
+    a.koppelTakt = setInterval(() => {
+      pflegeKoppeln(a)
+      // W2.4: Die Ampel altert mit der Uhr – die Freigabe-Sicht gedrosselt neu rechnen (gesendet nur bei Änderung).
+      // Nicht nach „Raum beenden“ (Prüfbefund 21.11.2026): keine Sicht hinter die Meldung „ende“, siehe verteile().
+      if (a.transport && !a.endet && uhr() - a.freigabeZeit >= FREIGABE_TAKT_MS) verteileFreigabe(a, a.transport)
+    }, koppelTaktMs)
+  }
+
+  /**
+   * W2.4 (Plan W2 §5): Gruppen, die die Aufgaben eines schon gekoppelten Geräts heute verlangen, die es aber noch nicht
+   * hat (Freigabe-Gruppe für Handys, die vor W2 gekoppelt wurden) – anlegen und den Schlüssel schicken, ohne neues
+   * Koppeln. Nur im Führungsfenster beim Start; meldet sich das Gerät selbst wieder (P-7), trägt sein willkommen sie ohnehin.
+   */
+  function ergaenzeGruppen(a: Aktiv, t: HostTransport): void {
+    const raum = t.raumJetzt()
+    if (!raum) return
+    for (const [id, g] of Object.entries(raum.geraete)) {
+      const aufgaben = liesAufgaben(g.aufgaben)
+      const soll = gruppenFuer(aufgaben).filter((x) => !istOeffentlich(x))
+      if (soll.every((x) => g.gruppen.includes(x))) continue
+      let wechsel: ReturnType<typeof setzeAufgaben> = null
+      t.verwalte((r) => {
+        wechsel = setzeAufgaben(r, id, aufgaben)
+      })
+      const w = wechsel as ReturnType<typeof setzeAufgaben>
+      if (!w?.neu.length) continue
+      t.schickeSchluessel(id)
+      for (const x of w.neu) a.listenVoll.add(x)
+    }
+  }
+
+  /**
+   * W2.2 (Plan W2 §5): `zuletzt gehört` (und wartend/Akku) aus dem Register in die Geräteliste dieses Fensters –
+   * gedrosselt auf höchstens alle {@link ZULETZT_NACHZIEHEN_MS}; was dazwischen kommt, zieht der Timer nach. Ohne das
+   * zeigte die Ampel im Führungsfenster ein lebendes Gerät als ✕ (die anderen Fenster lesen den Raum beim
+   * storage-Ereignis). Gedrosselt nach echter Zeit (Date.now), nicht nach der Uhr des Hosts – es geht ums Zeichnen.
+   */
+  function zieheZuletztNach(a: Aktiv): void {
+    if (a.zuletztTimer) return
+    const warte = a.zuletztZeit + ZULETZT_NACHZIEHEN_MS - Date.now()
+    const jetztNach = () => {
+      a.zuletztTimer = null
+      a.zuletztZeit = Date.now()
+      if (aktiv === a && a.transport) setzeInfo(a.transport.raumJetzt())
+    }
+    if (warte <= 0) jetztNach()
+    else a.zuletztTimer = setTimeout(jetztNach, warte)
   }
 
   /** Nicht mehr führend (oder Raum zu): Transport anhalten. Ein neues Führungsfenster beginnt mit Vollständen. */
   function gibAb(a: Aktiv): void {
     if (a.timer) clearTimeout(a.timer)
     a.timer = null
+    if (a.zuletztTimer) clearTimeout(a.zuletztTimer)
+    a.zuletztTimer = null
     if (a.koppelTakt) clearInterval(a.koppelTakt)
     a.koppelTakt = null
     a.koppelThemen.clear()
@@ -469,6 +604,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (!t || a.endet) return
     verteileOeffentlich(a, t)
     verteileListen(a, t)
+    verteileFreigabe(a, t)
   }
 
   function verteileOeffentlich(a: Aktiv, t: HostTransport): void {
@@ -524,6 +660,46 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     }
   }
 
+  /**
+   * W2.4 (Plan W2 §5/§6.3): je Bereich, für den ein gekoppeltes Gerät die Start-Freigabe hat, die Freigabe-Sicht
+   * (wkr/freigabe.ts – Rückstand ohne Werte und Namen) an die Freigabe-Gruppe des Bereichs. Gesammelt mit den anderen
+   * Sichten, nach Inhalt verglichen (nur bei Änderung, Kontingent); nach neuem Schlüssel oder neuem Gerät voll. Hat
+   * keine Liste des Bereichs einen Eintrag und ging noch nichts hinaus, geht auch nichts (das Handy zeigt dann ohnehin
+   * keine Leiste). NIE an ko/kz (F17).
+   */
+  function verteileFreigabe(a: Aktiv, t: HostTransport): void {
+    if (a.endet) return
+    a.freigabeZeit = uhr()
+    const raum = t.raumJetzt()
+    if (!raum) return
+    const bereiche = new Set<string>()
+    for (const g of Object.values(raum.geraete)) for (const b of freigabeBereiche(liesAufgaben(g.aufgaben))) bereiche.add(b)
+    if (bereiche.size === 0) return
+    const state = store.state.value
+    const konfig = konfigDerTafel(state)
+    const geraete = geraetAngaben(geraeteListe(raum))
+    const jetzt = uhr()
+    for (const bereich of bereiche) {
+      const gruppe = gruppeDerFreigabe(bereich)
+      if (!raum.gruppen[gruppe]) continue
+      let text: string
+      try {
+        const lage = erfassungsLage(state, konfig, bereich, geraete, jetzt)
+        text = JSON.stringify(sichtFreigabe(bereich, lage.listen, state.anzeige.wkrWarnung))
+      } catch {
+        // Ein Bereich, den es so nicht (mehr) gibt: nichts verteilen, das Handy behält die letzte Sicht.
+        continue
+      }
+      const bisher = a.listen.get(gruppe)
+      // Noch nie gesendet und nichts zu zeigen: nichts senden (spart eine Nachricht je Bereich und Start).
+      if (bisher === undefined && (JSON.parse(text) as { listen: unknown[] }).listen.length === 0) continue
+      const voll = a.listenVoll.delete(gruppe)
+      if (!voll && bisher === text) continue
+      a.listen.set(gruppe, text)
+      t.verteile(gruppe, JSON.parse(text) as Json, { voll })
+    }
+  }
+
   // -------------------------------------------------------------------------
   // E7: Geräte-Actions, Koppeln, Register (nur im Führungsfenster)
   // -------------------------------------------------------------------------
@@ -554,17 +730,19 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
         ersatzName: text('geraete.name.geraet'),
       })
       if (d.art === 'abgelehnt') return t.ablehnen(e, d.grund)
-      // W1: Je Liste der Aufgaben eine Gruppe (im Raum angelegt, bevor das willkommen ihre Schlüssel trägt).
+      // W1: Je Liste der Aufgaben eine Gruppe, W2.4: je Bereich der Start-Freigabe die Freigabe-Gruppe (im Raum
+      // angelegt, bevor das willkommen ihre Schlüssel trägt).
       const listen = listenAufgaben(d.aufgaben)
-      if (listen.length) t.verwalte((r) => void gruppenNachAufgaben(r, d.aufgaben))
+      const eigene = gruppenFuer(d.aufgaben).filter((g) => !istOeffentlich(g))
+      if (eigene.length) t.verwalte((r) => void gruppenNachAufgaben(r, d.aufgaben))
       if (t.begruesse(e, { id: d.id, gruppen: gruppenFuer(d.aufgaben), aufgaben: d.aufgaben, name: d.name }) === 'id-belegt') return t.ablehnen(e, 'id-belegt')
       // Der Geräte-Code gilt für EIN Gerät.
       if (d.weg === 'code') t.verwalte((r) => setzeKoppelStand(r, markiereBenutzt(koppelStandVon(r), jetzt)))
       // Dieses Fenster bekommt kein storage-Ereignis für das eigene Schreiben: Geräteliste hier selbst nachziehen.
       setzeInfo(t.raumJetzt())
-      if (listen.length) {
-        meldeDigital(a, listen.map((l) => l.liste))
-        for (const l of listen) a.listenVoll.add(gruppeDerListe(l.liste))
+      if (listen.length) meldeDigital(a, listen.map((l) => l.liste))
+      if (eigene.length) {
+        for (const g of eigene) a.listenVoll.add(g)
         plane(a)
       }
       return
@@ -576,17 +754,17 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       // Still quittiert, wenn das Gerät eine Liste hat: `bis` in deren Sicht sagt es ihm.
       t.verwalte((r) => vermerkeLebenszeichen(r, e.id, jetzt, { wartend: n.wartend, ...(n.akku !== undefined ? { akku: n.akku } : {}) }))
       t.quittiere(e, 'angewandt', undefined, { still: hatListenGruppe(raum, e.id) })
-      setzeInfo(t.raumJetzt())
+      zieheZuletztNach(a)
       plane(a)
       return
     }
     if (n.art === 'gesehen') {
       const vorher = liesWkrEingang(a.kennung, ablage)
       const nachher = ohneHinweis(vorher, e.id, n.hinweis)
-      if (nachher !== vorher) schreibeWkrEingang(nachher, ablage)
+      if (nachher !== vorher) schreibeEingang(nachher)
       t.verwalte((r) => beruehre(r, e.id, jetzt))
       t.quittiere(e, nachher !== vorher ? 'angewandt' : 'unveraendert', undefined, { still: hatListenGruppe(raum, e.id) })
-      setzeInfo(t.raumJetzt())
+      zieheZuletztNach(a)
       plane(a)
       return
     }
@@ -596,7 +774,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (!action) {
       t.verwalte((r) => beruehre(r, e.id, jetzt))
       t.quittiere(e, 'abgelehnt', 'nicht-erlaubt')
-      setzeInfo(t.raumJetzt())
+      zieheZuletztNach(a)
       return
     }
     const ergebnis = await a.bus.reicheWeiter(action, wendeAn)
@@ -605,7 +783,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (aktiv !== a || a.transport !== t) return
     t.verwalte((r) => beruehre(r, e.id, uhr()))
     t.quittiere(e, ergebnis)
-    setzeInfo(t.raumJetzt())
+    zieheZuletztNach(a)
   }
 
   /** W1: Hat das Gerät irgendeine Listen-Gruppe? Dann kommen seine Quittungen gesammelt über deren Sicht. */
@@ -640,11 +818,11 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       // Nicht erlaubt: direkt – das Gerät erführe es sonst nirgends (keine Zeile, die die Sicht nennen könnte).
       t.verwalte((r) => beruehre(r, e.id, uhr()))
       t.quittiere(e, 'abgelehnt', 'nicht-erlaubt')
-      setzeInfo(t.raumJetzt())
+      zieheZuletztNach(a)
       return
     }
     if (erlaubt.abgelehnt.length) {
-      schreibeWkrEingang(mitAbgelehnt(liesWkrEingang(a.kennung, ablage), e.id, liste, erlaubt.abgelehnt), ablage)
+      schreibeEingang(mitAbgelehnt(liesWkrEingang(a.kennung, ablage), e.id, liste, erlaubt.abgelehnt))
     }
     let ergebnis: 'angewandt' | 'unveraendert' | 'abgelehnt' = 'abgelehnt'
     let grund: Ablehnung | undefined = erlaubt.abgelehnt[0]?.grund
@@ -655,7 +833,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       if (aktiv !== a || a.transport !== t) return
       grund = undefined
       const jetzt = store.state.value
-      if (action.type === 'WKR_ZEILEN') merkeHerkunft(a, action, jetzt.eingaben)
+      if (action.type === 'WKR_ZEILEN') merkeHerkunft(a.kennung, action.liste, action.quelle.name, action.zeilen, jetzt.eingaben)
       // Abschluss ohne Wirkung, weil noch Starts offen sind (ohne „Rest auf Papier“): sagen, warum. Gemessen am eigenen
       // Eintrag vorher/nachher (am Steg je Teil) – ein Abschluss des anderen Teils zählt nicht als angenommen.
       if (action.type === 'WKR_ABSCHLUSS' && (ergebnis === 'unveraendert' || abschlussVon(jetzt.wkr, action.liste, action.punkt, action.teil) === abschlussVon(state.wkr, action.liste, action.punkt, action.teil))) {
@@ -665,28 +843,29 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     }
     t.verwalte((r) => beruehre(r, e.id, uhr()))
     t.quittiere(e, ergebnis, grund, { still })
-    setzeInfo(t.raumJetzt())
+    zieheZuletztNach(a)
     plane(a)
   }
 
   /** Herkunft ◆ (F10) für die Zellen einer übernommenen Zeile – nur, wo jetzt der Wert des Geräts steht. */
-  function merkeHerkunft(a: Aktiv, action: { liste: string; quelle: { name: string }; zeilen: { lauf: string; weitere: string[]; starter: string; zellen: { feld: string; wert: string }[] }[] }, eingaben: AppState['eingaben']): void {
-    const herkunft = liesHerkunft(a.kennung, ablage)
+  function merkeHerkunft(kennung: string, liste: string, name: string, zeilen: readonly HerkunftZeile[], eingaben: AppState['eingaben']): void {
+    if (!kennung) return
+    const bisherige = liesHerkunft(kennung, ablage)
     const zeit = uhr()
     const eintraege: { lauf: string; starter: string; feld: string; eintrag: HerkunftEintrag }[] = []
-    for (const z of action.zeilen) {
+    for (const z of zeilen) {
       for (const c of z.zellen) {
         if (c.wert === '') continue
         for (const lauf of [z.lauf, ...z.weitere]) {
           if ((werteVon(eingaben, lauf, z.starter)[c.feld] ?? '') !== c.wert) continue
-          const bisher = herkunft.zellen[`${lauf}|${z.starter}|${c.feld}`]
+          const bisher = bisherige.zellen[`${lauf}|${z.starter}|${c.feld}`]
           // Dasselbe Gerät, derselbe Wert (Wiederholung): die erste Zeit bleibt.
-          if (bisher && bisher.g === action.quelle.name && bisher.w === c.wert) continue
-          eintraege.push({ lauf, starter: z.starter, feld: c.feld, eintrag: { g: action.quelle.name, l: action.liste, z: zeit, w: c.wert } })
+          if (bisher && bisher.g === name && bisher.w === c.wert) continue
+          eintraege.push({ lauf, starter: z.starter, feld: c.feld, eintrag: { g: name, l: liste, z: zeit, w: c.wert } })
         }
       }
     }
-    if (eintraege.length) schreibeHerkunft(mitHerkunft(herkunft, eintraege), ablage)
+    if (eintraege.length) schreibeHerk(mitHerkunft(bisherige, eintraege))
   }
 
   /** Koppeln pflegen: Abgelaufenes räumen, QR-Token drehen, die Koppel-Themen lesen, solange sie gelten. */
@@ -758,7 +937,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
           for (const g of vorher?.gruppen ?? []) a.listenVoll.add(g)
           const e = liesWkrEingang(a.kennung, ablage)
           const ohne = ohneGeraet(e, befehl.id)
-          if (ohne !== e) schreibeWkrEingang(ohne, ablage)
+          if (ohne !== e) schreibeEingang(ohne)
           plane(a)
         }
         break
@@ -766,9 +945,11 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       case 'hinweis': {
         const raum = t.raumJetzt()
         if (!raum) break
-        const ids = Object.entries(raum.geraete).filter(([, g]) => listenAufgaben(liesAufgaben(g.aufgaben)).some((l) => l.liste === befehl.liste)).map(([id]) => id)
+        // Am Steg mit Teil nur die Geräte dieses Teils und die ohne Teil (F16).
+        const passt = (l: { liste: string; teil?: 'ab' | 'an' }) => l.liste === befehl.liste && (befehl.teil === undefined || l.teil === undefined || l.teil === befehl.teil)
+        const ids = Object.entries(raum.geraete).filter(([, g]) => listenAufgaben(liesAufgaben(g.aufgaben)).some(passt)).map(([id]) => id)
         if (!ids.length) break
-        schreibeWkrEingang(mitHinweis(liesWkrEingang(a.kennung, ablage), ids, befehl.liste, befehl.code, befehl.startNr).eingang, ablage)
+        schreibeEingang(mitHinweis(liesWkrEingang(a.kennung, ablage), ids, befehl.liste, befehl.code, befehl.startNr).eingang)
         plane(a)
         break
       }
@@ -866,19 +1047,26 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (key === ABLAGE.raum || key === null) pruefe()
     if (key === ABLAGE.kontingent || key === null) kontingent.value = zaehler.lies()
     if (key === ABLAGE.fassung) pruefeFassung(!!liesRaum())
+    if (key === ABLAGE.herkunft || key === ABLAGE.wkr || key === null) liesWkr()
   }
   fenster?.addEventListener('storage', beiSpeicher)
   const oben = effectScope(true)
   oben.run(() => {
     // Andere Veranstaltung (Laden, „Alles zurücksetzen“): ihr Raum – oder keiner.
-    watch(() => store.state.value.kennung, () => pruefe())
+    watch(() => store.state.value.kennung, () => {
+      pruefe()
+      liesWkr()
+    })
   })
   pruefe()
+  liesWkr()
 
   return {
     raum,
     fuehrt,
     verbindung,
+    herkunft,
+    eingang,
     oeffne() {
       const vorhanden = liesRaum()
       if (vorhanden) {
@@ -907,7 +1095,8 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     setzeAufgaben: (id, aufgaben) => geraeteBefehl({ art: 'aufgaben', id, aufgaben }),
     benenne: (id, name) => geraeteBefehl({ art: 'umbenennen', id, name }),
     entziehe: (id) => geraeteBefehl({ art: 'entziehen', id }),
-    hinweis: (liste, code, startNr) => geraeteBefehl({ art: 'hinweis', liste, code, ...(startNr !== undefined ? { startNr } : {}) }),
+    hinweis: (liste, code, startNr, teil) => geraeteBefehl({ art: 'hinweis', liste, code, ...(startNr !== undefined ? { startNr } : {}), ...(teil !== undefined ? { teil } : {}) }),
+    merkeEntscheid: (liste, geraet, zeilen) => merkeHerkunft(store.state.value.kennung, liste, geraet, zeilen, store.state.value.eingaben),
     neueFassung,
     kontingent,
     fassungGesehen: merkeFassung,

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { Meldung, MeldungArt, OeffentlicheSicht, SichtBereich, SichtStart } from '../../types'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { t, tn } from '../../i18n'
 import { merke } from '../../lib/merken'
+import type { FreigabeErfassung, FreigabeListe } from '../../wkr/freigabe'
+import type { Ampel } from '../../wkr/lage'
 import AppDialog from '../AppDialog.vue'
 import BetriebsFolge from './BetriebsFolge.vue'
 import EinreihenListe from './EinreihenListe.vue'
@@ -33,6 +35,13 @@ import { beginnenText, punktText, startZeile, tBereich, tnBereich, type StartZei
  * vom Handy über den Host. Jede Action ist bedingt (state/reducer/betrieb.ts): „Nächster Start“ trägt den
  * Start, der gerade steht (`vorher`), ein Doppelklick schaltet so nicht zweimal. Bedienung in der Sprache
  * der Oberfläche; Namen von Parcours und Klassen kommen aus der Sicht (Sprache der Tafel).
+ *
+ * WKR-Erfassung (W2.4, Plan docs/plan-wkr-w2.md §6.3, 21.11.2026): optional `erfassung` – reine Daten (wkr/freigabe.ts
+ * FreigabeErfassung), am Bedienrechner aus erfassungsLage, auf dem Handy aus der Freigabe-Gruppe; keine Store-Abhängigkeit.
+ * Geräteleiste je Liste, sobald eine Liste des Bereichs einen Eintrag hat; ein Feld, das neu auf ✕ oder „!“ geht, wird
+ * einmal hervorgehoben und bleibt rot (kein Ton, kein Dialog). Warnt eine Liste (Rückstand > R): Rückstandszeile und
+ * gelber Rand um „Als Nächstes“; bei „nachfragen“ vor JEDEM Zeigen ein AppDialog „Trotzdem freigeben?“ (auch aus
+ * „Anderen Starter wählen“, A8/D5). Gesperrt wird nie (F4).
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -45,6 +54,10 @@ const props = defineProps<{
    * Bereiche (geraete/aufgaben.ts lehnt Bereich '*' ab; der Knopf soll gar nicht erst locken).
    */
   nurDieser?: boolean
+  /** W2.4: Stand der WKR-Erfassung des Bereichs (Geräteleiste, Rückstand, Nachfrage); ohne = keine Leiste. */
+  erfassung?: FreigabeErfassung
+  /** W2.4, nur am Bedienrechner: Klick auf die Geräteleiste – zum Unterreiter WKR dieses Bereichs. */
+  erfassungOeffnen?: () => void
 }>()
 
 const b = computed(() => props.bereich)
@@ -82,8 +95,69 @@ const ohneNaechsten = computed(() => {
   return b.value.naechsterPunkt ? t('betrieb.punktZuEnde', { punkt: punktText(b.value.punkt) }) : tBereich(b.value, 'betrieb.alleZuEnde')
 })
 
+// --- WKR-Erfassung (W2.4) ---
+const AMPEL: Record<Ampel, string> = { gehoert: '●', still: '◐', weg: '✕', ruht: '○' }
+const leiste = computed<FreigabeListe[]>(() => props.erfassung?.listen ?? [])
+const warnende = computed(() => leiste.value.filter((l) => l.warnt && l.offen > 0))
+const nachfragen = computed(() => warnende.value.length > 0 && props.erfassung?.warnung === 'nachfragen')
+const istRot = (l: FreigabeListe) => l.stand !== 'papier' && (l.ampel === 'weg' || l.rueckfragen > 0)
+function zeichen(l: FreigabeListe): string {
+  if (l.stand === 'papier') return '▭'
+  return l.ampel ? AMPEL[l.ampel] : '–'
+}
+function feldText(l: FreigabeListe): string {
+  if (l.stand === 'papier') return ''
+  if (l.stand !== 'aktiv') return t(`betrieb.wkr.stand.${l.stand}`)
+  return l.offen > 0 ? t('betrieb.freigabe.offen', { n: l.offen }) : '✓'
+}
+function feldTitel(l: FreigabeListe): string {
+  if (l.stand === 'papier') return `${l.titel}: ${t('betrieb.freigabe.papier')}`
+  const teile = [l.ampel ? t(`betrieb.wkr.ampel.${l.ampel}`) : t('betrieb.freigabe.ohneGeraet')]
+  teile.push(l.offen > 0 ? t('betrieb.wkr.stand.offen', { n: l.offen, von: l.von, bis: l.bis }) : t('betrieb.freigabe.fertig'))
+  if (l.wartend) teile.push(tn('betrieb.wkr.stand.wartend', l.wartend))
+  if (l.rueckfragen) teile.push(tn('betrieb.wkr.stand.rueckfragen', l.rueckfragen))
+  return `${l.titel}: ${teile.join(' · ')}`
+}
+const rueckstandText = computed(() => warnende.value.map((l) => `${l.titel} ${t('betrieb.wkr.stand.offen', { n: l.offen, von: l.von, bis: l.bis })}`).join(' · '))
+/** Felder, die eben neu rot wurden – einmal hervorgehoben (D1), danach nur noch rot. */
+const neuRot = ref<Set<string>>(new Set())
+const HERVORHEBEN_MS = 4000
+const uhren = new Set<ReturnType<typeof setTimeout>>()
+watch(
+  leiste,
+  (jetzt, vorher) => {
+    const warRot = new Set((vorher ?? []).filter(istRot).map((l) => l.titel))
+    const neu = jetzt.filter((l) => istRot(l) && !warRot.has(l.titel)).map((l) => l.titel)
+    if (!neu.length || vorher === undefined) return
+    neuRot.value = new Set([...neuRot.value, ...neu])
+    const u = setTimeout(() => {
+      uhren.delete(u)
+      const rest = new Set(neuRot.value)
+      for (const x of neu) rest.delete(x)
+      neuRot.value = rest
+    }, HERVORHEBEN_MS)
+    uhren.add(u)
+  },
+)
+onBeforeUnmount(() => uhren.forEach(clearTimeout))
+
+/** „Nachfragen“ (F4): Ein Zeigen wartet auf „Trotzdem freigeben“; alles andere geht gleich hinaus. Nie gesperrt. */
+const frageZeigen = ref<BetriebAenderung | null>(null)
+function sendeGeprueft(action: BetriebAenderung) {
+  if (action.type === 'BETRIEB_ZEIGEN' && nachfragen.value) {
+    frageZeigen.value = action
+    return
+  }
+  props.sende(action)
+}
+function zeigenJa() {
+  const a = frageZeigen.value
+  frageZeigen.value = null
+  if (a) props.sende(a)
+}
+
 function zeige(key: string) {
-  props.sende({ type: 'BETRIEB_ZEIGEN', bereich: b.value.id, ref: key, vorher: vorher.value })
+  sendeGeprueft({ type: 'BETRIEB_ZEIGEN', bereich: b.value.id, ref: key, vorher: vorher.value })
 }
 function naechsterStart() {
   const n = b.value.offen[0]
@@ -190,7 +264,41 @@ function meldungLoeschen() {
       <span v-if="vorig" class="note" data-teil="vorig">{{ t('betrieb.davor') }}: {{ [vorig.startNr, vorig.was, vorig.name].filter(Boolean).join(' · ') }}</span>
     </div>
 
-    <div class="betrieb-naechster" data-teil="naechster">
+    <!-- W2.4: Stand der WKR-Erfassung – nur, wenn eine Liste des Bereichs einen Eintrag hat. -->
+    <!-- Am Bedienrechner führt ein Klick irgendwo auf die Leiste zum Unterreiter WKR; für die Tastatur steht dafür ein
+         eigener Knopf am Ende (ein gebundenes :type wäre hier verboten, components/DatumFeld.test.ts). -->
+    <div
+      v-if="leiste.length"
+      :class="['wkr-leiste', erfassungOeffnen ? 'klickbar' : '']"
+      data-teil="wkr-leiste"
+      role="group"
+      :aria-label="t('betrieb.freigabe.leiste')"
+      :title="erfassungOeffnen ? t('betrieb.freigabe.leiste.title') : undefined"
+      @click="erfassungOeffnen?.()"
+    >
+      <span
+        v-for="l in leiste"
+        :key="l.titel"
+        :class="['wkr-leiste-feld', istRot(l) ? 'rot' : '', neuRot.has(l.titel) ? 'neu' : '', l.warnt ? 'warnt' : '']"
+        :data-liste="l.titel"
+        :data-stand="l.stand"
+        :data-ampel="l.ampel ?? undefined"
+        :data-rot="istRot(l) ? '' : undefined"
+        :data-neu="neuRot.has(l.titel) ? '' : undefined"
+        :title="feldTitel(l)"
+      >
+        <span class="wkr-ampel" :data-ampel="l.ampel ?? undefined" aria-hidden="true">{{ zeichen(l) }}</span>
+        {{ l.titel }}<template v-if="feldText(l)">{{ ' ' }}{{ feldText(l) }}</template
+        ><template v-if="l.wartend">{{ ' ' }}⧗{{ l.wartend }}</template
+        ><b v-if="l.rueckfragen" class="wkr-leiste-frage">{{ ' ' }}!</b>
+      </span>
+      <button v-if="erfassungOeffnen" type="button" class="btn sm wkr-leiste-knopf" data-action="zur-erfassung">{{ t('betrieb.reiter.wkr') }} →</button>
+    </div>
+    <p v-if="warnende.length" class="note betrieb-warn wkr-rueckstand" role="status" data-teil="wkr-rueckstand">
+      {{ t('betrieb.freigabe.rueckstand') }} {{ rueckstandText }}
+    </p>
+
+    <div :class="['betrieb-naechster', warnende.length ? 'betrieb-naechster--rueckstand' : '']" data-teil="naechster" :data-warnt="warnende.length ? '' : undefined">
       <span class="note">{{ t('betrieb.naechster') }}</span>
       <template v-if="naechster?.seiten">
         <span v-for="x in naechster.seiten" :key="x.rc" class="betrieb-seite" :data-racecourse="x.rc">
@@ -241,7 +349,7 @@ function meldungLoeschen() {
       </button>
     </div>
 
-    <BetriebsFolge v-if="wahlOffen && !gesperrt" :sicht="sicht" :bereich="bereich" :sende="sende" :gesperrt="gesperrt" @fertig="wahlZu" />
+    <BetriebsFolge v-if="wahlOffen && !gesperrt" :sicht="sicht" :bereich="bereich" :sende="sendeGeprueft" :gesperrt="gesperrt" @fertig="wahlZu" />
 
     <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.zurueckgestellt" art="zurueckgestellt" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
     <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.nachzuholen" art="nachzuholen" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
@@ -279,6 +387,15 @@ function meldungLoeschen() {
     </details>
 
     <EinsteigenAb :sicht="sicht" :bereich="bereich" :sende="sende" :gesperrt="gesperrt" />
+
+    <AppDialog v-if="frageZeigen" :titel="t('betrieb.freigabe.frage')" data-dialog="trotzdem-freigeben" @abbrechen="frageZeigen = null">
+      <p>{{ t('betrieb.freigabe.frage.text') }}</p>
+      <p class="note">{{ t('betrieb.freigabe.rueckstand') }} {{ rueckstandText }}</p>
+      <template #knoepfe>
+        <button type="button" class="btn primary" data-action="trotzdem-freigeben" @click="zeigenJa">{{ t('betrieb.freigabe.frage.ja') }}</button>
+        <button type="button" class="btn" data-action="trotzdem-nein" autofocus @click="frageZeigen = null">{{ t('common.cancel') }}</button>
+      </template>
+    </AppDialog>
 
     <AppDialog v-if="frageBeginnen && bereich.naechsterPunkt" :titel="tBereich(bereich, 'betrieb.beginnen.frage')" data-dialog="beginnen" @abbrechen="frageBeginnen = false">
       <p>{{ tnBereich(bereich, 'betrieb.beginnen.text', bereich.offenZahl) }}</p>

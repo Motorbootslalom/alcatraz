@@ -29,7 +29,8 @@
   Papier/abgeschlossen → Vorschlag, nicht gezeigt → Rückfrage `start`, Haken nur ohne Konflikt, beide Teilhaken →
   ganzer), WKR_RUECKFRAGE (Grund `start` mit `vereinige`: gegen das dann Stehende vereinigt), WKR_VORSCHLAG, WKR_LISTE
   (Pause mit P = Schlange; `teil`: nur dieser Steg-Teil), WKR_ABSCHLUSS(_LOESEN) je Teil (`punkt|teil`, nur begonnene
-  Punkte; wkr/abschluss.ts); wkrLeer,
+  Punkte; wkr/abschluss.ts); W2: WKR_PAPIER_AB (abgemeldet, Pause ab Zeit des Starts mit `ab`, P = Schlange ab dort),
+  Zeile zu P-Start → Vorschlag (A6); wkrLeer,
   normalisiereWkr (migrate), wkrOhneLaeufe (CLEAR_EINGABEN/_TEIL), wkrNurStarter (mitStartern). Logik: src/wkr/.
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).

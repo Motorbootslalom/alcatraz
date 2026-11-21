@@ -27,7 +27,8 @@ import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, ClassId, Origi
 import { bereicheZumStand } from '../betrieb/folge'
 import { messungen, messwerteAlsVorgabe, startabstandZeilen, type StartabstandZeile } from '../betrieb/prognose'
 import { BETRIEB_ANNAHMEN } from '../betrieb/annahmen'
-import { ABSTAND_MAX, ABSTAND_MIN, PARALLEL_ANORDNUNGEN, SKALA_MAX, SKALA_MIN, STEG_MAX } from '../state/reducer/betrieb'
+import { ABSTAND_MAX, ABSTAND_MIN, PARALLEL_ANORDNUNGEN, SKALA_MAX, SKALA_MIN, STEG_MAX, WKR_WARNUNGEN } from '../state/reducer/betrieb'
+import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import EigeneAufbautenPanel from '../components/EigeneAufbautenPanel.vue'
 import LogosPanel from '../components/LogosPanel.vue'
 import StartNrBereichePanel from '../components/StartNrBereichePanel.vue'
@@ -123,6 +124,18 @@ function setzeSteg(feld: 'amSteg' | 'vorSteg', e: Event) {
   el.value = String(state.value.anzeige[feld])
 }
 const MESS_AB = BETRIEB_ANNAHMEN.prognoseMessung.ab
+
+// --- Rückstand der WKR-Erfassung (W2, F4) ------------------------------------
+// Ab wie vielen offenen Starts einer digital erfassten Liste die Start-Freigabe warnt und ob sie nur warnt oder vor
+// dem Zeigen nachfragt. Gesperrt wird nie (F4); der Reducer begrenzt (normalisiereAnzeige).
+const RUECKSTAND_MIN = WKR_ANNAHMEN.rueckstandMin
+const RUECKSTAND_MAX = WKR_ANNAHMEN.rueckstandMax
+function setzeRueckstand(e: Event) {
+  const el = e.target as HTMLInputElement
+  const n = parseFloat(el.value)
+  if (Number.isFinite(n)) setzeAnzeige({ wkrRueckstand: n })
+  el.value = String(state.value.anzeige.wkrRueckstand)
+}
 const abstandZeilen = computed(() => startabstandZeilen(state.value))
 const messZahl = computed(() => messungen(state.value).length)
 /** Eigene Abstände in der Folge der Klassen: Derselbe Inhalt ergibt denselben Text (der Reducer vergleicht als JSON). */
@@ -1012,6 +1025,41 @@ function takeLegacy() {
       </div>
       <p class="note" style="flex: 1; min-width: 220px; margin: 0">{{ t('listopt.betrieb.steg.hint', { max: STEG_MAX }) }}</p>
     </div>
+
+    <!-- Rückstand der WKR-Erfassung (W2, F4 vom 21.11.2026): ab wann die Start-Freigabe warnt, warnen oder nachfragen.
+         Optionsfelder statt Auswahlliste (kein select-change). Unter DM und UIM gleich. -->
+    <h3>{{ t('listopt.betrieb.wkr') }}</h3>
+    <div class="row" style="align-items: flex-end; gap: 20px">
+      <div class="field" style="max-width: 200px">
+        <label :for="`${id}-betrieb-wkr-rueckstand`">{{ t('listopt.betrieb.wkrRueckstand') }}</label>
+        <input
+          :id="`${id}-betrieb-wkr-rueckstand`"
+          class="input"
+          type="number"
+          :min="RUECKSTAND_MIN"
+          :max="RUECKSTAND_MAX"
+          step="1"
+          data-feld="betrieb-wkr-rueckstand"
+          :value="state.anzeige.wkrRueckstand"
+          @change="setzeRueckstand($event)"
+        />
+      </div>
+      <fieldset class="field" data-feld="betrieb-wkr-warnung" style="border: 0; padding: 0; margin: 0">
+        <legend>{{ t('listopt.betrieb.wkrWarnung') }}</legend>
+        <label v-for="w in WKR_WARNUNGEN" :key="w" class="boat-check">
+          <input
+            type="radio"
+            :name="`${id}-betrieb-wkr-warnung`"
+            :value="w"
+            :data-wert="w"
+            :checked="state.anzeige.wkrWarnung === w"
+            @change="setzeAnzeige({ wkrWarnung: w })"
+          />
+          {{ t(`listopt.betrieb.wkrWarnung.${w}`) }}
+        </label>
+      </fieldset>
+    </div>
+    <p class="note">{{ t('listopt.betrieb.wkr.hint', { min: RUECKSTAND_MIN, max: RUECKSTAND_MAX }) }}</p>
 
     <!-- Startabstände je Klasse (E3, Lastenheft der Tafel L-3 bis L-6): Vorgabe, eigener Wert, Messung, was gilt. -->
     <h3>{{ t('listopt.betrieb.abstaende') }}</h3>

@@ -13,7 +13,10 @@ import type { NtfyZeiten } from './geraete/transport/ntfy/leitung'
 import { reducer, type Action } from './state/reducer'
 import { setLocale } from './i18n'
 import { vergissAlles } from './lib/merken'
-import { betriebsStand, festgeschrieben } from './testHilfen'
+import { betriebStarter, betriebsStand, festgeschrieben } from './testHilfen'
+import { sichtOeffentlich } from './betrieb/sicht'
+import { listenKennung } from './wkr/liste'
+import { configFor } from './config/konfig'
 import type { AppState } from './types'
 
 /**
@@ -53,8 +56,8 @@ function handy(): Ablage & { daten: Map<string, string> } {
 }
 
 /** Ein Bedienrechner mit offenem, verbundenem Raum und dispatch (wendet Geräte-Actions an). */
-async function bedienrechner() {
-  const state = shallowRef<AppState>({ ...festgeschrieben(betriebsStand()), kennung: 'MUSTERK7', geraeteServer: SERVER })
+async function bedienrechner(start: AppState = festgeschrieben(betriebsStand())) {
+  const state = shallowRef<AppState>({ ...start, kennung: 'MUSTERK7', geraeteServer: SERVER })
   let uhr = 10_000
   const dispatch = (action: Action) => {
     uhr += 1000
@@ -232,5 +235,38 @@ describe('Gerät: Start-Freigabe vom Handy', () => {
     await nextTick()
     expect(w2.find('.geraet-meldung').attributes('data-meldung')).toBe('entkoppelt')
     expect(speicher.getItem(ABLAGE.kopplung)).toBeNull()
+  })
+})
+
+describe('Gerät: Stand der WKR-Erfassung in der Start-Freigabe (W2.4)', () => {
+  it('Leiste und Rückstand aus der Freigabe-Gruppe; „nachfragen“ fragt auch auf dem Handy, gesperrt wird nie', async () => {
+    const starter = Array.from({ length: 6 }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(101 + i)))
+    const { state, h } = await bedienrechner(festgeschrieben(betriebsStand(starter)))
+    const TOR = listenKennung({ bereich: 'par_1', typeId: 'gate135', racecourse: null })
+    const TITEL = configFor({ regelwerk: 'dm-2026' }).getSheetDef('gate135').title
+    const dispatch = (a: Action) => (state.value = reducer(state.value, { ...a, zeit: 20_000 } as Action))
+    dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:1' })
+    dispatch({ type: 'WKR_LISTE', liste: TOR, modus: 'digital' })
+    dispatch({ type: 'SET_ANZEIGE', patch: { wkrWarnung: 'nachfragen' } })
+    const zeigeAmHost = () => {
+      const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === 'par_1')!
+      dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
+    }
+    for (let i = 0; i < 3; i++) zeigeAmHost()
+    const { w } = await mitCode(h, NUR_1)
+    await zeigt(() => karte(w, 'par_1').find('[data-teil="wkr-rueckstand"]').exists())
+    const feld = karte(w, 'par_1').find(`[data-teil="wkr-leiste"] [data-liste="${TITEL}"]`)
+    expect(feld.text()).toContain('3 offen')
+    // Auf dem Handy kein Sprung zum Unterreiter (kein Knopf), keine Gerätenamen.
+    expect(karte(w, 'par_1').find('[data-action="zur-erfassung"]').exists()).toBe(false)
+    expect(karte(w, 'par_1').find('[data-teil="wkr-leiste"]').classes()).not.toContain('klickbar')
+    expect(karte(w, 'par_1').find('[data-teil="naechster"]').classes()).toContain('betrieb-naechster--rueckstand')
+    const vorher = state.value.betrieb.bereiche.par_1.gezeigt.length
+    await karte(w, 'par_1').find('[data-action="zeigen"]').trigger('click')
+    await nextTick()
+    expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).not.toBeNull()
+    expect(state.value.betrieb.bereiche.par_1.gezeigt.length).toBe(vorher)
+    ;(document.querySelector('[data-action="trotzdem-freigeben"]') as HTMLButtonElement).click()
+    await bis(() => state.value.betrieb.bereiche.par_1.gezeigt.length === vorher + 1)
   })
 })

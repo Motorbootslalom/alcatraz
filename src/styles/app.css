@@ -1156,6 +1156,8 @@ table.starters tr.starter-abgemeldet td {
   --ok-border: #a7f3d0;
   --warn-text: #991b1b;
   --warn-border: #fecaca;
+  /* W2.4: gelber Rand um „Als Nächstes“, wenn die WKR-Erfassung im Rückstand ist (Warnung, kein Fehler). */
+  --rueckstand: #d97706;
 }
 
 @media screen {
@@ -1177,6 +1179,7 @@ table.starters tr.starter-abgemeldet td {
     --ok-border: #065f46;
     --warn-text: #fecaca;
     --warn-border: #7f1d1d;
+    --rueckstand: #fbbf24;
   }
 }
 
@@ -3699,6 +3702,308 @@ table.starters th .sortier-kopf:disabled {
 
 .geraete-eintrag-kopf .btn {
   margin-left: auto;
+}
+
+/* W2.2: Betrieb → WKR (components/betrieb/WkrMatrix.vue, WkrListeBedienung.vue, WkrEingang.vue). Nur Bildschirm;
+   die Zeichen tragen die Bedeutung, Farbe ist nur Beigabe (bestehende Tokens, keine Listenfarben). */
+.wkr-matrix-kopf {
+  gap: 8px 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.wkr-matrix-rahmen {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.wkr-mtabelle {
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.wkr-mtabelle th,
+.wkr-mtabelle td {
+  border-bottom: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.wkr-mtabelle .wkr-start {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.wkr-mtabelle .wkr-start.aktuell {
+  background: var(--accent-soft);
+}
+
+.wkr-mtabelle .wkr-start.vorab {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.wkr-mtabelle tr.warnt > th {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.wkr-liste {
+  white-space: nowrap;
+}
+
+.wkr-geraete {
+  min-width: 10em;
+}
+
+.wkr-geraet {
+  display: block;
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wkr-ampel {
+  display: inline-block;
+  width: 1.1em;
+  text-align: center;
+}
+
+[data-ampel='gehoert'] > .wkr-ampel,
+.wkr-ampel[data-ampel='gehoert'] {
+  color: var(--ok-text);
+}
+
+[data-ampel='still'] > .wkr-ampel,
+.wkr-ampel[data-ampel='still'] {
+  color: var(--accent);
+}
+
+[data-ampel='weg'] > .wkr-ampel,
+.wkr-ampel[data-ampel='weg'] {
+  color: var(--danger);
+}
+
+[data-ampel='ruht'] > .wkr-ampel,
+.wkr-ampel[data-ampel='ruht'] {
+  color: var(--muted);
+}
+
+.wkr-mzelle-td {
+  text-align: center;
+}
+
+.wkr-mzelle {
+  display: inline-block;
+  min-width: 1.8em;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0 2px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.wkr-mzelle[data-zelle='ok'] {
+  color: var(--ok-text);
+}
+
+.wkr-mzelle[data-zelle='ueberfaellig'] {
+  background: var(--danger-soft);
+  border-color: var(--warn-border);
+}
+
+.wkr-mzelle[data-zelle='rueckfrage'],
+.wkr-mzelle[data-zelle='x'] {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.wkr-mzelle[data-zelle='vorschlag'] {
+  border-color: var(--accent);
+}
+
+.wkr-mzelle[data-zelle='papier'],
+.wkr-mzelle[data-zelle='entfaellt'],
+.wkr-mzelle[data-zelle='vorab'] {
+  color: var(--muted);
+}
+
+.wkr-stand {
+  min-width: 12em;
+}
+
+.wkr-warnt-text {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.wkr-bedienung-zeile > td {
+  background: var(--panel-2);
+}
+
+.wkr-bedienung-reihe {
+  gap: 6px 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+
+.wkr-bedienung-titel {
+  font-weight: 600;
+}
+
+.wkr-nr {
+  width: 6em;
+}
+
+.wkr-abschluesse {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+}
+
+.wkr-abweichend {
+  color: var(--danger);
+}
+
+.wkr-karte {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 12px;
+  max-width: 36em;
+}
+
+.wkr-karte h3 {
+  margin: 0 0 6px;
+}
+
+.wkr-karte-werte {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0 0 8px;
+}
+
+.wkr-karte-werte dd {
+  margin: 0;
+}
+
+.wkr-raute {
+  color: var(--accent);
+  font-size: 0.8em;
+}
+
+.wkr-legende {
+  margin-top: 10px;
+}
+
+.wkr-legende ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.wkr-eingang h3 {
+  margin: 0 0 6px;
+}
+
+.wkr-eingang-liste {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.wkr-eingang-eintrag {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.wkr-eingang-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+
+.wkr-eingang-zelle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  margin: 4px 0;
+}
+
+.wkr-x {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.wkr-chip {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* W2.4: Geräteleiste der WKR-Erfassung in der Start-Freigabe – eine Zeile Felder, rot bei ✕ oder „!“. */
+.wkr-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: inherit;
+  font: inherit;
+  font-size: 0.9em;
+  text-align: left;
+  width: 100%;
+}
+
+.wkr-leiste.klickbar {
+  cursor: pointer;
+}
+
+.wkr-leiste-knopf {
+  margin-left: auto;
+}
+
+.wkr-leiste-feld {
+  white-space: nowrap;
+}
+
+.wkr-leiste-feld.rot {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Einige Sekunden hervorgehoben, wenn ein Feld neu rot wird (kein Ton, kein Dialog, keine Bewegung). */
+.wkr-leiste-feld.neu {
+  background: var(--danger-soft);
+  outline: 2px solid var(--danger);
+  border-radius: 4px;
+}
+
+.wkr-rueckstand {
+  margin: 0 0 6px;
+}
+
+.betrieb-naechster--rueckstand {
+  border: 2px solid var(--rueckstand);
+  border-radius: 6px;
+  padding: 4px 8px;
 }
 
 /* ---------- Ohne Internet (Offline-Speicher) ---------- */

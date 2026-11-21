@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, ref, toRaw, watch } from 'vue'
 import { useStore } from '../../state/store'
 import { useKonfig } from '../../lib/konfig'
 import { bogenSeiten, defFuerKlasse, type BogenBlattSpalte, type BogenModellZeile } from '../../lib/bogen'
@@ -14,6 +14,16 @@ import { scoreRow, summenText, formatDisqs } from '../../lib/scoring'
 import type { WkrBogen } from '../../lib/wkrListen'
 import { locale, t, tn } from '../../i18n'
 import type { Column, TrennerDesign } from '../../types'
+import { NICHT_GESTARTET } from '../../lib/abmeldung'
+import { adresse } from '../../lib/router'
+import { useUhr } from '../../lib/uhr'
+import { useGeraeteHost } from '../../geraete/host'
+import { geraetAngaben } from '../../geraete/register'
+import { herkunftGilt, type HerkunftEintrag } from '../../geraete/wkrEingang'
+import { zeilenMarken, type ZeilenMarke, type ZeilenMarken } from '../../wkr/lage'
+import { liesListe, listenKennung as wkrListenKennung, listeVonBogen } from '../../wkr/liste'
+import { WKR_ANNAHMEN } from '../../wkr/annahmen'
+import { uhrzeitText } from '../betrieb/texte'
 import AppDialog from '../AppDialog.vue'
 import BogenLegende from '../bogen/BogenLegende.vue'
 import ZeitZelle from './ZeitZelle.vue'
@@ -40,11 +50,20 @@ import ZeitZelle from './ZeitZelle.vue'
  * einmal da: Seine Zeile gilt für jeden Versuch und schreibt unter jeden (lib/erfassung.ts
  * `zeilenSchluesselAlle`). Nähme eine Eingabe dabei einem späteren Versuch ein X „Nicht
  * gestartet“, das die Zeile nicht zeigt, fragt die Tabelle vorher nach (`frage`).
+ *
+ * Digitale WKR-Erfassung (W2.3, Plan docs/plan-wkr-w2.md §6.2, 21.11.2026) – nur am Bedienrechner, also nur mit dem
+ * Host dieses Fensters (ohne ihn: keine Zeichen, keine Rückfragen): ◆ an Zellen, deren Wert noch der vom Gerät ist
+ * (Herkunft gerätelokal, F10; X vom Gerät dazu gerahmt, F5), „Papier ansehen“ an Zeile bzw. Zelle (F4, A5 – gerechnet
+ * in wkr/lage.ts zeilenMarken, einmal je Bogen) und vor der ersten Änderung eines Gerätewerts die Nachfrage (§8
+ * Vorrang 3, A7: gilt, solange die Zelle den Fokus hat). Werte gehen weiter nur über SET_EINGABEN.
  */
 const props = defineProps<{ bogen: WkrBogen }>()
 
 const { state, dispatch } = useStore()
 const konfig = useKonfig({ oberflaeche: true })
+const host = useGeraeteHost()
+// Die Uhr nur für die Ampel der Geräte („offen, Gerät weg“, A5) und „heute?“ im Titel von ◆ – grob genügt (C4).
+const jetzt = host ? useUhr(WKR_ANNAHMEN.erfassungUhrSek * 1000) : null
 
 const seite = computed(
   () => bogenSeiten(konfig.value, props.bogen.auftrag, { klassenBloecke: props.bogen.optionen.klassenBloecke, leerzeilen: 0, leerzeilenJeKlasse: {} })[0],
@@ -205,6 +224,103 @@ const mitHinweis = computed(() => starterZeilen.value.filter((z) => z.hinweise.l
 const hatZeit = computed(() => seite.value.leaves.some((l) => l.kind === 'time'))
 const hatDisq = computed(() => seite.value.leaves.some((l) => l.kind === 'disq'))
 
+// --- Digitale WKR-Erfassung (W2.3): ◆, „Papier ansehen“, Rückfrage ---------------------------------------------
+
+/** Die Liste des Bogens (Knoten: keine) – nur mit Host; ohne ihn zeigt die Tabelle nichts davon. */
+const wkrListe = computed(() => (host ? listeVonBogen(props.bogen, konfig.value) : null))
+const geraete = computed(() => geraetAngaben(host?.raum.value?.geraete ?? []))
+/** Die Lauf-Schlüssel der Zeilen dieses Bogens (Runde: je Zeile ihr Attempt; Vorsteg: alle Versuche) – als EIN Text. */
+const bogenLaeufe = computed(() => [...new Set([...seite.value.rows.filter((r) => !ohneStarter(r)).map(schluesselVon), ...weitereSchluessel.value])].join('\n'))
+const KEINE_MARKEN: ReadonlyMap<string, ZeilenMarken> = new Map()
+/** Marken je `${lauf}|${starter}`: einmal je Bogen gerechnet (Plan §8 Leistung), nur für Listen digital/beides. */
+const marken = computed<ReadonlyMap<string, ZeilenMarken>>(() => {
+  const liste = wkrListe.value
+  if (!liste) return KEINE_MARKEN
+  const stand = toRaw(state.value)
+  const kennung = wkrListenKennung(liste)
+  // Schon hier abbrechen: Papier-Listen (der Normalfall) sollen beim Tippen nichts kosten.
+  if (!Object.hasOwn(stand.wkr.listen, kennung) || stand.wkr.listen[kennung].modus === 'papier') return KEINE_MARKEN
+  return zeilenMarken(stand, konfig.value, liste, bogenLaeufe.value.split('\n'), geraete.value, jetzt?.value ?? 0)
+})
+
+/** Name einer Liste (Kennung) für den Titel von ◆, in Oberflächensprache. */
+function listenTitel(kennung: string): string {
+  const l = liesListe(kennung)
+  if (!l || !konfig.value.getPositions().some((p) => p.typeId === l.typeId)) return ''
+  const titel = konfig.value.getSheetDef(l.typeId).title
+  return l.racecourse ? `${titel} ${l.racecourse}` : titel
+}
+
+interface WkrRaute {
+  eintrag: HerkunftEintrag
+  titel: string
+  /** Das Gerät hat das X „Nicht gestartet“ gesetzt (F5): zusätzlich gerahmt. */
+  x: boolean
+}
+
+interface WkrZeile {
+  marke: ZeilenMarke | null
+  zellen: Readonly<Record<string, ZeilenMarke>>
+  /** Je Feld-Kennung ◆ – nur, solange dort noch der Wert des Geräts steht (herkunftGilt). */
+  raute: Readonly<Record<string, WkrRaute>>
+  /** Alles, was die Zeile davon zeigt, als Text – für v-memo (neue Objekte je Rechnung sollen nicht neu zeichnen). */
+  memo: string
+}
+const KEIN_WKR: WkrZeile = Object.freeze({ marke: null, zellen: Object.freeze({}), raute: Object.freeze({}), memo: '' })
+
+/** Je Zeile (row.key) Marke und ◆. Leer ohne Host, ohne Herkunft und ohne Marken – dann kostet es nichts. */
+const wkrZeilen = computed<ReadonlyMap<string, WkrZeile>>(() => {
+  const out = new Map<string, WkrZeile>()
+  const herkunft = host?.herkunft.value
+  const m = marken.value
+  const mitHerkunft = !!herkunft && Object.keys(herkunft.zellen).length > 0
+  if (!host || (m.size === 0 && !mitHerkunft)) return out
+  const eingaben = toRaw(state.value).eingaben
+  const uhr = jetzt?.value ?? Date.now()
+  for (const z of zeilen.value) {
+    if (ohneStarter(z.row)) continue
+    const lauf = schluesselVon(z.row)
+    const starter = starterVon(z.row)
+    const mk = m.get(`${lauf}|${starter}`)
+    const raute: Record<string, WkrRaute> = {}
+    if (mitHerkunft) {
+      for (const feld of z.felder) {
+        if (!feld) continue
+        const e = herkunftGilt(herkunft!, eingaben, lauf, starter, feld.kennung)
+        if (!e) continue
+        const x = feld.kind === 'disq' && [...e.w.toUpperCase()].includes(NICHT_GESTARTET)
+        const titel = t('capture.wkr.raute', { liste: listenTitel(e.l), geraet: e.g, zeit: uhrzeitText(e.z, uhr) })
+        raute[feld.kennung] = { eintrag: e, titel: x ? `${titel} – ${t('capture.wkr.xGeraet', { dns: t('results.dns') })}` : titel, x }
+      }
+    }
+    const rauten = Object.entries(raute)
+    if (!mk && rauten.length === 0) continue
+    const zellen = mk?.zellen ?? {}
+    const memo = [mk?.marke ?? '', ...Object.entries(zellen).map(([f, w]) => `${f}=${w}`), ...rauten.map(([f, r]) => `${f}◆${r.titel}`)].join('\n')
+    out.set(z.row.key, { marke: mk?.marke ?? null, zellen, raute, memo })
+  }
+  return out
+})
+const wkrVon = (z: Zeile): WkrZeile => wkrZeilen.value.get(z.row.key) ?? KEIN_WKR
+/** Zeilen mit „Papier ansehen“ (ganz oder an einer Zelle) und mit offener Rückfrage – für die Zeile unter dem Kopf. */
+const papierZahl = computed(() => [...wkrZeilen.value.values()].filter((w) => w.marke === 'papier-ansehen' || Object.values(w.zellen).includes('papier-ansehen')).length)
+const rueckfrageZahl = computed(() => [...wkrZeilen.value.values()].filter((w) => w.marke === 'rueckfrage').length)
+const zumBetrieb = computed(() => adresse('betrieb', { reiter: 'wkr', ...(wkrListe.value ? { wahl: wkrListe.value.bereich } : {}) }))
+const zellMarke = (z: Zeile, feld: Feld | undefined) => (feld ? wkrVon(z).zellen[feld.kennung] : undefined)
+const raute = (z: Zeile, feld: Feld | undefined) => (feld ? wkrVon(z).raute[feld.kennung] : undefined)
+
+/**
+ * Zellen (row.key|Feld), deren Gerätewert ersetzt werden darf: die Antwort auf die Nachfrage (Vorrang 3) gilt, bis die
+ * Zelle den Fokus verliert (A7) – sonst käme die Frage bei jeder Ziffer. Kein reaktiver Zustand, nur Gedächtnis.
+ * Gemerkt wird dazu die Zeit des Herkunftseintrags (Prüfbefund 21.11.2026): Kommt in der Zwischenzeit ein neuer
+ * Gerätewert in die Zelle (neues ◆), fragt die nächste Eingabe wieder – auch wenn die Zelle den Fokus nie verlor.
+ */
+const freigegeben = new Map<string, number>()
+const freigabeSchluessel = (z: Zeile, kennung: string) => `${z.row.key}|${kennung}`
+function zelleVerlassen(z: Zeile, feld: Feld | undefined) {
+  if (feld) freigegeben.delete(freigabeSchluessel(z, feld.kennung))
+}
+
 // Was beim Verlassen einer Fehler-Zelle verworfen wurde – sonst verschwände ein Tippfehler unbemerkt.
 const meldung = ref('')
 watch(
@@ -218,14 +334,49 @@ watch(
  * Nutzers vom 15.11.2026). `zurueck` stellt das Feld wieder auf den gespeicherten Wert, wenn
  * die Eingabe nicht gilt – das Feld zeigt sonst, was nicht gespeichert ist.
  */
-const frage = ref<{ nr: string; zellen: EingabeZelle[]; zurueck?: () => void } | null>(null)
+/**
+ * Zweite Art (W2.3, §8 Vorrang 3): Die Zelle trägt noch den Wert vom Gerät (◆) – ersetzen erst nach Rückfrage.
+ * `ja` schreibt (bzw. prüft danach noch das X), `zurueck` wie oben; `feld` bekommt danach den Fokus zurück.
+ */
+type Frage =
+  | { art: 'x'; nr: string; zellen: EingabeZelle[]; zurueck?: () => void }
+  | { art: 'geraet'; nr: string; feld: string; geraet: string; zeit: string; wert: string; ja: () => void; zurueck?: () => void; fokus: HTMLInputElement | null; zeitFeld: boolean }
+const frage = ref<Frage | null>(null)
 
 function setze(zeile: Zeile, kennung: string, wert: string, zurueck?: () => void) {
+  // Solange eine Frage offen ist, schreibt nichts: Das Verlassen des Feldes (der Dialog nimmt den Fokus) brächte
+  // sonst dieselbe Eingabe ein zweites Mal – an der Frage vorbei.
+  if (frage.value) return
+  const r = wkrVon(zeile).raute[kennung]
+  if (r && freigegeben.get(freigabeSchluessel(zeile, kennung)) !== r.eintrag.z) {
+    const aktiv = document.activeElement
+    const feld = zeile.felder.find((f) => f?.kennung === kennung)
+    // Zeitfelder melden schon den ersten Tastendruck (ZeitZelle): Dieser Teilwert („1“ statt „1:23,45“) darf nie als
+    // Ersatz gespeichert werden (Prüfbefund 21.11.2026). Bei „Ersetzen“ wird dort nur freigegeben; das Feld bekommt
+    // den Fokus zurück, markiert den Gerätewert, und die ganze Zeit wird neu getippt.
+    const zeitFeld = aktiv instanceof HTMLInputElement && aktiv.classList.contains('erf-feld--zeit')
+    frage.value = {
+      art: 'geraet',
+      nr: zeile.row.nr,
+      feld: feld?.label ?? '',
+      geraet: r.eintrag.g,
+      zeit: uhrzeitText(r.eintrag.z, jetzt?.value ?? Date.now()),
+      wert: r.eintrag.w || t('capture.wkr.ersetzen.leer'),
+      ja: () => {
+        freigegeben.set(freigabeSchluessel(zeile, kennung), r.eintrag.z)
+        if (!zeitFeld) setze(zeile, kennung, wert, zurueck)
+      },
+      zurueck,
+      fokus: aktiv instanceof HTMLInputElement ? aktiv : null,
+      zeitFeld,
+    }
+    return
+  }
   const zellen = zellenVon(zeile, kennung, wert)
   if (zeile.weitere.length > 0) {
     const neu = { ...zeile.werte, [kennung]: wert }
     if (ueberschreibtX(listenFelder(konfig.value, props.bogen.typeId, zeile.klasse), zeile.werte, zeile.weitere, neu, alleFelder.value(zeile.klasse), props.bogen.typeId)) {
-      frage.value = { nr: zeile.row.nr, zellen, zurueck }
+      frage.value = { art: 'x', nr: zeile.row.nr, zellen, zurueck }
       return
     }
   }
@@ -235,12 +386,39 @@ function setze(zeile: Zeile, kennung: string, wert: string, zurueck?: () => void
 function xUeberschreiben() {
   const f = frage.value
   frage.value = null
-  if (f) dispatch({ type: 'SET_EINGABEN', zellen: f.zellen })
+  if (f?.art === 'x') dispatch({ type: 'SET_EINGABEN', zellen: f.zellen })
 }
 
 function xBehalten() {
   frage.value?.zurueck?.()
   frage.value = null
+}
+
+/** Den Gerätewert ersetzen (Vorrang 3); danach zurück ins Feld, Cursor ans Ende – dort wird weitergetippt. */
+function geraetErsetzen() {
+  const f = frage.value
+  frage.value = null
+  if (f?.art !== 'geraet') return
+  f.ja()
+  zurueckInsFeld(f.fokus, f.zeitFeld)
+}
+
+function geraetBehalten() {
+  const f = frage.value
+  frage.value = null
+  f?.zurueck?.()
+  // Ein Zeitfeld nicht: Es markierte beim Fokus seinen Inhalt, die nächste Ziffer überschriebe den behaltenen Wert.
+  if (f?.art === 'geraet' && !f.zeitFeld) zurueckInsFeld(f.fokus, false)
+}
+
+/** Zurück ins Feld: Textfelder mit dem Cursor am Ende; ein Zeitfeld markiert beim Fokus selbst seinen Inhalt. */
+function zurueckInsFeld(el: HTMLInputElement | null, zeitFeld: boolean) {
+  if (!el) return
+  void nextTick(() => {
+    if (!el.isConnected) return
+    el.focus()
+    if (!zeitFeld) el.setSelectionRange(el.value.length, el.value.length)
+  })
 }
 
 /**
@@ -333,6 +511,13 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
         </span>
         <span v-if="mitHinweis.length > 0" class="erf-stand-warn">{{ tn('capture.flagged', mitHinweis.length) }}</span>
       </div>
+      <!-- Digitale WKR-Erfassung (W2.3): wo der Papierbogen wichtig ist, und Rückfragen, die im Betrieb warten. -->
+      <p v-if="papierZahl > 0 || rueckfrageZahl > 0" class="erf-wkr-stand" data-teil="wkr-erfassung">
+        <span v-if="papierZahl > 0" class="erf-wkr-papier" data-wkr="papier-ansehen"><span aria-hidden="true">▭</span> {{ tn('capture.wkr.kopf', papierZahl) }}</span>
+        <span v-if="rueckfrageZahl > 0" class="erf-wkr-rueckfragen" data-wkr="rueckfragen">
+          {{ tn('capture.wkr.rueckfragen', rueckfrageZahl) }} <a :href="zumBetrieb" data-action="zu-betrieb-wkr">{{ t('nav.betrieb') }} → {{ t('betrieb.reiter.wkr') }}</a>
+        </span>
+      </p>
     </header>
 
     <div class="erf-rahmen">
@@ -369,7 +554,7 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
           <tr
             v-for="z in zeilen"
             :key="z.row.key"
-            v-memo="[z, totalCols, nieGestartet.has(z.row.key)]"
+            v-memo="[z, totalCols, nieGestartet.has(z.row.key), wkrVon(z).memo]"
             :class="
               z.row.zwischen !== undefined
                 ? 'erf-zwischen'
@@ -388,6 +573,7 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
             :data-attempt="z.row.starter !== undefined ? z.row.lauf : undefined"
             :data-ohne="z.row.dummy ? 'dummy' : z.row.entfaellt ? 'entfaellt' : undefined"
             :data-nicht-gestartet="z.x || nieGestartet.has(z.row.key) ? '' : undefined"
+            :data-wkr-marke="wkrVon(z).marke ?? undefined"
           >
             <th v-if="z.row.zwischen !== undefined" :colspan="totalCols" scope="rowgroup">{{ z.row.zwischen }}</th>
             <!-- Dummy oder entfallener Start: die Zeile des Papiers, ohne Felder – die Eingabe überspringt sie. -->
@@ -398,6 +584,12 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
             <template v-else>
               <td v-if="seite.startForm" class="erf-start">{{ z.row.start }}</td>
               <th class="erf-nr" scope="row">
+                <span v-if="wkrVon(z).marke === 'papier-ansehen'" class="erf-papier-marke" data-marke="papier-ansehen" :title="t('capture.wkr.papier')"
+                  >▭<span class="sr-only"> {{ t('capture.wkr.papier') }}</span></span
+                >
+                <span v-else-if="wkrVon(z).marke === 'rueckfrage'" class="erf-wkr-frage" data-marke="rueckfrage" :title="t('capture.wkr.rueckfrage')"
+                  >!<span class="sr-only"> {{ t('capture.wkr.rueckfrage') }}</span></span
+                >
                 {{ z.row.nr }}
                 <span v-if="z.x || nieGestartet.has(z.row.key)" class="erf-x-marke" :title="t('results.dns')">✕<span class="sr-only"> {{ t('results.dns') }}</span></span>
                 <span v-if="z.hinweise.length > 0" class="erf-marke" :title="hinweisText(z)" aria-hidden="true">!</span>
@@ -409,7 +601,25 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
                   {{ z.summen[li] }}
                 </td>
                 <td v-else-if="!z.felder[li]" :class="`erf-entfaellt${sep(leaf.trenner, leaf.trennerR)}`" :data-spalte="leafKey(leaf)" />
-                <td v-else :class="`erf-z-${leaf.kind}${sep(leaf.trenner, leaf.trennerR)}`" :data-spalte="leafKey(leaf)">
+                <td
+                  v-else
+                  :class="[
+                    `erf-z-${leaf.kind}${sep(leaf.trenner, leaf.trennerR)}`,
+                    {
+                      'erf-zelle--papier': zellMarke(z, z.felder[li]) === 'papier-ansehen',
+                      'erf-zelle--rueckfrage': zellMarke(z, z.felder[li]) === 'rueckfrage',
+                      'erf-zelle--geraet': !!raute(z, z.felder[li]),
+                      'erf-zelle--x-geraet': !!raute(z, z.felder[li])?.x,
+                    },
+                  ]"
+                  :data-spalte="leafKey(leaf)"
+                  :data-wkr-zelle="zellMarke(z, z.felder[li])"
+                  :title="zellMarke(z, z.felder[li]) === 'papier-ansehen' ? t('capture.wkr.papierZelle') : zellMarke(z, z.felder[li]) === 'rueckfrage' ? t('capture.wkr.rueckfrage') : undefined"
+                  @focusout="zelleVerlassen(z, z.felder[li])"
+                >
+                  <span v-if="raute(z, z.felder[li])" class="erf-raute" data-raute :title="raute(z, z.felder[li])!.titel"
+                    >◆<span class="sr-only"> {{ raute(z, z.felder[li])!.titel }}</span></span
+                  >
                   <ZeitZelle
                     v-if="leaf.kind === 'time'"
                     :value="z.werte[z.felder[li]!.kennung] ?? ''"
@@ -471,7 +681,14 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
       <BogenLegende :def="seite.def" />
     </details>
 
-    <AppDialog v-if="frage" :titel="t('capture.overwriteX.heading', { dns: t('results.dns') })" data-dialog="x-ueberschreiben" @abbrechen="xBehalten">
+    <AppDialog v-if="frage?.art === 'geraet'" :titel="t('capture.wkr.ersetzen.heading')" data-dialog="geraet-ersetzen" @abbrechen="geraetBehalten">
+      <p>{{ t('capture.wkr.ersetzen.text', { nr: frage.nr, feld: frage.feld, geraet: frage.geraet, zeit: frage.zeit, wert: frage.wert }) }}</p>
+      <template #knoepfe>
+        <button type="button" class="btn primary" data-action="geraet-behalten" autofocus @click="geraetBehalten">{{ t('capture.wkr.ersetzen.keep') }}</button>
+        <button type="button" class="btn" data-action="geraet-ersetzen" @click="geraetErsetzen">{{ t('capture.wkr.ersetzen.confirm') }}</button>
+      </template>
+    </AppDialog>
+    <AppDialog v-else-if="frage" :titel="t('capture.overwriteX.heading', { dns: t('results.dns') })" data-dialog="x-ueberschreiben" @abbrechen="xBehalten">
       <p>{{ t('capture.overwriteX.text', { nr: frage.nr, dns: t('results.dns') }) }}</p>
       <template #knoepfe>
         <button type="button" class="btn primary" data-action="x-behalten" autofocus @click="xBehalten">{{ t('capture.overwriteX.keep') }}</button>

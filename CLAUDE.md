@@ -44,7 +44,7 @@ src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/St
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
 src/lib/         *    reine Logik: Wertung, Parallelslalom, Pokal, Bögen, Listen, Laufzettel, QR, Verlauf, Offline
 src/betrieb/     *    Betrieb am Wettkampftag, rein: Folge (abgeleitet), Lage, Schritte, Sicht, Prognose, BETRIEB_ANNAHMEN
-src/wkr/         *    Digitale WKR-Erfassung (W1), rein: Listen, Zeile prüfen, Schlange, Übernahme, Sicht der Liste, WKR_ANNAHMEN
+src/wkr/         *    Digitale WKR-Erfassung (W1, W2), rein: Listen, Zeile prüfen, Schlange, Übernahme, Sicht der Liste, Lage, Freigabe-Sicht, WKR_ANNAHMEN
 src/geraete/     *    Gerätebetrieb über ntfy (E5 Kern, E6 Lese-Links, E7 Koppeln, W1 WKR): transport/, Themen, Führung, Fensterbus, Ablage (gerätelokal), paket, host (Bedienfenster), geraet/gekoppelt/erfassen (Gerät)
 src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/, anzeige/, betrieb/, zuschauer/
 src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Betrieb, Erfassung, Settings
@@ -149,6 +149,10 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … was das WKR-Gerät sieht, was es darf | wkr/sicht.ts sichtListe (Feld für Feld, LISTEN_SICHT_FASSUNG, sicht.test.ts Schlüssel); Rechte geraete/aufgaben.ts Aufgabe `liste`, WKR_ACTIONS, erlaubteWkr; Gruppe geraete/wkrGruppen.ts |
 | WKR-Geräte am Host (W1): Gruppen je Liste, stille Quittung, Annahme, Herkunft ◆, Hinweise | geraete/host.ts nimmWkrAn/verteileListen, geraete/wkrEingang.ts (Ablage `alcatraz.geraete.wkr`/`.herkunft`), aufgaben.ts erlaubteWkr, wkrGruppen.ts, wkr/sicht.ts; Protokoll 2 transport/protokoll.ts |
 | WKR-Gerät (W1, ohne Maske): Ausgang, Bündeln, Stufen, Korrektur, Pause, Abschluss, Lebenszeichen | geraete/erfassen.ts oeffneErfassung (auf gekoppelt.ts `kanal`), Ablage `alcatraz.geraet.wkr` (ablage.ts geraetWkrAblage); Ende zu Ende geraete/wkr.test.ts; Masken folgen W3/W4 |
+| WKR-Erfassung: Lage (Matrix, Ampel, Rückstand, „Papier ansehen“) | wkr/lage.ts (erfassungsLage, zeilenMarken, rueckstandZeile), Zahlen/Auslegungen wkr/annahmen.ts WKR_ANNAHMEN (W2 A1–A13); „Papier ab“ WKR_PAPIER_AB (state/reducer/wkr.ts, WkrPause.ab); R und warnen/nachfragen AppState.anzeige.wkrRueckstand/wkrWarnung (SettingsView `#betrieb`, listopt.betrieb.wkr*); Plan docs/plan-wkr-w2.md |
+| WKR-Erfassung am Bedienrechner: Matrix, Bedienung je Liste, Rückfragen (W2.2) | components/betrieb/WkrMatrix.vue, WkrListeBedienung.vue, WkrEingang.vue (Betrieb → `wkr`); Lage wkr/lage.ts; host.ts `herkunft`/`eingang`, register.ts geraetAngaben; i18n betrieb.wkr.* (betrieb.ts); Auslegungen WKR_ANNAHMEN |
+| WKR-Erfassung in der Start-Freigabe (Geräteleiste, Rückstand, „Trotzdem freigeben?“) und auf dem Freigabe-Handy (W2.4) | wkr/freigabe.ts sichtFreigabe/liesFreigabe (Positivliste, FREIGABE_SICHT_FASSUNG); components/betrieb/StartFreigabe.vue Prop `erfassung` (BetriebView aus erfassungsLage, GeraetFreigabe aus gekoppelt.ts `freigabe`); Gruppe geraete/wkrGruppen.ts gruppeDerFreigabe, host.ts verteileFreigabe/ergaenzeGruppen; i18n betrieb.freigabe.*; nie über ko/kz (F17) |
+| WKR-Erfassung in der Erfassung (◆, „Papier ansehen“, Nachfrage beim Überschreiben) | components/erfassung/ErfassungTabelle.vue (listeVonBogen, zeilenMarken, herkunftGilt aus useGeraeteHost().herkunft); Regeln wkr/lage.ts, Auslegungen wkr/annahmen.ts (A5, A7, C1–C4); i18n capture.wkr.* (de/+en/erfassung.ts); styles/erfassung.css |
 | … Server (Einstellung) | AppState.geraeteServer (SET_GERAETE_SERVER, lib/serverAdresse.ts), SettingsView `#geraete`; i18n listopt.geraete.* |
 
 ## Feste Regeln

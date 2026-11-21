@@ -64,6 +64,16 @@ export function abgeschlossenePunkte(wkr: WkrStand, liste: string, teil: ListenT
   return [...punkte].sort()
 }
 
+/** Alle Abschlüsse einer Liste mit Punkt und Teil (W2: Lage, Bedienung „Abschluss lösen“), nach Schlüssel sortiert. */
+export function abschluesseVon(wkr: WkrStand, liste: string): { punkt: PunktId; teil?: ListenTeil; abschluss: WkrAbschluss }[] {
+  return Object.entries(jeListe(wkr, liste))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .flatMap(([k, abschluss]) => {
+      const s = liesAbschlussSchluessel(k)
+      return s ? [{ ...s, abschluss }] : []
+    })
+}
+
 /** Die Starts (`refKey`), die nach den Abschlüssen dieses Teils (bzw. der ganzen Liste) aufs Papier gingen. */
 export function abschlussPapier(wkr: WkrStand, liste: string, teil: ListenTeil | undefined): Set<string> {
   const out = new Set<string>()

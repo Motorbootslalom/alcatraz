@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowRef } from 'vue'
-import { starteGeraeteHost, type GeraeteHost, type HostUmgebung } from './host'
+import { starteGeraeteHost, ZULETZT_NACHZIEHEN_MS, type GeraeteHost, type HostUmgebung } from './host'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from './gekoppelt'
 import { oeffneErfassung, type ErfassenUmgebung, type Erfassung } from './erfassen'
 import { ABLAGE, liesHerkunft, verlasseRaum, type Ablage } from './ablage'
 import type { Aufgabe } from './aufgaben'
-import { gruppeDerListe } from './wkrGruppen'
+import { gruppeDerFreigabe, gruppeDerListe } from './wkrGruppen'
 import { nachgebauterBrowser, type TestFenster } from './testBrowser'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
 import { direktThemaVon, geraeteThemaVon, themenDerGruppe, type HostRaum } from './transport/ntfy/raum'
+import { OEFFENTLICH, ZUSCHAUER } from './transport/protokoll'
+import { setzeAufgaben } from './register'
 import { fromBase64Url } from './transport/ntfy/codec'
 import { openGruppe, parseHostWire } from './transport/ntfy/wire'
 import type { NtfyZeiten } from './transport/ntfy/leitung'
@@ -18,6 +20,9 @@ import { lage } from '../betrieb/folge'
 import { sichtOeffentlich } from '../betrieb/sicht'
 import { werteVon } from '../lib/eingaben'
 import { listenKennung } from '../wkr/liste'
+import { erfassungsLage } from '../wkr/lage'
+import { geraetAngaben } from './register'
+import { configFor } from '../config/konfig'
 import { uimParallelStand, wkrBetriebsStand } from '../testHilfen'
 import type { AppState } from '../types'
 
@@ -391,6 +396,20 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
     await bis(() => (e.sichten.value[TOR]?.geraete ? Object.values(e.sichten.value[TOR]!.geraete)[0].hinweise.length === 0 : false))
   })
 
+  it('Hinweis mit Steg-Teil (Prüfbefund 21.11.2026, F16): nur das Gerät dieses Teils bekommt ihn, ohne Teil beide', async () => {
+    const { s, h } = await bedienrechner()
+    const ab = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'ab' }], { name: 'Handy Ablegen' })
+    const an = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'an' }], { name: 'Handy Anlegen' })
+    await mitStart(s, ab.e, STEG)
+    h.hinweis(STEG, 'papier', '15', 'ab')
+    await bis(() => ab.e.hinweise.value[STEG]?.length === 1)
+    expect(ab.e.hinweise.value[STEG][0]).toMatchObject({ code: 'papier', startNr: '15' })
+    h.hinweis(STEG, 'pruefen', '16')
+    await bis(() => an.e.hinweise.value[STEG]?.length === 1 && ab.e.hinweise.value[STEG]?.length === 2)
+    // Das Anlegen-Gerät hat nur den Hinweis ohne Teil – „Papier ab“ des Ablegens kam dort nie an.
+    expect(an.e.hinweise.value[STEG].map((x) => x.code)).toEqual(['pruefen'])
+  })
+
   it('Steg auf zwei Geräten (Ablegen/Anlegen): Disq. vereinigt, beide Teile → ganzer Haken', async () => {
     const { s, h } = await bedienrechner()
     const ab = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'ab' }], { name: 'Handy Ablegen' })
@@ -544,6 +563,29 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
     expect(nachher.d - vorher.d).toBe(0)
   })
 
+  it('W2.2: Gerät schickt → Matrix zeigt ✓ und das Gerät als gehört; ◆ reaktiv am Host; `zuletzt` gedrosselt nachgezogen', async () => {
+    const { s, h } = await bedienrechner()
+    const { e, id } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const { key, starter } = await mitStart(s, e)
+    const lage = (jetzt = Date.now()) => erfassungsLage(s.state.value, configFor({ regelwerk: s.state.value.regelwerk }), P1, geraetAngaben(h.raum.value?.geraete ?? []), jetzt).listen.find((l) => l.liste === TOR)!
+    expect(lage().zellen[key].zelle).toBe('offen')
+    const z = e.schicke(TOR, { s: key, zellen: { [FELD]: '5' } })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    await bis(() => lage().zellen[key].zelle === 'ok')
+    expect(lage().geraete).toMatchObject([{ id, name: 'Handy Tor', ampel: 'gehoert' }])
+    expect(lage(Date.now() + 10 * 60_000).geraete[0].ampel).toBe('weg')
+    expect(h.herkunft.value.zellen[`${LAUF}|${starter}|${FELD}`]).toMatchObject({ g: 'Handy Tor', w: '5' })
+    // Die nächste Nachricht berührt das Register; im Führungsfenster (kein storage-Ereignis für das eigene Schreiben)
+    // kommt `zuletzt` über das gedrosselte Nachziehen in die Geräteliste – höchstens ZULETZT_NACHZIEHEN_MS später.
+    const vorher = h.raum.value!.geraete[0].zuletzt
+    await ruhe(20)
+    e.korrigiere(z, { [FELD]: '6' })
+    await bis(() => werte(s.state.value, starter)[FELD] === '6')
+    const gesendet = Date.now()
+    await bis(() => (h.raum.value?.geraete[0].zuletzt ?? 0) > vorher, ZULETZT_NACHZIEHEN_MS + 2000)
+    expect(Date.now() - gesendet).toBeLessThan(ZULETZT_NACHZIEHEN_MS + 1000)
+  }, 15_000)
+
   it('Raum verlassen: Ausgang weg und nichts wird wieder abgelegt', async () => {
     const { s, h } = await bedienrechner()
     const { g, e, speicher } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
@@ -556,5 +598,114 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
     e.schicke(TOR, { s: key, zellen: { [FELD]: '6' } })
     expect(speicher.getItem(ABLAGE.geraetWkr)).toBeNull()
     verlasseRaum(speicher)
+  })
+})
+
+describe('W2.4: Freigabe-Handy und Freigabe-Gruppe', () => {
+  const TITEL = configFor({ regelwerk: 'dm-2026' }).getSheetDef('gate135').title
+
+  /** Inhalte einer Gruppe, mit ihrem Schlüssel geöffnet (wie ein Gerät, das ihn hat). */
+  async function inhalte(r: HostRaum, gruppe: string, schluessel = r.gruppen[gruppe].k): Promise<unknown[]> {
+    const aus: unknown[] = []
+    for (const thema of themenDerGruppe(r, gruppe)) {
+      for (const body of ntfy.bodies(thema)) {
+        const w = parseHostWire(body)
+        if (!w || w.l || w.g !== gruppe) continue
+        try {
+          aus.push((await openGruppe(w, fromBase64Url(schluessel)!)) ?? 'nicht-lesbar')
+        } catch {
+          aus.push('nicht-lesbar')
+        }
+      }
+    }
+    return aus
+  }
+
+  it('Handy der Start-Freigabe bekommt Rückstand über die eigene Gruppe – ohne Werte und Namen; nicht über ko/kz', async () => {
+    const { s, h, raum } = await bedienrechner()
+    const tor = await wkrHandy(h, [{ art: 'liste', liste: TOR }], { name: 'Handy Geheim' })
+    const frei = await wkrHandy(h, [{ art: 'startfreigabe', bereiche: [P1] }], { name: 'Steg Geheim' })
+    const FG = gruppeDerFreigabe(P1)
+    expect(raum().geraete[frei.id].gruppen).toEqual([FG])
+    expect(raum().geraete[tor.id].gruppen).toEqual([gruppeDerListe(TOR)])
+    await bis(() => s.state.value.wkr.listen[TOR]?.modus === 'digital')
+    for (let i = 0; i < 3; i++) zeige(s)
+    await bis(() => frei.g.freigabe.value[P1]?.listen.find((l) => l.titel === TITEL)?.offen === 3)
+    const f = frei.g.freigabe.value[P1]
+    expect(f.listen.find((l) => l.titel === TITEL)).toMatchObject({ stand: 'aktiv', ampel: 'gehoert', warnt: true })
+    // Das Listen-Handy hat die Freigabe-Gruppe nicht.
+    expect(tor.g.freigabe.value).toEqual({})
+
+    // Inhalt der Freigabe-Gruppe: nichts über Personen, Geräte, Werte.
+    const r = raum()
+    const eigene = await inhalte(r, FG)
+    expect(eigene.some((x) => x !== 'nicht-lesbar')).toBe(true)
+    const text = JSON.stringify(eigene)
+    const personen = s.state.value.starters.flatMap((p) => [p.vorname, p.nachname, p.verein].filter((x) => x && x.length > 3))
+    for (const verboten of [...personen, 'Handy Geheim', 'Steg Geheim', tor.id, frei.id, KENNUNG]) expect(text, verboten).not.toContain(verboten)
+    // Die Anzeigetafel (Lese-Link: nur der Schlüssel von ko) kann die Freigabe-Gruppe nicht lesen; eigene Themen.
+    const mitKo = await inhalte(r, FG, r.gruppen[OEFFENTLICH].k)
+    expect(mitKo.length).toBeGreaterThan(0)
+    expect(mitKo.every((x) => x === 'nicht-lesbar')).toBe(true)
+    for (const g of [OEFFENTLICH, ZUSCHAUER]) for (const t of themenDerGruppe(r, g)) expect(themenDerGruppe(r, FG)).not.toContain(t)
+    // Und ko/kz tragen nichts davon (F17).
+    const oeffentlich = JSON.stringify([...(await inhalte(r, OEFFENTLICH)), ...(await inhalte(r, ZUSCHAUER))])
+    for (const verboten of ['rueckfragen', 'warnt', '"fv"', TITEL]) expect(oeffentlich, verboten).not.toContain(verboten)
+  })
+
+  it('Verkehr: Freigabe-Sicht nur bei Änderung; ohne Eintrag geht nichts hinaus', async () => {
+    const { s, h, raum } = await bedienrechner(undefined, { sammelnMs: 50 })
+    const frei = await wkrHandy(h, [{ art: 'startfreigabe', bereiche: [P1] }])
+    const FG = gruppeDerFreigabe(P1)
+    const zahl = () => themenDerGruppe(raum(), FG).reduce((n, t) => n + ntfy.bodies(t).length, 0)
+    zeige(s)
+    await ruhe(300)
+    // Keine Liste mit Eintrag: nichts gesendet, keine Leiste.
+    expect(zahl()).toBe(0)
+    expect(frei.g.freigabe.value).toEqual({})
+    s.dispatch({ type: 'WKR_LISTE', liste: TOR, modus: 'digital' })
+    await bis(() => frei.g.freigabe.value[P1]?.listen.length > 0)
+    await ruhe(300)
+    const nachEintrag = zahl()
+    expect(nachEintrag).toBeGreaterThan(0)
+    // Eine Änderung, die die Freigabe-Sicht nicht berührt (Meldung): kein neues Paket in der Freigabe-Gruppe.
+    s.dispatch({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: 'Kurze Pause', art: 'pause' } })
+    await ruhe(300)
+    expect(zahl()).toBe(nachEintrag)
+    // Ein gezeigter Start ändert den Rückstand: genau eine Nachricht mehr.
+    zeige(s)
+    await bis(() => zahl() > nachEintrag)
+    await ruhe(300)
+    expect(zahl()).toBe(nachEintrag + 1)
+  })
+
+  it('Bestandsgerät (vor W2 gekoppelt, ohne Freigabe-Gruppe): bekommt den Schlüssel beim nächsten Start des Hosts', async () => {
+    const { b, f, h, raum } = await bedienrechner()
+    const frei = await wkrHandy(h, [{ art: 'startfreigabe', bereiche: [P1] }])
+    const FG = gruppeDerFreigabe(P1)
+    // Den Stand vor W2 nachstellen: Host anhalten, Gruppe aus Raum und Gerät nehmen.
+    h.stop()
+    frei.g.stop()
+    const roh = JSON.parse(f.ablage.getItem(ABLAGE.raum)!)
+    delete roh.raum.gruppen[FG]
+    roh.raum.geraete[frei.id].gruppen = []
+    f.ablage.setItem(ABLAGE.raum, JSON.stringify(roh))
+    expect(raum().gruppen[FG]).toBeUndefined()
+    // Neues Bedienfenster startet; das Handy (ebenfalls neu geladen) meldet sich NICHT selbst an – der Host schickt.
+    const f2 = b.fenster()
+    const s2 = fensterStore(f2)
+    const h2 = hostIn(f2, s2)
+    await bis(() => h2.verbindung.value?.status === 'verbunden')
+    await bis(() => !!raum().gruppen[FG] && raum().geraete[frei.id].gruppen.includes(FG))
+    const { g } = await neuGeladen(frei.speicher)
+    s2.dispatch({ type: 'WKR_LISTE', liste: TOR, modus: 'digital' })
+    zeige(s2)
+    await bis(() => g.freigabe.value[P1]?.listen.some((l) => l.titel === TITEL && l.offen === 1), 5000)
+  }, 15_000)
+
+  it('Rechte: Bereich weg → neuer Schlüssel der Freigabe-Gruppe, das Gerät liest sie nicht mehr', () => {
+    const r = { gruppen: {}, geraete: { g1: { pk: 'x', letzteNr: 0, gruppen: [], aufgaben: [] } } } as unknown as HostRaum
+    expect(setzeAufgaben(r, 'g1', [{ art: 'startfreigabe', bereiche: [P1] }])).toEqual({ neu: [gruppeDerFreigabe(P1)], weg: [] })
+    expect(setzeAufgaben(r, 'g1', [{ art: 'startfreigabe', bereiche: ['par_2'] }])).toEqual({ neu: [gruppeDerFreigabe('par_2')], weg: [gruppeDerFreigabe(P1)] })
   })
 })

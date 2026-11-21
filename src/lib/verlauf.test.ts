@@ -73,6 +73,7 @@ describe('was sich geändert hat', () => {
     expect(beschreibe({ type: 'WKR_LISTE', liste, modus: 'digital' }, STAND)).toEqual({ art: 'wkrListe', liste })
     expect(beschreibe({ type: 'WKR_ABSCHLUSS', liste, punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: false }, STAND)).toEqual({ art: 'wkrAbschluss', liste })
     expect(beschreibe({ type: 'WKR_ABSCHLUSS_LOESEN', liste, punkt: 'lauf:1' }, STAND)).toEqual({ art: 'wkrAbschluss', liste })
+    expect(beschreibe({ type: 'WKR_PAPIER_AB', liste, ref: JSON.stringify(['m', 'a', 1]) }, STAND)).toEqual({ art: 'wkrPapierAb', liste })
   })
 
   it('eine Eingabe nennt Klasse und Lauf', () => {

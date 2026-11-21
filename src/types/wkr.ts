@@ -16,6 +16,11 @@ export interface WkrPause {
   bis: number | null
   /** Kennungen (`refKey`) der Starts, die beim Pausieren offen waren (P, Plan §3.1). */
   papier: string[]
+  /**
+   * Nur „Papier ab Start …“ (W2, WKR_PAPIER_AB): die Kennung (`refKey`) des Starts, ab dem der Bogen gilt – für die
+   * Anzeige „Papier ab 15“ (wkr/lage.ts `papierAb`); P und Anzeige kommen so aus EINEM Eintrag (Plan W2 §2).
+   */
+  ab?: string
 }
 
 /** Status und Pausen eines Teils einer geteilten Liste (Steg: Ablegen/Anlegen, F16 mit F1). */

@@ -121,6 +121,8 @@ export type VerlaufArt =
   | 'vorschlag'
   | 'wkrListe'
   | 'wkrAbschluss'
+  /** W2: „Papier ab Start …“ – die Liste wird ab einem Start vom Bogen erfasst (`liste`). */
+  | 'wkrPapierAb'
 
 export interface Beschreibung {
   art: VerlaufArt
@@ -258,6 +260,8 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
       }
     case 'WKR_LISTE':
       return { art: 'wkrListe', liste: action.liste }
+    case 'WKR_PAPIER_AB':
+      return { art: 'wkrPapierAb', liste: action.liste }
     case 'WKR_ABSCHLUSS':
     case 'WKR_ABSCHLUSS_LOESEN':
       return { art: 'wkrAbschluss', liste: action.liste }

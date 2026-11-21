@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { aufgabenVon, bekannteGeraete, benenne, beruehre, entzogeneListe, geraeteListe, hatGruppe, koppelStandVon, setzeAufgaben, setzeKoppelStand, vermerkeEntzug, vermerkeLebenszeichen } from './register'
-import { gruppeDerListe } from './wkrGruppen'
+import { gruppeDerFreigabe, gruppeDerListe } from './wkrGruppen'
 import { listenKennung } from '../wkr/liste'
 import { gibCode, leererKoppelStand } from './koppeln'
 import { istHostRaum, neuerRaum, ENTZOGEN_HOECHSTENS } from './transport/ntfy/raum'
@@ -31,6 +31,9 @@ describe('Register', () => {
 
   it('Rechte ändern, umbenennen, berühren – nur für Eingetragene; der Raum bleibt gültig', () => {
     const raum = raumMitGeraet()
+    // W2.4: Die Start-Freigabe bringt die Freigabe-Gruppe ihres Bereichs mit (angelegt im selben Schreiben).
+    expect(setzeAufgaben(raum, 'g1', [{ art: 'startfreigabe', bereiche: ['land'] }])).toEqual({ neu: [gruppeDerFreigabe('land')], weg: [] })
+    expect(raum.gruppen[gruppeDerFreigabe('land')]).toBeTruthy()
     expect(setzeAufgaben(raum, 'g1', [{ art: 'startfreigabe', bereiche: ['land'] }])).toEqual({ neu: [], weg: [] })
     expect(aufgabenVon(raum, 'g1')).toEqual([{ art: 'startfreigabe', bereiche: ['land'] }])
     expect(setzeAufgaben(raum, 'weg', [])).toBeNull()

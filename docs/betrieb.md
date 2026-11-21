@@ -289,11 +289,11 @@ kennt diese beiden Grenzen; bei einem anderen Server zählt es nur und warnt, so
 - Sparen: Gerätebetrieb erst einschalten, wenn er gebraucht wird; den Raum abends beenden; Lese-Links nur dort, wo
   sie nötig sind – die Anzeigetafel am zweiten Monitor kostet nichts.
 
-### WKR-Erfassung (W1, ohne Masken)
+### WKR-Erfassung (W1 Kern, W2 Bedienrechner; ohne Masken)
 
-Stand 21.11.2026: Der **Kern** der digitalen Erfassung durch die Wettkampfrichter ist gebaut und gegen den
-nachgebauten Server geprüft – noch **ohne Masken** auf dem Handy und ohne Oberfläche am Bedienrechner (Matrix,
-Rückfragen, ◆: W2–W4). Am Wettkampftag also noch nicht nutzbar. Was schon gilt (Plan
+Stand 21.11.2026: Der **Kern** der digitalen Erfassung durch die Wettkampfrichter und die **Oberfläche am
+Bedienrechner** (W2, unten) sind gebaut und gegen den nachgebauten Server geprüft – noch **ohne Masken** auf dem Handy
+(W3/W4). Am Wettkampftag also noch nicht nutzbar. Was schon gilt (Plan
 [plan-wkr-w1.md](plan-wkr-w1.md), Vorschlag [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md)):
 
 - Ein Gerät bekommt beim Koppeln **eine Liste** (Pad höchstens zwei; am Steg auch nur Ablegen oder Anlegen). Damit
@@ -307,6 +307,22 @@ Rückfragen, ◆: W2–W4). Am Wettkampftag also noch nicht nutzbar. Was schon g
   „Liste abschließen“ samt WKR-Namen den Lauf quittieren; spätere Korrekturen werden Vorschläge.
 - Ein Gerät mit Liste meldet sich nach 60 s Stille mit einem Lebenszeichen (Akku, wartende Zeilen) – nur während ein
   Lauf läuft. Fürs Kontingent: etwa zwei Nachrichten je Zeile und Gerät.
+
+Am Bedienrechner (W2, gebaut 21.11.2026, Plan [plan-wkr-w2.md](plan-wkr-w2.md); Auslegungen noch zu bestätigen):
+
+- **Betrieb → WKR**: Matrix Listen × gezeigte Starts (✓ erfasst, ½ ein Steg-Teil, ○ offen, ○! überfällig, ! Rückfrage,
+  V Vorschlag, P Papier, ✕ nicht gestartet), je Liste das Gerät mit Ampel (● gehört, ◐ still, ✕ weg, grau ohne Lauf).
+  Je Liste: Erfassung Gerät/Papier/beides, Pausieren/Abmelden/Weiter (am Steg je Teil), **„Papier ab Start …“** (ab
+  dort wird vom Bogen abgetippt, das Gerät bekommt den Hinweis), „Bitte Nr. prüfen“, Abschlüsse ansehen und lösen.
+  Darunter der **Eingang**: Rückfragen (Gerät übernehmen oder behalten) und Vorschläge (übernehmen oder verwerfen).
+- **Erfassung**: ◆ an Werten vom Gerät; ▭ „Papier ansehen“ an Zeilen bzw. Zellen, für die der Bogen gebraucht wird;
+  wer einen Gerätewert überschreibt, wird einmal gefragt.
+- **Start-Freigabe**: eine Zeile mit dem Stand jeder Liste (Ampel, „n offen“, ⧗ wartend, ! Rückfrage); sind bei einer
+  Liste mehr Starts offen als eingestellt (Einstellungen → Startfolge, Vorgabe 2), steht der Rückstand über „Als
+  Nächstes“ mit gelbem Rand. Mit „nachfragen“ kommt vor jedem Zeigen „Trotzdem freigeben?“ – gesperrt wird nie.
+  Klick auf die Zeile führt zu Betrieb → WKR. Pausierte und abgemeldete Listen zählen nicht.
+- **Freigabe-Handy**: dieselbe Zeile, ohne Werte und ohne Gerätenamen, über eine eigene verschlüsselte Gruppe – nie
+  auf Anzeigetafel oder Zuschauerliste. Schon gekoppelte Handys bekommen sie ohne neues Koppeln.
 
 ## Ablauf am Wettkampftag
 
@@ -339,6 +355,8 @@ Für die Person am Bedienrechner, Schritt für Schritt. Ohne Gerätebetrieb entf
 
 - Start-Freigabe am Bedienrechner oder vom Handy; auf dem Handy erst weiterdrücken, wenn „Wird gesendet …“
   verschwunden ist (bis dahin sind die Knöpfe gesperrt).
+- Mit digitaler WKR-Erfassung: Zeile über „Als Nächstes“ im Blick behalten; rot = Gerät weg oder Rückfrage → Betrieb →
+  WKR (Rückfragen entscheiden, notfalls „Papier ab Start …“).
 - Verbindung lesen: „verbunden“ ist gut; „gestört – verbindet neu“ und „zu viele Anfragen – weiter nach einer Pause“
   lösen sich meist von selbst; „keine Verbindung“ länger als einige Minuten → [Störungen](#störungen).
 - Kontingent ab und zu ansehen; bei Warnung sparsamer schalten (siehe [Kontingent](#kontingent-des-servers)).

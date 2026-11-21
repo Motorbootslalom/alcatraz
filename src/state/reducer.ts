@@ -301,6 +301,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'WKR_LISTE':
     case 'WKR_ABSCHLUSS':
     case 'WKR_ABSCHLUSS_LOESEN':
+    case 'WKR_PAPIER_AB':
       return wendeWkrAn(state, action)
 
     default:

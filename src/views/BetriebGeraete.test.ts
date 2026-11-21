@@ -169,10 +169,13 @@ describe('Betrieb → Geräte: einschalten, Links, Fingerabdruck', () => {
       benenne: () => {},
       entziehe: () => {},
       hinweis: () => {},
+      merkeEntscheid: () => {},
       ladeAlleNeu: () => 'gesendet' as const,
       neueFassung: shallowRef(false),
       fassungGesehen: () => {},
       kontingent: shallowRef({ tag: '2026-11-20', gesendet: 0, anfragen: 0, gedrosselt: null }),
+      herkunft: shallowRef({ kennung: KENNUNG, zellen: {} }),
+      eingang: shallowRef({ kennung: KENNUNG, n: 0, geraete: {} }),
       stop: () => {},
     } satisfies GeraeteHost
     location.hash = '#/betrieb/geraete'

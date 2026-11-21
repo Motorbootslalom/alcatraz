@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowRef } from 'vue'
 import { starteGeraeteHost, type GeraeteHost } from './host'
-import { ABLAGE, legeRaumAn } from './ablage'
+import { ABLAGE, legeRaumAn, schreibeHerkunft, schreibeWkrEingang } from './ablage'
 import { nachgebauterBrowser, type TestFenster } from './testBrowser'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
 import { parseHostWire } from './transport/ntfy/wire'
@@ -226,5 +226,58 @@ describe('Verbindungsanzeige', () => {
     expect(verbindungsLage('fehler', { code: 'raum-anderer-server' })).toBe('fehler')
     expect(verbindungsLage('verbinde', null)).toBe('verbinde')
     expect(verbindungsLage('aus', null)).toBe('aus')
+  })
+})
+
+describe('W2.2: Herkunft ◆ und Gesprächsstand reaktiv', () => {
+  const HERKUNFT = { kennung: KENNUNG, zellen: { 'manoevrieren/1|k1|t1a|hin seiteA': { g: 'Handy Nord', l: 'liste', z: 1000, w: '5' } } }
+
+  it('ohne Raum lesbar – beim Start und nach dem storage-Ereignis eines anderen Fensters –, ohne Netz, Schloss, Fensterbus', async () => {
+    const b = nachgebauterBrowser()
+    const f = b.fenster()
+    const anderes = b.fenster()
+    schreibeHerkunft(HERKUNFT, f.ablage)
+    const kanal = vi.fn(f.bus.kanal!)
+    const h = hostIn(f, store(), { bus: { ...f.bus, kanal } })
+    expect(h.raum.value).toBeNull()
+    expect(h.herkunft.value.zellen).toEqual(HERKUNFT.zellen)
+    expect(h.eingang.value).toEqual({ kennung: KENNUNG, n: 0, geraete: {} })
+    // Ein anderes Fenster schreibt (Führungsfenster): hier kommt es über das storage-Ereignis an.
+    schreibeWkrEingang({ kennung: KENNUNG, n: 1, geraete: { gNord: { abgelehnt: [], hinweise: [{ id: 1, l: 'liste', code: 'pruefen', startNr: '101' }] } } }, anderes.ablage)
+    schreibeHerkunft({ kennung: KENNUNG, zellen: {} }, anderes.ablage)
+    await bis(() => h.eingang.value.n === 1 && Object.keys(h.herkunft.value.zellen).length === 0)
+    await ruhe(50)
+    expect(ntfy.abos).toEqual([])
+    expect(abrufe).not.toHaveBeenCalled()
+    expect(b.sperren.anfragen).toBe(0)
+    expect(kanal).not.toHaveBeenCalled()
+  })
+
+  it('eine andere Veranstaltung liest ihre eigene (leere) Herkunft; ohne Kennung wird nichts gelöscht', () => {
+    const f = nachgebauterBrowser().fenster()
+    schreibeHerkunft(HERKUNFT, f.ablage)
+    const ohne = hostIn(f, store({ ...stand(), kennung: '' }))
+    expect(ohne.herkunft.value.zellen).toEqual({})
+    expect(f.ablage.getItem(ABLAGE.herkunft)).not.toBeNull()
+    const s = store()
+    const h = hostIn(f, s)
+    expect(Object.keys(h.herkunft.value.zellen)).toHaveLength(1)
+    s.state.value = { ...s.state.value, kennung: 'ANDERE02' }
+    return Promise.resolve().then(() => {
+      expect(h.herkunft.value).toEqual({ kennung: 'ANDERE02', zellen: {} })
+    })
+  })
+  it('merkeEntscheid (Prüfbefund 21.11.2026): ◆ nach „Gerät übernehmen“ nur, wo jetzt der Gerätewert steht – ohne Raum, ohne Netz', async () => {
+    const f = nachgebauterBrowser().fenster()
+    const s = store()
+    const h = hostIn(f, s)
+    const lauf = 'manoevrieren/1'
+    s.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf, starter: 'k1', feld: 'a', wert: '5' }, { lauf, starter: 'k1', feld: 'b', wert: '9' }] })
+    h.merkeEntscheid('liste', 'Handy Nord', [{ lauf, weitere: [], starter: 'k1', zellen: [{ feld: 'a', wert: '5' }, { feld: 'b', wert: '7' }, { feld: 'c', wert: '' }] }])
+    expect(Object.keys(h.herkunft.value.zellen)).toEqual([`${lauf}|k1|a`])
+    expect(h.herkunft.value.zellen[`${lauf}|k1|a`]).toMatchObject({ g: 'Handy Nord', l: 'liste', w: '5' })
+    await ruhe(20)
+    expect(ntfy.abos).toEqual([])
+    expect(abrufe).not.toHaveBeenCalled()
   })
 })

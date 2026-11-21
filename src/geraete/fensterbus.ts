@@ -55,8 +55,11 @@ export type GeraeteBefehl =
   | { art: 'aufgaben'; id: string; aufgaben: Aufgabe[] }
   | { art: 'umbenennen'; id: string; name: string }
   | { art: 'entziehen'; id: string }
-  /** W1 (21.11.2026): Hinweis an die Geräte einer Liste (Rückkanal, nur Code und Startnummer). */
-  | { art: 'hinweis'; liste: string; code: Hinweis; startNr?: string }
+  /**
+   * W1 (21.11.2026): Hinweis an die Geräte einer Liste (Rückkanal, nur Code und Startnummer). `teil` (Prüfbefund
+   * 21.11.2026, F16): am Steg nur an die Geräte dieses Teils und die ohne Teil.
+   */
+  | { art: 'hinweis'; liste: string; code: Hinweis; startNr?: string; teil?: 'ab' | 'an' }
 export type Befehl = (typeof BEFEHLE)[number] | GeraeteBefehl
 
 /** Prüft einen Befehl aus einem anderen Fenster (nur die Form – es ist derselbe Ursprung). */
@@ -78,7 +81,8 @@ export function liesBefehl(wert: unknown): Befehl | null {
     case 'hinweis':
       if (typeof wert.liste !== 'string' || !liesListe(wert.liste) || !istHinweis(wert.code)) return null
       if (wert.startNr !== undefined && (typeof wert.startNr !== 'string' || wert.startNr.length > 16)) return null
-      return { art: 'hinweis', liste: wert.liste, code: wert.code, ...(wert.startNr !== undefined ? { startNr: wert.startNr } : {}) }
+      if (wert.teil !== undefined && wert.teil !== 'ab' && wert.teil !== 'an') return null
+      return { art: 'hinweis', liste: wert.liste, code: wert.code, ...(wert.startNr !== undefined ? { startNr: wert.startNr } : {}), ...(wert.teil !== undefined ? { teil: wert.teil } : {}) }
     default:
       return null
   }

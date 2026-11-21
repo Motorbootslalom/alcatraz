@@ -1,4 +1,5 @@
-import { liesAufgaben, type Aufgabe } from './aufgaben'
+import { liesAufgaben, listenAufgaben, type Aufgabe } from './aufgaben'
+import type { GeraetAngabe } from '../wkr/lage'
 import { gruppenFuer } from './wkrGruppen'
 import { istOeffentlich } from './transport/protokoll'
 import type { BekanntesGeraet } from './koppelEntscheid'
@@ -47,6 +48,23 @@ export function geraeteListe(raum: HostRaum): RegisterEintrag[] {
       ...(g.akku !== undefined ? { akku: g.akku } : {}),
     }))
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+}
+
+/**
+ * W2.2 (21.11.2026): Was die Lage der WKR-Erfassung (wkr/lage.ts) über die Geräte braucht – einfache Daten aus der
+ * Geräteliste, nur Geräte mit Listen. Name, zuletzt, wartend, Akku bleiben gerätelokal; die Lage rechnet nur damit.
+ */
+export function geraetAngaben(geraete: readonly RegisterEintrag[]): GeraetAngabe[] {
+  return geraete
+    .map((g): GeraetAngabe => ({
+      id: g.id,
+      name: g.name,
+      listen: listenAufgaben(g.aufgaben).map((l) => ({ liste: l.liste, ...(l.teil !== undefined ? { teil: l.teil } : {}) })),
+      zuletzt: g.zuletzt,
+      ...(g.wartend !== undefined ? { wartend: g.wartend } : {}),
+      ...(g.akku !== undefined ? { akku: g.akku } : {}),
+    }))
+    .filter((g) => g.listen.length > 0)
 }
 
 /** Die zuletzt entzogenen Geräte, neueste zuerst. */

@@ -18,7 +18,13 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   CodesAushang, ParallelStartlisten (über ListenDokument), DruckdateiListen. Laufzettel: LaufzettelListen (Seitenzahlen
   aus unsichtbaren BogenBlatt-Instanzen), LaufzettelBlatt, ParallelLaufzettel (Zettel A und B), ParallelMessung.
 - Erfassung `erfassung/`: ErfassungTabelle (dispatch SET_EINGABEN; AppDialog vor dem Löschen eines verdeckten X am
-  Vorsteg, `frage`), ZeitZelle, ScanHinweis.
+  Vorsteg, `frage` art `x`; W2.3 (21.11.2026, nur mit Host): Liste des Bogens über wkr/liste.ts listeVonBogen, Marken
+  über wkr/lage.ts zeilenMarken (einmal je Bogen), ◆ über herkunftGilt (`data-raute`, Titel Liste · Gerät · Uhrzeit,
+  X vom Gerät `.erf-zelle--x-geraet`), „Papier ansehen“ ▭ an der Nummer bzw. Zelle `.erf-zelle--papier`, Rückfrage „!“
+  mit Verweis `#/betrieb/wkr/<bereich>`, Kopfzeile `data-teil="wkr-erfassung"`; v-memo mit `wkrVon(z).memo`; `frage`
+  art `geraet` vor der ersten Änderung eines Gerätewerts, gilt bis focusout der Zelle und nur für diesen Gerätewert (Zeit
+  des Herkunftseintrags); Zeitfelder: „Ersetzen“ schreibt nichts, nur Freigabe + Fokus zurück; Stile styles/erfassung.css),
+  ZeitZelle, ScanHinweis.
 - Starter/Verzahnung: ClassSection (Sortierköpfe + Zufall, `sortierung` von oben; „In Klasse X verschieben“, emit
   `oeffne`), ManualAddForm, ExcelPanel, DatumFeld (DatumFeld.test.ts durchsucht alle Vorlagen), StartNumberPanel (auch
   E/D), StarterSperre, ParcoursCard, TrackContainer, ClassChip, PauseChip, SlotCell, FlowPreview, SequenceTable,
@@ -52,6 +58,23 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   GeraeteListe (Name, Bereiche, entziehen) – beide in GeraeteRaum; GeraetFreigabe (auf dem Gerät, OHNE Store: koppeln,
   StartFreigabe `nur-dieser` je eigenem Bereich in `<fieldset disabled>` bis zur Quittung, entzogen, entkoppeln;
   styles/geraet.css).
+  W2.2 (21.11.2026, digitale WKR-Erfassung, Bedienrechner – liest Store und Host): WkrMatrix (Bereichswahl, Spalten =
+  wkr/lage.ts erfassungsLage, letzte 12/alle, Gerät mit Ampel → emit `geraete`, Zellzeichen + Legende, Stand, Karte
+  einer Zelle mit Werten und ◆, `useUhr(5000)`; merke `betrieb.wkr.bereich|alle|bedienung`), WkrListeBedienung (Modus
+  als drei Knöpfe, Pausieren/Abmelden/Weiter je Liste und Steg-Teil, „Papier ab“ = Auswahl + Knopf → WKR_PAPIER_AB +
+  host.hinweis('papier'), „Bitte Nr. prüfen“, Abschlüsse mit „Abschluss lösen“ hinter AppDialog), WkrEingang
+  (Rückfragen je Gerätezeile, je Zelle und „Alle:“, Grund als Satz, X vom Gerät `.wkr-x`; Vorschläge; Gerätename nur
+  aus dem Register, sonst „entkoppeltes Gerät“; nach „Gerät übernehmen“/„Übernehmen“ host.merkeEntscheid für ◆). Stile `.wkr-*` in
+  styles/app.css – Matrix eigene Klassen `.wkr-mtabelle`/`.wkr-mzelle`/`.wkr-warnt-text`, weil WkrEinteilung `.wkr-tabelle`/`.wkr-zelle`
+  nutzt (Prüfbefund 21.11.2026). „Papier ab“/„Weiter“ geben am Steg den Teil an host.hinweis, im Parallelslalom die
+  Nummer der eigenen Seite.
+  W2.4 (21.11.2026): StartFreigabe Prop `erfassung?: FreigabeErfassung` (wkr/freigabe.ts, reine Daten, kein Store) und
+  `erfassungOeffnen?` (nur Bedienrechner: Klick auf die Leiste bzw. Knopf `zur-erfassung` → Unterreiter `wkr`; kein `:type`/`<component>`-Knopf, DatumFeld.test.ts): Geräteleiste `data-teil="wkr-leiste"`
+  je Liste (`data-liste`, `data-stand`, `data-ampel`, `data-rot` bei ✕/„!“, `data-neu` 4 s hervorgehoben, ohne Animation – blatt.test.ts liest app.css ohne @keyframes),
+  Rückstandszeile `wkr-rueckstand` und `.betrieb-naechster--rueckstand` (gelber Rand, Token `--rueckstand`) um „Als Nächstes“; bei
+  `warnung === 'nachfragen'` und warnender Liste geht JEDES BETRIEB_ZEIGEN (Nächster Start, BetriebsFolge über
+  `sendeGeprueft`, Einreihen-Listen) erst nach AppDialog `trotzdem-freigeben` hinaus – nie gesperrt (F4, A8, D5).
+  GeraetFreigabe reicht `geraet.freigabe[b.id]` durch (Freigabe-Gruppe), i18n betrieb.freigabe.*.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -97,7 +120,7 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 - ISSUE_KEYS (own.issue.*) doppelt: EigeneAufbautenPanel, AufbauAssistent. PARALLEL_RUNDE_LOESEN heißt „Löschen“.
 - Anzeigetafel: Farben nur --anzeige-* (styles/anzeige.css, nicht vom Farbschema), Schriften als Bruchteil von
   --anzeige-u; kein `<Transition>` (verdecktes Fenster bliebe stehen) – ein neuer Start ist ein neuer Block (`:key`).
-  Texte per tIn(sicht.sprache), nie t(). StartFreigabe/AnzeigeTafel nie an den Store hängen: Sie laufen ab E6/E7 auf Geräten.
+  Texte per tIn(sicht.sprache), nie t(). StartFreigabe/AnzeigeTafel nie an den Store hängen: Sie laufen ab E6/E7 auf Geräten (auch `erfassung` kommt als Prop).
 - Start-Freigabe (E2): alle Teile bekommen `sende` und `gesperrt` (= !bereich.fest) von StartFreigabe; Aufgeklapptes über
   merke(`betrieb.<teil>.<bereich>`) – Tests rufen vergissAlles(). Nur betriebliche Knöpfe; Einstellungen in SettingsView.
   Rückfrage nur vor „Lauf beginnen“ mit offenen Starts. Kennungen in `data-start` enthalten `"`: Selektor mit `'…'`.

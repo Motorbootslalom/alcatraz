@@ -6,12 +6,13 @@
 // setzt sie), Kennungen sind Refs (betrieb/folge.ts `refKey`), keine Zufalls-IDs. Der Betrieb schreibt
 // nie in `eingaben` und ändert keine Wertungsliste (BETRIEB_ANNAHMEN.keinXVonDerTafel).
 
-import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, ParallelAnordnung, PunktId, VerschiebeZiel } from '../../types'
+import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, ParallelAnordnung, PunktId, VerschiebeZiel, WkrWarnung } from '../../types'
 import { CLASS_IDS } from '../../domain/classes'
 import { STARTABSTAND_MAX, STARTABSTAND_MIN } from '../../config/schema'
 import { istOriginStyle } from '../../lib/origin'
 import { serverEinstellung } from '../../lib/serverAdresse'
 import { BETRIEB_ANNAHMEN } from '../../betrieb/annahmen'
+import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istParallel, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, type BereichLage } from '../../betrieb/folge'
 import { ansPunktende, beweglich, einsteigen, hinterDenZeiger, klasseVor, paarStarts, planPartner, schnappschuss, verschiebe, webeNeu } from '../../betrieb/schritte'
 
@@ -81,12 +82,15 @@ const NAMEN: readonly AnzeigeNamen[] = ['aushang', 'voll', 'kurz', 'ohne']
 const SPRACHEN: readonly AnzeigeSprache[] = ['regelwerk', 'de', 'en']
 /** Die Lagen von Racecourse A und B auf der Anzeigetafel, in der Folge der Auswahl (SettingsView). */
 export const PARALLEL_ANORDNUNGEN: readonly ParallelAnordnung[] = ['a-links', 'b-links', 'a-oben', 'b-oben']
+/** Wie die Start-Freigabe auf Rückstand der WKR-Erfassung reagiert (W2, F4), in der Folge der Auswahl (SettingsView). */
+export const WKR_WARNUNGEN: readonly WkrWarnung[] = ['warnen', 'nachfragen']
 
 /**
  * Vorgaben der Anzeigetafel. Davor und Parcours-Name an (wie der Tafel-Prototyp), Größe 1;
  * Namen, Herkunft und Sprache nach BETRIEB_ANNAHMEN; 2 am Steg, 2 vor Steg (docs/stand.md: 1 im
  * Boot, 2 am Steg, 2 vor Steg); Verzahnung beim Verschieben halten (V-7); Racecourse A links, B rechts
- * (so stand die Tafel bis zur Einstellung vom 16.11.2026 immer).
+ * (so stand die Tafel bis zur Einstellung vom 16.11.2026 immer). WKR-Rückstand (W2, F4): ab mehr als
+ * WKR_ANNAHMEN.rueckstandVorgabe offenen Starts nur warnen.
  */
 export function anzeigeVorgabe(): AnzeigeEinstellungen {
   return {
@@ -104,6 +108,8 @@ export function anzeigeVorgabe(): AnzeigeEinstellungen {
     vorSteg: 2,
     verzahnungHalten: true,
     abstaende: {},
+    wkrRueckstand: WKR_ANNAHMEN.rueckstandVorgabe,
+    wkrWarnung: 'warnen',
   }
 }
 
@@ -158,6 +164,8 @@ export function normalisiereAnzeige(raw: unknown, bereichIds?: readonly string[]
     vorSteg: ganz(a.vorSteg, 0, STEG_MAX) ?? v.vorSteg,
     verzahnungHalten: wahrheit(a.verzahnungHalten, v.verzahnungHalten),
     abstaende,
+    wkrRueckstand: ganz(a.wkrRueckstand, WKR_ANNAHMEN.rueckstandMin, WKR_ANNAHMEN.rueckstandMax) ?? v.wkrRueckstand,
+    wkrWarnung: WKR_WARNUNGEN.find((w) => w === a.wkrWarnung) ?? v.wkrWarnung,
   }
 }
 

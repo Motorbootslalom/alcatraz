@@ -156,6 +156,13 @@ export default {
   'listopt.betrieb.vorSteg': 'Starts vor Steg',
   'listopt.betrieb.steg.hint':
     'Nach dem Start im Boot stehen so viele Starts „am Steg“, die nächsten „vor Steg“ (je 0 bis {max}) – auf der Zuschauerliste und in der Startliste. „Zeit bis zum Vorsteg“: Wer dazugehört, muss am Vorsteg sein.',
+  'listopt.betrieb.wkr': 'Rückstand der WKR-Erfassung',
+  'listopt.betrieb.wkrRueckstand': 'Warnen ab mehr als … offenen Starts',
+  'listopt.betrieb.wkrWarnung': 'Bei Rückstand',
+  'listopt.betrieb.wkrWarnung.warnen': 'nur warnen',
+  'listopt.betrieb.wkrWarnung.nachfragen': 'vor dem Zeigen nachfragen',
+  'listopt.betrieb.wkr.hint':
+    'Nur für Listen, die die Wettkampfrichter am Gerät erfassen: Sind bei einer Liste mehr gezeigte Starts offen als hier eingestellt ({min} bis {max}), steht über „Nächster Start“ eine Warnung; mit „nachfragen“ fragt die Start-Freigabe vor jedem Zeigen. Pausierte, abgemeldete und Papier-Listen zählen nie. Es wird nie gesperrt – ein stilles Handy hielte sonst den Wettkampf an.',
   'listopt.betrieb.abstaende': 'Startabstände',
   'listopt.betrieb.abstaende.hint':
     'Abstand zweier Starts in Sekunden ({min} bis {max}), Fahrzeit und Bootswechsel zusammen – daraus schätzen Startliste und Zuschauerliste die Wartezeiten. Ab {ab} gemessenen Abständen einer Klasse gilt das Mittel der Messung, vorher der eigene Wert, sonst die Vorgabe: die des Regelwerks oder die Mittel der DM 2025. Ein Feld leeren heißt: wieder die Vorgabe.',

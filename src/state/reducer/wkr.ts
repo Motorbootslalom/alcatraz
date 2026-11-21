@@ -1,5 +1,7 @@
 // Digitale Erfassung durch die Wettkampfrichter (W1, Plan docs/plan-wkr-w1.md §4, 21.11.2026): Zeilen vom Gerät
 // übernehmen, Rückfragen und Vorschläge entscheiden, Modus/Status und Abschluss je Liste; Normalisierer für migrate().
+// W2 (Plan docs/plan-wkr-w2.md §4, 21.11.2026): „Papier ab Start …“ (WKR_PAPIER_AB, WkrPause.ab); Zeilen zu Starts,
+// die schon aufs Papier gingen, werden Vorschlag (WKR_ANNAHMEN.papierStartVorschlag).
 //
 // Rein und deterministisch: Die Zeilen kommen geprüft und aufgelöst (wkr/zeile.ts `pruefeZeile` – das ruft der Host,
 // nie der Reducer), IDs (`zeile.id`) und `zeit` mit der Action. Nichts aus geraete/. Unverändert = derselbe Stand.
@@ -7,8 +9,8 @@
 
 import type { AppState, Eingaben, PunktId, WkrAbschluss, WkrListe, WkrModus, WkrPause, WkrRueckfrage, WkrStand, WkrStatus, WkrTeilStatus, WkrVorschlag, WkrZeile } from '../../types'
 import { erfasstKennung, gueltigeZellen, istHaken, listenFelder, setzeWerte, werteVon, type EingabeZelle, type ListenTeil } from '../../lib/eingaben'
-import { istPunktId, liesRef } from '../../betrieb/folge'
-import { abschlussSchluessel, abschlussVon, liesAbschlussSchluessel, punktBegonnen, punktVonRef, zeileAbgeschlossen } from '../../wkr/abschluss'
+import { betriebVon, istPunktId, liesRef } from '../../betrieb/folge'
+import { abschlussSchluessel, abschlussVon, liesAbschlussSchluessel, punktBegonnen, punktVonRef, TEILE, zeileAbgeschlossen } from '../../wkr/abschluss'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { liesListe, startAufListe, teileVon, teilHaken, teilVonZelle } from '../../wkr/liste'
 import { papierStarts, schlange } from '../../wkr/schlange'
@@ -18,7 +20,8 @@ import { konfigVon } from './gemeinsam'
 export type WkrAenderung =
   /**
    * Zeilen eines Geräts für eine Liste übernehmen (`quelle`: Geräte-ID und Name – der Name nur für den Verlauf, F10;
-   * in den Stand kommt er nie). Je Zeile: Punkt abgeschlossen oder Liste auf Papier → Vorschlag; Start nicht gezeigt →
+   * in den Stand kommt er nie). Je Zeile: Punkt abgeschlossen, Liste auf Papier oder Start schon auf Papier (P der Liste
+   * bzw. des Teils, W2 A6) → Vorschlag; Start nicht gezeigt →
    * Rückfrage `start` für jede Zelle; sonst Übernahmeregel (wkr/uebernahme.ts), Konflikte → Rückfrage; Haken nur ohne
    * Konflikt. Eine neuere Zeile desselben Geräts für dieselbe Zelle ersetzt dessen ältere Rückfrage.
    */
@@ -46,6 +49,13 @@ export type WkrAenderung =
   | { type: 'WKR_ABSCHLUSS'; liste: string; punkt: PunktId; name: string; pruefsummen: Record<string, string>; restPapier: boolean; teil?: ListenTeil }
   /** Abschluss zurücknehmen (für W2: Bediener), am Steg je Teil. */
   | { type: 'WKR_ABSCHLUSS_LOESEN'; liste: string; punkt: PunktId; teil?: ListenTeil }
+  /**
+   * W2 „Papier ab Start …“ (Bediener, WKR_ANNAHMEN.papierAbMeldetAb): Die Liste (bzw. der Steg-Teil) wird ab dem Start
+   * `ref` vom Bogen erfasst – Status `abgemeldet`, Pause ab der Zeit, zu der `ref` gezeigt wurde (sonst jetzt), mit
+   * `ab: ref` und P = die Schlange ab `ref`. Ist schon eine Pause offen, bekommt sie `ab` und die Starts dazu. Ohne
+   * Eintrag oder bei Papier: nichts. „Weiter digital“ bleibt WKR_LISTE {status: 'aktiv'}.
+   */
+  | { type: 'WKR_PAPIER_AB'; liste: string; ref: string; teil?: ListenTeil }
 
 /** Nichts digital, nichts offen. */
 export function wkrLeer(): WkrStand {
@@ -62,6 +72,20 @@ export function geraetVonZeile(zeile: string): string {
 }
 
 const punktVon = punktVonRef
+
+/**
+ * „Papier ab“ auf Status und Pausen anwenden (ganze Liste bzw. Teil): neue Pause oder die offene ergänzt. `null`, wenn
+ * sich nichts ändert.
+ */
+function papierAb<T extends { status: WkrStatus; pausen: WkrPause[] }>(alt: T, ref: string, von: number, papier: readonly string[]): T | null {
+  const offen = alt.status !== 'aktiv' ? alt.pausen.findIndex((p) => p.bis === null) : -1
+  if (offen < 0) return { ...alt, status: 'abgemeldet', pausen: [...alt.pausen, { von, bis: null, papier: [...papier], ab: ref }] }
+  const p = alt.pausen[offen]
+  const neuPapier = [...new Set([...p.papier, ...papier])]
+  if (alt.status === 'abgemeldet' && p.ab === ref && neuPapier.length === p.papier.length) return null
+  const pausen = alt.pausen.map((x, i) => (i === offen ? { ...x, papier: neuPapier, ab: ref } : x))
+  return { ...alt, status: 'abgemeldet', pausen }
+}
 
 /** Zellen in Lauf und weitere Läufe, nur gültige (wie SET_EINGABEN). */
 function zellenIn(stand: AppState, laeufe: readonly string[], starter: string, werte: readonly { feld: string; wert: string }[]): EingabeZelle[] {
@@ -103,6 +127,17 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       let eingaben = state.eingaben
       let rueckfragen = state.wkr.rueckfragen
       let vorschlaege = state.wkr.vorschlaege
+      // P je Teil (A6): Starts, die schon aufs Papier gingen – einmal je Teil gerechnet. Eine ganze Zeile einer
+      // geteilten Liste trifft es schon, wenn EIN Teil den Start auf Papier hat (wie zeileAbgeschlossen).
+      const pJe = new Map<ListenTeil | undefined, Set<string>>()
+      const pVon = (t: ListenTeil | undefined): Set<string> => {
+        let m = pJe.get(t)
+        if (!m) {
+          const teile = t === undefined && geteilt ? [undefined, ...TEILE] : [t]
+          pJe.set(t, (m = new Set(teile.flatMap((x) => papierStarts(state, zielListe, x)))))
+        }
+        return m
+      }
       for (const zeile of action.zeilen) {
         if (zeile.liste !== action.liste) continue
         // Zellen ungültiger Starter oder kaputter Lauf-Schlüssel kommen nicht in den Stand (wie SET_EINGABEN).
@@ -112,7 +147,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
         if (punkt === null) continue
         // Am Steg je Teil (F16): Hat das Ablegen abgeschlossen, gehen Zeilen des Anlegens weiter direkt durch.
         const abgeschlossen = zeileAbgeschlossen(state.wkr, action.liste, punkt, zeile.teil, geteilt)
-        if (papier || abgeschlossen) {
+        const aufPapier = papier || (WKR_ANNAHMEN.papierStartVorschlag && pVon(zeile.teil).has(zeile.ref))
+        if (aufPapier || abgeschlossen) {
           if (vorschlaege.some((v) => v.id === zeile.id)) continue
           const v: WkrVorschlag = {
             id: zeile.id,
@@ -273,6 +309,27 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       }
     }
 
+    case 'WKR_PAPIER_AB': {
+      const liste = liesListe(action.liste)
+      const alt = state.wkr.listen[action.liste]
+      if (!liste || !alt || alt.modus === 'papier' || liesRef(action.ref) === null) return state
+      if (action.teil !== undefined && (!teileVon(liste.typeId) || (action.teil !== 'ab' && action.teil !== 'an'))) return state
+      const gezeigt = betriebVon(state, liste.bereich).gezeigt.find((g) => g.ref === action.ref)
+      const von = gezeigt?.zeit ?? zeit
+      // P = die Schlange ab dem Start: er selbst und was danach gezeigt wurde (Vorsteg-Vorschau und „entfällt“ nicht).
+      const papier = schlange(state, liste, action.teil)
+        .filter((s) => !s.vorab && !s.entfaellt && (s.key === action.ref || (s.zeit !== undefined && s.zeit >= von)))
+        .map((s) => s.key)
+      if (action.teil !== undefined) {
+        const teilAlt: WkrTeilStatus = alt.teile?.[action.teil] ?? { status: 'aktiv', pausen: [] }
+        const teilNeu = papierAb(teilAlt, action.ref, von, papier)
+        if (!teilNeu) return state
+        return { ...state, wkr: { ...state.wkr, listen: { ...state.wkr.listen, [action.liste]: { ...alt, teile: { ...alt.teile, [action.teil]: teilNeu } } } } }
+      }
+      const neu = papierAb(alt, action.ref, von, papier)
+      return neu ? { ...state, wkr: { ...state.wkr, listen: { ...state.wkr.listen, [action.liste]: neu } } } : state
+    }
+
     case 'WKR_ABSCHLUSS_LOESEN': {
       if (!istPunktId(action.punkt) || !abschlussVon(state.wkr, action.liste, action.punkt, action.teil)) return state
       const jeListe = state.wkr.abschluss[action.liste]
@@ -330,7 +387,9 @@ const haken = (x: unknown): string[] | null => {
 function liesPause(raw: unknown): WkrPause | null {
   if (!istObj(raw) || !zahl(raw.von) || !(raw.bis === null || zahl(raw.bis))) return null
   const papier = texte(raw.papier)
-  return papier ? { von: raw.von, bis: raw.bis, papier } : null
+  if (!papier) return null
+  // `ab` („Papier ab Start …“) nur als lesbare Start-Kennung; sonst fällt nur `ab` weg, die Pause bleibt.
+  return liesRef(raw.ab) !== null ? { von: raw.von, bis: raw.bis, papier, ab: raw.ab as string } : { von: raw.von, bis: raw.bis, papier }
 }
 
 const liesPausen = (raw: unknown[]): WkrPause[] => raw.map(liesPause).filter((p): p is WkrPause => p !== null)

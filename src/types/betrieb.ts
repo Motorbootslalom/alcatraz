@@ -125,7 +125,17 @@ export interface AnzeigeEinstellungen {
   verzahnungHalten: boolean
   /** E3: eigene Startabstände je Klasse in Sekunden; nur Abweichungen, die Vorgabe wird beim Lesen aufgelöst. */
   abstaende: Partial<Record<ClassId, number>>
+  /**
+   * W2 (F4, 21.11.2026): Rückstand einer digital erfassten Liste, ab dem die Start-Freigabe warnt – gewarnt wird bei
+   * MEHR als so vielen offenen gezeigten Starts (1–20, Vorgabe WKR_ANNAHMEN.rueckstandVorgabe; wkr/lage.ts).
+   */
+  wkrRueckstand: number
+  /** W2 (F4): bei Rückstand nur warnen (Zeile über „Nächster Start“) oder vor jedem Zeigen nachfragen – gesperrt wird nie. */
+  wkrWarnung: WkrWarnung
 }
+
+/** Wie die Start-Freigabe auf Rückstand der WKR-Erfassung reagiert (F4): nie sperren. */
+export type WkrWarnung = 'warnen' | 'nachfragen'
 
 // --- Sicht ---------------------------------------------------------------------------------------
 

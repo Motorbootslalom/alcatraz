@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { ClassId } from '../types'
 import { useStore } from '../state/store'
 import { merke } from '../lib/merken'
 import { adresse, useReiter } from '../lib/router'
 import { oeffneAnzeige, oeffneZuschauer } from '../lib/anzeigeFenster'
 import { useUhr } from '../lib/uhr'
+import { useKonfig } from '../lib/konfig'
+import { erfassungsLage } from '../wkr/lage'
+import { sichtFreigabe, type FreigabeErfassung } from '../wkr/freigabe'
+import { WKR_ANNAHMEN } from '../wkr/annahmen'
+import { geraetAngaben } from '../geraete/register'
 import { CLASS_IDS } from '../domain/classes'
 import { sichtOeffentlich } from '../betrieb/sicht'
 import { mmss } from '../betrieb/prognose'
@@ -15,13 +20,17 @@ import StartFreigabe from '../components/betrieb/StartFreigabe.vue'
 import StartListe from '../components/betrieb/StartListe.vue'
 import GeraeteRaum from '../components/betrieb/GeraeteRaum.vue'
 import GeraeteLage from '../components/betrieb/GeraeteLage.vue'
+import WkrMatrix from '../components/betrieb/WkrMatrix.vue'
+import WkrEingang from '../components/betrieb/WkrEingang.vue'
 import { useGeraeteHost } from '../geraete/host'
 import { verbindungsLage } from '../geraete/transport/typen'
 
 /**
  * Reiter „Betrieb“ am Wettkampftag (Plan vom 16.11.2026): Unterreiter `start` – die Start-Freigabe je Parcours (E1,
  * mit der Steuerung der Etappe E2) –, `startliste` – die ganze Folge mit Wartezeiten (E3) – und `geraete` – der
- * Gerätebetrieb mit Lese-Links für Anzeigetafel und Zuschauer (E6, components/betrieb/GeraeteRaum.vue). Dazu die
+ * Gerätebetrieb mit Lese-Links für Anzeigetafel und Zuschauer (E6, components/betrieb/GeraeteRaum.vue) – und `wkr`
+ * (W2.2, 21.11.2026): die digitale Erfassung der Wettkampfrichter am Bedienrechner (Matrix Listen × Starts,
+ * Bedienung je Liste, Eingang mit Rückfragen und Vorschlägen; components/betrieb/WkrMatrix.vue, WkrEingang.vue). Dazu die
  * Knöpfe, die Anzeigetafel und Zuschauerliste in eigenen Fenstern öffnen. Einstellungen (Anzeigetafel, Startfolge,
  * Startabstände, Server der Geräte) stehen unter „Einstellungen“, nicht hier – verlinkt. Ist ein Raum offen, steht
  * dessen Verbindung auch auf den anderen Unterreitern im Kopf: Wer die Start-Freigabe bedient, soll sehen, wenn die
@@ -37,10 +46,21 @@ import { verbindungsLage } from '../geraete/transport/typen'
  */
 const { state, dispatch } = useStore()
 
-const REITER = ['start', 'startliste', 'geraete'] as const
-const HINWEIS = { start: 'betrieb.hint', startliste: 'betrieb.liste.hint', geraete: 'betrieb.geraete.hint' } as const
+const REITER = ['start', 'startliste', 'wkr', 'geraete'] as const
+const HINWEIS = { start: 'betrieb.hint', startliste: 'betrieb.liste.hint', wkr: 'betrieb.wkr.hint', geraete: 'betrieb.geraete.hint' } as const
 const reiter = merke<(typeof REITER)[number]>('betrieb.reiter', 'start')
-useReiter('betrieb', reiter, REITER)
+// Ein Querverweis kann den Bereich der WKR-Matrix mitgeben (`#/betrieb/wkr/<parcours>`, Scheibe 4: Klick auf die
+// Geräteleiste der Start-Freigabe); gemerkt wird er wie die Wahl in der Matrix (lib/merken.ts).
+const wkrBereich = merke('betrieb.wkr.bereich', '')
+useReiter('betrieb', reiter, REITER, undefined, (r, wahl) => {
+  if (r === 'wkr') wkrBereich.value = wahl
+})
+
+/** Offene Rückfragen der WKR-Geräte – im Kopf jedes Unterreiters, damit sie niemand übersieht (Plan W2 §6.1). */
+const wkrRueckfragen = computed(() => state.value.wkr.rueckfragen.length)
+function zumEingang() {
+  document.querySelector('[data-teil="wkr-eingang"]')?.scrollIntoView?.({ block: 'start' })
+}
 
 // Ohne Logos: Die Bedienung braucht sie nicht, und so trägt die Sicht hier keine Bilder.
 const sicht = computed(() => sichtOeffentlich(state.value, { logos: false }))
@@ -65,6 +85,44 @@ const geraeteLage = computed(() => {
   const m = geraete.verbindung.value
   return m ? verbindungsLage(m.status, m.fehler) : 'verbinde'
 })
+
+/**
+ * W2.4 (Plan W2 §6.3): der Stand der WKR-Erfassung je Bereich für die Start-Freigabe (Geräteleiste, Rückstand,
+ * Nachfrage) – dieselbe Form wie auf dem Freigabe-Handy (wkr/freigabe.ts). Nur, solange irgendeine Liste einen Eintrag
+ * hat; Uhr im Takt der Freigabe-Sicht (die Ampel altert), getrennt von der Sekunden-Uhr der Startliste. Weitergereicht
+ * wird nur bei geändertem Inhalt – sonst zeichnete die Uhr die Karten alle paar Sekunden neu.
+ */
+const konfig = useKonfig({ oberflaeche: true })
+const wkrJetzt = useUhr(WKR_ANNAHMEN.freigabeTaktSek * 1000)
+const erfassung = shallowRef<Record<string, FreigabeErfassung>>({})
+let erfassungText = ''
+watch(
+  () => {
+    if (reiter.value !== 'start' || Object.keys(state.value.wkr.listen).length === 0) return {}
+    const angaben = geraetAngaben(geraete?.raum.value?.geraete ?? [])
+    const aus: Record<string, FreigabeErfassung> = {}
+    for (const b of sicht.value.bereiche) {
+      try {
+        aus[b.id] = sichtFreigabe(b.id, erfassungsLage(state.value, konfig.value, b.id, angaben, wkrJetzt.value).listen, state.value.anzeige.wkrWarnung)
+      } catch {
+        // Ein Bereich ohne Listen (etwa mitten im Umbau): keine Leiste – die Freigabe selbst geht weiter.
+      }
+    }
+    return aus
+  },
+  (aus) => {
+    const text = JSON.stringify(aus)
+    if (text === erfassungText) return
+    erfassungText = text
+    erfassung.value = aus
+  },
+  { immediate: true },
+)
+/** Klick auf die Geräteleiste: Unterreiter WKR mit diesem Bereich (wie der Querverweis `#/betrieb/wkr/<parcours>`). */
+function zurErfassung(bereich: string) {
+  wkrBereich.value = bereich
+  reiter.value = 'wkr'
+}
 
 const frageZuruecksetzen = ref(false)
 function zuruecksetzen() {
@@ -94,6 +152,9 @@ function zuruecksetzen() {
       <button v-if="hatBetrieb" type="button" class="btn danger" data-action="betrieb-zuruecksetzen" @click="frageZuruecksetzen = true">
         {{ t('betrieb.zuruecksetzen') }}
       </button>
+      <button v-if="wkrRueckfragen > 0" type="button" class="btn sm wkr-chip" data-teil="wkr-chip" :title="t('betrieb.wkr.chip.title')" @click="reiter = 'wkr'">
+        {{ t('betrieb.wkr.chip', { n: wkrRueckfragen }) }}
+      </button>
       <button v-if="geraeteLage" type="button" class="btn sm geraete-chip" data-teil="geraete-lage" :data-lage="geraeteLage" :title="t('geraete.chip.title')" @click="reiter = 'geraete'">
         {{ t('betrieb.reiter.geraete') }}: <GeraeteLage :lage="geraeteLage" />
       </button>
@@ -118,8 +179,14 @@ function zuruecksetzen() {
         :bereich="b"
         :sende="dispatch"
         :anzeige-oeffnen="sicht.bereiche.length > 1 ? () => oeffneAnzeige(b.id) : undefined"
+        :erfassung="erfassung[b.id]"
+        :erfassung-oeffnen="() => zurErfassung(b.id)"
       />
     </div>
+    <template v-else-if="reiter === 'wkr'">
+      <WkrMatrix :sicht="sicht" @geraete="reiter = 'geraete'" @eingang="zumEingang" />
+      <WkrEingang :sicht="sicht" />
+    </template>
     <template v-else>
       <p class="note betrieb-abstaende" data-teil="abstaende">
         <span><a :href="adresse('einstellungen', { ziel: 'betrieb' })" data-verweis="startabstaende">{{ t('betrieb.liste.abstaende') }}</a>:</span>

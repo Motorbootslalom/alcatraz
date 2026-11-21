@@ -18,13 +18,17 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 - `ListsView.vue` – Reiter „Listen“: KINDS (starter, gewicht, vorsteg, wkr, laufzettel, codes, ergebnis, pokal,
   druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`), print() setzt
   document.title (= Dateiname) und ruft window.print().
-- `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start`, `startliste` und (E6) `geraete`
+- `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start`, `startliste`, (W2.2) `wkr` (WkrMatrix +
+  WkrEingang; Kopf-Zähler `data-teil="wkr-chip"` bei offenen Rückfragen; `#/betrieb/wkr/<parcours>` wählt den Bereich) und (E6) `geraete`
   (useReiter, Knöpfe `data-reiter`; `geraete` = components/betrieb/GeraeteRaum.vue, ohne Kopf-Knöpfe und Karten; ist ein
   Raum offen, steht auf den anderen Unterreitern `data-teil="geraete-lage"` im Kopf, Klick → `geraete`), „Anzeigetafel öffnen“ und „Zuschauerliste öffnen“ (lib/anzeigeFenster.ts), Verweise auf
   `#anzeigetafel` und `#betrieb` (Startfolge), je Parcours components/betrieb/StartFreigabe.vue bzw. (E3) StartListe.vue
   aus sichtOeffentlich, darüber die Startabstände der Sicht (`data-teil="abstaende"`); Uhr lib/uhr.ts (1 s), nur im
   Zweig der Startliste gelesen; ohne festgeschriebene Verzahnung nur der Hinweis `vor-verzahnung` (mit schon begonnenem
-  Betrieb dazu die Karten bzw. Listen, ohne Zeigen/Beginnen/Umstellen); „Betrieb zurücksetzen“ mit AppDialog.
+  Betrieb dazu die Karten bzw. Listen, ohne Zeigen/Beginnen/Umstellen); „Betrieb zurücksetzen“ mit AppDialog. W2.4: je Bereich
+  `erfassung` = wkr/freigabe.ts sichtFreigabe(erfassungsLage(…, geraetAngaben(host.raum.geraete), Uhr im Takt
+  freigabeTaktSek)) nur im Unterreiter `start` und nur mit Listen-Eintrag, weitergereicht nur bei geändertem Inhalt
+  (shallowRef + JSON); Klick auf die Leiste → `wkr` mit dem Bereich (merke `betrieb.wkr.bereich`).
 - `ErfassungView.vue` – Bogen wählen oder scannen, Eingabetabelle; nach Laufzettel-Scan alle Blätter untereinander.
 - `SettingsView.vue` (~880 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (logos (LogosPanel),
   wertung, streichlaeufe, ergebnislisten, pokal, wkr-listen, wkr-zeilen-je-seite, wkr-teilen-ab, wkr-leerzeilen,
@@ -85,6 +89,7 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 Je Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meist über ListsView), z. B. Verwiegung
 (Link zu den Gewichtslisten), Ergebnislisten, ParallelErgebnis, Einzelwertung, Pokalauswertung, Laufzettel, Druckdatei,
 Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel, Startfolge, Startabstände, Geräte), Betrieb (Start-Freigabe,
-E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), BetriebGeraete (E6, echter Host gegen nachgebauten ntfy), Listenoptionen, ErfassungView, ErfassungScan, Dolphin,
+E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), BetriebGeraete (E6, echter Host gegen nachgebauten ntfy), BetriebWkr (W2.2, Host-Doppel; W2.4 Start-Freigabe: Leiste, warnen, nachfragen, nie gesperrt, Klick → WKR), Listenoptionen, ErfassungView, ErfassungScan, ErfassungWkr (W2.3: ◆, „Papier
+ansehen“, Rückfrage, Nachfrage beim Überschreiben; Host-Doppel), Dolphin,
 UimAushang (englisch). Zuschauerliste: src/ZuschauerApp.test.ts.
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

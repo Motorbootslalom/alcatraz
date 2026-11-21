@@ -148,6 +148,7 @@ export default {
   'history.what.vorschlag': 'Suggestion from a race official’s device decided',
   'history.what.wkrListe': 'Entry mode of list {list} changed',
   'history.what.wkrAbschluss': 'Sign-off of list {list} changed',
+  'history.what.wkrPapierAb': 'List {list} switched to paper from a start on',
 
   'backup.reset': 'Reset everything',
   'backup.resetConfirm':

@@ -572,6 +572,35 @@ Beim Bau von W1 ausgelegt, **noch zu bestätigen** (Plan §9, im Code `src/wkr/a
 12. (W1.4) Prüfsummen beim Abschluss über alle Starts des Punkts, für die das Gerät Werte geschickt hat (nicht nur die
     letzten 20 Zeilen); eine Korrektur einer noch wartenden Zeile ändert diese, statt eine zweite zu schicken.
 
+**W2 (Bedienrechner) gebaut 21.11.2026** nach [plan-wkr-w2.md](plan-wkr-w2.md), Scheiben W2.1–W2.4: Lage und „Papier
+ab Start …“, Betrieb → WKR (Matrix Listen × Starts, Bedienung je Liste, Eingang mit Rückfragen und Vorschlägen), ◆ und
+„Papier ansehen“ in der Erfassung, Geräteleiste und Rückstandswarnung in der Start-Freigabe am Bedienrechner und auf dem
+Freigabe-Handy (eigene verschlüsselte Gruppe je Bereich, nie über Anzeigetafel/Zuschauer). Weiterhin nur gegen den
+nachgebauten Server geprüft. Beim Bau ausgelegt, **noch zu bestätigen** (im Code `WKR_ANNAHMEN`, Hintergrund je Punkt in
+plan-wkr-w2.md §9):
+
+- A1 Unterreiter heißt „WKR“ (englisch „Race officials“), nicht „Erfassung“ (das ist schon ein Hauptreiter).
+- A2 Matrix: die letzten 12 gezeigten Starts des laufenden Laufs, umschaltbar auf alle.
+- A3 Ohne laufenden Lauf „ruht“ jedes Gerät (grau) statt ✕ – Geräte schicken dann kein Lebenszeichen.
+- A4 Rückstand = offene gezeigte Starts der Liste; Warnung ab mehr als R (Vorgabe 2); am Steg zählt der Teil, der
+  weiter zurück ist; pausiert/abgemeldet/Papier zählen nie.
+- A5 „Papier ansehen“ an der Zeile (Start auf Papier, überfällig, Gerät seit über 5 min weg), an der Zelle (nur ein
+  Steg-Teil fehlt, Rückfrage genau dort).
+- A6 Zeilen zu Starts, die schon aufs Papier gingen, werden Vorschlag (nicht still übernommen).
+- A7 Überschreiben eines Gerätewerts beim Abtippen fragt einmal je Zelle, solange sie den Fokus hat.
+- A8 „Nachfragen“ gilt für jedes Zeigen, auch „Anderen Starter wählen“; gesperrt wird nie.
+- A9 Auf dem Freigabe-Handy nur Listenname, Ampel, Zahl und Startnummern offener Starts – keine Gerätenamen, keine Werte.
+- A10 „Papier ab Start …“ meldet die Liste ab; „Weiter digital“ gilt ab dem nächsten gezeigten Start.
+- A11 ⧗ wartende Zeilen nur als Zahl je Gerät, nicht je Zelle.
+- A12 Getrennte Kontingentanzeige der Erfassung erst mit dem Feldtest.
+- A13 Gerätezustand ● unter 90 s, ◐ bis 5 min, ✕ darüber.
+- Beim Bau dazu B1–B6 (Matrix/Eingang: Zähler nur Rückfragen, Modus auch ohne Gerät umstellbar, „Weiter“ schickt
+  immer den Hinweis, „Papier ab“ wählt unter den Matrix-Spalten, Karte nur belegter Felder, `zuletzt` gedrosselt),
+  C1–C4 (Erfassung: ◆ an jeder Liste, Nachfrage bei der ersten Änderung, Zahl mit Zellmarken, Uhr 30 s) und D1–D5
+  (Start-Freigabe: Leiste mit allen Listen des Bereichs, Rückfragen nur als Zahl, Listennamen in der Sprache der
+  Anzeigetafel, Neuberechnung alle 15 s und Senden nur bei Änderung, Nachfrage vor jedem Zeigen – nicht bei „Lauf
+  beginnen“, „Zurück“, Zurückstellen).
+
 - 2026-11-21 · F1 · Papier bzw. „beides“ ist **immer** je Liste wählbar, nicht nur beim ersten Wettkampf. Das Gerät kann
   sich „pausieren“ oder „abmelden“; dann zählt die Liste nicht als Rückstand, die Freigabe wartet nicht darauf.
 - 2026-11-21 · F2 · Eine Boje kann je Richtung nur einmal berührt werden (Schalter 5/0). Ausnahmen: Torbojen von Tor 5
@@ -603,8 +632,8 @@ Beim Bau von W1 ausgelegt, **noch zu bestätigen** (Plan §9, im Code `src/wkr/a
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
 
 - Digitale WKR-Erfassung (Antworten 21.11.2026, Abschnitt oben): Etappen W1–W6 nach
-  [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern) gebaut 21.11.2026, W2–W6 offen
-  (Masken, Bedieneransicht, Knoten/Zeit-Listen).
+  [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern) und W2 (Bedienrechner) gebaut 21.11.2026,
+  W3–W6 offen (Masken auf Handy und Pad, Knoten/Zeit-Listen); Auslegungen W2 A1–A13, B1–B6, C1–C4, D1–D5 noch zu bestätigen.
 
 ## Offen
 

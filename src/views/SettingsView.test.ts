@@ -945,6 +945,28 @@ describe('Einstellungen: Anzeigetafel', () => {
     wrapper.unmount()
   })
 
+  it('Rückstand der WKR-Erfassung (W2, F4): Zahl 1–20 und warnen/nachfragen als Optionsfelder, über SET_ANZEIGE', async () => {
+    const wrapper = settings(store)
+    const zahl = wrapper.find('[data-feld="betrieb-wkr-rueckstand"]')
+    expect((zahl.element as HTMLInputElement).value).toBe('2')
+    await zahl.setValue('4')
+    expect(anzeige().wkrRueckstand).toBe(4)
+    await zahl.setValue('99')
+    expect([anzeige().wkrRueckstand, (zahl.element as HTMLInputElement).value]).toEqual([20, '20'])
+    await zahl.setValue('x')
+    expect([anzeige().wkrRueckstand, (zahl.element as HTMLInputElement).value]).toEqual([20, '20'])
+    const warnung = wrapper.find('[data-feld="betrieb-wkr-warnung"]')
+    expect(warnung.find('select').exists()).toBe(false)
+    const radios = warnung.findAll('input[type="radio"]')
+    expect(radios.map((r) => r.attributes('data-wert'))).toEqual(['warnen', 'nachfragen'])
+    expect((radios[0].element as HTMLInputElement).checked).toBe(true)
+    await radios[1].setValue(true)
+    expect(anzeige().wkrWarnung).toBe('nachfragen')
+    expect(store.state.value.betrieb).toEqual({ bereiche: {} })
+    expect(wrapper.find('#betrieb').text()).toContain('nie gesperrt')
+    wrapper.unmount()
+  })
+
   it('Startabstände (E3, K24): Vorgabe je Klasse, eigener Wert nur als Abweichung; leer oder gleich der Vorgabe = Vorgabe', async () => {
     const wrapper = settings(store)
     const zeile = (k: string) => wrapper.find(`[data-teil="startabstaende"] tr[data-klasse="${k}"]`)

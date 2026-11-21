@@ -146,6 +146,7 @@ export default {
   'history.what.vorschlag': 'Vorschlag eines WKR-Geräts entschieden',
   'history.what.wkrListe': 'Erfassung der Liste {list} umgestellt',
   'history.what.wkrAbschluss': 'Abschluss der Liste {list} geändert',
+  'history.what.wkrPapierAb': 'Liste {list} ab einem Start auf Papier gestellt',
 
   'backup.reset': 'Alles zurücksetzen',
   'backup.resetConfirm':

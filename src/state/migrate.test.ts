@@ -247,6 +247,14 @@ describe('migrate: Betrieb und Anzeigetafel (16.11.2026)', () => {
     // Unbekannte Lage von A und B (16.11.2026): die Vorgabe, A links; die übrigen Felder bleiben.
     expect(migrate({ starters: [], anzeige: { ...anzeige, parallelAnordnung: 'quer' } })!.anzeige).toMatchObject({ parallelAnordnung: 'a-links', namen: 'kurz', skala: 1.2 })
   })
+
+  it('WKR-Rückstand (W2, 21.11.2026): Vorgabe 2/warnen, begrenzt auf 1–20, Unbekanntes wird die Vorgabe', () => {
+    expect(migrate({ starters: [] })!.anzeige).toMatchObject({ wkrRueckstand: 2, wkrWarnung: 'warnen' })
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 5, wkrWarnung: 'nachfragen' } })!.anzeige).toMatchObject({ wkrRueckstand: 5, wkrWarnung: 'nachfragen' })
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 99, wkrWarnung: 'sperren' } })!.anzeige).toMatchObject({ wkrRueckstand: 20, wkrWarnung: 'warnen' })
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 0 } })!.anzeige.wkrRueckstand).toBe(1)
+    expect(migrate({ starters: [], anzeige: { wkrRueckstand: 'drei' } })!.anzeige.wkrRueckstand).toBe(2)
+  })
 })
 
 describe('migrate: Server des Gerätebetriebs (E6, 16.11.2026)', () => {
@@ -498,5 +506,29 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
   it('ein Stand aus dem Reducer übersteht Speichern und Laden', () => {
     const s = reducer(emptyState(), { type: 'WKR_LISTE', liste, modus: 'beides', zeit: 100 })
     expect(migrate(JSON.parse(JSON.stringify(s)))!.wkr).toEqual(s.wkr)
+  })
+})
+
+describe('migrate: „Papier ab“ der WKR-Erfassung (W2, 21.11.2026)', () => {
+  it('`ab` bleibt nur als gültige Start-Kennung; sonst fällt nur `ab` weg, die Pause bleibt', () => {
+    const liste = JSON.stringify(['l', 'par_1', 'gate135', null])
+    const ab = JSON.stringify(['m', 'a', 1])
+    const wkr = {
+      listen: {
+        [liste]: {
+          modus: 'digital',
+          status: 'abgemeldet',
+          seit: 100,
+          pausen: [
+            { von: 200, bis: 300, papier: [], ab: 'kaputt' },
+            { von: 400, bis: null, papier: [ab], ab },
+          ],
+        },
+      },
+    }
+    expect(migrate({ starters: [{ id: 'a', klasse: '1', nachname: 'Nach1' }], wkr })!.wkr.listen[liste].pausen).toEqual([
+      { von: 200, bis: 300, papier: [] },
+      { von: 400, bis: null, papier: [ab], ab },
+    ])
   })
 })

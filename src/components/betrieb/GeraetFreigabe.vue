@@ -28,6 +28,8 @@ import { fingerabdruckText, startZeile } from './texte'
  *   Quittung kommt, sind alle Knöpfe gesperrt (`<fieldset disabled>`, K32) mit „Wird gesendet …“, nach 10 s „Keine
  *   Bestätigung – Verbindung prüfen“ (die Schlange sendet weiter, mit wachsendem Abstand). Abgelehnt/unverändert
  *   steht als Satz da. Die Selbstanmeldung nach jedem Start sperrt nichts, sie zeigt nur „Verbinde …“ (meldetSich).
+ * - W2.4: Stand der WKR-Erfassung (Geräteleiste, Rückstand, „Trotzdem freigeben?“) aus der Freigabe-Gruppe des
+ *   Bereichs (geraete/gekoppelt.ts `freigabe`) – ohne Werte und Namen; ohne Schlüssel bleibt die Leiste einfach weg.
  * - Entzogen: Hinweis, dazu nur lesend, wer im Boot sitzt und wer als Nächstes (K14, gewollt); neu koppeln mit Code.
  * - „Gerät entkoppeln“ löscht Kopplung und Schlüssel auf dem Gerät (verlasse); im Register des Hosts bleibt es, bis
  *   es dort entzogen wird – der Host erfährt davon nichts (keine Nachricht ohne Rechte, kein Kontingent dafür).
@@ -130,6 +132,9 @@ const eigene = computed<SichtBereich[]>(() => {
   const frei = freigabeBereiche(g.aufgaben.value)
   return sicht.value.bereiche.filter((b) => frei.includes(b.id))
 })
+
+/** W2.4: Stand der WKR-Erfassung je eigenem Bereich – aus der Freigabe-Gruppe (gekoppelt.ts), nie aus der Tafel-Sicht. */
+const erfassung = computed(() => geraet.value?.freigabe.value ?? {})
 
 // --- Senden, Quittung ---
 const offen = computed(() => (geraet.value?.offen.value.length ?? 0) > 0)
@@ -244,7 +249,7 @@ function entkopple(): void {
           <!-- Selbstanmeldung (P-7) läuft: nur ein Hinweis, die Knöpfe bleiben frei (Prüfung E7, 20.11.2026). -->
           <p v-else-if="geraet.meldetSich.value" class="note geraet-banner" role="status" data-teil="verbinde">{{ t('geraete.freigabe.verbinde') }}</p>
           <fieldset class="geraet-sperre" :disabled="offen" :aria-busy="offen">
-            <StartFreigabe v-for="b in eigene" :key="b.id" :sicht="sicht" :bereich="b" :sende="sende" nur-dieser />
+            <StartFreigabe v-for="b in eigene" :key="b.id" :sicht="sicht" :bereich="b" :sende="sende" :erfassung="erfassung[b.id]" nur-dieser />
           </fieldset>
         </template>
       </template>

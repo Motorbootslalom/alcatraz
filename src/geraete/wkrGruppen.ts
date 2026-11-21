@@ -1,5 +1,5 @@
 import { OEFFENTLICH } from './transport/protokoll'
-import { listenAufgaben, type Aufgabe } from './aufgaben'
+import { freigabeBereiche, listenAufgaben, type Aufgabe } from './aufgaben'
 
 // Gruppen der WKR-Listen (W1, Plan docs/plan-wkr-w1.md §5, 21.11.2026): Je Liste eine eigene verschlüsselte Gruppe,
 // über die der Host die Sicht der Liste (wkr/sicht.ts) und damit die gesammelten Quittungen schickt. Nur die Geräte
@@ -25,7 +25,22 @@ export function gruppeDerListe(liste: string): string {
   return 'l' + fnv1a(liste).toString(16).padStart(8, '0')
 }
 
-/** Die Gruppen, die ein Gerät mit diesen Aufgaben lesen darf: die öffentliche Sicht und je Liste deren Gruppe. */
+/**
+ * W2.4 (Plan docs/plan-wkr-w2.md §5, 21.11.2026): Die Freigabe-Gruppe eines Bereichs – `f` + 8 Hexziffern (FNV-1a über
+ * `["f", bereich]`). Sie trägt die Freigabe-Sicht (wkr/freigabe.ts: Rückstand der WKR-Listen ohne Werte und Namen) und
+ * gehört nur Geräten mit der Aufgabe „Start-Freigabe“ für diesen Bereich – nie den Lese-Links (ko/kz, F17).
+ */
+export function gruppeDerFreigabe(bereich: string): string {
+  return 'f' + fnv1a(JSON.stringify(['f', bereich])).toString(16).padStart(8, '0')
+}
+
+/**
+ * Die Gruppen, die ein Gerät mit diesen Aufgaben lesen darf: die öffentliche Sicht, je Liste deren Gruppe und (W2.4)
+ * je Bereich der Start-Freigabe dessen Freigabe-Gruppe.
+ */
 export function gruppenFuer(aufgaben: readonly Aufgabe[]): string[] {
-  return [OEFFENTLICH, ...new Set(listenAufgaben(aufgaben).map((a) => gruppeDerListe(a.liste)))]
+  return [
+    OEFFENTLICH,
+    ...new Set([...listenAufgaben(aufgaben).map((a) => gruppeDerListe(a.liste)), ...freigabeBereiche(aufgaben).map(gruppeDerFreigabe)]),
+  ]
 }

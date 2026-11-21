@@ -140,6 +140,31 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   `alcatraz.geraete.kontingent`, `alcatraz.geraete.fassung`; W1 `alcatraz.geraete.wkr` (Gesprächsstand) und
   `alcatraz.geraete.herkunft` (◆, F10) – liesWkrEingang/liesHerkunft an AppState.kennung gebunden (andere = gelöscht),
   bleiben nach „Raum beenden“.
+- W2.2 (21.11.2026, Plan docs/plan-wkr-w2.md §5): host.ts `herkunft`/`eingang` (ShallowRef, gelesen beim Start, nach
+  eigenem Schreiben – schreibeEingang/schreibeHerk – und beim storage-Ereignis auf ABLAGE.herkunft/ABLAGE.wkr; auch
+  ohne Raum, ohne Verbindung/Fensterbus/Schloss; ohne Kennung leer und nichts gelöscht); `zieheZuletztNach` im
+  Führungsfenster nach beruehre/Lebenszeichen (≤ ZULETZT_NACHZIEHEN_MS 5 s, nach Date.now; Begrüßen sofort).
+  register.ts `geraetAngaben(geraete)` → wkr/lage.ts GeraetAngabe (nur Geräte mit Listen). Oberfläche:
+  components/betrieb/WkrMatrix.vue, WkrListeBedienung.vue, WkrEingang.vue (Betrieb → WKR). Tests: host.test.ts „W2.2“,
+  wkr.test.ts „W2.2“ (Matrix ✓, ◆ reaktiv, gedrosseltes Nachziehen), views/BetriebWkr.test.ts (Host-Doppel).
+  Prüfbefunde W2 (21.11.2026): `hinweis(liste, code, startNr?, teil?)` – mit Teil nur an Geräte dieses Teils und ohne
+  Teil (Fensterbus-Befehl trägt `teil`); `merkeEntscheid(liste, geraetName, zeilen)` schreibt ◆ nach einer Entscheidung
+  im Eingang (jedes Fenster, auch ohne Raum; dieselbe Hilfe wie nach WKR_ZEILEN); verteileFreigabe/Koppel-Takt prüfen
+  `endet`. Neue Methode am GeraeteHost → alle Host-Doppel in den Tests (`satisfies GeraeteHost`) mitziehen.
+- W2.4 (21.11.2026, Plan docs/plan-wkr-w2.md §5/§6.3): **Freigabe-Gruppe je Bereich** – wkrGruppen.ts
+  gruppeDerFreigabe(bereich) = 'f' + FNV-1a hex8 über `["f", bereich]`; gruppenFuer nimmt sie für jede Aufgabe
+  `startfreigabe` dazu (also legen register.ts gruppenNachAufgaben/setzeAufgaben sie an, `neu`/`weg` wie bei Listen).
+  host.ts: hallo legt alle nicht öffentlichen Gruppen an (nicht nur bei Listen) und schickt sie voll; ergaenzeGruppen
+  beim Start des Führungsfensters (Bestandsgeräte vor W2: Gruppe anlegen + schickeSchluessel, kein neues Koppeln);
+  verteileFreigabe je Bereich mit Freigabe-Gerät: erfassungsLage (konfigDerTafel = Sprache der Anzeigetafel, D3) →
+  wkr/freigabe.ts sichtFreigabe → nach Inhalt verglichen (Map `listen` wie die Listen-Gruppen; nie gesendet und leer →
+  nichts), zusätzlich im Koppel-Takt alle FREIGABE_TAKT_MS (= WKR_ANNAHMEN.freigabeTaktSek 15 s; die Ampel altert).
+  gekoppelt.ts `freigabe` (ShallowRef je Bereich; nur Sicht einer `f…`-Gruppe, die zu einem eigenen Bereich passt,
+  liesFreigabe; entzogen → leer). PROTOKOLL_FASSUNG bleibt 2 (Gruppen sind allgemein; ältere Geräte lesen sie nicht),
+  innen `fv: 1`. Oberfläche: GeraetFreigabe.vue reicht `freigabe[b.id]` als `erfassung` an StartFreigabe. Tests:
+  wkr.test.ts „W2.4“ (Handy bekommt Rückstand, Inhalt ohne Namen, mit ko-Schlüssel nicht lesbar, ko/kz ohne Freigabe-
+  Felder; Verkehr nur bei Änderung; Bestandsgerät; Rechte), wkrGruppen.test.ts, register.test.ts, src/GeraetKoppeln.test.ts
+  „W2.4“ (Leiste und „Trotzdem freigeben?“ auf dem Handy).
 
 ## Abläufe
 
@@ -236,6 +261,9 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - Lease ist best effort (localStorage ohne atomares Setzen; gedrosselte Hintergrund-Tabs): Web Locks sind der Schutz;
   dazu liest HostSpeicher.aendere vor jedem Schreiben frisch und `n` steht im Raum.
 - Fensterbus vertraut allen Fenstern derselben Herkunft (die könnten ohnehin den Stand schreiben), prüft nur die Form.
+- W2.4: Jedes Gerät der Start-Freigabe hat seitdem eine nicht öffentliche Gruppe (`f…`) – Tests, die `gruppen` eines
+  Geräts oder `neu`/`weg` von setzeAufgaben vergleichen, müssen sie mitzählen. Die Freigabe-Gruppe trägt nie Werte und
+  nie Namen (wkr/freigabe.ts Positivliste); was die Tafel nicht sehen darf, gehört nie nach ko/kz (F17).
 - W1: Die Gruppe einer Liste trägt dieselbe `sv` wie ko (SICHT_FASSUNG, der Transport kennt nur eine); die Form der
   Listen-Sicht steht innen als `lv` (wkr/sicht.ts LISTEN_SICHT_FASSUNG). Still quittiert wird nur, wer die Gruppe hat –
   sonst wartete das Gerät auf eine Sicht, die es nicht lesen kann. Akku/wartend liegen im Register (Raum), nicht in

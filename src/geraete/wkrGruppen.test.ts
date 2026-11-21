@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { istGruppe, OEFFENTLICH, ZUSCHAUER } from './transport/protokoll'
-import { gruppeDerListe, gruppenFuer } from './wkrGruppen'
+import { gruppeDerFreigabe, gruppeDerListe, gruppenFuer } from './wkrGruppen'
 import { listenKennung } from '../wkr/liste'
 import { RACECOURSES } from '../lib/parallelSchluessel'
 
@@ -36,12 +36,32 @@ describe('gruppeDerListe', () => {
   })
 })
 
+describe('gruppeDerFreigabe (W2.4)', () => {
+  it('Form: f + 8 Hexziffern, gültige Gruppe, nie öffentlich, nie die Gruppe einer Liste', () => {
+    const g = gruppeDerFreigabe('par_1')
+    expect(g).toMatch(/^f[0-9a-f]{8}$/)
+    expect(istGruppe(g)).toBe(true)
+    expect([OEFFENTLICH, ZUSCHAUER]).not.toContain(g)
+    expect(gruppeDerFreigabe('par_1')).toBe(g)
+    expect(gruppeDerFreigabe('par_2')).not.toBe(g)
+    expect(gruppeDerFreigabe('parallel')).not.toBe(g)
+    // Andere Vorsilbe als die Listen: Ein Name kann nie beides sein.
+    expect(gruppeDerListe(K('par_1', 'steg')).startsWith('l')).toBe(true)
+  })
+})
+
 describe('gruppenFuer', () => {
-  it('die öffentliche Gruppe und je Liste deren Gruppe; die Start-Freigabe bringt keine dazu', () => {
+  it('die öffentliche Gruppe, je Liste deren Gruppe und je Bereich der Start-Freigabe die Freigabe-Gruppe', () => {
     const a = K('par_1', 'steg')
     const b = K('par_1', 'gate135')
-    expect(gruppenFuer([{ art: 'startfreigabe', bereiche: ['par_1'] }])).toEqual([OEFFENTLICH])
-    expect(gruppenFuer([{ art: 'liste', liste: a, teil: 'ab' }, { art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: b }])).toEqual([OEFFENTLICH, gruppeDerListe(a), gruppeDerListe(b)])
+    expect(gruppenFuer([{ art: 'startfreigabe', bereiche: ['par_1'] }])).toEqual([OEFFENTLICH, gruppeDerFreigabe('par_1')])
+    expect(gruppenFuer([{ art: 'startfreigabe', bereiche: ['par_1', 'par_2'] }])).toEqual([OEFFENTLICH, gruppeDerFreigabe('par_1'), gruppeDerFreigabe('par_2')])
+    expect(gruppenFuer([{ art: 'liste', liste: a, teil: 'ab' }, { art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: b }])).toEqual([
+      OEFFENTLICH,
+      gruppeDerListe(a),
+      gruppeDerListe(b),
+      gruppeDerFreigabe('par_1'),
+    ])
     expect(gruppenFuer([])).toEqual([OEFFENTLICH])
   })
 })

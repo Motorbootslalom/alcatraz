@@ -241,3 +241,34 @@ describe('F17: nichts auf der Anzeigetafel', () => {
     expect(sichtZuschauer(sichtOeffentlich(mit))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
   })
 })
+
+describe('F17 (W2.4): auch die Actions des Bedienrechners ändern nichts auf Anzeigetafel und Zuschauerliste', () => {
+  it('sichtOeffentlich/sichtZuschauer gleich nach Rückfrage, Vorschlag, Modus, Pause, „Papier ab“, Abschluss lösen, R und warnen/nachfragen', () => {
+    const { s, erste } = bereit('gate135', 'steg')
+    const oeff = JSON.stringify(sichtOeffentlich(s))
+    const zus = JSON.stringify(sichtZuschauer(sichtOeffentlich(s)))
+    const schritte: AppState[] = []
+    const weiter = (st: AppState, a: Parameters<typeof reducer>[1]) => {
+      const n = reducer(st, a)
+      schritte.push(n)
+      return n
+    }
+    let st = weiter(s, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: erste[0], feld: 't1a|hin seiteA', wert: '7' }] })
+    st = weiter(st, { type: 'WKR_ZEILEN', liste: K('gate135'), quelle: { geraet: 'g1', name: 'Handy Tor 1' }, zeilen: [zeile(st, 'gate135', erste[0], [['t1a|hin seiteA', '5', '']])], zeit: 5000 })
+    expect(st.wkr.rueckfragen.length).toBeGreaterThan(0)
+    st = weiter(st, { type: 'WKR_RUECKFRAGE', id: st.wkr.rueckfragen[0].id, wahl: 'geraet', zeit: 5100 })
+    st = weiter(st, { type: 'WKR_LISTE', liste: K('gate135'), status: 'pausiert', zeit: 5200 })
+    st = weiter(st, { type: 'WKR_LISTE', liste: K('gate135'), status: 'aktiv', zeit: 5300 })
+    st = weiter(st, { type: 'WKR_LISTE', liste: K('steg'), modus: 'beides', zeit: 5400 })
+    st = weiter(st, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: st.betrieb.bereiche[P1].gezeigt[1].ref, zeit: 5500 })
+    st = weiter(st, { type: 'WKR_ZEILEN', liste: K('gate135'), quelle: { geraet: 'g1', name: 'Handy Tor 1' }, zeilen: [zeile(st, 'gate135', erste[1], [['t1a|hin seiteA', '3', '']], 'g1', 2)], zeit: 5600 })
+    if (st.wkr.vorschlaege.length) st = weiter(st, { type: 'WKR_VORSCHLAG', id: st.wkr.vorschlaege[0].id, wahl: 'uebernehmen', zeit: 5700 })
+    st = weiter(st, { type: 'WKR_ABSCHLUSS_LOESEN', liste: K('gate135'), punkt: 'lauf:1', zeit: 5800 })
+    st = weiter(st, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 7, wkrWarnung: 'nachfragen' } })
+    expect(st.anzeige.wkrWarnung).toBe('nachfragen')
+    for (const x of schritte) {
+      expect(JSON.stringify(sichtOeffentlich(x))).toBe(oeff)
+      expect(JSON.stringify(sichtZuschauer(sichtOeffentlich(x)))).toBe(zus)
+    }
+  })
+})

@@ -9,6 +9,8 @@ import { koppelThema } from './themen'
 import { fromBase64Url } from './transport/ntfy/codec'
 import { GeraetTransport, type Empfang } from './transport/ntfy/transport'
 import type { Ablehnung, Ergebnis, GeraeteAction, GeraeteNachricht } from './transport/protokoll'
+import { gruppeDerFreigabe } from './wkrGruppen'
+import { liesFreigabe, type FreigabeErfassung } from '../wkr/freigabe'
 
 /**
  * Ein gekoppeltes Gerät für die Start-Freigabe (Etappe E7, Plan vom 16.11.2026 §5): liest die öffentliche Sicht wie die
@@ -81,6 +83,11 @@ export interface GekoppeltesGeraet extends Omit<LeseGeraet, 'art' | 'zuschauer'>
   darf(action: GeraeteAction): boolean
   /** W1: der Kanal für die WKR-Erfassung (geraete/erfassen.ts). */
   readonly kanal: GeraeteKanal
+  /**
+   * W2.4: Freigabe-Sicht je eigenem Bereich der Start-Freigabe (wkr/freigabe.ts, über die Freigabe-Gruppe des
+   * Bereichs) – fehlt, solange keine kam oder das Gerät den Schlüssel (noch) nicht hat. Nur im Arbeitsspeicher.
+   */
+  readonly freigabe: Readonly<ShallowRef<Record<string, FreigabeErfassung>>>
 }
 
 export type KoppelStart =
@@ -142,6 +149,7 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
   const offen = shallowRef<number[]>([])
   const meldetSich = ref(false)
   const quittung = shallowRef<Quittung | null>(null)
+  const freigabe = shallowRef<Record<string, FreigabeErfassung>>({})
   const merke = (aenderung: Partial<Kopplung>) => {
     Object.assign(k, aenderung)
     schreibeKopplung({ ...k, lage: lage.value, aufgaben: aufgaben.value }, ablage)
@@ -187,6 +195,12 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
       aktualisiereOffen()
       return
     }
+    if (e.art === 'sicht' && e.gruppe.startsWith('f')) {
+      // W2.4: Nur eine Sicht der Freigabe-Gruppe eines eigenen Bereichs, und nur, wenn sie zu diesem Bereich gehört.
+      const f = liesFreigabe(e.sicht)
+      if (f && freigabeBereiche(aufgaben.value).includes(f.bereich) && gruppeDerFreigabe(f.bereich) === e.gruppe) freigabe.value = { ...freigabe.value, [f.bereich]: f }
+      return
+    }
     if (e.art !== 'direkt') return
     const n = e.nachricht
     switch (n.art) {
@@ -216,6 +230,7 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
         // Liest Öffentliches weiter (K14), sendet nichts mehr; Unbestätigtes hat der Transport verworfen.
         lage.value = 'entzogen'
         aufgaben.value = []
+        freigabe.value = {}
         merke({ thema: null })
         break
     }
@@ -231,6 +246,7 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
     offen,
     meldetSich,
     quittung,
+    freigabe,
     async start() {
       await kern.start()
       aktualisiereOffen()

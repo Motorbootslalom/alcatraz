@@ -503,3 +503,72 @@
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+
+/* Digitale WKR-Erfassung (W2.3, 21.11.2026; Bildschirm, keine Druckliste – Farben nur --blatt-*).
+   Unter dem Kopf: „n Zeilen: Papier ansehen“ und offene Rückfragen mit Verweis auf Betrieb → WKR. */
+.erf-wkr-stand {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.erf-wkr-papier,
+.erf-wkr-rueckfragen {
+  color: var(--blatt-warn);
+  font-weight: 600;
+}
+
+/* ▭ vor der Nummer: Diese Zeile vom Papierbogen prüfen. Form (Kasten) und Farbe, nicht nur Farbe. */
+.erf-papier-marke {
+  margin-right: 3px;
+  color: var(--blatt-warn);
+  font-weight: 700;
+}
+
+/* ! vor der Nummer: Rückfrage vom Gerät offen (entschieden wird im Betrieb). */
+.erf-wkr-frage {
+  display: inline-block;
+  min-width: 1.1em;
+  margin-right: 3px;
+  border: 1.5px solid var(--blatt-warn);
+  border-radius: 50%;
+  color: var(--blatt-warn);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15em;
+  text-align: center;
+}
+
+/* Zelle statt Zeile: nur ein Steg-Teil fehlt (gestrichelt) bzw. genau hier steht eine Rückfrage. */
+.erf-tabelle td.erf-zelle--papier {
+  outline: 2px dashed var(--blatt-warn);
+  outline-offset: -3px;
+}
+
+.erf-tabelle td.erf-zelle--rueckfrage {
+  outline: 2px dotted var(--blatt-warn);
+  outline-offset: -3px;
+}
+
+/* ◆ Wert vom Gerät: klein oben rechts, die Eingabe bleibt frei. */
+.erf-tabelle td.erf-zelle--geraet {
+  position: relative;
+}
+
+.erf-raute {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  color: var(--blatt-akzent);
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* X „Nicht gestartet“ vom Gerät (F5): zusätzlich gerahmt – es nimmt dem Starter den Lauf. */
+.erf-tabelle td.erf-zelle--x-geraet {
+  outline: 2px solid var(--blatt-warn);
+  outline-offset: -3px;
+}

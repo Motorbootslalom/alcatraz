@@ -374,3 +374,75 @@ describe('Aufräumen', () => {
     expect(reducer(mit, { type: 'REMOVE_STARTER', id: erster }).wkr.rueckfragen).toHaveLength(1)
   })
 })
+
+// W2 (Plan docs/plan-wkr-w2.md §4, 21.11.2026): „Papier ab Start …“, Zeilen zu Starts auf Papier werden Vorschlag (A6).
+describe('WKR_PAPIER_AB (W2, A10)', () => {
+  /** gate135 digital, drei Starts gezeigt (1000, 2000, 3000). */
+  function drei(...typeIds: string[]) {
+    let { s } = bereit(...typeIds)
+    s = zeigeNaechsten(zeigeNaechsten(s, P1, 2000), P1, 3000)
+    return { s, keys: s.betrieb.bereiche[P1].gezeigt.map((g) => g.ref) }
+  }
+
+  it('meldet ab: Pause ab der Zeit des gezeigten Starts, `ab`, P = Schlange ab dem Start', () => {
+    const { s: s0, keys } = drei()
+    const erster = JSON.parse(keys[0])[1] as string
+    const s = tippe(s0, erster, 'erfasst@gate135', '1')
+    const next = reducer(s, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: keys[1], zeit: 5000 })
+    expect(next.wkr.listen[K('gate135')]).toMatchObject({ status: 'abgemeldet', pausen: [{ von: 2000, bis: null, papier: [keys[1], keys[2]], ab: keys[1] }] })
+    // Zweimal dasselbe: derselbe Stand; deterministisch.
+    expect(reducer(next, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: keys[1], zeit: 6000 })).toBe(next)
+    expect(reducer(s, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: keys[1], zeit: 5000 })).toEqual(next)
+    // „Weiter digital“ schließt die Pause; was danach gezeigt wird, kommt wieder vom Gerät.
+    const weiter = reducer(next, { type: 'WKR_LISTE', liste: K('gate135'), status: 'aktiv', zeit: 7000 })
+    expect(weiter.wkr.listen[K('gate135')]).toMatchObject({ status: 'aktiv', pausen: [{ von: 2000, bis: 7000, ab: keys[1] }] })
+  })
+
+  it('nicht gezeigter Start: Pause ab jetzt; schon pausiert: die offene Pause bekommt `ab`', () => {
+    const { s, keys } = drei()
+    const kuenftig = refKey({ art: 'm', starter: lage(s, P1).frei[0].starter, lauf: 1 })
+    expect(reducer(s, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: kuenftig, zeit: 5000 }).wkr.listen[K('gate135')].pausen).toEqual([{ von: 5000, bis: null, papier: [], ab: kuenftig }])
+    const p = reducer(s, { type: 'WKR_LISTE', liste: K('gate135'), status: 'pausiert', zeit: 4000 })
+    const ab = reducer(p, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: keys[2], zeit: 5000 })
+    expect(ab.wkr.listen[K('gate135')]).toMatchObject({ status: 'abgemeldet', pausen: [{ von: 4000, bis: null, papier: keys, ab: keys[2] }] })
+  })
+
+  it('ohne Eintrag, auf Papier, unlesbare Kennung, Teil an ungeteilter Liste: derselbe Stand', () => {
+    const { s, keys } = drei()
+    expect(reducer(s, { type: 'WKR_PAPIER_AB', liste: K('tor5'), ref: keys[0], zeit: 5000 })).toBe(s)
+    const papier = reducer(s, { type: 'WKR_LISTE', liste: K('gate135'), modus: 'papier', zeit: 4000 })
+    expect(reducer(papier, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: keys[0], zeit: 5000 })).toBe(papier)
+    expect(reducer(s, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: 'kaputt', zeit: 5000 })).toBe(s)
+    expect(reducer(s, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: keys[0], teil: 'ab', zeit: 5000 })).toBe(s)
+  })
+
+  it('Steg je Teil: nur dieser Teil wird abgemeldet', () => {
+    const { s, keys } = drei('steg')
+    const next = reducer(s, { type: 'WKR_PAPIER_AB', liste: K('steg'), ref: keys[2], teil: 'ab', zeit: 5000 })
+    expect(next.wkr.listen[K('steg')]).toMatchObject({ status: 'aktiv', teile: { ab: { status: 'abgemeldet', pausen: [{ von: 3000, bis: null, papier: [keys[2]], ab: keys[2] }] } } })
+  })
+
+  it('Zeile zu einem Start auf Papier wird Vorschlag „papier“ (A6); Starts davor gehen weiter direkt durch', () => {
+    const { s: s0, keys } = drei()
+    const [erster, , dritter] = keys.map((k) => JSON.parse(k)[1] as string)
+    const s = reducer(s0, { type: 'WKR_PAPIER_AB', liste: K('gate135'), ref: keys[2], zeit: 5000 })
+    // P = ab dem dritten. Der erste liegt vor „Papier ab“ und ist kein P-Start: Seine (wartende) Zeile geht durch,
+    // obwohl die Liste jetzt abgemeldet ist.
+    const z1 = zeileVon(s, 'gate135', erster, [['t1a|hin seiteA', '5', '']], { z: 1 })
+    const z3 = zeileVon(s, 'gate135', dritter, [['t1a|hin seiteA', '5', '']], { z: 2 })
+    const next = sende(s, 'gate135', [z1, z3])
+    expect(werte(next, erster)).toEqual({ 't1a|hin seiteA': '5', 'erfasst@gate135': '1' })
+    expect(werte(next, dritter)).toEqual({})
+    expect(next.wkr.vorschlaege).toMatchObject([{ id: 'g1.2', grund: 'papier', starter: dritter }])
+  })
+
+  it('Pause: Zeile zu einem Start, der in P ging, wird Vorschlag – auch nach „Weiter“', () => {
+    const { s: s0, keys } = drei()
+    const zweiter = JSON.parse(keys[1])[1] as string
+    let s = reducer(s0, { type: 'WKR_LISTE', liste: K('gate135'), status: 'pausiert', zeit: 4000 })
+    s = reducer(s, { type: 'WKR_LISTE', liste: K('gate135'), status: 'aktiv', zeit: 4500 })
+    const next = sende(s, 'gate135', [zeileVon(s, 'gate135', zweiter, [['t1a|hin seiteA', '5', '']])])
+    expect(werte(next, zweiter)).toEqual({})
+    expect(next.wkr.vorschlaege).toMatchObject([{ grund: 'papier', starter: zweiter }])
+  })
+})
