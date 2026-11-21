@@ -141,6 +141,11 @@ export default {
   'history.what.druckGeloest': 'Parallel-Slalom: Druck von {round} gelöst',
   'history.what.rundenFestAlle': 'Parallel-Slalom: nächste Runde für {n} Klasse festgeschrieben | Parallel-Slalom: nächste Runde für {n} Klassen festgeschrieben',
   'history.what.nichtWerten': '„Disziplin nicht werten“ geändert',
+  'history.what.eingabeGeraet': 'Werte vom Gerät „{device}“ ({list})',
+  'history.what.rueckfrage': 'Rückfrage eines WKR-Geräts entschieden',
+  'history.what.vorschlag': 'Vorschlag eines WKR-Geräts entschieden',
+  'history.what.wkrListe': 'Erfassung der Liste {list} umgestellt',
+  'history.what.wkrAbschluss': 'Abschluss der Liste {list} geändert',
 
   'backup.reset': 'Alles zurücksetzen',
   'backup.resetConfirm':

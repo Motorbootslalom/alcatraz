@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { bereinige, darf, erlaubteAction, freigabeBereiche, liesAufgaben, STARTFREIGABE_ACTIONS, type Aufgabe, type AufgabenStand } from './aufgaben'
+import { bereinige, darf, erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, listenAufgaben, STARTFREIGABE_ACTIONS, WKR_ACTIONS, type Aufgabe, type AufgabenStand } from './aufgaben'
+import { reducer } from '../state/reducer'
+import { configFor } from '../config/konfig'
+import { lage, refKey } from '../betrieb/folge'
+import { wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { listenKennung, type Liste } from '../wkr/liste'
+import type { AppState } from '../types'
 
 /**
  * Rechte der Geräte (E7) – sinngemäß aus tafel state/permissions.test.ts portiert (Steg nur eigene Parcours, nie
@@ -114,5 +120,121 @@ describe('liesAufgaben', () => {
     ])
     expect(liesAufgaben(null)).toEqual([])
     expect(freigabeBereiche([...steg('see'), ...steg('land', 'see')])).toEqual(['see', 'land'])
+  })
+})
+
+// --- WKR-Listen (W1, 21.11.2026) ----------------------------------------------------------------
+
+describe('Aufgabe `liste` (W1)', () => {
+  const kennung = (typeId: string, bereich = 'par_1') => listenKennung({ bereich, typeId, racecourse: null })
+
+  it('liesAufgaben: Liste, Teil nur am Steg, höchstens zwei Listen (F15), Doppelte einmal', () => {
+    expect(liesAufgaben([{ art: 'liste', liste: kennung('steg'), teil: 'ab' }, { art: 'liste', liste: kennung('gate135') }])).toEqual([
+      { art: 'liste', liste: kennung('steg'), teil: 'ab' },
+      { art: 'liste', liste: kennung('gate135') },
+    ])
+    // Teil an einer ungeteilten Liste, falscher Teil, unlesbare Kennung: fällt weg.
+    expect(liesAufgaben([{ art: 'liste', liste: kennung('gate135'), teil: 'ab' }, { art: 'liste', liste: kennung('steg'), teil: 'mitte' }, { art: 'liste', liste: 'kaputt' }])).toEqual([])
+    // Drei Listen → die ersten zwei; dieselbe zweimal → einmal; die Start-Freigabe zählt nicht mit.
+    const drei = liesAufgaben([
+      { art: 'liste', liste: kennung('tor5') },
+      { art: 'liste', liste: kennung('tor5') },
+      { art: 'startfreigabe', bereiche: ['par_1'] },
+      { art: 'liste', liste: kennung('mueb') },
+      { art: 'liste', liste: kennung('steg') },
+    ])
+    expect(drei).toEqual([{ art: 'liste', liste: kennung('tor5') }, { art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: kennung('mueb') }])
+    expect(listenAufgaben(drei).map((a) => a.liste)).toEqual([kennung('tor5'), kennung('mueb')])
+    expect(freigabeBereiche(drei)).toEqual(['par_1'])
+  })
+})
+
+describe('erlaubteWkr (W1)', () => {
+  const DMK = configFor({ regelwerk: 'dm-2026' })
+  const P1 = 'par_1'
+  const L = (typeId: string): Liste => ({ bereich: P1, typeId, racecourse: null })
+  const K = (typeId: string) => listenKennung(L(typeId))
+  const G = { id: 'g1', name: '  Handy Tor 1  ' }
+
+  function bereit(): { s: AppState; erster: string } {
+    let s = wkrBetriebsStand()
+    for (const t of ['gate135', 'steg', 'vorsteg']) s = reducer(s, { type: 'WKR_LISTE', liste: K(t), modus: 'digital', zeit: 100 })
+    s = zeigeNaechsten(s, P1, 1000)
+    return { s, erster: lage(s, P1).aktuell!.eintrag!.starter }
+  }
+  const z = (starter: string, c: [string, string, string][], nr = 1, mehr: Record<string, unknown> = {}) => ({ z: nr, s: refKey({ art: 'm', starter, lauf: 1 }), c, ...mehr })
+  const zeilen = (typeId: string, ...zs: unknown[]) => ({ type: 'WKR_ZEILEN', liste: K(typeId), zeilen: zs })
+
+  it('Zeilen der eigenen Liste → WKR_ZEILEN mit `quelle` aus dem Register; schlechte Zeilen einzeln abgelehnt', () => {
+    const { s, erster } = bereit()
+    const r = erlaubteWkr(zeilen('gate135', z(erster, [['t1a|hin seiteA', '5', '']], 1), z(erster, [['fremd', '1', '']], 2), { kaputt: true }), [{ art: 'liste', liste: K('gate135') }], s, DMK, G)!
+    expect(r.action).toMatchObject({ type: 'WKR_ZEILEN', liste: K('gate135'), quelle: { geraet: 'g1', name: 'Handy Tor 1' } })
+    expect(r.action!.type === 'WKR_ZEILEN' && r.action!.zeilen.map((x) => x.id)).toEqual(['g1.1'])
+    expect(r.abgelehnt).toEqual([{ z: 2, grund: 'feld-fremd' }, { z: 0, grund: 'wert-ungueltig' }])
+    // Was durchkommt, wendet der Reducer an.
+    expect(reducer(s, { ...r.action!, zeit: 2000 }).eingaben['manoevrieren/1'][erster]['t1a|hin seiteA']).toBe('5')
+    // Alles abgelehnt: keine Action, aber die Ablehnungen.
+    expect(erlaubteWkr(zeilen('gate135', z(erster, [['fremd', '1', '']], 3)), [{ art: 'liste', liste: K('gate135') }], s, DMK, G)).toEqual({ action: null, abgelehnt: [{ z: 3, grund: 'feld-fremd' }] })
+  })
+
+  it('fremde Liste, unbekannte Liste, Art außerhalb der Positivliste, zu viele Zeilen → nicht erlaubt', () => {
+    const { s, erster } = bereit()
+    const eigene = [{ art: 'liste', liste: K('gate135') }] as Aufgabe[]
+    const gut = z(erster, [['t1a|hin seiteA', '5', '']])
+    expect(erlaubteWkr(zeilen('tor5', gut), eigene, s, DMK, G)).toBeNull()
+    expect(erlaubteWkr(zeilen('gate135', gut), [{ art: 'startfreigabe', bereiche: [P1] }], s, DMK, G)).toBeNull()
+    expect(erlaubteWkr(zeilen('gate135', gut), [], s, DMK, G)).toBeNull()
+    // Eine Liste, die es in der Veranstaltung nicht gibt (Knoten erst W5; fremder Parcours).
+    const knoten = listenKennung({ bereich: P1, typeId: 'knoten', racecourse: null })
+    expect(erlaubteWkr({ type: 'WKR_ZEILEN', liste: knoten, zeilen: [gut] }, [{ art: 'liste', liste: knoten }], s, DMK, G)).toBeNull()
+    const fremd = listenKennung({ bereich: 'see', typeId: 'gate135', racecourse: null })
+    expect(erlaubteWkr({ type: 'WKR_ZEILEN', liste: fremd, zeilen: [gut] }, [{ art: 'liste', liste: fremd }], s, DMK, G)).toBeNull()
+    for (const type of ['WKR_RUECKFRAGE', 'WKR_VORSCHLAG', 'WKR_LISTE', 'WKR_ABSCHLUSS_LOESEN', 'SET_EINGABEN', 'BETRIEB_ZEIGEN'])
+      expect(erlaubteWkr({ type, liste: K('gate135'), zeilen: [gut], id: 'x', wahl: 'geraet', modus: 'digital' }, eigene, s, DMK, G), type).toBeNull()
+    expect(erlaubteWkr(zeilen('gate135'), eigene, s, DMK, G)).toBeNull()
+    expect(erlaubteWkr(zeilen('gate135', ...Array.from({ length: 9 }, (_, i) => z(erster, [], i + 1))), eigene, s, DMK, G)).toBeNull()
+    expect(erlaubteWkr(zeilen('gate135', ...Array.from({ length: 8 }, (_, i) => z(erster, [], i + 1))), eigene, s, DMK, G)).not.toBeNull()
+  })
+
+  it('Steg mit Teil (F16): fremder Teil abgelehnt; X nur Steg-Ablegen und Vorsteg (F5)', () => {
+    const { s, erster } = bereit()
+    const ab = [{ art: 'liste', liste: K('steg'), teil: 'ab' }] as Aufgabe[]
+    const an = [{ art: 'liste', liste: K('steg'), teil: 'an' }] as Aufgabe[]
+    expect(erlaubteWkr(zeilen('steg', z(erster, [['katalog:stegAnlegen', '7', '']])), ab, s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'teil-fremd' }])
+    expect(erlaubteWkr(zeilen('steg', z(erster, [], 1, { t: 'an' })), ab, s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'teil-fremd' }])
+    const x = erlaubteWkr(zeilen('steg', z(erster, [['disq@steg', 'X', '']])), ab, s, DMK, G)!
+    expect([x.abgelehnt, x.action!.type === 'WKR_ZEILEN' && x.action!.zeilen[0].haken]).toEqual([[], ['erfasst.ab@steg']])
+    expect(erlaubteWkr(zeilen('steg', z(erster, [['disq@steg', 'X', '']])), an, s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'x-nicht-erlaubt' }])
+    expect(erlaubteWkr(zeilen('vorsteg', z(erster, [['disq@vorsteg', 'X', '']])), [{ art: 'liste', liste: K('vorsteg') }], s, DMK, G)!.abgelehnt).toEqual([])
+    expect(erlaubteWkr(zeilen('gate135', z(erster, [['t1a|hin seiteA', 'X', '']])), [{ art: 'liste', liste: K('gate135') }], s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'x-nicht-erlaubt' }])
+  })
+
+  it('WKR_STATUS → WKR_LISTE nur mit Status (Modus bleibt am Bedienrechner); WKR_ABSCHLUSS mit Name ≤ 60 und Teil der Aufgabe', () => {
+    const { s } = bereit()
+    const steg = [{ art: 'liste', liste: K('steg'), teil: 'an' }] as Aufgabe[]
+    expect(erlaubteWkr({ type: 'WKR_STATUS', liste: K('steg'), status: 'pausiert', modus: 'papier' }, steg, s, DMK, G)).toEqual({ action: { type: 'WKR_LISTE', liste: K('steg'), status: 'pausiert', teil: 'an' }, abgelehnt: [] })
+    // Ohne Teil (ganzer Steg bzw. ungeteilte Liste): die ganze Liste.
+    expect(erlaubteWkr({ type: 'WKR_STATUS', liste: K('steg'), status: 'pausiert' }, [{ art: 'liste', liste: K('steg') }], s, DMK, G)!.action).toEqual({ type: 'WKR_LISTE', liste: K('steg'), status: 'pausiert' })
+    expect(erlaubteWkr({ type: 'WKR_STATUS', liste: K('steg'), status: 'weg' }, steg, s, DMK, G)).toBeNull()
+    const abschluss = (mehr: Record<string, unknown> = {}) => ({ type: 'WKR_ABSCHLUSS', liste: K('steg'), punkt: 'lauf:1', name: ' Vorname Muster ', pruefsummen: { [refKey({ art: 'm', starter: 'e1', lauf: 1 })]: 'abc' }, restPapier: false, ...mehr })
+    expect(erlaubteWkr(abschluss({ zeit: 1, fremd: true }), steg, s, DMK, G)).toEqual({
+      action: { type: 'WKR_ABSCHLUSS', liste: K('steg'), punkt: 'lauf:1', name: 'Vorname Muster', pruefsummen: { [refKey({ art: 'm', starter: 'e1', lauf: 1 })]: 'abc' }, restPapier: false, teil: 'an' },
+      abgelehnt: [],
+    })
+    for (const kaputt of [{ name: '' }, { name: 'x'.repeat(61) }, { punkt: 'lauf:x' }, { restPapier: 'ja' }, { pruefsummen: { a: 5 } }, { pruefsummen: null }])
+      expect(erlaubteWkr(abschluss(kaputt), steg, s, DMK, G), JSON.stringify(kaputt)).toBeNull()
+    expect(erlaubteWkr(abschluss({ name: 'x'.repeat(60) }), steg, s, DMK, G)).not.toBeNull()
+    // Ein Punkt, der noch nicht begonnen hat (Prüfbefund 21.11.2026): nicht erlaubt.
+    expect(erlaubteWkr(abschluss({ punkt: 'lauf:2' }), steg, s, DMK, G)).toBeNull()
+  })
+
+  it('erlaubteAction lässt keine WKR-Art durch; die Start-Freigabe bleibt, wie sie war', () => {
+    const { s } = bereit()
+    const beide: Aufgabe[] = [{ art: 'startfreigabe', bereiche: [P1] }, { art: 'liste', liste: K('gate135') }]
+    for (const type of WKR_ACTIONS) expect(erlaubteAction({ type, bereich: P1, liste: K('gate135') }, beide, s)).toBeNull()
+    expect(erlaubteAction({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null }, beide, s)).toEqual({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null })
+    // Eine Liste allein gibt keine Start-Freigabe.
+    expect(darf({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null }, [{ art: 'liste', liste: K('gate135') }], s)).toBe(false)
+    expect(WKR_ACTIONS).toEqual(['WKR_ZEILEN', 'WKR_STATUS', 'WKR_ABSCHLUSS'])
   })
 })

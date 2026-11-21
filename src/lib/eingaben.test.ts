@@ -3,6 +3,9 @@ import { configFor } from '../config/konfig'
 import type { ClassId, Eingaben, Starter } from '../types'
 import {
   erfasstKennung,
+  ganzerHaken,
+  istHaken,
+  teilHaken,
   gueltigeZellen,
   starterMitEingaben,
   verborgeneEinzelheiten,
@@ -208,6 +211,25 @@ describe('Werte, die keine Liste mehr zeigt', () => {
     expect(verborgeneZellen(fremd, konfig).map((z) => z.starter)).toEqual(['s2'])
     const andere = { ...stand(), eingaben: { 'parallel/1': { s1: { zeit1: '30' } } } }
     expect(verborgeneZellen(andere, konfig)).toHaveLength(1)
+  })
+})
+
+describe('Teilhaken (digitale WKR-Erfassung, Steg Ablegen/Anlegen, 21.11.2026)', () => {
+  const starter = (id: string, klasse: ClassId): Starter => ({ id, startNr: id, vorname: 'Vor', nachname: id, verein: '', bundesland: '', geburtsdatum: '', klasse, groesse: '' })
+  const mit = (feld: string) => ({ aufbau: 'alcatraz', laufCount: 3, starters: [starter('s1', '4')], eingaben: { [L1]: { s1: { [feld]: '1' } } } as Eingaben })
+
+  it('istHaken, teilHaken, ganzerHaken', () => {
+    expect(teilHaken('steg', 'ab')).toBe('erfasst.ab@steg')
+    for (const k of ['erfasst@steg', 'erfasst.ab@steg', 'erfasst.an@steg']) expect(istHaken(k)).toBe(true)
+    for (const k of ['erfasst.mitte@steg', 'disq@steg', 'erfasst', 'x.erfasst@steg']) expect(istHaken(k)).toBe(false)
+    expect(ganzerHaken('erfasst.an@steg')).toBe('erfasst@steg')
+    expect(ganzerHaken('disq@steg')).toBeUndefined()
+  })
+
+  it('sichtbar, wo der Haken seiner Liste es ist; sonst verborgen wie der Haken', () => {
+    expect(verborgeneZellen(mit('erfasst.ab@steg'), konfig)).toEqual([])
+    expect(verborgeneZellen(mit('erfasst.ab@nirgends'), konfig).map((z) => z.feld)).toEqual(['erfasst.ab@nirgends'])
+    expect(verborgeneEinzelheiten(mit('erfasst.ab@nirgends'), konfig)[0].werte[0]).toMatchObject({ art: 'erfasst', zaehlt: false })
   })
 })
 

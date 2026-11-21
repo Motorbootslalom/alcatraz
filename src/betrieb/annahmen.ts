@@ -541,8 +541,8 @@ export const BETRIEB_ANNAHMEN = {
   wachBleiben: true,
   /**
    * E8, „Alle Geräte neu laden“ (beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
-   * - Signierte Gruppenmeldung `neu-laden` an `ko` und `kz` (gab es seit E5 im Protokoll; PROTOKOLL_FASSUNG bleibt 1 –
-   *   ältere Geräte überhören sie). Gekoppelte Handys lesen `ko` und laden mit.
+   * - Signierte Gruppenmeldung `neu-laden` an `ko` und `kz` (gab es seit E5 im Protokoll; PROTOKOLL_FASSUNG blieb 1, 2 erst
+   *   mit W1 – ältere Geräte überhören sie). Gekoppelte Handys lesen `ko` und laden mit.
    * - Das Gerät holt wie bei einer neueren Fassung des Hosts das Programm (lib/offline.ts holeNeueFassung, geht das
    *   nicht: location.reload) – je Befehl (Raum, Gruppe, Nummer) einmal, gemerkt in der Geräteablage VOR dem Laden;
    *   ohne Speicher gar nicht. Nur frische Befehle (höchstens 10 min alt, geraet.ts NEULADEN_BEFEHL_GUELTIG_MS): Ein

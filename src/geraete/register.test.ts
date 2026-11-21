@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { aufgabenVon, bekannteGeraete, benenne, beruehre, entzogeneListe, geraeteListe, koppelStandVon, setzeAufgaben, setzeKoppelStand, vermerkeEntzug } from './register'
+import { aufgabenVon, bekannteGeraete, benenne, beruehre, entzogeneListe, geraeteListe, hatGruppe, koppelStandVon, setzeAufgaben, setzeKoppelStand, vermerkeEntzug, vermerkeLebenszeichen } from './register'
+import { gruppeDerListe } from './wkrGruppen'
+import { listenKennung } from '../wkr/liste'
 import { gibCode, leererKoppelStand } from './koppeln'
 import { istHostRaum, neuerRaum, ENTZOGEN_HOECHSTENS } from './transport/ntfy/raum'
 import { SERVER } from './transport/ntfy/testNtfy'
@@ -29,9 +31,9 @@ describe('Register', () => {
 
   it('Rechte ändern, umbenennen, berühren – nur für Eingetragene; der Raum bleibt gültig', () => {
     const raum = raumMitGeraet()
-    expect(setzeAufgaben(raum, 'g1', [{ art: 'startfreigabe', bereiche: ['land'] }])).toBe(true)
+    expect(setzeAufgaben(raum, 'g1', [{ art: 'startfreigabe', bereiche: ['land'] }])).toEqual({ neu: [], weg: [] })
     expect(aufgabenVon(raum, 'g1')).toEqual([{ art: 'startfreigabe', bereiche: ['land'] }])
-    expect(setzeAufgaben(raum, 'weg', [])).toBe(false)
+    expect(setzeAufgaben(raum, 'weg', [])).toBeNull()
     expect(aufgabenVon(raum, 'weg')).toEqual([])
     expect(benenne(raum, 'g1', 'Steg Süd')).toBe(true)
     beruehre(raum, 'g1', 99)
@@ -50,6 +52,28 @@ describe('Register', () => {
     expect(koppelStandVon(JSON.parse(JSON.stringify(raum)))).toEqual(k)
     setzeKoppelStand(raum, leererKoppelStand())
     expect('koppeln' in raum).toBe(false)
+    expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
+  })
+
+  it('W1: Gruppen folgen den Listen-Aufgaben (neu/weg), Lebenszeichen mit Akku und wartend', () => {
+    const raum = raumMitGeraet()
+    const tor = listenKennung({ bereich: 'see', typeId: 'gate135', racecourse: null })
+    const steg = listenKennung({ bereich: 'see', typeId: 'steg', racecourse: null })
+    const r1 = setzeAufgaben(raum, 'g1', [{ art: 'liste', liste: tor }, { art: 'liste', liste: steg, teil: 'ab' }])!
+    expect(r1).toEqual({ neu: [gruppeDerListe(tor), gruppeDerListe(steg)], weg: [] })
+    // Die Gruppen sind im selben Schreiben angelegt; `ko` steht nie unter den Gruppen des Geräts.
+    expect(raum.gruppen[gruppeDerListe(tor)]).toMatchObject({ e: 1, n: 0 })
+    expect(raum.geraete.g1.gruppen).not.toContain('ko')
+    expect(hatGruppe(raum, 'g1', gruppeDerListe(steg))).toBe(true)
+    const r2 = setzeAufgaben(raum, 'g1', [{ art: 'liste', liste: tor }])!
+    expect(r2).toEqual({ neu: [], weg: [gruppeDerListe(steg)] })
+    expect(hatGruppe(raum, 'g1', gruppeDerListe(steg))).toBe(false)
+
+    vermerkeLebenszeichen(raum, 'g1', 500, { wartend: 2, akku: 41 })
+    expect(geraeteListe(raum).find((g) => g.id === 'g1')).toMatchObject({ zuletzt: 500, wartend: 2, akku: 41 })
+    vermerkeLebenszeichen(raum, 'g1', 600, { wartend: 0 })
+    expect(raum.geraete.g1.akku).toBeUndefined()
+    vermerkeLebenszeichen(raum, 'weg', 700, { wartend: 1 })
     expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
   })
 })

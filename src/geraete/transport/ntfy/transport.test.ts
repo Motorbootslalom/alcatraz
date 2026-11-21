@@ -127,7 +127,7 @@ function leser(raum: HostRaum, welches: 'a' | 'z' = 'a', mehr: Partial<NtfyZeite
 }
 
 /** Ein Gerät, das sich mit dem Code koppeln will (noch ohne Antwort). */
-function geraet(raum: HostRaum, id: string, schluessel = neueGeraeteSchluessel(), uhr?: () => number) {
+function geraet(raum: HostRaum, id: string, schluessel = neueGeraeteSchluessel(), uhr?: () => number, zeiten: Partial<NtfyZeiten> = SCHNELL) {
   const speicher = geraetSpeicherImSpeicher()
   const t = new GeraetTransport({
     server: SERVER,
@@ -140,15 +140,15 @@ function geraet(raum: HostRaum, id: string, schluessel = neueGeraeteSchluessel()
     ich: { id, schluessel },
     speicher,
     sichtFassung: SV,
-    zeiten: SCHNELL,
+    zeiten,
     uhr,
   })
   laufend.push(t)
   return { t, speicher, schluessel, ...empfaenger(t) }
 }
 
-async function gekoppelt(raum: HostRaum, id: string, code = CODE) {
-  const g = geraet(raum, id)
+async function gekoppelt(raum: HostRaum, id: string, code = CODE, zeiten?: Partial<NtfyZeiten>) {
+  const g = geraet(raum, id, undefined, undefined, zeiten)
   await g.t.start()
   g.t.sende({ art: 'hallo', name: id, code })
   await bis(() => g.direkt('willkommen') || g.direkt('abgelehnt'))
@@ -424,7 +424,8 @@ describe('Geräte koppeln und Actions', () => {
     // Eine Action ohne Kopplung kommt gar nicht erst an (sie liegt beim Gerät, bis es gekoppelt ist).
     g.t.sende(action())
     await ruhe()
-    expect(h.eingaenge.map((e) => e.nachricht.art)).toEqual(['hallo'])
+    // Unter Last (volle Suite) kann die Anmeldung vor der Ablehnung noch einmal wiederholt werden – nie eine Action.
+    expect(new Set(h.eingaenge.map((e) => e.nachricht.art))).toEqual(new Set(['hallo']))
     expect(h.eingaenge[0].gebunden).toBe(false)
   })
 
@@ -1103,5 +1104,70 @@ describe('meldet, was fehlt, statt still nichts zu tun', () => {
     const t = new GeraetTransport({ server: SERVER, raum: raum.r, hostSign: fromBase64Url(raum.sign.pk)!, lesen: [], speicher: geraetSpeicherImSpeicher(), sichtFassung: SV })
     await t.start()
     expect(t.fehler.value).toEqual({ code: 'link-ungueltig' })
+  })
+})
+
+describe('W1: stille Quittung und gesammelte Bestätigung', () => {
+  it('still: letzteNr steigt, keine direkte Quittung; bestaetige(bis) nimmt alles ≤ bis aus der Schlange', async () => {
+    const h = host()
+    const eingaenge: Eingang[] = []
+    h.t.beiEingang((e) => {
+      if (e.nachricht.art === 'hallo') return void h.t.begruesse(e, { gruppen: [OEFFENTLICH], aufgaben: [] })
+      eingaenge.push(e)
+      h.t.quittiere(e, 'angewandt', undefined, { still: true })
+    })
+    await starte(h)
+    // Wiederholen erst spät: Unter Last (volle Suite) käme sonst vor dem Prüfen ein `doppelt` direkt zurück.
+    const g = await gekoppelt(h.raum, 'geraet-a', CODE, { ...SCHNELL, quittungMs: 5000 })
+    const d = direktThemaVon(h.speicher.lies()!, 'geraet-a')
+    const direktVorher = ntfy.bodies(d).length
+    const nr1 = g.t.sende(action())
+    await bis(() => eingaenge.length === 1)
+    await ruhe()
+    // Bearbeitet und gemerkt, aber keine Nachricht an das Gerät – es wartet weiter.
+    expect(h.speicher.lies()!.geraete['geraet-a'].letzteNr).toBe(nr1)
+    expect(ntfy.bodies(d).length).toBe(direktVorher)
+    expect(g.t.unbestaetigt()).toEqual([nr1])
+    const nr2 = g.t.sende(action())
+    // Gesammelte Quittung (aus der Sicht der Liste): nimmt nr1, nr2 bleibt und geht jetzt hinaus.
+    expect(g.t.bestaetige(nr1)).toEqual([nr1])
+    expect(g.t.bestaetige(nr1)).toEqual([])
+    expect(g.t.unbestaetigt()).toEqual([nr2])
+    await bis(() => eingaenge.length === 2)
+    expect(eingaenge[1].nr).toBe(nr2)
+    expect(g.t.bestaetige(Number.MAX_SAFE_INTEGER)).toEqual([nr2])
+    // Auch abgelegt: Nach dem Neuladen wartet nichts mehr.
+    expect(g.speicher.lies()!.schlange).toEqual([])
+  })
+
+  it('ohne bestaetige wiederholt das Gerät – die Wiederholung bekommt weiter direkt `doppelt` und wirkt nicht noch einmal', async () => {
+    const h = host()
+    const eingaenge: Eingang[] = []
+    h.t.beiEingang((e) => {
+      if (e.nachricht.art === 'hallo') return void h.t.begruesse(e, { gruppen: [OEFFENTLICH], aufgaben: [] })
+      eingaenge.push(e)
+      h.t.quittiere(e, 'angewandt', undefined, { still: true })
+    })
+    await starte(h)
+    const g = await gekoppelt(h.raum, 'geraet-a')
+    const nr = g.t.sende(action())
+    await bis(() => g.t.unbestaetigt().length === 0, 4000)
+    expect(eingaenge).toHaveLength(1)
+    expect(g.empfang.filter((e) => e.art === 'direkt' && e.nachricht.art === 'quittung').at(-1)).toMatchObject({ nachricht: { auf: nr, ergebnis: 'doppelt' } })
+  })
+
+  it('Protokoll 2: Lebenszeichen und gesehen werden gelesen, Unsinn nicht; Ablehnungen und Hinweise als Codes', async () => {
+    const { liesGeraeteNachricht, liesDirektNachricht, HINWEISE } = await import('../protokoll')
+    const { WKR_HINWEISE } = await import('../../../wkr/sicht')
+    expect([...HINWEISE]).toEqual([...WKR_HINWEISE])
+    expect(liesGeraeteNachricht({ art: 'lebenszeichen', wartend: 2, akku: 40, name: 'x' })).toEqual({ art: 'lebenszeichen', wartend: 2, akku: 40 })
+    expect(liesGeraeteNachricht({ art: 'lebenszeichen', wartend: 0 })).toEqual({ art: 'lebenszeichen', wartend: 0 })
+    expect(liesGeraeteNachricht({ art: 'lebenszeichen', wartend: -1 })).toBeNull()
+    expect(liesGeraeteNachricht({ art: 'lebenszeichen', wartend: 1, akku: 101 })).toBeNull()
+    expect(liesGeraeteNachricht({ art: 'gesehen', hinweis: 3 })).toEqual({ art: 'gesehen', hinweis: 3 })
+    expect(liesGeraeteNachricht({ art: 'gesehen', hinweis: 'drei' })).toBeNull()
+    for (const grund of ['wert-ungueltig', 'start-unbekannt', 'feld-fremd', 'x-nicht-erlaubt', 'teil-fremd', 'seite-anders', 'offen'])
+      expect(liesDirektNachricht({ art: 'quittung', auf: 1, ergebnis: 'abgelehnt', grund })).toMatchObject({ grund })
+    expect(liesDirektNachricht({ art: 'quittung', auf: 1, ergebnis: 'abgelehnt', grund: 'Freitext' })).toBeNull()
   })
 })

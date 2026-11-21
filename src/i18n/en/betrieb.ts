@@ -424,4 +424,11 @@ export default {
   'geraete.ablehnung.fassung': 'The operating computer and this device run different versions.',
   'geraete.ablehnung.nicht-erlaubt': 'This device may not do that (another racecourse, or no longer released).',
   'geraete.ablehnung.konflikt': 'Something has changed there in the meantime – please check the display.',
+  'geraete.ablehnung.wert-ungueltig': 'This value does not fit the sheet.',
+  'geraete.ablehnung.start-unbekannt': 'The operating computer does not know this start on this sheet.',
+  'geraete.ablehnung.feld-fremd': 'This column does not belong to this sheet or class.',
+  'geraete.ablehnung.x-nicht-erlaubt': '“X” (did not start) is only available at the pontoon (leaving) and at pontoon entry.',
+  'geraete.ablehnung.teil-fremd': 'This column belongs to the other part of the pontoon list.',
+  'geraete.ablehnung.seite-anders': 'This start runs on the other side (A/B).',
+  'geraete.ablehnung.offen': 'There are still open starts – finish only with “Rest on paper”.',
 } satisfies Record<keyof typeof de, string>

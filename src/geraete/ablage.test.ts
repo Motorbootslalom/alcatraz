@@ -3,14 +3,19 @@ import {
   ABLAGE,
   beendeRaum,
   geraetAblage,
+  geraetWkrAblage,
   hostAblage,
   ichOderNeu,
   legeRaumAn,
+  liesHerkunft,
   liesIch,
+  liesWkrEingang,
   PRAEFIX_GERAET,
   PRAEFIX_HOST,
   pruefeRaum,
   raumKennung,
+  schreibeHerkunft,
+  schreibeWkrEingang,
   SICHT_GUELTIG_MS,
   sichtAblage,
   verlasseRaum,
@@ -28,6 +33,7 @@ import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, ty
 import { createStore } from '../state/store'
 import { STATE_KEY } from '../persistenz/storage'
 import { makeFile } from '../persistenz/backup'
+import { extraFuer, herkunftGilt, mitAbgelehnt, mitHerkunft, mitHinweis, ohneGeraet, ohneHinweis } from './wkrEingang'
 
 /**
  * Gerätelokale Ablage (Plan §3): Raum und Schlüssel des Hosts, Kennung, Verbindung und Sicht eines Geräts – im
@@ -421,5 +427,92 @@ describe('mit dem Transport über einen nachgebauten ntfy-Server', () => {
     expect(liesIch(bezugVon(raum))!.id).not.toBe(alteId)
     expect(h.actions).toHaveLength(4)
     expect(h.actions.at(-1)).toMatchObject({ nr, gebunden: true })
+  })
+})
+
+describe('W1: Gesprächsstand und Herkunft am Bedienrechner (alcatraz.geraete.wkr, alcatraz.geraete.herkunft)', () => {
+  const L = 'liste-1'
+
+  it('an die Kennung gebunden: andere Veranstaltung → weg; bleibt nach „Raum beenden“', () => {
+    legeRaumAn(KENNUNG, SERVER)
+    let e = mitAbgelehnt(liesWkrEingang(KENNUNG), 'g1', L, [{ z: 3, grund: 'wert-ungueltig' }])
+    e = mitHinweis(e, ['g1', 'g2'], L, 'pruefen', '12').eingang
+    expect(schreibeWkrEingang(e)).toBe(true)
+    let h = mitHerkunft(liesHerkunft(KENNUNG), [{ lauf: 'manoevrieren/1', starter: 's1', feld: 'f', eintrag: { g: 'Handy Tor 1', l: L, z: 5, w: '5' } }])
+    expect(schreibeHerkunft(h)).toBe(true)
+    beendeRaum()
+    expect(liesWkrEingang(KENNUNG)).toEqual(e)
+    expect(liesHerkunft(KENNUNG)).toEqual(h)
+    // Eine andere Veranstaltung: nichts davon, und gelöscht.
+    expect(liesWkrEingang('ANDERE1')).toEqual({ kennung: 'ANDERE1', n: 0, geraete: {} })
+    expect(liesHerkunft('ANDERE1')).toEqual({ kennung: 'ANDERE1', zellen: {} })
+    expect(localStorage.getItem(ABLAGE.wkr)).toBeNull()
+    expect(localStorage.getItem(ABLAGE.herkunft)).toBeNull()
+    // Kaputtes zählt als nichts.
+    localStorage.setItem(ABLAGE.wkr, 'kein json')
+    expect(liesWkrEingang(KENNUNG).geraete).toEqual({})
+    h = liesHerkunft(KENNUNG)
+    expect(h.zellen).toEqual({})
+  })
+
+  it('Abgelehntes begrenzt, Hinweise je Gerät bis „gesehen“, Extra der Sicht nur dieser Liste', () => {
+    let e = liesWkrEingang(KENNUNG)
+    for (let z = 1; z <= 25; z++) e = mitAbgelehnt(e, 'g1', L, [{ z, grund: 'feld-fremd' }])
+    expect(e.geraete.g1.abgelehnt).toHaveLength(20)
+    expect(e.geraete.g1.abgelehnt[0].z).toBe(6)
+    e = mitAbgelehnt(e, 'g1', 'andere', [{ z: 99, grund: 'teil-fremd' }])
+    const r = mitHinweis(e, ['g1', 'g2'], L, 'papier')
+    e = r.eingang
+    expect(r.id).toBe(1)
+    expect(mitHinweis(e, ['g1'], L, 'pruefen').id).toBe(2)
+    e = ohneHinweis(e, 'g1', r.id)
+    expect(ohneHinweis(e, 'g1', r.id)).toBe(e)
+    const extra = extraFuer(e, L, [{ id: 'g1', bis: 7 }, { id: 'g2', bis: 3 }])
+    expect(extra.geraete.g1.bis).toBe(7)
+    expect(extra.geraete.g1.abgelehnt!.every((a) => a.grund === 'feld-fremd')).toBe(true)
+    expect(extra.geraete.g1.hinweise).toEqual([])
+    expect(extra.geraete.g2).toEqual({ bis: 3, abgelehnt: [], hinweise: [{ id: 1, code: 'papier' }] })
+    expect(ohneGeraet(e, 'g2').geraete.g2).toBeUndefined()
+  })
+
+  it('Herkunft ◆ gilt nur, solange der Wert gleich ist', () => {
+    const h = mitHerkunft(liesHerkunft(KENNUNG), [{ lauf: 'l/1', starter: 's1', feld: 'f', eintrag: { g: 'Handy', l: L, z: 1, w: '5' } }])
+    expect(herkunftGilt(h, { 'l/1': { s1: { f: '5' } } }, 'l/1', 's1', 'f')).toMatchObject({ g: 'Handy', w: '5' })
+    expect(herkunftGilt(h, { 'l/1': { s1: { f: '6' } } }, 'l/1', 's1', 'f')).toBeNull()
+    expect(herkunftGilt(h, {}, 'l/1', 's1', 'anderes')).toBeNull()
+  })
+
+  it('nie in Sicherung oder Vorlage', () => {
+    schreibeHerkunft(mitHerkunft(liesHerkunft(KENNUNG), [{ lauf: 'l/1', starter: 's1', feld: 'f', eintrag: { g: 'Geheimgerät', l: L, z: 1, w: '5' } }]))
+    const store = createStore({ idb: null })
+    for (const art of ['sicherung', 'vorlage'] as const) expect(JSON.stringify(makeFile(art, store.state.value, '2026-11-21T00:00:00Z'))).not.toContain('Geheimgerät')
+    store.beende()
+  })
+})
+
+describe('Ausgang der WKR-Erfassung auf dem Gerät (W1.4)', () => {
+  const BEZUG: RaumBezug = { u: SERVER, r: 'raumW1', s: 'sigW1' }
+  beforeEach(() => localStorage.clear())
+
+  it('nur für seinen Raum, 36 h nach dem letzten Schreiben; pruefeRaum und verlasseRaum räumen ihn', () => {
+    let jetzt = 1_000_000
+    const a = geraetWkrAblage(BEZUG, localStorage, () => jetzt)
+    expect(a.lies()).toBeNull()
+    expect(a.schreibe({ naechsteZ: 5 })).toBe(true)
+    expect(a.lies()).toEqual({ naechsteZ: 5 })
+    expect(geraetWkrAblage({ ...BEZUG, r: 'anderer' }, localStorage, () => jetzt).lies()).toBeNull()
+    // Das Lesen für einen anderen Raum hat ihn gelöscht.
+    expect(localStorage.getItem(ABLAGE.geraetWkr)).toBeNull()
+    a.schreibe({ naechsteZ: 6 })
+    jetzt += SICHT_GUELTIG_MS
+    expect(a.lies()).toBeNull()
+    a.schreibe({ naechsteZ: 7 })
+    pruefeRaum({ ...BEZUG, s: 'fremd' }, localStorage)
+    expect(localStorage.getItem(ABLAGE.geraetWkr)).toBeNull()
+    a.schreibe({ naechsteZ: 8 })
+    pruefeRaum(BEZUG, localStorage)
+    expect(a.lies()).toEqual({ naechsteZ: 8 })
+    verlasseRaum(localStorage)
+    expect(localStorage.getItem(ABLAGE.geraetWkr)).toBeNull()
   })
 })

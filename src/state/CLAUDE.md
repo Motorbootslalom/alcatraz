@@ -25,6 +25,12 @@
   geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`. E6: SET_GERAETE_SERVER
   (`geraeteServer`, '' = Vorgabe geraete/themen.ts NTFY_VORGABE; geprüft mit lib/serverAdresse.ts – nichts aus
   geraete/ im Reducer; reist als Einstellung mit Sicherung und Vorlage, migrate: Unbrauchbares → '').
+- `reducer/wkr.ts` (W1, 21.11.2026) – WKR_ZEILEN (Übernahme über wkr/uebernahme.ts, Rückfrage-ID zeile|lauf|starter|feld,
+  Papier/abgeschlossen → Vorschlag, nicht gezeigt → Rückfrage `start`, Haken nur ohne Konflikt, beide Teilhaken →
+  ganzer), WKR_RUECKFRAGE (Grund `start` mit `vereinige`: gegen das dann Stehende vereinigt), WKR_VORSCHLAG, WKR_LISTE
+  (Pause mit P = Schlange; `teil`: nur dieser Steg-Teil), WKR_ABSCHLUSS(_LOESEN) je Teil (`punkt|teil`, nur begonnene
+  Punkte; wkr/abschluss.ts); wkrLeer,
+  normalisiereWkr (migrate), wkrOhneLaeufe (CLEAR_EINGABEN/_TEIL), wkrNurStarter (mitStartern). Logik: src/wkr/.
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
 
@@ -87,6 +93,9 @@
   deren Parcours um, `parallel` bleibt); anzeige reist mit, kopfzeile bleibt beim Ziel. BETRIEB_* ohne Verlaufseintrag
   (verlauf.ts `null`); VerlaufPanel stellt mit dem jetzigen betrieb wieder her – nur bei gleicher `kennung` (sonst der des
   Eintrags); CLEAR_EINGABEN lässt ihn stehen.
+- wkr (W1, 21.11.2026): in der Sicherung, nicht in der Vorlage (apply behält current.wkr); nie ein Gerätename im Stand.
+  WKR_ZEILEN/RUECKFRAGE/VORSCHLAG sind Eingabewege (`eingegeben` in reducer.ts). CLEAR_EINGABEN leert Rückfragen,
+  Vorschläge, Abschlüsse – Modus/Status der Listen bleiben.
 - logos/logoHoeheMm (16.11.2026): Prüfung nur über lib/logo.ts logoWert/logoHoeheZahl (Reducer UND migrate);
   unbrauchbares SET_LOGO ändert nichts; backup.ts apply: je Seite gilt das Logo der Vorlage, fehlt es, bleibt das
   hiesige; nicht in WERTUNG.

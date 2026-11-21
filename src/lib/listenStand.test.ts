@@ -245,6 +245,8 @@ describe('Die Kette der Zeitpunkte: Lauf → Gesamtliste → Mannschaftswertung'
     expect(kette(s)).toMatchObject({ gesamt: { '4': 9000, '1': 9000 }, wertung: 9000 })
     // Der Haken „erfasst“ allein ist keine Änderung des Ergebnisses.
     expect(geaenderteListen(s, nach(s, eingabe(9500, zelle('a', 'erfasst@gate135', '1')))).size).toBe(0)
+    // Ebenso ein Teilhaken des Stegs (digitale WKR-Erfassung, 21.11.2026).
+    expect(geaenderteListen(s, nach(s, eingabe(9600, zelle('a', 'erfasst.ab@steg', '1')))).size).toBe(0)
   })
 
   it('Beispielwerte: Jede gefüllte Liste bekommt den Zeitpunkt, auch beim zweiten Füllen mit anderer Saat', () => {

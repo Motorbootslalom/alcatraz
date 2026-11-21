@@ -71,13 +71,50 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   melde(ko|kz, neu-laden); in der Schlange verfällt die Meldung nach transport.ts NEULADEN_SENDEN_MS 1 min),
   `neueFassung`/`fassungGesehen()` (Fassung = Commit + Build-Zeit, `alcatraz.geraete.fassung`; HostUmgebung.fassung).
   geraet.ts: Meldung `neu-laden` → `aktualisiere` je Befehl `r:g:n` einmal (`alcatraz.geraet.neugeladen`, ohne
-  Speicher nie), nur frisch (NEULADEN_BEFEHL_GUELTIG_MS 10 min). PROTOKOLL_FASSUNG bleibt 1 (`neu-laden` gab es seit E5).
+  Speicher nie), nur frisch (NEULADEN_BEFEHL_GUELTIG_MS 10 min). PROTOKOLL_FASSUNG blieb 1 (`neu-laden` gab es seit E5).
   Annahmen BETRIEB_ANNAHMEN.wachBleiben/alleNeuLaden/kontingent. Tests: neuLaden.test.ts, kontingent.test.ts;
   haertung.test.ts (Start-Freigabe im Parallelslalom: Rechte je Bereich – A und B sind EIN Bereich –, Paar als Einheit;
   Zeitgrenzen: Wiederholabstand bis 5 min auch mit Fake-Uhr, Führungswechsel mit offener Action, Code/QR abgelaufen,
   Gerät länger weg als das Einstiegsfenster), src/GeraetParallel.test.ts (Oberfläche: Paar A/B, „Keine Bestätigung“).
   Doku: docs/betrieb.md (Ablauf am Wettkampftag, Wake Lock, Alle Geräte neu laden, Kontingent), Checkliste
   docs/feldtest.md – offene Punkte des Feldtests dort und in docs/entscheidungen.md „Offen“.
+- W1.2 (21.11.2026, Plan docs/plan-wkr-w1.md §5; Host/Leitung folgen mit W1.3): `aufgaben.ts` Aufgabe `liste`
+  {liste, teil?} (liesAufgaben: höchstens LISTEN_JE_GERAET = 2 Listen, F15; Teil nur bei geteilten Listen, F16),
+  listenAufgaben, WKR_ACTIONS = ['WKR_ZEILEN','WKR_STATUS','WKR_ABSCHLUSS'] (Geräte-Arten, Positivliste),
+  erlaubteWkr(action, aufgaben, stand, konfig, {id, name}) → {action: WKR_ZEILEN|WKR_LISTE|WKR_ABSCHLUSS | null,
+  abgelehnt: {z, grund}[]} | null (Zeilen über wkr/zeile.ts pruefeZeile, ≤ WKR_ANNAHMEN.buendel, quelle aus dem
+  Register); erlaubteAction lässt WKR-Arten nie durch. `wkrGruppen.ts`: gruppeDerListe = 'l' + FNV-1a hex8,
+  gruppenFuer(aufgaben) = [ko, …Listengruppen]. GeraeteListe.vue behält Listen-Aufgaben beim Umschalten der Bereiche.
+- W1.3 (21.11.2026, Plan §5/§8; Gerätekern folgt mit W1.4): **PROTOKOLL_FASSUNG = 2** (Ausnahme „Werte auf der
+  Leitung“, F11: nur Gerät→Host auf g und `steht` einer Rückfrage in der Gruppe der Liste – lesbar für alle Geräte
+  derselben Liste, auch den anderen Steg-Teil, WKR_ANNAHMEN.rueckfrageInListe; ko/kz wertfrei).
+  protokoll.ts: GeraeteNachricht + `lebenszeichen` {wartend, akku?}, `gesehen` {hinweis}; ABLEHNUNGEN + Zeilen-Codes
+  (wkr/zeile.ts) und `offen` (Texte `geraete.ablehnung.*`); HINWEISE (= wkr/sicht.ts WKR_HINWEISE, Test).
+  transport.ts: `quittiere(e, ergebnis, grund?, {still})` (letzteNr ja, direkte Quittung nein), `verteile(g, sicht,
+  {voll})`, `schickeSchluessel(id)` (Vermerk wie ein Wechsel); GeraetTransport `bestaetige(bisNr)` (gesammelte
+  Quittung, alles ≤ bis aus der Schlange). register.ts: setzeAufgaben → {neu, weg} Gruppen (gruppenNachAufgaben legt
+  sie an), vermerkeLebenszeichen (wartend/akku im Raum), hatGruppe. `wkrEingang.ts` (rein): Gesprächsstand
+  (abgelehnte Zeilen ≤ 20, Hinweise je Gerät mit Zähler, extraFuer → ListenSichtExtra) und Herkunft ◆ (zellSchluessel
+  lauf|starter|feld, herkunftGilt nur bei gleichem Wert). host.ts: hallo mit Listen → Gruppen anlegen, willkommen mit
+  ihren Schlüsseln, WKR_LISTE {digital, nurWennFehlt} über reicheWeiter; Befehl `aufgaben`: weg → rotiere, neu →
+  schickeSchluessel; Sicht voll (`listenVoll`) nach neuem Schlüssel/Gerät; verteile zusätzlich je Liste mit Geräten
+  sichtListe (bis = letzteNr, nach Inhalt verglichen); nimmWkrAn: erlaubteWkr → Ablehnungen in die Ablage →
+  reicheWeiter → Herkunft → quittiere(still, wenn das Gerät die Gruppe hat; `offen` bei wirkungslosem Abschluss –
+  gemessen am eigenen Eintrag vorher/nachher, am Steg je Teil, wkr/abschluss.ts abschlussVon) →
+  plane; lebenszeichen/gesehen still; nicht erlaubt immer direkt. API `hinweis(liste, code, startNr?)` (Fensterbus-
+  Befehl `hinweis`). Tests: wkrHost.test.ts (nackter GeraetTransport als Gerät), transport.test.ts „W1“, wire.test.ts.
+- W1.4 (21.11.2026, Plan §5/§6): `erfassen.ts` – Gerätekern der WKR-Erfassung OHNE Maske: oeffneErfassung(geraet:
+  GekoppeltesGeraet, {ablage, uhr, taktMs, akku}) → listen (aus den Aufgaben), sichten (ShallowRef je Liste, `lv`
+  geprüft), schlange (Sicht minus eigene Zeilen außer abgelehnten, Teil-Geräte ohne Starts mit eigenem Teil; ohne
+  Verbindung + `danach` mit `geschaetzt`), stufen je `z` (unterwegs {gesendet} | uebernommen {nachRueckfrage} |
+  rueckfrage {zellen mit steht} | abgelehnt {grund} | vorschlag), zuletzt, hinweise (minus gesehen), abschluesse
+  (unterwegs|angenommen|abgelehnt, `offen` = still quittiert, aber nicht abgeschlossen – am Steg zählt nur der eigene
+  Teil, `zuFuer` mit ListenSicht.teile), wartend; schicke, korrigiere
+  (vorher = zuletzt gesendeter Wert; wartende Zeile wird geändert statt einer zweiten), pausiere/meldeAb/weiter
+  (WKR_STATUS; ein Teil-Gerät wirkt nur auf seinen Teil, erlaubteWkr gibt `teil` mit), schliesseAb (Prüfsummen wkr/uebernahme.ts zeilenPruefsumme über die Masken-Felder des eigenen Teils),
+  gesehen, stop. gekoppelt.ts: `kanal` (empfange, schicke, unbestaetigt, bestaetige, id, zuletztGesendet);
+  transport.ts GeraetTransport.eigeneId(). ablage.ts: `alcatraz.geraet.wkr` (geraetWkrAblage: Raum + 36 h; pruefeRaum/
+  verlasseRaum räumen ihn). Tests: wkr.test.ts (Ende zu Ende mit echtem Reducer).
 - `testBrowser.ts` – nur Tests: nachgebauter Browser (Fenster mit gemeinsamem Speicher + storage-Ereignis,
   BroadcastChannel, Web Locks).
 - `fuehrung.ts` – waehleFuehrung(id?, umgebung?) → `{fuehrt, art: 'sperre'|'lease', stop}`: Web Lock
@@ -100,7 +137,9 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   diesen Raum; sichtAblage (Ablauf 36 h, SICHT_GUELTIG_MS; E6 legt `{art, sicht}` ab); pruefeRaum (anderer Raum →
   Verbindung samt Kennung und Sicht weg), verlasseRaum (dasselbe; neu koppeln = neuer Schlüssel); E6
   `alcatraz.geraet.aktualisiert` (Sperre gegen Neulade-Schleifen, ohne Personenbezug); E8 `alcatraz.geraet.neugeladen`,
-  `alcatraz.geraete.kontingent`, `alcatraz.geraete.fassung`.
+  `alcatraz.geraete.kontingent`, `alcatraz.geraete.fassung`; W1 `alcatraz.geraete.wkr` (Gesprächsstand) und
+  `alcatraz.geraete.herkunft` (◆, F10) – liesWkrEingang/liesHerkunft an AppState.kennung gebunden (andere = gelöscht),
+  bleiben nach „Raum beenden“.
 
 ## Abläufe
 
@@ -134,6 +173,14 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   (nicht `nachgeholt`); jede Sicht → sichtAblage (36 h ab letzter Nachricht), Takt prüft Ablauf; Meldung `ende` →
   stop + verlasseRaum + `beendet`. E7: Gerät mit `ich: ichOderNeu(bezug)` und `koppeln`; „Raum verlassen“ = stop +
   verlasseRaum.
+- WKR-Gerät (W1, erfassen.ts; Oberfläche erst W3/W4): Koppeln mit Aufgabe `liste` → willkommen mit dem Schlüssel
+  der Listen-Gruppe → Host stellt die Liste „digital“ und verteilt sichtListe (bis = letzteNr je Gerät). schicke →
+  Ausgang (`alcatraz.geraet.wkr`) → pumpe: nur verbunden und ohne Unbestätigtes beim Transport, dann alle wartenden
+  Zeilen der ersten Liste (≤ 8) als EIN WKR_ZEILEN (Abschluss/Status/gesehen bleiben in der Reihe dahinter) → Host
+  nimmWkrAn → erlaubteWkr → Schreibfenster → Herkunft ◆ → quittiere still → Sicht der Liste mit `bis` ≥ nr →
+  erfassen: bestaetige(bis), Stufen aus `bis`/rueckfragen/abgelehnt der Sicht (in den Ausgang übernommen, die Sicht
+  hält nur 20). Direkte Quittung (ohne Gruppe, `nicht-erlaubt`, `doppelt`) gilt ebenso. Lebenszeichen: Takt prüft
+  `uhr() − zuletztGesendet ≥ 60 s`, nur gekoppelt, verbunden, ohne Ausstehendes, mit laufendem Punkt einer Liste.
 - Was ntfy sieht: Themen, `r/g/e/n/a/sv/hz`, Größen, den öffentlichen Schlüssel eines Geräts; nie Inhalte, Geräte-IDs
   oder g in einem Link. Nie auf der Leitung: AppState, Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen, Logos,
   Geräteliste, Geheimnis (Schlüssel-Durchlauf über alle entschlüsselten Inhalte: geraet.test.ts „Leitung“).
@@ -189,13 +236,31 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - Lease ist best effort (localStorage ohne atomares Setzen; gedrosselte Hintergrund-Tabs): Web Locks sind der Schutz;
   dazu liest HostSpeicher.aendere vor jedem Schreiben frisch und `n` steht im Raum.
 - Fensterbus vertraut allen Fenstern derselben Herkunft (die könnten ohnehin den Stand schreiben), prüft nur die Form.
+- W1: Die Gruppe einer Liste trägt dieselbe `sv` wie ko (SICHT_FASSUNG, der Transport kennt nur eine); die Form der
+  Listen-Sicht steht innen als `lv` (wkr/sicht.ts LISTEN_SICHT_FASSUNG). Still quittiert wird nur, wer die Gruppe hat –
+  sonst wartete das Gerät auf eine Sicht, die es nicht lesen kann. Akku/wartend liegen im Register (Raum), nicht in
+  `alcatraz.geraete.wkr`.
 - Echter ntfy ungeprüft (nur der Nachbau; Checkliste docs/feldtest.md): in E6/E8 `since=<id>` über mehrere Themen und mit abgelaufener ID, und dass
   `attachment.url` mit der eingegebenen Server-Adresse beginnt (sonst verwirft der Host jeden Vollstand mit `zu-gross`).
+
+- W1-Gerät: Stille Quittung trägt nur die Sicht der Listen-Gruppe – ein Gerät ohne die Gruppe (entzogen, Schlüssel
+  verloren) hängt sonst; der Host quittiert dann direkt, Wiederholungen bekommen `doppelt`. Die gesammelte Quittung
+  (`bestaetige(bis)`) nimmt auch Start-Freigabe-Actions aus der Schlange, deren direkte Quittung noch unterwegs ist.
+- W1: Herkunft ◆ und Gesprächsstand liegen gerätelokal am Bedienrechner (`alcatraz.geraete.herkunft`/`.wkr`), der
+  Ausgang gerätelokal auf dem Gerät (`alcatraz.geraet.wkr`) – nie im AppState. erfassen.ts schreibt nur, solange die
+  Kopplung dieses Raums in der Ablage steht (nach verlasseRaum nichts wieder ablegen). Zeilenzähler `z` beginnt bei
+  der Uhrzeit (Rückfrage-IDs `${geraet}.${z}` nie doppelt). Kein Name in Rückgaben des Kerns (F6); der WKR-Name des
+  Abschlusses steht nur in der Nachricht (und bis zur Quittung in der Sende-Schlange).
+- W1-Tests: Mit `sammelnMs` 150 am Host muss `quittungMs` des Geräts darüber liegen, sonst wiederholt es (Verkehr ×2).
 
 ## Tests
 
 `npx vitest run src/geraete src/main.geraete src/main.sehen src/GeraetApp src/GeraetKoppeln src/views/BetriebGeraete
-src/views/BetriebKoppeln` (nachgebauter ntfy, kein Netz). Oberfläche E7: src/GeraetKoppeln.test.ts (Code, falsches
+src/views/BetriebKoppeln` (nachgebauter ntfy, kein Netz). WKR (W1): wkr.test.ts Ende zu Ende (koppeln mit Liste, Zeile →
+Erfassung, Rückfrage hin und zurück, Doppel, Funkloch → eine Nachricht, Führungswechsel, Neuladen Host/Gerät, Liste
+entzogen, Lebenszeichen mit Fake-Uhr, Pause/P, Abschluss → Vorschlag, Hinweis, Steg AB/AN (Zeilen; Abschluss und Abmelden je
+Teil), Parallel A/B, Leitung,
+Verkehr je Zeile), wkrHost.test.ts (Host mit nacktem Transport). Oberfläche E7: src/GeraetKoppeln.test.ts (Code, falsches
 Format, benutzter Code, QR ohne Eingabe, #/geraet ohne Kopplung, Knöpfe schalten am Host und sperren bis zur
 Quittung, Rechte ändern, Entzug, Neuladen und entkoppeln), views/BetriebKoppeln.test.ts (Bereiche, Code mit Ablauf,
 QR mit Token, Koppel-Link, Geräteliste: ändern, umbenennen, entziehen mit Rückfrage). Oberfläche E6: views/BetriebGeraete.test.ts (einschalten, Links/QR, Kopieren, erneuern, beenden,

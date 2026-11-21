@@ -1,5 +1,5 @@
 import type { Eingaben } from '../types'
-import { erfasstKennung, laufSchluessel, listenFelder, listenLauf, werteVon, type EingabenKonfig, type Feld } from './eingaben'
+import { erfasstKennung, istHaken, laufSchluessel, listenFelder, listenLauf, werteVon, type EingabenKonfig, type Feld } from './eingaben'
 import { bojenWert, codeDisqs, disqCodes } from './scoring'
 import { parseTime } from './time'
 import { NICHT_GESTARTET } from './abmeldung'
@@ -210,7 +210,7 @@ export function zeilenHinweise(felder: readonly Feld[], werte: Werte, alleFelder
   if (zeitenImLauf.length === 0 && !hatDisq(werte, alleFelder)) {
     const eigene = new Set([...felder.map((f) => f.kennung), erfasstKennung(typeId)])
     // Der Haken einer anderen Liste genügt: Dort ist die Fahrt schon abgetippt.
-    if (Object.keys(werte).some((kennung) => !eigene.has(kennung) && (alleFelder.has(kennung) || kennung.startsWith('erfasst@')))) {
+    if (Object.keys(werte).some((kennung) => !eigene.has(kennung) && (alleFelder.has(kennung) || istHaken(kennung)))) {
       hinweise.push({ art: 'zeitFehlt' })
     }
   }

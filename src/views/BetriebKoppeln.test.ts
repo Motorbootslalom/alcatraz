@@ -15,6 +15,7 @@ import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, SERVER } from '.
 import type { NtfyZeiten } from '../geraete/transport/ntfy/leitung'
 import { betriebsStand, festgeschrieben } from '../testHilfen'
 import type { AppState } from '../types'
+import { freigabeBereiche } from '../geraete/aufgaben'
 
 /**
  * Betrieb → Geräte, Koppeln und Geräteliste (E7, Oberfläche): echter Host (geraete/host.ts mit dem Store) im
@@ -137,8 +138,8 @@ describe('Betrieb → Geräte: Koppeln', () => {
 
     // Bereiche: sofort auf dem Gerät.
     await e.find('input[data-bereich="par_2"]').setValue(true)
-    await bis(() => g.aufgaben.value[0]?.bereiche.includes('par_2') ?? false)
-    expect(g.aufgaben.value[0].bereiche.sort()).toEqual(['par_1', 'par_2'])
+    await bis(() => freigabeBereiche(g.aufgaben.value).includes('par_2'))
+    expect(freigabeBereiche(g.aufgaben.value).sort()).toEqual(['par_1', 'par_2'])
 
     // Umbenennen.
     await e.find('input[data-feld="name"]').setValue('Steg Süd')

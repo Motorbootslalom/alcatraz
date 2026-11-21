@@ -545,18 +545,73 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Mannschaftswertung, Urkunden-Daten als CSV/XLSX für Serienbriefe; Anzeigetafel zum Schluss. NKB-Qualifikation nur
   beschreiben (viel später). Essenkarten entfallen.
 
-## Entschieden, noch nicht umgesetzt (Stand 2026-11-16)
+## Digitale WKR-Erfassung (Antworten 21.11.2026)
+
+Antworten des Nutzers auf F1–F17 aus [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §12 („Vorschlag
+schlüssig, weitermachen“). Etappen W1–W6 ebd. §11; **W1 (Kern) gebaut 21.11.2026** nach
+[plan-wkr-w1.md](plan-wkr-w1.md) – ohne Masken und ohne Oberfläche am Bedienrechner, nur gegen den nachgebauten
+Server geprüft (`src/wkr/`, `state/reducer/wkr.ts`, `geraete/erfassen.ts`, Ende zu Ende `geraete/wkr.test.ts`).
+
+Beim Bau von W1 ausgelegt, **noch zu bestätigen** (Plan §9, im Code `src/wkr/annahmen.ts` WKR_ANNAHMEN):
+
+1. Übernahme nur, wenn der Stand gleich `vorher` (beim ersten Mal leer) oder gleich dem neuen Wert ist; eine vom
+   Bediener geleerte Gerätezelle ist eine Rückfrage.
+2. Herkunft ◆ gerätelokal am Bedienrechner (bleibt nach „Raum beenden“, weg mit anderer Veranstaltung), Gerätename im
+   Verlauf; Rückfragen, Vorschläge, Status und Abschluss im Stand (Sicherung), ohne Gerätenamen.
+3. Zeilen zu nicht gezeigten Starts (auch die ohne Netz geschätzten) werden ganz Rückfrage.
+4. Steg: Teilhaken Ablegen/Anlegen, beide zusammen = Haken des Stegs; Teile = Spalten `fehlerAB`/`fehlerAN`; die
+   Bemerkung des zweiten Teils wird mit „; “ angehängt.
+5. Pausieren/Abmelden gilt für die Liste; P = beim Pausieren offene und während der Pause gezeigte Starts.
+6. Eine Liste ohne Eintrag ist Papier; das erste Koppeln setzt „digital“ ab jetzt, die Schlange beginnt dort.
+7. Abschluss je Liste und Punkt, immer angenommen, wenn nichts offen ist (sonst nur mit „Rest auf Papier“);
+   Abweichungen der geprüften Fassung je Start vermerkt, ohne Sperre.
+8. Quittungen gesammelt über die Gruppe der Liste; direkt nur, wenn das Gerät die Gruppe (noch) nicht hat.
+9. Knoten und Zeit-Listen am Gerät erst mit W5.
+10. Das gekoppelte Gerät liest weiter die öffentliche Sicht; die WKR-Maske zeigt keine Namen.
+11. Zahlen: Bündel ≤ 8 Zeilen, Schlange ≤ 12, „danach“ ≤ 5, „zuletzt“ ≤ 20, Lebenszeichen nach 60 s Stille.
+12. (W1.4) Prüfsummen beim Abschluss über alle Starts des Punkts, für die das Gerät Werte geschickt hat (nicht nur die
+    letzten 20 Zeilen); eine Korrektur einer noch wartenden Zeile ändert diese, statt eine zweite zu schicken.
+
+- 2026-11-21 · F1 · Papier bzw. „beides“ ist **immer** je Liste wählbar, nicht nur beim ersten Wettkampf. Das Gerät kann
+  sich „pausieren“ oder „abmelden“; dann zählt die Liste nicht als Rückstand, die Freigabe wartet nicht darauf.
+- 2026-11-21 · F2 · Eine Boje kann je Richtung nur einmal berührt werden (Schalter 5/0). Ausnahmen: Torbojen von Tor 5
+  (Zähler je Berührung) und Tor 1 auf der Rückfahrt, das wegen der Speedrunde zweimal durchfahren wird – im Fahrweg
+  schon zwei Halte (`t1b` „1 R“, `t1c` „1 R“ Speedrunde, `config/kurzform.ts`), also je Durchfahrt ein Schalter.
+- 2026-11-21 · F3 · Digitale WKR nur mit Start-Freigabe.
+- 2026-11-21 · F4 · Warnen ab R = 2, „nachfragen“ wählbar, nie sperren; dazu in der Erfassung am Bedienrechner eine
+  Markierung an Zeile/Zelle, deren Gerätewert fehlt („Papier ansehen“).
+- 2026-11-21 · F5 · X vom Gerät nur bei Steg-Ablegen und Vorsteg, mit Rückfrage und Hervorhebung am Bedienrechner.
+- 2026-11-21 · F6 · Kein Name auf dem WKR-Gerät (Startnummer, Klasse, ggf. Boot).
+- 2026-11-21 · F7 · Korrektur über „Zuletzt“ (die letzten abgeschickten Zeilen bleiben auf dem Gerät erreichbar).
+  „Liste abschließen“ zeigt am Laufende alle Zeilen der Liste noch einmal zur Prüfung und wird als Ganzes quittiert;
+  bis dahin direkte Korrektur, danach nur Vorschlag an den Bedienrechner (Nutzerfrage „wie korrigieren, wenn nur der
+  aktive Starter zu sehen ist?“, so ausgelegt).
+- 2026-11-21 · F8 · „Liste abschließen“ mit WKR-Name ersetzt die Unterschrift auf dem Bogen.
+- 2026-11-21 · F9 · Zeitnahme: nur die abgelesene Zeit eintippen, kein Stoppen am Handy.
+- 2026-11-21 · F10 · Herkunft der Werte nicht in der Sicherung, nur Zeichen ◆ und Verlauf am Bedienrechner.
+- 2026-11-21 · F11 · Ausnahme „Werte auf der Leitung“: Werte der eigenen Liste verschlüsselt Gerät → Bedienrechner,
+  zurück nur Quittungen bzw. bei Rückfrage eine Zelle; kein Ausgleichsgewicht.
+- 2026-11-21 · F12 · Übernahme automatisch in leere Zellen, abnicken nur bei Abweichung.
+- 2026-11-21 · F13 · Sprache der Maske = Sprache der Liste, auf dem Gerät umschaltbar.
+- 2026-11-21 · F14 · Der Bedienrechner gibt die Maske vor; der WKR wechselt nur, solange nichts festgelegt ist.
+- 2026-11-21 · F15 · Handy genau eine Liste, Pad höchstens zwei.
+- 2026-11-21 · F16 · Teilkopplung nur am Steg (Ablegen/Anlegen); Disq./Bemerkung werden vereinigt.
+- 2026-11-21 · F17 · Nichts davon auf der Anzeigetafel oder Zuschauerliste.
+
+## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
 
-Zurzeit nichts.
+- Digitale WKR-Erfassung (Antworten 21.11.2026, Abschnitt oben): Etappen W1–W6 nach
+  [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern) gebaut 21.11.2026, W2–W6 offen
+  (Masken, Bedieneransicht, Knoten/Zeit-Listen).
 
 ## Offen
 
 - Geburtstags-Ausnahme des DM-Reglements (ME ab dem 6. Geburtstag, M7 bis zum 27. Geburtstag): abschaltbar in den
   Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
 - Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
-- Erfassung durch Wettkampfrichter am Gerät: kommt später, im Konzept mitdenken.
+- Erfassung durch Wettkampfrichter am Gerät: Fragen am 21.11.2026 beantwortet (Abschnitt „Digitale WKR-Erfassung“).
 - Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
   Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;
   E7 (Koppeln, Start-Freigabe vom Handy, 20.11.2026) ebenso; E8 ist vorbereitet, offen ist der Feldtest

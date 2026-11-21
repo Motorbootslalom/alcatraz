@@ -25,7 +25,9 @@ import { starterfeldFest } from '../lib/eingaben'
  *   reisen mit. Ebenso die Logos der Listen (Einstellung des Ausrichters, keine Personendaten,
  *   16.11.2026); ein Logo, das der Vorlage fehlt, lässt das hiesige stehen. Der Betrieb am
  *   Wettkampftag (`betrieb`: begonnene Läufe, gezeigte Starts) gehört zur Veranstaltung und bleibt
- *   draußen; die Einstellungen der Anzeigetafel reisen mit, nur ohne Kopfzeile (16.11.2026).
+ *   draußen; die Einstellungen der Anzeigetafel reisen mit, nur ohne Kopfzeile (16.11.2026). Ebenso bleibt die
+ *   digitale WKR-Erfassung (`wkr`: Modus/Status der Listen, Rückfragen, Vorschläge, Abschlüsse mit den Namen der
+ *   Wettkampfrichter) draußen – sie gehört zu dieser Veranstaltung und ihren Startern (W1, 21.11.2026).
  * - `starter`: nur die Teilnehmerdaten.
  */
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
@@ -34,7 +36,7 @@ export type FileKind = 'sicherung' | 'vorlage' | 'starter'
  * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, Co-Piloten, erfassten
  * Werten, dem Stand der Wertungslisten, der Kennung und dem Betrieb der Veranstaltung.
  */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'parallelGedruckt' | 'nichtWerten' | 'betrieb'>
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'parallelGedruckt' | 'nichtWerten' | 'betrieb' | 'wkr'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -57,7 +59,8 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   // Die festgeschriebenen Pläne des Parallelslaloms nennen Starter (ihre IDs) und bleiben ebenfalls hier.
   // „Disziplin nicht werten“ ist eine Entscheidung zu den Ergebnissen dieser Veranstaltung: ebenfalls nicht.
   // Der Betrieb (was auf der Anzeigetafel stand) ebenso; die Kopfzeile der Anzeigetafel nennt die Veranstaltung.
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, parallelGedruckt: _gedruckt, nichtWerten: _nichtWerten, betrieb: _betrieb, ...rest } = state
+  // Die digitale WKR-Erfassung (Rückfragen, Abschlüsse mit Namen der Wettkampfrichter) gehört zur Veranstaltung.
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, parallelGedruckt: _gedruckt, nichtWerten: _nichtWerten, betrieb: _betrieb, wkr: _erfassung, ...rest } = state
   const settings: Template = { ...rest, anzeige: { ...rest.anzeige, kopfzeile: null } }
   return { ...base, kind, settings }
 }
@@ -158,6 +161,8 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
         // der Vorlage um (Parcours 1 bleibt Parcours 1). Die gezeigten Starts nennen Starter und Lauf –
         // sie gelten weiter, die Folge wird neu abgeleitet. Der Parallelslalom hängt an keinem Parcours.
         betrieb: betriebUmgehaengt(current, checked.parcoursList.map((p) => p.id)),
+        // Die digitale WKR-Erfassung gehört zur Veranstaltung (Rückfragen, Abschlüsse mit Namen): Sie bleibt.
+        wkr: current.wkr,
         // Die Kopfzeile der Anzeigetafel nennt die Veranstaltung: Es bleibt die hiesige.
         anzeige: { ...checked.anzeige, kopfzeile: current.anzeige.kopfzeile },
         // Sind Ergebnisse erfasst, bleibt das Regelwerk (wie im Reducer, SET_REGELWERK): Die

@@ -4,7 +4,7 @@ import { starteGeraeteHost, type GeraeteHost, type HostUmgebung } from './host'
 import { oeffneKoppelLink, type GekoppeltesGeraet } from './gekoppelt'
 import { oeffneLeseLink, type LeseGeraet } from './geraet'
 import { ABLAGE, type Ablage } from './ablage'
-import type { Aufgabe } from './aufgaben'
+import { freigabeBereiche, type Aufgabe } from './aufgaben'
 import { CODE_GUELTIG_MS, KOPPEL_NACHLAUF_MS, QR_TOKEN_GUELTIG_MS } from './koppeln'
 import { nachgebauterBrowser, type TestFenster } from './testBrowser'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
@@ -191,7 +191,7 @@ describe('Start-Freigabe vom Handy im Parallelslalom (UIM, E8)', () => {
     expect(await sendeUndWarte(g, beginnen('par_1', 'lauf:1'))).toMatchObject({ ergebnis: 'angewandt' })
 
     h.setzeAufgaben(h.raum.value!.geraete[0].id, NUR_PARALLEL)
-    await bis(() => g.aufgaben.value[0]?.bereiche[0] === P)
+    await bis(() => freigabeBereiche(g.aufgaben.value)[0] === P)
     expect(await sendeUndWarte(g, beginnen(P, 'runde:pre'))).toMatchObject({ ergebnis: 'angewandt' })
     expect(await sendeUndWarte(g, { type: 'BETRIEB_MELDUNG', bereich: 'par_1', meldung: { text: 'Pause', art: 'pause' } })).toMatchObject({ ergebnis: 'abgelehnt' })
   })

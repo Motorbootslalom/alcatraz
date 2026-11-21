@@ -328,19 +328,22 @@ export class HostTransport extends NtfyLeitung implements Transport {
    * Die Sicht einer Gruppe verteilen: als Differenz zur zuletzt verteilten, sonst voll. Gleiches geht nicht
    * hinaus; wartet die vorige noch, wird sie ersetzt (beim Umsortieren zählt nur der letzte Stand).
    */
-  verteile(gruppe: string, sicht: Json): void {
+  verteile(gruppe: string, sicht: Json, optionen: { voll?: boolean } = {}): void {
     if (this.gestoppt || !this.raum?.gruppen[gruppe]) return
     const kopie = clone(sicht)
     const kopf = this.kopfstand.get(gruppe)
-    if (kopf && equal(kopf.sicht, kopie) && !this.vollNoetig.has(gruppe)) return
+    // `voll` (W1): nach einem neuen Schlüssel oder für ein neues Gerät der Gruppe – auch gleicher Inhalt geht hinaus.
+    const voll = !!optionen.voll || this.vollNoetig.has(gruppe)
+    if (kopf && equal(kopf.sicht, kopie) && !voll) return
     const letzter = this.schlange[this.schlange.length - 1]
     if (letzter?.art === 'gruppe' && letzter.gruppe === gruppe && letzter.sicht !== undefined && !letzter.laeuft) {
       letzter.sicht = kopie
+      if (voll) letzter.basis = null
       this.kopfstand.set(gruppe, { n: letzter.n, sicht: kopie })
       this.kick()
       return
     }
-    const basis = this.vollNoetig.has(gruppe) ? null : (kopf ?? null)
+    const basis = voll ? null : (kopf ?? null)
     this.reiheEin(gruppe, { sicht: kopie, basis })
   }
 
@@ -595,8 +598,14 @@ export class HostTransport extends NtfyLeitung implements Transport {
   /**
    * Eine Nachricht eines gekoppelten Geräts ist bearbeitet: Nummer dauerhaft merken (erst jetzt – ging sie vorher
    * verloren, wiederholt das Gerät sie), dann die Quittung.
+   *
+   * `still` (W1, 21.11.2026, Plan §5/§8): keine direkte Quittung – das Gerät erfährt es gesammelt aus der Sicht seiner
+   * Liste (`bis` = `letzteNr`, wkr/sicht.ts) und nimmt dann alles bis dahin aus seiner Schlange
+   * ({@link GeraetTransport.bestaetige}). Nur, wenn das Gerät die Gruppe der Liste hat (entscheidet host.ts). Eine
+   * Wiederholung derselben Nummer bekommt weiter direkt `doppelt` (gedrosselt) – das ist der Rückfall, wenn die Sicht
+   * nicht ankam.
    */
-  quittiere(e: Eingang, ergebnis: Ergebnis, grund?: Ablehnung): void {
+  quittiere(e: Eingang, ergebnis: Ergebnis, grund?: Ablehnung, optionen: { still?: boolean } = {}): void {
     if (!e.gebunden) return
     let passt = false
     const raum = this.aendere((r) => {
@@ -606,7 +615,7 @@ export class HostTransport extends NtfyLeitung implements Transport {
       passt = true
     })
     this.inArbeit.delete(e.id)
-    if (!raum || !passt) return
+    if (!raum || !passt || optionen.still) return
     const nachricht: DirektNachricht = { art: 'quittung', auf: e.nr, ergebnis }
     if (grund) nachricht.grund = grund
     this.direkt(direktThemaVon(raum, e.id), e.pk, nachricht)
@@ -623,6 +632,23 @@ export class HostTransport extends NtfyLeitung implements Transport {
   /** Der Raum, wie dieser Transport ihn zuletzt gelesen oder geschrieben hat (nach start()). */
   raumJetzt(): HostRaum | null {
     return this.raum
+  }
+
+  /**
+   * Einem gekoppelten Gerät die Schlüssel all seiner Gruppen schicken (W1: neue Liste in den Aufgaben, Plan §5) – als
+   * Vermerk im Raum wie ein Schlüsselwechsel, also dauerhaft bis ntfy annimmt, und vor allem Wartenden. `false` ohne
+   * Eintrag oder ohne nicht öffentliche Gruppe.
+   */
+  schickeSchluessel(id: string): boolean {
+    const g = this.raum?.geraete[id]
+    if (!g || !g.gruppen.some((x) => !istOeffentlich(x))) return false
+    const raum = this.aendere((r) => {
+      const jetzt = r.geraete[id]
+      if (jetzt) vermerke(r, { id, pk: jetzt.pk, art: 'schluessel' })
+    })
+    if (!raum) return false
+    this.vorne(this.ausstehendeAuftraege(raum))
+    return true
   }
 
   /** Etwas an ein gekoppeltes Gerät (geänderte Aufgaben). `false`, wenn es nicht gekoppelt ist. */
@@ -1035,9 +1061,33 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     return this.stand.schlange.find((u) => u.nachricht.art === 'hallo')?.nr ?? null
   }
 
+  /**
+   * Eigene ID, wie der Host sie im willkommen vergab (kann von der vorgeschlagenen abweichen, S1) – `null` vor dem
+   * Koppeln. W1: Damit findet das Gerät sich in der Sicht seiner Liste (`geraete[id]`).
+   */
+  eigeneId(): string | null {
+    return this.stand.id
+  }
+
   /** Nummern, für die noch keine Quittung da ist. */
   unbestaetigt(): number[] {
     return this.stand.schlange.map((u) => u.nr)
+  }
+
+  /**
+   * Gesammelte Quittung (W1, Plan §5/§8): Der Host hat alles bis `bisNr` bearbeitet (`bis` dieses Geräts in der Sicht
+   * seiner Liste) – ohne direkte Nachricht. Nimmt alle Unbestätigten mit Nummer ≤ `bisNr` aus der Schlange, setzt die
+   * Wiederholung zurück, legt ab und schickt das Nächste. Liefert die entfernten Nummern (leer: nichts zu tun).
+   */
+  bestaetige(bisNr: number): number[] {
+    if (!Number.isFinite(bisNr)) return []
+    const weg = this.stand.schlange.filter((u) => u.nr <= bisNr).map((u) => u.nr)
+    if (weg.length === 0) return []
+    this.stand.schlange = this.stand.schlange.filter((u) => u.nr > bisNr)
+    if (this.gesendet && this.gesendet.nr <= bisNr) this.gesendet = null
+    this.speichere()
+    this.kick()
+    return weg
   }
 
   private liefere(e: Empfang): void {

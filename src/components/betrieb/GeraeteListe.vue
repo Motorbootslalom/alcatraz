@@ -34,7 +34,8 @@ function schalte(g: RegisterEintrag, id: BereichId, an: boolean): void {
   const neu = new Set(freigabeBereiche(g.aufgaben))
   if (an) neu.add(id)
   else neu.delete(id)
-  host?.setzeAufgaben(g.id, [{ art: 'startfreigabe', bereiche: [...neu] }])
+  // Andere Aufgaben (WKR-Listen, W1) bleiben – hier wird nur die Start-Freigabe umgeschaltet.
+  host?.setzeAufgaben(g.id, [{ art: 'startfreigabe', bereiche: [...neu] }, ...g.aufgaben.filter((a) => a.art !== 'startfreigabe')])
 }
 
 function benenne(g: RegisterEintrag, e: Event): void {

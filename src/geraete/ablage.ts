@@ -1,6 +1,7 @@
 import nacl from 'tweetnacl'
 import { fromBase64Url, isBase64Url, toBase64Url } from './transport/ntfy/codec'
 import { istGeraetId } from './transport/protokoll'
+import { leereHerkunft, leererEingang, liesEingangWert, liesHerkunftWert, type WkrEingang, type WkrHerkunft } from './wkrEingang'
 import {
   istGeraetStand,
   istHostRaum,
@@ -67,6 +68,22 @@ export const ABLAGE = {
    * „Update“), bietet Betrieb → Geräte „Alle Geräte neu laden“ an (host.ts `neueFassung`).
    */
   fassung: 'alcatraz.geraete.fassung',
+  /**
+   * Host (W1, 21.11.2026): Gesprächsstand mit den WKR-Geräten – abgelehnte Zeilen (Codes) und Hinweise je Gerät
+   * (geraete/wkrEingang.ts). An AppState.kennung gebunden, bleibt nach „Raum beenden“.
+   */
+  wkr: 'alcatraz.geraete.wkr',
+  /**
+   * Host (W1, F10): Herkunft ◆ je Zelle (Gerätename, Liste, Zeit, Wert) – nicht in der Sicherung, nur hier und im
+   * Verlauf. An AppState.kennung gebunden, bleibt nach „Raum beenden“ (die Werte bleiben ja auch).
+   */
+  herkunft: 'alcatraz.geraete.herkunft',
+  /**
+   * Gerät (W1, 21.11.2026): Ausgang der WKR-Erfassung – wartende Zeilen und Nachrichten, die letzten Zeilen mit ihren
+   * Werten (Korrektur, Abschluss), der Zeilenzähler und die zuletzt empfangene Sicht je Liste (geraete/erfassen.ts).
+   * Gehört zum Raum wie Verbindung und Sicht, gilt 36 h nach dem letzten Schreiben ({@link SICHT_GUELTIG_MS}).
+   */
+  geraetWkr: 'alcatraz.geraet.wkr',
 } as const
 
 /** Präfixe der Ablage: Host und Gerät. Nichts davon gehört in `alcatraz:state:v1`. */
@@ -188,6 +205,36 @@ export function legeRaumAn(kennung: string, server: string, ablage: Ablage | nul
 /** Für welche Veranstaltung der abgelegte Raum gilt – `null`, wenn es keinen gibt. */
 export function raumKennung(ablage: Ablage | null = vorgabe()): string | null {
   return liesHuelle(ablage)?.kennung ?? null
+}
+
+/**
+ * W1: Gesprächsstand mit den WKR-Geräten dieser Veranstaltung. Gehört der abgelegte zu einer anderen Kennung, ist er
+ * weg (gelöscht) und es gibt einen leeren.
+ */
+export function liesWkrEingang(kennung: string, ablage: Ablage | null = vorgabe()): WkrEingang {
+  const roh = liesJson(ablage, ABLAGE.wkr)
+  const e = liesEingangWert(roh)
+  if (e && e.kennung === kennung) return e
+  if (roh !== null) entferne(ablage, ABLAGE.wkr)
+  return leererEingang(kennung)
+}
+
+/** `false`, wenn der Speicher voll ist (dann bleibt der Gesprächsstand nur bis zum Neuladen). */
+export function schreibeWkrEingang(eingang: WkrEingang, ablage: Ablage | null = vorgabe()): boolean {
+  return schreibeJson(ablage, ABLAGE.wkr, eingang)
+}
+
+/** W1 (F10): Herkunft ◆ dieser Veranstaltung; eine andere Kennung → gelöscht, leer. */
+export function liesHerkunft(kennung: string, ablage: Ablage | null = vorgabe()): WkrHerkunft {
+  const roh = liesJson(ablage, ABLAGE.herkunft)
+  const h = liesHerkunftWert(roh)
+  if (h && h.kennung === kennung) return h
+  if (roh !== null) entferne(ablage, ABLAGE.herkunft)
+  return leereHerkunft(kennung)
+}
+
+export function schreibeHerkunft(herkunft: WkrHerkunft, ablage: Ablage | null = vorgabe()): boolean {
+  return schreibeJson(ablage, ABLAGE.herkunft, herkunft)
 }
 
 /** Raum löschen („Raum beenden“): Schlüssel weg, Lese-Links und Kopplungen enden. */
@@ -318,14 +365,15 @@ export function sichtAblage(bezug: RaumBezug, ablage: Ablage | null = vorgabe(),
  * Einstieg über einen neuen Link (Plan §3: „gelöscht … bei anderer Raum-ID“).
  */
 export function pruefeRaum(bezug: RaumBezug, ablage: Ablage | null = vorgabe()): void {
-  for (const schluessel of [ABLAGE.verbindung, ABLAGE.sicht, ABLAGE.kopplung]) {
+  for (const schluessel of [ABLAGE.verbindung, ABLAGE.sicht, ABLAGE.kopplung, ABLAGE.geraetWkr]) {
     const wert = liesJson(ablage, schluessel)
     if (wert !== null && !gleicherRaum(wert, bezug)) entferne(ablage, schluessel)
   }
 }
 
 /**
- * „Raum verlassen“, Entzug (`entzogen`) oder signiertes Ende des Raums (K20): Verbindung samt Kennung und Sicht weg.
+ * „Raum verlassen“, Entzug (`entzogen`) oder signiertes Ende des Raums (K20): Verbindung samt Kennung und Sicht weg,
+ * ebenso Kopplung und Ausgang der WKR-Erfassung (W1).
  * Ein erneutes Koppeln (mit gültigem Code) beginnt mit neuem Schlüssel und Nummer 1 – ein altes willkommen aus dem
  * ntfy-Speicher geht mit dem neuen Schlüssel nicht mehr auf.
  */
@@ -333,6 +381,7 @@ export function verlasseRaum(ablage: Ablage | null = vorgabe()): void {
   entferne(ablage, ABLAGE.verbindung)
   entferne(ablage, ABLAGE.sicht)
   entferne(ablage, ABLAGE.kopplung)
+  entferne(ablage, ABLAGE.geraetWkr)
 }
 
 /** Wie weit ein gekoppeltes Gerät ist (E7). */
@@ -367,4 +416,28 @@ export function liesKopplung(ablage: Ablage | null = vorgabe()): Kopplung | null
 /** Kopplung ablegen; `false`, wenn der Speicher sie nicht nimmt. */
 export function schreibeKopplung(kopplung: Kopplung, ablage: Ablage | null = vorgabe()): boolean {
   return schreibeJson(ablage, ABLAGE.kopplung, kopplung)
+}
+
+/**
+ * Ausgang der WKR-Erfassung eines Geräts (W1, geraete/erfassen.ts) – für genau einen Raum, gültig bis `bis`
+ * (36 h nach dem letzten Schreiben, wie die Sicht: danach liegen keine Werte mehr auf dem Handy). Was darin steht,
+ * prüft erfassen.ts beim Lesen; hier nur Raum und Ablauf.
+ */
+export function geraetWkrAblage(bezug: RaumBezug, ablage: Ablage | null = vorgabe(), uhr: () => number = Date.now) {
+  const raum = nurBezug(bezug)
+  return {
+    lies(): Record<string, unknown> | null {
+      const wert = liesJson(ablage, ABLAGE.geraetWkr)
+      if (wert === null) return null
+      if (!istObjekt(wert) || !gleicherRaum(wert, raum) || typeof wert.bis !== 'number' || wert.bis <= uhr() || !istObjekt(wert.inhalt)) {
+        entferne(ablage, ABLAGE.geraetWkr)
+        return null
+      }
+      return wert.inhalt
+    },
+    /** `false`, wenn der Speicher voll ist (dann gilt der Ausgang nur bis zum Neuladen). */
+    schreibe(inhalt: unknown): boolean {
+      return schreibeJson(ablage, ABLAGE.geraetWkr, { ...raum, bis: uhr() + SICHT_GUELTIG_MS, inhalt })
+    },
+  }
 }

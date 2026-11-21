@@ -2,7 +2,7 @@ import { configFor } from '../config/konfig'
 import { CLASS_IDS } from '../domain/classes'
 import type { AppState, ClassId, ListenStand, WertungsDisziplin } from '../types'
 import { klassenErgebnis, type GesamtListe, type LaufListe } from './ergebnis'
-import { OHNE_LAUF, zerlegeLauf } from './eingaben'
+import { istHaken, OHNE_LAUF, zerlegeLauf } from './eingaben'
 import { festeRunden } from './parallelBogen'
 import { rundenEinheit, rundenErgebnis } from './parallelErgebnis'
 import { nichtGewertet } from './disziplinen'
@@ -246,8 +246,8 @@ export const KEINE_LISTE = 0
 
 const KEINE: ReadonlySet<string> = new Set()
 
-/** Der Haken „erfasst“ geht nicht in die Wertung ein (lib/eingaben.ts `erfasstKennung`) – er ist keine Änderung der Liste. */
-const zaehlt = (feld: string) => !feld.startsWith('erfasst@')
+/** Der Haken „erfasst“ (auch ein Teilhaken) geht nicht in die Wertung ein (lib/eingaben.ts `istHaken`) – er ist keine Änderung der Liste. */
+const zaehlt = (feld: string) => !istHaken(feld)
 
 /**
  * Die Listen, in denen sich zwischen zwei Ständen der Eingaben ein Wert geändert hat (gesetzt,

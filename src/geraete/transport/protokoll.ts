@@ -21,8 +21,17 @@ import type { Json, Op } from './ntfy/patch'
  * dem Ablauf einer Bearbeitung), ändert so nichts zweimal.
  */
 
-/** Fassung dieses Protokolls; steht (signiert) in jeder Nachricht des Hosts, `v`. */
-export const PROTOKOLL_FASSUNG = 1
+/**
+ * Fassung dieses Protokolls; steht (signiert) in jeder Nachricht des Hosts, `v`.
+ *
+ * 2 (W1, 21.11.2026, Antwort F11): digitale WKR-Erfassung. Neu sind `lebenszeichen` und `gesehen`, die Ablehnungen
+ * der Zeilen und – bewusst – eine Ausnahme von „keine Werte auf der Leitung“: Werte gehen NUR vom Gerät an den Host
+ * (Thema g, an den Box-Schlüssel des Hosts) und als `steht` einer Rückfrage in der Sicht der Liste (deren
+ * verschlüsselte Gruppe, wkr/sicht.ts) – lesbar für jedes Gerät DERSELBEN Liste, am Steg auch für das des anderen
+ * Teils (WKR_ANNAHMEN.rueckfrageInListe, Prüfbefund 21.11.2026). Die öffentlichen Gruppen `ko`/`kz` bleiben wertfrei.
+ * Fassung 1 und 2 verstehen einander nicht (Geräte melden „Fassung“, F7).
+ */
+export const PROTOKOLL_FASSUNG = 2
 
 /**
  * Gruppe der öffentlichen Sicht für die Anzeigetafel (Thema oA; betrieb/sicht.ts sichtOeffentlich ohne Logos). Auch die
@@ -96,8 +105,15 @@ export interface GeraeteAction {
 export type GeraeteNachricht =
   /** Anmeldung (E7): Geräte-Code oder QR-Token, Name des Geräts. Kommt meist über ein Koppel-Thema. */
   | { art: 'hallo'; name: string; code: string }
-  /** Eine Änderung, die der Host prüft und anwendet. */
+  /** Eine Änderung, die der Host prüft und anwendet (W1: auch die WKR-Arten, geraete/aufgaben.ts WKR_ACTIONS). */
   | { art: 'action'; action: GeraeteAction }
+  /**
+   * W1: Das Gerät lebt, obwohl es nichts schickt (nur nach Stille, wkr/annahmen.ts). `wartend` = Zeilen, die es noch
+   * nicht losgeworden ist; `akku` in Prozent, wenn der Browser es verrät. Nur für die Bedieneransicht (W2).
+   */
+  | { art: 'lebenszeichen'; wartend: number; akku?: number }
+  /** W1: Ein Hinweis des Bedienrechners (Sicht der Liste, `hinweise[].id`) ist gelesen – er verschwindet. */
+  | { art: 'gesehen'; hinweis: number }
 
 /** Was ein Gerät verschlüsselt an den Host schickt. */
 export interface GeraeteKlartext {
@@ -122,6 +138,15 @@ export function liesGeraeteNachricht(wert: unknown): GeraeteNachricht | null {
     delete ohneZeit.zeit
     return { art: 'action', action: ohneZeit }
   }
+  if (wert.art === 'lebenszeichen') {
+    if (!istZahl(wert.wartend) || wert.wartend > 10_000) return null
+    if (wert.akku !== undefined && (!istZahl(wert.akku) || wert.akku > 100)) return null
+    return { art: 'lebenszeichen', wartend: wert.wartend, ...(wert.akku !== undefined ? { akku: wert.akku } : {}) }
+  }
+  if (wert.art === 'gesehen') {
+    if (!istZahl(wert.hinweis) || !Number.isSafeInteger(wert.hinweis)) return null
+    return { art: 'gesehen', hinweis: wert.hinweis }
+  }
   return null
 }
 
@@ -135,9 +160,32 @@ export function liesGeraeteKlartext(wert: unknown): GeraeteKlartext | null {
 // Host → ein Gerät
 // ---------------------------------------------------------------------------
 
-/** Gründe einer Ablehnung – Codes, die das Gerät übersetzt (nie Text auf der Leitung). */
-export const ABLEHNUNGEN = ['code-ungueltig', 'code-abgelaufen', 'id-belegt', 'fassung', 'nicht-erlaubt', 'konflikt'] as const
+/**
+ * Gründe einer Ablehnung – Codes, die das Gerät übersetzt (nie Text auf der Leitung). Ab W1 (21.11.2026) auch die der
+ * WKR-Zeilen (wkr/zeile.ts ZeilenFehler) und `offen` (die Liste hat noch offene Starts – Abschluss nur mit „Rest auf
+ * Papier“).
+ */
+export const ABLEHNUNGEN = [
+  'code-ungueltig', 'code-abgelaufen', 'id-belegt', 'fassung', 'nicht-erlaubt', 'konflikt',
+  'wert-ungueltig', 'start-unbekannt', 'feld-fremd', 'x-nicht-erlaubt', 'teil-fremd', 'seite-anders', 'offen',
+] as const
 export type Ablehnung = (typeof ABLEHNUNGEN)[number]
+
+export function istAblehnung(wert: unknown): wert is Ablehnung {
+  return (ABLEHNUNGEN as readonly unknown[]).includes(wert)
+}
+
+/**
+ * Hinweise des Bedienrechners an die Geräte einer Liste (W1, Rückkanal, nur Codes und Startnummer): prüfen, Papier
+ * übernimmt, Verbindung unterbrochen, wieder digital. Dieselben wie wkr/sicht.ts WKR_HINWEISE (Test) – hier doppelt,
+ * damit das Protokoll nichts aus der Fachlogik (und ihrer Konfiguration) lädt.
+ */
+export const HINWEISE = ['pruefen', 'papier', 'unterbrochen', 'weiter-digital'] as const
+export type Hinweis = (typeof HINWEISE)[number]
+
+export function istHinweis(wert: unknown): wert is Hinweis {
+  return (HINWEISE as readonly unknown[]).includes(wert)
+}
 
 /** Ausgang einer Geräte-Action am Host: angewandt, ohne Wirkung (bedingt), abgelehnt, oder schon einmal da. */
 export const ERGEBNISSE = ['angewandt', 'unveraendert', 'abgelehnt', 'doppelt'] as const

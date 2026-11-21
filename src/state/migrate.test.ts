@@ -421,3 +421,82 @@ describe('migrate: Kleines Finale und Finale getrennt (21.11.2026)', () => {
     expect(migrate(JSON.parse(JSON.stringify(m)))).toEqual(m)
   })
 })
+
+describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
+  const liste = JSON.stringify(['l', 'par_1', 'gate135', null])
+  const rf = (starter: string, mehr: object = {}) => ({
+    id: `g1.1|manoevrieren/1|${starter}|t1a|hin seiteA`,
+    zeile: 'g1.1',
+    liste,
+    ref: JSON.stringify(['m', starter, 1]),
+    lauf: 'manoevrieren/1',
+    weitere: [],
+    starter,
+    feld: 't1a|hin seiteA',
+    wert: '5',
+    steht: '10',
+    grund: 'zelle',
+    haken: ['erfasst@gate135'],
+    zeit: 5000,
+    ...mehr,
+  })
+  const starters = [{ id: 'a', klasse: '1', nachname: 'Nach1' }]
+
+  it('fehlt oder kaputt → leer', () => {
+    const leer = { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {} }
+    expect(migrate({ starters })!.wkr).toEqual(leer)
+    for (const kaputt of ['x', 7, null, [], { listen: 'x', rueckfragen: {}, vorschlaege: 3, abschluss: [] }]) expect(migrate({ starters, wkr: kaputt })!.wkr).toEqual(leer)
+  })
+
+  it('Gültiges bleibt; Unbrauchbares entfällt einzeln; fremde Starter fallen weg', () => {
+    const wkr = {
+      listen: {
+        [liste]: { modus: 'digital', status: 'pausiert', seit: 100, pausen: [{ von: 200, bis: null, papier: ['k'] }, { von: 'x' }] },
+        kaputt: { modus: 'digital', status: 'aktiv', seit: 0, pausen: [] },
+        [JSON.stringify(['l', 'par_1', 'tor5', null])]: { modus: 'analog', status: 'aktiv', seit: 0, pausen: [] },
+      },
+      rueckfragen: [rf('a'), rf('weg'), rf('a', { grund: 'anders' }), rf('a', { haken: ['kein-haken'] }), rf('a')],
+      vorschlaege: [
+        { id: 'g1.2', liste, ref: 'r', lauf: 'manoevrieren/1', weitere: [], starter: 'a', zellen: [{ feld: 'f', wert: '5' }], haken: [], grund: 'papier', zeit: 1 },
+        { id: 'g1.3', liste, ref: 'r', lauf: 'manoevrieren/1', weitere: [], starter: 'weg', zellen: [], haken: [], grund: 'papier', zeit: 1 },
+        { id: 'g1.4', liste, ref: 'r', lauf: 'kaputt', weitere: [], starter: 'a', zellen: [], haken: [], grund: 'papier', zeit: 1 },
+      ],
+      abschluss: { [liste]: { 'lauf:1': { name: 'Vor1', zeit: 9, abweichend: [], papier: ['k'] }, 'lauf:x': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] } }, kaputt: {} },
+    }
+    expect(migrate({ starters, wkr })!.wkr).toEqual({
+      listen: { [liste]: { modus: 'digital', status: 'pausiert', seit: 100, pausen: [{ von: 200, bis: null, papier: ['k'] }] } },
+      rueckfragen: [rf('a')],
+      vorschlaege: [wkr.vorschlaege[0]],
+      abschluss: { [liste]: { 'lauf:1': { name: 'Vor1', zeit: 9, abweichend: [], papier: ['k'] } } },
+    })
+  })
+
+  it('Steg (F16): Status je Teil, Abschluss je Teil (Punkt|Teil), Rückfrage `start` mit Vereinigung – Teile nur bei geteilten Listen', () => {
+    const steg = JSON.stringify(['l', 'par_1', 'steg', null])
+    const wkr = {
+      listen: {
+        [steg]: { modus: 'digital', status: 'aktiv', seit: 1, pausen: [], teile: { ab: { status: 'abgemeldet', pausen: [{ von: 2, bis: null, papier: ['k'] }] }, an: { status: 'weg', pausen: [] }, mitte: { status: 'aktiv', pausen: [] } } },
+        [liste]: { modus: 'digital', status: 'aktiv', seit: 1, pausen: [], teile: { ab: { status: 'pausiert', pausen: [] } } },
+      },
+      rueckfragen: [rf('a', { id: 'x1', grund: 'start', vereinige: { vorher: '' } }), rf('a', { id: 'x2', vereinige: { vorher: '' } }), rf('a', { id: 'x3', grund: 'start', vereinige: { vorher: 5 } })],
+      abschluss: {
+        [steg]: { 'lauf:1|ab': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] }, 'lauf:1|mitte': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] } },
+        [liste]: { 'lauf:1|ab': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] }, 'lauf:1': { name: 'Vor2', zeit: 9, abweichend: [], papier: [] } },
+      },
+    }
+    const m = migrate({ starters, wkr })!.wkr
+    expect(m.listen[steg]).toEqual({ modus: 'digital', status: 'aktiv', seit: 1, pausen: [], teile: { ab: { status: 'abgemeldet', pausen: [{ von: 2, bis: null, papier: ['k'] }] } } })
+    expect(m.listen[liste]).toEqual({ modus: 'digital', status: 'aktiv', seit: 1, pausen: [] })
+    expect(m.rueckfragen.map((r) => [r.id, r.vereinige])).toEqual([
+      ['x1', { vorher: '' }],
+      ['x2', undefined],
+      ['x3', undefined],
+    ])
+    expect(m.abschluss).toEqual({ [steg]: { 'lauf:1|ab': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] } }, [liste]: { 'lauf:1': { name: 'Vor2', zeit: 9, abweichend: [], papier: [] } } })
+  })
+
+  it('ein Stand aus dem Reducer übersteht Speichern und Laden', () => {
+    const s = reducer(emptyState(), { type: 'WKR_LISTE', liste, modus: 'beides', zeit: 100 })
+    expect(migrate(JSON.parse(JSON.stringify(s)))!.wkr).toEqual(s.wkr)
+  })
+})

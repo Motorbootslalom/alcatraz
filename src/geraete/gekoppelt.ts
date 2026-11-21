@@ -7,8 +7,8 @@ import { normalisiereCode } from './koppeln'
 import { liesKoppelLink, packeKoppelPaket, PAKET_FASSUNG, type KoppelPaket } from './paket'
 import { koppelThema } from './themen'
 import { fromBase64Url } from './transport/ntfy/codec'
-import { GeraetTransport } from './transport/ntfy/transport'
-import type { Ablehnung, Ergebnis, GeraeteAction } from './transport/protokoll'
+import { GeraetTransport, type Empfang } from './transport/ntfy/transport'
+import type { Ablehnung, Ergebnis, GeraeteAction, GeraeteNachricht } from './transport/protokoll'
 
 /**
  * Ein gekoppeltes Gerät für die Start-Freigabe (Etappe E7, Plan vom 16.11.2026 §5): liest die öffentliche Sicht wie die
@@ -30,6 +30,23 @@ export interface Quittung {
   nr: number
   ergebnis: Ergebnis
   grund?: Ablehnung
+}
+
+/**
+ * Der Kanal unter der Oberfläche (W1, für geraete/erfassen.ts): Empfang aller Nachrichten (auch der Sicht einer Liste),
+ * Senden beliebiger Geräte-Nachrichten, gesammelte Quittung. Die Start-Freigabe braucht ihn nicht.
+ */
+export interface GeraeteKanal {
+  empfange(fn: (e: Empfang) => void): () => void
+  /** Eine Nachricht in die Sende-Schlange – `null`, solange das Gerät nicht gekoppelt ist. */
+  schicke(nachricht: GeraeteNachricht): number | null
+  unbestaetigt(): number[]
+  /** Gesammelte Quittung: alles ≤ `bis` ist beim Host bearbeitet (transport.ts `bestaetige`). */
+  bestaetige(bis: number): number[]
+  /** Eigene ID, wie der Host sie vergab (`null` vor dem willkommen). */
+  id(): string | null
+  /** Wann (Uhr des Geräts) zuletzt etwas in die Sende-Schlange ging – für das Lebenszeichen nach Stille. */
+  zuletztGesendet(): number
 }
 
 export interface GekoppeltesGeraet extends Omit<LeseGeraet, 'art' | 'zuschauer'> {
@@ -62,6 +79,8 @@ export interface GekoppeltesGeraet extends Omit<LeseGeraet, 'art' | 'zuschauer'>
   sende(action: GeraeteAction): number | null
   /** Darf dieses Gerät die Action nach seinen Aufgaben? Nur für die Oberfläche – entscheiden tut der Host. */
   darf(action: GeraeteAction): boolean
+  /** W1: der Kanal für die WKR-Erfassung (geraete/erfassen.ts). */
+  readonly kanal: GeraeteKanal
 }
 
 export type KoppelStart =
@@ -146,6 +165,11 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
     uhr,
   })
   const kern = lesegeraetAus(paket, 'anzeige', umgebung, ablage, uhr, t)
+  let zuletztGesendet = uhr()
+  const sendeJetzt = (nachricht: GeraeteNachricht) => {
+    zuletztGesendet = uhr()
+    return t.sende(nachricht)
+  }
   const aktualisiereOffen = () => {
     const anmeldung = t.offeneAnmeldung()
     const jetzt = t.unbestaetigt().filter((nr) => nr !== anmeldung)
@@ -213,7 +237,7 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
       // P-7: Ein bekanntes Gerät meldet sich nach jedem Start selbst – ohne Code. Der Host begrüßt es mit seinen
       // jetzigen Rechten und Schlüsseln (oder es ist inzwischen entzogen: dann kommt `entzogen` über d).
       if (lage.value === 'gekoppelt' && t.unbestaetigt().length === 0) {
-        t.sende({ art: 'hallo', name: k.name, code: '' })
+        sendeJetzt({ art: 'hallo', name: k.name, code: '' })
         aktualisiereOffen()
       }
     },
@@ -228,19 +252,36 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
       // Eine frühere Anmeldung ohne Antwort (falscher Code) zuerst weg – sonst wartete die neue hinter ihr.
       t.verwirfAnmeldung()
       t.koppleUeber(thema)
-      t.sende({ art: 'hallo', name, code: wert })
+      sendeJetzt({ art: 'hallo', name, code: wert })
       aktualisiereOffen()
       return 'gesendet'
     },
     sende(action) {
       if (lage.value !== 'gekoppelt') return null
-      const nr = t.sende({ art: 'action', action })
+      const nr = sendeJetzt({ art: 'action', action })
       aktualisiereOffen()
       return nr
     },
     darf(action) {
       const sauber = bereinige(action)
       return lage.value === 'gekoppelt' && !!sauber && freigabeBereiche(aufgaben.value).includes(sauber.bereich)
+    },
+    kanal: {
+      empfange: (fn) => t.beiEmpfang(fn),
+      schicke(nachricht) {
+        if (lage.value !== 'gekoppelt') return null
+        const nr = sendeJetzt(nachricht)
+        aktualisiereOffen()
+        return nr
+      },
+      unbestaetigt: () => t.unbestaetigt(),
+      bestaetige(bis) {
+        const weg = t.bestaetige(bis)
+        if (weg.length) aktualisiereOffen()
+        return weg
+      },
+      id: () => t.eigeneId(),
+      zuletztGesendet: () => zuletztGesendet,
     },
   }
 }

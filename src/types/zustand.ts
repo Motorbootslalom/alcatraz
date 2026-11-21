@@ -4,6 +4,7 @@ import type { SCHEMA_VERSION } from '../types'
 import type { ClassId, StartNrMode } from './starter'
 import type { ParallelPlaene, ParallelRunde, PlanState } from './planung'
 import type { AnzeigeEinstellungen, Betrieb } from './betrieb'
+import type { WkrStand } from './wkr'
 import type {
   Besetzung,
   Einteilung,
@@ -301,4 +302,11 @@ export interface AppState extends PlanState {
    * bewusst geöffneten Raum verbindet sich die Anwendung mit keinem Server.
    */
   geraeteServer: string
+  /**
+   * Digitale Erfassung durch die Wettkampfrichter (W1, Plan docs/plan-wkr-w1.md vom 21.11.2026): Modus und Status je
+   * Liste, offene Rückfragen und Vorschläge, Abschlüsse (types/wkr.ts; Actions state/reducer/wkr.ts, Logik src/wkr/).
+   * Die Werte selbst stehen in `eingaben`. Gehört zur Veranstaltung: in der Sicherung, nicht in der Vorlage. Nie ein
+   * Gerätename (F10) – die Herkunft liegt gerätelokal am Bedienrechner, der Name im Verlauf.
+   */
+  wkr: WkrStand
 }

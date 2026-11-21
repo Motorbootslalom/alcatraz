@@ -289,6 +289,25 @@ kennt diese beiden Grenzen; bei einem anderen Server zählt es nur und warnt, so
 - Sparen: Gerätebetrieb erst einschalten, wenn er gebraucht wird; den Raum abends beenden; Lese-Links nur dort, wo
   sie nötig sind – die Anzeigetafel am zweiten Monitor kostet nichts.
 
+### WKR-Erfassung (W1, ohne Masken)
+
+Stand 21.11.2026: Der **Kern** der digitalen Erfassung durch die Wettkampfrichter ist gebaut und gegen den
+nachgebauten Server geprüft – noch **ohne Masken** auf dem Handy und ohne Oberfläche am Bedienrechner (Matrix,
+Rückfragen, ◆: W2–W4). Am Wettkampftag also noch nicht nutzbar. Was schon gilt (Plan
+[plan-wkr-w1.md](plan-wkr-w1.md), Vorschlag [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md)):
+
+- Ein Gerät bekommt beim Koppeln **eine Liste** (Pad höchstens zwei; am Steg auch nur Ablegen oder Anlegen). Damit
+  wird die Liste „digital“, und das Gerät liest über eine eigene verschlüsselte Gruppe die **Sicht der Liste**:
+  gezeigte Starts mit Startnummer und Klasse (nie Namen), Maske je Klasse, eigene Rückfragen, Hinweise.
+- Zeilen gehen über die Erfassung in die Werte – genau wie Abtippen: leere Zelle → übernommen, belegte Zelle mit
+  anderem Wert → **Rückfrage** am Bedienrechner, nie still überschrieben. Bestätigt wird gesammelt über die Sicht
+  der Liste (je Zeile eine Nachricht hin, eine Sicht zurück); nach einem Funkloch gehen die wartenden Zeilen als eine
+  Nachricht. Wartende Zeilen liegen nur auf dem Gerät (36 h), Herkunft ◆ nur am Bedienrechner, nie in der Sicherung.
+- Das Gerät kann die Liste pausieren oder abmelden (dann gehen offene und neu gezeigte Starts aufs Papier) und mit
+  „Liste abschließen“ samt WKR-Namen den Lauf quittieren; spätere Korrekturen werden Vorschläge.
+- Ein Gerät mit Liste meldet sich nach 60 s Stille mit einem Lebenszeichen (Akku, wartende Zeilen) – nur während ein
+  Lauf läuft. Fürs Kontingent: etwa zwei Nachrichten je Zeile und Gerät.
+
 ## Ablauf am Wettkampftag
 
 Für die Person am Bedienrechner, Schritt für Schritt. Ohne Gerätebetrieb entfallen alle Punkte zu Handys und Server.

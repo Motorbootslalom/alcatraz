@@ -27,7 +27,7 @@ const sicht = { bereiche: [{ id: 'par_1', name: 'Parcours 1' }] }
 describe('an eine Gruppe', () => {
   it('liest nur, wer den Gruppenschlüssel hat, und die Signatur stimmt', async () => {
     const wire = parseHostWire(await sealGruppe({ voll: sicht }, kopf, THEMA, gruppenKey, host.sign.secretKey))!
-    expect(wire).toMatchObject({ v: 1, r: 'raum1234', g: 'ko', e: 3, n: 7, a: 'v', sv: 4, hz: 1_000_000 })
+    expect(wire).toMatchObject({ v: PROTOKOLL_FASSUNG, r: 'raum1234', g: 'ko', e: 3, n: 7, a: 'v', sv: 4, hz: 1_000_000 })
     expect(verifyHostWire(wire, THEMA, host.sign.publicKey)).toBe(true)
     expect(await openGruppe(wire, gruppenKey)).toEqual({ voll: sicht })
     expect(await openGruppe(wire, nacl.randomBytes(32))).toBeNull()
@@ -123,21 +123,34 @@ describe('Einlesen', () => {
     expect(parseHostWire('kein json')).toBeNull()
     expect(parseHostWire('[]')).toBeNull()
     const echt = JSON.parse(await sealGruppe({ voll: sicht }, kopf, THEMA, gruppenKey, host.sign.secretKey)) as HostWire
-    expect(parseHostWire(JSON.stringify({ ...echt, v: 2 }))).toBeNull()
-    expect(parseGeraetWire(JSON.stringify({ v: 1, pk: 'kurz', x: 'x', c: 'y' }))).toBeNull()
+    expect(parseHostWire(JSON.stringify({ ...echt, v: PROTOKOLL_FASSUNG + 1 }))).toBeNull()
+    expect(parseGeraetWire(JSON.stringify({ v: PROTOKOLL_FASSUNG, pk: 'kurz', x: 'x', c: 'y' }))).toBeNull()
+  })
+
+  it('W1: Fassung 2 – Nachrichten der Fassung 1 versteht keine Seite (F11: neue Arten, Werte auf g)', async () => {
+    expect(PROTOKOLL_FASSUNG).toBe(2)
+    // Host der Fassung 1 → Gerät der Fassung 2: nicht lesbar, aber mit Beleg als „Fassung“ erkannt.
+    const alt = await sealGruppe({ voll: sicht }, { ...kopf, v: 1 }, THEMA, gruppenKey, host.sign.secretKey)
+    expect(parseHostWire(alt)).toBeNull()
+    expect(belegteFassung(alt, THEMA, host.sign.publicKey)?.v).toBe(1)
+    // Gerät der Fassung 1 → Host der Fassung 2: verworfen.
+    const geraet = nacl.box.keyPair()
+    const neu = JSON.parse(await sealVomGeraet({ id: 'geraet-a', nr: 1, nachricht: { art: 'lebenszeichen', wartend: 1 } }, geraet, host.box.publicKey)) as Record<string, unknown>
+    expect(parseGeraetWire(JSON.stringify(neu))).not.toBeNull()
+    expect(parseGeraetWire(JSON.stringify({ ...neu, v: 1 }))).toBeNull()
   })
 
   it('eine fremde Fassung zählt nur mit dem Beleg des Hosts – für jede Fassung gleich geprüft', async () => {
     // Ein Host einer späteren Fassung: Sein Format kann das Gerät nicht lesen, den Beleg schon.
-    const spaeter = await sealGruppe({ voll: sicht }, { ...kopf, v: 2, sv: 5 }, THEMA, gruppenKey, host.sign.secretKey)
+    const spaeter = await sealGruppe({ voll: sicht }, { ...kopf, v: PROTOKOLL_FASSUNG + 1, sv: 5 }, THEMA, gruppenKey, host.sign.secretKey)
     expect(parseHostWire(spaeter)).toBeNull()
-    expect(belegteFassung(spaeter, THEMA, host.sign.publicKey)).toEqual({ v: 2, r: 'raum1234', sv: 5, hz: 1_000_000 })
+    expect(belegteFassung(spaeter, THEMA, host.sign.publicKey)).toEqual({ v: PROTOKOLL_FASSUNG + 1, r: 'raum1234', sv: 5, hz: 1_000_000 })
     // Ohne oder mit falschem Beleg, auf einem anderen Thema, mit geänderter Angabe: nichts.
     const w = JSON.parse(spaeter) as Record<string, unknown>
     expect(belegteFassung(JSON.stringify({ v: 99, sv: 99 }), THEMA, host.sign.publicKey)).toBeNull()
     expect(belegteFassung(JSON.stringify({ ...w, fs: undefined }), THEMA, host.sign.publicKey)).toBeNull()
     expect(belegteFassung(spaeter, 'anderesThema123456789', host.sign.publicKey)).toBeNull()
-    expect(belegteFassung(JSON.stringify({ ...w, v: 3 }), THEMA, host.sign.publicKey)).toBeNull()
+    expect(belegteFassung(JSON.stringify({ ...w, v: PROTOKOLL_FASSUNG + 2 }), THEMA, host.sign.publicKey)).toBeNull()
     expect(belegteFassung(spaeter, THEMA, nacl.sign.keyPair().publicKey)).toBeNull()
     // Auch Ankündigungen und Nachrichten an ein Gerät tragen ihn.
     const ankuendigung = sealAnkuendigung(kopf, THEMA, { u: 'https://ntfy.test/file/m1.txt', b: 1, h: textHash('x') }, host.sign.secretKey)

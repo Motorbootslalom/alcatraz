@@ -34,7 +34,7 @@ Mit CLAUDECODE/AI_AGENT gibt Vitest knapp aus wie test:leise. CI (.github/workfl
 ## Ordnerkarte (* = eigene CLAUDE.md im Ordner, wird beim Lesen dort geladen)
 
 ```
-src/types.ts, types/  Sammelpunkt (SCHEMA_VERSION = 1, welcher Typ wo); types/zustand (AppState), starter, planung, wertung, einstellungen, bogen (SheetDef)
+src/types.ts, types/  Sammelpunkt (SCHEMA_VERSION = 1, welcher Typ wo); types/zustand (AppState), starter, planung, wertung, einstellungen, bogen (SheetDef), wkr
 src/main.ts, App.vue  Wurzel nach Adresse; Store anlegen, Offline starten; Kopf, Reiter (lib/adressen.ts VIEWS), Banner, Fuß
 src/AnzeigeApp.vue    Wurzel der Anzeigetafel `#/anzeige[/<bereich>]`: Nur-Lese-Store, ohne Kopf/Scanner/Offline
 src/ZuschauerApp.vue  Wurzel der Zuschauerliste `#/zuschauer[/<bereich>]` (E3): ebenso, liest nur sichtZuschauer
@@ -44,7 +44,8 @@ src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/St
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
 src/lib/         *    reine Logik: Wertung, Parallelslalom, Pokal, Bögen, Listen, Laufzettel, QR, Verlauf, Offline
 src/betrieb/     *    Betrieb am Wettkampftag, rein: Folge (abgeleitet), Lage, Schritte, Sicht, Prognose, BETRIEB_ANNAHMEN
-src/geraete/     *    Gerätebetrieb über ntfy (E5 Kern, E6 Lese-Links): transport/, Themen, Führung, Fensterbus, Ablage (gerätelokal), paket, host (Bedienfenster), geraet (Gerät)
+src/wkr/         *    Digitale WKR-Erfassung (W1), rein: Listen, Zeile prüfen, Schlange, Übernahme, Sicht der Liste, WKR_ANNAHMEN
+src/geraete/     *    Gerätebetrieb über ntfy (E5 Kern, E6 Lese-Links, E7 Koppeln, W1 WKR): transport/, Themen, Führung, Fensterbus, Ablage (gerätelokal), paket, host (Bedienfenster), geraet/gekoppelt/erfassen (Gerät)
 src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/, anzeige/, betrieb/, zuschauer/
 src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Betrieb, Erfassung, Settings
 src/domain/           Klassen, Startnummern, Kürzel, Staaten, Flaggen, Gewicht, Geschlecht, Beispielstarter
@@ -144,6 +145,10 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … Start-Freigabe auf dem Handy (E7) | components/betrieb/GeraetFreigabe.vue (in GeraetApp für `#/koppeln`, `#/geraet`; StartFreigabe `nur-dieser`, Sperre bis Quittung); geraete/gekoppelt.ts; i18n geraete.freigabe.*, geraete.ablehnung.* |
 | … Lese-Link, Gerät, Fassung (F7) | geraete/paket.ts (`#/sehen/<paket>`, leseLinkUrl, lib/build.ts PAGES_URL), geraete/geraet.ts, src/GeraetApp.vue; Selbst-Update lib/offline.ts holeNeueFassung |
 | … Wake Lock, „Alle Geräte neu laden“, Kontingent (E8) | lib/wachBleiben.ts (GeraetApp-Hinweis `geraete.sehen.bildschirmKannAus`); host.ts ladeAlleNeu/neueFassung + geraet.ts NEULADEN_BEFEHL_GUELTIG_MS; geraete/kontingent.ts KONTINGENT; Oberfläche GeraeteRaum.vue; Bedienung docs/betrieb.md, Feldtest docs/feldtest.md |
+| WKR-Erfassung am Gerät: Zeile, Schlange, Übernahme | wkr/ (zeile.ts pruefeZeile, schlange.ts, uebernahme.ts, annahmen.ts WKR_ANNAHMEN); Stand types/wkr.ts AppState.wkr, Actions state/reducer/wkr.ts; Haken lib/eingaben.ts istHaken/teilHaken |
+| … was das WKR-Gerät sieht, was es darf | wkr/sicht.ts sichtListe (Feld für Feld, LISTEN_SICHT_FASSUNG, sicht.test.ts Schlüssel); Rechte geraete/aufgaben.ts Aufgabe `liste`, WKR_ACTIONS, erlaubteWkr; Gruppe geraete/wkrGruppen.ts |
+| WKR-Geräte am Host (W1): Gruppen je Liste, stille Quittung, Annahme, Herkunft ◆, Hinweise | geraete/host.ts nimmWkrAn/verteileListen, geraete/wkrEingang.ts (Ablage `alcatraz.geraete.wkr`/`.herkunft`), aufgaben.ts erlaubteWkr, wkrGruppen.ts, wkr/sicht.ts; Protokoll 2 transport/protokoll.ts |
+| WKR-Gerät (W1, ohne Maske): Ausgang, Bündeln, Stufen, Korrektur, Pause, Abschluss, Lebenszeichen | geraete/erfassen.ts oeffneErfassung (auf gekoppelt.ts `kanal`), Ablage `alcatraz.geraet.wkr` (ablage.ts geraetWkrAblage); Ende zu Ende geraete/wkr.test.ts; Masken folgen W3/W4 |
 | … Server (Einstellung) | AppState.geraeteServer (SET_GERAETE_SERVER, lib/serverAdresse.ts), SettingsView `#geraete`; i18n listopt.geraete.* |
 
 ## Feste Regeln

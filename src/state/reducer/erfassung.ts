@@ -1,6 +1,6 @@
 // Erfassung: Werte setzen und löschen (alle oder Läufe/Runden); Beispielwerte, -Besetzung, -Gewichte, -Boote und -Co-Piloten aus der `saat`.
 
-import type { AppState, ParallelRunde } from '../../types'
+import type { AppState, ParallelRunde, PunktId } from '../../types'
 import { einteilungsZellen } from '../../lib/einteilung'
 import { beispielBoote, beispielCoPiloten, beispielEinteilung, beispielGewichte } from '../../lib/beispieldaten'
 import { besetzungsKlassen, coPilotKlassen } from '../../lib/besetzung'
@@ -12,6 +12,8 @@ import { beispielEingaben, beispielRunde, zufallAus, type Zeitnahme } from '../.
 import { VORLAUF } from '../../planung/parallelRunden'
 import { hasParallel, sollgewichtOf } from '../../config/catalog'
 import { konfigVon } from './gemeinsam'
+import { wkrOhneLaeufe } from './wkr'
+import { laufPunkt, rundenPunkt } from '../../betrieb/folge'
 
 export type ErfassungAenderung =
   /**
@@ -80,13 +82,24 @@ export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): A
       // Ebenso „Disziplin nicht werten“: Ohne Werte zählt ohnehin keine Disziplin.
       // Der Plan des Vorlaufs hängt an der Verzahnung und bleibt, solange sie festgeschrieben
       // ist; bei freigegebener Verzahnung entfällt er hier (in `reducer`, planung/parallelRunden.ts).
+      // Ebenso Rückfragen, Vorschläge und Abschlüsse der WKR-Geräte (W1): Sie betreffen Werte, die es nicht mehr gibt.
+      // Modus und Status der Listen bleiben – sie gehören zur Organisation, nicht zu den Werten.
       return Object.keys(state.eingaben).length === 0 &&
         state.abgemeldet.length === 0 &&
         Object.keys(state.nichtWerten).length === 0 &&
         Object.keys(state.parallelPlaene).every((r) => r === VORLAUF) &&
-        (state.verzahnungLocked || state.parallelPlaene[VORLAUF] === undefined)
+        (state.verzahnungLocked || state.parallelPlaene[VORLAUF] === undefined) &&
+        wkrOhneLaeufe(state.wkr, () => true, () => true) === state.wkr
         ? state
-        : { ...state, eingaben: {}, abgemeldet: [], abgemeldetBis: {}, nichtWerten: {}, parallelPlaene: state.parallelPlaene[VORLAUF] ? { [VORLAUF]: state.parallelPlaene[VORLAUF] } : {} }
+        : {
+            ...state,
+            eingaben: {},
+            abgemeldet: [],
+            abgemeldetBis: {},
+            nichtWerten: {},
+            parallelPlaene: state.parallelPlaene[VORLAUF] ? { [VORLAUF]: state.parallelPlaene[VORLAUF] } : {},
+            wkr: wkrOhneLaeufe(state.wkr, () => true, () => true),
+          }
     case 'FILL_BEISPIELWERTE': {
       // Die Konfiguration ist eine reine Funktion des Stands – der Reducer bleibt deterministisch.
       const konfig = konfigVon(state)
@@ -121,7 +134,10 @@ export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): A
         ...(action.runden ?? []).flatMap((r) => [attemptSchluessel(r, 1), attemptSchluessel(r, 2)]),
       ])
       const bleibt = Object.entries(state.eingaben).filter(([schluessel]) => !weg.has(schluessel))
-      if (bleibt.length === Object.keys(state.eingaben).length) return state
+      // Rückfragen, Vorschläge und Abschlüsse der WKR-Geräte zu diesen Läufen und Runden gehen mit (W1).
+      const punkte = new Set<PunktId>([...(action.laeufe ?? []).map(laufPunkt), ...(action.runden ?? []).map(rundenPunkt)])
+      const wkr = wkrOhneLaeufe(state.wkr, (lauf) => weg.has(lauf), (punkt) => punkte.has(punkt))
+      if (bleibt.length === Object.keys(state.eingaben).length) return wkr === state.wkr ? state : { ...state, wkr }
       // Bleibt nichts übrig, ist es dasselbe wie „Alle erfassten Werte löschen“ – mit Abmeldungen
       // und späteren Runden (den Plan des Vorlaufs nimmt `reducer` dann ebenso weg).
       // Der Aufruf geht direkt an den case, nicht über wendeAn() (reducer.ts): Dessen Sperren gelten
@@ -132,7 +148,7 @@ export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): A
       // Runden zurück (lib/abmeldung.ts) – sonst stünde er dort als „noch offen“ da, obwohl er
       // als abgemeldet gilt, und Beispielwerte gäben ihm Zeiten.
       const konfig = konfigVon(state)
-      let next: AppState = { ...state, eingaben: Object.fromEntries(bleibt) }
+      let next: AppState = { ...state, eingaben: Object.fromEntries(bleibt), wkr }
       const laeufe = (action.laeufe ?? []).filter((l) => l >= 1 && l <= Math.max(1, state.laufCount))
       for (const s of state.starters) if (laeufe.length > 0 && state.abgemeldet.includes(s.id)) next = { ...next, eingaben: mitAbmeldung(next, konfig, s, laeufe) }
       return action.runden && action.runden.length > 0 ? mitAbmeldungenInRunden(next, konfig, action.runden) : next

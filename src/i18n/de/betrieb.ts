@@ -444,4 +444,11 @@ export default {
   'geraete.ablehnung.fassung': 'Bedienrechner und Gerät laufen mit verschiedenen Fassungen.',
   'geraete.ablehnung.nicht-erlaubt': 'Das darf dieses Gerät nicht (anderer Parcours oder nicht mehr freigegeben).',
   'geraete.ablehnung.konflikt': 'Inzwischen hat sich dort etwas geändert – bitte die Anzeige prüfen.',
+  'geraete.ablehnung.wert-ungueltig': 'Dieser Wert passt nicht in die Liste.',
+  'geraete.ablehnung.start-unbekannt': 'Diesen Start kennt der Bedienrechner auf dieser Liste nicht.',
+  'geraete.ablehnung.feld-fremd': 'Diese Spalte gehört nicht zu dieser Liste oder Klasse.',
+  'geraete.ablehnung.x-nicht-erlaubt': '„X“ (nicht gestartet) gibt es nur am Steg (Ablegen) und am Vorsteg.',
+  'geraete.ablehnung.teil-fremd': 'Diese Spalte gehört zum anderen Teil des Stegs.',
+  'geraete.ablehnung.seite-anders': 'Dieser Start fährt auf der anderen Seite (A/B).',
+  'geraete.ablehnung.offen': 'Es sind noch Starts offen – abschließen nur mit „Rest auf Papier“.',
 } as const satisfies Record<string, string>

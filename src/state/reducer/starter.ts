@@ -4,6 +4,7 @@ import type { AppState, ClassId, Starter } from '../../types'
 import { naechsteStartNr } from '../../domain/startnrBereiche'
 import { dublettenSchluessel, mergeStarters } from '../../import/starterMerge'
 import { nurStarter, setzeWerte, starterfeldFest } from '../../lib/eingaben'
+import { wkrNurStarter } from './wkr'
 import { abmeldeZellen, mitAbmeldung, mitAbmeldungInRunden } from '../../lib/abmeldung'
 import { VORLAUF } from '../../planung/parallelRunden'
 import { regelwerkOf, startNrRegeln } from '../../config/catalog'
@@ -50,12 +51,12 @@ export function klasseFest(state: Pick<AppState, 'verzahnungLocked' | 'parallelP
   return state.verzahnungLocked || state.parallelPlaene[VORLAUF] !== undefined
 }
 
-/** Mit den Startern gehen ihre Eingaben: Ohne Starter gäbe es keinen Weg mehr, sie zu sehen oder zu löschen. */
+/** Mit den Startern gehen ihre Eingaben (und Rückfragen/Vorschläge der WKR-Geräte): Ohne Starter gäbe es keinen Weg mehr, sie zu sehen oder zu löschen. */
 function mitStartern(state: AppState, starters: Starter[]): AppState {
   const ids = new Set(starters.map((p) => p.id))
   const abgemeldet = state.abgemeldet.some((id) => !ids.has(id)) ? state.abgemeldet.filter((id) => ids.has(id)) : state.abgemeldet
   const abgemeldetBis = abgemeldet === state.abgemeldet ? state.abgemeldetBis : Object.fromEntries(Object.entries(state.abgemeldetBis).filter(([id]) => ids.has(id)))
-  return { ...state, starters, eingaben: nurStarter(state.eingaben, ids), abgemeldet, abgemeldetBis }
+  return { ...state, starters, eingaben: nurStarter(state.eingaben, ids), abgemeldet, abgemeldetBis, wkr: wkrNurStarter(state.wkr, ids) }
 }
 
 export function wendeStarterAn(state: AppState, action: StarterAenderung): AppState {

@@ -16,6 +16,7 @@ import { wendeErfassungAn, type ErfassungAenderung } from './reducer/erfassung'
 import { wendeWertungAn, type WertungAenderung } from './reducer/wertung'
 import { wendeListenAn, type ListenAenderung } from './reducer/listen'
 import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
+import { wendeWkrAn, type WkrAenderung } from './reducer/wkr'
 
 // Die case-Zweige stehen nach Bereichen in reducer/<bereich>.ts (Zuordnung: switch in wendeAn() unten).
 // Hier bleiben Einstieg, Sperren und Nachbearbeitung; was die Bereiche nach außen geben, reicht
@@ -39,6 +40,7 @@ export {
   laufzettelLayoutWert,
 } from './reducer/listen'
 export { anzeigeVorgabe, betriebLeer, normalisiereAnzeige, normalisiereBetrieb, meldungWert } from './reducer/betrieb'
+export { normalisiereWkr, wkrLeer } from './reducer/wkr'
 
 /**
  * Alle Änderungen am Zustand laufen als Action durch diesen Reducer.
@@ -71,6 +73,7 @@ type Aenderung =
   | WertungAenderung
   | ListenAenderung
   | BetriebAenderung
+  | WkrAenderung
 
 /** Was die Verzahnung verändert – gesperrt, solange sie festgeschrieben ist. */
 const VERZAHNUNG_ACTIONS: ReadonlySet<Action['type']> = new Set([
@@ -143,7 +146,16 @@ export function reducer(state: AppState, action: Action): AppState {
   // Nutzers; lib/listenStand.ts). Nur für die Wege der Eingabe: Ein Umzug von Werten beim
   // Wechsel des Aufbaus ist keine.
   const eingegeben =
-    action.type === 'SET_EINGABEN' || action.type === 'FILL_BEISPIELWERTE' || action.type === 'CLEAR_EINGABEN_TEIL' || action.type === 'ABMELDEN_STARTER' || action.type === 'ANMELDEN_STARTER' || action.type === 'PARALLEL_RUNDE_LOESEN'
+    action.type === 'SET_EINGABEN' ||
+    action.type === 'FILL_BEISPIELWERTE' ||
+    action.type === 'CLEAR_EINGABEN_TEIL' ||
+    action.type === 'ABMELDEN_STARTER' ||
+    action.type === 'ANMELDEN_STARTER' ||
+    action.type === 'PARALLEL_RUNDE_LOESEN' ||
+    // Werte vom WKR-Gerät (W1) sind Eingaben wie abgetippte.
+    action.type === 'WKR_ZEILEN' ||
+    action.type === 'WKR_RUECKFRAGE' ||
+    action.type === 'WKR_VORSCHLAG'
       ? geaenderteListen(state, next)
       : undefined
   // Die Mannschaftswertung führt keinen eigenen Stand: Ihr Zeitpunkt ist der jüngste der
@@ -282,6 +294,14 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_ANZEIGE':
     case 'SET_GERAETE_SERVER':
       return wendeBetriebAn(state, action)
+
+    case 'WKR_ZEILEN':
+    case 'WKR_RUECKFRAGE':
+    case 'WKR_VORSCHLAG':
+    case 'WKR_LISTE':
+    case 'WKR_ABSCHLUSS':
+    case 'WKR_ABSCHLUSS_LOESEN':
+      return wendeWkrAn(state, action)
 
     default:
       // Fehlt oben eine Action aus den Bereichen, meldet das die Typprüfung hier.

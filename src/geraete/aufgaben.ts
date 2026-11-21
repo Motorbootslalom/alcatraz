@@ -1,8 +1,14 @@
-import type { AppState, BereichId, ClassId, Meldung, VerschiebeZiel } from '../types'
+import type { AppState, BereichId, ClassId, Meldung, VerschiebeZiel, WkrStatus, WkrZeile } from '../types'
+import type { Konfig } from '../config/konfig'
 import type { BetriebAenderung } from '../state/reducer/betrieb'
+import type { WkrAenderung } from '../state/reducer/wkr'
 import { MELDUNG_MAX } from '../state/reducer/betrieb'
 import { CLASS_IDS } from '../domain/classes'
 import { bereichBekannt, istPunktId } from '../betrieb/folge'
+import { punktBegonnen } from '../wkr/abschluss'
+import { WKR_ANNAHMEN } from '../wkr/annahmen'
+import { liesListe, listenDerVeranstaltung, listenKennung, teileVon, type ListenTeil } from '../wkr/liste'
+import { pruefeZeile, type ZeilenFehler } from '../wkr/zeile'
 
 /**
  * Aufgaben gekoppelter Geräte und was sie dürfen (Etappe E7, Plan vom 16.11.2026 §5 „Rollen und Rechte“; Vorbild
@@ -13,9 +19,12 @@ import { bereichBekannt, istPunktId } from '../betrieb/folge'
  * steht, darf kein Gerät, auch keine Action, die es erst später gibt (Ladeweg, Einstellungen, Eingaben, Gewichte,
  * „Alles zurücksetzen“).
  *
- * Heute gibt es eine Aufgabe, die Start-Freigabe (Steg b) je Bereich. Anzeigetafel und Zuschauer sind keine Aufgabe,
- * sondern Lese-Links (Entscheidung F3 vom 16.11.2026). Später kommen ohne Umbau `liste` (WKR, Steg a, Vorsteg, Knoten)
- * und `checkin` dazu (Plan §5); dann prüft {@link darf} auch Zellen von SET_EINGABEN gegen den Stand.
+ * Zwei Aufgaben: die Start-Freigabe (Steg b) je Bereich und – seit W1 (21.11.2026, Plan docs/plan-wkr-w1.md §5) – die
+ * Erfassung einer WKR-Liste (`liste`, am Steg wahlweise nur ein Teil, F16; höchstens zwei Listen je Gerät, F15).
+ * Anzeigetafel und Zuschauer sind keine Aufgabe, sondern Lese-Links (Entscheidung F3 vom 16.11.2026). Die Listen
+ * schicken keine Reducer-Actions, sondern eigene Arten ({@link WKR_ACTIONS}); {@link erlaubteWkr} prüft sie Zeile für
+ * Zeile gegen den Stand (wkr/zeile.ts) und übersetzt sie. Später kommt `checkin` dazu (Plan der Tafel §5), Knoten und
+ * Zeit-Listen am Gerät mit W5.
  *
  * Entscheidung des Nutzers vom 16.11.2026 (F5): Einen entfernten „Poweruser“ gibt es vorerst nicht; die
  * Start-Freigabe darf das Betriebliche ihrer Bereiche – auch Einsteigen, Aussetzen, Verschieben, Meldung –, nur nicht
@@ -24,7 +33,17 @@ import { bereichBekannt, istPunktId } from '../betrieb/folge'
 
 export type Aufgabe =
   /** Start-Freigabe (Steg b): BETRIEB_* außer ZURUECKSETZEN, nur in diesen Bereichen (parcoursId bzw. 'parallel'). */
-  { art: 'startfreigabe'; bereiche: BereichId[] }
+  | { art: 'startfreigabe'; bereiche: BereichId[] }
+  /**
+   * WKR-Liste erfassen (W1): Listen-Kennung (wkr/liste.ts), am Steg wahlweise nur Ablegen oder Anlegen (F16; ohne
+   * `teil` der ganze Steg). Höchstens {@link LISTEN_JE_GERAET} je Gerät (F15: Handy eine, Pad höchstens zwei).
+   */
+  | { art: 'liste'; liste: string; teil?: ListenTeil }
+
+export type ListenAufgabe = Extract<Aufgabe, { art: 'liste' }>
+
+/** F15 (21.11.2026): ein Handy erfasst eine Liste, ein Pad höchstens zwei – mehr nimmt der Host nie an. */
+export const LISTEN_JE_GERAET = 2
 
 /**
  * Was die Start-Freigabe darf – die Positivliste. Nicht darin: BETRIEB_ZURUECKSETZEN (räumt den Betrieb eines
@@ -61,17 +80,33 @@ const istKlasse = (v: unknown): v is ClassId => typeof v === 'string' && (CLASS_
 export function liesAufgaben(wert: unknown): Aufgabe[] {
   if (!Array.isArray(wert)) return []
   const aus: Aufgabe[] = []
+  const listen = new Set<string>()
   for (const a of wert.slice(0, HOECHSTENS)) {
-    if (!istObjekt(a) || a.art !== 'startfreigabe' || !Array.isArray(a.bereiche)) continue
-    const bereiche = [...new Set(a.bereiche.filter((b): b is string => istKennung(b, 64)))].slice(0, HOECHSTENS)
-    aus.push({ art: 'startfreigabe', bereiche })
+    if (!istObjekt(a)) continue
+    if (a.art === 'startfreigabe' && Array.isArray(a.bereiche)) {
+      const bereiche = [...new Set(a.bereiche.filter((b): b is string => istKennung(b, 64)))].slice(0, HOECHSTENS)
+      aus.push({ art: 'startfreigabe', bereiche })
+    } else if (a.art === 'liste') {
+      // Nur lesbare Kennungen, jede Liste einmal, höchstens zwei (F15); ein Teil nur bei geteilten Listen (Steg).
+      const liste = liesListe(a.liste)
+      if (!liste || listen.has(a.liste as string) || listen.size >= LISTEN_JE_GERAET) continue
+      if (a.teil !== undefined && (!teileVon(liste.typeId) || (a.teil !== 'ab' && a.teil !== 'an'))) continue
+      const kennung = listenKennung(liste)
+      listen.add(kennung)
+      aus.push(a.teil === undefined ? { art: 'liste', liste: kennung } : { art: 'liste', liste: kennung, teil: a.teil })
+    }
   }
   return aus
 }
 
+/** Die Listen-Aufgaben (W1), in ihrer Folge. */
+export function listenAufgaben(aufgaben: readonly Aufgabe[]): ListenAufgabe[] {
+  return aufgaben.filter((a): a is ListenAufgabe => a.art === 'liste')
+}
+
 /** Alle Bereiche, in denen diese Aufgaben die Start-Freigabe erlauben. */
 export function freigabeBereiche(aufgaben: readonly Aufgabe[]): BereichId[] {
-  return [...new Set(aufgaben.filter((a) => a.art === 'startfreigabe').flatMap((a) => a.bereiche))]
+  return [...new Set(aufgaben.flatMap((a) => (a.art === 'startfreigabe' ? a.bereiche : [])))]
 }
 
 function liesMeldung(v: unknown): Meldung | null | undefined {
@@ -146,6 +181,9 @@ export type AufgabenStand = Pick<AppState, 'parcoursList' | 'regelwerk'>
  * bereinigte Action ({@link bereinige}) oder `null` = nicht erlaubt. Rein.
  */
 export function erlaubteAction(action: unknown, aufgaben: readonly Aufgabe[], stand: AufgabenStand): GeraeteBetriebAction | null {
+  // WKR-Arten gehen nie als Reducer-Action durch: Sie brauchen Konfiguration und Gerät und werden übersetzt
+  // ({@link erlaubteWkr}). Hier bleibt die Start-Freigabe, wie sie war.
+  if (istWkrArt(action)) return null
   const sauber = bereinige(action)
   if (!sauber) return null
   if (!freigabeBereiche(aufgaben).includes(sauber.bereich)) return null
@@ -157,4 +195,91 @@ export function erlaubteAction(action: unknown, aufgaben: readonly Aufgabe[], st
 /** Darf ein Gerät mit diesen Aufgaben die Action? (Plan §5 `darf`.) */
 export function darf(action: unknown, aufgaben: readonly Aufgabe[], stand: AufgabenStand): boolean {
   return erlaubteAction(action, aufgaben, stand) !== null
+}
+
+// --- WKR-Listen (W1) ------------------------------------------------------------------------------
+
+/**
+ * Was ein WKR-Gerät schicken darf – die Positivliste (Geräte-Arten, keine Reducer-Actions): Zeilen, Status der Liste
+ * (pausieren, abmelden, weiter, F1), Abschluss eines Punkts (F7, F8). Modus, Rückfragen, Vorschläge und das Lösen
+ * eines Abschlusses bleiben am Bedienrechner.
+ */
+export const WKR_ACTIONS = ['WKR_ZEILEN', 'WKR_STATUS', 'WKR_ABSCHLUSS'] as const
+export type WkrArt = (typeof WKR_ACTIONS)[number]
+
+function istWkrArt(action: unknown): boolean {
+  return istObjekt(action) && (WKR_ACTIONS as readonly unknown[]).includes(action.type)
+}
+
+/** Eine abgelehnte Zeile: Nummer der Zeile auf dem Gerät (0, wenn unlesbar) und Code. */
+export interface WkrAblehnung {
+  z: number
+  grund: ZeilenFehler
+}
+
+/** Ergebnis von {@link erlaubteWkr}: die Reducer-Action (`null`, wenn keine Zeile durchkam) und die Ablehnungen. */
+export interface WkrErlaubt {
+  action: Extract<WkrAenderung, { type: 'WKR_ZEILEN' | 'WKR_LISTE' | 'WKR_ABSCHLUSS' }> | null
+  abgelehnt: WkrAblehnung[]
+}
+
+const STATI: readonly WkrStatus[] = ['aktiv', 'pausiert', 'abgemeldet']
+/** Höchstens so viele Prüfsummen in einem Abschluss – mehr Starts hat kein Punkt einer Liste. */
+const PRUEFSUMMEN_MAX = 1000
+
+/**
+ * Prüft die WKR-Nachricht eines Geräts gegen seine Aufgaben (aus dem Register des Hosts) und den Stand und übersetzt
+ * sie in die Reducer-Action. `null` = nicht erlaubt (keine Art der Positivliste, Liste nicht in den Aufgaben, Liste
+ * gibt es in dieser Veranstaltung nicht, kaputte Form). Zeilen werden einzeln geprüft (wkr/zeile.ts `pruefeZeile`,
+ * mit dem Teil der Aufgabe): Gute gehen weiter, schlechte kommen mit Code in `abgelehnt`. `quelle` kommt aus dem
+ * Register (Geräte-ID, Name ≤ WKR_ANNAHMEN.nameMax) – nie aus der Nachricht. Rein.
+ */
+export function erlaubteWkr(action: unknown, aufgaben: readonly Aufgabe[], stand: AppState, konfig: Konfig, geraet: { id: string; name: string }): WkrErlaubt | null {
+  if (!istObjekt(action) || !istWkrArt(action) || typeof action.liste !== 'string') return null
+  const aufgabe = listenAufgaben(aufgaben).find((a) => a.liste === action.liste)
+  const liste = liesListe(action.liste)
+  if (!aufgabe || !liste) return null
+  const kennung = listenKennung(liste)
+  if (!bereichBekannt(stand, liste.bereich) || !listenDerVeranstaltung(stand, konfig).some((l) => listenKennung(l) === kennung)) return null
+
+  switch (action.type as WkrArt) {
+    case 'WKR_ZEILEN': {
+      const zeilen = action.zeilen
+      if (!Array.isArray(zeilen) || zeilen.length === 0 || zeilen.length > WKR_ANNAHMEN.buendel) return null
+      const gut: WkrZeile[] = []
+      const abgelehnt: WkrAblehnung[] = []
+      for (const z of zeilen) {
+        const ergebnis = pruefeZeile(stand, konfig, liste, aufgabe.teil, geraet.id, z)
+        if ('fehler' in ergebnis) {
+          const nr = istObjekt(z) && typeof z.z === 'number' && Number.isSafeInteger(z.z) && z.z > 0 ? z.z : 0
+          abgelehnt.push({ z: nr, grund: ergebnis.fehler })
+        } else gut.push(ergebnis)
+      }
+      const name = geraet.name.trim().slice(0, WKR_ANNAHMEN.nameMax)
+      return { action: gut.length > 0 ? { type: 'WKR_ZEILEN', liste: kennung, quelle: { geraet: geraet.id, name }, zeilen: gut } : null, abgelehnt }
+    }
+    case 'WKR_STATUS': {
+      if (!STATI.includes(action.status as WkrStatus)) return null
+      // Ein Teil-Gerät am Steg (F16) pausiert bzw. meldet nur seinen Teil ab – das andere erfasst weiter (F1).
+      return { action: { type: 'WKR_LISTE', liste: kennung, status: action.status as WkrStatus, ...(aufgabe.teil ? { teil: aufgabe.teil } : {}) }, abgelehnt: [] }
+    }
+    case 'WKR_ABSCHLUSS': {
+      const name = typeof action.name === 'string' ? action.name.trim() : ''
+      if (!istPunktId(action.punkt) || name === '' || name.length > WKR_ANNAHMEN.nameMax || typeof action.restPapier !== 'boolean') return null
+      // Nur ein Punkt, der im Bereich begonnen hat: Ein künftiger Lauf hätte keine offenen Starts und gälte sonst als
+      // abgeschlossen (Prüfbefund 21.11.2026; der Reducer prüft dasselbe).
+      if (!punktBegonnen(stand, liste.bereich, action.punkt)) return null
+      if (!istObjekt(action.pruefsummen)) return null
+      const eintraege = Object.entries(action.pruefsummen)
+      if (eintraege.length > PRUEFSUMMEN_MAX || !eintraege.every(([k, v]) => istKennung(k) && typeof v === 'string' && v.length <= 64)) return null
+      const pruefsummen: Record<string, string> = {}
+      for (const [k, v] of eintraege) pruefsummen[k] = v as string
+      return {
+        action: { type: 'WKR_ABSCHLUSS', liste: kennung, punkt: action.punkt, name, pruefsummen, restPapier: action.restPapier, ...(aufgabe.teil ? { teil: aufgabe.teil } : {}) },
+        abgelehnt: [],
+      }
+    }
+    default:
+      return null
+  }
 }

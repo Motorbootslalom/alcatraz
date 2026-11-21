@@ -47,6 +47,9 @@ export interface GebundenesGeraet {
   /** Wann gekoppelt bzw. zuletzt gehört (Uhr des Hosts, ms). */
   seit?: number
   zuletzt?: number
+  /** W1: aus dem letzten Lebenszeichen – Zeilen, die das Gerät noch nicht los ist, und Akku in Prozent. */
+  wartend?: number
+  akku?: number
 }
 
 /** Ein entzogenes Gerät, für die Geräteliste (E7): ohne Gruppenschlüssel – es kann nichts mehr. */
@@ -156,6 +159,7 @@ export function istHostRaum(wert: unknown): wert is HostRaum {
     if (g.name !== undefined && (typeof g.name !== 'string' || g.name.length > 60)) return false
     if (g.aufgaben !== undefined && !Array.isArray(g.aufgaben)) return false
     if ((g.seit !== undefined && !istZahl(g.seit)) || (g.zuletzt !== undefined && !istZahl(g.zuletzt))) return false
+    if ((g.wartend !== undefined && !istZahl(g.wartend)) || (g.akku !== undefined && !istZahl(g.akku))) return false
   }
   if (wert.koppeln !== undefined && wert.koppeln !== null && !istObjekt(wert.koppeln)) return false
   if (wert.entzogen !== undefined) {

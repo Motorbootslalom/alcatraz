@@ -1,7 +1,8 @@
 import { ref, type Ref } from 'vue'
 import { ABLAGE, type Ablage } from './ablage'
 import { neueFensterId } from './fuehrung'
-import { liesGeraeteNachricht, type Ergebnis, type GeraeteAction } from './transport/protokoll'
+import { istHinweis, liesGeraeteNachricht, type Ergebnis, type GeraeteAction, type Hinweis } from './transport/protokoll'
+import { liesListe } from '../wkr/liste'
 import { liesAufgaben, type Aufgabe } from './aufgaben'
 import type { Fehlercode, TransportFehler, Verbindungsstand } from './transport/typen'
 
@@ -54,6 +55,8 @@ export type GeraeteBefehl =
   | { art: 'aufgaben'; id: string; aufgaben: Aufgabe[] }
   | { art: 'umbenennen'; id: string; name: string }
   | { art: 'entziehen'; id: string }
+  /** W1 (21.11.2026): Hinweis an die Geräte einer Liste (Rückkanal, nur Code und Startnummer). */
+  | { art: 'hinweis'; liste: string; code: Hinweis; startNr?: string }
 export type Befehl = (typeof BEFEHLE)[number] | GeraeteBefehl
 
 /** Prüft einen Befehl aus einem anderen Fenster (nur die Form – es ist derselbe Ursprung). */
@@ -72,6 +75,10 @@ export function liesBefehl(wert: unknown): Befehl | null {
       return istKennung(wert.id) && typeof wert.name === 'string' && wert.name.length <= 60 ? { art: 'umbenennen', id: wert.id, name: wert.name } : null
     case 'entziehen':
       return istKennung(wert.id) ? { art: 'entziehen', id: wert.id } : null
+    case 'hinweis':
+      if (typeof wert.liste !== 'string' || !liesListe(wert.liste) || !istHinweis(wert.code)) return null
+      if (wert.startNr !== undefined && (typeof wert.startNr !== 'string' || wert.startNr.length > 16)) return null
+      return { art: 'hinweis', liste: wert.liste, code: wert.code, ...(wert.startNr !== undefined ? { startNr: wert.startNr } : {}) }
     default:
       return null
   }

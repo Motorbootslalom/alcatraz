@@ -299,3 +299,29 @@ describe('Listenoptionen in den Dateien', () => {
     expect(ohne.apply(danach).eingaben).toEqual(hier.eingaben)
   })
 })
+
+describe('Dateien: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
+  const liste = JSON.stringify(['l', 'par_1', 'gate135', null])
+  const mitWkr = (): AppState => ({
+    ...filled(),
+    wkr: {
+      listen: { [liste]: { modus: 'beides', status: 'aktiv', seit: 100, pausen: [] } },
+      rueckfragen: [],
+      vorschlaege: [],
+      abschluss: { [liste]: { 'lauf:1': { name: 'Vor9 Nach9', zeit: 9000, abweichend: [], papier: [] } } },
+    },
+  })
+
+  it('in der Sicherung, nicht in der Vorlage; eine Vorlage lässt den hiesigen Stand', () => {
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', mitWkr(), AT)))
+    if (!sicherung.ok || sicherung.kind !== 'sicherung') throw new Error('keine Sicherung')
+    expect(sicherung.state.wkr).toEqual(mitWkr().wkr)
+    const datei = makeFile('vorlage', mitWkr(), AT)
+    const text = JSON.stringify(datei)
+    for (const nie of ['"wkr"', 'Vor9 Nach9', 'gate135']) expect(text).not.toContain(nie)
+    const vorlage = parseFile(text)
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    const hier = mitWkr()
+    expect(vorlage.apply(hier).wkr).toBe(hier.wkr)
+  })
+})

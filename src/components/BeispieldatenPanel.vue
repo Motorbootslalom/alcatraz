@@ -9,7 +9,7 @@ import { classColor } from '../domain/classes'
 import { beispielHerkuenfte, generateStarters } from '../domain/generate'
 import { useEvent } from '../lib/event'
 import { verlustText } from '../lib/eingabenVerlust'
-import { laufSchluessel, OHNE_LAUF, starterfeldFest } from '../lib/eingaben'
+import { istHaken, laufSchluessel, OHNE_LAUF, starterfeldFest } from '../lib/eingaben'
 import { attemptSchluessel } from '../lib/parallelSchluessel'
 import { useKonfig } from '../lib/konfig'
 import { sprungziel } from '../lib/router'
@@ -164,7 +164,7 @@ const bisLauf = computed(() => (laufWahl.value.includes(beispielBis.value) ? bei
 // Die Rückfrage vor dem Löschen einer Runde (lib/parallelStage.ts `rundenWerteZahl`) zählt die
 // Haken dagegen mit und sagt das – dort geht es darum, was verloren geht.
 const werteZahl = computed(() =>
-  Object.values(state.value.eingaben).reduce((n, zeilen) => n + Object.values(zeilen).reduce((m, werte) => m + Object.keys(werte).filter((k) => !k.startsWith('erfasst@')).length, 0), 0),
+  Object.values(state.value.eingaben).reduce((n, zeilen) => n + Object.values(zeilen).reduce((m, werte) => m + Object.keys(werte).filter((k) => !istHaken(k)).length, 0), 0),
 )
 
 // Was gefüllt (und was gelöscht) wird, ist eine Auswahl (Entscheidung des Nutzers vom 15.11.2026):

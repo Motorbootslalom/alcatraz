@@ -93,6 +93,34 @@ export function erfasstKennung(typeId: string): string {
   return `erfasst@${typeId}`
 }
 
+/**
+ * Ein Teil einer Liste, den ein Wettkampfrichter für sich abschickt: am Steg Ablegen (`ab`) und Anlegen
+ * (`an`) – digitale Erfassung W1 (21.11.2026, Antwort F16; welche Spalten wozu gehören: wkr/annahmen.ts).
+ */
+export type ListenTeil = 'ab' | 'an'
+
+/**
+ * Der Teilhaken einer Liste: „Ablegen erfasst“ bzw. „Anlegen erfasst“ (`erfasst.ab@steg`). Wie der
+ * Haken „erfasst“ geht er nie in die Wertung ein; sind beide Teile da, setzt die Übernahme auch den
+ * ganzen Haken (state/reducer/wkr.ts).
+ */
+export function teilHaken(typeId: string, teil: ListenTeil): string {
+  return `erfasst.${teil}@${typeId}`
+}
+
+const HAKEN_MUSTER = /^erfasst(\.(ab|an))?@(.+)$/
+
+/** Ist die Kennung ein Haken „erfasst“ – der ganzen Liste oder eines Teils? Keiner davon zählt in der Wertung. */
+export function istHaken(kennung: string): boolean {
+  return HAKEN_MUSTER.test(kennung)
+}
+
+/** Der Haken der ganzen Liste zu einem Haken oder Teilhaken (`erfasst.ab@steg` → `erfasst@steg`); sonst `undefined`. */
+export function ganzerHaken(kennung: string): string | undefined {
+  const m = HAKEN_MUSTER.exec(kennung)
+  return m ? erfasstKennung(m[3]) : undefined
+}
+
 interface ListenFelder {
   liste: Feld[]
   jeZelle: Map<string, Feld>
@@ -230,8 +258,8 @@ export function listeUmziehen(
         if (listeVon(kennung) !== von) continue
         const ziel = `${kennung.slice(0, kennung.lastIndexOf('@'))}@${nach}`
         if (ziel in werte) continue
-        // Der Haken „erfasst“ ist kein Feld des Bogens; alles andere muss dort gelten.
-        const gueltig = ziel === erfasstKennung(nach) ? wert : (ziele.find((f) => f.kennung === ziel)?.gueltig(wert) ?? '')
+        // Der Haken „erfasst“ (auch ein Teilhaken) ist kein Feld des Bogens; alles andere muss dort gelten.
+        const gueltig = istHaken(ziel) ? wert : (ziele.find((f) => f.kennung === ziel)?.gueltig(wert) ?? '')
         if (!gueltig) continue
         zeile ??= { ...werte }
         delete zeile[kennung]
@@ -349,6 +377,9 @@ export function verborgeneZellen(
     return attempts.get(starter)?.has(attempt) === true
   }
 
+  // Ein Teilhaken (Steg: Ablegen/Anlegen erfasst, digitale Erfassung W1) ist sichtbar, wo der Haken seiner Liste es ist –
+  // er ist nie ein „unbekanntes“ Feld und zählt nie in der Wertung.
+  const alsGanzerHaken = (feld: string) => ganzerHaken(feld) ?? feld
   const out: EingabeZelle[] = []
   for (const [schluessel, zeilen] of Object.entries(stand.eingaben)) {
     const attempt = zerlegeAttempt(schluessel)
@@ -357,7 +388,7 @@ export function verborgeneZellen(
         const klasse = klasseVon.get(starter)
         const gezeigt = klasse !== undefined && imPlan(attempt.runde, starter, attempt.attempt) ? parallelKennungen(klasse) : undefined
         for (const feld in werte) {
-          if (!Object.prototype.hasOwnProperty.call(werte, feld) || gezeigt?.has(feld)) continue
+          if (!Object.prototype.hasOwnProperty.call(werte, feld) || gezeigt?.has(alsGanzerHaken(feld))) continue
           out.push({ lauf: schluessel, starter, feld, wert: werte[feld] })
         }
       }
@@ -371,7 +402,7 @@ export function verborgeneZellen(
       const gezeigt = laufFehlt || klasse === undefined ? undefined : kennungen(klasse, lauf === OHNE_LAUF)
       for (const feld in werte) {
         if (!Object.prototype.hasOwnProperty.call(werte, feld)) continue
-        if ((!laufFehlt && ruhend.has(feld)) || gezeigt?.has(feld)) continue
+        if ((!laufFehlt && ruhend.has(alsGanzerHaken(feld))) || gezeigt?.has(alsGanzerHaken(feld))) continue
         out.push({ lauf: schluessel, starter, feld, wert: werte[feld] })
       }
     }
@@ -401,7 +432,7 @@ export interface VerborgenerWert {
   disziplin: string
   /** Der Lauf; {@link OHNE_LAUF} bei Listen ohne Lauf (Knoten). */
   lauf: number
-  /** `erfasst`: der Haken „Zeile ist abgetippt“ einer Liste; sonst ein Feld eines Bogens. */
+  /** `erfasst`: der Haken „Zeile ist abgetippt“ einer Liste (auch ein Teilhaken); sonst ein Feld eines Bogens. */
   art: 'feld' | 'erfasst'
   /** Die Liste, auf der das Feld stand – soweit das Regelwerk sie kennt. */
   liste?: string
@@ -499,7 +530,7 @@ export function verborgeneEinzelheiten(stand: ListenWahl & Pick<AppState, 'einga
     const { disziplin, lauf } = zerlegeLauf(zelle.lauf)
     const klasse = starterVon.get(zelle.starter)?.klasse
     const eigene = listeVon(zelle.feld)
-    const art = eigene !== undefined && zelle.feld === erfasstKennung(eigene) ? 'erfasst' : 'feld'
+    const art = eigene !== undefined && istHaken(zelle.feld) ? 'erfasst' : 'feld'
     const bekannt = eigene !== undefined && positionen.includes(eigene)
     // Wo das Feld steht: für die Klasse des Starters, sonst für irgendeine Klasse.
     const hier = klasse === undefined ? undefined : art === 'erfasst' ? undefined : suche(zelle.feld, klasse)

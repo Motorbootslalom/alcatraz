@@ -60,6 +60,21 @@ describe('welcher Stand ist neuer', () => {
 })
 
 describe('was sich geändert hat', () => {
+  it('digitale WKR-Erfassung (W1): Werte vom Gerät mit Liste und Gerätename, eigene Gruppe je Gerät', () => {
+    const liste = JSON.stringify(['l', 'par_1', 'gate135', null])
+    const zeile = { id: 'g1.1', liste, ref: 'r', lauf: laufSchluessel('manoevrieren', 2), weitere: [], starter: 'a', zellen: [], haken: [], gezeigt: true, korrektur: false }
+    const was = beschreibe({ type: 'WKR_ZEILEN', liste, quelle: { geraet: 'g1', name: 'Handy Tor 1' }, zeilen: [zeile] }, STAND)
+    expect(was).toEqual({ art: 'eingabeGeraet', klasse: '4', lauf: 2, liste, geraet: 'Handy Tor 1' })
+    const anderes = beschreibe({ type: 'WKR_ZEILEN', liste, quelle: { geraet: 'g2', name: 'Pad Steg' }, zeilen: [zeile] }, STAND)
+    expect(gruppe(was!)).not.toBe(gruppe(anderes!))
+    expect(gruppe(was!)).not.toBe(gruppe(beschreibe({ type: 'SET_EINGABEN', zellen: [zelle('a', 2)] }, STAND)!))
+    expect(beschreibe({ type: 'WKR_RUECKFRAGE', id: 'x', wahl: 'geraet' }, STAND)).toEqual({ art: 'rueckfrage' })
+    expect(beschreibe({ type: 'WKR_VORSCHLAG', id: 'x', wahl: 'verwerfen' }, STAND)).toEqual({ art: 'vorschlag' })
+    expect(beschreibe({ type: 'WKR_LISTE', liste, modus: 'digital' }, STAND)).toEqual({ art: 'wkrListe', liste })
+    expect(beschreibe({ type: 'WKR_ABSCHLUSS', liste, punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: false }, STAND)).toEqual({ art: 'wkrAbschluss', liste })
+    expect(beschreibe({ type: 'WKR_ABSCHLUSS_LOESEN', liste, punkt: 'lauf:1' }, STAND)).toEqual({ art: 'wkrAbschluss', liste })
+  })
+
   it('eine Eingabe nennt Klasse und Lauf', () => {
     expect(beschreibe({ type: 'SET_EINGABEN', zellen: [zelle('a', 2)] }, STAND)).toEqual({ art: 'eingabe', klasse: '4', lauf: 2 })
   })

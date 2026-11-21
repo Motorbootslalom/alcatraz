@@ -65,6 +65,7 @@ clipboard, scanner, logoBild.
   bleibt rein: kein Date.now()/Math.random(). Zeit = action.zeit, Zufall = zufallAus(saat).
 - Eingaben: `eingaben[laufSchluessel][starterId][feld]` – Zeile ist die Starter-ID, nicht die Startnummer.
   Disq/Bemerkung/erfasst gehören zur Liste (`disq@steg`, `erfasst@<typeId>`); Knoten unter Lauf 0 (OHNE_LAUF).
+  Haken immer über istHaken (auch Teilhaken `erfasst.ab@steg` der WKR-Erfassung, 21.11.2026), nie startsWith('erfasst@').
   Parallel: `parallel:<runde>/<attempt>`, der Racecourse folgt aus dem festgeschriebenen Plan.
 - Disziplin-Kennungen: Konfig/Schlüssel `manoevrieren`/`parallel`, aber WertungsDisziplin/nichtWerten `manoever`.
 - listenStand.ts: neues wertungsrelevantes Feld in WERTUNG; laufInhalt/gesamtInhalt NICHT um Anzeigefelder

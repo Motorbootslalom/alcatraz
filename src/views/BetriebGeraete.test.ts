@@ -168,6 +168,7 @@ describe('Betrieb → Geräte: einschalten, Links, Fingerabdruck', () => {
       setzeAufgaben: () => {},
       benenne: () => {},
       entziehe: () => {},
+      hinweis: () => {},
       ladeAlleNeu: () => 'gesendet' as const,
       neueFassung: shallowRef(false),
       fassungGesehen: () => {},

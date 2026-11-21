@@ -9,6 +9,8 @@ import { rundeVon } from '../lib/parallelSchluessel'
 import { rundenName } from '../planung/parallelRunden'
 import { formatDateTime, t, tn, type MessageKey } from '../i18n'
 import type { ClassId } from '../types'
+import { useKonfig } from '../lib/konfig'
+import { liesListe } from '../wkr/liste'
 
 /**
  * Verlauf: die letzten Stände aus dem zweiten Speicher (state/zweit.ts) – ansehen, einen
@@ -18,6 +20,7 @@ import type { ClassId } from '../types'
  */
 const { state, dispatch, zweit } = useStore()
 const { classLabel } = useEvent()
+const konfig = useKonfig({ oberflaeche: true })
 
 const eintraege = ref<VerlaufEintrag[]>([])
 const alle = ref(false)
@@ -55,8 +58,24 @@ const gezeigt = computed(() => (alle.value ? eintraege.value : eintraege.value.s
 const jetzt = computed(() => eintraege.value.find((e) => e.folge === zweit.folge.value)?.id)
 const tage = Math.round(VERLAUF_GRENZEN.alter / (24 * 3_600_000))
 
+/** Eine Liste der WKR-Erfassung (Kennung, wkr/liste.ts) als Text: Position und Parcours bzw. Racecourse. */
+function listenText(kennung: string | undefined): string {
+  const liste = liesListe(kennung)
+  if (!liste) return ''
+  let titel = liste.typeId
+  try {
+    titel = konfig.value.getSheetDef(liste.typeId).title
+  } catch {
+    // Eine Liste, die es im jetzigen Aufbau nicht gibt, heißt nach ihrer Kennung.
+  }
+  const ort = liste.racecourse ?? state.value.parcoursList.find((p) => p.id === liste.bereich)?.name ?? ''
+  return [titel, ort].filter(Boolean).join(' · ')
+}
+
 /** Was sich geändert hat – aus Art und Angaben, in der Sprache der Oberfläche. */
 function was(b: Beschreibung): string {
+  if (b.art === 'eingabeGeraet') return t('history.what.eingabeGeraet', { device: b.geraet ?? '', list: listenText(b.liste) })
+  if (b.art === 'wkrListe' || b.art === 'wkrAbschluss') return t(`history.what.${b.art}`, { list: listenText(b.liste) })
   if (b.art === 'eingabe') {
     // Im Parallelslalom ist der „Lauf“ der Attempt einer Runde (lib/verlauf.ts `runde`).
     const runde = rundeVon(`parallel:${b.runde ?? ''}`)

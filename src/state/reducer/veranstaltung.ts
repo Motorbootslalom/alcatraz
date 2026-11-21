@@ -9,6 +9,7 @@ import { WKR_LEERZEILEN_CLUB, WKR_LEERZEILEN_SEITE_VORGABE, WKR_LEERZEILEN_VORGA
 import { ERGEBNIS_LISTEN_VORGABE } from './wertung'
 import { LOGO_HOEHE_VORGABE_MM } from '../../lib/logo'
 import { anzeigeVorgabe, betriebLeer } from './betrieb'
+import { wkrLeer } from './wkr'
 
 export type VeranstaltungAenderung =
   | { type: 'SET_EVENT'; patch: Partial<Pick<AppState, 'eventName' | 'eventJahr' | 'laufCount'>> }
@@ -75,6 +76,8 @@ export function emptyState(): AppState {
     // Gerätebetrieb (E6): die Vorgabe des Programms (geraete/themen.ts NTFY_VORGABE); verbunden wird erst, wenn
     // jemand den Raum bewusst öffnet (Betrieb → Geräte).
     geraeteServer: '',
+    // Digitale WKR-Erfassung (W1, 21.11.2026): keine Liste digital, nichts offen.
+    wkr: wkrLeer(),
     sollgewicht: {},
     verzahnungLocked: false,
     showBirthdate: true,

@@ -143,6 +143,11 @@ export default {
   'history.what.druckGeloest': 'Parallel slalom: print lock of {round} released',
   'history.what.rundenFestAlle': 'Parallel slalom: next heat locked for {n} class | Parallel slalom: next heat locked for {n} classes',
   'history.what.nichtWerten': '“Do not score a discipline” changed',
+  'history.what.eingabeGeraet': 'Values from device “{device}” ({list})',
+  'history.what.rueckfrage': 'Query from a race official’s device decided',
+  'history.what.vorschlag': 'Suggestion from a race official’s device decided',
+  'history.what.wkrListe': 'Entry mode of list {list} changed',
+  'history.what.wkrAbschluss': 'Sign-off of list {list} changed',
 
   'backup.reset': 'Reset everything',
   'backup.resetConfirm':

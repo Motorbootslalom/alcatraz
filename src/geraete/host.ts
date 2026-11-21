@@ -5,7 +5,7 @@ import type { Action } from '../state/reducer'
 import { t as text } from '../i18n'
 import { BETRIEB_ANNAHMEN } from '../betrieb/annahmen'
 import { SICHT_FASSUNG, sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
-import { ABLAGE, beendeRaum, hostAblage, legeRaumAn, type Ablage } from './ablage'
+import { ABLAGE, beendeRaum, hostAblage, legeRaumAn, liesHerkunft, liesWkrEingang, schreibeHerkunft, schreibeWkrEingang, type Ablage } from './ablage'
 import { oeffneFensterbus, type Anwendung, type Befehl, type BusUmgebung, type Fensterbus, type GeraeteBefehl, type VerbindungsMeldung } from './fensterbus'
 import { waehleFuehrung, type Fuehrung, type FuehrungsUmgebung } from './fuehrung'
 import { normalisiereServer, NTFY_VORGABE } from './themen'
@@ -13,7 +13,14 @@ import { koppelPaketAus, packeKoppelPaket, packeLesePaket } from './paket'
 import { fingerabdruck, lesePaket, type HostRaum } from './transport/ntfy/raum'
 import { HostTransport, type Eingang } from './transport/ntfy/transport'
 import { toBase64Url } from './transport/ntfy/codec'
-import { erlaubteAction, type Aufgabe } from './aufgaben'
+import { erlaubteAction, erlaubteWkr, liesAufgaben, listenAufgaben, WKR_ACTIONS, type Aufgabe } from './aufgaben'
+import { gruppeDerListe, gruppenFuer } from './wkrGruppen'
+import { extraFuer, mitAbgelehnt, mitHerkunft, mitHinweis, ohneGeraet, ohneHinweis, type HerkunftEintrag } from './wkrEingang'
+import { configFor } from '../config/konfig'
+import { werteVon } from '../lib/eingaben'
+import { abschlussVon } from '../wkr/abschluss'
+import { liesListe } from '../wkr/liste'
+import { sichtListe } from '../wkr/sicht'
 import { entscheideAnmeldung } from './koppelEntscheid'
 import { dreheQr, gibCode, koppelThemen, markiereBenutzt, oeffneQr, qrFaellig, raeumeAuf, schliesseKoppeln } from './koppeln'
 import {
@@ -23,16 +30,19 @@ import {
   beruehre,
   entzogeneListe,
   geraeteListe,
+  gruppenNachAufgaben,
+  hatGruppe,
   koppelStandVon,
   setzeAufgaben,
   setzeKoppelStand,
   vermerkeEntzug,
+  vermerkeLebenszeichen,
   type EntzogenEintrag,
   type RegisterEintrag,
 } from './register'
 import type { NtfyZeiten } from './transport/ntfy/leitung'
 import type { Json } from './transport/ntfy/patch'
-import { OEFFENTLICH, ZUSCHAUER } from './transport/protokoll'
+import { OEFFENTLICH, ZUSCHAUER, type Ablehnung, type Hinweis } from './transport/protokoll'
 import { kontingentZaehler, type KontingentStand, type Zaehlart } from './kontingent'
 import { BUILD_COMMIT, BUILD_TIME } from '../lib/build'
 
@@ -139,6 +149,12 @@ export interface GeraeteHost {
   fassungGesehen(): void
   /** Heute an den ntfy-Server Gesendetes (geraete/kontingent.ts) – gerätelokal, alle Fenster. */
   readonly kontingent: Readonly<Ref<KontingentStand>>
+  // --- W1 (21.11.2026): digitale WKR-Erfassung ---
+  /**
+   * Hinweis an die Geräte einer Liste (Rückkanal: nur Code und Startnummer, Plan §5) – steht in der Sicht der Liste,
+   * bis jedes Gerät ihn als gesehen meldet. Über das Führungsfenster.
+   */
+  hinweis(liste: string, code: Hinweis, startNr?: string): void
   /** Alles abbauen (Tests; die Anwendung braucht es nicht). */
   stop(): void
 }
@@ -184,6 +200,9 @@ export interface HostStore {
   dispatch?: (action: Action) => void
 }
 
+/** Konfiguration des Stands für Rechte und Sicht der Listen (wie lib/listenStand.ts; configFor merkt sie sich). */
+const konfigVon = (s: AppState) => configFor({ regelwerk: s.regelwerk, eigeneAufbauten: s.eigeneAufbauten })
+
 /** E7: Takt des Führungsfensters für das Koppeln – QR-Token so früh drehen, dass keine Lücke entsteht. */
 const KOPPEL_TAKT_MS = 1000
 
@@ -198,6 +217,9 @@ interface Aktiv {
   timer: ReturnType<typeof setTimeout> | null
   /** Zuletzt verteilte öffentliche Sicht als Text – Gleiches wird gar nicht erst gereicht. */
   letzte: string
+  /** W1: zuletzt verteilte Sicht je Listen-Gruppe (Text) und Gruppen, die als nächstes voll gehen (neuer Schlüssel, neues Gerät). */
+  listen: Map<string, string>
+  listenVoll: Set<string>
   /** „Raum beenden“ läuft: nichts mehr verteilen (eine Sicht nach „Ende“ gälte für neue Geräte wieder). */
   endet: boolean
   wegBefehl: () => void
@@ -327,7 +349,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
   function aktiviere(k: string): void {
     const bus = oeffneFensterbus(undefined, umgebung.bus)
     const a: Aktiv = {
-      kennung: k, bus, fuehrung: null, scope: effectScope(true), transport: null, leitung: null, timer: null, letzte: '', endet: false,
+      kennung: k, bus, fuehrung: null, scope: effectScope(true), transport: null, leitung: null, timer: null, letzte: '', listen: new Map(), listenVoll: new Set(), endet: false,
       wegBefehl: () => {}, wegAnwenden: () => {}, koppelTakt: null, koppelThemen: new Set(),
     }
     aktiv = a
@@ -391,6 +413,8 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     })
     a.transport = t
     a.letzte = ''
+    a.listen.clear()
+    a.listenVoll.clear()
     // E7: Anmeldungen und Actions der Geräte – nur hier, im Führungsfenster.
     t.beiEingang((e) => void nimmAn(a, t, e))
     const leitung = effectScope(true)
@@ -436,10 +460,18 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     }, sammelnMs)
   }
 
-  /** Beide Sichten an ihre Gruppen – nur, wenn sich die öffentliche geändert hat (die Zuschauersicht folgt aus ihr). */
+  /**
+   * Beide öffentlichen Sichten an ihre Gruppen – nur, wenn sich die öffentliche geändert hat (die Zuschauersicht folgt
+   * aus ihr). W1: dazu je Liste mit gekoppelten Geräten die Sicht der Liste an deren Gruppe.
+   */
   function verteile(a: Aktiv): void {
     const t = a.transport
     if (!t || a.endet) return
+    verteileOeffentlich(a, t)
+    verteileListen(a, t)
+  }
+
+  function verteileOeffentlich(a: Aktiv, t: HostTransport): void {
     let sicht: ReturnType<typeof sichtOeffentlich>
     try {
       sicht = sichtOeffentlich(store.state.value, { logos: !BETRIEB_ANNAHMEN.logosNurLokal })
@@ -452,6 +484,44 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     a.letzte = text
     t.verteile(OEFFENTLICH, JSON.parse(text) as Json)
     t.verteile(ZUSCHAUER, JSON.parse(JSON.stringify(sichtZuschauer(sicht))) as Json)
+  }
+
+  /**
+   * W1 (Plan §5/§8): je Liste, die ein gekoppeltes Gerät hat, die Sicht der Liste (wkr/sicht.ts) an ihre Gruppe – mit
+   * `bis` = `letzteNr` je Gerät (die gesammelte Quittung), Abgelehntem und Hinweisen aus dem Gesprächsstand. Nach
+   * Inhalt verglichen: Listen ohne Änderung senden nichts. Nach neuem Schlüssel oder neuem Gerät geht sie voll.
+   */
+  function verteileListen(a: Aktiv, t: HostTransport): void {
+    const raum = t.raumJetzt()
+    if (!raum) return
+    const jeListe = new Map<string, { id: string; bis: number }[]>()
+    for (const [id, g] of Object.entries(raum.geraete)) {
+      for (const l of listenAufgaben(liesAufgaben(g.aufgaben))) {
+        const liste = jeListe.get(l.liste) ?? []
+        liste.push({ id, bis: g.letzteNr })
+        jeListe.set(l.liste, liste)
+      }
+    }
+    if (jeListe.size === 0) return
+    const state = store.state.value
+    const konfig = konfigVon(state)
+    const eingang = liesWkrEingang(a.kennung, ablage)
+    for (const [kennung, geraete] of jeListe) {
+      const liste = liesListe(kennung)
+      const gruppe = gruppeDerListe(kennung)
+      if (!liste || !raum.gruppen[gruppe]) continue
+      let text: string
+      try {
+        text = JSON.stringify(sichtListe(state, konfig, liste, extraFuer(eingang, kennung, geraete)))
+      } catch {
+        // Eine Liste, die es so nicht (mehr) gibt: nichts verteilen, das Gerät behält die letzte Sicht.
+        continue
+      }
+      const voll = a.listenVoll.delete(gruppe)
+      if (!voll && a.listen.get(gruppe) === text) continue
+      a.listen.set(gruppe, text)
+      t.verteile(gruppe, JSON.parse(text) as Json, { voll })
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -484,16 +554,45 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
         ersatzName: text('geraete.name.geraet'),
       })
       if (d.art === 'abgelehnt') return t.ablehnen(e, d.grund)
-      if (t.begruesse(e, { id: d.id, gruppen: [OEFFENTLICH], aufgaben: d.aufgaben, name: d.name }) === 'id-belegt') return t.ablehnen(e, 'id-belegt')
+      // W1: Je Liste der Aufgaben eine Gruppe (im Raum angelegt, bevor das willkommen ihre Schlüssel trägt).
+      const listen = listenAufgaben(d.aufgaben)
+      if (listen.length) t.verwalte((r) => void gruppenNachAufgaben(r, d.aufgaben))
+      if (t.begruesse(e, { id: d.id, gruppen: gruppenFuer(d.aufgaben), aufgaben: d.aufgaben, name: d.name }) === 'id-belegt') return t.ablehnen(e, 'id-belegt')
       // Der Geräte-Code gilt für EIN Gerät.
       if (d.weg === 'code') t.verwalte((r) => setzeKoppelStand(r, markiereBenutzt(koppelStandVon(r), jetzt)))
       // Dieses Fenster bekommt kein storage-Ereignis für das eigene Schreiben: Geräteliste hier selbst nachziehen.
       setzeInfo(t.raumJetzt())
+      if (listen.length) {
+        meldeDigital(a, listen.map((l) => l.liste))
+        for (const l of listen) a.listenVoll.add(gruppeDerListe(l.liste))
+        plane(a)
+      }
       return
     }
     // Actions nur von gekoppelten Geräten; ein Unbekannter kommt hier gar nicht an (transport.ts), sicher ist sicher.
     if (!e.gebunden) return
-    const action = store.dispatch ? erlaubteAction(e.nachricht.action, aufgabenVon(raum, e.id), store.state.value) : null
+    const n = e.nachricht
+    if (n.art === 'lebenszeichen') {
+      // Still quittiert, wenn das Gerät eine Liste hat: `bis` in deren Sicht sagt es ihm.
+      t.verwalte((r) => vermerkeLebenszeichen(r, e.id, jetzt, { wartend: n.wartend, ...(n.akku !== undefined ? { akku: n.akku } : {}) }))
+      t.quittiere(e, 'angewandt', undefined, { still: hatListenGruppe(raum, e.id) })
+      setzeInfo(t.raumJetzt())
+      plane(a)
+      return
+    }
+    if (n.art === 'gesehen') {
+      const vorher = liesWkrEingang(a.kennung, ablage)
+      const nachher = ohneHinweis(vorher, e.id, n.hinweis)
+      if (nachher !== vorher) schreibeWkrEingang(nachher, ablage)
+      t.verwalte((r) => beruehre(r, e.id, jetzt))
+      t.quittiere(e, nachher !== vorher ? 'angewandt' : 'unveraendert', undefined, { still: hatListenGruppe(raum, e.id) })
+      setzeInfo(t.raumJetzt())
+      plane(a)
+      return
+    }
+    if (n.art !== 'action') return
+    if ((WKR_ACTIONS as readonly string[]).includes(n.action.type)) return nimmWkrAn(a, t, e, n.action)
+    const action = store.dispatch ? erlaubteAction(n.action, aufgabenVon(raum, e.id), store.state.value) : null
     if (!action) {
       t.verwalte((r) => beruehre(r, e.id, jetzt))
       t.quittiere(e, 'abgelehnt', 'nicht-erlaubt')
@@ -507,6 +606,87 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     t.verwalte((r) => beruehre(r, e.id, uhr()))
     t.quittiere(e, ergebnis)
     setzeInfo(t.raumJetzt())
+  }
+
+  /** W1: Hat das Gerät irgendeine Listen-Gruppe? Dann kommen seine Quittungen gesammelt über deren Sicht. */
+  function hatListenGruppe(raum: HostRaum, id: string): boolean {
+    return listenAufgaben(aufgabenVon(raum, id)).some((l) => hatGruppe(raum, id, gruppeDerListe(l.liste)))
+  }
+
+  /**
+   * W1: Eine Liste wird mit dem ersten Gerät digital (WKR_ANNAHMEN, Plan §9.6) – `nurWennFehlt`: eine Liste, die der
+   * Bediener schon auf Papier oder „beides“ gestellt hat, bleibt so. Über das Schreibfenster wie Geräte-Actions.
+   */
+  function meldeDigital(a: Aktiv, listen: readonly string[]): void {
+    if (!store.dispatch) return
+    for (const liste of listen) void a.bus.reicheWeiter({ type: 'WKR_LISTE', liste, modus: 'digital', nurWennFehlt: true }, wendeAn)
+  }
+
+  /**
+   * W1 (Plan §5): Zeilen, Status, Abschluss eines WKR-Geräts. Rechte und Prüfung: aufgaben.ts erlaubteWkr (Aufgaben aus
+   * dem Register, Name aus dem Register); abgelehnte Zeilen in den Gesprächsstand (Sicht der Liste); das Übrige über
+   * das Schreibfenster anwenden; dann Herkunft ◆ nur für Zellen, in denen jetzt der Wert des Geräts steht (F10); dann
+   * quittieren – still, wenn das Gerät die Gruppe der Liste hat (die Sicht trägt `bis`), sonst direkt.
+   */
+  async function nimmWkrAn(a: Aktiv, t: HostTransport, e: Eingang, roh: { type: string; [feld: string]: unknown }): Promise<void> {
+    const raum = t.raumJetzt()
+    if (!raum) return
+    const geraet = { id: e.id, name: raum.geraete[e.id]?.name ?? '' }
+    const liste = typeof roh.liste === 'string' ? roh.liste : ''
+    const still = !!liste && hatGruppe(raum, e.id, gruppeDerListe(liste))
+    const state = store.state.value
+    const erlaubt = store.dispatch ? erlaubteWkr(roh, aufgabenVon(raum, e.id), state, konfigVon(state), geraet) : null
+    if (!erlaubt) {
+      // Nicht erlaubt: direkt – das Gerät erführe es sonst nirgends (keine Zeile, die die Sicht nennen könnte).
+      t.verwalte((r) => beruehre(r, e.id, uhr()))
+      t.quittiere(e, 'abgelehnt', 'nicht-erlaubt')
+      setzeInfo(t.raumJetzt())
+      return
+    }
+    if (erlaubt.abgelehnt.length) {
+      schreibeWkrEingang(mitAbgelehnt(liesWkrEingang(a.kennung, ablage), e.id, liste, erlaubt.abgelehnt), ablage)
+    }
+    let ergebnis: 'angewandt' | 'unveraendert' | 'abgelehnt' = 'abgelehnt'
+    let grund: Ablehnung | undefined = erlaubt.abgelehnt[0]?.grund
+    const action = erlaubt.action
+    if (action) {
+      ergebnis = await a.bus.reicheWeiter(action, wendeAn)
+      // Führung verloren: keine Quittung von hier (wie bei der Start-Freigabe); das Gerät wiederholt.
+      if (aktiv !== a || a.transport !== t) return
+      grund = undefined
+      const jetzt = store.state.value
+      if (action.type === 'WKR_ZEILEN') merkeHerkunft(a, action, jetzt.eingaben)
+      // Abschluss ohne Wirkung, weil noch Starts offen sind (ohne „Rest auf Papier“): sagen, warum. Gemessen am eigenen
+      // Eintrag vorher/nachher (am Steg je Teil) – ein Abschluss des anderen Teils zählt nicht als angenommen.
+      if (action.type === 'WKR_ABSCHLUSS' && (ergebnis === 'unveraendert' || abschlussVon(jetzt.wkr, action.liste, action.punkt, action.teil) === abschlussVon(state.wkr, action.liste, action.punkt, action.teil))) {
+        ergebnis = 'abgelehnt'
+        grund = 'offen'
+      }
+    }
+    t.verwalte((r) => beruehre(r, e.id, uhr()))
+    t.quittiere(e, ergebnis, grund, { still })
+    setzeInfo(t.raumJetzt())
+    plane(a)
+  }
+
+  /** Herkunft ◆ (F10) für die Zellen einer übernommenen Zeile – nur, wo jetzt der Wert des Geräts steht. */
+  function merkeHerkunft(a: Aktiv, action: { liste: string; quelle: { name: string }; zeilen: { lauf: string; weitere: string[]; starter: string; zellen: { feld: string; wert: string }[] }[] }, eingaben: AppState['eingaben']): void {
+    const herkunft = liesHerkunft(a.kennung, ablage)
+    const zeit = uhr()
+    const eintraege: { lauf: string; starter: string; feld: string; eintrag: HerkunftEintrag }[] = []
+    for (const z of action.zeilen) {
+      for (const c of z.zellen) {
+        if (c.wert === '') continue
+        for (const lauf of [z.lauf, ...z.weitere]) {
+          if ((werteVon(eingaben, lauf, z.starter)[c.feld] ?? '') !== c.wert) continue
+          const bisher = herkunft.zellen[`${lauf}|${z.starter}|${c.feld}`]
+          // Dasselbe Gerät, derselbe Wert (Wiederholung): die erste Zeit bleibt.
+          if (bisher && bisher.g === action.quelle.name && bisher.w === c.wert) continue
+          eintraege.push({ lauf, starter: z.starter, feld: c.feld, eintrag: { g: action.quelle.name, l: action.liste, z: zeit, w: c.wert } })
+        }
+      }
+    }
+    if (eintraege.length) schreibeHerkunft(mitHerkunft(herkunft, eintraege), ablage)
   }
 
   /** Koppeln pflegen: Abgelaufenes räumen, QR-Token drehen, die Koppel-Themen lesen, solange sie gelten. */
@@ -543,12 +723,23 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
         t.verwalte((r) => setzeKoppelStand(r, schliesseKoppeln(koppelStandVon(r), befehl.was)))
         break
       case 'aufgaben': {
-        let gesetzt = false
+        let wechsel: ReturnType<typeof setzeAufgaben> = null
         t.verwalte((r) => {
-          gesetzt = setzeAufgaben(r, befehl.id, befehl.aufgaben)
+          wechsel = setzeAufgaben(r, befehl.id, befehl.aufgaben)
         })
+        const w = wechsel as ReturnType<typeof setzeAufgaben>
+        if (!w) break
+        // W1: Liste entzogen → neuer Schlüssel ihrer Gruppe (das Gerät liest sie nicht mehr); Liste dazu → Schlüssel an
+        // das Gerät (vor den Aufgaben), die Liste wird digital, und ihre Sicht geht voll.
+        for (const g of w.weg) if (t.rotiere(g)) a.listenVoll.add(g)
+        if (w.neu.length) t.schickeSchluessel(befehl.id)
+        for (const g of w.neu) a.listenVoll.add(g)
         // Wirkt sofort: am Host gilt der neue Stand für die nächste Action, das Gerät erfährt ihn direkt (P-6).
-        if (gesetzt) t.sende(befehl.id, { art: 'aufgaben', aufgaben: aufgabenVon(t.raumJetzt()!, befehl.id) })
+        const jetzt = aufgabenVon(t.raumJetzt()!, befehl.id)
+        t.sende(befehl.id, { art: 'aufgaben', aufgaben: jetzt })
+        const neueListen = listenAufgaben(jetzt).map((l) => l.liste).filter((l) => w.neu.includes(gruppeDerListe(l)))
+        meldeDigital(a, neueListen)
+        plane(a)
         break
       }
       case 'umbenennen':
@@ -560,7 +751,25 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
         const vorher = t.raumJetzt()?.geraete[befehl.id]
         const name = vorher?.name ?? ''
         const pk = vorher?.pk
-        if (t.entziehe(befehl.id)) t.verwalte((r) => vermerkeEntzug(r, { id: befehl.id, name, um: jetzt, ...(pk ? { pk } : {}) }))
+        if (t.entziehe(befehl.id)) {
+          t.verwalte((r) => vermerkeEntzug(r, { id: befehl.id, name, um: jetzt, ...(pk ? { pk } : {}) }))
+          // W1: Gruppen des Geräts haben neue Schlüssel (transport.ts entziehe) – ihre Sicht geht voll; sein
+          // Gesprächsstand ist weg.
+          for (const g of vorher?.gruppen ?? []) a.listenVoll.add(g)
+          const e = liesWkrEingang(a.kennung, ablage)
+          const ohne = ohneGeraet(e, befehl.id)
+          if (ohne !== e) schreibeWkrEingang(ohne, ablage)
+          plane(a)
+        }
+        break
+      }
+      case 'hinweis': {
+        const raum = t.raumJetzt()
+        if (!raum) break
+        const ids = Object.entries(raum.geraete).filter(([, g]) => listenAufgaben(liesAufgaben(g.aufgaben)).some((l) => l.liste === befehl.liste)).map(([id]) => id)
+        if (!ids.length) break
+        schreibeWkrEingang(mitHinweis(liesWkrEingang(a.kennung, ablage), ids, befehl.liste, befehl.code, befehl.startNr).eingang, ablage)
+        plane(a)
         break
       }
     }
@@ -698,6 +907,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     setzeAufgaben: (id, aufgaben) => geraeteBefehl({ art: 'aufgaben', id, aufgaben }),
     benenne: (id, name) => geraeteBefehl({ art: 'umbenennen', id, name }),
     entziehe: (id) => geraeteBefehl({ art: 'entziehen', id }),
+    hinweis: (liste, code, startNr) => geraeteBefehl({ art: 'hinweis', liste, code, ...(startNr !== undefined ? { startNr } : {}) }),
     neueFassung,
     kontingent,
     fassungGesehen: merkeFassung,

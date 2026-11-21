@@ -4,7 +4,7 @@ import { starteGeraeteHost, type GeraeteHost, type HostUmgebung } from './host'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from './gekoppelt'
 import type { LeseUmgebung } from './geraet'
 import { ABLAGE, liesKopplung, type Ablage } from './ablage'
-import type { Aufgabe } from './aufgaben'
+import { freigabeBereiche, type Aufgabe } from './aufgaben'
 import { nachgebauterBrowser, type TestFenster } from './testBrowser'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
 import { direktThemaVon, geraeteThemaVon, type HostRaum } from './transport/ntfy/raum'
@@ -220,7 +220,7 @@ describe('Start-Freigabe vom Handy (E7)', () => {
     // Rechte ändern: sofort am Host und auf dem Gerät.
     const id = h.raum.value!.geraete[0].id
     h.setzeAufgaben(id, NUR_2)
-    await bis(() => g.aufgaben.value[0]?.bereiche[0] === 'par_2')
+    await bis(() => freigabeBereiche(g.aufgaben.value)[0] === 'par_2')
     expect(await sendeUndWarte(g, beginnen('par_2'))).toMatchObject({ ergebnis: 'angewandt' })
     expect(begonnen(s.state.value, 'par_2')).toEqual(['lauf:1'])
     expect(await sendeUndWarte(g, { type: 'BETRIEB_MELDUNG', bereich: 'par_1', meldung: { text: 'Pause', art: 'pause' } })).toMatchObject({ ergebnis: 'abgelehnt' })
@@ -427,7 +427,7 @@ describe('Bedienung aus einem anderen Fenster', () => {
     await bis(() => h2.raum.value!.geraete.length === 1)
     const id = h2.raum.value!.geraete[0].id
     h2.setzeAufgaben(id, NUR_2)
-    await bis(() => g.aufgaben.value[0]?.bereiche[0] === 'par_2' && h.raum.value!.geraete[0].aufgaben[0].bereiche[0] === 'par_2')
+    await bis(() => freigabeBereiche(g.aufgaben.value)[0] === 'par_2' && freigabeBereiche(h.raum.value!.geraete[0].aufgaben)[0] === 'par_2')
     h2.entziehe(id)
     await bis(() => g.lage.value === 'entzogen' && h2.raum.value!.geraete.length === 0 && h2.raum.value!.entzogen.length === 1)
   })

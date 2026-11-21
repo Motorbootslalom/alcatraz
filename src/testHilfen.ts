@@ -142,3 +142,12 @@ export function fahreRunde(state: AppState, runde: ParallelRunde, zeiten: Record
   )
   return reducer(state, { type: 'SET_EINGABEN', zellen })
 }
+
+// --- Digitale WKR-Erfassung (W1) ----------------------------------------------------------------------
+
+/** DM wie {@link betriebsStand}, festgeschrieben, Lauf 1 auf beiden Parcours begonnen (zeit 500) – noch nichts gezeigt. */
+export function wkrBetriebsStand(starter: readonly Starter[] = BETRIEB_STARTER): AppState {
+  let s = festgeschrieben(betriebsStand(starter))
+  for (const bereich of ['par_1', 'par_2']) s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich, punkt: 'lauf:1', zeit: 500 })
+  return s
+}

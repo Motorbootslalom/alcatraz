@@ -111,6 +111,16 @@ export type VerlaufArt =
   | 'druckGeloest'
   /** „Disziplin nicht werten“ gesetzt oder gelöst (Entscheidung des O.O.D., lib/disziplinen.ts). */
   | 'nichtWerten'
+  /**
+   * Digitale WKR-Erfassung (W1, 21.11.2026): Zeilen eines Geräts übernommen (`liste`, `geraet` = Name des Geräts – der
+   * Verlauf am Bedienrechner ist der Ort dafür, F10), eine Rückfrage oder ein Vorschlag entschieden, Modus/Status
+   * bzw. Abschluss einer Liste.
+   */
+  | 'eingabeGeraet'
+  | 'rueckfrage'
+  | 'vorschlag'
+  | 'wkrListe'
+  | 'wkrAbschluss'
 
 export interface Beschreibung {
   art: VerlaufArt
@@ -124,6 +134,9 @@ export interface Beschreibung {
   /** Wiederhergestellter Stand: sein Zeitpunkt und, wenn er einen hatte, sein Name. */
   zeit?: number
   name?: string
+  /** Digitale WKR-Erfassung: die Liste (Kennung, wkr/liste.ts) und der Name des Geräts, von dem die Werte kamen. */
+  liste?: string
+  geraet?: string
 }
 
 /** Diese Arten stehen immer für sich: Zwei Importe hintereinander sind zwei Einträge. */
@@ -198,6 +211,8 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   SET_POKAL_ZAEHLT: 'mannschaft',
   INVERT_POKAL_ZAEHLT: 'mannschaft',
   SET_NICHT_WERTEN: 'nichtWerten',
+  WKR_RUECKFRAGE: 'rueckfrage',
+  WKR_VORSCHLAG: 'vorschlag',
   LOAD_STATE: 'geladen',
   RESET_ALL: 'zurueckgesetzt',
 }
@@ -230,24 +245,24 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     // Der Druckvermerk einer Runde entsteht beim Drucken von selbst – kein eigener Eintrag (wie die Kennung).
     case 'PARALLEL_RUNDEN_GEDRUCKT':
       return null
-    case 'SET_EINGABEN': {
-      const ids = new Set(action.zellen.map((z) => z.starter))
-      const klassen = new Set(nachher.starters.filter((p) => ids.has(p.id)).map((p) => p.klasse))
-      // Ein Attempt des Parallelslaloms ist kein Lauf des Manövrierens: Die Runde steht dabei,
-      // sonst hieße „Vorlauf, 2. Attempt“ im Verlauf „Lauf 2“ (lib/parallelSchluessel.ts).
-      const runden = new Set(action.zellen.map((z) => zerlegeAttempt(z.lauf)?.runde ?? ''))
-      const runde = runden.size === 1 ? [...runden][0] : undefined
-      const laeufe = new Set(action.zellen.map((z) => zerlegeLauf(z.lauf).lauf))
-      // Gemischt (Manövrieren und Parallelslalom, zwei Runden) gibt es keinen Lauf zu nennen.
-      const lauf = laeufe.size === 1 && runde !== undefined ? [...laeufe][0] : undefined
+    case 'WKR_ZEILEN':
+      // Wie eine Eingabe, dazu Liste und Gerät: Zeilen verschiedener Geräte oder Listen sind verschiedene Einträge.
       return {
-        art: 'eingabe',
-        ...(klassen.size === 1 ? { klasse: String([...klassen][0]) } : {}),
-        ...(runde ? { runde } : {}),
-        // Listen ohne Lauf (Knoten) stehen unter Lauf 0 – dort gibt es keinen zu nennen.
-        ...(lauf !== undefined && lauf !== OHNE_LAUF && Number.isFinite(lauf) ? { lauf } : {}),
+        ...beschreibeEingabe(
+          action.zeilen.flatMap((z) => [z.lauf, ...z.weitere].map((lauf) => ({ lauf, starter: z.starter }))),
+          nachher,
+        ),
+        art: 'eingabeGeraet',
+        liste: action.liste,
+        geraet: action.quelle.name,
       }
-    }
+    case 'WKR_LISTE':
+      return { art: 'wkrListe', liste: action.liste }
+    case 'WKR_ABSCHLUSS':
+    case 'WKR_ABSCHLUSS_LOESEN':
+      return { art: 'wkrAbschluss', liste: action.liste }
+    case 'SET_EINGABEN':
+      return beschreibeEingabe(action.zellen, nachher)
     case 'PARALLEL_RUNDE_FESTSCHREIBEN':
     case 'PARALLEL_RUNDE_LOESEN':
       return { art: action.type === 'PARALLEL_RUNDE_LOESEN' ? 'rundeGeloest' : 'rundeFest', klasse: action.klasse, runde: action.runde }
@@ -273,9 +288,29 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
   }
 }
 
+/** Eine Eingabe: Klasse, Runde und Lauf, wenn alle Zellen dieselben haben. */
+function beschreibeEingabe(zellen: readonly { lauf: string; starter: string }[], nachher: Pick<AppState, 'starters'>): Beschreibung {
+  const ids = new Set(zellen.map((z) => z.starter))
+  const klassen = new Set(nachher.starters.filter((p) => ids.has(p.id)).map((p) => p.klasse))
+  // Ein Attempt des Parallelslaloms ist kein Lauf des Manövrierens: Die Runde steht dabei,
+  // sonst hieße „Vorlauf, 2. Attempt“ im Verlauf „Lauf 2“ (lib/parallelSchluessel.ts).
+  const runden = new Set(zellen.map((z) => zerlegeAttempt(z.lauf)?.runde ?? ''))
+  const runde = runden.size === 1 ? [...runden][0] : undefined
+  const laeufe = new Set(zellen.map((z) => zerlegeLauf(z.lauf).lauf))
+  // Gemischt (Manövrieren und Parallelslalom, zwei Runden) gibt es keinen Lauf zu nennen.
+  const lauf = laeufe.size === 1 && runde !== undefined ? [...laeufe][0] : undefined
+  return {
+    art: 'eingabe',
+    ...(klassen.size === 1 ? { klasse: String([...klassen][0]) } : {}),
+    ...(runde ? { runde } : {}),
+    // Listen ohne Lauf (Knoten) stehen unter Lauf 0 – dort gibt es keinen zu nennen.
+    ...(lauf !== undefined && lauf !== OHNE_LAUF && Number.isFinite(lauf) ? { lauf } : {}),
+  }
+}
+
 /** Zwei Änderungen mit derselben Gruppe sind gleichartig. */
 export function gruppe(was: Beschreibung): string {
-  return `${was.art}|${was.klasse ?? ''}|${was.lauf ?? ''}${was.runde ? `|${was.runde}` : ''}`
+  return `${was.art}|${was.klasse ?? ''}|${was.lauf ?? ''}${was.runde ? `|${was.runde}` : ''}${was.liste !== undefined || was.geraet !== undefined ? `|${was.liste ?? ''}|${was.geraet ?? ''}` : ''}`
 }
 
 /** Ein Eintrag des Verlaufs ohne den Stand selbst (der liegt getrennt, damit die Liste klein bleibt). */

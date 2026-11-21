@@ -1,7 +1,7 @@
 import type { AppState, ClassId, OriginMode, Sprache, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, laufzettelLayoutWert, leerzeilenZahl, normalisiereAnzeige, normalisiereBetrieb, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
+import { emptyState, laufzettelLayoutWert, leerzeilenZahl, normalisiereAnzeige, normalisiereBetrieb, normalisiereWkr, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
 import { aufbauOf, beschriftungOf, hasParallel, PARALLEL, regelwerkOf } from '../config/catalog'
 import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
@@ -173,6 +173,9 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     anzeige: normalisiereAnzeige(loaded.anzeige, [...parcoursIds, PARALLEL]),
     // Fehlt in Ständen vor dem Gerätebetrieb (E6, 16.11.2026); Unbrauchbares heißt: die Vorgabe des Programms.
     geraeteServer: serverEinstellung(loaded.geraeteServer) ?? '',
+    // Fehlt in Ständen vor der digitalen WKR-Erfassung (W1, 21.11.2026): keine Liste digital, nichts offen.
+    // Unbrauchbares entfällt einzeln; Rückfragen und Vorschläge zu Startern, die es nicht (mehr) gibt, ebenso.
+    wkr: normalisiereWkr(loaded.wkr, new Set(starters.map((p) => p.id))),
   }
   // Ein Stand mit festgeschriebener Verzahnung aus der Zeit vor den festen Plänen bekommt seinen
   // Plan des Vorlaufs jetzt – einmal, danach wird er nicht mehr neu gerechnet. Ohne Sperre bleibt
