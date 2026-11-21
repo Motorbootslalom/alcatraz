@@ -198,6 +198,14 @@ describe('pruefeZeile – Start', () => {
     expect(pruefeZeile(s, DM, L('vorsteg'), undefined, 'g1', zeile(m(naechster), []))).toMatchObject({ gezeigt: true })
   })
 
+  it('Steg vorab (T1): nur eine Zeile des Ablegens gilt als gezeigt, nie eine ganze Steg-Zeile oder das Anlegen (Prüfbefund 21.11.2026)', () => {
+    const { s } = gezeigt()
+    const naechster = lage(s, P1).frei[0].starter
+    expect(pruefeZeile(s, DM, L('steg'), undefined, 'g1', zeile(m(naechster), [], { t: 'ab' }))).toMatchObject({ gezeigt: true })
+    expect(pruefeZeile(s, DM, L('steg'), undefined, 'g1', zeile(m(naechster), []))).toMatchObject({ gezeigt: false })
+    expect(pruefeZeile(s, DM, L('steg'), undefined, 'g1', zeile(m(naechster), [], { t: 'an' }))).toMatchObject({ gezeigt: false })
+  })
+
   it('Korrektur wird durchgereicht', () => {
     const { s, erster } = gezeigt()
     expect(pruefeZeile(s, DM, L('gate135'), undefined, 'g1', zeile(m(erster), [], { k: true }))).toMatchObject({ korrektur: true })

@@ -101,6 +101,12 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   W4 „Handy, Bojen“ ist gebaut ([plan-wkr-w4.md](plan-wkr-w4.md): Bojen-Maske in Fahrtfolge mit Umschalter
   Hinweg/Rückweg, Tor-5-Zähler, „Nicht vorbeigekommen“; Prüfbefunde vom 21.11.2026 behoben, §12, Auslegungen
   P1–P17, Q1–Q7, R1–R8, S1–S5 noch zu bestätigen).
+  Wünsche vom 21.11.2026 (WKR_ANNAHMEN T1–T10, noch zu bestätigen): Steg-Zeitversatz (Ablegen sieht „Am Steg“
+  vorab, Anlegen erst, wenn das Boot zurück ist – nie derselbe Starter in beiden; das Anlegen des Starts auf der
+  Tafel zählt nie im Rückstand), „Abmelden“ am Gerät wirkt wie Liste entfernen (nur was kein anderes Gerät mehr
+  abdeckt; das Anlegen im Boot geht beim Abmelden bzw. Pausieren mit aufs Papier; neu Zuweisen holt das Gerät
+  zurück, auch nach Neuladen), Handy-Maske auf dem Pad als mittige Spalte bis W5; Beispiel-Boote/-Co-Piloten nur
+  noch unter „Beispieldaten“, Beispielstarter nach Art der Veranstaltung. Prüfbefunde dazu behoben.
   Offen: Pad, Knoten und Zeit-Listen (W5), Feldtest.
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten

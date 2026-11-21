@@ -24,6 +24,8 @@ export const UEBUNG_BEREICH = 'uebung'
 const GEZEIGT_ANFANG = 2
 /** Vorsteg: so viele freie Starts sieht er schon vor dem Zeigen (wie `vorabListen`). */
 const VORAB = 2
+/** Steg-Ablegen: so viele vorab (WKR_ANNAHMEN.stegAblegenVorab; die Übung kennt kein „Am Steg“ – „Als Nächstes“). */
+const VORAB_STEG = 1
 
 export interface UebungsStand {
   regelwerk: string
@@ -84,6 +86,10 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
   const klasseVon = (i: number) => klassen[Math.floor(((nrVon(i) - 1) * klassen.length) / WKR_ANNAHMEN.uebungStarts)]
   const teile = teileVon(stand.typeId)
   const vorab = WKR_ANNAHMEN.vorabListen.includes(stand.typeId)
+  // Steg-Zeitversatz (Nutzer 21.11.2026, T1/T2): Ablegen sieht „Als Nächstes“ vorab, Anlegen erst nach dem Boot.
+  const nVorab = vorab ? VORAB : teile && WKR_ANNAHMEN.stegAblegenVorab ? VORAB_STEG : 0
+  const nachlaufend = !!teile && WKR_ANNAHMEN.stegAnlegenNachlaufend
+  const imBoot = stand.naechster - 1
   const start = (i: number, extra: Partial<ListenStart> = {}): ListenStart => ({
     key: keyVon(i),
     startNr: String(nrVon(i)),
@@ -92,10 +98,10 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
     lauf: laufSchluessel('manoevrieren', laufVon(i)),
     ...extra,
   })
-  const schlange = stand.offen.map((o) => start(o.i, teile ? { teile: { ab: o.ab, an: o.an } } : {}))
-  const frei = Array.from({ length: (vorab ? VORAB : 0) + WKR_ANNAHMEN.danach }, (_, j) => stand.naechster + j)
-  if (vorab) schlange.push(...frei.slice(0, VORAB).map((i) => start(i, { vorab: true })))
-  const danach = frei.slice(vorab ? VORAB : 0).map((i) => start(i, teile ? { teile: { ab: false, an: false } } : {}))
+  const schlange = stand.offen.map((o) => start(o.i, teile ? { teile: { ab: o.ab, an: o.an || (nachlaufend && o.i === imBoot) } } : {}))
+  const frei = Array.from({ length: nVorab + WKR_ANNAHMEN.danach }, (_, j) => stand.naechster + j)
+  schlange.push(...frei.slice(0, nVorab).map((i) => start(i, { vorab: true, ...(teile ? { teile: { ab: false, an: nachlaufend } } : {}) })))
+  const danach = frei.slice(nVorab).map((i) => start(i, teile ? { teile: { ab: false, an: nachlaufend } } : {}))
   const lauf = laufVon(stand.offen.length > 0 ? Math.max(...stand.offen.map((o) => o.i)) : stand.naechster)
   const xErlaubt = WKR_ANNAHMEN.xListen.includes(stand.typeId)
   const maskenKonfig = konfigVon(stand, sprachen.maske)

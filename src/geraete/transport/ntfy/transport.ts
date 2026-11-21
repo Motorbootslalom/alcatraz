@@ -7,6 +7,7 @@ import {
   geraeteThemaVon,
   gruppeDesLinks,
   gruppenSchluessel,
+  DIREKT_MERKEN,
   leererGeraetStand,
   mitGruppe,
   mitNeuemSchluessel,
@@ -1262,7 +1263,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
    * Meldung wirkt nie zweimal – und nur vorwärts.
    */
   private neu(wire: HostWire, aufbau = false): boolean {
-    if (wire.g === DIREKT) return !!this.optionen.ich && !!this.optionen.hostBox && wire.n > (this.stand.seen[DIREKT] ?? 0)
+    if (wire.g === DIREKT) return !!this.optionen.ich && !!this.optionen.hostBox && !this.direktSchonDa(wire.n)
     const schluessel = this.stand.gruppen[wire.g]
     // Ein verpasster Schlüsselwechsel kommt gezielt über d – bis dahin bleibt die Nachricht liegen.
     if (!schluessel || wire.e !== schluessel.e) return false
@@ -1344,13 +1345,32 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     this.liefere({ art: 'sicht', gruppe: wire.g, sicht: clone(sicht), n: wire.n, hz: wire.hz, nachgeholt: this.holtNach })
   }
 
+  /**
+   * Schon angenommen? Über der höchsten Nummer nie; im Fenster der gemerkten Nummern nur, was dort steht – eine ältere
+   * Nachricht, die erst nach einer neueren eintrifft, wirkt also noch (Prüfung unter Last 21.11.2026: ein `aufgaben`
+   * nach einem Schlüsselwechsel ging so verloren); darunter (und ohne Liste) alles, wie zuvor allein mit `seen`.
+   */
+  private direktSchonDa(n: number): boolean {
+    if (n > (this.stand.seen[DIREKT] ?? 0)) return false
+    const liste = this.stand.direkt ?? []
+    if (liste.length === 0 || n < liste[0]) return true
+    return liste.includes(n)
+  }
+
+  private merkeDirekt(n: number): void {
+    this.stand.seen[DIREKT] = Math.max(this.stand.seen[DIREKT] ?? 0, n)
+    const liste = [...new Set([...(this.stand.direkt ?? []), n])].sort((a, b) => a - b)
+    this.stand.direkt = liste.slice(-DIREKT_MERKEN)
+  }
+
   private async direkt(wire: HostWire): Promise<void> {
     const ich = this.optionen.ich
     const hostBox = this.optionen.hostBox
     if (!ich || !hostBox) return
     const nachricht = await openDirekt(wire, hostBox, ich.schluessel.secretKey)
-    if (!nachricht || this.gestoppt) return
-    this.stand.seen[DIREKT] = wire.n
+    // Nachgeprüft nach dem Öffnen (asynchron): Dieselbe Nachricht kann inzwischen über ein zweites Abo verarbeitet sein.
+    if (!nachricht || this.gestoppt || this.direktSchonDa(wire.n)) return
+    this.merkeDirekt(wire.n)
     const kopf = this.stand.schlange[0]
     const beantwortet = 'auf' in nachricht && kopf?.nr === nachricht.auf
     // Antworten zählen nur auf die Nachricht, die gerade wartet – eine späte zweite Quittung ändert nichts.

@@ -3,7 +3,7 @@ import { reducer } from '../state/reducer'
 import { lage } from '../betrieb/folge'
 import { uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState, WkrModus, WkrStatus } from '../types'
-import { danach, papierStarts, schlange } from './schlange'
+import { danach, imBoot, papierStarts, schlange } from './schlange'
 import { listenKennung, type Liste } from './liste'
 
 // Die Schlange je Liste (Plan §3.1, §6): gezeigte Starts minus Haken, ab `seit`, ohne Pausen/P, Klasse ohne Liste
@@ -65,10 +65,80 @@ describe('schlange', () => {
     s = zeige(s, 2, 1000)
     const [erster, zweiter] = gezeigteStarter(s)
     s = setze(s, erster, 'erfasst.ab@steg', '1')
-    expect(schlange(s, L('steg'), 'ab').map((x) => x.starter)).toEqual([zweiter])
-    expect(schlange(s, L('steg'), 'an').map((x) => x.starter)).toEqual([erster, zweiter])
+    expect(schlange(s, L('steg'), 'ab').filter((x) => !x.vorab).map((x) => x.starter)).toEqual([zweiter])
+    // Anlegen nachlaufend (T2): der zweite ist noch im Boot.
+    expect(schlange(s, L('steg'), 'an').map((x) => x.starter)).toEqual([erster])
     // Ohne Teil zählt nur der ganze Haken.
-    expect(schlange(s, L('steg')).map((x) => x.starter)).toEqual([erster, zweiter])
+    expect(schlange(s, L('steg')).filter((x) => !x.vorab).map((x) => x.starter)).toEqual([erster, zweiter])
+  })
+
+  // Nutzer 21.11.2026: „Eine Startnummer kann nicht gleichzeitig am Steg und im Parcours sein.“
+  it('Steg-Zeitversatz: Ablegen vorab („Am Steg“), Anlegen erst nach dem Boot – nie derselbe Start in beiden', () => {
+    let s = setzeListe(wkrBetriebsStand(), L('steg'), 100, 'digital')
+    // Vor dem ersten Zeigen: Ablegen sieht schon „Als Nächstes“ (und die übrigen am Steg), Anlegen nichts.
+    const vorher = lage(s, P1).frei.slice(0, s.anzeige.amSteg).map((e) => e.starter)
+    expect(schlange(s, L('steg'), 'ab').map((x) => [x.starter, x.vorab])).toEqual(vorher.map((x) => [x, true]))
+    expect(schlange(s, L('steg'), 'an')).toEqual([])
+    s = zeige(s, 1, 1000)
+    const [erster] = gezeigteStarter(s)
+    expect(imBoot(s, P1)).toBe(s.betrieb.bereiche[P1].gezeigt[0].ref)
+    expect(schlange(s, L('steg'), 'an')).toEqual([])
+    // Ohne Teil: der Start im Boot braucht nur das Ablegen, die vorab nur das Ablegen.
+    const ganz = schlange(s, L('steg'))
+    expect(ganz.map((x) => x.starter)).toEqual([erster, ...lage(s, P1).frei.slice(0, s.anzeige.amSteg).map((e) => e.starter)])
+    expect(ganz.every((x) => x.teileOffen?.ab === true && x.teileOffen.an === false)).toBe(true)
+    s = setze(s, erster, 'erfasst.ab@steg', '1')
+    s = zeige(s, 1, 2000)
+    const ab = schlange(s, L('steg'), 'ab').map((x) => x.starter)
+    const an = schlange(s, L('steg'), 'an').map((x) => x.starter)
+    expect(an).toEqual([erster])
+    expect(ab.some((x) => an.includes(x))).toBe(false)
+    // Ende des Punkts: Ist im Lauf kein Start mehr frei, gilt der letzte als zurück.
+    const rest = lage(s, P1).frei.filter((e) => e.punkt === 'lauf:1').length
+    s = zeige(s, rest, 3000)
+    expect(imBoot(s, P1)).toBeNull()
+    const letzter = gezeigteStarter(s).at(-1)!
+    expect(schlange(s, L('steg'), 'an').map((x) => x.starter)).toContain(letzter)
+  })
+
+  // Prüfbefund 21.11.2026: „Im Boot“ hing nur an `frei` – ein zurückgestellter Start bzw. eine ausgesetzte Klasse im Punkt
+  // machte den gerade gezeigten Start sofort „zurück“.
+  it('Im Boot auch, wenn im Punkt nur noch ein zurückgestellter Start bzw. eine ausgesetzte Klasse aussteht', () => {
+    let s = setzeListe(wkrBetriebsStand(), L('steg'), 100, 'digital')
+    const rest = lage(s, P1).frei.filter((e) => e.punkt === 'lauf:1').length
+    s = zeige(s, rest - 2, 1000)
+    const [a, c] = lage(s, P1).frei
+    expect(c.punkt).toBe('lauf:1')
+    const zurueck = reducer(s, { type: 'BETRIEB_ZURUECKSTELLEN', bereich: P1, ref: c.key, zeit: 5000 })
+    expect(lage(zurueck, P1).zurueckgestellt.map((e) => e.key)).toEqual([c.key])
+    const mitA = zeige(zurueck, 1, 6000)
+    expect(lage(mitA, P1).aktuell!.key).toBe(a.key)
+    expect(imBoot(mitA, P1)).toBe(a.key)
+    expect(schlange(mitA, L('steg'), 'an').map((x) => x.key)).not.toContain(a.key)
+    // Ausgesetzte Klasse („Boot fehlt“): C wartet aufs Boot, A ist noch im Boot.
+    const ohneC = zeige(reducer(s, { type: 'BETRIEB_AUSSETZEN', bereich: P1, klasse: c.klasse, an: true, zeit: 5000 }), 1, 6000)
+    expect(lage(ohneC, P1).bootFehlt.map((e) => e.key)).toContain(c.key)
+    expect(imBoot(ohneC, P1)).toBe(lage(ohneC, P1).aktuell!.key)
+    expect(schlange(ohneC, L('steg'), 'an').map((x) => x.key)).not.toContain(lage(ohneC, P1).aktuell!.key)
+  })
+
+  // Prüfbefund 21.11.2026: P ohne das Anlegen des Starts im Boot ließ es nach „Weiter“ wieder offen in die Schlange fallen.
+  it('Abmelden bzw. Pause mit Start im Boot: sein Anlegen geht mit aufs Papier, nach „Weiter“ nicht offen', () => {
+    for (const teil of [undefined, 'an'] as const) {
+      let s = setzeListe(wkrBetriebsStand(), L('steg'), 100, 'digital')
+      s = zeige(s, 1, 1000)
+      const e1 = s.betrieb.bereiche[P1].gezeigt[0].ref
+      s = setze(s, gezeigteStarter(s)[0], 'erfasst.ab@steg', '1')
+      expect(imBoot(s, P1)).toBe(e1)
+      s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(L('steg')), status: teil ? 'pausiert' : 'abgemeldet', ...(teil ? { teil } : {}), zeit: 2000 })
+      const eintrag = s.wkr.listen[listenKennung(L('steg'))]
+      const pausen = teil ? eintrag.teile![teil]!.pausen : eintrag.pausen
+      expect(pausen.at(-1)!.papier).toContain(e1)
+      s = zeige(s, 1, 2500)
+      s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(L('steg')), status: 'aktiv', ...(teil ? { teil } : {}), zeit: 3000 })
+      expect(schlange(s, L('steg'), 'an').map((x) => x.key)).not.toContain(e1)
+      expect(papierStarts(s, L('steg'), 'an')).toContain(e1)
+    }
   })
 
   it('Pause: Schlange leer, P = Offene beim Pausieren und alles in der Pause Gezeigte; nach „weiter“ nur Neues', () => {
@@ -144,6 +214,9 @@ describe('schlange – Parallelslalom', () => {
     s = zeige(s, 1, 1000)
     s = reducer(s, { type: 'WKR_ABSCHLUSS', liste: listenKennung(L('steg')), punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: true, teil: 'ab', zeit: 2000 })
     expect(schlange(s, L('steg'), 'ab')).toEqual([])
+    // Das Anlegen kommt erst nach dem Boot (T2): ein zweiter Start.
+    expect(schlange(s, L('steg'), 'an')).toEqual([])
+    s = zeige(s, 1, 2500)
     expect(schlange(s, L('steg'), 'an')).toHaveLength(1)
     // Ohne Teil (Sicht der Liste): steht noch da, nur das Anlegen braucht ihn.
     expect(schlange(s, L('steg')).map((x) => x.teileOffen)).toEqual([{ ab: false, an: true }])
@@ -152,18 +225,19 @@ describe('schlange – Parallelslalom', () => {
   it('Steg: Pause eines Teils (Teil-Gerät, F16 mit F1) – der andere Teil erfasst weiter, P nur für den Teil', () => {
     let s = setzeListe(wkrBetriebsStand(), L('steg'), 100, 'digital')
     s = zeige(s, 1, 1000)
-    const [erster] = schlange(s, L('steg'), 'ab')
+    const [erster] = schlange(s, L('steg'), 'ab').filter((x) => !x.vorab)
     s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(L('steg')), status: 'abgemeldet', teil: 'ab', zeit: 1500 })
     expect(s.wkr.listen[listenKennung(L('steg'))]).toMatchObject({ status: 'aktiv', teile: { ab: { status: 'abgemeldet', pausen: [{ von: 1500, bis: null, papier: [erster.key] }] } } })
     s = zeige(s, 1, 2000)
     expect(schlange(s, L('steg'), 'ab')).toEqual([])
-    expect(schlange(s, L('steg'), 'an')).toHaveLength(2)
+    // Anlegen: nur der erste – der zweite ist noch im Boot (T2).
+    expect(schlange(s, L('steg'), 'an')).toHaveLength(1)
     expect(papierStarts(s, L('steg'), 'ab')).toHaveLength(2)
     expect(papierStarts(s, L('steg'), 'an')).toEqual([])
     // Weiter: Was in der Pause gezeigt wurde, bleibt beim Ablegen auf Papier.
     s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(L('steg')), status: 'aktiv', teil: 'ab', zeit: 2500 })
-    expect(schlange(s, L('steg'), 'ab')).toEqual([])
+    expect(schlange(s, L('steg'), 'ab').filter((x) => !x.vorab)).toEqual([])
     s = zeige(s, 1, 3000)
-    expect(schlange(s, L('steg'), 'ab').map((x) => x.zeit)).toEqual([3000])
+    expect(schlange(s, L('steg'), 'ab').filter((x) => !x.vorab).map((x) => x.zeit)).toEqual([3000])
   })
 })

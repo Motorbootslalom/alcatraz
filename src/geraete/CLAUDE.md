@@ -225,6 +225,18 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   (Text geraete.ablehnung.nv-nicht-erlaubt). PROTOKOLL_FASSUNG bleibt 2; LISTEN_SICHT_FASSUNG 5 trennt alte Geräte.
   Tests: src/GeraetWkr.test.ts „Nicht vorbeigekommen (W4.3)“ (Ende zu Ende über die Maske), uebung.test.ts.
 
+- Nutzer 21.11.2026 (WKR_ANNAHMEN T3, T5–T8): **Abmelden am Gerät = Liste entfernen** – host.ts nimmWkrAn: WKR_STATUS
+  `abgemeldet` → WKR_LISTE abgemeldet für das, was danach kein Gerät mehr abdeckt (kein anderes Gerät: ganze Liste, T6;
+  sonst am Steg höchstens ein Teil; ungeteilte Liste mit anderem Gerät: kein Status, Prüfbefund 21.11.2026), Quittung
+  direkt (nicht still), dann Befehl `aufgaben` ohne die Liste (rotiert die Listen-Gruppe, schickt `aufgaben`).
+  erfassen.ts: `abgemeldet` (AbgemeldeteListe {liste, titel, bereich, teil?}; Inhalt.abgemeldet im Ausgang mit `id`/`nr`
+  der Abmelde-Nachricht, `weg` sobald die Liste fehlt; fällt beim Neu-Zuweisen – nach `weg` oder mit einer Sicht, deren
+  `bis` ≥ `nr` ist, nur mit dem neuen Schlüssel lesbar), meldeAb setzt es sofort (vor dem Senden), schicke/Schlange danach leer;
+  WkrGeraet/GeraetFreigabe zeigen die Liste weiter als Reiter mit WkrRuhe `abmeldung`. uebung.ts: `abgemeldet` immer leer
+  (T8). Steg-Zeitversatz (T3): ein Gerät für den ganzen Steg nimmt einen Start ins Anlegen erst, wenn sein Ablegen nicht
+  mehr in der Schlange steht (erfassen.ts schlangen `ablegenOffen`, uebung.ts `passt`). Tests: wkr.test.ts „Abmelden am
+  Gerät wirkt wie Liste entfernen“, „Steg ganz auf einem Gerät“ (nie beide zugleich).
+
 ## Abläufe
 
 - Oberfläche (E6): Betrieb → Geräte = GeraeteRaum.vue mit useGeraeteHost(): ohne Raum Text „was über welchen Server
@@ -307,6 +319,11 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   derselben Kopplung vergaben sonst dieselben Nummern – das Gerät zeigte ✓ (`bis` deckt sie), der Host hatte nichts.
   Das allein reicht nicht (Reihenfolge zweier Schlangen, gegenseitiges Überschreiben von Schlange und Ausgang): Nur
   EIN Tab sendet (tabWache.ts). Wer ein Gerät ohne GeraetFreigabe öffnet, gibt ihm selbst eine bewachte Ablage.
+- Direktes (d) kann in vertauschter Reihenfolge kommen: ntfy abonniert erst und schickt dann das Zwischengespeicherte –
+  was dazwischen eintrifft, kommt live vor Älterem. Das Gerät nimmt deshalb auf d nicht nur „über `seen[DIREKT]`“,
+  sondern alles, was im Fenster `GeraetStand.direkt` (DIREKT_MERKEN 64 Nummern) noch fehlt (21.11.2026; vorher ging
+  ein `aufgaben` direkt nach einem `schluessel` verloren – transport.test.ts „Direktes in vertauschter Reihenfolge“).
+  Der Nachbau (testNtfy.ts) zeigt dieselbe Reihenfolge, wenn zwischen Abo und Öffnen etwas veröffentlicht wird.
 - Unbekannte Schlüssel auf g öffnet der Host nie (dort schreiben nur Gekoppelte); Koppel-Themen je eigener Eimer.
   Ausnahme ohne Öffnen: Ein Schlüssel aus `raum.entzogen` (pk) bekommt gedrosselt noch einmal `entzogen` auf sein
   d-Thema (erinnereEntzogenes) – sonst erführe ein Gerät, das länger als 12 h aus war, den Entzug nie (Prüfung E7).

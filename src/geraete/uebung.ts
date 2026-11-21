@@ -124,7 +124,9 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
 
   const stufeLesen = () => void rev.value
   const listen = scope.run(() => computed(() => [aufgabe]))!
-  const passt = (s: ListenStart, t: ListenTeil | undefined) => (t ? !s.teile?.[t] : !(s.teile?.ab && s.teile?.an))
+  // Gerät für den ganzen Steg (WKR_ANNAHMEN.stegGanzAblegenZuerst, T3): Anlegen erst, wenn das Ablegen geschickt ist.
+  const passt = (s: ListenStart, t: ListenTeil | undefined) =>
+    t ? !s.teile?.[t] && !(t === 'an' && !teil && WKR_ANNAHMEN.stegGanzAblegenZuerst && !s.teile?.ab) : !(s.teile?.ab && s.teile?.an)
   const schlange = scope.run(() =>
     computed(() => ({ [kennung]: sicht().schlange.filter((s) => passt(s, teil)).map((s): SchlangenEintrag => ({ ...s })) })),
   )!
@@ -218,6 +220,8 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
     verbindung: scope.run(() => computed(() => 'verbunden' as const))!,
     entzogen: scope.run(() => computed(() => false))!,
     listen,
+    // Die Übung meldet sich ab wie bisher (Ruhe mit „Weiter digital“, WKR_ANNAHMEN.abmeldenUebungWieBisher).
+    abgemeldet: scope.run(() => computed(() => []))!,
     sichten,
     schlange,
     schlangeTeil: (liste, t) => (eigen(liste) && sicht().teile ? sicht().schlange.filter((s) => passt(s, t)).map((s) => ({ ...s })) : []),

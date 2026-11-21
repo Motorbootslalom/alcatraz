@@ -6,7 +6,6 @@ import { useEvent } from '../lib/event'
 import { classColor } from '../domain/classes'
 import { BESETZUNG_MAX, besetzungText, coPilotVorgesehen } from '../lib/besetzung'
 import { sprungziel } from '../lib/router'
-import { useBeispielBoote } from '../lib/beispielBoote'
 import { t } from '../i18n'
 import type { ClassId } from '../types'
 import WkrEinteilung from './WkrEinteilung.vue'
@@ -49,8 +48,8 @@ onMounted(async () => {
   el?.scrollIntoView?.({ block: 'start' })
 })
 
-// Beispiel-Knöpfe für Boote und Co-Piloten (19.11.2026): hier, wo beides gepflegt wird.
-const { bootKlassen, coKlassen, beispielBoote, beispielCoPiloten } = useBeispielBoote()
+// Keine Beispiel-Knöpfe hier (Wunsch des Nutzers vom 21.11.2026): Beispielwerte entstehen an EINER
+// Stelle, im Block „Beispieldaten“ (BeispieldatenPanel.vue), auch Beispiel-Boote und -Co-Piloten.
 
 function setze(feld: 'boot' | 'coPilot', klasse: ClassId, e: Event) {
   const text = (e.target as HTMLInputElement).value
@@ -131,19 +130,6 @@ function weiter(e: Event) {
           </tr>
         </tbody>
       </table>
-      <div class="row besetzung-beispiel">
-        <button type="button" class="btn sm" data-action="beispiel-boote" :disabled="bootKlassen.length === 0" :title="t('crew.sample.boatsTitle')" @click="beispielBoote">{{ t('crew.sample.boats') }}</button>
-        <button
-          type="button"
-          class="btn sm"
-          data-action="beispiel-copiloten"
-          :disabled="coKlassen.length === 0"
-          :title="coKlassen.length === 0 ? t('crew.sample.noCoPilots') : t('crew.sample.coPilotsTitle')"
-          @click="beispielCoPiloten"
-        >
-          {{ t('crew.sample.coPilots') }}
-        </button>
-      </div>
       <p class="note">{{ t('crew.privacyNote') }}</p>
     </div>
 

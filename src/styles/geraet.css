@@ -169,3 +169,23 @@ html.geraet-fenster body {
   padding-left: 0;
   padding-right: 0;
 }
+
+/*
+ * WKR-Maske auf breiten Bildschirmen bis W5 (21.11.2026, styles/wkr-geraet.css): Die Maske malt ihren ruhigen Rand
+ * selbst über die ganze Breite – die Freigabe-Hülle gibt dafür ihre 720 px und den Innenrand frei. Alles daneben
+ * (Banner, Reiter, Leiste) bleibt so breit wie die Spalte der Maske, damit Hauptknopf, Reiter und Leiste fluchten.
+ * Über data-teil statt der Klasse: Klassen der Maske stehen nur in wkr-geraet.css (styles/wkr-geraet.test.ts, N4).
+ */
+@media (min-width: 700px) {
+  .geraet-freigabe:has(> [data-teil='wkr-geraet']) {
+    max-width: none;
+    padding: 0;
+  }
+
+  .geraet-freigabe:has(> [data-teil='wkr-geraet']) > :not([data-teil='wkr-geraet']) {
+    max-width: 560px;
+    margin-inline: auto;
+    /* Die Reiter haben Innenrand (content-box: 584 px) – so fluchten sie genau mit der Spalte. */
+    box-sizing: border-box;
+  }
+}

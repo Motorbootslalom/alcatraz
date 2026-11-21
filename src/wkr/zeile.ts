@@ -7,7 +7,7 @@ import { NICHT_GESTARTET } from '../lib/abmeldung'
 import { parseTime } from '../lib/time'
 import { WKR_ANNAHMEN } from './annahmen'
 import { listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
-import { naechsteFreie } from './schlange'
+import { hatVorab, vorabStarts } from './schlange'
 
 // Eine Zeile vom WKR-Gerät und ihre Prüfung am Bedienrechner – rein, ohne DOM, ohne Store, nichts aus geraete/
 // (Plan §3.1). Das Gerät schickt je Start eine Zeile mit kurzen Schlüsseln; `pruefeZeile` prüft sie wie die
@@ -159,21 +159,24 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
     zellen,
     ...(eigenerTeil !== undefined ? { teil: eigenerTeil } : {}),
     haken: [eigenerTeil === undefined ? erfasstKennung(liste.typeId) : teilHaken(liste.typeId, eigenerTeil)],
-    gezeigt: istGezeigt(stand, liste, zeile.s, start.starter.id, start.weitere.length > 0),
+    gezeigt: istGezeigt(stand, liste, zeile.s, start.starter.id, start.weitere.length > 0, eigenerTeil),
     korrektur: zeile.k === true,
     ...(zeile.n ? { nichtVorbei: true as const } : {}),
   }
 }
 
 /**
- * Ist der Start im Betrieb gezeigt? Am Vorsteg (WKR_ANNAHMEN.vorabListen) zählen auch die nächsten freien, und gilt
+ * Ist der Start im Betrieb gezeigt? Am Vorsteg (WKR_ANNAHMEN.vorabListen) und Steg (Ablegen, stegAblegenVorab) zählen auch die nächsten freien, und gilt
  * die Zeile für jeden Versuch (`einmal`), auch ein anderer Versuch desselben Starters.
  */
-function istGezeigt(stand: AppState, liste: Liste, key: string, starter: string, einmal: boolean): boolean {
+function istGezeigt(stand: AppState, liste: Liste, key: string, starter: string, einmal: boolean, teil?: ListenTeil): boolean {
   const gezeigt = betriebVon(stand, liste.bereich).gezeigt.map((g) => g.ref)
   if (gezeigt.includes(key)) return true
-  if (!WKR_ANNAHMEN.vorabListen.includes(liste.typeId)) return false
-  const kandidaten = [...gezeigt, ...naechsteFreie(stand, liste.bereich).map((e) => e.key)]
+  // Steg-Ablegen sieht seit dem Nutzerbefund 21.11.2026 die Starts „Am Steg“ vorab (WKR_ANNAHMEN.stegAblegenVorab) –
+  // nur eine Zeile des Ablegens: Eine ganze Steg-Zeile (ohne Teil) setzte sonst den ganzen Haken, das Anlegen wäre
+  // erledigt, bevor das Boot abgelegt hat (Prüfbefund 21.11.2026; sie wird wie vorher Rückfrage `start`).
+  if (!hatVorab(liste.typeId) || (teileVon(liste.typeId) && teil !== 'ab')) return false
+  const kandidaten = [...gezeigt, ...vorabStarts(stand, liste).map((e) => e.key)]
   if (kandidaten.includes(key)) return true
   if (!einmal) return false
   return kandidaten.some((k) => {

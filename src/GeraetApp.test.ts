@@ -87,8 +87,10 @@ function geraet(hash: string, umgebung: LeseUmgebung = {}): VueWrapper {
   return w
 }
 
-async function zeigt(bedingung: () => boolean, ms = 3000): Promise<void> {
-  await bis(bedingung, ms)
+// Grenze wie bis() (10 s, Prüfung unter Last 21.11.2026): Vorher 3 s – auf zwei Kernen mit voller Suite lief z. B.
+// GeraetWkr „Probe … einmal je Raum“ hinein. Ein grüner Test wartet nicht länger.
+async function zeigt(bedingung: () => boolean): Promise<void> {
+  await bis(bedingung)
   await nextTick()
 }
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { EntwurfEintrag } from '../../geraete/erfassen'
-import { useWkrText } from './texte'
+import type { EntwurfEintrag, ZuletztZeile } from '../../geraete/erfassen'
+import { stufeZeichen, useWkrText, zellenText } from './texte'
 
 /**
  * Zustände ohne Arbeit (W3.3, Plan §5.6/§5.3): Die Maske sagt immer, warum es gerade nichts zu tippen gibt – nie
@@ -13,10 +13,13 @@ import { useWkrText } from './texte'
  * - `abgeschlossen`: Punkt abgeschlossen, Korrekturen nur noch als Vorschlag;
  * - `entfaellt`: Die Klasse hat diese Liste nicht (grau, mit Wort);
  * - `spaeter`: Liste mit Zeit/Knoten (Bojen seit W4.2 mit Maske) – Maske folgt (W5), bitte Papier, „Pausieren“ angeboten (G14);
- * - `entzogen`: Rechte weg; Entwürfe nur lesend zum Übertragen aufs Papier.
+ * - `entzogen`: Rechte weg; Entwürfe nur lesend zum Übertragen aufs Papier;
+ * - `abmeldung` (Nutzer 21.11.2026, WKR_ANNAHMEN.abmeldenWieEntfernen): dieses Gerät hat sich von der Liste abgemeldet
+ *   – wie entfernt: keine Starterkarte, kein „Weiter digital“, nur der Weg zurück (am Bedienrechner neu zuweisen, T7),
+ *   dazu Entwürfe und „Zuletzt“ dieser Liste lesbar fürs Papier.
  */
 defineProps<{
-  art: 'warte' | 'leer' | 'pausiert' | 'abgemeldet' | 'papier' | 'abgeschlossen' | 'entfaellt' | 'spaeter' | 'entzogen' | 'keine-liste'
+  art: 'warte' | 'leer' | 'pausiert' | 'abgemeldet' | 'papier' | 'abgeschlossen' | 'entfaellt' | 'spaeter' | 'entzogen' | 'keine-liste' | 'abmeldung'
   naechster?: { startNr: string; klasse: string } | null
   meldung?: string | null
   punkt?: string | null
@@ -25,9 +28,14 @@ defineProps<{
   /** `spaeter`: Liste noch aktiv – dann „Pausieren“ anbieten. */
   aktiv?: boolean
   entwuerfe?: EntwurfEintrag[]
+  /** `abmeldung`: Bereich der Liste und die letzten eigenen Zeilen (ohne Aufbau: nur die Werte). */
+  bereich?: string
+  zuletzt?: ZuletztZeile[]
 }>()
 const emit = defineEmits<{ weiter: []; pausiere: [] }>()
-const { w } = useWkrText()
+const t = useWkrText()
+const { w } = t
+const zeileText = (z: ZuletztZeile) => (z.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(z.zellen, null, t, w('wkr.geraet.fehlerfreiText')))
 
 /**
  * Ein Entwurf fürs Papier (Prüfbefund W3, 21.11.2026): Liste · Bereich, am Steg der Teil, dann jedes belegte Feld mit
@@ -77,8 +85,23 @@ function werte(e: EntwurfEintrag): string {
       <h2>{{ w('wkr.geraet.ruhe.spaeter') }}</h2>
       <button v-if="aktiv" type="button" class="wkr-knopf" data-ziel="gross" data-action="pausieren" @click="emit('pausiere')">{{ w('wkr.geraet.pausieren') }}</button>
     </template>
-    <template v-else-if="art === 'entzogen'">
-      <h2>{{ w('wkr.geraet.ruhe.entzogen') }}</h2>
+    <template v-else-if="art === 'entzogen' || art === 'abmeldung'">
+      <h2 v-if="art === 'entzogen'">{{ w('wkr.geraet.ruhe.entzogen') }}</h2>
+      <template v-else>
+        <p class="wkr-band wkr-band--gross" data-teil="abmeldung-band">{{ w('wkr.geraet.ruhe.abmeldung', { liste: liste ?? '' }) }}</p>
+        <p v-if="bereich" data-teil="abmeldung-bereich">{{ bereich }}</p>
+        <p data-teil="abmeldung-weg">{{ w('wkr.geraet.ruhe.abmeldung.hint') }}</p>
+      </template>
+      <template v-if="art === 'abmeldung' && zuletzt && zuletzt.length > 0">
+        <p>{{ w('wkr.geraet.ruhe.abmeldung.zuletzt') }}</p>
+        <ul class="wkr-entwurf-liste" data-teil="zuletzt-lesend">
+          <li v-for="z in zuletzt" :key="z.z" :data-stufe="z.stufe.stufe">
+            <b>{{ z.sn ?? '?' }}</b> {{ stufeZeichen(z.stufe) }}
+            <span v-if="z.teil"> · {{ w(z.teil === 'ab' ? 'wkr.geraet.steg.ab' : 'wkr.geraet.steg.an') }}</span>
+            <br /><span>{{ zeileText(z) }}</span>
+          </li>
+        </ul>
+      </template>
       <template v-if="entwuerfe && entwuerfe.length > 0">
         <p>{{ w('wkr.geraet.ruhe.entzogen.entwuerfe') }}</p>
         <ul class="wkr-entwurf-liste" data-teil="entwuerfe-lesend">

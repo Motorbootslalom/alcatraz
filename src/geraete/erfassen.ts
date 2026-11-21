@@ -98,6 +98,17 @@ export interface EigenerAbschluss {
   grund?: Ablehnung | 'verworfen'
 }
 
+/**
+ * Eine Liste, von der sich dieses Gerät abgemeldet hat (Nutzer 21.11.2026, WKR_ANNAHMEN.abmeldenWieEntfernen): Titel
+ * und Bereich, wie die Sicht sie beim Abmelden nannte (die Sicht ist danach weg), und der eigene Teil am Steg.
+ */
+export interface AbgemeldeteListe {
+  liste: string
+  titel: string
+  bereich: string
+  teil?: ListenTeil
+}
+
 /** Ein Entwurf (W3, H4): Zellwerte eines Starts und Teils, noch nicht abgeschickt. */
 export interface EntwurfEintrag {
   liste: string
@@ -175,6 +186,12 @@ export interface Erfassung {
   readonly entzogen: ComputedRef<boolean>
   /** Eigene Listen (Kennungen) mit Teil, wie die Aufgaben sie geben (F15: höchstens zwei). */
   readonly listen: ComputedRef<ListenAufgabe[]>
+  /**
+   * Listen, von denen sich das Gerät abgemeldet hat – ab dem Tipp, nicht erst ab der Quittung (Nutzer 21.11.2026,
+   * WKR_ANNAHMEN.abmeldenWieEntfernen). Die Maske zeigt dann die Ruhe-Ansicht „abgemeldet“; ein Eintrag fällt erst, wenn
+   * der Bedienrechner die Liste neu zuweist (nachdem er sie entfernt hatte). Übung: immer leer (T8).
+   */
+  readonly abgemeldet: ComputedRef<AbgemeldeteListe[]>
   /** Je eigener Liste die zuletzt empfangene Sicht (`null`: noch keine). */
   readonly sichten: Readonly<ShallowRef<Readonly<Record<string, ListenSicht | null>>>>
   /**
@@ -306,6 +323,13 @@ interface Inhalt {
   gesehen: number[]
   /** Entwürfe (W3, H4) je Liste und `${s}|${teil}`. */
   entwuerfe: Record<string, Record<string, AbgelegterEntwurf>>
+  /**
+   * Abgemeldete Listen (Nutzer 21.11.2026): `weg` = der Bedienrechner hat die Liste inzwischen entfernt – kommt sie
+   * danach wieder (neu zugewiesen), fällt der Eintrag. `id` = die Nachricht der Abmeldung im Ausgang, `nr` ihre Nummer
+   * auf der Leitung: Eine Sicht der Liste mit `bis` ≥ `nr` kann nur mit dem NEUEN Schlüssel kommen (der Host rotiert
+   * beim Abmelden im selben Schritt wie die Quittung) – also neu zugewiesen, auch wenn das Fehlen nie zu sehen war.
+   */
+  abgemeldet: Record<string, { titel: string; bereich: string; teil?: ListenTeil; weg?: true; id?: number; nr?: number }>
 }
 
 interface AbgelegterEntwurf {
@@ -393,7 +417,7 @@ function istListenSicht(v: unknown, liste: string): v is ListenSicht {
 }
 
 function leer(uhr: () => number): Inhalt {
-  return { naechsteZ: Math.max(1, Math.floor(uhr())), aus: [], zeilen: [], werte: {}, abschluesse: [], sichten: {}, gesehen: [], entwuerfe: {} }
+  return { naechsteZ: Math.max(1, Math.floor(uhr())), aus: [], zeilen: [], werte: {}, abschluesse: [], sichten: {}, gesehen: [], entwuerfe: {}, abgemeldet: {} }
 }
 
 /** Abgelegten Ausgang lesen – was nicht passt, fällt weg (Programmfehler, alte Fassung), nie das Ganze. */
@@ -442,6 +466,19 @@ function liesInhalt(roh: Record<string, unknown> | null, uhr: () => number): Inh
         const zellen: Record<string, string> = {}
         for (const [f, x] of Object.entries(e.zellen)) if (istText(x)) zellen[f] = x
         ;(out.entwuerfe[liste] ??= {})[k] = { ...(istText(e.sn) ? { sn: e.sn } : {}), zellen, ...(istPapier(e.papier) ? { papier: e.papier } : {}) }
+      }
+    }
+  }
+  if (istObjekt(roh.abgemeldet)) {
+    for (const [liste, a] of Object.entries(roh.abgemeldet)) {
+      if (!istObjekt(a) || !istText(a.titel) || !istText(a.bereich)) continue
+      out.abgemeldet[liste] = {
+        titel: a.titel,
+        bereich: a.bereich,
+        ...(a.teil === 'ab' || a.teil === 'an' ? { teil: a.teil } : {}),
+        ...(a.weg === true ? { weg: true as const } : {}),
+        ...(Number.isSafeInteger(a.id) ? { id: a.id as number } : {}),
+        ...(Number.isSafeInteger(a.nr) ? { nr: a.nr as number } : {}),
       }
     }
   }
@@ -585,6 +622,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       inhalt.aus.shift()
       const a = inhalt.abschluesse.find((x) => x.id === erstes.id)
       if (a) a.nr = nr
+      for (const x of Object.values(inhalt.abgemeldet)) if (x.id === erstes.id) x.nr = nr
       speichere()
       return
     }
@@ -625,6 +663,12 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     if (!a || !istListenSicht(sicht, a.liste)) return
     inhalt.sichten[a.liste] = sicht
     vermerkeAusSicht(a.liste)
+    // Neu zugewiesen nach dem Abmelden (Prüfbefund 21.11.2026): Die Sicht hat die Abmeldung schon verarbeitet (`bis`)
+    // und ist trotzdem lesbar – das geht nur mit dem neuen Schlüssel. Hängt nicht daran, dass das Gerät die Liste
+    // erst fehlen sah (Gerät schlief oder lud neu, Entzug und Zuweisung im selben Takt).
+    const ab = inhalt.abgemeldet[a.liste]
+    const bisJetzt = meinBlatt(a.liste)?.bis
+    if (ab?.nr !== undefined && bisJetzt !== undefined && bisJetzt >= ab.nr) delete inhalt.abgemeldet[a.liste]
     // Gesehene Hinweise, die der Host schon entfernt hat, vergessen.
     const offen = new Set(Object.values(inhalt.sichten).flatMap((s) => Object.values(s.geraete).flatMap((g) => g.hinweise.map((h) => h.id))))
     inhalt.gesehen = inhalt.gesehen.filter((id) => offen.has(id))
@@ -668,6 +712,25 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     if (e.art === 'direkt' || e.art === 'verworfen') pumpe()
   })
 
+  /**
+   * Abgemeldete Listen nachführen (Nutzer 21.11.2026): Nimmt der Bedienrechner die Liste weg, ist der Eintrag `weg`;
+   * kommt sie danach wieder (neu zugewiesen), ist das Gerät wieder dabei. Solange die Liste nie weg war (Host noch
+   * nicht erreicht, älterer Bedienrechner), bleibt die Ruhe-Ansicht.
+   */
+  function pflegeAbgemeldet(da: ReadonlySet<string>): void {
+    let geaendert = false
+    for (const [liste, a] of Object.entries(inhalt.abgemeldet)) {
+      if (!da.has(liste) && !a.weg) {
+        a.weg = true
+        geaendert = true
+      } else if (da.has(liste) && a.weg) {
+        delete inhalt.abgemeldet[liste]
+        geaendert = true
+      }
+    }
+    if (geaendert) speichere()
+  }
+
   /** Listen weg (entzogen, Rechte geändert): ihre wartenden Zeilen gehen nie mehr; Unbestätigtes gilt als abgelehnt. */
   function ohneListen(behalten: ReadonlySet<string>): void {
     let geaendert = false
@@ -694,7 +757,15 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
   }
 
   scope.run(() => {
-    watch(listen, (l) => ohneListen(new Set(l.map((a) => a.liste))), { immediate: true })
+    watch(
+      listen,
+      (l) => {
+        const da = new Set(l.map((a) => a.liste))
+        pflegeAbgemeldet(da)
+        ohneListen(da)
+      },
+      { immediate: true },
+    )
     watch(geraet.status, (s) => {
       if (s === 'verbunden') pumpe()
     })
@@ -754,7 +825,8 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       const out: Record<string, Record<'ganz' | ListenTeil, SchlangenEintrag[]>> = {}
       for (const a of listen.value) {
         const sicht = sichten.value[a.liste]
-        if (!sicht) {
+        // Abgemeldet (Nutzer 21.11.2026): nichts mehr zu tippen, auch wenn die Sicht noch kommt.
+        if (!sicht || inhalt.abgemeldet[a.liste]) {
           out[a.liste] = { ganz: [], ab: [], an: [] }
           continue
         }
@@ -770,7 +842,11 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
           const e = eigen.get(s.key)
           return !(e?.has('g') || e?.has(teil)) && !s.teile?.[teil]
         }
+        // Ein Gerät für den ganzen Steg (WKR_ANNAHMEN.stegGanzAblegenZuerst, T3): Ein Start, dessen Ablegen noch offen in
+        // der Schlange steht, wartet mit dem Anlegen – nie derselbe Starter in beiden Teilen.
+        const ablegenOffen = new Set(geteilt && !a.teil && WKR_ANNAHMEN.stegGanzAblegenZuerst ? sicht.schlange.filter((s) => teilOffen(s, 'ab')).map((s) => s.key) : [])
         const passtFuer = (teil: 'ganz' | ListenTeil) => (s: ListenStart): boolean => {
+          if (teil === 'an' && ablegenOffen.has(s.key)) return false
           if (teil !== 'ganz') return geteilt ? teilOffen(s, teil) : !eigen.has(s.key)
           if (!geteilt) return !eigen.has(s.key)
           if (a.teil) return teilOffen(s, a.teil)
@@ -950,15 +1026,15 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     return z.z
   }
 
-  function nachricht(liste: string | undefined, n: GeraeteNachricht): number {
-    const id = neueId()
+  function nachricht(liste: string | undefined, n: GeraeteNachricht, vorgabeId?: number): number {
+    const id = vorgabeId ?? neueId()
     inhalt.aus.push({ art: 'nachricht', id, ...(liste !== undefined ? { liste } : {}), nachricht: n })
     return id
   }
 
-  function status(liste: string, s: 'aktiv' | 'pausiert' | 'abgemeldet'): number | null {
+  function status(liste: string, s: 'aktiv' | 'pausiert' | 'abgemeldet', vorgabeId?: number): number | null {
     if (gestoppt || !aufgabeVon(liste)) return null
-    const id = nachricht(liste, { art: 'action', action: { type: 'WKR_STATUS', liste, status: s } })
+    const id = nachricht(liste, { art: 'action', action: { type: 'WKR_STATUS', liste, status: s } }, vorgabeId)
     speichere()
     pumpe()
     return id
@@ -978,6 +1054,12 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
   )!
 
   const entzogen = scope.run(() => computed(() => geraet.lage.value === 'entzogen'))!
+  const abgemeldet = scope.run(() =>
+    computed(() => {
+      void rev.value
+      return Object.entries(inhalt.abgemeldet).map(([liste, a]): AbgemeldeteListe => ({ liste, titel: a.titel, bereich: a.bereich, ...(a.teil ? { teil: a.teil } : {}) }))
+    }),
+  )!
   // Wanduhr wie in der Maske (jetzt = Date.now()), nicht `uhr` – die Maske vergleicht damit ihre Sekunde.
   const getrenntSeit = shallowRef<number | null>(verbunden.value ? null : Date.now())
   const wartendSeit = shallowRef<number | null>(wartend.value > 0 ? Date.now() : null)
@@ -1011,6 +1093,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     verbindung,
     entzogen,
     listen,
+    abgemeldet,
     sichten,
     schlange,
     schlangeTeil: (liste, teil) => schlangen.value[liste]?.[teil] ?? [],
@@ -1024,6 +1107,8 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     schicke(liste, zeile) {
       const aufgabe = aufgabeVon(liste)
       if (gestoppt || !aufgabe || typeof zeile.s !== 'string' || zeile.s === '') return null
+      // Abgemeldet: Ab jetzt gilt der Papierbogen (Nutzer 21.11.2026) – keine Zeilen mehr von hier.
+      if (inhalt.abgemeldet[liste]) return null
       if (aufgabe.teil && zeile.teil && zeile.teil !== aufgabe.teil) return null
       const teil = aufgabe.teil ?? zeile.teil
       const sicht = inhalt.sichten[liste]
@@ -1113,7 +1198,22 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       })
     },
     pausiere: (liste) => status(liste, 'pausiert'),
-    meldeAb: (liste) => status(liste, 'abgemeldet'),
+    meldeAb(liste) {
+      const sicht = inhalt.sichten[liste]
+      const teil = aufgabeVon(liste)?.teil
+      if (gestoppt || !aufgabeVon(liste)) return null
+      // Sofort in Ruhe (nicht erst mit der Quittung): Der WKR legt das Gerät weg, der Papierbogen gilt ab jetzt. Der
+      // Eintrag steht VOR dem Senden (status pumpt sofort), damit pumpe ihm die Nummer der Nachricht gibt.
+      const eintrag: Inhalt['abgemeldet'][string] = { titel: sicht?.titel ?? '', bereich: sicht?.bereich ?? '', ...(teil ? { teil } : {}), id: neueId() }
+      inhalt.abgemeldet[liste] = eintrag
+      const id = status(liste, 'abgemeldet', eintrag.id)
+      if (id === null) {
+        delete inhalt.abgemeldet[liste]
+        return null
+      }
+      speichere()
+      return id
+    },
     weiter: (liste) => status(liste, 'aktiv'),
     schliesseAb(liste, punkt, name, restPapier) {
       const aufgabe = aufgabeVon(liste)

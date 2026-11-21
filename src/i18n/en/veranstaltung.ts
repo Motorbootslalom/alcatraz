@@ -36,6 +36,13 @@ export default {
   'demo.intro':
     'To try things out you can generate a field of drivers with made-up names. Real drivers are imported under “Drivers”.',
   'demo.perClass': 'Drivers per class',
+  'demo.total': 'Drivers in total',
+  'demo.total.redraw': 'Draw again',
+  'demo.total.redrawTitle': 'Draw a new number in the range for this kind of event',
+  'demo.total.hint': 'Suggestion for {art}: {von}–{bis} drivers. They are spread over the classes as in real fields – few in the youngest, most in 4 and 5.',
+  'demo.total.art.club': 'a club championship',
+  'demo.total.art.verein': 'a championship with clubs',
+  'demo.total.art.land': 'a championship by federal states or countries',
   'demo.generate': 'Generate sample field',
   'demo.confirm': 'Replace the existing {n} drivers with made-up ones?',
   'demo.origins': 'Origins (empty = unlimited)',

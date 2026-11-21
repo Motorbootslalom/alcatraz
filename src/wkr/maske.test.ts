@@ -166,7 +166,10 @@ describe('X „nicht gestartet“ nur Steg-Ablegen und Vorsteg (F5)', () => {
 
 describe('Schreibweise: jede Tipp-Folge besteht wertGilt unverändert', () => {
   it('DM und UIM, jede Position mit Maske, jede Klasse und jeder Teil', () => {
+    // Fehler sammeln statt je Wert ein expect (Prüfung unter Last 21.11.2026): Zehntausende expect mit Text liefen auf
+    // zwei belegten Kernen über die 30 s des Tests; geprüft wird dasselbe.
     let geprueft = 0
+    const fehler: string[] = []
     for (const konfig of [DM, UIM]) {
       for (const p of konfig.getPositions()) {
         const sicht = sichtMit(konfig, p.typeId)
@@ -180,8 +183,8 @@ describe('Schreibweise: jede Tipp-Folge besteht wertGilt unverändert', () => {
               const zellen = zellenAus(zufallsEntwurf(aufbau, teil, saat * 7 + k.charCodeAt(0)), aufbau, teil)
               for (const [kennung, wert] of Object.entries(zellen)) {
                 const feld = felder.get(kennung)
-                expect(feld, `${p.typeId}/${k}: ${kennung}`).toBeDefined()
-                expect(wertGilt(feld!, wert), `${p.typeId}/${k}/${teil}: ${kennung} = „${wert}“`).toBe(true)
+                if (!feld) fehler.push(`${p.typeId}/${k}: ${kennung} fehlt`)
+                else if (!wertGilt(feld, wert)) fehler.push(`${p.typeId}/${k}/${teil}: ${kennung} = „${wert}“`)
                 geprueft++
               }
             }
@@ -189,6 +192,7 @@ describe('Schreibweise: jede Tipp-Folge besteht wertGilt unverändert', () => {
         }
       }
     }
+    expect(fehler).toEqual([])
     expect(geprueft).toBeGreaterThan(1000)
   })
 

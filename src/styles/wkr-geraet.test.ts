@@ -128,6 +128,28 @@ describe('Feldtest 21.11.2026: Farben in jedem Modus, keine fremden Regeln, kein
     }
   })
 
+  it('Pad bis W5 (T10): ab 700 px eine mittige Spalte von 560 px mit ruhigem Rand je Modus, Fuß genauso breit', () => {
+    const i = css.indexOf('@media (min-width: 700px)')
+    expect(i).toBeGreaterThanOrEqual(0)
+    const block = css.slice(i, css.indexOf('\n}\n', i))
+    expect(block).toContain('--wkr-spalte: 560px')
+    expect(block).toContain('max-width: none')
+    expect(block).toMatch(/padding-inline: max\(12px, calc\(\(100% - var\(--wkr-spalte\)\) \/ 2 \+ 12px\)\)/)
+    expect(block).toContain('var(--wkr-umfeld)')
+    // Der klebende Fuß reicht 12 px über den Innenrand hinaus – zusammen genau die Spalte (keine eigene Breite).
+    expect(regel('.wkr-unten', true).margin).toBe('0 -12px -12px')
+    for (const modus of ['', "[data-modus='hell']", "[data-modus='dunkel']"]) {
+      const t = regel(`.wkr-geraet${modus}`)
+      expect(t['--wkr-umfeld'], modus).toMatch(/^#[0-9a-f]{6}$/)
+      expect(t['--wkr-umfeld-linie'], modus).toMatch(/^#[0-9a-f]{6}$/)
+    }
+    // Die Hülle der Freigabe gibt die Breite frei, alles neben der Maske fluchtet mit der Spalte.
+    const geraet = readFileSync(`${process.cwd()}/src/styles/geraet.css`, 'utf8')
+    // Über data-teil der Wurzel (WkrGeraet), nicht die Klasse – die gehört allein wkr-geraet.css (N4).
+    expect(geraet).toContain(".geraet-freigabe:has(> [data-teil='wkr-geraet']) {\n    max-width: none;\n    padding: 0;")
+    expect(geraet).toContain("> :not([data-teil='wkr-geraet']) {\n    max-width: 560px;\n    margin-inline: auto;")
+  })
+
   it('Befund 5: jeder Selektor beginnt mit einer Klasse der Maske – kein Element-, Kennungs- oder App-Selektor leckt hinaus', () => {
     // Die Maske hängt unter `.wkr-geraet`; eine Regel wie `button {` oder `.btn {` träfe die ganze App (Matrix, Freigabe).
     // Ausnahme: die Reiter und der Übungs-Verweis von GeraetFreigabe, die eigene `geraet-*`-Klassen tragen.

@@ -5,12 +5,13 @@ import { neueSaat } from './saat'
 import { tn } from '../i18n'
 
 /**
- * Knöpfe „Beispiel-Boote“ und „Beispiel-Co-Piloten“ (Wunsch des Nutzers vom 19.11.2026): im
- * Block „Besetzung“ (BesetzungPanel.vue), wo beides gepflegt wird, und unter „Beispieldaten“
- * (BeispieldatenPanel.vue) neben der Beispiel-Besetzung der WKR. Eine Stelle für Zählung und
- * Rückfrage, damit beide Knöpfe dasselbe fragen. Was schon eingetragen ist, wird nie still
- * ersetzt – wie bei den übrigen Beispieldaten erst nach Rückfrage. Gefüllt werden dieselben
- * Klassen, die der Reducer füllt (lib/besetzung.ts besetzungsKlassen/coPilotKlassen).
+ * Knöpfe „Beispiel-Boote“ und „Beispiel-Co-Piloten“ (Wunsch des Nutzers vom 19.11.2026), Zählung und
+ * Rückfrage. Seit 21.11.2026 nur noch unter „Beispieldaten“ (BeispieldatenPanel.vue) neben der
+ * Beispiel-Besetzung der WKR – nicht mehr im Block „Besetzung“: Beispielwerte entstehen an EINER Stelle
+ * (Wunsch des Nutzers). Eigene Datei, weil Zählung und Rückfrage so vom Panel getrennt testbar bleiben.
+ * Was schon eingetragen ist, wird nie still ersetzt – wie bei den übrigen Beispieldaten erst nach
+ * Rückfrage. Gefüllt werden dieselben Klassen, die der Reducer füllt (lib/besetzung.ts
+ * besetzungsKlassen/coPilotKlassen).
  */
 export function useBeispielBoote() {
   const { state, dispatch } = useStore()

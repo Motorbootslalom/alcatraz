@@ -119,6 +119,10 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `:key` je Start + `gesperrt`, gedaechtnis.ts („So lassen“/„behalten“ je Quelle und Liste), Ausweichen-Tasten aus den
   Buchstaben der Startnummern, `.wkr-unten` sticky (`.wkr-mit-reiter`), „Rückgängig“ in der Leisten-Zeile,
   „Keine Bestätigung“ `.wkr-kopf-ueber`; auch `<a>` braucht `.wkr-knopf` + `data-ziel`.
+  Pad bis W5 (21.11.2026, WKR_ANNAHMEN T10): ab 700 px füllt `.wkr-geraet` die Breite, die Spalte (560 px, --wkr-spalte)
+  entsteht über padding-inline, Rand --wkr-umfeld/--wkr-umfeld-linie je Modus als Verlauf; geraet.css gibt die Hülle
+  `.geraet-freigabe:has(> [data-teil='wkr-geraet'])` frei und hält Banner, Reiter, Leiste auf 560 px (über data-teil,
+  nicht die Klasse – Klassen der Maske nur in wkr-geraet.css). Fällt mit den Pad-Masken (W5).
   Feldtest 21.11.2026 (N1–N7 in WKR_ANNAHMEN): WkrUebertragen (Overlay `data-teil="uebertragen"` über der ganzen Maske
   nach dem Abschicken, ohne Knöpfe, `data-phase` laeuft|beantwortet; auch in WkrProbe), WkrKopf `bestaetigungFolgt`
   (`.wkr-kopf-ueber`), WkrFuss „DISQ“ ↔ „FEHLER“ (nennt das Ziel), WkrDisq `titel` („Disq.“ über der offenen Liste),
@@ -149,12 +153,17 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `nichtVorbeiNr` (nicht wo X gilt: Vorsteg, Steg-Ablegen; nicht in der Korrektur) und `nichtVorbei()` (verwirft den
   Entwurf, schicke {nv}, Overlay wie beim Abschicken); Zuletzt, Korrektur-Dialog (alt) und Prüfansicht zeigen
   „⊘ nicht vorbeigekommen“ statt „fehlerfrei“; WkrAbschluss Summe „1 nicht vorbeigekommen: 27“, Zeile `data-nv`.
+  Nutzer 21.11.2026: WkrRuhe art `abmeldung` (Band `abmeldung-band` „Von Tor 5 abgemeldet“, `abmeldung-weg`, „Zuletzt“
+  `zuletzt-lesend`, Entwürfe `entwuerfe-lesend`, kein „Weiter digital“); WkrGeraet führt abgemeldete Listen weiter als
+  Reiter (quelle.abgemeldet), GeraetFreigabe ebenso; WkrMatrix Zelle `spaeter` „…“ (Steg-Anlegen kommt noch).
   Bedienrechner: WkrMatrix Zelle `nv` = „⊘“ mit Wort `.wkr-mzelle-wort` („nicht vorbei“), Rand --rueckstand, Schrift
   --rueckstand-text, Fläche --rueckstand-soft (app.css, Kontrast, Prüfbefund 21.11.2026), Legende; WkrEingang
   `data-teil="wkr-nv"` („⊘ nicht vorbeigekommen“) an Rückfrage-Zeile und Vorschlag; WkrListeBedienung `abschluss-nicht-vorbei`; ErfassungTabelle markiert von selbst „Papier ansehen“
   (wkr/lage.ts zeilenMarken); VerlaufPanel `wkrNichtVorbei`.
-- Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
-  Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
+- Panels: BeispieldatenPanel (EINZIGE Stelle für Beispiel-Knöpfe, 21.11.2026; Starter und saat entstehen hier:
+  Gesamtzahl `beispiel-gesamt` nach Art, merke `beispiel.gesamt` {art, n}, `beispiel-gesamt-neu`, Verteilung
+  `.class-count[data-klasse] .beispiel-zahl` aus domain/generate.ts verteileAufKlassen; Beispiel-Besetzung, -gewichte,
+  -Boote, -Co-Piloten; confirm vor dem Ersetzen), BesetzungPanel (ohne Beispiel-Knöpfe), EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
   HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop,
   ParcoursNachweis, FremdeBestandteile (Lizenzvermerke: Flaggen mit MIT-Text, tweetnacl, Parcours; neues Paket in

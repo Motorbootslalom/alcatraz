@@ -1,5 +1,5 @@
 import { parseClassNumber, startNrPrefix, type StartNrPraefixe } from './startnumbers'
-import type { ClassId, OriginMode, Starter } from '../types'
+import type { ClassId, EventKind, OriginMode, Starter } from '../types'
 import { birthYearRange } from './classes'
 import { CLUBS, BUNDESLAENDER } from '../data/clubs'
 import { VORNAMEN_M, VORNAMEN_W, NACHNAMEN } from '../data/names'
@@ -11,6 +11,70 @@ import { SIZES } from './sizes'
  * englische Name, das Kürzel dazu ist der dreistellige Code (Lithuania → LTU).
  */
 export const LAENDER = ['Germany', 'Austria', 'Switzerland', 'Poland', 'Czechia', 'Slovakia', 'Latvia', 'Estonia', 'Lithuania', 'Italy', 'Hungary', 'Sweden', 'Netherlands']
+
+/**
+ * Anteile der Klassen an einem Beispiel-Starterfeld, in Prozent (Wunsch des Nutzers vom 21.11.2026:
+ * „Wenige Klasse E/Dolphin, dann werden es zu Klasse 4 und 5 die meisten, 6 wieder relativ wenig und
+ * dann noch mal mehr … bei Klasse 7“). Herkunft: Anteile aus drei Starterlisten 2025/2026 (53, 151 und
+ * 56 Starter) – ausgewertet wurden nur diese Anteile, keine Namen, Vereine oder Daten aus den Listen.
+ * Unter UIM gilt dasselbe (Dolphin = E); fehlende Klassen (6, 7) fallen weg, der Rest wird neu gewichtet.
+ */
+export const BEISPIEL_KLASSEN_ANTEILE: Readonly<Record<string, number>> = { E: 4, 1: 9, 2: 13, 3: 15, 4: 15, 5: 18, 6: 11, 7: 15 }
+
+/** Größenordnung eines Beispiel-Starterfelds: Clubmeisterschaft, Meisterschaft der Vereine, der Bundesländer/Länder. */
+export type BeispielFeldArt = 'club' | 'verein' | 'land'
+
+/**
+ * Wie viele Starter ein Beispielfeld je Art insgesamt hat, von–bis (Wunsch des Nutzers vom 21.11.2026:
+ * Clubmeisterschaft ungefähr 10–20, Meisterschaft mit Vereinen 45–75, Bundesland und Land 100–160).
+ */
+export const BEISPIEL_STARTERZAHL: Readonly<Record<BeispielFeldArt, readonly [number, number]>> = {
+  club: [10, 20],
+  verein: [45, 75],
+  land: [100, 160],
+}
+
+/**
+ * Die Art des Felds aus Art und Herkunft der Veranstaltung. Auslegung vom 21.11.2026 (noch zu bestätigen):
+ * Die Clubmeisterschaft geht vor (gleich welche Herkunft); eine Meisterschaft ohne Herkunft zählt wie eine
+ * mit Vereinen – genannt hat der Nutzer sie nicht.
+ */
+export function beispielFeldArt(eventKind: EventKind, originMode: OriginMode): BeispielFeldArt {
+  if (eventKind === 'club') return 'club'
+  return originMode === 'bundesland' || originMode === 'land' ? 'land' : 'verein'
+}
+
+/** Eine Gesamtzahl im Bereich der Art, gleichverteilt aus `zufall` (aus einer Saat, lib/beispielwerte.ts zufallAus). */
+export function beispielGesamt(art: BeispielFeldArt, zufall: () => number): number {
+  const [von, bis] = BEISPIEL_STARTERZAHL[art]
+  return von + Math.min(bis - von, Math.floor(zufall() * (bis - von + 1)))
+}
+
+/**
+ * Verteilt `gesamt` Starter nach BEISPIEL_KLASSEN_ANTEILE auf die Klassen – Verfahren der größten Reste,
+ * damit die Summe genau stimmt. Gleiche Reste: die Klasse mit dem größeren Anteil zuerst, dann die
+ * Folge der Klassen. Kleine Felder dürfen in einer Klasse 0 haben (meist E). Eine Klasse ohne Anteil
+ * (eigenes Regelwerk) bekommt den Durchschnitt.
+ */
+export function verteileAufKlassen(gesamt: number, klassen: readonly ClassId[]): Record<ClassId, number> {
+  const ergebnis = {} as Record<ClassId, number>
+  if (klassen.length === 0) return ergebnis
+  const bekannt = Object.values(BEISPIEL_KLASSEN_ANTEILE)
+  const mittel = bekannt.reduce((a, b) => a + b, 0) / bekannt.length
+  const anteile = klassen.map((k) => BEISPIEL_KLASSEN_ANTEILE[k] ?? mittel)
+  const summe = anteile.reduce((a, b) => a + b, 0)
+  const n = Math.max(0, Math.floor(gesamt))
+  const quoten = anteile.map((a) => (n * a) / summe)
+  klassen.forEach((k, i) => (ergebnis[k] = Math.floor(quoten[i])))
+  let rest = n - klassen.reduce((s, k) => s + ergebnis[k], 0)
+  const folge = klassen.map((_, i) => i).sort((a, b) => quoten[b] - Math.floor(quoten[b]) - (quoten[a] - Math.floor(quoten[a])) || anteile[b] - anteile[a] || a - b)
+  for (const i of folge) {
+    if (rest <= 0) break
+    ergebnis[klassen[i]]++
+    rest--
+  }
+  return ergebnis
+}
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]

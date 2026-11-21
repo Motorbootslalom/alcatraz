@@ -301,10 +301,11 @@ describe('Verteilen an Lese-Geräte (Anzeigetafel, Zuschauer)', () => {
     const h = host(undefined, undefined, { zeiten: { ...SCHNELL, vollstandMs: 120 } })
     await starte(h)
     h.t.verteile(OEFFENTLICH, { stand: 1 })
-    await ruhe(400)
-    const voll = hostWires(h.raum.oeffentlich.a).filter((w) => w.a === 'v')
-    expect(voll.length).toBeGreaterThanOrEqual(3)
-    expect(new Set(voll.map((w) => w.n)).size).toBe(voll.length)
+    // Warten, bis drei Vollstände da sind, statt fester 400 ms (Prüfung unter Last 21.11.2026: nur zwei in 400 ms).
+    // Ohne den Takt käme nach dem ersten keiner mehr – bis() liefe dann in seine Grenze.
+    const voll = () => hostWires(h.raum.oeffentlich.a).filter((w) => w.a === 'v')
+    await bis(() => voll().length >= 3)
+    expect(new Set(voll().map((w) => w.n)).size).toBe(voll().length)
   })
 
   it('Zuschauer-Link erneuern lässt die Anzeigetafel unberührt (K13)', async () => {
@@ -505,6 +506,60 @@ describe('Geräte koppeln und Actions', () => {
     await ruhe()
     expect(actions1.length + actions2.length).toBe(1)
     expect(speicher.lies()!.geraete['geraet-a'].letzteNr).toBe(nr)
+  })
+
+  // Prüfung unter Last 21.11.2026 (haertung.test.ts „Rechte nur für den Parcours …“ blieb hängen): ntfy abonniert erst
+  // und schickt dann das Zwischengespeicherte (`since`) – was genau dazwischen eintrifft, kommt live VOR älteren
+  // Nachrichten. Das Gerät nahm auf d nur Nummern über der höchsten gesehenen an und verlor so ein `aufgaben`, das nach
+  // einem Schlüsselwechsel (neu abonnieren) mit dem nächsten Schlüssel zugleich kam.
+  it('Direktes in vertauschter Reihenfolge (neu abonniert, ältere Nachricht kommt nach einer neueren): beide wirken, keine doppelt', async () => {
+    const raum = neuerRaum(SERVER)
+    const h = host(raum)
+    bediene(h)
+    await starte(h)
+    const g = await gekoppelt(raum, 'geraet-a')
+    const d = direktThemaVon(raum, 'geraet-a')
+    // Abos des Geräts halten Zwischengespeichertes zurück, bis der Test es freigibt (wie ntfy zwischen Abo und `since`).
+    const gehalten: { socket: NachgebauterSocket; daten: string }[] = []
+    let halten = false
+    class HaeltAltes extends NachgebauterSocket {
+      private readonly alt: Set<string>
+      constructor(url: string) {
+        super(url)
+        this.alt = new Set(ntfy.seit(this.themen, this.since).map((x) => x.id))
+      }
+      push(daten: string): void {
+        const id = (JSON.parse(daten) as { id?: string }).id
+        if (halten && id && this.alt?.has(id)) gehalten.push({ socket: this, daten })
+        else super.push(daten)
+      }
+    }
+    // Das Gerät verliert die Verbindung; währenddessen geht A an sein d-Thema.
+    let weg = true
+    vi.stubGlobal('WebSocket', class extends HaeltAltes {
+      constructor(url: string) {
+        super(url)
+        if (weg && url.includes(d)) this.close()
+      }
+    })
+    for (const so of [...ntfy.sockets]) if (so.themen.includes(d)) so.close()
+    await bis(() => g.t.status.value !== 'verbunden')
+    expect(h.t.sende('geraet-a', { art: 'aufgaben', aufgaben: ['A'] })).toBe(true)
+    await bis(() => ntfy.gespeichert.some((x) => x.topic === d && x.seq === ntfy.gespeichert.at(-1)!.seq))
+    // Wieder da: Das Abo steht, A wird zurückgehalten; B kommt live – also vor A.
+    halten = true
+    weg = false
+    await bis(() => g.t.status.value === 'verbunden')
+    expect(h.t.sende('geraet-a', { art: 'aufgaben', aufgaben: ['B'] })).toBe(true)
+    const aufgaben = () => g.empfang.flatMap((e) => (e.art === 'direkt' && e.nachricht.art === 'aufgaben' ? [e.nachricht.aufgaben[0]] : []))
+    await bis(() => aufgaben().includes('B'))
+    halten = false
+    for (const x of gehalten.splice(0)) x.socket.push(x.daten)
+    await bis(() => aufgaben().includes('A'))
+    // B noch einmal (Wiederholung/Angreifer, der das Thema kennt): wirkt nicht zweimal.
+    ntfy.wiederhole(d, ntfy.bodies(d).at(-1)!)
+    await ruhe()
+    expect(aufgaben()).toEqual(['B', 'A'])
   })
 
   it('S3: was während einer Trennung kam, holt der Host per since nach', async () => {
@@ -1086,10 +1141,12 @@ describe('Befunde der E5-Prüfung (16.11.2026)', () => {
     // Die zweite Sicht wartet noch abstandMs; die Meldung nicht.
     h.t.verteile(OEFFENTLICH, { stand: 2 })
     h.t.melde(OEFFENTLICH, { art: 'neu-laden' })
-    await bis(() => t.empfang.some((e) => e.art === 'meldung'), 900)
-    expect(t.sichten()).toEqual([{ stand: 1 }])
-    // Danach der letzte Stand – mit höherer Nummer als die Meldung, sonst verwürfe das Gerät ihn als schon gesehen.
-    await bis(() => gleich(t.letzte(), { stand: 2 }), 3000)
+    // Geprüft wird die Reihenfolge des Empfangs, nicht eine Zeitgrenze unter abstandMs (vorher `bis(…, 900)`: unter
+    // Last – zwei Testläufe auf zwei Kernen – kann schon die Meldung länger brauchen, Prüfung 21.11.2026).
+    await bis(() => gleich(t.letzte(), { stand: 2 }))
+    const reihe = t.empfang.filter((e) => e.art === 'meldung' || e.art === 'sicht').map((e) => (e.art === 'meldung' ? 'm' : ((e as { sicht: Json }).sicht as { stand: number }).stand))
+    expect(reihe).toEqual([1, 'm', 2])
+    // Der letzte Stand trägt eine höhere Nummer als die Meldung, sonst verwürfe das Gerät ihn als schon gesehen.
     const w = hostWires(h.raum.oeffentlich.a)
     expect(w.map((x) => x.a)).toEqual(['v', 'm', 'v'])
     expect(w[2].n).toBeGreaterThan(w[1].n)

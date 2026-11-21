@@ -4,6 +4,8 @@ import type { Locale } from '../../i18n'
 import type { ErfassungsQuelle } from '../../geraete/erfassen'
 import { liesAnsicht, merkeProbe, probeErledigt, schreibeAnsicht, type Ablage, type GeraetAnsicht, type RaumBezug } from '../../geraete/ablage'
 import { probeMaske } from '../../wkr/maske'
+import { WKR_ANNAHMEN } from '../../wkr/annahmen'
+import type { ListenAufgabe } from '../../geraete/aufgaben'
 import WkrMaske from './WkrMaske.vue'
 import WkrProbe from './WkrProbe.vue'
 import WkrRuhe from './WkrRuhe.vue'
@@ -60,19 +62,30 @@ function setzeAnsicht(aenderung: Partial<GeraetAnsicht>): void {
 function merkeName(name: string): void {
   if (!props.quelle.uebung) setzeAnsicht({ name })
 }
-const listen = computed(() => props.quelle.listen.value)
+// Abgemeldete Listen (Nutzer 21.11.2026) bleiben als Reiter mit der Ruhe-Ansicht da, auch wenn der Bedienrechner die
+// Aufgabe schon genommen hat – Entwürfe und „Zuletzt“ sollen lesbar bleiben (WKR_ANNAHMEN.abmeldenWieEntfernen).
+const abgemeldet = computed(() => props.quelle.abgemeldet.value)
+const listen = computed<ListenAufgabe[]>(() => {
+  const eigene = props.quelle.listen.value
+  const weg = abgemeldet.value.filter((a) => !eigene.some((l) => l.liste === a.liste))
+  return [...eigene, ...weg.map((a): ListenAufgabe => ({ art: 'liste', liste: a.liste, ...(a.teil ? { teil: a.teil } : {}) }))]
+})
 const reiter = ref<string | null>(null)
 const aktiv = computed(() => {
   const gesucht = props.nurListe ?? reiter.value
   return listen.value.find((a) => a.liste === gesucht) ?? (props.nurListe ? null : (listen.value[0] ?? null))
 })
 const sicht = computed(() => (aktiv.value ? (props.quelle.sichten.value[aktiv.value.liste] ?? null) : null))
+/** Die aktive Liste, falls dieses Gerät sich von ihr abgemeldet hat. */
+const abmeldung = computed(() => (aktiv.value ? (abgemeldet.value.find((a) => a.liste === aktiv.value!.liste) ?? null) : null))
+const abmeldungEntwuerfe = computed(() => (abmeldung.value ? props.quelle.entwuerfe.value.filter((e) => e.liste === abmeldung.value!.liste) : []))
+const abmeldungZuletzt = computed(() => (abmeldung.value ? props.quelle.zuletzt.value.filter((z) => z.liste === abmeldung.value!.liste).slice(0, WKR_ANNAHMEN.zuletztLeiste) : []))
 
 const sprache = computed<Locale>(() => ansicht.value.sprache ?? (sicht.value?.sprache === 'en' ? 'en' : 'de'))
 const spracheWahl = computed(() => (ansicht.value.sprache && sicht.value?.andere?.sprache === ansicht.value.sprache ? 'andere' : 'liste'))
 const { w } = stelleWkrText(sprache)
 
-const titelVon = (liste: string) => props.quelle.sichten.value[liste]?.titel ?? '…'
+const titelVon = (liste: string) => props.quelle.sichten.value[liste]?.titel || abgemeldet.value.find((a) => a.liste === liste)?.titel || '…'
 
 // --- Probe (G10) ---
 // Bojen-Listen haben seit W4.2 (21.11.2026) ihre eigenen Probe-Schritte (WkrProbe, P11).
@@ -83,7 +96,7 @@ watch(
   [() => aktiv.value?.liste, () => !!sicht.value, () => !!probeAufbau.value],
   ([l, mitSicht, mitMaske]) => {
     const r = props.raum
-    if (!l || !mitSicht || !mitMaske || !r || props.quelle.entzogen.value) return
+    if (!l || !mitSicht || !mitMaske || !r || props.quelle.entzogen.value || abmeldung.value) return
     if (!probeErledigt(r, l, ablage())) probe.value = l
   },
   { immediate: true },
@@ -115,6 +128,15 @@ const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab
     </p>
     <WkrRuhe v-if="quelle.entzogen.value" art="entzogen" :entwuerfe="quelle.entwuerfe.value" />
     <WkrRuhe v-else-if="!aktiv" art="keine-liste" />
+    <WkrRuhe
+      v-else-if="abmeldung"
+      :key="`abmeldung|${abmeldung.liste}`"
+      art="abmeldung"
+      :liste="abmeldung.titel || titelVon(abmeldung.liste)"
+      :bereich="abmeldung.bereich"
+      :entwuerfe="abmeldungEntwuerfe"
+      :zuletzt="abmeldungZuletzt"
+    />
     <WkrProbe v-else-if="probe === aktiv.liste && probeAufbau" :key="`probe|${aktiv.liste}`" :aufbau="probeAufbau" :teil="probeTeil" :hand="ansicht.hand" :uebung="quelle.uebung" @fertig="probeFertig" />
     <WkrMaske
       v-else

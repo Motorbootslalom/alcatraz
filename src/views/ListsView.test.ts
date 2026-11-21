@@ -70,7 +70,8 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     // Die alten Listen stehen nicht daneben.
     expect(wrapper.find('.sheet').exists()).toBe(false)
     wrapper.unmount()
-  }, 30_000)
+    // 90 s (Prüfung unter Last 21.11.2026): allein ~2 s, mit acht Workern auf zwei belegten Kernen 31 s – reine Rechenzeit.
+  }, 90_000)
 
   it('die Auswahl grenzt ein, was gezeigt und gedruckt wird', async () => {
     const wrapper = ansicht(store)

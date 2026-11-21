@@ -484,7 +484,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   `FILL_BEISPIELGEWICHTE`
 - 2026-11-15 · N · Beispielwerte: Abweichung zwischen Racecourse A und B bleibt; wählbar, welche Stages/Runden Werte
   bekommen. → `lib/beispielwerte.ts`
-- 2026-11-16 · N · Die Zahlen im Beispieldaten-Block (Starter je Klasse, Herkünfte, Wahl der Beispielwerte) überstehen
+- 2026-11-16 · N · Die Zahlen im Beispieldaten-Block (Starter je Klasse – seit 21.11.2026 die Gesamtzahl –, Herkünfte, Wahl der Beispielwerte) überstehen
   ein Neuladen nur im selben Tab; das reicht. → `components/BeispieldatenPanel.vue`
 - 2026-11-19 · N · Beispiel-Boote und Beispiel-Co-Piloten, je ein Knopf im Block „Besetzung“ (wo beides gepflegt wird)
   und unter „Beispieldaten“ neben der Beispiel-Besetzung (Wunsch des Nutzers). Auslegung bei der Umsetzung: Boote für
@@ -494,6 +494,19 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   erst Rückfrage, dann werden die Angaben dieser Klassen ersetzt, die übrigen bleiben. Eigener Verlaufseintrag;
   deterministisch über `saat`. → `lib/beispieldaten.ts`, `lib/beispielBoote.ts`, Actions `FILL_BEISPIEL_BOOTE`,
   `FILL_BEISPIEL_CO_PILOTEN`
+- 2026-11-21 · N · Beispiel-Knöpfe nur an EINER Stelle (Wunsch des Nutzers: „Das passt nicht zum Rest, wo die
+  Beispielwerte an einem Punkt angelegt werden.“): „Beispiel-Boote“/„Beispiel-Co-Piloten“ aus dem Block „Besetzung“
+  entfernt, sie bleiben unter „Beispieldaten“. Weitere verstreute Beispiel-Knöpfe gab es nicht (geprüft). →
+  `components/BesetzungPanel.vue`, `components/BeispieldatenPanel.vue`
+- 2026-11-21 · N · Beispiel-Starterfeld realistisch (Wunsch des Nutzers): Gesamtzahl statt „Starter je Klasse“,
+  gezogen über `saat` nach Art der Veranstaltung – Clubmeisterschaft 10–20, Meisterschaft mit Vereinen 45–75,
+  Bundesland/Land 100–160 –, änderbar und neu ziehbar. Verteilung nach Anteilen aus drei Starterlisten 2025/2026 (nur
+  Anteile, keine Daten): E 4 %, 1 9 %, 2 13 %, 3 15 %, 4 15 %, 5 18 %, 6 11 %, 7 15 %; größte Reste, E darf 0 sein;
+  UIM gleich (Dolphin = E, Klassen E–5 neu gewichtet). Auslegungen (noch zu bestätigen): Die Clubmeisterschaft geht
+  vor die Herkunft; eine Meisterschaft ohne Herkunft zählt wie eine mit Vereinen (45–75); Obergrenze des Felds 999;
+  wechselt die Art, wird neu gezogen, sonst bleibt die Zahl (auch über das Neuladen im selben Tab). →
+  `domain/generate.ts` BEISPIEL_KLASSEN_ANTEILE/BEISPIEL_STARTERZAHL/beispielFeldArt/verteileAufKlassen,
+  `components/BeispieldatenPanel.vue`
 
 ## Begriffe
 
@@ -699,6 +712,22 @@ Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgel
   bis „Prüfbefunde W2“, A1–A13, B1–B6, C1–C4, D1–D5, E1–E4) vom Nutzer mit „passt“ bestätigt. Die Rückstandswarnung
   (A4) gilt in der Fassung nach dem Feldtest (R = 1, „nachfragen“, ab R). W3-Auslegungen und die des Feldtests (N…)
   bleiben offen.
+- 2026-11-21 · Steg-Zeitversatz (Nutzer: „Eine Startnummer kann nicht gleichzeitig am Steg und im Parcours sein. Steg
+  läuft deswegen beim Ablegen etwas vor der Tafel und dem Parcours und beim Anlegen hinterher.“): Ablegen sieht die
+  Starts „Am Steg“ schon vor dem Zeigen (wie der Vorsteg), Anlegen erst, wenn das Boot nicht mehr „Im Boot“ ist; das
+  Anlegen des gezeigten Starts zählt nie als offen (keine Rückfrage vor „Nächster Start“). Ein Gerät für den ganzen
+  Steg zeigt nie denselben Starter in beiden Teilen. Papierbogen „Steg“ unverändert. Gebaut 21.11.2026, Auslegungen
+  WKR_ANNAHMEN T1–T4, T9 noch zu bestätigen.
+- 2026-11-21 · „Abmelden“ am WKR-Gerät (Nutzer: „Das muss so sein, als ob ich die Liste von dem Gerät entferne.“): wirkt
+  wie das Entfernen der Liste – Liste (Teil-Gerät: sein Teil, letztes Gerät der Liste: die ganze) abgemeldet, zählt
+  nicht als offen, Aufgabe weg, neuer Schlüssel; das Gerät zeigt „Von … abgemeldet“ mit Entwürfen und „Zuletzt“, wieder
+  dabei nur über neues Zuweisen. Ursache des Befunds: ein Teil-Gerät (Ablegen) meldete nur seinen Teil ab, der
+  Anlegen-Teil ohne Gerät blieb digital „offen“; ein Gerät für den ganzen Steg bekam in der Sicht je Teil weiter
+  „aktiv“ und zeigte den nächsten Start. Gebaut 21.11.2026, Auslegungen WKR_ANNAHMEN T5–T8 noch zu bestätigen.
+- 2026-11-21 · Pad bis W5 (Nutzer: „Die Pad-Geräte-Listen … sehen auf dem Pad noch sehr komisch aus“): Ab 700 px Breite
+  steht die Handy-Maske als mittige Spalte von 560 px mit ruhigem Rand je Modus (Sonne/Hell/Dunkel) statt in der
+  720-px-Hülle der Freigabe auf dem Grund der App; Fuß mit Hauptknopf, Reiter und Leiste genauso breit. Eigene
+  Pad-Masken (größer, zwei Listen nebeneinander) erst mit W5. Gebaut 21.11.2026, WKR_ANNAHMEN T10 noch zu bestätigen.
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 

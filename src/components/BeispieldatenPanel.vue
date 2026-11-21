@@ -6,7 +6,8 @@ import { startNrPraefixe, startNrRegeln } from '../config/catalog'
 import { beispielGroessen, vergibKlasse } from '../domain/startnrBereiche'
 import type { Zeitnahme } from '../lib/beispielwerte'
 import { classColor } from '../domain/classes'
-import { beispielHerkuenfte, generateStarters } from '../domain/generate'
+import { BEISPIEL_STARTERZAHL, beispielFeldArt, beispielGesamt, beispielHerkuenfte, generateStarters, verteileAufKlassen, type BeispielFeldArt } from '../domain/generate'
+import { zufallAus } from '../lib/beispielwerte'
 import { useEvent } from '../lib/event'
 import { verlustText } from '../lib/eingabenVerlust'
 import { istHaken, laufSchluessel, OHNE_LAUF, starterfeldFest } from '../lib/eingaben'
@@ -18,6 +19,7 @@ import { rundenName, vergleicheRunden, VORLAUF, vorlaufGebunden } from '../planu
 import { festeRunden, parallelListen } from '../lib/parallelBogen'
 import { einteilungsZellen } from '../lib/einteilung'
 import { useBeispielBoote } from '../lib/beispielBoote'
+import { neueSaat } from '../lib/saat'
 import type { ParallelRunde } from '../types'
 import { t, tn } from '../i18n'
 import type { ClassId, Starter } from '../types'
@@ -58,21 +60,38 @@ watch(
 const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color: classColor(id) })))
 
 // --- Beispiel-Starterfeld ----------------------------------------------------
-// Die Zahl je Klasse bleibt wie jede andere Wahl in diesem Block über das Neuladen hinweg stehen
-// (lib/merken.ts): Wer 65 Starter erzeugt hat, sieht nach dem Neuladen 65 und nicht die Vorgabe.
-// Nicht gewählte Klassen haben die Vorgabe 6.
-const VORGABE_JE_KLASSE = 6
-const istAnzahl = (w: unknown) => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= 99
-const counts = merke<Partial<Record<ClassId, number>>>('beispiel.anzahlen', {}, {
+// Eine Gesamtzahl statt „Starter je Klasse“ (Wunsch des Nutzers vom 21.11.2026): Sie wird nach der
+// Art der Veranstaltung gezogen (Clubmeisterschaft 10–20, Vereine 45–75, Bundesland/Land 100–160,
+// domain/generate.ts BEISPIEL_STARTERZAHL) und verteilt sich wie in echten Starterfeldern auf die
+// Klassen (BEISPIEL_KLASSEN_ANTEILE). Sie lässt sich ändern und bleibt wie jede andere Wahl in diesem
+// Block über das Neuladen stehen (lib/merken.ts) – zusammen mit der Art, für die sie gezogen wurde:
+// Wechselt die Art (Clubmeisterschaft → Meisterschaft, Verein → Land), passt die alte Zahl nicht mehr,
+// und es wird neu gezogen.
+const MAX_GESAMT = 999
+const istGesamt = (w: unknown) => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= MAX_GESAMT
+const feldArt = computed(() => beispielFeldArt(state.value.eventKind, state.value.originMode))
+const gesamtGemerkt = merke<{ art: BeispielFeldArt; n: number } | null>('beispiel.gesamt', null, {
   ueberNeuladen: true,
-  gueltig: (w) => typeof w === 'object' && w !== null && !Array.isArray(w) && Object.values(w).every(istAnzahl),
+  gueltig: (w) => w === null || (typeof w === 'object' && w !== null && typeof (w as { art?: unknown }).art === 'string' && istGesamt((w as { n?: unknown }).n)),
 })
-const countOf = (id: ClassId) => counts.value[id] ?? VORGABE_JE_KLASSE
+/** Der Zufall reist als Saat – gleiche Saat, gleiche Zahl (lib/beispielwerte.ts zufallAus). */
+function ziehe() {
+  gesamtGemerkt.value = { art: feldArt.value, n: beispielGesamt(feldArt.value, zufallAus(neueSaat())) }
+}
+watch(feldArt, (art) => {
+  if (gesamtGemerkt.value?.art !== art) ziehe()
+}, { immediate: true })
+const gesamt = computed(() => (gesamtGemerkt.value?.art === feldArt.value ? gesamtGemerkt.value.n : 0))
+const bereich = computed(() => BEISPIEL_STARTERZAHL[feldArt.value])
 
-function setCount(id: ClassId, e: Event) {
-  counts.value = { ...counts.value, [id]: Math.max(0, Math.min(99, parseInt((e.target as HTMLInputElement).value, 10) || 0)) }
+function setGesamt(e: Event) {
+  const n = Math.max(0, Math.min(MAX_GESAMT, parseInt((e.target as HTMLInputElement).value, 10) || 0))
+  gesamtGemerkt.value = { art: feldArt.value, n }
 }
 
+/** Die Verteilung auf die Klassen des Regelwerks – angezeigt, damit man sieht, was entsteht. */
+const verteilung = computed(() => verteileAufKlassen(gesamt.value, CLASSES.value.map((c) => c.id)))
+const countOf = (id: ClassId) => verteilung.value[id] ?? 0
 const total = computed(() => CLASSES.value.reduce((sum, c) => sum + countOf(c.id), 0))
 
 // Herkünfte: unbegrenzt (gewürfelt aus allen) oder eine Zahl – dann verteilen sich die Starter
@@ -121,9 +140,6 @@ const herkunftHinweis = computed(() =>
   state.value.originMode === 'none' ? t('demo.originNote.none') : t('demo.originNote', { origin: t(`event.origin.${state.value.originMode}`) }),
 )
 
-/** Der Zufall entsteht hier und reist als Saat in der Action – der Reducer bleibt deterministisch. */
-const neueSaat = () => Math.floor(Math.random() * 0x100000000)
-
 // --- Beispiel-Besetzung und Beispielgewichte ---------------------------------
 // Je ein eigener Knopf (Entscheidung des Nutzers vom 15.11.2026): erfundene Namen für die
 // WKR-Einteilung und erfundene Gewichte aus der Verwiegung. Was schon eingetragen ist, wird nie
@@ -141,7 +157,8 @@ function beispielBesetzung() {
   dispatch({ type: 'FILL_BEISPIEL_BESETZUNG', saat: neueSaat() })
 }
 
-// Boote und Co-Piloten je Klasse (19.11.2026): dieselben Knöpfe wie im Block „Besetzung“.
+// Boote und Co-Piloten je Klasse (19.11.2026): seit 21.11.2026 nur noch hier – Beispielwerte entstehen an
+// EINER Stelle (Wunsch des Nutzers), nicht mehr auch im Block „Besetzung“.
 const { bootKlassen, coKlassen, beispielBoote, beispielCoPiloten } = useBeispielBoote()
 
 const gewogen = computed(() => state.value.starters.filter((p) => p.gewicht !== undefined).length)
@@ -222,13 +239,21 @@ function werteLoeschen() {
   <details ref="block" class="panel" data-block="beispieldaten" :open="offen" @toggle="offen = ($event.target as HTMLDetailsElement).open">
     <summary>{{ t('demo.title') }}</summary>
     <p class="hint">{{ t('demo.intro') }}</p>
+    <div class="row" style="align-items: flex-end; gap: 12px 20px">
+      <div class="field" style="width: 160px">
+        <label for="beispiel-gesamt">{{ t('demo.total') }}</label>
+        <input id="beispiel-gesamt" class="input" type="number" min="0" :max="MAX_GESAMT" data-feld="beispiel-gesamt" :value="gesamt" @change="setGesamt" />
+      </div>
+      <button type="button" class="btn sm" data-action="beispiel-gesamt-neu" :title="t('demo.total.redrawTitle')" @click="ziehe">{{ t('demo.total.redraw') }}</button>
+    </div>
+    <p class="note" data-hinweis="beispiel-gesamt">{{ t('demo.total.hint', { art: t(`demo.total.art.${feldArt}`), von: bereich[0], bis: bereich[1] }) }}</p>
     <div class="subhead">{{ t('demo.perClass') }}</div>
     <div class="setup-grid">
-      <label v-for="c in CLASSES" :key="c.id" class="class-count">
+      <div v-for="c in CLASSES" :key="c.id" class="class-count" :data-klasse="c.id">
         <span class="dot" :style="{ background: c.color }" />
         <span class="meta"><span class="name">{{ classLabel(c.id) }}</span></span>
-        <input type="number" min="0" max="99" :value="countOf(c.id)" @input="setCount(c.id, $event)" />
-      </label>
+        <span class="beispiel-zahl">{{ countOf(c.id) }}</span>
+      </div>
     </div>
     <div class="row" style="justify-content: flex-end; align-items: flex-end; gap: 20px">
       <!-- 0 = unbegrenzt: Die Herkunft jedes Starters wird aus allen gewürfelt. Ohne Herkunft ist das

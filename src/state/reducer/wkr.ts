@@ -286,7 +286,9 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
         let teilNeu: WkrTeilStatus
         if (action.status === 'aktiv') teilNeu = { status: 'aktiv', pausen: teilAlt.pausen.map((p) => (p.bis === null ? { ...p, bis: zeit } : p)) }
         else if (teilAlt.status === 'aktiv') {
-          const papier = schlange(state, liste, action.teil).filter((s) => !s.vorab && !s.entfaellt).map((s) => s.key)
+          // P mit dem Anlegen des Starts im Boot (Prüfbefund 21.11.2026): Er kommt während der Pause zurück, das Anlegen
+          // steht dann auf dem Papier – sonst fiele es nach „Weiter“ wieder offen in die Schlange (WKR_ANNAHMEN T9).
+          const papier = schlange(state, liste, action.teil, { nachlaufend: false }).filter((s) => !s.vorab && !s.entfaellt).map((s) => s.key)
           teilNeu = { status: action.status, pausen: [...teilAlt.pausen, { von: zeit, bis: null, papier }] }
         } else teilNeu = { ...teilAlt, status: action.status }
         const neuEintrag: WkrListe = { ...alt, teile: { ...alt.teile, [action.teil]: teilNeu } }
@@ -302,7 +304,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
           neu = { ...neu, status: 'aktiv', pausen: neu.pausen.map((p) => (p.bis === null ? { ...p, bis: zeit } : p)) }
         } else if (neu.status === 'aktiv') {
           // P: was jetzt in der Schlange offen ist, geht aufs Papier (WKR_ANNAHMEN.pauseJeListe).
-          const papier = schlange(state, liste).filter((s) => !s.vorab && !s.entfaellt).map((s) => s.key)
+          // Mit dem Anlegen des Starts im Boot (Prüfbefund 21.11.2026, WKR_ANNAHMEN.stegAbschlussOhneImBoot).
+          const papier = schlange(state, liste, undefined, { nachlaufend: false }).filter((s) => !s.vorab && !s.entfaellt).map((s) => s.key)
           neu = { ...neu, status: action.status, pausen: [...neu.pausen, { von: zeit, bis: null, papier }] }
         } else {
           neu = { ...neu, status: action.status }
@@ -318,6 +321,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       if (!liste || !istPunktId(action.punkt) || name === '' || name.length > WKR_ANNAHMEN.nameMax) return state
       if (action.teil !== undefined && (!teileVon(liste.typeId) || (action.teil !== 'ab' && action.teil !== 'an'))) return state
       if (!punktBegonnen(state, liste.bereich, action.punkt)) return state
+      // Das Anlegen des Starts im Boot zählt nicht als offen (WKR_ANNAHMEN.stegAbschlussOhneImBoot) – wie die Prüfansicht
+      // des Geräts, die ihn nicht kennt.
       const offen = schlange(state, liste, action.teil)
         .filter((s) => !s.vorab && !s.entfaellt && s.punkt === action.punkt)
         .map((s) => s.key)
@@ -359,8 +364,9 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       if (action.teil !== undefined && (!teileVon(liste.typeId) || (action.teil !== 'ab' && action.teil !== 'an'))) return state
       const gezeigt = betriebVon(state, liste.bereich).gezeigt.find((g) => g.ref === action.ref)
       const von = gezeigt?.zeit ?? zeit
-      // P = die Schlange ab dem Start: er selbst und was danach gezeigt wurde (Vorsteg-Vorschau und „entfällt“ nicht).
-      const papier = schlange(state, liste, action.teil)
+      // P = die Schlange ab dem Start: er selbst und was danach gezeigt wurde (Vorsteg-Vorschau und „entfällt“ nicht),
+      // samt dem Anlegen des Starts im Boot (Prüfbefund 21.11.2026, WKR_ANNAHMEN.stegAbschlussOhneImBoot).
+      const papier = schlange(state, liste, action.teil, { nachlaufend: false })
         .filter((s) => !s.vorab && !s.entfaellt && (s.key === action.ref || (s.zeit !== undefined && s.zeit >= von)))
         .map((s) => s.key)
       if (action.teil !== undefined) {

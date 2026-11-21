@@ -42,7 +42,7 @@ clipboard, scanner, logoBild.
   `serverAdresse.ts` (E6: normalisiereServer, serverEinstellung – Adresse des ntfy-Servers, rein, ohne tweetnacl, für
   Reducer, migrate und Einstellungen; geraete/themen.ts reicht sie weiter).
 - Aus der `saat` (Reducer und Oberfläche): `beispielwerte.ts`, `beispieldaten.ts` (Beispiel-Besetzung, -gewichte,
-  19.11.2026 -boote, -Co-Piloten; Knöpfe und Rückfrage `beispielBoote.ts`, mit Vue),
+  19.11.2026 -boote, -Co-Piloten; Knöpfe und Rückfrage `beispielBoote.ts`, mit Vue, nur im BeispieldatenPanel),
   `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische; 21.11.2026 Stufen naechsteSortierung ↓ ↑ keine,
   SortierWahl = Stufe + Folge je Klasse, gleicheFolge statt istGeordnet – mit Startnummern-Bereichen sortiert der Reducer je Größengruppe); `saat.ts` neueSaat – nur Oberfläche.
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).

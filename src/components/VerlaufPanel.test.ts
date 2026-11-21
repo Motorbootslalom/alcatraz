@@ -34,7 +34,7 @@ async function ruhe() {
  * schreibt den Stand und liest die Liste neu – unter Last (voller Testlauf) dauert das länger
  * als die feste Pause von `ruhe`.
  */
-const bis = (pruefe: () => void) => vi.waitFor(pruefe, { timeout: 3000, interval: 10 })
+const bis = (pruefe: () => void) => vi.waitFor(pruefe, { timeout: 10_000, interval: 10 })
 const panel = () => mount(VerlaufPanel, { global: { provide: { [storeKey as symbol]: store } } })
 
 beforeEach(async () => {

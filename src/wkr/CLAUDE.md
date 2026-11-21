@@ -58,6 +58,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   nichtVorbeiZelle (R4), nichtVorbeiImAbschluss (R5), nichtVorbeiMehr (R6), nichtVorbeiVerlauf (R7), nichtVorbeiUebung (R8).
   Prüfbefunde W4 (S1–S5, 21.11.2026, noch zu bestätigen): bojenSchalterPrellMs 400, pruefenNurLaufenderPunkt,
   unbekanntBandKurz, zaehlerStandZweiZeilen, hinweisUeberKopf.
+  Nutzer 21.11.2026 (T1–T9, noch zu bestätigen): Steg-Zeitversatz stegAblegenVorab (Ablegen sieht „Am Steg“ vorab,
+  min. 1), stegAnlegenNachlaufend (Start im Boot nie im Anlegen; Punkt ohne ausstehenden Start = zurück; das Anlegen des
+  Starts auf der Tafel zählt nie im Rückstand), stegGanzAblegenZuerst
+  (Gerät ganz: Anlegen wartet aufs Ablegen), stegAnlegenNieGeschaetzt, stegAbschlussOhneImBoot; Abmelden am Gerät
+  abmeldenWieEntfernen (Liste/Teil abgemeldet + Aufgabe weg), abmeldenLetzterGanz (letztes Gerät → ganze Liste; sonst nur, was kein anderes Gerät abdeckt),
+  abmeldenOhneBitte, abmeldenUebungWieBisher; T10 padSpalteBisW5 (breite Bildschirme: Handy-Maske als Spalte bis W5).
 - `bojen.ts` (W4.1, 21.11.2026) – rein, ohne Konfiguration: bojenHalt(kennung) → {halt, weg, seite, folge, zaehler,
   durchfahrt?} aus config/kurzform.ts FAHRWEG bzw. PARALLEL_FAHRWEG (= Spalten von parallelparcours, Test); Tor 5 =
   Zähler, t1c = `durchfahrt: 2`, Speedbojen ohne Seite auf dem Rückweg, Parallel bis Boje 5 Hinweg; Knoten und
@@ -79,6 +85,11 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   aus „Rest auf Papier“ und abgeschlossene Punkte, ohne Haken, X fällt weg, Klasse ohne Liste nur als letzter gezeigter
   `entfaellt`, Vorsteg + nächste freie `vorab`; geteilte Liste ohne Teil: Start, solange EIN Teil ihn braucht,
   `teileOffen`), danach, papierStarts(stand, liste, teil?), naechsteFreie; `leser` (auch für lage.ts: X, Haken).
+  Steg-Zeitversatz (Nutzer 21.11.2026, T1/T2): vorabStarts(stand, liste) (Vorsteg: Am+Vor Steg; Steg: „Am Steg“, nur
+  Teil Ablegen), hatVorab(typeId), imBoot(stand, bereich) (zuletzt gezeigt, solange in seinem Punkt noch ein Start aussteht:
+  frei, zurückgestellt, „Boot fehlt“, nachzuholen); das Anlegen nimmt weder vorab noch den Start im Boot; Option
+  `{ nachlaufend: false }` für lage.ts und P (Pause, Abmelden, „Papier ab“ im Reducer – das Anlegen im Boot geht mit
+  aufs Papier, Prüfbefund 21.11.2026).
 - `abschluss.ts` (Prüfbefunde 21.11.2026) – Abschluss-Schlüssel `punkt` bzw. `punkt|ab`/`punkt|an` (abschlussSchluessel,
   liesAbschlussSchluessel), abschlussVon, istAbgeschlossen (Teil: ganz oder Teil; ohne Teil: ganz oder beide Teile),
   zeileAbgeschlossen (ganze Zeile einer geteilten Liste schon bei EINEM Teil), abgeschlossenePunkte, abschlussPapier,
@@ -120,14 +131,17 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Disq.-Feld, P9); entwurfAus Punkte → round(wert/punkte), Schalter ≤ 1; probeMaske = Klasse mit den meisten Zeilen.
 - `uebung.ts` (W3.1) – Übung ohne AppState/Store/Netz: uebungsStand(regelwerk, typeId, sprache?) → UebungsStand
   {naechster, offen je Teil}, uebungsSicht(stand) → ListenSicht (Starts 1–20 ohne Namen und ohne Boot in den Klassen
-  mit der Liste, Kennung `["m","u<n>",lauf]`, Vorsteg 2 `vorab`, nach Nr. 20 der nächste Lauf), uebungsSchritt(stand,
+  mit der Liste, Kennung `["m","u<n>",lauf]`, Vorsteg 2 `vorab`, Steg-Ablegen 1 `vorab` und Anlegen erst nach dem
+  zuletzt gezeigten (T1/T2), nach Nr. 20 der nächste Lauf), uebungsSchritt(stand,
   zeile|null) (Zeile erledigt Start bzw. Teil, Takt = null zeigt den nächsten, ≤ Schlange 12). Kern: geraete/uebung.ts.
 - `lage.ts` (W2.1, 21.11.2026) – erfassungsLage(stand, konfig, bereich, geraete, jetzt, starts?) → {punkt, starts
   (Spalten: gezeigte Starts des laufenden Punkts, letzte 12 bzw. alle; Vorsteg + `vorab`), listen: ListenLage (Modus,
   Status, Teile, papierAb, Geräte mit Ampel, Zellstand je Spalte, Rückstand, warnt, Rückfragen/Vorschläge, Abschlüsse
   mit Startnummern, W4.3 auch `nichtVorbei`)}; Zellstand ok/halb/offen/ueberfaellig/rueckfrage/vorschlag/entfaellt/
-  papier/x/vorab/nv (Vorrang X → Klasse ohne Liste → Rückfrage → Vorschlag → nv → Haken → Teile → Schlange; nicht in
-  der Schlange = Papier; Steg: Anlegen nv + Ablegen ok → nv, sonst ½; nv ist in zeilenMarken „Papier ansehen“);
+  papier/x/vorab/nv/spaeter (Vorrang X → Klasse ohne Liste → Rückfrage → Vorschlag → nv → Haken → Teile → Schlange; nicht in
+  der Schlange = Papier; Steg: Anlegen nv + Ablegen ok → nv, sonst ½; nv ist in zeilenMarken „Papier ansehen“; Steg-
+  Anlegen des Starts im Boot bzw. eines Vorab-Starts = `spaeter` „kommt noch“, kein Rückstand – T2; Vorab-Spalten je
+  Liste mit hatVorab);
   ampelVon (gehoert/still/weg, ohne laufenden Punkt ruht), schlechteste; zeilenMarken (Erfassung: `${lauf}|${starter}` →
   Zeile/Zelle „papier-ansehen“ bzw. „rueckfrage“, nur Listen digital/beides); rueckstandZeile (Zeile über „Nächster
   Start“). Geräte nur als GeraetAngabe (einfache Daten vom Host, geraete/register.ts geraetAngaben), nichts aus
@@ -182,6 +196,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Einzige Ausnahme `steht`
   (F11) – steht unter dem Gerät der Rückfrage, lesbar aber für jedes Gerät derselben Liste (EIN Gruppeninhalt,
   WKR_ANNAHMEN.rueckfrageInListe). Neues Feld → Positivliste in sicht.test.ts und ggf. LISTEN_SICHT_FASSUNG.
+- Steg-Zeitversatz (T1–T3): `vorab` gibt es seit 21.11.2026 auch am Steg, aber nur im Ablegen – wer `vorab` prüft,
+  nimmt hatVorab/vorabStarts, nie WKR_ANNAHMEN.vorabListen allein. Der Start im Boot fehlt in der Anlegen-Schlange; in
+  der Sicht steht das als `teile.an = true` („braucht noch nichts“, auch für Vorab- und „danach“-Starts) – das Gerät
+  kann „erledigt“ und „noch nicht“ dort nicht unterscheiden (gewollt). „Nie beide zugleich“ auf einem Gerät für den
+  ganzen Steg macht das Gerät (geraete/erfassen.ts, uebung.ts), nicht schlange.ts. sicht.ts `teile[t].status` nimmt
+  den Status der ganzen Liste, wenn die nicht aktiv ist (Befund 21.11.2026: ganzer Steg abgemeldet, Maske zeigte weiter).
 - „Nicht vorbeigekommen“ (W4.3): Kennzeichen UND Haken – Schlange und Rückstand sehen nur den Haken, die Matrix ⊘.
   Wer `nichtVorbei` liest, nimmt istNichtVorbei/nvSchluessel (nie selbst zusammensetzen). Eine Zeile ohne `n` hebt es
   auf, auch eine leere Korrektur – das Gerät schickt sie dafür auch ohne geänderte Werte (erfassen.ts korrigiere).

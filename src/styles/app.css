@@ -321,6 +321,14 @@ a.btn {
   color: var(--muted);
 }
 
+/* Beispieldaten (21.11.2026): die Zahl je Klasse nur zum Ansehen – sie folgt der Gesamtzahl. */
+.class-count .beispiel-zahl {
+  min-width: 40px;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .class-count input {
   width: 56px;
   text-align: center;
@@ -2602,12 +2610,6 @@ fieldset.lockable:disabled .drag-handle {
 /* Ein Co-Pilot, den das Regelwerk in dieser Klasse nicht vorsieht: Das Feld tritt zurück. */
 .besetzung-tabelle .besetzung-ohne:placeholder-shown {
   border-style: dashed;
-}
-
-/* Beispiel-Boote und -Co-Piloten (19.11.2026): klein unter der Tabelle, sie sind nur zum Ausprobieren. */
-.besetzung-beispiel {
-  gap: 8px;
-  margin-top: 8px;
 }
 
 /* Schmal (Handy): je Klasse ein Block, „Boot“ und „Co-Pilot“ stehen vor ihrem Feld – nichts rollt quer. */

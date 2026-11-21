@@ -100,15 +100,22 @@ describe('Sicht der Liste – Form', () => {
     const { s, erste } = bereit('steg')
     const ohne = sichtListe(s, DM, L('steg'), EXTRA)
     expect([ohne.titel, ohne.bereich, ohne.sprache, ohne.modus, ohne.status, ohne.punkt]).toEqual([DM.getSheetDef('steg').title, 'Parcours 1', 'de', 'digital', 'aktiv', { id: 'lauf:1', titel: '1. Lauf' }])
-    expect(ohne.schlange.map((x) => x.key)).toEqual(erste.map((id) => m(id)))
+    expect(ohne.schlange.filter((x) => !x.vorab).map((x) => x.key)).toEqual(erste.map((id) => m(id)))
+    // Steg-Zeitversatz (T1/T2): dahinter die Starts „Am Steg“ vorab – nur fürs Ablegen; der Start im Boot braucht
+    // noch kein Anlegen, „danach“ auch nicht.
+    const vorab = ohne.schlange.filter((x) => x.vorab)
+    expect(vorab).toHaveLength(s.anzeige.amSteg)
+    for (const x of vorab) expect(x.teile).toEqual({ ab: false, an: true })
+    expect(ohne.schlange.find((x) => x.key === m(erste.at(-1)!))!.teile).toEqual({ ab: false, an: true })
+    for (const x of ohne.danach) expect(x.teile?.an).toBe(true)
     const erster = s.starters.find((p) => p.id === erste[0])!
     expect(ohne.schlange[0]).toMatchObject({ startNr: erster.startNr, klasse: erster.klasse, titel: '1. Lauf', lauf: 'manoevrieren/1', teile: { ab: false, an: false } })
     expect(ohne.schlange.find((x) => x.klasse === 'E')!.boot).toBe('Boot Musterwerft')
     // Ablegen erfasst: Der Start bleibt (Anlegen fehlt), der Teil steht als erledigt da.
     const ab = sende(s, 'steg', [zeile(s, 'steg', erste[0], [], 'g1', 1, 'ab')])
     expect(sichtListe(ab, DM, L('steg'), EXTRA).schlange[0].teile).toEqual({ ab: true, an: false })
-    // Danach: die nächsten freien als Schätzung, höchstens fünf.
-    expect(ohne.danach.length).toBeGreaterThan(0)
+    // Danach: die nächsten freien als Schätzung (hinter den Vorab-Starts des Ablegens), höchstens fünf.
+    expect(ohne.danach.length + vorab.length).toBeGreaterThan(0)
     expect(ohne.danach.length).toBeLessThanOrEqual(5)
     // Ohne Eintrag: Papier, Schlange leer.
     const papier = sichtListe(s, DM, L('gate135'), EXTRA)
@@ -334,7 +341,8 @@ describe('Sicht der Liste – Parallelslalom', () => {
     expect(a.schlange[0]?.lauf ?? 'parallel:pre/1').toMatch(/^parallel:pre\/[12]$/)
     // Die Startnummer der anderen Seite steht nicht in der Sicht von A (Paar mit zwei Startern).
     const andere = nr(e.paar!.b)
-    if (e.paar!.a !== null && andere) expect(a.schlange.map((x) => x.startNr)).not.toContain(andere)
+    // (Ohne die Vorab-Starts des Ablegens: Im nächsten Versuch fährt derselbe Starter auf A – T1.)
+    if (e.paar!.a !== null && andere) expect(a.schlange.filter((x) => !x.vorab).map((x) => x.startNr)).not.toContain(andere)
   })
 })
 

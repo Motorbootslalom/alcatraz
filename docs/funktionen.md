@@ -61,8 +61,8 @@ Herkunft (Verein, Bundesland, Land oder ohne), Regelwerk und Aufbau auf.
   Sie zeigt die Namen der Einteilung nur an.
 - Der Name des Co-Piloten steht – wie die Namen der Wettkampfrichter – nur in der Sicherung, nie in der Vorlage.
   Das Boot der Klasse steht auch in der Vorlage (`src/lib/besetzung.ts`).
-- Unter der Tabelle füllen „Beispiel-Boote“ und „Beispiel-Co-Piloten“ sie mit erfundenen Angaben
-  (siehe [Beispieldaten](#beispieldaten)).
+- Erfundene Boote und Co-Piloten gibt es nur unter [Beispieldaten](#beispieldaten) (seit 21.11.2026 nicht mehr
+  unter der Tabelle: Beispielwerte entstehen an einer Stelle).
 - Eigene Aufbauten entstehen unter „Einstellungen“ (Assistent und YAML-Austausch).
 - Die Beispieldaten stehen am Ende der Ansicht, siehe [Beispieldaten](#beispieldaten).
 
@@ -816,6 +816,14 @@ Alle Namen sind erfunden.
 
 **Beispiel-Starterfeld:**
 
+- Statt „Starter je Klasse“ eine **Gesamtzahl** (21.11.2026), gezogen nach der Art der Veranstaltung
+  (`BEISPIEL_STARTERZAHL` in `src/domain/generate.ts`): Clubmeisterschaft 10–20, Meisterschaft mit Vereinen
+  (oder ohne Herkunft) 45–75, nach Bundesländern oder Ländern 100–160.
+  Sie lässt sich ändern oder neu ziehen; mit einer anderen Art wird neu gezogen.
+- Die Starter verteilen sich nach festen Anteilen auf die Klassen (`BEISPIEL_KLASSEN_ANTEILE`:
+  E 4 %, 1 9 %, 2 13 %, 3 15 %, 4 15 %, 5 18 %, 6 11 %, 7 15 % – Anteile aus drei Starterlisten 2025/2026,
+  ohne Daten daraus), gerundet nach den größten Resten; kleine Felder dürfen in E keinen haben.
+  Unter UIM dieselben Anteile auf E (Dolphin) bis 5. Die Zahl je Klasse steht zum Ansehen darunter.
 - Es kennt „Herkünfte“ (leer = unbegrenzt).
   Mit einer Zahl verteilen sich die Starter reihum auf so viele Herkünfte
   (`beispielHerkuenfte` in `src/domain/generate.ts`) – zum Prüfen der Mannschaftswertung.
@@ -845,7 +853,7 @@ Alle Namen sind erfunden.
 - Abgemeldete bekommen keine Beispielwerte.
 - Die Werte folgen gerundeten Kennzahlen je Klasse, ohne einzelne Ergebnisse;
   der Unterschied zwischen Racecourse A und B bleibt.
-- Die Zahlen je Klasse, die Herkünfte und die Wahl bei den Beispielwerten bleiben wie andere Ansichtswahlen
+- Die Gesamtzahl der Starter, die Herkünfte und die Wahl bei den Beispielwerten bleiben wie andere Ansichtswahlen
   über das Neuladen stehen (`merke` mit `ueberNeuladen` in `src/lib/merken.ts`).
 
 **Beispiel-Besetzung** und **Beispielgewichte** haben je einen eigenen Knopf
@@ -862,8 +870,8 @@ deterministisch über `saat`).
 - Stehen schon Namen bzw. Gewichte da, fragt die App vor dem Ersetzen.
   Beide bekommen einen eigenen Eintrag im Verlauf.
 
-**Beispiel-Boote** und **Beispiel-Co-Piloten** (19.11.2026) stehen im Block „Besetzung“ unter der Tabelle
-und hier neben der Beispiel-Besetzung (`src/lib/beispielBoote.ts`, Actions `FILL_BEISPIEL_BOOTE` und
+**Beispiel-Boote** und **Beispiel-Co-Piloten** (19.11.2026) stehen nur hier neben der Beispiel-Besetzung
+(seit 21.11.2026 nicht mehr auch im Block „Besetzung“) (`src/lib/beispielBoote.ts`, Actions `FILL_BEISPIEL_BOOTE` und
 `FILL_BEISPIEL_CO_PILOTEN`, deterministisch über `saat`).
 
 - Jede Klasse der Veranstaltung bekommt einen erfundenen Bootsnamen (`src/data/boote.ts`), keinen doppelt.

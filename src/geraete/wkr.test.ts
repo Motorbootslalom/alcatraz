@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { shallowRef } from 'vue'
+import { shallowRef, watch } from 'vue'
 import { starteGeraeteHost, ZULETZT_NACHZIEHEN_MS, type GeraeteHost, type HostUmgebung } from './host'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from './gekoppelt'
 import { oeffneErfassung, type ErfassenUmgebung, type Erfassung } from './erfassen'
@@ -356,8 +356,9 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
     await bis(() => e.sichten.value[TOR]?.status === 'aktiv')
     expect(s.state.value.wkr.listen[TOR].pausen[0].bis).not.toBeNull()
     expect(e.schlange.value[TOR].some((x) => x.key === waehrend)).toBe(false)
+    // Abmelden (Nutzer 21.11.2026): wie „Liste entfernen“ – siehe „Abmelden am Gerät“ unten.
     expect(e.meldeAb(TOR)).not.toBeNull()
-    await bis(() => e.sichten.value[TOR]?.status === 'abgemeldet')
+    await bis(() => s.state.value.wkr.listen[TOR].status === 'abgemeldet' && e.listen.value.length === 0)
   })
 
   it('Abschluss: mit offenen Starts abgelehnt („offen“); danach angenommen, eine spätere Korrektur wird Vorschlag', async () => {
@@ -423,6 +424,9 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
     const ab = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'ab' }], { name: 'Handy Ablegen' })
     const an = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'an' }], { name: 'Handy Anlegen' })
     const { key, starter } = await mitStart(s, ab.e, STEG)
+    // Anlegen nachlaufend (T2): erst nach dem nächsten Start.
+    expect(an.e.schlange.value[STEG].some((x) => x.key === key)).toBe(false)
+    zeige(s)
     await bis(() => !!an.e.schlange.value[STEG]?.some((x) => x.key === key))
     const klasse = ab.e.schlange.value[STEG].find((x) => x.key === key)!.klasse
     const felder = ab.e.sichten.value[STEG]!.klassen[klasse]!.felder!
@@ -446,13 +450,18 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
 
   // Prüfbefunde W1 (21.11.2026): Abschluss und Status je Teil, Ende zu Ende mit zwei Teil-Handys.
   it('Steg auf zwei Geräten: AB schließt ab und meldet sich ab – AN erfasst weiter; AN mit offenem Start „offen“, danach angenommen', async () => {
-    const { s, h } = await bedienrechner()
+    const { s, h, raum } = await bedienrechner()
     const ab = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'ab' }], { name: 'Handy Ablegen' })
     const an = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'an' }], { name: 'Handy Anlegen' })
     const { key, starter } = await mitStart(s, ab.e, STEG)
-    await bis(() => !!an.e.schlange.value[STEG]?.some((x) => x.key === key))
     const za = ab.e.schicke(STEG, { s: key, zellen: {} })!
     await bis(() => ab.e.stufen.value[za].stufe === 'uebernommen')
+    // Der nächste Start: Der erste ist zurück (Anlegen, T2), der zweite im Boot; AB schickt auch dessen Ablegen.
+    zeige(s)
+    const zweiter = aktuell(s.state.value).key
+    await bis(() => !!an.e.schlange.value[STEG]?.some((x) => x.key === key) && !!ab.e.schlange.value[STEG]?.some((x) => x.key === zweiter))
+    const za2 = ab.e.schicke(STEG, { s: zweiter, zellen: {} })!
+    await bis(() => ab.e.stufen.value[za2].stufe === 'uebernommen')
     const a1 = ab.e.schliesseAb(STEG, 'lauf:1', 'Vor1 Ablegen', false)!
     await bis(() => ab.e.abschluesse.value.find((a) => a.id === a1)?.stufe === 'angenommen')
     expect(Object.keys(s.state.value.wkr.abschluss[STEG])).toEqual(['lauf:1|ab'])
@@ -461,19 +470,24 @@ describe('WKR-Erfassung Ende zu Ende (W1.4)', () => {
     await bis(() => an.e.abschluesse.value.find((a) => a.id === a2)?.stufe === 'abgelehnt')
     expect(an.e.abschluesse.value.find((a) => a.id === a2)).toMatchObject({ grund: 'offen' })
     expect(s.state.value.wkr.abschluss[STEG]['lauf:1|ab'].name).toBe('Vor1 Ablegen')
-    // AB meldet sich ab: Nur sein Teil, die Liste bleibt aktiv.
+    // AB meldet sich ab: Nur sein Teil (AN hat die Liste noch, T6), die Liste bleibt aktiv; AB verliert die Liste.
     expect(ab.e.meldeAb(STEG)).not.toBeNull()
     await bis(() => an.e.sichten.value[STEG]?.teile?.ab.status === 'abgemeldet')
     expect(an.e.sichten.value[STEG]!.status).toBe('aktiv')
+    await bis(() => ab.e.listen.value.length === 0)
+    expect(raum().geraete[ab.id].gruppen).not.toContain(gruppeDerListe(STEG))
     expect(an.e.schlange.value[STEG].some((x) => x.key === key)).toBe(true)
     // AN erfasst weiter und wird direkt übernommen, nicht Vorschlag.
     const zn = an.e.schicke(STEG, { s: key, zellen: {} })!
     await bis(() => an.e.stufen.value[zn].stufe === 'uebernommen')
     expect(werte(s.state.value, starter)['erfasst@steg']).toBeTruthy()
     expect(s.state.value.wkr.vorschlaege).toEqual([])
+    // Der zweite ist noch im Boot: Sein Anlegen zählt für den Abschluss nicht als offen (T9, wie die Prüfansicht).
+    expect(an.e.pruefung(STEG, 'lauf:1', 'an').offen).toEqual([])
     const a3 = an.e.schliesseAb(STEG, 'lauf:1', 'Vor2 Anlegen', false)!
     await bis(() => an.e.abschluesse.value.find((a) => a.id === a3)?.stufe === 'angenommen')
     expect(Object.keys(s.state.value.wkr.abschluss[STEG]).sort()).toEqual(['lauf:1|ab', 'lauf:1|an'])
+    expect(s.state.value.wkr.abschluss[STEG]['lauf:1|an'].papier).toEqual([])
     expect(s.state.value.wkr.abschluss[STEG]['lauf:1|ab'].name).toBe('Vor1 Ablegen')
     await bis(() => !!an.e.sichten.value[STEG]?.abgeschlossen.includes('lauf:1'))
   })
@@ -722,23 +736,53 @@ describe('W3.1: Gerätekern für die Maske (Schlange je Teil, Entwürfe, Zurück
   it('Steg ganz auf einem Gerät: Ablegen nimmt den Start nur aus der Ablegen-Schlange; Anlegen danach aus allen (H3)', async () => {
     const { s, h } = await bedienrechner()
     const { e } = await wkrHandy(h, [{ art: 'liste', liste: STEG }], { name: 'Handy Steg' })
+    /** Nie derselbe Starter zugleich im Ablegen und im Anlegen (Nutzer 21.11.2026, T1–T3). */
+    const nieBeide = () => {
+      const an = new Set(e.schlangeTeil(STEG, 'an').map((x) => x.key))
+      expect(e.schlangeTeil(STEG, 'ab').filter((x) => an.has(x.key))).toEqual([])
+    }
+    await bis(() => s.state.value.wkr.listen[STEG]?.modus === 'digital')
+    // Vor dem ersten Zeigen: Das Ablegen sieht „Als Nächstes“ schon (vorab), das Anlegen nichts.
+    const kommt = lage(s.state.value, P1).naechster!.key
+    await bis(() => e.schlangeTeil(STEG, 'ab').some((x) => x.key === kommt && x.vorab))
+    expect(e.schlangeTeil(STEG, 'an')).toEqual([])
     const { key, starter } = await mitStart(s, e, STEG)
+    expect(key).toBe(kommt)
     const sn = s.state.value.starters.find((p) => p.id === starter)!.startNr
     expect(e.schlangeTeil(STEG, 'ab').map((x) => x.key)).toContain(key)
-    expect(e.schlangeTeil(STEG, 'an').map((x) => x.key)).toContain(key)
+    // Im Boot: noch kein Anlegen (T2).
+    expect(e.schlangeTeil(STEG, 'an').map((x) => x.key)).not.toContain(key)
+    nieBeide()
     const za = e.schicke(STEG, { s: key, teil: 'ab', zellen: {} })!
     expect(e.schlangeTeil(STEG, 'ab').some((x) => x.key === key)).toBe(false)
-    expect(e.schlangeTeil(STEG, 'an').some((x) => x.key === key)).toBe(true)
-    // Die gemeinsame Schlange behält ihn, solange das Anlegen fehlt.
-    expect(e.schlange.value[STEG].some((x) => x.key === key)).toBe(true)
+    expect(e.schlangeTeil(STEG, 'an').some((x) => x.key === key)).toBe(false)
     expect(e.zuletzt.value[0]).toMatchObject({ z: za, sn, teil: 'ab' })
     await bis(() => e.stufen.value[za].stufe === 'uebernommen')
     expect(werte(s.state.value, starter)['erfasst.ab@steg']).toBeTruthy()
+    // Nächster Start: Der erste kommt zurück ins Anlegen, der zweite steht (noch) im Ablegen.
+    zeige(s)
+    const zweiter = aktuell(s.state.value).key
+    await bis(() => e.schlangeTeil(STEG, 'an').some((x) => x.key === key))
+    expect(e.schlangeTeil(STEG, 'ab').map((x) => x.key)).toContain(zweiter)
+    nieBeide()
+    // Die gemeinsame Schlange behält ihn, solange das Anlegen fehlt.
+    expect(e.schlange.value[STEG].some((x) => x.key === key)).toBe(true)
     const zn = e.schicke(STEG, { s: key, teil: 'an', zellen: {} })!
     expect(e.schlange.value[STEG].some((x) => x.key === key)).toBe(false)
     expect(e.schlangeTeil(STEG, 'an').some((x) => x.key === key)).toBe(false)
     await bis(() => e.stufen.value[zn].stufe === 'uebernommen')
     expect(werte(s.state.value, starter)['erfasst@steg']).toBeTruthy()
+    // Ablegen des zweiten nie geschickt, noch ein Start: Er ist zurück, wartet aber im Ablegen (T3) – nicht im Anlegen.
+    zeige(s)
+    // (Der dritte stand schon vorab im Ablegen – warten, bis die Sicht ihn als gezeigt führt.)
+    await bis(() => e.schlangeTeil(STEG, 'ab').some((x) => x.key === aktuell(s.state.value).key && !x.vorab))
+    expect(e.schlangeTeil(STEG, 'ab').map((x) => x.key)).toContain(zweiter)
+    expect(e.schlangeTeil(STEG, 'an').map((x) => x.key)).not.toContain(zweiter)
+    nieBeide()
+    const z2 = e.schicke(STEG, { s: zweiter, teil: 'ab', zellen: {} })!
+    expect(e.schlangeTeil(STEG, 'an').map((x) => x.key)).toContain(zweiter)
+    await bis(() => e.stufen.value[z2].stufe === 'uebernommen')
+    nieBeide()
     // Ungeteilte Liste: schlangeTeil gibt nichts Eigenes vor – nur die Teile des Stegs.
     expect(e.schlangeTeil(TOR, 'ab')).toEqual([])
   })
@@ -1021,5 +1065,103 @@ describe('W4.2: Bojen-Maske Ende zu Ende (21.11.2026, Plan docs/plan-wkr-w4.md �
     expect([w[tor1.feld], w[tor5.feld], w[einfahrt.teil.feld]]).toEqual(['5', '10', einfahrt.teil.codes[0].code])
     expect(w['erfasst@moewe135']).toBeTruthy()
     expect(zeilenNachrichten(s).filter((x) => x.liste === MOEWE)).toHaveLength(1)
+  })
+})
+
+// Nutzer 21.11.2026: „Beim Abmelden auf dem WKR-Gerät bleibt die Position trotzdem offen und es wird der nächste Starter
+// angezeigt. … Das muss so sein, als ob ich die Liste von dem Gerät entferne.“ (WKR_ANNAHMEN.abmeldenWieEntfernen, T5–T7)
+describe('Abmelden am Gerät wirkt wie Liste entfernen (Nutzer 21.11.2026)', () => {
+  const lageVon = (st: AppState, liste: string, h: GeraeteHost) =>
+    erfassungsLage(st, configFor(st), P1, geraetAngaben(h.raum.value?.geraete ?? []), Date.now()).listen.find((l) => l.liste === liste)!
+
+  it('Tor: Liste abgemeldet (▭, kein Rückstand, keine Rückfrage), Aufgabe weg, neuer Schlüssel; neu zuweisen holt das Gerät zurück', async () => {
+    const { s, h, raum } = await bedienrechner()
+    s.dispatch({ type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1, wkrWarnung: 'nachfragen' } })
+    const { e, id } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const { key } = await mitStart(s, e)
+    expect(lageVon(s.state.value, TOR, h).warnt).toBe(true)
+    const schluesselVorher = raum().gruppen[gruppeDerListe(TOR)]
+    const titel = e.sichten.value[TOR]!.titel
+    expect(e.meldeAb(TOR)).not.toBeNull()
+    // Sofort in Ruhe – nicht erst mit der Quittung; keine Zeilen mehr.
+    expect(e.abgemeldet.value).toEqual([{ liste: TOR, titel, bereich: expect.any(String) }])
+    expect(e.schlange.value[TOR]).toEqual([])
+    expect(e.schicke(TOR, { s: key, zellen: {} })).toBeNull()
+    await bis(() => s.state.value.wkr.listen[TOR].status === 'abgemeldet' && e.listen.value.length === 0)
+    expect(s.state.value.wkr.listen[TOR].pausen.at(-1)!.papier).toContain(key)
+    const l = lageVon(s.state.value, TOR, h)
+    expect(l).toMatchObject({ status: 'abgemeldet', rueckstand: null, warnt: false, geraete: [] })
+    expect(l.zellen[key].zelle).toBe('papier')
+    expect(raum().geraete[id].aufgaben).toEqual([])
+    expect(raum().geraete[id].gruppen).not.toContain(gruppeDerListe(TOR))
+    expect(raum().gruppen[gruppeDerListe(TOR)]).not.toEqual(schluesselVorher)
+    // Die Ruhe-Ansicht bleibt, auch nachdem der Bedienrechner die Liste genommen hat.
+    expect(e.abgemeldet.value.map((a) => a.liste)).toEqual([TOR])
+    // Neu zuweisen am Bedienrechner: Das Gerät ist wieder dabei (Status setzt der Bediener mit „Weiter“).
+    h.setzeAufgaben(id, [{ art: 'liste', liste: TOR }])
+    await bis(() => e.listen.value.length === 1 && e.abgemeldet.value.length === 0 && !!e.sichten.value[TOR])
+  })
+
+  it('Steg, nur ein Teil-Gerät (Ablegen): Abmelden meldet die ganze Liste ab – der Anlegen-Teil ohne Gerät fragt nicht (Ursache)', async () => {
+    const { s, h } = await bedienrechner()
+    s.dispatch({ type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1, wkrWarnung: 'nachfragen' } })
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'ab' }], { name: 'Handy Ablegen' })
+    await mitStart(s, e, STEG)
+    zeige(s)
+    expect(e.meldeAb(STEG)).not.toBeNull()
+    await bis(() => s.state.value.wkr.listen[STEG].status === 'abgemeldet' && e.listen.value.length === 0)
+    const l = lageVon(s.state.value, STEG, h)
+    expect(l).toMatchObject({ status: 'abgemeldet', rueckstand: null, warnt: false })
+  })
+
+  it('Steg ganz neben einem Anlegen-Gerät: nur das Ablegen wird Papier, das Anlegen-Gerät erfasst weiter (Prüfbefund 21.11.2026)', async () => {
+    const { s, h, raum } = await bedienrechner()
+    const a = await wkrHandy(h, [{ art: 'liste', liste: STEG }], { name: 'Handy Steg' })
+    const b = await wkrHandy(h, [{ art: 'liste', liste: STEG, teil: 'an' }], { name: 'Handy Anlegen' })
+    const { key } = await mitStart(s, a.e, STEG)
+    expect(a.e.meldeAb(STEG)).not.toBeNull()
+    // Wie „Liste entfernen“ bei EINEM Gerät: Was das andere Gerät abdeckt (Anlegen), bleibt digital.
+    await bis(() => b.e.sichten.value[STEG]?.teile?.ab.status === 'abgemeldet' && a.e.listen.value.length === 0)
+    expect(s.state.value.wkr.listen[STEG].status).toBe('aktiv')
+    expect(b.e.sichten.value[STEG]!.teile!.an.status).toBe('aktiv')
+    expect(raum().geraete[b.id].aufgaben).toEqual([{ art: 'liste', liste: STEG, teil: 'an' }])
+    zeige(s)
+    await bis(() => !!b.e.schlange.value[STEG]?.some((x) => x.key === key))
+  })
+
+  it('Tor mit zwei Geräten: Abmelden des einen lässt die Liste aktiv, das andere erfasst weiter', async () => {
+    const { s, h, raum } = await bedienrechner()
+    const a = await wkrHandy(h, [{ art: 'liste', liste: TOR }], { name: 'Handy Tor 1' })
+    const b = await wkrHandy(h, [{ art: 'liste', liste: TOR }], { name: 'Handy Tor 2' })
+    const { key, starter } = await mitStart(s, a.e)
+    expect(a.e.meldeAb(TOR)).not.toBeNull()
+    await bis(() => a.e.listen.value.length === 0)
+    expect(s.state.value.wkr.listen[TOR].status).toBe('aktiv')
+    expect(raum().geraete[a.id].aufgaben).toEqual([])
+    const z = b.e.schicke(TOR, { s: key, zellen: { [FELD]: '5' } })!
+    await bis(() => b.e.stufen.value[z].stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)[FELD]).toBe('5')
+    expect(s.state.value.wkr.vorschlaege).toEqual([])
+  })
+
+  it('neu zugewiesen, ohne dass das Gerät die Liste fehlen sah (Erfassung geschlossen): die Ruhe fällt mit der neuen Sicht', async () => {
+    const { s, h } = await bedienrechner()
+    const { g, e, id, speicher } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    await mitStart(s, e)
+    expect(e.meldeAb(TOR)).not.toBeNull()
+    await bis(() => s.state.value.wkr.listen[TOR].status === 'abgemeldet')
+    // Die Erfassung schläft (Tab im Hintergrund, Neuladen) – das Fehlen der Liste sieht sie womöglich nie.
+    e.stop()
+    await bis(() => !g.aufgaben.value.some((a) => a.art === 'liste'))
+    // Wie GeraetFreigabe: Die Erfassung öffnet, sobald das Gerät wieder eine Liste hat (vor deren Sicht).
+    let e2: Erfassung | null = null
+    const halt = watch(g.aufgaben, (a) => {
+      if (!e2 && a.some((x) => x.art === 'liste')) e2 = starteKern(g, speicher, {})
+    }, { flush: 'sync' })
+    h.setzeAufgaben(id, [{ art: 'liste', liste: TOR }])
+    await bis(() => e2 !== null)
+    halt()
+    // Sie beginnt mit der alten Ruhe (die Liste fehlte nie in IHREM Blick) – die neue Sicht hebt sie auf.
+    await bis(() => e2!.abgemeldet.value.length === 0 && !!e2!.sichten.value[TOR])
   })
 })

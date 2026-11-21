@@ -62,7 +62,9 @@ export interface ListenStart {
   boot?: string
   /**
    * Nur bei geteilten Listen (Steg): welcher Teil vom Gerät nichts mehr braucht – erfasst, oder für diesen Teil auf
-   * Papier (Pause, Abschluss mit „Rest auf Papier“) bzw. sein Punkt abgeschlossen.
+   * Papier (Pause, Abschluss mit „Rest auf Papier“) bzw. sein Punkt abgeschlossen. Seit dem Steg-Zeitversatz (Nutzer
+   * 21.11.2026, WKR_ANNAHMEN.stegAnlegenNachlaufend) auch: braucht NOCH nichts – das Anlegen eines Starts im Boot, vorab
+   * oder in „danach“.
    */
   teile?: { ab: boolean; an: boolean }
   /** Die Klasse hat diese Liste nicht: grau „entfällt“. */
@@ -308,7 +310,10 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
     else if (teile) {
       const w = werteVon(stand.eingaben, s.lauf, s.starter)
       const ganz = !!w[erfasstKennung(liste.typeId)]
-      out.teile = { ab: ganz || !!w[teilHaken(liste.typeId, 'ab')], an: ganz || !!w[teilHaken(liste.typeId, 'an')] }
+      // Hier nur „danach“ (noch nicht gezeigt): Das Anlegen braucht davon noch nichts (nachlaufend, T2/T4) – auch ein
+      // Gerät ohne Verbindung schätzt es nicht in die Schlange des Anlegens.
+      const anSpaeter = WKR_ANNAHMEN.stegAnlegenNachlaufend && WKR_ANNAHMEN.stegAnlegenNieGeschaetzt
+      out.teile = { ab: ganz || !!w[teilHaken(liste.typeId, 'ab')], an: ganz || !!w[teilHaken(liste.typeId, 'an')] || anSpaeter }
     }
     if (s.entfaellt) out.entfaellt = s.entfaellt
     if (s.vorab) out.vorab = true
@@ -374,7 +379,12 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
     }
   }
   if (teile) {
-    const teil = (t: 'ab' | 'an') => ({ status: eintrag?.teile?.[t]?.status ?? 'aktiv', abgeschlossen: abgeschlossenePunkte(stand.wkr, kennung, t, true) })
+    // Status je Teil: Ist die ganze Liste pausiert/abgemeldet, gilt das für jeden Teil (Befund 21.11.2026: Ein Gerät für
+    // den ganzen Steg meldete sich ab, die Sicht sagte je Teil weiter „aktiv“ – die Maske zeigte den nächsten Start).
+    const teil = (t: 'ab' | 'an') => ({
+      status: eintrag && eintrag.status !== 'aktiv' ? eintrag.status : (eintrag?.teile?.[t]?.status ?? 'aktiv'),
+      abgeschlossen: abgeschlossenePunkte(stand.wkr, kennung, t, true),
+    })
     sicht.teile = { ab: teil('ab'), an: teil('an') }
   }
   return sicht

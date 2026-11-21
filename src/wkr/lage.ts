@@ -5,7 +5,7 @@ import { erfasstKennung, listenFelder, werteVon, type Feld, type ListenTeil } fr
 import { abschluesseVon, punktVonRef, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
 import { listenDerVeranstaltung, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
-import { leser, naechsteFreie, schlange, type SchlangenStart } from './schlange'
+import { hatVorab, leser, schlange, vorabStarts, type SchlangenStart } from './schlange'
 import { istNichtVorbei, liesNvSchluessel } from './nichtVorbei'
 
 // Lage der digitalen WKR-Erfassung am Bedienrechner (W2, Plan docs/plan-wkr-w2.md §3, 21.11.2026): je Liste und Start,
@@ -35,9 +35,10 @@ export type Ampel = 'gehoert' | 'still' | 'weg' | 'ruht'
  * Stand einer Zelle der Matrix (Liste × Start): ✓ `ok`, ½ `halb` (Steg: ein Teil da), ○ `offen`, ○! `ueberfaellig`,
  * ! `rueckfrage`, V `vorschlag`, – `entfaellt` (Klasse ohne Liste, leere Seite), P `papier`, ✕ `x` (nicht gestartet),
  * `vorab` (Vorsteg: noch nicht gezeigt, schon zu erfassen), ⊘ `nv` (nicht vorbeigekommen, W4.3: Haken gesetzt, kein
- * Rückstand, „Papier ansehen“ – WKR_ANNAHMEN.nichtVorbeiZelle).
+ * Rückstand, „Papier ansehen“ – WKR_ANNAHMEN.nichtVorbeiZelle), … `spaeter` (Steg-Anlegen kommt noch: Boot im Parcours
+ * bzw. Start noch nicht gezeigt – kein Rückstand, kein Papier; WKR_ANNAHMEN.stegAnlegenNachlaufend, 21.11.2026).
  */
-export type Zelle = 'ok' | 'halb' | 'offen' | 'ueberfaellig' | 'rueckfrage' | 'vorschlag' | 'entfaellt' | 'papier' | 'x' | 'vorab' | 'nv'
+export type Zelle = 'ok' | 'halb' | 'offen' | 'ueberfaellig' | 'rueckfrage' | 'vorschlag' | 'entfaellt' | 'papier' | 'x' | 'vorab' | 'nv' | 'spaeter'
 
 export interface ZellLage {
   zelle: Zelle
@@ -162,15 +163,18 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
 
   // Schlange je Rahmen (ganze Liste, bei geteilten Listen je Teil), nach Zelle (Lauf|Starter): Am Vorsteg mit
   // „Versuche nacheinander“ steht ein Starter einmal da, gezeigt wird er je Versuch.
-  const schlangeJe = new Map<ListenTeil | undefined, Map<string, SchlangenStart>>()
-  const schlangeVon = (t: ListenTeil | undefined) => {
-    let m = schlangeJe.get(t)
-    if (!m) schlangeJe.set(t, (m = new Map(schlange(stand, liste, t).map((s) => [zellSchluessel(s.lauf, s.starter), s]))))
+  // `nachlaufend = false` nur, um beim Steg-Anlegen „kommt noch“ (Boot im Parcours) von „Papier“ zu trennen.
+  const schlangeJe = new Map<string, Map<string, SchlangenStart>>()
+  const schlangeVon = (t: ListenTeil | undefined, nachlaufend = true) => {
+    const je = `${t ?? ''}|${nachlaufend}`
+    let m = schlangeJe.get(je)
+    if (!m) schlangeJe.set(je, (m = new Map(schlange(stand, liste, t, { nachlaufend }).map((s) => [zellSchluessel(s.lauf, s.starter), s]))))
     return m
   }
 
   // „Überfällig“: Folge der gezeigten Starts, die auf dieser Liste vorkommen (Klasse mit Liste), je Zelle die letzte Stelle.
   const gezeigt = betriebVon(stand, liste.bereich).gezeigt
+  const gezeigtKeys = new Set(gezeigt.map((g) => g.ref))
   const stelle = new Map<string, number>()
   let n = 0
   for (const g of gezeigt) {
@@ -218,13 +222,17 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
   const nv = (lauf: string, starter: string, t: ListenTeil | undefined) => istNichtVorbei(stand.wkr, kennung, lauf, starter, geteilt ? t : undefined)
 
   /** Stand eines Teils (bzw. der ganzen Liste) für eine Zelle ohne ganzen Haken. */
-  const teilZelle = (k: string, werte: Readonly<Record<string, string>>, klasse: string, t: ListenTeil | undefined, lauf: string, starter: string): Zelle => {
+  const teilZelle = (key: string, k: string, werte: Readonly<Record<string, string>>, klasse: string, t: ListenTeil | undefined, lauf: string, starter: string): Zelle => {
     if (t !== undefined && nv(lauf, starter, t)) return 'nv'
     if (t !== undefined && (werte[teilHaken(liste.typeId, t)] || abgetippt(werte, klasse, t))) return 'ok'
     // Ohne Eintrag oder auf Papier, vor `seit`, in einer Pause, „Papier ab“, „Rest auf Papier“: vom Bogen.
     if (!digital) return 'papier'
     const q = schlangeVon(t).get(k)
-    if (!q) return 'papier'
+    if (!q) {
+      // Steg-Anlegen nachlaufend (T2): Boot noch im Parcours bzw. Start noch nicht gezeigt – „kommt noch“, nicht Papier.
+      if (t === 'an' && WKR_ANNAHMEN.stegAnlegenNachlaufend && (!gezeigtKeys.has(key) || schlangeVon(t, false).has(k))) return 'spaeter'
+      return 'papier'
+    }
     if (q.vorab) return 'vorab'
     return ueberfaellig(k) ? 'ueberfaellig' : 'offen'
   }
@@ -248,10 +256,10 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
     if (!geteilt && nv(start.lauf, start.starter.id, undefined)) return { ...basis, zelle: 'nv' }
     const ganz = !!werte[erfasstKennung(liste.typeId)]
     if (ganz && !(geteilt && nv(start.lauf, start.starter.id, 'an'))) return { ...basis, zelle: 'ok' }
-    if (!geteilt) return { ...basis, zelle: abgetippt(werte, start.starter.klasse, undefined) ? 'ok' : teilZelle(k, werte, start.starter.klasse, undefined, start.lauf, start.starter.id) }
+    if (!geteilt) return { ...basis, zelle: abgetippt(werte, start.starter.klasse, undefined) ? 'ok' : teilZelle(key, k, werte, start.starter.klasse, undefined, start.lauf, start.starter.id) }
     const je = {
-      ab: ganz ? ('ok' as const) : teilZelle(k, werte, start.starter.klasse, 'ab', start.lauf, start.starter.id),
-      an: teilZelle(k, werte, start.starter.klasse, 'an', start.lauf, start.starter.id),
+      ab: ganz ? ('ok' as const) : teilZelle(key, k, werte, start.starter.klasse, 'ab', start.lauf, start.starter.id),
+      an: teilZelle(key, k, werte, start.starter.klasse, 'an', start.lauf, start.starter.id),
     }
     return { ...basis, zelle: zusammen(je), teile: je }
   }
@@ -267,7 +275,7 @@ function zusammen(je: { ab: Zelle; an: Zelle }): Zelle {
   if (je.an === 'nv') return je.ab === 'ok' ? 'nv' : 'halb'
   if (je.ab === 'ok' && je.an === 'ok') return 'ok'
   if (je.ab === 'ok' || je.an === 'ok') return 'halb'
-  for (const z of ['ueberfaellig', 'offen', 'vorab'] as const) if (je.ab === z || je.an === z) return z
+  for (const z of ['ueberfaellig', 'offen', 'vorab', 'spaeter'] as const) if (je.ab === z || je.an === z) return z
   return 'papier'
 }
 
@@ -317,9 +325,10 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
     spalten.push({ key: g.ref, nummern: nummernVon(stand, ref), punkt, zeit: g.zeit })
   }
   if (starts === 'punkt') spalten = spalten.slice(-WKR_ANNAHMEN.matrixStarts)
-  const vorabListen = listen.filter((l) => WKR_ANNAHMEN.vorabListen.includes(l.typeId) && stand.wkr.listen[listenKennung(l)])
-  if (vorabListen.length > 0) {
-    for (const e of naechsteFreie(stand, bereich)) {
+  // Vorab-Spalten: die Starts, die eine Liste mit Eintrag schon vor dem Zeigen sieht (Vorsteg; Steg-Ablegen seit dem
+  // Nutzerbefund 21.11.2026) – je Liste ihre eigenen (Vorsteg mehr als Ablegen), in der Folge des Bereichs.
+  for (const l of listen.filter((x) => hatVorab(x.typeId) && stand.wkr.listen[listenKennung(x)])) {
+    for (const e of vorabStarts(stand, l)) {
       if (gesehen.has(e.key)) continue
       gesehen.add(e.key)
       spalten.push({ key: e.key, nummern: nummernVon(stand, e.ref), punkt: punktVonRef(stand, e.key), vorab: true })
@@ -351,23 +360,30 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
       return g && g.punkt === p ? [g.nummer] : []
     })
   }
+  const aufTafel = bereichsLage(stand, bereich).aktuell?.key ?? null
   const lagen = listen.map((liste): ListenLage => {
     const r = rechner(stand, konfig, liste)
     const zellen: Record<string, ZellLage> = {}
-    const vorabListe = WKR_ANNAHMEN.vorabListen.includes(liste.typeId)
+    const vorabListe = hatVorab(liste.typeId)
     for (const s of spalten) {
       // Noch nicht gezeigte Starts stehen nur auf den Listen, die sie vorab sehen.
       if (s.vorab && !vorabListe) continue
       const z = r.zelleVon(s.key)
       // Ein Start vorab, der nicht (mehr) in der Schlange steht, hat hier nichts zu zeigen.
-      if (!z || (s.vorab && z.zelle === 'papier')) continue
+      // Am Steg sieht nur das Ablegen vorab: Ist es dort Papier (Start hinter „Am Steg“), hat die Zeile nichts zu zeigen.
+      if (!z || (s.vorab && (z.zelle === 'papier' || z.teile?.ab === 'papier'))) continue
       zellen[s.key] = z.teile ? { zelle: z.zelle, teile: z.teile } : { zelle: z.zelle }
     }
     const geraeteHier = geraeteDerListe(r.kennung, geraete, jetzt, laeuft)
     const nr = (s: SchlangenStart | undefined) => (s ? nummerVon(stand, s.starter) : '')
     // Rückstand (A4): offene gezeigte Starts; am Steg mit Teil-Geräten der Teil, der weiter zurück ist. Abgetippte
     // zählen nicht (die Schlange der Geräte kennt nur den Haken, WKR_ANNAHMEN.abgetipptErledigt).
-    const offen = (t: ListenTeil | undefined) => [...r.schlangeVon(t).values()].filter((s) => !s.vorab && !s.entfaellt && !r.erledigt(s.lauf, s.starter, s.klasse, t))
+    // Am Steg zählt das Anlegen des Starts auf der Tafel nie (WKR_ANNAHMEN.stegAnlegenNachlaufend, Prüfbefund 21.11.2026):
+    // Auch am Ende eines Punkts, wo er für die Schlange schon „zurück“ ist – sonst fragte die Freigabe an jeder Laufgrenze.
+    const nurAnlegenAufTafel = (s: SchlangenStart, t: ListenTeil | undefined) =>
+      r.geteilt && WKR_ANNAHMEN.stegAnlegenNachlaufend && s.key === aufTafel && (t === 'an' || (t === undefined && r.erledigt(s.lauf, s.starter, s.klasse, 'ab')))
+    const offen = (t: ListenTeil | undefined) =>
+      [...r.schlangeVon(t).values()].filter((s) => !s.vorab && !s.entfaellt && !r.erledigt(s.lauf, s.starter, s.klasse, t) && !nurAnlegenAufTafel(s, t))
     let q = offen(undefined)
     if (r.geteilt && geraeteHier.some((g) => g.teil !== undefined)) {
       const ab = offen('ab')

@@ -20,7 +20,9 @@ import { configFor } from '../config/konfig'
 import { werteVon } from '../lib/eingaben'
 import { abschlussVon } from '../wkr/abschluss'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
-import { liesListe } from '../wkr/liste'
+import { liesListe, teileVon } from '../wkr/liste'
+import { TEILE } from '../wkr/abschluss'
+import type { ListenTeil } from '../lib/eingaben'
 import { sichtListe } from '../wkr/sicht'
 import { erfassungsLage } from '../wkr/lage'
 import { sichtFreigabe } from '../wkr/freigabe'
@@ -826,7 +828,34 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     }
     let ergebnis: 'angewandt' | 'unveraendert' | 'abgelehnt' = 'abgelehnt'
     let grund: Ablehnung | undefined = erlaubt.abgelehnt[0]?.grund
-    const action = erlaubt.action
+    // „Abmelden“ am Gerät wirkt wie das Entfernen der Liste (Nutzer 21.11.2026, WKR_ANNAHMEN.abmeldenWieEntfernen).
+    const abmelden = WKR_ANNAHMEN.abmeldenWieEntfernen && erlaubt.action?.type === 'WKR_LISTE' && erlaubt.action.status === 'abgemeldet'
+    let action = erlaubt.action
+    // Wie „Liste entfernen“ bei EINEM Gerät (T6, Prüfbefund 21.11.2026): Hat ein anderes Gerät die Liste noch, wird nur
+    // abgemeldet, was danach kein Gerät mehr abdeckt (am Steg ein Teil; eine ungeteilte Liste bleibt digital) – das
+    // andere Gerät erfasst weiter. Hat kein Gerät sie mehr, die ganze Liste (auch nach einem Teil-Gerät: sonst bliebe
+    // der andere Teil digital ohne Gerät „offen“ und die Start-Freigabe fragte weiter, Befund 21.11.2026).
+    let ohneWirkung = false
+    if (abmelden && action?.type === 'WKR_LISTE') {
+      const andere = Object.entries(raum.geraete).flatMap(([id, g]) => (id === e.id ? [] : listenAufgaben(liesAufgaben(g.aufgaben)).filter((l) => l.liste === liste)))
+      if (andere.length === 0) {
+        if (action.teil !== undefined && WKR_ANNAHMEN.abmeldenLetzterGanz) action = { type: 'WKR_LISTE', liste: action.liste, status: 'abgemeldet' }
+      } else {
+        const l = liesListe(liste)
+        const abgedeckt = new Set<ListenTeil>(andere.flatMap((x) => (x.teil !== undefined ? [x.teil] : [...TEILE])))
+        const frei = l && teileVon(l.typeId) ? (action.teil !== undefined ? [action.teil] : [...TEILE]).filter((x) => !abgedeckt.has(x)) : []
+        if (frei.length === 1) action = { type: 'WKR_LISTE', liste: action.liste, teil: frei[0], status: 'abgemeldet' }
+        else if (frei.length === 0) {
+          action = null
+          ohneWirkung = true
+        }
+      }
+    }
+    if (ohneWirkung) {
+      // Nichts am Stand zu ändern: angenommen, die Aufgabe fällt unten trotzdem weg.
+      ergebnis = 'angewandt'
+      grund = undefined
+    }
     if (action) {
       ergebnis = await a.bus.reicheWeiter(action, wendeAn)
       // Führung verloren: keine Quittung von hier (wie bei der Start-Freigabe); das Gerät wiederholt.
@@ -842,8 +871,15 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       }
     }
     t.verwalte((r) => beruehre(r, e.id, uhr()))
-    t.quittiere(e, ergebnis, grund, { still })
+    // Nach dem Abmelden hat das Gerät die Gruppe der Liste nicht mehr – die Quittung geht direkt (sonst wartete es auf
+    // eine Sicht, die es nicht mehr lesen kann).
+    t.quittiere(e, ergebnis, grund, { still: still && !abmelden })
     zieheZuletztNach(a)
+    if (abmelden && ergebnis !== 'abgelehnt') {
+      // Wie „Liste entfernen“ in der Geräteliste: Aufgabe weg, neuer Schlüssel der Listen-Gruppe, Gerät erfährt es direkt.
+      const r = t.raumJetzt()
+      if (r) fuehreGeraeteBefehlAus(a, { art: 'aufgaben', id: e.id, aufgaben: aufgabenVon(r, e.id).filter((x) => x.art !== 'liste' || x.liste !== liste) })
+    }
     plane(a)
   }
 

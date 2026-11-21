@@ -85,7 +85,8 @@ export const WKR_ANNAHMEN = {
   /**
    * Listen, die die nächsten Starts schon vor dem Zeigen sehen (Vorschlag §2: „Vorsteg sieht die nächsten Starts schon
    * vor dem Zeigen“): so viele freie, wie die Zuschauerliste am und vor dem Steg zählt (`anzeige.amSteg + vorSteg`).
-   * Ihre Zeilen gelten als gezeigt. 21.11.2026.
+   * Ihre Zeilen gelten als gezeigt. 21.11.2026. Seit dem Nutzerbefund 21.11.2026 auch das Steg-Ablegen, aber nur so
+   * viele wie „Am Steg“ ({@link stegAblegenVorab}, wkr/schlange.ts vorabStarts).
    */
   vorabListen: ['vorsteg'] as readonly string[],
   /**
@@ -614,6 +615,8 @@ export const WKR_ANNAHMEN = {
    * käme mit 2–3 Booten auf dem Wasser vor JEDEM „Nächster Start“ die Frage – Gewöhnung an den Dialog. Denkbar: R je
    * Listenart (1 für Ablegen/Vorsteg, 2 für Listen mit Boot auf dem Wasser) oder der zuletzt gezeigte Start zählt
    * nicht, solange er läuft. Bis zur Entscheidung gilt R = 1 für alle Listen; wer es lockerer will, stellt R höher.
+   * Für das Steg-Anlegen entschieden vom Nutzer 21.11.2026 (Steg-Zeitversatz, {@link stegAnlegenNachlaufend}): Der
+   * Start im Boot zählt dort nicht. Mann-über-Bord und Tor 5 bleiben offen.
    * Ein W2-Stand mit der alten Vorgabe 2/„warnen“ wird beim Laden einmal auf 1/„nachfragen“ gehoben
    * (state/reducer/betrieb.ts WKR_VORGABE_FASSUNG), sonst wirkte N8 bei schon angelegten Veranstaltungen nicht.
    */
@@ -906,4 +909,96 @@ export const WKR_ANNAHMEN = {
    * noch zu bestätigen.
    */
   nichtVorbeiUebung: true,
+  // --- Nutzer 21.11.2026: Steg-Zeitversatz und „Abmelden“ am Gerät (T1–T8, alle noch zu bestätigen) ---------------
+  /**
+   * (T1, Nutzer 21.11.2026: „Eine Startnummer kann nicht gleichzeitig am Steg und im Parcours sein. Steg läuft deswegen
+   * beim Ablegen etwas vor der Tafel und dem Parcours und beim Anlegen hinterher.“) Ablegen ist VORAB wie der Vorsteg:
+   * Die Schlange des Ablegens (und eines Geräts für den ganzen Steg) enthält schon die nächsten freien Starts, bevor die
+   * Start-Freigabe sie zeigt – so viele, wie „Am Steg“ der Anzeige zählt (`anzeige.amSteg`, mindestens 1 = „Als
+   * Nächstes“). Die Boote am Steg legen als Nächste ab; „Vor Steg“ wartet noch an Land. Zeilen dieser Starts gelten als
+   * gezeigt (wie am Vorsteg), sie zählen erst ab dem Zeigen als Rückstand. Der Papierbogen „Steg“ bleibt, wie er ist.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  stegAblegenVorab: true,
+  /**
+   * (T2, selber Befund) Anlegen ist NACHLAUFEND: Ein Start kommt erst in die Schlange des Anlegens, wenn er nicht mehr
+   * „Im Boot“ ist – ein späterer Start wurde gezeigt, oder in seinem Punkt (Lauf, Runde) steht kein Start mehr aus
+   * (frei, zurückgestellt, „Boot fehlt“, nachzuholen – Prüfbefund 21.11.2026, vorher nur frei); der letzte Start eines
+   * Laufs bleibt zwar auf der Tafel stehen, kommt aber zurück (Nutzer: „bzw. Lauf/Punkt endet“), damit das Anlegen-Gerät
+   * ihn noch erfassen und die Liste abschließen kann. Die Matrix zeigt das Anlegen im Boot als „kommt noch“ (`spaeter`).
+   * Den Rückstand vor „Nächster Start“ zählt das Anlegen des Starts auf der Tafel (`aktuell`) NIE – auch am Ende eines
+   * Punkts nicht (Prüfbefund 21.11.2026: sonst fragte die Start-Freigabe mit R = 1 an jeder Laufgrenze; Nutzer:
+   * „Anlegen des aktuellen Starts zählt NICHT als offen“). 21.11.2026, noch zu bestätigen.
+   */
+  stegAnlegenNachlaufend: true,
+  /**
+   * (T3) Ein Gerät für den ganzen Steg zeigt nie denselben Starter zugleich im Ablegen und im Anlegen: Steht ein Start
+   * noch in der Schlange des Ablegens (Ablegen nie abgeschickt), wartet sein Anlegen, bis das Ablegen geschickt ist –
+   * am Steg kommt zuerst das Ablegen. Nur auf dem Gerät (geraete/erfassen.ts, geraete/uebung.ts); am Bedienrechner
+   * sind beide Teile offen, wie sie sind (zwei Teil-Geräte sehen jedes seinen Teil). 21.11.2026, noch zu bestätigen.
+   */
+  stegGanzAblegenZuerst: true,
+  /**
+   * (T4) Ohne Verbindung schätzt das Gerät aus „danach“ nur das Ablegen weiter – nie das Anlegen (es kommt erst nach
+   * dem Zeigen). 21.11.2026, noch zu bestätigen.
+   */
+  stegAnlegenNieGeschaetzt: true,
+  /**
+   * (T9) „Liste abschließen“ (Anlegen bzw. ganzer Steg) rechnet mit derselben Schlange wie das Gerät: Der Start im Boot
+   * zählt dort nicht als offen. Die Prüfansicht des Geräts kennt ihn ebenso wenig – sonst lehnte der Bedienrechner einen
+   * Abschluss mit „offen“ ab, den das Gerät als vollständig zeigt. Abgeschlossen wird ohnehin nach dem Lauf (dann gilt
+   * der letzte Start als zurück, T2, und zählt wieder); ein Anlegen, das nach einem verfrühten Abschluss kommt, wird
+   * Vorschlag. 21.11.2026, noch zu bestätigen.
+   * Pause, Abmelden und „Papier ab“ dagegen nehmen das Anlegen des Starts im Boot MIT in P (Prüfbefund 21.11.2026):
+   * Das Boot kommt während der Pause zurück, der WKR schreibt das Anlegen auf den Bogen. Ohne P fiele es nach „Weiter“
+   * (bzw. neu Zuweisen und „Weiter“) wieder offen in die Schlange, stünde doppelt auf dem Gerät und ließe die
+   * Start-Freigabe fragen.
+   */
+  stegAbschlussOhneImBoot: true,
+  /**
+   * (T5, Nutzer 21.11.2026: „Beim Abmelden auf dem WKR-Gerät bleibt die Position trotzdem offen und es wird der nächste
+   * Starter angezeigt. … Das muss so sein, als ob ich die Liste von dem Gerät entferne.“) „Abmelden“ am Gerät wirkt wie
+   * das Entfernen der Liste am Bedienrechner, ausgelöst vom Gerät: Der Host setzt die Liste (Teil-Gerät: seinen Teil)
+   * `abgemeldet` – P wie bisher, zählt nicht als offen, keine Rückfrage vor „Nächster Start“, Matrix und Leiste ▭ –,
+   * nimmt dem Gerät die Aufgabe `liste` (Register, neuer Schlüssel der Listen-Gruppe wie beim Entzug) und quittiert
+   * direkt. Das Gerät zeigt sofort (ohne auf die Quittung zu warten) die Ruhe-Ansicht „Von Liste X abgemeldet“ mit
+   * seinen Entwürfen und „Zuletzt“ zum Übertragen aufs Papier; ein „Weiter digital“ gibt es dort nicht mehr. Wieder
+   * dabei nur über neues Zuweisen bzw. Koppeln am Bedienrechner (dann gilt `weiter` wie bisher über den Bediener).
+   * Pausieren bleibt, wie es ist. Das Gerät verlässt die Ruhe beim neuen Zuweisen, sobald es die Liste fehlen sah ODER
+   * eine Sicht der Liste kommt, die die Abmeldung schon verarbeitet hat (`bis` ≥ ihre Nummer – lesbar nur mit dem neuen
+   * Schlüssel; Prüfbefund 21.11.2026: Gerät schlief bzw. lud neu, Entzug und Zuweisung im selben Takt). 21.11.2026,
+   * noch zu bestätigen.
+   */
+  abmeldenWieEntfernen: true,
+  /**
+   * (T6) Hat nach dem Abmelden KEIN Gerät mehr diese Liste (auch nicht für den anderen Teil), wird die ganze Liste
+   * abgemeldet – sonst bliebe ein Teil digital ohne Gerät „offen“ und die Start-Freigabe fragte weiter (Ursache des
+   * Befunds, Teil-Gerät „Ablegen“ allein). Hat ein anderes Gerät die Liste noch, wird nur abgemeldet, was danach kein
+   * Gerät mehr abdeckt (Prüfbefund 21.11.2026, „wie Entfernen bei EINEM Gerät“): am Steg der eigene Teil bzw. beim Gerät
+   * für den ganzen Steg der Teil, den das andere nicht hat (WKR_ANNAHMEN.pauseJeTeil); deckt das andere alles ab (auch
+   * jede ungeteilte Liste), ändert sich am Status nichts, nur die Aufgabe fällt weg. Das Entfernen einer Liste am
+   * Bedienrechner (Geräteliste) setzt weiter keinen Status: Dort ist es oft ein Umhängen auf ein anderes Gerät, und ein
+   * neues Zuweisen holt eine abgemeldete Liste nicht von selbst zurück. 21.11.2026, noch zu bestätigen.
+   */
+  abmeldenLetzterGanz: true,
+  /**
+   * (T7) Kein Knopf „Bitte wieder zuweisen“ in der Ruhe-Ansicht: Das Gerät hat nach dem Abmelden keine Rechte an der
+   * Liste mehr, eine Bitte bräuchte eine neue Nachrichtenart; der WKR sagt es dem Bediener (Funk, Zuruf). Die Ansicht
+   * nennt den Weg („am Bedienrechner neu zuweisen“). Nach dem Neuladen des Geräts ohne Liste steht nur die
+   * Start-Freigabe bzw. „keine Liste“ – die Entwürfe liegen weiter im Ausgang. 21.11.2026, noch zu bestätigen.
+   */
+  abmeldenOhneBitte: true,
+  /**
+   * (T8) Die Übung (geraete/uebung.ts) behält das alte Abmelden (Ruhe „Papierbogen gilt“ mit „Weiter digital“) – dort
+   * gibt es keinen Bedienrechner, der neu zuweisen könnte. 21.11.2026, noch zu bestätigen.
+   */
+  abmeldenUebungWieBisher: true,
+  /**
+   * (T10, Nutzer 21.11.2026: „Die Pad-Geräte-Listen … sehen auf dem Pad noch sehr komisch aus“) Bis W5 zeigt ein
+   * breiter Bildschirm (ab 700 px) dieselbe Handy-Maske als mittige Spalte von 560 px; links und rechts ein ruhiger
+   * Rand je Modus (styles/wkr-geraet.css `--wkr-umfeld`), Fuß mit Hauptknopf, Reiter und Leiste genauso breit
+   * (styles/geraet.css). Keine größeren Knöpfe und keine zwei Listen nebeneinander – das sind die Pad-Masken von W5.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  padSpalteBisW5: true,
 } as const

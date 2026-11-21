@@ -61,7 +61,7 @@ const imBoot = computed(() => {
   return key ? (lage.value?.starts.find((s) => s.key === key)?.nummern.join('/') ?? null) : null
 })
 
-const ZEICHEN: Record<Zelle, string> = { ok: '✓', halb: '½', offen: '○', ueberfaellig: '○!', rueckfrage: '!', vorschlag: 'V', entfaellt: '–', papier: 'P', x: '✕', vorab: '»', nv: '⊘' }
+const ZEICHEN: Record<Zelle, string> = { ok: '✓', halb: '½', offen: '○', ueberfaellig: '○!', rueckfrage: '!', vorschlag: 'V', entfaellt: '–', papier: 'P', x: '✕', vorab: '»', nv: '⊘', spaeter: '…' }
 const ZELLEN = Object.keys(ZEICHEN) as Zelle[]
 const AMPEL: Record<Ampel, string> = { gehoert: '●', still: '◐', weg: '✕', ruht: '○' }
 

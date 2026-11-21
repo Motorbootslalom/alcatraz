@@ -5,7 +5,7 @@ import { konfigVon } from '../state/reducer/gemeinsam'
 import { erfasstKennung, felderJeKennung, werteVon, type Feld, type ListenTeil } from '../lib/eingaben'
 import { nichtGestartet } from '../lib/erfassung'
 import { parallelListen } from '../lib/parallelBogen'
-import { abschlussPapier, istAbgeschlossen, TEILE } from './abschluss'
+import { abschlussPapier, istAbgeschlossen, punktVonRef, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
 import { listenKennung, startAufListe, teileVon, teilHaken, type Liste } from './liste'
 
@@ -98,7 +98,7 @@ export function leser(stand: AppState, konfig: Konfig, liste: Liste) {
  * Liste) nimmt einen Start, solange EIN Teil ihn noch braucht (`teileOffen`). Leer, wenn die Liste nicht digital
  * erfasst wird (kein Eintrag, Papier) oder sie (bzw. der Teil, bzw. beide Teile) pausiert oder abgemeldet ist.
  */
-export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil): SchlangenStart[] {
+export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil, optionen: SchlangenOptionen = {}): SchlangenStart[] {
   const kennung = listenKennung(liste)
   const eintrag = stand.wkr.listen[kennung]
   if (!eintrag || eintrag.modus === 'papier' || eintrag.status !== 'aktiv') return []
@@ -109,9 +109,15 @@ export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil): Schl
   if (!rahmenJe.some((x) => x.r.aktiv)) return []
   const konfig = konfigVon(stand)
   const { lies, erledigt } = leser(stand, konfig, liste)
+  // Steg-Zeitversatz (WKR_ANNAHMEN.stegAblegenVorab/stegAnlegenNachlaufend, Nutzer 21.11.2026): Ablegen sieht die
+  // nächsten Starts schon vorab, Anlegen erst, wenn das Boot nicht mehr „Im Boot“ ist – nie beide zugleich.
+  const nachlaufend = geteilt && WKR_ANNAHMEN.stegAnlegenNachlaufend && optionen.nachlaufend !== false
+  const boot = nachlaufend ? imBoot(stand, liste.bereich) : null
+  /** Gehört der Teil `t` dieses Starts schon (bzw. noch) in die Schlange? Anlegen nicht vorab und nicht im Boot. */
+  const imTeil = (t: ListenTeil | undefined, s: SchlangenStart, vorab: boolean) => t !== 'an' || !geteilt || (!vorab && (!nachlaufend || s.key !== boot))
   /** Welche Rahmen den Start noch brauchen; `null` = keiner. */
-  const braucht = (s: SchlangenStart, zeit: number | undefined): SchlangenStart | null => {
-    const offen = rahmenJe.filter(({ t, r }) => r.offen(s, zeit) && !erledigt(s, t)).map(({ t }) => t)
+  const braucht = (s: SchlangenStart, zeit: number | undefined, vorab = false): SchlangenStart | null => {
+    const offen = rahmenJe.filter(({ t, r }) => imTeil(t, s, vorab) && r.offen(s, zeit) && !erledigt(s, t)).map(({ t }) => t)
     if (offen.length === 0) return null
     return geteilt && teil === undefined ? { ...s, teileOffen: { ab: offen.includes('ab'), an: offen.includes('an') } } : s
   }
@@ -133,16 +139,57 @@ export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil): Schl
     const offen = braucht(s, g.zeit)
     if (offen) out.push({ ...offen, zeit: g.zeit })
   }
-  if (WKR_ANNAHMEN.vorabListen.includes(liste.typeId)) {
-    for (const e of naechsteFreie(stand, liste.bereich)) {
-      const s = lies(e.key, e.ref)
-      if (!s || s.entfaellt || gesehen.has(`${s.lauf}|${s.starter}`)) continue
-      gesehen.add(`${s.lauf}|${s.starter}`)
-      const offen = braucht(s, undefined)
-      if (offen) out.push({ ...offen, vorab: true })
-    }
+  for (const e of vorabStarts(stand, liste)) {
+    const s = lies(e.key, e.ref)
+    if (!s || s.entfaellt || gesehen.has(`${s.lauf}|${s.starter}`)) continue
+    gesehen.add(`${s.lauf}|${s.starter}`)
+    const offen = braucht(s, undefined, true)
+    if (offen) out.push({ ...offen, vorab: true })
   }
   return out
+}
+
+/** Optionen von {@link schlange}. */
+export interface SchlangenOptionen {
+  /**
+   * `false`: das Anlegen des Starts im Boot mitnehmen – wkr/lage.ts, um „kommt noch“ von „Papier“ zu trennen, und P
+   * beim Pausieren, Abmelden und „Papier ab“ (state/reducer/wkr.ts, Prüfbefund 21.11.2026: das Boot kommt in der Pause
+   * zurück). Vorgabe: nachlaufend (WKR_ANNAHMEN.stegAnlegenNachlaufend).
+   */
+  nachlaufend?: boolean
+}
+
+/**
+ * Die Starts, die eine Liste schon vor dem Zeigen sieht (`vorab`): am Vorsteg die nächsten freien wie die
+ * Zuschauerliste am und vor dem Steg (WKR_ANNAHMEN.vorabListen), am Steg fürs Ablegen die „Am Steg“ (mindestens „Als
+ * Nächstes“, WKR_ANNAHMEN.stegAblegenVorab); sonst keine. Am Steg gilt `vorab` nur für den Teil Ablegen.
+ */
+export function vorabStarts(stand: AppState, liste: Liste): FolgeEintrag[] {
+  if (WKR_ANNAHMEN.vorabListen.includes(liste.typeId)) return naechsteFreie(stand, liste.bereich)
+  if (WKR_ANNAHMEN.stegAblegenVorab && teileVon(liste.typeId)) return lage(stand, liste.bereich).frei.slice(0, Math.max(1, stand.anzeige.amSteg))
+  return []
+}
+
+/** Sieht die Liste Starts vorab (Vorsteg, Steg-Ablegen)? */
+export function hatVorab(typeId: string): boolean {
+  return WKR_ANNAHMEN.vorabListen.includes(typeId) || (WKR_ANNAHMEN.stegAblegenVorab && !!teileVon(typeId))
+}
+
+/**
+ * Der Start „Im Boot“ eines Bereichs (Kennung), solange sein Boot noch fährt (WKR_ANNAHMEN.stegAnlegenNachlaufend): der
+ * zuletzt gezeigte, solange in seinem Punkt noch ein Start aussteht – frei, zurückgestellt, „Boot fehlt“ (ausgesetzte
+ * Klasse) oder nachzuholen. Prüfbefund 21.11.2026: vorher zählte nur `frei`; war der letzte freie Start eines Punkts
+ * gezeigt und ein anderer zurückgestellt, stand das fahrende Boot schon im Anlegen. Steht in seinem Punkt nichts mehr
+ * aus (letzter Start eines Laufs, auch wenn er auf der Tafel stehen bleibt), gilt er als zurück; `null` = keiner im
+ * Boot. Den Rückstand vor „Nächster Start“ nimmt das Anlegen des Starts auf der Tafel trotzdem nie (wkr/lage.ts, T2).
+ */
+export function imBoot(stand: AppState, bereich: string): string | null {
+  const l = lage(stand, bereich)
+  if (!l.aktuell) return null
+  const punkt = punktVonRef(stand, l.aktuell.key)
+  if (punkt === null) return null
+  const steht = (e: FolgeEintrag) => e.punkt === punkt && e.key !== l.aktuell!.key
+  return [l.frei, l.zurueckgestellt, l.bootFehlt, l.nachzuholen].some((x) => x.some(steht)) ? l.aktuell.key : null
 }
 
 /** Die nächsten freien Starts des Bereichs, die am Vorsteg schon zu sehen sind (Am Steg + Vor Steg der Anzeige). */
@@ -157,7 +204,7 @@ export function naechsteFreie(stand: AppState, bereich: string): FolgeEintrag[] 
 export function danach(stand: AppState, liste: Liste): SchlangenStart[] {
   const konfig = konfigVon(stand)
   const { lies } = leser(stand, konfig, liste)
-  const vorab = new Set(WKR_ANNAHMEN.vorabListen.includes(liste.typeId) ? naechsteFreie(stand, liste.bereich).map((e) => e.key) : [])
+  const vorab = new Set(vorabStarts(stand, liste).map((e) => e.key))
   const out: SchlangenStart[] = []
   for (const e of lage(stand, liste.bereich).frei) {
     if (out.length >= WKR_ANNAHMEN.danach) break

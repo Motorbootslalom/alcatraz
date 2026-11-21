@@ -8,6 +8,8 @@
  * auf das Veröffentlichen ist die Nachricht selbst (mit `attachment.url`). `since` nimmt eine ID, Unix-Sekunden,
  * einen Zeitraum ('70m') oder 'all'.
  */
+import { vi } from 'vitest'
+import { deflateSync, inflateSync } from 'node:zlib'
 import { reducer } from '../../../state/reducer'
 import { sichtOeffentlich } from '../../../betrieb/sicht'
 import { betriebsStand, festgeschrieben, parallelStarter, zeigeNaechsten } from '../../../testHilfen'
@@ -182,6 +184,34 @@ export async function bis(bedingung: () => boolean, ms = 10_000): Promise<void> 
 }
 
 export const ruhe = (ms = 80) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** CompressionStream/DecompressionStream nachgebaut mit zlib sync – dasselbe Format ('deflate' = zlib), nur ohne Threadpool. */
+function sofortStrom(wandle: (b: Uint8Array) => Uint8Array) {
+  return class {
+    readonly readable: ReadableStream<Uint8Array>
+    readonly writable: WritableStream<BufferSource>
+    constructor() {
+      const teile: Uint8Array[] = []
+      const t = new TransformStream<Uint8Array, Uint8Array>({
+        transform: (teil) => void teile.push(teil),
+        flush: (ziel) => ziel.enqueue(new Uint8Array(wandle(Buffer.concat(teile)))),
+      })
+      this.readable = t.readable
+      this.writable = t.writable as unknown as WritableStream<BufferSource>
+    }
+  }
+}
+
+/**
+ * Packen und Entpacken (codec.ts) ohne echte Nebenläufigkeit (Prüfung unter Last 21.11.2026): Node packt mit
+ * CompressionStream im zlib-Threadpool, also in ECHTER Zeit zwischen zwei Mikrotasks. Tests, die eine Uhr springen
+ * lassen (Fake-Uhr, `uhr: () => jetzt`), liefen unter Last in dieses Fenster: Versiegelt wurde vor dem Sprung,
+ * gesendet danach. Mit zlib sync bleibt alles in Mikrotasks. Zurück über vi.unstubAllGlobals() im afterEach.
+ */
+export function packenOhneThreadpool(): void {
+  vi.stubGlobal('CompressionStream', sofortStrom(deflateSync))
+  vi.stubGlobal('DecompressionStream', sofortStrom(inflateSync))
+}
 
 /**
  * Ein großer Betrieb mit erfundenen Startern (je Klasse 15, Vor<klasse><n>/Nach<klasse><n>, Musterclub),

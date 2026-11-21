@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { reducer } from '../state/reducer'
 import { configFor } from '../config/konfig'
+import { lage as bereichsLage } from '../betrieb/folge'
 import { betriebStarter, betriebsStand, festgeschrieben, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState, WkrModus, WkrStatus } from '../types'
 import { listenFelder } from '../lib/eingaben'
@@ -124,8 +125,59 @@ describe('erfassungsLage – Zellstände', () => {
     s = setze(s, starterVon(keys[0]), 'erfasst.ab@steg', '1')
     const l = lageVon(s, 'steg')
     expect(l.zellen[keys[0]]).toEqual({ zelle: 'halb', teile: { ab: 'ok', an: 'offen' } })
-    expect(l.zellen[keys[1]]).toEqual({ zelle: 'offen', teile: { ab: 'offen', an: 'offen' } })
+    // Der zweite ist im Boot (T2): Anlegen „kommt noch“, kein Papier.
+    expect(l.zellen[keys[1]]).toEqual({ zelle: 'offen', teile: { ab: 'offen', an: 'spaeter' } })
     expect(l.teile).toEqual({ ab: { status: 'aktiv' }, an: { status: 'aktiv' } })
+  })
+
+  // Nutzer 21.11.2026 (T1/T2): Ablegen vorab, Anlegen nachlaufend – Spalten, Zellen, Rückstand.
+  it('Steg-Zeitversatz: Vorab-Spalten fürs Ablegen, Anlegen des Starts im Boot zählt nicht als offen', () => {
+    let s = setzeListe(wkrBetriebsStand(viele(8)), L('steg'), 100, 'digital')
+    s = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1, wkrWarnung: 'nachfragen' } })
+    s = zeige(s, 1, 1000)
+    const [erster] = gezeigt(s)
+    let lage = erfassungsLage(s, DM, P1, [], 0)
+    const vorab = lage.starts.filter((x) => x.vorab)
+    expect(vorab).toHaveLength(s.anzeige.amSteg)
+    const l0 = lage.listen.find((l) => l.liste === K('steg'))!
+    for (const v of vorab) expect(l0.zellen[v.key]).toEqual({ zelle: 'vorab', teile: { ab: 'vorab', an: 'spaeter' } })
+    // Ablegen des ersten geschickt: nichts offen – das Anlegen des Starts im Boot fragt nicht.
+    s = setze(s, starterVon(erster), 'erfasst.ab@steg', '1')
+    lage = erfassungsLage(s, DM, P1, [], 0)
+    let l = lage.listen.find((x) => x.liste === K('steg'))!
+    expect(l.zellen[erster]).toEqual({ zelle: 'halb', teile: { ab: 'ok', an: 'spaeter' } })
+    expect(l.rueckstand).toBeNull()
+    expect(rueckstandZeile(lage.listen).warnt).toBe(false)
+    // Das Ablegen des nächsten zählt erst ab dem Zeigen; dann ist der erste zurück und sein Anlegen offen.
+    s = zeige(s, 1, 2000)
+    const zweiter = gezeigt(s)[1]
+    l = lageVon(s, 'steg')
+    expect(l.zellen[erster]).toEqual({ zelle: 'halb', teile: { ab: 'ok', an: 'offen' } })
+    expect(l.zellen[zweiter].teile).toEqual({ ab: 'offen', an: 'spaeter' })
+    expect(l.rueckstand).toMatchObject({ zahl: 2 })
+    // Mit Teil-Geräten zählt der Teil, der weiter zurück ist – je 1.
+    const zwei = [geraet(K('steg'), 0, 'ab'), geraet(K('steg'), 0, 'an')]
+    expect(lageVon(s, 'steg', zwei).rueckstand).toEqual({ zahl: 1, von: nr(s, zweiter), bis: nr(s, zweiter) })
+  })
+
+  // Prüfbefund 21.11.2026: Am Ende eines Laufs galt der letzte Start als zurück und sein Anlegen als offen – mit R = 1
+  // fragte die Start-Freigabe an jeder Laufgrenze vor dem ersten „Nächster Start“.
+  it('Ende des Laufs: das Anlegen des Starts auf der Tafel steht in der Schlange, zählt aber nicht im Rückstand', () => {
+    let s = setzeListe(wkrBetriebsStand(), L('steg'), 100, 'digital')
+    s = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1, wkrWarnung: 'nachfragen' } })
+    s = zeige(s, bereichsLage(s, P1).frei.filter((e) => e.punkt === 'lauf:1').length, 1000)
+    expect(bereichsLage(s, P1).frei.some((e) => e.punkt === 'lauf:1')).toBe(false)
+    const lauf1 = gezeigt(s)
+    const letzter = lauf1.at(-1)!
+    for (const k of lauf1) {
+      s = setze(s, starterVon(k), 'erfasst.ab@steg', '1')
+      if (k !== letzter) s = setze(s, starterVon(k), 'erfasst.an@steg', '1')
+    }
+    const l = lageVon(s, 'steg', [geraet(K('steg'), 0, 'ab'), geraet(K('steg'), 0, 'an')])
+    expect(l.zellen[letzter].teile?.an).toBe('offen')
+    expect(l.rueckstand).toBeNull()
+    expect(l.warnt).toBe(false)
+    expect(lageVon(s, 'steg').rueckstand).toBeNull()
   })
 
   it('Vorsteg: die nächsten freien Starts als Spalten `vorab`', () => {
@@ -192,7 +244,8 @@ describe('erfassungsLage – Rückstand (A4, F1)', () => {
     s = setze(s, starterVon(keys[0]), 'erfasst.ab@steg', '1')
     s = setze(s, starterVon(keys[1]), 'erfasst.ab@steg', '1')
     const zwei = [geraet(K('steg'), 0, 'ab'), geraet(K('steg'), 0, 'an')]
-    expect(lageVon(s, 'steg', zwei).rueckstand).toMatchObject({ zahl: 3, von: nr(s, keys[0]) })
+    // Anlegen: die ersten beiden (der dritte ist noch im Boot, T2); Ablegen: der dritte.
+    expect(lageVon(s, 'steg', zwei).rueckstand).toEqual({ zahl: 2, von: nr(s, keys[0]), bis: nr(s, keys[1]) })
     // Ablegen pausiert: das Anlegen zählt weiter.
     const p = reducer(s, { type: 'WKR_LISTE', liste: K('steg'), status: 'pausiert', teil: 'an', zeit: 2000 })
     expect(lageVon(p, 'steg', zwei).rueckstand).toMatchObject({ zahl: 1, von: nr(s, keys[2]) })
@@ -341,10 +394,11 @@ describe('Prüfbefunde W2', () => {
     const gemeinsam = felder.find((f) => teilVonZelle('steg', f.zelle) === 'gemeinsam')
     if (gemeinsam) {
       const g = setze(s, starterVon(key), gemeinsam.kennung, 'J')
-      expect(lageVon(g, 'steg').zellen[key].teile).toEqual({ ab: 'offen', an: 'offen' })
+      expect(lageVon(g, 'steg').zellen[key].teile).toEqual({ ab: 'offen', an: 'spaeter' })
     }
     s = setze(s, starterVon(key), ab.kennung, ab.kind === 'disq' ? 'J' : '1')
-    expect(lageVon(s, 'steg').zellen[key]).toEqual({ zelle: 'halb', teile: { ab: 'ok', an: 'offen' } })
+    // Der Start ist noch im Boot: Anlegen „kommt noch“ (T2).
+    expect(lageVon(s, 'steg').zellen[key]).toEqual({ zelle: 'halb', teile: { ab: 'ok', an: 'spaeter' } })
   })
 
   it('Rückfrage zu einem nicht gezeigten Start (Grund `start`): „!“ an Zeile und Zelle', () => {

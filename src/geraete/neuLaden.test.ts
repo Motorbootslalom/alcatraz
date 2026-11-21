@@ -4,7 +4,7 @@ import { starteGeraeteHost, type GeraeteHost, type HostUmgebung } from './host'
 import { oeffneLeseLink, type LeseGeraet, type LeseUmgebung } from './geraet'
 import { ABLAGE, type Ablage } from './ablage'
 import { nachgebauterBrowser } from './testBrowser'
-import { bis, grosserBetrieb, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
+import { bis, grosserBetrieb, NachgebauterSocket, nachgebautesFetch, neuesNtfy, packenOhneThreadpool, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
 import type { NtfyZeiten } from './transport/ntfy/leitung'
 import { reducer, type Action } from '../state/reducer'
 import { zeigeNaechsten } from '../testHilfen'
@@ -137,6 +137,10 @@ describe('Alle Geräte neu laden (E8)', () => {
   })
 
   it('ohne Verbindung: nichts gesendet, und ein liegengebliebener Befehl geht auch später nicht hinaus (Prüfung 21.11.2026)', async () => {
+    // Ohne Threadpool packen (Ursache der roten Läufe unter Last, 21.11.2026): Der Host prüft den Verfall des Befehls und
+    // versiegelt dann – mit echtem CompressionStream in echter Zeit. Lag der Uhrsprung unten (+20 min, Netz wieder da)
+    // in diesem Fenster, ging der eben versiegelte Befehl mit altem `hz` hinaus und das Gerät lud neu.
+    packenOhneThreadpool()
     let jetzt = Date.now()
     const { s, h, info, bereich } = await bedienrechner({ uhr: () => jetzt })
     const lade = vi.fn()

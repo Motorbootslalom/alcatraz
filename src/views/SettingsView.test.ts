@@ -168,7 +168,8 @@ describe('Einstellungen: eigene Aufbauten', () => {
     const waehle = async (text: string, ausgang: 'ok' | 'warn') => {
       Object.defineProperty(input.element, 'files', { value: [new File([text], 'aufbau.yaml')], configurable: true })
       await input.trigger('change')
-      await vi.waitFor(() => expect(wrapper.find(`.own-setups .boat-banner.${ausgang}`).exists()).toBe(true))
+      // 10 s statt der 1 s von vi.waitFor: Datei lesen + prüfen dauert unter Last (zwei Läufe auf zwei Kernen) länger, 21.11.2026.
+      await vi.waitFor(() => expect(wrapper.find(`.own-setups .boat-banner.${ausgang}`).exists()).toBe(true), { timeout: 10_000 })
     }
 
     await waehle('aufbauten:\n  - id: alcatraz\n    name: Doppelt\n    positionen: [steg]\n', 'warn')
@@ -232,7 +233,7 @@ describe('Einstellungen: eigene Aufbauten', () => {
     const input = wrapper.find('.own-setups input[type="file"]')
     Object.defineProperty(input.element, 'files', { value: [new File([yaml], 'aufbau.yaml')], configurable: true })
     await input.trigger('change')
-    await vi.waitFor(() => expect(wrapper.find('.own-setups .boat-banner.ok').exists()).toBe(true))
+    await vi.waitFor(() => expect(wrapper.find('.own-setups .boat-banner.ok').exists()).toBe(true), { timeout: 10_000 })
     expect(store.state.value.eigeneAufbauten.map((a) => a.name)).toEqual(['Heil', 'Hafenfest'])
     expect(wrapper.find('[data-aufbau="kk"]').classes()).not.toContain('own-rejected')
     wrapper.unmount()
@@ -341,7 +342,7 @@ describe('Einstellungen: eigene Aufbauten', () => {
     const input = wrapper.find('.own-setups input[type="file"]')
     Object.defineProperty(input.element, 'files', { value: [new File(['aufbauten: ['], 'aufbau.yaml')], configurable: true })
     await input.trigger('change')
-    await vi.waitFor(() => expect(wrapper.find('.own-setups > .boat-banner.warn').exists()).toBe(true))
+    await vi.waitFor(() => expect(wrapper.find('.own-setups > .boat-banner.warn').exists()).toBe(true), { timeout: 10_000 })
     expect(wrapper.find('.own-setups > .boat-banner.warn').text()).toContain('Nicht eingespielt:')
     setLocale('en')
     await nextTick()
@@ -405,7 +406,7 @@ describe('Einstellungen: eigene Aufbauten', () => {
     const yaml = configFor({ eigeneAufbauten: [frei] }).aufbauAlsYaml('freix2k7', { datum: '2026-11-13', version: 'test' })!
     Object.defineProperty(input.element, 'files', { value: [new File([yaml], 'aufbau.yaml')], configurable: true })
     await input.trigger('change')
-    await vi.waitFor(() => expect(wrapper.find('.own-setups .boat-banner.ok').exists()).toBe(true))
+    await vi.waitFor(() => expect(wrapper.find('.own-setups .boat-banner.ok').exists()).toBe(true), { timeout: 10_000 })
     expect(store.state.value.eigeneAufbauten).toEqual([frei])
     expect(wrapper.find('.own-setups').text()).toContain('Position „Alle Tore am Stadthafen“ hat keinen englischen Titel.')
     setLocale('en')
@@ -434,12 +435,12 @@ describe('Einstellungen: Teilnehmerdaten einspielen', () => {
     }
     // Klasse 4 im Jahr 2026: Jahrgang 2019 ist zu jung.
     await spiele('2019-05-05')
-    await vi.waitFor(() => expect(wrapper.find('#dateien .boat-banner.warn, .boat-banner.warn[role="status"]').exists()).toBe(true))
+    await vi.waitFor(() => expect(wrapper.find('#dateien .boat-banner.warn, .boat-banner.warn[role="status"]').exists()).toBe(true), { timeout: 10_000 })
     expect(wrapper.text()).toContain('Nichts übernommen: 1 Starter der Datei steht in einer Klasse, die nicht zum Geburtsjahr passt (Vor Nach: Klasse 4, 2019)')
     expect(store.state.value.starters).toEqual([])
     // Ohne Geburtsdatum lässt sich nichts prüfen: Die Datei wird übernommen.
     await spiele('')
-    await vi.waitFor(() => expect(store.state.value.starters).toHaveLength(1))
+    await vi.waitFor(() => expect(store.state.value.starters).toHaveLength(1), { timeout: 10_000 })
     wrapper.unmount()
   })
 })

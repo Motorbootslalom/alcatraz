@@ -31,6 +31,9 @@
   --wkr-uebung-text: #ffffff;
   /* „entfällt“: das einzige Grau – je Modus mit genug Kontrast (Sonne/Hell 7,5:1 auf Weiß, Dunkel 8,4:1 auf Schwarz). */
   --wkr-grau: #555555;
+  /* Rand neben der Spalte auf breiten Bildschirmen (bis W5): leise, ohne Kontrastpflicht – dort steht nichts. */
+  --wkr-umfeld: #e4e4e4;
+  --wkr-umfeld-linie: #9a9a9a;
   --wkr-rand: 3px;
   --wkr-ziel: 64px;
   --wkr-ziel-min: 48px;
@@ -67,6 +70,8 @@
   --wkr-flaeche: #ffffff;
   --wkr-rand-farbe: #44505c;
   --wkr-haupt: #1f5fbf;
+  --wkr-umfeld: #dde2e8;
+  --wkr-umfeld-linie: #aab3bd;
   --wkr-rand: 2px;
 }
 
@@ -80,6 +85,8 @@
   --wkr-haupt-text: #000000;
   --wkr-blitz: #ffffff;
   --wkr-grau: #aaaaaa;
+  --wkr-umfeld: #161616;
+  --wkr-umfeld-linie: #555555;
   color-scheme: dark;
 }
 
@@ -90,6 +97,32 @@
 @media (max-height: 700px) {
   .wkr-geraet {
     --wkr-startnr: 80px;
+  }
+}
+
+/*
+ * Breite Bildschirme (Pad, Bedienrechner) bis W5 (Nutzer 21.11.2026: „Die Pad-Geräte-Listen … sehen auf dem Pad noch
+ * sehr komisch aus“): Die Handy-Maske bleibt eine mittige Spalte von 560 px, statt sich zu dehnen – die Wurzel füllt
+ * aber die ganze Breite und Höhe, damit links und rechts ein ruhiger Rand (--wkr-umfeld, je Modus) statt der Farbe
+ * der App steht (vorher: weiße Spalte in 720 px auf dem Grund des Farbschemas, darunter Leiste und Reiter breiter).
+ * Die Spalte entsteht über padding-inline, nicht max-width: Kinder, klebender Fuß (`.wkr-unten`, -12 px Rand = genau
+ * 560 px) und Bänder bleiben darin; Grund und Trennlinie malt ein Verlauf. Overlay und Blitz decken weiter den ganzen
+ * Bildschirm. Die eigentlichen Pad-Masken (zwei Listen nebeneinander, F15) kommen mit W5 – dann fällt diese Regel.
+ * 21.11.2026, noch zu bestätigen (WKR_ANNAHMEN.padSpalteBisW5).
+ */
+@media (min-width: 700px) {
+  .wkr-geraet {
+    --wkr-spalte: 560px;
+    max-width: none;
+    padding-inline: max(12px, calc((100% - var(--wkr-spalte)) / 2 + 12px));
+    background: linear-gradient(
+      to right,
+      var(--wkr-umfeld) calc(50% - var(--wkr-spalte) / 2 - 1px),
+      var(--wkr-umfeld-linie) 0 calc(50% - var(--wkr-spalte) / 2),
+      var(--wkr-grund) 0 calc(50% + var(--wkr-spalte) / 2),
+      var(--wkr-umfeld-linie) 0 calc(50% + var(--wkr-spalte) / 2 + 1px),
+      var(--wkr-umfeld) 0
+    );
   }
 }
 

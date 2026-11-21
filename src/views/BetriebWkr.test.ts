@@ -607,4 +607,58 @@ describe('Betrieb → Start-Freigabe: WKR-Erfassung (W2.4)', () => {
     expect(w.find('[data-reiter="wkr"]').classes()).toContain('active')
     expect(w.find('[data-teil="wkr-matrix"] button[data-bereich="par_2"]').classes()).toContain('active')
   })
+
+  // Nutzer 21.11.2026 (T1/T2): Anlegen nachlaufend – das Boot des gezeigten Starts fährt noch.
+  it('Steg: „Nächster Start“ fragt nicht wegen des Anlegens des Starts im Boot; danach wegen des zurückgekehrten', async () => {
+    const STEG = K('steg')
+    const STEG_TITEL = DM.getSheetDef('steg').title
+    const starter = Array.from({ length: 6 }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(101 + i)))
+    let s: AppState = { ...wkrBetriebsStand(starter), kennung: KENNUNG }
+    s = reducer(s, { type: 'WKR_LISTE', liste: STEG, modus: 'digital', zeit: 100 })
+    s = zeigeNaechsten(s, P1, 1000)
+    const [erster] = gezeigt(s)
+    // Ablegen des ersten abgeschickt (vorab oder gleich) – nur sein Anlegen fehlt, und das Boot ist noch im Parcours.
+    s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: LAUF, starter: starterVon(erster), feld: 'erfasst.ab@steg', wert: '1' }] })
+    const { host } = hostDoppel([{ id: 'gSteg', name: 'Handy Steg', aufgaben: [{ art: 'liste', liste: STEG }], seit: 1, zuletzt: Date.now() - 10_000 }])
+    const w = await betrieb(s, host)
+    await zurStartFreigabe(w)
+    const k = karte(w)
+    expect(k.find('[data-teil="wkr-rueckstand"]').exists()).toBe(false)
+    expect(k.find(`[data-liste="${STEG_TITEL}"]`).attributes('data-erf')).toBe('fertig')
+    await k.find('[data-action="zeigen"]').trigger('click')
+    expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).toBeNull()
+    expect(gezeigt(store.state.value)).toHaveLength(2)
+    await nextTick()
+    await nextTick()
+    // Jetzt ist der erste zurück (Anlegen offen) und das Ablegen des zweiten zählt: Die Frage nennt beide.
+    await k.find('[data-action="zeigen"]').trigger('click')
+    const frage = document.querySelector('[data-teil="frage-liste"]')!.textContent!
+    expect(frage).toContain(STEG_TITEL)
+    expect(frage).toContain('101')
+    expect(frage).toContain('102')
+    ;(document.querySelector('[data-action="trotzdem-nein"]') as HTMLButtonElement).click()
+    await nextTick()
+    expect(gezeigt(store.state.value)).toHaveLength(2)
+  })
+
+  // Nutzer 21.11.2026 (T5): Abmelden am Gerät = Liste abgemeldet und vom Gerät genommen (Host: geraete/wkr.test.ts).
+  it('Abmelden vom Gerät: Leiste ▭ „abgemeldet“, Matrix ohne Gerät, „Nächster Start“ ohne Frage', async () => {
+    let s = stand()
+    expect(s.anzeige.wkrWarnung).toBe('nachfragen')
+    s = reducer(s, { type: 'WKR_LISTE', liste: TOR, status: 'abgemeldet', zeit: 2000 })
+    // Das Gerät hat die Liste nicht mehr (Aufgaben leer).
+    const { host } = hostDoppel([{ id: 'gNord', name: 'Handy Nord', aufgaben: [], seit: 1, zuletzt: Date.now() - 10_000 }])
+    const w = await betrieb(s, host)
+    expect(zellen(w, TOR).every((z) => z === 'papier')).toBe(true)
+    expect(reihe(w, TOR).find('[data-geraet="gNord"]').exists()).toBe(false)
+    await zurStartFreigabe(w)
+    const feld = karte(w).find(`[data-liste="${TITEL}"]`)
+    expect(feld.attributes('data-stand')).toBe('abgemeldet')
+    expect(feld.attributes('data-erf')).toBe('papier')
+    expect(feld.find('.wkr-leiste-erf').text()).toBe('▭')
+    expect(karte(w).find('[data-teil="wkr-rueckstand"]').exists()).toBe(false)
+    await karte(w).find('[data-action="zeigen"]').trigger('click')
+    expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).toBeNull()
+    expect(gezeigt(store.state.value)).toHaveLength(4)
+  })
 })

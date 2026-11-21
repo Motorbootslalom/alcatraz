@@ -112,7 +112,7 @@ export default {
   'wkr.geraet.pausieren': 'Pausieren (Papier)',
   'wkr.geraet.abmelden': 'Abmelden',
   'wkr.geraet.abmelden.frage': 'Von dieser Liste abmelden?',
-  'wkr.geraet.abmelden.text': 'Ab jetzt gilt der Papierbogen. Der Bedienrechner sieht, ab welchem Start.',
+  'wkr.geraet.abmelden.text': 'Ab jetzt gilt der Papierbogen; die Liste wird von diesem Gerät genommen. Der Bedienrechner sieht, ab welchem Start, und kann sie neu zuweisen.',
   'wkr.geraet.weiter': 'Weiter digital',
 
   'wkr.geraet.ruhe.warte': 'Verbinde mit dem Bedienrechner …',
@@ -127,6 +127,9 @@ export default {
   'wkr.geraet.ruhe.entfaellt': '{liste} entfällt ({klasse})',
   'wkr.geraet.ruhe.spaeter': 'Für diese Liste gibt es die Maske noch nicht – bitte auf dem Papierbogen erfassen.',
   'wkr.geraet.ruhe.entzogen': 'Entzogen – dieses Gerät erfasst nicht mehr.',
+  'wkr.geraet.ruhe.abmeldung': 'Von {liste} abgemeldet – der Papierbogen gilt.',
+  'wkr.geraet.ruhe.abmeldung.hint': 'Wieder digital erfassen: am Bedienrechner diesem Gerät die Liste neu zuweisen.',
+  'wkr.geraet.ruhe.abmeldung.zuletzt': 'Zuletzt von hier geschickt:',
   'wkr.geraet.ruhe.entzogen.entwuerfe': 'Nicht abgeschickte Entwürfe – bitte auf den Papierbogen übertragen:',
   'wkr.geraet.ruhe.keineListe': 'Diesem Gerät ist keine Liste zugewiesen.',
   // --- W3.4 (21.11.2026): Mehr (Abschluss, Ansicht, Sprache, Probe), Liste abschließen, Probe, Übung ---

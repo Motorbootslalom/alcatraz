@@ -102,7 +102,7 @@ export default {
   'wkr.geraet.pausieren': 'Pause (paper)',
   'wkr.geraet.abmelden': 'Sign off',
   'wkr.geraet.abmelden.frage': 'Sign off from this list?',
-  'wkr.geraet.abmelden.text': 'From now on the paper sheet applies. The operator sees from which start.',
+  'wkr.geraet.abmelden.text': 'From now on the paper sheet applies; the list is taken off this device. The operator sees from which start and can assign it again.',
   'wkr.geraet.weiter': 'Continue digitally',
 
   'wkr.geraet.ruhe.warte': 'Connecting to the operator’s computer …',
@@ -117,6 +117,9 @@ export default {
   'wkr.geraet.ruhe.entfaellt': '{liste} does not apply ({klasse})',
   'wkr.geraet.ruhe.spaeter': 'There is no form for this list yet – please enter on the paper sheet.',
   'wkr.geraet.ruhe.entzogen': 'Withdrawn – this device no longer enters.',
+  'wkr.geraet.ruhe.abmeldung': 'Signed off from {liste} – the paper sheet applies.',
+  'wkr.geraet.ruhe.abmeldung.hint': 'To enter digitally again: assign the list to this device again at the operator’s computer.',
+  'wkr.geraet.ruhe.abmeldung.zuletzt': 'Last sent from here:',
   'wkr.geraet.ruhe.entzogen.entwuerfe': 'Drafts not sent – please copy them onto the paper sheet:',
   'wkr.geraet.ruhe.keineListe': 'No list is assigned to this device.',
   // --- W3.4: More (close, display, language, trial run), close the list, trial run, practice ---

@@ -196,13 +196,19 @@ watch(
   { immediate: true },
 )
 const mitFreigabe = computed(() => !!geraet.value && freigabeBereiche(geraet.value.aufgaben.value).length > 0)
-const wkrListen = computed(() => wkr.value?.listen.value ?? [])
+// Abgemeldete Listen (Nutzer 21.11.2026) bleiben als Reiter mit ihrer Ruhe-Ansicht, auch nachdem der Bedienrechner sie
+// vom Gerät genommen hat (WkrGeraet zeigt dort „Von … abgemeldet“ mit Entwürfen und „Zuletzt“).
+const wkrListen = computed(() => {
+  const eigene = wkr.value?.listen.value ?? []
+  const weg = (wkr.value?.abgemeldet.value ?? []).filter((a) => !eigene.some((l) => l.liste === a.liste))
+  return [...eigene.map((l) => ({ liste: l.liste })), ...weg.map((a) => ({ liste: a.liste }))]
+})
 /** Reiter unten, nur mit Freigabe UND Liste: 'freigabe' oder die Kennung einer Liste. */
 const reiter = ref('freigabe')
 const zeigeWkr = computed(() => !!wkr.value && wkrListen.value.length > 0 && (!mitFreigabe.value || reiter.value !== 'freigabe'))
 const wkrListe = computed(() => (mitFreigabe.value ? wkrListen.value.find((a) => a.liste === reiter.value)?.liste : undefined))
 const raum = computed(() => (geraet.value ? { u: geraet.value.paket.u, r: geraet.value.paket.r, s: geraet.value.paket.s } : null))
-const wkrTitel = (liste: string) => wkr.value?.sichten.value[liste]?.titel ?? '…'
+const wkrTitel = (liste: string) => wkr.value?.sichten.value[liste]?.titel || wkr.value?.abgemeldet.value.find((a) => a.liste === liste)?.titel || '…'
 /** Meldung der Start-Freigabe im Bereich der Liste – aus der öffentlichen Sicht, wie auf der Anzeigetafel. */
 function meldungFuer(liste: string): string | null {
   const bereich = liesListe(liste)?.bereich

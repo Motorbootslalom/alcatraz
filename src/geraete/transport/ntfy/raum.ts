@@ -347,6 +347,13 @@ export interface GeraetStand {
   gruppen: Record<string, { k: string; e: number; t: string[] }>
   /** Höchste angenommene Nummer je Gruppe; {@link DIREKT} für Nachrichten an dieses Gerät. */
   seen: Record<string, number>
+  /**
+   * Die zuletzt angenommenen Nummern auf d (aufsteigend, höchstens {@link DIREKT_MERKEN}): Direktes darf auch NACH
+   * einer höheren Nummer kommen (ntfy schickt beim Abo Live-Nachrichten womöglich vor dem Zwischengespeicherten) –
+   * angenommen wird, was in diesem Fenster noch fehlt (Prüfung unter Last 21.11.2026). Fehlt es (älterer Stand),
+   * gilt allein `seen[DIREKT]`.
+   */
+  direkt?: number[]
   /** ntfy-ID der zuletzt verarbeiteten Nachricht: Wiederverbinden mit `since` (S3). */
   seit: string | null
   /** Nach willkommen: eigene ID, g und d. */
@@ -358,6 +365,9 @@ export interface GeraetStand {
   schlange: Unbestaetigt[]
 }
 
+/** So viele Nummern auf d merkt sich ein Gerät (GeraetStand.direkt) – weit mehr, als in einem Abo-Wechsel eintreffen. */
+export const DIREKT_MERKEN = 64
+
 export function leererGeraetStand(): GeraetStand {
   return { gruppen: {}, seen: {}, seit: null, id: null, themen: null, naechsteNr: 1, schlange: [] }
 }
@@ -368,6 +378,7 @@ export function istGeraetStand(wert: unknown): wert is GeraetStand {
     if (!istGruppe(g) || !istObjekt(s) || !isBase64Url(s.k, 32) || !istZahl(s.e) || !Array.isArray(s.t)) return false
   }
   for (const [g, n] of Object.entries(wert.seen)) if ((g !== DIREKT && !istGruppe(g)) || !istZahl(n)) return false
+  if (wert.direkt !== undefined && (!Array.isArray(wert.direkt) || wert.direkt.length > DIREKT_MERKEN || !wert.direkt.every(istZahl))) return false
   if (wert.seit !== null && typeof wert.seit !== 'string') return false
   if (wert.id !== null && !istGeraetId(wert.id)) return false
   const th = wert.themen

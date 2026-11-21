@@ -34,6 +34,13 @@ export default {
   'demo.intro':
     'Zum Ausprobieren lässt sich ein Starterfeld mit erfundenen Namen erzeugen. Echte Starter kommen über den Import unter „Starter“.',
   'demo.perClass': 'Starter je Klasse',
+  'demo.total': 'Starter insgesamt',
+  'demo.total.redraw': 'Neu ziehen',
+  'demo.total.redrawTitle': 'Eine neue Zahl im Bereich dieser Art von Veranstaltung ziehen',
+  'demo.total.hint': 'Vorschlag für {art}: {von}–{bis} Starter. Sie verteilen sich wie in echten Starterfeldern auf die Klassen – wenige in der jüngsten, die meisten in 4 und 5.',
+  'demo.total.art.club': 'eine Clubmeisterschaft',
+  'demo.total.art.verein': 'eine Meisterschaft mit Vereinen',
+  'demo.total.art.land': 'eine Meisterschaft nach Bundesländern oder Ländern',
   'demo.generate': 'Beispiel-Starterfeld erzeugen',
   'demo.confirm': 'Die vorhandenen {n} Starter durch erfundene ersetzen?',
   'demo.origins': 'Herkünfte (leer = unbegrenzt)',

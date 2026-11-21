@@ -7,7 +7,7 @@ import { ABLAGE, type Ablage } from './ablage'
 import { freigabeBereiche, type Aufgabe } from './aufgaben'
 import { CODE_GUELTIG_MS, KOPPEL_NACHLAUF_MS, QR_TOKEN_GUELTIG_MS } from './koppeln'
 import { nachgebauterBrowser, type TestFenster } from './testBrowser'
-import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
+import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, packenOhneThreadpool, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
 import { geraeteThemaVon, type HostRaum } from './transport/ntfy/raum'
 import { wiederholAbstand } from './transport/ntfy/transport'
 import { NTFY_ZEITEN, type NtfyZeiten } from './transport/ntfy/leitung'
@@ -119,10 +119,11 @@ async function stegHandy(h: GeraeteHost, aufgaben: Aufgabe[], name = 'Steg Paral
   return g
 }
 
-async function sendeUndWarte(g: GekoppeltesGeraet, action: GeraeteAction, ms = 3000) {
+async function sendeUndWarte(g: GekoppeltesGeraet, action: GeraeteAction) {
   const nr = g.sende(action)
   expect(nr).not.toBeNull()
-  await bis(() => g.quittung.value?.nr === nr, ms)
+  // Grenze wie bis() (10 s), nicht 3 s: unter Last zu knapp (Prüfung 21.11.2026).
+  await bis(() => g.quittung.value?.nr === nr)
   return g.quittung.value!
 }
 
@@ -249,6 +250,11 @@ describe('Zeitgrenzen (E8)', () => {
   })
 
   it('mit den echten Zeiten (Fake-Uhr): 10 s, 20 s, 40 s … bis 5 Minuten zwischen den Wiederholungen', async () => {
+    // Packen ohne echte Nebenläufigkeit (Ursache der roten Läufe, Prüfung unter Last 21.11.2026): Node packt mit
+    // CompressionStream im zlib-Threadpool, also in ECHTER Zeit. Die Schleife unten rückt die Fake-Uhr aber nach jedem
+    // Abarbeiten der Mikrotasks weiter – unter Last lief sie dem Packen davon (erste Sendung bei 6 s statt sofort).
+    // Mit deflateSync im Stream bleibt alles in Mikrotasks, die advanceTimersByTimeAsync abwartet (testNtfy.ts).
+    packenOhneThreadpool()
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'], shouldAdvanceTime: true })
     const { h, raum } = await bedienrechner()
     // Das Handy mit der echten Quittungszeit (10 s), sonst schnell.

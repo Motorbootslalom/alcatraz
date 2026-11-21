@@ -70,9 +70,12 @@ describe('Veranstaltung', () => {
     wrapper.unmount()
   })
 
-  it('Besetzung: Beispiel-Boote und -Co-Piloten (19.11.2026) füllen die Tabelle, mit Rückfrage, wenn schon etwas steht', async () => {
+  it('Beispiel-Boote und -Co-Piloten (19.11.2026) nur unter „Beispieldaten“ – nicht im Block „Besetzung“ (21.11.2026); mit Rückfrage, wenn schon etwas steht', async () => {
     const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
-    const block = wrapper.find('[data-block="besetzung"]')
+    // Beispielwerte entstehen an EINER Stelle (Wunsch des Nutzers vom 21.11.2026).
+    expect(wrapper.find('[data-block="besetzung"] [data-action^="beispiel"]').exists()).toBe(false)
+    const block = wrapper.find('[data-block="beispieldaten"]')
+    const besetzung = wrapper.find('[data-block="besetzung"]')
     const confirm = vi.fn(() => false)
     vi.stubGlobal('confirm', confirm)
     // Leer: ohne Rückfrage.
@@ -81,8 +84,8 @@ describe('Veranstaltung', () => {
     expect(confirm).not.toHaveBeenCalled()
     expect(Object.keys(store.state.value.boote)).toHaveLength(8)
     expect(Object.keys(store.state.value.coPiloten).sort()).toEqual(['1', '2', '3', 'E'])
-    expect((block.find('input[data-feld="boot|E"]').element as HTMLInputElement).value).toBe(store.state.value.boote.E)
-    // Schon eingetragen: Rückfrage; Nein lässt alles stehen.
+    expect((besetzung.find('input[data-feld="boot|E"]').element as HTMLInputElement).value).toBe(store.state.value.boote.E)
+    // Schon eingetragen: Rückfrage; Nein lässt alles stehen, Ja ersetzt.
     const boote = store.state.value.boote
     await block.find('[data-action="beispiel-boote"]').trigger('click')
     expect(confirm).toHaveBeenCalledOnce()
@@ -90,9 +93,8 @@ describe('Veranstaltung', () => {
     expect(store.state.value.boote).toBe(boote)
     await block.find('[data-action="beispiel-copiloten"]').trigger('click')
     expect(confirm.mock.calls[1].join()).toContain('Für 4 Klassen sind schon Co-Piloten eingetragen')
-    // Dieselben Knöpfe unter „Beispieldaten“.
     confirm.mockReturnValue(true)
-    await wrapper.find('[data-block="beispieldaten"] [data-action="beispiel-boote"]').trigger('click')
+    await block.find('[data-action="beispiel-boote"]').trigger('click')
     expect(confirm).toHaveBeenCalledTimes(3)
     expect(store.state.value.boote).not.toBe(boote)
     vi.unstubAllGlobals()
@@ -273,6 +275,13 @@ describe('Veranstaltung', () => {
     const block = (wrapper: ReturnType<typeof mount>) => wrapper.find('details[data-block="beispieldaten"]')
     const offen = (wrapper: ReturnType<typeof mount>) => (block(wrapper).element as HTMLDetailsElement).open
     const zeige = () => mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    // Die Gesamtzahl wird gezogen (21.11.2026): Wer eine feste Zahl braucht, trägt sie ein.
+    const setzeGesamt = async (wrapper: ReturnType<typeof mount>, n: number) => {
+      const feld = block(wrapper).find('[data-feld="beispiel-gesamt"]')
+      await feld.setValue(String(n))
+      await feld.trigger('change')
+    }
+    const zahlen = (wrapper: ReturnType<typeof mount>) => block(wrapper).findAll('.class-count .beispiel-zahl').map((z) => Number(z.text()))
 
     it('der Block steht am Ende der Ansicht und ist zugeklappt, solange keine Beispieldaten geladen sind', () => {
       const wrapper = zeige()
@@ -293,9 +302,12 @@ describe('Veranstaltung', () => {
     it('ein Beispiel-Starterfeld erzeugen: Der Block bleibt offen – auch nach dem Wechsel der Ansicht –, Beispielwerte lassen sich gleich ergänzen', async () => {
       const wrapper = zeige()
       expect(block(wrapper).find('[data-action="beispielwerte"]').attributes('disabled')).toBeDefined()
+      await setzeGesamt(wrapper, 48)
+      // Verteilt nach BEISPIEL_KLASSEN_ANTEILE (E, 1–7), größte Reste.
+      expect(zahlen(wrapper)).toEqual([2, 5, 6, 7, 7, 9, 5, 7])
       await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
-      // Sechs je Klasse der DM (E, 1–7).
       expect(store.state.value.starters).toHaveLength(48)
+      expect(store.state.value.starters.filter((p) => p.klasse === '5')).toHaveLength(9)
       expect(store.state.value.beispielStarter).toBe(true)
       // Startnummern nach Westengröße (DM-Vorgabe, 19.11.2026): jede aus einem Bereich ihrer Klasse.
       const bereiche = (k: string) => startNrBereicheVorgabe('dm-2026', k as ClassId)
@@ -316,21 +328,54 @@ describe('Veranstaltung', () => {
       wieder.unmount()
     })
 
-    it('die Zahl je Klasse bleibt stehen – über den Wechsel der Ansicht und (im sessionStorage) über das Neuladen', async () => {
+    it('Gesamtzahl nach Art der Veranstaltung (21.11.2026): gezogen im Bereich, änderbar, bleibt über das Neuladen stehen, neu bei anderer Art', async () => {
       vergissAlles()
+      const gesamt = (wrapper: ReturnType<typeof mount>) => Number((block(wrapper).find('[data-feld="beispiel-gesamt"]').element as HTMLInputElement).value)
+      const wrapper = zeige()
+      // Vorgabe der Veranstaltung: Meisterschaft mit Vereinen → 45–75.
+      expect(gesamt(wrapper)).toBeGreaterThanOrEqual(45)
+      expect(gesamt(wrapper)).toBeLessThanOrEqual(75)
+      expect(block(wrapper).find('[data-hinweis="beispiel-gesamt"]').text()).toContain('45–75')
+      expect(zahlen(wrapper).reduce((a, b) => a + b, 0)).toBe(gesamt(wrapper))
+      // „Neu ziehen“ bleibt im Bereich.
+      for (let i = 0; i < 10; i++) {
+        await block(wrapper).find('[data-action="beispiel-gesamt-neu"]').trigger('click')
+        expect(gesamt(wrapper)).toBeGreaterThanOrEqual(45)
+        expect(gesamt(wrapper)).toBeLessThanOrEqual(75)
+      }
+      // Bundesland/Land → 100–160.
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'land' })
+      await nextTick()
+      expect(gesamt(wrapper)).toBeGreaterThanOrEqual(100)
+      expect(gesamt(wrapper)).toBeLessThanOrEqual(160)
+      // Clubmeisterschaft → 10–20; kleine Felder dürfen E = 0 haben, die Summe stimmt immer.
+      store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+      await nextTick()
+      expect(gesamt(wrapper)).toBeGreaterThanOrEqual(10)
+      expect(gesamt(wrapper)).toBeLessThanOrEqual(20)
+      expect(block(wrapper).find('[data-hinweis="beispiel-gesamt"]').text()).toContain('Clubmeisterschaft')
+      await setzeGesamt(wrapper, 12)
+      expect(zahlen(wrapper)).toEqual([0, 1, 2, 2, 2, 2, 1, 2])
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      expect(store.state.value.starters).toHaveLength(12)
+      wrapper.unmount()
+      // Über das Neuladen (sessionStorage) und den Wechsel der Ansicht: dieselbe Zahl.
+      expect(JSON.parse(sessionStorage.getItem('alcatraz.merke.beispiel.gesamt') ?? 'null')).toEqual({ art: 'club', n: 12 })
+      const wieder = zeige()
+      expect(gesamt(wieder)).toBe(12)
+      wieder.unmount()
+      vergissAlles()
+    })
+
+    it('unter UIM dieselben Anteile (Dolphin = E), nur auf die Klassen E–5 verteilt', async () => {
       store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
       const wrapper = zeige()
-      const felder = () => block(wrapper).findAll('.class-count input')
-      expect(felder().map((f) => (f.element as HTMLInputElement).value)).toEqual(Array(6).fill('6'))
-      await felder()[0].setValue('11')
-      await felder()[5].setValue('10')
+      await setzeGesamt(wrapper, 60)
+      expect(zahlen(wrapper)).toHaveLength(6)
+      expect(zahlen(wrapper).reduce((a, b) => a + b, 0)).toBe(60)
       await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
-      expect(store.state.value.starters).toHaveLength(11 + 4 * 6 + 10)
+      expect(store.state.value.starters).toHaveLength(60)
       wrapper.unmount()
-      expect(JSON.parse(sessionStorage.getItem('alcatraz.merke.beispiel.anzahlen') ?? 'null')).toEqual({ E: 11, 5: 10 })
-      const wieder = zeige()
-      expect(block(wieder).findAll('.class-count input').map((f) => (f.element as HTMLInputElement).value)).toEqual(['11', '6', '6', '6', '6', '10'])
-      wieder.unmount()
       vergissAlles()
     })
 
@@ -382,6 +427,7 @@ describe('Veranstaltung', () => {
 
     it('ohne Herkunft: Starter ohne Herkunft, das Feld „Herkünfte“ ist gesperrt und leer', async () => {
       const wrapper = zeige()
+      await setzeGesamt(wrapper, 48)
       const feld = () => block(wrapper).find<HTMLInputElement>('[data-feld="beispiel-herkuenfte"]')
       await feld().setValue('3')
       await feld().trigger('change')
@@ -435,6 +481,7 @@ describe('Veranstaltung', () => {
       const wrapper = zeige()
       const knopf = () => block(wrapper).find('[data-action="beispielgewichte"]')
       expect(knopf().attributes('disabled')).toBeDefined()
+      await setzeGesamt(wrapper, 48)
       await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
       expect(block(wrapper).find('[data-hinweis="beispiel-gewichte"]').text()).toBe('0 von 48 gewogen')
       await knopf().trigger('click')

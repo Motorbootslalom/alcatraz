@@ -296,7 +296,9 @@ describe('Steg je Teil (F16) – Abschluss, Status, Rückfrage', () => {
     let s = sende(s0, 'steg', [zeileVon(s0, 'steg', erster, [['katalog:stegAblegen', '3', '']], { teil: 'ab', z: 1 })])
     s = reducer(s, abschluss('ab', 'Vor1'))
     expect(s.wkr.abschluss[K('steg')]).toEqual({ 'lauf:1|ab': { name: 'Vor1', zeit: 9000, abweichend: [], papier: [] } })
-    // AN schließt mit offenem Start ohne „Rest auf Papier“ ab: nichts – der AB-Abschluss bleibt unberührt.
+    // AN schließt mit offenem Start ohne „Rest auf Papier“ ab: nichts – der AB-Abschluss bleibt unberührt. (Der erste
+    // muss dafür zurück sein: Ein Start im Boot zählt beim Anlegen nicht als offen, T2/T9.)
+    s = zeigeNaechsten(s, P1, 1500)
     expect(reducer(s, abschluss('an', 'Vor2'))).toBe(s)
     const an = sende(s, 'steg', [zeileVon(s, 'steg', erster, [['katalog:stegAnlegen', '7', '']], { teil: 'an', z: 1, geraet: 'g2' })])
     expect(an.wkr.vorschlaege).toEqual([])
@@ -336,7 +338,8 @@ describe('Steg je Teil (F16) – Abschluss, Status, Rückfrage', () => {
 
   it('nicht gezeigter Start, gemeinsame Zelle: „Gerätewert“ vereinigt mit dem, was dann steht', () => {
     const { s: s0 } = bereit('steg')
-    const anderer = lage(s0, P1).frei[0].starter
+    // Hinter den Starts „Am Steg“: Die sieht das Ablegen schon vorab (WKR_ANNAHMEN.stegAblegenVorab) – sie gälten als gezeigt.
+    const anderer = lage(s0, P1).frei[s0.anzeige.amSteg].starter
     // Das Anlegen (am Bedienrechner abgetippt) hat schon „S“.
     let s = tippe(s0, anderer, 'disq@steg', 'S')
     s = sende(s, 'steg', [zeileVon(s, 'steg', anderer, [['disq@steg', 'A', '']], { teil: 'ab', z: 1 })])
@@ -346,6 +349,24 @@ describe('Steg je Teil (F16) – Abschluss, Status, Rückfrage', () => {
     s = tippe(s, anderer, 'disq@steg', 'S, B')
     const entschieden = reducer(s, { type: 'WKR_RUECKFRAGE', id: rf.id, wahl: 'geraet' })
     expect(werte(entschieden, anderer)['disq@steg']).toBe('S, B, A')
+  })
+
+  // Nutzer 21.11.2026 (T1/T2): Ablegen vorab gilt als gezeigt, Anlegen nicht; Abschluss wartet auf das Boot.
+  it('Steg-Zeitversatz: Ablegen von „Als Nächstes“ direkt übernommen, Anlegen davon Rückfrage; Abschluss AN ohne den Start im Boot', () => {
+    const { s: s0, erster } = bereit('steg')
+    const naechster = lage(s0, P1).frei[0].starter
+    const ab = sende(s0, 'steg', [zeileVon(s0, 'steg', naechster, [['katalog:stegAblegen', '3', '']], { teil: 'ab', z: 1 })])
+    expect(ab.wkr.rueckfragen).toEqual([])
+    expect(werte(ab, naechster)).toMatchObject({ 'katalog:stegAblegen': '3', 'erfasst.ab@steg': '1' })
+    const an = sende(s0, 'steg', [zeileVon(s0, 'steg', naechster, [['katalog:stegAnlegen', '7', '']], { teil: 'an', z: 1, geraet: 'g2' })])
+    expect(an.wkr.rueckfragen.length).toBeGreaterThan(0)
+    expect(an.wkr.rueckfragen.every((r) => r.grund === 'start')).toBe(true)
+    // Der erste ist im Boot: Für den Abschluss des Anlegens ist nichts offen (T9, wie die Prüfansicht des Geräts); sein
+    // Anlegen kommt danach als Vorschlag.
+    const fertig = reducer(s0, { type: 'WKR_ABSCHLUSS', liste: K('steg'), punkt: 'lauf:1', name: 'Vor2', pruefsummen: {}, restPapier: false, teil: 'an', zeit: 9000 })
+    expect(fertig.wkr.abschluss[K('steg')]['lauf:1|an'].papier).toEqual([])
+    const spaet = sende(fertig, 'steg', [zeileVon(fertig, 'steg', erster, [['katalog:stegAnlegen', '7', '']], { teil: 'an', z: 2, geraet: 'g2' })])
+    expect(spaet.wkr.vorschlaege.map((v) => v.grund)).toEqual(['abgeschlossen'])
   })
 })
 

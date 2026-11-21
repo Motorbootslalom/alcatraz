@@ -97,8 +97,10 @@ async function bedienrechner(start: AppState = wkrBetriebsStand(), bereich = P1)
   return { state, dispatch, h, zeige }
 }
 
-async function zeigt(bedingung: () => boolean, ms = 3000): Promise<void> {
-  await bis(bedingung, ms)
+// Grenze wie bis() (10 s, Prüfung unter Last 21.11.2026): Vorher 3 s – auf zwei Kernen mit voller Suite lief z. B.
+// GeraetWkr „Probe … einmal je Raum“ hinein. Ein grüner Test wartet nicht länger.
+async function zeigt(bedingung: () => boolean): Promise<void> {
+  await bis(bedingung)
   await nextTick()
 }
 
@@ -136,6 +138,12 @@ async function mitCode(h: GeraeteHost, aufgaben: Aufgabe[], speicher: Ablage = h
 const startNr = (w: VueWrapper) => w.find('[data-teil="karte"] [data-teil="startnr"]').text()
 const haupt = (w: VueWrapper) => w.find('[data-action="haupt"]')
 const ruheArt = (w: VueWrapper) => w.find('[data-teil="ruhe"]').attributes('data-ruhe')
+/**
+ * Der Takt nach dem Abschicken ist vorbei (Overlay und Sperre weg) – die Maske nimmt wieder Tipps an. Statt einer festen
+ * Pause von uebertragenMaxMs + sperreMs (Prüfung unter Last 21.11.2026: Eine Pause sagt nichts darüber, ob der Takt
+ * schon vorbei ist; ein Tipp in die Sperre geht still verloren).
+ */
+const taktFrei = (w: VueWrapper) => !w.find('[data-teil="maske"]').exists() || w.find('[data-teil="maske"]').attributes('data-takt') === 'frei'
 const werte = (s: AppState, starter: string) => werteVon(s.eingaben, LAUF, starter)
 async function klick(w: VueWrapper, selektor: string): Promise<void> {
   await w.find(selektor).trigger('click')
@@ -309,12 +317,12 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
     expect(w.find('[data-teil="papier-ab"]').exists()).toBe(false)
     vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })
     vi.setSystemTime(Date.now() + (WKR_ANNAHMEN.papierHinweisSek + 5) * 1000)
-    await zeigt(() => w.find('[data-teil="papier-ab"]').exists(), 3000)
+    await zeigt(() => w.find('[data-teil="papier-ab"]').exists())
     expect(w.find('[data-teil="papier-ab"]').text()).toBe(`Länger weg? Papierbogen ab Nr. ${s.startNr}`)
     expect(w.find('[data-teil="getrennt"]').text()).toContain('Keine Verbindung seit 5 min')
   })
 
-  it('pausiert und abgemeldet: Band „Papierbogen gilt“, „Weiter digital“ → wieder Maske', async () => {
+  it('pausiert: Band „Papierbogen gilt“, „Weiter digital“ → wieder Maske; abmelden: Ruhe „abgemeldet“ ohne Weiter', async () => {
     const { w, state, zeige } = await listeMitStart('tor5')
     await klick(w, '[data-action="mehr"]')
     await klick(w, '[data-action="pausieren"]')
@@ -330,9 +338,44 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
     await klick(w, '[data-action="mehr"]')
     await klick(w, '[data-action="abmelden"]')
     await klick(w, '[data-action="abmelden-ja"]')
-    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'abgemeldet')
-    expect(state.value.wkr.listen[TOR5].status).toBe('abgemeldet')
+    // Abmelden wirkt wie Liste entfernen (Nutzer 21.11.2026) – eigene Ruhe-Ansicht, kein „Weiter digital“.
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'abmeldung')
+    await bis(() => state.value.wkr.listen[TOR5].status === 'abgemeldet')
+    expect(w.find('[data-action="weiter-digital"]').exists()).toBe(false)
   })
+
+  // Nutzer 21.11.2026: „Das muss so sein, als ob ich die Liste von dem Gerät entferne.“ (WKR_ANNAHMEN.abmeldenWieEntfernen)
+  it('Abmelden: Ruhe „Von Tor 5 abgemeldet“ mit „Zuletzt“ und Entwurf, keine Starterkarte; Liste am Bedienrechner abgemeldet und vom Gerät genommen; neu zuweisen → Maske', async () => {
+    const { w, h, state, s, zeige, id } = await listeMitStart('tor5')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s.starter)['erfasst@tor5'] === '1')
+    await zeigt(() => taktFrei(w))
+    const zweiter = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === zweiter.startNr)
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="abmelden"]')
+    await klick(w, '[data-action="abmelden-ja"]')
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'abmeldung')
+    const ruheText = () => w.find('[data-teil="ruhe"]').text()
+    expect(w.find('[data-teil="abmeldung-band"]').text()).toContain('Tor 5')
+    expect(w.find('[data-teil="abmeldung-band"]').text()).toContain('abgemeldet')
+    expect(w.find('[data-teil="karte"]').exists()).toBe(false)
+    expect(w.find('[data-action="weiter-digital"]').exists()).toBe(false)
+    expect(w.find('[data-teil="zuletzt-lesend"]').text()).toContain(s.startNr)
+    expect(w.find('[data-teil="entwuerfe-lesend"]').text()).toContain(zweiter.startNr)
+    // Am Bedienrechner: abgemeldet (nicht offen), das Gerät hat die Liste nicht mehr – die Ansicht bleibt.
+    await bis(() => state.value.wkr.listen[TOR5].status === 'abgemeldet' && (h.raum.value?.geraete[0].aufgaben.length ?? 1) === 0)
+    await nextTick()
+    expect(ruheArt(w)).toBe('abmeldung')
+    expect(ruheText()).toContain('neu zuweisen')
+    expect(w.text()).not.toMatch(NAMEN)
+    // Neu zuweisen: wieder die Maske (der Bediener stellt die Liste mit „Weiter“ wieder auf aktiv).
+    h.setzeAufgaben(id(), [{ art: 'liste', liste: TOR5 }])
+    // Die Liste steht am Bedienrechner noch auf „abgemeldet“: Ruhe mit „Weiter digital“ wie vom Bediener.
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'abgemeldet')
+    expect(w.find('[data-action="weiter-digital"]').exists()).toBe(true)
+  }, 20_000)
 
   it('Papier-Modus vom Bedienrechner: nichts zu tippen', async () => {
     const { w, dispatch } = await listeMitStart('tor5')
@@ -367,7 +410,7 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
 
 describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
   it('Steg ganz: zwei Reiter mit Wartezahl, wechselt nie von selbst; X nur im Ablegen, mit großer Rückfrage', async () => {
-    const { w, state, s } = await listeMitStart('steg')
+    const { w, state, s, zeige } = await listeMitStart('steg')
     const reiter = () => w.findAll('[data-action="steg-teil"]')
     expect(reiter().map((r) => r.attributes('data-steg'))).toEqual(['ab', 'an'])
     expect(w.find('[data-action="steg-teil"][data-steg="ab"]').attributes('aria-selected')).toBe('true')
@@ -380,7 +423,20 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
     await klick(w, '[data-action="x-nein"]')
     expect(w.find(x).attributes('data-stand')).toBe('frei')
 
+    // Anlegen nachlaufend (T2): erst, wenn der nächste Start gezeigt ist, kommt dieser zurück – und auf einem Gerät für
+    // den ganzen Steg erst nach seinem Ablegen (T3).
     await klick(w, '[data-action="steg-teil"][data-steg="an"]')
+    expect(w.find('[data-teil="karte"]').exists()).toBe(false)
+    zeige()
+    await ruhe(150)
+    expect(w.find('[data-teil="karte"]').exists()).toBe(false)
+    await klick(w, '[data-action="steg-teil"][data-steg="ab"]')
+    await zeigt(() => startNr(w) === s.startNr)
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(state.value, s.starter)['erfasst.ab@steg'])
+    await zeigt(() => taktFrei(w))
+    await klick(w, '[data-action="steg-teil"][data-steg="an"]')
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
     expect(haupt(w).text()).toBe('Anlegen OK ✓')
     await klick(w, '[data-action="disq"]')
     expect(w.find(x).exists()).toBe(false)
@@ -390,18 +446,36 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
     await klick(w, '[data-action="haupt"]')
     await bis(() => werte(state.value, s.starter)['katalog:stegAnlegen'] === '9')
     // Nach dem Takt bleibt der Reiter „Anlegen“ – kein Sprung zum Ablegen.
-    await ruhe(WKR_ANNAHMEN.uebertragenMaxMs + WKR_ANNAHMEN.sperreMs + 100)
+    await zeigt(() => taktFrei(w))
     expect(w.find('[data-action="steg-teil"][data-steg="an"]').attributes('aria-selected')).toBe('true')
-  }, 12_000)
+  }, 20_000)
 
   it('Steg-Teil-Gerät (nur Anlegen): nur der eigene Reiter', async () => {
     const r = await bedienrechner()
     const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG, teil: 'an' }])
     await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
+    const erster = r.zeige()
+    // Im Boot: noch nichts anzulegen (T2); nach dem nächsten Start kommt der erste zurück.
+    await ruhe(150)
+    expect(w.find('[data-teil="karte"]').exists()).toBe(false)
     r.zeige()
-    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === erster.startNr)
     expect(w.findAll('[data-action="steg-teil"]').map((b) => b.attributes('data-steg'))).toEqual(['an'])
     expect(haupt(w).text()).toBe('Anlegen OK ✓')
+  })
+
+  // Nutzer 21.11.2026 (T1): Ablegen läuft der Tafel voraus.
+  it('Steg ganz: Ablegen zeigt „Als Nächstes“ schon vor dem Zeigen (vorab), Anlegen ist leer', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG }])
+    await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
+    const naechster = lage(r.state.value, P1).naechster!
+    const nr = r.state.value.starters.find((p) => p.id === naechster.starter)!.startNr
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === nr)
+    expect(w.find('[data-teil="vorab"]').text()).toBe('noch nicht gezeigt')
+    expect(haupt(w).text()).toBe('Ablegen OK ✓')
+    await klick(w, '[data-action="steg-teil"][data-steg="an"]')
+    expect(w.find('[data-teil="karte"]').exists()).toBe(false)
   })
 
   it('Vorsteg: „In Ordnung ✓“ für einen noch nicht gezeigten Start (vorab), X fragt groß', async () => {
@@ -654,7 +728,7 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
     await klick(w, '[data-action="haupt"]')
     await bis(() => werte(r.state.value, s1.starter)['katalog:tor5'] === '1')
     const s2 = r.zeige()
-    await zeigt(() => startNr(w) === s2.startNr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 5000)
+    await zeigt(() => startNr(w) === s2.startNr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei')
 
     await oeffneAbschlussUeberMehr(w)
     expect(w.find('[data-teil="summe"]').text()).toBe(`1 abgeschickt, 1 offen: ${s2.startNr}`)
@@ -699,6 +773,8 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
     const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG, teil: 'an' }])
     await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
     const s = r.zeige()
+    // Anlegen nachlaufend (T2): erst nach dem nächsten Start; der dann im Boot zählt für den Abschluss nicht (T9).
+    r.zeige()
     await zeigt(() => w.find('[data-teil="karte"]').exists())
     await klick(w, '[data-action="haupt"]')
     await bis(() => !!werte(r.state.value, s.starter)['erfasst.an@steg'])
@@ -837,7 +913,7 @@ describe('Probe beim Einrichten (W3.4, G10)', () => {
     await klick(w, '[data-action="haupt"]')
     expect(probe().attributes('data-takt')).toBe('gesendet')
     expect(w.find('[data-teil="mitte"]').attributes('inert')).toBeDefined()
-    await zeigt(() => probe().attributes('data-schritt') === 'fertig', 5000)
+    await zeigt(() => probe().attributes('data-schritt') === 'fertig')
     await klick(w, '[data-action="probe-fertig"]')
     expect(w.find('[data-teil="probe"]').exists()).toBe(false)
     expect(w.find('[data-teil="maske"]').exists()).toBe(true)
@@ -1044,7 +1120,7 @@ describe('Befund 15 (21.11.2026): zwei Tabs derselben Kopplung', () => {
     await klick(w2, '[data-action="haupt"]')
     await bis(() => !!werte(r.state.value, r.s.starter)['erfasst@tor5'])
     const s2 = r.zeige()
-    await zeigt(() => startNr(w2) === s2.startNr && w2.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 5000)
+    await zeigt(() => startNr(w2) === s2.startNr && w2.find('[data-teil="maske"]').attributes('data-takt') === 'frei')
     await klick(w2, '[data-action="haupt"]')
     await bis(() => !!werte(r.state.value, s2.starter)['erfasst@tor5'])
     // „Hier weitermachen“ im alten Tab: jetzt ist der neue verdrängt.
@@ -1071,7 +1147,7 @@ describe('Feldtest 21.11.2026: Neuladen (N11, N12) und „Bitte Nr. prüfen“ (
     await bis(() => !!werte(r.state.value, r.s.starter)['erfasst@tor5'])
     const s2 = r.zeige()
     r.zeige()
-    await zeigt(() => startNr(r.w) === s2.startNr && r.w.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 5000)
+    await zeigt(() => startNr(r.w) === s2.startNr && r.w.find('[data-teil="maske"]').attributes('data-takt') === 'frei')
 
     const w = await neuLaden(r.w, r.speicher)
     // Die abgelegte Sicht zeigt die Maske sofort – während die Verbindung erst aufgebaut wird.
@@ -1081,7 +1157,7 @@ describe('Feldtest 21.11.2026: Neuladen (N11, N12) und „Bitte Nr. prüfen“ (
     expect(w.find('[data-teil="getrennt"]').exists()).toBe(false)
     expect(w.find('[data-teil="geschaetzt"]').exists()).toBe(false)
     expect(w.html()).not.toContain('0 Zeilen')
-    await zeigt(() => w.find('[data-teil="verbindung"]').attributes('data-lage') === 'verbunden', 5000)
+    await zeigt(() => w.find('[data-teil="verbindung"]').attributes('data-lage') === 'verbunden')
     expect(w.find('[data-teil="getrennt"]').exists()).toBe(false)
     await zeigt(() => startNr(w) === s2.startNr)
     await klick(w, '[data-action="code"][data-code="1"]')
@@ -1089,7 +1165,7 @@ describe('Feldtest 21.11.2026: Neuladen (N11, N12) und „Bitte Nr. prüfen“ (
     await bis(() => werte(r.state.value, s2.starter)['katalog:tor5'] === '1')
     // Auch ein Start, der erst nach dem Neuladen gezeigt wird, kommt auf das Handy (Abo steht wieder).
     const s4 = r.zeige()
-    await zeigt(() => w.findAll('[data-action="ausweichen"]').some((b) => b.text() === s4.startNr) || startNr(w) === s4.startNr, 5000)
+    await zeigt(() => w.findAll('[data-action="ausweichen"]').some((b) => b.text() === s4.startNr) || startNr(w) === s4.startNr)
   })
 
   it('kommt die Verbindung nach dem Neuladen nicht, wird es erst nach der Karenz rot – ohne „0 Zeilen warten“', async () => {
@@ -1104,14 +1180,16 @@ describe('Feldtest 21.11.2026: Neuladen (N11, N12) und „Bitte Nr. prüfen“ (
       },
     )
     const karenz = WKR_ANNAHMEN.verbindeKarenzSek
-    // Nur hier kürzer, damit der Test nicht 12 s wartet; der Wert selbst steht in WKR_ANNAHMEN.
-    ;(WKR_ANNAHMEN as { verbindeKarenzSek: number }).verbindeKarenzSek = 0.4
+    // Nur hier kürzer, damit der Test nicht 12 s wartet; der Wert selbst steht in WKR_ANNAHMEN. 2 s statt 0,4 s (Prüfung
+    // unter Last 21.11.2026): Neuladen und erstes Bild brauchen auf zwei belegten Kernen schon fast 0,4 s – dann stünde
+    // „getrennt“ da, bevor der Test „verbinde“ sehen kann.
+    ;(WKR_ANNAHMEN as { verbindeKarenzSek: number }).verbindeKarenzSek = 2
     try {
       const w = await neuLaden(r.w, r.speicher)
       await zeigt(() => w.find('[data-teil="verbindung"]').exists())
       expect(w.find('[data-teil="verbindung"]').attributes('data-lage')).toBe('verbinde')
       expect(w.find('[data-teil="getrennt"]').exists()).toBe(false)
-      await zeigt(() => w.find('[data-teil="getrennt"]').exists(), 3000)
+      await zeigt(() => w.find('[data-teil="getrennt"]').exists())
       expect(w.find('[data-teil="verbindung"]').attributes('data-lage')).toBe('getrennt')
       expect(w.find('[data-teil="getrennt"]').text()).toBe('Keine Verbindung – weiter erfassen')
     } finally {
@@ -1173,7 +1251,7 @@ describe('Feldtest 21.11.2026: Neuladen (N11, N12) und „Bitte Nr. prüfen“ (
     const s2 = zeige()
     expect(s2.startNr).toBe(s.startNr)
     expect(s2.key).not.toBe(s.key)
-    await zeigt(() => w.find('[data-teil="maske"]').attributes('data-takt') === 'frei' && w.find('[data-teil="karte"]').exists() && w.find('[data-teil="lauf"]').text().includes('2'), 6000)
+    await zeigt(() => w.find('[data-teil="maske"]').attributes('data-takt') === 'frei' && w.find('[data-teil="karte"]').exists() && w.find('[data-teil="lauf"]').text().includes('2'))
     h.hinweis(TOR5, 'pruefen', s.startNr)
     await zeigt(() => w.find('[data-action="hinweis-oeffnen"]').exists())
     await klick(w, '[data-action="hinweis-oeffnen"]')
@@ -1249,11 +1327,11 @@ describe('Bojen (W4.2)', () => {
 
     // Klasse 7: andere Halte → Band über der Karte (verschiebt nichts), Umschalter auf „Hinweg“.
     const s7 = zeige()
-    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s7.startNr, 6000)
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s7.startNr)
     expect(w.find('[data-teil="klassen-wechsel"]').text()).toBe('Klasse 7 – andere Halte')
     expect(w.find('.wkr-karten-platz [data-teil="klassen-wechsel"]').exists()).toBe(true)
     const mitte = w.find('[data-teil="bojen"]').html()
-    await zeigt(() => !w.find('[data-teil="klassen-wechsel"]').exists(), WKR_ANNAHMEN.klassenWechselMs + 1500)
+    await zeigt(() => !w.find('[data-teil="klassen-wechsel"]').exists())
     expect(w.find('[data-teil="bojen"]').html()).toBe(mitte)
     expect(w.find('[data-action="weg"][data-weg="hin"]').attributes('aria-selected')).toBe('true')
     expect(w.findAll('[data-teil="halt"]').map((h) => h.attributes('data-halt'))).toEqual(['start', 't1a', 't3a', 't5'])
@@ -1310,7 +1388,7 @@ describe('Bojen (W4.2)', () => {
     // 401 (Kl. 4) fehlerfrei – dann steht 701 vorn, 402 und 702 zum Ausweichen.
     await klick(w, '[data-action="haupt"]')
     await bis(() => !!werte(state.value, s4.starter)['erfasst@gate135'])
-    await zeigt(() => startNr(w) === s7.startNr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 6000)
+    await zeigt(() => startNr(w) === s7.startNr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei')
     await klick(w, '[data-action="weg"][data-weg="rueck"]')
     await klick(w, boje('t3b|rueck seiteB'))
     expect(w.find('[data-action="weg"][data-weg="rueck"]').attributes('aria-selected')).toBe('true')
@@ -1442,7 +1520,7 @@ describe('Bojen (W4.2)', () => {
       paar = lage(r.state.value, 'parallel').aktuell!.eintrag!.paar ?? undefined
     }
     const nr = r.state.value.starters.find((x) => x.id === paar!.a)!.startNr
-    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === nr, 5000)
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === nr)
     expect(w.findAll('[data-teil="halt-titel"]').map((h) => h.text())).toEqual(['Start', 'Buoy 1', 'Buoy 2', 'Buoy 3', 'Buoy 4', 'Buoy 5'])
     expect(w.find(boje('b1a')).text()).toBe('Touched')
     await klick(w, boje('b1a'))
@@ -1489,7 +1567,7 @@ describe('„Nicht vorbeigekommen“ (W4.3)', () => {
     await klick(w, '[data-action="zuletzt"]')
     expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('⊘ nicht vorbeigekommen')
     await klick(w, '[data-action="zuletzt"]')
-    await zeigt(() => w.find('[data-teil="maske"]').attributes('data-takt') === 'frei' || w.find('[data-teil="ruhe"]').exists(), 5000)
+    await zeigt(() => w.find('[data-teil="maske"]').attributes('data-takt') === 'frei' || w.find('[data-teil="ruhe"]').exists())
     await oeffneAbschlussUeberMehr(w)
     expect(w.find('[data-teil="summe"]').text()).toContain(`1 nicht vorbeigekommen: ${s.startNr}`)
     const zeile = w.find('[data-teil="pruef-zeile"]')
@@ -1528,7 +1606,13 @@ describe('„Nicht vorbeigekommen“ (W4.3)', () => {
     const st = await listeMitStart('steg')
     expect((await nvMehr(st.w)).exists()).toBe(false)
     await klick(st.w, '[data-action="mehr"]')
+    // Anlegen nachlaufend (T2) und auf dem ganzen Steg nach dem Ablegen (T3): erst ablegen, dann der nächste Start.
+    await klick(st.w, '[data-action="haupt"]')
+    await bis(() => !!werte(st.state.value, st.s.starter)['erfasst.ab@steg'])
+    await zeigt(() => taktFrei(st.w))
+    st.zeige()
     await klick(st.w, '[data-action="steg-teil"][data-steg="an"]')
+    await zeigt(() => st.w.find('[data-teil="karte"]').exists() && startNr(st.w) === st.s.startNr)
     const knopf = await nvMehr(st.w)
     expect(knopf.exists()).toBe(true)
     await knopf.trigger('click')
@@ -1536,6 +1620,7 @@ describe('„Nicht vorbeigekommen“ (W4.3)', () => {
     await klick(st.w, '[data-action="nicht-vorbei-ja"]')
     await bis(() => st.state.value.wkr.nichtVorbei[st.l]?.length === 1)
     expect(st.state.value.wkr.nichtVorbei[st.l][0]).toMatch(/\|an$/)
-    expect(werte(st.state.value, st.s.starter)).toEqual({ 'erfasst.an@steg': '1' })
-  }, 15_000)
+    expect(werte(st.state.value, st.s.starter)).toMatchObject({ 'erfasst.ab@steg': '1', 'erfasst@steg': '1' })
+    expect(werte(st.state.value, st.s.starter)['katalog:stegAnlegen'] ?? '').toBe('')
+  }, 20_000)
 })
