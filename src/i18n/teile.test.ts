@@ -6,6 +6,13 @@ import de from './de'
 const deTeile = import.meta.glob<Record<string, string>>('./de/*.ts', { eager: true, import: 'default' })
 const enTeile = import.meta.glob<Record<string, string>>('./en/*.ts', { eager: true, import: 'default' })
 
+/**
+ * Unterpräfixe mit eigener Datei (CLAUDE.md hier): `wkr.geraet.*` (Handy-Maske, wkrGeraet.ts, W3.3 21.11.2026) liegt
+ * neben `wkr.*` (WKR-Einteilung, listenoptionen.ts) – eigener Bereich, weil die Maske in der Sprache der Liste spricht.
+ */
+const UNTERPRAEFIXE = ['wkr.geraet']
+const praefixVon = (key: string) => UNTERPRAEFIXE.find((u) => key.startsWith(`${u}.`)) ?? key.split('.')[0]
+
 describe('Teile der Kataloge', () => {
   it('en/ ist wie de/ geschnitten: dieselben Dateien mit denselben Schlüsseln', () => {
     expect(Object.keys(enTeile).map((p) => p.replace('./en/', '')).sort()).toEqual(
@@ -21,7 +28,7 @@ describe('Teile der Kataloge', () => {
     let anzahl = 0
     for (const [pfad, teil] of Object.entries(deTeile)) {
       for (const key of Object.keys(teil)) {
-        const praefix = key.split('.')[0]
+        const praefix = praefixVon(key)
         expect(ort.get(praefix) ?? pfad, `${praefix} steht auch in ${pfad}`).toBe(pfad)
         ort.set(praefix, pfad)
         anzahl++

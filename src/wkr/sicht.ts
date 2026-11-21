@@ -4,7 +4,7 @@ import type { BogenTexte } from '../config/sprache'
 import { bereicheZumStand, laeufeVonPunkt, lage, rundeVonPunkt } from '../betrieb/folge'
 import { defFuerKlasse } from '../lib/bogen'
 import { erfasstKennung, listenFelder, teilHaken, werteVon } from '../lib/eingaben'
-import { wkrSpracheFuer } from '../lib/listensprache'
+import { bietetEnglisch, wkrSpracheFuer } from '../lib/listensprache'
 import { RACECOURSE_PARCOURS } from '../lib/parallelSchluessel'
 import { geraetVonZeile } from '../state/reducer/wkr'
 import { abgeschlossenePunkte, abschlussVon, TEILE } from './abschluss'
@@ -24,8 +24,12 @@ import { danach, schlange, type SchlangenStart } from './schlange'
 // Hinweise der anderen – nie ein Gerät einer anderen Liste (WKR_ANNAHMEN.rueckfrageInListe, Prüfbefund 21.11.2026).
 // Rein und zeitunabhängig: gleicher Stand und gleiches `extra` ⇒ gleiche Sicht (der Host vergleicht nach Inhalt).
 
-/** Fassung der Sicht der Liste: zählt hoch, wenn sich ihre Form ändert (Geräte zeigen nur dieselbe Fassung). */
-export const LISTEN_SICHT_FASSUNG = 2
+/**
+ * Fassung der Sicht der Liste: zählt hoch, wenn sich ihre Form ändert (Geräte zeigen nur dieselbe Fassung).
+ * 3 seit W3 (21.11.2026): `andere` (zweite Sprache der Maske, F13); bei zweisprachiger Liste stehen die Masken
+ * (`klassen`) deutsch, die englischen in `andere` (G9).
+ */
+export const LISTEN_SICHT_FASSUNG = 3
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier
@@ -92,6 +96,25 @@ export interface ListenGeraet {
   abweichend?: string[]
 }
 
+/** Ein Feld der Maske in der anderen Sprache: nur Texte – Art, Teil und Punkte stehen einmal in `klassen`. */
+export interface AndereFeld {
+  kennung: string
+  label: string
+  katalog?: { code: string; text: string }[]
+  disq?: { code: string; text: string }[]
+}
+
+/**
+ * Die Maske in der anderen Sprache (F13, W3): nur, wenn das Regelwerk beide Sprachen hat (UIM; DM kennt kein
+ * Englisch). Nur Texte, keine Werte, keine Namen.
+ */
+export interface ListenAndere {
+  sprache: 'de' | 'en'
+  titel: string
+  bereich: string
+  klassen: Partial<Record<ClassId, { titel: string; felder: AndereFeld[] | null }>>
+}
+
 export interface ListenSicht {
   lv: typeof LISTEN_SICHT_FASSUNG
   liste: string
@@ -111,7 +134,73 @@ export interface ListenSicht {
   danach: ListenStart[]
   /** Je Klasse die Maske; `null` = die Klasse hat diese Liste nicht (entfällt). */
   klassen: Partial<Record<ClassId, { titel: string; felder: MaskenFeld[] | null }>>
+  /** Dieselben Masken in der anderen Sprache (F13), nur unter einem Regelwerk mit [de, en]. */
+  andere?: ListenAndere
   geraete: Record<string, ListenGeraet>
+}
+
+export type MaskenJeKlasse = ListenSicht['klassen']
+
+/**
+ * Die Masken je Klasse einer Liste, in der Sprache von `sprachKonfig` – geteilt von {@link sichtListe} und der Übung
+ * (wkr/uebung.ts), damit beide dieselbe Maske bauen. `konfig` ist die des Stands (welche Klasse die Liste hat);
+ * `null` = die Klasse hat diese Liste nicht (entfällt) oder die Liste ist unbekannt. X „nicht gestartet“ nur, wo F5 es
+ * erlaubt (`xErlaubt`: die Liste darf es; am Steg nur im Teil Ablegen und in gemeinsamen Spalten).
+ */
+export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: string, klassenIds: Iterable<ClassId>, xErlaubt: boolean): MaskenJeKlasse {
+  const texte = sprachKonfig.getBogenTexte()
+  const bekannt = konfig.getPositions().some((p) => p.typeId === typeId)
+  const teile = teileVon(typeId)
+  const klassen: MaskenJeKlasse = {}
+  for (const k of [...new Set(klassenIds)].sort()) {
+    if (!bekannt || !konfig.positionAllowsClass(typeId, k)) {
+      klassen[k] = { titel: texte.klasse(k), felder: null }
+      continue
+    }
+    const disqTabelle = defFuerKlasse(sprachKonfig.getSheetDef(typeId), k).disqTable ?? []
+    const felder = listenFelder(sprachKonfig, typeId, k).map((f): MaskenFeld => {
+      const out: MaskenFeld = { kennung: f.kennung, kind: f.kind, label: f.label }
+      const teil = teilVonZelle(typeId, f.zelle)
+      if (teil === 'ab' || teil === 'an') out.teil = teil
+      if (f.kind === 'code' && f.katalog) out.katalog = f.katalog.map((e) => ({ code: e.code, punkte: e.punkte, text: e.text }))
+      if (f.kind === 'buoy' || f.kind === 'code' || f.kind === 'disq') {
+        // X „nicht gestartet“ nur am Steg (Ablegen bzw. gemeinsame Spalte) und am Vorsteg (F5) – sonst lehnt der
+        // Bedienrechner die Zeile ohnehin ab; die Maske bietet es gar nicht erst an.
+        const xHier = xErlaubt && (!teile || teil === WKR_ANNAHMEN.xTeil || teil === 'gemeinsam')
+        out.disq = disqTabelle.filter((d) => d.code !== 'X' || xHier).map((d) => ({ code: d.code, text: d.text }))
+      }
+      return out
+    })
+    klassen[k] = { titel: texte.klasse(k), felder }
+  }
+  return klassen
+}
+
+/** Nur die Texte der Masken – für `andere` (Feld für Feld neu, wie die ganze Sicht). */
+export function maskenTexte(klassen: MaskenJeKlasse): ListenAndere['klassen'] {
+  const out: ListenAndere['klassen'] = {}
+  for (const [k, v] of Object.entries(klassen) as [ClassId, NonNullable<MaskenJeKlasse[ClassId]>][]) {
+    out[k] = {
+      titel: v.titel,
+      felder:
+        v.felder?.map((f) => {
+          const a: AndereFeld = { kennung: f.kennung, label: f.label }
+          if (f.katalog) a.katalog = f.katalog.map((e) => ({ code: e.code, text: e.text }))
+          if (f.disq) a.disq = f.disq.map((d) => ({ code: d.code, text: d.text }))
+          return a
+        }) ?? null,
+    }
+  }
+  return out
+}
+
+/**
+ * Sprache der Maske (G9): eine Sprache je Knopf – bei zweisprachiger Liste Deutsch, die andere ist dann Englisch.
+ * `andere` nur, wenn das Regelwerk Englisch anbietet.
+ */
+export function maskenSprachen(regelwerk: string, sprache: Sprache): { maske: 'de' | 'en'; andere: 'de' | 'en' | null } {
+  const maske = sprache === 'en' ? 'en' : 'de'
+  return { maske, andere: bietetEnglisch(regelwerk) ? (maske === 'de' ? 'en' : 'de') : null }
 }
 
 /** Der Titel eines Punkts in der Sprache der Liste (wie betrieb/sicht.ts sichtPunkt). */
@@ -165,30 +254,11 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
 
   // Masken je Klasse: alle Klassen des Bereichs (die Folge) und der gezeigten Starts – auch ohne Netz muss das Gerät
   // die nächsten Klassen kennen.
-  const klassenIds = new Set<ClassId>([...l.folge.map((e) => e.klasse), ...inSchlange.map((s) => s.klasse), ...spaeter.map((s) => s.klasse)])
+  const klassenIds = [...l.folge.map((e) => e.klasse), ...inSchlange.map((s) => s.klasse), ...spaeter.map((s) => s.klasse)]
   const xErlaubt = WKR_ANNAHMEN.xListen.includes(liste.typeId)
-  const klassen: ListenSicht['klassen'] = {}
-  for (const k of [...klassenIds].sort()) {
-    if (!bekannt || !konfig.positionAllowsClass(liste.typeId, k)) {
-      klassen[k] = { titel: texte.klasse(k), felder: null }
-      continue
-    }
-    const disqTabelle = defFuerKlasse(sprachKonfig.getSheetDef(liste.typeId), k).disqTable ?? []
-    const felder = listenFelder(sprachKonfig, liste.typeId, k).map((f): MaskenFeld => {
-      const out: MaskenFeld = { kennung: f.kennung, kind: f.kind, label: f.label }
-      const teil = teilVonZelle(liste.typeId, f.zelle)
-      if (teil === 'ab' || teil === 'an') out.teil = teil
-      if (f.kind === 'code' && f.katalog) out.katalog = f.katalog.map((e) => ({ code: e.code, punkte: e.punkte, text: e.text }))
-      if (f.kind === 'buoy' || f.kind === 'code' || f.kind === 'disq') {
-        // X „nicht gestartet“ nur am Steg (Ablegen bzw. gemeinsame Spalte) und am Vorsteg (F5) – sonst lehnt der
-        // Bedienrechner die Zeile ohnehin ab; die Maske bietet es gar nicht erst an.
-        const xHier = xErlaubt && (!teile || teil === WKR_ANNAHMEN.xTeil || teil === 'gemeinsam')
-        out.disq = disqTabelle.filter((d) => d.code !== 'X' || xHier).map((d) => ({ code: d.code, text: d.text }))
-      }
-      return out
-    })
-    klassen[k] = { titel: texte.klasse(k), felder }
-  }
+  const sprachen = maskenSprachen(stand.regelwerk, sprache)
+  const konfigIn = (sp: Sprache) => (sp === sprache ? sprachKonfig : configFor({ regelwerk: stand.regelwerk, sprache: sp, beschriftung: stand.beschriftung, eigeneAufbauten: stand.eigeneAufbauten }))
+  const klassen = maskenJeKlasse(konfig, konfigIn(sprachen.maske), liste.typeId, klassenIds, xErlaubt)
 
   const abgeschlossen = abgeschlossenePunkte(stand.wkr, kennung, undefined, !!teile)
   const punkt = l.laufend
@@ -227,6 +297,16 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
     danach: spaeter.map(start),
     klassen,
     geraete,
+  }
+  if (sprachen.andere !== null) {
+    const andereKonfig = konfigIn(sprachen.andere)
+    const at = andereKonfig.getBogenTexte()
+    sicht.andere = {
+      sprache: sprachen.andere,
+      titel: bekannt ? andereKonfig.getSheetDef(liste.typeId).title : liste.typeId,
+      bereich: liste.racecourse !== null ? at.racecourse(liste.racecourse) : info ? at.parcoursName(info.name) : liste.bereich,
+      klassen: maskenTexte(maskenJeKlasse(konfig, andereKonfig, liste.typeId, klassenIds, xErlaubt)),
+    }
   }
   if (teile) {
     const teil = (t: 'ab' | 'an') => ({ status: eintrag?.teile?.[t]?.status ?? 'aktiv', abgeschlossen: abgeschlossenePunkte(stand.wkr, kennung, t, true) })

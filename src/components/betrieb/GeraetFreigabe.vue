@@ -4,16 +4,20 @@ import type { SichtBereich } from '../../types'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from '../../geraete/gekoppelt'
 import type { FassungsLage, LeseUmgebung } from '../../geraete/geraet'
-import { freigabeBereiche } from '../../geraete/aufgaben'
+import { freigabeBereiche, listenAufgaben } from '../../geraete/aufgaben'
+import { oeffneErfassung, type Erfassung } from '../../geraete/erfassen'
+import { liesListe } from '../../wkr/liste'
 import { geraeteArt } from '../../geraete/geraeteName'
 import { normalisiereCode } from '../../geraete/koppeln'
 import { GERAET } from '../../geraete/paket'
 import { verbindungsLage, type Fehlercode } from '../../geraete/transport/typen'
 import { useUhr } from '../../lib/uhr'
+import { UEBUNG_ADRESSE } from '../../lib/adressen'
 import { t } from '../../i18n'
 import AppDialog from '../AppDialog.vue'
 import GeraeteLage from './GeraeteLage.vue'
 import StartFreigabe from './StartFreigabe.vue'
+import WkrGeraet from '../wkr/WkrGeraet.vue'
 import { fingerabdruckText, startZeile } from './texte'
 
 /**
@@ -31,6 +35,13 @@ import { fingerabdruckText, startZeile } from './texte'
  * - W2.4: Stand der WKR-Erfassung (Geräteleiste, Rückstand, „Trotzdem freigeben?“) aus der Freigabe-Gruppe des
  *   Bereichs (geraete/gekoppelt.ts `freigabe`) – ohne Werte und Namen; ohne Schlüssel bleibt die Leiste einfach weg.
  * - Entzogen: Hinweis, dazu nur lesend, wer im Boot sitzt und wer als Nächstes (K14, gewollt); neu koppeln mit Code.
+ * - W3.3 (21.11.2026, Plan docs/plan-wkr-w3.md §5): Hat das Gerät Listen-Aufgaben, öffnet es EINMAL die WKR-Erfassung
+ *   (geraete/erfassen.ts oeffneErfassung; stop beim Unmount, Entkoppeln oder einem anderen Gerät) und zeigt die Maske
+ *   components/wkr/WkrGeraet.vue. Mit Start-Freigabe UND Liste unten Reiter „Freigabe“ / Listenname. Nach dem Entzug
+ *   bleibt die Erfassung offen, damit nicht abgeschickte Entwürfe lesbar bleiben (Auslegung K3, WKR_ANNAHMEN) – sie
+ *   schickt dann nichts mehr. Bildschirm wach: GeraetApp (E8), solange diese Seite offen ist.
+ * - W3.4 (21.11.2026): WkrGeraet bekommt den Raum (`raum` = u/r/s des Pakets) für die Probe je Raum und Liste (G10);
+ *   im Koppel-Formular (und ohne Gerät) der Verweis „Üben ohne Verbindung“ → `#/uebung` (G13, GeraetApp ohne Store).
  * - „Gerät entkoppeln“ löscht Kopplung und Schlüssel auf dem Gerät (verlasse); im Register des Hosts bleibt es, bis
  *   es dort entzogen wird – der Host erfährt davon nichts (keine Nachricht ohne Rechte, kein Kontingent dafür).
  */
@@ -98,7 +109,10 @@ watch(
   },
 )
 onMounted(() => oeffne(props.paket))
-onBeforeUnmount(() => geraet.value?.stop())
+onBeforeUnmount(() => {
+  stoppeWkr()
+  geraet.value?.stop()
+})
 
 // --- Koppeln ---
 const seitKoppeln = ref(0)
@@ -135,6 +149,40 @@ const eigene = computed<SichtBereich[]>(() => {
 
 /** W2.4: Stand der WKR-Erfassung je eigenem Bereich – aus der Freigabe-Gruppe (gekoppelt.ts), nie aus der Tafel-Sicht. */
 const erfassung = computed(() => geraet.value?.freigabe.value ?? {})
+
+// --- W3.3: WKR-Erfassung, wenn das Gerät Listen hat ---
+const wkr = shallowRef<Erfassung | null>(null)
+let wkrVon: GekoppeltesGeraet | null = null
+function stoppeWkr(): void {
+  wkr.value?.stop()
+  wkr.value = null
+  wkrVon = null
+}
+watch(
+  [geraet, () => geraet.value?.aufgaben.value],
+  () => {
+    const g = geraet.value
+    if (wkrVon && wkrVon !== g) stoppeWkr()
+    if (!g || wkr.value || listenAufgaben(g.aufgaben.value).length === 0) return
+    const u = props.umgebung
+    wkr.value = oeffneErfassung(g, { ...(u?.ablage !== undefined ? { ablage: u.ablage } : {}), ...(u?.uhr ? { uhr: u.uhr } : {}) })
+    wkrVon = g
+  },
+  { immediate: true },
+)
+const mitFreigabe = computed(() => !!geraet.value && freigabeBereiche(geraet.value.aufgaben.value).length > 0)
+const wkrListen = computed(() => wkr.value?.listen.value ?? [])
+/** Reiter unten, nur mit Freigabe UND Liste: 'freigabe' oder die Kennung einer Liste. */
+const reiter = ref('freigabe')
+const zeigeWkr = computed(() => !!wkr.value && wkrListen.value.length > 0 && (!mitFreigabe.value || reiter.value !== 'freigabe'))
+const wkrListe = computed(() => (mitFreigabe.value ? wkrListen.value.find((a) => a.liste === reiter.value)?.liste : undefined))
+const raum = computed(() => (geraet.value ? { u: geraet.value.paket.u, r: geraet.value.paket.r, s: geraet.value.paket.s } : null))
+const wkrTitel = (liste: string) => wkr.value?.sichten.value[liste]?.titel ?? '…'
+/** Meldung der Start-Freigabe im Bereich der Liste – aus der öffentlichen Sicht, wie auf der Anzeigetafel. */
+function meldungFuer(liste: string): string | null {
+  const bereich = liesListe(liste)?.bereich
+  return sicht.value?.bereiche.find((b) => b.id === bereich)?.meldung?.text ?? null
+}
 
 // --- Senden, Quittung ---
 const offen = computed(() => (geraet.value?.offen.value.length ?? 0) > 0)
@@ -184,6 +232,7 @@ watchEffect(() => {
 const frageEntkoppeln = ref(false)
 function entkopple(): void {
   frageEntkoppeln.value = false
+  stoppeWkr()
   geraet.value?.verlasse()
   lage.value = { art: 'entkoppelt' }
 }
@@ -208,6 +257,9 @@ function entkopple(): void {
         <h1>{{ t('geraete.freigabe.keinGeraet') }}</h1>
         <p>{{ t('geraete.freigabe.keinGeraet.hint') }}</p>
       </template>
+      <p v-if="lage.art === 'ohne' || lage.art === 'entkoppelt'">
+        <a class="btn" :href="UEBUNG_ADRESSE" data-action="ueben">{{ t('wkr.geraet.uebung.link') }}</a>
+      </p>
     </section>
 
     <section v-else-if="geraet.beendet.value" class="geraet-meldung" role="status" data-meldung="beendet">
@@ -218,6 +270,7 @@ function entkopple(): void {
       <!-- Entzogen: Hinweis und nur lesend, wer dran ist (K14). -->
       <template v-if="koppelLage === 'entzogen'">
         <p class="boat-banner warn geraet-banner" role="alert" data-teil="entzogen">{{ t('geraete.freigabe.entzogen') }}</p>
+        <WkrGeraet v-if="wkr && wkr.entwuerfe.value.length > 0" :quelle="wkr" :ablage="umgebung?.ablage" />
         <div class="geraet-lesend" data-teil="lesend">
           <section v-for="b in lesend" :key="b.id" class="panel geraet-lesend-bereich" :data-bereich="b.id">
             <h2>{{ b.name }}</h2>
@@ -235,7 +288,8 @@ function entkopple(): void {
 
       <!-- Gekoppelt: dieselbe Start-Freigabe wie am Bedienrechner, nur die eigenen Bereiche. -->
       <template v-else-if="koppelLage === 'gekoppelt'">
-        <section v-if="!sicht" class="geraet-meldung" role="status" data-meldung="warte">
+        <WkrGeraet v-if="zeigeWkr && wkr" :class="{ 'wkr-mit-reiter': mitFreigabe && wkrListen.length > 0 }" :quelle="wkr" :ablage="umgebung?.ablage" :nur-liste="wkrListe" :meldung-fuer="meldungFuer" :raum="raum" />
+        <section v-else-if="!sicht" class="geraet-meldung" role="status" data-meldung="warte">
           <h1>{{ t('geraete.freigabe.warte') }}</h1>
         </section>
         <section v-else-if="eigene.length === 0" class="geraet-meldung" role="status" data-meldung="keine-bereiche">
@@ -252,6 +306,24 @@ function entkopple(): void {
             <StartFreigabe v-for="b in eigene" :key="b.id" :sicht="sicht" :bereich="b" :sende="sende" :erfassung="erfassung[b.id]" nur-dieser />
           </fieldset>
         </template>
+        <nav v-if="mitFreigabe && wkrListen.length > 0" class="geraet-reiter" role="tablist" data-teil="geraet-reiter">
+          <button type="button" role="tab" class="btn" data-action="reiter" data-reiter="freigabe" :aria-selected="reiter === 'freigabe'" @click="reiter = 'freigabe'">
+            {{ t('wkr.geraet.reiter.freigabe') }}
+          </button>
+          <button
+            v-for="a in wkrListen"
+            :key="a.liste"
+            type="button"
+            role="tab"
+            class="btn"
+            data-action="reiter"
+            :data-reiter="a.liste"
+            :aria-selected="reiter === a.liste"
+            @click="reiter = a.liste"
+          >
+            {{ wkrTitel(a.liste) }}
+          </button>
+        </nav>
       </template>
 
       <section v-else-if="koppelLage === 'koppelt' && !keineAntwort" class="geraet-meldung" role="status" data-meldung="koppelt">
@@ -289,6 +361,10 @@ function entkopple(): void {
           </label>
           <button type="submit" class="btn primary betrieb-gross" data-action="koppeln">{{ t('geraete.freigabe.koppelnKnopf') }}</button>
         </form>
+        <!-- G13: üben, ohne gekoppelt zu sein – eigene Wurzel ohne Netz (GeraetApp `#/uebung`). -->
+        <p class="geraet-ueben">
+          <a class="btn" :href="UEBUNG_ADRESSE" data-action="ueben">{{ t('wkr.geraet.uebung.link') }}</a>
+        </p>
       </component>
     </template>
 

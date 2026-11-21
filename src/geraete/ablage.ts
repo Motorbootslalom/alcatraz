@@ -84,6 +84,17 @@ export const ABLAGE = {
    * Gehört zum Raum wie Verbindung und Sicht, gilt 36 h nach dem letzten Schreiben ({@link SICHT_GUELTIG_MS}).
    */
   geraetWkr: 'alcatraz.geraet.wkr',
+  /**
+   * Gerät (W3, 21.11.2026, G1/G12): Ansicht der WKR-Maske – Sonne/Hell/Dunkel, Hand, gewählte Sprache, zuletzt
+   * eingegebener WKR-Name. Vorliebe des Geräts, nicht des Raums: bleibt nach „Raum verlassen“, nur der Name geht
+   * ({@link verlasseRaum}). Nie AppState.
+   */
+  ansicht: 'alcatraz.geraet.ansicht',
+  /**
+   * Gerät (W3, G10): für welche Listen dieses Raums die Probe beim Einrichten erledigt ist. Gehört zum Raum (neuer Raum
+   * = neue Probe) und geht mit {@link verlasseRaum}/{@link pruefeRaum}.
+   */
+  probe: 'alcatraz.geraet.probe',
 } as const
 
 /** Präfixe der Ablage: Host und Gerät. Nichts davon gehört in `alcatraz:state:v1`. */
@@ -365,7 +376,7 @@ export function sichtAblage(bezug: RaumBezug, ablage: Ablage | null = vorgabe(),
  * Einstieg über einen neuen Link (Plan §3: „gelöscht … bei anderer Raum-ID“).
  */
 export function pruefeRaum(bezug: RaumBezug, ablage: Ablage | null = vorgabe()): void {
-  for (const schluessel of [ABLAGE.verbindung, ABLAGE.sicht, ABLAGE.kopplung, ABLAGE.geraetWkr]) {
+  for (const schluessel of [ABLAGE.verbindung, ABLAGE.sicht, ABLAGE.kopplung, ABLAGE.geraetWkr, ABLAGE.probe]) {
     const wert = liesJson(ablage, schluessel)
     if (wert !== null && !gleicherRaum(wert, bezug)) entferne(ablage, schluessel)
   }
@@ -373,7 +384,8 @@ export function pruefeRaum(bezug: RaumBezug, ablage: Ablage | null = vorgabe()):
 
 /**
  * „Raum verlassen“, Entzug (`entzogen`) oder signiertes Ende des Raums (K20): Verbindung samt Kennung und Sicht weg,
- * ebenso Kopplung und Ausgang der WKR-Erfassung (W1).
+ * ebenso Kopplung und Ausgang der WKR-Erfassung (W1) samt Entwürfen, W3 auch die Probe und der zuletzt eingegebene
+ * WKR-Name (G12) – die übrige Ansicht (Sonne, Hand, Sprache) ist eine Vorliebe des Geräts und bleibt.
  * Ein erneutes Koppeln (mit gültigem Code) beginnt mit neuem Schlüssel und Nummer 1 – ein altes willkommen aus dem
  * ntfy-Speicher geht mit dem neuen Schlüssel nicht mehr auf.
  */
@@ -382,6 +394,12 @@ export function verlasseRaum(ablage: Ablage | null = vorgabe()): void {
   entferne(ablage, ABLAGE.sicht)
   entferne(ablage, ABLAGE.kopplung)
   entferne(ablage, ABLAGE.geraetWkr)
+  entferne(ablage, ABLAGE.probe)
+  const ansicht = liesAnsicht(ablage)
+  if (ansicht.name !== undefined) {
+    const { name: _name, ...rest } = ansicht
+    schreibeJson(ablage, ABLAGE.ansicht, rest)
+  }
 }
 
 /** Wie weit ein gekoppeltes Gerät ist (E7). */
@@ -440,4 +458,66 @@ export function geraetWkrAblage(bezug: RaumBezug, ablage: Ablage | null = vorgab
       return schreibeJson(ablage, ABLAGE.geraetWkr, { ...raum, bis: uhr() + SICHT_GUELTIG_MS, inhalt })
     },
   }
+}
+
+// ---------------------------------------------------------------------------
+// Ansicht und Probe der WKR-Maske (W3)
+// ---------------------------------------------------------------------------
+
+/** Sonnenmodus (Vorgabe, G1: schwarz auf weiß, hoher Kontrast), App-Farben hell oder dunkel. */
+export type AnsichtModus = 'sonne' | 'hell' | 'dunkel'
+
+/** Ansicht der WKR-Maske auf diesem Gerät (W3). */
+export interface GeraetAnsicht {
+  modus: AnsichtModus
+  /** Bedienhand: links spiegelt den Fuß der Maske (Hauptknopf links). */
+  hand: 'rechts' | 'links'
+  /** Gewählte Sprache (F13); fehlt = Sprache der Liste. */
+  sprache?: 'de' | 'en'
+  /** Zuletzt beim Abschluss eingegebener WKR-Name (G12), vorbelegt beim nächsten Abschluss. */
+  name?: string
+}
+
+const ANSICHT_VORGABE: GeraetAnsicht = { modus: 'sonne', hand: 'rechts' }
+/** Wie WKR_ANNAHMEN.nameMax – hier ohne Import aus src/wkr, die Ablage bleibt ohne Fachlogik. */
+const NAME_MAX = 60
+
+/** Die Ansicht lesen – Unbekanntes fällt auf die Vorgabe (Sonne, rechts) zurück, Feld für Feld. */
+export function liesAnsicht(ablage: Ablage | null = vorgabe()): GeraetAnsicht {
+  return ansichtAus(liesJson(ablage, ABLAGE.ansicht))
+}
+
+function ansichtAus(wert: unknown): GeraetAnsicht {
+  const out: GeraetAnsicht = { ...ANSICHT_VORGABE }
+  if (!istObjekt(wert)) return out
+  if (wert.modus === 'sonne' || wert.modus === 'hell' || wert.modus === 'dunkel') out.modus = wert.modus
+  if (wert.hand === 'links' || wert.hand === 'rechts') out.hand = wert.hand
+  if (wert.sprache === 'de' || wert.sprache === 'en') out.sprache = wert.sprache
+  if (typeof wert.name === 'string' && wert.name.trim() !== '' && wert.name.length <= NAME_MAX) out.name = wert.name
+  return out
+}
+
+/** Ansicht ändern (nur die genannten Felder; `undefined` löscht Sprache bzw. Name). `false`: Speicher nimmt sie nicht. */
+export function schreibeAnsicht(aenderung: Partial<GeraetAnsicht>, ablage: Ablage | null = vorgabe()): boolean {
+  const neu: Record<string, unknown> = { ...liesAnsicht(ablage) }
+  for (const [k, v] of Object.entries(aenderung)) {
+    if (v === undefined) delete neu[k]
+    else neu[k] = v
+  }
+  return schreibeJson(ablage, ABLAGE.ansicht, ansichtAus(neu))
+}
+
+/** Ist die Probe (G10) für diese Liste in diesem Raum erledigt? */
+export function probeErledigt(bezug: RaumBezug, liste: string, ablage: Ablage | null = vorgabe()): boolean {
+  const wert = liesJson(ablage, ABLAGE.probe)
+  return istObjekt(wert) && gleicherRaum(wert, bezug) && Array.isArray(wert.listen) && wert.listen.includes(liste)
+}
+
+/** Probe für diese Liste als erledigt vermerken (übersprungen zählt auch). Ein anderer Raum ersetzt den Eintrag. */
+export function merkeProbe(bezug: RaumBezug, liste: string, ablage: Ablage | null = vorgabe()): boolean {
+  const wert = liesJson(ablage, ABLAGE.probe)
+  const bisher = istObjekt(wert) && gleicherRaum(wert, bezug) && Array.isArray(wert.listen) ? wert.listen.filter((l): l is string => typeof l === 'string') : []
+  if (bisher.includes(liste)) return true
+  // Höchstens ein paar Listen – ein Gerät hat höchstens zwei (F15); alte fallen vorn heraus.
+  return schreibeJson(ablage, ABLAGE.probe, { ...nurBezug(bezug), listen: [...bisher, liste].slice(-8) })
 }

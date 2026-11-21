@@ -1,0 +1,711 @@
+/*
+ * WKR-Maske auf dem Handy (W3.3, Plan docs/plan-wkr-w3.md §5.2/§5.8, 21.11.2026): hochkant, Bedienung im unteren
+ * Drittel, große Ziele für Handschuhe, Sonne als Vorgabe (G1: schwarz auf weiß, 3-px-Ränder). Farben NUR über die
+ * Tokens --wkr-* – unabhängig von prefers-color-scheme und vom Farbschema der App: die Wahl auf dem Gerät gilt
+ * (`data-modus` an .wkr-geraet). Zielgrößen über `data-ziel` an jedem Knopf: `gross` ≥ --wkr-ziel (64 px: Codes,
+ * Hauptknopf, Disq.), `klein` ≥ --wkr-ziel-min (48 px: Reiter, Ausweichen, Zuletzt) – nie darunter. Keine Animation
+ * und kein Übergang außer dem Blitz beim Wechsel des Starts (Akku; styles/wkr-geraet.test.ts prüft das).
+ */
+
+.wkr-geraet {
+  --wkr-grund: #ffffff;
+  --wkr-text: #000000;
+  --wkr-rand-farbe: #000000;
+  --wkr-flaeche: #ffffff;
+  --wkr-haupt: #000000;
+  --wkr-haupt-text: #ffffff;
+  --wkr-rot: #b00000;
+  --wkr-rot-text: #ffffff;
+  --wkr-warn: #ffe100;
+  --wkr-warn-text: #000000;
+  --wkr-blitz: #000000;
+  --wkr-uebung: #0047b3;
+  --wkr-uebung-text: #ffffff;
+  /* „entfällt“: das einzige Grau – je Modus mit genug Kontrast (Sonne/Hell 7,5:1 auf Weiß, Dunkel 8,4:1 auf Schwarz). */
+  --wkr-grau: #555555;
+  --wkr-rand: 3px;
+  --wkr-ziel: 64px;
+  --wkr-ziel-min: 48px;
+  --wkr-abstand: 8px;
+  --wkr-disq-abstand: 24px;
+  --wkr-schrift: 20px;
+  --wkr-startnr: 96px;
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  max-width: 560px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 8px 12px 12px;
+  background: var(--wkr-grund);
+  color: var(--wkr-text);
+  font-size: var(--wkr-schrift);
+  line-height: 1.25;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hell: die Farben der App – ruhiger, für Schatten und Zelt. */
+.wkr-geraet[data-modus='hell'] {
+  --wkr-grund: #f6f7f9;
+  --wkr-flaeche: #ffffff;
+  --wkr-rand-farbe: #44505c;
+  --wkr-haupt: #1f5fbf;
+  --wkr-rand: 2px;
+}
+
+/* Dunkel: abends, ohne zu blenden. */
+.wkr-geraet[data-modus='dunkel'] {
+  --wkr-grund: #000000;
+  --wkr-text: #ffffff;
+  --wkr-rand-farbe: #ffffff;
+  --wkr-flaeche: #000000;
+  --wkr-haupt: #ffffff;
+  --wkr-haupt-text: #000000;
+  --wkr-blitz: #ffffff;
+  --wkr-grau: #aaaaaa;
+}
+
+/*
+ * Niedrige Handys (360 × 640 und kleiner): Die Starterkarte ist der größte Block über den Codes – die Nummer etwas
+ * kleiner, damit mehr Codes ohne Scrollen sichtbar sind (Prüfbefund W3, 21.11.2026; noch zu bestätigen, M1).
+ */
+@media (max-height: 700px) {
+  .wkr-geraet {
+    --wkr-startnr: 80px;
+  }
+}
+
+.wkr-geraet *,
+.wkr-geraet *::before,
+.wkr-geraet *::after {
+  box-sizing: border-box;
+  animation: none;
+  transition: none;
+}
+
+.wkr-maske {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  flex: 1;
+}
+
+/* --- Knöpfe: Zielgrößen, Ränder, Abstände --- */
+
+.wkr-knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--wkr-abstand);
+  padding: 6px 14px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 6px;
+  background: var(--wkr-flaeche);
+  color: var(--wkr-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.wkr-knopf[data-ziel='gross'] {
+  min-height: var(--wkr-ziel);
+  min-width: var(--wkr-ziel);
+}
+
+.wkr-knopf[data-ziel='klein'] {
+  min-height: var(--wkr-ziel-min);
+  min-width: var(--wkr-ziel-min);
+}
+
+.wkr-knopf:disabled {
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.wkr-knopf[aria-selected='true'],
+.wkr-knopf[aria-pressed='true'] {
+  background: var(--wkr-haupt);
+  color: var(--wkr-haupt-text);
+}
+
+.wkr-knopf--haupt {
+  background: var(--wkr-haupt);
+  color: var(--wkr-haupt-text);
+  font-size: 24px;
+}
+
+.wkr-knopf--riesig {
+  min-height: 112px;
+  font-size: 30px;
+}
+
+.wkr-knopf--gefahr {
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+.wkr-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wkr-abstand);
+}
+
+/* --- Kopf (oben: nur Anzeige) --- */
+
+.wkr-kopf {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  padding-bottom: 6px;
+}
+
+.wkr-kopf-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--wkr-abstand);
+}
+
+.wkr-kopf-titel {
+  font-weight: 700;
+}
+
+.wkr-kopf-stand {
+  justify-content: space-between;
+}
+
+/*
+ * Bänder, die kommen und gehen, ohne dass jemand tippt („Keine Bestätigung“), legen sich ÜBER den Kopf statt ihn zu
+ * verlängern: Sonst rutschten alle Code-Knöpfe um eine Bandhöhe, und ein Tipp in dem Moment träfe den Nachbarn
+ * (Prüfbefund W3, 21.11.2026).
+ */
+.wkr-kopf-ueber {
+  position: absolute;
+  inset: 0 0 6px;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.wkr-invers {
+  padding: 0 6px;
+  background: var(--wkr-text);
+  color: var(--wkr-grund);
+  font-weight: 700;
+}
+
+.wkr-uebung {
+  padding: 0 8px;
+  background: var(--wkr-uebung);
+  color: var(--wkr-uebung-text);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.wkr-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wkr-abstand);
+  margin: 0;
+  padding: 8px 10px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 6px;
+  background: var(--wkr-flaeche);
+}
+
+.wkr-band--rot {
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+.wkr-band--warn,
+.wkr-band--hinweis {
+  background: var(--wkr-warn);
+  color: var(--wkr-warn-text);
+}
+
+.wkr-band--gross {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.wkr-band-zeile {
+  flex-basis: 100%;
+}
+
+/* --- Starterkarte: Nummer riesig, nie ein Name --- */
+
+.wkr-karte {
+  padding: 8px 12px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 8px;
+  background: var(--wkr-flaeche);
+}
+
+.wkr-karte--ausser {
+  border-width: 6px;
+  border-style: double;
+}
+
+.wkr-karte--korrektur {
+  border-style: dashed;
+}
+
+.wkr-karte-zeile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wkr-startnr {
+  font-size: var(--wkr-startnr);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wkr-karte-angaben {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+}
+
+.wkr-karte-klein {
+  font-weight: 400;
+}
+
+.wkr-karte-art,
+.wkr-karte-marke {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.wkr-karte-marke--gesendet {
+  font-size: 26px;
+}
+
+/* --- Mitte: Codes, Disq., Vorsteg (unteres Drittel) --- */
+
+.wkr-mitte,
+.wkr-unten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-mitte {
+  margin-top: auto;
+}
+
+/*
+ * Der Fuß mit dem Hauptknopf klebt unten (Plan §5.2 „Bedienung im unteren Drittel“): Ist die Maske höher als der
+ * Bildschirm (360 × 640: Kopf, Karte, sieben Codes, „Mehr“), bleibt „Fehlerfrei ✓“ ohne Scrollen erreichbar
+ * (Prüfbefund W3, 21.11.2026). Eigener Grund, damit Codes darunter nicht durchscheinen.
+ */
+.wkr-unten {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 -12px -12px;
+  padding: 8px 12px 12px;
+  border-top: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  background: var(--wkr-grund);
+}
+
+/* Unter der Maske die Reiter Freigabe/Liste (GeraetFreigabe, selbst sticky, 48 px + 2 × 8 px): der Fuß klebt darüber. */
+.wkr-mit-reiter .wkr-unten {
+  bottom: 64px;
+}
+
+.wkr-knoepfe,
+.wkr-katalog,
+.wkr-disq,
+.wkr-vorsteg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-katalog-titel {
+  margin: 0;
+  font-size: var(--wkr-schrift);
+}
+
+.wkr-code,
+.wkr-disq-knopf {
+  display: grid;
+  grid-template-columns: 3.2em 1fr auto auto;
+  justify-items: start;
+  text-align: left;
+  width: 100%;
+}
+
+.wkr-code-nr {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.wkr-code-text {
+  font-weight: 400;
+}
+
+.wkr-code-zaehler {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+/* Mit .wkr-knopf geschärft: aria-pressed (schwarz wie der Hauptknopf) darf das Rot nie überdecken (Prüfbefund W3). */
+.wkr-knopf.wkr-disq-knopf--gesetzt {
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+.wkr-disq-knopf--vor {
+  border-style: dashed;
+  border-width: 6px;
+}
+
+.wkr-hinweis {
+  margin: 0;
+}
+
+/* --- Fuß: zurück, DISQ links, Hauptknopf rechts; Linkshand gespiegelt --- */
+
+.wkr-fuss {
+  display: flex;
+  align-items: stretch;
+  gap: var(--wkr-disq-abstand);
+}
+
+.wkr-fuss--links {
+  flex-direction: row-reverse;
+}
+
+.wkr-fuss-neben {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-fuss .wkr-knopf--haupt {
+  flex: 1;
+}
+
+/* --- Ausweichen, Ziffernfeld --- */
+
+.wkr-ziffern {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  padding: 8px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 8px;
+}
+
+.wkr-ziffern-anzeige {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.wkr-ziffern-tasten {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--wkr-abstand);
+}
+
+/* --- Zuletzt --- */
+
+.wkr-zuletzt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+/*
+ * Leiste „Zuletzt“ und „Rückgängig“ in EINER Zeile fester Höhe: Das Rückgängig-Band verschwindet 6 s nach dem
+ * Abschicken, wenn die Maske schon wieder frei ist – als eigene Zeile darüber ließe es die Codes nachrutschen
+ * (Prüfbefund W3, 21.11.2026). Die Leiste bricht deshalb nicht um, sie wird abgeschnitten.
+ */
+.wkr-zuletzt-kopf {
+  display: flex;
+  align-items: stretch;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-leiste {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.wkr-rueckgaengig {
+  display: flex;
+  align-items: center;
+  gap: var(--wkr-abstand);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wkr-leiste-zeile {
+  font-variant-numeric: tabular-nums;
+}
+
+.wkr-zuletzt-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-zuletzt-zeile {
+  display: grid;
+  grid-template-columns: 3em 1fr auto;
+  align-items: center;
+  gap: var(--wkr-abstand);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--wkr-rand-farbe);
+}
+
+.wkr-zuletzt-nr {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+/* --- Steg-Reiter, Listen-Reiter --- */
+
+.wkr-stegreiter,
+.wkr-listenreiter {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--wkr-abstand);
+}
+
+/* --- Mehr, Ruhe --- */
+
+.wkr-mehr,
+.wkr-mehr-inhalt,
+.wkr-feld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-eingabe {
+  min-height: var(--wkr-ziel-min);
+  padding: 6px 10px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 6px;
+  background: var(--wkr-flaeche);
+  color: var(--wkr-text);
+  font: inherit;
+}
+
+.wkr-ruhe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  padding: 16px 4px;
+  text-align: center;
+}
+
+.wkr-ruhe h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.wkr-ruhe-meldung {
+  font-weight: 700;
+}
+
+/* „entfällt“: das einzige Grau – und immer mit Wort (§5.8). */
+.wkr-entfaellt {
+  color: var(--wkr-grau);
+}
+
+.wkr-entwurf-liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+/* --- Korrektur-Rückfrage --- */
+
+.wkr-korrektur-alt {
+  text-decoration: line-through;
+}
+
+.wkr-korrektur-neu {
+  font-weight: 800;
+}
+
+.wkr-korrektur-pfeil {
+  margin: 0;
+  font-size: 28px;
+}
+
+/* --- W3.4: Gruppen unter „Mehr“, Liste abschließen, Probe, Übung --- */
+
+.wkr-gruppe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  margin: 0;
+  padding: 8px 10px 10px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 6px;
+}
+
+.wkr-gruppe legend {
+  padding: 0 4px;
+  font-weight: 800;
+}
+
+.wkr-abschluss,
+.wkr-probe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-abschluss h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.wkr-abschluss-summe {
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wkr-pruef-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wkr-pruef-knopf {
+  display: grid;
+  grid-template-columns: 3em 1fr auto;
+  align-items: center;
+  gap: var(--wkr-abstand);
+  width: 100%;
+  text-align: left;
+}
+
+.wkr-pruef-mitte,
+.wkr-pruef-rechts {
+  display: flex;
+  flex-direction: column;
+}
+
+.wkr-pruef-rechts {
+  align-items: flex-end;
+}
+
+/* „Rest auf Papier“: ein großer Schalter – die ganze Zeile nimmt den Tipp (Handschuhe). */
+.wkr-schalter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--wkr-ziel);
+  padding: 8px 10px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 6px;
+}
+
+.wkr-schalter input {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.wkr-schalter > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.wkr-probe-schritt {
+  margin: 0;
+  font-weight: 800;
+}
+
+.wkr-uebung--band {
+  margin: 0;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.wkr-uebung-wahl h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.wkr-uebung-listen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--wkr-abstand);
+}
+
+.geraet-ueben {
+  margin: 12px 0 0;
+}
+
+/* Der Verweis zur Übung ist eine Tippfläche wie jeder Knopf (≥ 48 px), auch außerhalb der Maske. */
+.geraet-ueben a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+}
+
+/* --- Blitz beim Wechsel des Starts (G5): eine Fläche, ohne Animation, nach 150 ms weg --- */
+
+.wkr-blitz {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--wkr-blitz);
+  pointer-events: none;
+}
+
+/* --- Gerät mit Freigabe und Liste: Reiter unten (GeraetFreigabe) --- */
+
+.geraet-reiter {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+  max-width: 560px;
+  margin: 8px auto 0;
+  padding: 8px 12px;
+  background: var(--bg, #ffffff);
+}
+
+.geraet-reiter .btn {
+  min-height: 48px;
+}
+
+.geraet-reiter .btn[aria-selected='true'] {
+  font-weight: 800;
+  outline: 3px solid currentColor;
+}

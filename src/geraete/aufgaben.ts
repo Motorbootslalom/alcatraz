@@ -38,7 +38,22 @@ export type Aufgabe =
    * WKR-Liste erfassen (W1): Listen-Kennung (wkr/liste.ts), am Steg wahlweise nur Ablegen oder Anlegen (F16; ohne
    * `teil` der ganze Steg). Höchstens {@link LISTEN_JE_GERAET} je Gerät (F15: Handy eine, Pad höchstens zwei).
    */
-  | { art: 'liste'; liste: string; teil?: ListenTeil }
+  | {
+      art: 'liste'
+      liste: string
+      teil?: ListenTeil
+      /**
+       * Maskenvorgabe des Bedienrechners (F14, W3 G4, 21.11.2026, noch zu bestätigen): welche Maske das Gerät zeigt.
+       * Fehlt = `knoepfe`; W3 kennt nur sie, der Host schickt das Feld erst, wenn es eine zweite Maske gibt (W5/W6).
+       */
+      maske?: MaskenArtVorgabe
+      /** Die Vorgabe gilt fest – das Gerät bietet keinen Wechsel an (F14). */
+      fest?: true
+    }
+
+/** Masken, die der Bedienrechner vorgeben kann (F14): Knöpfe (W3), Bild (W5), Text (W6). */
+export const MASKEN_VORGABEN = ['knoepfe', 'bild', 'text'] as const
+export type MaskenArtVorgabe = (typeof MASKEN_VORGABEN)[number]
 
 export type ListenAufgabe = Extract<Aufgabe, { art: 'liste' }>
 
@@ -93,7 +108,12 @@ export function liesAufgaben(wert: unknown): Aufgabe[] {
       if (a.teil !== undefined && (!teileVon(liste.typeId) || (a.teil !== 'ab' && a.teil !== 'an'))) continue
       const kennung = listenKennung(liste)
       listen.add(kennung)
-      aus.push(a.teil === undefined ? { art: 'liste', liste: kennung } : { art: 'liste', liste: kennung, teil: a.teil })
+      const aufgabe: ListenAufgabe = { art: 'liste', liste: kennung }
+      if (a.teil !== undefined) aufgabe.teil = a.teil
+      // Maskenvorgabe (F14): nur bekannte Werte; `fest` nur als `true` – Fremdes fällt still weg (neuere Fassung).
+      if ((MASKEN_VORGABEN as readonly unknown[]).includes(a.maske)) aufgabe.maske = a.maske as MaskenArtVorgabe
+      if (a.fest === true) aufgabe.fest = true
+      aus.push(aufgabe)
     }
   }
   return aus

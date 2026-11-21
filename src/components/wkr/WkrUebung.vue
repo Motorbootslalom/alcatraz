@@ -1,0 +1,110 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
+import { t } from '../../i18n'
+import { liesAnsicht, type Ablage } from '../../geraete/ablage'
+import type { ErfassungsQuelle } from '../../geraete/erfassen'
+import { oeffneUebung } from '../../geraete/uebung'
+import { GERAET } from '../../geraete/paket'
+import type { ListenTeil } from '../../wkr/liste'
+import WkrGeraet from './WkrGeraet.vue'
+import '../../styles/wkr-geraet.css'
+
+/**
+ * Übungsmodus der WKR-Maske (W3.4, Plan docs/plan-wkr-w3.md §5.9, G13, 21.11.2026; `#/uebung` in GeraetApp, ohne
+ * Store): erst die Wahl Regelwerk (DM/UIM) × Liste (Steg, Steg nur Ablegen/Anlegen, Tor 5, Mann-über-Bord, Vorsteg),
+ * dann DIESELBE Maske (WkrGeraet) mit dem Übungs-Kern geraete/uebung.ts oeffneUebung – erfundene Starts ohne Namen,
+ * kein Transport, keine Ablage, kein Netz. Gemerkt wird nur die Ansicht (WkrGeraet; der WKR-Name des Abschlusses
+ * nicht). Der Kopf sagt dauerhaft „ÜBUNG“: hier oben als Band, in der Maske im Kopf (WkrKopf, eigene Farbe + Wort).
+ *
+ * Die Wahl spricht die Sprache der Geräte-Oberfläche (t), die Maske danach die der Liste bzw. des Regelwerks (H5).
+ */
+const props = defineProps<{
+  /** Ablage der Ansicht (Tests: eigener Speicher); Vorgabe localStorage. */
+  ablage?: Ablage | null
+  /** Nur Tests: Takt neuer Starts. */
+  taktMs?: number
+}>()
+
+/** Zurück zum Koppeln: die Adresse eines Geräts ohne Paket (geraete/paket.ts GERAET), nie fest im Text. */
+const ZUM_KOPPELN = `#/${GERAET}`
+
+type Wahl = 'steg' | 'steg-ab' | 'steg-an' | 'tor5' | 'mueb' | 'vorsteg'
+const LISTEN: { wahl: Wahl; typeId: string; teil?: ListenTeil; text: 'steg' | 'stegAb' | 'stegAn' | 'tor5' | 'mueb' | 'vorsteg' }[] = [
+  { wahl: 'steg', typeId: 'steg', text: 'steg' },
+  { wahl: 'steg-ab', typeId: 'steg', teil: 'ab', text: 'stegAb' },
+  { wahl: 'steg-an', typeId: 'steg', teil: 'an', text: 'stegAn' },
+  { wahl: 'tor5', typeId: 'tor5', text: 'tor5' },
+  { wahl: 'mueb', typeId: 'mueb', text: 'mueb' },
+  { wahl: 'vorsteg', typeId: 'vorsteg', text: 'vorsteg' },
+]
+const REGELWERKE = [
+  { id: 'dm-2026', text: 'dm' },
+  { id: 'uim-2026', text: 'uim' },
+] as const
+
+/** Die Wahl in der Ansicht des Geräts (Sonne als Vorgabe, G1) – gelesen beim Öffnen. */
+const modus = liesAnsicht(props.ablage === undefined ? undefined : props.ablage).modus
+const regelwerk = ref<(typeof REGELWERKE)[number]['id']>('dm-2026')
+const wahl = ref<Wahl>('tor5')
+const quelle = shallowRef<ErfassungsQuelle | null>(null)
+const gewaehlt = computed(() => LISTEN.find((l) => l.wahl === wahl.value)!)
+
+function starte(): void {
+  quelle.value?.stop()
+  const l = gewaehlt.value
+  quelle.value = oeffneUebung({ regelwerk: regelwerk.value, typeId: l.typeId, ...(l.teil ? { teil: l.teil } : {}), ...(props.taktMs ? { taktMs: props.taktMs } : {}) })
+}
+function ende(): void {
+  quelle.value?.stop()
+  quelle.value = null
+}
+onBeforeUnmount(ende)
+</script>
+
+<template>
+  <WkrGeraet v-if="quelle" :quelle="quelle" :ablage="ablage" @uebung-ende="ende" />
+  <div v-else class="wkr-geraet wkr-uebung-wahl" data-teil="uebung-wahl" :data-modus="modus" data-uebung="true">
+    <p class="wkr-uebung wkr-uebung--band" data-teil="uebung">{{ t('wkr.geraet.uebung') }}</p>
+    <h1>{{ t('wkr.geraet.uebung.titel') }}</h1>
+    <p class="wkr-hinweis">{{ t('wkr.geraet.uebung.hint') }}</p>
+    <fieldset class="wkr-gruppe">
+      <legend>{{ t('wkr.geraet.uebung.regelwerk') }}</legend>
+      <div class="wkr-reihe">
+        <button
+          v-for="r in REGELWERKE"
+          :key="r.id"
+          type="button"
+          class="wkr-knopf"
+          data-ziel="klein"
+          data-action="uebung-regelwerk"
+          :data-regelwerk="r.id"
+          :aria-pressed="regelwerk === r.id"
+          @click="regelwerk = r.id"
+        >
+          {{ t(`wkr.geraet.uebung.${r.text}`) }}
+        </button>
+      </div>
+    </fieldset>
+    <fieldset class="wkr-gruppe">
+      <legend>{{ t('wkr.geraet.uebung.liste') }}</legend>
+      <div class="wkr-uebung-listen">
+        <button
+          v-for="l in LISTEN"
+          :key="l.wahl"
+          type="button"
+          class="wkr-knopf"
+          data-ziel="klein"
+          data-action="uebung-liste"
+          :data-liste="l.wahl"
+          :aria-pressed="wahl === l.wahl"
+          @click="wahl = l.wahl"
+        >
+          {{ t(`wkr.geraet.uebung.${l.text}`) }}
+        </button>
+      </div>
+    </fieldset>
+    <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="uebung-start" @click="starte">{{ t('wkr.geraet.uebung.start') }}</button>
+    <!-- Ein Verweis ist auch eine Tippfläche: wie ein Knopf ≥ 48 px (Prüfbefund W3, styles/wkr-geraet.test.ts). -->
+    <a class="wkr-knopf" data-ziel="klein" :href="ZUM_KOPPELN" data-action="zum-koppeln">{{ t('wkr.geraet.uebung.koppeln') }}</a>
+  </div>
+</template>

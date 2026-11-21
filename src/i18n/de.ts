@@ -10,6 +10,7 @@ import listenoptionen from './de/listenoptionen'
 import aufbauten from './de/aufbauten'
 import verlauf from './de/verlauf'
 import betrieb from './de/betrieb'
+import wkrGeraet from './de/wkrGeraet'
 
 /**
  * Deutscher Katalog – zugleich die Quelle aller Schlüssel. Jede weitere Sprache
@@ -34,4 +35,5 @@ export default {
   ...aufbauten,
   ...verlauf,
   ...betrieb,
+  ...wkrGeraet,
 } as const satisfies Record<string, string>

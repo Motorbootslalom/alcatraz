@@ -3,19 +3,27 @@ import { computed, ref } from 'vue'
 import type { BereichId } from '../../types'
 import { useStore } from '../../state/store'
 import { useGeraeteHost } from '../../geraete/host'
-import { freigabeBereiche } from '../../geraete/aufgaben'
+import { freigabeBereiche, LISTEN_JE_GERAET, listenAufgaben, type Aufgabe, type ListenAufgabe } from '../../geraete/aufgaben'
 import type { RegisterEintrag } from '../../geraete/register'
 import { sichtOeffentlich } from '../../betrieb/sicht'
 import { useUhr } from '../../lib/uhr'
 import { t } from '../../i18n'
 import AppDialog from '../AppDialog.vue'
 import { uhrzeitText } from './texte'
+import { istHandyName, useListenWahl } from './wkrListenWahl'
+import type { ListenTeil } from '../../wkr/liste'
 
 /**
  * Betrieb → Geräte, Geräteliste (Etappe E7, Plan vom 16.11.2026 §4/§5; Vorbild tafel DeviceList.vue, neu geschrieben):
  * je gekoppeltem Gerät Name (änderbar), die Bereiche seiner Start-Freigabe (Häkchen – wirkt sofort: `aufgaben` an das
  * Gerät, `darf` am Host, P-6), wann gekoppelt und zuletzt gehört, „Entziehen“ mit Rückfrage (K14: das Gerät liest
  * Öffentliches weiter). Darunter die zuletzt entzogenen.
+ *
+ * W3.2 (21.11.2026, Plan docs/plan-wkr-w3.md §6): je Gerät seine WKR-Listen – Teil am Steg (ganz / nur Ablegen / nur
+ * Anlegen, F16) umschalten, entfernen, eine Liste dazunehmen (Auswahl + eigener Knopf, nie über `change` eines
+ * `<select>`), höchstens LISTEN_JE_GERAET (F15); Hinweis „Handy: eine Liste“ nach dem Namen (G3, J2). „Maske: Knöpfe“
+ * nur als Anzeige (G4) – bzw. „Maske folgt – Papier“ bei Listen ohne Maske in W3 (G14). Jede Änderung geht sofort
+ * über host.setzeAufgaben (der Host rotiert die Schlüssel der Listen-Gruppe, W1); die Folge der Aufgaben bleibt.
  *
  * „Zuletzt gehört“ statt „verbunden“: Ein Gerät meldet sich nur, wenn es schaltet oder neu startet (kein Herzschlag –
  * jede Nachricht kostet Kontingent am fremden Server). Ein Bereich, den es im Stand nicht mehr gibt, bleibt im Register
@@ -37,6 +45,39 @@ function schalte(g: RegisterEintrag, id: BereichId, an: boolean): void {
   // Andere Aufgaben (WKR-Listen, W1) bleiben – hier wird nur die Start-Freigabe umgeschaltet.
   host?.setzeAufgaben(g.id, [{ art: 'startfreigabe', bereiche: [...neu] }, ...g.aufgaben.filter((a) => a.art !== 'startfreigabe')])
 }
+
+// --- WKR-Listen (W3.2) ---
+const { gruppen, liste: listeVon, listeText } = useListenWahl()
+/** Gewählte Liste im „Liste dazu“-Feld je Gerät (Bedienung, nicht Stand). */
+const neueListe = ref<Record<string, string>>({})
+
+function setzeListen(g: RegisterEintrag, listen: ListenAufgabe[]): void {
+  const andere: Aufgabe[] = g.aufgaben.filter((a) => a.art !== 'liste')
+  host?.setzeAufgaben(g.id, [...andere, ...listen])
+}
+function setzeTeil(g: RegisterEintrag, kennung: string, teil: ListenTeil | undefined): void {
+  setzeListen(
+    g,
+    listenAufgaben(g.aufgaben).map((a) => {
+      if (a.liste !== kennung) return a
+      const neu: ListenAufgabe = { ...a }
+      if (teil) neu.teil = teil
+      else delete neu.teil
+      return neu
+    }),
+  )
+}
+function entferneListe(g: RegisterEintrag, kennung: string): void {
+  setzeListen(g, listenAufgaben(g.aufgaben).filter((a) => a.liste !== kennung))
+}
+function nimmListe(g: RegisterEintrag): void {
+  const kennung = neueListe.value[g.id]
+  const da = listenAufgaben(g.aufgaben)
+  if (!kennung || !listeVon(kennung) || da.length >= LISTEN_JE_GERAET || da.some((a) => a.liste === kennung)) return
+  setzeListen(g, [...da, { art: 'liste', liste: kennung }])
+  neueListe.value = { ...neueListe.value, [g.id]: '' }
+}
+const voll = (g: RegisterEintrag) => listenAufgaben(g.aufgaben).length >= LISTEN_JE_GERAET
 
 function benenne(g: RegisterEintrag, e: Event): void {
   const feld = e.target as HTMLInputElement
@@ -80,7 +121,51 @@ function entziehe(): void {
               {{ b.name }}
             </label>
           </fieldset>
-          <p v-if="!freigabeBereiche(g.aufgaben).some((id) => bereiche.some((b) => b.id === id))" class="note" data-hinweis="nichts-frei">
+          <fieldset v-if="gruppen.length > 0 || listenAufgaben(g.aufgaben).length > 0" class="geraete-bereiche geraete-listen" data-teil="geraet-listen">
+            <legend>{{ t('geraete.liste.listen') }}</legend>
+            <ul class="geraete-listen-eintraege">
+              <li v-for="a in listenAufgaben(g.aufgaben)" :key="a.liste" class="geraete-liste-eintrag" :data-liste="a.liste">
+                <span data-teil="liste-titel">{{ listeText(a.liste) }}</span>
+                <span class="note" data-teil="liste-maske">{{ listeVon(a.liste)?.ohneMaske ? t('geraete.liste.liste.ohneMaske') : t('geraete.liste.liste.maske') }}</span>
+                <span v-if="listeVon(a.liste)?.teilbar" class="segmented" role="group" :aria-label="t('geraete.koppeln.liste.teil')">
+                  <button
+                    v-for="w in (['', 'ab', 'an'] as const)"
+                    :key="w"
+                    type="button"
+                    class="sm"
+                    :data-wahl-teil="w || 'ganz'"
+                    :class="(a.teil ?? '') === w ? 'active' : ''"
+                    :aria-pressed="(a.teil ?? '') === w"
+                    @click="(a.teil ?? '') !== w && setzeTeil(g, a.liste, w || undefined)"
+                  >
+                    {{ t(w ? `geraete.koppeln.liste.teil.${w}` : 'geraete.koppeln.liste.teil.ganz') }}
+                  </button>
+                </span>
+                <button type="button" class="btn sm" data-action="liste-entfernen" @click="entferneListe(g, a.liste)">{{ t('geraete.liste.liste.entfernen') }}</button>
+              </li>
+            </ul>
+            <div v-if="!voll(g) && gruppen.length > 0" class="row">
+              <select
+                class="input"
+                data-feld="liste-dazu"
+                :aria-label="t('geraete.liste.liste.dazu')"
+                :value="neueListe[g.id] ?? ''"
+                @change="neueListe = { ...neueListe, [g.id]: ($event.target as HTMLSelectElement).value }"
+              >
+                <option value="">{{ t('geraete.koppeln.liste.keine') }}</option>
+                <optgroup v-for="gr in gruppen" :key="gr.name" :label="gr.name">
+                  <option v-for="l in gr.listen" :key="l.kennung" :value="l.kennung" :disabled="listenAufgaben(g.aufgaben).some((x) => x.liste === l.kennung)">
+                    {{ l.ohneMaske ? t('geraete.koppeln.liste.ohneMaske', { titel: l.titel }) : l.titel }}
+                  </option>
+                </optgroup>
+              </select>
+              <button type="button" class="btn sm" data-action="liste-dazu" :disabled="!neueListe[g.id]" @click="nimmListe(g)">{{ t('geraete.liste.liste.dazu') }}</button>
+            </div>
+            <p v-if="voll(g)" class="note" data-hinweis="listen-voll">{{ t('geraete.liste.liste.voll', { n: LISTEN_JE_GERAET }) }}</p>
+            <p v-if="listenAufgaben(g.aufgaben).length >= 1 && istHandyName(g.name)" class="note" data-hinweis="handy-eine">{{ t('geraete.liste.liste.handy') }}</p>
+            <p v-else-if="listenAufgaben(g.aufgaben).length >= 2" class="note" data-hinweis="pad-zwei">{{ t('geraete.liste.liste.pad') }}</p>
+          </fieldset>
+          <p v-if="!freigabeBereiche(g.aufgaben).some((id) => bereiche.some((b) => b.id === id)) && listenAufgaben(g.aufgaben).length === 0" class="note" data-hinweis="nichts-frei">
             {{ t('geraete.liste.keine') }}
           </p>
         </li>

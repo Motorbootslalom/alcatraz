@@ -300,4 +300,237 @@ export const WKR_ANNAHMEN = {
    * nicht gezeigten Starts (Grund `start`) bekommen in der Erfassung ebenfalls „!“.
    */
   freigabeJeGeraetewert: true,
+  // --- W3 Handy-Maske „Knöpfe“ (docs/plan-wkr-w3.md §9, G1–G16, 21.11.2026 beim Planen, alle noch zu bestätigen) ---
+  /** (G1) Sonnenmodus (schwarz auf weiß, hoher Kontrast) ist Vorgabe jedes WKR-Geräts; Hell/Dunkel wählbar, gemerkt je Gerät. */
+  sonneVorgabe: true,
+  /**
+   * (G2) Masken nur für Listen, deren Felder alle Katalog, Disq. oder Text sind (Steg, Vorsteg, Tor 5, Tor 5 +
+   * Parcours ohne Bojen, MüB) – erkannt an den Feldarten (wkr/maske.ts maskenArt), nicht an der Listen-ID: eigene
+   * Aufbauten gelten so von selbst. Listen mit Bojen, Zeit oder Punkten sind `spaeter` (W4/W5).
+   */
+  maskeNachFeldarten: true,
+  /** (G3, F15) Handy eine Liste, Pad zwei – nur als Hinweis am Bedienrechner; erzwungen bleibt LISTEN_JE_GERAET = 2. */
+  handyEineListe: true,
+  /** (G4, F14) Maskenvorgabe `maske`/`fest` an der Aufgabe; in W3 nur `knoepfe`, ohne Wahl – nur Anzeige. */
+  maskeVorgabeNurKnoepfe: true,
+  /**
+   * (G5) Doppeltipp-Schutz: Nach dem Abschicken bleibt die Startnummer `weiterNachMs` mit „● gesendet“ stehen, dann
+   * wechselt sie (Blitz, Vibration), und `sperreMs` lang nimmt die Maske KEINE Eingabe an – auch Codes und Disq.,
+   * nicht nur den Hauptknopf (ein Tropfen auf „Code 1“ ist so schlimm wie auf „Fehlerfrei“).
+   */
+  weiterNachMs: 2000,
+  sperreMs: 1000,
+  /** (§5.2) Ohne Quittung nach so vielen ms im Kopf „Keine Bestätigung – Verbindung prüfen“ – nie gesperrt. */
+  ohneQuittungMs: 10_000,
+  /** (§5.6) Ohne Verbindung ab so vielen Sekunden „Länger weg? Papierbogen ab Nr. x“. */
+  papierHinweisSek: 300,
+  /** (G6) Codes „ab Klasse n“ bleiben drückbar – die Kataloge tragen die Klasse nur als Text (ein YAML-Feld `abKlasse` käme später). */
+  codesAlleKlassen: true,
+  /** (G7) Suche nach Startnummer nur in Schlange, „danach“ und „Zuletzt“; eine Nummer außerhalb wird nicht angeboten. */
+  sucheNurBekannte: true,
+  /**
+   * (G8) „Rückgängig“ `rueckgaengigMs` nach dem Abschicken: Wartet die Zeile noch im Ausgang, holt sie
+   * geraete/erfassen.ts holeZurueck zurück (Werte wieder im Entwurf); ist sie schon unterwegs, öffnet der Knopf die
+   * Korrektur – kein automatisches Hinterherschicken.
+   */
+  rueckgaengigMs: 6000,
+  /** (§5.5) Die Leiste „Zuletzt“ zeigt die letzten so vielen eigenen Zeilen (die Liste dahinter bis `zuletzt`). */
+  zuletztLeiste: 5,
+  /**
+   * (G9, F13) Sprache der Maske: Vorgabe die der Liste, `de+en` → `de` (zwei Zeilen je Knopf kosten Platz im
+   * Daumenbereich). Umschalten wechselt Bedientexte immer, Kataloge und Titel nur, wenn die Sicht `andere` trägt –
+   * also das Regelwerk beide Sprachen hat (UIM; DM hat kein Englisch).
+   */
+  spracheDerListe: true,
+  /** (G10) Probe beim Einrichten einmal je Raum und Liste, überspringbar; nichts geht an den Bedienrechner. */
+  probeJeRaumUndListe: true,
+  /** (G11, F8) WKR-Name nur beim Abschluss, kein „WKR wechseln“ in W3 – wer übernimmt, schließt mit seinem Namen ab. */
+  nameNurBeimAbschluss: true,
+  /** (G12) Der zuletzt eingegebene WKR-Name ist vorbelegt (Geräteablage), gelöscht mit „Raum verlassen“/Entkoppeln. */
+  nameVorbelegt: true,
+  /**
+   * (G13) Übung ohne Netz: erfundene Starts 1–20 ohne Namen in den Klassen des Regelwerks, Quittung nach
+   * `uebungQuittungMs`, eine Beispiel-Rückfrage beim `uebungRueckfrageBei`. Start; erreichbar ohne Kopplung; nichts außer
+   * der Ansicht wird abgelegt. Alle `uebungTaktSek` rückt ein neuer Start nach (wie vom Steg gezeigt).
+   */
+  uebungQuittungMs: 300,
+  uebungRueckfrageBei: 5,
+  uebungStarts: 20,
+  uebungTaktSek: 30,
+  /** (G14) Liste ohne Maske: Das Gerät sagt „Papier“ und bietet „Pausieren“ an; der Bedienrechner kennzeichnet sie beim Koppeln. */
+  ohneMaskePapier: true,
+  /** (G15) „Nicht vorbeigekommen“ erst mit W4 (Protokoll, Reducer, Matrix); bis dahin Bemerkung oder nichts schicken. */
+  nichtVorbeigekommenErstW4: true,
+  /** (G16) Band „Liste abschließen“, sobald der eigene Punkt nicht mehr läuft und nicht abgeschlossen ist; unter „Mehr“ immer. */
+  abschlussBand: true,
+  // --- W3.1 beim Bau, 21.11.2026 (noch zu bestätigen) ------------------------------------------------------------
+  /**
+   * (H1) Ein Disq.-Buchstabe in der Maske ist ein Schalter (zweiter Tipp nimmt ihn wieder heraus) und steht im
+   * Disq.-Feld in Tipp-Reihenfolge („A, X“ – so lässt sanitizeDisq ihn unverändert); hat die Liste kein eigenes
+   * Disq.-Feld, gehen die Buchstaben in das erste Code-Feld des Teils (normalizeCodeCell sortiert sie dort).
+   */
+  disqAlsSchalter: true,
+  /**
+   * (H2) Ein Code-Tipp zählt +1 („2x20“); „− letzte zurück“ nimmt den letzten Tipp – Code ODER Disq. – zurück, der
+   * Text der Bemerkung zählt nicht als Tipp (er hat sein eigenes Feld).
+   */
+  zurueckLetzterTipp: true,
+  /**
+   * (H3) Schlange je Steg-Teil auf dem Gerät: Eine eigene Zeile nimmt den Start nur aus der Schlange IHRES Teils
+   * (eine Zeile ohne Teil aus beiden); ein Gerät für den ganzen Steg behält den Start in der gemeinsamen Schlange,
+   * bis beide Teile erledigt sind (eigene Zeile oder `teile` der Sicht).
+   */
+  schlangeJeTeil: true,
+  /**
+   * (H4) Entwürfe liegen im Ausgang (36 h, gehen mit „Raum verlassen“), je Liste, Start und Teil; `schicke` räumt den
+   * Entwurf dieses Starts und Teils. Nach dem Entzug bleiben sie lesbar (zum Übertragen aufs Papier).
+   */
+  entwurfImAusgang: true,
+  /** (H5) Die Übungs-Sicht nimmt die Sprache des Regelwerks (DM deutsch, UIM englisch) wie eine echte Liste. */
+  uebungSpracheRegelwerk: true,
+  // --- W3.2 Bedienrechner: Liste zuweisen (beim Bau 21.11.2026, J1–J5, alle noch zu bestätigen) ---
+  /**
+   * (J1) „Maske folgt – Papier“ beim Zuweisen (wkr/maske.ts listeMitMaske): eine Liste hat in W3 eine Maske, wenn
+   * JEDE Klasse der Starter, die sie hat, nur Katalog/Disq./Text trägt; ohne Starter zählen alle Klassen der Liste.
+   */
+  maskeNachStarterKlassen: true,
+  /**
+   * (J2) Der Hinweis „Handy: eine Liste“ (G3) richtet sich nach dem Gerätenamen: Das Register kennt keine Geräteart,
+   * der Name ist aber bis zum Umbenennen die übersetzte Art (geraete.name.iphone / android-handy, de oder en).
+   * Ein umbenanntes Handy bekommt den allgemeinen Hinweis „Handy eine, Pad höchstens zwei“.
+   */
+  handyNachName: true,
+  /**
+   * (J3) Mit nur einem Parcours ist die Start-Freigabe beim Koppeln vorgewählt (wie seit E7) – aber nur, solange keine
+   * WKR-Liste gewählt ist: Ein Handy für eine Liste bekommt die Freigabe nur, wenn man sie ausdrücklich anhakt.
+   */
+  freigabeVorwahlOhneListe: true,
+  /** (J4) Beim Koppeln genau eine Liste (oder keine); eine zweite gibt erst die Geräteliste (F15, Pad). Teil: Vorgabe „ganz“. */
+  koppelnEineListe: true,
+  /**
+   * (J5) Verweis „Gerät koppeln“ in der Matrix an jeder Liste ohne Gerät – auch ohne offenen Raum (er führt dann zu
+   * „Gerätebetrieb einschalten“) und auch bei Listen ohne Maske (dort steht beim Koppeln „Maske folgt – Papier“).
+   */
+  koppelnVerweisImmer: true,
+  // --- W3.3 Handy-Maske „Knöpfe“ mit Rahmen (beim Bau 21.11.2026, K1–K9, alle noch zu bestätigen) ---
+  /**
+   * (K1) Disq. auf dem Handy: Der erste Tipp merkt den Buchstaben nur vor („noch einmal tippen“), der zweite setzt ihn;
+   * ein gesetzter geht mit EINEM Tipp wieder heraus. X fragt danach noch einmal groß (F5). components/wkr/WkrDisq.vue.
+   */
+  disqZweiterTipp: true,
+  /**
+   * (K2) Gesperrt (inert + Prüfung in jedem Tipp) ist die Mitte samt Ausweichen und der Fuß während der ganzen
+   * `weiterNachMs` + `sperreMs` – auch während „● gesendet“, nicht erst nach dem Wechsel (sonst landete ein Tipp auf
+   * dem schon gesendeten Start). „Zuletzt“, „Rückgängig“ und die Bänder liegen außerhalb; eine Korrektur oder
+   * „Rückgängig“ beendet den Takt.
+   */
+  sperreAuchGesendet: true,
+  /**
+   * (K3) Nach dem Entzug bleibt die Erfassung des Geräts offen (kein stop), damit nicht abgeschickte Entwürfe lesbar
+   * bleiben (§5.6 „auf Papier übertragen“); sie schickt dann nichts mehr (erfassen.ts ohneListen). Gestoppt wird beim
+   * Unmount, beim Entkoppeln und wenn GeraetFreigabe ein anderes Gerät öffnet.
+   */
+  erfassungBleibtNachEntzug: true,
+  /** (K4) Der Entwurf geht bei JEDEM Tipp in den Ausgang (nicht erst beim Wechsel) – so überlebt er auch ein Neuladen mitten im Start. */
+  entwurfJeTipp: true,
+  /**
+   * (K5) Pausiert/abgemeldet zeigt statt ausgegrauter Codes nur das große Band „Papierbogen gilt“ mit „Weiter digital“
+   * (Zuletzt bleibt für Korrekturen) – ausgegraute Knöpfe verleiten in der Sonne zum Tippen.
+   */
+  pauseOhneKnoepfe: true,
+  /** (K6) Gerät mit Start-Freigabe UND Liste: unten Reiter „Freigabe“ / Listenname, Vorgabe „Freigabe“ (Steg b vor Steg a). */
+  reiterFreigabeZuerst: true,
+  /** (K7) „So lassen“ an einer Rückfrage/Ablehnung legt das Band nur auf dem Gerät weg – keine Nachricht; der Bediener entscheidet ohnehin. */
+  soLassenNurLokal: true,
+  /**
+   * (K8) Ziffernfeld der Suche mit einer Taste je Buchstaben vor den bekannten Startnummern (Schlange, „danach“,
+   * „Zuletzt“): „E“ (E01), unter UIM auch „D“ (Dolphin-Präfix, AppState.dolphinPraefix) – Prüfbefund W3 21.11.2026,
+   * vorher nur „E“. Verglichen wird ohne führende Nullen und ohne Groß/Klein („e1“ = „E01“, „d3“ = „D03“). Gesucht wird
+   * in Schlange und „danach“ des gewählten Teils, dann in „Zuletzt“.
+   */
+  sucheMitE: true,
+  /**
+   * (K9) Hauptknopf mit Einträgen: „Abschicken · 5 Pkt. · Disq. P“ (Punkte nur der Codes, Disq. als Buchstaben), nur
+   * Disq.: „Abschicken · Disq. A“; am Steg „Abschicken Ablegen · …“. Die Maske spricht die Sprache der Liste (tIn),
+   * die Reiter der Freigabe die des Geräts.
+   */
+  hauptknopfMitDisq: true,
+  // --- W3.4 Abschluss, Ansicht, Probe, Übung (beim Bau 21.11.2026, L1–L9, alle noch zu bestätigen) ---
+  /**
+   * (L1) Korrektur aus der Prüfansicht („Liste abschließen“) nur für Starts, deren neueste eigene Zeile noch in
+   * „Zuletzt“ steht (≤ `zuletzt` Zeilen) – der Kern korrigiert über die Zeilennummer. Ältere Zeilen stehen nur zum Lesen da.
+   */
+  pruefKorrekturNurZuletzt: true,
+  /**
+   * (L2) Band „Liste abschließen“ (G16) konkret: der letzte eigene Punkt (neueste eigene Zeile) ist nicht der laufende
+   * der Sicht – der nächste Lauf begann mit dem Zeigen seines ersten Starts – oder Schlange und „danach“ sind leer;
+   * nicht bei Papier-Modus, abgeschlossenem Punkt (am Steg des eigenen Teils) oder eigenem Abschluss unterwegs/angenommen.
+   */
+  abschlussBandRegel: true,
+  /** (L3) „Mehr → Liste abschließen“ nimmt den Punkt des Bands, sonst den laufenden, sonst den letzten eigenen. */
+  abschlussPunktWahl: true,
+  /**
+   * (L4) Der WKR-Name wird beim Abschicken des Abschlusses gemerkt (auch wenn der Bedienrechner ihn ablehnt) – in der
+   * Übung nie (dort bleibt nur die Ansicht, G13).
+   */
+  nameBeimAbschicken: true,
+  /**
+   * (L5) Sprache: Die Wahl der Sprache der Liste heißt „keine eigene Wahl“ (das Gerät folgt dann der Liste); eine
+   * andere Wahl gilt für alle Listen des Geräts. Zweisprachige Liste (`de+en`): Vorgabe deutsch (G9).
+   */
+  spracheListeOhneWahl: true,
+  /**
+   * (L6) Probe nur, wenn die Liste eine Maske hat (wkr/maske.ts probeMaske – erste Klasse mit Maske); Steg ganz übt
+   * das Ablegen; Vorsteg ohne X nur „In Ordnung“. Übersprungen zählt als erledigt. In der Übung kommt sie nie von
+   * selbst, nur über „Mehr → Probe“ (und wird dort nicht abgelegt).
+   */
+  probeNurMitMaske: true,
+  /**
+   * (L7) Übung: Adresse `#/uebung` in jeder Sprache gleich (fest im Koppel-Formular); die Wahl spricht die Sprache der
+   * Geräte-Oberfläche, die Maske die des Regelwerks (H5). Verweis auch ohne Kopplung („Kein Gerät“/„entkoppelt“);
+   * „Übung verlassen“ führt zur Wahl zurück, „Zum Koppeln“ nach `#/geraet`.
+   */
+  uebungAdresseFest: true,
+  /** (L8) „Mehr“ steht auch in Zuständen ohne Arbeit (außer „Verbinde …“): Ansicht, Sprache, Probe, Abschluss bleiben erreichbar. */
+  mehrAuchInRuhe: true,
+  /** (L9) Eine eigene Zeile ohne Eintrag mehr im Ausgang gilt in der Prüfansicht als „✓ übernommen“ (nur Quittiertes verlässt ihn). */
+  pruefOhneStufeUebernommen: true,
+  // --- Prüfbefunde W3 (21.11.2026, M1–M6, alle noch zu bestätigen) ---
+  /**
+   * (M1) Gemeinsame Felder des Stegs (Disq., Bemerkung) merkt das Gerät je Teil: `vorher` einer Zeile eines Teils kommt
+   * für sie nur aus Zeilen DIESES Teils; leer und ohne eigenes `vorher` gehen sie gar nicht hinaus. Am Bedienrechner
+   * vereinigt `vereinige` (Disq. nur dazu, Wegfall = Rückfrage `entfernt`). Der Stand ohne Teil (Prüfsumme, Prüfansicht
+   * des ganzen Stegs) vereinigt beide Teile wie der Bedienrechner. Vorher löschte ein Gerät für den ganzen Steg mit
+   * „Anlegen OK ✓“ still die Disq. und Bemerkung seines Ablegens.
+   */
+  gemeinsameFelderJeTeil: true,
+  /**
+   * (M2) Korrektur: Entwurf und „alt“ im Dialog aus dem eigenen Stand des Starts und Teils (Kern `stand(z)`), nie aus
+   * den Zellen der Zeile – Korrekturzeilen tragen nur das Geänderte.
+   */
+  korrekturAusStand: true,
+  /**
+   * (M3) Ein vorgemerkter Disq.-Buchstabe (K1) gilt nur für diesen Start und Teil (WkrDisq je Start neu); in der Sperre
+   * nach dem Abschicken merkt ein Tipp nichts vor.
+   */
+  disqVormerkenJeStart: true,
+  /**
+   * (M4) Bedienung über den Neuaufbau der Maske hinweg (Reiter Freigabe ↔ Liste, zwei Listen): „getrennt seit“ und
+   * „wartend seit“ zählt der Kern (Wanduhr), „So lassen“ und „behalten“ hält ein Gedächtnis je Quelle und Liste im
+   * Arbeitsspeicher (components/wkr/gedaechtnis.ts) – nach dem Neuladen der Seite kommen sie wieder.
+   */
+  gedaechtnisUeberReiter: true,
+  /**
+   * (M5) Bildschirm: Der Fuß mit dem Hauptknopf klebt unten (sticky); „Rückgängig“ steht in der Zeile der Leiste
+   * „Zuletzt“ (feste Höhe), „Keine Bestätigung“ legt sich über den Kopf – was ohne Tipp kommt und geht, verschiebt die
+   * Codes nicht. Das rote „Keine Verbindung“, Hinweise des Bedienrechners, verwaiste Entwürfe und das Abschluss-Band
+   * stehen weiter im Fluss (selten, und sie brauchen ihre Knöpfe). Auf niedrigen Bildschirmen (≤ 700 px hoch) ist die
+   * Startnummer 80 px statt 96 px groß.
+   */
+  bildschirmOhneNachrutschen: true,
+  /**
+   * (M6) Entwürfe nach dem Entzug: mit Titel und Bereich der Liste, Steg-Teil und Feldüberschriften, wie die Sicht sie
+   * beim Ablegen nannte (im Ausgang mitgemerkt, `papier`) – nie ein Name.
+   */
+  entwurfFuersPapier: true,
 } as const

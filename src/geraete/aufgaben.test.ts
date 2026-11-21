@@ -147,6 +147,16 @@ describe('Aufgabe `liste` (W1)', () => {
     expect(listenAufgaben(drei).map((a) => a.liste)).toEqual([kennung('tor5'), kennung('mueb')])
     expect(freigabeBereiche(drei)).toEqual(['par_1'])
   })
+
+  it('W3 (F14): Maskenvorgabe `maske`/`fest` nur mit bekannten Werten', () => {
+    expect(liesAufgaben([{ art: 'liste', liste: kennung('tor5'), maske: 'knoepfe', fest: true }])).toEqual([
+      { art: 'liste', liste: kennung('tor5'), maske: 'knoepfe', fest: true },
+    ])
+    expect(liesAufgaben([{ art: 'liste', liste: kennung('steg'), teil: 'an', maske: 'bild' }])).toEqual([{ art: 'liste', liste: kennung('steg'), teil: 'an', maske: 'bild' }])
+    // Unbekannte Maske, `fest` nicht `true`: fallen still weg, die Liste bleibt.
+    expect(liesAufgaben([{ art: 'liste', liste: kennung('tor5'), maske: 'zauber', fest: 'ja' }])).toEqual([{ art: 'liste', liste: kennung('tor5') }])
+    expect(liesAufgaben([{ art: 'liste', liste: kennung('tor5'), maske: 7, fest: 1 }])).toEqual([{ art: 'liste', liste: kennung('tor5') }])
+  })
 })
 
 describe('erlaubteWkr (W1)', () => {

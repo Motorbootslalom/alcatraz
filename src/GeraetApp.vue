@@ -18,6 +18,7 @@ import ZuschauerListe from './components/zuschauer/ZuschauerListe.vue'
 import GeraeteLage from './components/betrieb/GeraeteLage.vue'
 import AppDialog from './components/AppDialog.vue'
 import GeraetFreigabe from './components/betrieb/GeraetFreigabe.vue'
+import WkrUebung from './components/wkr/WkrUebung.vue'
 
 /**
  * Eigene Wurzel für ein fremdes Gerät mit Lese-Link (`#/sehen/<paket>`, Etappe E6, Plan vom 16.11.2026 §4; src/main.ts
@@ -34,6 +35,9 @@ import GeraetFreigabe from './components/betrieb/GeraetFreigabe.vue'
  * E7 (20.11.2026): Koppel-Link `#/koppeln/<paket>` und gekoppeltes Gerät `#/geraet` zeigen statt dessen die
  * Start-Freigabe (components/betrieb/GeraetFreigabe.vue) – dieselbe Wurzel, ohne Store; dort wird der Koppel-Link
  * sofort durch `#/geraet` ersetzt (QR-Token nicht in Verlauf und Lesezeichen).
+ *
+ * W3.4 (21.11.2026, G13): `#/uebung` zeigt die Übung der WKR-Maske (components/wkr/WkrUebung.vue) – ohne Store, ohne
+ * Kopplung, ohne Netz (geraete/uebung.ts); ein Lese- oder Koppel-Gerät ruht dabei (gestoppt wie beim Wechsel).
  *
  * Das Paket des Lese-Links bleibt in der Adresse (Abweichung von Plan §4, beim Bau von E6 am 16.11.2026 – vom Nutzer zu bestätigen):
  * Lesezeichen und Neuladen brauchen es, und geraet.ts legt den Link-Text nicht ab. Nach „Raum verlassen“ steht nur
@@ -56,6 +60,8 @@ type Lage =
 const lage = shallowRef<Lage>({ art: 'ohne' })
 /** E7: Koppel-Link oder gekoppeltes Gerät – dann führt GeraetFreigabe, die Lese-Teile hier ruhen. */
 const freigabe = ref<{ paket?: string } | null>(null)
+/** W3.4: Übung der WKR-Maske. */
+const uebung = ref(false)
 /** Das Paket, das gerade gilt – eine Adresse mit demselben (auch nach dem eigenen `location.replace`) ändert nichts. */
 let paket: string | undefined
 
@@ -111,7 +117,7 @@ const { zeigerWeg, vollbildUmschalten, regung } = useTafelFenster()
 
 // Bildschirm wach halten (E8, 20.11.2026), solange ein Lese-Link läuft oder die Start-Freigabe offen ist – nicht mehr
 // nach „Raum beendet“/„Raum verlassen“. Geht das nicht (altes iPhone, Energiesparen), sagt es die Leiste leise.
-const wach = useWachBleiben(() => !!freigabe.value || (!!geraet.value && !geraet.value.beendet.value))
+const wach = useWachBleiben(() => uebung.value || !!freigabe.value || (!!geraet.value && !geraet.value.beendet.value))
 const bildschirmKannAus = computed(() => wach.value === 'nicht-moeglich')
 
 // Fenster nach Art: schwarz für die Anzeigetafel (kein weißer Blitz), sonst wie die Zuschauerliste.
@@ -120,11 +126,15 @@ watchEffect(() => {
   html.classList.toggle('anzeige-fenster', art.value === 'anzeige')
   html.classList.toggle('zuschauer-fenster', art.value === 'zuschauer')
   html.classList.add('geraet-fenster')
-  html.classList.toggle('freigabe-fenster', !!freigabe.value)
+  html.classList.toggle('freigabe-fenster', !!freigabe.value || uebung.value)
 })
 watchEffect(() => {
   // Den Titel der Start-Freigabe setzt GeraetFreigabe selbst.
   if (freigabe.value) return
+  if (uebung.value) {
+    document.title = t('wkr.geraet.uebung.titel')
+    return
+  }
   const s = tafel.value ?? liste.value
   const titel = s ? tIn(s.sprache, art.value === 'anzeige' ? 'anzeige.titel' : 'zuschauer.titel') : t('geraete.sehen.titel')
   document.title = [titel, s?.kopf].filter(Boolean).join(' – ')
@@ -143,6 +153,14 @@ function verlasse(): void {
 
 function beiAdresse(): void {
   const v = vollbild()
+  uebung.value = v?.art === 'uebung'
+  if (uebung.value) {
+    if (lage.value.art === 'geraet') lage.value.geraet.stop()
+    lage.value = { art: 'ohne' }
+    paket = undefined
+    freigabe.value = null
+    return
+  }
   if (v?.art === 'koppeln' || v?.art === 'geraet') {
     if (lage.value.art === 'geraet') lage.value.geraet.stop()
     lage.value = { art: 'ohne' }
@@ -168,7 +186,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <GeraetFreigabe v-if="freigabe" :paket="freigabe.paket" :umgebung="umgebung" :aktualisiere="aktualisiere" :bildschirm-kann-aus="bildschirmKannAus" />
+  <WkrUebung v-if="uebung" :ablage="umgebung?.ablage" />
+  <GeraetFreigabe v-else-if="freigabe" :paket="freigabe.paket" :umgebung="umgebung" :aktualisiere="aktualisiere" :bildschirm-kann-aus="bildschirmKannAus" />
   <div v-else class="geraet-app" :data-art="art ?? lage.art" @dblclick="art === 'anzeige' && vollbildUmschalten()">
     <!-- Die Anzeigetafel wie im zweiten Fenster, ohne Logos (BETRIEB_ANNAHMEN.logosNurLokal). -->
     <div v-if="art === 'anzeige' && tafel" class="anzeige-app" :class="{ 'zeiger-weg': zeigerWeg }">

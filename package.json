@@ -7,10 +7,12 @@
   "description": "Auswertung für Motorbootslalom-Wettkämpfe – läuft vollständig im Browser",
   "scripts": {
     "dev": "vite",
+    "dev:host": "vite --host",
     "build": "vue-tsc -b && vite build",
     "build:single": "vue-tsc -b && vite build --mode single",
     "build:all": "npm run build && npm run build:single",
     "preview": "vite preview",
+    "preview:host": "vite preview --host",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:leise": "vitest run --reporter=minimal",

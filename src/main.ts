@@ -31,7 +31,9 @@ import { geraeteHostKey, starteGeraeteHost } from './geraete/host'
 // Gerät, gewöhnliche Ansicht), lädt das Fenster neu und wählt sie so. Lese-Link, Koppel-Link (`#/koppeln/<paket>`,
 // E7) und gekoppeltes Gerät (`#/geraet`) sind EINE Wurzel: GeraetApp ersetzt den Koppel-Link selbst durch `#/geraet`
 // (das Paket mit dem QR-Token soll nicht in der Adresse bleiben) – ein Neuladen dabei verlöre die Anmeldung.
-const wurzel = (art: VollbildArt | null) => (art === 'sehen' || art === 'koppeln' || art === 'geraet' ? 'geraet' : art)
+// Die Übung der WKR-Maske (`#/uebung`, W3.4, G13) gehört ebenfalls dazu: ohne Store, ohne Netz, und der Verweis
+// „Üben ohne Verbindung“ im Koppel-Formular wechselt so ohne Neuladen.
+const wurzel = (art: VollbildArt | null) => (art === 'sehen' || art === 'koppeln' || art === 'geraet' || art === 'uebung' ? 'geraet' : art)
 const fenster = wurzel(vollbild()?.art ?? null)
 window.addEventListener('hashchange', () => {
   if (wurzel(vollbild()?.art ?? null) !== fenster) location.reload()

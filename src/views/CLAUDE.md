@@ -20,7 +20,8 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
   document.title (= Dateiname) und ruft window.print().
 - `BetriebView.vue` – Betrieb am Wettkampftag (16.11.2026): Unterreiter `start`, `startliste`, (W2.2) `wkr` (WkrMatrix +
   WkrEingang; Kopf-Zähler `data-teil="wkr-chip"` bei offenen Rückfragen; `#/betrieb/wkr/<parcours>` wählt den Bereich) und (E6) `geraete`
-  (useReiter, Knöpfe `data-reiter`; `geraete` = components/betrieb/GeraeteRaum.vue, ohne Kopf-Knöpfe und Karten; ist ein
+  (useReiter, Knöpfe `data-reiter`; W3.2: `#/betrieb/geraete/<liste>` setzt merke `geraete.koppeln.liste` (Teil zurück
+  auf ganz); `geraete` = components/betrieb/GeraeteRaum.vue, ohne Kopf-Knöpfe und Karten; ist ein
   Raum offen, steht auf den anderen Unterreitern `data-teil="geraete-lage"` im Kopf, Klick → `geraete`), „Anzeigetafel öffnen“ und „Zuschauerliste öffnen“ (lib/anzeigeFenster.ts), Verweise auf
   `#anzeigetafel` und `#betrieb` (Startfolge), je Parcours components/betrieb/StartFreigabe.vue bzw. (E3) StartListe.vue
   aus sichtOeffentlich, darüber die Startabstände der Sicht (`data-teil="abstaende"`); Uhr lib/uhr.ts (1 s), nur im

@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { nextTick, shallowRef } from 'vue'
 import BetriebView from './BetriebView.vue'
 import { createStore, storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
 import { vergissAlles } from '../lib/merken'
-import { geraeteHostKey, starteGeraeteHost, type GeraeteHost } from '../geraete/host'
+import { geraeteHostKey, starteGeraeteHost, type GeraeteHost, type RaumInfo } from '../geraete/host'
+import type { RegisterEintrag } from '../geraete/register'
+import type { WkrEingang, WkrHerkunft } from '../geraete/wkrEingang'
+import { listenKennung } from '../wkr/liste'
 import { oeffneKoppelLink, type GekoppeltesGeraet } from '../geraete/gekoppelt'
 import { formatiereCode } from '../geraete/koppeln'
 import { liesKoppelLink, type KoppelLink } from '../geraete/paket'
@@ -15,7 +18,7 @@ import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, SERVER } from '.
 import type { NtfyZeiten } from '../geraete/transport/ntfy/leitung'
 import { betriebsStand, festgeschrieben } from '../testHilfen'
 import type { AppState } from '../types'
-import { freigabeBereiche } from '../geraete/aufgaben'
+import { freigabeBereiche, type Aufgabe } from '../geraete/aufgaben'
 
 /**
  * Betrieb → Geräte, Koppeln und Geräteliste (E7, Oberfläche): echter Host (geraete/host.ts mit dem Store) im
@@ -154,5 +157,140 @@ describe('Betrieb → Geräte: Koppeln', () => {
     await w.find('[data-action="entziehen-ja"]').trigger('click')
     await zeigt(() => g.lage.value === 'entzogen' && !w.find('.geraete-eintrag').exists())
     expect(w.find('[data-teil="entzogen"]').text()).toContain('Steg Süd')
+  })
+})
+
+// --- W3.2 (21.11.2026): WKR-Liste zuweisen -----------------------------------------------------------------------
+
+const L = (bereich: string, typeId: string) => listenKennung({ bereich, typeId, racecourse: null })
+const STEG = L('par_1', 'steg')
+const TOR5 = L('par_1', 'tor5')
+const GATE = L('par_1', 'gate135')
+
+/** Host-Doppel (Muster views/BetriebWkr.test.ts): Register zum Vorgeben, Befehle als Spione. */
+function hostDoppel(geraeteListe: RegisterEintrag[]) {
+  const raum = shallowRef<RaumInfo | null>({
+    server: SERVER, anzeige: 'a', zuschauer: 'z', fingerabdruck: 'abcd', koppelLink: 'k', koppeln: { code: null, qr: null }, geraete: geraeteListe, entzogen: [],
+  })
+  const setzeAufgaben = vi.fn<(id: string, aufgaben: Aufgabe[]) => void>()
+  const gibCode = vi.fn<(aufgaben: Aufgabe[]) => void>()
+  const host = {
+    raum,
+    fuehrt: shallowRef(true),
+    verbindung: shallowRef(null),
+    oeffne: () => raum.value!,
+    erneuereZuschauer: () => {},
+    beende: async () => 'gemeldet' as const,
+    gibCode,
+    oeffneQr: () => {},
+    beendeKoppeln: () => {},
+    setzeAufgaben,
+    benenne: () => {},
+    entziehe: () => {},
+    hinweis: () => {},
+    merkeEntscheid: () => {},
+    ladeAlleNeu: () => 'gesendet' as const,
+    neueFassung: shallowRef(false),
+    fassungGesehen: () => {},
+    kontingent: shallowRef({ tag: '2026-11-21', gesendet: 0, anfragen: 0, gedrosselt: null }),
+    herkunft: shallowRef<WkrHerkunft>({ kennung: 'MUSTERK7', zellen: {} }),
+    eingang: shallowRef<WkrEingang>({ kennung: 'MUSTERK7', n: 0, geraete: {} }),
+    stop: () => {},
+  } satisfies GeraeteHost
+  return { host, setzeAufgaben, gibCode }
+}
+
+function mitDoppel(host: GeraeteHost): VueWrapper {
+  const w = mount(BetriebView, { attachTo: document.body, global: { provide: { [storeKey as symbol]: store, [geraeteHostKey as symbol]: host } } })
+  wrappers.push(w)
+  return w
+}
+
+const eintrag = (id: string, name: string, aufgaben: Aufgabe[]): RegisterEintrag => ({ id, name, aufgaben, seit: 1, zuletzt: 1 })
+
+describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
+  it('Koppeln: Listen nach Parcours, ohne Maske gekennzeichnet; Code und QR mit Liste und Teil, „Für“ nennt beides', async () => {
+    const { h, w } = await offen()
+    const k = w.find('[data-teil="koppeln"]')
+    const wahl = k.find('select[data-feld="koppeln-liste"]')
+    // Gruppen je Parcours, Titel in Oberflächensprache; Bojen-Listen „Maske folgt – Papier“, Steg nicht.
+    expect(wahl.findAll('optgroup').length).toBe(2)
+    expect(wahl.find(`option[value='${STEG}']`).text()).toBe('Steg')
+    expect(wahl.find(`option[value='${GATE}']`).text()).toBe('Tor 1 / 3 / 5 (Maske folgt – Papier)')
+    expect(wahl.find(`option[value='${GATE}']`).attributes('data-ohne-maske')).toBe('')
+
+    // Nur eine Liste genügt zum Koppeln (keine Freigabe).
+    await wahl.setValue(STEG)
+    expect(k.find('[data-hinweis="bereiche-fehlen"]').exists()).toBe(false)
+    expect(k.find('[data-teil="koppeln-teil"]').exists()).toBe(true)
+    await k.find('[data-wahl-teil="an"]').trigger('click')
+    await k.find('[data-action="koppeln-code"]').trigger('click')
+    await zeigt(() => !!h.raum.value?.koppeln.code)
+    expect(h.raum.value!.koppeln.code!.aufgaben).toEqual([{ art: 'liste', liste: STEG, teil: 'an' }])
+    expect(w.find('[data-teil="code-fuer"]').text()).toBe('Liste: Steg (Parcours 1, nur Anlegen)')
+
+    // QR: Freigabe dazu, Liste ohne Teil (Tor 5 ist nicht geteilt – kein Teil-Wahl).
+    await k.find('[data-teil="koppeln-bereiche"] input[data-bereich="par_2"]').setValue(true)
+    await wahl.setValue(TOR5)
+    expect(k.find('[data-teil="koppeln-teil"]').exists()).toBe(false)
+    await k.find('[data-action="koppeln-qr"]').trigger('click')
+    await zeigt(() => !!h.raum.value?.koppeln.qr && w.find('[data-teil="koppeln-qr"]').exists())
+    expect(h.raum.value!.koppeln.qr!.aufgaben).toEqual([{ art: 'startfreigabe', bereiche: ['par_2'] }, { art: 'liste', liste: TOR5 }])
+    expect(w.find('[data-teil="qr-fuer"]').text()).toMatch(/^Freigabe für: .+ · Liste: Tor 5 \(Parcours 1\)$/)
+  })
+
+  it('Geräteliste: Teil ändern, Liste dazu (höchstens zwei), entfernen – jeweils setzeAufgaben; Maske und Handy-Hinweis', async () => {
+    const freigabe: Aufgabe = { art: 'startfreigabe', bereiche: ['par_1'] }
+    const { host, setzeAufgaben } = hostDoppel([eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }]), eintrag('gHandy', 'iPhone', [{ art: 'liste', liste: TOR5 }])])
+    const w = mitDoppel(host)
+    await nextTick()
+    const pad = w.find('.geraete-eintrag[data-geraet="gPad"]')
+    const zeile = pad.find(`.geraete-liste-eintrag[data-liste='${STEG}']`)
+    expect(zeile.find('[data-teil="liste-titel"]').text()).toBe('Steg (Parcours 1)')
+    expect(zeile.find('[data-teil="liste-maske"]').text()).toBe('Maske: Knöpfe')
+    expect(pad.find('[data-hinweis="nichts-frei"]').exists()).toBe(false)
+
+    // Teil: nur Ablegen – die Freigabe bleibt vorn.
+    await zeile.find('[data-wahl-teil="ab"]').trigger('click')
+    expect(setzeAufgaben).toHaveBeenLastCalledWith('gPad', [freigabe, { art: 'liste', liste: STEG, teil: 'ab' }])
+
+    // Zweite Liste dazu: Auswahl + Knopf; der Knopf erst nach der Wahl.
+    expect(pad.find<HTMLButtonElement>('[data-action="liste-dazu"]').element.disabled).toBe(true)
+    await pad.find('select[data-feld="liste-dazu"]').setValue(GATE)
+    await pad.find('[data-action="liste-dazu"]').trigger('click')
+    expect(setzeAufgaben).toHaveBeenLastCalledWith('gPad', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }])
+
+    // Das Register meldet zwei Listen: kein „dazu“ mehr, Hinweis höchstens zwei; Bojen-Liste „Maske folgt“.
+    host.raum.value = { ...host.raum.value!, geraete: [eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }]), host.raum.value!.geraete[1]] }
+    await nextTick()
+    const pad2 = w.find('.geraete-eintrag[data-geraet="gPad"]')
+    expect(pad2.find('select[data-feld="liste-dazu"]').exists()).toBe(false)
+    expect(pad2.find('[data-hinweis="listen-voll"]').text()).toBe('Höchstens 2 Listen je Gerät.')
+    expect(pad2.find('[data-hinweis="pad-zwei"]').exists()).toBe(true)
+    expect(pad2.find(`.geraete-liste-eintrag[data-liste='${GATE}'] [data-teil="liste-maske"]`).text()).toBe('Maske folgt – Papier')
+
+    // Entfernen.
+    await pad2.find(`.geraete-liste-eintrag[data-liste='${STEG}'] [data-action="liste-entfernen"]`).trigger('click')
+    expect(setzeAufgaben).toHaveBeenLastCalledWith('gPad', [freigabe, { art: 'liste', liste: GATE }])
+
+    // Handy (Name = Geräteart): Hinweis „eine Liste“; Liste ohne Teilung hat keine Teil-Wahl.
+    const handyEintrag = w.find('.geraete-eintrag[data-geraet="gHandy"]')
+    expect(handyEintrag.find('[data-hinweis="handy-eine"]').text()).toContain('Handy: eine Liste')
+    expect(handyEintrag.find(`.geraete-liste-eintrag[data-liste='${TOR5}'] [data-wahl-teil]`).exists()).toBe(false)
+    // Freigabe umschalten behält die Liste.
+    await handyEintrag.find('input[data-bereich="par_1"]').setValue(true)
+    expect(setzeAufgaben).toHaveBeenLastCalledWith('gHandy', [{ art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: TOR5 }])
+    expect(setzeAufgaben).toHaveBeenCalledTimes(4)
+  })
+
+  it('Verweis mit Liste in der Adresse (`#/betrieb/geraete/<liste>`) wählt sie fürs Koppeln vor', async () => {
+    location.hash = `#/betrieb/geraete/${encodeURIComponent(STEG)}`
+    const { host, gibCode } = hostDoppel([])
+    const w = mitDoppel(host)
+    await nextTick()
+    const wahl = w.find<HTMLSelectElement>('select[data-feld="koppeln-liste"]')
+    expect(wahl.element.value).toBe(STEG)
+    await w.find('[data-action="koppeln-code"]').trigger('click')
+    expect(gibCode).toHaveBeenCalledWith([{ art: 'liste', liste: STEG }])
   })
 })

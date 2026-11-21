@@ -93,10 +93,42 @@ Je Punkt abhaken, wenn das erwartete Ergebnis eintritt; sonst unter „Beobachtu
   Hochgerechnet auf einen Wettkampftag (120 Starter, 2 Läufe) – erwartet laut Überschlag etwa 600 Nachrichten ohne,
   850 mit Start-Freigabe vom Handy (docs/betrieb.md „Kontingent“): ______
 
+## WKR-Maske auf dem Handy (W3)
+
+Gebaut 21.11.2026 (Plan [plan-wkr-w3.md](plan-wkr-w3.md)), bisher nur mit nachgebautem Server und ohne echte
+Bildschirmgrößen geprüft – Zielgrößen stehen nur im CSS. Bedienung:
+[betrieb.md](betrieb.md#wkr-erfassung-w1-kern-w2-bedienrechner-w3-handy-maske-knöpfe). Je Handy eine Liste koppeln
+(Tor 5, Steg nur Ablegen, Vorsteg), Probe durchtippen, dann einen Lauf mit Beispieldaten erfassen.
+
+- [ ] **Handschuhe** (dünne Arbeits- und dicke Segelhandschuhe): Codes, Hauptknopf, Disq., „− letzte zurück“,
+  Ausweichen, Ziffernfeld der Suche treffen. Erwartet: jeder Tipp trifft den gemeinten Knopf, kein Nachbar.
+  Fehlgriffe auf 20 Tipps: dünn ______ dick ______ Beobachtung:
+- [ ] **Sonne** (Mittagssonne, Display-Helligkeit automatisch und voll; Sonnenbrille, auch polarisiert): Sonnenmodus
+  (Vorgabe) gegen Hell und Dunkel. Erwartet: Startnummer, Hauptknopf und Stufenzeichen (✓ ↑ ! ✗ V) aus Armlänge lesbar,
+  „ÜBUNG“/rotes Band „Keine Verbindung“ sofort erkennbar. Beobachtung:
+- [ ] **Doppeltipp** (absichtlich zweimal schnell auf „Fehlerfrei ✓“, auch auf einen Code direkt nach dem Wechsel;
+  Tropfen auf dem Display). Erwartet: genau eine Zeile; 2 s „● gesendet“ mit derselben Nummer, dann Blitz, 1 s ohne
+  Eingabe; am Bedienrechner kein doppelter Wert. Beobachtung:
+- [ ] **iPhone ohne Vibration** (Safari kennt `navigator.vibrate` nicht): Erwartet: der Blitz allein zeigt den Wechsel
+  deutlich genug, auch in der Sonne. Ist er zu kurz (150 ms) oder zu blass? Beobachtung:
+- [ ] **Hochkant, eine Hand**: Daumen erreicht Hauptknopf und Disq. ohne Umgreifen; Linkshand (Mehr → Ansicht)
+  spiegelt den Fuß. Bildschirmbreite des Geräts: ______ Beobachtung:
+- [ ] **Probe** beim ersten Empfang der Liste; danach (neu laden) nicht noch einmal. Erwartet: am Bedienrechner kommt
+  nichts an. Beobachtung:
+- [ ] **Funkloch** (Flugmodus 2 min, weiter erfassen): Erwartet: rotes Band „Keine Verbindung seit …“, Zeilen warten,
+  nach dem Einschalten gehen sie als eine Nachricht; ab 5 min „Papierbogen ab Nr. …“. Beobachtung:
+- [ ] **Liste abschließen** am Laufende mit Namen; einmal mit offenem Start („Rest auf Papier“). Erwartet: am
+  Bedienrechner unter Betrieb → WKR der Abschluss mit Namen; spätere Korrektur kommt als Vorschlag. Beobachtung:
+- [ ] **Übung** („Üben ohne Verbindung“ im Koppel-Formular) im Flugmodus. Erwartet: Maske arbeitet ohne Netz, Kopf
+  „ÜBUNG“. Taugt sie für die Einweisung? Beobachtung:
+- [ ] **Akku** nach einem Lauf mit Maske offen (Wake Lock): Anfang ______ % Ende ______ % Dauer ______ min.
+
 ## Nur iPhone
 
 - [ ] **CompressionStream** (ab Safari 16.4). Erwartet: Lese-Link zeigt an; auf älteren Geräten „Dieser Browser ist zu
   alt dafür“. iOS-Fassung: ______
+- [ ] **Vibration fehlt** bei der WKR-Maske (siehe oben „iPhone ohne Vibration“): nur der Blitz – reicht er?
+  Beobachtung:
 - [ ] **ITP** (Safari löscht Daten einer Seite nach 7 Tagen ohne Besuch): nach dem Test Safari schließen, nach
   einigen Tagen `#/geraet` öffnen. Erwartet: Kopplung noch da oder sauber „nicht gekoppelt“ (dann neu koppeln).
   Beobachtung:
@@ -110,3 +142,5 @@ Je Punkt abhaken, wenn das erwartete Ergebnis eintritt; sonst unter „Beobachtu
 - Kontingent: Nachrichten und Anfragen gegen Dauer und Zahl der Starts; ob der Server gebremst hat. Damit lässt sich
   der Überschlag (600–850 Nachrichten je Wettkampftag) prüfen und entscheiden, ob `ntfy.adminforge.de` reicht.
 - Was am Bedienrechner unklar war (Texte, Knöpfe).
+- WKR-Maske: Fehlgriffe mit Handschuhen, Lesbarkeit in der Sonne, ob der Doppeltipp-Schutz zu lang oder zu kurz ist
+  (2 s + 1 s, WKR_ANNAHMEN.weiterNachMs/sperreMs), Blitz ohne Vibration auf dem iPhone, Akku.

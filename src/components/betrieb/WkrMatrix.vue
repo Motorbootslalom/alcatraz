@@ -4,6 +4,7 @@ import type { OeffentlicheSicht } from '../../types'
 import { useStore } from '../../state/store'
 import { useKonfig } from '../../lib/konfig'
 import { merke } from '../../lib/merken'
+import { adresse } from '../../lib/router'
 import { useUhr } from '../../lib/uhr'
 import { listenFelder, werteVon } from '../../lib/eingaben'
 import { liesRef } from '../../betrieb/folge'
@@ -24,6 +25,9 @@ import { punktText, punktVon, uhrzeitText } from './texte'
  * Warnung, Erfassung); hier nur Zeichen, Wahl und Klicks. Am Bedienrechner – liest den Store und, wenn es ihn gibt,
  * den Host (Register für die Ampel, Herkunft ◆ für die Karte einer Zelle). Ohne Raum steht die Matrix trotzdem: Sie
  * zeigt beim Abtippen die Lücken; die Gerätespalte ist dann leer („—“), Listen ohne Eintrag sind Papier (▭).
+ *
+ * W3.2 (21.11.2026): Eine Liste ohne Gerät trägt den Verweis „Gerät koppeln“ → Betrieb → Geräte mit dieser Liste
+ * vorgewählt (`#/betrieb/geraete/<liste>`, BetriebView beiWahl → merke `geraete.koppeln.liste`; J5: immer, auch ohne Raum).
  *
  * Die Uhr (Ampel, „vor 2 min“) tickt alle 5 s und nur in diesem Zweig. Bedienauswahl (Bereich, alle Starts,
  * aufgeklappte Bedienung) über lib/merken.ts `betrieb.wkr.*`, nie im Stand.
@@ -60,6 +64,9 @@ const imBoot = computed(() => {
 const ZEICHEN: Record<Zelle, string> = { ok: '✓', halb: '½', offen: '○', ueberfaellig: '○!', rueckfrage: '!', vorschlag: 'V', entfaellt: '–', papier: 'P', x: '✕', vorab: '»' }
 const ZELLEN = Object.keys(ZEICHEN) as Zelle[]
 const AMPEL: Record<Ampel, string> = { gehoert: '●', still: '◐', weg: '✕', ruht: '○' }
+
+/** Verweis „Gerät koppeln“ mit vorgewählter Liste (W3.2). */
+const koppelnAdresse = (liste: string) => adresse('betrieb', { reiter: 'geraete', wahl: liste })
 
 function seitText(ms: number): string {
   return ms < 60_000 ? t('betrieb.wkr.vorSek', { n: Math.floor(ms / 1000) }) : t('betrieb.wkr.vorMin', { n: Math.floor(ms / 60_000) })
@@ -201,6 +208,7 @@ function zumEingang(): void {
                   </button>
                   <span v-if="l.geraete.length === 0 && (l.modus === null || l.modus === 'papier')" class="note" data-teil="papier-liste">▭ {{ t('betrieb.wkr.papierListe') }}</span>
                   <span v-else-if="l.geraete.length === 0" class="note">{{ t('betrieb.wkr.keinGeraet') }}</span>
+                  <a v-if="l.geraete.length === 0" class="wkr-koppeln" data-action="wkr-koppeln" :href="koppelnAdresse(l.liste)">{{ t('betrieb.wkr.koppeln') }}</a>
                 </td>
                 <td v-for="s in lage.starts" :key="s.key" class="wkr-mzelle-td">
                   <button

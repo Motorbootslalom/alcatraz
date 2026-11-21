@@ -20,6 +20,7 @@ Nicht hier: Regelwerk-/Positionstexte (config/*.yaml, config/i18n/en.yaml), fest
 | aufbauten.ts | own, assist | eigene Aufbauten, Aufbau-Assistent |
 | verlauf.ts | offline, files, history, backup | Offline/Update, Dateien, Verlauf, Zurücksetzen |
 | betrieb.ts | betrieb, anzeige, meldung, zuschauer | Start-Freigabe und Startliste (Oberfläche, `betrieb.liste.*`), Anzeigetafel (Sprache der Tafel, tIn; Wartezeiten `anzeige.zeit.*`), Meldungsarten, Meldungsvorlagen (`meldung.vorlage.<id>` Tafel-Sprache, `….titel`/`meldung.gruppe.*` Oberfläche), Zuschauerliste (`zuschauer.*`, Tafel-Sprache); E4 Parallelslalom: `….runde`-Fassungen (texte.ts tBereich), `anzeige.parallel/racecourse/versuch`; E6 Gerätebetrieb `geraete.*` (Oberfläche: Betrieb → Geräte, `geraete.lage.*`, `geraete.fehler.<code>` je Fehlercode aus geraete/transport/typen.ts, Gerät `geraete.sehen.*` in der Sprache des Geräts) |
+| wkrGeraet.ts | wkr.geraet (Unterpräfix) | WKR-Maske auf dem Handy (W3.3/W3.4: Abschluss, Ansicht, Probe; die Wahl der Übung `wkr.geraet.uebung.*` und der Verweis in GeraetFreigabe sprechen die Oberflächensprache, t()): Sprache der LISTE über components/wkr/texte.ts useWkrText (tIn), nie t(); Unterpräfix von `wkr` – teile.test.ts UNTERPRAEFIXE |
 
 ## Text ergänzen
 
@@ -31,6 +32,7 @@ Nicht hier: Regelwerk-/Positionstexte (config/*.yaml, config/i18n/en.yaml), fest
   Steg und Startabstände), des Gerätebetriebs: listopt.geraete.* (Server); Reiter nav.betrieb (allgemein.ts),
   Unterreiter betrieb.reiter.*. Vorsteg = „pontoon entry“. Ein neuer Fehlercode des Transports braucht
   `geraete.fehler.<code>` in beiden Sprachen (sonst schlägt vue-tsc an der Vorlage fehl).
-- Neuer Präfix: in genau eine Datei, Tabelle nachtragen. Neuer Bereich: Datei in de/ und en/, in de.ts und en.ts einhängen.
+- Neuer Präfix: in genau eine Datei, Tabelle nachtragen (ein Unterpräfix wie `wkr.geraet` mit eigener Datei braucht
+  einen Eintrag in teile.test.ts UNTERPRAEFIXE). Neuer Bereich: Datei in de/ und en/, in de.ts und en.ts einhängen.
 - Prüfen: `npx vue-tsc -b` (en-Teil gegen de-Teil: fehlende/überzählige Schlüssel; im Code benutzte, fehlende Schlüssel),
   `npx vitest run src/i18n` (Platzhalter, Zahlformen; teile.test.ts: Präfix in genau einem Teil, alle Teile eingehängt).

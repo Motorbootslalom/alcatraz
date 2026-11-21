@@ -8,7 +8,11 @@ import {
   ichOderNeu,
   legeRaumAn,
   liesHerkunft,
+  liesAnsicht,
   liesIch,
+  merkeProbe,
+  probeErledigt,
+  schreibeAnsicht,
   liesWkrEingang,
   PRAEFIX_GERAET,
   PRAEFIX_HOST,
@@ -514,5 +518,48 @@ describe('Ausgang der WKR-Erfassung auf dem Gerät (W1.4)', () => {
     expect(a.lies()).toEqual({ naechsteZ: 8 })
     verlasseRaum(localStorage)
     expect(localStorage.getItem(ABLAGE.geraetWkr)).toBeNull()
+  })
+})
+
+describe('Ansicht und Probe der WKR-Maske (W3.1)', () => {
+  const BEZUG: RaumBezug = { u: SERVER, r: 'raumW3', s: 'sigW3' }
+  beforeEach(() => localStorage.clear())
+
+  it('Ansicht: Vorgabe Sonne/rechts (G1), nur bekannte Werte; bleibt nach „Raum verlassen“ außer dem Namen (G12)', () => {
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'sonne', hand: 'rechts' })
+    expect(schreibeAnsicht({ modus: 'dunkel', hand: 'links', sprache: 'en', name: 'Muster WKR' }, localStorage)).toBe(true)
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'dunkel', hand: 'links', sprache: 'en', name: 'Muster WKR' })
+    // Sprache zurück auf „wie die Liste“: undefined löscht.
+    schreibeAnsicht({ sprache: undefined }, localStorage)
+    expect(liesAnsicht(localStorage).sprache).toBeUndefined()
+    // Kaputtes fällt Feld für Feld auf die Vorgabe.
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ modus: 'grell', hand: 'links', sprache: 'fr', name: 'x'.repeat(61) }))
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'sonne', hand: 'links' })
+    schreibeAnsicht({ modus: 'hell', name: 'Muster WKR' }, localStorage)
+    verlasseRaum(localStorage)
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'hell', hand: 'links' })
+    // Ohne Speicher: Vorgabe, Schreiben meldet false.
+    expect(liesAnsicht(vollerSpeicher)).toEqual({ modus: 'sonne', hand: 'rechts' })
+    expect(schreibeAnsicht({ modus: 'hell' }, vollerSpeicher)).toBe(false)
+  })
+
+  it('Probe je Raum und Liste (G10): anderer Raum = neue Probe; pruefeRaum und verlasseRaum räumen sie', () => {
+    expect(probeErledigt(BEZUG, 'L1', localStorage)).toBe(false)
+    merkeProbe(BEZUG, 'L1', localStorage)
+    merkeProbe(BEZUG, 'L1', localStorage)
+    expect(probeErledigt(BEZUG, 'L1', localStorage)).toBe(true)
+    expect(probeErledigt(BEZUG, 'L2', localStorage)).toBe(false)
+    expect(probeErledigt({ ...BEZUG, r: 'neu' }, 'L1', localStorage)).toBe(false)
+    expect(JSON.parse(localStorage.getItem(ABLAGE.probe)!).listen).toEqual(['L1'])
+    // Ein anderer Raum ersetzt den Eintrag.
+    merkeProbe({ ...BEZUG, r: 'neu' }, 'L2', localStorage)
+    expect(probeErledigt(BEZUG, 'L1', localStorage)).toBe(false)
+    pruefeRaum(BEZUG, localStorage)
+    expect(localStorage.getItem(ABLAGE.probe)).toBeNull()
+    merkeProbe(BEZUG, 'L1', localStorage)
+    pruefeRaum(BEZUG, localStorage)
+    expect(probeErledigt(BEZUG, 'L1', localStorage)).toBe(true)
+    verlasseRaum(localStorage)
+    expect(localStorage.getItem(ABLAGE.probe)).toBeNull()
   })
 })

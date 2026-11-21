@@ -9,6 +9,7 @@ import { LISTEN_SICHT_FASSUNG, sichtListe, type ListenSicht, type ListenSichtExt
 import { listenKennung, type Liste } from './liste'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
 import { listenFelder } from '../lib/eingaben'
+import { deflateRawSync } from 'node:zlib'
 
 // Die Sicht einer Liste (Plan §3.1, §6): genaue Schlüssel (Positivliste wie betrieb/sicht.test.ts), Datenschutz über
 // alle Schlüssel und Werte, `steht` nur für das Gerät mit der Rückfrage, Listensprache (DM deutsch, UIM englisch),
@@ -206,6 +207,35 @@ describe('Sicht der Liste – Sprache (F13)', () => {
     const zwei = sichtListe({ ...u, wkrSprachen: { 'racecourse-a': { steg: 'de+en' } } }, UIM, A, EXTRA)
     expect(zwei.sprache).toBe('de+en')
     expect(zwei.bereich).toBe('Parcours A / Racecourse A')
+  })
+
+  it('W3: `andere` nur unter UIM (Regelwerk mit [de, en]) – nur Texte, Positivliste; DM ohne', () => {
+    const { s } = bereit('steg')
+    expect(sichtListe(s, DM, L('steg'), EXTRA).andere).toBeUndefined()
+    let u = uimParallelStand()
+    u = reducer(u, { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    const A: Liste = { bereich: 'parallel', typeId: 'steg', racecourse: 'A' }
+    const sicht = sichtListe(u, UIM, A, EXTRA)
+    expect(Object.keys(sicht.andere!).sort()).toEqual(['bereich', 'klassen', 'sprache', 'titel'])
+    expect([sicht.andere!.sprache, sicht.andere!.bereich, sicht.andere!.klassen.E!.titel]).toEqual(['de', 'Parcours A', 'Klasse Dolphin'])
+    // Dieselben Klassen und Felder wie die Maske, nur Texte (keine Art, kein Teil, keine Punkte).
+    expect(Object.keys(sicht.andere!.klassen)).toEqual(Object.keys(sicht.klassen))
+    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'label', 'katalog', 'disq', 'code', 'text'])
+    for (const k of schluessel(Object.values(sicht.andere!.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
+    const en = sicht.klassen['1']!.felder!
+    const de = sicht.andere!.klassen['1']!.felder!
+    expect(de.map((f) => f.kennung)).toEqual(en.map((f) => f.kennung))
+    const katEn = en.find((f) => f.katalog)!.katalog!
+    const katDe = de.find((f) => f.katalog)!.katalog!
+    expect(katDe.map((e) => e.code)).toEqual(katEn.map((e) => e.code))
+    expect(katDe.map((e) => e.text)).not.toEqual(katEn.map((e) => e.text))
+    // X bleibt auch in der anderen Sprache nur, wo F5 es erlaubt.
+    expect(de.find((f) => f.kennung === en.find((x) => x.kind === 'code' && x.teil === 'an')!.kennung)!.disq!.map((d) => d.code)).not.toContain('X')
+    // Zweisprachige Liste (G9): Maske deutsch, `andere` englisch.
+    const zwei = sichtListe({ ...u, wkrSprachen: { 'racecourse-a': { steg: 'de+en' } } }, UIM, A, EXTRA)
+    expect([zwei.klassen.E!.titel, zwei.andere!.sprache, zwei.andere!.klassen.E!.titel]).toEqual(['Klasse Dolphin', 'en', 'Class Dolphin'])
+    // Plan §8: Mit `andere` bleibt die Sicht komprimiert unter der Inline-Grenze von ntfy (4096 Byte).
+    expect(deflateRawSync(Buffer.from(JSON.stringify(sicht))).length).toBeLessThan(4096)
   })
 })
 

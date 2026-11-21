@@ -48,11 +48,12 @@ export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'p
  * die Anzeigetafel `#/anzeige[/<bereich>]` (src/AnzeigeApp.vue, Plan vom 16.11.2026), die
  * Zuschauerliste `#/zuschauer[/<bereich>]` (src/ZuschauerApp.vue, E3) und ein fremdes Gerät mit
  * Lese-Link `#/sehen/<paket>` (src/GeraetApp.vue, E6 – ohne Store), dazu E7 der Koppel-Link `#/koppeln/<paket>` und
- * das gekoppelte Gerät `#/geraet` (Start-Freigabe vom Handy, ebenfalls GeraetApp). Der Bereich ist eine Kennung
+ * das gekoppelte Gerät `#/geraet` (Start-Freigabe vom Handy, ebenfalls GeraetApp), W3.4 die Übung der WKR-Maske
+ * `#/uebung` (GeraetApp ohne Store und ohne Netz, G13). Der Bereich ist eine Kennung
  * aus den Daten (Parcours) – kodiert, nicht übersetzt, wie `wahl`; das Paket ist Base64url
  * (geraete/paket.ts).
  */
-export const VOLLBILDER = ['anzeige', 'zuschauer', 'sehen', 'koppeln', 'geraet'] as const
+export const VOLLBILDER = ['anzeige', 'zuschauer', 'sehen', 'koppeln', 'geraet', 'uebung'] as const
 export type VollbildArt = (typeof VOLLBILDER)[number]
 export interface Vollbild {
   art: VollbildArt
@@ -108,7 +109,7 @@ export const ADRESSEN = {
     ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge', geraete: 'geraete' },
     // `sehen`, `koppeln` und `geraet` in jeder Sprache gleich (geraete/paket.ts SEHEN/KOPPELN, GERAET): Lese- und
     // Koppel-Link kennen die Sprache des Geräts nicht.
-    vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer', sehen: 'sehen', koppeln: 'koppeln', geraet: 'geraet' },
+    vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer', sehen: 'sehen', koppeln: 'koppeln', geraet: 'geraet', uebung: 'uebung' },
   },
   en: {
     ansichten: {
@@ -144,7 +145,8 @@ export const ADRESSEN = {
     ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order', geraete: 'devices' },
     // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen;
     // „spectators“ ebenso (Plan §4: `#/spectators`). `sehen` wie im Deutschen (Lese-Link, s. o.).
-    vollbild: { anzeige: 'display', zuschauer: 'spectators', sehen: 'sehen', koppeln: 'koppeln', geraet: 'geraet' },
+    // `uebung` (W3.4) wie `geraet` in jeder Sprache gleich: Der Verweis steht fest im Koppel-Formular des Geräts.
+    vollbild: { anzeige: 'display', zuschauer: 'spectators', sehen: 'sehen', koppeln: 'koppeln', geraet: 'geraet', uebung: 'uebung' },
   },
 } as const satisfies Record<string, AdressTabelle>
 
@@ -372,6 +374,9 @@ export function liesVollbild(buch: Adressbuch, hash: string): Vollbild | null {
   if (!art) return null
   return b !== '' ? { art, bereich: b } : { art }
 }
+
+/** Die Übung der WKR-Maske (W3.4, G13): fest, in jeder Sprache gleich – GeraetApp ohne Store und ohne Netz. */
+export const UEBUNG_ADRESSE = '#/uebung'
 
 /** Schreibt die Adresse eines solchen Fensters in einer Sprache; der Bereich bleibt, wie er ist (kodiert). */
 export function schreibeVollbild(buch: Adressbuch, sprache: string, v: Vollbild, fallback: string = ADRESS_FALLBACK): string {

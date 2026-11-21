@@ -137,6 +137,24 @@ describe('Betrieb → WKR: Matrix', () => {
     expect(w.find('[data-reiter="geraete"]').classes()).toContain('active')
   })
 
+  it('W3.2: Liste ohne Gerät mit Verweis „Gerät koppeln“ → Betrieb → Geräte mit vorgewählter Liste', async () => {
+    const { host } = hostDoppel()
+    const w = await betrieb(stand(), host)
+    // gate135 hat ein Gerät: kein Verweis; tor5 ohne Gerät: Verweis mit der Liste in der Adresse.
+    expect(reihe(w, TOR).find('[data-action="wkr-koppeln"]').exists()).toBe(false)
+    const verweis = reihe(w, K('tor5')).find('a[data-action="wkr-koppeln"]')
+    expect(verweis.text()).toBe('Gerät koppeln')
+    const href = verweis.attributes('href')!
+    expect(href).toBe(`#/betrieb/geraete/${encodeURIComponent(K('tor5'))}`)
+    // Dem Verweis folgen (happy-dom navigiert beim Klick nicht): Unterreiter Geräte, Liste vorgewählt.
+    location.hash = href
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    await nextTick()
+    await nextTick()
+    expect(w.find('[data-reiter="geraete"]').classes()).toContain('active')
+    expect(w.find<HTMLSelectElement>('select[data-feld="koppeln-liste"]').element.value).toBe(K('tor5'))
+  })
+
   it('Klick auf eine Zelle zeigt die Werte der Zeile mit ◆ vom Gerät (Uhrzeit, kein Datum)', async () => {
     let s = stand()
     const keys = gezeigt(s)

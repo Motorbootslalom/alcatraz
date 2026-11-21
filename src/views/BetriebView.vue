@@ -52,8 +52,16 @@ const reiter = merke<(typeof REITER)[number]>('betrieb.reiter', 'start')
 // Ein Querverweis kann den Bereich der WKR-Matrix mitgeben (`#/betrieb/wkr/<parcours>`, Scheibe 4: Klick auf die
 // Geräteleiste der Start-Freigabe); gemerkt wird er wie die Wahl in der Matrix (lib/merken.ts).
 const wkrBereich = merke('betrieb.wkr.bereich', '')
+// W3.2: `#/betrieb/geraete/<liste>` (Verweis „Gerät koppeln“ der Matrix) wählt die Liste fürs nächste Gerät vor –
+// derselbe Merker wie in GeraeteKoppeln.vue; ob es die Liste gibt, prüft die Wahl dort. Teil wieder „ganz“.
+const koppelnListe = merke('geraete.koppeln.liste', '')
+const koppelnTeil = merke('geraete.koppeln.teil', '')
 useReiter('betrieb', reiter, REITER, undefined, (r, wahl) => {
   if (r === 'wkr') wkrBereich.value = wahl
+  if (r === 'geraete') {
+    koppelnListe.value = wahl
+    koppelnTeil.value = ''
+  }
 })
 
 /** Offene Rückfragen der WKR-Geräte – im Kopf jedes Unterreiters, damit sie niemand übersieht (Plan W2 §6.1). */

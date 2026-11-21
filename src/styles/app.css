@@ -3652,6 +3652,32 @@ table.starters th .sortier-kopf:disabled {
   gap: 6px;
 }
 
+/* W3.2: WKR-Listen beim Koppeln und je Gerät – eine Zeile je Liste, die Teil-Knöpfe brechen am Handy um. */
+.geraete-listen-eintraege {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.geraete-liste-eintrag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 4px 0;
+}
+
+.geraete-listenwahl select {
+  max-width: 100%;
+}
+
+.wkr-koppeln {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.9em;
+}
+
 .geraete-koppel-karten {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

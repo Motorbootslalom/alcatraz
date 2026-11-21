@@ -601,6 +601,33 @@ plan-wkr-w2.md §9):
   Anzeigetafel, Neuberechnung alle 15 s und Senden nur bei Änderung, Nachfrage vor jedem Zeigen – nicht bei „Lauf
   beginnen“, „Zurück“, Zurückstellen).
 
+**W3 (Handy-Maske „Knöpfe“) gebaut 21.11.2026** nach [plan-wkr-w3.md](plan-wkr-w3.md), Scheiben W3.1–W3.4: Maske für
+Steg (ganz bzw. nur Ablegen/Anlegen), Tor 5, Mann-über-Bord und Vorsteg mit Rahmen (Kopf, Startnummer ohne Namen,
+Ausweichen und Suche, „Zuletzt“ mit Korrektur, Hauptknopf „Fehlerfrei ✓“ → „Abschicken · n“, Disq. getrennt,
+Doppeltipp-Schutz, Zustände ohne Arbeit), Liste zuweisen am Bedienrechner, „Liste abschließen“ mit Prüfansicht und
+WKR-Name, Ansicht (Sonne/Hell/Dunkel, Linkshand) und Sprache unter „Mehr“, Probe beim Einrichten, Übungsmodus
+`#/uebung` ohne Netz. Listen mit Bojen, Zeit oder Knoten zeigen „bitte Papier“ (W4/W5). Weiterhin nur gegen den
+nachgebauten Server geprüft. Beim Planen und Bau ausgelegt, **noch zu bestätigen** (im Code `WKR_ANNAHMEN`, Hintergrund
+plan-wkr-w3.md §9–§13):
+
+- G1 Sonnenmodus ist Vorgabe, Hell/Dunkel wählbar, gemerkt je Gerät. G2 Masken nur für Listen aus Katalog/Disq./
+  Bemerkung, erkannt an den Feldarten. G3 Handy eine Liste, Pad zwei – nur als Hinweis am Bedienrechner. G4 Maskenvorgabe
+  (F14) nur als Feld, in W3 immer „Knöpfe“. G5 Doppeltipp-Schutz: 2 s „gesendet“, Blitz/Vibration, 1 s keine Eingabe –
+  auch für Codes und Disq. G6 Codes „ab Klasse n“ bleiben drückbar. G7 Suche nur in Schlange, „danach“ und „Zuletzt“.
+  G8 Rückgängig 6 s. G9 Sprache: Vorgabe die der Liste (`de+en` → deutsch); Kataloge wechseln nur unter UIM.
+  G10 Probe einmal je Raum und Liste, überspringbar, nichts gesendet. G11 WKR-Name nur beim Abschluss. G12 letzter
+  WKR-Name vorbelegt, gelöscht mit „Raum verlassen“. G13 Übung mit erfundenen Starts, ohne Kopplung, nichts außer der
+  Ansicht abgelegt. G14 Liste ohne Maske: „Papier“ mit „Pausieren“. G15 „Nicht vorbeigekommen“ erst mit W4. G16 Band
+  „Liste abschließen“, sobald der eigene Punkt nicht mehr läuft.
+- Beim Bau dazu H1–H5 (Disq. als Schalter, „zurück“ = letzter Tipp, Schlange je Steg-Teil, Entwürfe im Ausgang, Übung
+  in der Sprache des Regelwerks), J1–J5 (Liste zuweisen: „Maske folgt“ nach den Klassen der Starter, Handy am Namen
+  erkannt, Freigabe-Vorwahl nur ohne Liste, beim Koppeln eine Liste, Verweis „Gerät koppeln“ immer), K1–K9 (Disq.
+  zweiter Tipp, Sperre auch während „gesendet“, Erfassung bleibt nach Entzug offen, Entwurf je Tipp, Pause ohne
+  Knöpfe, Reiter „Freigabe“ zuerst, „So lassen“ nur lokal, Suche mit „E“, Hauptknopf mit Disq.) und L1–L9 (Korrektur
+  aus der Prüfansicht nur über „Zuletzt“, Regel des Abschluss-Bands, welcher Punkt abgeschlossen wird, Name beim
+  Abschicken gemerkt – in der Übung nie, Sprache der Liste = keine eigene Wahl, Probe nur mit Maske und in der Übung
+  nur über „Mehr“, Übungsadresse fest, „Mehr“ auch ohne Arbeit, Zeile ohne Ausgang = übernommen).
+
 - 2026-11-21 · F1 · Papier bzw. „beides“ ist **immer** je Liste wählbar, nicht nur beim ersten Wettkampf. Das Gerät kann
   sich „pausieren“ oder „abmelden“; dann zählt die Liste nicht als Rückstand, die Freigabe wartet nicht darauf.
 - 2026-11-21 · F2 · Eine Boje kann je Richtung nur einmal berührt werden (Schalter 5/0). Ausnahmen: Torbojen von Tor 5
@@ -632,8 +659,10 @@ plan-wkr-w2.md §9):
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
 
 - Digitale WKR-Erfassung (Antworten 21.11.2026, Abschnitt oben): Etappen W1–W6 nach
-  [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern) und W2 (Bedienrechner) gebaut 21.11.2026,
-  W3–W6 offen (Masken auf Handy und Pad, Knoten/Zeit-Listen); Auslegungen W2 A1–A13, B1–B6, C1–C4, D1–D5 noch zu bestätigen.
+  [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern), W2 (Bedienrechner) und W3 (Handy-Maske
+  „Knöpfe“, Übung) gebaut 21.11.2026, W4–W6 offen (Bojen-Masken, Pad quer, Bild/Text, Knoten/Zeit-Listen); Auslegungen
+  W2 A1–A13, B1–B6, C1–C4, D1–D5 und W3 G1–G16, H1–H5, J1–J5, K1–K9, L1–L9 noch zu bestätigen; Feldtest offen
+  (docs/feldtest.md „WKR-Maske“).
 
 ## Offen
 

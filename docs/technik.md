@@ -142,11 +142,19 @@ Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offli
 
 ```sh
 npm install
-npm run dev             # Entwicklungsserver
+npm run dev             # Entwicklungsserver (nur dieser Rechner)
+npm run dev:host        # dasselbe im lokalen Netz, für Tests mit Handy und Pad
+npm run preview:host    # gebaute Fassung (nach build) im lokalen Netz
 npm run check           # Typprüfung und Tests
 npm run build:all       # dist/ (GitHub Pages) und dist-single/ (eine Datei)
 npm run parcours:sync   # von Hand: Parcours-Zeichnungen aus ../Parcours holen (nicht Teil der CI)
 ```
+
+**Test mit Handy und Pad im WLAN** (`dev:host`, 21.11.2026): Vite nennt unter „Network“ die Adresse im lokalen Netz
+(z. B. `http://192.168.178.20:5173/`). Den Bedienrechner über **diese** Adresse öffnen, nicht über `localhost` – Lese- und
+Koppel-Links nehmen die Adresse des Bedienfensters, und `localhost` erreicht kein Handy. Ohne HTTPS fehlen den Geräten
+einige Browser-Funktionen: Bildschirm-Wachhalten (Wake Lock), Offline-Speicher und Web Locks. Die App läuft trotzdem
+(Rückfall ohne Wake Lock, Fensterführung über die Lease). Für den Feldtest mit allem deshalb die Fassung auf GitHub Pages.
 
 Die Parcours-Zeichnungen unter `src/assets/parcours/` kommen nur über `npm run parcours:sync`
 (Herkunft und Lizenz: [`src/assets/parcours/LICENSE.md`](../src/assets/parcours/LICENSE.md)).

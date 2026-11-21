@@ -1,0 +1,869 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount, type VueWrapper } from '@vue/test-utils'
+import { nextTick, shallowRef } from 'vue'
+import GeraetApp from './GeraetApp.vue'
+import WkrGeraet from './components/wkr/WkrGeraet.vue'
+import { starteGeraeteHost, type GeraeteHost } from './geraete/host'
+import type { Ablage } from './geraete/ablage'
+import type { Aufgabe } from './geraete/aufgaben'
+import { oeffneUebung } from './geraete/uebung'
+import type { ErfassungsQuelle } from './geraete/erfassen'
+import { formatiereCode } from './geraete/koppeln'
+import { koppelnAdresse } from './geraete/paket'
+import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './geraete/transport/ntfy/testNtfy'
+import type { NtfyZeiten } from './geraete/transport/ntfy/leitung'
+import { reducer, type Action } from './state/reducer'
+import { setLocale } from './i18n'
+import { vergissAlles } from './lib/merken'
+import { wkrBetriebsStand } from './testHilfen'
+import { lage } from './betrieb/folge'
+import { sichtOeffentlich } from './betrieb/sicht'
+import { werteVon } from './lib/eingaben'
+import { listenKennung } from './wkr/liste'
+import { WKR_ANNAHMEN } from './wkr/annahmen'
+import { maskeFuer } from './wkr/maske'
+import type { AppState } from './types'
+
+/**
+ * Handy-Maske „Knöpfe“ der WKR-Erfassung (W3.3, Plan docs/plan-wkr-w3.md §5/§7, 21.11.2026): Bedienrechner
+ * (geraete/host.ts mit echtem Reducer) → nachgebauter ntfy (kein Netz) → src/GeraetApp.vue mit Koppel-Link und
+ * eigenem Speicher wie ein Handy → GeraetFreigabe → components/wkr/WkrGeraet. Der Takt (Doppeltipp-Schutz) läuft mit
+ * Fake-Uhr gegen die Übung (geraete/uebung.ts, ohne Netz). Starter erfunden (testHilfen: Vor<id>/Nach<id>,
+ * Musterclub) – kein Name darf im DOM stehen (F6).
+ */
+
+const SCHNELL: Partial<NtfyZeiten> = { abstandMs: 0, wiederholenMs: [20], zuVieleMs: 30, neuVerbindenMs: [10], quittungMs: 150, einstiegAbstandMs: 0 }
+const P1 = 'par_1'
+const LAUF = 'manoevrieren/1'
+const liste = (typeId: string) => listenKennung({ bereich: P1, typeId, racecourse: null })
+const TOR5 = liste('tor5')
+const STEG = liste('steg')
+const VORSTEG = liste('vorsteg')
+const MUEB = liste('mueb')
+const GATE = liste('gate135')
+const NAMEN = /Vor[ekvf]\d|Nach[ekvf]\d|Musterclub/
+
+let ntfy: NachgebautesNtfy
+const hosts: GeraeteHost[] = []
+const wrappers: VueWrapper[] = []
+const quellen: ErfassungsQuelle[] = []
+
+beforeEach(() => {
+  vergissAlles()
+  setLocale('de')
+  ntfy = neuesNtfy()
+  vi.stubGlobal('WebSocket', NachgebauterSocket)
+  vi.stubGlobal('fetch', nachgebautesFetch)
+})
+
+afterEach(() => {
+  for (const w of wrappers.splice(0)) w.unmount()
+  for (const q of quellen.splice(0)) q.stop()
+  for (const h of hosts.splice(0)) h.stop()
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+  location.hash = ''
+  document.title = ''
+  document.body.innerHTML = ''
+})
+
+function handy(): Ablage & { daten: Map<string, string> } {
+  const daten = new Map<string, string>()
+  return { daten, getItem: (k) => daten.get(k) ?? null, setItem: (k, v) => void daten.set(k, String(v)), removeItem: (k) => void daten.delete(k) }
+}
+
+async function bedienrechner(start: AppState = wkrBetriebsStand()) {
+  const state = shallowRef<AppState>({ ...start, kennung: 'MUSTERW33', geraeteServer: SERVER })
+  let uhr = 10_000
+  const dispatch = (action: Action) => {
+    uhr += 1000
+    state.value = reducer(state.value, { ...action, zeit: action.zeit ?? uhr } as Action)
+  }
+  const { nachgebauterBrowser } = await import('./geraete/testBrowser')
+  const f = nachgebauterBrowser().fenster()
+  const h = starteGeraeteHost({ state, dispatch }, { ablage: f.ablage, fenster: f.fenster, fuehrung: f.fuehrung, bus: f.bus, zeiten: SCHNELL, sammelnMs: 0, endeWartenMs: 2000, koppelTaktMs: 50 })
+  hosts.push(h)
+  h.oeffne()
+  await bis(() => h.verbindung.value?.status === 'verbunden')
+  /** „Nächster Start“ am Bedienrechner. */
+  const zeige = () => {
+    const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === P1)!
+    dispatch({ type: 'BETRIEB_ZEIGEN', bereich: P1, ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
+    const a = lage(state.value, P1).aktuell!
+    return { key: a.key, starter: a.eintrag!.starter, startNr: state.value.starters.find((s) => s.id === a.eintrag!.starter)!.startNr }
+  }
+  return { state, dispatch, h, zeige }
+}
+
+async function zeigt(bedingung: () => boolean, ms = 3000): Promise<void> {
+  await bis(bedingung, ms)
+  await nextTick()
+}
+
+/**
+ * Code ausgeben, Koppel-Link öffnen, Code tippen – bis die Maske (bzw. mit Freigabe die Start-Freigabe) dasteht.
+ * Die Probe beim Einrichten (W3.4, G10) kommt mit der ersten Sicht einer Liste mit Maske; `probe: 'ueberspringen'`
+ * (Vorgabe) tippt „Überspringen“, `'lassen'` lässt sie stehen.
+ */
+async function mitCode(h: GeraeteHost, aufgaben: Aufgabe[], speicher: Ablage = handy(), probe: 'ueberspringen' | 'lassen' = 'ueberspringen') {
+  h.gibCode(aufgaben)
+  await bis(() => !!h.raum.value?.koppeln.code && h.raum.value.koppeln.code.benutzt === null)
+  const code = h.raum.value!.koppeln.code!.wert
+  location.hash = koppelnAdresse(h.raum.value!.koppelLink)
+  const w = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20 } } })
+  wrappers.push(w)
+  await zeigt(() => w.find('input[data-feld="code"]').exists())
+  await w.find('input[data-feld="code"]').setValue(formatiereCode(code))
+  await w.find('input[data-feld="name"]').setValue('Handy Steg')
+  await w.find('.geraet-koppel-form').trigger('submit')
+  const nurFreigabe = aufgaben.some((a) => a.art === 'startfreigabe')
+  await zeigt(() => (nurFreigabe ? w.find('.betrieb-karte').exists() : w.find('[data-teil="wkr-geraet"]').exists()))
+  const mitMaske = aufgaben.some((a) => a.art === 'liste' && !a.liste.includes('gate'))
+  if (!nurFreigabe && mitMaske && probe === 'ueberspringen') {
+    // Ohne Klasse mit Maske (alle Starter ohne die Liste) gibt es keine Probe – dann steht gleich die Maske da.
+    await zeigt(() => w.find('[data-teil="probe"]').exists() || w.find('[data-teil="karte"]').exists() || (w.find('[data-teil="ruhe"]').exists() && ruheArt(w) !== 'warte'))
+    if (w.find('[data-teil="probe"]').exists()) {
+      await w.find('[data-action="probe-ueberspringen"]').trigger('click')
+      await nextTick()
+    }
+  }
+  return { w, speicher, id: () => h.raum.value!.geraete[0].id }
+}
+
+const startNr = (w: VueWrapper) => w.find('[data-teil="karte"] [data-teil="startnr"]').text()
+const haupt = (w: VueWrapper) => w.find('[data-action="haupt"]')
+const ruheArt = (w: VueWrapper) => w.find('[data-teil="ruhe"]').attributes('data-ruhe')
+const werte = (s: AppState, starter: string) => werteVon(s.eingaben, LAUF, starter)
+async function klick(w: VueWrapper, selektor: string): Promise<void> {
+  await w.find(selektor).trigger('click')
+  await nextTick()
+}
+
+/** Eine Liste am Handy, digital und mit einem gezeigten Start auf der Karte. */
+async function listeMitStart(typeId: string, mehr: Aufgabe[] = []) {
+  const r = await bedienrechner()
+  const l = liste(typeId)
+  const g = await mitCode(r.h, [{ art: 'liste', liste: l }, ...mehr])
+  await bis(() => r.state.value.wkr.listen[l]?.modus === 'digital')
+  const s = r.zeige()
+  await zeigt(() => g.w.find('[data-teil="karte"]').exists() && startNr(g.w) === s.startNr)
+  return { ...r, ...g, s, l }
+}
+
+describe('Handy-Maske Tor 5 (W3.3)', () => {
+  it('Code tippen → „Abschicken · 20 Pkt.“ → Wert in der Erfassung am Bedienrechner; kein Name im DOM', async () => {
+    const { w, state, s } = await listeMitStart('tor5')
+    expect(w.find('[data-teil="wkr-kopf"] [data-teil="titel"]').text()).toContain('Tor 5')
+    expect(haupt(w).text()).toBe('Fehlerfrei ✓')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    expect(w.find('[data-action="code"][data-code="1"]').attributes('data-anzahl')).toBe('1')
+    expect(haupt(w).text()).toContain('Abschicken · 20')
+    await klick(w, '[data-action="haupt"]')
+    expect(w.find('[data-teil="karte"] [data-teil="gesendet"]').exists()).toBe(true)
+    await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '1')
+    expect(werte(state.value, s.starter)['erfasst@tor5']).toBeTruthy()
+    await zeigt(() => w.find('[data-teil="leiste-zeile"]').attributes('data-stufe') === 'uebernommen')
+    expect(w.find('[data-teil="leiste-zeile"]').text()).toBe(`${s.startNr} ✓`)
+    expect(w.html()).not.toMatch(NAMEN)
+  })
+
+  it('Fehlerfrei → Haken am Bedienrechner, ohne Fehlerwert', async () => {
+    const { w, state, s } = await listeMitStart('tor5')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(state.value, s.starter)['erfasst@tor5'])
+    expect(werte(state.value, s.starter)['katalog:tor5'] ?? '').toBe('')
+  })
+
+  it('Disq.: zweiter Tipp setzt, Fuß nennt ihn; „− letzte zurück“ nimmt den letzten Tipp', async () => {
+    const { w, state, s } = await listeMitStart('tor5')
+    await klick(w, '[data-action="code"][data-code="20"]')
+    await klick(w, '[data-action="disq"]')
+    const p = '[data-action="disq-code"][data-code="P"]'
+    await klick(w, p)
+    expect(w.find(p).attributes('data-stand')).toBe('vorgemerkt')
+    await klick(w, p)
+    expect(w.find(p).attributes('data-stand')).toBe('gesetzt')
+    // X gibt es an Tor 5 nicht (F5).
+    expect(w.find('[data-action="disq-code"][data-code="X"]').exists()).toBe(false)
+    expect(haupt(w).text()).toContain('Abschicken · 5 Pkt. · Disq. P')
+    await klick(w, '[data-action="zurueck"]')
+    expect(haupt(w).text()).toBe('Abschicken · 5 Pkt.')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '20')
+  })
+
+  it('Ausweichen und Suche: zwei Nächste, Nr.-Feld, „außer der Reihe“; unbekannte Nummer wird nicht angeboten', async () => {
+    const { w, zeige, s } = await listeMitStart('tor5')
+    const s2 = zeige()
+    const s3 = zeige()
+    await zeigt(() => w.findAll('[data-action="ausweichen"]').length === 2)
+    expect(w.findAll('[data-action="ausweichen"]').map((b) => b.text())).toEqual([s2.startNr, s3.startNr])
+    await w.findAll('[data-action="ausweichen"]')[1].trigger('click')
+    await nextTick()
+    expect(startNr(w)).toBe(s3.startNr)
+    expect(w.find('[data-teil="ausser"]').exists()).toBe(true)
+
+    await klick(w, '[data-action="suche"]')
+    for (const ch of '999') await klick(w, `[data-taste="${ch}"]`)
+    await klick(w, '[data-action="suche-ok"]')
+    expect(w.find('[data-teil="nicht-gefunden"]').text()).toContain('999')
+    expect(startNr(w)).toBe(s3.startNr)
+    for (let i = 0; i < 3; i++) await klick(w, '[data-taste="⌫"]')
+    for (const ch of s.startNr) await klick(w, `[data-taste="${ch}"]`)
+    await klick(w, '[data-action="suche-ok"]')
+    expect(startNr(w)).toBe(s.startNr)
+    expect(w.find('[data-teil="ziffernfeld"]').exists()).toBe(false)
+    expect(w.find('[data-teil="ausser"]').exists()).toBe(false)
+  })
+
+  it('Entwurf bleibt beim Wechsel: „Entw. 1“, zurück am Start sind die Tipps wieder da', async () => {
+    const { w, zeige, s } = await listeMitStart('tor5')
+    const s2 = zeige()
+    await zeigt(() => w.findAll('[data-action="ausweichen"]').length === 1)
+    await klick(w, '[data-action="code"][data-code="2"]')
+    await klick(w, `[data-action="ausweichen"]`)
+    expect(startNr(w)).toBe(s2.startNr)
+    expect(w.find('[data-action="code"][data-code="2"]').attributes('data-anzahl')).toBe('0')
+    expect(w.find('[data-teil="entwuerfe"]').text()).toBe('Entw. 1')
+    await klick(w, '[data-action="ausweichen"]')
+    expect(startNr(w)).toBe(s.startNr)
+    expect(w.find('[data-action="code"][data-code="2"]').attributes('data-anzahl')).toBe('1')
+  })
+
+  it('Start mit Entwurf zurückgestellt: einmal fragen „behalten / verwerfen“', async () => {
+    const { w, dispatch, s } = await listeMitStart('tor5')
+    await klick(w, '[data-action="code"][data-code="2"]')
+    dispatch({ type: 'BETRIEB_ZURUECK', bereich: P1, ref: s.key })
+    dispatch({ type: 'BETRIEB_ZURUECKSTELLEN', bereich: P1, ref: s.key })
+    await zeigt(() => w.find('[data-teil="verwaist"]').exists())
+    expect(w.find('[data-teil="verwaist"]').text()).toContain(`Start ${s.startNr} steht nicht mehr in der Folge`)
+    await klick(w, '[data-action="entwurf-behalten"]')
+    expect(w.find('[data-teil="verwaist"]').exists()).toBe(false)
+    expect(w.find('[data-teil="entwuerfe"]').text()).toBe('Entw. 1')
+  })
+
+  it('Zuletzt → Korrektur mit großer Rückfrage alt → neu; der Bedienrechner hat danach den neuen Wert', async () => {
+    const { w, state, s } = await listeMitStart('tor5')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '1')
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists())
+    await klick(w, '[data-action="zuletzt"]')
+    await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
+    expect(w.find('[data-teil="korrektur"]').text()).toBe(`Korrektur Start ${s.startNr}`)
+    expect(w.find('[data-action="code"][data-code="1"]').attributes('data-anzahl')).toBe('1')
+    await klick(w, '[data-action="code"][data-code="20"]')
+    expect(haupt(w).text()).toBe('Korrektur abschicken')
+    await klick(w, '[data-action="haupt"]')
+    const d = w.find('[data-dialog="wkr-korrektur"]')
+    expect(d.find('[data-teil="alt"]').text()).toContain('1')
+    expect(d.find('[data-teil="neu"]').text()).toContain('1, 20')
+    await klick(w, '[data-action="korrektur-ja"]')
+    await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '1, 20')
+    expect(w.find('[data-teil="korrektur"]').exists()).toBe(false)
+  })
+
+  it('Rückfrage-Band mit dem Wert, der am Bedienrechner steht; „So lassen“ legt es weg', async () => {
+    const { w, state, dispatch, s } = await listeMitStart('tor5')
+    dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: LAUF, starter: s.starter, feld: 'katalog:tor5', wert: '2' }] })
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    await zeigt(() => w.find('[data-teil="rueckfrage"]').exists())
+    expect(w.find('[data-teil="rueckfrage"]').text()).toContain(`Start ${s.startNr} steht dort anders (2)`)
+    expect(werte(state.value, s.starter)['katalog:tor5']).toBe('2')
+    await klick(w, '[data-action="so-lassen"]')
+    expect(w.find('[data-teil="rueckfrage"]').exists()).toBe(false)
+  })
+
+  it('Hinweis des Bedienrechners groß im Kopf; „Gesehen“ nimmt ihn weg', async () => {
+    const { w, h } = await listeMitStart('tor5')
+    h.hinweis(TOR5, 'pruefen', '101')
+    await zeigt(() => w.find('[data-teil="hinweis"]').exists())
+    expect(w.find('[data-teil="hinweis"]').text()).toContain('Bitte Nr. 101 prüfen')
+    await klick(w, '[data-teil="hinweis"] [data-action="gesehen"]')
+    await zeigt(() => !w.find('[data-teil="hinweis"]').exists())
+  })
+
+  it('getrennt: Kopf rot und dauerhaft, Starts „geschätzt“, ab 300 s „Papierbogen ab Nr. x“', async () => {
+    const { w, s } = await listeMitStart('tor5')
+    // Alle Verbindungen zum Server reißen ab und kommen nicht wieder.
+    vi.stubGlobal(
+      'WebSocket',
+      class extends NachgebauterSocket {
+        constructor(url: string) {
+          super(url)
+          this.close()
+        }
+      },
+    )
+    for (const sock of [...ntfy.sockets]) sock.close()
+    await zeigt(() => w.find('[data-teil="getrennt"]').exists())
+    expect(w.find('[data-teil="verbindung"]').attributes('data-lage')).toBe('getrennt')
+    expect(w.find('[data-teil="getrennt"]').text()).toContain('Keine Verbindung')
+    await zeigt(() => w.findAll('[data-action="ausweichen"]').length > 0)
+    await klick(w, '[data-action="ausweichen"]')
+    expect(w.find('[data-teil="geschaetzt"]').text()).toBe('geschätzt (ohne Verbindung)')
+    expect(w.find('[data-teil="papier-ab"]').exists()).toBe(false)
+    vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })
+    vi.setSystemTime(Date.now() + (WKR_ANNAHMEN.papierHinweisSek + 5) * 1000)
+    await zeigt(() => w.find('[data-teil="papier-ab"]').exists(), 3000)
+    expect(w.find('[data-teil="papier-ab"]').text()).toBe(`Länger weg? Papierbogen ab Nr. ${s.startNr}`)
+    expect(w.find('[data-teil="getrennt"]').text()).toContain('Keine Verbindung seit 5 min')
+  })
+
+  it('pausiert und abgemeldet: Band „Papierbogen gilt“, „Weiter digital“ → wieder Maske', async () => {
+    const { w, state, zeige } = await listeMitStart('tor5')
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="pausieren"]')
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'pausiert')
+    expect(state.value.wkr.listen[TOR5].status).toBe('pausiert')
+    expect(w.find('[data-teil="pause-band"]').text()).toContain('Papierbogen gilt')
+    await klick(w, '[data-action="weiter-digital"]')
+    // Der Start aus der Pause ging aufs Papier (P, W2 A6): wieder digital, aber nichts in der Schlange.
+    await zeigt(() => state.value.wkr.listen[TOR5].status === 'aktiv' && ruheArt(w) === 'leer')
+    zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="abmelden"]')
+    await klick(w, '[data-action="abmelden-ja"]')
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'abgemeldet')
+    expect(state.value.wkr.listen[TOR5].status).toBe('abgemeldet')
+  })
+
+  it('Papier-Modus vom Bedienrechner: nichts zu tippen', async () => {
+    const { w, dispatch } = await listeMitStart('tor5')
+    dispatch({ type: 'WKR_LISTE', liste: TOR5, modus: 'papier' })
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'papier')
+    expect(w.find('[data-action="code"]').exists()).toBe(false)
+    expect(w.find('[data-teil="ruhe"]').text()).toContain('auf Papier gestellt')
+  })
+
+  it('kein Boot unterwegs: nächster Start aus „danach“', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }])
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'leer')
+    expect(w.find('[data-teil="ruhe"]').text()).toContain('Kein Boot unterwegs.')
+    expect(w.find('[data-teil="naechster"]').text()).toMatch(/^Nächster Start: \S+ \(/)
+    expect(w.html()).not.toMatch(NAMEN)
+  })
+
+  it('Rechte entzogen: Entwürfe nur lesend zum Übertragen aufs Papier', async () => {
+    const { w, h, id, s } = await listeMitStart('tor5')
+    await klick(w, '[data-action="code"][data-code="20"]')
+    h.entziehe(id())
+    await zeigt(() => w.find('[data-ruhe="entzogen"]').exists())
+    expect(w.find('[data-teil="entwuerfe-lesend"]').text()).toContain(s.startNr)
+    expect(w.find('[data-teil="entwuerfe-lesend"]').text()).toContain('20')
+    // Prüfbefund W3: mit Liste und Feldüberschrift, nicht nur „Nr. Werte“.
+    expect(w.find('[data-teil="entwurf-wo"]').text()).not.toBe('')
+    expect(w.find('[data-teil="entwurf-werte"]').text()).toMatch(/^[^:]+: 20$/)
+    expect(w.find('[data-action="code"]').exists()).toBe(false)
+  })
+})
+
+describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
+  it('Steg ganz: zwei Reiter mit Wartezahl, wechselt nie von selbst; X nur im Ablegen, mit großer Rückfrage', async () => {
+    const { w, state, s } = await listeMitStart('steg')
+    const reiter = () => w.findAll('[data-action="steg-teil"]')
+    expect(reiter().map((r) => r.attributes('data-steg'))).toEqual(['ab', 'an'])
+    expect(w.find('[data-action="steg-teil"][data-steg="ab"]').attributes('aria-selected')).toBe('true')
+    expect(haupt(w).text()).toBe('Ablegen OK ✓')
+    await klick(w, '[data-action="disq"]')
+    const x = '[data-action="disq-code"][data-code="X"]'
+    await klick(w, x)
+    await klick(w, x)
+    expect(w.find('[data-dialog="wkr-x"]').text()).toContain(`Start ${s.startNr}: nicht gestartet (X)?`)
+    await klick(w, '[data-action="x-nein"]')
+    expect(w.find(x).attributes('data-stand')).toBe('frei')
+
+    await klick(w, '[data-action="steg-teil"][data-steg="an"]')
+    expect(haupt(w).text()).toBe('Anlegen OK ✓')
+    await klick(w, '[data-action="disq"]')
+    expect(w.find(x).exists()).toBe(false)
+    await klick(w, '[data-action="disq"]')
+    await klick(w, '[data-action="code"][data-code="9"]')
+    expect(haupt(w).text()).toBe('Abschicken Anlegen · 10 Pkt.')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s.starter)['katalog:stegAnlegen'] === '9')
+    // Nach dem Takt bleibt der Reiter „Anlegen“ – kein Sprung zum Ablegen.
+    await ruhe(WKR_ANNAHMEN.weiterNachMs + WKR_ANNAHMEN.sperreMs + 100)
+    expect(w.find('[data-action="steg-teil"][data-steg="an"]').attributes('aria-selected')).toBe('true')
+  }, 10_000)
+
+  it('Steg-Teil-Gerät (nur Anlegen): nur der eigene Reiter', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG, teil: 'an' }])
+    await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
+    r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    expect(w.findAll('[data-action="steg-teil"]').map((b) => b.attributes('data-steg'))).toEqual(['an'])
+    expect(haupt(w).text()).toBe('Anlegen OK ✓')
+  })
+
+  it('Vorsteg: „In Ordnung ✓“ für einen noch nicht gezeigten Start (vorab), X fragt groß', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: VORSTEG }])
+    await bis(() => r.state.value.wkr.listen[VORSTEG]?.modus === 'digital')
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    expect(w.find('[data-teil="vorab"]').text()).toBe('noch nicht gezeigt')
+    expect(haupt(w).text()).toBe('In Ordnung ✓')
+    expect(w.find('[data-teil="vorsteg"] [data-action="disq-code"][data-code="X"]').exists()).toBe(true)
+    const nr = startNr(w)
+    const starter = r.state.value.starters.find((x) => x.startNr === nr)!.id
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, starter)['erfasst@vorsteg'])
+  })
+
+  it('Klasse ohne die Liste: „Mann-über-Bord entfällt (…)“ statt Knöpfen', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: MUEB }])
+    await bis(() => r.state.value.wkr.listen[MUEB]?.modus === 'digital')
+    r.zeige()
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'entfaellt')
+    expect(w.find('[data-teil="ruhe"]').text()).toMatch(/entfällt/)
+    expect(w.find('[data-action="code"]').exists()).toBe(false)
+  })
+
+  it('Liste mit Bojen: „Maske folgt – Papier“ mit „Pausieren“ (G14)', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: GATE }])
+    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'spaeter')
+    expect(w.find('[data-teil="ruhe"]').text()).toContain('bitte auf dem Papierbogen erfassen')
+    await bis(() => r.state.value.wkr.listen[GATE]?.modus === 'digital')
+    await klick(w, '[data-ruhe="spaeter"] [data-action="pausieren"]')
+    await bis(() => r.state.value.wkr.listen[GATE]?.status === 'pausiert')
+  })
+
+  it('Start-Freigabe UND Liste: Reiter unten „Freigabe“ / Listenname', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'startfreigabe', bereiche: [P1] }, { art: 'liste', liste: TOR5 }])
+    await zeigt(() => w.find('[data-teil="geraet-reiter"]').exists())
+    const knoepfe = w.findAll('[data-teil="geraet-reiter"] [data-action="reiter"]')
+    expect(knoepfe.map((k) => k.attributes('data-reiter'))).toEqual(['freigabe', TOR5])
+    expect(w.find('.betrieb-karte').exists()).toBe(true)
+    await knoepfe[1].trigger('click')
+    await zeigt(() => w.find('[data-teil="wkr-geraet"]').exists())
+    expect(w.find('.betrieb-karte').exists()).toBe(false)
+    // Der Reitertitel kommt mit der Sicht der Liste.
+    await zeigt(() => w.find(`[data-reiter='${TOR5}']`).text().includes('Tor 5'))
+  })
+})
+
+describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () => {
+  function uebung(typeId = 'tor5') {
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId, taktMs: 3_600_000 })
+    quellen.push(q)
+    const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: handy() } })
+    wrappers.push(w)
+    return { q, w }
+  }
+
+  it('nach dem Abschicken 2 s „gesendet“, dann Wechsel mit Blitz und Vibration, 1 s ohne Eingabe', async () => {
+    vi.useFakeTimers()
+    const vibrate = vi.fn()
+    vi.stubGlobal('navigator', { ...navigator, vibrate })
+    const { q, w } = uebung()
+    await nextTick()
+    const erste = startNr(w)
+    expect(w.find('[data-teil="uebung"]').text()).toBe('ÜBUNG')
+    await klick(w, '[data-action="haupt"]')
+    expect(q.zuletzt.value).toHaveLength(1)
+    expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('gesendet')
+    expect(w.find('[data-teil="mitte"]').attributes('inert')).toBeDefined()
+    // Doppeltipp: wirkt nicht, die Nummer bleibt stehen.
+    await klick(w, '[data-action="haupt"]')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    expect(q.zuletzt.value).toHaveLength(1)
+    expect(startNr(w)).toBe(erste)
+
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.weiterNachMs)
+    await nextTick()
+    expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('sperre')
+    expect(w.find('[data-teil="blitz"]').exists()).toBe(true)
+    expect(vibrate).toHaveBeenCalledWith(60)
+    expect(startNr(w)).not.toBe(erste)
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    expect(q.zuletzt.value).toHaveLength(1)
+    expect(w.find('[data-action="code"][data-code="1"]').attributes('data-anzahl')).toBe('0')
+
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.sperreMs)
+    await nextTick()
+    expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('frei')
+    expect(w.find('[data-teil="blitz"]').exists()).toBe(false)
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    expect(q.zuletzt.value).toHaveLength(2)
+  })
+
+  it('Rückgängig: die wartende Zeile kommt zurück, Werte wieder im Entwurf', async () => {
+    vi.useFakeTimers()
+    const { q, w } = uebung()
+    await nextTick()
+    const erste = startNr(w)
+    await klick(w, '[data-action="code"][data-code="20"]')
+    await klick(w, '[data-action="haupt"]')
+    expect(w.find('[data-teil="rueckgaengig-band"]').exists()).toBe(true)
+    await klick(w, '[data-action="rueckgaengig"]')
+    expect(q.zuletzt.value).toHaveLength(0)
+    expect(startNr(w)).toBe(erste)
+    expect(w.find('[data-teil="maske"]').attributes('data-takt')).toBe('frei')
+    expect(w.find('[data-action="code"][data-code="20"]').attributes('data-anzahl')).toBe('1')
+  })
+
+  it('Prüfbefund W3: ein vorgemerkter Disq.-Buchstabe gilt nie für den nächsten Start; in der Sperre merkt ein Tipp nichts vor', async () => {
+    vi.useFakeTimers()
+    const { q, w } = uebung('vorsteg')
+    await nextTick()
+    // Am Vorsteg gibt es unter DM nur M und X – M (ohne die X-Rückfrage) zeigt den Schutz.
+    const disqA = '[data-teil="vorsteg"] [data-action="disq-code"][data-code="M"]'
+    await klick(w, disqA)
+    expect(w.find(disqA).attributes('data-stand')).toBe('vorgemerkt')
+    await klick(w, '[data-action="haupt"]')
+    expect(Object.values(q.zuletzt.value[0].zellen).join('')).not.toContain('M')
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.weiterNachMs)
+    await nextTick()
+    // In der Sperre: kein Vormerken (ein Tropfen darf den nächsten Tipp nicht zum Ein-Tipp machen).
+    await klick(w, disqA)
+    expect(w.find(disqA).attributes('data-stand')).toBe('frei')
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.sperreMs)
+    await nextTick()
+    await klick(w, disqA)
+    expect(w.find(disqA).attributes('data-stand')).toBe('vorgemerkt')
+    await klick(w, disqA)
+    expect(w.find(disqA).attributes('data-stand')).toBe('gesetzt')
+  })
+
+  it('Prüfbefund W3: „So lassen“ übersteht den Neuaufbau der Maske (Reiterwechsel), Wartend-seit kommt aus der Quelle', async () => {
+    vi.useFakeTimers()
+    const { q, w } = uebung()
+    await nextTick()
+    for (let i = 0; i < WKR_ANNAHMEN.uebungRueckfrageBei; i++) {
+      await klick(w, '[data-action="haupt"]')
+      await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.rueckgaengigMs)
+      await nextTick()
+    }
+    expect(q.wartendSeit.value).toBeNull()
+    await zeigt(() => w.find('[data-teil="rueckfrage"]').exists())
+    await klick(w, '[data-action="so-lassen"]')
+    expect(w.find('[data-teil="rueckfrage"]').exists()).toBe(false)
+    w.unmount()
+    const neu = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: handy() } })
+    wrappers.push(neu)
+    await nextTick()
+    expect(neu.find('[data-teil="zuletzt"]').exists()).toBe(true)
+    expect(neu.find('[data-teil="rueckfrage"]').exists()).toBe(false)
+  })
+
+  it('Linkshand spiegelt den Fuß; Sonne ist Vorgabe', async () => {
+    const speicher = handy()
+    speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', hand: 'links' }))
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000 })
+    quellen.push(q)
+    const w = mount(WkrGeraet, { props: { quelle: q, ablage: speicher } })
+    wrappers.push(w)
+    await nextTick()
+    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('sonne')
+    expect(w.find('[data-teil="fuss"]').classes()).toContain('wkr-fuss--links')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W3.4: Liste abschließen, Ansicht, Sprache, Probe (Plan docs/plan-wkr-w3.md §5.7–§5.9)
+// ---------------------------------------------------------------------------
+
+const warte = (ms: number) => new Promise((erfuelle) => setTimeout(erfuelle, ms))
+const ansichtIn = (speicher: Ablage) => JSON.parse(speicher.getItem('alcatraz.geraet.ansicht') ?? '{}')
+
+/** Übung ohne Netz mit eigenem Speicher – für Fälle, die der Bedienrechner nicht leicht herstellt. */
+function uebe(regelwerk: string, typeId: string, speicher: Ablage = handy(), taktMs = 3_600_000) {
+  const q = oeffneUebung({ regelwerk, typeId, taktMs })
+  quellen.push(q)
+  const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: speicher } })
+  wrappers.push(w)
+  const l = q.listen.value[0].liste
+  return { q, w, l, speicher }
+}
+async function oeffneAbschlussUeberMehr(w: VueWrapper): Promise<void> {
+  await klick(w, '[data-action="mehr"]')
+  await klick(w, '[data-action="abschliessen"]')
+  expect(w.find('[data-teil="abschluss"]').exists()).toBe(true)
+}
+
+describe('Liste abschließen (W3.4, F7/F8)', () => {
+  it('Prüfansicht mit offenem Start, „Rest auf Papier“ Pflicht, Name vorbelegt → angenommen am Bedienrechner; Name gemerkt', async () => {
+    const speicher = handy()
+    speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', hand: 'rechts', name: 'Muster WKR' }))
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }], speicher)
+    await bis(() => r.state.value.wkr.listen[TOR5]?.modus === 'digital')
+    const s1 = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s1.startNr)
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(r.state.value, s1.starter)['katalog:tor5'] === '1')
+    const s2 = r.zeige()
+    await zeigt(() => startNr(w) === s2.startNr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei', 5000)
+
+    await oeffneAbschlussUeberMehr(w)
+    expect(w.find('[data-teil="summe"]').text()).toBe(`1 abgeschickt, 1 offen: ${s2.startNr}`)
+    const zeile = w.find('[data-teil="pruef-zeile"]')
+    expect(zeile.find('[data-teil="nr"]').text()).toBe(s1.startNr)
+    expect(zeile.find('[data-teil="codes"]').text()).toContain('1')
+    expect(zeile.find('[data-teil="punkte"]').text()).toBe('20 Pkt.')
+    await zeigt(() => w.find('[data-teil="pruef-zeile"] [data-teil="stufe"]').text() === '✓ übernommen')
+    expect(w.find<HTMLInputElement>('input[data-feld="wkr-name"]').element.value).toBe('Muster WKR')
+    // Offener Start: ohne „Rest auf Papier“ gesperrt, mit Satz.
+    expect(w.find('[data-action="abschluss-senden"]').attributes('disabled')).toBeDefined()
+    expect(w.find('[data-teil="rest-pflicht"]').text()).toContain('Rest auf Papier')
+    await w.find('input[data-feld="rest-papier"]').setValue(true)
+    expect(w.find('[data-action="abschluss-senden"]').attributes('disabled')).toBeUndefined()
+    await w.find('input[data-feld="wkr-name"]').setValue('')
+    expect(w.find('[data-teil="name-pflicht"]').exists()).toBe(true)
+    expect(w.find('[data-action="abschluss-senden"]').attributes('disabled')).toBeDefined()
+    await w.find('input[data-feld="wkr-name"]').setValue('Neue WKR')
+    await klick(w, '[data-action="abschluss-senden"]')
+    expect(['unterwegs', 'angenommen']).toContain(w.find('[data-teil="abschluss-ergebnis"]').attributes('data-stufe'))
+    await bis(() => !!r.state.value.wkr.abschluss[TOR5]?.['lauf:1'])
+    expect(r.state.value.wkr.abschluss[TOR5]['lauf:1'].name).toBe('Neue WKR')
+    await zeigt(() => w.find('[data-teil="abschluss-ergebnis"]').attributes('data-stufe') === 'angenommen')
+    expect(w.find('[data-teil="abschluss-ergebnis"]').text()).toContain('abgeschlossen ✓')
+    expect(ansichtIn(speicher).name).toBe('Neue WKR')
+    expect(w.html()).not.toMatch(NAMEN)
+  })
+
+  it('Tipp auf eine Zeile der Prüfansicht öffnet die Korrektur', async () => {
+    const { w, s } = await listeMitStart('tor5')
+    await klick(w, '[data-action="haupt"]')
+    await zeigt(() => w.find('[data-teil="leiste-zeile"]').exists())
+    await oeffneAbschlussUeberMehr(w)
+    await klick(w, '[data-action="pruef-korrigieren"]')
+    expect(w.find('[data-teil="abschluss"]').exists()).toBe(false)
+    expect(w.find('[data-action="korrektur-abbrechen"]').exists()).toBe(true)
+    expect(startNr(w)).toBe(s.startNr)
+  })
+
+  it('Steg nur Anlegen: Prüfansicht nennt den Teil, der Abschluss gilt nur für ihn', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG, teil: 'an' }])
+    await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
+    const s = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, s.starter)['erfasst.an@steg'])
+    await oeffneAbschlussUeberMehr(w)
+    expect(w.find('[data-teil="abschluss-teil"]').text()).toBe('Nur dein Teil: Anlegen')
+    expect(w.find('[data-teil="summe"]').text()).toBe('1 abgeschickt')
+    await w.find('input[data-feld="wkr-name"]').setValue('Muster WKR')
+    await klick(w, '[data-action="abschluss-senden"]')
+    await bis(() => !!r.state.value.wkr.abschluss[STEG]?.['lauf:1|an'])
+    expect(r.state.value.wkr.abschluss[STEG]['lauf:1']).toBeUndefined()
+    expect(r.state.value.wkr.abschluss[STEG]['lauf:1|ab']).toBeUndefined()
+    await zeigt(() => w.find('[data-teil="abschluss-ergebnis"]').attributes('data-stufe') === 'angenommen')
+  })
+
+  it('X in der Summe; abgelehnt `offen` steht als Satz da, das Formular bleibt', async () => {
+    const { q, w, l } = uebe('dm-2026', 'vorsteg')
+    await nextTick()
+    const sicht = q.sichten.value[l]!
+    const kopf = q.schlange.value[l][0]
+    const disq = maskeFuer(sicht, kopf.klasse)!.disq!.feld
+    q.schicke(l, { s: kopf.key, zellen: { [disq]: 'X' } })
+    q.schliesseAb(l, sicht.punkt!.id, 'Muster WKR', false)
+    await warte(WKR_ANNAHMEN.uebungQuittungMs + 50)
+    await nextTick()
+    await oeffneAbschlussUeberMehr(w)
+    expect(w.find('[data-teil="summe"]').text()).toMatch(new RegExp(`^1 abgeschickt, \\d+ offen: .+, 1 X: ${kopf.startNr}$`))
+    expect(w.find('[data-teil="pruef-zeile"]').attributes('data-x')).toBe('true')
+    const ergebnis = w.find('[data-teil="abschluss-ergebnis"]')
+    expect([ergebnis.attributes('data-stufe'), ergebnis.attributes('data-grund')]).toEqual(['abgelehnt', 'offen'])
+    expect(ergebnis.text()).toContain('Es sind noch Starts offen')
+    expect(w.find('[data-action="abschluss-senden"]').exists()).toBe(true)
+  })
+
+  it('Band „Liste abschließen“, sobald der eigene Lauf vorbei ist (G16); weg nach dem Abschluss; Name in der Übung nicht gemerkt', async () => {
+    const { q, w, l, speicher } = uebe('dm-2026', 'tor5', handy(), 5)
+    await nextTick()
+    expect(w.find('[data-teil="abschluss-band"]').exists()).toBe(false)
+    for (let i = 0; i < 400 && q.sichten.value[l]!.punkt?.id === 'lauf:1'; i++) {
+      const kopf = q.schlange.value[l][0]
+      if (kopf) q.schicke(l, { s: kopf.key, zellen: {} })
+      else await warte(10)
+    }
+    expect(q.sichten.value[l]!.punkt?.id).toBe('lauf:2')
+    await zeigt(() => w.find('[data-teil="abschluss-band"]').exists())
+    expect(w.find('[data-teil="abschluss-band"]').attributes('data-punkt')).toBe('lauf:1')
+    await klick(w, '[data-action="abschluss-band"]')
+    expect(w.find('[data-teil="abschluss"]').attributes('data-punkt')).toBe('lauf:1')
+    // Der nächste Lauf beginnt mit dem Zeigen seines ersten Starts – Nr. 20 kann da noch offen sein.
+    const imLauf1 = q.zuletzt.value.filter((z) => z.punkt === 'lauf:1').length
+    expect(imLauf1).toBeGreaterThanOrEqual(WKR_ANNAHMEN.uebungStarts - 2)
+    expect(w.find('[data-teil="summe"]').text()).toBe(`${imLauf1} abgeschickt`)
+    await w.find('input[data-feld="wkr-name"]').setValue('Muster WKR')
+    await klick(w, '[data-action="abschluss-senden"]')
+    await zeigt(() => w.find('[data-teil="abschluss-ergebnis"]').attributes('data-stufe') === 'angenommen')
+    await klick(w, '[data-action="abschluss-zurueck"]')
+    expect(w.find('[data-teil="abschluss-band"]').exists()).toBe(false)
+    expect(ansichtIn(speicher).name).toBeUndefined()
+  })
+})
+
+describe('Ansicht und Sprache (W3.4, G1, F13/G9)', () => {
+  it('Sonne/Hell/Dunkel und Linkshand unter „Mehr“, gemerkt in alcatraz.geraet.ansicht', async () => {
+    const speicher = handy()
+    const { w } = uebe('dm-2026', 'tor5', speicher)
+    await nextTick()
+    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('sonne')
+    await klick(w, '[data-action="mehr"]')
+    expect(w.find('[data-action="modus"][data-modus="sonne"]').attributes('aria-pressed')).toBe('true')
+    await klick(w, '[data-action="modus"][data-modus="dunkel"]')
+    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('dunkel')
+    await klick(w, '[data-action="linkshand"]')
+    expect(w.find('[data-teil="fuss"]').classes()).toContain('wkr-fuss--links')
+    expect(ansichtIn(speicher)).toMatchObject({ modus: 'dunkel', hand: 'links' })
+    await klick(w, '[data-action="modus"][data-modus="hell"]')
+    expect(ansichtIn(speicher).modus).toBe('hell')
+
+    // Ein neues Öffnen (Neuladen) liest sie wieder.
+    const neu = uebe('dm-2026', 'tor5', speicher)
+    await nextTick()
+    expect(neu.w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('hell')
+    expect(neu.w.find('[data-teil="fuss"]').classes()).toContain('wkr-fuss--links')
+  })
+
+  it('UIM: Vorgabe Englisch (Sprache der Liste); „Deutsch“ schaltet Bedientexte UND Kataloge (andere)', async () => {
+    const speicher = handy()
+    const { w } = uebe('uim-2026', 'mueb', speicher)
+    await nextTick()
+    expect(haupt(w).text()).toBe('No penalty ✓')
+    const titelEn = w.find('.wkr-katalog-titel').text()
+    await klick(w, '[data-action="mehr"]')
+    expect(w.find('[data-action="sprache"][data-sprache="en"]').attributes('aria-pressed')).toBe('true')
+    await klick(w, '[data-action="sprache"][data-sprache="de"]')
+    expect(haupt(w).text()).toBe('Fehlerfrei ✓')
+    expect(w.find('.wkr-katalog-titel').text()).not.toBe(titelEn)
+    expect(w.find('[data-teil="nur-bedientexte"]').exists()).toBe(false)
+    expect(ansichtIn(speicher).sprache).toBe('de')
+    // Zurück zur Sprache der Liste = keine eigene Wahl mehr.
+    await klick(w, '[data-action="sprache"][data-sprache="en"]')
+    expect(haupt(w).text()).toBe('No penalty ✓')
+    expect(w.find('.wkr-katalog-titel').text()).toBe(titelEn)
+    expect(ansichtIn(speicher).sprache).toBeUndefined()
+  })
+
+  it('DM: „English“ schaltet nur die Bedientexte – die Codes bleiben deutsch, mit Satz', async () => {
+    const { w } = uebe('dm-2026', 'tor5')
+    await nextTick()
+    const titel = w.find('.wkr-katalog-titel').text()
+    const code = w.find('[data-action="code"][data-code="1"] .wkr-code-text').text()
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="sprache"][data-sprache="en"]')
+    expect(haupt(w).text()).toBe('No penalty ✓')
+    expect(w.find('[data-action="mehr"]').text()).toBe('Less')
+    expect(w.find('.wkr-katalog-titel').text()).toBe(titel)
+    expect(w.find('[data-action="code"][data-code="1"] .wkr-code-text').text()).toBe(code)
+    expect(w.find('[data-teil="nur-bedientexte"]').exists()).toBe(true)
+  })
+})
+
+describe('Probe beim Einrichten (W3.4, G10)', () => {
+  it('einmal je Raum und Liste; drei Schritte, nichts geht an den Bedienrechner; danach nie wieder von selbst', async () => {
+    const r = await bedienrechner()
+    const speicher = handy()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }], speicher, 'lassen')
+    await zeigt(() => w.find('[data-teil="probe"]').exists())
+    const vorher = JSON.stringify(r.state.value.eingaben)
+    const probe = () => w.find('[data-teil="probe"]')
+    expect(probe().find('[data-teil="probe-band"]').text()).toContain('nichts wird gesendet')
+    expect(w.find('[data-teil="karte"] [data-teil="startnr"]').text()).toBe('P')
+    expect(probe().attributes('data-schritt')).toBe('code')
+    expect(w.find('[data-teil="probe-schritt"]').text()).toBe('Schritt 1 von 3: Tippe Code 1 an.')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    expect(probe().attributes('data-schritt')).toBe('zurueck')
+    await klick(w, '[data-action="zurueck"]')
+    expect(probe().attributes('data-schritt')).toBe('haupt')
+    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('Fehlerfrei ✓')
+    await klick(w, '[data-action="haupt"]')
+    expect(probe().attributes('data-takt')).toBe('gesendet')
+    expect(w.find('[data-teil="mitte"]').attributes('inert')).toBeDefined()
+    await zeigt(() => probe().attributes('data-schritt') === 'fertig', 5000)
+    await klick(w, '[data-action="probe-fertig"]')
+    expect(w.find('[data-teil="probe"]').exists()).toBe(false)
+    expect(w.find('[data-teil="maske"]').exists()).toBe(true)
+    await warte(200)
+    expect(JSON.stringify(r.state.value.eingaben)).toBe(vorher)
+    expect(w.find('[data-teil="leiste-zeile"]').exists()).toBe(false)
+    expect(JSON.parse(speicher.getItem('alcatraz.geraet.probe')!).listen).toEqual([TOR5])
+
+    // Neu laden: dieselbe Liste im selben Raum – keine Probe mehr, die Maske kommt gleich.
+    w.unmount()
+    wrappers.splice(wrappers.indexOf(w), 1)
+    location.hash = '#/geraet'
+    const w2 = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20 } } })
+    wrappers.push(w2)
+    await zeigt(() => w2.find('[data-teil="ruhe"]').exists() && ruheArt(w2) !== 'warte')
+    expect(w2.find('[data-teil="probe"]').exists()).toBe(false)
+    // „Mehr → Probe“ wiederholt sie jederzeit.
+    await klick(w2, '[data-action="mehr"]')
+    await klick(w2, '[data-action="probe"]')
+    expect(w2.find('[data-teil="probe"]').exists()).toBe(true)
+  })
+
+  it('überspringen; Vorsteg: zweimal X, „Abbrechen“, dann „In Ordnung“ (Fake-Uhr, Übung)', async () => {
+    vi.useFakeTimers()
+    const { q, w } = uebe('dm-2026', 'vorsteg')
+    await nextTick()
+    // In der Übung kommt die Probe nicht von selbst – nur über „Mehr“.
+    expect(w.find('[data-teil="probe"]').exists()).toBe(false)
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="probe"]')
+    expect(w.find('[data-teil="probe"]').attributes('data-schritt')).toBe('x')
+    await klick(w, '[data-action="probe-ueberspringen"]')
+    expect(w.find('[data-teil="probe"]').exists()).toBe(false)
+
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="probe"]')
+    const x = '[data-teil="probe"] [data-action="disq-code"][data-code="X"]'
+    await klick(w, x)
+    await klick(w, x)
+    expect(w.find('[data-dialog="wkr-x"]').exists()).toBe(true)
+    await klick(w, '[data-action="x-nein"]')
+    expect(w.find('[data-teil="probe"]').attributes('data-schritt')).toBe('haupt')
+    expect(haupt(w).text()).toBe('In Ordnung ✓')
+    await klick(w, '[data-action="haupt"]')
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.weiterNachMs)
+    await nextTick()
+    expect(w.find('[data-teil="probe"]').attributes('data-takt')).toBe('sperre')
+    expect(w.find('[data-teil="blitz"]').exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(WKR_ANNAHMEN.sperreMs)
+    await nextTick()
+    await klick(w, '[data-action="probe-fertig"]')
+    expect(w.find('[data-teil="maske"]').exists()).toBe(true)
+    expect(q.zuletzt.value).toHaveLength(0)
+    expect(q.entwuerfe.value).toHaveLength(0)
+  })
+})
+
+describe('Übung erreichbar ohne Kopplung (W3.4, G13)', () => {
+  it('„Üben ohne Verbindung“ im Koppel-Formular → `#/uebung` in derselben Wurzel; Kopf dauerhaft „ÜBUNG“', async () => {
+    const r = await bedienrechner()
+    r.h.gibCode([{ art: 'liste', liste: TOR5 }])
+    await bis(() => !!r.h.raum.value?.koppeln.code)
+    location.hash = koppelnAdresse(r.h.raum.value!.koppelLink)
+    const w = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: handy(), zeiten: SCHNELL, ablaufTaktMs: 20 } } })
+    wrappers.push(w)
+    await zeigt(() => w.find('input[data-feld="code"]').exists())
+    const link = w.find('[data-teil="koppeln"] a[data-action="ueben"]')
+    expect([link.attributes('href'), link.text()]).toEqual(['#/uebung', 'Üben ohne Verbindung'])
+    location.hash = link.attributes('href')!
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    await zeigt(() => w.find('[data-teil="uebung-wahl"]').exists())
+    expect(w.find('[data-teil="koppeln"]').exists()).toBe(false)
+    await klick(w, '[data-action="uebung-liste"][data-liste="vorsteg"]')
+    await klick(w, '[data-action="uebung-start"]')
+    expect(w.find('[data-teil="wkr-kopf"] [data-teil="uebung"]').text()).toBe('ÜBUNG')
+    expect(haupt(w).text()).toBe('In Ordnung ✓')
+    expect(w.html()).not.toMatch(NAMEN)
+  })
+})

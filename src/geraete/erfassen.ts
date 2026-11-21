@@ -1,7 +1,8 @@
 import { computed, effectScope, ref, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue'
-import type { PunktId } from '../types'
+import type { ClassId, PunktId } from '../types'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
-import { zeilenPruefsumme } from '../wkr/uebernahme'
+import { BEMERKUNG_TRENNER, zeilenPruefsumme } from '../wkr/uebernahme'
+import { disqCodes } from '../lib/scoring'
 import { LISTEN_SICHT_FASSUNG, type ListenSicht, type ListenStart, type WkrHinweis } from '../wkr/sicht'
 import type { ListenTeil } from '../wkr/liste'
 import { geraetWkrAblage, liesKopplung, type Ablage, type RaumBezug } from './ablage'
@@ -30,6 +31,10 @@ import { istAblehnung, type Ablehnung, type GeraeteNachricht } from './transport
  * - Die Maske sperrt nie (keine Wartepflicht): schicke/korrigiere legen nur in den Ausgang.
  * - Kein Name in irgendeiner Rückgabe (F6): Die Sicht trägt keinen, die Zeilen nur Kennung und Werte; der Name des
  *   Abschlusses geht nur in die Nachricht.
+ * - W3.1 (21.11.2026, Plan docs/plan-wkr-w3.md §4.1): **Schlange je Steg-Teil** (WKR_ANNAHMEN.schlangeJeTeil, H3 –
+ *   eigene Zeilen zählen nach Start UND Teil), Startnummer `sn` je eigener Zeile, **Entwürfe** im Ausgang (H4),
+ *   `holeZurueck` (G8, nur solange die Zeile wartet), `pruefung` (Prüfansicht für „Liste abschließen“, F7). Die Maske
+ *   liest nur {@link ErfassungsQuelle} – dieselbe Schnittstelle bietet die Übung ohne Netz (geraete/uebung.ts).
  */
 
 /** Wie weit eine eigene Zeile ist. */
@@ -62,6 +67,10 @@ export interface ZuletztZeile {
   z: number
   liste: string
   s: string
+  /** Startnummer, wie sie beim Abschicken in der Sicht stand (W3: „Zuletzt“ zeigt sie auch, wenn der Start weg ist). */
+  sn?: string
+  /** Steg-Teil der Zeile (ohne: ganze Zeile). */
+  teil?: ListenTeil
   punkt: PunktId | null
   korrektur: boolean
   zellen: Record<string, string>
@@ -79,6 +88,47 @@ export interface EigenerAbschluss {
   grund?: Ablehnung | 'verworfen'
 }
 
+/** Ein Entwurf (W3, H4): Zellwerte eines Starts und Teils, noch nicht abgeschickt. */
+export interface EntwurfEintrag {
+  liste: string
+  s: string
+  teil?: ListenTeil
+  sn?: string
+  zellen: Record<string, string>
+  /**
+   * Fürs Übertragen aufs Papier nach dem Entzug (die Sicht der Liste ist dann weg): Titel und Bereich der Liste und die
+   * Überschrift jedes Felds, wie die Sicht sie beim Ablegen nannte (Prüfbefund W3, 21.11.2026). Nie ein Name.
+   */
+  papier?: EntwurfPapier
+}
+
+export interface EntwurfPapier {
+  titel: string
+  bereich: string
+  felder: Record<string, string>
+}
+
+/** Eine Zeile der Prüfansicht (F7): ein Start mit den zuletzt gesendeten eigenen Werten. */
+export interface PruefZeile {
+  s: string
+  sn?: string
+  klasse: string | null
+  zellen: Record<string, string>
+  /** Stufe der neuesten eigenen Zeile zu diesem Start, solange sie noch im Ausgang steht. */
+  stufe: ZeilenStufe | null
+  /** Enthält ein X „nicht gestartet“ (F5). */
+  x: boolean
+}
+
+/** Prüfansicht eines Punkts (F7, Plan §5.7): eigene Zeilen, offene Starts, X – nur aus Ausgang und Sicht. */
+export interface Pruefung {
+  zeilen: PruefZeile[]
+  /** Offene Starts dieses Punkts in der Schlange (des Teils), ohne Vorsteg-Vorschau und „entfällt“. */
+  offen: SchlangenEintrag[]
+  /** Startnummern der Zeilen mit X. */
+  x: string[]
+}
+
 export interface ErfassenUmgebung {
   /** Vorgabe localStorage – dieselbe wie die des Geräts. */
   ablage?: Ablage | null
@@ -90,13 +140,31 @@ export interface ErfassenUmgebung {
   akku?: () => number | undefined
 }
 
+/**
+ * Was die Maske vom Kern liest und ruft (W3) – die echte Erfassung ({@link oeffneErfassung}) und die Übung ohne Netz
+ * (geraete/uebung.ts oeffneUebung) bieten dieselbe Schnittstelle.
+ */
+export type ErfassungsQuelle = Omit<Erfassung, never>
+
 export interface Erfassung {
+  /** Übung ohne Netz (geraete/uebung.ts): nichts geht an einen Bedienrechner. */
+  readonly uebung: boolean
+  /** Verbunden mit dem Bedienrechner (Übung: immer). */
+  readonly verbunden: ComputedRef<boolean>
+  /** Rechte entzogen: Entwürfe nur noch lesend (§5.6). */
+  readonly entzogen: ComputedRef<boolean>
   /** Eigene Listen (Kennungen) mit Teil, wie die Aufgaben sie geben (F15: höchstens zwei). */
   readonly listen: ComputedRef<ListenAufgabe[]>
   /** Je eigener Liste die zuletzt empfangene Sicht (`null`: noch keine). */
   readonly sichten: Readonly<ShallowRef<Readonly<Record<string, ListenSicht | null>>>>
-  /** Je eigener Liste die Schlange: Sicht minus eigene Zeilen (außer abgelehnten); ohne Verbindung plus „danach“. */
+  /**
+   * Je eigener Liste die Schlange: Sicht minus eigene Zeilen (außer abgelehnten); ohne Verbindung plus „danach“. Am
+   * Steg je Teil (H3): Ein Teil-Gerät sieht die seines Teils; ein Gerät für den ganzen Steg jeden Start, solange EIN
+   * Teil offen ist – die Schlange eines Teils gibt {@link schlangeTeil}.
+   */
   readonly schlange: ComputedRef<Record<string, SchlangenEintrag[]>>
+  /** Die Schlange eines Steg-Teils (Ablegen: Kopf; Anlegen: älteste ohne eigenes Anlegen und ohne `teile.an`). */
+  schlangeTeil(liste: string, teil: ListenTeil): SchlangenEintrag[]
   /** Stufe je eigener Zeile (`z`), über die letzten Zeilen und alles Unbestätigte. */
   readonly stufen: ComputedRef<Record<number, ZeilenStufe>>
   /** Die letzten Zeilen, neueste zuerst. */
@@ -107,8 +175,21 @@ export interface Erfassung {
   readonly abschluesse: ComputedRef<EigenerAbschluss[]>
   /** Zeilen, die das Gerät noch nicht losgeworden ist (wartend oder ohne Quittung). */
   readonly wartend: ComputedRef<number>
+  /**
+   * Seit wann (Wanduhr, ms) die Verbindung fehlt bzw. Zeilen ohne Quittung warten; `null`: verbunden bzw. nichts
+   * wartet. Im Kern statt in der Maske, damit ein Wechsel des Reiters (Freigabe ↔ Liste) die Zeit nicht neu beginnt
+   * – sonst käme „Papierbogen ab Nr. …“ erst 5 min später (Prüfbefund W3, 21.11.2026).
+   */
+  readonly getrenntSeit: Readonly<ShallowRef<number | null>>
+  readonly wartendSeit: Readonly<ShallowRef<number | null>>
   /** Eine Zeile in den Ausgang; liefert `z` oder `null` (keine eigene Liste, Teil passt nicht). */
   schicke(liste: string, zeile: MaskenZeile): number | null
+  /**
+   * Der eigene Stand des Starts dieser Zeile, wie das Gerät ihn zuletzt gesendet hat – am Steg für den Teil der Zeile
+   * (Felder des Teils und die gemeinsamen, die DIESER Teil gesetzt hat). Grundlage einer Korrektur: Korrekturzeilen
+   * tragen nur die geänderten Felder, ein Entwurf aus ihnen allein leerte die übrigen (Prüfbefund W3, 21.11.2026).
+   */
+  stand(z: number): Record<string, string> | null
   /** Korrektur einer eigenen Zeile: `vorher` = zuletzt gesendeter Wert; nach dem Abschluss wird sie Vorschlag. */
   korrigiere(z: number, zellen: Readonly<Record<string, string>>): number | null
   pausiere(liste: string): number | null
@@ -118,6 +199,20 @@ export interface Erfassung {
   schliesseAb(liste: string, punkt: PunktId, name: string, restPapier: boolean): number | null
   /** Einen Hinweis als gelesen melden. */
   gesehen(hinweis: number): void
+  /** Der Entwurf eines Starts (und Teils), `null`: keiner. Auch nach dem Entzug lesbar (auf Papier übertragen). */
+  entwurf(liste: string, s: string, teil?: ListenTeil): Record<string, string> | null
+  /** Entwurf ablegen (ersetzt den alten); leere Zellen allein = kein Entwurf. `false`: keine eigene Liste, gestoppt. */
+  merkeEntwurf(liste: string, s: string, teil: ListenTeil | undefined, zellen: Readonly<Record<string, string>>): boolean
+  verwirfEntwurf(liste: string, s: string, teil?: ListenTeil): void
+  /** Alle Entwürfe (Leiste „Entw. n“), ältester zuerst. */
+  readonly entwuerfe: ComputedRef<EntwurfEintrag[]>
+  /**
+   * „Rückgängig“ (G8): eine Zeile, die noch im Ausgang wartet, zurückholen – Werte als Entwurf zurück. `null`: schon
+   * unterwegs, beantwortet oder eine neuere Zeile desselben Starts wartet (dann bietet die Oberfläche „Korrigieren“).
+   */
+  holeZurueck(z: number): MaskenZeile | null
+  /** Prüfansicht für „Liste abschließen“ (F7): eigene Zeilen des Punkts (am Steg des Teils), offene Starts, X. */
+  pruefung(liste: string, punkt: PunktId, teil?: ListenTeil): Pruefung
   stop(): void
 }
 
@@ -145,6 +240,8 @@ interface AusZeile {
   z: number
   liste: string
   s: string
+  /** Startnummer beim Abschicken (W3). */
+  sn?: string
   t?: ListenTeil
   seite?: 'A' | 'B'
   k?: true
@@ -177,12 +274,68 @@ interface Inhalt {
   naechsteZ: number
   aus: AusEintrag[]
   zeilen: AusZeile[]
-  /** Je Liste und Punkt ('' = ohne) je Start: Klasse und zuletzt gesendete Werte. */
-  werte: Record<string, Record<string, Record<string, { k: string | null; w: Record<string, string> }>>>
+  /**
+   * Je Liste und Punkt ('' = ohne) je Start: Klasse, zuletzt gesendete Werte, seit W3 Startnummer und gesendete Teile
+   * (`g` = ganze Zeile) für die Prüfansicht.
+   */
+  werte: Record<string, Record<string, Record<string, WerteEintrag>>>
   abschluesse: AusAbschluss[]
   sichten: Record<string, ListenSicht>
   gesehen: number[]
+  /** Entwürfe (W3, H4) je Liste und `${s}|${teil}`. */
+  entwuerfe: Record<string, Record<string, AbgelegterEntwurf>>
 }
+
+interface AbgelegterEntwurf {
+  sn?: string
+  zellen: Record<string, string>
+  papier?: EntwurfPapier
+}
+
+function istPapier(v: unknown): v is EntwurfPapier {
+  return istObjekt(v) && istText(v.titel) && istText(v.bereich) && istObjekt(v.felder) && Object.values(v.felder).every(istText)
+}
+
+interface WerteEintrag {
+  k: string | null
+  /** Zuletzt gesendete Werte je Feld; gemeinsame Felder des Stegs vereinigt über beide Teile (wie am Bedienrechner). */
+  w: Record<string, string>
+  /**
+   * Gemeinsame Felder des Stegs (Disq., Bemerkung) je Teil, wie DIESER Teil sie gesendet hat – `vorher` einer Zeile
+   * eines Teils (Prüfbefund W3, 21.11.2026: Ein Gerät für den ganzen Steg schickte sonst beim leeren Anlegen als
+   * `vorher` die Disq. des Ablegens mit, und der Bedienrechner löschte sie ohne Rückfrage).
+   */
+  wt?: Partial<Record<ListenTeil, Record<string, string>>>
+  sn?: string
+  t?: ('ab' | 'an' | 'g')[]
+}
+
+/** Teile eines gemeinsamen Werts: Bemerkungen nach „; “, Disq. als Buchstaben. */
+const teileDesWerts = (feld: string, wert: string) => (feld.startsWith('bemerkung@') ? wert.split(BEMERKUNG_TRENNER).filter((x) => x !== '') : disqCodes(wert))
+
+/**
+ * Ein gemeinsames Feld aus den Werten beider Teile – wie wkr/uebernahme.ts es am Bedienrechner vereinigt: was schon
+ * stand und noch gilt, in seiner Folge, Neues hinten an.
+ */
+function vereinigeTeile(feld: string, bisher: string, wt: WerteEintrag['wt']): string {
+  const alle = [...new Set((['ab', 'an'] as const).flatMap((t) => teileDesWerts(feld, wt?.[t]?.[feld] ?? '')))]
+  const alt = teileDesWerts(feld, bisher).filter((x) => alle.includes(x))
+  const out = [...new Set([...alt, ...alle])]
+  return out.join(feld.startsWith('bemerkung@') ? BEMERKUNG_TRENNER : ', ')
+}
+
+/** Höchstens so viele Entwürfe je Liste – ein Gerät, das nie abschickt, füllt den Speicher nicht. */
+const ENTWUERFE_MAX = 30
+
+const entwurfSchluessel = (s: string, teil: ListenTeil | undefined) => `${s}|${teil ?? ''}`
+const liesEntwurfSchluessel = (k: string): { s: string; teil?: ListenTeil } => {
+  const i = k.lastIndexOf('|')
+  const t = k.slice(i + 1)
+  return t === 'ab' || t === 'an' ? { s: k.slice(0, i), teil: t } : { s: k.slice(0, i) }
+}
+
+/** Enthält ein Zellwert ein X „nicht gestartet“? (Großes X als eigener Eintrag; „2x6“ ist ein Faktor.) */
+const hatX = (wert: string) => wert.split(/[\s,;/]+/).includes('X')
 
 const istObjekt = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 const istText = (v: unknown): v is string => typeof v === 'string'
@@ -212,7 +365,7 @@ function istListenSicht(v: unknown, liste: string): v is ListenSicht {
 }
 
 function leer(uhr: () => number): Inhalt {
-  return { naechsteZ: Math.max(1, Math.floor(uhr())), aus: [], zeilen: [], werte: {}, abschluesse: [], sichten: {}, gesehen: [] }
+  return { naechsteZ: Math.max(1, Math.floor(uhr())), aus: [], zeilen: [], werte: {}, abschluesse: [], sichten: {}, gesehen: [], entwuerfe: {} }
 }
 
 /** Abgelegten Ausgang lesen – was nicht passt, fällt weg (Programmfehler, alte Fassung), nie das Ganze. */
@@ -233,13 +386,36 @@ function liesInhalt(roh: Record<string, unknown> | null, uhr: () => number): Inh
           if (!istObjekt(e) || !istObjekt(e.w) || (e.k !== null && !istText(e.k))) continue
           const w: Record<string, string> = {}
           for (const [f, x] of Object.entries(e.w)) if (istText(x)) w[f] = x
-          ;((out.werte[liste] ??= {})[punkt] ??= {})[s] = { k: e.k as string | null, w }
+          const eintrag: WerteEintrag = { k: e.k as string | null, w }
+          if (istText(e.sn)) eintrag.sn = e.sn
+          if (Array.isArray(e.t)) eintrag.t = e.t.filter((x): x is 'ab' | 'an' | 'g' => x === 'ab' || x === 'an' || x === 'g')
+          if (istObjekt(e.wt)) {
+            for (const t of ['ab', 'an'] as const) {
+              const jt = e.wt[t]
+              if (!istObjekt(jt)) continue
+              const werte: Record<string, string> = {}
+              for (const [f, x] of Object.entries(jt)) if (istText(x)) werte[f] = x
+              ;(eintrag.wt ??= {})[t] = werte
+            }
+          }
+          ;((out.werte[liste] ??= {})[punkt] ??= {})[s] = eintrag
         }
       }
     }
   }
   if (istObjekt(roh.sichten)) for (const [liste, s] of Object.entries(roh.sichten)) if (istListenSicht(s, liste)) out.sichten[liste] = s
   if (Array.isArray(roh.gesehen)) out.gesehen = roh.gesehen.filter(istNr).slice(-50)
+  if (istObjekt(roh.entwuerfe)) {
+    for (const [liste, jeStart] of Object.entries(roh.entwuerfe)) {
+      if (!istObjekt(jeStart)) continue
+      for (const [k, e] of Object.entries(jeStart).slice(-ENTWUERFE_MAX)) {
+        if (!istObjekt(e) || !istObjekt(e.zellen)) continue
+        const zellen: Record<string, string> = {}
+        for (const [f, x] of Object.entries(e.zellen)) if (istText(x)) zellen[f] = x
+        ;(out.entwuerfe[liste] ??= {})[k] = { ...(istText(e.sn) ? { sn: e.sn } : {}), zellen, ...(istPapier(e.papier) ? { papier: e.papier } : {}) }
+      }
+    }
+  }
   // Der Zähler steht immer über allem Abgelegten.
   for (const z of [...out.zeilen.map((x) => x.z), ...out.abschluesse.map((x) => x.id), ...out.aus.map((a) => (a.art === 'zeile' ? a.z : a.id))]) {
     if (z >= out.naechsteZ) out.naechsteZ = z + 1
@@ -523,26 +699,59 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     }),
   )!
 
-  const schlange = scope.run(() =>
+  /**
+   * Die Schlangen einer Liste: `ganz` (ungeteilte Liste bzw. Gerät für den ganzen Steg: solange EIN Teil offen ist)
+   * und je Teil (H3). Eigene Zeilen zählen nach Start UND Teil – eine ganze Zeile (ohne Teil) für beide Teile; vor W3
+   * nahm ein Ablegen den Start auch aus dem Anlegen.
+   */
+  const schlangen = scope.run(() =>
     computed(() => {
       void rev.value
       const verbunden = geraet.status.value === 'verbunden'
-      const out: Record<string, SchlangenEintrag[]> = {}
+      const out: Record<string, Record<'ganz' | ListenTeil, SchlangenEintrag[]>> = {}
       for (const a of listen.value) {
         const sicht = sichten.value[a.liste]
         if (!sicht) {
-          out[a.liste] = []
+          out[a.liste] = { ganz: [], ab: [], an: [] }
           continue
         }
-        const eigen = new Set(inhalt.zeilen.filter((z) => z.liste === a.liste && stufeVon(z).stufe !== 'abgelehnt').map((z) => z.s))
-        const passt = (s: ListenStart) => !eigen.has(s.key) && !(a.teil && s.teile?.[a.teil])
-        const liste: SchlangenEintrag[] = sicht.schlange.filter(passt).map((s) => ({ ...s }))
-        if (!verbunden) {
-          const schon = new Set(sicht.schlange.map((s) => s.key))
-          for (const s of sicht.danach) if (!schon.has(s.key) && passt(s)) liste.push({ ...s, geschaetzt: true })
+        const geteilt = !!sicht.teile
+        const eigen = new Map<string, Set<'ab' | 'an' | 'g'>>()
+        for (const z of inhalt.zeilen) {
+          if (z.liste !== a.liste || stufeVon(z).stufe === 'abgelehnt') continue
+          const t = eigen.get(z.s) ?? new Set()
+          t.add(z.t ?? 'g')
+          eigen.set(z.s, t)
         }
-        out[a.liste] = liste
+        const teilOffen = (s: ListenStart, teil: ListenTeil) => {
+          const e = eigen.get(s.key)
+          return !(e?.has('g') || e?.has(teil)) && !s.teile?.[teil]
+        }
+        const passtFuer = (teil: 'ganz' | ListenTeil) => (s: ListenStart): boolean => {
+          if (teil !== 'ganz') return geteilt ? teilOffen(s, teil) : !eigen.has(s.key)
+          if (!geteilt) return !eigen.has(s.key)
+          if (a.teil) return teilOffen(s, a.teil)
+          return teilOffen(s, 'ab') || teilOffen(s, 'an')
+        }
+        const baue = (teil: 'ganz' | ListenTeil) => {
+          const passt = passtFuer(teil)
+          const liste: SchlangenEintrag[] = sicht.schlange.filter(passt).map((s) => ({ ...s }))
+          if (!verbunden) {
+            const schon = new Set(sicht.schlange.map((s) => s.key))
+            for (const s of sicht.danach) if (!schon.has(s.key) && passt(s)) liste.push({ ...s, geschaetzt: true })
+          }
+          return liste
+        }
+        out[a.liste] = { ganz: baue('ganz'), ab: geteilt ? baue('ab') : [], an: geteilt ? baue('an') : [] }
       }
+      return out
+    }),
+  )!
+
+  const schlange = scope.run(() =>
+    computed(() => {
+      const out: Record<string, SchlangenEintrag[]> = {}
+      for (const [liste, je] of Object.entries(schlangen.value)) out[liste] = je.ganz
       return out
     }),
   )!
@@ -554,7 +763,17 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       return inhalt.zeilen
         .slice()
         .reverse()
-        .map((z): ZuletztZeile => ({ z: z.z, liste: z.liste, s: z.s, punkt: z.punkt, korrektur: !!z.k, zellen: Object.fromEntries(z.c.map(([f, w]) => [f, w])), stufe: stufeVon(z) }))
+        .map((z): ZuletztZeile => ({
+          z: z.z,
+          liste: z.liste,
+          s: z.s,
+          ...(z.sn !== undefined ? { sn: z.sn } : {}),
+          ...(z.t ? { teil: z.t } : {}),
+          punkt: z.punkt,
+          korrektur: !!z.k,
+          zellen: Object.fromEntries(z.c.map(([f, w]) => [f, w])),
+          stufe: stufeVon(z),
+        }))
     }),
   )!
 
@@ -612,12 +831,67 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
 
   const werteVon = (liste: string, punkt: PunktId | null, s: string) => inhalt.werte[liste]?.[punkt ?? '']?.[s]
 
+  /**
+   * Zu welchem Teil ein Feld gehört – an der Sicht (MaskenFeld.teil): `gemeinsam` (geteilte Liste, Feld ohne Teil),
+   * der Teil, oder `null` (ungeteilte Liste, unbekannt).
+   */
+  function feldTeil(liste: string, klasse: string | null, f: string): ListenTeil | 'gemeinsam' | null {
+    const sicht = inhalt.sichten[liste]
+    if (!sicht?.teile) return null
+    const klassen = klasse !== null ? [sicht.klassen[klasse as ClassId]] : Object.values(sicht.klassen)
+    for (const k of klassen) {
+      const feld = k?.felder?.find((x) => x.kennung === f)
+      if (feld) return feld.teil ?? 'gemeinsam'
+    }
+    return null
+  }
+
+  /** Was das Gerät für dieses Feld zuletzt gesendet hat – am Steg für gemeinsame Felder nur aus Zeilen DIESES Teils. */
+  function vorherVon(e: WerteEintrag | undefined, liste: string, t: ListenTeil | undefined, f: string): string {
+    if (!e) return ''
+    if (t && feldTeil(liste, e.k, f) === 'gemeinsam') return e.wt?.[t]?.[f] ?? ''
+    return e.w[f] ?? ''
+  }
+
+  /** Der eigene Stand eines Starts (am Steg: des Teils – ohne Felder des anderen Teils, gemeinsame nur die eigenen). */
+  function standVon(e: WerteEintrag, liste: string, t: ListenTeil | undefined): Record<string, string> {
+    if (!t) return { ...e.w }
+    const out: Record<string, string> = {}
+    for (const [f, w] of Object.entries(e.w)) {
+      const ft = feldTeil(liste, e.k, f)
+      if (ft === null || ft === t) out[f] = w
+    }
+    for (const [f, w] of Object.entries(e.wt?.[t] ?? {})) if (w !== '') out[f] = w
+    return out
+  }
+
+  /** Einen Wert ablegen; gemeinsame Felder einer Teil-Zeile je Teil und vereinigt in `w`. */
+  function setzeWert(e: WerteEintrag, liste: string, t: ListenTeil | undefined, f: string, w: string): void {
+    if (t && feldTeil(liste, e.k, f) === 'gemeinsam') {
+      const jt = ((e.wt ??= {})[t] ??= {})
+      if (w === '') delete jt[f]
+      else jt[f] = w
+      const v = vereinigeTeile(f, e.w[f] ?? '', e.wt)
+      if (v === '') delete e.w[f]
+      else e.w[f] = v
+      return
+    }
+    if (w === '') delete e.w[f]
+    else e.w[f] = w
+  }
+
   function merkeWerte(z: AusZeile): void {
     const jeStart = ((inhalt.werte[z.liste] ??= {})[z.punkt ?? ''] ??= {})
     const e = (jeStart[z.s] ??= { k: z.klasse, w: {} })
     if (z.klasse !== null) e.k = z.klasse
-    for (const [f, w] of z.c) e.w[f] = w
+    if (z.sn !== undefined) e.sn = z.sn
+    const t = z.t ?? 'g'
+    if (!e.t?.includes(t)) e.t = [...(e.t ?? []), t]
+    for (const [f, w] of z.c) setzeWert(e, z.liste, z.t, f, w)
   }
+
+  /** Entwürfe sind Zellwerte; ein Entwurf ohne einen einzigen Wert ist keiner. */
+  const entwurfLeer = (zellen: Readonly<Record<string, string>>) => Object.values(zellen).every((w) => w === '')
 
   function stelleAn(z: AusZeile): number {
     inhalt.zeilen.push(z)
@@ -643,15 +917,63 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     return id
   }
 
+  const entwuerfe = scope.run(() =>
+    computed(() => {
+      void rev.value
+      const out: EntwurfEintrag[] = []
+      for (const [liste, jeStart] of Object.entries(inhalt.entwuerfe)) {
+        for (const [k, e] of Object.entries(jeStart)) {
+          out.push({ liste, ...liesEntwurfSchluessel(k), ...(e.sn !== undefined ? { sn: e.sn } : {}), zellen: { ...e.zellen }, ...(e.papier ? { papier: { ...e.papier, felder: { ...e.papier.felder } } } : {}) })
+        }
+      }
+      return out
+    }),
+  )!
+
+  const verbunden = scope.run(() => computed(() => geraet.status.value === 'verbunden'))!
+  const entzogen = scope.run(() => computed(() => geraet.lage.value === 'entzogen'))!
+  // Wanduhr wie in der Maske (jetzt = Date.now()), nicht `uhr` – die Maske vergleicht damit ihre Sekunde.
+  const getrenntSeit = shallowRef<number | null>(verbunden.value ? null : Date.now())
+  const wartendSeit = shallowRef<number | null>(wartend.value > 0 ? Date.now() : null)
+  scope.run(() => {
+    watch(verbunden, (v) => (getrenntSeit.value = v ? null : (getrenntSeit.value ?? Date.now())))
+    watch(
+      () => wartend.value > 0,
+      (ja) => (wartendSeit.value = ja ? (wartendSeit.value ?? Date.now()) : null),
+    )
+  })
+
+  /** Angaben fürs Papier zu einem Entwurf, aus der Sicht der Liste (Felder der Klasse des Starts, nur die belegten). */
+  function papierVon(liste: string, s: string, zellen: Readonly<Record<string, string>>, klasse: string | null): EntwurfPapier | undefined {
+    const sicht = inhalt.sichten[liste]
+    if (!sicht) return undefined
+    const k = [...sicht.schlange, ...sicht.danach].find((x) => x.key === s)?.klasse ?? klasse
+    const felder: Record<string, string> = {}
+    for (const f of (k ? sicht.klassen[k as ClassId]?.felder : null) ?? []) if (f.kennung in zellen) felder[f.kennung] = f.label.replace(/:\s*$/, '')
+    return { titel: sicht.titel, bereich: sicht.bereich, felder }
+  }
+
+  /** Startnummer eines Starts aus der Sicht (Schlange oder danach). */
+  const startNrVon = (liste: string, s: string) => {
+    const sicht = inhalt.sichten[liste]
+    return sicht ? [...sicht.schlange, ...sicht.danach].find((x) => x.key === s)?.startNr : undefined
+  }
+
   return {
+    uebung: false,
+    verbunden,
+    entzogen,
     listen,
     sichten,
     schlange,
+    schlangeTeil: (liste, teil) => schlangen.value[liste]?.[teil] ?? [],
     stufen,
     zuletzt,
     hinweise,
     abschluesse,
     wartend,
+    getrenntSeit,
+    wartendSeit,
     schicke(liste, zeile) {
       const aufgabe = aufgabeVon(liste)
       if (gestoppt || !aufgabe || typeof zeile.s !== 'string' || zeile.s === '') return null
@@ -660,15 +982,24 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       const sicht = inhalt.sichten[liste]
       const start = sicht ? [...sicht.schlange, ...sicht.danach].find((x) => x.key === zeile.s) : undefined
       const punkt = sicht?.punkt?.id ?? null
-      const bisher = werteVon(liste, punkt, zeile.s)?.w ?? {}
+      const eintrag = werteVon(liste, punkt, zeile.s)
+      const vorher = (f: string) => vorherVon(eintrag, liste, teil, f)
       const c: [string, string, string][] = Object.entries(zeile.zellen)
-        .filter(([f, w]) => typeof w === 'string' && (w !== '' || (bisher[f] ?? '') !== ''))
-        .map(([f, w]) => [f, w, bisher[f] ?? ''])
+        .filter(([f, w]) => typeof w === 'string' && (w !== '' || vorher(f) !== ''))
+        .map(([f, w]) => [f, w, vorher(f)])
       const vs = vorschlagWeil(liste, punkt, teil)
+      // Abgeschickt: der Entwurf dieses Starts und Teils ist erledigt (H4).
+      const ew = inhalt.entwuerfe[liste]
+      if (ew) {
+        delete ew[entwurfSchluessel(zeile.s, teil)]
+        if (Object.keys(ew).length === 0) delete inhalt.entwuerfe[liste]
+      }
+      const sn = start?.startNr ?? werteVon(liste, punkt, zeile.s)?.sn
       return stelleAn({
         z: neueId(),
         liste,
         s: zeile.s,
+        ...(sn !== undefined ? { sn } : {}),
         ...(teil ? { t: teil } : {}),
         ...(start?.seite ? { seite: start.seite } : {}),
         klasse: start?.klasse ?? werteVon(liste, punkt, zeile.s)?.k ?? null,
@@ -678,30 +1009,39 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
         ...(vs ? { vs } : {}),
       })
     },
+    stand(z) {
+      const alt = inhalt.zeilen.find((x) => x.z === z)
+      const e = alt ? werteVon(alt.liste, alt.punkt, alt.s) : undefined
+      return alt && e ? standVon(e, alt.liste, alt.t) : null
+    },
     korrigiere(z, zellen) {
       const alt = inhalt.zeilen.find((x) => x.z === z)
       if (gestoppt || !alt || !aufgabeVon(alt.liste)) return null
+      const eintrag = werteVon(alt.liste, alt.punkt, alt.s)
+      const vorher = (f: string) => vorherVon(eintrag, alt.liste, alt.t, f)
       if (alt.nr === null && !alt.ab) {
-        // Noch im Ausgang: die wartende Zeile ändern statt einer zweiten (eine Nachricht weniger).
+        // Noch im Ausgang: die wartende Zeile ändern statt einer zweiten (eine Nachricht weniger). Unveränderte Felder
+        // außerhalb der Zeile bleiben draußen.
         for (const [f, w] of Object.entries(zellen)) {
+          if (typeof w !== 'string') continue
           const i = alt.c.findIndex((c) => c[0] === f)
           if (i >= 0) alt.c[i] = [f, w, alt.c[i][2]]
-          else alt.c.push([f, w, werteVon(alt.liste, alt.punkt, alt.s)?.w[f] ?? ''])
+          else if (w !== vorher(f)) alt.c.push([f, w, vorher(f)])
         }
         merkeWerte(alt)
         speichere()
         return alt.z
       }
-      const bisher = werteVon(alt.liste, alt.punkt, alt.s)?.w ?? {}
       const c: [string, string, string][] = Object.entries(zellen)
-        .filter(([f, w]) => typeof w === 'string' && (bisher[f] ?? '') !== w)
-        .map(([f, w]) => [f, w, bisher[f] ?? ''])
+        .filter(([f, w]) => typeof w === 'string' && vorher(f) !== w)
+        .map(([f, w]) => [f, w, vorher(f)])
       if (c.length === 0) return alt.z
       const vs = vorschlagWeil(alt.liste, alt.punkt, alt.t)
       return stelleAn({
         z: neueId(),
         liste: alt.liste,
         s: alt.s,
+        ...(alt.sn !== undefined ? { sn: alt.sn } : {}),
         ...(alt.t ? { t: alt.t } : {}),
         ...(alt.seite ? { seite: alt.seite } : {}),
         k: true,
@@ -739,6 +1079,77 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       nachricht(undefined, { art: 'gesehen', hinweis })
       speichere()
       pumpe()
+    },
+    entwurf(liste, s, teil) {
+      const e = inhalt.entwuerfe[liste]?.[entwurfSchluessel(s, teil)]
+      return e ? { ...e.zellen } : null
+    },
+    merkeEntwurf(liste, s, teil, zellen) {
+      if (gestoppt || !aufgabeVon(liste) || typeof s !== 'string' || s === '') return false
+      const k = entwurfSchluessel(s, teil)
+      if (entwurfLeer(zellen)) {
+        if (inhalt.entwuerfe[liste]?.[k]) {
+          delete inhalt.entwuerfe[liste][k]
+          if (Object.keys(inhalt.entwuerfe[liste]).length === 0) delete inhalt.entwuerfe[liste]
+          speichere()
+        }
+        return true
+      }
+      const jeStart = (inhalt.entwuerfe[liste] ??= {})
+      delete jeStart[k]
+      const sn = startNrVon(liste, s)
+      const sauber = Object.fromEntries(Object.entries(zellen).filter(([, w]) => typeof w === 'string'))
+      const papier = papierVon(liste, s, sauber, werteVon(liste, inhalt.sichten[liste]?.punkt?.id ?? null, s)?.k ?? null)
+      jeStart[k] = { ...(sn !== undefined ? { sn } : {}), zellen: sauber, ...(papier ? { papier } : {}) }
+      // Älteste zuerst hinaus, wenn es zu viele werden.
+      for (const alt of Object.keys(jeStart).slice(0, -ENTWUERFE_MAX)) delete jeStart[alt]
+      speichere()
+      return true
+    },
+    verwirfEntwurf(liste, s, teil) {
+      const jeStart = inhalt.entwuerfe[liste]
+      const k = entwurfSchluessel(s, teil)
+      if (gestoppt || !jeStart?.[k]) return
+      delete jeStart[k]
+      if (Object.keys(jeStart).length === 0) delete inhalt.entwuerfe[liste]
+      speichere()
+    },
+    entwuerfe,
+    holeZurueck(z) {
+      const alt = inhalt.zeilen.find((x) => x.z === z)
+      if (gestoppt || !alt || alt.nr !== null || alt.ok || alt.ab) return null
+      // Eine neuere Zeile desselben Starts und Teils wartet schon: Sie baut auf diesen Werten auf (`vorher`).
+      if (inhalt.zeilen.some((x) => x.z > alt.z && x.liste === alt.liste && x.s === alt.s && x.t === alt.t)) return null
+      inhalt.zeilen = inhalt.zeilen.filter((x) => x.z !== z)
+      inhalt.aus = inhalt.aus.filter((a) => a.art !== 'zeile' || a.z !== z)
+      // Die zuletzt gesendeten Werte gehen auf `vorher` zurück – die Zeile ging ja nie hinaus.
+      const e = werteVon(alt.liste, alt.punkt, alt.s)
+      if (e) {
+        for (const [f, , vorher] of alt.c) setzeWert(e, alt.liste, alt.t, f, vorher)
+        const andere = inhalt.zeilen.some((x) => x.liste === alt.liste && x.s === alt.s && x.punkt === alt.punkt && (x.t ?? 'g') === (alt.t ?? 'g'))
+        if (!andere) e.t = (e.t ?? []).filter((t) => t !== (alt.t ?? 'g'))
+        if (Object.keys(e.w).length === 0 && (e.t ?? []).length === 0) delete inhalt.werte[alt.liste]![alt.punkt ?? '']![alt.s]
+      }
+      const zellen = Object.fromEntries(alt.c.map(([f, w]) => [f, w]))
+      if (!entwurfLeer(zellen)) {
+        const papier = papierVon(alt.liste, alt.s, zellen, alt.klasse)
+        ;(inhalt.entwuerfe[alt.liste] ??= {})[entwurfSchluessel(alt.s, alt.t)] = { ...(alt.sn !== undefined ? { sn: alt.sn } : {}), zellen, ...(papier ? { papier } : {}) }
+      }
+      speichere()
+      return { s: alt.s, zellen, ...(alt.t ? { teil: alt.t } : {}) }
+    },
+    pruefung(liste, punkt, teil) {
+      const zeilen: PruefZeile[] = []
+      for (const [s, e] of Object.entries(inhalt.werte[liste]?.[punkt] ?? {})) {
+        if (teil !== undefined && !(e.t ?? []).some((t) => t === teil || t === 'g')) continue
+        const letzte = inhalt.zeilen.filter((z) => z.liste === liste && z.s === s && z.punkt === punkt).at(-1)
+        zeilen.push({ s, ...(e.sn !== undefined ? { sn: e.sn } : {}), klasse: e.k, zellen: standVon(e, liste, teil), stufe: letzte ? stufeVon(letzte) : null, x: Object.values(e.w).some(hatX) })
+      }
+      const sicht = inhalt.sichten[liste]
+      const je = schlangen.value[liste]
+      const quelle = !je || sicht?.punkt?.id !== punkt ? [] : teil !== undefined && sicht?.teile ? je[teil] : je.ganz
+      const offen = quelle.filter((s) => !s.vorab && !s.entfaellt).map((s) => ({ ...s }))
+      return { zeilen, offen, x: zeilen.filter((z) => z.x).map((z) => z.sn ?? z.s) }
     },
     stop() {
       if (gestoppt) return

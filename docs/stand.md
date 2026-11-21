@@ -88,7 +88,10 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   W2 „Bedienrechner“ ist gebaut ([plan-wkr-w2.md](plan-wkr-w2.md): Matrix Listen × Starts mit Geräte-Ampel, Eingang
   für Rückfragen und Vorschläge, ◆ und „Papier ansehen“ in der Erfassung, Geräteleiste und Rückstandswarnung in der
   Start-Freigabe und auf dem Freigabe-Handy; Prüfbefunde vom 21.11.2026 behoben, Auslegungen noch zu bestätigen).
-  Offen: Masken für Handy und Pad (W3/W4), Knoten und Zeit-Listen (W5), Feldtest.
+  W3 „Handy, Katalog“ ist gebaut ([plan-wkr-w3.md](plan-wkr-w3.md): Maske „Knöpfe“ für Steg, Tor 5, MüB und
+  Vorsteg mit Doppeltipp-Schutz, Liste zuweisen, „Liste abschließen“, Sonnenmodus, Probe, Übung ohne Netz `#/uebung`;
+  Prüfbefunde vom 21.11.2026 behoben, Auslegungen noch zu bestätigen).
+  Offen: Bojen-Masken und Pad (W4), Knoten und Zeit-Listen (W5), Feldtest.
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
   Server getestet); seit E7 auch die Start-Freigabe vom gekoppelten Handy. Offen: Feldtest mit echten Handys und

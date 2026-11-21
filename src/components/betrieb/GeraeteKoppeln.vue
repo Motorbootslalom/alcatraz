@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { BereichId } from '../../types'
 import { useStore } from '../../state/store'
 import { useGeraeteHost } from '../../geraete/host'
-import { freigabeBereiche, type Aufgabe } from '../../geraete/aufgaben'
+import { freigabeBereiche, listenAufgaben, type Aufgabe, type ListenAufgabe } from '../../geraete/aufgaben'
 import { formatiereCode, restSekunden } from '../../geraete/koppeln'
 import { koppelLinkUrl, type SeitenOrt } from '../../geraete/paket'
 import { sichtOeffentlich } from '../../betrieb/sicht'
@@ -14,6 +14,8 @@ import { useUhr } from '../../lib/uhr'
 import { t } from '../../i18n'
 import QrCode from '../QrCode.vue'
 import LeseLink from './LeseLink.vue'
+import { useListenWahl } from './wkrListenWahl'
+import type { ListenTeil } from '../../wkr/liste'
 
 /**
  * Betrieb → Geräte, Koppeln (Etappe E7, Plan vom 16.11.2026 §4/§5; Vorbild tafel PairingPanel.vue, neu geschrieben):
@@ -28,6 +30,13 @@ import LeseLink from './LeseLink.vue'
  * Nutzer zu bestätigen – BETRIEB_ANNAHMEN.koppelnOberflaeche): Den Code gibt nur, wer am Bedienrechner sitzt, und ein
  * fremdes Gerät stünde sofort in der Geräteliste, wo es sich entziehen lässt.
  *
+ * W3.2 (21.11.2026, Plan docs/plan-wkr-w3.md §6): Die Aufgabe des nächsten Geräts ist die Start-Freigabe (Bereiche)
+ * und/oder EINE WKR-Liste (J4; eine zweite gibt die Geräteliste) aus wkr/liste.ts listenDerVeranstaltung – Titel in
+ * Oberflächensprache, gruppiert nach Parcours bzw. Racecourse (wkrListenWahl.ts), Listen ohne Maske in W3 mit
+ * „Maske folgt – Papier“ (G14) –, am Steg ganz / nur Ablegen / nur Anlegen (F16). Gemerkt `geraete.koppeln.liste` und
+ * `geraete.koppeln.teil`; vorgewählt auch über den Verweis „Gerät koppeln“ der Matrix (`#/betrieb/geraete/<liste>`,
+ * BetriebView beiWahl). Mit einem einzigen Parcours ist die Freigabe nur ohne Liste vorgewählt (J3).
+ *
  * Alles geht über den Host (useGeraeteHost) und damit über das Führungsfenster; hier wird nur gezeigt und gewählt. Die
  * Wahl der Bereiche ist Bedienung (lib/merken.ts), nicht Stand.
  */
@@ -39,12 +48,25 @@ const jetzt = useUhr(1000)
 const bereiche = computed(() => sichtOeffentlich(state.value, { logos: false }).bereiche.map((b) => ({ id: b.id, name: b.name })))
 const name = (id: BereichId) => bereiche.value.find((b) => b.id === id)?.name ?? id
 
-// Gemerkte Wahl; ein einziger Bereich gilt ohne Wahl (der häufige Fall: ein Parcours).
+// WKR-Liste (W3.2): '' = keine; eine nicht (mehr) vorhandene Liste gilt als keine.
+const { gruppen, liste: listeVon, listeText } = useListenWahl()
+const listeWahl = merke<string>('geraete.koppeln.liste', '')
+const listeTeil = merke<string>('geraete.koppeln.teil', '')
+const gewaehlteListe = computed(() => (listeWahl.value ? listeVon(listeWahl.value) : undefined))
+const teil = computed<ListenTeil | undefined>(() =>
+  gewaehlteListe.value?.teilbar && (listeTeil.value === 'ab' || listeTeil.value === 'an') ? listeTeil.value : undefined,
+)
+function waehleListe(kennung: string): void {
+  listeWahl.value = kennung
+  listeTeil.value = ''
+}
+
+// Gemerkte Wahl; ein einziger Bereich gilt ohne Wahl (der häufige Fall: ein Parcours) – aber nur ohne Liste (J3).
 const wahl = merke<string[]>('geraete.koppeln.bereiche', [])
 const gewaehlt = computed<BereichId[]>(() => {
   const da = bereiche.value.map((b) => b.id)
   const w = wahl.value.filter((id) => da.includes(id))
-  return w.length === 0 && da.length === 1 ? da : w
+  return w.length === 0 && da.length === 1 && !gewaehlteListe.value ? da : w
 })
 function schalte(id: BereichId, an: boolean): void {
   const neu = new Set(gewaehlt.value)
@@ -52,8 +74,25 @@ function schalte(id: BereichId, an: boolean): void {
   else neu.delete(id)
   wahl.value = bereiche.value.map((b) => b.id).filter((b) => neu.has(b))
 }
-const aufgaben = computed<Aufgabe[]>(() => [{ art: 'startfreigabe', bereiche: gewaehlt.value }])
-const fuerText = (a: Aufgabe[]) => t('geraete.koppeln.fuer', { bereiche: freigabeBereiche(a).map(name).join(', ') || '–' })
+const aufgaben = computed<Aufgabe[]>(() => {
+  const aus: Aufgabe[] = []
+  if (gewaehlt.value.length > 0) aus.push({ art: 'startfreigabe', bereiche: gewaehlt.value })
+  if (gewaehlteListe.value) {
+    const a: ListenAufgabe = { art: 'liste', liste: gewaehlteListe.value.kennung }
+    if (teil.value) a.teil = teil.value
+    aus.push(a)
+  }
+  return aus
+})
+const leer = computed(() => aufgaben.value.length === 0)
+/** „Freigabe für: Parcours 1 · Liste: Steg (Parcours 1, nur Ablegen)“ – was das Gerät mit diesem Code bekommt. */
+function fuerText(a: Aufgabe[]): string {
+  const teile: string[] = []
+  const frei = freigabeBereiche(a)
+  if (frei.length > 0 || listenAufgaben(a).length === 0) teile.push(t('geraete.koppeln.fuer', { bereiche: frei.map(name).join(', ') || '–' }))
+  for (const l of listenAufgaben(a)) teile.push(t('geraete.koppeln.fuerListe', { liste: listeText(l.liste, l.teil) }))
+  return teile.join(' · ')
+}
 
 const seite: SeitenOrt = { protocol: location.protocol, origin: location.origin, pathname: location.pathname }
 const koppelLink = computed(() => (raum.value ? koppelLinkUrl(raum.value.koppelLink, seite, PAGES_URL) : ''))
@@ -78,11 +117,37 @@ const qrOffen = computed(() => !!qr.value && restSekunden(qr.value.endet, jetzt.
         {{ b.name }}
       </label>
     </fieldset>
-    <p v-if="gewaehlt.length === 0" class="note" data-hinweis="bereiche-fehlen">{{ t('geraete.koppeln.bereicheFehlen') }}</p>
+
+    <fieldset v-if="gruppen.length > 0" class="geraete-bereiche geraete-listenwahl" data-teil="koppeln-liste">
+      <legend>{{ t('geraete.koppeln.liste') }}</legend>
+      <select class="input" data-feld="koppeln-liste" :aria-label="t('geraete.koppeln.liste')" :value="gewaehlteListe?.kennung ?? ''" @change="waehleListe(($event.target as HTMLSelectElement).value)">
+        <option value="">{{ t('geraete.koppeln.liste.keine') }}</option>
+        <optgroup v-for="g in gruppen" :key="g.name" :label="g.name">
+          <option v-for="l in g.listen" :key="l.kennung" :value="l.kennung" :data-ohne-maske="l.ohneMaske ? '' : undefined">
+            {{ l.ohneMaske ? t('geraete.koppeln.liste.ohneMaske', { titel: l.titel }) : l.titel }}
+          </option>
+        </optgroup>
+      </select>
+      <div v-if="gewaehlteListe?.teilbar" class="segmented" role="group" data-teil="koppeln-teil" :aria-label="t('geraete.koppeln.liste.teil')">
+        <button
+          v-for="w in (['', 'ab', 'an'] as const)"
+          :key="w"
+          type="button"
+          :data-wahl-teil="w || 'ganz'"
+          :class="(teil ?? '') === w ? 'active' : ''"
+          :aria-pressed="(teil ?? '') === w"
+          @click="listeTeil = w"
+        >
+          {{ t(w ? `geraete.koppeln.liste.teil.${w}` : 'geraete.koppeln.liste.teil.ganz') }}
+        </button>
+      </div>
+      <p v-if="gewaehlteListe?.ohneMaske" class="note" data-hinweis="ohne-maske">{{ t('geraete.koppeln.liste.ohneMaske.hint') }}</p>
+    </fieldset>
+    <p v-if="leer" class="note" data-hinweis="bereiche-fehlen">{{ t('geraete.koppeln.bereicheFehlen') }}</p>
 
     <div class="row">
-      <button type="button" class="btn primary" data-action="koppeln-qr" :disabled="gewaehlt.length === 0" @click="host?.oeffneQr(aufgaben)">{{ t('geraete.koppeln.qr') }}</button>
-      <button type="button" class="btn" data-action="koppeln-code" :disabled="gewaehlt.length === 0" @click="host?.gibCode(aufgaben)">{{ t('geraete.koppeln.code') }}</button>
+      <button type="button" class="btn primary" data-action="koppeln-qr" :disabled="leer" @click="host?.oeffneQr(aufgaben)">{{ t('geraete.koppeln.qr') }}</button>
+      <button type="button" class="btn" data-action="koppeln-code" :disabled="leer" @click="host?.gibCode(aufgaben)">{{ t('geraete.koppeln.code') }}</button>
     </div>
 
     <div class="geraete-koppel-karten">

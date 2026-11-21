@@ -75,6 +75,39 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `warnung === 'nachfragen'` und warnender Liste geht JEDES BETRIEB_ZEIGEN (Nächster Start, BetriebsFolge über
   `sendeGeprueft`, Einreihen-Listen) erst nach AppDialog `trotzdem-freigeben` hinaus – nie gesperrt (F4, A8, D5).
   GeraetFreigabe reicht `geraet.freigabe[b.id]` durch (Freigabe-Gruppe), i18n betrieb.freigabe.*.
+  W3.2 (21.11.2026, Liste zuweisen): `betrieb/wkrListenWahl.ts` useListenWahl (gruppen nach Parcours bzw.
+  „Parallelslalom · Racecourse A“, Titel in Oberflächensprache, `teilbar`, `ohneMaske`; listeText „Steg (Parcours 1,
+  nur Ablegen)“) und istHandyName (G3/J2). GeraeteKoppeln: `<select data-feld="koppeln-liste">` (Wahl, kein Befehl) +
+  Teil-Knöpfe `data-wahl-teil` ganz|ab|an, Hinweis `ohne-maske`; Code/QR auch nur mit Liste. GeraeteListe: je Gerät
+  `data-teil="geraet-listen"` (Teil-Knöpfe, `liste-entfernen`, `liste-dazu` = Auswahl + Knopf, Hinweise `listen-voll`,
+  `handy-eine`, `pad-zwei`, „Maske: Knöpfe“/„Maske folgt – Papier“). WkrMatrix: `a[data-action="wkr-koppeln"]` an
+  Listen ohne Gerät → `#/betrieb/geraete/<liste>`.
+- WKR-Maske auf dem Handy `wkr/` (W3.3, 21.11.2026, Plan docs/plan-wkr-w3.md §5; OHNE Store, liest nur
+  geraete/erfassen.ts ErfassungsQuelle – echte Erfassung oder Übung): WkrGeraet (Wurzel: Ansicht aus ablage.ts
+  liesAnsicht → `data-modus` sonne|hell|dunkel, `data-hand`; Sprache der LISTE über texte.ts stelleWkrText/useWkrText
+  (tIn, nie t()); Reiter je Liste, `nurListe`; entzogen → WkrRuhe mit Entwürfen), WkrMaske (je Liste: Steg-Teil,
+  Schlange/gewählter Start, Entwurf je Tipp → merkeEntwurf, Takt wkr/maske.ts wechselTakt mit Blitz + vibrate, `inert`
+  auf `.wkr-mitte`/`.wkr-unten` UND Prüfung in jedem Tipp, Korrektur mit AppDialog alt → neu, Rückgängig, Suche,
+  verwaiste Entwürfe, Ruhe-Zustände), WkrKopf, WkrStarterKarte (nie ein Name), WkrAusweichen (Ziffernfeld mit „E“),
+  WkrKnoepfe, WkrStegReiter, WkrVorsteg, WkrDisq (zweiter Tipp setzt, X mit AppDialog), WkrFuss (Hauptknopf-Text,
+  Linkshand `wkr-fuss--links`), WkrZuletzt (Leiste, Liste, Rückfrage-/Ablehnungs-Band, Rückgängig), WkrMehr
+  (Bemerkung, Pausieren/Abmelden/Weiter), WkrRuhe (warte, leer, pausiert, abgemeldet, papier, abgeschlossen,
+  entfaellt, spaeter, entzogen); texte.ts (stufeZeichen, zellenText). Stile styles/wkr-geraet.css (Tokens --wkr-*,
+  Sonne Vorgabe, `data-ziel` gross ≥ 64 px / klein ≥ 48 px – JEDER `<button>` hier trägt `class="wkr-knopf…"` und
+  `data-ziel`, styles/wkr-geraet.test.ts prüft das). Einbau: betrieb/GeraetFreigabe.vue (oeffneErfassung einmal je
+  Gerät, Reiter `geraet-reiter` Freigabe/Liste). W3.4 (21.11.2026): WkrAbschluss („Liste abschließen“: Summe, Zeilen aus
+  `pruefung` mit Tipp → Korrektur `pruef-korrigieren`, Name `wkr-name` Pflicht, `rest-papier` Pflicht bei offenen
+  Starts, Ergebnis `abschluss-ergebnis` unterwegs|angenommen|abgelehnt; ersetzt in WkrMaske die Mitte; Band
+  `abschluss-band` G16), WkrMehr (zusätzlich `abschliessen`, Ansicht `modus`/`linkshand`, Sprache `sprache` de|en mit
+  Satz `nur-bedientexte` ohne `andere`, `probe`, `uebung-ende`; auch in Ruhe-Zuständen außer „warte“), WkrProbe (Start
+  „P“, Schritte code → zurueck → haupt bzw. Vorsteg x → haupt, Takt mit Sperre, OHNE Quelle – sendet nie; WkrDisq/
+  WkrVorsteg melden dafür `xNein`), WkrUebung (Wahl Regelwerk × Liste in Oberflächensprache t(), dann WkrGeraet mit
+  oeffneUebung; in GeraetApp für `#/uebung`). WkrGeraet: Ansicht über schreibeAnsicht, Probe je Raum+Liste (`raum`),
+  Ereignis `uebungEnde`. GeraetFreigabe: Verweis `a[data-action="ueben"]` → `#/uebung`.
+  Prüfbefunde W3 (21.11.2026): Korrektur aus `quelle.stand(z)` (nie aus `zellen` der Zeile), WkrDisq/WkrVorsteg mit
+  `:key` je Start + `gesperrt`, gedaechtnis.ts („So lassen“/„behalten“ je Quelle und Liste), Ausweichen-Tasten aus den
+  Buchstaben der Startnummern, `.wkr-unten` sticky (`.wkr-mit-reiter`), „Rückgängig“ in der Leisten-Zeile,
+  „Keine Bestätigung“ `.wkr-kopf-ueber`; auch `<a>` braucht `.wkr-knopf` + `data-ziel`.
 - Panels: BeispieldatenPanel (Starter und saat entstehen hier; Beispiel-Besetzung, -gewichte; confirm vor dem
   Ersetzen), BesetzungPanel, EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
@@ -136,4 +169,6 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (zwei Fenster), views/Betrieb.test.ts;
 Parallelslalom auf der Tafel (englisch, keine deutschen Wörter): components/anzeige/AnzeigeParallel.test.ts;
 Zuschauerliste: src/ZuschauerApp.test.ts. Gerätebetrieb: views/BetriebGeraete.test.ts, src/GeraetApp.test.ts.
+WKR-Maske: src/GeraetWkr.test.ts (Host + nachgebauter ntfy; Takt mit Fake-Uhr gegen die Übung; Hilfe `mitCode`
+überspringt die Probe, `'lassen'` behält sie), styles/wkr-geraet.test.ts, src/main.uebung.test.ts (Übung ohne Netz).
 Im Zusammenhang src/views/*.test.ts; UIM-Kopfzeilen: views/UimAushang.test.ts, Beispieldaten: views/EventView.test.ts.

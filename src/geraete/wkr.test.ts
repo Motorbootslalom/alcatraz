@@ -20,10 +20,18 @@ import { lage } from '../betrieb/folge'
 import { sichtOeffentlich } from '../betrieb/sicht'
 import { werteVon } from '../lib/eingaben'
 import { listenKennung } from '../wkr/liste'
+import { disqFuer, entwurfAus, leererEntwurf, maskeFuer, mitBemerkung, tippe, tippeDisq, zellenAus } from '../wkr/maske'
 import { erfassungsLage } from '../wkr/lage'
 import { geraetAngaben } from './register'
 import { configFor } from '../config/konfig'
 import { uimParallelStand, wkrBetriebsStand } from '../testHilfen'
+import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import GeraeteKoppeln from '../components/betrieb/GeraeteKoppeln.vue'
+import { geraeteHostKey } from './host'
+import { storeKey, type Store } from '../state/store'
+import { setLocale } from '../i18n'
+import { vergissAlles } from '../lib/merken'
 import type { AppState } from '../types'
 
 /**
@@ -707,5 +715,215 @@ describe('W2.4: Freigabe-Handy und Freigabe-Gruppe', () => {
     const r = { gruppen: {}, geraete: { g1: { pk: 'x', letzteNr: 0, gruppen: [], aufgaben: [] } } } as unknown as HostRaum
     expect(setzeAufgaben(r, 'g1', [{ art: 'startfreigabe', bereiche: [P1] }])).toEqual({ neu: [gruppeDerFreigabe(P1)], weg: [] })
     expect(setzeAufgaben(r, 'g1', [{ art: 'startfreigabe', bereiche: ['par_2'] }])).toEqual({ neu: [gruppeDerFreigabe('par_2')], weg: [gruppeDerFreigabe(P1)] })
+  })
+})
+
+describe('W3.1: Gerätekern für die Maske (Schlange je Teil, Entwürfe, Zurückholen, Prüfansicht)', () => {
+  it('Steg ganz auf einem Gerät: Ablegen nimmt den Start nur aus der Ablegen-Schlange; Anlegen danach aus allen (H3)', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: STEG }], { name: 'Handy Steg' })
+    const { key, starter } = await mitStart(s, e, STEG)
+    const sn = s.state.value.starters.find((p) => p.id === starter)!.startNr
+    expect(e.schlangeTeil(STEG, 'ab').map((x) => x.key)).toContain(key)
+    expect(e.schlangeTeil(STEG, 'an').map((x) => x.key)).toContain(key)
+    const za = e.schicke(STEG, { s: key, teil: 'ab', zellen: {} })!
+    expect(e.schlangeTeil(STEG, 'ab').some((x) => x.key === key)).toBe(false)
+    expect(e.schlangeTeil(STEG, 'an').some((x) => x.key === key)).toBe(true)
+    // Die gemeinsame Schlange behält ihn, solange das Anlegen fehlt.
+    expect(e.schlange.value[STEG].some((x) => x.key === key)).toBe(true)
+    expect(e.zuletzt.value[0]).toMatchObject({ z: za, sn, teil: 'ab' })
+    await bis(() => e.stufen.value[za].stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)['erfasst.ab@steg']).toBeTruthy()
+    const zn = e.schicke(STEG, { s: key, teil: 'an', zellen: {} })!
+    expect(e.schlange.value[STEG].some((x) => x.key === key)).toBe(false)
+    expect(e.schlangeTeil(STEG, 'an').some((x) => x.key === key)).toBe(false)
+    await bis(() => e.stufen.value[zn].stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)['erfasst@steg']).toBeTruthy()
+    // Ungeteilte Liste: schlangeTeil gibt nichts Eigenes vor – nur die Teile des Stegs.
+    expect(e.schlangeTeil(TOR, 'ab')).toEqual([])
+  })
+
+  it('Entwurf: übersteht das Neuladen, geht mit „abschicken“ und mit „Raum verlassen“; fremde Liste nimmt keinen', async () => {
+    const { s, h } = await bedienrechner()
+    const { e, speicher } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const { key, starter } = await mitStart(s, e)
+    const sn = s.state.value.starters.find((p) => p.id === starter)!.startNr
+    expect(e.merkeEntwurf(TOR, key, undefined, { [FELD]: '5' })).toBe(true)
+    expect(e.merkeEntwurf(STEG, key, undefined, { [FELD]: '5' })).toBe(false)
+    // Mit den Angaben fürs Papier (Prüfbefund W3): Titel, Bereich, Überschrift des Felds – nie ein Name.
+    expect(e.entwuerfe.value).toEqual([{ liste: TOR, s: key, sn, zellen: { [FELD]: '5' }, papier: { titel: expect.any(String), bereich: expect.any(String), felder: { [FELD]: expect.any(String) } } }])
+    // Leere Zellen allein sind kein Entwurf.
+    expect(e.merkeEntwurf(TOR, 'leer', 'ab', { [FELD]: '' })).toBe(true)
+    expect(e.entwuerfe.value).toHaveLength(1)
+    e.stop()
+    const neu = await neuGeladen(speicher)
+    expect(neu.e.entwurf(TOR, key)).toEqual({ [FELD]: '5' })
+    expect(neu.e.entwuerfe.value).toHaveLength(1)
+    await bis(() => !!neu.e.schlange.value[TOR]?.some((x) => x.key === key))
+    neu.e.schicke(TOR, { s: key, zellen: { [FELD]: '5' } })
+    expect(neu.e.entwurf(TOR, key)).toBeNull()
+    expect(neu.e.entwuerfe.value).toEqual([])
+    neu.e.merkeEntwurf(TOR, 'anderer', undefined, { [FELD]: '3' })
+    neu.e.verwirfEntwurf(TOR, 'anderer')
+    expect(neu.e.entwuerfe.value).toEqual([])
+    neu.e.merkeEntwurf(TOR, 'anderer', undefined, { [FELD]: '3' })
+    expect(speicher.getItem(ABLAGE.geraetWkr)).toContain('anderer')
+    neu.e.stop()
+    verlasseRaum(speicher)
+    expect(speicher.getItem(ABLAGE.geraetWkr)).toBeNull()
+  })
+
+  it('holeZurueck nur, solange die Zeile wartet: Werte zurück als Entwurf, Start wieder in der Schlange, nichts gesendet', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const erster = await mitStart(s, e)
+    zeige(s)
+    const zweiter = aktuell(s.state.value)
+    await bis(() => !!e.schlange.value[TOR]?.some((x) => x.key === zweiter.key))
+    const z1 = e.schicke(TOR, { s: erster.key, zellen: { [FELD]: '5' } })!
+    // Die erste ist unterwegs (ohne Quittung), also wartet die zweite im Ausgang.
+    const z2 = e.schicke(TOR, { s: zweiter.key, zellen: { [FELD]: '3' } })!
+    expect(e.stufen.value[z2]).toEqual({ stufe: 'unterwegs', gesendet: false })
+    expect(e.holeZurueck(z1)).toBeNull()
+    expect(e.holeZurueck(z2)).toEqual({ s: zweiter.key, zellen: { [FELD]: '3' } })
+    expect(e.holeZurueck(z2)).toBeNull()
+    expect(e.stufen.value[z2]).toBeUndefined()
+    expect(e.entwurf(TOR, zweiter.key)).toEqual({ [FELD]: '3' })
+    expect(e.schlange.value[TOR].some((x) => x.key === zweiter.key)).toBe(true)
+    await bis(() => e.stufen.value[z1].stufe === 'uebernommen')
+    await ruhe(100)
+    expect(zeilenNachrichten(s).flatMap((a) => a.zeilen.map((x) => x.ref))).toEqual([erster.key])
+    expect(werte(s.state.value, zweiter.eintrag!.starter)[FELD]).toBeUndefined()
+    // Neu abgeschickt: `vorher` ist wieder leer (die zurückgeholte Zeile ging nie hinaus).
+    const z3 = e.schicke(TOR, { s: zweiter.key, zellen: { [FELD]: '3' } })!
+    await bis(() => e.stufen.value[z3].stufe === 'uebernommen')
+    expect(werte(s.state.value, zweiter.eintrag!.starter)[FELD]).toBe('3')
+  })
+
+  it('pruefung: eigene Zeilen des Punkts mit Startnummer und Stufe, offene Starts, X (Steg je Teil)', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: STEG }], { name: 'Handy Steg' })
+    const erster = await mitStart(s, e, STEG)
+    zeige(s)
+    const zweiter = aktuell(s.state.value)
+    await bis(() => !!e.schlange.value[STEG]?.some((x) => x.key === zweiter.key))
+    const sn = (id: string) => s.state.value.starters.find((p) => p.id === id)!.startNr
+    const za = e.schicke(STEG, { s: erster.key, teil: 'ab', zellen: { 'disq@steg': 'X' } })!
+    await bis(() => e.stufen.value[za].stufe === 'uebernommen')
+    const ab = e.pruefung(STEG, 'lauf:1', 'ab')
+    expect(ab.zeilen).toEqual([{ s: erster.key, sn: sn(erster.starter), klasse: expect.any(String), zellen: { 'disq@steg': 'X' }, stufe: { stufe: 'uebernommen' }, x: true }])
+    expect(ab.x).toEqual([sn(erster.starter)])
+    expect(ab.offen.map((x) => x.key)).toContain(zweiter.key)
+    expect(ab.offen.map((x) => x.key)).not.toContain(erster.key)
+    // Anlegen: noch keine eigene Zeile.
+    expect(e.pruefung(STEG, 'lauf:1', 'an').zeilen).toEqual([])
+    // Anderer Punkt: nichts offen, keine Zeilen.
+    expect(e.pruefung(STEG, 'lauf:2')).toEqual({ zeilen: [], offen: [], x: [] })
+    // Kein Name in der Prüfansicht.
+    expect(JSON.stringify(ab)).not.toMatch(/Vor\d|Nach\d|Musterclub/)
+  })
+})
+
+describe('Prüfbefunde W3 (21.11.2026): gemeinsame Felder des Stegs und Korrektur einer Korrektur, mit der Maske', () => {
+  /** Aufbau der Maske für den Start (Klasse aus der Schlange). */
+  function aufbauFuer(e: Erfassung, key: string) {
+    const sicht = e.sichten.value[STEG]!
+    const klasse = [...sicht.schlange, ...sicht.danach].find((x) => x.key === key)!.klasse
+    return maskeFuer(sicht, klasse)!
+  }
+
+  it('Gerät für den ganzen Steg: Ablegen mit Disq. und Bemerkung, dann „Anlegen OK ✓“ – beide bleiben stehen', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: STEG }], { name: 'Handy Steg' })
+    const { key, starter } = await mitStart(s, e, STEG)
+    const a = aufbauFuer(e, key)
+    const code = a.teile.find((t) => t.teil === 'ab')!.codes[0].code
+    const ablegen = mitBemerkung(tippeDisq(tippe(leererEntwurf(), a.teile.find((t) => t.teil === 'ab')!.feld, code), 'A'), 'Notiz')
+    const za = e.schicke(STEG, { s: key, teil: 'ab', zellen: zellenAus(ablegen, a, 'ab') })!
+    await bis(() => e.stufen.value[za].stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)).toMatchObject({ 'disq@steg': 'A', 'bemerkung@steg': 'Notiz' })
+    // Die Maske schickt die gemeinsamen Felder auch leer mit – `vorher` kommt nur aus Zeilen DIESES Teils.
+    const anlegen = zellenAus(leererEntwurf(), a, 'an')
+    expect(anlegen).toMatchObject({ 'disq@steg': '', 'bemerkung@steg': '' })
+    const zn = e.schicke(STEG, { s: key, teil: 'an', zellen: anlegen })!
+    await bis(() => e.stufen.value[zn].stufe === 'uebernommen')
+    const w = werte(s.state.value, starter)
+    expect(w).toMatchObject({ 'disq@steg': 'A', 'bemerkung@steg': 'Notiz' })
+    expect(w['erfasst@steg']).toBeTruthy()
+    // Die Anlegen-Zeile trug die gemeinsamen Felder gar nicht (leer und ohne eigenes `vorher`).
+    const letzte = zeilenNachrichten(s).at(-1)!.zeilen.at(-1)!
+    expect(letzte.zellen.map((z) => z.feld)).not.toContain('disq@steg')
+    // Der eigene Stand des Anlegens kennt die Disq. des Ablegens nicht; der des Ablegens schon.
+    expect(e.stand(zn)).not.toHaveProperty('disq@steg')
+    expect(e.stand(za)).toMatchObject({ 'disq@steg': 'A', 'bemerkung@steg': 'Notiz' })
+    // Ein zweiter Buchstabe im Anlegen kommt dazu (vereinigt), A bleibt.
+    const zweiter = disqFuer(a, 'an').find((c) => c.code !== 'A' && c.code !== 'X')!.code
+    const b = zellenAus(tippeDisq(entwurfAus(e.stand(zn)!, a), zweiter), a, 'an')
+    const zk = e.korrigiere(zn, b)!
+    await bis(() => e.stufen.value[zk]?.stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)['disq@steg']).toBe(`A, ${zweiter}`)
+    // Prüfansicht ohne Teil (ganzer Steg) zeigt beide wie der Bedienrechner.
+    expect(e.pruefung(STEG, 'lauf:1').zeilen[0].zellen['disq@steg']).toBe(`A, ${zweiter}`)
+  })
+
+  it('Korrektur einer Korrekturzeile leert kein unverändertes Feld (Entwurf aus dem eigenen Stand, nicht aus c)', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: STEG }], { name: 'Handy Steg' })
+    const { key, starter } = await mitStart(s, e, STEG)
+    const a = aufbauFuer(e, key)
+    const ab = a.teile.find((t) => t.teil === 'ab')!
+    const code = ab.codes[0].code
+    const z1 = e.schicke(STEG, { s: key, teil: 'ab', zellen: zellenAus(tippe(leererEntwurf(), ab.feld, code), a, 'ab') })!
+    await bis(() => e.stufen.value[z1].stufe === 'uebernommen')
+    const k1 = e.korrigiere(z1, zellenAus(tippeDisq(entwurfAus(e.stand(z1)!, a), 'A'), a, 'ab'))!
+    await bis(() => e.stufen.value[k1]?.stufe === 'uebernommen')
+    // Die Korrekturzeile trägt nur das Geänderte …
+    expect(e.zuletzt.value.find((z) => z.z === k1)!.zellen).toEqual({ 'disq@steg': 'A' })
+    // … ihr Stand aber alles.
+    const stand = e.stand(k1)!
+    expect(stand[ab.feld]).toBe(werte(s.state.value, starter)[ab.feld])
+    const k2 = e.korrigiere(k1, zellenAus(mitBemerkung(entwurfAus(stand, a), 'Wind'), a, 'ab'))!
+    await bis(() => e.stufen.value[k2]?.stufe === 'uebernommen')
+    const w = werte(s.state.value, starter)
+    expect(w[ab.feld]).toBeTruthy()
+    expect(w).toMatchObject({ 'disq@steg': 'A', 'bemerkung@steg': 'Wind' })
+  })
+})
+
+describe('W3.2: Liste aus der Oberfläche zuweisen (Ende zu Ende)', () => {
+  it('Koppeln.vue: Steg „nur Ablegen“ wählen → Geräte-Code → Handy gekoppelt mit genau dieser Aufgabe, Sicht kommt an', async () => {
+    vergissAlles()
+    setLocale('de')
+    const { s, h } = await bedienrechner()
+    // Das Fenster-Doppel trägt state/dispatch wie der Store – mehr lesen die Komponenten nicht.
+    const store = { state: s.state, dispatch: s.dispatch } as unknown as Store
+    const w = mount(GeraeteKoppeln, { attachTo: document.body, global: { provide: { [storeKey as symbol]: store, [geraeteHostKey as symbol]: h } } })
+    try {
+      await nextTick()
+      await w.find('select[data-feld="koppeln-liste"]').setValue(STEG)
+      await w.find('[data-teil="koppeln-teil"] [data-wahl-teil="ab"]').trigger('click')
+      // Ein Parcours ist es nicht (zwei): ohne Häkchen nur die Liste.
+      await w.find('[data-action="koppeln-code"]').trigger('click')
+      await bis(() => !!h.raum.value?.koppeln.code)
+      expect(h.raum.value!.koppeln.code!.aufgaben).toEqual([{ art: 'liste', liste: STEG, teil: 'ab' }])
+
+      const speicher = handy()
+      const r = oeffneKoppelLink(h.raum.value!.koppelLink, { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20 })
+      if (!r.ok) throw new Error(r.code)
+      const g = r.geraet
+      const e = starteKern(g, speicher, {})
+      await g.start()
+      g.koppeln('Handy Ablegen', h.raum.value!.koppeln.code!.wert)
+      await bis(() => g.lage.value === 'gekoppelt')
+      expect(e.listen.value).toEqual([{ art: 'liste', liste: STEG, teil: 'ab' }])
+      await bis(() => !!e.sichten.value[STEG]?.geraete[g.kanal.id()!])
+      // Der Host stellt die Liste digital; ein gezeigter Start kommt in die Schlange des Teils.
+      const start = await mitStart(s, e, STEG)
+      expect(e.schlangeTeil(STEG, 'ab').map((x) => x.key)).toContain(start.key)
+      // Kein Name auf der Leitung zum Gerät (F6).
+      expect(JSON.stringify(e.sichten.value[STEG])).not.toMatch(/Vor\d|Nach\d|Musterclub/)
+    } finally {
+      w.unmount()
+    }
   })
 })

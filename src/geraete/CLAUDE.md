@@ -166,6 +166,46 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Felder; Verkehr nur bei Änderung; Bestandsgerät; Rechte), wkrGruppen.test.ts, register.test.ts, src/GeraetKoppeln.test.ts
   „W2.4“ (Leiste und „Trotzdem freigeben?“ auf dem Handy).
 
+- W3.1 (21.11.2026, Plan docs/plan-wkr-w3.md §4): `erfassen.ts` – **Schlange je Steg-Teil** (eigene Zeilen nach
+  Start UND Teil; `schlange` = ganz bzw. Teil der Aufgabe, ein Gerät für den ganzen Steg behält den Start, bis beide
+  Teile erledigt sind; `schlangeTeil(liste, teil)`), `sn` je Zeile (ZuletztZeile.sn/teil), **Entwürfe** im Ausgang
+  (`entwurf`/`merkeEntwurf`/`verwirfEntwurf`, `entwuerfe` = Leiste; `schicke` räumt den Entwurf, gehen mit
+  verlasseRaum), `holeZurueck(z)` nur bei `nr === null` und ohne neuere Zeile desselben Starts (Werte auf `vorher`,
+  Entwurf zurück), `pruefung(liste, punkt, teil?)` (Werte je Start mit `sn`/`t` im Ausgang, offene Starts der
+  Teil-Schlange, X), `uebung`/`verbunden`/`entzogen`; Typ **ErfassungsQuelle** = was die Maske liest. `uebung.ts`
+  oeffneUebung({regelwerk, typeId, teil?, sprache?, uhr?, taktMs?}) – dieselbe Schnittstelle ohne Transport, Ablage
+  und Store (Quittung nach 300 ms, Beispiel-Rückfrage beim 5. Start, Takt 30 s; Teil-Gerät erledigt den anderen Teil
+  mit). aufgaben.ts: ListenAufgabe `maske?` ('knoepfe'|'bild'|'text', MASKEN_VORGABEN) und `fest?: true` (F14; nur
+  bekannte Werte). ablage.ts: `alcatraz.geraet.ansicht` (liesAnsicht/schreibeAnsicht: modus sonne|hell|dunkel – Vorgabe
+  sonne –, hand, sprache?, name?; verlasseRaum löscht nur `name`) und `alcatraz.geraet.probe` (probeErledigt/merkeProbe
+  je Raum und Liste; pruefeRaum/verlasseRaum räumen). Tests: wkr.test.ts „W3.1“, uebung.test.ts, ablage.test.ts,
+  aufgaben.test.ts.
+
+- W3.2 (21.11.2026, Plan docs/plan-wkr-w3.md §6): **Liste zuweisen am Bedienrechner** – nur Oberfläche, kein neuer
+  Befehl: GeraeteKoppeln.vue gibt gibCode/oeffneQr die Aufgaben Start-Freigabe und/oder EINE Liste (+ Teil, J4),
+  GeraeteListe.vue ändert Listen und Teil je Gerät über setzeAufgaben (Folge: Freigabe vorn, Listen dahinter). Die
+  Listen kommen aus wkr/liste.ts listenDerVeranstaltung über components/betrieb/wkrListenWahl.ts – dieselbe Menge, die
+  erlaubteWkr gelten lässt. Maskenvorgabe `maske` schickt der Host weiter nicht (G4). Tests: views/BetriebKoppeln.test.ts
+  „W3.2“ (echter Host für Code/QR, Host-Doppel für die Geräteliste), wkr.test.ts „W3.2“ (Ende zu Ende über die
+  Oberfläche, Steg nur Ablegen).
+
+- W3.3 (21.11.2026, Plan docs/plan-wkr-w3.md §5): **Handy-Maske** – components/wkr/ (WkrGeraet …) liest nur die
+  ErfassungsQuelle; GeraetFreigabe.vue öffnet `oeffneErfassung(geraet, {ablage, uhr})` einmal, sobald das Gerät
+  Listen-Aufgaben hat (stop bei Unmount, Entkoppeln, anderem Gerät; nach dem Entzug bleibt sie offen, K3). Kein neuer
+  Kern, kein neues Protokoll. Tests: src/GeraetWkr.test.ts.
+
+- Prüfbefunde W3 (21.11.2026, plan-wkr-w3.md §14): erfassen.ts WerteEintrag.`wt` = gemeinsame Steg-Felder je Teil
+  (`vorher` einer Teil-Zeile nur aus DIESEM Teil; `w` vereinigt wie der Bedienrechner; Feldteil an der Sicht,
+  feldTeil), `stand(z)` (eigener Stand des Starts und Teils – Grundlage jeder Korrektur, auch uebung.ts),
+  `getrenntSeit`/`wartendSeit` (Wanduhr), EntwurfEintrag.`papier` {titel, bereich, felder} aus der Sicht beim Ablegen.
+- W3.4 (21.11.2026, Plan docs/plan-wkr-w3.md §5.7–§5.9): kein neuer Kern, kein neues Protokoll. Oberfläche nutzt
+  `pruefung`/`schliesseAb`/`abschluesse` (WkrAbschluss), ablage.ts `schreibeAnsicht` (Ansicht, Sprache, WKR-Name – der
+  Name nie aus der Übung) und `probeErledigt`/`merkeProbe` (Probe je Raum und Liste; den Raum gibt GeraetFreigabe aus
+  `geraet.paket` u/r/s). **Übung `#/uebung`** (lib/adressen.ts VOLLBILDER `uebung`, main.ts → GeraetApp ohne Store →
+  components/wkr/WkrUebung.vue → `oeffneUebung`): kein Transport, keine Ablage außer der Ansicht, kein Netz
+  (src/main.uebung.test.ts wie main.geraete.test.ts). Verweis „Üben ohne Verbindung“ im Koppel-Formular von
+  GeraetFreigabe (und ohne Gerät).
+
 ## Abläufe
 
 - Oberfläche (E6): Betrieb → Geräte = GeraeteRaum.vue mit useGeraeteHost(): ohne Raum Text „was über welchen Server
@@ -279,11 +319,17 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Kopplung dieses Raums in der Ablage steht (nach verlasseRaum nichts wieder ablegen). Zeilenzähler `z` beginnt bei
   der Uhrzeit (Rückfrage-IDs `${geraet}.${z}` nie doppelt). Kein Name in Rückgaben des Kerns (F6); der WKR-Name des
   Abschlusses steht nur in der Nachricht (und bis zur Quittung in der Sende-Schlange).
+- W3.4: Die Übung bleibt dieselbe Wurzel wie Lese-/Koppel-Gerät (main.ts `wurzel`) – ein Wechsel `#/geraet` ↔
+  `#/uebung` lädt nicht neu; GeraetApp stoppt dabei das Lese-Gerät, GeraetFreigabe stoppt Gerät und Erfassung beim
+  Unmount. Wer der Übung etwas mit Ablage gibt, bricht G13 (nur die Ansicht).
+- W3.1: Eine eigene Zeile am Steg nimmt den Start nur aus der Schlange IHRES Teils (vor W3 aus beiden). Wer die
+  Schlange eines Teils braucht, nimmt `schlangeTeil`, nicht `schlange` (das ist beim Gerät für den ganzen Steg die
+  Vereinigung). Die Übung (uebung.ts) darf nie ablage.ts, transport/ oder den Store importieren.
 - W1-Tests: Mit `sammelnMs` 150 am Host muss `quittungMs` des Geräts darüber liegen, sonst wiederholt es (Verkehr ×2).
 
 ## Tests
 
-`npx vitest run src/geraete src/main.geraete src/main.sehen src/GeraetApp src/GeraetKoppeln src/views/BetriebGeraete
+`npx vitest run src/geraete src/main.geraete src/main.sehen src/main.uebung src/GeraetApp src/GeraetKoppeln src/views/BetriebGeraete
 src/views/BetriebKoppeln` (nachgebauter ntfy, kein Netz). WKR (W1): wkr.test.ts Ende zu Ende (koppeln mit Liste, Zeile →
 Erfassung, Rückfrage hin und zurück, Doppel, Funkloch → eine Nachricht, Führungswechsel, Neuladen Host/Gerät, Liste
 entzogen, Lebenszeichen mit Fake-Uhr, Pause/P, Abschluss → Vorschlag, Hinweis, Steg AB/AN (Zeilen; Abschluss und Abmelden je

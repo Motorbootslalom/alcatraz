@@ -38,15 +38,15 @@ src/types.ts, types/  Sammelpunkt (SCHEMA_VERSION = 1, welcher Typ wo); types/zu
 src/main.ts, App.vue  Wurzel nach Adresse; Store anlegen, Offline starten; Kopf, Reiter (lib/adressen.ts VIEWS), Banner, Fuß
 src/AnzeigeApp.vue    Wurzel der Anzeigetafel `#/anzeige[/<bereich>]`: Nur-Lese-Store, ohne Kopf/Scanner/Offline
 src/ZuschauerApp.vue  Wurzel der Zuschauerliste `#/zuschauer[/<bereich>]` (E3): ebenso, liest nur sichtZuschauer
-src/GeraetApp.vue     Wurzel eines Geräts `#/sehen/<paket>` (E6), `#/koppeln/<paket>`/`#/geraet` (E7): OHNE Store
+src/GeraetApp.vue     Wurzel eines Geräts `#/sehen/<paket>` (E6), `#/koppeln/<paket>`/`#/geraet` (E7), `#/uebung` (W3.4): OHNE Store
 src/state/       *    Store, reiner Reducer (reducer.ts: Einstieg, Sperren; reducer/<bereich>.ts: die Actions), migrate(), Tor 5, zweiter Speicher
 src/persistenz/       localStorage-Text, IndexedDB, Dateien Sicherung/Vorlage/Starter (backup.ts)
 src/config/      *    YAML: Regelwerke, Aufbauten, Positionen, Laufzettel; configFor() löst auf; validate.ts
 src/lib/         *    reine Logik: Wertung, Parallelslalom, Pokal, Bögen, Listen, Laufzettel, QR, Verlauf, Offline
 src/betrieb/     *    Betrieb am Wettkampftag, rein: Folge (abgeleitet), Lage, Schritte, Sicht, Prognose, BETRIEB_ANNAHMEN
-src/wkr/         *    Digitale WKR-Erfassung (W1, W2), rein: Listen, Zeile prüfen, Schlange, Übernahme, Sicht der Liste, Lage, Freigabe-Sicht, WKR_ANNAHMEN
+src/wkr/         *    Digitale WKR-Erfassung (W1–W3), rein: Listen, Zeile prüfen, Schlange, Übernahme, Sicht der Liste, Lage, Freigabe-Sicht, Maske, Übung, WKR_ANNAHMEN
 src/geraete/     *    Gerätebetrieb über ntfy (E5 Kern, E6 Lese-Links, E7 Koppeln, W1 WKR): transport/, Themen, Führung, Fensterbus, Ablage (gerätelokal), paket, host (Bedienfenster), geraet/gekoppelt/erfassen (Gerät)
-src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/, anzeige/, betrieb/, zuschauer/
+src/components/  *    Blätter und Panels: bogen/, ergebnis/ (eigene Karte), pokal/, erfassung/, anzeige/, betrieb/, zuschauer/, wkr/ (Handy-Maske)
 src/views/       *    Reiter: Event, Starters, Weighing, Verzahnung(+Parallel), Lists, Betrieb, Erfassung, Settings
 src/domain/           Klassen, Startnummern, Kürzel, Staaten, Flaggen, Gewicht, Geschlecht, Beispielstarter
 src/planung/          Verzahnung, Boote, laufende Nummern, Parallelslalom: Paarung, Runden, Re-run
@@ -55,7 +55,7 @@ src/i18n/        *    de.ts (Quelle aller Schlüssel), en.ts: setzen de/, en/ na
 src/data/             Beispieldaten: erfundene Namen; Clubs teils an reale angelehnt (in Bildern nie Herkunft „Verein“)
 src/flaggen/          Flaggenbilder: Staaten aus country-flag-icons, Bundesländer als SVG (LIESMICH.md)
 src/assets/parcours/  Parcours-SVGs, nur per `npm run parcours:sync` (QUELLE.json, CC BY-NC-SA 4.0)
-src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder; anzeige.css (--anzeige-*), zuschauer.css
+src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder; anzeige.css (--anzeige-*), zuschauer.css, wkr-geraet.css (--wkr-*)
 src/testHilfen.ts     nur Tests: wechsleRegelwerk (trotz Werten), knotenHaken (Regel-960-Knoten), Testlogos
 scripts/              Offline-Speicher (sw.js), parcours-sync, Warnfilter der Tests
 docs/                 entscheidungen, funktionen, parallelslalom, betrieb (Ablauf am Wettkampftag), feldtest (E8), technik, stand (.md); bilder/ (README)
@@ -142,17 +142,22 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … welches Fenster verbindet, wo Geräte-Actions angewandt werden | geraete/fuehrung.ts (Web Locks, Lease), geraete/fensterbus.ts (Schreibfenster, 1 s Rückfall) |
 | … Bedienung (einschalten, Links, QR, erneuern, beenden, Verbindung) | components/betrieb/GeraeteRaum.vue (+ LeseLink.vue, GeraeteLage.vue), BetriebView `geraete`; Logik geraete/host.ts (useGeraeteHost); i18n geraete.* (betrieb.ts) |
 | … Koppeln, Geräteliste (E7) | components/betrieb/GeraeteKoppeln.vue (QR, Geräte-Code, Koppel-Link), GeraeteListe.vue (Name, Bereiche, entziehen); host.ts gibCode/oeffneQr/setzeAufgaben/entziehe; Rechte geraete/aufgaben.ts (Positivliste) |
+| … WKR-Liste einem Gerät zuweisen (W3.2) | components/betrieb/wkrListenWahl.ts (Listen, Titel, „Maske folgt“ über wkr/maske.ts listeMitMaske, istHandyName); GeraeteKoppeln.vue (merke `geraete.koppeln.liste`/`.teil`), GeraeteListe.vue (Teil, dazu, entfernen, ≤ LISTEN_JE_GERAET); WkrMatrix-Verweis `#/betrieb/geraete/<liste>` → BetriebView beiWahl; i18n geraete.koppeln.liste*, geraete.liste.liste* |
 | … Start-Freigabe auf dem Handy (E7) | components/betrieb/GeraetFreigabe.vue (in GeraetApp für `#/koppeln`, `#/geraet`; StartFreigabe `nur-dieser`, Sperre bis Quittung); geraete/gekoppelt.ts; i18n geraete.freigabe.*, geraete.ablehnung.* |
 | … Lese-Link, Gerät, Fassung (F7) | geraete/paket.ts (`#/sehen/<paket>`, leseLinkUrl, lib/build.ts PAGES_URL), geraete/geraet.ts, src/GeraetApp.vue; Selbst-Update lib/offline.ts holeNeueFassung |
 | … Wake Lock, „Alle Geräte neu laden“, Kontingent (E8) | lib/wachBleiben.ts (GeraetApp-Hinweis `geraete.sehen.bildschirmKannAus`); host.ts ladeAlleNeu/neueFassung + geraet.ts NEULADEN_BEFEHL_GUELTIG_MS; geraete/kontingent.ts KONTINGENT; Oberfläche GeraeteRaum.vue; Bedienung docs/betrieb.md, Feldtest docs/feldtest.md |
 | WKR-Erfassung am Gerät: Zeile, Schlange, Übernahme | wkr/ (zeile.ts pruefeZeile, schlange.ts, uebernahme.ts, annahmen.ts WKR_ANNAHMEN); Stand types/wkr.ts AppState.wkr, Actions state/reducer/wkr.ts; Haken lib/eingaben.ts istHaken/teilHaken |
 | … was das WKR-Gerät sieht, was es darf | wkr/sicht.ts sichtListe (Feld für Feld, LISTEN_SICHT_FASSUNG, sicht.test.ts Schlüssel); Rechte geraete/aufgaben.ts Aufgabe `liste`, WKR_ACTIONS, erlaubteWkr; Gruppe geraete/wkrGruppen.ts |
+| WKR-Maske „Knöpfe“ (W3): Aufbau, Tipps → Zellwerte, Takt; Übung ohne Netz | wkr/maske.ts (maskeFuer, zellenAus über lib/codes.ts, wechselTakt; maske.test.ts: jede Tipp-Folge besteht wertGilt), wkr/sicht.ts maskenJeKlasse/`andere` (F13), wkr/uebung.ts; Gerätekern geraete/erfassen.ts (Schlange je Teil, Entwürfe, holeZurueck, pruefung, ErfassungsQuelle), geraete/uebung.ts oeffneUebung; Ansicht/Probe geraete/ablage.ts; Maskenvorgabe aufgaben.ts `maske`/`fest`; Auslegungen G1–G16/H1–H5 in WKR_ANNAHMEN; Plan docs/plan-wkr-w3.md |
 | WKR-Geräte am Host (W1): Gruppen je Liste, stille Quittung, Annahme, Herkunft ◆, Hinweise | geraete/host.ts nimmWkrAn/verteileListen, geraete/wkrEingang.ts (Ablage `alcatraz.geraete.wkr`/`.herkunft`), aufgaben.ts erlaubteWkr, wkrGruppen.ts, wkr/sicht.ts; Protokoll 2 transport/protokoll.ts |
 | WKR-Gerät (W1, ohne Maske): Ausgang, Bündeln, Stufen, Korrektur, Pause, Abschluss, Lebenszeichen | geraete/erfassen.ts oeffneErfassung (auf gekoppelt.ts `kanal`), Ablage `alcatraz.geraet.wkr` (ablage.ts geraetWkrAblage); Ende zu Ende geraete/wkr.test.ts; Masken folgen W3/W4 |
 | WKR-Erfassung: Lage (Matrix, Ampel, Rückstand, „Papier ansehen“) | wkr/lage.ts (erfassungsLage, zeilenMarken, rueckstandZeile), Zahlen/Auslegungen wkr/annahmen.ts WKR_ANNAHMEN (W2 A1–A13); „Papier ab“ WKR_PAPIER_AB (state/reducer/wkr.ts, WkrPause.ab); R und warnen/nachfragen AppState.anzeige.wkrRueckstand/wkrWarnung (SettingsView `#betrieb`, listopt.betrieb.wkr*); Plan docs/plan-wkr-w2.md |
 | WKR-Erfassung am Bedienrechner: Matrix, Bedienung je Liste, Rückfragen (W2.2) | components/betrieb/WkrMatrix.vue, WkrListeBedienung.vue, WkrEingang.vue (Betrieb → `wkr`); Lage wkr/lage.ts; host.ts `herkunft`/`eingang`, register.ts geraetAngaben; i18n betrieb.wkr.* (betrieb.ts); Auslegungen WKR_ANNAHMEN |
 | WKR-Erfassung in der Start-Freigabe (Geräteleiste, Rückstand, „Trotzdem freigeben?“) und auf dem Freigabe-Handy (W2.4) | wkr/freigabe.ts sichtFreigabe/liesFreigabe (Positivliste, FREIGABE_SICHT_FASSUNG); components/betrieb/StartFreigabe.vue Prop `erfassung` (BetriebView aus erfassungsLage, GeraetFreigabe aus gekoppelt.ts `freigabe`); Gruppe geraete/wkrGruppen.ts gruppeDerFreigabe, host.ts verteileFreigabe/ergaenzeGruppen; i18n betrieb.freigabe.*; nie über ko/kz (F17) |
 | WKR-Erfassung in der Erfassung (◆, „Papier ansehen“, Nachfrage beim Überschreiben) | components/erfassung/ErfassungTabelle.vue (listeVonBogen, zeilenMarken, herkunftGilt aus useGeraeteHost().herkunft); Regeln wkr/lage.ts, Auslegungen wkr/annahmen.ts (A5, A7, C1–C4); i18n capture.wkr.* (de/+en/erfassung.ts); styles/erfassung.css |
+| WKR-Maske auf dem Handy (W3.3) | components/wkr/ (WkrGeraet → WkrMaske → Kopf, Karte, Knöpfe, Fuß …), Logik wkr/maske.ts, Kern geraete/erfassen.ts ErfassungsQuelle; Einbau components/betrieb/GeraetFreigabe.vue; styles/wkr-geraet.css (--wkr-*, data-ziel); i18n wkr.geraet.* (de/+en/wkrGeraet.ts, Sprache der Liste); Auslegungen WKR_ANNAHMEN G*, K* |
+| … Liste abschließen, Ansicht/Sprache, Probe (W3.4) | components/wkr/WkrAbschluss.vue (pruefung, schliesseAb, abschluesse; Band G16 in WkrMaske bandPunkt), WkrMehr.vue (Ansicht, Sprache, Probe), WkrGeraet.vue (schreibeAnsicht, Probe über ablage.ts probeErledigt/merkeProbe, `raum` aus GeraetFreigabe), WkrProbe.vue (wkr/maske.ts probeMaske, nichts gesendet); Auslegungen WKR_ANNAHMEN L1–L9 |
+| … Übung ohne Verbindung (W3.4) | `#/uebung`: lib/adressen.ts VOLLBILDER `uebung`/UEBUNG_ADRESSE → main.ts wurzel → GeraetApp → components/wkr/WkrUebung.vue (Regelwerk × Liste) → WkrGeraet mit geraete/uebung.ts oeffneUebung; Verweis in GeraetFreigabe; Test src/main.uebung.test.ts (kein Store, kein Netz) |
 | … Server (Einstellung) | AppState.geraeteServer (SET_GERAETE_SERVER, lib/serverAdresse.ts), SettingsView `#geraete`; i18n listopt.geraete.* |
 
 ## Feste Regeln
