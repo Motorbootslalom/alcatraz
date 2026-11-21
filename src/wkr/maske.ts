@@ -4,7 +4,7 @@ import { codeEntries, normalizeCodeCell, parseCodeEntry } from '../lib/codes'
 import { listenFelder } from '../lib/eingaben'
 import { CLASS_IDS } from '../domain/classes'
 import { WKR_ANNAHMEN } from './annahmen'
-import { bojenHalt, katalogFolge, type Weg } from './bojen'
+import { bojenHalt, bojenLage, katalogFolge, type Weg } from './bojen'
 import type { ListenTeil } from './liste'
 import type { ListenSicht, MaskenFeld } from './sicht'
 
@@ -62,6 +62,11 @@ export interface MaskenBoje {
   zaehler: boolean
   /** Punkte je Berührung (P4). */
   punkte: number
+  /**
+   * Disq.-Buchstaben, die DIESE Bojenzelle annimmt (lib/disq.ts sanitizeBuoy, wie beim Abtippen) – Disq. an der Boje
+   * (Nutzer 21.11.2026, WKR_ANNAHMEN.disqAnBoje, U1). Leer: an dieser Boje kein Disq.
+   */
+  disq: { code: string; text: string }[]
 }
 
 /** Eine Zeile der Bojen-Maske: ein Tor (bzw. Start, Ziel, Speedboje, Parallel-Boje) in einer Richtung. */
@@ -181,7 +186,8 @@ export function maskeFuer(sicht: ListenSicht, klasse: ClassId, sprache: 'liste' 
     const anderes = andereFelder.get(f.kennung)?.boje
     const schluessel = `${b.halt}|${b.weg}`
     const halt = halte.get(schluessel) ?? { halt: b.halt, titel: anderes?.titel ?? b.titel, weg: b.weg, ...(b.durchfahrt ? { durchfahrt: b.durchfahrt } : {}), bojen: [], folge: b.folge }
-    halt.bojen.push({ feld: f.kennung, unter: anderes?.unter ?? b.unter, spalte: b.spalte, zaehler: !!b.zaehler, punkte: WKR_ANNAHMEN.bojenPunkte })
+    const disq = (f.disq ?? []).map((d) => ({ code: d.code, text: textVon(f, d.code, 'disq', d.text) }))
+    halt.bojen.push({ feld: f.kennung, unter: anderes?.unter ?? b.unter, spalte: b.spalte, zaehler: !!b.zaehler, punkte: WKR_ANNAHMEN.bojenPunkte, disq })
     halte.set(schluessel, halt)
   }
   const platz = (s: number | null) => (s === null ? 2 : s)
@@ -203,6 +209,45 @@ export function maskeFuer(sicht: ListenSicht, klasse: ClassId, sprache: 'liste' 
 /** Zeilen der Bojen-Maske (P8): je Halt eine, je Code eines Katalog-Abschnitts eine. */
 export function maskenZeilen(aufbau: MaskenAufbau): number {
   return aufbau.abschnitte.reduce((n, a) => n + (a.art === 'halt' ? 1 : a.teil.codes.length), 0)
+}
+
+/**
+ * Die Bojen-Maske „wie der Parcours liegt“ (Nutzer 21.11.2026, WKR_ANNAHMEN.bojenNachLage/bojenSpiegeln, V1/V2): je
+ * Ort im Parcours eine Gruppe (wkr/bojen.ts bojenLage – Tor 1 mit Hin, Rück und 2. Durchfahrt; Start und Ziel; Tor 5
+ * mit Einfahrt; MüB an der Schikane), Gruppen längs der Strecke, mit `startOben: false` umgekehrt; in der Gruppe die
+ * Abschnitte in Fahrtfolge. Abschnitte ohne Platz (eigener Aufbau) kommen als eigene Gruppen ans Ende.
+ */
+export interface LageGruppe {
+  /** Platz längs der Strecke (wkr/bojen.ts BOJEN_LAGE); `null` ohne Platz. */
+  lage: number | null
+  /** Überschrift: die Titel der Halte (bzw. des Katalogs), ohne Doppel – „Tor 1“, „Start / Ziel“. */
+  titel: string
+  /** Hat die Gruppe Halte mit verschiedenen Titeln (Start und Ziel, Sp. 1 und Sp. 2)? Dann tragen die Zeilen ihren Titel. */
+  titelJeZeile: boolean
+  abschnitte: MaskenAbschnitt[]
+}
+
+export function nachLage(aufbau: MaskenAufbau, startOben = true): LageGruppe[] {
+  const gruppen: LageGruppe[] = []
+  const jeLage = new Map<number, LageGruppe>()
+  for (const a of aufbau.abschnitte) {
+    const lage = bojenLage(a.art === 'halt' ? a.halt.halt : a.teil.feld)
+    const g = lage === null ? undefined : jeLage.get(lage)
+    if (g) g.abschnitte.push(a)
+    else {
+      const neu: LageGruppe = { lage, titel: '', titelJeZeile: false, abschnitte: [a] }
+      gruppen.push(neu)
+      if (lage !== null) jeLage.set(lage, neu)
+    }
+  }
+  for (const g of gruppen) {
+    const halte = [...new Set(g.abschnitte.flatMap((a) => (a.art === 'halt' ? [a.halt.titel] : [])))]
+    const titel = halte.length > 0 ? halte : g.abschnitte.map((a) => (a.art === 'katalog' ? a.teil.titel.replace(/:\s*$/, '') : ''))
+    g.titel = titel.filter(Boolean).join(' / ')
+    g.titelJeZeile = halte.length > 1
+  }
+  const mitLage = gruppen.filter((g) => g.lage !== null).sort((a, b) => (startOben ? a.lage! - b.lage! : b.lage! - a.lage!))
+  return [...mitLage, ...gruppen.filter((g) => g.lage === null)]
 }
 
 /** Weg eines Abschnitts (für den Umschalter). */
@@ -255,6 +300,16 @@ export function disqFuer(aufbau: MaskenAufbau, teil?: ListenTeil): MaskenDisq['c
 const DISQ = '#disq:'
 /** Merker für einen Bojen-Tipp in `folge` (`#boje:t1a|hin seiteB`, W4.1) – „zurück“ nimmt genau diesen Tipp. */
 const BOJE = '#boje:'
+/**
+ * Merker für einen Disq.-Buchstaben an einer Boje (`#bdisq:t3a|hin seiteB`, U1, 21.11.2026). Ersetzte der Buchstabe
+ * etwas, hängt dahinter je `WAR` der vorige Stand des Felds – `+2` (zwei Berührungen) bzw. `=G` (Buchstabe G, samt
+ * dessen eigenem Rest): „− letzte zurück“ stellt ihn wieder her (Prüfbefund 21.11.2026: Punkte → Disq. → zurück
+ * ließ die Zelle leer, die Berührung war still verloren – H2 „zurück = letzter Tipp“).
+ */
+const BOJEN_DISQ = '#bdisq:'
+const WAR = '\u001f'
+/** Ist `m` der Bojen-Disq.-Merker dieses Felds (mit oder ohne vorigen Stand)? */
+const istBojenDisqMerker = (m: string, feld: string) => m === BOJEN_DISQ + feld || m.startsWith(BOJEN_DISQ + feld + WAR)
 
 /**
  * Was der Wettkampfrichter für einen Start (und Teil) getippt hat. `codes`: je Feld die Code-Tipps in Reihenfolge
@@ -268,10 +323,15 @@ export interface Entwurf {
   folge: string[]
   /** Berührungen je Bojen-Feld (W4.1): Schalter 0/1, Zähler bis `bojenZaehlerMax`; 0 steht nie drin. */
   bojen: Record<string, number>
+  /**
+   * Disq.-Buchstabe je Bojen-Feld (U1, 21.11.2026): an dieser Boje disqualifiziert – die Zelle trägt dann den
+   * Buchstaben statt der Punkte (U2: ein Feld hat nie beides).
+   */
+  bojenDisq: Record<string, string>
 }
 
 export function leererEntwurf(): Entwurf {
-  return { codes: {}, disq: [], bemerkung: '', folge: [], bojen: {} }
+  return { codes: {}, disq: [], bemerkung: '', folge: [], bojen: {}, bojenDisq: {} }
 }
 
 /**
@@ -279,6 +339,8 @@ export function leererEntwurf(): Entwurf {
  * Zähler – jeder Tipp +1 bis `bojenZaehlerMax`, danach nimmt der Knopf nichts mehr an (gleiche Referenz zurück).
  */
 export function tippeBoje(e: Entwurf, boje: Pick<MaskenBoje, 'feld' | 'zaehler'>): Entwurf {
+  // Eine Boje mit Disq.-Buchstaben nimmt keine Berührung an (U2) – ändern nur über „Disq. an Boje“ bzw. „zurück“.
+  if (e.bojenDisq[boje.feld]) return e
   const n = e.bojen[boje.feld] ?? 0
   if (boje.zaehler) {
     if (n >= WKR_ANNAHMEN.bojenZaehlerMax) return e
@@ -289,6 +351,61 @@ export function tippeBoje(e: Entwurf, boje: Pick<MaskenBoje, 'feld' | 'zaehler'>
   delete bojen[boje.feld]
   const i = e.folge.lastIndexOf(BOJE + boje.feld)
   return { ...e, bojen, folge: e.folge.filter((_, j) => j !== i) }
+}
+
+/**
+ * Disq. an einer Boje (U1/U2, Nutzer 21.11.2026): `code` setzt den Buchstaben (ersetzt einen anderen und löscht die
+ * Berührungen dieses Felds samt ihren Merkern – die Zelle hält nur eins; „zurück“ stellt sie wieder her, s.
+ * `WAR`); derselbe Buchstabe noch einmal bzw. `null` nimmt ihn heraus. Ein Buchstabe, den die Zelle nicht annimmt,
+ * ändert nichts (gleiche Referenz).
+ */
+export function tippeBojenDisq(e: Entwurf, boje: Pick<MaskenBoje, 'feld' | 'disq'>, code: string | null): Entwurf {
+  const alt = e.bojenDisq[boje.feld]
+  const i = findLastIndex(e.folge, (m) => istBojenDisqMerker(m, boje.feld))
+  if (code === null || code === alt) {
+    if (!alt) return e
+    const bojenDisq = { ...e.bojenDisq }
+    delete bojenDisq[boje.feld]
+    return { ...e, bojenDisq, folge: e.folge.filter((_, j) => j !== i) }
+  }
+  if (!boje.disq.some((d) => d.code === code)) return e
+  // Voriger Stand für „zurück“: der alte Buchstabe samt SEINEM vorigen Stand, sonst die Berührungen.
+  const n = e.bojen[boje.feld] ?? 0
+  const war = alt ? WAR + '=' + alt + (i >= 0 ? e.folge[i].slice(BOJEN_DISQ.length + boje.feld.length) : '') : n > 0 ? WAR + '+' + n : ''
+  const bojen = { ...e.bojen }
+  delete bojen[boje.feld]
+  const folge = e.folge.filter((m, j) => m !== BOJE + boje.feld && j !== i)
+  return { ...e, bojen, bojenDisq: { ...e.bojenDisq, [boje.feld]: code }, folge: [...folge, BOJEN_DISQ + boje.feld + war] }
+}
+
+function findLastIndex<T>(xs: T[], f: (x: T) => boolean): number {
+  for (let i = xs.length - 1; i >= 0; i--) if (f(xs[i])) return i
+  return -1
+}
+
+/** „zurück“ eines Bojen-Disq.-Merkers: Buchstabe heraus, voriger Stand (Berührungen bzw. Buchstabe) wieder hinein. */
+function bojenDisqZurueck(e: Entwurf, merker: string, folge: string[]): Entwurf {
+  const rest = merker.slice(BOJEN_DISQ.length)
+  const t = rest.indexOf(WAR)
+  const feld = t < 0 ? rest : rest.slice(0, t)
+  const war = t < 0 ? '' : rest.slice(t + 1)
+  const bojenDisq = { ...e.bojenDisq }
+  delete bojenDisq[feld]
+  if (war.startsWith('=')) {
+    // Der vorige Buchstabe kommt mit seinem eigenen Rest zurück (G → A → zurück = G; noch einmal zurück = davor).
+    const u = war.indexOf(WAR)
+    bojenDisq[feld] = u < 0 ? war.slice(1) : war.slice(1, u)
+    return { ...e, bojenDisq, folge: [...folge, BOJEN_DISQ + feld + (u < 0 ? '' : war.slice(u))] }
+  }
+  const n = war.startsWith('+') ? Number(war.slice(1)) : 0
+  if (!(n > 0)) return { ...e, bojenDisq, folge }
+  // Die Berührungen kommen ans Ende der Folge (ihre alte Stelle ist nicht gemerkt) – die Zahl stimmt, jede einzeln zurücknehmbar.
+  return { ...e, bojenDisq, bojen: { ...e.bojen, [feld]: n }, folge: [...folge, ...Array.from({ length: n }, () => BOJE + feld)] }
+}
+
+/** Die Disq.-Buchstaben an Bojen in der Folge der Maske (Fuß, Texte): `{feld, code}`. */
+export function disqAnBojen(e: Entwurf, aufbau: MaskenAufbau): { feld: string; code: string }[] {
+  return bojenVon(aufbau).flatMap((b) => (e.bojenDisq[b.feld] ? [{ feld: b.feld, code: e.bojenDisq[b.feld] }] : []))
 }
 
 /** Ein Code-Tipp: +1 für diesen Code im Feld. */
@@ -318,6 +435,7 @@ export function zurueck(e: Entwurf): Entwurf {
     const code = letzt.slice(DISQ.length)
     return { ...e, disq: e.disq.filter((d) => d !== code), folge }
   }
+  if (letzt.startsWith(BOJEN_DISQ)) return bojenDisqZurueck(e, letzt, folge)
   if (letzt.startsWith(BOJE)) {
     const feld = letzt.slice(BOJE.length)
     const bojen = { ...e.bojen }
@@ -331,17 +449,22 @@ export function zurueck(e: Entwurf): Entwurf {
   return { ...e, codes, folge }
 }
 
-/** Zahl der Einträge (Code-Tipps, Bojen-Berührungen und Disq.) – „Abschicken · n“. */
+/** Zahl der Einträge (Code-Tipps, Bojen-Berührungen, Disq. – auch an Bojen) – „Abschicken · n“. */
 export function eintraege(e: Entwurf): number {
-  return Object.values(e.codes).reduce((n, c) => n + c.length, 0) + Object.values(e.bojen).reduce((n, b) => n + b, 0) + e.disq.length
+  return (
+    Object.values(e.codes).reduce((n, c) => n + c.length, 0) +
+    Object.values(e.bojen).reduce((n, b) => n + b, 0) +
+    e.disq.length +
+    Object.keys(e.bojenDisq).length
+  )
 }
 
-/** Einträge einer Seite des Umschalters (Zahl am Reiter, P8): Bojen und Codes der Abschnitte dieses Wegs, ohne Disq. */
+/** Einträge einer Seite des Umschalters (Zahl am Reiter, P8): Bojen (auch Disq. an Bojen, U1) und Codes dieses Wegs, ohne die Disq.-Liste. */
 export function eintraegeAuf(e: Entwurf, aufbau: MaskenAufbau, weg: Weg): number {
   let n = 0
   for (const a of aufbau.abschnitte) {
     if (wegVon(a) !== weg) continue
-    if (a.art === 'halt') for (const b of a.halt.bojen) n += e.bojen[b.feld] ?? 0
+    if (a.art === 'halt') for (const b of a.halt.bojen) n += (e.bojen[b.feld] ?? 0) + (e.bojenDisq[b.feld] ? 1 : 0)
     else n += (e.codes[a.teil.feld] ?? []).length
   }
   return n
@@ -357,7 +480,7 @@ export function punkteVon(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
     const punkte = new Map(t.codes.map((c) => [c.code, c.punkte]))
     for (const code of e.codes[t.feld] ?? []) summe += punkte.get(code) ?? 0
   }
-  for (const b of bojenVon(aufbau)) summe += (e.bojen[b.feld] ?? 0) * b.punkte
+  for (const b of bojenVon(aufbau)) if (!e.bojenDisq[b.feld]) summe += (e.bojen[b.feld] ?? 0) * b.punkte
   return summe
 }
 
@@ -366,8 +489,9 @@ export function punkteVon(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
  * denn „Fehlerfrei“ ist eine Zeile mit leeren Feldern (geraete/erfassen.ts schicke lässt leere ohne `vorher` weg).
  * Code-Felder in der Schreibweise der Erfassung („2x6, 20“, normalizeCodeCell), Disq. in Tipp-Reihenfolge („A, X“,
  * sanitizeDisq lässt sie so), Bemerkung getrimmt und gekürzt. Am Steg gehen Disq. ins gemeinsame `disq@steg`.
- * Bojen (W4.1, P4, P9): Berührungen × Punkte („5“, Zähler „10“) bzw. '' – Disq. nie in eine Bojenzelle, immer ins
- * Disq.-Feld der Liste (sanitizeBuoy nähme sonst den Buchstaben statt der Punkte).
+ * Bojen (W4.1, P4): Berührungen × Punkte („5“, Zähler „10“) bzw. ''; seit U1 (21.11.2026) ein Disq. an der Boje als
+ * ihr Buchstabe allein („G“) – genau das, was sanitizeBuoy unverändert lässt. Disq. aus der DISQ-Liste weiter ins
+ * Disq.-Feld der Liste.
  */
 export function zellenAus(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): Record<string, string> {
   const out: Record<string, string> = {}
@@ -382,7 +506,8 @@ export function zellenAus(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
   }
   for (const b of bojenVon(aufbau)) {
     const n = e.bojen[b.feld] ?? 0
-    out[b.feld] = n > 0 ? String(n * b.punkte) : ''
+    const disq = e.bojenDisq[b.feld]
+    out[b.feld] = disq && b.disq.some((d) => d.code === disq) ? disq : n > 0 ? String(n * b.punkte) : ''
   }
   if (aufbau.bemerkung) out[aufbau.bemerkung] = e.bemerkung.trim().slice(0, WKR_ANNAHMEN.textMax).trim()
   return out
@@ -410,10 +535,15 @@ export function entwurfAus(zellen: Readonly<Record<string, string>>, aufbau: Mas
   if (aufbau.disq && aufbau.disq.teil === null) {
     for (const ch of (zellen[aufbau.disq.feld] ?? '').toUpperCase()) if (/[A-Z]/.test(ch) && !disq.includes(ch)) disq.push(ch)
   }
-  // Bojen: Punkte → Berührungen, gerundet; Schalter höchstens 1, Zähler höchstens bojenZaehlerMax. Buchstaben in einer
-  // Bojenzelle schreibt das Gerät nie (P9) – sie werden übergangen (das Gerät liest nur seinen eigenen Stand, M2).
+  // Bojen: Punkte → Berührungen, gerundet; Schalter höchstens 1, Zähler höchstens bojenZaehlerMax. Ein Buchstabe, den
+  // die Zelle annimmt, ist ein Disq. an dieser Boje (U1); andere Buchstaben werden übergangen.
   for (const b of bojenVon(aufbau)) {
-    const ziffern = (zellen[b.feld] ?? '').replace(/\D/g, '')
+    const wert = (zellen[b.feld] ?? '').trim().toUpperCase()
+    if (/^[A-Z]$/.test(wert)) {
+      e = tippeBojenDisq(e, b, wert)
+      continue
+    }
+    const ziffern = wert.replace(/\D/g, '')
     if (!ziffern || b.punkte <= 0) continue
     const n = Math.min(Math.round(Number(ziffern) / b.punkte), b.zaehler ? WKR_ANNAHMEN.bojenZaehlerMax : 1)
     for (let i = 0; i < n; i++) e = tippeBoje(e, b)

@@ -432,3 +432,26 @@ Acht Befunde, alle geprüft und behoben; Auslegungen S1–S5 datiert in `WKR_ANN
 | „Bitte Nr. prüfen“ mit „601 öffnen“ schob alle Knöpfe um ~100 px | Hinweis liegt wie „Keine Bestätigung“ über dem Kopf (`.wkr-kopf-ueber`, `.wkr-kopf-hinweis` z-index 3; S5) |
 
 Verworfen: keiner.
+
+## 13. Nutzer 21.11.2026: Disq. an der Boje, Ansicht „Wie der Parcours liegt“
+
+Zwei Wünsche nach dem Handy-Test, gebaut 21.11.2026, Auslegungen datiert in `WKR_ANNAHMEN` (noch zu bestätigen):
+
+- **Disq. an der Boje** („Was ist der Stand mit den Disq. und der Zuordnung an die Boje? Aktuell kann ich das noch
+  nicht eingeben.“) – ersetzt P9. „Disq. an Boje …“ über den Bojen → Boje antippen → Buchstaben DIESER Zelle
+  (AppDialog) → die Boje zeigt „Disq. G“ statt der Punkte, die Zelle bekommt „G“ (wie abgetippt, sanitizeBuoy). Im
+  Disq.-Modus nimmt ein Tipp den Buchstaben heraus, „− letzte zurück“ ebenso. Disq. ohne Boje weiter über DISQ.
+  U1 `disqAnBoje` (alle Buchstaben der Zelle, Modus endet nach dem Setzen), U2 `disqBojeErsetztPunkte` (Buchstabe
+  löscht die Berührungen der Boje; ohne Modus kein Tipp auf eine Boje mit Buchstaben), U3 `disqBojeOhneLangdruck`
+  (langes Drücken nicht gebaut – Frage an den Nutzer), U4 `probeDisqAnBoje` (Probe-Schritt vor dem Hauptknopf).
+  Zuletzt, Korrektur, Prüfansicht und Bedienrechner zeigen den Buchstaben an der Boje („Tor 3 R L: G“) ohne eigene
+  Änderung (zellenText, Erfassungstabelle).
+- **Wie der Parcours liegt** („Die Reihenfolge der Tore soll der WKR bitte auch wechseln können …“) – Mehr → Ansicht →
+  „Bojen“: „Fahrtfolge“ (Vorgabe) / „Wie der Parcours liegt“, „Start oben“ / „Start unten“, „Bojen links/rechts
+  tauschen“; gemerkt je Gerät und Liste (ablage.ts `bojen`). Lage: je Ort eine Gruppe (Tor 1 mit Hin, Rück und
+  2. Durchfahrt, Start und Ziel, Einfahrt bei Tor 5, MüB an der Schikane, Speedbojen hinter Tor 5), Quelle
+  wkr/bojen.ts BOJEN_LAGE – belegt an den x-Koordinaten der Parcours-Bilder (Test), dieselbe Quelle für das
+  Bild-Layout W5. V1 `bojenNachLage`, V2 `bojenSpiegeln` (ohne Umschalter in der Lage-Ansicht; Tauschen in beiden).
+- Tests: wkr/maske.test.ts (Disq. an der Boje, wertGilt mit Buchstaben über alle Bojen-Positionen DM/UIM, nachLage),
+  wkr/bojen.test.ts (Lage gegen alle Parcours-Bilder), geraete/ablage.test.ts (Bojen-Ansicht), src/GeraetWkr.test.ts
+  („Disq. an der Boje“ Ende zu Ende, „Wie der Parcours liegt“, Probe mit sechs Schritten).

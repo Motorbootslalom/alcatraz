@@ -12,6 +12,9 @@ import {
   eintraegeAuf,
   maskenZeilen,
   tippeBoje,
+  tippeBojenDisq,
+  disqAnBojen,
+  nachLage,
   wegVon,
   eintraege,
   entwurfAus,
@@ -494,10 +497,92 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
     expect(Object.keys(leer).sort()).toEqual([...bojenVon(k7).map((b) => b.feld), 'disq@gate135'].sort())
   })
 
-  it('entwurfAus: Punkte → Berührungen gerundet, Schalter höchstens 1, Zähler höchstens bojenZaehlerMax, Buchstaben übergangen', () => {
-    const e = entwurfAus({ 't1a|hin seiteA': '10', 't5|hin seiteA': '14', 't5|rueck seiteA': '500', 't3a|hin seiteB': 'G', 'disq@gate135': 'G' }, k7)
+  it('entwurfAus: Punkte → Berührungen gerundet, Schalter höchstens 1, Zähler höchstens bojenZaehlerMax; Buchstabe der Zelle = Disq. an der Boje (U1), fremde übergangen', () => {
+    const e = entwurfAus({ 't1a|hin seiteA': '10', 't5|hin seiteA': '14', 't5|rueck seiteA': '500', 't3a|hin seiteB': 'G', 't3b|rueck seiteB': 'X', 'disq@gate135': 'G' }, k7)
     expect(e.bojen).toEqual({ 't1a|hin seiteA': 1, 't5|hin seiteA': 3, 't5|rueck seiteA': WKR_ANNAHMEN.bojenZaehlerMax })
+    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': 'G' })
     expect(e.disq).toEqual(['G'])
+  })
+
+  it('Disq. an der Boje (Nutzer 21.11.2026, U1/U2): Buchstabe statt Punkte, ersetzt die Berührung, Schalter, zurück, Einträge', () => {
+    const b = B('t3a|hin seiteB')
+    expect(b.disq.map((d) => d.code)).toContain('G')
+    expect(b.disq.map((d) => d.code)).not.toContain('X')
+    let e = tippeBoje(leererEntwurf(), b)
+    e = tippeBoje(e, B('t1a|hin seiteA'))
+    e = tippeBojenDisq(e, b, 'G')
+    expect(e.bojen).toEqual({ 't1a|hin seiteA': 1 })
+    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': 'G' })
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('G')
+    expect(zellenAus(e, k7)['disq@gate135']).toBe('')
+    expect([eintraege(e), punkteVon(e, k7), eintraegeAuf(e, k7, 'hin')]).toEqual([2, 5, 2])
+    expect(disqAnBojen(e, k7)).toEqual([{ feld: 't3a|hin seiteB', code: 'G' }])
+    // Ohne Modus nimmt die Boje keinen Tipp an; ein fremder Buchstabe ändert nichts; ein anderer ersetzt.
+    expect(tippeBoje(e, b)).toBe(e)
+    expect(tippeBojenDisq(e, b, 'X')).toBe(e)
+    expect(tippeBojenDisq(e, b, 'N').bojenDisq).toEqual({ 't3a|hin seiteB': 'N' })
+    // Derselbe Buchstabe bzw. null nimmt ihn heraus (samt Merker).
+    expect(tippeBojenDisq(e, b, 'G').bojenDisq).toEqual({})
+    expect(tippeBojenDisq(e, b, null).folge).toEqual(['#boje:t1a|hin seiteA'])
+    // „zurück“ nimmt den Buchstaben und stellt die ersetzte Berührung wieder her (Prüfbefund 21.11.2026, H2).
+    expect(zurueck(e).bojenDisq).toEqual({})
+    expect(zurueck(e).bojen).toEqual({ 't1a|hin seiteA': 1, 't3a|hin seiteB': 1 })
+    expect(zurueck(zurueck(zurueck(e)))).toEqual(leererEntwurf())
+    expect(tippeBojenDisq(leererEntwurf(), b, null)).toEqual(leererEntwurf())
+  })
+
+  it('Disq. an der Boje, „zurück“ stellt den vorigen Stand her (Prüfbefund 21.11.2026): Punkte → Disq. → zurück = Punkte; G → A → zurück = G', () => {
+    const b = B('t3a|hin seiteB')
+    const z = B('t5|hin seiteA')
+    // Punkte → Disq. → zurück: die Zelle zeigt wieder die Punkte.
+    let e = tippeBojenDisq(tippeBoje(leererEntwurf(), b), b, 'G')
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('G')
+    e = zurueck(e)
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('5')
+    expect(zurueck(e)).toEqual(leererEntwurf())
+    // Zähler mit zwei Berührungen: beide kommen zurück, jede einzeln zurücknehmbar.
+    let f = tippeBojenDisq(tippeBoje(tippeBoje(leererEntwurf(), z), z), z, z.disq[0].code)
+    expect(f.bojen).toEqual({})
+    f = zurueck(f)
+    expect(f.bojen).toEqual({ 't5|hin seiteA': 2 })
+    expect(zurueck(zurueck(f))).toEqual(leererEntwurf())
+    // G → A → zurück = G, noch einmal zurück = die Berührung vor G.
+    const codes = b.disq.map((d) => d.code).filter((c) => c !== 'G')
+    let g = tippeBojenDisq(tippeBojenDisq(tippeBoje(leererEntwurf(), b), b, 'G'), b, codes[0])
+    expect(g.bojenDisq).toEqual({ 't3a|hin seiteB': codes[0] })
+    g = zurueck(g)
+    expect(g.bojenDisq).toEqual({ 't3a|hin seiteB': 'G' })
+    g = zurueck(g)
+    expect([g.bojenDisq, g.bojen]).toEqual([{}, { 't3a|hin seiteB': 1 }])
+    // Herausnehmen per Schalter nach G → A: der Merker fällt samt Rest, die Folge bleibt leer.
+    expect(tippeBojenDisq(tippeBojenDisq(tippeBojenDisq(leererEntwurf(), b, 'G'), b, codes[0]), b, null)).toEqual(leererEntwurf())
+  })
+
+  it('nachLage (Nutzer 21.11.2026, V1/V2): je Ort eine Gruppe längs der Strecke, in der Gruppe Fahrtfolge; Start unten kehrt um', () => {
+    const titel = (g: ReturnType<typeof nachLage>) => g.map((x) => x.titel)
+    const halte = (g: ReturnType<typeof nachLage>) => g.map((x) => x.abschnitte.map((a) => (a.art === 'halt' ? `${a.halt.halt}${a.halt.durchfahrt ?? ''}` : a.teil.feld)).join(','))
+    const g = nachLage(k7)
+    expect(titel(g)).toEqual(['Start / Ziel', 'Tor 1', 'Tor 3', 'Tor 5', 'Sp. 2'])
+    expect(halte(g)).toEqual(['start,ziel', 't1a,t1b,t1c2', 't3a,t3b', 't5,t5', 'speed2'])
+    expect(g.map((x) => x.titelJeZeile)).toEqual([true, false, false, false, false])
+    expect(titel(nachLage(k7, false))).toEqual(['Sp. 2', 'Tor 5', 'Tor 3', 'Tor 1', 'Start / Ziel'])
+    // Möwe 1/3/5: Einfahrt Tor 5 bei Tor 5; brechts: MüB an der Schikane zwischen Start und Tor 1.
+    expect(halte(nachLage(maskeFuer(sichtMit(DM, 'moewe135'), '7')!)).find((h) => h.startsWith('t5'))).toBe('t5,katalog:tor5,t5')
+    const brechts = nachLage(maskeFuer(sichtMit(DM, 'brechts'), '7')!)
+    const i = halte(brechts).indexOf('katalog:mueb')
+    expect(i).toBeGreaterThanOrEqual(0)
+    expect(brechts.findIndex((x) => x.titel === 'Tor 1')).toBe(i + 1)
+    // Parallelslalom: Start/Ziel, dann Boje 1–5, jede mit hin und rück.
+    const par = nachLage(maskeFuer(sichtMit(UIM, 'parallelparcours'), '1')!)
+    expect(halte(par)).toEqual(['start,ziel', 'b1a,b1b', 'b2a,b2b', 'b3a,b3b', 'b4a,b4b', 'b5'])
+    // Jeder Abschnitt jeder Bojen-Maske kommt genau einmal vor.
+    for (const konfig of [DM, UIM])
+      for (const p of konfig.getPositions())
+        for (const k of KLASSEN) {
+          const a = maskeFuer(sichtMit(konfig, p.typeId), k)
+          if (!a || a.art !== 'bojen') continue
+          expect(nachLage(a).flatMap((x) => x.abschnitte).length, `${p.typeId}/${k}`).toBe(a.abschnitte.length)
+        }
   })
 
   it('jede Bojen-Position DM/UIM × Klasse: Tipp-Folgen nur aus Bojen-Tipps bestehen wertGilt unverändert', () => {
@@ -513,7 +598,12 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
           const r = folge(k.charCodeAt(0) + p.typeId.length)
           for (let runde = 0; runde < 10; runde++) {
             let e = leererEntwurf()
-            for (let i = 0; i < 15; i++) e = tippeBoje(e, bojen[r(bojen.length)])
+            for (let i = 0; i < 15; i++) {
+              const b = bojen[r(bojen.length)]
+              // Seit U1 (21.11.2026) auch Disq. an der Boje: jeder Buchstabe der Zelle, mal gesetzt, mal herausgenommen.
+              if (r(4) === 0 && b.disq.length > 0) e = tippeBojenDisq(e, b, b.disq[r(b.disq.length)].code)
+              else e = tippeBoje(e, b)
+            }
             const zellen = zellenAus(e, aufbau)
             for (const [kennung, wert] of Object.entries(zellen)) {
               expect(wertGilt(felder.get(kennung)!, wert), `${p.typeId}/${k}: ${kennung} = „${wert}“`).toBe(true)

@@ -180,9 +180,12 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   verlasseRaum), `holeZurueck(z)` nur bei `nr === null` und ohne neuere Zeile desselben Starts (Werte auf `vorher`,
   Entwurf zurück), `pruefung(liste, punkt, teil?)` (Werte je Start mit `sn`/`t` im Ausgang, offene Starts der
   Teil-Schlange, X), `uebung`/`verbunden`/`entzogen`; Typ **ErfassungsQuelle** = was die Maske liest. `uebung.ts`
-  oeffneUebung({regelwerk, typeId, teil?, sprache?, uhr?, taktMs?}) – dieselbe Schnittstelle ohne Transport, Ablage
-  und Store (Quittung nach 300 ms, Beispiel-Rückfrage beim 5. Start, Takt 30 s; Teil-Gerät erledigt den anderen Teil
-  mit). aufgaben.ts: ListenAufgabe `maske?` ('knoepfe'|'bild'|'text', MASKEN_VORGABEN) und `fest?: true` (F14; nur
+  oeffneUebung({regelwerk, typeId, teil?, sprache?, uhr?, taktMs?, saat?, folgeMs?}) – dieselbe Schnittstelle ohne
+  Transport, Ablage und Store (Quittung nach 300 ms, Beispiel-Rückfrage beim 5. Start; Teil-Gerät erledigt den anderen
+  Teil mit). Übungstakt (Nutzer 21.11.2026, WKR_ANNAHMEN Y1–Y3): beginnt mit einem Start; nach dem Abschicken ohne
+  eigenen gezeigten Start (ohne `vorab`) kommt der nächste nach UEBUNG_FOLGE_MS 2–6 s, jeder UEBUNG_FRUEH_JEDER 4.–6.
+  gezeigte zieht einen weiteren vorab nach sich (ein Timer `kommt`, zufallAus(saat)); taktMs (30 s) nur Rückfall ohne
+  Eingabe; Steg-Anlegen zeigt, bis einer anlegen kann. Maskentests mit `folgeMs: [0, 0]` (GeraetWkr.test.ts SOFORT). aufgaben.ts: ListenAufgabe `maske?` ('knoepfe'|'bild'|'text', MASKEN_VORGABEN) und `fest?: true` (F14; nur
   bekannte Werte). ablage.ts: `alcatraz.geraet.ansicht` (liesAnsicht/schreibeAnsicht: modus sonne|hell|dunkel – Vorgabe
   sonne –, hand, sprache?, name?; verlasseRaum löscht nur `name`) und `alcatraz.geraet.probe` (probeErledigt/merkeProbe
   je Raum und Liste; pruefeRaum/verlasseRaum räumen). Tests: wkr.test.ts „W3.1“, uebung.test.ts, ablage.test.ts,
@@ -236,6 +239,13 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   (T8). Steg-Zeitversatz (T3): ein Gerät für den ganzen Steg nimmt einen Start ins Anlegen erst, wenn sein Ablegen nicht
   mehr in der Schlange steht (erfassen.ts schlangen `ablegenOffen`, uebung.ts `passt`). Tests: wkr.test.ts „Abmelden am
   Gerät wirkt wie Liste entfernen“, „Steg ganz auf einem Gerät“ (nie beide zugleich).
+
+- Nutzer 21.11.2026 (Druck nach Modus, WKR_ANNAHMEN Z3): register.ts `abgedeckteTeile(geraete, liste)` – Teile einer
+  Liste, die gekoppelte Geräte abdecken (ohne Teil = beide); liest components/wkrDruck.ts für wkr/druck.ts.
+- Nutzer 21.11.2026 (WKR_ANNAHMEN V1/V2): ablage.ts GeraetAnsicht.`bojen` = BojenAnsicht {folge fahrt|lage, startOben,
+  tauschen} je Listen-Kennung (höchstens 8, nur vollständige Einträge; BOJEN_ANSICHT_VORGABE), bleibt wie Hand/Modus
+  nach „Raum verlassen“. Kein neuer Kern, kein neues Protokoll; Disq. an der Boje (U1) geht als Buchstabe in der
+  Bojenzelle über dieselbe Zeile (wkr/zeile.ts wertGilt = sanitizeBuoy).
 
 ## Abläufe
 

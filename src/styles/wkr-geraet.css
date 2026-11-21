@@ -700,6 +700,43 @@
   color: var(--wkr-haupt-text);
 }
 
+/*
+ * Disq. an der Boje (Nutzer 21.11.2026, U1): rot wie die Disq. auf dem Papier, dazu „Disq. G“ als Text – nie nur Farbe.
+ * Im Disq.-Modus sind die Bojen gestrichelt umrandet (welche Knöpfe jetzt anderes tun); Bojen ohne Buchstaben grau.
+ */
+.wkr-knopf.wkr-bojen-knopf--disq {
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+/* Nur die antippbaren – gesperrte Bojen (grau) tragen das rote „jetzt antippbar“ nicht (Prüfbefund 21.11.2026). */
+.wkr-bojen[data-disq-modus] .wkr-bojen-knopf:not(:disabled) {
+  outline: var(--wkr-rand) dashed var(--wkr-rot);
+  outline-offset: 2px;
+}
+
+.wkr-bojen-disq .wkr-band {
+  margin: 0;
+}
+
+/* V1 (21.11.2026): Kopf eines Orts in der Ansicht „Wie der Parcours liegt“ – wie die Wege, aber ohne Großschrift. */
+.wkr-bojen-ort {
+  letter-spacing: normal;
+  overflow-wrap: anywhere;
+}
+
+/* V1/V2 unter „Mehr → Ansicht“: eigener Absatz für die Bojen, Texte brechen um (N3). */
+.wkr-mehr-bojen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-mehr-untertitel {
+  margin: 4px 0 0;
+  font-weight: 800;
+}
+
 /* P17: Auf Bojen-Listen braucht die Mitte den Platz – Nummer 80 px (wie bei niedrigen Handys). */
 .wkr-maske--bojen {
   --wkr-startnr: 80px;

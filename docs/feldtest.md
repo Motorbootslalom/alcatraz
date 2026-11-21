@@ -124,7 +124,8 @@ Bildschirmgrößen geprüft – Zielgrößen stehen nur im CSS. Bedienung:
 - [ ] **Liste abschließen** am Laufende mit Namen; einmal mit offenem Start („Rest auf Papier“). Erwartet: am
   Bedienrechner unter Betrieb → WKR der Abschluss mit Namen; spätere Korrektur kommt als Vorschlag. Beobachtung:
 - [ ] **Übung** („Üben ohne Verbindung“ im Koppel-Formular) im Flugmodus. Erwartet: Maske arbeitet ohne Netz, Kopf
-  „ÜBUNG“. Taugt sie für die Einweisung? Beobachtung:
+  „ÜBUNG“; nach dem Abschicken kommt der nächste Start nach 2–6 s, hin und wieder steht er schon vorher da
+  (Y1–Y3). Passt das Tempo? Taugt sie für die Einweisung? Beobachtung:
 - [ ] **Akku** nach einem Lauf mit Maske offen (Wake Lock): Anfang ______ % Ende ______ % Dauer ______ min.
 
 ## Bojen-Maske (W4)

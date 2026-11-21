@@ -3,7 +3,8 @@ import { configFor } from '../config/konfig'
 import { planEvent } from '../planung/plan'
 import { emptyState, reducer } from '../state/reducer'
 import { bogenSeiten } from './bogen'
-import { klassenInStartfolge, waehleBoegen, wkrBoegenZumStand } from './wkrListen'
+import { klassenInStartfolge, waehleBoegen, wkrBoegenZumStand, WKR_DRUCKFOLGE } from './wkrListen'
+import { bogenCode } from './qr'
 import type { AppState, ClassId, Starter } from '../types'
 import { veranstaltungsListen } from './listen'
 
@@ -31,8 +32,9 @@ const sortiert = (k: readonly ClassId[]) => [...k].sort((a, b) => ALLE.indexOf(a
 const EIN_PARCOURS = [{ id: 'par_1', name: 'Parcours 1', classIds: ALLE, wechselFaktor: 2 as const }]
 
 describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
-  it('zwei Parcours: je Parcours, Klasse, Lauf und Liste ein Bogen – in dieser Reihenfolge', () => {
-    const { boegen, ohneListe } = wkrBoegenZumStand(stand(), dm)
+  it('zwei Parcours: je Parcours, Klasse, Lauf und Liste ein Bogen – nach Parcours, Position, Lauf, Klasse', () => {
+    const s0 = stand()
+    const { boegen, ohneListe } = wkrBoegenZumStand(s0, dm)
     expect(ohneListe).toEqual([])
     const listen = dm.aufbauOrder('alcatraz', false)
     // Mann-über-Bord gibt es erst ab Klasse 4: acht Klassen × 3 Läufe × Listen, vier Klassen ohne MüB.
@@ -41,17 +43,24 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     // Sie liegen im Stapel des letzten Laufs: Die Knoten zählen erst zum Gesamtergebnis.
     expect(boegen.filter((b) => b.typeId === 'knoten').every((b) => b.lauf === 3)).toBe(true)
     expect(new Set(boegen.map((b) => b.id)).size).toBe(boegen.length)
-    const erster = boegen[0]
-    expect(erster).toMatchObject({ parcoursId: 'par_1', klassen: ['E'], lauf: 1, typeId: listen[0] })
-    expect(boegen[1]).toMatchObject({ klassen: ['E'], lauf: 1, typeId: listen[1] })
-    // Erst alle Läufe einer Klasse, dann die nächste Klasse, zuletzt der nächste Parcours.
-    const folge = boegen.map((b) => `${b.parcoursId}/${b.klassen[0]}/${b.lauf}`).filter((x, i, a) => a.indexOf(x) === i)
-    // Die Klassen eines Parcours in der Reihenfolge, in der sie laut Verzahnung zuerst starten:
-    // So liegt der Stapel aus dem Drucker schon richtig und muss nur getrennt werden.
+    // Druckfolge (Nutzer 21.11.2026, WKR_DRUCKFOLGE): je Parcours erst alle Bögen der ersten Position, dann die der
+    // nächsten – darin die zeitliche Folge: 1. Lauf in der Klassenfolge der Verzahnung, dann der 2. … So wird der
+    // Stapel nur an den Positionen getrennt und verteilt, nie sortiert.
+    expect(WKR_DRUCKFOLGE.innen).toBe('lauf')
     const plan = planEvent(stand()).plans
-    const startfolge = plan.flatMap((p) => [...new Set(p.sequence.map((x) => x.klasse))].map((k) => `${p.parcoursId}/${k}`))
-    expect(startfolge.slice(0, 2)).not.toEqual(['par_1/E', 'par_1/1'])
-    expect(folge).toEqual(startfolge.flatMap((pk) => [1, 2, 3].map((lauf) => `${pk}/${lauf}`)))
+    const klassenFolge = new Map(plan.map((p) => [p.parcoursId, [...new Set(p.sequence.map((x) => x.klasse))]]))
+    expect(klassenFolge.get('par_1')!.slice(0, 2)).not.toEqual(['E', '1'])
+    const erwartet = plan.flatMap((p) =>
+      veranstaltungsListen(dm, stand()).flatMap((typeId) => {
+        const ks = klassenFolge.get(p.parcoursId)!.filter((k) => dm.positionAllowsClass(typeId, k))
+        const laeufe = dm.getSheetDef(typeId).showLauf === false ? [3] : [1, 2, 3]
+        return laeufe.flatMap((lauf) => ks.map((k) => `${p.parcoursId}/${typeId}/${lauf}/${k}`))
+      }),
+    )
+    expect(boegen.map((b) => `${b.parcoursId}/${b.typeId}/${b.lauf}/${b.klassen[0]}`)).toEqual(erwartet)
+    // Die QR-Kennungen der Bögen folgen derselben Ordnung (jeder Bogen findet in der Erfassung sich selbst).
+    expect(boegen.map((b) => b.auftrag.qr)).toEqual(boegen.map((b) => bogenCode({ kennung: s0.kennung, regelwerk: s0.regelwerk, aufbau: 'alcatraz' }, { parcoursId: b.parcoursId, klassen: b.klassen, lauf: b.lauf, typeId: b.typeId })))
+    expect(boegen[0]).toMatchObject({ parcoursId: 'par_1', klassen: [klassenFolge.get('par_1')![0]], lauf: 1, typeId: listen[0] })
     expect(boegen.filter((b) => b.typeId === 'mueb').map((b) => b.klassen[0])).not.toContain('3')
   })
 
@@ -334,10 +343,12 @@ describe('Clubmeisterschaft: mehrere Klassen je Bogen', () => {
     const s = club({ parcoursList: EIN_PARCOURS })
     const { boegen } = wkrBoegenZumStand(s, dm)
     const lauf1 = boegen.filter((b) => b.lauf === 1)
-    // „Erste Klasse“ heißt: die, die laut Verzahnung zuerst startet.
+    // „Erste Klasse“ heißt: die, die laut Verzahnung zuerst startet – je Position (Druckfolge WKR_DRUCKFOLGE).
     const startfolge = [...new Set(planEvent(s).plans[0].sequence.map((x) => x.klasse))]
-    const erste = lauf1.map((b) => startfolge.indexOf(b.klassen[0]))
-    expect(erste).toEqual([...erste].sort((a, b) => a - b))
+    for (const typeId of new Set(lauf1.map((b) => b.typeId))) {
+      const erste = lauf1.filter((b) => b.typeId === typeId).map((b) => startfolge.indexOf(b.klassen[0]))
+      expect(erste, typeId).toEqual([...erste].sort((a, b) => a - b))
+    }
     // Jede Klasse steht je Liste auf genau einem Bogen.
     for (const typeId of new Set(lauf1.map((b) => b.typeId))) {
       const k = lauf1.filter((b) => b.typeId === typeId).flatMap((b) => b.klassen)

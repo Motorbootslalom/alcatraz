@@ -16,7 +16,8 @@ import { LISTEN_SICHT_FASSUNG, maskenJeKlasse, maskenSprachen, maskenTexte, type
 //
 // Abweichung vom Plan §3.3 (beim Bau 21.11.2026): Der Fortschritt steht in einem eigenen kleinen UebungsStand statt
 // in der Sicht – die Sicht trägt weder Regelwerk noch Uhr, und ein neuer Start braucht beides. Gerätekern:
-// geraete/uebung.ts (Takt alle WKR_ANNAHMEN.uebungTaktSek, Quittung, Beispiel-Rückfrage).
+// geraete/uebung.ts (nächster Start 2–6 s nach dem Abschicken, Rückfall-Takt WKR_ANNAHMEN.uebungTaktSek, Quittung,
+// Beispiel-Rückfrage).
 
 /** Der Bereich der Übung (taucht nur in der Listen-Kennung auf). */
 export const UEBUNG_BEREICH = 'uebung'
@@ -38,14 +39,17 @@ export interface UebungsStand {
   offen: { i: number; ab: boolean; an: boolean }[]
 }
 
-/** Der Anfang einer Übung: zwei Starts gezeigt. */
-export function uebungsStand(regelwerk: string, typeId: string, sprache?: Sprache): UebungsStand {
+/**
+ * Der Anfang einer Übung: `gezeigt` Starts gezeigt (Vorgabe zwei). Der Gerätekern beginnt mit 0 und zeigt selbst, bis
+ * seine Schlange einen Start hat (Übungstakt, Nutzer 21.11.2026, WKR_ANNAHMEN.uebungFolgeNachSenden).
+ */
+export function uebungsStand(regelwerk: string, typeId: string, sprache?: Sprache, gezeigt: number = GEZEIGT_ANFANG): UebungsStand {
   return {
     regelwerk,
     typeId,
     sprache: sprache ?? regelwerkSprache(regelwerk),
-    naechster: GEZEIGT_ANFANG,
-    offen: Array.from({ length: GEZEIGT_ANFANG }, (_, i) => ({ i, ab: false, an: false })),
+    naechster: gezeigt,
+    offen: Array.from({ length: gezeigt }, (_, i) => ({ i, ab: false, an: false })),
   }
 }
 
@@ -137,11 +141,12 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
 
 /**
  * Ein Schritt der Übung: `zeile` = eine abgeschickte Zeile (Start erledigt, am Steg nur ihr Teil; ein noch nicht
- * gezeigter Start am Vorsteg wird dabei gezeigt), danach rückt ein Start nach, wenn weniger als zwei offen sind;
+ * gezeigter Start am Vorsteg wird dabei gezeigt), danach rücken Starts nach, bis `mindestens` offen sind (Vorgabe
+ * zwei; der Gerätekern gibt 0 und zeigt den nächsten erst nach 2–6 s, Nutzer 21.11.2026);
  * `null` = der Takt zeigt den nächsten Start (höchstens WKR_ANNAHMEN.schlange offen). Unbekannte Kennungen ändern
  * nichts (dieselbe Referenz zurück).
  */
-export function uebungsSchritt(stand: UebungsStand, zeile: { s: string; teil?: ListenTeil } | null): UebungsStand {
+export function uebungsSchritt(stand: UebungsStand, zeile: { s: string; teil?: ListenTeil } | null, mindestens: number = GEZEIGT_ANFANG): UebungsStand {
   if (zeile === null) {
     if (stand.offen.length >= WKR_ANNAHMEN.schlange) return stand
     return { ...stand, naechster: stand.naechster + 1, offen: [...stand.offen, { i: stand.naechster, ab: false, an: false }] }
@@ -165,7 +170,7 @@ export function uebungsSchritt(stand: UebungsStand, zeile: { s: string; teil?: L
     o.an = true
   }
   offen = offen.filter((x) => !(x.ab && x.an))
-  while (offen.length < GEZEIGT_ANFANG) {
+  while (offen.length < mindestens) {
     offen.push({ i: naechster, ab: false, an: false })
     naechster++
   }

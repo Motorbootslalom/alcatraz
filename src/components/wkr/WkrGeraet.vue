@@ -19,7 +19,8 @@ import '../../styles/wkr-geraet.css'
  * beide mit derselben Schnittstelle. Je eigener Liste ein Reiter (Pad mit zwei Listen, F15); GeraetFreigabe kann
  * eine Liste vorgeben (`nurListe`, dann ohne eigene Reiter).
  *
- * Ansicht aus der Geräteablage (ablage.ts `alcatraz.geraet.ansicht`): Sonnenmodus als Vorgabe (G1), Hand, Sprache.
+ * Ansicht aus der Geräteablage (ablage.ts `alcatraz.geraet.ansicht`): Sonnenmodus als Vorgabe (G1), Hand, Sprache;
+ * seit 21.11.2026 (V1/V2) auch die Bojen-Ansicht je Liste (`bojen`), die Maske und Probe bekommen.
  * Die Sprache der Maske ist die der Liste (F13, G9: zweisprachig → deutsch), umgeschaltet über die Ansicht – nie die
  * der Geräte-Oberfläche. Farben nur über --wkr-* (styles/wkr-geraet.css), unabhängig von prefers-color-scheme.
  *
@@ -137,7 +138,16 @@ const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab
       :entwuerfe="abmeldungEntwuerfe"
       :zuletzt="abmeldungZuletzt"
     />
-    <WkrProbe v-else-if="probe === aktiv.liste && probeAufbau" :key="`probe|${aktiv.liste}`" :aufbau="probeAufbau" :teil="probeTeil" :hand="ansicht.hand" :uebung="quelle.uebung" @fertig="probeFertig" />
+    <WkrProbe
+      v-else-if="probe === aktiv.liste && probeAufbau"
+      :key="`probe|${aktiv.liste}`"
+      :aufbau="probeAufbau"
+      :teil="probeTeil"
+      :hand="ansicht.hand"
+      :uebung="quelle.uebung"
+      :bojen-ansicht="ansicht.bojen?.[aktiv.liste]"
+      @fertig="probeFertig"
+    />
     <WkrMaske
       v-else
       :key="aktiv.liste"
@@ -147,6 +157,7 @@ const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab
       :hand="ansicht.hand"
       :modus="ansicht.modus"
       :name="ansicht.name ?? ''"
+      :bojen-ansichten="ansicht.bojen"
       :meldung="meldungFuer?.(aktiv.liste) ?? null"
       @ansicht="setzeAnsicht"
       @name="merkeName"

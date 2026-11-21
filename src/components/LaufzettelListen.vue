@@ -18,6 +18,8 @@ import { parcoursName } from '../config/sprache'
 import type { ClassId } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import LaufzettelBlatt from './LaufzettelBlatt.vue'
+import WkrDigitalHinweis from './WkrDigitalHinweis.vue'
+import { useWkrDruck } from './wkrDruck'
 
 /**
  * Die Laufzettel (Checklisten) unter „Listen“: je Blattstapel – Parcours, Klasse und Lauf, bei
@@ -54,7 +56,15 @@ const id = useId()
 // Was auf dem Zettel steht, folgt der Listensprache (`lt`); die Bedienung der der Oberfläche (`t`).
 const { listenLocale, t: lt } = useListenSprache()
 
-const boegen = computed(() => wkrBoegenZumStand(state.value, konfig.value).boegen)
+// Druck nach Modus (Nutzer 21.11.2026, WKR_ANNAHMEN Z5): Bögen, die nur auf dem Gerät erfasst und nicht gedruckt
+// werden, bekommen kein Kästchen – derselbe Schalter „Trotzdem drucken“ wie bei den Bögen.
+const druck = useWkrDruck()
+const geteilt = computed(() => druck.teile(wkrBoegenZumStand(state.value, konfig.value).boegen))
+const boegen = computed(() => geteilt.value.gedruckt)
+const digitalListen = computed(() => {
+  const mehrere = state.value.parcoursList.length > 1
+  return [...new Set(geteilt.value.digital.map((b) => (mehrere ? `${namen.value.getSheetDef(b.typeId).title} (${b.parcoursName})` : namen.value.getSheetDef(b.typeId).title)))]
+})
 const listen = computed(() => veranstaltungsListen(konfig.value, state.value))
 
 // Gemessene Seitenzahl je Mess-Kennung; bis ein Bogen gemessen ist, gilt eine Seite.
@@ -200,6 +210,7 @@ const { zoom } = useBogenZoom(stapel)
     <p class="note">{{ t('runsheet.scan') }} <a :href="adresse('erfassung')">{{ t('nav.erfassung') }}</a>.</p>
   </div>
 
+  <WkrDigitalHinweis v-if="!gesperrt" v-model:trotzdem="druck.trotzdem.value" :anzahl="geteilt.digital.length" :listen="digitalListen" />
   <div v-if="!gesperrt && alle.length > 0 && zettel.length === 0" class="panel empty no-print">{{ t('runsheet.none') }}</div>
 
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen. -->

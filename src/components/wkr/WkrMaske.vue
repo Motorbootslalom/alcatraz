@@ -2,12 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { ClassId, PunktId } from '../../types'
 import type { EntwurfEintrag, ErfassungsQuelle, PruefZeile, SchlangenEintrag, ZuletztZeile } from '../../geraete/erfassen'
-import type { AnsichtModus, GeraetAnsicht } from '../../geraete/ablage'
+import { BOJEN_ANSICHT_VORGABE, type AnsichtModus, type BojenAnsicht, type GeraetAnsicht } from '../../geraete/ablage'
 import type { ListenAufgabe } from '../../geraete/aufgaben'
 import { liesRef } from '../../betrieb/folge'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { liesListe, type ListenTeil } from '../../wkr/liste'
 import {
+  disqAnBojen,
   disqFuer,
   eintraege,
   entwurfAus,
@@ -19,6 +20,7 @@ import {
   teileFuer,
   tippe,
   tippeBoje,
+  tippeBojenDisq,
   tippeDisq,
   wechselNach,
   wechselTakt,
@@ -73,6 +75,10 @@ import { useWkrText, zellenText } from './texte'
  *   Teil im Gedächtnis (gedaechtnis.ts `wege`, neuer Start = Hinweg, wechselt nie von selbst, P8); Klassenwechsel-Band
  *   (P10) `klassenWechselMs` lang ÜBER der Karte (absolut, verschiebt nichts, fängt seine Fläche ab); Startnummer
  *   80 px (`.wkr-maske--bojen`, P17).
+ * - **Bojen-Ansicht und Disq. an der Boje** (Nutzer 21.11.2026, WKR_ANNAHMEN V1/V2, U1/U2): Reihenfolge „Fahrtfolge“ ↔
+ *   „Wie der Parcours liegt“, Start oben/unten, Spalten tauschen – je Liste aus `bojenAnsichten` (WkrGeraet merkt sie,
+ *   ablage.ts `bojen`), geändert unter „Mehr → Ansicht“; Disq. an der Boje über WkrBojen (`bojeDisq`). Der Fuß nennt
+ *   die Buchstaben an Bojen mit („Disq. G“).
  */
 const props = defineProps<{
   quelle: ErfassungsQuelle
@@ -86,6 +92,8 @@ const props = defineProps<{
   modus?: AnsichtModus
   /** Vorbelegter WKR-Name für den Abschluss (G12). */
   name?: string
+  /** Bojen-Ansicht je Liste (ablage.ts GeraetAnsicht.bojen) – nur zum Lesen; Änderungen gehen als `ansicht` hinauf. */
+  bojenAnsichten?: Record<string, BojenAnsicht>
 }>()
 const emit = defineEmits<{ ansicht: [aenderung: Partial<GeraetAnsicht>]; probe: []; name: [name: string]; uebungEnde: [] }>()
 const text = useWkrText()
@@ -452,6 +460,11 @@ function tippeBojeKnopf(b: MaskenBoje): void {
   }
   aendere(tippeBoje(entwurf.value, b))
 }
+/** Disq. an einer Boje setzen bzw. (`null`) herausnehmen (U1). */
+function setzeBojenDisq(b: MaskenBoje, code: string | null): void {
+  if (gesperrt.value) return
+  aendere(tippeBojenDisq(entwurf.value, b, code))
+}
 function setzeDisq(code: string): void {
   if (gesperrt.value) return
   aendere(tippeDisq(entwurf.value, code))
@@ -680,6 +693,18 @@ watch(
 )
 const klassenWechsel = computed(() => (wechselBis.value !== null && jetzt.value < wechselBis.value ? wechselKlasse.value : null))
 const disqCodes = computed(() => (zeige.value ? disqFuer(zeige.value.aufbau, teil.value) : []))
+/** Alle Disq.-Buchstaben des Entwurfs für den Fuß: die der Liste und die an Bojen (U1). */
+const fussDisq = computed(() => (zeige.value ? [...zeige.value.entwurf.disq, ...disqAnBojen(zeige.value.entwurf, zeige.value.aufbau).map((d) => d.code)] : []))
+
+// --- Bojen-Ansicht dieser Liste (V1/V2): gemerkt in WkrGeraet, hier nur gelesen und geändert ---
+const bojenAnsicht = computed<BojenAnsicht>(() => props.bojenAnsichten?.[liste.value] ?? { ...BOJEN_ANSICHT_VORGABE })
+function aendereBojenAnsicht(neu: BojenAnsicht): void {
+  // Die geänderte Liste kommt ans Ende (Prüfbefund 21.11.2026): Die Ablage behält die letzten BOJEN_ANSICHT_MAX in
+  // Einfüge-Reihenfolge – so fällt die am längsten nicht geänderte heraus, nicht die zuerst angelegte.
+  const rest = { ...(props.bojenAnsichten ?? {}) }
+  delete rest[liste.value]
+  emit('ansicht', { bojen: { ...rest, [liste.value]: neu } })
+}
 const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufbau, teil.value) : []))
 </script>
 
@@ -803,7 +828,20 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
             :gesperrt="gesperrt"
             @setze="setzeDisq"
           />
-          <WkrBojen v-else-if="art === 'bojen'" :aufbau="zeige.aufbau" :entwurf="zeige.entwurf" :weg="weg" @boje="tippeBojeKnopf" @tippe="tippeCode" @weg="waehleWeg" />
+          <!-- :key je Start: Ein offener Disq.-Modus gilt nie für den nächsten Start (wie WkrDisq). -->
+          <WkrBojen
+            v-else-if="art === 'bojen'"
+            :key="`${zeige.start.key}|${teil ?? ''}|${korrektur?.z ?? ''}`"
+            :aufbau="zeige.aufbau"
+            :entwurf="zeige.entwurf"
+            :weg="weg"
+            :ansicht="bojenAnsicht"
+            :start-nr="zeige.start.startNr"
+            @boje="tippeBojeKnopf"
+            @boje-disq="setzeBojenDisq"
+            @tippe="tippeCode"
+            @weg="waehleWeg"
+          />
           <WkrKnoepfe v-else :teile="sichtbareTeile" :entwurf="zeige.entwurf" @tippe="tippeCode" />
           <WkrMehr
             :mit-bemerkung="!!zeige.aufbau.bemerkung"
@@ -817,6 +855,8 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
             :kann-abschliessen="!!abschlussMoeglich"
             :uebung="quelle.uebung"
             :nicht-vorbei="nichtVorbeiNr"
+            :bojen-ansicht="art === 'bojen' ? bojenAnsicht : null"
+            @bojen-ansicht="aendereBojenAnsicht"
             @nicht-vorbei="nichtVorbei"
             @bemerkung="bemerkung"
             @pausiere="quelle.pausiere(liste)"
@@ -834,7 +874,7 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
             :teil="teil"
             :eintraege="eintraege(zeige.entwurf)"
             :punkte="punkteVon(zeige.entwurf, zeige.aufbau, teil)"
-            :disq="zeige.entwurf.disq"
+            :disq="fussDisq"
             :korrektur="korrekturArt"
             :hand="hand"
             :mit-disq="disqCodes.length > 0"

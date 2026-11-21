@@ -153,6 +153,14 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `nichtVorbeiNr` (nicht wo X gilt: Vorsteg, Steg-Ablegen; nicht in der Korrektur) und `nichtVorbei()` (verwirft den
   Entwurf, schicke {nv}, Overlay wie beim Abschicken); Zuletzt, Korrektur-Dialog (alt) und Prüfansicht zeigen
   „⊘ nicht vorbeigekommen“ statt „fehlerfrei“; WkrAbschluss Summe „1 nicht vorbeigekommen: 27“, Zeile `data-nv`.
+  Nutzer 21.11.2026 (U1–U4, V1/V2): WkrBojen Disq. an der Boje – Knopf `boje-disq-modus` („Disq. an Boje …“), Band
+  `boje-disq-band` mit `boje-disq-aus`, `data-disq-modus` an `.wkr-bojen`; Tipp auf eine Boje → AppDialog `wkr-boje-disq`
+  mit `boje-disq-code` (Buchstaben der Zelle), Boje `data-disq` + Klasse `wkr-bojen-knopf--disq` („Disq. G“, --wkr-rot);
+  WkrMaske `setzeBojenDisq`, Fuß nennt Buchstaben an Bojen mit (`fussDisq`), WkrBojen `:key` je Start. Ansicht
+  `ansicht` (ablage.ts BojenAnsicht): `data-folge` fahrt|lage, in `lage` Kopf je Ort `ort-kopf` (`data-lage`) und Zeilen
+  „Hin“/„Rück“ bzw. Halt-Titel, ohne Umschalter; `tauschen` über gridColumn. WkrMehr `bojen-ansicht` (`bojen-folge`,
+  `bojen-start` mit `data-start-oben`, `bojen-tauschen`) → Ereignis `bojenAnsicht`; WkrGeraet reicht `ansicht.bojen` an
+  WkrMaske (`bojenAnsichten`) und WkrProbe (`bojenAnsicht`; Schritt `bojeDisq`, ohne `rueckweg` in der Lage-Ansicht).
   Nutzer 21.11.2026: WkrRuhe art `abmeldung` (Band `abmeldung-band` „Von Tor 5 abgemeldet“, `abmeldung-weg`, „Zuletzt“
   `zuletzt-lesend`, Entwürfe `entwuerfe-lesend`, kein „Weiter digital“); WkrGeraet führt abgemeldete Listen weiter als
   Reiter (quelle.abgemeldet), GeraetFreigabe ebenso; WkrMatrix Zelle `spaeter` „…“ (Steg-Anlegen kommt noch).
@@ -160,6 +168,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   --rueckstand-text, Fläche --rueckstand-soft (app.css, Kontrast, Prüfbefund 21.11.2026), Legende; WkrEingang
   `data-teil="wkr-nv"` („⊘ nicht vorbeigekommen“) an Rückfrage-Zeile und Vorschlag; WkrListeBedienung `abschluss-nicht-vorbei`; ErfassungTabelle markiert von selbst „Papier ansehen“
   (wkr/lage.ts zeilenMarken); VerlaufPanel `wkrNichtVorbei`.
+- Druck nach Modus (Nutzer 21.11.2026, WKR_ANNAHMEN Z1–Z7): `wkrDruck.ts` useWkrDruck() → {trotzdem (merke
+  `listen.wkr.digitalDrucken`, ein Schalter für alle vier), teile(boegen) → {gedruckt, digital}} über wkr/druck.ts und das
+  Register (useGeraeteHost, Steg je Teil); WkrListen, ParallelWkrListen, LaufzettelListen, ParallelLaufzettel zeigen und
+  drucken nur `gedruckt` (Laufzettel: keine Kästchen, Zettel ohne Liste entfällt) und darüber WkrDigitalHinweis
+  (`data-hinweis="nur-digital"`, no-print, Schalter `data-feld="digital-drucken"`). Test views/WkrDruck.test.ts.
 - Panels: BeispieldatenPanel (EINZIGE Stelle für Beispiel-Knöpfe, 21.11.2026; Starter und saat entstehen hier:
   Gesamtzahl `beispiel-gesamt` nach Art, merke `beispiel.gesamt` {art, n}, `beispiel-gesamt-neu`, Verteilung
   `.class-count[data-klasse] .beispiel-zahl` aus domain/generate.ts verteileAufKlassen; Beispiel-Besetzung, -gewichte,

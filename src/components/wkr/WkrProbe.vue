@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
+import type { BojenAnsicht } from '../../geraete/ablage'
 import type { ListenTeil } from '../../wkr/liste'
 import type { Weg } from '../../wkr/bojen'
 import {
+  disqAnBojen,
   disqFuer,
   eintraege,
   leererEntwurf,
@@ -11,6 +13,7 @@ import {
   teileFuer,
   tippe,
   tippeBoje,
+  tippeBojenDisq,
   tippeDisq,
   wechselNach,
   wechselTakt,
@@ -39,6 +42,9 @@ import { useWkrText } from './texte'
  * - Bojen (W4.2, Plan docs/plan-wkr-w4.md §5.3, P11, 21.11.2026): Boje antippen (erste zweibojige Zeile, linker
  *   Knopf; ohne eine solche die erste Boje) → „− letzte zurück“ → nur mit Zähler: Tor 5 zweimal (2 Berührungen) →
  *   nur mit Umschalter: „Rückweg“ → Hauptknopf. Katalog-Teile gemischter Listen übt sie nicht (wie W3).
+ *   Nutzer 21.11.2026: vor dem Hauptknopf „Disq. an Boje“ (U4: rechter Knopf der ersten zweibojigen Zeile, erster
+ *   Buchstabe); in der Ansicht „Wie der Parcours liegt“ (V1) ohne den Rückweg-Schritt – dort gibt es keinen Umschalter.
+ *   Mit Umschalter liegt die Disq.-Boje auf der gerade offenen Seite (Rückweg; Prüfbefund 21.11.2026).
  *
  * Der letzte Schritt zeigt das Weiterspringen samt Sperre (G5, wkr/maske.ts wechselTakt): Overlay „wird übertragen …“
  * (WkrUebertragen), nach `uebungQuittungMs` gespielter Quittung „✓ übernommen“, Blitz, 1 s keine Eingabe – erst dann
@@ -54,6 +60,8 @@ const props = defineProps<{
   hand: 'rechts' | 'links'
   /** In der Übung (N5): Am Ende wird nicht „ab jetzt gesendet“, sondern weiter geübt. */
   uebung?: boolean
+  /** Bojen-Ansicht dieser Liste (V1/V2) – die Probe zeigt die Bojen so, wie die Maske es tut. */
+  bojenAnsicht?: BojenAnsicht
 }>()
 const emit = defineEmits<{ fertig: [] }>()
 const { w } = useWkrText()
@@ -63,7 +71,7 @@ const teile = computed(() => teileFuer(props.aufbau, props.teil))
 const ersterCode = computed(() => teile.value[0]?.codes[0] ?? null)
 const disqCodes = computed(() => disqFuer(props.aufbau, props.teil))
 /** Ohne Code (Katalog ohne Einträge) und ohne X am Vorsteg bleibt nur der Hauptknopf. */
-type Schritt = 'code' | 'zurueck' | 'x' | 'boje' | 'zaehler' | 'rueckweg' | 'haupt'
+type Schritt = 'code' | 'zurueck' | 'x' | 'boje' | 'zaehler' | 'rueckweg' | 'bojeDisq' | 'haupt'
 const bojen = computed(() => props.aufbau.art === 'bojen')
 const halte = computed(() => props.aufbau.abschnitte.flatMap((a) => (a.art === 'halt' ? [a.halt] : [])))
 /** Ziel des ersten Schritts: linker Knopf der ersten zweibojigen Zeile, sonst die erste Boje (P11). */
@@ -76,11 +84,40 @@ const zaehlerBoje = computed<{ halt: MaskenHalt; boje: MaskenBoje } | null>(() =
   for (const h of halte.value) for (const b of h.bojen) if (b.zaehler) return { halt: h, boje: b }
   return null
 })
+const lage = computed(() => props.bojenAnsicht?.folge === 'lage')
+/** Mit Umschalter (Fahrtfolge) folgt der Disq.-Schritt dem Rückweg-Schritt – dann ist die Rückweg-Seite offen. */
+const mitRueckweg = computed(() => !!props.aufbau.umschalter && !lage.value)
+/** Erste zweibojige Zeile mit Buchstaben (rechter Knopf), sonst die erste Boje mit welchen – nur unter `auswahl`. */
+function disqZiel(auswahl: MaskenHalt[]): { halt: MaskenHalt; boje: MaskenBoje } | null {
+  const zwei = auswahl.find((h) => h.bojen.filter((b) => b.spalte !== null).length === 2 && h.bojen[1].disq.length > 0)
+  if (zwei) return { halt: zwei, boje: zwei.bojen[1] }
+  for (const h of auswahl) for (const b of h.bojen) if (b.disq.length > 0) return { halt: h, boje: b }
+  return null
+}
+/**
+ * U4: Ziel des Disq.-Schritts. Prüfbefund 21.11.2026: Mit Umschalter liegt es auf der Seite, die gerade offen ist –
+ * nach dem Rückweg-Schritt also auf dem Rückweg (sonst stand „H L“ nicht auf dem Bildschirm, und eine gleichnamige
+ * Zeile „Tor 1“ des Rückwegs nahm den Buchstaben still an). Hat der Rückweg keine Boje mit Buchstaben, kommt der
+ * Disq.-Schritt VOR den Rückweg-Schritt (`disqVorRueckweg`), solange der Hinweg offen ist.
+ */
+const disqRueck = computed(() => (mitRueckweg.value ? disqZiel(halte.value.filter((h) => h.weg === 'rueck')) : null))
+const disqVorRueckweg = computed(() => mitRueckweg.value && !disqRueck.value)
+const disqBoje = computed<{ halt: MaskenHalt; boje: MaskenBoje } | null>(() =>
+  disqRueck.value ?? disqZiel(mitRueckweg.value ? halte.value.filter((h) => h.weg === 'hin') : halte.value),
+)
 const schritte = computed<Schritt[]>(() => {
   if (vorsteg.value) return disqCodes.value.some((c) => c.code === 'X') ? ['x', 'haupt'] : ['haupt']
   if (bojen.value) {
     if (!ersteBoje.value) return ['haupt']
-    return ['boje', 'zurueck', ...(zaehlerBoje.value ? (['zaehler'] as const) : []), ...(props.aufbau.umschalter ? (['rueckweg'] as const) : []), 'haupt']
+    return [
+      'boje',
+      'zurueck',
+      ...(zaehlerBoje.value ? (['zaehler'] as const) : []),
+      ...(disqBoje.value && disqVorRueckweg.value ? (['bojeDisq'] as const) : []),
+      ...(mitRueckweg.value ? (['rueckweg'] as const) : []),
+      ...(disqBoje.value && !disqVorRueckweg.value ? (['bojeDisq'] as const) : []),
+      'haupt',
+    ]
   }
   return ersterCode.value ? ['code', 'zurueck', 'haupt'] : ['haupt']
 })
@@ -121,6 +158,11 @@ function tippeBojeKnopf(b: MaskenBoje): void {
   entwurf.value = tippeBoje(entwurf.value, b)
   if (art.value === 'boje' && b.feld === ersteBoje.value?.boje.feld && (entwurf.value.bojen[b.feld] ?? 0) > 0) weiter()
   else if (art.value === 'zaehler' && b.feld === zaehlerBoje.value?.boje.feld && (entwurf.value.bojen[b.feld] ?? 0) >= 2) weiter()
+}
+function setzeBojenDisq(b: MaskenBoje, code: string | null): void {
+  if (gesperrt.value) return
+  entwurf.value = tippeBojenDisq(entwurf.value, b, code)
+  if (art.value === 'bojeDisq' && b.feld === disqBoje.value?.boje.feld && entwurf.value.bojenDisq[b.feld]) weiter()
 }
 function waehleWeg(x: Weg): void {
   if (gesperrt.value) return
@@ -193,6 +235,13 @@ const anweisung = computed(() => {
       })
     case 'rueckweg':
       return w('wkr.geraet.probe.bojeRueckweg', { knopf: w('wkr.geraet.bojen.rueckweg') })
+    case 'bojeDisq':
+      return w('wkr.geraet.probe.bojeDisq', {
+        knopf: w('wkr.geraet.bojen.disqModus'),
+        halt: disqBoje.value?.halt.titel ?? '',
+        boje: disqBoje.value?.boje.unter || w('wkr.geraet.bojen.beruehrt'),
+        code: disqBoje.value?.boje.disq[0]?.code ?? '',
+      })
     default:
       // Nach dem Zähler-Schritt stehen Berührungen im Entwurf – dann heißt der Hauptknopf „Abschicken“.
       if (bojen.value && eintraege(entwurf.value) > 0) return w('wkr.geraet.probe.haupt', { knopf: w('wkr.geraet.probe.bojeAbschicken') })
@@ -227,7 +276,18 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
       <WkrStarterKarte :start="start" :klasse="aufbau.titel" :gesendet="imOverlay" />
       <div class="wkr-mitte" :inert="gesperrt" data-teil="mitte">
         <WkrVorsteg v-if="vorsteg" :codes="disqCodes" :gesetzt="entwurf.disq" start-nr="P" @setze="setzeDisq" @x-nein="xNein" />
-        <WkrBojen v-else-if="bojen" :aufbau="aufbau" :entwurf="entwurf" :weg="weg" @boje="tippeBojeKnopf" @tippe="tippeCode" @weg="waehleWeg" />
+        <WkrBojen
+          v-else-if="bojen"
+          :aufbau="aufbau"
+          :entwurf="entwurf"
+          :weg="weg"
+          :ansicht="bojenAnsicht"
+          start-nr="P"
+          @boje="tippeBojeKnopf"
+          @boje-disq="setzeBojenDisq"
+          @tippe="tippeCode"
+          @weg="waehleWeg"
+        />
         <WkrKnoepfe v-else :teile="teile" :entwurf="entwurf" @tippe="tippeCode" />
       </div>
       <div class="wkr-unten" :inert="gesperrt">
@@ -236,7 +296,7 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
           :teil="teil"
           :eintraege="eintraege(entwurf)"
           :punkte="punkteVon(entwurf, aufbau, teil)"
-          :disq="entwurf.disq"
+          :disq="[...entwurf.disq, ...disqAnBojen(entwurf, aufbau).map((d) => d.code)]"
           :korrektur="null"
           :hand="hand"
           :mit-disq="false"

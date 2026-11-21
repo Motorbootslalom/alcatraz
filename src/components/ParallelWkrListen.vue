@@ -13,6 +13,8 @@ import type { ParallelRunde } from '../types'
 import BogenBlatt from './bogen/BogenBlatt.vue'
 import AufbauBalken from './AufbauBalken.vue'
 import { useSchrittweise } from '../lib/aufbau'
+import WkrDigitalHinweis from './WkrDigitalHinweis.vue'
+import { useWkrDruck } from './wkrDruck'
 
 /**
  * Die Wettkampfrichter-Listen des Parallelslaloms unter „Listen“: je Runde sechs Listen – je
@@ -60,7 +62,14 @@ const auswahl = computed<ParallelAuswahl>(() => ({
 }))
 
 // Jeder Bogen misst sein Blatt selbst und teilt für sich (components/bogen/BogenBlatt.vue).
-const boegen = computed(() => (props.gesperrt ? [] : waehleRundenBoegen(alle.value, auswahl.value)))
+// Druck nach Modus (Nutzer 21.11.2026, WKR_ANNAHMEN Z1/Z7): Listen nur auf dem Gerät entfallen je Racecourse; die
+// Runden im `stand` kommen nur aus Gedrucktem – eine Runde ganz auf Geräten wird durchs Drucken nicht gebunden.
+const druck = useWkrDruck()
+const geteilt = computed(() => druck.teile(props.gesperrt ? [] : waehleRundenBoegen(alle.value, auswahl.value)))
+const boegen = computed(() => geteilt.value.gedruckt)
+const digitalListen = computed(() => [
+  ...new Set(geteilt.value.digital.map((b) => `${listenArten.value.find((l) => l.typeId === b.typeId)?.titel ?? b.titel} (${b.runde ? racecourseName(b.runde.racecourse) : b.parcoursName})`)),
+])
 
 function setze<K extends keyof ParallelAuswahl>(feld: K, e: Event) {
   const wert = (e.target as HTMLSelectElement).value
@@ -151,6 +160,7 @@ const { zoom } = useBogenZoom(stapel)
     </template>
   </div>
 
+  <WkrDigitalHinweis v-if="!gesperrt" v-model:trotzdem="druck.trotzdem.value" :anzahl="geteilt.digital.length" :listen="digitalListen" />
   <AufbauBalken v-if="!aufbau.fertig.value || aufbau.zeigen.value" :fertig="aufbau.fertigAnzahl.value" :gesamt="aufbau.gesamt.value" :zeigen="aufbau.zeigen.value" :zeile="aufbauZeile" :ohne-druckhinweis="aufbau.fertig.value" />
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts); im Aufbau druckt er nicht. -->
   <div ref="stapel" :class="['bogen-stapel', 'wkr-listen', aufbau.fertig.value ? '' : 'no-print']" :data-aufbau="aufbau.fertig.value ? undefined : 'laeuft'" :aria-busy="!aufbau.fertig.value" :style="zoom">

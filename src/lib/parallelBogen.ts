@@ -133,7 +133,11 @@ export interface ParallelBoegen {
   listen: string[]
   /** Die Runden mit festgeschriebenem Plan – nur für sie gibt es Bögen. */
   runden: ParallelRunde[]
-  /** Je Runde und Racecourse die Listen des Aufbaus: erst A, dann B; darin die Reihenfolge des Aufbaus. */
+  /**
+   * Die Bögen in Druckfolge (lib/wkrListen.ts WKR_DRUCKFOLGE, Nutzer 21.11.2026): erst Racecourse A, dann B; darin je
+   * Liste (Position, Reihenfolge des Aufbaus) die Runden in der Folge, in der sie gefahren werden – der Stapel liegt je
+   * Racecourse und Position zusammen und wird nur getrennt.
+   */
   boegen: WkrBogen[]
 }
 
@@ -156,12 +160,14 @@ export function parallelBoegen(
   // Spalten, die die Listen dieses Aufbaus nicht haben (config/aufbauten/parallel.yaml `ohneSpalten`).
   const ohneSpalten = konfig.getAufbauten().find((a) => a.id === aufbau)?.ohneSpalten ?? {}
   const boegen: WkrBogen[] = []
-  for (const runde of runden) {
-    const fest = stand.parallelPlaene[runde]!
-    for (const racecourse of RACECOURSES) {
-      const zeilen = rundenZeilen(fest, stand.starters, racecourse)
-      const imPlan = new Set(zeilen.flatMap((z) => (z.klasse === undefined ? [] : [z.klasse])))
-      for (const typeId of listen) {
+  for (const racecourse of RACECOURSES) {
+    // Je Runde einmal: die Zeilen und Klassen auf diesem Racecourse.
+    const jeRunde = runden.map((runde) => {
+      const zeilen = rundenZeilen(stand.parallelPlaene[runde]!, stand.starters, racecourse)
+      return { runde, zeilen, imPlan: new Set(zeilen.flatMap((z) => (z.klasse === undefined ? [] : [z.klasse]))) }
+    })
+    for (const typeId of listen) {
+      for (const { runde, zeilen, imPlan } of jeRunde) {
         // Die Klassen des Plans in ihrer festen Folge: Sie bestimmen die Spalten (in jeder Klasse dieselben, config/validate.ts).
         const klassen = CLASS_IDS.filter((k) => imPlan.has(k) && konfig.positionAllowsClass(typeId, k)) as ClassId[]
         boegen.push({

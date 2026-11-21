@@ -107,6 +107,10 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   abdeckt; das Anlegen im Boot geht beim Abmelden bzw. Pausieren mit aufs Papier; neu Zuweisen holt das Gerät
   zurück, auch nach Neuladen), Handy-Maske auf dem Pad als mittige Spalte bis W5; Beispiel-Boote/-Co-Piloten nur
   noch unter „Beispieldaten“, Beispielstarter nach Art der Veranstaltung. Prüfbefunde dazu behoben.
+  Wünsche vom 21.11.2026, zweiter Teil (WKR_ANNAHMEN U–Z, noch zu bestätigen): Disq. an der Boje in der
+  Bojen-Maske (wie auf dem Papier, „− letzte zurück“ stellt den vorigen Stand der Zelle wieder her), Ansicht „Wie
+  der Parcours liegt“ mit Spiegeln, Druck nur für Listen auf Papier bzw. „beides“, WKR-Bögen je Position in der
+  Folge der Verzahnung, Übung mit 2–6 s nach dem Abschicken. Prüfbefunde dazu behoben.
   Offen: Pad, Knoten und Zeit-Listen (W5), Feldtest.
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten

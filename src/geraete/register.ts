@@ -164,3 +164,21 @@ export function setzeKoppelStand(raum: HostRaum, stand: KoppelStand): void {
   raum.koppeln = stand.code || stand.qr ? JSON.parse(JSON.stringify(stand)) : undefined
   if (raum.koppeln === undefined) delete raum.koppeln
 }
+
+/**
+ * Druck nach Modus (Nutzer 21.11.2026, WKR_ANNAHMEN Z3): Welche Teile einer Liste die gekoppelten Geräte abdecken –
+ * ein Gerät ohne Teil deckt alle. Leer = kein Gerät hat die Liste. Für wkr/druck.ts `TeilAbdeckung` (Listen → WKR-Bögen).
+ */
+export function abgedeckteTeile(geraete: readonly RegisterEintrag[], liste: string): Set<'ab' | 'an'> {
+  const teile = new Set<'ab' | 'an'>()
+  for (const g of geraete) {
+    for (const a of listenAufgaben(g.aufgaben)) {
+      if (a.liste !== liste) continue
+      if (a.teil === undefined) {
+        teile.add('ab')
+        teile.add('an')
+      } else teile.add(a.teil)
+    }
+  }
+  return teile
+}

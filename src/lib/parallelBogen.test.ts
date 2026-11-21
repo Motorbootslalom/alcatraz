@@ -432,6 +432,22 @@ describe('QR-Code der Listen einer Runde (ALC2)', () => {
     expect(rundenZettel(state, p, () => 1).map((z) => z.qr)).toEqual(expect.arrayContaining(['ALC2.K7Q4.UIM2026.PARALLEL.SMALL.A', 'ALC2.K7Q4.UIM2026.PARALLEL.FINAL.A']))
   })
 
+  it('Druckfolge (Nutzer 21.11.2026, WKR_DRUCKFOLGE): Racecourse → Position → Runden in ihrer Folge – QR-Kennungen ebenso', () => {
+    const paar = (a: string, b: string, klasse: ClassId, boot: 'klein' | 'gross') => [
+      { a, b, attempt: 1 as const, block: 0, boot, klasse },
+      { a: b, b: a, attempt: 2 as const, block: 0, boot, klasse },
+    ]
+    const state: AppState = {
+      ...uim(),
+      parallelPlaene: { ...uim().parallelPlaene, final: { runde: 'final', starts: paar('4-1', '4-2', '4', 'gross') }, small: { runde: 'small', starts: paar('1-1', '1-2', '1', 'klein') } },
+    }
+    const p = parallelBoegen(state, konfig)
+    const erwartet = (['A', 'B'] as const).flatMap((rc) => p.listen.flatMap((typeId) => p.runden.map((r) => `ALC2.K7Q4.UIM2026.PARALLEL.${r.toUpperCase()}.${rc}.${typeId.toUpperCase()}`)))
+    expect(p.boegen.map((b) => b.auftrag.qr)).toEqual(erwartet)
+    // Die Laufzettel bleiben je Runde und Racecourse – die Bogenfolge ändert sie nicht.
+    expect(rundenZettel(state, p, () => 1).map((z) => z.id)).toEqual(p.runden.flatMap((r) => [`parallel|${r}|A`, `parallel|${r}|B`]))
+  })
+
   it('alte Codes (ALC1) bleiben lesbar, und die Bögen des Manövrierens tragen weiter ALC1', () => {
     expect(leseCode('ALC1.K7Q4.UIM2026.ALCATRAZ.PAR1.E.2.STEG.S1', bekannt)).toEqual({
       ok: true,

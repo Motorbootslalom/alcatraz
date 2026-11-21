@@ -28,7 +28,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   freigabeTaktSek 15, Nachfrage vor jedem Zeigen); Prüfbefunde W2 E1–E4 (abgetippt = erledigt in lage.ts, ◆ nach
   Entscheid, Hinweise je Steg-Teil, Freigabe je Gerätewert/Zeitfelder; plan-wkr-w2.md §10).
   W3 (G1–G16, plan-wkr-w3.md §9): sperreMs 1000 (weiterNachMs 2000 ersetzt durch N1), ohneQuittungMs 10000, papierHinweisSek 300,
-  rueckgaengigMs 6000, zuletztLeiste 5, uebungQuittungMs 300, uebungRueckfrageBei 5, uebungStarts 20, uebungTaktSek 30;
+  rueckgaengigMs 6000, zuletztLeiste 5, uebungQuittungMs 300, uebungRueckfrageBei 5, uebungStarts 20, uebungTaktSek 30
+  (seit 21.11.2026 nur Rückfall, Y1–Y3 Übungstakt 2–6 s nach dem Abschicken);
   W3.1 beim Bau H1–H5 (Disq. als Schalter, ohne Disq.-Feld ins erste Code-Feld; „zurück“ = letzter Tipp; Schlange je
   Steg-Teil auf dem Gerät; Entwürfe im Ausgang; Übung in der Sprache des Regelwerks); W3.2 beim Bau J1–J5 („Maske
   folgt“ nach den Klassen der Starter, Handy am Namen erkannt, Freigabe-Vorwahl nur ohne Liste, beim Koppeln eine
@@ -51,7 +52,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   `verbindung`), `wartendNurUeberNull`, `pruefenOeffnet` („Bitte Nr. prüfen“ → „601 öffnen“ in WkrMaske).
   W4.1 (P1–P15, 21.11.2026, noch zu bestätigen): bojenPunkte 5, bojenZaehlerMax 9, bojenZeilenEineSeite 7 (Umschalter
   ab MEHR Zeilen), klassenWechselMs 2000 (erst W4.2); Merker bojenAmFahrweg, zaehlerNurTor5, tor1ZweiZeilen, fahrtfolge,
-  seitenNachBlick, disqNieInBoje, probeMeisteZeilen, uebungBojen, bojenFehlerfrei, bojenTexteWieBogen, bojenInSicht;
+  seitenNachBlick, disqNieInBoje (seit 21.11.2026 `false`, ersetzt durch U1), probeMeisteZeilen, uebungBojen, bojenFehlerfrei, bojenTexteWieBogen, bojenInSicht;
   W4.2 bojenStartnr80 (P17) und beim Bau Q1–Q7: probeLinkerKnopf, klassenWechselUnterKarte, zaehlerMaxImKnopf, wegJeStart,
   bojenBeschriftung, wegKopfOhneUmschalter, uebungListenDesRegelwerks. W4.3 (P16, beim Bau R1–R8, noch zu bestätigen):
   nichtVorbei, nichtVorbeiNichtBeiX (R1, Code `nv-nicht-erlaubt`), nichtVorbeiNurDirekt (R2), nichtVorbeiAufheben (R3),
@@ -64,10 +65,21 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   (Gerät ganz: Anlegen wartet aufs Ablegen), stegAnlegenNieGeschaetzt, stegAbschlussOhneImBoot; Abmelden am Gerät
   abmeldenWieEntfernen (Liste/Teil abgemeldet + Aufgabe weg), abmeldenLetzterGanz (letztes Gerät → ganze Liste; sonst nur, was kein anderes Gerät abdeckt),
   abmeldenOhneBitte, abmeldenUebungWieBisher; T10 padSpalteBisW5 (breite Bildschirme: Handy-Maske als Spalte bis W5).
+  Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeErsetztPunkte, U3
+  disqBojeOhneLangdruck (Frage), U4 probeDisqAnBoje; Ansicht „Wie der Parcours liegt“ V1 bojenNachLage, V2 bojenSpiegeln.
+  Druck nach Modus Z1–Z7 (noch zu bestätigen): druckOhneDigital, druckBeiPause, druckStegJeTeil, druckRueckfall,
+  druckLaufzettel, druckOhneListeImmer, druckParallelJeRacecourse (wkr/druck.ts).
+- `druck.ts` (Nutzer 21.11.2026, Druck nach Modus, WKR_ANNAHMEN Z1–Z7) – nurDigital(bogen, wkr, konfig, abdeckung?),
+  teileNachDruck → {gedruckt, digital}: nur Modus `digital`, Status aktiv, am Steg beide Teile aktiv und – wenn das Register
+  Geräte kennt – beide Teile abgedeckt (TeilAbdeckung von außen, geraete/register.ts abgedeckteTeile); Knoten (listeVonBogen
+  null) immer gedruckt. Nutzer: components/wkrDruck.ts (WkrListen, ParallelWkrListen, Laufzettel, ParallelLaufzettel).
 - `bojen.ts` (W4.1, 21.11.2026) – rein, ohne Konfiguration: bojenHalt(kennung) → {halt, weg, seite, folge, zaehler,
   durchfahrt?} aus config/kurzform.ts FAHRWEG bzw. PARALLEL_FAHRWEG (= Spalten von parallelparcours, Test); Tor 5 =
   Zähler, t1c = `durchfahrt: 2`, Speedbojen ohne Seite auf dem Rückweg, Parallel bis Boje 5 Hinweg; Knoten und
   Unbekanntes → null (P1). katalogFolge(kennung): katalog:tor5 zwischen Tor 5 hin/rück (hin), katalog:mueb nach t1b (rück).
+  Nutzer 21.11.2026 (V1): BOJEN_LAGE/bojenLage(halt bzw. `katalog:…`) = Platz längs der Strecke (Start/Ziel 0,
+  Schikane/MüB 1, Tor 1–5 2–6, Speedbojen 7; Parallel Start/Ziel 0, Boje 1–5 1–5), hin und rück gleich – belegt an den
+  x-Koordinaten der Parcours-Bilder (bojen.test.ts misst alle Bilder nach). Lagequelle auch für das Bild-Layout W5.
 - `liste.ts` – ListenKennung `JSON.stringify(['l', bereich, typeId, racecourse|null])`, listenKennung/liesListe,
   listenDerVeranstaltung (Bereiche × Listen mit Lauf, Parallel × A/B), teileVon/teilVonZelle, istHaken/teilHaken
   (aus lib/eingaben.ts), startAufListe (Starter, Lauf-Schlüssel, `weitere` am Vorsteg mit „Versuche nacheinander“, Punkt;
@@ -129,11 +141,18 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Entwurf.bojen (Berührungen je Feld) + tippeBoje (Schalter 0↔1 samt Merker `#boje:`, Zähler bis bojenZaehlerMax,
   danach gleiche Referenz); zurueck/eintraege/punkteVon kennen Bojen; zellenAus n×punkte bzw. '' (Disq. nur ins
   Disq.-Feld, P9); entwurfAus Punkte → round(wert/punkte), Schalter ≤ 1; probeMaske = Klasse mit den meisten Zeilen.
-- `uebung.ts` (W3.1) – Übung ohne AppState/Store/Netz: uebungsStand(regelwerk, typeId, sprache?) → UebungsStand
+  Nutzer 21.11.2026: MaskenBoje.disq (Buchstaben DIESER Zelle aus MaskenFeld.disq, Texte ggf. `andere`),
+  Entwurf.bojenDisq + tippeBojenDisq(e, boje, code|null) (U1/U2: setzt/ersetzt/nimmt heraus, löscht die Berührungen
+  des Felds, Merker `#bdisq:`; tippeBoje nimmt bei Buchstaben nichts an), disqAnBojen (Fuß), zellenAus Buchstabe
+  statt Punkte, entwurfAus Buchstabe der Zelle → bojenDisq, eintraege/eintraegeAuf zählen ihn, punkteVon nicht;
+  nachLage(aufbau, startOben) → LageGruppe {lage, titel („Start / Ziel“), titelJeZeile, abschnitte in Fahrtfolge}
+  (V1/V2, Ansicht „Wie der Parcours liegt“).
+- `uebung.ts` (W3.1) – Übung ohne AppState/Store/Netz: uebungsStand(regelwerk, typeId, sprache?, gezeigt = 2) → UebungsStand
   {naechster, offen je Teil}, uebungsSicht(stand) → ListenSicht (Starts 1–20 ohne Namen und ohne Boot in den Klassen
   mit der Liste, Kennung `["m","u<n>",lauf]`, Vorsteg 2 `vorab`, Steg-Ablegen 1 `vorab` und Anlegen erst nach dem
   zuletzt gezeigten (T1/T2), nach Nr. 20 der nächste Lauf), uebungsSchritt(stand,
-  zeile|null) (Zeile erledigt Start bzw. Teil, Takt = null zeigt den nächsten, ≤ Schlange 12). Kern: geraete/uebung.ts.
+  zeile|null, mindestens = 2) (Zeile erledigt Start bzw. Teil und füllt bis `mindestens` auf – der Gerätekern gibt 0,
+  Übungstakt Y1–Y3; null zeigt den nächsten, ≤ Schlange 12). Kern: geraete/uebung.ts.
 - `lage.ts` (W2.1, 21.11.2026) – erfassungsLage(stand, konfig, bereich, geraete, jetzt, starts?) → {punkt, starts
   (Spalten: gezeigte Starts des laufenden Punkts, letzte 12 bzw. alle; Vorsteg + `vorab`), listen: ListenLage (Modus,
   Status, Teile, papierAb, Geräte mit Ampel, Zellstand je Spalte, Rückstand, warnt, Rückfragen/Vorschläge, Abschlüsse
@@ -189,8 +208,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Tipp-Folge je Position, DM und UIM) – keine eigene Schreibweise, immer über lib/codes.ts bzw. die Disq.-Reihenfolge.
   Disq.-Feld (sanitizeDisq) behält die Tipp-Reihenfolge, Code-Felder sortieren (normalizeCodeCell).
 - Bojen (W4.1): Zeilen folgen dem FAHRWEG, nie den Spalten des Bogens (frontal135 = gate135); die Knopfspalten
-  dagegen folgen dem Bogen (Blick). Eine Bojenzelle bekommt vom Gerät nur Ziffern (sanitizeBuoy nähme sonst den
-  Buchstaben statt der Punkte) – Disq. immer ins Disq.-Feld. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
+  dagegen folgen dem Bogen (Blick). Eine Bojenzelle bekommt vom Gerät Ziffern ODER (seit U1, 21.11.2026) genau einen
+  Buchstaben aus MaskenBoje.disq – nie beides (sanitizeBuoy nähme den Buchstaben und verwürfe die Punkte); Disq. ohne
+  Boje weiter ins Disq.-Feld. Die Lage-Ansicht (nachLage) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
   auch); `spaeter` bleiben nur Zeit, Knoten und Bojen außerhalb des Fahrwegs.
 - Sicht der Liste: jedes Objekt Feld für Feld neu (wie sichtZuschauer); nie Name, Herkunft, Geburtsdatum, Gewicht,
   Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Einzige Ausnahme `steht`

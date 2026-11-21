@@ -107,12 +107,29 @@ function klassenGruppen(
 }
 
 /**
+ * Wie die WKR-Bögen im Druck aufeinander folgen (Nutzer 21.11.2026: „Die Sortierung muss so sein, dass man die Listen
+ * für die WKR ohne Sortieren verteilen kann … zusätzlich muss nach Position sortiert werden“): Parcours → Position
+ * (Liste) → zeitliche Folge der Verzahnung. Gilt ebenso für den Parallelslalom (lib/parallelBogen.ts: Racecourse →
+ * Liste → Runde).
+ *
+ * `innen` – die zeitliche Folge innerhalb einer Position. Auslegung 21.11.2026, noch zu bestätigen: `lauf` = erst
+ * alle Klassen im 1. Lauf (in der Folge der Verzahnung), dann alle im 2. Lauf – so fährt der Betrieb („Lauf 2
+ * beginnen“ je Parcours, betrieb/folge.ts: die Folge der Verzahnung je Lauf einmal). `klasse` wäre die frühere
+ * Folge (je Klasse erst alle Läufe), falls der WKR seine Bögen je Klasse gebündelt haben will. Seitenzahlen zählt
+ * weiter jeder Bogen für sich; die Laufzettel (lib/laufzettel.ts) bleiben je Parcours, Klasse und Lauf.
+ */
+export const WKR_DRUCKFOLGE: { readonly innen: 'lauf' | 'klasse' } = { innen: 'lauf' }
+
+/**
  * Alle Bögen der Veranstaltung. `folgen` ist die Startreihenfolge je Parcours aus der
  * Verzahnung (`planEvent(...).plans[].sequence`).
  *
- * Reihenfolge: Parcours, dann Klasse (in der Reihenfolge, in der die Klassen laut Verzahnung
- * zuerst starten), Lauf und Liste (in der Reihenfolge der Veranstaltung, lib/listen.ts:
- * die Listen des Aufbaus, dahinter die zusätzlichen).
+ * Reihenfolge ({@link WKR_DRUCKFOLGE}, Nutzer 21.11.2026): Parcours, dann Liste (Position, in der
+ * Reihenfolge der Veranstaltung, lib/listen.ts: die Listen des Aufbaus, dahinter die
+ * zusätzlichen), darin die zeitliche Folge der Verzahnung – Lauf, darin die Klassen in der
+ * Reihenfolge, in der sie laut Verzahnung zuerst starten. So liegt der Stapel aus dem Drucker je
+ * Position zusammen und schon in der Folge, in der die Bögen dort gebraucht werden: Er wird nur
+ * an den Positionen getrennt und verteilt, nie sortiert.
  * Eine Liste ohne Lauf im Kopf (Knoten) gibt es nur einmal; sie zählt zum letzten Lauf: Die
  * Knoten werden erst für das Gesamtergebnis gebraucht, ihr Bogen liegt deshalb im Stapel des
  * letzten Laufs (und steht auf dessen Laufzettel, lib/laufzettel.ts).
@@ -220,14 +237,18 @@ export function wkrBoegen(
       }
     }
   }
-  // Je Klasse(ngruppe) erst alle Läufe, darin die Listen in der Reihenfolge des Aufbaus.
+  // Je Parcours und Position die zeitliche Folge (WKR_DRUCKFOLGE); `lage` hält Gleiches stabil
+  // (Clubmeisterschaft: Klassengruppen einer Liste in der Folge ihrer ersten Klasse).
   const lage = new Map(boegen.map((b, i) => [b.id, i]))
   const parcoursRang = new Map(stand.parcoursList.map((p, i) => [p.id, i]))
+  const listenRang = new Map(listen.map((typeId, i) => [typeId, i]))
+  const klasseVor = (a: WkrBogen, b: WkrBogen) => auftritt.get(a.parcoursId)!.get(a.klassen[0])! - auftritt.get(b.parcoursId)!.get(b.klassen[0])!
+  const zeit = (a: WkrBogen, b: WkrBogen) => (WKR_DRUCKFOLGE.innen === 'lauf' ? a.lauf - b.lauf || klasseVor(a, b) : klasseVor(a, b) || a.lauf - b.lauf)
   boegen.sort(
     (a, b) =>
       parcoursRang.get(a.parcoursId)! - parcoursRang.get(b.parcoursId)! ||
-      auftritt.get(a.parcoursId)!.get(a.klassen[0])! - auftritt.get(b.parcoursId)!.get(b.klassen[0])! ||
-      a.lauf - b.lauf ||
+      listenRang.get(a.typeId)! - listenRang.get(b.typeId)! ||
+      zeit(a, b) ||
       lage.get(a.id)! - lage.get(b.id)!,
   )
 

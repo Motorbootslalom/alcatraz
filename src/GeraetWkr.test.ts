@@ -528,12 +528,18 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
   })
 })
 
+/**
+ * Übung mit sofortigem nächsten Start: Diese Tests prüfen die Maske (Wechsel, Sperre, Abschluss), nicht den Übungstakt
+ * (2–6 s nach dem Abschicken, Nutzer 21.11.2026 – geprüft in geraete/uebung.test.ts).
+ */
+const SOFORT = [0, 0] as const
+
 /** In der Übung (Quittung nach uebungQuittungMs < uebertragenMinMs): ab hier wechselt die Nummer (N1). */
 const BIS_WECHSEL = WKR_ANNAHMEN.uebertragenMinMs + WKR_ANNAHMEN.uebernommenMs
 
 describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () => {
   function uebung(typeId = 'tor5') {
-    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId, taktMs: 3_600_000 })
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId, taktMs: 3_600_000, folgeMs: SOFORT })
     quellen.push(q)
     const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: handy() } })
     wrappers.push(w)
@@ -596,7 +602,7 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
 
   it('N2: ohne Quittung geht das Overlay nach uebertragenMaxMs trotzdem – „Bestätigung folgt“ über dem Kopf, bis die Antwort kommt', async () => {
     vi.useFakeTimers()
-    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000 })
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000, folgeMs: SOFORT })
     quellen.push(q)
     // Dieselbe Übung, deren Zeilen (vorerst) unbeantwortet bleiben – wie ein Bedienrechner, der nicht antwortet.
     const stumm = shallowRef(true)
@@ -683,7 +689,7 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
   it('Linkshand spiegelt den Fuß; Sonne ist Vorgabe', async () => {
     const speicher = handy()
     speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', hand: 'links' }))
-    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000 })
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000, folgeMs: SOFORT })
     quellen.push(q)
     const w = mount(WkrGeraet, { props: { quelle: q, ablage: speicher } })
     wrappers.push(w)
@@ -702,7 +708,7 @@ const ansichtIn = (speicher: Ablage) => JSON.parse(speicher.getItem('alcatraz.ge
 
 /** Übung ohne Netz mit eigenem Speicher – für Fälle, die der Bedienrechner nicht leicht herstellt. */
 function uebe(regelwerk: string, typeId: string, speicher: Ablage = handy(), taktMs = 3_600_000) {
-  const q = oeffneUebung({ regelwerk, typeId, taktMs })
+  const q = oeffneUebung({ regelwerk, typeId, taktMs, folgeMs: SOFORT })
   quellen.push(q)
   const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: speicher } })
   wrappers.push(w)
@@ -796,6 +802,8 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
     const kopf = q.schlange.value[l][0]
     const disq = maskeFuer(sicht, kopf.klasse)!.disq!.feld
     q.schicke(l, { s: kopf.key, zellen: { [disq]: 'X' } })
+    // Der nächste Start kommt erst mit dem Übungstakt (hier sofort, aber nach dem Abschicken).
+    await warte(0)
     q.schliesseAb(l, sicht.punkt!.id, 'Muster WKR', false)
     await warte(WKR_ANNAHMEN.uebungQuittungMs + 50)
     await nextTick()
@@ -1064,7 +1072,7 @@ describe('Feldtest mit echtem Handy (21.11.2026)', () => {
   })
 
   it('Befund 14a (N7): Bildschirm kann ausgehen → gelbes Band mit Tipp, „Ausblenden“ hält über den Neuaufbau', async () => {
-    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000 })
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000, folgeMs: SOFORT })
     quellen.push(q)
     const ohne = mount(WkrGeraet, { props: { quelle: q, ablage: handy() } })
     wrappers.push(ohne)
@@ -1429,6 +1437,111 @@ describe('Bojen (W4.2)', () => {
     expect(werte(state.value, s4.starter)['t1a|hin seiteB']).toBe('5')
   }, 15_000)
 
+  it('Disq. an der Boje (Nutzer 21.11.2026, U1/U2): Modus → Boje → Buchstabe ersetzt die Punkte, ohne Modus kein Tipp, zurück nimmt ihn; Host, Zuletzt und Korrektur zeigen ihn an der Boje', async () => {
+    const { w, state, zeige } = await torListe()
+    const s4 = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s4.startNr)
+    const feld = 't3b|rueck seiteB'
+    await klick(w, boje(feld))
+    expect(haupt(w).text()).toBe('Abschicken · 5 Pkt.')
+    // Disq.-Modus: Boje antippen → Buchstaben dieser Zelle (ohne X – das gilt hier nicht, F5).
+    await klick(w, '[data-action="boje-disq-modus"]')
+    expect(w.find('[data-teil="bojen"]').attributes('data-disq-modus')).toBeDefined()
+    await klick(w, boje(feld))
+    const d = w.find('[data-dialog="wkr-boje-disq"]')
+    expect(d.find('h2').text()).toBe('Disq. an Tor 3 R L')
+    const codes = d.findAll('[data-action="boje-disq-code"]').map((b) => b.attributes('data-code'))
+    expect(codes).toContain('G')
+    expect(codes).not.toContain('X')
+    await klick(w, '[data-action="boje-disq-code"][data-code="G"]')
+    // Der Buchstabe ersetzt die Berührung (die Zelle hält nur eins), der Modus ist zu Ende.
+    expect(w.find('[data-dialog="wkr-boje-disq"]').exists()).toBe(false)
+    expect(w.find('[data-teil="bojen"]').attributes('data-disq-modus')).toBeUndefined()
+    expect(w.find(boje(feld)).attributes('data-disq')).toBe('G')
+    expect(w.find(boje(feld)).attributes('data-anzahl')).toBe('0')
+    expect(w.find(boje(feld)).find('[data-teil="boje-stand"]').text()).toBe('Disq. G')
+    expect(haupt(w).text()).toBe('Abschicken · Disq. G')
+    // Ohne Modus nimmt die Boje keinen Tipp an – sagt aber, wie der Buchstabe herauskommt (Prüfbefund 21.11.2026).
+    expect(w.find('[data-teil="boje-disq-gesperrt"]').exists()).toBe(false)
+    await klick(w, boje(feld))
+    expect(w.find(boje(feld)).attributes('data-disq')).toBe('G')
+    expect(w.find('[data-teil="boje-disq-gesperrt"]').text()).toBe('Disq. G an Tor 3 R L – herausnehmen über „Disq. an Boje …“')
+    // „− letzte zurück“ nimmt den Buchstaben und gibt die ersetzte Berührung zurück (Prüfbefund 21.11.2026),
+    // Modus + Tipp setzt ihn neu, im Modus nimmt ein Tipp ihn heraus.
+    await klick(w, '[data-action="zurueck"]')
+    expect(w.find(boje(feld)).attributes('data-disq')).toBeUndefined()
+    expect(w.find(boje(feld)).attributes('data-anzahl')).toBe('1')
+    expect(haupt(w).text()).toBe('Abschicken · 5 Pkt.')
+    await klick(w, '[data-action="boje-disq-modus"]')
+    await klick(w, boje(feld))
+    await klick(w, '[data-action="boje-disq-code"][data-code="G"]')
+    await klick(w, '[data-action="boje-disq-modus"]')
+    await klick(w, boje(feld))
+    expect(w.find(boje(feld)).attributes('data-disq')).toBeUndefined()
+    await klick(w, '[data-action="boje-disq-modus"]')
+    await klick(w, boje(feld))
+    await klick(w, '[data-action="boje-disq-code"][data-code="G"]')
+    await klick(w, '[data-action="haupt"]')
+    // Am Host steht der Buchstabe in der Bojenzelle – wie abgetippt (sanitizeBuoy), das Disq.-Feld bleibt leer.
+    await bis(() => werte(state.value, s4.starter)[feld] === 'G')
+    expect(werte(state.value, s4.starter)['disq@gate135'] ?? '').toBe('')
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists())
+    await klick(w, '[data-action="zuletzt"]')
+    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('Tor 3 R L: G')
+    await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
+    expect(w.find(boje(feld)).attributes('data-disq')).toBe('G')
+  }, 15_000)
+
+  it('Ansicht „Wie der Parcours liegt“ (Nutzer 21.11.2026, V1/V2): je Tor eine Gruppe, Start oben/unten, Spalten tauschen, gemerkt je Liste; Probe ebenso', async () => {
+    const { w, l, speicher } = uebe('dm-2026', 'gate135')
+    await nextTick()
+    const halte = () => w.findAll('[data-teil="halt"]').map((h) => `${h.attributes('data-halt')}${h.attributes('data-durchfahrt') ?? ''}`)
+    const orte = () => w.findAll('[data-teil="ort-kopf"]').map((h) => h.text())
+    expect(w.find('[data-teil="bojen"]').attributes('data-folge')).toBe('fahrt')
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="bojen-folge"][data-folge="lage"]')
+    expect(w.find('[data-teil="bojen"]').attributes('data-folge')).toBe('lage')
+    expect(w.find('[data-teil="weg-umschalter"]').exists()).toBe(false)
+    expect(orte()[0]).toBe('Start / Ziel')
+    // Spiegeln: Start unten – dieselben Orte umgekehrt.
+    const oben = orte()
+    await klick(w, '[data-action="bojen-start"][data-start-oben="false"]')
+    expect(orte()).toEqual([...oben].reverse())
+    // Tauschen: die linke Boje geht nach rechts (gridColumn).
+    const spalte = () => (w.find('[data-action="boje"][data-feld="t1a|hin seiteA"]').element as HTMLElement).style.gridColumn
+    expect(spalte()).toBe('1')
+    await klick(w, '[data-action="bojen-tauschen"]')
+    expect(spalte()).toBe('2')
+    // Gemerkt je Gerät und Liste (ablage.ts `bojen[liste]`).
+    expect(ansichtIn(speicher).bojen).toEqual({ [l]: { folge: 'lage', startOben: false, tauschen: true } })
+    await klick(w, '[data-action="bojen-start"][data-start-oben="true"]')
+    // Probe (Klasse 7) in derselben Ansicht: Tor 1 einmal mit Hin, Rück und 2. Durchfahrt, Sp. 2 hinter Tor 5,
+    // ohne Umschalter und darum ohne den Rückweg-Schritt.
+    await klick(w, '[data-action="probe"]')
+    expect(w.find('[data-teil="karte"] [data-teil="klasse"]').text()).toBe('Klasse 7')
+    expect(orte()).toEqual(['Start / Ziel', 'Tor 1', 'Tor 3', 'Tor 5', 'Sp. 2'])
+    expect(halte()).toEqual(['start', 'ziel', 't1a', 't1b', 't1c2', 't3a', 't3b', 't5', 't5', 'speed2'])
+    expect(['t1a', 't1b'].map((h) => w.find(`[data-halt="${h}"] [data-teil="halt-titel"]`).text())).toEqual(['Hin', 'Rück'])
+    expect(w.find('[data-halt="start"] [data-teil="halt-titel"]').text()).toBe('Start')
+    expect(w.find('[data-teil="weg-umschalter"]').exists()).toBe(false)
+    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('von 5')
+  })
+
+  it('Bojen-Ansicht: die geänderte Liste rückt ans Ende – bei mehr als 8 fällt die am längsten nicht geänderte (Prüfbefund 21.11.2026)', async () => {
+    const speicher = handy()
+    const q0 = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'gate135', taktMs: 3_600_000, folgeMs: SOFORT })
+    const l = q0.listen.value[0].liste
+    quellen.push(q0)
+    const fahrt = { folge: 'fahrt', startOben: true, tauschen: false }
+    const andere = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`andere${i}`, fahrt]))
+    speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', hand: 'rechts', bojen: { [l]: fahrt, ...andere } }))
+    const { w } = uebe('dm-2026', 'gate135', speicher)
+    await nextTick()
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="bojen-folge"][data-folge="lage"]')
+    expect(Object.keys(ansichtIn(speicher).bojen)).toEqual([...Object.keys(andere), l])
+  })
+
   it('Doppeltipp in der Sperre wirkt nicht (Fake-Uhr, Übung Tor 1/3/5)', async () => {
     vi.useFakeTimers()
     const { q, w } = uebe('dm-2026', 'gate135')
@@ -1455,7 +1568,7 @@ describe('Bojen (W4.2)', () => {
     expect(w.find(`[data-action="boje"][data-feld="${feld}"]`).attributes('data-anzahl')).toBe('1')
   })
 
-  it('Probe: Boje, zurück, Tor 5 zweimal, Rückweg, Abschicken – nichts gesendet (Übung Tor 1/3/5, Klasse 7)', async () => {
+  it('Probe: Boje, zurück, Tor 5 zweimal, Rückweg, Disq. an Boje, Abschicken – nichts gesendet (Übung Tor 1/3/5, Klasse 7)', async () => {
     vi.useFakeTimers()
     const { q, w } = uebe('dm-2026', 'gate135')
     await nextTick()
@@ -1464,7 +1577,7 @@ describe('Bojen (W4.2)', () => {
     const probe = () => w.find('[data-teil="probe"]')
     expect(w.find('[data-teil="karte"] [data-teil="klasse"]').text()).toBe('Klasse 7')
     expect(probe().attributes('data-schritt')).toBe('boje')
-    expect(w.find('[data-teil="probe-schritt"]').text()).toBe('Schritt 1 von 5: Tippe bei „Tor 1“ den Knopf „H R“ an.')
+    expect(w.find('[data-teil="probe-schritt"]').text()).toBe('Schritt 1 von 6: Tippe bei „Tor 1“ den Knopf „H R“ an.')
     await klick(w, boje('t1a|hin seiteA'))
     expect(probe().attributes('data-schritt')).toBe('zurueck')
     await klick(w, '[data-action="zurueck"]')
@@ -1475,8 +1588,16 @@ describe('Bojen (W4.2)', () => {
     await klick(w, boje('t5|hin seiteA'))
     expect(probe().attributes('data-schritt')).toBe('rueckweg')
     await klick(w, '[data-action="weg"][data-weg="rueck"]')
+    // U4 (Nutzer 21.11.2026): Disq. an der Boje – rechter Knopf der ersten zweibojigen Zeile, erster Buchstabe. Mit
+    // Umschalter auf der offenen Seite (Rückweg; Prüfbefund 21.11.2026) – die Anweisung genügt, kein Seitenwechsel.
+    expect(probe().attributes('data-schritt')).toBe('bojeDisq')
+    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('dann bei „Tor 3“ auf „R L“ und wähle „A“')
+    await klick(w, '[data-action="boje-disq-modus"]')
+    await klick(w, boje('t3b|rueck seiteB'))
+    await klick(w, '[data-action="boje-disq-code"][data-code="A"]')
     expect(probe().attributes('data-schritt')).toBe('haupt')
-    expect(haupt(w).text()).toBe('Abschicken · 10 Pkt.')
+    expect(w.find(boje('t3b|rueck seiteB')).attributes('data-disq')).toBe('A')
+    expect(haupt(w).text()).toBe('Abschicken · 10 Pkt. · Disq. A')
     await klick(w, '[data-action="haupt"]')
     await vi.advanceTimersByTimeAsync(BIS_WECHSEL + WKR_ANNAHMEN.sperreMs)
     await nextTick()

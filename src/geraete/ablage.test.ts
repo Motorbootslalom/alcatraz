@@ -543,6 +543,22 @@ describe('Ansicht und Probe der WKR-Maske (W3.1)', () => {
     expect(schreibeAnsicht({ modus: 'hell' }, vollerSpeicher)).toBe(false)
   })
 
+  it('Bojen-Ansicht je Liste (Nutzer 21.11.2026, V1/V2): nur vollständige, bekannte Werte; höchstens 8 Listen; bleibt nach „Raum verlassen“', () => {
+    const lage = { folge: 'lage', startOben: false, tauschen: true } as const
+    schreibeAnsicht({ bojen: { L1: lage, L2: { folge: 'fahrt', startOben: true, tauschen: false } } }, localStorage)
+    expect(liesAnsicht(localStorage).bojen).toEqual({ L1: lage, L2: { folge: 'fahrt', startOben: true, tauschen: false } })
+    verlasseRaum(localStorage)
+    expect(liesAnsicht(localStorage).bojen?.L1).toEqual(lage)
+    // Kaputtes fällt je Liste weg; ganz leer = kein Feld.
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bojen: { L1: { folge: 'quer', startOben: true, tauschen: false }, L2: { folge: 'lage' }, L3: lage } }))
+    expect(liesAnsicht(localStorage).bojen).toEqual({ L3: lage })
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bojen: [lage] }))
+    expect(liesAnsicht(localStorage).bojen).toBeUndefined()
+    const viele = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`L${i}`, lage]))
+    schreibeAnsicht({ bojen: viele }, localStorage)
+    expect(Object.keys(liesAnsicht(localStorage).bojen ?? {})).toEqual(['L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11'])
+  })
+
   it('Probe je Raum und Liste (G10): anderer Raum = neue Probe; pruefeRaum und verlasseRaum räumen sie', () => {
     expect(probeErledigt(BEZUG, 'L1', localStorage)).toBe(false)
     merkeProbe(BEZUG, 'L1', localStorage)

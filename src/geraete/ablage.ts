@@ -481,6 +481,32 @@ export interface GeraetAnsicht {
   sprache?: 'de' | 'en'
   /** Zuletzt beim Abschluss eingegebener WKR-Name (G12), vorbelegt beim nächsten Abschluss. */
   name?: string
+  /**
+   * Bojen-Maske je Liste (Nutzer 21.11.2026, WKR_ANNAHMEN.bojenNachLage/bojenSpiegeln): Reihenfolge und Spiegeln –
+   * eine Vorliebe am Standort des WKR, also je Liste (Kennung). Fehlt = Fahrtfolge, Start oben, nicht getauscht.
+   */
+  bojen?: Record<string, BojenAnsicht>
+}
+
+/** Ansicht der Bojen-Maske einer Liste: Fahrtfolge oder wie der Parcours liegt, Start oben/unten, Spalten getauscht. */
+export interface BojenAnsicht {
+  folge: 'fahrt' | 'lage'
+  startOben: boolean
+  tauschen: boolean
+}
+
+export const BOJEN_ANSICHT_VORGABE: Readonly<BojenAnsicht> = { folge: 'fahrt', startOben: true, tauschen: false }
+/**
+ * Höchstens so viele Listen merken – ein Gerät hat höchstens zwei zugleich (F15), alte fallen vorn heraus. „Alt“ =
+ * am längsten nicht geändert: WkrMaske setzt eine geänderte Liste ans Ende (Prüfbefund 21.11.2026).
+ */
+const BOJEN_ANSICHT_MAX = 8
+
+function bojenAnsichtAus(wert: unknown): BojenAnsicht | null {
+  if (!istObjekt(wert)) return null
+  if (wert.folge !== 'fahrt' && wert.folge !== 'lage') return null
+  if (typeof wert.startOben !== 'boolean' || typeof wert.tauschen !== 'boolean') return null
+  return { folge: wert.folge, startOben: wert.startOben, tauschen: wert.tauschen }
 }
 
 const ANSICHT_VORGABE: GeraetAnsicht = { modus: 'sonne', hand: 'rechts' }
@@ -499,6 +525,14 @@ function ansichtAus(wert: unknown): GeraetAnsicht {
   if (wert.hand === 'links' || wert.hand === 'rechts') out.hand = wert.hand
   if (wert.sprache === 'de' || wert.sprache === 'en') out.sprache = wert.sprache
   if (typeof wert.name === 'string' && wert.name.trim() !== '' && wert.name.length <= NAME_MAX) out.name = wert.name
+  if (istObjekt(wert.bojen)) {
+    const bojen: Record<string, BojenAnsicht> = {}
+    for (const [liste, b] of Object.entries(wert.bojen).slice(-BOJEN_ANSICHT_MAX)) {
+      const gut = liste.length <= 200 ? bojenAnsichtAus(b) : null
+      if (gut) bojen[liste] = gut
+    }
+    if (Object.keys(bojen).length > 0) out.bojen = bojen
+  }
   return out
 }
 

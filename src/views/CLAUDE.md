@@ -94,5 +94,6 @@ Je Thema eine Datei `src/views/<Thema>.test.ts` (mount() mit eigenem Store, meis
 Seitenzahlen, Doppelseitig, SettingsView (auch Anzeigetafel, Startfolge, Startabstände, Geräte), Betrieb (Start-Freigabe,
 E2-Steuerung, E3-Startliste mit falscher Uhr und Ziehen), BetriebGeraete (E6, echter Host gegen nachgebauten ntfy), BetriebWkr (W2.2, Host-Doppel; W2.4 Start-Freigabe: Leiste, warnen, nachfragen, nie gesperrt, Klick → WKR; N8–N10: ab 1 offen fragen, ✓/⧗/✕/▭), Listenoptionen, ErfassungView, ErfassungScan, ErfassungWkr (W2.3: ◆, „Papier
 ansehen“, Rückfrage, Nachfrage beim Überschreiben; Host-Doppel), Dolphin,
-UimAushang (englisch), WkrAufbau (Ladebalken, schrittweise; Druck erst danach). Zuschauerliste: src/ZuschauerApp.test.ts.
+UimAushang (englisch), WkrAufbau (Ladebalken, schrittweise; Druck erst danach), WkrDruck (Druck nach Modus: „Gerät“
+fehlt, Hinweis, „Trotzdem drucken“, Laufzettel ohne Kästchen; 21.11.2026). Zuschauerliste: src/ZuschauerApp.test.ts.
 Gezielt: `npx vitest run src/views/Laufzettel`; alle Ansichten: `npx vitest run src/views` (dauert länger).

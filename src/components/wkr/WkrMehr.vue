@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { Locale } from '../../i18n'
-import type { AnsichtModus, GeraetAnsicht } from '../../geraete/ablage'
+import type { AnsichtModus, BojenAnsicht, GeraetAnsicht } from '../../geraete/ablage'
 import AppDialog from '../AppDialog.vue'
 import { useWkrText } from './texte'
 
@@ -14,6 +14,10 @@ import { useWkrText } from './texte'
  * W4.3 (21.11.2026, P16/R6): „Nicht vorbeigekommen“ für den gezeigten Start (`nichtVorbei` = Startnummer, sonst nicht
  * angeboten) – erst nach einer großen Rückfrage („23 ist hier nicht vorbeigekommen? Es wird nichts eingetragen.“),
  * weil die Zeile den Start ohne Werte abhakt.
+ *
+ * Nutzer 21.11.2026 (WKR_ANNAHMEN V1/V2): Auf Bojen-Listen (`bojenAnsicht` ≠ null) steht unter „Ansicht“ die
+ * Reihenfolge „Fahrtfolge“ / „Wie der Parcours liegt“, in der Lage-Ansicht „Start oben“ / „Start unten“, dazu „Bojen
+ * links/rechts tauschen“ – Ereignis `bojenAnsicht`, gemerkt je Liste in WkrGeraet.
  *
  * Diese Komponente schreibt nichts selbst ab: Ansicht und Sprache gehen als `ansicht` hinauf bis WkrGeraet, das sie
  * gerätelokal merkt (ablage.ts `alcatraz.geraet.ansicht`).
@@ -38,8 +42,10 @@ const props = withDefaults(
     uebung: boolean
     /** Startnummer des gezeigten Starts, wenn er „nicht vorbeigekommen“ melden darf (nicht Vorsteg/Ablegen, nicht Korrektur). */
     nichtVorbei?: string | null
+    /** Nur Bojen-Listen: Reihenfolge und Spiegeln dieser Liste (V1/V2); `null` = keine Bojen-Maske. */
+    bojenAnsicht?: BojenAnsicht | null
   }>(),
-  { mitStatus: true, nichtVorbei: null },
+  { mitStatus: true, nichtVorbei: null, bojenAnsicht: null },
 )
 const emit = defineEmits<{
   bemerkung: [text: string]
@@ -51,6 +57,7 @@ const emit = defineEmits<{
   ansicht: [aenderung: Partial<GeraetAnsicht>]
   uebungEnde: []
   nichtVorbei: []
+  bojenAnsicht: [ansicht: BojenAnsicht]
 }>()
 const { w } = useWkrText()
 
@@ -68,6 +75,10 @@ const SPRACHEN: ('de' | 'en')[] = ['de', 'en']
 /** Die Sprache der Liste heißt „keine eigene Wahl“ – dann folgt das Gerät der Liste, auch wenn sie wechselt. */
 function waehleSprache(s: 'de' | 'en'): void {
   emit('ansicht', { sprache: s === props.listenSprache ? undefined : s })
+}
+const FOLGEN: BojenAnsicht['folge'][] = ['fahrt', 'lage']
+function aendereBojen(aenderung: Partial<BojenAnsicht>): void {
+  if (props.bojenAnsicht) emit('bojenAnsicht', { ...props.bojenAnsicht, ...aenderung })
 }
 function tue(f: () => void): void {
   offen.value = false
@@ -120,6 +131,49 @@ function tue(f: () => void): void {
         >
           {{ w('wkr.geraet.ansicht.links') }}
         </button>
+        <div v-if="bojenAnsicht" class="wkr-mehr-bojen" data-teil="bojen-ansicht">
+          <p class="wkr-mehr-untertitel">{{ w('wkr.geraet.bojen.ansicht') }}</p>
+          <div class="wkr-reihe">
+            <button
+              v-for="f in FOLGEN"
+              :key="f"
+              type="button"
+              class="wkr-knopf"
+              data-ziel="klein"
+              data-action="bojen-folge"
+              :data-folge="f"
+              :aria-pressed="bojenAnsicht.folge === f"
+              @click="aendereBojen({ folge: f })"
+            >
+              {{ w(`wkr.geraet.bojen.ansicht.${f}`) }}
+            </button>
+          </div>
+          <div v-if="bojenAnsicht.folge === 'lage'" class="wkr-reihe">
+            <button
+              v-for="oben in [true, false]"
+              :key="String(oben)"
+              type="button"
+              class="wkr-knopf"
+              data-ziel="klein"
+              data-action="bojen-start"
+              :data-start-oben="oben"
+              :aria-pressed="bojenAnsicht.startOben === oben"
+              @click="aendereBojen({ startOben: oben })"
+            >
+              {{ w(oben ? 'wkr.geraet.bojen.ansicht.startOben' : 'wkr.geraet.bojen.ansicht.startUnten') }}
+            </button>
+          </div>
+          <button
+            type="button"
+            class="wkr-knopf"
+            data-ziel="klein"
+            data-action="bojen-tauschen"
+            :aria-pressed="bojenAnsicht.tauschen"
+            @click="aendereBojen({ tauschen: !bojenAnsicht.tauschen })"
+          >
+            {{ w('wkr.geraet.bojen.ansicht.tauschen') }}
+          </button>
+        </div>
       </fieldset>
 
       <fieldset class="wkr-feldgruppe" data-teil="sprache">

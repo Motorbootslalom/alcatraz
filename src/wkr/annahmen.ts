@@ -380,7 +380,8 @@ export const WKR_ANNAHMEN = {
   /**
    * (G13) Übung ohne Netz: erfundene Starts 1–20 ohne Namen in den Klassen des Regelwerks, Quittung nach
    * `uebungQuittungMs`, eine Beispiel-Rückfrage beim `uebungRueckfrageBei`. Start; erreichbar ohne Kopplung; nichts außer
-   * der Ansicht wird abgelegt. Alle `uebungTaktSek` rückt ein neuer Start nach (wie vom Steg gezeigt).
+   * der Ansicht wird abgelegt. `uebungTaktSek` ist seit 21.11.2026 nur noch der Rückfall, wenn der WKR so lange
+   * nichts tut (Y1–Y3 unten); sonst kommt der nächste Start 2–6 s nach dem Abschicken.
    */
   uebungQuittungMs: 300,
   uebungRueckfrageBei: 5,
@@ -724,10 +725,61 @@ export const WKR_ANNAHMEN = {
    */
   bojenZeilenEineSeite: 7,
   /**
-   * (P9) Disq. auf Bojen-Listen immer ins Disq.-Feld der Liste (jede hat eines); kein „an welcher Boje?“, das Gerät
-   * schreibt nie Buchstaben in Bojenzellen. 21.11.2026, noch zu bestätigen.
+   * (P9, ersetzt durch U1 am 21.11.2026) Bis dahin: Disq. auf Bojen-Listen immer ins Disq.-Feld der Liste, kein „an
+   * welcher Boje?“. Der Nutzer fragte am 21.11.2026 („Was ist der Stand mit den Disq. und der Zuordnung an die Boje?
+   * Aktuell kann ich das noch nicht eingeben.“) – seitdem gilt {@link WKR_ANNAHMEN.disqAnBoje}. Disq. ohne Boje
+   * gehen weiter über den DISQ-Knopf ins Disq.-Feld.
    */
-  disqNieInBoje: true,
+  disqNieInBoje: false,
+  /**
+   * (U1, Nutzer 21.11.2026) Disq. an der Boje wie auf dem Papier: Die Bojenzelle nimmt Punkte ODER einen erlaubten
+   * Disq.-Buchstaben (lib/disq.ts sanitizeBuoy) – genau das schickt das Gerät. Bedienung: „Disq. an Boje“ (Knopf über
+   * den Bojen) → Boje antippen → Liste der Buchstaben DIESER Zelle (alle, die die Zelle annimmt, wie beim Abtippen –
+   * keine engere Auswahl nach Bedeutung) → die Boje zeigt den Buchstaben statt 5/0. Im Disq.-Modus nimmt ein Tipp auf
+   * eine Boje mit Buchstaben ihn wieder heraus. Nach dem Setzen verlässt die Maske den Disq.-Modus (ein Disq. je
+   * Gang, kein zweiter aus Versehen). 21.11.2026, noch zu bestätigen.
+   */
+  disqAnBoje: true,
+  /**
+   * (U2) Ein Buchstabe ersetzt die Berührungen DIESER Boje (die Zelle hält nur eins, sanitizeBuoy nähme sonst den
+   * Buchstaben und verwürfe die Punkte still): Setzen löscht ihre Berührungen samt Merkern, Herausnehmen stellt sie
+   * nicht wieder her. Ohne Disq.-Modus nimmt eine Boje mit Buchstaben keinen Tipp an (kein stilles Überschreiben).
+   * „− letzte zurück“ nimmt einen Buchstaben wie jeden Tipp zurück. 21.11.2026, noch zu bestätigen.
+   */
+  disqBojeErsetztPunkte: true,
+  /**
+   * (U3) Langes Drücken auf eine Boje als zweiter Weg (Handschuhe) ist NICHT gebaut – Frage an den Nutzer: Lange
+   * Tipps sind mit Handschuhen schwer abzugrenzen und kollidierten mit dem Prellschutz (S1); der Knopf „Disq. an Boje“
+   * ist sichtbar und übt sich in der Probe. 21.11.2026, noch zu bestätigen.
+   */
+  disqBojeOhneLangdruck: true,
+  /**
+   * (U4) Die Probe hat auf Bojen-Listen einen Schritt „Disq. an Boje“ (vor dem Hauptknopf): an der ersten Boje mit
+   * Buchstaben im RECHTEN Knopf der ersten zweibojigen Zeile (bzw. der ersten Boje), mit ihrem ersten Buchstaben – der
+   * Hauptknopf heißt danach „Abschicken“. Mit Umschalter (Fahrtfolge) liegt die Boje auf der gerade offenen Seite:
+   * nach dem Rückweg-Schritt auf dem Rückweg, ohne Buchstaben dort kommt der Schritt vor den Rückweg-Schritt
+   * (Prüfbefund 21.11.2026 – sonst stand die genannte Boje nicht auf dem Bildschirm). 21.11.2026, noch zu bestätigen.
+   */
+  probeDisqAnBoje: true,
+  /**
+   * (V1, Nutzer 21.11.2026: „Die Reihenfolge der Tore soll der WKR bitte auch wechseln können … von oben nach unten so
+   * durchgehe, wie die Boote fahren, jedoch ist das nicht so, wie der Parcours liegt.“) Mehr → Ansicht: „Fahrtfolge“
+   * (Vorgabe, P6) oder „Wie der Parcours liegt“ – je Ort im Parcours EINE Gruppe (Tor 1 mit Hin, Rück und 2.
+   * Durchfahrt; Start und Ziel zusammen; Einfahrt Tor 5 bei Tor 5; MüB an der Schikane zwischen Start und Tor 1;
+   * Sp. 1 und Sp. 2 zusammen hinter Tor 5), Gruppen nach der Lage längs der Strecke (wkr/bojen.ts BOJEN_LAGE, belegt
+   * an den x-Koordinaten der Parcours-Bilder, bojen.test.ts). In der Gruppe die Zeilen in Fahrtfolge. Gemerkt je
+   * Gerät und Liste (ablage.ts `alcatraz.geraet.ansicht` → `bojen[liste]`, wie Hand und Modus). 21.11.2026, noch zu
+   * bestätigen.
+   */
+  bojenNachLage: true,
+  /**
+   * (V2) Spiegeln: „Start oben“ (Vorgabe) bzw. „Start unten“ dreht die Folge der Gruppen um (Blick von Start bzw. vom
+   * Wendepunkt her, der WKR steht links bzw. rechts der Strecke), nur in der Lage-Ansicht; „Bojen links/rechts
+   * tauschen“ tauscht die zwei Knopfspalten in BEIDEN Ansichten (falls der Bogen-Blick nicht zum Standort passt). Der
+   * Umschalter Hinweg/Rückweg fällt in der Lage-Ansicht weg (ein Tor steht nur einmal da, die Seite scrollt).
+   * Dieselbe Lagequelle nimmt später das Bild-Layout von W5. 21.11.2026, noch zu bestätigen.
+   */
+  bojenSpiegeln: true,
   /**
    * (P10) Klassenwechsel: Hat der Start andere Halte als der zuvor gezeigte, liegt so lange ein Band „Klasse n –
    * andere Halte“ über der Mitte, ohne Knöpfe zu verschieben und ohne einen Tipp zu nehmen. 21.11.2026, noch zu
@@ -1001,4 +1053,71 @@ export const WKR_ANNAHMEN = {
    * 21.11.2026, noch zu bestätigen.
    */
   padSpalteBisW5: true,
+  // --- Druck nach Modus (Nutzer 21.11.2026: „Warum werden Listen gedruckt, wenn ich beim Betrieb nur Gerät
+  // ausgewählt habe und nicht beides? Das müsste bitte noch gefiltert werden.“; wkr/druck.ts) ---
+  /**
+   * (Z1) Unter Listen → WKR-Bögen und Laufzettel entfallen die Bögen einer Liste mit Modus `digital`; `papier`,
+   * `beides` und eine Liste ohne Eintrag (= Papier) werden gedruckt wie bisher. Sie stehen dann auch nicht am Bildschirm
+   * (Bildschirmansicht = Druckansicht), ein Hinweis über dem Stapel nennt sie. 21.11.2026, noch zu bestätigen.
+   */
+  druckOhneDigital: true,
+  /**
+   * (Z2) Eine digitale Liste, die gerade pausiert oder abgemeldet ist (ganz oder ein Steg-Teil), wird gedruckt: Dann
+   * übernimmt der Papierbogen (F1). Der Druck folgt dem Stand beim Drucken, nicht dem späteren. 21.11.2026, noch zu
+   * bestätigen.
+   */
+  druckBeiPause: true,
+  /**
+   * (Z3) Steg digital, aber nur ein Teil auf einem Gerät (Register am Bedienrechner: nur Teil-Geräte eines Teils, z. B.
+   * „nur Ablegen“) → der Bogen wird gedruckt, das Anlegen schreibt auf Papier. Der Bogen ist einer für beide Teile –
+   * eine halbe Liste gibt es nicht. Ohne gekoppeltes Gerät zählt der Modus allein (der Bediener hat „digital“ gewählt,
+   * B2). Der Druck liest das Register nur am Bedienrechner (nie im Stand). 21.11.2026, noch zu bestätigen.
+   */
+  druckStegJeTeil: true,
+  /**
+   * (Z4) Rückfall: Schalter „Trotzdem drucken“ über dem Stapel (Bedienauswahl, lib/merken.ts `listen.wkr.digitalDrucken`,
+   * übersteht Neuladen, nie im Stand) druckt auch die nur digitalen – für Ausfall von Netz oder Geräten. Er gilt für
+   * Bögen UND Laufzettel. 21.11.2026, noch zu bestätigen.
+   */
+  druckRueckfall: true,
+  /**
+   * (Z5) Laufzettel: ohne die Bögen, die nicht gedruckt werden (kein Kästchen für ein Blatt, das es nicht gibt). Ein
+   * Stapel, dessen Bögen alle nur digital sind, hat keinen Zettel. 21.11.2026, noch zu bestätigen.
+   */
+  druckLaufzettel: true,
+  /**
+   * (Z6) Listen ohne Liste der WKR-Erfassung (Knoten bis W5, Positionen außerhalb des Regelwerks) werden immer
+   * gedruckt (wkr/liste.ts listeVonBogen → null). Die Druckdatei enthält keine WKR-Bögen – dort ändert sich nichts.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  druckOhneListeImmer: true,
+  /**
+   * (Z7) Parallelslalom: dieselbe Regel je Liste und Racecourse (Bereich `parallel`); die Runde gilt nach dem Drucken
+   * nur als gebunden, wenn von ihr etwas gedruckt wurde (views/ListsView.vue gedruckteRunden). 21.11.2026, noch zu
+   * bestätigen.
+   */
+  druckParallelJeRacecourse: true,
+  // --- Übungstakt (Nutzer 21.11.2026: „dass der nächste Starter immer erst so 2–6 Sekunden später kommt, nachdem man
+  // was geschickt hat. Dann hin und wieder auch mal vorher, wie jetzt auch.“ Y1–Y3, alle noch zu bestätigen) --------
+  /**
+   * (Y1) Übung (geraete/uebung.ts): Hat der WKR nach dem Abschicken (auch „Fehlerfrei“, „nicht vorbeigekommen“) keinen
+   * gezeigten Start seines Teils mehr vor sich, kommt der nächste nach zufällig 2–6 s (UEBUNG_FOLGE_MS, gleichverteilt,
+   * Saat je Übung). „Als Nächstes“ vorab (Vorsteg, Steg-Ablegen) zählt nicht als „vor sich“ – das sieht er immer.
+   * Die Übung beginnt mit EINEM gezeigten Start (früher zwei). Korrekturen, Rückfragen und Quittungen bleiben wie
+   * bisher (Nutzer: „sehr cool“). 21.11.2026, noch zu bestätigen.
+   */
+  uebungFolgeNachSenden: true,
+  /**
+   * (Y2) „Hin und wieder vorher“: Jeder 4.–6. gezeigte Start (UEBUNG_FRUEH_JEDER, neu gezogen nach jedem) zieht nach
+   * 2–6 s einen weiteren nach sich, ohne aufs Abschicken zu warten – dann stehen zwei an. Nie zwei geplant zugleich;
+   * „Rückgängig“ vor der Quittung nimmt den geplanten nächsten zurück. 21.11.2026, noch zu bestätigen.
+   */
+  uebungFruehHinUndWieder: true,
+  /**
+   * (Y3) Der 30-s-Takt (uebungTaktSek) läuft nur noch, wenn der WKR so lange nichts schickt oder korrigiert (Uhr
+   * beginnt mit jeder Eingabe und jedem gezeigten Start neu). Pausiert/abgemeldet zeigt nichts; „Weiter“ holt den
+   * nächsten nach 2–6 s. Am Steg-Anlegen zeigt die Übung so viele, bis einer anlegen kann (der zuletzt gezeigte ist
+   * noch im Boot, T1/T2). 21.11.2026, noch zu bestätigen.
+   */
+  uebungTaktNurRueckfall: true,
 } as const

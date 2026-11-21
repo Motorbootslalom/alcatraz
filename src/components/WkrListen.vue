@@ -5,7 +5,7 @@ import { useStore } from '../state/store'
 import { useAuswahlKonfig, useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { useBogenZoom } from '../lib/bogenZoom'
-import { waehleBoegen, wkrBoegenZumStand, type WkrAuswahl } from '../lib/wkrListen'
+import { waehleBoegen, wkrBoegenZumStand, type WkrAuswahl, type WkrBogen } from '../lib/wkrListen'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
 import type { ClassId } from '../types'
@@ -14,6 +14,8 @@ import ParcoursNachweis from './ParcoursNachweis.vue'
 import { veranstaltungsListen } from '../lib/listen'
 import { useSchrittweise } from '../lib/aufbau'
 import AufbauBalken from './AufbauBalken.vue'
+import WkrDigitalHinweis from './WkrDigitalHinweis.vue'
+import { useWkrDruck } from './wkrDruck'
 
 /**
  * Die Wettkampfrichter-Listen der Veranstaltung unter „Listen“: je Parcours, Klasse, Lauf
@@ -78,7 +80,17 @@ const auswahl = computed<WkrAuswahl>(() => ({
   lauf: wahl.value.lauf !== undefined && laeufe.value.includes(wahl.value.lauf) ? wahl.value.lauf : undefined,
   liste: listenArten.value.some((l) => l.typeId === wahl.value.liste) ? wahl.value.liste : undefined,
 }))
-const boegen = computed(() => (props.gesperrt ? [] : waehleBoegen(alle.value, auswahl.value)))
+// Druck nach Modus (Nutzer 21.11.2026, WKR_ANNAHMEN Z1–Z4): Bögen einer Liste, die nur auf dem Gerät erfasst wird,
+// stehen weder am Bildschirm noch im Druck – außer mit „Trotzdem drucken“. Die übrigen teilen und zählen sich wie
+// zuvor selbst (jeder Bogen für sich).
+const druck = useWkrDruck()
+const geteilt = computed(() => druck.teile(props.gesperrt ? [] : waehleBoegen(alle.value, auswahl.value)))
+const boegen = computed(() => geteilt.value.gedruckt)
+const digitalListen = computed(() => {
+  const mehrere = state.value.parcoursList.length > 1
+  const name = (b: WkrBogen) => listenArten.value.find((l) => l.typeId === b.typeId)?.titel ?? b.titel
+  return [...new Set(geteilt.value.digital.map((b) => (mehrere ? `${name(b)} (${b.parcoursName})` : name(b))))]
+})
 
 function setze<K extends keyof WkrAuswahl>(feld: K, e: Event) {
   const wert = (e.target as HTMLSelectElement).value
@@ -168,7 +180,8 @@ const { zoom } = useBogenZoom(stapel)
     </p>
   </div>
 
-  <div v-if="!gesperrt && alle.length > 0 && boegen.length === 0" class="panel empty no-print">{{ t('lists.wkr.noSheets') }}</div>
+  <WkrDigitalHinweis v-if="!gesperrt" v-model:trotzdem="druck.trotzdem.value" :anzahl="geteilt.digital.length" :listen="digitalListen" />
+  <div v-if="!gesperrt && alle.length > 0 && boegen.length === 0 && geteilt.digital.length === 0" class="panel empty no-print">{{ t('lists.wkr.noSheets') }}</div>
 
   <AufbauBalken v-if="!aufbau.fertig.value || aufbau.zeigen.value" :fertig="aufbau.fertigAnzahl.value" :gesamt="aufbau.gesamt.value" :zeigen="aufbau.zeigen.value" :zeile="aufbauZeile" :ohne-druckhinweis="druckGesperrt || aufbau.fertig.value" />
   <!-- Immer da, auch leer: Der Stapel misst seine Breite ab dem Einhängen (lib/bogenZoom.ts). Solange

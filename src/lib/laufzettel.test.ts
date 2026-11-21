@@ -24,12 +24,16 @@ const zettelVon = (s: AppState, seitenVon: (b: WkrBogen) => number = () => 1) =>
 }
 
 describe('Laufzettel', () => {
-  it('je Parcours, Klasse und Lauf ein Zettel – in der Druckreihenfolge der Bögen', () => {
+  it('je Parcours, Klasse und Lauf ein Zettel – Klassen in der Folge der Verzahnung, darin die Läufe', () => {
     const { boegen, zettel } = zettelVon(stand())
     expect(zettel).toHaveLength(8 * 3)
     expect(new Set(zettel.map((z) => z.id)).size).toBe(zettel.length)
-    // Erst Parcours, dann die Klassen so, wie sie laut Verzahnung zuerst starten, dann der Lauf.
-    const folge = boegen.map((b) => `${b.parcoursId}|${b.klassen[0]}|${b.lauf}`).filter((x, i, a) => a.indexOf(x) === i)
+    // Erst Parcours, dann die Klassen so, wie sie laut Verzahnung zuerst starten, dann der Lauf. Die Bögen liegen seit
+    // 21.11.2026 nach Position (lib/wkrListen.ts WKR_DRUCKFOLGE); der Zettel bleibt beim Stapel, der zur Auswertung geht.
+    const parcours = [...new Set(boegen.map((b) => b.parcoursId))]
+    const folge = parcours.flatMap((p) =>
+      [...new Set(boegen.filter((b) => b.parcoursId === p).map((b) => b.klassen[0]))].flatMap((k) => [1, 2, 3].map((lauf) => `${p}|${k}|${lauf}`)),
+    )
     expect(zettel.map((z) => z.id)).toEqual(folge)
     expect(zettel[0]).toMatchObject({ parcoursId: 'par_1', parcoursName: 'Parcours 1', lauf: 1 })
     expect(zettel.at(-1)).toMatchObject({ parcoursId: 'par_2', lauf: 3 })

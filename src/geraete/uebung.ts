@@ -4,6 +4,8 @@ import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import { maskeFuer } from '../wkr/maske'
 import type { ListenSicht, ListenStart } from '../wkr/sicht'
 import { teileVon, type ListenTeil } from '../wkr/liste'
+import { zufallAus } from '../lib/beispielwerte'
+import { neueSaat } from '../lib/saat'
 import { uebungsSchritt, uebungsSicht, uebungsStand, type UebungsStand } from '../wkr/uebung'
 import type { ListenAufgabe } from './aufgaben'
 import type {
@@ -23,8 +25,23 @@ import type {
  * echte Erfassung ({@link ErfassungsQuelle}), aber **ohne Transport, ohne Ablage, ohne Store** – kein WebSocket, kein
  * fetch, nichts im localStorage (die Ansicht legt die Oberfläche selbst ab). Die Sicht kommt aus wkr/uebung.ts
  * (erfundene Starts ohne Namen); jede Zeile bekommt nach WKR_ANNAHMEN.uebungQuittungMs ihre Quittung, die Zeile zum
- * `uebungRueckfrageBei`. Start einmal eine Beispiel-Rückfrage; alle `uebungTaktSek` rückt ein Start nach.
+ * `uebungRueckfrageBei`. Start einmal eine Beispiel-Rückfrage.
+ *
+ * Übungstakt (Nutzer 21.11.2026: „dass der nächste Starter immer erst so 2–6 Sekunden später kommt, nachdem man was
+ * geschickt hat. Dann hin und wieder auch mal vorher“; WKR_ANNAHMEN.uebungFolgeNachSenden Y1–Y3): Ist die eigene
+ * Schlange nach dem Abschicken leer, kommt der nächste Start nach zufällig {@link UEBUNG_FOLGE_MS}. Jeder
+ * {@link UEBUNG_FRUEH_JEDER}. gezeigte Start zieht einen weiteren nach sich, der ebenso nach 2–6 s kommt – auch wenn der
+ * WKR noch nichts geschickt hat (dann stehen zwei an, wie früher). `uebungTaktSek` ist nur noch der Rückfall, wenn
+ * der WKR so lange nichts tut. Zufall aus einer Saat je Übung (Tests: `saat`).
  */
+
+/** Wartezeit vom Abschicken bis zum nächsten Start, zufällig gleichverteilt in [von, bis] ms (Nutzer 21.11.2026). */
+export const UEBUNG_FOLGE_MS = [2000, 6000] as const
+/**
+ * Jeder wievielte gezeigte Start schon „vorher“ einen weiteren nach sich zieht – zufällig neu gezogen in [von, bis]
+ * nach jedem frühen (Nutzer: „hin und wieder“; der 4.–6. ist häufig genug zum Üben der Schlange, aber nicht die Regel).
+ */
+export const UEBUNG_FRUEH_JEDER = [4, 6] as const
 
 export interface UebungsOptionen {
   regelwerk: string
@@ -35,8 +52,12 @@ export interface UebungsOptionen {
   sprache?: Sprache
   /** Uhr (Tests); Vorgabe Date.now. */
   uhr?: () => number
-  /** Takt für neue Starts in ms (Vorgabe WKR_ANNAHMEN.uebungTaktSek). */
+  /** Rückfall-Takt in ms, wenn der WKR so lange nichts tut (Vorgabe WKR_ANNAHMEN.uebungTaktSek). */
   taktMs?: number
+  /** Saat des Zufalls (Wartezeiten, früher Start); Vorgabe neu je Übung. */
+  saat?: number
+  /** Wartezeit bis zum nächsten Start in ms, [von, bis] (Vorgabe {@link UEBUNG_FOLGE_MS}; Tests: [0, 0]). */
+  folgeMs?: readonly [number, number]
 }
 
 interface UebZeile {
@@ -59,7 +80,8 @@ interface UebZeile {
 export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   const uhr = o.uhr ?? Date.now
   const teil = o.teil && teileVon(o.typeId) ? o.teil : undefined
-  let stand = uebungsStand(o.regelwerk, o.typeId, o.sprache)
+  // Ohne gezeigte Starts beginnen: Die Übung zeigt gleich selbst, bis die eigene Schlange einen hat (zeige()).
+  let stand = uebungsStand(o.regelwerk, o.typeId, o.sprache, 0)
   const kennung = uebungsSicht(stand).liste
   const aufgabe: ListenAufgabe = { art: 'liste', liste: kennung, ...(teil ? { teil } : {}) }
   const sichten = shallowRef<Readonly<Record<string, ListenSicht | null>>>({ [kennung]: uebungsSicht(stand) })
@@ -89,13 +111,77 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   const geaendert = () => rev.value++
 
   const scope = effectScope(true)
-  const takt = setInterval(() => {
-    if (gestoppt || sicht().status !== 'aktiv') return
-    setzeStand(uebungsSchritt(stand, null))
-  }, o.taktMs ?? WKR_ANNAHMEN.uebungTaktSek * 1000)
 
   const eigen = (liste: string) => liste === kennung
   const startVon = (s: string): ListenStart | undefined => [...sicht().schlange, ...sicht().danach].find((x) => x.key === s)
+  // Gerät für den ganzen Steg (WKR_ANNAHMEN.stegGanzAblegenZuerst, T3): Anlegen erst, wenn das Ablegen geschickt ist.
+  const passt = (s: ListenStart, t: ListenTeil | undefined) =>
+    t ? !s.teile?.[t] && !(t === 'an' && !teil && WKR_ANNAHMEN.stegGanzAblegenZuerst && !s.teile?.ab) : !(s.teile?.ab && s.teile?.an)
+
+  // --- Übungstakt (Nutzer 21.11.2026, Y1–Y3) ---
+  const zufall = zufallAus(o.saat ?? neueSaat())
+  const zwischen = (von: number, bis: number) => von + Math.floor(zufall() * (bis - von + 1))
+  const folge = o.folgeMs ?? UEBUNG_FOLGE_MS
+  const wartezeit = () => zwischen(folge[0], folge[1])
+  const ziehFrueh = () => zwischen(UEBUNG_FRUEH_JEDER[0], UEBUNG_FRUEH_JEDER[1])
+  let fruehBei = ziehFrueh()
+  let gezeigt = 0
+  /** Der eine geplante nächste Start (nach dem Abschicken oder „vorher“) – nie zwei zugleich. */
+  let kommt: ReturnType<typeof setTimeout> | null = null
+  let ruhe: ReturnType<typeof setTimeout> | null = null
+  const aktiv = () => !gestoppt && sicht().status === 'aktiv'
+  /**
+   * Was der WKR gerade vor sich hat: gezeigte Starts seines Teils (ohne „Als Nächstes“ vorab – die sieht der Vorsteg
+   * bzw. das Ablegen immer, sie sind nicht „der nächste Starter“).
+   */
+  const vorIhm = () => sicht().schlange.filter((s) => !s.vorab && !s.entfaellt && passt(s, teil)).length
+
+  function plane(ms: number) {
+    if (kommt !== null || gestoppt) return
+    kommt = setTimeout(() => {
+      kommt = null
+      zeige()
+    }, ms)
+  }
+  function stoppeKommt() {
+    if (kommt !== null) clearTimeout(kommt)
+    kommt = null
+  }
+  /** Rückfall: Tut der WKR `taktMs` lang nichts, kommt trotzdem ein Start (wie früher der feste Takt). */
+  function weckeRuhe() {
+    if (ruhe !== null) clearTimeout(ruhe)
+    ruhe = gestoppt
+      ? null
+      : setTimeout(() => {
+          ruhe = null
+          zeige()
+        }, o.taktMs ?? WKR_ANNAHMEN.uebungTaktSek * 1000)
+  }
+  /**
+   * Zeigt den nächsten Start – am Steg-Anlegen so viele, bis einer anlegen kann (der zuletzt gezeigte ist noch im
+   * Boot, T1/T2). Pausiert/abgemeldet zeigt nichts; „Weiter“ holt es nach. Jeder `fruehBei`. zieht einen weiteren nach.
+   */
+  function zeige() {
+    weckeRuhe()
+    if (!aktiv()) return
+    const vorher = vorIhm()
+    for (let i = 0; i < WKR_ANNAHMEN.schlange; i++) {
+      const neu = uebungsSchritt(stand, null)
+      if (neu === stand) break
+      setzeStand(neu)
+      if (vorIhm() > vorher) break
+    }
+    if (++gezeigt >= fruehBei) {
+      gezeigt = 0
+      fruehBei = ziehFrueh()
+      plane(wartezeit())
+    }
+  }
+  /** Nach dem Abschicken (oder „Weiter“): Hat der WKR nichts mehr vor sich, kommt der nächste nach 2–6 s. */
+  function naechsterBald() {
+    weckeRuhe()
+    if (aktiv() && vorIhm() === 0) plane(wartezeit())
+  }
 
   /** Quittung nach kurzer Zeit; die Zeile zum n-ten Start bekommt einmal die Beispiel-Rückfrage (G13). */
   function quittiere(z: UebZeile, rueckfrage: boolean) {
@@ -124,9 +210,6 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
 
   const stufeLesen = () => void rev.value
   const listen = scope.run(() => computed(() => [aufgabe]))!
-  // Gerät für den ganzen Steg (WKR_ANNAHMEN.stegGanzAblegenZuerst, T3): Anlegen erst, wenn das Ablegen geschickt ist.
-  const passt = (s: ListenStart, t: ListenTeil | undefined) =>
-    t ? !s.teile?.[t] && !(t === 'an' && !teil && WKR_ANNAHMEN.stegGanzAblegenZuerst && !s.teile?.ab) : !(s.teile?.ab && s.teile?.an)
   const schlange = scope.run(() =>
     computed(() => ({ [kennung]: sicht().schlange.filter((s) => passt(s, teil)).map((s): SchlangenEintrag => ({ ...s })) })),
   )!
@@ -211,8 +294,13 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   function status(liste: string, st: ListenSicht['status']): number | null {
     if (gestoppt || !eigen(liste)) return null
     setzeStand(stand, st)
+    if (st === 'aktiv') naechsterBald()
     return naechsteZ++
   }
+
+  // Der erste Start steht sofort da.
+  zeige()
+  gezeigt = 0
 
   return {
     uebung: true,
@@ -248,7 +336,9 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       entw.delete(ek(zeile.s, t))
       // Ein Teil-Gerät übt allein: Den anderen Teil erledigt „das andere Handy“ gleich mit, sonst stauten sich die
       // Starts in der Übung. Nur das Gerät für den ganzen Steg erledigt je Teil.
-      setzeStand(uebungsSchritt(stand, { s: zeile.s, ...(!teil && t ? { teil: t } : {}) }))
+      // Ohne Nachrücken (0): Der nächste kommt erst nach 2–6 s (naechsterBald).
+      setzeStand(uebungsSchritt(stand, { s: zeile.s, ...(!teil && t ? { teil: t } : {}) }, 0))
+      naechsterBald()
       const nv = zeile.nv === true
       return neueZeile({ s: zeile.s, ...(start ? { sn: start.startNr } : {}), klasse: start?.klasse ?? null, ...(t ? { t } : {}), punkt, zellen: nv ? {} : { ...zeile.zellen }, ...(nv ? { n: true as const } : {}) }, vorher)
     },
@@ -262,6 +352,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       if (gestoppt || !alt) return null
       // Die Rückfrage gilt mit der Korrektur als beantwortet (in der Übung entscheidet niemand am Bedienrechner).
       if (alt.stufe.stufe === 'rueckfrage') alt.stufe = { stufe: 'uebernommen', nachRueckfrage: true }
+      weckeRuhe()
       return neueZeile({ s: alt.s, ...(alt.sn !== undefined ? { sn: alt.sn } : {}), klasse: alt.klasse, ...(alt.t ? { t: alt.t } : {}), k: true, punkt: alt.punkt, zellen: { ...alt.zellen, ...zellen } }, stand)
     },
     pausiere: (liste) => status(liste, 'pausiert'),
@@ -309,6 +400,9 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       zeilen = zeilen.filter((x) => x !== alt)
       if (!alt.k) neue--
       setzeStand(alt.vorher)
+      // Der Start steht wieder an: Der nach dem Abschicken geplante nächste kommt nicht mehr.
+      stoppeKommt()
+      weckeRuhe()
       if (Object.values(alt.zellen).some((w) => w !== '')) entw.set(ek(alt.s, alt.t), { ...(alt.sn !== undefined ? { sn: alt.sn } : {}), zellen: { ...alt.zellen } })
       geaendert()
       return { s: alt.s, zellen: { ...alt.zellen }, ...(alt.t ? { teil: alt.t } : {}) }
@@ -317,7 +411,9 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
     stop() {
       if (gestoppt) return
       gestoppt = true
-      clearInterval(takt)
+      stoppeKommt()
+      if (ruhe !== null) clearTimeout(ruhe)
+      ruhe = null
       for (const t of timer) clearTimeout(t)
       timer.clear()
       scope.stop()

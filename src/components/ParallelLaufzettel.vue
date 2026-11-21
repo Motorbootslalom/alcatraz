@@ -14,6 +14,8 @@ import { adresse } from '../lib/router'
 import { useListenSprache } from '../lib/listensprache'
 import LaufzettelBlatt from './LaufzettelBlatt.vue'
 import ParallelMessung from './ParallelMessung.vue'
+import WkrDigitalHinweis from './WkrDigitalHinweis.vue'
+import { useWkrDruck } from './wkrDruck'
 
 /**
  * Die Laufzettel des Parallelslaloms unter „Listen“: je Runde (statt je Klasse und Lauf) immer
@@ -52,7 +54,20 @@ const seitenVon = (runde: ParallelRunde, typeId: string, racecourse: Racecourse)
     zeilenJeSeite: state.value.wkrZeilenJeSeite,
     teilenAb: state.value.wkrTeilenAb,
   })
-const zettel = computed(() => (props.gesperrt ? [] : rundenZettel(state.value, parallel.value, seitenVon)))
+// Druck nach Modus (Nutzer 21.11.2026, WKR_ANNAHMEN Z5/Z7): Listen nur auf dem Gerät bekommen kein Kästchen; ein
+// Zettel ohne gedruckte Liste entfällt (und bindet seine Runde nicht).
+const druck = useWkrDruck()
+const geteilt = computed(() => druck.teile(parallel.value.boegen))
+const digitalListen = computed(() => [
+  ...new Set(geteilt.value.digital.map((b) => `${konfig.value.getSheetDef(b.typeId).title} (${t(b.runde?.racecourse === 'B' ? 'parallel.parcoursB' : 'parallel.parcoursA')})`)),
+])
+const zettel = computed(() =>
+  props.gesperrt
+    ? []
+    : rundenZettel(state.value, { ...parallel.value, boegen: geteilt.value.gedruckt }, seitenVon)
+        .map((z) => ({ ...z, listen: z.listen.filter((l) => l.boegen.length > 0) }))
+        .filter((z) => z.listen.length > 0),
+)
 watchEffect(() => emit('stand', { anzahl: zettel.value.length, auswahl: t('parallel.title'), runden: [...new Set(zettel.value.map((z) => z.runde))] }))
 
 const eventName = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
@@ -109,6 +124,7 @@ const { zoom } = useBogenZoom(stapel)
     </template>
   </div>
 
+  <WkrDigitalHinweis v-if="!gesperrt" v-model:trotzdem="druck.trotzdem.value" :anzahl="geteilt.digital.length" :listen="digitalListen" />
   <div ref="stapel" class="laufzettel-stapel" :style="zoom">
     <LaufzettelBlatt
       v-for="b in blaetter"

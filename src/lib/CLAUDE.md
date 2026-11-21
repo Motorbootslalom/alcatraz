@@ -22,7 +22,8 @@ clipboard, scanner, logoBild.
   parallelSchluessel.ts. Nach dem Halbfinale stehen beide Finals in klassenStand `schritte` (unabhängig festzuschreiben,
   `naechste` = erster); stageErgebnis nimmt 1/2 aus `final`, 3/4 aus `small`. Alte Stände: state/migrate.ts teileAlteFinals.
 - Bögen und Listen: `wkrListen.ts` (wkrBoegenZumStand: planung/plan.ts planEvent, listen.ts, bogen.ts defFuerKlasse,
-  qr.ts), `bogen.ts` (Modell, bogenSeiten), `listen.ts` (veranstaltungsListen), `laufzettel.ts` (messBoegen,
+  qr.ts; Druckfolge WKR_DRUCKFOLGE 21.11.2026: Parcours → Position → Lauf → Klasse, `innen` umstellbar; parallelBogen.ts
+  gleich: Racecourse → Position → Runde; Laufzettel bleiben je Klasse und Lauf), `bogen.ts` (Modell, bogenSeiten), `listen.ts` (veranstaltungsListen), `laufzettel.ts` (messBoegen,
   buildLaufzettel, zettelSchritte), `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`, `namen.ts`,
   `origin.ts` (Herkunft, Kürzel, Flagge), `ausgleich.ts`, `besetzung.ts`, `qr.ts`, `einteilung.ts` (WKR-Namen UND
   Sprache je Parcours und Liste: setzeSprache, normalisiereSprachen; einteilungsZellen = gedruckte Zellen).

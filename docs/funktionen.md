@@ -231,6 +231,12 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
   Mit „Papier sparen“ stehen die Leerzeilen einmal je Seite statt je Klasse.
 - Die Parcours-Zeichnung steht auf den Bögen, abgeblendet je Position.
 - Gedruckt werden die Bögen erst nach dem Festschreiben der Verzahnung (siehe [Sperren](#sperren-und-prüfungen)).
+- Druckfolge (21.11.2026): je Parcours Position für Position, darin die Startfolge (1. Lauf in der Reihenfolge der
+  Klassen, dann der 2. …) – der Stapel wird nur an den Positionen getrennt und verteilt (`WKR_DRUCKFOLGE`).
+  Parallelslalom: je Racecourse Position für Position, darin die Runden. Laufzettel bleiben je Klasse und Lauf.
+- Listen im Modus „Gerät“ (Betrieb → WKR) werden nicht gedruckt, auch nicht auf dem Laufzettel; Hinweis über dem
+  Stapel mit „Trotzdem drucken“. Pausiert/abgemeldet und Steg mit nur einem Teil auf Geräten: gedruckt
+  (`src/wkr/druck.ts`, WKR_ANNAHMEN Z1–Z7, noch zu bestätigen).
 
 **Listen der Veranstaltung** (`src/lib/listen.ts`): die Listen des Aufbaus.
 

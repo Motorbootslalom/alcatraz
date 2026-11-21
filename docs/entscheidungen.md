@@ -227,6 +227,26 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   mit Sekunden. Kette: je Klasse und Lauf bei jeder Änderung von Zeit/Fehlerpunkten; Gesamtliste = jüngster ihrer Läufe;
   Mannschaftswertung = jüngste der Gesamtlisten. → `lib/listenStand.ts`, `components/ergebnis/ErgebnisFuss.vue`
 - 2026-11-13 · N · Druckreihenfolge erst nach Parcours, dann nach Klasse: nach dem Druck nur trennen, nicht sortieren.
+- 2026-11-21 · N · WKR-Bögen zusätzlich nach Position: „Die Sortierung muss so sein, dass man die Listen für die WKR
+  ohne Sortieren verteilen kann … zusätzlich muss nach Position sortiert werden.“ Druckfolge Parcours → Position (Liste
+  in der Reihenfolge des Aufbaus, dahinter die zusätzlichen) → zeitliche Folge der Verzahnung; Parallelslalom
+  Racecourse → Position → Runde. Ausgelegt, noch zu bestätigen: innen erst alle Klassen im 1. Lauf (Klassen in der
+  Startfolge), dann der 2. Lauf – wie der Betrieb („Lauf 2 beginnen“ je Parcours); umstellbar auf „je Klasse alle Läufe“
+  (`WKR_DRUCKFOLGE.innen`). Laufzettel bleiben je Parcours, Klasse und Lauf; Seitenzahlen je Bogen unverändert; keine
+  Leerseiten zwischen Positionen nötig (jede Vorderseite hat ihre eigene Rückseite bzw. ist einseitig); die Druckdatei
+  enthält keine WKR-Bögen; die Auswahl in der Erfassung bleibt nach Klasse/Lauf. → `lib/wkrListen.ts` WKR_DRUCKFOLGE,
+  `lib/parallelBogen.ts`
+- 2026-11-21 · N · Übungstakt: „dass der nächste Starter immer erst so 2–6 Sekunden später kommt, nachdem man was
+  geschickt hat. Dann hin und wieder auch mal vorher, wie jetzt auch.“ Korrekturen und Rückfragen der Übung bleiben.
+  Ausgelegt, noch zu bestätigen (WKR_ANNAHMEN Y1–Y3): zufällig gleichverteilt, Saat je Übung; jeder 4.–6. gezeigte
+  Start zieht einen weiteren vorab nach sich; 30 s nur noch Rückfall ohne Eingabe; Beginn mit einem Start. →
+  `geraete/uebung.ts` UEBUNG_FOLGE_MS, UEBUNG_FRUEH_JEDER
+- 2026-11-21 · N · Druck nach Modus: „Warum werden Listen gedruckt, wenn ich beim Betrieb nur Gerät ausgewählt habe und
+  nicht beides?“ Listen im Modus „Gerät“ (digital) werden unter WKR-Bögen und Laufzetteln weder gezeigt noch gedruckt;
+  „beides“, „Papier“ und ohne Eintrag wie bisher; Hinweis über dem Stapel mit „Trotzdem drucken (Rückfall auf Papier)“
+  (Bedienauswahl). Ausgelegt, noch zu bestätigen (WKR_ANNAHMEN Z1–Z7): pausiert/abgemeldet → gedruckt; Steg mit nur
+  einem Teil auf Geräten (Register am Bedienrechner) oder einem nicht aktiven Teil → gedruckt (Anlegen auf Papier);
+  Knoten immer; Parallelslalom je Liste und Racecourse. → `wkr/druck.ts`, `components/wkrDruck.ts`
 - 2026-11-12 · N · Startlisten je Parcours getrennt, nicht je Klasse; eine Klasse nicht unnötig über einen Seitenwechsel
   trennen.
 - 2026-11-13 · N · Geburtsdatum nie auf Wertungslisten; auf Starterlisten ein-/ausblendbar; auf Gewichtslisten immer
@@ -664,7 +684,7 @@ Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgel
   (auch UIM). P3 Tor 1 Rückfahrt zwei Zeilen statt Zähler 0–2. P4 je Berührung 5 Punkte, Zellwert = Punkte. P5 Zähler
   höchstens 9. P6 Zeilen in Fahrtfolge, Einfahrt Tor 5 zwischen Tor 5 hin/rück, MüB nach Tor 1 R. P7 Knopfspalten nach
   Blick wie die Unterspalten des Bogens. P8 Umschalter erst bei mehr als 7 Zeilen, wechselt nie von selbst. P9 Disq.
-  immer ins Disq.-Feld. P10 Band „Klasse n – andere Halte“ 2 s. P11 Probe an der Klasse mit den meisten Zeilen. P12
+  immer ins Disq.-Feld (überholt 21.11.2026: Nutzer will Disq. an der Boje – U1–U4, plan-wkr-w4.md §13). P10 Band „Klasse n – andere Halte“ 2 s. P11 Probe an der Klasse mit den meisten Zeilen. P12
   Übung Tor 1/3/5, Tor 2/4/5, Parcours, unter UIM Parallelslalom. P13 Fehlerfrei = Zeile ohne Zellen. P14 Texte „Tor 1
   H L: 5“. P15 Bojen-Angaben in der Sicht. P16 „Nicht vorbeigekommen“ wie oben. P17 Startnummer 80 px auf Bojen-Listen.
 - Beim Bau W4.2 dazu Q1–Q7 (Probe beginnt mit dem linken Knopf, Klassenwechsel-Band unter der Karte, „höchstens 9×“ im

@@ -98,7 +98,7 @@ function wechselTakt(gesendetUm: number | null, jetzt: number): Takt  // 0–2 s
 `uebungsSicht(regelwerk, typeId, sprache, jetzt)` → ListenSicht mit `lv`, Kataloge über `configFor` und
 `maskenJeKlasse`, Schlange aus erfundenen Starts (Startnummern 1–20 in den Klassen des Regelwerks, Lauf 1, ein Boot
 „Übung“ – keine Namen, nichts aus `src/data/`) und `uebungsSchritt(sicht, zeile)` → nächste Sicht (Start erledigt,
-nächster rückt nach, alle 30 s ein neuer „gezeigter“ Start). Rein; der Gerät-seitige Übungs-Kern (§4.2) hält sie.
+nächster rückt nach, alle 30 s ein neuer „gezeigter“ Start; seit 21.11.2026 kommt der nächste 2–6 s nach dem Abschicken, hin und wieder vorher, 30 s nur als Rückfall – WKR_ANNAHMEN Y1–Y3). Rein; der Gerät-seitige Übungs-Kern (§4.2) hält sie.
 
 ## 4. Gerätekern
 
