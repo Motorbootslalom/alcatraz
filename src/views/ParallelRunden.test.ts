@@ -3,14 +3,17 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ListsView from './ListsView.vue'
 import VerzahnungView from './VerzahnungView.vue'
+import ErfassungView from './ErfassungView.vue'
+import { meldeScan, scanBeenden } from '../lib/scan'
 import { createStore, storeKey, type Store } from '../state/store'
 import { attemptSchluessel } from '../lib/parallelSchluessel'
+import { PARALLEL_ANNAHMEN } from '../lib/parallelErgebnis'
 import { vergissAlles } from '../lib/merken'
 import { setLocale } from '../i18n'
 import type { ClassId, ParallelRunde, Starter } from '../types'
 import { ohneLogos, seitenKoepfe, setzeTestLogos } from '../testHilfen'
 
-// Halbfinale, Finals und Wiederholung in der Oberfläche: festschreiben und löschen unter
+// Halbfinale, Kleines Finale, Finale und Wiederholung in der Oberfläche (seit 21.11.2026 zwei Runden): festschreiben und löschen unter
 // „Verzahnung“, die Wertungslisten je Runde, das Gesamtergebnis und die Druckdatei.
 // Erfundene Starter – keine echten Personen.
 function mk(klasse: ClassId, n: number): Starter[] {
@@ -53,14 +56,18 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     fahre('pre', VORLAUF)
     store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
     fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] }, 2000)
+    // Kleines Finale und Finale: zwei in sich geschlossene Runden (21.11.2026), das Kleine zuerst.
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'small' })
     store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'final' })
-    fahre('final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] }, 3000)
+    fahre('small', { '1-3': [30, 30], '1-4': [44, 45] }, 3000)
+    fahre('final', { '1-1': [41, 41], '1-2': [40, 43] }, 3500)
   }
 
   beforeEach(() => {
     localStorage.clear()
     sessionStorage.clear()
     vergissAlles()
+    scanBeenden()
     setLocale('de')
     store = createStore()
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
@@ -110,15 +117,46 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
 
     fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
     await warte()
-    expect(wrapper.find('[data-hinweis="runde-naechste"]').text()).toContain('Kleines Finale (Platz 3 und 4): 103 ↔ 104 · Finale: 101 ↔ 102')
-    await wrapper.find('[data-action="runde-fest"]').trigger('click')
+    // Nach dem Halbfinale stehen beide Finals an (21.11.2026): je ein Knopf, das Kleine zuerst.
+    const naechste = () => wrapper.findAll('[data-hinweis="runde-naechste"]').map((p) => p.text())
+    expect(naechste()).toEqual(['Als Nächstes: Kleines Finale – 103 ↔ 104 Kleines Finale festschreiben', 'Als Nächstes: Finale – 101 ↔ 102 Finale festschreiben'])
+    // Eine Klasse mit zwei Finals ist noch keine zweite Klasse: kein „Alle Klassen weiter“.
+    expect(wrapper.find('[data-action="runden-alle-fest"]').exists()).toBe(false)
+    // Erst das Finale – die Finals hängen nur am Halbfinale, die Folge des Festschreibens ist frei.
+    await wrapper.find('[data-action="runde-fest"][data-runde="final"]').trigger('click')
     await warte()
-    expect(wrapper.findAll('.panel[data-runde="final"] td[data-spalte="vermerk"]').map((z) => z.text())).toEqual(['Klasse 1 · Kleines Finale (Platz 3 und 4)', 'Klasse 1 · Kleines Finale (Platz 3 und 4)', 'Klasse 1 · Finale', 'Klasse 1 · Finale'])
-    fahre('final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
+    expect(naechste()).toEqual(['Als Nächstes: Kleines Finale – 103 ↔ 104 Kleines Finale festschreiben'])
+    // Die Runde sagt, um welche Plätze es geht: In der Klasse-Spalte steht nur noch die Klasse.
+    expect(wrapper.findAll('.panel[data-runde="final"] td[data-spalte="vermerk"]').map((z) => z.text())).toEqual(['Klasse 1', 'Klasse 1'])
+    await wrapper.find('[data-action="runde-fest"][data-runde="small"]').trigger('click')
     await warte()
-    expect(folge()).toEqual(['parallel-runden', 'final', 'semi', 'pre'])
+    expect(wrapper.find('.panel[data-runde="small"] h2').text()).toBe('Kleines Finale')
+    expect(wrapper.findAll('.panel[data-runde="small"] td[data-spalte="vermerk"]').map((z) => z.text())).toEqual(['Klasse 1', 'Klasse 1'])
+    expect(weg(wrapper)).toEqual(['pre=fertig', 'semi=fertig', 'small=leer', 'final=leer'])
+    // Beide festgeschrieben, nichts erfasst: Jetzt erst „wird erfasst“ – das Kleine Finale, es wird zuerst gefahren.
+    expect(wrapper.find('[data-hinweis="runde-laeuft"]').text()).toContain('Kleines Finale')
+    // Beide sind löschbar (Geschwister), das Halbfinale nicht mehr.
+    expect(wrapper.findAll('[data-action="runde-loeschen"]').map((k) => k.attributes('data-runde'))).toEqual(['small', 'final'])
+    fahre('small', { '1-3': [30, 30], '1-4': [44, 45] })
+    await warte()
+    expect(wrapper.find('.parallel-klasse[data-klasse="1"]').attributes('data-fertig')).toBe('false')
+    fahre('final', { '1-1': [41, 41], '1-2': [40, 43] })
+    await warte()
+    expect(folge()).toEqual(['parallel-runden', 'final', 'small', 'semi', 'pre'])
     expect(wrapper.find('.parallel-klasse[data-klasse="1"]').attributes('data-fertig')).toBe('true')
     expect(wrapper.find('[data-hinweis="runde-fertig"]').exists()).toBe(true)
+  })
+
+  it('Kleines Finale wird erfasst, Finale noch festzuschreiben: nur „Als Nächstes: Finale“, kein „geht es weiter“ daneben (21.11.2026)', async () => {
+    fahre('pre', VORLAUF)
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
+    fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] }, 2000)
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'small' })
+    fahre('small', { '1-3': [30], '1-4': [44] }, 3000)
+    const wrapper = await verzahnung()
+    expect(weg(wrapper)).toEqual(['pre=fertig', 'semi=fertig', 'small=laeuft'])
+    expect(wrapper.findAll('[data-hinweis="runde-naechste"]').map((p) => p.attributes('data-runde'))).toEqual(['final'])
+    expect(wrapper.find('[data-hinweis="runde-laeuft"]').exists()).toBe(false)
   })
 
   it('„Alle Klassen weiter“ (19.11.2026): ein Knopf für alle Klassen, die so weit sind; die übrigen stehen im Hinweis', async () => {
@@ -132,6 +170,8 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     const knopf = wrapper.find('[data-action="runden-alle-fest"]')
     expect(knopf.text()).toBe('Alle Klassen weiter: Halbfinale festschreiben')
     expect(wrapper.find('[data-hinweis="runden-alle"]').text()).toContain('Klasse 1, Klasse 4')
+    // Nach dem Vorlauf kein Satz über die Finals (Prüfung 21.11.2026).
+    expect(wrapper.find('[data-hinweis="runden-alle-text"]').text()).not.toContain('Finale')
     expect(wrapper.find('[data-hinweis="runden-alle-bleiben"]').text()).toBe('Bleiben noch, wo sie sind: Klasse 2 (Vorlauf noch nicht vollständig)')
     await knopf.trigger('click')
     await warte()
@@ -139,6 +179,31 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     expect(store.state.value.parallelPlaene.semi!.starts.map((s) => s.klasse)).toEqual(['1', '4', '1', '4', '1', '4', '1', '4'])
     expect(wrapper.find('[data-action="runden-alle-fest"]').exists()).toBe(false)
     expect(wrapper.findAll('.panel[data-runde="semi"] tbody tr')).toHaveLength(8)
+  })
+
+  it('„Alle Klassen weiter“ nach dem Halbfinale schreibt Kleines Finale und Finale zusammen fest (Auslegung 21.11.2026)', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: false })
+    store.dispatch({ type: 'ADD_STARTERS', starters: mk('4', 4) })
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    fahre('pre', { ...VORLAUF, '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
+    store.dispatch({ type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [{ klasse: '1', runde: 'semi' }, { klasse: '4', runde: 'semi' }] })
+    fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45], '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] }, 2000)
+    const wrapper = await verzahnung()
+    const knopf = wrapper.find('[data-action="runden-alle-fest"]')
+    // Die Runden in der Folge des Wettkampfs, jede Klasse nur einmal genannt – obwohl sie zwei Schritte hat.
+    expect(knopf.text()).toBe('Alle Klassen weiter: Kleines Finale, Finale festschreiben')
+    expect(wrapper.find('[data-hinweis="runden-alle"]').text()).toContain('für Klasse 1, Klasse 4 in einem Schritt')
+    // Der Satz zu den Finals steht nur hier und nur mit der Auslegung (PARALLEL_ANNAHMEN.finalsZusammen).
+    expect(PARALLEL_ANNAHMEN.finalsZusammen).toBe(true)
+    expect(wrapper.find('[data-hinweis="runden-alle-text"]').text()).toContain('Nach dem Halbfinale Kleines Finale und Finale zusammen.')
+    expect(wrapper.find('[data-hinweis="parallel-annahmen"]').text()).toContain('„Alle Klassen weiter“ schreibt nach dem Halbfinale Kleines Finale und Finale zusammen fest')
+    await knopf.trigger('click')
+    await warte()
+    const plaene = store.state.value.parallelPlaene
+    expect(plaene.small!.starts.map((s) => s.klasse)).toEqual(['1', '4', '1', '4'])
+    expect(plaene.final!.starts.map((s) => s.klasse)).toEqual(['1', '4', '1', '4'])
+    expect(wrapper.find('[data-action="runden-alle-fest"]').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="runde-naechste"]').exists()).toBe(false)
   })
 
   it('ordnet das Festschreiben einer Klasse eine Runde mit anderen Klassen neu, fragt es erst (gedruckte Listen, 19.11.2026)', async () => {
@@ -339,8 +404,8 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
   it('Wertungslisten je Runde und das Gesamtergebnis – englisch, mit Zeitstempel, O.O.D. und eigener Seitenzählung', async () => {
     bisEnde()
     const wrapper = await listen('ergebnis')
-    expect(blaetter(wrapper)).toEqual(['Preliminary heat – Attempts', 'Preliminary heat – Results', 'Semi-finals – Attempts', 'Semi-finals – Results', 'Finals – Attempts', 'Finals – Results', 'Overall results'])
-    expect(wrapper.findAll('[data-feld="perg-runde"] option').map((o) => o.text())).toEqual(['alle', 'Vorlauf', 'Halbfinale', 'Finale', 'Gesamtergebnis'])
+    expect(blaetter(wrapper)).toEqual(['Preliminary heat – Attempts', 'Preliminary heat – Results', 'Semi-finals – Attempts', 'Semi-finals – Results', 'Small final – Attempts', 'Small final – Results', 'Final – Attempts', 'Final – Results', 'Overall results'])
+    expect(wrapper.findAll('[data-feld="perg-runde"] option').map((o) => o.text())).toEqual(['alle', 'Vorlauf', 'Halbfinale', 'Kleines Finale', 'Finale', 'Gesamtergebnis'])
     expect(wrapper.find('[data-hinweis="parallel-stage-fertig"]').text()).toContain('Klasse 1')
     expect(wrapper.find('[data-hinweis="parallel-stage-offen"]').exists()).toBe(false)
 
@@ -354,9 +419,15 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     expect(wrapper.findAll('.listen-seite[data-art="gesamt"] tbody tr[data-starter]').map((r) => `${r.findAll('td')[0].text()} ${r.findAll('td')[1].text()}`)).toEqual(['1 102', '2 101', '3 104', '4 103'])
     // Jede Runde trägt ihren eigenen Zeitstempel.
     const stand = wrapper.find('.listen-seite[data-art="gesamt"] .erg-stand').text()
+    // Kleines Finale und Finale: je eine eigene Liste „Results“ (21.11.2026) – Plätze 3/4 bzw. 1/2.
+    await wrapper.find('[data-feld="perg-runde"]').setValue('small')
+    await warte()
+    expect(blaetter(wrapper)).toEqual(['Small final – Attempts', 'Small final – Results'])
+    expect(letzte('gesamt')).toEqual(['3 103 225', '4 104 169'])
     await wrapper.find('[data-feld="perg-runde"]').setValue('final')
     await warte()
-    expect(letzte('gesamt')).toEqual(['1 101 400', '2 102 300', '3 103 225', '4 104 169'])
+    expect(blaetter(wrapper)).toEqual(['Final – Attempts', 'Final – Results'])
+    expect(letzte('gesamt')).toEqual(['1 101 400', '2 102 300'])
     expect(wrapper.find('.listen-seite[data-art="gesamt"] .erg-stand').text()).not.toBe(stand)
 
     // Gesamtergebnis: Plätze 1 bis 4 aus den Finals, ab Platz 5 aus dem Vorlauf.
@@ -384,11 +455,11 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     const vorher = await listen('ergebnis')
     const ohne = seitenKoepfe(vorher.find('.ergebnis-stapel[data-stapel="parallel"]').element, ...KOPF)
     vorher.unmount()
-    expect(ohne).toHaveLength(7)
+    expect(ohne).toHaveLength(9)
     expect(ohne.every((x) => x.logos.length === 0)).toBe(true)
     setzeTestLogos(store)
     const wrapper = await listen('ergebnis')
-    expect(blaetter(wrapper)).toEqual(['Preliminary heat – Attempts', 'Preliminary heat – Results', 'Semi-finals – Attempts', 'Semi-finals – Results', 'Finals – Attempts', 'Finals – Results', 'Overall results'])
+    expect(blaetter(wrapper)).toEqual(['Preliminary heat – Attempts', 'Preliminary heat – Results', 'Semi-finals – Attempts', 'Semi-finals – Results', 'Small final – Attempts', 'Small final – Results', 'Final – Attempts', 'Final – Results', 'Overall results'])
     const mit = seitenKoepfe(wrapper.find('.ergebnis-stapel[data-stapel="parallel"]').element, ...KOPF)
     expect(mit.map((x) => x.logos)).toEqual(mit.map(() => ['links', 'rechts']))
     expect(ohneLogos(mit)).toEqual(ohneLogos(ohne))
@@ -424,8 +495,10 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     // Bis zum Ende: In den Overall results steht 104 auf Platz 5 – mit der Summe der Wiederholung und dem Sternchen.
     store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
     fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-5': [44, 45] }, 3000)
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'small' })
     store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'final' })
-    fahre('final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-5': [44, 45] }, 4000)
+    fahre('small', { '1-3': [30, 30], '1-5': [44, 45] }, 4000)
+    fahre('final', { '1-1': [41, 41], '1-2': [40, 43] }, 4500)
     await wrapper.find('[data-feld="perg-runde"]').setValue('stage')
     await warte()
     const stage = wrapper.find('.listen-seite[data-art="stage"]')
@@ -438,7 +511,7 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
       '6 | 106 | 110.00',
     ])
     expect(stage.find('[data-hinweis="stich"]').text()).toContain('only the time of the re-run is taken into account')
-    // Halbfinale und Finals hat kein Re-run entschieden: dort kein Sternchen.
+    // Halbfinale, Kleines Finale und Finale hat kein Re-run entschieden: dort kein Sternchen.
     await wrapper.find('[data-feld="perg-runde"]').setValue('semi')
     await warte()
     expect(wrapper.find('tbody tr[data-wiederholt]').exists()).toBe(false)
@@ -461,14 +534,41 @@ describe('Parallelslalom: Runden nach dem Vorlauf', () => {
     await warteAufDruckdatei(wrapper)
     // Nur der Parallelslalom ist gefahren und fertig: Ohne Werte zählt das Manövrieren nicht – nichts ist mehr offen.
     expect(wrapper.find('[data-hinweis="druckdatei-unfertig"]').exists()).toBe(false)
-    expect(wrapper.findAll('.druckdatei-wahl input[data-runde]').map((i) => i.attributes('data-runde'))).toEqual(['stage', 'pre', 'semi', 'final'])
+    expect(wrapper.findAll('.druckdatei-wahl input[data-runde]').map((i) => i.attributes('data-runde'))).toEqual(['stage', 'pre', 'semi', 'small', 'final'])
     const teil = () => wrapper.findAll('.druckdatei [data-teil="parallel"] .listen-seite').map((s) => s.find('.erg-kopf-titel').text())
     // Erst das Gesamtergebnis, dann die Runden in ihrer Folge.
-    expect(teil()).toEqual(['Overall results', 'Preliminary heat – Attempts', 'Preliminary heat – Results', 'Semi-finals – Attempts', 'Semi-finals – Results', 'Finals – Attempts', 'Finals – Results'])
+    expect(teil()).toEqual(['Overall results', 'Preliminary heat – Attempts', 'Preliminary heat – Results', 'Semi-finals – Attempts', 'Semi-finals – Results', 'Small final – Attempts', 'Small final – Results', 'Final – Attempts', 'Final – Results'])
     await wrapper.find('.druckdatei-wahl input[data-runde="pre"]').setValue(false)
     await wrapper.find('.druckdatei-wahl input[data-runde="semi"]').setValue(false)
+    await wrapper.find('.druckdatei-wahl input[data-runde="small"]').setValue(false)
     await warteAufDruckdatei(wrapper)
-    expect(teil()).toEqual(['Overall results', 'Finals – Attempts', 'Finals – Results'])
+    expect(teil()).toEqual(['Overall results', 'Final – Attempts', 'Final – Results'])
+  })
+
+  it('Erfassung und Scan (21.11.2026): Kleines Finale und Finale haben je eigene Bögen und Laufzettel – SMALL und FINAL verwechseln sich nicht', async () => {
+    fahre('pre', VORLAUF)
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
+    fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] }, 2000)
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'small' })
+    const wrapper = mount(ErfassungView, mit(store))
+    const k = store.state.value.kennung
+    const abschnitte = () => wrapper.findAll('.eingabe-stapel [data-abschnitt]').map((a) => a.attributes('data-abschnitt'))
+    meldeScan(`ALC2.${k}.UIM2026.PARALLEL.SMALL.A`)
+    await warte()
+    expect(wrapper.find('.scan-hinweis').text()).toContain('Kleines Finale')
+    expect(abschnitte()).toEqual(['parallel|small|A|zeit', 'parallel|small|A|steg', 'parallel|small|A|parallelparcours'])
+    // Das Finale ist noch nicht festgeschrieben: sein Code wird abgewiesen, obwohl das Kleine Finale steht.
+    meldeScan(`ALC2.${k}.UIM2026.PARALLEL.FINAL.A`)
+    await warte()
+    expect(wrapper.find('.scan-hinweis--fehler').text()).toContain('FINAL')
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'final' })
+    await warte()
+    meldeScan(`ALC2.${k}.UIM2026.PARALLEL.FINAL.B.STEG.S1`)
+    await warte()
+    expect(wrapper.findAll('.erf-titel span').map((s) => s.text()).join(' | ')).toBe('Steg | Finale | Parcours B')
+    // Je Runde nur ihre eigenen Starter: im Finale die beiden Ersten des Halbfinales.
+    expect(wrapper.findAll('.erf-tabelle tbody tr[data-zeile]').map((z) => z.attributes('data-starter')).sort()).toEqual(['1-1', '1-2'])
+    wrapper.unmount()
   })
 
   it('ohne erfasste Werte im Parallelslalom mahnt die Druckdatei ihn nicht an (nur Manövrieren gefahren)', async () => {

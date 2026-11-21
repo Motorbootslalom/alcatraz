@@ -30,8 +30,9 @@ start release.
   vorlagenTitel/gruppenTitel (Schlüssel für t()), vorlagenMeldung(sicht, vorlage). Texte: i18n `meldung.vorlage.*`.
 - `sicht.ts` – sichtOeffentlich(stand, {logos}) → OeffentlicheSicht: die EINE Stelle für den Datenschutz-Zuschnitt;
   sichtZuschauer(sicht) → ZuschauerSicht (E3): daraus abgeleitet, schmaler (Im Boot, `frei`, „Boot fehlt“, Meldung).
-  E4 (sv 4): SichtStart.paar {attempt, a, b, finale?} – leere Seite `null` ohne Grund; `starter` = erste Seite, die
-  fährt; titel „Preliminary heat · Attempt 1“ (Finals: „Small final (3rd and 4th place)“); Bereichsname anzeige.parallel.
+  E4: SichtStart.paar {attempt, a, b} – leere Seite `null` ohne Grund; `starter` = erste Seite, die fährt; titel
+  „Preliminary heat · Attempt 1“, „Small final · Attempt 1“; Bereichsname anzeige.parallel. sv 6 (21.11.2026): `finale`
+  entfällt, das Kleine Finale ist eine eigene Runde.
   sv 5 (16.11.2026): `einst.parallelAnordnung` (Lage von A und B, `anzeige.parallelAnordnung`) – nur, wenn die Sicht
   den Bereich `parallel` hat (unter DM nicht einmal der Schlüssel); nicht in der Zuschauersicht.
 - `prognose.ts` (E3, Vorbild TF lib/timing.ts) – Messung auf dem Stand: messungenIn/messungen (Abstand gehört dem
@@ -143,7 +144,8 @@ start release.
   (parallelPaarZuEnde: lage rückt seinen Attempt in `offen` vor). Gezieltes ZEIGEN holt den im Plan direkt folgenden
   Attempt mit (schritte.ts planPartner – nur nach dem Vorlauf; dort wechseln zwischen den Attempts die Bootstypen).
   Zuschauersicht: Kennung eines Paares nur aus `paar.a/b` (verrät keine leere Seite); die öffentliche trägt die IDs laut Plan.
-  Das kleine Finale ist kein eigener Punkt (Plan `final`, `finale: 3` vorn). Parallel misst nicht und hat keine Zahl
+  Das Kleine Finale ist seit 21.11.2026 ein eigener Punkt `runde:small` vor `runde:final` (eigener Plan; „Finale
+  beginnen“ danach von Hand, BETRIEB_ANNAHMEN.parallelRundenAlsPunkte). Parallel misst nicht und hat keine Zahl
   (wartezeiten: `angehalten` mit Steg). Unter DM gibt es den Bereich nicht (bereichBekannt → hasParallel) – auch keine
   Texte; die `….runde`-Texte holt components/betrieb/texte.ts tBereich nur für `art: 'parallel'`.
 - `einstieg` trägt Starts der Sicht (mit Starter, ohne Entfallene): „Weiter mit“ nennt auch einen schon „ohne Anzeige“
@@ -164,7 +166,7 @@ vi.useFakeTimers({toFake: ['Date','setInterval','clearInterval']}); Ziehen per t
 gleich reducer(BETRIEB_VERSCHIEBEN)), src/ZuschauerApp.test.ts (Gruppen, Wartezeiten, Datenschutz im HTML, Filter),
 src/main.zuschauer.test.ts (echter Start `#/spectators`, schreibt nichts). Einstellungen: views/SettingsView.test.ts.
 E4 (Parallel): betrieb/parallel.test.ts (Programm, Re-run nach gezeigtem Halbfinal-Start, Klassen in verschiedenen
-Runden, K7/K8: gelöschter Starter, abgemeldete Seite im Halbfinale, Dummy gegen X, Finals; Zuschauer-Kennung; Schritte: Paar als Einheit, Gesperrtes, Einsteigen; Sicht/Zuschauersicht feldweise; keine
+Runden, K7/K8: gelöschter Starter, abgemeldete Seite im Halbfinale, Dummy gegen X, Kleines Finale vor Finale; Zuschauer-Kennung; Schritte: Paar als Einheit, Gesperrtes, Einsteigen; Sicht/Zuschauersicht feldweise; keine
 Prognose; automatische Tafel), components/anzeige/AnzeigeParallel.test.ts (englische Tafel wie UimAushang: keine
 deutschen Wörter; Spezifität der Seiten-Regeln gegen „gestapelt“ am CSS-Text – happy-dom rechnet kein CSS), views/Betrieb.test.ts „Parallelslalom (E4)“, ZuschauerApp.test.ts (Paar-Karten), SettingsView.test.ts
 (Auswahl der Tafel, Lage von A und B nur unter UIM). Lage A/B (16.11.2026): AnzeigeParallel.test.ts „Lage von

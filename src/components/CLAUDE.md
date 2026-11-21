@@ -22,7 +22,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 - Starter/Verzahnung: ClassSection (Sortierköpfe + Zufall, `sortierung` von oben; „In Klasse X verschieben“, emit
   `oeffne`), ManualAddForm, ExcelPanel, DatumFeld (DatumFeld.test.ts durchsucht alle Vorlagen), StartNumberPanel (auch
   E/D), StarterSperre, ParcoursCard, TrackContainer, ClassChip, PauseChip, SlotCell, FlowPreview, SequenceTable,
-  BoatPanel, HeatTable, ParallelRunden.
+  BoatPanel, HeatTable, ParallelRunden (je Klasse ein Knopf je `schritte`-Eintrag – nach dem Halbfinale Kleines Finale
+  und Finale getrennt, 21.11.2026; „Alle Klassen weiter“ ab zwei verschiedenen KLASSEN, nicht Schritten).
 - Betrieb (16.11.2026, lesen NUR die öffentliche Sicht, betrieb/sicht.ts): `anzeige/` AnzeigeTafel (Kopfzeile mit Logos,
   Bereiche neben-/untereinander nach Seitenverhältnis), AnzeigeBereich (Parcours, Klasse + Lauf, Startnummer, Name,
   Herkunft, davor, Meldung; Kopfzeile immer oben, Rest in `.anzeige-rumpf`; v-fit/v-fit-block, Hinweis v-fit-zeilen aus

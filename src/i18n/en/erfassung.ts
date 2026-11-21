@@ -17,7 +17,7 @@ export default {
   'capture.jump': 'Jump to the sheets of this stack',
   'capture.results': 'The results are calculated as you type and are under',
   'capture.parallel':
-    'The parallel slalom is entered here (choose the discipline above, the heat below it). Semi-finals, finals and re-run exist once they are locked for a class (Interleaving → Parallel slalom); results are under Lists → Results → Parallel slalom.',
+    'The parallel slalom is entered here (choose the discipline above, the heat below it). Semi-finals, small final, final and re-run exist once they are locked for a class (Interleaving → Parallel slalom); results are under Lists → Results → Parallel slalom.',
   'capture.discipline': 'Discipline',
   'capture.progress': '{done} of {total} entered',
   'capture.flagged': 'check {n} row | check {n} rows',

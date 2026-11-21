@@ -30,7 +30,8 @@ import type { ClassId } from '../types'
 // z. B. ALC2.K7Q4.UIM2026.PARALLEL.PRE.A und ALC2.K7Q4.UIM2026.PARALLEL.PRE.A.ZEIT.S1. Den
 // Laufzettel einer Runde gibt es je Racecourse (Entscheidung des Nutzers vom 15.11.2026): Sein
 // Code öffnet nur die Listen dieses Racecourse.
-//   • <RUNDE>      – PRE, SEMI, FINAL oder RERUN… (planung/parallelRunden.ts)
+//   • <RUNDE>      – PRE, SEMI, SMALL (Kleines Finale, seit 21.11.2026 eigene Runde), FINAL oder RERUN…
+//                    (planung/parallelRunden.ts)
 //   • <RACECOURSE> – A oder B
 // ALC1 bleibt, wie es ist: Was für das Manövrieren gedruckt wurde, wird weiter gelesen, und
 // neue Bögen des Manövrierens tragen weiter ALC1.

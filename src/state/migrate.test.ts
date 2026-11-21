@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { fromVerzahnungPrototyp, migrate } from './migrate'
-import { emptyState } from './reducer'
-import { SCHEMA_VERSION } from '../types'
-import { testLogo, testSvgLogo } from '../testHilfen'
+import { fromVerzahnungPrototyp, migrate, teileAlteFinals } from './migrate'
+import { emptyState, reducer } from './reducer'
+import { SCHEMA_VERSION, type AppState, type ParallelRunde } from '../types'
+import { fahreRunde, parallelStarter, testLogo, testSvgLogo, uimParallelStand } from '../testHilfen'
+import { configFor } from '../config/konfig'
+import { klassenStand } from '../lib/parallelStage'
 
 describe('migrate', () => {
   it('Beispiel-Starterfeld: fehlt in älteren Ständen, gilt nur mit Startern', () => {
@@ -254,5 +256,168 @@ describe('migrate: Server des Gerätebetriebs (E6, 16.11.2026)', () => {
     expect(migrate({ starters: [], geraeteServer: 'http://192.168.1.20:8080' })!.geraeteServer).toBe('http://192.168.1.20:8080')
     for (const kaputt of ['javascript:alert(1)', 'https://nutzer:geheim@ntfy.example.org', 42, null, { u: 'x' }])
       expect(migrate({ starters: [], geraeteServer: kaputt })!.geraeteServer, String(kaputt)).toBe('')
+  })
+})
+
+describe('migrate: Kleines Finale und Finale getrennt (21.11.2026)', () => {
+  // Erfundene Starter (testHilfen.parallelStarter). Ein Stand nach dem Halbfinale mit beiden Finals, wie ihn die App
+  // heute schreibt – und daraus der Stand bis 21.11.2026: EINE Runde `final`, das Kleine Finale mit `finale: 3` vorn.
+  const VORLAUF6 = { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43], '1-5': [50, 50], '1-6': [55, 55] }
+  const fest = (s: AppState, runde: ParallelRunde) => reducer(s, { type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde })
+  function neu(): AppState {
+    let s = fahreRunde(uimParallelStand(parallelStarter('1', 6)), 'pre', VORLAUF6)
+    s = fahreRunde(fest(s, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    s = fest(fest(s, 'small'), 'final')
+    s = fahreRunde(s, 'small', { '1-3': [30, 30], '1-4': [44, 45] })
+    return fahreRunde(s, 'final', { '1-1': [41] })
+  }
+  const kennung = (runde: string, attempt: number, a: string, b: string) => JSON.stringify(['p', runde, attempt, a, b])
+  /** Der alte Stand zu `n`: Kleines Finale und Finale in EINEM Plan, Werte unter `parallel:final/…`. */
+  function alt(n: AppState): Record<string, unknown> {
+    const { small, final, ...plaene } = n.parallelPlaene
+    const versatz = Math.max(...small!.starts.map((s) => s.block)) + 1
+    const { 'parallel:small/1': k1, 'parallel:small/2': k2, 'parallel:final/1': f1, 'parallel:final/2': f2, ...eingaben } = n.eingaben
+    return {
+      ...JSON.parse(JSON.stringify(n)),
+      parallelPlaene: {
+        ...plaene,
+        final: { runde: 'final', starts: [...small!.starts.map((s) => ({ ...s, finale: 3 })), ...final!.starts.map((s) => ({ ...s, block: s.block + versatz, finale: 1 }))] },
+      },
+      eingaben: { ...eingaben, 'parallel:final/1': { ...k1, ...f1 }, 'parallel:final/2': { ...k2, ...f2 } },
+      parallelGedruckt: { final: 1234 },
+      betrieb: {
+        bereiche: {
+          parallel: {
+            begonnen: ['runde:pre', 'runde:semi', 'runde:final'],
+            gezeigt: [{ ref: kennung('final', 1, '1-3', '1-4'), zeit: 5000 }],
+            ohneAnzeige: [kennung('semi', 1, '1-1', '1-2')],
+            zurueckgestellt: [kennung('final', 1, '1-1', '1-2')],
+            reihenfolge: [kennung('final', 2, '1-4', '1-3'), kennung('final', 1, '1-1', '1-2')],
+            ausgesetzt: [],
+            vorziehen: false,
+            meldung: null,
+          },
+        },
+      },
+      listenStand: { 'parallel:final/1/gesamt': { inhalt: 7, zeit: 99 }, 'parallel:semi/1/gesamt': { inhalt: 8, zeit: 98 } },
+    }
+  }
+
+  it('teilt den alten Plan sauber auf: Werte, Druckvermerk, „begonnen“ und Kennungen ziehen mit', () => {
+    const n = neu()
+    const m = migrate(alt(n))!
+    expect(m.parallelPlaene).toEqual(n.parallelPlaene)
+    for (const k of ['parallel:small/1', 'parallel:small/2', 'parallel:final/1']) expect(m.eingaben[k], k).toEqual(n.eingaben[k])
+    expect(m.eingaben['parallel:final/2']).toBeUndefined()
+    expect(m.parallelGedruckt).toEqual({ small: 1234, final: 1234 })
+    const b = m.betrieb.bereiche.parallel
+    // Gezeigt war nur ein Start des Kleinen Finales: begonnen ist nur das Kleine Finale (21.11.2026).
+    expect(b.begonnen).toEqual(['runde:pre', 'runde:semi', 'runde:small'])
+    expect(b.gezeigt.map((g) => g.ref)).toEqual([kennung('small', 1, '1-3', '1-4')])
+    expect(b.ohneAnzeige).toEqual([kennung('semi', 1, '1-1', '1-2')])
+    expect(b.zurueckgestellt).toEqual([kennung('final', 1, '1-1', '1-2')])
+    // Eine händische Reihenfolge mit Starts des Kleinen Finales entfällt.
+    expect(b.reihenfolge).toBeNull()
+    expect(Object.keys(m.listenStand)).toEqual(['parallel:semi/1/gesamt'])
+    // Der Stand rechnet weiter: Kleines Finale fertig, Finale läuft.
+    const konfig = configFor({ regelwerk: 'uim-2026' })
+    expect(klassenStand(m, konfig, '1')!.runden.map((r) => [r.runde, r.zustand, r.veraltet])).toEqual([
+      ['pre', 'fertig', false],
+      ['semi', 'fertig', false],
+      ['small', 'fertig', false],
+      ['final', 'laeuft', false],
+    ])
+  })
+
+  it('„begonnen“: das Finale nur, wenn schon einer seiner Starts gezeigt oder ohne Anzeige erledigt ist', () => {
+    const begonnen = (mit: (b: Record<string, unknown[]>) => void) => {
+      const roh = alt(neu())
+      mit((roh.betrieb as { bereiche: { parallel: Record<string, unknown[]> } }).bereiche.parallel)
+      return migrate(roh)!.betrieb.bereiche.parallel.begonnen
+    }
+    expect(begonnen((b) => b.gezeigt.push({ ref: kennung('final', 1, '1-1', '1-2'), zeit: 6000 }))).toEqual(['runde:pre', 'runde:semi', 'runde:small', 'runde:final'])
+    expect(begonnen((b) => b.ohneAnzeige.push(kennung('final', 1, '1-1', '1-2')))).toEqual(['runde:pre', 'runde:semi', 'runde:small', 'runde:final'])
+    // Schon `runde:small` darin (zweimal angewandt o. Ä.): nicht doppelt.
+    expect(begonnen((b) => b.begonnen.push('runde:small'))).toEqual(['runde:pre', 'runde:semi', 'runde:small'])
+  })
+
+  it('ein Start ohne `finale` ist nicht sauber: die alte Runde `final` entfällt samt Werten, ohne Absturz', () => {
+    const roh = alt(neu())
+    const plaene = roh.parallelPlaene as { final: { starts: Record<string, unknown>[] } }
+    delete plaene.final.starts[0].finale
+    const m = migrate(roh)!
+    expect(Object.keys(m.parallelPlaene).sort()).toEqual(['pre', 'semi'])
+    expect(Object.keys(m.eingaben).filter((k) => k.startsWith('parallel:final') || k.startsWith('parallel:small'))).toEqual([])
+    expect(m.parallelGedruckt).toEqual({})
+    const b = m.betrieb.bereiche.parallel
+    expect(b.begonnen).not.toContain('runde:final')
+    expect([b.gezeigt, b.zurueckgestellt, b.reihenfolge]).toEqual([[], [], null])
+    expect(m.listenStand['parallel:final/1/gesamt']).toBeUndefined()
+    // Aus dem Halbfinale stehen beide Finals neu an.
+    expect(klassenStand(m, configFor({ regelwerk: 'uim-2026' }), '1')!.schritte.map((s) => s.runde)).toEqual(['small', 'final'])
+  })
+
+  it('Müll stürzt nicht ab: kaputte Starts, unbekanntes `finale`, doppelte Paare oder Starter in beiden Finals', () => {
+    const basis = alt(neu())
+    const mit = (final: unknown) => migrate({ ...basis, parallelPlaene: { ...(basis.parallelPlaene as object), final } })
+    for (const final of [{ starts: 'x' }, { starts: [null, 3] }, { starts: [{ a: '1-1', b: '1-2', attempt: 1, block: 0, boot: 'klein', klasse: '1', finale: 7 }] }, 'kaputt', null]) {
+      const m = mit(final)
+      expect(m, JSON.stringify(final)).not.toBeNull()
+      expect(m!.parallelPlaene.final, JSON.stringify(final)).toBeUndefined()
+      expect(m!.parallelPlaene.small).toBeUndefined()
+    }
+    // Derselbe Starter in beiden Finals: nicht aufteilbar.
+    const doppelt = [
+      { a: '1-1', b: '1-2', attempt: 1, block: 0, boot: 'klein', klasse: '1', finale: 3 },
+      { a: '1-1', b: '1-3', attempt: 1, block: 1, boot: 'klein', klasse: '1', finale: 1 },
+    ]
+    expect(mit({ runde: 'final', starts: doppelt })!.parallelPlaene).not.toHaveProperty('final')
+    // Zwei Paare einer Klasse im selben Finale: nicht aufteilbar.
+    const zweiPaare = [
+      { a: '1-1', b: '1-2', attempt: 1, block: 0, boot: 'klein', klasse: '1', finale: 1 },
+      { a: '1-3', b: '1-4', attempt: 1, block: 1, boot: 'klein', klasse: '1', finale: 1 },
+    ]
+    expect(mit({ runde: 'final', starts: zweiPaare })!.parallelPlaene).not.toHaveProperty('final')
+    // Gibt es schon ein Kleines Finale, wird nicht aufgeteilt (verworfen wird nur das alte `final`).
+    const schon = migrate({ ...basis, parallelPlaene: { ...(basis.parallelPlaene as object), small: { runde: 'small', starts: [] } } })!
+    expect(schon.parallelPlaene.final).toBeUndefined()
+    // Kein Absturz bei Unsinn außen herum.
+    expect(teileAlteFinals({ parallelPlaene: { final: { starts: [{ finale: 3, klasse: '1', a: 'x', b: null, attempt: 1 }] } }, eingaben: 5, betrieb: 'x', listenStand: [] })).toBeTruthy()
+  })
+
+  it('nur das Finale (zwei Gewertete, kein Kleines Finale): bleibt `final`, ohne `finale`', () => {
+    const roh = {
+      starters: parallelStarter('1', 2),
+      parallelPlaene: {
+        final: {
+          runde: 'final',
+          starts: [
+            { a: '1-1', b: '1-2', attempt: 1, block: 3, boot: 'klein', klasse: '1', finale: 1 },
+            { a: '1-2', b: '1-1', attempt: 2, block: 3, boot: 'klein', klasse: '1', finale: 1 },
+          ],
+        },
+      },
+      eingaben: { 'parallel:final/1': { '1-1': { zeit1: '40,00' } } },
+    }
+    const m = migrate(roh)!
+    expect(m.parallelPlaene).toEqual({
+      final: {
+        runde: 'final',
+        starts: [
+          { a: '1-1', b: '1-2', attempt: 1, block: 0, boot: 'klein', klasse: '1' },
+          { a: '1-2', b: '1-1', attempt: 2, block: 0, boot: 'klein', klasse: '1' },
+        ],
+      },
+    })
+    expect(m.eingaben['parallel:final/1']).toEqual({ '1-1': { zeit1: '40,00' } })
+  })
+
+  it('zweimal angewandt ändert nichts; ein neuer Stand bleibt dieselbe Referenz', () => {
+    const einmal = teileAlteFinals(alt(neu()))
+    expect(teileAlteFinals(einmal)).toBe(einmal)
+    const n = JSON.parse(JSON.stringify(neu()))
+    expect(teileAlteFinals(n)).toBe(n)
+    const m = migrate(alt(neu()))!
+    expect(migrate(JSON.parse(JSON.stringify(m)))).toEqual(m)
   })
 })

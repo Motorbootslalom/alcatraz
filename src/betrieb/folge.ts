@@ -206,8 +206,8 @@ export function laeufeVonPunkt(stand: AppState, punkt: PunktId): number[] {
  * Die Knoten haben keinen Lauf und kommen nicht vor. Ein unbekannter Bereich hat keines.
  *
  * Parallelslalom: die festgeschriebenen Runden in der Folge, in der sie gefahren werden (vergleicheRunden:
- * Vorlauf, seine Wiederholungen, Halbfinale, dessen Wiederholungen, Finals – das kleine Finale steht als erstes
- * im Plan der Finals). Eine Runde ohne festgeschriebenen Plan gibt es noch nicht; eine Wiederholung, die erst
+ * Vorlauf, seine Wiederholungen, Halbfinale, dessen Wiederholungen, Kleines Finale, Finale – seit 21.11.2026 ist
+ * das Kleine Finale ein eigener Punkt `runde:small` vor `runde:final`). Eine Runde ohne festgeschriebenen Plan gibt es noch nicht; eine Wiederholung, die erst
  * nach dem Halbfinale festgeschrieben wird, ordnet sich davor ein und wartet als nicht begonnener Punkt
  * (BETRIEB_ANNAHMEN.begonnenAlsMenge).
  */
@@ -233,8 +233,6 @@ export interface FolgePaar {
    */
   aFaehrt: boolean
   bFaehrt: boolean
-  /** Nur in den Finals: 1 = um Platz 1 und 2, 3 = kleines Finale. */
-  finale?: 1 | 3
 }
 
 /** Ein Start in der abgeleiteten Folge eines Bereichs. */
@@ -325,7 +323,7 @@ function parallelFolge(stand: AppState): FolgeEintrag[] {
       // (beide gelöscht), entfällt der Start ohnehin – die Klasse wird dann nie gelesen.
       const klasse = s.klasse ?? nachId.get(s.a ?? '')?.klasse ?? nachId.get(s.b ?? '')?.klasse ?? parallelActiveClasses()[0]
       const starter = (aFaehrt ? s.a : bFaehrt ? s.b : (s.a ?? s.b)) ?? ''
-      const paar: FolgePaar = { runde, attempt: s.attempt, a: s.a, b: s.b, aFaehrt, bFaehrt, ...(s.finale ? { finale: s.finale } : {}) }
+      const paar: FolgePaar = { runde, attempt: s.attempt, a: s.a, b: s.b, aFaehrt, bFaehrt }
       out.push({ key, ref, punkt, starter, lauf: s.attempt, klasse, entfaellt: !aFaehrt && !bFaehrt, paar })
     }
   }

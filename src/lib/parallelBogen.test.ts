@@ -28,7 +28,7 @@ import {
   waehleRundenBoegen,
 } from './parallelBogen'
 import { attemptSchluessel, attemptsImPlan, RACECOURSE_PARCOURS, rundeHatEingaben, rundenDisziplin, rundeVon, zerlegeAttempt } from './parallelSchluessel'
-import { leseCode, rundenBogenCode, rundenZettelCode, seitenCode, type QrBekannt } from './qr'
+import { leseCode, rundenBogenCode, rundenZettelCode, seitenCode, type QrBekannt, type QrRundenZiel } from './qr'
 import { scanBogen } from './scan'
 import { rundenStartliste } from './parallelStartliste'
 import { wkrBoegenZumStand } from './wkrListen'
@@ -397,6 +397,39 @@ describe('QR-Code der Listen einer Runde (ALC2)', () => {
     // Ohne Parallelslalom in der Veranstaltung passt kein ALC2-Blatt.
     expect(fehler('ALC2.K7Q4.UIM2026.PARALLEL.PRE.A', { ...bekannt, parallel: undefined })).toBe('aufbau')
     expect(fehler('ALC2.MUSTER.UIM2026.PARALLEL.PRE.A')).toBe('muster')
+  })
+
+  it('Kleines Finale (21.11.2026 eigene Runde): eigene sechs Listen, eigener Laufzettel, Code SMALL – nie verwechselt mit FINAL', () => {
+    // Pläne von Hand: Klasse 1 im Kleinen Finale (1-1/1-2), Klasse 4 im Finale (4-1/4-2) – erfundene Starter.
+    const paar = (a: string, b: string, klasse: ClassId, boot: 'klein' | 'gross') => [
+      { a, b, attempt: 1 as const, block: 0, boot, klasse },
+      { a: b, b: a, attempt: 2 as const, block: 0, boot, klasse },
+    ]
+    const state: AppState = {
+      ...uim(),
+      parallelPlaene: {
+        ...uim().parallelPlaene,
+        final: { runde: 'final', starts: paar('4-1', '4-2', '4', 'gross') },
+        small: { runde: 'small', starts: paar('1-1', '1-2', '1', 'klein') },
+      },
+    }
+    const p = parallelBoegen(state, konfig)
+    expect(p.runden).toEqual(['pre', 'small', 'final'])
+    const klein = p.boegen.filter((b) => b.runde?.runde === 'small')
+    expect(klein).toHaveLength(6)
+    expect(klein.every((b) => b.auftrag.disziplin === 'parallel:small')).toBe(true)
+    expect(new Set(p.boegen.map((b) => b.id)).size).toBe(p.boegen.length)
+    const qrKlein = klein.find((b) => b.runde?.racecourse === 'B' && b.typeId === 'zeit')!.auftrag.qr!
+    expect(qrKlein).toBe('ALC2.K7Q4.UIM2026.PARALLEL.SMALL.B.ZEIT')
+    // Hin und zurück: Bogen und Laufzettel des Kleinen Finales treffen ihre Runde, nicht das Finale.
+    const bekanntHier: QrBekannt = { ...bekannt, parallel: { ...bekannt.parallel!, runden: p.runden } }
+    const ziel = leseCode(seitenCode(qrKlein, 1), bekanntHier)
+    expect(ziel).toEqual({ ok: true, ziel: { art: 'runde', runde: 'small', racecourse: 'B', typeId: 'zeit', seite: 1 } })
+    expect(scanRundenBogen((ziel as { ziel: QrRundenZiel }).ziel, p.boegen)?.runde?.runde).toBe('small')
+    expect(leseCode(rundenZettelCode(kontext, { runde: 'small', racecourse: 'A' }), bekanntHier)).toEqual({ ok: true, ziel: { art: 'runde', runde: 'small', racecourse: 'A' } })
+    expect(leseCode(rundenZettelCode(kontext, { runde: 'final', racecourse: 'A' }), bekanntHier)).toEqual({ ok: true, ziel: { art: 'runde', runde: 'final', racecourse: 'A' } })
+    // Die Laufzettel: je Runde und Racecourse einer.
+    expect(rundenZettel(state, p, () => 1).map((z) => z.qr)).toEqual(expect.arrayContaining(['ALC2.K7Q4.UIM2026.PARALLEL.SMALL.A', 'ALC2.K7Q4.UIM2026.PARALLEL.FINAL.A']))
   })
 
   it('alte Codes (ALC1) bleiben lesbar, und die Bögen des Manövrierens tragen weiter ALC1', () => {

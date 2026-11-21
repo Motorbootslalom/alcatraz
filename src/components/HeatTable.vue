@@ -6,8 +6,8 @@ import { startEntfaellt, type ParallelHeat } from '../planung/parallel'
 defineProps<{
   heats: ParallelHeat[]
   /**
-   * Je Start ein Vermerk in einer eigenen Spalte – in den Runden nach dem Vorlauf die Klasse und
-   * in den Finals, um welche Plätze es geht. Fehlt = keine Spalte (Vorlauf).
+   * Je Start ein Vermerk in einer eigenen Spalte – in den Runden nach dem Vorlauf die Klasse (um
+   * welche Plätze ein Finale geht, sagt seit 21.11.2026 die Runde selbst). Fehlt = keine Spalte (Vorlauf).
    */
   vermerke?: readonly string[]
   /** Die Überschrift über der Tabelle; fehlt = die des Vorlaufs (Blöcke zu vier Startern). */

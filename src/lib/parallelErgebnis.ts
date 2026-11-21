@@ -1,12 +1,13 @@
-import type { AppState, ClassId, ParallelPlanFest, ParallelRunde } from '../types'
-import { klassenStarts, klassenTeilnehmer, rerunRunde, VORLAUF, zerlegeRerun, type RerunBasis } from '../planung/parallelRunden'
+import type { AppState, ClassId, ParallelRunde } from '../types'
+import { istFinale, klassenTeilnehmer, rerunRunde, VORLAUF, zerlegeRerun, type RerunBasis } from '../planung/parallelRunden'
 import { vergleicheNr } from './eingaben'
 import { klassenErgebnis, wertungVon, type ErgebnisKonfig, type ErgebnisStand, type GesamtListe, type KlassenErgebnis, type WertungsEinheit } from './ergebnis'
 import { parallelListen, type ParallelKonfig } from './parallelBogen'
 import { RACECOURSES, rundenDisziplin, type Racecourse } from './parallelSchluessel'
 
 // Das Ergebnis einer Runde des Parallelslaloms – rein, ohne DOM: Vorlauf („preliminary heat“),
-// Halbfinale, Finals und Wiederholung („re-run“). Was aus den Runden für die Klasse folgt (wer
+// Halbfinale, Kleines Finale, Finale (seit 21.11.2026 zwei getrennte Runden: „4 in sich geschlossene
+// Listen/Auswertungen“, Auftrag des Nutzers) und Wiederholung („re-run“). Was aus den Runden für die Klasse folgt (wer
 // als Nächstes fährt, das Ergebnis der Stage), steht in lib/parallelStage.ts.
 //
 // Gerechnet wird mit der Wertung des Manövrierens (lib/ergebnis.ts `klassenErgebnis`), nur als
@@ -89,7 +90,7 @@ export const PARALLEL_ANNAHMEN = {
   /**
    * Verzahnung der Runden nach dem Vorlauf – Organisation, nicht Regel 960. WUNSCH DES NUTZERS
    * vom 19.11.2026: „Es fährt immer großes Boot/kleines Boot im Wechsel“ – auch in Halbfinale,
-   * Finals und Wiederholungen, wie im Vorlauf (planung/parallelRunden.ts `verzahneRunde`). Die
+   * Kleinem Finale, Finale und Wiederholungen, wie im Vorlauf (planung/parallelRunden.ts `verzahneRunde`). Die
    * Klassen eines Bootstyps stehen in ihrer Folge im Vorlauf. Wird eine Klasse später
    * festgeschrieben (oder gelöscht), ordnet das die Runde neu, solange darin nichts erfasst, sie
    * im Betrieb nicht begonnen und ihre Listen nicht gedruckt sind; danach kommt eine Klasse nur ans
@@ -102,6 +103,19 @@ export const PARALLEL_ANNAHMEN = {
    * `false`: jede Klasse ans Ende, nie neu ordnen.
    */
   rundenVerzahnen: true as boolean,
+  /**
+   * „Alle Klassen weiter“ nach dem Halbfinale – AUSLEGUNG vom 21.11.2026, VOM NUTZER ZU BESTÄTIGEN.
+   * Seit 21.11.2026 sind Kleines Finale und Finale getrennte Runden, je Klasse mit eigenem Knopf.
+   * `true`: „Alle Klassen weiter“ schreibt nach dem Halbfinale BEIDE auf einmal fest (ein Schritt,
+   * ein Eintrag im Verlauf). Gründe: Beide Paarungen folgen aus demselben Ergebnis des Halbfinales,
+   * das Kleine Finale ändert am Finale nichts – Warten bringt keine Information; die Entscheidung
+   * vom 19.11.2026 („Nach den Vorläufen und dem Halbfinale wird als Ganzes weitergewechselt“) nennt
+   * einen Schritt nach dem Halbfinale; die Listen beider Runden werden praktisch zusammen gedruckt;
+   * die Fahrfolge bleibt trotzdem gesichert (im Betrieb steht `runde:small` vor `runde:final`); ein
+   * Protest gegen das Halbfinale macht ohnehin beide veraltet. `false`: nur die erste offene Runde
+   * je Klasse (erst das Kleine Finale, beim nächsten Klick das Finale).
+   */
+  finalsZusammen: true as boolean,
 } as const
 
 /** Was die Wertung einer Runde von der Konfiguration braucht (config/konfig.ts `Konfig`). */
@@ -174,8 +188,8 @@ export interface RundenErgebnis extends KlassenErgebnis, Qualifikation {
   racecourse: ReadonlyMap<string, Readonly<Record<number, Racecourse>>>
   /**
    * Die Starter (IDs) in der Folge, nach der die nächste Runde gesetzt wird – erst, wenn die
-   * Runde entschieden ist. Vorlauf: die Gewerteten, die weiterkommen (höchstens vier). Halbfinale
-   * und Finals: alle Teilnehmer nach Platz.
+   * Runde entschieden ist. Vorlauf: die Gewerteten, die weiterkommen (höchstens vier). Halbfinale,
+   * Kleines Finale und Finale: alle Teilnehmer nach Platz.
    */
   folge: readonly string[]
   /**
@@ -313,11 +327,6 @@ function mitWiederholungen(
   }
 }
 
-/** Die Starter (IDs) eines Finales der Klasse: um Platz 1 und 2 (1) oder um Platz 3 und 4 (3). */
-function finalisten(plan: ParallelPlanFest | undefined, klasse: ClassId, finale: 1 | 3): Set<string> {
-  return new Set(klassenStarts(plan, klasse).flatMap((s) => (s.finale === finale ? [s.a, s.b] : [])).filter((id): id is string => id !== null))
-}
-
 /**
  * Das Ergebnis einer Klasse in einer Runde; null, solange der Plan der Runde nicht
  * festgeschrieben ist, die Klasse nicht darin vorkommt oder zur Klasse noch nichts erfasst ist.
@@ -329,7 +338,8 @@ function finalisten(plan: ParallelPlanFest | undefined, klasse: ClassId, finale:
  *     der Klasse gemeinsam nach der Summe beider Attempts, unabhängig vom Paar; Grenze nach
  *     Platz 2 („Drivers with 1st and 2nd highest scores in the semi-finals compete for the 1st
  *     and 2nd place“); Wiederholungen eingerechnet.
- *   • Finals: je Paar – Plätze 1 und 2 bzw. 3 und 4. Ein Gleichstand bleibt stehen (Pkt. 5.2.6:
+ *   • Kleines Finale und Finale (seit 21.11.2026 getrennte Runden): das Paar der Klasse – das
+ *     Kleine Finale vergibt Platz 3 und 4, das Finale Platz 1 und 2. Ein Gleichstand bleibt stehen (Pkt. 5.2.6:
  *     „there will be a dead-heat result“): Eine Wiederholung gibt es nur, wo eine Entscheidung
  *     nötig ist „in order to set up the semi-finals or finals“.
  *   • Wiederholung: die Gruppe für sich; ihre Plätze gehen in die Runde ein, zu der sie gehört.
@@ -370,9 +380,9 @@ export function rundenErgebnis(stand: RundenStand, konfig: RundenKonfig, klasse:
   }
 
   let zeilen = roh.gesamt.nachPlatz
-  if (runde === 'final') {
-    const plan = stand.parallelPlaene?.[runde]
-    for (const finale of [1, 3] as const) zeilen = imHeat(zeilen, finalisten(plan, klasse, finale), finale - 1)
+  if (istFinale(runde)) {
+    // Das Kleine Finale geht um Platz 3 und 4: Plätze ab FINALE_UM_1 + 1 (Pkt. 4.4).
+    zeilen = imHeat(zeilen, alle, runde === 'small' ? FINALE_UM_1 : 0)
   } else if (zerlegeRerun(runde)?.basis === 'semi') {
     zeilen = imHeat(zeilen, alle)
   }
@@ -427,7 +437,7 @@ const punkteVon = (punkte: readonly number[], platz: number) => (Number.isIntege
  *     solange ein Re-run aussteht, steht bei den übrigen nichts.
  *     Bei drei Teilnehmern (Halbfinale mit Dummy) steht beim Dritten schon seine Punktzahl: Er
  *     hat Platz 3 ohne ein Finale um Platz 3 und 4 (Annahme, Frage 3).
- *   • Finals: die Punkte des Platzes. Wer disqualifiziert ist, steht auf dem hinteren Platz
+ *   • Kleines Finale und Finale: die Punkte des Platzes. Wer disqualifiziert ist, steht auf dem hinteren Platz
  *     seines Finales und behält dessen Punkte (Pkt. 5.2.2 „ranked last in the relevant heat“;
  *     Annahme, Frage 5b).
  *   • Wiederholung: nichts – sie entscheidet nur die Reihenfolge in ihrer Runde.
@@ -448,7 +458,7 @@ export function rundenVermerke(
   return new Map(
     zeilen.flatMap((z): [string, RundenVermerk][] => {
       const id = z.starter.id
-      if (runde === 'final') return [[id, { art: 'punkte', punkte: z.disq && !PARALLEL_ANNAHMEN.disqImHeatBehaeltPunkte ? 0 : punkteVon(punkte, z.platz) }]]
+      if (istFinale(runde)) return [[id, { art: 'punkte', punkte: z.disq && !PARALLEL_ANNAHMEN.disqImHeatBehaeltPunkte ? 0 : punkteVon(punkte, z.platz) }]]
       if (ergebnis.rerun.includes(id)) return [[id, { art: 'rerun' }]]
       if (rerunPlatz !== undefined && (runde === 'semi' || dahinterOffen || (istGewertet(z) && z.platz < rerunPlatz))) return []
       return [vermerk(z)]

@@ -111,7 +111,10 @@ export function bogenTexte(sprache: Sprache, klassenNamen: Record<string, string
     entfaellt: t('entfällt', 'cancelled'),
     racecourse: (kennung) => t(`Parcours ${kennung}`, `Racecourse ${kennung}`),
     runde: (runde) => {
-      const name = (r: string) => (r === 'pre' ? t('Vorlauf', 'Preliminary heat') : r === 'semi' ? t('Halbfinale', 'Semi-finals') : r === 'final' ? t('Finale', 'Finals') : undefined)
+      // Rundennamen stehen doppelt (auch i18n parallel.round.*, planung/parallelRunden.ts rundenName) – beide gleich
+      // halten. Seit 21.11.2026 eigene Runden „Kleines Finale“/„Small final“ und „Finale“/„Final“ (Entscheidung vom 15.11.2026).
+      const namen: Record<string, string> = { pre: t('Vorlauf', 'Preliminary heat'), semi: t('Halbfinale', 'Semi-finals'), small: t('Kleines Finale', 'Small final'), final: t('Finale', 'Final') }
+      const name = (r: string): string | undefined => namen[r]
       // Eine Wiederholung nennt ihre Runde und ab der zweiten ihre Nummer – gebaut wie
       // `rundenName` (planung/parallelRunden.ts), damit sich auf dem Papier die Wiederholung zum
       // Vorlauf von der zum Halbfinale und die erste von der zweiten unterscheidet.

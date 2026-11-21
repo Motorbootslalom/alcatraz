@@ -179,8 +179,6 @@ export interface SichtPaar {
   attempt: 1 | 2
   a: string | null
   b: string | null
-  /** Nur in den Finals: 1 = um Platz 1 und 2, 3 = kleines Finale (Platz 3 und 4). */
-  finale?: 1 | 3
 }
 
 /**
@@ -283,9 +281,10 @@ export interface OeffentlicheSicht {
   /**
    * Fassung der Sicht; steigt, wenn sich ihre Form ändert (2: Steuerung der Etappe E2; 3: Startabstände und
    * „am Steg“/„vor Steg“ für die Prognose, Etappe E3; 4: Bereich `parallel` mit Paaren, `SichtStart.paar`, E4;
-   * 5: `einst.parallelAnordnung`, Lage von Racecourse A und B, 16.11.2026). Gilt auch für die Zuschauersicht.
+   * 5: `einst.parallelAnordnung`, Lage von Racecourse A und B, 16.11.2026; 6: SichtPaar ohne `finale`, das Kleine
+   * Finale ist eine eigene Runde `runde:small`, 21.11.2026). Gilt auch für die Zuschauersicht.
    */
-  sv: 5
+  sv: 6
   /** Kopfzeile; '' = keine. */
   kopf: string
   /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */

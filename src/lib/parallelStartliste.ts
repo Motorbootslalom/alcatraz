@@ -22,8 +22,6 @@ export interface StartlistenZeile {
   attempt: 1 | 2
   /** Die Klasse des Paares (die des Starters auf A, sonst B); fehlt, wenn der Start entfällt. */
   klasse?: ClassId
-  /** Nur in den Finals: um welche Plätze es geht (1 = Finale, 3 = kleines Finale). */
-  finale?: 1 | 3
   a: StartlistenPlatz
   b: StartlistenPlatz
   /** Beide Starter des Starts gibt es nicht mehr: Die Zeile bleibt, damit die Positionen stimmen. */
@@ -52,7 +50,6 @@ export function rundenStartliste(stand: Pick<AppState, 'starters' | 'parallelPla
       start: h.pos,
       attempt: h.run,
       ...(entfaellt ? {} : { klasse: fest.starts[i]?.klasse ?? a?.klasse ?? b?.klasse }),
-      ...(fest.starts[i]?.finale ? { finale: fest.starts[i].finale } : {}),
       a,
       b,
       entfaellt,

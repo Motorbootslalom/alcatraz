@@ -131,10 +131,11 @@ describe('Parallelslalom im Betrieb: Bereich und Programm', () => {
     s = reducer(s, { type: 'BETRIEB_AB', bereich: P, ref: p('semi', 1, 'E-1', 'E-2') })
     for (let i = 0; i < 4; i++) s = naechster(s, 1000 * (i + 1))
     s = fahre(s, 'semi', { 'E-1': [40, 40], 'E-2': [41, 41], 'E-3': [42, 42], 'E-4': [43, 43] })
-    s = festschreiben(s, 'final', 'E')
-    s = naechster(beginne(s, 'final'), 10_000)
+    // Seit 21.11.2026 eigene Runde: Das Kleine Finale ist ein eigener Punkt.
+    s = festschreiben(festschreiben(s, 'small', 'E'), 'final', 'E')
+    s = naechster(beginne(s, 'small'), 10_000)
     const kleinesFinale2 = lage(s, P).frei[0].key
-    expect(lage(s, P).aktuell?.eintrag?.paar).toMatchObject({ finale: 3, attempt: 1 })
+    expect(lage(s, P).aktuell?.eintrag?.paar).toMatchObject({ runde: 'small', attempt: 1 })
     // Re-run der Klasse 1 festgeschrieben, gefahren (Werte da), ihr Halbfinale festgeschrieben – die Runde ist begonnen.
     s = festschreiben(s, 'rerun-pre-1', '1')
     s = fahre(s, 'rerun-pre-1', { '1-4': [40, 40], '1-5': [45, 45] })
@@ -145,7 +146,7 @@ describe('Parallelslalom im Betrieb: Bereich und Programm', () => {
     // Nichts davon nachzuholen; erst das Paar im Boot zu Ende, dann das Halbfinale (es steht vor den Finals).
     expect(l.nachzuholen).toEqual([])
     expect(l.frei.map((e) => e.key).slice(0, 5)).toEqual([kleinesFinale2, ...semi1])
-    expect(l.laufend).toBe('runde:final')
+    expect(l.laufend).toBe('runde:small')
     const z = sichtZuschauer(sichtOeffentlich(s)).bereiche.find((b) => b.id === P)!
     expect(z.frei.map((x) => x.punkt)).toEqual(expect.arrayContaining(['runde:semi']))
     // Gezielt das 2. Paar des Halbfinales zeigen: Es rückt mit seinem 2. Attempt hinter das Erledigte SEINER Runde –
@@ -162,7 +163,7 @@ describe('Parallelslalom im Betrieb: Bereich und Programm', () => {
       [semi1[0], 'runde:semi'],
       [semi1[1], 'runde:semi'],
       [semi1[3], 'runde:semi'],
-      [kleinesFinale2, 'runde:final'],
+      [kleinesFinale2, 'runde:small'],
     ])
     expect([l.nachzuholen, l.zurueckgestellt]).toEqual([[], []])
     // Pläne und Werte ändert der Betrieb nie.
@@ -241,20 +242,33 @@ describe('Parallelslalom im Betrieb: leere Seiten (K7) und stabile Kennung (K8)'
     expect(lage(ohne, P).folge.find((e) => e.key === p('pre', 1, 'E-3', null))?.entfaellt).toBe(false)
   })
 
-  it('Finals: das kleine Finale zuerst, jeder Start nennt sein Finale', () => {
+  it('Kleines Finale und Finale: zwei Punkte, das Kleine Finale zuerst – auch wenn das Finale zuerst festgeschrieben ist', () => {
     let s = imHalbfinale()
     s = fahre(s, 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
     s = festschreiben(s, 'final', '1')
     expect(programm(s, P)).toEqual(['runde:pre', 'runde:semi', 'runde:final'])
-    const finals = lage(s, P).folge.filter((e) => e.punkt === 'runde:final')
-    expect(finals.map((e) => e.paar?.finale)).toEqual([3, 3, 1, 1])
-    const sicht = bereich(sichtOeffentlich(beginne(s, 'final')))
-    expect(sicht.waehlbar.filter((w) => w.punkt === 'runde:final').map((w) => w.titel)).toEqual([
-      'Small final (3rd and 4th place) · Attempt 1',
-      'Small final (3rd and 4th place) · Attempt 2',
+    s = festschreiben(s, 'small', '1')
+    // Die Folge der Runden (vergleicheRunden), nicht die des Festschreibens (21.11.2026).
+    expect(programm(s, P)).toEqual(['runde:pre', 'runde:semi', 'runde:small', 'runde:final'])
+    expect(lage(s, P).folge.filter((e) => e.punkt === 'runde:small' || e.punkt === 'runde:final').map((e) => [e.punkt, e.key])).toEqual([
+      ['runde:small', p('small', 1, '1-3', '1-4')],
+      ['runde:small', p('small', 2, '1-4', '1-3')],
+      ['runde:final', p('final', 1, '1-1', '1-2')],
+      ['runde:final', p('final', 2, '1-2', '1-1')],
+    ])
+    const sicht = bereich(sichtOeffentlich(beginne(beginne(s, 'small'), 'final')))
+    expect(sicht.programm.map((x) => [x.id, x.titel]).slice(2)).toEqual([
+      ['runde:small', 'Small final'],
+      ['runde:final', 'Final'],
+    ])
+    expect(sicht.waehlbar.filter((w) => w.punkt === 'runde:small' || w.punkt === 'runde:final').map((w) => w.titel)).toEqual([
+      'Small final · Attempt 1',
+      'Small final · Attempt 2',
       'Final · Attempt 1',
       'Final · Attempt 2',
     ])
+    // Das Paar trägt kein `finale` mehr (Sicht-Fassung 6): Die Runde sagt, um welche Plätze es geht.
+    expect(sicht.waehlbar.find((w) => w.punkt === 'runde:small')!.paar).toEqual({ attempt: 1, a: '1-3', b: '1-4' })
   })
 })
 

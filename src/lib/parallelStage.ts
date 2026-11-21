@@ -1,7 +1,7 @@
 import type { AppState, ClassId, Eingaben, ParallelPlaene, ParallelRunde, Starter } from '../types'
 import { boatTypeOf } from '../domain/classes'
 import { cmpStartNr } from '../planung/parallel'
-import { klassenPaare, klassenTeilnehmer, mitKlasse, ohneKlasse, paareNachNummer, rundenDerKlasse, VORLAUF, zerlegeRerun, type RundenPaar } from '../planung/parallelRunden'
+import { istFinale, klassenPaare, klassenTeilnehmer, mitKlasse, ohneKlasse, paareNachNummer, rundenDerKlasse, vergleicheRunden, VORLAUF, zerlegeRerun, type RundenPaar } from '../planung/parallelRunden'
 import { vergleicheNr } from './eingaben'
 import { FINALE_UM_1, klassenDerRunde, PARALLEL_ANNAHMEN, rundenErgebnis, type RundenErgebnis, type RundenKonfig, type RundenStand } from './parallelErgebnis'
 import { attemptSchluessel } from './parallelSchluessel'
@@ -31,12 +31,18 @@ import { attemptSchluessel } from './parallelSchluessel'
 //   • Die „personal number“ ist die Startnummer; die kleinere Nummer beginnt auf Racecourse A –
 //     auch in den Finals und in einer Wiederholung (paarweise nach Nummer, ein Einzelner gegen
 //     einen Dummy).
-//   • Das Finale um Platz 3 und 4 wird vor dem um Platz 1 und 2 gefahren.
-//   • Halbfinale, Finals und Wiederholungen werden je Klasse festgeschrieben, sobald die Runde
-//     davor entschieden ist – von Hand, nie von selbst: Ändert ein Protest später das Ergebnis
-//     davor, bleibt der festgeschriebene Plan, wie er auf dem Papier steht, und gilt als
-//     „veraltet“ (Warnung). Gelöst wird nur die jeweils letzte Runde der Klasse (oder eine, die
-//     nicht mehr gebraucht wird); dabei gehen die Werte der Klasse in dieser Runde verloren.
+//   • Das Kleine Finale (um Platz 3 und 4) wird vor dem Finale (um Platz 1 und 2) gefahren
+//     (Entscheidung vom 15.11.2026). Seit 21.11.2026 sind beide eigene Runden (`small`, `final`;
+//     Auftrag des Nutzers: „Kleines und großes Finale ist getrennt, wie Vorlauf und Halbfinale“):
+//     Nach dem Halbfinale stehen BEIDE zum Festschreiben an (`schritte`), unabhängig voneinander –
+//     sie hängen nur am Halbfinale, nicht aneinander. Ohne Kleines Finale (Halbfinale mit Dummy,
+//     direkt das Finale) entfällt die Runde für die Klasse.
+//   • Halbfinale, Kleines Finale, Finale und Wiederholungen werden je Klasse festgeschrieben,
+//     sobald die Runde davor entschieden ist – von Hand, nie von selbst: Ändert ein Protest später
+//     das Ergebnis davor, bleibt der festgeschriebene Plan, wie er auf dem Papier steht, und gilt
+//     als „veraltet“ (Warnung). Gelöst wird nur eine Runde, auf der keine spätere steht (Kleines
+//     Finale und Finale stehen nebeneinander, beide lösbar), oder eine, die nicht mehr gebraucht
+//     wird; dabei gehen die Werte der Klasse in dieser Runde verloren.
 //   • Das Ergebnis der Stage gibt es erst, wenn die Klasse alle ihre Runden gefahren ist – und
 //     nicht, solange eine ihrer Runden „veraltet“ ist: Erst lösen und neu festschreiben.
 
@@ -68,7 +74,14 @@ export interface KlassenStand {
   klasse: ClassId
   /** Der Vorlauf und die für die Klasse festgeschriebenen Runden danach, in der Folge des Wettkampfs. */
   runden: KlassenRunde[]
-  /** Die Runde, die jetzt festgeschrieben werden kann; fehlt, solange eine läuft oder alles gefahren ist. */
+  /**
+   * Alle Runden, die jetzt festgeschrieben werden können, in der Folge des Wettkampfs: eine
+   * Wiederholung oder das Halbfinale – oder nach dem Halbfinale Kleines Finale und Finale, jedes,
+   * solange es nicht festgeschrieben ist (21.11.2026). Leer, solange eine Runde läuft oder alles
+   * festgeschrieben ist.
+   */
+  schritte: RundenSchritt[]
+  /** Die erste der {@link schritte}; fehlt, solange eine läuft oder alles gefahren ist. */
   naechste?: RundenSchritt
   /**
    * Alle Runden der Klasse sind gefahren, und jeder festgeschriebene Plan passt zum Ergebnis
@@ -81,15 +94,19 @@ export interface KlassenStand {
    * ein Fahrer nicht mehr gehört, neben dem Platz eines anderen aus dem Vorlauf (zwei auf Platz 4).
    */
   veraltet?: ParallelRunde
-  /** Die Runden, die sich für die Klasse lösen lassen: die letzte festgeschriebene – und jede veraltete, auf der keine spätere steht. */
+  /**
+   * Die Runden, die sich für die Klasse lösen lassen: jede festgeschriebene, auf der keine spätere
+   * steht (Kleines Finale und Finale gelten als Geschwister: beide lösbar; das Halbfinale erst,
+   * wenn keines von beiden festgeschrieben ist) – und jede, die nicht mehr gebraucht wird.
+   */
   loesbar: ParallelRunde[]
 }
 
 const zustandVon = (e: RundenErgebnis | null): KlassenRunde['zustand'] => (e === null ? 'leer' : e.vollstaendig ? 'fertig' : 'laeuft')
 
-/** Zwei Paarungen sind dieselben, wenn dieselben Starter gegeneinander fahren – um dieselben Plätze. */
+/** Zwei Paarungen sind dieselben, wenn dieselben Starter gegeneinander fahren (um welche Plätze, sagt die Runde). */
 function gleichePaare(a: readonly RundenPaar[], b: readonly RundenPaar[]): boolean {
-  const text = (p: RundenPaar) => `${[p.a, p.b ?? ''].sort().join('|')}|${p.finale ?? ''}`
+  const text = (p: RundenPaar) => [p.a, p.b ?? ''].sort().join('|')
   const menge = new Set(a.map(text))
   return a.length === b.length && b.every((p) => menge.has(text(p)))
 }
@@ -106,7 +123,7 @@ export function klassenStand(stand: StageStand, konfig: StageKonfig, klasse: Cla
   const runden: KlassenRunde[] = []
   const eintrag = (runde: ParallelRunde, ergebnis: RundenErgebnis | null, veraltet = false) => runden.push({ runde, ergebnis, zustand: zustandVon(ergebnis), veraltet })
   const ergebnisVon = (runde: ParallelRunde) => rundenErgebnis(stand, konfig, klasse, runde)
-  let naechste: RundenSchritt | undefined
+  const schritte: RundenSchritt[] = []
   let fertig = false
 
   /** Eine Runde mit ihren Wiederholungen; liefert ihr Ergebnis, sobald sie entschieden ist. */
@@ -119,16 +136,16 @@ export function klassenStand(stand: StageStand, konfig: StageKonfig, klasse: Cla
         const teilnehmer = klassenTeilnehmer(plaene[e.rerunRunde], klasse)
         eintrag(e.rerunRunde, ergebnisVon(e.rerunRunde), teilnehmer.length !== e.rerun.length || !e.rerun.every((id) => teilnehmer.includes(id)))
       } else {
-        naechste = { runde: e.rerunRunde, paare: paareNachNummer(starter(e.rerun)) }
+        schritte.push({ runde: e.rerunRunde, paare: paareNachNummer(starter(e.rerun)) })
       }
       return null
     }
     return e?.entschieden ? e : null
   }
   /** Das Paar eines Finales: die kleinere Startnummer beginnt auf Racecourse A. */
-  const finalPaar = (ids: readonly string[], finale: 1 | 3): RundenPaar => {
+  const finalPaar = (ids: readonly string[]): RundenPaar => {
     const [a, b] = [...starter(ids)].sort(cmpStartNr)
-    return { a: a.id, b: b?.id ?? null, finale }
+    return { a: a.id, b: b?.id ?? null }
   }
 
   const weg = () => {
@@ -139,28 +156,38 @@ export function klassenStand(stand: StageStand, konfig: StageKonfig, klasse: Cla
       fertig = true
       return
     }
-    let finals: RundenPaar[]
+    let finals: { runde: 'small' | 'final'; paar: RundenPaar }[]
     if (weiter.length >= PARALLEL_ANNAHMEN.halbfinaleAb) {
       const soll = paareNachNummer(starter(weiter))
       if (klassenTeilnehmer(plaene.semi, klasse).length === 0) {
-        naechste = { runde: 'semi', paare: soll }
+        schritte.push({ runde: 'semi', paare: soll })
         return
       }
       const semi = stufe('semi', !gleichePaare(klassenPaare(plaene.semi, klasse), soll))
       if (!semi) return
       const f = semi.folge
-      // Erst das Finale um Platz 3 und 4, dann das um Platz 1 und 2 (Organisation).
-      finals = [...(f.length >= 2 * FINALE_UM_1 ? [finalPaar(f.slice(FINALE_UM_1, 2 * FINALE_UM_1), 3)] : []), finalPaar(f.slice(0, FINALE_UM_1), 1)]
+      // Erst das Kleine Finale, dann das Finale (Entscheidung vom 15.11.2026) – seit 21.11.2026 zwei
+      // Runden; das Kleine Finale gibt es nur mit einem Dritten UND Vierten (sonst Platz 3 ohne Finale).
+      finals = [
+        ...(f.length >= 2 * FINALE_UM_1 ? [{ runde: 'small' as const, paar: finalPaar(f.slice(FINALE_UM_1, 2 * FINALE_UM_1)) }] : []),
+        { runde: 'final', paar: finalPaar(f.slice(0, FINALE_UM_1)) },
+      ]
     } else {
-      finals = [finalPaar(weiter, 1)]
+      finals = [{ runde: 'final', paar: finalPaar(weiter) }]
     }
-    if (klassenTeilnehmer(plaene.final, klasse).length === 0) {
-      naechste = { runde: 'final', paare: finals }
-      return
+    // Jedes Finale für sich: festschreiben, solange es nicht festgeschrieben ist – sonst ein Eintrag.
+    let alleGefahren = true
+    for (const { runde, paar } of finals) {
+      if (klassenTeilnehmer(plaene[runde], klasse).length === 0) {
+        schritte.push({ runde, paare: [paar] })
+        alleGefahren = false
+        continue
+      }
+      const e = ergebnisVon(runde)
+      eintrag(runde, e, !gleichePaare(klassenPaare(plaene[runde], klasse), [paar]))
+      if (e?.vollstaendig !== true) alleGefahren = false
     }
-    const final = ergebnisVon('final')
-    eintrag('final', final, !gleichePaare(klassenPaare(plaene.final, klasse), finals))
-    fertig = final?.vollstaendig === true
+    fertig = alleGefahren
   }
   weg()
 
@@ -169,9 +196,12 @@ export function klassenStand(stand: StageStand, konfig: StageKonfig, klasse: Cla
   const fest = rundenDerKlasse(plaene, klasse)
   const ungenutzt = fest.filter((r) => !runden.some((x) => x.runde === r))
   for (const r of ungenutzt) eintrag(r, ergebnisVon(r), true)
-  const letzte = fest.at(-1)
+  // Lösbar ist, worauf keine spätere festgeschriebene Runde steht. Kleines Finale und Finale stehen
+  // beide nur auf dem Halbfinale – keines auf dem anderen (21.11.2026).
+  const spaeter = (x: ParallelRunde, r: ParallelRunde) => vergleicheRunden(x, r) > 0 && !(istFinale(x) && istFinale(r))
+  const oben = fest.filter((r) => !fest.some((x) => spaeter(x, r)))
   const veraltet = runden.find((r) => r.veraltet)?.runde
-  return { klasse, runden, naechste, fertig: fertig && veraltet === undefined, veraltet, loesbar: [...new Set([...(letzte ? [letzte] : []), ...ungenutzt])] }
+  return { klasse, runden, schritte, naechste: schritte[0], fertig: fertig && veraltet === undefined, veraltet, loesbar: [...new Set([...oben, ...ungenutzt])] }
 }
 
 /** Der Stand aller Klassen des Vorlaufs, in der Reihenfolge seines Plans. */
@@ -180,13 +210,14 @@ export function klassenStaende(stand: StageStand, konfig: StageKonfig): KlassenS
 }
 
 /**
- * Die nächste Runde einer Klasse festschreiben: Ihre Paare kommen in den Plan der Runde. Wirkt
- * nur, wenn genau diese Runde für die Klasse ansteht – eine veraltete Anfrage (zweites Gerät,
- * doppelter Klick) ändert nichts.
+ * Eine anstehende Runde einer Klasse festschreiben: Ihre Paare kommen in den Plan der Runde. Wirkt
+ * nur, wenn genau diese Runde für die Klasse ansteht (eine ihrer {@link KlassenStand.schritte} –
+ * nach dem Halbfinale also Kleines Finale und Finale, in beliebiger Folge) – eine veraltete Anfrage
+ * (zweites Gerät, doppelter Klick) ändert nichts.
  */
 export function schreibeRundeFest(stand: StageStand, konfig: StageKonfig, klasse: ClassId, runde: ParallelRunde): ParallelPlaene | null {
-  const schritt = klassenStand(stand, konfig, klasse)?.naechste
-  if (!schritt || schritt.runde !== runde || schritt.paare.length === 0) return null
+  const schritt = klassenStand(stand, konfig, klasse)?.schritte.find((s) => s.runde === runde)
+  if (!schritt || schritt.paare.length === 0) return null
   return mitKlasse(stand.parallelPlaene ?? {}, runde, klasse, schritt.paare, boatTypeOf(klasse, stand.class4Small === true))
 }
 
@@ -195,7 +226,11 @@ export type BleibGrund = 'laeuft' | 'rerun' | 'veraltet'
 
 /** Was „Alle Klassen weiter“ tut: welche Klassen in ihre nächste Runde kommen und welche bleiben. */
 export interface AlleWeiter {
-  /** Je Klasse die Runde, die jetzt festgeschrieben wird (Halbfinale oder Finals), in der Folge des Vorlaufs. */
+  /**
+   * Je Klasse die Runden, die jetzt festgeschrieben werden (Halbfinale – oder nach dem Halbfinale
+   * Kleines Finale und Finale), in der Folge des Vorlaufs. Eine Klasse kann ZWEIMAL vorkommen:
+   * nach dem Halbfinale mit beiden Finals (PARALLEL_ANNAHMEN.finalsZusammen, 21.11.2026).
+   */
   weiter: { klasse: ClassId; runde: ParallelRunde }[]
   /** Klassen, deren Stage nicht fertig ist und die nicht mitkommen – mit der Runde, an der es hängt. */
   bleiben: { klasse: ClassId; runde: ParallelRunde; grund: BleibGrund }[]
@@ -204,7 +239,9 @@ export interface AlleWeiter {
 /**
  * „Alle Klassen weiter“ (Wunsch des Nutzers vom 19.11.2026: „Nach den Vorläufen und dem Halbfinale
  * wird als Ganzes weitergewechselt“): Jede Klasse, für die jetzt Halbfinale oder Finals anstehen
- * (`naechste` aus {@link klassenStand} – dieselbe Prüfung wie beim Knopf je Klasse), kommt mit.
+ * (`schritte` aus {@link klassenStand} – dieselbe Prüfung wie beim Knopf je Klasse), kommt mit;
+ * nach dem Halbfinale mit beiden Finals auf einmal (PARALLEL_ANNAHMEN.finalsZusammen, Auslegung vom
+ * 21.11.2026), sonst nur mit der ersten offenen Runde.
  * Es bleiben: Klassen, deren Runde noch läuft; Klassen mit einem Gleichstand an der Grenze – die
  * Wiederholung (Pkt. 5.2.6) wird weiter je Klasse festgeschrieben, weil sie nur die Gleichstehenden
  * betrifft; Klassen mit einer veralteten Runde (erst lösen). Fertige Klassen fehlen in beiden Listen.
@@ -217,7 +254,10 @@ export function alleWeiter(staende: readonly KlassenStand[]): AlleWeiter {
     const offen = offeneRunde(ks)
     if (offen.veraltet) bleiben.push({ klasse: ks.klasse, runde: offen.runde, grund: 'veraltet' })
     else if (ks.naechste && zerlegeRerun(ks.naechste.runde)) bleiben.push({ klasse: ks.klasse, runde: ks.naechste.runde, grund: 'rerun' })
-    else if (ks.naechste && ks.naechste.paare.length > 0) weiter.push({ klasse: ks.klasse, runde: ks.naechste.runde })
+    else if (ks.naechste && ks.naechste.paare.length > 0) {
+      const mit = PARALLEL_ANNAHMEN.finalsZusammen ? ks.schritte.filter((s) => s.paare.length > 0 && !zerlegeRerun(s.runde)) : [ks.naechste]
+      for (const s of mit) weiter.push({ klasse: ks.klasse, runde: s.runde })
+    }
     else bleiben.push({ klasse: ks.klasse, runde: offen.runde, grund: 'laeuft' })
   }
   return { weiter, bleiben }
@@ -289,8 +329,9 @@ export interface StageErgebnis {
  * gefahren sind oder der Plan einer Runde nicht mehr zum Ergebnis davor passt (`veraltet`).
  *
  * Regel 960, Pkt. 4.4: „the driver is awarded UIM points for his/her ranking“; Pkt. 5.1 (Tabelle
- * 400 … 1). Die Plätze 1 bis 4 kommen aus den Finals (Pkt. 4.4: „compete for the 1st and 2nd
- * place“, „compete for the 3rd and 4th place“), ab Platz 5 gilt der Platz des Vorlaufs. Ein
+ * 400 … 1). Die Plätze 1 und 2 kommen aus dem Finale (Pkt. 4.4: „compete for the 1st and 2nd
+ * place“), 3 und 4 aus dem Kleinen Finale („compete for the 3rd and 4th place“; seit 21.11.2026
+ * eine eigene Runde), ab Platz 5 gilt der Platz des Vorlaufs. Ein
  * geteilter Platz gibt beiden die vollen Punkte, der nächste entfällt (Pkt. 5.2.6 „dead-heat
  * result“; wie auf der Gesamtliste des Manövrierens).
  *
@@ -322,6 +363,7 @@ export function stageErgebnis(stand: StageStand, konfig: StageKonfig, klasse: Cl
     zeilen.set(z.starter.id, { starter: z.starter, platz: z.platz, punkte: z.disq ? 0 : punkteVon(z.platz), disq: z.disq || imRerun, runde: m?.runde ?? VORLAUF, gesamt: z.disq || imRerun ? null : (m?.gesamt ?? z.gesamt) })
   }
   const semi = von('semi')
+  const small = von('small')
   const final = von('final')
   // Der Dritte eines Halbfinales mit Dummy fährt kein Finale: Platz 3.
   if (final && semi && semi.folge.length > FINALE_UM_1 && semi.folge.length < 2 * FINALE_UM_1) {
@@ -329,7 +371,10 @@ export function stageErgebnis(stand: StageStand, konfig: StageKonfig, klasse: Cl
     const m = z && semi.massgeblich.get(z.starter.id)
     if (z) zeilen.set(z.starter.id, { starter: z.starter, platz: FINALE_UM_1 + 1, punkte: imHeat(FINALE_UM_1 + 1, z.disq), disq: z.disq, runde: m?.runde ?? 'semi', gesamt: z.disq ? null : (m?.gesamt ?? z.gesamt) })
   }
-  for (const z of final?.gesamt.nachPlatz ?? []) zeilen.set(z.starter.id, { starter: z.starter, platz: z.platz, punkte: imHeat(z.platz, z.disq), disq: z.disq, runde: 'final', gesamt: z.disq ? null : z.gesamt })
+  // Plätze 3 und 4 aus dem Kleinen Finale, 1 und 2 aus dem Finale – die Plätze trägt schon das Ergebnis der Runde.
+  for (const [runde, e] of [['small', small], ['final', final]] as const) {
+    for (const z of e?.gesamt.nachPlatz ?? []) zeilen.set(z.starter.id, { starter: z.starter, platz: z.platz, punkte: imHeat(z.platz, z.disq), disq: z.disq, runde, gesamt: z.disq ? null : z.gesamt })
+  }
   return {
     klasse,
     nachPlatz: [...zeilen.values()].sort((a, b) => a.platz - b.platz || Number(a.disq) - Number(b.disq) || vergleicheNr(a.starter.startNr, b.starter.startNr)),
@@ -371,10 +416,21 @@ export interface OffeneRunde {
   veraltet: boolean
 }
 
-/** Die Runde, an der die Stage der Klasse hängt – eine veraltete zuerst: Sie ist als Erstes zu lösen. */
+/**
+ * Die Runde, an der die Stage der Klasse hängt – eine veraltete zuerst: Sie ist als Erstes zu lösen.
+ * Von den beiden Finals nennt sie das, das zuerst gefahren wird und nicht fertig ist (21.11.2026):
+ * Läuft das Kleine Finale, während das Finale noch festzuschreiben ist oder ebenfalls läuft, hängt es
+ * am Kleinen Finale – sonst nennten die Hinweise (Druckdatei, Einzelwertung) nur das Finale, obwohl
+ * das Kleine Finale auch nicht gefahren ist. `festschreiben` gilt dann nicht: Die genannte Runde läuft.
+ */
 export function offeneRunde(ks: KlassenStand): OffeneRunde {
   if (ks.veraltet !== undefined) return { runde: ks.veraltet, festschreiben: false, veraltet: true }
-  return { runde: ks.naechste?.runde ?? ks.runden.filter((r) => r.zustand !== 'fertig').at(-1)?.runde ?? VORLAUF, festschreiben: ks.naechste !== undefined, veraltet: false }
+  const offenesFinale = ks.runden.find((r) => istFinale(r.runde) && r.zustand !== 'fertig')
+  const naechste = ks.naechste?.runde
+  if (offenesFinale && (naechste === undefined || (istFinale(naechste) && vergleicheRunden(offenesFinale.runde, naechste) < 0))) {
+    return { runde: offenesFinale.runde, festschreiben: false, veraltet: false }
+  }
+  return { runde: naechste ?? ks.runden.filter((r) => r.zustand !== 'fertig').at(-1)?.runde ?? VORLAUF, festschreiben: naechste !== undefined, veraltet: false }
 }
 
 /** Die Klassen des Vorlaufs, deren Stage noch nicht fertig ist – mit der Runde, an der es hängt. */

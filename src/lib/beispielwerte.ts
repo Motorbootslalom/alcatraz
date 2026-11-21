@@ -381,7 +381,7 @@ export type VorlaufStand = Pick<AppState, 'starters' | 'eingaben' | 'parallelPla
  * Ohne festgeschriebenen Plan bleibt alles, wie es ist – ohne Plan gibt es keine Liste, auf der
  * die Werte stünden. Bemerkungen und alle anderen Läufe bleiben; jede Zeile gilt danach als
  * erfasst. Der Dummy hat keine Zeile und bekommt keine Werte. Das gilt für jede Runde –
- * Vorlauf, Halbfinale, Finals, Wiederholung –, die Kennzahlen sind die des Vorlaufs.
+ * Vorlauf, Halbfinale, Kleines Finale, Finale, Wiederholung –, die Kennzahlen sind die des Vorlaufs.
  *
  * Wo ein Starter fährt (Racecourse A oder B), folgt aus dem Plan (planung/parallelRunden.ts
  * `plaetzeVon`); gespeichert wird je Starter und Attempt (lib/parallelSchluessel.ts).

@@ -27,8 +27,9 @@ Warum etwas so ist, steht mit Datum in [entscheidungen.md](entscheidungen.md).
 
 Alcatraz rechnet den Startplan des Vorlaufs
 (`src/planung/parallel.ts`, `src/planung/parallelRunden.ts`, Ansicht „Verzahnung → Parallel-Slalom“).
-Dazu je Klasse Halbfinale, Finals und Wiederholung (Re-run) bis zum Gesamtergebnis der Stage.
-Jede Runde hat WKR-Listen, Laufzettel, Erfassung und Wertungslisten.
+Dazu je Klasse Halbfinale, Kleines Finale, Finale und Wiederholung (Re-run) bis zum Gesamtergebnis der Stage.
+Jede Runde ist in sich geschlossen (seit 21.11.2026 auch die beiden Finals): eigener Plan, WKR-Listen, Laufzettel,
+Startliste, Erfassung, Wertungslisten und ein eigener Punkt im Betrieb.
 Daraus entstehen die Einzelwertung über beide Stages und die Mannschaftswertung UIM aus den Punkten beider Stages
 (siehe [Einzelwertung](#einzelwertung)).
 Den Parallelslalom gibt es nur unter einem Regelwerk mit der Disziplin `parallel` (Regel 960), also bis Klasse 5.
@@ -268,18 +269,31 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
   Sie bietet die nächste Runde zum Festschreiben an, sobald die Runde davor vollständig erfasst ist
   (Actions `PARALLEL_RUNDE_FESTSCHREIBEN` / `PARALLEL_RUNDE_LOESEN`; wer fährt, rechnet der Reducer).
 - **„Alle Klassen weiter“** (19.11.2026): ein Knopf über den Klassen, sobald mindestens zwei so weit sind.
-  Er schreibt für alle Klassen, für die Halbfinale bzw. Finals anstehen, die nächste Runde in einem Schritt fest
+  Er schreibt für alle Klassen, für die Halbfinale bzw. Finals anstehen, die nächste Runde in einem Schritt fest –
+  nach dem Halbfinale Kleines Finale und Finale zusammen (Auslegung vom 21.11.2026, zu bestätigen:
+  `PARALLEL_ANNAHMEN.finalsZusammen`; eine Klasse steht dann zweimal in der Action, gezählt werden Klassen)
   (Action `PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN`, ein Verlaufseintrag; dieselbe Prüfung wie je Klasse:
   `alleWeiter` in `src/lib/parallelStage.ts`). Es bleiben – und stehen im Hinweis darunter: Klassen, deren Runde
   noch nicht vollständig ist, Klassen mit einem Gleichstand an der Grenze (der Re-run wird je Klasse
   festgeschrieben) und Klassen mit einem veralteten Plan. Der Knopf bleibt ab zwei Klassen; für eine reicht ihr
   eigener (Nutzer, 20.11.2026: „Nein, eigentlich nicht“).
-- Der Plan einer Runde (`parallelPlaene.semi`, `.final`, `rerun-<runde>-<n>`) sammelt die Starts aller Klassen.
-  Jeder Start trägt seine `klasse`, in den Finals `finale` (1 = um Platz 1 und 2, 3 = um Platz 3 und 4).
+- Der Plan einer Runde (`parallelPlaene.semi`, `.small`, `.final`, `rerun-<runde>-<n>`) sammelt die Starts aller
+  Klassen. Jeder Start trägt seine `klasse`; um welche Plätze ein Finale geht, sagt die Runde (bis 21.11.2026 stand
+  beides in einem Plan `final` mit dem Feld `finale`; migrate() teilt solche Stände in `small` und `final` auf und zieht
+  die Werte mit um, `teileAlteFinals` in `src/state/migrate.ts`; ein im Betrieb begonnenes altes `final` wird
+  `runde:small`, `runde:final` bleibt nur, wenn schon ein Start des Finales gezeigt war).
+- **Kleines Finale und Finale** (21.11.2026, Nutzer: „Kleines und großes Finale ist getrennt, wie Vorlauf und
+  Halbfinale. Das sind 4 in sich geschlossene Listen/Auswertungen.“): Nach dem Halbfinale stehen beide an, je Klasse
+  mit eigenem Knopf und in beliebiger Folge festzuschreiben. Beide lassen sich löschen; das Halbfinale erst, wenn
+  keines der beiden mehr festgeschrieben ist. Ohne Kleines Finale (Halbfinale mit Dummy, nur 2 Gewertete) entfällt
+  die Runde für die Klasse. Woran eine unfertige Klasse hängt (Hinweise der Druckdatei, Einzelwertung), nennt von
+  den Finals das erste nicht fertige – das Kleine Finale, solange es nicht gefahren ist, auch wenn das Finale schon
+  festgeschrieben werden kann (`offeneRunde`, 21.11.2026). „Wird erfasst“ unter der Klasse steht nur, solange nichts
+  festzuschreiben ist.
 - **Verzahnt wie der Vorlauf** (19.11.2026, „Es fährt immer großes Boot/kleines Boot im Wechsel“):
   ein Block ist klein 1. Attempt, groß 1. Attempt, klein 2. Attempt, groß 2. Attempt; ist ein Bootstyp
   aufgebraucht, fährt jedes übrige Paar seine beiden Attempts als 2er-Block. Die Klassen stehen je Bootstyp in
-  ihrer Folge im Vorlauf, innerhalb der Klasse die Paare in ihrer Folge (Kleines Finale vor dem Finale)
+  ihrer Folge im Vorlauf, innerhalb der Klasse die Paare in ihrer Folge
   (`verzahne` in `src/planung/parallel.ts`, `verzahneRunde` in `src/planung/parallelRunden.ts`).
   Auch der Re-run fährt so verzahnt („die normale Verzahnung“, Nutzer 20.11.2026); festgeschrieben wird er weiter je
   Klasse, weil er nur selten und für wenige Starter nötig ist.
@@ -306,8 +320,8 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
 Paare „according to the personal number“: nach Startnummer, die kleinere auf Racecourse A.
 Alle vier werden gemeinsam nach der Summe beider Attempts gereiht.
 
-**Finals:** 1. und 2. um Platz 1 und 2, 3. und 4. um Platz 3 und 4.
-Gewertet wird je Paar; ein Gleichstand bleibt stehen (Pkt. 5.2.6 „dead-heat result“).
+**Kleines Finale und Finale** (zwei Runden, 21.11.2026): 3. und 4. um Platz 3 und 4 (Kleines Finale, zuerst gefahren),
+1. und 2. um Platz 1 und 2 (Finale). Gewertet wird je Paar; ein Gleichstand bleibt stehen (Pkt. 5.2.6 „dead-heat result“).
 
 **Re-run** (Pkt. 5.2.6):
 
@@ -343,20 +357,20 @@ Der Knopf heißt „… löschen“, nicht „lösen“ (Entscheidung vom 15.11.
 Sie sind vom Veranstalter noch zu bestätigen, im Code gekennzeichnet und an einer Stelle umstellbar
 (`PARALLEL_ANNAHMEN` in `src/lib/parallelErgebnis.ts`):
 
-- 3 Gewertete im Vorlauf → Halbfinale mit Dummy; der Dritte hat Platz 3 ohne Kleines Finale (Platz 3 und 4).
+- 3 Gewertete im Vorlauf → Halbfinale mit Dummy; der Dritte hat Platz 3, ein Kleines Finale entfällt für die Klasse.
 - 2 Gewertete → direkt das Finale; 1 Gewerteter → Platz 1 aus dem Vorlauf.
-- Disqualifikation in Halbfinale oder Finale (Pkt. 5.2.2 „ranked last in the relevant heat“):
+- Disqualifikation in Halbfinale, Kleinem Finale oder Finale (Pkt. 5.2.2 „ranked last in the relevant heat“):
   Platz 4 der vier bzw. der hintere Platz des Paars; die Punkte dieses Platzes bleiben.
   Zwei Disqualifizierte teilen ihn sich.
 - Disqualifikation in einer Wiederholung (zum Vorlauf wie zum Halbfinale): hinterer Platz der Gruppe mit dessen Punkten
   (zum Vorlauf Entscheidung vom 15.11.2026).
   Werden alle der Gruppe disqualifiziert, teilen sie sich diesen Platz.
-- Das Kleine Finale (Platz 3 und 4) wird zuerst gefahren; jedes Paar fährt seine beiden Attempts im selben Block
+- Das Kleine Finale wird vor dem Finale gefahren (eigene Runde, im Betrieb ein eigener Punkt davor); jedes Paar fährt seine beiden Attempts im selben Block
   (bei beiden Bootstypen verzahnt, sonst direkt nacheinander).
 
 **Gesamtergebnis der Stage** (`stageErgebnis`, Blatt `components/ergebnis/ParallelStageBlatt.vue`, „Overall results“):
 
-- Plätze 1 bis 4 aus den Finals, ab Platz 5 aus dem Vorlauf.
+- Platz 1 und 2 aus dem Finale, 3 und 4 aus dem Kleinen Finale, ab Platz 5 aus dem Vorlauf.
   Dazu die Summe aus der Runde, die den Platz bestimmt hat, und die UIM points (Pkt. 5.1).
 - Eine Spalte mit dieser Runde gibt es nicht (Entscheidung vom 15.11.2026).
   Der Platz sagt es: Unter Platz 4 ist alles aus dem Vorlauf.
@@ -389,10 +403,12 @@ Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts
 - **Bereich „Parallel slalom“** (`parallel`) hinter den Parcours, sobald jemand in einer Klasse bis 5 fährt
   oder eine Runde festgeschrieben ist (`src/betrieb/folge.ts`).
 - **Punkte sind die festgeschriebenen Runden**, in der Folge, in der sie gefahren werden: Vorlauf, seine
-  Wiederholungen, Halbfinale, dessen Wiederholungen, Finals. Eine Runde ohne festgeschriebenen Plan steht nicht im
+  Wiederholungen, Halbfinale, dessen Wiederholungen, Kleines Finale, Finale. Eine Runde ohne festgeschriebenen Plan steht nicht im
   Programm. Ein Re-run, der erst nach dem Halbfinale festgeschrieben wird, ordnet sich davor ein und wartet als
-  nicht begonnene Runde („Vorlauf – Wiederholung beginnen“). Das kleine Finale ist keine eigene Runde: Es steht
-  im Plan der Finals vorn, und jeder Start nennt sein Finale („Small final (3rd and 4th place)“, „Final“).
+  nicht begonnene Runde („Vorlauf – Wiederholung beginnen“). Das Kleine Finale ist seit 21.11.2026 ein eigener
+  Punkt (`runde:small`) vor dem Finale (`runde:final`); nach dem Kleinen Finale wird „Finale beginnen“ gedrückt wie
+  bei jedem Punkt (`BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`, zu bestätigen). Die Anzeigetafel zeigt „Small final ·
+  Attempt 1“ bzw. „Final · Attempt 1“ (Sicht-Fassung 6: `SichtPaar` ohne `finale`).
 - **Die Runden laufen je Klasse für sich** (Halbfinale, Finals und Re-runs werden je Klasse festgeschrieben; Prüfung
   von E4, 16.11.2026, noch zu bestätigen): „Nachzuholen“ ist ein Start nur, wenn hinter ihm schon ein Start derselben
   Runde gezeigt ist. Ein Re-run, der festgeschrieben wird, während das Halbfinale läuft, kommt nach „Re-run beginnen“
@@ -443,10 +459,12 @@ Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts
 - Die Dummys je Bootstyp sind eine Anzahl.
 - Englisch heißen die einzelnen Starts „starts“; „heat“ ist im Regelbuch die Runde
   (Pkt. 5.2.2 „preliminary heat / semi-finals / finals“).
-- Die Runden heißen „Preliminary heat“, „Semi-finals“, „Finals“, „Re-run“.
-  „Small final“ trägt den Zusatz „3rd and 4th place“ (Entscheidung des Nutzers;
-  Regel 960 nennt nur „compete for the 3rd and 4th place“).
-- Deutsch: Vorlauf, Halbfinale, Finale, Kleines Finale (Platz 3 und 4), Wiederholung.
+- Die Runden heißen „Preliminary heat“, „Semi-finals“, „Small final“, „Final“, „Re-run“
+  („Small final“ statt des Regelbuch-Wortlauts „compete for the 3rd and 4th place“, Entscheidung vom 15.11.2026).
+  Seit 21.11.2026 ist das Kleine Finale eine eigene Runde; der frühere Zusatz „(3rd and 4th place)“ entfällt, weil
+  die Runde ihn sagt (zu bestätigen). Die Rundennamen stehen doppelt: i18n `parallel.round.*` (über `rundenName`) und
+  `bogenTexte().runde` in `src/config/sprache.ts` – beide gleich halten.
+- Deutsch: Vorlauf, Halbfinale, Kleines Finale, Finale, Wiederholung.
 
 ## Einzelwertung
 

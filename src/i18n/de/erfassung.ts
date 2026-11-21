@@ -15,7 +15,7 @@ export default {
   'capture.jump': 'Zu den Listen dieses Blattstapels springen',
   'capture.results': 'Die Wertungslisten rechnen laufend mit und stehen unter',
   'capture.parallel':
-    'Der Parallel-Slalom wird hier erfasst (Disziplin oben wählen, darunter die Runde). Halbfinale, Finale und Wiederholung gibt es, sobald sie für eine Klasse festgeschrieben sind (Verzahnung → Parallel-Slalom); gewertet wird unter Listen → Wertungslisten → Parallel-Slalom.',
+    'Der Parallel-Slalom wird hier erfasst (Disziplin oben wählen, darunter die Runde). Halbfinale, Kleines Finale, Finale und Wiederholung gibt es, sobald sie für eine Klasse festgeschrieben sind (Verzahnung → Parallel-Slalom); gewertet wird unter Listen → Wertungslisten → Parallel-Slalom.',
   'capture.discipline': 'Disziplin',
   'capture.progress': '{done} von {total} erfasst',
   'capture.flagged': '{n} Zeile prüfen | {n} Zeilen prüfen',

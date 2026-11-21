@@ -397,7 +397,7 @@ nur wer Anzeigetafel oder Zuschauerliste auch auf anderen Geräten zeigen will, 
   der Zuschauer kommt sie über den Zuschauer-Link (Gerätebetrieb, dieselbe Liste).
 - **Parallelslalom** (nur unter UIM, Etappe E4; Einzelheiten in [parallelslalom.md](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)):
   ein eigener Bereich „Parallel slalom“ hinter den Parcours. Seine Punkte sind die festgeschriebenen Runden (Vorlauf,
-  Re-run, Halbfinale, Finals), seine Starts die Paare des Plans; die Anzeigetafel zeigt Racecourse A und B
+  Re-run, Halbfinale, Kleines Finale, Finale – seit 21.11.2026 zwei eigene Punkte), seine Starts die Paare des Plans; die Anzeigetafel zeigt Racecourse A und B
   neben- oder untereinander, so wie sie vom Publikum aus liegen (Einstellung). Klassen aussetzen, vorziehen und
   Verschieben gibt es dort nicht, Zurückstellen nimmt das ganze Paar, und Startliste und Zuschauerliste zeigen keine
   Wartezeit. Die gemeinsame Anzeigetafel nimmt ihn von selbst erst dazu, wenn eine Runde begonnen ist; eine eigene
@@ -825,7 +825,7 @@ Alle Namen sind erfunden.
 **Beispielwerte:** Was gefüllt wird, ist eine Auswahl (`components/BeispieldatenPanel.vue`).
 
 - Das Manövrieren (bis Lauf n) oder eine einzelne Runde des Parallelslaloms:
-  Vorlauf, Halbfinale, Finale (samt kleinem Finale), Re-run.
+  Vorlauf, Halbfinale, Kleines Finale, Finale (seit 21.11.2026 getrennte Runden), Re-run.
   Eine Runde ist erst wählbar, wenn ihr Startplan festgeschrieben ist.
 - „Beispielwerte einfügen“ füllt nur das Gewählte
   (Action `FILL_BEISPIELWERTE` mit `laeufe` bzw. `runden` und `nurRunden`;

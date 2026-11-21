@@ -1,28 +1,42 @@
 import type { BoatType, ClassId, ParallelPlaene, ParallelPlanFest, ParallelRunde, ParallelStartFest, PlanState, Starter } from '../types'
 import { boatTypeOf, CLASS_IDS } from '../domain/classes'
 import { buildParallelPlan, cmpStartNr, parallelActiveClasses, planAusStarts, verzahne, type ParallelPlan, type ParallelSlot } from './parallel'
-import { rundeHatEingaben, zerlegeAttempt } from '../lib/parallelSchluessel'
+import { istRunde, PARALLEL_RUNDEN, rundeHatEingaben, zerlegeAttempt } from '../lib/parallelSchluessel'
 
 export type { ParallelPlaene, ParallelPlanFest, ParallelRunde, ParallelStartFest }
 
 /**
  * Die Runden des Parallelslaloms in ihrer Folge (Regel 960, Pkt. 5.2.2: „Parallel slalom
- * preliminary heat / semi-finals / finals“). Eine Wiederholung (Pkt. 5.2.6: „must re-run both
- * attempts“) heißt `rerun-<runde>-<n>` ({@link rerunRunde}). Der Vorlauf wird mit der Verzahnung
- * für alle Klassen festgeschrieben; Halbfinale, Finals und Wiederholungen je Klasse, sobald das
- * Ergebnis der Runde davor feststeht (lib/parallelStage.ts).
+ * preliminary heat / semi-finals / finals“): Vorlauf, Halbfinale, Kleines Finale, Finale. Eine
+ * Wiederholung (Pkt. 5.2.6: „must re-run both attempts“) heißt `rerun-<runde>-<n>`
+ * ({@link rerunRunde}). Der Vorlauf wird mit der Verzahnung für alle Klassen festgeschrieben;
+ * Halbfinale, Kleines Finale, Finale und Wiederholungen je Klasse, sobald das Ergebnis der Runde
+ * davor feststeht (lib/parallelStage.ts). Die Liste steht in lib/parallelSchluessel.ts (kein
+ * Importkreis) und wird hier weitergereicht.
  */
-export const PARALLEL_RUNDEN = ['pre', 'semi', 'final'] as const satisfies readonly ParallelRunde[]
+export { istRunde, PARALLEL_RUNDEN }
+
+/**
+ * Die beiden Finals, seit 21.11.2026 eigene Runden („Kleines und großes Finale ist getrennt, wie
+ * Vorlauf und Halbfinale“, Auftrag des Nutzers): `small` um Platz 3 und 4 (Pkt. 4.4: „compete for
+ * the 3rd and 4th place“), zuerst gefahren (Entscheidung vom 15.11.2026), dann `final` um Platz 1
+ * und 2. Beide stehen nur auf dem Ergebnis des Halbfinales, nicht aufeinander.
+ */
+export const FINALS = ['small', 'final'] as const satisfies readonly ParallelRunde[]
+
+/** Ist die Runde eines der beiden Finals (Kleines Finale oder Finale)? */
+export const istFinale = (runde: ParallelRunde): runde is (typeof FINALS)[number] => runde === 'small' || runde === 'final'
 
 /** Der Vorlauf – „preliminary heat“ (Pkt. 5.2.2). */
 export const VORLAUF: ParallelRunde = 'pre'
 
 /**
  * Schlüssel des Textes mit dem Namen der Runde (i18n `parallel.round.*`): englisch nach
- * Pkt. 5.2.2 und 5.2.6 („Preliminary heat“, „Semi-finals“, „Finals“, „Re-run“).
+ * Pkt. 5.2.2 und 5.2.6 („Preliminary heat“, „Semi-finals“, „Re-run“); seit 21.11.2026
+ * „Small final“ und „Final“ als eigene Runden (Entscheidung vom 15.11.2026: „Kleines Finale“).
  */
-export function rundenText(runde: ParallelRunde): 'parallel.round.pre' | 'parallel.round.semi' | 'parallel.round.final' | 'parallel.round.rerun' {
-  return runde === 'pre' || runde === 'semi' || runde === 'final' ? `parallel.round.${runde}` : 'parallel.round.rerun'
+export function rundenText(runde: ParallelRunde): 'parallel.round.pre' | 'parallel.round.semi' | 'parallel.round.small' | 'parallel.round.final' | 'parallel.round.rerun' {
+  return runde === 'pre' || runde === 'semi' || runde === 'small' || runde === 'final' ? `parallel.round.${runde}` : 'parallel.round.rerun'
 }
 
 /**
@@ -44,12 +58,16 @@ export function zerlegeRerun(runde: ParallelRunde): { basis: RerunBasis; n: numb
   return m ? { basis: m[1] as RerunBasis, n: Number(m[2]) } : undefined
 }
 
-/** Die Stelle einer Runde in der Folge des Wettkampfs: Vorlauf, seine Wiederholungen, Halbfinale, dessen Wiederholungen, Finals. */
+/**
+ * Die Stelle einer Runde in der Folge des Wettkampfs: Vorlauf, seine Wiederholungen, Halbfinale,
+ * dessen Wiederholungen, Kleines Finale, Finale – das Kleine Finale vor dem Finale (Entscheidung
+ * vom 15.11.2026; eigene Runde seit 21.11.2026).
+ */
 function rundenRang(runde: ParallelRunde): number {
-  const rang = { pre: 0, semi: 1000, final: 2000 } as const
-  if (runde === 'pre' || runde === 'semi' || runde === 'final') return rang[runde]
+  const rang = { pre: 0, semi: 1000, small: 2000, final: 3000 } as const
+  if (runde === 'pre' || runde === 'semi' || runde === 'small' || runde === 'final') return rang[runde]
   const rerun = zerlegeRerun(runde)
-  return rerun ? rang[rerun.basis] + Math.min(999, rerun.n) : 3000
+  return rerun ? rang[rerun.basis] + Math.min(999, rerun.n) : 4000
 }
 
 /** Runden in der Folge, in der sie gefahren werden. */
@@ -60,7 +78,7 @@ export function vergleicheRunden(a: ParallelRunde, b: ParallelRunde): number {
 type RundenTextKey = ReturnType<typeof rundenText> | 'parallel.round.rerunOf' | 'parallel.round.rerunOfN'
 
 /**
- * Der Name einer Runde in Worten: „Vorlauf“, „Halbfinale“, „Finale“ – und für eine Wiederholung
+ * Der Name einer Runde in Worten: „Vorlauf“, „Halbfinale“, „Kleines Finale“, „Finale“ – und für eine Wiederholung
  * die Runde dazu („Vorlauf – Wiederholung“, ab der zweiten mit ihrer Nummer), damit sich die
  * Wiederholung zum Vorlauf von der zum Halbfinale unterscheidet. `t` ist die Übersetzung der
  * Oberfläche oder der Liste.
@@ -206,7 +224,7 @@ export function plaetzeVon(fest: ParallelPlanFest, starterId: string): { attempt
 
 // ---- Runden nach dem Vorlauf: je Klasse festgeschrieben -------------------------------------
 //
-// Halbfinale, Finals und Wiederholungen werden je Klasse festgeschrieben, sobald das Ergebnis
+// Halbfinale, Kleines Finale, Finale und Wiederholungen werden je Klasse festgeschrieben, sobald das Ergebnis
 // der Runde davor feststeht (lib/parallelStage.ts sagt, wer fährt). Der Plan einer Runde sammelt
 // die Starts aller Klassen – so sind die Listen der race officials wie im Vorlauf
 // klassenübergreifend. Seit 19.11.2026 (Wunsch des Nutzers) wird die Runde als Ganzes verzahnt
@@ -216,12 +234,13 @@ export function plaetzeVon(fest: ParallelPlanFest, starterId: string): { attempt
 // und verschiebt keine Zeile einer früheren (state/reducer/parallel.ts, PARALLEL_ANNAHMEN.rundenVerzahnen).
 // Re-run-Runden (`rerun-…`) werden genauso verzahnt (Antwort des Nutzers vom 20.11.2026).
 
-/** Ein Paar einer Runde nach dem Vorlauf: zwei Starter (IDs), `b: null` ist der Dummy. */
+/**
+ * Ein Paar einer Runde nach dem Vorlauf: zwei Starter (IDs), `b: null` ist der Dummy. Um welche
+ * Plätze ein Finale geht, sagt seit 21.11.2026 die Runde (`small`/`final`), nicht mehr das Paar.
+ */
 export interface RundenPaar {
   a: string
   b: string | null
-  /** Nur in den Finals: um Platz 1 und 2 (1) oder um Platz 3 und 4 (3). */
-  finale?: 1 | 3
 }
 
 /**
@@ -253,7 +272,7 @@ export function klassenPaare(plan: ParallelPlanFest | undefined, klasse: ClassId
     .filter((s) => s.attempt === 1)
     .flatMap((s): RundenPaar[] => {
       const [a, b] = s.a === null ? [s.b, null] : [s.a, s.b]
-      return a === null ? [] : [{ a, b, ...(s.finale ? { finale: s.finale } : {}) }]
+      return a === null ? [] : [{ a, b }]
     })
 }
 
@@ -275,7 +294,7 @@ export function mitKlasse(plaene: ParallelPlaene, runde: ParallelRunde, klasse: 
   let block = Math.max(-1, ...bleibt.map((s) => s.block)) + 1
   const neu: ParallelStartFest[] = []
   for (const p of paare) {
-    const zusatz = { block, boot, klasse, ...(p.finale ? { finale: p.finale } : {}) }
+    const zusatz = { block, boot, klasse }
     neu.push({ a: p.a, b: p.b, attempt: 1, ...zusatz }, { a: p.b, b: p.a, attempt: 2, ...zusatz })
     block++
   }
@@ -286,7 +305,7 @@ export function mitKlasse(plaene: ParallelPlaene, runde: ParallelRunde, klasse: 
  * Die Runde als Ganzes verzahnen wie den Vorlauf (Wunsch des Nutzers vom 19.11.2026: „Es fährt
  * immer großes Boot/kleines Boot im Wechsel“): die Paare aller Klassen der Runde, je Bootstyp
  * nach `klassenFolge` (die Folge der Klassen im Vorlauf, sonst ihre feste Folge) und innerhalb
- * der Klasse in ihrer Folge (Finale um Platz 3 und 4 vor dem um 1 und 2) – dann klein und groß im
+ * der Klasse in ihrer Folge – dann klein und groß im
  * Wechsel ({@link verzahne}, dieselbe Stelle wie im Vorlauf). Jedes Paar behält seine beiden
  * Attempts mit getauschten Racecourses. Ob die Runde neu geordnet werden DARF (noch nichts
  * erfasst, im Betrieb nicht begonnen), entscheidet der Aufrufer (state/reducer/parallel.ts).
@@ -321,10 +340,11 @@ export function ohneKlasse(plaene: ParallelPlaene, runde: ParallelRunde, klasse:
   return starts.length === 0 ? rest : { ...rest, [runde]: { runde, starts } }
 }
 
-/** Ist der Text die Kennung einer Runde? Auch für die Punkte des Betriebs (betrieb/folge.ts `istPunktId`). */
-export const istRunde = (wert: string): wert is ParallelRunde => wert === 'pre' || wert === 'semi' || wert === 'final' || /^rerun-.+/.test(wert)
-
-/** Gelesene Pläne (localStorage, Sicherung) auf ihre Form prüfen; Unbrauchbares entfällt. */
+/**
+ * Gelesene Pläne (localStorage, Sicherung) auf ihre Form prüfen; Unbrauchbares entfällt. Das
+ * frühere Feld `finale` (Kleines Finale im Plan der Finals, bis 21.11.2026) wird nicht übernommen:
+ * state/migrate.ts `teileAlteFinals` teilt solche Pläne VORHER in zwei Runden auf.
+ */
 export function normalisierePlaene(roh: unknown): ParallelPlaene {
   if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
   const plaene: ParallelPlaene = {}
@@ -347,7 +367,6 @@ export function normalisierePlaene(roh: unknown): ParallelPlaene {
         block: s.block,
         boot: s.boot,
         ...((CLASS_IDS as readonly unknown[]).includes(s.klasse) ? { klasse: s.klasse } : {}),
-        ...(s.finale === 1 || s.finale === 3 ? { finale: s.finale } : {}),
       })),
     }
   }

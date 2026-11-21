@@ -300,6 +300,44 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     })
   })
 
+  it('Kleines Finale (21.11.2026): eigene Startliste, eigene Laufzettel A und B, eigene Results – die Runde steht im Titel, nicht in der Klasse-Spalte', async () => {
+    // Eigenes Feld: eine Klasse mit sechs Startern (der Stand aus beforeEach liegt schon im localStorage).
+    localStorage.clear()
+    store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: mk('1', 6) })
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    const fahre = (runde: string, zeiten: Record<string, number[]>) =>
+      store.dispatch({ type: 'SET_EINGABEN', zellen: Object.entries(zeiten).flatMap(([id, je]) => je.map((sek, i) => ({ lauf: `parallel:${runde}/${i + 1}`, starter: id, feld: 'zeit1', wert: `${sek},00` }))) })
+    fahre('pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43], '1-5': [50, 50], '1-6': [55, 55] })
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
+    fahre('semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'small' })
+    store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'final' })
+    fahre('small', { '1-3': [30, 30], '1-4': [44, 45] })
+
+    const start = await startlisten()
+    const klein = start.find('.parallel-startliste .sheet-section[data-liste="startliste:small"]')
+    expect(klein.find('[data-feld="runde"]').text()).toBe('Parallel slalom · Small final')
+    expect(start.find('.parallel-startliste .sheet-section[data-liste="startliste:final"] [data-feld="runde"]').text()).toBe('Parallel slalom · Final')
+    // Kein Vermerk „Small final“ mehr neben der Klasse: Die Runde sagt es schon.
+    expect(klein.findAll('tr[data-start]')).toHaveLength(2)
+    expect(klein.findAll('tbody td').map((z) => z.text()).join('|')).not.toContain('final')
+    start.unmount()
+
+    const lz = await listen('laufzettel')
+    const zettel = lz.findAll('.laufzettel').filter((z) => z.attributes('data-zettel')!.startsWith('parallel|small|'))
+    expect(zettel.map((z) => z.attributes('data-zettel'))).toEqual(['parallel|small|A', 'parallel|small|B'])
+    expect(zettel.map((z) => z.find('.lz-klasse').text())).toEqual(['Small final', 'Small final'])
+    lz.unmount()
+
+    const erg = await listen('ergebnis')
+    const titel = erg.findAll('.erg-kopf-titel').map((t) => t.text())
+    expect(titel).toContain('Small final – Results')
+    expect(titel).not.toContain('Final – Results')
+    erg.unmount()
+  })
+
   it('unter der DM gibt es keine Wahl der Disziplin', async () => {
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
     const wrapper = mount(ListsView, mit(store))

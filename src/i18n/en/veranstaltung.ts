@@ -56,7 +56,6 @@ export default {
 
   'demo.values.roundNote': 'Fills only the attempts of this heat for which nothing has been entered yet – all other values stay (the heats after the preliminary heat are locked class by class).',
   'demo.values.what': 'What to fill',
-  'demo.values.finals': 'with small final',
   'demo.values.clearSelected': 'Delete values of the selection',
   'demo.values.clearSelectedConfirm': 'Delete the entered values of the selection? All other values stay.',
   'demo.values.title': 'Sample values',

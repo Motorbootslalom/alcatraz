@@ -18,8 +18,8 @@ import ErgebnisFuss from './ErgebnisFuss.vue'
  * bestimmt hat – und die UIM points des Platzes.
  *
  * Regel 960, Pkt. 4.4: „the driver is awarded UIM points for his/her ranking“; Pkt. 5.2: „Results
- * for each class and stage must be posted …“. Die Plätze 1 bis 4 kommen aus den Finals, ab
- * Platz 5 aus dem Vorlauf. Eine Spalte mit dieser Runde gibt es nicht (Entscheidung des Nutzers
+ * for each class and stage must be posted …“. Die Plätze 1 und 2 kommen aus dem Finale, 3 und 4 aus
+ * dem Kleinen Finale (seit 21.11.2026 eigene Runden), ab Platz 5 aus dem Vorlauf. Eine Spalte mit dieser Runde gibt es nicht (Entscheidung des Nutzers
  * vom 15.11.2026): Der Platz sagt es – unter Platz 4 ist alles aus dem Vorlauf; hat dort ein
  * Re-run entschieden, trägt der Platz ein Sternchen (`wiederholt`). Eine eigene Seitenteilung
  * wie jede Liste (ListenDokument.vue).

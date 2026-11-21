@@ -15,8 +15,9 @@ export type ParallelAenderung =
   /** Parallelslalom: strenge Klassentrennung (Regel 960, Pkt. 4.4) an oder aus. */
   | { type: 'SET_PARALLEL_STRENG'; value: boolean }
   /**
-   * Parallelslalom: die nächste Runde einer Klasse (Halbfinale, Finals, Wiederholung)
-   * festschreiben bzw. die letzte wieder lösen (lib/parallelStage.ts). Wer fährt, rechnet der
+   * Parallelslalom: eine anstehende Runde einer Klasse (Halbfinale, Kleines Finale, Finale,
+   * Wiederholung) festschreiben bzw. eine lösbare wieder lösen (lib/parallelStage.ts). Kleines
+   * Finale und Finale sind seit 21.11.2026 getrennte Runden mit je eigenem Schritt. Wer fährt, rechnet der
    * Reducer aus dem Stand – die Action nennt nur Klasse und Runde und wirkt nicht, wenn diese
    * Runde für die Klasse gerade nicht ansteht. Beim Lösen gehen die Werte der Klasse in der Runde.
    */
@@ -24,7 +25,8 @@ export type ParallelAenderung =
   | { type: 'PARALLEL_RUNDE_LOESEN'; klasse: ClassId; runde: ParallelRunde }
   /**
    * „Alle Klassen weiter“ (Wunsch des Nutzers vom 19.11.2026): für jede genannte Klasse ihre
-   * nächste Runde in EINEM Schritt (ein Eintrag im Verlauf). Die Action nennt, was die Oberfläche
+   * nächste Runde in EINEM Schritt (ein Eintrag im Verlauf) – nach dem Halbfinale Kleines Finale
+   * und Finale zusammen, also zwei Schritte je Klasse (PARALLEL_ANNAHMEN.finalsZusammen, 21.11.2026). Die Action nennt, was die Oberfläche
    * gezeigt hat; es wirkt nur, was jetzt noch ansteht (lib/parallelStage.ts `alleWeiter`, dieselbe
    * Prüfung wie beim Knopf je Klasse) – ein zweites Fenster oder ein doppelter Klick ändert nichts.
    */

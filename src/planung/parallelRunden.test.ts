@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { loeseAuf, mitKlasse, mitVorlaufPlan, verzahneRunde, normalisierePlaene, plaetzeVon, rechneVorlauf, rundenText, schreibeFest, vorlaufPlan, type PlanQuelle } from './parallelRunden'
+import { FINALS, istFinale, istRunde, loeseAuf, mitKlasse, mitVorlaufPlan, PARALLEL_RUNDEN, rundenName, vergleicheRunden, verzahneRunde, normalisierePlaene, plaetzeVon, rechneVorlauf, rundenText, schreibeFest, vorlaufPlan, type PlanQuelle } from './parallelRunden'
+import { rundeVon, zerlegeAttempt } from '../lib/parallelSchluessel'
+import { tIn } from '../i18n'
+import { bogenTexte } from '../config/sprache'
 import type { ClassId, ParallelPlaene, Starter } from '../types'
 
 // Erfundene Starter – keine echten Personen.
@@ -142,6 +145,11 @@ describe('mitVorlaufPlan: der Plan hängt an der Sperre der Verzahnung', () => {
 })
 
 describe('normalisierePlaene', () => {
+  it('übernimmt das alte Feld `finale` nicht mehr (21.11.2026: die Runde sagt, um welche Plätze es geht)', () => {
+    const roh = { small: { starts: [{ a: 'x', b: 'y', attempt: 1, block: 0, boot: 'klein', klasse: '1', finale: 3 }] } }
+    expect(normalisierePlaene(roh)).toEqual({ small: { runde: 'small', starts: [{ a: 'x', b: 'y', attempt: 1, block: 0, boot: 'klein', klasse: '1' }] } })
+  })
+
   const gut = { runde: 'pre', starts: [{ a: 'x', b: null, attempt: 1, block: 0, boot: 'klein' }] }
 
   it('übernimmt brauchbare Pläne und wirft Fremdes weg', () => {
@@ -164,8 +172,27 @@ describe('Namen der Runden', () => {
   it('je Runde ein Text; jede Wiederholung heißt „Re-run“', () => {
     expect(rundenText('pre')).toBe('parallel.round.pre')
     expect(rundenText('semi')).toBe('parallel.round.semi')
+    expect(rundenText('small')).toBe('parallel.round.small')
     expect(rundenText('final')).toBe('parallel.round.final')
     expect(rundenText('rerun-pre-1')).toBe('parallel.round.rerun')
+  })
+
+  it('Kleines Finale und Finale (21.11.2026): eigene Runden, das Kleine Finale zuerst; beide Stellen der Namen gleich', () => {
+    expect(PARALLEL_RUNDEN).toEqual(['pre', 'semi', 'small', 'final'])
+    expect(FINALS).toEqual(['small', 'final'])
+    expect([istRunde('small'), istRunde('final'), istRunde('finals'), istRunde('rerun-semi-1')]).toEqual([true, true, false, true])
+    expect([istFinale('small'), istFinale('final'), istFinale('semi')]).toEqual([true, true, false])
+    expect(rundeVon('parallel:small')).toBe('small')
+    expect(zerlegeAttempt('parallel:small/2')).toEqual({ runde: 'small', attempt: 2 })
+    expect((['final', 'small', 'rerun-semi-1', 'semi', 'pre'] as const).slice().sort(vergleicheRunden)).toEqual(['pre', 'semi', 'rerun-semi-1', 'small', 'final'])
+    // Rundennamen stehen doppelt: i18n (rundenName) und Bogentexte (config/sprache.ts) – beide gleich.
+    for (const sprache of ['de', 'en'] as const) {
+      const t = (key: Parameters<Parameters<typeof rundenName>[1]>[0], params?: Record<string, string | number>) => tIn(sprache, key, params)
+      for (const r of ['pre', 'semi', 'small', 'final', 'rerun-pre-1', 'rerun-semi-2'] as const) expect(bogenTexte(sprache).runde(r)).toBe(rundenName(r, t))
+    }
+    expect(rundenName('small', (k) => tIn('de', k))).toBe('Kleines Finale')
+    expect(rundenName('small', (k) => tIn('en', k))).toBe('Small final')
+    expect(rundenName('final', (k) => tIn('en', k))).toBe('Final')
   })
 })
 

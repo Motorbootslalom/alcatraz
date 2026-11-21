@@ -84,7 +84,7 @@ export interface StartZeile {
   startNr: string
   /** '' bei „Namen: ohne“; ein Paar: beide, mit „ / “ getrennt (eine leere Seite ohne Namen). */
   name: string
-  /** „Klasse E · Lauf 2“; ein Paar: „Klasse 1 · Vorlauf · Versuch 1“ bzw. in den Finals statt der Runde das Finale. */
+  /** „Klasse E · Lauf 2“; ein Paar: „Klasse 1 · Vorlauf · Versuch 1“ – auch „Kleines Finale“ ist seit 21.11.2026 eine eigene Runde. */
   was: string
   herkunft: string
   /** Klassenfarbe, '' ohne Klasse. */
@@ -131,7 +131,7 @@ function paarZeile(sicht: Pick<OeffentlicheSicht, 'starter' | 'klassen'>, s: Sic
   const starter = [paar.a, paar.b].flatMap((id) => (id !== null && sicht.starter[id] ? [sicht.starter[id]] : []))
   const klassen = [...new Set(starter.map((p) => p.klasse))].flatMap((k) => (sicht.klassen[k] ? [sicht.klassen[k]!] : []))
   const runde = rundeVonPunkt(s.punkt)
-  const wo = paar.finale ? t(paar.finale === 1 ? 'parallel.final.1' : 'parallel.final.3') : runde !== undefined ? rundenName(runde, t) : ''
+  const wo = runde !== undefined ? rundenName(runde, t) : ''
   return {
     key: s.key,
     startNr: seiten.map((x) => x.startNr).join(' / '),

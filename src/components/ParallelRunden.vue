@@ -4,8 +4,9 @@ import { useStore } from '../state/store'
 import { useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { festeRunden } from '../lib/parallelBogen'
+import { PARALLEL_ANNAHMEN } from '../lib/parallelErgebnis'
 import { alleWeiter, klassenStaende, rundenWerteZahl, type KlassenStand, type RundenSchritt } from '../lib/parallelStage'
-import { klassenTeilnehmer, loeseAuf, rundenName, VORLAUF } from '../planung/parallelRunden'
+import { istFinale, klassenTeilnehmer, loeseAuf, rundenName, vergleicheRunden, VORLAUF } from '../planung/parallelRunden'
 import { adresse } from '../lib/router'
 import { rundenNeuGeordnet, rundeGedruckt } from '../state/reducer'
 import { formatDateTime, t, tn } from '../i18n'
@@ -15,8 +16,8 @@ import HeatTable from './HeatTable.vue'
 
 /**
  * Die Runden nach dem Vorlauf (Regel 960, Pkt. 4.4 und 5.2.6): je Klasse, wo sie steht, welche
- * Runde als Nächstes festgeschrieben werden kann (Halbfinale, Finals, Wiederholung) und wer
- * darin gegen wen fährt – gerechnet in lib/parallelStage.ts. Festgeschrieben und gelöscht wird
+ * Runde als Nächstes festgeschrieben werden kann (Halbfinale, Kleines Finale, Finale, Wiederholung)
+ * und wer darin gegen wen fährt – gerechnet in lib/parallelStage.ts. Festgeschrieben und gelöscht wird
  * von Hand, je Klasse: Ein Plan, der einmal gedruckt ist, ändert sich nicht von selbst, auch
  * wenn ein Protest das Ergebnis davor ändert; er gilt dann als veraltet (Warnung). „Löschen“
  * (nicht „Lösen“, Entscheidung des Nutzers vom 15.11.2026): Es nimmt die Klasse aus dem Plan der
@@ -26,6 +27,10 @@ import HeatTable from './HeatTable.vue'
  * Vorlauf (klein/groß im Wechsel, 19.11.2026) – so stehen sie auf den Listen der race officials.
  * Oben „Alle Klassen weiter“: die nächste Runde aller Klassen, die so weit sind, in einem Schritt,
  * und davor die gedruckten Runden mit „Druck lösen“ (20.11.2026).
+ *
+ * Kleines Finale und Finale sind seit 21.11.2026 zwei in sich geschlossene Runden (Auftrag des
+ * Nutzers): Nach dem Halbfinale stehen beide an, jede mit eigenem Knopf je Klasse – darum ein Knopf
+ * je Eintrag in `schritte`, nicht nur für den ersten.
  */
 const { state, dispatch } = useStore()
 const konfig = useKonfig()
@@ -35,8 +40,7 @@ const staende = computed(() => klassenStaende(state.value, konfig.value))
 const name = (runde: ParallelRunde) => rundenName(runde, t)
 const starterVon = computed(() => new Map(state.value.starters.map((p) => [p.id, p])))
 const nummer = (id: string | null) => (id === null ? t('parallel.dummy') : (starterVon.value.get(id)?.startNr ?? '?'))
-const finalText = (finale: 1 | 3 | undefined) => (finale === undefined ? '' : `${t(`parallel.final.${finale}`)}: `)
-const paare = (schritt: RundenSchritt) => schritt.paare.map((p) => `${finalText(p.finale)}${nummer(p.a)} ↔ ${nummer(p.b)}`).join(' · ')
+const paare = (schritt: RundenSchritt) => schritt.paare.map((p) => `${nummer(p.a)} ↔ ${nummer(p.b)}`).join(' · ')
 const nummern = (ids: readonly string[]) => ids.map((id) => nummer(id)).join(', ')
 /** Die Runde der Klasse, an der gerade erfasst wird: festgeschrieben, aber noch nicht vollständig. */
 const laufend = (ks: KlassenStand) => ks.runden.find((r) => r.zustand !== 'fertig' && !r.veraltet)
@@ -64,9 +68,16 @@ function neuOrdnenBestaetigt() {
 // „Alle Klassen weiter“ (Wunsch des Nutzers vom 19.11.2026): Wer mitkommt, sagt dieselbe Prüfung
 // wie beim Knopf je Klasse (lib/parallelStage.ts `alleWeiter`); der Knopf erscheint erst ab zwei
 // Klassen – für eine reicht ihr eigener. Rückfrage nur, wenn eine Runde neu geordnet würde (wie je Klasse).
+// Gezählt werden Klassen, nicht Schritte: Nach dem Halbfinale kommt eine Klasse mit beiden Finals
+// zweimal vor (21.11.2026) – sonst erschiene der Knopf schon für eine einzige Klasse.
 const alle = computed(() => alleWeiter(staende.value))
-const alleRunden = computed(() => [...new Set(alle.value.weiter.map((s) => s.runde))].map(name).join(', '))
-const alleKlassen = computed(() => alle.value.weiter.map((s) => classLabel(s.klasse)).join(', '))
+const alleKlassenIds = computed(() => [...new Set(alle.value.weiter.map((s) => s.klasse))])
+const alleRunden = computed(() => [...new Set(alle.value.weiter.map((s) => s.runde))].sort(vergleicheRunden).map(name).join(', '))
+// Der Satz „Kleines Finale und Finale zusammen“ hängt an der Auslegung (PARALLEL_ANNAHMEN.finalsZusammen)
+// und steht nur, wenn der Knopf gerade Finals festschreibt – nach dem Vorlauf wäre er fehl am Platz (Prüfung 21.11.2026).
+const finalsZusammen = PARALLEL_ANNAHMEN.finalsZusammen
+const alleMitFinals = computed(() => finalsZusammen && alle.value.weiter.some((s) => istFinale(s.runde)))
+const alleKlassen = computed(() => alleKlassenIds.value.map((k) => classLabel(k)).join(', '))
 const bleibenText = computed(() => alle.value.bleiben.map((b) => t(`parallel.rounds.stay.${b.grund}`, { class: classLabel(b.klasse), round: name(b.runde) })).join(' · '))
 function alleFest() {
   const schritte = alle.value.weiter
@@ -109,7 +120,7 @@ watch(gedruckt, () => {
   if (druckFrage.value && !istGedruckt(druckFrage.value)) druckFrage.value = null
 })
 
-// Die festgeschriebenen Pläne der Runden nach dem Vorlauf, mit Klasse und Finale je Start – die
+// Die festgeschriebenen Pläne der Runden nach dem Vorlauf, mit der Klasse je Start – die
 // jüngste oben: Das Aktuelle steht vorn, Erledigtes rutscht nach unten, der Vorlauf ganz unten
 // (VerzahnungView.vue; Wunsch des Nutzers vom 21.11.2026).
 const plaene = computed(() =>
@@ -121,7 +132,8 @@ const plaene = computed(() =>
       return {
         runde,
         heats: loeseAuf(fest, state.value.starters).plan.heats,
-        vermerke: fest.starts.map((s) => [s.klasse ? classLabel(s.klasse) : '', s.finale ? t(`parallel.final.${s.finale}`) : ''].filter(Boolean).join(' · ')),
+        // Um welche Plätze ein Finale geht, sagt seit 21.11.2026 die Runde selbst (Kleines Finale, Finale).
+        vermerke: fest.starts.map((s) => (s.klasse ? classLabel(s.klasse) : '')),
       }
     }),
 )
@@ -131,7 +143,7 @@ const plaene = computed(() =>
   <div class="panel" data-panel="parallel-runden">
     <h2>{{ t('parallel.rounds.title') }}</h2>
     <p class="hint">{{ t('parallel.rounds.hint') }}</p>
-    <p class="note" data-hinweis="parallel-annahmen">{{ t('parallel.rounds.assumptions') }}</p>
+    <p class="note" data-hinweis="parallel-annahmen">{{ t('parallel.rounds.assumptions') }}<template v-if="finalsZusammen"> {{ t('parallel.rounds.assumptionFinals') }}</template></p>
     <p v-if="staende.length === 0" class="note" data-hinweis="runden-ohne-plan">{{ t('parallel.rounds.none') }}</p>
     <div v-if="gedruckt.length > 0" class="parallel-gedruckt" data-hinweis="runden-gedruckt">
       <p v-for="g in gedruckt" :key="g.runde" class="note" :data-runde="g.runde">
@@ -139,8 +151,8 @@ const plaene = computed(() =>
         <button type="button" class="btn ghost" data-action="druck-loesen" :data-runde="g.runde" @click="druckFrage = g.runde">{{ t('parallel.rounds.unprint') }}</button>
       </p>
     </div>
-    <div v-if="alle.weiter.length >= 2" class="parallel-alle" data-hinweis="runden-alle">
-      <p class="hint">{{ t('parallel.rounds.allHint', { classes: alleKlassen }) }}</p>
+    <div v-if="alleKlassenIds.length >= 2" class="parallel-alle" data-hinweis="runden-alle">
+      <p class="hint" data-hinweis="runden-alle-text">{{ t('parallel.rounds.allHint', { classes: alleKlassen }) }}<template v-if="alleMitFinals"> {{ t('parallel.rounds.allFinals') }}</template></p>
       <button type="button" class="btn primary" data-action="runden-alle-fest" @click="alleFest">{{ t('parallel.rounds.all', { rounds: alleRunden }) }}</button>
       <p v-if="alle.bleiben.length > 0" class="note" data-hinweis="runden-alle-bleiben">{{ t('parallel.rounds.allStay', { classes: bleibenText }) }}</p>
     </div>
@@ -162,16 +174,19 @@ const plaene = computed(() =>
       <p v-if="gleichstand(ks)" class="boat-banner warn" role="alert" data-hinweis="runde-gleichstand">
         {{ t('parallel.rounds.rerun', { numbers: nummern(gleichstand(ks)!.rerun) }) }}
       </p>
-      <p v-if="ks.naechste" class="parallel-naechste" data-hinweis="runde-naechste">
-        {{ t('parallel.rounds.next', { round: name(ks.naechste.runde), pairs: paare(ks.naechste) }) }}
-        <button type="button" class="btn primary" data-action="runde-fest" :data-runde="ks.naechste.runde" @click="schreibeFest(ks.klasse, ks.naechste.runde)">
-          {{ t('parallel.rounds.fix', { round: name(ks.naechste.runde) }) }}
+      <p v-for="sch in ks.schritte" :key="sch.runde" class="parallel-naechste" data-hinweis="runde-naechste" :data-runde="sch.runde">
+        {{ t('parallel.rounds.next', { round: name(sch.runde), pairs: paare(sch) }) }}
+        <button type="button" class="btn primary" data-action="runde-fest" :data-runde="sch.runde" @click="schreibeFest(ks.klasse, sch.runde)">
+          {{ t('parallel.rounds.fix', { round: name(sch.runde) }) }}
         </button>
       </p>
-      <p v-else-if="ks.fertig" class="boat-banner ok" role="status" data-hinweis="runde-fertig">
+      <!-- „wird erfasst“ nur ohne offenen Schritt (21.11.2026, wie vor der Trennung): Läuft das Kleine Finale, während das
+           Finale noch festzuschreiben ist, sagte „geht es weiter“ sonst das Gegenteil des Knopfes darüber.
+           Dass die Runde erfasst wird, steht ohnehin oben in ihrer Zeile. -->
+      <p v-if="ks.schritte.length === 0 && ks.fertig" class="boat-banner ok" role="status" data-hinweis="runde-fertig">
         {{ t('parallel.rounds.done') }} <a :href="adresse('listen')">{{ t('nav.listen') }}</a>
       </p>
-      <p v-else-if="laufend(ks)" class="note" role="status" data-hinweis="runde-laeuft">
+      <p v-else-if="ks.schritte.length === 0 && laufend(ks)" class="note" role="status" data-hinweis="runde-laeuft">
         {{ t('parallel.rounds.waiting', { round: name(laufend(ks)!.runde) }) }} <a :href="adresse('erfassung')">{{ t('nav.erfassung') }}</a>
       </p>
     </div>

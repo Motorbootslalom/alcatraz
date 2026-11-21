@@ -310,7 +310,7 @@ export function paarStarts(l: Pick<BereichLage, 'folge'>, key: string): FolgeEin
 /**
  * Der andere Attempt eines Paares, der im Plan DIREKT hinter diesem Start steht – so stehen die Paare eines 2er-Blocks
  * (nur ein Bootstyp; planung/parallel.ts `verzahne`). Wechseln die Blöcke die Bootstypen (1. Attempt klein, 1. Attempt
- * groß, 2. Attempt klein …) – im Vorlauf und seit 19.11.2026 auch in Halbfinale, Finals und Re-runs
+ * groß, 2. Attempt klein …) – im Vorlauf und seit 19.11.2026 auch in Halbfinale, Kleinem Finale, Finale und Re-runs
  * (planung/parallelRunden.ts `verzahneRunde`) –, gibt es keinen, die Folge des Plans bleibt. Sonst `null`.
  * Für BETRIEB_ANNAHMEN.parallelPaarZuEnde und das gezielte Zeigen (parallelPaarAlsEinheit).
  */

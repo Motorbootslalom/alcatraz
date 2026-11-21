@@ -92,7 +92,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Runden nach dem Vorlauf: Verzahnung, „Alle Klassen weiter“ | planung/parallel.ts verzahne (auch Vorlauf), parallelRunden.ts verzahneRunde; lib/parallelStage.ts alleWeiter; state/reducer/parallel.ts (gebunden: erfasst ohne Abmelde-X/begonnen; rundenNeuGeordnet → Rückfrage); components/ParallelRunden.vue |
 | Re-run: Wertung | lib/parallelErgebnis.ts qualifikation, mitWiederholung(en), rundenVermerke; „*“: durchWiederholung |
 | Runde gedruckt (fest), „Druck lösen“ | AppState.parallelGedruckt; views/ListsView.vue `beforeprint` → PARALLEL_RUNDEN_GEDRUCKT; state/reducer/parallel.ts rundeGebunden; components/ParallelRunden.vue |
-| Re-run: Runde, Name | planung/parallelRunden.ts rerunRunde/zerlegeRerun/rundenName + sprache.ts bogenTexte().runde (Rundennamen doppelt: beide) |
+| Re-run: Runde, Name | planung/parallelRunden.ts rerunRunde/zerlegeRerun/rundenName + sprache.ts bogenTexte().runde (Rundennamen doppelt: beide); Runden pre/semi/small/final (lib/parallelSchluessel.ts PARALLEL_RUNDEN, Kleines Finale eigene Runde seit 21.11.2026) |
 | Einzelwertung | lib/einzelwertung.ts EINZEL_FESTLEGUNGEN; lib/disziplinen.ts (nichtWerten) |
 | Mannschaftswertung | config/einstellungen.yaml pokalPunkte; Regelwerk-YAML `pokal`; config/pokal.ts; lib/pokal.ts |
 | Laufzettel-Schritte | config/einstellungen.yaml `laufzettel` (Regelwerk ersetzt je Schlüssel); lib/laufzettelText.ts |

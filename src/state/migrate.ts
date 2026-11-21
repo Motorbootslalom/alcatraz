@@ -42,7 +42,8 @@ const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert 
  */
 export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): AppState | null {
   if (!raw || typeof raw !== 'object') return null
-  const loaded = raw as Partial<AppState>
+  // VOR allen Normalisierern: normalisierePlaene wirft das alte Feld `finale` weg (21.11.2026).
+  const loaded = teileAlteFinals(raw as Record<string, unknown>) as Partial<AppState>
   if (!Array.isArray(loaded.starters)) return null
   if (typeof loaded.schemaVersion === 'number' && loaded.schemaVersion > SCHEMA_VERSION) return null
 
@@ -178,6 +179,188 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
   // der Stand, wie er ist: Ein Plan, der bei freigegebener Verzahnung noch da ist, entfällt nur
   // über „Werte löschen“ (state/reducer.ts), nicht beim Neuladen.
   return stand.verzahnungLocked ? mitVorlaufPlan(stand, hasParallel(regelwerk)) : stand
+}
+
+// ---- Kleines Finale und Finale getrennt (21.11.2026) -------------------------------------------
+
+const istObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x)
+
+/**
+ * Stände bis 21.11.2026 hatten EINE Runde `final` mit beiden Finals (Starts mit `finale: 1` bzw.
+ * `finale: 3`). Seit dem Auftrag des Nutzers vom 21.11.2026 („Kleines und großes Finale ist
+ * getrennt, wie Vorlauf und Halbfinale“) sind es zwei Runden, `small` und `final`. Abwärts-
+ * kompatibilität ist nicht nötig – aber ein alter Stand darf nicht abstürzen und soll, wo es
+ * sauber geht, nichts verlieren. Rein, wirft nie; ein neuer Stand (kein Start mit `finale`)
+ * bleibt dieselbe Referenz, zweimal angewandt ändert nichts. Gilt für jeden Weg über migrate():
+ * localStorage, Sicherung, Vorlage, Verlauf (VerlaufPanel → migrate → LOAD_STATE).
+ *
+ * „Sauber“: Der Plan `final` hat ein Array `starts`, einen Plan `small` gibt es noch nicht, jeder
+ * Start trägt `finale` 1 oder 3 und eine Klasse, je Klasse höchstens ein Paar je Finale und kein
+ * Starter in beiden. Dann AUFTEILEN: `small` bekommt die Starts mit `finale: 3`, `final` die mit
+ * `finale: 1`, je in der alten Reihenfolge (die gedruckte Folge bleibt, nichts wird neu verzahnt;
+ * Blöcke je Plan dicht neu gezählt). Die Werte des Kleinen Finales ziehen von `parallel:final/n`
+ * nach `parallel:small/n` (Zeile = Starter-ID, also eindeutig; Disq, Bemerkung und „erfasst“
+ * ziehen mit der Zeile). Ein Druckvermerk gilt für beide; war `runde:final` im Betrieb begonnen,
+ * ist es `runde:small` (es lief zuerst) – `runde:final` bleibt nur, wenn ein Start des Finales schon
+ * gezeigt oder ohne Anzeige erledigt ist. Kennungen von Starts des Kleinen Finales im Betrieb
+ * werden umgeschrieben; eine händische Reihenfolge, die solche enthält, entfällt (einfacher, nur
+ * die Umstellung geht verloren). Zeitpunkte der Listen `parallel:final/…` entfallen – sie werden
+ * neu gerechnet, ihr Zeitpunkt ist dann unbekannt.
+ *
+ * Sonst VERWERFEN: der Plan `final`, seine Werte, sein Druckvermerk, sein Punkt und seine
+ * Kennungen im Betrieb, die Zeitpunkte seiner Listen. klassenStand bietet danach aus dem
+ * Halbfinale beide Finals neu an – Werte gehen so nur bei kaputten Daten verloren.
+ *
+ * Hingenommen: Alte gedruckte QR-Codes `…FINAL…` von Bögen des Kleinen Finales treffen danach den
+ * Bogen des Finales (keine Abwärtskompatibilität nötig).
+ */
+export function teileAlteFinals(roh: Record<string, unknown>): Record<string, unknown> {
+  try {
+    return teile(roh)
+  } catch {
+    // Darf nie werfen (unbekannte Formen): Dann bleibt der Stand, normalisierePlaene nimmt das alte Feld weg.
+    return roh
+  }
+}
+
+function teile(roh: Record<string, unknown>): Record<string, unknown> {
+  const plaene = roh.parallelPlaene
+  if (!istObj(plaene) || !istObj(plaene.final)) return roh
+  const starts: unknown = plaene.final.starts
+  // Nur ein alter Stand trägt `finale` – ohne bleibt alles, wie es ist (neuer Stand, zweites Anwenden).
+  const alt = Array.isArray(starts) && starts.some((x) => istObj(x) && 'finale' in x)
+  const kaputt = !Array.isArray(starts)
+  if (!alt && !kaputt) return roh
+  const liste = (Array.isArray(starts) ? starts : []) as Record<string, unknown>[]
+
+  const sauber =
+    !kaputt &&
+    plaene.small === undefined &&
+    liste.every((x) => istObj(x) && (x.finale === 1 || x.finale === 3) && typeof x.klasse === 'string') &&
+    (() => {
+      const paare = new Map<string, number>()
+      for (const x of liste) if (x.attempt === 1) paare.set(`${String(x.klasse)}|${String(x.finale)}`, (paare.get(`${String(x.klasse)}|${String(x.finale)}`) ?? 0) + 1)
+      if ([...paare.values()].some((n) => n > 1)) return false
+      const ids = (f: 1 | 3) => new Set(liste.filter((x) => x.finale === f).flatMap((x) => [x.a, x.b]).filter((id): id is string => typeof id === 'string'))
+      const eins = ids(1)
+      return ![...ids(3)].some((id) => eins.has(id))
+    })()
+
+  const ohneFinale = (xs: Record<string, unknown>[]) => {
+    const bloecke = new Map<unknown, number>()
+    return xs.map(({ finale: _f, ...rest }) => {
+      if (!bloecke.has(rest.block)) bloecke.set(rest.block, bloecke.size)
+      return { ...rest, block: bloecke.get(rest.block) }
+    })
+  }
+
+  if (sauber) {
+    const klein = liste.filter((x) => x.finale === 3)
+    const gross = liste.filter((x) => x.finale === 1)
+    const kleinIds = new Set(klein.flatMap((x) => [x.a, x.b]).filter((id): id is string => typeof id === 'string'))
+    const { final: _alt, ...rest } = plaene
+    const neuePlaene: Record<string, unknown> = {
+      ...rest,
+      ...(klein.length > 0 ? { small: { runde: 'small', starts: ohneFinale(klein) } } : {}),
+      ...(gross.length > 0 ? { final: { runde: 'final', starts: ohneFinale(gross) } } : {}),
+    }
+    if (klein.length === 0) return { ...roh, parallelPlaene: neuePlaene }
+    // Werte des Kleinen Finales ziehen um.
+    let eingaben = roh.eingaben
+    if (istObj(eingaben)) {
+      const neu: Record<string, unknown> = { ...eingaben }
+      for (const attempt of [1, 2]) {
+        const von = `parallel:final/${attempt}`
+        const nach = `parallel:small/${attempt}`
+        const zeilen = neu[von]
+        if (!istObj(zeilen)) continue
+        const bleibt = Object.fromEntries(Object.entries(zeilen).filter(([id]) => !kleinIds.has(id)))
+        const zieht = Object.fromEntries(Object.entries(zeilen).filter(([id]) => kleinIds.has(id)))
+        if (Object.keys(zieht).length === 0) continue
+        neu[nach] = { ...(istObj(neu[nach]) ? neu[nach] : {}), ...zieht }
+        if (Object.keys(bleibt).length === 0) delete neu[von]
+        else neu[von] = bleibt
+      }
+      eingaben = neu
+    }
+    const gedruckt = istObj(roh.parallelGedruckt) && roh.parallelGedruckt.final !== undefined ? { ...roh.parallelGedruckt, small: roh.parallelGedruckt.final } : roh.parallelGedruckt
+    // Begonnen hieß im alten Modell meist nur: Das Kleine Finale lief (es kam zuerst). Das neue Finale
+    // gilt nur dann als begonnen, wenn schon einer seiner Starts gezeigt (oder ohne Anzeige erledigt)
+    // ist – sonst bände rundeGebunden es, und die Start-Freigabe gäbe es ohne „Finale beginnen“ frei
+    // (Befund der Prüfung, 21.11.2026).
+    const istFinalStart = (key: unknown) => {
+      const ref = kennung(key)
+      return ref !== null && !kleinIds.has(ref.a as string) && !kleinIds.has(ref.b as string)
+    }
+    const begonneneFinals = (b: Record<string, unknown>): unknown[] => {
+      const alt = (b.begonnen as unknown[]).filter((p) => p !== 'runde:final' && p !== 'runde:small')
+      const finaleLief = (Array.isArray(b.gezeigt) && b.gezeigt.some((g) => istObj(g) && istFinalStart(g.ref))) || (Array.isArray(b.ohneAnzeige) && b.ohneAnzeige.some(istFinalStart))
+      return [...alt, 'runde:small', ...(finaleLief ? ['runde:final'] : [])]
+    }
+    // Die Kennung eines Starts des Kleinen Finales: `['p','final',…]` → `['p','small',…]`.
+    const umschreiben = (key: unknown): unknown => {
+      const ref = kennung(key)
+      return ref && (kleinIds.has(ref.a as string) || kleinIds.has(ref.b as string)) ? JSON.stringify(['p', 'small', ref.attempt, ref.a, ref.b]) : key
+    }
+    return {
+      ...roh,
+      parallelPlaene: neuePlaene,
+      eingaben,
+      parallelGedruckt: gedruckt,
+      betrieb: mitParallelBetrieb(roh.betrieb, (b) => ({
+        ...b,
+        begonnen: Array.isArray(b.begonnen) && b.begonnen.includes('runde:final') ? begonneneFinals(b) : b.begonnen,
+        gezeigt: Array.isArray(b.gezeigt) ? b.gezeigt.map((g) => (istObj(g) ? { ...g, ref: umschreiben(g.ref) } : g)) : b.gezeigt,
+        ohneAnzeige: Array.isArray(b.ohneAnzeige) ? b.ohneAnzeige.map(umschreiben) : b.ohneAnzeige,
+        zurueckgestellt: Array.isArray(b.zurueckgestellt) ? b.zurueckgestellt.map(umschreiben) : b.zurueckgestellt,
+        reihenfolge: Array.isArray(b.reihenfolge) && b.reihenfolge.some((k) => umschreiben(k) !== k) ? null : b.reihenfolge,
+      })),
+      listenStand: ohneFinalListen(roh.listenStand),
+    }
+  }
+
+  // Verwerfen: alles, was an der Runde `final` hängt.
+  const { final: _weg, ...plaeneRest } = plaene
+  const eingaben = istObj(roh.eingaben) ? Object.fromEntries(Object.entries(roh.eingaben).filter(([k]) => !k.startsWith('parallel:final/'))) : roh.eingaben
+  const gedruckt = istObj(roh.parallelGedruckt) ? Object.fromEntries(Object.entries(roh.parallelGedruckt).filter(([r]) => r !== 'final')) : roh.parallelGedruckt
+  const zuFinal = (key: unknown) => kennung(key) !== null
+  return {
+    ...roh,
+    parallelPlaene: plaeneRest,
+    eingaben,
+    parallelGedruckt: gedruckt,
+    betrieb: mitParallelBetrieb(roh.betrieb, (b) => ({
+      ...b,
+      begonnen: Array.isArray(b.begonnen) ? b.begonnen.filter((p) => p !== 'runde:final') : b.begonnen,
+      gezeigt: Array.isArray(b.gezeigt) ? b.gezeigt.filter((g) => !(istObj(g) && zuFinal(g.ref))) : b.gezeigt,
+      ohneAnzeige: Array.isArray(b.ohneAnzeige) ? b.ohneAnzeige.filter((k) => !zuFinal(k)) : b.ohneAnzeige,
+      zurueckgestellt: Array.isArray(b.zurueckgestellt) ? b.zurueckgestellt.filter((k) => !zuFinal(k)) : b.zurueckgestellt,
+      reihenfolge: Array.isArray(b.reihenfolge) && b.reihenfolge.some(zuFinal) ? null : b.reihenfolge,
+    })),
+    listenStand: ohneFinalListen(roh.listenStand),
+  }
+}
+
+/** Eine Kennung eines Starts der alten Runde `final` (`['p','final',attempt,a,b]`); sonst `null`. */
+function kennung(key: unknown): { attempt: unknown; a: unknown; b: unknown } | null {
+  if (typeof key !== 'string') return null
+  try {
+    const t: unknown = JSON.parse(key)
+    return Array.isArray(t) && t.length === 5 && t[0] === 'p' && t[1] === 'final' ? { attempt: t[2], a: t[3], b: t[4] } : null
+  } catch {
+    return null
+  }
+}
+
+/** Den Betrieb des Bereichs `parallel` ändern, wenn es ihn gibt (normalisiereBetrieb prüft danach die Form). */
+function mitParallelBetrieb(betrieb: unknown, f: (b: Record<string, unknown>) => Record<string, unknown>): unknown {
+  if (!istObj(betrieb) || !istObj(betrieb.bereiche) || !istObj(betrieb.bereiche[PARALLEL])) return betrieb
+  return { ...betrieb, bereiche: { ...betrieb.bereiche, [PARALLEL]: f(betrieb.bereiche[PARALLEL]) } }
+}
+
+/** Zeitpunkte der Listen der alten Runde `final` entfallen: neu gerechnet, Zeitpunkt unbekannt. */
+function ohneFinalListen(listenStand: unknown): unknown {
+  return istObj(listenStand) ? Object.fromEntries(Object.entries(listenStand).filter(([k]) => !k.startsWith('parallel:final/'))) : listenStand
 }
 
 /**

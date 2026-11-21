@@ -81,7 +81,7 @@ describe('Anzeigetafel im Parallelslalom (UIM, englisch)', () => {
     ])
   })
 
-  it('Halbfinale, Finals und Re-run heißen wie im Rulebook; das kleine Finale nennt seine Plätze', () => {
+  it('Halbfinale, Kleines Finale, Finale und Re-run heißen wie im Rulebook – die Finals sind eigene Runden (21.11.2026)', () => {
     let s = uimParallelStand([...parallelStarter('E', 5), ...parallelStarter('1', 6)])
     s = fahreRunde(s, 'pre', {
       'E-1': [40, 40], 'E-2': [41, 41], 'E-3': [42, 42], 'E-4': [43, 43], 'E-5': [43, 43],
@@ -90,6 +90,7 @@ describe('Anzeigetafel im Parallelslalom (UIM, englisch)', () => {
     s = reducer(s, { type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
     s = reducer(s, { type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: 'E', runde: 'rerun-pre-1' })
     s = fahreRunde(s, 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    s = reducer(s, { type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'small' })
     s = reducer(s, { type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'final' })
     const titel = (runde: ParallelRunde) => {
       const t = naechster(beginne(s, runde), 1000)
@@ -97,11 +98,9 @@ describe('Anzeigetafel im Parallelslalom (UIM, englisch)', () => {
     }
     expect(titel('rerun-pre-1')).toBe('Preliminary heat – Re-run · Attempt 1')
     expect(titel('semi')).toBe('Semi-finals · Attempt 1')
-    expect(titel('final')).toBe('Small final (3rd and 4th place) · Attempt 1')
-    // Das Finale um Platz 1 und 2 kommt nach den beiden Attempts des kleinen.
-    let f = beginne(s, 'final')
-    for (const zeit of [1000, 2000, 3000]) f = naechster(f, zeit)
-    const w = tafel(f)
+    // Die Runde sagt, um welche Plätze es geht: kein Zusatz „(3rd and 4th place)“ mehr.
+    expect(titel('small')).toBe('Small final · Attempt 1')
+    const w = tafel(naechster(beginne(s, 'final'), 1000))
     expect(text(w.find('[data-lauf]'))).toBe('Final · Attempt 1')
     expect(text(w.find('[data-klasse]'))).toBe('Class 1')
     for (const wort of DEUTSCH) expect(text(w), wort).not.toContain(wort)

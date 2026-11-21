@@ -90,7 +90,7 @@ const uimPunkte = computed(() => (regelwerk.value.aushang.punkte ? punkteTabelle
 // points einer Disziplin, die laut Einzelwertung nicht zählt. Wer weiterfährt, steht trotzdem
 // da: Im Vorlauf und im Halbfinale bleibt die Spalte „UIM points“ in derselben Form – der Block
 // „Qualified“ bzw. des Finales und „Re-run“, die übrigen Zellen leer (Entscheidung des Nutzers
-// vom 15.11.2026, statt einer Spalte „Remark“). Wo es nur Punkte gäbe (Finals, Wiederholung),
+// vom 15.11.2026, statt einer Spalte „Remark“). Wo es nur Punkte gäbe (Kleines Finale, Finale, Wiederholung),
 // entfällt sie ganz.
 const ohnePunkte = (k: ClassId) => nichtGewertet(state.value.nichtWerten, 'parallel', k)
 const MIT_VERMERK: readonly ParallelRunde[] = [VORLAUF, 'semi']

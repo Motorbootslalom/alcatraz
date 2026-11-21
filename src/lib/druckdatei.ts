@@ -36,7 +36,7 @@ export interface DruckdateiWahl {
    */
   ansicht?: 'attempt' | 'racecourse'
   /**
-   * Parallelslalom: abgewählte Runden (`pre`, `semi`, `final`, `rerun-…`) und `stage` für das
+   * Parallelslalom: abgewählte Runden (`pre`, `semi`, `small`, `final`, `rerun-…`) und `stage` für das
    * Gesamtergebnis – gemerkt sind die abgewählten, damit eine Runde, die später festgeschrieben
    * wird, dabei ist. Fehlt = alles.
    */

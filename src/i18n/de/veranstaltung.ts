@@ -54,7 +54,6 @@ export default {
 
   'demo.values.roundNote': 'Füllt in dieser Runde nur die Versuche, zu denen noch nichts erfasst ist – alle anderen Werte bleiben (die Runden nach dem Vorlauf werden je Klasse festgeschrieben).',
   'demo.values.what': 'Was gefüllt wird',
-  'demo.values.finals': 'mit kleinem Finale',
   'demo.values.clearSelected': 'Werte des Gewählten löschen',
   'demo.values.clearSelectedConfirm': 'Die erfassten Werte des Gewählten löschen? Alle übrigen Werte bleiben.',
   'demo.values.title': 'Beispielwerte',

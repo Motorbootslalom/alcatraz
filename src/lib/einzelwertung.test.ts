@@ -67,6 +67,13 @@ function fahre(state: AppState, runde: ParallelRunde, zeiten: Record<string, Arr
   return reducer(state, { type: 'SET_EINGABEN', zellen, zeit })
 }
 const fest = (state: AppState, runde: ParallelRunde, klasse: ClassId = '1') => reducer(state, { type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse, runde })
+/** Beide Finals (seit 21.11.2026 getrennte Runden) festschreiben und fahren: wer im Kleinen Finale steht, dort. */
+function finals(state: AppState, zeiten: Record<string, Array<number | null>>): AppState {
+  state = fest(fest(state, 'small'), 'final')
+  const klein = new Set((state.parallelPlaene.small?.starts ?? []).flatMap((s) => [s.a, s.b]))
+  const teil = (imKlein: boolean) => Object.fromEntries(Object.entries(zeiten).filter(([id]) => klein.has(id) === imKlein))
+  return fahre(fahre(state, 'small', teil(true)), 'final', teil(false))
+}
 const einzel = (state: AppState, klasse: ClassId = '1') => einzelwertung(state, konfig, klasse, PUNKTE)!
 /** Je Zeile: Starter, Platz, Punkte Manövrieren, Punkte Parallelslalom, Summe. */
 const liste = (state: AppState, klasse: ClassId = '1') => einzel(state, klasse).nachPlatz.map((z) => [z.starter.id, z.platz, z.manoever, z.parallel, z.summe])
@@ -79,7 +86,7 @@ const VORLAUF6 = { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43
 function parallel6(state: AppState): AppState {
   state = fahre(state, 'pre', VORLAUF6)
   state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
-  return fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+  return finals(state, { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
 }
 const beide6 = () => parallel6(manoever(uim(mk('1', 6)), MANOEVER6))
 
@@ -141,8 +148,9 @@ describe('Einzelwertung (Pkt. 5.1, 5.2.3)', () => {
     // Solange die Stage offen ist, hat niemand Punkte aus dem Parallelslalom.
     expect(liste(state).map((z) => z[3])).toEqual([null, null, null, null, null, null])
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
-    expect(einzel(state).offeneRunde).toBe('final')
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    // Nach dem Halbfinale hängt die Stage zuerst am Kleinen Finale (21.11.2026: eigene Runde, zuerst gefahren).
+    expect(einzel(state).offeneRunde).toBe('small')
+    state = finals(state, { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
     expect(einzelBlaetter(state, konfig, ['1'], PUNKTE).map((b) => b.key)).toEqual(['einzel/1'])
     // Umgekehrt: Der Parallelslalom ist fertig, im Manövrieren fehlt ein Versuch.
     const ohne = parallel6(manoever(uim(mk('1', 6)), { ...MANOEVER6, '1-1': [65] }))
@@ -155,7 +163,7 @@ describe('Einzelwertung (Pkt. 5.1, 5.2.3)', () => {
     let state = manoever(uim(mk('1', 6)), { ...MANOEVER6, '1-6': [null, null] })
     state = fahre(state, 'pre', { ...VORLAUF6, '1-5': [null, 50] })
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = finals(state, { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
     const von = Object.fromEntries(liste(state).map((z) => [z[0], z.slice(1)]))
     // Manövrieren: 1-5 400, 1-4 300, 1-3 225, 1-2 169, 1-1 127, 1-6 disq. Parallel: 1-1 … 1-4, 1-6 Platz 5, 1-5 disq.
     expect(von['1-6']).toEqual([6, 0, 127, 127])
@@ -185,7 +193,7 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
     // 1-1 fährt im Finale 30 + 30 statt 40 + 40: Die Zeit des Stichentscheids bleibt die des Vorlaufs.
     let state = fahre(manoever(uim(mk('1', 6)), MANOEVER6), 'pre', VORLAUF6)
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [30, 30], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = finals(state, { '1-1': [30, 30], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
     expect(zeilen(state)['1-1'].zeit).toBe(6500 + 8000)
   })
 
@@ -207,7 +215,7 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
     state = fahre(state, 'pre', { ...VORLAUF6, '1-6': [42, 43] })
     // 1-6 ist damit im Vorlauf Vierter (85 s) und 1-4 Fünfter (86 s).
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-6': [43, 43] })
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-6': [43, 43] })
+    state = finals(state, { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-6': [43, 43] })
     // 1-6: 400 + 169 = 569; 1-1: 95 + 400 = 495; 1-2: 127 + 300 = 427; 1-5: 300 + 95 = 395; 1-3: 169 + 225 = 394; 1-4: 225 + 127 = 352.
     expect(liste(state).map((z) => [z[0], z[1], z[4]])).toEqual([
       ['1-6', 1, 569],
@@ -220,7 +228,7 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
     // Zwei mit gleicher Summe und gleicher Zeit: zwei Starter, Manövrieren und Parallelslalom gegengleich.
     let zwei = manoever(uim(mk('1', 2)), { '1-1': [60, 70], '1-2': [61, 71] })
     zwei = fahre(zwei, 'pre', { '1-1': [41, 41], '1-2': [40, 41] })
-    zwei = fahre(fest(zwei, 'final'), 'final', { '1-1': [41, 41], '1-2': [40, 40] })
+    zwei = finals(zwei, { '1-1': [41, 41], '1-2': [40, 40] })
     // 1-1: 400 + 300, Zeit 60 + 82; 1-2: 300 + 400, Zeit 61 + 81.
     expect(liste(zwei)).toEqual([
       ['1-1', 1, 400, 300, 700],
@@ -240,7 +248,7 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
     let vier = manoever(uim(mk('1', 4)), { '1-1': [60, 70], '1-2': [61, 71], '1-3': [62, 72], '1-4': [null, null] })
     vier = fahre(vier, 'pre', { '1-1': [null, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [40, 40] })
     vier = fahre(fest(vier, 'semi'), 'semi', { '1-2': [41, 41], '1-3': [42, 42], '1-4': [40, 40] })
-    vier = fahre(fest(vier, 'final'), 'final', { '1-2': [41, 41], '1-4': [40, 40] })
+    vier = finals(vier, { '1-2': [41, 41], '1-4': [40, 40] })
     const e = einzelwertung(vier, konfig, '1', tabelle)!
     expect(e.fertig).toBe(true)
     // Alle vier haben 4 Punkte. 1-2 (61 + 82 s) vor 1-3 (62 + 84 s); 1-1 und 1-4 ohne Zeit dahinter, gemeinsam auf Platz 3.
@@ -258,7 +266,7 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
     // disqualifiziert (0 Punkte, keine Zeit): beide 400.
     let state = manoever(uim(mk('1', 3)), { '1-1': [60, 70], '1-2': [61, 71], '1-3': [null, null] })
     state = fahre(state, 'pre', { '1-1': [null, 40], '1-2': [41, 41], '1-3': [40, 40] })
-    state = fahre(fest(state, 'final'), 'final', { '1-2': [41, 41], '1-3': [40, 40] })
+    state = finals(state, { '1-2': [41, 41], '1-3': [40, 40] })
     expect(liste(state)).toEqual([
       ['1-2', 1, 300, 300, 600],
       ['1-1', 2, 400, 0, 400],
@@ -276,7 +284,7 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
     state = fahre(state, 'pre', { ...VORLAUF6, '1-4': [43, 45], '1-5': [45, 43] })
     state = fahre(fest(state, 'rerun-pre-1'), 'rerun-pre-1', { '1-4': [60, 60], '1-5': [50, 59] })
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
+    state = finals(state, { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
     const von = zeilen(state)
     // 1-4: besserer Versuch 62 s + Wiederholung 120 s; 1-5: 61 s + 109 s; 1-6 hat nicht wiederholt: 60 s + 110 s.
     expect([von['1-4'].zeit, von['1-5'].zeit, von['1-6'].zeit]).toEqual([18200, 17000, 17000])

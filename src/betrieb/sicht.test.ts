@@ -131,7 +131,8 @@ describe('Öffentliche Sicht', () => {
   it('Fassung 5: die Lage von Racecourse A und B in `einst` – nur mit dem Parallelslalom, nie in der Zuschauersicht', () => {
     // DM: kein Parallelslalom – also auch keine Lage, nicht einmal ihr Name (Schlüssel-Durchlauf).
     const dm = sichtOeffentlich(imBetrieb())
-    expect(dm.sv).toBe(5)
+    // Fassung 6 (21.11.2026): SichtPaar ohne `finale`, das Kleine Finale ist eine eigene Runde.
+    expect(dm.sv).toBe(6)
     expect(Object.keys(dm.einst).sort()).toEqual(['amSteg', 'davor', 'parcoursName', 'vorSteg'])
     expect(schluessel(dm).has('parallelAnordnung')).toBe(false)
     // UIM mit Parallelslalom: die Einstellung (Vorgabe A links) – auch entfernte Anzeigetafeln (ab E6) lesen nur die Sicht.

@@ -14,7 +14,7 @@ import { attemptSchluessel, attemptsImPlan } from './parallelSchluessel'
 // Parallelslalom (Regel 960): Dort bekommt er das X ebenso – in jedem Attempt jeder
 // festgeschriebenen Runde, in der er im Plan steht und für den noch nichts erfasst ist
 // ({@link mitAbmeldungInRunden}). Im Vorlauf ist er damit für die Stage disqualifiziert (Pkt.
-// 5.2.2), in Halbfinale und Finale steht er auf dem hinteren Platz seines heat.
+// 5.2.2), in Halbfinale, Kleinem Finale und Finale steht er auf dem hinteren Platz seines heat.
 //
 // Das X ist ein gewöhnlicher erfasster Wert – die Wertung, die Wertungslisten und der Hinweis
 // auf verborgene Werte kennen es schon, und es lässt sich in der Erfassung wie jedes andere

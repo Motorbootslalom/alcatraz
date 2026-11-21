@@ -173,7 +173,7 @@ function applyPreset(groups: readonly (readonly ClassId[])[]) {
   </template>
   </fieldset>
 
-  <!-- Halbfinale, Finals und Wiederholung des Parallelslaloms: je Klasse festgeschrieben, sobald
+  <!-- Halbfinale, Kleines Finale, Finale und Wiederholung des Parallelslaloms: je Klasse festgeschrieben, sobald
        der Vorlauf entschieden ist. Außerhalb der Sperre – gerade bei festgeschriebener Verzahnung
        (und damit festem Vorlauf) wird hier weitergearbeitet. -->
   <ParallelRunden v-if="discipline === 'parallel'" />

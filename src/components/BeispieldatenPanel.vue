@@ -174,13 +174,14 @@ const werteZahl = computed(() =>
 const MANOEVER = 'manoever'
 type Was = typeof MANOEVER | ParallelRunde
 const feste = computed(() => (parallel.value ? festeRunden(state.value.parallelPlaene) : []))
-/** Vorlauf, Halbfinale und Finals stehen immer zur Wahl (gesperrt ohne Plan), Wiederholungen, sobald es sie gibt – in der Folge, in der gefahren wird. */
-const rundenWahl = computed<ParallelRunde[]>(() => (parallel.value ? [...new Set<ParallelRunde>([VORLAUF, 'semi', 'final', ...feste.value])].sort(vergleicheRunden) : []))
+/**
+ * Vorlauf, Halbfinale, Kleines Finale und Finale stehen immer zur Wahl (gesperrt ohne Plan), Wiederholungen, sobald
+ * es sie gibt – in der Folge, in der gefahren wird. Kleines Finale und Finale sind seit 21.11.2026 eigene Runden.
+ */
+const rundenWahl = computed<ParallelRunde[]>(() => (parallel.value ? [...new Set<ParallelRunde>([VORLAUF, 'semi', 'small', 'final', ...feste.value])].sort(vergleicheRunden) : []))
 const wasWahl = merke<Was>('beispiel.was', MANOEVER, { ueberNeuladen: true, gueltig: (w) => typeof w === 'string' })
 /** Das Gewählte – eine Runde ohne festgeschriebenen Plan zählt wie „Manövrieren“. */
 const was = computed<Was>(() => (wasWahl.value !== MANOEVER && feste.value.includes(wasWahl.value) ? wasWahl.value : MANOEVER))
-/** Im Finale fahren beide Finals: das um Platz 1 und 2 und das kleine um Platz 3 und 4. */
-const rundenText = (r: ParallelRunde) => (r === 'final' ? `${rundenName(r, t)} (${t('demo.values.finals')})` : rundenName(r, t))
 
 const laeufeGewaehlt = computed(() => laufWahl.value.filter((l) => l <= bisLauf.value))
 /** Die Lauf-Schlüssel des Gewählten – daran hängt, was „ersetzen“ und „löschen“ trifft (wie im Reducer). */
@@ -298,7 +299,7 @@ function werteLoeschen() {
         <select id="beispiel-was" class="input" data-feld="beispiel-was" :value="was" @change="wasWahl = ($event.target as HTMLSelectElement).value as Was">
           <option :value="MANOEVER">{{ t('running.source.manoever') }}</option>
           <optgroup :label="t('parallel.title')">
-            <option v-for="r in rundenWahl" :key="r" :value="r" :disabled="!feste.includes(r)">{{ rundenText(r) }}</option>
+            <option v-for="r in rundenWahl" :key="r" :value="r" :disabled="!feste.includes(r)">{{ rundenName(r, t) }}</option>
           </optgroup>
         </select>
       </div>

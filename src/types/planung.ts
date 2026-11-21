@@ -95,8 +95,12 @@ export interface PlanState {
  * Runde des Parallelslaloms (Regel 960, Pkt. 5.2.2: „Parallel slalom preliminary heat /
  * semi-finals / finals“; Pkt. 5.2.6: „must re-run both attempts“). Eine Wiederholung heißt
  * `rerun-<runde>-<n>` (`rerun-pre-1`, `rerun-semi-2`): die n-te Wiederholung zum Vorlauf bzw. zum Halbfinale.
+ *
+ * Seit 21.11.2026 (Auftrag des Nutzers: „Kleines und großes Finale ist getrennt, wie Vorlauf und Halbfinale. Das
+ * sind 4 in sich geschlossene Listen/Auswertungen.“) sind die Finals zwei Runden: `small` = Kleines Finale („compete
+ * for the 3rd and 4th place“, Pkt. 4.4), gefahren vor `final` = Finale („compete for the 1st and 2nd place“).
  */
-export type ParallelRunde = 'pre' | 'semi' | 'final' | `rerun-${string}`
+export type ParallelRunde = 'pre' | 'semi' | 'small' | 'final' | `rerun-${string}`
 
 /**
  * Ein Start eines festgeschriebenen Plans: wer auf Racecourse A und B fährt. Gehalten werden
@@ -117,15 +121,12 @@ export interface ParallelStartFest {
   boot: BoatType
   /**
    * Die Klasse, für die dieser Start festgeschrieben wurde – nur in den Runden nach dem Vorlauf
-   * (Halbfinale, Finals, Wiederholung): Sie werden je Klasse festgeschrieben und gelöst, und der
-   * Plan einer Runde sammelt die Starts aller Klassen. Im Vorlauf fehlt die Angabe.
+   * (Halbfinale, Kleines Finale, Finale, Wiederholung): Sie werden je Klasse festgeschrieben und
+   * gelöst, und der Plan einer Runde sammelt die Starts aller Klassen. Im Vorlauf fehlt die Angabe.
+   * Um welche Plätze ein Finale geht, sagt seit 21.11.2026 die Runde (`small`/`final`) – das
+   * frühere Feld `finale` entfällt (state/migrate.ts teilt alte Stände auf).
    */
   klasse?: ClassId
-  /**
-   * Nur in den Finals: um welche Plätze dieser Start geht – 1 = „compete for the 1st and 2nd
-   * place“, 3 = „compete for the 3rd and 4th place“ (Regel 960, Pkt. 4.4).
-   */
-  finale?: 1 | 3
 }
 
 /** Der festgeschriebene Startplan einer Runde: Er wird nicht neu gerechnet. */

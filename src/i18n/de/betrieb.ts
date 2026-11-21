@@ -86,7 +86,7 @@ export default {
   'betrieb.beginnen.runde': '{runde} beginnen',
   'betrieb.beginnen.frage.runde': 'Nächste Runde beginnen?',
   'betrieb.beginnen.text.runde':
-    'In den begonnenen Runden ist noch {n} Start offen. Er bleibt freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Finals –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch. | In den begonnenen Runden sind noch {n} Starts offen. Sie bleiben freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Finals –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch.',
+    'In den begonnenen Runden ist noch {n} Start offen. Er bleibt freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Kleines Finale, Finale –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch. | In den begonnenen Runden sind noch {n} Starts offen. Sie bleiben freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Kleines Finale, Finale –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch.',
   'betrieb.stockt.runde':
     'Kein Start frei – noch {n} Start wartet (zurückgestellt oder nachzuholen). Die Runde ist nicht zu Ende. | Kein Start frei – noch {n} Starts warten (zurückgestellt oder nachzuholen). Die Runde ist nicht zu Ende.',
   'betrieb.abweichend.runde': 'Die Folge weicht vom festgeschriebenen Plan ab (Paare zurückgestellt oder gezielt gezeigt). Die Listen der Wettkampfrichter bleiben, wie sie sind.',

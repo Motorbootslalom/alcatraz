@@ -18,6 +18,9 @@ clipboard, scanner, logoBild.
   rundenZettel A/B, messKennungRunde, musterRundenBoegen), `parallelStartliste.ts` (Blatt: ParallelStartlisten.vue).
   Ablauf: PARALLEL_RUNDE_FESTSCHREIBEN (state/reducer/parallel.ts) → parallelStage.schreibeRundeFest → parallelBoegen
   → Werte unter `parallel:<runde>/<attempt>` → rundenErgebnis (mitWiederholungen) → klassenStand → stageErgebnis.
+  Runden (21.11.2026): pre, semi, small (Kleines Finale, Platz 3/4), final (Platz 1/2) + rerun-*; PARALLEL_RUNDEN in
+  parallelSchluessel.ts. Nach dem Halbfinale stehen beide Finals in klassenStand `schritte` (unabhängig festzuschreiben,
+  `naechste` = erster); stageErgebnis nimmt 1/2 aus `final`, 3/4 aus `small`. Alte Stände: state/migrate.ts teileAlteFinals.
 - Bögen und Listen: `wkrListen.ts` (wkrBoegenZumStand: planung/plan.ts planEvent, listen.ts, bogen.ts defFuerKlasse,
   qr.ts), `bogen.ts` (Modell, bogenSeiten), `listen.ts` (veranstaltungsListen), `laufzettel.ts` (messBoegen,
   buildLaufzettel, zettelSchritte), `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`, `namen.ts`,

@@ -62,14 +62,20 @@ describe('Einzelwertung', () => {
       zeit,
     })
   const fest = (runde: ParallelRunde) => store.dispatch({ type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde })
+  /** Kleines Finale und Finale – seit 21.11.2026 zwei eigene Runden, das Kleine zuerst. */
+  const finals = () => {
+    fest('small')
+    fest('final')
+    fahre('small', { '1-3': VIER['1-3'], '1-4': VIER['1-4'] }, Date.UTC(2026, 8, 26, 13))
+    fahre('final', { '1-1': VIER['1-1'], '1-2': VIER['1-2'] }, Date.UTC(2026, 8, 26, 14))
+  }
   /** Der Parallelslalom der Klasse 1 bis zum Ende. */
   const parallel = () => {
     store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
     fahre('pre', VORLAUF)
     fest('semi')
     fahre('semi', VIER)
-    fest('final')
-    fahre('final', VIER, Date.UTC(2026, 8, 26, 14))
+    finals()
   }
 
   beforeEach(() => {
@@ -225,10 +231,13 @@ describe('Einzelwertung', () => {
     expect(pre.find('.erg-fuss').text()).toContain('Parallel slalom not scored – decision of the O.O.D.')
     expect(p.text()).not.toContain('Remark')
     breit(pre)
-    // … im Halbfinale die Blöcke der Finals; in den Finals gibt es die Spalte nicht.
+    // … im Halbfinale die Blöcke der Finals; in Kleinem Finale und Finale gibt es die Spalte nicht.
     const semi = await runde('semi')
     expect(semi.find('th[data-spalte="uim-punkte"]').text()).toBe('UIM points')
     expect(spalte(semi)).toEqual(['Final 1–2 ×2', 'Small final ×2'])
+    const klein = await runde('small')
+    expect(klein.find('[data-spalte="uim-punkte"]').exists()).toBe(false)
+    expect(klein.find('.erg-fuss').text()).toContain('not scored')
     const finale = await runde('final')
     expect(finale.find('[data-spalte="uim-punkte"]').exists()).toBe(false)
     expect(finale.find('.erg-fuss').text()).toContain('not scored')
@@ -370,8 +379,7 @@ describe('Einzelwertung', () => {
     // Bis zum Ende gefahren: Summe beider Stages je Starter, punktgleich – es entscheidet der 1. Platz der Einzelwertung.
     fest('semi')
     fahre('semi', VIER)
-    fest('final')
-    fahre('final', VIER, Date.UTC(2026, 8, 26, 14))
+    finals()
     await warte()
     expect(summen()).toEqual([
       ['Nordland', '1316', '1*'],

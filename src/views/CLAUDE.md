@@ -13,7 +13,8 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 - `WeighingView.vue` – Verwiegung: Gewichte je Herkunft in Ausdruck-Reihenfolge abtippen (SET_WEIGHT); Link
   „Gewichtslisten drucken“ → `#/listen/gewicht/<Herkunft>` (`*` = alle), ListsView übernimmt sie (gewichtHerkunft).
 - `VerzahnungView.vue` – Parcours, Klassen, Sperre (Festschreiben), Startnummern; Unterreiter Parallelslalom, useReiter.
-- `ParallelView.vue` – Vorlauf-Plan: Schalter streng/nach Startnummer, Heat-Tabelle (Runden: ParallelRunden.vue).
+- `ParallelView.vue` – Vorlauf-Plan: Schalter streng/nach Startnummer, Heat-Tabelle (Runden: ParallelRunden.vue;
+  pre, semi, small = Kleines Finale, final – je eigene Listen/Erfassung/Scan, Test views/ParallelRunden.test.ts).
 - `ListsView.vue` – Reiter „Listen“: KINDS (starter, gewicht, vorsteg, wkr, laufzettel, codes, ergebnis, pokal,
   druckdatei), Auswahl, Doppelseitig-Schalter, Sperren (`blocked`, `nothingToPrint`), print() setzt
   document.title (= Dateiname) und ruft window.print().

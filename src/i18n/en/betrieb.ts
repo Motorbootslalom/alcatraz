@@ -81,7 +81,7 @@ export default {
   'betrieb.beginnen.runde': 'Begin {runde}',
   'betrieb.beginnen.frage.runde': 'Begin the next heat?',
   'betrieb.beginnen.text.runde':
-    'The heats begun still have {n} start to go. It stays released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, finals –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt. | The heats begun still have {n} starts to go. They stay released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, finals –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt.',
+    'The heats begun still have {n} start to go. It stays released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, small final, final –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt. | The heats begun still have {n} starts to go. They stay released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, small final, final –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt.',
   'betrieb.stockt.runde':
     'No start released – {n} start is waiting (held back or to be made up). The heat is not complete. | No start released – {n} starts are waiting (held back or to be made up). The heat is not complete.',
   'betrieb.abweichend.runde': 'The order differs from the locked starting order (pairs held back or shown out of turn). The race officials’ sheets stay as they are.',

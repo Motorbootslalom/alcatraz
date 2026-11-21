@@ -53,16 +53,18 @@ export const BETRIEB_ANNAHMEN = {
   parallelLeereSeite: true,
   /**
    * (zu 4, 10) Parallelslalom: je festgeschriebener Runde ein Punkt (`runde:<runde>`) in der Folge von
-   * vergleicheRunden; eine Runde ohne festgeschriebenen Plan steht nicht im Programm. Das kleine Finale ist kein
-   * eigener Punkt: Es steht im Plan der Finals (`parallelPlaene.final`, Starts mit `finale: 3`) und wird dort
-   * zuerst gefahren (PARALLEL_ANNAHMEN) – jeder Start nennt auf der Tafel, ob „Final“ oder „Small final (3rd and
-   * 4th place)“. Betrieb im Bereich ist möglich, sobald eine Runde festgeschrieben ist, unabhängig von der Sperre
+   * vergleicheRunden; eine Runde ohne festgeschriebenen Plan steht nicht im Programm. Seit 21.11.2026 (Auftrag des
+   * Nutzers: Kleines Finale und Finale „4 in sich geschlossene Listen/Auswertungen“) ist das Kleine Finale ein
+   * eigener Punkt `runde:small` und steht VOR `runde:final` (Entscheidung vom 15.11.2026: zuerst gefahren); die
+   * Tafel nennt die Runde („Small final · Attempt 1“). Folge: Nach dem Kleinen Finale muss im Betrieb „Finale
+   * beginnen“ gedrückt werden – wie bei jedem Punkt. OFFENE FRAGE an den Nutzer (21.11.2026): Soll das Finale ohne
+   * Klick anschließen? Empfehlung: Klick behalten, wie bei allen Punkten. Betrieb im Bereich ist möglich, sobald eine Runde festgeschrieben ist, unabhängig von der Sperre
    * der Verzahnung (die Runden nach dem Vorlauf stehen außerhalb davon, der Vorlauf bleibt an erfasste Werte
    * gebunden). Beim Bau von E4, 16.11.2026 – noch zu bestätigen.
    */
   parallelRundenAlsPunkte: true,
   /**
-   * (zu 10, 6 und 8) Im Parallelslalom laufen die Runden je Klasse für sich: Halbfinale, Finals und Re-runs werden
+   * (zu 10, 6 und 8) Im Parallelslalom laufen die Runden je Klasse für sich: Halbfinale, Kleines Finale, Finale und Re-runs werden
    * je Klasse festgeschrieben (planung/parallelRunden.ts `mitKlasse`, neue Klassen ans Ende des Plans), also stehen
    * Klassen zugleich in verschiedenen Runden. Deshalb gilt dort je Runde: „Nachzuholen“ ist ein Start nur, wenn
    * hinter ihm ein Start DERSELBEN Runde erledigt ist (nicht einer einer späteren Runde), und „hinter den Zeiger“

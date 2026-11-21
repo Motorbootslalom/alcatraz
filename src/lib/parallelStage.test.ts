@@ -59,6 +59,16 @@ const plaetze = (state: AppState, runde: ParallelRunde, klasse: ClassId = '1') =
 const vermerke = (state: AppState, runde: ParallelRunde) => Object.fromEntries([...rundenVermerke(ergebnis(state, runde), PUNKTE)!].map(([id, v]) => [id, v.art === 'punkte' ? v.punkte : v.art]))
 const stage = (state: AppState, klasse: ClassId = '1') => stageErgebnis(state, konfig, klasse, PUNKTE)!.nachPlatz.map((z) => [z.starter.id, z.platz, z.punkte, z.runde, z.disq ? 'disq' : z.gesamt! / 100])
 const paare = (state: AppState, runde: ParallelRunde, klasse: ClassId = '1') => klassenPaare(state.parallelPlaene[runde], klasse)
+/** Beide Finals festschreiben – seit 21.11.2026 getrennte Runden: erst das Kleine Finale, dann das Finale. */
+const finals = (state: AppState, klasse: ClassId = '1') => fest(fest(state, 'small', klasse), 'final', klasse)
+/** Fahrten in beiden Finals: Wer im Plan des Kleinen Finales steht, fährt dort, die übrigen im Finale. */
+function fahreFinals(state: AppState, zeiten: Record<string, Array<number | null>>): AppState {
+  const klein = new Set((state.parallelPlaene.small?.starts ?? []).flatMap((s) => [s.a, s.b]))
+  const teil = (imKlein: boolean) => Object.fromEntries(Object.entries(zeiten).filter(([id]) => klein.has(id) === imKlein))
+  return fahre(fahre(state, 'small', teil(true)), 'final', teil(false))
+}
+/** Was nach dem Halbfinale ansteht: je Runde ihre Paare. */
+const schritte = (state: AppState, klasse: ClassId = '1') => stand(state, klasse).schritte.map((x) => [x.runde, x.paare])
 
 /** Sechs Starter, Vorlauf entschieden: 1-1 … 1-4 qualifiziert (Summen 80, 82, 84, 86), 1-5 und 1-6 dahinter. */
 const VORLAUF6 = { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43], '1-5': [50, 50], '1-6': [55, 55] }
@@ -116,22 +126,21 @@ describe('Halbfinale (Pkt. 4.4)', () => {
     let state = fest(nachVorlauf(), 'semi')
     state = fahre(state, 'semi', { '1-1': [null, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
     expect(plaetze(state, 'semi')).toEqual({ '1-2': 1, '1-4': 2, '1-3': 3, '1-1': 4 })
-    expect(stand(state).naechste).toEqual({
-      runde: 'final',
-      paare: [
-        { a: '1-1', b: '1-3', finale: 3 },
-        { a: '1-2', b: '1-4', finale: 1 },
-      ],
-    })
+    // Seit 21.11.2026 zwei Runden: erst das Kleine Finale, dann das Finale – beide stehen zugleich an.
+    expect(schritte(state)).toEqual([
+      ['small', [{ a: '1-1', b: '1-3' }]],
+      ['final', [{ a: '1-2', b: '1-4' }]],
+    ])
+    expect(stand(state).naechste?.runde).toBe('small')
   })
 
   it('zwei Disqualifizierte teilen sich den hinteren Platz – ohne Reihung nach dem gültigen Attempt', () => {
     let state = fest(nachVorlauf(), 'semi')
     state = fahre(state, 'semi', { '1-1': [null, 30], '1-2': [39, 40], '1-3': [45, null], '1-4': [44, 45] })
     expect(plaetze(state, 'semi')).toEqual({ '1-2': 1, '1-4': 2, '1-1': 4, '1-3': 4 })
-    expect(stand(state).naechste?.paare).toEqual([
-      { a: '1-1', b: '1-3', finale: 3 },
-      { a: '1-2', b: '1-4', finale: 1 },
+    expect(schritte(state)).toEqual([
+      ['small', [{ a: '1-1', b: '1-3' }]],
+      ['final', [{ a: '1-2', b: '1-4' }]],
     ])
   })
 })
@@ -140,32 +149,79 @@ describe('Finals und Ergebnis der Stage', () => {
   const bisFinale = () => {
     let state = fest(nachVorlauf(), 'semi')
     state = fahre(state, 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
-    return fest(state, 'final')
+    return finals(state)
   }
 
-  it('1. und 2. des Halbfinales fahren um Platz 1 und 2, 3. und 4. um Platz 3 und 4 – das Finale um Platz 3 und 4 zuerst', () => {
+  it('1. und 2. des Halbfinales fahren das Finale (Platz 1 und 2), 3. und 4. das Kleine Finale (Platz 3 und 4) – zwei getrennte Runden', () => {
     const state = bisFinale()
-    expect(state.parallelPlaene.final!.starts.map((s) => [s.a, s.b, s.attempt, s.finale])).toEqual([
-      ['1-3', '1-4', 1, 3],
-      ['1-4', '1-3', 2, 3],
-      ['1-1', '1-2', 1, 1],
-      ['1-2', '1-1', 2, 1],
+    expect(state.parallelPlaene.small!.starts.map((s) => [s.a, s.b, s.attempt, s.block])).toEqual([
+      ['1-3', '1-4', 1, 0],
+      ['1-4', '1-3', 2, 0],
     ])
+    expect(state.parallelPlaene.final!.starts.map((s) => [s.a, s.b, s.attempt, s.block])).toEqual([
+      ['1-1', '1-2', 1, 0],
+      ['1-2', '1-1', 2, 0],
+    ])
+    // Das Kleine Finale wird vor dem Finale gefahren (Entscheidung vom 15.11.2026).
+    expect(stand(state).runden.map((r) => r.runde)).toEqual(['pre', 'semi', 'small', 'final'])
+    expect(stand(state).schritte).toEqual([])
     expect(stageErgebnis(state, konfig, '1', PUNKTE)).toBeNull()
-    expect(offeneKlassen(state, konfig)).toEqual([{ klasse: '1', runde: 'final', festschreiben: false, veraltet: false }])
+    // Es hängt am Kleinen Finale: Es wird zuerst gefahren (21.11.2026).
+    expect(offeneKlassen(state, konfig)).toEqual([{ klasse: '1', runde: 'small', festschreiben: false, veraltet: false }])
+    // Kleines Finale gefahren: Jetzt hängt es am Finale.
+    const klein = fahre(state, 'small', { '1-3': [30, 30], '1-4': [44, 45] })
+    expect(offeneKlassen(klein, konfig)).toEqual([{ klasse: '1', runde: 'final', festschreiben: false, veraltet: false }])
+  })
+
+  it('läuft das Kleine Finale, während das Finale noch festzuschreiben ist, hängt die Stage am Kleinen Finale (21.11.2026)', () => {
+    let halb = fest(nachVorlauf(), 'semi')
+    halb = fahre(halb, 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
+    // Nur das Kleine Finale festgeschrieben, ein Attempt erfasst: Es läuft.
+    const laeuft = fahre(fest(halb, 'small'), 'small', { '1-3': [30], '1-4': [44] })
+    expect(stand(laeuft).runden.find((r) => r.runde === 'small')?.zustand).toBe('laeuft')
+    expect(stand(laeuft).naechste?.runde).toBe('final')
+    expect(offeneKlassen(laeuft, konfig)).toEqual([{ klasse: '1', runde: 'small', festschreiben: false, veraltet: false }])
+    // „Alle Klassen weiter“ schreibt das Finale trotzdem fest – es hängt nur am Halbfinale.
+    expect(alleWeiter(klassenStaende(laeuft, konfig)).weiter).toEqual([{ klasse: '1', runde: 'final' }])
+    // Erst das Finale festgeschrieben und noch leer: Das Kleine Finale steht als nächstes an.
+    expect(offeneKlassen(fest(halb, 'final'), konfig)).toEqual([{ klasse: '1', runde: 'small', festschreiben: true, veraltet: false }])
+    // Kleines Finale fertig, Finale noch festzuschreiben: Es hängt am Finale, und es kann festgeschrieben werden.
+    const kleinFertig = fahre(fest(halb, 'small'), 'small', { '1-3': [30, 30], '1-4': [44, 45] })
+    expect(offeneKlassen(kleinFertig, konfig)).toEqual([{ klasse: '1', runde: 'final', festschreiben: true, veraltet: false }])
+  })
+
+  it('Kleines Finale und Finale lassen sich in beliebiger Folge festschreiben – beide hängen nur am Halbfinale', () => {
+    let halb = fest(nachVorlauf(), 'semi')
+    halb = fahre(halb, 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
+    // Erst das Finale: das Kleine Finale steht weiter an.
+    const erstFinale = fest(halb, 'final')
+    expect(schritte(erstFinale)).toEqual([['small', [{ a: '1-3', b: '1-4' }]]])
+    expect(erstFinale.parallelPlaene.small).toBeUndefined()
+    // Erst das Kleine Finale: das Finale steht weiter an.
+    const erstKlein = fest(halb, 'small')
+    expect(schritte(erstKlein)).toEqual([['final', [{ a: '1-1', b: '1-2' }]]])
+    // Beide Wege führen zu denselben Plänen.
+    expect(fest(erstFinale, 'small').parallelPlaene).toEqual(fest(erstKlein, 'final').parallelPlaene)
+    // Ohne das Finale ist die Stage nicht fertig, auch wenn das Kleine Finale gefahren ist.
+    const klein = fahre(erstKlein, 'small', { '1-3': [30, 30], '1-4': [44, 45] })
+    expect(stand(klein).fertig).toBe(false)
+    expect(plaetze(klein, 'small')).toEqual({ '1-3': 3, '1-4': 4 })
   })
 
   it('Plätze 1 bis 4 aus den Finals – je Paar –, ab Platz 5 aus dem Vorlauf, mit UIM points', () => {
     // Der Sieger des Finales um Platz 3 und 4 ist schneller als beide im Finale: Er bleibt Dritter.
-    const state = fahre(bisFinale(), 'final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
-    expect(plaetze(state, 'final')).toEqual({ '1-1': 1, '1-2': 2, '1-3': 3, '1-4': 4 })
-    expect(vermerke(state, 'final')).toEqual({ '1-1': 400, '1-2': 300, '1-3': 225, '1-4': 169 })
+    const state = fahreFinals(bisFinale(), { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
+    expect(plaetze(state, 'final')).toEqual({ '1-1': 1, '1-2': 2 })
+    expect(plaetze(state, 'small')).toEqual({ '1-3': 3, '1-4': 4 })
+    expect(vermerke(state, 'final')).toEqual({ '1-1': 400, '1-2': 300 })
+    expect(vermerke(state, 'small')).toEqual({ '1-3': 225, '1-4': 169 })
     expect(stand(state).fertig).toBe(true)
+    // Gesamtergebnis aus beiden Runden: 1 und 2 aus dem Finale, 3 und 4 aus dem Kleinen Finale.
     expect(stage(state)).toEqual([
       ['1-1', 1, 400, 'final', 82],
       ['1-2', 2, 300, 'final', 83],
-      ['1-3', 3, 225, 'final', 60],
-      ['1-4', 4, 169, 'final', 89],
+      ['1-3', 3, 225, 'small', 60],
+      ['1-4', 4, 169, 'small', 89],
       ['1-5', 5, 127, 'pre', 100],
       ['1-6', 6, 95, 'pre', 110],
     ])
@@ -174,8 +230,9 @@ describe('Finals und Ergebnis der Stage', () => {
   })
 
   it('Gleichstand im Finale bleibt stehen (dead-heat result): geteilter Platz, beide die vollen Punkte', () => {
-    const state = fahre(bisFinale(), 'final', { '1-1': [41, 42], '1-2': [42, 41], '1-3': [30, 30], '1-4': [44, 45] })
-    expect(plaetze(state, 'final')).toEqual({ '1-1': 1, '1-2': 1, '1-3': 3, '1-4': 4 })
+    const state = fahreFinals(bisFinale(), { '1-1': [41, 42], '1-2': [42, 41], '1-3': [30, 30], '1-4': [44, 45] })
+    expect(plaetze(state, 'final')).toEqual({ '1-1': 1, '1-2': 1 })
+    expect(plaetze(state, 'small')).toEqual({ '1-3': 3, '1-4': 4 })
     expect(ergebnis(state, 'final').rerun).toEqual([])
     expect(stage(state).slice(0, 2)).toEqual([
       ['1-1', 1, 400, 'final', 83],
@@ -185,24 +242,32 @@ describe('Finals und Ergebnis der Stage', () => {
 
   it('Disqualifikation im Finale: der hintere Platz des Paars, mit dessen Punkten; zwei teilen ihn sich', () => {
     expect(PARALLEL_ANNAHMEN.disqImHeatBehaeltPunkte).toBe(true)
-    const einer = fahre(bisFinale(), 'final', { '1-1': [null, 20], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
-    expect(plaetze(einer, 'final')).toEqual({ '1-2': 1, '1-1': 2, '1-3': 3, '1-4': 4 })
+    const einer = fahreFinals(bisFinale(), { '1-1': [null, 20], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
+    expect(plaetze(einer, 'final')).toEqual({ '1-2': 1, '1-1': 2 })
     expect(stage(einer).slice(0, 2)).toEqual([
       ['1-2', 1, 400, 'final', 83],
       ['1-1', 2, 300, 'final', 'disq'],
     ])
-    const beide = fahre(bisFinale(), 'final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [null, 30], '1-4': [44, null] })
-    expect(plaetze(beide, 'final')).toEqual({ '1-1': 1, '1-2': 2, '1-3': 4, '1-4': 4 })
+    // Im Kleinen Finale: der hintere Platz ist Platz 4, mit dessen Punkten (Pkt. 5.2.2 „ranked last in the relevant heat“).
+    const beide = fahreFinals(bisFinale(), { '1-1': [41, 41], '1-2': [40, 43], '1-3': [null, 30], '1-4': [44, null] })
+    expect(plaetze(beide, 'small')).toEqual({ '1-3': 4, '1-4': 4 })
+    expect(vermerke(beide, 'small')).toEqual({ '1-3': 169, '1-4': 169 })
     expect(stage(beide).slice(2, 4)).toEqual([
-      ['1-3', 4, 169, 'final', 'disq'],
-      ['1-4', 4, 169, 'final', 'disq'],
+      ['1-3', 4, 169, 'small', 'disq'],
+      ['1-4', 4, 169, 'small', 'disq'],
+    ])
+    const klein = fahreFinals(bisFinale(), { '1-1': [41, 41], '1-2': [40, 43], '1-3': [null, 20], '1-4': [44, 45] })
+    expect(plaetze(klein, 'small')).toEqual({ '1-4': 3, '1-3': 4 })
+    expect(stage(klein).slice(2, 4)).toEqual([
+      ['1-4', 3, 225, 'small', 89],
+      ['1-3', 4, 169, 'small', 'disq'],
     ])
   })
 
   it('im Vorlauf Disqualifizierte stehen im Ergebnis der Stage hinten, ohne Punkte', () => {
     let state = fahre(uim(mk('1', 6)), 'pre', { ...VORLAUF6, '1-6': [55, null] })
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
+    state = fahreFinals(finals(state), { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
     expect(stage(state).slice(4)).toEqual([
       ['1-5', 5, 127, 'pre', 100],
       ['1-6', 6, 0, 'pre', 'disq'],
@@ -227,8 +292,11 @@ describe('weniger als vier Gewertete (Annahme, Organisation – nicht Regel 960)
     ])
     state = fahre(state, 'semi', { '1-1': [40, 40], '1-2': [45, 45], '1-3': [39, 39] })
     expect(vermerke(state, 'semi')).toEqual({ '1-3': 'final', '1-1': 'final', '1-2': 225 })
-    expect(stand(state).naechste).toEqual({ runde: 'final', paare: [{ a: '1-1', b: '1-3', finale: 1 }] })
+    // Kein Kleines Finale: Die Runde entfällt für die Klasse, es steht nur das Finale an.
+    expect(stand(state).schritte).toEqual([{ runde: 'final', paare: [{ a: '1-1', b: '1-3' }] }])
+    expect(fest(state, 'small')).toBe(state)
     state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-3': [41, 41] })
+    expect(stand(state).runden.map((r) => r.runde)).toEqual(['pre', 'semi', 'final'])
     expect(stage(state)).toEqual([
       ['1-1', 1, 400, 'final', 80],
       ['1-3', 2, 300, 'final', 82],
@@ -239,8 +307,9 @@ describe('weniger als vier Gewertete (Annahme, Organisation – nicht Regel 960)
 
   it('2 Gewertete: direkt das Finale', () => {
     let state = fahre(uim(mk('1', 3)), 'pre', { '1-1': [40, 40], '1-2': [null, 41], '1-3': [42, 42] })
-    expect(stand(state).naechste).toEqual({ runde: 'final', paare: [{ a: '1-1', b: '1-3', finale: 1 }] })
+    expect(stand(state).schritte).toEqual([{ runde: 'final', paare: [{ a: '1-1', b: '1-3' }] }])
     expect(fest(state, 'semi')).toBe(state)
+    expect(fest(state, 'small')).toBe(state)
     state = fahre(fest(state, 'final'), 'final', { '1-1': [45, 45], '1-3': [41, 41] })
     expect(stage(state)).toEqual([
       ['1-3', 1, 400, 'final', 82],
@@ -325,7 +394,7 @@ describe('Wiederholung (Pkt. 5.2.6)', () => {
     })
     // Im Ergebnis der Stage steht für den Verlierer die Zeit der Wiederholung.
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
+    state = fahreFinals(finals(state), { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
     expect(stage(state)[4]).toEqual(['1-4', 5, 127, 'rerun-pre-1', 120])
     // Dort trägt nur er ein Sternchen: Den Platz von 1-5 (4) hat das Finale bestimmt.
     expect([...stageDurchWiederholung(stageErgebnis(state, konfig, '1', PUNKTE)!)]).toEqual(['1-4'])
@@ -364,7 +433,7 @@ describe('Wiederholung (Pkt. 5.2.6)', () => {
     expect(vermerke(state, 'pre')).toMatchObject({ '1-5': 'qualified', '1-4': 127, '1-6': 95 })
     // Im Ergebnis der Stage: Platz 5 mit dessen Punkten, als „Disq.“ ohne Zeit – nach dem Re-run zählt nur dessen Zeit.
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
-    state = fahre(fest(state, 'final'), 'final', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
+    state = fahreFinals(finals(state), { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
     expect(stage(state)[4]).toEqual(['1-4', 5, 127, 'rerun-pre-1', 'disq'])
     expect(stage(state)[5]).toEqual(['1-6', 6, 95, 'pre', 110])
   })
@@ -373,7 +442,7 @@ describe('Wiederholung (Pkt. 5.2.6)', () => {
     let state = fest(nachVorlauf(), 'semi')
     const ohne = fahre(state, 'semi', { '1-1': [40, 42], '1-2': [42, 40], '1-3': [45, 47], '1-4': [47, 45] })
     expect(plaetze(ohne, 'semi')).toEqual({ '1-1': 1, '1-2': 1, '1-3': 3, '1-4': 3 })
-    expect(stand(ohne).naechste?.runde).toBe('final')
+    expect(stand(ohne).schritte.map((x) => x.runde)).toEqual(['small', 'final'])
     state = fahre(state, 'semi', { '1-1': [39, 39], '1-2': [42, 40], '1-3': [40, 42], '1-4': [47, 45] })
     expect(plaetze(state, 'semi')).toEqual({ '1-1': 1, '1-2': 2, '1-3': 2, '1-4': 4 })
     // Solange die Wiederholung aussteht, steht bei den übrigen nicht, welches Finale sie fahren.
@@ -381,10 +450,24 @@ describe('Wiederholung (Pkt. 5.2.6)', () => {
     expect(stand(state).naechste).toEqual({ runde: 'rerun-semi-1', paare: [{ a: '1-2', b: '1-3' }] })
     state = fahre(fest(state, 'rerun-semi-1'), 'rerun-semi-1', { '1-2': [44, 44], '1-3': [43, 44] })
     expect(plaetze(state, 'semi')).toEqual({ '1-1': 1, '1-3': 2, '1-2': 3, '1-4': 4 })
-    expect(stand(state).naechste?.paare).toEqual([
-      { a: '1-2', b: '1-4', finale: 3 },
-      { a: '1-1', b: '1-3', finale: 1 },
+    // Die Wiederholung zum Halbfinale entscheidet, wer welches Finale fährt: der Verlierer das Kleine Finale.
+    expect(schritte(state)).toEqual([
+      ['small', [{ a: '1-2', b: '1-4' }]],
+      ['final', [{ a: '1-1', b: '1-3' }]],
     ])
+    // Kleines Finale nach einem Re-run: Ein Gleichstand dort bleibt stehen (kein Re-run in den Finals, Pkt. 5.2.6).
+    state = fahreFinals(finals(state), { '1-1': [40, 40], '1-3': [41, 41], '1-2': [45, 46], '1-4': [46, 45] })
+    expect(plaetze(state, 'small')).toEqual({ '1-2': 3, '1-4': 3 })
+    expect(ergebnis(state, 'small').rerun).toEqual([])
+    expect(stand(state).schritte).toEqual([])
+    expect(stage(state).slice(0, 4)).toEqual([
+      ['1-1', 1, 400, 'final', 80],
+      ['1-3', 2, 300, 'final', 82],
+      ['1-2', 3, 225, 'small', 91],
+      ['1-4', 3, 225, 'small', 91],
+    ])
+    // Die Plätze 3/4 hat das Kleine Finale bestimmt, nicht die Wiederholung: kein Sternchen.
+    expect(stageDurchWiederholung(stageErgebnis(state, konfig, '1', PUNKTE)!).size).toBe(0)
   })
 })
 
@@ -523,8 +606,9 @@ describe('Festschreiben und Lösen im Reducer', () => {
     expect(alle.weiter).toEqual([{ klasse: '4', runde: 'semi' }])
     expect(alle.bleiben).toEqual([{ klasse: '1', runde: 'semi', grund: 'veraltet' }])
     const plan1 = klassenPaare(state.parallelPlaene.semi, '1')
-    const next = reducer(state, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [...alle.weiter, { klasse: '1', runde: 'semi' }, { klasse: '1', runde: 'final' }] })
+    const next = reducer(state, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [...alle.weiter, { klasse: '1', runde: 'semi' }, { klasse: '1', runde: 'small' }, { klasse: '1', runde: 'final' }] })
     expect(klassenPaare(next.parallelPlaene.semi, '1')).toEqual(plan1)
+    expect(next.parallelPlaene.small).toBeUndefined()
     expect(next.parallelPlaene.final).toBeUndefined()
     expect(klassenPaare(next.parallelPlaene.semi, '4')).toHaveLength(2)
   })
@@ -543,23 +627,42 @@ describe('Festschreiben und Lösen im Reducer', () => {
     expect(alle.bleiben).toEqual([{ klasse: '1', runde: 'rerun-pre-1', grund: 'rerun' }])
   })
 
-  it('Finals nach dem Halbfinale für alle Klassen zugleich, verzahnt; um Platz 3 und 4 zuerst', () => {
+  it('„Alle Klassen weiter“ nach dem Halbfinale: Kleines Finale und Finale aller Klassen in einem Schritt, je Runde verzahnt', () => {
+    expect(PARALLEL_ANNAHMEN.finalsZusammen).toBe(true)
     let state = fahre(uim([...mk('1', 4), ...mk('4', 4)]), 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
     state = fahre(state, 'pre', { '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] })
     const alleFest = (s: AppState) => reducer(s, { type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: alleWeiter(klassenStaende(s, konfig)).weiter, zeit: 9000 })
     state = alleFest(state)
     state = fahre(state, 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43], '4-1': [40, 40], '4-2': [41, 41], '4-3': [42, 42], '4-4': [43, 43] }, 10000)
-    state = alleFest(state)
-    expect(state.parallelPlaene.final!.starts.map((s) => [s.klasse, s.finale, s.block])).toEqual([
-      ['1', 3, 0],
-      ['4', 3, 0],
-      ['1', 3, 0],
-      ['4', 3, 0],
-      ['1', 1, 1],
-      ['4', 1, 1],
-      ['1', 1, 1],
-      ['4', 1, 1],
+    // Je Klasse beide Finals – eine Klasse steht zweimal in `weiter`.
+    expect(alleWeiter(klassenStaende(state, konfig)).weiter).toEqual([
+      { klasse: '1', runde: 'small' },
+      { klasse: '1', runde: 'final' },
+      { klasse: '4', runde: 'small' },
+      { klasse: '4', runde: 'final' },
     ])
+    state = alleFest(state)
+    // Zwei getrennte Pläne, jeder für sich klein/groß im Wechsel.
+    for (const runde of ['small', 'final'] as const) {
+      expect(state.parallelPlaene[runde]!.starts.map((s) => [s.klasse, s.block, s.attempt])).toEqual([
+        ['1', 0, 1],
+        ['4', 0, 1],
+        ['1', 0, 2],
+        ['4', 0, 2],
+      ])
+    }
+    expect(paare(state, 'small', '4')).toEqual([{ a: '4-3', b: '4-4' }])
+    expect(paare(state, 'final', '4')).toEqual([{ a: '4-1', b: '4-2' }])
+    expect(alleWeiter(klassenStaende(state, konfig)).weiter).toEqual([])
+    // Ein Eintrag im Verlauf zählt Klassen, nicht Schritte.
+    expect(beschreibe({ type: 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN', schritte: [{ klasse: '1', runde: 'small' }, { klasse: '1', runde: 'final' }, { klasse: '4', runde: 'small' }] }, state)).toMatchObject({ art: 'rundenFestAlle', n: 2 })
+  })
+
+  it('„Alle Klassen weiter“: eine Klasse, deren Kleines Finale schon festgeschrieben ist, bekommt das Finale', () => {
+    let state = fest(nachVorlauf(), 'semi')
+    state = fahre(state, 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
+    state = fest(state, 'small')
+    expect(alleWeiter(klassenStaende(state, konfig)).weiter).toEqual([{ klasse: '1', runde: 'final' }])
   })
 
   it('Lösen nimmt die Starts der Klasse und ihre Werte der Runde; die andere Klasse bleibt', () => {
@@ -591,6 +694,25 @@ describe('Festschreiben und Lösen im Reducer', () => {
     expect(stand(ohneFinale).loesbar).toEqual(['semi'])
   })
 
+  it('Kleines Finale und Finale sind Geschwister: beide lösbar, das Halbfinale erst, wenn keines mehr festgeschrieben ist', () => {
+    let state = fest(nachVorlauf(), 'semi')
+    state = fahre(state, 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] })
+    state = fahre(finals(state), 'small', { '1-3': [30, 30] }, 7000)
+    expect(stand(state).loesbar).toEqual(['small', 'final'])
+    expect(reducer(state, { type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'semi' })).toBe(state)
+    // Das Kleine Finale lösen: Seine Werte gehen, das Finale bleibt; das Kleine Finale steht wieder an.
+    const ohneKlein = reducer(state, { type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'small' })
+    expect(ohneKlein.parallelPlaene.small).toBeUndefined()
+    expect(ohneKlein.parallelPlaene.final).toEqual(state.parallelPlaene.final)
+    expect(ohneKlein.eingaben[attemptSchluessel('small', 1)]).toBeUndefined()
+    expect(stand(ohneKlein).loesbar).toEqual(['final'])
+    expect(stand(ohneKlein).schritte.map((x) => x.runde)).toEqual(['small'])
+    // Erst ohne beide Finals ist das Halbfinale lösbar.
+    const ohneBeide = reducer(ohneKlein, { type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'final' })
+    expect(stand(ohneBeide).loesbar).toEqual(['semi'])
+    expect(stand(ohneBeide).schritte.map((x) => x.runde)).toEqual(['small', 'final'])
+  })
+
   it('ändert ein Protest das Ergebnis davor, bleibt der Plan, wie er ist, und gilt als veraltet', () => {
     let state = fest(nachVorlauf(), 'semi')
     const plan = state.parallelPlaene.semi
@@ -613,8 +735,8 @@ describe('Festschreiben und Lösen im Reducer', () => {
   it('solange ein Plan veraltet ist, gibt es kein Ergebnis der Stage – die Klasse steht als offen da, mit der Runde', () => {
     // Alle Runden gefahren: Die Stage ist fertig.
     let state = fest(nachVorlauf(), 'semi')
-    state = fest(fahre(state, 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] }), 'final')
-    const fertig = fahre(state, 'final', { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
+    state = finals(fahre(state, 'semi', { '1-1': [40, 40], '1-2': [39, 40], '1-3': [45, 45], '1-4': [44, 45] }))
+    const fertig = fahreFinals(state, { '1-1': [41, 41], '1-2': [40, 43], '1-3': [30, 30], '1-4': [44, 45] })
     expect(stand(fertig)).toMatchObject({ fertig: true, veraltet: undefined })
     // Protest im Vorlauf: 1-4 fällt hinter 1-5. Sonst stünden 1-4 (aus dem alten Finale) und
     // 1-5 (aus dem Vorlauf) beide auf Platz 4 mit 169 Punkten.
@@ -623,14 +745,19 @@ describe('Festschreiben und Lösen im Reducer', () => {
     expect(stageErgebnis(vorlauf, konfig, '1', PUNKTE)).toBeNull()
     expect(stageBlaetter(vorlauf, konfig, ['1'], PUNKTE)).toEqual([])
     expect(offeneKlassen(vorlauf, konfig)).toEqual([{ klasse: '1', runde: 'semi', festschreiben: false, veraltet: true }])
-    // Protest im Halbfinale: 1-1 ist dort nur noch Vierter und gehört nicht mehr ins Finale um Platz 1 und 2.
+    // Protest im Halbfinale: 1-1 ist dort nur noch Vierter und gehört ins Kleine Finale statt ins Finale –
+    // beide Finals sind veraltet, das Kleine Finale zuerst (es wird zuerst gefahren).
     const halbfinale = fahre(fertig, 'semi', { '1-1': [60, 60] })
-    expect(stand(halbfinale)).toMatchObject({ fertig: false, veraltet: 'final' })
+    expect(stand(halbfinale)).toMatchObject({ fertig: false, veraltet: 'small' })
+    expect(stand(halbfinale).runden.filter((r) => r.veraltet).map((r) => r.runde)).toEqual(['small', 'final'])
     expect(stageErgebnis(halbfinale, konfig, '1', PUNKTE)).toBeNull()
-    expect(offeneKlassen(halbfinale, konfig)).toEqual([{ klasse: '1', runde: 'final', festschreiben: false, veraltet: true }])
+    expect(offeneKlassen(halbfinale, konfig)).toEqual([{ klasse: '1', runde: 'small', festschreiben: false, veraltet: true }])
     // Lösen und neu festschreiben: Die Klasse hängt wieder an einer gewöhnlichen offenen Runde.
-    const neu = fest(reducer(halbfinale, { type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'final' }), 'final')
-    expect(offeneKlassen(neu, konfig)).toEqual([{ klasse: '1', runde: 'final', festschreiben: false, veraltet: false }])
+    const geloest = reducer(reducer(halbfinale, { type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'small' }), { type: 'PARALLEL_RUNDE_LOESEN', klasse: '1', runde: 'final' })
+    const neu = finals(geloest)
+    expect(paare(neu, 'small')).toEqual([{ a: '1-1', b: '1-3' }])
+    expect(paare(neu, 'final')).toEqual([{ a: '1-2', b: '1-4' }])
+    expect(offeneKlassen(neu, konfig)).toEqual([{ klasse: '1', runde: 'small', festschreiben: false, veraltet: false }])
   })
 
   it('entfällt der Plan des Vorlaufs bei offener Verzahnung, gehen die Werte der Runden danach mit', () => {
@@ -784,8 +911,9 @@ describe('Namen und Folge der Runden, gelesene Pläne', () => {
   })
 
   it('die Runden stehen in der Folge, in der sie gefahren werden', () => {
-    const runden: ParallelRunde[] = ['final', 'rerun-semi-1', 'semi', 'rerun-pre-2', 'pre', 'rerun-pre-1']
-    expect(runden.sort(vergleicheRunden)).toEqual(['pre', 'rerun-pre-1', 'rerun-pre-2', 'semi', 'rerun-semi-1', 'final'])
+    const runden: ParallelRunde[] = ['final', 'small', 'rerun-semi-1', 'semi', 'rerun-pre-2', 'pre', 'rerun-pre-1']
+    // Das Kleine Finale vor dem Finale (Entscheidung vom 15.11.2026, eigene Runde seit 21.11.2026).
+    expect(runden.sort(vergleicheRunden)).toEqual(['pre', 'rerun-pre-1', 'rerun-pre-2', 'semi', 'rerun-semi-1', 'small', 'final'])
   })
 
   it('Klasse und Finale eines Starts überstehen Speichern und Laden; Unbrauchbares entfällt', () => {

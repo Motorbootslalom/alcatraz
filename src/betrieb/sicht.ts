@@ -40,7 +40,7 @@ import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabst
  * öffentlichen oder der Zuschauersicht, zählt sie hoch – Geräte zeigen nur dieselbe Fassung (Entscheidung des Nutzers
  * vom 16.11.2026: Gerätebetrieb nur bei gleicher Fassung).
  */
-export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 5
+export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 6
 
 export interface SichtOptionen {
   /**
@@ -120,12 +120,11 @@ function sichtPunkt(stand: AppState, punkt: PunktId | null, texte: BogenTexte): 
 }
 
 /**
- * Der Titel eines Starts des Parallelslaloms in der Sprache der Tafel: die Runde – in den Finals, um welche Plätze
- * („Final“, „Small final (3rd and 4th place)“) – und der Attempt.
+ * Der Titel eines Starts des Parallelslaloms in der Sprache der Tafel: die Runde und der Attempt („Small final ·
+ * Attempt 1“). Um welche Plätze ein Finale geht, sagt seit 21.11.2026 die Runde selbst (Kleines Finale, Finale).
  */
-function paarTitel(runde: ParallelRunde, attempt: number, finale: 1 | 3 | undefined, texte: BogenTexte, sprache: Locale): string {
-  const was = finale ? tIn(sprache, finale === 1 ? 'parallel.final.1' : 'parallel.final.3') : texte.runde(runde)
-  return `${was} · ${tIn(sprache, 'anzeige.versuch', { n: attempt })}`
+function paarTitel(runde: ParallelRunde, attempt: number, texte: BogenTexte, sprache: Locale): string {
+  return `${texte.runde(runde)} · ${tIn(sprache, 'anzeige.versuch', { n: attempt })}`
 }
 
 /**
@@ -145,8 +144,8 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       const a = e.paar.aFaehrt ? e.paar.a : null
       const b = e.paar.bFaehrt ? e.paar.b : null
       for (const id of [a, b]) if (id !== null) vorkommend.set(id, starterNachId.get(id)!)
-      const paar: SichtPaar = { attempt: e.paar.attempt, a, b, ...(e.paar.finale ? { finale: e.paar.finale } : {}) }
-      return { key: e.key, starter: a ?? b ?? '', lauf: e.lauf, punkt: e.punkt, titel: paarTitel(e.paar.runde, e.paar.attempt, e.paar.finale, texte, sprache), paar }
+      const paar: SichtPaar = { attempt: e.paar.attempt, a, b }
+      return { key: e.key, starter: a ?? b ?? '', lauf: e.lauf, punkt: e.punkt, titel: paarTitel(e.paar.runde, e.paar.attempt, texte, sprache), paar }
     }
     vorkommend.set(e.starter, starterNachId.get(e.starter)!)
     return { key: e.key, starter: e.starter, lauf: e.lauf, punkt: e.punkt, titel: texte.lauf(e.lauf) }
@@ -167,7 +166,7 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       const a = ref.a !== null && starterNachId.has(ref.a) ? ref.a : null
       const b = ref.b !== null && starterNachId.has(ref.b) ? ref.b : null
       for (const id of [a, b]) if (id !== null) vorkommend.set(id, starterNachId.get(id)!)
-      return { key: g.key, starter: a ?? b ?? '', lauf: ref.attempt, punkt: rundenPunkt(ref.runde), titel: paarTitel(ref.runde, ref.attempt, undefined, texte, sprache), paar: { attempt: ref.attempt, a, b } }
+      return { key: g.key, starter: a ?? b ?? '', lauf: ref.attempt, punkt: rundenPunkt(ref.runde), titel: paarTitel(ref.runde, ref.attempt, texte, sprache), paar: { attempt: ref.attempt, a, b } }
     }
     const p = starterNachId.get(ref.starter)
     if (p) vorkommend.set(ref.starter, p)
@@ -276,7 +275,7 @@ export function sichtZuschauer(sicht: OeffentlicheSicht): ZuschauerSicht {
       // Start im Boot da. So bleiben aktuell, frei und „Boot fehlt“ untereinander gleich benannt (Wartezeiten, v-for).
       const p = s.paar
       for (const id of [p.a, p.b]) if (id !== null) vorkommend.add(id)
-      const paar: SichtPaar = { attempt: p.attempt, a: p.a, b: p.b, ...(p.finale ? { finale: p.finale } : {}) }
+      const paar: SichtPaar = { attempt: p.attempt, a: p.a, b: p.b }
       return { key: JSON.stringify(['p', s.punkt, p.attempt, p.a, p.b]), starter: s.starter, lauf: s.lauf, punkt: s.punkt, titel: s.titel, paar }
     }
     vorkommend.add(s.starter)

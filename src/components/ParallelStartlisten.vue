@@ -115,7 +115,8 @@ const BLATT_MM = 273
 const FEST_MM = { start: 11, attempt: 16 }
 /** Mit Markierung ist die Tabelle beidseits 6 mm schmaler – Platz für die Dreiecke (`.sheet-table--markierung`). */
 const breite = computed(() => BLATT_MM - (props.markierung ? 12 : 0))
-const klasseText = (z: StartlistenZeile) => (z.klasse ? classCell(z.klasse) : '') + (z.finale ? ` · ${lt(z.finale === 1 ? 'parallel.final.1' : 'parallel.startlist.small')}` : '')
+// Um welche Plätze ein Finale geht, sagt seit 21.11.2026 der Titel der Runde (Kleines Finale, Finale) – kein Zusatz mehr.
+const klasseText = (z: StartlistenZeile) => (z.klasse ? classCell(z.klasse) : '')
 const bedarf = (zeichen: number) => zeichen * ZEICHEN_MM + INNEN_MM
 /** Schrift und Umbruch einer Spalte: so groß, wie der längste Eintrag es zulässt, höchstens 1, mindestens KLEINST. */
 const schrift = (zeichen: number, mm: number) => {
@@ -222,7 +223,7 @@ const zellStil = (sp: { groesse: number }) => (sp.groesse < 1 ? { fontSize: `${s
                 <td class="narrow">{{ z.start }}</td>
                 <td class="narrow">{{ z.attempt }}</td>
                 <td class="narrow">
-                  {{ z.klasse ? classCell(z.klasse) : '' }}<template v-if="z.finale"> · {{ lt(z.finale === 1 ? 'parallel.final.1' : 'parallel.startlist.small') }}</template>
+                  {{ klasseText(z) }}
                 </td>
                 <td v-if="z.entfaellt || amRacecourse(z) === null" :colspan="amStarter" class="psl-dummy">{{ z.entfaellt ? lt('parallel.startlist.cancelled') : lt('parallel.dummy') }}</td>
                 <template v-else>

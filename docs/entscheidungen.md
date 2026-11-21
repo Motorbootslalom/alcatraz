@@ -100,7 +100,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-15 · N · Weiter zur nächsten Runde erst, wenn alle Ergebnisse eingetragen sind. → `lib/parallelStage.ts`
   klassenStand
 - 2026-11-15 · N · Das Halbfinale beginnt erst nach Ablauf der Protestzeit des Vorlaufs.
-- 2026-11-15 · N · Das Finale um Platz 3 und 4 wird vor dem Finale gefahren.
+- 2026-11-15 · N · Das Finale um Platz 3 und 4 wird vor dem Finale gefahren. Seit 21.11.2026 als eigene Runde `small`
+  (Rundenfolge pre, semi, small, final; im Betrieb ein eigener Punkt vor dem Finale). → `planung/parallelRunden.ts`
+  rundenRang, `betrieb/folge.ts`
 - 2026-11-15 · R/N · Disqualifiziert im Vorlauf: für die ganze Stage (Pkt. 5.2.2), 0 Punkte. Abmelde-X auch im Vorlauf.
 - 2026-11-15 · R/N · Disqualifiziert in Halbfinale/Finale: letzter Platz im heat (Pkt. 5.2.2) mit dessen Punkten. →
   `lib/parallelErgebnis.ts` PARALLEL_ANNAHMEN.disqImHeatBehaeltPunkte
@@ -139,8 +141,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-19 · N · „Alle Klassen weiter“: Nach Vorlauf und Halbfinale wird als Ganzes weitergeschaltet, mit EINEM
   Knopf (ein Schritt, ein Verlaufseintrag) für alle Klassen, für die Halbfinale bzw. Finals anstehen. Auslegung: Wer
   noch fährt, einen Gleichstand an der Grenze hat (Re-run bleibt je Klasse) oder einen veralteten Plan hat, bleibt und
-  steht im Hinweis; keine Rückfrage (wie beim Knopf je Klasse); der Knopf erst ab zwei Klassen. →
-  `lib/parallelStage.ts` alleWeiter, Action PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN, `components/ParallelRunden.vue`
+  steht im Hinweis; keine Rückfrage (wie beim Knopf je Klasse); der Knopf erst ab zwei Klassen. Seit 21.11.2026
+  (Finals getrennt, s. dort): nach dem Halbfinale Kleines Finale und Finale zusammen; gezählt werden Klassen, nicht
+  Schritte. → `lib/parallelStage.ts` alleWeiter, Action PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN, `components/ParallelRunden.vue`
 - 2026-11-20 · N · Re-run im Parallelslalom (Antwort des Nutzers): „Der nötige Re-run ist erst nach der Auswertung des
   Laufes für wenige Starter nötig und kommt fast nie vor. Hier kannst du also die normale Verzahnung (großes
   Boot/kleines Boot) machen.“ Er bleibt je Klasse festzuschreiben (nicht über „Alle Klassen weiter“), seine Runde wird
@@ -162,6 +165,23 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   ordnet die Runde neu, solange darin nichts erfasst und sie im Betrieb nicht begonnen ist – danach kommt sie nur ans
   Ende. → `planung/parallel.ts` verzahne, `planung/parallelRunden.ts` verzahneRunde,
   PARALLEL_ANNAHMEN.rundenVerzahnen, `state/reducer/parallel.ts`
+- 2026-11-21 · N · Kleines Finale und Finale getrennt (Auftrag des Nutzers): „Kleines und großes Finale ist getrennt,
+  wie Vorlauf und Halbfinale. Das sind 4 in sich geschlossene Listen/Auswertungen.“ Vier Runden `pre`, `semi`,
+  `small` (Kleines Finale, Platz 3 und 4), `final` (Finale, Platz 1 und 2), gefahren in dieser Folge; Re-runs je Runde
+  wie bisher. Jede hat ihren eigenen festgeschriebenen Plan (verzahnt), WKR-Listen je Racecourse, Laufzettel,
+  Startliste, Results, Erfassung und QR-Code (`…PARALLEL.SMALL…`), einen eigenen Punkt im Betrieb und einen eigenen
+  Druckvermerk. Je Klasse werden beide nach dem Halbfinale getrennt festgeschrieben (eigener Knopf je Runde, beliebige
+  Folge), beide lassen sich löschen; das Halbfinale erst, wenn keins mehr steht. Ohne Kleines Finale (Halbfinale mit
+  Dummy, nur 2 Gewertete) entfällt die Runde für die Klasse. Das Gesamtergebnis nimmt 1/2 aus dem Finale, 3/4 aus dem
+  Kleinen Finale. Rundennamen „Kleines Finale“/„Small final“ und „Finale“/„Final“ (statt „Finals“); der Vermerk
+  „Kleines Finale (Platz 3 und 4)“ in der Klasse-Spalte von Plänen und Startlisten entfällt (die Runde sagt es). Alte
+  Stände mit einer gemeinsamen Runde `final` teilt migrate() auf (Werte ziehen um), sonst verwirft es sie. →
+  `types/planung.ts` ParallelRunde, `lib/parallelStage.ts`, `lib/parallelErgebnis.ts`, `state/migrate.ts`
+  teileAlteFinals, `components/ParallelRunden.vue`
+- 2026-11-21 · Auslegung, vom Nutzer zu bestätigen · „Alle Klassen weiter“ schreibt nach dem Halbfinale Kleines Finale
+  und Finale auf einmal fest (ein Schritt, ein Verlaufseintrag): Beide folgen aus demselben Halbfinale, die Entscheidung
+  vom 19.11. nennt einen Schritt, gedruckt wird ohnehin zusammen; die Fahrfolge sichert der Betrieb. Die Knöpfe je
+  Klasse bleiben getrennt. → PARALLEL_ANNAHMEN.finalsZusammen
 
 ## Einzelwertung (Regel 960, Pkt. 5.2.3 und 5.2.6)
 
@@ -560,5 +580,15 @@ Zurzeit nichts.
 - Abgelaufener Geräte-Code nach dem Nachlauf (2 min) bekommt keine Antwort, das Handy zeigt nach 15 s „Keine
   Antwort“ – so gewollt, aber noch keine bestätigte Auslegung. Ein QR-Token nach der Gnadenfrist heißt je nach Takt
   „ungültig“ statt „abgelaufen“.
+- Finals getrennt (21.11.2026), beim Bau ausgelegt und vom Nutzer zu bestätigen: (1) „Alle Klassen weiter“ schreibt
+  nach dem Halbfinale beide Finals zusammen fest (PARALLEL_ANNAHMEN.finalsZusammen); (2) im Betrieb muss nach dem
+  Kleinen Finale „Finale beginnen“ gedrückt werden wie bei jedem Punkt – soll das Finale ohne Klick anschließen?
+  Empfehlung: Klick behalten (`BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`); (3) Rundenname ohne den früheren Zusatz
+  „(3rd and 4th place)“ – Anzeigetafel jetzt „Small final · Attempt 1“, die Results zeigen Platz 3/4 ohnehin;
+  (4) nach einem Protest im Halbfinale gilt zuerst das Kleine Finale als veraltet (es wird zuerst gefahren);
+  (5) hingenommen: alte gedruckte Codes `…FINAL…` von Bögen des Kleinen Finales treffen nach der Migration den Bogen
+  des Finales; (6) der Hinweis „offene Runde“ (Druckdatei, Einzel-, Mannschaftswertung) nennt das Kleine Finale,
+  solange es nicht fertig ist, auch wenn das Finale schon festgeschrieben werden kann (`lib/parallelStage.ts`
+  offeneRunde).
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`) und EINZEL_FESTLEGUNGEN (`lib/einzelwertung.ts`) legen aus, wo Regel 960
   schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste anpassen.

@@ -254,8 +254,9 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'PARALLEL_DRUCK_LOESEN':
       return { art: 'druckGeloest', runde: action.runde }
     case 'PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN':
-      // Ein Eintrag für alle Klassen (Wunsch des Nutzers vom 19.11.2026), mit ihrer Zahl.
-      return { art: 'rundenFestAlle', n: action.schritte.length }
+      // Ein Eintrag für alle Klassen (Wunsch des Nutzers vom 19.11.2026), mit ihrer Zahl. Gezählt werden Klassen,
+      // nicht Schritte: Nach dem Halbfinale schreibt eine Klasse Kleines Finale UND Finale fest (21.11.2026).
+      return { art: 'rundenFestAlle', n: new Set(action.schritte.map((s) => s.klasse)).size }
     case 'ORDER_STARTERS':
     case 'SHUFFLE_STARTERS':
       // Eine Klasse wird genannt; „alle Klassen“ zugleich (Knopf oben im Reiter) steht ohne.
