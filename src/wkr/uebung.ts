@@ -1,5 +1,6 @@
 import type { ClassId, PunktId, Sprache } from '../types'
 import { configFor } from '../config/konfig'
+import { DEFAULT_AUFBAU } from '../config/catalog'
 import { liesRef, refKey } from '../betrieb/folge'
 import { laufSchluessel } from '../lib/eingaben'
 import { parcoursName } from '../config/sprache'
@@ -123,7 +124,8 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
     abgeschlossen: [],
     schlange,
     danach,
-    klassen: maskenJeKlasse(listenKonfig, maskenKonfig, stand.typeId, klassen, xErlaubt),
+    // Parcours-Zeichnung des vorgegebenen Aufbaus (W4-13, GF9) – die Übung kennt keinen eigenen.
+    klassen: maskenJeKlasse(listenKonfig, maskenKonfig, stand.typeId, klassen, xErlaubt, DEFAULT_AUFBAU),
     geraete: {},
   }
   if (sprachen.andere !== null) {

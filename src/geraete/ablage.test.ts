@@ -525,8 +525,8 @@ describe('Ansicht und Probe der WKR-Maske (W3.1)', () => {
   const BEZUG: RaumBezug = { u: SERVER, r: 'raumW3', s: 'sigW3' }
   beforeEach(() => localStorage.clear())
 
-  it('Ansicht: Vorgabe Sonne/rechts (G1), nur bekannte Werte; bleibt nach „Raum verlassen“ außer dem Namen (G12)', () => {
-    expect(liesAnsicht(localStorage)).toEqual({ modus: 'sonne', hand: 'rechts' })
+  it('Ansicht: Vorgabe „Wie Gerät“/rechts (GF1, 21.11.2026), nur bekannte Werte; bleibt nach „Raum verlassen“ außer dem Namen (G12)', () => {
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'geraet', hand: 'rechts' })
     expect(schreibeAnsicht({ modus: 'dunkel', hand: 'links', sprache: 'en', name: 'Muster WKR' }, localStorage)).toBe(true)
     expect(liesAnsicht(localStorage)).toEqual({ modus: 'dunkel', hand: 'links', sprache: 'en', name: 'Muster WKR' })
     // Sprache zurück auf „wie die Liste“: undefined löscht.
@@ -534,13 +534,31 @@ describe('Ansicht und Probe der WKR-Maske (W3.1)', () => {
     expect(liesAnsicht(localStorage).sprache).toBeUndefined()
     // Kaputtes fällt Feld für Feld auf die Vorgabe.
     localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ modus: 'grell', hand: 'links', sprache: 'fr', name: 'x'.repeat(61) }))
-    expect(liesAnsicht(localStorage)).toEqual({ modus: 'sonne', hand: 'links' })
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'geraet', hand: 'links' })
     schreibeAnsicht({ modus: 'hell', name: 'Muster WKR' }, localStorage)
     verlasseRaum(localStorage)
     expect(liesAnsicht(localStorage)).toEqual({ modus: 'hell', hand: 'links' })
     // Ohne Speicher: Vorgabe, Schreiben meldet false.
-    expect(liesAnsicht(vollerSpeicher)).toEqual({ modus: 'sonne', hand: 'rechts' })
+    expect(liesAnsicht(vollerSpeicher)).toEqual({ modus: 'geraet', hand: 'rechts' })
+    // „Wie Gerät“ wählbar, die Erklärung der Übung zugeklappt (GF4) – nur `true` gilt.
+    schreibeAnsicht({ modus: 'geraet', uebungErklaerungZu: true }, localStorage)
+    expect(liesAnsicht(localStorage)).toMatchObject({ modus: 'geraet', uebungErklaerungZu: true })
     expect(schreibeAnsicht({ modus: 'hell' }, vollerSpeicher)).toBe(false)
+  })
+
+  it('Alte Sonne ohne Wahl gilt als „Wie Gerät“ (Prüfbefund 21.11.2026, P-18): Hand bleibt, eine echte Wahl bleibt', () => {
+    // Stand vor GF1: Vorgabe `sonne` wurde bei jeder anderen Änderung mitgeschrieben.
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ modus: 'sonne', hand: 'links' }))
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'geraet', hand: 'links' })
+    schreibeAnsicht({ name: 'Muster WKR' }, localStorage)
+    expect(liesAnsicht(localStorage).modus).toBe('geraet')
+    schreibeAnsicht({ modus: 'sonne' }, localStorage)
+    expect(JSON.parse(localStorage.getItem(ABLAGE.ansicht) ?? '{}')).toMatchObject({ modus: 'sonne', modusGewaehlt: true })
+    schreibeAnsicht({ hand: 'rechts' }, localStorage)
+    verlasseRaum(localStorage)
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'sonne', hand: 'rechts' })
+    schreibeAnsicht({ modus: 'geraet' }, localStorage)
+    expect(JSON.parse(localStorage.getItem(ABLAGE.ansicht) ?? '{}').modusGewaehlt).toBeUndefined()
   })
 
   it('Bojen-Ansicht je Liste (Nutzer 21.11.2026, V1/V2): nur vollständige, bekannte Werte; höchstens 8 Listen; bleibt nach „Raum verlassen“', () => {

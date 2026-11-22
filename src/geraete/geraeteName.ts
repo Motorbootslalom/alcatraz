@@ -9,6 +9,8 @@
  * schickt den übersetzten Namen mit der Anmeldung.
  */
 
+import type { GeraeteTyp } from './transport/protokoll'
+
 export const GERAETE_ARTEN = ['iphone', 'ipad', 'android-handy', 'android-tablet', 'mac', 'windows', 'linux', 'geraet'] as const
 export type GeraeteArt = (typeof GERAETE_ARTEN)[number]
 
@@ -62,4 +64,23 @@ export function eindeutigerName(wunsch: string, vergeben: Iterable<string>, ersa
     if (!belegt.has(kandidat.toLowerCase())) return kandidat
   }
   return gewuenscht
+}
+
+/**
+ * Art des Geräts für die Anmeldung (Nutzer 21.11.2026, W3-25, WKR_ANNAHMEN GF7, noch zu bestätigen): aus der kurzen
+ * Seite des Bildschirms und dem Zeiger – Finger (`pointer: coarse`) und kurze Seite unter 600 px = Handy, Finger und
+ * mehr = Pad, sonst (Maus) Rechner. Der Name des Browsers allein trügt (iPad meldet sich als Mac, umbenannte Geräte).
+ */
+export function typAus(kurzeSeite: number, finger: boolean): GeraeteTyp {
+  if (!finger) return 'rechner'
+  return kurzeSeite > 0 && kurzeSeite < 600 ? 'handy' : 'pad'
+}
+
+/** Art dieses Geräts (Browser); ohne Fenster „rechner“. */
+export function dieserTyp(): GeraeteTyp {
+  if (typeof window === 'undefined') return 'rechner'
+  const s = window.screen
+  const kurz = s ? Math.min(s.width || 0, s.height || 0) : 0
+  const finger = typeof window.matchMedia === 'function' ? window.matchMedia('(pointer: coarse)').matches : false
+  return typAus(kurz, finger)
 }

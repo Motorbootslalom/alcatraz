@@ -1,12 +1,12 @@
 # Plan W3 „Handy, Katalog“ der digitalen WKR-Erfassung
 
-Stand 21.11.2026 (Plan; W3.1–W3.4 gebaut 21.11.2026 – W3 vollständig, Feldtest offen) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §1
+Stand 21.11.2026 (Plan; W3.1–W3.4 gebaut 21.11.2026 – W3 vollständig, Feldtest offen; Auslegungen vom Nutzer am 21.11.2026 abends beantwortet, §15) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §1
 (Bedingungen am Wasser), §2 (Schlange), §3 (Rahmen), §4.1 (Familien, wer wählt), §4.3 (Tor 5, MüB), §4.4 (Steg a,
 zweiteilig), §4.5 (Vorsteg), §5 (Abschicken, Korrektur, Abschluss), §7 (Sonderfälle), §11 W3, §12 (F1, F5, F6, F7,
 F8, F13, F14, F15, F16) und der gebaute Kern: W1 ([plan-wkr-w1.md](plan-wkr-w1.md), `src/wkr/`,
 `geraete/erfassen.ts`), W2 ([plan-wkr-w2.md](plan-wkr-w2.md), Bedienrechner). Antworten des Nutzers:
 [entscheidungen.md](entscheidungen.md) „Digitale WKR-Erfassung“. Keine Rückfragen beim Bau: Auslegungen datiert in
-`WKR_ANNAHMEN` (G1–G16, §9), „noch zu bestätigen“.
+`WKR_ANNAHMEN` (G1–G16, §9); beantwortet 21.11.2026 abends (§15).
 
 ## 1. Ziel und Grenzen
 
@@ -312,35 +312,41 @@ src/views/BetriebKoppeln src/i18n`), am Ende `npm run test:leise`.
 - **happy-dom misst keine Größen**: Mindestgrößen über CSS-Test und Feldtest, nicht über Layout.
 - **iPhone ohne Vibration**: Blitz ist Pflicht, Vibration Zugabe (feldtest.md).
 
-## 9. Auslegungen W3 (21.11.2026, beim Planen, noch zu bestätigen) – kommen datiert in `WKR_ANNAHMEN`
+## 9. Auslegungen W3 (21.11.2026, beim Planen; beantwortet 21.11.2026 abends, §15) – datiert in `WKR_ANNAHMEN`
 
-- **G1 Sonnenmodus ist Vorgabe** auf jedem WKR-Gerät, Hell/Dunkel wählbar, gemerkt je Gerät (nicht je Raum).
-- **G2 Masken nur für Listen aus Katalog/Disq./Bemerkung** (Steg, Vorsteg, Tor 5, Tor 5 + Parcours ohne Bojen, MüB);
-  erkannt an den Feldarten, nicht an der Listen-ID – eigene Aufbauten gelten so von selbst.
-- **G3 Handy eine Liste, Pad zwei** (F15) nur als Hinweis am Bedienrechner nach der Geräteart; erzwungen bleibt
-  LISTEN_JE_GERAET = 2. Ein Gerät mit zwei Listen zeigt in W3 Reiter je Liste.
-- **G4 Maskenvorgabe F14**: Feld `maske`/`fest` an der Aufgabe, in W3 nur `knoepfe` – keine Wahl, nur Anzeige; die Wahl
-  kommt, sobald es eine zweite Maske gibt.
-- **G5 Doppeltipp-Schutz**: 2 s „gesendet“, dann Wechsel mit Blitz/Vibration, 1 s keine Eingabe – auch für Codes und
-  Disq, nicht nur den Hauptknopf (ein Tropfen auf „Code 1“ ist so schlimm wie auf „Fehlerfrei“).
-- **G6 Codes „ab Klasse n“ bleiben drückbar** (Text sagt es; die Kataloge haben keine Klassen-Angabe). Ein späteres
-  YAML-Feld `abKlasse` würde sie grau machen.
-- **G7 Suche** nur in Schlange, „danach“ und „Zuletzt“; eine Nummer außerhalb wird nicht angeboten (der Host machte
-  ohnehin Rückfrage `start`).
-- **G8 Rückgängig 6 s**: wartende Zeile zurückholen, sonst Korrektur öffnen (kein automatisches Hinterherschicken).
-- **G9 Sprache**: Vorgabe Sprache der Liste, `de+en` → `de`; Umschalten wechselt Bedientexte immer, Kataloge nur, wenn das
-  Regelwerk beide Sprachen hat (UIM).
-- **G10 Probe** einmal je Raum und Liste, überspringbar, nichts geht an den Bedienrechner (er sieht die Probe nicht).
-- **G11 WKR-Name** nur beim Abschluss (F8), kein „WKR wechseln“ in W3 – wer übernimmt, schließt mit seinem Namen ab.
-- **G12 Letzter WKR-Name** vorbelegt aus der Geräteablage, gelöscht mit „Raum verlassen“/Entkoppeln.
-- **G13 Übung**: erfundene Starts 1–20 ohne Namen, Quittung nach 300 ms, eine Beispiel-Rückfrage; erreichbar ohne
-  Kopplung; nichts außer der Ansicht wird abgelegt.
-- **G14 Liste ohne Maske**: das Gerät sagt „Papier“ und bietet „Pausieren“ an; der Bedienrechner kennzeichnet solche
-  Listen beim Koppeln.
-- **G15 „Nicht vorbeigekommen“ erst mit W4** (braucht Protokoll-, Reducer- und Matrix-Änderung); bis dahin Bemerkung
-  oder nichts schicken (Matrix zeigt offen).
-- **G16 „Liste abschließen“-Band** erscheint, sobald der eigene Punkt nicht mehr läuft und nicht abgeschlossen ist;
-  der Knopf unter „Mehr“ gibt es immer.
+- **G1 Sonnenmodus ist Vorgabe** *(NICHT bestätigt – W3-01, P-18, §15)* auf jedem WKR-Gerät, Hell/Dunkel wählbar,
+  gemerkt je Gerät (nicht je Raum).
+- **G2 Masken nur für Listen aus Katalog/Disq./Bemerkung** *(bestätigt 21.11.2026, W3-02)* (Steg, Vorsteg, Tor 5,
+  Tor 5 + Parcours ohne Bojen, MüB); erkannt an den Feldarten, nicht an der Listen-ID – eigene Aufbauten gelten so von selbst.
+- **G3 Handy eine Liste, Pad zwei** *(NICHT bestätigt – W3-03, §15)* (F15) nur als Hinweis am Bedienrechner nach der
+  Geräteart; erzwungen bleibt LISTEN_JE_GERAET = 2. Ein Gerät mit zwei Listen zeigt in W3 Reiter je Liste.
+- **G4 Maskenvorgabe F14** *(bestätigt 21.11.2026, W3-04)*: Feld `maske`/`fest` an der Aufgabe, in W3 nur `knoepfe` –
+  keine Wahl, nur Anzeige; die Wahl kommt, sobald es eine zweite Maske gibt.
+- **G5 Doppeltipp-Schutz** *(bestätigt 21.11.2026, W3-05)*: 2 s „gesendet“, dann Wechsel mit Blitz/Vibration, 1 s keine
+  Eingabe – auch für Codes und Disq, nicht nur den Hauptknopf (ein Tropfen auf „Code 1“ ist so schlimm wie auf
+  „Fehlerfrei“).
+- **G6 Codes „ab Klasse n“ bleiben drückbar** *(NICHT bestätigt – W3-07, §15)* (Text sagt es; die Kataloge haben keine
+  Klassen-Angabe). Ein späteres YAML-Feld `abKlasse` würde sie grau machen.
+- **G7 Suche** *(bestätigt 21.11.2026, W3-08)* nur in Schlange, „danach“ und „Zuletzt“; eine Nummer außerhalb wird nicht
+  angeboten (der Host machte ohnehin Rückfrage `start`).
+- **G8 Rückgängig 6 s** *(bestätigt 21.11.2026, W3-09)*: wartende Zeile zurückholen, sonst Korrektur öffnen (kein
+  automatisches Hinterherschicken).
+- **G9 Sprache** *(bestätigt 21.11.2026, W3-11)*: Vorgabe Sprache der Liste, `de+en` → `de`; Umschalten wechselt
+  Bedientexte immer, Kataloge nur, wenn das Regelwerk beide Sprachen hat (UIM).
+- **G10 Probe** *(bestätigt 21.11.2026, W3-12)* einmal je Raum und Liste, überspringbar, nichts geht an den
+  Bedienrechner (er sieht die Probe nicht).
+- **G11 WKR-Name** *(NICHT bestätigt – W3-13, §15)* nur beim Abschluss (F8), kein „WKR wechseln“ in W3 – wer übernimmt,
+  schließt mit seinem Namen ab.
+- **G12 Letzter WKR-Name** *(bestätigt 21.11.2026, W3-14)* vorbelegt aus der Geräteablage, gelöscht mit „Raum
+  verlassen“/Entkoppeln.
+- **G13 Übung** *(NICHT bestätigt – W3-15, §15)*: erfundene Starts 1–20 ohne Namen, Quittung nach 300 ms, eine
+  Beispiel-Rückfrage; erreichbar ohne Kopplung; nichts außer der Ansicht wird abgelegt.
+- **G14 Liste ohne Maske** *(bestätigt 21.11.2026, W3-16)*: das Gerät sagt „Papier“ und bietet „Pausieren“ an; der
+  Bedienrechner kennzeichnet solche Listen beim Koppeln.
+- **G15 „Nicht vorbeigekommen“ erst mit W4** *(NICHT bestätigt – W3-17, §15)* (braucht Protokoll-, Reducer- und
+  Matrix-Änderung); bis dahin Bemerkung oder nichts schicken (Matrix zeigt offen).
+- **G16 „Liste abschließen“-Band** *(bestätigt 21.11.2026, W3-18)* erscheint, sobald der eigene Punkt nicht mehr läuft
+  und nicht abgeschlossen ist; der Knopf unter „Mehr“ gibt es immer.
 
 ## 10. Stand nach W3.1 (21.11.2026)
 
@@ -363,7 +369,8 @@ Abweichungen vom Plan (beim Bau, alle in WKR_ANNAHMEN bzw. im Kopfkommentar dati
 - Erfassung: `schlange` bleibt `Record<liste, Eintrag[]>` (ganz bzw. Teil der Aufgabe), dazu `schlangeTeil(liste,
   teil)`; Prüfansicht über die Werte je Start im Ausgang (überlebt die 20 letzten Zeilen).
 
-Neue Auslegungen beim Bau (H1–H5, noch zu bestätigen): H1 Disq. als Schalter, ohne Disq.-Feld ins erste Code-Feld;
+Neue Auslegungen beim Bau (H1–H5, bestätigt 21.11.2026, W3-19…W3-23): H1 Disq. als Schalter, ohne Disq.-Feld ins erste
+Code-Feld;
 H2 „zurück“ = letzter Tipp (Code oder Disq.), Bemerkung zählt nicht; H3 Schlange je Steg-Teil auf dem Gerät; H4
 Entwürfe im Ausgang (≤ 30 je Liste, nach Entzug lesbar); H5 Übung in der Sprache des Regelwerks. Befund: Die DM-Liste
 „Parcours“ (nur Disq. + Bemerkung) bekommt nach G2 die Vorsteg-Maske („In Ordnung“, ohne X).
@@ -382,7 +389,8 @@ Abweichungen: lib/adressen.ts blieb unverändert (das dritte Segment `wahl` trä
 kein `wahlFuerAdresse` – nach dem Verweis steht nur der Reiter in der Adresse (die Wahl ist gemerkt). Überschrift und
 Hinweis des Koppelns nennen jetzt beide Aufgaben; „Nichts freigegeben“ erst, wenn auch keine Liste da ist.
 
-Neue Auslegungen beim Bau (J1–J5 in WKR_ANNAHMEN, noch zu bestätigen): J1 „Maske folgt“ nach den Klassen der Starter
+Neue Auslegungen beim Bau (J1–J5 in WKR_ANNAHMEN; J4, J5 bestätigt 21.11.2026, J1–J3 nicht – §15): J1 „Maske folgt“
+nach den Klassen der Starter
 (ohne Starter alle Klassen der Liste); J2 Handy am Gerätenamen erkannt (Register kennt keine Geräteart); J3 Freigabe
 mit einem Parcours nur ohne Liste vorgewählt; J4 beim Koppeln eine Liste, Teil-Vorgabe „ganz“; J5 Verweis „Gerät
 koppeln“ an jeder Liste ohne Gerät, auch ohne Raum und ohne Maske.
@@ -408,7 +416,8 @@ Wake Lock brauchte nichts Neues (GeraetApp hält den Bildschirm wach, solange Ge
 Entzug bleibt die Erfassung offen (K3, Entwürfe lesbar). Meldung der Start-Freigabe in „Kein Boot unterwegs“ kommt
 aus der öffentlichen Sicht (GeraetFreigabe `meldungFuer`).
 
-Neue Auslegungen beim Bau (K1–K9 in WKR_ANNAHMEN, noch zu bestätigen): K1 Disq. zweiter Tipp setzt, einer nimmt
+Neue Auslegungen beim Bau (K1–K9 in WKR_ANNAHMEN; bestätigt 21.11.2026 bis auf K7 – §15): K1 Disq. zweiter Tipp setzt,
+einer nimmt
 heraus; K2 gesperrt auch während „● gesendet“; K3 Erfassung bleibt nach Entzug offen; K4 Entwurf je Tipp abgelegt;
 K5 Pause ohne Knöpfe; K6 Reiter „Freigabe“ zuerst; K7 „So lassen“ nur auf dem Gerät; K8 Suche mit Taste „E“, ohne
 führende Nullen; K9 Hauptknopf „Abschicken · 5 Pkt. · Disq. P“.
@@ -440,7 +449,8 @@ Probe ersetzt die Maske (statt über ihr zu liegen) – dieselben Teile, aber oh
 werden. Der Verweis „Üben ohne Verbindung“ steht auch auf „Kein Gerät gekoppelt“ und nach dem Entkoppeln. Die Wahl
 der Übung spricht die Sprache der Geräte-Oberfläche. „Mehr“ gibt es auch in Zuständen ohne Arbeit.
 
-Neue Auslegungen beim Bau (L1–L9 in WKR_ANNAHMEN, noch zu bestätigen): L1 Korrektur aus der Prüfansicht nur über
+Neue Auslegungen beim Bau (L1–L9 in WKR_ANNAHMEN; bestätigt 21.11.2026 bis auf L3, L4 – §15): L1 Korrektur aus der
+Prüfansicht nur über
 „Zuletzt“ (≤ 20 Zeilen); L2 Regel des Bands (letzter eigener Punkt ≠ laufender Punkt oder nichts mehr in Schlange und
 „danach“; nicht bei Papier, abgeschlossen, eigenem Abschluss); L3 welcher Punkt unter „Mehr“; L4 Name beim Abschicken
 gemerkt, in der Übung nie; L5 Sprache der Liste = keine eigene Wahl, Wahl gilt für alle Listen des Geräts; L6 Probe nur
@@ -449,7 +459,8 @@ L9 Zeile ohne Ausgang-Eintrag = übernommen.
 
 ## 14. Prüfbefunde W3 (21.11.2026)
 
-Vierzehn Befunde geprüft; zwei waren Doppel (gemeinsame Felder am Steg, Vormerken über den Startwechsel). Behoben:
+Auslegungen M1–M6 bestätigt 21.11.2026 (W3-47…W3-52) bis auf M5 (W3-51, §15). Vierzehn Befunde geprüft; zwei waren
+Doppel (gemeinsame Felder am Steg, Vormerken über den Startwechsel). Behoben:
 
 - **Gerät für den ganzen Steg löschte Disq. und Bemerkung des Ablegens** (hoch): `zellenAus` schickt die gemeinsamen
   Felder auch leer, `vorher` kam aus den Werten des ganzen Starts, also `['disq@steg', '', 'A']` → am Bedienrechner
@@ -485,3 +496,35 @@ bleiben; zweiter Buchstabe im Anlegen vereinigt; Korrektur einer Korrekturzeile)
 Herausnehmen), src/GeraetWkr.test.ts (Vorsteg: Vormerken nicht über den Start, nicht in der Sperre; „So lassen“ nach
 Neuaufbau; Entwürfe nach Entzug mit Überschrift), styles/wkr-geraet.test.ts (sticky, Rot, Grau-Kontrast, keine feste
 Farbe, `<a>`).
+
+## 15. Antworten des Nutzers 21.11.2026 abends (Runden 3–6 der Fragenseite)
+
+Bestätigt mit „passt“ (in `WKR_ANNAHMEN` je Eintrag „bestätigt 21.11.2026 (Frage)“): G2, G4, G5, G7–G10, G12, G14, G16
+(W3-02, -04, -05, -06, -08 … -12, -14, -16, -18), H1–H5 (W3-19 … -23), J4, J5 (W3-27, -28), K1–K6, K8, K9 (W3-29 … -34,
+-36, -37), L1, L2, L5–L9 (W3-38, -39, -42 … -46), M1–M4, M6 (W3-47 … -50, -52); vom Feldtest N1–N3, N5–N7, N9, N10,
+„ein Tab sendet“ (P-01, -02, -06 … -09, -14 … -17), N11–N13 (W4-01 … -03).
+
+Anders entschieden (noch nicht umgesetzt, der Code gilt bis zum Umbau; Wortlaut in
+[entscheidungen.md](entscheidungen.md) „Antworten 21.11.2026 abends (Runden 3–6)“):
+
+- **G1/N4** (W3-01, P-18): Vorgabe ist der Hell/Dunkel-Modus des Geräts, der WKR wechselt jederzeit (auch Sonne).
+- **G3/J2** (W3-03, W3-25): eine/zwei Listen nur Empfehlung, mehr erlaubt (Pad nebeneinander); die Geräteart meldet
+  das Gerät beim Koppeln, der Bedienrechner speichert sie.
+- **G6** (W3-07): Codes anderer Klassen ausgegraut, aber drückbar.
+- **G11/L4** (W3-13, W3-41): WKR-Name aus der Einteilung der Veranstaltung, unter „Mehr“ änderbar, am Bedienrechner
+  sichtbar, Hinweis bei Abweichung (übernehmen oder überschreiben).
+- **G13** (W3-15): Übung bleibt, dazu „Übung beenden“ unter den Knöpfen und die Erklärung der Übungsstarts in der Übung.
+- **G15** (W3-17): „nicht vorbeigekommen“ = Disq. J (Parcours verlassen bzw. falscher Parcours), kein eigenes ⊘.
+- **J1** (W3-24): statt Antwort ein Befund – nach dem ersten Zuweisen einer Liste bleibt das Gerät auf „verbinde …“,
+  bis man neu lädt; soll von selbst gehen und/oder per Knopf.
+- **J3** (W3-26): Start-Freigabe beim Koppeln nie vorgewählt (ein Recht wie die Listen).
+- **K7** (W3-35): „So lassen“ meldet sich am Bedienrechner.
+- **L3** (W3-40): „Mehr → Liste abschließen“ herausnehmen oder den Zweck erklären.
+- **M5** (W3-51): Umschalter Ablegen/Anlegen immer sichtbar, mit Zeichen „fertig/offen“ je Teil.
+- **N8** (P-03, P-04): Start-Freigabe nur für den Parcours mit Ampel (siehe entscheidungen.md und betrieb.md).
+
+Umgebaut 21.11.2026 (docs/plan-antworten-runde3-6.md §5, WKR_ANNAHMEN GF1–GF11, noch zu bestätigen): G1/N4 → „Wie
+Gerät“ als Vorgabe (GF1); G3/J2 → bis vier Listen, Empfehlung nach der beim Koppeln gemeldeten Art, Pad quer
+nebeneinander (GF7, GF8); G6 → ausgegraut über YAML `abKlasse` (GF2); G13 → Erklärung + „Übung beenden“ (GF4); G15 →
+Disq. J (GF10, GF11); J1 → Nachholen nach neuem Gruppenschlüssel + „Neu verbinden“ (GF6); J3 → nie vorgewählt;
+K7 → WKR_SO_LASSEN (GF5); M5 → Steg-Reiter immer mit ✓/Zahl (GF3). G11/L4 (WKR-Name) folgt in Scheibe 5.

@@ -26,7 +26,7 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   art `geraet` vor der ersten Änderung eines Gerätewerts, gilt bis focusout der Zelle und nur für diesen Gerätewert (Zeit
   des Herkunftseintrags); Zeitfelder: „Ersetzen“ schreibt nichts, nur Freigabe + Fokus zurück; Stile styles/erfassung.css),
   ZeitZelle, ScanHinweis.
-- Starter/Verzahnung: ClassSection (Sortierköpfe + Zufall, drei Stufen ↓ ↑ ↕ mit `th.sortier-aktiv`/`.sortier-kopf.aktiv`,
+- Starter/Verzahnung: ClassSection (Sortierköpfe + Zufall, drei Stufen ↑ A→Z, ↓ Z→A, ↕ aus (S-01) mit `th.sortier-aktiv`/`.sortier-kopf.aktiv`,
   merke `starter.sortierung.<klasse>`, `sortierung` (SortierWahl) von oben; „In Klasse X verschieben“, emit
   `oeffne`), ManualAddForm, ExcelPanel, DatumFeld (DatumFeld.test.ts durchsucht alle Vorlagen), StartNumberPanel (auch
   E/D), StarterSperre, ParcoursCard, TrackContainer, ClassChip, PauseChip, SlotCell, FlowPreview, SequenceTable,
@@ -86,16 +86,23 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `.wkr-leiste-verbindung` (`data-teil="leiste-verbindung"`, ● ◐ ○ –; nicht bei Papier), „n im Gerät“
   `.wkr-leiste-imgeraet`; Legende als `title` der Leiste; Dialog „Trotzdem weiter?“ mit einem Satz je warnender Liste
   (`data-teil="frage-liste"`). Klassen der Leiste nie `wkr-verbindung` o. Ä. – die heißen in der Handy-Maske gleich.
+  Parcours-Ampel (Nutzer 21.11.2026, P-03): StartFreigabe zeigt aus `erfassung` (fv 2) `data-teil="ampel"`
+  (`data-ampel` gruen|rot|frei, nur wenn `ampelRef` = Start im Boot), Knöpfe `durchfahrt` / `durchfahrt-zurueck`
+  (BETRIEB_DURCHFAHRT), Auto `data-teil="auto"` mit `auto-countdown` (eigene 250-ms-Uhr aus `autoIn`) und
+  `auto-anhalten` (Prop `autoAnhalten(ref)`: BetriebView → host.halteAuto, GeraetFreigabe → Nachricht AUTO_HALT) bzw.
+  `auto-aus`. Rückfrage nur über warnende Parcours-Listen (lage.ts). Stile `.betrieb-ampel*`, `.betrieb-auto` (app.css).
+  Test components/betrieb/StartFreigabe.test.ts (falsche Uhr).
   W3.2 (21.11.2026, Liste zuweisen): `betrieb/wkrListenWahl.ts` useListenWahl (gruppen nach Parcours bzw.
   „Parallelslalom · Racecourse A“, Titel in Oberflächensprache, `teilbar`, `ohneMaske`; listeText „Steg (Parcours 1,
-  nur Ablegen)“) und istHandyName (G3/J2). GeraeteKoppeln: `<select data-feld="koppeln-liste">` (Wahl, kein Befehl) +
+  nur Ablegen)“); istHandyName (G3/J2) entfiel 21.11.2026 (Art aus dem Register, GF7). GeraeteKoppeln: `<select data-feld="koppeln-liste">` (Wahl, kein Befehl) +
   Teil-Knöpfe `data-wahl-teil` ganz|ab|an, Hinweis `ohne-maske`; Code/QR auch nur mit Liste. GeraeteListe: je Gerät
   `data-teil="geraet-listen"` (Teil-Knöpfe, `liste-entfernen`, `liste-dazu` = Auswahl + Knopf, Hinweise `listen-voll`,
   `handy-eine`, `pad-zwei`, „Maske: Knöpfe“/„Maske folgt – Papier“). WkrMatrix: `a[data-action="wkr-koppeln"]` an
   Listen ohne Gerät → `#/betrieb/geraete/<liste>`.
 - WKR-Maske auf dem Handy `wkr/` (W3.3, 21.11.2026, Plan docs/plan-wkr-w3.md §5; OHNE Store, liest nur
   geraete/erfassen.ts ErfassungsQuelle – echte Erfassung oder Übung): WkrGeraet (Wurzel: Ansicht aus ablage.ts
-  liesAnsicht → `data-modus` sonne|hell|dunkel, `data-hand`; Sprache der LISTE über texte.ts stelleWkrText/useWkrText
+  liesAnsicht → Wahl in `data-wahl` geraet|sonne|hell|dunkel (Vorgabe `geraet` = Wie Gerät, GF1 21.11.2026), wirksamer
+  Modus in `data-modus` sonne|hell|dunkel, `data-hand`; Sprache der LISTE über texte.ts stelleWkrText/useWkrText
   (tIn, nie t()); Reiter je Liste, `nurListe`; entzogen → WkrRuhe mit Entwürfen), WkrMaske (je Liste: Steg-Teil,
   Schlange/gewählter Start, Entwurf je Tipp → merkeEntwurf, Takt wkr/maske.ts wechselTakt mit Blitz + vibrate, `inert`
   auf `.wkr-mitte`/`.wkr-unten` UND Prüfung in jedem Tipp, Korrektur mit AppDialog alt → neu, Rückgängig, Suche,
@@ -104,7 +111,7 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Linkshand `wkr-fuss--links`), WkrZuletzt (Leiste, Liste, Rückfrage-/Ablehnungs-Band, Rückgängig), WkrMehr
   (Bemerkung, Pausieren/Abmelden/Weiter), WkrRuhe (warte, leer, pausiert, abgemeldet, papier, abgeschlossen,
   entfaellt, spaeter, entzogen); texte.ts (stufeZeichen, zellenText). Stile styles/wkr-geraet.css (Tokens --wkr-*,
-  Sonne Vorgabe, `data-ziel` gross ≥ 64 px / klein ≥ 48 px – JEDER `<button>` hier trägt `class="wkr-knopf…"` und
+  Vorgabe Wie Gerät (System hell/dunkel, GF1), `data-ziel` gross ≥ 64 px / klein ≥ 48 px – JEDER `<button>` hier trägt `class="wkr-knopf…"` und
   `data-ziel`, styles/wkr-geraet.test.ts prüft das). Einbau: betrieb/GeraetFreigabe.vue (oeffneErfassung einmal je
   Gerät, Reiter `geraet-reiter` Freigabe/Liste). W3.4 (21.11.2026): WkrAbschluss („Liste abschließen“: Summe, Zeilen aus
   `pruefung` mit Tipp → Korrektur `pruef-korrigieren`, Name `wkr-name` Pflicht, `rest-papier` Pflicht bei offenen
@@ -153,14 +160,23 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `nichtVorbeiNr` (nicht wo X gilt: Vorsteg, Steg-Ablegen; nicht in der Korrektur) und `nichtVorbei()` (verwirft den
   Entwurf, schicke {nv}, Overlay wie beim Abschicken); Zuletzt, Korrektur-Dialog (alt) und Prüfansicht zeigen
   „⊘ nicht vorbeigekommen“ statt „fehlerfrei“; WkrAbschluss Summe „1 nicht vorbeigekommen: 27“, Zeile `data-nv`.
-  Nutzer 21.11.2026 (U1–U4, V1/V2): WkrBojen Disq. an der Boje – Knopf `boje-disq-modus` („Disq. an Boje …“), Band
-  `boje-disq-band` mit `boje-disq-aus`, `data-disq-modus` an `.wkr-bojen`; Tipp auf eine Boje → AppDialog `wkr-boje-disq`
-  mit `boje-disq-code` (Buchstaben der Zelle), Boje `data-disq` + Klasse `wkr-bojen-knopf--disq` („Disq. G“, --wkr-rot);
-  WkrMaske `setzeBojenDisq`, Fuß nennt Buchstaben an Bojen mit (`fussDisq`), WkrBojen `:key` je Start. Ansicht
+  Nutzer 21.11.2026 (U1–U4, V1/V2), umgebaut nach W4-12 (21.11.2026, BZ1/BZ4): WkrBojen Knopf `boje-disq-modus`
+  („Disq. an Boje …“) emittiert nur `disq` – derselbe Einstieg wie DISQ im Fuß (WkrFuss `mit-disq` auch ohne
+  Disq.-Feld, sobald eine Boje Buchstaben annimmt). Beide öffnen WkrDisqOrt (`data-teil="disq-ort"`, `data-schritt`
+  wo|boje|keine): Zeilen `disq-ort-halt` mit Knöpfen `disq-ort` (`data-feld`, `data-disq`), `disq-ort-keine`
+  („Keine Boje / ganzer Parcours“ → WkrDisq des Disq.-Felds), dann WkrDisq mit den Buchstaben der Zelle (Titel
+  „Disq. an Tor 3 · Rück R L“), `disq-ort-zurueck`; nach der Wahl an einer Boje `fertig` → Bojen. Boje `data-disq` +
+  Klasse `wkr-bojen-knopf--disq` zeigt Punkte UND „Disq. G“ (`boje-disq-stand`), nimmt weiter Tipps. WkrMaske
+  `setzeBojenDisq`, Fuß nennt Buchstaben an Bojen mit (`fussDisq`), `:key` je Start. Stile `.wkr-disq-ort*`. Ansicht
   `ansicht` (ablage.ts BojenAnsicht): `data-folge` fahrt|lage, in `lage` Kopf je Ort `ort-kopf` (`data-lage`) und Zeilen
   „Hin“/„Rück“ bzw. Halt-Titel, ohne Umschalter; `tauschen` über gridColumn. WkrMehr `bojen-ansicht` (`bojen-folge`,
   `bojen-start` mit `data-start-oben`, `bojen-tauschen`) → Ereignis `bojenAnsicht`; WkrGeraet reicht `ansicht.bojen` an
-  WkrMaske (`bojenAnsichten`) und WkrProbe (`bojenAnsicht`; Schritt `bojeDisq`, ohne `rueckweg` in der Lage-Ansicht).
+  WkrMaske (`bojenAnsichten`) und WkrProbe (`bojenAnsicht`; Schritt `bojeDisq` = Punkt + Buchstabe über WkrDisqOrt,
+  FEHLER im Fuß nur bei offener Ortswahl; ohne `rueckweg` in der Lage-Ansicht).
+  Parcours-Ampel/Abschluss (Nutzer 21.11.2026, P-03, R6-10, W3-40): WkrStarterKarte Prop `ampel` →
+  `data-teil="karten-ampel"` (Punkt + Wort, Tokens --wkr-gruen/--wkr-ampel-rot); WkrMehr ohne `abschliessen` (nur das
+  Band, mit `abschluss-zweck`, `data-laeuft` am Band); WkrAbschluss Prop `laeuft` → AppDialog `wkr-abschluss-laeuft`
+  (`abschluss-laeuft-ja`/`-nein`) vor dem Senden.
   Nutzer 21.11.2026: WkrRuhe art `abmeldung` (Band `abmeldung-band` „Von Tor 5 abgemeldet“, `abmeldung-weg`, „Zuletzt“
   `zuletzt-lesend`, Entwürfe `entwuerfe-lesend`, kein „Weiter digital“); WkrGeraet führt abgemeldete Listen weiter als
   Reiter (quelle.abgemeldet), GeraetFreigabe ebenso; WkrMatrix Zelle `spaeter` „…“ (Steg-Anlegen kommt noch).
@@ -168,14 +184,36 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   --rueckstand-text, Fläche --rueckstand-soft (app.css, Kontrast, Prüfbefund 21.11.2026), Legende; WkrEingang
   `data-teil="wkr-nv"` („⊘ nicht vorbeigekommen“) an Rückfrage-Zeile und Vorschlag; WkrListeBedienung `abschluss-nicht-vorbei`; ErfassungTabelle markiert von selbst „Papier ansehen“
   (wkr/lage.ts zeilenMarken); VerlaufPanel `wkrNichtVorbei`.
+  Gerät-Feinschliff (Nutzer 21.11.2026, WKR_ANNAHMEN GF1–GF11): `wkr/systemModus.ts` useSystemModus/useWirksamerModus
+  (Ansicht „Wie Gerät“ = `modus: 'geraet'`, live über matchMedia; WkrGeraet `data-modus` wirksam, `data-wahl` die
+  Wahl; WkrMehr Knopf `data-modus="geraet"`) und useMedien (Pad quer ≥ 1000 px: WkrGeraet `data-nebeneinander`,
+  `data-teil="nebeneinander"` mit `.wkr-spalte` je Liste, nur bei genau zwei Listen); WkrKnoepfe `wkr-code--aus`
+  (`data-aus`, `data-teil="code-aus"`, drückbar); WkrStegReiter `data-teil="steg-stand"` (✓ bzw. „· n“, `data-offen`);
+  WkrGeraet Übung: `<details data-teil="uebung-erklaerung">` (gemerkt `uebungErklaerungZu`) und
+  `data-action="uebung-beenden"` unter der Maske; WkrRuhe `warte` mit `neu-verbinden` (Prop `neuVerbinden`, WkrMaske
+  nach verbindeKarenzSek, lädt die Seite neu); WkrMaske `soLassen` (Band weg + quelle.soLassen bei Rückfragen),
+  Klassenwechsel-Band nur beim ersten Start der Klasse im Punkt (gedaechtnis.ts `klassenGesehen`), WkrParcoursBild
+  (`data-teil="parcours-bild"` unter den Knöpfen, Sicht `bild`, Tokens --wkr-bild-*), „nicht vorbeigekommen“ als Disq. J
+  (WkrMehr `nicht-vorbei-disq`); betrieb/WkrEingang `data-teil="wkr-so-lassen"` (.wkr-so-lassen in app.css); WkrMatrix
+  `data-teil="mzelle-disq"` (✓ mit Disq.); GeraeteListe Art `data-wahl-typ` handy|pad|rechner (host.setzeTyp), Hinweise
+  `handy-eine`/`pad-zwei` nur über LISTEN_EMPFEHLUNG der Art (istHandyName entfällt); GeraeteKoppeln: Freigabe nie
+  vorgewählt (W3-26).
+  WKR-Name (Nutzer 21.11.2026, W3-13, WN1–WN3): WkrMehr Prop `wkrName` (WkrNameLage, null in der Übung) →
+  `<fieldset data-teil="wkr-name">` mit `wkr-name-mehr`, `wkr-name-setzen`, `wkr-name-einteilung` (zurück), Sätze
+  `wkr-name-einteilung|-abweichend|-eigen|-ohne`, Ereignis `wkrName` → WkrMaske quelle.setzeWkrName; WkrAbschluss
+  vorbelegt mit quelle.wkrName(...).name, sonst G12; ein dort geänderter Name wird Name der Liste auf dem Gerät.
+  Bedienrechner: GeraeteListe je Liste `liste-wkr-name` („WKR: …“) bzw. `wkr-name-abweichend` mit
+  `wkr-name-uebernehmen` (SET_WKR_NAME, wkr/sicht.ts einteilungsParcours); WkrListeBedienung Zeile `wkr-name` ebenso
+  je Gerät (`data-geraet`). Stil `.geraete-wkr-name` (app.css).
 - Druck nach Modus (Nutzer 21.11.2026, WKR_ANNAHMEN Z1–Z7): `wkrDruck.ts` useWkrDruck() → {trotzdem (merke
   `listen.wkr.digitalDrucken`, ein Schalter für alle vier), teile(boegen) → {gedruckt, digital}} über wkr/druck.ts und das
   Register (useGeraeteHost, Steg je Teil); WkrListen, ParallelWkrListen, LaufzettelListen, ParallelLaufzettel zeigen und
   drucken nur `gedruckt` (Laufzettel: keine Kästchen, Zettel ohne Liste entfällt) und darüber WkrDigitalHinweis
   (`data-hinweis="nur-digital"`, no-print, Schalter `data-feld="digital-drucken"`). Test views/WkrDruck.test.ts.
 - Panels: BeispieldatenPanel (EINZIGE Stelle für Beispiel-Knöpfe, 21.11.2026; Starter und saat entstehen hier:
-  Gesamtzahl `beispiel-gesamt` nach Art, merke `beispiel.gesamt` {art, n}, `beispiel-gesamt-neu`, Verteilung
-  `.class-count[data-klasse] .beispiel-zahl` aus domain/generate.ts verteileAufKlassen; Beispiel-Besetzung, -gewichte,
+  Gesamtzahl `beispiel-gesamt` nach Art (Vorschlag), `beispiel-gesamt-neu` „Vorschlag neu“, je Klasse Zahlfeld
+  `beispiel-klasse|<k>` (R6-02), Summe `beispiel-summe`, merke `beispiel.klassen` {art, gesamt, klassen}; Verteilung
+  domain/generate.ts verteileAufKlassen; Herkunft beispielHerkunft (Clubmeisterschaft keine, R6-01); Beispiel-Besetzung, -gewichte,
   -Boote, -Co-Piloten; confirm vor dem Ersetzen), BesetzungPanel (ohne Beispiel-Knöpfe), EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
   HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop,

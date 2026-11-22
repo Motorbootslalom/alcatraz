@@ -6,7 +6,8 @@ import { useWkrText } from './texte'
  * Starterkarte (W3.3, Plan §5.1): die Startnummer riesig, Klasse, Lauf bzw. Attempt, Boot – **nie ein Name** (F6;
  * die Sicht der Liste trägt keinen). Kennzeichen als Wort: „geschätzt (ohne Verbindung)“, „noch nicht gezeigt“
  * (Vorsteg vorab), „außer der Reihe“ (gewählt statt des Kopfs der Schlange), „● gesendet“ (Doppeltipp-Schutz, G5),
- * „Korrektur“ (F7).
+ * „Korrektur“ (F7). Parcours-Ampel (Nutzer 21.11.2026, P-03, AM9): kleiner Punkt mit Wort am gezeigten Start – grün
+ * „Start frei“, rot „im Parcours“, frei „alle fertig“ (Farben nur --wkr-*, Zeichen UND Wort, bricht um statt abzuschneiden).
  */
 defineProps<{
   start: Pick<SchlangenEintrag, 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab'>
@@ -14,6 +15,7 @@ defineProps<{
   ausserDerReihe?: boolean
   gesendet?: boolean
   korrektur?: 'korrektur' | 'vorschlag' | null
+  ampel?: 'gruen' | 'rot' | 'frei' | null
 }>()
 const { w } = useWkrText()
 </script>
@@ -34,6 +36,9 @@ const { w } = useWkrText()
         <span v-if="start.boot" class="wkr-starterkarte-klein" data-teil="boot">{{ w('wkr.geraet.boot', { boot: start.boot }) }}</span>
       </span>
     </div>
+    <p v-if="ampel" class="wkr-starterkarte-marke wkr-starterkarte-ampel" :data-ampel="ampel" data-teil="karten-ampel">
+      <span class="wkr-starterkarte-ampel-licht" aria-hidden="true">●</span> {{ w(`wkr.geraet.ampel.${ampel}`) }}
+    </p>
     <p v-if="gesendet" class="wkr-starterkarte-marke wkr-starterkarte-marke--gesendet" role="status" data-teil="gesendet">● {{ w('wkr.geraet.gesendet') }}</p>
     <p v-if="start.geschaetzt" class="wkr-starterkarte-marke" data-teil="geschaetzt">{{ w('wkr.geraet.geschaetzt') }}</p>
     <p v-if="start.vorab" class="wkr-starterkarte-marke" data-teil="vorab">{{ w('wkr.geraet.vorab') }}</p>

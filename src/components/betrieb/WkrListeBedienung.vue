@@ -9,6 +9,8 @@ import type { ListenTeil } from '../../lib/eingaben'
 import { t } from '../../i18n'
 import AppDialog from '../AppDialog.vue'
 import { punktText, punktVon, uhrzeitText } from './texte'
+import { liesListe } from '../../wkr/liste'
+import { einteilungsName, einteilungsParcours } from '../../wkr/sicht'
 
 /**
  * Bedienung einer Liste unter Betrieb → WKR (W2.2, Plan docs/plan-wkr-w2.md §6.1, 21.11.2026): Modus als drei
@@ -17,6 +19,11 @@ import { punktText, punktVon, uhrzeitText } from './texte'
  * Geräte, die Abschlüsse mit Name, Zeit, abweichenden und vom Papier gekommenen Starts und „Abschluss lösen“ hinter
  * einer Rückfrage. Actions über den Store (WKR_LISTE, WKR_PAPIER_AB, WKR_ABSCHLUSS_LOESEN); Hinweise an die Geräte
  * über den Host (`hinweis`) – ohne Host bleibt nur der Stand, die Geräte erfahren es dann aus der Sicht der Liste.
+ *
+ * Nutzer 21.11.2026 (W3-13, WKR_ANNAHMEN WN2): oben der Name des Wettkampfrichters laut Einteilung (`wkr-name`) und je
+ * Gerät der Liste, dessen WKR ihn geändert hat, nur der Hinweis „Name auf dem Gerät: … – Einteilung: …“ mit „In
+ * Veranstaltung übernehmen“ (SET_WKR_NAME) – wie in der Geräteliste (GeraeteListe.vue). Die Namen der Geräte liegen im
+ * Register (gerätelokal), nie im AppState.
  */
 const props = defineProps<{ lage: ListenLage; starts: readonly MatrixStart[]; bereich: SichtBereich }>()
 
@@ -109,6 +116,20 @@ function abschlussText(a: ListenAbschluss): string {
   return a.teil ? t('betrieb.wkr.abschluss.teil', { punkt, teil: t(`betrieb.wkr.teil.${a.teil}`), name: a.name, zeit }) : t('betrieb.wkr.abschluss', { punkt, name: a.name, zeit })
 }
 
+// --- WKR-Name (W3-13) ---
+const listeObj = computed(() => liesListe(l.value.liste))
+const einteilung = computed(() => (listeObj.value ? einteilungsName(state.value, listeObj.value) : ''))
+/** Geräte dieser Liste, deren WKR einen anderen Namen eingetragen hat (Register, aus dem Lebenszeichen). */
+const abweichend = computed(() =>
+  (host?.raum.value?.geraete ?? [])
+    .map((g) => ({ id: g.id, geraet: g.name, name: g.wkrNamen?.[l.value.liste] ?? '' }))
+    .filter((x) => x.name !== '' && x.name !== einteilung.value),
+)
+function uebernimmName(name: string): void {
+  const liste = listeObj.value
+  if (liste) dispatch({ type: 'SET_WKR_NAME', parcoursId: einteilungsParcours(liste), typeId: liste.typeId, name })
+}
+
 const loesen = ref<{ punkt: PunktId; teil?: ListenTeil } | null>(null)
 function loese(): void {
   const a = loesen.value
@@ -119,6 +140,13 @@ function loese(): void {
 
 <template>
   <div class="wkr-bedienung" data-teil="wkr-bedienung" :data-liste="l.liste">
+    <div v-if="einteilung || abweichend.length" class="row wkr-bedienung-reihe" data-teil="wkr-name">
+      <span v-if="einteilung" class="wkr-bedienung-titel" data-teil="wkr-name-einteilung">{{ t('geraete.liste.wkrName', { name: einteilung }) }}</span>
+      <span v-for="x in abweichend" :key="x.id" class="note wkr-name-abweichend" data-teil="wkr-name-abweichend" :data-geraet="x.id">
+        {{ x.geraet }}: {{ t('geraete.liste.wkrName.abweichend', { geraet: x.name, einteilung: einteilung || t('geraete.liste.wkrName.niemand') }) }}
+        <button type="button" class="btn sm" data-action="wkr-name-uebernehmen" @click="uebernimmName(x.name)">{{ t('geraete.liste.wkrName.uebernehmen') }}</button>
+      </span>
+    </div>
     <div class="row wkr-bedienung-reihe">
       <span class="wkr-bedienung-titel">{{ t('betrieb.wkr.modus') }}:</span>
       <div class="segmented" role="group" :aria-label="t('betrieb.wkr.modus')">

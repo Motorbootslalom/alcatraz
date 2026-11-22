@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { BEISPIEL_KLASSEN_ANTEILE, BEISPIEL_STARTERZAHL, beispielFeldArt, beispielGesamt, beispielHerkuenfte, generateStarter, generateStarters, LAENDER, verteileAufKlassen } from './generate'
+import { BEISPIEL_KLASSEN_ANTEILE, BEISPIEL_STARTERZAHL, beispielFeldArt, beispielGesamt, beispielHerkuenfte, beispielHerkunft, generateStarter, generateStarters, LAENDER, verteileAufKlassen } from './generate'
 import { zufallAus } from '../lib/beispielwerte'
 import { birthYearRange } from './classes'
 import { CLUBS } from '../data/clubs'
@@ -115,6 +115,15 @@ describe('Beispiel-Starterfeld: Gesamtzahl und Verteilung', () => {
     expect(beispielFeldArt('meisterschaft', 'none')).toBe('verein')
     expect(beispielFeldArt('meisterschaft', 'bundesland')).toBe('land')
     expect(beispielFeldArt('meisterschaft', 'land')).toBe('land')
+  })
+
+  // R6-01 (Nutzer 21.11.2026): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine“ – BS1, noch zu bestätigen.
+  it('Herkunft der Beispielstarter: bei der Clubmeisterschaft keine, sonst die der Veranstaltung', () => {
+    expect(beispielHerkunft('club', 'verein')).toBe('none')
+    expect(beispielHerkunft('club', 'land')).toBe('none')
+    expect(beispielHerkunft('meisterschaft', 'verein')).toBe('verein')
+    expect(beispielHerkunft('meisterschaft', 'bundesland')).toBe('bundesland')
+    expect(beispielHerkunft('meisterschaft', 'none')).toBe('none')
   })
 
   it('die gezogene Zahl liegt im Bereich und hängt nur an der Saat', () => {

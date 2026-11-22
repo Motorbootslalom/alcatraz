@@ -191,6 +191,19 @@ describe('WKR_RUECKFRAGE, WKR_VORSCHLAG', () => {
     expect(werte(next, erster)).toEqual({ 't1a|hin seiteA': '10', 't3a|hin seiteA': '5', 'erfasst@gate135': '1' })
   })
 
+  it('WKR_SO_LASSEN (W3-35, GF5): Zeit an den Rückfragen der Zeile, Rückfrage bleibt offen; sonst derselbe Stand', () => {
+    const { s } = mitFrage()
+    const rf = s.wkr.rueckfragen[0]
+    const next = reducer(s, { type: 'WKR_SO_LASSEN', liste: rf.liste, zeile: rf.zeile, zeit: 4711 })
+    expect(next.wkr.rueckfragen).toEqual([{ ...rf, soLassen: 4711 }])
+    // Zweimal, fremde Zeile, fremde Liste: nichts.
+    expect(reducer(next, { type: 'WKR_SO_LASSEN', liste: rf.liste, zeile: rf.zeile, zeit: 5000 })).toBe(next)
+    expect(reducer(s, { type: 'WKR_SO_LASSEN', liste: rf.liste, zeile: 'anderes.1', zeit: 1 })).toBe(s)
+    expect(reducer(s, { type: 'WKR_SO_LASSEN', liste: 'x', zeile: rf.zeile, zeit: 1 })).toBe(s)
+    // Entscheiden geht wie immer.
+    expect(reducer(next, { type: 'WKR_RUECKFRAGE', id: rf.id, wahl: 'behalten' }).wkr.rueckfragen).toEqual([])
+  })
+
   it('unbekannte Kennung: derselbe Stand', () => {
     const { s } = mitFrage()
     expect(reducer(s, { type: 'WKR_RUECKFRAGE', id: 'gibt-es-nicht', wahl: 'geraet' })).toBe(s)

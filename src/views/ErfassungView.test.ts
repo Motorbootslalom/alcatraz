@@ -254,6 +254,26 @@ describe('Erfassung', () => {
     wrapper.unmount()
   })
 
+  it('Bojen: Punkte UND Disq-Buchstabe in einer Zelle, tolerant getippt (W4-12, 21.11.2026, BZ1/BZ3); X nie mit Punkten (BZ2)', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', 'gate135')
+    const a = feld(wrapper, 0, 't1a#0')
+    await tippe(a, '5 j')
+    expect(a.element.value).toBe('5J')
+    const b = feld(wrapper, 0, 't1a#1')
+    await tippe(b, 'g5')
+    expect(b.element.value).toBe('5G')
+    expect(Object.values(store.state.value.eingaben[L1]['id-1-1']).sort()).toEqual(['5G', '5J'])
+    await nextTick()
+    // Die Punkte zählen in Σ weiter, die Buchstaben stehen blass in der Disq-Zelle.
+    expect(zeilen(wrapper)[0].find('td[data-spalte="sum"]').text()).toBe('10')
+    expect(feld(wrapper, 0, 'disq').attributes('placeholder')).toBe('J, G')
+    const c = feld(wrapper, 1, 't1a#0')
+    await tippe(c, '5x')
+    expect(c.element.value).toBe('X')
+    wrapper.unmount()
+  })
+
   it('Fehlercodes: beim Verlassen sortiert und zusammengefasst; Unbekanntes wird gemeldet, nicht still verworfen', async () => {
     const wrapper = ansicht(store)
     await waehle(wrapper, 'liste', 'steg')

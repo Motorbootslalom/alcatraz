@@ -85,7 +85,7 @@ export const ABLAGE = {
    */
   geraetWkr: 'alcatraz.geraet.wkr',
   /**
-   * Gerät (W3, 21.11.2026, G1/G12): Ansicht der WKR-Maske – Sonne/Hell/Dunkel, Hand, gewählte Sprache, zuletzt
+   * Gerät (W3, 21.11.2026, G1/G12): Ansicht der WKR-Maske – Wie Gerät (Vorgabe, GF1)/Sonne/Hell/Dunkel, Hand, gewählte Sprache, zuletzt
    * eingegebener WKR-Name. Vorliebe des Geräts, nicht des Raums: bleibt nach „Raum verlassen“, nur der Name geht
    * ({@link verlasseRaum}). Nie AppState.
    */
@@ -403,7 +403,7 @@ export function verlasseRaum(ablage: Ablage | null = vorgabe()): void {
   const ansicht = liesAnsicht(ablage)
   if (ansicht.name !== undefined) {
     const { name: _name, ...rest } = ansicht
-    schreibeJson(ablage, ABLAGE.ansicht, rest)
+    schreibeJson(ablage, ABLAGE.ansicht, ansichtFuerSpeicher(rest))
   }
 }
 
@@ -469,18 +469,25 @@ export function geraetWkrAblage(bezug: RaumBezug, ablage: Ablage | null = vorgab
 // Ansicht und Probe der WKR-Maske (W3)
 // ---------------------------------------------------------------------------
 
-/** Sonnenmodus (Vorgabe, G1: schwarz auf weiß, hoher Kontrast), App-Farben hell oder dunkel. */
+/** Sonnenmodus (schwarz auf weiß, hoher Kontrast), App-Farben hell oder dunkel – was die Maske zeigt. */
 export type AnsichtModus = 'sonne' | 'hell' | 'dunkel'
+/**
+ * Gewählte Ansicht: ein Modus oder „Wie Gerät“ (`geraet`, Vorgabe seit 21.11.2026 – Nutzer P-18/W3-01, WKR_ANNAHMEN
+ * GF1: Hell/Dunkel des Geräts ist Vorgabe, der WKR darf jederzeit wechseln; vorher Sonne, G1).
+ */
+export type AnsichtWahl = 'geraet' | AnsichtModus
 
 /** Ansicht der WKR-Maske auf diesem Gerät (W3). */
 export interface GeraetAnsicht {
-  modus: AnsichtModus
+  modus: AnsichtWahl
   /** Bedienhand: links spiegelt den Fuß der Maske (Hauptknopf links). */
   hand: 'rechts' | 'links'
   /** Gewählte Sprache (F13); fehlt = Sprache der Liste. */
   sprache?: 'de' | 'en'
   /** Zuletzt beim Abschluss eingegebener WKR-Name (G12), vorbelegt beim nächsten Abschluss. */
   name?: string
+  /** Erklärung der Übung zugeklappt (Nutzer 21.11.2026, W3-15, GF4) – fehlt = offen. */
+  uebungErklaerungZu?: true
   /**
    * Bojen-Maske je Liste (Nutzer 21.11.2026, WKR_ANNAHMEN.bojenNachLage/bojenSpiegeln): Reihenfolge und Spiegeln –
    * eine Vorliebe am Standort des WKR, also je Liste (Kennung). Fehlt = Fahrtfolge, Start oben, nicht getauscht.
@@ -509,21 +516,27 @@ function bojenAnsichtAus(wert: unknown): BojenAnsicht | null {
   return { folge: wert.folge, startOben: wert.startOben, tauschen: wert.tauschen }
 }
 
-const ANSICHT_VORGABE: GeraetAnsicht = { modus: 'sonne', hand: 'rechts' }
+const ANSICHT_VORGABE: GeraetAnsicht = { modus: 'geraet', hand: 'rechts' }
 /** Wie WKR_ANNAHMEN.nameMax – hier ohne Import aus src/wkr, die Ablage bleibt ohne Fachlogik. */
 const NAME_MAX = 60
 
-/** Die Ansicht lesen – Unbekanntes fällt auf die Vorgabe (Sonne, rechts) zurück, Feld für Feld. */
+/** Die Ansicht lesen – Unbekanntes fällt auf die Vorgabe („Wie Gerät“, rechts) zurück, Feld für Feld. */
 export function liesAnsicht(ablage: Ablage | null = vorgabe()): GeraetAnsicht {
   return ansichtAus(liesJson(ablage, ABLAGE.ansicht))
 }
 
+/**
+ * Ein Modus außer „Wie Gerät“ gilt nur mit `modusGewaehlt: true` im Speicher (Prüfbefund 21.11.2026): Vor GF1 war
+ * die Vorgabe `sonne`, und schreibeAnsicht schrieb sie bei jeder anderen Änderung (Hand, Sprache, Name, Bojen) mit –
+ * ein so benutztes Gerät bliebe sonst auf der Sonne, obwohl der WKR sie nie gewählt hat (P-18: Gerätemodus ist heilig).
+ */
 function ansichtAus(wert: unknown): GeraetAnsicht {
   const out: GeraetAnsicht = { ...ANSICHT_VORGABE }
   if (!istObjekt(wert)) return out
-  if (wert.modus === 'sonne' || wert.modus === 'hell' || wert.modus === 'dunkel') out.modus = wert.modus
+  if ((wert.modus === 'sonne' || wert.modus === 'hell' || wert.modus === 'dunkel') && wert.modusGewaehlt === true) out.modus = wert.modus
   if (wert.hand === 'links' || wert.hand === 'rechts') out.hand = wert.hand
   if (wert.sprache === 'de' || wert.sprache === 'en') out.sprache = wert.sprache
+  if (wert.uebungErklaerungZu === true) out.uebungErklaerungZu = true
   if (typeof wert.name === 'string' && wert.name.trim() !== '' && wert.name.length <= NAME_MAX) out.name = wert.name
   if (istObjekt(wert.bojen)) {
     const bojen: Record<string, BojenAnsicht> = {}
@@ -543,7 +556,13 @@ export function schreibeAnsicht(aenderung: Partial<GeraetAnsicht>, ablage: Ablag
     if (v === undefined) delete neu[k]
     else neu[k] = v
   }
-  return schreibeJson(ablage, ABLAGE.ansicht, ansichtAus(neu))
+  // `neu.modus` ist hier immer eine Wahl: liesAnsicht liefert Ungewähltes schon als 'geraet'.
+  return schreibeJson(ablage, ABLAGE.ansicht, ansichtFuerSpeicher(ansichtAus({ ...neu, modusGewaehlt: true })))
+}
+
+/** Speicherform: `modusGewaehlt` nur neben einem gewählten Modus (siehe ansichtAus). */
+function ansichtFuerSpeicher(a: Partial<GeraetAnsicht>): Record<string, unknown> {
+  return a.modus !== undefined && a.modus !== 'geraet' ? { ...a, modusGewaehlt: true } : { ...a }
 }
 
 /** Ist die Probe (G10) für diese Liste in diesem Raum erledigt? */

@@ -78,7 +78,7 @@ const mitGeschlecht = computed(() => parallel.value || state.value.starters.some
 const spaltenAlle = computed(() => sortierSpalten(state.value.originMode, mitGeschlecht.value))
 const klassenMitStartern = computed(() => classes.value.map((c) => c.id).filter((k) => byClass.value.get(k)!.length > 0))
 /**
- * Drei Stufen wie in jeder Klasse (21.11.2026, lib/reihenfolge.ts naechsteSortierung): ↓, ↑, Markierung weg.
+ * Drei Stufen wie in jeder Klasse (lib/reihenfolge.ts naechsteSortierung, bestätigt 21.11.2026 S-01): ↑ A→Z, ↓ Z→A, Markierung weg.
  * Bedienauswahl mit der Folge jeder Klasse nach dem Sortieren – die Markierung gilt, solange jede Klasse
  * noch so steht (mit Startnummern-Bereichen sortiert der Reducer nur je Größengruppe, istGeordnet trüge nicht).
  */

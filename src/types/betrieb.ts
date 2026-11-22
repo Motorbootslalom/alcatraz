@@ -78,6 +78,12 @@ export interface BereichBetrieb {
   /** E2: „Andere Klassen vorziehen“, solange eine Klasse aussetzt. */
   vorziehen: boolean
   meldung: Meldung | null
+  /**
+   * Parcours-Ampel (Nutzer 21.11.2026, P-03): der Start, für den an der Start-Freigabe „Durchs Start-Tor“ getippt wurde,
+   * und wann. Gespeichert wird nur dieser menschliche Auslöser – grün/rot/frei leitet wkr/ampel.ts ab. Gilt nur für den
+   * gezeigten Start (`ref` = aktuell); fällt bei jedem Zeigen und Zurück weg. Fehlt = nicht per Knopf durchgefahren.
+   */
+  durchfahrt?: { ref: string; zeit: number }
 }
 
 /** Der Betrieb aller Bereiche. Ein Bereich ohne Eintrag hat noch nicht begonnen. */
@@ -141,6 +147,12 @@ export interface AnzeigeEinstellungen {
    * sie stammt aus W2; migrate() hebt dort genau die alte Vorgabe 2/„warnen“ einmal auf die neue (WKR_VORGABE_FASSUNG).
    */
   wkrFassung: number
+  /**
+   * Auto-Modus der Start-Freigabe (Nutzer 21.11.2026, P-03: „Es kann auch einen Auto-Modus geben, der automatisch
+   * weiterschaltet, wenn alle WKR ihre Eintragung abgeschickt haben“): Vorgabe aus. Wirkt nur, wenn jede Parcours-Liste
+   * des Bereichs digital, aktiv und mit Gerät ist (wkr/ampel.ts, WKR_ANNAHMEN.autoModus, AM6).
+   */
+  wkrAuto: boolean
 }
 
 /** Wie die Start-Freigabe auf Rückstand der WKR-Erfassung reagiert (F4): nie sperren. */

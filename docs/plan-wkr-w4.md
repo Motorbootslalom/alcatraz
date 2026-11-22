@@ -1,12 +1,12 @@
 # Plan W4 „Handy, Bojen“ der digitalen WKR-Erfassung
 
-Stand 21.11.2026 (W4.1 gebaut 21.11.2026: wkr/bojen.ts, Sicht Fassung 4, Maske `bojen` – P1–P15 noch zu bestätigen; W4.2 gebaut 21.11.2026: WkrBojen, WkrWegUmschalter, Probe, Übung – P17, Q1–Q7 noch zu bestätigen; W4.3 gebaut 21.11.2026: „Nicht vorbeigekommen“, Doku – P16, R1–R8 noch zu bestätigen; W4 fertig, Feldtest offen, §11) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §3
+Stand 21.11.2026 (W4.1 gebaut 21.11.2026: wkr/bojen.ts, Sicht Fassung 4, Maske `bojen` – P1–P15; W4.2 gebaut 21.11.2026: WkrBojen, WkrWegUmschalter, Probe, Übung – P17, Q1–Q7; W4.3 gebaut 21.11.2026: „Nicht vorbeigekommen“, Doku – P16, R1–R8; W4 fertig, Feldtest offen, §11; Auslegungen beantwortet 21.11.2026 abends, §14) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §3
 (Rahmen), §4.2 (Bojen und Tore), §4.8 (Parallelslalom), §5 (Abschicken, Korrektur), §7 (Sonderfälle, „Nicht
 vorbeigekommen“), §11 W4, §12 F2; der gebaute Stand W1–W3 ([plan-wkr-w1.md](plan-wkr-w1.md),
 [plan-wkr-w2.md](plan-wkr-w2.md), [plan-wkr-w3.md](plan-wkr-w3.md), Feldtest-Befunde bis Commit 6a7753e). Antworten des
 Nutzers: [entscheidungen.md](entscheidungen.md) „Digitale WKR-Erfassung“, besonders **F2** (je Boje und Fahrtrichtung
 eine Berührung = Schalter 5/0; Torbojen Tor 5 = Zähler; Tor 1 auf der Rückfahrt wegen der Speedrunde zweimal). Keine
-Rückfragen beim Bau: Auslegungen datiert in `WKR_ANNAHMEN` (P1–P17, §10), „noch zu bestätigen“.
+Rückfragen beim Bau: Auslegungen datiert in `WKR_ANNAHMEN` (P1–P17, §10); beantwortet 21.11.2026 abends (§14).
 
 ## 1. Ziel und Grenzen
 
@@ -308,84 +308,97 @@ src/geraete/uebung src/GeraetWkr src/styles/wkr-geraet src/views/BetriebWkr`; am
 - **Größe der Sicht**: `boje` je Feld und Klasse; Test < 4 kB komprimiert, sonst `titel`/`unter` je Liste statt je
   Klasse.
 
-## 10. Auslegungen W4 (21.11.2026, beim Planen, noch zu bestätigen) – kommen datiert in `WKR_ANNAHMEN`
+## 10. Auslegungen W4 (21.11.2026, beim Planen; beantwortet 21.11.2026 abends, §14) – datiert in `WKR_ANNAHMEN`
 
-- **P1 Bojen-Maske an den Feldern erkannt**: ein `buoy`-Feld ist eine Boje der Maske, wenn seine Kennung auf dem
-  Fahrweg (FAHRWEG) oder dem Parallel-Fahrweg liegt; sonst (Knoten, eigene ausführliche Aufbauten) bleibt die Liste
-  Papier. Listen mit Zeit- oder Punktfeldern bleiben `spaeter` (W5). Gemischte Listen (Bojen + Einfahrt Tor 5 / MüB,
-  Disq., Bemerkung) bekommen EINE Maske.
-- **P2 Schalter und Zähler** (F2): Zähler nur die Torbojen von Tor 5 (je Richtung ein Feld); Start/Ziel, Tore 1–4,
-  Speedbojen und die Bojen des Parallelslaloms sind Schalter. Unter UIM gleich (Regel 960 Pkt. 5.3 nennt nur
-  „Touching of a buoy“; die Spalten sind dieselben).
-- **P3 Tor 1 auf der Rückfahrt**: zwei Zeilen mit je einem Schalter je Boje (Felder `t1b`, `t1c`), die zweite
-  „2. Durchfahrt (Speedrunde)“ an ihrem Platz nach Sp. 2 – kein Zähler 0–2, weil der Bogen zwei Spalten hat.
-- **P4 Punkte je Berührung** fest 5 (`bojenPunkte`, Test gegen `direktpunkte` beider Regelwerke); Zellwert = Punkte
-  („5“, Zähler „10“), wie auf dem Papier.
-- **P5 Zähler** höchstens `bojenZaehlerMax` (9) Tipps je Feld; zurück nur über „− letzte zurück“.
-- **P6 Fahrtfolge**: Zeilen nach FAHRWEG, nicht nach den Spalten des Bogens; Katalog-Abschnitte an ihrem Platz
-  (Einfahrt Tor 5 zwischen Tor 5 hin und rück, zählt zum Hinweg; MüB nach Tor 1 R, zum Rückweg). Parallel: Folge der
-  Spalten, Boje 5 (Wende) zum Hinweg.
-- **P7 Seiten nach Blick**: zwei Knopfspalten in der Reihenfolge der Unterspalten auf dem Bogen dieser Liste (die
-  Kurzform ordnet sie nach `blick`); Einzelboje in der Spalte ihrer Seite, Speedboje und Parallel-Bojen 1–5 volle
-  Breite. Beschriftung = Kopf der Unterspalte wie auf dem Bogen (Beschriftungsschema wirkt von selbst).
-- **P8 Umschalter Hinweg/Rückweg** erst bei mehr als `bojenZeilenEineSeite` (7) Zeilen (Halte + Codes) der Klasse;
-  wechselt nie von selbst; neuer Start auf „Hinweg“, ein Start mit Entwurf auf seiner letzten Seite; Zahl der
-  Einträge je Seite am Reiter.
-- **P9 Disq.** immer ins Disq.-Feld der Liste (jede Bojen-Liste hat eines); kein „an welcher Boje?“, das Gerät
-  schreibt nie Buchstaben in Bojenzellen.
-- **P10 Klassenwechsel**: andere Halte als beim zuvor gezeigten Start → `klassenWechselMs` (2 s) Band „Klasse n –
-  andere Halte“ über der Mitte, ohne Knöpfe zu verschieben.
-- **P11 Probe** mit Bojen-Schritten (Schalter, zurück, ggf. Zähler, ggf. Umschalter, Fehlerfrei) an der Klasse mit den
-  meisten Zeilen; Katalog-Teile gemischter Listen übt sie nicht.
-- **P12 Übung**: Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel; unter UIM Parallelslalom Racecourse A nur als Maske
-  (ohne Paar, ohne Attempt-Wechsel).
-- **P13 Fehlerfrei** auf Bojen-Listen = Zeile ohne Zellen wie W3; „Abschicken · n Pkt.“ zählt Bojen und Codes.
-- **P14 Texte** in Zuletzt, Korrektur und Prüfansicht: „Tor 1 H L: 5 · Tor 5 H R: 10“ (Kopf wie auf dem Bogen);
-  Punkte in der Prüfansicht auch bei Bojen.
-- **P15 Sicht**: `MaskenFeld.boje` (Halt, Weg, Folge, Titel, Unterspalte, Spalte, Zähler, Durchfahrt), nur Bogentexte;
-  LISTEN_SICHT_FASSUNG 4.
-- **P16 „Nicht vorbeigekommen“** (G15): unter „Mehr“ mit Rückfrage, Zeile ohne Zellen mit `n`, setzt den Haken und ein
-  Kennzeichen im Stand (Matrix „⊘“ gelb, „Papier ansehen“, kein Rückstand), nicht am Vorsteg und im Steg-Ablegen (dort
-  X); spätere Werte heben es auf. LISTEN_SICHT_FASSUNG 5.
-- **P17 Startnummer** auf Bojen-Listen 80 px (Platz für die Zeilen); sonst wie W3.
+- **P1 Bojen-Maske an den Feldern erkannt** *(bestätigt 21.11.2026, W4-04)*: ein `buoy`-Feld ist eine Boje der Maske,
+  wenn seine Kennung auf dem Fahrweg (FAHRWEG) oder dem Parallel-Fahrweg liegt; sonst (Knoten, eigene ausführliche
+  Aufbauten) bleibt die Liste Papier. Listen mit Zeit- oder Punktfeldern bleiben `spaeter` (W5). Gemischte Listen
+  (Bojen + Einfahrt Tor 5 / MüB, Disq., Bemerkung) bekommen EINE Maske.
+- **P2 Schalter und Zähler** *(bestätigt 21.11.2026, W4-05)* (F2): Zähler nur die Torbojen von Tor 5 (je Richtung ein
+  Feld); Start/Ziel, Tore 1–4, Speedbojen und die Bojen des Parallelslaloms sind Schalter. Unter UIM gleich (Regel 960
+  Pkt. 5.3 nennt nur „Touching of a buoy“; die Spalten sind dieselben).
+- **P3 Tor 1 auf der Rückfahrt** *(bestätigt 21.11.2026, W4-06)*: zwei Zeilen mit je einem Schalter je Boje (Felder
+  `t1b`, `t1c`), die zweite „2. Durchfahrt (Speedrunde)“ an ihrem Platz nach Sp. 2 – kein Zähler 0–2, weil der Bogen
+  zwei Spalten hat.
+- **P4 Punkte je Berührung** *(bestätigt 21.11.2026, W4-07)* fest 5 (`bojenPunkte`, Test gegen `direktpunkte` beider
+  Regelwerke); Zellwert = Punkte („5“, Zähler „10“), wie auf dem Papier.
+- **P5 Zähler** *(bestätigt 21.11.2026, W4-08)* höchstens `bojenZaehlerMax` (9) Tipps je Feld; zurück nur über „− letzte
+  zurück“.
+- **P6 Fahrtfolge** *(bestätigt 21.11.2026, W4-09)*: Zeilen nach FAHRWEG, nicht nach den Spalten des Bogens;
+  Katalog-Abschnitte an ihrem Platz (Einfahrt Tor 5 zwischen Tor 5 hin und rück, zählt zum Hinweg; MüB nach Tor 1 R, zum
+  Rückweg). Parallel: Folge der Spalten, Boje 5 (Wende) zum Hinweg.
+- **P7 Seiten nach Blick** *(bestätigt 21.11.2026, W4-10)*: zwei Knopfspalten in der Reihenfolge der Unterspalten auf
+  dem Bogen dieser Liste (die Kurzform ordnet sie nach `blick`); Einzelboje in der Spalte ihrer Seite, Speedboje und
+  Parallel-Bojen 1–5 volle Breite. Beschriftung = Kopf der Unterspalte wie auf dem Bogen (Beschriftungsschema wirkt von
+  selbst).
+- **P8 Umschalter Hinweg/Rückweg** *(bestätigt 21.11.2026, W4-11)* erst bei mehr als `bojenZeilenEineSeite` (7) Zeilen
+  (Halte + Codes) der Klasse; wechselt nie von selbst; neuer Start auf „Hinweg“, ein Start mit Entwurf auf seiner
+  letzten Seite; Zahl der Einträge je Seite am Reiter.
+- **P9 Disq.** *(NICHT bestätigt – W4-12, §14; umgebaut 21.11.2026, BZ4)* immer ins Disq.-Feld der Liste (jede
+  Bojen-Liste hat eines); kein „an welcher Boje?“, das Gerät schreibt nie Buchstaben in Bojenzellen.
+- **P10 Klassenwechsel** *(NICHT bestätigt – W4-13, §14)*: andere Halte als beim zuvor gezeigten Start →
+  `klassenWechselMs` (2 s) Band „Klasse n – andere Halte“ über der Mitte, ohne Knöpfe zu verschieben.
+- **P11 Probe** *(bestätigt 21.11.2026, W4-21)* mit Bojen-Schritten (Schalter, zurück, ggf. Zähler, ggf. Umschalter,
+  Fehlerfrei) an der Klasse mit den meisten Zeilen; Katalog-Teile gemischter Listen übt sie nicht.
+- **P12 Übung** *(bestätigt 21.11.2026, W4-22)*: Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel; unter UIM Parallelslalom
+  Racecourse A nur als Maske (ohne Paar, ohne Attempt-Wechsel).
+- **P13 Fehlerfrei** *(bestätigt 21.11.2026, W4-14)* auf Bojen-Listen = Zeile ohne Zellen wie W3; „Abschicken · n Pkt.“
+  zählt Bojen und Codes.
+- **P14 Texte** *(bestätigt 21.11.2026, W4-15)* in Zuletzt, Korrektur und Prüfansicht: „Tor 1 H L: 5 · Tor 5 H R: 10“
+  (Kopf wie auf dem Bogen); Punkte in der Prüfansicht auch bei Bojen.
+- **P15 Sicht** *(nicht gefragt, offen)*: `MaskenFeld.boje` (Halt, Weg, Folge, Titel, Unterspalte, Spalte, Zähler,
+  Durchfahrt), nur Bogentexte; LISTEN_SICHT_FASSUNG 4.
+- **P16 „Nicht vorbeigekommen“** *(bestätigt 21.11.2026, W4-27)* (G15): unter „Mehr“ mit Rückfrage, Zeile ohne Zellen
+  mit `n`, setzt den Haken und ein Kennzeichen im Stand (Matrix „⊘“ gelb, „Papier ansehen“, kein Rückstand), nicht am
+  Vorsteg und im Steg-Ablegen (dort X); spätere Werte heben es auf. LISTEN_SICHT_FASSUNG 5.
+- **P17 Startnummer** *(bestätigt 21.11.2026, W4-18)* auf Bojen-Listen 80 px (Platz für die Zeilen); sonst wie W3.
 
-Beim Bau W4.2 (21.11.2026, noch zu bestätigen; WKR_ANNAHMEN `probeLinkerKnopf` … `uebungListenDesRegelwerks`):
+Beim Bau W4.2 (21.11.2026, bis auf Q2 bestätigt 21.11.2026; WKR_ANNAHMEN `probeLinkerKnopf` …
+`uebungListenDesRegelwerks`):
 
-- **Q1 Probe**: erster Schritt = linker Knopf der ersten zweibojigen Zeile (gate135 „Tor 1 · H R“ – §5.3 nennt die
-  Regel „linker Knopf“, das Beispiel „H L“ widerspricht ihr; es gilt die Regel). Nach dem Zähler-Schritt heißt der
-  letzte Schritt „Abschicken“ (die Berührungen stehen noch im Entwurf).
-- **Q2 Klassenwechsel-Band** unter der Starterkarte über dem Anfang der Mitte (absolut): Nummer bleibt lesbar, nichts
-  rutscht, Tipps auf dem Band fängt es ab; nicht beim ersten Start, nicht in der Korrektur.
-- **Q3 Zähler am Höchstwert**: „höchstens 9×“ steht dauerhaft im Knopf statt einer kurzen Meldung (die verschöbe).
-- **Q4 Seite je Start und Teil** im Gedächtnis der Maske (gedaechtnis.ts `wege`, nur Arbeitsspeicher); eine Korrektur
-  beginnt auf „Hinweg“.
-- **Q5 Beschriftung**: Boje ohne Unterspalte (Speedboje, Parallel 1–5) „Berührt“; in Texten die 2. Durchfahrt mit
-  „(2. Durchf.)“; Texte in der Folge der Maske.
-- **Q6 Ohne Umschalter** beide Wege untereinander mit Kopfzeilen HINWEG/RÜCKWEG.
-- **Q7 Übung**: nur Listen des gewählten Regelwerks (Parallelslalom nur UIM, hasParallel); Wechsel auf DM → Tor 5.
+- **Q1 Probe** *(bestätigt 21.11.2026, W4-21)*: erster Schritt = linker Knopf der ersten zweibojigen Zeile (gate135 „Tor
+  1 · H R“ – §5.3 nennt die Regel „linker Knopf“, das Beispiel „H L“ widerspricht ihr; es gilt die Regel). Nach dem
+  Zähler-Schritt heißt der letzte Schritt „Abschicken“ (die Berührungen stehen noch im Entwurf).
+- **Q2 Klassenwechsel-Band** *(NICHT bestätigt – W4-13, §14)* unter der Starterkarte über dem Anfang der Mitte
+  (absolut): Nummer bleibt lesbar, nichts rutscht, Tipps auf dem Band fängt es ab; nicht beim ersten Start, nicht in der
+  Korrektur.
+- **Q3 Zähler am Höchstwert** *(bestätigt 21.11.2026, W4-20)*: „höchstens 9×“ steht dauerhaft im Knopf statt einer
+  kurzen Meldung (die verschöbe).
+- **Q4 Seite je Start und Teil** *(bestätigt 21.11.2026, W4-19)* im Gedächtnis der Maske (gedaechtnis.ts `wege`, nur
+  Arbeitsspeicher); eine Korrektur beginnt auf „Hinweg“.
+- **Q5 Beschriftung** *(bestätigt 21.11.2026, W4-16)*: Boje ohne Unterspalte (Speedboje, Parallel 1–5) „Berührt“; in
+  Texten die 2. Durchfahrt mit „(2. Durchf.)“; Texte in der Folge der Maske.
+- **Q6 Ohne Umschalter** *(bestätigt 21.11.2026, W4-17)* beide Wege untereinander mit Kopfzeilen HINWEG/RÜCKWEG.
+- **Q7 Übung** *(bestätigt 21.11.2026, W4-22)*: nur Listen des gewählten Regelwerks (Parallelslalom nur UIM,
+  hasParallel); Wechsel auf DM → Tor 5.
 
-Beim Bau W4.3 (21.11.2026, noch zu bestätigen; WKR_ANNAHMEN `nichtVorbei` … `nichtVorbeiUebung`):
+Beim Bau W4.3 (21.11.2026, Ablauf bestätigt 21.11.2026, Form überholt durch W3-17; WKR_ANNAHMEN `nichtVorbei` …
+`nichtVorbeiUebung`):
 
-- **R1 Wo es nicht gilt**: dort, wo X gilt (`xListen`/`xTeil`, F5) – Vorsteg und Steg-Ablegen; ein Gerät für den
-  ganzen Steg schickt es nur mit Teil `an`, die Maske bietet es nur im Reiter „Anlegen“ an. Eigener Code
-  `nv-nicht-erlaubt` (nicht `teil-fremd`), damit das Gerät den Grund als Satz zeigen kann.
-- **R2 Nur direkt**: Das Kennzeichen entsteht nur, wenn die Zeile direkt übernommen wird. Wird sie Rückfrage (Start nicht
-  gezeigt) oder Vorschlag (Papier, abgeschlossen), entscheidet der Bediener nur über den Haken.
-- **R3 Aufheben**: jede spätere Zeile desselben Starts und Teils ohne `n` (auch eine leere Korrektur „doch vorbei,
-  fehlerfrei“ – das Gerät schickt sie dafür auch ohne geänderte Werte; eine ganze Steg-Zeile hebt auch das Anlegen auf)
-  und eigene Werte der Liste in der Zelle, gleich auf welchem Weg (reducer.ts nach jeder Änderung von `eingaben`, am
-  Steg nur die Felder des Anlegens). Der Haken bleibt.
-- **R4 Matrix**: Zellstand `nv` nach Rückfrage und Vorschlag, vor dem Haken; „⊘“ mit dem Wort „nicht vorbei“, gelb
-  über `--rueckstand`; am Steg Anlegen ⊘ + Ablegen ✓ = ⊘, sonst ½. In der Erfassung „Papier ansehen“ (am Steg an den
-  Zellen des Anlegens). Kein Rückstand, die Start-Freigabe warnt nicht.
-- **R5 Abschluss**: Der Bedienrechner nennt je Abschluss die Startnummern mit Kennzeichen in diesem Punkt (gelesen,
-  nicht im Abschluss gespeichert – das Kennzeichen kann später fallen); die Prüfansicht des Geräts zählt sie aus dem
-  eigenen Ausgang („1 nicht vorbeigekommen: 27“, Zeile „⊘ nicht vorbeigekommen“ ohne Punkte).
-- **R6 Angebot am Gerät**: nur beim gezeigten Start, nicht in der Korrektur und nicht in der Probe; es verwirft einen
-  Entwurf dieses Starts; danach dasselbe Overlay wie beim Abschicken. Eine Korrektur einer ⊘-Zeile beginnt leer
-  (Dialog: alt „⊘ nicht vorbeigekommen“ → neu).
-- **R7 Verlauf**: ein Bündel nur aus ⊘-Zeilen heißt `wkrNichtVorbei`, gemischte bleiben „Werte vom Gerät“.
-- **R8 Übung**: wie echt (Zuletzt, Prüfansicht, erledigt den Start), keine Beispiel-Rückfrage auf einer ⊘-Zeile.
+- **R1 Wo es nicht gilt** *(bestätigt 21.11.2026, W4-28)*: dort, wo X gilt (`xListen`/`xTeil`, F5) – Vorsteg und
+  Steg-Ablegen; ein Gerät für den ganzen Steg schickt es nur mit Teil `an`, die Maske bietet es nur im Reiter „Anlegen“
+  an. Eigener Code `nv-nicht-erlaubt` (nicht `teil-fremd`), damit das Gerät den Grund als Satz zeigen kann.
+- **R2 Nur direkt** *(bestätigt 21.11.2026, W4-29)*: Das Kennzeichen entsteht nur, wenn die Zeile direkt übernommen
+  wird. Wird sie Rückfrage (Start nicht gezeigt) oder Vorschlag (Papier, abgeschlossen), entscheidet der Bediener nur
+  über den Haken.
+- **R3 Aufheben** *(bestätigt 21.11.2026, W4-30)*: jede spätere Zeile desselben Starts und Teils ohne `n` (auch eine
+  leere Korrektur „doch vorbei, fehlerfrei“ – das Gerät schickt sie dafür auch ohne geänderte Werte; eine ganze
+  Steg-Zeile hebt auch das Anlegen auf) und eigene Werte der Liste in der Zelle, gleich auf welchem Weg (reducer.ts nach
+  jeder Änderung von `eingaben`, am Steg nur die Felder des Anlegens). Der Haken bleibt.
+- **R4 Matrix** *(bestätigt 21.11.2026, W4-31)*: Zellstand `nv` nach Rückfrage und Vorschlag, vor dem Haken; „⊘“ mit dem
+  Wort „nicht vorbei“, gelb über `--rueckstand`; am Steg Anlegen ⊘ + Ablegen ✓ = ⊘, sonst ½. In der Erfassung „Papier
+  ansehen“ (am Steg an den Zellen des Anlegens). Kein Rückstand, die Start-Freigabe warnt nicht.
+- **R5 Abschluss** *(bestätigt 21.11.2026, W4-32)*: Der Bedienrechner nennt je Abschluss die Startnummern mit
+  Kennzeichen in diesem Punkt (gelesen, nicht im Abschluss gespeichert – das Kennzeichen kann später fallen); die
+  Prüfansicht des Geräts zählt sie aus dem eigenen Ausgang („1 nicht vorbeigekommen: 27“, Zeile „⊘ nicht vorbeigekommen“
+  ohne Punkte).
+- **R6 Angebot am Gerät** *(bestätigt 21.11.2026, W4-33)*: nur beim gezeigten Start, nicht in der Korrektur und nicht in
+  der Probe; es verwirft einen Entwurf dieses Starts; danach dasselbe Overlay wie beim Abschicken. Eine Korrektur einer
+  ⊘-Zeile beginnt leer (Dialog: alt „⊘ nicht vorbeigekommen“ → neu).
+- **R7 Verlauf** *(bestätigt 21.11.2026, W4-34)*: ein Bündel nur aus ⊘-Zeilen heißt `wkrNichtVorbei`, gemischte bleiben
+  „Werte vom Gerät“.
+- **R8 Übung** *(bestätigt 21.11.2026, W4-35)*: wie echt (Zuletzt, Prüfansicht, erledigt den Start), keine
+  Beispiel-Rückfrage auf einer ⊘-Zeile.
 
 ## 11. Stand nach W4.3 (21.11.2026)
 
@@ -409,16 +422,18 @@ W4 ist gebaut, nur gegen den nachgebauten Server und ohne echte Bildschirme gepr
   wkr/sicht.test.ts (F17), views/BetriebWkr.test.ts, src/GeraetWkr.test.ts „Nicht vorbeigekommen (W4.3)“,
   geraete/uebung.test.ts.
 - **Doku**: CLAUDE.md (Wurzel, src/wkr, src/geraete, src/components, src/state), docs/betrieb.md („Bojen“),
-  docs/feldtest.md („Bojen-Maske (W4)“), docs/entscheidungen.md (W4, P1–P17/Q1–Q7/R1–R8 noch zu bestätigen),
+  docs/feldtest.md („Bojen-Maske (W4)“), docs/entscheidungen.md (W4, P1–P17/Q1–Q7/R1–R8; beantwortet 21.11.2026 abends),
   docs/vorschlag-wkr-erfassung.md (Stand, §7, §11).
 
 Offen nach W4: Feldtest (Bojen-Punkte, zwei Boote im Parcours, Seiten bei Blick rechts/links, Klasse 7 auf kleinem
-Handy), Bestätigung der Auslegungen P1–P17, Q1–Q7, R1–R8, S1–S5; W5 (Pad quer, Bild, zwei Listen, Racecourse A|B,
+Handy), Bestätigung der Auslegungen (seit 21.11.2026 abends nur noch P15 und U/V offen, §14); W5 (Pad quer, Bild, zwei
+Listen, Racecourse A|B,
 Knoten, Zeit).
 
 ## 12. Prüfbefunde W4 (21.11.2026)
 
-Acht Befunde, alle geprüft und behoben; Auslegungen S1–S5 datiert in `WKR_ANNAHMEN` (noch zu bestätigen).
+Acht Befunde, alle geprüft und behoben; Auslegungen S1–S5 datiert in `WKR_ANNAHMEN`, bestätigt 21.11.2026 (S1 W4-23,
+S2 W4-24, S3 W4-25, S4 W4-20, S5 W4-26).
 
 | Befund | Behoben |
 |---|---|
@@ -435,7 +450,8 @@ Verworfen: keiner.
 
 ## 13. Nutzer 21.11.2026: Disq. an der Boje, Ansicht „Wie der Parcours liegt“
 
-Zwei Wünsche nach dem Handy-Test, gebaut 21.11.2026, Auslegungen datiert in `WKR_ANNAHMEN` (noch zu bestätigen):
+Zwei Wünsche nach dem Handy-Test, gebaut 21.11.2026, Auslegungen datiert in `WKR_ANNAHMEN` (noch zu bestätigen; U2 ist
+seit 21.11.2026 abends überholt – W4-12, §14):
 
 - **Disq. an der Boje** („Was ist der Stand mit den Disq. und der Zuordnung an die Boje? Aktuell kann ich das noch
   nicht eingeben.“) – ersetzt P9. „Disq. an Boje …“ über den Bojen → Boje antippen → Buchstaben DIESER Zelle
@@ -455,3 +471,31 @@ Zwei Wünsche nach dem Handy-Test, gebaut 21.11.2026, Auslegungen datiert in `WK
 - Tests: wkr/maske.test.ts (Disq. an der Boje, wertGilt mit Buchstaben über alle Bojen-Positionen DM/UIM, nachLage),
   wkr/bojen.test.ts (Lage gegen alle Parcours-Bilder), geraete/ablage.test.ts (Bojen-Ansicht), src/GeraetWkr.test.ts
   („Disq. an der Boje“ Ende zu Ende, „Wie der Parcours liegt“, Probe mit sechs Schritten).
+
+## 14. Antworten des Nutzers 21.11.2026 abends (Fragenseite W4-01 … W4-35)
+
+Bestätigt mit „passt“: N11–N13 (W4-01 … -03), P1–P8, P11–P14, P16, P17 (W4-04 … -11, -14, -15, -18, -21, -22, -27),
+Q1, Q3–Q7 (W4-16 … -22), S1–S5 (W4-20, -23 … -26), R1–R8 (W4-28 … -35) – in `WKR_ANNAHMEN` je Eintrag „bestätigt
+21.11.2026 (Frage)“. W4-07 („ja“) mit Auftrag „steht die normale Bojenberührung im Regelwerk? Früher 10 Punkte je
+Boje“: geprüft 21.11.2026 – dm-2026.yaml `direktpunkte` 5 je Boje und Fahrtrichtung bzw. je Berührung an Tor 5
+(Reglement C5 b, c), uim-2026.yaml „Touching of a buoy“ 5; nirgends 10, P4 bleibt. Nicht gefragt: P15 (Sicht), U1–U4,
+V1, V2.
+
+Anders entschieden (noch nicht umgesetzt; Wortlaut in [entscheidungen.md](entscheidungen.md) „Antworten 21.11.2026
+abends (Runden 3–6)“):
+
+- **P9/U1/U2** (W4-12): Boje bzw. Tor bei einer Disq. **immer** abfragen und den Buchstaben in die Bojenspalte
+  schreiben; dieselbe Bojenzelle muss Punkte (5) UND einen Disq.-Buchstaben zugleich halten. §13 baute „Disq. an der
+  Boje“ mit Buchstabe STATT Punkten (U2). **Umgebaut 21.11.2026** (docs/plan-antworten-runde3-6.md §4, WKR_ANNAHMEN
+  BZ1–BZ5, noch zu bestätigen): Zellform „5J“ (sanitizeBuoy/bojenWert), U2 ersetzt durch `disqBojeMitPunkten`;
+  DISQ und „Disq. an Boje …“ öffnen die Ortswahl (components/wkr/WkrDisqOrt.vue: Bojen in Fahrtfolge + „Keine Boje /
+  ganzer Parcours“), der Buchstabe kommt zu den Punkten, die Boje nimmt weiter Tipps; Probe übt Punkt + Buchstabe.
+- **P10/Q2** (W4-13): Band „Klasse n – andere Halte“ nur beim ersten Start einer neuen Klasse; beim Hochwischen soll
+  die Parcours-Zeichnung mit angezeigt werden. Lage des Bands (unter der Karte) passt. **Umgebaut 21.11.2026**
+  (plan-antworten-runde3-6.md §5, GF9, noch zu bestätigen): Band nur beim ersten Start einer Klasse im Punkt, Zeichnung
+  der Klasse unter den Knöpfen (components/wkr/WkrParcoursBild.vue, Sicht `bild`).
+- **P16/R1–R8** (W3-17): Der Ablauf ist bestätigt, die Form nicht – „nicht vorbeigekommen“ ist Disq. J (Parcours
+  verlassen bzw. falscher Parcours), kein eigenes Kennzeichen ⊘. Beim Umbau zu klären (Auslegung, noch zu
+  bestätigen): unter UIM heißt J „Error doing the circuit“; ob J wie R1 nur dort angeboten wird, wo es Bojen bzw. den
+  Parcours gibt (DM-J: Bereiche `parcours`, `mueb`). **Umgebaut 21.11.2026** (GF10/GF11, noch zu bestätigen): J ins Disq.-Feld,
+  wo die Liste J kennt (wkr/nichtVorbei.ts nichtVorbeiArt), sonst (Steg-Anlegen) weiter ⊘; alte ⊘ bleiben.

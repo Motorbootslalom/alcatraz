@@ -10,7 +10,9 @@ start release.
 
 ## Dateien
 
-- `annahmen.ts` – BETRIEB_ANNAHMEN: alle Auslegungen mit Datum, an EINER Stelle (Muster PARALLEL_ANNAHMEN).
+- `annahmen.ts` – BETRIEB_ANNAHMEN: alle Auslegungen mit Datum, an EINER Stelle (Muster PARALLEL_ANNAHMEN). Seit
+  21.11.2026 Auto-Modus der Parcours-Ampel: autoVorgabe (aus), autoVerzugSek 3, autoAnhaltenLokal, keineAmpelAufTafel
+  (AM6–AM8, noch zu bestätigen; die Ampel selbst: wkr/ampel.ts, WKR_ANNAHMEN AM1–AM5).
 - `folge.ts` – Kennungen (refKey/liesRef, istPunktId, laufPunkt), bereicheZumStand (alle bzw. `{anzeige:true}`),
   programm (lauf:1..n; „nacheinander“ nur lauf:1), abgeleiteteFolge (Verzahnung, Entfallene mit `entfaellt`),
   startfolge (= abgeleitet + Schnappschuss), spurenVon (Spur-Anordnung), lage (aktuell, vorig, Zeiger, offen, frei,
@@ -78,6 +80,10 @@ start release.
 - Startliste (E3): BetriebView `startliste` → je Bereich StartListe(sicht, bereich, jetzt aus useUhr(1000)) →
   wartezeiten() je Render. Ziehen auf einen offenen Start = BETRIEB_VERSCHIEBEN {vor} (nach oben) bzw. {nach} (nach
   unten), dazu das Menü „Verschieben …“ (verschiebeZiele, wie BetriebsFolge) – BETRIEB_ANNAHMEN.ziehenInDerStartliste.
+- Parcours-Ampel (Nutzer 21.11.2026, P-03): BETRIEB_DURCHFAHRT {bereich, ref, an} = „Durchs Start-Tor“ bzw. „Doch nicht
+  durch“, nur für den gezeigten Start (`ref` = letzter gezeigter), ZEIGEN und ZURUECK nehmen `durchfahrt` mit weg.
+  Abgeleitet wird alles in wkr/ampel.ts; Start-Freigabe zeigt sie aus `erfassung` (Freigabe-Sicht fv 2). sv bleibt 6 –
+  die Ampel steht nie in sichtOeffentlich/sichtZuschauer (wkr/sicht.test.ts „Parcours-Ampel“).
 - Parallelslalom (E4): BETRIEB_BEGINNEN {punkt: `runde:<runde>`}, ZEIGEN/ZURUECK/MELDUNG/AB wie sonst. ZURUECKSTELLEN
   nimmt die offenen Attempts des Paares mit, EINREIHEN und gezieltes ZEIGEN eines zurückgestellten holen die wartenden
   in Attempt-Folge mit (paarStarts). AUSSETZEN, VORZIEHEN, KLASSE_VOR, VERSCHIEBEN ändern dort nichts (umstellenErlaubt);

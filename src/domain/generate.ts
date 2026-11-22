@@ -35,13 +35,27 @@ export const BEISPIEL_STARTERZAHL: Readonly<Record<BeispielFeldArt, readonly [nu
 }
 
 /**
- * Die Art des Felds aus Art und Herkunft der Veranstaltung. Auslegung vom 21.11.2026 (noch zu bestätigen):
- * Die Clubmeisterschaft geht vor (gleich welche Herkunft); eine Meisterschaft ohne Herkunft zählt wie eine
- * mit Vereinen – genannt hat der Nutzer sie nicht.
+ * Die Art des Felds aus Art und Herkunft der Veranstaltung. Auslegung vom 21.11.2026: Die Clubmeisterschaft
+ * geht vor (gleich welche Herkunft); eine Meisterschaft ohne Herkunft zählt wie eine mit Vereinen – genannt
+ * hat der Nutzer sie nicht. Nutzer 21.11.2026 (Fragenseite R6-01): „Clubmeisterschaft ist eine Meisterschaft
+ * ohne Vereine, jedoch mit mehreren Klassen auf einem Blatt.“ Daraus (21.11.2026): Die Größe 10–20 bleibt
+ * (vom Nutzer so genannt); die Starter bekommen keine Herkunft (beispielHerkunft, BS1); mehrere Klassen auf
+ * einem Blatt sind die gemeinsamen WKR-Bögen der Clubmeisterschaft (lib/wkrListen.ts, „Papier sparen“) –
+ * die Wertungslisten bleiben je Klasse (Rangliste je Klasse, Entscheidung 12.11.2026).
  */
 export function beispielFeldArt(eventKind: EventKind, originMode: OriginMode): BeispielFeldArt {
   if (eventKind === 'club') return 'club'
   return originMode === 'bundesland' || originMode === 'land' ? 'land' : 'verein'
+}
+
+/**
+ * Die Herkunft der Beispielstarter: die der Veranstaltung (Entscheidung 15.11.2026) – außer bei der
+ * Clubmeisterschaft. Auslegung BS1 vom 21.11.2026 (noch zu bestätigen, aus R6-01 „ohne Vereine“): Dort
+ * bekommen sie nie eine Herkunft, auch wenn die Veranstaltung nach dem Wechsel zur Clubmeisterschaft
+ * (SET_EVENT_KIND setzt „ohne“) von Hand wieder eine bekommen hat. Die Einstellung selbst bleibt, wie gewählt.
+ */
+export function beispielHerkunft(eventKind: EventKind, originMode: OriginMode): OriginMode {
+  return eventKind === 'club' ? 'none' : originMode
 }
 
 /** Eine Gesamtzahl im Bereich der Art, gleichverteilt aus `zufall` (aus einer Saat, lib/beispielwerte.ts zufallAus). */
@@ -54,7 +68,8 @@ export function beispielGesamt(art: BeispielFeldArt, zufall: () => number): numb
  * Verteilt `gesamt` Starter nach BEISPIEL_KLASSEN_ANTEILE auf die Klassen – Verfahren der größten Reste,
  * damit die Summe genau stimmt. Gleiche Reste: die Klasse mit dem größeren Anteil zuerst, dann die
  * Folge der Klassen. Kleine Felder dürfen in einer Klasse 0 haben (meist E). Eine Klasse ohne Anteil
- * (eigenes Regelwerk) bekommt den Durchschnitt.
+ * (eigenes Regelwerk) bekommt den Durchschnitt. Unter UIM dieselbe Gesamtzahl auf die Klassen des
+ * Regelwerks – bestätigt 21.11.2026 (Fragenseite R6-04).
  */
 export function verteileAufKlassen(gesamt: number, klassen: readonly ClassId[]): Record<ClassId, number> {
   const ergebnis = {} as Record<ClassId, number>

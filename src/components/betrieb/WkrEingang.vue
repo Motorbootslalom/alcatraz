@@ -19,6 +19,8 @@ import { punktText, punktVon, uhrzeitText } from './texte'
  * Start nicht gezeigt, Buchstabe fiele weg; Liste abgeschlossen, Start auf Papier). Ein „X“ (nicht gestartet) vom
  * Gerät ist hervorgehoben (F5) – es nimmt den Starter aus der Wertung des Laufs. „Nicht vorbeigekommen“ steht als
  * „⊘ nicht vorbeigekommen“ am Kopf (W4.3, Prüfbefund 21.11.2026); erst die Entscheidung für das Gerät setzt es.
+ * Hat der WKR auf dem Gerät „So lassen“ gewählt, steht „WKR: so lassen (14:03)“ am Kopf (Nutzer 21.11.2026, W3-35,
+ * WKR_ANNAHMEN GF5) – die Rückfrage bleibt offen, der Bediener entscheidet wie bisher.
  *
  * Gerätenamen stehen nie im Stand (F10): Sie kommen nur aus dem Register des Hosts über die Geräte-ID der Zeile
  * (`geraetVonZeile`); ein Gerät, das es dort nicht mehr gibt, heißt „entkoppeltes Gerät“. Werte zeigt nur der
@@ -66,6 +68,8 @@ interface Gruppe {
   kopf: string
   /** „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): sonst sähe die Zeile wie ein bloßer Haken aus. */
   nv: boolean
+  /** „So lassen“ vom Gerät (Nutzer 21.11.2026, W3-35, GF5): Zeit des ersten Vermerks der Zeile, sonst null. */
+  soLassen: number | null
   zellen: { rf: WkrRueckfrage; label: string; x: boolean }[]
 }
 
@@ -74,7 +78,8 @@ const gruppen = computed<Gruppe[]>(() => {
   for (const rf of state.value.wkr.rueckfragen) {
     const key = `${rf.zeile}|${rf.lauf}|${rf.starter}`
     let g = out.get(key)
-    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), nv: !!rf.nichtVorbei, zellen: [] }))
+    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), nv: !!rf.nichtVorbei, soLassen: null, zellen: [] }))
+    if (rf.soLassen !== undefined && (g.soLassen === null || rf.soLassen < g.soLassen)) g.soLassen = rf.soLassen
     const f = felderVon(rf.liste, rf.starter).find((x) => x.kennung === rf.feld)
     g.zellen.push({ rf, label: f?.label ?? rf.feld, x: istX(f, rf.wert) })
   }
@@ -128,6 +133,8 @@ function alle(g: Gruppe, wahl: 'geraet' | 'behalten'): void {
           <div class="wkr-eingang-kopf">
             <strong>{{ g.kopf }}</strong>
             <span v-if="g.nv" class="wkr-nv" data-teil="wkr-nv">⊘ {{ t('betrieb.wkr.eingang.nichtVorbei') }}</span>
+            <!-- W3-35 (21.11.2026): Der WKR hat „So lassen“ gewählt – Feedback für den Bediener; entscheiden muss er weiter. -->
+            <span v-if="g.soLassen !== null" class="wkr-so-lassen" data-teil="wkr-so-lassen">{{ t('betrieb.wkr.eingang.soLassen', { zeit: uhrzeitText(g.soLassen) }) }}</span>
             <template v-if="g.zellen.length > 1">
               <button type="button" class="btn sm" data-action="wkr-alle-geraet" @click="alle(g, 'geraet')">{{ t('betrieb.wkr.alleGeraet') }}</button>
               <button type="button" class="btn sm" data-action="wkr-alle-behalten" @click="alle(g, 'behalten')">{{ t('betrieb.wkr.alleBehalten') }}</button>

@@ -281,7 +281,7 @@ describe('Veranstaltung', () => {
       await feld.setValue(String(n))
       await feld.trigger('change')
     }
-    const zahlen = (wrapper: ReturnType<typeof mount>) => block(wrapper).findAll('.class-count .beispiel-zahl').map((z) => Number(z.text()))
+    const zahlen = (wrapper: ReturnType<typeof mount>) => block(wrapper).findAll<HTMLInputElement>('.class-count input[data-feld^="beispiel-klasse|"]').map((z) => Number(z.element.value))
 
     it('der Block steht am Ende der Ansicht und ist zugeklappt, solange keine Beispieldaten geladen sind', () => {
       const wrapper = zeige()
@@ -337,7 +337,7 @@ describe('Veranstaltung', () => {
       expect(gesamt(wrapper)).toBeLessThanOrEqual(75)
       expect(block(wrapper).find('[data-hinweis="beispiel-gesamt"]').text()).toContain('45–75')
       expect(zahlen(wrapper).reduce((a, b) => a + b, 0)).toBe(gesamt(wrapper))
-      // „Neu ziehen“ bleibt im Bereich.
+      // „Vorschlag neu“ bleibt im Bereich.
       for (let i = 0; i < 10; i++) {
         await block(wrapper).find('[data-action="beispiel-gesamt-neu"]').trigger('click')
         expect(gesamt(wrapper)).toBeGreaterThanOrEqual(45)
@@ -360,10 +360,75 @@ describe('Veranstaltung', () => {
       expect(store.state.value.starters).toHaveLength(12)
       wrapper.unmount()
       // Über das Neuladen (sessionStorage) und den Wechsel der Ansicht: dieselbe Zahl.
-      expect(JSON.parse(sessionStorage.getItem('alcatraz.merke.beispiel.gesamt') ?? 'null')).toEqual({ art: 'club', n: 12 })
+      expect(JSON.parse(sessionStorage.getItem('alcatraz.merke.beispiel.klassen') ?? 'null')).toEqual({ art: 'club', gesamt: 12, klassen: { E: 0, 1: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 2 } })
       const wieder = zeige()
       expect(gesamt(wieder)).toBe(12)
       wieder.unmount()
+      vergissAlles()
+    })
+
+    // R6-02 (Nutzer 21.11.2026): „Es sollte weiterhin möglich sein, eine Anzahl pro Klasse festzulegen“ –
+    // die Gesamtzahl ist der Vorschlag; BS2 „Vorschlag neu“, BS3 neue Gesamtzahl verteilt neu (noch zu bestätigen).
+    it('Zahl je Klasse festlegbar: eine Klasse auf 0, eine andere höher; Summe daneben; „Vorschlag neu“ und neue Gesamtzahl verteilen neu', async () => {
+      vergissAlles()
+      const wrapper = zeige()
+      const klasse = (k: string) => block(wrapper).find(`[data-feld="beispiel-klasse|${k}"]`)
+      const setzeKlasse = async (k: string, n: string) => {
+        await klasse(k).setValue(n)
+        await klasse(k).trigger('change')
+      }
+      const summe = () => block(wrapper).find('[data-hinweis="beispiel-summe"]').text()
+      await setzeGesamt(wrapper, 48)
+      expect(zahlen(wrapper)).toEqual([2, 5, 6, 7, 7, 9, 5, 7])
+      expect(summe()).toBe('zusammen 48 (Vorschlag 48)')
+      expect(block(wrapper).find('[data-action="beispiel-gesamt-neu"]').text()).toBe('Vorschlag neu')
+      await setzeKlasse('E', '0')
+      await setzeKlasse('7', '12')
+      expect(zahlen(wrapper)).toEqual([0, 5, 6, 7, 7, 9, 5, 12])
+      expect(summe()).toBe('zusammen 51 (Vorschlag 48)')
+      // Ungültiges wird zu einer Zahl im Bereich 0–999.
+      await setzeKlasse('6', '-3')
+      expect(zahlen(wrapper)[6]).toBe(0)
+      await setzeKlasse('6', '5')
+      // Über den Wechsel der Ansicht bleibt es stehen; erzeugt werden genau diese Zahlen.
+      wrapper.unmount()
+      const wieder = zeige()
+      expect(zahlen(wieder)).toEqual([0, 5, 6, 7, 7, 9, 5, 12])
+      await block(wieder).find('[data-action="beispielstarter"]').trigger('click')
+      expect(store.state.value.starters).toHaveLength(51)
+      expect(store.state.value.starters.filter((p) => p.klasse === 'E')).toHaveLength(0)
+      expect(store.state.value.starters.filter((p) => p.klasse === '7')).toHaveLength(12)
+      // BS3: Eine neue Gesamtzahl verteilt neu – die Zahlen von Hand gehen.
+      await setzeGesamt(wieder, 48)
+      expect(zahlen(wieder)).toEqual([2, 5, 6, 7, 7, 9, 5, 7])
+      // BS2: „Vorschlag neu“ setzt Gesamtzahl und Klassen neu (Summe = Gesamtzahl, im Bereich 45–75).
+      await block(wieder).find('[data-feld="beispiel-klasse|E"]').setValue('30')
+      await block(wieder).find('[data-feld="beispiel-klasse|E"]').trigger('change')
+      await block(wieder).find('[data-action="beispiel-gesamt-neu"]').trigger('click')
+      const n = Number((block(wieder).find('[data-feld="beispiel-gesamt"]').element as HTMLInputElement).value)
+      expect(n).toBeGreaterThanOrEqual(45)
+      expect(n).toBeLessThanOrEqual(75)
+      expect(zahlen(wieder).reduce((a, b) => a + b, 0)).toBe(n)
+      expect(zahlen(wieder)[0]).toBeLessThan(30)
+      wieder.unmount()
+      vergissAlles()
+    })
+
+    // R6-01 (Nutzer 21.11.2026): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine“ – BS1, noch zu bestätigen.
+    it('Clubmeisterschaft: Beispielstarter ohne Herkunft, auch wenn die Veranstaltung danach wieder eine bekam', async () => {
+      store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+      expect(store.state.value.originMode).toBe('none')
+      store.dispatch({ type: 'SET_ORIGIN_MODE', originMode: 'verein' })
+      const wrapper = zeige()
+      await setzeGesamt(wrapper, 15)
+      expect(block(wrapper).find('[data-hinweis="beispiel-herkunft"]').text()).toContain('ohne Vereine')
+      expect(block(wrapper).find('[data-feld="beispiel-herkuenfte"]').attributes('disabled')).toBeDefined()
+      await block(wrapper).find('[data-action="beispielstarter"]').trigger('click')
+      expect(store.state.value.starters).toHaveLength(15)
+      expect(store.state.value.starters.every((p) => p.verein === '' && p.bundesland === '' && p.land === undefined)).toBe(true)
+      // Die Einstellung der Veranstaltung bleibt, wie gewählt.
+      expect(store.state.value.originMode).toBe('verein')
+      wrapper.unmount()
       vergissAlles()
     })
 

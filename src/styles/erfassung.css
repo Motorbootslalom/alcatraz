@@ -255,7 +255,10 @@
   border-right-style: solid;
 }
 
-/* Eingabefelder: füllen die Zelle, ohne eigenen Rahmen – das Gitter ist der Rahmen. */
+/*
+ * Eingabefelder: füllen die Zelle, ohne eigenen Rahmen – das Gitter ist der Rahmen. 44 px reichen für eine Bojenzelle
+ * mit Punkten und Disq.-Buchstabe („10G“ an Tor 5, W4-12, 21.11.2026 geprüft) – keine eigene Breite nötig.
+ */
 .erf-feld {
   display: block;
   box-sizing: border-box;

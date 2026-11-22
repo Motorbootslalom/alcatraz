@@ -15,6 +15,12 @@ describe('migrate', () => {
     expect(migrate({ starters: [], beispielStarter: true })!.beispielStarter).toBe(false)
   })
 
+  it('Bojenzellen alter Stände („5“, „J“) und neue („5J“, „10G“, W4-12 21.11.2026) laden unverändert – keine Migration', () => {
+    const eingaben = { 'manoevrieren/1': { a: { 't1a|hin seiteA': '5', 't1a|hin seiteB': 'J', 't3a|hin seiteA': '5J', 't5|hin seiteA': '10G' } } }
+    const m = migrate({ ...emptyState(), starters: [{ id: 'a', klasse: '4', nachname: 'Nach1' }], eingaben })!
+    expect(m.eingaben).toEqual(eingaben)
+  })
+
   it('lehnt Unbrauchbares ab', () => {
     expect(migrate(null)).toBeNull()
     expect(migrate('x')).toBeNull()
@@ -496,7 +502,7 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
         [steg]: { modus: 'digital', status: 'aktiv', seit: 1, pausen: [], teile: { ab: { status: 'abgemeldet', pausen: [{ von: 2, bis: null, papier: ['k'] }] }, an: { status: 'weg', pausen: [] }, mitte: { status: 'aktiv', pausen: [] } } },
         [liste]: { modus: 'digital', status: 'aktiv', seit: 1, pausen: [], teile: { ab: { status: 'pausiert', pausen: [] } } },
       },
-      rueckfragen: [rf('a', { id: 'x1', grund: 'start', vereinige: { vorher: '' } }), rf('a', { id: 'x2', vereinige: { vorher: '' } }), rf('a', { id: 'x3', grund: 'start', vereinige: { vorher: 5 } })],
+      rueckfragen: [rf('a', { id: 'x1', grund: 'start', vereinige: { vorher: '' }, soLassen: 12 }), rf('a', { id: 'x2', vereinige: { vorher: '' }, soLassen: 'gestern' }), rf('a', { id: 'x3', grund: 'start', vereinige: { vorher: 5 } })],
       abschluss: {
         [steg]: { 'lauf:1|ab': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] }, 'lauf:1|mitte': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] } },
         [liste]: { 'lauf:1|ab': { name: 'Vor1', zeit: 9, abweichend: [], papier: [] }, 'lauf:1': { name: 'Vor2', zeit: 9, abweichend: [], papier: [] } },
@@ -505,6 +511,8 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
     const m = migrate({ starters, wkr })!.wkr
     expect(m.listen[steg]).toEqual({ modus: 'digital', status: 'aktiv', seit: 1, pausen: [], teile: { ab: { status: 'abgemeldet', pausen: [{ von: 2, bis: null, papier: ['k'] }] } } })
     expect(m.listen[liste]).toEqual({ modus: 'digital', status: 'aktiv', seit: 1, pausen: [] })
+    // „So lassen“ (W3-35, 21.11.2026): nur eine Zahl bleibt.
+    expect(m.rueckfragen.map((r) => r.soLassen)).toEqual([12, undefined, undefined])
     expect(m.rueckfragen.map((r) => [r.id, r.vereinige])).toEqual([
       ['x1', { vorher: '' }],
       ['x2', undefined],

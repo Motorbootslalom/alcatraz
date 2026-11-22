@@ -1,3 +1,4 @@
+import type { GeraeteTyp } from './transport/protokoll'
 import type { AppState, BereichId, ClassId, Meldung, VerschiebeZiel, WkrStatus, WkrZeile } from '../types'
 import type { Konfig } from '../config/konfig'
 import type { BetriebAenderung } from '../state/reducer/betrieb'
@@ -36,14 +37,14 @@ export type Aufgabe =
   | { art: 'startfreigabe'; bereiche: BereichId[] }
   /**
    * WKR-Liste erfassen (W1): Listen-Kennung (wkr/liste.ts), am Steg wahlweise nur Ablegen oder Anlegen (F16; ohne
-   * `teil` der ganze Steg). Höchstens {@link LISTEN_JE_GERAET} je Gerät (F15: Handy eine, Pad höchstens zwei).
+   * `teil` der ganze Steg). Höchstens {@link LISTEN_JE_GERAET} je Gerät (W3-03: Handy eine, Pad zwei nur empfohlen).
    */
   | {
       art: 'liste'
       liste: string
       teil?: ListenTeil
       /**
-       * Maskenvorgabe des Bedienrechners (F14, W3 G4, 21.11.2026, noch zu bestätigen): welche Maske das Gerät zeigt.
+       * Maskenvorgabe des Bedienrechners (F14, W3 G4, 21.11.2026, bestätigt 21.11.2026): welche Maske das Gerät zeigt.
        * Fehlt = `knoepfe`; W3 kennt nur sie, der Host schickt das Feld erst, wenn es eine zweite Maske gibt (W5/W6).
        */
       maske?: MaskenArtVorgabe
@@ -57,8 +58,15 @@ export type MaskenArtVorgabe = (typeof MASKEN_VORGABEN)[number]
 
 export type ListenAufgabe = Extract<Aufgabe, { art: 'liste' }>
 
-/** F15 (21.11.2026): ein Handy erfasst eine Liste, ein Pad höchstens zwei – mehr nimmt der Host nie an. */
-export const LISTEN_JE_GERAET = 2
+/**
+ * Obergrenze der Listen je Gerät – mehr nimmt der Host nie an. F15 (21.11.2026) hatte 2 (Handy eine, Pad zwei); seit
+ * dem Nutzer am 21.11.2026 (W3-03, WKR_ANNAHMEN GF8, noch zu bestätigen) ist „Handy eine, Pad zwei“ nur eine
+ * Empfehlung ({@link LISTEN_EMPFEHLUNG}): mehr Listen gehen, auf dem Pad nebeneinander, darüber als Reiter. Vier
+ * begrenzt Sicht-Abos und Schlüssel je Gerät (je Liste eine Gruppe).
+ */
+export const LISTEN_JE_GERAET = 4
+/** Empfohlene Listen je Geräteart (W3-03, GF8) – nur ein Hinweis in der Geräteliste, nie eine Grenze. */
+export const LISTEN_EMPFEHLUNG: Readonly<Record<GeraeteTyp, number>> = { handy: 1, pad: 2, rechner: 2 }
 
 /**
  * Was die Start-Freigabe darf – die Positivliste. Nicht darin: BETRIEB_ZURUECKSETZEN (räumt den Betrieb eines
@@ -76,7 +84,16 @@ export const STARTFREIGABE_ACTIONS = [
   'BETRIEB_KLASSE_VOR',
   'BETRIEB_VERSCHIEBEN',
   'BETRIEB_AB',
+  // Parcours-Ampel (Nutzer 21.11.2026, P-03): „Durchs Start-Tor“ gehört zur Start-Freigabe – auch auf dem Handy.
+  'BETRIEB_DURCHFAHRT',
 ] as const satisfies readonly BetriebAenderung['type'][]
+
+/**
+ * „Anhalten“ des Auto-Modus vom Freigabe-Handy (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN.autoAnhaltenLokal, AM7):
+ * eine Geräte-Nachricht der Art `action` mit {bereich, ref}, aber KEINE Reducer-Action und nicht in der Positivliste –
+ * der Host (host.ts nimmAn) fängt sie vorher ab und merkt sie sich nur im Arbeitsspeicher.
+ */
+export const AUTO_HALT = 'BETRIEB_AUTO_HALT'
 
 export type GeraeteBetriebAction = Extract<BetriebAenderung, { type: (typeof STARTFREIGABE_ACTIONS)[number] }>
 
@@ -181,6 +198,8 @@ export function bereinige(action: unknown): GeraeteBetriebAction | null {
       return { type: action.type, bereich, klasse: action.klasse, an: action.an }
     case 'BETRIEB_VORZIEHEN':
       return typeof action.an === 'boolean' ? { type: action.type, bereich, an: action.an } : null
+    case 'BETRIEB_DURCHFAHRT':
+      return istKennung(action.ref) && typeof action.an === 'boolean' ? { type: action.type, bereich, ref: action.ref, an: action.an } : null
     case 'BETRIEB_KLASSE_VOR':
       if (!istKlasse(action.klasse) || (action.vor !== null && !istKlasse(action.vor))) return null
       return { type: action.type, bereich, klasse: action.klasse, vor: action.vor as ClassId | null }
@@ -221,10 +240,11 @@ export function darf(action: unknown, aufgaben: readonly Aufgabe[], stand: Aufga
 
 /**
  * Was ein WKR-Gerät schicken darf – die Positivliste (Geräte-Arten, keine Reducer-Actions): Zeilen, Status der Liste
- * (pausieren, abmelden, weiter, F1), Abschluss eines Punkts (F7, F8). Modus, Rückfragen, Vorschläge und das Lösen
- * eines Abschlusses bleiben am Bedienrechner.
+ * (pausieren, abmelden, weiter, F1), Abschluss eines Punkts (F7, F8), „So lassen“ an einer Rückfrage (Nutzer
+ * 21.11.2026, W3-35: nur der Vermerk, nie die Entscheidung). Modus, Rückfragen, Vorschläge und das Lösen eines
+ * Abschlusses bleiben am Bedienrechner.
  */
-export const WKR_ACTIONS = ['WKR_ZEILEN', 'WKR_STATUS', 'WKR_ABSCHLUSS'] as const
+export const WKR_ACTIONS = ['WKR_ZEILEN', 'WKR_STATUS', 'WKR_ABSCHLUSS', 'WKR_SO_LASSEN'] as const
 export type WkrArt = (typeof WKR_ACTIONS)[number]
 
 function istWkrArt(action: unknown): boolean {
@@ -239,7 +259,7 @@ export interface WkrAblehnung {
 
 /** Ergebnis von {@link erlaubteWkr}: die Reducer-Action (`null`, wenn keine Zeile durchkam) und die Ablehnungen. */
 export interface WkrErlaubt {
-  action: Extract<WkrAenderung, { type: 'WKR_ZEILEN' | 'WKR_LISTE' | 'WKR_ABSCHLUSS' }> | null
+  action: Extract<WkrAenderung, { type: 'WKR_ZEILEN' | 'WKR_LISTE' | 'WKR_ABSCHLUSS' | 'WKR_SO_LASSEN' }> | null
   abgelehnt: WkrAblehnung[]
 }
 
@@ -298,6 +318,12 @@ export function erlaubteWkr(action: unknown, aufgaben: readonly Aufgabe[], stand
         action: { type: 'WKR_ABSCHLUSS', liste: kennung, punkt: action.punkt, name, pruefsummen, restPapier: action.restPapier, ...(aufgabe.teil ? { teil: aufgabe.teil } : {}) },
         abgelehnt: [],
       }
+    }
+    case 'WKR_SO_LASSEN': {
+      // Nur die Nummer der eigenen Zeile – die Geräte-ID kommt aus dem Register, so trifft es nie fremde Rückfragen.
+      const z = action.z
+      if (typeof z !== 'number' || !Number.isSafeInteger(z) || z < 1) return null
+      return { action: { type: 'WKR_SO_LASSEN', liste: kennung, zeile: `${geraet.id}.${z}` }, abgelehnt: [] }
     }
     default:
       return null

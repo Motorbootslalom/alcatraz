@@ -14,7 +14,8 @@ vi.mock('./lib/offline', async (original) => ({ ...(await original<typeof import
 describe('main.ts: Bedienfenster ohne geöffneten Raum', () => {
   it('baut keine Verbindung zu einem Server auf – auch nicht bei Bedienung des Betriebs', async () => {
     localStorage.clear()
-    localStorage.setItem(STATE_KEY, JSON.stringify({ ...festgeschrieben(betriebsStand()), kennung: 'MUSTERK1' }))
+    // Mit WKR-Einteilung (W3-13, 21.11.2026): Ein Name, der an die Geräte gehen könnte, öffnet trotzdem keinen Weg ins Netz.
+    localStorage.setItem(STATE_KEY, JSON.stringify({ ...festgeschrieben(betriebsStand()), kennung: 'MUSTERK1', einteilung: { par_1: { tor5: 'Erika Einteilung' } } }))
     legeRaumAn('ANDERE01', 'https://ntfy.example.org')
     location.hash = '#/betrieb'
     document.body.innerHTML = '<div id="app"></div>'
@@ -53,6 +54,10 @@ describe('main.ts: Bedienfenster ohne geöffneten Raum', () => {
       }
       await flushPromises()
     }
+    // Auch Betrieb → WKR (Name der Einteilung je Liste) verbindet nicht.
+    location.hash = '#/betrieb/wkr'
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    await flushPromises()
     // Auch der Unterreiter „Geräte“ verbindet nicht von selbst – erst sein Knopf „Gerätebetrieb einschalten“.
     location.hash = '#/betrieb/geraete'
     window.dispatchEvent(new HashChangeEvent('hashchange'))

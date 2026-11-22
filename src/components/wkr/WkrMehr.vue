@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { Locale } from '../../i18n'
-import type { AnsichtModus, BojenAnsicht, GeraetAnsicht } from '../../geraete/ablage'
+import type { AnsichtWahl, BojenAnsicht, GeraetAnsicht } from '../../geraete/ablage'
+import type { WkrNameLage } from '../../geraete/erfassen'
 import AppDialog from '../AppDialog.vue'
 import { useWkrText } from './texte'
 
 /**
  * „Mehr“ (W3.3/W3.4, Plan §5.1/§5.7/§5.8/§5.9): Bemerkung zum Start, der Status der Liste bzw. des eigenen Steg-Teils
- * (Pausieren, Abmelden mit Rückfrage, Weiter digital), „Liste abschließen“ (immer da, G16), die Ansicht (Sonne/Hell/
- * Dunkel, Linkshand; G1), die Sprache (F13/G9: Vorgabe die der Liste; schaltet die Bedientexte immer, Codes und
+ * (Pausieren, Abmelden mit Rückfrage, Weiter digital), die Ansicht (Wie Gerät/Sonne/Hell/
+ * Dunkel, Linkshand; G1, GF1), die Sprache (F13/G9: Vorgabe die der Liste; schaltet die Bedientexte immer, Codes und
  * Titel nur, wenn die Sicht `andere` trägt – sonst sagt ein Satz, warum sie bleiben), „Probe“ (G10) und in der Übung
  * „Übung verlassen“. Die Bemerkung zählt nicht als Tipp (H2) und geht mit der Zeile des Starts.
  * W4.3 (21.11.2026, P16/R6): „Nicht vorbeigekommen“ für den gezeigten Start (`nichtVorbei` = Startnummer, sonst nicht
@@ -18,6 +19,15 @@ import { useWkrText } from './texte'
  * Nutzer 21.11.2026 (WKR_ANNAHMEN V1/V2): Auf Bojen-Listen (`bojenAnsicht` ≠ null) steht unter „Ansicht“ die
  * Reihenfolge „Fahrtfolge“ / „Wie der Parcours liegt“, in der Lage-Ansicht „Start oben“ / „Start unten“, dazu „Bojen
  * links/rechts tauschen“ – Ereignis `bojenAnsicht`, gemerkt je Liste in WkrGeraet.
+ *
+ * W3-40 (Nutzer 21.11.2026, WKR_ANNAHMEN.abschlussNurBand, AM10): „Liste abschließen“ steht hier nicht mehr – es war
+ * unklar, warum man mitten im Lauf und für alle Klassen abschließen sollte. Abgeschlossen wird nur über das Band nach
+ * dem Lauf, das den Zweck nennt.
+ *
+ * W3-13 (Nutzer 21.11.2026, WKR_ANNAHMEN WN1/WN3): „Name“ – der Name des Wettkampfrichters dieser Liste, vorbelegt aus
+ * der Einteilung der Veranstaltung, hier jederzeit änderbar (Ereignis `wkrName`, WkrMaske → quelle.setzeWkrName). Weicht
+ * er ab, sagt ein Satz die Einteilung und ein Knopf stellt sie wieder her; ohne Einteilung fragt der Abschluss. Nicht in
+ * der Übung (`wkrName` null).
  *
  * Diese Komponente schreibt nichts selbst ab: Ansicht und Sprache gehen als `ansicht` hinauf bis WkrGeraet, das sie
  * gerätelokal merkt (ablage.ts `alcatraz.geraet.ansicht`).
@@ -30,34 +40,39 @@ const props = withDefaults(
     status: 'aktiv' | 'pausiert' | 'abgemeldet'
     /** Pausieren/Abmelden/Weiter anbieten (in Ruhe-Zuständen mit eigenem Knopf nicht doppelt). */
     mitStatus?: boolean
-    modus: AnsichtModus
+    modus: AnsichtWahl
     hand: 'rechts' | 'links'
     /** Sprache, in der die Maske gerade spricht, und die der Liste (Vorgabe). */
     sprache: Locale
     listenSprache: Locale
     /** Trägt die Sicht die Masken in der anderen Sprache (UIM)? */
     mitAndere: boolean
-    /** Gibt es einen Punkt zum Abschließen? */
-    kannAbschliessen: boolean
     uebung: boolean
     /** Startnummer des gezeigten Starts, wenn er „nicht vorbeigekommen“ melden darf (nicht Vorsteg/Ablegen, nicht Korrektur). */
     nichtVorbei?: string | null
+    /**
+     * W3-17 (Nutzer 21.11.2026, GF10): Buchstabe, als der „nicht vorbeigekommen“ eingetragen wird (J), wo die Liste ihn
+     * kennt – Knopf und Rückfrage sagen es; `null` = das Kennzeichen ⊘ (Steg-Anlegen).
+     */
+    nichtVorbeiDisq?: string | null
     /** Nur Bojen-Listen: Reihenfolge und Spiegeln dieser Liste (V1/V2); `null` = keine Bojen-Maske. */
     bojenAnsicht?: BojenAnsicht | null
+    /** WKR-Name dieser Liste (W3-13); `null` = kein Namensfeld (Übung). */
+    wkrName?: WkrNameLage | null
   }>(),
-  { mitStatus: true, nichtVorbei: null, bojenAnsicht: null },
+  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenAnsicht: null, wkrName: null },
 )
 const emit = defineEmits<{
   bemerkung: [text: string]
   pausiere: []
   meldeAb: []
   weiter: []
-  abschluss: []
   probe: []
   ansicht: [aenderung: Partial<GeraetAnsicht>]
   uebungEnde: []
   nichtVorbei: []
   bojenAnsicht: [ansicht: BojenAnsicht]
+  wkrName: [name: string]
 }>()
 const { w } = useWkrText()
 
@@ -68,9 +83,20 @@ watch(
   (b) => (text.value = b),
 )
 const frageAb = ref(false)
+/** Eingabe des Namens – folgt dem Stand, solange der WKR nichts tippt (z. B. Einteilung geändert). */
+const nameText = ref(props.wkrName?.name ?? '')
+watch(
+  () => props.wkrName?.name ?? '',
+  (n) => (nameText.value = n),
+)
+function setzeName(n: string): void {
+  nameText.value = n.trim()
+  emit('wkrName', n.trim())
+}
 const frageNv = ref(false)
 
-const MODI: AnsichtModus[] = ['sonne', 'hell', 'dunkel']
+// „Wie Gerät“ zuerst: die Vorgabe (GF1, Nutzer 21.11.2026 P-18) – dahin kommt man nach einem Wechsel zurück.
+const MODI: AnsichtWahl[] = ['geraet', 'sonne', 'hell', 'dunkel']
 const SPRACHEN: ('de' | 'en')[] = ['de', 'en']
 /** Die Sprache der Liste heißt „keine eigene Wahl“ – dann folgt das Gerät der Liste, auch wenn sie wechselt. */
 function waehleSprache(s: 'de' | 'en'): void {
@@ -99,10 +125,26 @@ function tue(f: () => void): void {
         <button v-if="status === 'aktiv'" type="button" class="wkr-knopf" data-ziel="klein" data-action="abmelden" @click="frageAb = true">{{ w('wkr.geraet.abmelden') }}</button>
         <button v-else type="button" class="wkr-knopf" data-ziel="klein" data-action="weiter" @click="emit('weiter')">{{ w('wkr.geraet.weiter') }}</button>
       </div>
-      <button v-if="nichtVorbei" type="button" class="wkr-knopf" data-ziel="klein" data-action="nicht-vorbei" @click="frageNv = true">⊘ {{ w('wkr.geraet.nichtVorbei') }}</button>
-      <button type="button" class="wkr-knopf" data-ziel="klein" data-action="abschliessen" :disabled="!kannAbschliessen" @click="tue(() => emit('abschluss'))">
-        {{ w('wkr.geraet.abschluss') }}
+      <button v-if="nichtVorbei" type="button" class="wkr-knopf" data-ziel="klein" data-action="nicht-vorbei" @click="frageNv = true">
+        {{ nichtVorbeiDisq ? w('wkr.geraet.nichtVorbei.disq', { code: nichtVorbeiDisq }) : `⊘ ${w('wkr.geraet.nichtVorbei')}` }}
       </button>
+
+      <fieldset v-if="wkrName" class="wkr-feldgruppe" data-teil="wkr-name" :data-eigen="wkrName.eigen || undefined">
+        <legend>{{ w('wkr.geraet.name') }}</legend>
+        <input v-model="nameText" class="wkr-eingabe" data-feld="wkr-name-mehr" maxlength="60" autocomplete="name" :aria-label="w('wkr.geraet.name')" />
+        <p v-if="wkrName.eigen && wkrName.einteilung" class="wkr-hinweis" data-teil="wkr-name-abweichend">{{ w('wkr.geraet.name.abweichend', { name: wkrName.einteilung }) }}</p>
+        <p v-else-if="wkrName.eigen" class="wkr-hinweis" data-teil="wkr-name-eigen">{{ w('wkr.geraet.name.eigen') }}</p>
+        <p v-else-if="wkrName.einteilung" class="wkr-hinweis" data-teil="wkr-name-einteilung">{{ w('wkr.geraet.name.einteilung') }}</p>
+        <p v-else class="wkr-hinweis" data-teil="wkr-name-ohne">{{ w('wkr.geraet.name.ohne') }}</p>
+        <div class="wkr-reihe">
+          <button type="button" class="wkr-knopf" data-ziel="klein" data-action="wkr-name-setzen" :disabled="nameText.trim() === wkrName.name" @click="setzeName(nameText)">
+            {{ w('wkr.geraet.name.setzen') }}
+          </button>
+          <button v-if="wkrName.eigen && wkrName.einteilung" type="button" class="wkr-knopf" data-ziel="klein" data-action="wkr-name-einteilung" @click="setzeName(wkrName.einteilung)">
+            {{ w('wkr.geraet.name.zurueck') }}
+          </button>
+        </div>
+      </fieldset>
 
       <fieldset class="wkr-feldgruppe" data-teil="ansicht">
         <legend>{{ w('wkr.geraet.ansicht') }}</legend>
@@ -209,10 +251,10 @@ function tue(f: () => void): void {
       data-dialog="wkr-nicht-vorbei"
       @abbrechen="frageNv = false"
     >
-      <p>{{ w('wkr.geraet.nichtVorbei.hint') }}</p>
+      <p>{{ nichtVorbeiDisq ? w('wkr.geraet.nichtVorbei.hintDisq', { code: nichtVorbeiDisq }) : w('wkr.geraet.nichtVorbei.hint') }}</p>
       <template #knoepfe>
         <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="nicht-vorbei-ja" @click="(frageNv = false), tue(() => emit('nichtVorbei'))">
-          ⊘ {{ w('wkr.geraet.nichtVorbei') }}
+          {{ nichtVorbeiDisq ? w('wkr.geraet.nichtVorbei.disq', { code: nichtVorbeiDisq }) : `⊘ ${w('wkr.geraet.nichtVorbei')}` }}
         </button>
         <button type="button" class="wkr-knopf" data-ziel="gross" data-action="nicht-vorbei-nein" autofocus @click="frageNv = false">{{ w('wkr.geraet.abbrechen') }}</button>
       </template>

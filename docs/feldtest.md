@@ -103,12 +103,16 @@ Gebaut 21.11.2026 (Plan [plan-wkr-w3.md](plan-wkr-w3.md)), bisher nur mit nachge
 Bildschirmgrößen geprüft – Zielgrößen stehen nur im CSS. Bedienung:
 [betrieb.md](betrieb.md#wkr-erfassung-w1-kern-w2-bedienrechner-w3-handy-maske-knöpfe-w4-bojen). Je Handy eine Liste koppeln
 (Tor 5, Steg nur Ablegen, Vorsteg), Probe durchtippen, dann einen Lauf mit Beispieldaten erfassen.
+Auslegungen am 21.11.2026 abends beantwortet: bestätigt bis auf G1, G3, G6, G11, G13, G15, J1–J3, K7, L3, L4, M5, N4
+und N8 ([plan-wkr-w3.md](plan-wkr-w3.md) §15) – die geplanten Änderungen sind noch nicht gebaut; der Feldtest prüft
+den gebauten Stand.
 
 - [ ] **Handschuhe** (dünne Arbeits- und dicke Segelhandschuhe): Codes, Hauptknopf, Disq., „− letzte zurück“,
   Ausweichen, Ziffernfeld der Suche treffen. Erwartet: jeder Tipp trifft den gemeinten Knopf, kein Nachbar.
   Fehlgriffe auf 20 Tipps: dünn ______ dick ______ Beobachtung:
 - [ ] **Sonne** (Mittagssonne, Display-Helligkeit automatisch und voll; Sonnenbrille, auch polarisiert): Sonnenmodus
-  (Vorgabe) gegen Hell und Dunkel. Erwartet: Startnummer, Hauptknopf und Stufenzeichen (✓ ↑ ! ✗ V) aus Armlänge lesbar,
+  (Vorgabe; geplant ist der Modus des Geräts als Vorgabe, W3-01/P-18) gegen Hell und Dunkel. Erwartet: Startnummer,
+  Hauptknopf und Stufenzeichen (✓ ↑ ! ✗ V) aus Armlänge lesbar,
   „ÜBUNG“/rotes Band „Keine Verbindung“ sofort erkennbar. Beobachtung:
 - [ ] **Doppeltipp** (absichtlich zweimal schnell auf „Fehlerfrei ✓“, auch auf einen Code direkt nach dem Wechsel;
   Tropfen auf dem Display). Erwartet: genau eine Zeile; 2 s „● gesendet“ mit derselben Nummer, dann Blitz, 1 s ohne
@@ -132,9 +136,11 @@ Bildschirmgrößen geprüft – Zielgrößen stehen nur im CSS. Bedienung:
 
 Gebaut 21.11.2026 (Plan [plan-wkr-w4.md](plan-wkr-w4.md)), nur mit nachgebautem Server geprüft. Je Handy eine
 Bojen-Liste koppeln (Tor 1/3/5, Tor 2/4/5, Parcours; unter UIM Parallelslalom Racecourse A), Probe durchtippen, einen
-Lauf mit Klassen 4 bis 7 erfassen.
+Lauf mit Klassen 4 bis 7 erfassen. Auslegungen am 21.11.2026 abends beantwortet: bestätigt bis auf P9/U2, P10/Q2 und
+die Form von „Nicht vorbeigekommen“ ([plan-wkr-w4.md](plan-wkr-w4.md) §14).
 
-- [ ] **Bojen-Punkte** (Plan §9): Jede Berührung 5, Tor 5 je Berührung; am Bedienrechner steht in der Erfassung genau
+- [ ] **Bojen-Punkte** (Plan §9; 5 je Berührung bestätigt 21.11.2026, W4-07): Jede Berührung 5, Tor 5 je Berührung; am
+  Bedienrechner steht in der Erfassung genau
   der Wert, den der WKR auf Papier schriebe („5“, Tor 5 „15“). Erwartet: Summe in „Abschicken · n Pkt.“ = Summe der
   Zeile in der Wertung. Beobachtung:
 - [ ] **Zwei Boote im Parcours** (Tor 1/3/5: das ältere Boot auf dem Rückweg, das nächste auf dem Hinweg): über
@@ -150,10 +156,11 @@ Lauf mit Klassen 4 bis 7 erfassen.
 - [ ] **Prellschutz** (S1): Bojen-Schalter mit Handschuh antippen. Erwartet: ein Tipp setzt, ein prellender zweiter
   nimmt nichts weg; bewusst nach ½ s erneut tippen nimmt weg. 400 ms passend? Beobachtung:
 - [ ] **Klassenwechsel** (Klasse 4 nach 7): Band „Klasse n – andere Halte“ 2 s. Erwartet: kein Tipp auf die falsche
-  Zeile. Beobachtung:
+  Zeile. (Geplant, W4-13: nur beim ersten Start einer neuen Klasse, Parcours-Zeichnung beim Hochwischen.) Beobachtung:
 - [ ] **Nicht vorbeigekommen** (Mehr → Rückfrage): Erwartet: Matrix „⊘ nicht vorbei“ gelb, kein Rückstand, Erfassung
   „Papier ansehen“; am Vorsteg und im Steg-Ablegen nicht angeboten. Versehentlich gemeldet → „Zuletzt“ → Korrektur
-  hebt es auf. Wird es am Wasser gebraucht, oder reicht X? Beobachtung:
+  hebt es auf. Wird es am Wasser gebraucht, oder reicht X? (Entschieden 21.11.2026, W3-17: wird Disq. J – noch nicht
+  gebaut.) Beobachtung:
 
 ## Nur iPhone
 
@@ -178,4 +185,4 @@ Lauf mit Klassen 4 bis 7 erfassen.
   (seit 21.11.2026 Overlay „wird übertragen …“ → „✓ übernommen“: mindestens 0,6 s, dann 0,8 s, ohne Quittung
   höchstens 3 s, danach 1 s Sperre – WKR_ANNAHMEN N1, uebertragenMinMs/uebernommenMs/uebertragenMaxMs/sperreMs), Blitz
   ohne Vibration auf dem iPhone, Akku; Texte bei großer Systemschrift (nichts abgeschnitten, N3), Farben unter
-  System-Dunkelmodus in allen drei Ansichten (N4).
+  System-Dunkelmodus in allen drei Ansichten (N4; geplant: der Gerätemodus ist Vorgabe, P-18).

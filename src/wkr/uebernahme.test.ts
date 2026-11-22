@@ -28,6 +28,15 @@ describe('wendeZeileAn', () => {
     expect(r.eingaben).toEqual({})
   })
 
+  it('Bojenzelle: Papier „5“ gegen Gerät „5J“ ist abweichend – Rückfrage, kein Zusammenführen (W4-12, BZ5, 21.11.2026)', () => {
+    const e = mit({ 't1a|hin seiteA': '5' })
+    const r = wendeZeileAn(e, zeile([{ feld: 't1a|hin seiteA', wert: '5J', vorher: '' }]))
+    expect(r.konflikte).toEqual([{ feld: 't1a|hin seiteA', wert: '5J', steht: '5', grund: 'zelle' }])
+    expect(r.eingaben).toBe(e)
+    // Korrektur des eigenen Werts („5“ → „5J“) geht still durch.
+    expect(wendeZeileAn(e, zeile([{ feld: 't1a|hin seiteA', wert: '5J', vorher: '5' }])).eingaben[L].k1).toEqual({ 't1a|hin seiteA': '5J' })
+  })
+
   it('nichts zu tun: dieselben Eingaben (Referenz)', () => {
     const e = mit({ a: '5' })
     expect(wendeZeileAn(e, zeile([{ feld: 'a', wert: '5', vorher: '' }])).eingaben).toBe(e)

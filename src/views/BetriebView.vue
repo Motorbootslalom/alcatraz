@@ -9,6 +9,7 @@ import { useUhr } from '../lib/uhr'
 import { useKonfig } from '../lib/konfig'
 import { erfassungsLage } from '../wkr/lage'
 import { sichtFreigabe, type FreigabeErfassung } from '../wkr/freigabe'
+import { parcoursAmpel } from '../wkr/ampel'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import { geraetAngaben } from '../geraete/register'
 import { CLASS_IDS } from '../domain/classes'
@@ -108,10 +109,16 @@ watch(
   () => {
     if (reiter.value !== 'start' || Object.keys(state.value.wkr.listen).length === 0) return {}
     const angaben = geraetAngaben(geraete?.raum.value?.geraete ?? [])
+    // Auto-Modus (AM6): Den Countdown kennt nur das Führungsfenster (geraete/host.ts `auto`) – hier als Sekunden beim
+    // Rechnen; die Start-Freigabe zählt selbst herunter.
+    const auto = geraete?.auto?.value ?? {}
     const aus: Record<string, FreigabeErfassung> = {}
     for (const b of sicht.value.bereiche) {
       try {
-        aus[b.id] = sichtFreigabe(b.id, erfassungsLage(state.value, konfig.value, b.id, angaben, wkrJetzt.value).listen, state.value.anzeige.wkrWarnung)
+        const listen = erfassungsLage(state.value, konfig.value, b.id, angaben, wkrJetzt.value).listen
+        const a = auto[b.id]
+        const autoIn = a ? Math.max(0, (a.bis - Date.now()) / 1000) : null
+        aus[b.id] = sichtFreigabe(b.id, listen, state.value.anzeige.wkrWarnung, parcoursAmpel(state.value, konfig.value, b.id, listen), autoIn)
       } catch {
         // Ein Bereich ohne Listen (etwa mitten im Umbau): keine Leiste – die Freigabe selbst geht weiter.
       }
@@ -189,6 +196,7 @@ function zuruecksetzen() {
         :anzeige-oeffnen="sicht.bereiche.length > 1 ? () => oeffneAnzeige(b.id) : undefined"
         :erfassung="erfassung[b.id]"
         :erfassung-oeffnen="() => zurErfassung(b.id)"
+        :auto-anhalten="geraete?.halteAuto ? (ref: string) => geraete!.halteAuto!(b.id, ref) : undefined"
       />
     </div>
     <template v-else-if="reiter === 'wkr'">

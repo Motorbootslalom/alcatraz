@@ -126,6 +126,12 @@ export interface WkrRueckfrage {
   nichtVorbei?: true
   /** Teil der Zeile am Steg (nur geteilte Listen) – für den Schlüssel des Kennzeichens (wkr/nichtVorbei.ts). */
   teil?: 'ab' | 'an'
+  /**
+   * Der WKR hat auf dem Gerät „So lassen“ gewählt (Zeit des Stores; Nutzer 21.11.2026, W3-35, WKR_ANNAHMEN GF5): Der
+   * Eingang zeigt „WKR: so lassen“, die Rückfrage bleibt offen, bis der Bediener entscheidet. Steht an der Rückfrage,
+   * weil sie selbst im Stand lebt (ein Merker im Host ginge beim Neuladen oder Führungswechsel verloren).
+   */
+  soLassen?: number
   zeit: number
 }
 

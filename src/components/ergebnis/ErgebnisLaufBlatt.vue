@@ -140,8 +140,8 @@ const bojeMm = computed(() => (bojenSpalten.value > 0 ? (frei.value - (props.her
 /** Kurze Zellen (Fahrweg, Fehler-Schlüssel) werden kleiner gesetzt statt umbrochen. */
 const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit-2' : text.length > normal ? 'fit-1' : undefined)
 /**
- * Zellen des Fahrwegs: In schmalen Spalten stehen schon zwei Ziffern („20“) kleiner; mehr als
- * drei Zeichen („20, G“ – Punkte und Disqualifikation an derselben Boje) stehen zweizeilig.
+ * Zellen des Fahrwegs: In schmalen Spalten stehen schon zwei Zeichen („20“, „5J“) kleiner, drei („10G“ – Punkte
+ * und Disqualifikation an derselben Boje, W4-12) noch kleiner; erst mehr als drei stehen zweizeilig.
  */
 const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 3 ? 'erg-zweizeilig' : text.length > 2 ? 'fit-2' : text.length > 1 ? 'fit-1' : undefined) : fit(text, 2))
 /**

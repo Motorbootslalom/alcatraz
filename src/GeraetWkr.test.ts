@@ -4,6 +4,7 @@ import { computed, nextTick, shallowRef } from 'vue'
 import GeraetApp from './GeraetApp.vue'
 import WkrGeraet from './components/wkr/WkrGeraet.vue'
 import WkrUebung from './components/wkr/WkrUebung.vue'
+import WkrAbschluss from './components/wkr/WkrAbschluss.vue'
 import { starteGeraeteHost, type GeraeteHost } from './geraete/host'
 import type { Ablage } from './geraete/ablage'
 import type { Aufgabe } from './geraete/aufgaben'
@@ -99,9 +100,38 @@ async function bedienrechner(start: AppState = wkrBetriebsStand(), bereich = P1)
 
 // Grenze wie bis() (10 s, Prüfung unter Last 21.11.2026): Vorher 3 s – auf zwei Kernen mit voller Suite lief z. B.
 // GeraetWkr „Probe … einmal je Raum“ hinein. Ein grüner Test wartet nicht länger.
-async function zeigt(bedingung: () => boolean): Promise<void> {
-  await bis(bedingung)
+async function zeigt(bedingung: () => boolean, beschreibe?: () => string): Promise<void> {
+  await bis(bedingung, undefined, beschreibe)
   await nextTick()
+}
+
+/**
+ * Zustand eines Geräts für den Fehlertext von zeigt() (21.11.2026, CI rot auf master c6cb754): Ruhe-Ansicht,
+ * Verbindung, welche Listen eine Sicht im Ausgang haben, Abos und letzte Nachrichten beim nachgebauten ntfy,
+ * Verbindung des Bedienrechners und die Zeit seit dem Mount – damit ein Hänger unter Last zeigt, WO er hängt.
+ */
+const attr = (w: VueWrapper, wahl: string, name: string) => (w.find(wahl).exists() ? (w.find(wahl).attributes(name) ?? null) : null)
+
+function geraeteZustand(w: VueWrapper, speicher: Ablage, h: GeraeteHost, seit: number): () => string {
+  return () => {
+    const aus = JSON.parse(speicher.getItem('alcatraz.geraet.wkr') ?? 'null') as { inhalt?: { sichten?: Record<string, unknown> } } | null
+    const kopplung = JSON.parse(speicher.getItem('alcatraz.geraet.kopplung') ?? 'null') as { lage?: string; aufgaben?: unknown[] } | null
+    const letzte = ntfy.gespeichert.slice(-5).map((g) => `${g.topic.slice(0, 6)}#${g.id}`)
+    return JSON.stringify({
+      ruhe: w.find('[data-teil="ruhe"]').exists() ? ruheArt(w) : null,
+      maske: w.find('[data-teil="maske"]').exists(),
+      probe: w.find('[data-teil="probe"]').exists(),
+      verbindung: attr(w, '[data-teil="verbindung"]', 'data-lage'),
+      lage: attr(w, '.geraet-freigabe', 'data-lage'),
+      kopplung: kopplung ? { lage: kopplung.lage, aufgaben: kopplung.aufgaben?.length } : null,
+      sichtenImAusgang: Object.keys(aus?.inhalt?.sichten ?? {}),
+      abos: ntfy.abos.length,
+      sockets: ntfy.sockets.size,
+      letzte,
+      host: h.verbindung.value?.status ?? null,
+      msSeitMount: Date.now() - seit,
+    })
+  }
 }
 
 /**
@@ -284,6 +314,10 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
     expect(werte(state.value, s.starter)['katalog:tor5']).toBe('2')
     await klick(w, '[data-action="so-lassen"]')
     expect(w.find('[data-teil="rueckfrage"]').exists()).toBe(false)
+    // W3-35 (21.11.2026, GF5): Der Bedienrechner erfährt es – die Rückfrage bleibt offen, mit Zeit vermerkt.
+    await bis(() => state.value.wkr.rueckfragen.some((r) => r.soLassen !== undefined))
+    expect(state.value.wkr.rueckfragen).toHaveLength(1)
+    expect(werte(state.value, s.starter)['katalog:tor5']).toBe('2')
   })
 
   it('Hinweis des Bedienrechners groß im Kopf; „Gesehen“ nimmt ihn weg', async () => {
@@ -414,6 +448,10 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
     const reiter = () => w.findAll('[data-action="steg-teil"]')
     expect(reiter().map((r) => r.attributes('data-steg'))).toEqual(['ab', 'an'])
     expect(w.find('[data-action="steg-teil"][data-steg="ab"]').attributes('aria-selected')).toBe('true')
+    // W3-51 (GF3): beide Reiter immer da, je Teil ✓ (nichts offen) bzw. Zahl offener Starts.
+    const stand = (t: string) => w.find(`[data-action="steg-teil"][data-steg="${t}"] [data-teil="steg-stand"]`)
+    expect(Number(stand('ab').attributes('data-offen'))).toBeGreaterThan(0)
+    expect(stand('an').text()).toBe('✓')
     expect(haupt(w).text()).toBe('Ablegen OK ✓')
     await klick(w, '[data-action="disq"]')
     const x = '[data-action="disq-code"][data-code="X"]'
@@ -686,9 +724,9 @@ describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () =
     expect(neu.find('[data-teil="rueckfrage"]').exists()).toBe(false)
   })
 
-  it('Linkshand spiegelt den Fuß; Sonne ist Vorgabe', async () => {
+  it('Linkshand spiegelt den Fuß; gewählte Sonne gilt', async () => {
     const speicher = handy()
-    speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', hand: 'links' }))
+    speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', modusGewaehlt: true, hand: 'links' }))
     const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000, folgeMs: SOFORT })
     quellen.push(q)
     const w = mount(WkrGeraet, { props: { quelle: q, ablage: speicher } })
@@ -715,9 +753,16 @@ function uebe(regelwerk: string, typeId: string, speicher: Ablage = handy(), tak
   const l = q.listen.value[0].liste
   return { q, w, l, speicher }
 }
-async function oeffneAbschlussUeberMehr(w: VueWrapper): Promise<void> {
-  await klick(w, '[data-action="mehr"]')
-  await klick(w, '[data-action="abschliessen"]')
+/**
+ * Abschluss nur noch über das Band (Nutzer 21.11.2026, W3-40, AM10 – „Mehr → Liste abschließen“ entfiel): Am
+ * Bedienrechner beginnt Lauf 2, Lauf 1 ist damit für das Gerät vorbei und das Band steht da.
+ */
+async function oeffneAbschlussUeberBand(w: VueWrapper, dispatch: (a: Action) => void): Promise<void> {
+  dispatch({ type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'lauf:2' })
+  // Erst wenn die Sicht mit Lauf 2 da ist: Lauf 1 läuft dann nicht mehr (`data-laeuft` fehlt, keine Rückfrage R6-10).
+  const band = () => w.find('[data-teil="abschluss-band"]')
+  await zeigt(() => band().exists() && band().attributes('data-laeuft') === undefined)
+  await klick(w, '[data-action="abschluss-band"]')
   expect(w.find('[data-teil="abschluss"]').exists()).toBe(true)
 }
 
@@ -736,7 +781,7 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
     const s2 = r.zeige()
     await zeigt(() => startNr(w) === s2.startNr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei')
 
-    await oeffneAbschlussUeberMehr(w)
+    await oeffneAbschlussUeberBand(w, r.dispatch)
     expect(w.find('[data-teil="summe"]').text()).toBe(`1 abgeschickt, 1 offen: ${s2.startNr}`)
     const zeile = w.find('[data-teil="pruef-zeile"]')
     expect(zeile.find('[data-teil="nr"]').text()).toBe(s1.startNr)
@@ -764,10 +809,10 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
   })
 
   it('Tipp auf eine Zeile der Prüfansicht öffnet die Korrektur', async () => {
-    const { w, s } = await listeMitStart('tor5')
+    const { w, s, dispatch } = await listeMitStart('tor5')
     await klick(w, '[data-action="haupt"]')
     await zeigt(() => w.find('[data-teil="leiste-zeile"]').exists())
-    await oeffneAbschlussUeberMehr(w)
+    await oeffneAbschlussUeberBand(w, dispatch)
     await klick(w, '[data-action="pruef-korrigieren"]')
     expect(w.find('[data-teil="abschluss"]').exists()).toBe(false)
     expect(w.find('[data-action="korrektur-abbrechen"]').exists()).toBe(true)
@@ -784,7 +829,7 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
     await zeigt(() => w.find('[data-teil="karte"]').exists())
     await klick(w, '[data-action="haupt"]')
     await bis(() => !!werte(r.state.value, s.starter)['erfasst.an@steg'])
-    await oeffneAbschlussUeberMehr(w)
+    await oeffneAbschlussUeberBand(w, r.dispatch)
     expect(w.find('[data-teil="abschluss-teil"]').text()).toBe('Nur dein Teil: Anlegen')
     expect(w.find('[data-teil="summe"]').text()).toBe('1 abgeschickt')
     await w.find('input[data-feld="wkr-name"]').setValue('Muster WKR')
@@ -807,13 +852,22 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
     q.schliesseAb(l, sicht.punkt!.id, 'Muster WKR', false)
     await warte(WKR_ANNAHMEN.uebungQuittungMs + 50)
     await nextTick()
-    await oeffneAbschlussUeberMehr(w)
-    expect(w.find('[data-teil="summe"]').text()).toMatch(new RegExp(`^1 abgeschickt, \\d+ offen: .+, 1 X: ${kopf.startNr}$`))
-    expect(w.find('[data-teil="pruef-zeile"]').attributes('data-x')).toBe('true')
-    const ergebnis = w.find('[data-teil="abschluss-ergebnis"]')
+    // Mitten im Lauf gibt es kein Band mehr (W3-40, AM10): die Prüfansicht direkt auf derselben Quelle.
+    w.unmount()
+    wrappers.splice(wrappers.indexOf(w), 1)
+    const ab = mount(WkrAbschluss, {
+      attachTo: document.body,
+      props: { quelle: q, liste: l, listenTitel: sicht.titel, punkt: sicht.punkt!.id, punktTitel: sicht.punkt!.titel, name: '', zeileText: () => ({ klasse: '', codes: '', punkte: null }), korrigierbar: new Set<string>() },
+    })
+    wrappers.push(ab)
+    await nextTick()
+    const w2 = ab
+    expect(w2.find('[data-teil="summe"]').text()).toMatch(new RegExp(`^1 abgeschickt, \\d+ offen: .+, 1 X: ${kopf.startNr}$`))
+    expect(w2.find('[data-teil="pruef-zeile"]').attributes('data-x')).toBe('true')
+    const ergebnis = w2.find('[data-teil="abschluss-ergebnis"]')
     expect([ergebnis.attributes('data-stufe'), ergebnis.attributes('data-grund')]).toEqual(['abgelehnt', 'offen'])
     expect(ergebnis.text()).toContain('Es sind noch Starts offen')
-    expect(w.find('[data-action="abschluss-senden"]').exists()).toBe(true)
+    expect(w2.find('[data-action="abschluss-senden"]').exists()).toBe(true)
   })
 
   it('Band „Liste abschließen“, sobald der eigene Lauf vorbei ist (G16); weg nach dem Abschluss; Name in der Übung nicht gemerkt', async () => {
@@ -843,14 +897,130 @@ describe('Liste abschließen (W3.4, F7/F8)', () => {
   })
 })
 
+describe('WKR-Name aus der Veranstaltung (Nutzer 21.11.2026, W3-13, WN1–WN3)', () => {
+  it('„Mehr → Name“ vorbelegt aus der Einteilung, änderbar mit Hinweis; der Abschluss nimmt den aktuellen Namen; der Bedienrechner kennt ihn', async () => {
+    const r = await bedienrechner({ ...wkrBetriebsStand(), einteilung: { [P1]: { tor5: 'Erika Einteilung' } } })
+    const { w, id } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }])
+    await bis(() => r.state.value.wkr.listen[TOR5]?.modus === 'digital')
+    const s1 = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s1.startNr)
+    await klick(w, '[data-action="mehr"]')
+    const feld = () => w.find<HTMLInputElement>('input[data-feld="wkr-name-mehr"]')
+    expect(feld().element.value).toBe('Erika Einteilung')
+    expect(w.find('[data-teil="wkr-name-einteilung"]').exists()).toBe(true)
+    expect(w.find('[data-action="wkr-name-setzen"]').attributes('disabled')).toBeDefined()
+    await feld().setValue('Max Vertretung')
+    await klick(w, '[data-action="wkr-name-setzen"]')
+    expect(w.find('[data-teil="wkr-name-abweichend"]').text()).toContain('Erika Einteilung')
+    await bis(() => r.h.raum.value?.geraete.find((g) => g.id === id())?.wkrNamen?.[TOR5] === 'Max Vertretung')
+    expect(JSON.stringify(r.state.value)).not.toContain('Max Vertretung')
+    await klick(w, '[data-action="mehr"]')
+
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, s1.starter)['erfasst@tor5'])
+    await zeigt(() => taktFrei(w))
+    await oeffneAbschlussUeberBand(w, r.dispatch)
+    expect(w.find<HTMLInputElement>('input[data-feld="wkr-name"]').element.value).toBe('Max Vertretung')
+    await klick(w, '[data-action="abschluss-senden"]')
+    await bis(() => !!r.state.value.wkr.abschluss[TOR5]?.['lauf:1'])
+    expect(r.state.value.wkr.abschluss[TOR5]['lauf:1'].name).toBe('Max Vertretung')
+  })
+
+  it('ohne Einteilung (WN3): „Mehr“ sagt es, der Abschluss fragt; der dort eingegebene Name gilt danach für die Liste', async () => {
+    const { w, dispatch } = await listeMitStart('tor5')
+    await klick(w, '[data-action="mehr"]')
+    expect(w.find('[data-teil="wkr-name-ohne"]').exists()).toBe(true)
+    expect(w.find<HTMLInputElement>('input[data-feld="wkr-name-mehr"]').element.value).toBe('')
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="haupt"]')
+    await zeigt(() => taktFrei(w) && w.find('[data-teil="leiste-zeile"]').exists())
+    await oeffneAbschlussUeberBand(w, dispatch)
+    expect(w.find<HTMLInputElement>('input[data-feld="wkr-name"]').element.value).toBe('')
+    expect(w.find('[data-teil="name-pflicht"]').exists()).toBe(true)
+    await w.find('input[data-feld="wkr-name"]').setValue('Tom Test')
+    await klick(w, '[data-action="abschluss-senden"]')
+    await klick(w, '[data-action="abschluss-zurueck"]')
+    await klick(w, '[data-action="mehr"]')
+    expect(w.find<HTMLInputElement>('input[data-feld="wkr-name-mehr"]').element.value).toBe('Tom Test')
+    expect(w.find('[data-teil="wkr-name-eigen"]').exists()).toBe(true)
+  })
+
+  it('Übung: kein Namensfeld unter „Mehr“ (G13)', async () => {
+    const { w } = uebe('dm-2026', 'tor5')
+    await nextTick()
+    await klick(w, '[data-action="mehr"]')
+    expect(w.find('[data-teil="mehr"]').exists()).toBe(true)
+    expect(w.find('[data-teil="wkr-name"]').exists()).toBe(false)
+  })
+})
+
+describe('Parcours-Ampel und Abschluss (Nutzer 21.11.2026: P-03, R6-10, W3-40)', () => {
+  it('Karte eines Parcours-Geräts: kleiner Punkt mit Wort – grün „Start frei“, rot nach „Durchs Start-Tor“ (AM9)', async () => {
+    const { w, s, dispatch } = await listeMitStart('tor5')
+    const ampel = () => w.find('[data-teil="karten-ampel"]')
+    await zeigt(() => ampel().exists())
+    expect(ampel().attributes('data-ampel')).toBe('gruen')
+    expect(ampel().text()).toContain('Start frei')
+    dispatch({ type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: s.key, an: true })
+    await zeigt(() => ampel().attributes('data-ampel') === 'rot')
+    expect(ampel().text()).toContain('im Parcours')
+  })
+
+  it('Steg-Gerät: keine Ampel in der Karte (Steg läuft autark)', async () => {
+    const { w } = await listeMitStart('steg')
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    expect(w.find('[data-teil="karten-ampel"]').exists()).toBe(false)
+  })
+
+  it('„Mehr“ ohne „Liste abschließen“; das Band nennt den Zweck; läuft der Lauf noch, fragt der Abschluss nach', async () => {
+    const starter = Array.from({ length: 3 }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(101 + i)))
+    const r = await bedienrechner(wkrBetriebsStand(starter))
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }])
+    await bis(() => r.state.value.wkr.listen[TOR5]?.modus === 'digital')
+    // Tor 1/3/5 digital ohne Gerät: Es schickt nie – die Ampel des letzten Starts bleibt rot, der Lauf läuft.
+    r.dispatch({ type: 'WKR_LISTE', liste: liste('gate135'), modus: 'digital' })
+    let letzter = r.zeige()
+    for (let i = 0; i < 3; i++) {
+      if (i > 0) letzter = r.zeige()
+      const nr = letzter.startNr
+      await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === nr && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei')
+      await klick(w, '[data-action="haupt"]')
+      const st = letzter.starter
+      await bis(() => !!werte(r.state.value, st)['erfasst@tor5'])
+    }
+    await zeigt(() => w.find('[data-teil="abschluss-band"]').exists())
+    expect(w.find('[data-teil="abschluss-zweck"]').text()).toContain('Unterschrift für 1. Lauf')
+    expect(w.find('[data-teil="abschluss-zweck"]').text()).toContain('alle Klassen')
+    if (w.find('[data-action="mehr"]').exists()) await klick(w, '[data-action="mehr"]')
+    expect(w.find('[data-action="abschliessen"]').exists()).toBe(false)
+    await klick(w, '[data-action="abschluss-band"]')
+    await w.find('input[data-feld="wkr-name"]').setValue('Muster WKR')
+    await klick(w, '[data-action="abschluss-senden"]')
+    const d = w.find('[data-dialog="wkr-abschluss-laeuft"]')
+    expect(d.exists()).toBe(true)
+    expect(d.text()).toContain(`1. Lauf läuft noch (${letzter.startNr} unterwegs) – trotzdem abschließen?`)
+    // „Warten“ schickt nichts.
+    await klick(w, '[data-action="abschluss-laeuft-nein"]')
+    expect(w.find('[data-dialog="wkr-abschluss-laeuft"]').exists()).toBe(false)
+    expect(w.find('[data-teil="abschluss-ergebnis"]').exists()).toBe(false)
+    await klick(w, '[data-action="abschluss-senden"]')
+    await klick(w, '[data-action="abschluss-laeuft-ja"]')
+    await bis(() => !!r.state.value.wkr.abschluss[TOR5]?.['lauf:1'])
+  }, 15_000)
+})
+
 describe('Ansicht und Sprache (W3.4, G1, F13/G9)', () => {
-  it('Sonne/Hell/Dunkel und Linkshand unter „Mehr“, gemerkt in alcatraz.geraet.ansicht', async () => {
+  it('Wie Gerät/Sonne/Hell/Dunkel und Linkshand unter „Mehr“, gemerkt in alcatraz.geraet.ansicht', async () => {
     const speicher = handy()
     const { w } = uebe('dm-2026', 'tor5', speicher)
     await nextTick()
-    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('sonne')
+    // Vorgabe „Wie Gerät“ (GF1, 21.11.2026): happy-dom meldet kein Dunkel → hell.
+    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('hell')
+    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-wahl')).toBe('geraet')
     await klick(w, '[data-action="mehr"]')
-    expect(w.find('[data-action="modus"][data-modus="sonne"]').attributes('aria-pressed')).toBe('true')
+    expect(w.find('[data-action="modus"][data-modus="geraet"]').attributes('aria-pressed')).toBe('true')
+    await klick(w, '[data-action="modus"][data-modus="sonne"]')
+    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('sonne')
     await klick(w, '[data-action="modus"][data-modus="dunkel"]')
     expect(w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('dunkel')
     await klick(w, '[data-action="linkshand"]')
@@ -864,6 +1034,33 @@ describe('Ansicht und Sprache (W3.4, G1, F13/G9)', () => {
     await nextTick()
     expect(neu.w.find('[data-teil="wkr-geraet"]').attributes('data-modus')).toBe('hell')
     expect(neu.w.find('[data-teil="fuss"]').classes()).toContain('wkr-fuss--links')
+  })
+
+  it('„Wie Gerät“ folgt dem System live (GF1, Nutzer P-18); eine Wahl bleibt beim Wechsel des Systems', async () => {
+    let dunkel = true
+    const hoerer = new Set<(e: { matches: boolean }) => void>()
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      media: q,
+      get matches() {
+        return dunkel
+      },
+      addEventListener: (_: string, f: (e: { matches: boolean }) => void) => hoerer.add(f),
+      removeEventListener: (_: string, f: (e: { matches: boolean }) => void) => hoerer.delete(f),
+    }))
+    const speicher = handy()
+    const { w } = uebe('dm-2026', 'tor5', speicher)
+    await nextTick()
+    const wurzel = () => w.find('[data-teil="wkr-geraet"]')
+    expect(wurzel().attributes('data-modus')).toBe('dunkel')
+    dunkel = false
+    for (const f of hoerer) f({ matches: false })
+    await nextTick()
+    expect(wurzel().attributes('data-modus')).toBe('hell')
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="modus"][data-modus="sonne"]')
+    for (const f of hoerer) f({ matches: true })
+    await nextTick()
+    expect(wurzel().attributes('data-modus')).toBe('sonne')
   })
 
   it('UIM: Vorgabe Englisch (Sprache der Liste); „Deutsch“ schaltet Bedientexte UND Kataloge (andere)', async () => {
@@ -934,9 +1131,10 @@ describe('Probe beim Einrichten (W3.4, G10)', () => {
     w.unmount()
     wrappers.splice(wrappers.indexOf(w), 1)
     location.hash = '#/geraet'
+    const gemountet = Date.now()
     const w2 = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20 } } })
     wrappers.push(w2)
-    await zeigt(() => w2.find('[data-teil="ruhe"]').exists() && ruheArt(w2) !== 'warte')
+    await zeigt(() => w2.find('[data-teil="ruhe"]').exists() && ruheArt(w2) !== 'warte', geraeteZustand(w2, speicher, r.h, gemountet))
     expect(w2.find('[data-teil="probe"]').exists()).toBe(false)
     // „Mehr → Probe“ wiederholt sie jederzeit.
     await klick(w2, '[data-action="mehr"]')
@@ -1136,6 +1334,54 @@ describe('Befund 15 (21.11.2026): zwei Tabs derselben Kopplung', () => {
     await zeigt(() => r.w.find('[data-teil="wkr-geraet"]').exists())
     await zeigt(() => w2.find('[data-meldung="andererTab"]').exists())
   })
+})
+
+describe('Mehr Listen je Gerät (Nutzer 21.11.2026, W3-03, GF8)', () => {
+  it('Pad quer mit zwei Listen: zwei Spalten nebeneinander, ohne Reiter', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ media: q, matches: q.includes('min-width: 1000px'), addEventListener: () => {}, removeEventListener: () => {} }))
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }, { art: 'liste', liste: MUEB }])
+    await zeigt(() => w.find('[data-teil="nebeneinander"]').exists())
+    expect(w.findAll('[data-teil="nebeneinander"] .wkr-spalte').map((x) => x.attributes('data-liste'))).toEqual([TOR5, MUEB])
+    expect(w.find('[data-teil="listen-reiter"]').exists()).toBe(false)
+    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-nebeneinander')).toBe('true')
+  }, 20_000)
+})
+
+describe('Erste Liste auf einem Gerät ohne Liste (Nutzer 21.11.2026, W3-24, GF6)', () => {
+  it('Gerät nur mit Start-Freigabe bekommt eine Liste: Maske kommt ohne Neuladen', async () => {
+    const r = await bedienrechner()
+    const speicher = handy()
+    const { w, id } = await mitCode(r.h, [{ art: 'startfreigabe', bereiche: [P1] }], speicher)
+    // W3-25 (GF7): Die Art kam mit der Anmeldung (happy-dom: Maus → Rechner); der Bediener kann sie ändern.
+    expect(r.h.raum.value!.geraete[0].typ).toBe('rechner')
+    r.h.setzeTyp(id(), 'handy')
+    await bis(() => r.h.raum.value!.geraete[0].typ === 'handy')
+    const seit = Date.now()
+    r.zeige()
+    r.h.setzeAufgaben(id(), [{ art: 'startfreigabe', bereiche: [P1] }, { art: 'liste', liste: TOR5 }])
+    await zeigt(() => w.find(`[data-action="reiter"][data-reiter='${TOR5}']`).exists())
+    await klick(w, `[data-action="reiter"][data-reiter='${TOR5}']`)
+    await zeigt(
+      () => w.find('[data-teil="probe"]').exists() || w.find('[data-teil="karte"]').exists() || (w.find('[data-teil="ruhe"]').exists() && ruheArt(w) !== 'warte'),
+      geraeteZustand(w, speicher, r.h, seit),
+    )
+  }, 20_000)
+
+  it('Gerät ganz ohne Aufgabe bekommt eine Liste: Maske kommt ohne Neuladen', async () => {
+    const r = await bedienrechner()
+    const speicher = handy()
+    const { w, id } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }], speicher)
+    const seit = Date.now()
+    r.h.setzeAufgaben(id(), [])
+    await zeigt(() => !w.find('[data-teil="karte"]').exists() && (r.h.raum.value?.geraete[0].aufgaben.length ?? 1) === 0)
+    r.zeige()
+    r.h.setzeAufgaben(id(), [{ art: 'liste', liste: MUEB }])
+    await zeigt(
+      () => w.find('[data-teil="probe"]').exists() || w.find('[data-teil="karte"]').exists() || (w.find('[data-teil="ruhe"]').exists() && ruheArt(w) !== 'warte'),
+      geraeteZustand(w, speicher, r.h, seit),
+    )
+  }, 20_000)
 })
 
 describe('Feldtest 21.11.2026: Neuladen (N11, N12) und „Bitte Nr. prüfen“ (N13)', () => {
@@ -1372,8 +1618,11 @@ describe('Bojen (W4.2)', () => {
     await klick(w, boje('t1b|rueck seiteA'))
     await klick(w, boje('t1c|rueck seiteB'))
     expect(w.find('[data-action="weg"][data-weg="rueck"]').text()).toBe('RÜCKWEG · 2')
-    // Disq.: ins Disq.-Feld der Liste, nie in eine Bojenzelle.
+    // Disq. (W4-12, BZ4): DISQ fragt erst den Ort – „keine Boje / ganzer Parcours“ → Disq.-Feld der Liste.
     await klick(w, '[data-action="disq"]')
+    expect(w.find('[data-teil="disq-ort"]').attributes('data-schritt')).toBe('wo')
+    expect(w.findAll('[data-teil="disq-ort-halt"]').map((h) => h.attributes('data-halt'))[0]).toBe('start')
+    await klick(w, '[data-action="disq-ort-keine"]')
     const code = w.findAll('[data-action="disq-code"]').map((b) => b.attributes('data-code')!).find((c) => c !== 'X')!
     await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
     await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
@@ -1384,6 +1633,27 @@ describe('Bojen (W4.2)', () => {
     expect([v['t1a|hin seiteB'], v['t1b|rueck seiteA'], v['t1c|rueck seiteB'], v['disq@gate135']]).toEqual(['5', '5', '5', code])
     expect(v['t1a|hin seiteA'] ?? '').toBe('')
     expect(w.html()).not.toMatch(NAMEN)
+  }, 20_000)
+
+  it('W4-13 (GF9): Band nur beim ersten Start einer Klasse im Punkt; Parcours-Zeichnung unter den Knöpfen', async () => {
+    const { w, zeige, state } = await torListe()
+    const s4 = zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s4.startNr)
+    // Die Zeichnung der Klasse steht unter den Knöpfen (Sicht `bild`, wie auf dem Bogen).
+    expect(w.find('[data-teil="mitte"] [data-teil="parcours-bild"]').exists()).toBe(true)
+    expect(w.find('[data-teil="parcours-bild"]').text()).toContain('Klasse 4')
+    const fertig = async (s: { starter: string; startNr: string }, naechste: string) => {
+      await klick(w, '[data-action="haupt"]')
+      await bis(() => !!werte(state.value, s.starter)['erfasst@gate135'])
+      await zeigt(() => startNr(w) === naechste && w.find('[data-teil="maske"]').attributes('data-takt') === 'frei')
+    }
+    const s7 = zeige()
+    await fertig(s4, s7.startNr)
+    expect(w.find('[data-teil="klassen-wechsel"]').exists()).toBe(true)
+    const s42 = zeige()
+    await fertig(s7, s42.startNr)
+    // Zurück zu Klasse 4 – deren erster Start war schon da: kein Band.
+    expect(w.find('[data-teil="klassen-wechsel"]').exists()).toBe(false)
   }, 20_000)
 
   it('Umschalter wechselt nie von selbst; Seite je Start gemerkt, ein anderer Start beginnt auf „Hinweg“', async () => {
@@ -1437,59 +1707,70 @@ describe('Bojen (W4.2)', () => {
     expect(werte(state.value, s4.starter)['t1a|hin seiteB']).toBe('5')
   }, 15_000)
 
-  it('Disq. an der Boje (Nutzer 21.11.2026, U1/U2): Modus → Boje → Buchstabe ersetzt die Punkte, ohne Modus kein Tipp, zurück nimmt ihn; Host, Zuletzt und Korrektur zeigen ihn an der Boje', async () => {
+  it('Disq. an der Boje (W4-12, 21.11.2026, BZ1/BZ4): DISQ fragt erst die Boje, der Buchstabe kommt zu den Punkten, die Boje nimmt weiter Tipps; Host „5G“, Zuletzt und Korrektur', async () => {
     const { w, state, zeige } = await torListe()
     const s4 = zeige()
     await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s4.startNr)
     const feld = 't3b|rueck seiteB'
+    const ort = (f: string) => `[data-action="disq-ort"][data-feld="${f}"]`
     await klick(w, boje(feld))
     expect(haupt(w).text()).toBe('Abschicken · 5 Pkt.')
-    // Disq.-Modus: Boje antippen → Buchstaben dieser Zelle (ohne X – das gilt hier nicht, F5).
-    await klick(w, '[data-action="boje-disq-modus"]')
-    expect(w.find('[data-teil="bojen"]').attributes('data-disq-modus')).toBeDefined()
-    await klick(w, boje(feld))
-    const d = w.find('[data-dialog="wkr-boje-disq"]')
-    expect(d.find('h2').text()).toBe('Disq. an Tor 3 R L')
-    const codes = d.findAll('[data-action="boje-disq-code"]').map((b) => b.attributes('data-code'))
+    // DISQ im Fuß: erst „wo?“ – die Bojen der Klasse in Fahrtfolge, dazu „keine Boje / ganzer Parcours“.
+    await klick(w, '[data-action="disq"]')
+    expect(w.find('[data-teil="disq-ort"]').attributes('data-schritt')).toBe('wo')
+    expect(w.findAll('[data-teil="disq-ort-halt"]').map((h) => h.attributes('data-halt'))).toEqual(['start', 't1a', 't3a', 't5', 't5', 't3b', 'ziel'])
+    expect(w.find('[data-action="disq-ort-keine"]').text()).toBe('Keine Boje / ganzer Parcours')
+    expect(w.find(ort(feld)).text()).toContain('✔ 5')
+    await klick(w, ort(feld))
+    // Dann die Buchstaben DIESER Zelle (ohne X – das gilt hier nicht, F5), zweiter Tipp setzt (H1).
+    expect(w.find('[data-teil="disq-titel"]').text()).toBe('Disq. an Tor 3 · Rück R L')
+    const codes = w.findAll('[data-action="disq-code"]').map((b) => b.attributes('data-code'))
     expect(codes).toContain('G')
     expect(codes).not.toContain('X')
-    await klick(w, '[data-action="boje-disq-code"][data-code="G"]')
-    // Der Buchstabe ersetzt die Berührung (die Zelle hält nur eins), der Modus ist zu Ende.
-    expect(w.find('[data-dialog="wkr-boje-disq"]').exists()).toBe(false)
-    expect(w.find('[data-teil="bojen"]').attributes('data-disq-modus')).toBeUndefined()
+    await klick(w, '[data-action="disq-code"][data-code="G"]')
+    await klick(w, '[data-action="disq-code"][data-code="G"]')
+    // Zurück bei den Bojen: Punkte UND Buchstabe an der Boje.
+    expect(w.find('[data-teil="disq-ort"]').exists()).toBe(false)
     expect(w.find(boje(feld)).attributes('data-disq')).toBe('G')
-    expect(w.find(boje(feld)).attributes('data-anzahl')).toBe('0')
-    expect(w.find(boje(feld)).find('[data-teil="boje-stand"]').text()).toBe('Disq. G')
-    expect(haupt(w).text()).toBe('Abschicken · Disq. G')
-    // Ohne Modus nimmt die Boje keinen Tipp an – sagt aber, wie der Buchstabe herauskommt (Prüfbefund 21.11.2026).
-    expect(w.find('[data-teil="boje-disq-gesperrt"]').exists()).toBe(false)
+    expect(w.find(boje(feld)).attributes('data-anzahl')).toBe('1')
+    expect(w.find(boje(feld)).find('[data-teil="boje-stand"]').text()).toBe('✔ 5Disq. G')
+    expect(haupt(w).text()).toBe('Abschicken · 5 Pkt. · Disq. G')
+    // Die Boje nimmt weiter Tipps: Schalter nimmt die Berührung weg, der Buchstabe bleibt (nach dem Prellschutz).
+    vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })
+    vi.setSystemTime(Date.now() + WKR_ANNAHMEN.bojenSchalterPrellMs + 100)
     await klick(w, boje(feld))
-    expect(w.find(boje(feld)).attributes('data-disq')).toBe('G')
-    expect(w.find('[data-teil="boje-disq-gesperrt"]').text()).toBe('Disq. G an Tor 3 R L – herausnehmen über „Disq. an Boje …“')
-    // „− letzte zurück“ nimmt den Buchstaben und gibt die ersetzte Berührung zurück (Prüfbefund 21.11.2026),
-    // Modus + Tipp setzt ihn neu, im Modus nimmt ein Tipp ihn heraus.
+    expect([w.find(boje(feld)).attributes('data-anzahl'), w.find(boje(feld)).attributes('data-disq')]).toEqual(['0', 'G'])
+    expect(haupt(w).text()).toBe('Abschicken · Disq. G')
+    // „− letzte zurück“ nimmt die letzte Eingabe (das Wegnehmen der Berührung kennt kein Zurück – die Berührung
+    // bleibt weg); danach den Buchstaben.
     await klick(w, '[data-action="zurueck"]')
     expect(w.find(boje(feld)).attributes('data-disq')).toBeUndefined()
-    expect(w.find(boje(feld)).attributes('data-anzahl')).toBe('1')
-    expect(haupt(w).text()).toBe('Abschicken · 5 Pkt.')
-    await klick(w, '[data-action="boje-disq-modus"]')
+    // „Disq. an Boje …“ ist derselbe Einstieg: Boje, Buchstabe – und ein Tipp auf den gesetzten nimmt ihn heraus.
+    vi.setSystemTime(Date.now() + WKR_ANNAHMEN.bojenSchalterPrellMs + 100)
     await klick(w, boje(feld))
-    await klick(w, '[data-action="boje-disq-code"][data-code="G"]')
     await klick(w, '[data-action="boje-disq-modus"]')
-    await klick(w, boje(feld))
+    await klick(w, ort(feld))
+    await klick(w, '[data-action="disq-code"][data-code="G"]')
+    await klick(w, '[data-action="disq-code"][data-code="G"]')
+    await klick(w, '[data-action="boje-disq-modus"]')
+    expect(w.find(ort(feld)).attributes('data-disq')).toBe('G')
+    await klick(w, ort(feld))
+    await klick(w, '[data-action="disq-code"][data-code="G"]')
     expect(w.find(boje(feld)).attributes('data-disq')).toBeUndefined()
-    await klick(w, '[data-action="boje-disq-modus"]')
-    await klick(w, boje(feld))
-    await klick(w, '[data-action="boje-disq-code"][data-code="G"]')
+    expect(w.find(boje(feld)).attributes('data-anzahl')).toBe('1')
+    await klick(w, '[data-action="disq"]')
+    await klick(w, ort(feld))
+    await klick(w, '[data-action="disq-code"][data-code="G"]')
+    await klick(w, '[data-action="disq-code"][data-code="G"]')
     await klick(w, '[data-action="haupt"]')
-    // Am Host steht der Buchstabe in der Bojenzelle – wie abgetippt (sanitizeBuoy), das Disq.-Feld bleibt leer.
-    await bis(() => werte(state.value, s4.starter)[feld] === 'G')
+    // Am Host stehen Punkte und Buchstabe in der Bojenzelle – wie abgetippt (sanitizeBuoy), das Disq.-Feld bleibt leer.
+    await bis(() => werte(state.value, s4.starter)[feld] === '5G')
     expect(werte(state.value, s4.starter)['disq@gate135'] ?? '').toBe('')
     await zeigt(() => w.find('[data-action="zuletzt"]').exists())
     await klick(w, '[data-action="zuletzt"]')
-    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('Tor 3 R L: G')
+    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('Tor 3 R L: 5G')
     await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
-    expect(w.find(boje(feld)).attributes('data-disq')).toBe('G')
+    expect([w.find(boje(feld)).attributes('data-disq'), w.find(boje(feld)).attributes('data-anzahl')]).toEqual(['G', '1'])
   }, 15_000)
 
   it('Ansicht „Wie der Parcours liegt“ (Nutzer 21.11.2026, V1/V2): je Tor eine Gruppe, Start oben/unten, Spalten tauschen, gemerkt je Liste; Probe ebenso', async () => {
@@ -1591,13 +1872,17 @@ describe('Bojen (W4.2)', () => {
     // U4 (Nutzer 21.11.2026): Disq. an der Boje – rechter Knopf der ersten zweibojigen Zeile, erster Buchstabe. Mit
     // Umschalter auf der offenen Seite (Rückweg; Prüfbefund 21.11.2026) – die Anweisung genügt, kein Seitenwechsel.
     expect(probe().attributes('data-schritt')).toBe('bojeDisq')
-    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('dann bei „Tor 3“ auf „R L“ und wähle „A“')
-    await klick(w, '[data-action="boje-disq-modus"]')
+    // Seit W4-12 (21.11.2026) mit Punkt UND Buchstabe: Berührung, „Disq. an Boje …“, Ort, Buchstabe.
+    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('Tippe bei „Tor 3“ auf „R L“ (Berührung)')
     await klick(w, boje('t3b|rueck seiteB'))
-    await klick(w, '[data-action="boje-disq-code"][data-code="A"]')
+    expect(probe().attributes('data-schritt')).toBe('bojeDisq')
+    await klick(w, '[data-action="boje-disq-modus"]')
+    await klick(w, '[data-action="disq-ort"][data-feld="t3b|rueck seiteB"]')
+    await klick(w, '[data-action="disq-code"][data-code="A"]')
+    await klick(w, '[data-action="disq-code"][data-code="A"]')
     expect(probe().attributes('data-schritt')).toBe('haupt')
     expect(w.find(boje('t3b|rueck seiteB')).attributes('data-disq')).toBe('A')
-    expect(haupt(w).text()).toBe('Abschicken · 10 Pkt. · Disq. A')
+    expect(haupt(w).text()).toBe('Abschicken · 15 Pkt. · Disq. A')
     await klick(w, '[data-action="haupt"]')
     await vi.advanceTimersByTimeAsync(BIS_WECHSEL + WKR_ANNAHMEN.sperreMs)
     await nextTick()
@@ -1625,6 +1910,33 @@ describe('Bojen (W4.2)', () => {
     expect(w.find('[data-teil="bojen"]').exists()).toBe(true)
     expect(w.find('[data-teil="wkr-kopf"] [data-teil="titel"]').text()).toContain('Tor 1 / 3 / 5')
     expect(w.find('[data-teil="probe"]').exists()).toBe(false)
+  })
+
+  it('Übung (Nutzer 21.11.2026, W3-15, GF4): Erklärung oben, zuklappbar und gemerkt; „Übung beenden“ unter den Knöpfen führt zur Wahl zurück', async () => {
+    const speicher = handy()
+    const w = mount(WkrUebung, { attachTo: document.body, props: { ablage: speicher, taktMs: 3_600_000 } })
+    wrappers.push(w)
+    await klick(w, '[data-action="uebung-start"]')
+    const erklaerung = () => w.find<HTMLDetailsElement>('[data-teil="uebung-erklaerung"]')
+    expect(erklaerung().element.open).toBe(true)
+    expect(erklaerung().text()).toContain(`Starts 1–${WKR_ANNAHMEN.uebungStarts} ohne Namen`)
+    expect(erklaerung().text()).toContain('Rückfrage')
+    erklaerung().element.open = false
+    await erklaerung().trigger('toggle')
+    expect(ansichtIn(speicher).uebungErklaerungZu).toBe(true)
+    // Ein Tipp, dann beenden: zurück zur Wahl, die Maske samt Entwurf ist weg.
+    await zeigt(() => w.find('[data-action="code"]').exists())
+    await klick(w, '[data-action="code"]')
+    expect(w.findAll('[data-action="code"]').some((b) => Number(b.attributes('data-anzahl')) > 0)).toBe(true)
+    expect(w.find('[data-teil="uebung-ende-unten"] [data-action="uebung-beenden"]').exists()).toBe(true)
+    await klick(w, '[data-action="uebung-beenden"]')
+    expect(w.find('[data-teil="uebung-wahl"]').exists()).toBe(true)
+    expect(w.find('[data-teil="wkr-geraet"]').exists()).toBe(false)
+    // Neu begonnen: ohne Entwurf, die Erklärung bleibt zu.
+    await klick(w, '[data-action="uebung-start"]')
+    expect(erklaerung().element.open).toBe(false)
+    await zeigt(() => w.find('[data-action="code"]').exists())
+    expect(w.findAll('[data-action="code"]').every((b) => !(Number(b.attributes('data-anzahl')) > 0))).toBe(true)
   })
 
   it('UIM Parallelslalom Racecourse A: Buoy 1 → „parallel:…“ am Host, Seite A', async () => {
@@ -1661,59 +1973,51 @@ describe('„Nicht vorbeigekommen“ (W4.3)', () => {
     return w.find('[data-action="nicht-vorbei"]')
   }
 
-  it('Mehr → große Rückfrage → Haken und ⊘ am Bedienrechner, nichts eingetragen; Zuletzt ⊘; Prüfansicht zählt', async () => {
+  // W3-17 (Nutzer 21.11.2026, GF10): Wo die Liste J kennt (Tor 5: Bereich parcours), ist es Disq. J – eine gewöhnliche
+  // Zeile mit Haken, kein Kennzeichen ⊘. Das Kennzeichen bleibt nur, wo J fehlt (Steg-Anlegen, Test unten).
+  it('Mehr → große Rückfrage → Disq. J ins Disq.-Feld mit Haken, kein ⊘; der getippte Entwurf ist verworfen', async () => {
     const { w, state, s, l } = await listeMitStart('tor5')
     await klick(w, '[data-action="code"][data-code="1"]')
     const knopf = await nvMehr(w)
-    expect(knopf.text()).toContain('Nicht vorbeigekommen')
+    expect(knopf.text()).toBe('Nicht vorbeigekommen · Disq. J')
     await knopf.trigger('click')
     await nextTick()
     const d = w.find('[data-dialog="wkr-nicht-vorbei"]')
     expect(d.text()).toContain(`${s.startNr} ist hier nicht vorbeigekommen?`)
-    expect(d.text()).toContain('Es wird nichts eingetragen.')
+    expect(d.text()).toContain('Eingetragen wird Disq. J')
     // Abbrechen ändert nichts.
     await klick(w, '[data-action="nicht-vorbei-nein"]')
     expect(w.find('[data-dialog="wkr-nicht-vorbei"]').exists()).toBe(false)
     expect(startNr(w)).toBe(s.startNr)
-    // „Mehr“ bleibt nach dem Abbrechen offen.
     await klick(w, '[data-action="nicht-vorbei"]')
     await klick(w, '[data-action="nicht-vorbei-ja"]')
     // Overlay wie beim Abschicken (N1).
     expect(w.find('[data-teil="uebertragen"]').exists()).toBe(true)
-    await bis(() => state.value.wkr.nichtVorbei[l]?.length === 1)
-    expect(werte(state.value, s.starter)).toEqual({ 'erfasst@tor5': '1' })
-    // Der getippte Code war ein Entwurf – er geht nicht mit und ist verworfen.
+    await bis(() => werte(state.value, s.starter)['erfasst@tor5'] === '1')
+    expect(werte(state.value, s.starter)).toMatchObject({ 'disq@tor5': 'J', 'erfasst@tor5': '1' })
+    expect(werte(state.value, s.starter)['katalog:tor5'] ?? '').toBe('')
+    expect(state.value.wkr.nichtVorbei[l]).toBeUndefined()
     await zeigt(() => w.find('[data-action="zuletzt"]').exists())
     expect(w.find('[data-teil="entwuerfe"]').exists()).toBe(false)
-    await klick(w, '[data-action="zuletzt"]')
-    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('⊘ nicht vorbeigekommen')
-    await klick(w, '[data-action="zuletzt"]')
-    await zeigt(() => w.find('[data-teil="maske"]').attributes('data-takt') === 'frei' || w.find('[data-teil="ruhe"]').exists())
-    await oeffneAbschlussUeberMehr(w)
-    expect(w.find('[data-teil="summe"]').text()).toContain(`1 nicht vorbeigekommen: ${s.startNr}`)
-    const zeile = w.find('[data-teil="pruef-zeile"]')
-    expect(zeile.attributes('data-nv')).toBe('true')
-    expect(zeile.find('[data-teil="codes"]').text()).toBe('⊘ nicht vorbeigekommen')
-    expect(zeile.find('[data-teil="punkte"]').exists()).toBe(false)
     expect(w.html()).not.toMatch(NAMEN)
   }, 12_000)
 
-  it('Korrektur „doch vorbei“: alt ⊘, auch leer (fehlerfrei) hebt das Kennzeichen am Bedienrechner auf', async () => {
-    const { w, state, s, l } = await listeMitStart('tor5')
+  it('Korrektur einer J-Zeile auf „fehlerfrei“ nimmt das J am Bedienrechner wieder heraus', async () => {
+    const { w, state, s } = await listeMitStart('tor5')
     await (await nvMehr(w)).trigger('click')
     await nextTick()
     await klick(w, '[data-action="nicht-vorbei-ja"]')
-    await bis(() => state.value.wkr.nichtVorbei[l]?.length === 1)
-    await zeigt(() => w.find('[data-action="zuletzt"]').exists())
+    await bis(() => werte(state.value, s.starter)['disq@tor5'] === 'J')
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists() && taktFrei(w))
     await klick(w, '[data-action="zuletzt"]')
     await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
     expect(w.find('[data-action="nicht-vorbei"]').exists()).toBe(false)
+    // J steht im Entwurf der Korrektur (aus dem eigenen Stand, M2) – herausnehmen ist ein Tipp.
+    await klick(w, '[data-action="disq"]')
+    await klick(w, '[data-action="disq-code"][data-code="J"]')
     await klick(w, '[data-action="haupt"]')
-    const d = w.find('[data-dialog="wkr-korrektur"]')
-    expect(d.find('[data-teil="alt"]').text()).toBe('⊘ nicht vorbeigekommen')
-    expect(d.find('[data-teil="neu"]').text()).toBe('fehlerfrei')
     await klick(w, '[data-action="korrektur-ja"]')
-    await bis(() => state.value.wkr.nichtVorbei[l] === undefined)
+    await bis(() => (werte(state.value, s.starter)['disq@tor5'] ?? '') === '')
     expect(werte(state.value, s.starter)['erfasst@tor5']).toBe('1')
   }, 12_000)
 

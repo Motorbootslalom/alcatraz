@@ -25,6 +25,14 @@ export interface RawFehler {
   text: string
   en?: string
   punkte: number
+  /**
+   * Klassen, in denen der Code laut Regelwerk gilt (Nutzer 21.11.2026, W3-07, WKR_ANNAHMEN.codesNachKlasse): `abKlasse`
+   * = diese und alle späteren Klassen in der Folge von `klassen` (DM: „erst ab Klasse 4“), `klassen` = genau diese.
+   * Höchstens eine der beiden; fehlt beides, gilt er überall. Wirkung nur auf dem WKR-Gerät: ausgegraut, aber drückbar
+   * (die Besprechung kann ihn für weitere Klassen freigeben) – Bogen, Legende und Eingabe bleiben unverändert.
+   */
+  abKlasse?: string | number
+  klassen?: (string | number)[]
 }
 
 /** Benannter Fehler-Katalog (z. B. "mueb", "steg", "tor5"). */

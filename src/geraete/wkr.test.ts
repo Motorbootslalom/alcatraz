@@ -33,6 +33,7 @@ import { storeKey, type Store } from '../state/store'
 import { setLocale } from '../i18n'
 import { vergissAlles } from '../lib/merken'
 import type { AppState } from '../types'
+import { makeFile } from '../persistenz/backup'
 
 /**
  * Ende zu Ende der WKR-Erfassung (W1.4, Plan docs/plan-wkr-w1.md §6, 21.11.2026): Bedienrechner (host.ts im
@@ -168,6 +169,8 @@ function zeige(s: FStore, bereich = P1) {
 }
 
 const aktuell = (s: AppState, bereich = P1) => lage(s, bereich).aktuell!
+/** „Durchs Start-Tor“ für den gezeigten Start (Parcours-Ampel rot, P-03): Erst dann zählt er im Rückstand (AM5). */
+const durch = (s: FStore, bereich = P1) => s.dispatch({ type: 'BETRIEB_DURCHFAHRT', bereich, ref: aktuell(s.state.value, bereich).key, an: true })
 const werte = (s: AppState, starter: string, lauf = LAUF) => werteVon(s.eingaben, lauf, starter)
 const zeilenNachrichten = (s: FStore) => s.angewandt.filter((a) => a.type === 'WKR_ZEILEN') as Extract<Action, { type: 'WKR_ZEILEN' }>[]
 
@@ -652,7 +655,10 @@ describe('W2.4: Freigabe-Handy und Freigabe-Gruppe', () => {
     expect(raum().geraete[tor.id].gruppen).toEqual([gruppeDerListe(TOR)])
     await bis(() => s.state.value.wkr.listen[TOR]?.modus === 'digital')
     for (let i = 0; i < 3; i++) zeige(s)
+    durch(s)
     await bis(() => frei.g.freigabe.value[P1]?.listen.find((l) => l.titel === TITEL)?.offen === 3)
+    // Parcours-Ampel (fv 2, P-03): rot für den gezeigten Start, ohne Namen.
+    expect(frei.g.freigabe.value[P1]).toMatchObject({ ampel: 'rot', ampelRef: aktuell(s.state.value).key, perKnopf: true, autoMoeglich: false })
     const f = frei.g.freigabe.value[P1]
     expect(f.listen.find((l) => l.titel === TITEL)).toMatchObject({ stand: 'aktiv', ampel: 'gehoert', warnt: true })
     // Das Listen-Handy hat die Freigabe-Gruppe nicht.
@@ -722,6 +728,7 @@ describe('W2.4: Freigabe-Handy und Freigabe-Gruppe', () => {
     const { g } = await neuGeladen(frei.speicher)
     s2.dispatch({ type: 'WKR_LISTE', liste: TOR, modus: 'digital' })
     zeige(s2)
+    durch(s2)
     await bis(() => g.freigabe.value[P1]?.listen.some((l) => l.titel === TITEL && l.offen === 1))
   }, 15_000)
 
@@ -1079,6 +1086,7 @@ describe('Abmelden am Gerät wirkt wie Liste entfernen (Nutzer 21.11.2026)', () 
     s.dispatch({ type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1, wkrWarnung: 'nachfragen' } })
     const { e, id } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
     const { key } = await mitStart(s, e)
+    durch(s)
     expect(lageVon(s.state.value, TOR, h).warnt).toBe(true)
     const schluesselVorher = raum().gruppen[gruppeDerListe(TOR)]
     const titel = e.sichten.value[TOR]!.titel
@@ -1163,5 +1171,147 @@ describe('Abmelden am Gerät wirkt wie Liste entfernen (Nutzer 21.11.2026)', () 
     halt()
     // Sie beginnt mit der alten Ruhe (die Liste fehlte nie in IHREM Blick) – die neue Sicht hebt sie auf.
     await bis(() => e2!.abgemeldet.value.length === 0 && !!e2!.sichten.value[TOR])
+  })
+})
+
+describe('Auto-Modus der Start-Freigabe (Nutzer 21.11.2026, P-03; AM6/AM7)', () => {
+  const PARCOURS = ['gate135', 'gate245', 'tor5', 'mueb', 'parcours'].map((typeId) => listenKennung({ bereich: P1, typeId, racecourse: null }))
+
+  /** Jede Parcours-Liste von Parcours 1 mit Gerät (zwei Listen je Handy), Auto-Modus an, ein Start gezeigt und grün. */
+  async function auto() {
+    const r = await bedienrechner(undefined, { sammelnMs: 30 })
+    let e: Erfassung | null = null
+    for (let i = 0; i < PARCOURS.length; i += 2) e = (await wkrHandy(r.h, PARCOURS.slice(i, i + 2).map((liste) => ({ art: 'liste', liste }) as Aufgabe), { name: `Handy ${i}` })).e
+    await bis(() => PARCOURS.every((l) => r.s.state.value.wkr.listen[l]?.modus === 'digital'))
+    r.s.dispatch({ type: 'SET_ANZEIGE', patch: { wkrAuto: true } })
+    const gruen = async () => {
+      // Der Host muss die Ampel dieses Starts grün gesehen haben (sonst kein Auto, AM6). Er prüft sie im selben Zug, in
+      // dem er die Listen-Sichten verteilt – sieht das Gerät „grün“ für diesen Start, hat der Host sie gesehen.
+      const key = aktuell(r.s.state.value).key
+      await bis(() => e!.sichten.value[PARCOURS[4]]?.ampel?.key === key && e!.sichten.value[PARCOURS[4]]?.ampel?.ampel === 'gruen')
+    }
+    zeige(r.s)
+    await gruen()
+    const erster = aktuell(r.s.state.value).key
+    const fertig = () =>
+      r.s.dispatch({ type: 'SET_EINGABEN', zellen: PARCOURS.map((l) => ({ lauf: LAUF, starter: aktuell(r.s.state.value).eintrag!.starter, feld: `erfasst@${JSON.parse(l)[2]}`, wert: '1' })) })
+    return { ...r, erster, fertig, gruen }
+  }
+
+  it('alle Parcours-Listen abgeschickt → Countdown → der Host zeigt den Nächsten', async () => {
+    const { s, h, erster, fertig } = await auto()
+    expect(h.auto?.value).toEqual({})
+    fertig()
+    await bis(() => !!h.auto?.value[P1])
+    expect(h.auto!.value[P1]!.ref).toBe(erster)
+    await bis(() => aktuell(s.state.value).key !== erster)
+    expect(h.auto!.value[P1]).toBeUndefined()
+  }, 20_000)
+
+  it('„Anhalten“ hält bis zum nächsten Start; Pause-Meldung und nicht gesehenes Grün zählen nie', async () => {
+    const { s, h, erster, fertig, gruen } = await auto()
+    fertig()
+    await bis(() => !!h.auto?.value[P1])
+    h.halteAuto!(P1, erster)
+    expect(h.auto!.value[P1]).toBeUndefined()
+    // Dass NICHTS geschieht, zeigt sich erst nach dem Verzug (3 s) – hier ist eine feste Pause die Prüfung selbst.
+    await ruhe(3500)
+    expect(aktuell(s.state.value).key).toBe(erster)
+    // Von Hand weiter: Der nächste Start ist wieder automatisch – außer mit Meldung „Pause“.
+    s.dispatch({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: { text: 'Mittagspause', art: 'pause' } })
+    zeige(s)
+    await gruen()
+    fertig()
+    await ruhe(3500)
+    expect(h.auto!.value[P1]).toBeUndefined()
+    expect(aktuell(s.state.value).key).not.toBe(erster)
+  }, 20_000)
+
+  it('zweites Bedienfenster (Prüfbefund 21.11.2026): sieht den Countdown über den Fensterbus, „Anhalten“ von dort wirkt', async () => {
+    const { b, s, h, erster, fertig } = await auto()
+    const f2 = b.fenster()
+    const h2 = hostIn(f2, fensterStore(f2))
+    await bis(() => !!h2.raum.value)
+    expect(h2.fuehrt.value).toBe(false)
+    fertig()
+    await bis(() => !!h2.auto?.value[P1])
+    expect(h2.auto!.value[P1]).toEqual(h.auto!.value[P1])
+    h2.halteAuto!(P1, erster)
+    await bis(() => !h.auto!.value[P1] && !h2.auto!.value[P1])
+    // Dass NICHTS geschieht, zeigt sich erst nach dem Verzug (3 s) – die feste Pause ist hier die Prüfung selbst.
+    await ruhe(3500)
+    expect(aktuell(s.state.value).key).toBe(erster)
+  }, 20_000)
+})
+
+describe('WKR-Name aus der Veranstaltung (Nutzer 21.11.2026, W3-13, WN1–WN3)', () => {
+  const EINTEILUNG = 'Erika Einteilung'
+  const VERTRETUNG = 'Max Vertretung'
+  const mitEinteilung = () => ({ ...wkrBetriebsStand(), einteilung: { [P1]: { gate135: EINTEILUNG } } })
+
+  it('vorbelegt aus der Sicht der eigenen Liste; Ändern → Lebenszeichen → Register; Übernehmen in die Veranstaltung räumt beide', async () => {
+    const { s, h, raum } = await bedienrechner(mitEinteilung)
+    const tor = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const steg = await wkrHandy(h, [{ art: 'liste', liste: STEG }], { name: 'Handy Steg' })
+    expect(tor.e.wkrName(TOR)).toEqual({ name: EINTEILUNG, einteilung: EINTEILUNG, eigen: false })
+    // WN1: nur der Name der EIGENEN Liste – der Steg hat keinen Eintrag, sieht also keinen.
+    expect(steg.e.wkrName(STEG)).toEqual({ name: '', einteilung: '', eigen: false })
+    expect(JSON.stringify(steg.e.sichten.value)).not.toContain(EINTEILUNG)
+    // Fremde Liste: nichts zu setzen.
+    expect(tor.e.setzeWkrName(STEG, VERTRETUNG)).toBe(false)
+
+    // WN2: Ändern geht sofort im Lebenszeichen hinaus, auch ohne Stille – der Host legt es im Register ab.
+    expect(tor.e.setzeWkrName(TOR, ` ${VERTRETUNG} `)).toBe(true)
+    expect(tor.e.wkrName(TOR)).toEqual({ name: VERTRETUNG, einteilung: EINTEILUNG, eigen: true })
+    await bis(() => raum().geraete[tor.id].wkrNamen?.[TOR] === VERTRETUNG)
+    await bis(() => h.raum.value?.geraete.find((g) => g.id === tor.id)?.wkrNamen?.[TOR] === VERTRETUNG)
+    // Nie im AppState (außer im Abschluss): Der Stand kennt den Namen nicht – also auch keine Sicherung oder Vorlage.
+    expect(JSON.stringify(s.state.value)).not.toContain(VERTRETUNG)
+    expect(JSON.stringify(makeFile('sicherung', s.state.value, '2026-11-21T20:00:00.000Z'))).not.toContain(VERTRETUNG)
+    const vorlage = JSON.stringify(makeFile('vorlage', s.state.value, '2026-11-21T20:00:00.000Z'))
+    expect(vorlage).not.toContain(VERTRETUNG)
+    expect(vorlage).not.toContain(EINTEILUNG)
+
+    // Gerätelokal je Raum und Liste: übersteht das Neuladen.
+    tor.e.stop()
+    tor.g.stop()
+    const neu = await neuGeladen(tor.speicher)
+    await bis(() => !!neu.e.sichten.value[TOR])
+    expect(neu.e.wkrName(TOR)).toEqual({ name: VERTRETUNG, einteilung: EINTEILUNG, eigen: true })
+
+    // „In Veranstaltung übernehmen“ (SET_WKR_NAME): Die Sicht bringt den Namen, das Gerät hat keine Abweichung mehr,
+    // das nächste Lebenszeichen räumt das Register.
+    s.dispatch({ type: 'SET_WKR_NAME', parcoursId: P1, typeId: 'gate135', name: VERTRETUNG })
+    await bis(() => neu.e.wkrName(TOR).eigen === false)
+    expect(neu.e.wkrName(TOR)).toEqual({ name: VERTRETUNG, einteilung: VERTRETUNG, eigen: false })
+    await bis(() => raum().geraete[tor.id].wkrNamen === undefined)
+    // Danach kommt eine neue Einteilung wieder auf dem Gerät an.
+    s.dispatch({ type: 'SET_WKR_NAME', parcoursId: P1, typeId: 'gate135', name: EINTEILUNG })
+    await bis(() => neu.e.wkrName(TOR).name === EINTEILUNG)
+    // Übernommen steht der Name in der Einteilung: in der Sicherung, nie in der Vorlage (Personenangabe).
+    s.dispatch({ type: 'SET_WKR_NAME', parcoursId: P1, typeId: 'gate135', name: VERTRETUNG })
+    expect(JSON.stringify(makeFile('sicherung', s.state.value, '2026-11-21T20:00:00.000Z'))).toContain(VERTRETUNG)
+    expect(JSON.stringify(makeFile('vorlage', s.state.value, '2026-11-21T20:00:00.000Z'))).not.toContain(VERTRETUNG)
+  })
+
+  it('zurück zur Einteilung: gleicher Name oder leer heißt keine Abweichung; Raum verlassen löscht den Namen (WN3 bleibt Rückfall)', async () => {
+    const { h, raum } = await bedienrechner(mitEinteilung)
+    const tor = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    tor.e.setzeWkrName(TOR, VERTRETUNG)
+    await bis(() => raum().geraete[tor.id].wkrNamen?.[TOR] === VERTRETUNG)
+    tor.e.setzeWkrName(TOR, EINTEILUNG)
+    expect(tor.e.wkrName(TOR).eigen).toBe(false)
+    await bis(() => raum().geraete[tor.id].wkrNamen === undefined)
+    tor.e.setzeWkrName(TOR, VERTRETUNG)
+    tor.e.setzeWkrName(TOR, '  ')
+    expect(tor.e.wkrName(TOR)).toEqual({ name: EINTEILUNG, einteilung: EINTEILUNG, eigen: false })
+    // Zu lang: abgewiesen.
+    expect(tor.e.setzeWkrName(TOR, 'x'.repeat(61))).toBe(false)
+    tor.e.setzeWkrName(TOR, VERTRETUNG)
+    expect(tor.speicher.getItem(ABLAGE.geraetWkr)).toContain(VERTRETUNG)
+    tor.e.stop()
+    tor.g.stop()
+    verlasseRaum(tor.speicher)
+    expect([...tor.speicher.daten.values()].join('\n')).not.toContain(VERTRETUNG)
   })
 })

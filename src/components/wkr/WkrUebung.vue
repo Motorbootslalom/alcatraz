@@ -7,6 +7,7 @@ import type { ErfassungsQuelle } from '../../geraete/erfassen'
 import { oeffneUebung } from '../../geraete/uebung'
 import { GERAET } from '../../geraete/paket'
 import type { ListenTeil } from '../../wkr/liste'
+import { useWirksamerModus } from './systemModus'
 import WkrGeraet from './WkrGeraet.vue'
 import '../../styles/wkr-geraet.css'
 
@@ -54,8 +55,9 @@ const REGELWERKE = [
   { id: 'uim-2026', text: 'uim' },
 ] as const
 
-/** Die Wahl in der Ansicht des Geräts (Sonne als Vorgabe, G1) – gelesen beim Öffnen. */
-const modus = liesAnsicht(props.ablage === undefined ? undefined : props.ablage).modus
+/** Die Wahl in der Ansicht des Geräts – gelesen beim Öffnen; „Wie Gerät“ folgt dem System live (GF1, 21.11.2026). */
+const wahlModus = liesAnsicht(props.ablage === undefined ? undefined : props.ablage).modus
+const modus = useWirksamerModus(() => wahlModus)
 const regelwerk = ref<(typeof REGELWERKE)[number]['id']>('dm-2026')
 const wahl = ref<Wahl>('tor5')
 const quelle = shallowRef<ErfassungsQuelle | null>(null)

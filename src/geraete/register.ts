@@ -1,7 +1,7 @@
 import { liesAufgaben, listenAufgaben, type Aufgabe } from './aufgaben'
 import type { GeraetAngabe } from '../wkr/lage'
 import { gruppenFuer } from './wkrGruppen'
-import { istOeffentlich } from './transport/protokoll'
+import { istOeffentlich, type GeraeteTyp } from './transport/protokoll'
 import type { BekanntesGeraet } from './koppelEntscheid'
 import { liesKoppelStand, type KoppelStand } from './koppeln'
 import { ENTZOGEN_HOECHSTENS, mitGruppe, type HostRaum } from './transport/ntfy/raum'
@@ -29,6 +29,10 @@ export interface RegisterEintrag {
   /** W1: aus dem letzten Lebenszeichen (fehlt, solange keines kam). */
   wartend?: number
   akku?: number
+  /** Art (W3-25, 21.11.2026): handy/pad/rechner – vom Gerät beim Koppeln, am Bedienrechner änderbar; fehlt = unbekannt. */
+  typ?: GeraeteTyp
+  /** Auf dem Gerät geänderte WKR-Namen je Liste (W3-13, WN2) – fehlt, solange keiner geändert ist. */
+  wkrNamen?: Record<string, string>
 }
 
 export interface EntzogenEintrag {
@@ -46,6 +50,8 @@ export function geraeteListe(raum: HostRaum): RegisterEintrag[] {
       id, name: g.name ?? '', aufgaben: liesAufgaben(g.aufgaben), seit: g.seit ?? 0, zuletzt: g.zuletzt ?? 0,
       ...(g.wartend !== undefined ? { wartend: g.wartend } : {}),
       ...(g.akku !== undefined ? { akku: g.akku } : {}),
+      ...(g.typ !== undefined ? { typ: g.typ } : {}),
+      ...(g.wkrNamen && Object.keys(g.wkrNamen).length > 0 ? { wkrNamen: { ...g.wkrNamen } } : {}),
     }))
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
 }
@@ -124,20 +130,41 @@ export function benenne(raum: HostRaum, id: string, name: string): boolean {
   return true
 }
 
+/**
+ * Art des Geräts setzen (W3-25, GF7). `nurWennFehlt`: aus der Anmeldung – nur beim ersten Koppeln, damit eine Wahl des
+ * Bedieners eine spätere Anmeldung (nach jedem Neuladen) überdauert. `false` ohne Eintrag oder unverändert.
+ */
+export function setzeTyp(raum: HostRaum, id: string, typ: GeraeteTyp, nurWennFehlt = false): boolean {
+  const g = raum.geraete[id]
+  if (!g || g.typ === typ || (nurWennFehlt && g.typ !== undefined)) return false
+  g.typ = typ
+  return true
+}
+
 /** Zuletzt gehört – bei jeder bearbeiteten Nachricht des Geräts. */
 export function beruehre(raum: HostRaum, id: string, jetzt: number): void {
   const g = raum.geraete[id]
   if (g) g.zuletzt = jetzt
 }
 
-/** W1: Lebenszeichen – zuletzt gehört, dazu wartende Zeilen und Akku (fehlt der Akku, gilt der alte nicht mehr). */
-export function vermerkeLebenszeichen(raum: HostRaum, id: string, jetzt: number, angaben: { wartend: number; akku?: number }): void {
+/**
+ * W1: Lebenszeichen – zuletzt gehört, dazu wartende Zeilen und Akku (fehlt der Akku, gilt der alte nicht mehr).
+ * Seit 21.11.2026 (W3-13, WN2) die auf dem Gerät geänderten WKR-Namen: Trägt das Lebenszeichen `namen`, ersetzen sie
+ * die bisherigen (leer = keine mehr); fehlt das Feld (älteres Gerät), bleiben sie. Nur Namen eigener Listen.
+ */
+export function vermerkeLebenszeichen(raum: HostRaum, id: string, jetzt: number, angaben: { wartend: number; akku?: number; namen?: Record<string, string> }): void {
   const g = raum.geraete[id]
   if (!g) return
   g.zuletzt = jetzt
   g.wartend = angaben.wartend
   if (angaben.akku !== undefined) g.akku = angaben.akku
   else delete g.akku
+  if (angaben.namen !== undefined) {
+    const eigene = new Set(listenAufgaben(liesAufgaben(g.aufgaben)).map((a) => a.liste))
+    const namen = Object.fromEntries(Object.entries(angaben.namen).filter(([liste]) => eigene.has(liste)))
+    if (Object.keys(namen).length > 0) g.wkrNamen = namen
+    else delete g.wkrNamen
+  }
 }
 
 /** W1: Hat das Gerät die Gruppe (dann bekommt es seine Quittungen gesammelt über deren Sicht)? */

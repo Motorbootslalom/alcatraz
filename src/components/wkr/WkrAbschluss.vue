@@ -4,6 +4,7 @@ import type { PunktId } from '../../types'
 import type { MessageKey } from '../../i18n'
 import type { ErfassungsQuelle, PruefZeile } from '../../geraete/erfassen'
 import type { ListenTeil } from '../../wkr/liste'
+import AppDialog from '../AppDialog.vue'
 import { stufeZeichen, useWkrText } from './texte'
 
 /**
@@ -13,11 +14,17 @@ import { stufeZeichen, useWkrText } from './texte'
  * Ein Tipp auf eine Zeile öffnet die Korrektur – nur für Zeilen, die noch in „Zuletzt“ stehen (der Kern korrigiert
  * über die Zeilennummer, Auslegung L1).
  *
- * Unten der Name des Wettkampfrichters (vorbelegt mit dem zuletzt eingegebenen, G12; Pflicht – er ist die digitale
- * Unterschrift, F8) und bei offenen Starts der Schalter „Rest auf Papier“ – Pflicht, sonst bleibt der Knopf gesperrt
+ * Unten der Name des Wettkampfrichters (Pflicht – er ist die digitale Unterschrift, F8; seit 21.11.2026 vorbelegt mit
+ * dem Namen der Liste auf dem Gerät bzw. aus der Einteilung, W3-13/WN1, sonst mit dem zuletzt eingegebenen, G12/WN3 –
+ * der Abschluss nimmt den aktuellen Namen; ein hier geänderter wird der Name der Liste auf diesem Gerät) und bei offenen Starts der Schalter „Rest auf Papier“ – Pflicht, sonst bleibt der Knopf gesperrt
  * und ein Satz sagt warum. „Liste abschließen“ → `schliesseAb`; das Ergebnis kommt aus `abschluesse`: unterwegs,
  * angenommen ✓ oder abgelehnt mit Grund (`offen`: der Bedienrechner kennt noch offene Starts). Am Steg mit Teil
  * schließt das Gerät nur seinen Teil (F16 – der Kern nimmt den Teil der Aufgabe).
+ *
+ * R6-10 (Nutzer 21.11.2026: „Abschließen, solange der Lauf noch läuft, sollte immer mit einer Rückfrage gemacht
+ * werden“; WKR_ANNAHMEN.abschlussFragtWennLaufLaeuft): Trägt die Sicht `laeuft` für diesen Punkt (Starts frei, einer im
+ * Boot oder die Parcours-Ampel grün/rot), fragt ein AppDialog „Lauf 1 läuft noch (604 unterwegs) – trotzdem
+ * abschließen?“, bevor der Abschluss hinausgeht. Gesperrt wird nicht.
  */
 const props = defineProps<{
   quelle: ErfassungsQuelle
@@ -27,15 +34,17 @@ const props = defineProps<{
   punktTitel: string
   /** Teil der Aufgabe (Steg nur Ablegen/Anlegen); ohne = die ganze Liste. */
   teil?: ListenTeil
-  /** Vorbelegung des Namens (Geräteablage, G12). */
+  /** Vorbelegung des Namens: Name der Liste (W3-13), sonst der zuletzt eingegebene (Geräteablage, G12). */
   name: string
   /** Zeile als Text: Klasse, Codes, Punkte – rechnet WkrMaske mit dem Aufbau der Klasse. */
   zeileText: (z: PruefZeile) => { klasse: string; codes: string; punkte: number | null }
   /** Starts, die sich noch korrigieren lassen (in „Zuletzt“). */
   korrigierbar: ReadonlySet<string>
+  /** Der Punkt läuft noch (Sicht `laeuft`, R6-10); `null` = durch. */
+  laeuft?: { unterwegs: string[]; offen: number } | null
 }>()
 const emit = defineEmits<{ korrigiere: [s: string]; zurueck: []; name: [name: string] }>()
-const { w } = useWkrText()
+const { w, wn } = useWkrText()
 
 const pruefung = computed(() => props.quelle.pruefung(props.liste, props.punkt, props.teil))
 const summe = computed(() => {
@@ -65,12 +74,36 @@ const grundText = computed(() => {
   return g === 'verworfen' ? w('wkr.geraet.verworfen') : w(`geraete.ablehnung.${g}` as MessageKey)
 })
 
+/** R6-10: Läuft der Lauf noch, erst nachfragen. */
+const frageLaeuft = ref(false)
+const laeuftText = computed(() => {
+  const l = props.laeuft
+  if (!l) return ''
+  const was = [
+    ...(l.unterwegs.length ? [w('wkr.geraet.abschluss.laeuft.unterwegs', { nrs: l.unterwegs.join(', ') })] : []),
+    ...(l.offen > 0 ? [wn('wkr.geraet.abschluss.laeuft.offen', l.offen)] : []),
+  ].join(', ')
+  return w('wkr.geraet.abschluss.laeuft', { punkt: props.punktTitel, was })
+})
+function abschicken(): void {
+  if (nameFehlt.value || restFehlt.value) return
+  if (props.laeuft) {
+    frageLaeuft.value = true
+    return
+  }
+  schliesseAb()
+}
+
 function schliesseAb(): void {
+  frageLaeuft.value = false
   if (nameFehlt.value || restFehlt.value) return
   const n = name.value.trim()
   const id = props.quelle.schliesseAb(props.liste, props.punkt, n, pruefung.value.offen.length > 0 && restPapier.value)
   if (id === null) return
   gesendet.value = id
+  // W3-13/WN3: Der hier eingegebene Name gilt danach als Name der Liste auf diesem Gerät (und geht an den Host) –
+  // so fragt der nächste Abschluss nicht wieder, und „Mehr → Name“ zeigt ihn. Übung: nie (G13).
+  if (!props.quelle.uebung && n !== props.quelle.wkrName(props.liste).name) props.quelle.setzeWkrName(props.liste, n)
   emit('name', n)
 }
 
@@ -122,10 +155,18 @@ const teilText = computed(() => (props.teil ? w(props.teil === 'ab' ? 'wkr.gerae
       </label>
       <p v-if="restFehlt" class="wkr-band wkr-band--warn" role="alert" data-teil="rest-pflicht">{{ w('wkr.geraet.abschluss.restPflicht') }}</p>
       <p v-else-if="nameFehlt" class="wkr-band wkr-band--warn" role="alert" data-teil="name-pflicht">{{ w('wkr.geraet.abschluss.namePflicht') }}</p>
-      <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="abschluss-senden" :disabled="nameFehlt || restFehlt" @click="schliesseAb">
+      <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="abschluss-senden" :disabled="nameFehlt || restFehlt" @click="abschicken">
         {{ w('wkr.geraet.abschluss') }}
       </button>
     </template>
     <button type="button" class="wkr-knopf" data-ziel="klein" data-action="abschluss-zurueck" @click="emit('zurueck')">{{ w('wkr.geraet.abschluss.zurueck') }}</button>
+
+    <AppDialog v-if="frageLaeuft" :titel="w('wkr.geraet.abschluss.laeuft.titel', { punkt: punktTitel })" data-dialog="wkr-abschluss-laeuft" @abbrechen="frageLaeuft = false">
+      <p data-teil="abschluss-laeuft-text"><b>{{ laeuftText }}</b></p>
+      <template #knoepfe>
+        <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="abschluss-laeuft-ja" @click="schliesseAb">{{ w('wkr.geraet.abschluss.laeuft.ja') }}</button>
+        <button type="button" class="wkr-knopf" data-ziel="klein" data-action="abschluss-laeuft-nein" autofocus @click="frageLaeuft = false">{{ w('wkr.geraet.abschluss.laeuft.nein') }}</button>
+      </template>
+    </AppDialog>
   </section>
 </template>

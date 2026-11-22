@@ -13,7 +13,7 @@ import { koppelPaketAus, packeKoppelPaket, packeLesePaket } from './paket'
 import { fingerabdruck, lesePaket, type HostRaum } from './transport/ntfy/raum'
 import { HostTransport, type Eingang } from './transport/ntfy/transport'
 import { toBase64Url } from './transport/ntfy/codec'
-import { erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, listenAufgaben, WKR_ACTIONS, type Aufgabe } from './aufgaben'
+import { AUTO_HALT, erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, listenAufgaben, WKR_ACTIONS, type Aufgabe } from './aufgaben'
 import { gruppeDerFreigabe, gruppeDerListe, gruppenFuer } from './wkrGruppen'
 import { extraFuer, leereHerkunft, leererEingang, mitAbgelehnt, mitHerkunft, mitHinweis, ohneGeraet, ohneHinweis, type HerkunftEintrag, type WkrEingang, type WkrHerkunft } from './wkrEingang'
 import { configFor } from '../config/konfig'
@@ -26,6 +26,8 @@ import type { ListenTeil } from '../lib/eingaben'
 import { sichtListe } from '../wkr/sicht'
 import { erfassungsLage } from '../wkr/lage'
 import { sichtFreigabe } from '../wkr/freigabe'
+import { autoSchritt, parcoursAmpel, type AmpelLage } from '../wkr/ampel'
+import { bereicheZumStand, betriebVon, lage as bereichsLage } from '../betrieb/folge'
 import { entscheideAnmeldung } from './koppelEntscheid'
 import { dreheQr, gibCode, koppelThemen, markiereBenutzt, oeffneQr, qrFaellig, raeumeAuf, schliesseKoppeln } from './koppeln'
 import {
@@ -33,6 +35,7 @@ import {
   bekannteGeraete,
   benenne,
   beruehre,
+  setzeTyp,
   entzogeneListe,
   geraetAngaben,
   geraeteListe,
@@ -48,7 +51,7 @@ import {
 } from './register'
 import type { NtfyZeiten } from './transport/ntfy/leitung'
 import type { Json } from './transport/ntfy/patch'
-import { istOeffentlich, OEFFENTLICH, ZUSCHAUER, type Ablehnung, type Hinweis } from './transport/protokoll'
+import { istOeffentlich, OEFFENTLICH, ZUSCHAUER, type Ablehnung, type GeraeteTyp, type Hinweis } from './transport/protokoll'
 import { kontingentZaehler, type KontingentStand, type Zaehlart } from './kontingent'
 import { BUILD_COMMIT, BUILD_TIME } from '../lib/build'
 
@@ -135,6 +138,8 @@ export interface GeraeteHost {
   /** Rechte eines Geräts ändern – wirkt sofort (`aufgaben` an das Gerät, `darf` am Host). */
   setzeAufgaben(id: string, aufgaben: Aufgabe[]): void
   benenne(id: string, name: string): void
+  /** Art eines Geräts ändern (Nutzer 21.11.2026, W3-25, GF7): handy/pad/rechner – steuert nur den Hinweis zu Listen. */
+  setzeTyp(id: string, typ: GeraeteTyp): void
   /** Entzug: aus dem Register, `entzogen` an das Gerät; es liest Öffentliches weiter (K14). */
   entziehe(id: string): void
   // --- E8 (20.11.2026) ---
@@ -168,6 +173,14 @@ export interface GeraeteHost {
    * Geräts steht. Gerätelokal (ABLAGE.herkunft) – in jedem Fenster, auch ohne Raum.
    */
   merkeEntscheid(liste: string, geraet: string, zeilen: readonly HerkunftZeile[]): void
+  /**
+   * Auto-Modus der Start-Freigabe (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN.autoVorgabe, AM6): laufende Countdowns je
+   * Bereich – `ref` = der gezeigte Start, `bis` = wann der Nächste gezeigt wird (Date.now). Nur im Führungsfenster
+   * gefüllt (dort entscheidet und schickt der Host); optional, damit Host-Doppel in Tests ohne auskommen.
+   */
+  readonly auto?: Readonly<ShallowRef<Record<string, { ref: string; bis: number }>>>
+  /** „Anhalten“ (AM7): bis zum nächsten gezeigten Start kein Auto in diesem Bereich – gerätelokal im Host. */
+  halteAuto?(bereich: string, ref: string): void
   // --- W2.2 (21.11.2026, Plan docs/plan-wkr-w2.md §5): Lesen für Matrix, Eingang und Erfassung ---
   /**
    * Herkunft ◆ dieser Veranstaltung (ABLAGE.herkunft, F10) – gelesen beim Start, nach eigenem Schreiben und beim
@@ -252,6 +265,7 @@ const KOPPEL_TAKT_MS = 1000
  */
 export const ZULETZT_NACHZIEHEN_MS = 5000
 
+
 interface Aktiv {
   kennung: string
   bus: Fensterbus
@@ -279,6 +293,13 @@ interface Aktiv {
   zuletztTimer: ReturnType<typeof setTimeout> | null
   /** W2.4: wann die Freigabe-Sicht zuletzt im Takt gerechnet wurde (Uhr des Hosts). */
   freigabeZeit: number
+  /**
+   * Auto-Modus (P-03, AM6/AM7), nur im Führungsfenster und nur im Arbeitsspeicher: laufender Countdown je Bereich,
+   * zuletzt grün/rot gesehener Start je Bereich (ohne das kein Auto – „Zurück“, Neuladen) und „Anhalten“ je Bereich.
+   */
+  autoLauf: Map<string, { ref: string; bis: number; timer: ReturnType<typeof setTimeout> }>
+  autoGesehen: Map<string, string>
+  autoHalt: Map<string, string>
 }
 
 function vorgabeAblage(): Ablage | null {
@@ -337,6 +358,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
   const uhr = umgebung.uhr ?? Date.now
 
   const raum = shallowRef<RaumInfo | null>(null)
+  const auto = shallowRef<Record<string, { ref: string; bis: number }>>({})
   const fuehrt = ref(false)
   const verbindung = shallowRef<VerbindungsMeldung | null>(null)
   // E8: Kontingent – jedes Fenster liest denselben Eintrag, gezählt wird im Führungsfenster (dort sendet der Transport).
@@ -439,6 +461,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     const a: Aktiv = {
       kennung: k, bus, fuehrung: null, scope: effectScope(true), transport: null, leitung: null, timer: null, letzte: '', listen: new Map(), listenVoll: new Set(), endet: false,
       wegBefehl: () => {}, wegAnwenden: () => {}, koppelTakt: null, koppelThemen: new Set(), zuletztZeit: 0, zuletztTimer: null, freigabeZeit: 0,
+      autoLauf: new Map(), autoGesehen: new Map(), autoHalt: new Map(),
     }
     aktiv = a
     a.wegBefehl = bus.beimBefehl((befehl) => {
@@ -466,6 +489,10 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       watch(bus.verbindung, (m) => {
         if (aktiv === a) verbindung.value = m
       }, { immediate: true })
+      // Synchron: Tests und Oberfläche lesen `auto` gleich nach dem Schritt, der den Countdown setzt.
+      watch(bus.auto, (x) => {
+        if (aktiv === a && JSON.stringify(x) !== JSON.stringify(auto.value)) auto.value = x
+      }, { immediate: true, flush: 'sync' })
     })
   }
 
@@ -481,6 +508,7 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     a.bus.schliesse()
     fuehrt.value = false
     verbindung.value = null
+    auto.value = {}
   }
 
   /** Dieses Fenster führt: Transport anlegen und starten, ab jetzt verteilen. */
@@ -527,7 +555,10 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       pflegeKoppeln(a)
       // W2.4: Die Ampel altert mit der Uhr – die Freigabe-Sicht gedrosselt neu rechnen (gesendet nur bei Änderung).
       // Nicht nach „Raum beenden“ (Prüfbefund 21.11.2026): keine Sicht hinter die Meldung „ende“, siehe verteile().
-      if (a.transport && !a.endet && uhr() - a.freigabeZeit >= FREIGABE_TAKT_MS) verteileFreigabe(a, a.transport)
+      if (a.transport && !a.endet && uhr() - a.freigabeZeit >= FREIGABE_TAKT_MS) {
+        pruefeAuto(a, a.transport)
+        verteileFreigabe(a, a.transport)
+      }
     }, koppelTaktMs)
   }
 
@@ -576,6 +607,11 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
   function gibAb(a: Aktiv): void {
     if (a.timer) clearTimeout(a.timer)
     a.timer = null
+    // Auto-Modus nur im Führungsfenster: Wer abgibt, zählt nicht weiter (das neue sieht die Ampel erst grün/rot).
+    for (const l of a.autoLauf.values()) clearTimeout(l.timer)
+    a.autoLauf.clear()
+    a.autoGesehen.clear()
+    zeigeAuto(a)
     if (a.zuletztTimer) clearTimeout(a.zuletztTimer)
     a.zuletztTimer = null
     if (a.koppelTakt) clearInterval(a.koppelTakt)
@@ -606,7 +642,104 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (!t || a.endet) return
     verteileOeffentlich(a, t)
     verteileListen(a, t)
+    pruefeAuto(a, t)
     verteileFreigabe(a, t)
+  }
+
+  // -------------------------------------------------------------------------
+  // Auto-Modus der Start-Freigabe (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN AM6/AM7) – nur im Führungsfenster
+  // -------------------------------------------------------------------------
+
+  /**
+   * Die Countdowns für die Oberfläche (BetriebView → StartFreigabe) – über den Fensterbus in JEDEM Bedienfenster
+   * (Prüfbefund 21.11.2026), damit auch ein zweites den Countdown sieht und „Anhalten“ (Befehl `auto-halt`) drücken
+   * kann. `auto` selbst setzt der Watch auf `bus.auto`. Wer nicht (mehr) führt, meldet `null` (nur nach eigener Meldung).
+   */
+  function zeigeAuto(a: Aktiv): void {
+    if (aktiv !== a) return
+    if (!a.fuehrung?.fuehrt.value) return a.bus.meldeAuto(null)
+    const neu = Object.fromEntries([...a.autoLauf].map(([b, l]) => [b, { ref: l.ref, bis: l.bis }]))
+    if (JSON.stringify(neu) !== JSON.stringify(a.bus.auto.value)) a.bus.meldeAuto(neu)
+  }
+
+  function stoppeAuto(a: Aktiv, bereich: string): void {
+    const l = a.autoLauf.get(bereich)
+    if (!l) return
+    clearTimeout(l.timer)
+    a.autoLauf.delete(bereich)
+  }
+
+  /** Ampel und Auto-Entscheid eines Bereichs aus dem jetzigen Stand; merkt „grün/rot gesehen“. */
+  function autoEntscheid(a: Aktiv, t: HostTransport, bereich: string): { ampel: AmpelLage; schritt: { ref: string; vorher: string } | null } | null {
+    const raum = t.raumJetzt()
+    if (!raum) return null
+    const state = store.state.value
+    const konfig = konfigVon(state)
+    try {
+      const listen = erfassungsLage(state, konfig, bereich, geraetAngaben(geraeteListe(raum)), uhr()).listen
+      const ampel = parcoursAmpel(state, konfig, bereich, listen)
+      if (ampel.ref !== null && (ampel.ampel === 'gruen' || ampel.ampel === 'rot')) a.autoGesehen.set(bereich, ampel.ref)
+      // „Anhalten“ gilt bis zum nächsten gezeigten Start.
+      if (a.autoHalt.has(bereich) && a.autoHalt.get(bereich) !== ampel.ref) a.autoHalt.delete(bereich)
+      const schritt = autoSchritt({
+        ampel,
+        lage: bereichsLage(state, bereich),
+        meldung: betriebVon(state, bereich).meldung,
+        offeneFragen: listen.reduce((n, l) => n + l.rueckfragen + l.vorschlaege, 0),
+        angehalten: ampel.ref !== null && a.autoHalt.get(bereich) === ampel.ref,
+        sahOffen: ampel.ref !== null && a.autoGesehen.get(bereich) === ampel.ref,
+      })
+      return { ampel, schritt }
+    } catch {
+      // Ein Bereich, den es so nicht (mehr) gibt: kein Auto.
+      return null
+    }
+  }
+
+  /**
+   * Nach jeder Änderung (gesammelt) und im Takt: je Bereich entscheiden; frei → Countdown `autoVerzugSek` starten,
+   * sonst laufenden beenden. Der Countdown schickt am Ende nur, wenn der Entscheid dann noch derselbe ist.
+   */
+  function pruefeAuto(a: Aktiv, t: HostTransport): void {
+    if (a.endet || !store.dispatch) return
+    const state = store.state.value
+    const bereiche = state.anzeige.wkrAuto ? bereicheZumStand(state).map((b) => b.id) : []
+    for (const b of [...a.autoLauf.keys()]) if (!bereiche.includes(b)) stoppeAuto(a, b)
+    for (const bereich of bereiche) {
+      const e = autoEntscheid(a, t, bereich)
+      const lauf = a.autoLauf.get(bereich)
+      const schritt = e?.schritt ?? null
+      if (!schritt) {
+        stoppeAuto(a, bereich)
+        continue
+      }
+      if (lauf && lauf.ref === schritt.vorher) continue
+      stoppeAuto(a, bereich)
+      const ms = BETRIEB_ANNAHMEN.autoVerzugSek * 1000
+      const timer = setTimeout(() => feuereAuto(a, bereich, schritt.vorher), ms)
+      a.autoLauf.set(bereich, { ref: schritt.vorher, bis: Date.now() + ms, timer })
+    }
+    zeigeAuto(a)
+  }
+
+  function feuereAuto(a: Aktiv, bereich: string, vorher: string): void {
+    a.autoLauf.delete(bereich)
+    const t = a.transport
+    if (aktiv !== a || !t || a.endet || !a.fuehrung?.fuehrt.value || !store.state.value.anzeige.wkrAuto) return zeigeAuto(a)
+    const e = autoEntscheid(a, t, bereich)
+    zeigeAuto(a)
+    if (!e?.schritt || e.schritt.vorher !== vorher) return
+    // Über das Schreibfenster wie eine Geräte-Action (K27) – bedingt über `vorher`, doppelt schaltet nicht zweimal.
+    void a.bus.reicheWeiter({ type: 'BETRIEB_ZEIGEN', bereich, ref: e.schritt.ref, vorher }, wendeAn)
+    plane(a)
+  }
+
+  /** „Anhalten“ (AM7) im Führungsfenster. */
+  function halteAutoHier(a: Aktiv, bereich: string, ref: string): void {
+    a.autoHalt.set(bereich, ref)
+    stoppeAuto(a, bereich)
+    zeigeAuto(a)
+    plane(a)
   }
 
   function verteileOeffentlich(a: Aktiv, t: HostTransport): void {
@@ -687,7 +820,9 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       let text: string
       try {
         const lage = erfassungsLage(state, konfig, bereich, geraete, jetzt)
-        text = JSON.stringify(sichtFreigabe(bereich, lage.listen, state.anzeige.wkrWarnung))
+        const lauf = a.autoLauf.get(bereich)
+        const autoIn = lauf ? Math.max(0, (lauf.bis - Date.now()) / 1000) : null
+        text = JSON.stringify(sichtFreigabe(bereich, lage.listen, state.anzeige.wkrWarnung, parcoursAmpel(state, konfig, bereich, lage.listen), autoIn))
       } catch {
         // Ein Bereich, den es so nicht (mehr) gibt: nichts verteilen, das Handy behält die letzte Sicht.
         continue
@@ -738,6 +873,9 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       const eigene = gruppenFuer(d.aufgaben).filter((g) => !istOeffentlich(g))
       if (eigene.length) t.verwalte((r) => void gruppenNachAufgaben(r, d.aufgaben))
       if (t.begruesse(e, { id: d.id, gruppen: gruppenFuer(d.aufgaben), aufgaben: d.aufgaben, name: d.name }) === 'id-belegt') return t.ablehnen(e, 'id-belegt')
+      // Art des Geräts (W3-25, GF7): nur beim ersten Koppeln – eine Korrektur am Bedienrechner bleibt.
+      const typ = e.nachricht.typ
+      if (typ) t.verwalte((r) => void setzeTyp(r, d.id, typ, true))
       // Der Geräte-Code gilt für EIN Gerät.
       if (d.weg === 'code') t.verwalte((r) => setzeKoppelStand(r, markiereBenutzt(koppelStandVon(r), jetzt)))
       // Dieses Fenster bekommt kein storage-Ereignis für das eigene Schreiben: Geräteliste hier selbst nachziehen.
@@ -754,8 +892,13 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     const n = e.nachricht
     if (n.art === 'lebenszeichen') {
       // Still quittiert, wenn das Gerät eine Liste hat: `bis` in deren Sicht sagt es ihm.
-      t.verwalte((r) => vermerkeLebenszeichen(r, e.id, jetzt, { wartend: n.wartend, ...(n.akku !== undefined ? { akku: n.akku } : {}) }))
+      // W3-13/WN2 (21.11.2026): geänderte WKR-Namen kommen im Lebenszeichen – ändern sie sich, sofort in die Geräteliste
+      // (Hinweis unter Betrieb → Geräte), sonst gedrosselt wie „zuletzt gehört“.
+      const namenVorher = JSON.stringify(raum.geraete[e.id]?.wkrNamen ?? {})
+      t.verwalte((r) => vermerkeLebenszeichen(r, e.id, jetzt, { wartend: n.wartend, ...(n.akku !== undefined ? { akku: n.akku } : {}), ...(n.namen !== undefined ? { namen: n.namen } : {}) }))
       t.quittiere(e, 'angewandt', undefined, { still: hatListenGruppe(raum, e.id) })
+      const nachher = t.raumJetzt()
+      if (nachher && JSON.stringify(nachher.geraete[e.id]?.wkrNamen ?? {}) !== namenVorher) setzeInfo(nachher)
       zieheZuletztNach(a)
       plane(a)
       return
@@ -772,6 +915,16 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     }
     if (n.art !== 'action') return
     if ((WKR_ACTIONS as readonly string[]).includes(n.action.type)) return nimmWkrAn(a, t, e, n.action)
+    if (n.action.type === AUTO_HALT) {
+      // „Anhalten“ vom Freigabe-Handy (AM7): keine Reducer-Action – nur der Merker hier, nur für eigene Bereiche.
+      const { bereich, ref } = n.action
+      const darfEs = typeof bereich === 'string' && typeof ref === 'string' && freigabeBereiche(aufgabenVon(raum, e.id)).includes(bereich)
+      if (darfEs) halteAutoHier(a, bereich, ref)
+      t.verwalte((r) => beruehre(r, e.id, jetzt))
+      t.quittiere(e, darfEs ? 'angewandt' : 'abgelehnt', darfEs ? undefined : 'nicht-erlaubt')
+      zieheZuletztNach(a)
+      return
+    }
     const action = store.dispatch ? erlaubteAction(n.action, aufgabenVon(raum, e.id), store.state.value) : null
     if (!action) {
       t.verwalte((r) => beruehre(r, e.id, jetzt))
@@ -928,6 +1081,9 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     if (!t) return
     const jetzt = uhr()
     switch (befehl.art) {
+      case 'auto-halt':
+        halteAutoHier(a, befehl.bereich, befehl.ref)
+        break
       case 'code':
         t.verwalte((r) => setzeKoppelStand(r, gibCode(koppelStandVon(r), r.oeffentlich.a, befehl.aufgaben, jetzt)))
         break
@@ -961,6 +1117,9 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
         t.verwalte((r) => {
           benenne(r, befehl.id, befehl.name.trim())
         })
+        break
+      case 'typ':
+        t.verwalte((r) => void setzeTyp(r, befehl.id, befehl.typ))
         break
       case 'entziehen': {
         const vorher = t.raumJetzt()?.geraete[befehl.id]
@@ -1130,8 +1289,16 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
     beendeKoppeln: (was = 'alle') => geraeteBefehl({ art: 'koppeln-ende', was }),
     setzeAufgaben: (id, aufgaben) => geraeteBefehl({ art: 'aufgaben', id, aufgaben }),
     benenne: (id, name) => geraeteBefehl({ art: 'umbenennen', id, name }),
+    setzeTyp: (id, typ) => geraeteBefehl({ art: 'typ', id, typ }),
     entziehe: (id) => geraeteBefehl({ art: 'entziehen', id }),
     hinweis: (liste, code, startNr, teil) => geraeteBefehl({ art: 'hinweis', liste, code, ...(startNr !== undefined ? { startNr } : {}), ...(teil !== undefined ? { teil } : {}) }),
+    auto,
+    halteAuto(bereich, ref) {
+      const a = aktiv
+      if (!a) return
+      if (a.fuehrung?.fuehrt.value) halteAutoHier(a, bereich, ref)
+      else a.bus.befiehl({ art: 'auto-halt', bereich, ref })
+    },
     merkeEntscheid: (liste, geraet, zeilen) => merkeHerkunft(store.state.value.kennung, liste, geraet, zeilen, store.state.value.eingaben),
     neueFassung,
     kontingent,

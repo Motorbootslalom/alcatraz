@@ -249,8 +249,12 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
     case 'BETRIEB_KLASSE_VOR':
     case 'BETRIEB_VERSCHIEBEN':
     case 'BETRIEB_AB':
+    case 'BETRIEB_DURCHFAHRT':
     // Der Druckvermerk einer Runde entsteht beim Drucken von selbst – kein eigener Eintrag (wie die Kennung).
     case 'PARALLEL_RUNDEN_GEDRUCKT':
+    // „So lassen“ vom Gerät (W3-35, 21.11.2026) ist nur ein Vermerk an der Rückfrage – die Entscheidung bekommt ihren
+    // Eintrag (WKR_RUECKFRAGE).
+    case 'WKR_SO_LASSEN':
       return null
     case 'WKR_ZEILEN':
       // Wie eine Eingabe, dazu Liste und Gerät: Zeilen verschiedener Geräte oder Listen sind verschiedene Einträge.

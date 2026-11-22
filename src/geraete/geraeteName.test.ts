@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { artAusKennung, eindeutigerName, geraeteArt, saubererName, NAME_MAX } from './geraeteName'
+import { artAusKennung, eindeutigerName, geraeteArt, saubererName, NAME_MAX, typAus } from './geraeteName'
+import { liesGeraeteNachricht } from './transport/protokoll'
 
 // Aus tafel lib/deviceName.test.ts portiert (16.11.2026); Namen sind Gerätebezeichnungen, keine Personen.
 
@@ -45,5 +46,27 @@ describe('eindeutigerName', () => {
   it('kürzt und entfernt Steuerzeichen', () => {
     expect(saubererName('a\u0000b\nc', 'x')).toBe('abc')
     expect(saubererName('y'.repeat(100), 'x')).toHaveLength(NAME_MAX)
+  })
+})
+
+describe('Art beim Koppeln (Nutzer 21.11.2026, W3-25, GF7)', () => {
+  it('Finger + kurze Seite < 600 px = Handy, Finger sonst = Pad, Maus = Rechner', () => {
+    expect(typAus(390, true)).toBe('handy')
+    expect(typAus(820, true)).toBe('pad')
+    expect(typAus(390, false)).toBe('rechner')
+    expect(typAus(0, true)).toBe('pad')
+  })
+
+  it('`hallo` trägt die Art freiwillig; Unbekanntes fällt weg, die Anmeldung gilt weiter', () => {
+    expect(liesGeraeteNachricht({ art: 'hallo', name: 'Handy', code: 'X', typ: 'handy' })).toEqual({ art: 'hallo', name: 'Handy', code: 'X', typ: 'handy' })
+    expect(liesGeraeteNachricht({ art: 'hallo', name: 'Handy', code: 'X', typ: 'toaster' })).toEqual({ art: 'hallo', name: 'Handy', code: 'X' })
+  })
+
+  it('`lebenszeichen` trägt WKR-Namen freiwillig (W3-13, WN2): getrimmt, Unbrauchbares fällt weg, das Lebenszeichen gilt weiter', () => {
+    expect(liesGeraeteNachricht({ art: 'lebenszeichen', wartend: 0, namen: { a: ' Erika Muster ', b: '', c: 7, d: 'x'.repeat(61) } })).toEqual({ art: 'lebenszeichen', wartend: 0, namen: { a: 'Erika Muster' } })
+    expect(liesGeraeteNachricht({ art: 'lebenszeichen', wartend: 1, namen: 'kaputt' })).toEqual({ art: 'lebenszeichen', wartend: 1 })
+    expect(liesGeraeteNachricht({ art: 'lebenszeichen', wartend: 1, namen: {} })).toEqual({ art: 'lebenszeichen', wartend: 1, namen: {} })
+    const viele = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`l${i}`, `N${i}`]))
+    expect(Object.keys((liesGeraeteNachricht({ art: 'lebenszeichen', wartend: 0, namen: viele }) as { namen: object }).namen)).toHaveLength(8)
   })
 })

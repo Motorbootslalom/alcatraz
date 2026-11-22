@@ -59,7 +59,8 @@ function stand(): AppState {
   let s: AppState = { ...wkrBetriebsStand(starter), kennung: KENNUNG }
   s = reducer(s, { type: 'WKR_LISTE', liste: TOR, modus: 'digital', zeit: 100 })
   for (let i = 0; i < 3; i++) s = zeigeNaechsten(s, P1, 1000 + i * 100)
-  return s
+  // Der dritte ist durchs Start-Tor (Parcours-Ampel rot, P-03): Er zählt im Rückstand mit (AM5).
+  return reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: s.betrieb.bereiche[P1].gezeigt[2].ref, an: true, zeit: 1300 })
 }
 const gezeigt = (s: AppState) => s.betrieb.bereiche[P1].gezeigt.map((g) => g.ref)
 const starterVon = (key: string) => JSON.parse(key)[1] as string
@@ -90,6 +91,7 @@ function hostDoppel(geraete: RegisterEintrag[] = [{ id: 'gNord', name: 'Handy No
     beendeKoppeln: () => {},
     setzeAufgaben: () => {},
     benenne: () => {},
+    setzeTyp: () => {},
     entziehe: () => {},
     hinweis,
     merkeEntscheid,
@@ -114,6 +116,12 @@ async function betrieb(s: AppState, host: GeraeteHost | null): Promise<VueWrappe
 
 const reihe = (w: VueWrapper, liste: string) => w.find(`tr[data-liste='${liste}']`)
 const zellen = (w: VueWrapper, liste: string) => reihe(w, liste).findAll('.wkr-mzelle').map((z) => z.attributes('data-zelle'))
+
+/** Heute um hh:mm – ein Abschluss von einem anderen Tag trägt das Datum („21.11. 14:20“), der Test prüft die Uhrzeit allein. */
+function heuteUm(h: number, m: number): number {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).getTime()
+}
 
 describe('Betrieb → WKR: Matrix', () => {
   it('Unterreiter mit Hinweis; Zellen je Start, Gerät mit Ampel, Liste ohne Eintrag = Papier', async () => {
@@ -245,6 +253,21 @@ describe('Betrieb → WKR: Eingang', () => {
     await nextTick()
     expect(w.find('[data-teil="wkr-chip"]').exists()).toBe(false)
     expect(w.find('[data-hinweis="wkr-eingang-leer"]').exists()).toBe(true)
+  })
+
+  it('„So lassen“ vom Gerät (W3-35, GF5): Vermerk mit Uhrzeit am Kopf, Rückfrage bleibt entscheidbar', async () => {
+    let s = stand()
+    const keys = gezeigt(s)
+    const st = starterVon(keys[2])
+    s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: LAUF, starter: st, feld: FELD, wert: '10' }] })
+    s = zeile(s, keys[2], [[FELD, '5', '']], 'gWeg')
+    const rf0 = s.wkr.rueckfragen[0]
+    s = reducer(s, { type: 'WKR_SO_LASSEN', liste: rf0.liste, zeile: rf0.zeile, zeit: new Date(2026, 10, 21, 14, 3).getTime() })
+    const { host } = hostDoppel()
+    const w = await betrieb(s, host)
+    const rf = w.find('[data-teil="wkr-rueckfrage-zeile"]')
+    expect(rf.find('[data-teil="wkr-so-lassen"]').text()).toMatch(/^WKR: so lassen \(.*14:03\)$/)
+    expect(rf.find('[data-action="wkr-behalten"]').exists()).toBe(true)
   })
 
   it('Rückfrage behalten; ein Gerät, das es im Register nicht mehr gibt, heißt „entkoppeltes Gerät“', async () => {
@@ -421,7 +444,7 @@ describe('Betrieb → WKR: Bedienung je Liste', () => {
   it('Abschluss mit Name, Zeit und Abweichung; „Abschluss lösen“ erst nach der Rückfrage', async () => {
     let s = stand()
     const keys = gezeigt(s)
-    s = { ...s, wkr: { ...s.wkr, abschluss: { [TOR]: { 'lauf:1': { name: 'Erika Musterrichterin', zeit: new Date(2026, 10, 21, 14, 20).getTime(), abweichend: [keys[0]], papier: [] } } } } }
+    s = { ...s, wkr: { ...s.wkr, abschluss: { [TOR]: { 'lauf:1': { name: 'Erika Musterrichterin', zeit: heuteUm(14, 20), abweichend: [keys[0]], papier: [] } } } } }
     const w = await betrieb(s, hostDoppel().host)
     await reihe(w, TOR).find('[data-action="wkr-bedienung"]').trigger('click')
     const a = w.find('[data-teil="wkr-abschluesse"]')
@@ -608,8 +631,9 @@ describe('Betrieb → Start-Freigabe: WKR-Erfassung (W2.4)', () => {
     expect(w.find('[data-teil="wkr-matrix"] button[data-bereich="par_2"]').classes()).toContain('active')
   })
 
-  // Nutzer 21.11.2026 (T1/T2): Anlegen nachlaufend – das Boot des gezeigten Starts fährt noch.
-  it('Steg: „Nächster Start“ fragt nicht wegen des Anlegens des Starts im Boot; danach wegen des zurückgekehrten', async () => {
+  // Nutzer 21.11.2026 (T1/T2): Anlegen nachlaufend – das Boot des gezeigten Starts fährt noch. Seit der Parcours-Ampel
+  // (P-03, AM5) fragt der Steg nie: Er steht mit ⧗ in der Leiste, „Nächster Start“ geht ohne Frage.
+  it('Steg: „Nächster Start“ fragt nie – auch nicht wegen des zurückgekehrten (P-03: Steg läuft autark)', async () => {
     const STEG = K('steg')
     const STEG_TITEL = DM.getSheetDef('steg').title
     const starter = Array.from({ length: 6 }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(101 + i)))
@@ -630,15 +654,65 @@ describe('Betrieb → Start-Freigabe: WKR-Erfassung (W2.4)', () => {
     expect(gezeigt(store.state.value)).toHaveLength(2)
     await nextTick()
     await nextTick()
-    // Jetzt ist der erste zurück (Anlegen offen) und das Ablegen des zweiten zählt: Die Frage nennt beide.
+    // Jetzt ist der erste zurück (Anlegen offen) und das Ablegen des zweiten offen: ⧗ in der Leiste, aber keine Frage.
+    expect(k.find(`[data-liste="${STEG_TITEL}"]`).attributes('data-erf')).toBe('wartet')
+    expect(k.find('[data-teil="wkr-rueckstand"]').exists()).toBe(false)
     await k.find('[data-action="zeigen"]').trigger('click')
-    const frage = document.querySelector('[data-teil="frage-liste"]')!.textContent!
-    expect(frage).toContain(STEG_TITEL)
-    expect(frage).toContain('101')
-    expect(frage).toContain('102')
+    expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).toBeNull()
+    expect(gezeigt(store.state.value)).toHaveLength(3)
+  })
+
+  // Parcours-Ampel (Nutzer 21.11.2026, P-03/P-04; AM4/AM5).
+  it('Ampel: grün mit „Durchs Start-Tor“ → rot (offene Liste genannt, „Doch nicht durch“) → frei; bei grün keine Frage wegen des gezeigten', async () => {
+    const starter = Array.from({ length: 6 }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(101 + i)))
+    let s: AppState = { ...wkrBetriebsStand(starter), kennung: KENNUNG }
+    s = reducer(s, { type: 'WKR_LISTE', liste: TOR, modus: 'digital', zeit: 100 })
+    s = zeigeNaechsten(s, P1, 1000)
+    const [erster] = gezeigt(s)
+    const w = await betrieb(s, hostDoppel().host)
+    await zurStartFreigabe(w)
+    const k = karte(w)
+    const ampel = () => k.find('[data-teil="ampel"]')
+    expect(ampel().attributes('data-ampel')).toBe('gruen')
+    expect(ampel().text()).toContain('Start frei')
+    // Grün: Der Starter fuhr nicht los – R = 1, „nachfragen“, trotzdem keine Frage (P-04).
+    expect(k.find('[data-teil="wkr-rueckstand"]').exists()).toBe(false)
+    await k.find('[data-action="durchfahrt"]').trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(store.state.value.betrieb.bereiche[P1].durchfahrt?.ref).toBe(erster)
+    expect(ampel().attributes('data-ampel')).toBe('rot')
+    expect(ampel().text()).toContain(TITEL)
+    // Rot: Nächster Start fragt nach.
+    await k.find('[data-action="zeigen"]').trigger('click')
+    expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).not.toBeNull()
     ;(document.querySelector('[data-action="trotzdem-nein"]') as HTMLButtonElement).click()
     await nextTick()
+    // Versehentlich getippt: zurück auf grün.
+    await k.find('[data-action="durchfahrt-zurueck"]').trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(ampel().attributes('data-ampel')).toBe('gruen')
+    // Die Zeile des Tor-WKR macht durch UND fertig: frei, Zeigen ohne Frage.
+    store.dispatch({ type: 'LOAD_STATE', state: reducer(store.state.value, { type: 'SET_EINGABEN', zellen: [{ lauf: LAUF, starter: starterVon(erster), feld: 'erfasst@gate135', wert: '1' }] }) })
+    await nextTick()
+    await nextTick()
+    expect(ampel().attributes('data-ampel')).toBe('frei')
+    await k.find('[data-action="zeigen"]').trigger('click')
+    expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).toBeNull()
     expect(gezeigt(store.state.value)).toHaveLength(2)
+  })
+
+  it('Auto-Modus an, aber Parcours-Listen ohne Gerät: „Auto aus: …“; aus: kein Hinweis', async () => {
+    let s = stand()
+    s = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrAuto: true } })
+    const w = await betrieb(s, hostDoppel().host)
+    await zurStartFreigabe(w)
+    expect(karte(w).find('[data-teil="auto-aus"]').text()).toContain('Auto aus')
+    expect(karte(w).find('[data-teil="auto"]').exists()).toBe(false)
+    const ohne = await betrieb(stand(), hostDoppel().host)
+    await zurStartFreigabe(ohne)
+    expect(karte(ohne).find('[data-teil="auto-aus"]').exists()).toBe(false)
   })
 
   // Nutzer 21.11.2026 (T5): Abmelden am Gerät = Liste abgemeldet und vom Gerät genommen (Host: geraete/wkr.test.ts).

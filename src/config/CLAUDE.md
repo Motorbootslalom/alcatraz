@@ -37,6 +37,8 @@ Modulstart zusammengeführt und über die reine, memoisierte `configFor()` aufge
 - Disq-Buchstabe: regelwerke/<id>.yaml `disqualifikationen: { code, text, en, bereiche }` (`en` nur bei `sprachen`);
   Großbuchstabe, nie O; Bereiche vorsteg|steg|parcours|mueb (Position: `disq:`); regelwerke.test.ts ergänzen (s. Tests).
 - Fehlercode: `kataloge.<katalog>.fehler { code, text, en, punkte }` (über alle Kataloge eindeutig) oder `direktpunkte`.
+  Gilt ein Code nur in manchen Klassen: `abKlasse` (in der Folge von `klassen`) oder `klassen` (W3-07, 21.11.2026;
+  validate BAD_FEHLER_KLASSE, catalog.ts codeKlassenOf) – wirkt nur auf das WKR-Gerät (ausgegraut, drückbar).
 - Neue Regelwerk-Angabe: YAML (Beleg als Kommentar) → schema.ts RawRegelwerk → validate.ts ConfigInput (eigene
   Kopie!) + Prüfung → build.ts RegelwerkInfo/regelwerkInfo() → catalog.ts Regelwerk/readRegelwerk(). Nur für
   Zustand/Planung (wie disziplinen, gewichte, coPilot): konfig.ts RohRegelwerk, in baue() herausnehmen.

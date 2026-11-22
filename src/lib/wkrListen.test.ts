@@ -7,6 +7,7 @@ import { klassenInStartfolge, waehleBoegen, wkrBoegenZumStand, WKR_DRUCKFOLGE } 
 import { bogenCode } from './qr'
 import type { AppState, ClassId, Starter } from '../types'
 import { veranstaltungsListen } from './listen'
+import { verteileAufKlassen } from '../domain/generate'
 
 /** Erfundene Starter: `n` je Klasse, klassenbasierte Startnummern. */
 function starter(klassen: ClassId[], n = 3): Starter[] {
@@ -204,6 +205,22 @@ describe('Wettkampfrichter-Listen aus Stand und Verzahnung', () => {
     expect(wahl.map((b) => b.id)).toEqual(['par_2|7|2|steg'])
     expect(waehleBoegen(boegen, { klasse: '7', lauf: 3 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length + 1)
     expect(waehleBoegen(boegen, { klasse: '7', lauf: 2 })).toHaveLength(dm.aufbauOrder('alcatraz', false).length)
+  })
+})
+
+// R6-01 (Nutzer 21.11.2026): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine, jedoch mit mehreren Klassen
+// auf einem Blatt.“ Das Blatt mit mehreren Klassen ist der gemeinsame WKR-Bogen – geprüft an einem Feld in der
+// Größe des Beispiels (10–20, domain/generate.ts); die Wertungslisten bleiben je Klasse (Rangliste je Klasse).
+describe('Clubmeisterschaft im Umfang des Beispielfelds: mehrere Klassen auf einem Blatt', () => {
+  it('15 Starter, Papier sparen: je Position und Parcours ein Steg-Bogen mit allen Klassen des Parcours', () => {
+    const jeKlasse = verteileAufKlassen(15, ALLE)
+    const starters = ALLE.flatMap((k) => starter([k], jeKlasse[k]))
+    const s = stand({ eventKind: 'club', originMode: 'none', wkrClubGemeinsam: true, laufCount: 1, starters })
+    const steg = wkrBoegenZumStand(s, dm).boegen.filter((b) => b.typeId === 'steg')
+    expect(steg.length).toBe(s.parcoursList.length)
+    for (const b of steg) expect(b.klassen.length).toBeGreaterThan(1)
+    const mitStartern = ALLE.filter((k) => jeKlasse[k] > 0)
+    expect(sortiert(steg.flatMap((b) => b.klassen))).toEqual(mitStartern)
   })
 })
 

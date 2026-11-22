@@ -29,8 +29,11 @@ import { istAblehnung, type Ablehnung, type GeraeteNachricht } from './transport
  * - **Lebenszeichen** nach WKR_ANNAHMEN.lebenszeichenSek ohne eigene Nachricht, nur mit Liste und laufendem Punkt
  *   (Uhr aus der Umgebung).
  * - Die Maske sperrt nie (keine Wartepflicht): schicke/korrigiere legen nur in den Ausgang.
- * - Kein Name in irgendeiner Rückgabe (F6): Die Sicht trägt keinen, die Zeilen nur Kennung und Werte; der Name des
- *   Abschlusses geht nur in die Nachricht.
+ * - Kein Starter-Name in irgendeiner Rückgabe (F6): Die Sicht trägt keinen, die Zeilen nur Kennung und Werte; der
+ *   Name des Abschlusses geht nur in die Nachricht.
+ * - **WKR-Name** (Nutzer 21.11.2026, W3-13, WKR_ANNAHMEN WN1–WN3): vorbelegt aus der Sicht der Liste (`wkrName`, aus
+ *   der Einteilung), änderbar je Liste ({@link Erfassung.setzeWkrName}, im Ausgang – also gerätelokal je Raum, weg
+ *   mit „Raum verlassen“); eine Änderung geht sofort und danach in jedem Lebenszeichen (`namen`) an den Host.
  * - W3.1 (21.11.2026, Plan docs/plan-wkr-w3.md §4.1): **Schlange je Steg-Teil** (WKR_ANNAHMEN.schlangeJeTeil, H3 –
  *   eigene Zeilen zählen nach Start UND Teil), Startnummer `sn` je eigener Zeile, **Entwürfe** im Ausgang (H4),
  *   `holeZurueck` (G8, nur solange die Zeile wartet), `pruefung` (Prüfansicht für „Liste abschließen“, F7). Die Maske
@@ -154,6 +157,13 @@ export interface Pruefung {
   nichtVorbei: string[]
 }
 
+/** WKR-Name einer Liste auf dem Gerät (W3-13): wirksam, aus der Einteilung, auf dem Gerät geändert. */
+export interface WkrNameLage {
+  name: string
+  einteilung: string
+  eigen: boolean
+}
+
 export interface ErfassenUmgebung {
   /** Vorgabe localStorage – dieselbe wie die des Geräts. */
   ablage?: Ablage | null
@@ -229,9 +239,26 @@ export interface Erfassung {
   stand(z: number): Record<string, string> | null
   /** Korrektur einer eigenen Zeile: `vorher` = zuletzt gesendeter Wert; nach dem Abschluss wird sie Vorschlag. */
   korrigiere(z: number, zellen: Readonly<Record<string, string>>): number | null
+  /**
+   * „So lassen“ an einer Rückfrage der eigenen Zeile `z` (Nutzer 21.11.2026, W3-35, WKR_ANNAHMEN GF5): meldet es dem
+   * Bedienrechner (Action WKR_SO_LASSEN, nur die Zeilennummer) – entschieden wird dort. Übung: nichts.
+   */
+  soLassen(liste: string, z: number): number | null
   pausiere(liste: string): number | null
   meldeAb(liste: string): number | null
   weiter(liste: string): number | null
+  /**
+   * WKR-Name einer eigenen Liste (Nutzer 21.11.2026, W3-13, WN1): `name` = der auf dem Gerät geänderte, sonst der aus
+   * der Einteilung (Sicht `wkrName`); `einteilung` = der aus der Sicht ('' ohne); `eigen` = auf dem Gerät geändert.
+   * Reaktiv (Ausgang und Sicht). Übung: immer leer (G13 – kein Name aus der Übung).
+   */
+  wkrName(liste: string): WkrNameLage
+  /**
+   * Den WKR-Namen einer eigenen Liste auf diesem Gerät setzen (`Mehr → Name`, Abschluss ohne Einteilung). Gleich dem
+   * der Einteilung oder leer = zurück zur Einteilung. Geht sofort im Lebenszeichen an den Host (WN2). `false`: keine
+   * eigene Liste, zu lang, gestoppt, Übung.
+   */
+  setzeWkrName(liste: string, name: string): boolean
   /** „Liste abschließen“ (F7, F8): Prüfsummen über die eigenen Werte des Punkts; liefert die Kennung des Abschlusses. */
   schliesseAb(liste: string, punkt: PunktId, name: string, restPapier: boolean): number | null
   /** Einen Hinweis als gelesen melden. */
@@ -330,6 +357,12 @@ interface Inhalt {
    * beim Abmelden im selben Schritt wie die Quittung) – also neu zugewiesen, auch wenn das Fehlen nie zu sehen war.
    */
   abgemeldet: Record<string, { titel: string; bereich: string; teil?: ListenTeil; weg?: true; id?: number; nr?: number }>
+  /**
+   * Auf dem Gerät geänderte WKR-Namen je Liste (W3-13, WN1) – nur Abweichungen von der Einteilung. `nameMelden`: eine
+   * Änderung ist noch nicht im Lebenszeichen hinaus (WN2).
+   */
+  namen: Record<string, string>
+  nameMelden?: true
 }
 
 interface AbgelegterEntwurf {
@@ -417,7 +450,7 @@ function istListenSicht(v: unknown, liste: string): v is ListenSicht {
 }
 
 function leer(uhr: () => number): Inhalt {
-  return { naechsteZ: Math.max(1, Math.floor(uhr())), aus: [], zeilen: [], werte: {}, abschluesse: [], sichten: {}, gesehen: [], entwuerfe: {}, abgemeldet: {} }
+  return { naechsteZ: Math.max(1, Math.floor(uhr())), aus: [], zeilen: [], werte: {}, abschluesse: [], sichten: {}, gesehen: [], entwuerfe: {}, abgemeldet: {}, namen: {} }
 }
 
 /** Abgelegten Ausgang lesen – was nicht passt, fällt weg (Programmfehler, alte Fassung), nie das Ganze. */
@@ -482,6 +515,12 @@ function liesInhalt(roh: Record<string, unknown> | null, uhr: () => number): Inh
       }
     }
   }
+  if (istObjekt(roh.namen)) {
+    for (const [liste, n] of Object.entries(roh.namen)) {
+      if (liste !== '__proto__' && istText(n) && n.trim() !== '' && n.length <= WKR_ANNAHMEN.nameMax) out.namen[liste] = n.trim()
+    }
+  }
+  if (roh.nameMelden === true) out.nameMelden = true
   // Der Zähler steht immer über allem Abgelegten.
   for (const z of [...out.zeilen.map((x) => x.z), ...out.abschluesse.map((x) => x.id), ...out.aus.map((a) => (a.art === 'zeile' ? a.z : a.id))]) {
     if (z >= out.naechsteZ) out.naechsteZ = z + 1
@@ -663,6 +702,12 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     if (!a || !istListenSicht(sicht, a.liste)) return
     inhalt.sichten[a.liste] = sicht
     vermerkeAusSicht(a.liste)
+    // Hat der Bedienrechner den Namen des Geräts in die Veranstaltung übernommen (W3-13), ist die Änderung erledigt:
+    // Spätere Änderungen der Einteilung kommen dann wieder auf dem Gerät an. Der Host erfährt es im Lebenszeichen.
+    if (inhalt.namen[a.liste] !== undefined && inhalt.namen[a.liste] === sicht.wkrName) {
+      delete inhalt.namen[a.liste]
+      inhalt.nameMelden = true
+    }
     // Neu zugewiesen nach dem Abmelden (Prüfbefund 21.11.2026): Die Sicht hat die Abmeldung schon verarbeitet (`bis`)
     // und ist trotzdem lesbar – das geht nur mit dem neuen Schlüssel. Hängt nicht daran, dass das Gerät die Liste
     // erst fehlen sah (Gerät schlief oder lud neu, Entzug und Zuweisung im selben Takt).
@@ -778,15 +823,32 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
   // --- Lebenszeichen -------------------------------------------------------------------------------
 
   const wartendJetzt = () => inhalt.zeilen.filter((z) => !z.ok && !z.ab).length
-  const takt = setInterval(() => {
+  /** Geänderte Namen der eigenen Listen (WN2) – nur diese gehen hinaus. */
+  const eigeneNamen = () => Object.fromEntries(Object.entries(inhalt.namen).filter(([liste]) => !!aufgabeVon(liste)))
+  /**
+   * Ein Lebenszeichen schicken, wenn fällig: nach Stille mit laufendem Punkt (W1) – oder sofort, wenn ein geänderter
+   * WKR-Name noch nicht hinaus ist (WN2, auch ohne laufenden Punkt). Nur gekoppelt, verbunden, ohne Ausstehendes.
+   */
+  function lebenszeichen(): void {
     if (gestoppt || geraet.lage.value !== 'gekoppelt' || geraet.status.value !== 'verbunden') return
     if (kanal.unbestaetigt().length > 0 || inhalt.aus.length > 0) return
-    if (!listen.value.some((a) => inhalt.sichten[a.liste]?.punkt)) return
-    if (uhr() - kanal.zuletztGesendet() < WKR_ANNAHMEN.lebenszeichenSek * 1000) return
+    if (!inhalt.nameMelden) {
+      if (!listen.value.some((a) => inhalt.sichten[a.liste]?.punkt)) return
+      if (uhr() - kanal.zuletztGesendet() < WKR_ANNAHMEN.lebenszeichenSek * 1000) return
+    }
     const akku = umgebung.akku?.()
-    const n: GeraeteNachricht = { art: 'lebenszeichen', wartend: wartendJetzt(), ...(akku !== undefined && Number.isInteger(akku) && akku >= 0 && akku <= 100 ? { akku } : {}) }
-    kanal.schicke(n)
-  }, umgebung.taktMs ?? 5000)
+    const n: GeraeteNachricht = {
+      art: 'lebenszeichen',
+      wartend: wartendJetzt(),
+      ...(akku !== undefined && Number.isInteger(akku) && akku >= 0 && akku <= 100 ? { akku } : {}),
+      namen: eigeneNamen(),
+    }
+    if (kanal.schicke(n) !== null && inhalt.nameMelden) {
+      delete inhalt.nameMelden
+      speichere()
+    }
+  }
+  const takt = setInterval(lebenszeichen, umgebung.taktMs ?? 5000)
 
   // --- Abgeleitet ----------------------------------------------------------------------------------
 
@@ -1197,6 +1259,13 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
         ...(vs ? { vs } : {}),
       })
     },
+    soLassen(liste, z) {
+      if (gestoppt || !aufgabeVon(liste) || !istNr(z)) return null
+      const id = nachricht(liste, { art: 'action', action: { type: 'WKR_SO_LASSEN', liste, z } })
+      speichere()
+      pumpe()
+      return id
+    },
     pausiere: (liste) => status(liste, 'pausiert'),
     meldeAb(liste) {
       const sicht = inhalt.sichten[liste]
@@ -1215,6 +1284,28 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       return id
     },
     weiter: (liste) => status(liste, 'aktiv'),
+    wkrName(liste) {
+      void rev.value
+      void sichten.value
+      const einteilung = inhalt.sichten[liste]?.wkrName?.trim() ?? ''
+      const eigen = inhalt.namen[liste]
+      return eigen !== undefined ? { name: eigen, einteilung, eigen: true } : { name: einteilung, einteilung, eigen: false }
+    },
+    setzeWkrName(liste, name) {
+      if (gestoppt || !aufgabeVon(liste) || typeof name !== 'string') return false
+      const sauber = name.trim()
+      if (sauber.length > WKR_ANNAHMEN.nameMax) return false
+      const einteilung = inhalt.sichten[liste]?.wkrName?.trim() ?? ''
+      const vorher = inhalt.namen[liste]
+      // Leer oder wie die Einteilung = zurück zur Einteilung (keine Abweichung mehr, der Hinweis am Host fällt).
+      if (sauber === '' || sauber === einteilung) delete inhalt.namen[liste]
+      else inhalt.namen[liste] = sauber
+      if (inhalt.namen[liste] === vorher) return true
+      inhalt.nameMelden = true
+      speichere()
+      lebenszeichen()
+      return true
+    },
     schliesseAb(liste, punkt, name, restPapier) {
       const aufgabe = aufgabeVon(liste)
       const sauber = typeof name === 'string' ? name.trim() : ''
@@ -1309,8 +1400,10 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       }
       const sicht = inhalt.sichten[liste]
       const je = schlangen.value[liste]
-      const quelle = !je || sicht?.punkt?.id !== punkt ? [] : teil !== undefined && sicht?.teile ? je[teil] : je.ganz
-      const offen = quelle.filter((s) => !s.vorab && !s.entfaellt).map((s) => ({ ...s }))
+      // Offen: die Starts der Schlange DIESES Punkts – seit W3-40 (21.11.2026) wird nur über das Band abgeschlossen, oft
+      // erst, wenn der nächste Lauf begann; ohne `punkt` am Start (ältere Sicht, Übung) gilt der Punkt der Sicht.
+      const quelle = !je ? [] : teil !== undefined && sicht?.teile ? je[teil] : je.ganz
+      const offen = quelle.filter((s) => !s.vorab && !s.entfaellt && (s.punkt ?? sicht?.punkt?.id) === punkt).map((s) => ({ ...s }))
       return { zeilen, offen, x: zeilen.filter((z) => z.x).map((z) => z.sn ?? z.s), nichtVorbei: zeilen.filter((z) => z.nv).map((z) => z.sn ?? z.s) }
     },
     stop() {

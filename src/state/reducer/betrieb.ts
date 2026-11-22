@@ -64,6 +64,11 @@ export type BetriebAenderung =
    * „ohne Anzeige“ erledigt, die Punkte bis zu seinem sind begonnen. Ein früherer Start öffnet wieder.
    */
   | { type: 'BETRIEB_AB'; bereich: BereichId; ref: string }
+  /**
+   * Parcours-Ampel (Nutzer 21.11.2026, P-03): Der gezeigte Start `ref` ist durchs Start-Tor gefahren (`an`) bzw. doch
+   * nicht (`an: false`, „zurück“). Wirkt nur, solange `ref` der gezeigte Start ist; die Zeit setzt der Store.
+   */
+  | { type: 'BETRIEB_DURCHFAHRT'; bereich: BereichId; ref: string; an: boolean }
 
 /** Längste Meldung in Zeichen: Mehr ist auf der Tafel aus der Entfernung nicht zu lesen. */
 export const MELDUNG_MAX = 200
@@ -111,6 +116,7 @@ export function anzeigeVorgabe(): AnzeigeEinstellungen {
     wkrRueckstand: WKR_ANNAHMEN.rueckstandVorgabe,
     wkrWarnung: WKR_ANNAHMEN.warnungVorgabe,
     wkrFassung: WKR_VORGABE_FASSUNG,
+    wkrAuto: BETRIEB_ANNAHMEN.autoVorgabe,
   }
 }
 
@@ -185,6 +191,7 @@ export function normalisiereAnzeige(raw: unknown, bereichIds?: readonly string[]
     wkrWarnung: WKR_WARNUNGEN.find((w) => w === a.wkrWarnung) ?? v.wkrWarnung,
     // Immer die jetzige: Was hier durchläuft, ist ab jetzt ein Stand mit den Vorgaben seit N8 (migrate hebt vorher).
     wkrFassung: WKR_VORGABE_FASSUNG,
+    wkrAuto: wahrheit(a.wkrAuto, v.wkrAuto),
   }
 }
 
@@ -210,6 +217,11 @@ function normalisiereBereich(raw: unknown): BereichBetrieb | null {
     ausgesetzt: Array.isArray(b.ausgesetzt) ? eindeutig(b.ausgesetzt.filter((k): k is ClassId => CLASS_IDS.includes(k as ClassId))) : [],
     vorziehen: typeof b.vorziehen === 'boolean' ? b.vorziehen : BETRIEB_ANNAHMEN.vorziehenVorgabe,
     meldung: meldungWert(b.meldung),
+  }
+  // Durchfahrt (P-03) nur für den gezeigten Start – eine für einen anderen gälte ohnehin nie (wkr/ampel.ts).
+  const d = b.durchfahrt as { ref?: unknown; zeit?: unknown } | null | undefined
+  if (d && typeof d === 'object' && typeof d.ref === 'string' && d.ref === gezeigt.at(-1)?.ref) {
+    bereich.durchfahrt = { ref: d.ref, zeit: typeof d.zeit === 'number' && Number.isFinite(d.zeit) && d.zeit > 0 ? d.zeit : 0 }
   }
   return bereichLeer(bereich) ? null : bereich
 }
@@ -303,7 +315,8 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
     case 'BETRIEB_ZEIGEN': {
       const l = lage(state, action.bereich)
       if (!l.fest || (l.aktuell?.key ?? null) !== action.vorher) return state
-      const b = betriebVon(state, action.bereich)
+      // Die Durchfahrt (P-03) gilt dem bisher gezeigten Start – mit dem neuen fällt sie weg.
+      const { durchfahrt: _alt, ...b } = betriebVon(state, action.bereich)
       const gezeigt = [...b.gezeigt, { ref: action.ref, zeit: action.zeit ?? 0 }]
       if (l.naechster?.key === action.ref) return mitBereich(state, action.bereich, { ...b, gezeigt })
       // Ein nachzuholender Start (E1) – oder jeder andere nicht erledigte, nicht entfallene (B-5, S-4;
@@ -427,9 +440,20 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
     }
 
     case 'BETRIEB_ZURUECK': {
-      const b = betriebVon(state, action.bereich)
+      const { durchfahrt: _alt, ...b } = betriebVon(state, action.bereich)
       if (b.gezeigt.at(-1)?.ref !== action.ref) return state
       return mitBereich(state, action.bereich, { ...b, gezeigt: b.gezeigt.slice(0, -1) })
+    }
+
+    case 'BETRIEB_DURCHFAHRT': {
+      // Nur der gezeigte Start (ein veraltetes Gerät, ein Doppeltipp ändern nichts); kein Lauf, keine Folge – ein
+      // menschlicher Vermerk, aus dem wkr/ampel.ts rot ableitet. Unverändert = derselbe Stand.
+      const b = betriebVon(state, action.bereich)
+      if (b.gezeigt.at(-1)?.ref !== action.ref) return state
+      if (action.an) return b.durchfahrt?.ref === action.ref ? state : mitBereich(state, action.bereich, { ...b, durchfahrt: { ref: action.ref, zeit: action.zeit ?? 0 } })
+      if (!b.durchfahrt) return state
+      const { durchfahrt: _weg, ...ohne } = b
+      return mitBereich(state, action.bereich, ohne)
     }
 
     case 'BETRIEB_MELDUNG': {

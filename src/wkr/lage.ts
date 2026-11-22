@@ -4,7 +4,7 @@ import { betriebVon, lage as bereichsLage, liesRef } from '../betrieb/folge'
 import { erfasstKennung, listenFelder, werteVon, type Feld, type ListenTeil } from '../lib/eingaben'
 import { abschluesseVon, punktVonRef, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
-import { listenDerVeranstaltung, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
+import { istParcoursListe, listenDerVeranstaltung, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
 import { hatVorab, leser, schlange, vorabStarts, type SchlangenStart } from './schlange'
 import { istNichtVorbei, liesNvSchluessel } from './nichtVorbei'
 
@@ -44,6 +44,11 @@ export interface ZellLage {
   zelle: Zelle
   /** Nur geteilte Listen (Steg), wenn die Zelle aus den Teilen folgt: Stand je Teil. */
   teile?: { ab: Zelle; an: Zelle }
+  /**
+   * `ok` mit Disq.-Buchstaben im Disq.-Feld der Liste („J“, „A, J“) – die Matrix zeigt ✓ mit Disq.-Marke (Nutzer
+   * 21.11.2026, W3-17, GF10: „nicht vorbeigekommen“ ist Disq. J, eine gewöhnliche Zeile mit Haken).
+   */
+  disq?: string
 }
 
 /** Eine Spalte der Matrix: ein gezeigter Start (Parallelslalom: das Paar) bzw. am Vorsteg einer der nächsten (`vorab`). */
@@ -102,8 +107,13 @@ export interface ListenLage {
   zellen: Record<string, ZellLage>
   /** Offene gezeigte Starts (Startnummern von–bis); `null`, wenn keiner offen ist (A4). */
   rueckstand: { zahl: number; von: string; bis: string } | null
-  /** Mindestens R offen (seit 21.11.2026, Befund 8; vorher mehr als R), Liste digital und aktiv (F1, F4). */
+  /**
+   * Mindestens R offen (seit 21.11.2026, Befund 8; vorher mehr als R), Liste digital und aktiv (F1, F4) – und seit der
+   * Parcours-Ampel (Nutzer 21.11.2026, P-03, AM5) nur noch Parcours-Listen: Steg und Vorsteg warnen nie.
+   */
   warnt: boolean
+  /** Parcours-Liste (wkr/liste.ts istParcoursListe, AM1): nur sie zählen für Ampel, Rückstandszeile und Auto-Modus. */
+  parcours: boolean
   rueckfragen: number
   vorschlaege: number
   abschluss: ListenAbschluss[]
@@ -237,6 +247,16 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
     return ueberfaellig(k) ? 'ueberfaellig' : 'offen'
   }
 
+  /** Disq.-Buchstaben im Disq.-Feld der Liste (W3-17, GF10) – nur, wenn welche stehen. */
+  const disqMarke = (werte: Readonly<Record<string, string>>, klasse: string): { disq?: string } => {
+    const text = felderVon(klasse)
+      .filter((f) => f.kind === 'disq')
+      .map((f) => werte[f.kennung] ?? '')
+      .filter((x) => x !== '')
+      .join(', ')
+    return text ? { disq: text } : {}
+  }
+
   /** Der Zellstand eines Starts (Kennung) auf dieser Liste; `null`, wenn der Start nicht zur Art des Bereichs passt. */
   const zelleVon = (key: string): (ZellLage & { lauf: string; weitere: string[]; starter: string; klasse: string }) | null => {
     const ref = liesRef(key)
@@ -255,7 +275,7 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
     // „Nicht vorbeigekommen“ (W4.3, R4) vor dem Haken: Die Zeile hat den Haken, aber keine Werte.
     if (!geteilt && nv(start.lauf, start.starter.id, undefined)) return { ...basis, zelle: 'nv' }
     const ganz = !!werte[erfasstKennung(liste.typeId)]
-    if (ganz && !(geteilt && nv(start.lauf, start.starter.id, 'an'))) return { ...basis, zelle: 'ok' }
+    if (ganz && !(geteilt && nv(start.lauf, start.starter.id, 'an'))) return { ...basis, zelle: 'ok', ...disqMarke(werte, start.starter.klasse) }
     if (!geteilt) return { ...basis, zelle: abgetippt(werte, start.starter.klasse, undefined) ? 'ok' : teilZelle(key, k, werte, start.starter.klasse, undefined, start.lauf, start.starter.id) }
     const je = {
       ab: ganz ? ('ok' as const) : teilZelle(key, k, werte, start.starter.klasse, 'ab', start.lauf, start.starter.id),
@@ -304,6 +324,52 @@ function matrixPunkt(stand: AppState, bereich: BereichId): PunktId | null {
   if (laufend !== null) return laufend
   const letzter = betriebVon(stand, bereich).gezeigt.at(-1)
   return letzter ? punktVonRef(stand, letzter.ref) : null
+}
+
+/** Ist der gezeigte Start eines Bereichs durchs Start-Tor gefahren (Parcours-Ampel, AM4)? */
+export interface Durchfahrt {
+  /** Der gezeigte Start (`refKey`); `null` = keiner. */
+  ref: string | null
+  /** Durchgefahren: per Knopf oder weil eine Parcours-Liste für ihn schon etwas hat. */
+  durch: boolean
+  /** Per Knopf „Durchs Start-Tor“ (BereichBetrieb.durchfahrt) – nur dann gibt es „zurück“. */
+  perKnopf: boolean
+  /** Eine Liste trägt für ihn X (nicht gestartet): auf niemanden zu warten. */
+  x: boolean
+}
+
+/**
+ * Durchfahrt des gezeigten Starts (Nutzer 21.11.2026, P-03, WKR_ANNAHMEN.rotDurchErsteZeile, AM4): per Knopf
+ * (`durchfahrt` des Bereichs für genau diesen Start) ODER irgendeine Parcours-Liste – gleich in welchem Modus, auch
+ * abgetippt vom Bogen – hat für ihn einen Haken, einen eigenen Wert, eine offene Rückfrage oder einen Vorschlag. Wer
+ * etwas abschickt, hat das Boot gesehen. Ein X des Starts gilt als durch (`x`).
+ */
+export function durchfahrtVon(stand: AppState, konfig: Konfig, bereich: BereichId): Durchfahrt {
+  const ref = bereichsLage(stand, bereich).aktuell?.key ?? null
+  if (ref === null) return { ref, durch: false, perKnopf: false, x: false }
+  const perKnopf = betriebVon(stand, bereich).durchfahrt?.ref === ref
+  const start = liesRef(ref)
+  let durch = perKnopf
+  let x = false
+  if (start) {
+    for (const liste of listenDerVeranstaltung(stand, konfig)) {
+      if (liste.bereich !== bereich || !istParcoursListe(konfig, liste.typeId)) continue
+      const s = startAufListe(stand, konfig, liste, start)
+      if (!s) continue
+      if (leser(stand, konfig, liste).istX(s.lauf, s.starter.id, s.starter.klasse)) {
+        x = true
+        durch = true
+        continue
+      }
+      if (durch) continue
+      const kennung = listenKennung(liste)
+      const werte = werteVon(stand.eingaben, s.lauf, s.starter.id)
+      const felder = konfig.positionAllowsClass(liste.typeId, s.starter.klasse) ? listenFelder(konfig, liste.typeId, s.starter.klasse) : []
+      const gleich = (e: { liste: string; lauf: string; starter: string }) => e.liste === kennung && e.lauf === s.lauf && e.starter === s.starter.id
+      if (!!werte[erfasstKennung(liste.typeId)] || felder.some((f) => !!werte[f.kennung]) || stand.wkr.rueckfragen.some(gleich) || stand.wkr.vorschlaege.some(gleich)) durch = true
+    }
+  }
+  return { ref, durch, perKnopf, x }
 }
 
 /**
@@ -361,8 +427,11 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
     })
   }
   const aufTafel = bereichsLage(stand, bereich).aktuell?.key ?? null
+  // Parcours-Ampel (P-03, AM5): Der gezeigte Start zählt auf Parcours-Listen erst, wenn er durchgefahren ist.
+  const durch = durchfahrtVon(stand, konfig, bereich).durch
   const lagen = listen.map((liste): ListenLage => {
     const r = rechner(stand, konfig, liste)
+    const parcours = istParcoursListe(konfig, liste.typeId)
     const zellen: Record<string, ZellLage> = {}
     const vorabListe = hatVorab(liste.typeId)
     for (const s of spalten) {
@@ -372,7 +441,7 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
       // Ein Start vorab, der nicht (mehr) in der Schlange steht, hat hier nichts zu zeigen.
       // Am Steg sieht nur das Ablegen vorab: Ist es dort Papier (Start hinter „Am Steg“), hat die Zeile nichts zu zeigen.
       if (!z || (s.vorab && (z.zelle === 'papier' || z.teile?.ab === 'papier'))) continue
-      zellen[s.key] = z.teile ? { zelle: z.zelle, teile: z.teile } : { zelle: z.zelle }
+      zellen[s.key] = { zelle: z.zelle, ...(z.teile ? { teile: z.teile } : {}), ...(z.disq ? { disq: z.disq } : {}) }
     }
     const geraeteHier = geraeteDerListe(r.kennung, geraete, jetzt, laeuft)
     const nr = (s: SchlangenStart | undefined) => (s ? nummerVon(stand, s.starter) : '')
@@ -382,8 +451,9 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
     // Auch am Ende eines Punkts, wo er für die Schlange schon „zurück“ ist – sonst fragte die Freigabe an jeder Laufgrenze.
     const nurAnlegenAufTafel = (s: SchlangenStart, t: ListenTeil | undefined) =>
       r.geteilt && WKR_ANNAHMEN.stegAnlegenNachlaufend && s.key === aufTafel && (t === 'an' || (t === undefined && r.erledigt(s.lauf, s.starter, s.klasse, 'ab')))
+    const nochNichtDurch = (s: SchlangenStart) => parcours && !durch && s.key === aufTafel
     const offen = (t: ListenTeil | undefined) =>
-      [...r.schlangeVon(t).values()].filter((s) => !s.vorab && !s.entfaellt && !r.erledigt(s.lauf, s.starter, s.klasse, t) && !nurAnlegenAufTafel(s, t))
+      [...r.schlangeVon(t).values()].filter((s) => !s.vorab && !s.entfaellt && !r.erledigt(s.lauf, s.starter, s.klasse, t) && !nurAnlegenAufTafel(s, t) && !nochNichtDurch(s))
     let q = offen(undefined)
     if (r.geteilt && geraeteHier.some((g) => g.teil !== undefined)) {
       const ab = offen('ab')
@@ -408,7 +478,9 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
       zellen,
       rueckstand,
       // Ab R offenen Starts (Feldtest 21.11.2026, Befund 8; vorher „mehr als R“, F4/A4) – WKR_ANNAHMEN.rueckstandAbR.
-      warnt: !!rueckstand && r.digital && status === 'aktiv' && rueckstand.zahl >= R,
+      // Nur Parcours-Listen (Nutzer 21.11.2026, P-03, AM5): Steg und Vorsteg „laufen autark“.
+      warnt: parcours && !!rueckstand && r.digital && status === 'aktiv' && rueckstand.zahl >= R,
+      parcours,
       rueckfragen: r.offeneRueckfragen.length,
       vorschlaege: r.offeneVorschlaege.length,
       abschluss: abschluesseVon(stand.wkr, r.kennung).map(({ punkt: p, teil, abschluss: a }) => {

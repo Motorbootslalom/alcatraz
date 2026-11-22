@@ -316,9 +316,14 @@ export function mittlereZeit(werte: Werte, felder: Map<string, Feld>): number | 
   return gewertet.length > 0 ? Math.round(gewertet.reduce((a, z) => a + z.centis, 0) / gewertet.length) : null
 }
 
-/** „J“ oder „5, J“: die Punkte einer Zelle, dahinter ihre Buchstaben. */
-function zellText(punkte: number, disqs: string[]): string {
-  return [...(punkte > 0 ? [String(punkte)] : []), ...[...new Set(disqs)].sort()].join(', ')
+/**
+ * „J“ oder „5, J“: die Punkte einer Zelle, dahinter ihre Buchstaben. Bojenzellen (`boje`) ohne Komma und Leerzeichen
+ * – „5J“, wie die Zelle gespeichert und abgetippt wird (W4-12, BZ1, 21.11.2026); in den schmalen Bojenspalten brach
+ * „5, J“ um. Fehler-Spalten (MüB „5, D“) bleiben, wie sie waren.
+ */
+function zellText(punkte: number, disqs: string[], boje = false): string {
+  const teile = [...(punkte > 0 ? [String(punkte)] : []), ...[...new Set(disqs)].sort()]
+  return teile.join(boje ? '' : ', ')
 }
 
 /** Der Code eines Eintrags: „2x6“ → „6“. */
@@ -401,7 +406,7 @@ function laufListe(
     const disq = disqs.length > 0
     const zellen = blaetter.map((blatt) => {
       const zelle = bewerte(werte, blatt.felder, felder)
-      return zellText(zelle.punkte, zelle.disqs)
+      return zellText(zelle.punkte, zelle.disqs, blatt.felder.length > 0 && blatt.felder.every((k) => felder.get(k)?.kind === 'buoy'))
     })
     return {
       starter: s,

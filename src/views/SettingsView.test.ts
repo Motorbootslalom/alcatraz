@@ -971,6 +971,19 @@ describe('Einstellungen: Anzeigetafel', () => {
     wrapper.unmount()
   })
 
+  it('Auto-Modus der Start-Freigabe (Nutzer 21.11.2026, P-03, AM6): Vorgabe aus, Schalter über SET_ANZEIGE', async () => {
+    const wrapper = settings(store)
+    const schalter = wrapper.find<HTMLInputElement>('[data-feld="betrieb-wkr-auto"]')
+    expect(schalter.element.checked).toBe(false)
+    expect(anzeige().wkrAuto).toBe(false)
+    await schalter.setValue(true)
+    expect(anzeige().wkrAuto).toBe(true)
+    expect(wrapper.find('#betrieb').text()).toContain('3 Sekunden')
+    await schalter.setValue(false)
+    expect(anzeige().wkrAuto).toBe(false)
+    wrapper.unmount()
+  })
+
   it('Startabstände (E3, K24): Vorgabe je Klasse, eigener Wert nur als Abweichung; leer oder gleich der Vorgabe = Vorgabe', async () => {
     const wrapper = settings(store)
     const zeile = (k: string) => wrapper.find(`[data-teil="startabstaende"] tr[data-klasse="${k}"]`)

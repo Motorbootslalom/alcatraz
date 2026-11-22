@@ -87,6 +87,7 @@ function hostDoppel(zellen: WkrHerkunft['zellen'] = {}): GeraeteHost {
     beendeKoppeln: () => {},
     setzeAufgaben: () => {},
     benenne: () => {},
+    setzeTyp: () => {},
     entziehe: () => {},
     hinweis: () => {},
     merkeEntscheid: () => {},

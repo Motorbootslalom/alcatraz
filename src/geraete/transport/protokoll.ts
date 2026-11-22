@@ -102,16 +102,31 @@ export interface GeraeteAction {
   [feld: string]: unknown
 }
 
+/**
+ * Grobe Art des Geräts, wie es sie beim Koppeln meldet (Nutzer 21.11.2026, W3-25, WKR_ANNAHMEN GF7): für den Hinweis,
+ * wie viele Listen passen (W3-03), und die Geräteliste – am Bedienrechner änderbar. Steht hier (nicht in
+ * geraeteName.ts), weil Protokoll und Raum sie prüfen.
+ */
+export const GERAETE_TYPEN = ['handy', 'pad', 'rechner'] as const
+export type GeraeteTyp = (typeof GERAETE_TYPEN)[number]
+export const istGeraeteTyp = (v: unknown): v is GeraeteTyp => (GERAETE_TYPEN as readonly unknown[]).includes(v)
+
 export type GeraeteNachricht =
-  /** Anmeldung (E7): Geräte-Code oder QR-Token, Name des Geräts. Kommt meist über ein Koppel-Thema. */
-  | { art: 'hallo'; name: string; code: string }
+  /**
+   * Anmeldung (E7): Geräte-Code oder QR-Token, Name des Geräts. Kommt meist über ein Koppel-Thema. `typ` seit
+   * 21.11.2026 (W3-25): freiwillig – ein Host ohne das Feld liest die Anmeldung weiter, darum keine neue Fassung.
+   */
+  | { art: 'hallo'; name: string; code: string; typ?: GeraeteTyp }
   /** Eine Änderung, die der Host prüft und anwendet (W1: auch die WKR-Arten, geraete/aufgaben.ts WKR_ACTIONS). */
   | { art: 'action'; action: GeraeteAction }
   /**
    * W1: Das Gerät lebt, obwohl es nichts schickt (nur nach Stille, wkr/annahmen.ts). `wartend` = Zeilen, die es noch
    * nicht losgeworden ist; `akku` in Prozent, wenn der Browser es verrät. Nur für die Bedieneransicht (W2).
+   * `namen` seit 21.11.2026 (Nutzer W3-13, WKR_ANNAHMEN WN2): je eigener Liste (Kennung) der auf dem Gerät geänderte
+   * WKR-Name – nur Änderungen gegenüber der Einteilung; fehlt = altes Gerät, `{}` = keine. Freiwillig, darum keine
+   * neue Fassung (ein Host ohne das Feld liest das Lebenszeichen weiter).
    */
-  | { art: 'lebenszeichen'; wartend: number; akku?: number }
+  | { art: 'lebenszeichen'; wartend: number; akku?: number; namen?: Record<string, string> }
   /** W1: Ein Hinweis des Bedienrechners (Sicht der Liste, `hinweise[].id`) ist gelesen – er verschwindet. */
   | { art: 'gesehen'; hinweis: number }
 
@@ -124,12 +139,34 @@ export interface GeraeteKlartext {
   nachricht: GeraeteNachricht
 }
 
+/** Höchstens so viele Listen-Namen in einem Lebenszeichen (ein Gerät hat höchstens vier Listen, GF8). */
+export const WKR_NAMEN_MAX = 8
+/** Wie WKR_ANNAHMEN.nameMax (der Transport bleibt ohne Fachlogik); Listen-Kennungen sind kurz. */
+const WKR_NAME_LAENGE = 60
+const LISTEN_KENNUNG_LAENGE = 200
+
+/**
+ * WKR-Namen je Liste aus einem Lebenszeichen (WN2): nur Texte, nicht leer, ≤ 60 Zeichen, höchstens
+ * {@link WKR_NAMEN_MAX}. `undefined`, wenn das Feld fehlt oder kein Objekt ist.
+ */
+export function liesWkrNamen(wert: unknown): Record<string, string> | undefined {
+  if (!istObjekt(wert)) return undefined
+  const out: Record<string, string> = {}
+  for (const [liste, name] of Object.entries(wert).slice(0, WKR_NAMEN_MAX)) {
+    if (liste === '__proto__' || liste.length > LISTEN_KENNUNG_LAENGE || typeof name !== 'string') continue
+    const sauber = name.trim()
+    if (sauber !== '' && sauber.length <= WKR_NAME_LAENGE) out[liste] = sauber
+  }
+  return out
+}
+
 /** Prüft und bereinigt eine Nachricht eines Geräts. `null`, wenn sie nicht ins Protokoll passt. */
 export function liesGeraeteNachricht(wert: unknown): GeraeteNachricht | null {
   if (!istObjekt(wert)) return null
   if (wert.art === 'hallo') {
     if (!istText(wert.name, 60) || !istText(wert.code, 200)) return null
-    return { art: 'hallo', name: wert.name, code: wert.code }
+    // Eine unbekannte Art fällt weg (Feld für Feld) – die Anmeldung selbst gilt weiter.
+    return { art: 'hallo', name: wert.name, code: wert.code, ...(istGeraeteTyp(wert.typ) ? { typ: wert.typ } : {}) }
   }
   if (wert.art === 'action') {
     const action = wert.action
@@ -141,7 +178,9 @@ export function liesGeraeteNachricht(wert: unknown): GeraeteNachricht | null {
   if (wert.art === 'lebenszeichen') {
     if (!istZahl(wert.wartend) || wert.wartend > 10_000) return null
     if (wert.akku !== undefined && (!istZahl(wert.akku) || wert.akku > 100)) return null
-    return { art: 'lebenszeichen', wartend: wert.wartend, ...(wert.akku !== undefined ? { akku: wert.akku } : {}) }
+    // Namen Feld für Feld: Unbrauchbares fällt weg, das Lebenszeichen gilt weiter (wie `hallo.typ`).
+    const namen = liesWkrNamen(wert.namen)
+    return { art: 'lebenszeichen', wartend: wert.wartend, ...(wert.akku !== undefined ? { akku: wert.akku } : {}), ...(namen ? { namen } : {}) }
   }
   if (wert.art === 'gesehen') {
     if (!istZahl(wert.hinweis) || !Number.isSafeInteger(wert.hinweis)) return null

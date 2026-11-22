@@ -3,15 +3,17 @@ import { computed, ref } from 'vue'
 import type { BereichId } from '../../types'
 import { useStore } from '../../state/store'
 import { useGeraeteHost } from '../../geraete/host'
-import { freigabeBereiche, LISTEN_JE_GERAET, listenAufgaben, type Aufgabe, type ListenAufgabe } from '../../geraete/aufgaben'
+import { freigabeBereiche, LISTEN_EMPFEHLUNG, LISTEN_JE_GERAET, listenAufgaben, type Aufgabe, type ListenAufgabe } from '../../geraete/aufgaben'
+import { GERAETE_TYPEN } from '../../geraete/transport/protokoll'
 import type { RegisterEintrag } from '../../geraete/register'
 import { sichtOeffentlich } from '../../betrieb/sicht'
 import { useUhr } from '../../lib/uhr'
 import { t } from '../../i18n'
 import AppDialog from '../AppDialog.vue'
 import { uhrzeitText } from './texte'
-import { istHandyName, useListenWahl } from './wkrListenWahl'
-import type { ListenTeil } from '../../wkr/liste'
+import { useListenWahl } from './wkrListenWahl'
+import { liesListe, type ListenTeil } from '../../wkr/liste'
+import { einteilungsName, einteilungsParcours } from '../../wkr/sicht'
 
 /**
  * Betrieb → Geräte, Geräteliste (Etappe E7, Plan vom 16.11.2026 §4/§5; Vorbild tafel DeviceList.vue, neu geschrieben):
@@ -21,15 +23,26 @@ import type { ListenTeil } from '../../wkr/liste'
  *
  * W3.2 (21.11.2026, Plan docs/plan-wkr-w3.md §6): je Gerät seine WKR-Listen – Teil am Steg (ganz / nur Ablegen / nur
  * Anlegen, F16) umschalten, entfernen, eine Liste dazunehmen (Auswahl + eigener Knopf, nie über `change` eines
- * `<select>`), höchstens LISTEN_JE_GERAET (F15); Hinweis „Handy: eine Liste“ nach dem Namen (G3, J2). „Maske: Knöpfe“
+ * `<select>`), höchstens LISTEN_JE_GERAET. „Maske: Knöpfe“
  * nur als Anzeige (G4) – bzw. „Maske folgt – Papier“ bei Listen ohne Maske in W3 (G14). Jede Änderung geht sofort
  * über host.setzeAufgaben (der Host rotiert die Schlüssel der Listen-Gruppe, W1); die Folge der Aufgaben bleibt.
+ *
+ * Nutzer 21.11.2026 (W3-25, W3-03; WKR_ANNAHMEN GF7, GF8): Je Gerät seine Art (Handy/Pad/Rechner) – gemeldet beim
+ * Koppeln, hier per Knopf änderbar (`data-wahl-typ`, host.setzeTyp). Die Zahl der Listen ist nur empfohlen
+ * (LISTEN_EMPFEHLUNG: Handy eine, Pad zwei); darüber ein Hinweis, gesperrt wird erst bei LISTEN_JE_GERAET (4). Vorher
+ * erkannte J2 das Handy am Namen.
+ *
+ * Nutzer 21.11.2026 (W3-13, WKR_ANNAHMEN WN2): je Liste der Name des Wettkampfrichters – aus der Einteilung der
+ * Veranstaltung (`liste-wkr-name`) bzw. der auf dem Gerät geänderte (Register `wkrNamen`, aus dem Lebenszeichen,
+ * gerätelokal). Weicht er ab, nur ein Hinweis „Name auf dem Gerät: … – Einteilung: …“ (`wkr-name-abweichend`) mit „In
+ * Veranstaltung übernehmen“ (SET_WKR_NAME, dieselbe Action wie die Einteilung unter Veranstaltung); sonst nichts – der
+ * WKR kann auf dem Gerät erneut überschreiben.
  *
  * „Zuletzt gehört“ statt „verbunden“: Ein Gerät meldet sich nur, wenn es schaltet oder neu startet (kein Herzschlag –
  * jede Nachricht kostet Kontingent am fremden Server). Ein Bereich, den es im Stand nicht mehr gibt, bleibt im Register
  * (der Parcours kann zurückkommen), wird hier aber nicht gezeigt; der Host lässt ihn ohnehin nicht gelten.
  */
-const { state } = useStore()
+const { state, dispatch } = useStore()
 const host = useGeraeteHost()
 const raum = computed(() => host?.raum.value ?? null)
 const geraete = computed(() => raum.value?.geraete ?? [])
@@ -78,6 +91,24 @@ function nimmListe(g: RegisterEintrag): void {
   neueListe.value = { ...neueListe.value, [g.id]: '' }
 }
 const voll = (g: RegisterEintrag) => listenAufgaben(g.aufgaben).length >= LISTEN_JE_GERAET
+/** Mehr Listen als für die Art empfohlen (W3-03); ohne bekannte Art gilt die des Pads (zwei). */
+const ueberEmpfehlung = (g: RegisterEintrag) => listenAufgaben(g.aufgaben).length > LISTEN_EMPFEHLUNG[g.typ ?? 'pad']
+
+// --- WKR-Name je Liste (W3-13) ---
+/** Name laut Einteilung, der auf dem Gerät und ob sie sich unterscheiden. */
+function wkrNamen(g: RegisterEintrag, kennung: string): { einteilung: string; geraet: string; abweichend: boolean } {
+  const l = liesListe(kennung)
+  const einteilung = l ? einteilungsName(state.value, l) : ''
+  const geraet = g.wkrNamen?.[kennung] ?? ''
+  return { einteilung, geraet, abweichend: geraet !== '' && geraet !== einteilung }
+}
+/** Den Namen vom Gerät in die Einteilung der Veranstaltung übernehmen (wie WkrEinteilung.vue). */
+function uebernimmName(g: RegisterEintrag, kennung: string): void {
+  const l = liesListe(kennung)
+  const name = g.wkrNamen?.[kennung]
+  if (!l || !name) return
+  dispatch({ type: 'SET_WKR_NAME', parcoursId: einteilungsParcours(l), typeId: l.typeId, name })
+}
 
 function benenne(g: RegisterEintrag, e: Event): void {
   const feld = e.target as HTMLInputElement
@@ -108,6 +139,20 @@ function entziehe(): void {
             <span class="note" data-teil="seit">{{ t('geraete.liste.seit', { zeit: g.seit ? uhrzeitText(g.seit, jetzt) : '–' }) }}</span>
             <span class="note" data-teil="zuletzt">{{ t('geraete.liste.zuletzt', { zeit: g.zuletzt ? uhrzeitText(g.zuletzt, jetzt) : '–' }) }}</span>
             <button type="button" class="btn danger sm" data-action="entziehen" @click="frageEntziehen = g">{{ t('geraete.entziehen') }}</button>
+          </div>
+          <div class="segmented geraete-typ" role="group" :aria-label="t('geraete.liste.typ')" data-teil="geraet-typ">
+            <button
+              v-for="ty in GERAETE_TYPEN"
+              :key="ty"
+              type="button"
+              class="sm"
+              :data-wahl-typ="ty"
+              :class="g.typ === ty ? 'active' : ''"
+              :aria-pressed="g.typ === ty"
+              @click="g.typ !== ty && host?.setzeTyp(g.id, ty)"
+            >
+              {{ t(`geraete.typ.${ty}`) }}
+            </button>
           </div>
           <fieldset class="geraete-bereiche">
             <legend>{{ t('geraete.liste.bereiche') }}</legend>
@@ -142,6 +187,18 @@ function entziehe(): void {
                   </button>
                 </span>
                 <button type="button" class="btn sm" data-action="liste-entfernen" @click="entferneListe(g, a.liste)">{{ t('geraete.liste.liste.entfernen') }}</button>
+                <span v-if="wkrNamen(g, a.liste).abweichend" class="note geraete-wkr-name" data-teil="wkr-name-abweichend">
+                  {{
+                    t('geraete.liste.wkrName.abweichend', {
+                      geraet: wkrNamen(g, a.liste).geraet,
+                      einteilung: wkrNamen(g, a.liste).einteilung || t('geraete.liste.wkrName.niemand'),
+                    })
+                  }}
+                  <button type="button" class="btn sm" data-action="wkr-name-uebernehmen" @click="uebernimmName(g, a.liste)">{{ t('geraete.liste.wkrName.uebernehmen') }}</button>
+                </span>
+                <span v-else-if="wkrNamen(g, a.liste).einteilung" class="note geraete-wkr-name" data-teil="liste-wkr-name">
+                  {{ t('geraete.liste.wkrName', { name: wkrNamen(g, a.liste).einteilung }) }}
+                </span>
               </li>
             </ul>
             <div v-if="!voll(g) && gruppen.length > 0" class="row">
@@ -162,8 +219,8 @@ function entziehe(): void {
               <button type="button" class="btn sm" data-action="liste-dazu" :disabled="!neueListe[g.id]" @click="nimmListe(g)">{{ t('geraete.liste.liste.dazu') }}</button>
             </div>
             <p v-if="voll(g)" class="note" data-hinweis="listen-voll">{{ t('geraete.liste.liste.voll', { n: LISTEN_JE_GERAET }) }}</p>
-            <p v-if="listenAufgaben(g.aufgaben).length >= 1 && istHandyName(g.name)" class="note" data-hinweis="handy-eine">{{ t('geraete.liste.liste.handy') }}</p>
-            <p v-else-if="listenAufgaben(g.aufgaben).length >= 2" class="note" data-hinweis="pad-zwei">{{ t('geraete.liste.liste.pad') }}</p>
+            <p v-if="g.typ === 'handy' && ueberEmpfehlung(g)" class="note" data-hinweis="handy-eine">{{ t('geraete.liste.liste.handy') }}</p>
+            <p v-else-if="ueberEmpfehlung(g)" class="note" data-hinweis="pad-zwei">{{ t('geraete.liste.liste.pad') }}</p>
           </fieldset>
           <p v-if="!freigabeBereiche(g.aufgaben).some((id) => bereiche.some((b) => b.id === id)) && listenAufgaben(g.aufgaben).length === 0" class="note" data-hinweis="nichts-frei">
             {{ t('geraete.liste.keine') }}

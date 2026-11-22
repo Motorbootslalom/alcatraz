@@ -79,6 +79,13 @@ describe('pruefeZeile – Werte wie in der Erfassungstabelle', () => {
     ['Boje: Disq-Buchstabe', 'gate135', 't1a|hin seiteA', 'A', true],
     ['Boje: Buchstabe klein (die Tabelle machte ihn groß)', 'gate135', 't1a|hin seiteA', 'a', false],
     ['Boje: Ziffern und Text', 'gate135', 't1a|hin seiteA', '5x', false],
+    // W4-12 (21.11.2026, BZ1/BZ2): Punkte und ein Buchstabe in einer Zelle, so geschrieben wie gespeichert; X nie mit Punkten.
+    ['Boje: Punkte und Disq-Buchstabe', 'gate135', 't1a|hin seiteA', '5A', true],
+    ['Boje: Tor 5, Zähler mit Buchstabe', 'gate135', 't5|hin seiteA', '10A', true],
+    ['Boje: Buchstabe vor den Punkten', 'gate135', 't1a|hin seiteA', 'A5', false],
+    ['Boje: Punkte, Leerzeichen, Buchstabe', 'gate135', 't1a|hin seiteA', '5 A', false],
+    ['Boje: zwei Buchstaben', 'gate135', 't1a|hin seiteA', '5AB', false],
+    ['Boje: X mit Punkten', 'gate135', 't1a|hin seiteA', '5X', false],
     ['Fehlercode aus dem Katalog', 'tor5', 'katalog:tor5', '1', true],
     ['Fehlercode, zwei mit Faktor', 'tor5', 'katalog:tor5', '2x1', true],
     ['Fehlercode fremd', 'tor5', 'katalog:tor5', '999', false],

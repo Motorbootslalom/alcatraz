@@ -4,7 +4,7 @@ import type { SichtBereich } from '../../types'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from '../../geraete/gekoppelt'
 import type { FassungsLage, LeseUmgebung } from '../../geraete/geraet'
-import { freigabeBereiche, listenAufgaben } from '../../geraete/aufgaben'
+import { AUTO_HALT, freigabeBereiche, listenAufgaben } from '../../geraete/aufgaben'
 import { oeffneErfassung, type Erfassung } from '../../geraete/erfassen'
 import { oeffneTabWache } from '../../geraete/tabWache'
 import { liesListe } from '../../wkr/liste'
@@ -236,6 +236,16 @@ function sende(action: BetriebAenderung): void {
   const nr = g.sende(action)
   if (nr !== null) gesendet.value = nr
 }
+/**
+ * „Anhalten“ des Auto-Modus (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN.autoAnhaltenLokal, AM7): eine Nachricht an den
+ * Host, keine Reducer-Action – der Host merkt es sich bis zum nächsten gezeigten Start (geraete/host.ts AUTO_HALT).
+ */
+function autoAnhalten(bereich: string, ref: string): void {
+  const g = geraet.value
+  if (!g || offen.value) return
+  const nr = g.sende({ type: AUTO_HALT, bereich, ref })
+  if (nr !== null) gesendet.value = nr
+}
 
 // --- Entzogen: nur lesen, wer dran ist ---
 const lesend = computed(() =>
@@ -341,7 +351,7 @@ function entkopple(): void {
           <!-- Selbstanmeldung (P-7) läuft: nur ein Hinweis, die Knöpfe bleiben frei (Prüfung E7, 20.11.2026). -->
           <p v-else-if="geraet.meldetSich.value" class="note geraet-banner" role="status" data-teil="verbinde">{{ t('geraete.freigabe.verbinde') }}</p>
           <fieldset class="geraet-sperre" :disabled="offen" :aria-busy="offen">
-            <StartFreigabe v-for="b in eigene" :key="b.id" :sicht="sicht" :bereich="b" :sende="sende" :erfassung="erfassung[b.id]" nur-dieser />
+            <StartFreigabe v-for="b in eigene" :key="b.id" :sicht="sicht" :bereich="b" :sende="sende" :erfassung="erfassung[b.id]" :auto-anhalten="(ref: string) => autoAnhalten(b.id, ref)" nur-dieser />
           </fieldset>
         </template>
         <nav v-if="mitFreigabe && wkrListen.length > 0" class="geraet-reiter" role="tablist" data-teil="geraet-reiter">

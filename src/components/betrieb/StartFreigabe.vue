@@ -45,6 +45,14 @@ import { beginnenText, punktText, startZeile, tBereich, tnBereich, type StartZei
  * Feldtest 21.11.2026 (WKR_ANNAHMEN N8–N10): Vorgabe ab 1 offenem Start nachfragen; das große Zeichen je Feld nennt den
  * Erfassungsstand (✓ fertig, ⧗ wartet n, ✕ Gerät weg, ▭ Papier), die Verbindung steht klein dahinter – der grüne
  * Punkt neben „1 offen“ las sich als „fertig“.
+ *
+ * Parcours-Ampel (Nutzer 21.11.2026, P-03/P-04; WKR_ANNAHMEN AM1–AM5, BETRIEB_ANNAHMEN AM6/AM7): Die Freigabe gilt nur dem
+ * Parcours. Am gezeigten Start ein Ampelzeichen aus `erfassung.ampel` (wkr/ampel.ts): ● grün „Start frei“ mit dem Knopf
+ * „Durchs Start-Tor“ (BETRIEB_DURCHFAHRT), ● rot „Im Parcours“ mit den offenen Parcours-Listen (per Knopf rot: „Doch
+ * nicht durch“), ● frei. Die Rückfrage vor „Nächster Start“ kommt nur über warnende PARCOURS-Listen; der gezeigte Start
+ * zählt darin erst ab rot (lage.ts) – ein Starter, der noch nicht losfuhr, lässt nie fragen. Nie gesperrt (F4).
+ * Auto-Modus: Countdown aus `erfassung.autoIn` (Sekunden beim Senden; hier mit eigener Uhr heruntergezählt) mit
+ * „Anhalten“ (`autoAnhalten`: am Bedienrechner der Host, auf dem Handy eine Nachricht an ihn) bzw. „Auto aus: …“.
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -61,6 +69,8 @@ const props = defineProps<{
   erfassung?: FreigabeErfassung
   /** W2.4, nur am Bedienrechner: Klick auf die Geräteleiste – zum Unterreiter WKR dieses Bereichs. */
   erfassungOeffnen?: () => void
+  /** Auto-Modus anhalten (AM7) – bis zum nächsten gezeigten Start; ohne = kein Knopf. */
+  autoAnhalten?: (ref: string) => void
 }>()
 
 const b = computed(() => props.bereich)
@@ -166,6 +176,64 @@ watch(
   },
 )
 onBeforeUnmount(() => uhren.forEach(clearTimeout))
+
+// --- Parcours-Ampel (P-03) und Auto-Modus (AM6/AM7) ---
+/** Die Ampel gilt nur, wenn sie zum Start im Boot gehört (Sicht und Freigabe-Sicht kommen auf dem Handy getrennt). */
+const ampel = computed(() => {
+  const e = props.erfassung
+  if (!e || e.ampel === 'aus' || !b.value.aktuell || e.ampelRef !== b.value.aktuell.key) return 'aus' as const
+  return e.ampel
+})
+const ampelText = computed(() => {
+  if (ampel.value === 'rot') {
+    const offen = leiste.value.filter((l) => l.parcours && l.stand === 'aktiv' && l.offen > 0).map((l) => l.titel)
+    return offen.length ? t('betrieb.ampel.rot.offen', { listen: offen.join(', ') }) : t('betrieb.ampel.rot')
+  }
+  return ampel.value === 'gruen' ? t('betrieb.ampel.gruen') : ampel.value === 'frei' ? t('betrieb.ampel.frei') : ''
+})
+function durchfahrt(an: boolean) {
+  const k = b.value.aktuell?.key
+  if (k) props.sende({ type: 'BETRIEB_DURCHFAHRT', bereich: b.value.id, ref: k, an })
+}
+const autoOhneText = computed(() => (props.erfassung?.autoOhne.length ? t('betrieb.auto.aus', { listen: props.erfassung.autoOhne.join(', ') }) : ''))
+/** Countdown: Sekunden beim Senden → eigene Frist; eine eigene Uhr (250 ms) nur, solange er läuft. */
+const autoBis = ref<number | null>(null)
+const autoJetzt = ref(Date.now())
+const angehaltenFuer = ref<string | null>(null)
+let autoUhr: ReturnType<typeof setInterval> | null = null
+const stoppeAutoUhr = () => {
+  if (autoUhr) clearInterval(autoUhr)
+  autoUhr = null
+}
+watch(
+  () => [props.erfassung?.autoIn ?? null, props.erfassung?.ampelRef ?? null] as const,
+  ([sek]) => {
+    stoppeAutoUhr()
+    if (sek === null) {
+      autoBis.value = null
+      return
+    }
+    autoJetzt.value = Date.now()
+    autoBis.value = autoJetzt.value + sek * 1000
+    autoUhr = setInterval(() => {
+      autoJetzt.value = Date.now()
+      if (autoBis.value !== null && autoJetzt.value >= autoBis.value) stoppeAutoUhr()
+    }, 250)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(stoppeAutoUhr)
+const autoRest = computed(() => {
+  if (autoBis.value === null || ampel.value !== 'frei' || angehaltenFuer.value === b.value.aktuell?.key) return null
+  return Math.max(0, Math.ceil((autoBis.value - autoJetzt.value) / 1000))
+})
+const angehalten = computed(() => !!props.erfassung?.autoMoeglich && angehaltenFuer.value !== null && angehaltenFuer.value === b.value.aktuell?.key)
+function anhalten() {
+  const k = b.value.aktuell?.key
+  if (!k) return
+  angehaltenFuer.value = k
+  props.autoAnhalten?.(k)
+}
 
 /** „Nachfragen“ (F4): Ein Zeigen wartet auf „Trotzdem freigeben“; alles andere geht gleich hinaus. Nie gesperrt. */
 const frageZeigen = ref<BetriebAenderung | null>(null)
@@ -289,6 +357,27 @@ function meldungLoeschen() {
       <span v-else class="note">{{ t('betrieb.keiner') }}</span>
       <span v-if="vorig" class="note" data-teil="vorig">{{ t('betrieb.davor') }}: {{ [vorig.startNr, vorig.was, vorig.name].filter(Boolean).join(' · ') }}</span>
     </div>
+
+    <!-- Parcours-Ampel (P-03): nur mit digitaler Parcours-Liste; Zeichen UND Wort, nie nur Farbe. -->
+    <div v-if="ampel !== 'aus'" class="betrieb-ampel" :data-ampel="ampel" data-teil="ampel" role="status">
+      <span class="betrieb-ampel-licht" aria-hidden="true">●</span>
+      <span class="betrieb-ampel-text"><span class="note">{{ t('betrieb.ampel') }}:</span> {{ ampelText }}</span>
+      <button v-if="ampel === 'gruen'" type="button" class="btn" data-action="durchfahrt" :title="t('betrieb.ampel.durchfahrt.title')" @click="durchfahrt(true)">
+        {{ t('betrieb.ampel.durchfahrt') }}
+      </button>
+      <button v-else-if="ampel === 'rot' && erfassung?.perKnopf" type="button" class="btn sm" data-action="durchfahrt-zurueck" :title="t('betrieb.ampel.zurueck.title')" @click="durchfahrt(false)">
+        {{ t('betrieb.ampel.zurueck') }}
+      </button>
+    </div>
+    <p v-if="erfassung?.autoMoeglich" class="note betrieb-auto" data-teil="auto" :data-countdown="autoRest ?? undefined">
+      <template v-if="autoRest !== null">
+        <b data-teil="auto-countdown">{{ t('betrieb.auto.countdown', { n: autoRest }) }}</b>
+        <button v-if="autoAnhalten" type="button" class="btn sm" data-action="auto-anhalten" @click="anhalten">{{ t('betrieb.auto.anhalten') }}</button>
+      </template>
+      <template v-else-if="angehalten">{{ t('betrieb.auto.angehalten') }}</template>
+      <template v-else>{{ t('betrieb.auto') }}</template>
+    </p>
+    <p v-else-if="autoOhneText" class="note" data-teil="auto-aus">{{ autoOhneText }}</p>
 
     <!-- W2.4: Stand der WKR-Erfassung – nur, wenn eine Liste des Bereichs einen Eintrag hat. -->
     <!-- Am Bedienrechner führt ein Klick irgendwo auf die Leiste zum Unterreiter WKR; für die Tastatur steht dafür ein

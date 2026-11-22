@@ -161,6 +161,8 @@ export default {
   'listopt.betrieb.wkrWarnung': 'Bei Rückstand',
   'listopt.betrieb.wkrWarnung.warnen': 'nur warnen',
   'listopt.betrieb.wkrWarnung.nachfragen': 'vor dem Zeigen nachfragen',
+  'listopt.betrieb.wkrAuto': 'Auto-Modus: nächsten Start zeigen, sobald alle Parcours-WKR abgeschickt haben',
+  'listopt.betrieb.wkrAuto.hint': 'Nur wenn jede Parcours-Liste digital mit Gerät erfasst wird. Die Start-Freigabe zählt {n} Sekunden herunter und lässt sich anhalten; ein neuer Lauf, Nachzuholende und Zurückgestellte kommen nie von selbst.',
   'listopt.betrieb.wkr.hint':
     'Nur für Listen, die die Wettkampfrichter am Gerät erfassen: Sind bei einer Liste mindestens so viele gezeigte Starts offen wie hier eingestellt ({min} bis {max}; 1 = der WKR hat den letzten Start noch nicht abgeschickt), steht über „Nächster Start“ eine Warnung; mit „nachfragen“ fragt die Start-Freigabe vor jedem Zeigen – am Bedienrechner und auf dem Freigabe-Handy. Wer Tor 5 oder Anlegen mit mehreren Booten auf dem Wasser digital führt, stellt die Zahl höher. Pausierte, abgemeldete und Papier-Listen zählen nie. Es wird nie gesperrt – ein ausgefallenes Handy hielte sonst den Wettkampf an.',
   'listopt.betrieb.abstaende': 'Startabstände',

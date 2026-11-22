@@ -175,10 +175,23 @@ export async function nachgebautesFetch(input: string | URL, init?: { method?: s
 // 10 s statt 3 s (21.11.2026): In der vollen Suite (viele Dateien gleichzeitig, CI mit zwei Kernen) lief z. B.
 // kopplung.test.ts „das Steg-Handy schaltet nur seine Bereiche“ gelegentlich in die Grenze. Ein grüner Test wartet
 // nicht länger – die Grenze greift nur, wenn etwas wirklich hängt.
-export async function bis(bedingung: () => boolean, ms = 10_000): Promise<void> {
+// `beschreibe` (21.11.2026, CI rot auf master c6cb754): Läuft die Grenze ab, steht der Zustand im Fehler – sonst
+// bleibt von einem Lauf, der nur unter Last (CI, zwei Kerne) hängt, nur „Zeit abgelaufen“ und er lässt sich lokal
+// nicht nachstellen. Wird erst beim Ablauf gerufen; ein Fehler darin verdeckt den eigentlichen nicht.
+export async function bis(bedingung: () => boolean, ms = 10_000, beschreibe?: () => string): Promise<void> {
   const start = Date.now()
   while (!bedingung()) {
-    if (Date.now() - start > ms) throw new Error('Zeit abgelaufen')
+    if (Date.now() - start > ms) {
+      let zustand = ''
+      if (beschreibe) {
+        try {
+          zustand = beschreibe()
+        } catch (e) {
+          zustand = `Beschreibung fehlgeschlagen: ${String(e)}`
+        }
+      }
+      throw new Error(zustand ? `Zeit abgelaufen (${ms} ms) – ${zustand}` : 'Zeit abgelaufen')
+    }
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
 }

@@ -79,7 +79,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Doku: docs/betrieb.md (Ablauf am Wettkampftag, Wake Lock, Alle Geräte neu laden, Kontingent), Checkliste
   docs/feldtest.md – offene Punkte des Feldtests dort und in docs/entscheidungen.md „Offen“.
 - W1.2 (21.11.2026, Plan docs/plan-wkr-w1.md §5; Host/Leitung folgen mit W1.3): `aufgaben.ts` Aufgabe `liste`
-  {liste, teil?} (liesAufgaben: höchstens LISTEN_JE_GERAET = 2 Listen, F15; Teil nur bei geteilten Listen, F16),
+  {liste, teil?} (liesAufgaben: höchstens LISTEN_JE_GERAET = 4 Listen – seit W3-03/GF8 21.11.2026, vorher 2 (F15);
+  Empfehlung LISTEN_EMPFEHLUNG handy 1/pad 2/rechner 2 nur als Hinweis; Teil nur bei geteilten Listen, F16),
   listenAufgaben, WKR_ACTIONS = ['WKR_ZEILEN','WKR_STATUS','WKR_ABSCHLUSS'] (Geräte-Arten, Positivliste),
   erlaubteWkr(action, aufgaben, stand, konfig, {id, name}) → {action: WKR_ZEILEN|WKR_LISTE|WKR_ABSCHLUSS | null,
   abgelehnt: {z, grund}[]} | null (Zeilen über wkr/zeile.ts pruefeZeile, ≤ WKR_ANNAHMEN.buendel, quelle aus dem
@@ -186,8 +187,9 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   eigenen gezeigten Start (ohne `vorab`) kommt der nächste nach UEBUNG_FOLGE_MS 2–6 s, jeder UEBUNG_FRUEH_JEDER 4.–6.
   gezeigte zieht einen weiteren vorab nach sich (ein Timer `kommt`, zufallAus(saat)); taktMs (30 s) nur Rückfall ohne
   Eingabe; Steg-Anlegen zeigt, bis einer anlegen kann. Maskentests mit `folgeMs: [0, 0]` (GeraetWkr.test.ts SOFORT). aufgaben.ts: ListenAufgabe `maske?` ('knoepfe'|'bild'|'text', MASKEN_VORGABEN) und `fest?: true` (F14; nur
-  bekannte Werte). ablage.ts: `alcatraz.geraet.ansicht` (liesAnsicht/schreibeAnsicht: modus sonne|hell|dunkel – Vorgabe
-  sonne –, hand, sprache?, name?; verlasseRaum löscht nur `name`) und `alcatraz.geraet.probe` (probeErledigt/merkeProbe
+  bekannte Werte). ablage.ts: `alcatraz.geraet.ansicht` (liesAnsicht/schreibeAnsicht: modus geraet|sonne|hell|dunkel – Vorgabe
+  `geraet` = Wie Gerät (GF1, 21.11.2026); ein anderer Modus gilt nur mit `modusGewaehlt: true` im Speicher, damit die
+  alte Vorgabe `sonne` nicht als Wahl zählt (Prüfbefund 21.11.2026) –, hand, sprache?, name?; verlasseRaum löscht nur `name`) und `alcatraz.geraet.probe` (probeErledigt/merkeProbe
   je Raum und Liste; pruefeRaum/verlasseRaum räumen). Tests: wkr.test.ts „W3.1“, uebung.test.ts, ablage.test.ts,
   aufgaben.test.ts.
 
@@ -245,7 +247,20 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - Nutzer 21.11.2026 (WKR_ANNAHMEN V1/V2): ablage.ts GeraetAnsicht.`bojen` = BojenAnsicht {folge fahrt|lage, startOben,
   tauschen} je Listen-Kennung (höchstens 8, nur vollständige Einträge; BOJEN_ANSICHT_VORGABE), bleibt wie Hand/Modus
   nach „Raum verlassen“. Kein neuer Kern, kein neues Protokoll; Disq. an der Boje (U1) geht als Buchstabe in der
-  Bojenzelle über dieselbe Zeile (wkr/zeile.ts wertGilt = sanitizeBuoy).
+  Bojenzelle über dieselbe Zeile (wkr/zeile.ts wertGilt = sanitizeBuoy) – seit W4-12 (21.11.2026, BZ1) neben den
+  Punkten („5J“, „10G“), weiter ein String, keine neue Fassung; „5X“ gilt nie (BZ2, `wert-ungueltig`).
+
+- Parcours-Ampel (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN AM6/AM7): aufgaben.ts STARTFREIGABE_ACTIONS +
+  BETRIEB_DURCHFAHRT (bereinige: ref, an), AUTO_HALT ('BETRIEB_AUTO_HALT', keine Reducer-Action). host.ts: verteileFreigabe
+  mit wkr/ampel.ts parcoursAmpel und autoIn; **Auto-Modus nur im Führungsfenster** (pruefeAuto in verteile() und im
+  Koppel-Takt, nur mit `anzeige.wkrAuto`: je Bereich autoSchritt → Countdown `autoVerzugSek` (setTimeout, `bis` nach
+  Date.now) → feuereAuto prüft neu und schickt BETRIEB_ZEIGEN über bus.reicheWeiter; `autoGesehen` = Start, dessen Ampel
+  grün/rot gesehen wurde – sonst nie Auto; `autoHalt` bis zum nächsten Start; alles im Arbeitsspeicher, gibAb räumt),
+  GeraeteHost.`auto` (ShallowRef je Bereich {ref, bis}; seit dem Prüfbefund 21.11.2026 in JEDEM Fenster: das
+  Führungsfenster meldet die Countdowns über den Fensterbus, fensterbus.ts `auto`/`meldeAuto`, Nachricht `auto`) und `halteAuto(bereich, ref)` (optional – Host-Doppel brauchen
+  sie nicht; aus anderen Fenstern Fensterbus-Befehl `auto-halt`); nimmAn fängt AUTO_HALT vom Freigabe-Handy ab (nur
+  eigene Bereiche, quittiert). Listen-Sicht Fassung 6 (ampel, laeuft); erfassen.ts pruefung nimmt `offen` nach
+  ListenStart.punkt (Band nach Beginn des nächsten Laufs, W3-40). Tests: wkr.test.ts „Auto-Modus der Start-Freigabe“.
 
 ## Abläufe
 
@@ -292,7 +307,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Geräteliste, Geheimnis (Schlüssel-Durchlauf über alle entschlüsselten Inhalte: geraet.test.ts „Leitung“).
 
 - Oberfläche (E7, 20.11.2026; Annahmen BETRIEB_ANNAHMEN.koppelnOberflaeche): Betrieb → Geräte unter den Lese-Links
-  GeraeteKoppeln.vue (Bereiche für das nächste Gerät, merke `geraete.koppeln.bereiche`, einer vorgewählt; „QR-Code
+  GeraeteKoppeln.vue (Bereiche für das nächste Gerät, merke `geraete.koppeln.bereiche`, nie vorgewählt –
+  W3-26, 21.11.2026; „QR-Code
   zeigen“ → oeffneQr, QR = koppelLinkUrl(raum.koppeln.qr.paket) mit Wechsel-/Ende-Zeit; „Geräte-Code ausgeben“ →
   gibCode, Code groß mit Ablauf/benutzt; Koppel-Link als LeseLink art `koppeln`) und GeraeteListe.vue (Name → benenne
   bei change, Häkchen → setzeAufgaben sofort, seit/zuletzt gehört über texte.ts uhrzeitText, „Entziehen“ mit
@@ -307,6 +323,29 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Antwort 15 s → „Keine Antwort“ + Formular (falscher Code: niemand hört das Thema); neue Anmeldung verwirft die alte
   (transport.ts GeraetTransport.verwirfAnmeldung). Entzogen: nur lesend Im Boot/Als Nächstes je Bereich + <details>
   „wieder koppeln“. „Gerät entkoppeln“ = verlasse (nur gerätelokal).
+
+## Gerät-Feinschliff (Nutzer 21.11.2026, Plan docs/plan-antworten-runde3-6.md §5, WKR_ANNAHMEN GF5–GF8)
+
+- `hallo.typ` (protokoll.ts GERAETE_TYPEN handy|pad|rechner, freiwillig – keine neue Fassung): gekoppelt.ts schickt
+  geraeteName.ts dieserTyp() (Finger + kurze Seite < 600 px = Handy, Finger = Pad, sonst Rechner; Tests:
+  LeseUmgebung.typ). host.ts übernimmt sie beim ersten Koppeln (register.ts setzeTyp(…, nurWennFehlt)), der Bediener
+  ändert sie (host.setzeTyp → Fensterbus-Befehl `typ`); raum.ts GebundenesGeraet.typ (istHostRaum prüft),
+  RegisterEintrag.typ. Steuert nur den Hinweis zu Listen (GeraeteListe.vue).
+- WKR_SO_LASSEN (aufgaben.ts WKR_ACTIONS): Gerät schickt {liste, z} (erfassen.ts soLassen, nur bei einer Rückfrage),
+  erlaubteWkr setzt `zeile` = `${geraet.id}.${z}` aus dem Register; Reducer vermerkt `soLassen` an den Rückfragen.
+- WKR-Name (Nutzer 21.11.2026, W3-13, WKR_ANNAHMEN WN1–WN3): erfassen.ts `wkrName(liste)` → WkrNameLage {name,
+  einteilung, eigen} (Sicht `wkrName` bzw. auf dem Gerät geändert, Inhalt.namen im Ausgang – raumgebunden, weg mit
+  verlasseRaum; fällt von selbst, sobald die Sicht denselben Namen bringt) und `setzeWkrName(liste, name)` (leer/gleich
+  der Einteilung = zurück; `nameMelden` → sofort ein Lebenszeichen, auch ohne Stille/Punkt); uebung.ts: leer/false.
+  protokoll.ts lebenszeichen.`namen?` (liesWkrNamen: ≤ WKR_NAMEN_MAX 8, getrimmt, ≤ 60; freiwillig, Fassung bleibt 2).
+  register.ts vermerkeLebenszeichen nimmt `namen` (nur eigene Listen, `{}` räumt, fehlt = bleibt) → GebundenesGeraet/
+  RegisterEintrag.`wkrNamen` (raum.ts prüft); host.ts zieht die Geräteliste bei geänderten Namen sofort nach. Nie im
+  AppState – nur über SET_WKR_NAME, wenn der Bediener „In Veranstaltung übernehmen“ wählt (GeraeteListe.vue,
+  WkrListeBedienung.vue). Tests: wkr.test.ts „WKR-Name aus der Veranstaltung“, register.test.ts, geraeteName.test.ts.
+- Erste Liste ohne Neuladen (GF6): transport.ts GeraetTransport holt nach jedem `schluessel` mit neuen Themen sofort
+  nach (holeNach) – die Sicht der neuen Gruppe ging sonst vor dem Schlüssel hinaus und das Abo (`since`) an ihr vorbei.
+  Kommt der Schlüssel WÄHREND eines holeNach (Gerät war weg), merkt `nachholenNoetig` das und holt danach noch einmal
+  (Prüfbefund 21.11.2026; transport.test.ts „erste Liste, während das Gerät weg war“).
 
 ## Fallen
 

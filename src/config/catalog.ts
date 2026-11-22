@@ -236,6 +236,29 @@ export function aufbauFuer(disziplin: string, id?: string, eigene: readonly RawA
   return liste.find((a) => a.id === id) ?? liste[0]
 }
 
+/**
+ * Fehler-Codes, die laut Regelwerk nur in bestimmten Klassen gelten (YAML `abKlasse`/`klassen` je Code, Nutzer
+ * 21.11.2026, W3-07): Code → Klassen, in denen er gilt. Codes ohne Angabe fehlen (gelten überall). `abKlasse` zählt in
+ * der Folge der Klassen des Regelwerks. Nur die WKR-Maske graut damit aus (wkr/sicht.ts maskenJeKlasse, `aus`).
+ */
+export function codeKlassenOf(regelwerkId: string): Readonly<Record<string, readonly ClassId[]>> {
+  const gemerkt = CODE_KLASSEN.get(regelwerkId)
+  if (gemerkt) return gemerkt
+  const roh = ROH_REGELWERKE.find((r) => r.id === regelwerkId)
+  const folge = regelwerkOf(regelwerkId).klassen
+  const out: Record<string, ClassId[]> = {}
+  for (const kat of Object.values(roh?.kataloge ?? {}))
+    for (const f of kat.fehler ?? []) {
+      if (f.abKlasse !== undefined) {
+        const ab = folge.indexOf(String(f.abKlasse) as ClassId)
+        if (ab >= 0) out[String(f.code)] = folge.slice(ab)
+      } else if (f.klassen) out[String(f.code)] = folge.filter((k) => f.klassen!.map(String).includes(k))
+    }
+  CODE_KLASSEN.set(regelwerkId, out)
+  return out
+}
+const CODE_KLASSEN = new Map<string, Record<string, ClassId[]>>()
+
 /** Wird nach diesem Regelwerk ein Parallelslalom gefahren? */
 export function hasParallel(regelwerkId: string): boolean {
   return regelwerkOf(regelwerkId).disziplinen.includes(PARALLEL)

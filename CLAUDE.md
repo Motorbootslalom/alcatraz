@@ -89,6 +89,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Spalte/Titel WKR-Bogen | config/aufbauten/gemeinsam+parallel.yaml `spalten[].label`; Tor-Spalten kurzform.ts FAHRWEG |
 | … Englisch, feste Texte | config/i18n/en.yaml (nach deutschem Wortlaut); config/sprache.ts bogenTexte() |
 | Disq-Buchstabe, Fehlercode | config/regelwerke/<id>.yaml `disqualifikationen`/`kataloge`; regelwerke.test.ts |
+| Bojenzelle „5J“ (Punkte + Disq., W4-12) | lib/disq.ts sanitizeBuoy (schreiben), lib/scoring.ts bojenWert (EINZIGER Leser); Gerät: wkr/maske.ts zellenAus, components/wkr/WkrDisqOrt.vue; WKR_ANNAHMEN BZ1–BZ5 |
 | Läufe, Stichentscheid | Regelwerk-YAML `wertungslaeufe`/`stichentscheid`; lib/ergebnis.ts; STICH_KRITERIEN |
 | Wertung Parallelslalom | lib/parallelErgebnis.ts PARALLEL_ANNAHMEN, parallelStage.ts; uim-2026.yaml |
 | Runden nach dem Vorlauf: Verzahnung, „Alle Klassen weiter“ | planung/parallel.ts verzahne (auch Vorlauf), parallelRunden.ts verzahneRunde; lib/parallelStage.ts alleWeiter; state/reducer/parallel.ts (gebunden: erfasst ohne Abmelde-X/begonnen; rundenNeuGeordnet → Rückfrage); components/ParallelRunden.vue |
@@ -111,7 +112,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Starterfeld/Importspalte | types/starter.ts Starter → migrate.ts normalizeStarter → import/tsv.ts HEADER_ALIASES, Export |
 | … Abgleich beim Import | import/starterMerge.ts FIELDS + Merge-Regel bei freiwilliger Spalte (Muster geschlecht) |
 | Startnummern | domain/startnumbers.ts (parseClassNumber); YAML `startNrPraefix`; state/reducer/startnummern.ts assignStartNumbers |
-| Reihenfolge im Starter-Reiter | lib/reihenfolge.ts (Spalten, stabil, mische; Stufen ↓ ↑ aus naechsteSortierung, SortierWahl mit Folge, 21.11.2026); ClassSection.vue, StartersView.vue; ORDER_/SHUFFLE_STARTERS in state/reducer/startnummern.ts |
+| Reihenfolge im Starter-Reiter | lib/reihenfolge.ts (Spalten, stabil, mische; Stufen ↑ A→Z, ↓ Z→A, aus naechsteSortierung (S-01), SortierWahl mit Folge, 21.11.2026); ClassSection.vue, StartersView.vue; ORDER_/SHUFFLE_STARTERS in state/reducer/startnummern.ts |
 | Ladebalken langer Listen (schrittweiser Aufbau) | lib/aufbau.ts useSchrittweise/AUFBAU (Messung im Kopfkommentar), components/AufbauBalken.vue; WkrListen/ParallelWkrListen `stand.fertig` → ListsView `imAufbau` (Knopf), Stapel `no-print` + `data-aufbau`; Tests aus über test-setup.ts setzeSchrittweise(false); i18n lists.aufbau.* |
 | WKR-Bögen: Druckfolge (Position), Druck nach Modus | lib/wkrListen.ts WKR_DRUCKFOLGE (+ parallelBogen.ts); wkr/druck.ts (WKR_ANNAHMEN Z1–Z7) → components/wkrDruck.ts, WkrDigitalHinweis.vue |
 | Druck erst nach Verzahnung | views/ListsView.vue vorVerzahnung → WkrListen/LaufzettelListen `druckGesperrt` (Stapel no-print) |
@@ -123,7 +124,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Herkunft der Veranstaltung | AppState.originMode, SET_ORIGIN_MODE (views/EventView.vue, state/reducer/veranstaltung.ts); Anzeige lib/origin.ts |
 | Neues Regelwerk / neue Angabe | regelwerke/<id>.yaml + regelwerke.yaml; Angabe: schema → validate → build → catalog |
 | Neuer Aufbau | config/aufbauten/<name>.yaml + aufbauten.yaml `dateien`; en.yaml; Snapshot erneuern |
-| Beispieldaten | components/BeispieldatenPanel.vue (Herkunft wie Veranstaltung, saat, Rückfragen); domain/generate.ts, data/*; Gesamtzahl/Klassenanteile: generate.ts BEISPIEL_STARTERZAHL, BEISPIEL_KLASSEN_ANTEILE, verteileAufKlassen |
+| Beispieldaten | components/BeispieldatenPanel.vue (Herkunft generate.ts beispielHerkunft: wie Veranstaltung, Clubmeisterschaft keine; saat, Rückfragen); domain/generate.ts, data/*; Gesamtzahl (Vorschlag) und Zahl je Klasse (merke `beispiel.klassen`): generate.ts BEISPIEL_STARTERZAHL, BEISPIEL_KLASSEN_ANTEILE, verteileAufKlassen |
 | … Werte, Besetzung, Gewichte | lib/beispielwerte.ts; lib/beispieldaten.ts; Actions FILL_BEISPIEL* in state/reducer/erfassung.ts |
 | … Boote, Co-Piloten (Beispiel) | data/boote.ts; lib/beispieldaten.ts beispielBoote/-CoPiloten, lib/besetzung.ts besetzungsKlassen/coPilotKlassen; Knöpfe lib/beispielBoote.ts (nur BeispieldatenPanel, 21.11.2026: Beispielwerte an EINER Stelle) |
 | Sperre einer Action | state/reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS; klasseFest in reducer/starter.ts |
@@ -136,6 +137,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … Fenster, Adresse, Rückfall file:// | AnzeigeApp.vue/ZuschauerApp.vue/GeraetApp.vue, main.ts (Wurzel), lib/adressen.ts VOLLBILDER/liesVollbild, lib/anzeigeFenster.ts; Vollbild/Mauszeiger lib/tafelFenster.ts |
 | … Einstellung | SettingsView `#anzeigetafel`, `#betrieb` (Startfolge, Am/Vor Steg, Startabstände) → SET_ANZEIGE (normalisiereAnzeige); Texte listopt.anzeige.*, listopt.betrieb.* |
 | Start-Freigabe (Bedienung) | views/BetriebView.vue, components/betrieb/ (StartFreigabe + BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb; texte.ts); i18n betrieb.* |
+| Parcours-Ampel, „Durchs Start-Tor“, Auto-Modus (P-03) | wkr/liste.ts istParcoursListe, wkr/ampel.ts (parcoursAmpel, autoSchritt, laufLage), wkr/lage.ts durchfahrtVon; BETRIEB_DURCHFAHRT (state/reducer/betrieb.ts); Freigabe-Sicht fv 2 (wkr/freigabe.ts); Auto im Führungsfenster geraete/host.ts; components/betrieb/StartFreigabe.vue; Annahmen WKR_ANNAHMEN AM1–AM5/AM9/AM10, BETRIEB_ANNAHMEN AM6–AM8 |
 | Startliste, Wartezeiten („ca. in“, Zum Vorsteg) | betrieb/prognose.ts (Messung auf dem Stand, wartezeiten auf dem Bildschirm), components/betrieb/StartListe.vue, lib/uhr.ts; Vorgabe einstellungen.yaml `startabstaende` → config/catalog.ts startabstandOf |
 | Zuschauerliste | betrieb/sicht.ts sichtZuschauer (Schlüssel-Test), components/zuschauer/ZuschauerListe.vue (Klassen- und Team-Filter, BETRIEB_ANNAHMEN.zuschauerTeamFilter; merke `dauerhaft`), styles/zuschauer.css; i18n zuschauer.* (Tafel-Sprache) |
 | Parallelslalom im Betrieb (UIM) | betrieb/folge.ts parallelFolge (Ref aus fest.starts, leere Seite, `paar`), SichtStart.paar (sicht.ts), Schritte gesperrt/Paar als Einheit in state/reducer/betrieb.ts; AnzeigeBereich.vue (A/B); texte.ts tBereich (`….runde`-Texte) |
@@ -166,6 +168,10 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | … Übung ohne Verbindung (W3.4) | `#/uebung`: lib/adressen.ts VOLLBILDER `uebung`/UEBUNG_ADRESSE → main.ts wurzel → GeraetApp → components/wkr/WkrUebung.vue (Regelwerk × Liste) → WkrGeraet mit geraete/uebung.ts oeffneUebung (Übungstakt: nächster Start 2–6 s nach dem Abschicken, hin und wieder vorher – UEBUNG_FOLGE_MS/UEBUNG_FRUEH_JEDER, Y1–Y3; 30 s nur Rückfall); Verweis in GeraetFreigabe; Test src/main.uebung.test.ts (kein Store, kein Netz), geraete/uebung.test.ts „Übungstakt“ |
 | WKR-Erfassung: Schlange, Steg-Zeitversatz (Ablegen vorab, Anlegen nachlaufend), Rückstand | wkr/schlange.ts (vorabStarts, imBoot), wkr/lage.ts, wkr/sicht.ts; Auslegungen nur wkr/annahmen.ts WKR_ANNAHMEN (Karte wkr/CLAUDE.md) |
 | … Abmelden am Gerät (= Liste entfernen) | geraete/host.ts nimmWkrAn, geraete/erfassen.ts `abgemeldet`, components/wkr/WkrRuhe.vue `abmeldung` |
+| WKR-Gerät: Ansicht „Wie Gerät“, Pad nebeneinander, Parcours-Zeichnung | components/wkr/systemModus.ts, WkrGeraet.vue, WkrParcoursBild.vue (Sicht `bild`, wkr/sicht.ts maskenJeKlasse); geraete/ablage.ts liesAnsicht; WKR_ANNAHMEN GF1, GF8, GF9 |
+| … Codes nur in manchen Klassen (ausgegraut) | Regelwerk-YAML `abKlasse`/`klassen` je Code → config/validate.ts, catalog.ts codeKlassenOf → Sicht `katalog[].aus` → WkrKnoepfe.vue |
+| … Geräteart, Listen je Gerät, „So lassen“ | protokoll.ts `hallo.typ`, register.ts setzeTyp, aufgaben.ts LISTEN_JE_GERAET/LISTEN_EMPFEHLUNG, GeraeteListe.vue; WKR_SO_LASSEN (aufgaben.ts, reducer/wkr.ts, WkrEingang.vue) |
+| … WKR-Name auf dem Gerät (aus der Einteilung, „Mehr → Name“, Hinweis am Bedienrechner) | wkr/sicht.ts `wkrName`/einteilungsName (nur eigene Liste); geraete/erfassen.ts wkrName/setzeWkrName, Lebenszeichen `namen` (protokoll.ts), register.ts `wkrNamen`; components/wkr/WkrMehr.vue, WkrAbschluss.vue; components/betrieb/GeraeteListe.vue, WkrListeBedienung.vue; WKR_ANNAHMEN WN1–WN3 |
 | … Server (Einstellung) | AppState.geraeteServer (SET_GERAETE_SERVER, lib/serverAdresse.ts), SettingsView `#geraete`; i18n listopt.geraete.* |
 
 ## Feste Regeln

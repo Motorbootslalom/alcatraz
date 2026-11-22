@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bereinige, darf, erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, listenAufgaben, STARTFREIGABE_ACTIONS, WKR_ACTIONS, type Aufgabe, type AufgabenStand } from './aufgaben'
+import { bereinige, darf, erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, LISTEN_JE_GERAET, listenAufgaben, STARTFREIGABE_ACTIONS, WKR_ACTIONS, type Aufgabe, type AufgabenStand } from './aufgaben'
 import { reducer } from '../state/reducer'
 import { configFor } from '../config/konfig'
 import { lage, refKey } from '../betrieb/folge'
@@ -46,6 +46,8 @@ describe('darf – Start-Freigabe', () => {
       { type: 'BETRIEB_KLASSE_VOR', bereich: 'see', klasse: '3', vor: null },
       { type: 'BETRIEB_VERSCHIEBEN', bereich: 'see', ref: r, ziel: { nachPunkt: 'lauf:2' } },
       { type: 'BETRIEB_AB', bereich: 'see', ref: r },
+      // Parcours-Ampel (P-03, 21.11.2026): „Durchs Start-Tor“ auch vom Handy.
+      { type: 'BETRIEB_DURCHFAHRT', bereich: 'see', ref: r, an: true },
     ]
     expect([...new Set(alle.map((a) => a.type))].sort()).toEqual([...STARTFREIGABE_ACTIONS].sort())
     for (const a of alle) expect(darf(a, steg('see'), DM), a.type).toBe(true)
@@ -128,24 +130,27 @@ describe('liesAufgaben', () => {
 describe('Aufgabe `liste` (W1)', () => {
   const kennung = (typeId: string, bereich = 'par_1') => listenKennung({ bereich, typeId, racecourse: null })
 
-  it('liesAufgaben: Liste, Teil nur am Steg, höchstens zwei Listen (F15), Doppelte einmal', () => {
+  it('liesAufgaben: Liste, Teil nur am Steg, höchstens vier Listen (W3-03), Doppelte einmal', () => {
     expect(liesAufgaben([{ art: 'liste', liste: kennung('steg'), teil: 'ab' }, { art: 'liste', liste: kennung('gate135') }])).toEqual([
       { art: 'liste', liste: kennung('steg'), teil: 'ab' },
       { art: 'liste', liste: kennung('gate135') },
     ])
     // Teil an einer ungeteilten Liste, falscher Teil, unlesbare Kennung: fällt weg.
     expect(liesAufgaben([{ art: 'liste', liste: kennung('gate135'), teil: 'ab' }, { art: 'liste', liste: kennung('steg'), teil: 'mitte' }, { art: 'liste', liste: 'kaputt' }])).toEqual([])
-    // Drei Listen → die ersten zwei; dieselbe zweimal → einmal; die Start-Freigabe zählt nicht mit.
-    const drei = liesAufgaben([
+    // Fünf Listen → die ersten vier (LISTEN_JE_GERAET, W3-03/GF8 21.11.2026; vorher zwei, F15); dieselbe zweimal →
+    // einmal; die Start-Freigabe zählt nicht mit.
+    const fuenf = liesAufgaben([
       { art: 'liste', liste: kennung('tor5') },
       { art: 'liste', liste: kennung('tor5') },
       { art: 'startfreigabe', bereiche: ['par_1'] },
       { art: 'liste', liste: kennung('mueb') },
       { art: 'liste', liste: kennung('steg') },
+      { art: 'liste', liste: kennung('gate135') },
+      { art: 'liste', liste: kennung('vorsteg') },
     ])
-    expect(drei).toEqual([{ art: 'liste', liste: kennung('tor5') }, { art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: kennung('mueb') }])
-    expect(listenAufgaben(drei).map((a) => a.liste)).toEqual([kennung('tor5'), kennung('mueb')])
-    expect(freigabeBereiche(drei)).toEqual(['par_1'])
+    expect(LISTEN_JE_GERAET).toBe(4)
+    expect(listenAufgaben(fuenf).map((a) => a.liste)).toEqual([kennung('tor5'), kennung('mueb'), kennung('steg'), kennung('gate135')])
+    expect(freigabeBereiche(fuenf)).toEqual(['par_1'])
   })
 
   it('W3 (F14): Maskenvorgabe `maske`/`fest` nur mit bekannten Werten', () => {
@@ -245,6 +250,17 @@ describe('erlaubteWkr (W1)', () => {
     expect(erlaubteAction({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null }, beide, s)).toEqual({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null })
     // Eine Liste allein gibt keine Start-Freigabe.
     expect(darf({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null }, [{ art: 'liste', liste: K('gate135') }], s)).toBe(false)
-    expect(WKR_ACTIONS).toEqual(['WKR_ZEILEN', 'WKR_STATUS', 'WKR_ABSCHLUSS'])
+    expect(WKR_ACTIONS).toEqual(['WKR_ZEILEN', 'WKR_STATUS', 'WKR_ABSCHLUSS', 'WKR_SO_LASSEN'])
+  })
+
+  it('WKR_SO_LASSEN (W3-35): Zeile mit Geräte-ID aus dem Register, nie aus der Nachricht', () => {
+    const { s } = bereit()
+    const eigene = [{ art: 'liste', liste: K('gate135') }] as Aufgabe[]
+    expect(erlaubteWkr({ type: 'WKR_SO_LASSEN', liste: K('gate135'), z: 7, zeile: 'fremd.1' }, eigene, s, DMK, G)).toEqual({
+      action: { type: 'WKR_SO_LASSEN', liste: K('gate135'), zeile: 'g1.7' },
+      abgelehnt: [],
+    })
+    for (const z of [0, -1, 1.5, '7', undefined]) expect(erlaubteWkr({ type: 'WKR_SO_LASSEN', liste: K('gate135'), z }, eigene, s, DMK, G)).toBeNull()
+    expect(erlaubteWkr({ type: 'WKR_SO_LASSEN', liste: K('tor5'), z: 1 }, eigene, s, DMK, G)).toBeNull()
   })
 })

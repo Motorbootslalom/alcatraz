@@ -100,21 +100,22 @@ export function ordneNach(list: readonly Starter[], sortierung: Sortierung, orig
 
 /**
  * Die drei Stufen eines Spaltenkopfs (Wunsch des Nutzers vom 21.11.2026, ersetzt „erst aufsteigend,
- * dann umdrehen“ vom 15.11.2026): erster Klick absteigend (Pfeil ↓), zweiter aufsteigend (↑), dritter
- * hebt die Markierung auf (`null`) – die Reihenfolge bleibt dann, wie sie gerade ist (keine Action).
- * Eine andere Spalte beginnt immer bei Stufe 1.
- * Auslegung, noch zu bestätigen (21.11.2026): „absteigend“ = Z→A bzw. größter Wert zuerst (Größe XL
- * vor XS, Geburtsdatum die Jüngsten zuerst); ohne Angabe steht weiter hinten (ordneNach).
+ * dann umdrehen“ vom 15.11.2026): erster Klick aufsteigend A→Z (Pfeil ↑), zweiter absteigend Z→A (↓),
+ * dritter hebt die Markierung auf (`null`) – die Reihenfolge bleibt dann, wie sie gerade ist (keine Action).
+ * Eine andere Spalte beginnt immer bei Stufe 1 (A→Z). Bestätigt 21.11.2026 (Fragenseite S-01, „hier war ich
+ * ungenau“): Gebaut war zuerst Z→A – der Nutzer meinte A→Z zuerst, weil das der gewohnte erste Blick ist.
+ * „Aufsteigend“ = A→Z bzw. kleinster Wert zuerst (Größe XS vor XL, Geburtsdatum die Ältesten zuerst); ohne
+ * Angabe steht in beiden Richtungen hinten (ordneNach).
  */
 export function naechsteSortierung(jetzt: Sortierung | null, spalte: SortierSpalte): Sortierung | null {
-  if (jetzt?.spalte !== spalte) return { spalte, absteigend: true }
-  return jetzt.absteigend ? { spalte, absteigend: false } : null
+  if (jetzt?.spalte !== spalte) return { spalte, absteigend: false }
+  return jetzt.absteigend ? null : { spalte, absteigend: true }
 }
 
 /**
  * Die gewählte Stufe als Bedienauswahl (lib/merken.ts, nie im AppState) – mit der Folge der Starter-IDs je
  * Klasse, wie sie nach dem Sortieren stand. Die Markierung gilt nur, solange die Klasse noch so steht
- * (gleicheFolge). Warum nicht istGeordnet (21.11.2026, Befund 16): Mit Startnummern-Bereichen (DM,
+ * (gleicheFolge) – bestätigt 21.11.2026 (Fragenseite P-19). Warum nicht istGeordnet (21.11.2026, Befund 16): Mit Startnummern-Bereichen (DM,
  * Westengrößen) sortiert der Reducer nur innerhalb jeder Größengruppe – die Klasse steht danach nie
  * „ganz“ nach der Spalte, die Markierung verschwand sofort und der zweite Klick sortierte erneut
  * in der ersten Richtung statt umzuschalten.
@@ -140,7 +141,7 @@ export function gleicheFolge(folge: readonly string[] | undefined, list: readonl
   return folge !== undefined && folge.length === list.length && list.every((p, i) => p.id === folge[i])
 }
 
-/** Pfeil im Spaltenkopf: ↓ absteigend, ↑ aufsteigend, ↕ nicht gewählt. */
+/** Pfeil im Spaltenkopf: ↑ aufsteigend (A→Z, Klick 1), ↓ absteigend (Z→A, Klick 2), ↕ nicht gewählt. */
 export const sortierPfeil = (s: Sortierung | null, spalte: SortierSpalte): string => (s?.spalte === spalte ? (s.absteigend ? '↓' : '↑') : '↕')
 
 /** Stehen die Starter schon so, wie die Sortierung sie stellte? Dann zeigt der Spaltenkopf die Richtung. */

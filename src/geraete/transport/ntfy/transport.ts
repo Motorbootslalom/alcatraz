@@ -973,6 +973,12 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
   private handler = new Set<(e: Empfang) => void>()
   private eingestiegen = false
   private holtNach = false
+  /**
+   * Ein `schluessel` mit neuer Gruppe kam WÄHREND holeNach (Prüfbefund 21.11.2026, W3-24): Dessen Themen standen schon
+   * fest, das Thema der neuen Gruppe fehlte darin – typisch, wenn die Liste zugewiesen wurde, solange das Gerät weg
+   * war. Danach noch einmal nachholen, sonst bliebe die Maske auf „verbinde …“, bis der Host die Sicht ändert.
+   */
+  private nachholenNoetig = false
   private letzterEinstieg = Number.NEGATIVE_INFINITY
   /** Zuletzt gesendete Nummer, wann und wie oft schon – bis zur Quittung. */
   private gesendet: { nr: number; um: number; mal: number } | null = null
@@ -1208,6 +1214,10 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
       return true
     } finally {
       this.holtNach = false
+      if (this.nachholenNoetig) {
+        this.nachholenNoetig = false
+        if (!vorbei()) void this.holeNach()
+      }
     }
   }
 
@@ -1376,6 +1386,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     // Antworten zählen nur auf die Nachricht, die gerade wartet – eine späte zweite Quittung ändert nichts.
     const gilt = !('auf' in nachricht) || (beantwortet && (nachricht.art !== 'willkommen' || kopf.nachricht.art === 'hallo'))
     let neuAbo = false
+    let neueGruppe = false
     if (gilt && nachricht.art === 'willkommen') {
       this.stand.id = nachricht.id
       this.stand.themen = nachricht.themen
@@ -1383,6 +1394,7 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
       neuAbo = true
     } else if (nachricht.art === 'schluessel') {
       neuAbo = this.uebernimmSchluessel(nachricht.gruppen)
+      neueGruppe = neuAbo
     } else if (nachricht.art === 'entzogen') {
       // Öffentliches liest das Gerät weiter (K14); alles andere ist weg, auch Unbestätigtes.
       for (const g of Object.keys(this.stand.gruppen)) if (!istOeffentlich(g)) delete this.stand.gruppen[g]
@@ -1398,6 +1410,13 @@ export class GeraetTransport extends NtfyLeitung implements Transport {
     this.speichere()
     if (!gilt) return
     if (neuAbo) this.neuAbonnieren()
+    // Erste Liste auf einem Gerät ohne Liste (Nutzer 21.11.2026, W3-24, WKR_ANNAHMEN GF6): Der Host verteilt die Sicht
+    // der neuen Gruppe, sobald er die Aufgabe setzt – oft VOR dem Schlüssel an dieses Gerät. Das neue Abo beginnt mit
+    // `since` = zuletzt Gesehenes (eben der Schlüssel) und liefe an ihr vorbei; das Gerät stand dann auf
+    // „verbinde …“, bis der Host die Sicht wieder schickte oder man neu lud. Darum gleich nachholen wie beim Einstieg
+    // (holeNach nimmt für die neue Gruppe den neuesten frischen Vollstand).
+    if (neueGruppe && this.holtNach) this.nachholenNoetig = true
+    else if (neueGruppe) void this.holeNach()
     this.liefere({ art: 'direkt', nachricht, hz: wire.hz })
     this.kick()
   }

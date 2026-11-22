@@ -20,6 +20,9 @@
   E4 Parallelslalom (Bereich `parallel`): ZURUECKSTELLEN/EINREIHEN/gezieltes ZEIGEN nehmen das Paar (paarStarts; ZEIGEN
   holt den im Plan direkt folgenden Attempt mit, planPartner),
   AUSSETZEN/VORZIEHEN/KLASSE_VOR/VERSCHIEBEN ändern dort nichts (umstellenErlaubt); Pläne ändert der Betrieb nie.
+  Parcours-Ampel (21.11.2026): BETRIEB_DURCHFAHRT {bereich, ref, an} – nur der gezeigte Start, setzt/löscht
+  `durchfahrt` {ref, zeit vom Store}, unverändert = derselbe Stand; ZEIGEN/ZURUECK nehmen sie weg; normalisiereBereich
+  behält sie nur für den gezeigten Start. SET_ANZEIGE `wkrAuto` (Auto-Modus, Vorgabe BETRIEB_ANNAHMEN.autoVorgabe).
   SET_ANZEIGE trägt auch die Startfolge im Betrieb (`verzahnungHalten`, ab E3 amSteg/vorSteg/abstaende; SettingsView
   `#betrieb`) und die Lage von Racecourse A und B (`parallelAnordnung`, PARALLEL_ANORDNUNGEN, Vorgabe `a-links`);
   geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`. E6: SET_GERAETE_SERVER

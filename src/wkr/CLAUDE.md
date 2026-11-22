@@ -13,6 +13,19 @@ gebaut 21.11.2026, K1–K9 noch zu bestätigen; W3.4 (Liste abschließen, Probe,
 (reine Bojen-Logik, Sicht, Maske) gebaut 21.11.2026, P1–P15 noch zu bestätigen; W4.2 (Handy-Maske Bojen, Probe, Übung,
 components/wkr/WkrBojen.vue) gebaut 21.11.2026, P17 und Q1–Q7 noch zu bestätigen; W4.3 („Nicht vorbeigekommen“, löst
 G15 ein) gebaut 21.11.2026, P16 und R1–R8 noch zu bestätigen – W4 fertig, Feldtest offen.
+**Antworten 21.11.2026 abends** (Fragenseite Runden 3–6): G–T bestätigt bis auf G1, G3, G6, G11, G13, G15, J1–J3,
+K7, L3, L4, M5, N4 (Teil), N8, P9/U2, P10/Q2, T9 und die Form von P16/R (künftig Disq. J) – je Eintrag in annahmen.ts
+vermerkt, noch nicht umgebaut (docs/entscheidungen.md „Antworten 21.11.2026 abends (Runden 3–6)“). Umgebaut 21.11.2026
+(Plan docs/plan-antworten-runde3-6.md §3, AM1–AM10 noch zu bestätigen): **Parcours-Ampel** (P-03/P-04, ersetzt N8 für
+Steg/Vorsteg), „Mehr → Liste abschließen“ entfernt (W3-40, L3), Rückfrage beim Abschluss im laufenden Lauf (R6-10, T9).
+Umgebaut 21.11.2026 (Plan §4, BZ1–BZ5 noch zu bestätigen): **Bojenzelle mit Punkten und Disq.-Buchstabe** (W4-12,
+ersetzt U2/P9): „5J“, DISQ auf Bojen-Listen fragt immer erst die Boje. Umgebaut 21.11.2026 (Plan §5, GF1–GF11 noch
+zu bestätigen): **Gerät-Feinschliff** – Ansicht „Wie Gerät“, Codes anderer Klassen ausgegraut (YAML `abKlasse`),
+Steg-Reiter immer mit ✓/Zahl, Übung mit Erklärung und „Übung beenden“, „So lassen“ an den Bedienrechner
+(WKR_SO_LASSEN), erste Liste ohne Neuladen, Geräteart beim Koppeln, bis vier Listen (Pad quer nebeneinander), Freigabe
+nie vorgewählt, Klassenwechsel-Band nur beim ersten Start + Parcours-Zeichnung, „nicht vorbeigekommen“ = Disq. J.
+Umgebaut 21.11.2026 (Plan §6, WN1–WN3 noch zu bestätigen): **WKR-Name aus der Einteilung** (W3-13, ersetzt G11/L4) –
+Sicht der eigenen Liste trägt `wkrName`, Gerät ändert unter „Mehr → Name“, Bedienrechner zeigt Abweichungen.
 Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte Zellen nie still überschreiben.
 
 ## Dateien
@@ -65,10 +78,27 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   (Gerät ganz: Anlegen wartet aufs Ablegen), stegAnlegenNieGeschaetzt, stegAbschlussOhneImBoot; Abmelden am Gerät
   abmeldenWieEntfernen (Liste/Teil abgemeldet + Aufgabe weg), abmeldenLetzterGanz (letztes Gerät → ganze Liste; sonst nur, was kein anderes Gerät abdeckt),
   abmeldenOhneBitte, abmeldenUebungWieBisher; T10 padSpalteBisW5 (breite Bildschirme: Handy-Maske als Spalte bis W5).
-  Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeErsetztPunkte, U3
-  disqBojeOhneLangdruck (Frage), U4 probeDisqAnBoje; Ansicht „Wie der Parcours liegt“ V1 bojenNachLage, V2 bojenSpiegeln.
+  Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeMitPunkten (seit W4-12 statt
+  disqBojeErsetztPunkte), U3 disqBojeOhneLangdruck (Frage), U4 probeDisqAnBoje; W4-12 (BZ1–BZ5): bojenZelle,
+  xNieMitPunkten, punkteNebenDisq, disqFragtBoje, papierGegenGeraetAbweichend; Ansicht „Wie der Parcours liegt“ V1 bojenNachLage, V2 bojenSpiegeln.
   Druck nach Modus Z1–Z7 (noch zu bestätigen): druckOhneDigital, druckBeiPause, druckStegJeTeil, druckRueckfall,
   druckLaufzettel, druckOhneListeImmer, druckParallelJeRacecourse (wkr/druck.ts).
+  Parcours-Ampel (21.11.2026, AM1–AM5, AM9, AM10, R6-10): parcoursListeAnFeldern, zeitKeineParcoursListe,
+  ampelAusOhneDigital, rotDurchErsteZeile, nachfrageNurParcours (nachfrageAbEinem → false), ampelInDerKarte,
+  abschlussNurBand (abschlussPunktWahl → false), abschlussFragtWennLaufLaeuft; Auto-Modus AM6–AM8 in BETRIEB_ANNAHMEN.
+  Gerät-Feinschliff (21.11.2026, GF1–GF11): wieGeraetVorgabe (sonneVorgabe → false), codesNachKlasse
+  (codesAlleKlassen → false), stegReiterImmer, uebungErklaert, soLassenAmBedienrechner (soLassenNurLokal → false),
+  ersteListeOhneNeuladen, artBeimKoppeln (handyNachName → false), listenEmpfehlung (handyEineListe → false),
+  klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11); freigabeVorwahlOhneListe → false (W3-26).
+  WKR-Namen (21.11.2026, WN1–WN3): nameNurBeimAbschluss → false, wkrNameNurEigeneListe, wkrNameImLebenszeichen,
+  wkrNameOhneEinteilung (G12/L4 bleiben Rückfall ohne Einteilung).
+- `ampel.ts` (Parcours-Ampel, Nutzer 21.11.2026 P-03) – parcoursAmpel(stand, konfig, bereich, lagen) → AmpelLage {ampel
+  aus|gruen|rot|frei, ref, perKnopf, offen (Titel), autoMoeglich, autoOhne}: aus ohne gezeigten Start oder ohne digitale
+  aktive Parcours-Liste; grün = nicht durch; rot = durch (lage.ts durchfahrtVon) und eine digitale aktive Parcours-Liste
+  mit Rückstand; frei sonst. autoSchritt(AutoEingang) → {ref, vorher} | null (rein; der Host zählt herunter und schickt).
+  ampelImStand (WeakMap je Stand, ohne Geräte – für die Listen-Sicht), laufLage (R6-10: laufender Punkt mit freien
+  Starts, Start im Boot, Ampel grün/rot oder – mit `nochAufListe` aus sicht.ts – gezeigter Start, den die Liste noch
+  nicht erledigt hat: letzter Start auf dem Weg zum Anlegen, Prüfbefund 21.11.2026 → {punkt, unterwegs, offen}).
 - `druck.ts` (Nutzer 21.11.2026, Druck nach Modus, WKR_ANNAHMEN Z1–Z7) – nurDigital(bogen, wkr, konfig, abdeckung?),
   teileNachDruck → {gedruckt, digital}: nur Modus `digital`, Status aktiv, am Steg beide Teile aktiv und – wenn das Register
   Geräte kennt – beide Teile abgedeckt (TeilAbdeckung von außen, geraete/register.ts abgedeckteTeile); Knoten (listeVonBogen
@@ -81,7 +111,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Schikane/MüB 1, Tor 1–5 2–6, Speedbojen 7; Parallel Start/Ziel 0, Boje 1–5 1–5), hin und rück gleich – belegt an den
   x-Koordinaten der Parcours-Bilder (bojen.test.ts misst alle Bilder nach). Lagequelle auch für das Bild-Layout W5.
 - `liste.ts` – ListenKennung `JSON.stringify(['l', bereich, typeId, racecourse|null])`, listenKennung/liesListe,
-  listenDerVeranstaltung (Bereiche × Listen mit Lauf, Parallel × A/B), teileVon/teilVonZelle, istHaken/teilHaken
+  listenDerVeranstaltung (Bereiche × Listen mit Lauf, Parallel × A/B), istParcoursListe (AM1: Lauf, nicht geteilt, nicht
+  einmalJeStarter, ein Feld außer Zeit/Summe – Test über alle Aufbauten in ampel.test.ts), teileVon/teilVonZelle, istHaken/teilHaken
   (aus lib/eingaben.ts), startAufListe (Starter, Lauf-Schlüssel, `weitere` am Vorsteg mit „Versuche nacheinander“, Punkt;
   Parallel: eigene Seite aus `fest.starts`); W2: listeVonBogen(bogen, konfig) (Bogen der Erfassung → Liste; Knoten → null).
 - `zeile.ts` – GeraeteZeile (Leitung: z, s, t?, k?, seite?, c: [feld, wert, vorher][], W4.3 n?: true), ZeilenFehler,
@@ -90,7 +121,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   `wert-ungueltig`), nie wo X gilt (Vorsteg, Steg-Ablegen bzw. ganzer Steg → `nv-nicht-erlaubt`) → WkrZeile.nichtVorbei.
 - `nichtVorbei.ts` (W4.3, 21.11.2026) – „Nicht vorbeigekommen“ im Stand (WkrStand.nichtVorbei, je Liste Schlüssel):
   nvSchluessel(lauf, starter, teil?) = `${lauf}|${starter}` bzw. `…|an`, liesNvSchluessel, istNichtVorbei,
-  mitNichtVorbei (setzen/löschen, gleiche Referenz), ohneUeberholteNichtVorbei(stand, konfig) – hebt Kennzeichen auf,
+  mitNichtVorbei (setzen/löschen, gleiche Referenz), seit 21.11.2026 (W3-17, GF10) NICHT_VORBEI_DISQ = 'J' und
+  nichtVorbeiArt(disqCodes) → 'disq' (Gerät schickt Disq. J ins Disq.-Feld, eine gewöhnliche Zeile) | 'kennzeichen'
+  (⊘, wo die Liste kein J kennt: Steg-Anlegen), ohneUeberholteNichtVorbei(stand, konfig) – hebt Kennzeichen auf,
   deren Zelle eigene Werte der Liste hat (am Steg nur Felder des Anlegens); ruft reducer.ts nach jeder Änderung der
   Eingaben.
 - `schlange.ts` – schlange(stand, liste, teil?) (gezeigt ab `seit`, ohne Pausen/P der Liste UND des Teils, ohne Starts
@@ -110,7 +143,15 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - `uebernahme.ts` – wendeZeileAn (gleich → nichts, vorher → setzen, sonst Konflikt; `vereinige`: Disq. vereinigt,
   Wegfall = Konflikt `entfernt`, Bemerkung mit „; “), vereinigeDisq, haengeAn, vereinigt (Ziel einer gemeinsamen
   Zelle bei Entscheid für das Gerät – Rückfrage `start` mit `vereinige: {vorher}`), zeilenPruefsumme (FNV-1a).
-- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 5; 5 seit W4.3
+- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 8; 8 seit den
+  WKR-Namen 21.11.2026: `wkrName` = Name der EIGENEN Liste aus AppState.einteilung (einteilungsName(stand, liste),
+  einteilungsParcours(liste) = Parcours bzw. RACECOURSE_PARCOURS – auch für SET_WKR_NAME am Bedienrechner; fehlt ohne
+  Eintrag, WN1/WN3); 7 seit dem
+  Gerät-Feinschliff 21.11.2026: Katalog-Eintrag `aus` (Code gilt in der Klasse nicht, config/catalog.ts codeKlassenOf,
+  GF2) und je Klasse `bild` {datei, dim, aus, drehung} (Parcours-Zeichnung wie das Bild des Bogens; maskenJeKlasse mit
+  `aufbauId`, GF9); 6 seit der
+  Parcours-Ampel 21.11.2026: `ampel` {key, ampel} nur an Parcours-Listen (AM9), `laeuft` {punkt, unterwegs, offen}
+  (R6-10), ListenStart.`punkt` (Prüfansicht des Bands nach Beginn des nächsten Laufs, W3-40); 5 seit W4.3
   „Nicht vorbeigekommen“ – Form gleich, nur damit alte Geräte/Bedienrechner nicht mischen; 4 seit W4.1:
   MaskenFeld.boje {halt, weg, folge, titel, unter, spalte 0|1|null, zaehler?, durchfahrt?} je Fahrweg-Boje – titel/unter
   aus defFuerKlasse(...).columns (label, sub[i], Beschriftung schon aufgelöst), spalte = Index der Seite in der ersten
@@ -142,9 +183,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   danach gleiche Referenz); zurueck/eintraege/punkteVon kennen Bojen; zellenAus n×punkte bzw. '' (Disq. nur ins
   Disq.-Feld, P9); entwurfAus Punkte → round(wert/punkte), Schalter ≤ 1; probeMaske = Klasse mit den meisten Zeilen.
   Nutzer 21.11.2026: MaskenBoje.disq (Buchstaben DIESER Zelle aus MaskenFeld.disq, Texte ggf. `andere`),
-  Entwurf.bojenDisq + tippeBojenDisq(e, boje, code|null) (U1/U2: setzt/ersetzt/nimmt heraus, löscht die Berührungen
-  des Felds, Merker `#bdisq:`; tippeBoje nimmt bei Buchstaben nichts an), disqAnBojen (Fuß), zellenAus Buchstabe
-  statt Punkte, entwurfAus Buchstabe der Zelle → bojenDisq, eintraege/eintraegeAuf zählen ihn, punkteVon nicht;
+  Entwurf.bojenDisq + tippeBojenDisq(e, boje, code|null) (U1: setzt/ersetzt/nimmt heraus, Merker `#bdisq:`; seit
+  W4-12 bleiben die Berührungen, tippeBoje nimmt weiter Tipps), disqAnBojen (Fuß), zellenAus `${punkte}${buchstabe}`
+  („5G“), entwurfAus über bojenWert (Punkte → Berührungen UND Buchstabe → bojenDisq), eintraege/eintraegeAuf zählen
+  ihn, punkteVon zählt die Punkte auch neben ihm (BZ3);
   nachLage(aufbau, startOben) → LageGruppe {lage, titel („Start / Ziel“), titelJeZeile, abschnitte in Fahrtfolge}
   (V1/V2, Ansicht „Wie der Parcours liegt“).
 - `uebung.ts` (W3.1) – Übung ohne AppState/Store/Netz: uebungsStand(regelwerk, typeId, sprache?, gezeigt = 2) → UebungsStand
@@ -161,21 +203,29 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   der Schlange = Papier; Steg: Anlegen nv + Ablegen ok → nv, sonst ½; nv ist in zeilenMarken „Papier ansehen“; Steg-
   Anlegen des Starts im Boot bzw. eines Vorab-Starts = `spaeter` „kommt noch“, kein Rückstand – T2; Vorab-Spalten je
   Liste mit hatVorab);
-  ampelVon (gehoert/still/weg, ohne laufenden Punkt ruht), schlechteste; zeilenMarken (Erfassung: `${lauf}|${starter}` →
+  ampelVon (gehoert/still/weg, ohne laufenden Punkt ruht), schlechteste; ZellLage.disq (W3-17, GF10, 21.11.2026):
+  `ok` mit Buchstaben im Disq.-Feld der Liste → Matrix „✓ Disq. J“; Parcours-Ampel (21.11.2026): ListenLage.parcours,
+  `warnt` nur Parcours-Listen, der gezeigte Start zählt im Rückstand einer Parcours-Liste erst ab der Durchfahrt
+  (durchfahrtVon: Knopf `BereichBetrieb.durchfahrt` oder Haken/Wert/Rückfrage/Vorschlag einer Parcours-Liste, X = durch); zeilenMarken (Erfassung: `${lauf}|${starter}` →
   Zeile/Zelle „papier-ansehen“ bzw. „rueckfrage“, nur Listen digital/beides); rueckstandZeile (Zeile über „Nächster
   Start“). Geräte nur als GeraetAngabe (einfache Daten vom Host, geraete/register.ts geraetAngaben), nichts aus
   geraete/. Nutzer W2.2: components/betrieb/WkrMatrix.vue (Betrieb → WKR); W2.3: components/erfassung/ErfassungTabelle.vue
   (listeVonBogen + zeilenMarken einmal je Bogen, ◆ über geraete/wkrEingang.ts herkunftGilt).
 - `freigabe.ts` (W2.4, 21.11.2026) – sichtFreigabe(bereich, lagen, warnung) → FreigabeErfassung {fv:
-  FREIGABE_SICHT_FASSUNG = 1, bereich, warnung, listen: FreigabeListe {titel, stand aktiv|pausiert|abgemeldet|papier,
-  ampel|null, offen, von, bis, wartend?, rueckfragen, warnt (≥ R seit N8)}} – Feld für Feld, leer ohne Eintrag im Bereich; liesFreigabe
+  FREIGABE_SICHT_FASSUNG = 2 (seit der Parcours-Ampel; sichtFreigabe(…, ampel, autoIn) mit `ampel`, `ampelRef`,
+  `perKnopf`, `autoMoeglich`, `autoOhne`, `autoIn`), bereich, warnung, listen: FreigabeListe {titel, stand
+  aktiv|pausiert|abgemeldet|papier, ampel|null, offen, von, bis, wartend?, rueckfragen, warnt (≥ R seit N8), parcours}}
+  – Feld für Feld, leer ohne Eintrag im Bereich; liesFreigabe
   (Gerät: Form prüfen, Fremdes fällt weg). Nutzer: StartFreigabe.vue Prop `erfassung` (BetriebView rechnet sie aus
   erfassungsLage, GeraetFreigabe bekommt sie über geraete/gekoppelt.ts `freigabe`), geraete/host.ts verteileFreigabe
   (Freigabe-Gruppe je Bereich, geraete/wkrGruppen.ts gruppeDerFreigabe). Nie über ko/kz (F17).
 - Nutzer außerhalb: geraete/aufgaben.ts erlaubteWkr (pruefeZeile), geraete/host.ts (sichtListe je Listen-Gruppe),
   geraete/erfassen.ts (Gerät: liest ListenSicht, rechnet zeilenPruefsumme wie WKR_ABSCHLUSS, Zahlen aus WKR_ANNAHMEN:
   buendel, zuletzt, lebenszeichenSek, nameMax). Ende zu Ende: geraete/wkr.test.ts.
-- Stand: types/wkr.ts (WkrStand in AppState.wkr), Actions state/reducer/wkr.ts (WKR_ZEILEN, WKR_RUECKFRAGE,
+- Parcours-Ampel im Betrieb (21.11.2026): BereichBetrieb.durchfahrt (types/betrieb.ts) über BETRIEB_DURCHFAHRT
+  (state/reducer/betrieb.ts, Positivliste geraete/aufgaben.ts), Einstellung AnzeigeEinstellungen.wkrAuto; Auto-Modus
+  zählt im Führungsfenster geraete/host.ts (pruefeAuto/feuereAuto, `auto`, `halteAuto`, Geräte-Nachricht AUTO_HALT).
+- Stand: types/wkr.ts (WkrStand in AppState.wkr; WkrRueckfrage.soLassen = Zeit, W3-35/GF5), Actions state/reducer/wkr.ts (WKR_SO_LASSEN {liste, zeile}, WKR_ZEILEN, WKR_RUECKFRAGE,
   WKR_VORSCHLAG, WKR_LISTE, WKR_ABSCHLUSS, WKR_ABSCHLUSS_LOESEN, W2: WKR_PAPIER_AB {liste, ref, teil?} mit WkrPause.ab;
   W4.3: WkrStand.nichtVorbei – WKR_ZEILEN setzt es mit dem Haken nur bei direkter Übernahme, jede Zeile ohne `n`
   löscht es, eigene Werte löschen es (reducer.ts → ohneUeberholteNichtVorbei), wkrOhneLaeufe/wkrNurStarter räumen;
@@ -196,6 +246,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - lage.ts: „Papier“ heißt gezeigt, ohne Haken, nicht in der Schlange – neue Schlangenregeln wirken dort von selbst;
   keine eigene Papier-Logik in lage.ts nachbauen. Schlangen und Zellen nach `${lauf}|${starter}` (Vorsteg mit
   „Versuche nacheinander“: ein Starter, mehrere Kennungen).
+- Parcours-Ampel: Was Parcours ist, sagt NUR istParcoursListe; grün/rot/frei nur ampel.ts (nie in Komponenten
+  nachbauen). Der gezeigte Start zählt in lage.ts erst ab der Durchfahrt – Tests, die „drei offen“ erwarten, tippen
+  vorher BETRIEB_DURCHFAHRT (Muster lage.test.ts drei(), freigabe.test.ts stand()). Keine Ampel auf ko/kz (AM8).
 - Freigabe-Sicht (freigabe.ts): neues Feld nur mit Eintrag in der Positivliste (freigabe.test.ts) und ggf. neuer
   FREIGABE_SICHT_FASSUNG; nie Werte, Starter-, Geräte- oder WKR-Namen, keine Startnummer einer Rückfrage (D2). F17:
   wkr/sicht.test.ts prüft sichtOeffentlich/sichtZuschauer über alle WKR-Actions und SET_ANZEIGE R/warnen.
@@ -208,14 +261,16 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Tipp-Folge je Position, DM und UIM) – keine eigene Schreibweise, immer über lib/codes.ts bzw. die Disq.-Reihenfolge.
   Disq.-Feld (sanitizeDisq) behält die Tipp-Reihenfolge, Code-Felder sortieren (normalizeCodeCell).
 - Bojen (W4.1): Zeilen folgen dem FAHRWEG, nie den Spalten des Bogens (frontal135 = gate135); die Knopfspalten
-  dagegen folgen dem Bogen (Blick). Eine Bojenzelle bekommt vom Gerät Ziffern ODER (seit U1, 21.11.2026) genau einen
-  Buchstaben aus MaskenBoje.disq – nie beides (sanitizeBuoy nähme den Buchstaben und verwürfe die Punkte); Disq. ohne
-  Boje weiter ins Disq.-Feld. Die Lage-Ansicht (nachLage) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
+  dagegen folgen dem Bogen (Blick). Eine Bojenzelle bekommt vom Gerät Ziffern, dahinter höchstens einen Buchstaben aus
+  MaskenBoje.disq („5G“, seit W4-12 21.11.2026, BZ1) – gelesen NUR über lib/scoring.ts bojenWert, geschrieben so, wie
+  sanitizeBuoy es unverändert lässt; X nie mit Punkten (BZ2). Disq. „keine Boje“ ins Disq.-Feld (BZ4). Die Lage-Ansicht (nachLage) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
   auch); `spaeter` bleiben nur Zeit, Knoten und Bojen außerhalb des Fahrwegs.
 - Sicht der Liste: jedes Objekt Feld für Feld neu (wie sichtZuschauer); nie Name, Herkunft, Geburtsdatum, Gewicht,
-  Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Einzige Ausnahme `steht`
+  Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Ausnahmen: `steht`
   (F11) – steht unter dem Gerät der Rückfrage, lesbar aber für jedes Gerät derselben Liste (EIN Gruppeninhalt,
-  WKR_ANNAHMEN.rueckfrageInListe). Neues Feld → Positivliste in sicht.test.ts und ggf. LISTEN_SICHT_FASSUNG.
+  WKR_ANNAHMEN.rueckfrageInListe) – und `wkrName` (W3-13, WN1: nur der Name aus der Einteilung für DIESE Liste, nie
+  der einer anderen, nie auf ko/kz oder in der Freigabe-Sicht). Neues Feld → Positivliste in sicht.test.ts und ggf.
+  LISTEN_SICHT_FASSUNG.
 - Steg-Zeitversatz (T1–T3): `vorab` gibt es seit 21.11.2026 auch am Steg, aber nur im Ablegen – wer `vorab` prüft,
   nimmt hatVorab/vorabStarts, nie WKR_ANNAHMEN.vorabListen allein. Der Start im Boot fehlt in der Anlegen-Schlange; in
   der Sicht steht das als `teile.an = true` („braucht noch nichts“, auch für Vorab- und „danach“-Starts) – das Gerät
@@ -231,5 +286,5 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 
 ## Tests
 
-`npx vitest run src/wkr src/geraete/uebung src/GeraetWkr src/views/BetriebWkr src/GeraetKoppeln src/views/SettingsView src/geraete/aufgaben src/geraete/wkrGruppen src/state/reducer/wkr src/state/migrate src/persistenz/backup src/lib/verlauf src/lib/eingaben`.
+`npx vitest run src/wkr src/components/betrieb src/geraete/uebung src/GeraetWkr src/views/BetriebWkr src/GeraetKoppeln src/views/SettingsView src/geraete/aufgaben src/geraete/wkrGruppen src/state/reducer/wkr src/state/migrate src/persistenz/backup src/lib/verlauf src/lib/eingaben`.
 Hilfe: testHilfen.ts wkrBetriebsStand (DM, festgeschrieben, Lauf 1 auf beiden Parcours begonnen).

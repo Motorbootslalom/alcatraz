@@ -161,6 +161,8 @@ export default {
   'listopt.betrieb.wkrWarnung': 'On a backlog',
   'listopt.betrieb.wkrWarnung.warnen': 'only warn',
   'listopt.betrieb.wkrWarnung.nachfragen': 'ask before showing',
+  'listopt.betrieb.wkrAuto': 'Auto mode: show the next start as soon as all racecourse officials have sent',
+  'listopt.betrieb.wkrAuto.hint': 'Only if every racecourse list is entered digitally with a device. The start release counts down {n} seconds and can be held; a new attempt, starts to make up and set-back starts never come by themselves.',
   'listopt.betrieb.wkr.hint':
     'Only for lists the race officials enter on a device: if at least as many shown starts are open on a list as set here ({min} to {max}; 1 = the race official has not sent the last start yet), a warning appears above “Next start”; with “ask”, start release asks before every start it shows – on the control computer and on the start release phone. If you enter gate 5 or mooring digitally with several boats on the water, set a higher number. Paused, signed-off and paper lists never count. Nothing is ever blocked – a failed phone would otherwise stop the competition.',
   'listopt.betrieb.abstaende': 'Intervals between starts',

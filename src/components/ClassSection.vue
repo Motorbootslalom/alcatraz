@@ -116,8 +116,8 @@ function reorder(action: Parameters<typeof dispatch>[0]) {
 
 /**
  * „Sortierung ändern“ (Entscheidung des Nutzers vom 15.11.2026): Die Spaltenköpfe werden zu
- * Knöpfen, je Kopf drei Stufen (21.11.2026, lib/reihenfolge.ts naechsteSortierung): absteigend ↓,
- * aufsteigend ↑, Markierung weg ↕ (ohne Action – die Reihenfolge bleibt). Bei Gleichstand bleibt die
+ * Knöpfen, je Kopf drei Stufen (lib/reihenfolge.ts naechsteSortierung, bestätigt 21.11.2026 S-01):
+ * aufsteigend A→Z ↑, absteigend Z→A ↓, Markierung weg ↕ (ohne Action – die Reihenfolge bleibt). Bei Gleichstand bleibt die
  * bisherige Reihenfolge. „Zufall“ mischt jedes Mal neu. Nur solange die Verzahnung offen ist – danach
  * sperrt auch der Reducer.
  */

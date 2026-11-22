@@ -295,6 +295,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'BETRIEB_KLASSE_VOR':
     case 'BETRIEB_VERSCHIEBEN':
     case 'BETRIEB_AB':
+    case 'BETRIEB_DURCHFAHRT':
     case 'SET_ANZEIGE':
     case 'SET_GERAETE_SERVER':
       return wendeBetriebAn(state, action)
@@ -306,6 +307,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'WKR_ABSCHLUSS':
     case 'WKR_ABSCHLUSS_LOESEN':
     case 'WKR_PAPIER_AB':
+    case 'WKR_SO_LASSEN':
       return wendeWkrAn(state, action)
 
     default:

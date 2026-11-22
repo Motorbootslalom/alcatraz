@@ -31,8 +31,13 @@ defineProps<{
   /** `abmeldung`: Bereich der Liste und die letzten eigenen Zeilen (ohne Aufbau: nur die Werte). */
   bereich?: string
   zuletzt?: ZuletztZeile[]
+  /**
+   * `warte` länger als die Verbindungs-Karenz (Nutzer 21.11.2026, W3-24, GF6): Knopf „Neu verbinden“ – lädt die Seite
+   * neu (Kopplung, Ausgang und Entwürfe liegen in der Ablage). Normalfall bleibt, dass die Sicht von selbst kommt.
+   */
+  neuVerbinden?: boolean
 }>()
-const emit = defineEmits<{ weiter: []; pausiere: [] }>()
+const emit = defineEmits<{ weiter: []; pausiere: []; neuVerbinden: [] }>()
 const t = useWkrText()
 const { w } = t
 const zeileText = (z: ZuletztZeile) => (z.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(z.zellen, null, t, w('wkr.geraet.fehlerfreiText')))
@@ -60,6 +65,10 @@ function werte(e: EntwurfEintrag): string {
   <section class="wkr-ruhe" role="status" data-teil="ruhe" :data-ruhe="art">
     <template v-if="art === 'warte'">
       <h2>{{ w('wkr.geraet.ruhe.warte') }}</h2>
+      <template v-if="neuVerbinden">
+        <p data-teil="warte-lange">{{ w('wkr.geraet.ruhe.warte.lange') }}</p>
+        <button type="button" class="wkr-knopf wkr-knopf--breit" data-ziel="gross" data-action="neu-verbinden" @click="emit('neuVerbinden')">{{ w('wkr.geraet.neuVerbinden') }}</button>
+      </template>
     </template>
     <template v-else-if="art === 'leer'">
       <h2>{{ w('wkr.geraet.ruhe.leer') }}</h2>

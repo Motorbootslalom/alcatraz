@@ -169,6 +169,7 @@ describe('Betrieb → Geräte: einschalten, Links, Fingerabdruck', () => {
       beendeKoppeln: () => {},
       setzeAufgaben: () => {},
       benenne: () => {},
+      setzeTyp: () => {},
       entziehe: () => {},
       hinweis: () => {},
       merkeEntscheid: () => {},

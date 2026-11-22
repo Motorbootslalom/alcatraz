@@ -10,6 +10,7 @@ import WkrMaske from './WkrMaske.vue'
 import WkrProbe from './WkrProbe.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import { stelleWkrText } from './texte'
+import { useMedien, useWirksamerModus } from './systemModus'
 import { wachHinweisWeg } from './gedaechtnis'
 import '../../styles/wkr-geraet.css'
 
@@ -19,10 +20,12 @@ import '../../styles/wkr-geraet.css'
  * beide mit derselben Schnittstelle. Je eigener Liste ein Reiter (Pad mit zwei Listen, F15); GeraetFreigabe kann
  * eine Liste vorgeben (`nurListe`, dann ohne eigene Reiter).
  *
- * Ansicht aus der Geräteablage (ablage.ts `alcatraz.geraet.ansicht`): Sonnenmodus als Vorgabe (G1), Hand, Sprache;
+ * Ansicht aus der Geräteablage (ablage.ts `alcatraz.geraet.ansicht`): seit 21.11.2026 „Wie Gerät“ als Vorgabe (GF1,
+ * Nutzer P-18/W3-01: Hell/Dunkel des Systems, live über systemModus.ts; vorher Sonne, G1), Hand, Sprache;
  * seit 21.11.2026 (V1/V2) auch die Bojen-Ansicht je Liste (`bojen`), die Maske und Probe bekommen.
  * Die Sprache der Maske ist die der Liste (F13, G9: zweisprachig → deutsch), umgeschaltet über die Ansicht – nie die
- * der Geräte-Oberfläche. Farben nur über --wkr-* (styles/wkr-geraet.css), unabhängig von prefers-color-scheme.
+ * der Geräte-Oberfläche. Farben nur über --wkr-* (styles/wkr-geraet.css) je `data-modus` – dem wirksamen Modus
+ * (`data-wahl` trägt die Wahl, auch `geraet`).
  *
  * W3.4 (21.11.2026): „Mehr → Ansicht/Sprache“ schreibt hier die Ansicht (schreibeAnsicht; nimmt der Speicher sie nicht,
  * gilt sie bis zum Neuladen). Der WKR-Name des Abschlusses wird gemerkt (G12) – in der Übung nicht (dort bleibt nur
@@ -51,6 +54,7 @@ const emit = defineEmits<{ uebungEnde: [] }>()
 /** Ablage wie übergeben; `undefined` = Vorgabe (localStorage), `null` = keine. */
 const ablage = () => (props.ablage === undefined ? undefined : props.ablage)
 const ansicht = ref(liesAnsicht(ablage()))
+const modus = useWirksamerModus(() => ansicht.value.modus)
 function setzeAnsicht(aenderung: Partial<GeraetAnsicht>): void {
   schreibeAnsicht(aenderung, ablage())
   const neu: GeraetAnsicht = { ...ansicht.value }
@@ -59,6 +63,11 @@ function setzeAnsicht(aenderung: Partial<GeraetAnsicht>): void {
     else (neu as unknown as Record<string, unknown>)[k] = v
   }
   ansicht.value = neu
+}
+/** Erklärung der Übung auf- oder zugeklappt – nur bei einer Änderung merken (das erste `toggle` kommt beim Einhängen). */
+function erklaerungUmschalten(e: Event): void {
+  const zu = !(e.target as HTMLDetailsElement).open
+  if (zu !== !!ansicht.value.uebungErklaerungZu) setzeAnsicht({ uebungErklaerungZu: zu ? true : undefined })
 }
 function merkeName(name: string): void {
   if (!props.quelle.uebung) setzeAnsicht({ name })
@@ -116,10 +125,24 @@ function blendeWachAus(): void {
 const ohneHttps = typeof window !== 'undefined' && window.isSecureContext === false
 
 const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab') : undefined))
+
+// --- Pad quer: zwei Listen nebeneinander (Nutzer 21.11.2026, W3-03, WKR_ANNAHMEN GF8) ---
+// Ab 1000 px Breite im Querformat stehen GENAU zwei Listen als zwei Spalten der Handy-Maske nebeneinander (T10 erweitert);
+// mehr als zwei, eine abgemeldete oder eine vorgegebene Liste (`nurListe`): Reiter wie bisher. Die Probe kommt von
+// selbst nur für die erste Liste (wie bisher für die aktive); die zweite über „Mehr → Probe“ ihrer Spalte.
+const quer = useMedien('(min-width: 1000px) and (orientation: landscape)')
+const nebeneinander = computed(() => !props.nurListe && quer.value && listen.value.length === 2 && abgemeldet.value.length === 0 && !props.quelle.entzogen.value)
+const sichtVon = (liste: string) => props.quelle.sichten.value[liste] ?? null
+const spracheWahlVon = (liste: string) => (ansicht.value.sprache && sichtVon(liste)?.andere?.sprache === ansicht.value.sprache ? 'andere' : 'liste')
+const probeAufbauVon = (liste: string) => {
+  const s = sichtVon(liste)
+  return s ? probeMaske(s, spracheWahlVon(liste)) : null
+}
+const probeTeilVon = (a: ListenAufgabe) => (sichtVon(a.liste)?.teile ? (a.teil ?? 'ab') : undefined)
 </script>
 
 <template>
-  <div class="wkr-geraet" data-teil="wkr-geraet" :data-modus="ansicht.modus" :data-hand="ansicht.hand" :data-uebung="quelle.uebung || undefined" :lang="sprache">
+  <div class="wkr-geraet" data-teil="wkr-geraet" :data-modus="modus" :data-wahl="ansicht.modus" :data-hand="ansicht.hand" :data-uebung="quelle.uebung || undefined" :data-nebeneinander="nebeneinander || undefined" :lang="sprache">
     <p v-if="bildschirmKannAus && !wachWeg" class="wkr-band wkr-band--warn" role="status" data-teil="wach-hinweis">
       <span>
         <b>{{ w('wkr.geraet.wach.titel') }}</b>
@@ -127,8 +150,43 @@ const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab
       </span>
       <button type="button" class="wkr-knopf" data-ziel="klein" data-action="wach-ausblenden" @click="blendeWachAus">{{ w('wkr.geraet.wach.ausblenden') }}</button>
     </p>
+    <!-- Übung (Nutzer 21.11.2026, W3-15, GF4): Erklärung in der Übung selbst, einklappbar, gemerkt je Gerät. -->
+    <details v-if="quelle.uebung" class="wkr-uebung-erklaerung" data-teil="uebung-erklaerung" :open="!ansicht.uebungErklaerungZu" @toggle="erklaerungUmschalten">
+      <summary class="wkr-knopf" data-ziel="klein">{{ w('wkr.geraet.uebung.erklaerung.titel') }}</summary>
+      <p>{{ w('wkr.geraet.uebung.erklaerung', { n: WKR_ANNAHMEN.uebungStarts }) }}</p>
+    </details>
     <WkrRuhe v-if="quelle.entzogen.value" art="entzogen" :entwuerfe="quelle.entwuerfe.value" />
     <WkrRuhe v-else-if="!aktiv" art="keine-liste" />
+    <div v-else-if="nebeneinander" class="wkr-nebeneinander" data-teil="nebeneinander">
+      <div v-for="a in listen" :key="a.liste" class="wkr-spalte" :data-liste="a.liste">
+        <WkrProbe
+          v-if="probe === a.liste && probeAufbauVon(a.liste)"
+          :key="`probe|${a.liste}`"
+          :aufbau="probeAufbauVon(a.liste)!"
+          :teil="probeTeilVon(a)"
+          :hand="ansicht.hand"
+          :uebung="quelle.uebung"
+          :bojen-ansicht="ansicht.bojen?.[a.liste]"
+          @fertig="probeFertig"
+        />
+        <WkrMaske
+          v-else
+          :key="a.liste"
+          :quelle="quelle"
+          :aufgabe="a"
+          :sprache-wahl="spracheWahlVon(a.liste)"
+          :hand="ansicht.hand"
+          :modus="ansicht.modus"
+          :name="ansicht.name ?? ''"
+          :bojen-ansichten="ansicht.bojen"
+          :meldung="meldungFuer?.(a.liste) ?? null"
+          @ansicht="setzeAnsicht"
+          @name="merkeName"
+          @probe="probe = probeAufbauVon(a.liste) ? a.liste : null"
+          @uebung-ende="emit('uebungEnde')"
+        />
+      </div>
+    </div>
     <WkrRuhe
       v-else-if="abmeldung"
       :key="`abmeldung|${abmeldung.liste}`"
@@ -164,7 +222,11 @@ const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab
       @probe="probe = probeAufbau ? aktiv.liste : null"
       @uebung-ende="emit('uebungEnde')"
     />
-    <nav v-if="!nurListe && !quelle.entzogen.value && listen.length > 1" class="wkr-listenreiter" role="tablist" :aria-label="w('wkr.geraet.listen')" data-teil="listen-reiter">
+    <!-- Nutzer 21.11.2026 (W3-15, GF4): „Übung beenden“ unter den Knöpfen (erreicht beim Hochziehen) statt Neuladen. -->
+    <div v-if="quelle.uebung" class="wkr-uebung-ende" data-teil="uebung-ende-unten">
+      <button type="button" class="wkr-knopf wkr-knopf--breit" data-ziel="klein" data-action="uebung-beenden" @click="emit('uebungEnde')">{{ w('wkr.geraet.uebung.beenden') }}</button>
+    </div>
+    <nav v-if="!nurListe && !quelle.entzogen.value && listen.length > 1 && !nebeneinander" class="wkr-listenreiter" role="tablist" :aria-label="w('wkr.geraet.listen')" data-teil="listen-reiter">
       <button
         v-for="a in listen"
         :key="a.liste"

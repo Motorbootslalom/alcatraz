@@ -52,6 +52,14 @@ describe('Hinweise auf unvollständige und unplausible Eingaben', () => {
     expect(arten('gate135', { [boje.kennung]: '10' })).toEqual([])
   })
 
+  it('Bojen mit Punkten und Buchstabe (W4-12, 21.11.2026): der Hinweis prüft nur den Ziffernteil; X mit Punkten fällt auf (BZ2)', () => {
+    const boje = listenFelder(konfig, 'gate135', '4').find((f) => f.kind === 'buoy')!
+    expect(arten('gate135', { [boje.kennung]: '5J' })).toEqual([])
+    expect(arten('gate135', { [boje.kennung]: 'J' })).toEqual([])
+    expect(arten('gate135', { [boje.kennung]: '7J' })).toEqual([`bojePunkte@${boje.zelle}`])
+    expect(arten('gate135', { [boje.kennung]: '5X' })).toEqual([`bojePunkte@${boje.zelle}`])
+  })
+
   it('Zeit außerhalb des glaubhaften Bereichs', () => {
     expect(arten('zeit', { zeit1: '0,15', zeit2: '0,15' })).toEqual(['zeitBereich@zeit1', 'zeitBereich@zeit2'])
     expect(arten('zeit', { zeit1: '12', zeit2: '12' })).toEqual(['zeitBereich@zeit1', 'zeitBereich@zeit2'])

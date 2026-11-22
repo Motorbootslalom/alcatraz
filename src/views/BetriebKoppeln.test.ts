@@ -17,6 +17,7 @@ import { nachgebauterBrowser } from '../geraete/testBrowser'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, SERVER } from '../geraete/transport/ntfy/testNtfy'
 import type { NtfyZeiten } from '../geraete/transport/ntfy/leitung'
 import { betriebsStand, festgeschrieben } from '../testHilfen'
+import { reducer } from '../state/reducer'
 import type { AppState } from '../types'
 import { freigabeBereiche, type Aufgabe } from '../geraete/aufgaben'
 
@@ -187,6 +188,7 @@ const L = (bereich: string, typeId: string) => listenKennung({ bereich, typeId, 
 const STEG = L('par_1', 'steg')
 const TOR5 = L('par_1', 'tor5')
 const GATE = L('par_1', 'gate135')
+const MUEB = L('par_1', 'mueb')
 
 /** Host-Doppel (Muster views/BetriebWkr.test.ts): Register zum Vorgeben, Befehle als Spione. */
 function hostDoppel(geraeteListe: RegisterEintrag[]) {
@@ -195,6 +197,7 @@ function hostDoppel(geraeteListe: RegisterEintrag[]) {
   })
   const setzeAufgaben = vi.fn<(id: string, aufgaben: Aufgabe[]) => void>()
   const gibCode = vi.fn<(aufgaben: Aufgabe[]) => void>()
+  const setzeTyp = vi.fn<(id: string, typ: 'handy' | 'pad' | 'rechner') => void>()
   const host = {
     raum,
     fuehrt: shallowRef(true),
@@ -207,6 +210,7 @@ function hostDoppel(geraeteListe: RegisterEintrag[]) {
     beendeKoppeln: () => {},
     setzeAufgaben,
     benenne: () => {},
+    setzeTyp,
     entziehe: () => {},
     hinweis: () => {},
     merkeEntscheid: () => {},
@@ -218,7 +222,7 @@ function hostDoppel(geraeteListe: RegisterEintrag[]) {
     eingang: shallowRef<WkrEingang>({ kennung: 'MUSTERK7', n: 0, geraete: {} }),
     stop: () => {},
   } satisfies GeraeteHost
-  return { host, setzeAufgaben, gibCode }
+  return { host, setzeAufgaben, gibCode, setzeTyp }
 }
 
 function mitDoppel(host: GeraeteHost): VueWrapper {
@@ -227,7 +231,7 @@ function mitDoppel(host: GeraeteHost): VueWrapper {
   return w
 }
 
-const eintrag = (id: string, name: string, aufgaben: Aufgabe[]): RegisterEintrag => ({ id, name, aufgaben, seit: 1, zuletzt: 1 })
+const eintrag = (id: string, name: string, aufgaben: Aufgabe[], typ?: RegisterEintrag['typ']): RegisterEintrag => ({ id, name, aufgaben, seit: 1, zuletzt: 1, ...(typ ? { typ } : {}) })
 
 describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
   it('Koppeln: Listen nach Parcours, ohne Maske gekennzeichnet; Code und QR mit Liste und Teil, „Für“ nennt beides', async () => {
@@ -263,9 +267,26 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     expect(w.find('[data-teil="qr-fuer"]').text()).toMatch(/^Freigabe für: .+ · Liste: Tor 5 \(Parcours 1\)$/)
   })
 
-  it('Geräteliste: Teil ändern, Liste dazu (höchstens zwei), entfernen – jeweils setzeAufgaben; Maske und Handy-Hinweis', async () => {
+  it('Start-Freigabe nie vorgewählt, auch mit nur einem Parcours (Nutzer 21.11.2026, W3-26): QR mit Liste ohne `startfreigabe`', async () => {
+    const einer = reducer(betriebsStand(), { type: 'REMOVE_PARCOURS', id: 'par_2' })
+    store.dispatch({ type: 'LOAD_STATE', state: { ...festgeschrieben(einer), kennung: 'MUSTERK7', geraeteServer: SERVER } })
+    const { h, w } = await offen()
+    const k = w.find('[data-teil="koppeln"]')
+    const haken = k.findAll<HTMLInputElement>('[data-teil="koppeln-bereiche"] input')
+    expect(haken.length).toBe(1)
+    expect(haken[0].element.checked).toBe(false)
+    await k.find('select[data-feld="koppeln-liste"]').setValue(TOR5)
+    await k.find('[data-action="koppeln-qr"]').trigger('click')
+    await zeigt(() => !!h.raum.value?.koppeln.qr)
+    expect(h.raum.value!.koppeln.qr!.aufgaben).toEqual([{ art: 'liste', liste: TOR5 }])
+    expect(h.raum.value!.koppeln.qr!.aufgaben.some((a) => a.art === 'startfreigabe')).toBe(false)
+    expect(haken[0].element.checked).toBe(false)
+  })
+
+  it('Geräteliste: Teil ändern, Liste dazu (bis vier, Empfehlung nur Hinweis), entfernen – jeweils setzeAufgaben; Maske, Art und Handy-Hinweis', async () => {
     const freigabe: Aufgabe = { art: 'startfreigabe', bereiche: ['par_1'] }
-    const { host, setzeAufgaben } = hostDoppel([eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }]), eintrag('gHandy', 'iPhone', [{ art: 'liste', liste: TOR5 }])])
+    // W3-25 (GF7): Die Art kommt aus dem Register (vom Gerät gemeldet) – nicht mehr aus dem Namen („Pad Steg“ ist ein Handy).
+    const { host, setzeAufgaben, setzeTyp } = hostDoppel([eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }], 'pad'), eintrag('gHandy', 'Steg 2', [{ art: 'liste', liste: TOR5 }, { art: 'liste', liste: MUEB }], 'handy')])
     const w = mitDoppel(host)
     await nextTick()
     const pad = w.find('.geraete-eintrag[data-geraet="gPad"]')
@@ -284,26 +305,38 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     await pad.find('[data-action="liste-dazu"]').trigger('click')
     expect(setzeAufgaben).toHaveBeenLastCalledWith('gPad', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }])
 
-    // Das Register meldet zwei Listen: kein „dazu“ mehr, Hinweis höchstens zwei; Bojen-Liste „Maske folgt“.
-    host.raum.value = { ...host.raum.value!, geraete: [eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }]), host.raum.value!.geraete[1]] }
+    // Zwei Listen auf dem Pad: empfohlen, also kein Hinweis, „dazu“ bleibt (W3-03, GF8).
+    host.raum.value = { ...host.raum.value!, geraete: [eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }], 'pad'), host.raum.value!.geraete[1]] }
+    await nextTick()
+    expect(w.find('.geraete-eintrag[data-geraet="gPad"] select[data-feld="liste-dazu"]').exists()).toBe(true)
+    expect(w.find('.geraete-eintrag[data-geraet="gPad"] [data-hinweis="pad-zwei"]').exists()).toBe(false)
+    // Vier: kein „dazu“ mehr, Grenze genannt; über der Empfehlung der Hinweis.
+    const vier = [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }, { art: 'liste', liste: TOR5 }, { art: 'liste', liste: MUEB }] as Aufgabe[]
+    host.raum.value = { ...host.raum.value!, geraete: [eintrag('gPad', 'Pad Steg', vier, 'pad'), host.raum.value!.geraete[1]] }
     await nextTick()
     const pad2 = w.find('.geraete-eintrag[data-geraet="gPad"]')
     expect(pad2.find('select[data-feld="liste-dazu"]').exists()).toBe(false)
-    expect(pad2.find('[data-hinweis="listen-voll"]').text()).toBe('Höchstens 2 Listen je Gerät.')
+    expect(pad2.find('[data-hinweis="listen-voll"]').text()).toBe('Höchstens 4 Listen je Gerät.')
     expect(pad2.find('[data-hinweis="pad-zwei"]').exists()).toBe(true)
+    host.raum.value = { ...host.raum.value!, geraete: [eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }], 'pad'), host.raum.value!.geraete[1]] }
+    await nextTick()
     expect(pad2.find(`.geraete-liste-eintrag[data-liste='${GATE}'] [data-teil="liste-maske"]`).text()).toBe('Maske: Knöpfe')
 
     // Entfernen.
     await pad2.find(`.geraete-liste-eintrag[data-liste='${STEG}'] [data-action="liste-entfernen"]`).trigger('click')
     expect(setzeAufgaben).toHaveBeenLastCalledWith('gPad', [freigabe, { art: 'liste', liste: GATE }])
 
-    // Handy (Name = Geräteart): Hinweis „eine Liste“; Liste ohne Teilung hat keine Teil-Wahl.
+    // Handy (Art aus dem Register) mit zwei Listen: Hinweis „eine Liste empfohlen“; Liste ohne Teilung hat keine Teil-Wahl.
     const handyEintrag = w.find('.geraete-eintrag[data-geraet="gHandy"]')
-    expect(handyEintrag.find('[data-hinweis="handy-eine"]').text()).toContain('Handy: eine Liste')
+    expect(handyEintrag.find('[data-hinweis="handy-eine"]').text()).toContain('Handy: eine Liste empfohlen')
+    expect(handyEintrag.find('[data-wahl-typ="handy"]').attributes('aria-pressed')).toBe('true')
+    // Art ändern (W3-25): Knopf → host.setzeTyp.
+    await handyEintrag.find('[data-wahl-typ="pad"]').trigger('click')
+    expect(setzeTyp).toHaveBeenCalledWith('gHandy', 'pad')
     expect(handyEintrag.find(`.geraete-liste-eintrag[data-liste='${TOR5}'] [data-wahl-teil]`).exists()).toBe(false)
     // Freigabe umschalten behält die Liste.
     await handyEintrag.find('input[data-bereich="par_1"]').setValue(true)
-    expect(setzeAufgaben).toHaveBeenLastCalledWith('gHandy', [{ art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: TOR5 }])
+    expect(setzeAufgaben).toHaveBeenLastCalledWith('gHandy', [{ art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: TOR5 }, { art: 'liste', liste: MUEB }])
     expect(setzeAufgaben).toHaveBeenCalledTimes(4)
   })
 
@@ -316,5 +349,34 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     expect(wahl.element.value).toBe(STEG)
     await w.find('[data-action="koppeln-code"]').trigger('click')
     expect(gibCode).toHaveBeenCalledWith([{ art: 'liste', liste: STEG }])
+  })
+})
+
+describe('Betrieb → Geräte: WKR-Name aus der Veranstaltung (Nutzer 21.11.2026, W3-13, WN2)', () => {
+  it('zeigt den Namen der Einteilung; weicht der des Geräts ab, nur ein Hinweis – „In Veranstaltung übernehmen“ ändert die Einteilung', async () => {
+    store.dispatch({ type: 'SET_WKR_NAME', parcoursId: 'par_1', typeId: 'gate135', name: 'Erika Einteilung' })
+    const tor = eintrag('gTor', 'Handy Tor', [{ art: 'liste', liste: GATE }], 'handy')
+    const steg = { ...eintrag('gSteg', 'Handy Steg', [{ art: 'liste', liste: STEG }], 'handy'), wkrNamen: { [STEG]: 'Max Vertretung' } }
+    const { host } = hostDoppel([tor, steg])
+    const w = mitDoppel(host)
+    await nextTick()
+    const torZeile = w.find(`.geraete-eintrag[data-geraet="gTor"] .geraete-liste-eintrag[data-liste='${GATE}']`)
+    expect(torZeile.find('[data-teil="liste-wkr-name"]').text()).toBe('WKR: Erika Einteilung')
+    expect(torZeile.find('[data-teil="wkr-name-abweichend"]').exists()).toBe(false)
+
+    // Steg: niemand in der Einteilung, auf dem Gerät „Max Vertretung“ → Hinweis + Knopf.
+    const stegZeile = () => w.find(`.geraete-eintrag[data-geraet="gSteg"] .geraete-liste-eintrag[data-liste='${STEG}']`)
+    expect(stegZeile().find('[data-teil="wkr-name-abweichend"]').text()).toContain('Name auf dem Gerät: Max Vertretung – Einteilung: niemand')
+    await stegZeile().find('[data-action="wkr-name-uebernehmen"]').trigger('click')
+    expect(store.state.value.einteilung.par_1).toEqual({ gate135: 'Erika Einteilung', steg: 'Max Vertretung' })
+    await nextTick()
+    expect(stegZeile().find('[data-teil="wkr-name-abweichend"]').exists()).toBe(false)
+    expect(stegZeile().find('[data-teil="liste-wkr-name"]').text()).toBe('WKR: Max Vertretung')
+
+    // Der Name des Geräts steht nie im Stand, nur nach „übernehmen“ in der Einteilung.
+    host.raum.value = { ...host.raum.value!, geraete: [{ ...tor, wkrNamen: { [GATE]: 'Tom Test' } }, steg] }
+    await nextTick()
+    expect(w.find(`.geraete-eintrag[data-geraet="gTor"] [data-teil="wkr-name-abweichend"]`).text()).toContain('Name auf dem Gerät: Tom Test – Einteilung: Erika Einteilung')
+    expect(JSON.stringify(store.state.value)).not.toContain('Tom Test')
   })
 })

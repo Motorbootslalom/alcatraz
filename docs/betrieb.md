@@ -312,7 +312,7 @@ bleiben auf Papier (W5). Was gilt (Plan
 - Ein Gerät mit Liste meldet sich nach 60 s Stille mit einem Lebenszeichen (Akku, wartende Zeilen) – nur während ein
   Lauf läuft. Fürs Kontingent: etwa zwei Nachrichten je Zeile und Gerät.
 
-Am Bedienrechner (W2, gebaut 21.11.2026, Plan [plan-wkr-w2.md](plan-wkr-w2.md); Auslegungen noch zu bestätigen):
+Am Bedienrechner (W2, gebaut 21.11.2026, Plan [plan-wkr-w2.md](plan-wkr-w2.md); Auslegungen bestätigt 21.11.2026):
 
 - **Betrieb → WKR**: Matrix Listen × gezeigte Starts (✓ erfasst, ½ ein Steg-Teil, ○ offen, ○! überfällig, ! Rückfrage,
   V Vorschlag, P Papier, ✕ nicht gestartet), je Liste das Gerät mit Ampel (● gehört, ◐ still, ✕ weg, grau ohne Lauf).
@@ -330,10 +330,14 @@ Am Bedienrechner (W2, gebaut 21.11.2026, Plan [plan-wkr-w2.md](plan-wkr-w2.md); 
   weiter“ und unter Betrieb → WKR „Papier ab“. „Nur warnen“ und eine höhere Zahl (etwa für Tor 5 mit mehreren Booten
   auf dem Wasser) in den Einstellungen.
   Klick auf die Zeile führt zu Betrieb → WKR. Pausierte und abgemeldete Listen zählen nicht.
+  **Geplant** (Nutzer 21.11.2026, noch nicht gebaut): Die Start-Freigabe richtet sich nur nach dem **Parcours** – Steg
+  und Vorsteg laufen autark und halten nie auf. Statt der Rückfrage ab einem offenen Start eine **Parcours-Ampel** je
+  Parcours, siehe [Ablauf am Wettkampftag](#während-des-wettkampfs).
 - **Freigabe-Handy**: dieselbe Zeile, ohne Werte und ohne Gerätenamen, über eine eigene verschlüsselte Gruppe – nie
   auf Anzeigetafel oder Zuschauerliste. Schon gekoppelte Handys bekommen sie ohne neues Koppeln.
 
-Auf dem Handy (W3, gebaut 21.11.2026, Plan [plan-wkr-w3.md](plan-wkr-w3.md); Auslegungen G1–G16, H–L noch zu bestätigen):
+Auf dem Handy (W3, gebaut 21.11.2026, Plan [plan-wkr-w3.md](plan-wkr-w3.md); Auslegungen am 21.11.2026 beantwortet –
+bestätigt bis auf G1, G3, G6, G11, G13, G15, J1–J3, K7, L3, L4, M5, die der Nutzer anders will, plan-wkr-w3.md §15):
 
 - **Gerät für eine Liste koppeln**: Betrieb → Geräte → „Koppeln“: unter „WKR-Liste“ die Liste wählen (Parcours bzw.
   Racecourse; Listen mit Zeit oder Knoten tragen „Maske folgt – Papier“), am Steg „ganz / nur Ablegen / nur Anlegen“, dann QR-Code
@@ -347,19 +351,23 @@ Auf dem Handy (W3, gebaut 21.11.2026, Plan [plan-wkr-w3.md](plan-wkr-w3.md); Aus
   Disq. getrennt (zweiter Tipp setzt). Nach dem Abschicken bleibt die Nummer 2 s mit „● gesendet“ stehen, dann Blitz
   (und Vibration, wo es sie gibt) – 1 s lang nimmt die Maske nichts an (Schutz gegen Doppeltipp). Korrektur über
   „Zuletzt“; „Rückgängig“ 6 s.
-- **Liste abschließen**: Sobald der eigene Lauf vorbei ist, erscheint das Band „… ist vorbei – Liste abschließen?“;
-  unter „Mehr“ geht es immer. Die Prüfansicht zeigt „n abgeschickt, n offen: …, n X: …“ und alle eigenen Zeilen
+- **Liste abschließen**: Sobald der eigene Lauf vorbei ist, erscheint das Band „… ist vorbei – Liste abschließen?“
+  mit dem Zweck „Unterschrift für den Lauf – alle Klassen dieses Laufs auf dieser Liste; ersetzt die Unterschrift auf
+  dem Bogen“. Nur dort – „Mehr → Liste abschließen“ gibt es seit 21.11.2026 nicht mehr (W3-40). Läuft der Lauf noch
+  (ein Boot unterwegs, Starts kommen noch, Parcours-Ampel rot), fragt das Handy „1. Lauf läuft noch (604 unterwegs) –
+  trotzdem abschließen?“ (R6-10). Die Prüfansicht zeigt „n abgeschickt, n offen: …, n X: …“ und alle eigenen Zeilen
   (Tipp öffnet die Korrektur); Name des Wettkampfrichters eintragen (vorbelegt mit dem letzten), bei offenen Starts
   „Rest auf Papier“ ankreuzen. Danach gehen Korrekturen nur noch als Vorschlag. Am Steg mit Teil schließt das Handy
   nur seinen Teil.
-- **Mehr → Ansicht**: Sonne (Vorgabe, schwarz auf weiß), Hell, Dunkel; Linkshand spiegelt den Fuß. **Sprache**: die der
+- **Mehr → Ansicht**: Sonne (Vorgabe, schwarz auf weiß), Hell, Dunkel; Linkshand spiegelt den Fuß. Geplant (Nutzer
+  21.11.2026): Vorgabe ist der Hell/Dunkel-Modus des Handys, Sonne bleibt wählbar. **Sprache**: die der
   Liste, umschaltbar; unter DM wechseln nur die Bedientexte, unter UIM auch Codes und Titel. Gemerkt auf dem Gerät.
 - **Übung**: „Üben ohne Verbindung“ im Koppel-Formular (oder Adresse `#/uebung`): Regelwerk DM/UIM und Liste wählen,
   dann dieselbe Maske mit erfundenen Starts – kein Netz, kein Bedienrechner, Kopf dauerhaft „ÜBUNG“. Gut für die
   Einweisung am Vortag; gespeichert wird nur die Ansicht.
 
-Bojen (W4, gebaut 21.11.2026, Plan [plan-wkr-w4.md](plan-wkr-w4.md); Auslegungen P1–P17, Q1–Q7, R1–R8 noch zu
-bestätigen):
+Bojen (W4, gebaut 21.11.2026, Plan [plan-wkr-w4.md](plan-wkr-w4.md); Auslegungen am 21.11.2026 beantwortet –
+bestätigt bis auf P9/U2, P10/Q2 und die Form von „Nicht vorbeigekommen“, plan-wkr-w4.md §14):
 
 - **Bojen-Maske** für Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel, die Listen der Aufbauten und unter UIM den
   Parallelslalom: je Halt eine Zeile in Fahrtfolge, die beiden Bojen eines Tores nebeneinander so, wie sie auf dem
@@ -373,6 +381,10 @@ bestätigen):
   „Papier ansehen“; ein X ist es nicht. Am Vorsteg und im Steg-Ablegen gibt es das nicht – dort heißt es X. Wer sich
   geirrt hat, korrigiert über „Zuletzt“ (auch „fehlerfrei“); eingetippte Werte am Bedienrechner heben es ebenso auf.
   Die Prüfansicht beim Abschluss zählt „n nicht vorbeigekommen: …“, Betrieb → WKR nennt es beim Abschluss.
+- **Geplant** (Nutzer 21.11.2026, noch nicht gebaut): „Nicht vorbeigekommen“ wird Disq. J (Parcours verlassen bzw.
+  falscher Parcours) statt ⊘; bei einer Disq. fragt die Maske immer nach Boje bzw. Tor, und eine Bojenzelle kann
+  Punkte und Buchstaben zugleich tragen („5 J“); das Band „Klasse n – andere Halte“ nur beim ersten Start einer neuen
+  Klasse, mit der Parcours-Zeichnung beim Hochwischen.
 
 ## Ablauf am Wettkampftag
 
@@ -411,6 +423,25 @@ Für die Person am Bedienrechner, Schritt für Schritt. Ohne Gerätebetrieb entf
 - Mit digitaler WKR-Erfassung: Zeile über „Als Nächstes“ im Blick behalten; rot = Gerät weg oder Rückfrage → Betrieb →
   WKR (Rückfragen entscheiden, notfalls „Papier ab Start …“). Am Laufende schließt jeder Wettkampfrichter seine Liste
   am Handy ab (Band „Liste abschließen“); Abschlüsse stehen unter Betrieb → WKR.
+- **Parcours-Ampel** (gebaut 21.11.2026, Nutzer P-03; Auslegungen AM1–AM10 noch zu bestätigen): Die Start-Freigabe
+  bezieht sich immer auf den Parcours, nie auf Steg oder Vorsteg – deren Wettkampfrichter arbeiten autark, auf sie
+  wird nie gewartet (sie stehen weiter mit ✓/⧗ in der Leiste, lösen aber nie „Trotzdem weiter?“ aus). Die Ampel steht
+  nur, wenn mindestens eine Parcours-Liste digital erfasst wird (Tore, Bojen, Tor 5, Mann-über-Bord,
+  Parcoursüberwachung, Start/Ziel; nicht Steg, Vorsteg, Zeit, Knoten).
+  1. „Nächster Start“ stellt die Anzeigetafel um; alle Parcours-WKR sehen den Starter, die Ampel ist **● grün „Start
+     frei“**. Solange sie grün ist, zählt dieser Start nirgends als offen – fährt er nicht los, fragt nichts.
+  2. Fährt er durch das Start/Ziel-Tor: **„Durchs Start-Tor“** tippen (versehentlich: „Doch nicht durch“). Die Ampel
+     wird auch von selbst **● rot**, sobald ein Parcours-WKR für ihn etwas abschickt. Rot bleibt sie, auch wenn er den
+     Parcours schon wieder verlassen hat; daneben steht, welche Listen noch fehlen.
+  3. Haben alle digitalen Parcours-Listen abgeschickt: **● frei** – der Nächste kann. „Nächster Start“ bei rot fragt
+     „Trotzdem weiter?“ (nie gesperrt); Papier, pausierte und abgemeldete Listen halten nichts auf.
+  4. **Auto-Modus** (Einstellungen → Startfolge, Vorgabe aus): Ist jede Parcours-Liste digital und hat ein Gerät, zählt
+     die Start-Freigabe bei „frei“ 3 Sekunden herunter („Anhalten“ hält bis zum nächsten Start) und zeigt dann den
+     Nächsten des laufenden Laufs. Nie von selbst: einen neuen Lauf beginnen, Nachzuholende oder Zurückgestellte,
+     bei offener Rückfrage, bei Meldung „Pause“/„Störung“, nach „Zurück“. Fehlt an einer Liste das Gerät, steht dort
+     „Auto aus: … ohne Gerät oder auf Papier“. Den Countdown führt der Bedienrechner, der die Verbindung hält.
+  5. Die Parcours-WKR sehen in der Starterkarte einen kleinen Punkt „Start frei“ bzw. „im Parcours“. Anzeigetafel und
+     Zuschauerliste zeigen keine Ampel.
 - Verbindung lesen: „verbunden“ ist gut; „gestört – verbindet neu“ und „zu viele Anfragen – weiter nach einer Pause“
   lösen sich meist von selbst; „keine Verbindung“ länger als einige Minuten → [Störungen](#störungen).
 - Kontingent ab und zu ansehen; bei Warnung sparsamer schalten (siehe [Kontingent](#kontingent-des-servers)).

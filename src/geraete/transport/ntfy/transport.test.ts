@@ -981,6 +981,44 @@ describe('Befunde der E5-Prüfung (16.11.2026)', () => {
     await bis(() => g2.sichten().some((s) => gleich(s, { steg: 'neu' })))
   })
 
+  it('erste Liste, während das Gerät weg war (Prüfbefund 21.11.2026, W3-24): Schlüssel kommt im Einstieg, die Sicht der neuen Gruppe danach ohne weitere Änderung', async () => {
+    const raum = neuerRaum(SERVER)
+    const h = host(raum)
+    bediene(h)
+    await starte(h)
+    const speicher = geraetSpeicherImSpeicher()
+    const schluessel = neueGeraeteSchluessel()
+    const neu = () => {
+      const t = new GeraetTransport({
+        server: SERVER, raum: raum.r, hostSign: fromBase64Url(raum.sign.pk)!, hostBox: fromBase64Url(raum.box.pk)!,
+        lesen: [raum.oeffentlich.a], oeffentlich: { k: raum.gruppen.ko.k, e: 1 }, koppeln: koppelThema(raum.oeffentlich.a, CODE),
+        ich: { id: 'geraet-a', schluessel }, speicher, sichtFassung: SV, zeiten: SCHNELL,
+      })
+      laufend.push(t)
+      return { t, ...empfaenger(t) }
+    }
+    const g1 = neu()
+    await g1.t.start()
+    g1.t.sende({ art: 'hallo', name: 'geraet-a', code: CODE })
+    await bis(() => g1.direkt('willkommen'))
+    await ruhe()
+    g1.t.stop()
+
+    // Weg (Funkloch, gesperrt): Liste zugewiesen – neue Gruppe, Schlüssel an das Gerät, die Sicht geht EINMAL hinaus.
+    h.t.legeGruppeAn('liste')
+    h.t.verwalte((r) => { r.geraete['geraet-a'].gruppen.push('liste') })
+    expect(h.t.schickeSchluessel('geraet-a')).toBe(true)
+    h.t.verteile('liste', { liste: 'erste' })
+    // Danach noch etwas auf ko: Die Einstiegs-Abfrage endet damit, `since` des Abos liegt hinter der Listen-Sicht.
+    h.t.verteile(OEFFENTLICH, { ko: 'später' })
+    expect(await h.t.bisGesendet(5000)).toBe(true)
+    await bis(() => h.speicher.lies()!.ausstehend.length === 0)
+    const g2 = neu()
+    await g2.t.start()
+    await bis(() => g2.sichten().some((s) => gleich(s, { liste: 'erste' })))
+    expect(speicher.lies()!.gruppen.liste).toBeDefined()
+  })
+
   it('Leitung: nie zwei Abos – auch nicht, wenn sich die Themen während des Einstiegs ändern', async () => {
     // Host: liesAuch gleich nach start(), während des Einstiegs.
     const raum = neuerRaum(SERVER)

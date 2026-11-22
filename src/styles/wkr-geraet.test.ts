@@ -38,7 +38,9 @@ describe('WKR-Maske: Mindestgrößen und Sonnenmodus (styles/wkr-geraet.css)', (
     expect(t['touch-action']).toBe('manipulation')
   })
 
-  it('Sonne ist Vorgabe: schwarz auf weiß mit 3-px-Rändern, ohne prefers-color-scheme', () => {
+  // Seit 21.11.2026 (GF1) ist „Wie Gerät“ Vorgabe – das System liest components/wkr/systemModus.ts in JS und setzt
+  // `data-modus`; die CSS bleibt ohne @media, damit die Farben nur an `data-modus` hängen.
+  it('Sonne ist die Grundregel: schwarz auf weiß mit 3-px-Rändern, ohne prefers-color-scheme', () => {
     const t = regel('.wkr-geraet')
     expect([t['--wkr-grund'], t['--wkr-text'], t['--wkr-rand']]).toEqual(['#ffffff', '#000000', '3px'])
     expect(t.background).toBe('var(--wkr-grund)')

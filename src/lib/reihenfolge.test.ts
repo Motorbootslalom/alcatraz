@@ -194,16 +194,26 @@ describe('Reducer: ORDER_STARTERS und SHUFFLE_STARTERS', () => {
   })
 })
 
-// Drei Stufen je Spaltenkopf (Wunsch des Nutzers vom 21.11.2026, Befund 16).
+// Drei Stufen je Spaltenkopf (Wunsch des Nutzers vom 21.11.2026, Befund 16; Folge bestätigt 21.11.2026 S-01).
 describe('Stufen der Sortierung', () => {
-  it('Klick 1 absteigend, Klick 2 aufsteigend, Klick 3 keine; eine andere Spalte beginnt bei Stufe 1', () => {
+  it('Klick 1 aufsteigend A→Z, Klick 2 absteigend Z→A, Klick 3 keine; eine andere Spalte beginnt bei A→Z', () => {
     const k1 = naechsteSortierung(null, 'herkunft')
-    expect(k1).toEqual({ spalte: 'herkunft', absteigend: true })
+    expect(k1).toEqual({ spalte: 'herkunft', absteigend: false })
     const k2 = naechsteSortierung(k1, 'herkunft')
-    expect(k2).toEqual({ spalte: 'herkunft', absteigend: false })
+    expect(k2).toEqual({ spalte: 'herkunft', absteigend: true })
     expect(naechsteSortierung(k2, 'herkunft')).toBeNull()
-    expect(naechsteSortierung(k2, 'nachname')).toEqual({ spalte: 'nachname', absteigend: true })
-    expect(naechsteSortierung(k1, 'nachname')).toEqual({ spalte: 'nachname', absteigend: true })
+    expect(naechsteSortierung(k2, 'nachname')).toEqual({ spalte: 'nachname', absteigend: false })
+    expect(naechsteSortierung(k1, 'nachname')).toEqual({ spalte: 'nachname', absteigend: false })
+  })
+
+  it('aufsteigend = kleinster Wert zuerst: XS vor XL, die Ältesten zuerst; ohne Angabe hinten', () => {
+    const feld = [
+      mk('a', '401', { groesse: 'XL', geburtsdatum: '2014-05-01' }),
+      mk('b', '402', { groesse: '', geburtsdatum: '' }),
+      mk('c', '403', { groesse: 'XS', geburtsdatum: '2011-02-03' }),
+    ]
+    expect(ordneNach(feld, { spalte: 'groesse', absteigend: false }, 'verein').map((p) => p.id)).toEqual(['c', 'a', 'b'])
+    expect(ordneNach(feld, { spalte: 'geburtsdatum', absteigend: false }, 'verein').map((p) => p.id)).toEqual(['c', 'a', 'b'])
   })
 
   it('Pfeile ↓ ↑ ↕', () => {

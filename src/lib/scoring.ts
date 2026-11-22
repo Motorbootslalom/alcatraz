@@ -9,8 +9,9 @@ import type { Column, ErrorDef, SheetDef } from '../types'
 // Regeln:
 //   • 'buoy'-Zelle: enthält sie eine Zahl → das ist die Punktzahl direkt
 //                   (der WKR trägt 5, 10, 15 … ein, nicht die Anzahl).
-//                   enthält sie einen Buchstaben A-X → Disqualifikation an
-//                   genau dieser Stelle (zählt nicht als Punkte).
+//                   dahinter ein Buchstabe A-X → Disqualifikation an genau
+//                   dieser Stelle; die Punkte davor zählen trotzdem („5J“,
+//                   W4-12 vom 21.11.2026, bojenWert).
 //   • 'code'-Zelle: kommagetrennte Fehlercodes → Punkte laut errorTable.
 //                   Die Punkte erscheinen (read-only) in der zugehörigen pointsCol:
 //                   als Summe, bei `einzeln` einzeln in der Reihenfolge der Codes
@@ -52,11 +53,18 @@ export function columnCellKeys(nr: string, col: Column): string[] {
 
 const LETTER = /^[A-Za-z]$/
 
-/** Eine Bojen-Zelle: Punkte (5, 10, 15 … direkt eingetragen) oder ein Disq-Buchstabe. */
+/**
+ * Eine Bojen-Zelle (lib/disq.ts sanitizeBuoy): Punkte (5, 10, 15 … direkt eingetragen), dahinter höchstens ein
+ * Disq-Buchstabe – „5“, „J“, „5J“. Seit 21.11.2026 (W4-12, BZ1/BZ3) zählen die Punkte auch neben dem Buchstaben:
+ * Er disqualifiziert den Lauf, die Punkte bleiben sichtbar (wie Fehlerpunkte neben einem Disq. in einer
+ * Fehler-Spalte). Vorher galt eine Zelle mit Buchstaben als 0 Punkte. Tolerant wie sanitizeBuoy: alle Ziffern, der
+ * erste Buchstabe.
+ */
 export function bojenWert(raw: string): { punkte: number; disq?: string } {
-  const v = raw.trim()
-  if (LETTER.test(v)) return { punkte: 0, disq: v.toUpperCase() }
-  return { punkte: parseInt(v, 10) || 0 }
+  const ziffern = raw.replace(/\D/g, '')
+  const disq = /[A-Za-z]/.exec(raw)?.[0].toUpperCase()
+  const punkte = ziffern ? parseInt(ziffern, 10) : 0
+  return disq ? { punkte, disq } : { punkte }
 }
 
 /** Die Buchstaben einer Disq-Zelle. */

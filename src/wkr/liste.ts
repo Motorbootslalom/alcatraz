@@ -81,6 +81,20 @@ export function listeVonBogen(bogen: Pick<WkrBogen, 'parcoursId' | 'typeId' | 'r
   return { bereich: bogen.parcoursId, typeId: bogen.typeId, racecourse: null }
 }
 
+/**
+ * Ist die Liste eine Parcours-Liste (Nutzer 21.11.2026, P-03: „Die Freigabe bezieht sich immer auf den Parcours und nie
+ * auf den Steg oder Vorsteg“)? Erkannt an den Feldern, nicht an der Kennung – wie maskeNachFeldarten, damit eigene
+ * Aufbauten und neue Positionen von selbst richtig fallen (WKR_ANNAHMEN.parcoursListeAnFeldern, AM1): eine Liste mit
+ * Lauf, nicht geteilt (Steg), nicht „einmal je Starter“ (Vorsteg) und mit mindestens einem Feld außer Zeit und Summe
+ * (AM2: reine Zeitnahme ist keine Bewertung). Unbekannte Listen sind keine.
+ */
+export function istParcoursListe(konfig: Pick<Konfig, 'getPositions' | 'getSheetDef'>, typeId: string): boolean {
+  if (!konfig.getPositions().some((p) => p.typeId === typeId)) return false
+  const def = konfig.getSheetDef(typeId)
+  if (def.showLauf === false || def.einmalJeStarter === true || teileVon(typeId)) return false
+  return def.columns.some((c) => c.kind !== 'time' && c.kind !== 'sum')
+}
+
 /** Die Teile einer Liste (Steg: Ablegen/Anlegen); `undefined`, wenn sie nicht geteilt wird. */
 export function teileVon(typeId: string): ListenTeile | undefined {
   return Object.hasOwn(WKR_ANNAHMEN.teile, typeId) ? WKR_ANNAHMEN.teile[typeId] : undefined

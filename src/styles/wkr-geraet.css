@@ -1,8 +1,9 @@
 /*
  * WKR-Maske auf dem Handy (W3.3, Plan docs/plan-wkr-w3.md §5.2/§5.8, 21.11.2026): hochkant, Bedienung im unteren
- * Drittel, große Ziele für Handschuhe, Sonne als Vorgabe (G1: schwarz auf weiß, 3-px-Ränder). Farben NUR über die
- * Tokens --wkr-* – unabhängig von prefers-color-scheme und vom Farbschema der App: die Wahl auf dem Gerät gilt
- * (`data-modus` an .wkr-geraet). Zielgrößen über `data-ziel` an jedem Knopf: `gross` ≥ --wkr-ziel (64 px: Codes,
+ * Drittel, große Ziele für Handschuhe. Farben NUR über die Tokens --wkr-* – unabhängig vom Farbschema der App:
+ * `data-modus` an .wkr-geraet ist der wirksame Modus (Sonne = Grundregel, schwarz auf weiß, 3-px-Ränder; Hell;
+ * Dunkel). Vorgabe seit 21.11.2026 „Wie Gerät“ (Nutzer P-18/W3-01, GF1): WkrGeraet liest den Hell/Dunkel-Modus des
+ * Systems in JS (components/wkr/systemModus.ts, live) und setzt hell bzw. dunkel – hier steht deshalb kein @media dafür. Zielgrößen über `data-ziel` an jedem Knopf: `gross` ≥ --wkr-ziel (64 px: Codes,
  * Hauptknopf, Disq.), `klein` ≥ --wkr-ziel-min (48 px: Reiter, Ausweichen, Zuletzt) – nie darunter. Keine Animation
  * und kein Übergang außer dem Blitz beim Wechsel des Starts (Akku; styles/wkr-geraet.test.ts prüft das).
  *
@@ -24,11 +25,17 @@
   --wkr-haupt-text: #ffffff;
   --wkr-rot: #b00000;
   --wkr-rot-text: #ffffff;
+  /* Parcours-Ampel in der Starterkarte (21.11.2026, AM9): nur der Punkt ist farbig, das Wort steht in --wkr-text. */
+  --wkr-gruen: #006b2e;
+  --wkr-ampel-rot: #b00000;
   --wkr-warn: #ffe100;
   --wkr-warn-text: #000000;
   --wkr-blitz: #000000;
   --wkr-uebung: #0047b3;
   --wkr-uebung-text: #ffffff;
+  /* Parcours-Zeichnung (W4-13): schwarze Linien – auch im Dunkel-Modus auf Weiß, sonst wäre sie unsichtbar. */
+  --wkr-bild-grund: #ffffff;
+  --wkr-bild-text: #000000;
   /* „entfällt“: das einzige Grau – je Modus mit genug Kontrast (Sonne/Hell 7,5:1 auf Weiß, Dunkel 8,4:1 auf Schwarz). */
   --wkr-grau: #555555;
   /* Rand neben der Spalte auf breiten Bildschirmen (bis W5): leise, ohne Kontrastpflicht – dort steht nichts. */
@@ -87,12 +94,15 @@
   --wkr-grau: #aaaaaa;
   --wkr-umfeld: #161616;
   --wkr-umfeld-linie: #555555;
+  --wkr-gruen: #4ade80;
+  --wkr-ampel-rot: #ff5c5c;
   color-scheme: dark;
 }
 
 /*
  * Niedrige Handys (360 × 640 und kleiner): Die Starterkarte ist der größte Block über den Codes – die Nummer etwas
- * kleiner, damit mehr Codes ohne Scrollen sichtbar sind (Prüfbefund W3, 21.11.2026; noch zu bestätigen, M1).
+ * kleiner, damit mehr Codes ohne Scrollen sichtbar sind (Prüfbefund W3, 21.11.2026, M5;
+ * die Höhe selbst bestätigt 21.11.2026, W3-51 sonst anders – WKR_ANNAHMEN.bildschirmOhneNachrutschen).
  */
 @media (max-height: 700px) {
   .wkr-geraet {
@@ -108,7 +118,7 @@
  * Die Spalte entsteht über padding-inline, nicht max-width: Kinder, klebender Fuß (`.wkr-unten`, -12 px Rand = genau
  * 560 px) und Bänder bleiben darin; Grund und Trennlinie malt ein Verlauf. Overlay und Blitz decken weiter den ganzen
  * Bildschirm. Die eigentlichen Pad-Masken (zwei Listen nebeneinander, F15) kommen mit W5 – dann fällt diese Regel.
- * 21.11.2026, noch zu bestätigen (WKR_ANNAHMEN.padSpalteBisW5).
+ * 21.11.2026, bestätigt 21.11.2026 (Fragenseite R6-17, WKR_ANNAHMEN.padSpalteBisW5).
  */
 @media (min-width: 700px) {
   .wkr-geraet {
@@ -365,6 +375,21 @@
   font-size: 26px;
 }
 
+/* Parcours-Ampel (AM9): Punkt + Wort, bricht um (360 px), keine feste Breite. */
+.wkr-starterkarte-ampel {
+  color: var(--wkr-text);
+}
+.wkr-starterkarte-ampel-licht {
+  font-size: 1.2em;
+}
+.wkr-starterkarte-ampel[data-ampel='gruen'] .wkr-starterkarte-ampel-licht,
+.wkr-starterkarte-ampel[data-ampel='frei'] .wkr-starterkarte-ampel-licht {
+  color: var(--wkr-gruen);
+}
+.wkr-starterkarte-ampel[data-ampel='rot'] .wkr-starterkarte-ampel-licht {
+  color: var(--wkr-ampel-rot);
+}
+
 /* --- Mitte: Codes, Disq., Vorsteg (unteres Drittel) --- */
 
 .wkr-mitte,
@@ -460,6 +485,21 @@
   font-weight: 800;
   text-align: right;
   white-space: nowrap;
+}
+
+/*
+ * Code, der laut Regelwerk in dieser Klasse nicht gilt (Nutzer 21.11.2026, W3-07, GF2): ausgegraut, aber drückbar –
+ * gestrichelter Rand und --wkr-grau (Kontrast je Modus ≥ 4,5:1, Test), kein opacity (in der Sonne unlesbar).
+ */
+.wkr-knopf.wkr-code--aus {
+  border-style: dashed;
+  border-color: var(--wkr-grau);
+  color: var(--wkr-grau);
+}
+
+.wkr-code-aus {
+  flex-basis: 100%;
+  font-size: 0.8em;
 }
 
 /* Disq.: Der Zustand („noch einmal tippen“) ist Text, keine Zahl – rechts neben dem Kurztext, notfalls darunter. */
@@ -702,21 +742,26 @@
 
 /*
  * Disq. an der Boje (Nutzer 21.11.2026, U1): rot wie die Disq. auf dem Papier, dazu „Disq. G“ als Text – nie nur Farbe.
- * Im Disq.-Modus sind die Bojen gestrichelt umrandet (welche Knöpfe jetzt anderes tun); Bojen ohne Buchstaben grau.
+ * Seit W4-12 (21.11.2026) unter den Punkten („✔ 5“ / „Disq. G“), beides steht in der Zelle.
  */
 .wkr-knopf.wkr-bojen-knopf--disq {
   background: var(--wkr-rot);
   color: var(--wkr-rot-text);
 }
 
-/* Nur die antippbaren – gesperrte Bojen (grau) tragen das rote „jetzt antippbar“ nicht (Prüfbefund 21.11.2026). */
-.wkr-bojen[data-disq-modus] .wkr-bojen-knopf:not(:disabled) {
-  outline: var(--wkr-rand) dashed var(--wkr-rot);
-  outline-offset: 2px;
+/*
+ * Wahl des Orts einer Disq. auf Bojen-Listen (W4-12, BZ4, 21.11.2026, WkrDisqOrt.vue): dieselben Zeilen wie die
+ * Bojen-Maske, darunter „Keine Boje / ganzer Parcours“; Texte brechen um (N3, 360 px).
+ */
+.wkr-disq-ort {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
 }
 
-.wkr-bojen-disq .wkr-band {
+.wkr-disq-ort-text {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* V1 (21.11.2026): Kopf eines Orts in der Ansicht „Wie der Parcours liegt“ – wie die Wege, aber ohne Großschrift. */
@@ -764,6 +809,58 @@
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   gap: var(--wkr-abstand);
+}
+
+/*
+ * Mehr als zwei Listen (Nutzer 21.11.2026, W3-03, GF8): Reiter mit Mindestbreite und waagerechtem Bildlauf – der Text
+ * bricht um, wird aber nie abgeschnitten; bei vier Listen auf 360 px rollt die Leiste.
+ */
+.wkr-listenreiter {
+  grid-auto-columns: minmax(7.5em, 1fr);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* Pad quer mit genau zwei Listen (W3-03, GF8): zwei Spalten der Handy-Maske nebeneinander, je höchstens 560 px. */
+.wkr-geraet[data-nebeneinander] {
+  --wkr-spalte: 1144px;
+  max-width: none;
+}
+
+.wkr-nebeneinander {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 560px));
+  justify-content: center;
+  gap: 24px;
+}
+
+.wkr-spalte {
+  min-width: 0;
+}
+
+/*
+ * Steg-Reiter (Nutzer 21.11.2026, W3-51, GF3): Teil oben, darunter Kopf-Nummer und ✓ bzw. Zahl offener Starts – zwei
+ * Zeilen fest reserviert, damit der Reiter nie springt, wenn eine Nummer kommt oder geht.
+ */
+.wkr-stegreiter-knopf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(2 * 1.25em + 16px);
+}
+
+.wkr-stegreiter-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 6px;
+  min-height: 1.25em;
+}
+
+.wkr-stegreiter-stand {
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 /* --- Mehr, Ruhe --- */
@@ -1065,4 +1162,47 @@
 /* Umschaltknopf DISQ/FEHLER (Befund 10): auf schmalen Handys etwas kleiner, damit „PENALTY“ ganz bleibt. */
 .wkr-knopf--disq {
   font-size: clamp(16px, 5.5vw, 20px);
+}
+
+/* Übung (Nutzer 21.11.2026, W3-15, GF4): Erklärung oben (einklappbar) und „Übung beenden“ unter den Knöpfen. */
+.wkr-uebung-erklaerung {
+  border: var(--wkr-rand) solid var(--wkr-uebung);
+  background: var(--wkr-flaeche);
+  color: var(--wkr-text);
+  padding: 4px 8px;
+}
+.wkr-uebung-erklaerung > summary {
+  cursor: pointer;
+  list-style-position: inside;
+}
+.wkr-uebung-erklaerung > p {
+  margin: 4px 0;
+  font-size: 0.9em;
+}
+.wkr-uebung-ende {
+  display: flex;
+  padding-block: var(--wkr-abstand) calc(2 * var(--wkr-abstand));
+}
+.wkr-uebung-ende > .wkr-knopf {
+  flex: 1;
+}
+
+/* Parcours-Zeichnung unter den Knöpfen (Nutzer 21.11.2026, W4-13, GF9): volle Breite, nie breiter als die Spalte. */
+.wkr-parcours-bild {
+  margin: 0;
+  padding: var(--wkr-abstand);
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  background: var(--wkr-bild-grund);
+  color: var(--wkr-bild-text);
+}
+
+.wkr-parcours-bild > figcaption {
+  font-size: 0.85em;
+  font-weight: 700;
+}
+
+.wkr-parcours-bild > img {
+  display: block;
+  width: 100%;
+  height: auto;
 }

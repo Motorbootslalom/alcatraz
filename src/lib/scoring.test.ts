@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { configFor } from '../config/konfig'
 import { columnsForClass } from './bogen'
-import { cellKey, scoreRow, summenText } from './scoring'
+import { bojenWert, cellKey, scoreRow, summenText } from './scoring'
 
 // Aus dem Fehlerpunkte-Prototyp übernommen; die Konfiguration ist hier eine reine Funktion.
 const { getSheetDef, positionAllowsClass } = configFor()
@@ -36,6 +36,25 @@ describe('scoreRow - Tor-Liste (Bojen)', () => {
     expect(r.disqs).toHaveLength(1)
     expect(r.disqs[0].code).toBe('G')
     expect(r.disqs[0].where).toContain('Tor 3')
+  })
+
+  it('Punkte und Buchstabe in einer Zelle (W4-12, 21.11.2026, BZ1/BZ3): Punkte zählen, Buchstabe disqualifiziert', () => {
+    const nr = '303'
+    const values = { [cellKey(nr, 't3a', 1)]: '5G', [cellKey(nr, 't5', 0)]: '10J' }
+    const r = scoreRow(def, nr, getter(values))
+    expect(r.sum).toBe(15)
+    expect(r.disqs.map((d) => d.code)).toEqual(['G', 'J'])
+  })
+
+  it.each([
+    ['5', { punkte: 5 }],
+    ['J', { punkte: 0, disq: 'J' }],
+    ['5J', { punkte: 5, disq: 'J' }],
+    ['10g', { punkte: 10, disq: 'G' }],
+    ['5 J', { punkte: 5, disq: 'J' }],
+    ['', { punkte: 0 }],
+  ])('bojenWert(„%s“)', (roh, wert) => {
+    expect(bojenWert(roh)).toEqual(wert)
   })
 })
 

@@ -1,7 +1,7 @@
 import nacl from 'tweetnacl'
 import { fromBase64Url, isBase64Url, toBase64Url } from './codec'
 import { direktThema, geraeteThema, gruppenThema, istThema, normalisiereServer, zufallsThema } from '../../themen'
-import { DIREKT, istGeraetId, istGruppe, istOeffentlich, OEFFENTLICH, ZUSCHAUER, type GeraeteNachricht, type GruppenSchluessel } from '../protokoll'
+import { DIREKT, istGeraetId, istGeraeteTyp, istGruppe, istOeffentlich, OEFFENTLICH, ZUSCHAUER, type GeraeteNachricht, type GeraeteTyp, type GruppenSchluessel } from '../protokoll'
 
 /**
  * Raum und Schlüssel für den Betrieb über ntfy (Vorbild tafel transport/ntfy/room.ts, 16.11.2026 neu geschrieben
@@ -50,6 +50,13 @@ export interface GebundenesGeraet {
   /** W1: aus dem letzten Lebenszeichen – Zeilen, die das Gerät noch nicht los ist, und Akku in Prozent. */
   wartend?: number
   akku?: number
+  /** Art des Geräts (W3-25, 21.11.2026): beim ersten Koppeln vom Gerät gemeldet, am Bedienrechner änderbar. */
+  typ?: GeraeteTyp
+  /**
+   * WKR-Namen, die der WKR auf dem Gerät geändert hat, je Liste (Nutzer 21.11.2026, W3-13, WKR_ANNAHMEN WN2) – aus dem
+   * letzten Lebenszeichen. Gerätelokal am Bedienrechner, nie im AppState (außer im Abschluss).
+   */
+  wkrNamen?: Record<string, string>
 }
 
 /** Ein entzogenes Gerät, für die Geräteliste (E7): ohne Gruppenschlüssel – es kann nichts mehr. */
@@ -160,6 +167,8 @@ export function istHostRaum(wert: unknown): wert is HostRaum {
     if (g.aufgaben !== undefined && !Array.isArray(g.aufgaben)) return false
     if ((g.seit !== undefined && !istZahl(g.seit)) || (g.zuletzt !== undefined && !istZahl(g.zuletzt))) return false
     if ((g.wartend !== undefined && !istZahl(g.wartend)) || (g.akku !== undefined && !istZahl(g.akku))) return false
+    if (g.typ !== undefined && !istGeraeteTyp(g.typ)) return false
+    if (g.wkrNamen !== undefined && (!istObjekt(g.wkrNamen) || !Object.values(g.wkrNamen).every((n) => typeof n === 'string' && n.length <= 60))) return false
   }
   if (wert.koppeln !== undefined && wert.koppeln !== null && !istObjekt(wert.koppeln)) return false
   if (wert.entzogen !== undefined) {

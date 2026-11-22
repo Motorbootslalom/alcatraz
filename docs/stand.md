@@ -87,21 +87,25 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   Namen, Protokollfassung 2; Prüfbefunde vom 21.11.2026 behoben) – nur gegen den nachgebauten Server getestet.
   W2 „Bedienrechner“ ist gebaut ([plan-wkr-w2.md](plan-wkr-w2.md): Matrix Listen × Starts mit Geräte-Ampel, Eingang
   für Rückfragen und Vorschläge, ◆ und „Papier ansehen“ in der Erfassung, Geräteleiste und Rückstandswarnung in der
-  Start-Freigabe und auf dem Freigabe-Handy; Prüfbefunde vom 21.11.2026 behoben, Auslegungen noch zu bestätigen).
+  Start-Freigabe und auf dem Freigabe-Handy; Prüfbefunde vom 21.11.2026 behoben, Auslegungen bestätigt 21.11.2026).
   W3 „Handy, Katalog“ ist gebaut ([plan-wkr-w3.md](plan-wkr-w3.md): Maske „Knöpfe“ für Steg, Tor 5, MüB und
   Vorsteg mit Doppeltipp-Schutz, Liste zuweisen, „Liste abschließen“, Sonnenmodus, Probe, Übung ohne Netz `#/uebung`;
-  Prüfbefunde vom 21.11.2026 behoben, Auslegungen noch zu bestätigen).
+  Prüfbefunde vom 21.11.2026 behoben, Auslegungen am 21.11.2026 abends beantwortet – bestätigt bis auf die
+  anders entschiedenen, plan-wkr-w3.md §15).
   Erster Handy-Test (21.11.2026, Befunde 1–16, N1–N10 in WKR_ANNAHMEN) eingearbeitet: Text nie abgeschnitten,
   Farben nur der Maske, Overlay „wird übertragen …“, DISQ/FEHLER, Ende der Probe, Wake-Lock-Hinweis und
   `npm run dev:https`, Koppeln über den QR-Code als Hauptweg, Team-Filter der Zuschauerliste, Rückfrage schon ab
   einem offenen Start (alte W2-Vorgabe 2/„warnen“ wird beim Laden einmal gehoben), Geräteleiste ✓/⧗/✕/▭ (ohne Gerät
   ✕), Sortierung im Reiter „Starter“ in drei Stufen. Zählfehler „3 offen“ trotz ✓ am Handy (Befund 15): zwei Tabs
   derselben Kopplung – jetzt sendet nur der zuletzt geöffnete Tab (geraete/tabWache.ts), der ältere bietet „Hier
-  weitermachen“. Offen zur Entscheidung: R je Listenart (WKR_ANNAHMEN N8).
+  weitermachen“. N8 vom Nutzer 21.11.2026 neu gefasst: Start-Freigabe nur für den Parcours mit Parcours-Ampel und
+  Auto-Modus, Steg und Vorsteg autark (gebaut 21.11.2026, siehe unten).
   W4 „Handy, Bojen“ ist gebaut ([plan-wkr-w4.md](plan-wkr-w4.md): Bojen-Maske in Fahrtfolge mit Umschalter
   Hinweg/Rückweg, Tor-5-Zähler, „Nicht vorbeigekommen“; Prüfbefunde vom 21.11.2026 behoben, §12, Auslegungen
-  P1–P17, Q1–Q7, R1–R8, S1–S5 noch zu bestätigen).
-  Wünsche vom 21.11.2026 (WKR_ANNAHMEN T1–T10, noch zu bestätigen): Steg-Zeitversatz (Ablegen sieht „Am Steg“
+  P1–P17, Q1–Q7, R1–R8, S1–S5 am 21.11.2026 abends beantwortet – bestätigt bis auf P9/U2, P10/Q2 und die Form
+  von „Nicht vorbeigekommen“ (künftig Disq. J), plan-wkr-w4.md §14).
+  Wünsche vom 21.11.2026 (WKR_ANNAHMEN T1–T10, bestätigt 21.11.2026 bis auf T9 – R6-10): Steg-Zeitversatz (Ablegen
+  sieht „Am Steg“
   vorab, Anlegen erst, wenn das Boot zurück ist – nie derselbe Starter in beiden; das Anlegen des Starts auf der
   Tafel zählt nie im Rückstand), „Abmelden“ am Gerät wirkt wie Liste entfernen (nur was kein anderes Gerät mehr
   abdeckt; das Anlegen im Boot geht beim Abmelden bzw. Pausieren mit aufs Papier; neu Zuweisen holt das Gerät
@@ -111,7 +115,17 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   Bojen-Maske (wie auf dem Papier, „− letzte zurück“ stellt den vorigen Stand der Zelle wieder her), Ansicht „Wie
   der Parcours liegt“ mit Spiegeln, Druck nur für Listen auf Papier bzw. „beides“, WKR-Bögen je Position in der
   Folge der Verzahnung, Übung mit 2–6 s nach dem Abschicken. Prüfbefunde dazu behoben.
-  Offen: Pad, Knoten und Zeit-Listen (W5), Feldtest.
+  Antworten der Runden 3–6 (21.11.2026 abends) umgebaut ([plan-antworten-runde3-6.md](plan-antworten-runde3-6.md),
+  Auslegungen AM, BZ, GF, WN noch zu bestätigen): Parcours-Ampel mit Auto-Modus in der Start-Freigabe, „Mehr → Liste
+  abschließen“ entfernt, Rückfrage beim Abschluss im laufenden Lauf, Bojenzelle mit Punkten und Disq.-Buchstabe,
+  Ansicht „Wie Gerät“ als Vorgabe, Codes anderer Klassen ausgegraut, Übung mit Erklärung und „Übung beenden“, „So
+  lassen“ an den Bedienrechner, erste Liste ohne Neuladen, Geräteart beim Koppeln, bis vier Listen je Gerät,
+  Start-Freigabe nie vorgewählt, „nicht vorbeigekommen“ = Disq. J, WKR-Name aus der Einteilung, Sortierung A→Z
+  zuerst. Prüfbefunde dazu behoben (21.11.2026): alte Sonne ohne eigene Wahl gilt als „Wie Gerät“, der letzte Start
+  auf dem Weg zum Anlegen zählt als „läuft noch“, erste Liste auch nach einem Funkloch ohne Neuladen, Countdown des
+  Auto-Modus in jedem Bedienfenster.
+  Offen: Pad, Knoten und Zeit-Listen (W5), Feldtest; CI-Test „Probe beim Einrichten … einmal je Raum“ wackelt
+  unter Last (vorerst zurückgestellt).
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
   Server getestet); seit E7 auch die Start-Freigabe vom gekoppelten Handy. Offen: Feldtest mit echten Handys und

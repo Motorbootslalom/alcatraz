@@ -223,6 +223,8 @@ function zumEingang(): void {
                     {{ ZEICHEN[l.zellen[s.key].zelle] }}
                     <!-- „Nicht vorbeigekommen“ (W4.3, R4): Zeichen UND Wort – ⊘ allein läse sich wie „leer“. -->
                     <span v-if="l.zellen[s.key].zelle === 'nv'" class="wkr-mzelle-wort">{{ t('betrieb.wkr.zelle.nv.kurz') }}</span>
+                    <!-- W3-17 (21.11.2026, GF10): ✓ mit Disq.-Marke – „nicht vorbeigekommen“ ist jetzt Disq. J. -->
+                    <span v-if="l.zellen[s.key].disq" class="wkr-mzelle-wort" data-teil="mzelle-disq">{{ t('betrieb.wkr.zelle.disq', { disq: l.zellen[s.key].disq! }) }}</span>
                   </button>
                 </td>
                 <td class="wkr-stand" data-teil="wkr-stand">

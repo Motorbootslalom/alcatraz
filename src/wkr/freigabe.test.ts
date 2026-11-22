@@ -6,6 +6,7 @@ import type { AppState } from '../types'
 import { erfassungsLage, type GeraetAngabe } from './lage'
 import { FREIGABE_SICHT_FASSUNG, liesFreigabe, sichtFreigabe, type FreigabeErfassung } from './freigabe'
 import { listenKennung, type Liste } from './liste'
+import { parcoursAmpel } from './ampel'
 import { pruefeZeile } from './zeile'
 
 // Freigabe-Sicht (W2.4, Plan W2 §5, A9, D1–D2): Positivliste wie betrieb/sicht.test.ts – nur Listentitel, Stand,
@@ -27,6 +28,8 @@ function stand(): { s: AppState; geraete: GeraetAngabe[] } {
   const starter = Array.from({ length: 6 }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(101 + i)))
   let s = reducer(wkrBetriebsStand(starter), { type: 'WKR_LISTE', liste: TOR, modus: 'digital', zeit: 100 })
   for (let i = 0; i < 4; i++) s = zeigeNaechsten(s, P1, 1000 + i * 100)
+  // Der vierte ist durchs Start-Tor (P-03): Er zählt auf der Parcours-Liste mit (AM5).
+  s = reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: s.betrieb.bereiche[P1].gezeigt[3].ref, an: true, zeit: 1350 })
   const erster = JSON.parse(s.betrieb.bereiche[P1].gezeigt[0].ref)[1] as string
   s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: LAUF, starter: erster, feld: FELD, wert: '7' }] })
   const r = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: 1, s: s.betrieb.bereiche[P1].gezeigt[0].ref, c: [[FELD, '5', '']] })
@@ -36,19 +39,25 @@ function stand(): { s: AppState; geraete: GeraetAngabe[] } {
   return { s, geraete }
 }
 
-const sicht = (s: AppState, geraete: GeraetAngabe[], jetzt = 10_000): FreigabeErfassung =>
-  sichtFreigabe(P1, erfassungsLage(s, DM, P1, geraete, jetzt).listen, s.anzeige.wkrWarnung)
+const sicht = (s: AppState, geraete: GeraetAngabe[], jetzt = 10_000, autoIn: number | null = null): FreigabeErfassung => {
+  const lagen = erfassungsLage(s, DM, P1, geraete, jetzt).listen
+  return sichtFreigabe(P1, lagen, s.anzeige.wkrWarnung, parcoursAmpel(s, DM, P1, lagen), autoIn)
+}
 
 describe('sichtFreigabe', () => {
   it('Positivliste: genau diese Felder, je Liste nur Titel, Stand, Ampel, Zahlen, Startnummern', () => {
     const { s, geraete } = stand()
     const f = sicht(s, geraete)
-    expect(Object.keys(f).sort()).toEqual(['bereich', 'fv', 'listen', 'warnung'])
+    // fv 2 (21.11.2026, P-03): Parcours-Ampel, Auto-Modus; je Liste `parcours`.
+    expect(Object.keys(f).sort()).toEqual(['ampel', 'ampelRef', 'autoIn', 'autoMoeglich', 'autoOhne', 'bereich', 'fv', 'listen', 'perKnopf', 'warnung'])
     expect(f.fv).toBe(FREIGABE_SICHT_FASSUNG)
-    const erlaubt = ['ampel', 'bis', 'offen', 'rueckfragen', 'stand', 'titel', 'von', 'wartend', 'warnt']
+    expect(FREIGABE_SICHT_FASSUNG).toBe(2)
+    expect(f).toMatchObject({ ampel: 'rot', ampelRef: s.betrieb.bereiche[P1].gezeigt[3].ref, perKnopf: true, autoMoeglich: false, autoOhne: [], autoIn: null })
+    const erlaubt = ['ampel', 'bis', 'offen', 'parcours', 'rueckfragen', 'stand', 'titel', 'von', 'wartend', 'warnt']
     for (const l of f.listen) for (const k of Object.keys(l)) expect(erlaubt).toContain(k)
     const tor = f.listen.find((l) => l.titel === DM.getSheetDef('gate135').title)!
-    expect(tor).toEqual({ titel: DM.getSheetDef('gate135').title, stand: 'aktiv', ampel: 'gehoert', offen: 3, von: '102', bis: '104', wartend: 2, rueckfragen: 1, warnt: true })
+    expect(tor).toEqual({ titel: DM.getSheetDef('gate135').title, stand: 'aktiv', ampel: 'gehoert', offen: 3, von: '102', bis: '104', wartend: 2, rueckfragen: 1, warnt: true, parcours: true })
+    expect(f.listen.find((l) => l.titel === DM.getSheetDef('steg').title)?.parcours).toBe(false)
     // Listen ohne Eintrag: Papier, ohne Zahlen.
     const papier = f.listen.filter((l) => l.stand === 'papier')
     expect(papier.length).toBeGreaterThan(0)
@@ -87,6 +96,21 @@ describe('sichtFreigabe', () => {
   })
 })
 
+describe('sichtFreigabe – Parcours-Ampel und Auto-Modus (P-03, AM6)', () => {
+  it('Auto-Modus: aus ohne Einstellung; an, aber eine Parcours-Liste ohne Gerät/auf Papier → autoOhne; Countdown nur wirksam', () => {
+    const { s, geraete } = stand()
+    expect(sicht(s, geraete, 10_000, 3)).toMatchObject({ autoMoeglich: false, autoOhne: [], autoIn: null })
+    const an = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrAuto: true } })
+    const f = sicht(an, geraete, 10_000, 3)
+    expect(f.autoMoeglich).toBe(false)
+    // Alle anderen Parcours-Listen des Aufbaus sind Papier; Steg/Vorsteg zählen nie.
+    expect(f.autoOhne.length).toBeGreaterThan(0)
+    expect(f.autoOhne).not.toContain(DM.getSheetDef('gate135').title)
+    expect(f.autoOhne).not.toContain(DM.getSheetDef('steg').title)
+    expect(f.autoIn).toBeNull()
+  })
+})
+
 describe('liesFreigabe (Gerät)', () => {
   it('rund: was der Host baut, liest das Gerät unverändert', () => {
     const { s, geraete } = stand()
@@ -96,9 +120,15 @@ describe('liesFreigabe (Gerät)', () => {
 
   it('falsche Fassung oder Form → null; Fremdes fällt weg', () => {
     expect(liesFreigabe(null)).toBeNull()
-    expect(liesFreigabe({ fv: 2, bereich: P1, listen: [] })).toBeNull()
-    expect(liesFreigabe({ fv: 1, bereich: P1 })).toBeNull()
-    const f = liesFreigabe({ fv: 1, bereich: P1, warnung: 'sperren', listen: [{ titel: 'Tor', stand: 'x', ampel: 'rot', offen: -3, von: 1, warnt: 'ja', name: 'Geheim' }, 'kaputt'] })
-    expect(f).toEqual({ fv: 1, bereich: P1, warnung: 'warnen', listen: [{ titel: 'Tor', stand: 'papier', ampel: null, offen: 0, von: '', bis: '', rueckfragen: 0, warnt: false }] })
+    // Fassung 1 (vor der Parcours-Ampel) liest ein neues Gerät nicht mehr.
+    expect(liesFreigabe({ fv: 1, bereich: P1, listen: [] })).toBeNull()
+    expect(liesFreigabe({ fv: 2, bereich: P1 })).toBeNull()
+    const f = liesFreigabe({ fv: 2, bereich: P1, warnung: 'sperren', ampel: 'blau', ampelRef: 7, autoIn: -1, autoOhne: [3, 'Tor 2'], name: 'Geheim', listen: [{ titel: 'Tor', stand: 'x', ampel: 'rot', offen: -3, von: 1, warnt: 'ja', parcours: 'ja', name: 'Geheim' }, 'kaputt'] })
+    expect(f).toEqual({
+      fv: 2, bereich: P1, warnung: 'warnen', ampel: 'aus', ampelRef: null, perKnopf: false, autoMoeglich: false, autoOhne: ['Tor 2'], autoIn: null,
+      listen: [{ titel: 'Tor', stand: 'papier', ampel: null, offen: 0, von: '', bis: '', rueckfragen: 0, warnt: false, parcours: false }],
+    })
+    // Ampel nur mit Kennung des Starts; Countdown nur mit Auto-Modus, höchstens 60 s.
+    expect(liesFreigabe({ fv: 2, bereich: P1, listen: [], ampel: 'gruen', ampelRef: '["m","a",1]', perKnopf: true, autoMoeglich: true, autoIn: 999 })).toMatchObject({ ampel: 'gruen', ampelRef: '["m","a",1]', perKnopf: true, autoIn: 60 })
   })
 })

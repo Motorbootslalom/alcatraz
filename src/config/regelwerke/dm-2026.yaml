@@ -263,6 +263,9 @@ direktpunkte:
 # Sportgerät; alle Punktzahlen abgeglichen. Aus g) stammen in jedem Katalog „Durchreißen der
 # Schaltung“ (Reglement: „Schalten entgegen obiger Definition 05 Punkte“, „gewertet wird dies
 # ab der Klasse M4“) und „Treten auf den Schlauch (ab Klasse M3) 5 Punkte“.
+# `abKlasse` (21.11.2026, Nutzer W3-07): übernommen aus genau diesen Texten – „Treten auf den Schlauch (ab Klasse
+# M3)“ → 3, „Schalten … gewertet ab der Klasse M4“ → 4. Nur das WKR-Gerät graut die Codes in anderen Klassen aus,
+# drückbar bleiben sie (die Besprechung kann sie für weitere Klassen freigeben); Bogen und Legende unverändert.
 # Die Katalog-IDs (tor5, mueb, stegAblegen, stegAnlegen) verwenden die Positionen;
 # jedes Regelwerk muss sie anbieten. Die Codes sind über alle Kataloge eindeutig.
 kataloge:
@@ -272,8 +275,8 @@ kataloge:
     titel: "Ablegen (AB)"
     fehler:
       - { code: 3, text: "erneute Stegberührung", punkte: 5 }
-      - { code: 4, text: "Treten auf den Schlauch / ab Klasse 3", punkte: 5 }
-      - { code: 5, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 4, text: "Treten auf den Schlauch / ab Klasse 3", punkte: 5, abKlasse: 3 }
+      - { code: 5, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
       - { code: 6, text: "2. und 3. Versuch des Elementes", punkte: 5 }
 
   stegAnlegen:
@@ -282,16 +285,16 @@ kataloge:
       - { code: 7, text: "2. und 3. Versuch des Elementes", punkte: 5 }
       - { code: 8, text: "Festmacherleine nicht im Anlegebereich", punkte: 5 }
       - { code: 9, text: "Massive Stegberührung", punkte: 10 }
-      - { code: 10, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 10, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
       - { code: 11, text: "Rückwärtsfahren auf dem Weg zum Steg", punkte: 5 }
       - { code: 12, text: "Boot nicht im Stillstand/kein Leerlauf, obwohl Hand am Steg", punkte: 10 }
-      - { code: 23, text: "Treten auf den Schlauch / ab Klasse 3", punkte: 5 }
+      - { code: 23, text: "Treten auf den Schlauch / ab Klasse 3", punkte: 5, abKlasse: 3 }
 
   tor5:
     titel: "Einfahrt Tor 5:"
     fehler:
       - { code: 1, text: "nicht mit gesamter Länge eingefahren", punkte: 20 }
-      - { code: 2, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 2, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
       - { code: 20, text: "2. und 3. Versuch des Elementes", punkte: 5 }
 
   # Je Zeile der Ausschreibung ein Code (S. 13): Getrennte Punkte lassen sich
@@ -302,7 +305,7 @@ kataloge:
       - { code: 13, text: "kein Leerlauf", punkte: 5 }
       - { code: 14, text: "Rettungsring nicht mit beiden Händen gehoben", punkte: 5 }
       - { code: 15, text: "Rettungsring nicht mit beiden Händen aufgelegt, oder geworfen oder fallengelassen", punkte: 5 }
-      - { code: 16, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5 }
+      - { code: 16, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
       - { code: 17, text: "Nicht vollständig aufgestoppt", punkte: 5 }
       - { code: 18, text: "Rettungsring nicht sichtbar über Mittelsäule gehoben", punkte: 5 }
       - { code: 19, text: "2. und 3. Versuch des Elementes", punkte: 5 }

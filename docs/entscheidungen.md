@@ -387,14 +387,16 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   dann in dieser Folge. Fehlen nur einige, gehen die vorhandenen an die ersten, die übrigen folgen sortiert. → `lib/reihenfolge.ts`, `components/ClassSection.vue`,
   `views/StartersView.vue`, Actions ORDER_STARTERS/SHUFFLE_STARTERS in `state/reducer.ts` VERZAHNUNG_ACTIONS
 - 2026-11-21 · N · Sortierung im Starter-Reiter in drei Stufen (Feldtest, ersetzt „zweiter Klick dreht um“): Klick 1
-  markiert die Spalte deutlich und sortiert absteigend (Pfeil ↓), Klick 2 aufsteigend (↑), Klick 3 löscht die
-  Markierung, die Reihenfolge bleibt (keine Action); eine andere Spalte beginnt bei Stufe 1. Je Klasse und für alle
-  Klassen. Auslegung, noch zu bestätigen: „absteigend“ = Z→A bzw. größter Wert zuerst (Größe XL vor XS,
-  Geburtsdatum Jüngste zuerst), ohne Angabe weiter hinten. Ursache der fehlenden Markierung: Mit Startnummern-Bereichen
-  sortiert der Reducer nur je Größengruppe, die Markierung hing aber daran, dass die ganze Klasse nach der Spalte
-  steht – sie verschwand sofort, und der zweite Klick sortierte erneut in derselben Richtung. Jetzt gilt sie, solange
-  die Klasse in der Folge nach dem Sortieren steht (Bedienauswahl, lib/merken.ts). → `lib/reihenfolge.ts`
-  naechsteSortierung/SortierWahl, `components/ClassSection.vue`, `views/StartersView.vue`
+  markiert die Spalte deutlich und sortiert aufsteigend A→Z (Pfeil ↑), Klick 2 absteigend Z→A (↓), Klick 3 löscht
+  die Markierung, die Reihenfolge bleibt (keine Action); eine andere Spalte beginnt bei Stufe 1. Je Klasse und für alle
+  Klassen. Folge vom Nutzer 21.11.2026 abends berichtigt (S-01, zuerst gebaut war Klick 1 Z→A), **gebaut 21.11.2026**:
+  „aufsteigend“ = A→Z bzw. kleinster Wert zuerst (Größe XS vor XL, Geburtsdatum Älteste zuerst), ohne Angabe in beiden
+  Richtungen hinten. Ursache der
+  fehlenden Markierung: Mit Startnummern-Bereichen sortiert der Reducer nur je Größengruppe, die Markierung hing aber
+  daran, dass die ganze Klasse nach der Spalte steht – sie verschwand sofort, und der zweite Klick sortierte erneut in
+  derselben Richtung. Jetzt gilt sie, solange die Klasse in der Folge nach dem Sortieren steht (Bedienauswahl,
+  lib/merken.ts; bestätigt 21.11.2026, P-19). → `lib/reihenfolge.ts` naechsteSortierung/SortierWahl,
+  `components/ClassSection.vue`, `views/StartersView.vue`
 - 2026-11-15 · N · Unter UIM ist der Buchstabe der Dolphin-Nummern wählbar: E (Vorgabe, E01) oder D. Er gilt für neu
   vergebene Nummern; beim Weiterzählen zählen E und D gemeinsam (parseClassNumber). Ein Buchstaben-Präfix sortiert wie
   0, also vorn. → AppState.dolphinPraefix, `config/catalog.ts` startNrPraefixe, `components/StartNumberPanel.vue`,
@@ -522,9 +524,11 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   gezogen über `saat` nach Art der Veranstaltung – Clubmeisterschaft 10–20, Meisterschaft mit Vereinen 45–75,
   Bundesland/Land 100–160 –, änderbar und neu ziehbar. Verteilung nach Anteilen aus drei Starterlisten 2025/2026 (nur
   Anteile, keine Daten): E 4 %, 1 9 %, 2 13 %, 3 15 %, 4 15 %, 5 18 %, 6 11 %, 7 15 %; größte Reste, E darf 0 sein;
-  UIM gleich (Dolphin = E, Klassen E–5 neu gewichtet). Auslegungen (noch zu bestätigen): Die Clubmeisterschaft geht
+  UIM gleich (Dolphin = E, Klassen E–5 neu gewichtet). Auslegungen (beantwortet 21.11.2026 abends: R6-03, R6-04
+  bestätigt, R6-01 und R6-02 anders – „Antworten 21.11.2026 abends“): Die Clubmeisterschaft geht
   vor die Herkunft; eine Meisterschaft ohne Herkunft zählt wie eine mit Vereinen (45–75); Obergrenze des Felds 999;
-  wechselt die Art, wird neu gezogen, sonst bleibt die Zahl (auch über das Neuladen im selben Tab). →
+  wechselt die Art, wird neu gezogen, sonst bleibt die Zahl (auch über das Neuladen im selben Tab). Seit 21.11.2026
+  (R6-02) wieder mit Zahl je Klasse – siehe „Beispielfeld (R6-01)“ unten. →
   `domain/generate.ts` BEISPIEL_KLASSEN_ANTEILE/BEISPIEL_STARTERZAHL/beispielFeldArt/verteileAufKlassen,
   `components/BeispieldatenPanel.vue`
 
@@ -649,8 +653,9 @@ Ausweichen und Suche, „Zuletzt“ mit Korrektur, Hauptknopf „Fehlerfrei ✓�
 Doppeltipp-Schutz, Zustände ohne Arbeit), Liste zuweisen am Bedienrechner, „Liste abschließen“ mit Prüfansicht und
 WKR-Name, Ansicht (Sonne/Hell/Dunkel, Linkshand) und Sprache unter „Mehr“, Probe beim Einrichten, Übungsmodus
 `#/uebung` ohne Netz. Listen mit Bojen, Zeit oder Knoten zeigen „bitte Papier“ (W4/W5). Weiterhin nur gegen den
-nachgebauten Server geprüft. Beim Planen und Bau ausgelegt, **noch zu bestätigen** (im Code `WKR_ANNAHMEN`, Hintergrund
-plan-wkr-w3.md §9–§13):
+nachgebauten Server geprüft. Beim Planen und Bau ausgelegt (im Code `WKR_ANNAHMEN`, Hintergrund plan-wkr-w3.md
+§9–§13), **beantwortet 21.11.2026 abends**: bestätigt bis auf G1, G3, G6, G11, G13, G15, J1–J3, K7, L3, L4 und M5 – dort
+gilt die Entscheidung unten „Antworten 21.11.2026 abends (Runden 3–6)“:
 
 - G1 Sonnenmodus ist Vorgabe, Hell/Dunkel wählbar, gemerkt je Gerät. G2 Masken nur für Listen aus Katalog/Disq./
   Bemerkung, erkannt an den Feldarten. G3 Handy eine Liste, Pad zwei – nur als Hinweis am Bedienrechner. G4 Maskenvorgabe
@@ -677,8 +682,9 @@ Rückfahrt zwei Zeilen (F2), Seiten nach Blick wie auf dem Bogen, Umschalter Hin
 Übung mit Bojen-Listen; **„Nicht vorbeigekommen“** unter „Mehr“ (löst G15 ein): Zeile ohne Werte, Haken und Kennzeichen
 am Bedienrechner (Matrix „⊘ nicht vorbei“ gelb, „Papier ansehen“ in der Erfassung, kein Rückstand, kein X), nicht am
 Vorsteg und nicht im Steg-Ablegen (dort X), spätere Werte heben es auf. Zeit- und Knotenlisten bleiben Papier (W5).
-Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgelegt, **noch zu bestätigen** (im Code
-`WKR_ANNAHMEN`, Hintergrund plan-wkr-w4.md §10):
+Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgelegt (im Code `WKR_ANNAHMEN`, Hintergrund
+plan-wkr-w4.md §10), **beantwortet 21.11.2026 abends**: bestätigt bis auf P9/U2, P10/Q2 und die Form von P16/R1–R8
+(Disq. J statt ⊘); P15 nicht gefragt:
 
 - P1 Bojen-Maske an den Feldern erkannt (Boje auf dem Fahrweg; sonst Papier). P2 Zähler nur Tor 5, sonst Schalter
   (auch UIM). P3 Tor 1 Rückfahrt zwei Zeilen statt Zähler 0–2. P4 je Berührung 5 Punkte, Zellwert = Punkte. P5 Zähler
@@ -710,7 +716,7 @@ Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgel
   ausfallen, der Bediener entscheidet, „Papier ab“ bleibt); gilt auch auf dem Freigabe-Handy. „Papier ansehen“ in der
   Erfassung bleibt so streng wie vorher (überfällig erst bei mehr als max(R, 2) jüngeren Starts). Geräteleiste: das
   Zeichen nennt den Erfassungsstand (✓ fertig, ⧗ wartet n, ✕ Gerät weg, ▭ Papier), die Verbindung steht klein
-  dahinter (Befunde 9, 12). WKR_ANNAHMEN N8–N10, noch zu bestätigen.
+  dahinter (Befunde 9, 12). WKR_ANNAHMEN N9, N10 bestätigt 21.11.2026; N8 vom Nutzer neu gefasst (P-03, unten).
 - 2026-11-21 · F5 · X vom Gerät nur bei Steg-Ablegen und Vorsteg, mit Rückfrage und Hervorhebung am Bedienrechner.
 - 2026-11-21 · F6 · Kein Name auf dem WKR-Gerät (Startnummer, Klasse, ggf. Boot).
 - 2026-11-21 · F7 · Korrektur über „Zuletzt“ (die letzten abgeschickten Zeilen bleiben auf dem Gerät erreichbar).
@@ -731,23 +737,138 @@ Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgel
 - 2026-11-21 · W1/W2 · Alle Auslegungen aus W1 und W2 (Fragen W1-01…W1-15, W2-01…W2-30 der Fragenseite; WKR_ANNAHMEN
   bis „Prüfbefunde W2“, A1–A13, B1–B6, C1–C4, D1–D5, E1–E4) vom Nutzer mit „passt“ bestätigt. Die Rückstandswarnung
   (A4) gilt in der Fassung nach dem Feldtest (R = 1, „nachfragen“, ab R). W3-Auslegungen und die des Feldtests (N…)
-  bleiben offen.
+  blieben offen – beantwortet 21.11.2026 abends (unten „Antworten 21.11.2026 abends (Runden 3–6)“).
 - 2026-11-21 · Steg-Zeitversatz (Nutzer: „Eine Startnummer kann nicht gleichzeitig am Steg und im Parcours sein. Steg
   läuft deswegen beim Ablegen etwas vor der Tafel und dem Parcours und beim Anlegen hinterher.“): Ablegen sieht die
   Starts „Am Steg“ schon vor dem Zeigen (wie der Vorsteg), Anlegen erst, wenn das Boot nicht mehr „Im Boot“ ist; das
   Anlegen des gezeigten Starts zählt nie als offen (keine Rückfrage vor „Nächster Start“). Ein Gerät für den ganzen
   Steg zeigt nie denselben Starter in beiden Teilen. Papierbogen „Steg“ unverändert. Gebaut 21.11.2026, Auslegungen
-  WKR_ANNAHMEN T1–T4, T9 noch zu bestätigen.
+  WKR_ANNAHMEN T1–T4 bestätigt 21.11.2026; T9 nicht (R6-10: Abschluss im laufenden Lauf nur mit Rückfrage).
 - 2026-11-21 · „Abmelden“ am WKR-Gerät (Nutzer: „Das muss so sein, als ob ich die Liste von dem Gerät entferne.“): wirkt
   wie das Entfernen der Liste – Liste (Teil-Gerät: sein Teil, letztes Gerät der Liste: die ganze) abgemeldet, zählt
   nicht als offen, Aufgabe weg, neuer Schlüssel; das Gerät zeigt „Von … abgemeldet“ mit Entwürfen und „Zuletzt“, wieder
   dabei nur über neues Zuweisen. Ursache des Befunds: ein Teil-Gerät (Ablegen) meldete nur seinen Teil ab, der
   Anlegen-Teil ohne Gerät blieb digital „offen“; ein Gerät für den ganzen Steg bekam in der Sicht je Teil weiter
-  „aktiv“ und zeigte den nächsten Start. Gebaut 21.11.2026, Auslegungen WKR_ANNAHMEN T5–T8 noch zu bestätigen.
+  „aktiv“ und zeigte den nächsten Start. Gebaut 21.11.2026, Auslegungen WKR_ANNAHMEN T5–T8 bestätigt 21.11.2026.
 - 2026-11-21 · Pad bis W5 (Nutzer: „Die Pad-Geräte-Listen … sehen auf dem Pad noch sehr komisch aus“): Ab 700 px Breite
   steht die Handy-Maske als mittige Spalte von 560 px mit ruhigem Rand je Modus (Sonne/Hell/Dunkel) statt in der
   720-px-Hülle der Freigabe auf dem Grund der App; Fuß mit Hauptknopf, Reiter und Leiste genauso breit. Eigene
-  Pad-Masken (größer, zwei Listen nebeneinander) erst mit W5. Gebaut 21.11.2026, WKR_ANNAHMEN T10 noch zu bestätigen.
+  Pad-Masken (größer, zwei Listen nebeneinander) erst mit W5. Gebaut 21.11.2026, WKR_ANNAHMEN T10 bestätigt 21.11.2026.
+
+### Antworten 21.11.2026 abends (Runden 3–6)
+
+Antworten des Nutzers auf die Fragenseite, Runden 3–6 (W3-01…W3-52, P-01…P-19, W4-01…W4-35, R6-01…R6-17, S-01). Alle
+übrigen Fragen hat er mit „passt“ bestätigt (in `WKR_ANNAHMEN`, BETRIEB_ANNAHMEN, `lib/reihenfolge.ts`,
+`domain/generate.ts` je Eintrag „bestätigt 21.11.2026 (Frage)“; Übersicht plan-wkr-w3.md §15, plan-wkr-w4.md §14).
+Hier die Fragen, die er **anders** entschieden hat – noch nicht umgesetzt (siehe „Entschieden, noch nicht umgesetzt“),
+bis dahin gilt der gebaute Stand:
+
+- 2026-11-21 · N · **Start-Freigabe nur für den Parcours, Parcours-Ampel** (P-03; **gebaut 21.11.2026**, Auslegungen
+  AM1–AM10 in WKR_ANNAHMEN/BETRIEB_ANNAHMEN noch zu bestätigen – plan-antworten-runde3-6.md §3, §8; ersetzt die Frage „zählt der
+  gezeigte Start sofort als offen?“; P-04 damit erledigt). Wortlaut: „Die Freigabe bezieht sich immer auf den Parcours
+  und nie auf den Steg oder Vorsteg. Sobald ein Starter bereit ist, in den Parcours zu fahren, wird die Tafel auf diesen
+  umgestellt, alle Parcours-WKR bekommen diesen Starter angezeigt und die Ampel wird grün. Wenn der Starter durch das
+  Start/Ziel-Tor fährt, wird die Ampel rot. Die Ampel bleibt auch rot, wenn der Starter den Parcours wieder verlassen
+  hat. Das ist dann die Zeit, wo die WKR ihre Bewertung eintragen und abschicken. Wenn dann alle grün sind, kann der
+  nächste Starter. Es kann auch einen Auto-Modus geben, der automatisch weiterschaltet, wenn alle WKR ihre Eintragung
+  abgeschickt haben. Das klappt aber nur, wenn alle ein Gerät haben. Es muss also nie auf den Steg gewartet werden.
+  Diese laufen autark.“ Daraus:
+  1. Rückstand und Rückfrage vor „Nächster Start“ zählen nur die **Parcours-Listen** (Tore, Bojen, Tor 5,
+     Mann-über-Bord, Start/Ziel); Steg (Ablegen und Anlegen) und Vorsteg halten die Freigabe nie auf.
+  2. Ampel je Parcours: **grün**, sobald der Starter gezeigt ist (Anzeigetafel umgestellt, alle Parcours-WKR sehen
+     ihn); **rot** ab der Durchfahrt durch das Start/Ziel-Tor – rot auch nach dem Verlassen des Parcours, **bis alle
+     Parcours-WKR abgeschickt haben**; dann darf der Nächste.
+  3. **Auto-Modus** (wählbar): „Nächster Start“ von selbst, sobald alle Parcours-WKR abgeschickt haben – nur
+     möglich, wenn jede Parcours-Liste ein Gerät hat (eine Papierliste meldet nichts).
+  Gebaut 21.11.2026 mit diesen Auslegungen (noch zu bestätigen): Parcours-Liste an den Feldern erkannt (AM1/AM2:
+  nicht Steg, Vorsteg, Zeit, Knoten); Durchfahrt per Knopf „Durchs Start-Tor“ an der Start-Freigabe (auch Handy) ODER
+  durch die erste Zeile/den ersten Wert einer Parcours-Liste zum gezeigten Start (AM4); gespeichert nur der Knopf
+  (`BereichBetrieb.durchfahrt`), grün/rot/frei abgeleitet (`wkr/ampel.ts`); keine Ampel ohne digitale Parcours-Liste
+  (AM3); Rückfrage nur über Parcours-Listen, der gezeigte Start zählt erst ab rot (AM5); Auto-Modus als Einstellung
+  (Vorgabe aus) mit 3 s Countdown und „Anhalten“, nie neuer Lauf/Nachzuholende/Zurückgestellte/Pause (AM6/AM7);
+  keine Ampel auf Anzeigetafel und Zuschauerliste (AM8); kleiner Punkt in der Starterkarte der Parcours-WKR (AM9). Ein
+  Lichtsignal am Wasser gibt es in der App nicht. → `wkr/ampel.ts`, `wkr/lage.ts`, `wkr/freigabe.ts` (fv 2),
+  `wkr/sicht.ts` (Fassung 6), `geraete/host.ts` (Auto), `components/betrieb/StartFreigabe.vue`,
+  WKR_ANNAHMEN.nachfrageNurParcours, BETRIEB_ANNAHMEN.autoVorgabe
+- 2026-11-21 · N · **Disq. an der Boje mit Punkten in derselben Zelle** (W4-12): „Boje/Tor usw. ist wichtig, damit
+  geprüft werden kann, wo der Disq.-Fehler genau passiert ist. Daher sollte das immer nachgefragt werden und auch in
+  dieser Spalte eingetragen werden können. Wichtig ist auch, dass es dann passieren kann, dass Fehlerpunkte (5) und ein
+  Disq.-Grund in der gleichen Bojenspalte stehen können müssen.“ Also: Bei einer Disq. auf Bojen-Listen fragt die Maske
+  **immer** nach Boje bzw. Tor; die Bojenzelle hält Punkte UND Buchstaben zugleich (etwa „5 J“). Der Bau vom
+  21.11.2026 (U1/U2, Commit 404d7c6) ersetzt die Berührungen durch den Buchstaben – überholt. Braucht eine Zellform,
+  die Erfassung, Wertung (Punkte zählen, Disq. wirkt) und Bogen beide lesen (`lib/disq.ts` sanitizeBuoy). →
+  WKR_ANNAHMEN.disqAnBoje/disqBojeMitPunkten. **Gebaut 21.11.2026** (Plan docs/plan-antworten-runde3-6.md §4,
+  BZ1–BZ5 noch zu bestätigen): Zellform „5J“/„10G“ (Ziffern + ein Buchstabe, tolerant getippt, alte Werte gültig),
+  bojenWert zählt die Punkte neben dem Buchstaben, Wertungsliste „5J“ ohne Komma, X nie mit Punkten; auf dem Gerät
+  fragt DISQ immer erst die Boje („Keine Boje / ganzer Parcours“ → Disq.-Feld), der Buchstabe kommt zu den Punkten.
+- 2026-11-21 · N · **„Nicht vorbeigekommen“ = Disq. J** (W3-17): „Das ist dann J mit Parcours verlassen oder falscher
+  Parcours.“ Statt des eigenen Kennzeichens ⊘ (W4.3) ein Disq.-Buchstabe J (DM: „Falscher Parcours entgegen der
+  Parcourszeichnung“; UIM: „Error doing the circuit“). Der Ablauf von W4.3 (W4-27…W4-35: unter „Mehr“, nur beim
+  gezeigten Start, Haken, Aufheben durch spätere Werte, Abschluss nennt die Nummern) ist bestätigt. →
+  WKR_ANNAHMEN.nichtVorbei* **Gebaut 21.11.2026** (GF10/GF11, noch zu bestätigen): J ins Disq.-Feld, wo die Liste J
+  kennt; Steg-Anlegen (kein J) behält ⊘; alte ⊘ bleiben; Matrix ✓ mit „Disq. J“.
+- 2026-11-21 · N · **Hell/Dunkel des Geräts ist Vorgabe** (W3-01, P-18): „Hell/Dunkel ist für Geräteeigentümer heilig.
+  Das darf auf keinen Fall ignoriert werden. Es kann abgeändert werden, aber Default ist immer der Gerätemodus.“ Die
+  WKR-Maske startet im Modus des Systems (hell oder dunkel); Sonne, Hell, Dunkel bleiben unter „Mehr → Ansicht“
+  jederzeit wählbar. Ersetzt G1 (Sonne als Vorgabe) und den Teil von N4, nach dem die Maske den System-Dunkelmodus
+  ignoriert. → WKR_ANNAHMEN.sonneVorgabe/farbenNurMaske, `styles/wkr-geraet.css`, `geraete/ablage.ts` liesAnsicht
+  **Gebaut 21.11.2026** (GF1): Vorgabe „Wie Gerät“ (live), Wahl Wie Gerät/Sonne/Hell/Dunkel, auch in der Übung.
+- 2026-11-21 · N · **Sortierung im Reiter Starter** (S-01, berichtigt „hier war ich ungenau“): Klick 1 **A→Z** (↑),
+  Klick 2 **Z→A** (↓), Klick 3 hebt die Markierung auf. → `lib/reihenfolge.ts` naechsteSortierung **Gebaut 21.11.2026**: Pfeile,
+  `aria-sort` und Titel der Spaltenköpfe (je Klasse und „Alle Klassen“) folgen.
+- 2026-11-21 · N · Listen je Gerät nur Empfehlung (W3-03): Handy eine, Pad zwei ist eine Empfehlung; mehr Listen
+  sollen gehen, auf dem Pad nebeneinander. Die Geräteart (Handy/Pad) meldet das Gerät beim Koppeln, der Bedienrechner
+  speichert sie (W3-25, statt Erkennung am Gerätenamen J2). **Gebaut 21.11.2026** (GF7, GF8): bis 4 Listen,
+  Empfehlung Handy 1/Pad 2 nur als Hinweis, Pad quer zwei Spalten; Art handy/pad/rechner beim Koppeln, änderbar.
+- 2026-11-21 · N · Codes anderer Klassen (W3-07): ausgegraut, aber drückbar – die Besprechung kann sie für weitere
+  Klassen freigeben. Braucht die Klasse je Code im Katalog (YAML). **Gebaut 21.11.2026** (GF2): YAML `abKlasse`
+  (dm-2026 Codes 4/23 ab 3, 2/5/10/16 ab 4), ohne Rückfrage.
+- 2026-11-21 · N · WKR-Name (W3-13, W3-41): kommt aus der WKR-Einteilung der Veranstaltung (Parcours × Liste), ist
+  unter „Mehr“ jederzeit änderbar und am Bedienrechner unter Betrieb → WKR/Geräte zu sehen. Weicht er von der
+  Einteilung ab, nur ein Hinweis: unter Veranstaltung übernehmen oder auf dem Gerät erneut überschreiben. Ersetzt G11
+  (Name nur beim Abschluss); W3-41 („Was meinst du hiermit?“) ist damit erledigt. **Gebaut 21.11.2026** (Plan
+  docs/plan-antworten-runde3-6.md §6, WN1–WN3 noch zu bestätigen): Name nur in der verschlüsselten Sicht der eigenen
+  Liste (`wkrName`, LISTEN_SICHT_FASSUNG 8; nie Tafel, Zuschauer, Freigabe), „Mehr → Name“ gerätelokal je Raum und
+  Liste, geänderter Name im Lebenszeichen an den Bedienrechner (Register, nie AppState); Betrieb → Geräte und
+  Betrieb → WKR zeigen „Name auf dem Gerät: … – Einteilung: …“ mit „In Veranstaltung übernehmen“ (SET_WKR_NAME).
+  Ohne Einteilung fragt der Abschluss wie bisher (G12 bleibt Rückfall).
+- 2026-11-21 · N · Übung (W3-15, „Das ist der Hammer“): dazu „Übung beenden/Abbrechen“ unterhalb der Knöpfe beim
+  Hochziehen (statt Neuladen) und die Erklärung der Übungsstarts in der Übung selbst (Starts 1–20 ohne Namen in den
+  Klassen des Regelwerks, Bestätigung kurz nach dem Senden, gelegentlich eine Rückfrage, Starts kommen nach und nach).
+  **Gebaut 21.11.2026** (GF4): Erklärung einklappbar oben, „Übung beenden“ unter der Maske.
+- 2026-11-21 · N · Erste Liste auf einem Gerät (W3-24, Befund statt Antwort): Bekommt ein Gerät ohne Liste eine Liste
+  zugewiesen, bleibt es auf „verbinde zum Bedienrechner“, bis man die Seite neu lädt – das soll von selbst gehen
+  und/oder über einen Knopf. **Gebaut 21.11.2026** (GF6): Gerät holt nach jedem neuen Gruppenschlüssel sofort nach,
+  „Neu verbinden“ nach der Karenz.
+- 2026-11-21 · N · Start-Freigabe beim Koppeln nie vorgewählt (W3-26): „Das ist genauso ein Recht wie die Listen.“
+  **Gebaut 21.11.2026**.
+- 2026-11-21 · N · „So lassen“ (W3-35): Der Bedienrechner erfährt, dass der WKR eine Rückfrage mit „So lassen“
+  beantwortet hat (bisher nur auf dem Gerät). **Gebaut 21.11.2026** (GF5): Action WKR_SO_LASSEN, Eingang „WKR: so
+  lassen (Uhrzeit)“, die Rückfrage bleibt offen.
+- 2026-11-21 · N · „Mehr → Liste abschließen“ (W3-40): unklar, warum mitten im Lauf und für alle Klassen – herausnehmen
+  oder den Zweck genauer erklären. Das Band nach dem Lauf (G16, L2) ist bestätigt. **Gebaut 21.11.2026** (AM10): unter
+  „Mehr“ entfernt, das Band nennt den Zweck (Unterschrift für den Lauf, alle Klassen).
+- 2026-11-21 · N · Umschalter Ablegen/Anlegen (W3-51): muss beim Gerät für den ganzen Steg immer sichtbar sein, sonst
+  merkt der WKR nicht, dass im anderen Teil jemand wartet – gern mit einem Zeichen „fertig/offen“ je Teil.
+  **Gebaut 21.11.2026** (GF3): beide Reiter immer, je Teil ✓ bzw. Zahl offener Starts, feste Höhe.
+- 2026-11-21 · N · Klassenwechsel-Band (W4-13): nur beim ersten Start einer neuen Klasse; beim Hochwischen soll die
+  Parcours-Zeichnung mit angezeigt werden. **Gebaut 21.11.2026** (GF9): Band nur beim ersten Start einer Klasse im
+  Punkt; Zeichnung der Klasse unter den Knöpfen (Sicht `bild`, gebündelt).
+- 2026-11-21 · N · Anlegen-Liste abschließen, solange der Lauf noch läuft (R6-10): immer mit Rückfrage. **Gebaut
+  21.11.2026** – für jede Liste: „Lauf n läuft noch (604 unterwegs) – trotzdem abschließen?“ (Sicht `laeuft`).
+- 2026-11-21 · N · Beispielfeld (R6-01): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine, jedoch mit mehreren
+  Klassen auf einem Blatt.“ (R6-02): Die Zahl je Klasse soll weiter festlegbar sein; „neu ziehen“ (seltsamer Name)
+  setzt die Vorgabe, danach z. B. eine Klasse auf 0 und eine andere höher. **Gebaut 21.11.2026** (BS1–BS3, noch zu
+  bestätigen): Größe der Clubmeisterschaft bleibt 10–20; ihre Beispielstarter bekommen nie eine Herkunft, auch wenn
+  die Veranstaltung nach dem Wechsel („ohne“) von Hand wieder eine bekam (BS1, `domain/generate.ts` beispielHerkunft);
+  „mehrere Klassen auf einem Blatt“ = die gemeinsamen WKR-Bögen (vorhanden, Test mit einem Feld von 15), die
+  Wertungslisten bleiben je Klasse. Gesamtzahl = Vorschlag, verteilt auf die Klassen; je Klasse wieder ein Zahlfeld
+  (0–999), daneben „zusammen n (Vorschlag m)“; Knopf „Vorschlag neu“/„New suggestion“ setzt Gesamtzahl und Klassen
+  neu (BS2); eine neue Gesamtzahl verteilt neu (BS3); gemerkt mit der Art (merke `beispiel.klassen`).
+- 2026-11-21 · R · Bojenpunkte (W4-07, „ja“ mit Auftrag „Früher hatten wir 10 Punkte pro Boje“): geprüft –
+  dm-2026.yaml `direktpunkte` 5 je Boje und Fahrtrichtung bzw. je Berührung an Tor 5 (Reglement C5 b, c),
+  uim-2026.yaml „Touching of a buoy“ 5; 10 steht in keinem Regelwerk. Fest 5 bleibt (WKR_ANNAHMEN.bojenPunkte,
+  wkr/bojen.test.ts vergleicht mit beiden Regelwerken).
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
@@ -756,10 +877,16 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 - Digitale WKR-Erfassung (Antworten 21.11.2026, Abschnitt oben): Etappen W1–W6 nach
   [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern), W2 (Bedienrechner) und W3 (Handy-Maske
   „Knöpfe“, Übung) und W4 (Bojen-Maske, „Nicht vorbeigekommen“) gebaut 21.11.2026, W5–W6 offen (Pad quer, Bild/Text,
-  Knoten/Zeit-Listen); Auslegungen W1 und W2 bestätigt 21.11.2026, W3 G1–G16, H1–H5, J1–J5, K1–K9, L1–L9 und W4 P1–P17,
-  Q1–Q7, R1–R8 und die Prüfbefunde S1–S5 (Prellschutz der Bojen-Schalter 400 ms, „Bitte Nr. prüfen“ nur im laufenden
-  Punkt, Band „nicht in der Folge“ kurz, Tor-5-Zähler „0×“ und zweizeilig, Hinweis über dem Kopf) noch zu bestätigen;
-  Feldtest offen (docs/feldtest.md „WKR-Maske“, „Bojen-Maske“).
+  Knoten/Zeit-Listen); Auslegungen W1–W4 bestätigt 21.11.2026 bis auf die oben unter „Antworten 21.11.2026 abends
+  (Runden 3–6)“ anders entschiedenen; noch nicht gefragt: P15, U1–U4, V1, V2, Z1–Z7, Y1–Y3; Feldtest offen
+  (docs/feldtest.md „WKR-Maske“, „Bojen-Maske“).
+- Antworten 21.11.2026 abends (Abschnitt oben), noch nicht gebaut (gebaut 21.11.2026: Parcours-Ampel mit Auto-Modus
+  P-03/P-04, „Mehr → Liste abschließen“ entfernt W3-40, Rückfrage beim Abschließen im laufenden Lauf R6-10; Disq. an
+  der Boje immer mit Boje, Punkte und Buchstabe in einer Zelle W4-12; Gerät-Feinschliff W3-01/P-18, W3-03, W3-07,
+  W3-15, W3-17, W3-24, W3-25, W3-26, W3-35, W3-51, W4-07, W4-13 mit GF1–GF11; WKR-Name aus der Einteilung W3-13
+  mit WN1–WN3; Sortierung Klick 1 A→Z S-01; Beispielfeld je Klasse festlegbar und Clubmeisterschaft ohne Herkunft
+  R6-01/R6-02 mit BS1–BS3): nichts mehr offen; zu bestätigen bleiben die datierten Auslegungen
+  ([plan-antworten-runde3-6.md](plan-antworten-runde3-6.md) §8).
 
 ## Offen
 

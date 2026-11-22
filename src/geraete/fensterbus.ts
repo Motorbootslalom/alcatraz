@@ -1,4 +1,5 @@
-import { ref, type Ref } from 'vue'
+import { istGeraeteTyp, type GeraeteTyp } from './transport/protokoll'
+import { ref, shallowRef, type Ref } from 'vue'
 import { ABLAGE, type Ablage } from './ablage'
 import { neueFensterId } from './fuehrung'
 import { istHinweis, liesGeraeteNachricht, type Ergebnis, type GeraeteAction, type Hinweis } from './transport/protokoll'
@@ -54,12 +55,16 @@ export type GeraeteBefehl =
   | { art: 'koppeln-ende'; was: 'code' | 'qr' | 'alle' }
   | { art: 'aufgaben'; id: string; aufgaben: Aufgabe[] }
   | { art: 'umbenennen'; id: string; name: string }
+  /** Art des Geräts ändern (Nutzer 21.11.2026, W3-25, GF7) – das Gerät meldet sie beim Koppeln, der Bediener korrigiert. */
+  | { art: 'typ'; id: string; typ: GeraeteTyp }
   | { art: 'entziehen'; id: string }
   /**
    * W1 (21.11.2026): Hinweis an die Geräte einer Liste (Rückkanal, nur Code und Startnummer). `teil` (Prüfbefund
    * 21.11.2026, F16): am Steg nur an die Geräte dieses Teils und die ohne Teil.
    */
   | { art: 'hinweis'; liste: string; code: Hinweis; startNr?: string; teil?: 'ab' | 'an' }
+  /** Auto-Modus anhalten (Nutzer 21.11.2026, P-03, AM7) – den Countdown hält nur das Führungsfenster. */
+  | { art: 'auto-halt'; bereich: string; ref: string }
 export type Befehl = (typeof BEFEHLE)[number] | GeraeteBefehl
 
 /** Prüft einen Befehl aus einem anderen Fenster (nur die Form – es ist derselbe Ursprung). */
@@ -76,6 +81,8 @@ export function liesBefehl(wert: unknown): Befehl | null {
       return istKennung(wert.id) && Array.isArray(wert.aufgaben) ? { art: 'aufgaben', id: wert.id, aufgaben: liesAufgaben(wert.aufgaben) } : null
     case 'umbenennen':
       return istKennung(wert.id) && typeof wert.name === 'string' && wert.name.length <= 60 ? { art: 'umbenennen', id: wert.id, name: wert.name } : null
+    case 'typ':
+      return istKennung(wert.id) && istGeraeteTyp(wert.typ) ? { art: 'typ', id: wert.id, typ: wert.typ } : null
     case 'entziehen':
       return istKennung(wert.id) ? { art: 'entziehen', id: wert.id } : null
     case 'hinweis':
@@ -83,6 +90,8 @@ export function liesBefehl(wert: unknown): Befehl | null {
       if (wert.startNr !== undefined && (typeof wert.startNr !== 'string' || wert.startNr.length > 16)) return null
       if (wert.teil !== undefined && wert.teil !== 'ab' && wert.teil !== 'an') return null
       return { art: 'hinweis', liste: wert.liste, code: wert.code, ...(wert.startNr !== undefined ? { startNr: wert.startNr } : {}), ...(wert.teil !== undefined ? { teil: wert.teil } : {}) }
+    case 'auto-halt':
+      return istKennung(wert.bereich) && typeof wert.ref === 'string' && wert.ref.length <= 400 ? { art: 'auto-halt', bereich: wert.bereich, ref: wert.ref } : null
     default:
       return null
   }
@@ -93,6 +102,15 @@ export interface VerbindungsMeldung {
   fehler: TransportFehler | null
 }
 
+/**
+ * Laufende Countdowns des Auto-Modus je Bereich (Start, der weiterschaltet; `bis` nach Date.now – alle Fenster laufen
+ * auf demselben Rechner). Prüfbefund 21.11.2026: Nur das Führungsfenster zählt; ohne diese Meldung sah ein zweites
+ * Bedienfenster weder Countdown noch „Anhalten“, während das erste nach 3 s weiterschaltete.
+ */
+export type AutoMeldung = Record<string, { ref: string; bis: number }>
+/** Höchstens so viele Bereiche in einer Auto-Meldung (Form-Prüfung; Parcours + Parallelslalom sind wenige). */
+const AUTO_BEREICHE_MAX = 32
+
 type BusNachricht =
   /** Ein neues Fenster fragt: Wer wurde zuletzt bedient, wie steht die Verbindung? */
   | { art: 'frage' }
@@ -101,6 +119,7 @@ type BusNachricht =
   | { art: 'anwenden'; an: string; auftrag: string; action: GeraeteAction }
   | { art: 'angewandt'; an: string; auftrag: string; ergebnis: Anwendung }
   | { art: 'verbindung'; meldung: VerbindungsMeldung | null }
+  | { art: 'auto'; auto: AutoMeldung }
   | { art: 'befehl'; befehl: Befehl }
 
 interface Umschlag {
@@ -138,6 +157,10 @@ export interface Fensterbus {
   bedient(): void
   /** Nur das Führungsfenster: Verbindungsstand für alle; `null`, wenn es nicht mehr führt. */
   meldeVerbindung(meldung: VerbindungsMeldung | null): void
+  /** Countdowns des Auto-Modus, wie das Führungsfenster sie meldet (dort die eigenen); `{}` = keiner. */
+  readonly auto: Ref<AutoMeldung>
+  /** Nur das Führungsfenster: Countdowns für alle; `null` = meldet nicht mehr (schickt nur, wenn es vorher gemeldet hat). */
+  meldeAuto(auto: AutoMeldung | null): void
   /** Nur Fenster mit vollem Store: wendet eine weitergereichte Action an (dispatch) und sagt, ob sie wirkte. */
   beimAnwenden(fn: (action: GeraeteAction) => Anwendung): () => void
   /**
@@ -170,6 +193,19 @@ const STAENDE: Record<Verbindungsstand, true> = { aus: true, verbinde: true, ver
 
 const istObjekt = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 const istKennung = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 64
+
+function liesAuto(wert: unknown): AutoMeldung | null {
+  if (!istObjekt(wert)) return null
+  const eintraege = Object.entries(wert)
+  if (eintraege.length > AUTO_BEREICHE_MAX) return null
+  const out: AutoMeldung = {}
+  for (const [bereich, l] of eintraege) {
+    if (!istKennung(bereich) || !istObjekt(l) || typeof l.ref !== 'string' || l.ref.length > 500) return null
+    if (typeof l.bis !== 'number' || !Number.isFinite(l.bis)) return null
+    out[bereich] = { ref: l.ref, bis: l.bis }
+  }
+  return out
+}
 
 function liesMeldung(wert: unknown): VerbindungsMeldung | null | undefined {
   if (wert === null) return null
@@ -214,6 +250,10 @@ function liesUmschlag(roh: unknown): Umschlag | null {
       const meldung = liesMeldung(n.meldung)
       return meldung === undefined ? null : { ...kopf, n: { art: 'verbindung', meldung } }
     }
+    case 'auto': {
+      const auto = liesAuto(n.auto)
+      return auto ? { ...kopf, n: { art: 'auto', auto } } : null
+    }
     case 'befehl': {
       const befehl = liesBefehl(n.befehl)
       return befehl ? { ...kopf, n: { art: 'befehl', befehl } } : null
@@ -253,6 +293,10 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
   /** Welches Fenster den Verbindungsstand gemeldet hat – geht es, ist der Stand weg. */
   let verbindungVon: string | null = null
   let eigeneMeldung: VerbindungsMeldung | null = null
+  const auto = shallowRef<AutoMeldung>({})
+  /** Welches Fenster die Countdowns gemeldet hat – geht es, sind sie weg. */
+  let autoVon: string | null = null
+  let eigeneAuto: AutoMeldung | null = null
   let anwender: ((action: GeraeteAction) => Anwendung) | null = null
   const befehlsEmpfaenger = new Set<(befehl: Befehl) => void>()
   const offen = new Map<string, { erfuelle: (e: Anwendung) => void; zeitgeber: ReturnType<typeof setTimeout> }>()
@@ -301,6 +345,7 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
       case 'frage':
         if (schreibfenster.value === id) sende({ art: 'bedient', um: schreibUm })
         if (eigeneMeldung) sende({ art: 'verbindung', meldung: eigeneMeldung })
+        if (eigeneAuto) sende({ art: 'auto', auto: eigeneAuto })
         return
       case 'bedient':
         uebernimmBedient(u.von, n.um)
@@ -310,6 +355,10 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
         if (verbindungVon === u.von) {
           verbindung.value = null
           verbindungVon = null
+        }
+        if (autoVon === u.von) {
+          auto.value = {}
+          autoVon = null
         }
         return
       case 'anwenden': {
@@ -335,6 +384,10 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
       case 'verbindung':
         verbindung.value = n.meldung
         verbindungVon = n.meldung ? u.von : null
+        return
+      case 'auto':
+        auto.value = n.auto
+        autoVon = u.von
         return
       case 'befehl':
         for (const fn of [...befehlsEmpfaenger]) fn(n.befehl)
@@ -377,6 +430,14 @@ export function oeffneFensterbus(id: string = neueFensterId(), umgebung: BusUmge
       verbindung.value = meldung
       verbindungVon = meldung ? id : null
       sende({ art: 'verbindung', meldung })
+    },
+    auto,
+    meldeAuto(werte) {
+      if (werte === null && eigeneAuto === null) return
+      eigeneAuto = werte
+      auto.value = werte ?? {}
+      autoVon = werte ? id : null
+      sende({ art: 'auto', auto: werte ?? {} })
     },
     beimAnwenden(fn) {
       anwender = fn

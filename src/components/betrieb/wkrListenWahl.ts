@@ -5,7 +5,7 @@ import { useKonfig } from '../../lib/konfig'
 import { sichtOeffentlich } from '../../betrieb/sicht'
 import { listenDerVeranstaltung, listenKennung, liesListe, teileVon, type ListenTeil } from '../../wkr/liste'
 import { listeMitMaske } from '../../wkr/maske'
-import { tIn, t, type MessageKey } from '../../i18n'
+import { t } from '../../i18n'
 
 /**
  * WKR-Listen zum Zuweisen an ein Gerät (W3.2, Plan docs/plan-wkr-w3.md §6, 21.11.2026) – geteilt von GeraeteKoppeln.vue
@@ -81,14 +81,4 @@ export function useListenWahl(): {
   }
 
   return { gruppen, liste, listeText }
-}
-
-/**
- * Ist das ein Handy? (G3 nach J2) Das Register kennt keine Geräteart; der Name ist bis zum Umbenennen die übersetzte
- * Art, die das Gerät beim Koppeln vorschlägt (geraete/geraeteName.ts) – in einer der beiden Sprachen.
- */
-export function istHandyName(name: string): boolean {
-  const n = name.trim().toLowerCase()
-  const arten: MessageKey[] = ['geraete.name.iphone', 'geraete.name.android-handy']
-  return (['de', 'en'] as const).some((sprache) => arten.some((key) => n.startsWith(tIn(sprache, key).toLowerCase())))
 }

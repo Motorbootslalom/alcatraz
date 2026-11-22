@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { BOJEN_ANSICHT_VORGABE, type BojenAnsicht } from '../../geraete/ablage'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { Weg } from '../../wkr/bojen'
 import { eintraegeAuf, nachLage, wegVon, type Entwurf, type MaskenAbschnitt, type MaskenAufbau, type MaskenBoje, type MaskenHalt, type MaskenTeil } from '../../wkr/maske'
-import AppDialog from '../AppDialog.vue'
 import WkrKnoepfe from './WkrKnoepfe.vue'
 import WkrWegUmschalter from './WkrWegUmschalter.vue'
 import { useWkrText } from './texte'
@@ -27,10 +26,10 @@ import { useWkrText } from './texte'
  * Gruppe (wkr/maske.ts nachLage: Tor 1 mit Hin, Rück und 2. Durchfahrt), Start oben bzw. unten, ohne Umschalter;
  * `tauschen` tauscht die zwei Knopfspalten in beiden Ansichten. Gemerkt in WkrGeraet (ablage.ts `bojen[liste]`).
  *
- * Disq. an der Boje (Nutzer 21.11.2026, WKR_ANNAHMEN U1/U2): „Disq. an Boje …“ schaltet den Disq.-Modus ein; ein Tipp
- * auf eine Boje öffnet die Buchstaben DIESER Zelle (AppDialog), die Wahl setzt ihn (`bojeDisq`) und beendet den Modus.
- * Eine Boje mit Buchstaben zeigt „Disq. G“ statt der Punkte; im Disq.-Modus nimmt ein Tipp ihn heraus. Ohne Modus nimmt
- * sie keinen Tipp an (wkr/maske.ts tippeBoje).
+ * Disq. an der Boje (Nutzer 21.11.2026, U1; umgebaut nach W4-12 am 21.11.2026, WKR_ANNAHMEN BZ1/BZ4): „Disq. an Boje …“
+ * ist ein Einstieg in DIESELBE Wahl wie DISQ im Fuß (`disq` → WkrMaske/WkrProbe öffnen WkrDisqOrt: erst die Boje, dann
+ * der Buchstabe). Eine Boje mit Buchstaben zeigt Punkte UND „Disq. G“ (zwei Zeilen, nichts abgeschnitten bei 360 px) und
+ * nimmt weiter Berührungen an – die Zelle trägt beides („5G“).
  */
 const props = withDefaults(
   defineProps<{
@@ -40,12 +39,10 @@ const props = withDefaults(
     weg: Weg
     /** Reihenfolge und Spiegeln dieser Liste (Vorgabe: Fahrtfolge). */
     ansicht?: BojenAnsicht
-    /** Startnummer für den Satz im Disq.-Dialog. */
-    startNr?: string
   }>(),
-  { ansicht: () => ({ ...BOJEN_ANSICHT_VORGABE }), startNr: '' },
+  { ansicht: () => ({ ...BOJEN_ANSICHT_VORGABE }) },
 )
-const emit = defineEmits<{ boje: [boje: MaskenBoje]; tippe: [feld: string, code: string]; weg: [weg: Weg]; bojeDisq: [boje: MaskenBoje, code: string | null] }>()
+const emit = defineEmits<{ boje: [boje: MaskenBoje]; tippe: [feld: string, code: string]; weg: [weg: Weg]; disq: [] }>()
 const { w } = useWkrText()
 
 const lage = computed(() => props.ansicht.folge === 'lage')
@@ -88,16 +85,17 @@ const disqVon = (b: MaskenBoje) => props.entwurf.bojenDisq[b.feld] ?? null
 /**
  * Was der Knopf unter der Beschriftung sagt – Stand als Zeichen und Zahl, nie nur Farbe. Am Höchstwert „höchstens 9×“
  * als eigene Zeile (WKR_ANNAHMEN.zaehlerStandZweiZeilen, Prüfbefund 21.11.2026): „9× = 45 · höchstens 9×“ passte bei
- * 360 px nicht in den halben Knopf. Mit Disq. an der Boje (U1) steht der Buchstabe statt der Punkte.
+ * 360 px nicht in den halben Knopf. Ein Disq. an der Boje steht seit W4-12 (21.11.2026) als eigene Zeile UNTER den
+ * Punkten („✔ 5“ / „Disq. G“) – beides steht in der Zelle.
  */
-function stand(b: MaskenBoje): { zahl: string; max: string | null } {
+function stand(b: MaskenBoje): { zahl: string; max: string | null; disq: string | null } {
   const d = disqVon(b)
-  if (d) return { zahl: w('wkr.geraet.bojen.disqGesetzt', { code: d }), max: disqModus.value ? w('wkr.geraet.bojen.disqWeg', { code: d }) : null }
+  const disq = d ? w('wkr.geraet.bojen.disqGesetzt', { code: d }) : null
   const n = anzahl(b)
-  if (!b.zaehler) return { zahl: n > 0 ? w('wkr.geraet.bojen.gesetzt', { punkte: n * b.punkte }) : '', max: null }
-  if (n === 0) return { zahl: w('wkr.geraet.bojen.zaehlerLeer'), max: null }
+  if (!b.zaehler) return { zahl: n > 0 ? w('wkr.geraet.bojen.gesetzt', { punkte: n * b.punkte }) : '', max: null, disq }
+  if (n === 0) return { zahl: d ? '' : w('wkr.geraet.bojen.zaehlerLeer'), max: null, disq }
   const zahl = w('wkr.geraet.bojen.zaehler', { n, punkte: n * b.punkte })
-  return { zahl, max: n >= WKR_ANNAHMEN.bojenZaehlerMax ? w('wkr.geraet.bojen.max', { n: WKR_ANNAHMEN.bojenZaehlerMax }) : null }
+  return { zahl, max: n >= WKR_ANNAHMEN.bojenZaehlerMax ? w('wkr.geraet.bojen.max', { n: WKR_ANNAHMEN.bojenZaehlerMax }) : null, disq }
 }
 /** Platz im Raster: Spalte 1 bzw. 2 (getauscht, V2), volle Breite ohne Seite. */
 function platz(b: MaskenBoje): string {
@@ -105,66 +103,16 @@ function platz(b: MaskenBoje): string {
   return String((props.ansicht.tauschen ? 1 - b.spalte : b.spalte) + 1)
 }
 
-// --- Disq. an der Boje (U1) ---
+// --- Disq. an der Boje (U1, BZ4): nur der Einstieg, die Wahl macht WkrDisqOrt ---
 const mitBojenDisq = computed(() => props.aufbau.abschnitte.some((a) => a.art === 'halt' && a.halt.bojen.some((b) => b.disq.length > 0)))
-const disqModus = ref(false)
-/** Die Boje, deren Buchstaben gerade zur Wahl stehen, mit ihrem Namen wie auf dem Bogen. */
-const wahl = ref<{ boje: MaskenBoje; name: string } | null>(null)
-function bojenName(h: MaskenHalt, b: MaskenBoje): string {
-  return [h.titel, h.durchfahrt ? w('wkr.geraet.bojen.durchfahrtKurz') : '', b.unter].filter(Boolean).join(' ')
-}
-/**
- * Rückmeldung, wenn ohne Modus eine Boje mit Buchstaben angetippt wird (Prüfbefund 21.11.2026): Sie nimmt keine
- * Berührung an (U2), und ohne Zeile hielte der WKR – mit Handschuhen – den Tipp für nicht erkannt. Gilt bis zum
- * nächsten Tipp oder Modus.
- */
-const gesperrtHinweis = ref<string | null>(null)
-function klick(h: MaskenHalt, b: MaskenBoje): void {
-  gesperrtHinweis.value = null
-  if (!disqModus.value) {
-    const d = disqVon(b)
-    if (d) {
-      gesperrtHinweis.value = w('wkr.geraet.bojen.disqGesperrt', { code: d, boje: bojenName(h, b), knopf: w('wkr.geraet.bojen.disqModus') })
-      return
-    }
-    emit('boje', b)
-    return
-  }
-  if (disqVon(b)) {
-    emit('bojeDisq', b, null)
-    disqModus.value = false
-    return
-  }
-  if (b.disq.length > 0) wahl.value = { boje: b, name: bojenName(h, b) }
-}
-function waehleDisq(code: string): void {
-  const x = wahl.value
-  wahl.value = null
-  disqModus.value = false
-  if (x) emit('bojeDisq', x.boje, code)
-}
 </script>
 
 <template>
-  <div class="wkr-bojen" data-teil="bojen" :data-weg="umschalter ? weg : undefined" :data-folge="ansicht.folge" :data-disq-modus="disqModus || undefined">
+  <div class="wkr-bojen" data-teil="bojen" :data-weg="umschalter ? weg : undefined" :data-folge="ansicht.folge">
     <div v-if="mitBojenDisq" class="wkr-bojen-disq" data-teil="bojen-disq">
-      <button
-        v-if="!disqModus"
-        type="button"
-        class="wkr-knopf wkr-knopf--breit"
-        data-ziel="klein"
-        data-action="boje-disq-modus"
-        @click="disqModus = true; gesperrtHinweis = null"
-      >
+      <button type="button" class="wkr-knopf wkr-knopf--breit" data-ziel="klein" data-action="boje-disq-modus" @click="emit('disq')">
         {{ w('wkr.geraet.bojen.disqModus') }}
       </button>
-      <p v-else class="wkr-band wkr-band--warn" role="status" data-teil="boje-disq-band">
-        <b>{{ w('wkr.geraet.bojen.disqModusAn') }}</b>
-        <button type="button" class="wkr-knopf" data-ziel="klein" data-action="boje-disq-aus" @click="disqModus = false">{{ w('wkr.geraet.bojen.disqModusAus') }}</button>
-      </p>
-      <p v-if="gesperrtHinweis && !disqModus" class="wkr-band wkr-band--warn" role="status" data-teil="boje-disq-gesperrt">
-        <span>{{ gesperrtHinweis }}</span>
-      </p>
     </div>
     <WkrWegUmschalter v-if="umschalter" :weg="weg" :zahlen="zahlen" @waehle="(x) => emit('weg', x)" />
     <template v-for="e in eintraege" :key="e.key">
@@ -195,43 +143,20 @@ function waehleDisq(code: string): void {
             :data-art="b.zaehler ? 'zaehler' : 'schalter'"
             :data-anzahl="anzahl(b)"
             :data-disq="disqVon(b) ?? undefined"
-            :disabled="disqModus && !disqVon(b) && b.disq.length === 0"
             :aria-pressed="b.zaehler ? undefined : anzahl(b) > 0 || !!disqVon(b)"
             :style="{ gridColumn: platz(b) }"
-            @click="klick(e.halt, b)"
+            @click="emit('boje', b)"
           >
             <span class="wkr-bojen-unter">{{ b.unter || w('wkr.geraet.bojen.beruehrt') }}</span>
             <span class="wkr-bojen-stand" data-teil="boje-stand">
-              <span class="wkr-bojen-zahl">{{ stand(b).zahl }}</span>
+              <span v-if="stand(b).zahl" class="wkr-bojen-zahl">{{ stand(b).zahl }}</span>
               <span v-if="stand(b).max" class="wkr-bojen-max" data-teil="boje-max">{{ stand(b).max }}</span>
+              <span v-if="stand(b).disq" class="wkr-bojen-zahl" data-teil="boje-disq-stand">{{ stand(b).disq }}</span>
             </span>
           </button>
         </div>
       </section>
       <WkrKnoepfe v-else :teile="[e.teil]" :entwurf="entwurf" @tippe="(feld, code) => emit('tippe', feld, code)" />
     </template>
-    <AppDialog v-if="wahl" class="wkr-dialog" :titel="w('wkr.geraet.bojen.disqTitel', { boje: wahl.name })" data-dialog="wkr-boje-disq" @abbrechen="wahl = null">
-      <p v-if="startNr">{{ w('wkr.geraet.bojen.disqHint', { nr: startNr }) }}</p>
-      <div class="wkr-disq" data-teil="boje-disq-codes">
-        <button
-          v-for="c in wahl.boje.disq"
-          :key="c.code"
-          type="button"
-          class="wkr-knopf wkr-disq-knopf"
-          data-ziel="gross"
-          data-action="boje-disq-code"
-          :data-code="c.code"
-          @click="waehleDisq(c.code)"
-        >
-          <span class="wkr-code-nr">{{ c.code }}</span>
-          <span class="wkr-code-mitte">
-            <span class="wkr-code-text">{{ c.text }}</span>
-          </span>
-        </button>
-      </div>
-      <template #knoepfe>
-        <button type="button" class="wkr-knopf" data-ziel="gross" data-action="boje-disq-abbrechen" autofocus @click="wahl = null">{{ w('wkr.geraet.abbrechen') }}</button>
-      </template>
-    </AppDialog>
   </div>
 </template>

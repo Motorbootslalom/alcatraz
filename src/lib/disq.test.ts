@@ -43,4 +43,22 @@ describe('sanitizeBuoy', () => {
   it('verwirft unerlaubte Buchstaben', () => {
     expect(sanitizeBuoy('z', A)).toBe('')
   })
+
+  // W4-12 (21.11.2026, BZ1/BZ2): Ziffern, dahinter höchstens ein erlaubter Buchstabe, ohne Leerzeichen; X nie mit Punkten.
+  it.each([
+    ['5J', '5J'],
+    ['5 j', '5J'],
+    ['j5', '5J'],
+    ['5,J', '5J'],
+    ['10g', '10G'],
+    ['5JG', '5J'],
+    ['5zJ', '5J'],
+    ['J', 'J'],
+    ['5', '5'],
+    ['5x', 'X'],
+    ['x', 'X'],
+    ['', ''],
+  ])('Punkte und Buchstabe: „%s“ → „%s“', (roh, sauber) => {
+    expect(sanitizeBuoy(roh, A)).toBe(sauber)
+  })
 })

@@ -751,8 +751,8 @@ Die Punkte mit Datum sind Entscheidungen vom 15.11.2026.
 - **Reihenfolge der Starter** (15.11.2026): Im Reiter „Starter“ macht „Sortierung ändern“
   die Spaltenköpfe Name, Vorname, Herkunft, Größe, Geschlecht und Geburtsdatum zu Knöpfen.
   - Das gibt es je Klasse und oben für alle Klassen zugleich (jede Klasse in sich, die Folge der Klassen bleibt).
-  - Drei Stufen je Kopf (21.11.2026, ersetzt „aufsteigend, dann umdrehen“): Klick 1 sortiert absteigend
-    (Z→A, größter Wert zuerst; Pfeil ↓), Klick 2 aufsteigend (↑), Klick 3 hebt die Markierung auf (↕) und lässt die
+  - Drei Stufen je Kopf (21.11.2026, Folge bestätigt S-01): Klick 1 sortiert aufsteigend (A→Z, kleinster Wert
+    zuerst – XS vor XL, Älteste zuerst; Pfeil ↑), Klick 2 absteigend (Z→A, ↓), Klick 3 hebt die Markierung auf (↕) und lässt die
     Reihenfolge, wie sie ist. Eine andere Spalte beginnt bei Stufe 1. Die gewählte Spalte ist farbig hinterlegt;
     die Stufe ist Bedienauswahl (merke `starter.sortierung.*`) und gilt, solange die Klasse noch so steht – auch
     mit Startnummern-Bereichen, wo nur je Größengruppe sortiert wird.
@@ -822,14 +822,18 @@ Alle Namen sind erfunden.
 
 **Beispiel-Starterfeld:**
 
-- Statt „Starter je Klasse“ eine **Gesamtzahl** (21.11.2026), gezogen nach der Art der Veranstaltung
+- Eine **Gesamtzahl** als Vorschlag (21.11.2026), gezogen nach der Art der Veranstaltung
   (`BEISPIEL_STARTERZAHL` in `src/domain/generate.ts`): Clubmeisterschaft 10–20, Meisterschaft mit Vereinen
   (oder ohne Herkunft) 45–75, nach Bundesländern oder Ländern 100–160.
-  Sie lässt sich ändern oder neu ziehen; mit einer anderen Art wird neu gezogen.
+  „Vorschlag neu“ zieht Gesamtzahl und Klassen neu; mit einer anderen Art wird neu gezogen.
+- Die Zahl je Klasse ist ein eigenes Feld (0–999, R6-02): z. B. eine Klasse auf 0, eine andere höher. Daneben steht
+  die Summe („zusammen n (Vorschlag m)“); eine neue Gesamtzahl verteilt neu (Zahlen von Hand gehen dann).
+- Bei der Clubmeisterschaft – einer Meisterschaft ohne Vereine – bekommen die Beispielstarter keine Herkunft
+  (R6-01, `beispielHerkunft`), auch wenn oben eine gewählt ist.
 - Die Starter verteilen sich nach festen Anteilen auf die Klassen (`BEISPIEL_KLASSEN_ANTEILE`:
   E 4 %, 1 9 %, 2 13 %, 3 15 %, 4 15 %, 5 18 %, 6 11 %, 7 15 % – Anteile aus drei Starterlisten 2025/2026,
   ohne Daten daraus), gerundet nach den größten Resten; kleine Felder dürfen in E keinen haben.
-  Unter UIM dieselben Anteile auf E (Dolphin) bis 5. Die Zahl je Klasse steht zum Ansehen darunter.
+  Unter UIM dieselben Anteile auf E (Dolphin) bis 5.
 - Es kennt „Herkünfte“ (leer = unbegrenzt).
   Mit einer Zahl verteilen sich die Starter reihum auf so viele Herkünfte
   (`beispielHerkuenfte` in `src/domain/generate.ts`) – zum Prüfen der Mannschaftswertung.

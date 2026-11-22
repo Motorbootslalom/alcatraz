@@ -1061,6 +1061,13 @@ function takeLegacy() {
       </fieldset>
     </div>
     <p class="note">{{ t('listopt.betrieb.wkr.hint', { min: RUECKSTAND_MIN, max: RUECKSTAND_MAX }) }}</p>
+    <!-- Auto-Modus (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN.autoVorgabe, AM6): Vorgabe aus; wirkt nur mit Geräten an
+         jeder Parcours-Liste – das sagt die Start-Freigabe selbst („Auto aus: …“). -->
+    <label class="boat-check">
+      <input type="checkbox" data-feld="betrieb-wkr-auto" :checked="state.anzeige.wkrAuto" @change="setzeAnzeige({ wkrAuto: ($event.target as HTMLInputElement).checked })" />
+      {{ t('listopt.betrieb.wkrAuto') }}
+    </label>
+    <p class="note">{{ t('listopt.betrieb.wkrAuto.hint', { n: BETRIEB_ANNAHMEN.autoVerzugSek }) }}</p>
 
     <!-- Startabstände je Klasse (E3, Lastenheft der Tafel L-3 bis L-6): Vorgabe, eigener Wert, Messung, was gilt. -->
     <h3>{{ t('listopt.betrieb.abstaende') }}</h3>

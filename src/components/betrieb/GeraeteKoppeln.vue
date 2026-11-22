@@ -35,7 +35,8 @@ import type { ListenTeil } from '../../wkr/liste'
  * Oberflächensprache, gruppiert nach Parcours bzw. Racecourse (wkrListenWahl.ts), Listen ohne Maske in W3 mit
  * „Maske folgt – Papier“ (G14) –, am Steg ganz / nur Ablegen / nur Anlegen (F16). Gemerkt `geraete.koppeln.liste` und
  * `geraete.koppeln.teil`; vorgewählt auch über den Verweis „Gerät koppeln“ der Matrix (`#/betrieb/geraete/<liste>`,
- * BetriebView beiWahl). Mit einem einzigen Parcours ist die Freigabe nur ohne Liste vorgewählt (J3).
+ * BetriebView beiWahl). Die Start-Freigabe ist nie vorgewählt, auch nicht mit einem einzigen Parcours (Nutzer 21.11.2026,
+ * W3-26: „ein Recht wie die Listen“ – die Vorwahl hatte verwirrt; ersetzt J3 und die E7-Vorwahl).
  *
  * Alles geht über den Host (useGeraeteHost) und damit über das Führungsfenster; hier wird nur gezeigt und gewählt. Die
  * Wahl der Bereiche ist Bedienung (lib/merken.ts), nicht Stand.
@@ -66,12 +67,11 @@ function waehleListe(kennung: string): void {
   listeTeil.value = ''
 }
 
-// Gemerkte Wahl; ein einziger Bereich gilt ohne Wahl (der häufige Fall: ein Parcours) – aber nur ohne Liste (J3).
+// Gemerkte Wahl, nie eine Vorwahl (Nutzer 21.11.2026, W3-26, WKR_ANNAHMEN.freigabeVorwahlOhneListe = false).
 const wahl = merke<string[]>('geraete.koppeln.bereiche', [])
 const gewaehlt = computed<BereichId[]>(() => {
   const da = bereiche.value.map((b) => b.id)
-  const w = wahl.value.filter((id) => da.includes(id))
-  return w.length === 0 && da.length === 1 && !gewaehlteListe.value ? da : w
+  return wahl.value.filter((id) => da.includes(id))
 })
 function schalte(id: BereichId, an: boolean): void {
   const neu = new Set(gewaehlt.value)

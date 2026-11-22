@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aufgabenVon, bekannteGeraete, benenne, beruehre, entzogeneListe, geraeteListe, hatGruppe, koppelStandVon, setzeAufgaben, setzeKoppelStand, vermerkeEntzug, vermerkeLebenszeichen } from './register'
+import { aufgabenVon, bekannteGeraete, benenne, beruehre, entzogeneListe, geraeteListe, hatGruppe, koppelStandVon, setzeAufgaben, setzeKoppelStand, setzeTyp, vermerkeEntzug, vermerkeLebenszeichen } from './register'
 import { gruppeDerFreigabe, gruppeDerListe } from './wkrGruppen'
 import { listenKennung } from '../wkr/liste'
 import { gibCode, leererKoppelStand } from './koppeln'
@@ -78,5 +78,37 @@ describe('Register', () => {
     expect(raum.geraete.g1.akku).toBeUndefined()
     vermerkeLebenszeichen(raum, 'weg', 700, { wartend: 1 })
     expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
+  })
+
+  it('WKR-Namen (W3-13, WN2): aus dem Lebenszeichen, nur eigene Listen, `{}` räumt, ohne Feld bleibt; im Raum geprüft', () => {
+    const raum = raumMitGeraet()
+    const tor = listenKennung({ bereich: 'par_1', typeId: 'gate135', racecourse: null })
+    const fremd = listenKennung({ bereich: 'par_1', typeId: 'steg', racecourse: null })
+    setzeAufgaben(raum, 'g1', [{ art: 'liste', liste: tor }])
+    vermerkeLebenszeichen(raum, 'g1', 500, { wartend: 0, namen: { [tor]: 'Erika Muster', [fremd]: 'Max Beispiel' } })
+    expect(geraeteListe(raum).find((g) => g.id === 'g1')!.wkrNamen).toEqual({ [tor]: 'Erika Muster' })
+    expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
+    // Ein älteres Gerät ohne `namen` ändert nichts.
+    vermerkeLebenszeichen(raum, 'g1', 600, { wartend: 0 })
+    expect(raum.geraete.g1.wkrNamen).toEqual({ [tor]: 'Erika Muster' })
+    // Zurück zur Einteilung: leer.
+    vermerkeLebenszeichen(raum, 'g1', 700, { wartend: 0, namen: {} })
+    expect(raum.geraete.g1.wkrNamen).toBeUndefined()
+    expect('wkrNamen' in geraeteListe(raum).find((g) => g.id === 'g1')!).toBe(false)
+    // Kaputter Raum (Name zu lang) wird nicht gelesen.
+    const kaputt = JSON.parse(JSON.stringify(raum))
+    kaputt.geraete.g1.wkrNamen = { [tor]: 'x'.repeat(61) }
+    expect(istHostRaum(kaputt)).toBe(false)
+  })
+
+  it('Art (W3-25, GF7): aus der Anmeldung nur beim ersten Mal, die Wahl am Bedienrechner bleibt; im Raum geprüft', () => {
+    const raum = raumMitGeraet()
+    expect(setzeTyp(raum, 'g1', 'handy', true)).toBe(true)
+    expect(setzeTyp(raum, 'g1', 'pad')).toBe(true)
+    expect(setzeTyp(raum, 'g1', 'handy', true)).toBe(false)
+    expect(geraeteListe(raum).find((g) => g.id === 'g1')!.typ).toBe('pad')
+    expect(setzeTyp(raum, 'weg', 'pad')).toBe(false)
+    expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
+    expect(istHostRaum(JSON.parse(JSON.stringify({ ...raum, geraete: { ...raum.geraete, g1: { ...raum.geraete.g1, typ: 'toaster' } } })))).toBe(false)
   })
 })

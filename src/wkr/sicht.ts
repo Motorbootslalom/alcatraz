@@ -1,5 +1,6 @@
 import type { AppState, CellKind, ClassId, PunktId, Sprache, StartRef, WkrStatus } from '../types'
 import { configFor, type Konfig } from '../config/konfig'
+import { codeKlassenOf } from '../config/catalog'
 import type { BogenTexte } from '../config/sprache'
 import type { Column } from '../types'
 import { bereicheZumStand, laeufeVonPunkt, lage, rundeVonPunkt } from '../betrieb/folge'
@@ -11,7 +12,8 @@ import { geraetVonZeile } from '../state/reducer/wkr'
 import { abgeschlossenePunkte, abschlussVon, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
 import { bojenHalt } from './bojen'
-import { listenKennung, teileVon, teilVonZelle, type Liste } from './liste'
+import { istParcoursListe, listenKennung, teileVon, teilVonZelle, type Liste } from './liste'
+import { ampelImStand, laufLage } from './ampel'
 import { danach, schlange, type SchlangenStart } from './schlange'
 
 // Die Sicht einer Liste (Plan docs/plan-wkr-w1.md §3.1, 21.11.2026): das EINE, was die WKR-Geräte einer Liste vom
@@ -36,8 +38,15 @@ import { danach, schlange, type SchlangenStart } from './schlange'
  * bleibt; die Fassung zählt trotzdem hoch, damit ein Gerät mit altem Programm „aktualisieren“ zeigt, statt einen
  * solchen Start ohne Meldung zu verlieren, und kein alter Bedienrechner eine Zeile mit `n` als „fehlerfrei“ übernimmt
  * (er schickte Fassung 4 – das neue Gerät liest sie nicht; P16).
+ * 6 seit der Parcours-Ampel (Nutzer 21.11.2026, P-03, R6-10): `ampel` (nur Parcours-Listen: Ampel des gezeigten
+ * Starts, AM9) und `laeuft` (der laufende Punkt läuft noch – Rückfrage vor „Liste abschließen“).
+ * 7 seit dem Gerät-Feinschliff (Nutzer 21.11.2026, W3-07, W4-13): Katalog-Einträge mit `aus` (Code gilt laut Regelwerk
+ * in dieser Klasse nicht – ausgegraut, aber drückbar, GF2) und `bild` je Klasse (Parcours-Zeichnung unter den Knöpfen,
+ * GF9) – ein altes Gerät zeigte sonst nichts davon.
+ * 8 seit den WKR-Namen aus der Veranstaltung (Nutzer 21.11.2026, W3-13, WKR_ANNAHMEN WN1): `wkrName` = Name aus der
+ * WKR-Einteilung für GENAU diese Liste – ein altes Gerät fragte sonst weiter nur beim Abschluss.
  */
-export const LISTEN_SICHT_FASSUNG = 5
+export const LISTEN_SICHT_FASSUNG = 8
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier
@@ -71,6 +80,12 @@ export interface ListenStart {
   entfaellt?: 'klasse'
   /** Noch nicht gezeigt, aber schon zu erfassen (Vorsteg). */
   vorab?: true
+  /**
+   * Punkt (Lauf bzw. Runde) des Starts – seit Fassung 6 (21.11.2026, W3-40): Abgeschlossen wird nur noch über das Band,
+   * oft wenn der nächste Lauf schon begann; die Prüfansicht muss die offenen Starts DES abzuschließenden Punkts kennen
+   * (sonst fehlte „Rest auf Papier“ und der Bedienrechner lehnte mit `offen` ab).
+   */
+  punkt?: PunktId
 }
 
 /** Ein Feld der Maske, aufgelöst für eine Klasse und in der Sprache der Liste. */
@@ -80,8 +95,11 @@ export interface MaskenFeld {
   label: string
   /** Teil der Liste (Steg: Ablegen/Anlegen); fehlt bei gemeinsamen Spalten und ungeteilten Listen. */
   teil?: 'ab' | 'an'
-  /** Fehlerkatalog (nur `code`). */
-  katalog?: { code: string; punkte: number; text: string }[]
+  /**
+   * Fehlerkatalog (nur `code`). `aus`: Der Code gilt laut Regelwerk in dieser Klasse nicht (YAML `abKlasse`/`klassen`,
+   * config/catalog.ts codeKlassenOf) – die Maske graut ihn aus, drückbar bleibt er (Nutzer 21.11.2026, W3-07, GF2).
+   */
+  katalog?: { code: string; punkte: number; text: string; aus?: true }[]
   /** Disq.-Buchstaben, die hier gelten (`buoy`, `code`, `disq`); X nur, wo das Gerät es darf (F5). */
   disq?: { code: string; text: string }[]
   /** Nur Bojen auf dem Fahrweg (W4, P15): wo die Boje liegt und wie ihr Kopf auf dem Bogen heißt. */
@@ -148,6 +166,18 @@ export interface ListenAndere {
   klassen: Partial<Record<ClassId, { titel: string; felder: AndereFeld[] | null }>>
 }
 
+/**
+ * Parcours-Zeichnung der Klasse auf dieser Liste (Nutzer 21.11.2026, W4-13, GF9): dieselbe Angabe wie das Bild des
+ * Bogens (lib/bogen.ts BogenBild – Datei aus `kurse.bilder` der Klasse, Dimmen/Ausblenden der Position, Drehung). Nur
+ * eine Kennung, nie das Bild: Das Gerät hat die Zeichnungen gebündelt (src/assets/parcours) und lädt nichts.
+ */
+export interface MaskenBild {
+  datei: string
+  dim: string[]
+  aus: string[]
+  drehung: number
+}
+
 export interface ListenSicht {
   lv: typeof LISTEN_SICHT_FASSUNG
   liste: string
@@ -166,10 +196,26 @@ export interface ListenSicht {
   schlange: ListenStart[]
   danach: ListenStart[]
   /** Je Klasse die Maske; `null` = die Klasse hat diese Liste nicht (entfällt). */
-  klassen: Partial<Record<ClassId, { titel: string; felder: MaskenFeld[] | null }>>
+  klassen: Partial<Record<ClassId, { titel: string; felder: MaskenFeld[] | null; bild?: MaskenBild }>>
   /** Dieselben Masken in der anderen Sprache (F13), nur unter einem Regelwerk mit [de, en]. */
   andere?: ListenAndere
   geraete: Record<string, ListenGeraet>
+  /**
+   * Name des Wettkampfrichters dieser Liste aus der WKR-Einteilung der Veranstaltung (Nutzer 21.11.2026, W3-13, WN1) –
+   * nur der eigenen Liste, nur in ihrer verschlüsselten Gruppe (Teil-Geräte am Steg: derselbe Name, die Einteilung kennt
+   * keine Teile). Fehlt ohne Eintrag (dann fragt das Gerät beim Abschluss, WN3). Nie in ko/kz oder der Freigabe-Sicht.
+   */
+  wkrName?: string
+  /**
+   * Nur Parcours-Listen (AM1, AM9): die Parcours-Ampel des gezeigten Starts – grün „Start frei“, rot „im Parcours“, frei
+   * „alle fertig“. Fehlt ohne Ampel (Steg, Vorsteg, nichts gezeigt, keine Parcours-Liste digital).
+   */
+  ampel?: { key: string; ampel: 'gruen' | 'rot' | 'frei' }
+  /**
+   * Der laufende Punkt läuft noch (R6-10): Startnummern unterwegs (im Boot bzw. Ampel grün/rot) und Zahl der noch
+   * freien Starts. Fehlt, wenn er durch ist oder keiner läuft.
+   */
+  laeuft?: { punkt: PunktId; unterwegs: string[]; offen: number }
 }
 
 export type MaskenJeKlasse = ListenSicht['klassen']
@@ -202,10 +248,11 @@ function bojenTexte(columns: readonly Column[], zelle: string): { titel: string;
  * `null` = die Klasse hat diese Liste nicht (entfällt) oder die Liste ist unbekannt. X „nicht gestartet“ nur, wo F5 es
  * erlaubt (`xErlaubt`: die Liste darf es; am Steg nur im Teil Ablegen und in gemeinsamen Spalten).
  */
-export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: string, klassenIds: Iterable<ClassId>, xErlaubt: boolean): MaskenJeKlasse {
+export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: string, klassenIds: Iterable<ClassId>, xErlaubt: boolean, aufbauId?: string): MaskenJeKlasse {
   const texte = sprachKonfig.getBogenTexte()
   const bekannt = konfig.getPositions().some((p) => p.typeId === typeId)
   const teile = teileVon(typeId)
+  const codeKlassen = codeKlassenOf(konfig.getRegelwerk().id ?? '')
   const klassen: MaskenJeKlasse = {}
   for (const k of [...new Set(klassenIds)].sort()) {
     if (!bekannt || !konfig.positionAllowsClass(typeId, k)) {
@@ -220,7 +267,11 @@ export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: str
       const out: MaskenFeld = { kennung: f.kennung, kind: f.kind, label: f.label }
       const teil = teilVonZelle(typeId, f.zelle)
       if (teil === 'ab' || teil === 'an') out.teil = teil
-      if (f.kind === 'code' && f.katalog) out.katalog = f.katalog.map((e) => ({ code: e.code, punkte: e.punkte, text: e.text }))
+      if (f.kind === 'code' && f.katalog)
+        out.katalog = f.katalog.map((e) => {
+          const gilt = codeKlassen[e.code]
+          return { code: e.code, punkte: e.punkte, text: e.text, ...(gilt && !gilt.includes(k) ? { aus: true as const } : {}) }
+        })
       if (f.kind === 'buoy' || f.kind === 'code' || f.kind === 'disq') {
         // X „nicht gestartet“ nur am Steg (Ablegen bzw. gemeinsame Spalte) und am Vorsteg (F5) – sonst lehnt der
         // Bedienrechner die Zeile ohnehin ab; die Maske bietet es gar nicht erst an.
@@ -237,7 +288,9 @@ export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: str
       }
       return out
     })
-    klassen[k] = { titel: texte.klasse(k), felder }
+    // Parcours-Zeichnung (W4-13, GF9): nur wo der Bogen eine hat, nur mit Aufbau (sonst wüsste niemand, welche).
+    const bild = aufbauId !== undefined && def.bildErzeugen ? { datei: konfig.bildDatei(aufbauId, k), dim: [...def.bildErzeugen.dim], aus: [...def.bildErzeugen.aus], drehung: def.bildDrehung ?? 0 } : null
+    klassen[k] = { titel: texte.klasse(k), felder, ...(bild ? { bild } : {}) }
   }
   return klassen
 }
@@ -282,6 +335,23 @@ function startTitel(ref: StartRef, texte: BogenTexte): string {
 }
 
 /**
+ * Name des Wettkampfrichters einer Liste laut WKR-Einteilung (AppState.einteilung, Parcours × Liste; Parallelslalom
+ * unter der Kennung des Racecourse, lib/parallelSchluessel.ts RACECOURSE_PARCOURS) – ohne Leerraum am Rand, '' ohne
+ * Eintrag. Für die Sicht (WN1) und den Vergleich am Bedienrechner (GeraeteListe.vue, Nutzer 21.11.2026 W3-13).
+ */
+export function einteilungsName(stand: Pick<AppState, 'einteilung'>, liste: Liste): string {
+  const parcoursId = einteilungsParcours(liste)
+  const eintrag = Object.hasOwn(stand.einteilung, parcoursId) ? stand.einteilung[parcoursId] : undefined
+  const name = eintrag && Object.hasOwn(eintrag, liste.typeId) ? eintrag[liste.typeId] : ''
+  return typeof name === 'string' ? name.trim() : ''
+}
+
+/** Die Kennung, unter der die Einteilung den Namen einer Liste führt (SET_WKR_NAME `parcoursId`). */
+export function einteilungsParcours(liste: Liste): string {
+  return liste.racecourse !== null ? RACECOURSE_PARCOURS[liste.racecourse] : liste.bereich
+}
+
+/**
  * Die Sicht einer Liste. `konfig` ist die des Stands (Aufbau, Klassen); Texte, Spaltenköpfe und Kataloge kommen in
  * der Sprache der Liste (eigene Konfiguration, configFor merkt sie sich). `extra`: je Gerät der Liste, was nur der
  * Host weiß – nur diese Geräte stehen in `geraete`, und nur ihre Rückfragen.
@@ -302,7 +372,7 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
 
   const starterNachId = new Map(stand.starters.map((s) => [s.id, s]))
   const start = (s: SchlangenStart): ListenStart => {
-    const out: ListenStart = { key: s.key, startNr: starterNachId.get(s.starter)?.startNr ?? '', klasse: s.klasse, titel: startTitel(s.ref, texte), lauf: s.lauf }
+    const out: ListenStart = { key: s.key, startNr: starterNachId.get(s.starter)?.startNr ?? '', klasse: s.klasse, titel: startTitel(s.ref, texte), lauf: s.lauf, punkt: s.punkt }
     if (liste.racecourse !== null) out.seite = liste.racecourse
     const boot = stand.boote[s.klasse]?.trim()
     if (boot) out.boot = boot
@@ -319,7 +389,8 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
     if (s.vorab) out.vorab = true
     return out
   }
-  const inSchlange = bekannt ? schlange(stand, liste).slice(0, WKR_ANNAHMEN.schlange) : []
+  const ganzeSchlange = bekannt ? schlange(stand, liste) : []
+  const inSchlange = ganzeSchlange.slice(0, WKR_ANNAHMEN.schlange)
   const spaeter = bekannt ? danach(stand, liste) : []
 
   // Masken je Klasse: alle Klassen des Bereichs (die Folge) und der gezeigten Starts – auch ohne Netz muss das Gerät
@@ -328,7 +399,7 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   const xErlaubt = WKR_ANNAHMEN.xListen.includes(liste.typeId)
   const sprachen = maskenSprachen(stand.regelwerk, sprache)
   const konfigIn = (sp: Sprache) => (sp === sprache ? sprachKonfig : configFor({ regelwerk: stand.regelwerk, sprache: sp, beschriftung: stand.beschriftung, eigeneAufbauten: stand.eigeneAufbauten }))
-  const klassen = maskenJeKlasse(konfig, konfigIn(sprachen.maske), liste.typeId, klassenIds, xErlaubt)
+  const klassen = maskenJeKlasse(konfig, konfigIn(sprachen.maske), liste.typeId, klassenIds, xErlaubt, stand.aufbau)
 
   const abgeschlossen = abgeschlossenePunkte(stand.wkr, kennung, undefined, !!teile)
   const punkt = l.laufend
@@ -368,6 +439,19 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
     klassen,
     geraete,
   }
+  // WKR-Name aus der Einteilung (W3-13, WN1): nur dieser Liste, als Text neu (nie das Objekt der Einteilung).
+  const name = einteilungsName(stand, liste)
+  if (name !== '') sicht.wkrName = name
+  // Parcours-Ampel (P-03, AM9) und „Lauf läuft noch“ (R6-10) – jedes Objekt neu, nur Kennung, Zustand, Startnummern.
+  const aktuell = l.aktuell?.key ?? null
+  if (bekannt && aktuell !== null && istParcoursListe(konfig, liste.typeId)) {
+    const a = ampelImStand(stand, konfig, liste.bereich)
+    if (a !== 'aus') sicht.ampel = { key: aktuell, ampel: a }
+  }
+  // Ein gezeigter Start, den diese Liste (bzw. ein Teil am Steg) noch nicht erledigt hat, ist unterwegs – auch der
+  // letzte des Laufs auf dem Weg zum Anlegen (Prüfbefund 21.11.2026, R6-10).
+  const lauf = laufLage(stand, konfig, liste.bereich, (key) => ganzeSchlange.some((x) => x.key === key))
+  if (lauf) sicht.laeuft = { punkt: lauf.punkt, unterwegs: [...lauf.unterwegs], offen: lauf.offen }
   if (sprachen.andere !== null) {
     const andereKonfig = konfigIn(sprachen.andere)
     const at = andereKonfig.getBogenTexte()

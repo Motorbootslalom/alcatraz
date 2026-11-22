@@ -184,8 +184,12 @@ export function zeilenHinweise(felder: readonly Feld[], werte: Werte, alleFelder
     const wert = werte[feld.kennung]
     if (!wert) continue
     if (feld.kind === 'buoy') {
+      // Der Hinweis prüft nur den Ziffernteil (W4-12, 21.11.2026): „5J“ hat gültige Punkte, „J“ hat keine, „7J“
+      // ist so verdächtig wie „7“. X „nicht gestartet“ mit Punkten (BZ2) widerspricht sich und fällt ebenso auf.
       const { punkte, disq } = bojenWert(wert)
-      if (!disq && (punkte % 5 !== 0 || punkte > 30 || punkte === 0)) hinweise.push({ art: 'bojePunkte', zelle: feld.zelle })
+      const ziffern = /\d/.test(wert)
+      const falsch = (ziffern || !disq) && (punkte % 5 !== 0 || punkte > 30 || punkte === 0)
+      if (falsch || (ziffern && disq === NICHT_GESTARTET)) hinweise.push({ art: 'bojePunkte', zelle: feld.zelle })
     } else if (feld.kind === 'time') {
       const zeit = parseTime(wert)
       if (!zeit || zeit.centis < ZEIT_MIN || zeit.centis > ZEIT_MAX) hinweise.push({ art: 'zeitBereich', zelle: feld.zelle })

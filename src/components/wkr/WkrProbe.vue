@@ -24,6 +24,7 @@ import {
   type MaskenHalt,
 } from '../../wkr/maske'
 import WkrBojen from './WkrBojen.vue'
+import WkrDisqOrt from './WkrDisqOrt.vue'
 import WkrFuss from './WkrFuss.vue'
 import WkrKnoepfe from './WkrKnoepfe.vue'
 import WkrStarterKarte from './WkrStarterKarte.vue'
@@ -43,7 +44,8 @@ import { useWkrText } from './texte'
  *   Knopf; ohne eine solche die erste Boje) → „− letzte zurück“ → nur mit Zähler: Tor 5 zweimal (2 Berührungen) →
  *   nur mit Umschalter: „Rückweg“ → Hauptknopf. Katalog-Teile gemischter Listen übt sie nicht (wie W3).
  *   Nutzer 21.11.2026: vor dem Hauptknopf „Disq. an Boje“ (U4: rechter Knopf der ersten zweibojigen Zeile, erster
- *   Buchstabe); in der Ansicht „Wie der Parcours liegt“ (V1) ohne den Rückweg-Schritt – dort gibt es keinen Umschalter.
+ *   Buchstabe) – seit W4-12 (21.11.2026, BZ1/BZ4) mit Punkt UND Buchstabe: Boje antippen, „Disq. an Boje …“, in der
+ *   Ortswahl (WkrDisqOrt) dieselbe Boje, Buchstabe; fertig, wenn die Boje beides trägt. In der Ansicht „Wie der Parcours liegt“ (V1) ohne den Rückweg-Schritt – dort gibt es keinen Umschalter.
  *   Mit Umschalter liegt die Disq.-Boje auf der gerade offenen Seite (Rückweg; Prüfbefund 21.11.2026).
  *
  * Der letzte Schritt zeigt das Weiterspringen samt Sperre (G5, wkr/maske.ts wechselTakt): Overlay „wird übertragen …“
@@ -153,16 +155,27 @@ const fertig = computed(() => gesendetUm.value !== null && takt.value === 'frei'
 const weiter = () => (schritt.value += 1)
 /** Seite des Umschalters in der Probe (wechselt nie von selbst – wie in der echten Maske). */
 const weg = ref<Weg>('hin')
+/**
+ * Disq.-Wahl offen (BZ4: erst die Boje, dann der Buchstabe – wie in der Maske). Einstieg nur über „Disq. an Boje …“;
+ * zurück zu den Bojen über „FEHLER“ im Fuß, der nur bei offener Wahl erscheint (die Probe bleibt sonst schlicht).
+ */
+const disqOffen = ref(false)
+/** U4 nach W4-12: Die Disq.-Boje trägt Punkt UND Buchstabe – gleich, in welcher Reihenfolge getippt. */
+function disqSchrittFertig(): void {
+  const f = disqBoje.value?.boje.feld
+  if (art.value === 'bojeDisq' && f && entwurf.value.bojenDisq[f] && (entwurf.value.bojen[f] ?? 0) > 0) weiter()
+}
 function tippeBojeKnopf(b: MaskenBoje): void {
   if (gesperrt.value) return
   entwurf.value = tippeBoje(entwurf.value, b)
   if (art.value === 'boje' && b.feld === ersteBoje.value?.boje.feld && (entwurf.value.bojen[b.feld] ?? 0) > 0) weiter()
   else if (art.value === 'zaehler' && b.feld === zaehlerBoje.value?.boje.feld && (entwurf.value.bojen[b.feld] ?? 0) >= 2) weiter()
+  else disqSchrittFertig()
 }
 function setzeBojenDisq(b: MaskenBoje, code: string | null): void {
   if (gesperrt.value) return
   entwurf.value = tippeBojenDisq(entwurf.value, b, code)
-  if (art.value === 'bojeDisq' && b.feld === disqBoje.value?.boje.feld && entwurf.value.bojenDisq[b.feld]) weiter()
+  disqSchrittFertig()
 }
 function waehleWeg(x: Weg): void {
   if (gesperrt.value) return
@@ -210,6 +223,7 @@ function wiederhole(): void {
   for (const id of zeitgeber) clearTimeout(id)
   zeitgeber.clear()
   schritt.value = 0
+  disqOffen.value = false
   entwurf.value = leererEntwurf()
   gesendetUm.value = null
   weg.value = 'hin'
@@ -276,15 +290,25 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
       <WkrStarterKarte :start="start" :klasse="aufbau.titel" :gesendet="imOverlay" />
       <div class="wkr-mitte" :inert="gesperrt" data-teil="mitte">
         <WkrVorsteg v-if="vorsteg" :codes="disqCodes" :gesetzt="entwurf.disq" start-nr="P" @setze="setzeDisq" @x-nein="xNein" />
+        <WkrDisqOrt
+          v-else-if="bojen && disqOffen"
+          :aufbau="aufbau"
+          :entwurf="entwurf"
+          :codes="disqCodes"
+          start-nr="P"
+          :ansicht="bojenAnsicht"
+          @setze="setzeDisq"
+          @boje-disq="setzeBojenDisq"
+          @fertig="disqOffen = false"
+        />
         <WkrBojen
           v-else-if="bojen"
           :aufbau="aufbau"
           :entwurf="entwurf"
           :weg="weg"
           :ansicht="bojenAnsicht"
-          start-nr="P"
           @boje="tippeBojeKnopf"
-          @boje-disq="setzeBojenDisq"
+          @disq="disqOffen = true"
           @tippe="tippeCode"
           @weg="waehleWeg"
         />
@@ -299,8 +323,9 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
           :disq="[...entwurf.disq, ...disqAnBojen(entwurf, aufbau).map((d) => d.code)]"
           :korrektur="null"
           :hand="hand"
-          :mit-disq="false"
-          :disq-offen="false"
+          :mit-disq="disqOffen"
+          :disq-offen="disqOffen"
+          @disq="disqOffen = false"
           @zurueck="zurueckTipp"
           @haupt="haupt"
         />

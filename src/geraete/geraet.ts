@@ -1,3 +1,4 @@
+import type { GeraeteTyp } from './transport/protokoll'
 import { ref, shallowRef, watch, type Ref, type ShallowRef } from 'vue'
 import type { OeffentlicheSicht, ZuschauerSicht } from '../types'
 import { SICHT_FASSUNG } from '../betrieb/sicht'
@@ -58,6 +59,8 @@ export interface LeseUmgebung {
   aktualisiere?: () => void
   /** Wie oft geprüft wird, ob die Sicht abgelaufen ist. */
   ablaufTaktMs?: number
+  /** Art dieses Geräts für die Anmeldung (W3-25; Tests). Ohne: aus Bildschirm und Zeiger (geraeteName.ts dieserTyp). */
+  typ?: GeraeteTyp
 }
 
 export interface LeseGeraet {

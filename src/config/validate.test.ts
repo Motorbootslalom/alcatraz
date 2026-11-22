@@ -212,6 +212,23 @@ describe('Konfigurations-Validierung', () => {
     )
   })
 
+  it('Klassen je Fehler-Code (W3-07, 21.11.2026): nur Klassen des Regelwerks, nicht abKlasse UND klassen', () => {
+    const raw = {
+      klassen: ['1', '2', '3'],
+      kataloge: {
+        k: {
+          fehler: [
+            { code: 1, text: 'x', punkte: 5, abKlasse: 2 },
+            { code: 2, text: 'x', punkte: 5, abKlasse: 9 },
+            { code: 3, text: 'x', punkte: 5, abKlasse: 2, klassen: [3] },
+          ],
+        },
+      },
+    }
+    const meldungen = validateRawConfig(raw).filter((i) => i.code === 'BAD_FEHLER_KLASSE')
+    expect(meldungen.map((m) => m.message)).toEqual([expect.stringContaining('"9"'), expect.stringContaining('entweder')])
+  })
+
   describe('Wertungslisten', () => {
     const codes = (aendern: (text: string) => string) =>
       validateConfigTexts({ ...texte, positionen: positionenText(aendern) }).map((i) => i.code)

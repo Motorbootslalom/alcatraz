@@ -5,8 +5,9 @@ import { lage, refKey } from '../betrieb/folge'
 import { sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
 import { BETRIEB_STARTER, betriebStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState, WkrZeile } from '../types'
-import { LISTEN_SICHT_FASSUNG, maskenJeKlasse, sichtListe, type ListenSicht, type ListenSichtExtra } from './sicht'
+import { einteilungsName, einteilungsParcours, LISTEN_SICHT_FASSUNG, maskenJeKlasse, sichtListe, type ListenSicht, type ListenSichtExtra } from './sicht'
 import { listenKennung, type Liste } from './liste'
+import { laufLage } from './ampel'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
 import { listenFelder } from '../lib/eingaben'
 import { deflateRawSync } from 'node:zlib'
@@ -79,14 +80,16 @@ describe('Sicht der Liste – Form', () => {
     mit = reducer(mit, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: erste[1], feld: feld.kennung, wert: c1 }] })
     mit = sende(mit, 'steg', [zeile(mit, 'steg', erste[1], [[feld.kennung, c2, '']], 'g1', 2)])
     const sicht = sichtListe(mit, DM, L('steg'), { geraete: { g1: { bis: 2, abgelehnt: [{ z: 3, grund: 'feld-fremd' }], hinweise: [{ id: 1, code: 'pruefen', startNr: '101' }] } } })
-    expect(Object.keys(sicht).sort()).toEqual(['abgeschlossen', 'bereich', 'danach', 'geraete', 'klassen', 'liste', 'lv', 'modus', 'punkt', 'schlange', 'sprache', 'status', 'teile', 'titel'])
+    // `laeuft` seit Fassung 6 (R6-10): der laufende Punkt läuft noch; nie `ampel` am Steg (P-03, AM9).
+    expect(Object.keys(sicht).sort()).toEqual(['abgeschlossen', 'bereich', 'danach', 'geraete', 'klassen', 'laeuft', 'liste', 'lv', 'modus', 'punkt', 'schlange', 'sprache', 'status', 'teile', 'titel'])
     expect(sicht.lv).toBe(LISTEN_SICHT_FASSUNG)
+    expect(Object.keys(sicht.laeuft!).sort()).toEqual(['offen', 'punkt', 'unterwegs'])
     expect(Object.keys(sicht.punkt!).sort()).toEqual(['id', 'titel'])
     // Teile (Steg, F16): je Teil nur Status und abgeschlossene Punkte.
     expect(sicht.teile).toEqual({ ab: { status: 'aktiv', abgeschlossen: [] }, an: { status: 'aktiv', abgeschlossen: [] } })
-    const startSchluessel = new Set(['key', 'startNr', 'klasse', 'titel', 'lauf', 'seite', 'boot', 'teile', 'entfaellt', 'vorab', 'ab', 'an'])
+    const startSchluessel = new Set(['key', 'startNr', 'klasse', 'titel', 'lauf', 'seite', 'boot', 'teile', 'entfaellt', 'vorab', 'ab', 'an', 'punkt'])
     for (const k of schluessel([...sicht.schlange, ...sicht.danach])) expect(startSchluessel.has(k), k).toBe(true)
-    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text'])
+    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus'])
     for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
     expect(Object.keys(sicht.geraete)).toEqual(['g1'])
     const g = sicht.geraete.g1
@@ -137,6 +140,10 @@ describe('Sicht der Liste – Form', () => {
     expect(code.katalog!.length).toBeGreaterThan(0)
     expect(Object.keys(code.katalog![0]).sort()).toEqual(['code', 'punkte', 'text'])
     expect(felder.some((f) => f.teil === 'an')).toBe(true)
+    // W3-07 (21.11.2026, GF2): Codes „ab Klasse 3/4“ tragen in Klasse 1 `aus`, in Klasse 4 nicht.
+    expect(code.katalog!.filter((e) => e.aus).map((e) => e.code)).toEqual(['4', '5'])
+    const stegK4 = sichtListe(s, DM, L('steg'), EXTRA).klassen['4']
+    if (stegK4?.felder) expect(stegK4.felder.flatMap((f) => f.katalog ?? []).some((e) => e.aus)).toBe(false)
     const disq = felder.find((f) => f.kind === 'disq')!
     expect(disq.teil).toBeUndefined()
     expect(disq.disq!.map((d) => d.code)).toContain('X')
@@ -253,12 +260,16 @@ describe('Sicht der Liste – Sprache (F13)', () => {
 describe('Sicht der Liste – Bojen (W4.1, P7, P15)', () => {
   const bojeSchluessel = new Set(['halt', 'weg', 'folge', 'titel', 'unter', 'spalte', 'zaehler', 'durchfahrt'])
 
-  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 5 (seit W4.3)', () => {
+  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 8 (seit den WKR-Namen)', () => {
     const { s } = bereit('gate135')
     const sicht = sichtListe(s, DM, L('gate135'), EXTRA)
-    expect(LISTEN_SICHT_FASSUNG).toBe(5)
-    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'boje', ...bojeSchluessel])
+    expect(LISTEN_SICHT_FASSUNG).toBe(8)
+    // `bild` (W4-13, GF9): nur die Kennung der Zeichnung, wie auf dem Bogen.
+    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus', 'boje', 'bild', 'datei', 'dim', 'drehung', ...bojeSchluessel])
     for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
+    const mitBild = Object.values(sicht.klassen).filter((k) => k?.felder && k.bild)
+    expect(mitBild.length).toBeGreaterThan(0)
+    expect(Object.keys(mitBild[0]!.bild!).sort()).toEqual(['aus', 'datei', 'dim', 'drehung'])
     let zahl = 0
     for (const k of Object.values(sicht.klassen))
       for (const f of k!.felder ?? []) {
@@ -408,5 +419,93 @@ describe('F17 (W2.4): auch die Actions des Bedienrechners ändern nichts auf Anz
       expect(JSON.stringify(sichtOeffentlich(x))).toBe(oeff)
       expect(JSON.stringify(sichtZuschauer(sichtOeffentlich(x)))).toBe(zus)
     }
+  })
+})
+
+describe('Parcours-Ampel (P-03, AM8, AM9; 21.11.2026)', () => {
+  it('Listen-Sicht: `ampel` nur an Parcours-Listen, grün → rot per Knopf; Steg ohne', () => {
+    const { s } = bereit('gate135', 'steg')
+    const key = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    expect(sichtListe(s, DM, L('gate135'), EXTRA).ampel).toEqual({ key, ampel: 'gruen' })
+    expect(sichtListe(s, DM, L('steg'), EXTRA).ampel).toBeUndefined()
+    const rot = reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: key, an: true, zeit: 1200 })
+    expect(sichtListe(rot, DM, L('gate135'), EXTRA).ampel).toEqual({ key, ampel: 'rot' })
+    // `laeuft` (R6-10): der Start auf der Tafel ist unterwegs.
+    const nr = s.starters.find((p) => p.id === JSON.parse(key)[1])!.startNr
+    expect(sichtListe(rot, DM, L('gate135'), EXTRA).laeuft).toMatchObject({ punkt: 'lauf:1', unterwegs: [nr] })
+  })
+
+  it('`laeuft` trägt den letzten Start auf dem Weg zum Anlegen (Prüfbefund 21.11.2026, R6-10): Tore auf Papier, Ampel aus', () => {
+    let { s } = bereit('steg')
+    for (let i = 0; i < 100; i++) {
+      const weiter = zeigeNaechsten(s, P1, 2000 + i)
+      if (weiter === s) break
+      s = weiter
+    }
+    expect(lage(s, P1).frei.filter((e) => e.punkt === 'lauf:1')).toHaveLength(0)
+    const key = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    const nr = s.starters.find((p) => p.id === JSON.parse(key)[1])!.startNr
+    // Ohne Listen-Blick: nichts frei, nicht im Boot, Ampel aus → der Lauf gälte als durch.
+    expect(laufLage(s, DM, P1)).toBeNull()
+    expect(sichtListe(s, DM, L('steg'), EXTRA).laeuft).toEqual({ punkt: 'lauf:1', unterwegs: [nr], offen: 0 })
+    // Angelegt (Haken des Stegs) → durch.
+    const fertig = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: JSON.parse(key)[1], feld: 'erfasst@steg', wert: '1' }] })
+    expect(sichtListe(fertig, DM, L('steg'), EXTRA).laeuft).toBeUndefined()
+  })
+
+  it('keine Ampel auf Anzeigetafel und Zuschauerliste: Durchfahrt ändert sichtOeffentlich/sichtZuschauer nicht, sv bleibt 6', () => {
+    const { s } = bereit('gate135')
+    const key = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    const rot = reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: key, an: true, zeit: 1200 })
+    expect(rot).not.toBe(s)
+    expect(sichtOeffentlich(rot)).toEqual(sichtOeffentlich(s))
+    expect(sichtOeffentlich(rot).sv).toBe(6)
+    expect(sichtZuschauer(sichtOeffentlich(rot))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
+    const text = JSON.stringify(sichtOeffentlich(rot))
+    for (const wort of ['durchfahrt', 'ampel', 'wkrAuto']) expect(text).not.toContain(wort)
+    // Auch der Auto-Modus (Einstellung) bleibt draußen.
+    const auto = reducer(rot, { type: 'SET_ANZEIGE', patch: { wkrAuto: true } })
+    expect(sichtOeffentlich(auto)).toEqual(sichtOeffentlich(s))
+  })
+})
+
+describe('Sicht der Liste – WKR-Name aus der Einteilung (Nutzer 21.11.2026, W3-13, WN1)', () => {
+  const mitEinteilung = (s: AppState): AppState => {
+    let x = reducer(s, { type: 'SET_WKR_NAME', parcoursId: P1, typeId: 'gate135', name: '  Erika Muster ' })
+    x = reducer(x, { type: 'SET_WKR_NAME', parcoursId: P1, typeId: 'steg', name: 'Max Beispiel' })
+    return x
+  }
+
+  it('nur der Name DER EIGENEN Liste, ohne Leerraum; ohne Eintrag fehlt das Feld (WN3)', () => {
+    const { s } = bereit('gate135', 'steg', 'tor5')
+    const mit = mitEinteilung(s)
+    const tor = sichtListe(mit, DM, L('gate135'), EXTRA)
+    expect(tor.wkrName).toBe('Erika Muster')
+    expect(JSON.stringify(tor)).not.toContain('Max Beispiel')
+    // Teil-Geräte am Steg lesen dieselbe Sicht – also denselben Namen (die Einteilung kennt keine Teile).
+    expect(sichtListe(mit, DM, L('steg'), EXTRA).wkrName).toBe('Max Beispiel')
+    const ohne = sichtListe(mit, DM, L('tor5'), EXTRA)
+    expect('wkrName' in ohne).toBe(false)
+    expect(JSON.stringify(ohne)).not.toMatch(/Erika|Max Beispiel/)
+    // Positivliste: genau ein neues Feld oben, sonst nichts aus der Einteilung.
+    expect(Object.keys(tor)).toContain('wkrName')
+    expect(schluessel(tor).has('einteilung')).toBe(false)
+  })
+
+  it('nie in sichtOeffentlich oder sichtZuschauer (Anzeigetafel, Start-Freigabe, Zuschauer)', () => {
+    const { s } = bereit('gate135')
+    const mit = mitEinteilung(s)
+    const oeff = sichtOeffentlich(mit)
+    expect(JSON.stringify(oeff)).not.toMatch(/Erika|Max Beispiel/)
+    expect(JSON.stringify(sichtZuschauer(oeff))).not.toMatch(/Erika|Max Beispiel/)
+  })
+
+  it('einteilungsName: Parallelslalom unter der Kennung des Racecourse (wie WkrEinteilung)', () => {
+    const stand = { einteilung: { 'racecourse-b': { parallelparcours: 'Tom Test' } } }
+    expect(einteilungsName(stand, { bereich: 'egal', typeId: 'parallelparcours', racecourse: 'B' })).toBe('Tom Test')
+    expect(einteilungsName(stand, { bereich: 'egal', typeId: 'parallelparcours', racecourse: 'A' })).toBe('')
+    expect(einteilungsParcours({ bereich: P1, typeId: 'gate135', racecourse: null })).toBe(P1)
+    // Ein Schlüssel aus dem Prototyp ist kein Eintrag.
+    expect(einteilungsName({ einteilung: {} }, { bereich: '__proto__', typeId: 'toString', racecourse: null })).toBe('')
   })
 })

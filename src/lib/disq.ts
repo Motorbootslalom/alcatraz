@@ -35,14 +35,19 @@ export function sanitizeCodeInput(raw: string): string {
 }
 
 /**
- * Bereinigt eine Bojen-/Tor-Zelle: entweder Punkte (Ziffern) ODER ein einzelner
- * erlaubter Disq-Buchstabe (großgeschrieben).
+ * Bereinigt eine Bojen-/Tor-Zelle: Ziffern (Punkte, 5, 10 …), dahinter höchstens ein erlaubter Disq-Buchstabe
+ * (großgeschrieben), ohne Leerzeichen gespeichert: „5“, „J“, „5J“, „10G“ (Tor 5 Zähler). Die Eingabe ist tolerant –
+ * „5 j“, „j5“ und „5,J“ werden „5J“ –, weil der WKR an der Boje Fehlerpunkte UND den Disq.-Grund notiert und
+ * beides beim Abtippen in derselben Zelle steht (Antwort W4-12 vom 21.11.2026, WKR_ANNAHMEN.bojenZelle BZ1).
+ * Vorher hieß ein Buchstabe „nur Disq.“ und verwarf die Punkte; alte Werte („5“, „J“) sind in der neuen Form
+ * unverändert gültig.
+ *
+ * X „nicht gestartet“ steht nie mit Punkten (BZ2): Wer nicht gestartet ist, hat keine Boje berührt – „5X“ wird „X“.
  */
 export function sanitizeBuoy(raw: string, allowed: Set<string>): string {
   const up = raw.toUpperCase()
-  // Enthält die Eingabe einen erlaubten Buchstaben, gilt sie als Disq-Marke.
-  const letter = [...up].find((c) => allowed.has(c))
-  if (letter) return letter
-  // sonst nur Ziffern behalten
-  return raw.replace(/\D/g, '')
+  const letter = [...up].find((c) => allowed.has(c)) ?? ''
+  // 'X' = lib/abmeldung.ts NICHT_GESTARTET; nicht importiert, weil abmeldung → eingaben → disq einen Ring schlösse.
+  if (letter === 'X') return letter
+  return `${raw.replace(/\D/g, '')}${letter}`
 }

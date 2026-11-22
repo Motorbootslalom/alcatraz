@@ -19,6 +19,12 @@ export interface MaskenGedaechtnis {
    * Ein Start ohne Eintrag beginnt auf „Hinweg“. Nur Arbeitsspeicher, nie abgelegt.
    */
   wege: ReadonlyMap<string, Weg>
+  /**
+   * Klassen, deren erster Start im Punkt schon das Band „Klasse n – andere Tore“ bekam (`${punkt}|${klasse}`; Nutzer
+   * 21.11.2026, W4-13, GF9) – bei verzahnten Klassen kommt es so nur beim ersten Start einer Klasse, nicht bei jedem
+   * Wechsel.
+   */
+  klassenGesehen: ReadonlySet<string>
 }
 
 const ablage = new WeakMap<ErfassungsQuelle, Map<string, MaskenGedaechtnis>>()
@@ -30,7 +36,7 @@ export function gedaechtnis(quelle: ErfassungsQuelle, liste: string): MaskenGeda
   let jeListe = ablage.get(roh)
   if (!jeListe) ablage.set(roh, (jeListe = new Map()))
   let g = jeListe.get(liste)
-  if (!g) jeListe.set(liste, (g = { erledigt: new Set(), gefragt: new Set(), wege: new Map() }))
+  if (!g) jeListe.set(liste, (g = { erledigt: new Set(), gefragt: new Set(), wege: new Map(), klassenGesehen: new Set() }))
   return g
 }
 

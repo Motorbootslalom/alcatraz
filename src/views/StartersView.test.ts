@@ -76,8 +76,8 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     })
   })
 
-  // Drei Stufen je Spaltenkopf (Wunsch des Nutzers vom 21.11.2026, Befund 16): ↓ absteigend, ↑ aufsteigend,
-  // dann Markierung weg ohne Action – die Reihenfolge bleibt.
+  // Drei Stufen je Spaltenkopf (Wunsch des Nutzers vom 21.11.2026, Befund 16; Folge bestätigt 21.11.2026 S-01):
+  // ↑ aufsteigend A→Z, ↓ absteigend Z→A, dann Markierung weg ohne Action – die Reihenfolge bleibt.
   const kopfStand = (th: ReturnType<ReturnType<typeof zeige>['find']>) => ({
     pfeil: th.find('.sortier-pfeil').text(),
     markiert: th.classes().includes('sortier-aktiv'),
@@ -85,7 +85,7 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     ariaSort: th.attributes('aria-sort'),
   })
 
-  it('je Klasse: Klick 1 absteigend ↓, Klick 2 aufsteigend ↑, Klick 3 Markierung weg, Reihenfolge bleibt; Nummern werden nur neu verteilt', async () => {
+  it('je Klasse: Klick 1 aufsteigend ↑, Klick 2 absteigend ↓, Klick 3 Markierung weg, Reihenfolge bleibt; Nummern werden nur neu verteilt', async () => {
     const wrapper = zeige()
     const klasse3 = () => wrapper.findAll('.class-section')[3]
     expect(klasse3().find('th button[data-sortier]').exists()).toBe(false)
@@ -93,28 +93,28 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     expect(klasse3().findAll('th button[data-sortier]').map((b) => b.attributes('data-sortier'))).toEqual(['nachname', 'vorname', 'herkunft', 'groesse', 'geburtsdatum'])
     const kopf = () => klasse3().find('th[data-spalte="nachname"]')
     expect(kopfStand(kopf())).toEqual({ pfeil: '↕', markiert: false, gedrueckt: 'false', ariaSort: undefined })
-    // Erst Vorname, dann Name (beide absteigend): nach Name und Vorname, absteigend.
+    // Erst Vorname, dann Name (beide aufsteigend): nach Name und Vorname, A→Z.
     await klasse3().find('th button[data-sortier="vorname"]').trigger('click')
-    expect(kopfStand(klasse3().find('th[data-spalte="vorname"]'))).toEqual({ pfeil: '↓', markiert: true, gedrueckt: 'true', ariaSort: 'descending' })
+    expect(kopfStand(klasse3().find('th[data-spalte="vorname"]'))).toEqual({ pfeil: '↑', markiert: true, gedrueckt: 'true', ariaSort: 'ascending' })
     await kopf().find('button').trigger('click')
-    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3b Vor1', '302 Nach3a Vor2', '303 Nach3a Vor1'])
-    expect(kopfStand(kopf())).toEqual({ pfeil: '↓', markiert: true, gedrueckt: 'true', ariaSort: 'descending' })
+    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3a Vor1', '302 Nach3a Vor2', '303 Nach3b Vor1'])
+    expect(kopfStand(kopf())).toEqual({ pfeil: '↑', markiert: true, gedrueckt: 'true', ariaSort: 'ascending' })
     // Die andere Spalte ist nicht mehr markiert.
     expect(kopfStand(klasse3().find('th[data-spalte="vorname"]')).markiert).toBe(false)
-    // Klick 2: aufsteigend.
+    // Klick 2: absteigend Z→A (gleiche Namen behalten ihre Folge).
     await kopf().find('button').trigger('click')
-    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3a Vor2', '302 Nach3a Vor1', '303 Nach3b Vor1'])
-    expect(kopfStand(kopf())).toEqual({ pfeil: '↑', markiert: true, gedrueckt: 'true', ariaSort: 'ascending' })
+    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3b Vor1', '302 Nach3a Vor1', '303 Nach3a Vor2'])
+    expect(kopfStand(kopf())).toEqual({ pfeil: '↓', markiert: true, gedrueckt: 'true', ariaSort: 'descending' })
     // Klick 3: keine Action, nur die Markierung ist weg.
     const vorher = store.state.value
     await kopf().find('button').trigger('click')
     expect(store.state.value).toBe(vorher)
-    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3a Vor2', '302 Nach3a Vor1', '303 Nach3b Vor1'])
+    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3b Vor1', '302 Nach3a Vor1', '303 Nach3a Vor2'])
     expect(kopfStand(kopf())).toEqual({ pfeil: '↕', markiert: false, gedrueckt: 'false', ariaSort: undefined })
     // Danach beginnt es wieder bei Stufe 1.
     await kopf().find('button').trigger('click')
-    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3b Vor1', '302 Nach3a Vor2', '303 Nach3a Vor1'])
-    expect(kopfStand(kopf()).pfeil).toBe('↓')
+    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3a Vor1', '302 Nach3a Vor2', '303 Nach3b Vor1'])
+    expect(kopfStand(kopf()).pfeil).toBe('↑')
     expect(store.state.value.starters.filter((p) => p.klasse === '4').map((p) => p.startNr)).toEqual(['401', '402'])
     // Zufall: mischt aus der Saat der Action; die Nummern bleiben dieselben, die Markierung geht.
     expect(klasse3().find('[data-action="zufall"]').exists()).toBe(true)
@@ -124,17 +124,17 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     wrapper.unmount()
   })
 
-  it('je Klasse: eine andere Spalte beginnt bei Stufe 1, auch wenn die vorige auf ↑ stand', async () => {
+  it('je Klasse: eine andere Spalte beginnt bei Stufe 1, auch wenn die vorige auf ↓ stand', async () => {
     const wrapper = zeige()
     const klasse3 = () => wrapper.findAll('.class-section')[3]
     await klasse3().find('[data-action="sortierung"]').trigger('click')
     await klasse3().find('th button[data-sortier="nachname"]').trigger('click')
     await klasse3().find('th button[data-sortier="nachname"]').trigger('click')
-    expect(kopfStand(klasse3().find('th[data-spalte="nachname"]')).pfeil).toBe('↑')
+    expect(kopfStand(klasse3().find('th[data-spalte="nachname"]')).pfeil).toBe('↓')
     await klasse3().find('th button[data-sortier="vorname"]').trigger('click')
-    expect(kopfStand(klasse3().find('th[data-spalte="vorname"]'))).toEqual({ pfeil: '↓', markiert: true, gedrueckt: 'true', ariaSort: 'descending' })
+    expect(kopfStand(klasse3().find('th[data-spalte="vorname"]'))).toEqual({ pfeil: '↑', markiert: true, gedrueckt: 'true', ariaSort: 'ascending' })
     expect(kopfStand(klasse3().find('th[data-spalte="nachname"]'))).toEqual({ pfeil: '↕', markiert: false, gedrueckt: 'false', ariaSort: undefined })
-    expect(tabelle(wrapper, 3)[0]).toContain('Vor2')
+    expect(tabelle(wrapper, 3)[2]).toContain('Vor2')
     wrapper.unmount()
   })
 
@@ -153,14 +153,14 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     const kopf = () => klasse4().find('th[data-spalte="herkunft"]')
     await klasse4().find('[data-action="sortierung"]').trigger('click')
     await kopf().find('button').trigger('click')
-    // Absteigend je Gruppe: S-M (Club C vor A), L-XL (Club D vor B) – die Nummern bleiben in ihrem Bereich.
-    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4b Vor1', '402 Nach4a Vor1', '421 Nach4c Vor1', '422 Nach4d Vor1'])
-    expect(kopfStand(kopf())).toEqual({ pfeil: '↓', markiert: true, gedrueckt: 'true', ariaSort: 'descending' })
-    await kopf().find('button').trigger('click')
+    // Aufsteigend je Gruppe: S-M (Club A vor C), L-XL (Club B vor D) – die Nummern bleiben in ihrem Bereich.
     expect(tabelle(wrapper, 4)).toEqual(['401 Nach4a Vor1', '402 Nach4b Vor1', '421 Nach4d Vor1', '422 Nach4c Vor1'])
     expect(kopfStand(kopf())).toEqual({ pfeil: '↑', markiert: true, gedrueckt: 'true', ariaSort: 'ascending' })
     await kopf().find('button').trigger('click')
-    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4a Vor1', '402 Nach4b Vor1', '421 Nach4d Vor1', '422 Nach4c Vor1'])
+    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4b Vor1', '402 Nach4a Vor1', '421 Nach4c Vor1', '422 Nach4d Vor1'])
+    expect(kopfStand(kopf())).toEqual({ pfeil: '↓', markiert: true, gedrueckt: 'true', ariaSort: 'descending' })
+    await kopf().find('button').trigger('click')
+    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4b Vor1', '402 Nach4a Vor1', '421 Nach4c Vor1', '422 Nach4d Vor1'])
     expect(kopfStand(kopf()).markiert).toBe(false)
     wrapper.unmount()
   })
@@ -173,7 +173,7 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     wrapper.unmount()
     wrapper = zeige()
     await klasse3().find('[data-action="sortierung"]').trigger('click')
-    expect(kopfStand(klasse3().find('th[data-spalte="nachname"]')).pfeil).toBe('↓')
+    expect(kopfStand(klasse3().find('th[data-spalte="nachname"]')).pfeil).toBe('↑')
     const ids = store.state.value.starters.filter((p) => p.klasse === '3').map((p) => p.id)
     store.dispatch({ type: 'MOVE_STARTER', id: ids[2], target: 'first' })
     await nextTick()
@@ -188,28 +188,28 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     await leiste().find('[data-action="sortierung-alle"]').trigger('click')
     expect(knopf().classes()).not.toContain('active')
     await knopf().trigger('click')
-    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3b Vor1', '302 Nach3a Vor2', '303 Nach3a Vor1'])
-    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4b Vor1', '402 Nach4a Vor1'])
-    expect(knopf().find('.sortier-pfeil').text()).toBe('↓')
+    expect(tabelle(wrapper, 3)).toEqual(['301 Nach3a Vor2', '302 Nach3a Vor1', '303 Nach3b Vor1'])
+    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4a Vor1', '402 Nach4b Vor1'])
+    expect(knopf().find('.sortier-pfeil').text()).toBe('↑')
     expect(knopf().classes()).toContain('active')
     expect(knopf().attributes('aria-pressed')).toBe('true')
     // Die Klassen zeigen dieselbe Wahl am Spaltenkopf.
     await wrapper.findAll('.class-section')[3].find('[data-action="sortierung"]').trigger('click')
-    expect(kopfStand(wrapper.findAll('.class-section')[3].find('th[data-spalte="nachname"]')).pfeil).toBe('↓')
-    await knopf().trigger('click')
-    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4a Vor1', '402 Nach4b Vor1'])
-    expect(knopf().find('.sortier-pfeil').text()).toBe('↑')
     expect(kopfStand(wrapper.findAll('.class-section')[3].find('th[data-spalte="nachname"]')).pfeil).toBe('↑')
+    await knopf().trigger('click')
+    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4b Vor1', '402 Nach4a Vor1'])
+    expect(knopf().find('.sortier-pfeil').text()).toBe('↓')
+    expect(kopfStand(wrapper.findAll('.class-section')[3].find('th[data-spalte="nachname"]')).pfeil).toBe('↓')
     const vorher = store.state.value
     await knopf().trigger('click')
     expect(store.state.value).toBe(vorher)
-    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4a Vor1', '402 Nach4b Vor1'])
+    expect(tabelle(wrapper, 4)).toEqual(['401 Nach4b Vor1', '402 Nach4a Vor1'])
     expect(knopf().find('.sortier-pfeil').text()).toBe('↕')
     expect(knopf().classes()).not.toContain('active')
     expect(kopfStand(wrapper.findAll('.class-section')[3].find('th[data-spalte="nachname"]')).markiert).toBe(false)
     // Andere Spalte: wieder Stufe 1.
     await leiste().find('button[data-sortier="vorname"]').trigger('click')
-    expect(leiste().find('button[data-sortier="vorname"] .sortier-pfeil').text()).toBe('↓')
+    expect(leiste().find('button[data-sortier="vorname"] .sortier-pfeil').text()).toBe('↑')
     expect(store.state.value.starters.map((p) => p.klasse)).toEqual(['3', '3', '3', '4', '4'])
     wrapper.unmount()
   })
@@ -226,11 +226,11 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     expect(namen()).toEqual(['Kiefer', 'Ahorn', 'Zeder'])
     await klasse3().find('[data-action="sortierung"]').trigger('click')
     await klasse3().find('th button[data-sortier="nachname"]').trigger('click')
-    expect(namen()).toEqual(['Zeder', 'Kiefer', 'Ahorn'])
-    expect(klasse3().find('th[data-spalte="nachname"] .sortier-pfeil').text()).toBe('↓')
-    await klasse3().find('th button[data-sortier="nachname"]').trigger('click')
     expect(namen()).toEqual(['Ahorn', 'Kiefer', 'Zeder'])
     expect(klasse3().find('th[data-spalte="nachname"] .sortier-pfeil').text()).toBe('↑')
+    await klasse3().find('th button[data-sortier="nachname"]').trigger('click')
+    expect(namen()).toEqual(['Zeder', 'Kiefer', 'Ahorn'])
+    expect(klasse3().find('th[data-spalte="nachname"] .sortier-pfeil').text()).toBe('↓')
     expect(store.state.value.starters.every((p) => p.startNr === '')).toBe(true)
     wrapper.unmount()
   })

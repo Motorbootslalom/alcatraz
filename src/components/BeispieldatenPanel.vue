@@ -6,7 +6,7 @@ import { startNrPraefixe, startNrRegeln } from '../config/catalog'
 import { beispielGroessen, vergibKlasse } from '../domain/startnrBereiche'
 import type { Zeitnahme } from '../lib/beispielwerte'
 import { classColor } from '../domain/classes'
-import { BEISPIEL_STARTERZAHL, beispielFeldArt, beispielGesamt, beispielHerkuenfte, generateStarters, verteileAufKlassen, type BeispielFeldArt } from '../domain/generate'
+import { BEISPIEL_STARTERZAHL, beispielFeldArt, beispielGesamt, beispielHerkuenfte, beispielHerkunft, generateStarters, verteileAufKlassen, type BeispielFeldArt } from '../domain/generate'
 import { zufallAus } from '../lib/beispielwerte'
 import { useEvent } from '../lib/event'
 import { verlustText } from '../lib/eingabenVerlust'
@@ -60,44 +60,74 @@ watch(
 const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color: classColor(id) })))
 
 // --- Beispiel-Starterfeld ----------------------------------------------------
-// Eine Gesamtzahl statt „Starter je Klasse“ (Wunsch des Nutzers vom 21.11.2026): Sie wird nach der
-// Art der Veranstaltung gezogen (Clubmeisterschaft 10–20, Vereine 45–75, Bundesland/Land 100–160,
-// domain/generate.ts BEISPIEL_STARTERZAHL) und verteilt sich wie in echten Starterfeldern auf die
-// Klassen (BEISPIEL_KLASSEN_ANTEILE). Sie lässt sich ändern und bleibt wie jede andere Wahl in diesem
-// Block über das Neuladen stehen (lib/merken.ts) – zusammen mit der Art, für die sie gezogen wurde:
-// Wechselt die Art (Clubmeisterschaft → Meisterschaft, Verein → Land), passt die alte Zahl nicht mehr,
-// und es wird neu gezogen.
-const MAX_GESAMT = 999
-const istGesamt = (w: unknown) => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= MAX_GESAMT
+// Eine Gesamtzahl als Vorschlag (Wunsch des Nutzers vom 21.11.2026): Sie wird nach der Art der Veranstaltung
+// gezogen (Clubmeisterschaft 10–20, Vereine 45–75, Bundesland/Land 100–160, domain/generate.ts
+// BEISPIEL_STARTERZAHL) und verteilt sich wie in echten Starterfeldern auf die Klassen
+// (BEISPIEL_KLASSEN_ANTEILE). Die Zahl je Klasse ist wieder einzeln festlegbar – Nutzer 21.11.2026 (Fragenseite
+// R6-02): „Es sollte weiterhin möglich sein, eine Anzahl pro Klasse festzulegen … Danach kann ich dann eine
+// Klasse auf 0 setzen und eine andere erhöhen.“ Gesamtzahl und Klassen bleiben wie jede andere Wahl in diesem
+// Block über das Neuladen stehen (lib/merken.ts `beispiel.klassen`) – zusammen mit der Art, für die sie gezogen
+// wurden: Wechselt die Art (Clubmeisterschaft → Meisterschaft, Verein → Land), passen sie nicht mehr, und es wird
+// neu gezogen – bestätigt 21.11.2026 (Fragenseite R6-03).
+// Auslegungen vom 21.11.2026, noch zu bestätigen: BS2 Der Knopf heißt „Vorschlag neu“ statt „neu ziehen“ (dem
+// Nutzer zu seltsam) und setzt Gesamtzahl und Klassen neu. BS3 Die Gesamtzahl ändern verteilt neu – die Zahlen
+// je Klasse von Hand gehen dann verloren (die Gesamtzahl ist die Vorgabe, die Summe steht daneben).
+const MAX_ZAHL = 999
+const istZahl = (w: unknown): w is number => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= MAX_ZAHL
+interface BeispielKlassen {
+  art: BeispielFeldArt
+  gesamt: number
+  klassen: Record<string, number>
+}
+const istBeispielKlassen = (w: unknown): boolean => {
+  if (typeof w !== 'object' || w === null) return w === null
+  const x = w as Partial<BeispielKlassen>
+  return typeof x.art === 'string' && istZahl(x.gesamt) && typeof x.klassen === 'object' && x.klassen !== null && Object.values(x.klassen).every(istZahl)
+}
 const feldArt = computed(() => beispielFeldArt(state.value.eventKind, state.value.originMode))
-const gesamtGemerkt = merke<{ art: BeispielFeldArt; n: number } | null>('beispiel.gesamt', null, {
-  ueberNeuladen: true,
-  gueltig: (w) => w === null || (typeof w === 'object' && w !== null && typeof (w as { art?: unknown }).art === 'string' && istGesamt((w as { n?: unknown }).n)),
-})
-/** Der Zufall reist als Saat – gleiche Saat, gleiche Zahl (lib/beispielwerte.ts zufallAus). */
+const wahl = merke<BeispielKlassen | null>('beispiel.klassen', null, { ueberNeuladen: true, gueltig: istBeispielKlassen })
+const klassenIds = () => CLASSES.value.map((c) => c.id)
+function setzeVorgabe(gesamt: number) {
+  wahl.value = { art: feldArt.value, gesamt, klassen: verteileAufKlassen(gesamt, klassenIds()) }
+}
+/** „Vorschlag neu“: Der Zufall reist als Saat – gleiche Saat, gleiche Zahl (lib/beispielwerte.ts zufallAus). */
 function ziehe() {
-  gesamtGemerkt.value = { art: feldArt.value, n: beispielGesamt(feldArt.value, zufallAus(neueSaat())) }
+  setzeVorgabe(beispielGesamt(feldArt.value, zufallAus(neueSaat())))
 }
 watch(feldArt, (art) => {
-  if (gesamtGemerkt.value?.art !== art) ziehe()
+  if (wahl.value?.art !== art) ziehe()
 }, { immediate: true })
-const gesamt = computed(() => (gesamtGemerkt.value?.art === feldArt.value ? gesamtGemerkt.value.n : 0))
+const gesamt = computed(() => (wahl.value?.art === feldArt.value ? wahl.value.gesamt : 0))
 const bereich = computed(() => BEISPIEL_STARTERZAHL[feldArt.value])
 
+const leseZahl = (e: Event) => Math.max(0, Math.min(MAX_ZAHL, parseInt((e.target as HTMLInputElement).value, 10) || 0))
+/** BS3: Eine neue Gesamtzahl verteilt neu – auch über Zahlen, die von Hand je Klasse eingetragen waren. */
 function setGesamt(e: Event) {
-  const n = Math.max(0, Math.min(MAX_GESAMT, parseInt((e.target as HTMLInputElement).value, 10) || 0))
-  gesamtGemerkt.value = { art: feldArt.value, n }
+  setzeVorgabe(leseZahl(e))
 }
 
-/** Die Verteilung auf die Klassen des Regelwerks – angezeigt, damit man sieht, was entsteht. */
-const verteilung = computed(() => verteileAufKlassen(gesamt.value, CLASSES.value.map((c) => c.id)))
+/**
+ * Die Zahl je Klasse: die gemerkte, solange sie zu den Klassen des Regelwerks passt – sonst (anderes Regelwerk,
+ * andere Klassen) die Verteilung der Gesamtzahl.
+ */
+const verteilung = computed<Record<ClassId, number>>(() => {
+  const k = wahl.value?.art === feldArt.value ? wahl.value.klassen : undefined
+  const ids = klassenIds()
+  return k && ids.every((id) => istZahl(k[id])) ? k : verteileAufKlassen(gesamt.value, ids)
+})
 const countOf = (id: ClassId) => verteilung.value[id] ?? 0
 const total = computed(() => CLASSES.value.reduce((sum, c) => sum + countOf(c.id), 0))
+function setKlasse(id: ClassId, e: Event) {
+  const n = leseZahl(e)
+  ;(e.target as HTMLInputElement).value = String(n)
+  wahl.value = { art: feldArt.value, gesamt: gesamt.value, klassen: { ...verteilung.value, [id]: n } }
+}
 
 // Herkünfte: unbegrenzt (gewürfelt aus allen) oder eine Zahl – dann verteilen sich die Starter
 // reihum auf so viele Vereine bzw. Bundesländer oder Länder, je nach Art der Herkunft. So lässt
 // sich die Mannschaftswertung prüfen (Entscheidung des Nutzers vom 15.11.2026). 0 = unbegrenzt.
-// Ohne Herkunft gibt es nichts zu verteilen: Das Feld ist dann gesperrt.
+// Ohne Herkunft gibt es nichts zu verteilen: Das Feld ist dann gesperrt – auch bei der Clubmeisterschaft (BS1).
+const herkunft = computed(() => beispielHerkunft(state.value.eventKind, state.value.originMode))
 const herkuenfte = merke('beispiel.herkuenfte', 0, { ueberNeuladen: true, gueltig: (w) => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= 99 })
 function setHerkuenfte(e: Event) {
   herkuenfte.value = Math.max(0, Math.min(99, parseInt((e.target as HTMLInputElement).value, 10) || 0))
@@ -116,7 +146,8 @@ function generate() {
   // (Entscheidung des Nutzers vom 15.11.2026, spät abends; sie ersetzt die vom selben Tag, nach
   // der unter UIM immer Nationen kamen und die Herkunft dazu auf „Land“ umgestellt wurde).
   // Die Einstellung der Veranstaltung bleibt, wie gewählt.
-  const origin = state.value.originMode
+  // Clubmeisterschaft: keine Herkunft (BS1, domain/generate.ts beispielHerkunft).
+  const origin = herkunft.value
   const feste = herkuenfte.value > 0 && origin !== 'none' ? beispielHerkuenfte(origin, herkuenfte.value) : undefined
   let starters: Starter[] = []
   for (const c of CLASSES.value) {
@@ -135,10 +166,11 @@ function generate() {
   dispatch({ type: 'ADD_STARTERS', starters, beispiel: true })
 }
 
-/** Was die Herkunft der Beispielstarter sein wird – die der Veranstaltung (oben in dieser Ansicht). */
-const herkunftHinweis = computed(() =>
-  state.value.originMode === 'none' ? t('demo.originNote.none') : t('demo.originNote', { origin: t(`event.origin.${state.value.originMode}`) }),
-)
+/** Was die Herkunft der Beispielstarter sein wird – die der Veranstaltung (oben in dieser Ansicht), bei der Clubmeisterschaft keine. */
+const herkunftHinweis = computed(() => {
+  if (state.value.eventKind === 'club') return t('demo.originNote.club')
+  return herkunft.value === 'none' ? t('demo.originNote.none') : t('demo.originNote', { origin: t(`event.origin.${herkunft.value}`) })
+})
 
 // --- Beispiel-Besetzung und Beispielgewichte ---------------------------------
 // Je ein eigener Knopf (Entscheidung des Nutzers vom 15.11.2026): erfundene Namen für die
@@ -242,18 +274,22 @@ function werteLoeschen() {
     <div class="row" style="align-items: flex-end; gap: 12px 20px">
       <div class="field" style="width: 160px">
         <label for="beispiel-gesamt">{{ t('demo.total') }}</label>
-        <input id="beispiel-gesamt" class="input" type="number" min="0" :max="MAX_GESAMT" data-feld="beispiel-gesamt" :value="gesamt" @change="setGesamt" />
+        <input id="beispiel-gesamt" class="input" type="number" min="0" :max="MAX_ZAHL" data-feld="beispiel-gesamt" :value="gesamt" @change="setGesamt" />
       </div>
       <button type="button" class="btn sm" data-action="beispiel-gesamt-neu" :title="t('demo.total.redrawTitle')" @click="ziehe">{{ t('demo.total.redraw') }}</button>
     </div>
     <p class="note" data-hinweis="beispiel-gesamt">{{ t('demo.total.hint', { art: t(`demo.total.art.${feldArt}`), von: bereich[0], bis: bereich[1] }) }}</p>
-    <div class="subhead">{{ t('demo.perClass') }}</div>
+    <div class="subhead">
+      {{ t('demo.perClass') }}
+      <span class="note" data-hinweis="beispiel-summe" role="status" style="margin: 0 0 0 8px">{{ t('demo.perClass.sum', { n: total, gesamt }) }}</span>
+    </div>
     <div class="setup-grid">
-      <div v-for="c in CLASSES" :key="c.id" class="class-count" :data-klasse="c.id">
+      <!-- Wie die Felder je Klasse unter „Einstellungen“: die ganze Kachel ist das Label. -->
+      <label v-for="c in CLASSES" :key="c.id" class="class-count" :data-klasse="c.id">
         <span class="dot" :style="{ background: c.color }" />
         <span class="meta"><span class="name">{{ classLabel(c.id) }}</span></span>
-        <span class="beispiel-zahl">{{ countOf(c.id) }}</span>
-      </div>
+        <input type="number" min="0" :max="MAX_ZAHL" :data-feld="`beispiel-klasse|${c.id}`" :value="countOf(c.id)" @change="setKlasse(c.id, $event)" />
+      </label>
     </div>
     <div class="row" style="justify-content: flex-end; align-items: flex-end; gap: 20px">
       <!-- 0 = unbegrenzt: Die Herkunft jedes Starters wird aus allen gewürfelt. Ohne Herkunft ist das
@@ -268,10 +304,10 @@ function werteLoeschen() {
           min="0"
           max="99"
           data-feld="beispiel-herkuenfte"
-          :value="state.originMode === 'none' ? '' : herkuenfte || ''"
-          :placeholder="state.originMode === 'none' ? undefined : t('demo.origins.unlimited')"
-          :title="t(state.originMode === 'none' ? 'demo.origins.none' : 'demo.origins.hint')"
-          :disabled="state.originMode === 'none'"
+          :value="herkunft === 'none' ? '' : herkuenfte || ''"
+          :placeholder="herkunft === 'none' ? undefined : t('demo.origins.unlimited')"
+          :title="t(herkunft === 'none' ? 'demo.origins.none' : 'demo.origins.hint')"
+          :disabled="herkunft === 'none'"
           @change="setHerkuenfte"
         />
       </div>

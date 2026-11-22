@@ -67,6 +67,9 @@ clipboard, scanner, logoBild.
 
 - Was der Reducer ruft (eingaben, listenStand, abmeldung, parallelStage, beispielwerte, beispieldaten, reihenfolge, logo),
   bleibt rein: kein Date.now()/Math.random(). Zeit = action.zeit, Zufall = zufallAus(saat).
+- Bojenzelle (W4-12, 21.11.2026, WKR_ANNAHMEN BZ1–BZ3): Ziffern + höchstens ein Buchstabe („5J“, „10G“), schreiben über
+  disq.ts sanitizeBuoy, lesen NUR über scoring.ts bojenWert (Punkte zählen auch neben dem Buchstaben); nie `/^[A-Z]$/`
+  auf Bojenwerte. Wertungsliste: ergebnis.ts zellText ohne Komma nur für Bojenzellen.
 - Eingaben: `eingaben[laufSchluessel][starterId][feld]` – Zeile ist die Starter-ID, nicht die Startnummer.
   Disq/Bemerkung/erfasst gehören zur Liste (`disq@steg`, `erfasst@<typeId>`); Knoten unter Lauf 0 (OHNE_LAUF).
   Haken immer über istHaken (auch Teilhaken `erfasst.ab@steg` der WKR-Erfassung, 21.11.2026), nie startsWith('erfasst@').

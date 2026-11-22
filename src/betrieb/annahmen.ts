@@ -407,7 +407,7 @@ export const BETRIEB_ANNAHMEN = {
   zuschauerGruppen: true,
   /**
    * Team-Filter der Zuschauerliste (Feldtest 21.11.2026, Wunsch des Nutzers: „Es sollte aber auch ein Team-Filter
-   * geben“). Auslegung beim Bau, noch zu bestätigen:
+   * geben“). Auslegung beim Bau, bestätigt 21.11.2026 (Fragenseite P-10, P-11, P-12):
    * - Team = Herkunft der Veranstaltung, wie die Sicht sie nennt (Verein, Landesverband oder Nation nach `originMode`);
    *   Schlüssel ist ihr Klartext. Ohne Herkunft (Clubmeisterschaft, aus) oder mit nur einer gibt es keinen Filter.
    * - Mehrfachwahl, keine Wahl = „Alle“; UND mit dem Klassenfilter; ein Paar (Parallelslalom) passt, wenn eine Seite
@@ -531,7 +531,8 @@ export const BETRIEB_ANNAHMEN = {
    *   sitzt; ein fremdes Gerät stünde sofort in der Geräteliste und lässt sich entziehen.
    * - Ein gescannter QR-Code koppelt auf dem Handy ohne weitere Eingabe mit dem vorgeschlagenen Namen („iPhone“; der
    *   Host macht ihn eindeutig, umbenennen am Bedienrechner); der Token gälte nach 30 s + 30 s ohnehin nicht mehr.
-   * - Ein einziger Bereich (ein Parcours) ist für das nächste Gerät vorgewählt; bei mehreren wählt der Bedienrechner.
+   * - Ein einziger Bereich (ein Parcours) war für das nächste Gerät vorgewählt – seit 21.11.2026 NICHT mehr (Nutzer, W3-26:
+   *   die Start-Freigabe ist ein Recht wie die Listen und nie vorgewählt; WKR_ANNAHMEN.freigabeVorwahlOhneListe).
    * - Auf dem Gerät nur die EIGENEN Bereiche, mit derselben StartFreigabe wie am Bedienrechner, ohne „Meldung auf
    *   allen“; alle Knöpfe gesperrt, solange eine Action ohne Quittung ist (nicht nur der gedrückte – die Sicht kann
    *   sich bis dahin ändern); nach 10 s „Keine Bestätigung – Verbindung prüfen“.
@@ -550,7 +551,7 @@ export const BETRIEB_ANNAHMEN = {
    * Geräte-Code und Koppel-Link stehen zusammen im zugeklappten Weg „Anderer Weg: Geräte-Code über Funk“ (öffnet sich
    * beim Ausgeben eines Codes; der Koppel-Link wird erst bei offenem Weg gezeigt). Auf dem Handy mit Link ohne Token steht
    * über dem Code-Feld, wo der QR-Code zu finden ist. Auslegung: Aufgeklappt ist Bedienung ohne Merken (nach dem
-   * Neuladen wieder zu).
+   * Neuladen wieder zu) – bestätigt 21.11.2026 (Fragenseite P-13).
    */
   koppelnWege: true,
   /**
@@ -632,4 +633,33 @@ export const BETRIEB_ANNAHMEN = {
    * Rulebook zu prüfen. 16.11.2026.
    */
   begriffe: true,
+  // --- Parcours-Ampel und Auto-Modus (Nutzer 21.11.2026, P-03/P-04; Plan docs/plan-antworten-runde3-6.md §3) ------
+  /**
+   * (AM6) Auto-Modus der Start-Freigabe („Es kann auch einen Auto-Modus geben, der automatisch weiterschaltet, wenn alle
+   * WKR ihre Eintragung abgeschickt haben. Das klappt aber nur, wenn alle ein Gerät haben.“): Einstellung
+   * `anzeige.wkrAuto`, Vorgabe aus. Wirksam nur, wenn im Bereich JEDE Parcours-Liste digital, aktiv und laut Register von
+   * einem Gerät abgedeckt ist – sonst steht an der Start-Freigabe „Auto aus: … auf Papier“. Wird die Ampel `frei`,
+   * zählt die Start-Freigabe sichtbar `autoVerzugSek` herunter (mit „Anhalten“), dann zeigt der Host den ersten offenen
+   * Start des begonnenen Punkts (`naechster`). Nie automatisch: einen neuen Punkt beginnen, Nachzuholende oder
+   * Zurückgestellte zeigen, bei offener Rückfrage oder offenem Vorschlag einer Liste des Bereichs, bei einer Meldung
+   * „Pause“ oder „Störung“, nach „Zurück“ bzw. nach dem Neuladen (gezählt wird nur, wenn der Host die Ampel desselben
+   * Starts vorher grün oder rot gesehen hat). Dispatch nur im Fenster mit der Führung (geraete/fuehrung.ts) über
+   * dasselbe Schreibfenster wie die Geräte-Actions; die Entscheidung rein in wkr/ampel.ts autoSchritt.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  autoVorgabe: false,
+  /** (AM6) Sekunden zwischen „frei“ und dem automatischen „Nächster Start“ – Zeit für „Anhalten“. 21.11.2026, noch zu bestätigen. */
+  autoVerzugSek: 3,
+  /**
+   * (AM7) „Anhalten“ des Auto-Modus gilt bis zum nächsten gezeigten Start und liegt gerätelokal im Host (Arbeitsspeicher
+   * des Führungsfensters), nie im AppState – vom Freigabe-Handy als Geräte-Nachricht `BETRIEB_AUTO_HALT` (keine
+   * Reducer-Action, der Host fängt sie vor dem Schreibfenster ab). 21.11.2026, noch zu bestätigen.
+   */
+  autoAnhaltenLokal: true,
+  /**
+   * (AM8) Keine Ampel auf Anzeigetafel und Zuschauerliste (F17: nichts aus der WKR-Erfassung auf öffentlichen Links;
+   * die Tafel zeigt den Starter ohnehin erst ab grün). sichtOeffentlich/sichtZuschauer bleiben unverändert, `sv` 6.
+   * 21.11.2026, noch zu bestätigen.
+   */
+  keineAmpelAufTafel: true,
 } as const

@@ -355,9 +355,14 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       weckeRuhe()
       return neueZeile({ s: alt.s, ...(alt.sn !== undefined ? { sn: alt.sn } : {}), klasse: alt.klasse, ...(alt.t ? { t: alt.t } : {}), k: true, punkt: alt.punkt, zellen: { ...alt.zellen, ...zellen } }, stand)
     },
+    // Übung: kein Bedienrechner, dem man „So lassen“ melden könnte (W3-35) – nur das Band geht weg (WkrMaske).
+    soLassen: () => null,
     pausiere: (liste) => status(liste, 'pausiert'),
     meldeAb: (liste) => status(liste, 'abgemeldet'),
     weiter: (liste) => status(liste, 'aktiv'),
+    // Übung: keine Einteilung und kein Name auf dem Gerät (G13, W3-13) – der Abschluss fragt jedes Mal.
+    wkrName: () => ({ name: '', einteilung: '', eigen: false }),
+    setzeWkrName: () => false,
     schliesseAb(liste, punkt, name, restPapier) {
       if (gestoppt || !eigen(liste) || typeof name !== 'string' || name.trim() === '' || name.trim().length > WKR_ANNAHMEN.nameMax) return null
       const a: EigenerAbschluss = { id: naechsteZ++, liste, punkt, stufe: 'unterwegs' }

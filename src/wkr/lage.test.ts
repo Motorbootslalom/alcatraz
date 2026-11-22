@@ -32,11 +32,15 @@ const zellen = (l: ListenLage, keys: string[]) => keys.map((k) => l.zellen[k]?.z
 /** Viele erfundene Starter der Klasse 1 (für die Breite der Matrix). */
 const viele = (n: number) => Array.from({ length: n }, (_, i) => betriebStarter(`m${i + 1}`, '1', String(100 + i + 1)))
 
-/** gate135 digital (100), drei Starts gezeigt (1000, 1100, 1200), R = 1. */
-function drei(): { s: AppState; keys: string[] } {
+/**
+ * gate135 digital (100), drei Starts gezeigt (1000, 1100, 1200), R = 1. Der dritte ist „durchs Start-Tor“ (P-03, AM5) –
+ * sonst zählte er auf der Parcours-Liste noch nicht; `durch: false` lässt ihn grün.
+ */
+function drei({ durch = true }: { durch?: boolean } = {}): { s: AppState; keys: string[] } {
   let s = setzeListe(wkrBetriebsStand(viele(8)), L('gate135'), 100, 'digital')
   s = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrRueckstand: 1 } })
   s = zeige(s, 3, 1000)
+  if (durch) s = reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: gezeigt(s)[2], an: true, zeit: 1250 })
   return { s, keys: gezeigt(s) }
 }
 
@@ -84,6 +88,17 @@ describe('erfassungsLage – Zellstände', () => {
     const tor5 = lageVon(s, 'tor5')
     expect(tor5).toMatchObject({ modus: null, status: 'aktiv', rueckstand: null, warnt: false })
     expect(zellen(tor5, keys.slice(1))).toEqual(['papier', 'papier'])
+  })
+
+  it('✓ mit Disq.-Marke (W3-17, GF10): Disq. J im Disq.-Feld der Liste, sonst ohne', () => {
+    const { s: s0, keys } = drei()
+    let s = setze(s0, starterVon(keys[0]), 'erfasst@gate135', '1')
+    s = setze(s, starterVon(keys[0]), 'disq@gate135', 'J')
+    s = setze(s, starterVon(keys[1]), 'erfasst@gate135', '1')
+    const l = lageVon(s, 'gate135')
+    expect(l.zellen[keys[0]]).toMatchObject({ zelle: 'ok', disq: 'J' })
+    expect(l.zellen[keys[1]].zelle).toBe('ok')
+    expect(l.zellen[keys[1]].disq).toBeUndefined()
   })
 
   it('Klasse ohne Liste: entfällt; vor `seit` Gezeigtes: Papier', () => {
@@ -249,6 +264,30 @@ describe('erfassungsLage – Rückstand (A4, F1)', () => {
     // Ablegen pausiert: das Anlegen zählt weiter.
     const p = reducer(s, { type: 'WKR_LISTE', liste: K('steg'), status: 'pausiert', teil: 'an', zeit: 2000 })
     expect(lageVon(p, 'steg', zwei).rueckstand).toMatchObject({ zahl: 1, von: nr(s, keys[2]) })
+  })
+
+  it('Parcours-Ampel (P-03, AM5): der gezeigte Start zählt erst ab der Durchfahrt – per Knopf oder erster Zeile', () => {
+    const { s, keys } = drei({ durch: false })
+    expect(lageVon(s, 'gate135')).toMatchObject({ parcours: true, rueckstand: { zahl: 2, von: nr(s, keys[0]), bis: nr(s, keys[1]) }, warnt: true })
+    // Erste Zeile einer anderen Parcours-Liste (tor5, abgetippt) zum gezeigten Start: durchgefahren.
+    const getippt = setze(setzeListe(s, L('tor5'), 100, 'digital'), starterVon(keys[2]), 'erfasst@tor5', '1')
+    expect(lageVon(getippt, 'gate135').rueckstand?.zahl).toBe(3)
+    // Nur die Älteren erledigt, der gezeigte noch grün: nichts offen, keine Warnung.
+    let fertig = setze(s, starterVon(keys[0]), 'erfasst@gate135', '1')
+    fertig = setze(fertig, starterVon(keys[1]), 'erfasst@gate135', '1')
+    expect(lageVon(fertig, 'gate135')).toMatchObject({ rueckstand: null, warnt: false })
+  })
+
+  it('Steg und Vorsteg warnen nie (P-03: „laufen autark“, AM5) – Rückstand bleibt sichtbar', () => {
+    let s = setzeListe(setzeListe(wkrBetriebsStand(viele(8)), L('steg'), 100, 'digital'), L('vorsteg'), 100, 'digital')
+    s = zeige(s, 3, 1000)
+    for (const typeId of ['steg', 'vorsteg']) {
+      const l = lageVon(s, typeId)
+      expect(l.parcours).toBe(false)
+      expect(l.rueckstand?.zahl).toBeGreaterThan(0)
+      expect(l.warnt).toBe(false)
+    }
+    expect(rueckstandZeile(erfassungsLage(s, DM, P1, [], 0).listen)).toEqual({ warnt: false, teile: [] })
   })
 
   it('rueckstandZeile: nur warnende Listen, mit Ampel und wartenden Zeilen', () => {

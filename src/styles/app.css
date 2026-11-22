@@ -321,14 +321,6 @@ a.btn {
   color: var(--muted);
 }
 
-/* Beispieldaten (21.11.2026): die Zahl je Klasse nur zum Ansehen – sie folgt der Gesamtzahl. */
-.class-count .beispiel-zahl {
-  min-width: 40px;
-  text-align: center;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
 .class-count input {
   width: 56px;
   text-align: center;
@@ -3697,6 +3689,16 @@ table.starters th .sortier-kopf.aktiv {
   padding: 4px 0;
 }
 
+/* WKR-Name je Liste (W3-13, 21.11.2026): eigene Zeile unter der Liste, Text bricht um (nie abgeschnitten). */
+.geraete-wkr-name {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  overflow-wrap: anywhere;
+}
+
 .geraete-listenwahl select {
   max-width: 100%;
 }
@@ -4058,6 +4060,15 @@ table.starters th .sortier-kopf.aktiv {
   font-weight: 700;
 }
 
+/* Eingang: „WKR: so lassen“ (Nutzer 21.11.2026, W3-35) – nur ein Vermerk, ruhiger als „nicht vorbei“. */
+.wkr-so-lassen {
+  padding: 0 4px;
+  border: 1px dashed var(--rueckstand);
+  border-radius: 4px;
+  color: var(--rueckstand-text);
+  font-weight: 600;
+}
+
 .wkr-chip {
   color: var(--danger);
   font-weight: 600;
@@ -4146,6 +4157,37 @@ table.starters th .sortier-kopf.aktiv {
   border: 2px solid var(--rueckstand);
   border-radius: 6px;
   padding: 4px 8px;
+}
+
+/* Parcours-Ampel (Nutzer 21.11.2026, P-03): Licht UND Wort; Knopf daneben, bricht auf schmalen Schirmen um. */
+.betrieb-ampel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 6px;
+}
+.betrieb-ampel-licht {
+  font-size: 1.4em;
+  line-height: 1;
+}
+.betrieb-ampel[data-ampel='gruen'] .betrieb-ampel-licht,
+.betrieb-ampel[data-ampel='frei'] .betrieb-ampel-licht {
+  color: var(--ok-text);
+}
+.betrieb-ampel[data-ampel='rot'] .betrieb-ampel-licht {
+  color: var(--danger);
+}
+.betrieb-ampel-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.betrieb-auto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 6px;
 }
 
 /* ---------- Ohne Internet (Offline-Speicher) ---------- */

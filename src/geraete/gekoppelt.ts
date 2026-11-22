@@ -1,3 +1,4 @@
+import { dieserTyp } from './geraeteName'
 import { ref, shallowRef, type Ref, type ShallowRef } from 'vue'
 import { SICHT_FASSUNG } from '../betrieb/sicht'
 import { geraetAblage, ichOderNeu, liesKopplung, pruefeRaum, schreibeKopplung, type Ablage, type KoppelLage, type Kopplung, type RaumBezug } from './ablage'
@@ -173,6 +174,8 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
     uhr,
   })
   const kern = lesegeraetAus(paket, 'anzeige', umgebung, ablage, uhr, t)
+  // Art des Geräts in jeder Anmeldung (W3-25, GF7) – der Host übernimmt sie nur beim ersten Koppeln.
+  const typ = umgebung.typ ?? dieserTyp()
   let zuletztGesendet = uhr()
   const sendeJetzt = (nachricht: GeraeteNachricht) => {
     zuletztGesendet = uhr()
@@ -253,7 +256,7 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
       // P-7: Ein bekanntes Gerät meldet sich nach jedem Start selbst – ohne Code. Der Host begrüßt es mit seinen
       // jetzigen Rechten und Schlüsseln (oder es ist inzwischen entzogen: dann kommt `entzogen` über d).
       if (lage.value === 'gekoppelt' && t.unbestaetigt().length === 0) {
-        sendeJetzt({ art: 'hallo', name: k.name, code: '' })
+        sendeJetzt({ art: 'hallo', name: k.name, code: '', typ })
         aktualisiereOffen()
       }
     },
@@ -268,7 +271,7 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
       // Eine frühere Anmeldung ohne Antwort (falscher Code) zuerst weg – sonst wartete die neue hinter ihr.
       t.verwirfAnmeldung()
       t.koppleUeber(thema)
-      sendeJetzt({ art: 'hallo', name, code: wert })
+      sendeJetzt({ art: 'hallo', name, code: wert, typ })
       aktualisiereOffen()
       return 'gesendet'
     },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUFBAUTEN, DEFAULT_AUFBAU, DEFAULT_REGELWERK, MANOEVER_AUFBAUTEN, REGELWERKE, STARTABSTAENDE, hasParallel, regelwerkOf, sollgewichtOf, startabstandOf, startabstandVorgabe } from './catalog'
+import { AUFBAUTEN, DEFAULT_AUFBAU, DEFAULT_REGELWERK, MANOEVER_AUFBAUTEN, REGELWERKE, STARTABSTAENDE, codeKlassenOf, hasParallel, regelwerkOf, sollgewichtOf, startabstandOf, startabstandVorgabe } from './catalog'
 
 describe('Regelwerke und Aufbauten', () => {
   it('liest die Regelwerke in Menü-Reihenfolge', () => {
@@ -69,5 +69,14 @@ describe('Regelwerke und Aufbauten', () => {
 
   it('unbekannte Kennungen fallen auf die Vorgabe zurück', () => {
     expect(regelwerkOf('gibt-es-nicht').id).toBe('dm-2026')
+  })
+
+  it('Klassen je Fehler-Code (W3-07, 21.11.2026): DM aus „ab Klasse 3“/„erst ab Klasse 4“, UIM ohne', () => {
+    const dm = codeKlassenOf('dm-2026')
+    expect(dm['4']).toEqual(['3', '4', '5', '6', '7'])
+    expect(dm['23']).toEqual(['3', '4', '5', '6', '7'])
+    for (const c of ['2', '5', '10', '16']) expect(dm[c]).toEqual(['4', '5', '6', '7'])
+    expect(Object.keys(dm).sort()).toEqual(['10', '16', '2', '23', '4', '5'])
+    expect(codeKlassenOf('uim-2026')).toEqual({})
   })
 })

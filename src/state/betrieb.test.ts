@@ -195,6 +195,48 @@ describe('Server des Gerätebetriebs (SET_GERAETE_SERVER, E6)', () => {
   })
 })
 
+describe('Parcours-Ampel: BETRIEB_DURCHFAHRT (P-03, 21.11.2026)', () => {
+  it('nur der gezeigte Start; rein, Zeit vom Store, doppelt = derselbe Stand; zurück nimmt sie; Zeigen/Zurück räumen', () => {
+    const s = zeigeNaechsten(beginne(fest()), P1, 1000)
+    const ref = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    // Ein anderer als der gezeigte Start, ein unbekannter Bereich: unverändert.
+    expect(reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: m('k1', 1), an: true, zeit: 1 })).toBe(s)
+    expect(reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P2, ref, an: true, zeit: 1 })).toBe(s)
+    expect(reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref, an: false, zeit: 1 })).toBe(s)
+    const d = reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref, an: true, zeit: 1500 })
+    expect(d.betrieb.bereiche[P1].durchfahrt).toEqual({ ref, zeit: 1500 })
+    expect(reducer(d, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref, an: true, zeit: 1600 })).toBe(d)
+    // Gleiche Eingabe, gleicher Stand (deterministisch).
+    expect(reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref, an: true, zeit: 1500 })).toEqual(d)
+    expect(reducer(d, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref, an: false, zeit: 1700 }).betrieb.bereiche[P1]).toEqual(s.betrieb.bereiche[P1])
+    // Der Nächste: die Durchfahrt fällt weg. Zurück: ebenso.
+    expect(zeigeNaechsten(d, P1, 2000).betrieb.bereiche[P1].durchfahrt).toBeUndefined()
+    expect(reducer(d, { type: 'BETRIEB_ZURUECK', bereich: P1, ref, zeit: 2000 }).betrieb.bereiche[P1]?.durchfahrt).toBeUndefined()
+    // Ändert sonst nichts (keine Eingaben, keine Folge).
+    expect(d.eingaben).toBe(s.eingaben)
+    expect(d.betrieb.bereiche[P1].gezeigt).toEqual(s.betrieb.bereiche[P1].gezeigt)
+  })
+
+  it('migrate/normalisiereBetrieb: nur für den gezeigten Start, sonst weg', () => {
+    const s = zeigeNaechsten(beginne(fest()), P1, 1000)
+    const ref = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    const roh = (durchfahrt: unknown) => ({ bereiche: { [P1]: { ...s.betrieb.bereiche[P1], durchfahrt } } })
+    expect(normalisiereBetrieb(roh({ ref, zeit: 7 })).bereiche[P1].durchfahrt).toEqual({ ref, zeit: 7 })
+    expect(normalisiereBetrieb(roh({ ref, zeit: 'x' })).bereiche[P1].durchfahrt).toEqual({ ref, zeit: 0 })
+    expect(normalisiereBetrieb(roh({ ref: m('k1', 1), zeit: 7 })).bereiche[P1].durchfahrt).toBeUndefined()
+    expect(normalisiereBetrieb(roh('kaputt')).bereiche[P1].durchfahrt).toBeUndefined()
+    expect(normalisiereBetrieb(roh(null)).bereiche[P1]).not.toHaveProperty('durchfahrt')
+  })
+
+  it('SET_ANZEIGE wkrAuto: Vorgabe aus, nur Wahrheitswerte', () => {
+    expect(normalisiereAnzeige({}).wkrAuto).toBe(false)
+    expect(normalisiereAnzeige({ wkrAuto: 'ja' }).wkrAuto).toBe(false)
+    const s = reducer(fest(), { type: 'SET_ANZEIGE', patch: { wkrAuto: true } })
+    expect(s.anzeige.wkrAuto).toBe(true)
+    expect(reducer(s, { type: 'SET_ANZEIGE', patch: { wkrAuto: true } })).toBe(s)
+  })
+})
+
 describe('Determinismus', () => {
   // Muster: Tafel-Prototyp, state/determinismus.test.ts – ein Ablauf wie am Wettkampftag. Würfelte der
   // Reducer (IDs, Uhr), liefen zwei Fenster auseinander, die dieselben Actions anwenden.

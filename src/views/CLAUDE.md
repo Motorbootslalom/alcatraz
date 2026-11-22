@@ -6,11 +6,12 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 ## Dateien
 
 - `EventView.vue` – Veranstaltung: Name, Jahr, Regelwerk, Aufbau, Art, Herkunft (originMode, SET_ORIGIN_MODE);
-  Besetzung, Beispieldaten (components/BeispieldatenPanel.vue, zugeklappt; Test EventView.test.ts `beispielstarter` (feste Zahl über `setzeGesamt`, sonst gezogen),
-  `beispielbesetzung`, `beispielgewichte`; Herkunft der Beispielstarter = originMode, nie umgestellt).
+  Besetzung, Beispieldaten (components/BeispieldatenPanel.vue, zugeklappt; Test EventView.test.ts `beispielstarter` (feste Zahl über `setzeGesamt`, sonst gezogen;
+  je Klasse `beispiel-klasse|<k>`, Summe `beispiel-summe`, R6-02), `beispielbesetzung`, `beispielgewichte`; Herkunft
+  der Beispielstarter = originMode (nie umgestellt), bei der Clubmeisterschaft keine (R6-01, beispielHerkunft)).
 - `StartersView.vue` – Starter je Klasse, Startnummern, Excel-Austausch, Schalter „zählt für Mannschaftswertung“;
   Leiste „Alle Klassen“ (`sortierung-alle`): Sortierung ändern/Zufall für alle, Spaltenköpfe in ClassSection.vue;
-  drei Stufen wie je Klasse (21.11.2026), merke `starter.sortierung.alle`, Test StartersView.test.ts.
+  drei Stufen wie je Klasse (↑ A→Z, ↓ Z→A, aus; bestätigt 21.11.2026 S-01), merke `starter.sortierung.alle`, Test StartersView.test.ts.
 - `WeighingView.vue` – Verwiegung: Gewichte je Herkunft in Ausdruck-Reihenfolge abtippen (SET_WEIGHT); Link
   „Gewichtslisten drucken“ → `#/listen/gewicht/<Herkunft>` (`*` = alle), ListsView übernimmt sie (gewichtHerkunft).
 - `VerzahnungView.vue` – Parcours, Klassen, Sperre (Festschreiben), Startnummern; Unterreiter Parallelslalom, useReiter.

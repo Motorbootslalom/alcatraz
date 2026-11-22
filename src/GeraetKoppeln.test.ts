@@ -269,6 +269,13 @@ describe('Gerät: Stand der WKR-Erfassung in der Start-Freigabe (W2.4)', () => {
     }
     for (let i = 0; i < 3; i++) zeigeAmHost()
     const { w } = await mitCode(h, NUR_1)
+    // Parcours-Ampel (P-03): Der gezeigte Start ist grün, er zählt noch nicht – „Durchs Start-Tor“ vom Handy macht rot.
+    const ampel = () => karte(w, 'par_1').find('[data-teil="ampel"]')
+    await zeigt(() => ampel().exists() && ampel().attributes('data-ampel') === 'gruen')
+    expect(karte(w, 'par_1').find(`[data-teil="wkr-leiste"] [data-liste="${TITEL}"]`).text()).toContain('wartet 2')
+    await karte(w, 'par_1').find('[data-action="durchfahrt"]').trigger('click')
+    await bis(() => !!state.value.betrieb.bereiche.par_1.durchfahrt)
+    await zeigt(() => ampel().attributes('data-ampel') === 'rot')
     await zeigt(() => karte(w, 'par_1').find('[data-teil="wkr-rueckstand"]').exists())
     const feld = karte(w, 'par_1').find(`[data-teil="wkr-leiste"] [data-liste="${TITEL}"]`)
     // Ohne Gerät an der Liste sendet niemand: ✕ rot „kein Gerät · wartet 3“ statt „⧗ wartet“ (Prüfbefund 21.11.2026).
@@ -302,6 +309,8 @@ describe('Gerät: Stand der WKR-Erfassung in der Start-Freigabe (W2.4)', () => {
       const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === 'par_1')!
       dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
     }
+    // Der dritte ist durchs Start-Tor (P-03): Er zählt im Rückstand (AM5).
+    dispatch({ type: 'BETRIEB_DURCHFAHRT', bereich: 'par_1', ref: state.value.betrieb.bereiche.par_1.gezeigt[2].ref, an: true })
     // „Abgeschickt“ wie vom WKR-Gerät: der Haken der Liste in der Erfassung (DM, Lauf 1 Manövrieren).
     const erfasse = (nr: string) => {
       const id = state.value.starters.find((x) => x.startNr === nr)!.id

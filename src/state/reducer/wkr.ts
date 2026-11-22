@@ -57,6 +57,12 @@ export type WkrAenderung =
    * Eintrag oder bei Papier: nichts. „Weiter digital“ bleibt WKR_LISTE {status: 'aktiv'}.
    */
   | { type: 'WKR_PAPIER_AB'; liste: string; ref: string; teil?: ListenTeil }
+  /**
+   * „So lassen“ auf dem Gerät (Nutzer 21.11.2026, W3-35, WKR_ANNAHMEN GF5): vermerkt an allen offenen Rückfragen der
+   * Zeile `zeile` (`${geraetId}.${z}`, der Host setzt die Geräte-ID aus dem Register) dieser Liste die Zeit. Entscheidet
+   * nichts – die Rückfrage bleibt offen. Schon vermerkt oder keine Rückfrage: unverändert (dieselbe Referenz).
+   */
+  | { type: 'WKR_SO_LASSEN'; liste: string; zeile: string }
 
 /** Nichts digital, nichts offen. */
 export function wkrLeer(): WkrStand {
@@ -258,6 +264,18 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       // Für das Gerät entschieden: das Kennzeichen der Zeile gilt (setzen bzw. „doch vorbei“ aufheben, R2/R3).
       const nichtVorbei = action.wahl === 'geraet' ? nvWirkung(state.wkr.nichtVorbei, rf.liste, istGeteilt(rf.liste), rf) : state.wkr.nichtVorbei
       return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, nichtVorbei } }
+    }
+
+    case 'WKR_SO_LASSEN': {
+      if (action.zeit === undefined) return state
+      const zeit = action.zeit
+      let neu = false
+      const rueckfragen = state.wkr.rueckfragen.map((rf) => {
+        if (rf.zeile !== action.zeile || rf.liste !== action.liste || rf.soLassen !== undefined) return rf
+        neu = true
+        return { ...rf, soLassen: zeit }
+      })
+      return neu ? { ...state, wkr: { ...state.wkr, rueckfragen } } : state
     }
 
     case 'WKR_VORSCHLAG': {
@@ -498,7 +516,9 @@ function liesRueckfrage(raw: unknown, ids: ReadonlySet<string>): WkrRueckfrage |
   if (!weitere || !h || !liesListe(liste) || !zelleGilt(lauf as string, starter as string, ids) || !weitere.every((l) => zelleGilt(l, starter as string, ids))) return null
   const v = raw.vereinige
   const vereinige = grund === 'start' && istObj(v) && istText(v.vorher) ? { vereinige: { vorher: v.vorher } } : {}
-  return { id, zeile, liste, ref, lauf, weitere, starter, feld, wert, steht, grund, ...vereinige, haken: h, ...nvTeil(raw), zeit } as WkrRueckfrage
+  // „So lassen“ (W3-35, 21.11.2026): nur eine Zeit; alles andere fällt weg.
+  const soLassen = zahl(raw.soLassen) ? { soLassen: raw.soLassen as number } : {}
+  return { id, zeile, liste, ref, lauf, weitere, starter, feld, wert, steht, grund, ...vereinige, haken: h, ...nvTeil(raw), ...soLassen, zeit } as WkrRueckfrage
 }
 
 function liesVorschlag(raw: unknown, ids: ReadonlySet<string>): WkrVorschlag | null {

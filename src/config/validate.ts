@@ -297,6 +297,16 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     for (const f of kat?.fehler ?? [])
       if (f && !/^\d+$/.test(String(f.code)))
         err('BAD_FEHLER_CODE', `Fehler-Code "${f.code}" im Katalog "${kid}" muss eine Zahl sein.`, `kataloge.${kid}`)
+    // Klassen je Code (W3-07, 21.11.2026): nur Klassen des Regelwerks, höchstens eine der beiden Angaben.
+    const regelKlassen = new Set((raw.klassen ?? []).map(String))
+    for (const f of kat?.fehler ?? []) {
+      if (!f) continue
+      const genannt = [...(f.abKlasse !== undefined ? [f.abKlasse] : []), ...(f.klassen ?? [])].map(String)
+      if (f.abKlasse !== undefined && f.klassen !== undefined)
+        err('BAD_FEHLER_KLASSE', `Fehler-Code "${f.code}" im Katalog "${kid}": entweder abKlasse oder klassen.`, `kataloge.${kid}`)
+      for (const k of genannt)
+        if (raw.klassen && !regelKlassen.has(k)) err('BAD_FEHLER_KLASSE', `Fehler-Code "${f.code}" im Katalog "${kid}": Klasse "${k}" gibt es im Regelwerk nicht.`, `kataloge.${kid}`)
+    }
   }
 
   // Eindeutige Codes über alle Kataloge halten die A4-Legende lesbar.

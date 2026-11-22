@@ -7,6 +7,21 @@ import { liesListe, teileVon, teilVonZelle } from './liste'
 // (WkrStand.nichtVorbei) lesen, schreiben und aufheben – rein, ohne DOM, ohne Store, nichts aus geraete/. EINE Stelle
 // für den Schlüssel, damit Reducer (setzen, aufheben), lage.ts (Matrix, Marken, Abschluss) und migrate gleich lesen.
 
+/**
+ * „Nicht vorbeigekommen“ ist Disq. J (Nutzer 21.11.2026, W3-17: „Parcours verlassen oder falscher Parcours“; WKR_ANNAHMEN
+ * GF10, noch zu bestätigen): Der Buchstabe, den das Gerät dafür ins Disq.-Feld schreibt.
+ */
+export const NICHT_VORBEI_DISQ = 'J'
+
+/**
+ * Wie das Gerät „nicht vorbeigekommen“ meldet (GF10): `disq` = als Disq. J ins Disq.-Feld, wo die Liste J für diesen
+ * Teil kennt (`codes` = disqFuer der Maske; DM/UIM: J nur auf `parcours`/`mueb`); sonst `kennzeichen` = das
+ * bisherige ⊘ (Steg-Anlegen hat kein J). Der Ablauf (W4.3: „Mehr“, nur der gezeigte Start, Rückfrage) bleibt gleich.
+ */
+export function nichtVorbeiArt(codes: readonly { code: string }[]): 'disq' | 'kennzeichen' {
+  return codes.some((c) => c.code === NICHT_VORBEI_DISQ) ? 'disq' : 'kennzeichen'
+}
+
 /** Schlüssel einer Zelle: `${lauf}|${starter}`, am Steg mit Teil `${lauf}|${starter}|an` (Ablegen hat X statt nv). */
 export function nvSchluessel(lauf: string, starter: string, teil?: ListenTeil): string {
   return teil === undefined ? `${lauf}|${starter}` : `${lauf}|${starter}|${teil}`
