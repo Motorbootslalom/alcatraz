@@ -7,15 +7,16 @@
 // nie der Reducer), IDs (`zeile.id`) und `zeit` mit der Action. Nichts aus geraete/. Unverändert = derselbe Stand.
 // Werte gehen nur über `eingaben` (wie SET_EINGABEN); belegte Zellen werden nie still überschrieben (wkr/uebernahme.ts).
 
-import type { AppState, Eingaben, PunktId, WkrAbschluss, WkrListe, WkrModus, WkrPause, WkrRueckfrage, WkrStand, WkrStatus, WkrTeilStatus, WkrVorschlag, WkrZeile } from '../../types'
+import type { AppState, Eingaben, KeineZeitGrund, WkrAbschluss, WkrPunkt, WkrListe, WkrModus, WkrPause, WkrRueckfrage, WkrStand, WkrStatus, WkrTeilStatus, WkrVorschlag, WkrZeile } from '../../types'
 import { erfasstKennung, gueltigeZellen, istHaken, listenFelder, setzeWerte, werteVon, type EingabeZelle, type ListenTeil } from '../../lib/eingaben'
-import { betriebVon, istPunktId, liesRef } from '../../betrieb/folge'
-import { abschlussSchluessel, abschlussVon, liesAbschlussSchluessel, punktBegonnen, punktVonRef, TEILE, zeileAbgeschlossen } from '../../wkr/abschluss'
+import { betriebVon, liesRef } from '../../betrieb/folge'
+import { abschlussSchluessel, abschlussVon, istWkrPunkt, liesAbschlussSchluessel, OHNE_PUNKT, punktBegonnen, TEILE, wkrPunktVonRef, zeileAbgeschlossen } from '../../wkr/abschluss'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
-import { liesListe, startAufListe, teileVon, teilHaken, teilVonZelle } from '../../wkr/liste'
+import { bestandOhneLauf, istTischListe, liesListe, liesStartKennung, startAufListe, teileVon, teilHaken, teilVonZelle } from '../../wkr/liste'
 import { papierStarts, schlange } from '../../wkr/schlange'
 import { vereinigt, wendeZeileAn, zeilenPruefsumme } from '../../wkr/uebernahme'
 import { liesNvSchluessel, mitNichtVorbei, nvSchluessel } from '../../wkr/nichtVorbei'
+import { keineZeitNur, liesKeineZeitFelder, mitKeineZeit, normalisiereKeineZeit } from '../../wkr/keineZeit'
 import { konfigVon } from './gemeinsam'
 
 export type WkrAenderung =
@@ -45,11 +46,12 @@ export type WkrAenderung =
    * sich nichts. `teil`: ein Gerät für einen Teil des Stegs schließt seinen Teil ab (Prüfsumme über dessen Spalten),
    * eigener Eintrag (wkr/abschluss.ts) – der andere Teil bleibt offen. Nur für einen Punkt, der im Bereich begonnen
    * hat (wkr/abschluss.ts `punktBegonnen`), sonst ändert sich nichts. `papier` = offene Starts (mit `restPapier`) und
-   * die Starts des Punkts, die schon über eine Pause aufs Papier gingen und noch keinen Haken haben.
+   * die Starts des Punkts, die schon über eine Pause aufs Papier gingen und noch keinen Haken haben. Liste am Tisch
+   * (ohne Lauf, W5.3, 22.11.2026, KN5): nur Punkt `ohne`, die ganze Liste; offen = Starter des Bestands ohne Haken.
    */
-  | { type: 'WKR_ABSCHLUSS'; liste: string; punkt: PunktId; name: string; pruefsummen: Record<string, string>; restPapier: boolean; teil?: ListenTeil }
+  | { type: 'WKR_ABSCHLUSS'; liste: string; punkt: WkrPunkt; name: string; pruefsummen: Record<string, string>; restPapier: boolean; teil?: ListenTeil }
   /** Abschluss zurücknehmen (für W2: Bediener), am Steg je Teil. */
-  | { type: 'WKR_ABSCHLUSS_LOESEN'; liste: string; punkt: PunktId; teil?: ListenTeil }
+  | { type: 'WKR_ABSCHLUSS_LOESEN'; liste: string; punkt: WkrPunkt; teil?: ListenTeil }
   /**
    * W2 „Papier ab Start …“ (Bediener, WKR_ANNAHMEN.papierAbMeldetAb): Die Liste (bzw. der Steg-Teil) wird ab dem Start
    * `ref` vom Bogen erfasst – Status `abgemeldet`, Pause ab der Zeit, zu der `ref` gezeigt wurde (sonst jetzt), mit
@@ -66,7 +68,7 @@ export type WkrAenderung =
 
 /** Nichts digital, nichts offen. */
 export function wkrLeer(): WkrStand {
-  return { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {} }
+  return { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {}, keineZeit: {} }
 }
 
 const MODI: readonly WkrModus[] = ['digital', 'papier', 'beides']
@@ -78,7 +80,7 @@ export function geraetVonZeile(zeile: string): string {
   return i < 0 ? zeile : zeile.slice(0, i)
 }
 
-const punktVon = punktVonRef
+const punktVon = wkrPunktVonRef
 
 /**
  * „Papier ab“ auf Status und Pausen anwenden (ganze Liste bzw. Teil): neue Pause oder die offene ergänzt. `null`, wenn
@@ -144,6 +146,15 @@ function nvWirkung(
   return out
 }
 
+/**
+ * „Keine Zeit“ einer geltenden Zeile (W5.4, ZT4): trägt sie `keineZeit`, ersetzt es das Kennzeichen des Starts (leer =
+ * aufheben); ohne bleibt das stehende. Gleiche Stellen wie {@link nvWirkung}: direkt, Rückfrage für das Gerät, Vorschlag
+ * übernommen. Unverändert = dasselbe Objekt.
+ */
+function kzWirkung(kz: WkrStand['keineZeit'], liste: string, z: { lauf: string; starter: string; keineZeit?: Record<string, KeineZeitGrund> }): WkrStand['keineZeit'] {
+  return z.keineZeit ? mitKeineZeit(kz, liste, z.lauf, z.starter, z.keineZeit) : kz
+}
+
 export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: number }): AppState {
   const zeit = action.zeit ?? 0
   switch (action.type) {
@@ -158,6 +169,7 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       let rueckfragen = state.wkr.rueckfragen
       let vorschlaege = state.wkr.vorschlaege
       let nichtVorbei = state.wkr.nichtVorbei
+      let keineZeit = state.wkr.keineZeit
       // P je Teil (A6): Starts, die schon aufs Papier gingen – einmal je Teil gerechnet. Eine ganze Zeile einer
       // geteilten Liste trifft es schon, wenn EIN Teil den Start auf Papier hat (wie zeileAbgeschlossen).
       const pJe = new Map<ListenTeil | undefined, Set<string>>()
@@ -180,8 +192,16 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
         // „Nicht vorbeigekommen“ (W4.3, R2/R3): Kennzeichen setzen bzw. („doch vorbei“) aufheben nur, wo die Zeile direkt
         // gilt; Rückfrage und Vorschlag tragen es mit und wirken erst mit der Entscheidung für das Gerät (Prüfbefund
         // 21.11.2026: ein verworfener Vorschlag ließ ⊘ sonst still verschwinden).
-        const nv = { ...(zeile.nichtVorbei ? { nichtVorbei: true as const } : {}), ...(geteilt && zeile.teil ? { teil: zeile.teil } : {}) }
-        const wirke = () => (nichtVorbei = nvWirkung(nichtVorbei, action.liste, geteilt, { lauf: zeile.lauf, starter: zeile.starter, ...nv }))
+        const nv = {
+          ...(zeile.nichtVorbei ? { nichtVorbei: true as const } : {}),
+          ...(geteilt && zeile.teil ? { teil: zeile.teil } : {}),
+          // „Keine Zeit“ (W5.4, ZT4) reist wie das Kennzeichen „nicht vorbeigekommen“ mit Rückfrage und Vorschlag.
+          ...(zeile.keineZeit ? { keineZeit: zeile.keineZeit } : {}),
+        }
+        const wirke = () => {
+          nichtVorbei = nvWirkung(nichtVorbei, action.liste, geteilt, { lauf: zeile.lauf, starter: zeile.starter, ...nv })
+          keineZeit = kzWirkung(keineZeit, action.liste, { lauf: zeile.lauf, starter: zeile.starter, ...nv })
+        }
         const abgeschlossen = zeileAbgeschlossen(state.wkr, action.liste, punkt, zeile.teil, geteilt)
         const aufPapier = papier || (WKR_ANNAHMEN.papierStartVorschlag && pVon(zeile.teil).has(zeile.ref))
         if (aufPapier || abgeschlossen) {
@@ -248,8 +268,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
           wirke()
         }
       }
-      if (eingaben === state.eingaben && rueckfragen === state.wkr.rueckfragen && vorschlaege === state.wkr.vorschlaege && nichtVorbei === state.wkr.nichtVorbei) return state
-      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, vorschlaege, nichtVorbei } }
+      if (eingaben === state.eingaben && rueckfragen === state.wkr.rueckfragen && vorschlaege === state.wkr.vorschlaege && nichtVorbei === state.wkr.nichtVorbei && keineZeit === state.wkr.keineZeit) return state
+      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, vorschlaege, nichtVorbei, keineZeit } }
     }
 
     case 'WKR_RUECKFRAGE': {
@@ -263,7 +283,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       if (!rueckfragen.some((x) => x.zeile === rf.zeile)) eingaben = mitHaken(state, eingaben, laeufe, rf.starter, rf.haken)
       // Für das Gerät entschieden: das Kennzeichen der Zeile gilt (setzen bzw. „doch vorbei“ aufheben, R2/R3).
       const nichtVorbei = action.wahl === 'geraet' ? nvWirkung(state.wkr.nichtVorbei, rf.liste, istGeteilt(rf.liste), rf) : state.wkr.nichtVorbei
-      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, nichtVorbei } }
+      const keineZeit = action.wahl === 'geraet' ? kzWirkung(state.wkr.keineZeit, rf.liste, rf) : state.wkr.keineZeit
+      return { ...state, eingaben, wkr: { ...state.wkr, rueckfragen, nichtVorbei, keineZeit } }
     }
 
     case 'WKR_SO_LASSEN': {
@@ -286,7 +307,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
         action.wahl === 'uebernehmen' ? mitHaken(state, setzeWerte(state.eingaben, zellenIn(state, laeufe, v.starter, v.zellen)), laeufe, v.starter, v.haken) : state.eingaben
       // Übernommen: das Kennzeichen der Zeile gilt; verworfen: alles bleibt, wie es war – auch ein stehendes ⊘ (R3).
       const nichtVorbei = action.wahl === 'uebernehmen' ? nvWirkung(state.wkr.nichtVorbei, v.liste, istGeteilt(v.liste), v) : state.wkr.nichtVorbei
-      return { ...state, eingaben, wkr: { ...state.wkr, vorschlaege: state.wkr.vorschlaege.filter((x) => x !== v), nichtVorbei } }
+      const keineZeit = action.wahl === 'uebernehmen' ? kzWirkung(state.wkr.keineZeit, v.liste, v) : state.wkr.keineZeit
+      return { ...state, eingaben, wkr: { ...state.wkr, vorschlaege: state.wkr.vorschlaege.filter((x) => x !== v), nichtVorbei, keineZeit } }
     }
 
     case 'WKR_LISTE': {
@@ -336,21 +358,32 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
     case 'WKR_ABSCHLUSS': {
       const liste = liesListe(action.liste)
       const name = typeof action.name === 'string' ? action.name.trim() : ''
-      if (!liste || !istPunktId(action.punkt) || name === '' || name.length > WKR_ANNAHMEN.nameMax) return state
+      if (!liste || !istWkrPunkt(action.punkt) || name === '' || name.length > WKR_ANNAHMEN.nameMax) return state
       if (action.teil !== undefined && (!teileVon(liste.typeId) || (action.teil !== 'ab' && action.teil !== 'an'))) return state
-      if (!punktBegonnen(state, liste.bereich, action.punkt)) return state
-      // Das Anlegen des Starts im Boot zählt nicht als offen (WKR_ANNAHMEN.stegAbschlussOhneImBoot) – wie die Prüfansicht
-      // des Geräts, die ihn nicht kennt.
-      const offen = schlange(state, liste, action.teil)
-        .filter((s) => !s.vorab && !s.entfaellt && s.punkt === action.punkt)
-        .map((s) => s.key)
-      if (offen.length > 0 && !action.restPapier) return state
+      const tisch = istTischListe(liste)
+      // Am Tisch nur die ganze Liste (`ohne`); sonst nur Punkte des Betriebs, die begonnen haben.
+      if (tisch !== (action.punkt === OHNE_PUNKT)) return state
+      if (!tisch && (action.punkt === OHNE_PUNKT || !punktBegonnen(state, liste.bereich, action.punkt))) return state
       const konfig = konfigVon(state)
+      const haken = [erfasstKennung(liste.typeId), ...(action.teil !== undefined ? [teilHaken(liste.typeId, action.teil)] : [])]
+      // Das Anlegen des Starts im Boot zählt nicht als offen (WKR_ANNAHMEN.stegAbschlussOhneImBoot) – wie die Prüfansicht
+      // des Geräts, die ihn nicht kennt. Am Tisch: die Starter des Bestands ohne Haken (wie die Sicht, KN3/KN5) – nur,
+      // solange die Liste digital und aktiv ist (sonst sind sie ohnehin Papier, wie die leere Schlange).
+      const eintrag = state.wkr.listen[action.liste]
+      const offen = tisch
+        ? eintrag && eintrag.modus !== 'papier' && eintrag.status === 'aktiv'
+          ? bestandOhneLauf(state, konfig, liste)
+              .filter(({ start }) => !haken.some((h) => !!werteVon(state.eingaben, start.lauf, start.starter.id)[h]))
+              .map(({ key }) => key)
+          : []
+        : schlange(state, liste, action.teil)
+            .filter((s) => !s.vorab && !s.entfaellt && s.punkt === action.punkt)
+            .map((s) => s.key)
+      if (offen.length > 0 && !action.restPapier) return state
       // Was schon über eine Pause aufs Papier ging (auch bei pausierter Liste, deren Schlange leer ist) und noch keinen
       // Haken hat, nennt der Abschluss mit – so sieht W2, welche Starts dieses Punkts vom Bogen kommen.
-      const haken = [erfasstKennung(liste.typeId), ...(action.teil !== undefined ? [teilHaken(liste.typeId, action.teil)] : [])]
       const ausPause = papierStarts(state, liste, action.teil).filter((key) => {
-        const ref = liesRef(key)
+        const ref = liesStartKennung(key, liesRef)
         const start = ref ? startAufListe(state, konfig, liste, ref) : null
         if (!start || start.punkt !== action.punkt) return false
         const w = werteVon(state.eingaben, start.lauf, start.starter.id)
@@ -359,7 +392,7 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       const papier = [...new Set([...offen, ...ausPause])]
       const abweichend: string[] = []
       for (const [key, summe] of Object.entries(action.pruefsummen ?? {})) {
-        const ref = liesRef(key)
+        const ref = liesStartKennung(key, liesRef)
         const start = ref ? startAufListe(state, konfig, liste, ref) : null
         if (!start || start.punkt !== action.punkt || typeof summe !== 'string' || !konfig.positionAllowsClass(liste.typeId, start.starter.klasse)) continue
         const felder = listenFelder(konfig, liste.typeId, start.starter.klasse)
@@ -398,7 +431,7 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
     }
 
     case 'WKR_ABSCHLUSS_LOESEN': {
-      if (!istPunktId(action.punkt) || !abschlussVon(state.wkr, action.liste, action.punkt, action.teil)) return state
+      if (!istWkrPunkt(action.punkt) || !abschlussVon(state.wkr, action.liste, action.punkt, action.teil)) return state
       const jeListe = state.wkr.abschluss[action.liste]
       const { [abschlussSchluessel(action.punkt, action.teil)]: _weg, ...rest } = jeListe
       const abschluss = { ...state.wkr.abschluss }
@@ -415,7 +448,7 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
  * Ohne die Rückfragen, Vorschläge und Abschlüsse gelöschter Läufe (`wegLauf` je Lauf-Schlüssel, `wegPunkt` je
  * Punkt). Modus und Status der Listen bleiben. Unverändert = dasselbe Objekt.
  */
-export function wkrOhneLaeufe(wkr: WkrStand, wegLauf: (lauf: string) => boolean, wegPunkt: (punkt: PunktId) => boolean): WkrStand {
+export function wkrOhneLaeufe(wkr: WkrStand, wegLauf: (lauf: string) => boolean, wegPunkt: (punkt: WkrPunkt) => boolean): WkrStand {
   const rueckfragen = wkr.rueckfragen.filter((rf) => !wegLauf(rf.lauf))
   const vorschlaege = wkr.vorschlaege.filter((v) => !wegLauf(v.lauf))
   let abschlussGeaendert = false
@@ -429,8 +462,9 @@ export function wkrOhneLaeufe(wkr: WkrStand, wegLauf: (lauf: string) => boolean,
     if (bleibt.length > 0) abschluss[liste] = Object.fromEntries(bleibt)
   }
   const nichtVorbei = nvNur(wkr.nichtVorbei, (z) => !wegLauf(z.lauf))
-  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && !abschlussGeaendert && nichtVorbei === wkr.nichtVorbei) return wkr
-  return { ...wkr, rueckfragen, vorschlaege, abschluss: abschlussGeaendert ? abschluss : wkr.abschluss, nichtVorbei }
+  const keineZeit = keineZeitNur(wkr.keineZeit, (z) => !wegLauf(z.lauf))
+  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && !abschlussGeaendert && nichtVorbei === wkr.nichtVorbei && keineZeit === wkr.keineZeit) return wkr
+  return { ...wkr, rueckfragen, vorschlaege, abschluss: abschlussGeaendert ? abschluss : wkr.abschluss, nichtVorbei, keineZeit }
 }
 
 /** Nur die Kennzeichen „nicht vorbeigekommen“, deren Zelle `bleibt`; unverändert = dasselbe Objekt. */
@@ -453,8 +487,9 @@ export function wkrNurStarter(wkr: WkrStand, ids: ReadonlySet<string>): WkrStand
   const rueckfragen = wkr.rueckfragen.filter((rf) => ids.has(rf.starter))
   const vorschlaege = wkr.vorschlaege.filter((v) => ids.has(v.starter))
   const nichtVorbei = nvNur(wkr.nichtVorbei, (z) => ids.has(z.starter))
-  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && nichtVorbei === wkr.nichtVorbei) return wkr
-  return { ...wkr, rueckfragen, vorschlaege, nichtVorbei }
+  const keineZeit = keineZeitNur(wkr.keineZeit, (z) => ids.has(z.starter))
+  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && nichtVorbei === wkr.nichtVorbei && keineZeit === wkr.keineZeit) return wkr
+  return { ...wkr, rueckfragen, vorschlaege, nichtVorbei, keineZeit }
 }
 
 // --- Laden ---------------------------------------------------------------------------------------
@@ -502,8 +537,14 @@ function liesListeneintrag(raw: unknown, geteilt: boolean): WkrListe | null {
 const zelleGilt = (lauf: string, starter: string, ids: ReadonlySet<string>) => gueltigeZellen([{ lauf, starter, feld: 'x', wert: '' }], ids).length === 1
 
 /** Kennzeichen und Steg-Teil einer Rückfrage bzw. eines Vorschlags (W4.3, Prüfbefund 21.11.2026): nur genau `true` bzw. ab/an. */
-function nvTeil(raw: Record<string, unknown>): { nichtVorbei?: true; teil?: ListenTeil } {
-  return { ...(raw.nichtVorbei === true ? { nichtVorbei: true as const } : {}), ...(raw.teil === 'ab' || raw.teil === 'an' ? { teil: raw.teil } : {}) }
+function nvTeil(raw: Record<string, unknown>): { nichtVorbei?: true; teil?: ListenTeil; keineZeit?: Record<string, KeineZeitGrund> } {
+  // „Keine Zeit“ (W5.4, ZT4): nur bekannte Gründe; ein kaputtes Objekt fällt weg, die Rückfrage bleibt.
+  const keineZeit = liesKeineZeitFelder(raw.keineZeit)
+  return {
+    ...(raw.nichtVorbei === true ? { nichtVorbei: true as const } : {}),
+    ...(raw.teil === 'ab' || raw.teil === 'an' ? { teil: raw.teil } : {}),
+    ...(keineZeit ? { keineZeit } : {}),
+  }
 }
 
 function liesRueckfrage(raw: unknown, ids: ReadonlySet<string>): WkrRueckfrage | null {
@@ -569,7 +610,9 @@ export function normalisiereWkr(raw: unknown, starterIds: ReadonlySet<string>): 
           const jePunkt = Object.entries(v).flatMap(([p, a]): [string, WkrAbschluss][] => {
             // Schlüssel: Punkt bzw. Punkt|Teil – ein Teil nur bei geteilten Listen.
             const s = liesAbschlussSchluessel(p)
-            const gelesen = s && (s.teil === undefined || geteilt) ? liesAbschluss(a) : null
+            // `ohne` nur an der Liste am Tisch, Punkte des Betriebs nur an den anderen (W5.3, 22.11.2026, KN5).
+            const passt = !!s && (s.teil === undefined || geteilt) && (s.punkt === OHNE_PUNKT) === istTischListe(liste)
+            const gelesen = passt ? liesAbschluss(a) : null
             return gelesen ? [[p, gelesen]] : []
           })
           return jePunkt.length > 0 ? [[k, Object.fromEntries(jePunkt)]] : []
@@ -594,5 +637,7 @@ export function normalisiereWkr(raw: unknown, starterIds: ReadonlySet<string>): 
         }),
       )
     : {}
-  return { listen, rueckfragen, vorschlaege, abschluss, nichtVorbei }
+  // „Keine Zeit“ (W5.4, ZT4): je lesbarer Liste gültige Zellen mit bekannten Gründen (wkr/keineZeit.ts).
+  const keineZeit = normalisiereKeineZeit(raw.keineZeit, (k) => !!liesListe(k), (lauf, starter) => zelleGilt(lauf, starter, starterIds))
+  return { listen, rueckfragen, vorschlaege, abschluss, nichtVorbei, keineZeit }
 }

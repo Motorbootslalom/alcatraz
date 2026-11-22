@@ -239,13 +239,17 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     const k = w.find('[data-teil="koppeln"]')
     const wahl = k.find('select[data-feld="koppeln-liste"]')
     // Gruppen je Parcours, Titel in Oberflächensprache; Bojen-Listen „Maske folgt – Papier“, Steg nicht.
-    expect(wahl.findAll('optgroup').length).toBe(2)
+    // Seit W5.3 (22.11.2026, KN1) dazu die Gruppe „Am Tisch“ mit der Knoten-Liste (Prüfliste, mit Maske).
+    expect(wahl.findAll('optgroup').map((g) => g.attributes('label'))).toEqual(['Parcours 1', 'Parcours 2', 'Am Tisch'])
+    const knoten = L('tisch', 'knoten')
+    expect(wahl.find(`optgroup[label='Am Tisch'] option[value='${knoten}']`).text()).toBe('Knoten')
+    expect(wahl.find(`option[value='${knoten}']`).attributes('data-ohne-maske')).toBeUndefined()
     expect(wahl.find(`option[value='${STEG}']`).text()).toBe('Steg')
-    // Seit W4.2 (21.11.2026) haben Bojen-Listen eine Maske; ohne bleiben Listen mit Zeitfeldern (W5).
+    // Seit W4.2 (21.11.2026) haben Bojen-Listen eine Maske, seit W5.4 (22.11.2026) auch Listen mit Zeitfeldern.
     expect(wahl.find(`option[value='${GATE}']`).text()).toBe('Tor 1 / 3 / 5')
     expect(wahl.find(`option[value='${GATE}']`).attributes('data-ohne-maske')).toBeUndefined()
-    expect(wahl.find(`option[value='${L('par_1', 'zeit')}']`).text()).toMatch(/\(Maske folgt – Papier\)$/)
-    expect(wahl.find(`option[value='${L('par_1', 'zeit')}']`).attributes('data-ohne-maske')).toBe('')
+    expect(wahl.find(`option[value='${L('par_1', 'zeit')}']`).text()).toBe('Zeit')
+    expect(wahl.find(`option[value='${L('par_1', 'zeit')}']`).attributes('data-ohne-maske')).toBeUndefined()
 
     // Nur eine Liste genügt zum Koppeln (keine Freigabe).
     await wahl.setValue(STEG)
@@ -292,7 +296,15 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     const pad = w.find('.geraete-eintrag[data-geraet="gPad"]')
     const zeile = pad.find(`.geraete-liste-eintrag[data-liste='${STEG}']`)
     expect(zeile.find('[data-teil="liste-titel"]').text()).toBe('Steg (Parcours 1)')
-    expect(zeile.find('[data-teil="liste-maske"]').text()).toBe('Maske: Knöpfe')
+    // W5.1 (F14): Maske je Liste – Steg hat keine Bojen: „Knöpfe“ (gedrückt, Vorgabe MW1) und seit W5.5 „Tabelle“
+    // (auf dem Pad wählbar, nie Vorgabe), dazu „fest“.
+    expect(zeile.findAll('[data-teil="liste-maske"] [data-wahl-maske]').map((b) => b.attributes('data-wahl-maske'))).toEqual(['knoepfe', 'text'])
+    expect(zeile.find<HTMLButtonElement>('[data-wahl-maske="text"]').element.disabled).toBe(false)
+    // TB1 (W5.5): am Handy „Tabelle“ ausgegraut mit Grund.
+    const handyTabelle = w.find('.geraete-eintrag[data-geraet="gHandy"] [data-wahl-maske="text"]')
+    expect(handyTabelle.attributes('disabled')).toBeDefined()
+    expect(handyTabelle.attributes('title')).toBe('Nur auf Pad oder Rechner (Tastatur).')
+    expect(zeile.find('[data-wahl-maske="knoepfe"]').attributes('aria-pressed')).toBe('true')
     expect(pad.find('[data-hinweis="nichts-frei"]').exists()).toBe(false)
 
     // Teil: nur Ablegen – die Freigabe bleibt vorn.
@@ -320,7 +332,18 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     expect(pad2.find('[data-hinweis="pad-zwei"]').exists()).toBe(true)
     host.raum.value = { ...host.raum.value!, geraete: [eintrag('gPad', 'Pad Steg', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE }], 'pad'), host.raum.value!.geraete[1]] }
     await nextTick()
-    expect(pad2.find(`.geraete-liste-eintrag[data-liste='${GATE}'] [data-teil="liste-maske"]`).text()).toBe('Maske: Knöpfe')
+    // Bojen-Liste auf dem Pad: „Bild“ ist die Vorgabe (MW1, gebaut seit W5.2, 22.11.2026) und gedrückt; „Tabelle“
+    // seit W5.5 wählbar.
+    const gate = pad2.find(`.geraete-liste-eintrag[data-liste='${GATE}']`)
+    expect(gate.findAll('[data-wahl-maske]').map((b) => b.attributes('data-wahl-maske'))).toEqual(['knoepfe', 'bild', 'text'])
+    expect(gate.find<HTMLButtonElement>('[data-wahl-maske="bild"]').element.disabled).toBe(false)
+    expect(gate.find('[data-wahl-maske="bild"]').attributes('aria-pressed')).toBe('true')
+    // Knöpfe ausdrücklich wählen: Aufgabe.maske über setzeAufgaben (die Freigabe bleibt vorn). „fest“ legt die gezeigte
+    // Maske fest – der Host-Doppel übernimmt keine Aufgaben, gezeigt bleibt also die Vorgabe „Bild“.
+    await gate.find('[data-wahl-maske="knoepfe"]').trigger('click')
+    expect(setzeAufgaben).toHaveBeenLastCalledWith('gPad', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE, maske: 'knoepfe' }])
+    await gate.find('input[data-feld="maske-fest"]').setValue(true)
+    expect(setzeAufgaben).toHaveBeenLastCalledWith('gPad', [freigabe, { art: 'liste', liste: STEG }, { art: 'liste', liste: GATE, maske: 'bild', fest: true }])
 
     // Entfernen.
     await pad2.find(`.geraete-liste-eintrag[data-liste='${STEG}'] [data-action="liste-entfernen"]`).trigger('click')
@@ -337,7 +360,7 @@ describe('Betrieb → Geräte: WKR-Liste zuweisen (W3.2)', () => {
     // Freigabe umschalten behält die Liste.
     await handyEintrag.find('input[data-bereich="par_1"]').setValue(true)
     expect(setzeAufgaben).toHaveBeenLastCalledWith('gHandy', [{ art: 'startfreigabe', bereiche: ['par_1'] }, { art: 'liste', liste: TOR5 }, { art: 'liste', liste: MUEB }])
-    expect(setzeAufgaben).toHaveBeenCalledTimes(4)
+    expect(setzeAufgaben).toHaveBeenCalledTimes(6)
   })
 
   it('Verweis mit Liste in der Adresse (`#/betrieb/geraete/<liste>`) wählt sie fürs Koppeln vor', async () => {

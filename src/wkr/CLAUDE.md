@@ -26,13 +26,18 @@ Steg-Reiter immer mit ✓/Zahl, Übung mit Erklärung und „Übung beenden“, 
 nie vorgewählt, Klassenwechsel-Band nur beim ersten Start + Parcours-Zeichnung, „nicht vorbeigekommen“ = Disq. J.
 Umgebaut 21.11.2026 (Plan §6, WN1–WN3 noch zu bestätigen): **WKR-Name aus der Einteilung** (W3-13, ersetzt G11/L4) –
 Sicht der eigenen Liste trägt `wkrName`, Gerät ändert unter „Mehr → Name“, Bedienrechner zeigt Abweichungen.
+W5 (Pad, Plan docs/plan-wkr-w5.md): W5.1 (Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl) gebaut 22.11.2026,
+PD1–PD6 und MW1–MW3 noch zu bestätigen; W5.2 (Maske „Bild“) gebaut 22.11.2026, BD1–BD7 noch zu bestätigen;
+W5.3 (Listen ohne Lauf, Knoten-Prüfliste) gebaut 22.11.2026, KN1–KN8 noch zu bestätigen; W5.4 (Zeit-Listen mit
+Ziffernblock, „keine Zeit“) gebaut 22.11.2026, ZT1–ZT4 noch zu bestätigen; W5.5 (Tabelle für Geübte) gebaut
+22.11.2026, TB1–TB5 noch zu bestätigen – W5 fertig, Feldtest offen (docs/feldtest.md „Pad (W5)“).
 Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte Zellen nie still überschreiben.
 
 ## Dateien
 
 - `annahmen.ts` – WKR_ANNAHMEN: alle Auslegungen mit Datum (Plan §9, „noch zu bestätigen“), Zahlen (Bündel 8, Schlange
   12, danach 5, zuletzt 20, Lebenszeichen 60 s), Steg-Teile nach Spalten-Key (`fehlerAB`/`fehlerAN`, gemeinsam
-  `disq`/`bemerkung`), X nur Steg-Ablegen und Vorsteg (F5), `vorabListen` (Vorsteg sieht die nächsten), Knoten erst W5.
+  `disq`/`bemerkung`), X nur Steg-Ablegen und Vorsteg (F5), `vorabListen` (Vorsteg sieht die nächsten), Knoten seit W5.3 (`listenOhneLaufErstW5` false).
   W2 (A1–A13, 21.11.2026, bestätigt 21.11.2026): matrixStarts 12, rueckstandVorgabe 2 → seit N8 1 (Grenzen 1–20), ampelStillSek 90,
   ampelWegSek 300, papierStartVorschlag (A6), papierAbMeldetAb (A10), papierAnsehen (A5) …; W2.2 beim Bau B1–B6
   (Zähler nur Rückfragen, Modus ohne Gerät, „Weiter“ mit Hinweis, Papier-ab-Vorgabe, Karte, `zuletzt` gedrosselt);
@@ -77,10 +82,22 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Starts auf der Tafel zählt nie im Rückstand), stegGanzAblegenZuerst
   (Gerät ganz: Anlegen wartet aufs Ablegen), stegAnlegenNieGeschaetzt, stegAbschlussOhneImBoot; Abmelden am Gerät
   abmeldenWieEntfernen (Liste/Teil abgemeldet + Aufgabe weg), abmeldenLetzterGanz (letztes Gerät → ganze Liste; sonst nur, was kein anderes Gerät abdeckt),
-  abmeldenOhneBitte, abmeldenUebungWieBisher; T10 padSpalteBisW5 (breite Bildschirme: Handy-Maske als Spalte bis W5).
+  abmeldenOhneBitte, abmeldenUebungWieBisher; T10 padSpalteBisW5 (seit W5.1 22.11.2026 `false`).
+  W5.1 (22.11.2026, noch zu bestätigen): PD1 padAbKurzeSeite 600, PD2 padSpalteMinPx 480/padSpaltenMax 4/
+  padHochSpaltenMax 2/padHochSpalteMinPx 360, PD3 padSeiteNurEineSpalte + seiteSchlange 5, PD4 rundenBandBeiGleichemPaar,
+  PD5 attemptSperreMs 1000, PD6 bildInDerSeite, MW1 maskeVorgabePadBild, MW2 maskeWahlJeRaumUndListe, MW3 probeJeMaske.
+  W5.3 (22.11.2026, noch zu bestätigen): KN1 knotenEineListe, KN2 ohneLaufStartIstStarter, KN3 ohneLaufBestand, KN4
+  ohneLaufNieRueckstand, KN5 ohneLaufAbschlussGanz, KN6 knotenDarfDigital (Z6 angepasst), KN7 prueflisteAlleGesetzt +
+  knotenPunkte 5, KN8 tischOhneTakt.
+  W5.4 (22.11.2026, noch zu bestätigen): ZT1 zeitMaske, ZT2 zeitWieErfassung, ZT3 zeitEineZeile, ZT4 keineZeitMitGrund;
+  AM2 zeitKeineParcoursListe und G2/P1 nachgezogen (Zeit hat seit W5.4 eine Maske, `spaeter` nur noch Punkte).
+  W5.5 (22.11.2026, noch zu bestätigen): TB1 tabelleNurPad, TB2 tabelleOhneProbe, TB3 tabelleWieErfassung, TB4
+  tabelleBojenAlsPunkte, TB5 tabelleZeilen {gesendet 5, naechste 3}.
+  W5.2 (22.11.2026, noch zu bestätigen): BD1 bildSeitenWieSpalten, BD2 bildSonstKnoepfe, BD3 bildParallelSchema, BD4
+  bildRueckNachTor5, BD5 bildRueck2, BD6 bildTrefferMm 15, BD7 bildDisqUeberKnopf, beim Bau bildDrehungNurPad; Prüfbefunde 22.11.2026: bildDrehungNachPlatz, tastaturAendertNichts (PD1).
   Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeMitPunkten (seit W4-12 statt
   disqBojeErsetztPunkte), U3 disqBojeOhneLangdruck (Frage), U4 probeDisqAnBoje; W4-12 (BZ1–BZ5): bojenZelle,
-  xNieMitPunkten, punkteNebenDisq, disqFragtBoje, papierGegenGeraetAbweichend; Ansicht „Wie der Parcours liegt“ V1 bojenNachLage, V2 bojenSpiegeln.
+  xNieMitPunkten, punkteNebenDisq, disqFragtBoje, papierGegenGeraetAbweichend; Bojen-Folge V3 bojenFolge (22.11.2026, ersetzt V1/V2 „Wie der Parcours liegt“, entfernt).
   Druck nach Modus Z1–Z7 (noch zu bestätigen): druckOhneDigital, druckBeiPause, druckStegJeTeil, druckRueckfall,
   druckLaufzettel, druckOhneListeImmer, druckParallelJeRacecourse (wkr/druck.ts).
   Parcours-Ampel (21.11.2026, AM1–AM5, AM9, AM10, R6-10): parcoursListeAnFeldern, zeitKeineParcoursListe,
@@ -92,6 +109,40 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11); freigabeVorwahlOhneListe → false (W3-26).
   WKR-Namen (21.11.2026, WN1–WN3): nameNurBeimAbschluss → false, wkrNameNurEigeneListe, wkrNameImLebenszeichen,
   wkrNameOhneEinteilung (G12/L4 bleiben Rückfall ohne Einteilung).
+- `anordnung.ts` (W5.1, 22.11.2026, PD1–PD3) – anordnung({breite, hoehe, typ, listen, teile}) → {art handy|padQuer|
+  padHoch, spalten: Spalte {liste, teil?}[], reiter (Listen, die sich die LETZTE Spalte teilen; erste = Vorgabe), seite
+  rechts|unten|null}; anordnungsArt (Art der Kopplung vor der Fenstergröße, Rechner = Pad, ohne Art kürzere Seite ≥ 600),
+  spaltenPlatz (quer floor(B/480) ≤ 4, hoch floor(B/360) ≤ 2). `teile` = ganzer Steg: auf dem Pad Ablegen + Anlegen als
+  zwei Spalten, nur wenn ALLE Listen samt Teilen passen. Geräteart als eigener Typ (nichts aus geraete/). Nutzer:
+  components/wkr/WkrGeraet.vue; Test anordnung.test.ts (Tabelle Breite × Höhe × Art × Listen), styles/wkr-geraet.test.ts
+  (Breite je Spalte ≥ 336 px bei 768×1024, 1024×768, 1366×1024).
+- `maskenWahl.ts` (W5.1, F14, MW1) – MaskenWahl knoepfe|bild|text (= geraete/aufgaben.ts MASKEN_VORGABEN, Test),
+  MASKEN_GEBAUT (bild seit W5.2, text seit W5.5 `true`), erlaubteMasken({bojen, zeit?}) (Bild nur Bojen-Listen; reine
+  Zeit-Liste nur `knoepfe` = feste Art), maskeAufGeraet(m, pad) (TB1: Tabelle nur Pad/Rechner),
+  vorgabeMaske({bojen, pad}) (Pad + Bojen → Bild, nie Tabelle), wirksameMaske(liste, {vorgabe, fest, wahl}) (fest vor
+  Wahl vor Vorgabe, nur Erlaubtes und auf dem Gerät Mögliches, nicht Gebautes → Knöpfe). Nutzer: WkrGeraet (Gerät,
+  `aus` = ausgegraut), GeraeteListe.vue (Bedienrechner), WkrUebung.
+- `tabelle.ts` (W5.5, 22.11.2026, TB3/TB4) – Maske „Tabelle“, rein: tabellenSpalten(sicht, klasse, aufbau, teil,
+  sprache) → TabellenSpalte {feld, art boje|code|disq|zeit|text, titel, unter, teil?} (Folge und Köpfe wie der Bogen,
+  nur Felder, die zellenAus des Teils trägt), kopfGruppen (zweizeiliger Kopf), zelleAusEingabe(spalte, eingabe, aufbau,
+  teil) → {wert, fehler} über DIESELBEN Sanierer wie ErfassungTabelle (sanitizeBuoy, sanitizeCodeInput +
+  normalizeCodeCell, sanitizeDisq, sanitizeTimeInput; Buchstaben aus dem Aufbau), TabellenFehler zeichen-fremd |
+  code-unbekannt | boje-punkte | zeit-unlesbar | zu-lang | nicht-darstellbar, zeileAusEingaben (Rund-Probe:
+  entwurfAus → zellenAus muss die Zellen ergeben; Entwurf aus den fehlerfreien Zellen, „keine Zeit“ für leere
+  Zeitfelder bleibt), eingabenAus(spalten, entwurf, …). Nutzer: components/wkr/WkrTabelle.vue, WkrMaske. Test
+  tabelle.test.ts (jede Spalte jeder Liste mit Maske, DM + UIM, je Klasse und Teil: gültige Eingaben → wertGilt
+  unverändert und genau diese Zellen hinaus).
+- `bild.ts` (W5.2, 22.11.2026, BD1–BD6) – Maske „Bild“, rein: BILD_BOJEN (SVG-ID der Klassen-SVGs → {halt, seite};
+  innen/außen über config/kurzform.ts bildBojeId = dieselbe Regel wie die Unterspalten/`boje.spalte`, BD1), bildIdVon(feld)
+  (nur Kennungen mit Richtung bzw. Speedbojen; `start|seiteA` ist Parallel), schemaParallel(rc) (Start/Ziel unten, 1–4,
+  5 Wende, B gespiegelt, BD3) + schemaIdVon, bildZuordnung(aufbau, {bild, racecourse, svg}) / bildTreffer(sicht, klasse,
+  svgVon) → {art svg|schema, treffer feld→id, ids, blass} | null (BD2: ID fehlt oder nicht genau einmal → Knöpfe;
+  Stand 22.11.2026 nur Klasse7_Moewe ohne Speedboje_unten), probeBild, BildWeg hin|rueck|rueck2 (BD5), bildWege,
+  bildZiel(aufbau, z, id, weg) (eine Boje an der ID → diese, sonst nach Weg), wegNachTipp (BD4: erster Tipp an Tor 5 auf
+  dem Hinweg → Rückweg), bildZahlen, inlineSvg (IDs mit Präfix, Drehung über viewBox + `<g>`, Deckkraft als `style` am
+  Element – kein `<style>`-Block), schiebeAuseinander (BD6), svgSeiten + wirksameDrehung (±90° nur, wo die gedrehte
+  Zeichnung im Platz nicht kleiner wird, Prüfbefund 22.11.2026). Entwurf/Zellen NUR über maske.ts (maske.test.ts: gleiche
+  Tipps im Bild und in den Knöpfen → gleiche Zellen). Nutzer: components/wkr/WkrBild.vue, WkrMaske, WkrProbe, WkrGeraet.
 - `ampel.ts` (Parcours-Ampel, Nutzer 21.11.2026 P-03) – parcoursAmpel(stand, konfig, bereich, lagen) → AmpelLage {ampel
   aus|gruen|rot|frei, ref, perKnopf, offen (Titel), autoMoeglich, autoOhne}: aus ohne gezeigten Start oder ohne digitale
   aktive Parcours-Liste; grün = nicht durch; rot = durch (lage.ts durchfahrtVon) und eine digitale aktive Parcours-Liste
@@ -101,24 +152,30 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   nicht erledigt hat: letzter Start auf dem Weg zum Anlegen, Prüfbefund 21.11.2026 → {punkt, unterwegs, offen}).
 - `druck.ts` (Nutzer 21.11.2026, Druck nach Modus, WKR_ANNAHMEN Z1–Z7) – nurDigital(bogen, wkr, konfig, abdeckung?),
   teileNachDruck → {gedruckt, digital}: nur Modus `digital`, Status aktiv, am Steg beide Teile aktiv und – wenn das Register
-  Geräte kennt – beide Teile abgedeckt (TeilAbdeckung von außen, geraete/register.ts abgedeckteTeile); Knoten (listeVonBogen
-  null) immer gedruckt. Nutzer: components/wkrDruck.ts (WkrListen, ParallelWkrListen, Laufzettel, ParallelLaufzettel).
+  Geräte kennt – beide Teile abgedeckt (TeilAbdeckung von außen, geraete/register.ts abgedeckteTeile); Bögen ohne Liste
+  (listeVonBogen null) immer gedruckt; Knoten seit W5.3 über die Liste am Tisch wie jede andere (KN6). Nutzer: components/wkrDruck.ts (WkrListen, ParallelWkrListen, Laufzettel, ParallelLaufzettel).
 - `bojen.ts` (W4.1, 21.11.2026) – rein, ohne Konfiguration: bojenHalt(kennung) → {halt, weg, seite, folge, zaehler,
   durchfahrt?} aus config/kurzform.ts FAHRWEG bzw. PARALLEL_FAHRWEG (= Spalten von parallelparcours, Test); Tor 5 =
   Zähler, t1c = `durchfahrt: 2`, Speedbojen ohne Seite auf dem Rückweg, Parallel bis Boje 5 Hinweg; Knoten und
   Unbekanntes → null (P1). katalogFolge(kennung): katalog:tor5 zwischen Tor 5 hin/rück (hin), katalog:mueb nach t1b (rück).
-  Nutzer 21.11.2026 (V1): BOJEN_LAGE/bojenLage(halt bzw. `katalog:…`) = Platz längs der Strecke (Start/Ziel 0,
-  Schikane/MüB 1, Tor 1–5 2–6, Speedbojen 7; Parallel Start/Ziel 0, Boje 1–5 1–5), hin und rück gleich – belegt an den
-  x-Koordinaten der Parcours-Bilder (bojen.test.ts misst alle Bilder nach). Lagequelle auch für das Bild-Layout W5.
 - `liste.ts` – ListenKennung `JSON.stringify(['l', bereich, typeId, racecourse|null])`, listenKennung/liesListe,
-  listenDerVeranstaltung (Bereiche × Listen mit Lauf, Parallel × A/B), istParcoursListe (AM1: Lauf, nicht geteilt, nicht
-  einmalJeStarter, ein Feld außer Zeit/Summe – Test über alle Aufbauten in ampel.test.ts), teileVon/teilVonZelle, istHaken/teilHaken
+  listenDerVeranstaltung (Bereiche × Listen mit Lauf, Parallel × A/B; seit W5.3 dahinter je Liste ohne Lauf EINE im
+  Bereich TISCH_BEREICH `tisch`, auch ohne Bereich des Betriebs), W5.3: istTischListe, istOhneLauf, ohneLaufKennung/
+  liesOhneLauf (`["o", starterId]`), OhneLaufRef, liesStartKennung(key, liesRef), bestandOhneLauf (Starter der Klassen
+  mit der Liste, nicht abgemeldet), startAufListe nimmt `{art:'o'}` (nur am Tisch; Lauf `<disziplin>/0`, Punkt `ohne`), istParcoursListe (AM1: Lauf, nicht geteilt, nicht
+  einmalJeStarter, ein Feld außer Zeit/Summe – Test über alle Aufbauten in ampel.test.ts; Knoten nie), teileVon/teilVonZelle, istHaken/teilHaken
   (aus lib/eingaben.ts), startAufListe (Starter, Lauf-Schlüssel, `weitere` am Vorsteg mit „Versuche nacheinander“, Punkt;
-  Parallel: eigene Seite aus `fest.starts`); W2: listeVonBogen(bogen, konfig) (Bogen der Erfassung → Liste; Knoten → null).
+  Parallel: eigene Seite aus `fest.starts`); W2: listeVonBogen(bogen, konfig) (Bogen der Erfassung → Liste; Knoten →
+  die Liste am Tisch, gleich welcher Parcours; unbekannte Position → null).
 - `zeile.ts` – GeraeteZeile (Leitung: z, s, t?, k?, seite?, c: [feld, wert, vorher][], W4.3 n?: true), ZeilenFehler,
   pruefeZeile → WkrZeile (types/wkr.ts) | {fehler}; wertGilt = dieselben Sanierer wie ErfassungTabelle.vue, ein Wert
   gilt nur unverändert. WkrZeile trägt `teil` (eigener Teil der Zeile). W4.3: `n` nur mit leerem `c` (sonst
   `wert-ungueltig`), nie wo X gilt (Vorsteg, Steg-Ablegen bzw. ganzer Steg → `nv-nicht-erlaubt`) → WkrZeile.nichtVorbei.
+  W5.3: am Tisch nur `["o", id]` (sonst `start-unbekannt`, auch umgekehrt), ohne Folge/Zeigen, `gezeigt` immer, `n` →
+  `nv-nicht-erlaubt`.
+  W5.4 (22.11.2026, ZT4): GeraeteZeile.`kz` [feld, grund][] (Form: bekannter Grund, nie mit `n` → `wert-ungueltig`;
+  kein Zeitfeld der Klasse oder doppelt → `feld-fremd`; Zeit UND Grund im selben Feld → `wert-ungueltig`) →
+  WkrZeile.keineZeit (steht `kz`, auch leer, ersetzt es das Kennzeichen des Starts; fehlt es, bleibt das stehende).
 - `nichtVorbei.ts` (W4.3, 21.11.2026) – „Nicht vorbeigekommen“ im Stand (WkrStand.nichtVorbei, je Liste Schlüssel):
   nvSchluessel(lauf, starter, teil?) = `${lauf}|${starter}` bzw. `…|an`, liesNvSchluessel, istNichtVorbei,
   mitNichtVorbei (setzen/löschen, gleiche Referenz), seit 21.11.2026 (W3-17, GF10) NICHT_VORBEI_DISQ = 'J' und
@@ -139,7 +196,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   liesAbschlussSchluessel), abschlussVon, istAbgeschlossen (Teil: ganz oder Teil; ohne Teil: ganz oder beide Teile),
   zeileAbgeschlossen (ganze Zeile einer geteilten Liste schon bei EINEM Teil), abgeschlossenePunkte, abschlussPapier,
   punktVonRef, punktBegonnen (Abschluss nur für begonnene Punkte – Reducer UND erlaubteWkr); W2: abschluesseVon (alle
-  Abschlüsse einer Liste mit Punkt/Teil).
+  Abschlüsse einer Liste mit Punkt/Teil). W5.3: OHNE_PUNKT `ohne` (Typ WkrPunkt = PunktId | 'ohne', types/wkr.ts),
+  istWkrPunkt, wkrPunktVonRef (`["o", …]` → `ohne`); alle Schlüssel-Funktionen nehmen WkrPunkt.
 - `uebernahme.ts` – wendeZeileAn (gleich → nichts, vorher → setzen, sonst Konflikt; `vereinige`: Disq. vereinigt,
   Wegfall = Konflikt `entfernt`, Bemerkung mit „; “), vereinigeDisq, haengeAn, vereinigt (Ziel einer gemeinsamen
   Zelle bei Entscheid für das Gerät – Rückfrage `start` mit `vereinige: {vorher}`), zeilenPruefsumme (FNV-1a).
@@ -166,6 +224,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Lauf-Schlüssel, Seite, Boot, Steg-Teile, entfaellt, vorab), Masken je Klasse (null = Klasse ohne Liste; X nur wo
   F5 es erlaubt), je Gerät aus `extra` bis/abgelehnt/hinweise + eigene Rückfragen mit `steht` + abweichend.
   WKR_HINWEISE (Codes des Rückkanals) steht hier, damit die Sicht nichts aus geraete/ braucht.
+  Fassung 9 seit W5.3 (22.11.2026, KN3): an der Liste am Tisch `bestand` (ListenBestand {key, startNr, klasse,
+  erledigt = Haken}) und `offen` {n, m}, `punkt` {id: 'ohne', titel „Alle Starter“}, Bereich „Am Tisch“ (BogenTexte
+  `tisch`/`alleStarter`), Schlange/danach leer, nie `ampel`/`laeuft`; einteilungsName am Tisch: `tisch`, sonst erster
+  eingetragener Name der Liste.
 - `maske.ts` (W3.1, 21.11.2026) – Maske „Knöpfe“, rein: maskenArt (G2, an den Feldarten: nur code/disq/text →
   katalog bzw. vorsteg, sonst spaeter), maskeFuer(sicht, klasse, 'liste'|'andere') → MaskenAufbau {art, titel, teile
   (Code-Felder mit Katalog, Steg ab/an), disq {feld, teil, codes mit `nurIn` (X am Steg nur Ablegen)}, bemerkung} | null
@@ -187,14 +249,40 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   W4-12 bleiben die Berührungen, tippeBoje nimmt weiter Tipps), disqAnBojen (Fuß), zellenAus `${punkte}${buchstabe}`
   („5G“), entwurfAus über bojenWert (Punkte → Berührungen UND Buchstabe → bojenDisq), eintraege/eintraegeAuf zählen
   ihn, punkteVon zählt die Punkte auch neben ihm (BZ3);
-  nachLage(aufbau, startOben) → LageGruppe {lage, titel („Start / Ziel“), titelJeZeile, abschnitte in Fahrtfolge}
-  (V1/V2, Ansicht „Wie der Parcours liegt“).
+  Nutzer 22.11.2026 (V3, ersetzt „Wie der Parcours liegt“): BojenFolge gedreht (Vorgabe)|fahrt|untereinander,
+  mitUmschalter(aufbau, folge), bojenAbschnitte(aufbau, folge, weg) (Rück unter `gedreht`: jedes Tor unter seinem
+  Gegenstück auf Hin, Ziel unter Start; ohne Gegenstück – Speedbojen, Tor 1 der Speedrunde, MüB – direkt vor
+  ihrem Vorgänger in der Fahrtfolge, also insgesamt umgekehrte Fahrtfolge, Prüfbefund 22.11.2026), bojenAbschnitteAlle (Ortswahl: Hin, dann Rück wie sein Reiter).
+  W5.3 (22.11.2026, KN7): MaskenArt `pruefliste` (maskenArt(felder, ohneLauf): nur Bojen ohne Fahrweg + Text auf einer
+  Liste ohne Lauf; maskeFuer erkennt sie an `sicht.bestand`, listeMitMaske an showLauf), MaskenAufbau.pruef
+  (MaskenPruef {feld, titel, punkte = knotenPunkte}), Entwurf.pruef (PruefWahl ok|fehler), tippePruef (derselbe Tipp
+  nimmt heraus), pruefOffen, fertig(e, aufbau) (Prüfliste erst bei allen gesetzt, sonst immer), zellenAus ✓ → '',
+  ✗ → '5', entwurfAus (Punkte > 0 → ✗, vorhandene leere Zelle → ✓, fehlende → offen), punkteVon/eintraege zählen ✗;
+  probeMaske übergeht die Prüfliste.
+  W5.4 (22.11.2026, ZT1–ZT4): MaskenArt `zeit` (nur time + Disq./Text); Bojen + time → `bojen` mit Zeit-Abschnitt;
+  time neben Katalog ohne Bojen bleibt `spaeter`. MaskenAufbau.zeiten (MaskenZeit {feld, titel}, alle Zeitfelder der
+  Klasse); Entwurf.zeiten (Ziffernfolge wie getippt) und .keineZeit (Grund je Feld); setzeZeit (sanitizeTimeInput mit
+  Komma, ≤ ZEIT_ZEICHEN_MAX 8, hebt „keine Zeit“ auf), setzeKeineZeit (leert die Zeit; derselbe Grund/null = heraus),
+  zeitDeutung (= lib/time.ts parseTime), zeitFertig, zeitenOffen, zeitUnlesbar, keineZeitAus (→ `kz` der Zeile),
+  zeitUhr/zeitTeile („1:23,45“, Komma nach Sprache); fertig() verlangt jedes Zeitfeld fertig (auch gemischt);
+  zellenAus: lesbar → sanitizeTimeInput(Text), sonst '' (maske.test.ts: jede Tipp-Folge bis 5 Tasten → wertGilt und
+  gleiche Deutung wie am Rechner); entwurfZellen (gerätelokaler Entwurf mit halb getippten Zeiten); entwurfAus(zellen,
+  aufbau, keineZeit?); eintraege zählt Zeiten und „keine Zeit“.
+  W5.1 (22.11.2026): listeMitBojen(konfig, typeId, klassen) (Bedienrechner: „Bild“ wählbar), attemptWechsel(vorher,
+  jetzt) → Attempt-Nummer bei derselben Startnummer im Parallelslalom (PD5, WkrMaske Band + Sperre) | null.
+- `keineZeit.ts` (W5.4, 22.11.2026, ZT4) – „Keine Zeit“ im Stand (WkrStand.keineZeit: Liste → `${lauf}|${starter}` →
+  Feld → Grund `anlage|nichtImZiel|anderes`, KEINE_ZEIT_GRUENDE, istKeineZeitGrund): keineZeitVon, mitKeineZeit (ersetzt
+  ganz, `{}` hebt auf, gleiche Referenz), keineZeitNur (Läufe/Starter löschen), ohneUeberholteKeineZeit (Feld mit Wert
+  → weg; reducer.ts nach jeder Änderung der Eingaben, neben ohneUeberholteNichtVorbei), normalisiereKeineZeit/
+  liesKeineZeitFelder (migrate über normalisiereWkr). Nie in einer Sicht (Liste, Freigabe, Tafel, Zuschauer).
 - `uebung.ts` (W3.1) – Übung ohne AppState/Store/Netz: uebungsStand(regelwerk, typeId, sprache?, gezeigt = 2) → UebungsStand
   {naechster, offen je Teil}, uebungsSicht(stand) → ListenSicht (Starts 1–20 ohne Namen und ohne Boot in den Klassen
   mit der Liste, Kennung `["m","u<n>",lauf]`, Vorsteg 2 `vorab`, Steg-Ablegen 1 `vorab` und Anlegen erst nach dem
   zuletzt gezeigten (T1/T2), nach Nr. 20 der nächste Lauf), uebungsSchritt(stand,
   zeile|null, mindestens = 2) (Zeile erledigt Start bzw. Teil und füllt bis `mindestens` auf – der Gerätekern gibt 0,
-  Übungstakt Y1–Y3; null zeigt den nächsten, ≤ Schlange 12). Kern: geraete/uebung.ts.
+  Übungstakt Y1–Y3; null zeigt den nächsten, ≤ Schlange 12). Kern: geraete/uebung.ts. W5.3 (KN8): Liste ohne Lauf
+  (Knoten) → UebungsStand.erledigt (Nummern), Sicht mit Bestand 1–20 (`["o","u<n>"]`, Bereich `tisch`, Punkt `ohne`),
+  Schritt null ändert nichts (kein Takt), eine Zeile hakt ihre Nummer einmal ab.
 - `lage.ts` (W2.1, 21.11.2026) – erfassungsLage(stand, konfig, bereich, geraete, jetzt, starts?) → {punkt, starts
   (Spalten: gezeigte Starts des laufenden Punkts, letzte 12 bzw. alle; Vorsteg + `vorab`), listen: ListenLage (Modus,
   Status, Teile, papierAb, Geräte mit Ampel, Zellstand je Spalte, Rückstand, warnt, Rückfragen/Vorschläge, Abschlüsse
@@ -210,7 +298,11 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Zeile/Zelle „papier-ansehen“ bzw. „rueckfrage“, nur Listen digital/beides); rueckstandZeile (Zeile über „Nächster
   Start“). Geräte nur als GeraetAngabe (einfache Daten vom Host, geraete/register.ts geraetAngaben), nichts aus
   geraete/. Nutzer W2.2: components/betrieb/WkrMatrix.vue (Betrieb → WKR); W2.3: components/erfassung/ErfassungTabelle.vue
-  (listeVonBogen + zeilenMarken einmal je Bogen, ◆ über geraete/wkrEingang.ts herkunftGilt).
+  (listeVonBogen + zeilenMarken einmal je Bogen, ◆ über geraete/wkrEingang.ts herkunftGilt). W5.3 (KN4):
+  tischLage(stand, konfig, geraete, jetzt) → TischLage (ListenLage ohne Zellen, Rückstand null, warnt/parcours false,
+  `knoten` {offen, gesamt, nummern}; erledigt = Haken oder eigene Werte). W5.4 (ZT4): ZellLage.keineZeit (an `ok`, aus
+  wkr/keineZeit.ts) → Matrix „✓ keine Zeit“; zeilenMarken markiert genau diese Zellen „papier-ansehen“ (Zeile ohne Marke) – erfassungsLage kennt die Liste am Tisch nie
+  (anderer Bereich), also auch Freigabe und Ampel nicht. Nutzer: WkrMatrix-Block „Am Tisch“.
 - `freigabe.ts` (W2.4, 21.11.2026) – sichtFreigabe(bereich, lagen, warnung) → FreigabeErfassung {fv:
   FREIGABE_SICHT_FASSUNG = 2 (seit der Parcours-Ampel; sichtFreigabe(…, ampel, autoIn) mit `ampel`, `ampelRef`,
   `perKnopf`, `autoMoeglich`, `autoOhne`, `autoIn`), bereich, warnung, listen: FreigabeListe {titel, stand
@@ -263,7 +355,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - Bojen (W4.1): Zeilen folgen dem FAHRWEG, nie den Spalten des Bogens (frontal135 = gate135); die Knopfspalten
   dagegen folgen dem Bogen (Blick). Eine Bojenzelle bekommt vom Gerät Ziffern, dahinter höchstens einen Buchstaben aus
   MaskenBoje.disq („5G“, seit W4-12 21.11.2026, BZ1) – gelesen NUR über lib/scoring.ts bojenWert, geschrieben so, wie
-  sanitizeBuoy es unverändert lässt; X nie mit Punkten (BZ2). Disq. „keine Boje“ ins Disq.-Feld (BZ4). Die Lage-Ansicht (nachLage) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
+  sanitizeBuoy es unverändert lässt; X nie mit Punkten (BZ2). Disq. „keine Boje“ ins Disq.-Feld (BZ4). Die Bojen-Folge (bojenAbschnitte) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
   auch); `spaeter` bleiben nur Zeit, Knoten und Bojen außerhalb des Fahrwegs.
 - Sicht der Liste: jedes Objekt Feld für Feld neu (wie sichtZuschauer); nie Name, Herkunft, Geburtsdatum, Gewicht,
   Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Ausnahmen: `steht`
@@ -281,10 +373,19 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Wer `nichtVorbei` liest, nimmt istNichtVorbei/nvSchluessel (nie selbst zusammensetzen). Eine Zeile ohne `n` hebt es
   auf, auch eine leere Korrektur – das Gerät schickt sie dafür auch ohne geänderte Werte (erfassen.ts korrigiere).
   Nie in sichtOeffentlich/sichtZuschauer/Freigabe-Sicht (F17, sicht.test.ts).
+- Listen ohne Lauf (W5.3): Wer Kennungen von Starts liest, nimmt liesStartKennung bzw. wkrPunktVonRef – liesRef allein
+  kennt `["o", …]` nicht. Die Liste am Tisch hat keinen Bereich des Betriebs: nie bereichBekannt/lage/betriebVon für sie
+  voraussetzen (erlaubteWkr, sicht.ts und WKR_ABSCHLUSS zweigen über istTischListe ab). `ohne` steht nur an ihr.
+- Tabelle (W5.5): Keine eigene Schreibweise und kein eigener Sendeweg – die Zellen gehen immer über den Entwurf
+  (entwurfAus → zellenAus); eine Eingabe, die das so nicht ergibt, ist `nicht-darstellbar` (Rund-Probe in
+  zeileAusEingaben). Wer maske.ts entwurfAus/zellenAus ändert, lässt tabelle.test.ts mitlaufen.
 - Steg je Teil: Status/Pausen (WkrListe.teile) und Abschluss (`punkt|teil`) – nie `wkr.abschluss[liste][punkt]` direkt
   lesen, immer über abschluss.ts; WKR_LISTE mit `teil` nur Status, nur bei vorhandenem Eintrag.
 
 ## Tests
 
+W5.5: src/wkr/tabelle.test.ts, components/wkr/WkrTabelle.test.ts (Übung auf dem Pad: Enter, Abschicken, Fehler,
+Korrektur, Esc, Bojen, Handy ausgegraut). W5.3: src/wkr/ohneLauf.test.ts (Liste, Zeile, Sicht, Lage, Abschluss, normalisiereWkr, Prüfliste, Übung),
+components/wkr/WkrPruefliste.test.ts, geraete/wkr.test.ts „Knoten am Tisch“, views/BetriebWkr.test.ts „Knoten am Tisch“.
 `npx vitest run src/wkr src/components/betrieb src/geraete/uebung src/GeraetWkr src/views/BetriebWkr src/GeraetKoppeln src/views/SettingsView src/geraete/aufgaben src/geraete/wkrGruppen src/state/reducer/wkr src/state/migrate src/persistenz/backup src/lib/verlauf src/lib/eingaben`.
 Hilfe: testHilfen.ts wkrBetriebsStand (DM, festgeschrieben, Lauf 1 auf beiden Parcours begonnen).

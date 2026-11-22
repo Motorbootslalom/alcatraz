@@ -1,12 +1,14 @@
-import type { CellKind, ClassId } from '../types'
+import type { CellKind, ClassId, KeineZeitGrund } from '../types'
 import type { Konfig } from '../config/konfig'
 import { codeEntries, normalizeCodeCell, parseCodeEntry } from '../lib/codes'
 import { listenFelder } from '../lib/eingaben'
 import { bojenWert } from '../lib/scoring'
+import { parseTime, sanitizeTimeInput } from '../lib/time'
 import { CLASS_IDS } from '../domain/classes'
 import { WKR_ANNAHMEN } from './annahmen'
-import { bojenHalt, bojenLage, katalogFolge, type Weg } from './bojen'
+import { bojenHalt, katalogFolge, type Weg } from './bojen'
 import type { ListenTeil } from './liste'
+import { liesRef } from '../betrieb/folge'
 import type { ListenSicht, MaskenFeld } from './sicht'
 
 // Die Maske „Knöpfe“ der WKR-Geräte (W3, Plan docs/plan-wkr-w3.md §3.1, 21.11.2026) – rein, ohne DOM, ohne Store,
@@ -19,9 +21,12 @@ import type { ListenSicht, MaskenFeld } from './sicht'
  * Welche Maske eine Liste bekommt (G2: an den Feldarten erkannt, nicht an der Listen-ID): nur Katalog, Disq. und Text
  * → `katalog` (mit Codes) bzw. `vorsteg` (ohne Codes: nur Disq. und Bemerkung); seit W4.1 (21.11.2026, P1) Bojen auf
  * dem Fahrweg (mit `boje` in der Sicht), auch gemischt mit Katalog, Disq. und Text → `bojen`; ein Feld mit Zeit oder
- * Punkten oder eine Boje außerhalb des Fahrwegs (Knoten) → `spaeter` (Masken W5, bis dahin Papier, G14).
+ * Punkten oder eine Boje außerhalb des Fahrwegs (Knoten) → `spaeter` (Masken W5, bis dahin Papier, G14). Seit W5.3
+ * (22.11.2026, KN7): auf einer Liste OHNE Lauf nur Bojen ohne Fahrweg (+ Text) → `pruefliste` (Knoten: ✓/✗ je Feld).
+ * Seit W5.4 (22.11.2026, ZT1, noch zu bestätigen): nur Zeit (+ Disq./Text) → `zeit` (Ziffernblock je Zeitfeld); Bojen
+ * auf dem Fahrweg MIT Zeit (`moewezeit`, `bstartziel`) → `bojen` mit Zeit-Abschnitt (`zeiten` im Aufbau).
  */
-export type MaskenArt = 'katalog' | 'vorsteg' | 'bojen' | 'spaeter'
+export type MaskenArt = 'katalog' | 'vorsteg' | 'bojen' | 'pruefliste' | 'zeit' | 'spaeter'
 
 export interface MaskenCode {
   code: string
@@ -84,6 +89,20 @@ export interface MaskenHalt {
   bojen: MaskenBoje[]
 }
 
+/** Ein Feld der Prüfliste (W5.3, KN7): ein Knoten – ✓ (leere Zelle) oder ✗ (Fehlerpunkte). */
+export interface MaskenPruef {
+  feld: string
+  titel: string
+  /** Punkte bei ✗ (WKR_ANNAHMEN.knotenPunkte, „5“ wie P4). */
+  punkte: number
+}
+
+/** Ein Zeitfeld der Maske (W5.4, ZT3): Kennung und Überschrift wie auf dem Bogen („Zeit 1“). */
+export interface MaskenZeit {
+  feld: string
+  titel: string
+}
+
 /** Ein Abschnitt der Bojen-Maske in Fahrtfolge: ein Halt oder ein Katalog-Teil an seinem Platz (Einfahrt Tor 5, MüB). */
 export type MaskenAbschnitt = { art: 'halt'; halt: MaskenHalt } | { art: 'katalog'; teil: MaskenTeil; weg: Weg }
 
@@ -101,6 +120,10 @@ export interface MaskenAufbau {
   abschnitte: MaskenAbschnitt[]
   /** Nur `bojen`: mehr Zeilen als `bojenZeilenEineSeite` → Umschalter Hinweg/Rückweg (P8). */
   umschalter: boolean
+  /** Nur `pruefliste` (W5.3): die Knoten in der Folge der Liste; sonst leer. */
+  pruef: MaskenPruef[]
+  /** `zeit` und gemischte `bojen` (W5.4, ZT1/ZT3): die Zeitfelder in der Folge der Liste; sonst leer. */
+  zeiten: MaskenZeit[]
 }
 
 /** Feldarten, die die Maske „Knöpfe“ abdeckt (G2); `buoy` nur mit Bojen-Angabe (W4.1). */
@@ -110,9 +133,16 @@ const KNOPF_ARTEN: readonly CellKind[] = ['code', 'disq', 'text']
  * Die Art der Maske aus den Feldern einer Klasse (G2, P1). Ein `buoy`-Feld ist eine Boje der Maske, wenn es eine
  * Bojen-Angabe trägt (`boje` aus der Sicht bzw. aus wkr/bojen.ts bojenHalt) – Knoten (auch `buoy`) bleiben `spaeter`.
  */
-export function maskenArt(felder: readonly { kind: CellKind; boje?: unknown }[]): MaskenArt {
-  if (felder.some((f) => (f.kind === 'buoy' ? !f.boje : !KNOPF_ARTEN.includes(f.kind)))) return 'spaeter'
+export function maskenArt(felder: readonly { kind: CellKind; boje?: unknown }[], ohneLauf = false): MaskenArt {
+  // Knoten (W5.3, KN7, Merker WKR_ANNAHMEN.prueflisteAlleGesetzt): auf einer Liste ohne Lauf Bojen ohne Fahrweg (+ Text).
+  if (ohneLauf && felder.some((f) => f.kind === 'buoy') && felder.every((f) => (f.kind === 'buoy' && !f.boje) || f.kind === 'text')) return 'pruefliste'
+  // Zeit (W5.4, ZT1): nur Zeit, Disq., Text → Ziffernblock; Zeit neben Bojen des Fahrwegs → Bojen-Maske mit Zeit-Abschnitt.
+  const zeit = felder.some((f) => f.kind === 'time')
+  if (zeit && felder.every((f) => f.kind === 'time' || f.kind === 'disq' || f.kind === 'text')) return 'zeit'
+  if (felder.some((f) => (f.kind === 'buoy' ? !f.boje : f.kind !== 'time' && !KNOPF_ARTEN.includes(f.kind)))) return 'spaeter'
   if (felder.some((f) => f.kind === 'buoy')) return 'bojen'
+  // Zeit neben Katalog ohne Bojen gibt es in keinem Aufbau – lieber Papier als eine geratene Maske.
+  if (zeit) return 'spaeter'
   return felder.some((f) => f.kind === 'code') ? 'katalog' : 'vorsteg'
 }
 
@@ -126,7 +156,19 @@ export function listeMitMaske(konfig: Konfig, typeId: string, klassen: Iterable<
   if (!konfig.getPositions().some((p) => p.typeId === typeId)) return false
   const passend = [...new Set(klassen)].filter((k) => konfig.positionAllowsClass(typeId, k))
   const pruefe = passend.length > 0 ? passend : CLASS_IDS.filter((k) => konfig.positionAllowsClass(typeId, k))
-  return pruefe.every((k) => maskenArt(listenFelder(konfig, typeId, k).map((f) => ({ kind: f.kind, boje: f.kind === 'buoy' ? bojenHalt(f.kennung) : null }))) !== 'spaeter')
+  const ohneLauf = konfig.getSheetDef(typeId).showLauf === false
+  return pruefe.every((k) => maskenArt(listenFelder(konfig, typeId, k).map((f) => ({ kind: f.kind, boje: f.kind === 'buoy' ? bojenHalt(f.kennung) : null })), ohneLauf) !== 'spaeter')
+}
+
+/**
+ * Hat eine Liste Bojen auf dem Fahrweg (Maskenart `bojen`) in einer der `klassen` mit der Liste – dann darf der
+ * Bedienrechner „Bild“ vorgeben (F14, W5.1, wkr/maskenWahl.ts, 22.11.2026). Klassen wie {@link listeMitMaske}.
+ */
+export function listeMitBojen(konfig: Konfig, typeId: string, klassen: Iterable<ClassId>): boolean {
+  if (!konfig.getPositions().some((p) => p.typeId === typeId)) return false
+  const passend = [...new Set(klassen)].filter((k) => konfig.positionAllowsClass(typeId, k))
+  const pruefe = passend.length > 0 ? passend : CLASS_IDS.filter((k) => konfig.positionAllowsClass(typeId, k))
+  return pruefe.some((k) => maskenArt(listenFelder(konfig, typeId, k).map((f) => ({ kind: f.kind, boje: f.kind === 'buoy' ? bojenHalt(f.kennung) : null }))) === 'bojen')
 }
 
 /**
@@ -140,8 +182,17 @@ export function maskeFuer(sicht: ListenSicht, klasse: ClassId, sprache: 'liste' 
   const anders = sprache === 'andere' ? sicht.andere?.klassen[klasse] : undefined
   const andereFelder = new Map((anders?.felder ?? []).map((f) => [f.kennung, f]))
   const titel = anders?.titel ?? k.titel
-  const art = maskenArt(k.felder)
-  if (art === 'spaeter') return { art, titel, teile: [], disq: null, bemerkung: null, abschnitte: [], umschalter: false }
+  // Liste ohne Lauf: die Sicht trägt dann den Bestand statt einer Schlange (W5.3).
+  const art = maskenArt(k.felder, !!sicht.bestand)
+  if (art === 'spaeter') return { art, titel, teile: [], disq: null, bemerkung: null, abschnitte: [], umschalter: false, pruef: [], zeiten: [] }
+  if (art === 'pruefliste') {
+    const pruef = k.felder
+      .filter((f) => f.kind === 'buoy')
+      .map((f) => ({ feld: f.kennung, titel: andereFelder.get(f.kennung)?.label ?? f.label, punkte: WKR_ANNAHMEN.knotenPunkte }))
+    return { art, titel, teile: [], disq: null, bemerkung: k.felder.find((f) => f.kind === 'text')?.kennung ?? null, abschnitte: [], umschalter: false, pruef, zeiten: [] }
+  }
+  // Zeitfelder (W5.4, ZT3): alle Zeitfelder der Liste in ihrer Folge – eine Zeile je Start trägt sie alle.
+  const zeiten: MaskenZeit[] = k.felder.filter((f) => f.kind === 'time').map((f) => ({ feld: f.kennung, titel: andereFelder.get(f.kennung)?.label ?? f.label }))
 
   const textVon = (feld: MaskenFeld, code: string, art: 'katalog' | 'disq', vorgabe: string) =>
     andereFelder.get(feld.kennung)?.[art]?.find((e) => e.code === code)?.text ?? vorgabe
@@ -179,7 +230,7 @@ export function maskeFuer(sicht: ListenSicht, klasse: ClassId, sprache: 'liste' 
     }
   }
   const bemerkung = k.felder.find((f) => f.kind === 'text')?.kennung ?? null
-  if (art !== 'bojen') return { art, titel, teile, disq, bemerkung, abschnitte: [], umschalter: false }
+  if (art !== 'bojen') return { art, titel, teile, disq, bemerkung, abschnitte: [], umschalter: false, pruef: [], zeiten }
 
   // Bojen (W4.1): Felder gleichen Halts und Wegs zu einer Zeile, Zeilen und Katalog-Teile nach dem Fahrweg (P6).
   const halte = new Map<string, MaskenHalt & { folge: number }>()
@@ -204,7 +255,7 @@ export function maskeFuer(sicht: ListenSicht, klasse: ClassId, sprache: 'liste' 
     mitFolge.push({ folge: p.folge, abschnitt: { art: 'katalog', teil: t, weg: p.weg } })
   }
   const abschnitte = mitFolge.sort((a, b) => a.folge - b.folge).map((x) => x.abschnitt)
-  const aufbau: MaskenAufbau = { art, titel, teile, disq, bemerkung, abschnitte, umschalter: false }
+  const aufbau: MaskenAufbau = { art, titel, teile, disq, bemerkung, abschnitte, umschalter: false, pruef: [], zeiten }
   aufbau.umschalter = maskenZeilen(aufbau) > WKR_ANNAHMEN.bojenZeilenEineSeite
   return aufbau
 }
@@ -215,42 +266,81 @@ export function maskenZeilen(aufbau: MaskenAufbau): number {
 }
 
 /**
- * Die Bojen-Maske „wie der Parcours liegt“ (Nutzer 21.11.2026, WKR_ANNAHMEN.bojenNachLage/bojenSpiegeln, V1/V2): je
- * Ort im Parcours eine Gruppe (wkr/bojen.ts bojenLage – Tor 1 mit Hin, Rück und 2. Durchfahrt; Start und Ziel; Tor 5
- * mit Einfahrt; MüB an der Schikane), Gruppen längs der Strecke, mit `startOben: false` umgekehrt; in der Gruppe die
- * Abschnitte in Fahrtfolge. Abschnitte ohne Platz (eigener Aufbau) kommen als eigene Gruppen ans Ende.
+ * Reihenfolge der Bojen-Maske einer Liste, gemerkt je Gerät und Liste (Nutzer 22.11.2026, WKR_ANNAHMEN.bojenFolge,
+ * ersetzt „Wie der Parcours liegt“/Spiegeln V1/V2 vom 21.11.2026): „Deine Implementierung ‚Wie der Parcours liegt‘
+ * ist leider Müll. Es ging mir bei dem Punkt darum, dass du bei Hin eine andere Zeilenreihenfolge (Start/Ziel, Tor 1,
+ * Tor 3, Tor 5) hast als beim Rück-Tab (Tor 5, Tor 3, Tor 1, Start/Ziel). Den zweiten Tab wollte ich gedreht haben.“
+ * - `gedreht` (Vorgabe): der Rück-Reiter in umgekehrter Fahrtfolge – jedes Tor steht auf beiden Reitern an derselben
+ *   Stelle (Start/Ziel, Tor 1, Tor 3, Tor 5);
+ * - `fahrt`: beide Reiter in Fahrtfolge (Rück: Tor 5, Tor 3, Tor 1, Ziel – der Stand vor dem 22.11.2026);
+ * - `untereinander`: ein Reiter ohne Umschalter, alles in Fahrtfolge (Start, Tor 1, Tor 3, Tor 5, Tor 5, Tor 3, Tor 1,
+ *   Ziel).
+ * Die Folge ordnet nur um – Felder, Zellen, Zahlen am Reiter und Texte bleiben dieselben.
  */
-export interface LageGruppe {
-  /** Platz längs der Strecke (wkr/bojen.ts BOJEN_LAGE); `null` ohne Platz. */
-  lage: number | null
-  /** Überschrift: die Titel der Halte (bzw. des Katalogs), ohne Doppel – „Tor 1“, „Start / Ziel“. */
-  titel: string
-  /** Hat die Gruppe Halte mit verschiedenen Titeln (Start und Ziel, Sp. 1 und Sp. 2)? Dann tragen die Zeilen ihren Titel. */
-  titelJeZeile: boolean
-  abschnitte: MaskenAbschnitt[]
+export type BojenFolge = 'gedreht' | 'fahrt' | 'untereinander'
+export const BOJEN_FOLGEN: readonly BojenFolge[] = ['gedreht', 'fahrt', 'untereinander']
+export const BOJEN_FOLGE_VORGABE: BojenFolge = 'gedreht'
+
+/** Zeigt die Maske den Umschalter Hinweg/Rückweg? Nur bei vielen Zeilen (P8) und nicht „Alles untereinander“. */
+export function mitUmschalter(aufbau: MaskenAufbau, folge: BojenFolge): boolean {
+  return aufbau.umschalter && folge !== 'untereinander'
 }
 
-export function nachLage(aufbau: MaskenAufbau, startOben = true): LageGruppe[] {
-  const gruppen: LageGruppe[] = []
-  const jeLage = new Map<number, LageGruppe>()
-  for (const a of aufbau.abschnitte) {
-    const lage = bojenLage(a.art === 'halt' ? a.halt.halt : a.teil.feld)
-    const g = lage === null ? undefined : jeLage.get(lage)
-    if (g) g.abschnitte.push(a)
-    else {
-      const neu: LageGruppe = { lage, titel: '', titelJeZeile: false, abschnitte: [a] }
-      gruppen.push(neu)
-      if (lage !== null) jeLage.set(lage, neu)
-    }
+/**
+ * Gegenstück eines Abschnitts auf dem anderen Weg: dasselbe Tor (`t3a` ↔ `t3b`, `t5` ↔ `t5`), dieselbe Parallel-Boje
+ * (`b2a` ↔ `b2b`), Start ↔ Ziel. Ohne Gegenstück (`null`): Katalog-Teile (Einfahrt Tor 5, MüB), Speedbojen und die
+ * 2. Durchfahrt von Tor 1 (Speedrunde) – sie gibt es nur auf einem Weg.
+ */
+function gegenstueck(a: MaskenAbschnitt): string | null {
+  if (a.art !== 'halt' || a.halt.durchfahrt) return null
+  const h = a.halt.halt
+  if (h === 'start' || h === 'ziel') return 'start-ziel'
+  return /^([tb]\d)[ab]?$/.exec(h)?.[1] ?? null
+}
+
+/**
+ * Die Abschnitte, die die Mitte zeigt, in der Folge des Bildschirms: ohne Umschalter alle in Fahrtfolge; mit Umschalter
+ * die der gewählten Seite. Unter `gedreht` (22.11.2026) steht auf dem Rückweg jedes Tor dort, wo sein Gegenstück auf
+ * dem Hinweg steht (Ziel unter Start, Tor 1 R unter Tor 1 H …) – bei einfachen Listen genau die umgekehrte Fahrtfolge.
+ * Was kein Gegenstück auf dem Hinweg hat (Speedbojen, Tor 1 der Speedrunde, MüB), steht direkt vor seinem Vorgänger in
+ * der Fahrtfolge – der ganze Reiter ist dann die umgekehrte Fahrtfolge, die Tore stehen untereinander wie auf Hin
+ * (Prüfbefund 22.11.2026, ersetzt „danach in Fahrtfolge“; noch zu bestätigen).
+ */
+export function bojenAbschnitte(aufbau: MaskenAufbau, folge: BojenFolge, weg: Weg): MaskenAbschnitt[] {
+  if (!mitUmschalter(aufbau, folge)) return aufbau.abschnitte
+  const seite = aufbau.abschnitte.filter((a) => wegVon(a) === weg)
+  if (weg === 'hin' || folge !== 'gedreht') return seite
+  const platz = new Map<string, number>()
+  for (const [i, a] of aufbau.abschnitte.filter((x) => wegVon(x) === 'hin').entries()) {
+    const g = gegenstueck(a)
+    if (g !== null && !platz.has(g)) platz.set(g, i)
   }
-  for (const g of gruppen) {
-    const halte = [...new Set(g.abschnitte.flatMap((a) => (a.art === 'halt' ? [a.halt.titel] : [])))]
-    const titel = halte.length > 0 ? halte : g.abschnitte.map((a) => (a.art === 'katalog' ? a.teil.titel.replace(/:\s*$/, '') : ''))
-    g.titel = titel.filter(Boolean).join(' / ')
-    g.titelJeZeile = halte.length > 1
+  const stelle = (a: MaskenAbschnitt) => {
+    const g = gegenstueck(a)
+    return g === null ? undefined : platz.get(g)
   }
-  const mitLage = gruppen.filter((g) => g.lage !== null).sort((a, b) => (startOben ? a.lage! - b.lage! : b.lage! - a.lage!))
-  return [...mitLage, ...gruppen.filter((g) => g.lage === null)]
+  const gespiegelt = seite.filter((a) => stelle(a) !== undefined).sort((a, b) => stelle(a)! - stelle(b)!)
+  // Ohne Gegenstück (Prüfbefund 22.11.2026): jeder Abschnitt steht direkt VOR seinem Vorgänger in der Fahrtfolge –
+  // so liest sich der Reiter von oben nach unten als umgekehrte Fahrtfolge (Ziel, Tor 1 (2.), Speed, Tor 1 R …), wie
+  // der Nutzer „gedreht“ meinte; die Tore bleiben untereinander in der Folge des Hinwegs. Ohne Vorgänger (erster
+  // Abschnitt des Rückwegs) ganz ans Ende.
+  const zeilen = [...gespiegelt]
+  for (const [i, a] of seite.entries()) {
+    if (stelle(a) !== undefined) continue
+    const vorher = i > 0 ? zeilen.indexOf(seite[i - 1]) : -1
+    if (vorher >= 0) zeilen.splice(vorher, 0, a)
+    else zeilen.push(a)
+  }
+  return zeilen
+}
+
+/**
+ * Alle Abschnitte in einer Liste (Ortswahl „Disq. – an welcher Boje?“): wie die Maske sie zeigt, der Hinweg vor dem
+ * Rückweg – unter `gedreht` (mit Umschalter) der Rückweg umgekehrt wie sein Reiter (22.11.2026, noch zu bestätigen).
+ */
+export function bojenAbschnitteAlle(aufbau: MaskenAufbau, folge: BojenFolge): MaskenAbschnitt[] {
+  if (!mitUmschalter(aufbau, folge)) return aufbau.abschnitte
+  return [...bojenAbschnitte(aufbau, folge, 'hin'), ...bojenAbschnitte(aufbau, folge, 'rueck')]
 }
 
 /** Weg eines Abschnitts (für den Umschalter). */
@@ -268,7 +358,8 @@ export function probeMaske(sicht: ListenSicht, sprache: 'liste' | 'andere' = 'li
   let beste: MaskenAufbau | null = null
   for (const k of Object.keys(sicht.klassen) as ClassId[]) {
     const a = maskeFuer(sicht, k, sprache)
-    if (!a || a.art === 'spaeter') continue
+    // Keine Probe für die Prüfliste am Tisch (W5.3): kein Start, kein Takt – die Maske erklärt sich selbst.
+    if (!a || a.art === 'spaeter' || a.art === 'pruefliste') continue
     if (a.art !== 'bojen') return a
     if (!beste || maskenZeilen(a) > maskenZeilen(beste)) beste = a
   }
@@ -331,10 +422,136 @@ export interface Entwurf {
    * NEBEN den Berührungen – die Zelle trägt beides („5J“), vorher (U2) ersetzte der Buchstabe die Punkte.
    */
   bojenDisq: Record<string, string>
+  /** Prüfliste (W5.3, KN7): je Knoten ✓ `ok` oder ✗ `fehler`; fehlt = noch nicht gesetzt. */
+  pruef: Record<string, PruefWahl>
+  /**
+   * Zeiten (W5.4, ZT2): je Zeitfeld die Ziffernfolge wie getippt („83,45“, „1,2345“) – die Zelle bekommt genau sie
+   * (die Erfassung am Rechner speichert ebenso die Roh-Eingabe, components/erfassung/ZeitZelle.vue). Fehlt = leer.
+   */
+  zeiten: Record<string, string>
+  /** „Keine Zeit“ (W5.4, ZT4) je Zeitfeld mit Grund; schließt eine Zeit im selben Feld aus. */
+  keineZeit: Record<string, KeineZeitGrund>
 }
 
+/** Ein Knoten der Prüfliste: ✓ gebunden bzw. ✗ Fehler. */
+export type PruefWahl = 'ok' | 'fehler'
+
 export function leererEntwurf(): Entwurf {
-  return { codes: {}, disq: [], bemerkung: '', folge: [], bojen: {}, bojenDisq: {} }
+  return { codes: {}, disq: [], bemerkung: '', folge: [], bojen: {}, bojenDisq: {}, pruef: {}, zeiten: {}, keineZeit: {} }
+}
+
+/** Höchstens so viele Zeichen in einem Zeitfeld („10:23,45“ hat 8) – mehr tippt niemand, der eine Uhr abliest. */
+export const ZEIT_ZEICHEN_MAX = 8
+
+/**
+ * Eine Zeit eintippen (W5.4, ZT2): `text` ist die ganze neue Ziffernfolge des Felds; erlaubt ist, was die Erfassung am
+ * Rechner beim Tippen stehen lässt (lib/time.ts sanitizeTimeInput mit Komma – so steht es im Stand), gekürzt auf
+ * {@link ZEIT_ZEICHEN_MAX}. Eine Zeit hebt „keine Zeit“ dieses Felds auf; leer = Feld wieder offen. Ein Feld, das die
+ * Maske nicht kennt, ändert nichts (gleiche Referenz).
+ */
+export function setzeZeit(e: Entwurf, aufbau: Pick<MaskenAufbau, 'zeiten'>, feld: string, text: string): Entwurf {
+  if (!aufbau.zeiten.some((z) => z.feld === feld)) return e
+  const neu = sanitizeTimeInput(text, ',').slice(0, ZEIT_ZEICHEN_MAX)
+  if ((e.zeiten[feld] ?? '') === neu && !(feld in e.keineZeit)) return e
+  const zeiten = { ...e.zeiten }
+  if (neu === '') delete zeiten[feld]
+  else zeiten[feld] = neu
+  const keineZeit = { ...e.keineZeit }
+  if (neu !== '') delete keineZeit[feld]
+  return { ...e, zeiten, keineZeit }
+}
+
+/**
+ * „Keine Zeit“ für ein Feld (W5.4, ZT4): setzt den Grund und leert die Zeit; `null` bzw. derselbe Grund noch einmal
+ * nimmt ihn heraus (Feld wieder offen). Unbekanntes Feld → gleiche Referenz.
+ */
+export function setzeKeineZeit(e: Entwurf, aufbau: Pick<MaskenAufbau, 'zeiten'>, feld: string, grund: KeineZeitGrund | null): Entwurf {
+  if (!aufbau.zeiten.some((z) => z.feld === feld)) return e
+  const alt = e.keineZeit[feld]
+  const keineZeit = { ...e.keineZeit }
+  if (grund === null || grund === alt) {
+    if (alt === undefined) return e
+    delete keineZeit[feld]
+    return { ...e, keineZeit }
+  }
+  keineZeit[feld] = grund
+  const zeiten = { ...e.zeiten }
+  delete zeiten[feld]
+  return { ...e, zeiten, keineZeit }
+}
+
+/**
+ * Die Deutung einer getippten Zeit (W5.4, F9: wie die Erfassung am Rechner sie liest, lib/time.ts parseTime): Hundertstel
+ * oder `null` = so nicht lesbar (Anzeige rot, Hauptknopf gesperrt). Leer → `null`.
+ */
+export function zeitDeutung(text: string): number | null {
+  return parseTime(text)?.centis ?? null
+}
+
+/**
+ * Eine Zeit für die Anzeige auf dem Gerät (W5.4): „1:23,45“ – Minuten ohne führende Null, wie eine Stoppuhr sie zeigt;
+ * `komma` nach der Sprache der Liste („,“ bzw. „.“). Dazu die Teile der Deutung „= 1 min 23,45 s“.
+ */
+export function zeitUhr(centis: number, komma: ',' | '.' = ','): string {
+  const { min, sek } = zeitTeile(centis, komma)
+  return `${min}:${sek.padStart(5, '0')}`
+}
+
+export function zeitTeile(centis: number, komma: ',' | '.' = ','): { min: number; sek: string } {
+  const s = Math.floor(centis / 100)
+  return { min: Math.floor(s / 60), sek: `${s % 60}${komma}${String(centis % 100).padStart(2, '0')}` }
+}
+
+/** Ist das Feld erledigt – lesbare Zeit oder „keine Zeit“ (ZT3)? */
+export function zeitFertig(e: Entwurf, feld: string): boolean {
+  return feld in e.keineZeit || zeitDeutung(e.zeiten[feld] ?? '') !== null
+}
+
+/** Zeitfelder, die weder eine lesbare Zeit noch „keine Zeit“ haben („noch 2 Zeiten“). */
+export function zeitenOffen(e: Entwurf, aufbau: Pick<MaskenAufbau, 'zeiten'>): number {
+  return aufbau.zeiten.filter((z) => !zeitFertig(e, z.feld)).length
+}
+
+/** Ein Zeitfeld mit getipptem, aber unlesbarem Text (rot, sperrt den Hauptknopf)? */
+export function zeitUnlesbar(e: Entwurf, feld: string): boolean {
+  const text = e.zeiten[feld] ?? ''
+  return text !== '' && zeitDeutung(text) === null
+}
+
+/** „Keine Zeit“ des Entwurfs in der Folge der Maske – so geht es als `kz` auf die Leitung (wkr/zeile.ts). */
+export function keineZeitAus(e: Entwurf, aufbau: Pick<MaskenAufbau, 'zeiten'>): [string, KeineZeitGrund][] {
+  return aufbau.zeiten.flatMap((z) => (e.keineZeit[z.feld] ? [[z.feld, e.keineZeit[z.feld]] as [string, KeineZeitGrund]] : []))
+}
+
+/**
+ * Ein Tipp der Prüfliste (W5.3, KN7): setzt ✓ bzw. ✗; derselbe Tipp noch einmal bzw. `null` nimmt die Wahl heraus
+ * (wieder offen). Ein Feld, das die Maske nicht kennt, ändert nichts (gleiche Referenz).
+ */
+export function tippePruef(e: Entwurf, aufbau: Pick<MaskenAufbau, 'pruef'>, feld: string, wahl: PruefWahl | null): Entwurf {
+  if (!aufbau.pruef.some((p) => p.feld === feld)) return e
+  const alt = e.pruef[feld]
+  if (wahl === null || wahl === alt) {
+    if (alt === undefined) return e
+    const pruef = { ...e.pruef }
+    delete pruef[feld]
+    return { ...e, pruef }
+  }
+  return { ...e, pruef: { ...e.pruef, [feld]: wahl } }
+}
+
+/** Wie viele Knoten der Prüfliste noch weder ✓ noch ✗ haben („noch 2 offen“, KN7). */
+export function pruefOffen(e: Entwurf, aufbau: Pick<MaskenAufbau, 'pruef'>): number {
+  return aufbau.pruef.filter((p) => e.pruef[p.feld] === undefined).length
+}
+
+/**
+ * Darf die Zeile hinaus? Prüfliste (KN7): erst, wenn jeder Knoten gesetzt ist; Zeit (W5.4, ZT3): erst, wenn jedes
+ * Zeitfeld fertig ist. Andere Masken: immer (dort ist „nichts getippt“ = fehlerfrei).
+ */
+export function fertig(e: Entwurf, aufbau: Pick<MaskenAufbau, 'art' | 'pruef'> & Partial<Pick<MaskenAufbau, 'zeiten'>>): boolean {
+  // Zeit (W5.4, ZT3): erst, wenn jedes Zeitfeld eine lesbare Zeit oder „keine Zeit“ hat – auch auf gemischten Listen.
+  if (aufbau.zeiten && zeitenOffen(e, { zeiten: aufbau.zeiten }) > 0) return false
+  return aufbau.art !== 'pruefliste' || (aufbau.pruef.length > 0 && pruefOffen(e, aufbau) === 0)
 }
 
 /**
@@ -451,7 +668,12 @@ export function eintraege(e: Entwurf): number {
     Object.values(e.codes).reduce((n, c) => n + c.length, 0) +
     Object.values(e.bojen).reduce((n, b) => n + b, 0) +
     e.disq.length +
-    Object.keys(e.bojenDisq).length
+    Object.keys(e.bojenDisq).length +
+    // Prüfliste (W5.3): ein ✗ ist ein Eintrag wie eine Berührung; ✓ nicht (wie „fehlerfrei“).
+    Object.values(e.pruef).filter((w) => w === 'fehler').length +
+    // Zeit (W5.4): jede getippte Zeit und jedes „keine Zeit“ – sonst hieße der Knopf einer Zeit-Liste „Fehlerfrei“.
+    Object.values(e.zeiten).filter((t) => t !== '').length +
+    Object.keys(e.keineZeit).length
   )
 }
 
@@ -478,6 +700,7 @@ export function punkteVon(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
   }
   // Auch neben einem Disq.-Buchstaben (W4-12, BZ3): Die Punkte bleiben sichtbar, die Wertung disqualifiziert.
   for (const b of bojenVon(aufbau)) summe += (e.bojen[b.feld] ?? 0) * b.punkte
+  for (const p of aufbau.pruef) if (e.pruef[p.feld] === 'fehler') summe += p.punkte
   return summe
 }
 
@@ -507,7 +730,26 @@ export function zellenAus(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
     const buchstabe = disq && b.disq.some((d) => d.code === disq) ? disq : ''
     out[b.feld] = `${n > 0 ? n * b.punkte : ''}${buchstabe}`
   }
+  // Prüfliste (W5.3, KN7): ✓ → leere Zelle, ✗ → Punkte („5“, wie die Boje P4 – sanitizeBuoy lässt es so); offen → leer.
+  for (const p of aufbau.pruef) out[p.feld] = e.pruef[p.feld] === 'fehler' ? String(p.punkte) : ''
+  // Zeit (W5.4, ZT2): die Ziffernfolge wie getippt, mit Komma – genau die Roh-Eingabe, die die Erfassung am Rechner
+  // speichert und wertGilt (parseTime) unverändert annimmt; unlesbar bzw. „keine Zeit“ → leer (fertig sperrt vorher).
+  for (const z of aufbau.zeiten) {
+    const text = e.zeiten[z.feld] ?? ''
+    out[z.feld] = z.feld in e.keineZeit || zeitDeutung(text) === null ? '' : sanitizeTimeInput(text, ',')
+  }
   if (aufbau.bemerkung) out[aufbau.bemerkung] = e.bemerkung.trim().slice(0, WKR_ANNAHMEN.textMax).trim()
+  return out
+}
+
+/**
+ * Die Zellen eines Entwurfs zum Ablegen auf dem Gerät (merkeEntwurf, H4): wie {@link zellenAus}, aber Zeitfelder mit
+ * dem Text, wie er getippt ist – auch halb („1,2“) bzw. unlesbar; so steht er nach einem Wechsel wieder da. Nie für
+ * die Leitung (dort nur zellenAus). „Keine Zeit“ bleibt draußen (ZT4, beim Bau: der Entwurf ist eine Zellzeile).
+ */
+export function entwurfZellen(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): Record<string, string> {
+  const out = zellenAus(e, aufbau, teil)
+  for (const z of aufbau.zeiten) if (!(z.feld in e.keineZeit)) out[z.feld] = e.zeiten[z.feld] ?? ''
   return out
 }
 
@@ -515,7 +757,7 @@ export function zellenAus(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
  * Ein Entwurf aus Zellwerten – Korrektur einer Zeile aus „Zuletzt“ (F7). Rund: `zellenAus(entwurfAus(z))` gibt die
  * Zellen zurück (soweit die Maske sie kennt). Codes in Katalogfolge der Zelle, Buchstaben im Code-Feld zählen als Disq.
  */
-export function entwurfAus(zellen: Readonly<Record<string, string>>, aufbau: MaskenAufbau): Entwurf {
+export function entwurfAus(zellen: Readonly<Record<string, string>>, aufbau: MaskenAufbau, keineZeit: Readonly<Record<string, KeineZeitGrund>> = {}): Entwurf {
   let e = leererEntwurf()
   const disq: string[] = []
   for (const t of aufbau.teile) {
@@ -545,6 +787,17 @@ export function entwurfAus(zellen: Readonly<Record<string, string>>, aufbau: Mas
     if (buchstabe) e = tippeBojenDisq(e, b, buchstabe)
   }
   for (const d of disq) e = tippeDisq(e, d)
+  // Prüfliste (W5.3): Punkte > 0 → ✗; eine vorhandene leere Zelle → ✓ (so schickt das Gerät ✓); fehlt sie → offen.
+  for (const p of aufbau.pruef) {
+    if (!(p.feld in zellen)) continue
+    e = tippePruef(e, aufbau, p.feld, bojenWert(zellen[p.feld]).punkte > 0 ? 'fehler' : 'ok')
+  }
+  // Zeit (W5.4): der Zellwert wird wieder die Ziffernfolge (ein Punkt als Komma, wie die Erfassung tippt); „keine Zeit“
+  // kommt nicht aus der Zelle (die ist leer), sondern aus dem Kennzeichen des Geräts (`keineZeit`).
+  for (const z of aufbau.zeiten) {
+    if (keineZeit[z.feld]) e = setzeKeineZeit(e, aufbau, z.feld, keineZeit[z.feld])
+    else if (zellen[z.feld]) e = { ...e, zeiten: { ...e.zeiten, [z.feld]: zellen[z.feld].replace('.', ',') } }
+  }
   if (aufbau.bemerkung && zellen[aufbau.bemerkung]) e = mitBemerkung(e, zellen[aufbau.bemerkung])
   return e
 }
@@ -571,6 +824,17 @@ export type Takt = 'gesendet' | 'uebernommen' | 'sperre' | 'frei'
 export function wechselNach(gesendetUm: number, quittungUm: number | null = null): number {
   const q = quittungAb(gesendetUm, quittungUm)
   return q === null ? WKR_ANNAHMEN.uebertragenMaxMs : q + WKR_ANNAHMEN.uebernommenMs
+}
+
+/**
+ * Attempt-Wechsel bei derselben Startnummer (W5.1, PD5, Vorschlag §4.8, 22.11.2026): Folgt auf den gezeigten Start
+ * ein anderer Start (andere Kennung) mit DERSELBEN Nummer im Parallelslalom, ist es sein nächster Attempt – der WKR
+ * soll das nicht übersehen (Band „23 · ATTEMPT 2“ und Sperrsekunde). Liefert die Nummer des Attempts, sonst `null`.
+ */
+export function attemptWechsel(vorher: { key: string; startNr: string } | null, jetzt: { key: string; startNr: string }): number | null {
+  if (!vorher || vorher.key === jetzt.key || vorher.startNr !== jetzt.startNr) return null
+  const r = liesRef(jetzt.key)
+  return r?.art === 'p' ? r.attempt : null
 }
 
 /** Ab wann (ms nach dem Abschicken) „✓ übernommen“ steht – nie vor `uebertragenMinMs`; `null` = keine Quittung bis zum Höchstwert. */

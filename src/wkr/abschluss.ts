@@ -1,6 +1,7 @@
-import type { AppState, PunktId, WkrAbschluss, WkrStand } from '../types'
+import type { AppState, PunktId, WkrAbschluss, WkrPunkt, WkrStand } from '../types'
 import { betriebVon, istPunktId, lage, liesRef, punktVonLauf, rundenPunkt } from '../betrieb/folge'
 import type { ListenTeil } from '../lib/eingaben'
+import { liesOhneLauf } from './liste'
 
 // Abschlüsse je Liste und Punkt – am Steg je Teil (F16, Prüfbefund 21.11.2026): Schließt das Ablegen ab, erfasst das
 // Anlegen weiter, und die digitale Unterschrift (F8) des einen Teils überschreibt nie die des anderen. Gespeichert
@@ -8,16 +9,27 @@ import type { ListenTeil } from '../lib/eingaben'
 
 export const TEILE: readonly ListenTeil[] = ['ab', 'an']
 
+/**
+ * Der Punkt einer Liste ohne Lauf (Knoten, W5.3, 22.11.2026, WKR_ANNAHMEN KN5): Abgeschlossen wird die ganze Liste
+ * auf einmal, gespeichert unter `ohne` wie ein Punkt.
+ */
+export const OHNE_PUNKT = 'ohne' as const
+
+/** Ein Punkt des Betriebs oder {@link OHNE_PUNKT}. */
+export function istWkrPunkt(x: unknown): x is WkrPunkt {
+  return x === OHNE_PUNKT || istPunktId(x)
+}
+
 /** Der Schlüssel eines Abschlusses: Punkt, bzw. Punkt und Teil. */
-export function abschlussSchluessel(punkt: PunktId, teil?: ListenTeil): string {
+export function abschlussSchluessel(punkt: WkrPunkt, teil?: ListenTeil): string {
   return teil === undefined ? punkt : `${punkt}|${teil}`
 }
 
 /** Punkt und Teil eines Abschluss-Schlüssels; `null`, wenn er unlesbar ist. */
-export function liesAbschlussSchluessel(schluessel: string): { punkt: PunktId; teil?: ListenTeil } | null {
+export function liesAbschlussSchluessel(schluessel: string): { punkt: WkrPunkt; teil?: ListenTeil } | null {
   const i = schluessel.indexOf('|')
   const punkt = i < 0 ? schluessel : schluessel.slice(0, i)
-  if (!istPunktId(punkt)) return null
+  if (!istWkrPunkt(punkt)) return null
   if (i < 0) return { punkt }
   const teil = schluessel.slice(i + 1)
   return teil === 'ab' || teil === 'an' ? { punkt, teil } : null
@@ -29,7 +41,7 @@ function jeListe(wkr: WkrStand, liste: string): Record<string, WkrAbschluss> {
 }
 
 /** Genau dieser Abschluss (Punkt der ganzen Liste bzw. eines Teils). */
-export function abschlussVon(wkr: WkrStand, liste: string, punkt: PunktId, teil?: ListenTeil): WkrAbschluss | undefined {
+export function abschlussVon(wkr: WkrStand, liste: string, punkt: WkrPunkt, teil?: ListenTeil): WkrAbschluss | undefined {
   const a = jeListe(wkr, liste)
   const k = abschlussSchluessel(punkt, teil)
   return Object.hasOwn(a, k) ? a[k] : undefined
@@ -39,7 +51,7 @@ export function abschlussVon(wkr: WkrStand, liste: string, punkt: PunktId, teil?
  * Ist der Punkt für diesen Teil abgeschlossen? Mit Teil: die ganze Liste oder dieser Teil. Ohne Teil: die ganze Liste
  * oder – bei geteilten Listen (`geteilt`) – beide Teile.
  */
-export function istAbgeschlossen(wkr: WkrStand, liste: string, punkt: PunktId, teil: ListenTeil | undefined, geteilt: boolean): boolean {
+export function istAbgeschlossen(wkr: WkrStand, liste: string, punkt: WkrPunkt, teil: ListenTeil | undefined, geteilt: boolean): boolean {
   if (abschlussVon(wkr, liste, punkt)) return true
   if (teil !== undefined) return !!abschlussVon(wkr, liste, punkt, teil)
   return geteilt && TEILE.every((t) => !!abschlussVon(wkr, liste, punkt, t))
@@ -49,14 +61,14 @@ export function istAbgeschlossen(wkr: WkrStand, liste: string, punkt: PunktId, t
  * Wird eine Zeile (Teil oder ganze Zeile) für diesen Punkt Vorschlag, weil abgeschlossen ist? Eine ganze Zeile einer
  * geteilten Liste schon, wenn EIN Teil abgeschlossen ist – sie berührt dessen Spalten.
  */
-export function zeileAbgeschlossen(wkr: WkrStand, liste: string, punkt: PunktId, teil: ListenTeil | undefined, geteilt: boolean): boolean {
+export function zeileAbgeschlossen(wkr: WkrStand, liste: string, punkt: WkrPunkt, teil: ListenTeil | undefined, geteilt: boolean): boolean {
   if (istAbgeschlossen(wkr, liste, punkt, teil, geteilt)) return true
   return teil === undefined && geteilt && TEILE.some((t) => !!abschlussVon(wkr, liste, punkt, t))
 }
 
 /** Die abgeschlossenen Punkte (für diesen Teil bzw. die ganze Liste), sortiert. */
-export function abgeschlossenePunkte(wkr: WkrStand, liste: string, teil: ListenTeil | undefined, geteilt: boolean): PunktId[] {
-  const punkte = new Set<PunktId>()
+export function abgeschlossenePunkte(wkr: WkrStand, liste: string, teil: ListenTeil | undefined, geteilt: boolean): WkrPunkt[] {
+  const punkte = new Set<WkrPunkt>()
   for (const k of Object.keys(jeListe(wkr, liste))) {
     const s = liesAbschlussSchluessel(k)
     if (s && istAbgeschlossen(wkr, liste, s.punkt, teil, geteilt)) punkte.add(s.punkt)
@@ -65,7 +77,7 @@ export function abgeschlossenePunkte(wkr: WkrStand, liste: string, teil: ListenT
 }
 
 /** Alle Abschlüsse einer Liste mit Punkt und Teil (W2: Lage, Bedienung „Abschluss lösen“), nach Schlüssel sortiert. */
-export function abschluesseVon(wkr: WkrStand, liste: string): { punkt: PunktId; teil?: ListenTeil; abschluss: WkrAbschluss }[] {
+export function abschluesseVon(wkr: WkrStand, liste: string): { punkt: WkrPunkt; teil?: ListenTeil; abschluss: WkrAbschluss }[] {
   return Object.entries(jeListe(wkr, liste))
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .flatMap(([k, abschluss]) => {
@@ -84,7 +96,15 @@ export function abschlussPapier(wkr: WkrStand, liste: string, teil: ListenTeil |
   return out
 }
 
-/** Der Punkt eines Starts (Kennung); `null`, wenn sie unlesbar ist. */
+/**
+ * Der Punkt eines Starts auf einer WKR-Liste: wie {@link punktVonRef}, dazu {@link OHNE_PUNKT} für einen Start ohne
+ * Lauf (`["o", starterId]`, W5.3). `null`, wenn die Kennung unlesbar ist.
+ */
+export function wkrPunktVonRef(stand: AppState, ref: string): WkrPunkt | null {
+  return liesOhneLauf(ref) !== null ? OHNE_PUNKT : punktVonRef(stand, ref)
+}
+
+/** Der Punkt eines Starts (Kennung des Betriebs); `null`, wenn sie unlesbar ist. */
 export function punktVonRef(stand: AppState, ref: string): PunktId | null {
   const r = liesRef(ref)
   if (!r) return null

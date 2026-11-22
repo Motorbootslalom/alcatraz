@@ -244,12 +244,41 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 
 - Nutzer 21.11.2026 (Druck nach Modus, WKR_ANNAHMEN Z3): register.ts `abgedeckteTeile(geraete, liste)` – Teile einer
   Liste, die gekoppelte Geräte abdecken (ohne Teil = beide); liest components/wkrDruck.ts für wkr/druck.ts.
-- Nutzer 21.11.2026 (WKR_ANNAHMEN V1/V2): ablage.ts GeraetAnsicht.`bojen` = BojenAnsicht {folge fahrt|lage, startOben,
-  tauschen} je Listen-Kennung (höchstens 8, nur vollständige Einträge; BOJEN_ANSICHT_VORGABE), bleibt wie Hand/Modus
-  nach „Raum verlassen“. Kein neuer Kern, kein neues Protokoll; Disq. an der Boje (U1) geht als Buchstabe in der
+- Nutzer 22.11.2026 (WKR_ANNAHMEN V3 bojenFolge, ersetzt V1/V2 vom 21.11.2026): ablage.ts GeraetAnsicht.`bojenFolge` =
+  BojenFolgeWahl gedreht|fahrt|untereinander je Listen-Kennung (höchstens 8, nur bekannte Werte; fehlt = `gedreht`),
+  bleibt wie Hand/Modus nach „Raum verlassen“. Der alte Schlüssel `bojen` („Wie der Parcours liegt“) fällt in
+  ansichtAus weg, liesAnsicht schreibt die Ansicht ohne ihn zurück. Kein neuer Kern, kein neues Protokoll; Disq. an der Boje (U1) geht als Buchstabe in der
   Bojenzelle über dieselbe Zeile (wkr/zeile.ts wertGilt = sanitizeBuoy) – seit W4-12 (21.11.2026, BZ1) neben den
   Punkten („5J“, „10G“), weiter ein String, keine neue Fassung; „5X“ gilt nie (BZ2, `wert-ungueltig`).
 
+- W5.1 (22.11.2026, Plan docs/plan-wkr-w5.md §4, WKR_ANNAHMEN PD1, MW1–MW3): gekoppelt.ts `typ` (die eigene Art der
+  Anmeldung, GF7) → erfassen.ts Erfassung.`typ` (Übung: fehlt) – WkrGeraet ordnet danach vor der Fenstergröße
+  (wkr/anordnung.ts); eine Umstellung am Bedienrechner (host.setzeTyp) erfährt das Gerät nicht. **Maskenvorgabe**: Kein
+  neuer Befehl – GeraeteListe.vue setzt Aufgabe.maske/fest über setzeAufgaben (register.ts/liesAufgaben behalten sie,
+  register.test.ts), die Listen der ErfassungsQuelle tragen sie (listenAufgaben). ablage.ts: GeraetAnsicht.`masken`
+  {u, r, s, listen: {liste → knoepfe|bild|text}} (MaskenAblage; Wahl des WKR je Raum + Liste, ≤ 8, Typprüfung beim
+  Lesen, Übung unter UEBUNG_RAUM) mit maskeGewaehlt/mitMaskenWahl; verlasseRaum räumt `masken` wie `name` (MW2).
+  probeErledigt/merkeProbe mit `maske` (MW3: Knöpfe unter der Liste wie bisher, sonst `<liste>#<maske>`, ≤ 16). Tests:
+  ablage.test.ts „W5.1“, register.test.ts „W5.1“, src/GeraetWkr.test.ts „Pad-Rahmen … (W5.1)“.
+
+- W5.3 (22.11.2026, Plan docs/plan-wkr-w5.md §6, WKR_ANNAHMEN KN1–KN8): **Knoten am Tisch** – kein neuer Befehl, kein
+  neues Protokoll (LISTEN_SICHT_FASSUNG 9 trennt alte Geräte). aufgaben.ts erlaubteWkr: die Liste am Tisch (Bereich
+  `tisch`) ohne bereichBekannt; WKR_ABSCHLUSS am Tisch nur Punkt `ohne` (sonst nur Punkte des Betriebs, begonnen).
+  host.ts unverändert (Gruppe/Sicht je Liste über die Kennung). erfassen.ts: Erfassung.`bestand` (BestandEintrag =
+  ListenBestand + `z` der neuesten eigenen Zeile; erledigt auch mit eigener, nicht abgelehnter Zeile), schicke findet
+  den Starter im Bestand (sn, klasse), pruefung `offen` am Tisch aus dem Bestand; Typen mit WkrPunkt (`ohne`).
+  uebung.ts: Knoten-Übung ohne Takt (kein Zeigen, kein Rückfall-Takt), `bestand` aus der Sicht der Übung. Tests:
+  wkr.test.ts „Knoten am Tisch Ende zu Ende (W5.3)“.
+- W5.4 (22.11.2026, Plan docs/plan-wkr-w5.md §7, WKR_ANNAHMEN ZT1–ZT4): **Zeit-Listen** – kein neuer Befehl, keine neue
+  Fassung. erfassen.ts: MaskenZeile.`kz` (Record Feld → Grund) → AusZeile.`kz` → GeraeteZeile.`kz` (pumpe);
+  WerteEintrag.`kz` (eine Zeile mit `kz` ersetzt es, ein Wert im Feld hebt es auf – wie am Host); ZuletztZeile.`kz`;
+  Erfassung.`keineZeit(z)` (eigener Stand für die Korrektur); `korrigiere(z, zellen, kz?)` schickt auch ohne
+  geänderte Zellen, wenn sich nur `kz` änderte. uebung.ts ebenso (UebZeile.kz, keineZeit, korrigiere). Ende zu Ende:
+  wkr.test.ts „Zeit-Liste Ende zu Ende (W5.4)“ (Zellen genau wie getippt, Kennzeichen, Korrektur, Leitung ohne Grund).
+- W5.5 (22.11.2026, Plan docs/plan-wkr-w5.md §8, WKR_ANNAHMEN TB1–TB5): **Tabelle für Geübte** – kein neuer Kern, kein
+  neuer Befehl, keine neue Fassung: WkrTabelle schickt über denselben Entwurf und `schicke`/`korrigiere` wie die Knöpfe.
+  aufgaben.ts MASKEN_VORGABEN kannte `text` schon; ablage.ts `masken` ebenso. Nur Pad/Rechner (wkr/maskenWahl.ts
+  maskeAufGeraet nach Art der Kopplung bzw. Fenstergröße).
 - Parcours-Ampel (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN AM6/AM7): aufgaben.ts STARTFREIGABE_ACTIONS +
   BETRIEB_DURCHFAHRT (bereinige: ref, an), AUTO_HALT ('BETRIEB_AUTO_HALT', keine Reducer-Action). host.ts: verteileFreigabe
   mit wkr/ampel.ts parcoursAmpel und autoIn; **Auto-Modus nur im Führungsfenster** (pruefeAuto in verteile() und im

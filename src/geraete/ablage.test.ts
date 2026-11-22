@@ -10,6 +10,9 @@ import {
   liesHerkunft,
   liesAnsicht,
   liesIch,
+  maskeGewaehlt,
+  mitMaskenWahl,
+  UEBUNG_RAUM,
   merkeProbe,
   probeErledigt,
   schreibeAnsicht,
@@ -561,20 +564,30 @@ describe('Ansicht und Probe der WKR-Maske (W3.1)', () => {
     expect(JSON.parse(localStorage.getItem(ABLAGE.ansicht) ?? '{}').modusGewaehlt).toBeUndefined()
   })
 
-  it('Bojen-Ansicht je Liste (Nutzer 21.11.2026, V1/V2): nur vollständige, bekannte Werte; höchstens 8 Listen; bleibt nach „Raum verlassen“', () => {
-    const lage = { folge: 'lage', startOben: false, tauschen: true } as const
-    schreibeAnsicht({ bojen: { L1: lage, L2: { folge: 'fahrt', startOben: true, tauschen: false } } }, localStorage)
-    expect(liesAnsicht(localStorage).bojen).toEqual({ L1: lage, L2: { folge: 'fahrt', startOben: true, tauschen: false } })
+  it('Bojen-Folge je Liste (Nutzer 22.11.2026): nur bekannte Werte; höchstens 8 Listen; bleibt nach „Raum verlassen“', () => {
+    schreibeAnsicht({ bojenFolge: { L1: 'fahrt', L2: 'untereinander', L3: 'gedreht' } }, localStorage)
+    expect(liesAnsicht(localStorage).bojenFolge).toEqual({ L1: 'fahrt', L2: 'untereinander', L3: 'gedreht' })
     verlasseRaum(localStorage)
-    expect(liesAnsicht(localStorage).bojen?.L1).toEqual(lage)
-    // Kaputtes fällt je Liste weg; ganz leer = kein Feld.
-    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bojen: { L1: { folge: 'quer', startOben: true, tauschen: false }, L2: { folge: 'lage' }, L3: lage } }))
-    expect(liesAnsicht(localStorage).bojen).toEqual({ L3: lage })
-    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bojen: [lage] }))
-    expect(liesAnsicht(localStorage).bojen).toBeUndefined()
-    const viele = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`L${i}`, lage]))
-    schreibeAnsicht({ bojen: viele }, localStorage)
-    expect(Object.keys(liesAnsicht(localStorage).bojen ?? {})).toEqual(['L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11'])
+    expect(liesAnsicht(localStorage).bojenFolge?.L1).toBe('fahrt')
+    // Kaputtes fällt je Liste weg – auch die entfernte Lage-Ansicht; ganz leer = kein Feld.
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bojenFolge: { L1: 'lage', L2: { folge: 'fahrt' }, L3: 'fahrt' } }))
+    expect(liesAnsicht(localStorage).bojenFolge).toEqual({ L3: 'fahrt' })
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bojenFolge: ['fahrt'] }))
+    expect(liesAnsicht(localStorage).bojenFolge).toBeUndefined()
+    const viele = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`L${i}`, 'fahrt' as const]))
+    schreibeAnsicht({ bojenFolge: viele }, localStorage)
+    expect(Object.keys(liesAnsicht(localStorage).bojenFolge ?? {})).toEqual(['L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11'])
+  })
+
+  it('alte Bojen-Ansicht „Wie der Parcours liegt“ (bis 21.11.2026) wird beim Lesen weggeräumt, der Rest bleibt', () => {
+    const alt = { modus: 'hell', modusGewaehlt: true, hand: 'links', bojen: { L1: { folge: 'lage', startOben: false, tauschen: true } } }
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify(alt))
+    const a = liesAnsicht(localStorage)
+    expect(a).toEqual({ modus: 'hell', hand: 'links' })
+    expect(JSON.parse(localStorage.getItem(ABLAGE.ansicht) ?? '{}')).toEqual({ modus: 'hell', modusGewaehlt: true, hand: 'links' })
+    // Auch über schreibeAnsicht kommt sie nie wieder hinein.
+    schreibeAnsicht({ bojen: alt.bojen } as never, localStorage)
+    expect(JSON.parse(localStorage.getItem(ABLAGE.ansicht) ?? '{}').bojen).toBeUndefined()
   })
 
   it('Probe je Raum und Liste (G10): anderer Raum = neue Probe; pruefeRaum und verlasseRaum räumen sie', () => {
@@ -595,5 +608,44 @@ describe('Ansicht und Probe der WKR-Maske (W3.1)', () => {
     expect(probeErledigt(BEZUG, 'L1', localStorage)).toBe(true)
     verlasseRaum(localStorage)
     expect(localStorage.getItem(ABLAGE.probe)).toBeNull()
+  })
+
+  it('W5.1 (MW3, 22.11.2026): Probe je Maske – Knöpfe unter dem alten Eintrag der Liste, Bild eigen', () => {
+    merkeProbe(BEZUG, 'L1', localStorage)
+    expect(probeErledigt(BEZUG, 'L1', localStorage, 'knoepfe')).toBe(true)
+    expect(probeErledigt(BEZUG, 'L1', localStorage, 'bild')).toBe(false)
+    merkeProbe(BEZUG, 'L1', localStorage, 'bild')
+    expect(probeErledigt(BEZUG, 'L1', localStorage, 'bild')).toBe(true)
+    expect(JSON.parse(localStorage.getItem(ABLAGE.probe)!).listen).toEqual(['L1', 'L1#bild'])
+  })
+
+  it('W5.1 (MW2, 22.11.2026): Maskenwahl je Raum und Liste, Typprüfung beim Lesen, „Raum verlassen“ räumt sie', () => {
+    schreibeAnsicht({ hand: 'links', bojenFolge: { L1: 'fahrt' } }, localStorage)
+    schreibeAnsicht(mitMaskenWahl(liesAnsicht(localStorage), BEZUG, 'L1', 'bild'), localStorage)
+    schreibeAnsicht(mitMaskenWahl(liesAnsicht(localStorage), BEZUG, 'L2', 'knoepfe'), localStorage)
+    const a = liesAnsicht(localStorage)
+    expect(maskeGewaehlt(a, BEZUG, 'L1')).toBe('bild')
+    expect(maskeGewaehlt(a, BEZUG, 'L2')).toBe('knoepfe')
+    // Anderer Raum: keine Wahl; schreibt er eine, ersetzt sie die alten.
+    expect(maskeGewaehlt(a, { ...BEZUG, r: 'neu' }, 'L1')).toBeUndefined()
+    schreibeAnsicht(mitMaskenWahl(a, { ...BEZUG, r: 'neu' }, 'L3', 'text'), localStorage)
+    expect(liesAnsicht(localStorage).masken).toEqual({ ...BEZUG, r: 'neu', listen: { L3: 'text' } })
+    // Löschen der letzten Wahl nimmt das Feld weg.
+    schreibeAnsicht(mitMaskenWahl(liesAnsicht(localStorage), { ...BEZUG, r: 'neu' }, 'L3', undefined), localStorage)
+    expect(liesAnsicht(localStorage).masken).toBeUndefined()
+    // Übung: eigener Raum, ohne Kopplung.
+    schreibeAnsicht(mitMaskenWahl(liesAnsicht(localStorage), null, 'U1', 'bild'), localStorage)
+    expect(maskeGewaehlt(liesAnsicht(localStorage), null, 'U1')).toBe('bild')
+    expect(liesAnsicht(localStorage).masken).toMatchObject(UEBUNG_RAUM)
+    // Kaputtes fällt weg: unbekannte Maske, fehlender Raum.
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ masken: { ...BEZUG, listen: { L1: 'zauber', L2: 'bild' } } }))
+    expect(liesAnsicht(localStorage).masken).toEqual({ ...BEZUG, listen: { L2: 'bild' } })
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ masken: { listen: { L2: 'bild' } } }))
+    expect(liesAnsicht(localStorage).masken).toBeUndefined()
+    // „Raum verlassen“ räumt die Wahl (MW2), Hand und Bojen-Folge bleiben.
+    schreibeAnsicht({ hand: 'links', bojenFolge: { L1: 'fahrt' } }, localStorage)
+    schreibeAnsicht(mitMaskenWahl(liesAnsicht(localStorage), BEZUG, 'L1', 'bild'), localStorage)
+    verlasseRaum(localStorage)
+    expect(liesAnsicht(localStorage)).toEqual({ modus: 'geraet', hand: 'links', bojenFolge: { L1: 'fahrt' } })
   })
 })

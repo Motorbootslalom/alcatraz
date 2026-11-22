@@ -6,8 +6,9 @@ import { laufSchluessel } from '../lib/eingaben'
 import { parcoursName } from '../config/sprache'
 import { regelwerkSprache } from '../lib/listensprache'
 import { WKR_ANNAHMEN } from './annahmen'
-import { listenKennung, teileVon, type ListenTeil } from './liste'
-import { LISTEN_SICHT_FASSUNG, maskenJeKlasse, maskenSprachen, maskenTexte, type ListenSicht, type ListenStart } from './sicht'
+import { istOhneLauf, liesOhneLauf, listenKennung, ohneLaufKennung, teileVon, TISCH_BEREICH, type ListenTeil } from './liste'
+import { LISTEN_SICHT_FASSUNG, maskenJeKlasse, maskenSprachen, maskenTexte, type ListenBestand, type ListenSicht, type ListenStart } from './sicht'
+import { OHNE_PUNKT } from './abschluss'
 
 // Übungsmodus der WKR-Maske (W3, Plan docs/plan-wkr-w3.md §3.3, G13, 21.11.2026) – rein, ohne AppState, ohne Store,
 // ohne Netz. Die Übung baut eine ListenSicht wie der Bedienrechner (dieselben Masken über maskenJeKlasse), aber aus
@@ -38,6 +39,11 @@ export interface UebungsStand {
   naechster: number
   /** Gezeigte, noch offene Starts (laufende Nummer); am Steg mit den schon erledigten Teilen. */
   offen: { i: number; ab: boolean; an: boolean }[]
+  /**
+   * Nur Listen ohne Lauf (Knoten, W5.3, 22.11.2026, KN8): die schon abgenommenen Startnummern 1–uebungStarts. Kein
+   * Zeigen, kein Takt – der WKR tippt die Nummer ein.
+   */
+  erledigt?: number[]
 }
 
 /**
@@ -45,6 +51,8 @@ export interface UebungsStand {
  * seine Schlange einen Start hat (Übungstakt, Nutzer 21.11.2026, WKR_ANNAHMEN.uebungFolgeNachSenden).
  */
 export function uebungsStand(regelwerk: string, typeId: string, sprache?: Sprache, gezeigt: number = GEZEIGT_ANFANG): UebungsStand {
+  // Knoten (W5.3): nichts wird gezeigt – alle Starter stehen im Bestand.
+  if (ohneLauf({ regelwerk, typeId })) return { regelwerk, typeId, sprache: sprache ?? regelwerkSprache(regelwerk), naechster: 0, offen: [], erledigt: [] }
   return {
     regelwerk,
     typeId,
@@ -57,6 +65,18 @@ export function uebungsStand(regelwerk: string, typeId: string, sprache?: Sprach
 const nrVon = (i: number) => (i % WKR_ANNAHMEN.uebungStarts) + 1
 const laufVon = (i: number) => Math.floor(i / WKR_ANNAHMEN.uebungStarts) + 1
 const keyVon = (i: number) => refKey({ art: 'm', starter: `u${nrVon(i)}`, lauf: laufVon(i) })
+
+/** Hat die Übungsliste keinen Lauf (Knoten, W5.3)? Dann Bestand statt Schlange. */
+function ohneLauf(stand: Pick<UebungsStand, 'regelwerk' | 'typeId'>): boolean {
+  return istOhneLauf(configFor({ regelwerk: stand.regelwerk }), stand.typeId)
+}
+
+/** Die Nummer 1–uebungStarts eines Starters ohne Lauf der Übung (`["o","u7"]`); `null`, wenn sie keiner ist. */
+function nrOhneLauf(key: string): number | null {
+  const m = /^u(\d+)$/.exec(liesOhneLauf(key) ?? '')
+  const nr = m ? Number(m[1]) : 0
+  return nr >= 1 && nr <= WKR_ANNAHMEN.uebungStarts ? nr : null
+}
 
 /** Die laufende Nummer zu einer Kennung der Übung; `null`, wenn sie keine ist. */
 function indexVon(key: string): number | null {
@@ -111,19 +131,24 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
   const xErlaubt = WKR_ANNAHMEN.xListen.includes(stand.typeId)
   const maskenKonfig = konfigVon(stand, sprachen.maske)
   const bekannt = listenKonfig.getPositions().some((p) => p.typeId === stand.typeId)
+  // Knoten (W5.3, KN8): Bestand 1–20 statt Schlange, Punkt `ohne`, Bereich „Am Tisch“.
+  const tisch = stand.erledigt !== undefined
+  const bestand: ListenBestand[] = tisch
+    ? Array.from({ length: WKR_ANNAHMEN.uebungStarts }, (_, j) => ({ key: ohneLaufKennung(`u${j + 1}`), startNr: String(j + 1), klasse: klasseVon(j), erledigt: stand.erledigt!.includes(j + 1) }))
+    : []
 
   const sicht: ListenSicht = {
     lv: LISTEN_SICHT_FASSUNG,
-    liste: listenKennung({ bereich: UEBUNG_BEREICH, typeId: stand.typeId, racecourse: null }),
+    liste: listenKennung({ bereich: tisch ? TISCH_BEREICH : UEBUNG_BEREICH, typeId: stand.typeId, racecourse: null }),
     titel: bekannt ? listenKonfig.getSheetDef(stand.typeId).title : stand.typeId,
-    bereich: parcoursName('Parcours 1', stand.sprache),
+    bereich: tisch ? texte.tisch : parcoursName('Parcours 1', stand.sprache),
     sprache: stand.sprache,
     modus: 'digital',
     status: 'aktiv',
-    punkt: { id: `lauf:${lauf}` as PunktId, titel: texte.lauf(lauf) },
+    punkt: tisch ? { id: OHNE_PUNKT, titel: texte.alleStarter } : { id: `lauf:${lauf}` as PunktId, titel: texte.lauf(lauf) },
     abgeschlossen: [],
-    schlange,
-    danach,
+    schlange: tisch ? [] : schlange,
+    danach: tisch ? [] : danach,
     // Parcours-Zeichnung des vorgegebenen Aufbaus (W4-13, GF9) – die Übung kennt keinen eigenen.
     klassen: maskenJeKlasse(listenKonfig, maskenKonfig, stand.typeId, klassen, xErlaubt, DEFAULT_AUFBAU),
     geraete: {},
@@ -133,11 +158,15 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
     sicht.andere = {
       sprache: sprachen.andere,
       titel: bekannt ? andere.getSheetDef(stand.typeId).title : stand.typeId,
-      bereich: parcoursName('Parcours 1', sprachen.andere),
+      bereich: tisch ? andere.getBogenTexte().tisch : parcoursName('Parcours 1', sprachen.andere),
       klassen: maskenTexte(maskenJeKlasse(listenKonfig, andere, stand.typeId, klassen, xErlaubt)),
     }
   }
   if (teile) sicht.teile = { ab: { status: 'aktiv', abgeschlossen: [] }, an: { status: 'aktiv', abgeschlossen: [] } }
+  if (tisch) {
+    sicht.bestand = bestand
+    sicht.offen = { n: bestand.filter((b) => !b.erledigt).length, m: bestand.length }
+  }
   return sicht
 }
 
@@ -149,6 +178,12 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
  * nichts (dieselbe Referenz zurück).
  */
 export function uebungsSchritt(stand: UebungsStand, zeile: { s: string; teil?: ListenTeil } | null, mindestens: number = GEZEIGT_ANFANG): UebungsStand {
+  // Knoten (W5.3, KN8): kein Takt; eine Zeile hakt ihre Nummer ab (einmal).
+  if (stand.erledigt !== undefined) {
+    const nr = zeile ? nrOhneLauf(zeile.s) : null
+    if (nr === null || stand.erledigt.includes(nr)) return stand
+    return { ...stand, erledigt: [...stand.erledigt, nr].sort((a, b) => a - b) }
+  }
   if (zeile === null) {
     if (stand.offen.length >= WKR_ANNAHMEN.schlange) return stand
     return { ...stand, naechster: stand.naechster + 1, offen: [...stand.offen, { i: stand.naechster, ab: false, an: false }] }

@@ -62,11 +62,18 @@ describe('Druck nach Modus', () => {
     expect(nurDigital(b, ohneAn.wkr, DM, nach(geraet()))).toBe(false)
   })
 
-  it('Knoten (ohne Liste der Erfassung bis W5) werden immer gedruckt (Z6)', () => {
-    const s = mit(wkrBetriebsStand(), { type: 'WKR_LISTE', liste: K('knoten'), modus: 'digital' } as Action)
-    const knoten = boegen(s).filter((b) => b.typeId === 'knoten')
+  it('Knoten: seit W5.3 die Liste am Tisch – nur digital möglich (KN6, Z6 angepasst); eine Liste am Parcours zählt nicht', () => {
+    // Ein Eintrag unter der Kennung eines Parcours (vor W5.3 gab es keine Knoten-Liste) wirkt nicht – nur die am Tisch.
+    const alt = mit(wkrBetriebsStand(), { type: 'WKR_LISTE', liste: K('knoten'), modus: 'digital' } as Action)
+    const knoten = boegen(alt).filter((b) => b.typeId === 'knoten')
     expect(knoten.length).toBeGreaterThan(0)
-    expect(knoten.every((b) => !nurDigital(b, s.wkr, DM))).toBe(true)
+    expect(knoten.every((b) => !nurDigital(b, alt.wkr, DM))).toBe(true)
+    // Die Liste am Tisch digital: jeder Knoten-Bogen fällt weg, gleich von welchem Parcours; pausiert → gedruckt (Z2).
+    const s = mit(wkrBetriebsStand(), { type: 'WKR_LISTE', liste: K('knoten', 'tisch'), modus: 'digital' } as Action)
+    expect(boegen(s).filter((b) => b.typeId === 'knoten').every((b) => nurDigital(b, s.wkr, DM))).toBe(true)
+    expect(teileNachDruck(boegen(s), s.wkr, DM).digital.every((b) => b.typeId === 'knoten')).toBe(true)
+    const pause = mit(s, { type: 'WKR_LISTE', liste: K('knoten', 'tisch'), status: 'pausiert' } as Action)
+    expect(boegen(pause).filter((b) => b.typeId === 'knoten').some((b) => nurDigital(b, pause.wkr, DM))).toBe(false)
   })
 
   it('Parallelslalom: je Liste und Racecourse (Z7)', () => {

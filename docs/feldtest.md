@@ -151,6 +151,10 @@ die Form von „Nicht vorbeigekommen“ ([plan-wkr-w4.md](plan-wkr-w4.md) §14).
   besser? Beobachtung:
 - [ ] **Klasse 7 auf kleinem Handy** (≤ 700 px hoch, Handschuhe): Umschalter Hinweg/Rückweg, zehn Zeilen; kein Text
   abgeschnitten, kein Nachbarknopf getroffen. Grenze sieben Zeilen passend? Beobachtung:
+- [ ] **Bojen-Folge** (Nutzer 22.11.2026, WKR_ANNAHMEN V3): Mehr → Ansicht → „Bojen“. Erwartet: Vorgabe „Rückweg
+  gedreht“ – auf RÜCKWEG Ziel, Tor 1, Tor 3, Tor 5 an denselben Stellen wie Start, Tor 1, Tor 3, Tor 5 auf HINWEG;
+  Klasse 7: Sp. 2 und 2. Durchfahrt darunter (passt das?). „Fahrtfolge“: Rückweg Tor 5 … Ziel. „Alles untereinander“:
+  kein Umschalter, alles in einer Spalte. Gemerkt je Liste nach Neuladen. Beobachtung:
 - [ ] **Tor-5-Zähler bei 360 px** (Prüfbefund 21.11.2026, S4): Zähler bis 9 tippen, auch englisch. Erwartet: „9× = 45“
   und „höchstens 9×“ in zwei Zeilen im Knopf, nichts über den Rand, kein waagerechtes Scrollen. Beobachtung:
 - [ ] **Prellschutz** (S1): Bojen-Schalter mit Handschuh antippen. Erwartet: ein Tipp setzt, ein prellender zweiter
@@ -161,6 +165,38 @@ die Form von „Nicht vorbeigekommen“ ([plan-wkr-w4.md](plan-wkr-w4.md) §14).
   „Papier ansehen“; am Vorsteg und im Steg-Ablegen nicht angeboten. Versehentlich gemeldet → „Zuletzt“ → Korrektur
   hebt es auf. Wird es am Wasser gebraucht, oder reicht X? (Entschieden 21.11.2026, W3-17: wird Disq. J – noch nicht
   gebaut.) Beobachtung:
+
+## Pad (W5)
+
+Plan [plan-wkr-w5.md](plan-wkr-w5.md); Auslegungen PD1–PD6, MW1–MW3, BD1–BD7, KN1–KN8, ZT1–ZT4, TB1–TB5 (WKR_ANNAHMEN,
+22.11.2026, noch zu bestätigen). Nur Beispieldaten, Bildschirmfotos klein.
+
+- [ ] **Querformat** (Pad quer, 1024 × 768 und größer): Erwartet: Arbeitsfläche links, Spalte Schlange / Zuletzt /
+  Einträge rechts, Fuß über die volle Breite; mit zwei Listen (Tor 1/3/5 + Tor 2/4/5) zwei Spalten nebeneinander,
+  kein Text abgeschnitten, kein waagerechtes Scrollen. Hochformat: Seitenspalte unten. Drehen während eines Starts
+  verliert nichts. Beobachtung:
+- [ ] **Hülle** (Schutzhülle mit Ständer, Klappdeckel): Erwartet: Ränder der Knöpfe am Bildschirmrand noch treffbar,
+  der Deckel weckt nicht ungewollt (Wake Lock, „Bildschirm kann ausgehen“). Spritzwasser auf der Hülle löst keine
+  Tipps aus? Beobachtung:
+- [ ] **Ladekabel** (Pad den ganzen Tag am Netz bzw. an der Powerbank): Erwartet: Kabel stört Querformat und Ständer
+  nicht; Akku im Lebenszeichen am Bedienrechner plausibel. Wie lange hält es ohne Kabel? Beobachtung:
+- [ ] **Zwei WKR an einem Pad** (Tor 1/3/5 und Tor 2/4/5 nebeneinander, oder ganzer Steg Ablegen + Anlegen): Erwartet:
+  jede Spalte schickt nur ihre Liste, Overlay und Sperre nur in der eigenen Spalte, Rundenband über Racecourse A + B
+  (UIM). Stören sich die beiden beim Tippen (Arme, Blick)? Beobachtung:
+- [ ] **Bild** (Pad, Bojen-Liste): Erwartet: Trefferkreise liegen im echten Browser auf den Bojen der Zeichnung (auch
+  gedreht), ≥ 15 mm; Klasse 7 auf Möwe-Listen zeigt Knöpfe. Umschalter springt nach Tor 5 auf den Rückweg – richtig
+  so? Beobachtung:
+- [ ] **Knoten am Tisch** (Knoten-Liste, ein Pad am Tisch): Erwartet: Nummer eintippen, je Knoten ✓ / ✗, Abschicken
+  erst bei allen gesetzt, „offen n / m“ stimmt mit der Matrix „Knoten“ am Bedienrechner; Abschluss der ganzen Liste
+  mit „Rest auf Papier“. Reicht das Eintippen der Nummer, oder fehlt eine Liste zum Antippen? Beobachtung:
+- [ ] **Zeitnahme mit Anlage und Stoppuhr** (Zeit-Liste bzw. Möwe/Berlin mit Zeit): Erwartet: Zeit der Anlage
+  abgelesen eintippen („83,45“ → „1:23,45“), bei Ausfall der Anlage die Stoppuhr-Zeit; „Keine Zeit“ mit Grund nur,
+  wenn keine Uhr eine Zeit hat; die Deutung „= 1 min 23,45 s“ gleich der am Rechner. Beobachtung:
+- [ ] **Tabelle für Geübte** (Pad mit Tastatur bzw. Rechner, Mehr → Ansicht → Maske „Tabelle“): Erwartet: Fokus in der
+  ersten Zelle, Tab/Enter springen weiter, Enter in der letzten Zelle schickt ab; „6 6 20“ steht danach als
+  „2x6, 20“, Bojen „5“ bzw. „5J“; ein Tippfehler („3“ an einer Boje, Code 99) steht rot an der Zelle und sperrt.
+  „Korrigieren“ an einer gesendeten Zeile fragt alt → neu. Auf dem Handy ausgegraut. Schneller als die Knöpfe?
+  Beobachtung:
 
 ## Nur iPhone
 

@@ -1,12 +1,13 @@
-import type { AppState, BereichId, PunktId, StartRef, WkrModus, WkrStatus } from '../types'
+import type { AppState, BereichId, KeineZeitGrund, PunktId, StartRef, WkrModus, WkrPunkt, WkrStatus } from '../types'
 import type { Konfig } from '../config/konfig'
 import { betriebVon, lage as bereichsLage, liesRef } from '../betrieb/folge'
 import { erfasstKennung, listenFelder, werteVon, type Feld, type ListenTeil } from '../lib/eingaben'
 import { abschluesseVon, punktVonRef, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
-import { istParcoursListe, listenDerVeranstaltung, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
+import { bestandOhneLauf, istParcoursListe, istTischListe, listenDerVeranstaltung, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
 import { hatVorab, leser, schlange, vorabStarts, type SchlangenStart } from './schlange'
 import { istNichtVorbei, liesNvSchluessel } from './nichtVorbei'
+import { keineZeitVon } from './keineZeit'
 
 // Lage der digitalen WKR-Erfassung am Bedienrechner (W2, Plan docs/plan-wkr-w2.md §3, 21.11.2026): je Liste und Start,
 // was da ist und was fehlt – EINE Stelle für Matrix, Geräteleiste, Rückstandswarnung, Marken der Erfassung und die
@@ -49,6 +50,11 @@ export interface ZellLage {
    * 21.11.2026, W3-17, GF10: „nicht vorbeigekommen“ ist Disq. J, eine gewöhnliche Zeile mit Haken).
    */
   disq?: string
+  /**
+   * `ok` mit „keine Zeit“ (W5.4, 22.11.2026, ZT4): je Zeitfeld ohne Zeit der Grund – die Matrix zeigt ✓ mit „keine
+   * Zeit“, die Erfassung „Papier ansehen“ an genau diesen Zellen (zeilenMarken).
+   */
+  keineZeit?: Record<string, KeineZeitGrund>
 }
 
 /** Eine Spalte der Matrix: ein gezeigter Start (Parallelslalom: das Paar) bzw. am Vorsteg einer der nächsten (`vorab`). */
@@ -74,7 +80,8 @@ export interface ListenGeraet {
 }
 
 export interface ListenAbschluss {
-  punkt: PunktId
+  /** Punkt des Abschlusses; `ohne` = die ganze Liste am Tisch (W5.3). */
+  punkt: WkrPunkt
   teil?: ListenTeil
   /** Name des Wettkampfrichters – nur am Bedienrechner (nie in einer Sicht). */
   name: string
@@ -256,6 +263,11 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
       .join(', ')
     return text ? { disq: text } : {}
   }
+  /** „Keine Zeit“ der Zelle (W5.4, ZT4) – nur, wenn eins steht. */
+  const kzMarke = (lauf: string, starter: string): { keineZeit?: Record<string, KeineZeitGrund> } => {
+    const kz = keineZeitVon(stand.wkr, kennung, lauf, starter)
+    return Object.keys(kz).length > 0 ? { keineZeit: { ...kz } } : {}
+  }
 
   /** Der Zellstand eines Starts (Kennung) auf dieser Liste; `null`, wenn der Start nicht zur Art des Bereichs passt. */
   const zelleVon = (key: string): (ZellLage & { lauf: string; weitere: string[]; starter: string; klasse: string }) | null => {
@@ -275,8 +287,11 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
     // „Nicht vorbeigekommen“ (W4.3, R4) vor dem Haken: Die Zeile hat den Haken, aber keine Werte.
     if (!geteilt && nv(start.lauf, start.starter.id, undefined)) return { ...basis, zelle: 'nv' }
     const ganz = !!werte[erfasstKennung(liste.typeId)]
-    if (ganz && !(geteilt && nv(start.lauf, start.starter.id, 'an'))) return { ...basis, zelle: 'ok', ...disqMarke(werte, start.starter.klasse) }
-    if (!geteilt) return { ...basis, zelle: abgetippt(werte, start.starter.klasse, undefined) ? 'ok' : teilZelle(key, k, werte, start.starter.klasse, undefined, start.lauf, start.starter.id) }
+    if (ganz && !(geteilt && nv(start.lauf, start.starter.id, 'an'))) return { ...basis, zelle: 'ok', ...disqMarke(werte, start.starter.klasse), ...kzMarke(start.lauf, start.starter.id) }
+    if (!geteilt) {
+      if (abgetippt(werte, start.starter.klasse, undefined)) return { ...basis, zelle: 'ok', ...kzMarke(start.lauf, start.starter.id) }
+      return { ...basis, zelle: teilZelle(key, k, werte, start.starter.klasse, undefined, start.lauf, start.starter.id) }
+    }
     const je = {
       ab: ganz ? ('ok' as const) : teilZelle(key, k, werte, start.starter.klasse, 'ab', start.lauf, start.starter.id),
       an: teilZelle(key, k, werte, start.starter.klasse, 'an', start.lauf, start.starter.id),
@@ -416,7 +431,7 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
     gezeigtJe.set(liste, m)
     return m
   }
-  const nvNummern = (liste: Liste, kennung: string, p: PunktId, teil: ListenTeil | undefined): string[] => {
+  const nvNummern = (liste: Liste, kennung: string, p: WkrPunkt, teil: ListenTeil | undefined): string[] => {
     const keys = Object.hasOwn(stand.wkr.nichtVorbei, kennung) ? stand.wkr.nichtVorbei[kennung] : []
     if (keys.length === 0 || teil === 'ab') return []
     const m = gezeigtVon(liste)
@@ -441,7 +456,7 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
       // Ein Start vorab, der nicht (mehr) in der Schlange steht, hat hier nichts zu zeigen.
       // Am Steg sieht nur das Ablegen vorab: Ist es dort Papier (Start hinter „Am Steg“), hat die Zeile nichts zu zeigen.
       if (!z || (s.vorab && (z.zelle === 'papier' || z.teile?.ab === 'papier'))) continue
-      zellen[s.key] = { zelle: z.zelle, ...(z.teile ? { teile: z.teile } : {}), ...(z.disq ? { disq: z.disq } : {}) }
+      zellen[s.key] = { zelle: z.zelle, ...(z.teile ? { teile: z.teile } : {}), ...(z.disq ? { disq: z.disq } : {}), ...(z.keineZeit ? { keineZeit: z.keineZeit } : {}) }
     }
     const geraeteHier = geraeteDerListe(r.kennung, geraete, jetzt, laeuft)
     const nr = (s: SchlangenStart | undefined) => (s ? nummerVon(stand, s.starter) : '')
@@ -498,6 +513,59 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
   return { punkt, starts: spalten, listen: lagen }
 }
 
+/** Lage einer Liste am Tisch (ohne Lauf, Knoten – W5.3, 22.11.2026, KN4): wie eine ListenLage, dazu der Bestand. */
+export interface TischLage extends ListenLage {
+  /** Starter des Bestands ohne Haken und ohne eigene Werte (wie „erledigt“ der Matrix) / alle des Bestands. */
+  knoten: { offen: number; gesamt: number; nummern: string[] }
+}
+
+/**
+ * Die Listen am Tisch (Bereich `tisch`, ohne Lauf): je Liste Modus, Status, Geräte mit Ampel, Rückfragen/Vorschläge,
+ * Abschlüsse und „Knoten: 14 / 38 offen“ (KN4). Nie Rückstand, nie `warnt`, nie Parcours – die Liste gehört zu keinem
+ * Bereich des Betriebs, also auch nie zur Start-Freigabe. „Erledigt“ wie in der Matrix: Haken oder eigene Werte
+ * (abgetippt). Die Ampel der Geräte ruht nie (am Tisch gibt es keinen laufenden Punkt; sie zählt die Stille).
+ */
+export function tischLage(stand: AppState, konfig: Konfig, geraete: readonly GeraetAngabe[], jetzt: number): TischLage[] {
+  return listenDerVeranstaltung(stand, konfig)
+    .filter(istTischListe)
+    .map((liste): TischLage => {
+      const r = rechner(stand, konfig, liste)
+      const bestand = bestandOhneLauf(stand, konfig, liste)
+      const offen = bestand.filter(({ start }) => !r.erledigt(start.lauf, start.starter.id, start.starter.klasse, undefined))
+      const e = r.eintrag
+      const nummer = (key: string) => {
+        const b = bestand.find((x) => x.key === key)
+        return b ? b.start.starter.startNr : ''
+      }
+      return {
+        liste: r.kennung,
+        titel: konfig.getPositions().some((p) => p.typeId === liste.typeId) ? konfig.getSheetDef(liste.typeId).title : liste.typeId,
+        typeId: liste.typeId,
+        racecourse: null,
+        modus: e?.modus ?? null,
+        status: e?.status ?? 'aktiv',
+        papierAb: null,
+        geraete: geraeteDerListe(r.kennung, geraete, jetzt, true),
+        zellen: {},
+        rueckstand: null,
+        warnt: false,
+        parcours: false,
+        rueckfragen: r.offeneRueckfragen.length,
+        vorschlaege: r.offeneVorschlaege.length,
+        abschluss: abschluesseVon(stand.wkr, r.kennung).map(({ punkt, teil, abschluss: a }) => ({
+          punkt,
+          ...(teil !== undefined ? { teil } : {}),
+          name: a.name,
+          zeit: a.zeit,
+          abweichend: a.abweichend.map(nummer),
+          papier: a.papier.map(nummer),
+          nichtVorbei: [],
+        })),
+        knoten: { offen: offen.length, gesamt: bestand.length, nummern: offen.map(({ start }) => start.starter.startNr) },
+      }
+    })
+}
+
 /** Marke einer Zeile bzw. Zelle in der Erfassung (F4, A5). */
 export type ZeilenMarke = 'papier-ansehen' | 'rueckfrage'
 
@@ -549,6 +617,9 @@ export function zeilenMarken(stand: AppState, konfig: Konfig, liste: Liste, laeu
       }
     } else if (verdaechtig(z.zelle, undefined)) {
       m = { marke: 'papier-ansehen', zellen: {} }
+    } else if (z.zelle === 'ok' && z.keineZeit) {
+      // „Keine Zeit“ (W5.4, ZT4): genau die Zeitfelder ohne Zeit – dort steht vielleicht eine Stoppuhrzeit auf dem Bogen.
+      m = { marke: null, zellen: Object.fromEntries(Object.keys(z.keineZeit).map((f) => [f, 'papier-ansehen' as const])) }
     }
     if (m) for (const l of laufe) out.set(zellSchluessel(l, z.starter), m)
   }

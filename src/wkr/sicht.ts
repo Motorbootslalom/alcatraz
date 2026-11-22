@@ -1,4 +1,4 @@
-import type { AppState, CellKind, ClassId, PunktId, Sprache, StartRef, WkrStatus } from '../types'
+import type { AppState, CellKind, ClassId, PunktId, Sprache, StartRef, WkrPunkt, WkrStatus } from '../types'
 import { configFor, type Konfig } from '../config/konfig'
 import { codeKlassenOf } from '../config/catalog'
 import type { BogenTexte } from '../config/sprache'
@@ -9,10 +9,10 @@ import { erfasstKennung, listenFelder, teilHaken, werteVon } from '../lib/eingab
 import { bietetEnglisch, wkrSpracheFuer } from '../lib/listensprache'
 import { RACECOURSE_PARCOURS } from '../lib/parallelSchluessel'
 import { geraetVonZeile } from '../state/reducer/wkr'
-import { abgeschlossenePunkte, abschlussVon, TEILE } from './abschluss'
+import { abgeschlossenePunkte, abschlussVon, OHNE_PUNKT, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
 import { bojenHalt } from './bojen'
-import { istParcoursListe, listenKennung, teileVon, teilVonZelle, type Liste } from './liste'
+import { bestandOhneLauf, istParcoursListe, istTischListe, listenKennung, teileVon, teilVonZelle, type Liste } from './liste'
 import { ampelImStand, laufLage } from './ampel'
 import { danach, schlange, type SchlangenStart } from './schlange'
 
@@ -45,8 +45,11 @@ import { danach, schlange, type SchlangenStart } from './schlange'
  * GF9) – ein altes Gerät zeigte sonst nichts davon.
  * 8 seit den WKR-Namen aus der Veranstaltung (Nutzer 21.11.2026, W3-13, WKR_ANNAHMEN WN1): `wkrName` = Name aus der
  * WKR-Einteilung für GENAU diese Liste – ein altes Gerät fragte sonst weiter nur beim Abschluss.
+ * 9 seit den Listen ohne Lauf (W5.3, 22.11.2026, KN3): an der Liste am Tisch `bestand` (Startnummer, Klasse,
+ * erledigt – nie Namen) und `offen` {n, m} statt einer Schlange, Punkt `ohne` – ein altes Gerät zeigte sonst „nichts
+ * zu tun“ und schickte Kennungen, die es nicht kennt.
  */
-export const LISTEN_SICHT_FASSUNG = 8
+export const LISTEN_SICHT_FASSUNG = 9
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier
@@ -85,7 +88,19 @@ export interface ListenStart {
    * oft wenn der nächste Lauf schon begann; die Prüfansicht muss die offenen Starts DES abzuschließenden Punkts kennen
    * (sonst fehlte „Rest auf Papier“ und der Bedienrechner lehnte mit `offen` ab).
    */
-  punkt?: PunktId
+  punkt?: WkrPunkt
+}
+
+/**
+ * Ein Starter einer Liste ohne Lauf (W5.3, KN3): nur, was der WKR am Tisch ohnehin sieht – Startnummer und Klasse –,
+ * und ob die Liste ihn schon hat (Haken). Nie ein Name (F6).
+ */
+export interface ListenBestand {
+  /** Kennung des Starts ohne Lauf (`["o", starterId]`) – so schickt das Gerät seine Zeile (`s`). */
+  key: string
+  startNr: string
+  klasse: ClassId
+  erledigt: boolean
 }
 
 /** Ein Feld der Maske, aufgelöst für eine Klasse und in der Sprache der Liste. */
@@ -188,11 +203,12 @@ export interface ListenSicht {
   sprache: Sprache
   modus: 'digital' | 'papier' | 'beides'
   status: 'aktiv' | 'pausiert' | 'abgemeldet'
-  punkt: { id: PunktId; titel: string } | null
-  /** Punkte, die für die ganze Liste abgeschlossen sind (am Steg: ganz oder beide Teile). */
-  abgeschlossen: PunktId[]
+  /** Laufender Punkt; an einer Liste ohne Lauf (W5.3) immer `ohne` („Knoten“ – die ganze Liste). */
+  punkt: { id: WkrPunkt; titel: string } | null
+  /** Punkte, die für die ganze Liste abgeschlossen sind (am Steg: ganz oder beide Teile); am Tisch `ohne`. */
+  abgeschlossen: WkrPunkt[]
   /** Nur geteilte Listen (Steg, F16): Status und abgeschlossene Punkte je Teil (der Abschluss der ganzen Liste zählt mit). */
-  teile?: Record<'ab' | 'an', { status: WkrStatus; abgeschlossen: PunktId[] }>
+  teile?: Record<'ab' | 'an', { status: WkrStatus; abgeschlossen: WkrPunkt[] }>
   schlange: ListenStart[]
   danach: ListenStart[]
   /** Je Klasse die Maske; `null` = die Klasse hat diese Liste nicht (entfällt). */
@@ -216,6 +232,13 @@ export interface ListenSicht {
    * freien Starts. Fehlt, wenn er durch ist oder keiner läuft.
    */
   laeuft?: { punkt: PunktId; unterwegs: string[]; offen: number }
+  /**
+   * Nur Listen ohne Lauf (am Tisch, W5.3, KN3): alle Starter, die die Liste abnimmt, in der Folge des Stands – statt
+   * einer Schlange (`schlange`/`danach` bleiben leer); der WKR tippt die Nummer ein.
+   */
+  bestand?: ListenBestand[]
+  /** Nur Listen ohne Lauf: noch offen / alle des Bestands („offen 14 / 38“). */
+  offen?: { n: number; m: number }
 }
 
 export type MaskenJeKlasse = ListenSicht['klassen']
@@ -340,10 +363,20 @@ function startTitel(ref: StartRef, texte: BogenTexte): string {
  * Eintrag. Für die Sicht (WN1) und den Vergleich am Bedienrechner (GeraeteListe.vue, Nutzer 21.11.2026 W3-13).
  */
 export function einteilungsName(stand: Pick<AppState, 'einteilung'>, liste: Liste): string {
-  const parcoursId = einteilungsParcours(liste)
-  const eintrag = Object.hasOwn(stand.einteilung, parcoursId) ? stand.einteilung[parcoursId] : undefined
-  const name = eintrag && Object.hasOwn(eintrag, liste.typeId) ? eintrag[liste.typeId] : ''
-  return typeof name === 'string' ? name.trim() : ''
+  const nameIn = (parcoursId: string): string => {
+    const eintrag = Object.hasOwn(stand.einteilung, parcoursId) ? stand.einteilung[parcoursId] : undefined
+    const name = eintrag && Object.hasOwn(eintrag, liste.typeId) ? eintrag[liste.typeId] : ''
+    return typeof name === 'string' ? name.trim() : ''
+  }
+  const eigen = nameIn(einteilungsParcours(liste))
+  if (eigen !== '' || !istTischListe(liste)) return eigen
+  // Am Tisch (W5.3, 22.11.2026, Auslegung beim Bau): Die Einteilung führt Knoten je Parcours – der erste eingetragene
+  // Name gilt für die eine Liste am Tisch (ein „In Veranstaltung übernehmen“ schreibt unter `tisch`, das gilt zuerst).
+  for (const parcoursId of Object.keys(stand.einteilung).sort()) {
+    const name = nameIn(parcoursId)
+    if (name !== '') return name
+  }
+  return ''
 }
 
 /** Die Kennung, unter der die Einteilung den Namen einer Liste führt (SET_WKR_NAME `parcoursId`). */
@@ -366,7 +399,9 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   const teile = teileVon(liste.typeId)
 
   const info = bereicheZumStand(stand).find((b) => b.id === liste.bereich)
-  const bereich = liste.racecourse !== null ? texte.racecourse(liste.racecourse) : info ? texte.parcoursName(info.name) : liste.bereich
+  // Am Tisch (W5.3): kein Bereich des Betriebs – „Am Tisch“ in der Sprache der Liste.
+  const tisch = istTischListe(liste)
+  const bereich = tisch ? texte.tisch : liste.racecourse !== null ? texte.racecourse(liste.racecourse) : info ? texte.parcoursName(info.name) : liste.bereich
   const eintrag = Object.hasOwn(stand.wkr.listen, kennung) ? stand.wkr.listen[kennung] : undefined
   const l = lage(stand, liste.bereich)
 
@@ -395,14 +430,22 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
 
   // Masken je Klasse: alle Klassen des Bereichs (die Folge) und der gezeigten Starts – auch ohne Netz muss das Gerät
   // die nächsten Klassen kennen.
-  const klassenIds = [...l.folge.map((e) => e.klasse), ...inSchlange.map((s) => s.klasse), ...spaeter.map((s) => s.klasse)]
+  // Liste ohne Lauf (W5.3, KN3): der Bestand statt einer Schlange – erledigt = Haken (wie die Schlange, nicht „eigene
+  // Werte“ wie lage.ts: das Gerät soll auch nach einer Eingabe am Bedienrechner noch schicken können).
+  const bestand = tisch && bekannt
+    ? bestandOhneLauf(stand, konfig, liste).map(({ key, start: b }): ListenBestand => {
+        const w = werteVon(stand.eingaben, b.lauf, b.starter.id)
+        return { key, startNr: b.starter.startNr, klasse: b.starter.klasse, erledigt: !!w[erfasstKennung(liste.typeId)] }
+      })
+    : []
+  const klassenIds = [...l.folge.map((e) => e.klasse), ...inSchlange.map((s) => s.klasse), ...spaeter.map((s) => s.klasse), ...bestand.map((b) => b.klasse)]
   const xErlaubt = WKR_ANNAHMEN.xListen.includes(liste.typeId)
   const sprachen = maskenSprachen(stand.regelwerk, sprache)
   const konfigIn = (sp: Sprache) => (sp === sprache ? sprachKonfig : configFor({ regelwerk: stand.regelwerk, sprache: sp, beschriftung: stand.beschriftung, eigeneAufbauten: stand.eigeneAufbauten }))
   const klassen = maskenJeKlasse(konfig, konfigIn(sprachen.maske), liste.typeId, klassenIds, xErlaubt, stand.aufbau)
 
   const abgeschlossen = abgeschlossenePunkte(stand.wkr, kennung, undefined, !!teile)
-  const punkt = l.laufend
+  const punkt = tisch ? null : l.laufend
   // Abweichend aus allen Abschlüssen des laufenden Punkts (ganze Liste und Teile), ohne Doppelte.
   const abweichend =
     punkt !== null
@@ -432,7 +475,7 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
     sprache,
     modus: eintrag?.modus ?? 'papier',
     status: eintrag?.status ?? 'aktiv',
-    punkt: punkt !== null ? { id: punkt, titel: punktTitel(stand, punkt, texte) } : null,
+    punkt: tisch ? { id: OHNE_PUNKT, titel: texte.alleStarter } : punkt !== null ? { id: punkt, titel: punktTitel(stand, punkt, texte) } : null,
     abgeschlossen,
     schlange: inSchlange.map(start),
     danach: spaeter.map(start),
@@ -442,6 +485,11 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   // WKR-Name aus der Einteilung (W3-13, WN1): nur dieser Liste, als Text neu (nie das Objekt der Einteilung).
   const name = einteilungsName(stand, liste)
   if (name !== '') sicht.wkrName = name
+  if (tisch) {
+    // Jedes Objekt neu (Feld für Feld, wie die ganze Sicht) – nie ein Name, nie ein Wert.
+    sicht.bestand = bestand.map((b) => ({ key: b.key, startNr: b.startNr, klasse: b.klasse, erledigt: b.erledigt }))
+    sicht.offen = { n: bestand.filter((b) => !b.erledigt).length, m: bestand.length }
+  }
   // Parcours-Ampel (P-03, AM9) und „Lauf läuft noch“ (R6-10) – jedes Objekt neu, nur Kennung, Zustand, Startnummern.
   const aktuell = l.aktuell?.key ?? null
   if (bekannt && aktuell !== null && istParcoursListe(konfig, liste.typeId)) {
@@ -450,7 +498,7 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   }
   // Ein gezeigter Start, den diese Liste (bzw. ein Teil am Steg) noch nicht erledigt hat, ist unterwegs – auch der
   // letzte des Laufs auf dem Weg zum Anlegen (Prüfbefund 21.11.2026, R6-10).
-  const lauf = laufLage(stand, konfig, liste.bereich, (key) => ganzeSchlange.some((x) => x.key === key))
+  const lauf = tisch ? null : laufLage(stand, konfig, liste.bereich, (key) => ganzeSchlange.some((x) => x.key === key))
   if (lauf) sicht.laeuft = { punkt: lauf.punkt, unterwegs: [...lauf.unterwegs], offen: lauf.offen }
   if (sprachen.andere !== null) {
     const andereKonfig = konfigIn(sprachen.andere)
@@ -458,7 +506,7 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
     sicht.andere = {
       sprache: sprachen.andere,
       titel: bekannt ? andereKonfig.getSheetDef(liste.typeId).title : liste.typeId,
-      bereich: liste.racecourse !== null ? at.racecourse(liste.racecourse) : info ? at.parcoursName(info.name) : liste.bereich,
+      bereich: tisch ? at.tisch : liste.racecourse !== null ? at.racecourse(liste.racecourse) : info ? at.parcoursName(info.name) : liste.bereich,
       klassen: maskenTexte(maskenJeKlasse(konfig, andereKonfig, liste.typeId, klassenIds, xErlaubt)),
     }
   }

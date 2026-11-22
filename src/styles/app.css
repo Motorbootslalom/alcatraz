@@ -3794,6 +3794,19 @@ table.starters th .sortier-kopf.aktiv {
   margin-top: 10px;
 }
 
+/* W5.3 (KN4): Block „Am Tisch“ unter der Matrix (Prüfbefund 22.11.2026 – die Klasse war ohne Regel): abgesetzt wie die
+   übrigen Matrix-Blöcke, breite Tabelle scrollt in sich. Name kollidiert mit keiner Maskenklasse (wkr-geraet.css). */
+.wkr-tisch {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.wkr-tisch > h3 {
+  margin: 0 0 8px;
+}
+
 .wkr-mtabelle {
   border-collapse: collapse;
   font-size: 14px;

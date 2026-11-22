@@ -3,7 +3,10 @@ import { reducer } from '../state/reducer'
 import { configFor } from '../config/konfig'
 import { AUFBAUTEN } from '../config/catalog'
 import { lage as bereichsLage } from '../betrieb/folge'
-import { betriebStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { betriebStarter, betriebsStand, festgeschrieben, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { listenFelder } from '../lib/eingaben'
+import { listeMitMaske } from './maske'
+import { pruefeZeile } from './zeile'
 import type { AppState, WkrModus, WkrStatus } from '../types'
 import { erfassungsLage, type GeraetAngabe } from './lage'
 import { istParcoursListe, listenKennung, type Liste } from './liste'
@@ -210,6 +213,56 @@ describe('Auto-Modus (AM6)', () => {
     const weiter = reducer(s, { type: 'BETRIEB_ZEIGEN', bereich: P1, ...schritt!, zeit: 3000 })
     expect(aktuell(weiter)).toBe(l.naechster!.key)
     expect(ampel(weiter, alle.geraete).ampel).toBe('gruen')
+  })
+})
+
+describe('Bojen + Zeit (moewezeit, W5.4, 22.11.2026, ZT1/AM2): Parcours-Liste mit Maske – Ampel und Auto gelten', () => {
+  /** Aufbau Möwe, Lauf begonnen, ein Start gezeigt; Liste moewezeit digital. */
+  function moewe(): AppState {
+    let s = festgeschrieben(reducer(betriebsStand(viele(4)), { type: 'SET_AUFBAU', aufbau: 'moewe' }))
+    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: P1, punkt: 'lauf:1', zeit: 500 })
+    s = setzeListe(s, L('moewezeit'), 'digital')
+    return zeigeNaechsten(s, P1, 1000)
+  }
+  /** Eine Zeile des Geräts mit Zeit (Zelle wie getippt, ZT2). */
+  function zeitZeile(s: AppState, starter: string, kz: [string, 'anlage'][] = []): AppState {
+    const r = pruefeZeile(s, DM, L('moewezeit'), undefined, 'g1', { z: 1, s: aktuell(s), c: kz.length ? [] : [[zeitFeld(s, starter), '75,12', '']], kz })
+    if ('fehler' in r) throw new Error(r.fehler)
+    return reducer(s, { type: 'WKR_ZEILEN', liste: K('moewezeit'), quelle: { geraet: 'g1', name: 'Pad' }, zeilen: [r], zeit: 3000 })
+  }
+  const zeitFeld = (s: AppState, starter: string) => {
+    const klasse = s.starters.find((x) => x.id === starter)!.klasse
+    return listenFelder(DM, 'moewezeit', klasse).find((f) => f.kind === 'time')!.kennung
+  }
+
+  it('Parcours-Liste (Start/Ziel-Bojen sind Bewertung), reine Zeit-Liste nicht – auch mit Maske', () => {
+    expect(istParcoursListe(DM, 'moewezeit')).toBe(true)
+    expect(istParcoursListe(DM, 'bstartziel')).toBe(true)
+    expect(istParcoursListe(DM, 'zeit')).toBe(false)
+    expect(listeMitMaske(DM, 'moewezeit', ['1'])).toBe(true)
+  })
+
+  it('grün → Durchfahrt rot (offen: moewezeit) → Zeile mit Zeit bzw. „keine Zeit“ → frei; Auto möglich mit Gerät', () => {
+    const s = moewe()
+    const starter = starterVon(aktuell(s))
+    // Nur moewezeit digital: die übrigen Parcours-Listen auf Papier, damit sie nicht mitzählen.
+    let t = s
+    for (const l of erfassungsLage(t, DM, P1, [], 0).listen) if (l.parcours && l.typeId !== 'moewezeit') t = setzeListe(t, L(l.typeId), 'papier')
+    expect(ampel(t).ampel).toBe('gruen')
+    const rot = durch(t)
+    expect(ampel(rot)).toMatchObject({ ampel: 'rot', offen: [DM.getSheetDef('moewezeit').title] })
+    expect(ampel(zeitZeile(rot, starter)).ampel).toBe('frei')
+    expect(ampel(zeitZeile(rot, starter, [[zeitFeld(rot, starter), 'anlage']])).ampel).toBe('frei')
+    // Auto-Modus (AM6): jede Parcours-Liste digital mit Gerät – moewezeit zählt dazu; ohne ihr Gerät fehlt sie.
+    let alle = reducer(s, { type: 'SET_ANZEIGE', patch: { wkrAuto: true } })
+    const geraete: GeraetAngabe[] = []
+    for (const l of erfassungsLage(alle, DM, P1, [], 0).listen) {
+      if (!l.parcours) continue
+      alle = setzeListe(alle, L(l.typeId), 'digital')
+      geraete.push({ id: `g-${l.typeId}`, name: 'Pad', listen: [{ liste: l.liste }], zuletzt: 0 })
+    }
+    expect(ampel(alle, geraete).autoMoeglich).toBe(true)
+    expect(ampel(alle, geraete.filter((g) => g.listen[0].liste !== K('moewezeit'))).autoOhne).toEqual([DM.getSheetDef('moewezeit').title])
   })
 })
 

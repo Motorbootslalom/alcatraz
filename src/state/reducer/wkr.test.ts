@@ -391,9 +391,9 @@ describe('Aufräumen', () => {
     s = reducer(s, { type: 'WKR_ABSCHLUSS', liste: K('gate135'), punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: true, zeit: 9000 })
     expect(s.wkr.rueckfragen).toHaveLength(1)
     const leer = reducer(s, { type: 'CLEAR_EINGABEN' })
-    expect(leer.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {} })
+    expect(leer.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {}, keineZeit: {} })
     const teil = reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [1] })
-    expect(teil.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {} })
+    expect(teil.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {}, keineZeit: {} })
     // Ein anderer Lauf lässt sie stehen.
     expect(reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [2] }).wkr).toBe(s.wkr)
   })

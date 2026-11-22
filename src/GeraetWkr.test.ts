@@ -14,6 +14,7 @@ import { formatiereCode } from './geraete/koppeln'
 import { koppelnAdresse } from './geraete/paket'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './geraete/transport/ntfy/testNtfy'
 import type { NtfyZeiten } from './geraete/transport/ntfy/leitung'
+import type { GeraeteTyp } from './geraete/transport/protokoll'
 import { reducer, type Action } from './state/reducer'
 import { setLocale } from './i18n'
 import { vergissAlles } from './lib/merken'
@@ -51,9 +52,17 @@ const hosts: GeraeteHost[] = []
 const wrappers: VueWrapper[] = []
 const quellen: ErfassungsQuelle[] = []
 
+/** Fenstergröße wie ein Gerät (happy-dom: 1024 × 768) – mit `resize`, wie der Browser beim Drehen (W5.1, useFenster). */
+function fenster(breite: number, hoehe: number): void {
+  ;(window as unknown as { happyDOM: { setViewport: (v: { width: number; height: number }) => void } }).happyDOM.setViewport({ width: breite, height: hoehe })
+  window.dispatchEvent(new Event('resize'))
+}
+
 beforeEach(() => {
   vergissAlles()
   setLocale('de')
+  // W5.1 (22.11.2026): Die Anordnung folgt der Fenstergröße – die Handy-Tests laufen auf einem Handy-Fenster.
+  fenster(390, 844)
   ntfy = neuesNtfy()
   vi.stubGlobal('WebSocket', NachgebauterSocket)
   vi.stubGlobal('fetch', nachgebautesFetch)
@@ -139,12 +148,13 @@ function geraeteZustand(w: VueWrapper, speicher: Ablage, h: GeraeteHost, seit: n
  * Die Probe beim Einrichten (W3.4, G10) kommt mit der ersten Sicht einer Liste mit Maske; `probe: 'ueberspringen'`
  * (Vorgabe) tippt „Überspringen“, `'lassen'` lässt sie stehen.
  */
-async function mitCode(h: GeraeteHost, aufgaben: Aufgabe[], speicher: Ablage = handy(), probe: 'ueberspringen' | 'lassen' = 'ueberspringen') {
+async function mitCode(h: GeraeteHost, aufgaben: Aufgabe[], speicher: Ablage = handy(), probe: 'ueberspringen' | 'lassen' = 'ueberspringen', typ: GeraeteTyp | null = 'handy') {
   h.gibCode(aufgaben)
   await bis(() => !!h.raum.value?.koppeln.code && h.raum.value.koppeln.code.benutzt === null)
   const code = h.raum.value!.koppeln.code!.wert
   location.hash = koppelnAdresse(h.raum.value!.koppelLink)
-  const w = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20 } } })
+  // Geräteart wie die Anmeldung sie meldet (GF7) – Vorgabe Handy; `null` = erkannt wie im Browser (happy-dom: Rechner).
+  const w = mount(GeraetApp, { attachTo: document.body, props: { umgebung: { ablage: speicher, zeiten: SCHNELL, ablaufTaktMs: 20, ...(typ ? { typ } : {}) } } })
   wrappers.push(w)
   await zeigt(() => w.find('input[data-feld="code"]').exists())
   await w.find('input[data-feld="code"]').setValue(formatiereCode(code))
@@ -152,8 +162,8 @@ async function mitCode(h: GeraeteHost, aufgaben: Aufgabe[], speicher: Ablage = h
   await w.find('.geraet-koppel-form').trigger('submit')
   const nurFreigabe = aufgaben.some((a) => a.art === 'startfreigabe')
   await zeigt(() => (nurFreigabe ? w.find('.betrieb-karte').exists() : w.find('[data-teil="wkr-geraet"]').exists()))
-  // Listen ohne Maske (Zeit, Knoten – W5) haben keine Probe; Bojen-Listen seit W4.2 schon.
-  const mitMaske = aufgaben.some((a) => a.art === 'liste' && !/"(zeit|moewezeit|bstartziel|knoten)"/.test(a.liste))
+  // Knoten (Prüfliste, W5.3) haben keine Probe; Bojen-Listen seit W4.2 und Zeit-Listen seit W5.4 (22.11.2026) schon.
+  const mitMaske = aufgaben.some((a) => a.art === 'liste' && !/"knoten"/.test(a.liste))
   if (!nurFreigabe && mitMaske && probe === 'ueberspringen') {
     // Ohne Klasse mit Maske (alle Starter ohne die Liste) gibt es keine Probe – dann steht gleich die Maske da.
     await zeigt(() => w.find('[data-teil="probe"]').exists() || w.find('[data-teil="karte"]').exists() || (w.find('[data-teil="ruhe"]').exists() && ruheArt(w) !== 'warte'))
@@ -540,15 +550,25 @@ describe('Handy-Maske: Steg, Vorsteg, entfällt, ohne Maske (W3.3)', () => {
     expect(w.find('[data-action="code"]').exists()).toBe(false)
   })
 
-  it('Liste mit Zeitfeldern: „Maske folgt – Papier“ mit „Pausieren“ (G14; Bojen-Listen haben seit W4.2 ihre Maske)', async () => {
+  it('Liste mit Zeitfeldern (W5.4, 22.11.2026): Ziffernblock statt „Maske folgt“; Zeiten und „keine Zeit“ kommen an', async () => {
     const r = await bedienrechner()
-    const GATE = ZEITLISTE
-    const { w } = await mitCode(r.h, [{ art: 'liste', liste: GATE }])
-    await zeigt(() => w.find('[data-teil="ruhe"]').exists() && ruheArt(w) === 'spaeter')
-    expect(w.find('[data-teil="ruhe"]').text()).toContain('bitte auf dem Papierbogen erfassen')
-    await bis(() => r.state.value.wkr.listen[GATE]?.modus === 'digital')
-    await klick(w, '[data-ruhe="spaeter"] [data-action="pausieren"]')
-    await bis(() => r.state.value.wkr.listen[GATE]?.status === 'pausiert')
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: ZEITLISTE }])
+    await bis(() => r.state.value.wkr.listen[ZEITLISTE]?.modus === 'digital')
+    const { starter } = r.zeige()
+    await zeigt(() => w.find('[data-teil="zeiten"]').exists())
+    expect(w.find('[data-teil="ruhe"]').exists()).toBe(false)
+    expect(haupt(w).attributes('disabled')).toBeDefined()
+    for (const k of '83,45') await klick(w, `[data-teil="zeiten"] [data-taste="${k}"]`)
+    for (const feld of ['zeit2', 'zeit3']) {
+      await klick(w, `[data-action="zeit-feld"][data-feld="${feld}"]`)
+      await klick(w, '[data-action="keine-zeit"]')
+      await klick(w, '[data-action="keine-zeit-grund"][data-grund="anlage"]')
+    }
+    expect(haupt(w).attributes('disabled')).toBeUndefined()
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(r.state.value, starter).zeit1 === '83,45')
+    expect(werte(r.state.value, starter)['erfasst@zeit']).toBeTruthy()
+    expect(Object.values(r.state.value.wkr.keineZeit[ZEITLISTE] ?? {})).toEqual([{ zeit2: 'anlage', zeit3: 'anlage' }])
   })
 
   it('Start-Freigabe UND Liste: Reiter unten „Freigabe“ / Listenname', async () => {
@@ -1336,15 +1356,153 @@ describe('Befund 15 (21.11.2026): zwei Tabs derselben Kopplung', () => {
   })
 })
 
-describe('Mehr Listen je Gerät (Nutzer 21.11.2026, W3-03, GF8)', () => {
-  it('Pad quer mit zwei Listen: zwei Spalten nebeneinander, ohne Reiter', async () => {
-    vi.stubGlobal('matchMedia', (q: string) => ({ media: q, matches: q.includes('min-width: 1000px'), addEventListener: () => {}, removeEventListener: () => {} }))
+describe('Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl (W5.1, 22.11.2026, PD1–PD6, MW1–MW3)', () => {
+  /** Jede Probe einer Spalte überspringen (W5.1: die Probe kommt je Spalte von selbst). */
+  async function ohneProben(w: VueWrapper): Promise<void> {
+    for (let i = 0; i < 4 && w.find('[data-action="probe-ueberspringen"]').exists(); i++) await klick(w, '[data-action="probe-ueberspringen"]')
+  }
+  /** Jede Spalte zeigt Probe, Karte oder eine Ruhe außer „warte“ – dann die Proben überspringen. */
+  async function spaltenBereit(w: VueWrapper, n: number): Promise<void> {
+    const bereit = () => {
+      const sp = w.findAll('[data-teil="spalten"] > .wkr-spalte')
+      return (
+        sp.length === n &&
+        sp.every((x) => x.find('[data-teil="probe"]').exists() || x.find('[data-teil="karte"]').exists() || (x.find('[data-teil="ruhe"]').exists() && x.find('[data-teil="ruhe"]').attributes('data-ruhe') !== 'warte'))
+      )
+    }
+    await zeigt(bereit)
+    await ohneProben(w)
+  }
+  const spaltenListen = (w: VueWrapper) => w.findAll('[data-teil="spalten"] > .wkr-spalte').map((x) => x.attributes('data-liste'))
+  const anordnungVon = (w: VueWrapper) => w.find('[data-teil="wkr-geraet"]').attributes('data-anordnung')
+  const spalte = (w: VueWrapper, liste: string) => w.find(`[data-teil="spalten"] > .wkr-spalte[data-liste='${liste}']`)
+
+  it('Pad quer (Art aus der Kopplung) mit zwei Listen: zwei Spalten ohne Reiter, je kompakt Schlange und Einträge; schmal hochkant eine Spalte mit Reitern; zurück quer wieder zwei', async () => {
+    fenster(1024, 768)
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }, { art: 'liste', liste: VORSTEG }], handy(), 'ueberspringen', 'pad')
+    await ohneProben(w)
+    await zeigt(() => spaltenListen(w).length === 2)
+    expect(anordnungVon(w)).toBe('padQuer')
+    expect(spaltenListen(w)).toEqual([TOR5, VORSTEG])
+    expect(w.find('[data-teil="listen-reiter"]').exists()).toBe(false)
+    const s = r.zeige()
+    await spaltenBereit(w, 2)
+    await zeigt(() => spalte(w, TOR5).find('[data-teil="karte"]').exists() && spalte(w, VORSTEG).find('[data-teil="karte"]').exists())
+    // PD3: ab zwei Spalten keine eigene Seitenspalte – Schlange und Einträge kompakt in jeder Spalte, ohne Zeichnung.
+    expect(w.findAll('[data-teil="seite"][data-kompakt]').length).toBe(2)
+    expect(w.find('[data-maske][data-seite="rechts"]').exists()).toBe(false)
+    expect(spalte(w, TOR5).find('[data-teil="seite-aktiv"]').text()).toContain(s.startNr)
+    // Eine Spalte nimmt ihre eigenen Tipps: Einträge im Klartext nur dort.
+    await klick(spalte(w, TOR5) as unknown as VueWrapper, '[data-action="code"][data-code="1"]')
+    expect(spalte(w, TOR5).find('[data-teil="seite-eintraege-text"]').text()).not.toBe('fehlerfrei')
+    expect(spalte(w, VORSTEG).find('[data-teil="seite-eintraege-text"]').text()).toBe('fehlerfrei')
+
+    // Schmales Pad hochkant (700 px: eine Spalte, PD2): Reiter oben in der Spalte, Seitenspalte unten.
+    fenster(700, 1024)
+    await zeigt(() => anordnungVon(w) === 'padHoch' && spaltenListen(w).length === 1)
+    expect(w.findAll('[data-teil="listen-reiter"] [data-action="liste-reiter"]').map((b) => b.attributes('data-liste'))).toEqual([TOR5, VORSTEG])
+    expect(w.find('[data-teil="maske"]').attributes('data-seite')).toBe('unten')
+    await klick(w, `[data-action="liste-reiter"][data-liste='${VORSTEG}']`)
+    expect(spaltenListen(w)).toEqual([VORSTEG])
+    // Der Entwurf der anderen Liste ging nicht verloren (Ausgang), zurück quer stehen beide wieder da.
+    fenster(1024, 768)
+    await zeigt(() => spaltenListen(w).length === 2)
+    expect(spalte(w, TOR5).find('[data-action="code"][data-code="1"]').attributes('data-anzahl')).toBe('1')
+    expect(w.html()).not.toMatch(NAMEN)
+  }, 20_000)
+
+  it('Pad quer mit drei Listen: zwei Spalten, die zweite mit Reitern für den Rest; Handy-Art auf breitem Fenster bleibt Handy (PD1)', async () => {
+    fenster(1024, 768)
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }, { art: 'liste', liste: MUEB }, { art: 'liste', liste: VORSTEG }], handy(), 'ueberspringen', 'pad')
+    await ohneProben(w)
+    await zeigt(() => spaltenListen(w).length === 2)
+    expect(spaltenListen(w)).toEqual([TOR5, MUEB])
+    const reiter = () => w.findAll('[data-teil="spalten"] [data-teil="listen-reiter"] [data-action="liste-reiter"]')
+    expect(reiter().map((b) => b.attributes('data-liste'))).toEqual([MUEB, VORSTEG])
+    await klick(w, `[data-action="liste-reiter"][data-liste='${VORSTEG}']`)
+    await ohneProben(w)
+    expect(spaltenListen(w)).toEqual([TOR5, VORSTEG])
+    expect(w.find(`[data-action="liste-reiter"][data-liste='${VORSTEG}']`).attributes('aria-selected')).toBe('true')
+  }, 20_000)
+
+  it('Handy-Art auf breitem Fenster: Handy-Anordnung mit Reitern unten (Art aus der Kopplung vor der Breite, PD1)', async () => {
+    fenster(1366, 1024)
     const r = await bedienrechner()
     const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }, { art: 'liste', liste: MUEB }])
-    await zeigt(() => w.find('[data-teil="nebeneinander"]').exists())
-    expect(w.findAll('[data-teil="nebeneinander"] .wkr-spalte').map((x) => x.attributes('data-liste'))).toEqual([TOR5, MUEB])
-    expect(w.find('[data-teil="listen-reiter"]').exists()).toBe(false)
-    expect(w.find('[data-teil="wkr-geraet"]').attributes('data-nebeneinander')).toBe('true')
+    await zeigt(() => anordnungVon(w) === 'handy')
+    expect(spaltenListen(w).length).toBe(1)
+    expect(w.find('.wkr-geraet > [data-teil="listen-reiter"]').exists()).toBe(true)
+  }, 20_000)
+
+  it('Ein Gerät für den ganzen Steg auf dem Pad: Ablegen und Anlegen als zwei Spalten ohne Wahl des Teils; nie derselbe Start in beiden (T3)', async () => {
+    fenster(1024, 768)
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG }], handy(), 'ueberspringen', 'pad')
+    await ohneProben(w)
+    await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
+    await zeigt(() => w.findAll('[data-teil="spalten"] > .wkr-spalte').length === 2)
+    await ohneProben(w)
+    const teilSpalte = (t: string) => w.find(`[data-teil="spalten"] > .wkr-spalte[data-steg-teil="${t}"]`)
+    expect(w.findAll('[data-teil="spalten"] > .wkr-spalte').map((x) => x.attributes('data-steg-teil'))).toEqual(['ab', 'an'])
+    // Je Spalte nur ihr eigener Teil – kein Wechsel (der Steg-Reiter zeigt nur noch den Stand).
+    expect(teilSpalte('ab').findAll('[data-action="steg-teil"]').map((b) => b.attributes('data-steg'))).toEqual(['ab'])
+    expect(teilSpalte('an').findAll('[data-action="steg-teil"]').map((b) => b.attributes('data-steg'))).toEqual(['an'])
+    const s = r.zeige()
+    await zeigt(() => teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').exists() && teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').text() === s.startNr)
+    expect(teilSpalte('an').find('[data-teil="karte"]').exists()).toBe(false)
+    expect(teilSpalte('ab').find('[data-action="haupt"]').text()).toBe('Ablegen OK ✓')
+    await teilSpalte('ab').find('[data-action="haupt"]').trigger('click')
+    await bis(() => !!werte(r.state.value, s.starter)['erfasst.ab@steg'])
+    r.zeige()
+    await zeigt(() => teilSpalte('an').find('[data-teil="karte"] [data-teil="startnr"]').exists() && teilSpalte('an').find('[data-teil="karte"] [data-teil="startnr"]').text() === s.startNr)
+    expect(teilSpalte('an').find('[data-action="haupt"]').text()).toBe('Anlegen OK ✓')
+    // T3: der Start im Anlegen steht nicht zugleich im Ablegen (nach dem Takt des Abschickens).
+    await zeigt(() => teilSpalte('ab').find('[data-teil="maske"]').attributes('data-takt') === 'frei')
+    expect(teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').text()).not.toBe(s.startNr)
+  }, 20_000)
+
+  it('Eine Liste auf dem Pad quer: Seitenspalte rechts mit Schlange, Einträgen im Klartext (Σ) und „Zuletzt“ zum Korrigieren', async () => {
+    fenster(1024, 768)
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }], handy(), 'ueberspringen', 'pad')
+    await bis(() => r.state.value.wkr.listen[TOR5]?.modus === 'digital')
+    const s = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    expect(w.find('[data-teil="maske"]').attributes('data-seite')).toBe('rechts')
+    const seite = () => w.find('[data-teil="seite"]')
+    expect(seite().attributes('data-kompakt')).toBeUndefined()
+    expect(seite().find('[data-teil="seite-aktiv"]').text()).toContain(s.startNr)
+    expect(seite().find('[data-teil="seite-eintraege-text"]').text()).toBe('fehlerfrei')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    expect(seite().find('[data-teil="seite-eintraege-text"]').text()).toMatch(/: 1$/)
+    expect(seite().find('[data-teil="seite-summe"]').text()).toBe('Σ 20 Pkt.')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(r.state.value, s.starter)['katalog:tor5'] === '1')
+    // Ohne nächsten Start ruht die Maske (ohne Seite) – der nächste bringt sie mit „Zuletzt“ zurück.
+    r.zeige()
+    await zeigt(() => taktFrei(w) && seite().exists() && seite().find('[data-action="seite-korrigieren"]').exists())
+    await seite().find('[data-action="seite-korrigieren"]').trigger('click')
+    await nextTick()
+    expect(w.find('[data-teil="karte"] [data-teil="korrektur"]').exists()).toBe(true)
+    // Fuß unter Arbeitsfläche und Seite (über die volle Breite der Maske), nicht in der Arbeitsfläche.
+    expect(w.find('[data-teil="maske"] > .wkr-unten').exists()).toBe(true)
+  }, 20_000)
+
+  it('Maskenwahl (F14): „fest“ vom Bedienrechner → das Gerät nennt sie und bietet keinen Wechsel; Aufgabe trägt maske/fest', async () => {
+    const r = await bedienrechner()
+    const { w, id } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }])
+    r.h.setzeAufgaben(id(), [{ art: 'liste', liste: TOR5, maske: 'knoepfe', fest: true }])
+    await bis(() => r.h.raum.value!.geraete[0].aufgaben.some((a) => a.art === 'liste' && a.fest === true))
+    expect(r.h.raum.value!.geraete[0].aufgaben).toEqual([{ art: 'liste', liste: TOR5, maske: 'knoepfe', fest: true }])
+    const s = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    await klick(w, '[data-action="mehr"]')
+    await zeigt(() => w.find('[data-teil="maske-fest"]').exists())
+    expect(w.find('[data-teil="maske-fest"]').text()).toContain('Knöpfe')
+    expect(w.find('[data-action="maske"]').exists()).toBe(false)
+    expect(w.find('[data-teil="maske"]').attributes('data-maske')).toBe('knoepfe')
   }, 20_000)
 })
 
@@ -1352,7 +1510,7 @@ describe('Erste Liste auf einem Gerät ohne Liste (Nutzer 21.11.2026, W3-24, GF6
   it('Gerät nur mit Start-Freigabe bekommt eine Liste: Maske kommt ohne Neuladen', async () => {
     const r = await bedienrechner()
     const speicher = handy()
-    const { w, id } = await mitCode(r.h, [{ art: 'startfreigabe', bereiche: [P1] }], speicher)
+    const { w, id } = await mitCode(r.h, [{ art: 'startfreigabe', bereiche: [P1] }], speicher, 'ueberspringen', null)
     // W3-25 (GF7): Die Art kam mit der Anmeldung (happy-dom: Maus → Rechner); der Bediener kann sie ändern.
     expect(r.h.raum.value!.geraete[0].typ).toBe('rechner')
     r.h.setzeTyp(id(), 'handy')
@@ -1611,9 +1769,10 @@ describe('Bojen (W4.2)', () => {
     expect(w.find(boje('t5|hin seiteA')).find('[data-teil="boje-max"]').exists()).toBe(false)
     expect(w.find('[data-action="weg"][data-weg="hin"]').text()).toBe('HINWEG · 4')
     expect(w.find('[data-action="weg"][data-weg="rueck"]').text()).toBe('RÜCKWEG · 0')
-    // Rückweg: Tor 1 R und die 2. Durchfahrt nach Sp. 2 (wie das Boot fährt).
+    // Rückweg, Vorgabe „Rückweg gedreht“ (Nutzer 22.11.2026): umgekehrte Fahrtfolge – Ziel, 2. Durchfahrt Tor 1,
+    // Sp. 2, Tor 1, Tor 3, Tor 5 (Prüfbefund 22.11.2026; vorher stand die Speedrunde unter Tor 5).
     await klick(w, '[data-action="weg"][data-weg="rueck"]')
-    expect(w.findAll('[data-teil="halt"]').map((h) => `${h.attributes('data-halt')}${h.attributes('data-durchfahrt') ?? ''}`)).toEqual(['t5', 't3b', 't1b', 'speed2', 't1c2', 'ziel'])
+    expect(w.findAll('[data-teil="halt"]').map((h) => `${h.attributes('data-halt')}${h.attributes('data-durchfahrt') ?? ''}`)).toEqual(['ziel', 't1c2', 'speed2', 't1b', 't3b', 't5'])
     expect(w.find('[data-halt="t1c"] [data-teil="durchfahrt"]').text()).toBe('2. Durchfahrt (Speedrunde)')
     await klick(w, boje('t1b|rueck seiteA'))
     await klick(w, boje('t1c|rueck seiteB'))
@@ -1655,6 +1814,86 @@ describe('Bojen (W4.2)', () => {
     // Zurück zu Klasse 4 – deren erster Start war schon da: kein Band.
     expect(w.find('[data-teil="klassen-wechsel"]').exists()).toBe(false)
   }, 20_000)
+
+  it('W5.1 (PD6): auf dem Pad mit einer Liste steht die Parcours-Zeichnung in der Seitenspalte, nicht unter den Knöpfen', async () => {
+    fenster(1024, 768)
+    const r = await bedienrechner(bojenStand(), P2)
+    // Knöpfe ausdrücklich vorgegeben – ohne Vorgabe zeigt das Pad seit W5.2 das Bild (MW1), dann keine Zeichnung extra.
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: GATE2, maske: 'knoepfe' }], handy(), 'ueberspringen', 'pad')
+    await bis(() => r.state.value.wkr.listen[GATE2]?.modus === 'digital')
+    const v1 = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === v1.startNr && w.find('[data-teil="seite"]').exists())
+    expect(w.findAll('[data-teil="parcours-bild"]').length).toBe(1)
+    expect(w.find('[data-teil="seite"] [data-teil="parcours-bild"]').exists()).toBe(true)
+    expect(w.find('[data-teil="mitte"] [data-teil="parcours-bild"]').exists()).toBe(false)
+  }, 20_000)
+
+  // W5.2 (Plan docs/plan-wkr-w5.md §5, 22.11.2026): Pad + Bojen-Liste ohne Vorgabe → Maske „Bild“ (MW1); die Probe übt
+  // am Bild (MW3); Tipps ins Bild landen als dieselben Zellen am Bedienrechner wie die Knöpfe; Tor 5 schaltet auf den
+  // Rückweg (BD4), Rück 2 (BD5), Disq. über „Disq. an Boje …“ + Tipp (BD7); Einträge im Klartext in der Seitenspalte.
+  it('W5.2 Maske „Bild“: Probe am Bild, Tipps → Zellen am Bedienrechner, Tor 5 → Rückweg, Rück 2, Disq. an der Boje', async () => {
+    fenster(1024, 768)
+    const r = await bedienrechner(bojenStand(), P2)
+    const seit = Date.now()
+    const { w, speicher } = await mitCode(r.h, [{ art: 'liste', liste: GATE2 }], handy(), 'lassen', 'pad')
+    await bis(() => r.state.value.wkr.listen[GATE2]?.modus === 'digital')
+    // Probe am Bild: Boje antippen → zurück → Rückweg → Hauptknopf.
+    await zeigt(() => w.find('[data-teil="probe"]').exists(), geraeteZustand(w, speicher, r.h, seit))
+    const probe = () => w.find('[data-teil="probe"]')
+    expect(probe().attributes('data-maske')).toBe('bild')
+    expect(probe().attributes('data-schritt')).toBe('bild')
+    await klick(w, '[data-teil="probe"] [data-action="bild-boje"][data-bild-id="Tor1_innen"]')
+    if (probe().attributes('data-schritt') === 'bild') await klick(w, '[data-teil="probe"] [data-action="bild-boje"][data-bild-id="Tor1_aussen"]')
+    expect(probe().attributes('data-schritt')).toBe('zurueck')
+    await klick(w, '[data-teil="probe"] [data-action="zurueck"]')
+    expect(probe().attributes('data-schritt')).toBe('rueckweg')
+    await klick(w, '[data-teil="probe"] [data-action="bild-weg"][data-weg="rueck"]')
+    expect(probe().attributes('data-schritt')).toBe('haupt')
+    await klick(w, '[data-teil="probe"] [data-action="haupt"]')
+    await zeigt(() => w.find('[data-action="probe-fertig"]').exists())
+    await klick(w, '[data-action="probe-fertig"]')
+
+    // Klasse 4: Bild statt Bojen-Knöpfen, keine Zeichnung extra, Einträge in der Seitenspalte.
+    const v1 = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === v1.startNr)
+    expect(w.find('[data-teil="maske"]').attributes('data-maske')).toBe('bild')
+    expect(w.find('[data-teil="bild"]').exists()).toBe(true)
+    expect(w.find('[data-teil="bojen"]').exists()).toBe(false)
+    expect(w.find('[data-teil="parcours-bild"]').exists()).toBe(false)
+    expect(w.findAll('[data-action="bild-weg"]').map((b) => b.attributes('data-weg'))).toEqual(['hin', 'rueck'])
+    const bildBoje = (id: string) => `[data-teil="bild"] [data-action="bild-boje"][data-bild-id="${id}"]`
+    await klick(w, bildBoje('Tor1_innen'))
+    // Tor 5 auf dem Hinweg: Zähler, danach steht der Umschalter auf „Rückweg“ (BD4).
+    await klick(w, bildBoje('Tor5_unten'))
+    expect(w.find('[data-teil="bild"]').attributes('data-weg')).toBe('rueck')
+    await klick(w, bildBoje('Tor5_unten'))
+    expect(w.find('[data-teil="seite-eintraege-text"]').text()).not.toBe('–')
+    expect(w.find('[data-teil="seite-summe"]').text()).toContain('15')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(r.state.value, v1.starter)['t5|rueck seiteA'] === '5')
+    const v = werte(r.state.value, v1.starter)
+    expect([v['t1a|hin seiteB'], v['t5|hin seiteA'], v['t5|rueck seiteA']]).toEqual(['5', '5', '5'])
+
+    // Klasse 7: neue Zeichnung, Rück 2 = Tor 1 der Speedrunde; Disq. an der Boje über den Knopf im Bild.
+    const s7 = r.zeige()
+    await zeigt(() => startNr(w) === s7.startNr && taktFrei(w))
+    expect(w.find('[data-teil="bild"]').attributes('data-klasse')).toBe('Klasse 7')
+    expect(w.findAll('[data-action="bild-weg"]').map((b) => b.attributes('data-weg'))).toEqual(['hin', 'rueck', 'rueck2'])
+    await zeigt(() => !w.find('[data-teil="klassen-wechsel"]').exists())
+    await klick(w, '[data-action="bild-weg"][data-weg="rueck2"]')
+    expect(w.find(bildBoje('Tor1_innen')).attributes('data-feld')).toBe('t1c|rueck seiteB')
+    await klick(w, bildBoje('Tor1_innen'))
+    await klick(w, '[data-action="bild-disq-modus"]')
+    await klick(w, bildBoje('Tor1_innen'))
+    const code = w.find('[data-action="disq-code"]').attributes('data-code')!
+    await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
+    await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
+    expect(w.find(bildBoje('Tor1_innen')).attributes('data-disq')).toBe(code)
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, s7.starter)['t1c|rueck seiteB'])
+    expect(werte(r.state.value, s7.starter)['t1c|rueck seiteB']).toBe(`5${code}`)
+    expect(w.html()).not.toMatch(NAMEN)
+  }, 25_000)
 
   it('Umschalter wechselt nie von selbst; Seite je Start gemerkt, ein anderer Start beginnt auf „Hinweg“', async () => {
     const { w, zeige, state } = await torListe()
@@ -1773,54 +2012,68 @@ describe('Bojen (W4.2)', () => {
     expect([w.find(boje(feld)).attributes('data-disq'), w.find(boje(feld)).attributes('data-anzahl')]).toEqual(['G', '1'])
   }, 15_000)
 
-  it('Ansicht „Wie der Parcours liegt“ (Nutzer 21.11.2026, V1/V2): je Tor eine Gruppe, Start oben/unten, Spalten tauschen, gemerkt je Liste; Probe ebenso', async () => {
+  it('Bojen-Folge (Nutzer 22.11.2026): Vorgabe „Rückweg gedreht“, „Fahrtfolge“, „Alles untereinander“ – gemerkt je Liste; Ortswahl und Probe ebenso', async () => {
     const { w, l, speicher } = uebe('dm-2026', 'gate135')
     await nextTick()
     const halte = () => w.findAll('[data-teil="halt"]').map((h) => `${h.attributes('data-halt')}${h.attributes('data-durchfahrt') ?? ''}`)
-    const orte = () => w.findAll('[data-teil="ort-kopf"]').map((h) => h.text())
-    expect(w.find('[data-teil="bojen"]').attributes('data-folge')).toBe('fahrt')
+    const tore = () => w.findAll('[data-teil="halt"]:not([data-durchfahrt])').map((h) => h.find('[data-teil="halt-titel"]').text())
+    // Vorgabe: Rück-Reiter in derselben Folge wie Hin – jedes Tor an derselben Stelle (Start ↔ Ziel).
+    expect(w.find('[data-teil="bojen"]').attributes('data-folge')).toBe('gedreht')
+    const hin = tore()
+    expect(hin[0]).toBe('Start')
+    await klick(w, '[data-action="weg"][data-weg="rueck"]')
+    expect(halte()[0]).toBe('ziel')
+    expect(tore().slice(1, hin.length)).toEqual(hin.slice(1))
+    const gedreht = halte()
+    // Die Ortswahl (DISQ) zeigt Hin, dann Rück so wie sein Reiter.
+    await klick(w, '[data-action="disq"]')
+    const orte = w.findAll('[data-teil="disq-ort-halt"]').filter((h) => h.attributes('data-weg') === 'rueck').map((h) => h.attributes('data-halt'))
+    expect(orte).toEqual(gedreht.map((h) => h.replace(/2$/, '')).filter((h) => orte.includes(h)))
+    await klick(w, '[data-action="disq"]')
+    expect(w.find('[data-teil="disq-ort"]').exists()).toBe(false)
+    // Fahrtfolge: der Rückweg so, wie das Boot fährt (Tor 5 zuerst, Ziel zuletzt).
     await klick(w, '[data-action="mehr"]')
-    await klick(w, '[data-action="bojen-folge"][data-folge="lage"]')
-    expect(w.find('[data-teil="bojen"]').attributes('data-folge')).toBe('lage')
+    expect(w.find('[data-action="bojen-folge"][data-folge="gedreht"]').attributes('aria-pressed')).toBe('true')
+    expect(w.find('[data-teil="bojen-folge-text"]').text()).toContain('an derselben Stelle')
+    await klick(w, '[data-action="bojen-folge"][data-folge="fahrt"]')
+    expect(w.find('[data-teil="bojen"]').attributes('data-folge')).toBe('fahrt')
+    expect(halte()[0]).toBe('t5')
+    expect(halte()[halte().length - 1]).toBe('ziel')
+    expect(ansichtIn(speicher).bojenFolge).toEqual({ [l]: 'fahrt' })
+    // Alles untereinander: ein Reiter ohne Umschalter, Hinweg und Rückweg in Fahrtfolge mit Kopfzeilen.
+    await klick(w, '[data-action="bojen-folge"][data-folge="untereinander"]')
     expect(w.find('[data-teil="weg-umschalter"]').exists()).toBe(false)
-    expect(orte()[0]).toBe('Start / Ziel')
-    // Spiegeln: Start unten – dieselben Orte umgekehrt.
-    const oben = orte()
-    await klick(w, '[data-action="bojen-start"][data-start-oben="false"]')
-    expect(orte()).toEqual([...oben].reverse())
-    // Tauschen: die linke Boje geht nach rechts (gridColumn).
-    const spalte = () => (w.find('[data-action="boje"][data-feld="t1a|hin seiteA"]').element as HTMLElement).style.gridColumn
-    expect(spalte()).toBe('1')
-    await klick(w, '[data-action="bojen-tauschen"]')
-    expect(spalte()).toBe('2')
-    // Gemerkt je Gerät und Liste (ablage.ts `bojen[liste]`).
-    expect(ansichtIn(speicher).bojen).toEqual({ [l]: { folge: 'lage', startOben: false, tauschen: true } })
-    await klick(w, '[data-action="bojen-start"][data-start-oben="true"]')
-    // Probe (Klasse 7) in derselben Ansicht: Tor 1 einmal mit Hin, Rück und 2. Durchfahrt, Sp. 2 hinter Tor 5,
-    // ohne Umschalter und darum ohne den Rückweg-Schritt.
+    expect(w.findAll('[data-teil="weg-kopf"]').map((k) => k.text())).toEqual(['HINWEG', 'RÜCKWEG'])
+    expect(halte()[0]).toBe('start')
+    expect(halte()[halte().length - 1]).toBe('ziel')
+    expect(ansichtIn(speicher).bojenFolge).toEqual({ [l]: 'untereinander' })
+    // Keine Spur der entfernten Ansicht „Wie der Parcours liegt“.
+    expect(w.find('[data-teil="ort-kopf"]').exists()).toBe(false)
+    expect(w.find('[data-action="bojen-start"], [data-action="bojen-tauschen"]').exists()).toBe(false)
+    expect(ansichtIn(speicher).bojen).toBeUndefined()
+    // Probe (Klasse 7) in derselben Folge: ohne Umschalter und darum ohne den Rückweg-Schritt.
     await klick(w, '[data-action="probe"]')
     expect(w.find('[data-teil="karte"] [data-teil="klasse"]').text()).toBe('Klasse 7')
-    expect(orte()).toEqual(['Start / Ziel', 'Tor 1', 'Tor 3', 'Tor 5', 'Sp. 2'])
-    expect(halte()).toEqual(['start', 'ziel', 't1a', 't1b', 't1c2', 't3a', 't3b', 't5', 't5', 'speed2'])
-    expect(['t1a', 't1b'].map((h) => w.find(`[data-halt="${h}"] [data-teil="halt-titel"]`).text())).toEqual(['Hin', 'Rück'])
-    expect(w.find('[data-halt="start"] [data-teil="halt-titel"]').text()).toBe('Start')
     expect(w.find('[data-teil="weg-umschalter"]').exists()).toBe(false)
+    expect(halte()).toEqual(['start', 't1a', 't3a', 't5', 't5', 't3b', 't1b', 'speed2', 't1c2', 'ziel'])
     expect(w.find('[data-teil="probe-schritt"]').text()).toContain('von 5')
   })
 
-  it('Bojen-Ansicht: die geänderte Liste rückt ans Ende – bei mehr als 8 fällt die am längsten nicht geänderte (Prüfbefund 21.11.2026)', async () => {
+  it('Bojen-Folge: die geänderte Liste rückt ans Ende – bei mehr als 8 fällt die am längsten nicht geänderte; die alte Lage-Ansicht wird weggeräumt', async () => {
     const speicher = handy()
     const q0 = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'gate135', taktMs: 3_600_000, folgeMs: SOFORT })
     const l = q0.listen.value[0].liste
     quellen.push(q0)
-    const fahrt = { folge: 'fahrt', startOben: true, tauschen: false }
-    const andere = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`andere${i}`, fahrt]))
-    speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', hand: 'rechts', bojen: { [l]: fahrt, ...andere } }))
+    const andere = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`andere${i}`, 'fahrt']))
+    const alt = { L: { folge: 'lage', startOben: true, tauschen: false } }
+    speicher.setItem('alcatraz.geraet.ansicht', JSON.stringify({ modus: 'sonne', hand: 'rechts', bojen: alt, bojenFolge: { [l]: 'fahrt', ...andere } }))
     const { w } = uebe('dm-2026', 'gate135', speicher)
     await nextTick()
+    expect(ansichtIn(speicher).bojen).toBeUndefined()
+    expect(w.find('[data-teil="bojen"]').attributes('data-folge')).toBe('fahrt')
     await klick(w, '[data-action="mehr"]')
-    await klick(w, '[data-action="bojen-folge"][data-folge="lage"]')
-    expect(Object.keys(ansichtIn(speicher).bojen)).toEqual([...Object.keys(andere), l])
+    await klick(w, '[data-action="bojen-folge"][data-folge="untereinander"]')
+    expect(Object.keys(ansichtIn(speicher).bojenFolge)).toEqual([...Object.keys(andere), l])
   })
 
   it('Doppeltipp in der Sperre wirkt nicht (Fake-Uhr, Übung Tor 1/3/5)', async () => {
@@ -1871,17 +2124,18 @@ describe('Bojen (W4.2)', () => {
     await klick(w, '[data-action="weg"][data-weg="rueck"]')
     // U4 (Nutzer 21.11.2026): Disq. an der Boje – rechter Knopf der ersten zweibojigen Zeile, erster Buchstabe. Mit
     // Umschalter auf der offenen Seite (Rückweg; Prüfbefund 21.11.2026) – die Anweisung genügt, kein Seitenwechsel.
+    // „Erste“ so, wie der Reiter sie zeigt: unter „Rückweg gedreht“ (Vorgabe, 22.11.2026) Tor 1 R vor Tor 3 R.
     expect(probe().attributes('data-schritt')).toBe('bojeDisq')
     // Seit W4-12 (21.11.2026) mit Punkt UND Buchstabe: Berührung, „Disq. an Boje …“, Ort, Buchstabe.
-    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('Tippe bei „Tor 3“ auf „R L“ (Berührung)')
-    await klick(w, boje('t3b|rueck seiteB'))
+    expect(w.find('[data-teil="probe-schritt"]').text()).toContain('Tippe bei „Tor 1“ auf „R L“ (Berührung)')
+    await klick(w, boje('t1b|rueck seiteB'))
     expect(probe().attributes('data-schritt')).toBe('bojeDisq')
     await klick(w, '[data-action="boje-disq-modus"]')
-    await klick(w, '[data-action="disq-ort"][data-feld="t3b|rueck seiteB"]')
+    await klick(w, '[data-action="disq-ort"][data-feld="t1b|rueck seiteB"]')
     await klick(w, '[data-action="disq-code"][data-code="A"]')
     await klick(w, '[data-action="disq-code"][data-code="A"]')
     expect(probe().attributes('data-schritt')).toBe('haupt')
-    expect(w.find(boje('t3b|rueck seiteB')).attributes('data-disq')).toBe('A')
+    expect(w.find(boje('t1b|rueck seiteB')).attributes('data-disq')).toBe('A')
     expect(haupt(w).text()).toBe('Abschicken · 15 Pkt. · Disq. A')
     await klick(w, '[data-action="haupt"]')
     await vi.advanceTimersByTimeAsync(BIS_WECHSEL + WKR_ANNAHMEN.sperreMs)
@@ -1963,6 +2217,38 @@ describe('Bojen (W4.2)', () => {
     await bis(() => !!lauf())
     expect(lauf()).toMatch(/^parallel:[^/]+\/\d+$/)
     expect(r.state.value.eingaben[lauf()!][paar!.a!]['erfasst@parallelparcours']).toBeTruthy()
+  }, 20_000)
+
+  it('W5.1 (PD4): Racecourse A und B auf dem Pad nebeneinander – ein Rundenband über beiden, die Spalten ohne eigenen Lauf im Kopf', async () => {
+    setLocale('en')
+    fenster(1024, 768)
+    const start = reducer(uimParallelStand(), { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    const r = await bedienrechner(start, 'parallel')
+    const A = listenKennung({ bereich: 'parallel', typeId: 'parallelparcours', racecourse: 'A' })
+    const B = listenKennung({ bereich: 'parallel', typeId: 'parallelparcours', racecourse: 'B' })
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: A }, { art: 'liste', liste: B }], handy(), 'ueberspringen', 'pad')
+    await bis(() => r.state.value.wkr.listen[A]?.modus === 'digital' && r.state.value.wkr.listen[B]?.modus === 'digital')
+    // Ein Paar mit Fahrern auf beiden Seiten zeigen.
+    let paar: { a: string | null; b: string | null } | undefined
+    for (let i = 0; i < 10 && !(paar?.a && paar?.b); i++) {
+      r.zeige()
+      paar = lage(r.state.value, 'parallel').aktuell!.eintrag!.paar ?? undefined
+    }
+    await zeigt(() => w.find('[data-teil="runden-band"]').exists())
+    for (let i = 0; i < 4 && w.find('[data-action="probe-ueberspringen"]').exists(); i++) await klick(w, '[data-action="probe-ueberspringen"]')
+    expect(w.findAll('[data-teil="spalten"] > .wkr-spalte').map((x) => x.attributes('data-liste'))).toEqual([A, B])
+    const titel = w.find('[data-teil="runden-band"]').text()
+    expect(titel).toMatch(/Attempt 1/)
+    expect(w.find('[data-teil="wkr-kopf"] [data-teil="lauf"]').exists()).toBe(false)
+    // Auf dem Pad mit Bojen-Liste: Vorgabe „Bild“ (MW1, seit W5.2 gebaut) – das Schema des Racecourse je Spalte (BD3).
+    expect(w.findAll('[data-teil="bild-schema"]').map((x) => x.attributes('data-racecourse'))).toEqual(['A', 'B'])
+    await klick(w, '[data-action="mehr"]')
+    const wahl = w.find('[data-teil="masken-wahl"]')
+    // Seit W5.5 (22.11.2026) auch „Tabelle“ – auf dem Pad wählbar (TB1).
+    expect(wahl.findAll('[data-action="maske"]').map((b) => b.attributes('data-maske'))).toEqual(['knoepfe', 'bild', 'text'])
+    expect(wahl.find<HTMLButtonElement>('[data-maske="text"]').element.disabled).toBe(false)
+    expect(wahl.find('[data-maske="bild"]').attributes('aria-pressed')).toBe('true')
+    expect(wahl.find<HTMLButtonElement>('[data-maske="bild"]').element.disabled).toBe(false)
   }, 20_000)
 })
 

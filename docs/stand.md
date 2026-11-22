@@ -109,11 +109,11 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   vorab, Anlegen erst, wenn das Boot zurück ist – nie derselbe Starter in beiden; das Anlegen des Starts auf der
   Tafel zählt nie im Rückstand), „Abmelden“ am Gerät wirkt wie Liste entfernen (nur was kein anderes Gerät mehr
   abdeckt; das Anlegen im Boot geht beim Abmelden bzw. Pausieren mit aufs Papier; neu Zuweisen holt das Gerät
-  zurück, auch nach Neuladen), Handy-Maske auf dem Pad als mittige Spalte bis W5; Beispiel-Boote/-Co-Piloten nur
+  zurück, auch nach Neuladen), Handy-Maske auf dem Pad als mittige Spalte bis W5 (seit W5.1 eigene Pad-Anordnung); Beispiel-Boote/-Co-Piloten nur
   noch unter „Beispieldaten“, Beispielstarter nach Art der Veranstaltung. Prüfbefunde dazu behoben.
   Wünsche vom 21.11.2026, zweiter Teil (WKR_ANNAHMEN U–Z, noch zu bestätigen): Disq. an der Boje in der
-  Bojen-Maske (wie auf dem Papier, „− letzte zurück“ stellt den vorigen Stand der Zelle wieder her), Ansicht „Wie
-  der Parcours liegt“ mit Spiegeln, Druck nur für Listen auf Papier bzw. „beides“, WKR-Bögen je Position in der
+  Bojen-Maske (wie auf dem Papier, „− letzte zurück“ stellt den vorigen Stand der Zelle wieder her), Bojen-Folge
+  „Rückweg gedreht“ (Vorgabe) / „Fahrtfolge“ / „Alles untereinander“ (22.11.2026; ersetzt „Wie der Parcours liegt“), Druck nur für Listen auf Papier bzw. „beides“, WKR-Bögen je Position in der
   Folge der Verzahnung, Übung mit 2–6 s nach dem Abschicken. Prüfbefunde dazu behoben.
   Antworten der Runden 3–6 (21.11.2026 abends) umgebaut ([plan-antworten-runde3-6.md](plan-antworten-runde3-6.md),
   Auslegungen AM, BZ, GF, WN noch zu bestätigen): Parcours-Ampel mit Auto-Modus in der Start-Freigabe, „Mehr → Liste
@@ -124,7 +124,36 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   zuerst. Prüfbefunde dazu behoben (21.11.2026): alte Sonne ohne eigene Wahl gilt als „Wie Gerät“, der letzte Start
   auf dem Weg zum Anlegen zählt als „läuft noch“, erste Liste auch nach einem Funkloch ohne Neuladen, Countdown des
   Auto-Modus in jedem Bedienfenster.
-  Offen: Pad, Knoten und Zeit-Listen (W5), Feldtest; CI-Test „Probe beim Einrichten … einmal je Raum“ wackelt
+  W5.1 (22.11.2026, Plan docs/plan-wkr-w5.md): Pad-Anordnung statt der mittigen Handy-Spalte – bis vier Listen
+  nebeneinander, ganzer Steg als Ablegen + Anlegen, Seitenspalte mit Schlange, „Zuletzt“ und Einträgen im Klartext,
+  Rundenband über Racecourse A + B, Attempt-Wechsel invers; Maske je Liste am Bedienrechner vorgeben („fest“), sonst
+  wählt der WKR unter „Mehr“. Auslegungen PD1–PD6, MW1–MW3 noch zu bestätigen.
+  W5.2 (22.11.2026): Maske „Bild“ – Parcours-Zeichnung der Klasse inline, Bojen der eigenen Liste antippen (fremde
+  blass), Umschalter Hin / Rück / Rück 2 (springt nach Tor 5 auf den Rückweg), Disq. an der Boje über „Disq. an Boje …“,
+  im Parallelslalom ein Schema je Racecourse; Vorgabe auf dem Pad für Bojen-Listen, Probe und Übung mit Bild. Klasse 7
+  auf Möwe-Listen zeigt Knöpfe (Zeichnung ohne untere Speedboje). Auslegungen BD1–BD7 noch zu bestätigen.
+  W5.3 (22.11.2026): Knoten am Tisch – eine Knoten-Liste je Veranstaltung (ohne Lauf), am Gerät Nummer über eigene
+  Ziffern-Tasten eintippen, je Knoten ✓ / ✗ · 5, Abschicken erst bei allen gesetzt, keine Schlange und kein Takt;
+  am Bedienrechner eigener Block „Knoten: 14 / 38 offen“ (nie Rückstand), Abschluss der ganzen Liste, Knoten-Bögen
+  „nur digital“ möglich; Übung „Knoten (am Tisch)“. Auslegungen KN1–KN8 noch zu bestätigen.
+  W5.4 (22.11.2026): Zeit-Listen mit Ziffernblock – Zeit nur abgelesen eintippen (0–9, „,“, ⌫), groß die Uhr
+  „1:23,45“ mit Deutung „= 1 min 23,45 s“ wie am Rechner, unlesbar rot; eine Zeile je Start mit allen Zeitfeldern,
+  Abschicken erst, wenn jedes Feld eine Zeit oder „Keine Zeit“ (Grund: Zeitanlage ausgefallen, nicht im Ziel, anderer)
+  hat; Pad: Felder nebeneinander, Handy: Feld-Reiter. Start/Ziel mit Zeit (Möwe, Berlin) = Bojen-Maske mit
+  Zeit-Abschnitt. Am Bedienrechner „✓ keine Zeit“ in der Matrix, Grund im Eingang, „Papier ansehen“ an genau diesen
+  Zellen der Erfassung; nie auf Tafel, Zuschauerliste, Start-Freigabe. Probe „Tippe 83,45 ein“, Übung „Zeit“.
+  Auslegungen ZT1–ZT4 noch zu bestätigen.
+  W5.5 (22.11.2026): Maske „Tabelle“ für Geübte – nur Pad und Rechner (auf dem Handy ausgegraut), nie Vorgabe: die
+  Zeile des Bogens der Klasse mit echter Tastatur, die letzten 5 gesendeten Zeilen (✓/↑) darüber, die nächsten 3
+  Starts darunter; Tab/Enter wie die Erfassung am Rechner, Enter in der letzten Zelle schickt ab (Overlay, Sperre wie
+  bei den Knöpfen); Codes als Text („2x6, 20“), Bojen als Punkte bzw. „5J“; was die Erfassung still verwürfe, steht als
+  Fehler an der Zelle und sperrt; „Korrigieren“ an einer gesendeten Zeile mit Rückfrage alt → neu. Auslegungen TB1–TB5
+  noch zu bestätigen. **W5 fertig** – alle Auslegungen PD, MW, BD, KN, ZT, TB noch zu bestätigen.
+  Prüfbefunde W5 behoben (22.11.2026, plan-wkr-w5.md §13): Tabelle stiehlt keinen Fokus aus anderen Spalten, „Rück 2“
+  bleibt nach DISQ, „Rückweg gedreht“ = umgekehrte Fahrtfolge auch mit Speedrunde, Bild nie höher als der Bildschirm
+  (±90° nur wo es passt), Namensnennung der Zeichnung auf dem Gerät, Trefferkreise ≥ --wkr-ziel, Tastatur kippt die
+  Pad-Anordnung nicht.
+  Offen: Feldtest Pad (docs/feldtest.md „Pad (W5)“, u. a. Lage der Trefferkreise im echten Browser), W6 nach Befund; CI-Test „Probe beim Einrichten … einmal je Raum“ wackelt
   unter Last (vorerst zurückgestellt).
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten

@@ -4,8 +4,7 @@ import { FAHRWEG } from '../config/kurzform'
 import { CLASS_IDS } from '../domain/classes'
 import { listenFelder } from '../lib/eingaben'
 import { WKR_ANNAHMEN } from './annahmen'
-import { BOJEN_LAGE, bojenHalt, bojenLage, katalogFolge, PARALLEL_FAHRWEG } from './bojen'
-import { parcoursDateien, parcoursSvg } from '../lib/parcoursQuelle'
+import { bojenHalt, katalogFolge, PARALLEL_FAHRWEG } from './bojen'
 
 // Bojen auf dem Fahrweg (W4.1, Plan docs/plan-wkr-w4.md §4.1): jede Bojen-Kennung aller Positionen unter DM und UIM
 // hat einen Halt, Knoten keinen; Tor 1 R zweimal (t1b, t1c); Tor 5 Zähler; Folge = FAHRWEG bzw. Parallel-Spalten.
@@ -89,61 +88,6 @@ describe('Punkte je Berührung (P4)', () => {
       const bojen = (r.direktpunkte ?? []).filter((d) => d.titel === 'Bojen' || d.titel === 'Tor 5')
       expect(bojen.length, r.id).toBeGreaterThan(0)
       for (const d of bojen) expect(d.punkte, `${r.id}: ${d.titel}`).toBe(WKR_ANNAHMEN.bojenPunkte)
-    }
-  })
-})
-
-/**
- * x-Koordinate eines Elements im Parcours-Bild: Summe der `translate` seiner Vorfahren plus der erste Punkt seines
- * Pfads (bzw. Kreises) – die Bilder tragen nur Verschiebungen um die Bojen (Drehungen nur an Texten).
- */
-function xVon(svg: Document, id: string): number | null {
-  const el = svg.getElementById(id)
-  if (!el) return null
-  const form = el.getAttribute('d') || el.getAttribute('cx') ? el : el.querySelector('path[d], ellipse[cx], circle[cx]')
-  if (!form) return null
-  let x = form.getAttribute('cx') ? Number(form.getAttribute('cx')) : Number(/m\s*([-\d.]+)/i.exec(form.getAttribute('d') ?? '')?.[1])
-  for (let n: Element | null = form; n; n = n.parentElement) {
-    const t = /translate\(\s*([-\d.]+)/.exec(n.getAttribute('transform') ?? '')
-    if (t) x += Number(t[1])
-  }
-  return x
-}
-
-describe('bojenLage (Nutzer 21.11.2026, V1: wie der Parcours liegt)', () => {
-  it('jeder Halt des Fahrwegs und des Parallelslaloms hat einen Platz; hin und rück am selben Platz', () => {
-    for (const h of FAHRWEG) expect(bojenLage(h.katalog ? `katalog:${h.katalog}` : h.key!), h.name).not.toBeNull()
-    for (const k of PARALLEL_FAHRWEG) expect(bojenLage(k), k).not.toBeNull()
-    expect(bojenLage('t1a')).toBe(bojenLage('t1c'))
-    expect(bojenLage('b3a')).toBe(bojenLage('b3b'))
-    expect(bojenLage('webleinstek')).toBeNull()
-    expect(bojenLage('toString')).toBeNull()
-  })
-
-  it('Folge der Plätze = Lage im Parcours-Bild (x-Koordinaten, alle Bilder): Start/Ziel, Schikane, Tor 1 … Tor 5, Speedbojen', () => {
-    const ORTE: [string, string][] = [
-      ['StartZiel_oben', 'start'],
-      ['Schikane', 'katalog:mueb'],
-      ['Tor1_innen', 't1a'],
-      ['Tor2_innen', 't2a'],
-      ['Tor3_innen', 't3a'],
-      ['Tor4_innen', 't4a'],
-      ['Tor5_oben', 't5'],
-      ['Speedboje_oben', 'speed1'],
-      ['Speedboje_unten', 'speed2'],
-    ]
-    const dateien = parcoursDateien()
-    expect(dateien.length).toBeGreaterThan(5)
-    for (const datei of dateien) {
-      const svg = new DOMParser().parseFromString(parcoursSvg(datei)!, 'image/svg+xml')
-      const gemessen = ORTE.map(([id, halt]) => ({ halt, x: xVon(svg, id) })).filter((o): o is { halt: string; x: number } => o.x !== null && !Number.isNaN(o.x))
-      expect(gemessen.length, datei).toBeGreaterThanOrEqual(8)
-      for (const a of gemessen)
-        for (const b of gemessen) {
-          // Gleicher Platz ⇔ fast gleiche x (die Speedbojen liegen über und unter der Strecke, ±5).
-          if (BOJEN_LAGE[a.halt] === BOJEN_LAGE[b.halt]) expect(Math.abs(a.x - b.x), `${datei}: ${a.halt}/${b.halt}`).toBeLessThan(5)
-          else expect(Math.sign(a.x - b.x), `${datei}: ${a.halt}/${b.halt}`).toBe(Math.sign(BOJEN_LAGE[a.halt] - BOJEN_LAGE[b.halt]))
-        }
     }
   })
 })

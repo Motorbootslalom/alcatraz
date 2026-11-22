@@ -336,6 +336,36 @@ describe('Betrieb → WKR: Eingang „nicht vorbeigekommen“ (W4.3, Prüfbefund
   })
 })
 
+describe('Betrieb → WKR: „Keine Zeit“ (W5.4, 22.11.2026, ZT4)', () => {
+  const ZEIT = K('zeit')
+  function zeitZeile(s: AppState, key: string, c: [string, string, string][], kz: [string, 'anlage' | 'nichtImZiel'][], z = 1): AppState {
+    const r = pruefeZeile(s, DM, L('zeit'), undefined, 'gNord', { z, s: key, c, kz })
+    if ('fehler' in r) throw new Error(r.fehler)
+    return reducer(s, { type: 'WKR_ZEILEN', liste: ZEIT, quelle: { geraet: 'gNord', name: 'Pad Zeit' }, zeilen: [r], zeit: 5000 + z })
+  }
+
+  it('Matrix: ✓ mit „keine Zeit“, Grund im Titel und in der Karte; Eingang nennt Feld und Grund an Rückfrage und Vorschlag', async () => {
+    let s = reducer(stand(), { type: 'WKR_LISTE', liste: ZEIT, modus: 'digital', zeit: 100 })
+    const keys = gezeigt(s)
+    s = zeitZeile(s, keys[0], [['zeit1', '83,45', ''], ['zeit2', '83,40', '']], [['zeit3', 'anlage']])
+    // Rückfrage: zeit1 steht anders – die Zeile trägt „keine Zeit“ für zeit2 mit.
+    s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: LAUF, starter: starterVon(keys[1]), feld: 'zeit1', wert: '80,00' }] })
+    s = zeitZeile(s, keys[1], [['zeit1', '83,45', ''], ['zeit3', '83,44', '']], [['zeit2', 'nichtImZiel']], 2)
+    const w = await betrieb(s, hostDoppel().host)
+    const zelle = reihe(w, ZEIT).find(`.wkr-mzelle[data-start='${keys[0]}']`)
+    expect(zelle.attributes('data-zelle')).toBe('ok')
+    expect(zelle.find('[data-teil="mzelle-keine-zeit"]').text()).toBe('keine Zeit')
+    expect(zelle.attributes('title')).toContain('keine Zeit: Zeitanlage ausgefallen')
+    await zelle.trigger('click')
+    expect(w.find('[data-teil="wkr-karte"] [data-feld="zeit3"]').text()).toContain('keine Zeit (Zeitanlage ausgefallen)')
+    expect(w.find('[data-teil="wkr-rueckfrage-zeile"] [data-teil="wkr-keine-zeit"]').text()).toBe('Zeit 2: keine Zeit (nicht im Ziel)')
+    // Nie auf der Tafel: die Start-Freigabe zeigt keinen Grund.
+    await w.find('[data-reiter="start"]').trigger('click')
+    await nextTick()
+    expect(w.text()).not.toContain('Zeitanlage ausgefallen')
+  })
+})
+
 describe('Betrieb → WKR: Bedienung je Liste', () => {
   it('Modus als Knöpfe; Pausieren/Weiter (Hinweis „weiter-digital“); Papier ab Start mit Hinweis und Nummer; Nr. prüfen', async () => {
     const s = stand()
@@ -734,5 +764,25 @@ describe('Betrieb → Start-Freigabe: WKR-Erfassung (W2.4)', () => {
     await karte(w).find('[data-action="zeigen"]').trigger('click')
     expect(document.querySelector('[data-dialog="trotzdem-freigeben"]')).toBeNull()
     expect(gezeigt(store.state.value)).toHaveLength(4)
+  })
+})
+
+// W5.3 (22.11.2026, WKR_ANNAHMEN KN4/KN5): Knoten am Tisch – eigener Block unter der Matrix, nie Spalten oder Rückstand.
+describe('Betrieb → WKR: Knoten am Tisch (W5.3)', () => {
+  const KNOTEN = listenKennung({ bereich: 'tisch', typeId: 'knoten', racecourse: null })
+
+  it('Block „Am Tisch“: offen n / m, Gerät, Bedienung ohne „Papier ab“; nicht in der Matrix, keine Warnung', async () => {
+    let s = reducer(stand(), { type: 'WKR_LISTE', liste: KNOTEN, modus: 'digital', zeit: 100 })
+    s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/0', starter: 'm1', feld: 'erfasst@knoten', wert: '1' }] })
+    const { host } = hostDoppel([{ id: 'gTisch', name: 'Pad Tisch', aufgaben: [{ art: 'liste', liste: KNOTEN }], seit: 1, zuletzt: Date.now() - 10_000 }])
+    const w = await betrieb(s, host)
+    const block = w.find('[data-teil="wkr-tisch"]')
+    expect(block.exists()).toBe(true)
+    expect(w.find('.wkr-matrix-rahmen').find(`tr[data-liste='${KNOTEN}']`).exists()).toBe(false)
+    expect(block.find('[data-teil="wkr-tisch-offen"]').text()).toBe('Knoten: 5 / 6 offen')
+    expect(block.find('[data-geraet="gTisch"]').text()).toContain('Pad Tisch')
+    await block.find('[data-action="wkr-bedienung"]').trigger('click')
+    expect(block.find('[data-feld="wkr-papier-ab"]').exists()).toBe(false)
+    expect(block.find('[data-action="wkr-pausieren"]').exists()).toBe(true)
   })
 })

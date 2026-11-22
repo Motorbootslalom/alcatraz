@@ -97,7 +97,7 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   nur Ablegen)“); istHandyName (G3/J2) entfiel 21.11.2026 (Art aus dem Register, GF7). GeraeteKoppeln: `<select data-feld="koppeln-liste">` (Wahl, kein Befehl) +
   Teil-Knöpfe `data-wahl-teil` ganz|ab|an, Hinweis `ohne-maske`; Code/QR auch nur mit Liste. GeraeteListe: je Gerät
   `data-teil="geraet-listen"` (Teil-Knöpfe, `liste-entfernen`, `liste-dazu` = Auswahl + Knopf, Hinweise `listen-voll`,
-  `handy-eine`, `pad-zwei`, „Maske: Knöpfe“/„Maske folgt – Papier“). WkrMatrix: `a[data-action="wkr-koppeln"]` an
+  `handy-eine`, `pad-zwei`, `liste-maske`: seit W5.1 Maskenwahl, ohne Maske „Maske folgt – Papier“). WkrMatrix: `a[data-action="wkr-koppeln"]` an
   Listen ohne Gerät → `#/betrieb/geraete/<liste>`.
 - WKR-Maske auf dem Handy `wkr/` (W3.3, 21.11.2026, Plan docs/plan-wkr-w3.md §5; OHNE Store, liest nur
   geraete/erfassen.ts ErfassungsQuelle – echte Erfassung oder Übung): WkrGeraet (Wurzel: Ansicht aus ablage.ts
@@ -126,10 +126,85 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `:key` je Start + `gesperrt`, gedaechtnis.ts („So lassen“/„behalten“ je Quelle und Liste), Ausweichen-Tasten aus den
   Buchstaben der Startnummern, `.wkr-unten` sticky (`.wkr-mit-reiter`), „Rückgängig“ in der Leisten-Zeile,
   „Keine Bestätigung“ `.wkr-kopf-ueber`; auch `<a>` braucht `.wkr-knopf` + `data-ziel`.
-  Pad bis W5 (21.11.2026, WKR_ANNAHMEN T10): ab 700 px füllt `.wkr-geraet` die Breite, die Spalte (560 px, --wkr-spalte)
-  entsteht über padding-inline, Rand --wkr-umfeld/--wkr-umfeld-linie je Modus als Verlauf; geraet.css gibt die Hülle
-  `.geraet-freigabe:has(> [data-teil='wkr-geraet'])` frei und hält Banner, Reiter, Leiste auf 560 px (über data-teil,
-  nicht die Klasse – Klassen der Maske nur in wkr-geraet.css). Fällt mit den Pad-Masken (W5).
+  Pad bis W5 (21.11.2026, WKR_ANNAHMEN T10: mittige 560-px-Spalte über padding-inline mit --wkr-umfeld) – entfallen mit
+  W5.1 (22.11.2026, siehe unten).
+  W5.1 Pad-Rahmen (22.11.2026, Plan docs/plan-wkr-w5.md §4, WKR_ANNAHMEN PD1–PD6, MW1–MW3): WkrGeraet rechnet die
+  Anordnung über wkr/anordnung.ts aus systemModus.ts useFenster (innerWidth/innerHeight + `resize`; ersetzt useMedien)
+  und `quelle.typ` (Art aus der Kopplung) → `data-anordnung` handy|padQuer|padHoch, `data-spalten`, Rundenband
+  `data-teil="runden-band"` (PD4: A und B mit demselben nächsten Start), `data-teil="spalten"` (Raster über
+  `--wkr-spalten`) mit `.wkr-spalte` je Liste (`data-liste`, am ganzen Steg `data-steg-teil` ab|an); Rest-Reiter teilen
+  sich die letzte Spalte (Pad: `listen-reiter` oben in der Spalte, Handy: unten wie bisher); abgemeldete Liste je Spalte
+  WkrRuhe; Probe von selbst je Spalte (`proben`, je Maske MW3). WkrMaske: Mitte ausgelagert in **WkrMitte.vue** (Wahl
+  Vorsteg/DisqOrt/Disq/Bojen/Knöpfe, Bild (W5.2), Zeit (W5.4), Tabelle (W5.5) über `maske`; gleiche `:key` je Start), Inhalt in
+  `.wkr-maske-haupt`, daneben/darunter **WkrSeite.vue** (`data-teil="seite"`: `seite-schlange` mit `seite-aktiv` und
+  `seite-waehle`, `seite-suche` → WkrAusweichen.oeffne, `seite-eintraege-text` = texte.ts zellenText des Entwurfs + `seite-summe`
+  Σ, `seite-zuletzt` mit `seite-korrigieren`, Parcours-Zeichnung PD6; `data-kompakt` ab zwei Spalten ohne Zuletzt/Zeichnung),
+  `.wkr-unten` danach (Fuß über die volle Breite); Props `seite` rechts|unten|kompakt, `stegTeil` (Spalte fest, kein
+  Wechsel, Abschluss-Band nur Ablegen), `ohneLauf`, `masken` → WkrMehr `masken-wahl` (Knöpfe `maske` `data-maske`,
+  Bild seit W5.2, Tabelle seit W5.5 wählbar (auf dem Handy ausgegraut, `masken.aus`); fest → `maske-fest`), Ereignis `maske` → WkrGeraet (ablage.ts
+  mitMaskenWahl). PD5: Band `attempt-wechsel` („23 · ATTEMPT 2“, `.wkr-attempt` invers) + Sperre attemptSperreMs.
+  `data-maske` an `.wkr-maske`. Stile: `.wkr-geraet[data-anordnung=pad…]` (--wkr-ziel = --wkr-ziel-pad 72 px, volle
+  Breite, Startnummer 96 px auch auf Bojen quer), `.wkr-spalten`, `.wkr-maske[data-seite='rechts']` (7fr/3fr, Fuß
+  darunter), `.wkr-seite*`, `.wkr-attempt`, `.wkr-runden-band`; geraet.css gibt die Hülle nur bei Pad-Anordnung frei
+  (Banner/Reiter 720 px mittig). Bedienrechner: GeraeteListe je Liste mit Maske `data-wahl-maske` + `maske-fest` →
+  setzeAufgaben (Aufgabe.maske/fest; wkrListenWahl.ts ListenWahl.`bojen`).
+  W5.3 Knoten-Prüfliste (22.11.2026, Plan docs/plan-wkr-w5.md §6, WKR_ANNAHMEN KN1–KN8): **WkrZiffern.vue** (Grundform,
+  `data-teil="ziffern"`, v-model, Tasten `data-taste` 0–9 + Buchstaben der Startnummern + ⌫, alle `data-ziel="gross"`,
+  Anzeige `ziffern-anzeige`; W5.4 baut die Zeit darauf) und **WkrPruefliste.vue** (statt WkrMaske, wenn die Sicht
+  `bestand` trägt – WkrGeraet `istPruefliste`; `.wkr-pruefliste` mit `data-maske="pruefliste"`, `data-pad`): Kopf
+  `pruef-nr`/`pruef-klasse`/`pruef-offen`, Knoten `pruef-knoten` (`data-feld`, `data-wahl` ok|fehler|offen, Knöpfe
+  `pruef-ok`/`pruef-fehler`), Hauptknopf `haupt` gesperrt mit „noch n offen“, sonst „Abschicken · Σ n“ bzw. Korrektur;
+  Bänder `pruef-unbekannt`/`pruef-korrektur`/`pruef-erledigt`, Rückmeldung `pruef-letzte`; offene Nummern
+  `pruef-offene` (`pruef-waehle`; Pad rechts, Handy `<details>`); `pruef-abschliessen` → WkrAbschluss mit Punkt `ohne`.
+  Kein Takt, keine Probe, kein Overlay. Stile `.wkr-pruef-*`, `.wkr-ziffern-titel`. WkrUebung: Liste „Knoten (am
+  Tisch)“. Bedienrechner: WkrMatrix-Block `wkr-tisch` (`wkr-tisch-offen`, Bedienung über WkrListeBedienung mit
+  `bereich` null, ohne „Papier ab“; Abschluss „ganze Liste“), wkrListenWahl Gruppe „Am Tisch“ (ListenWahl.`tisch`),
+  GeraeteListe `data-maske="pruefliste"` statt Maskenwahl. Tests: components/wkr/WkrPruefliste.test.ts,
+  views/BetriebWkr.test.ts „Knoten am Tisch“, views/BetriebKoppeln.test.ts (Gruppe).
+  W5.4 Zeit-Listen (22.11.2026, Plan docs/plan-wkr-w5.md §7, WKR_ANNAHMEN ZT1–ZT4): **WkrZiffern.vue** voll (Prop
+  `zeit`: Taste „,“ (englisch „.“, gespeichert „,“), Anzeige die Uhr „1:23,45“, `ziffern-deutung` „= 1 min 23,45 s“
+  bzw. „so nicht lesbar“ als rote Fläche, `data-lesbar` ja|nein, `ziffern-getippt`); **WkrZeiten.vue** (`data-teil=
+  "zeiten"`, `data-anordnung` reiter (Handy) | nebeneinander (Pad); Felder `zeit-feld` mit `data-feld`/`data-stand`
+  offen|zeit|unlesbar|keine/`data-aktiv`, `.wkr-zeit-feld--aktiv` umrandet; EIN Ziffernblock fürs aktive Feld, springt
+  nie selbst weiter; `keine-zeit` → `keine-zeit-grund` `data-grund`, Stand `keine-zeit-stand` mit `keine-zeit-weg`).
+  WkrMitte: art `zeit` → WkrZeiten; Bojen mit `aufbau.zeiten` → WkrZeiten unter Bojen/Bild. WkrMaske: setzeZeitFeld/
+  setzeKeineZeitFeld, haupt erst bei `fertig`, Zeile mit `kz` (Zeit-Listen immer), Korrektur mit quelle.keineZeit,
+  Zuletzt/Seite/Korrektur-Dialog über texte.ts zellenText(…, keineZeit) (Uhr, „Zeit 3: keine Zeit“), Entwurf über
+  entwurfZellen. WkrFuss Props `zeitenOffen` (gesperrt „noch 2 Zeiten“, `data-offen`) und `mitZeit` („Zeiten
+  abschicken ✓“). WkrProbe Schritte `zeit` („Tippe bei „Zeit 1“ 83,45 ein“) → `zeitRest` → haupt. WkrUebung Liste
+  „Zeit (Zeitnahme)“. Bedienrechner: WkrMatrix `mzelle-keine-zeit` + Grund im Titel und in der Karte, WkrEingang
+  `wkr-keine-zeit` an Rückfrage und Vorschlag; ErfassungTabelle markiert über zeilenMarken von selbst. Stile
+  `.wkr-zeiten*`, `.wkr-zeit-feld*`, `.wkr-ziffern-deutung*`. Test components/wkr/WkrZeiten.test.ts, views/BetriebWkr.test.ts
+  „Keine Zeit“, GeraetWkr.test.ts „Liste mit Zeitfeldern (W5.4)“.
+  W5.5 Maske „Tabelle“ (22.11.2026, Plan docs/plan-wkr-w5.md §8, WKR_ANNAHMEN TB1–TB5): **WkrTabelle.vue**
+  (`data-teil="tabelle"`, `data-korrektur`, `data-fehler` = Zahl): Kopf `tabelle-kopf`/`tabelle-unter` (wkr/tabelle.ts
+  kopfGruppen), Zeilen `tabelle-gesendet` (`data-z`, `data-stufe`, `tabelle-zeichen` ✓/↑/!/✗, `tabelle-nv`, Knopf
+  `tabelle-korrigieren`), `tabelle-aktiv` (Eingaben je `data-feld`, `data-fehler` = Code nach dem Verlassen,
+  Satz `tabelle-fehler`; in der Korrektur mit `data-z` an ihrem Platz), `tabelle-naechste` (`data-start`); Hinweis
+  `tabelle-tasten`, `tabelle-fehlerzahl`. Enter = nächste Zelle, in der letzten = `abschicken` (bei Fehlern Fokus auf
+  den ersten), ←/→ am Rand, Esc = `abbrechen` (nur Korrektur), Fokus in der ersten Zelle beim Aufbau und nach der
+  Sperre. Gibt `entwurf` hinauf (WkrMaske aendere) und `fehler` (WkrMaske `tabellenFehler` → haupt gesperrt, WkrFuss
+  `zellenFehler` „2 Zellen prüfen“); DISQ im Fuß entfällt. WkrMitte zeigt sie zuerst bei `maske === 'text'` mit Prop
+  `tabelle` (nicht auf reinen Zeit-Listen). Typ TabellenGesendet in texte.ts. WkrGeraet: masken.`aus` (TB1), keine
+  Probe bei Tabelle (TB2). WkrUebung: `uebung-maske` „Tabelle“ nur auf einem Pad. Bedienrechner GeraeteListe:
+  `data-wahl-maske="text"` für ein Handy ausgegraut (title geraete.liste.maske.nurPad). Stile `.wkr-tabelle-*` (nicht
+  `.wkr-tabelle` – die gehört WkrEinteilung in app.css). Test components/wkr/WkrTabelle.test.ts.
+  W5.2 Maske „Bild“ (22.11.2026, Plan docs/plan-wkr-w5.md §5, WKR_ANNAHMEN BD1–BD7): **WkrBild.vue** (`data-teil="bild"`,
+  `data-art` svg|schema, `data-weg`, `data-klasse`): Klassen-SVG inline über wkr/bild.ts inlineSvg (Präfix je Bild),
+  Parallel-Schema `bild-schema` (`data-racecourse`), Umschalter `bild-weg` (`data-weg` hin|rueck|rueck2, Zahl), Treffer
+  `data-action="bild-boje"` mit `data-bild-id`/`data-feld`/`data-anzahl`/`data-disq` – als Kreise über der Lage
+  (getBBox + getBoundingClientRect, ≥ 15 mm, schiebeAuseinander) oder ohne Lage (Test-DOM) als Liste `bild-ersatz`;
+  Stand „✔ 5“/„2×“/„5 G“; Disq. `bild-disq-modus` → `bild-disq-tippe` → Tipp → WkrDisq; Kataloge der Seite über
+  WkrKnoepfe. WkrMitte zeigt es bei `maske === 'bild'` und vollständiger Zuordnung (Prop `bild`, sonst WkrBojen, BD2);
+  WkrMaske rechnet `bildZuordnungJetzt` (bildTreffer), dann WkrSeite auch auf dem Handy kompakt (Einträge Pflicht),
+  keine WkrParcoursBild dazu. WkrProbe Prop `bild`/`pad`: Schritte bild → zurueck → rueckweg → haupt (`data-maske`).
+  WkrGeraet: probeBildVon (wkr/bild.ts probeBild). WkrUebung: `uebung-maske` (Knöpfe|Bild nur bei Bojen-Listen, Vorgabe
+  nach Fenstergröße wie MW1) → ablage.ts mitMaskenWahl. Stile `.wkr-bild*` (Tokens --wkr-bild-*). Test WkrBild.test.ts.
+  Prüfbefunde 22.11.2026: **WkrBildNachweis.vue** (`bild-nachweis`, Namensnennung CC BY-NC-SA unter WkrBild und
+  WkrParcoursBild, Lizenz als `<a class="wkr-knopf" data-ziel="klein">`); „Rück 2“ merkt WkrMitte je Start; Drehung über
+  wkr/bild.ts wirksameDrehung + CSS max-height (--wkr-bild-rest), Kreis --wkr-bild-kreis ≥ --wkr-ziel; WkrTabelle
+  fokussiert von selbst nur ohne Fokus in einer anderen `.wkr-spalte`; useFenster ignoriert reine Höhenänderungen bei
+  Fokus in einem Eingabefeld (Tastatur, Test systemModus.test.ts); WkrMatrix `.wkr-tisch` in app.css.
   Feldtest 21.11.2026 (N1–N7 in WKR_ANNAHMEN): WkrUebertragen (Overlay `data-teil="uebertragen"` über der ganzen Maske
   nach dem Abschicken, ohne Knöpfe, `data-phase` laeuft|beantwortet; auch in WkrProbe), WkrKopf `bestaetigungFolgt`
   (`.wkr-kopf-ueber`), WkrFuss „DISQ“ ↔ „FEHLER“ (nennt das Ziel), WkrDisq `titel` („Disq.“ über der offenen Liste),
@@ -160,19 +235,21 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `nichtVorbeiNr` (nicht wo X gilt: Vorsteg, Steg-Ablegen; nicht in der Korrektur) und `nichtVorbei()` (verwirft den
   Entwurf, schicke {nv}, Overlay wie beim Abschicken); Zuletzt, Korrektur-Dialog (alt) und Prüfansicht zeigen
   „⊘ nicht vorbeigekommen“ statt „fehlerfrei“; WkrAbschluss Summe „1 nicht vorbeigekommen: 27“, Zeile `data-nv`.
-  Nutzer 21.11.2026 (U1–U4, V1/V2), umgebaut nach W4-12 (21.11.2026, BZ1/BZ4): WkrBojen Knopf `boje-disq-modus`
+  Nutzer 21.11.2026 (U1–U4), umgebaut nach W4-12 (21.11.2026, BZ1/BZ4): WkrBojen Knopf `boje-disq-modus`
   („Disq. an Boje …“) emittiert nur `disq` – derselbe Einstieg wie DISQ im Fuß (WkrFuss `mit-disq` auch ohne
   Disq.-Feld, sobald eine Boje Buchstaben annimmt). Beide öffnen WkrDisqOrt (`data-teil="disq-ort"`, `data-schritt`
   wo|boje|keine): Zeilen `disq-ort-halt` mit Knöpfen `disq-ort` (`data-feld`, `data-disq`), `disq-ort-keine`
   („Keine Boje / ganzer Parcours“ → WkrDisq des Disq.-Felds), dann WkrDisq mit den Buchstaben der Zelle (Titel
   „Disq. an Tor 3 · Rück R L“), `disq-ort-zurueck`; nach der Wahl an einer Boje `fertig` → Bojen. Boje `data-disq` +
   Klasse `wkr-bojen-knopf--disq` zeigt Punkte UND „Disq. G“ (`boje-disq-stand`), nimmt weiter Tipps. WkrMaske
-  `setzeBojenDisq`, Fuß nennt Buchstaben an Bojen mit (`fussDisq`), `:key` je Start. Stile `.wkr-disq-ort*`. Ansicht
-  `ansicht` (ablage.ts BojenAnsicht): `data-folge` fahrt|lage, in `lage` Kopf je Ort `ort-kopf` (`data-lage`) und Zeilen
-  „Hin“/„Rück“ bzw. Halt-Titel, ohne Umschalter; `tauschen` über gridColumn. WkrMehr `bojen-ansicht` (`bojen-folge`,
-  `bojen-start` mit `data-start-oben`, `bojen-tauschen`) → Ereignis `bojenAnsicht`; WkrGeraet reicht `ansicht.bojen` an
-  WkrMaske (`bojenAnsichten`) und WkrProbe (`bojenAnsicht`; Schritt `bojeDisq` = Punkt + Buchstabe über WkrDisqOrt,
-  FEHLER im Fuß nur bei offener Ortswahl; ohne `rueckweg` in der Lage-Ansicht).
+  `setzeBojenDisq`, Fuß nennt Buchstaben an Bojen mit (`fussDisq`), `:key` je Start. Stile `.wkr-disq-ort*`. Bojen-Folge
+  (Nutzer 22.11.2026, V3; „Wie der Parcours liegt“ samt Start oben/unten und Tauschen entfernt): Prop `folge`
+  (wkr/maske.ts BojenFolge) an WkrBojen (`data-folge` gedreht|fahrt|untereinander, Zeilen über bojenAbschnitte,
+  Umschalter über mitUmschalter), WkrDisqOrt (bojenAbschnitteAlle) und WkrProbe (Prop `bojenFolge`; Schritt `bojeDisq` =
+  Punkt + Buchstabe über WkrDisqOrt an der ersten passenden Zeile des Rück-Reiters in SEINER Folge, FEHLER im Fuß nur
+  bei offener Ortswahl; ohne `rueckweg` unter `untereinander`). WkrMehr `bojen-ansicht` (Knöpfe `bojen-folge` mit
+  `data-folge`, Satz `bojen-folge-text`) → Ereignis `bojenFolge`; WkrGeraet reicht `ansicht.bojenFolge` an WkrMaske
+  (`bojenFolgen`) und WkrProbe (`bojenFolge`).
   Parcours-Ampel/Abschluss (Nutzer 21.11.2026, P-03, R6-10, W3-40): WkrStarterKarte Prop `ampel` →
   `data-teil="karten-ampel"` (Punkt + Wort, Tokens --wkr-gruen/--wkr-ampel-rot); WkrMehr ohne `abschliessen` (nur das
   Band, mit `abschluss-zweck`, `data-laeuft` am Band); WkrAbschluss Prop `laeuft` → AppDialog `wkr-abschluss-laeuft`
@@ -186,8 +263,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   (wkr/lage.ts zeilenMarken); VerlaufPanel `wkrNichtVorbei`.
   Gerät-Feinschliff (Nutzer 21.11.2026, WKR_ANNAHMEN GF1–GF11): `wkr/systemModus.ts` useSystemModus/useWirksamerModus
   (Ansicht „Wie Gerät“ = `modus: 'geraet'`, live über matchMedia; WkrGeraet `data-modus` wirksam, `data-wahl` die
-  Wahl; WkrMehr Knopf `data-modus="geraet"`) und useMedien (Pad quer ≥ 1000 px: WkrGeraet `data-nebeneinander`,
-  `data-teil="nebeneinander"` mit `.wkr-spalte` je Liste, nur bei genau zwei Listen); WkrKnoepfe `wkr-code--aus`
+  Wahl; WkrMehr Knopf `data-modus="geraet"`) und useMedien (Pad quer ≥ 1000 px, genau zwei Listen nebeneinander – seit
+  W5.1 ersetzt durch useFenster + wkr/anordnung.ts); WkrKnoepfe `wkr-code--aus`
   (`data-aus`, `data-teil="code-aus"`, drückbar); WkrStegReiter `data-teil="steg-stand"` (✓ bzw. „· n“, `data-offen`);
   WkrGeraet Übung: `<details data-teil="uebung-erklaerung">` (gemerkt `uebungErklaerungZu`) und
   `data-action="uebung-beenden"` unter der Maske; WkrRuhe `warte` mit `neu-verbinden` (Prop `neuVerbinden`, WkrMaske
@@ -281,6 +358,8 @@ Anzeigetafel: components/anzeige/AnzeigeTafel.test.ts, src/AnzeigeApp.test.ts (z
 Parallelslalom auf der Tafel (englisch, keine deutschen Wörter): components/anzeige/AnzeigeParallel.test.ts;
 Zuschauerliste: src/ZuschauerApp.test.ts. Gerätebetrieb: views/BetriebGeraete.test.ts, src/GeraetApp.test.ts.
 WKR-Maske: src/GeraetWkr.test.ts (Host + nachgebauter ntfy; Takt mit Fake-Uhr gegen die Übung; Hilfe `mitCode`
-überspringt die Probe, `'lassen'` behält sie – ohne Probe nur Listen ohne Maske: zeit, moewezeit, bstartziel, knoten;
-„Bojen (W4.2)“ mit Klassen 4/7 auf Parcours 2, `bedienrechner(stand, bereich)`), styles/wkr-geraet.test.ts, src/main.uebung.test.ts (Übung ohne Netz).
+überspringt die Probe, `'lassen'` behält sie – ohne Probe nur die Knoten-Liste (seit W5.4 haben Zeit-Listen eine Maske);
+„Bojen (W4.2)“ mit Klassen 4/7 auf Parcours 2, `bedienrechner(stand, bereich)`; seit W5.1 Handy-Fenster 390×844 im
+beforeEach über `fenster(b, h)` (happyDOM.setViewport + `resize`), mitCode 5. Parameter = Art der Kopplung (Vorgabe
+`handy`, `null` = erkannt); „Pad-Rahmen … (W5.1)“ mit `spaltenBereit`/`ohneProben`), styles/wkr-geraet.test.ts, src/main.uebung.test.ts (Übung ohne Netz).
 Im Zusammenhang src/views/*.test.ts; UIM-Kopfzeilen: views/UimAushang.test.ts, Beispieldaten: views/EventView.test.ts.

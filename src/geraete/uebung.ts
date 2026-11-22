@@ -1,5 +1,5 @@
 import { computed, effectScope, ref, shallowRef, watch } from 'vue'
-import type { PunktId, Sprache } from '../types'
+import type { KeineZeitGrund, WkrPunkt, Sprache } from '../types'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import { maskeFuer } from '../wkr/maske'
 import type { ListenSicht, ListenStart } from '../wkr/sicht'
@@ -9,6 +9,7 @@ import { neueSaat } from '../lib/saat'
 import { uebungsSchritt, uebungsSicht, uebungsStand, type UebungsStand } from '../wkr/uebung'
 import type { ListenAufgabe } from './aufgaben'
 import type {
+  BestandEintrag,
   EigenerAbschluss,
   EntwurfEintrag,
   ErfassungsQuelle,
@@ -67,10 +68,12 @@ interface UebZeile {
   klasse: string | null
   t?: ListenTeil
   k?: true
-  punkt: PunktId | null
+  punkt: WkrPunkt | null
   zellen: Record<string, string>
   /** „Nicht vorbeigekommen“ (W4.3, R8): ohne Zellen, wie im echten Kern. */
   n?: true
+  /** „Keine Zeit“ (W5.4, ZT4) wie im echten Kern: ersetzt das Kennzeichen des Starts, ein Wert im Feld hebt es auf. */
+  kz?: Record<string, KeineZeitGrund>
   stufe: ZeilenStufe
   /** Stand der Übung vor dieser Zeile – zum Zurückholen, solange nichts anderes geschah. */
   vorher: UebungsStand
@@ -113,7 +116,10 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   const scope = effectScope(true)
 
   const eigen = (liste: string) => liste === kennung
-  const startVon = (s: string): ListenStart | undefined => [...sicht().schlange, ...sicht().danach].find((x) => x.key === s)
+  // Knoten (W5.3): der Starter steht im Bestand – Startnummer und Klasse von dort.
+  const startVon = (s: string): Pick<ListenStart, 'key' | 'startNr' | 'klasse'> | undefined => [...sicht().schlange, ...sicht().danach, ...(sicht().bestand ?? [])].find((x) => x.key === s)
+  /** Liste ohne Lauf (Knoten, KN8): kein Takt, kein Zeigen. */
+  const tisch = !!sicht().bestand
   // Gerät für den ganzen Steg (WKR_ANNAHMEN.stegGanzAblegenZuerst, T3): Anlegen erst, wenn das Ablegen geschickt ist.
   const passt = (s: ListenStart, t: ListenTeil | undefined) =>
     t ? !s.teile?.[t] && !(t === 'an' && !teil && WKR_ANNAHMEN.stegGanzAblegenZuerst && !s.teile?.ab) : !(s.teile?.ab && s.teile?.an)
@@ -129,7 +135,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   /** Der eine geplante nächste Start (nach dem Abschicken oder „vorher“) – nie zwei zugleich. */
   let kommt: ReturnType<typeof setTimeout> | null = null
   let ruhe: ReturnType<typeof setTimeout> | null = null
-  const aktiv = () => !gestoppt && sicht().status === 'aktiv'
+  const aktiv = () => !gestoppt && !tisch && sicht().status === 'aktiv'
   /**
    * Was der WKR gerade vor sich hat: gezeigte Starts seines Teils (ohne „Als Nächstes“ vorab – die sieht der Vorsteg
    * bzw. das Ablegen immer, sie sind nicht „der nächste Starter“).
@@ -150,7 +156,8 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   /** Rückfall: Tut der WKR `taktMs` lang nichts, kommt trotzdem ein Start (wie früher der feste Takt). */
   function weckeRuhe() {
     if (ruhe !== null) clearTimeout(ruhe)
-    ruhe = gestoppt
+    // Am Tisch (Knoten) gibt es keinen Takt – auch keinen Rückfall.
+    ruhe = gestoppt || tisch
       ? null
       : setTimeout(() => {
           ruhe = null
@@ -191,7 +198,8 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
         const [feld, wert] = Object.entries(z.zellen).find(([, w]) => w !== '') ?? Object.entries(z.zellen)[0] ?? ['', '']
         const aufbau = z.klasse ? maskeFuer(sicht(), z.klasse as never) : null
         const anders = aufbau?.teile.find((t) => t.feld === feld)?.codes.find((c) => c.code !== wert)?.code ?? (wert === '' ? '1' : '')
-        z.stufe = { stufe: 'rueckfrage', zellen: [{ feld, lauf: startVon(z.s)?.lauf ?? 'manoevrieren/1', steht: anders }] }
+        const lauf = [...sicht().schlange, ...sicht().danach].find((x) => x.key === z.s)?.lauf ?? (tisch ? 'manoevrieren/0' : 'manoevrieren/1')
+        z.stufe = { stufe: 'rueckfrage', zellen: [{ feld, lauf, steht: anders }] }
       } else z.stufe = { stufe: 'uebernommen' }
       geaendert()
     })
@@ -236,6 +244,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
           zellen: { ...z.zellen },
           stufe: z.stufe,
           ...(z.n ? { nv: true as const } : {}),
+          ...(z.kz && Object.keys(z.kz).length > 0 ? { kz: { ...z.kz } } : {}),
         }))
     }),
   )!
@@ -277,7 +286,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
     return out
   }
 
-  function pruefung(liste: string, punkt: PunktId, t?: ListenTeil): Pruefung {
+  function pruefung(liste: string, punkt: WkrPunkt, t?: ListenTeil): Pruefung {
     if (!eigen(liste)) return { zeilen: [], offen: [], x: [], nichtVorbei: [] }
     const jeStart = new Map<string, PruefZeile>()
     for (const z of zeilen) {
@@ -287,7 +296,12 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       jeStart.set(z.s, { s: z.s, ...(z.sn !== undefined ? { sn: z.sn } : {}), klasse: z.klasse, zellen, stufe: z.stufe, x: Object.values(zellen).some((w) => w.split(/[\s,;/]+/).includes('X')), nv: !!z.n })
     }
     const out = [...jeStart.values()]
-    const offen = sicht().punkt?.id === punkt ? sicht().schlange.filter((s) => !s.vorab && !s.entfaellt && passt(s, t)).map((s) => ({ ...s })) : []
+    const b = sicht().bestand
+    const offen = b
+      ? b.filter((x) => !x.erledigt).map((x): SchlangenEintrag => ({ key: x.key, startNr: x.startNr, klasse: x.klasse, titel: '', lauf: '' }))
+      : sicht().punkt?.id === punkt
+        ? sicht().schlange.filter((s) => !s.vorab && !s.entfaellt && passt(s, t)).map((s) => ({ ...s }))
+        : []
     return { zeilen: out, offen, x: out.filter((z) => z.x).map((z) => z.sn ?? z.s), nichtVorbei: out.filter((z) => z.nv).map((z) => z.sn ?? z.s) }
   }
 
@@ -312,6 +326,20 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
     abgemeldet: scope.run(() => computed(() => []))!,
     sichten,
     schlange,
+    // Knoten (W5.3): erledigt = in der Sicht der Übung abgehakt; `z` = die neueste eigene Zeile (Korrektur).
+    bestand: scope.run(() =>
+      computed(() => {
+        stufeLesen()
+        const b = sichten.value[kennung]?.bestand
+        if (!b) return {}
+        return {
+          [kennung]: b.map((x): BestandEintrag => {
+            const z = zeilen.filter((y) => y.s === x.key).at(-1)?.z
+            return { ...x, ...(z !== undefined ? { z } : {}) }
+          }),
+        }
+      }),
+    )!,
     schlangeTeil: (liste, t) => (eigen(liste) && sicht().teile ? sicht().schlange.filter((s) => passt(s, t)).map((s) => ({ ...s })) : []),
     stufen,
     zuletzt,
@@ -340,20 +368,32 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       setzeStand(uebungsSchritt(stand, { s: zeile.s, ...(!teil && t ? { teil: t } : {}) }, 0))
       naechsterBald()
       const nv = zeile.nv === true
-      return neueZeile({ s: zeile.s, ...(start ? { sn: start.startNr } : {}), klasse: start?.klasse ?? null, ...(t ? { t } : {}), punkt, zellen: nv ? {} : { ...zeile.zellen }, ...(nv ? { n: true as const } : {}) }, vorher)
+      const kz = !nv && zeile.kz ? { kz: { ...zeile.kz } } : {}
+      return neueZeile({ s: zeile.s, ...(start ? { sn: start.startNr } : {}), klasse: start?.klasse ?? null, ...(t ? { t } : {}), punkt, zellen: nv ? {} : { ...zeile.zellen }, ...(nv ? { n: true as const } : {}), ...kz }, vorher)
+    },
+    keineZeit(z) {
+      const alt = zeilen.find((x) => x.z === z)
+      if (!alt) return {}
+      // Wie geraete/erfassen.ts: die jüngste Zeile mit `kz` gilt, ein Wert im Feld danach hebt es auf.
+      let kz: Record<string, KeineZeitGrund> = {}
+      for (const x of zeilen.filter((y) => y.s === alt.s && y.punkt === alt.punkt)) {
+        if (x.kz) kz = { ...x.kz }
+        for (const [f, w] of Object.entries(x.zellen)) if (w !== '') delete kz[f]
+      }
+      return kz
     },
     stand(z) {
       const alt = zeilen.find((x) => x.z === z)
       if (!alt) return null
       return stapel(zeilen.filter((x) => x.s === alt.s && x.punkt === alt.punkt && (x.t === undefined || alt.t === undefined || x.t === alt.t)))
     },
-    korrigiere(z, zellen) {
+    korrigiere(z, zellen, kz) {
       const alt = zeilen.find((x) => x.z === z)
       if (gestoppt || !alt) return null
       // Die Rückfrage gilt mit der Korrektur als beantwortet (in der Übung entscheidet niemand am Bedienrechner).
       if (alt.stufe.stufe === 'rueckfrage') alt.stufe = { stufe: 'uebernommen', nachRueckfrage: true }
       weckeRuhe()
-      return neueZeile({ s: alt.s, ...(alt.sn !== undefined ? { sn: alt.sn } : {}), klasse: alt.klasse, ...(alt.t ? { t: alt.t } : {}), k: true, punkt: alt.punkt, zellen: { ...alt.zellen, ...zellen } }, stand)
+      return neueZeile({ s: alt.s, ...(alt.sn !== undefined ? { sn: alt.sn } : {}), klasse: alt.klasse, ...(alt.t ? { t: alt.t } : {}), k: true, punkt: alt.punkt, zellen: { ...alt.zellen, ...zellen }, ...(kz ? { kz: { ...kz } } : {}) }, stand)
     },
     // Übung: kein Bedienrechner, dem man „So lassen“ melden könnte (W3-35) – nur das Band geht weg (WkrMaske).
     soLassen: () => null,

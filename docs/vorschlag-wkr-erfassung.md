@@ -597,7 +597,7 @@ Kontingent hat; die Kontingentanzeige (E8) zeigt die Erfassung getrennt und warn
 | **W3 Handy, Katalog** | Steg zweiteilig (= E9), Tor 5, MüB, Vorsteg; Rahmen mit Doppeltipp-Schutz, „Pausieren/Abmelden“ unter „Mehr“, „Zuletzt“ mit Korrektur und „Liste abschließen“ mit Prüfung aller Zeilen (F7), Sonnenmodus, Zustände ohne Arbeit, Probe beim Einrichten („Tippe Tor 1 links an“), Übungsmodus mit Beispieldaten | M |
 | **Feldtest 1** | zwei bis drei WKR, Handschuhe, Sonne, Funkloch, ein Lauf doppelt (Papier + Gerät) verglichen, Kontingent gemessen; Checkliste in feldtest.md (Schutzhülle, Handschuh-Modus, Bildschirmsperre, Trageband, Powerbank, iPhone ohne Vibration) | S–M |
 | **W4 Handy, Bojen** (gebaut 21.11.2026, [plan-wkr-w4.md](plan-wkr-w4.md)) | Knopf-Maske in Fahrtfolge (Schalter je Boje und Richtung; Tor 5 Zähler; Tor 1 Rückfahrt je Durchfahrt eine Zeile, F2), Seiten nach Blick; „Nicht vorbeigekommen“ (§7) | M |
-| **W5 Pad** | Bild mit Umschalter Hin/Rück und Klassenwechsel, Schlange/Zuletzt-Spalte, zwei Listen, Racecourse A + B, Knoten-Prüfliste, Ziffernblock Zeit, Tabelle für Geübte | L |
+| **W5 Pad** (gebaut 22.11.2026, [plan-wkr-w5.md](plan-wkr-w5.md); Prüfbefunde behoben 22.11.2026, §13; Auslegungen PD/MW/BD/KN/ZT/TB noch zu bestätigen) | Bild mit Umschalter Hin/Rück und Klassenwechsel, Schlange/Zuletzt-Spalte, zwei Listen, Racecourse A + B, Knoten-Prüfliste, Ziffernblock Zeit, Tabelle für Geübte | L |
 | **W6 nach Befund** | Handy-Bild, Zeit auf dem Handy, weitere Maskenoptionen | M |
 
 Bis zum ersten Feldtest (W1–W3) grob 3 000–4 000 Zeilen mit Tests. Check-In (E10) bleibt unabhängig davon.

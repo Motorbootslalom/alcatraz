@@ -6,7 +6,7 @@
 // beantwortet: Was er mit „passt“ bestätigte, trägt hier „bestätigt 21.11.2026 (Frage)“; wo er anders entschied, steht
 // „NICHT bestätigt“ mit seiner Entscheidung – der Code gilt dort, bis er umgebaut ist (docs/entscheidungen.md
 // „Antworten 21.11.2026 abends (Runden 3–6)“). Nicht gefragt und weiter offen: P15, U1, U3, U4 (U1/U4 umgebaut nach W4-12, U2 ersetzt durch BZ1–BZ5),
-// V1, V2, Z1–Z7, Y1–Y3. Die
+// V3 (22.11.2026, ersetzt V1/V2), Z1–Z7, Y1–Y3. Die
 // Werte, die der Code liest, sind hier umstellbar; die übrigen Einträge halten fest, wie der Code gebaut ist.
 
 import type { ListenTeil } from '../lib/eingaben'
@@ -102,9 +102,10 @@ export const WKR_ANNAHMEN = {
   entfaelltNurAktuell: true,
   /**
    * (Plan §9.9) Knoten und andere Listen ohne Lauf erst mit W5: W1 kennt nur Listen mit Lauf
-   * (wkr/liste.ts `listenDerVeranstaltung`).
+   * (wkr/liste.ts `listenDerVeranstaltung`). Seit W5.3 (22.11.2026, KN1) `false`: Listen ohne Lauf sind eigene Listen
+   * im Bereich `tisch` (Knoten-Prüfliste).
    */
-  listenOhneLaufErstW5: true,
+  listenOhneLaufErstW5: false,
   /**
    * Vorsteg mit „Versuche direkt nacheinander“: Die Zeile gilt für jeden Versuch – wie in der Erfassungstabelle
    * (lib/erfassung.ts `zeilenSchluesselAlle`). Geprüft wird gegen den ersten Versuch, geschrieben in alle.
@@ -334,7 +335,9 @@ export const WKR_ANNAHMEN = {
    * (G2) Masken nur für Listen, deren Felder alle Katalog, Disq. oder Text sind (Steg, Vorsteg, Tor 5, Tor 5 +
    * Parcours ohne Bojen, MüB) – erkannt an den Feldarten (wkr/maske.ts maskenArt), nicht an der Listen-ID: eigene
    * Aufbauten gelten so von selbst. Listen mit Bojen, Zeit oder Punkten sind `spaeter` (W4/W5) – Bojen auf dem
-   * Fahrweg haben seit W4.1 die Maske `bojen` (P1). Bestätigt 21.11.2026 (W3-02).
+   * Fahrweg haben seit W4.1 die Maske `bojen` (P1). Bestätigt 21.11.2026 (W3-02). Seit W5.3/W5.4 (22.11.2026): Knoten
+   * (`pruefliste`, KN7) und Zeit (`zeit` bzw. Bojen mit Zeit-Abschnitt, {@link zeitMaske}) haben eine Maske; `spaeter`
+   * bleiben nur Punkte-Felder und Bojen außerhalb des Fahrwegs auf Listen mit Lauf.
    */
   maskeNachFeldarten: true,
   /**
@@ -812,7 +815,7 @@ export const WKR_ANNAHMEN = {
    * (P1) Bojen-Maske an den Feldern erkannt: Ein `buoy`-Feld ist eine Boje der Maske, wenn seine Kennung auf dem
    * Fahrweg (config/kurzform.ts FAHRWEG) oder dem Parallel-Fahrweg (wkr/bojen.ts PARALLEL_FAHRWEG) liegt; sonst
    * (Knoten, eigene ausführliche Aufbauten) bleibt die Liste Papier. Listen mit Zeit- oder Punktfeldern bleiben
-   * `spaeter` (W5). Gemischte Listen (Bojen + Einfahrt Tor 5 / MüB, Disq., Bemerkung) bekommen EINE Maske.
+   * `spaeter` (W5) – seit W5.4 (22.11.2026, {@link zeitMaske}) nur noch die mit Punktfeldern. Gemischte Listen (Bojen + Einfahrt Tor 5 / MüB, Disq., Bemerkung) bekommen EINE Maske.
    * 21.11.2026, bestätigt 21.11.2026 (W4-04).
    */
   bojenAmFahrweg: true,
@@ -950,24 +953,31 @@ export const WKR_ANNAHMEN = {
    */
   probeDisqAnBoje: true,
   /**
-   * (V1, Nutzer 21.11.2026: „Die Reihenfolge der Tore soll der WKR bitte auch wechseln können … von oben nach unten so
-   * durchgehe, wie die Boote fahren, jedoch ist das nicht so, wie der Parcours liegt.“) Mehr → Ansicht: „Fahrtfolge“
-   * (Vorgabe, P6) oder „Wie der Parcours liegt“ – je Ort im Parcours EINE Gruppe (Tor 1 mit Hin, Rück und 2.
-   * Durchfahrt; Start und Ziel zusammen; Einfahrt Tor 5 bei Tor 5; MüB an der Schikane zwischen Start und Tor 1;
-   * Sp. 1 und Sp. 2 zusammen hinter Tor 5), Gruppen nach der Lage längs der Strecke (wkr/bojen.ts BOJEN_LAGE, belegt
-   * an den x-Koordinaten der Parcours-Bilder, bojen.test.ts). In der Gruppe die Zeilen in Fahrtfolge. Gemerkt je
-   * Gerät und Liste (ablage.ts `alcatraz.geraet.ansicht` → `bojen[liste]`, wie Hand und Modus). 21.11.2026, noch zu
-   * bestätigen.
+   * (V3, Nutzer 22.11.2026, ersetzt V1 `bojenNachLage` und V2 `bojenSpiegeln` vom 21.11.2026 – beide samt Lagequelle
+   * BOJEN_LAGE, Start oben/unten und „Bojen links/rechts tauschen“ entfernt): „Deine Implementierung ‚Wie der Parcours
+   * liegt‘ ist leider Müll. Es ging mir bei dem Punkt darum, dass du bei Hin eine andere Zeilenreihenfolge (Start/Ziel,
+   * Tor 1, Tor 3, Tor 5) hast als beim Rück-Tab (Tor 5, Tor 3, Tor 1, Start/Ziel). Den zweiten Tab wollte ich gedreht
+   * haben. Du kannst auch die beiden alten Tabs optional auch untereinander schreiben.“ Mehr → Ansicht → „Bojen“, je
+   * Gerät und Liste gemerkt (ablage.ts `bojenFolge`), wkr/maske.ts BojenFolge/bojenAbschnitte:
+   * - „Rückweg gedreht“ (`gedreht`, VORGABE): der Rück-Reiter in derselben Folge wie Hin – Ziel unter Start, jedes Tor
+   *   unter seinem Gegenstück (Tor 1 R unter Tor 1 H …; Parallel: Boje 1 R unter Boje 1 H);
+   * - „Fahrtfolge“ (`fahrt`): der Rück-Reiter, wie das Boot fährt (Tor 5, Tor 3, Tor 1, Ziel – der Stand bis 21.11.2026);
+   * - „Alles untereinander“ (`untereinander`): ein Reiter ohne Umschalter, Hinweg und Rückweg in Fahrtfolge mit den
+   *   Kopfzeilen HINWEG/RÜCKWEG (wie Listen mit wenigen Zeilen ohnehin).
+   * Auslegungen 22.11.2026, noch zu bestätigen: (a) Was auf dem Hinweg kein Gegenstück hat (Speedbojen, Tor 1 der
+   * Speedrunde, MüB), steht unter „gedreht“ direkt VOR seinem Vorgänger in der Fahrtfolge – der Rück-Reiter ist so in
+   * jeder Liste genau die umgekehrte Fahrtfolge (Klasse 7: Ziel, Tor 1 (2.), Speed 2, Tor 1 R, Tor 3, Tor 5), die Tore
+   * stehen untereinander wie auf Hin (Prüfbefund 22.11.2026; vorher standen sie unter den Toren in Fahrtfolge – das war
+   * weder „gedreht“ noch Fahrtfolge); (b) Listen ohne Umschalter (bis bojenZeilenEineSeite Zeilen) zeigen in jeder Folge alles untereinander
+   * in Fahrtfolge; (c) die Ortswahl der Disq. (WkrDisqOrt) zeigt Hin, dann Rück so, wie sein Reiter ihn zeigt; (d) die
+   * Probe nimmt für „Disq. an Boje“ die erste passende Zeile des Rück-Reiters in seiner Folge (unter „gedreht“ Tor 1 R
+   * statt Tor 3 R; ein Tor der 2. Durchfahrt nur, wenn es kein anderes gibt – Prüfbefund 22.11.2026) und hat unter „untereinander“ keinen Rückweg-Schritt; (e) die Knopfspalten folgen in jeder Folge dem
+   * Blick des Bogens (P7) – ein Tauschen gibt es nicht mehr; (f) eine gemerkte alte Ansicht (`bojen`) räumt das Gerät
+   * beim Lesen weg und zeigt die Vorgabe; (g) „Zuletzt“, Korrektur-Dialog (alt → neu) und Prüfansicht nennen die Bojen
+   * als Text weiter in Fahrtfolge (components/wkr/texte.ts zellenText) – sie haben keinen Reiter, und „alt → neu“
+   * bleibt so in jeder Folge vergleichbar; die Korrektur selbst öffnet die Maske in der gewählten Folge.
    */
-  bojenNachLage: true,
-  /**
-   * (V2) Spiegeln: „Start oben“ (Vorgabe) bzw. „Start unten“ dreht die Folge der Gruppen um (Blick von Start bzw. vom
-   * Wendepunkt her, der WKR steht links bzw. rechts der Strecke), nur in der Lage-Ansicht; „Bojen links/rechts
-   * tauschen“ tauscht die zwei Knopfspalten in BEIDEN Ansichten (falls der Bogen-Blick nicht zum Standort passt). Der
-   * Umschalter Hinweg/Rückweg fällt in der Lage-Ansicht weg (ein Tor steht nur einmal da, die Seite scrollt).
-   * Dieselbe Lagequelle nimmt später das Bild-Layout von W5. 21.11.2026, noch zu bestätigen.
-   */
-  bojenSpiegeln: true,
+  bojenFolge: true,
   /**
    * (P10) Klassenwechsel: Hat der Start andere Halte als der zuvor gezeigte, liegt so lange ein Band „Klasse n –
    * andere Halte“ über der Mitte, ohne Knöpfe zu verschieben und ohne einen Tipp zu nehmen. 21.11.2026, noch zu
@@ -1256,9 +1266,11 @@ export const WKR_ANNAHMEN = {
    * breiter Bildschirm (ab 700 px) dieselbe Handy-Maske als mittige Spalte von 560 px; links und rechts ein ruhiger
    * Rand je Modus (styles/wkr-geraet.css `--wkr-umfeld`), Fuß mit Hauptknopf, Reiter und Leiste genauso breit
    * (styles/geraet.css). Keine größeren Knöpfe und keine zwei Listen nebeneinander – das sind die Pad-Masken von W5.
-   * 21.11.2026, bestätigt 21.11.2026 (R6-17).
+   * 21.11.2026, bestätigt 21.11.2026 (R6-17). Seit W5.1 (22.11.2026) `false`: Die Pad-Anordnung (wkr/anordnung.ts,
+   * PD1–PD6) ersetzt die mittige Spalte – Umfeld-Rand und padding-inline-Spalte (wkr-geraet.css) sind weg, die
+   * Freigabe-Hülle (geraet.css) gibt die Breite nur noch für eine Pad-Anordnung frei und hält Banner/Reiter schmal.
    */
-  padSpalteBisW5: true,
+  padSpalteBisW5: false,
   // --- Druck nach Modus (Nutzer 21.11.2026: „Warum werden Listen gedruckt, wenn ich beim Betrieb nur Gerät
   // ausgewählt habe und nicht beides? Das müsste bitte noch gefiltert werden.“; wkr/druck.ts) ---
   /**
@@ -1292,9 +1304,10 @@ export const WKR_ANNAHMEN = {
    */
   druckLaufzettel: true,
   /**
-   * (Z6) Listen ohne Liste der WKR-Erfassung (Knoten bis W5, Positionen außerhalb des Regelwerks) werden immer
+   * (Z6) Listen ohne Liste der WKR-Erfassung (Positionen außerhalb des Regelwerks; bis W5.3 auch Knoten) werden immer
    * gedruckt (wkr/liste.ts listeVonBogen → null). Die Druckdatei enthält keine WKR-Bögen – dort ändert sich nichts.
-   * 21.11.2026, noch zu bestätigen.
+   * 21.11.2026, noch zu bestätigen. Seit W5.3 (22.11.2026, KN6) hat Knoten eine Liste (Bereich `tisch`) und darf
+   * „nur digital“ sein.
    */
   druckOhneListeImmer: true,
   /**
@@ -1332,12 +1345,16 @@ export const WKR_ANNAHMEN = {
    * (AM1) Parcours-Liste – an den Feldern erkannt, nicht an der Kennung (wkr/liste.ts istParcoursListe): mit Lauf, nicht
    * geteilt (Steg), nicht „einmal je Starter“ (Vorsteg), mindestens ein Feld außer Zeit und Summe. Damit Parcours: alle
    * Tor-Listen (gate…, frontal…, brechts/blinks, moewe135/245, bawue…), tor5, tor5pue, tor5puems, mueb, parcours,
-   * parcoursms, moewezeit und bstartziel (Start/Ziel-Bojen sind Bewertung; bis W5 Papier – dort gibt es dann keinen
-   * Auto-Modus), parallelparcours A/B. Nicht: steg, vorsteg (Nutzer: „nie auf den Steg oder Vorsteg … diese laufen
+   * parcoursms, moewezeit und bstartziel (Start/Ziel-Bojen sind Bewertung; seit W5.4 (22.11.2026, ZT1) mit Maske
+   * „Bojen + Zeit“ – Ampel und Auto-Modus gelten dann auch dort, ampel.test.ts), parallelparcours A/B. Nicht: steg, vorsteg (Nutzer: „nie auf den Steg oder Vorsteg … diese laufen
    * autark“), knoten (kein Lauf), reine Zeit-Listen (AM2).
    */
   parcoursListeAnFeldern: true,
-  /** (AM2) Reine Zeit-Listen (`zeit`, `zeit-n`) zählen nicht: Zeitnahme ist keine Bewertung, bis W5 ohnehin Papier. */
+  /**
+   * (AM2) Reine Zeit-Listen (`zeit`, `zeit-n`) zählen nicht: Zeitnahme ist keine Bewertung. Seit W5.4 (22.11.2026) haben
+   * sie eine Maske (Ziffernblock) – bleiben aber keine Parcours-Liste (Plan docs/plan-wkr-w5.md §7.1): Die Zeit kommt
+   * oft erst nach der Durchfahrt vom Ablesen, eine rote Ampel wegen ihr hielte den Betrieb grundlos auf.
+   */
   zeitKeineParcoursListe: true,
   /**
    * (AM3) Ampel `aus` (keine Ampel an der Start-Freigabe), solange im Bereich keine Parcours-Liste digital und aktiv
@@ -1438,7 +1455,9 @@ export const WKR_ANNAHMEN = {
    * Rechner 2 (LISTEN_EMPFEHLUNG) – darüber nur ein Hinweis in der Geräteliste (ohne bekannte Art wie ein Pad). Auf dem
    * Gerät: Reiter mit Mindestbreite und waagerechtem Bildlauf (Text bricht um, nie abgeschnitten); auf dem Pad quer
    * (≥ 1000 px) GENAU zwei Listen als zwei Spalten nebeneinander, mehr als zwei: Reiter. Die Probe kommt nebeneinander
-   * von selbst nur für die erste Liste, die zweite über „Mehr → Probe“ ihrer Spalte.
+   * von selbst nur für die erste Liste, die zweite über „Mehr → Probe“ ihrer Spalte. Seit W5.1 (22.11.2026): „genau zwei,
+   * ≥ 1000 px“ ersetzt durch die Anordnung PD1/PD2 (bis vier Spalten, Rest als Reiter); die Probe kommt von selbst je
+   * Spalte, die keine erledigt hat.
    */
   listenEmpfehlung: true,
   /**
@@ -1486,4 +1505,270 @@ export const WKR_ANNAHMEN = {
    * Auslegung 21.11.2026, noch zu bestätigen.
    */
   wkrNameOhneEinteilung: true,
+  // --- W5.1 Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl (Plan docs/plan-wkr-w5.md §4, §10; 22.11.2026,
+  // beim Bau ohne Rückfrage ausgelegt, alles noch zu bestätigen) ---
+  /**
+   * (PD1) Pad oder Handy: die Art aus der Kopplung (das Gerät meldet sie beim Koppeln, GF7 – geraete/gekoppelt.ts
+   * `typ`) entscheidet vor der Fenstergröße; `rechner` gilt wie ein Pad. Ohne Art (Übung) ist es ein Pad, wenn die
+   * kürzere Fensterseite ≥ padAbKurzeSeite CSS-px ist. Quer/hoch nach dem Fenster (Breite ≥ Höhe = quer). Auslegung
+   * 22.11.2026: Die Art, die der Bediener am Bedienrechner umstellt (host.setzeTyp), erfährt das Gerät nicht – es nimmt
+   * die eigene Meldung; noch zu bestätigen.
+   */
+  padAbKurzeSeite: 600,
+  /**
+   * (PD1, Prüfbefund 22.11.2026) Bildschirmtastatur: Ändert sich nur die Höhe des Fensters (gleiche Breite), während
+   * ein Eingabefeld den Fokus hat (Maske „Tabelle“, Name unter „Mehr“), bleibt die Anordnung bei der alten Höhe
+   * (components/wkr/systemModus.ts useFenster) – Android-Browser verkleinern beim Öffnen der Tastatur das Fenster, und
+   * ein Pad hochkant spränge sonst auf „quer“, baute die Spalte mit dem Feld ab und schlösse die Tastatur. Echte
+   * Drehung ändert immer die Breite. Im Test-DOM nicht nachstellbar wie auf dem Gerät (nur über `resize`); Auslegung,
+   * noch zu bestätigen – Feldtest docs/feldtest.md „Pad (W5)“.
+   */
+  tastaturAendertNichts: true,
+  /**
+   * (PD2) Spalten: quer floor(Breite / padSpalteMinPx), höchstens padSpaltenMax (4); hoch höchstens padHochSpaltenMax
+   * (2) – hoch zählt die Breite je Spalte ab padHochSpalteMinPx (360 px, die geprüfte Handy-Breite), sonst stünde ein
+   * 768-px-Pad hochkant immer einspaltig. Was nicht passt, teilt sich als Reiter die letzte Spalte. Ein Gerät für den
+   * ganzen Steg bekommt Ablegen und Anlegen als zwei Spalten, wenn beide passen (sonst Steg-Reiter wie auf dem Handy).
+   * Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  padSpalteMinPx: 480,
+  padSpaltenMax: 4,
+  padHochSpaltenMax: 2,
+  padHochSpalteMinPx: 360,
+  /**
+   * (PD3) Eigene Seitenspalte (Schlange / Zuletzt / Einträge im Klartext, components/wkr/WkrSeite.vue) nur bei genau
+   * einer Spalte – quer rechts (≈ 30 %), hoch unten; ab zwei Spalten trägt jede Spalte Schlange und Einträge kompakt
+   * unter ihrer Arbeitsfläche. „Zuletzt“ bleibt als Leiste mit Rückfrage-Bändern und „Rückgängig“ in der Maske (die
+   * Seite zeigt die Liste dazu, nur zum Lesen und Korrigieren). Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  padSeiteNurEineSpalte: true,
+  /** (PD3) So viele Starts nach dem aktiven zeigt die Schlange der Seitenspalte (Plan §4.2: 4–6). */
+  seiteSchlange: 5,
+  /**
+   * (PD4) Racecourse A und B nebeneinander: EIN Rundenband („Quarterfinal · Attempt 1“) über beiden Spalten nur, wenn
+   * beide denselben Start (Runde, Attempt und Paar stecken in der Kennung) als nächsten haben; sonst trägt jede Spalte
+   * ihren Lauf im Kopf. Auslegung 22.11.2026: Die Paarnummer „3/8“ steht nicht in der Listen-Sicht und fehlt im Band
+   * (sonst neue LISTEN_SICHT_FASSUNG); noch zu bestätigen.
+   */
+  rundenBandBeiGleichemPaar: true,
+  /**
+   * (PD5) Attempt-Wechsel bei derselben Startnummer (Parallelslalom, Vorschlag §4.8): Kommt nach Nummer 23 wieder 23
+   * mit einem anderen Start, steht über der Karte invers „23 · ATTEMPT 2“, und attemptSperreMs lang nimmt die Maske
+   * nichts an (wie die Sperre nach dem Abschicken). Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  attemptSperreMs: 1000,
+  /**
+   * (PD6) Hochwischen (W4-13) auf dem Pad: die Parcours-Zeichnung steht in der Seitenspalte unter den Einträgen,
+   * solange die Maske nicht „Bild“ ist; auf dem Handy und in Spalten ohne eigene Seite bleibt sie unter den Knöpfen.
+   * Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  bildInDerSeite: true,
+  /**
+   * (MW1) Maskenvorgabe ohne Auswahl am Bedienrechner: Pad + Bojen-Liste → „Bild“, sonst „Knöpfe“; Handy immer
+   * „Knöpfe“ (Bild auf dem Handy erst W6); „Tabelle“ nie Vorgabe; Zeit/Knoten haben ihre feste Art (W5.3/W5.4). Bis die
+   * Maske gebaut ist (wkr/maskenWahl.ts MASKEN_GEBAUT: Bild W5.2, Tabelle W5.5 – beide gebaut 22.11.2026), zeigt das
+   * Gerät statt ihrer „Knöpfe“. Tabelle auf dem Handy: TB1. Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  maskeVorgabePadBild: true,
+  /**
+   * (MW2) Die Wahl des WKR („Mehr → Ansicht → Maske“, nur wenn der Bedienrechner sie nicht `fest` vorgibt) gilt
+   * gerätelokal je Raum und Liste (geraete/ablage.ts GeraetAnsicht.masken, höchstens 8 Listen) und geht mit „Raum
+   * verlassen“; eine Wahl, die die Liste nicht (mehr) erlaubt, gilt nicht. Die Übung merkt ihre Wahl unter einem
+   * eigenen Raum „uebung“. Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  maskeWahlJeRaumUndListe: true,
+  /**
+   * (MW3) Probe je Maske: Der Merker „Probe erledigt“ gilt je Raum, Liste UND Maske (ablage.ts probeErledigt mit
+   * `maske`; „Knöpfe“ unter dem alten Schlüssel = der Liste, damit erledigte Proben bleiben). Wechselt die Maske, kommt
+   * die Probe der neuen Maske einmal von selbst. Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  probeJeMaske: true,
+  // --- W5.2 Maske „Bild“ (Plan docs/plan-wkr-w5.md §5, §10; 22.11.2026, beim Bau ohne Rückfrage ausgelegt, alles noch
+  // zu bestätigen) ---
+  /**
+   * (BD1) innen/außen der Zeichnung ↔ seiteA/B der Feld-Kennung über config/kurzform.ts bildBojeId – dieselbe Regel
+   * (SEITE, INNEN), aus der die Kurzform die Unterspalten nach dem Blick ordnet und die Sicht `boje.spalte` liest (P7).
+   * wkr/bild.ts BILD_BOJEN. Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  bildSeitenWieSpalten: true,
+  /**
+   * (BD2) Hat eine Boje der Liste keine ID in der Zeichnung ihrer Klasse oder steht die ID nicht genau einmal darin
+   * (oder fehlt die Zeichnung), zeigt diese Klasse die Knöpfe – nie ein Bild mit stiller Lücke (bild.test.ts über alle
+   * Klassen-SVGs × Aufbauten × Klassen). Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  bildSonstKnoepfe: true,
+  /**
+   * (BD3) Parallelslalom: schematische Zeichnung je Racecourse (Start/Ziel unten, Bojen 1–4 in einer Reihe, 5 als
+   * Wende; seiteA links), B gespiegelt – es gibt kein Parallel-SVG. Start und Ziel sind dasselbe Tor, Boje n hin und
+   * rück dieselbe Boje (der Umschalter sagt, welche Fahrt). Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  bildParallelSchema: true,
+  /**
+   * (BD4) Bild-Umschalter: Der ERSTE Tipp an Tor 5 auf dem Hinweg schaltet auf „Rückweg“ (Vorschlag §4.2; anders als
+   * P8 bei den Knöpfen). Zurückstellbar; eine zweite Berührung von Tor 5 auf dem Hinweg tippt der WKR nach dem
+   * Zurückstellen. Auslegung 22.11.2026, noch zu bestätigen (Frage: lieber erst nach der Einfahrt?).
+   */
+  bildRueckNachTor5: true,
+  /**
+   * (BD5) Tor 1 der Speedrunde (`t1c`) als eigener Umschalter-Zustand „Rück 2“ – das Bild zeigt Tor 1 nur einmal.
+   * Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  bildRueck2: true,
+  /**
+   * (BD6) Trefferkreise über den Bojen mindestens bildTrefferMm (15 mm) groß; liegen zwei näher, werden sie
+   * auseinandergeschoben und mit einer Linie mit der echten Boje verbunden (wkr/bild.ts schiebeAuseinander). Ohne
+   * Lage der Bojen (Test-DOM, getBBox fehlt) zeigt die Maske dieselben Treffer als Knopfliste. Auslegung 22.11.2026,
+   * noch zu bestätigen. Prüfbefund 22.11.2026: „mm“ sind CSS-mm (an 96 dpi gebunden, auf einem iPad real etwa 11 mm) –
+   * echte Millimeter kennt der Browser nicht. Der Kreis ist darum nie kleiner als --wkr-ziel (Handy 64 px, Pad 72 px,
+   * CSS `--wkr-bild-kreis`), und der Mindestabstand beim Auseinanderschieben ist dieselbe Größe. Auslegung, noch zu
+   * bestätigen (Frage: Pad-Ziele größer, z. B. 88 px, damit es real ≥ 15 mm sind?).
+   */
+  bildTrefferMm: 15,
+  /**
+   * (BD7) Disq. im Bild: DISQ im Fuß öffnet wie bisher die Ortswahl (WkrDisqOrt); im Bild zusätzlich der Knopf „Disq.
+   * an Boje …“ → der nächste Tipp ins Bild wählt die Boje, dann der Buchstabe. Kein Langdruck (U3). Auslegung
+   * 22.11.2026, noch zu bestätigen.
+   */
+  bildDisqUeberKnopf: true,
+  /**
+   * Beim Bau W5.2 (22.11.2026): Auf dem Handy zeigt das Bild ±90° liegend (wie WkrParcoursBild), nur auf dem Pad
+   * gedreht wie auf dem Bogen; die Einträge im Klartext stehen bei „Bild“ immer daneben bzw. darunter (WkrSeite, auf
+   * dem Handy kompakt). Noch zu bestätigen.
+   */
+  bildDrehungNurPad: true,
+  /**
+   * Prüfbefund 22.11.2026 (zu bildDrehungNurPad): ±90° auch auf dem Pad nur, wenn die gedrehte Zeichnung im freien Platz
+   * (Breite der Fläche × höchste Höhe) nicht kleiner erscheint als die ungedrehte – sonst 0° wie auf dem Handy (wkr/bild.ts
+   * wirksameDrehung). Die Zeichnung ist außerdem nie höher als das Fenster abzüglich Kopf, Karte, Umschalter und Fuß
+   * (CSS max-height über --wkr-bild-rest 440 px, mindestens 200 px). Vorher wurde gate135/gate245/moewe (`blick:
+   * hinten`) auf dem Pad quer rund 1400 px hoch – Tor 1 bzw. Start/Ziel lagen bei jedem Start außerhalb des Bildschirms.
+   * Auslegung, noch zu bestätigen (Frage: lieber immer wie am Ufer gedreht und dafür kleiner?).
+   */
+  bildDrehungNachPlatz: true,
+  // --- W5.3 Listen ohne Lauf und Knoten-Prüfliste (Plan docs/plan-wkr-w5.md §6, 22.11.2026, alle noch zu bestätigen) ---
+  /**
+   * (KN1) Eine Liste ohne Lauf (Knoten) gibt es EINMAL je Veranstaltung, nicht je Parcours: Bereich `tisch`
+   * (wkr/liste.ts TISCH_BEREICH), Kennung `["l","tisch","knoten",null]`. Abgenommen wird am Tisch, nicht am Parcours;
+   * jeder Starter einmal. Alle Knoten-Bögen (auch mehrerer Parcours) gehören zu dieser einen Liste (listeVonBogen).
+   * Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  knotenEineListe: true,
+  /**
+   * (KN2) Ein „Start“ ohne Lauf ist der Starter selbst: Kennung `["o", starterId]` (wkr/liste.ts ohneLaufKennung),
+   * Werte unter dem Lauf-Schlüssel `<disziplin>/0` (OHNE_LAUF). Nur Starter der Klassen mit der Liste und nicht
+   * abgemeldet (AppState.abgemeldet – „nicht X“; die Knoten-Liste hat selbst keine Disq.-Spalte). Beim Bau 22.11.2026,
+   * noch zu bestätigen.
+   */
+  ohneLaufStartIstStarter: true,
+  /**
+   * (KN3) Keine Schlange der Startfolge: Die Sicht einer Liste ohne Lauf trägt `bestand` (Startnummer, Klasse,
+   * erledigt – nie Namen, F6) und `offen` {n, m}; die Nummer tippt der WKR ein. „Erledigt“ ist dort der Haken wie in
+   * der Schlange (nicht „eigene Werte“ wie lage.ts) – das Gerät soll auch nach einer Eingabe am Bedienrechner noch
+   * schicken können. Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  ohneLaufBestand: true,
+  /**
+   * (KN4) Die Knoten-Liste hat nie Rückstand, nie Ampel und nie eine Rückfrage vor „Nächster Start“ – sie gehört zu
+   * keinem Bereich des Betriebs. Bedienrechner: eigener Block „Knoten: 14 / 38 offen“ (lage.ts tischLage, WkrMatrix).
+   * Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  ohneLaufNieRueckstand: true,
+  /**
+   * (KN5) Abschluss der ganzen Knoten-Liste (Punkt `ohne`, wkr/abschluss.ts OHNE_PUNKT): offene Starter nur mit „Rest
+   * auf Papier“. Eine Pause nimmt keine Starter aufs Papier (es gibt keinen gezeigten Start) – Zeilen während der Pause
+   * gelten direkt. Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  ohneLaufAbschlussGanz: true,
+  /**
+   * (KN6) Die Knoten-Liste darf „nur digital“ sein wie jede andere (Z6 angepasst: vorher immer gedruckt,
+   * druckOhneListeImmer gilt nur noch für Bögen ohne Liste). Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  knotenDarfDigital: true,
+  /**
+   * (KN7) Prüfliste: je Knoten ✓ (= leere Zelle) oder ✗ (= Fehlerpunkte knotenPunkte, „5“ wie P4); Abschicken erst,
+   * wenn jeder Knoten gesetzt ist (Hauptknopf vorher gesperrt mit „noch 2 offen“). Auslegung 22.11.2026, noch zu
+   * bestätigen.
+   */
+  prueflisteAlleGesetzt: true,
+  knotenPunkte: 5,
+  /**
+   * (KN8) Am Tisch kein Startwechsel-Takt (kein Overlay, keine Sperrsekunde – es fährt kein Boot): Nach dem Abschicken
+   * leert sich das Nummernfeld, die Rückmeldung steht klein darunter („23 ⧗ gesendet“). Eine schon erledigte Nummer
+   * öffnet die Korrektur der eigenen Zeile (sonst eine neue Zeile, die der Bedienrechner ggf. als Rückfrage zeigt).
+   * Übung: 20 erfundene Starter, ohne Takt. Auslegung 22.11.2026, noch zu bestätigen.
+   */
+  tischOhneTakt: true,
+
+  // --- W5.4 Zeit-Listen mit Ziffernblock (Plan docs/plan-wkr-w5.md §7, §10; 22.11.2026, beim Bau ohne Rückfrage ausgelegt,
+  // alles noch zu bestätigen) ---------------------------------------------------------------------------------------
+  /**
+   * (ZT1) Maske an den Feldern: nur Zeit (+ Disq./Text) → `zeit` (Ziffernblock je Zeitfeld, wkr/maske.ts maskenArt);
+   * Bojen auf dem Fahrweg MIT Zeit (`moewezeit`, `bstartziel`) → Bojen-Maske mit Zeit-Abschnitt unter den Bojen (ein
+   * Start, eine Zeile). Zeit neben Katalog ohne Bojen gibt es in keinem Aufbau – bleibt `spaeter`. 22.11.2026, noch
+   * zu bestätigen.
+   */
+  zeitMaske: true,
+  /**
+   * (ZT2) Zellform der Zeit genau wie die Erfassung am Rechner: die Ziffernfolge, wie getippt, mit Komma (lib/time.ts
+   * sanitizeTimeInput – ZeitZelle.vue speichert ebenso die Roh-Eingabe), Lesart parseTime (≥ 20 vor dem Komma =
+   * Sekunden, sonst Minuten: „83,45“ = 1:23,45, „1,2345“ = 1:23,45). Auf dem Gerät gibt es nur 0–9, „,“ und ⌫ – keinen
+   * Doppelpunkt (die Deutung „= 1 min 23,45 s“ steht groß darunter); eine Zeit aus der Erfassung mit „:“ bleibt beim
+   * Korrigieren lesbar. Unlesbar → rot, Hauptknopf gesperrt. 22.11.2026, noch zu bestätigen.
+   */
+  zeitWieErfassung: true,
+  /**
+   * (ZT3) Eine Zeile je Start mit ALLEN Zeitfeldern der Liste (keine Teilkopplung, F16 nur Steg): Abschicken erst, wenn
+   * jedes Feld eine lesbare Zeit oder „keine Zeit“ hat (Hauptknopf „noch n Zeiten“). Auf dem Pad stehen die Felder
+   * nebeneinander (das aktive umrandet), auf dem Handy als Feld-Reiter; nach einer gültigen Zeit springt der Block
+   * NICHT von selbst ins nächste Feld (der WKR liest mehrere Uhren in seiner Folge ab). 22.11.2026, noch zu bestätigen.
+   */
+  zeitEineZeile: true,
+  /**
+   * (ZT4) „Keine Zeit“ je Feld mit Grund (`anlage` Zeitanlage ausgefallen, `nichtImZiel`, `anderes`): Zelle leer,
+   * Grund als Zeilenfeld `kz` (wkr/zeile.ts, Ablehnung `feld-fremd` bzw. `wert-ungueltig`), im Stand WkrStand.keineZeit
+   * (wkr/keineZeit.ts, migrate); ein Wert im Feld hebt es auf. Bedienrechner: Eingang (Satz an Rückfrage und
+   * Vorschlag), Matrix „✓ keine Zeit“ (Grund im Titel und in der Karte), Erfassung „Papier ansehen“ an genau diesen
+   * Zellen (wkr/lage.ts zeilenMarken). Nie Tafel, Zuschauerliste oder Start-Freigabe (sicht.test.ts). Beim Bau: Entwürfe
+   * merken die Zeiten wie getippt, auch halb (wkr/maske.ts entwurfZellen), aber nie „keine Zeit“ (der Entwurf ist eine
+   * Zellzeile); eine Korrektur holt „keine Zeit“ aus dem eigenen Stand (Erfassung.keineZeit). 22.11.2026, noch zu
+   * bestätigen.
+   */
+  keineZeitMitGrund: true,
+  // --- W5.5 Maske „Tabelle“ für Geübte (Plan docs/plan-wkr-w5.md §8, §10; 22.11.2026, beim Bau ohne Rückfrage
+  // ausgelegt, alles noch zu bestätigen) ---
+  /**
+   * (TB1) „Tabelle“ nur auf Pad und Rechner (wkr/maskenWahl.ts maskeAufGeraet): Auf dem Handy ist die Wahl ausgegraut
+   * („Mehr → Ansicht → Maske“ und am Bedienrechner in der Geräteliste); eine Vorgabe „Tabelle“ zeigt dort „Knöpfe“.
+   * Nie Vorgabe (MW1). 22.11.2026, noch zu bestätigen.
+   */
+  tabelleNurPad: true,
+  /**
+   * (TB2) Keine Probe für die Tabelle – sie ist für Geübte, die die Knöpfe kennen; wer auf „Tabelle“ wechselt, bekommt
+   * keine Probe von selbst (WkrGeraet), „Mehr → Probe“ übt weiter die Knöpfe. 22.11.2026, noch zu bestätigen.
+   */
+  tabelleOhneProbe: true,
+  /**
+   * (TB3) Die Zeile wie der Bogen der Klasse (Spalten und Köpfe aus der Sicht, nur Felder, die auch die Knöpfe dieses
+   * Teils schicken), jede Eingabe durch dieselben Sanierer wie die Erfassung am Rechner (wkr/tabelle.ts). Was ein
+   * Sanierer still wegließe (fremder Buchstabe, unbekannter Code) oder was der Entwurf so nicht trägt (Rund-Probe über
+   * wkr/maske.ts entwurfAus → zellenAus), wird nicht verbessert, sondern als Fehler je Zelle gezeigt (Code, Texte
+   * `wkr.geraet.tabelle.fehler.*`); solange einer steht, schickt weder Enter noch der Hauptknopf. Geschickt wird über
+   * denselben Entwurf wie bei den Knöpfen. Tab/Umschalt+Tab und Enter springen durch die Zellen der Zeile, Enter in der
+   * letzten Zelle schickt ab (bzw. fragt in der Korrektur „alt → neu“), Esc bricht eine Korrektur ab. 22.11.2026, noch
+   * zu bestätigen.
+   */
+  tabelleWieErfassung: true,
+  /**
+   * (TB4) Bojen als Punkte („5“, Zähler „10“, mit Disq. „5J“), nicht als Zahl der Berührungen – so steht es auf dem Bogen
+   * und so tippt die Erfassung ab; ein Wert, der keine ganze Zahl von Berührungen ist („3“, „0“, Schalter „10“), ist
+   * ein Fehler `boje-punkte`. Codes als Text wie die Erfassung („2x6, 20“). 22.11.2026, noch zu bestätigen.
+   */
+  tabelleBojenAlsPunkte: true,
+  /**
+   * (TB5) Gezeigt: die letzten fünf eigenen Zeilen der Liste (✓/↑/!/✗ wie „Zuletzt“), die aktive Zeile und die nächsten
+   * drei Starts der Schlange (nur Nummer und Klasse). Eine gesendete Zeile korrigiert man in der Tabelle über
+   * „Korrigieren“ an ihrer Zeile – derselbe Weg wie „Zuletzt → Korrigieren“ (WkrMaske oeffneKorrektur, Rückfrage alt →
+   * neu, nach dem Abschluss „Als Vorschlag“). 22.11.2026, noch zu bestätigen.
+   */
+  tabelleZeilen: { gesendet: 5, naechste: 3 },
 } as const

@@ -1,6 +1,6 @@
 // Erfassung: Werte setzen und löschen (alle oder Läufe/Runden); Beispielwerte, -Besetzung, -Gewichte, -Boote und -Co-Piloten aus der `saat`.
 
-import type { AppState, ParallelRunde, PunktId } from '../../types'
+import type { AppState, ParallelRunde, WkrPunkt } from '../../types'
 import { einteilungsZellen } from '../../lib/einteilung'
 import { beispielBoote, beispielCoPiloten, beispielEinteilung, beispielGewichte } from '../../lib/beispieldaten'
 import { besetzungsKlassen, coPilotKlassen } from '../../lib/besetzung'
@@ -135,7 +135,11 @@ export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): A
       ])
       const bleibt = Object.entries(state.eingaben).filter(([schluessel]) => !weg.has(schluessel))
       // Rückfragen, Vorschläge und Abschlüsse der WKR-Geräte zu diesen Läufen und Runden gehen mit (W1).
-      const punkte = new Set<PunktId>([...(action.laeufe ?? []).map(laufPunkt), ...(action.runden ?? []).map(rundenPunkt)])
+      // Lauf 1 nimmt die Listen ohne Lauf mit (wie oben die Eingaben) – also auch den Abschluss `ohne` (W5.3, 22.11.2026).
+      const punkte = new Set<WkrPunkt>([
+        ...(action.laeufe ?? []).flatMap((l): WkrPunkt[] => [laufPunkt(l), ...(l === 1 ? ['ohne' as const] : [])]),
+        ...(action.runden ?? []).map(rundenPunkt),
+      ])
       const wkr = wkrOhneLaeufe(state.wkr, (lauf) => weg.has(lauf), (punkt) => punkte.has(punkt))
       if (bleibt.length === Object.keys(state.eingaben).length) return wkr === state.wkr ? state : { ...state, wkr }
       // Bleibt nichts übrig, ist es dasselbe wie „Alle erfassten Werte löschen“ – mit Abmeldungen

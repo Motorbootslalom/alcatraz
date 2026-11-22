@@ -2,11 +2,13 @@
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { t, type MessageKey } from '../../i18n'
 import { hasParallel } from '../../config/catalog'
-import { liesAnsicht, type Ablage } from '../../geraete/ablage'
+import { liesAnsicht, mitMaskenWahl, schreibeAnsicht, type Ablage } from '../../geraete/ablage'
 import type { ErfassungsQuelle } from '../../geraete/erfassen'
 import { oeffneUebung } from '../../geraete/uebung'
 import { GERAET } from '../../geraete/paket'
 import type { ListenTeil } from '../../wkr/liste'
+import { WKR_ANNAHMEN } from '../../wkr/annahmen'
+import type { MaskenWahl } from '../../wkr/maskenWahl'
 import { useWirksamerModus } from './systemModus'
 import WkrGeraet from './WkrGeraet.vue'
 import '../../styles/wkr-geraet.css'
@@ -24,6 +26,10 @@ import '../../styles/wkr-geraet.css'
  * „Parcours mit Start/Ziel“ (parcoursms), nur unter UIM „Parallelslalom, Racecourse A“ (parallelparcours) – dort nur
  * die Maske: Starts wie in jeder Übung (ohne Paar, ohne Attempt-Wechsel). Unter DM fehlt der Parallelslalom auch hier
  * (config/catalog.ts hasParallel); wer von UIM auf DM wechselt, landet wieder bei Tor 5.
+ *
+ * Maskenwahl (W5.2, Plan docs/plan-wkr-w5.md §5.2, 22.11.2026): Bei Bojen-Listen wählt der WKR hier „Knöpfe“ oder
+ * „Bild“ (Vorgabe wie MW1: Bild auf einem Pad-großen Fenster, sonst Knöpfe). Die Wahl geht als Wahl des WKR in die
+ * Ansicht (geraete/ablage.ts mitMaskenWahl, eigener Raum „uebung“) – dieselbe Stelle wie „Mehr → Maske“.
  */
 const props = defineProps<{
   /** Ablage der Ansicht (Tests: eigener Speicher); Vorgabe localStorage. */
@@ -37,7 +43,9 @@ const props = defineProps<{
 /** Zurück zum Koppeln: die Adresse eines Geräts ohne Paket (geraete/paket.ts GERAET), nie fest im Text. */
 const ZUM_KOPPELN = `#/${GERAET}`
 
-type Wahl = 'steg' | 'steg-ab' | 'steg-an' | 'tor5' | 'mueb' | 'vorsteg' | 'gate135' | 'gate245' | 'parcoursms' | 'parallel'
+/** Bojen-Listen der Übung – nur dort gibt es „Bild“ (wkr/maskenWahl.ts erlaubteMasken). */
+const BOJEN_WAHL = new Set(['gate135', 'gate245', 'parcoursms', 'parallel'])
+type Wahl = 'steg' | 'steg-ab' | 'steg-an' | 'tor5' | 'mueb' | 'vorsteg' | 'gate135' | 'gate245' | 'parcoursms' | 'parallel' | 'knoten' | 'zeit'
 const LISTEN: { wahl: Wahl; typeId: string; teil?: ListenTeil; text: MessageKey; nurParallel?: true }[] = [
   { wahl: 'steg', typeId: 'steg', text: 'wkr.geraet.uebung.steg' },
   { wahl: 'steg-ab', typeId: 'steg', teil: 'ab', text: 'wkr.geraet.uebung.stegAb' },
@@ -49,6 +57,10 @@ const LISTEN: { wahl: Wahl; typeId: string; teil?: ListenTeil; text: MessageKey;
   { wahl: 'gate245', typeId: 'gate245', text: 'wkr.geraet.uebung.liste.gate245' },
   { wahl: 'parcoursms', typeId: 'parcoursms', text: 'wkr.geraet.uebung.liste.parcoursms' },
   { wahl: 'parallel', typeId: 'parallelparcours', text: 'wkr.geraet.uebung.liste.parallel', nurParallel: true },
+  // W5.3 (22.11.2026, KN8): Knoten am Tisch – 20 erfundene Starter, Nummer eintippen, ohne Takt.
+  { wahl: 'knoten', typeId: 'knoten', text: 'wkr.geraet.uebung.liste.knoten' },
+  // W5.4 (22.11.2026, Plan docs/plan-wkr-w5.md §7.2): Zeitnahme – Ziffernblock je Zeitfeld, „Keine Zeit“ mit Grund.
+  { wahl: 'zeit', typeId: 'zeit', text: 'wkr.geraet.uebung.liste.zeit' },
 ]
 const REGELWERKE = [
   { id: 'dm-2026', text: 'dm' },
@@ -68,10 +80,26 @@ function waehleRegelwerk(id: (typeof REGELWERKE)[number]['id']): void {
   if (!listen.value.some((l) => l.wahl === wahl.value)) wahl.value = 'tor5'
 }
 
+const padGross = typeof window !== 'undefined' && Math.min(window.innerWidth, window.innerHeight) >= WKR_ANNAHMEN.padAbKurzeSeite
+const maske = ref<MaskenWahl>(WKR_ANNAHMEN.maskeVorgabePadBild && padGross ? 'bild' : 'knoepfe')
+const OHNE_WAHL = new Set<Wahl>(['knoten', 'zeit'])
+// W5.5 (22.11.2026, TB1): „Tabelle“ übt nur ein Pad (kürzere Seite ≥ padAbKurzeSeite) – auf allen Listen außer Knoten
+// und Zeit (die haben ihre feste Art); „Bild“ weiter nur auf Bojen-Listen.
+const MASKEN = computed<MaskenWahl[]>(() => [
+  'knoepfe',
+  ...(BOJEN_WAHL.has(gewaehlt.value.wahl) ? (['bild'] as const) : []),
+  ...((padGross || !WKR_ANNAHMEN.tabelleNurPad) && !OHNE_WAHL.has(gewaehlt.value.wahl) ? (['text'] as const) : []),
+])
+const mitMaske = computed(() => MASKEN.value.length > 1)
+
 function starte(): void {
   quelle.value?.stop()
   const l = gewaehlt.value
-  quelle.value = oeffneUebung({ regelwerk: regelwerk.value, typeId: l.typeId, ...(l.teil ? { teil: l.teil } : {}), ...(props.taktMs ? { taktMs: props.taktMs } : {}) })
+  const q = oeffneUebung({ regelwerk: regelwerk.value, typeId: l.typeId, ...(l.teil ? { teil: l.teil } : {}), ...(props.taktMs ? { taktMs: props.taktMs } : {}) })
+  const ablage = props.ablage === undefined ? undefined : props.ablage
+  const m = MASKEN.value.includes(maske.value) ? maske.value : 'knoepfe'
+  if (mitMaske.value) for (const a of q.listen.value) schreibeAnsicht(mitMaskenWahl(liesAnsicht(ablage), null, a.liste, m), ablage)
+  quelle.value = q
 }
 function ende(): void {
   quelle.value?.stop()
@@ -119,6 +147,24 @@ onBeforeUnmount(ende)
           @click="wahl = l.wahl"
         >
           {{ t(l.text) }}
+        </button>
+      </div>
+    </fieldset>
+    <fieldset v-if="mitMaske" class="wkr-feldgruppe" data-teil="uebung-maske">
+      <legend>{{ t('wkr.geraet.uebung.maske') }}</legend>
+      <div class="wkr-reihe">
+        <button
+          v-for="m in MASKEN"
+          :key="m"
+          type="button"
+          class="wkr-knopf"
+          data-ziel="klein"
+          data-action="uebung-maske"
+          :data-maske="m"
+          :aria-pressed="maske === m"
+          @click="maske = m"
+        >
+          {{ t(`wkr.geraet.maske.${m}`) }}
         </button>
       </div>
     </fieldset>

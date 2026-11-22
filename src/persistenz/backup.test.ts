@@ -310,6 +310,7 @@ describe('Dateien: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
       vorschlaege: [],
       abschluss: { [liste]: { 'lauf:1': { name: 'Vor9 Nach9', zeit: 9000, abweichend: [], papier: [] } } },
       nichtVorbei: {},
+      keineZeit: {},
     },
   })
 

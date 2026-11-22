@@ -14,7 +14,12 @@ import {
   tippeBoje,
   tippeBojenDisq,
   disqAnBojen,
-  nachLage,
+  BOJEN_FOLGE_VORGABE,
+  BOJEN_FOLGEN,
+  bojenAbschnitte,
+  bojenAbschnitteAlle,
+  mitUmschalter,
+  type MaskenAbschnitt,
   wegVon,
   eintraege,
   entwurfAus,
@@ -32,10 +37,23 @@ import {
   zurueck,
   type Entwurf,
   type MaskenAufbau,
+  attemptWechsel,
+  listeMitBojen,
+  entwurfZellen,
+  fertig,
+  keineZeitAus,
+  setzeKeineZeit,
+  setzeZeit,
+  zeitDeutung,
+  zeitenOffen,
+  zeitUhr,
+  zeitUnlesbar,
 } from './maske'
+import { parseTime, sanitizeTimeInput } from '../lib/time'
 import { maskenJeKlasse, sichtListe, type ListenSicht } from './sicht'
 import { wertGilt } from './zeile'
-import type { ListenTeil } from './liste'
+import { listenKennung, type ListenTeil } from './liste'
+import { bildWege, bildZiel, bildZuordnung, wegNachTipp } from './bild'
 
 // Maske „Knöpfe“ (W3.1, Plan docs/plan-wkr-w3.md §3.1): Aufbau je Position unter DM und UIM, Schreibweise wie die
 // Erfassung (jede Tipp-Folge besteht wertGilt unverändert), X nur Steg-Ablegen und Vorsteg (F5), Takt des
@@ -70,7 +88,13 @@ function zufallsEntwurf(aufbau: MaskenAufbau, teil: ListenTeil | undefined, saat
     const w = r(10)
     // Bojen-Listen: etwa die Hälfte der Tipps auf Bojen (Schalter setzen und wegnehmen, Zähler hoch).
     if (bojen.length > 0 && r(2) === 0) e = tippeBoje(e, bojen[r(bojen.length)])
-    else if (w < 6 && teile.length > 0) {
+    // Zeit (W5.4): Tasten einzeln wie auf dem Ziffernblock, ⌫ und ab und zu „keine Zeit“.
+    else if (aufbau.zeiten.length > 0 && r(2) === 0) {
+      const z = aufbau.zeiten[r(aufbau.zeiten.length)].feld
+      const t = e.zeiten[z] ?? ''
+      const k = r(14)
+      e = k < 11 ? setzeZeit(e, aufbau, z, t + '0123456789,'[k]) : k < 13 ? setzeZeit(e, aufbau, z, t.slice(0, -1)) : setzeKeineZeit(e, aufbau, z, 'anlage')
+    } else if (w < 6 && teile.length > 0) {
       const t = teile[r(teile.length)]
       if (t.codes.length) e = tippe(e, t.feld, t.codes[r(t.codes.length)].code)
     } else if (w < 8 && disq.length > 0) e = tippeDisq(e, disq[r(disq.length)].code)
@@ -94,11 +118,16 @@ describe('Aufbau je Position (G2: an den Feldarten erkannt)', () => {
     expect(maskeFuer(sichtMit(DM, 'tor5'), '5')!.teile[0].codes.map((c) => [c.code, c.punkte])).toEqual([['1', 20], ['2', 5], ['20', 5]])
     const vorsteg = maskeFuer(sichtMit(DM, 'vorsteg'), '5')!
     expect([vorsteg.art, vorsteg.teile, vorsteg.disq!.codes.map((c) => c.code), vorsteg.bemerkung]).toEqual(['vorsteg', [], ['M', 'X'], 'bemerkung@vorsteg'])
-    // W4.1: Bojen auf dem Fahrweg → `bojen`; Knoten (Bojen-Art ohne Fahrweg), Zeit und Start/Ziel mit Zeit bleiben später.
+    // W4.1: Bojen auf dem Fahrweg → `bojen`; Knoten (Bojen-Art ohne Fahrweg) ohne Bestand bleibt später.
     for (const typeId of ['tor5puems', 'gate135', 'parcoursms']) expect(maskeFuer(sichtMit(DM, typeId), '5')!.art, typeId).toBe('bojen')
-    for (const typeId of ['knoten', 'zeit', 'bstartziel', 'moewezeit']) {
-      const m = maskeFuer(sichtMit(DM, typeId), '5')
-      expect([m?.art, m?.teile, m?.disq, m?.abschnitte, m?.umschalter], typeId).toEqual(['spaeter', [], null, [], false])
+    const knoten = maskeFuer(sichtMit(DM, 'knoten'), '5')
+    expect([knoten?.art, knoten?.teile, knoten?.disq, knoten?.abschnitte, knoten?.umschalter, knoten?.zeiten]).toEqual(['spaeter', [], null, [], false, []])
+    // W5.4 (22.11.2026, ZT1): reine Zeit → `zeit` mit allen Zeitfeldern; Start/Ziel mit Zeit → Bojen mit Zeit-Abschnitt.
+    const zeit = maskeFuer(sichtMit(DM, 'zeit'), '5')!
+    expect([zeit.art, zeit.zeiten.map((z) => [z.feld, z.titel]), zeit.abschnitte]).toEqual(['zeit', [['zeit1', 'Zeit 1'], ['zeit2', 'Zeit 2'], ['zeit3', 'Zeit 3']], []])
+    for (const typeId of ['bstartziel', 'moewezeit']) {
+      const m = maskeFuer(sichtMit(DM, typeId), '5')!
+      expect([m.art, m.zeiten.length > 0, bojenVon(m).length > 0], typeId).toEqual(['bojen', true, true])
     }
   })
 
@@ -116,7 +145,11 @@ describe('Aufbau je Position (G2: an den Feldarten erkannt)', () => {
     expect(maskenArt([{ kind: 'disq' }, { kind: 'text' }])).toBe('vorsteg')
     for (const kind of ['buoy', 'time', 'points'] as const) expect(maskenArt([{ kind: 'code' }, { kind }])).toBe('spaeter')
     expect(maskenArt([{ kind: 'buoy', boje: {} }, { kind: 'code' }, { kind: 'disq' }])).toBe('bojen')
-    expect(maskenArt([{ kind: 'buoy', boje: {} }, { kind: 'time' }])).toBe('spaeter')
+    // W5.4 (ZT1): Zeit allein (+ Disq./Text) → zeit; neben Bojen des Fahrwegs → bojen; neben Katalog ohne Bojen → später.
+    expect(maskenArt([{ kind: 'time' }, { kind: 'disq' }, { kind: 'text' }])).toBe('zeit')
+    expect(maskenArt([{ kind: 'buoy', boje: {} }, { kind: 'time' }])).toBe('bojen')
+    expect(maskenArt([{ kind: 'code' }, { kind: 'time' }])).toBe('spaeter')
+    expect(maskenArt([{ kind: 'buoy' }, { kind: 'time' }])).toBe('spaeter')
     expect(maskenArt([{ kind: 'buoy', boje: {} }, { kind: 'buoy' }])).toBe('spaeter')
   })
 
@@ -339,15 +372,16 @@ describe('listeMitMaske (W3.2, J1)', () => {
   it('Steg, Vorsteg, Tor 5, MüB mit Maske; Bojen- und Zeitlisten ohne; unbekannte Liste ohne', () => {
     const klassen: ClassId[] = ['1', '4', '5', 'E']
     for (const typeId of ['steg', 'vorsteg', 'tor5', 'mueb']) expect(listeMitMaske(dm, typeId, klassen)).toBe(true)
-    // W4.1: Bojen-Listen haben jetzt eine Maske; Zeit, Knoten und Start/Ziel mit Zeit noch nicht.
-    for (const typeId of ['gate135', 'gate245', 'frontal135', 'parcoursms', 'moewe135']) expect(listeMitMaske(dm, typeId, klassen), typeId).toBe(true)
-    for (const typeId of ['zeit', 'knoten', 'moewezeit', 'bstartziel']) expect(listeMitMaske(dm, typeId, klassen), typeId).toBe(false)
+    // W4.1: Bojen-Listen haben jetzt eine Maske; Zeit und Start/Ziel mit Zeit noch nicht; Knoten seit W5.3 (Prüfliste).
+    for (const typeId of ['gate135', 'gate245', 'frontal135', 'parcoursms', 'moewe135', 'knoten']) expect(listeMitMaske(dm, typeId, klassen), typeId).toBe(true)
+    // W5.4 (22.11.2026): Zeit-Listen und Start/Ziel mit Zeit haben jetzt eine Maske.
+    for (const typeId of ['zeit', 'moewezeit', 'bstartziel']) expect(listeMitMaske(dm, typeId, klassen), typeId).toBe(true)
     expect(listeMitMaske(dm, 'gibt-es-nicht', klassen)).toBe(false)
   })
   it('ohne Starter zählen alle Klassen der Liste', () => {
     expect(listeMitMaske(dm, 'steg', [])).toBe(true)
     expect(listeMitMaske(dm, 'gate135', [])).toBe(true)
-    expect(listeMitMaske(dm, 'knoten', [])).toBe(false)
+    expect(listeMitMaske(dm, 'knoten', [])).toBe(true)
   })
 })
 
@@ -564,30 +598,53 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
     expect(tippeBojenDisq(tippeBojenDisq(tippeBojenDisq(leererEntwurf(), b, 'G'), b, codes[0]), b, null)).toEqual(leererEntwurf())
   })
 
-  it('nachLage (Nutzer 21.11.2026, V1/V2): je Ort eine Gruppe längs der Strecke, in der Gruppe Fahrtfolge; Start unten kehrt um', () => {
-    const titel = (g: ReturnType<typeof nachLage>) => g.map((x) => x.titel)
-    const halte = (g: ReturnType<typeof nachLage>) => g.map((x) => x.abschnitte.map((a) => (a.art === 'halt' ? `${a.halt.halt}${a.halt.durchfahrt ?? ''}` : a.teil.feld)).join(','))
-    const g = nachLage(k7)
-    expect(titel(g)).toEqual(['Start / Ziel', 'Tor 1', 'Tor 3', 'Tor 5', 'Sp. 2'])
-    expect(halte(g)).toEqual(['start,ziel', 't1a,t1b,t1c2', 't3a,t3b', 't5,t5', 'speed2'])
-    expect(g.map((x) => x.titelJeZeile)).toEqual([true, false, false, false, false])
-    expect(titel(nachLage(k7, false))).toEqual(['Sp. 2', 'Tor 5', 'Tor 3', 'Tor 1', 'Start / Ziel'])
-    // Möwe 1/3/5: Einfahrt Tor 5 bei Tor 5; brechts: MüB an der Schikane zwischen Start und Tor 1.
-    expect(halte(nachLage(maskeFuer(sichtMit(DM, 'moewe135'), '7')!)).find((h) => h.startsWith('t5'))).toBe('t5,katalog:tor5,t5')
-    const brechts = nachLage(maskeFuer(sichtMit(DM, 'brechts'), '7')!)
-    const i = halte(brechts).indexOf('katalog:mueb')
-    expect(i).toBeGreaterThanOrEqual(0)
-    expect(brechts.findIndex((x) => x.titel === 'Tor 1')).toBe(i + 1)
-    // Parallelslalom: Start/Ziel, dann Boje 1–5, jede mit hin und rück.
-    const par = nachLage(maskeFuer(sichtMit(UIM, 'parallelparcours'), '1')!)
-    expect(halte(par)).toEqual(['start,ziel', 'b1a,b1b', 'b2a,b2b', 'b3a,b3b', 'b4a,b4b', 'b5'])
-    // Jeder Abschnitt jeder Bojen-Maske kommt genau einmal vor.
+  it('Bojen-Folge (Nutzer 22.11.2026): „gedreht“ = Rück-Reiter in derselben Folge wie Hin, „fahrt“ = Fahrtfolge, „untereinander“ = ein Reiter', () => {
+    const halte = (xs: MaskenAbschnitt[]) => xs.map((a) => (a.art === 'halt' ? `${a.halt.halt}${a.halt.durchfahrt ?? ''}` : a.teil.feld))
+    // Tor 1/3/5, Klasse 5 (ohne Speedrunde): genau das Beispiel des Nutzers.
+    const k5 = maskeFuer(sichtMit(DM, 'gate135'), '5')!
+    expect(k5.umschalter).toBe(true)
+    expect(BOJEN_FOLGE_VORGABE).toBe('gedreht')
+    expect(halte(bojenAbschnitte(k5, 'gedreht', 'hin'))).toEqual(['start', 't1a', 't3a', 't5', 'katalog:tor5'].filter((h) => halte(k5.abschnitte).includes(h)))
+    const rueckFahrt = halte(bojenAbschnitte(k5, 'fahrt', 'rueck'))
+    expect(rueckFahrt).toEqual(['t5', 't3b', 't1b', 'ziel'])
+    // Gedreht: Ziel unter Start, Tor 1 R unter Tor 1 H … – hier genau umgekehrt.
+    const rueckGedreht = halte(bojenAbschnitte(k5, 'gedreht', 'rueck'))
+    expect(rueckGedreht).toEqual(['ziel', 't1b', 't3b', 't5'])
+    // Klasse 7 (Prüfbefund 22.11.2026): Speedrunde (Sp. 2, Tor 1 2. Durchfahrt) an ihrer Stelle der umgekehrten Fahrtfolge.
+    const k7g = maskeFuer(sichtMit(DM, 'gate135'), '7')!
+    expect(halte(bojenAbschnitte(k7g, 'gedreht', 'rueck'))).toEqual(['ziel', 't1c2', 'speed2', 't1b', 't3b', 't5'])
+    expect(halte(bojenAbschnitte(k7g, 'fahrt', 'rueck'))).toEqual(['t5', 't3b', 't1b', 'speed2', 't1c2', 'ziel'])
+    // Hin ist in beiden Folgen gleich; jedes Tor steht unter „gedreht“ auf beiden Reitern in derselben Folge.
+    expect(bojenAbschnitte(k5, 'fahrt', 'hin')).toEqual(bojenAbschnitte(k5, 'gedreht', 'hin'))
+    const tore = (xs: MaskenAbschnitt[]) => xs.flatMap((a) => (a.art === 'halt' && !a.halt.durchfahrt && a.halt.bojen.length === 2 ? [a.halt.titel] : []))
+    expect(tore(bojenAbschnitte(k5, 'gedreht', 'rueck'))).toEqual(tore(bojenAbschnitte(k5, 'gedreht', 'hin')))
+    expect(tore(bojenAbschnitte(k5, 'gedreht', 'hin'))).toEqual(['Start', 'Tor 1', 'Tor 3', 'Tor 5'].filter((t) => tore(k5.abschnitte).includes(t)))
+    // Untereinander: ein Reiter, alles in Fahrtfolge; die Umschalter-Frage hängt an der Folge.
+    expect([mitUmschalter(k5, 'gedreht'), mitUmschalter(k5, 'fahrt'), mitUmschalter(k5, 'untereinander')]).toEqual([true, true, false])
+    expect(bojenAbschnitte(k5, 'untereinander', 'rueck')).toBe(k5.abschnitte)
+    // Die Ortswahl (Disq.) zeigt alles: Hin, dann Rück wie sein Reiter.
+    expect(halte(bojenAbschnitteAlle(k5, 'gedreht'))).toEqual([...halte(bojenAbschnitte(k5, 'gedreht', 'hin')), ...rueckGedreht])
+    expect(bojenAbschnitteAlle(k5, 'fahrt')).toEqual(k5.abschnitte)
+    // Parallelslalom: Rück-Reiter Boje 4 … 1, Ziel umgekehrt → Ziel, Boje 1 … Boje 4 (unter Start, Boje 1 … 4).
+    const par = maskeFuer(sichtMit(UIM, 'parallelparcours'), '1')!
+    expect(halte(bojenAbschnitte(par, 'gedreht', 'hin'))).toEqual(['start', 'b1a', 'b2a', 'b3a', 'b4a', 'b5'])
+    expect(halte(bojenAbschnitte(par, 'gedreht', 'rueck'))).toEqual(['ziel', 'b1b', 'b2b', 'b3b', 'b4b'])
+    expect(halte(bojenAbschnitte(par, 'fahrt', 'rueck'))).toEqual(['b4b', 'b3b', 'b2b', 'b1b', 'ziel'])
+    // Jede Bojen-Maske, jede Folge: jeder Abschnitt genau einmal, beide Seiten zusammen = alle; die Folge ordnet nur um.
     for (const konfig of [DM, UIM])
       for (const p of konfig.getPositions())
         for (const k of KLASSEN) {
           const a = maskeFuer(sichtMit(konfig, p.typeId), k)
           if (!a || a.art !== 'bojen') continue
-          expect(nachLage(a).flatMap((x) => x.abschnitte).length, `${p.typeId}/${k}`).toBe(a.abschnitte.length)
+          // Seit dem Prüfbefund 22.11.2026 jede Liste: gedreht = genau die umgekehrte Fahrtfolge, sobald die Tore auf
+          // dem Hinweg in umgekehrter Folge ihrer Gegenstücke stehen (bei allen Bojen-Listen so).
+          if (mitUmschalter(a, 'gedreht'))
+            expect(bojenAbschnitte(a, 'gedreht', 'rueck'), `${p.typeId}/${k}`).toEqual([...bojenAbschnitte(a, 'fahrt', 'rueck')].reverse())
+          for (const f of BOJEN_FOLGEN) {
+            const alle = mitUmschalter(a, f) ? [...bojenAbschnitte(a, f, 'hin'), ...bojenAbschnitte(a, f, 'rueck')] : bojenAbschnitte(a, f, 'hin')
+            expect(new Set(alle).size, `${p.typeId}/${k}/${f}`).toBe(a.abschnitte.length)
+            expect(bojenAbschnitteAlle(a, f).length, `${p.typeId}/${k}/${f}`).toBe(a.abschnitte.length)
+          }
         }
   })
 
@@ -622,5 +679,178 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
       }
     }
     expect(geprueft).toBeGreaterThan(2000)
+  })
+})
+
+describe('W5.1 Attempt-Wechsel bei derselben Startnummer (PD5, 22.11.2026)', () => {
+  const p = (attempt: 1 | 2, a: string | null, b: string | null) => JSON.stringify(['p', 'pre', attempt, a, b])
+  it('dieselbe Nummer, anderer Start im Parallelslalom → Attempt; sonst null', () => {
+    expect(attemptWechsel({ key: p(1, 's1', 's2'), startNr: '23' }, { key: p(2, 's2', 's1'), startNr: '23' })).toBe(2)
+    expect(attemptWechsel(null, { key: p(2, 's2', 's1'), startNr: '23' })).toBeNull()
+    expect(attemptWechsel({ key: p(1, 's1', 's2'), startNr: '23' }, { key: p(1, 's1', 's2'), startNr: '23' })).toBeNull()
+    expect(attemptWechsel({ key: p(1, 's1', 's2'), startNr: '23' }, { key: p(2, 's3', 's1'), startNr: '24' })).toBeNull()
+    // Kein Parallelslalom (Lauf-Kennung): nie ein Attempt-Band.
+    expect(attemptWechsel({ key: JSON.stringify(['m', 's1', 1]), startNr: '23' }, { key: JSON.stringify(['m', 's1', 2]), startNr: '23' })).toBeNull()
+  })
+})
+
+describe('W5.1 listeMitBojen (F14: „Bild“ nur auf Bojen-Listen, 22.11.2026)', () => {
+  it('Tor-Listen mit Bojen auf dem Fahrweg ja, Steg/Vorsteg/Tor 5/MüB nein; Parallelslalom ja', () => {
+    expect(listeMitBojen(DM, 'gate135', ['7'])).toBe(true)
+    for (const typeId of ['steg', 'vorsteg', 'tor5', 'mueb', 'unbekannt']) expect(listeMitBojen(DM, typeId, ['7']), typeId).toBe(false)
+    expect(listeMitBojen(UIM, 'parallelparcours', [])).toBe(true)
+  })
+})
+
+// W5.2 (Plan docs/plan-wkr-w5.md §5, 22.11.2026): Die Maske „Bild“ hat keine eigene Schreibweise – ein Tipp ins Bild
+// wird über wkr/bild.ts bildZiel zu DERSELBEN MaskenBoje, Entwurf und Zellen entstehen über tippeBoje/tippeBojenDisq/
+// zellenAus. Gleiche Tipps im Bild und in den Knöpfen → gleiche Zellen, und die bestehen wertGilt unverändert.
+describe('W5.2 Maske „Bild“: gleiche Tipps → gleiche Zellen wie die Knöpfe', () => {
+  it('jede Bojen-Position DM/UIM × Klasse (mit Bild bzw. Schema)', () => {
+    let geprueft = 0
+    for (const konfig of [DM, UIM]) {
+      for (const p of konfig.getPositions()) {
+        const sicht = { ...sichtMit(konfig, p.typeId), liste: listenKennung({ bereich: 'b', typeId: p.typeId, racecourse: null }) } as ListenSicht
+        for (const k of KLASSEN) {
+          const aufbau = maskeFuer(sicht, k)
+          if (!aufbau || aufbau.art !== 'bojen') continue
+          // Zeichnung wie auf dem Bogen des Aufbaus „alcatraz“; nur die Zuordnung zählt, nicht das SVG.
+          const z = bildZuordnung(aufbau, { bild: { datei: `Klasse${k}`, dim: [], aus: [], drehung: 0 } })
+          if (!z) continue
+          const felder = new Map(listenFelder(konfig, p.typeId, k).map((f) => [f.kennung, f]))
+          const wege = bildWege(aufbau)
+          const r = folge(k.charCodeAt(0) * 7 + p.typeId.length)
+          for (let runde = 0; runde < 6; runde++) {
+            let knoepfe = leererEntwurf()
+            let bild = leererEntwurf()
+            let weg = wege[0]
+            for (let i = 0; i < 15; i++) {
+              // Der WKR stellt den Umschalter, dann tippt er eine Boje im Bild – die Knöpfe bekommen dieselbe Boje.
+              if (r(4) === 0) weg = wege[r(wege.length)]
+              const id = z.ids[r(z.ids.length)]
+              const ziel = bildZiel(aufbau, z, id, weg)!
+              expect(z.treffer[ziel.boje.feld]).toBe(id)
+              const vorher = bild.bojen[ziel.boje.feld] ?? 0
+              if (r(5) === 0 && ziel.boje.disq.length > 0) {
+                const code = ziel.boje.disq[r(ziel.boje.disq.length)].code
+                bild = tippeBojenDisq(bild, ziel.boje, code)
+                knoepfe = tippeBojenDisq(knoepfe, ziel.boje, code)
+              } else {
+                bild = tippeBoje(bild, ziel.boje)
+                knoepfe = tippeBoje(knoepfe, ziel.boje)
+                weg = wegNachTipp(aufbau, ziel, weg, vorher)
+              }
+            }
+            const zellen = zellenAus(bild, aufbau)
+            expect(zellen).toEqual(zellenAus(knoepfe, aufbau))
+            for (const [kennung, wert] of Object.entries(zellen)) {
+              expect(wertGilt(felder.get(kennung)!, wert), `${p.typeId}/${k}: ${kennung} = „${wert}“`).toBe(true)
+              geprueft++
+            }
+          }
+        }
+      }
+    }
+    expect(geprueft).toBeGreaterThan(1000)
+  })
+
+  it('jede Boje der Liste ist im Bild erreichbar (über ihre ID und eine Seite des Umschalters)', () => {
+    for (const konfig of [DM, UIM]) {
+      for (const p of konfig.getPositions()) {
+        for (const k of KLASSEN) {
+          const aufbau = maskeFuer(sichtMit(konfig, p.typeId), k)
+          if (!aufbau || aufbau.art !== 'bojen') continue
+          const z = bildZuordnung(aufbau, { bild: { datei: `Klasse${k}`, dim: [], aus: [], drehung: 0 } })
+          if (!z) continue
+          const erreichbar = new Set(z.ids.flatMap((id) => bildWege(aufbau).map((w) => bildZiel(aufbau, z, id, w)!.boje.feld)))
+          for (const b of bojenVon(aufbau)) expect(erreichbar.has(b.feld), `${p.typeId}/${k}: ${b.feld}`).toBe(true)
+        }
+      }
+    }
+  })
+})
+
+describe('Zeit-Listen mit Ziffernblock (W5.4, 22.11.2026, ZT1–ZT4)', () => {
+  const zeit = maskeFuer(sichtMit(DM, 'zeit'), '5')!
+  const felder = new Map(listenFelder(DM, 'zeit', '5').map((f) => [f.kennung, f]))
+
+  it('ZT2: jede Tipp-Folge (0–9, „,“ bis 5 Tasten) → Zelle besteht wertGilt unverändert und liest sich wie die Erfassung', () => {
+    const tasten = ['0', '1', '2', '5', '9', ',']
+    const fehler: string[] = []
+    let folgen = ['']
+    let geprueft = 0
+    for (let n = 1; n <= 5; n++) {
+      folgen = folgen.flatMap((f) => tasten.map((t) => f + t))
+      for (const getippt of folgen) {
+        let e = leererEntwurf()
+        // Taste für Taste, wie WkrZiffern sie schickt.
+        for (let i = 1; i <= getippt.length; i++) e = setzeZeit(e, zeit, 'zeit1', getippt.slice(0, i))
+        const zelle = zellenAus(e, zeit).zeit1
+        const lesbar = parseTime(sanitizeTimeInput(getippt, ','))
+        if (!wertGilt(felder.get('zeit1')!, zelle)) fehler.push(`${getippt} → „${zelle}“ gilt nicht`)
+        else if (lesbar === null ? zelle !== '' : zelle !== sanitizeTimeInput(getippt, ',')) fehler.push(`${getippt} → „${zelle}“ ≠ Erfassung`)
+        else if (zelle !== '' && parseTime(zelle)!.centis !== zeitDeutung(e.zeiten.zeit1 ?? '')) fehler.push(`${getippt}: Deutung weicht ab`)
+        else if (zeitUnlesbar(e, 'zeit1') !== (e.zeiten.zeit1 !== undefined && lesbar === null)) fehler.push(`${getippt}: unlesbar falsch`)
+        geprueft++
+      }
+    }
+    expect(fehler).toEqual([])
+    expect(geprueft).toBeGreaterThan(9000)
+  })
+
+  it('Lesart wie am Rechner: „83,45“ und „1,2345“ = 1:23,45; „,“ nur einmal; Punkt wird Komma; höchstens 8 Zeichen', () => {
+    let e = setzeZeit(leererEntwurf(), zeit, 'zeit1', '83,45')
+    expect([zellenAus(e, zeit).zeit1, zeitDeutung('83,45'), zeitUhr(8345), zeitUhr(8345, '.')]).toEqual(['83,45', 8345, '1:23,45', '1:23.45'])
+    e = setzeZeit(e, zeit, 'zeit2', '1,2345')
+    expect(zeitDeutung(e.zeiten.zeit2)).toBe(8345)
+    expect(setzeZeit(leererEntwurf(), zeit, 'zeit1', '45.6,7').zeiten.zeit1).toBe('45,67')
+    expect(setzeZeit(leererEntwurf(), zeit, 'zeit1', '1234567890').zeiten.zeit1).toBe('12345678')
+    expect(setzeZeit(e, zeit, 'fremd', '1')).toBe(e)
+    expect(zeitUhr(4567)).toBe('0:45,67')
+  })
+
+  it('ZT3: Abschicken erst, wenn jedes Zeitfeld eine lesbare Zeit oder „keine Zeit“ hat', () => {
+    let e = leererEntwurf()
+    expect([fertig(e, zeit), zeitenOffen(e, zeit)]).toEqual([false, 3])
+    e = setzeZeit(e, zeit, 'zeit1', '83,45')
+    e = setzeZeit(e, zeit, 'zeit2', ',')
+    expect([fertig(e, zeit), zeitenOffen(e, zeit), zeitUnlesbar(e, 'zeit2')]).toEqual([false, 2, true])
+    e = setzeZeit(e, zeit, 'zeit2', '83,4')
+    e = setzeKeineZeit(e, zeit, 'zeit3', 'nichtImZiel')
+    expect([fertig(e, zeit), zeitenOffen(e, zeit)]).toEqual([true, 0])
+    // Eine Zeile mit allen Feldern: „keine Zeit“ leer, die Zeiten wie getippt.
+    expect(zellenAus(e, zeit)).toMatchObject({ zeit1: '83,45', zeit2: '83,4', zeit3: '' })
+    expect(keineZeitAus(e, zeit)).toEqual([['zeit3', 'nichtImZiel']])
+    // Gemischte Liste (moewezeit): Bojen-Maske, aber ebenso erst mit Zeit.
+    const moewe = maskeFuer(sichtMit(DM, 'moewezeit'), '5')!
+    expect(fertig(leererEntwurf(), moewe)).toBe(false)
+    const mz = moewe.zeiten[0].feld
+    expect(fertig(setzeZeit(leererEntwurf(), moewe, mz, '75,12'), moewe)).toBe(true)
+  })
+
+  it('ZT4: „keine Zeit“ leert die Zeit, eine Zeit hebt „keine Zeit“ auf; derselbe Grund bzw. null nimmt ihn heraus', () => {
+    let e = setzeZeit(leererEntwurf(), zeit, 'zeit1', '83,45')
+    e = setzeKeineZeit(e, zeit, 'zeit1', 'anlage')
+    expect([e.zeiten.zeit1, e.keineZeit.zeit1, zellenAus(e, zeit).zeit1]).toEqual([undefined, 'anlage', ''])
+    expect(setzeKeineZeit(e, zeit, 'zeit1', 'anlage').keineZeit).toEqual({})
+    expect(setzeKeineZeit(e, zeit, 'zeit1', null).keineZeit).toEqual({})
+    expect(setzeKeineZeit(e, zeit, 'zeit1', 'anderes').keineZeit).toEqual({ zeit1: 'anderes' })
+    e = setzeZeit(e, zeit, 'zeit1', '9')
+    expect([e.zeiten.zeit1, e.keineZeit.zeit1]).toEqual(['9', undefined])
+    // Einträge zählen Zeiten und „keine Zeit“ (der Knopf heißt dann nie „Fehlerfrei“).
+    expect(eintraege(setzeKeineZeit(e, zeit, 'zeit2', 'anlage'))).toBe(2)
+  })
+
+  it('entwurfAus ist rund mit „keine Zeit“ aus dem Kennzeichen; Entwürfe merken auch halb getippte Zeiten', () => {
+    let e = setzeZeit(leererEntwurf(), zeit, 'zeit1', '1:23,45')
+    e = setzeZeit(e, zeit, 'zeit2', '83,45')
+    e = setzeKeineZeit(e, zeit, 'zeit3', 'anderes')
+    const zellen = zellenAus(e, zeit)
+    const zurueck = entwurfAus(zellen, zeit, Object.fromEntries(keineZeitAus(e, zeit)))
+    expect([zellenAus(zurueck, zeit), zurueck.keineZeit]).toEqual([zellen, { zeit3: 'anderes' }])
+    // „,“ allein ist (noch) nicht lesbar – die Zelle bleibt leer, der Entwurf behält es.
+    const halb = setzeZeit(leererEntwurf(), zeit, 'zeit1', ',')
+    expect([zellenAus(halb, zeit).zeit1, entwurfZellen(halb, zeit).zeit1]).toEqual(['', ','])
+    expect(entwurfAus(entwurfZellen(halb, zeit), zeit).zeiten.zeit1).toBe(',')
   })
 })

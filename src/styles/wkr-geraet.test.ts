@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
+import { anordnung } from '../wkr/anordnung'
 
 // Von der Platte gelesen (Muster blatt.test.ts): Vitest liefert für CSS-Importe leeren Text, und happy-dom misst
 // keine Größen – die Mindestgrößen der Handy-Maske (W3.3, Plan docs/plan-wkr-w3.md §5.2) stehen deshalb hier fest.
@@ -130,26 +131,51 @@ describe('Feldtest 21.11.2026: Farben in jedem Modus, keine fremden Regeln, kein
     }
   })
 
-  it('Pad bis W5 (T10): ab 700 px eine mittige Spalte von 560 px mit ruhigem Rand je Modus, Fuß genauso breit', () => {
-    const i = css.indexOf('@media (min-width: 700px)')
-    expect(i).toBeGreaterThanOrEqual(0)
-    const block = css.slice(i, css.indexOf('\n}\n', i))
-    expect(block).toContain('--wkr-spalte: 560px')
-    expect(block).toContain('max-width: none')
-    expect(block).toMatch(/padding-inline: max\(12px, calc\(\(100% - var\(--wkr-spalte\)\) \/ 2 \+ 12px\)\)/)
-    expect(block).toContain('var(--wkr-umfeld)')
-    // Der klebende Fuß reicht 12 px über den Innenrand hinaus – zusammen genau die Spalte (keine eigene Breite).
+  it('W5.1 (22.11.2026, T10 entfällt): keine mittige 560-px-Spalte mehr; Pad volle Breite mit --wkr-ziel-pad, Spalten minmax(0, 1fr)', () => {
+    expect(css).not.toContain('@media (min-width: 700px)')
+    expect(css).not.toContain('--wkr-umfeld')
+    expect(css).not.toMatch(/padding-inline:/)
+    expect(regel('.wkr-geraet')['max-width']).toBe('560px')
+    expect(px(regel('.wkr-geraet')['--wkr-ziel-pad'])).toBeGreaterThanOrEqual(64)
+    const pad = regel(".wkr-geraet[data-anordnung='padQuer'],\n.wkr-geraet[data-anordnung='padHoch']")
+    expect([pad['max-width'], pad['--wkr-ziel']]).toEqual(['none', 'var(--wkr-ziel-pad)'])
+    expect(regel(".wkr-geraet[data-anordnung='padQuer'] .wkr-maske--bojen")['--wkr-startnr']).toBe('96px')
+    expect(regel('.wkr-spalten')['grid-template-columns']).toBe('repeat(var(--wkr-spalten, 1), minmax(0, 1fr))')
+    for (const sel of ['.wkr-spalte', '.wkr-maske-haupt', '.wkr-seite', '.wkr-seite-text']) expect(regel(sel, true)['min-width'], sel).toBe('0')
+    expect(regel(".wkr-maske[data-seite='rechts']")['grid-template-columns']).toBe('minmax(0, 7fr) minmax(0, 3fr)')
+    // Der klebende Fuß reicht 12 px über den Innenrand hinaus (wie bisher).
     expect(regel('.wkr-unten', true).margin).toBe('0 -12px -12px')
-    for (const modus of ['', "[data-modus='hell']", "[data-modus='dunkel']"]) {
-      const t = regel(`.wkr-geraet${modus}`)
-      expect(t['--wkr-umfeld'], modus).toMatch(/^#[0-9a-f]{6}$/)
-      expect(t['--wkr-umfeld-linie'], modus).toMatch(/^#[0-9a-f]{6}$/)
-    }
-    // Die Hülle der Freigabe gibt die Breite frei, alles neben der Maske fluchtet mit der Spalte.
+    // Die Hülle der Freigabe gibt die Breite nur für eine Pad-Anordnung frei (über data-teil/data-anordnung, N4).
     const geraet = readFileSync(`${process.cwd()}/src/styles/geraet.css`, 'utf8')
-    // Über data-teil der Wurzel (WkrGeraet), nicht die Klasse – die gehört allein wkr-geraet.css (N4).
-    expect(geraet).toContain(".geraet-freigabe:has(> [data-teil='wkr-geraet']) {\n    max-width: none;\n    padding: 0;")
-    expect(geraet).toContain("> :not([data-teil='wkr-geraet']) {\n    max-width: 560px;\n    margin-inline: auto;")
+    expect(geraet).not.toContain('@media (min-width: 700px)')
+    expect(geraet).toContain(".geraet-freigabe:has(> [data-teil='wkr-geraet']:not([data-anordnung='handy'])) {\n  max-width: none;\n  padding: 0;")
+    expect(geraet).toContain(":not([data-anordnung='handy'])) > :not([data-teil='wkr-geraet']) {\n  max-width: 720px;")
+  })
+
+  it('W5.1: nie abgeschnitten – bei 768×1024, 1024×768 und 1366×1024 mit 1–4 Listen ist jede Arbeitsfläche mindestens so breit wie die geprüfte Handy-Maske', () => {
+    // happy-dom misst nicht: Die Breiten folgen aus der Anordnung (wkr/anordnung.ts) und den Maßen hier – Innenrand der
+    // Wurzel 12 px je Seite, Spaltenabstand --wkr-disq-abstand, Seitenspalte 3/10 (PD3). Die Handy-Maske ist bei 360 px
+    // (Inhalt 336 px) geprüft (Befunde N3, S4); breiter heißt: jeder Text bricht dort mindestens so gut um.
+    const wurzel = regel('.wkr-geraet')
+    const innen = 2 * 12
+    expect(wurzel.padding).toBe('8px 12px 12px')
+    const abstand = px(wurzel['--wkr-disq-abstand'])
+    for (const [breite, hoehe] of [
+      [768, 1024],
+      [1024, 768],
+      [1366, 1024],
+    ])
+      for (const typ of ['pad', 'rechner', undefined] as const)
+        for (let n = 1; n <= 4; n++) {
+          const a = anordnung({ breite, hoehe, typ, listen: ['a', 'b', 'c', 'd'].slice(0, n), teile: n === 1 ? ['a'] : [] })
+          const k = a.spalten.length
+          const spalte = (breite - innen - (k - 1) * abstand) / k
+          const flaeche = a.seite === 'rechts' ? ((spalte - abstand) * 7) / 10 : spalte
+          expect(a.art, `${breite}×${hoehe}`).not.toBe('handy')
+          expect(flaeche, `${breite}×${hoehe} ${typ ?? '–'} ${n} Listen → ${k} Spalten`).toBeGreaterThanOrEqual(336)
+          // Die Seitenspalte selbst trägt nur umbrechenden Text (Nummern nowrap, kurz).
+          if (a.seite === 'rechts') expect(((spalte - abstand) * 3) / 10).toBeGreaterThanOrEqual(200)
+        }
   })
 
   it('Befund 5: jeder Selektor beginnt mit einer Klasse der Maske – kein Element-, Kennungs- oder App-Selektor leckt hinaus', () => {
@@ -267,9 +293,23 @@ describe('W4.2 Bojen-Maske (21.11.2026, Plan docs/plan-wkr-w4.md §5.2)', () => 
   it('Gesetzt = Haupt-Farben (Kontrast über die Tokens geprüft), Startnummer 80 px auf Bojen-Listen, Klassenwechsel-Band absolut', () => {
     const gesetzt = regel('.wkr-knopf.wkr-bojen-knopf--gesetzt')
     expect([gesetzt.background, gesetzt.color]).toEqual(['var(--wkr-haupt)', 'var(--wkr-haupt-text)'])
-    expect(regel('.wkr-maske--bojen')['--wkr-startnr']).toBe('80px')
+    expect(regel('.wkr-maske--bojen', true)['--wkr-startnr']).toBe('80px')
     const band = regel('.wkr-klassen-wechsel')
     expect([band.position, band.inset]).toEqual(['absolute', '100% 0 auto'])
     expect(regel('.wkr-karten-platz').position).toBe('relative')
+  })
+
+  it('Maske „Bild“ (Prüfbefunde 22.11.2026): Kreise nie kleiner als --wkr-ziel, Zeichnung nie höher als der freie Platz', () => {
+    expect(regel('.wkr-bild')['--wkr-bild-kreis']).toBe('max(var(--wkr-ziel), var(--wkr-bild-treffer-groesse))')
+    const kreis = regel('.wkr-knopf.wkr-bild-treffer')
+    for (const k of ['width', 'height', 'min-width', 'min-height']) expect(kreis[k], k).toBe('var(--wkr-bild-kreis)')
+    expect(regel('.wkr-bild-flaeche').padding).toBe('calc(var(--wkr-bild-kreis) / 2)')
+    // Später als data-ziel='gross' und gleiche Spezifität – darum muss die Kreisregel selbst ≥ --wkr-ziel sein.
+    expect(css.indexOf('.wkr-knopf.wkr-bild-treffer {')).toBeGreaterThan(css.indexOf(".wkr-knopf[data-ziel='gross'] {"))
+    const hoehe = regel('.wkr-bild-svg > svg,\n.wkr-bild-schema')['max-height']
+    expect(hoehe).toBe('max(var(--wkr-bild-min-hoehe), calc(100dvh - var(--wkr-bild-rest)))')
+    const t = regel('.wkr-geraet')
+    expect(px(t['--wkr-bild-rest'])).toBeGreaterThan(0)
+    expect(px(t['--wkr-bild-min-hoehe'])).toBeGreaterThanOrEqual(200)
   })
 })

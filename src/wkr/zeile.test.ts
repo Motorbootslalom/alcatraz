@@ -5,7 +5,7 @@ import { lage, refKey } from '../betrieb/folge'
 import { festgeschrieben, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState } from '../types'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
-import { listenDerVeranstaltung, listenKennung, liesListe, type Liste } from './liste'
+import { istParcoursListe, listenDerVeranstaltung, listenKennung, liesListe, type Liste } from './liste'
 
 // Prüfung einer Gerätezeile (Plan §6): jede Zellart wie die Erfassungstabelle, X nur Steg-Ablegen/Vorsteg (F5),
 // Teile des Stegs (F16), fremde Felder, Klasse ohne Liste, Parallelslalom (eigene Seite), Vorsteg auf alle Versuche.
@@ -34,11 +34,15 @@ describe('Listen und Kennungen', () => {
     for (const x of ['', 'x', '["l","par_1","steg"]', '["l","par_1","steg","A"]', '["l","parallel","steg",null]', '["m","par_1","steg",null]', 7, null]) expect(liesListe(x)).toBeNull()
   })
 
-  it('Listen der Veranstaltung: je Parcours die Listen mit Lauf (ohne Knoten), im Parallelslalom je Racecourse', () => {
+  it('Listen der Veranstaltung: je Parcours die Listen mit Lauf, Knoten einmal am Tisch (W5.3, KN1), im Parallelslalom je Racecourse', () => {
     const s = wkrBetriebsStand()
     const listen = listenDerVeranstaltung(s, DM)
     expect(listen.filter((l) => l.bereich === P1).map((l) => l.typeId)).toEqual(['zeit', 'vorsteg', 'steg', 'gate135', 'gate245', 'tor5', 'mueb', 'parcours'])
-    expect(listen.some((l) => l.typeId === 'knoten')).toBe(false)
+    // Seit W5.3 (22.11.2026): Knoten genau einmal, im Bereich `tisch`, Kennung ["l","tisch","knoten",null].
+    const knoten = listen.filter((l) => l.typeId === 'knoten')
+    expect(knoten).toEqual([{ bereich: 'tisch', typeId: 'knoten', racecourse: null }])
+    expect(listenKennung(knoten[0])).toBe('["l","tisch","knoten",null]')
+    expect(istParcoursListe(DM, 'knoten')).toBe(false)
     const uim = uimParallelStand()
     const parallel = listenDerVeranstaltung(uim, UIM).filter((l) => l.bereich === 'parallel')
     expect(parallel.length).toBeGreaterThan(0)
@@ -289,5 +293,37 @@ describe('pruefeZeile – „Nicht vorbeigekommen“ (W4.3, P16)', () => {
   it('ohne `n` fehlt das Kennzeichen in der aufgelösten Zeile', () => {
     const { s, erster } = gezeigt()
     expect(pruefeZeile(s, DM, L('gate135'), undefined, 'g1', zeile(m(erster), []))).not.toHaveProperty('nichtVorbei')
+  })
+})
+
+describe('pruefeZeile – „Keine Zeit“ (W5.4, 22.11.2026, ZT4)', () => {
+  const fall = (typeId: string, c: GeraeteZeile['c'], kz: unknown, mehr: Partial<GeraeteZeile> = {}) => {
+    const { s, erster } = gezeigt()
+    return pruefeZeile(s, DM, L(typeId), undefined, 'g1', { ...zeile(m(erster), c, mehr), kz })
+  }
+
+  it('Zeitfeld leer mit Grund: aufgelöst als `keineZeit`; leeres `kz` ersetzt (hebt auf), fehlendes lässt stehen', () => {
+    expect(fall('zeit', [['zeit1', '83,45', '']], [['zeit2', 'anlage'], ['zeit3', 'nichtImZiel']])).toMatchObject({
+      zellen: [{ feld: 'zeit1', wert: '83,45', vorher: '' }],
+      haken: ['erfasst@zeit'],
+      keineZeit: { zeit2: 'anlage', zeit3: 'nichtImZiel' },
+    })
+    expect(fall('zeit', [['zeit1', '83,45', '']], [])).toMatchObject({ keineZeit: {} })
+    const { s, erster } = gezeigt()
+    expect(pruefeZeile(s, DM, L('zeit'), undefined, 'g1', zeile(m(erster), [['zeit1', '83,45', '']]))).not.toHaveProperty('keineZeit')
+    // Die leere Zelle darf mitkommen (vorher stand dort eine Zeit) – leer + Grund widerspricht sich nicht.
+    expect(fall('zeit', [['zeit2', '', '80,12']], [['zeit2', 'anderes']])).toMatchObject({ keineZeit: { zeit2: 'anderes' } })
+  })
+
+  it('Form: Paare mit bekanntem Grund, nie zusammen mit `n` – sonst wert-ungueltig', () => {
+    for (const kz of ['x', [['zeit1']], [['zeit1', 'kaputt']], [[1, 'anlage']], { zeit1: 'anlage' }]) expect(fall('zeit', [], kz), JSON.stringify(kz)).toEqual({ fehler: 'wert-ungueltig' })
+    expect(fall('gate135', [], [['zeit1', 'anlage']], { n: true })).toEqual({ fehler: 'wert-ungueltig' })
+  })
+
+  it('Zeit UND „keine Zeit“ im selben Feld: wert-ungueltig; Feld, das keine Zeit ist, oder doppelt: feld-fremd', () => {
+    expect(fall('zeit', [['zeit1', '83,45', '']], [['zeit1', 'anlage']])).toEqual({ fehler: 'wert-ungueltig' })
+    expect(fall('tor5', [], [['disq@tor5', 'anlage']])).toEqual({ fehler: 'feld-fremd' })
+    expect(fall('gate135', [], [['zeit1', 'anlage']])).toEqual({ fehler: 'feld-fremd' })
+    expect(fall('zeit', [], [['zeit1', 'anlage'], ['zeit1', 'anderes']])).toEqual({ fehler: 'feld-fremd' })
   })
 })

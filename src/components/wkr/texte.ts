@@ -1,6 +1,7 @@
 import { computed, inject, provide, type ComputedRef, type InjectionKey } from 'vue'
 import { tIn, tnIn, type Locale, type MessageKey } from '../../i18n'
-import type { MaskenAufbau } from '../../wkr/maske'
+import { zeitDeutung, zeitUhr, type MaskenAufbau } from '../../wkr/maske'
+import type { KeineZeitGrund } from '../../types'
 import type { ZeilenStufe } from '../../geraete/erfassen'
 
 /**
@@ -62,8 +63,15 @@ export function stufeZeichen(s: ZeilenStufe): string {
  * Bojen (W4.2, 21.11.2026, P14): Kopf wie auf dem Bogen – „Tor 1 H L: 5 · Tor 5 H R: 10“, die 2. Durchfahrt mit
  * Kurzvermerk, eine Boje ohne Unterspalte (Speedboje) nur mit dem Titel. Reihenfolge der Maske (Fahrtfolge, dann
  * Disq., Bemerkung) – nicht die der Zellen: „alt → neu“ einer Korrektur soll dieselbe Folge zeigen.
+ * Zeit (W5.4, 22.11.2026): „Zeit 1: 1:23,45“ (die Uhr, wie die Maske sie zeigt) und „Zeit 2: keine Zeit“ aus `keineZeit`.
  */
-export function zellenText(zellen: Readonly<Record<string, string>>, aufbau: MaskenAufbau | null, t: WkrText, leer: string): string {
+export function zellenText(
+  zellen: Readonly<Record<string, string>>,
+  aufbau: MaskenAufbau | null,
+  t: WkrText,
+  leer: string,
+  keineZeit: Readonly<Record<string, KeineZeitGrund>> = {},
+): string {
   const teile: string[] = []
   const titel = new Map<string, string>()
   for (const a of aufbau?.abschnitte ?? []) {
@@ -74,14 +82,34 @@ export function zellenText(zellen: Readonly<Record<string, string>>, aufbau: Mas
     }
   }
   for (const m of aufbau?.teile ?? []) if (!titel.has(m.feld)) titel.set(m.feld, m.titel.replace(/:\s*$/, ''))
+  const zeitFelder = new Set((aufbau?.zeiten ?? []).map((z) => z.feld))
+  for (const z of aufbau?.zeiten ?? []) titel.set(z.feld, z.titel.replace(/:\s*$/, ''))
   if (aufbau?.disq && !titel.has(aufbau.disq.feld)) titel.set(aufbau.disq.feld, t.w('wkr.geraet.disq'))
   if (aufbau?.bemerkung) titel.set(aufbau.bemerkung, t.w('wkr.geraet.bemerkung'))
   const folge = [...new Set([...titel.keys(), ...Object.keys(zellen)])]
-  for (const feld of folge) {
-    const wert = zellen[feld]
-    if (!wert) continue
+  const komma = t.sprache.value === 'en' ? '.' : ','
+  for (const feld of [...folge, ...Object.keys(keineZeit).filter((f) => !folge.includes(f))]) {
     const name = titel.get(feld)
+    if (keineZeit[feld] && !zellen[feld]) {
+      teile.push(`${name ?? feld}: ${t.w('wkr.geraet.keineZeit.kurz')}`)
+      continue
+    }
+    const roh = zellen[feld]
+    if (!roh) continue
+    const c = zeitFelder.has(feld) ? zeitDeutung(roh) : null
+    const wert = c !== null ? zeitUhr(c, komma) : roh
     teile.push(name ? `${name}: ${feld === aufbau?.bemerkung ? `„${wert}“` : wert}` : wert)
   }
   return teile.length > 0 ? teile.join(' · ') : leer
+}
+
+/** Eine gesendete Zeile in der Maske „Tabelle“ (W5.5, TB5): aus „Zuletzt“, Zellen aus dem eigenen Stand. */
+export interface TabellenGesendet {
+  z: number
+  sn: string
+  zellen: Readonly<Record<string, string>>
+  stufe: ZeilenStufe
+  nv?: true
+  /** „Keine Zeit“ je Feld (W5.4). */
+  kz?: Readonly<Record<string, string>>
 }

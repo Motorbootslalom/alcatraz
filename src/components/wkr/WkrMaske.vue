@@ -1,19 +1,27 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
-import type { ClassId, PunktId } from '../../types'
+import type { ClassId, KeineZeitGrund, WkrPunkt } from '../../types'
 import type { EntwurfEintrag, ErfassungsQuelle, PruefZeile, SchlangenEintrag, ZuletztZeile } from '../../geraete/erfassen'
-import { BOJEN_ANSICHT_VORGABE, type AnsichtWahl, type BojenAnsicht, type GeraetAnsicht } from '../../geraete/ablage'
+import type { AnsichtWahl, GeraetAnsicht } from '../../geraete/ablage'
 import type { ListenAufgabe } from '../../geraete/aufgaben'
 import { liesRef } from '../../betrieb/folge'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { liesListe, type ListenTeil } from '../../wkr/liste'
 import {
+  attemptWechsel,
+  BOJEN_FOLGE_VORGABE,
   bojenVon,
   disqAnBojen,
   disqFuer,
   eintraege,
   entwurfAus,
+  entwurfZellen,
+  fertig,
+  keineZeitAus,
   leererEntwurf,
+  setzeKeineZeit,
+  setzeZeit,
+  zeitenOffen,
   maskeFuer,
   maskenArt,
   mitBemerkung,
@@ -27,28 +35,30 @@ import {
   wechselTakt,
   zellenAus,
   zurueck,
+  type BojenFolge,
   type Entwurf,
   type MaskenAufbau,
   type MaskenBoje,
 } from '../../wkr/maske'
 import type { Weg } from '../../wkr/bojen'
+import type { MaskenWahl } from '../../wkr/maskenWahl'
 import { NICHT_VORBEI_DISQ, nichtVorbeiArt } from '../../wkr/nichtVorbei'
 import AppDialog from '../AppDialog.vue'
 import WkrAbschluss from './WkrAbschluss.vue'
 import WkrAusweichen from './WkrAusweichen.vue'
-import WkrBojen from './WkrBojen.vue'
-import WkrDisq from './WkrDisq.vue'
-import WkrDisqOrt from './WkrDisqOrt.vue'
 import WkrFuss from './WkrFuss.vue'
-import WkrKnoepfe from './WkrKnoepfe.vue'
 import WkrKopf from './WkrKopf.vue'
 import WkrMehr from './WkrMehr.vue'
+import WkrMitte from './WkrMitte.vue'
+import { bildTreffer } from '../../wkr/bild'
+import { tabellenSpalten } from '../../wkr/tabelle'
+import { parcoursSvg } from '../../lib/parcoursQuelle'
+import WkrSeite from './WkrSeite.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import WkrStarterKarte from './WkrStarterKarte.vue'
 import WkrStegReiter from './WkrStegReiter.vue'
 import WkrParcoursBild from './WkrParcoursBild.vue'
 import WkrUebertragen from './WkrUebertragen.vue'
-import WkrVorsteg from './WkrVorsteg.vue'
 import WkrZuletzt from './WkrZuletzt.vue'
 import { gedaechtnis } from './gedaechtnis'
 import { useWkrText, zellenText } from './texte'
@@ -80,12 +90,29 @@ import { useWkrText, zellenText } from './texte'
  *   Teil im Gedächtnis (gedaechtnis.ts `wege`, neuer Start = Hinweg, wechselt nie von selbst, P8); Klassenwechsel-Band
  *   (P10) `klassenWechselMs` lang ÜBER der Karte (absolut, verschiebt nichts, fängt seine Fläche ab); Startnummer
  *   80 px (`.wkr-maske--bojen`, P17).
- * - **Bojen-Ansicht und Disq. an der Boje** (Nutzer 21.11.2026, WKR_ANNAHMEN V1/V2, U1/U2): Reihenfolge „Fahrtfolge“ ↔
- *   „Wie der Parcours liegt“, Start oben/unten, Spalten tauschen – je Liste aus `bojenAnsichten` (WkrGeraet merkt sie,
- *   ablage.ts `bojen`), geändert unter „Mehr → Ansicht“. Der Fuß nennt die Buchstaben an Bojen mit („Disq. G“).
+ * - **Bojen-Folge und Disq. an der Boje** (Nutzer 22.11.2026, WKR_ANNAHMEN.bojenFolge; U1/U2 vom 21.11.2026): Reihenfolge
+ *   „Rückweg gedreht“ (Vorgabe) / „Fahrtfolge“ / „Alles untereinander“ – je Liste aus `bojenFolgen` (WkrGeraet merkt
+ *   sie, ablage.ts `bojenFolge`), geändert unter „Mehr → Ansicht“. Der Fuß nennt die Buchstaben an Bojen mit („Disq. G“).
  * - **Disq. auf Bojen-Listen** (Antwort W4-12, 21.11.2026, BZ4): DISQ im Fuß und „Disq. an Boje …“ öffnen dieselbe
  *   Wahl (WkrDisqOrt): erst die Boje bzw. „keine Boje / ganzer Parcours“ (→ Disq.-Feld), dann der Buchstabe. Der
  *   Buchstabe steht NEBEN den Punkten der Boje (BZ1, „5G“); nach der Wahl an einer Boje zeigt die Mitte wieder die Bojen.
+ * - **Pad** (W5.1, Plan docs/plan-wkr-w5.md §4, 22.11.2026): Die Mitte (was getippt wird) steht in WkrMitte.vue. WkrGeraet
+ *   gibt die Anordnung (wkr/anordnung.ts): `seite` rechts/unten = eigene Seitenspalte WkrSeite (Schlange, Zuletzt als
+ *   Liste, Einträge im Klartext, Zeichnung – PD3/PD6), `kompakt` = Schlange und Einträge unter der Arbeitsfläche; Fuß
+ *   über die volle Breite der Maske. `stegTeil`: Spalte eines Geräts für den ganzen Steg (Ablegen bzw. Anlegen fest, ohne
+ *   Steg-Reiter; der Abschluss bleibt der ganzen Liste und steht nur in der Ablegen-Spalte). `ohneLauf`: der Lauf steht im
+ *   gemeinsamen Rundenband über Racecourse A und B (PD4). Attempt-Wechsel bei derselben Nummer (PD5): Band „23 ·
+ *   ATTEMPT 2“ invers über der Karte, attemptSperreMs lang nimmt die Maske nichts an. `masken` reicht die Maskenwahl
+ *   (F14) an „Mehr“, Ereignis `maske` geht an WkrGeraet.
+ * - **Zeit** (W5.4, Plan docs/plan-wkr-w5.md §7, 22.11.2026, ZT1–ZT4): Art `zeit` bzw. Bojen mit Zeit-Abschnitt (WkrMitte
+ *   → WkrZeiten). Der Hauptknopf bleibt gesperrt, bis jedes Zeitfeld eine lesbare Zeit oder „keine Zeit“ hat
+ *   (wkr/maske.ts fertig); die Zeile trägt dann `kz` (immer, auch leer – sie ersetzt ein älteres Kennzeichen). Die
+ *   Korrektur holt „keine Zeit“ aus dem eigenen Stand (quelle.keineZeit), „Zuletzt“ zeigt die Zeiten als Uhr.
+ * - **Tabelle** (W5.5, Plan docs/plan-wkr-w5.md §8, 22.11.2026, TB1–TB5): Mit wirksamer Maske `text` zeigt WkrMitte
+ *   WkrTabelle (Spalten aus wkr/tabelle.ts tabellenSpalten, letzte gesendete Zeilen, nächste Starts). Die Tabelle gibt
+ *   ihren Entwurf hinauf (gemerkt wie jeder Tipp), Enter in der letzten Zelle ruft `haupt` – derselbe Takt, dasselbe
+ *   Overlay; „Korrigieren“ an einer Zeile = oeffneKorrektur wie aus „Zuletzt“. Zellen mit Fehler sperren den
+ *   Hauptknopf (WkrFuss `zellenFehler`); DISQ entfällt dort (Buchstaben stehen in der Zelle).
  */
 const props = defineProps<{
   quelle: ErfassungsQuelle
@@ -99,10 +126,18 @@ const props = defineProps<{
   modus?: AnsichtWahl
   /** Vorbelegter WKR-Name für den Abschluss (G12). */
   name?: string
-  /** Bojen-Ansicht je Liste (ablage.ts GeraetAnsicht.bojen) – nur zum Lesen; Änderungen gehen als `ansicht` hinauf. */
-  bojenAnsichten?: Record<string, BojenAnsicht>
+  /** Bojen-Folge je Liste (ablage.ts GeraetAnsicht.bojenFolge) – nur zum Lesen; Änderungen gehen als `ansicht` hinauf. */
+  bojenFolgen?: Record<string, BojenFolge>
+  /** Pad (W5.1): eigene Seitenspalte rechts/unten bzw. kompakt unter der Arbeitsfläche; fehlt = Handy. */
+  seite?: 'rechts' | 'unten' | 'kompakt' | null
+  /** Pad, ganzer Steg (W5.1): dieser Teil als eigene Spalte. */
+  stegTeil?: ListenTeil
+  /** Der Lauf steht im gemeinsamen Rundenband (PD4) – nicht noch einmal im Kopf. */
+  ohneLauf?: boolean
+  /** Maskenwahl (F14, W5.1) für „Mehr → Ansicht → Maske“; die gezeigte Maske ist `masken.wirksam`. */
+  masken?: { erlaubt: MaskenWahl[]; wirksam: MaskenWahl; fest: boolean } | null
 }>()
-const emit = defineEmits<{ ansicht: [aenderung: Partial<GeraetAnsicht>]; probe: []; name: [name: string]; uebungEnde: [] }>()
+const emit = defineEmits<{ ansicht: [aenderung: Partial<GeraetAnsicht>]; probe: []; name: [name: string]; uebungEnde: []; maske: [maske: MaskenWahl] }>()
 const text = useWkrText()
 const { w } = text
 
@@ -134,7 +169,9 @@ onBeforeUnmount(() => {
 // --- Steg-Teil, Schlange, gewählter Start ---
 const geteilt = computed(() => !!sicht.value?.teile)
 const stegWahl = ref<ListenTeil>(props.aufgabe.teil ?? 'ab')
-const teil = computed<ListenTeil | undefined>(() => (geteilt.value ? (props.aufgabe.teil ?? stegWahl.value) : undefined))
+const teil = computed<ListenTeil | undefined>(() => (geteilt.value ? (props.aufgabe.teil ?? props.stegTeil ?? stegWahl.value) : undefined))
+/** Darf der WKR hier den Steg-Teil wechseln? Nicht am Teil-Gerät und nicht in einer Steg-Spalte des Pads (W5.1). */
+const teilWaehlbar = computed(() => geteilt.value && !props.aufgabe.teil && !props.stegTeil)
 
 function schlangeVon(t: ListenTeil | undefined): SchlangenEintrag[] {
   const ganz = props.quelle.schlange.value[liste.value] ?? []
@@ -161,7 +198,7 @@ const status = computed(() => {
   if (!s) return 'aktiv' as const
   return teil.value && s.teile ? s.teile[teil.value].status : s.status
 })
-const abgeschlossenIn = (t: ListenTeil | undefined): PunktId[] => {
+const abgeschlossenIn = (t: ListenTeil | undefined): WkrPunkt[] => {
   const s = sicht.value
   if (!s) return []
   return t && s.teile ? s.teile[t].abgeschlossen : s.abgeschlossen
@@ -169,7 +206,7 @@ const abgeschlossenIn = (t: ListenTeil | undefined): PunktId[] => {
 
 // --- Aufbau der Maske ---
 const ersteKlasse = computed(() => (Object.entries(sicht.value?.klassen ?? {}).find(([, k]) => k?.felder)?.[0] ?? null) as ClassId | null)
-function klasseVon(s: string, punkt: PunktId | null): ClassId | null {
+function klasseVon(s: string, punkt: WkrPunkt | null): ClassId | null {
   const bekannt = [...schlange.value, ...danach.value, ...(sicht.value?.schlange ?? [])].find((x) => x.key === s)
   if (bekannt) return bekannt.klasse
   if (punkt) {
@@ -220,7 +257,8 @@ function aendere(neu: Entwurf): void {
   const a = aktuell.value
   const b = aufbau.value
   if (korrektur.value || !a || !b) return
-  props.quelle.merkeEntwurf(liste.value, a.key, teil.value, zellenAus(neu, b, teil.value))
+  // Zeiten wie getippt, auch halb (W5.4) – der Entwurf ist nur gerätelokal (entwurfZellen, nie die Leitung).
+  props.quelle.merkeEntwurf(liste.value, a.key, teil.value, entwurfZellen(neu, b, teil.value))
 }
 
 // --- Takt nach dem Abschicken (G5; Overlay mit Quittung seit dem Feldtest 21.11.2026, N1/N2) ---
@@ -241,7 +279,12 @@ const gesendeteStufe = computed(() => {
   return g ? (props.quelle.zuletzt.value.find((x) => x.z === g.z)?.stufe ?? null) : null
 })
 const takt = computed(() => wechselTakt(gesendet.value?.um ?? null, jetzt.value, quittungUm.value))
-const gesperrt = computed(() => takt.value !== 'frei')
+// PD5 (W5.1, 22.11.2026): Attempt-Wechsel bei derselben Startnummer – Band invers, eine Sperrsekunde (Watch unten).
+const attemptBis = ref<number | null>(null)
+const attemptText = ref('')
+const attemptAktiv = computed(() => attemptBis.value !== null && jetzt.value < attemptBis.value)
+// PD5 (W5.1): auch in der Sperrsekunde des Attempt-Wechsels (attemptBis, unten) nimmt die Maske nichts an.
+const gesperrt = computed(() => takt.value !== 'frei' || attemptAktiv.value)
 /** Overlay „wird übertragen …“ / „✓ übernommen“: die Nummer steht noch, die Maske darunter nimmt nichts an. */
 const imOverlay = computed(() => takt.value === 'gesendet' || takt.value === 'uebernommen')
 /** N2: Overlay ohne Antwort weg – über dem Kopf „Start n gesendet – Bestätigung folgt“, bis die Antwort kommt. */
@@ -378,7 +421,8 @@ const kopfTitel = computed(() => {
 })
 
 // --- Zuletzt, Entwürfe ---
-const zeilen = computed(() => props.quelle.zuletzt.value.filter((z) => z.liste === liste.value))
+// In einer Steg-Spalte des Pads (W5.1) nur die Zeilen dieses Teils – der andere hat seine eigene Spalte.
+const zeilen = computed(() => props.quelle.zuletzt.value.filter((z) => z.liste === liste.value && (!props.stegTeil || !z.teil || z.teil === props.stegTeil)))
 // „So lassen“ und „behalten“ überleben den Neuaufbau der Maske (Reiterwechsel) – Gedächtnis je Quelle und Liste.
 const gedacht = gedaechtnis(props.quelle, props.aufgabe.liste)
 const erledigt = ref<ReadonlySet<number>>(gedacht.erledigt)
@@ -395,7 +439,7 @@ const andereEntwuerfe = computed(() =>
   props.quelle.entwuerfe.value.filter((e) => e.liste === liste.value && !(e.s === aktuell.value?.key && (e.teil ?? '') === (teil.value ?? ''))),
 )
 // „Nicht vorbeigekommen“ (W4.3): statt der (leeren) Zellen das Kennzeichen – „fehlerfrei“ wäre falsch.
-const zeilenText = (z: ZuletztZeile) => (z.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(z.zellen, aufbauVon(klasseVon(z.s, z.punkt)), text, w('wkr.geraet.fehlerfreiText')))
+const zeilenText = (z: ZuletztZeile) => (z.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(z.zellen, aufbauVon(klasseVon(z.s, z.punkt)), text, w('wkr.geraet.fehlerfreiText'), z.kz))
 
 /** Entwürfe zu Starts, die nicht mehr in der Folge stehen (zurückgestellt) – einmal fragen. */
 const gefragt = ref<ReadonlySet<string>>(gedacht.gefragt)
@@ -422,7 +466,7 @@ watch(
   },
   { immediate: true },
 )
-function titelVonPunkt(p: PunktId): string {
+function titelVonPunkt(p: WkrPunkt): string {
   const bekannt = punktTitel.value[p]
   if (bekannt) return bekannt
   const [art, rest = ''] = p.split(':')
@@ -431,18 +475,20 @@ function titelVonPunkt(p: PunktId): string {
 /** Der eigene Teil für den Abschluss: der der Aufgabe – ein Gerät für den ganzen Steg schließt die ganze Liste. */
 const abschlussTeil = computed(() => (geteilt.value ? props.aufgabe.teil : undefined))
 const letzterEigenerPunkt = computed(() => zeilen.value.find((z) => z.punkt !== null)?.punkt ?? null)
-const bandPunkt = computed<PunktId | null>(() => {
+const bandPunkt = computed<WkrPunkt | null>(() => {
   const p = letzterEigenerPunkt.value
   const s = sicht.value
   if (!p || !s || s.modus === 'papier') return null
   if (abgeschlossenIn(abschlussTeil.value).includes(p)) return null
   if (props.quelle.abschluesse.value.some((a) => a.liste === liste.value && a.punkt === p && a.stufe !== 'abgelehnt')) return null
+  // Ganzer Steg auf dem Pad (W5.1): ein Band für die ganze Liste, in der Ablegen-Spalte.
+  if (props.stegTeil === 'an') return null
   const ruht = s.punkt?.id === p && schlange.value.length === 0 && danach.value.length === 0
   return s.punkt?.id !== p || ruht ? p : null
 })
-const abschluss = ref<PunktId | null>(null)
+const abschluss = ref<WkrPunkt | null>(null)
 /** Nur noch über das Band (W3-40, AM10): „Mehr → Liste abschließen“ gibt es nicht mehr. */
-function oeffneAbschluss(p: PunktId | null): void {
+function oeffneAbschluss(p: WkrPunkt | null): void {
   if (!p) return
   korrektur.value = null
   disqOffen.value = false
@@ -521,7 +567,7 @@ function bemerkung(t: string): void {
   aendere(mitBemerkung(entwurf.value, t))
 }
 function waehleTeil(t: ListenTeil): void {
-  if (gesperrt.value || props.aufgabe.teil) return
+  if (gesperrt.value || !teilWaehlbar.value) return
   stegWahl.value = t
   gewaehlt.value = null
   disqOffen.value = false
@@ -585,7 +631,7 @@ async function oeffneHinweis(id: number, nr: string): Promise<void> {
   jetzt.value = Date.now()
   korrektur.value = null
   frageKorrektur.value = false
-  const teile: (ListenTeil | undefined)[] = geteilt.value && !props.aufgabe.teil ? [teil.value, teil.value === 'an' ? 'ab' : 'an'] : [teil.value]
+  const teile: (ListenTeil | undefined)[] = teilWaehlbar.value ? [teil.value, teil.value === 'an' ? 'ab' : 'an'] : [teil.value]
   for (const t of teile) {
     const treffer = [...schlangeVon(t), ...danach.value].find((x) => nummer(x.startNr) === gesucht)
     if (!treffer) continue
@@ -603,15 +649,19 @@ async function oeffneHinweis(id: number, nr: string): Promise<void> {
 
 function haupt(): void {
   if (gesperrt.value) return
+  // Tabelle (W5.5, TB3): Solange eine Zelle einen Fehler hat, geht nichts hinaus – weder über Enter noch den Hauptknopf.
+  if (tabelle.value && tabellenFehler.value > 0) return
   hinweisUnbekannt.value = null
   if (korrektur.value) {
-    if (aufbau.value) frageKorrektur.value = true
+    if (aufbau.value && fertig(entwurf.value, aufbau.value)) frageKorrektur.value = true
     return
   }
   const a = aktuell.value
   const b = aufbau.value
   if (!a || !b) return
-  const z = props.quelle.schicke(liste.value, { s: a.key, zellen: zellenAus(entwurf.value, b, teil.value), ...(teil.value ? { teil: teil.value } : {}) })
+  // Zeit (W5.4, ZT3): erst, wenn jedes Zeitfeld fertig ist – der Knopf ist dann ohnehin gesperrt (Doppelsicherung).
+  if (!fertig(entwurf.value, b)) return
+  const z = props.quelle.schicke(liste.value, { s: a.key, zellen: zellenAus(entwurf.value, b, teil.value), ...kzVon(entwurf.value, b), ...(teil.value ? { teil: teil.value } : {}) })
   if (z === null) return
   const g: Gesendet = { um: Date.now(), z, start: a, entwurf: entwurf.value, aufbau: b, klasse: klassenTitel(a.klasse) }
   quittungUm.value = null
@@ -658,10 +708,23 @@ function nichtVorbei(): void {
   ladeEntwurf()
 }
 
+/** „Keine Zeit“ für die Zeile (W5.4): auf Listen mit Zeitfeldern immer (auch leer), sonst nichts. */
+function kzVon(e: Entwurf, b: MaskenAufbau): { kz?: Record<string, KeineZeitGrund> } {
+  return b.zeiten.length > 0 ? { kz: Object.fromEntries(keineZeitAus(e, b)) } : {}
+}
+function setzeZeitFeld(feld: string, t: string): void {
+  if (gesperrt.value || !aufbau.value) return
+  aendere(setzeZeit(entwurf.value, aufbau.value, feld, t))
+}
+function setzeKeineZeitFeld(feld: string, grund: KeineZeitGrund | null): void {
+  if (gesperrt.value || !aufbau.value) return
+  aendere(setzeKeineZeit(entwurf.value, aufbau.value, feld, grund))
+}
+
 function oeffneKorrektur(z: number): void {
   const k = props.quelle.zuletzt.value.find((x) => x.z === z)
   if (!k) return
-  if (k.teil && geteilt.value && !props.aufgabe.teil) stegWahl.value = k.teil
+  if (k.teil && teilWaehlbar.value) stegWahl.value = k.teil
   // Die Korrektur ist eine bewusste Wahl (oben, außerhalb der gesperrten Fläche): Sie beendet den Takt des letzten
   // Abschickens, sonst zeigte die Mitte noch den gesendeten Start.
   beendeTakt()
@@ -670,7 +733,8 @@ function oeffneKorrektur(z: number): void {
   disqOffen.value = false
   const b = aufbauVon(klasseVon(k.s, k.punkt))
   korrekturAlt.value = props.quelle.stand(k.z) ?? k.zellen
-  entwurf.value = b ? entwurfAus(korrekturAlt.value, b) : leererEntwurf()
+  korrekturKz.value = props.quelle.keineZeit(k.z)
+  entwurf.value = b ? entwurfAus(korrekturAlt.value, b, korrekturKz.value) : leererEntwurf()
 }
 function brichKorrekturAb(): void {
   korrektur.value = null
@@ -678,11 +742,14 @@ function brichKorrekturAb(): void {
   ladeEntwurf()
 }
 const korrekturNeu = computed(() => (korrektur.value && aufbau.value ? zellenAus(entwurf.value, aufbau.value, korrektur.value.teil) : {}))
+/** „Keine Zeit“ vor (aus dem eigenen Stand) und nach der Korrektur (W5.4) – für „alt → neu“ und die Zeile. */
+const korrekturKz = shallowRef<Record<string, KeineZeitGrund>>({})
+const korrekturKzNeu = computed(() => (aufbau.value ? Object.fromEntries(keineZeitAus(entwurf.value, aufbau.value)) : {}))
 function korrekturJa(): void {
   const k = korrektur.value
   frageKorrektur.value = false
   if (!k || !aufbau.value) return
-  props.quelle.korrigiere(k.z, korrekturNeu.value)
+  props.quelle.korrigiere(k.z, korrekturNeu.value, aufbau.value.zeiten.length > 0 ? korrekturKzNeu.value : undefined)
   legeWeg(k.z)
   brichKorrekturAb()
 }
@@ -698,17 +765,20 @@ function zurueckHolen(): void {
     oeffneKorrektur(g.z)
     return
   }
-  if (r.teil && geteilt.value && !props.aufgabe.teil) stegWahl.value = r.teil
+  if (r.teil && teilWaehlbar.value) stegWahl.value = r.teil
   korrektur.value = null
   gewaehlt.value = r.s
   ladeEntwurf()
 }
 function oeffneEntwurf(e: EntwurfEintrag): void {
-  if (e.teil && geteilt.value && !props.aufgabe.teil) stegWahl.value = e.teil
+  if (e.teil && teilWaehlbar.value) stegWahl.value = e.teil
   if ([...schlangeVon(e.teil), ...danach.value].some((x) => x.key === e.s)) waehle(e.s)
 }
 
-const art = computed(() => (zeige.value?.aufbau.art === 'vorsteg' ? 'vorsteg' : zeige.value?.aufbau.art === 'bojen' ? 'bojen' : 'katalog'))
+const art = computed(() => {
+  const a = zeige.value?.aufbau.art
+  return a === 'vorsteg' || a === 'bojen' || a === 'zeit' ? a : 'katalog'
+})
 
 // --- Bojen: Seite des Umschalters je Start (P8) und Klassenwechsel-Band (P10) ---
 const wege = ref<ReadonlyMap<string, Weg>>(gedacht.wege)
@@ -752,6 +822,25 @@ watch(
   },
   { immediate: true },
 )
+// --- PD5 (W5.1, 22.11.2026): Attempt-Wechsel bei derselben Startnummer – Band invers, eine Sperrsekunde ---
+let zuletztGezeigt: { key: string; startNr: string } | null = null
+watch(
+  () => (zeige.value && !imOverlay.value && !korrektur.value ? { key: zeige.value.start.key, startNr: zeige.value.start.startNr } : null),
+  (z) => {
+    if (!z) return
+    const n = attemptWechsel(zuletztGezeigt, z)
+    if (n !== null) {
+      const um = Date.now()
+      jetzt.value = um
+      attemptBis.value = um + WKR_ANNAHMEN.attemptSperreMs
+      attemptText.value = w('wkr.geraet.attempt', { nr: z.startNr, n })
+      nach(WKR_ANNAHMEN.attemptSperreMs, tick)
+    }
+    zuletztGezeigt = z
+  },
+  { immediate: true },
+)
+
 /** Zeichnung der Klasse des gezeigten Starts (Sicht `bild`, W4-13) – auf Bojen-, Tor-5- und MüB-Listen, wo sie es gibt. */
 const parcoursBild = computed(() => (klasse.value ? (sicht.value?.klassen[klasse.value]?.bild ?? null) : null))
 const klassenWechsel = computed(() => (wechselBis.value !== null && jetzt.value < wechselBis.value ? wechselKlasse.value : null))
@@ -761,238 +850,317 @@ const disqCodes = computed(() => (zeige.value ? disqFuer(zeige.value.aufbau, tei
 const mitBojenDisq = computed(() => !!zeige.value && zeige.value.aufbau.art === 'bojen' && bojenVon(zeige.value.aufbau).some((b) => b.disq.length > 0))
 const fussDisq = computed(() => (zeige.value ? [...zeige.value.entwurf.disq, ...disqAnBojen(zeige.value.entwurf, zeige.value.aufbau).map((d) => d.code)] : []))
 
-// --- Bojen-Ansicht dieser Liste (V1/V2): gemerkt in WkrGeraet, hier nur gelesen und geändert ---
-const bojenAnsicht = computed<BojenAnsicht>(() => props.bojenAnsichten?.[liste.value] ?? { ...BOJEN_ANSICHT_VORGABE })
-function aendereBojenAnsicht(neu: BojenAnsicht): void {
-  // Die geänderte Liste kommt ans Ende (Prüfbefund 21.11.2026): Die Ablage behält die letzten BOJEN_ANSICHT_MAX in
+// --- Bojen-Folge dieser Liste (22.11.2026): gemerkt in WkrGeraet, hier nur gelesen und geändert ---
+const bojenFolge = computed<BojenFolge>(() => props.bojenFolgen?.[liste.value] ?? BOJEN_FOLGE_VORGABE)
+function aendereBojenFolge(neu: BojenFolge): void {
+  // Die geänderte Liste kommt ans Ende (Prüfbefund 21.11.2026): Die Ablage behält die letzten BOJEN_FOLGE_MAX in
   // Einfüge-Reihenfolge – so fällt die am längsten nicht geänderte heraus, nicht die zuerst angelegte.
-  const rest = { ...(props.bojenAnsichten ?? {}) }
+  const rest = { ...(props.bojenFolgen ?? {}) }
   delete rest[liste.value]
-  emit('ansicht', { bojen: { ...rest, [liste.value]: neu } })
+  emit('ansicht', { bojenFolge: { ...rest, [liste.value]: neu } })
 }
 const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufbau, teil.value) : []))
+
+// --- Seitenspalte auf dem Pad (W5.1, PD3/PD6) ---
+/** Eigene Seitenspalte (rechts/unten) – dort steht die Zeichnung statt unter den Knöpfen (PD6). */
+const eigeneSeite = computed(() => props.seite === 'rechts' || props.seite === 'unten')
+const seiteNaechste = computed(() => schlange.value.filter((x) => x.key !== aktuell.value?.key && !x.entfaellt).slice(0, WKR_ANNAHMEN.seiteSchlange))
+const seiteEintraege = computed(() => {
+  const z = zeige.value
+  if (!z) return null
+  return zellenText(zellenAus(z.entwurf, z.aufbau, korrektur.value?.teil ?? teil.value), z.aufbau, text, w('wkr.geraet.fehlerfreiText'), Object.fromEntries(keineZeitAus(z.entwurf, z.aufbau)))
+})
+const seitePunkte = computed(() => (zeige.value && art.value !== 'vorsteg' && art.value !== 'zeit' ? punkteVon(zeige.value.entwurf, zeige.value.aufbau, teil.value) : null))
+// --- Maske „Bild“ (W5.2, 22.11.2026, Plan docs/plan-wkr-w5.md §5) ---
+/**
+ * Zuordnung des Bilds der Klasse des gezeigten Starts, nur bei wirksamer Maske „Bild“ auf einer Bojen-Liste; `null`
+ * (BD2: Boje ohne ID, Zeichnung fehlt) → WkrMitte zeigt die Bojen-Knöpfe. Die Zeichnung steht dann nicht noch einmal
+ * unter den Knöpfen bzw. in der Seite (PD6).
+ */
+const bildZuordnungJetzt = computed(() =>
+  props.masken?.wirksam === 'bild' && sicht.value && klasse.value && art.value === 'bojen'
+    ? bildTreffer(sicht.value, klasse.value as ClassId, parcoursSvg, props.spracheWahl)
+    : null,
+)
+/** Beim Bild stehen die Einträge im Klartext immer daneben (Pflicht, Plan §5.2) – auf dem Handy kompakt darunter. */
+// --- Tabelle für Geübte (W5.5, Plan docs/plan-wkr-w5.md §8, 22.11.2026, TB1–TB5) ---
+/** Zellen der aktiven Tabellen-Zeile mit Fehler (WkrTabelle meldet sie) – sperrt den Hauptknopf. */
+const tabellenFehler = ref(0)
+const tabelle = computed(() => {
+  if (props.masken?.wirksam !== 'text' || !sicht.value || !klasse.value || !aufbau.value || art.value === 'zeit') return null
+  const t = korrektur.value?.teil ?? teil.value
+  const n = WKR_ANNAHMEN.tabelleZeilen
+  // Gesendet: die letzten eigenen Zeilen dieses Teils, älteste oben (wie ein Bogen); Werte aus dem eigenen Stand (M2).
+  const gesendet = zeilen.value
+    .filter((z) => !t || !z.teil || z.teil === t)
+    .slice(0, n.gesendet)
+    .reverse()
+    .map((z) => ({ z: z.z, sn: z.sn ?? '?', zellen: props.quelle.stand(z.z) ?? z.zellen, stufe: z.stufe, ...(z.nv ? { nv: true as const } : {}), ...(z.kz ? { kz: z.kz } : {}) }))
+  // In der Korrektur steht der aktuelle Start unter den nächsten – er wartet, bis die Korrektur durch ist.
+  const naechste = [...(korrektur.value && aktuell.value ? [aktuell.value] : []), ...schlange.value.filter((x) => x.key !== aktuell.value?.key && !x.entfaellt)]
+    .slice(0, n.naechste)
+    .map((x) => ({ key: x.key, startNr: x.startNr, klasse: klassenTitel(x.klasse) }))
+  return { spalten: tabellenSpalten(sicht.value, klasse.value, aufbau.value, t, props.spracheWahl), ...(t ? { teil: t } : {}), gesendet, korrektur: korrektur.value?.z ?? null, naechste }
+})
+function tabellenEntwurf(e: Entwurf): void {
+  if (gesperrt.value) return
+  aendere(e)
+}
+const seiteWirksam = computed(() => props.seite ?? (bildZuordnungJetzt.value ? ('kompakt' as const) : null))
+/** „Andere Startnummer …“ aus der Seitenspalte: dieselbe Suche wie unter der Karte. */
+function sucheAusSeite(): void {
+  ausweichen.value?.oeffne('')
+}
+/** Fuß nur mit einem Start zum Tippen – außerhalb der Arbeitsfläche, damit er auf dem Pad über die volle Breite geht. */
+const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.value)
 </script>
 
 <template>
-  <div class="wkr-maske" :class="{ 'wkr-maske--bojen': art === 'bojen' }" data-teil="maske" :data-liste="liste" :data-takt="takt" :data-gesperrt="gesperrt || undefined" :data-steg="teil">
-    <WkrKopf
-      v-if="sicht"
-      :titel="kopfTitel.titel"
-      :bereich="kopfTitel.bereich"
-      :lauf="zeige?.start.titel ?? sicht.punkt?.titel ?? null"
-      :invers="invers"
-      :uebung="quelle.uebung"
-      :verbindung="verbindung"
-      :getrennt-sek="getrenntSek"
-      :wartend="quelle.wartend.value"
-      :ohne-quittung="ohneQuittung"
-      :bestaetigung-folgt="bestaetigungFolgt"
-      :papier-ab="papierAb"
-      :hinweis="hinweis"
-      @gesehen="(id) => quelle.gesehen(id)"
-      @oeffne="oeffneHinweis"
-    />
-    <div v-if="hinweisUnbekannt" class="wkr-band wkr-band--warn" role="alert" data-teil="hinweis-unbekannt">
-      <b>{{ w('wkr.geraet.nichtGefunden', { nr: hinweisUnbekannt }) }}</b>
-      <button type="button" class="wkr-knopf" data-ziel="klein" data-action="hinweis-unbekannt-weg" @click="hinweisUnbekannt = null">{{ w('wkr.geraet.gesehen') }}</button>
+  <div
+    class="wkr-maske"
+    :class="{ 'wkr-maske--bojen': art === 'bojen' }"
+    data-teil="maske"
+    :data-liste="liste"
+    :data-takt="takt"
+    :data-gesperrt="gesperrt || undefined"
+    :data-steg="teil"
+    :data-seite="seite || undefined"
+    :data-maske="masken?.wirksam"
+  >
+    <!-- W5.1: Arbeitsfläche; auf dem Pad daneben bzw. darunter WkrSeite, darunter der Fuß über die volle Breite. -->
+    <div class="wkr-maske-haupt">
+      <WkrKopf
+        v-if="sicht"
+        :titel="kopfTitel.titel"
+        :bereich="kopfTitel.bereich"
+        :lauf="ohneLauf ? null : (zeige?.start.titel ?? sicht.punkt?.titel ?? null)"
+        :invers="invers"
+        :uebung="quelle.uebung"
+        :verbindung="verbindung"
+        :getrennt-sek="getrenntSek"
+        :wartend="quelle.wartend.value"
+        :ohne-quittung="ohneQuittung"
+        :bestaetigung-folgt="bestaetigungFolgt"
+        :papier-ab="papierAb"
+        :hinweis="hinweis"
+        @gesehen="(id) => quelle.gesehen(id)"
+        @oeffne="oeffneHinweis"
+      />
+      <div v-if="hinweisUnbekannt" class="wkr-band wkr-band--warn" role="alert" data-teil="hinweis-unbekannt">
+        <b>{{ w('wkr.geraet.nichtGefunden', { nr: hinweisUnbekannt }) }}</b>
+        <button type="button" class="wkr-knopf" data-ziel="klein" data-action="hinweis-unbekannt-weg" @click="hinweisUnbekannt = null">{{ w('wkr.geraet.gesehen') }}</button>
+      </div>
+
+      <WkrAbschluss
+        v-if="abschluss"
+        :quelle="quelle"
+        :liste="liste"
+        :listen-titel="kopfTitel.titel"
+        :punkt="abschluss"
+        :punkt-titel="titelVonPunkt(abschluss)"
+        :teil="abschlussTeil"
+        :name="wkrNameLage?.name || name || ''"
+        :zeile-text="pruefText"
+        :korrigierbar="korrigierbar"
+        :laeuft="sicht?.laeuft && sicht.laeuft.punkt === abschluss ? sicht.laeuft : null"
+        @korrigiere="korrigiereAusPruefung"
+        @zurueck="abschluss = null"
+        @name="(n) => emit('name', n)"
+      />
+      <template v-else>
+        <WkrStegReiter v-if="geteilt && teil" :teil="teil" :fest="!teilWaehlbar" :stand="stegStand" @waehle="waehleTeil" />
+
+        <WkrZuletzt
+          :zeilen="zeilen"
+          :text="zeilenText"
+          :entwuerfe="andereEntwuerfe"
+          :rueckgaengig="rueckgaengig"
+          :erledigt="erledigt"
+          @korrigiere="oeffneKorrektur"
+          @so-lassen="soLassen"
+          @rueckgaengig="zurueckHolen"
+          @entwurf="oeffneEntwurf"
+        />
+
+        <div v-if="verwaist" class="wkr-band wkr-band--warn" role="alert" data-teil="verwaist" :data-start="verwaist.s">
+          <b>{{ w('wkr.geraet.verwaist', { nr: verwaist.sn ?? '?' }) }}</b>
+          <span class="wkr-reihe">
+            <button type="button" class="wkr-knopf" data-ziel="klein" data-action="entwurf-behalten" @click="behalte(verwaist)">{{ w('wkr.geraet.behalten') }}</button>
+            <button type="button" class="wkr-knopf" data-ziel="klein" data-action="entwurf-verwerfen" @click="verwirf(verwaist)">{{ w('wkr.geraet.verwerfen') }}</button>
+          </span>
+        </div>
+
+        <div v-if="bandPunkt" class="wkr-band wkr-band--hinweis" role="status" data-teil="abschluss-band" :data-punkt="bandPunkt" :data-laeuft="sicht?.laeuft?.punkt === bandPunkt ? '' : undefined">
+          <b>{{ w('wkr.geraet.abschluss.band', { punkt: titelVonPunkt(bandPunkt) }) }}</b>
+          <span class="wkr-hinweis" data-teil="abschluss-zweck">{{ w('wkr.geraet.abschluss.zweck', { punkt: titelVonPunkt(bandPunkt) }) }}</span>
+          <button type="button" class="wkr-knopf" data-ziel="klein" data-action="abschluss-band" @click="oeffneAbschluss(bandPunkt)">{{ w('wkr.geraet.abschluss') }}</button>
+        </div>
+
+        <WkrRuhe
+          v-if="ruhe"
+          :art="ruhe"
+          :naechster="naechsterStart"
+          :meldung="meldung"
+          :punkt="sicht?.punkt?.titel ?? null"
+          :liste="kopfTitel.titel"
+          :klasse="klassenTitel(aktuell?.klasse ?? null)"
+          :aktiv="status === 'aktiv'"
+          :neu-verbinden="ruhe === 'warte' && warteLange && !quelle.uebung"
+          @weiter="quelle.weiter(liste)"
+          @pausiere="quelle.pausiere(liste)"
+          @neu-verbinden="neuVerbinden"
+        />
+        <template v-else-if="zeige">
+          <div class="wkr-karten-platz">
+            <!-- PD5 (W5.1): Attempt-Wechsel bei derselben Nummer – invers über der Karte, solange die Sperrsekunde läuft. -->
+            <p v-if="attemptAktiv" class="wkr-band wkr-attempt" role="status" data-teil="attempt-wechsel">
+              <b>{{ attemptText }}</b>
+            </p>
+            <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" :ampel="kartenAmpel" />
+            <!-- P10: liegt über der Karte (absolut) – verschiebt keinen Knopf, fängt Tipps auf seiner Fläche ab. -->
+            <p v-if="klassenWechsel && art === 'bojen'" class="wkr-band wkr-band--warn wkr-klassen-wechsel" role="status" data-teil="klassen-wechsel">
+              <b>{{ w('wkr.geraet.bojen.klassenWechsel', { klasse: klassenWechsel }) }}</b>
+            </p>
+          </div>
+          <button v-if="korrektur" type="button" class="wkr-knopf" data-ziel="klein" data-action="korrektur-abbrechen" @click="brichKorrekturAb">{{ w('wkr.geraet.korrektur.abbrechen') }}</button>
+
+          <div class="wkr-mitte" :inert="gesperrt" data-teil="mitte">
+            <WkrAusweichen
+              v-if="!korrektur"
+              ref="ausweichen"
+              :naechste="schlange.filter((x) => x.key !== aktuell?.key && !x.entfaellt).slice(0, 2)"
+              :nicht-gefunden="nichtGefunden"
+              :buchstaben="buchstaben"
+              @waehle="waehle"
+              @suche="suche"
+              @schliesse="nichtGefunden = null"
+            />
+            <!-- W5.1: was getippt wird, wählt WkrMitte (Vorsteg, Disq., Bojen, Knöpfe, Bild W5.2, Zeit W5.4, Tabelle W5.5). -->
+            <WkrMitte
+              :art="art"
+              :schluessel="`${zeige.start.key}|${teil ?? ''}|${korrektur?.z ?? ''}`"
+              :aufbau="zeige.aufbau"
+              :entwurf="zeige.entwurf"
+              :start-nr="zeige.start.startNr"
+              :disq-offen="disqOffen"
+              :disq-codes="disqCodes"
+              :gesperrt="gesperrt"
+              :weg="weg"
+              :bojen-folge="bojenFolge"
+              :sichtbare-teile="sichtbareTeile"
+              :maske="masken?.wirksam"
+              :bild="bildZuordnungJetzt"
+              :klasse="zeige.aufbau.titel"
+              :pad="!!seite"
+              :tabelle="tabelle"
+              @entwurf="tabellenEntwurf"
+              @tabellen-fehler="(n) => (tabellenFehler = n)"
+              @abschicken="haupt"
+              @korrigiere="oeffneKorrektur"
+              @korrektur-abbrechen="brichKorrekturAb"
+              @setze-disq="setzeDisq"
+              @boje-disq="setzeBojenDisq"
+              @disq-fertig="disqOffen = false"
+              @boje="tippeBojeKnopf"
+              @disq="disqOffen = true"
+              @tippe="tippeCode"
+              @weg="waehleWeg"
+              @zeit="setzeZeitFeld"
+              @keine-zeit="setzeKeineZeitFeld"
+            />
+            <WkrMehr
+              :mit-bemerkung="!!zeige.aufbau.bemerkung"
+              :bemerkung="zeige.entwurf.bemerkung"
+              :status="status"
+              :modus="modus ?? 'geraet'"
+              :hand="hand"
+              :sprache="text.sprache.value"
+              :listen-sprache="listenSprache"
+              :mit-andere="!!sicht?.andere"
+              :uebung="quelle.uebung"
+              :nicht-vorbei="nichtVorbeiNr"
+              :nicht-vorbei-disq="nichtVorbeiArt(disqCodes) === 'disq' ? NICHT_VORBEI_DISQ : null"
+              :bojen-folge="art === 'bojen' ? bojenFolge : null"
+              :wkr-name="wkrNameLage"
+              :masken="masken ?? null"
+              @wkr-name="(n) => quelle.setzeWkrName(liste, n)"
+              @maske="(m) => emit('maske', m)"
+              @bojen-folge="aendereBojenFolge"
+              @nicht-vorbei="nichtVorbei"
+              @bemerkung="bemerkung"
+              @pausiere="quelle.pausiere(liste)"
+              @melde-ab="quelle.meldeAb(liste)"
+              @weiter="quelle.weiter(liste)"
+              @probe="emit('probe')"
+              @ansicht="(a) => emit('ansicht', a)"
+              @uebung-ende="emit('uebungEnde')"
+            />
+            <!-- W4-13 (21.11.2026, GF9): Parcours-Zeichnung der Klasse unter den Knöpfen – beim Hochwischen erreichbar;
+                 mit eigener Seitenspalte auf dem Pad steht sie dort (PD6, W5.1). -->
+            <WkrParcoursBild v-if="parcoursBild && !eigeneSeite && !bildZuordnungJetzt" :bild="parcoursBild" :klasse="zeige.klasse" />
+          </div>
+        </template>
+        <!-- Auch ohne Arbeit: Ansicht, Sprache, Probe, Liste abschließen (Pausieren usw. hat die Ruhe selbst, außer „leer“). -->
+        <WkrMehr
+          v-if="ruhe && ruhe !== 'warte'"
+          :mit-bemerkung="false"
+          bemerkung=""
+          :status="status"
+          :mit-status="ruhe === 'leer'"
+          :modus="modus ?? 'geraet'"
+          :hand="hand"
+          :sprache="text.sprache.value"
+          :listen-sprache="listenSprache"
+          :mit-andere="!!sicht?.andere"
+          :uebung="quelle.uebung"
+          :wkr-name="wkrNameLage"
+          @wkr-name="(n) => quelle.setzeWkrName(liste, n)"
+          @pausiere="quelle.pausiere(liste)"
+          @melde-ab="quelle.meldeAb(liste)"
+          @weiter="quelle.weiter(liste)"
+          @probe="emit('probe')"
+          @ansicht="(a) => emit('ansicht', a)"
+          @uebung-ende="emit('uebungEnde')"
+        />
+      </template>
     </div>
 
-    <WkrAbschluss
-      v-if="abschluss"
-      :quelle="quelle"
-      :liste="liste"
-      :listen-titel="kopfTitel.titel"
-      :punkt="abschluss"
-      :punkt-titel="titelVonPunkt(abschluss)"
-      :teil="abschlussTeil"
-      :name="wkrNameLage?.name || name || ''"
-      :zeile-text="pruefText"
-      :korrigierbar="korrigierbar"
-      :laeuft="sicht?.laeuft && sicht.laeuft.punkt === abschluss ? sicht.laeuft : null"
-      @korrigiere="korrigiereAusPruefung"
-      @zurueck="abschluss = null"
-      @name="(n) => emit('name', n)"
+    <WkrSeite
+      v-if="seiteWirksam && zeigeUnten && zeige"
+      :aktuell="korrektur ? null : aktuell"
+      :aktuell-klasse="zeige.klasse"
+      :naechste="seiteNaechste"
+      :klasse-von="(e) => klassenTitel(e.klasse)"
+      :zeilen="zeilen"
+      :text="zeilenText"
+      :eintraege="seiteEintraege"
+      :punkte="seitePunkte"
+      :kompakt="seiteWirksam === 'kompakt'"
+      :bild="eigeneSeite && !bildZuordnungJetzt ? parcoursBild : null"
+      :gesperrt="gesperrt"
+      @waehle="waehle"
+      @suche="sucheAusSeite"
+      @korrigiere="oeffneKorrektur"
     />
-    <template v-else>
-      <WkrStegReiter v-if="geteilt && teil" :teil="teil" :fest="!!aufgabe.teil" :stand="stegStand" @waehle="waehleTeil" />
-
-      <WkrZuletzt
-        :zeilen="zeilen"
-        :text="zeilenText"
-        :entwuerfe="andereEntwuerfe"
-        :rueckgaengig="rueckgaengig"
-        :erledigt="erledigt"
-        @korrigiere="oeffneKorrektur"
-        @so-lassen="soLassen"
-        @rueckgaengig="zurueckHolen"
-        @entwurf="oeffneEntwurf"
-      />
-
-      <div v-if="verwaist" class="wkr-band wkr-band--warn" role="alert" data-teil="verwaist" :data-start="verwaist.s">
-        <b>{{ w('wkr.geraet.verwaist', { nr: verwaist.sn ?? '?' }) }}</b>
-        <span class="wkr-reihe">
-          <button type="button" class="wkr-knopf" data-ziel="klein" data-action="entwurf-behalten" @click="behalte(verwaist)">{{ w('wkr.geraet.behalten') }}</button>
-          <button type="button" class="wkr-knopf" data-ziel="klein" data-action="entwurf-verwerfen" @click="verwirf(verwaist)">{{ w('wkr.geraet.verwerfen') }}</button>
-        </span>
-      </div>
-
-      <div v-if="bandPunkt" class="wkr-band wkr-band--hinweis" role="status" data-teil="abschluss-band" :data-punkt="bandPunkt" :data-laeuft="sicht?.laeuft?.punkt === bandPunkt ? '' : undefined">
-        <b>{{ w('wkr.geraet.abschluss.band', { punkt: titelVonPunkt(bandPunkt) }) }}</b>
-        <span class="wkr-hinweis" data-teil="abschluss-zweck">{{ w('wkr.geraet.abschluss.zweck', { punkt: titelVonPunkt(bandPunkt) }) }}</span>
-        <button type="button" class="wkr-knopf" data-ziel="klein" data-action="abschluss-band" @click="oeffneAbschluss(bandPunkt)">{{ w('wkr.geraet.abschluss') }}</button>
-      </div>
-
-      <WkrRuhe
-        v-if="ruhe"
-        :art="ruhe"
-        :naechster="naechsterStart"
-        :meldung="meldung"
-        :punkt="sicht?.punkt?.titel ?? null"
-        :liste="kopfTitel.titel"
-        :klasse="klassenTitel(aktuell?.klasse ?? null)"
-        :aktiv="status === 'aktiv'"
-        :neu-verbinden="ruhe === 'warte' && warteLange && !quelle.uebung"
-        @weiter="quelle.weiter(liste)"
-        @pausiere="quelle.pausiere(liste)"
-        @neu-verbinden="neuVerbinden"
-      />
-      <template v-else-if="zeige">
-        <div class="wkr-karten-platz">
-          <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" :ampel="kartenAmpel" />
-          <!-- P10: liegt über der Karte (absolut) – verschiebt keinen Knopf, fängt Tipps auf seiner Fläche ab. -->
-          <p v-if="klassenWechsel && art === 'bojen'" class="wkr-band wkr-band--warn wkr-klassen-wechsel" role="status" data-teil="klassen-wechsel">
-            <b>{{ w('wkr.geraet.bojen.klassenWechsel', { klasse: klassenWechsel }) }}</b>
-          </p>
-        </div>
-        <button v-if="korrektur" type="button" class="wkr-knopf" data-ziel="klein" data-action="korrektur-abbrechen" @click="brichKorrekturAb">{{ w('wkr.geraet.korrektur.abbrechen') }}</button>
-
-        <div class="wkr-mitte" :inert="gesperrt" data-teil="mitte">
-          <WkrAusweichen
-            v-if="!korrektur"
-            ref="ausweichen"
-            :naechste="schlange.filter((x) => x.key !== aktuell?.key && !x.entfaellt).slice(0, 2)"
-            :nicht-gefunden="nichtGefunden"
-            :buchstaben="buchstaben"
-            @waehle="waehle"
-            @suche="suche"
-            @schliesse="nichtGefunden = null"
-          />
-          <!-- :key je Start und Teil: Ein vorgemerkter Disq.-Buchstabe gilt nie für den nächsten Start (Prüfbefund W3). -->
-          <WkrVorsteg
-            v-if="art === 'vorsteg'"
-            :key="`${zeige.start.key}|${teil ?? ''}|${korrektur?.z ?? ''}`"
-            :codes="disqCodes"
-            :gesetzt="zeige.entwurf.disq"
-            :start-nr="zeige.start.startNr"
-            :gesperrt="gesperrt"
-            @setze="setzeDisq"
-          />
-          <!-- Bojen-Listen (BZ4): erst der Ort, dann der Buchstabe; :key je Start wie WkrDisq. -->
-          <WkrDisqOrt
-            v-else-if="disqOffen && art === 'bojen'"
-            :key="`${zeige.start.key}|${teil ?? ''}|${korrektur?.z ?? ''}`"
-            :aufbau="zeige.aufbau"
-            :entwurf="zeige.entwurf"
-            :codes="disqCodes"
-            :start-nr="zeige.start.startNr"
-            :gesperrt="gesperrt"
-            :ansicht="bojenAnsicht"
-            @setze="setzeDisq"
-            @boje-disq="setzeBojenDisq"
-            @fertig="disqOffen = false"
-          />
-          <WkrDisq
-            v-else-if="disqOffen"
-            :key="`${zeige.start.key}|${teil ?? ''}|${korrektur?.z ?? ''}`"
-            :titel="w('wkr.geraet.disq')"
-            :codes="disqCodes"
-            :gesetzt="zeige.entwurf.disq"
-            :start-nr="zeige.start.startNr"
-            :gesperrt="gesperrt"
-            @setze="setzeDisq"
-          />
-          <!-- :key je Start: Ein offener Disq.-Modus gilt nie für den nächsten Start (wie WkrDisq). -->
-          <WkrBojen
-            v-else-if="art === 'bojen'"
-            :key="`${zeige.start.key}|${teil ?? ''}|${korrektur?.z ?? ''}`"
-            :aufbau="zeige.aufbau"
-            :entwurf="zeige.entwurf"
-            :weg="weg"
-            :ansicht="bojenAnsicht"
-            @boje="tippeBojeKnopf"
-            @disq="disqOffen = true"
-            @tippe="tippeCode"
-            @weg="waehleWeg"
-          />
-          <WkrKnoepfe v-else :teile="sichtbareTeile" :entwurf="zeige.entwurf" @tippe="tippeCode" />
-          <WkrMehr
-            :mit-bemerkung="!!zeige.aufbau.bemerkung"
-            :bemerkung="zeige.entwurf.bemerkung"
-            :status="status"
-            :modus="modus ?? 'geraet'"
-            :hand="hand"
-            :sprache="text.sprache.value"
-            :listen-sprache="listenSprache"
-            :mit-andere="!!sicht?.andere"
-            :uebung="quelle.uebung"
-            :nicht-vorbei="nichtVorbeiNr"
-            :nicht-vorbei-disq="nichtVorbeiArt(disqCodes) === 'disq' ? NICHT_VORBEI_DISQ : null"
-            :bojen-ansicht="art === 'bojen' ? bojenAnsicht : null"
-            :wkr-name="wkrNameLage"
-            @wkr-name="(n) => quelle.setzeWkrName(liste, n)"
-            @bojen-ansicht="aendereBojenAnsicht"
-            @nicht-vorbei="nichtVorbei"
-            @bemerkung="bemerkung"
-            @pausiere="quelle.pausiere(liste)"
-            @melde-ab="quelle.meldeAb(liste)"
-            @weiter="quelle.weiter(liste)"
-            @probe="emit('probe')"
-            @ansicht="(a) => emit('ansicht', a)"
-            @uebung-ende="emit('uebungEnde')"
-          />
-          <!-- W4-13 (21.11.2026, GF9): Parcours-Zeichnung der Klasse unter den Knöpfen – beim Hochwischen erreichbar. -->
-          <WkrParcoursBild v-if="parcoursBild" :bild="parcoursBild" :klasse="zeige.klasse" />
-        </div>
-        <div class="wkr-unten" :inert="gesperrt">
-          <WkrFuss
-            :art="art"
-            :teil="teil"
-            :eintraege="eintraege(zeige.entwurf)"
-            :punkte="punkteVon(zeige.entwurf, zeige.aufbau, teil)"
-            :disq="fussDisq"
-            :korrektur="korrekturArt"
-            :hand="hand"
-            :mit-disq="disqCodes.length > 0 || mitBojenDisq"
-            :disq-offen="disqOffen"
-            @zurueck="zurueckTipp"
-            @disq="disqOffen = !disqOffen"
-            @haupt="haupt"
-          />
-        </div>
-      </template>
-      <!-- Auch ohne Arbeit: Ansicht, Sprache, Probe, Liste abschließen (Pausieren usw. hat die Ruhe selbst, außer „leer“). -->
-      <WkrMehr
-        v-if="ruhe && ruhe !== 'warte'"
-        :mit-bemerkung="false"
-        bemerkung=""
-        :status="status"
-        :mit-status="ruhe === 'leer'"
-        :modus="modus ?? 'geraet'"
+    <div v-if="zeigeUnten && zeige" class="wkr-unten" :inert="gesperrt">
+      <WkrFuss
+        :art="art"
+        :teil="teil"
+        :eintraege="eintraege(zeige.entwurf)"
+        :punkte="punkteVon(zeige.entwurf, zeige.aufbau, teil)"
+        :disq="fussDisq"
+        :korrektur="korrekturArt"
         :hand="hand"
-        :sprache="text.sprache.value"
-        :listen-sprache="listenSprache"
-        :mit-andere="!!sicht?.andere"
-        :uebung="quelle.uebung"
-        :wkr-name="wkrNameLage"
-        @wkr-name="(n) => quelle.setzeWkrName(liste, n)"
-        @pausiere="quelle.pausiere(liste)"
-        @melde-ab="quelle.meldeAb(liste)"
-        @weiter="quelle.weiter(liste)"
-        @probe="emit('probe')"
-        @ansicht="(a) => emit('ansicht', a)"
-        @uebung-ende="emit('uebungEnde')"
+        :mit-disq="!tabelle && (disqCodes.length > 0 || mitBojenDisq)"
+        :disq-offen="disqOffen"
+        :zeiten-offen="zeitenOffen(zeige.entwurf, zeige.aufbau)"
+        :mit-zeit="zeige.aufbau.zeiten.length > 0"
+        :zellen-fehler="tabelle ? tabellenFehler : 0"
+        @zurueck="zurueckTipp"
+        @disq="disqOffen = !disqOffen"
+        @haupt="haupt"
       />
-    </template>
+    </div>
 
     <!-- N1 (Feldtest 21.11.2026): sofort nach „Fehlerfrei“/„Abschicken“ über der ganzen Maske, ohne Knöpfe. -->
     <WkrUebertragen v-if="gesendet && imOverlay" :start-nr="gesendet.start.startNr" :takt="takt" :stufe="gesendeteStufe" />
@@ -1005,9 +1173,11 @@ const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufba
       data-dialog="wkr-korrektur"
       @abbrechen="frageKorrektur = false"
     >
-      <p class="wkr-korrektur-alt" data-teil="alt">{{ korrektur.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(korrekturAlt, aufbau, text, w('wkr.geraet.fehlerfreiText')) }}</p>
+      <p class="wkr-korrektur-alt" data-teil="alt">
+        {{ korrektur.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(korrekturAlt, aufbau, text, w('wkr.geraet.fehlerfreiText'), korrekturKz) }}
+      </p>
       <p class="wkr-korrektur-pfeil" aria-hidden="true">↓</p>
-      <p class="wkr-korrektur-neu" data-teil="neu">{{ zellenText(korrekturNeu, aufbau, text, w('wkr.geraet.fehlerfreiText')) }}</p>
+      <p class="wkr-korrektur-neu" data-teil="neu">{{ zellenText(korrekturNeu, aufbau, text, w('wkr.geraet.fehlerfreiText'), korrekturKzNeu) }}</p>
       <template #knoepfe>
         <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="korrektur-ja" @click="korrekturJa">
           {{ w(korrekturArt === 'vorschlag' ? 'wkr.geraet.korrektur.vorschlag' : 'wkr.geraet.korrektur.abschicken') }}

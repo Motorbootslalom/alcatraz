@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Locale } from '../../i18n'
-import type { AnsichtWahl, BojenAnsicht, GeraetAnsicht } from '../../geraete/ablage'
+import type { AnsichtWahl, GeraetAnsicht } from '../../geraete/ablage'
+import { BOJEN_FOLGEN, type BojenFolge } from '../../wkr/maske'
 import type { WkrNameLage } from '../../geraete/erfassen'
+import { MASKEN_GEBAUT, type MaskenWahl } from '../../wkr/maskenWahl'
 import AppDialog from '../AppDialog.vue'
 import { useWkrText } from './texte'
 
@@ -16,9 +18,9 @@ import { useWkrText } from './texte'
  * angeboten) – erst nach einer großen Rückfrage („23 ist hier nicht vorbeigekommen? Es wird nichts eingetragen.“),
  * weil die Zeile den Start ohne Werte abhakt.
  *
- * Nutzer 21.11.2026 (WKR_ANNAHMEN V1/V2): Auf Bojen-Listen (`bojenAnsicht` ≠ null) steht unter „Ansicht“ die
- * Reihenfolge „Fahrtfolge“ / „Wie der Parcours liegt“, in der Lage-Ansicht „Start oben“ / „Start unten“, dazu „Bojen
- * links/rechts tauschen“ – Ereignis `bojenAnsicht`, gemerkt je Liste in WkrGeraet.
+ * Nutzer 22.11.2026 (WKR_ANNAHMEN.bojenFolge, ersetzt „Wie der Parcours liegt“/Spiegeln vom 21.11.2026): Auf
+ * Bojen-Listen (`bojenFolge` ≠ null) steht unter „Ansicht“ die Reihenfolge „Rückweg gedreht“ (Vorgabe) / „Fahrtfolge“ /
+ * „Alles untereinander“ – Ereignis `bojenFolge`, gemerkt je Liste in WkrGeraet.
  *
  * W3-40 (Nutzer 21.11.2026, WKR_ANNAHMEN.abschlussNurBand, AM10): „Liste abschließen“ steht hier nicht mehr – es war
  * unklar, warum man mitten im Lauf und für alle Klassen abschließen sollte. Abgeschlossen wird nur über das Band nach
@@ -28,6 +30,11 @@ import { useWkrText } from './texte'
  * der Einteilung der Veranstaltung, hier jederzeit änderbar (Ereignis `wkrName`, WkrMaske → quelle.setzeWkrName). Weicht
  * er ab, sagt ein Satz die Einteilung und ein Knopf stellt sie wieder her; ohne Einteilung fragt der Abschluss. Nicht in
  * der Übung (`wkrName` null).
+ *
+ * W5.1 (F14, 22.11.2026, WKR_ANNAHMEN MW1/MW2): Unter „Ansicht“ die Maske dieser Liste – nur, wenn der Bedienrechner
+ * sie nicht `fest` vorgibt (dann ein Satz) und es mehr als eine gibt: die erlaubten (wkr/maskenWahl.ts), eine noch
+ * nicht gebaute ausgegraut mit „… folgt“. Seit W5.5 (22.11.2026) auch „Tabelle“ – auf dem Handy ausgegraut mit „nur
+ * Pad“ (`masken.aus`, TB1). Ereignis `maske`, gemerkt in WkrGeraet je Raum und Liste.
  *
  * Diese Komponente schreibt nichts selbst ab: Ansicht und Sprache gehen als `ansicht` hinauf bis WkrGeraet, das sie
  * gerätelokal merkt (ablage.ts `alcatraz.geraet.ansicht`).
@@ -55,12 +62,14 @@ const props = withDefaults(
      * kennt – Knopf und Rückfrage sagen es; `null` = das Kennzeichen ⊘ (Steg-Anlegen).
      */
     nichtVorbeiDisq?: string | null
-    /** Nur Bojen-Listen: Reihenfolge und Spiegeln dieser Liste (V1/V2); `null` = keine Bojen-Maske. */
-    bojenAnsicht?: BojenAnsicht | null
+    /** Nur Bojen-Listen: Reihenfolge dieser Liste (22.11.2026); `null` = keine Bojen-Maske. */
+    bojenFolge?: BojenFolge | null
     /** WKR-Name dieser Liste (W3-13); `null` = kein Namensfeld (Übung). */
     wkrName?: WkrNameLage | null
+    /** Maskenwahl dieser Liste (F14, W5.1): erlaubte Masken, die gezeigte, ob fest vorgegeben; `null` = keine Wahl. */
+    masken?: { erlaubt: MaskenWahl[]; wirksam: MaskenWahl; fest: boolean; aus?: MaskenWahl[] } | null
   }>(),
-  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenAnsicht: null, wkrName: null },
+  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenFolge: null, wkrName: null, masken: null },
 )
 const emit = defineEmits<{
   bemerkung: [text: string]
@@ -71,8 +80,9 @@ const emit = defineEmits<{
   ansicht: [aenderung: Partial<GeraetAnsicht>]
   uebungEnde: []
   nichtVorbei: []
-  bojenAnsicht: [ansicht: BojenAnsicht]
+  bojenFolge: [folge: BojenFolge]
   wkrName: [name: string]
+  maske: [maske: MaskenWahl]
 }>()
 const { w } = useWkrText()
 
@@ -102,9 +112,13 @@ const SPRACHEN: ('de' | 'en')[] = ['de', 'en']
 function waehleSprache(s: 'de' | 'en'): void {
   emit('ansicht', { sprache: s === props.listenSprache ? undefined : s })
 }
-const FOLGEN: BojenAnsicht['folge'][] = ['fahrt', 'lage']
-function aendereBojen(aenderung: Partial<BojenAnsicht>): void {
-  if (props.bojenAnsicht) emit('bojenAnsicht', { ...props.bojenAnsicht, ...aenderung })
+/** Sichtbar sind alle erlaubten Masken; nicht gebaute bzw. auf diesem Gerät nicht mögliche (TB1) ausgegraut. */
+const maskenKnoepfe = computed(() => (props.masken ? props.masken.erlaubt : []))
+const maskeAus = (m: MaskenWahl) => !MASKEN_GEBAUT[m] || !!props.masken?.aus?.includes(m)
+function maskenText(m: MaskenWahl): string {
+  if (!MASKEN_GEBAUT[m]) return w('wkr.geraet.maske.folgt', { maske: w(`wkr.geraet.maske.${m}`) })
+  if (props.masken?.aus?.includes(m)) return w('wkr.geraet.maske.nurPad', { maske: w(`wkr.geraet.maske.${m}`) })
+  return w(`wkr.geraet.maske.${m}`)
 }
 function tue(f: () => void): void {
   offen.value = false
@@ -173,48 +187,44 @@ function tue(f: () => void): void {
         >
           {{ w('wkr.geraet.ansicht.links') }}
         </button>
-        <div v-if="bojenAnsicht" class="wkr-mehr-bojen" data-teil="bojen-ansicht">
+        <div v-if="bojenFolge" class="wkr-mehr-bojen" data-teil="bojen-ansicht">
           <p class="wkr-mehr-untertitel">{{ w('wkr.geraet.bojen.ansicht') }}</p>
           <div class="wkr-reihe">
             <button
-              v-for="f in FOLGEN"
+              v-for="f in BOJEN_FOLGEN"
               :key="f"
               type="button"
               class="wkr-knopf"
               data-ziel="klein"
               data-action="bojen-folge"
               :data-folge="f"
-              :aria-pressed="bojenAnsicht.folge === f"
-              @click="aendereBojen({ folge: f })"
+              :aria-pressed="bojenFolge === f"
+              @click="emit('bojenFolge', f)"
             >
               {{ w(`wkr.geraet.bojen.ansicht.${f}`) }}
             </button>
           </div>
-          <div v-if="bojenAnsicht.folge === 'lage'" class="wkr-reihe">
+          <p class="wkr-hinweis" data-teil="bojen-folge-text">{{ w(`wkr.geraet.bojen.ansicht.${bojenFolge}.text`) }}</p>
+        </div>
+        <div v-if="masken && (masken.fest || maskenKnoepfe.length > 1)" class="wkr-mehr-bojen" data-teil="masken-wahl" :data-fest="masken.fest || undefined">
+          <p class="wkr-mehr-untertitel">{{ w('wkr.geraet.maske') }}</p>
+          <p v-if="masken.fest" class="wkr-hinweis" data-teil="maske-fest">{{ w(`wkr.geraet.maske.${masken.wirksam}`) }} · {{ w('wkr.geraet.maske.fest') }}</p>
+          <div v-else class="wkr-reihe">
             <button
-              v-for="oben in [true, false]"
-              :key="String(oben)"
+              v-for="m in maskenKnoepfe"
+              :key="m"
               type="button"
               class="wkr-knopf"
               data-ziel="klein"
-              data-action="bojen-start"
-              :data-start-oben="oben"
-              :aria-pressed="bojenAnsicht.startOben === oben"
-              @click="aendereBojen({ startOben: oben })"
+              data-action="maske"
+              :data-maske="m"
+              :disabled="maskeAus(m)"
+              :aria-pressed="masken.wirksam === m"
+              @click="emit('maske', m)"
             >
-              {{ w(oben ? 'wkr.geraet.bojen.ansicht.startOben' : 'wkr.geraet.bojen.ansicht.startUnten') }}
+              {{ maskenText(m) }}
             </button>
           </div>
-          <button
-            type="button"
-            class="wkr-knopf"
-            data-ziel="klein"
-            data-action="bojen-tauschen"
-            :aria-pressed="bojenAnsicht.tauschen"
-            @click="aendereBojen({ tauschen: !bojenAnsicht.tauschen })"
-          >
-            {{ w('wkr.geraet.bojen.ansicht.tauschen') }}
-          </button>
         </div>
       </fieldset>
 

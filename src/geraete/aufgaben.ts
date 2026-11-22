@@ -6,9 +6,9 @@ import type { WkrAenderung } from '../state/reducer/wkr'
 import { MELDUNG_MAX } from '../state/reducer/betrieb'
 import { CLASS_IDS } from '../domain/classes'
 import { bereichBekannt, istPunktId } from '../betrieb/folge'
-import { punktBegonnen } from '../wkr/abschluss'
+import { istWkrPunkt, OHNE_PUNKT, punktBegonnen } from '../wkr/abschluss'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
-import { liesListe, listenDerVeranstaltung, listenKennung, teileVon, type ListenTeil } from '../wkr/liste'
+import { istTischListe, liesListe, listenDerVeranstaltung, listenKennung, teileVon, type ListenTeil } from '../wkr/liste'
 import { pruefeZeile, type ZeilenFehler } from '../wkr/zeile'
 
 /**
@@ -280,7 +280,8 @@ export function erlaubteWkr(action: unknown, aufgaben: readonly Aufgabe[], stand
   const liste = liesListe(action.liste)
   if (!aufgabe || !liste) return null
   const kennung = listenKennung(liste)
-  if (!bereichBekannt(stand, liste.bereich) || !listenDerVeranstaltung(stand, konfig).some((l) => listenKennung(l) === kennung)) return null
+  // Die Liste am Tisch (W5.3) hat keinen Bereich des Betriebs – sie gilt, solange die Veranstaltung sie hat.
+  if ((!istTischListe(liste) && !bereichBekannt(stand, liste.bereich)) || !listenDerVeranstaltung(stand, konfig).some((l) => listenKennung(l) === kennung)) return null
 
   switch (action.type as WkrArt) {
     case 'WKR_ZEILEN': {
@@ -305,10 +306,11 @@ export function erlaubteWkr(action: unknown, aufgaben: readonly Aufgabe[], stand
     }
     case 'WKR_ABSCHLUSS': {
       const name = typeof action.name === 'string' ? action.name.trim() : ''
-      if (!istPunktId(action.punkt) || name === '' || name.length > WKR_ANNAHMEN.nameMax || typeof action.restPapier !== 'boolean') return null
+      if (!istWkrPunkt(action.punkt) || name === '' || name.length > WKR_ANNAHMEN.nameMax || typeof action.restPapier !== 'boolean') return null
       // Nur ein Punkt, der im Bereich begonnen hat: Ein künftiger Lauf hätte keine offenen Starts und gälte sonst als
-      // abgeschlossen (Prüfbefund 21.11.2026; der Reducer prüft dasselbe).
-      if (!punktBegonnen(stand, liste.bereich, action.punkt)) return null
+      // abgeschlossen (Prüfbefund 21.11.2026; der Reducer prüft dasselbe). Am Tisch (W5.3, KN5) nur `ohne`.
+      if (istTischListe(liste) !== (action.punkt === OHNE_PUNKT)) return null
+      if (action.punkt !== OHNE_PUNKT && !punktBegonnen(stand, liste.bereich, action.punkt)) return null
       if (!istObjekt(action.pruefsummen)) return null
       const eintraege = Object.entries(action.pruefsummen)
       if (eintraege.length > PRUEFSUMMEN_MAX || !eintraege.every(([k, v]) => istKennung(k) && typeof v === 'string' && v.length <= 64)) return null

@@ -35,10 +35,17 @@
   Punkte; wkr/abschluss.ts); W2: WKR_PAPIER_AB (abgemeldet, Pause ab Zeit des Starts mit `ab`, P = Schlange ab dort),
   Zeile zu P-Start → Vorschlag (A6); wkrLeer,
   normalisiereWkr (migrate), wkrOhneLaeufe (CLEAR_EINGABEN/_TEIL), wkrNurStarter (mitStartern). Logik: src/wkr/.
+  W5.3 (22.11.2026, KN5): WKR_ABSCHLUSS/_LOESEN mit WkrPunkt (`ohne` = ganze Liste am Tisch; offen = Bestand ohne
+  Haken, nur digital und aktiv), normalisiereWkr behält `ohne` nur an der Liste am Tisch, CLEAR_EINGABEN_TEIL mit Lauf 1
+  nimmt auch `ohne` mit (wie die Eingaben `<disziplin>/0`).
   W4.3 (21.11.2026): WkrStand.nichtVorbei („nicht vorbeigekommen“, wkr/nichtVorbei.ts) – WKR_ZEILEN setzt es bei direkter
   Übernahme einer Zeile mit `nichtVorbei`, jede direkt geltende Zeile ohne löscht es (nvWirkung); Rückfrage/Vorschlag
   tragen `nichtVorbei`/`teil` und wirken erst bei WKR_RUECKFRAGE `geraet` bzw. WKR_VORSCHLAG `uebernehmen` (Prüfbefund); reducer() hebt es nach jeder Änderung von
   `eingaben` auf, sobald die Zelle eigene Werte der Liste hat (ohneUeberholteNichtVorbei, nicht bei LOAD_STATE/RESET_ALL).
+  W5.4 (22.11.2026, ZT4): WkrStand.keineZeit („keine Zeit“ je Zeitfeld, wkr/keineZeit.ts) – kzWirkung an denselben
+  Stellen wie nvWirkung (direkt, WKR_RUECKFRAGE `geraet`, WKR_VORSCHLAG `uebernehmen`; Rückfrage/Vorschlag tragen
+  `keineZeit`); reducer() hebt Felder mit Wert auf (ohneUeberholteKeineZeit); wkrOhneLaeufe/wkrNurStarter räumen;
+  normalisiereWkr liest es (normalisiereKeineZeit, an Rückfragen liesKeineZeitFelder).
 - Nachbarn: persistenz/storage.ts (Schlüssel, serialisiere() mit Speichermarke vorn), persistenz/backup.ts
   (Sicherung/Vorlage/Starterdatei), persistenz/zweitspeicher.ts (IndexedDB „alcatraz“), lib/verlauf.ts (ARTEN).
 

@@ -9,7 +9,7 @@ import { liesKoppelLink, packeKoppelPaket, PAKET_FASSUNG, type KoppelPaket } fro
 import { koppelThema } from './themen'
 import { fromBase64Url } from './transport/ntfy/codec'
 import { GeraetTransport, type Empfang } from './transport/ntfy/transport'
-import type { Ablehnung, Ergebnis, GeraeteAction, GeraeteNachricht } from './transport/protokoll'
+import type { Ablehnung, Ergebnis, GeraeteAction, GeraeteNachricht, GeraeteTyp } from './transport/protokoll'
 import { gruppeDerFreigabe } from './wkrGruppen'
 import { liesFreigabe, type FreigabeErfassung } from '../wkr/freigabe'
 
@@ -54,6 +54,11 @@ export interface GeraeteKanal {
 
 export interface GekoppeltesGeraet extends Omit<LeseGeraet, 'art' | 'zuschauer'> {
   readonly koppelPaket: KoppelPaket
+  /**
+   * Art dieses Geräts, wie es sie beim Koppeln meldet (W3-25, GF7) – seit W5.1 (22.11.2026, WKR_ANNAHMEN PD1) liest die
+   * WKR-Maske sie für ihre Anordnung (Handy oder Pad), vor der Fenstergröße.
+   */
+  readonly typ: GeraeteTyp
   readonly lage: Readonly<Ref<KoppelLage>>
   /** Warum die Anmeldung abgelehnt wurde (`lage = abgelehnt`). */
   readonly grund: Readonly<Ref<Ablehnung | null>>
@@ -243,6 +248,7 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
   return {
     ...kern,
     koppelPaket: paket,
+    typ,
     lage,
     grund,
     aufgaben,

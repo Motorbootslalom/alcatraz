@@ -1,4 +1,4 @@
-import type { AppState, ClassId, PunktId, StartRef, WkrListe, WkrPause } from '../types'
+import type { AppState, ClassId, StartRef, WkrListe, WkrPause, WkrPunkt } from '../types'
 import type { Konfig } from '../config/konfig'
 import { betriebVon, istParallel, lage, liesRef, type FolgeEintrag } from '../betrieb/folge'
 import { konfigVon } from '../state/reducer/gemeinsam'
@@ -23,7 +23,7 @@ export interface SchlangenStart {
   /** Lauf-Schlüssel der Werte; `weitere` nur am Vorsteg mit „Versuche nacheinander“. */
   lauf: string
   weitere: string[]
-  punkt: PunktId
+  punkt: WkrPunkt
   /** Wann der Start gezeigt wurde; fehlt bei Starts, die noch nicht gezeigt sind (`vorab`, „danach“). */
   zeit?: number
   /** Die Klasse hat diese Liste nicht: grau „entfällt“, schließt sich mit dem nächsten Start (WKR_ANNAHMEN.entfaelltNurAktuell). */
@@ -51,7 +51,7 @@ function rahmen(stand: AppState, kennung: string, eintrag: WkrListe, teil: Liste
   const aktiv = eintrag.status === 'aktiv' && (eigen?.status ?? 'aktiv') === 'aktiv'
   const pausen: Pausen = [...eintrag.pausen, ...(eigen?.pausen ?? [])]
   const papier = new Set([...pausen.flatMap((p) => p.papier), ...abschlussPapier(stand.wkr, kennung, teil)])
-  const zu = (punkt: PunktId) => istAbgeschlossen(stand.wkr, kennung, punkt, teil, geteilt)
+  const zu = (punkt: WkrPunkt) => istAbgeschlossen(stand.wkr, kennung, punkt, teil, geteilt)
   /** Gehört der (gezeigte, bei `zeit`) Start in diesem Rahmen noch digital erfasst? */
   const offen = (s: SchlangenStart, zeit: number | undefined) => aktiv && !papier.has(s.key) && !zu(s.punkt) && (zeit === undefined || !inPause(pausen, zeit))
   return { aktiv, offen }

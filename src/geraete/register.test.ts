@@ -58,6 +58,15 @@ describe('Register', () => {
     expect(istHostRaum(JSON.parse(JSON.stringify(raum)))).toBe(true)
   })
 
+  it('W5.1 (F14, 22.11.2026): Maskenvorgabe maske/fest bleibt im Register; die Gruppen ändert sie nicht', () => {
+    const raum = raumMitGeraet()
+    const tor = listenKennung({ bereich: 'see', typeId: 'gate135', racecourse: null })
+    setzeAufgaben(raum, 'g1', [{ art: 'liste', liste: tor }])
+    expect(setzeAufgaben(raum, 'g1', [{ art: 'liste', liste: tor, maske: 'bild', fest: true }])).toEqual({ neu: [], weg: [] })
+    expect(aufgabenVon(raum, 'g1')).toEqual([{ art: 'liste', liste: tor, maske: 'bild', fest: true }])
+    expect(aufgabenVon(JSON.parse(JSON.stringify(raum)), 'g1')).toEqual([{ art: 'liste', liste: tor, maske: 'bild', fest: true }])
+  })
+
   it('W1: Gruppen folgen den Listen-Aufgaben (neu/weg), Lebenszeichen mit Akku und wartend', () => {
     const raum = raumMitGeraet()
     const tor = listenKennung({ bereich: 'see', typeId: 'gate135', racecourse: null })

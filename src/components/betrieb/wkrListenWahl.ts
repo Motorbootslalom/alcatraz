@@ -3,8 +3,8 @@ import type { ClassId } from '../../types'
 import { useStore } from '../../state/store'
 import { useKonfig } from '../../lib/konfig'
 import { sichtOeffentlich } from '../../betrieb/sicht'
-import { listenDerVeranstaltung, listenKennung, liesListe, teileVon, type ListenTeil } from '../../wkr/liste'
-import { listeMitMaske } from '../../wkr/maske'
+import { istTischListe, listenDerVeranstaltung, listenKennung, liesListe, teileVon, type ListenTeil } from '../../wkr/liste'
+import { listeMitBojen, listeMitMaske } from '../../wkr/maske'
 import { t } from '../../i18n'
 
 /**
@@ -12,7 +12,9 @@ import { t } from '../../i18n'
  * (Aufgabe für das nächste Gerät) und GeraeteListe.vue (Listen eines gekoppelten Geräts ändern). Welche Listen es gibt,
  * sagt allein wkr/liste.ts listenDerVeranstaltung (dieselbe Prüfung wie am Host, erlaubteWkr); die Titel stehen in der
  * Sprache der Oberfläche wie in der Matrix (WkrMatrix.vue), gruppiert nach Parcours bzw. im Parallelslalom nach
- * Racecourse. Listen ohne Maske (Zeit, Knoten; Bojen seit W4 mit Maske – wkr/maske.ts listeMitMaske, J1) tragen `ohneMaske`.
+ * Racecourse. Listen ohne Maske (Zeit; Bojen seit W4 mit Maske – wkr/maske.ts listeMitMaske, J1) tragen `ohneMaske`.
+ * Seit W5.3 (22.11.2026, KN1) die Liste(n) ohne Lauf (Knoten) als eigene Gruppe „Am Tisch“ – mit Prüfliste als Maske
+ * (`tisch`: keine Maskenwahl, der Bedienrechner gibt dort nichts vor).
  */
 
 export interface ListenWahl {
@@ -25,6 +27,10 @@ export interface ListenWahl {
   teilbar: boolean
   /** In W3 ohne Maske auf dem Gerät (G14) – „Maske folgt – Papier“. */
   ohneMaske: boolean
+  /** Bojen auf dem Fahrweg – nur dann darf der Bedienrechner „Bild“ vorgeben (F14, W5.1, 22.11.2026). */
+  bojen: boolean
+  /** Liste am Tisch (ohne Lauf, W5.3): Prüfliste, keine Maskenwahl. */
+  tisch: boolean
 }
 
 export interface ListenGruppe {
@@ -45,15 +51,19 @@ export function useListenWahl(): {
     const namen = new Map(sichtOeffentlich(state.value, { logos: false }).bereiche.map((b) => [b.id, b.name]))
     const klassen = state.value.starters.map((s) => s.klasse as ClassId)
     const maske = new Map<string, boolean>()
+    const bojen = new Map<string, boolean>()
     return listenDerVeranstaltung(state.value, k).map((l) => {
       const def = k.getPositions().some((p) => p.typeId === l.typeId) ? k.getSheetDef(l.typeId).title : l.typeId
       if (!maske.has(l.typeId)) maske.set(l.typeId, listeMitMaske(k, l.typeId, klassen))
+      if (!bojen.has(l.typeId)) bojen.set(l.typeId, listeMitBojen(k, l.typeId, klassen))
       return {
         kennung: listenKennung(l),
         titel: l.racecourse ? `${def} ${l.racecourse}` : def,
-        bereich: namen.get(l.bereich) ?? l.bereich,
+        bereich: istTischListe(l) ? t('geraete.koppeln.liste.tisch') : (namen.get(l.bereich) ?? l.bereich),
         teilbar: !!teileVon(l.typeId),
         ohneMaske: !maske.get(l.typeId),
+        bojen: !!bojen.get(l.typeId),
+        tisch: istTischListe(l),
       }
     })
   })
@@ -65,7 +75,7 @@ export function useListenWahl(): {
       const name = rc ? t('geraete.koppeln.liste.racecourse', { bereich: l.bereich, rc }) : l.bereich
       let g = aus.find((x) => x.name === name)
       if (!g) aus.push((g = { name, listen: [] }))
-      g.listen.push({ kennung: l.kennung, titel: l.titel, bereich: l.bereich, teilbar: l.teilbar, ohneMaske: l.ohneMaske })
+      g.listen.push({ ...l })
     }
     return aus
   })

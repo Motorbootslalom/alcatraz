@@ -14,6 +14,7 @@ import { uhrzeitText } from './texte'
 import { useListenWahl } from './wkrListenWahl'
 import { liesListe, type ListenTeil } from '../../wkr/liste'
 import { einteilungsName, einteilungsParcours } from '../../wkr/sicht'
+import { erlaubteMasken, maskeAufGeraet, MASKEN_GEBAUT, vorgabeMaske, type MaskenWahl } from '../../wkr/maskenWahl'
 
 /**
  * Betrieb → Geräte, Geräteliste (Etappe E7, Plan vom 16.11.2026 §4/§5; Vorbild tafel DeviceList.vue, neu geschrieben):
@@ -37,6 +38,13 @@ import { einteilungsName, einteilungsParcours } from '../../wkr/sicht'
  * gerätelokal). Weicht er ab, nur ein Hinweis „Name auf dem Gerät: … – Einteilung: …“ (`wkr-name-abweichend`) mit „In
  * Veranstaltung übernehmen“ (SET_WKR_NAME, dieselbe Action wie die Einteilung unter Veranstaltung); sonst nichts – der
  * WKR kann auf dem Gerät erneut überschreiben.
+ *
+ * W5.1 (22.11.2026, F14, WKR_ANNAHMEN MW1): je Liste mit Maske die Maske als Knöpfe (`data-wahl-maske`; Knöpfe immer,
+ * Bild nur auf Bojen-Listen (gebaut seit W5.2, 22.11.2026), Tabelle seit W5.5 (22.11.2026) – für ein Handy ausgegraut,
+ * TB1, wkr/maskenWahl.ts maskeAufGeraet) und
+ * „fest“ (`data-feld="maske-fest"`) – beides über host.setzeAufgaben in Aufgabe.maske/fest (aufgaben.ts prüft). Ohne
+ * Auswahl gilt die Vorgabe MW1 (Pad/Rechner + Bojen → Bild, sonst Knöpfe); gedrückt steht, was das Gerät zeigen wird.
+ * „Fest“ schreibt die gezeigte Maske ausdrücklich mit, damit sie nicht mit der Art des Geräts wechselt.
  *
  * „Zuletzt gehört“ statt „verbunden“: Ein Gerät meldet sich nur, wenn es schaltet oder neu startet (kein Herzschlag –
  * jede Nachricht kostet Kontingent am fremden Server). Ein Bereich, den es im Stand nicht mehr gibt, bleibt im Register
@@ -93,6 +101,30 @@ function nimmListe(g: RegisterEintrag): void {
 const voll = (g: RegisterEintrag) => listenAufgaben(g.aufgaben).length >= LISTEN_JE_GERAET
 /** Mehr Listen als für die Art empfohlen (W3-03); ohne bekannte Art gilt die des Pads (zwei). */
 const ueberEmpfehlung = (g: RegisterEintrag) => listenAufgaben(g.aufgaben).length > LISTEN_EMPFEHLUNG[g.typ ?? 'pad']
+
+// --- Maske je Liste (F14, W5.1) ---
+const bojenListe = (kennung: string) => !!listeVon(kennung)?.bojen
+/** Sichtbare Knöpfe: alle erlaubten Masken; nicht gebaute bzw. auf diesem Gerät nicht mögliche (TB1) ausgegraut. */
+const maskenKnoepfe = (kennung: string): MaskenWahl[] => erlaubteMasken({ bojen: bojenListe(kennung) })
+/** Ohne bekannte Art zählt das Gerät als Pad (wie die Empfehlung) – erst ein Handy graut „Tabelle“ aus. */
+const maskeAus = (g: RegisterEintrag, m: MaskenWahl) => !MASKEN_GEBAUT[m] || !maskeAufGeraet(m, g.typ !== 'handy')
+/** Was das Gerät zeigen wird: die Vorgabe des Bedieners bzw. MW1 – eine nicht gebaute bzw. dort nicht mögliche als Knöpfe. */
+function maskeGezeigt(g: RegisterEintrag, a: ListenAufgabe): MaskenWahl {
+  const m = a.maske ?? vorgabeMaske({ bojen: bojenListe(a.liste), pad: g.typ !== 'handy' })
+  return maskeAus(g, m) ? 'knoepfe' : m
+}
+function setzeMaske(g: RegisterEintrag, kennung: string, maske: MaskenWahl, fest: boolean): void {
+  setzeListen(
+    g,
+    listenAufgaben(g.aufgaben).map((a) => {
+      if (a.liste !== kennung) return a
+      const neu: ListenAufgabe = { ...a, maske }
+      if (fest) neu.fest = true
+      else delete neu.fest
+      return neu
+    }),
+  )
+}
 
 // --- WKR-Name je Liste (W3-13) ---
 /** Name laut Einteilung, der auf dem Gerät und ob sie sich unterscheiden. */
@@ -171,7 +203,31 @@ function entziehe(): void {
             <ul class="geraete-listen-eintraege">
               <li v-for="a in listenAufgaben(g.aufgaben)" :key="a.liste" class="geraete-liste-eintrag" :data-liste="a.liste">
                 <span data-teil="liste-titel">{{ listeText(a.liste) }}</span>
-                <span class="note" data-teil="liste-maske">{{ listeVon(a.liste)?.ohneMaske ? t('geraete.liste.liste.ohneMaske') : t('geraete.liste.liste.maske') }}</span>
+                <span v-if="!listeVon(a.liste) || listeVon(a.liste)!.ohneMaske" class="note" data-teil="liste-maske">{{ t('geraete.liste.liste.ohneMaske') }}</span>
+                <!-- W5.3 (22.11.2026): Am Tisch gibt es nur die Prüfliste – keine Maskenwahl. -->
+                <span v-else-if="listeVon(a.liste)!.tisch" class="note" data-teil="liste-maske" data-maske="pruefliste">{{ t('geraete.liste.maske.pruefliste') }}</span>
+                <template v-else>
+                  <span class="segmented" role="group" :aria-label="t('geraete.liste.maske')" data-teil="liste-maske">
+                    <button
+                      v-for="m in maskenKnoepfe(a.liste)"
+                      :key="m"
+                      type="button"
+                      class="sm"
+                      :data-wahl-maske="m"
+                      :disabled="maskeAus(g, m)"
+                      :title="!MASKEN_GEBAUT[m] ? t('geraete.liste.maske.folgt') : maskeAus(g, m) ? t('geraete.liste.maske.nurPad') : undefined"
+                      :class="maskeGezeigt(g, a) === m ? 'active' : ''"
+                      :aria-pressed="maskeGezeigt(g, a) === m"
+                      @click="setzeMaske(g, a.liste, m, !!a.fest)"
+                    >
+                      {{ t(`geraete.liste.maske.${m}`) }}
+                    </button>
+                  </span>
+                  <label class="geraete-bereich">
+                    <input type="checkbox" data-feld="maske-fest" :checked="!!a.fest" @change="setzeMaske(g, a.liste, maskeGezeigt(g, a), ($event.target as HTMLInputElement).checked)" />
+                    {{ t('geraete.liste.maske.fest') }}
+                  </label>
+                </template>
                 <span v-if="listeVon(a.liste)?.teilbar" class="segmented" role="group" :aria-label="t('geraete.koppeln.liste.teil')">
                   <button
                     v-for="w in (['', 'ab', 'an'] as const)"

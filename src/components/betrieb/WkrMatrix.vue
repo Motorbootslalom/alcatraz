@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { OeffentlicheSicht } from '../../types'
+import type { KeineZeitGrund, OeffentlicheSicht } from '../../types'
 import { useStore } from '../../state/store'
 import { useKonfig } from '../../lib/konfig'
 import { merke } from '../../lib/merken'
@@ -8,7 +8,7 @@ import { adresse } from '../../lib/router'
 import { useUhr } from '../../lib/uhr'
 import { listenFelder, werteVon } from '../../lib/eingaben'
 import { liesRef } from '../../betrieb/folge'
-import { erfassungsLage, type Ampel, type ListenGeraet, type ListenLage, type Zelle } from '../../wkr/lage'
+import { erfassungsLage, tischLage, type Ampel, type ListenGeraet, type ListenLage, type Zelle } from '../../wkr/lage'
 import { liesListe, startAufListe } from '../../wkr/liste'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { useGeraeteHost } from '../../geraete/host'
@@ -28,6 +28,10 @@ import { punktText, punktVon, uhrzeitText } from './texte'
  *
  * W3.2 (21.11.2026): Eine Liste ohne Gerät trägt den Verweis „Gerät koppeln“ → Betrieb → Geräte mit dieser Liste
  * vorgewählt (`#/betrieb/geraete/<liste>`, BetriebView beiWahl → merke `geraete.koppeln.liste`; J5: immer, auch ohne Raum).
+ *
+ * W5.3 (22.11.2026, WKR_ANNAHMEN KN4): Unter der Matrix ein eigener Block „Am Tisch“ für die Listen ohne Lauf (Knoten):
+ * je Liste Gerät, „Knoten: 14 / 38 offen“ (wkr/lage.ts tischLage) und dieselbe Bedienung – nie Spalten, nie
+ * Rückstand, nie eine Warnung; er steht auch ohne Bereich des Betriebs (Knoten oft vor der Verzahnung).
  *
  * Die Uhr (Ampel, „vor 2 min“) tickt alle 5 s und nur in diesem Zweig. Bedienauswahl (Bereich, alle Starts,
  * aufgeklappte Bedienung) über lib/merken.ts `betrieb.wkr.*`, nie im Stand.
@@ -50,6 +54,8 @@ const geraete = computed(() => geraetAngaben(host?.raum.value?.geraete ?? []))
 const mitRaum = computed(() => !!host?.raum.value)
 
 const lage = computed(() => (gewaehlt.value ? erfassungsLage(state.value, konfig.value, gewaehlt.value.id, geraete.value, jetzt.value, alle.value ? 'alle' : 'punkt') : null))
+const tisch = computed(() => tischLage(state.value, konfig.value, geraete.value, jetzt.value))
+
 const punkt = computed(() => {
   const p = lage.value?.punkt
   const b = gewaehlt.value
@@ -100,8 +106,10 @@ function standTeile(l: ListenLage): string[] {
   return out
 }
 
-function zellTitel(z: { zelle: Zelle; teile?: { ab: Zelle; an: Zelle } }): string {
-  const grund = t(`betrieb.wkr.zelle.${z.zelle}`)
+function zellTitel(z: { zelle: Zelle; teile?: { ab: Zelle; an: Zelle }; keineZeit?: Record<string, KeineZeitGrund> }): string {
+  // „Keine Zeit“ (W5.4): die Gründe hinter dem Stand, ohne Feldnamen (die nennt die Karte der Zelle).
+  const kz = z.keineZeit ? ` – ${t('betrieb.wkr.zelle.keineZeit')}: ${[...new Set(Object.values(z.keineZeit))].map((g) => t(`wkr.geraet.keineZeit.grund.${g}`)).join(', ')}` : ''
+  const grund = t(`betrieb.wkr.zelle.${z.zelle}`) + kz
   if (!z.teile) return grund
   return `${grund} – ${t('betrieb.wkr.teil.ab')}: ${t(`betrieb.wkr.zelle.${z.teile.ab}`)}, ${t('betrieb.wkr.teil.an')}: ${t(`betrieb.wkr.zelle.${z.teile.an}`)}`
 }
@@ -125,11 +133,14 @@ const karteInhalt = computed(() => {
   if (!start) return null
   const werte = werteVon(state.value.eingaben, start.lauf, start.starter.id)
   const herkunft = host?.herkunft.value
+  // „Keine Zeit“ (W5.4, ZT4): das Feld steht mit Grund statt Wert in der Karte.
+  const kz = l.zellen[k.key]?.keineZeit ?? {}
   const felder = listenFelder(konfig.value, liste.typeId, start.starter.klasse)
-    .filter((f) => (werte[f.kennung] ?? '') !== '')
+    .filter((f) => (werte[f.kennung] ?? '') !== '' || !!kz[f.kennung])
     .map((f) => {
       const h = herkunft ? herkunftGilt(herkunft, state.value.eingaben, start.lauf, start.starter.id, f.kennung) : null
-      return { kennung: f.kennung, label: f.label, wert: werte[f.kennung], herkunft: h ? t('betrieb.wkr.karte.herkunft', { geraet: h.g, zeit: uhrzeitText(h.z, jetzt.value) }) : null }
+      const wert = werte[f.kennung] || `${t('betrieb.wkr.zelle.keineZeit')} (${t(`wkr.geraet.keineZeit.grund.${kz[f.kennung]}`)})`
+      return { kennung: f.kennung, label: f.label, wert, herkunft: h ? t('betrieb.wkr.karte.herkunft', { geraet: h.g, zeit: uhrzeitText(h.z, jetzt.value) }) : null }
     })
   return { titel: t('betrieb.wkr.karte.titel', { nr: start.starter.startNr, liste: titelVon(l) }), felder, rueckfrage: l.zellen[k.key]?.zelle === 'rueckfrage' }
 })
@@ -225,6 +236,8 @@ function zumEingang(): void {
                     <span v-if="l.zellen[s.key].zelle === 'nv'" class="wkr-mzelle-wort">{{ t('betrieb.wkr.zelle.nv.kurz') }}</span>
                     <!-- W3-17 (21.11.2026, GF10): ✓ mit Disq.-Marke – „nicht vorbeigekommen“ ist jetzt Disq. J. -->
                     <span v-if="l.zellen[s.key].disq" class="wkr-mzelle-wort" data-teil="mzelle-disq">{{ t('betrieb.wkr.zelle.disq', { disq: l.zellen[s.key].disq! }) }}</span>
+                    <!-- W5.4 (22.11.2026, ZT4): ✓ mit „keine Zeit“ – der Grund steht im Titel, auf dem Bogen nachsehen. -->
+                    <span v-if="l.zellen[s.key].keineZeit" class="wkr-mzelle-wort" data-teil="mzelle-keine-zeit">{{ t('betrieb.wkr.zelle.keineZeit') }}</span>
                   </button>
                 </td>
                 <td class="wkr-stand" data-teil="wkr-stand">
@@ -273,5 +286,44 @@ function zumEingang(): void {
         </ul>
       </details>
     </template>
+
+    <!-- W5.3 (KN4): Listen ohne Lauf (Knoten) – eigener Block, ohne Spalten, ohne Rückstand. -->
+    <div v-if="tisch.length" class="wkr-tisch" data-teil="wkr-tisch">
+      <h3>{{ t('betrieb.wkr.tisch.titel') }}</h3>
+      <table class="wkr-mtabelle">
+        <tbody>
+          <template v-for="l in tisch" :key="l.liste">
+            <tr :data-liste="l.liste" :data-modus="l.modus ?? 'papier'">
+              <th scope="row" class="wkr-liste">{{ l.titel }}</th>
+              <td class="wkr-geraete">
+                <button v-for="g in l.geraete" :key="g.id" type="button" class="wkr-mgeraet" :data-geraet="g.id" :data-ampel="g.ampel" :title="geraetTitel(g)" @click="emit('geraete')">
+                  <span class="wkr-ampel" aria-hidden="true">{{ AMPEL[g.ampel] }}</span>
+                  {{ g.name }}
+                  <span class="note">· {{ seitText(g.seitMs) }}</span>
+                </button>
+                <span v-if="l.geraete.length === 0 && (l.modus === null || l.modus === 'papier')" class="note" data-teil="papier-liste">▭ {{ t('betrieb.wkr.papierListe') }}</span>
+                <span v-else-if="l.geraete.length === 0" class="note">{{ t('betrieb.wkr.keinGeraet') }}</span>
+                <a v-if="l.geraete.length === 0" class="wkr-koppeln" data-action="wkr-koppeln" :href="koppelnAdresse(l.liste)">{{ t('betrieb.wkr.koppeln') }}</a>
+              </td>
+              <td class="wkr-stand" data-teil="wkr-tisch-offen" :title="l.knoten.nummern.join(', ')">
+                {{ t('betrieb.wkr.tisch.offen', { liste: l.titel, n: l.knoten.offen, m: l.knoten.gesamt }) }}
+                <template v-if="l.rueckfragen > 0"> · {{ tn('betrieb.wkr.stand.rueckfragen', l.rueckfragen) }}</template>
+                <template v-if="l.vorschlaege > 0"> · {{ tn('betrieb.wkr.stand.vorschlaege', l.vorschlaege) }}</template>
+              </td>
+              <td>
+                <button type="button" class="btn sm" data-action="wkr-bedienung" :aria-expanded="offen === l.liste" @click="schalteBedienung(l.liste)">
+                  {{ t('betrieb.wkr.bedienung') }}
+                </button>
+              </td>
+            </tr>
+            <tr v-if="offen === l.liste" class="wkr-bedienung-zeile">
+              <td colspan="4">
+                <WkrListeBedienung :lage="l" :starts="[]" :bereich="null" />
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>

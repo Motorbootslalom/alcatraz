@@ -80,6 +80,12 @@ export interface BogenTexte {
   entfaellt: string
   racecourse(kennung: string): string
   runde(runde: string): string
+  /**
+   * Listen ohne Lauf (Knoten) in der digitalen WKR-Erfassung (W5.3, 22.11.2026): der „Bereich“ am Tisch und der
+   * „Punkt“ der ganzen Liste (wkr/sicht.ts) – in der Sprache der Liste wie die übrigen Kopfzeilen des Geräts.
+   */
+  tisch: string
+  alleStarter: string
 }
 
 export function bogenTexte(sprache: Sprache, klassenNamen: Record<string, string> = {}): BogenTexte {
@@ -110,6 +116,8 @@ export function bogenTexte(sprache: Sprache, klassenNamen: Record<string, string
     dummy: 'Dummy',
     entfaellt: t('entfällt', 'cancelled'),
     racecourse: (kennung) => t(`Parcours ${kennung}`, `Racecourse ${kennung}`),
+    tisch: t('Am Tisch', 'At the table'),
+    alleStarter: t('Alle Starter', 'All drivers'),
     runde: (runde) => {
       // Rundennamen stehen doppelt (auch i18n parallel.round.*, planung/parallelRunden.ts rundenName) – beide gleich
       // halten. Seit 21.11.2026 eigene Runden „Kleines Finale“/„Small final“ und „Finale“/„Final“ (Entscheidung vom 15.11.2026).

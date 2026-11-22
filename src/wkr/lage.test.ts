@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { reducer } from '../state/reducer'
+import { wkrNurStarter } from '../state/reducer/wkr'
 import { configFor } from '../config/konfig'
 import { lage as bereichsLage } from '../betrieb/folge'
 import { betriebStarter, betriebsStand, festgeschrieben, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
@@ -394,9 +395,11 @@ describe('zeilenMarken (A5)', () => {
 })
 
 describe('listeVonBogen', () => {
-  it('Manövrieren: Parcours und Position; Parallelslalom: Racecourse; Knoten: keine Liste', () => {
+  it('Manövrieren: Parcours und Position; Parallelslalom: Racecourse; Knoten: die Liste am Tisch (W5.3)', () => {
     expect(listeVonBogen({ parcoursId: P1, typeId: 'gate135' }, DM)).toEqual(L('gate135'))
-    expect(listeVonBogen({ parcoursId: P1, typeId: 'knoten' }, DM)).toBeNull()
+    // Seit W5.3 (22.11.2026, KN1): jeder Knoten-Bogen gehört zu der EINEN Liste am Tisch.
+    expect(listeVonBogen({ parcoursId: P1, typeId: 'knoten' }, DM)).toEqual({ bereich: 'tisch', typeId: 'knoten', racecourse: null })
+    expect(listeVonBogen({ parcoursId: 'par_2', typeId: 'knoten' }, DM)).toEqual({ bereich: 'tisch', typeId: 'knoten', racecourse: null })
     expect(listeVonBogen({ parcoursId: P1, typeId: 'gibtsnicht' }, DM)).toBeNull()
     const UIM = configFor({ regelwerk: 'uim-2026' })
     expect(listeVonBogen({ parcoursId: 'racecourse-b', typeId: 'steg', runde: { runde: 'pre', racecourse: 'B' } }, UIM)).toEqual({ bereich: 'parallel', typeId: 'steg', racecourse: 'B' })
@@ -527,5 +530,70 @@ describe('„Nicht vorbeigekommen“ (W4.3)', () => {
     s = sende(s, 'gate135', keys[2], [], 3)
     s = reducer(s, { type: 'WKR_ABSCHLUSS', liste: K('gate135'), punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: false, zeit: 9000 })
     expect(lageVon(s, 'gate135').abschluss).toEqual([{ punkt: 'lauf:1', name: 'Vor1', zeit: 9000, abweichend: [], papier: [], nichtVorbei: [nr(s, keys[1])] }])
+  })
+})
+
+describe('„Keine Zeit“ (W5.4, 22.11.2026, ZT4)', () => {
+  /** Eine Zeile der Zeit-Liste wie vom Gerät, mit `kz`. */
+  function zeitZeile(s: AppState, key: string, c: [string, string, string][], kz: [string, 'anlage' | 'nichtImZiel' | 'anderes'][] | undefined, z = 1, geraetId = 'g1'): AppState {
+    const r = pruefeZeile(s, DM, L('zeit'), undefined, geraetId, { z, s: key, c, ...(kz ? { kz } : {}) })
+    if ('fehler' in r) throw new Error(r.fehler)
+    return reducer(s, { type: 'WKR_ZEILEN', liste: K('zeit'), quelle: { geraet: geraetId, name: 'Pad' }, zeilen: [r], zeit: 5000 + z })
+  }
+  const zeitStand = () => {
+    let s = setzeListe(wkrBetriebsStand(viele(4)), L('zeit'), 100, 'digital')
+    s = zeige(s, 2, 1000)
+    return { s, keys: gezeigt(s) }
+  }
+
+  it('direkt übernommen: ✓ mit Gründen, „Papier ansehen“ genau an den Feldern ohne Zeit; eine Zeit hebt das Feld auf', () => {
+    const { s: s0, keys } = zeitStand()
+    let s = zeitZeile(s0, keys[0], [['zeit1', '83,45', '']], [['zeit2', 'anlage'], ['zeit3', 'nichtImZiel']])
+    const zelle = `${L1}|${starterVon(keys[0])}`
+    expect(s.wkr.keineZeit[K('zeit')]).toEqual({ [zelle]: { zeit2: 'anlage', zeit3: 'nichtImZiel' } })
+    expect(lageVon(s, 'zeit').zellen[keys[0]]).toEqual({ zelle: 'ok', keineZeit: { zeit2: 'anlage', zeit3: 'nichtImZiel' } })
+    expect(zeilenMarken(s, DM, L('zeit'), [L1]).get(zelle)).toEqual({ marke: null, zellen: { zeit2: 'papier-ansehen', zeit3: 'papier-ansehen' } })
+    // Zeit nicht zur Parcours-Liste (AM2): kein Rückstand wegen Zeit, keine Warnung.
+    expect(lageVon(s, 'zeit').parcours).toBe(false)
+    // Abgetippt (die Stoppuhrzeit vom Bogen): nur dieses Feld fällt.
+    s = setze(s, starterVon(keys[0]), 'zeit2', '83,50')
+    expect(s.wkr.keineZeit[K('zeit')]).toEqual({ [zelle]: { zeit3: 'nichtImZiel' } })
+    expect(zeilenMarken(s, DM, L('zeit'), [L1]).get(zelle)).toEqual({ marke: null, zellen: { zeit3: 'papier-ansehen' } })
+    // Eine spätere Zeile mit leerem `kz` ersetzt das Kennzeichen (alle Zeiten da); eine ohne `kz` lässt es stehen.
+    const ohne = zeitZeile(s, keys[0], [], undefined, 2)
+    expect(ohne.wkr.keineZeit).toBe(s.wkr.keineZeit)
+    s = zeitZeile(s, keys[0], [['zeit3', '83,47', '']], [], 3)
+    expect(s.wkr.keineZeit).toEqual({})
+    expect(lageVon(s, 'zeit').zellen[keys[0]]).toEqual({ zelle: 'ok' })
+  })
+
+  it('Rückfrage und Vorschlag tragen es mit und wirken erst mit der Entscheidung für das Gerät', () => {
+    const { s: s0, keys } = zeitStand()
+    const zelle = `${L1}|${starterVon(keys[0])}`
+    // Rückfrage: zeit1 steht anders.
+    let s = setze(s0, starterVon(keys[0]), 'zeit1', '80,00')
+    s = zeitZeile(s, keys[0], [['zeit1', '83,45', '']], [['zeit2', 'anderes']])
+    expect(s.wkr.keineZeit).toEqual({})
+    expect(s.wkr.rueckfragen[0].keineZeit).toEqual({ zeit2: 'anderes' })
+    const behalten = reducer(s, { type: 'WKR_RUECKFRAGE', id: s.wkr.rueckfragen[0].id, wahl: 'behalten', zeit: 7000 })
+    expect(behalten.wkr.keineZeit).toEqual({})
+    const geraet = reducer(s, { type: 'WKR_RUECKFRAGE', id: s.wkr.rueckfragen[0].id, wahl: 'geraet', zeit: 7000 })
+    expect(geraet.wkr.keineZeit).toEqual({ [K('zeit')]: { [zelle]: { zeit2: 'anderes' } } })
+    // Vorschlag: Liste auf Papier.
+    let p = setzeListe(s0, L('zeit'), 200, 'papier')
+    p = zeitZeile(p, keys[1], [], [['zeit1', 'anlage']], 4)
+    expect([p.wkr.vorschlaege[0].keineZeit, p.wkr.keineZeit]).toEqual([{ zeit1: 'anlage' }, {}])
+    const ueber = reducer(p, { type: 'WKR_VORSCHLAG', id: p.wkr.vorschlaege[0].id, wahl: 'uebernehmen', zeit: 8000 })
+    expect(ueber.wkr.keineZeit[K('zeit')]).toEqual({ [`${L1}|${starterVon(keys[1])}`]: { zeit1: 'anlage' } })
+  })
+
+  it('„Werte löschen“ und ein gelöschter Starter nehmen es mit', () => {
+    const { s: s0, keys } = zeitStand()
+    const s = zeitZeile(s0, keys[0], [], [['zeit1', 'anlage'], ['zeit2', 'anlage'], ['zeit3', 'anlage']])
+    expect(Object.keys(s.wkr.keineZeit)).toHaveLength(1)
+    expect(reducer(s, { type: 'CLEAR_EINGABEN' }).wkr.keineZeit).toEqual({})
+    // Starter entfernen ist mit erfassten Werten gesperrt – die Aufräumhilfe selbst (wie bei REMOVE_STARTER ohne Werte).
+    expect(wkrNurStarter(s.wkr, new Set([starterVon(keys[1])])).keineZeit).toEqual({})
+    expect(wkrNurStarter(s.wkr, new Set([starterVon(keys[0])]))).toBe(s.wkr)
   })
 })

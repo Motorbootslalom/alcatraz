@@ -448,7 +448,7 @@ S2 W4-24, S3 W4-25, S4 W4-20, S5 W4-26).
 
 Verworfen: keiner.
 
-## 13. Nutzer 21.11.2026: Disq. an der Boje, Ansicht „Wie der Parcours liegt“
+## 13. Nutzer 21.11.2026: Disq. an der Boje, Ansicht „Wie der Parcours liegt“ (entfernt 22.11.2026)
 
 Zwei Wünsche nach dem Handy-Test, gebaut 21.11.2026, Auslegungen datiert in `WKR_ANNAHMEN` (noch zu bestätigen; U2 ist
 seit 21.11.2026 abends überholt – W4-12, §14):
@@ -462,15 +462,13 @@ seit 21.11.2026 abends überholt – W4-12, §14):
   (langes Drücken nicht gebaut – Frage an den Nutzer), U4 `probeDisqAnBoje` (Probe-Schritt vor dem Hauptknopf).
   Zuletzt, Korrektur, Prüfansicht und Bedienrechner zeigen den Buchstaben an der Boje („Tor 3 R L: G“) ohne eigene
   Änderung (zellenText, Erfassungstabelle).
-- **Wie der Parcours liegt** („Die Reihenfolge der Tore soll der WKR bitte auch wechseln können …“) – Mehr → Ansicht →
-  „Bojen“: „Fahrtfolge“ (Vorgabe) / „Wie der Parcours liegt“, „Start oben“ / „Start unten“, „Bojen links/rechts
-  tauschen“; gemerkt je Gerät und Liste (ablage.ts `bojen`). Lage: je Ort eine Gruppe (Tor 1 mit Hin, Rück und
-  2. Durchfahrt, Start und Ziel, Einfahrt bei Tor 5, MüB an der Schikane, Speedbojen hinter Tor 5), Quelle
-  wkr/bojen.ts BOJEN_LAGE – belegt an den x-Koordinaten der Parcours-Bilder (Test), dieselbe Quelle für das
-  Bild-Layout W5. V1 `bojenNachLage`, V2 `bojenSpiegeln` (ohne Umschalter in der Lage-Ansicht; Tauschen in beiden).
-- Tests: wkr/maske.test.ts (Disq. an der Boje, wertGilt mit Buchstaben über alle Bojen-Positionen DM/UIM, nachLage),
-  wkr/bojen.test.ts (Lage gegen alle Parcours-Bilder), geraete/ablage.test.ts (Bojen-Ansicht), src/GeraetWkr.test.ts
-  („Disq. an der Boje“ Ende zu Ende, „Wie der Parcours liegt“, Probe mit sechs Schritten).
+- **Wie der Parcours liegt** – gebaut 21.11.2026 (V1/V2: Gruppen je Ort nach einer Lagequelle aus den
+  Parcours-Bildern, Start oben/unten, Spalten tauschen), **entfernt 22.11.2026**: Der Nutzer meinte die Folge des
+  Rück-Reiters. Ersetzt durch die Bojen-Folge „Rückweg gedreht“ (Vorgabe) / „Fahrtfolge“ / „Alles untereinander“
+  (WKR_ANNAHMEN V3 `bojenFolge`, wkr/maske.ts bojenAbschnitte; docs/entscheidungen.md 2026-11-22).
+- Tests: wkr/maske.test.ts (Disq. an der Boje, wertGilt mit Buchstaben über alle Bojen-Positionen DM/UIM, seit
+  22.11.2026 Bojen-Folge), geraete/ablage.test.ts (Bojen-Folge, alte Ansicht weggeräumt), src/GeraetWkr.test.ts
+  („Disq. an der Boje“ Ende zu Ende, Bojen-Folge, Probe mit sechs Schritten).
 
 ## 14. Antworten des Nutzers 21.11.2026 abends (Fragenseite W4-01 … W4-35)
 
@@ -479,7 +477,7 @@ Q1, Q3–Q7 (W4-16 … -22), S1–S5 (W4-20, -23 … -26), R1–R8 (W4-28 … -3
 21.11.2026 (Frage)“. W4-07 („ja“) mit Auftrag „steht die normale Bojenberührung im Regelwerk? Früher 10 Punkte je
 Boje“: geprüft 21.11.2026 – dm-2026.yaml `direktpunkte` 5 je Boje und Fahrtrichtung bzw. je Berührung an Tor 5
 (Reglement C5 b, c), uim-2026.yaml „Touching of a buoy“ 5; nirgends 10, P4 bleibt. Nicht gefragt: P15 (Sicht), U1–U4,
-V1, V2.
+V1, V2 (V1/V2 am 22.11.2026 durch V3 ersetzt).
 
 Anders entschieden (noch nicht umgesetzt; Wortlaut in [entscheidungen.md](entscheidungen.md) „Antworten 21.11.2026
 abends (Runden 3–6)“):

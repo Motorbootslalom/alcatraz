@@ -869,6 +869,26 @@ bis dahin gilt der gebaute Stand:
   dm-2026.yaml `direktpunkte` 5 je Boje und Fahrtrichtung bzw. je Berührung an Tor 5 (Reglement C5 b, c),
   uim-2026.yaml „Touching of a buoy“ 5; 10 steht in keinem Regelwerk. Fest 5 bleibt (WKR_ANNAHMEN.bojenPunkte,
   wkr/bojen.test.ts vergleicht mit beiden Regelwerken).
+- 2026-11-22 · Reihenfolge der Bojen-Maske (Nutzer: „Deine Implementierung ‚Wie der Parcours liegt‘ ist leider Müll.
+  Es ging mir bei dem Punkt darum, dass du bei Hin eine andere Zeilenreihenfolge (Start/Ziel, Tor 1, Tor 3, Tor 5)
+  hast als beim Rück-Tab (Tor 5, Tor 3, Tor 1, Start/Ziel). Den zweiten Tab wollte ich gedreht haben. Du kannst auch
+  die beiden alten Tabs optional auch untereinander schreiben: Start, Tor 1, Tor 3, Tor 5, Tor 5, Tor 3, Tor 1,
+  Ziel.“): Die Ansicht „Wie der Parcours liegt“ samt Start oben/unten und „Bojen links/rechts tauschen“ (V1/V2 vom
+  21.11.2026) ist entfernt. Mehr → Ansicht → „Bojen“, je Gerät und Liste gemerkt: **„Rückweg gedreht“ (Vorgabe)** – der
+  Rück-Reiter in derselben Folge wie Hin, jedes Tor an derselben Stelle; „Fahrtfolge“ – der Rück-Reiter, wie das Boot
+  fährt; „Alles untereinander“ – ein Reiter ohne Umschalter. Für alle Bojen-Listen (Tor 1/3/5, Tor 2/4/5, Parcours,
+  Parallel A/B). Gebaut 22.11.2026; Auslegungen WKR_ANNAHMEN V3 `bojenFolge` (a)–(f) noch zu bestätigen – vor allem
+  (a): Speedbojen, Tor 1 der Speedrunde und MüB haben auf dem Hinweg kein Gegenstück und stehen unter „gedreht“ seit
+  dem Prüfbefund 22.11.2026 an ihrer Stelle der umgekehrten Fahrtfolge (Klasse 7: Ziel, Tor 1 (2.), Speed 2, Tor 1 R,
+  Tor 3, Tor 5; vorher unter den Toren).
+- 2026-11-22 · W5 „Pad“ gebaut (Plan [plan-wkr-w5.md](plan-wkr-w5.md), Scheiben W5.1–W5.5): Pad-Anordnung mit bis
+  vier Listen nebeneinander und Maskenwahl am Bedienrechner (W5.1), Maske „Bild“ (W5.2), Knoten am Tisch als Liste
+  ohne Lauf mit Prüfliste (W5.3), Zeit-Listen mit Ziffernblock und „Keine Zeit“ (W5.4), Tabelle für Geübte nur auf
+  Pad und Rechner (W5.5). Ohne Rückfrage beim Bau ausgelegt, alles **noch zu bestätigen**: PD1–PD6 (Anordnung), MW1–MW3
+  (Maskenwahl), BD1–BD7 (Bild), KN1–KN8 (Knoten), ZT1–ZT4 (Zeit), TB1–TB5 (Tabelle: nur Pad/Rechner, keine Probe,
+  Zeile wie der Bogen mit denselben Sanierern und Fehler je Zelle statt stiller Verbesserung, Bojen als Punkte,
+  letzte 5 + nächste 3 Zeilen mit Korrektur an der Zeile) – je Eintrag in WKR_ANNAHMEN (src/wkr/annahmen.ts) und
+  gesammelt in plan-wkr-w5.md §10. Feldtest offen ([feldtest.md](feldtest.md) „Pad (W5)“).
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
@@ -876,9 +896,9 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 
 - Digitale WKR-Erfassung (Antworten 21.11.2026, Abschnitt oben): Etappen W1–W6 nach
   [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern), W2 (Bedienrechner) und W3 (Handy-Maske
-  „Knöpfe“, Übung) und W4 (Bojen-Maske, „Nicht vorbeigekommen“) gebaut 21.11.2026, W5–W6 offen (Pad quer, Bild/Text,
-  Knoten/Zeit-Listen); Auslegungen W1–W4 bestätigt 21.11.2026 bis auf die oben unter „Antworten 21.11.2026 abends
-  (Runden 3–6)“ anders entschiedenen; noch nicht gefragt: P15, U1–U4, V1, V2, Z1–Z7, Y1–Y3; Feldtest offen
+  „Knöpfe“, Übung) und W4 (Bojen-Maske, „Nicht vorbeigekommen“) gebaut 21.11.2026, W5 (Pad, Bild, Knoten, Zeit,
+  Tabelle) gebaut 22.11.2026 (Auslegungen PD/MW/BD/KN/ZT/TB noch zu bestätigen), W6 offen (nach Befund); Auslegungen W1–W4 bestätigt 21.11.2026 bis auf die oben unter „Antworten 21.11.2026 abends
+  (Runden 3–6)“ anders entschiedenen; noch nicht gefragt: P15, U1–U4, V3 (22.11.2026, ersetzt V1/V2), Z1–Z7, Y1–Y3; Feldtest offen
   (docs/feldtest.md „WKR-Maske“, „Bojen-Maske“).
 - Antworten 21.11.2026 abends (Abschnitt oben), noch nicht gebaut (gebaut 21.11.2026: Parcours-Ampel mit Auto-Modus
   P-03/P-04, „Mehr → Liste abschließen“ entfernt W3-40, Rückfrage beim Abschließen im laufenden Lauf R6-10; Disq. an

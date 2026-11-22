@@ -4,6 +4,22 @@
 // (Rückfragen, Vorschläge), Modus und Status je Liste und die Abschlüsse. Nie ein Gerätename: Rückfragen tragen die
 // zufällige Geräte-ID in ihrer Kennung; Namen stehen nur gerätelokal und im Verlauf (Antwort F10).
 
+import type { PunktId } from './betrieb'
+
+/**
+ * Punkt einer WKR-Liste: ein Punkt des Betriebs (Lauf, Runde) oder `ohne` – die ganze Liste ohne Lauf (Knoten, W5.3,
+ * 22.11.2026, WKR_ANNAHMEN KN5). Abschlüsse, Werte des Geräts und die Sicht führen ihn wie einen Punkt.
+ */
+export type WkrPunkt = PunktId | 'ohne'
+
+/**
+ * Warum ein Zeitfeld keine Zeit hat (W5.4, 22.11.2026, WKR_ANNAHMEN ZT4, noch zu bestätigen): `anlage` (Zeitanlage
+ * ausgefallen), `nichtImZiel` (Boot kam nicht ins Ziel), `anderes`. Die Zelle bleibt leer; der Grund steht nur in
+ * {@link WkrStand.keineZeit} und am Bedienrechner (Eingang, Matrix, „Papier ansehen“) – nie auf Tafel, Zuschauerliste
+ * oder Start-Freigabe (F17).
+ */
+export type KeineZeitGrund = 'anlage' | 'nichtImZiel' | 'anderes'
+
 /** Wie eine Liste erfasst wird (F1, 21.11.2026: alle drei immer wählbar). Eine Liste ohne Eintrag ist Papier. */
 export type WkrModus = 'digital' | 'papier' | 'beides'
 
@@ -87,6 +103,11 @@ export interface WkrZeile {
    * {@link WkrStand.nichtVorbei} – kein X, keine Wertung.
    */
   nichtVorbei?: true
+  /**
+   * „Keine Zeit“ je Zeitfeld (W5.4, ZT4): Fehlt es, bleibt ein stehendes Kennzeichen; steht es (auch leer), ersetzt es
+   * das Kennzeichen des Starts auf dieser Liste ({@link WkrStand.keineZeit}).
+   */
+  keineZeit?: Record<string, KeineZeitGrund>
 }
 
 /** Warum eine Rückfrage entstand: Zelle anders belegt, Start nicht gezeigt, oder ein Disq.-Buchstabe soll wegfallen. */
@@ -126,6 +147,8 @@ export interface WkrRueckfrage {
   nichtVorbei?: true
   /** Teil der Zeile am Steg (nur geteilte Listen) – für den Schlüssel des Kennzeichens (wkr/nichtVorbei.ts). */
   teil?: 'ab' | 'an'
+  /** „Keine Zeit“ der Zeile (W5.4, ZT4) – wirkt wie `nichtVorbei` erst mit der Entscheidung für das Gerät. */
+  keineZeit?: Record<string, KeineZeitGrund>
   /**
    * Der WKR hat auf dem Gerät „So lassen“ gewählt (Zeit des Stores; Nutzer 21.11.2026, W3-35, WKR_ANNAHMEN GF5): Der
    * Eingang zeigt „WKR: so lassen“, die Rückfrage bleibt offen, bis der Bediener entscheidet. Steht an der Rückfrage,
@@ -155,6 +178,8 @@ export interface WkrVorschlag {
   nichtVorbei?: true
   /** Teil der Zeile am Steg (nur geteilte Listen) – für den Schlüssel des Kennzeichens (wkr/nichtVorbei.ts). */
   teil?: 'ab' | 'an'
+  /** „Keine Zeit“ der Zeile (W5.4, ZT4) – wirkt wie `nichtVorbei` erst mit der Entscheidung für das Gerät. */
+  keineZeit?: Record<string, KeineZeitGrund>
   zeit: number
 }
 
@@ -176,4 +201,11 @@ export interface WkrStand {
    * Vorschlag). Lesen über wkr/lage.ts; in der Sicherung wie Rückfragen, nie auf Tafel oder Zuschauerliste (F17).
    */
   nichtVorbei: Record<string, string[]>
+  /**
+   * „Keine Zeit“ (W5.4, 22.11.2026, ZT4) je Listen-Kennung und Zelle `${lauf}|${starter}`: je Zeitfeld der Grund. Gesetzt
+   * von einer direkt geltenden Zeile mit `keineZeit` (ersetzt den Eintrag des Starts), aufgehoben, sobald das Feld einen
+   * Wert hat (Abtippen, spätere Zeile – wkr/keineZeit.ts ohneUeberholteKeineZeit). Lesen über wkr/lage.ts (Matrix,
+   * „Papier ansehen“); in der Sicherung wie `nichtVorbei`, nie auf Tafel oder Zuschauerliste (F17).
+   */
+  keineZeit: Record<string, Record<string, Record<string, KeineZeitGrund>>>
 }

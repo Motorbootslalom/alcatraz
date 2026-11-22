@@ -136,6 +136,16 @@ function bojeId(tor: string, seite: Seite): string {
   return innen ? `${tor}_${seite === innen ? 'innen' : 'aussen'}` : `${tor}_${seite}`
 }
 
+/**
+ * Die Bild-ID einer physischen Boje (`seiteA`/`seiteB`, wie in der Feld-Kennung) eines Tores – für die Maske „Bild“
+ * der WKR-Geräte (src/wkr/bild.ts, W5.2, 22.11.2026, BD1): dieselbe Regel (SEITE, INNEN), aus der die Kurzform die
+ * Unterspalten nach dem Blick ordnet, darum stehen Knopfspalte und Bild nie gegeneinander. `Tor1` + `seiteB` →
+ * `Tor1_innen`, `Tor5` + `seiteA` → `Tor5_unten`.
+ */
+export function bildBojeId(tor: string, seite: 'seiteA' | 'seiteB'): string {
+  return bojeId(tor, seite === SEITE.unten ? 'unten' : 'oben')
+}
+
 /** Alle Bojen-IDs, die eine Kurzform nennen darf: ganze Tore, Einzelbojen und Speedbojen. */
 export const BOJEN_IDS: readonly string[] = [
   ...TORE.flatMap((t) => [t, bojeId(t, 'unten'), bojeId(t, 'oben')]),

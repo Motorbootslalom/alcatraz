@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { BOJEN_ANSICHT_VORGABE, type BojenAnsicht } from '../../geraete/ablage'
-import type { Entwurf, MaskenAufbau, MaskenBoje, MaskenHalt } from '../../wkr/maske'
+import { BOJEN_FOLGE_VORGABE, bojenAbschnitteAlle, type BojenFolge, type Entwurf, type MaskenAufbau, type MaskenBoje, type MaskenHalt } from '../../wkr/maske'
 import WkrDisq from './WkrDisq.vue'
 import { useWkrText } from './texte'
 
@@ -10,8 +9,9 @@ import { useWkrText } from './texte'
  * wichtig, damit geprüft werden kann, wo der Disq.-Fehler genau passiert ist. Daher sollte das immer nachgefragt
  * werden.“ DISQ im Fuß (und „Disq. an Boje …“ über den Bojen) führt deshalb zuerst hierher:
  *
- * 1. **Wo?** – die Bojen der Klasse in Fahrtfolge (je Halt eine Zeile wie in der Maske, zwei Knopfspalten nach dem
- *    Blick, `tauschen` wie in der Maske), nur Bojen, deren Zelle Buchstaben annimmt; darunter „Keine Boje / ganzer
+ * 1. **Wo?** – die Bojen der Klasse in der Folge der Maske (je Halt eine Zeile, Hinweg vor Rückweg, der Rückweg unter
+ *    `gedreht` umgekehrt wie sein Reiter – wkr/maske.ts bojenAbschnitteAlle, 22.11.2026; zwei Knopfspalten nach dem
+ *    Blick), nur Bojen, deren Zelle Buchstaben annimmt; darunter „Keine Boje / ganzer
  *    Parcours“ für Disq. ohne Ort (Ausrüstung, nicht vorbeigekommen …) – nur wenn die Liste ein Disq.-Feld hat.
  * 2. **Welcher Buchstabe?** – WkrDisq mit den Buchstaben DIESER Zelle (zweiter Tipp setzt, H1); bei einer Boje schließt
  *    die Wahl und zeigt die Bojen wieder (`fertig`): Der Knopf trägt dann Punkte UND Buchstabe („✔ 5“ / „Disq. G“).
@@ -28,9 +28,10 @@ const props = withDefaults(
     codes: { code: string; text: string }[]
     startNr: string
     gesperrt?: boolean
-    ansicht?: BojenAnsicht
+    /** Reihenfolge der Bojen dieser Liste wie in der Maske. */
+    folge?: BojenFolge
   }>(),
-  { ansicht: () => ({ ...BOJEN_ANSICHT_VORGABE }) },
+  { folge: BOJEN_FOLGE_VORGABE },
 )
 const emit = defineEmits<{ setze: [code: string]; bojeDisq: [boje: MaskenBoje, code: string | null]; fertig: [] }>()
 const { w } = useWkrText()
@@ -39,9 +40,9 @@ type Ort = { art: 'keine' } | { art: 'boje'; boje: MaskenBoje; name: string }
 const ort = ref<Ort | null>(null)
 
 const zweiWege = computed(() => new Set(props.aufbau.abschnitte.flatMap((a) => (a.art === 'halt' ? [a.halt.weg] : []))).size > 1)
-/** Halte mit mindestens einer Boje, die Buchstaben annimmt – in Fahrtfolge (P6). */
+/** Halte mit mindestens einer Boje, die Buchstaben annimmt – in der Folge der Maske. */
 const halte = computed(() =>
-  props.aufbau.abschnitte.flatMap((a) => (a.art === 'halt' && a.halt.bojen.some((b) => b.disq.length > 0) ? [a.halt] : [])),
+  bojenAbschnitteAlle(props.aufbau, props.folge).flatMap((a) => (a.art === 'halt' && a.halt.bojen.some((b) => b.disq.length > 0) ? [a.halt] : [])),
 )
 /** Zeilentitel: Tor und – wo es Hin- und Rückweg gibt – der Weg, damit „Tor 1“ zweimal unterscheidbar ist. */
 function zeile(h: MaskenHalt): string {
@@ -53,8 +54,7 @@ function bojenName(h: MaskenHalt, b: MaskenBoje): string {
   return [zeile(h), b.unter].filter(Boolean).join(' ')
 }
 function platz(b: MaskenBoje): string {
-  if (b.spalte === null) return '1 / -1'
-  return String((props.ansicht.tauschen ? 1 - b.spalte : b.spalte) + 1)
+  return b.spalte === null ? '1 / -1' : String(b.spalte + 1)
 }
 const disqVon = (b: MaskenBoje) => props.entwurf.bojenDisq[b.feld] ?? null
 const punkteVon = (b: MaskenBoje) => (props.entwurf.bojen[b.feld] ?? 0) * b.punkte

@@ -8,6 +8,8 @@ import type { AppState, WkrZeile } from '../types'
 import { einteilungsName, einteilungsParcours, LISTEN_SICHT_FASSUNG, maskenJeKlasse, sichtListe, type ListenSicht, type ListenSichtExtra } from './sicht'
 import { listenKennung, type Liste } from './liste'
 import { laufLage } from './ampel'
+import { sichtFreigabe } from './freigabe'
+import { erfassungsLage } from './lage'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
 import { listenFelder } from '../lib/eingaben'
 import { deflateRawSync } from 'node:zlib'
@@ -260,10 +262,10 @@ describe('Sicht der Liste – Sprache (F13)', () => {
 describe('Sicht der Liste – Bojen (W4.1, P7, P15)', () => {
   const bojeSchluessel = new Set(['halt', 'weg', 'folge', 'titel', 'unter', 'spalte', 'zaehler', 'durchfahrt'])
 
-  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 8 (seit den WKR-Namen)', () => {
+  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 9 (seit den Listen ohne Lauf, W5.3)', () => {
     const { s } = bereit('gate135')
     const sicht = sichtListe(s, DM, L('gate135'), EXTRA)
-    expect(LISTEN_SICHT_FASSUNG).toBe(8)
+    expect(LISTEN_SICHT_FASSUNG).toBe(9)
     // `bild` (W4-13, GF9): nur die Kennung der Zeichnung, wie auf dem Bogen.
     const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus', 'boje', 'bild', 'datei', 'dim', 'drehung', ...bojeSchluessel])
     for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
@@ -388,6 +390,21 @@ describe('F17 (W4.3): „Nicht vorbeigekommen“ kommt weder auf die Tafel noch 
     const text = JSON.stringify(sichtListe(mit, DM, L('gate135'), EXTRA))
     expect(text).not.toContain('nichtVorbei')
     expect(text).not.toContain('"nv"')
+  })
+})
+
+describe('F17 (W5.4, ZT4): „Keine Zeit“ kommt weder auf Tafel, Zuschauerliste noch Start-Freigabe', () => {
+  it('sichtOeffentlich/sichtZuschauer gleich nach einer Zeile mit `kz`; Freigabe- und Listen-Sicht ohne Grund', () => {
+    const { s, erste } = bereit('zeit', 'gate135')
+    const r = pruefeZeile(s, DM, L('zeit'), undefined, 'g1', { z: 1, s: m(erste[0]), c: [['zeit1', '83,45', '']], kz: [['zeit2', 'anlage'], ['zeit3', 'nichtImZiel']] })
+    if ('fehler' in r) throw new Error(r.fehler)
+    const mit = sende(s, 'zeit', [r])
+    expect(Object.keys(mit.wkr.keineZeit)).toHaveLength(1)
+    expect(sichtOeffentlich(mit)).toEqual(sichtOeffentlich(s))
+    expect(sichtZuschauer(sichtOeffentlich(mit))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
+    const freigabe = JSON.stringify(sichtFreigabe(P1, erfassungsLage(mit, DM, P1, [], 0).listen, 'warnen'))
+    const liste = JSON.stringify(sichtListe(mit, DM, L('zeit'), EXTRA))
+    for (const text of [freigabe, liste]) for (const wort of ['keineZeit', 'anlage', 'nichtImZiel', '"kz"']) expect(text).not.toContain(wort)
   })
 })
 

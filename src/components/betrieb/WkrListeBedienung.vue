@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { PunktId, SichtBereich, WkrModus, WkrStatus } from '../../types'
+import type { SichtBereich, WkrPunkt, WkrModus, WkrStatus } from '../../types'
 import { useStore } from '../../state/store'
 import { useGeraeteHost } from '../../geraete/host'
 import { liesRef } from '../../betrieb/folge'
@@ -25,7 +25,11 @@ import { einteilungsName, einteilungsParcours } from '../../wkr/sicht'
  * Veranstaltung übernehmen“ (SET_WKR_NAME) – wie in der Geräteliste (GeraeteListe.vue). Die Namen der Geräte liegen im
  * Register (gerätelokal), nie im AppState.
  */
-const props = defineProps<{ lage: ListenLage; starts: readonly MatrixStart[]; bereich: SichtBereich }>()
+/**
+ * W5.3 (22.11.2026): Die Liste am Tisch (Knoten, ohne Lauf) hat keinen Bereich des Betriebs (`bereich` fehlt) und
+ * keine Starts – ohne „Papier ab“; ihr Abschluss heißt „ganze Liste“ (Punkt `ohne`, KN5).
+ */
+const props = defineProps<{ lage: ListenLage; starts: readonly MatrixStart[]; bereich?: SichtBereich | null }>()
 
 const { state, dispatch } = useStore()
 const host = useGeraeteHost()
@@ -110,8 +114,8 @@ function pruefen(): void {
 }
 
 function abschlussText(a: ListenAbschluss): string {
-  const p = punktVon(props.bereich, a.punkt)
-  const punkt = p ? punktText(p) : a.punkt
+  const p = a.punkt !== 'ohne' && props.bereich ? punktVon(props.bereich, a.punkt) : null
+  const punkt = a.punkt === 'ohne' ? t('betrieb.wkr.punkt.ohne') : p ? punktText(p) : a.punkt
   const zeit = uhrzeitText(a.zeit)
   return a.teil ? t('betrieb.wkr.abschluss.teil', { punkt, teil: t(`betrieb.wkr.teil.${a.teil}`), name: a.name, zeit }) : t('betrieb.wkr.abschluss', { punkt, name: a.name, zeit })
 }
@@ -130,7 +134,7 @@ function uebernimmName(name: string): void {
   if (liste) dispatch({ type: 'SET_WKR_NAME', parcoursId: einteilungsParcours(liste), typeId: liste.typeId, name })
 }
 
-const loesen = ref<{ punkt: PunktId; teil?: ListenTeil } | null>(null)
+const loesen = ref<{ punkt: WkrPunkt; teil?: ListenTeil } | null>(null)
 function loese(): void {
   const a = loesen.value
   loesen.value = null

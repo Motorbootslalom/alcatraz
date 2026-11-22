@@ -400,9 +400,10 @@ export function verlasseRaum(ablage: Ablage | null = vorgabe()): void {
   entferne(ablage, ABLAGE.kopplung)
   entferne(ablage, ABLAGE.geraetWkr)
   entferne(ablage, ABLAGE.probe)
+  // Name (G12) und Maskenwahl (MW2, 22.11.2026) gehören zum Raum, der Rest der Ansicht ist Vorliebe des Geräts.
   const ansicht = liesAnsicht(ablage)
-  if (ansicht.name !== undefined) {
-    const { name: _name, ...rest } = ansicht
+  if (ansicht.name !== undefined || ansicht.masken !== undefined) {
+    const { name: _name, masken: _masken, ...rest } = ansicht
     schreibeJson(ablage, ABLAGE.ansicht, ansichtFuerSpeicher(rest))
   }
 }
@@ -489,32 +490,39 @@ export interface GeraetAnsicht {
   /** Erklärung der Übung zugeklappt (Nutzer 21.11.2026, W3-15, GF4) – fehlt = offen. */
   uebungErklaerungZu?: true
   /**
-   * Bojen-Maske je Liste (Nutzer 21.11.2026, WKR_ANNAHMEN.bojenNachLage/bojenSpiegeln): Reihenfolge und Spiegeln –
-   * eine Vorliebe am Standort des WKR, also je Liste (Kennung). Fehlt = Fahrtfolge, Start oben, nicht getauscht.
+   * Reihenfolge der Bojen-Maske je Liste (Nutzer 22.11.2026, WKR_ANNAHMEN.bojenFolge): `gedreht` (Vorgabe, fehlt hier),
+   * `fahrt` oder `untereinander` – wkr/maske.ts BojenFolge. Eine Vorliebe am Standort des WKR, also je Liste
+   * (Kennung). Ersetzt `bojen` ({folge fahrt|lage, startOben, tauschen}, „Wie der Parcours liegt“ vom 21.11.2026) –
+   * den alten Eintrag räumt liesAnsicht weg.
    */
-  bojen?: Record<string, BojenAnsicht>
+  bojenFolge?: Record<string, BojenFolgeWahl>
+  /**
+   * Maske, die der WKR je Liste gewählt hat (F14, W5.1, 22.11.2026, WKR_ANNAHMEN MW2): gilt nur im Raum `u/r/s`
+   * (die Übung unter {@link UEBUNG_RAUM}), höchstens {@link BOJEN_FOLGE_MAX} Listen, nur bekannte Masken – sonst fällt
+   * sie beim Lesen weg. Geht mit „Raum verlassen“ (anders als Hand, Modus, Bojen-Folge: Vorlieben des Geräts).
+   */
+  masken?: MaskenAblage
 }
 
-/** Ansicht der Bojen-Maske einer Liste: Fahrtfolge oder wie der Parcours liegt, Start oben/unten, Spalten getauscht. */
-export interface BojenAnsicht {
-  folge: 'fahrt' | 'lage'
-  startOben: boolean
-  tauschen: boolean
+/** Wie wkr/maskenWahl.ts MaskenWahl – hier ohne Import aus src/wkr. */
+export type MaskenWahlAblage = 'knoepfe' | 'bild' | 'text'
+const MASKEN_WAHL: readonly unknown[] = ['knoepfe', 'bild', 'text'] satisfies MaskenWahlAblage[]
+export interface MaskenAblage extends RaumBezug {
+  listen: Record<string, MaskenWahlAblage>
 }
+/** Raum der Übung (`#/uebung`, ohne Kopplung) für die Maskenwahl – nie ein echter Raum (der hat eine Raum-ID aus Zufall). */
+export const UEBUNG_RAUM: RaumBezug = { u: 'uebung', r: 'uebung', s: 'uebung' }
 
-export const BOJEN_ANSICHT_VORGABE: Readonly<BojenAnsicht> = { folge: 'fahrt', startOben: true, tauschen: false }
+/** Wie wkr/maske.ts BojenFolge – hier ohne Import aus src/wkr, die Ablage bleibt ohne Fachlogik. */
+export type BojenFolgeWahl = 'gedreht' | 'fahrt' | 'untereinander'
+const BOJEN_FOLGE_WAHL: readonly unknown[] = ['gedreht', 'fahrt', 'untereinander'] satisfies BojenFolgeWahl[]
 /**
- * Höchstens so viele Listen merken – ein Gerät hat höchstens zwei zugleich (F15), alte fallen vorn heraus. „Alt“ =
+ * Höchstens so viele Listen merken – ein Gerät hat höchstens vier zugleich (W3-03), alte fallen vorn heraus. „Alt“ =
  * am längsten nicht geändert: WkrMaske setzt eine geänderte Liste ans Ende (Prüfbefund 21.11.2026).
  */
-const BOJEN_ANSICHT_MAX = 8
-
-function bojenAnsichtAus(wert: unknown): BojenAnsicht | null {
-  if (!istObjekt(wert)) return null
-  if (wert.folge !== 'fahrt' && wert.folge !== 'lage') return null
-  if (typeof wert.startOben !== 'boolean' || typeof wert.tauschen !== 'boolean') return null
-  return { folge: wert.folge, startOben: wert.startOben, tauschen: wert.tauschen }
-}
+const BOJEN_FOLGE_MAX = 8
+/** Der Schlüssel der Ansicht „Wie der Parcours liegt“ (21.11.2026, entfernt 22.11.2026) – nur noch zum Wegräumen. */
+const ALTE_BOJEN_ANSICHT = 'bojen'
 
 const ANSICHT_VORGABE: GeraetAnsicht = { modus: 'geraet', hand: 'rechts' }
 /** Wie WKR_ANNAHMEN.nameMax – hier ohne Import aus src/wkr, die Ablage bleibt ohne Fachlogik. */
@@ -522,7 +530,16 @@ const NAME_MAX = 60
 
 /** Die Ansicht lesen – Unbekanntes fällt auf die Vorgabe („Wie Gerät“, rechts) zurück, Feld für Feld. */
 export function liesAnsicht(ablage: Ablage | null = vorgabe()): GeraetAnsicht {
-  return ansichtAus(liesJson(ablage, ABLAGE.ansicht))
+  const roh = liesJson(ablage, ABLAGE.ansicht)
+  const ansicht = ansichtAus(roh)
+  // Alte Bojen-Ansicht („Wie der Parcours liegt“, bis 21.11.2026) wegräumen (22.11.2026): Sie gilt nicht mehr und
+  // soll nicht als toter Eintrag im Gerät liegen bleiben – der Rest der Ansicht bleibt, wie er war.
+  if (istObjekt(roh) && ALTE_BOJEN_ANSICHT in roh) {
+    const rest: Record<string, unknown> = { ...roh }
+    delete rest[ALTE_BOJEN_ANSICHT]
+    schreibeJson(ablage, ABLAGE.ansicht, rest)
+  }
+  return ansicht
 }
 
 /**
@@ -538,15 +555,40 @@ function ansichtAus(wert: unknown): GeraetAnsicht {
   if (wert.sprache === 'de' || wert.sprache === 'en') out.sprache = wert.sprache
   if (wert.uebungErklaerungZu === true) out.uebungErklaerungZu = true
   if (typeof wert.name === 'string' && wert.name.trim() !== '' && wert.name.length <= NAME_MAX) out.name = wert.name
-  if (istObjekt(wert.bojen)) {
-    const bojen: Record<string, BojenAnsicht> = {}
-    for (const [liste, b] of Object.entries(wert.bojen).slice(-BOJEN_ANSICHT_MAX)) {
-      const gut = liste.length <= 200 ? bojenAnsichtAus(b) : null
-      if (gut) bojen[liste] = gut
+  if (istObjekt(wert.bojenFolge)) {
+    const folgen: Record<string, BojenFolgeWahl> = {}
+    for (const [liste, f] of Object.entries(wert.bojenFolge).slice(-BOJEN_FOLGE_MAX)) {
+      if (liste.length <= 200 && BOJEN_FOLGE_WAHL.includes(f)) folgen[liste] = f as BojenFolgeWahl
     }
-    if (Object.keys(bojen).length > 0) out.bojen = bojen
+    if (Object.keys(folgen).length > 0) out.bojenFolge = folgen
+  }
+  const m = wert.masken
+  if (istObjekt(m) && typeof m.u === 'string' && typeof m.r === 'string' && typeof m.s === 'string' && istObjekt(m.listen)) {
+    const listen: Record<string, MaskenWahlAblage> = {}
+    for (const [liste, wahl] of Object.entries(m.listen).slice(-BOJEN_FOLGE_MAX)) {
+      if (liste.length <= 200 && liste !== '__proto__' && MASKEN_WAHL.includes(wahl)) listen[liste] = wahl as MaskenWahlAblage
+    }
+    if (Object.keys(listen).length > 0) out.masken = { u: m.u, r: m.r, s: m.s, listen }
   }
   return out
+}
+
+/** Die Maskenwahl des WKR für diese Liste in diesem Raum (MW2); `undefined` = keine (Vorgabe gilt). */
+export function maskeGewaehlt(ansicht: GeraetAnsicht, bezug: RaumBezug | null, liste: string): MaskenWahlAblage | undefined {
+  const m = ansicht.masken
+  return m && gleicherRaum(m, bezug ?? UEBUNG_RAUM) ? m.listen[liste] : undefined
+}
+
+/**
+ * Die Änderung der Ansicht, die die Maskenwahl einer Liste setzt (`undefined` löscht sie). Ein anderer Raum ersetzt
+ * den Eintrag; die geänderte Liste rückt ans Ende (die älteste fällt bei mehr als {@link BOJEN_FOLGE_MAX}).
+ */
+export function mitMaskenWahl(ansicht: GeraetAnsicht, bezug: RaumBezug | null, liste: string, wahl: MaskenWahlAblage | undefined): Partial<GeraetAnsicht> {
+  const raum = bezug ?? UEBUNG_RAUM
+  const bisher = ansicht.masken && gleicherRaum(ansicht.masken, raum) ? { ...ansicht.masken.listen } : {}
+  delete bisher[liste]
+  const listen = wahl ? { ...bisher, [liste]: wahl } : bisher
+  return { masken: Object.keys(listen).length > 0 ? { ...nurBezug(raum), listen } : undefined }
 }
 
 /** Ansicht ändern (nur die genannten Felder; `undefined` löscht Sprache bzw. Name). `false`: Speicher nimmt sie nicht. */
@@ -565,17 +607,24 @@ function ansichtFuerSpeicher(a: Partial<GeraetAnsicht>): Record<string, unknown>
   return a.modus !== undefined && a.modus !== 'geraet' ? { ...a, modusGewaehlt: true } : { ...a }
 }
 
-/** Ist die Probe (G10) für diese Liste in diesem Raum erledigt? */
-export function probeErledigt(bezug: RaumBezug, liste: string, ablage: Ablage | null = vorgabe()): boolean {
+/**
+ * Eintrag der Probe einer Liste und Maske (MW3, 22.11.2026): „Knöpfe“ unter der Kennung der Liste wie bis W4 (schon
+ * erledigte Proben bleiben erledigt), jede andere Maske als `<liste>#<maske>`.
+ */
+const probeEintrag = (liste: string, maske: MaskenWahlAblage) => (maske === 'knoepfe' ? liste : `${liste}#${maske}`)
+
+/** Ist die Probe (G10) für diese Liste (und Maske, MW3) in diesem Raum erledigt? */
+export function probeErledigt(bezug: RaumBezug, liste: string, ablage: Ablage | null = vorgabe(), maske: MaskenWahlAblage = 'knoepfe'): boolean {
   const wert = liesJson(ablage, ABLAGE.probe)
-  return istObjekt(wert) && gleicherRaum(wert, bezug) && Array.isArray(wert.listen) && wert.listen.includes(liste)
+  return istObjekt(wert) && gleicherRaum(wert, bezug) && Array.isArray(wert.listen) && wert.listen.includes(probeEintrag(liste, maske))
 }
 
-/** Probe für diese Liste als erledigt vermerken (übersprungen zählt auch). Ein anderer Raum ersetzt den Eintrag. */
-export function merkeProbe(bezug: RaumBezug, liste: string, ablage: Ablage | null = vorgabe()): boolean {
+/** Probe für diese Liste (und Maske) als erledigt vermerken (übersprungen zählt auch). Ein anderer Raum ersetzt den Eintrag. */
+export function merkeProbe(bezug: RaumBezug, liste: string, ablage: Ablage | null = vorgabe(), maske: MaskenWahlAblage = 'knoepfe'): boolean {
   const wert = liesJson(ablage, ABLAGE.probe)
   const bisher = istObjekt(wert) && gleicherRaum(wert, bezug) && Array.isArray(wert.listen) ? wert.listen.filter((l): l is string => typeof l === 'string') : []
-  if (bisher.includes(liste)) return true
-  // Höchstens ein paar Listen – ein Gerät hat höchstens zwei (F15); alte fallen vorn heraus.
-  return schreibeJson(ablage, ABLAGE.probe, { ...nurBezug(bezug), listen: [...bisher, liste].slice(-8) })
+  const eintrag = probeEintrag(liste, maske)
+  if (bisher.includes(eintrag)) return true
+  // Höchstens ein paar Einträge – vier Listen je Gerät (W3-03) mit je bis zu drei Masken (MW3); alte fallen vorn heraus.
+  return schreibeJson(ablage, ABLAGE.probe, { ...nurBezug(bezug), listen: [...bisher, eintrag].slice(-16) })
 }

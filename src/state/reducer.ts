@@ -18,6 +18,7 @@ import { wendeListenAn, type ListenAenderung } from './reducer/listen'
 import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
 import { wendeWkrAn, type WkrAenderung } from './reducer/wkr'
 import { ohneUeberholteNichtVorbei } from '../wkr/nichtVorbei'
+import { ohneUeberholteKeineZeit } from '../wkr/keineZeit'
 
 // Die case-Zweige stehen nach Bereichen in reducer/<bereich>.ts (Zuordnung: switch in wendeAn() unten).
 // Hier bleiben Einstieg, Sperren und Nachbearbeitung; was die Bereiche nach außen geben, reicht
@@ -139,7 +140,8 @@ export function reducer(state: AppState, action: Action): AppState {
   const ohneDruck = ohneVerwaistenDruck(ohneBeispiel)
   // „Nicht vorbeigekommen“ (W4.3, WKR_ANNAHMEN.nichtVorbeiAufheben): Eigene Werte der Liste in der Zelle heben das
   // Kennzeichen auf – gleich auf welchem Weg sie kamen (Abtippen, Rückfrage, Vorschlag, Gerät). Nur bei geänderten Eingaben.
-  const next = !frisch && ohneDruck.eingaben !== state.eingaben ? ohneUeberholteNichtVorbei(ohneDruck, konfigVon(ohneDruck)) : ohneDruck
+  // „Keine Zeit“ (W5.4, 22.11.2026, ZT4) ebenso: Hat ein Zeitfeld einen Wert, ist die Zeit doch da.
+  const next = !frisch && ohneDruck.eingaben !== state.eingaben ? ohneUeberholteKeineZeit(ohneUeberholteNichtVorbei(ohneDruck, konfigVon(ohneDruck))) : ohneDruck
   // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
   const klassen =
     action.type === 'SET_EINGABEN'

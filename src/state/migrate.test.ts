@@ -466,7 +466,7 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
   const starters = [{ id: 'a', klasse: '1', nachname: 'Nach1' }]
 
   it('fehlt oder kaputt → leer', () => {
-    const leer = { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {} }
+    const leer = { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {}, keineZeit: {} }
     expect(migrate({ starters })!.wkr).toEqual(leer)
     for (const kaputt of ['x', 7, null, [], { listen: 'x', rueckfragen: {}, vorschlaege: 3, abschluss: [] }]) expect(migrate({ starters, wkr: kaputt })!.wkr).toEqual(leer)
   })
@@ -492,7 +492,27 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
       vorschlaege: [wkr.vorschlaege[0]],
       abschluss: { [liste]: { 'lauf:1': { name: 'Vor1', zeit: 9, abweichend: [], papier: ['k'] } } },
       nichtVorbei: {},
+      keineZeit: {},
     })
+  })
+
+  it('„Keine Zeit“ (W5.4, ZT4): bekannte Gründe gültiger Zellen bleiben, Unbrauchbares entfällt einzeln; an Rückfragen ebenso', () => {
+    const zeit = JSON.stringify(['l', 'par_1', 'zeit', null])
+    const wkr = {
+      keineZeit: {
+        [zeit]: {
+          'manoevrieren/1|a': { zeit1: 'anlage', zeit2: 'kaputt', zeit3: 'nichtImZiel' },
+          'manoevrieren/1|weg': { zeit1: 'anlage' },
+          'manoevrieren/1|a|an': { zeit1: 'anlage' },
+          'manoevrieren/2|a': 'x',
+        },
+        kaputt: { 'manoevrieren/1|a': { zeit1: 'anlage' } },
+      },
+      rueckfragen: [rf('a', { keineZeit: { zeit2: 'anderes', zeit3: 'quatsch' } })],
+    }
+    const out = migrate({ starters, wkr })!.wkr
+    expect(out.keineZeit).toEqual({ [zeit]: { 'manoevrieren/1|a': { zeit1: 'anlage', zeit3: 'nichtImZiel' } } })
+    expect(out.rueckfragen[0].keineZeit).toEqual({ zeit2: 'anderes' })
   })
 
   it('Steg (F16): Status je Teil, Abschluss je Teil (Punkt|Teil), Rückfrage `start` mit Vereinigung – Teile nur bei geteilten Listen', () => {

@@ -1,16 +1,17 @@
 import { computed, effectScope, ref, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue'
-import type { ClassId, PunktId } from '../types'
+import type { ClassId, KeineZeitGrund, WkrPunkt } from '../types'
+import { istKeineZeitGrund } from '../wkr/keineZeit'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import { BEMERKUNG_TRENNER, zeilenPruefsumme } from '../wkr/uebernahme'
 import { disqCodes } from '../lib/scoring'
-import { LISTEN_SICHT_FASSUNG, type ListenSicht, type ListenStart, type WkrHinweis } from '../wkr/sicht'
+import { LISTEN_SICHT_FASSUNG, type ListenBestand, type ListenSicht, type ListenStart, type WkrHinweis } from '../wkr/sicht'
 import type { ListenTeil } from '../wkr/liste'
 import { geraetWkrAblage, liesKopplung, type Ablage, type RaumBezug } from './ablage'
 import { listenAufgaben, type ListenAufgabe } from './aufgaben'
 import type { GekoppeltesGeraet } from './gekoppelt'
 import { gruppeDerListe } from './wkrGruppen'
 import type { Empfang } from './transport/ntfy/transport'
-import { istAblehnung, type Ablehnung, type GeraeteNachricht } from './transport/protokoll'
+import { istAblehnung, type Ablehnung, type GeraeteNachricht, type GeraeteTyp } from './transport/protokoll'
 
 /**
  * Gerätekern der digitalen WKR-Erfassung (W1, Plan docs/plan-wkr-w1.md §5, 21.11.2026) – OHNE Oberfläche: Die Masken
@@ -63,6 +64,11 @@ export interface MaskenZeile {
    * am Vorsteg und nicht im Steg-Ablegen (der Bedienrechner lehnt dort mit `nv-nicht-erlaubt` ab).
    */
   nv?: true
+  /**
+   * „Keine Zeit“ je Zeitfeld (W5.4, 22.11.2026, ZT4): geht als `kz` mit. Die Zeit-Maske gibt es immer mit (auch `{}`),
+   * damit eine Zeile mit allen Zeiten ein älteres Kennzeichen des Starts aufhebt; fehlt es, bleibt das stehende.
+   */
+  kz?: Readonly<Record<string, KeineZeitGrund>>
 }
 
 /** Verbindung, wie die Maske sie zeigt: neutral beim Aufbau, rot erst nach Karenz oder Abriss. */
@@ -71,6 +77,15 @@ export type VerbindungsAnzeige = 'verbinde' | 'verbunden' | 'getrennt'
 /** Ein Eintrag der Schlange: aus der Sicht; `geschaetzt` = ohne Verbindung aus „danach“ (vielleicht noch nicht gezeigt). */
 export interface SchlangenEintrag extends ListenStart {
   geschaetzt?: true
+}
+
+/**
+ * Ein Starter einer Liste ohne Lauf auf dem Gerät (W5.3, KN3/KN8): aus der Sicht (`bestand`); `erledigt` auch, sobald
+ * DIESES Gerät eine (nicht abgelehnte) Zeile für ihn hat – sonst stünde er bis zur nächsten Sicht weiter offen. `z` =
+ * die neueste eigene Zeile (für die Korrektur einer schon erledigten Nummer).
+ */
+export interface BestandEintrag extends ListenBestand {
+  z?: number
 }
 
 /** Eine der letzten Zeilen (Korrektur über „Zuletzt“). Ohne Namen. */
@@ -82,12 +97,14 @@ export interface ZuletztZeile {
   sn?: string
   /** Steg-Teil der Zeile (ohne: ganze Zeile). */
   teil?: ListenTeil
-  punkt: PunktId | null
+  punkt: WkrPunkt | null
   korrektur: boolean
   zellen: Record<string, string>
   stufe: ZeilenStufe
   /** „Nicht vorbeigekommen“ (W4.3): Zuletzt zeigt „⊘ nicht vorbeigekommen“ statt der Zellen. */
   nv?: true
+  /** „Keine Zeit“ der Zeile (W5.4): Zuletzt zeigt „Zeit 2: keine Zeit“. */
+  kz?: Record<string, KeineZeitGrund>
 }
 
 export type AbschlussStufe = 'unterwegs' | 'angenommen' | 'abgelehnt'
@@ -95,7 +112,7 @@ export type AbschlussStufe = 'unterwegs' | 'angenommen' | 'abgelehnt'
 export interface EigenerAbschluss {
   id: number
   liste: string
-  punkt: PunktId
+  punkt: WkrPunkt
   stufe: AbschlussStufe
   /** Bei `abgelehnt`: `offen` (noch offene Starts ohne „Rest auf Papier“), `nicht-erlaubt`, `verworfen`. */
   grund?: Ablehnung | 'verworfen'
@@ -184,6 +201,11 @@ export type ErfassungsQuelle = Omit<Erfassung, never>
 export interface Erfassung {
   /** Übung ohne Netz (geraete/uebung.ts): nichts geht an einen Bedienrechner. */
   readonly uebung: boolean
+  /**
+   * Art des Geräts aus der Kopplung (GF7) – die Anordnung der Maske (wkr/anordnung.ts, W5.1, 22.11.2026, PD1) folgt
+   * ihr vor der Fenstergröße. Fehlt (Übung): nur die Fenstergröße entscheidet.
+   */
+  readonly typ?: GeraeteTyp
   /** Verbunden mit dem Bedienrechner (Übung: immer). */
   readonly verbunden: ComputedRef<boolean>
   /**
@@ -212,6 +234,11 @@ export interface Erfassung {
   readonly schlange: ComputedRef<Record<string, SchlangenEintrag[]>>
   /** Die Schlange eines Steg-Teils (Ablegen: Kopf; Anlegen: älteste ohne eigenes Anlegen und ohne `teile.an`). */
   schlangeTeil(liste: string, teil: ListenTeil): SchlangenEintrag[]
+  /**
+   * Je eigener Liste ohne Lauf (am Tisch, W5.3, KN3) der Bestand: alle Starter mit Startnummer, Klasse, erledigt (Sicht
+   * oder eigene Zeile). Listen mit Lauf fehlen.
+   */
+  readonly bestand: ComputedRef<Record<string, BestandEintrag[]>>
   /** Stufe je eigener Zeile (`z`), über die letzten Zeilen und alles Unbestätigte. */
   readonly stufen: ComputedRef<Record<number, ZeilenStufe>>
   /** Die letzten Zeilen, neueste zuerst. */
@@ -237,8 +264,13 @@ export interface Erfassung {
    * tragen nur die geänderten Felder, ein Entwurf aus ihnen allein leerte die übrigen (Prüfbefund W3, 21.11.2026).
    */
   stand(z: number): Record<string, string> | null
-  /** Korrektur einer eigenen Zeile: `vorher` = zuletzt gesendeter Wert; nach dem Abschluss wird sie Vorschlag. */
-  korrigiere(z: number, zellen: Readonly<Record<string, string>>): number | null
+  /** „Keine Zeit“ des Starts dieser Zeile, wie das Gerät es zuletzt gesendet hat (W5.4) – `{}` ohne. */
+  keineZeit(z: number): Record<string, KeineZeitGrund>
+  /**
+   * Korrektur einer eigenen Zeile: `vorher` = zuletzt gesendeter Wert; nach dem Abschluss wird sie Vorschlag. `kz`
+   * (W5.4): „keine Zeit“ der Korrektur – mitgeschickt, sobald es angegeben ist.
+   */
+  korrigiere(z: number, zellen: Readonly<Record<string, string>>, kz?: Readonly<Record<string, KeineZeitGrund>>): number | null
   /**
    * „So lassen“ an einer Rückfrage der eigenen Zeile `z` (Nutzer 21.11.2026, W3-35, WKR_ANNAHMEN GF5): meldet es dem
    * Bedienrechner (Action WKR_SO_LASSEN, nur die Zeilennummer) – entschieden wird dort. Übung: nichts.
@@ -260,7 +292,7 @@ export interface Erfassung {
    */
   setzeWkrName(liste: string, name: string): boolean
   /** „Liste abschließen“ (F7, F8): Prüfsummen über die eigenen Werte des Punkts; liefert die Kennung des Abschlusses. */
-  schliesseAb(liste: string, punkt: PunktId, name: string, restPapier: boolean): number | null
+  schliesseAb(liste: string, punkt: WkrPunkt, name: string, restPapier: boolean): number | null
   /** Einen Hinweis als gelesen melden. */
   gesehen(hinweis: number): void
   /** Der Entwurf eines Starts (und Teils), `null`: keiner. Auch nach dem Entzug lesbar (auf Papier übertragen). */
@@ -276,7 +308,7 @@ export interface Erfassung {
    */
   holeZurueck(z: number): MaskenZeile | null
   /** Prüfansicht für „Liste abschließen“ (F7): eigene Zeilen des Punkts (am Steg des Teils), offene Starts, X. */
-  pruefung(liste: string, punkt: PunktId, teil?: ListenTeil): Pruefung
+  pruefung(liste: string, punkt: WkrPunkt, teil?: ListenTeil): Pruefung
   stop(): void
 }
 
@@ -290,7 +322,7 @@ type Grund = Ablehnung | 'verworfen'
  * Ist der Punkt laut Sicht für diesen Teil abgeschlossen? Wie der Reducer (wkr/abschluss.ts): am Steg je Teil (F16);
  * eine ganze Zeile (`zeile`, ohne Teil) einer geteilten Liste schon, wenn EIN Teil abgeschlossen ist.
  */
-function zuFuer(sicht: ListenSicht | null | undefined, punkt: PunktId, teil: ListenTeil | undefined, zeile: boolean): boolean {
+function zuFuer(sicht: ListenSicht | null | undefined, punkt: WkrPunkt, teil: ListenTeil | undefined, zeile: boolean): boolean {
   if (!sicht) return false
   if (sicht.abgeschlossen.includes(punkt)) return true
   const teile = sicht.teile
@@ -310,10 +342,12 @@ interface AusZeile {
   seite?: 'A' | 'B'
   k?: true
   klasse: string | null
-  punkt: PunktId | null
+  punkt: WkrPunkt | null
   c: [string, string, string][]
   /** „Nicht vorbeigekommen“ (W4.3): `c` ist leer. */
   n?: true
+  /** „Keine Zeit“ (W5.4, ZT4): auf der Leitung GeraeteZeile.kz. */
+  kz?: [string, KeineZeitGrund][]
   /** Nummer der Nachricht, in der sie ging (`null`: wartet). */
   nr: number | null
   /** Wird Vorschlag: Liste auf Papier bzw. Punkt (vom eigenen Abschluss) abgeschlossen. */
@@ -328,7 +362,7 @@ interface AusZeile {
 interface AusAbschluss {
   id: number
   liste: string
-  punkt: PunktId
+  punkt: WkrPunkt
   nr: number | null
   ok?: true
   ab?: Grund
@@ -392,7 +426,15 @@ interface WerteEintrag {
    * Teils ohne `n` (bzw. eine ganze Zeile) hebt es auf, wie am Bedienrechner (WKR_ANNAHMEN.nichtVorbeiAufheben).
    */
   n?: 'ab' | 'an' | 'g'
+  /** „Keine Zeit“ (W5.4), wie zuletzt gesendet – Grundlage der Korrektur (ein Wert im Feld hebt es auf, wie am Host). */
+  kz?: Record<string, KeineZeitGrund>
 }
+
+/** Ist `v` eine Liste „keine Zeit“ in der Form der Leitung (Feld + bekannter Grund)? */
+const istKz = (v: unknown): v is [string, KeineZeitGrund][] =>
+  Array.isArray(v) && v.every((k) => Array.isArray(k) && k.length === 2 && typeof k[0] === 'string' && istKeineZeitGrund(k[1]))
+const gleicheKz = (a: Readonly<Record<string, string>>, b: Readonly<Record<string, string>>) =>
+  Object.keys(a).length === Object.keys(b).length && Object.keys(a).every((f) => a[f] === b[f])
 
 /** Teile eines gemeinsamen Werts: Bemerkungen nach „; “, Disq. als Buchstaben. */
 const teileDesWerts = (feld: string, wert: string) => (feld.startsWith('bemerkung@') ? wert.split(BEMERKUNG_TRENNER).filter((x) => x !== '') : disqCodes(wert))
@@ -431,6 +473,7 @@ function istAusZeile(v: unknown): v is AusZeile {
   if (v.punkt !== null && !istText(v.punkt)) return false
   if (v.klasse !== null && !istText(v.klasse)) return false
   if (v.n !== undefined && (v.n !== true || !Array.isArray(v.c) || v.c.length > 0)) return false
+  if (v.kz !== undefined && !istKz(v.kz)) return false
   return Array.isArray(v.c) && v.c.every((c) => Array.isArray(c) && c.length === 3 && c.every(istText))
 }
 
@@ -475,6 +518,10 @@ function liesInhalt(roh: Record<string, unknown> | null, uhr: () => number): Inh
           if (istText(e.sn)) eintrag.sn = e.sn
           if (Array.isArray(e.t)) eintrag.t = e.t.filter((x): x is 'ab' | 'an' | 'g' => x === 'ab' || x === 'an' || x === 'g')
           if (e.n === 'ab' || e.n === 'an' || e.n === 'g') eintrag.n = e.n
+          if (istObjekt(e.kz)) {
+            const kz = Object.entries(e.kz).filter((x): x is [string, KeineZeitGrund] => istKeineZeitGrund(x[1]))
+            if (kz.length > 0) eintrag.kz = Object.fromEntries(kz)
+          }
           if (istObjekt(e.wt)) {
             for (const t of ['ab', 'an'] as const) {
               const jt = e.wt[t]
@@ -688,6 +735,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       ...(z.seite ? { seite: z.seite } : {}),
       c: z.c.map((c) => [...c]),
       ...(z.n ? { n: true as const } : {}),
+      ...(z.kz ? { kz: z.kz.map((k) => [...k]) } : {}),
     }))
     const nr = kanal.schicke({ art: 'action', action: { type: 'WKR_ZEILEN', liste, zeilen } })
     if (nr === null) return
@@ -937,6 +985,25 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     }),
   )!
 
+  /** Bestand je Liste ohne Lauf (W5.3): Sicht plus eigene, nicht abgelehnte Zeilen als erledigt. */
+  const bestand = scope.run(() =>
+    computed(() => {
+      void rev.value
+      const out: Record<string, BestandEintrag[]> = {}
+      for (const a of listen.value) {
+        const b = sichten.value[a.liste]?.bestand
+        if (!b) continue
+        const eigen = new Map<string, number>()
+        for (const z of inhalt.zeilen) if (z.liste === a.liste && stufeVon(z).stufe !== 'abgelehnt') eigen.set(z.s, z.z)
+        out[a.liste] = b.map((x) => {
+          const z = eigen.get(x.key)
+          return { ...x, erledigt: x.erledigt || z !== undefined, ...(z !== undefined ? { z } : {}) }
+        })
+      }
+      return out
+    }),
+  )!
+
   const zuletzt = scope.run(() =>
     computed(() => {
       void rev.value
@@ -955,6 +1022,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
           zellen: Object.fromEntries(z.c.map(([f, w]) => [f, w])),
           stufe: stufeVon(z),
           ...(z.n ? { nv: true as const } : {}),
+          ...(z.kz && z.kz.length > 0 ? { kz: Object.fromEntries(z.kz) } : {}),
         }))
     }),
   )!
@@ -1003,7 +1071,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
   const neueId = () => inhalt.naechsteZ++
 
   /** Wird eine Zeile für diesen Punkt Vorschlag? (Papier; Punkt abgeschlossen oder eigener Abschluss unterwegs.) */
-  function vorschlagWeil(liste: string, punkt: PunktId | null, teil: ListenTeil | undefined): AusZeile['vs'] {
+  function vorschlagWeil(liste: string, punkt: WkrPunkt | null, teil: ListenTeil | undefined): AusZeile['vs'] {
     const sicht = inhalt.sichten[liste]
     if (sicht?.modus === 'papier') return 'papier'
     if (punkt === null) return undefined
@@ -1011,7 +1079,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     return inhalt.abschluesse.some((a) => a.liste === liste && a.punkt === punkt && !a.ab) ? 'abschluss' : undefined
   }
 
-  const werteVon = (liste: string, punkt: PunktId | null, s: string) => inhalt.werte[liste]?.[punkt ?? '']?.[s]
+  const werteVon = (liste: string, punkt: WkrPunkt | null, s: string) => inhalt.werte[liste]?.[punkt ?? '']?.[s]
 
   /**
    * Zu welchem Teil ein Feld gehört – an der Sicht (MaskenFeld.teil): `gemeinsam` (geteilte Liste, Feld ohne Teil),
@@ -1073,6 +1141,12 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     // „Nicht vorbeigekommen“ (W4.3): merken bzw. von einer Zeile desselben Teils (oder einer ganzen) aufheben.
     if (z.n) e.n = t
     else if (e.n !== undefined && (t === 'g' || t === e.n)) delete e.n
+    // „Keine Zeit“ (W5.4): eine Zeile mit `kz` ersetzt es, ein Wert im Feld hebt es auf – wie am Bedienrechner.
+    if (z.kz) e.kz = Object.fromEntries(z.kz)
+    if (e.kz) {
+      for (const [f, w] of z.c) if (w !== '') delete e.kz[f]
+      if (Object.keys(e.kz).length === 0) delete e.kz
+    }
   }
 
   /** Entwürfe sind Zellwerte; ein Entwurf ohne einen einzigen Wert ist keiner. */
@@ -1143,14 +1217,15 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     return { titel: sicht.titel, bereich: sicht.bereich, felder }
   }
 
-  /** Startnummer eines Starts aus der Sicht (Schlange oder danach). */
+  /** Startnummer eines Starts aus der Sicht (Schlange, danach oder – am Tisch – Bestand). */
   const startNrVon = (liste: string, s: string) => {
     const sicht = inhalt.sichten[liste]
-    return sicht ? [...sicht.schlange, ...sicht.danach].find((x) => x.key === s)?.startNr : undefined
+    return sicht ? [...sicht.schlange, ...sicht.danach, ...(sicht.bestand ?? [])].find((x) => x.key === s)?.startNr : undefined
   }
 
   return {
     uebung: false,
+    typ: geraet.typ,
     verbunden,
     verbindung,
     entzogen,
@@ -1159,6 +1234,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
     sichten,
     schlange,
     schlangeTeil: (liste, teil) => schlangen.value[liste]?.[teil] ?? [],
+    bestand,
     stufen,
     zuletzt,
     hinweise,
@@ -1174,7 +1250,10 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       if (aufgabe.teil && zeile.teil && zeile.teil !== aufgabe.teil) return null
       const teil = aufgabe.teil ?? zeile.teil
       const sicht = inhalt.sichten[liste]
-      const start = sicht ? [...sicht.schlange, ...sicht.danach].find((x) => x.key === zeile.s) : undefined
+      // Am Tisch (W5.3) steht der Starter im Bestand, nicht in der Schlange.
+      const start: { startNr: string; klasse: string; seite?: 'A' | 'B' } | undefined = sicht
+        ? [...sicht.schlange, ...sicht.danach, ...(sicht.bestand ?? [])].find((x) => x.key === zeile.s)
+        : undefined
       const punkt = sicht?.punkt?.id ?? null
       const eintrag = werteVon(liste, punkt, zeile.s)
       const vorher = (f: string) => vorherVon(eintrag, liste, teil, f)
@@ -1204,20 +1283,29 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
         punkt,
         c,
         ...(nv ? { n: true as const } : {}),
+        ...(!nv && zeile.kz ? { kz: Object.entries(zeile.kz).filter((x): x is [string, KeineZeitGrund] => istKeineZeitGrund(x[1])) } : {}),
         nr: null,
         ...(vs ? { vs } : {}),
       })
+    },
+    keineZeit(z) {
+      const alt = inhalt.zeilen.find((x) => x.z === z)
+      const e = alt ? werteVon(alt.liste, alt.punkt, alt.s) : undefined
+      return { ...(e?.kz ?? {}) }
     },
     stand(z) {
       const alt = inhalt.zeilen.find((x) => x.z === z)
       const e = alt ? werteVon(alt.liste, alt.punkt, alt.s) : undefined
       return alt && e ? standVon(e, alt.liste, alt.t) : null
     },
-    korrigiere(z, zellen) {
+    korrigiere(z, zellen, kz) {
       const alt = inhalt.zeilen.find((x) => x.z === z)
       if (gestoppt || !alt || !aufgabeVon(alt.liste)) return null
       const eintrag = werteVon(alt.liste, alt.punkt, alt.s)
       const vorher = (f: string) => vorherVon(eintrag, alt.liste, alt.t, f)
+      // „Keine Zeit“ (W5.4): mit `kz` geht die Korrektur auch ohne geänderte Zellen, wenn sich nur der Grund änderte.
+      const kzNeu = kz ? Object.entries(kz).filter((x): x is [string, KeineZeitGrund] => istKeineZeitGrund(x[1])) : undefined
+      const kzGeaendert = !!kz && !gleicheKz(kz, eintrag?.kz ?? {})
       if (alt.nr === null && !alt.ab) {
         // Noch im Ausgang: die wartende Zeile ändern statt einer zweiten (eine Nachricht weniger). Unveränderte Felder
         // außerhalb der Zeile bleiben draußen. Eine wartende „nicht vorbeigekommen“ wird so zur Zeile mit Werten.
@@ -1232,6 +1320,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
           if (i >= 0) alt.c[i] = [f, w, alt.c[i][2]]
           else if (w !== vorher(f)) alt.c.push([f, w, vorher(f)])
         }
+        if (kzNeu) alt.kz = kzNeu
         merkeWerte(alt)
         speichere()
         return alt.z
@@ -1242,7 +1331,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       // „Doch vorbei“ nach „nicht vorbeigekommen“ (W4.3, R3/R6): auch ohne Werte (fehlerfrei) geht eine Zeile – sie hebt
       // das Kennzeichen am Bedienrechner auf.
       const warNv = eintrag?.n !== undefined && eintrag.n === (alt.t ?? 'g')
-      if (c.length === 0 && !warNv) return alt.z
+      if (c.length === 0 && !warNv && !kzGeaendert) return alt.z
       const vs = vorschlagWeil(alt.liste, alt.punkt, alt.t)
       return stelleAn({
         z: neueId(),
@@ -1255,6 +1344,7 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
         klasse: alt.klasse,
         punkt: alt.punkt,
         c,
+        ...(kzNeu ? { kz: kzNeu } : {}),
         nr: null,
         ...(vs ? { vs } : {}),
       })
@@ -1403,7 +1493,11 @@ export function oeffneErfassung(geraet: GekoppeltesGeraet, umgebung: ErfassenUmg
       // Offen: die Starts der Schlange DIESES Punkts – seit W3-40 (21.11.2026) wird nur über das Band abgeschlossen, oft
       // erst, wenn der nächste Lauf begann; ohne `punkt` am Start (ältere Sicht, Übung) gilt der Punkt der Sicht.
       const quelle = !je ? [] : teil !== undefined && sicht?.teile ? je[teil] : je.ganz
-      const offen = quelle.filter((s) => !s.vorab && !s.entfaellt && (s.punkt ?? sicht?.punkt?.id) === punkt).map((s) => ({ ...s }))
+      // Am Tisch (W5.3, KN5): offen = Starter des Bestands, die weder die Sicht noch eine eigene Zeile erledigt hat.
+      const ohneLauf = bestand.value[liste]
+      const offen = ohneLauf
+        ? ohneLauf.filter((b) => !b.erledigt).map((b): SchlangenEintrag => ({ key: b.key, startNr: b.startNr, klasse: b.klasse, titel: '', lauf: '' }))
+        : quelle.filter((s) => !s.vorab && !s.entfaellt && (s.punkt ?? sicht?.punkt?.id) === punkt).map((s) => ({ ...s }))
       return { zeilen, offen, x: zeilen.filter((z) => z.x).map((z) => z.sn ?? z.s), nichtVorbei: zeilen.filter((z) => z.nv).map((z) => z.sn ?? z.s) }
     },
     stop() {

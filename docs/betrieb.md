@@ -374,7 +374,10 @@ bestätigt bis auf P9/U2, P10/Q2 und die Form von „Nicht vorbeigekommen“, pl
   Bogen stehen (R/L, Land/See …). Ein Tipp = eine Berührung (5), zweiter Tipp nimmt sie weg; die Torbojen von Tor 5
   zählen jede Berührung (höchstens 9). Tor 1 auf der Rückfahrt hat zwei Zeilen (2. Durchfahrt = Speedrunde). Disq.
   geht immer ins Disq.-Feld. Hat eine Klasse mehr als sieben Zeilen, teilt ein Umschalter „HINWEG · n | RÜCKWEG · n“ –
-  er wechselt nie von selbst; wechselt die Klasse, steht 2 s „Klasse n – andere Halte“.
+  er wechselt nie von selbst; wechselt die Klasse, steht 2 s „Klasse n – andere Halte“. Reihenfolge unter Mehr →
+  Ansicht → „Bojen“ (22.11.2026, je Gerät und Liste gemerkt): „Rückweg gedreht“ (Vorgabe, der Rückweg in derselben
+  Folge wie der Hinweg – Ziel, Tor 1, Tor 3, Tor 5), „Fahrtfolge“ (Rückweg Tor 5 … Ziel, wie das Boot fährt) oder
+  „Alles untereinander“ (ein Reiter ohne Umschalter).
 - **Nicht vorbeigekommen** (Mehr → „⊘ Nicht vorbeigekommen“, große Rückfrage „23 ist hier nicht vorbeigekommen? Es
   wird nichts eingetragen.“): für ein Boot, das vorher aufgegeben hat. Am Bedienrechner hat der Start damit den Haken
   (kein Rückstand, die Start-Freigabe wartet nicht), in der Matrix steht gelb „⊘ nicht vorbei“, in der Erfassung

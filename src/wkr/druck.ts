@@ -19,7 +19,8 @@ export type TeilAbdeckung = (kennung: string) => ReadonlySet<ListenTeil> | null
  * (Z1; `papier`, `beides` und eine Liste ohne Eintrag = Papier werden gedruckt), sie gerade erfasst (Z2: pausiert oder
  * abgemeldet → Papier übernimmt) und – am Steg – beide Teile digital sind (Z3): Ist ein Teil pausiert/abgemeldet oder
  * deckt das Register nur einen Teil ab („nur Ablegen auf dem Handy“), braucht das Anlegen den Bogen. Bögen ohne Liste
- * der WKR-Erfassung (Knoten, W5) sind nie nur digital (Z6).
+ * der WKR-Erfassung (Positionen außerhalb des Regelwerks) sind nie nur digital (Z6). Seit W5.3 (22.11.2026, KN6) hat
+ * Knoten eine Liste (am Tisch) – jeder Knoten-Bogen folgt ihrem Modus wie jeder andere.
  */
 export function nurDigital(bogen: Pick<WkrBogen, 'parcoursId' | 'typeId' | 'runde'>, wkr: WkrStand | undefined, konfig: Konfig, abdeckung?: TeilAbdeckung): boolean {
   if (!WKR_ANNAHMEN.druckOhneDigital || !wkr) return false

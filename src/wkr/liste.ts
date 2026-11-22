@@ -1,11 +1,11 @@
-import type { AppState, BereichId, PunktId, StartRef, Starter } from '../types'
+import type { AppState, BereichId, StartRef, Starter, WkrPunkt } from '../types'
 import type { Konfig } from '../config/konfig'
 import { bereicheZumStand, istParallel, laeufeVonPunkt, laufPunkt, PARALLEL_BEREICH, punktVonLauf, rundenPunkt } from '../betrieb/folge'
 import { veranstaltungsListen } from '../lib/listen'
 import { parallelListen } from '../lib/parallelBogen'
 import { attemptSchluessel, RACECOURSE_PARCOURS, RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
 import type { WkrBogen } from '../lib/wkrListen'
-import { istHaken, laufSchluessel, listenLauf, teilHaken, type ListenTeil } from '../lib/eingaben'
+import { istHaken, laufSchluessel, listenLauf, OHNE_LAUF, teilHaken, type ListenTeil } from '../lib/eingaben'
 import { WKR_ANNAHMEN, type ListenTeile } from './annahmen'
 
 // Welche Listen ein WKR-Gerät erfassen kann und wie sie heißen – rein, ohne DOM, ohne Store, nichts aus geraete/.
@@ -15,6 +15,41 @@ import { WKR_ANNAHMEN, type ListenTeile } from './annahmen'
 
 export { istHaken, teilHaken }
 export type { ListenTeil }
+
+/**
+ * Bereich der Listen ohne Lauf (Knoten, W5.3, 22.11.2026, WKR_ANNAHMEN KN1): eine Liste je Veranstaltung, abgenommen
+ * am Tisch – kein Bereich des Betriebs (keine Folge, nichts gezeigt, keine Ampel, nie ein Rückstand).
+ */
+export const TISCH_BEREICH: BereichId = 'tisch'
+
+/** Ist das eine Liste ohne Lauf (Bereich `tisch`)? */
+export function istTischListe(liste: Pick<Liste, 'bereich'>): boolean {
+  return liste.bereich === TISCH_BEREICH
+}
+
+/** Hat die Position keinen Lauf (YAML `lauf: false`, Knoten)? Unbekannte Positionen: nein. */
+export function istOhneLauf(konfig: Pick<Konfig, 'getPositions' | 'getSheetDef'>, typeId: string): boolean {
+  return konfig.getPositions().some((p) => p.typeId === typeId) && konfig.getSheetDef(typeId).showLauf === false
+}
+
+/**
+ * Kennung eines Starts ohne Lauf (W5.3, KN2): der Starter selbst, `JSON.stringify(['o', starterId])` – gebaut wie
+ * `refKey`, damit sie nie mit einer Kennung des Betriebs (`m`, `p`) zusammenfällt.
+ */
+export function ohneLaufKennung(starterId: string): string {
+  return JSON.stringify(['o', starterId])
+}
+
+/** Die Starter-ID einer Kennung ohne Lauf; `null`, wenn sie keine ist. */
+export function liesOhneLauf(kennung: unknown): string | null {
+  if (typeof kennung !== 'string' || !kennung.startsWith('["o"')) return null
+  try {
+    const teile: unknown = JSON.parse(kennung)
+    return Array.isArray(teile) && teile.length === 2 && teile[0] === 'o' && typeof teile[1] === 'string' && teile[1] !== '' ? teile[1] : null
+  } catch {
+    return null
+  }
+}
 
 /** Kennung einer Liste: `JSON.stringify(['l', bereich, typeId, racecourse | null])`. */
 export type ListenKennung = string
@@ -51,11 +86,12 @@ export function liesListe(kennung: unknown): Liste | null {
 
 /**
  * Die Listen der Veranstaltung, die ein Gerät erfassen kann: je Bereich des Betriebs (betrieb/folge.ts
- * `bereicheZumStand`) die Listen der Veranstaltung (lib/listen.ts), im Parallelslalom je Liste Racecourse A und B
- * (lib/parallelBogen.ts). Ohne Listen ohne Lauf – Knoten erst mit W5 (WKR_ANNAHMEN.listenOhneLaufErstW5).
+ * `bereicheZumStand`) die Listen MIT Lauf der Veranstaltung (lib/listen.ts), im Parallelslalom je Liste Racecourse A
+ * und B (lib/parallelBogen.ts). Seit W5.3 (22.11.2026, KN1) dahinter je Liste OHNE Lauf (Knoten) eine im Bereich
+ * `tisch` – einmal je Veranstaltung, auch ohne Bereich des Betriebs (Knoten nimmt man oft vor der Verzahnung ab).
  */
 export function listenDerVeranstaltung(stand: AppState, konfig: Konfig): Liste[] {
-  const mitLauf = (typeId: string) => konfig.getSheetDef(typeId).showLauf !== false || !WKR_ANNAHMEN.listenOhneLaufErstW5
+  const mitLauf = (typeId: string) => konfig.getSheetDef(typeId).showLauf !== false
   const out: Liste[] = []
   for (const b of bereicheZumStand(stand)) {
     if (b.art === 'parallel') {
@@ -64,18 +100,22 @@ export function listenDerVeranstaltung(stand: AppState, konfig: Konfig): Liste[]
       for (const typeId of veranstaltungsListen(konfig, stand).filter(mitLauf)) out.push({ bereich: b.id, typeId, racecourse: null })
     }
   }
+  if (!WKR_ANNAHMEN.listenOhneLaufErstW5) {
+    for (const typeId of veranstaltungsListen(konfig, stand).filter((t) => !mitLauf(t))) out.push({ bereich: TISCH_BEREICH, typeId, racecourse: null })
+  }
   return out
 }
 
 /**
  * Die Liste eines Bogens der Erfassung (W2: Marken „Papier ansehen“, ◆): Manövrieren = Parcours des Bogens und Position,
  * Parallelslalom = Bereich `parallel` mit dem Racecourse (aus der Runde des Bogens, sonst rückwärts über
- * RACECOURSE_PARCOURS). `null` für Bögen ohne Liste der WKR-Erfassung: Knoten und andere Listen ohne Lauf (W5) und
- * Positionen, die das Regelwerk nicht kennt.
+ * RACECOURSE_PARCOURS). Knoten und andere Listen ohne Lauf: die Liste im Bereich `tisch` (seit W5.3, 22.11.2026).
+ * `null` für Positionen, die das Regelwerk nicht kennt.
  */
 export function listeVonBogen(bogen: Pick<WkrBogen, 'parcoursId' | 'typeId' | 'runde'>, konfig: Konfig): Liste | null {
   if (!konfig.getPositions().some((p) => p.typeId === bogen.typeId)) return null
-  if (konfig.getSheetDef(bogen.typeId).showLauf === false && WKR_ANNAHMEN.listenOhneLaufErstW5) return null
+  // Listen ohne Lauf (Knoten): EINE Liste am Tisch, gleich von welchem Parcours der Bogen ist (W5.3, KN1).
+  if (konfig.getSheetDef(bogen.typeId).showLauf === false) return WKR_ANNAHMEN.listenOhneLaufErstW5 ? null : { bereich: TISCH_BEREICH, typeId: bogen.typeId, racecourse: null }
   const racecourse = bogen.runde?.racecourse ?? RACECOURSES.find((rc) => RACECOURSE_PARCOURS[rc] === bogen.parcoursId) ?? null
   if (racecourse !== null) return { bereich: PARALLEL_BEREICH, typeId: bogen.typeId, racecourse }
   return { bereich: bogen.parcoursId, typeId: bogen.typeId, racecourse: null }
@@ -121,7 +161,44 @@ export interface StartAufListe {
   lauf: string
   /** Weitere Lauf-Schlüssel, in die dieselben Werte gehen (nur Vorsteg mit „Versuche nacheinander“). */
   weitere: string[]
-  punkt: PunktId
+  /** Punkt des Starts; `ohne` bei einer Liste ohne Lauf (W5.3). */
+  punkt: WkrPunkt
+}
+
+/** Ein Start ohne Lauf (W5.3, KN2): der Starter selbst. */
+export interface OhneLaufRef {
+  art: 'o'
+  starter: string
+}
+
+/** Die Kennung eines Starts auf einer WKR-Liste: des Betriebs (`refKey`) oder ohne Lauf. */
+export function liesStartKennung(key: unknown, lies: (k: unknown) => StartRef | null): StartRef | OhneLaufRef | null {
+  const ohne = liesOhneLauf(key)
+  return ohne !== null ? { art: 'o', starter: ohne } : lies(key)
+}
+
+/**
+ * Ein Starter auf einer Liste ohne Lauf (W5.3, KN2): nur auf einer Liste im Bereich `tisch`, deren Position keinen Lauf
+ * hat; der Starter gibt es, seine Klasse hat die Liste und er ist nicht abgemeldet (WKR_ANNAHMEN.ohneLaufStartIstStarter).
+ */
+function startOhneLauf(stand: AppState, konfig: Konfig, liste: Liste, starterId: string): StartAufListe | null {
+  if (!istTischListe(liste) || liste.racecourse !== null || !istOhneLauf(konfig, liste.typeId)) return null
+  const starter = stand.starters.find((s) => s.id === starterId)
+  if (!starter || !konfig.positionAllowsClass(liste.typeId, starter.klasse) || stand.abgemeldet.includes(starter.id)) return null
+  const disziplin = konfig.getAufbau(stand.aufbau).disziplin
+  return { starter, lauf: laufSchluessel(disziplin, OHNE_LAUF), weitere: [], punkt: 'ohne' }
+}
+
+/**
+ * Der Bestand einer Liste ohne Lauf (W5.3, KN2/KN3): alle Starter, die sie abnehmen soll, in der Folge des Stands
+ * (Starter-Reiter), mit Kennung. Leer für andere Listen.
+ */
+export function bestandOhneLauf(stand: AppState, konfig: Konfig, liste: Liste): { key: string; start: StartAufListe }[] {
+  if (!istTischListe(liste)) return []
+  return stand.starters.flatMap((s) => {
+    const start = startOhneLauf(stand, konfig, liste, s.id)
+    return start ? [{ key: ohneLaufKennung(s.id), start }] : []
+  })
 }
 
 /**
@@ -129,11 +206,15 @@ export interface StartAufListe {
  * (Vorsteg mit „Versuche direkt nacheinander“: alle Versuche, WKR_ANNAHMEN.vorstegAlleVersuche). Parallelslalom: der
  * Starter der eigenen Seite laut festem Plan (Kennung aus `fest.starts`), der Attempt der Runde. `null`, wenn der
  * Start nicht zur Art des Bereichs passt, die eigene Seite leer ist, es den Starter oder die Liste im Regelwerk nicht
- * (mehr) gibt. Ob der Start im Bereich vorkommt und ob die Klasse die Liste hat, prüft der Aufrufer.
+ * (mehr) gibt. Seit W5.3 (22.11.2026, KN2) auch ein Start ohne Lauf (`o`, nur auf der Liste am Tisch): Lauf-Schlüssel
+ * `<disziplin>/0`, Punkt `ohne`, nur Klassen mit der Liste und nicht abgemeldet. Ob der Start im Bereich vorkommt und ob die Klasse die Liste hat, prüft der Aufrufer.
  */
-export function startAufListe(stand: AppState, konfig: Konfig, liste: Liste, ref: StartRef): StartAufListe | null {
+export function startAufListe(stand: AppState, konfig: Konfig, liste: Liste, ref: StartRef | OhneLaufRef): StartAufListe | null {
   // Eine Liste, die das Regelwerk nicht kennt, hat keine Starts (getSheetDef würfe).
   if (!konfig.getPositions().some((p) => p.typeId === liste.typeId)) return null
+  // Ohne Lauf (W5.3): nur Starts `o` auf der Liste am Tisch, und dort nur sie.
+  if (ref.art === 'o') return startOhneLauf(stand, konfig, liste, ref.starter)
+  if (istTischListe(liste)) return null
   const nachId = (id: string | null) => (id === null ? undefined : stand.starters.find((s) => s.id === id))
   if (ref.art === 'p') {
     if (!istParallel(liste.bereich) || liste.racecourse === null) return null

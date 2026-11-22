@@ -20,8 +20,8 @@ import { lage } from '../betrieb/folge'
 import { sichtOeffentlich } from '../betrieb/sicht'
 import { werteVon } from '../lib/eingaben'
 import { listenKennung } from '../wkr/liste'
-import { bojenVon, disqFuer, entwurfAus, leererEntwurf, maskeFuer, mitBemerkung, tippe, tippeBoje, tippeDisq, zellenAus } from '../wkr/maske'
-import { erfassungsLage } from '../wkr/lage'
+import { bojenVon, disqFuer, entwurfAus, keineZeitAus, leererEntwurf, maskeFuer, mitBemerkung, setzeKeineZeit, setzeZeit, tippe, tippeBoje, tippeDisq, tippePruef, zellenAus } from '../wkr/maske'
+import { erfassungsLage, tischLage } from '../wkr/lage'
 import { geraetAngaben } from './register'
 import { configFor } from '../config/konfig'
 import { uimParallelStand, wkrBetriebsStand, betriebStarter, betriebsStand, festgeschrieben } from '../testHilfen'
@@ -1313,5 +1313,125 @@ describe('WKR-Name aus der Veranstaltung (Nutzer 21.11.2026, W3-13, WN1–WN3)',
     tor.g.stop()
     verlasseRaum(tor.speicher)
     expect([...tor.speicher.daten.values()].join('\n')).not.toContain(VERTRETUNG)
+  })
+})
+
+// W5.3 (22.11.2026, Plan docs/plan-wkr-w5.md §6, WKR_ANNAHMEN KN1–KN8): Knoten-Prüfliste am Tisch Ende zu Ende –
+// Liste ohne Lauf, Start = Starter (`["o", id]`), Bestand statt Schlange, Abschluss der ganzen Liste (Punkt `ohne`).
+describe('Knoten am Tisch Ende zu Ende (W5.3)', () => {
+  const KNOTEN = listenKennung({ bereich: 'tisch', typeId: 'knoten', racecourse: null })
+  const LAUF0 = 'manoevrieren/0'
+
+  it('koppeln → Bestand; Nummer → Prüfliste → Werte und Haken; Korrektur; Abschluss mit „Rest auf Papier“', async () => {
+    const { s, h, raum } = await bedienrechner()
+    const { e, id } = await wkrHandy(h, [{ art: 'liste', liste: KNOTEN }], { name: 'Pad Tisch' })
+    expect(raum().geraete[id].gruppen).toEqual([gruppeDerListe(KNOTEN)])
+    await bis(() => s.state.value.wkr.listen[KNOTEN]?.modus === 'digital')
+    await bis(() => (e.bestand.value[KNOTEN]?.length ?? 0) > 0)
+    const sicht = e.sichten.value[KNOTEN]!
+    expect([sicht.punkt?.id, sicht.schlange, sicht.offen]).toEqual(['ohne', [], { n: 7, m: 7 }])
+    // Keine Schlange der Startfolge – auch nicht, wenn der Betrieb Starts zeigt (am Tisch fährt kein Boot).
+    zeige(s)
+    await bis(() => lage(s.state.value, P1).aktuell !== null)
+    expect(e.schlange.value[KNOTEN]).toEqual([])
+
+    // Nummer 101 eintippen: der Starter aus dem Bestand, Maske „Prüfliste“, ✗ am dritten Knoten.
+    const k1 = e.bestand.value[KNOTEN].find((b) => b.startNr === '101')!
+    const aufbau = maskeFuer(sicht, k1.klasse)!
+    expect(aufbau.art).toBe('pruefliste')
+    let ent = leererEntwurf()
+    aufbau.pruef.forEach((p, i) => (ent = tippePruef(ent, aufbau, p.feld, i === 2 ? 'fehler' : 'ok')))
+    const z = e.schicke(KNOTEN, { s: k1.key, zellen: zellenAus(ent, aufbau) })!
+    // Sofort erledigt auf dem Gerät (eigene Zeile), ohne auf die Sicht zu warten (KN8: Nummernfeld frei für den nächsten).
+    expect(e.bestand.value[KNOTEN].find((b) => b.key === k1.key)).toMatchObject({ erledigt: true, z })
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    const feld = aufbau.pruef[2].feld
+    expect(werteVon(s.state.value.eingaben, LAUF0, 'k1')).toMatchObject({ [feld]: '5', 'erfasst@knoten': '1' })
+    await bis(() => e.sichten.value[KNOTEN]?.offen?.n === 6)
+
+    // Korrektur der erledigten Nummer: doch richtig gebunden.
+    const k = e.korrigiere(z, { [feld]: '' })!
+    await bis(() => e.stufen.value[k]?.stufe === 'uebernommen')
+    expect(werteVon(s.state.value.eingaben, LAUF0, 'k1')[feld] ?? '').toBe('')
+
+    // Matrix am Bedienrechner: eigener Block, nie Rückstand, Gerät gehört.
+    const [t] = tischLage(s.state.value, configFor({ regelwerk: 'dm-2026' }), geraetAngaben(h.raum.value?.geraete ?? []), Date.now())
+    expect([t.knoten.offen, t.knoten.gesamt, t.rueckstand, t.warnt]).toEqual([6, 7, null, false])
+    expect(t.geraete.map((g) => g.name)).toEqual(['Pad Tisch'])
+
+    // Abschluss der ganzen Liste: offen nur mit „Rest auf Papier“.
+    const pruef = e.pruefung(KNOTEN, 'ohne')
+    expect([pruef.zeilen.length, pruef.offen.length]).toEqual([1, 6])
+    const ohneRest = e.schliesseAb(KNOTEN, 'ohne', WKR_NAME, false)!
+    await bis(() => e.abschluesse.value.find((a) => a.id === ohneRest)?.stufe === 'abgelehnt')
+    expect(s.state.value.wkr.abschluss[KNOTEN]).toBeUndefined()
+    const mitRest = e.schliesseAb(KNOTEN, 'ohne', WKR_NAME, true)!
+    await bis(() => e.abschluesse.value.find((a) => a.id === mitRest)?.stufe === 'angenommen')
+    expect(s.state.value.wkr.abschluss[KNOTEN].ohne.papier.length).toBe(6)
+    expect(e.sichten.value[KNOTEN]?.abgeschlossen).toEqual(['ohne'])
+  })
+
+  it('Leitung: weder Namen noch Werte in der Sicht der Liste am Tisch', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: KNOTEN }])
+    await bis(() => (e.bestand.value[KNOTEN]?.length ?? 0) > 0)
+    const text = JSON.stringify(e.sichten.value[KNOTEN])
+    for (const p of s.state.value.starters) {
+      expect(text).not.toContain(p.vorname)
+      expect(text).not.toContain(p.nachname)
+    }
+    expect(Object.keys(e.bestand.value[KNOTEN][0]).sort()).toEqual(['erledigt', 'key', 'klasse', 'startNr'])
+  })
+})
+
+describe('Zeit-Liste Ende zu Ende (W5.4, 22.11.2026, ZT1–ZT4)', () => {
+  const ZEIT = listenKennung({ bereich: P1, typeId: 'zeit', racecourse: null })
+
+  it('Ziffernfolge → genau diese Zelle am Bedienrechner; „keine Zeit“ als Kennzeichen; Korrektur hebt es auf', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: ZEIT }], { name: 'Pad Zeit' })
+    const { key, starter } = await mitStart(s, e, ZEIT)
+    const sicht = e.sichten.value[ZEIT]!
+    const klasse = [...sicht.schlange, ...sicht.danach].find((x) => x.key === key)!.klasse
+    const a = maskeFuer(sicht, klasse)!
+    expect([a.art, a.zeiten.map((z) => z.feld)]).toEqual(['zeit', ['zeit1', 'zeit2', 'zeit3']])
+
+    // Getippt wie am Rechner: „83,45“ und „1,2345“ (beide 1:23,45); Zeit 3 hat keine Zeit (Anlage ausgefallen).
+    let ent = setzeZeit(leererEntwurf(), a, 'zeit1', '83,45')
+    ent = setzeZeit(ent, a, 'zeit2', '1,2345')
+    ent = setzeKeineZeit(ent, a, 'zeit3', 'anlage')
+    const z = e.schicke(ZEIT, { s: key, zellen: zellenAus(ent, a), kz: Object.fromEntries(keineZeitAus(ent, a)) })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    const w = werte(s.state.value, starter)
+    expect([w.zeit1, w.zeit2, w.zeit3 ?? '', w['erfasst@zeit']]).toEqual(['83,45', '1,2345', '', '1'])
+    expect(s.state.value.wkr.rueckfragen).toEqual([])
+    expect(s.state.value.wkr.keineZeit[ZEIT]).toEqual({ [`${LAUF}|${starter}`]: { zeit3: 'anlage' } })
+    // Bedienrechner: Matrix ✓ mit „keine Zeit“; Zuletzt auf dem Gerät mit dem Grund.
+    const l = erfassungsLage(s.state.value, configFor({ regelwerk: 'dm-2026' }), P1, [], Date.now()).listen.find((x) => x.liste === ZEIT)!
+    expect(l.zellen[key]).toEqual({ zelle: 'ok', keineZeit: { zeit3: 'anlage' } })
+    expect(e.zuletzt.value.find((x) => x.z === z)).toMatchObject({ zellen: { zeit1: '83,45', zeit2: '1,2345' }, kz: { zeit3: 'anlage' } })
+    expect(e.keineZeit(z)).toEqual({ zeit3: 'anlage' })
+
+    // Korrektur: doch eine Zeit für Zeit 3 (von der Stoppuhr) – Zelle gefüllt, Kennzeichen weg; nur EINE Zelle geht.
+    const alt = entwurfAus(e.stand(z)!, a, e.keineZeit(z))
+    expect(alt.keineZeit).toEqual({ zeit3: 'anlage' })
+    const neu = setzeZeit(alt, a, 'zeit3', '83,5')
+    const k = e.korrigiere(z, zellenAus(neu, a), Object.fromEntries(keineZeitAus(neu, a)))!
+    await bis(() => e.stufen.value[k]?.stufe === 'uebernommen')
+    expect(werte(s.state.value, starter).zeit3).toBe('83,5')
+    expect(s.state.value.wkr.keineZeit).toEqual({})
+    expect(e.keineZeit(k)).toEqual({})
+    const letzte = zeilenNachrichten(s).at(-1)!.zeilen[0]
+    expect([letzte.zellen.map((c) => c.feld), letzte.keineZeit]).toEqual([['zeit3'], {}])
+  })
+
+  it('Leitung: „keine Zeit“ nur in der Zeile zum Host, nie in Sicht, Tafel oder Zuschauerliste', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: ZEIT }])
+    const { key } = await mitStart(s, e, ZEIT)
+    const z = e.schicke(ZEIT, { s: key, zellen: { zeit1: '', zeit2: '', zeit3: '' }, kz: { zeit1: 'nichtImZiel', zeit2: 'nichtImZiel', zeit3: 'nichtImZiel' } })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    await bis(() => (e.sichten.value[ZEIT]?.geraete?.[Object.keys(e.sichten.value[ZEIT]!.geraete ?? {})[0]]?.bis ?? 0) > 0)
+    for (const text of [JSON.stringify(e.sichten.value[ZEIT]), JSON.stringify(sichtOeffentlich(s.state.value))]) expect(text).not.toContain('nichtImZiel')
   })
 })

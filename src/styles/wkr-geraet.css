@@ -36,14 +36,29 @@
   /* Parcours-Zeichnung (W4-13): schwarze Linien – auch im Dunkel-Modus auf Weiß, sonst wäre sie unsichtbar. */
   --wkr-bild-grund: #ffffff;
   --wkr-bild-text: #000000;
+  /* Maske „Bild“ (W5.2, 22.11.2026): Trefferkreis (Rand/Fläche/Schrift), gesetzt (inverse Fläche), Disq. (rot),
+     Linie zur echten Boje, Fahrlinie des Parallel-Schemas – auf dem weißen Grund der Zeichnung in jedem Modus. */
+  --wkr-bild-treffer-rand: #000000;
+  --wkr-bild-treffer: rgb(255 255 255 / 0.35);
+  --wkr-bild-gesetzt: #000000;
+  --wkr-bild-gesetzt-text: #ffffff;
+  --wkr-bild-disq: #b00000;
+  --wkr-bild-disq-text: #ffffff;
+  --wkr-bild-linie: #000000;
+  --wkr-bild-fahrt: #1f5fbf;
+  --wkr-bild-boje: #e05a00;
+  --wkr-bild-treffer-groesse: 15mm;
+  /* Höhe über und unter der Zeichnung (Kopf, Starterkarte, Umschalter, Titel, Fuß), Prüfbefund 22.11.2026: Die Zeichnung
+     ist nie höher als das Fenster abzüglich dieses Rests (bildDrehungNachPlatz) – mindestens --wkr-bild-min-hoehe. */
+  --wkr-bild-rest: 440px;
+  --wkr-bild-min-hoehe: 200px;
   /* „entfällt“: das einzige Grau – je Modus mit genug Kontrast (Sonne/Hell 7,5:1 auf Weiß, Dunkel 8,4:1 auf Schwarz). */
   --wkr-grau: #555555;
-  /* Rand neben der Spalte auf breiten Bildschirmen (bis W5): leise, ohne Kontrastpflicht – dort steht nichts. */
-  --wkr-umfeld: #e4e4e4;
-  --wkr-umfeld-linie: #9a9a9a;
   --wkr-rand: 3px;
   --wkr-ziel: 64px;
   --wkr-ziel-min: 48px;
+  /* Pad (W5.1, 22.11.2026): Trefferflächen ≥ 15 mm mit Rand für Handschuhe – gilt über --wkr-ziel in der Pad-Anordnung. */
+  --wkr-ziel-pad: 72px;
   --wkr-abstand: 8px;
   --wkr-disq-abstand: 24px;
   --wkr-schrift: 20px;
@@ -77,8 +92,6 @@
   --wkr-flaeche: #ffffff;
   --wkr-rand-farbe: #44505c;
   --wkr-haupt: #1f5fbf;
-  --wkr-umfeld: #dde2e8;
-  --wkr-umfeld-linie: #aab3bd;
   --wkr-rand: 2px;
 }
 
@@ -92,8 +105,6 @@
   --wkr-haupt-text: #000000;
   --wkr-blitz: #ffffff;
   --wkr-grau: #aaaaaa;
-  --wkr-umfeld: #161616;
-  --wkr-umfeld-linie: #555555;
   --wkr-gruen: #4ade80;
   --wkr-ampel-rot: #ff5c5c;
   color-scheme: dark;
@@ -111,29 +122,152 @@
 }
 
 /*
- * Breite Bildschirme (Pad, Bedienrechner) bis W5 (Nutzer 21.11.2026: „Die Pad-Geräte-Listen … sehen auf dem Pad noch
- * sehr komisch aus“): Die Handy-Maske bleibt eine mittige Spalte von 560 px, statt sich zu dehnen – die Wurzel füllt
- * aber die ganze Breite und Höhe, damit links und rechts ein ruhiger Rand (--wkr-umfeld, je Modus) statt der Farbe
- * der App steht (vorher: weiße Spalte in 720 px auf dem Grund des Farbschemas, darunter Leiste und Reiter breiter).
- * Die Spalte entsteht über padding-inline, nicht max-width: Kinder, klebender Fuß (`.wkr-unten`, -12 px Rand = genau
- * 560 px) und Bänder bleiben darin; Grund und Trennlinie malt ein Verlauf. Overlay und Blitz decken weiter den ganzen
- * Bildschirm. Die eigentlichen Pad-Masken (zwei Listen nebeneinander, F15) kommen mit W5 – dann fällt diese Regel.
- * 21.11.2026, bestätigt 21.11.2026 (Fragenseite R6-17, WKR_ANNAHMEN.padSpalteBisW5).
+ * Pad-Anordnung (W5.1, Plan docs/plan-wkr-w5.md §4, 22.11.2026; WKR_ANNAHMEN PD1–PD6) – ersetzt die mittige
+ * Handy-Spalte von 560 px (T10, bis 21.11.2026: padding-inline mit Umfeld-Rand). Die Anordnung rechnet
+ * wkr/anordnung.ts und setzt `data-anordnung` an der Wurzel: handy (max. 560 px wie bisher) | padQuer | padHoch (volle
+ * Breite, größere Ziele über --wkr-ziel-pad). Spalten nebeneinander über --wkr-spalten (WkrGeraet), jede
+ * minmax(0, 1fr) – Text bricht in der Spalte um, nichts wird abgeschnitten (wkr-geraet.test.ts rechnet die Breiten).
  */
-@media (min-width: 700px) {
-  .wkr-geraet {
-    --wkr-spalte: 560px;
-    max-width: none;
-    padding-inline: max(12px, calc((100% - var(--wkr-spalte)) / 2 + 12px));
-    background: linear-gradient(
-      to right,
-      var(--wkr-umfeld) calc(50% - var(--wkr-spalte) / 2 - 1px),
-      var(--wkr-umfeld-linie) 0 calc(50% - var(--wkr-spalte) / 2),
-      var(--wkr-grund) 0 calc(50% + var(--wkr-spalte) / 2),
-      var(--wkr-umfeld-linie) 0 calc(50% + var(--wkr-spalte) / 2 + 1px),
-      var(--wkr-umfeld) 0
-    );
-  }
+.wkr-geraet[data-anordnung='padQuer'],
+.wkr-geraet[data-anordnung='padHoch'] {
+  --wkr-ziel: var(--wkr-ziel-pad);
+  max-width: none;
+}
+
+/* Quer: Startnummer 96 px auch auf Bojen-Listen (auf dem Handy 80 px, P17) – das Pad hat die Höhe dafür. */
+.wkr-geraet[data-anordnung='padQuer'] .wkr-maske--bojen {
+  --wkr-startnr: 96px;
+}
+
+.wkr-spalten {
+  display: grid;
+  grid-template-columns: repeat(var(--wkr-spalten, 1), minmax(0, 1fr));
+  gap: var(--wkr-disq-abstand);
+  flex: 1;
+  min-width: 0;
+}
+
+.wkr-spalte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  min-width: 0;
+}
+
+.wkr-maske-haupt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Eine Spalte quer: Arbeitsfläche links (≈ 70 %), Seitenspalte rechts (PD3), Fuß darunter über die volle Breite. */
+.wkr-maske[data-seite='rechts'] {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  grid-template-areas: 'haupt seite' 'unten unten';
+  align-items: start;
+  gap: var(--wkr-abstand) var(--wkr-disq-abstand);
+}
+
+.wkr-maske[data-seite='rechts'] > .wkr-maske-haupt {
+  grid-area: haupt;
+  align-self: stretch;
+}
+
+.wkr-maske[data-seite='rechts'] > .wkr-seite {
+  grid-area: seite;
+}
+
+.wkr-maske[data-seite='rechts'] > .wkr-unten {
+  grid-area: unten;
+}
+
+/* Seitenspalte (WkrSeite): Schlange, Einträge im Klartext, Zuletzt als Liste, Zeichnung. */
+.wkr-seite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  min-width: 0;
+}
+
+.wkr-seite-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 6px;
+  background: var(--wkr-flaeche);
+  color: var(--wkr-text);
+}
+
+.wkr-seite-titel {
+  margin: 0;
+  font-size: var(--wkr-schrift);
+  font-weight: 800;
+}
+
+.wkr-seite-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wkr-seite-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  min-width: 0;
+}
+
+.wkr-seite-knopf {
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+.wkr-seite-nr {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wkr-seite-text {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.wkr-seite-summe {
+  margin: 0;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* PD5: Attempt-Wechsel bei derselben Nummer – invers über der Karte (absolut, verschiebt nichts). */
+.wkr-attempt {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--wkr-haupt);
+  color: var(--wkr-haupt-text);
+}
+
+/* PD4: ein Rundenband über Racecourse A und B. */
+.wkr-runden-band {
+  justify-content: center;
+  font-size: 24px;
+  background: var(--wkr-haupt);
+  color: var(--wkr-haupt-text);
 }
 
 .wkr-geraet *,
@@ -764,13 +898,7 @@
   overflow-wrap: anywhere;
 }
 
-/* V1 (21.11.2026): Kopf eines Orts in der Ansicht „Wie der Parcours liegt“ – wie die Wege, aber ohne Großschrift. */
-.wkr-bojen-ort {
-  letter-spacing: normal;
-  overflow-wrap: anywhere;
-}
-
-/* V1/V2 unter „Mehr → Ansicht“: eigener Absatz für die Bojen, Texte brechen um (N3). */
+/* Reihenfolge der Bojen unter „Mehr → Ansicht“ (22.11.2026): eigener Absatz, Texte brechen um (N3). */
 .wkr-mehr-bojen {
   display: flex;
   flex-direction: column;
@@ -819,23 +947,6 @@
   grid-auto-columns: minmax(7.5em, 1fr);
   overflow-x: auto;
   overscroll-behavior-x: contain;
-}
-
-/* Pad quer mit genau zwei Listen (W3-03, GF8): zwei Spalten der Handy-Maske nebeneinander, je höchstens 560 px. */
-.wkr-geraet[data-nebeneinander] {
-  --wkr-spalte: 1144px;
-  max-width: none;
-}
-
-.wkr-nebeneinander {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 560px));
-  justify-content: center;
-  gap: 24px;
-}
-
-.wkr-spalte {
-  min-width: 0;
 }
 
 /*
@@ -1205,4 +1316,452 @@
   display: block;
   width: 100%;
   height: auto;
+}
+
+/*
+ * Maske „Bild“ (W5.2, Plan docs/plan-wkr-w5.md §5.2, 22.11.2026; WKR_ANNAHMEN BD1–BD7): Zeichnung inline auf
+ * weißem Grund (wie die Parcours-Zeichnung, auch im Dunkel-Modus), Trefferkreise absolut darüber (≥ 15 mm, BD6),
+ * Verbinder zur echten Boje. Farben nur --wkr-bild-*; Stand am Kreis als Zeichen und Zahl, nie nur Farbe.
+ */
+.wkr-bild {
+  /* Kreisgröße (Prüfbefund 22.11.2026): nie kleiner als jedes andere große Ziel der Maske (--wkr-ziel, Pad 72 px) –
+     15 CSS-mm allein waren 56,7 px. Hier gesetzt, damit --wkr-ziel der Pad-Anordnung schon aufgelöst ist. */
+  --wkr-bild-kreis: max(var(--wkr-ziel), var(--wkr-bild-treffer-groesse));
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  min-width: 0;
+}
+
+.wkr-bild-figur {
+  margin: 0;
+  padding: var(--wkr-abstand);
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  background: var(--wkr-bild-grund);
+  color: var(--wkr-bild-text);
+}
+
+.wkr-bild-titel {
+  font-size: 0.85em;
+  font-weight: 700;
+}
+
+.wkr-bild-flaeche {
+  position: relative;
+  /* Platz für die halben Trefferkreise am Rand, damit nichts über die Spalte hinausragt. */
+  padding: calc(var(--wkr-bild-kreis) / 2);
+}
+
+.wkr-bild-svg,
+.wkr-bild-svg > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Nie höher als der freie Platz (Prüfbefund 22.11.2026): eine hochkant gedrehte Zeichnung war sonst rund 1400 px hoch;
+   preserveAspectRatio „meet“ (wkr/bild.ts inlineSvg) zentriert sie dann in der Breite. WkrBild liest diese Höhe. */
+.wkr-bild-svg > svg,
+.wkr-bild-schema {
+  max-height: max(var(--wkr-bild-min-hoehe), calc(100dvh - var(--wkr-bild-rest)));
+}
+
+.wkr-bild-linie {
+  fill: none;
+  stroke: var(--wkr-bild-fahrt);
+  stroke-width: 1.2;
+}
+
+.wkr-bild-linie--rueck {
+  stroke-dasharray: 3 2;
+}
+
+.wkr-bild-boje {
+  fill: var(--wkr-bild-boje);
+  stroke: var(--wkr-bild-linie);
+  stroke-width: 0.6;
+}
+
+.wkr-bild-nr {
+  fill: var(--wkr-bild-text);
+  font-size: 7px;
+  font-weight: 700;
+}
+
+/* Namensnennung unter der Zeichnung (Prüfbefund 22.11.2026): klein, auf dem weißen Grund der Zeichnung, bricht um. */
+.wkr-bild-nachweis {
+  margin: var(--wkr-abstand) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wkr-abstand);
+  color: var(--wkr-bild-text);
+  font-size: 0.7em;
+  font-weight: 400;
+}
+
+.wkr-knopf.wkr-bild-nachweis-link {
+  color: var(--wkr-bild-text);
+  background: var(--wkr-bild-grund);
+  border-color: var(--wkr-bild-text);
+  text-decoration: underline;
+}
+
+.wkr-bild-blass {
+  opacity: 0.2;
+}
+
+.wkr-bild-verbinder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  stroke: var(--wkr-bild-linie);
+  stroke-width: 2;
+}
+
+.wkr-knopf.wkr-bild-treffer {
+  position: absolute;
+  box-sizing: border-box;
+  width: var(--wkr-bild-kreis);
+  height: var(--wkr-bild-kreis);
+  min-width: var(--wkr-bild-kreis);
+  min-height: var(--wkr-bild-kreis);
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 3px solid var(--wkr-bild-treffer-rand);
+  border-radius: 50%;
+  background: var(--wkr-bild-treffer);
+  color: var(--wkr-bild-text);
+  font-size: 0.8em;
+  font-weight: 700;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wkr-knopf.wkr-bild-treffer--gesetzt {
+  background: var(--wkr-bild-gesetzt);
+  color: var(--wkr-bild-gesetzt-text);
+}
+
+.wkr-knopf.wkr-bild-treffer--disq {
+  background: var(--wkr-bild-disq);
+  color: var(--wkr-bild-disq-text);
+}
+
+.wkr-knopf.wkr-bild-treffer:disabled {
+  opacity: 0.35;
+}
+
+.wkr-bild-stand {
+  white-space: nowrap;
+}
+
+.wkr-bild-ersatz-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--wkr-abstand);
+}
+
+.wkr-bild-disq-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-bild-weg {
+  flex-wrap: wrap;
+}
+
+/*
+ * --- Knoten-Prüfliste am Tisch (W5.3, 22.11.2026, KN7/KN8): WkrPruefliste + WkrZiffern ---
+ * Kein Takt, keine Starterkarte: Nummer, Knoten-Zeilen (✓ / ✗ · 5), Fuß. Auf dem Pad die offenen Nummern rechts.
+ * Farben nur über die Tokens; ✗ gesetzt rot wie ein gesetzter Disq.-Buchstabe, ✓ gesetzt wie jeder Schalter (Haupt).
+ */
+.wkr-pruef-rahmen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wkr-abstand);
+}
+
+.wkr-pruefliste[data-pad] .wkr-pruef-rahmen {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+}
+
+.wkr-pruefliste[data-pad] .wkr-fuss {
+  grid-column: 1 / -1;
+}
+
+.wkr-pruef-haupt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  min-width: 0;
+}
+
+.wkr-pruef-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wkr-abstand) calc(2 * var(--wkr-abstand));
+  margin: 0;
+  font-weight: 800;
+}
+
+.wkr-ziffern-titel {
+  margin-right: var(--wkr-abstand);
+  font-size: var(--wkr-schrift);
+  font-weight: 400;
+}
+
+.wkr-pruef-knoten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wkr-pruef-knoten-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-pruef-knoten-titel {
+  font-weight: 800;
+}
+
+.wkr-knopf.wkr-pruef-wahl--fehler[aria-pressed='true'] {
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+.wkr-pruef-seite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  min-width: 0;
+}
+
+.wkr-pruef-nummern {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5em, 1fr));
+  gap: var(--wkr-abstand);
+}
+
+/*
+ * --- W5.4 Zeit-Listen mit Ziffernblock (22.11.2026, Plan docs/plan-wkr-w5.md §7.2, WKR_ANNAHMEN ZT1–ZT4) ---
+ * Unlesbar ist eine rote FLÄCHE mit ihrer eigenen Schrift (--wkr-rot/--wkr-rot-text), nie roter Text auf dem Grund:
+ * so trägt der Kontrast in Sonne, Hell und Dunkel (Befund 2). Felder brechen um, nichts wird abgeschnitten.
+ */
+.wkr-ziffern-anzeige--unlesbar {
+  outline: var(--wkr-rand) solid var(--wkr-rot);
+}
+
+.wkr-ziffern-deutung {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 var(--wkr-abstand);
+  margin: 0;
+  font-size: var(--wkr-schrift);
+  font-weight: 800;
+  text-align: center;
+}
+
+.wkr-ziffern-deutung--unlesbar {
+  padding: 4px var(--wkr-abstand);
+  border-radius: 6px;
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+.wkr-ziffern-getippt {
+  font-weight: 400;
+}
+
+.wkr-zeiten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  min-width: 0;
+}
+
+.wkr-zeiten-felder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6em, 1fr));
+  gap: var(--wkr-abstand);
+}
+
+.wkr-zeit-feld {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.wkr-zeit-feld-titel {
+  font-weight: 400;
+}
+
+.wkr-zeit-feld-wert {
+  font-size: calc(1.4 * var(--wkr-schrift));
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wkr-knopf.wkr-zeit-feld--aktiv {
+  outline: calc(2 * var(--wkr-rand)) solid var(--wkr-haupt);
+  outline-offset: 2px;
+}
+
+.wkr-zeit-feld[data-stand='unlesbar'] .wkr-zeit-feld-wert {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--wkr-rot);
+  color: var(--wkr-rot-text);
+}
+
+/* Pad (ZT3): die Felder als große Blöcke nebeneinander – die Uhr groß im Block. */
+.wkr-zeiten[data-anordnung='nebeneinander'] .wkr-zeit-feld {
+  min-height: calc(2 * var(--wkr-ziel));
+}
+
+.wkr-zeiten[data-anordnung='nebeneinander'] .wkr-zeit-feld-wert {
+  font-size: calc(2 * var(--wkr-schrift));
+}
+
+.wkr-zeiten-keine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-zeiten-gruende {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  margin: 0;
+  padding: var(--wkr-abstand);
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 8px;
+}
+
+/* --- W5.5 (22.11.2026, TB1–TB5): Maske „Tabelle“ für Geübte, nur Pad/Rechner. Eine Bogenzeile mit echter Tastatur –
+   breite Listen rollen waagerecht im Rahmen (nie abgeschnitten), Farben nur über --wkr-*, Modus „Wie Gerät“ wie überall. */
+.wkr-tabelle-rahmen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.wkr-tabelle-blatt {
+  border-collapse: collapse;
+  width: 100%;
+  color: var(--wkr-text);
+  background: var(--wkr-flaeche);
+}
+
+.wkr-tabelle-blatt th,
+.wkr-tabelle-blatt td {
+  padding: 4px 6px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.wkr-tabelle-nr {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.wkr-tabelle-klasse {
+  display: block;
+  font-size: 0.75em;
+  font-weight: 400;
+  color: var(--wkr-grau);
+}
+
+.wkr-tabelle-unter {
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.wkr-tabelle-zeile--gesendet .wkr-tabelle-zelle,
+.wkr-tabelle-zeile--naechste .wkr-tabelle-nr {
+  color: var(--wkr-grau);
+}
+
+.wkr-tabelle-zeile--aktiv {
+  outline: calc(2 * var(--wkr-rand)) solid var(--wkr-haupt);
+  outline-offset: -2px;
+}
+
+.wkr-tabelle-zeile--korrektur {
+  outline-color: var(--wkr-warn);
+}
+
+.wkr-tabelle-eingabe {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 3.5em;
+  min-height: 48px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: var(--wkr-schrift);
+  text-align: center;
+  color: var(--wkr-text);
+  background: var(--wkr-grund);
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 6px;
+}
+
+.wkr-tabelle-eingabe:focus-visible {
+  outline: calc(2 * var(--wkr-rand)) solid var(--wkr-haupt);
+  outline-offset: 1px;
+}
+
+.wkr-tabelle-zelle[data-fehler] .wkr-tabelle-eingabe {
+  border-color: var(--wkr-rot);
+}
+
+.wkr-tabelle-fehler {
+  display: block;
+  margin-top: 2px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  color: var(--wkr-rot-text);
+  background: var(--wkr-rot);
+}
+
+.wkr-tabelle-stand {
+  white-space: nowrap;
+}
+
+.wkr-tabelle-zeichen {
+  display: inline-block;
+  min-width: 1.2em;
+  font-weight: 700;
+}
+
+.wkr-knopf.wkr-tabelle-korrigieren {
+  margin-inline-start: 6px;
+}
+
+.wkr-tabelle-fehlerzahl {
+  display: inline-block;
+  margin-inline-start: var(--wkr-abstand);
+  padding: 0 6px;
+  border-radius: 4px;
+  color: var(--wkr-rot-text);
+  background: var(--wkr-rot);
 }

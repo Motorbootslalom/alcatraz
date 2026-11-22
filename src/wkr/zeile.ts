@@ -1,4 +1,4 @@
-import type { AppState, WkrZeile } from '../types'
+import type { AppState, KeineZeitGrund, WkrZeile } from '../types'
 import type { Konfig } from '../config/konfig'
 import { betriebVon, lage, liesRef } from '../betrieb/folge'
 import { erfasstKennung, listenFelder, type Feld, type ListenTeil } from '../lib/eingaben'
@@ -6,8 +6,9 @@ import { bojenWert, codeDisqs, disqCodes } from '../lib/scoring'
 import { NICHT_GESTARTET } from '../lib/abmeldung'
 import { parseTime } from '../lib/time'
 import { WKR_ANNAHMEN } from './annahmen'
-import { listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
+import { istTischListe, liesOhneLauf, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste, type OhneLaufRef } from './liste'
 import { hatVorab, vorabStarts } from './schlange'
+import { istKeineZeitGrund } from './keineZeit'
 
 // Eine Zeile vom WKR-Gerät und ihre Prüfung am Bedienrechner – rein, ohne DOM, ohne Store, nichts aus geraete/
 // (Plan §3.1). Das Gerät schickt je Start eine Zeile mit kurzen Schlüsseln; `pruefeZeile` prüft sie wie die
@@ -37,6 +38,12 @@ export interface GeraeteZeile {
    * und nicht im Steg-Ablegen (dort ist es X, F5).
    */
   n?: true
+  /**
+   * „Keine Zeit“ (W5.4, 22.11.2026, ZT4): je Zeitfeld ohne Zeit der Grund (`anlage`, `nichtImZiel`, `anderes`); die Zelle
+   * des Felds bleibt leer. Steht `kz` (auch leer), ersetzt es das Kennzeichen des Starts – die Zeit-Maske schickt es
+   * immer mit; fehlt es, bleibt ein stehendes.
+   */
+  kz?: [feld: string, grund: KeineZeitGrund][]
 }
 
 /**
@@ -64,6 +71,8 @@ function formOk(zeile: unknown): zeile is GeraeteZeile {
   if (z.seite !== undefined && z.seite !== 'A' && z.seite !== 'B') return false
   // „Nicht vorbeigekommen“ nur ohne Zellen (W4.3): ein Wert dabei hieße doch vorbei – widersprüchlich, nicht raten.
   if (z.n !== undefined && (z.n !== true || !Array.isArray(z.c) || z.c.length > 0)) return false
+  // „Keine Zeit“ (W5.4): Paare Feld + bekannter Grund, nie zusammen mit „nicht vorbeigekommen“ (dann gibt es nichts zu messen).
+  if (z.kz !== undefined && (z.n !== undefined || !Array.isArray(z.kz) || !z.kz.every((k) => Array.isArray(k) && k.length === 2 && istText(k[0]) && istKeineZeitGrund(k[1])))) return false
   return Array.isArray(z.c) && z.c.every((c) => Array.isArray(c) && c.length === 3 && c.every(istText))
 }
 
@@ -105,7 +114,8 @@ function hatX(feld: Feld, wert: string): boolean {
  * (`seite-anders`), Klasse hat die Liste, jedes Feld gehört zur Liste (am Steg nur Felder des eigenen Teils plus
  * gemeinsame), jeder Wert unverändert gültig, X nur Steg-Ablegen/Vorsteg. Löst auf: Lauf-Schlüssel (Vorsteg mit
  * „Versuche nacheinander“: alle Versuche), Haken bzw. Teilhaken, `vereinige` für die gemeinsamen Zellen des Stegs
- * (Disq., Bemerkung), `gezeigt` (am Vorsteg auch die nächsten freien).
+ * (Disq., Bemerkung), `gezeigt` (am Vorsteg auch die nächsten freien). Seit W5.3 (22.11.2026, KN2): auf der Liste am
+ * Tisch (ohne Lauf) nur Starts `["o", starterId]`, immer `gezeigt`, nie „nicht vorbeigekommen“.
  */
 export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil: ListenTeil | undefined, geraetId: string, zeile: unknown): WkrZeile | { fehler: ZeilenFehler } {
   if (!formOk(zeile)) return { fehler: 'wert-ungueltig' }
@@ -118,13 +128,23 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
   // kommt jedes Boot vorbei oder startet nicht – dort ist es X. Ein Gerät für den ganzen Steg schickt es nur mit Teil `an`.
   const xHier = WKR_ANNAHMEN.xListen.includes(liste.typeId) && (!teile || eigenerTeil === undefined || eigenerTeil === WKR_ANNAHMEN.xTeil)
   if (zeile.n && xHier) return { fehler: 'nv-nicht-erlaubt' }
+  // Am Tisch (Liste ohne Lauf, W5.3) kommt jeder Starter vorbei – „nicht vorbeigekommen“ gibt es dort nicht.
+  const tisch = istTischListe(liste)
+  if (zeile.n && tisch) return { fehler: 'nv-nicht-erlaubt' }
 
   if (zeile.seite !== undefined && zeile.seite !== liste.racecourse) return { fehler: 'seite-anders' }
-  const ref = liesRef(zeile.s)
-  if (!ref) return { fehler: 'start-unbekannt' }
-  // Nur Starts, die es im Bereich gibt: in der Folge des Betriebs oder schon gezeigt.
-  const l = lage(stand, liste.bereich)
-  if (!l.gezeigtKeys.has(zeile.s) && !l.folge.some((e) => e.key === zeile.s)) return { fehler: 'start-unbekannt' }
+  // Am Tisch ist der Start der Starter (`["o", id]`, KN2) – keine Folge, nichts gezeigt; sonst nur Starts, die es im
+  // Bereich gibt: in der Folge des Betriebs oder schon gezeigt.
+  const ohne = liesOhneLauf(zeile.s)
+  if (tisch !== (ohne !== null)) return { fehler: 'start-unbekannt' }
+  let ref: ReturnType<typeof liesRef> | OhneLaufRef | null
+  if (ohne !== null) ref = { art: 'o', starter: ohne }
+  else {
+    ref = liesRef(zeile.s)
+    if (!ref) return { fehler: 'start-unbekannt' }
+    const l = lage(stand, liste.bereich)
+    if (!l.gezeigtKeys.has(zeile.s) && !l.folge.some((e) => e.key === zeile.s)) return { fehler: 'start-unbekannt' }
+  }
   const start = startAufListe(stand, konfig, liste, ref)
   if (!start) return { fehler: 'start-unbekannt' }
   const klasse = start.starter.klasse
@@ -149,6 +169,19 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
     zellen.push({ feld: kennung, wert, vorher, ...(teilDerZelle === 'gemeinsam' ? { vereinige: true as const } : {}) })
   }
 
+  // „Keine Zeit“ (W5.4, ZT4): nur für Zeitfelder dieser Liste und Klasse (sonst `feld-fremd`), je Feld einmal, und die
+  // Zelle bleibt leer – eine Zeit UND „keine Zeit“ widersprechen sich (`wert-ungueltig`, nicht raten).
+  let keineZeit: Record<string, KeineZeitGrund> | undefined
+  if (zeile.kz) {
+    keineZeit = {}
+    for (const [kennung, grund] of zeile.kz) {
+      const feld = felder.get(kennung)
+      if (!feld || feld.kind !== 'time' || kennung in keineZeit) return { fehler: 'feld-fremd' }
+      if (zeile.c.some(([f, w]) => f === kennung && w !== '')) return { fehler: 'wert-ungueltig' }
+      keineZeit[kennung] = grund
+    }
+  }
+
   return {
     id: `${geraetId}.${zeile.z}`,
     liste: listenKennung(liste),
@@ -159,9 +192,11 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
     zellen,
     ...(eigenerTeil !== undefined ? { teil: eigenerTeil } : {}),
     haken: [eigenerTeil === undefined ? erfasstKennung(liste.typeId) : teilHaken(liste.typeId, eigenerTeil)],
-    gezeigt: istGezeigt(stand, liste, zeile.s, start.starter.id, start.weitere.length > 0, eigenerTeil),
+    // Am Tisch gibt es kein Zeigen: Jeder Starter des Bestands gilt als „da“ (KN3).
+    gezeigt: tisch || istGezeigt(stand, liste, zeile.s, start.starter.id, start.weitere.length > 0, eigenerTeil),
     korrektur: zeile.k === true,
     ...(zeile.n ? { nichtVorbei: true as const } : {}),
+    ...(keineZeit ? { keineZeit } : {}),
   }
 }
 

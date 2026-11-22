@@ -2,15 +2,21 @@
 import { computed, ref, watch } from 'vue'
 import type { Locale } from '../../i18n'
 import type { ErfassungsQuelle } from '../../geraete/erfassen'
-import { liesAnsicht, merkeProbe, probeErledigt, schreibeAnsicht, type Ablage, type GeraetAnsicht, type RaumBezug } from '../../geraete/ablage'
-import { probeMaske } from '../../wkr/maske'
+import { liesAnsicht, maskeGewaehlt, merkeProbe, mitMaskenWahl, probeErledigt, schreibeAnsicht, type Ablage, type GeraetAnsicht, type RaumBezug } from '../../geraete/ablage'
+import { maskenArt, probeMaske } from '../../wkr/maske'
+import { probeBild } from '../../wkr/bild'
+import { parcoursSvg } from '../../lib/parcoursQuelle'
+import { anordnung as ordne, type Spalte } from '../../wkr/anordnung'
+import { erlaubteMasken, maskeAufGeraet, wirksameMaske, type MaskenWahl } from '../../wkr/maskenWahl'
+import { liesListe, teileVon } from '../../wkr/liste'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { ListenAufgabe } from '../../geraete/aufgaben'
 import WkrMaske from './WkrMaske.vue'
+import WkrPruefliste from './WkrPruefliste.vue'
 import WkrProbe from './WkrProbe.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import { stelleWkrText } from './texte'
-import { useMedien, useWirksamerModus } from './systemModus'
+import { useFenster, useWirksamerModus } from './systemModus'
 import { wachHinweisWeg } from './gedaechtnis'
 import '../../styles/wkr-geraet.css'
 
@@ -22,7 +28,8 @@ import '../../styles/wkr-geraet.css'
  *
  * Ansicht aus der Geräteablage (ablage.ts `alcatraz.geraet.ansicht`): seit 21.11.2026 „Wie Gerät“ als Vorgabe (GF1,
  * Nutzer P-18/W3-01: Hell/Dunkel des Systems, live über systemModus.ts; vorher Sonne, G1), Hand, Sprache;
- * seit 21.11.2026 (V1/V2) auch die Bojen-Ansicht je Liste (`bojen`), die Maske und Probe bekommen.
+ * seit 22.11.2026 auch die Bojen-Folge je Liste (`bojenFolge`: Rückweg gedreht/Fahrtfolge/untereinander), die Maske
+ * und Probe bekommen (vorher „Wie der Parcours liegt“, `bojen`, entfernt).
  * Die Sprache der Maske ist die der Liste (F13, G9: zweisprachig → deutsch), umgeschaltet über die Ansicht – nie die
  * der Geräte-Oberfläche. Farben nur über --wkr-* (styles/wkr-geraet.css) je `data-modus` – dem wirksamen Modus
  * (`data-wahl` trägt die Wahl, auch `geraet`).
@@ -32,6 +39,18 @@ import '../../styles/wkr-geraet.css'
  * die Ansicht, G13). Probe (G10): nach dem ersten Erhalt der Sicht einer Liste einmal je Raum und Liste (ablage.ts
  * `probe`; nur mit `raum`, also nie in der Übung von selbst), jederzeit über „Mehr → Probe“; sie ersetzt die Maske,
  * bis sie fertig oder übersprungen ist, und schickt nichts.
+ *
+ * W5.1 (22.11.2026, Plan docs/plan-wkr-w5.md §4, WKR_ANNAHMEN PD1–PD6, MW1–MW3): Die Anordnung kommt aus
+ * wkr/anordnung.ts (Fenstergröße live über useFenster, Geräteart aus der Kopplung `quelle.typ`): `data-anordnung`
+ * handy | padQuer | padHoch, Spalten nebeneinander (`data-teil="spalten"`, je `.wkr-spalte`), was nicht passt als Reiter
+ * der letzten Spalte (Handy: wie bisher unten). Ein Gerät für den ganzen Steg zeigt auf dem Pad Ablegen und Anlegen als
+ * zwei Spalten. Bei einer Spalte eine eigene Seitenspalte (WkrMaske `seite` rechts/unten), sonst kompakt je Spalte.
+ * Racecourse A + B mit demselben nächsten Start (Runde, Attempt, Paar): ein Rundenband über beiden (PD4). Probe von
+ * selbst je Spalte, die ihre noch nicht hatte (je Maske, MW3). Maskenwahl (F14): Vorgabe/`fest` aus der Aufgabe, die
+ * Wahl des WKR gerätelokal je Raum und Liste (ablage.ts `masken`, MW2) – wirksam über wkr/maskenWahl.ts.
+ *
+ * W5.3 (22.11.2026, KN7/KN8): Eine Liste ohne Lauf (Sicht mit `bestand`, Knoten am Tisch) zeigt WkrPruefliste statt
+ * WkrMaske – ohne Schlange, Takt und Probe (wkr/maske.ts probeMaske übergeht die Prüfliste).
  */
 const props = defineProps<{
   quelle: ErfassungsQuelle
@@ -86,35 +105,111 @@ const aktiv = computed(() => {
   return listen.value.find((a) => a.liste === gesucht) ?? (props.nurListe ? null : (listen.value[0] ?? null))
 })
 const sicht = computed(() => (aktiv.value ? (props.quelle.sichten.value[aktiv.value.liste] ?? null) : null))
-/** Die aktive Liste, falls dieses Gerät sich von ihr abgemeldet hat. */
-const abmeldung = computed(() => (aktiv.value ? (abgemeldet.value.find((a) => a.liste === aktiv.value!.liste) ?? null) : null))
-const abmeldungEntwuerfe = computed(() => (abmeldung.value ? props.quelle.entwuerfe.value.filter((e) => e.liste === abmeldung.value!.liste) : []))
-const abmeldungZuletzt = computed(() => (abmeldung.value ? props.quelle.zuletzt.value.filter((z) => z.liste === abmeldung.value!.liste).slice(0, WKR_ANNAHMEN.zuletztLeiste) : []))
 
 const sprache = computed<Locale>(() => ansicht.value.sprache ?? (sicht.value?.sprache === 'en' ? 'en' : 'de'))
-const spracheWahl = computed(() => (ansicht.value.sprache && sicht.value?.andere?.sprache === ansicht.value.sprache ? 'andere' : 'liste'))
 const { w } = stelleWkrText(sprache)
 
 const titelVon = (liste: string) => props.quelle.sichten.value[liste]?.titel || abgemeldet.value.find((a) => a.liste === liste)?.titel || '…'
 
-// --- Probe (G10) ---
+// --- Anordnung (W5.1, PD1–PD3) ---
+const fenster = useFenster()
+/** Die Listen, die dieses Fenster zeigt: alle eigenen bzw. die vorgegebene (`nurListe`). */
+const sichtbar = computed(() => (props.nurListe ? listen.value.filter((a) => a.liste === props.nurListe) : listen.value))
+const anordnung = computed(() =>
+  ordne({
+    breite: fenster.value.breite,
+    hoehe: fenster.value.hoehe,
+    typ: props.quelle.typ ?? null,
+    listen: sichtbar.value.map((a) => a.liste),
+    // Ganzer Steg (ohne Teil) – an der Kennung erkannt, nicht an der Sicht: sonst sprängen die Spalten, wenn sie kommt.
+    teile: sichtbar.value.filter((a) => !a.teil && !!teileVon(liesListe(a.liste)?.typeId ?? '')).map((a) => a.liste),
+  }),
+)
+const pad = computed(() => anordnung.value.art !== 'handy')
+const aufgabeVon = (liste: string) => listen.value.find((a) => a.liste === liste) ?? null
+/** Je Spalte die gezeigte Aufgabe – die letzte mit Reitern zeigt die gewählte (wie bisher der aktive Reiter). */
+interface SpaltenInhalt {
+  spalte: Spalte
+  aufgabe: ListenAufgabe
+  reiter: boolean
+}
+const spalten = computed<SpaltenInhalt[]>(() => {
+  const a = anordnung.value
+  return a.spalten.flatMap((s, i) => {
+    const reiterHier = i === a.spalten.length - 1 && a.reiter.length > 0
+    const liste = reiterHier ? (a.reiter.find((l) => l === reiter.value) ?? a.reiter[0]) : s.liste
+    const aufgabe = aufgabeVon(liste)
+    return aufgabe ? [{ spalte: reiterHier ? { liste } : s, aufgabe, reiter: reiterHier }] : []
+  })
+})
+const reiterListen = computed(() => anordnung.value.reiter)
+const sichtVon = (liste: string) => props.quelle.sichten.value[liste] ?? null
+/** Liste ohne Lauf (am Tisch, W5.3): die Sicht trägt den Bestand – dann die Prüfliste statt der Maske mit Schlange. */
+const istPruefliste = (liste: string) => !!sichtVon(liste)?.bestand
+const spracheWahlVon = (liste: string) => (ansicht.value.sprache && sichtVon(liste)?.andere?.sprache === ansicht.value.sprache ? 'andere' : 'liste')
+const abmeldungVon = (liste: string) => abgemeldet.value.find((a) => a.liste === liste) ?? null
+const seiteVon = computed(() => anordnung.value.seite ?? (pad.value ? ('kompakt' as const) : null))
+
+// --- Maskenwahl (F14, MW1–MW2) ---
+const bojenListe = (liste: string) => Object.values(sichtVon(liste)?.klassen ?? {}).some((k) => !!k?.felder && maskenArt(k.felder) === 'bojen')
+/** Reine Zeit-Liste (W5.4): feste Art Ziffernblock – keine Maskenwahl (W5.5, MW1). */
+const zeitListe = (liste: string) => {
+  const mit = Object.values(sichtVon(liste)?.klassen ?? {}).filter((k) => !!k?.felder)
+  return mit.length > 0 && mit.every((k) => maskenArt(k!.felder!) === 'zeit')
+}
+function maskenVon(a: ListenAufgabe): { erlaubt: MaskenWahl[]; wirksam: MaskenWahl; fest: boolean; aus: MaskenWahl[] } {
+  const l = { bojen: bojenListe(a.liste), pad: pad.value, zeit: zeitListe(a.liste) }
+  const wahl = maskeGewaehlt(ansicht.value, props.raum ?? null, a.liste)
+  const erlaubt = erlaubteMasken(l)
+  // TB1 (W5.5, 22.11.2026): „Tabelle“ auf dem Handy sichtbar, aber ausgegraut – der WKR sieht, dass es sie gibt.
+  return { erlaubt, wirksam: wirksameMaske(l, { vorgabe: a.maske, fest: !!a.fest, wahl }), fest: !!a.fest, aus: erlaubt.filter((m) => !maskeAufGeraet(m, l.pad)) }
+}
+function waehleMaske(liste: string, m: MaskenWahl): void {
+  setzeAnsicht(mitMaskenWahl(ansicht.value, props.raum ?? null, liste, m))
+}
+
+// --- Probe (G10; seit W5.1 je Spalte und je Maske, MW3) ---
 // Bojen-Listen haben seit W4.2 (21.11.2026) ihre eigenen Probe-Schritte (WkrProbe, P11).
-const probeAufbau = computed(() => (sicht.value ? probeMaske(sicht.value, spracheWahl.value) : null))
-/** Liste, deren Probe gerade läuft. */
-const probe = ref<string | null>(null)
+// W5.2 (22.11.2026, MW3): Mit wirksamer Maske „Bild“ übt die Probe am Bild – an der Klasse mit den meisten Zeilen unter
+// denen mit vollständigem Bild (wkr/bild.ts probeBild); hat keine eines (BD2), die Probe der Knöpfe.
+const probeBildVon = (liste: string) => {
+  const s = sichtVon(liste)
+  const a = aufgabeVon(liste)
+  return s && a && maskenVon(a).wirksam === 'bild' ? probeBild(s, parcoursSvg, spracheWahlVon(liste)) : null
+}
+const probeAufbauVon = (liste: string) => {
+  const s = sichtVon(liste)
+  return probeBildVon(liste)?.aufbau ?? (s ? probeMaske(s, spracheWahlVon(liste)) : null)
+}
+const probeTeilVon = (a: ListenAufgabe) => (sichtVon(a.liste)?.teile ? (a.teil ?? 'ab') : undefined)
+/** Listen, deren Probe gerade läuft. */
+const proben = ref<ReadonlySet<string>>(new Set())
 watch(
-  [() => aktiv.value?.liste, () => !!sicht.value, () => !!probeAufbau.value],
-  ([l, mitSicht, mitMaske]) => {
+  () => spalten.value.map((x) => `${x.aufgabe.liste}|${!!sichtVon(x.aufgabe.liste)}|${!!probeAufbauVon(x.aufgabe.liste)}|${maskenVon(x.aufgabe).wirksam}`).join(','),
+  () => {
     const r = props.raum
-    if (!l || !mitSicht || !mitMaske || !r || props.quelle.entzogen.value || abmeldung.value) return
-    if (!probeErledigt(r, l, ablage())) probe.value = l
+    if (!r || props.quelle.entzogen.value) return
+    const neu = new Set(proben.value)
+    for (const { aufgabe } of spalten.value) {
+      const l = aufgabe.liste
+      if (!sichtVon(l) || !probeAufbauVon(l) || abmeldungVon(l)) continue
+      // TB2 (W5.5): Die Tabelle ist für Geübte – keine Probe von selbst.
+      if (WKR_ANNAHMEN.tabelleOhneProbe && maskenVon(aufgabe).wirksam === 'text') continue
+      if (!probeErledigt(r, l, ablage(), maskenVon(aufgabe).wirksam)) neu.add(l)
+    }
+    if (neu.size !== proben.value.size) proben.value = neu
   },
   { immediate: true },
 )
-function probeFertig(): void {
-  const l = probe.value
-  probe.value = null
-  if (l && props.raum) merkeProbe(props.raum, l, ablage())
+function starteProbe(liste: string): void {
+  if (probeAufbauVon(liste)) proben.value = new Set([...proben.value, liste])
+}
+function probeFertig(liste: string): void {
+  const neu = new Set(proben.value)
+  neu.delete(liste)
+  proben.value = neu
+  const a = aufgabeVon(liste)
+  if (props.raum) merkeProbe(props.raum, liste, ablage(), a ? maskenVon(a).wirksam : 'knoepfe')
 }
 // --- Bildschirm kann ausgehen (N7): „Ausblenden“ gilt bis zum Neuladen, auch über den Neuaufbau (Reiterwechsel). ---
 const wachWeg = ref(wachHinweisWeg.weg)
@@ -124,25 +219,31 @@ function blendeWachAus(): void {
 /** Ohne https (http im WLAN) hat der Browser gar keine Sperre – dann sagt der Satz auch warum. */
 const ohneHttps = typeof window !== 'undefined' && window.isSecureContext === false
 
-const probeTeil = computed(() => (sicht.value?.teile ? (aktiv.value?.teil ?? 'ab') : undefined))
-
-// --- Pad quer: zwei Listen nebeneinander (Nutzer 21.11.2026, W3-03, WKR_ANNAHMEN GF8) ---
-// Ab 1000 px Breite im Querformat stehen GENAU zwei Listen als zwei Spalten der Handy-Maske nebeneinander (T10 erweitert);
-// mehr als zwei, eine abgemeldete oder eine vorgegebene Liste (`nurListe`): Reiter wie bisher. Die Probe kommt von
-// selbst nur für die erste Liste (wie bisher für die aktive); die zweite über „Mehr → Probe“ ihrer Spalte.
-const quer = useMedien('(min-width: 1000px) and (orientation: landscape)')
-const nebeneinander = computed(() => !props.nurListe && quer.value && listen.value.length === 2 && abgemeldet.value.length === 0 && !props.quelle.entzogen.value)
-const sichtVon = (liste: string) => props.quelle.sichten.value[liste] ?? null
-const spracheWahlVon = (liste: string) => (ansicht.value.sprache && sichtVon(liste)?.andere?.sprache === ansicht.value.sprache ? 'andere' : 'liste')
-const probeAufbauVon = (liste: string) => {
-  const s = sichtVon(liste)
-  return s ? probeMaske(s, spracheWahlVon(liste)) : null
-}
-const probeTeilVon = (a: ListenAufgabe) => (sichtVon(a.liste)?.teile ? (a.teil ?? 'ab') : undefined)
+// --- PD4: ein Rundenband über Racecourse A und B, wenn beide denselben Start als nächsten haben ---
+const rundenBand = computed<string | null>(() => {
+  if (!WKR_ANNAHMEN.rundenBandBeiGleichemPaar || spalten.value.length < 2) return null
+  const kopf = (liste: string) => props.quelle.schlange.value[liste]?.[0] ?? null
+  const parallel = spalten.value.filter((x) => !!liesListe(x.aufgabe.liste)?.racecourse)
+  if (parallel.length !== 2) return null
+  const [a, b] = parallel.map((x) => ({ l: liesListe(x.aufgabe.liste)!, k: kopf(x.aufgabe.liste) }))
+  if (a.l.bereich !== b.l.bereich || a.l.typeId !== b.l.typeId || a.l.racecourse === b.l.racecourse) return null
+  return a.k && b.k && a.k.key === b.k.key ? a.k.titel : null
+})
+const imBand = (liste: string) => !!rundenBand.value && !!liesListe(liste)?.racecourse
 </script>
 
 <template>
-  <div class="wkr-geraet" data-teil="wkr-geraet" :data-modus="modus" :data-wahl="ansicht.modus" :data-hand="ansicht.hand" :data-uebung="quelle.uebung || undefined" :data-nebeneinander="nebeneinander || undefined" :lang="sprache">
+  <div
+    class="wkr-geraet"
+    data-teil="wkr-geraet"
+    :data-modus="modus"
+    :data-wahl="ansicht.modus"
+    :data-hand="ansicht.hand"
+    :data-uebung="quelle.uebung || undefined"
+    :data-anordnung="anordnung.art"
+    :data-spalten="spalten.length"
+    :lang="sprache"
+  >
     <p v-if="bildschirmKannAus && !wachWeg" class="wkr-band wkr-band--warn" role="status" data-teil="wach-hinweis">
       <span>
         <b>{{ w('wkr.geraet.wach.titel') }}</b>
@@ -157,89 +258,103 @@ const probeTeilVon = (a: ListenAufgabe) => (sichtVon(a.liste)?.teile ? (a.teil ?
     </details>
     <WkrRuhe v-if="quelle.entzogen.value" art="entzogen" :entwuerfe="quelle.entwuerfe.value" />
     <WkrRuhe v-else-if="!aktiv" art="keine-liste" />
-    <div v-else-if="nebeneinander" class="wkr-nebeneinander" data-teil="nebeneinander">
-      <div v-for="a in listen" :key="a.liste" class="wkr-spalte" :data-liste="a.liste">
-        <WkrProbe
-          v-if="probe === a.liste && probeAufbauVon(a.liste)"
-          :key="`probe|${a.liste}`"
-          :aufbau="probeAufbauVon(a.liste)!"
-          :teil="probeTeilVon(a)"
-          :hand="ansicht.hand"
-          :uebung="quelle.uebung"
-          :bojen-ansicht="ansicht.bojen?.[a.liste]"
-          @fertig="probeFertig"
-        />
-        <WkrMaske
-          v-else
-          :key="a.liste"
-          :quelle="quelle"
-          :aufgabe="a"
-          :sprache-wahl="spracheWahlVon(a.liste)"
-          :hand="ansicht.hand"
-          :modus="ansicht.modus"
-          :name="ansicht.name ?? ''"
-          :bojen-ansichten="ansicht.bojen"
-          :meldung="meldungFuer?.(a.liste) ?? null"
-          @ansicht="setzeAnsicht"
-          @name="merkeName"
-          @probe="probe = probeAufbauVon(a.liste) ? a.liste : null"
-          @uebung-ende="emit('uebungEnde')"
-        />
+    <template v-else>
+      <p v-if="rundenBand" class="wkr-band wkr-runden-band" role="status" data-teil="runden-band">
+        <b>{{ rundenBand }}</b>
+      </p>
+      <div class="wkr-spalten" data-teil="spalten" :style="{ '--wkr-spalten': String(spalten.length) }">
+        <div v-for="x in spalten" :key="`${x.reiter ? 'reiter' : x.spalte.liste}|${x.spalte.teil ?? ''}`" class="wkr-spalte" :data-liste="x.aufgabe.liste" :data-steg-teil="x.spalte.teil">
+          <!-- Pad: Reiter der Listen, die sich diese Spalte teilen, oben in der Spalte (Handy: unten wie bisher). -->
+          <nav v-if="x.reiter && pad" class="wkr-listenreiter" role="tablist" :aria-label="w('wkr.geraet.listen')" data-teil="listen-reiter">
+            <button
+              v-for="l in reiterListen"
+              :key="l"
+              type="button"
+              role="tab"
+              class="wkr-knopf"
+              data-ziel="klein"
+              data-action="liste-reiter"
+              :data-liste="l"
+              :aria-selected="l === x.aufgabe.liste"
+              @click="reiter = l"
+            >
+              {{ titelVon(l) }}
+            </button>
+          </nav>
+          <WkrRuhe
+            v-if="abmeldungVon(x.aufgabe.liste)"
+            :key="`abmeldung|${x.aufgabe.liste}`"
+            art="abmeldung"
+            :liste="abmeldungVon(x.aufgabe.liste)!.titel || titelVon(x.aufgabe.liste)"
+            :bereich="abmeldungVon(x.aufgabe.liste)!.bereich"
+            :entwuerfe="quelle.entwuerfe.value.filter((e) => e.liste === x.aufgabe.liste)"
+            :zuletzt="quelle.zuletzt.value.filter((z) => z.liste === x.aufgabe.liste).slice(0, WKR_ANNAHMEN.zuletztLeiste)"
+          />
+          <WkrProbe
+            v-else-if="proben.has(x.aufgabe.liste) && probeAufbauVon(x.aufgabe.liste)"
+            :key="`probe|${x.aufgabe.liste}`"
+            :aufbau="probeAufbauVon(x.aufgabe.liste)!"
+            :bild="probeBildVon(x.aufgabe.liste)?.zuordnung ?? null"
+            :pad="pad"
+            :teil="probeTeilVon(x.aufgabe)"
+            :hand="ansicht.hand"
+            :uebung="quelle.uebung"
+            :bojen-folge="ansicht.bojenFolge?.[x.aufgabe.liste]"
+            @fertig="probeFertig(x.aufgabe.liste)"
+          />
+          <WkrPruefliste
+            v-else-if="istPruefliste(x.aufgabe.liste)"
+            :key="`pruef|${x.aufgabe.liste}`"
+            :quelle="quelle"
+            :aufgabe="x.aufgabe"
+            :sprache-wahl="spracheWahlVon(x.aufgabe.liste)"
+            :hand="ansicht.hand"
+            :pad="pad"
+            :name="ansicht.name ?? ''"
+            @name="merkeName"
+          />
+          <WkrMaske
+            v-else
+            :key="`${x.aufgabe.liste}|${x.spalte.teil ?? ''}`"
+            :quelle="quelle"
+            :aufgabe="x.aufgabe"
+            :sprache-wahl="spracheWahlVon(x.aufgabe.liste)"
+            :hand="ansicht.hand"
+            :modus="ansicht.modus"
+            :name="ansicht.name ?? ''"
+            :bojen-folgen="ansicht.bojenFolge"
+            :meldung="meldungFuer?.(x.aufgabe.liste) ?? null"
+            :seite="seiteVon"
+            :steg-teil="x.spalte.teil"
+            :ohne-lauf="imBand(x.aufgabe.liste)"
+            :masken="maskenVon(x.aufgabe)"
+            @ansicht="setzeAnsicht"
+            @name="merkeName"
+            @probe="starteProbe(x.aufgabe.liste)"
+            @maske="(m) => waehleMaske(x.aufgabe.liste, m)"
+            @uebung-ende="emit('uebungEnde')"
+          />
+        </div>
       </div>
-    </div>
-    <WkrRuhe
-      v-else-if="abmeldung"
-      :key="`abmeldung|${abmeldung.liste}`"
-      art="abmeldung"
-      :liste="abmeldung.titel || titelVon(abmeldung.liste)"
-      :bereich="abmeldung.bereich"
-      :entwuerfe="abmeldungEntwuerfe"
-      :zuletzt="abmeldungZuletzt"
-    />
-    <WkrProbe
-      v-else-if="probe === aktiv.liste && probeAufbau"
-      :key="`probe|${aktiv.liste}`"
-      :aufbau="probeAufbau"
-      :teil="probeTeil"
-      :hand="ansicht.hand"
-      :uebung="quelle.uebung"
-      :bojen-ansicht="ansicht.bojen?.[aktiv.liste]"
-      @fertig="probeFertig"
-    />
-    <WkrMaske
-      v-else
-      :key="aktiv.liste"
-      :quelle="quelle"
-      :aufgabe="aktiv"
-      :sprache-wahl="spracheWahl"
-      :hand="ansicht.hand"
-      :modus="ansicht.modus"
-      :name="ansicht.name ?? ''"
-      :bojen-ansichten="ansicht.bojen"
-      :meldung="meldungFuer?.(aktiv.liste) ?? null"
-      @ansicht="setzeAnsicht"
-      @name="merkeName"
-      @probe="probe = probeAufbau ? aktiv.liste : null"
-      @uebung-ende="emit('uebungEnde')"
-    />
+    </template>
     <!-- Nutzer 21.11.2026 (W3-15, GF4): „Übung beenden“ unter den Knöpfen (erreicht beim Hochziehen) statt Neuladen. -->
     <div v-if="quelle.uebung" class="wkr-uebung-ende" data-teil="uebung-ende-unten">
       <button type="button" class="wkr-knopf wkr-knopf--breit" data-ziel="klein" data-action="uebung-beenden" @click="emit('uebungEnde')">{{ w('wkr.geraet.uebung.beenden') }}</button>
     </div>
-    <nav v-if="!nurListe && !quelle.entzogen.value && listen.length > 1 && !nebeneinander" class="wkr-listenreiter" role="tablist" :aria-label="w('wkr.geraet.listen')" data-teil="listen-reiter">
+    <nav v-if="!pad && !quelle.entzogen.value && reiterListen.length > 1" class="wkr-listenreiter" role="tablist" :aria-label="w('wkr.geraet.listen')" data-teil="listen-reiter">
       <button
-        v-for="a in listen"
-        :key="a.liste"
+        v-for="l in reiterListen"
+        :key="l"
         type="button"
         role="tab"
         class="wkr-knopf"
         data-ziel="klein"
         data-action="liste-reiter"
-        :data-liste="a.liste"
-        :aria-selected="a.liste === aktiv?.liste"
-        @click="reiter = a.liste"
+        :data-liste="l"
+        :aria-selected="l === aktiv?.liste"
+        @click="reiter = l"
       >
-        {{ titelVon(a.liste) }}
+        {{ titelVon(l) }}
       </button>
     </nav>
   </div>

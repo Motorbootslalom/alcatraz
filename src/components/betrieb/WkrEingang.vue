@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { OeffentlicheSicht, WkrRueckfrage, WkrVorschlag } from '../../types'
+import type { KeineZeitGrund, OeffentlicheSicht, WkrRueckfrage, WkrVorschlag } from '../../types'
 import { useStore } from '../../state/store'
 import { useKonfig } from '../../lib/konfig'
 import { listenFelder, werteVon, type Feld } from '../../lib/eingaben'
@@ -63,9 +63,23 @@ const istX = (f: Feld | undefined, wert: string) => f?.kind === 'disq' && wert.s
 const GRUND = { zelle: 'betrieb.wkr.grund.zelle', start: 'betrieb.wkr.grund.start', entfernt: 'betrieb.wkr.grund.entfernt' } as const
 const VORSCHLAG_GRUND = { abgeschlossen: 'betrieb.wkr.vorschlag.abgeschlossen', papier: 'betrieb.wkr.vorschlag.papier' } as const
 
+/**
+ * „Keine Zeit“ einer Zeile als Satz (W5.4, 22.11.2026, ZT4): „Zeit 2: keine Zeit (Zeitanlage ausgefallen)“ – leer ohne.
+ * Sonst sähe eine Zeile ohne Zeit aus, als hätte das Gerät die Zeit vergessen.
+ */
+function kzText(liste: string, starter: string, kz: Readonly<Record<string, KeineZeitGrund>> | undefined): string {
+  if (!kz) return ''
+  const felder = felderVon(liste, starter)
+  return Object.entries(kz)
+    .map(([feld, grund]) => t('betrieb.wkr.eingang.keineZeit', { feld: felder.find((x) => x.kennung === feld)?.label ?? feld, grund: t(`wkr.geraet.keineZeit.grund.${grund}`) }))
+    .join(' · ')
+}
+
 interface Gruppe {
   key: string
   kopf: string
+  /** „Keine Zeit“ der Zeile (W5.4) als Satz, '' ohne. */
+  kz: string
   /** „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): sonst sähe die Zeile wie ein bloßer Haken aus. */
   nv: boolean
   /** „So lassen“ vom Gerät (Nutzer 21.11.2026, W3-35, GF5): Zeit des ersten Vermerks der Zeile, sonst null. */
@@ -78,7 +92,7 @@ const gruppen = computed<Gruppe[]>(() => {
   for (const rf of state.value.wkr.rueckfragen) {
     const key = `${rf.zeile}|${rf.lauf}|${rf.starter}`
     let g = out.get(key)
-    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), nv: !!rf.nichtVorbei, soLassen: null, zellen: [] }))
+    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), kz: kzText(rf.liste, rf.starter, rf.keineZeit), nv: !!rf.nichtVorbei, soLassen: null, zellen: [] }))
     if (rf.soLassen !== undefined && (g.soLassen === null || rf.soLassen < g.soLassen)) g.soLassen = rf.soLassen
     const f = felderVon(rf.liste, rf.starter).find((x) => x.kennung === rf.feld)
     g.zellen.push({ rf, label: f?.label ?? rf.feld, x: istX(f, rf.wert) })
@@ -92,6 +106,7 @@ const vorschlaege = computed(() =>
     return {
       v,
       kopf: kopf(v, geraetName(v.id)),
+      kz: kzText(v.liste, v.starter, v.keineZeit),
       zellen: v.zellen.map((c) => {
         const f = felder.find((x) => x.kennung === c.feld)
         return { feld: c.feld, label: f?.label ?? c.feld, wert: c.wert, x: istX(f, c.wert) }
@@ -133,6 +148,7 @@ function alle(g: Gruppe, wahl: 'geraet' | 'behalten'): void {
           <div class="wkr-eingang-kopf">
             <strong>{{ g.kopf }}</strong>
             <span v-if="g.nv" class="wkr-nv" data-teil="wkr-nv">⊘ {{ t('betrieb.wkr.eingang.nichtVorbei') }}</span>
+            <span v-if="g.kz" class="wkr-nv" data-teil="wkr-keine-zeit">{{ g.kz }}</span>
             <!-- W3-35 (21.11.2026): Der WKR hat „So lassen“ gewählt – Feedback für den Bediener; entscheiden muss er weiter. -->
             <span v-if="g.soLassen !== null" class="wkr-so-lassen" data-teil="wkr-so-lassen">{{ t('betrieb.wkr.eingang.soLassen', { zeit: uhrzeitText(g.soLassen) }) }}</span>
             <template v-if="g.zellen.length > 1">
@@ -160,6 +176,7 @@ function alle(g: Gruppe, wahl: 'geraet' | 'behalten'): void {
           <div class="wkr-eingang-kopf">
             <strong>{{ e.kopf }}</strong>
             <span v-if="e.v.nichtVorbei" class="wkr-nv" data-teil="wkr-nv">⊘ {{ t('betrieb.wkr.eingang.nichtVorbei') }}</span>
+            <span v-if="e.kz" class="wkr-nv" data-teil="wkr-keine-zeit">{{ e.kz }}</span>
           </div>
           <p class="note">{{ t(VORSCHLAG_GRUND[e.v.grund]) }}</p>
           <ul>

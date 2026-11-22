@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { PunktId } from '../../types'
+import type { WkrPunkt } from '../../types'
 import type { MessageKey } from '../../i18n'
 import type { ErfassungsQuelle, PruefZeile } from '../../geraete/erfassen'
 import type { ListenTeil } from '../../wkr/liste'
@@ -30,7 +30,7 @@ const props = defineProps<{
   quelle: ErfassungsQuelle
   liste: string
   listenTitel: string
-  punkt: PunktId
+  punkt: WkrPunkt
   punktTitel: string
   /** Teil der Aufgabe (Steg nur Ablegen/Anlegen); ohne = die ganze Liste. */
   teil?: ListenTeil
