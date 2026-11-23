@@ -6,6 +6,7 @@ import { sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
 import { BETRIEB_STARTER, betriebStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState, WkrZeile } from '../types'
 import { einteilungsName, einteilungsParcours, LISTEN_SICHT_FASSUNG, maskenJeKlasse, sichtListe, type ListenSicht, type ListenSichtExtra } from './sicht'
+import { WKR_ANNAHMEN } from './annahmen'
 import { listenKennung, type Liste } from './liste'
 import { laufLage } from './ampel'
 import { sichtFreigabe } from './freigabe'
@@ -262,10 +263,11 @@ describe('Sicht der Liste – Sprache (F13)', () => {
 describe('Sicht der Liste – Bojen (W4.1, P7, P15)', () => {
   const bojeSchluessel = new Set(['halt', 'weg', 'folge', 'titel', 'unter', 'spalte', 'zaehler', 'durchfahrt'])
 
-  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 9 (seit den Listen ohne Lauf, W5.3)', () => {
+  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 10 (seit mehreren Disq. je Bojenzelle, R7-14/BZ8 22.11.2026)', () => {
     const { s } = bereit('gate135')
     const sicht = sichtListe(s, DM, L('gate135'), EXTRA)
-    expect(LISTEN_SICHT_FASSUNG).toBe(9)
+    expect(LISTEN_SICHT_FASSUNG).toBe(10)
+    expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.bojenZelleFassung)
     // `bild` (W4-13, GF9): nur die Kennung der Zeichnung, wie auf dem Bogen.
     const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus', 'boje', 'bild', 'datei', 'dim', 'drehung', ...bojeSchluessel])
     for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)

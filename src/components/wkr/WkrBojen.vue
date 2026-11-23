@@ -2,9 +2,10 @@
 import { computed } from 'vue'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { Weg } from '../../wkr/bojen'
-import { BOJEN_FOLGE_VORGABE, bojenAbschnitte, eintraegeAuf, mitUmschalter, wegVon, type BojenFolge, type Entwurf, type MaskenAbschnitt, type MaskenAufbau, type MaskenBoje, type MaskenHalt, type MaskenTeil } from '../../wkr/maske'
+import { BOJEN_FOLGE_VORGABE, bojenAbschnitte, bojenDisqVon, eintraegeAuf, mitUmschalter, wegVon, type BojenFolge, type Entwurf, type MaskenAbschnitt, type MaskenAufbau, type MaskenBoje, type MaskenHalt, type MaskenTeil } from '../../wkr/maske'
 import WkrKnoepfe from './WkrKnoepfe.vue'
 import WkrWegUmschalter from './WkrWegUmschalter.vue'
+import { useLangdruck } from './langdruck'
 import { useWkrText } from './texte'
 
 /**
@@ -29,7 +30,11 @@ import { useWkrText } from './texte'
  * Disq. an der Boje (Nutzer 21.11.2026, U1; umgebaut nach W4-12 am 21.11.2026, WKR_ANNAHMEN BZ1/BZ4): „Disq. an Boje …“
  * ist ein Einstieg in DIESELBE Wahl wie DISQ im Fuß (`disq` → WkrMaske/WkrProbe öffnen WkrDisqOrt: erst die Boje, dann
  * der Buchstabe). Eine Boje mit Buchstaben zeigt Punkte UND „Disq. G“ (zwei Zeilen, nichts abgeschnitten bei 360 px) und
- * nimmt weiter Berührungen an – die Zelle trägt beides („5G“).
+ * nimmt weiter Berührungen an – die Zelle trägt beides („5, G“, mehrere Buchstaben seit R7-14 22.11.2026).
+ *
+ * Langes Drücken (R7-21, 22.11.2026, WKR_ANNAHMEN U3/LD1–LD4, noch zu bestätigen): Ein Druck ab langdruckMs auf eine
+ * Boje mit Buchstaben meldet `disqBoje` – WkrMaske/WkrProbe öffnen WkrDisqOrt direkt bei DIESER Boje (Schritt 2). Der
+ * Tipp zählt dafür beim Loslassen (components/wkr/langdruck.ts), ein ausgelöster Langdruck zählt nie als Tipp.
  */
 const props = withDefaults(
   defineProps<{
@@ -39,10 +44,12 @@ const props = withDefaults(
     weg: Weg
     /** Reihenfolge dieser Liste (Vorgabe: Rückweg gedreht). */
     folge?: BojenFolge
+    /** Übertragen/Pause: kein Langdruck (LD4); Tipps sperrt WkrMaske selbst. */
+    gesperrt?: boolean
   }>(),
   { folge: BOJEN_FOLGE_VORGABE },
 )
-const emit = defineEmits<{ boje: [boje: MaskenBoje]; tippe: [feld: string, code: string]; weg: [weg: Weg]; disq: [] }>()
+const emit = defineEmits<{ boje: [boje: MaskenBoje]; tippe: [feld: string, code: string]; weg: [weg: Weg]; disq: []; disqBoje: [boje: MaskenBoje] }>()
 const { w } = useWkrText()
 
 /** Unter „Alles untereinander“ ein Reiter ohne Umschalter (22.11.2026). */
@@ -68,7 +75,8 @@ const eintraege = computed<Eintrag[]>(() => {
 })
 
 const anzahl = (b: MaskenBoje) => props.entwurf.bojen[b.feld] ?? 0
-const disqVon = (b: MaskenBoje) => props.entwurf.bojenDisq[b.feld] ?? null
+/** Die Buchstaben an der Boje als „J, D“ (Katalogfolge, BZ6, 22.11.2026), null ohne. */
+const disqVon = (b: MaskenBoje) => bojenDisqVon(props.entwurf, b).join(', ') || null
 /**
  * Was der Knopf unter der Beschriftung sagt – Stand als Zeichen und Zahl, nie nur Farbe. Am Höchstwert „höchstens 9×“
  * als eigene Zeile (WKR_ANNAHMEN.zaehlerStandZweiZeilen, Prüfbefund 21.11.2026): „9× = 45 · höchstens 9×“ passte bei
@@ -91,6 +99,14 @@ function platz(b: MaskenBoje): string {
 
 // --- Disq. an der Boje (U1, BZ4): nur der Einstieg, die Wahl macht WkrDisqOrt ---
 const mitBojenDisq = computed(() => props.aufbau.abschnitte.some((a) => a.art === 'halt' && a.halt.bojen.some((b) => b.disq.length > 0)))
+
+// --- Kurz = Berührung, lang = Disq. an DIESER Boje (LD1–LD4) ---
+const druck = useLangdruck<MaskenBoje>({
+  kurz: (b) => emit('boje', b),
+  lang: (b) => emit('disqBoje', b),
+  langMoeglich: (b) => b.disq.length > 0,
+  gesperrt: () => !!props.gesperrt,
+})
 </script>
 
 <template>
@@ -129,14 +145,15 @@ const mitBojenDisq = computed(() => props.aufbau.abschnitte.some((a) => a.art ==
             :data-anzahl="anzahl(b)"
             :data-disq="disqVon(b) ?? undefined"
             :aria-pressed="b.zaehler ? undefined : anzahl(b) > 0 || !!disqVon(b)"
+            :data-langdruck="druck.fuellt.value?.feld === b.feld ? 'fuellt' : undefined"
             :style="{ gridColumn: platz(b) }"
-            @click="emit('boje', b)"
+            v-on="druck.an(b)"
           >
             <span class="wkr-bojen-unter">{{ b.unter || w('wkr.geraet.bojen.beruehrt') }}</span>
             <span class="wkr-bojen-stand" data-teil="boje-stand">
               <span v-if="stand(b).zahl" class="wkr-bojen-zahl">{{ stand(b).zahl }}</span>
               <span v-if="stand(b).max" class="wkr-bojen-max" data-teil="boje-max">{{ stand(b).max }}</span>
-              <span v-if="stand(b).disq" class="wkr-bojen-zahl" data-teil="boje-disq-stand">{{ stand(b).disq }}</span>
+              <span v-if="stand(b).disq" class="wkr-bojen-zahl wkr-bojen-disq-stand" data-teil="boje-disq-stand">{{ stand(b).disq }}</span>
             </span>
           </button>
         </div>

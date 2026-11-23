@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { configFor } from '../../config/konfig'
@@ -15,8 +15,8 @@ import WkrMitte from './WkrMitte.vue'
 /**
  * Maske „Bild“ (W5.2, Plan docs/plan-wkr-w5.md §5.2, 22.11.2026): Im Test-DOM gibt es keine Lage der Bojen – WkrBild
  * zeigt dieselben Treffer als Knopfliste (BD6). Geprüft wird die Zuordnung über `data-feld`, nicht Koordinaten:
- * Umschalter Hin/Rück/Rück 2 (BD5), Sprung auf den Rückweg nach Tor 5 (BD4), Stand „✔ 5“, „2×“, „5 G“ (BZ1) und Disq.
- * über „Disq. an Boje …“ + Tipp (BD7).
+ * Umschalter Hin/Rück/Rück 2 (BD5), nur von Hand (BD4 umgebaut 22.11.2026, R8-20), Stand „✔ 5“, „2×“, „5 G“ (BZ1) und
+ * Disq. über „Disq. an Boje …“ + Tipp (BD7) bzw. langes Drücken (R8-23, LD1–LD4).
  */
 const DM = configFor({ regelwerk: 'dm-2026' })
 const KLASSEN: ClassId[] = ['1', '2', '3', '4', '5', '6', '7', 'E']
@@ -88,24 +88,30 @@ describe('WkrBild (W5.2)', () => {
     expect(w.emitted('weg')!.at(-1)).toEqual(['rueck'])
   })
 
-  it('BD4: erster Tipp an Tor 5 auf dem Hinweg springt auf den Rückweg; Zähler „n×“', async () => {
+  it('BD4 umgebaut (R8-20, 22.11.2026): Tipp an Tor 5 lässt „Hinweg“ stehen, der zweite zählt auf dem Hinweg; Zähler „n×“', async () => {
     const { w, entwurf } = baue('gate135', '7')
     await treffer(w, 'Tor5_unten').trigger('click')
     await nextTick()
     expect(entwurf().bojen['t5|hin seiteA']).toBe(1)
-    expect(w.find('[data-teil="bild"]').attributes('data-weg')).toBe('rueck')
-    expect(treffer(w, 'Tor5_unten').attributes('data-feld')).toBe('t5|rueck seiteA')
-    await treffer(w, 'Tor5_unten').trigger('click')
+    expect(w.find('[data-teil="bild"]').attributes('data-weg')).toBe('hin')
+    expect(w.emitted('weg')).toBeUndefined()
+    expect(treffer(w, 'Tor5_unten').attributes('data-feld')).toBe('t5|hin seiteA')
     await treffer(w, 'Tor5_unten').trigger('click')
     await nextTick()
-    expect(entwurf().bojen['t5|rueck seiteA']).toBe(2)
+    expect(entwurf().bojen['t5|hin seiteA']).toBe(2)
+    expect(entwurf().bojen['t5|rueck seiteA']).toBeUndefined()
     expect(treffer(w, 'Tor5_unten').find('[data-teil="bild-stand"]').text()).toBe('2×')
-    // Zahl am Reiter: Hin 1, Rück 2.
-    expect(w.find('[data-action="bild-weg"][data-weg="hin"]').attributes('data-anzahl')).toBe('1')
-    expect(w.find('[data-action="bild-weg"][data-weg="rueck"]').attributes('data-anzahl')).toBe('2')
+    // Von Hand auf den Rückweg: dort zählt Tor 5 getrennt.
+    await w.find('[data-action="bild-weg"][data-weg="rueck"]').trigger('click')
+    await treffer(w, 'Tor5_unten').trigger('click')
+    await nextTick()
+    expect(entwurf().bojen['t5|rueck seiteA']).toBe(1)
+    expect(w.find('[data-action="bild-weg"][data-weg="hin"]').attributes('data-anzahl')).toBe('2')
+    expect(w.find('[data-action="bild-weg"][data-weg="rueck"]').attributes('data-anzahl')).toBe('1')
+    expect(WKR_ANNAHMEN.bildUmschalterNurVonHand).toBe(true)
   })
 
-  it('BD7: „Disq. an Boje …“, dann Tipp auf die Boje, dann der Buchstabe (zweimal) → „5 G“', async () => {
+  it('BD7: „Disq. an Boje …“, dann Tipp auf die Boje, dann der Buchstabe (zweimal) → „5, G“; Mehrfachwahl bis „Fertig“ (BZ7, 22.11.2026)', async () => {
     const { w, entwurf } = baue('gate135', '3')
     await treffer(w, 'Tor3_innen').trigger('click')
     await w.find('[data-action="bild-disq-modus"]').trigger('click')
@@ -117,18 +123,126 @@ describe('WkrBild (W5.2)', () => {
     await w.find(`[data-action="disq-code"][data-code="${code}"]`).trigger('click')
     await w.find(`[data-action="disq-code"][data-code="${code}"]`).trigger('click')
     await nextTick()
-    expect(entwurf().bojenDisq['t3a|hin seiteB']).toBe(code)
-    expect(treffer(w, 'Tor3_innen').find('[data-teil="bild-stand"]').text()).toBe(`5 ${code}`)
-    expect(WKR_ANNAHMEN.bildDisqUeberKnopf).toBe(true)
+    expect(entwurf().bojenDisq['t3a|hin seiteB']).toEqual([code])
+    // Die Wahl bleibt offen (Mehrfachwahl): ein zweiter Buchstabe kommt dazu, „Fertig“ schließt.
+    const codes = w.findAll('[data-action="disq-code"]').map((x) => x.attributes('data-code')!)
+    const zweiter = codes.find((c) => c !== code)!
+    await w.find(`[data-action="disq-code"][data-code="${zweiter}"]`).trigger('click')
+    await w.find(`[data-action="disq-code"][data-code="${zweiter}"]`).trigger('click')
+    await nextTick()
+    const katalog = codes.filter((c) => c === code || c === zweiter).join(', ')
+    expect(w.find('[data-action="disq-ort-fertig"]').text()).toContain(katalog)
+    await w.find('[data-action="disq-ort-fertig"]').trigger('click')
+    expect(w.find('[data-action="disq-code"]').exists()).toBe(false)
+    expect(treffer(w, 'Tor3_innen').find('[data-teil="bild-stand"]').text()).toBe(`5, ${katalog}`)
+    expect(treffer(w, 'Tor3_innen').attributes('data-disq')).toBe(katalog)
+    expect(WKR_ANNAHMEN.bildDisqKnopfUndLangdruck).toBe(true)
   })
 
-  it('Parallelslalom: Schema des Racecourse, B gespiegelt', () => {
-    const UIM = configFor({ regelwerk: 'uim-2026' })
+  it('Langdruck auf einen Treffer (R8-23, LD1/LD2): Buchstaben DIESER Boje, kein Tipp; kurz zählt beim Loslassen', async () => {
+    vi.useFakeTimers()
+    try {
+      const { w, entwurf } = baue('gate135', '3')
+      const druck = (typ: string) => treffer(w, 'Tor3_innen').trigger(typ, { pointerId: 1, button: 0, clientX: 0, clientY: 0 })
+      // Kurz: Berührung beim Loslassen, der nachlaufende click zählt nicht noch einmal.
+      await druck('pointerdown')
+      await druck('pointerup')
+      await treffer(w, 'Tor3_innen').trigger('click')
+      await nextTick()
+      expect(entwurf().bojen['t3a|hin seiteB']).toBe(1)
+      // Lang: die Buchstaben öffnen sich, die Berührungen bleiben (kein Tipp, LD2).
+      vi.advanceTimersByTime(2000)
+      await druck('pointerdown')
+      vi.advanceTimersByTime(WKR_ANNAHMEN.langdruckMs)
+      await nextTick()
+      expect(w.find('[data-action="disq-code"]').exists()).toBe(true)
+      expect(w.find('[data-teil="disq-ort-hint"]').exists()).toBe(true)
+      expect(entwurf().bojen['t3a|hin seiteB']).toBe(1)
+      const code = w.find('[data-action="disq-code"]').attributes('data-code')!
+      await w.find(`[data-action="disq-code"][data-code="${code}"]`).trigger('click')
+      await w.find(`[data-action="disq-code"][data-code="${code}"]`).trigger('click')
+      await w.find('[data-action="disq-ort-fertig"]').trigger('click')
+      expect(entwurf().bojenDisq['t3a|hin seiteB']).toEqual([code])
+      expect(entwurf().bojen['t3a|hin seiteB']).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('Langdruck zweimal (Prüfbefund 22.11.2026): der Treffer verschwindet unter dem Finger, der zweite Langdruck öffnet trotzdem, ein Tipp mit pointerId 1 zählt einmal', async () => {
+    vi.useFakeTimers()
+    try {
+      const { w, entwurf } = baue('gate135', '3')
+      const p = (id: string, typ: string) => treffer(w, id).trigger(typ, { pointerId: 1, button: 0, clientX: 0, clientY: 0 })
+      const losAmFenster = () => window.dispatchEvent(Object.assign(new Event('pointerup'), { pointerId: 1, clientX: 0, clientY: 0 }))
+      const ids = w.findAll('[data-action="bild-boje"]').map((t) => t.attributes('data-bild-id')!)
+      const [a, b] = ids
+      // Erster Langdruck: die Wahl ersetzt die Fläche, das Loslassen trifft nur noch das Fenster.
+      await p(a, 'pointerdown')
+      vi.advanceTimersByTime(WKR_ANNAHMEN.langdruckMs)
+      await nextTick()
+      expect(treffer(w, a).exists()).toBe(false)
+      losAmFenster()
+      await w.find('[data-action="disq-ort-fertig"]').trigger('click')
+      vi.advanceTimersByTime(2000)
+      // Zweiter Langdruck auf eine andere Boje: wieder die Buchstaben, kein Tipp.
+      await p(b, 'pointerdown')
+      vi.advanceTimersByTime(WKR_ANNAHMEN.langdruckMs)
+      await nextTick()
+      expect(w.find('[data-action="disq-code"]').exists()).toBe(true)
+      losAmFenster()
+      await w.find('[data-action="disq-ort-fertig"]').trigger('click')
+      expect(Object.values(entwurf().bojen).reduce((s, n) => s + n, 0)).toBe(0)
+      vi.advanceTimersByTime(2000)
+      // Kurzer Tipp (Maus/Stift, pointerId 1): zählt genau einmal.
+      await p(a, 'pointerdown')
+      await p(a, 'pointerup')
+      await treffer(w, a).trigger('click')
+      await nextTick()
+      expect(Object.values(entwurf().bojen).reduce((s, n) => s + n, 0)).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // R8-19 (22.11.2026, BD3 umgebaut, BD8–BD10): die Parallel-Zeichnung aus dem Parcours-Repo statt des Schemas.
+  const UIM = configFor({ regelwerk: 'uim-2026' })
+  const parallel = (rc: 'A' | 'B', svgVon?: (d: string) => string | undefined) => {
+    const s = { liste: listenKennung({ bereich: 'parallel', typeId: 'parallelparcours', racecourse: rc }), klassen: maskenJeKlasse(UIM, UIM, 'parallelparcours', KLASSEN, false) } as ListenSicht
+    const k = (Object.keys(s.klassen) as ClassId[]).find((x) => maskeFuer(s, x)?.art === 'bojen')!
+    const aufbau = maskeFuer(s, k)!
+    return mount(WkrBild, { props: { aufbau, entwurf: leererEntwurf(), zuordnung: bildTreffer(s, k, svgVon)!, klasse: aufbau.titel, startNr: '5', weg: 'hin' } })
+  }
+
+  it('Parallelslalom: Zeichnung mit beiden Bahnen, fremde gedimmt und ohne Treffer, mit Namensnennung', () => {
     for (const rc of ['A', 'B'] as const) {
-      const s = { liste: listenKennung({ bereich: 'parallel', typeId: 'parallelparcours', racecourse: rc }), klassen: maskenJeKlasse(UIM, UIM, 'parallelparcours', KLASSEN, false) } as ListenSicht
-      const k = (Object.keys(s.klassen) as ClassId[]).find((x) => maskeFuer(s, x)?.art === 'bojen')!
-      const aufbau = maskeFuer(s, k)!
-      const w = mount(WkrBild, { props: { aufbau, entwurf: leererEntwurf(), zuordnung: bildTreffer(s, k, parcoursSvg)!, klasse: aufbau.titel, startNr: '5', weg: 'hin' } })
+      const fremd = rc === 'A' ? 'B' : 'A'
+      const w = parallel(rc, parcoursSvg)
+      expect(w.find('[data-teil="bild"]').attributes('data-art')).toBe('svg')
+      expect(w.find('[data-teil="bild-flaeche"]').attributes('data-racecourse')).toBe(rc)
+      expect(w.find('[data-teil="bild-schema"]').exists()).toBe(false)
+      expect(w.find('figcaption').text()).toBe(`Racecourse ${rc}`)
+      const svg = w.find('.wkr-bild-svg > svg')
+      expect(svg.exists()).toBe(true)
+      expect(svg.html()).not.toContain('<image')
+      // Eigene Bahn antippbar, fremde nicht – aber in der Zeichnung (gedimmt).
+      for (const n of [1, 2, 3, 4, 5]) {
+        expect(treffer(w, `P_${rc}_b${n}`).exists(), `${rc} b${n}`).toBe(true)
+        expect(treffer(w, `P_${fremd}_b${n}`).exists()).toBe(false)
+        expect(svg.find(`[id$="P_${fremd}_b${n}"]`).attributes('style')).toMatch(/opacity:0\./)
+      }
+      expect(treffer(w, `P_${rc}_start_seiteA`).exists()).toBe(true)
+      // Bearbeitete fremde Zeichnung (CC BY-NC-SA 4.0): die Namensnennung steht darunter.
+      const nachweis = w.find('[data-teil="bild-nachweis"]')
+      expect(nachweis.exists()).toBe(true)
+      expect(nachweis.text()).toContain(PARCOURS_HERKUNFT.urheber)
+      expect(nachweis.find('a').attributes('href')).toBe(PARCOURS_HERKUNFT.lizenzUrl)
+    }
+  })
+
+  it('Parallelslalom ohne Parallel.svg: Schema des Racecourse (Rückfall), B gespiegelt, ohne Namensnennung', () => {
+    for (const rc of ['A', 'B'] as const) {
+      const w = parallel(rc)
       expect(w.find('[data-teil="bild-schema"]').attributes('data-racecourse')).toBe(rc)
       expect(w.find('figcaption').text()).toBe(`Racecourse ${rc}`)
       expect(treffer(w, 'P_b5').exists()).toBe(true)

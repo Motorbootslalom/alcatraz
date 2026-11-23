@@ -3,7 +3,8 @@ import { NACHNAMEN, VORNAMEN_M, VORNAMEN_W } from '../data/names'
 import { WKR_ANNAHMEN } from './annahmen'
 import { maskeFuer } from './maske'
 import { LISTEN_SICHT_FASSUNG } from './sicht'
-import { uebungsSchritt, uebungsSicht, uebungsStand } from './uebung'
+import type { ClassId } from '../types'
+import { uebungsSchritt, uebungsSicht, uebungsStand, ziehVor, type UebungsStand } from './uebung'
 
 // Übung ohne Netz (W3.1, G13): Sicht wie vom Bedienrechner (`lv`, Masken), erfundene Starts ohne Namen, Schritt.
 
@@ -92,5 +93,76 @@ describe('Übungs-Schritt', () => {
     const spaet = uebungsSicht(t)
     expect(spaet.punkt?.id).toBe('lauf:2')
     expect(spaet.schlange[0].titel).toBe('2. Lauf')
+  })
+})
+
+describe('Klasse vorziehen (Nutzer 22.11.2026, R7-45, Y4)', () => {
+  const gezeigt = (st: UebungsStand) => uebungsSicht(st).schlange.filter((s) => !s.vorab)
+  const erledige = (st: UebungsStand) => uebungsSchritt(st, { s: gezeigt(st)[0].key }, 0)
+  /** Klasse der Nummer 1 bzw. 20 im Block der Übung (die Folge der Sicht-Schlüssel ist eine andere). */
+  const klasseDer = (typeId: string, nr: number) => uebungsSicht(uebungsStand('dm-2026', typeId, undefined, 20)).schlange[nr - 1].klasse
+
+  it('der nächste gezeigte Start hat die Klasse; danach die normale Folge, ohne Nummer doppelt', () => {
+    let st = uebungsStand('dm-2026', 'tor5', undefined, 0)
+    expect(Object.keys(uebungsSicht(st).klassen).length).toBeGreaterThan(1)
+    const letzte = klasseDer('tor5', 20)
+    st = ziehVor(st, letzte)
+    st = uebungsSchritt(st, null)
+    const vor = gezeigt(st)[0]
+    expect(vor.klasse).toBe(letzte)
+    expect(Number(vor.startNr)).toBeGreaterThan(1)
+    expect(st.vorziehen).toBeUndefined()
+    st = uebungsSchritt(st, null)
+    expect(gezeigt(st).map((s) => s.startNr)).toEqual([vor.startNr, '1'])
+    // Den ganzen Lauf durch: jede Nummer 1–20 genau einmal, der vorgezogene nicht noch einmal.
+    const gesehen: string[] = []
+    for (let i = 0; i < WKR_ANNAHMEN.uebungStarts; i++) {
+      gesehen.push(gezeigt(st)[0].startNr)
+      st = erledige(st)
+      if (gezeigt(st).length === 0) st = uebungsSchritt(st, null)
+    }
+    expect([...gesehen].sort((a, b) => Number(a) - Number(b))).toEqual(Array.from({ length: 20 }, (_, i) => String(i + 1)))
+    expect(uebungsSicht(st).punkt?.id).toBe('lauf:2')
+  })
+
+  it('Vorsteg sieht den vorgezogenen schon vorab; eine Zeile für ihn zeigt ihn', () => {
+    let st = uebungsStand('dm-2026', 'vorsteg')
+    const letzte = klasseDer('vorsteg', 20)
+    st = ziehVor(st, letzte)
+    const vorab = uebungsSicht(st).schlange.find((s) => s.vorab)!
+    expect(vorab.klasse).toBe(letzte)
+    st = uebungsSchritt(st, { s: vorab.key })
+    expect(st.vorziehen).toBeUndefined()
+    expect(uebungsSicht(st).schlange.map((s) => s.key)).not.toContain(vorab.key)
+  })
+
+  it('erschöpfter Block: ein erfundener weiterer Start mit neuer Nummer, der sich abschicken lässt', () => {
+    let st = uebungsStand('dm-2026', 'tor5', undefined, 0)
+    const erste = klasseDer('tor5', 1)
+    // Den Block der ersten Klasse ganz durchlaufen.
+    for (let i = 0; i < 10; i++) st = erledige(uebungsSchritt(st, null))
+    expect(uebungsSicht(st).danach[0].klasse).not.toBe(erste)
+    st = uebungsSchritt(ziehVor(st, erste), null)
+    const extra = gezeigt(st)[0]
+    expect([extra.startNr, extra.klasse]).toEqual([String(WKR_ANNAHMEN.uebungStarts + 1), erste])
+    st = uebungsSchritt(st, { s: extra.key }, 0)
+    expect(gezeigt(st)).toEqual([])
+    st = uebungsSchritt(st, null)
+    expect(gezeigt(st)[0].startNr).toBe('11')
+    // Ein zweites Mal: die nächste neue Nummer.
+    st = uebungsSchritt(ziehVor(erledige(st), erste), null)
+    expect(gezeigt(st)[0].startNr).toBe(String(WKR_ANNAHMEN.uebungStarts + 2))
+  })
+
+  it('Klasse ohne die Liste: nichts ändert sich; am Tisch bis zur nächsten Zeile', () => {
+    const st = uebungsStand('dm-2026', 'tor5')
+    expect(ziehVor(st, 'gibtsnicht' as ClassId)).toBe(st)
+    let tisch = uebungsStand('dm-2026', 'knoten')
+    const sicht = uebungsSicht(tisch)
+    const k = sicht.bestand!.at(-1)!.klasse
+    tisch = ziehVor(tisch, k)
+    expect(tisch.vorziehen).toBe(k)
+    tisch = uebungsSchritt(tisch, { s: sicht.bestand![0].key })
+    expect(tisch.vorziehen).toBeUndefined()
   })
 })

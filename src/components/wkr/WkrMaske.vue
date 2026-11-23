@@ -95,7 +95,7 @@ import { useWkrText, zellenText } from './texte'
  *   sie, ablage.ts `bojenFolge`), geändert unter „Mehr → Ansicht“. Der Fuß nennt die Buchstaben an Bojen mit („Disq. G“).
  * - **Disq. auf Bojen-Listen** (Antwort W4-12, 21.11.2026, BZ4): DISQ im Fuß und „Disq. an Boje …“ öffnen dieselbe
  *   Wahl (WkrDisqOrt): erst die Boje bzw. „keine Boje / ganzer Parcours“ (→ Disq.-Feld), dann der Buchstabe. Der
- *   Buchstabe steht NEBEN den Punkten der Boje (BZ1, „5G“); nach der Wahl an einer Boje zeigt die Mitte wieder die Bojen.
+ *   Buchstabe steht NEBEN den Punkten der Boje (BZ1, „5, G“; mehrere seit R7-14 22.11.2026); nach der Wahl an einer Boje zeigt die Mitte wieder die Bojen.
  * - **Pad** (W5.1, Plan docs/plan-wkr-w5.md §4, 22.11.2026): Die Mitte (was getippt wird) steht in WkrMitte.vue. WkrGeraet
  *   gibt die Anordnung (wkr/anordnung.ts): `seite` rechts/unten = eigene Seitenspalte WkrSeite (Schlange, Zuletzt als
  *   Liste, Einträge im Klartext, Zeichnung – PD3/PD6), `kompakt` = Schlange und Einträge unter der Arbeitsfläche; Fuß
@@ -217,6 +217,13 @@ function klasseVon(s: string, punkt: WkrPunkt | null): ClassId | null {
 }
 const aufbauVon = (k: ClassId | null): MaskenAufbau | null => (sicht.value && k ? maskeFuer(sicht.value, k, props.spracheWahl) : null)
 const klassenTitel = (k: ClassId | null) => (k ? (props.spracheWahl === 'andere' ? sicht.value?.andere?.klassen[k]?.titel : undefined) ?? sicht.value?.klassen[k]?.titel ?? k : '')
+/**
+ * Übung (Nutzer 22.11.2026, R7-45, Y4): die Klassen der Liste zum Vorziehen, Namen wie in der Maske (Klasse E unter
+ * UIM „Dolphin“); nur, wenn die Quelle es kann (die echte Erfassung nie).
+ */
+const vorziehKlassen = computed(() =>
+  props.quelle.uebung && props.quelle.zieheKlasseVor && sicht.value ? (Object.keys(sicht.value.klassen) as ClassId[]).map((id) => ({ id, titel: klassenTitel(id) })) : null,
+)
 const listeSpaeter = computed(() => {
   const mit = Object.values(sicht.value?.klassen ?? {}).filter((k) => k?.felder)
   return mit.length > 0 && mit.every((k) => maskenArt(k!.felder!) === 'spaeter')
@@ -517,6 +524,19 @@ const listenSprache = computed(() => (sicht.value?.sprache === 'en' ? ('en' as c
 
 // --- Bedienung ---
 const disqOffen = ref(false)
+/**
+ * Lang gedrückte Boje (R7-21, 22.11.2026, LD1): WkrDisqOrt beginnt bei ihren Buchstaben. Gilt nur, solange die Wahl
+ * offen ist – DISQ im Fuß öffnet danach wieder bei „Wo?“. Kein Prellschutz-Eintrag (LD4): ein Langdruck ist kein Tipp.
+ */
+const disqBojeStart = ref<MaskenBoje | null>(null)
+watch(disqOffen, (offen) => {
+  if (!offen) disqBojeStart.value = null
+})
+function oeffneDisqAnBoje(b: MaskenBoje): void {
+  if (gesperrt.value || b.disq.length === 0) return
+  disqBojeStart.value = b
+  disqOffen.value = true
+}
 const ausweichen = ref<InstanceType<typeof WkrAusweichen> | null>(null)
 const nichtGefunden = ref<string | null>(null)
 /** N13: Nummer eines „Bitte prüfen“, die das Gerät nicht kennt, solange keine Suche offen sein kann (Ruhe). */
@@ -1043,6 +1063,7 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
               :entwurf="zeige.entwurf"
               :start-nr="zeige.start.startNr"
               :disq-offen="disqOffen"
+              :disq-boje="disqBojeStart"
               :disq-codes="disqCodes"
               :gesperrt="gesperrt"
               :weg="weg"
@@ -1063,6 +1084,7 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
               @disq-fertig="disqOffen = false"
               @boje="tippeBojeKnopf"
               @disq="disqOffen = true"
+              @disq-an-boje="oeffneDisqAnBoje"
               @tippe="tippeCode"
               @weg="waehleWeg"
               @zeit="setzeZeitFeld"
@@ -1083,6 +1105,8 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
               :bojen-folge="art === 'bojen' ? bojenFolge : null"
               :wkr-name="wkrNameLage"
               :masken="masken ?? null"
+              :vorziehen="vorziehKlassen"
+              @vorziehen="(k) => quelle.zieheKlasseVor?.(liste, k)"
               @wkr-name="(n) => quelle.setzeWkrName(liste, n)"
               @maske="(m) => emit('maske', m)"
               @bojen-folge="aendereBojenFolge"
@@ -1114,6 +1138,8 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
           :mit-andere="!!sicht?.andere"
           :uebung="quelle.uebung"
           :wkr-name="wkrNameLage"
+          :vorziehen="vorziehKlassen"
+          @vorziehen="(k) => quelle.zieheKlasseVor?.(liste, k)"
           @wkr-name="(n) => quelle.setzeWkrName(liste, n)"
           @pausiere="quelle.pausiere(liste)"
           @melde-ab="quelle.meldeAb(liste)"

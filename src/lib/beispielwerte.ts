@@ -439,7 +439,7 @@ export function beispielRunde(
         const treffer = disqualifikation([...felder.values()], k, zufall)
         if (treffer) {
           const { kennung } = treffer.feld
-          // Bojenzelle: sanitizeBuoy macht aus „5, J“ seit W4-12 (21.11.2026) „5J“ – die Punkte bleiben neben dem Disq.
+          // Bojenzelle: sanitizeBuoy lässt „5, J“ seit R7-14 (22.11.2026, BZ6) so stehen – die Punkte bleiben neben dem Disq.
           werte[kennung] = treffer.feld.gueltig(werte[kennung] ? `${werte[kennung]}, ${treffer.buchstabe}` : treffer.buchstabe)
         }
       }

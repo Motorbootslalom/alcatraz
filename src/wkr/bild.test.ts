@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { AUFBAUTEN } from '../config/catalog'
 import { configFor, type Konfig } from '../config/konfig'
 import { parcoursDateien, parcoursSvg } from '../lib/parcoursQuelle'
-import { PARCOURS_DATEIEN } from '../lib/parcoursVertrag'
+import { PARALLEL_DATEI, PARCOURS_DATEIEN } from '../lib/parcoursVertrag'
 import type { ClassId } from '../types'
 import { WKR_ANNAHMEN } from './annahmen'
 import {
@@ -15,12 +15,13 @@ import {
   bildZuordnung,
   bojenMitHalt,
   inlineSvg,
+  PARALLEL_BILD,
+  parallelBildId,
   probeBild,
   schemaIdVon,
   schemaParallel,
   schiebeAuseinander,
   svgSeiten,
-  wegNachTipp,
   wirksameDrehung,
 } from './bild'
 import { listenKennung } from './liste'
@@ -104,8 +105,14 @@ describe('bildTreffer über alle Zeichnungen × Aufbauten × Klassen (BD2)', () 
               if (!aufbau || aufbau.art !== 'bojen') continue
               const z = bildTreffer(sicht, klasse, parcoursSvg)
               if (bojenVon(aufbau).every((b) => schemaIdVon(b.feld) !== null)) {
-                // Parallelslalom: Schema statt Zeichnung (BD3).
-                expect(z?.art, `${a.id}/${typeId}/${klasse}`).toBe('schema')
+                // Parallelslalom: die Zeichnung aus dem Parcours-Repo (BD3 umgebaut 22.11.2026, R8-19), Bahn des Racecourse.
+                expect(z?.art, `${a.id}/${typeId}/${klasse}`).toBe('svg')
+                const svg = parcoursSvg(PARALLEL_DATEI)!
+                for (const b of bojenVon(aufbau)) {
+                  const id = z!.treffer[b.feld]
+                  expect(id.startsWith(`P_${z!.racecourse}_`), `${b.feld} → ${id}`).toBe(true)
+                  expect(svg.split(`id="${id}"`).length - 1, id).toBe(1)
+                }
                 continue
               }
               if (!sicht.klassen[klasse]?.bild) {
@@ -179,11 +186,12 @@ describe('bildTreffer über alle Zeichnungen × Aufbauten × Klassen (BD2)', () 
   })
 })
 
-describe('Parallelslalom: Schema je Racecourse (BD3)', () => {
+describe('Parallelslalom: Zeichnung je Racecourse (BD3 umgebaut, BD8–BD10), Schema nur ohne Datei', () => {
   const k = configFor({ regelwerk: 'uim-2026' })
   const sichtRc = (rc: 'A' | 'B') => sichtMit(k, 'parallelparcours', undefined, listenKennung({ bereich: 'parallel', typeId: 'parallelparcours', racecourse: rc }))
+  const klasseVon = (sicht: ListenSicht) => (Object.keys(sicht.klassen) as ClassId[]).find((x) => maskeFuer(sicht, x)?.art === 'bojen')!
 
-  it('Start/Ziel ein Tor, Boje n hin und rück dieselbe; B gespiegelt', () => {
+  it('Schema: Start/Ziel ein Tor, Boje n hin und rück dieselbe; B gespiegelt', () => {
     expect(schemaIdVon('start|seiteA')).toBe('P_StartZiel_seiteA')
     expect(schemaIdVon('ziel|seiteA')).toBe('P_StartZiel_seiteA')
     expect(schemaIdVon('b2a')).toBe('P_b2')
@@ -201,16 +209,67 @@ describe('Parallelslalom: Schema je Racecourse (BD3)', () => {
     expect(a.punkte.map((p) => p.id)).toEqual(['P_StartZiel_seiteA', 'P_StartZiel_seiteB', 'P_b1', 'P_b2', 'P_b3', 'P_b4', 'P_b5'])
   })
 
-  it('jede Boje der Liste hat ihren Punkt; Racecourse aus der Kennung', () => {
+  it('IDs der Zeichnung: Boje n hin und rück dieselbe, Start und Ziel dasselbe Tor, je Racecourse', () => {
+    expect(parallelBildId('b2a', 'A')).toBe('P_A_b2')
+    expect(parallelBildId('b2b', 'B')).toBe('P_B_b2')
+    expect(parallelBildId('b5', 'A')).toBe('P_A_b5')
+    expect(parallelBildId('start|seiteA', 'B')).toBe('P_B_start_seiteA')
+    expect(parallelBildId('ziel|seiteB', 'A')).toBe('P_A_start_seiteB')
+    expect(parallelBildId('t1a|hin seiteA', 'A')).toBeNull()
+  })
+
+  it('mit Parallel.svg: jede Boje genau ein Treffer in IHRER Bahn, die fremde Bahn blass (BD10)', () => {
+    const svg = parcoursSvg(PARALLEL_DATEI)!
+    expect(svg).toBeDefined()
+    for (const rc of ['A', 'B'] as const) {
+      const fremd = rc === 'A' ? 'B' : 'A'
+      const sicht = sichtRc(rc)
+      const klasse = klasseVon(sicht)
+      const aufbau = maskeFuer(sicht, klasse)!
+      const z = bildTreffer(sicht, klasse, parcoursSvg)!
+      expect(z.art).toBe('svg')
+      expect(z.racecourse).toBe(rc)
+      expect(z.bild).toEqual(PARALLEL_BILD)
+      expect(z.schema).toBeNull()
+      const felder = bojenVon(aufbau)
+      expect(felder.length).toBeGreaterThan(0)
+      for (const b of felder) {
+        const id = z.treffer[b.feld]
+        expect(id, b.feld).toMatch(new RegExp(`^P_${rc}_(b[1-5]|start_seite[AB])$`))
+        expect(svg.split(`id="${id}"`).length - 1, id).toBe(1)
+      }
+      // Alle fünf Bojen und beide Start/Ziel-Bojen der eigenen Bahn sind antippbar – je ID ein Trefferkreis.
+      expect([...z.ids].sort()).toEqual([1, 2, 3, 4, 5].map((n) => `P_${rc}_b${n}`).concat([`P_${rc}_start_seiteA`, `P_${rc}_start_seiteB`]).sort())
+      // Fremde Bahn: Bojen, Start/Ziel, Fahrlinien und Ziffern gedimmt, keine davon ein Treffer.
+      for (const n of [1, 2, 3, 4, 5]) expect(z.blass).toContain(`P_${fremd}_b${n}`)
+      expect(z.blass).toEqual(expect.arrayContaining([`P_${fremd}_start_seiteA`, `P_${fremd}_start_seiteB`, `P_${fremd}_linie1`, `P_${fremd}_nr1`]))
+      expect(z.blass.every((id) => id.startsWith(`P_${fremd}_`))).toBe(true)
+      expect(z.ids.some((id) => z.blass.includes(id))).toBe(false)
+    }
+  })
+
+  it('ohne Datei (oder ohne die IDs) das Schema – vollständig, keine stille Lücke', () => {
     for (const rc of ['A', 'B'] as const) {
       const sicht = sichtRc(rc)
-      const klasse = (Object.keys(sicht.klassen) as ClassId[]).find((x) => maskeFuer(sicht, x)?.art === 'bojen')!
-      const z = bildTreffer(sicht, klasse, parcoursSvg)!
-      expect(z.art).toBe('schema')
-      expect(z.schema!.racecourse).toBe(rc)
-      for (const b of bojenVon(maskeFuer(sicht, klasse)!)) expect(z.schema!.punkte.some((p) => p.id === z.treffer[b.feld])).toBe(true)
-      expect(z.blass).toEqual([])
+      const klasse = klasseVon(sicht)
+      for (const svgVon of [undefined, () => undefined, () => '<svg viewBox="0 0 1 1"></svg>']) {
+        const z = bildTreffer(sicht, klasse, svgVon)!
+        expect(z.art).toBe('schema')
+        expect(z.racecourse).toBe(rc)
+        expect(z.schema!.racecourse).toBe(rc)
+        for (const b of bojenVon(maskeFuer(sicht, klasse)!)) expect(z.schema!.punkte.some((p) => p.id === z.treffer[b.feld])).toBe(true)
+        expect(z.blass).toEqual([])
+      }
     }
+  })
+
+  it('inlineSvg dimmt die fremde Bahn und lässt die eigene, wie sie ist', () => {
+    const sicht = sichtRc('A')
+    const z = bildTreffer(sicht, klasseVon(sicht), parcoursSvg)!
+    const html = inlineSvg(parcoursSvg(PARALLEL_DATEI)!, { praefix: 'x-', drehung: 0, dim: z.blass, aus: [] })
+    expect(html).not.toContain('<image')
+    expect(/<[^<>]*id="x-P_B_b3"[^<>]*>/.exec(html)![0]).toContain('opacity:')
+    expect(/<[^<>]*id="x-P_A_b3"[^<>]*>/.exec(html)![0]).not.toContain('opacity:0.')
   })
 })
 
@@ -240,13 +299,12 @@ describe('Umschalter und Ziel eines Tipps (BD4, BD5)', () => {
     expect(feldBei(vier, z4, 'Tor1_innen', 'rueck')).toBe('t1a|hin seiteB')
   })
 
-  it('BD4: erster Tipp an Tor 5 auf dem Hinweg → Rückweg; zweiter nicht; anderswo bleibt die Seite', () => {
+  it('BD4 umgebaut (R8-20, 22.11.2026): kein Wechsel von selbst – an Tor 5 auf dem Hinweg ist zweimal dieselbe Boje', () => {
+    // Ohne wegNachTipp bleibt die Seite stehen: Der zweite Tipp an derselben ID auf „hin“ trifft wieder Tor 5 hin.
     const t5 = bildZiel(sieben, z7, 'Tor5_unten', 'hin')!
-    expect(wegNachTipp(sieben, t5, 'hin', 0)).toBe('rueck')
-    expect(wegNachTipp(sieben, t5, 'hin', 1)).toBe('hin')
-    const t1 = bildZiel(sieben, z7, 'Tor1_innen', 'hin')!
-    expect(wegNachTipp(sieben, t1, 'hin', 0)).toBe('hin')
-    expect(wegNachTipp(sieben, bildZiel(sieben, z7, 'Tor5_unten', 'rueck')!, 'rueck', 0)).toBe('rueck')
+    expect(t5.halt.weg).toBe('hin')
+    expect(bildZiel(sieben, z7, 'Tor5_unten', 'hin')!.boje.feld).toBe(t5.boje.feld)
+    expect(WKR_ANNAHMEN.bildUmschalterNurVonHand).toBe(true)
   })
 
   it('Zahlen je Seite: Rück 2 getrennt', () => {

@@ -764,7 +764,7 @@ Hier die Fragen, die er **anders** entschieden hat – noch nicht umgesetzt (sie
 bis dahin gilt der gebaute Stand:
 
 - 2026-11-21 · N · **Start-Freigabe nur für den Parcours, Parcours-Ampel** (P-03; **gebaut 21.11.2026**, Auslegungen
-  AM1–AM10 in WKR_ANNAHMEN/BETRIEB_ANNAHMEN noch zu bestätigen – plan-antworten-runde3-6.md §3, §8; ersetzt die Frage „zählt der
+  AM1–AM10 in WKR_ANNAHMEN/BETRIEB_ANNAHMEN beantwortet 22.11.2026, Runde 7: bestätigt bis auf AM1/AM2 (R7-01) – plan-antworten-runde3-6.md §3, §8; ersetzt die Frage „zählt der
   gezeigte Start sofort als offen?“; P-04 damit erledigt). Wortlaut: „Die Freigabe bezieht sich immer auf den Parcours
   und nie auf den Steg oder Vorsteg. Sobald ein Starter bereit ist, in den Parcours zu fahren, wird die Tafel auf diesen
   umgestellt, alle Parcours-WKR bekommen diesen Starter angezeigt und die Ampel wird grün. Wenn der Starter durch das
@@ -877,18 +877,115 @@ bis dahin gilt der gebaute Stand:
   21.11.2026) ist entfernt. Mehr → Ansicht → „Bojen“, je Gerät und Liste gemerkt: **„Rückweg gedreht“ (Vorgabe)** – der
   Rück-Reiter in derselben Folge wie Hin, jedes Tor an derselben Stelle; „Fahrtfolge“ – der Rück-Reiter, wie das Boot
   fährt; „Alles untereinander“ – ein Reiter ohne Umschalter. Für alle Bojen-Listen (Tor 1/3/5, Tor 2/4/5, Parcours,
-  Parallel A/B). Gebaut 22.11.2026; Auslegungen WKR_ANNAHMEN V3 `bojenFolge` (a)–(f) noch zu bestätigen – vor allem
+  Parallel A/B). Gebaut 22.11.2026; Auslegungen WKR_ANNAHMEN V3 `bojenFolge` (a)–(g) bestätigt 22.11.2026 (R8-01…R8-07) – vor allem
   (a): Speedbojen, Tor 1 der Speedrunde und MüB haben auf dem Hinweg kein Gegenstück und stehen unter „gedreht“ seit
   dem Prüfbefund 22.11.2026 an ihrer Stelle der umgekehrten Fahrtfolge (Klasse 7: Ziel, Tor 1 (2.), Speed 2, Tor 1 R,
   Tor 3, Tor 5; vorher unter den Toren).
 - 2026-11-22 · W5 „Pad“ gebaut (Plan [plan-wkr-w5.md](plan-wkr-w5.md), Scheiben W5.1–W5.5): Pad-Anordnung mit bis
   vier Listen nebeneinander und Maskenwahl am Bedienrechner (W5.1), Maske „Bild“ (W5.2), Knoten am Tisch als Liste
   ohne Lauf mit Prüfliste (W5.3), Zeit-Listen mit Ziffernblock und „Keine Zeit“ (W5.4), Tabelle für Geübte nur auf
-  Pad und Rechner (W5.5). Ohne Rückfrage beim Bau ausgelegt, alles **noch zu bestätigen**: PD1–PD6 (Anordnung), MW1–MW3
+  Pad und Rechner (W5.5). Ohne Rückfrage beim Bau ausgelegt, beantwortet 22.11.2026 (Runde 8, Abschnitt unten; BD3, BD4,
+  BD7, KN3, KN7, KN8, ZT3 anders entschieden): PD1–PD6 (Anordnung), MW1–MW3
   (Maskenwahl), BD1–BD7 (Bild), KN1–KN8 (Knoten), ZT1–ZT4 (Zeit), TB1–TB5 (Tabelle: nur Pad/Rechner, keine Probe,
   Zeile wie der Bogen mit denselben Sanierern und Fehler je Zelle statt stiller Verbesserung, Bojen als Punkte,
   letzte 5 + nächste 3 Zeilen mit Korrektur an der Zeile) – je Eintrag in WKR_ANNAHMEN (src/wkr/annahmen.ts) und
   gesammelt in plan-wkr-w5.md §10. Feldtest offen ([feldtest.md](feldtest.md) „Pad (W5)“).
+
+### Antworten 22.11.2026 (Runden 7–8)
+
+Antworten des Nutzers auf die Fragenseite, Runde 7 (R7-01…R7-52: Parcours-Ampel, Abschluss, Bojenzelle, Gerät,
+WKR-Namen, Druck nach Modus, Übung, Beispieldaten) und Runde 8 (R8-01…R8-42: Torreihenfolge, Pad, Maskenwahl, Bild,
+Knoten, Zeit, Tabelle). Alle übrigen Fragen hat er mit „passt“ bestätigt (in `WKR_ANNAHMEN`, `BETRIEB_ANNAHMEN`,
+`domain/generate.ts`, `components/BeispieldatenPanel.vue` je Eintrag „Bestätigt 22.11.2026 (Frage)“; Übersicht
+plan-antworten-runde3-6.md §8, plan-wkr-w5.md §10). R7-23/R7-24 („Wie der Parcours liegt“, Spiegeln/Tauschen) sind
+durch die Bojen-Folge V3 überholt, die mit R8-01…R8-07 bestätigt ist. Hier die Antworten, die **anders** entscheiden
+oder etwas dazuwünschen – noch nicht umgesetzt (siehe „Entschieden, noch nicht umgesetzt“), bis dahin gilt der
+gebaute Stand:
+
+- 2026-11-22 · R7-01 · **Zeit-Listen zählen zur Parcours-Ampel** (gegen AM1/AM2): „Zeit gehört mit zu den
+  Parcours-Listen und ist relevant für die Ampel.“ Reine Zeit-Listen (`zeit`, `zeit-n`) halten die Ampel also auf rot,
+  bis sie abgeschickt haben (und zählen damit auch für Rückstand, Nachfrage und Auto-Modus). **Umgesetzt 22.11.2026**
+  (Scheibe 1, plan-antworten-runde7-8.md §2.1): wkr/liste.ts istParcoursListe zählt Zeit mit (`zeit`, `zeit-n`,
+  Parallel „Zeit“ A/B je Racecourse), AM2 umgebaut (`zeitIstParcoursListe`), docs/betrieb.md nachgezogen.
+- 2026-11-22 · R7-14 · **Mehrere Disq. je Bojenzelle, Anzeige mit Komma** (gegen BZ1 „5J“): „Es können pro Boje auch
+  mehrere Disq. eingetragen werden. Bei der Eingabe kann flexibel geparst werden. Also mit Leerzeichen, ohne oder mit
+  Komma. Angezeigt wird es dann aber mit Komma.“ Eine Bojenzelle hält Punkte und beliebig viele Disq.-Buchstaben;
+  Eingabe tolerant („5 J G“, „5JG“, „5, J, G“), angezeigt mit Komma (z. B. „5, J, G“). **Umgesetzt 22.11.2026**
+  (Scheibe 2, plan-antworten-runde7-8.md §3): Speicherform = Anzeige „5, J, D“ (Punkte zuerst, Buchstaben in
+  Katalogfolge der Zelle, Dubletten weg, X allein), lib/disq.ts sanitizeBuoy + bojenZelle (eine Stelle), lib/scoring.ts
+  bojenWert liefert eine Liste (je Buchstabe ein Disq.), Gerät: Disq.-Wahl an einer Boje als Mehrfachwahl mit
+  „Fertig“, „zurück“ nimmt den zuletzt gesetzten Buchstaben; LISTEN_SICHT_FASSUNG 10. Neue Auslegungen BZ1
+  (umgebaut), BZ6–BZ8 – noch zu bestätigen.
+- 2026-11-22 · R7-21 · **Langes Drücken auf eine Boje als zweiter Weg zum Disq.** (gegen U3): „Ja“ – bauen.
+  **Umgesetzt 22.11.2026** (Scheibe 3, plan-antworten-runde7-8.md §4.1): Ein Druck ab 800 ms auf einen Bojen-Knopf
+  öffnet die Disq.-Buchstaben DIESER Boje (Ortswahl gleich im zweiten Schritt); der Tipp zählt beim Loslassen, ein
+  Langdruck nie zusätzlich als Tipp; Abbruch ab 10 px Bewegung; Prellschutz unverändert; Ring als Rückmeldung,
+  Vibration beim Auslösen; „Disq. an Boje …“ und DISQ im Fuß bleiben; die Probe nennt beide Wege
+  (components/wkr/langdruck.ts). Auslegungen U3 (umgebaut), LD1–LD4 – noch zu bestätigen.
+- 2026-11-22 · R7-45 · Übungstakt bestätigt (Y1: 2–6 s nach dem Abschicken, Beginn mit einem Start), **dazu**: „man
+  muss auch in der Übung andere Klassen vorziehen können, damit man diese Klasse sehen kann.“ Die Übung braucht also
+  einen Weg, eine bestimmte Klasse als nächsten Start zu holen (um ihre Maske zu sehen). **Umgesetzt 22.11.2026**
+  (Scheibe 6, plan-antworten-runde7-8.md §7.1): „Mehr → Klasse vorziehen“ (am Tisch aufklappbar unter den offenen
+  Nummern) mit den Klassen der Liste; wirkt einmal – der nächste gezeigte Start ist einer dieser Klasse (der nächste
+  ihres Blocks, sonst ein erfundener mit neuer Nummer 21, 22 …), steht gerade keiner an, sofort; am Tisch springt der
+  Vorschlag auf ihren ersten offenen (wkr/uebung.ts ziehVor, geraete/uebung.ts zieheKlasseVor). Y4 neu – noch zu
+  bestätigen.
+- 2026-11-22 · R7-51 · **Handeingaben je Klasse bleiben, Reset-Knopf** (gegen BS3): „Manuelle Anpassung soll
+  berücksichtigt werden. Mit einem Reset-Knopf.“ Ändert man die Gesamtzahl, bleiben von Hand gesetzte Klassenzahlen
+  stehen (verteilt wird nur der Rest); ein Reset-Knopf setzt alles auf die Verteilung zurück. **Umgesetzt 22.11.2026**
+  (Scheibe 6, §7.2): gemerkt wird `hand` (von Hand gesetzte Klassen, markiert ✎); neue Gesamtzahl und „Vorschlag neu“
+  verteilen nur die übrigen (domain/generate.ts verteileAufKlassen mit `fest`; Σ Hand > Gesamtzahl → übrige 0, die
+  Summe zeigt die Abweichung); „Zurücksetzen“ (nur mit Hand-Zahlen) verteilt wieder über alle; Wechsel der Art
+  verwirft wie bisher. BS3 umgebaut, BS4 neu – noch zu bestätigen.
+- 2026-11-22 · R8-19 · **Parallelslalom-Bild aus dem Parcours-Repo** (gegen BD3 Schema): „Schau mal im Parcours-Repo,
+  da sollte es einen Parcours für Parallel geben.“ Vor dem Umbau dort nach einer Parallel-Zeichnung suchen und sie
+  (über `npm run parcours:sync`, Lizenz wie die übrigen) statt des Schemas nehmen; fehlt sie, bleibt das Schema.
+  **Umgesetzt 22.11.2026** (Plan [plan-antworten-runde7-8.md](plan-antworten-runde7-8.md) §5): gefunden unter
+  `dist/parallel/en/pontoon_bottom/ParallelSlalom.svg`, beim Sync von 493 KB auf 23 KB verkleinert
+  (`src/assets/parcours/Parallel.svg`), IDs je Bahn über die Lage gesetzt (BD8), Racecourse A = vom Steg aus linke
+  Bahn (BD9), fremde Bahn gedimmt ohne Treffer (BD10) – noch zu bestätigen, Frage: IDs im Parcours-Repo direkt
+  vergeben?
+- 2026-11-22 · R8-20 · **Kein automatischer Wechsel des Bild-Umschalters** (gegen BD4): „Den automatischen Wechsel
+  bitte wieder raus.“ Der erste Tipp an Tor 5 schaltet nicht mehr von selbst auf „Rückweg“. **Umgesetzt 22.11.2026**
+  (Scheibe 3, §4.2): wkr/bild.ts wegNachTipp entfernt, der Umschalter des Bilds wechselt nur von Hand (BD4 umgebaut,
+  noch zu bestätigen).
+- 2026-11-22 · R8-23 · **Disq. im Bild auch mit langem Drücken** (zu BD7): „Wenn möglich, bitte auch langes Drücken
+  unterstützen.“ Knopf „Disq. an Boje …“ bleibt, dazu langes Drücken auf eine Boje im Bild (wie R7-21).
+  **Umgesetzt 22.11.2026** (Scheibe 3, §4.1): langer Druck auf einen Trefferkreis öffnet die Buchstaben dieser Boje,
+  dieselbe Hilfe wie die Bojen-Knöpfe (BD7 umgebaut, LD1–LD4 – noch zu bestätigen).
+- 2026-11-22 · R8-27 · **Knoten: nächste offene Nummer vorschlagen** (zu KN3): „Es soll aber der nächste offene laut
+  Ablauf immer vorgeschlagen werden. Ich mache also gerade die 8, dann wird die 9 als nächster vorgeschlagen. Ich
+  kann dann aber die 10 tippen und bekomme danach die 11 vorgeschlagen. Wenn ich dann die 9 tippe, dann wird die 11
+  vorgeschlagen, weil die 10 schon war.“ Vorschlag = der nächste noch offene Starter nach dem zuletzt getippten in der
+  Folge des Bestands; jede andere Nummer bleibt tippbar. **Umgesetzt 22.11.2026** (Scheibe 5,
+  plan-antworten-runde7-8.md §6): wkr/tisch.ts naechsterOffener (Rundlauf; offen = weder in der Sicht erledigt noch
+  selbst geschickt), „zuletzt“ = Startnummer der neuesten eigenen Zeile der Liste (gerätelokal im Kern); das leere
+  Nummernfeld zeigt groß „Nächster: 9 (Klasse 2)“, Antippen übernimmt. KN3 umgebaut, KN9 neu – noch zu bestätigen;
+  offene Frage: Folge des Bestands (Starter-Reiter, gebaut) oder Startfolge des Tages?
+- 2026-11-22 · R8-31 · **Knoten: Hauptknopf „Alle richtig“** (zu KN7): „Ja, aber es soll auch einen Button ‚alle
+  richtig‘ geben. Das kann, wie bei den anderen Listen auch, der große Button sein. Also statt ‚5 offen‘. So muss dann
+  nur der falsche markiert werden.“ ✓/✗ je Knoten bleibt (✗ = 5); solange Knoten offen sind, heißt der Hauptknopf
+  „Alle richtig“ und setzt die offenen auf ✓ (statt gesperrt „n offen“). **Umgesetzt 22.11.2026** (Scheibe 5, §6):
+  „✓ Alle richtig“ (nichts gesetzt) bzw. „✓ Rest richtig · Σ n“ (teils gesetzt) setzt die offenen auf ✓ und schickt
+  in einem Tipp ab, alle gesetzt: „Abschicken · Σ n“ (wkr/maske.ts restRichtig, fertig sobald Knoten da). KN7
+  umgebaut, KN10 neu – noch zu bestätigen.
+- 2026-11-22 · R8-32 · **Knoten: erfasste Nummer nur mit Rückfrage** (zu KN8): „Wenn schon erfasst wurde, dann immer
+  nachfragen.“ Eine schon erfasste Nummer öffnet die Korrektur nicht direkt, sondern erst nach einer Rückfrage.
+  **Umgesetzt 22.11.2026** (Scheibe 5, §6): „Nr. 23 ist schon erfasst – korrigieren?“ (Ja → Korrektur bzw. neue Zeile
+  wie bisher, Nein → Feld leer, Vorschlag bleibt) – getippt, über den Vorschlag oder die Liste der offenen; die Frage
+  steht in der Maske statt der Knoten (kein Dialog, damit „1“ → „12“ weitergetippt werden kann). KN8 umgebaut, KN11
+  neu – noch zu bestätigen.
+- 2026-11-22 · Prüfbefund zu R8-27/R8-31 · **Knoten: Vorschlag vorbelegt** (KN12): Der Vorschlag stand bisher als
+  eigener Knopf im leeren Feld; erst ein Tipp darauf zeigte die Knoten – je fehlerfreiem Starter zwei Tipps. Jetzt gilt
+  der Vorschlag bei leerem Feld als gewählt („Nr. 9“, Knoten und „✓ Alle richtig“ sofort), Eintippen ersetzt ihn.
+  Ausgelegt nach den Worten „immer vorgeschlagen“ und „nur der falsche markiert“ – noch zu bestätigen.
+- 2026-11-22 · R8-35 · **Zeit: Weiterspringen erlaubt, weitere Zeitfelder optional** (gegen ZT3): „Weiter springen
+  ist okay, die anderen Zeiten sind optional.“ Nach einer gültigen Zeit darf der Ziffernblock ins nächste Zeitfeld
+  springen; abschicken geht, ohne dass jedes weitere Zeitfeld gesetzt ist. **Umgesetzt 22.11.2026** (Scheibe 1,
+  plan-antworten-runde7-8.md §2.2): Pflicht nur das erste Zeitfeld (ZT5, wkr/maske.ts zeitPflicht/zeitenOffen),
+  Sprung, sobald die Zeit alle Stellen hat (ZT6, zeitVollstaendig: „83,45“, „1,2345“ – nicht schon „1,23“),
+  ZT3 umgebaut; ein leeres weiteres Feld überschreibt nie eine Papierzeit (das Gerät schickt es nur als Korrektur
+  einer eigenen Zeit). ZT5/ZT6 noch zu bestätigen.
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
@@ -897,8 +994,8 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 - Digitale WKR-Erfassung (Antworten 21.11.2026, Abschnitt oben): Etappen W1–W6 nach
   [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §11; W1 (Kern), W2 (Bedienrechner) und W3 (Handy-Maske
   „Knöpfe“, Übung) und W4 (Bojen-Maske, „Nicht vorbeigekommen“) gebaut 21.11.2026, W5 (Pad, Bild, Knoten, Zeit,
-  Tabelle) gebaut 22.11.2026 (Auslegungen PD/MW/BD/KN/ZT/TB noch zu bestätigen), W6 offen (nach Befund); Auslegungen W1–W4 bestätigt 21.11.2026 bis auf die oben unter „Antworten 21.11.2026 abends
-  (Runden 3–6)“ anders entschiedenen; noch nicht gefragt: P15, U1–U4, V3 (22.11.2026, ersetzt V1/V2), Z1–Z7, Y1–Y3; Feldtest offen
+  Tabelle) gebaut 22.11.2026 (Auslegungen PD/MW/BD/KN/ZT/TB am 22.11.2026 beantwortet, Runde 8), W6 offen (nach Befund); Auslegungen W1–W4 bestätigt 21.11.2026 bis auf die oben unter „Antworten 21.11.2026 abends
+  (Runden 3–6)“ anders entschiedenen; P15, U1, U2, U4, V3, Z1–Z7, Y1–Y3 bestätigt 22.11.2026 (Runden 7–8), U3 anders entschieden; Feldtest offen
   (docs/feldtest.md „WKR-Maske“, „Bojen-Maske“).
 - Antworten 21.11.2026 abends (Abschnitt oben), noch nicht gebaut (gebaut 21.11.2026: Parcours-Ampel mit Auto-Modus
   P-03/P-04, „Mehr → Liste abschließen“ entfernt W3-40, Rückfrage beim Abschließen im laufenden Lauf R6-10; Disq. an
@@ -907,6 +1004,12 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
   mit WN1–WN3; Sortierung Klick 1 A→Z S-01; Beispielfeld je Klasse festlegbar und Clubmeisterschaft ohne Herkunft
   R6-01/R6-02 mit BS1–BS3): nichts mehr offen; zu bestätigen bleiben die datierten Auslegungen
   ([plan-antworten-runde3-6.md](plan-antworten-runde3-6.md) §8).
+- Antworten 22.11.2026 (Runden 7–8, Abschnitt oben): alle gebaut 22.11.2026 (Zeit-Listen zur Parcours-Ampel R7-01,
+  Zeit: Weiterspringen und weitere Felder optional R8-35, mehrere Disq. je Bojenzelle mit Komma R7-14, langes Drücken
+  auf Bojen und im Bild R7-21/R8-23, kein automatischer Wechsel im Bild R8-20, Parallel-Zeichnung aus dem
+  Parcours-Repo R8-19; Knoten: nächste offene vorschlagen, „Alle richtig“, Rückfrage bei erfasster Nummer
+  R8-27/R8-31/R8-32; Übung: Klasse vorziehen R7-45; Handeingaben je Klasse mit Reset-Knopf R7-51) – nichts mehr
+  offen; zu bestätigen bleiben die neuen Auslegungen ([plan-antworten-runde7-8.md](plan-antworten-runde7-8.md) §8).
 
 ## Offen
 

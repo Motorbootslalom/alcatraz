@@ -163,7 +163,7 @@ describe('Maske „Tabelle“ (W5.5)', () => {
     expect(w.findAll('[data-teil="tabelle-gesendet"]').length).toBe(1)
   })
 
-  it('Bojen als Punkte bzw. „5J“ (gate135): „3“ ist ein Fehler, „j5“ wird „5J“', async () => {
+  it('Bojen als Punkte bzw. „5, J“ (gate135, BZ6 22.11.2026): „3“ ist ein Fehler, „j5“ wird „5, J“', async () => {
     vi.useFakeTimers()
     const { q, w } = await uebung('gate135', 'text')
     const boje = w.findAll('[data-teil="tabelle-aktiv"] [data-feld]').map((x) => x.attributes('data-feld')!).find((f) => f.startsWith('t3a|hin'))!
@@ -172,9 +172,9 @@ describe('Maske „Tabelle“ (W5.5)', () => {
     expect(w.find(`[data-teil="tabelle-aktiv"] [data-feld="${boje}"]`).attributes('data-fehler')).toBe('boje-punkte')
     await tippe(w, boje, 'j5')
     await feldVon(w, boje).trigger('blur')
-    expect((feldVon(w, boje).element as HTMLInputElement).value).toBe('5J')
+    expect((feldVon(w, boje).element as HTMLInputElement).value).toBe('5, J')
     await haupt(w).trigger('click')
-    expect(q.zuletzt.value[0].zellen[boje]).toBe('5J')
+    expect(q.zuletzt.value[0].zellen[boje]).toBe('5, J')
   })
 
   it('TB1: auf dem Handy ist „Tabelle“ unter „Mehr“ ausgegraut und eine Wahl zeigt die Knöpfe', async () => {

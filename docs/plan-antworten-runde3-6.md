@@ -290,6 +290,17 @@ bleibt als Rückfall G12 für Listen ohne Einteilung.
 
 ## 8 Neue Auslegungen (alle 21.11.2026, noch zu bestätigen)
 
+**Antworten 22.11.2026 (Fragenseite Runde 7, R7-01 … R7-52):** Bestätigt mit „passt“: AM3 (R7-04), AM4 (R7-02, -03,
+-11), AM5 (R7-05), AM6 (R7-06, -07), AM7 (R7-08), AM8 (R7-09), AM9 (R7-10), AM10 (R7-12), R6-10 Rückfrage beim
+Abschluss (R7-13), BZ2–BZ5 (R7-15 … -17, -20), U1 (R7-18), U2 `disqBojeMitPunkten` (R7-19), U4 (R7-22), GF1–GF11
+(R7-25 … -34), WN1–WN3 (R7-35 … -37), Z1–Z7 (R7-38 … -44), Y1 (R7-45, mit Zusatzwunsch: in der Übung andere Klassen
+vorziehen können), Y2, Y3 (R7-46, -47), BS1 (R7-48), gemeinsame WKR-Bögen/Wertungslisten je Klasse (R7-49), BS2
+(R7-50), P15 Sicht der Bojen (R7-52) – in `WKR_ANNAHMEN`/`BETRIEB_ANNAHMEN` je Eintrag „Bestätigt 22.11.2026 (Frage)“.
+R7-23/R7-24 (V1/V2 „Wie der Parcours liegt“, Spiegeln/Tauschen) sind durch V3 überholt (entfernt 22.11.2026, R8-01 …
+-07). Anders entschieden, noch nicht umgebaut ([entscheidungen.md](entscheidungen.md) „Antworten 22.11.2026 (Runden 7–8)“): **AM1/AM2** (R7-01, Zeit-Listen
+zählen zur Ampel), **BZ1** (R7-14, mehrere Disq. je Boje, Anzeige mit Komma), **U3** (R7-21, langes Drücken bauen),
+**BS3** (R7-51, Handeingaben je Klasse bleiben, Reset-Knopf). CI1 war nicht gefragt.
+
 - CI1 Gerät ohne Sicht nach dem Neuladen bekommt sie sofort (nur wenn Ursache).
 - AM1 Parcours-Liste an den Feldern erkannt (nicht Steg, nicht Vorsteg, mit Lauf, nicht nur Zeit). AM2 reine
   Zeit-Listen zählen nicht. AM3 Ampel aus, solange keine Parcours-Liste digital ist. AM4 Rot auch durch die erste

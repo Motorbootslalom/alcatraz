@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { ListenTeil } from '../../wkr/liste'
 import type { Weg } from '../../wkr/bojen'
@@ -24,6 +24,7 @@ import {
   setzeZeit,
   zeitDeutung,
   zeitenOffen,
+  zeitFertig,
   type BojenFolge,
   type Entwurf,
   type MaskenAufbau,
@@ -60,7 +61,8 @@ import { useWkrText } from './texte'
  *   Ortswahl (WkrDisqOrt) dieselbe Boje, Buchstabe; fertig, wenn die Boje beides trägt. Unter „Alles untereinander“
  *   (22.11.2026) ohne den Rückweg-Schritt – dort gibt es keinen Umschalter. Mit Umschalter liegt die Disq.-Boje auf der
  *   gerade offenen Seite (Rückweg; Prüfbefund 21.11.2026), und zwar die erste passende Zeile so, wie der Reiter sie
- *   zeigt (unter „Rückweg gedreht“ also von unten gezählt, 22.11.2026).
+ *   zeigt (unter „Rückweg gedreht“ also von unten gezählt, 22.11.2026). Seit dem Langdruck (R7-21, 22.11.2026, LD1)
+ *   nennt der Schritt beide Wege: „Disq. an Boje …“ oder die Boje lange drücken.
  *
  * - Bild (W5.2, Plan docs/plan-wkr-w5.md §5.2, MW3, 22.11.2026): mit wirksamer Maske „Bild“ (Prop `bild`) übt sie am
  *   Bild – Boje im Bild antippen (dieselbe wie bei den Knöpfen: erste zweibojige Zeile, linker Knopf) → „− letzte
@@ -204,10 +206,24 @@ const weg = ref<Weg>('hin')
  * zurück zu den Bojen über „FEHLER“ im Fuß, der nur bei offener Wahl erscheint (die Probe bleibt sonst schlicht).
  */
 const disqOffen = ref(false)
-/** U4 nach W4-12: Die Disq.-Boje trägt Punkt UND Buchstabe – gleich, in welcher Reihenfolge getippt. */
+/** Lang gedrückte Boje (LD1, 22.11.2026): Ortswahl beginnt bei ihren Buchstaben – wie in WkrMaske. */
+const disqBojeStart = ref<MaskenBoje | null>(null)
+watch(disqOffen, (offen) => {
+  if (!offen) disqBojeStart.value = null
+})
+function oeffneDisqAnBoje(b: MaskenBoje): void {
+  if (gesperrt.value || b.disq.length === 0) return
+  disqBojeStart.value = b
+  disqOffen.value = true
+}
+/**
+ * U4 nach W4-12: Die Disq.-Boje trägt Punkt UND Buchstabe – gleich, in welcher Reihenfolge getippt. Seit der
+ * Mehrfachwahl (BZ7, 22.11.2026) erst, wenn die Wahl mit „Fertig“ zu ist – sonst stünde „Abschicken“ als nächster
+ * Schritt über einer noch offenen Buchstabenliste.
+ */
 function disqSchrittFertig(): void {
   const f = disqBoje.value?.boje.feld
-  if (art.value === 'bojeDisq' && f && entwurf.value.bojenDisq[f] && (entwurf.value.bojen[f] ?? 0) > 0) weiter()
+  if (art.value === 'bojeDisq' && !disqOffen.value && f && entwurf.value.bojenDisq[f] && (entwurf.value.bojen[f] ?? 0) > 0) weiter()
 }
 function tippeBojeKnopf(b: MaskenBoje): void {
   if (gesperrt.value) return
@@ -215,6 +231,11 @@ function tippeBojeKnopf(b: MaskenBoje): void {
   if ((art.value === 'boje' || art.value === 'bild') && b.feld === ersteBoje.value?.boje.feld && (entwurf.value.bojen[b.feld] ?? 0) > 0) weiter()
   else if (art.value === 'zaehler' && b.feld === zaehlerBoje.value?.boje.feld && (entwurf.value.bojen[b.feld] ?? 0) >= 2) weiter()
   else disqSchrittFertig()
+}
+/** „Fertig“ der Ortswahl: Wahl zu, dann kann der Schritt fertig sein. */
+function disqFertig(): void {
+  disqOffen.value = false
+  disqSchrittFertig()
 }
 function setzeBojenDisq(b: MaskenBoje, code: string | null): void {
   if (gesperrt.value) return
@@ -253,7 +274,9 @@ function setzeKeineZeitProbe(feld: string, grund: KeineZeitGrund | null): void {
 function zeitSchrittFertig(): void {
   const erstes = props.aufbau.zeiten[0]?.feld
   if (art.value === 'zeit' && erstes && zeitDeutung(entwurf.value.zeiten[erstes] ?? '') === PROBE_ZEIT) weiter()
-  else if (art.value === 'zeitRest' && zeitenOffen(entwurf.value, props.aufbau) === 0) weiter()
+  // Weitere Felder sind freiwillig (ZT5, 22.11.2026 R8-35) – die Probe zeigt nur einmal, dass der Block nach der Zeit
+  // weitergesprungen ist und dort eine Zeit oder „keine Zeit“ geht.
+  else if (art.value === 'zeitRest' && props.aufbau.zeiten.slice(1).some((z) => zeitFertig(entwurf.value, z.feld)) && zeitenOffen(entwurf.value, props.aufbau) === 0) weiter()
 }
 function xNein(): void {
   if (art.value === 'x') weiter()
@@ -363,9 +386,10 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
           :codes="disqCodes"
           start-nr="P"
           :folge="folge"
+          :boje="disqBojeStart"
           @setze="setzeDisq"
           @boje-disq="setzeBojenDisq"
-          @fertig="disqOffen = false"
+          @fertig="disqFertig"
         />
         <WkrBild
           v-else-if="mitBild && bild"
@@ -387,8 +411,10 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
           :entwurf="entwurf"
           :weg="weg"
           :folge="folge"
+          :gesperrt="gesperrt"
           @boje="tippeBojeKnopf"
           @disq="disqOffen = true"
+          @disq-boje="oeffneDisqAnBoje"
           @tippe="tippeCode"
           @weg="waehleWeg"
         />
@@ -410,7 +436,7 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
           :hand="hand"
           :mit-disq="disqOffen"
           :disq-offen="disqOffen"
-          @disq="disqOffen = false"
+          @disq="disqFertig"
           @zurueck="zurueckTipp"
           @haupt="haupt"
         />

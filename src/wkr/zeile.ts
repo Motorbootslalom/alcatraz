@@ -102,7 +102,7 @@ export function wertGilt(feld: Feld, wert: string): boolean {
 
 /** Enthält der Wert eines Felds ein X „nicht gestartet“? */
 function hatX(feld: Feld, wert: string): boolean {
-  if (feld.kind === 'buoy') return bojenWert(wert).disq === NICHT_GESTARTET
+  if (feld.kind === 'buoy') return bojenWert(wert).disq.includes(NICHT_GESTARTET)
   if (feld.kind === 'code') return codeDisqs(wert).includes(NICHT_GESTARTET)
   if (feld.kind === 'disq') return disqCodes(wert).includes(NICHT_GESTARTET)
   return false

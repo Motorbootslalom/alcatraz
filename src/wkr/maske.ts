@@ -3,6 +3,7 @@ import type { Konfig } from '../config/konfig'
 import { codeEntries, normalizeCodeCell, parseCodeEntry } from '../lib/codes'
 import { listenFelder } from '../lib/eingaben'
 import { bojenWert } from '../lib/scoring'
+import { bojenZelle } from '../lib/disq'
 import { parseTime, sanitizeTimeInput } from '../lib/time'
 import { CLASS_IDS } from '../domain/classes'
 import { WKR_ANNAHMEN } from './annahmen'
@@ -134,7 +135,7 @@ const KNOPF_ARTEN: readonly CellKind[] = ['code', 'disq', 'text']
  * Bojen-Angabe trägt (`boje` aus der Sicht bzw. aus wkr/bojen.ts bojenHalt) – Knoten (auch `buoy`) bleiben `spaeter`.
  */
 export function maskenArt(felder: readonly { kind: CellKind; boje?: unknown }[], ohneLauf = false): MaskenArt {
-  // Knoten (W5.3, KN7, Merker WKR_ANNAHMEN.prueflisteAlleGesetzt): auf einer Liste ohne Lauf Bojen ohne Fahrweg (+ Text).
+  // Knoten (W5.3, KN7, Merker WKR_ANNAHMEN.prueflisteRestRichtig, KN10): auf einer Liste ohne Lauf Bojen ohne Fahrweg (+ Text).
   if (ohneLauf && felder.some((f) => f.kind === 'buoy') && felder.every((f) => (f.kind === 'buoy' && !f.boje) || f.kind === 'text')) return 'pruefliste'
   // Zeit (W5.4, ZT1): nur Zeit, Disq., Text → Ziffernblock; Zeit neben Bojen des Fahrwegs → Bojen-Maske mit Zeit-Abschnitt.
   const zeit = felder.some((f) => f.kind === 'time')
@@ -395,15 +396,20 @@ const DISQ = '#disq:'
 /** Merker für einen Bojen-Tipp in `folge` (`#boje:t1a|hin seiteB`, W4.1) – „zurück“ nimmt genau diesen Tipp. */
 const BOJE = '#boje:'
 /**
- * Merker für einen Disq.-Buchstaben an einer Boje (`#bdisq:t3a|hin seiteB`, U1, 21.11.2026). Ersetzte der Buchstabe
- * einen anderen, hängt dahinter je `WAR` der vorige Buchstabe – `=G` (samt dessen eigenem Rest): „− letzte zurück“
- * stellt ihn wieder her (H2 „zurück = letzter Tipp“). Die Berührungen berührt der Buchstabe seit W4-12 (21.11.2026,
- * BZ1) nicht mehr – sie bleiben mit ihren eigenen Merkern stehen.
+ * Merker für einen Disq.-Buchstaben an einer Boje (`#bdisq:t3a|hin seiteB=G`, U1, 21.11.2026): je Buchstabe einer
+ * (BZ7, 22.11.2026 – R7-14, mehrere Disq. je Boje). „− letzte zurück“ nimmt genau den zuletzt gesetzten Buchstaben
+ * heraus (H2 „zurück = letzter Tipp“); ein ersetzter Buchstabe, den „zurück“ wiederherstellen müsste, kommt nicht mehr
+ * vor – ein Tipp schaltet nur seinen eigenen Buchstaben an oder aus. Die Berührungen berührt der Buchstabe seit W4-12
+ * (21.11.2026, BZ1) nicht – sie bleiben mit ihren eigenen Merkern stehen.
  */
 const BOJEN_DISQ = '#bdisq:'
-const WAR = '\u001f'
-/** Ist `m` der Bojen-Disq.-Merker dieses Felds (mit oder ohne vorigen Stand)? */
-const istBojenDisqMerker = (m: string, feld: string) => m === BOJEN_DISQ + feld || m.startsWith(BOJEN_DISQ + feld + WAR)
+const bojenDisqMerker = (feld: string, code: string) => `${BOJEN_DISQ}${feld}=${code}`
+/** Feld und Buchstabe eines Bojen-Disq.-Merkers (der Buchstabe hinter dem letzten „=“ – Kennungen tragen keins). */
+function liesBojenDisqMerker(m: string): { feld: string; code: string } {
+  const rest = m.slice(BOJEN_DISQ.length)
+  const i = rest.lastIndexOf('=')
+  return { feld: rest.slice(0, i), code: rest.slice(i + 1) }
+}
 
 /**
  * Was der Wettkampfrichter für einen Start (und Teil) getippt hat. `codes`: je Feld die Code-Tipps in Reihenfolge
@@ -418,10 +424,12 @@ export interface Entwurf {
   /** Berührungen je Bojen-Feld (W4.1): Schalter 0/1, Zähler bis `bojenZaehlerMax`; 0 steht nie drin. */
   bojen: Record<string, number>
   /**
-   * Disq.-Buchstabe je Bojen-Feld (U1, 21.11.2026): an dieser Boje disqualifiziert. Seit W4-12 (21.11.2026, BZ1)
-   * NEBEN den Berührungen – die Zelle trägt beides („5J“), vorher (U2) ersetzte der Buchstabe die Punkte.
+   * Disq.-Buchstaben je Bojen-Feld (U1, 21.11.2026): an dieser Boje disqualifiziert. Seit W4-12 (21.11.2026, BZ1)
+   * NEBEN den Berührungen – die Zelle trägt beides („5, J“), vorher (U2) ersetzte der Buchstabe die Punkte. Seit
+   * R7-14 (22.11.2026, BZ6/BZ7) mehrere je Boje, in Tipp-Folge (die Zelle ordnet nach dem Katalog); nie leer – ohne
+   * Buchstaben fehlt der Eintrag.
    */
-  bojenDisq: Record<string, string>
+  bojenDisq: Record<string, string[]>
   /** Prüfliste (W5.3, KN7): je Knoten ✓ `ok` oder ✗ `fehler`; fehlt = noch nicht gesetzt. */
   pruef: Record<string, PruefWahl>
   /**
@@ -507,9 +515,36 @@ export function zeitFertig(e: Entwurf, feld: string): boolean {
   return feld in e.keineZeit || zeitDeutung(e.zeiten[feld] ?? '') !== null
 }
 
-/** Zeitfelder, die weder eine lesbare Zeit noch „keine Zeit“ haben („noch 2 Zeiten“). */
+/**
+ * Muss dieses Zeitfeld vor dem Abschicken fertig sein (ZT5, 22.11.2026, R8-35: „die anderen Zeiten sind optional“)?
+ * Nur das ERSTE Zeitfeld der Liste (Folge von `aufbau.zeiten`, wie der Bogen) – die Hauptzeit; weitere (Stoppuhr,
+ * zweite Anlage) dürfen leer bleiben.
+ */
+export function zeitPflicht(aufbau: Pick<MaskenAufbau, 'zeiten'>, feld: string): boolean {
+  return aufbau.zeiten[0]?.feld === feld
+}
+
+/**
+ * Was das Abschicken noch aufhält („noch 1 Zeit“, ZT5): das Pflichtfeld ohne lesbare Zeit und ohne „keine Zeit“ – und
+ * jedes weitere Feld, in dem etwas Unlesbares steht (befüllt muss es lesbar sein; leer ist erlaubt).
+ */
 export function zeitenOffen(e: Entwurf, aufbau: Pick<MaskenAufbau, 'zeiten'>): number {
-  return aufbau.zeiten.filter((z) => !zeitFertig(e, z.feld)).length
+  return aufbau.zeiten.filter((z) => (zeitPflicht(aufbau, z.feld) ? !zeitFertig(e, z.feld) : zeitUnlesbar(e, z.feld))).length
+}
+
+/**
+ * Ist die getippte Zeit „fertig“, sodass der Block ins nächste Feld springen darf (ZT6, 22.11.2026, R8-35: „Weiter
+ * springen ist okay“)? Lesbar UND alle Stellen der Deutung von lib/time.ts parseTime da: Sekunden (ab 20 vor dem Komma)
+ * mit zwei Hundertsteln („83,45“), Minuten mit Sekunden und Hundertsteln („1,2345“), „m:ss,hh“ mit zwei Hundertsteln.
+ * Bei „1,23“ springt nichts – dort fehlen noch die Hundertstel (1:23,00 wäre nur aufgefüllt).
+ */
+export function zeitVollstaendig(text: string): boolean {
+  if (zeitDeutung(text) === null) return false
+  const m = /[.,](\d*)$/.exec(text)
+  if (!m) return false
+  if (text.includes(':')) return m[1].length === 2
+  const vor = text.split(/[.,]/)[0]
+  return m[1].length === ((vor === '' ? 0 : parseInt(vor, 10)) >= 20 ? 2 : 4)
 }
 
 /** Ein Zeitfeld mit getipptem, aber unlesbarem Text (rot, sperrt den Hauptknopf)? */
@@ -539,19 +574,33 @@ export function tippePruef(e: Entwurf, aufbau: Pick<MaskenAufbau, 'pruef'>, feld
   return { ...e, pruef: { ...e.pruef, [feld]: wahl } }
 }
 
-/** Wie viele Knoten der Prüfliste noch weder ✓ noch ✗ haben („noch 2 offen“, KN7). */
+/** Wie viele Knoten der Prüfliste noch weder ✓ noch ✗ haben (Hauptknopf „Alle richtig“/„Rest richtig“, KN10). */
 export function pruefOffen(e: Entwurf, aufbau: Pick<MaskenAufbau, 'pruef'>): number {
   return aufbau.pruef.filter((p) => e.pruef[p.feld] === undefined).length
 }
 
 /**
- * Darf die Zeile hinaus? Prüfliste (KN7): erst, wenn jeder Knoten gesetzt ist; Zeit (W5.4, ZT3): erst, wenn jedes
- * Zeitfeld fertig ist. Andere Masken: immer (dort ist „nichts getippt“ = fehlerfrei).
+ * „Alle richtig“ bzw. „Rest richtig“ (Nutzer 22.11.2026, R8-31, KN10): setzt jeden noch offenen Knoten auf ✓, ein
+ * gesetztes ✓/✗ bleibt. Der WKR markiert so nur die falschen. Nichts offen → gleiche Referenz.
+ */
+export function restRichtig(e: Entwurf, aufbau: Pick<MaskenAufbau, 'pruef'>): Entwurf {
+  const offen = aufbau.pruef.filter((p) => e.pruef[p.feld] === undefined)
+  if (offen.length === 0) return e
+  return { ...e, pruef: { ...e.pruef, ...Object.fromEntries(offen.map((p) => [p.feld, 'ok' as const])) } }
+}
+
+/**
+ * Darf die Zeile hinaus? Prüfliste: seit R8-31 (22.11.2026, KN10, WKR_ANNAHMEN.prueflisteRestRichtig) sobald die
+ * Maske Knoten hat – offene gelten beim Abschicken als ✓ (restRichtig; zellenAus macht aus offen ohnehin ''); vorher
+ * (KN7) erst, wenn jeder Knoten gesetzt war. Zeit (ZT5, umgebaut 22.11.2026 R8-35):
+ * erst, wenn das erste Zeitfeld fertig ist und kein weiteres Unlesbares trägt. Andere Masken: immer (dort ist „nichts
+ * getippt“ = fehlerfrei).
  */
 export function fertig(e: Entwurf, aufbau: Pick<MaskenAufbau, 'art' | 'pruef'> & Partial<Pick<MaskenAufbau, 'zeiten'>>): boolean {
-  // Zeit (W5.4, ZT3): erst, wenn jedes Zeitfeld eine lesbare Zeit oder „keine Zeit“ hat – auch auf gemischten Listen.
+  // Zeit (ZT5): das erste Zeitfeld mit lesbarer Zeit oder „keine Zeit“, weitere leer oder lesbar – auch auf gemischten
+  // Listen (Bojen + Zeit).
   if (aufbau.zeiten && zeitenOffen(e, { zeiten: aufbau.zeiten }) > 0) return false
-  return aufbau.art !== 'pruefliste' || (aufbau.pruef.length > 0 && pruefOffen(e, aufbau) === 0)
+  return aufbau.art !== 'pruefliste' || (aufbau.pruef.length > 0 && (WKR_ANNAHMEN.prueflisteRestRichtig || pruefOffen(e, aufbau) === 0))
 }
 
 /**
@@ -573,52 +622,51 @@ export function tippeBoje(e: Entwurf, boje: Pick<MaskenBoje, 'feld' | 'zaehler'>
 }
 
 /**
- * Disq. an einer Boje (U1, Nutzer 21.11.2026; W4-12/BZ1 21.11.2026): `code` setzt den Buchstaben ZUSÄTZLICH zu den
- * Berührungen (ersetzt nur einen anderen Buchstaben – „zurück“ stellt den wieder her, s. `WAR`); derselbe Buchstabe
- * noch einmal bzw. `null` nimmt nur den Buchstaben heraus, die Berührungen bleiben. Ein Buchstabe, den die Zelle
- * nicht annimmt, ändert nichts (gleiche Referenz).
+ * Disq. an einer Boje (U1, Nutzer 21.11.2026; W4-12/BZ1 21.11.2026; BZ7 22.11.2026 – R7-14): `code` schaltet EINEN
+ * Buchstaben an bzw. wieder aus, die übrigen Buchstaben und die Berührungen bleiben; `null` nimmt alle Buchstaben der
+ * Boje heraus. Ein Buchstabe, den die Zelle nicht annimmt, ändert nichts (gleiche Referenz). X „nicht gestartet“ steht
+ * in einer Zelle immer allein (BZ2) – das prüft wertGilt; Bojen bieten X nicht an (nur Vorsteg/Steg-Ablegen, F5).
  */
 export function tippeBojenDisq(e: Entwurf, boje: Pick<MaskenBoje, 'feld' | 'disq'>, code: string | null): Entwurf {
-  const alt = e.bojenDisq[boje.feld]
-  const i = findLastIndex(e.folge, (m) => istBojenDisqMerker(m, boje.feld))
-  if (code === null || code === alt) {
-    if (!alt) return e
+  const alt = e.bojenDisq[boje.feld] ?? []
+  const istDieseBoje = (m: string) => m.startsWith(BOJEN_DISQ) && liesBojenDisqMerker(m).feld === boje.feld
+  if (code === null) {
+    if (alt.length === 0) return e
     const bojenDisq = { ...e.bojenDisq }
     delete bojenDisq[boje.feld]
-    return { ...e, bojenDisq, folge: e.folge.filter((_, j) => j !== i) }
+    return { ...e, bojenDisq, folge: e.folge.filter((m) => !istDieseBoje(m)) }
   }
+  if (alt.includes(code)) return ohneBojenDisq(e, boje.feld, code, e.folge.filter((m) => m !== bojenDisqMerker(boje.feld, code)))
   if (!boje.disq.some((d) => d.code === code)) return e
-  // Voriger Stand für „zurück“: der alte Buchstabe samt SEINEM vorigen Stand.
-  const war = alt ? WAR + '=' + alt + (i >= 0 ? e.folge[i].slice(BOJEN_DISQ.length + boje.feld.length) : '') : ''
-  const folge = e.folge.filter((_, j) => j !== i)
-  return { ...e, bojenDisq: { ...e.bojenDisq, [boje.feld]: code }, folge: [...folge, BOJEN_DISQ + boje.feld + war] }
+  return { ...e, bojenDisq: { ...e.bojenDisq, [boje.feld]: [...alt, code] }, folge: [...e.folge, bojenDisqMerker(boje.feld, code)] }
 }
 
-function findLastIndex<T>(xs: T[], f: (x: T) => boolean): number {
-  for (let i = xs.length - 1; i >= 0; i--) if (f(xs[i])) return i
-  return -1
-}
-
-/** „zurück“ eines Bojen-Disq.-Merkers: Buchstabe heraus, ein voriger Buchstabe wieder hinein (Berührungen bleiben). */
-function bojenDisqZurueck(e: Entwurf, merker: string, folge: string[]): Entwurf {
-  const rest = merker.slice(BOJEN_DISQ.length)
-  const t = rest.indexOf(WAR)
-  const feld = t < 0 ? rest : rest.slice(0, t)
-  const war = t < 0 ? '' : rest.slice(t + 1)
+/** Einen Buchstaben an einer Boje herausnehmen (mit der gegebenen Folge); ohne Buchstaben fällt der Eintrag weg. */
+function ohneBojenDisq(e: Entwurf, feld: string, code: string, folge: string[]): Entwurf {
+  const rest = (e.bojenDisq[feld] ?? []).filter((d) => d !== code)
   const bojenDisq = { ...e.bojenDisq }
-  delete bojenDisq[feld]
-  if (war.startsWith('=')) {
-    // Der vorige Buchstabe kommt mit seinem eigenen Rest zurück (G → A → zurück = G; noch einmal zurück = davor).
-    const u = war.indexOf(WAR)
-    bojenDisq[feld] = u < 0 ? war.slice(1) : war.slice(1, u)
-    return { ...e, bojenDisq, folge: [...folge, BOJEN_DISQ + feld + (u < 0 ? '' : war.slice(u))] }
-  }
+  if (rest.length > 0) bojenDisq[feld] = rest
+  else delete bojenDisq[feld]
   return { ...e, bojenDisq, folge }
 }
 
-/** Die Disq.-Buchstaben an Bojen in der Folge der Maske (Fuß, Texte): `{feld, code}`. */
+/** Die Disq.-Buchstaben an Bojen in der Folge der Maske, je Buchstabe ein Eintrag (Fuß, Texte): `{feld, code}`. */
 export function disqAnBojen(e: Entwurf, aufbau: MaskenAufbau): { feld: string; code: string }[] {
-  return bojenVon(aufbau).flatMap((b) => (e.bojenDisq[b.feld] ? [{ feld: b.feld, code: e.bojenDisq[b.feld] }] : []))
+  return bojenVon(aufbau).flatMap((b) => (e.bojenDisq[b.feld] ?? []).map((code) => ({ feld: b.feld, code })))
+}
+
+/**
+ * Die Disq.-Buchstaben einer Boje in der Folge ihres Katalogs – wie die Zelle sie schreibt (BZ6). Für Knöpfe und
+ * Stand („Disq. J, D“), damit Maske, Bild und Zelle dieselbe Folge zeigen, gleich in welcher Folge getippt wurde.
+ */
+export function bojenDisqVon(e: Entwurf, boje: Pick<MaskenBoje, 'feld' | 'disq'>): string[] {
+  const gesetzt = e.bojenDisq[boje.feld] ?? []
+  return boje.disq.map((d) => d.code).filter((c) => gesetzt.includes(c))
+}
+
+/** Zahl der Disq.-Buchstaben an einer Boje (Zählungen am Reiter, „Abschicken · n“). */
+export function bojenDisqZahl(e: Entwurf, feld: string): number {
+  return (e.bojenDisq[feld] ?? []).length
 }
 
 /** Ein Code-Tipp: +1 für diesen Code im Feld. */
@@ -648,7 +696,10 @@ export function zurueck(e: Entwurf): Entwurf {
     const code = letzt.slice(DISQ.length)
     return { ...e, disq: e.disq.filter((d) => d !== code), folge }
   }
-  if (letzt.startsWith(BOJEN_DISQ)) return bojenDisqZurueck(e, letzt, folge)
+  if (letzt.startsWith(BOJEN_DISQ)) {
+    const { feld, code } = liesBojenDisqMerker(letzt)
+    return ohneBojenDisq(e, feld, code, folge)
+  }
   if (letzt.startsWith(BOJE)) {
     const feld = letzt.slice(BOJE.length)
     const bojen = { ...e.bojen }
@@ -668,7 +719,7 @@ export function eintraege(e: Entwurf): number {
     Object.values(e.codes).reduce((n, c) => n + c.length, 0) +
     Object.values(e.bojen).reduce((n, b) => n + b, 0) +
     e.disq.length +
-    Object.keys(e.bojenDisq).length +
+    Object.values(e.bojenDisq).reduce((n, b) => n + b.length, 0) +
     // Prüfliste (W5.3): ein ✗ ist ein Eintrag wie eine Berührung; ✓ nicht (wie „fehlerfrei“).
     Object.values(e.pruef).filter((w) => w === 'fehler').length +
     // Zeit (W5.4): jede getippte Zeit und jedes „keine Zeit“ – sonst hieße der Knopf einer Zeit-Liste „Fehlerfrei“.
@@ -682,7 +733,7 @@ export function eintraegeAuf(e: Entwurf, aufbau: MaskenAufbau, weg: Weg): number
   let n = 0
   for (const a of aufbau.abschnitte) {
     if (wegVon(a) !== weg) continue
-    if (a.art === 'halt') for (const b of a.halt.bojen) n += (e.bojen[b.feld] ?? 0) + (e.bojenDisq[b.feld] ? 1 : 0)
+    if (a.art === 'halt') for (const b of a.halt.bojen) n += (e.bojen[b.feld] ?? 0) + bojenDisqZahl(e, b.feld)
     else n += (e.codes[a.teil.feld] ?? []).length
   }
   return n
@@ -710,8 +761,8 @@ export function punkteVon(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
  * Code-Felder in der Schreibweise der Erfassung („2x6, 20“, normalizeCodeCell), Disq. in Tipp-Reihenfolge („A, X“,
  * sanitizeDisq lässt sie so), Bemerkung getrimmt und gekürzt. Am Steg gehen Disq. ins gemeinsame `disq@steg`.
  * Bojen (W4.1, P4): Berührungen × Punkte („5“, Zähler „10“) bzw. ''; seit U1 (21.11.2026) ein Disq. an der Boje als
- * Buchstabe dahinter („G“, seit W4-12/BZ1 mit Punkten „5G“, Zähler „10G“) – genau das, was sanitizeBuoy unverändert
- * lässt. Disq. „keine Boje“ (BZ4) weiter ins Disq.-Feld der Liste.
+ * Buchstabe dahinter (seit W4-12/BZ1 mit Punkten, seit R7-14/BZ6 22.11.2026 mehrere: „G“, „5, G“, „10, G, J“) – über
+ * lib/disq.ts bojenZelle, also genau das, was sanitizeBuoy unverändert lässt. Disq. „keine Boje“ (BZ4) weiter ins Disq.-Feld der Liste.
  */
 export function zellenAus(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): Record<string, string> {
   const out: Record<string, string> = {}
@@ -726,14 +777,16 @@ export function zellenAus(e: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): 
   }
   for (const b of bojenVon(aufbau)) {
     const n = e.bojen[b.feld] ?? 0
-    const disq = e.bojenDisq[b.feld]
-    const buchstabe = disq && b.disq.some((d) => d.code === disq) ? disq : ''
-    out[b.feld] = `${n > 0 ? n * b.punkte : ''}${buchstabe}`
+    // Dieselbe Schreibweise wie beim Abtippen (lib/disq.ts bojenZelle, BZ6): „5, J, D“ in Katalogfolge der Zelle.
+    out[b.feld] = bojenZelle(n * b.punkte, e.bojenDisq[b.feld] ?? [], new Set(b.disq.map((d) => d.code)))
   }
   // Prüfliste (W5.3, KN7): ✓ → leere Zelle, ✗ → Punkte („5“, wie die Boje P4 – sanitizeBuoy lässt es so); offen → leer.
   for (const p of aufbau.pruef) out[p.feld] = e.pruef[p.feld] === 'fehler' ? String(p.punkte) : ''
   // Zeit (W5.4, ZT2): die Ziffernfolge wie getippt, mit Komma – genau die Roh-Eingabe, die die Erfassung am Rechner
   // speichert und wertGilt (parseTime) unverändert annimmt; unlesbar bzw. „keine Zeit“ → leer (fertig sperrt vorher).
+  // Ein leeres optionales Feld (ZT5) steht als '' hier – überschrieben wird damit nichts: geraete/erfassen.ts schickt
+  // ein leeres Feld nur, wenn das Gerät dort vorher selbst etwas gesendet hatte (`vorher`, Korrektur), eine Papierzeit
+  // am Bedienrechner bleibt also stehen (geprüft 22.11.2026, R8-35; die Rund-Probe bleibt unverändert).
   for (const z of aufbau.zeiten) {
     const text = e.zeiten[z.feld] ?? ''
     out[z.feld] = z.feld in e.keineZeit || zeitDeutung(text) === null ? '' : sanitizeTimeInput(text, ',')
@@ -776,15 +829,15 @@ export function entwurfAus(zellen: Readonly<Record<string, string>>, aufbau: Mas
     for (const ch of (zellen[aufbau.disq.feld] ?? '').toUpperCase()) if (/[A-Z]/.test(ch) && !disq.includes(ch)) disq.push(ch)
   }
   // Bojen (lib/scoring.ts bojenWert, W4-12): Punkte → Berührungen, gerundet; Schalter höchstens 1, Zähler höchstens
-  // bojenZaehlerMax. Ein Buchstabe, den die Zelle annimmt, ist ein Disq. an dieser Boje (U1) – NEBEN den Punkten
-  // („5J“, BZ1); andere Buchstaben werden übergangen.
+  // bojenZaehlerMax. Jeder Buchstabe, den die Zelle annimmt, ist ein Disq. an dieser Boje (U1) – NEBEN den Punkten
+  // („5, J“, BZ1; mehrere „5, J, D“ seit R7-14/BZ6); andere Buchstaben werden übergangen.
   for (const b of bojenVon(aufbau)) {
-    const { punkte, disq: buchstabe } = bojenWert(zellen[b.feld] ?? '')
+    const { punkte, disq: buchstaben } = bojenWert(zellen[b.feld] ?? '')
     if (punkte > 0 && b.punkte > 0) {
       const n = Math.min(Math.round(punkte / b.punkte), b.zaehler ? WKR_ANNAHMEN.bojenZaehlerMax : 1)
       for (let i = 0; i < n; i++) e = tippeBoje(e, b)
     }
-    if (buchstabe) e = tippeBojenDisq(e, b, buchstabe)
+    for (const code of buchstaben) e = tippeBojenDisq(e, b, code)
   }
   for (const d of disq) e = tippeDisq(e, d)
   // Prüfliste (W5.3): Punkte > 0 → ✗; eine vorhandene leere Zelle → ✓ (so schickt das Gerät ✓); fehlt sie → offen.

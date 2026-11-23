@@ -13,7 +13,7 @@ import { pruefeZeile, wertGilt, type GeraeteZeile } from './zeile'
 import { LISTEN_SICHT_FASSUNG, sichtListe, type ListenSichtExtra } from './sicht'
 import { erfassungsLage, tischLage } from './lage'
 import { abschlussVon, OHNE_PUNKT, wkrPunktVonRef } from './abschluss'
-import { entwurfAus, eintraege, fertig, leererEntwurf, maskeFuer, maskenArt, pruefOffen, punkteVon, tippePruef, zellenAus } from './maske'
+import { entwurfAus, eintraege, fertig, leererEntwurf, maskeFuer, maskenArt, pruefOffen, punkteVon, restRichtig, tippePruef, zellenAus } from './maske'
 import { uebungsSchritt, uebungsSicht, uebungsStand } from './uebung'
 import { sichtFreigabe } from './freigabe'
 
@@ -100,7 +100,8 @@ describe('Sicht am Tisch (KN3, LISTEN_SICHT_FASSUNG 9)', () => {
     const s = schicke(digital(), 'k1', [])
     const sicht = sichtListe(s, DM, TISCH, EXTRA)
     expect(sicht.lv).toBe(LISTEN_SICHT_FASSUNG)
-    expect(LISTEN_SICHT_FASSUNG).toBe(9)
+    // 10 seit mehreren Disq. je Bojenzelle (BZ8, 22.11.2026); die Tisch-Sicht kam mit 9.
+    expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(9)
     expect([sicht.schlange, sicht.danach, sicht.punkt, sicht.bereich]).toEqual([[], [], { id: 'ohne', titel: 'Alle Starter' }, 'Am Tisch'])
     expect(sicht.offen).toEqual({ n: BETRIEB_STARTER.length - 1, m: BETRIEB_STARTER.length })
     expect(sicht.bestand!.map((b) => [b.startNr, b.erledigt])).toEqual(BETRIEB_STARTER.map((p) => [p.startNr, p.id === 'k1']))
@@ -192,11 +193,13 @@ describe('Maske „Prüfliste“ (KN7)', () => {
     expect(maskenArt(sicht().klassen['1']!.felder!)).toBe('spaeter')
   })
 
-  it('✓ = leer, ✗ = „5“; fertig erst, wenn alle gesetzt; jede Zelle gilt unverändert (wertGilt), rund über entwurfAus', () => {
+  it('✓ = leer, ✗ = „5“; fertig sobald Knoten da (KN10, 22.11.2026); jede Zelle gilt unverändert (wertGilt), rund über entwurfAus', () => {
     const a = maskeFuer(sicht(), '1')!
     const felder = new Map(listenFelder(DM, 'knoten', '1').map((f) => [f.kennung, f]))
     let e = leererEntwurf()
-    expect([fertig(e, a), pruefOffen(e, a)]).toEqual([false, 5])
+    // KN10: offene Knoten gehen als ✓ hinaus („Alle richtig“) – fertig schon ohne Tipp.
+    expect([fertig(e, a), pruefOffen(e, a)]).toEqual([true, 5])
+    expect(fertig(e, { ...a, pruef: [] })).toBe(false)
     a.pruef.forEach((p, i) => (e = tippePruef(e, a, p.feld, i === 2 ? 'fehler' : 'ok')))
     expect([fertig(e, a), pruefOffen(e, a), punkteVon(e, a), eintraege(e)]).toEqual([true, 0, 5, 1])
     const zellen = zellenAus(e, a)
@@ -209,6 +212,22 @@ describe('Maske „Prüfliste“ (KN7)', () => {
     expect(tippePruef(e, a, 'gibtsnicht', 'ok')).toBe(e)
     // Andere Masken sind immer „fertig“ (dort heißt nichts getippt fehlerfrei).
     expect(fertig(leererEntwurf(), { art: 'katalog', pruef: [] })).toBe(true)
+  })
+})
+
+describe('restRichtig (KN10, 22.11.2026)', () => {
+  const sicht = () => sichtListe(digital(), DM, TISCH, EXTRA)
+
+  it('setzt nur offene auf ✓, ein ✗ bleibt; Zellen ✓ = leer, ✗ = „5“; nichts offen → gleiche Referenz', () => {
+    const a = maskeFuer(sicht(), '1')!
+    const e = tippePruef(leererEntwurf(), a, a.pruef[2].feld, 'fehler')
+    const r = restRichtig(e, a)
+    expect(a.pruef.map((p) => r.pruef[p.feld])).toEqual(['ok', 'ok', 'fehler', 'ok', 'ok'])
+    expect(pruefOffen(r, a)).toBe(0)
+    expect(zellenAus(r, a)).toEqual(zellenAus(e, a))
+    expect(a.pruef.map((p) => zellenAus(r, a)[p.feld])).toEqual(['', '', '5', '', ''])
+    expect(restRichtig(r, a)).toBe(r)
+    expect(a.pruef.every((p) => restRichtig(leererEntwurf(), a).pruef[p.feld] === 'ok')).toBe(true)
   })
 })
 

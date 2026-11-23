@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { BOJEN_FOLGE_VORGABE, bojenAbschnitteAlle, type BojenFolge, type Entwurf, type MaskenAufbau, type MaskenBoje, type MaskenHalt } from '../../wkr/maske'
+import { BOJEN_FOLGE_VORGABE, bojenAbschnitteAlle, bojenDisqVon, type BojenFolge, type Entwurf, type MaskenAufbau, type MaskenBoje, type MaskenHalt } from '../../wkr/maske'
 import WkrDisq from './WkrDisq.vue'
 import { useWkrText } from './texte'
 
@@ -13,9 +13,14 @@ import { useWkrText } from './texte'
  *    `gedreht` umgekehrt wie sein Reiter – wkr/maske.ts bojenAbschnitteAlle, 22.11.2026; zwei Knopfspalten nach dem
  *    Blick), nur Bojen, deren Zelle Buchstaben annimmt; darunter „Keine Boje / ganzer
  *    Parcours“ für Disq. ohne Ort (Ausrüstung, nicht vorbeigekommen …) – nur wenn die Liste ein Disq.-Feld hat.
- * 2. **Welcher Buchstabe?** – WkrDisq mit den Buchstaben DIESER Zelle (zweiter Tipp setzt, H1); bei einer Boje schließt
- *    die Wahl und zeigt die Bojen wieder (`fertig`): Der Knopf trägt dann Punkte UND Buchstabe („✔ 5“ / „Disq. G“).
- *    Bei „keine Boje“ bleibt die Liste offen wie bisher (mehrere Buchstaben im Disq.-Feld möglich).
+ * 2. **Welcher Buchstabe?** – WkrDisq mit den Buchstaben DIESER Zelle (zweiter Tipp setzt, H1). Seit R7-14
+ *    (22.11.2026, BZ7) auch an einer Boje eine Mehrfachwahl: Jeder Buchstabe schaltet sich an bzw. aus, die Wahl bleibt
+ *    offen, bis „Fertig“ (`disq-ort-fertig`) sie schließt und die Bojen wieder zeigt (`fertig`) – der Knopf trägt dann
+ *    Punkte UND Buchstaben („✔ 5“ / „Disq. J, D“). Vorher schloss schon der erste Buchstabe. Bei „keine Boje“ bleibt
+ *    die Liste offen wie bisher.
+ *
+ * Langdruck (R7-21, 22.11.2026, LD1, noch zu bestätigen): Mit `boje` (lang gedrückte Boje aus WkrBojen) beginnt die
+ * Wahl gleich im Schritt 2 bei DIESER Boje; „Fertig“ schließt wie sonst, „Zurück“ führt zu Schritt 1.
  *
  * Ein gesetzter Buchstabe an einer Boje steht in Schritt 1 am Knopf; in Schritt 2 nimmt ein Tipp auf ihn ihn heraus
  * (die Punkte bleiben). Katalog-Listen (Tor 5 ohne Bojen, MüB) kennen diese Wahl nicht – dort bleibt WkrDisq direkt.
@@ -30,8 +35,10 @@ const props = withDefaults(
     gesperrt?: boolean
     /** Reihenfolge der Bojen dieser Liste wie in der Maske. */
     folge?: BojenFolge
+    /** Lang gedrückte Boje (LD1): gleich deren Buchstaben zeigen. */
+    boje?: MaskenBoje | null
   }>(),
-  { folge: BOJEN_FOLGE_VORGABE },
+  { folge: BOJEN_FOLGE_VORGABE, boje: null },
 )
 const emit = defineEmits<{ setze: [code: string]; bojeDisq: [boje: MaskenBoje, code: string | null]; fertig: [] }>()
 const { w } = useWkrText()
@@ -56,17 +63,27 @@ function bojenName(h: MaskenHalt, b: MaskenBoje): string {
 function platz(b: MaskenBoje): string {
   return b.spalte === null ? '1 / -1' : String(b.spalte + 1)
 }
-const disqVon = (b: MaskenBoje) => props.entwurf.bojenDisq[b.feld] ?? null
+/** Gesetzte Buchstaben der Boje in Katalogfolge (BZ6) – als Liste für WkrDisq, als „J, D“ für den Knopf. */
+const disqListe = (b: MaskenBoje) => bojenDisqVon(props.entwurf, b)
+const disqVon = (b: MaskenBoje) => disqListe(b).join(', ') || null
 const punkteVon = (b: MaskenBoje) => (props.entwurf.bojen[b.feld] ?? 0) * b.punkte
+
+/** LD1: Start im Schritt 2 bei der lang gedrückten Boje (nur einmal beim Aufbau – `:key` je Start kommt von außen). */
+const start = props.boje ? halte.value.find((h) => h.bojen.some((b) => b.feld === props.boje!.feld)) : undefined
+if (start && props.boje && props.boje.disq.length > 0) ort.value = { art: 'boje', boje: start.bojen.find((b) => b.feld === props.boje!.feld)!, name: bojenName(start, props.boje) }
 
 function waehleBoje(h: MaskenHalt, b: MaskenBoje): void {
   if (props.gesperrt || b.disq.length === 0) return
   ort.value = { art: 'boje', boje: b, name: bojenName(h, b) }
 }
+/** Ein Buchstabe an der Boje an bzw. aus – die Wahl bleibt offen (Mehrfachwahl, BZ7). */
 function setzeAnBoje(code: string): void {
   const o = ort.value
   if (!o || o.art !== 'boje') return
   emit('bojeDisq', o.boje, code)
+}
+/** „Fertig“: Wahl zu, zurück zu den Bojen. */
+function fertig(): void {
   ort.value = null
   emit('fertig')
 }
@@ -97,7 +114,7 @@ function setzeAnBoje(code: string): void {
             <span class="wkr-bojen-unter">{{ b.unter || w('wkr.geraet.bojen.beruehrt') }}</span>
             <span class="wkr-bojen-stand">
               <span v-if="punkteVon(b) > 0" class="wkr-bojen-zahl">{{ w('wkr.geraet.bojen.gesetzt', { punkte: punkteVon(b) }) }}</span>
-              <span v-if="disqVon(b)" class="wkr-bojen-zahl">{{ w('wkr.geraet.bojen.disqGesetzt', { code: disqVon(b)! }) }}</span>
+              <span v-if="disqVon(b)" class="wkr-bojen-zahl wkr-bojen-disq-stand">{{ w('wkr.geraet.bojen.disqGesetzt', { code: disqVon(b)! }) }}</span>
             </span>
           </button>
         </div>
@@ -132,11 +149,21 @@ function setzeAnBoje(code: string): void {
         <WkrDisq
           :titel="w('wkr.geraet.bojen.disqTitel', { boje: ort.name })"
           :codes="ort.boje.disq"
-          :gesetzt="disqVon(ort.boje) ? [disqVon(ort.boje)!] : []"
+          :gesetzt="disqListe(ort.boje)"
           :start-nr="startNr"
           :gesperrt="gesperrt"
           @setze="setzeAnBoje"
         />
+        <button
+          type="button"
+          class="wkr-knopf wkr-knopf--breit wkr-knopf--haupt wkr-disq-ort-fertig"
+          data-ziel="gross"
+          data-action="disq-ort-fertig"
+          :data-anzahl="disqListe(ort.boje).length"
+          @click="fertig"
+        >
+          {{ disqVon(ort.boje) ? w('wkr.geraet.bojen.disqFertigMit', { codes: disqVon(ort.boje)! }) : w('wkr.geraet.bojen.disqFertig') }}
+        </button>
       </template>
     </template>
   </div>

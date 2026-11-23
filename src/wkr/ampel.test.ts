@@ -39,8 +39,9 @@ function einer(): AppState {
 
 describe('istParcoursListe (AM1, AM2) – an allen Aufbauten', () => {
   // Plan §3.1: Tor-Listen, Tor 5, MüB, Parcoursüberwachung, moewezeit/bstartziel und parallelparcours sind Parcours;
-  // Steg, Vorsteg, Knoten und reine Zeit-Listen nicht.
-  const NIE = new Set(['steg', 'vorsteg', 'knoten', 'zeit', 'zeit-1', 'zeit-2', 'zeit-3'])
+  // seit 22.11.2026 (R7-01, AM2 umgebaut) auch die reinen Zeit-Listen (zeit, zeit-n; Parallel „Zeit“ A/B). Steg,
+  // Vorsteg und Knoten nicht.
+  const NIE = new Set(['steg', 'vorsteg', 'knoten'])
   for (const regelwerk of ['dm-2026', 'uim-2026']) {
     it(`${regelwerk}: jede Liste jedes Aufbaus`, () => {
       const k = configFor({ regelwerk })
@@ -49,11 +50,11 @@ describe('istParcoursListe (AM1, AM2) – an allen Aufbauten', () => {
         for (const kombi of [false, true]) {
           for (const typeId of k.aufbauOrder(a.id, kombi)) {
             gesehen.add(typeId)
-            expect(istParcoursListe(k, typeId), `${a.id}: ${typeId}`).toBe(!NIE.has(typeId) && !typeId.startsWith('zeit'))
+            expect(istParcoursListe(k, typeId), `${a.id}: ${typeId}`).toBe(!NIE.has(typeId))
           }
         }
       }
-      for (const typeId of ['gate135', 'gate245', 'tor5', 'mueb', 'parcours', 'parcoursms', 'moewezeit', 'bstartziel', 'parallelparcours', 'brechts', 'moewe135']) {
+      for (const typeId of ['gate135', 'gate245', 'tor5', 'mueb', 'parcours', 'parcoursms', 'moewezeit', 'bstartziel', 'parallelparcours', 'brechts', 'moewe135', 'zeit', 'zeit-1', 'zeit-2', 'zeit-3']) {
         if (k.getPositions().some((p) => p.typeId === typeId)) expect(istParcoursListe(k, typeId), typeId).toBe(true)
       }
       for (const typeId of NIE) if (k.getPositions().some((p) => p.typeId === typeId)) expect(istParcoursListe(k, typeId), typeId).toBe(false)
@@ -216,6 +217,37 @@ describe('Auto-Modus (AM6)', () => {
   })
 })
 
+describe('Reine Zeit-Liste (22.11.2026, R7-01, AM2 umgebaut): hält die Ampel wie jede Parcours-Liste', () => {
+  /** Eine Zeile der Zeit-Liste wie vom Gerät: nur die erste Zeit (ZT5). */
+  function zeitZeile(s: AppState): AppState {
+    const r = pruefeZeile(s, DM, L('zeit'), undefined, 'g1', { z: 1, s: aktuell(s), c: [['zeit1', '75,12', '']] })
+    if ('fehler' in r) throw new Error(r.fehler)
+    return reducer(s, { type: 'WKR_ZEILEN', liste: K('zeit'), quelle: { geraet: 'g1', name: 'Pad' }, zeilen: [r], zeit: 3000 })
+  }
+
+  it('nur Zeit digital: grün → Durchfahrt rot (offen: Zeit) → Zeile mit der ersten Zeit → frei; ihre erste Zeile macht rot', () => {
+    const s = zeigeNaechsten(setzeListe(wkrBetriebsStand(viele(4)), L('zeit'), 'digital'), P1, 1000)
+    expect(ampel(s).ampel).toBe('gruen')
+    const rot = durch(s)
+    expect(ampel(rot)).toMatchObject({ ampel: 'rot', offen: [DM.getSheetDef('zeit').title] })
+    expect(ampel(zeitZeile(rot)).ampel).toBe('frei')
+    // Neben gate135: Die Zeile der Zeit-Liste allein (AM4) macht rot, gate135 fehlt noch.
+    const beide = setzeListe(s, L('gate135'), 'digital')
+    expect(ampel(zeitZeile(beide))).toMatchObject({ ampel: 'rot', offen: [DM.getSheetDef('gate135').title] })
+    // Auto-Modus (AM6): Die Zeit-Liste auf Papier nimmt ihn weg.
+    const auto = reducer(setzeListe(beide, L('zeit'), 'papier'), { type: 'SET_ANZEIGE', patch: { wkrAuto: true } })
+    const a = ampel(auto, [{ id: 'g1', name: 'Pad', listen: [{ liste: K('gate135') }], zuletzt: 0 }])
+    expect(a.autoMoeglich).toBe(false)
+    expect(a.autoOhne).toContain(DM.getSheetDef('zeit').title)
+  })
+
+  it('UIM Parallelslalom: Zeit A/B sind Parcours-Listen je Racecourse', () => {
+    expect(istParcoursListe(UIM, 'zeit')).toBe(true)
+    expect(istParcoursListe(UIM, 'parallelparcours')).toBe(true)
+    expect(istParcoursListe(UIM, 'steg')).toBe(false)
+  })
+})
+
 describe('Bojen + Zeit (moewezeit, W5.4, 22.11.2026, ZT1/AM2): Parcours-Liste mit Maske – Ampel und Auto gelten', () => {
   /** Aufbau Möwe, Lauf begonnen, ein Start gezeigt; Liste moewezeit digital. */
   function moewe(): AppState {
@@ -235,10 +267,10 @@ describe('Bojen + Zeit (moewezeit, W5.4, 22.11.2026, ZT1/AM2): Parcours-Liste mi
     return listenFelder(DM, 'moewezeit', klasse).find((f) => f.kind === 'time')!.kennung
   }
 
-  it('Parcours-Liste (Start/Ziel-Bojen sind Bewertung), reine Zeit-Liste nicht – auch mit Maske', () => {
+  it('Parcours-Liste (Start/Ziel-Bojen sind Bewertung), seit R7-01 auch die reine Zeit-Liste – auch mit Maske', () => {
     expect(istParcoursListe(DM, 'moewezeit')).toBe(true)
     expect(istParcoursListe(DM, 'bstartziel')).toBe(true)
-    expect(istParcoursListe(DM, 'zeit')).toBe(false)
+    expect(istParcoursListe(DM, 'zeit')).toBe(true)
     expect(listeMitMaske(DM, 'moewezeit', ['1'])).toBe(true)
   })
 

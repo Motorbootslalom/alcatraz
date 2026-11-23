@@ -186,12 +186,17 @@ Plan [plan-wkr-w5.md](plan-wkr-w5.md); Auslegungen PD1–PD6, MW1–MW3, BD1–B
 - [ ] **Bild** (Pad, Bojen-Liste): Erwartet: Trefferkreise liegen im echten Browser auf den Bojen der Zeichnung (auch
   gedreht), ≥ 15 mm; Klasse 7 auf Möwe-Listen zeigt Knöpfe. Umschalter springt nach Tor 5 auf den Rückweg – richtig
   so? Beobachtung:
-- [ ] **Knoten am Tisch** (Knoten-Liste, ein Pad am Tisch): Erwartet: Nummer eintippen, je Knoten ✓ / ✗, Abschicken
-  erst bei allen gesetzt, „offen n / m“ stimmt mit der Matrix „Knoten“ am Bedienrechner; Abschluss der ganzen Liste
-  mit „Rest auf Papier“. Reicht das Eintippen der Nummer, oder fehlt eine Liste zum Antippen? Beobachtung:
+- [ ] **Knoten am Tisch** (Knoten-Liste, ein Pad am Tisch): Erwartet: „Nächster: 9 (Klasse …)“ im leeren Feld
+  (seit 22.11.2026, nach der zuletzt geschickten Nummer), andere Nummer eintippbar, je Knoten ✓ / ✗, großer Knopf
+  „Alle richtig“ bzw. „Rest richtig“ schickt in einem Tipp, eine schon erfasste Nummer fragt „korrigieren?“, „offen
+  n / m“ stimmt mit der Matrix „Knoten“ am Bedienrechner; Abschluss der ganzen Liste mit „Rest auf Papier“. Passt die
+  Folge des Vorschlags (Starter-Reiter) zum Ablauf am Tisch? Beobachtung:
 - [ ] **Zeitnahme mit Anlage und Stoppuhr** (Zeit-Liste bzw. Möwe/Berlin mit Zeit): Erwartet: Zeit der Anlage
   abgelesen eintippen („83,45“ → „1:23,45“), bei Ausfall der Anlage die Stoppuhr-Zeit; „Keine Zeit“ mit Grund nur,
-  wenn keine Uhr eine Zeit hat; die Deutung „= 1 min 23,45 s“ gleich der am Rechner. Beobachtung:
+  wenn keine Uhr eine Zeit hat; die Deutung „= 1 min 23,45 s“ gleich der am Rechner. Nach „83,45“ springt der Block
+  ins nächste Zeitfeld (nicht im letzten); abschicken geht schon mit der ersten Zeit – weitere Zeiten sind optional
+  (22.11.2026, R8-35). Die Zeit-Liste hält die Parcours-Ampel auf rot, bis ihre Zeile da ist (R7-01) – hält das den
+  Betrieb auf, wenn die Zeit erst später abgelesen wird? Beobachtung:
 - [ ] **Tabelle für Geübte** (Pad mit Tastatur bzw. Rechner, Mehr → Ansicht → Maske „Tabelle“): Erwartet: Fokus in der
   ersten Zelle, Tab/Enter springen weiter, Enter in der letzten Zelle schickt ab; „6 6 20“ steht danach als
   „2x6, 20“, Bojen „5“ bzw. „5J“; ein Tippfehler („3“ an einer Boje, Code 99) steht rot an der Zelle und sperrt.

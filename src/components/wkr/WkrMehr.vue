@@ -6,6 +6,8 @@ import { BOJEN_FOLGEN, type BojenFolge } from '../../wkr/maske'
 import type { WkrNameLage } from '../../geraete/erfassen'
 import { MASKEN_GEBAUT, type MaskenWahl } from '../../wkr/maskenWahl'
 import AppDialog from '../AppDialog.vue'
+import WkrVorziehen from './WkrVorziehen.vue'
+import type { ClassId } from '../../types'
 import { useWkrText } from './texte'
 
 /**
@@ -35,6 +37,10 @@ import { useWkrText } from './texte'
  * sie nicht `fest` vorgibt (dann ein Satz) und es mehr als eine gibt: die erlaubten (wkr/maskenWahl.ts), eine noch
  * nicht gebaute ausgegraut mit „… folgt“. Seit W5.5 (22.11.2026) auch „Tabelle“ – auf dem Handy ausgegraut mit „nur
  * Pad“ (`masken.aus`, TB1). Ereignis `maske`, gemerkt in WkrGeraet je Raum und Liste.
+ *
+ * Nutzer 22.11.2026 (R7-45, WKR_ANNAHMEN Y4): In der Übung „Klasse vorziehen“ (WkrVorziehen) mit den Klassen der Liste
+ * (`vorziehen`, ab zwei Klassen) – Ereignis `vorziehen`, WkrMaske → quelle.zieheKlasseVor; „Mehr“ klappt dabei zu,
+ * damit der vorgezogene Start gleich zu sehen ist.
  *
  * Diese Komponente schreibt nichts selbst ab: Ansicht und Sprache gehen als `ansicht` hinauf bis WkrGeraet, das sie
  * gerätelokal merkt (ablage.ts `alcatraz.geraet.ansicht`).
@@ -68,8 +74,10 @@ const props = withDefaults(
     wkrName?: WkrNameLage | null
     /** Maskenwahl dieser Liste (F14, W5.1): erlaubte Masken, die gezeigte, ob fest vorgegeben; `null` = keine Wahl. */
     masken?: { erlaubt: MaskenWahl[]; wirksam: MaskenWahl; fest: boolean; aus?: MaskenWahl[] } | null
+    /** Nur Übung (Y4): die Klassen der Liste zum Vorziehen, Namen wie in der Maske; `null` = kein Eintrag. */
+    vorziehen?: { id: ClassId; titel: string }[] | null
   }>(),
-  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenFolge: null, wkrName: null, masken: null },
+  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenFolge: null, wkrName: null, masken: null, vorziehen: null },
 )
 const emit = defineEmits<{
   bemerkung: [text: string]
@@ -83,6 +91,7 @@ const emit = defineEmits<{
   bojenFolge: [folge: BojenFolge]
   wkrName: [name: string]
   maske: [maske: MaskenWahl]
+  vorziehen: [klasse: ClassId]
 }>()
 const { w } = useWkrText()
 
@@ -142,6 +151,8 @@ function tue(f: () => void): void {
       <button v-if="nichtVorbei" type="button" class="wkr-knopf" data-ziel="klein" data-action="nicht-vorbei" @click="frageNv = true">
         {{ nichtVorbeiDisq ? w('wkr.geraet.nichtVorbei.disq', { code: nichtVorbeiDisq }) : `⊘ ${w('wkr.geraet.nichtVorbei')}` }}
       </button>
+
+      <WkrVorziehen v-if="uebung && vorziehen && vorziehen.length > 1" :klassen="vorziehen" @wahl="(k) => tue(() => emit('vorziehen', k))" />
 
       <fieldset v-if="wkrName" class="wkr-feldgruppe" data-teil="wkr-name" :data-eigen="wkrName.eigen || undefined">
         <legend>{{ w('wkr.geraet.name') }}</legend>

@@ -72,36 +72,71 @@ const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color:
 // Auslegungen vom 21.11.2026, noch zu bestätigen: BS2 Der Knopf heißt „Vorschlag neu“ statt „neu ziehen“ (dem
 // Nutzer zu seltsam) und setzt Gesamtzahl und Klassen neu. BS3 Die Gesamtzahl ändern verteilt neu – die Zahlen
 // je Klasse von Hand gehen dann verloren (die Gesamtzahl ist die Vorgabe, die Summe steht daneben).
+// BS2 bestätigt 22.11.2026 (R7-50). BS3 NICHT bestätigt 22.11.2026 (R7-51) – Nutzer: „Manuelle Anpassung soll
+// berücksichtigt werden. Mit einem Reset-Knopf.“
+// BS3 umgebaut 22.11.2026 (R7-51, noch zu bestätigen): Gemerkt wird auch, welche Klassen von Hand gesetzt sind
+// (`hand`). Eine neue Gesamtzahl und „Vorschlag neu“ verteilen nur noch auf die übrigen Klassen (domain/generate.ts
+// verteileAufKlassen mit `fest`, BS4); die Hand-Zahlen bleiben und sind markiert (✎). BS4 (22.11.2026, noch zu
+// bestätigen): „Zurücksetzen“ (nur sichtbar mit Hand-Zahlen) leert `hand` und verteilt die Gesamtzahl über alle
+// Klassen neu. Ein Wechsel der Art verwirft wie bisher alles, auch `hand`.
 const MAX_ZAHL = 999
 const istZahl = (w: unknown): w is number => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= MAX_ZAHL
 interface BeispielKlassen {
   art: BeispielFeldArt
   gesamt: number
   klassen: Record<string, number>
+  /** Von Hand gesetzte Klassen (BS3 umgebaut 22.11.2026) – behalten ihre Zahl beim Verteilen. */
+  hand: ClassId[]
 }
 const istBeispielKlassen = (w: unknown): boolean => {
   if (typeof w !== 'object' || w === null) return w === null
   const x = w as Partial<BeispielKlassen>
-  return typeof x.art === 'string' && istZahl(x.gesamt) && typeof x.klassen === 'object' && x.klassen !== null && Object.values(x.klassen).every(istZahl)
+  return (
+    typeof x.art === 'string' &&
+    istZahl(x.gesamt) &&
+    typeof x.klassen === 'object' &&
+    x.klassen !== null &&
+    Object.values(x.klassen).every(istZahl) &&
+    // `hand` fehlt in älteren Ständen → gilt als leer (handListe); vorhanden muss es eine Liste von Texten sein.
+    (x.hand === undefined || (Array.isArray(x.hand) && x.hand.every((h) => typeof h === 'string')))
+  )
 }
 const feldArt = computed(() => beispielFeldArt(state.value.eventKind, state.value.originMode))
 const wahl = merke<BeispielKlassen | null>('beispiel.klassen', null, { ueberNeuladen: true, gueltig: istBeispielKlassen })
 const klassenIds = () => CLASSES.value.map((c) => c.id)
-function setzeVorgabe(gesamt: number) {
-  wahl.value = { art: feldArt.value, gesamt, klassen: verteileAufKlassen(gesamt, klassenIds()) }
+/** Die von Hand gesetzten Klassen der gültigen Wahl, die es im Regelwerk gibt (fehlt `hand` → keine). */
+const hand = computed<ClassId[]>(() => {
+  const w = wahl.value
+  if (!w || w.art !== feldArt.value) return []
+  const ids = klassenIds()
+  return (w.hand ?? []).filter((k) => ids.includes(k) && istZahl(w.klassen[k]))
+})
+/** Verteilt `gesamt` auf die Klassen, die nicht von Hand gesetzt sind (BS3 umgebaut, BS4); ohne Hand-Zahlen auf alle. */
+function setzeVorgabe(gesamt: number, mitHand = true) {
+  const h = mitHand ? hand.value : []
+  const fest = Object.fromEntries(h.map((k) => [k, wahl.value!.klassen[k]])) as Partial<Record<ClassId, number>>
+  wahl.value = { art: feldArt.value, gesamt, klassen: verteileAufKlassen(gesamt, klassenIds(), fest), hand: h }
+}
+/** „Zurücksetzen“ (BS4): Hand-Zahlen vergessen, die Gesamtzahl über alle Klassen neu verteilen. */
+function zuruecksetzen() {
+  setzeVorgabe(gesamt.value, false)
 }
 /** „Vorschlag neu“: Der Zufall reist als Saat – gleiche Saat, gleiche Zahl (lib/beispielwerte.ts zufallAus). */
 function ziehe() {
   setzeVorgabe(beispielGesamt(feldArt.value, zufallAus(neueSaat())))
 }
+// Wechsel der Art: alles neu, auch `hand` (die Hand-Zahlen passten zur alten Art).
 watch(feldArt, (art) => {
-  if (wahl.value?.art !== art) ziehe()
+  if (wahl.value?.art !== art) {
+    wahl.value = null
+    ziehe()
+  }
 }, { immediate: true })
 const gesamt = computed(() => (wahl.value?.art === feldArt.value ? wahl.value.gesamt : 0))
 const bereich = computed(() => BEISPIEL_STARTERZAHL[feldArt.value])
 
 const leseZahl = (e: Event) => Math.max(0, Math.min(MAX_ZAHL, parseInt((e.target as HTMLInputElement).value, 10) || 0))
-/** BS3: Eine neue Gesamtzahl verteilt neu – auch über Zahlen, die von Hand je Klasse eingetragen waren. */
+/** BS3 umgebaut (22.11.2026, R7-51): Eine neue Gesamtzahl verteilt nur auf die Klassen ohne Hand-Zahl. */
 function setGesamt(e: Event) {
   setzeVorgabe(leseZahl(e))
 }
@@ -120,7 +155,8 @@ const total = computed(() => CLASSES.value.reduce((sum, c) => sum + countOf(c.id
 function setKlasse(id: ClassId, e: Event) {
   const n = leseZahl(e)
   ;(e.target as HTMLInputElement).value = String(n)
-  wahl.value = { art: feldArt.value, gesamt: gesamt.value, klassen: { ...verteilung.value, [id]: n } }
+  // Die Klasse gilt ab jetzt als von Hand gesetzt (BS3 umgebaut 22.11.2026) – die übrigen bleiben, wie sie stehen.
+  wahl.value = { art: feldArt.value, gesamt: gesamt.value, klassen: { ...verteilung.value, [id]: n }, hand: hand.value.includes(id) ? hand.value : [...hand.value, id] }
 }
 
 // Herkünfte: unbegrenzt (gewürfelt aus allen) oder eine Zahl – dann verteilen sich die Starter
@@ -282,12 +318,27 @@ function werteLoeschen() {
     <div class="subhead">
       {{ t('demo.perClass') }}
       <span class="note" data-hinweis="beispiel-summe" role="status" style="margin: 0 0 0 8px">{{ t('demo.perClass.sum', { n: total, gesamt }) }}</span>
+      <!-- BS4 (22.11.2026, R7-51): nur mit Hand-Zahlen – vergisst sie und verteilt die Gesamtzahl über alle Klassen. -->
+      <button
+        v-if="hand.length > 0"
+        type="button"
+        class="btn sm"
+        style="margin-left: 8px"
+        data-action="beispiel-klassen-zuruecksetzen"
+        :title="t('demo.perClass.resetTitle')"
+        @click="zuruecksetzen"
+      >
+        {{ t('demo.perClass.reset') }}
+      </button>
     </div>
     <div class="setup-grid">
       <!-- Wie die Felder je Klasse unter „Einstellungen“: die ganze Kachel ist das Label. -->
-      <label v-for="c in CLASSES" :key="c.id" class="class-count" :data-klasse="c.id">
+      <label v-for="c in CLASSES" :key="c.id" class="class-count" :data-klasse="c.id" :data-hand="hand.includes(c.id) || undefined">
         <span class="dot" :style="{ background: c.color }" />
-        <span class="meta"><span class="name">{{ classLabel(c.id) }}</span></span>
+        <span class="meta">
+          <span class="name">{{ classLabel(c.id) }}</span>
+          <span v-if="hand.includes(c.id)" data-teil="beispiel-hand" :title="t('demo.perClass.handTitle')"> ✎</span>
+        </span>
         <input type="number" min="0" :max="MAX_ZAHL" :data-feld="`beispiel-klasse|${c.id}`" :value="countOf(c.id)" @change="setKlasse(c.id, $event)" />
       </label>
     </div>

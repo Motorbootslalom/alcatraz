@@ -3,26 +3,34 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import type { ClassId } from '../../types'
 import type { BestandEintrag, ErfassungsQuelle, PruefZeile } from '../../geraete/erfassen'
 import type { ListenAufgabe } from '../../geraete/aufgaben'
-import { entwurfAus, fertig, leererEntwurf, maskeFuer, pruefOffen, punkteVon, tippePruef, zellenAus, type Entwurf, type MaskenAufbau, type PruefWahl } from '../../wkr/maske'
+import { entwurfAus, fertig, leererEntwurf, maskeFuer, pruefOffen, punkteVon, restRichtig, tippePruef, zellenAus, type Entwurf, type MaskenAufbau, type PruefWahl } from '../../wkr/maske'
+import { naechsterOffener } from '../../wkr/tisch'
 import { OHNE_PUNKT } from '../../wkr/abschluss'
 import WkrAbschluss from './WkrAbschluss.vue'
 import WkrKopf from './WkrKopf.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import WkrZiffern from './WkrZiffern.vue'
+import WkrVorziehen from './WkrVorziehen.vue'
 import { stufeZeichen, useWkrText } from './texte'
 
 /**
- * Knoten-Prüfliste am Tisch (W5.3, Plan docs/plan-wkr-w5.md §6.2, 22.11.2026, WKR_ANNAHMEN KN3/KN7/KN8) – die Maske
- * einer Liste OHNE Lauf. Es fährt kein Boot: keine Schlange der Startfolge, keine Starterkarte, kein Overlay, kein
- * Startwechsel-Takt. Der WKR tippt die Startnummer über WkrZiffern (eigene Tasten), sieht Klasse und „offen 14 / 38“,
- * setzt je Knoten ✓ (gebunden = leere Zelle) oder ✗ (Fehlerpunkte, „5“) und schickt erst, wenn jeder Knoten gesetzt
- * ist (Hauptknopf vorher gesperrt mit „noch 2 offen“). Danach leert sich das Nummernfeld; darunter steht klein, was mit
+ * Knoten-Prüfliste am Tisch (W5.3, Plan docs/plan-wkr-w5.md §6.2, 22.11.2026, WKR_ANNAHMEN KN3/KN7/KN8; umgebaut
+ * 22.11.2026 nach R8-27/R8-31/R8-32, KN9–KN11, Plan docs/plan-antworten-runde7-8.md §6) – die Maske einer Liste OHNE
+ * Lauf. Es fährt kein Boot: keine Schlange der Startfolge, keine Starterkarte, kein Overlay, kein Startwechsel-Takt.
+ * Das leere Nummernfeld schlägt groß den nächsten offenen Starter vor (KN9, wkr/tisch.ts naechsterOffener: nach dem
+ * zuletzt abgeschickten in der Folge des Bestands) und ist mit ihm vorbelegt (KN12, Prüfbefund 22.11.2026): Knoten und
+ * „Alle richtig“ gelten gleich für ihn; Antippen hält ihn fest, Eintippen über WkrZiffern ersetzt ihn. Der WKR
+ * sieht Klasse und „offen 14 / 38“, setzt je Knoten ✓ (= leere Zelle) oder ✗ (Fehlerpunkte, „5“). Der Hauptknopf ist
+ * aktiv, sobald eine Nummer gewählt ist (KN10): „Alle richtig“ bzw. „Rest richtig“ setzt die offenen auf ✓ und
+ * schickt ab – so markiert der WKR nur die falschen. Danach leert sich das Nummernfeld; darunter steht klein, was mit
  * der letzten Zeile geschah (Stufe aus dem Kern: ↑ unterwegs, ✓ übernommen, ! Rückfrage, ✗ abgelehnt).
  *
- * Eine Nummer, die dieses Gerät schon geschickt hat, öffnet die Korrektur (Grundlage `quelle.stand(z)` wie in WkrMaske:
- * ✓-Knoten stehen dort nicht, weil leere Zellen ohne `vorher` nie hinausgehen – fehlende Knoten gelten daher als ✓).
- * Erledigt ohne eigene Zeile (vom Bedienrechner abgetippt bzw. ein anderes Gerät): Hinweis, Abschicken trotzdem
- * möglich (der Bedienrechner fragt bei Abweichung zurück). Auf dem Pad stehen die offenen Nummern rechts zum
+ * Eine schon erfasste Nummer (erledigt laut Sicht oder selbst geschickt) fragt zuerst „Nr. 23 ist schon erfasst –
+ * korrigieren?“ (KN11) – in der Maske an Stelle der Knoten, nicht als Dialog, damit Weitertippen („1“ → „12“) geht.
+ * Ja: Hat dieses Gerät eine Zeile, die Korrektur (Grundlage `quelle.stand(z)` wie in WkrMaske: ✓-Knoten stehen dort
+ * nicht, weil leere Zellen ohne `vorher` nie hinausgehen – fehlende Knoten gelten daher als ✓); sonst (vom
+ * Bedienrechner bzw. einem anderen Gerät) eine neue Zeile, der Bedienrechner fragt bei Abweichung zurück. Nein: Feld
+ * leer, der Vorschlag steht wieder da. Auf dem Pad stehen die offenen Nummern rechts zum
  * Antippen, auf dem Handy aufklappbar darunter. „Liste abschließen“ (KN5) schließt die ganze Liste (Punkt `ohne`),
  * offene Starter nur mit „Rest auf Papier“ (WkrAbschluss).
  *
@@ -50,21 +58,60 @@ const buchstaben = computed(() => [...new Set(bestand.value.flatMap((b) => [...b
 
 // --- Nummer und Treffer ---
 const nr = ref('')
-const treffer = computed(() => {
+// --- Vorschlag (KN9): nach der Startnummer der neuesten eigenen Zeile dieser Liste (gerätelokal im Kern) ---
+const zuletztKey = computed(() => props.quelle.zuletzt.value.find((z) => z.liste === liste.value)?.s ?? null)
+// Übung (Nutzer 22.11.2026, R7-45, Y4): „Klasse vorziehen“ lässt den Vorschlag auf den ersten offenen dieser Klasse
+// springen, bis die nächste Zeile abgeschickt ist (geraete/uebung.ts `vorgezogen`).
+const vorschlag = computed(() => (nr.value === '' ? naechsterOffener(bestand.value, zuletztKey.value, props.quelle.vorgezogen?.value) : null))
+const getippt = computed(() => {
   const n = nr.value.trim().toUpperCase()
   return n === '' ? null : (bestand.value.find((b) => b.startNr.toUpperCase() === n) ?? null)
 })
+// KN12 (Prüfbefund 22.11.2026 zu R8-27/R8-31, noch zu bestätigen): Der Vorschlag ist VORBELEGT – bei leerem Feld gilt
+// er als gewählt, Knoten und „✓ Alle richtig“ stehen sofort bereit. Ein fehlerfreier Starter braucht so EINEN Tipp,
+// ein falscher nur das ✗ – „so muss dann nur der falsche markiert werden“. Eintippen ersetzt ihn.
+const treffer = computed(() => (nr.value === '' ? (vorschlag.value ?? null) : getippt.value))
 /** Die Nummer ist vollständig getippt, aber nicht auf der Liste (erst, wenn keine längere Nummer mehr passt). */
 const unbekannt = computed(() => {
   const n = nr.value.trim().toUpperCase()
   return n !== '' && !treffer.value && !bestand.value.some((b) => b.startNr.toUpperCase().startsWith(n))
 })
 const aufbau = computed<MaskenAufbau | null>(() => (sicht.value && treffer.value ? maskeFuer(sicht.value, treffer.value.klasse, props.spracheWahl) : null))
-const klassenTitel = computed(() => {
-  const k = treffer.value?.klasse
-  if (!k) return ''
-  return (props.spracheWahl === 'andere' ? sicht.value?.andere?.klassen[k]?.titel : undefined) ?? sicht.value?.klassen[k]?.titel ?? k
-})
+const titelVon = (k: ClassId | undefined): string =>
+  !k ? '' : ((props.spracheWahl === 'andere' ? sicht.value?.andere?.klassen[k]?.titel : undefined) ?? sicht.value?.klassen[k]?.titel ?? k)
+const klassenTitel = computed(() => titelVon(treffer.value?.klasse))
+
+const vorziehKlassen = computed(() =>
+  props.quelle.uebung && props.quelle.zieheKlasseVor && sicht.value ? (Object.keys(sicht.value.klassen) as ClassId[]).map((id) => ({ id, titel: titelVon(id) })) : null,
+)
+const vorziehOffen = ref(false)
+function ziehVor(k: ClassId): void {
+  vorziehOffen.value = false
+  props.quelle.zieheKlasseVor?.(liste.value, k)
+}
+function waehle(b: BestandEintrag): void {
+  nr.value = b.startNr
+}
+
+// --- Rückfrage bei erfasster Nummer (KN11) ---
+/** Kennung, für die der WKR „korrigieren“ schon bejaht hat (bzw. aus der Prüfansicht gewählt). */
+const bejaht = ref<string | null>(null)
+const erfasst = computed(() => !!treffer.value && (treffer.value.erledigt || treffer.value.z !== undefined))
+const frage = computed(() => erfasst.value && bejaht.value !== treffer.value!.key)
+// Eine andere Nummer vergisst das „Ja“ – kommt der WKR später wieder auf sie, fragt es neu.
+watch(
+  () => treffer.value?.key ?? null,
+  (k) => {
+    if (k !== bejaht.value) bejaht.value = null
+  },
+)
+function frageJa(): void {
+  if (treffer.value) bejaht.value = treffer.value.key
+}
+function frageNein(): void {
+  bejaht.value = null
+  nr.value = ''
+}
 /** Korrektur: Dieses Gerät hat für den Starter schon eine Zeile (KN8). */
 const korrekturZ = computed(() => (treffer.value?.erledigt && treffer.value.z !== undefined ? treffer.value.z : null))
 const anderswoErledigt = computed(() => !!treffer.value?.erledigt && korrekturZ.value === null)
@@ -92,7 +139,15 @@ function setze(feld: string, wahl: PruefWahl): void {
 }
 const nochOffen = computed(() => (aufbau.value ? pruefOffen(entwurf.value, aufbau.value) : 0))
 const summe = computed(() => (aufbau.value ? punkteVon(entwurf.value, aufbau.value) : 0))
-const darf = computed(() => !!aufbau.value && aufbau.value.art === 'pruefliste' && fertig(entwurf.value, aufbau.value))
+const darf = computed(() => !!aufbau.value && aufbau.value.art === 'pruefliste' && !frage.value && fertig(entwurf.value, aufbau.value))
+/** Text des Hauptknopfs (KN10): „Alle richtig“ (nichts gesetzt), „Rest richtig“ (teils gesetzt), sonst „Abschicken“. */
+const hauptText = computed(() => {
+  const a = aufbau.value
+  if (!a) return w('wkr.geraet.pruef.tippen')
+  if (frage.value) return w('wkr.geraet.pruef.frageOffen')
+  if (nochOffen.value > 0) return nochOffen.value === a.pruef.length ? w('wkr.geraet.pruef.alleRichtig') : w('wkr.geraet.pruef.restRichtig', { n: summe.value })
+  return w(korrekturZ.value !== null ? 'wkr.geraet.pruef.korrigieren' : 'wkr.geraet.pruef.abschicken', { n: summe.value })
+})
 
 // --- Abschicken (KN8: kein Takt, Nummernfeld leer, Rückmeldung klein darunter) ---
 const letzte = ref<{ nr: string; z: number } | null>(null)
@@ -101,10 +156,13 @@ function abschicken(): void {
   const a = aufbau.value
   const t = treffer.value
   if (!a || !t || !darf.value) return
+  // KN10: offene Knoten gehen als ✓ hinaus (dieselben Zellen wie von Hand gesetzt).
+  entwurf.value = restRichtig(entwurf.value, a)
   const zellen = zellenAus(entwurf.value, a)
   const z = korrekturZ.value !== null ? props.quelle.korrigiere(korrekturZ.value, zellen) : props.quelle.schicke(liste.value, { s: t.key, zellen })
   if (z === null) return
   letzte.value = { nr: t.startNr, z }
+  bejaht.value = null
   nr.value = ''
 }
 
@@ -122,6 +180,8 @@ function korrigiereAusPruefung(s: string): void {
   const b = bestand.value.find((x) => x.key === s)
   if (!b) return
   abschluss.value = false
+  // „Korrigieren“ in der Prüfansicht ist schon die Antwort auf KN11 – nicht noch einmal fragen.
+  bejaht.value = b.key
   nr.value = b.startNr
 }
 
@@ -168,19 +228,37 @@ const stufeText = computed(() => {
       <div v-else class="wkr-pruef-rahmen">
         <div class="wkr-pruef-haupt">
           <p class="wkr-pruef-kopf" data-teil="pruef-kopf">
-            <span data-teil="pruef-nr">{{ w('wkr.geraet.pruef.nr') }} {{ nr || '–' }}</span>
+            <span data-teil="pruef-nr">{{ w('wkr.geraet.pruef.nr') }} {{ nr || treffer?.startNr || '–' }}</span>
             <span v-if="treffer" data-teil="pruef-klasse">{{ klassenTitel }}</span>
             <span data-teil="pruef-offen">{{ w('wkr.geraet.pruef.offen', { n: sicht.offen?.n ?? offen.length, m: sicht.offen?.m ?? bestand.length }) }}</span>
           </p>
+          <button
+            v-if="vorschlag"
+            type="button"
+            class="wkr-knopf wkr-pruef-vorschlag"
+            data-ziel="gross"
+            data-action="pruef-vorschlag"
+            :data-start="vorschlag.key"
+            @click="waehle(vorschlag)"
+          >
+            {{ w('wkr.geraet.pruef.vorschlag', { nr: vorschlag.startNr, klasse: titelVon(vorschlag.klasse) }) }}
+          </button>
           <WkrZiffern v-model="nr" :buchstaben="buchstaben" :titel="w('wkr.geraet.pruef.nr')" />
           <p v-if="unbekannt" class="wkr-band wkr-band--warn" role="alert" data-teil="pruef-unbekannt">{{ w('wkr.geraet.pruef.unbekannt', { nr }) }}</p>
+          <div v-else-if="frage" class="wkr-band wkr-band--hinweis wkr-pruef-frage" role="alertdialog" data-teil="pruef-frage">
+            <p>{{ w('wkr.geraet.pruef.frage', { nr: treffer!.startNr }) }}</p>
+            <div class="wkr-reihe">
+              <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="pruef-frage-ja" @click="frageJa">{{ w('wkr.geraet.pruef.frageJa') }}</button>
+              <button type="button" class="wkr-knopf" data-ziel="gross" data-action="pruef-frage-nein" @click="frageNein">{{ w('wkr.geraet.pruef.frageNein') }}</button>
+            </div>
+          </div>
           <p v-else-if="korrekturZ !== null" class="wkr-band wkr-band--hinweis" role="status" data-teil="pruef-korrektur">{{ w('wkr.geraet.pruef.korrektur', { nr: treffer!.startNr }) }}</p>
           <p v-else-if="anderswoErledigt" class="wkr-band wkr-band--hinweis" role="status" data-teil="pruef-erledigt">{{ w('wkr.geraet.pruef.erledigt', { nr: treffer!.startNr }) }}</p>
           <p v-if="letzte && stufeText" class="wkr-hinweis" role="status" data-teil="pruef-letzte" :data-stufe="letzteStufe?.stufe">
             {{ w('wkr.geraet.pruef.letzte', { nr: letzte.nr, stand: stufeText }) }}
           </p>
 
-          <ul v-if="aufbau && aufbau.art === 'pruefliste'" class="wkr-pruef-knoten" data-teil="pruef-knoten">
+          <ul v-if="aufbau && aufbau.art === 'pruefliste' && !frage" class="wkr-pruef-knoten" data-teil="pruef-knoten">
             <li v-for="p in aufbau.pruef" :key="p.feld" class="wkr-pruef-knoten-zeile" :data-feld="p.feld" :data-wahl="entwurf.pruef[p.feld] ?? 'offen'">
               <span class="wkr-pruef-knoten-titel">{{ p.titel }}</span>
               <button
@@ -213,14 +291,20 @@ const stufeText = computed(() => {
         <aside v-if="pad" class="wkr-pruef-seite" data-teil="pruef-offene">
           <h3>{{ w('wkr.geraet.pruef.offene', { n: offen.length }) }}</h3>
           <div class="wkr-pruef-nummern">
-            <button v-for="b in offen" :key="b.key" type="button" class="wkr-knopf" data-ziel="klein" data-action="pruef-waehle" :data-start="b.key" @click="nr = b.startNr">{{ b.startNr }}</button>
+            <button v-for="b in offen" :key="b.key" type="button" class="wkr-knopf" data-ziel="klein" data-action="pruef-waehle" :data-start="b.key" @click="waehle(b)">{{ b.startNr }}</button>
           </div>
         </aside>
         <details v-else-if="offen.length > 0" class="wkr-pruef-seite" data-teil="pruef-offene">
           <summary class="wkr-knopf" data-ziel="klein">{{ w('wkr.geraet.pruef.offene', { n: offen.length }) }}</summary>
           <div class="wkr-pruef-nummern">
-            <button v-for="b in offen" :key="b.key" type="button" class="wkr-knopf" data-ziel="klein" data-action="pruef-waehle" :data-start="b.key" @click="nr = b.startNr">{{ b.startNr }}</button>
+            <button v-for="b in offen" :key="b.key" type="button" class="wkr-knopf" data-ziel="klein" data-action="pruef-waehle" :data-start="b.key" @click="waehle(b)">{{ b.startNr }}</button>
           </div>
+        </details>
+
+        <!-- Übung (Y4): andere Klasse vorziehen – die Knoten-Liste hat kein „Mehr“, darum hier aufklappbar. -->
+        <details v-if="vorziehKlassen && vorziehKlassen.length > 1" class="wkr-pruef-seite" data-teil="pruef-vorziehen" :open="vorziehOffen" @toggle="(e) => (vorziehOffen = (e.target as HTMLDetailsElement).open)">
+          <summary class="wkr-knopf" data-ziel="klein">{{ w('wkr.geraet.uebung.vorziehen') }}</summary>
+          <WkrVorziehen :klassen="vorziehKlassen" @wahl="ziehVor" />
         </details>
 
         <footer class="wkr-fuss" :class="{ 'wkr-fuss--links': hand === 'links' }" data-teil="fuss" :data-hand="hand">
@@ -238,9 +322,7 @@ const stufeText = computed(() => {
             <span v-else class="wkr-hinweis" data-teil="pruef-abgeschlossen">{{ w('wkr.geraet.pruef.abgeschlossen') }}</span>
           </div>
           <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="haupt" :disabled="!darf" @click="abschicken">
-            <template v-if="!aufbau">{{ w('wkr.geraet.pruef.tippen') }}</template>
-            <template v-else-if="nochOffen > 0">{{ w('wkr.geraet.pruef.nochOffen', { n: nochOffen }) }}</template>
-            <template v-else>{{ w(korrekturZ !== null ? 'wkr.geraet.pruef.korrigieren' : 'wkr.geraet.pruef.abschicken', { n: summe }) }}</template>
+            {{ hauptText }}
           </button>
         </footer>
       </div>

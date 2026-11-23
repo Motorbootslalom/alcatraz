@@ -553,8 +553,8 @@ describe('„Keine Zeit“ (W5.4, 22.11.2026, ZT4)', () => {
     expect(s.wkr.keineZeit[K('zeit')]).toEqual({ [zelle]: { zeit2: 'anlage', zeit3: 'nichtImZiel' } })
     expect(lageVon(s, 'zeit').zellen[keys[0]]).toEqual({ zelle: 'ok', keineZeit: { zeit2: 'anlage', zeit3: 'nichtImZiel' } })
     expect(zeilenMarken(s, DM, L('zeit'), [L1]).get(zelle)).toEqual({ marke: null, zellen: { zeit2: 'papier-ansehen', zeit3: 'papier-ansehen' } })
-    // Zeit nicht zur Parcours-Liste (AM2): kein Rückstand wegen Zeit, keine Warnung.
-    expect(lageVon(s, 'zeit').parcours).toBe(false)
+    // Seit 22.11.2026 (R7-01, AM2 umgebaut) ist die reine Zeit-Liste eine Parcours-Liste der Ampel.
+    expect(lageVon(s, 'zeit').parcours).toBe(true)
     // Abgetippt (die Stoppuhrzeit vom Bogen): nur dieses Feld fällt.
     s = setze(s, starterVon(keys[0]), 'zeit2', '83,50')
     expect(s.wkr.keineZeit[K('zeit')]).toEqual({ [zelle]: { zeit3: 'nichtImZiel' } })

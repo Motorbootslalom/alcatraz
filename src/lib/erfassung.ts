@@ -152,7 +152,7 @@ function disqsImLauf(werte: Werte, alleFelder: ReadonlyMap<string, Feld>): strin
   return Object.entries(werte).flatMap(([kennung, wert]) => {
     const feld = alleFelder.get(kennung)
     if (!feld) return []
-    if (feld.kind === 'buoy') return bojenWert(wert).disq ?? []
+    if (feld.kind === 'buoy') return bojenWert(wert).disq
     if (feld.kind === 'code') return codeDisqs(wert)
     return feld.kind === 'disq' ? disqCodes(wert) : []
   })
@@ -184,12 +184,14 @@ export function zeilenHinweise(felder: readonly Feld[], werte: Werte, alleFelder
     const wert = werte[feld.kennung]
     if (!wert) continue
     if (feld.kind === 'buoy') {
-      // Der Hinweis prüft nur den Ziffernteil (W4-12, 21.11.2026): „5J“ hat gültige Punkte, „J“ hat keine, „7J“
-      // ist so verdächtig wie „7“. X „nicht gestartet“ mit Punkten (BZ2) widerspricht sich und fällt ebenso auf.
+      // Der Hinweis prüft nur den Ziffernteil (W4-12, 21.11.2026): „5, J“ hat gültige Punkte, „J“ (auch „J, D“,
+      // R7-14) hat keine, „7, J“ ist so verdächtig wie „7“. X „nicht gestartet“ mit Punkten oder neben anderen
+      // Buchstaben (BZ2) widerspricht sich und fällt ebenso auf.
       const { punkte, disq } = bojenWert(wert)
       const ziffern = /\d/.test(wert)
-      const falsch = (ziffern || !disq) && (punkte % 5 !== 0 || punkte > 30 || punkte === 0)
-      if (falsch || (ziffern && disq === NICHT_GESTARTET)) hinweise.push({ art: 'bojePunkte', zelle: feld.zelle })
+      const falsch = (ziffern || disq.length === 0) && (punkte % 5 !== 0 || punkte > 30 || punkte === 0)
+      const xMitAnderem = disq.includes(NICHT_GESTARTET) && (ziffern || disq.length > 1)
+      if (falsch || xMitAnderem) hinweise.push({ art: 'bojePunkte', zelle: feld.zelle })
     } else if (feld.kind === 'time') {
       const zeit = parseTime(wert)
       if (!zeit || zeit.centis < ZEIT_MIN || zeit.centis > ZEIT_MAX) hinweise.push({ art: 'zeitBereich', zelle: feld.zelle })

@@ -249,7 +249,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   bleibt wie Hand/Modus nach „Raum verlassen“. Der alte Schlüssel `bojen` („Wie der Parcours liegt“) fällt in
   ansichtAus weg, liesAnsicht schreibt die Ansicht ohne ihn zurück. Kein neuer Kern, kein neues Protokoll; Disq. an der Boje (U1) geht als Buchstabe in der
   Bojenzelle über dieselbe Zeile (wkr/zeile.ts wertGilt = sanitizeBuoy) – seit W4-12 (21.11.2026, BZ1) neben den
-  Punkten („5J“, „10G“), weiter ein String, keine neue Fassung; „5X“ gilt nie (BZ2, `wert-ungueltig`).
+  Punkten, seit R7-14 (22.11.2026, BZ6) mehrere mit Komma („5, J“, „5, J, D“, „10, G“; „5J“ ist ungültig), weiter ein
+  String, Protokoll gleich, aber LISTEN_SICHT_FASSUNG 10 (BZ8, alte Geräte laden neu); „5X“ gilt nie (BZ2, `wert-ungueltig`).
 
 - W5.1 (22.11.2026, Plan docs/plan-wkr-w5.md §4, WKR_ANNAHMEN PD1, MW1–MW3): gekoppelt.ts `typ` (die eigene Art der
   Anmeldung, GF7) → erfassen.ts Erfassung.`typ` (Übung: fehlt) – WkrGeraet ordnet danach vor der Fenstergröße
@@ -268,7 +269,9 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   ListenBestand + `z` der neuesten eigenen Zeile; erledigt auch mit eigener, nicht abgelehnter Zeile), schicke findet
   den Starter im Bestand (sn, klasse), pruefung `offen` am Tisch aus dem Bestand; Typen mit WkrPunkt (`ohne`).
   uebung.ts: Knoten-Übung ohne Takt (kein Zeigen, kein Rückfall-Takt), `bestand` aus der Sicht der Übung. Tests:
-  wkr.test.ts „Knoten am Tisch Ende zu Ende (W5.3)“.
+  wkr.test.ts „Knoten am Tisch Ende zu Ende (W5.3)“. Vorschlag/„Alle richtig“/Rückfrage (22.11.2026, KN9–KN11): kein
+  neues Feld im Kern – „zuletzt“ ist `zuletzt` (eigene Zeilen), offen = BestandEintrag ohne `erledigt` und ohne `z`
+  (wkr/tisch.ts); Test uebung.test.ts „Knoten-Übung“.
 - W5.4 (22.11.2026, Plan docs/plan-wkr-w5.md §7, WKR_ANNAHMEN ZT1–ZT4): **Zeit-Listen** – kein neuer Befehl, keine neue
   Fassung. erfassen.ts: MaskenZeile.`kz` (Record Feld → Grund) → AusZeile.`kz` → GeraeteZeile.`kz` (pumpe);
   WerteEintrag.`kz` (eine Zeile mit `kz` ersetzt es, ein Wert im Feld hebt es auf – wie am Host); ZuletztZeile.`kz`;
@@ -440,6 +443,9 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - W3.4: Die Übung bleibt dieselbe Wurzel wie Lese-/Koppel-Gerät (main.ts `wurzel`) – ein Wechsel `#/geraet` ↔
   `#/uebung` lädt nicht neu; GeraetApp stoppt dabei das Lese-Gerät, GeraetFreigabe stoppt Gerät und Erfassung beim
   Unmount. Wer der Übung etwas mit Ablage gibt, bricht G13 (nur die Ansicht).
+- Y4 (22.11.2026, R7-45): `uebung.ts` zieheKlasseVor(liste, klasse) – nur die Übung (ErfassungsQuelle optional, die
+  echte Erfassung hat es nicht: die Folge bestimmt der Bedienrechner); steht nichts vor dem WKR, kommt der vorgezogene
+  sofort (stoppeKommt + zeige). Am Tisch `vorgezogen` (ShallowRef der Klasse bis zur nächsten Zeile) für den Vorschlag.
 - W3.1: Eine eigene Zeile am Steg nimmt den Start nur aus der Schlange IHRES Teils (vor W3 aus beiden). Wer die
   Schlange eines Teils braucht, nimmt `schlangeTeil`, nicht `schlange` (das ist beim Gerät für den ganzen Steg die
   Vereinigung). Die Übung (uebung.ts) darf nie ablage.ts, transport/ oder den Store importieren.

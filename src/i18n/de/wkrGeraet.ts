@@ -151,6 +151,9 @@ export default {
   'wkr.geraet.sprache.nurBedien': 'Die Codes bleiben in der Sprache der Liste – das Regelwerk kennt nur eine.',
   'wkr.geraet.probe': 'Probe',
   'wkr.geraet.uebung.ende': 'Übung verlassen',
+  // Übung: andere Klasse vorziehen (Nutzer 22.11.2026, R7-45, WKR_ANNAHMEN Y4).
+  'wkr.geraet.uebung.vorziehen': 'Klasse vorziehen',
+  'wkr.geraet.uebung.vorziehenHint': 'Der nächste Start kommt aus dieser Klasse, danach geht es normal weiter.',
   'wkr.geraet.uebung.beenden': 'Übung beenden',
   'wkr.geraet.uebung.erklaerung.titel': 'So läuft die Übung',
   'wkr.geraet.uebung.erklaerung':
@@ -250,10 +253,13 @@ export default {
   'wkr.geraet.probe.bojeZaehler': 'Tippe bei „{halt}“ zweimal auf „{knopf}“ – das zählt 2 Berührungen ({punkte}).',
   'wkr.geraet.probe.bojeRueckweg': 'Tippe „{knopf}“ – dort stehen die Bojen der Rückfahrt.',
   'wkr.geraet.probe.bojeAbschicken': 'Abschicken',
-  'wkr.geraet.probe.bojeDisq': 'Tippe bei „{halt}“ auf „{boje}“ (Berührung), dann „{knopf}“, wähle „{halt}“ „{boje}“ und zweimal „{code}“ – die Punkte bleiben, der Buchstabe kommt dazu.',
+  'wkr.geraet.probe.bojeDisq': 'Tippe bei „{halt}“ auf „{boje}“ (Berührung). Dann „{knopf}“ und „{halt}“ „{boje}“ wählen – oder „{boje}“ lange drücken. Zweimal „{code}“, dann „Fertig“ – die Punkte bleiben, der Buchstabe kommt dazu.',
   'wkr.geraet.bojen.disqModus': 'Disq. an Boje …',
   'wkr.geraet.bojen.disqTitel': 'Disq. an {boje}',
-  'wkr.geraet.bojen.disqHint': 'Startnummer {nr}: Die Punkte an dieser Boje bleiben, der Buchstabe kommt dazu.',
+  'wkr.geraet.bojen.disqHint': 'Startnummer {nr}: Die Punkte an dieser Boje bleiben, die Buchstaben kommen dazu. Mehrere möglich – danach „Fertig“.',
+  // Mehrfachwahl an einer Boje (BZ7, 22.11.2026 – R7-14): „Fertig“ schließt die Wahl und zeigt wieder die Bojen.
+  'wkr.geraet.bojen.disqFertig': 'Fertig',
+  'wkr.geraet.bojen.disqFertigMit': 'Fertig · {codes}',
   'wkr.geraet.bojen.disqOrt': 'Disq. – an welcher Boje?',
   'wkr.geraet.bojen.disqOrtText': 'Startnummer {nr}: Wo wurde disqualifiziert? Ohne Ort: „Keine Boje / ganzer Parcours“.',
   'wkr.geraet.bojen.disqKeineBoje': 'Keine Boje / ganzer Parcours',
@@ -316,7 +322,6 @@ export default {
   'wkr.geraet.bild.disqAbbrechen': 'Abbrechen',
   'wkr.geraet.bild.schalter': '✔ {punkte}',
   'wkr.geraet.bild.zaehler': '{n}×',
-  'wkr.geraet.bild.disq': '{punkte} {code}',
   'wkr.geraet.probe.bild': 'Tippe im Bild „{halt}“ die Boje „{knopf}“ an.',
   'wkr.geraet.uebung.maske': 'Maske',
   // W5.3 Knoten-Prüfliste am Tisch (22.11.2026, KN7/KN8)
@@ -330,7 +335,14 @@ export default {
   'wkr.geraet.pruef.letzte': 'Zuletzt: {nr} {stand}',
   'wkr.geraet.pruef.richtig': 'richtig',
   'wkr.geraet.pruef.falsch': 'falsch · {n}',
-  'wkr.geraet.pruef.nochOffen': 'noch {n} offen',
+  // KN9–KN11 (Nutzer 22.11.2026, R8-27/R8-31/R8-32): Vorschlag, „Alle richtig“, Rückfrage bei erfasster Nummer
+  'wkr.geraet.pruef.vorschlag': 'Nächster: {nr} ({klasse})',
+  'wkr.geraet.pruef.alleRichtig': '✓ Alle richtig',
+  'wkr.geraet.pruef.restRichtig': '✓ Rest richtig · Σ {n}',
+  'wkr.geraet.pruef.frage': 'Nr. {nr} ist schon erfasst – korrigieren?',
+  'wkr.geraet.pruef.frageJa': 'Ja, korrigieren',
+  'wkr.geraet.pruef.frageNein': 'Nein',
+  'wkr.geraet.pruef.frageOffen': 'Erst Ja oder Nein',
   'wkr.geraet.pruef.abschicken': 'Abschicken · Σ {n}',
   'wkr.geraet.pruef.korrigieren': 'Korrektur abschicken · Σ {n}',
   'wkr.geraet.pruef.offene': 'Offen ({n})',
@@ -354,5 +366,5 @@ export default {
   'wkr.geraet.keineZeit.grund.anderes': 'anderer Grund',
   'wkr.geraet.probe.zeit': 'Tippe bei „{feld}“ {zeit} ein – darunter steht, wie der Bedienrechner es liest.',
   'wkr.geraet.probe.zeitWert': '83,45',
-  'wkr.geraet.probe.zeitRest': 'Die übrigen Felder: eine Zeit eintippen oder „{knopf}“ wählen.',
+  'wkr.geraet.probe.zeitRest': 'Der Block ist ins nächste Feld gesprungen. Weitere Zeiten sind freiwillig – hier zur Probe eine Zeit eintippen oder „{knopf}“ wählen.',
 } as const satisfies Record<string, string>

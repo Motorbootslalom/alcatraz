@@ -34,20 +34,37 @@ export function sanitizeCodeInput(raw: string): string {
     .replace(/(\d)X(\d)/g, '$1x$2') // Faktor „2x6“ klein, X allein ist die Disqualifikation
 }
 
+/** Trenner einer Bojenzelle – zwischen Punkten und Buchstaben und zwischen den Buchstaben (BZ6, 22.11.2026). */
+export const BOJEN_TRENNER = ', '
+
 /**
- * Bereinigt eine Bojen-/Tor-Zelle: Ziffern (Punkte, 5, 10 …), dahinter höchstens ein erlaubter Disq-Buchstabe
- * (großgeschrieben), ohne Leerzeichen gespeichert: „5“, „J“, „5J“, „10G“ (Tor 5 Zähler). Die Eingabe ist tolerant –
- * „5 j“, „j5“ und „5,J“ werden „5J“ –, weil der WKR an der Boje Fehlerpunkte UND den Disq.-Grund notiert und
- * beides beim Abtippen in derselben Zelle steht (Antwort W4-12 vom 21.11.2026, WKR_ANNAHMEN.bojenZelle BZ1).
- * Vorher hieß ein Buchstabe „nur Disq.“ und verwarf die Punkte; alte Werte („5“, „J“) sind in der neuen Form
- * unverändert gültig.
+ * Die EINE Schreibweise einer Bojen-/Tor-Zelle (BZ1 umgebaut, BZ6, 22.11.2026 – R7-14): Punkte zuerst, dahinter die
+ * Disq.-Buchstaben in der Folge des Disq.-Katalogs der Zelle (`erlaubt`, eine Set in Katalogfolge), getrennt mit „, “:
+ * „5“, „J“, „5, J“, „5, J, D“, „10, G“ (Tor 5 Zähler). Katalogfolge statt Tippfolge, damit zwei Zellen mit gleichem
+ * Inhalt String-gleich sind (BZ5 „abweichend = String-ungleich“ bleibt einfach); Dubletten fallen weg, fremde Buchstaben
+ * ebenso. Speicherform = Anzeigeform – Wertungsliste, Erfassung und Gerät zeigen sie, wie sie steht.
+ * Ohne `erlaubt` bleibt die Folge, wie sie kommt (nur entdoppelt).
  *
- * X „nicht gestartet“ steht nie mit Punkten (BZ2): Wer nicht gestartet ist, hat keine Boje berührt – „5X“ wird „X“.
+ * X „nicht gestartet“ steht immer allein (BZ2): Wer nicht gestartet ist, hat keine Boje berührt und keinen anderen
+ * Grund – „5, X“ und „J, X“ werden „X“. 'X' = lib/abmeldung.ts NICHT_GESTARTET; nicht importiert, weil
+ * abmeldung → eingaben → disq einen Ring schlösse.
+ */
+export function bojenZelle(punkte: string | number, buchstaben: Iterable<string>, erlaubt?: Set<string>): string {
+  const gross = new Set([...buchstaben].map((b) => b.toUpperCase()))
+  if (gross.has('X') && (!erlaubt || erlaubt.has('X'))) return 'X'
+  const folge = erlaubt ? [...erlaubt].filter((b) => gross.has(b)) : [...gross]
+  const zahl = typeof punkte === 'number' ? (punkte > 0 ? String(punkte) : '') : punkte
+  return [...(zahl ? [zahl] : []), ...folge].join(BOJEN_TRENNER)
+}
+
+/**
+ * Bereinigt eine Bojen-/Tor-Zelle beim Abtippen (je Taste, ErfassungTabelle onInput) und beim Laden aus Tabelle oder
+ * Gerät: alle Ziffern = eine Zahl (wie seit jeher, „5 5“ bleibt „55“), jeder erlaubte Buchstabe einzeln, gleich mit
+ * welchem Trenner – „5JD“, „5 J D“, „5,J,D“, „j5d“, „5, d, j“ werden „5, J, D“ (bojenZelle, Katalogfolge). Mehrere
+ * Disq. je Boje seit R7-14 (22.11.2026, BZ1 umgebaut): Der WKR notiert an einer Boje Fehlerpunkte UND jeden Grund.
+ * Zwischenstände beim Tippen stören nicht: „5 “ und „5,“ werden „5“, „5, J“ + „D“ wird „5, J, D“ (der Cursor steht
+ * danach am Ende – das Feld bekommt den ganzen Wert neu).
  */
 export function sanitizeBuoy(raw: string, allowed: Set<string>): string {
-  const up = raw.toUpperCase()
-  const letter = [...up].find((c) => allowed.has(c)) ?? ''
-  // 'X' = lib/abmeldung.ts NICHT_GESTARTET; nicht importiert, weil abmeldung → eingaben → disq einen Ring schlösse.
-  if (letter === 'X') return letter
-  return `${raw.replace(/\D/g, '')}${letter}`
+  return bojenZelle(raw.replace(/\D/g, ''), [...raw.toUpperCase()].filter((c) => allowed.has(c)), allowed)
 }

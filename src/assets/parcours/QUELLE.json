@@ -18,5 +18,14 @@
     "Klasse5_Moewe.svg",
     "Klasse6_Moewe.svg",
     "Klasse7_Moewe.svg"
-  ]
+  ],
+  "parallel": {
+    "ordner": "dist/parallel/en/pontoon_bottom",
+    "quelle": "ParallelSlalom.svg",
+    "titel": "Schlauchbootslalom Parcours",
+    "urheber": "Matthias Kerk",
+    "dateien": [
+      "Parallel.svg"
+    ]
+  }
 }

@@ -452,6 +452,14 @@ Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts
   wie im Manövrieren, aber **ohne geschätzte Wartezeit**: Paarstarts werden nicht gemessen – ihr Takt (zwei Boote
   zugleich, kurzer Racecourse, Tausch zum 2. Attempt) verzerrte die Abstände der Klassen fürs Manövrieren, und eine
   eigene Vorgabe gibt es nicht. In der Startliste wird nicht gezogen.
+- **WKR-Gerät, Maske „Bild“** (R8-19, umgebaut 22.11.2026, WKR_ANNAHMEN BD3, BD8–BD10, noch zu bestätigen): Die
+  Racecourse-Liste zeigt die Parallelslalom-Zeichnung des Parcours-Repos (`dist/parallel/en/pontoon_bottom`, per
+  `npm run parcours:sync` als `src/assets/parcours/Parallel.svg`, 23 KB statt 493 KB, Namensnennung CC BY-NC-SA 4.0
+  wie die Klassen-Zeichnungen) mit beiden Bahnen; die fremde Bahn ist gedimmt und nicht antippbar. Racecourse A ist
+  die Bahn, die vom Steg aus in Fahrtrichtung links liegt – in der Zeichnung die obere (aus den Lagen gerechnet,
+  wie die Tafel-Vorgabe „A links, B rechts“). Boje n auf Hin- und Rückweg ist dieselbe Boje, Start und Ziel dasselbe
+  Tor; welche Fahrt gemeint ist, sagt der Umschalter. Die IDs je Bahn (`P_A_b1` … `P_B_start_seiteA`) setzt der Sync
+  über die Lage, das Parcours-Repo bleibt unverändert. Fehlt die Datei, zeigt das Gerät ein Schema.
 - Der Betrieb ändert weder die Pläne noch die Werte der Runden.
 
 ## Dummys und Wörter

@@ -646,6 +646,7 @@ export const BETRIEB_ANNAHMEN = {
    * Starts vorher grün oder rot gesehen hat). Dispatch nur im Fenster mit der Führung (geraete/fuehrung.ts) über
    * dasselbe Schreibfenster wie die Geräte-Actions; die Entscheidung rein in wkr/ampel.ts autoSchritt.
    * 21.11.2026, noch zu bestätigen.
+   * Bestätigt 22.11.2026 (R7-06 Einstellung, Vorgabe aus, 3 s mit „Anhalten“; R7-07 nie von selbst).
    */
   autoVorgabe: false,
   /** (AM6) Sekunden zwischen „frei“ und dem automatischen „Nächster Start“ – Zeit für „Anhalten“. 21.11.2026, noch zu bestätigen. */
@@ -654,12 +655,14 @@ export const BETRIEB_ANNAHMEN = {
    * (AM7) „Anhalten“ des Auto-Modus gilt bis zum nächsten gezeigten Start und liegt gerätelokal im Host (Arbeitsspeicher
    * des Führungsfensters), nie im AppState – vom Freigabe-Handy als Geräte-Nachricht `BETRIEB_AUTO_HALT` (keine
    * Reducer-Action, der Host fängt sie vor dem Schreibfenster ab). 21.11.2026, noch zu bestätigen.
+   * Bestätigt 22.11.2026 (R7-08).
    */
   autoAnhaltenLokal: true,
   /**
    * (AM8) Keine Ampel auf Anzeigetafel und Zuschauerliste (F17: nichts aus der WKR-Erfassung auf öffentlichen Links;
    * die Tafel zeigt den Starter ohnehin erst ab grün). sichtOeffentlich/sichtZuschauer bleiben unverändert, `sv` 6.
    * 21.11.2026, noch zu bestätigen.
+   * Bestätigt 22.11.2026 (R7-09).
    */
   keineAmpelAufTafel: true,
 } as const

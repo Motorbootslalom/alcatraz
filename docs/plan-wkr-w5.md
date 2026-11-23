@@ -1,6 +1,6 @@
 # Plan W5 „Pad“ der digitalen WKR-Erfassung
 
-Stand 22.11.2026 (W5.1–W5.5 gebaut – W5 fertig, Auslegungen noch zu bestätigen) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §3
+Stand 22.11.2026 (W5.1–W5.5 gebaut – W5 fertig; Auslegungen am 22.11.2026 beantwortet, Runde 8, §10) · Grundlage: [vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) §3
 (Rahmen), §4.1–§4.9 (Masken je Position und Gerät), §11 W5, §12 F9/F14/F15; der gebaute Stand W1–W4 und die Antworten
 der Runden 3–6 ([plan-wkr-w1.md](plan-wkr-w1.md) … [plan-wkr-w4.md](plan-wkr-w4.md),
 [plan-antworten-runde3-6.md](plan-antworten-runde3-6.md), Commit 3210da2). Antworten des Nutzers, die W5 betreffen
@@ -253,6 +253,17 @@ Tests ohne feste Pausen (`bis()`/`zeigt()`), nichts committen.
 
 ## 10. Auslegungen W5 (22.11.2026, beim Planen, noch zu bestätigen) – datiert in `WKR_ANNAHMEN`
 
+**Antworten 22.11.2026 (Fragenseite Runde 8, R8-01 … R8-42):** Bestätigt mit „passt“: PD1 (R8-08), PD2 (R8-09),
+PD3 + PD6 (R8-10), PD4 (R8-11), PD5 (R8-12), Tastatur/PD1-Prüfbefund (R8-13, im Feldtest weiter prüfen), MW1–MW3
+(R8-14 … -16), BD1 (R8-17), BD2 (R8-18), BD5 (R8-21), BD6 (R8-22), Drehung nur ohne Verkleinerung (R8-24), KN1 (R8-25),
+KN2 (R8-26), KN4–KN6 (R8-28 … -30), ZT1 (R8-33), ZT2 (R8-34), ZT4 (R8-36), Probe der Zeit-Listen mit 83,45 (R8-37),
+TB1–TB5 (R8-38 … -42), dazu die Bojen-Folge V3 (a)–(g) (R8-01 … -07) – in `WKR_ANNAHMEN` je Eintrag „Bestätigt
+22.11.2026 (Frage)“. Anders entschieden, noch nicht umgebaut ([entscheidungen.md](entscheidungen.md) „Antworten 22.11.2026 (Runden 7–8)“): **BD3** (R8-19, Parallel-
+Zeichnung aus dem Parcours-Repo statt Schema), **BD4** (R8-20, kein automatischer Wechsel auf „Rückweg“), **BD7**
+(R8-23, zusätzlich langes Drücken), **KN3** (R8-27, nächste offene Nummer vorschlagen), **KN7** (R8-31, Hauptknopf
+„Alle richtig“), **KN8** (R8-32, erfasste Nummer nur nach Rückfrage öffnen), **ZT3** (R8-35, Weiterspringen erlaubt,
+weitere Zeitfelder optional).
+
 - **PD1** Pad erkannt an der Geräteart der Kopplung, ohne sie an der kürzeren Seite ≥ 600 px; Rechner wie Pad.
 - **PD2** Spalten: quer `floor(breite/480)`, höchstens 4; hoch höchstens 2; Rest als Reiter. Beim Bau (22.11.2026): hoch
   zählt `floor(breite/360)` (sonst stünde ein 768-px-Pad hochkant immer einspaltig); der Rest teilt sich als Reiter die
@@ -275,13 +286,14 @@ Tests ohne feste Pausen (`bis()`/`zeigt()`), nichts committen.
   dasselbe Tor (seiteA links), Boje n hin und rück dieselbe Boje; die Lage der Bahnen ist geraten.
 - **BD4** Bild-Umschalter springt nach dem ersten Tipp an Tor 5 auf Rückweg (anders als P8). Beim Bau (22.11.2026):
   eine zweite Berührung von Tor 5 auf dem Hinweg tippt der WKR nach dem Zurückstellen – Frage: lieber erst nach der
-  Einfahrt springen?
+  Einfahrt springen? Umgebaut 22.11.2026 (R8-20): kein Sprung mehr, der Umschalter wechselt nur von Hand.
 - **BD5** Tor 1 der Speedrunde als eigener Zustand „Rück 2“. Beim Bau: nur im Bild; WkrMaske merkt Hin/Rück je Start,
   „Rück 2“ beginnt nach einem Reiterwechsel wieder auf „Rückweg“.
 - **BD6** Trefferflächen ≥ 15 mm, eng liegende auseinandergeschoben. Beim Bau: Lage über getBoundingClientRect der ID
   (berücksichtigt die Drehung), ohne Lage Knopfliste; Deckkraft als `style` am Element (kein `<style>`-Block inline).
   Prüfbefund 22.11.2026: 15 CSS-mm (96 dpi), Kreis nie kleiner als --wkr-ziel.
-- **BD7** Disq. im Bild über Knopf „Disq. an Boje …“ + Tipp, kein Langdruck (U3).
+- **BD7** Disq. im Bild über Knopf „Disq. an Boje …“ + Tipp, kein Langdruck (U3). Umgebaut 22.11.2026 (R8-23): dazu
+  langes Drücken auf den Trefferkreis (LD1–LD4, plan-antworten-runde7-8.md §4).
 - Beim Bau W5.2 (22.11.2026): ±90° nur auf dem Pad (Handy liegend wie WkrParcoursBild, `bildDrehungNurPad`; seit dem
   Prüfbefund 22.11.2026 auch dort nur, wenn die gedrehte Zeichnung nicht kleiner wird, `bildDrehungNachPlatz`); mit Bild
   stehen die Einträge im Klartext auch auf dem Handy (WkrSeite kompakt); Übung `#/uebung` mit Wahl Knöpfe/Bild bei
@@ -318,7 +330,7 @@ Tests ohne feste Pausen (`bis()`/`zeigt()`), nichts committen.
   Rückfrage/Vorschlag tragen `keineZeit` und wirken erst mit der Entscheidung für das Gerät (wie `nichtVorbei`). Die
   Matrix zeigt „✓ keine Zeit“ (Zelle bleibt `ok`, kein eigener Zellstand). Entwürfe merken Zeiten wie getippt, auch
   halb, aber nie „keine Zeit“; die Korrektur holt es aus dem eigenen Stand (Erfassung.keineZeit). Probe: erstes Feld
-  83,45, mit mehreren Feldern danach „übrige Felder“; gemischte Listen üben Bojen, dann Zeit. Keine neue
+  83,45, mit mehreren Feldern danach „übrige Felder“; gemischte Listen üben Bojen, dann Zeit (bestätigt 22.11.2026, R8-37). Keine neue
   LISTEN_SICHT_FASSUNG (die Sicht trägt Zeitfelder schon seit W1; `kz` steht nie in der Sicht).
 - **TB1** Tabelle nur Pad/Rechner. Beim Bau (22.11.2026): wkr/maskenWahl.ts maskeAufGeraet; auf dem Handy unter „Mehr“
   ausgegraut („Tabelle (nur Pad)“), am Bedienrechner für ein Handy ausgegraut mit Grund; eine Vorgabe „Tabelle“ zeigt

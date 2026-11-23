@@ -3,16 +3,20 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { parcoursSvg } from '../../lib/parcoursQuelle'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { Weg } from '../../wkr/bojen'
-import { bildWege, bildZahlen, bildZiel, inlineSvg, schiebeAuseinander, svgSeiten, wegNachTipp, wirksameDrehung, type BildBojeMitHalt, type BildWeg, type BildZuordnung } from '../../wkr/bild'
-import type { Entwurf, MaskenAufbau, MaskenBoje } from '../../wkr/maske'
+import { bildWege, bildZahlen, bildZiel, inlineSvg, schiebeAuseinander, svgSeiten, wirksameDrehung, type BildBojeMitHalt, type BildWeg, type BildZuordnung } from '../../wkr/bild'
+import { bojenDisqVon, type Entwurf, type MaskenAufbau, type MaskenBoje } from '../../wkr/maske'
+import { bojenZelle } from '../../lib/disq'
 import WkrBildNachweis from './WkrBildNachweis.vue'
 import WkrDisq from './WkrDisq.vue'
 import WkrKnoepfe from './WkrKnoepfe.vue'
+import { useLangdruck } from './langdruck'
 import { useWkrText } from './texte'
 
 /**
- * Maske „Bild“ (W5.2, Plan docs/plan-wkr-w5.md §5.2, 22.11.2026; WKR_ANNAHMEN BD1–BD7): die Parcours-Zeichnung der
- * Klasse (bzw. im Parallelslalom das Schema des Racecourse, BD3), die Bojen der eigenen Liste antippen.
+ * Maske „Bild“ (W5.2, Plan docs/plan-wkr-w5.md §5.2, 22.11.2026; WKR_ANNAHMEN BD1–BD10): die Parcours-Zeichnung der
+ * Klasse (bzw. im Parallelslalom die Zeichnung aus dem Parcours-Repo mit beiden Bahnen, die fremde gedimmt und ohne
+ * Treffer – BD3 umgebaut 22.11.2026, BD10; nur ohne Parallel.svg das Schema des Racecourse), die Bojen der eigenen
+ * Liste antippen.
  *
  * - Zeichnung INLINE aus dem gebündelten Klassen-SVG (lib/parcoursQuelle.ts, kein Netz), alle IDs mit eigenem Präfix
  *   (wkr/bild.ts inlineSvg – zwei Bilder nebeneinander stören sich nicht), gedimmt wie auf dem Bogen plus fremde Bojen
@@ -25,11 +29,13 @@ import { useWkrText } from './texte'
  *   (Test-DOM ohne Layout) dieselben Treffer als Knopfliste `bild-ersatz` – Tests prüfen über `data-feld`.
  * - Ein Tipp ist DIESELBE Boje wie in den Knöpfen (wkr/bild.ts bildZiel → Ereignis `boje` → WkrMaske tippeBoje);
  *   Stand am Kreis: „✔ 5“, Zähler „2×“, Disq. „5 G“ (BZ1) – nie nur Farbe.
- * - Umschalter Hin / Rück / Rück 2 (BD5: Tor 1 der Speedrunde); nach dem ersten Tipp an Tor 5 springt er auf Rückweg
- *   (BD4, anders als die Knöpfe); WkrMaske merkt Hin/Rück je Start (`weg`), „Rück 2“ merkt WkrMitte je Start (`bildWeg`,
- *   Prüfbefund 22.11.2026 – das Bild wird bei offener Disq.-Wahl neu gebaut).
+ * - Umschalter Hin / Rück / Rück 2 (BD5: Tor 1 der Speedrunde); wechselt nur von Hand wie bei den Knöpfen (BD4
+ *   umgebaut 22.11.2026, R8-20 – vorher sprang er nach dem ersten Tipp an Tor 5 auf Rückweg); WkrMaske merkt Hin/Rück
+ *   je Start (`weg`), „Rück 2“ merkt WkrMitte je Start (`bildWeg`, Prüfbefund 22.11.2026 – das Bild wird bei offener
+ *   Disq.-Wahl neu gebaut).
  * - Disq.: DISQ im Fuß öffnet wie bisher WkrDisqOrt (WkrMitte); hier zusätzlich „Disq. an Boje …“ → der nächste Tipp
- *   ins Bild wählt die Boje, dann der Buchstabe (BD7, kein Langdruck – U3).
+ *   ins Bild wählt die Boje, dann der Buchstabe (BD7), und seit 22.11.2026 (R8-23, LD1–LD4) ein langer Druck auf einen
+ *   Trefferkreis direkt die Buchstaben DIESER Boje (components/wkr/langdruck.ts; der Tipp zählt beim Loslassen).
  * - Katalog-Teile gemischter Listen (Einfahrt Tor 5, MüB) stehen als Knöpfe unter dem Bild, auf ihrer Seite.
  */
 const props = defineProps<{
@@ -79,8 +85,9 @@ interface Treffer {
 }
 function standVon(b: MaskenBoje): string {
   const n = props.entwurf.bojen[b.feld] ?? 0
-  const d = props.entwurf.bojenDisq[b.feld]
-  if (d) return w('wkr.geraet.bild.disq', { punkte: n > 0 ? String(n * b.punkte) : '', code: d }).trim()
+  // Mit Disq. steht der Stand wie die Zelle („5, J, D“, BZ6, 22.11.2026) – kurz genug für den Kreis, gleich in jeder Sprache.
+  const d = bojenDisqVon(props.entwurf, b)
+  if (d.length > 0) return bojenZelle(n * b.punkte, d)
   if (n === 0) return ''
   return b.zaehler ? w('wkr.geraet.bild.zaehler', { n }) : w('wkr.geraet.bild.schalter', { punkte: n * b.punkte })
 }
@@ -107,17 +114,29 @@ function tippe(t: Treffer): void {
     disqWahl.value = false
     return
   }
-  const vorher = props.entwurf.bojen[t.ziel.boje.feld] ?? 0
   emit('boje', t.ziel.boje)
-  const neu = wegNachTipp(props.aufbau, t.ziel, zustand.value, vorher)
-  if (neu !== zustand.value) waehleWeg(neu)
 }
+/** Langdruck (LD1, R8-23): die Buchstaben DIESER Boje, ohne Tipp (LD2) – auch aus dem Modus „Disq. an Boje …“. */
+function langeAufBoje(t: Treffer): void {
+  if (props.gesperrt || t.ziel.boje.disq.length === 0) return
+  disqWahl.value = false
+  disqBoje.value = t
+}
+// Schlüssel je Treffer ist die ID: Ein Neuberechnen der Treffer (Stand) während des Drückens bricht nichts ab.
+const druck = useLangdruck<Treffer>({
+  kurz: tippe,
+  lang: langeAufBoje,
+  langMoeglich: (t) => t.ziel.boje.disq.length > 0,
+  gesperrt: () => !!props.gesperrt,
+})
+const fuelltId = computed(() => druck.fuellt.value?.id ?? null)
+/** Ein Buchstabe an der Boje an bzw. aus – Mehrfachwahl wie WkrDisqOrt (BZ7, 22.11.2026), „Fertig“ schließt. */
 function setzeDisq(code: string): void {
   const t = disqBoje.value
   if (!t) return
   emit('bojeDisq', t.ziel.boje, code)
-  disqBoje.value = null
 }
+const disqDerWahl = computed(() => (disqBoje.value ? bojenDisqVon(props.entwurf, disqBoje.value.ziel.boje) : []))
 
 // --- Katalog-Teile der gewählten Seite (Einfahrt Tor 5 auf Hin, MüB auf Rück) ---
 const kataloge = computed(() =>
@@ -235,11 +254,21 @@ watch([svgText, schema], () => void nextTick(messen))
       <WkrDisq
         :titel="w('wkr.geraet.bojen.disqTitel', { boje: disqBoje.name })"
         :codes="disqBoje.ziel.boje.disq"
-        :gesetzt="entwurf.bojenDisq[disqBoje.ziel.boje.feld] ? [entwurf.bojenDisq[disqBoje.ziel.boje.feld]] : []"
+        :gesetzt="disqDerWahl"
         :start-nr="startNr"
         :gesperrt="gesperrt"
         @setze="setzeDisq"
       />
+      <button
+        type="button"
+        class="wkr-knopf wkr-knopf--breit wkr-knopf--haupt wkr-disq-ort-fertig"
+        data-ziel="gross"
+        data-action="disq-ort-fertig"
+        :data-anzahl="disqDerWahl.length"
+        @click="disqBoje = null"
+      >
+        {{ disqDerWahl.length > 0 ? w('wkr.geraet.bojen.disqFertigMit', { codes: disqDerWahl.join(', ') }) : w('wkr.geraet.bojen.disqFertig') }}
+      </button>
     </template>
     <template v-else>
       <nav v-if="wege.length > 1" class="wkr-bojen-weg wkr-bild-weg" role="tablist" :aria-label="w('wkr.geraet.bild.weg')" data-teil="bild-weg-umschalter">
@@ -262,9 +291,9 @@ watch([svgText, schema], () => void nextTick(messen))
 
       <figure class="wkr-bild-figur" :data-disq-wahl="disqWahl || undefined">
         <figcaption class="wkr-bild-titel">
-          {{ zuordnung.art === 'schema' && schema ? w('wkr.geraet.bild.racecourse', { rc: schema.racecourse }) : w('wkr.geraet.bild', { klasse }) }}
+          {{ zuordnung.racecourse ? w('wkr.geraet.bild.racecourse', { rc: zuordnung.racecourse }) : w('wkr.geraet.bild', { klasse }) }}
         </figcaption>
-        <div ref="flaeche" class="wkr-bild-flaeche" data-teil="bild-flaeche" :data-drehung="drehung">
+        <div ref="flaeche" class="wkr-bild-flaeche" data-teil="bild-flaeche" :data-drehung="drehung" :data-racecourse="zuordnung.racecourse">
           <!-- Gebündelte Zeichnung (lib/parcoursQuelle.ts), IDs mit Präfix – kein fremder Inhalt. -->
           <div v-if="svgText" class="wkr-bild-svg" aria-hidden="true" v-html="svgText" />
           <svg v-else-if="schema" class="wkr-bild-svg wkr-bild-schema" :viewBox="`0 0 ${schema.breite} ${schema.hoehe}`" aria-hidden="true" data-teil="bild-schema" :data-racecourse="schema.racecourse">
@@ -287,17 +316,18 @@ watch([svgText, schema], () => void nextTick(messen))
               :key="t.id"
               type="button"
               class="wkr-knopf wkr-bild-treffer"
-              :class="{ 'wkr-bild-treffer--gesetzt': !!t.stand, 'wkr-bild-treffer--disq': !!entwurf.bojenDisq[t.ziel.boje.feld] }"
+              :class="{ 'wkr-bild-treffer--gesetzt': !!t.stand, 'wkr-bild-treffer--disq': !!entwurf.bojenDisq[t.ziel.boje.feld]?.length }"
               data-ziel="gross"
               data-action="bild-boje"
               :data-bild-id="t.id"
               :data-feld="t.ziel.boje.feld"
               :data-anzahl="entwurf.bojen[t.ziel.boje.feld] ?? 0"
-              :data-disq="entwurf.bojenDisq[t.ziel.boje.feld]"
+              :data-disq="bojenDisqVon(entwurf, t.ziel.boje).join(', ') || undefined"
               :aria-label="[t.name, t.stand].filter(Boolean).join(' · ')"
               :disabled="disqWahl && t.ziel.boje.disq.length === 0"
+              :data-langdruck="fuelltId === t.id ? 'fuellt' : undefined"
               :style="{ left: `${lageVon(t.id)?.x ?? 0}px`, top: `${lageVon(t.id)?.y ?? 0}px` }"
-              @click="tippe(t)"
+              v-on="druck.an(t)"
             >
               <span class="wkr-bild-stand">{{ t.stand }}</span>
             </button>
@@ -316,18 +346,19 @@ watch([svgText, schema], () => void nextTick(messen))
             :key="t.id"
             type="button"
             class="wkr-knopf wkr-bojen-knopf"
-            :class="{ 'wkr-bojen-knopf--gesetzt': !!t.stand, 'wkr-bojen-knopf--disq': !!entwurf.bojenDisq[t.ziel.boje.feld] }"
+            :class="{ 'wkr-bojen-knopf--gesetzt': !!t.stand, 'wkr-bojen-knopf--disq': !!entwurf.bojenDisq[t.ziel.boje.feld]?.length }"
             data-ziel="gross"
             data-action="bild-boje"
             :data-bild-id="t.id"
             :data-feld="t.ziel.boje.feld"
             :data-anzahl="entwurf.bojen[t.ziel.boje.feld] ?? 0"
-            :data-disq="entwurf.bojenDisq[t.ziel.boje.feld]"
+            :data-disq="bojenDisqVon(entwurf, t.ziel.boje).join(', ') || undefined"
             :disabled="disqWahl && t.ziel.boje.disq.length === 0"
-            @click="tippe(t)"
+            :data-langdruck="fuelltId === t.id ? 'fuellt' : undefined"
+            v-on="druck.an(t)"
           >
             <span class="wkr-bojen-unter">{{ t.name }}</span>
-            <span v-if="t.stand" class="wkr-bojen-stand"><span class="wkr-bojen-zahl" data-teil="bild-stand">{{ t.stand }}</span></span>
+            <span v-if="t.stand" class="wkr-bojen-stand"><span class="wkr-bojen-zahl wkr-bojen-disq-stand" data-teil="bild-stand">{{ t.stand }}</span></span>
           </button>
         </div>
       </section>

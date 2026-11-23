@@ -141,7 +141,7 @@ describe('Eingabe → Zellwert: dieselben Sanierer, wertGilt unverändert', () =
     expect([...arten].sort()).toEqual(['boje', 'code', 'disq', 'text', 'zeit'])
   })
 
-  it('Leer gilt immer; Bojen als Zahl/„5J“; Codes „2x6, 20“ sortiert wie die Erfassung', () => {
+  it('Leer gilt immer; Bojen als Zahl/„5, J“ (BZ6, 22.11.2026: mehrere Buchstaben in Katalogfolge); Codes „2x6, 20“ sortiert wie die Erfassung', () => {
     const sicht = sichtMit(DM, 'gate135')
     const aufbau = maskeFuer(sicht, '7')!
     const spalten = tabellenSpalten(sicht, '7', aufbau, undefined)
@@ -150,7 +150,10 @@ describe('Eingabe → Zellwert: dieselben Sanierer, wertGilt unverändert', () =
     const mitDisq = spalten.find((s) => s.art === 'boje' && bojenVon(aufbau).find((b) => b.feld === s.feld)!.disq.some((d) => d.code === 'J'))!
     expect(zelleAusEingabe(schalter, '', aufbau)).toEqual({ wert: '', fehler: null })
     expect(zelleAusEingabe(schalter, '5', aufbau)).toEqual({ wert: '5', fehler: null })
-    expect(zelleAusEingabe(mitDisq, 'j5', aufbau)).toEqual({ wert: '5J', fehler: null })
+    expect(zelleAusEingabe(mitDisq, 'j5', aufbau)).toEqual({ wert: '5, J', fehler: null })
+    // Zwei erlaubte Buchstaben (R7-14): kein Fehler, Katalogfolge, Dubletten still weg.
+    const [x, y] = bojenVon(aufbau).find((b) => b.feld === mitDisq.feld)!.disq.map((d) => d.code)
+    expect(zelleAusEingabe(mitDisq, `${y}5${x}${y}`, aufbau)).toEqual({ wert: `5, ${x}, ${y}`, fehler: null })
     expect(zelleAusEingabe(zaehler, '15', aufbau)).toEqual({ wert: '15', fehler: null })
     const code = spalten.find((s) => s.art === 'code')
     if (code) {
@@ -168,7 +171,8 @@ describe('Eingabe → Zellwert: dieselben Sanierer, wertGilt unverändert', () =
     expect(zelleAusEingabe(schalter, '10', aufbau).fehler).toBe('boje-punkte')
     expect(zelleAusEingabe(schalter, '0', aufbau).fehler).toBe('boje-punkte')
     expect(zelleAusEingabe(schalter, '5Q', aufbau).fehler).toBe('zeichen-fremd')
-    expect(zelleAusEingabe(schalter, '5JG', aufbau).fehler).toBe('zeichen-fremd')
+    // Ein fremder Buchstabe neben einem erlaubten ist weiter ein Fehler (sanitizeBuoy ließe ihn still weg).
+    expect(zelleAusEingabe(schalter, '5JQ', aufbau).fehler).toBe('zeichen-fremd')
     const tor5 = maskeFuer(sichtMit(DM, 'tor5'), '1')!
     const t5 = tabellenSpalten(sichtMit(DM, 'tor5'), '1', tor5, undefined)
     const code = t5.find((s) => s.art === 'code')!
@@ -191,7 +195,7 @@ describe('Eingabe → Zellwert: dieselben Sanierer, wertGilt unverändert', () =
     expect(zeile.fehler[disq.feld]).toBe('nicht-darstellbar')
   })
 
-  it('eingabenAus: Entwurf → Eingaben (Codes „2x…“, Bojen „5J“, Zeit wie getippt), und zurück dieselbe Zeile', () => {
+  it('eingabenAus: Entwurf → Eingaben (Codes „2x…“, Bojen „5, J“, Zeit wie getippt), und zurück dieselbe Zeile', () => {
     const sicht = sichtMit(DM, 'gate135')
     const aufbau = maskeFuer(sicht, '7')!
     const spalten = tabellenSpalten(sicht, '7', aufbau, undefined)
@@ -200,7 +204,7 @@ describe('Eingabe → Zellwert: dieselben Sanierer, wertGilt unverändert', () =
     const t = aufbau.teile[0]
     if (t) e = tippe(tippe(e, t.feld, t.codes[0].code), t.feld, t.codes[0].code)
     const eingaben = eingabenAus(spalten, e, aufbau)
-    expect(eingaben[b.feld]).toBe('5J')
+    expect(eingaben[b.feld]).toBe('5, J')
     if (t) expect(eingaben[t.feld]).toBe(`2x${t.codes[0].code}`)
     const zeile = zeileAusEingaben(spalten, eingaben, aufbau)
     expect(zeile.fehler).toEqual({})

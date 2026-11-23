@@ -430,7 +430,8 @@ Für die Person am Bedienrechner, Schritt für Schritt. Ohne Gerätebetrieb entf
   bezieht sich immer auf den Parcours, nie auf Steg oder Vorsteg – deren Wettkampfrichter arbeiten autark, auf sie
   wird nie gewartet (sie stehen weiter mit ✓/⧗ in der Leiste, lösen aber nie „Trotzdem weiter?“ aus). Die Ampel steht
   nur, wenn mindestens eine Parcours-Liste digital erfasst wird (Tore, Bojen, Tor 5, Mann-über-Bord,
-  Parcoursüberwachung, Start/Ziel; nicht Steg, Vorsteg, Zeit, Knoten).
+  Parcoursüberwachung, Start/Ziel und – seit 22.11.2026, R7-01 – Zeit; nicht Steg, Vorsteg, Knoten). Auch die
+  Zeit-Liste hält die Ampel also auf rot, bis ihre Zeit (oder „keine Zeit“) abgeschickt ist.
   1. „Nächster Start“ stellt die Anzeigetafel um; alle Parcours-WKR sehen den Starter, die Ampel ist **● grün „Start
      frei“**. Solange sie grün ist, zählt dieser Start nirgends als offen – fährt er nicht los, fragt nichts.
   2. Fährt er durch das Start/Ziel-Tor: **„Durchs Start-Tor“** tippen (versehentlich: „Doch nicht durch“). Die Ampel

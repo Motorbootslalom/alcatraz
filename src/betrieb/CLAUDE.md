@@ -12,7 +12,7 @@ start release.
 
 - `annahmen.ts` – BETRIEB_ANNAHMEN: alle Auslegungen mit Datum, an EINER Stelle (Muster PARALLEL_ANNAHMEN). Seit
   21.11.2026 Auto-Modus der Parcours-Ampel: autoVorgabe (aus), autoVerzugSek 3, autoAnhaltenLokal, keineAmpelAufTafel
-  (AM6–AM8, noch zu bestätigen; die Ampel selbst: wkr/ampel.ts, WKR_ANNAHMEN AM1–AM5).
+  (AM6–AM8, bestätigt 22.11.2026 R7-06…R7-09; die Ampel selbst: wkr/ampel.ts, WKR_ANNAHMEN AM1–AM5).
 - `folge.ts` – Kennungen (refKey/liesRef, istPunktId, laufPunkt), bereicheZumStand (alle bzw. `{anzeige:true}`),
   programm (lauf:1..n; „nacheinander“ nur lauf:1), abgeleiteteFolge (Verzahnung, Entfallene mit `entfaellt`),
   startfolge (= abgeleitet + Schnappschuss), spurenVon (Spur-Anordnung), lage (aktuell, vorig, Zeiger, offen, frei,

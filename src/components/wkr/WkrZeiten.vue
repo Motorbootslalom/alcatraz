@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import type { KeineZeitGrund } from '../../types'
 import { KEINE_ZEIT_GRUENDE } from '../../wkr/keineZeit'
-import { zeitDeutung, zeitFertig, zeitUhr, zeitUnlesbar, type Entwurf, type MaskenAufbau } from '../../wkr/maske'
+import { WKR_ANNAHMEN } from '../../wkr/annahmen'
+import { setzeZeit, zeitDeutung, zeitFertig, zeitUhr, zeitUnlesbar, zeitVollstaendig, type Entwurf, type MaskenAufbau } from '../../wkr/maske'
 import WkrZiffern from './WkrZiffern.vue'
 import { useWkrText } from './texte'
 
@@ -15,8 +16,10 @@ import { useWkrText } from './texte'
  * - Darunter EIN Ziffernblock (WkrZiffern `zeit`) für das aktive Feld – nur Ablesen, kein Stoppen am Gerät (F9).
  * - „Keine Zeit“ (ZT4): Knopf `keine-zeit` → Gründe `keine-zeit-grund` (`data-grund`); steht ein Grund, zeigt das Feld
  *   ihn mit „Aufheben“ (`keine-zeit-weg`) statt des Ziffernblocks.
- * - Das aktive Feld springt NICHT von selbst weiter (ZT3, beim Bau): Wer mehrere Uhren abliest, tippt in seiner Folge;
- *   nur beim neuen Start beginnt es beim ersten offenen Feld (`:key` je Start in WkrMitte).
+ * - Weiterspringen (ZT6, umgebaut 22.11.2026 R8-35: „Weiter springen ist okay“): Ist die getippte Zeit fertig (alle
+ *   Stellen, wkr/maske.ts zeitVollstaendig: „83,45“, nicht „83,4“), wird das nächste Feld aktiv – auf dem Pad wandert
+ *   die Umrandung, auf dem Handy der Feld-Reiter. Im letzten Feld kein Sprung; zurück per Antippen. Weitere Felder sind
+ *   freiwillig (ZT5). Beim neuen Start beginnt es beim ersten offenen Feld (`:key` je Start in WkrMitte).
  */
 const props = defineProps<{
   aufbau: Pick<MaskenAufbau, 'zeiten'>
@@ -62,7 +65,17 @@ function waehle(feld: string): void {
 }
 function tippe(neu: string): void {
   if (props.gesperrt) return
-  emit('zeit', aktiv.value, neu)
+  const feld = aktiv.value
+  // Was die Maske daraus macht (dieselbe reine Funktion wie WkrMaske) – nur so weiß der Block schon jetzt, ob die Zeit
+  // fertig ist; der Entwurf kommt erst mit dem nächsten Durchlauf zurück.
+  const nachher = setzeZeit(props.entwurf, props.aufbau, feld, neu).zeiten[feld] ?? ''
+  emit('zeit', feld, neu)
+  if (!WKR_ANNAHMEN.zeitSpringtWeiter || !zeitVollstaendig(nachher)) return
+  const i = props.aufbau.zeiten.findIndex((z) => z.feld === feld)
+  if (i >= 0 && i < props.aufbau.zeiten.length - 1) {
+    aktiv.value = props.aufbau.zeiten[i + 1].feld
+    gruendeOffen.value = false
+  }
 }
 function grund(g: KeineZeitGrund): void {
   if (props.gesperrt) return

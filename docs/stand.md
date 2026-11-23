@@ -153,6 +153,14 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   bleibt nach DISQ, „Rückweg gedreht“ = umgekehrte Fahrtfolge auch mit Speedrunde, Bild nie höher als der Bildschirm
   (±90° nur wo es passt), Namensnennung der Zeichnung auf dem Gerät, Trefferkreise ≥ --wkr-ziel, Tastatur kippt die
   Pad-Anordnung nicht.
+  Antworten der Runden 7–8 (22.11.2026) umgebaut ([plan-antworten-runde7-8.md](plan-antworten-runde7-8.md), neue
+  Auslegungen noch zu bestätigen): Zeit-Listen zählen zur Parcours-Ampel, mehrere Disq. je Boje („5, J, D“, Eingabe
+  tolerant), Langdruck auf eine Boje öffnet ihre Disq.-Buchstaben (Knöpfe und Bild), Übung mit „Klasse vorziehen“,
+  Beispieldaten behalten Hand-Zahlen je Klasse (mit Zurücksetzen), Parallel-Zeichnung aus dem Parcours-Repo, Bild ohne
+  automatischen Wechsel auf den Rückweg, Knoten mit vorbelegtem nächstem offenen Starter, „Alle richtig“ und Rückfrage
+  vor der Korrektur, Zeitfelder springen weiter (nur das erste Pflicht). Prüfbefunde dazu behoben (22.11.2026):
+  Langdruck wirkte im Bild nur einmal (Loslassen jetzt auch am Fenster), Knoten-Vorschlag vorbelegt (KN12); alte
+  Bojenzellen „5J“ gelten beim Gerätevergleich als abweichend (BZ1, bewusst ohne Migration).
   Offen: Feldtest Pad (docs/feldtest.md „Pad (W5)“, u. a. Lage der Trefferkreise im echten Browser), W6 nach Befund; CI-Test „Probe beim Einrichten … einmal je Raum“ wackelt
   unter Last (vorerst zurückgestellt).
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und

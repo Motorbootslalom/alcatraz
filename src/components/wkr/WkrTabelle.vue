@@ -10,7 +10,7 @@ import { stufeZeichen, useWkrText, type TabellenGesendet } from './texte'
  * Rechner (TB1), nie Vorgabe (MW1). Die Zeile des Bogens der Klasse zum Eintippen mit echter Tastatur:
  *
  * - Zeilen (TB5): die letzten gesendeten eigenen Zeilen mit ✓/↑/!/✗ wie „Zuletzt“, die aktive Zeile, die nächsten Starts.
- * - Eingabe (TB3/TB4): Codes als Text („2x6, 20“), Bojen als Punkte bzw. „5J“, Zeit wie am Rechner; jede Zelle geht
+ * - Eingabe (TB3/TB4): Codes als Text („2x6, 20“), Bojen als Punkte bzw. „5, J“ (mehrere Buchstaben, R7-14), Zeit wie am Rechner; jede Zelle geht
  *   durch wkr/tabelle.ts (dieselben Sanierer wie ErfassungTabelle). Fehler je Zelle (`data-fehler` = Code) erst, wenn die
  *   Zelle verlassen wurde – beim Tippen von „2x“ stünde sonst schon einer. Beim Verlassen zeigt die Zelle den Wert so,
  *   wie er hinausgeht („6 6 20“ → „2x6, 20“).

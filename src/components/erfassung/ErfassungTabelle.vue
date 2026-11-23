@@ -629,7 +629,7 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
                   />
                   <input
                     v-else
-                    :class="['erf-feld', `erf-feld--${leaf.kind}`, { 'erf-feld--auffaellig': auffaellig(z, leaf) }]"
+                    :class="['erf-feld', `erf-feld--${leaf.kind}`, { 'erf-feld--auffaellig': auffaellig(z, leaf), 'erf-feld--boje-lang': leaf.kind === 'buoy' && (z.werte[z.felder[li]!.kennung] ?? '').length > 4 }]"
                     autocomplete="off"
                     autocapitalize="characters"
                     spellcheck="false"

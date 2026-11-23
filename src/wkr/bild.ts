@@ -1,18 +1,19 @@
 import { FAHRWEG, bildBojeId } from '../config/kurzform'
 import { AUSBLENDEN_OPACITY, DIM_OPACITY, ohneRahmen } from '../lib/parcoursbild'
+import { PARALLEL_DATEI, PARALLEL_PFLICHT_IDS, parallelBahnPraefix, parallelBojeId, parallelStartId } from '../lib/parcoursVertrag'
 import type { Racecourse } from '../lib/parallelSchluessel'
 import type { ClassId } from '../types'
-import { WKR_ANNAHMEN } from './annahmen'
 import { bojenHalt, PARALLEL_FAHRWEG } from './bojen'
 import { liesListe } from './liste'
-import { bojenVon, eintraegeAuf, maskeFuer, maskenZeilen, type Entwurf, type MaskenAufbau, type MaskenBoje, type MaskenHalt } from './maske'
+import { bojenDisqZahl, bojenVon, eintraegeAuf, maskeFuer, maskenZeilen, type Entwurf, type MaskenAufbau, type MaskenBoje, type MaskenHalt } from './maske'
 import type { ListenSicht, MaskenBild } from './sicht'
 
 // Maske „Bild“ der WKR-Geräte (W5.2, Plan docs/plan-wkr-w5.md §5, 22.11.2026) – rein, ohne DOM, ohne Store, nichts
 // aus geraete/. Hier steht NUR die Zuordnung „Boje der Liste ↔ Stelle in der Zeichnung“ und welcher Knopf ein Tipp ins
 // Bild ist; Entwurf und Zellen entstehen wie bei den Knöpfen über wkr/maske.ts (tippeBoje, tippeBojenDisq, zellenAus) –
 // gleiche Tipps im Bild und in den Knöpfen geben dieselben Zellen (maske.test.ts). Gezeichnet wird in
-// components/wkr/WkrBild.vue; die Klassen-SVGs (src/assets/parcours) kommen gebündelt über lib/parcoursQuelle.ts.
+// components/wkr/WkrBild.vue; die Klassen-SVGs und Parallel.svg (src/assets/parcours) kommen gebündelt über
+// lib/parcoursQuelle.ts.
 
 /** Eine Boje der Klassen-Zeichnung: Tor (bzw. Speedboje) und physische Seite wie in der Feld-Kennung. */
 export interface BildBoje {
@@ -52,8 +53,29 @@ export function bildIdVon(feld: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Parallelslalom: schematische Zeichnung je Racecourse (BD3)
+// Parallelslalom: Zeichnung aus dem Parcours-Repo (BD3 umgebaut 22.11.2026, BD8–BD10), Schema nur als Rückfall
 // ---------------------------------------------------------------------------
+
+/**
+ * Die Parallel-Zeichnung als „Bild der Klasse“ (BD3 umgebaut 22.11.2026, R8-19): src/assets/parcours/Parallel.svg, beide
+ * Bahnen, so wie die Quelle liegt („pontoon_bottom“ = Steg unten wie die Klassen-Zeichnungen, Drehung 0) – gedimmt
+ * wird nur die fremde Bahn (BD10, über `blass` der Zuordnung). Die Drehung nach Platz (wirksameDrehung) gilt
+ * unverändert; bei 0° ist sie ohne Wirkung.
+ */
+export const PARALLEL_BILD: Readonly<MaskenBild> = Object.freeze({ datei: PARALLEL_DATEI, dim: [], aus: [], drehung: 0 })
+
+/**
+ * Die ID einer Parallel-Kennung in Parallel.svg (BD8): Boje n hin und rück → `P_<rc>_b<n>`, Start und Ziel → dasselbe
+ * Tor `P_<rc>_start_seiteA|B`. `null` = keine Parallel-Boje.
+ */
+export function parallelBildId(feld: string, racecourse: Racecourse): string | null {
+  const s = schemaIdVon(feld)
+  if (!s) return null
+  const start = /^P_StartZiel_(seiteA|seiteB)$/.exec(s)
+  if (start) return parallelStartId(racecourse, start[1] as 'seiteA' | 'seiteB')
+  const b = /^P_b(\d)$/.exec(s)
+  return b ? parallelBojeId(racecourse, Number(b[1])) : null
+}
 
 /** Ein Punkt der schematischen Zeichnung (Koordinaten in einem Feld 100 × 140). */
 export interface SchemaPunkt {
@@ -78,8 +100,8 @@ const SCHEMA_BREITE = 100
 const SCHEMA_HOEHE = 140
 
 /**
- * Schematische Zeichnung eines Racecourse (Plan §5.1, BD3, 22.11.2026, noch zu bestätigen): Es gibt kein Parallel-SVG
- * (parallel.yaml hat kein `bildErzeugen`). Start/Ziel unten als Tor aus zwei Bojen (seiteA links, seiteB rechts), Bojen
+ * Schematische Zeichnung eines Racecourse (Plan §5.1, BD3, 22.11.2026) – seit dem Umbau 22.11.2026 (R8-19) nur noch
+ * RÜCKFALL, wenn Parallel.svg fehlt oder unvollständig ist (Build ohne Asset, Test). Start/Ziel unten als Tor aus zwei Bojen (seiteA links, seiteB rechts), Bojen
  * 1–4 darüber in einer Reihe, Boje 5 oben als Wende – Folge und Hin/Rück aus PARALLEL_FAHRWEG (wkr/bojen.ts): Hinweg
  * links an 1–4 vorbei, Wende um 5, Rückweg rechts. Racecourse B ist gespiegelt (die Bahnen liegen nebeneinander, die
  * Boote fahren spiegelbildlich). Nur Daten – die Komponente zeichnet sie.
@@ -114,8 +136,10 @@ export function schemaIdVon(feld: string): string | null {
 
 export interface BildZuordnung {
   art: 'svg' | 'schema'
-  /** Zeichnung der Klasse (`svg`); `null` beim Schema. */
+  /** Zeichnung der Klasse bzw. PARALLEL_BILD (`svg`); `null` beim Schema. */
   bild: MaskenBild | null
+  /** Parallelslalom: der Racecourse der Liste (Titel „Racecourse A“); fehlt bei den Klassen-Zeichnungen. */
+  racecourse?: Racecourse
   schema: ParallelSchema | null
   /** Je Bojen-Feld der Liste die ID im Bild. */
   treffer: Record<string, string>
@@ -136,6 +160,11 @@ function vorkommen(svg: string, id: string): number {
  * Die Zuordnung einer Bojen-Maske zum Bild. `null` (BD2, 22.11.2026): keine Bojen-Maske, keine Zeichnung, eine Boje
  * ohne ID oder eine ID, die nicht GENAU einmal im SVG steht – dann zeigt die Klasse die Knöpfe (WkrMitte), nie ein
  * Bild mit stiller Lücke. `svg` fehlt nur in reinen Tests ohne Zeichnung (dann wird nur die Tabelle geprüft).
+ *
+ * Parallelslalom (BD3 umgebaut, BD10, 22.11.2026): `svg` ist dort Parallel.svg. Trägt sie jede ID des Racecourse genau
+ * einmal (und alle Pflicht-IDs beider Bahnen), zeigt das Bild die ganze Zeichnung; die Teile der FREMDEN Bahn (alle IDs
+ * mit ihrem Präfix: Bojen, Start/Ziel, Fahrlinien, Ziffern) sind `blass` – gedimmt und ohne Trefferkreis. Ohne Datei
+ * oder mit unvollständiger das Schema (schemaParallel) – es ist immer vollständig, also keine stille Lücke.
  */
 export function bildZuordnung(aufbau: MaskenAufbau, o: { bild?: MaskenBild | null; racecourse?: Racecourse | null; svg?: string }): BildZuordnung | null {
   if (aufbau.art !== 'bojen') return null
@@ -148,10 +177,17 @@ export function bildZuordnung(aufbau: MaskenAufbau, o: { bild?: MaskenBild | nul
     if (!ids.includes(id)) ids.push(id)
   }
   if (bojen.every((b) => schemaIdVon(b.feld) !== null)) {
-    const schema = schemaParallel(o.racecourse ?? 'A')
+    const rc = o.racecourse ?? 'A'
+    if (o.svg !== undefined && PARALLEL_PFLICHT_IDS.every((id) => vorkommen(o.svg!, id) === 1)) {
+      for (const b of bojen) merke(b.feld, parallelBildId(b.feld, rc)!)
+      const fremd = parallelBahnPraefix(rc === 'A' ? 'B' : 'A')
+      const blass = [...o.svg.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]).filter((id) => id.startsWith(fremd))
+      return { art: 'svg', bild: PARALLEL_BILD, schema: null, treffer, ids, blass, racecourse: rc }
+    }
+    const schema = schemaParallel(rc)
     for (const b of bojen) merke(b.feld, schemaIdVon(b.feld)!)
     if (!ids.every((id) => schema.punkte.some((p) => p.id === id))) return null
-    return { art: 'schema', bild: null, schema, treffer, ids, blass: schema.punkte.map((p) => p.id).filter((id) => !ids.includes(id)) }
+    return { art: 'schema', bild: null, schema, treffer, ids, blass: schema.punkte.map((p) => p.id).filter((id) => !ids.includes(id)), racecourse: rc }
   }
   if (!o.bild) return null
   for (const b of bojen) {
@@ -166,8 +202,9 @@ export function bildZuordnung(aufbau: MaskenAufbau, o: { bild?: MaskenBild | nul
 
 /**
  * Je MaskenBoje der Klasse die ID im Bild (Plan §5.1): Maske der Klasse aus der Sicht, Zeichnung aus `bild` der Klasse
- * (Parallelslalom: Schema des Racecourse der Liste). `svgVon` liefert den Text der Zeichnung (lib/parcoursQuelle.ts
- * parcoursSvg) – fehlt die Datei, `null` (BD2).
+ * (Parallelslalom: Parallel.svg mit der Bahn des Racecourse der Liste, ohne Datei das Schema – BD3 umgebaut
+ * 22.11.2026). `svgVon` liefert den Text der Zeichnung (lib/parcoursQuelle.ts parcoursSvg) – fehlt die Datei einer
+ * Klasse, `null` (BD2).
  */
 export function bildTreffer(
   sicht: ListenSicht,
@@ -178,7 +215,8 @@ export function bildTreffer(
   const aufbau = maskeFuer(sicht, klasse, sprache)
   if (!aufbau) return null
   const bild = sicht.klassen[klasse]?.bild ?? null
-  const svg = bild && svgVon ? svgVon(bild.datei) : undefined
+  // Ohne Bild der Klasse kann es nur der Parallelslalom sein (parallel.yaml hat kein `bildErzeugen`): dessen Zeichnung.
+  const svg = svgVon ? svgVon(bild ? bild.datei : PARALLEL_DATEI) : undefined
   // Zeichnung genannt, aber nicht gebündelt: kein Bild (BD2) – nie eines mit stiller Lücke.
   if (bild && svgVon && svg === undefined) return null
   return bildZuordnung(aufbau, { bild, racecourse: liesListe(sicht.liste)?.racecourse ?? null, ...(svg !== undefined ? { svg } : {}) })
@@ -247,22 +285,10 @@ export function bildZiel(aufbau: MaskenAufbau, z: BildZuordnung, id: string, weg
   return kandidaten.find((x) => passt(x.halt, weg)) ?? (weg === 'rueck2' ? kandidaten.find((x) => passt(x.halt, 'rueck')) : undefined) ?? kandidaten[0]
 }
 
-/**
- * Seite des Umschalters nach einem Tipp (BD4, 22.11.2026, noch zu bestätigen; Vorschlag §4.2): Der erste Tipp an Tor 5
- * auf dem Hinweg schaltet auf „Rückweg“ – anders als die Knöpfe (P8, wechselt nie von selbst), weil das Bild beide Wege
- * an derselben Stelle zeigt und nach Tor 5 nur noch der Rückweg kommt. Der WKR kann zurückstellen; ein zweiter Tipp
- * an Tor 5 auf dem Hinweg zählt dann wieder dort. Sonst bleibt die Seite.
- */
-export function wegNachTipp(aufbau: MaskenAufbau, ziel: BildBojeMitHalt, weg: BildWeg, vorher: number): BildWeg {
-  if (!WKR_ANNAHMEN.bildRueckNachTor5) return weg
-  if (weg === 'hin' && ziel.halt.halt === 't5' && ziel.halt.weg === 'hin' && vorher === 0 && bildWege(aufbau).includes('rueck')) return 'rueck'
-  return weg
-}
-
 /** Einträge je Seite des Umschalters (Zahl am Reiter): wie eintraegeAuf, Rück 2 getrennt vom Rückweg. */
 export function bildZahlen(e: Entwurf, aufbau: MaskenAufbau): Record<BildWeg, number> {
   let rueck2 = 0
-  for (const x of bojenMitHalt(aufbau)) if (passt(x.halt, 'rueck2')) rueck2 += (e.bojen[x.boje.feld] ?? 0) + (e.bojenDisq[x.boje.feld] ? 1 : 0)
+  for (const x of bojenMitHalt(aufbau)) if (passt(x.halt, 'rueck2')) rueck2 += (e.bojen[x.boje.feld] ?? 0) + bojenDisqZahl(e, x.boje.feld)
   return { hin: eintraegeAuf(e, aufbau, 'hin'), rueck: eintraegeAuf(e, aufbau, 'rueck') - rueck2, rueck2 }
 }
 

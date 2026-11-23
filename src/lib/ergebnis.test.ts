@@ -219,18 +219,28 @@ describe('Wertungsliste eines Laufs', () => {
     expect(nachNummer[0].schluessel).toBe('2, 17, C, D, J')
   })
 
-  it('Bojenzelle mit Punkten und Buchstaben (W4-12, 21.11.2026, BZ1/BZ3): „5J“ zählt 5 und disqualifiziert, „10G“ an Tor 5; Zelle ohne Komma', () => {
+  it('Bojenzelle mit Punkten und Buchstaben (W4-12, 21.11.2026, BZ1/BZ3; BZ6 22.11.2026): „5, J“ zählt 5 und disqualifiziert, „10, G“ an Tor 5; Zelle wie gespeichert', () => {
     let stand = laufMitZeiten(basis(['401']), 1, { '401': 80 })
-    stand = eintragen(stand, 1, '401', { gate135: { 't1a#0': '5J', 't5#0': '10G' } })
+    stand = eintragen(stand, 1, '401', { gate135: { 't1a#0': '5, J', 't5#0': '10, G' } })
     const { gruppen, nachNummer } = ergebnis(stand).laeufe[0]
     const z = nachNummer[0]
     expect([z.strafpunkte, z.disq, z.gesamt]).toEqual([15, true, null])
     expect(z.schluessel).toBe('G, J')
     const blaetter = gruppen.flatMap((g) => g.blaetter.map((_, i) => ({ g: g.label, i })))
     const zelleVon = (gruppe: string, blatt = 0) => z.zellen[blaetter.findIndex((b) => b.g === gruppe && b.i === blatt)]
-    expect(zelleVon('1 H', 1)).toBe('5J')
-    expect(z.zellen).toContain('10G')
-    expect(z.zellen.join('|')).not.toContain(', ')
+    expect(zelleVon('1 H', 1)).toBe('5, J')
+    expect(z.zellen).toContain('10, G')
+  })
+
+  it('mehrere Disq. an einer Boje (R7-14, 22.11.2026, BZ6): Disq. mit beiden Buchstaben, Zelle in der Folge der Zelle', () => {
+    let stand = laufMitZeiten(basis(['401']), 1, { '401': 80 })
+    stand = eintragen(stand, 1, '401', { gate135: { 't1a#0': '5, J, D' } })
+    const { gruppen, nachNummer } = ergebnis(stand).laeufe[0]
+    const z = nachNummer[0]
+    expect([z.strafpunkte, z.disq, z.gesamt]).toEqual([5, true, null])
+    expect(z.schluessel).toBe('D, J')
+    const blaetter = gruppen.flatMap((g) => g.blaetter.map((_, i) => ({ g: g.label, i })))
+    expect(z.zellen[blaetter.findIndex((b) => b.g === '1 H' && b.i === 1)]).toBe('5, J, D')
   })
 
   it('sortiert den Fehler-Schlüssel natürlich, nennt Buchstaben einmal und Mehrfache nach dem Code', () => {

@@ -7,7 +7,7 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 
 - `EventView.vue` – Veranstaltung: Name, Jahr, Regelwerk, Aufbau, Art, Herkunft (originMode, SET_ORIGIN_MODE);
   Besetzung, Beispieldaten (components/BeispieldatenPanel.vue, zugeklappt; Test EventView.test.ts `beispielstarter` (feste Zahl über `setzeGesamt`, sonst gezogen;
-  je Klasse `beispiel-klasse|<k>`, Summe `beispiel-summe`, R6-02), `beispielbesetzung`, `beispielgewichte`; Herkunft
+  je Klasse `beispiel-klasse|<k>`, Summe `beispiel-summe`, R6-02; Hand-Zahlen bleiben, `beispiel-klassen-zuruecksetzen`, R7-51), `beispielbesetzung`, `beispielgewichte`; Herkunft
   der Beispielstarter = originMode (nie umgestellt), bei der Clubmeisterschaft keine (R6-01, beispielHerkunft)).
 - `StartersView.vue` – Starter je Klasse, Startnummern, Excel-Austausch, Schalter „zählt für Mannschaftswertung“;
   Leiste „Alle Klassen“ (`sortierung-alle`): Sortierung ändern/Zufall für alle, Spaltenköpfe in ClassSection.vue;

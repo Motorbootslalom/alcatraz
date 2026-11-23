@@ -35,6 +35,10 @@ export default {
     'Zum Ausprobieren lässt sich ein Starterfeld mit erfundenen Namen erzeugen. Echte Starter kommen über den Import unter „Starter“.',
   'demo.perClass': 'Starter je Klasse',
   'demo.perClass.sum': 'zusammen {n} (Vorschlag {gesamt})',
+  // Hand-Zahlen je Klasse bleiben beim Verteilen (Nutzer 22.11.2026, R7-51, BS3 umgebaut/BS4).
+  'demo.perClass.reset': 'Zurücksetzen',
+  'demo.perClass.resetTitle': 'Von Hand gesetzte Zahlen vergessen und die Gesamtzahl über alle Klassen neu verteilen',
+  'demo.perClass.handTitle': 'Von Hand gesetzt – bleibt bei einer neuen Gesamtzahl',
   'demo.total': 'Starter insgesamt',
   'demo.total.redraw': 'Vorschlag neu',
   'demo.total.redrawTitle': 'Einen neuen Vorschlag machen: eine Gesamtzahl im Bereich dieser Art von Veranstaltung, verteilt auf die Klassen – ersetzt auch die Zahlen je Klasse',

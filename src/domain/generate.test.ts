@@ -117,7 +117,7 @@ describe('Beispiel-Starterfeld: Gesamtzahl und Verteilung', () => {
     expect(beispielFeldArt('meisterschaft', 'land')).toBe('land')
   })
 
-  // R6-01 (Nutzer 21.11.2026): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine“ – BS1, noch zu bestätigen.
+  // R6-01 (Nutzer 21.11.2026): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine“ – BS1, bestätigt 22.11.2026 (R7-48).
   it('Herkunft der Beispielstarter: bei der Clubmeisterschaft keine, sonst die der Veranstaltung', () => {
     expect(beispielHerkunft('club', 'verein')).toBe('none')
     expect(beispielHerkunft('club', 'land')).toBe('none')
@@ -155,5 +155,21 @@ describe('Beispiel-Starterfeld: Gesamtzahl und Verteilung', () => {
     expect(Object.values(uim).reduce((a, b) => a + b, 0)).toBe(60)
     expect(uim['5']).toBe(Math.max(...Object.values(uim)))
     expect(verteileAufKlassen(10, [])).toEqual({})
+  })
+
+  it('feste Klassen (Hand-Zahlen, R7-51, BS4): bleiben stehen, nur der Rest wird nach Anteilen verteilt', () => {
+    const v = verteileAufKlassen(48, ALL, { E: 0, 7: 12 })
+    expect([v.E, v['7']]).toEqual([0, 12])
+    expect(Object.values(v).reduce((a, b) => a + b, 0)).toBe(48)
+    // Die übrigen wie eine Verteilung des Rests auf sie allein (gleiche Rundung).
+    const rest = verteileAufKlassen(36, ALL.filter((k) => k !== 'E' && k !== '7'))
+    for (const k of Object.keys(rest)) expect(v[k as keyof typeof v]).toBe(rest[k as keyof typeof rest])
+    // Σ fest > gesamt: feste bleiben, übrige 0 – die Summe weicht ab.
+    const zuViel = verteileAufKlassen(10, ALL, { 5: 8, 6: 7 })
+    expect([zuViel['5'], zuViel['6']]).toEqual([8, 7])
+    expect(ALL.filter((k) => k !== '5' && k !== '6').every((k) => zuViel[k] === 0)).toBe(true)
+    // Alle fest: genau die festen Zahlen; leeres `fest` = wie ohne.
+    expect(verteileAufKlassen(5, ['1', '2'], { 1: 3, 2: 4 })).toEqual({ 1: 3, 2: 4 })
+    expect(verteileAufKlassen(48, ALL, {})).toEqual(verteileAufKlassen(48, ALL))
   })
 })

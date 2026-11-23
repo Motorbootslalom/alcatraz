@@ -48,8 +48,11 @@ import { danach, schlange, type SchlangenStart } from './schlange'
  * 9 seit den Listen ohne Lauf (W5.3, 22.11.2026, KN3): an der Liste am Tisch `bestand` (Startnummer, Klasse,
  * erledigt – nie Namen) und `offen` {n, m} statt einer Schlange, Punkt `ohne` – ein altes Gerät zeigte sonst „nichts
  * zu tun“ und schickte Kennungen, die es nicht kennt.
+ * 10 seit mehreren Disq. je Bojenzelle (R7-14, 22.11.2026, WKR_ANNAHMEN BZ8): Die Form der Sicht bleibt gleich, aber
+ * Zellen heißen jetzt „5, J, D“ – ein altes Gerät läse davon nur den ersten Buchstaben und schickte „5J“, das wertGilt
+ * ablehnt. Die neue Fassung lässt es über F7 neu laden.
  */
-export const LISTEN_SICHT_FASSUNG = 9
+export const LISTEN_SICHT_FASSUNG = 10
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier

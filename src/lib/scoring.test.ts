@@ -40,19 +40,30 @@ describe('scoreRow - Tor-Liste (Bojen)', () => {
 
   it('Punkte und Buchstabe in einer Zelle (W4-12, 21.11.2026, BZ1/BZ3): Punkte zählen, Buchstabe disqualifiziert', () => {
     const nr = '303'
-    const values = { [cellKey(nr, 't3a', 1)]: '5G', [cellKey(nr, 't5', 0)]: '10J' }
+    const values = { [cellKey(nr, 't3a', 1)]: '5, G', [cellKey(nr, 't5', 0)]: '10, J' }
     const r = scoreRow(def, nr, getter(values))
     expect(r.sum).toBe(15)
     expect(r.disqs.map((d) => d.code)).toEqual(['G', 'J'])
   })
 
+  it('mehrere Buchstaben in einer Bojenzelle (R7-14, 22.11.2026, BZ6): je Buchstabe ein DisqHit, Punkte zählen einmal', () => {
+    const nr = '304'
+    const values = { [cellKey(nr, 't3a', 1)]: '5, J, D' }
+    const r = scoreRow(def, nr, getter(values))
+    expect(r.sum).toBe(5)
+    expect(r.disqs.map((d) => d.code)).toEqual(['J', 'D'])
+    expect(new Set(r.disqs.map((d) => d.where)).size).toBe(1)
+  })
+
   it.each([
-    ['5', { punkte: 5 }],
-    ['J', { punkte: 0, disq: 'J' }],
-    ['5J', { punkte: 5, disq: 'J' }],
-    ['10g', { punkte: 10, disq: 'G' }],
-    ['5 J', { punkte: 5, disq: 'J' }],
-    ['', { punkte: 0 }],
+    ['5', { punkte: 5, disq: [] }],
+    ['J', { punkte: 0, disq: ['J'] }],
+    ['5, J', { punkte: 5, disq: ['J'] }],
+    ['5J', { punkte: 5, disq: ['J'] }],
+    ['10, g', { punkte: 10, disq: ['G'] }],
+    ['5, J, D', { punkte: 5, disq: ['J', 'D'] }],
+    ['J, D, J', { punkte: 0, disq: ['J', 'D'] }],
+    ['', { punkte: 0, disq: [] }],
   ])('bojenWert(„%s“)', (roh, wert) => {
     expect(bojenWert(roh)).toEqual(wert)
   })

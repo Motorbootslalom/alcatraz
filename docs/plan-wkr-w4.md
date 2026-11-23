@@ -451,7 +451,9 @@ Verworfen: keiner.
 ## 13. Nutzer 21.11.2026: Disq. an der Boje, Ansicht „Wie der Parcours liegt“ (entfernt 22.11.2026)
 
 Zwei Wünsche nach dem Handy-Test, gebaut 21.11.2026, Auslegungen datiert in `WKR_ANNAHMEN` (noch zu bestätigen; U2 ist
-seit 21.11.2026 abends überholt – W4-12, §14):
+seit 21.11.2026 abends überholt – W4-12, §14). Antworten 22.11.2026 (Runden 7–8): U1, U2 `disqBojeMitPunkten`, U4,
+BZ2–BZ5 und V3 bestätigt; U3 (R7-21: langes Drücken bauen) und BZ1 (R7-14: mehrere Disq. je Boje) anders entschieden –
+[entscheidungen.md](entscheidungen.md) „Antworten 22.11.2026 (Runden 7–8)“.
 
 - **Disq. an der Boje** („Was ist der Stand mit den Disq. und der Zuordnung an die Boje? Aktuell kann ich das noch
   nicht eingeben.“) – ersetzt P9. „Disq. an Boje …“ über den Bojen → Boje antippen → Buchstaben DIESER Zelle

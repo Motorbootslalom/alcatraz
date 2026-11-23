@@ -83,13 +83,18 @@ describe('pruefeZeile – Werte wie in der Erfassungstabelle', () => {
     ['Boje: Disq-Buchstabe', 'gate135', 't1a|hin seiteA', 'A', true],
     ['Boje: Buchstabe klein (die Tabelle machte ihn groß)', 'gate135', 't1a|hin seiteA', 'a', false],
     ['Boje: Ziffern und Text', 'gate135', 't1a|hin seiteA', '5x', false],
-    // W4-12 (21.11.2026, BZ1/BZ2): Punkte und ein Buchstabe in einer Zelle, so geschrieben wie gespeichert; X nie mit Punkten.
-    ['Boje: Punkte und Disq-Buchstabe', 'gate135', 't1a|hin seiteA', '5A', true],
-    ['Boje: Tor 5, Zähler mit Buchstabe', 'gate135', 't5|hin seiteA', '10A', true],
-    ['Boje: Buchstabe vor den Punkten', 'gate135', 't1a|hin seiteA', 'A5', false],
+    // W4-12 (21.11.2026, BZ1/BZ2), seit R7-14 (22.11.2026, BZ6): Punkte und Buchstaben in einer Zelle, so geschrieben
+    // wie gespeichert („5, A“, Katalogfolge); X nie mit Punkten oder anderen Buchstaben.
+    ['Boje: Punkte und Disq-Buchstabe', 'gate135', 't1a|hin seiteA', '5, A', true],
+    ['Boje: Tor 5, Zähler mit Buchstabe', 'gate135', 't5|hin seiteA', '10, A', true],
+    ['Boje: zwei Buchstaben', 'gate135', 't1a|hin seiteA', '5, A, B', true],
+    ['Boje: zwei Buchstaben ohne Punkte', 'gate135', 't1a|hin seiteA', 'A, B', true],
+    ['Boje: alte Schreibweise ohne Komma', 'gate135', 't1a|hin seiteA', '5A', false],
+    ['Boje: Buchstaben nicht in Katalogfolge', 'gate135', 't1a|hin seiteA', '5, B, A', false],
+    ['Boje: Buchstabe vor den Punkten', 'gate135', 't1a|hin seiteA', 'A, 5', false],
     ['Boje: Punkte, Leerzeichen, Buchstabe', 'gate135', 't1a|hin seiteA', '5 A', false],
-    ['Boje: zwei Buchstaben', 'gate135', 't1a|hin seiteA', '5AB', false],
     ['Boje: X mit Punkten', 'gate135', 't1a|hin seiteA', '5X', false],
+    ['Boje: X neben einem Buchstaben', 'gate135', 't1a|hin seiteA', 'A, X', false],
     ['Fehlercode aus dem Katalog', 'tor5', 'katalog:tor5', '1', true],
     ['Fehlercode, zwei mit Faktor', 'tor5', 'katalog:tor5', '2x1', true],
     ['Fehlercode fremd', 'tor5', 'katalog:tor5', '999', false],
@@ -313,6 +318,12 @@ describe('pruefeZeile – „Keine Zeit“ (W5.4, 22.11.2026, ZT4)', () => {
     expect(pruefeZeile(s, DM, L('zeit'), undefined, 'g1', zeile(m(erster), [['zeit1', '83,45', '']]))).not.toHaveProperty('keineZeit')
     // Die leere Zelle darf mitkommen (vorher stand dort eine Zeit) – leer + Grund widerspricht sich nicht.
     expect(fall('zeit', [['zeit2', '', '80,12']], [['zeit2', 'anderes']])).toMatchObject({ keineZeit: { zeit2: 'anderes' } })
+  })
+
+  it('ZT5 (22.11.2026, R8-35): nur die erste Zeit, weitere Felder leer bzw. gar nicht dabei – die Zeile gilt', () => {
+    expect(fall('zeit', [['zeit1', '83,45', '']], [])).toMatchObject({ zellen: [{ feld: 'zeit1', wert: '83,45', vorher: '' }], haken: ['erfasst@zeit'] })
+    // Korrektur: eine selbst gesetzte zweite Zeit wird wieder leer (vorher = eigener Wert).
+    expect(fall('zeit', [['zeit2', '', '84,10']], [])).toMatchObject({ zellen: [{ feld: 'zeit2', wert: '', vorher: '84,10' }] })
   })
 
   it('Form: Paare mit bekanntem Grund, nie zusammen mit `n` – sonst wert-ungueltig', () => {

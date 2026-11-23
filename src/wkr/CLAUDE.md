@@ -31,6 +31,14 @@ PD1–PD6 und MW1–MW3 noch zu bestätigen; W5.2 (Maske „Bild“) gebaut 22.1
 W5.3 (Listen ohne Lauf, Knoten-Prüfliste) gebaut 22.11.2026, KN1–KN8 noch zu bestätigen; W5.4 (Zeit-Listen mit
 Ziffernblock, „keine Zeit“) gebaut 22.11.2026, ZT1–ZT4 noch zu bestätigen; W5.5 (Tabelle für Geübte) gebaut
 22.11.2026, TB1–TB5 noch zu bestätigen – W5 fertig, Feldtest offen (docs/feldtest.md „Pad (W5)“).
+**Antworten 22.11.2026** (Fragenseite Runden 7–8, R7-01…52, R8-01…42): AM, BZ, U, V3, GF, WN, Z, Y, P15, PD, MW, BD, KN,
+ZT, TB bestätigt (je Eintrag „Bestätigt 22.11.2026 (Frage)“) bis auf AM1/AM2 (R7-01 Zeit zählt zur Ampel – umgebaut
+22.11.2026), BZ1 (R7-14
+mehrere Disq. je Boje, Komma), U3 (R7-21 Langdruck – umgebaut 22.11.2026, LD1–LD4 neu), BD3 (R8-19 – umgebaut 22.11.2026, BD8–BD10 neu), BD4 (R8-20 –
+umgebaut 22.11.2026), BD7 (R8-23 – umgebaut 22.11.2026), KN3 (R8-27), KN7 (R8-31),
+KN8 (R8-32) (alle drei umgebaut 22.11.2026, KN9–KN11 neu), ZT3 (R8-35 – umgebaut 22.11.2026, ZT5/ZT6 neu) – „NICHT bestätigt“ im Eintrag, sonst noch nicht umgebaut (docs/entscheidungen.md „Antworten
+22.11.2026 (Runden 7–8)“); Y1 bestätigt mit Zusatzwunsch (R7-45: in der Übung Klasse vorziehen – gebaut 22.11.2026,
+Y4 uebungVorziehen, noch zu bestätigen). Alle Antworten der Runden 7–8 sind seit 22.11.2026 umgesetzt.
 Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte Zellen nie still überschreiben.
 
 ## Dateien
@@ -87,20 +95,27 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   padHochSpaltenMax 2/padHochSpalteMinPx 360, PD3 padSeiteNurEineSpalte + seiteSchlange 5, PD4 rundenBandBeiGleichemPaar,
   PD5 attemptSperreMs 1000, PD6 bildInDerSeite, MW1 maskeVorgabePadBild, MW2 maskeWahlJeRaumUndListe, MW3 probeJeMaske.
   W5.3 (22.11.2026, noch zu bestätigen): KN1 knotenEineListe, KN2 ohneLaufStartIstStarter, KN3 ohneLaufBestand, KN4
-  ohneLaufNieRueckstand, KN5 ohneLaufAbschlussGanz, KN6 knotenDarfDigital (Z6 angepasst), KN7 prueflisteAlleGesetzt +
-  knotenPunkte 5, KN8 tischOhneTakt.
+  ohneLaufNieRueckstand, KN5 ohneLaufAbschlussGanz, KN6 knotenDarfDigital (Z6 angepasst), KN7 knotenPunkte 5, KN8
+  tischOhneTakt; umgebaut 22.11.2026 (R8-27/R8-31/R8-32, noch zu bestätigen): KN3, KN7 (Merker jetzt KN10
+  prueflisteRestRichtig, vorher prueflisteAlleGesetzt), KN8; neu KN9 tischVorschlag, KN11 tischRueckfrageErfasst; Prüfbefund 22.11.2026 KN12 tischVorschlagVorbelegt (leeres Feld = Vorschlag gewählt).
   W5.4 (22.11.2026, noch zu bestätigen): ZT1 zeitMaske, ZT2 zeitWieErfassung, ZT3 zeitEineZeile, ZT4 keineZeitMitGrund;
-  AM2 zeitKeineParcoursListe und G2/P1 nachgezogen (Zeit hat seit W5.4 eine Maske, `spaeter` nur noch Punkte).
+  G2/P1 nachgezogen (Zeit hat seit W5.4 eine Maske, `spaeter` nur noch Punkte). Umgebaut 22.11.2026 (R8-35): ZT3
+  zeitEineZeile (Pflicht nur das erste Feld), neu ZT5 zeitNurErstesPflicht, ZT6 zeitSpringtWeiter (noch zu bestätigen).
   W5.5 (22.11.2026, noch zu bestätigen): TB1 tabelleNurPad, TB2 tabelleOhneProbe, TB3 tabelleWieErfassung, TB4
   tabelleBojenAlsPunkte, TB5 tabelleZeilen {gesendet 5, naechste 3}.
-  W5.2 (22.11.2026, noch zu bestätigen): BD1 bildSeitenWieSpalten, BD2 bildSonstKnoepfe, BD3 bildParallelSchema, BD4
-  bildRueckNachTor5, BD5 bildRueck2, BD6 bildTrefferMm 15, BD7 bildDisqUeberKnopf, beim Bau bildDrehungNurPad; Prüfbefunde 22.11.2026: bildDrehungNachPlatz, tastaturAendertNichts (PD1).
+  W5.2 (22.11.2026, noch zu bestätigen): BD1 bildSeitenWieSpalten, BD2 bildSonstKnoepfe, BD3 bildParallelZeichnung (umgebaut 22.11.2026 R8-19, vorher bildParallelSchema; neu BD8 bildParallelIdsAusLage, BD9 bildParallelALinks, BD10 bildParallelFremdeBahnBlass, noch zu bestätigen), BD4
+  bildUmschalterNurVonHand (umgebaut 22.11.2026 R8-20, vorher bildRueckNachTor5), BD5 bildRueck2, BD6 bildTrefferMm 15,
+  BD7 bildDisqKnopfUndLangdruck (umgebaut 22.11.2026 R8-23, vorher bildDisqUeberKnopf), beim Bau bildDrehungNurPad; Prüfbefunde 22.11.2026: bildDrehungNachPlatz, tastaturAendertNichts (PD1).
   Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeMitPunkten (seit W4-12 statt
-  disqBojeErsetztPunkte), U3 disqBojeOhneLangdruck (Frage), U4 probeDisqAnBoje; W4-12 (BZ1–BZ5): bojenZelle,
-  xNieMitPunkten, punkteNebenDisq, disqFragtBoje, papierGegenGeraetAbweichend; Bojen-Folge V3 bojenFolge (22.11.2026, ersetzt V1/V2 „Wie der Parcours liegt“, entfernt).
+  disqBojeErsetztPunkte), U3 disqBojeLangdruck (umgebaut 22.11.2026 R7-21, vorher disqBojeOhneLangdruck; dazu LD1 langdruckMs 800,
+  LD2 langdruckNieTipp, LD3 langdruckWegPx 10 + langdruckRingMs 300, LD4 langdruckPrellschutz – Hilfe
+  components/wkr/langdruck.ts, noch zu bestätigen), U4 probeDisqAnBoje; W4-12 (BZ1–BZ5): bojenZelle,
+  xNieMitPunkten, punkteNebenDisq, disqFragtBoje, papierGegenGeraetAbweichend; R7-14 (22.11.2026, BZ1 umgebaut, neu
+  BZ6 bojenZelleMitKomma, BZ7 disqBojeMehrfachwahl, BZ8 bojenZelleFassung 10, noch zu bestätigen); Bojen-Folge V3 bojenFolge (22.11.2026, ersetzt V1/V2 „Wie der Parcours liegt“, entfernt).
   Druck nach Modus Z1–Z7 (noch zu bestätigen): druckOhneDigital, druckBeiPause, druckStegJeTeil, druckRueckfall,
   druckLaufzettel, druckOhneListeImmer, druckParallelJeRacecourse (wkr/druck.ts).
-  Parcours-Ampel (21.11.2026, AM1–AM5, AM9, AM10, R6-10): parcoursListeAnFeldern, zeitKeineParcoursListe,
+  Parcours-Ampel (21.11.2026, AM1–AM5, AM9, AM10, R6-10): parcoursListeAnFeldern, zeitIstParcoursListe (AM2,
+  umgebaut 22.11.2026 R7-01; vorher zeitKeineParcoursListe),
   ampelAusOhneDigital, rotDurchErsteZeile, nachfrageNurParcours (nachfrageAbEinem → false), ampelInDerKarte,
   abschlussNurBand (abschlussPunktWahl → false), abschlussFragtWennLaufLaeuft; Auto-Modus AM6–AM8 in BETRIEB_ANNAHMEN.
   Gerät-Feinschliff (21.11.2026, GF1–GF11): wieGeraetVorgabe (sonneVorgabe → false), codesNachKlasse
@@ -109,6 +124,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11); freigabeVorwahlOhneListe → false (W3-26).
   WKR-Namen (21.11.2026, WN1–WN3): nameNurBeimAbschluss → false, wkrNameNurEigeneListe, wkrNameImLebenszeichen,
   wkrNameOhneEinteilung (G12/L4 bleiben Rückfall ohne Einteilung).
+- `tisch.ts` (22.11.2026, R8-27, KN9) – naechsterOffener(bestand, zuletzt, klasse?) (`klasse` = Übung „Klasse vorziehen“,
+  Y4: erster offener dieser Klasse, sonst wie ohne) → erster offener Starter NACH `zuletzt` in der
+  Folge des Bestands, Rundlauf, ohne `zuletzt` der erste offene, sonst null; tischOffen (nicht erledigt UND ohne eigene
+  Zeile `z` – die Quittung kann nachlaufen). Rein, generisch über {key, erledigt, z?} (geraete/erfassen.ts
+  BestandEintrag passt). Nutzer: components/wkr/WkrPruefliste.vue („zuletzt“ = quelle.zuletzt, gerätelokal). Test
+  tisch.test.ts (Beispiel des Nutzers 8 → 9, 10 → 11, 9 → 11).
 - `anordnung.ts` (W5.1, 22.11.2026, PD1–PD3) – anordnung({breite, hoehe, typ, listen, teile}) → {art handy|padQuer|
   padHoch, spalten: Spalte {liste, teil?}[], reiter (Listen, die sich die LETZTE Spalte teilen; erste = Vorgabe), seite
   rechts|unten|null}; anordnungsArt (Art der Kopplung vor der Fenstergröße, Rechner = Pad, ohne Art kürzere Seite ≥ 600),
@@ -122,7 +143,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   vorgabeMaske({bojen, pad}) (Pad + Bojen → Bild, nie Tabelle), wirksameMaske(liste, {vorgabe, fest, wahl}) (fest vor
   Wahl vor Vorgabe, nur Erlaubtes und auf dem Gerät Mögliches, nicht Gebautes → Knöpfe). Nutzer: WkrGeraet (Gerät,
   `aus` = ausgegraut), GeraeteListe.vue (Bedienrechner), WkrUebung.
-- `tabelle.ts` (W5.5, 22.11.2026, TB3/TB4) – Maske „Tabelle“, rein: tabellenSpalten(sicht, klasse, aufbau, teil,
+- `tabelle.ts` (W5.5, 22.11.2026, TB3/TB4; Bojen seit R7-14 mit mehreren Buchstaben, `zeichen-fremd` nur für
+  unerlaubte) – Maske „Tabelle“, rein: tabellenSpalten(sicht, klasse, aufbau, teil,
   sprache) → TabellenSpalte {feld, art boje|code|disq|zeit|text, titel, unter, teil?} (Folge und Köpfe wie der Bogen,
   nur Felder, die zellenAus des Teils trägt), kopfGruppen (zweizeiliger Kopf), zelleAusEingabe(spalte, eingabe, aufbau,
   teil) → {wert, fehler} über DIESELBEN Sanierer wie ErfassungTabelle (sanitizeBuoy, sanitizeCodeInput +
@@ -134,12 +156,15 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   unverändert und genau diese Zellen hinaus).
 - `bild.ts` (W5.2, 22.11.2026, BD1–BD6) – Maske „Bild“, rein: BILD_BOJEN (SVG-ID der Klassen-SVGs → {halt, seite};
   innen/außen über config/kurzform.ts bildBojeId = dieselbe Regel wie die Unterspalten/`boje.spalte`, BD1), bildIdVon(feld)
-  (nur Kennungen mit Richtung bzw. Speedbojen; `start|seiteA` ist Parallel), schemaParallel(rc) (Start/Ziel unten, 1–4,
-  5 Wende, B gespiegelt, BD3) + schemaIdVon, bildZuordnung(aufbau, {bild, racecourse, svg}) / bildTreffer(sicht, klasse,
-  svgVon) → {art svg|schema, treffer feld→id, ids, blass} | null (BD2: ID fehlt oder nicht genau einmal → Knöpfe;
+  (nur Kennungen mit Richtung bzw. Speedbojen; `start|seiteA` ist Parallel); Parallelslalom seit 22.11.2026 (R8-19,
+  BD3/BD8–BD10): PARALLEL_BILD (Parallel.svg, Drehung 0), parallelBildId(feld, rc) → `P_<rc>_b<n>` bzw.
+  `P_<rc>_start_seiteA|B`, fremde Bahn (Präfix `P_<andere>_`) = `blass`; schemaParallel(rc) (Start/Ziel unten, 1–4,
+  5 Wende, B gespiegelt) + schemaIdVon nur noch Rückfall ohne vollständige Parallel.svg; bildZuordnung(aufbau, {bild,
+  racecourse, svg}) / bildTreffer(sicht, klasse, svgVon – ohne Bild der Klasse holt es PARALLEL_DATEI) → {art
+  svg|schema, treffer feld→id, ids, blass, racecourse?} | null (BD2: ID fehlt oder nicht genau einmal → Knöpfe;
   Stand 22.11.2026 nur Klasse7_Moewe ohne Speedboje_unten), probeBild, BildWeg hin|rueck|rueck2 (BD5), bildWege,
-  bildZiel(aufbau, z, id, weg) (eine Boje an der ID → diese, sonst nach Weg), wegNachTipp (BD4: erster Tipp an Tor 5 auf
-  dem Hinweg → Rückweg), bildZahlen, inlineSvg (IDs mit Präfix, Drehung über viewBox + `<g>`, Deckkraft als `style` am
+  bildZiel(aufbau, z, id, weg) (eine Boje an der ID → diese, sonst nach Weg; der Umschalter wechselt nur von Hand –
+  wegNachTipp entfiel 22.11.2026, BD4/R8-20), bildZahlen, inlineSvg (IDs mit Präfix, Drehung über viewBox + `<g>`, Deckkraft als `style` am
   Element – kein `<style>`-Block), schiebeAuseinander (BD6), svgSeiten + wirksameDrehung (±90° nur, wo die gedrehte
   Zeichnung im Platz nicht kleiner wird, Prüfbefund 22.11.2026). Entwurf/Zellen NUR über maske.ts (maske.test.ts: gleiche
   Tipps im Bild und in den Knöpfen → gleiche Zellen). Nutzer: components/wkr/WkrBild.vue, WkrMaske, WkrProbe, WkrGeraet.
@@ -163,7 +188,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Bereich TISCH_BEREICH `tisch`, auch ohne Bereich des Betriebs), W5.3: istTischListe, istOhneLauf, ohneLaufKennung/
   liesOhneLauf (`["o", starterId]`), OhneLaufRef, liesStartKennung(key, liesRef), bestandOhneLauf (Starter der Klassen
   mit der Liste, nicht abgemeldet), startAufListe nimmt `{art:'o'}` (nur am Tisch; Lauf `<disziplin>/0`, Punkt `ohne`), istParcoursListe (AM1: Lauf, nicht geteilt, nicht
-  einmalJeStarter, ein Feld außer Zeit/Summe – Test über alle Aufbauten in ampel.test.ts; Knoten nie), teileVon/teilVonZelle, istHaken/teilHaken
+  einmalJeStarter, ein Feld außer Summe – seit 22.11.2026 (R7-01, AM2) zählen reine Zeit-Listen mit; Test über alle
+  Aufbauten in ampel.test.ts; Knoten nie), teileVon/teilVonZelle, istHaken/teilHaken
   (aus lib/eingaben.ts), startAufListe (Starter, Lauf-Schlüssel, `weitere` am Vorsteg mit „Versuche nacheinander“, Punkt;
   Parallel: eigene Seite aus `fest.starts`); W2: listeVonBogen(bogen, konfig) (Bogen der Erfassung → Liste; Knoten →
   die Liste am Tisch, gleich welcher Parcours; unbekannte Position → null).
@@ -201,7 +227,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - `uebernahme.ts` – wendeZeileAn (gleich → nichts, vorher → setzen, sonst Konflikt; `vereinige`: Disq. vereinigt,
   Wegfall = Konflikt `entfernt`, Bemerkung mit „; “), vereinigeDisq, haengeAn, vereinigt (Ziel einer gemeinsamen
   Zelle bei Entscheid für das Gerät – Rückfrage `start` mit `vereinige: {vorher}`), zeilenPruefsumme (FNV-1a).
-- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 8; 8 seit den
+- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 10 seit mehreren
+  Disq. je Bojenzelle 22.11.2026, BZ8 – Form gleich, nur die Zellform „5, J, D“; 8 seit den
   WKR-Namen 21.11.2026: `wkrName` = Name der EIGENEN Liste aus AppState.einteilung (einteilungsName(stand, liste),
   einteilungsParcours(liste) = Parcours bzw. RACECOURSE_PARCOURS – auch für SET_WKR_NAME am Bedienrechner; fehlt ohne
   Eintrag, WN1/WN3); 7 seit dem
@@ -246,9 +273,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Disq.-Feld, P9); entwurfAus Punkte → round(wert/punkte), Schalter ≤ 1; probeMaske = Klasse mit den meisten Zeilen.
   Nutzer 21.11.2026: MaskenBoje.disq (Buchstaben DIESER Zelle aus MaskenFeld.disq, Texte ggf. `andere`),
   Entwurf.bojenDisq + tippeBojenDisq(e, boje, code|null) (U1: setzt/ersetzt/nimmt heraus, Merker `#bdisq:`; seit
-  W4-12 bleiben die Berührungen, tippeBoje nimmt weiter Tipps), disqAnBojen (Fuß), zellenAus `${punkte}${buchstabe}`
-  („5G“), entwurfAus über bojenWert (Punkte → Berührungen UND Buchstabe → bojenDisq), eintraege/eintraegeAuf zählen
-  ihn, punkteVon zählt die Punkte auch neben ihm (BZ3);
+  W4-12 bleiben die Berührungen, tippeBoje nimmt weiter Tipps), disqAnBojen (Fuß), zellenAus über lib/disq.ts
+  bojenZelle („5, G“), entwurfAus über bojenWert (Punkte → Berührungen UND jeder Buchstabe → bojenDisq), eintraege/
+  eintraegeAuf zählen ihn, punkteVon zählt die Punkte auch neben ihm (BZ3); seit R7-14 (22.11.2026, BZ6/BZ7)
+  Entwurf.bojenDisq: Record<feld, string[]> (Tippfolge), tippeBojenDisq schaltet EINEN Buchstaben an/aus (null = alle
+  weg), Merker `#bdisq:<feld>=<code>` je Buchstabe („zurück“ = zuletzt gesetzter; kein Ersetzen mehr),
+  bojenDisqVon(e, boje) (Katalogfolge, für Knöpfe/Stand), bojenDisqZahl (Zählungen, auch bild.ts Rück 2);
   Nutzer 22.11.2026 (V3, ersetzt „Wie der Parcours liegt“): BojenFolge gedreht (Vorgabe)|fahrt|untereinander,
   mitUmschalter(aufbau, folge), bojenAbschnitte(aufbau, folge, weg) (Rück unter `gedreht`: jedes Tor unter seinem
   Gegenstück auf Hin, Ziel unter Start; ohne Gegenstück – Speedbojen, Tor 1 der Speedrunde, MüB – direkt vor
@@ -256,16 +286,20 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   W5.3 (22.11.2026, KN7): MaskenArt `pruefliste` (maskenArt(felder, ohneLauf): nur Bojen ohne Fahrweg + Text auf einer
   Liste ohne Lauf; maskeFuer erkennt sie an `sicht.bestand`, listeMitMaske an showLauf), MaskenAufbau.pruef
   (MaskenPruef {feld, titel, punkte = knotenPunkte}), Entwurf.pruef (PruefWahl ok|fehler), tippePruef (derselbe Tipp
-  nimmt heraus), pruefOffen, fertig(e, aufbau) (Prüfliste erst bei allen gesetzt, sonst immer), zellenAus ✓ → '',
+  nimmt heraus), pruefOffen, restRichtig(e, aufbau) (offene → ✓, KN10 22.11.2026), fertig(e, aufbau) (Prüfliste seit
+  KN10 sobald sie Knoten hat – vorher erst bei allen gesetzt; sonst immer), zellenAus ✓ → '',
   ✗ → '5', entwurfAus (Punkte > 0 → ✗, vorhandene leere Zelle → ✓, fehlende → offen), punkteVon/eintraege zählen ✗;
   probeMaske übergeht die Prüfliste.
   W5.4 (22.11.2026, ZT1–ZT4): MaskenArt `zeit` (nur time + Disq./Text); Bojen + time → `bojen` mit Zeit-Abschnitt;
   time neben Katalog ohne Bojen bleibt `spaeter`. MaskenAufbau.zeiten (MaskenZeit {feld, titel}, alle Zeitfelder der
   Klasse); Entwurf.zeiten (Ziffernfolge wie getippt) und .keineZeit (Grund je Feld); setzeZeit (sanitizeTimeInput mit
   Komma, ≤ ZEIT_ZEICHEN_MAX 8, hebt „keine Zeit“ auf), setzeKeineZeit (leert die Zeit; derselbe Grund/null = heraus),
-  zeitDeutung (= lib/time.ts parseTime), zeitFertig, zeitenOffen, zeitUnlesbar, keineZeitAus (→ `kz` der Zeile),
-  zeitUhr/zeitTeile („1:23,45“, Komma nach Sprache); fertig() verlangt jedes Zeitfeld fertig (auch gemischt);
-  zellenAus: lesbar → sanitizeTimeInput(Text), sonst '' (maske.test.ts: jede Tipp-Folge bis 5 Tasten → wertGilt und
+  zeitDeutung (= lib/time.ts parseTime), zeitFertig, zeitenOffen (seit 22.11.2026 ZT5: Pflichtfeld offen + weitere
+  unlesbare), zeitPflicht (nur das erste Zeitfeld, ZT5), zeitVollstaendig (alle Stellen da → Sprung, ZT6), zeitUnlesbar, keineZeitAus (→ `kz` der Zeile),
+  zeitUhr/zeitTeile („1:23,45“, Komma nach Sprache); fertig() verlangt das erste Zeitfeld fertig und keine
+  unlesbaren weiteren (ZT5, auch gemischt);
+  zellenAus: lesbar → sanitizeTimeInput(Text), sonst '' (leeres optionales Feld bleibt '' – geraete/erfassen.ts
+  schickt es nur mit eigenem `vorher`, also nie über eine Papierzeit)'' (maske.test.ts: jede Tipp-Folge bis 5 Tasten → wertGilt und
   gleiche Deutung wie am Rechner); entwurfZellen (gerätelokaler Entwurf mit halb getippten Zeiten); entwurfAus(zellen,
   aufbau, keineZeit?); eintraege zählt Zeiten und „keine Zeit“.
   W5.1 (22.11.2026): listeMitBojen(konfig, typeId, klassen) (Bedienrechner: „Bild“ wählbar), attemptWechsel(vorher,
@@ -282,7 +316,11 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   zeile|null, mindestens = 2) (Zeile erledigt Start bzw. Teil und füllt bis `mindestens` auf – der Gerätekern gibt 0,
   Übungstakt Y1–Y3; null zeigt den nächsten, ≤ Schlange 12). Kern: geraete/uebung.ts. W5.3 (KN8): Liste ohne Lauf
   (Knoten) → UebungsStand.erledigt (Nummern), Sicht mit Bestand 1–20 (`["o","u<n>"]`, Bereich `tisch`, Punkt `ohne`),
-  Schritt null ändert nichts (kein Takt), eine Zeile hakt ihre Nummer einmal ab.
+  Schritt null ändert nichts (kein Takt), eine Zeile hakt ihre Nummer einmal ab. Y4 (22.11.2026, R7-45): ziehVor(stand,
+  klasse) setzt `vorziehen` (Klasse ohne die Liste → gleiche Referenz); der nächste gezeigte Start ist der nächste
+  ihres Blocks im laufenden Lauf (übersprungene in `vorgezogen`, die normale Folge lässt sie aus), sonst ein
+  erfundener in `extra` (Nummer uebungStarts + k + 1); Vorsteg sieht ihn vorab (folgeVon); `zuletzt` = zuletzt
+  gezeigter (Steg-Anlegen im Boot). Am Tisch gilt `vorziehen` bis zur nächsten Zeile.
 - `lage.ts` (W2.1, 21.11.2026) – erfassungsLage(stand, konfig, bereich, geraete, jetzt, starts?) → {punkt, starts
   (Spalten: gezeigte Starts des laufenden Punkts, letzte 12 bzw. alle; Vorsteg + `vorab`), listen: ListenLage (Modus,
   Status, Teile, papierAb, Geräte mit Ampel, Zellstand je Spalte, Rückstand, warnt, Rückfragen/Vorschläge, Abschlüsse
@@ -353,9 +391,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Tipp-Folge je Position, DM und UIM) – keine eigene Schreibweise, immer über lib/codes.ts bzw. die Disq.-Reihenfolge.
   Disq.-Feld (sanitizeDisq) behält die Tipp-Reihenfolge, Code-Felder sortieren (normalizeCodeCell).
 - Bojen (W4.1): Zeilen folgen dem FAHRWEG, nie den Spalten des Bogens (frontal135 = gate135); die Knopfspalten
-  dagegen folgen dem Bogen (Blick). Eine Bojenzelle bekommt vom Gerät Ziffern, dahinter höchstens einen Buchstaben aus
-  MaskenBoje.disq („5G“, seit W4-12 21.11.2026, BZ1) – gelesen NUR über lib/scoring.ts bojenWert, geschrieben so, wie
-  sanitizeBuoy es unverändert lässt; X nie mit Punkten (BZ2). Disq. „keine Boje“ ins Disq.-Feld (BZ4). Die Bojen-Folge (bojenAbschnitte) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
+  dagegen folgen dem Bogen (Blick). Eine Bojenzelle bekommt vom Gerät Punkte, dahinter Buchstaben aus MaskenBoje.disq
+  in Katalogfolge („5, G“, „5, G, J“; seit W4-12 21.11.2026 BZ1, mehrere seit R7-14 22.11.2026 BZ6) – gelesen NUR über
+  lib/scoring.ts bojenWert, geschrieben NUR über lib/disq.ts bojenZelle (= was sanitizeBuoy unverändert lässt; „5J“ ist
+  vom Gerät ungültig); X nie mit Punkten oder anderen Buchstaben (BZ2). Disq. „keine Boje“ ins Disq.-Feld (BZ4). Die Bojen-Folge (bojenAbschnitte) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
   auch); `spaeter` bleiben nur Zeit, Knoten und Bojen außerhalb des Fahrwegs.
 - Sicht der Liste: jedes Objekt Feld für Feld neu (wie sichtZuschauer); nie Name, Herkunft, Geburtsdatum, Gewicht,
   Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Ausnahmen: `steht`
@@ -385,7 +424,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 ## Tests
 
 W5.5: src/wkr/tabelle.test.ts, components/wkr/WkrTabelle.test.ts (Übung auf dem Pad: Enter, Abschicken, Fehler,
-Korrektur, Esc, Bojen, Handy ausgegraut). W5.3: src/wkr/ohneLauf.test.ts (Liste, Zeile, Sicht, Lage, Abschluss, normalisiereWkr, Prüfliste, Übung),
+Korrektur, Esc, Bojen, Handy ausgegraut). W5.3: src/wkr/ohneLauf.test.ts (Liste, Zeile, Sicht, Lage, Abschluss, normalisiereWkr, Prüfliste, restRichtig, Übung),
+src/wkr/tisch.test.ts (KN9),
 components/wkr/WkrPruefliste.test.ts, geraete/wkr.test.ts „Knoten am Tisch“, views/BetriebWkr.test.ts „Knoten am Tisch“.
 `npx vitest run src/wkr src/components/betrieb src/geraete/uebung src/GeraetWkr src/views/BetriebWkr src/GeraetKoppeln src/views/SettingsView src/geraete/aufgaben src/geraete/wkrGruppen src/state/reducer/wkr src/state/migrate src/persistenz/backup src/lib/verlauf src/lib/eingaben`.
 Hilfe: testHilfen.ts wkrBetriebsStand (DM, festgeschrieben, Lauf 1 auf beiden Parcours begonnen).

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowRef, watch } from 'vue'
+import { naechsterOffener } from '../wkr/tisch'
 import { starteGeraeteHost, ZULETZT_NACHZIEHEN_MS, type GeraeteHost, type HostUmgebung } from './host'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from './gekoppelt'
 import { oeffneErfassung, type ErfassenUmgebung, type Erfassung } from './erfassen'
@@ -1175,7 +1176,8 @@ describe('Abmelden am Gerät wirkt wie Liste entfernen (Nutzer 21.11.2026)', () 
 })
 
 describe('Auto-Modus der Start-Freigabe (Nutzer 21.11.2026, P-03; AM6/AM7)', () => {
-  const PARCOURS = ['gate135', 'gate245', 'tor5', 'mueb', 'parcours'].map((typeId) => listenKennung({ bereich: P1, typeId, racecourse: null }))
+  // Seit 22.11.2026 (R7-01, AM2 umgebaut) ist auch die Zeit-Liste eine Parcours-Liste – ohne ihr Gerät kein Auto (AM6).
+  const PARCOURS = ['gate135', 'gate245', 'tor5', 'mueb', 'parcours', 'zeit'].map((typeId) => listenKennung({ bereich: P1, typeId, racecourse: null }))
 
   /** Jede Parcours-Liste von Parcours 1 mit Gerät (zwei Listen je Handy), Auto-Modus an, ein Start gezeigt und grün. */
   async function auto() {
@@ -1344,6 +1346,11 @@ describe('Knoten am Tisch Ende zu Ende (W5.3)', () => {
     const z = e.schicke(KNOTEN, { s: k1.key, zellen: zellenAus(ent, aufbau) })!
     // Sofort erledigt auf dem Gerät (eigene Zeile), ohne auf die Sicht zu warten (KN8: Nummernfeld frei für den nächsten).
     expect(e.bestand.value[KNOTEN].find((b) => b.key === k1.key)).toMatchObject({ erledigt: true, z })
+    // KN9 (22.11.2026): Vorschlag aus dem echten Kern – der nächste offene NACH der zuletzt geschickten Nummer, schon
+    // vor der Quittung (zuletzt = eigene Zeilen, gerätelokal).
+    const folge = e.bestand.value[KNOTEN]
+    const vorschlag = () => naechsterOffener(e.bestand.value[KNOTEN], e.zuletzt.value.find((x) => x.liste === KNOTEN)?.s)
+    expect(vorschlag()?.key).toBe(folge.slice(folge.findIndex((b) => b.key === k1.key) + 1).concat(folge).find((b) => !b.erledigt)?.key)
     await bis(() => e.stufen.value[z].stufe === 'uebernommen')
     const feld = aufbau.pruef[2].feld
     expect(werteVon(s.state.value.eingaben, LAUF0, 'k1')).toMatchObject({ [feld]: '5', 'erfasst@knoten': '1' })

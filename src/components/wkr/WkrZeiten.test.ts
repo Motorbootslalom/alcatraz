@@ -12,7 +12,7 @@ import WkrZiffern from './WkrZiffern.vue'
 
 /**
  * Zeit-Listen mit Ziffernblock (W5.4, Plan docs/plan-wkr-w5.md §7.2, 22.11.2026, ZT1–ZT4) über die Übung ohne Netz:
- * Ziffernblock mit Komma, Uhr und Deutung wie am Rechner, unlesbar rot, Abschicken erst bei allen Feldern, „Keine
+ * Ziffernblock mit Komma, Uhr und Deutung wie am Rechner, unlesbar rot, seit 22.11.2026 (R8-35, ZT5/ZT6) Pflicht nur das erste Feld, Sprung nach fertiger Zeit, „Keine
  * Zeit“ mit Grund, Feld-Reiter auf dem Handy, Felder nebeneinander auf dem Pad, Zuletzt mit Zeiten, Probe „83,45“.
  * Keine festen Pausen: Die Übung quittiert über Zeitgeber, hier mit Fake-Uhr weitergedreht.
  */
@@ -73,7 +73,7 @@ describe('WkrZiffern (Zeit, W5.4)', () => {
 })
 
 describe('Zeit-Maske in der Übung (W5.4)', () => {
-  it('Handy: Feld-Reiter, gesperrt bis jedes Feld fertig, „Keine Zeit“ mit Grund, Zeile mit allen Zeiten, Zuletzt mit Uhr', async () => {
+  it('Handy: Feld-Reiter, gesperrt bis das ERSTE Feld fertig, Sprung nach fertiger Zeit, „Keine Zeit“ mit Grund, Zeile mit allen Zeiten, Zuletzt mit Uhr', async () => {
     vi.useFakeTimers()
     const { q, w } = await zeitUebung()
     expect(w.find('[data-teil="zeiten"]').attributes('data-anordnung')).toBe('reiter')
@@ -81,19 +81,28 @@ describe('Zeit-Maske in der Übung (W5.4)', () => {
     expect(felder.map((f) => f.attributes('data-feld'))).toEqual(['zeit1', 'zeit2', 'zeit3'])
     expect(felder[0].attributes('data-aktiv')).toBeDefined()
     expect(haupt(w).attributes('disabled')).toBeDefined()
-    expect(haupt(w).text()).toBe('noch 3 Zeiten')
+    // Nur das erste Feld ist Pflicht (ZT5, 22.11.2026 R8-35).
+    expect(haupt(w).text()).toBe('noch 1 Zeit')
 
-    await tippe(w, '83,45')
+    await tippe(w, '83,4')
+    // „83,4“ ist lesbar, aber noch nicht fertig (Hundertstel fehlen) – kein Sprung (ZT6).
+    expect(w.find('[data-action="zeit-feld"][data-feld="zeit1"]').attributes('data-aktiv')).toBeDefined()
+    await tippe(w, '5')
     expect(w.find('[data-action="zeit-feld"][data-feld="zeit1"]').attributes('data-stand')).toBe('zeit')
     expect(w.find('[data-action="zeit-feld"][data-feld="zeit1"] [data-teil="zeit-feld-wert"]').text()).toBe('1:23,45')
-    // Kein Sprung von selbst (ZT3): Feld 1 bleibt aktiv.
-    expect(w.find('[data-action="zeit-feld"][data-feld="zeit1"]').attributes('data-aktiv')).toBeDefined()
-    await klick(w, '[data-action="zeit-feld"][data-feld="zeit2"]')
+    // „83,45“ ist fertig: Der Feld-Reiter springt ins nächste Feld (ZT6); abschicken geht schon (ZT5).
+    expect(w.find('[data-action="zeit-feld"][data-feld="zeit2"]').attributes('data-aktiv')).toBeDefined()
+    expect(haupt(w).attributes('disabled')).toBeUndefined()
     await tippe(w, ',')
     expect(w.find('[data-action="zeit-feld"][data-feld="zeit2"]').attributes('data-stand')).toBe('unlesbar')
-    expect(haupt(w).text()).toBe('noch 2 Zeiten')
-    await tippe(w, '⌫1,2345')
-    await klick(w, '[data-action="zeit-feld"][data-feld="zeit3"]')
+    // Ein befülltes weiteres Feld muss lesbar sein.
+    expect(haupt(w).attributes('disabled')).toBeDefined()
+    expect(haupt(w).text()).toBe('noch 1 Zeit')
+    // Minuten (unter 20 vor dem Komma): Sprung erst mit Sekunden UND Hundertsteln.
+    await tippe(w, '⌫1,23')
+    expect(w.find('[data-action="zeit-feld"][data-feld="zeit2"]').attributes('data-aktiv')).toBeDefined()
+    await tippe(w, '45')
+    expect(w.find('[data-action="zeit-feld"][data-feld="zeit3"]').attributes('data-aktiv')).toBeDefined()
     await klick(w, '[data-action="keine-zeit"]')
     expect(w.findAll('[data-action="keine-zeit-grund"]').map((b) => b.attributes('data-grund'))).toEqual(['anlage', 'nichtImZiel', 'anderes'])
     await klick(w, '[data-action="keine-zeit-grund"][data-grund="anlage"]')
@@ -111,6 +120,26 @@ describe('Zeit-Maske in der Übung (W5.4)', () => {
     const zuletzt = w.find('[data-teil="zuletzt-liste"]').text()
     expect(zuletzt).toContain('Zeit 1: 1:23,45')
     expect(zuletzt).toContain('Zeit 3: keine Zeit')
+  })
+
+  it('Im letzten Feld kein Sprung; nur die erste Zeit genügt, leere weitere Felder gehen nicht hinaus', async () => {
+    vi.useFakeTimers()
+    const { q, w } = await zeitUebung()
+    await klick(w, '[data-action="zeit-feld"][data-feld="zeit3"]')
+    await tippe(w, '83,45')
+    expect(w.find('[data-action="zeit-feld"][data-feld="zeit3"]').attributes('data-aktiv')).toBeDefined()
+    // Das erste Feld fehlt noch – das letzte allein genügt nicht.
+    expect(haupt(w).text()).toBe('noch 1 Zeit')
+    await klick(w, '[data-action="zeit-feld"][data-feld="zeit3"]')
+    await tippe(w, '⌫⌫⌫⌫⌫')
+    await klick(w, '[data-action="zeit-feld"][data-feld="zeit1"]')
+    await tippe(w, '75,12')
+    expect(haupt(w).text()).toBe('Zeiten abschicken ✓')
+    await klick(w, '[data-action="haupt"]')
+    const z = q.zuletzt.value[0]
+    // Die Zeile trägt nur die gesetzte Zeit: leere Felder schickt das Gerät nie, wenn es vorher nichts gesendet hat.
+    expect(Object.entries(z.zellen).filter(([, v]) => v !== '')).toEqual([['zeit1', '75,12']])
+    expect(z.kz ?? {}).toEqual({})
   })
 
   it('„Keine Zeit“ aufheben macht das Feld wieder offen; eine Zeit ersetzt „keine Zeit“ nie still (erst aufheben)', async () => {
@@ -147,11 +176,9 @@ describe('Probe der Zeit-Liste (W5.4)', () => {
     expect(w.find('[data-teil="probe"]').attributes('data-schritt')).toBe('zeit')
     await tippe(w, '⌫⌫83,45')
     expect(w.find('[data-teil="probe"]').attributes('data-schritt')).toBe('zeitRest')
-    await klick(w, '[data-action="zeit-feld"][data-feld="zeit2"]')
+    // Der Block ist von selbst ins zweite Feld gesprungen (ZT6); dort genügt eine Zeit, das dritte bleibt leer (ZT5).
+    expect(w.find('[data-action="zeit-feld"][data-feld="zeit2"]').attributes('data-aktiv')).toBeDefined()
     await tippe(w, '83,4')
-    await klick(w, '[data-action="zeit-feld"][data-feld="zeit3"]')
-    await klick(w, '[data-action="keine-zeit"]')
-    await klick(w, '[data-action="keine-zeit-grund"][data-grund="anderes"]')
     expect(w.find('[data-teil="probe"]').attributes('data-schritt')).toBe('haupt')
     expect(w.find('[data-action="haupt"]').text()).toBe('Zeiten abschicken ✓')
     await klick(w, '[data-action="haupt"]')

@@ -287,7 +287,7 @@ function bewerte(werte: Werte, kennungen: Iterable<string>, felder: Map<string, 
     if (feld.kind === 'buoy') {
       const boje = bojenWert(wert)
       punkte += boje.punkte
-      if (boje.disq) disqs.push(boje.disq)
+      disqs.push(...boje.disq)
     } else if (feld.kind === 'code') {
       punkte += errorParts(feld.katalog, wert).reduce((s, p) => s + p.anzahl * p.punkte, 0)
       disqs.push(...codeDisqs(wert))
@@ -317,13 +317,14 @@ export function mittlereZeit(werte: Werte, felder: Map<string, Feld>): number | 
 }
 
 /**
- * „J“ oder „5, J“: die Punkte einer Zelle, dahinter ihre Buchstaben. Bojenzellen (`boje`) ohne Komma und Leerzeichen
- * – „5J“, wie die Zelle gespeichert und abgetippt wird (W4-12, BZ1, 21.11.2026); in den schmalen Bojenspalten brach
- * „5, J“ um. Fehler-Spalten (MüB „5, D“) bleiben, wie sie waren.
+ * „J“ oder „5, J“: die Punkte einer Zelle, dahinter ihre Buchstaben, getrennt mit „, “ – für Bojenzellen dieselbe Form,
+ * in der sie gespeichert und abgetippt werden (lib/disq.ts bojenZelle, R7-14/BZ6, 22.11.2026; vorher „5J“ ohne Komma).
+ * Bojenzellen (`boje`) behalten die Folge ihrer Buchstaben (Katalogfolge der Zelle, wie gespeichert), Fehler-Spalten
+ * (MüB „5, D“) sortieren sie wie bisher. „5, J, D“ bricht in der schmalen Spalte um, statt abgeschnitten zu werden.
  */
 function zellText(punkte: number, disqs: string[], boje = false): string {
-  const teile = [...(punkte > 0 ? [String(punkte)] : []), ...[...new Set(disqs)].sort()]
-  return teile.join(boje ? '' : ', ')
+  const buchstaben = [...new Set(disqs)]
+  return [...(punkte > 0 ? [String(punkte)] : []), ...(boje ? buchstaben : buchstaben.sort())].join(', ')
 }
 
 /** Der Code eines Eintrags: „2x6“ → „6“. */

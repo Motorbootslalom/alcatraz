@@ -14,7 +14,8 @@ EinzelwertungListen/…Stapel; Karte src/components/CLAUDE.md), die Mannschaftsw
 
 - Spaltenkopf einer Wertungsliste: `<th>` in ergebnis/*.vue, pokal/*.vue; Text i18n results.*, individual.col.*
   (de/+en/wertung.ts), parallel.* (parallel.ts); Fahrweg-Spalten über lib/ergebnisText.ts; Breiten styles/ergebnis.css
-  (Tests: nichts abgeschnitten).
+  (Tests: nichts abgeschnitten). Fahrweg-Zellen (ErgebnisLaufBlatt fitZelle): Bojenzellen mit Komma („5, J, D“, R7-14
+  22.11.2026) ab vier Zeichen in schmalen bzw. fünf in breiteren Spalten `erg-zweizeilig` (bricht um, `td` schneidet sonst ab).
 - Spaltenfolge: je Blatt dreimal gleich (`<colgroup>`, `<thead>`, `<tbody>`), `erg-gruppe` (kräftige Linie) wandert
   mit. DM und UIM teilen das Blatt (Props mitKnoten, punkte, runde, ohneErgebnis): Nur für UIM ändern braucht eine
   Bedingung.

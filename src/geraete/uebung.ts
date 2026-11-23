@@ -1,12 +1,12 @@
 import { computed, effectScope, ref, shallowRef, watch } from 'vue'
-import type { KeineZeitGrund, WkrPunkt, Sprache } from '../types'
+import type { ClassId, KeineZeitGrund, WkrPunkt, Sprache } from '../types'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import { maskeFuer } from '../wkr/maske'
 import type { ListenSicht, ListenStart } from '../wkr/sicht'
 import { teileVon, type ListenTeil } from '../wkr/liste'
 import { zufallAus } from '../lib/beispielwerte'
 import { neueSaat } from '../lib/saat'
-import { uebungsSchritt, uebungsSicht, uebungsStand, type UebungsStand } from '../wkr/uebung'
+import { uebungsSchritt, uebungsSicht, uebungsStand, ziehVor, type UebungsStand } from '../wkr/uebung'
 import type { ListenAufgabe } from './aufgaben'
 import type {
   BestandEintrag,
@@ -89,6 +89,8 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   const aufgabe: ListenAufgabe = { art: 'liste', liste: kennung, ...(teil ? { teil } : {}) }
   const sichten = shallowRef<Readonly<Record<string, ListenSicht | null>>>({ [kennung]: uebungsSicht(stand) })
   const rev = ref(0)
+  // Am Tisch (Knoten): die vorgezogene Klasse für den Vorschlag (Y4); sonst immer null.
+  const vorgezogen = shallowRef<ClassId | null>(null)
   let zeilen: UebZeile[] = []
   const abschl: EigenerAbschluss[] = []
   const entw = new Map<string, { sn?: string; zellen: Record<string, string> }>()
@@ -103,6 +105,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
     const s = uebungsSicht(stand)
     s.status = status ?? sicht().status
     sichten.value = { [kennung]: s }
+    vorgezogen.value = stand.erledigt !== undefined ? (stand.vorziehen ?? null) : null
   }
   const spaeter = (ms: number, f: () => void) => {
     const t = setTimeout(() => {
@@ -318,6 +321,22 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
 
   return {
     uebung: true,
+    vorgezogen,
+    /**
+     * „Klasse vorziehen“ (Nutzer 22.11.2026, R7-45, Y4): wirkt einmal auf den nächsten gezeigten Start. Steht gerade
+     * keiner vor dem WKR (nach dem Abschicken läuft der Übungstakt), kommt er sofort – der Übende will die Maske sehen.
+     */
+    zieheKlasseVor(liste, klasse) {
+      if (gestoppt || !eigen(liste)) return false
+      const neu = ziehVor(stand, klasse)
+      if (neu === stand) return stand.vorziehen === klasse
+      setzeStand(neu)
+      if (aktiv() && vorIhm() === 0) {
+        stoppeKommt()
+        zeige()
+      }
+      return true
+    },
     verbunden: scope.run(() => computed(() => true))!,
     verbindung: scope.run(() => computed(() => 'verbunden' as const))!,
     entzogen: scope.run(() => computed(() => false))!,

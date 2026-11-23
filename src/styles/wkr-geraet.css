@@ -33,6 +33,8 @@
   --wkr-blitz: #000000;
   --wkr-uebung: #0047b3;
   --wkr-uebung-text: #ffffff;
+  /* Füllring beim langen Drücken einer Boje (LD3, 22.11.2026): kräftig, auf Weiß und auf dem schwarzen „gesetzt“. */
+  --wkr-langdruck: #0a84ff;
   /* Parcours-Zeichnung (W4-13): schwarze Linien – auch im Dunkel-Modus auf Weiß, sonst wäre sie unsichtbar. */
   --wkr-bild-grund: #ffffff;
   --wkr-bild-text: #000000;
@@ -107,6 +109,7 @@
   --wkr-grau: #aaaaaa;
   --wkr-gruen: #4ade80;
   --wkr-ampel-rot: #ff5c5c;
+  --wkr-langdruck: #5ab0ff;
   color-scheme: dark;
 }
 
@@ -306,6 +309,16 @@
   text-decoration: none;
   touch-action: manipulation;
   user-select: none;
+  /* Langdruck (LD3, 22.11.2026): kein Markieren und kein iOS-Callout über den Knöpfen – das Kontextmenü verhindert
+     components/wkr/langdruck.ts. */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Langdruck läuft (ab langdruckRingMs): ein breiter Ring innen, bis die Disq.-Wahl aufgeht (langdruckMs); beim
+   Loslassen fällt er weg. Fest statt wachsend – die Maske kennt keine Übergänge (Akku, wkr-geraet.test.ts). */
+.wkr-knopf[data-langdruck='fuellt'] {
+  box-shadow: inset 0 0 0 10px var(--wkr-langdruck);
 }
 
 .wkr-knopf[data-ziel='gross'] {
@@ -862,6 +875,15 @@
 
 .wkr-bojen-zahl {
   white-space: nowrap;
+}
+
+/*
+ * Stand „Disq. J, D“ (R7-14, 22.11.2026, mehrere Buchstaben je Boje): bricht nach einem Komma um statt abgeschnitten
+ * zu werden – im halben Knopf bei 360 px passen drei Buchstaben nicht immer in eine Zeile (N3).
+ */
+.wkr-bojen-zahl.wkr-bojen-disq-stand {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .wkr-bojen-max {
@@ -1460,6 +1482,13 @@
   white-space: nowrap;
 }
 
+/* Mehrere Disq. an einer Boje („5, J, D“, R7-14, 22.11.2026): im Kreis umbrechen statt über den Rand laufen (N3). */
+.wkr-bild-treffer--disq .wkr-bild-stand {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1;
+}
+
 .wkr-bild-ersatz-liste {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -1547,6 +1576,30 @@
   flex-direction: column;
   gap: var(--wkr-abstand);
   min-width: 0;
+}
+
+/*
+ * Vorschlag „Nächster: 9 (Klasse 2)“ (KN9, 22.11.2026) groß über dem Ziffernblock, volle Breite, bricht um statt
+ * abzuschneiden (360 px). Rückfrage „schon erfasst – korrigieren?“ (KN11) an Stelle der Knoten, Ja/Nein gleich groß.
+ */
+.wkr-knopf.wkr-pruef-vorschlag {
+  width: 100%;
+  font-weight: 800;
+}
+
+.wkr-pruef-frage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wkr-abstand);
+}
+
+.wkr-pruef-frage p {
+  margin: 0;
+  font-weight: 800;
+}
+
+.wkr-pruef-frage .wkr-reihe > .wkr-knopf {
+  flex: 1 1 8em;
 }
 
 .wkr-pruef-nummern {

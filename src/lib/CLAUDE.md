@@ -47,6 +47,11 @@ clipboard, scanner, logoBild.
   `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische; 21.11.2026 Stufen naechsteSortierung ↓ ↑ keine,
   SortierWahl = Stufe + Folge je Klasse, gleicheFolge statt istGeordnet – mit Startnummern-Bereichen sortiert der Reducer je Größengruppe); `saat.ts` neueSaat – nur Oberfläche.
 - Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
+  Parallelslalom-Zeichnung (R8-19, 22.11.2026, WKR_ANNAHMEN BD8/BD9): parcoursVertrag.ts PARALLEL_QUELLE/PARALLEL_DATEI,
+  parallelZuordnung (IDs je Bahn über die Lage: Tor-IDs unten, Kopien gleiches x oben, Start/Ziel-Gruppen; A = vom Steg
+  in Fahrtrichtung links), machParallel (verkleinern, IDs, PARALLEL_AUSSCHNITT, `ns2:` → `cc:`, eigener Vermerk),
+  parallelBefunde (Pflicht-IDs, kein `<image`, ≤ 100 KB); parcoursQuelle.ts parcoursSvg('Parallel') – parcoursDateien()
+  bleibt die Klassenliste; QUELLE.json `parallel`. Test parcoursVertrag.test.ts (am Original nur mit ../Parcours).
 - Logos (16.11.2026): `logo.ts` (rein: Grenzen, logoTeile = eine Lesart der data-URL, logoWert, logoHoeheZahl, Maße,
   zielMasse), `logoBild.ts` (nur Browser: verkleinereLogo; testbar svgMasse, svgFuerZiel = viewBox ergänzen),
   `listenLogos.ts` (useListenLogos, logoUrl = Blob-Adressen mit LRU, SVG bleibt data-URL; logoSchluessel).
@@ -67,9 +72,11 @@ clipboard, scanner, logoBild.
 
 - Was der Reducer ruft (eingaben, listenStand, abmeldung, parallelStage, beispielwerte, beispieldaten, reihenfolge, logo),
   bleibt rein: kein Date.now()/Math.random(). Zeit = action.zeit, Zufall = zufallAus(saat).
-- Bojenzelle (W4-12, 21.11.2026, WKR_ANNAHMEN BZ1–BZ3): Ziffern + höchstens ein Buchstabe („5J“, „10G“), schreiben über
-  disq.ts sanitizeBuoy, lesen NUR über scoring.ts bojenWert (Punkte zählen auch neben dem Buchstaben); nie `/^[A-Z]$/`
-  auf Bojenwerte. Wertungsliste: ergebnis.ts zellText ohne Komma nur für Bojenzellen.
+- Bojenzelle (W4-12, 21.11.2026; seit R7-14 22.11.2026 mehrere Buchstaben, WKR_ANNAHMEN BZ1–BZ8): Punkte, dann jeder
+  erlaubte Buchstabe in Katalogfolge der Zelle, getrennt mit „, “ („5, J“, „5, J, D“, „10, G“; X allein); schreiben NUR
+  über disq.ts bojenZelle/sanitizeBuoy, lesen NUR über scoring.ts bojenWert ({punkte, disq: string[]}; Punkte zählen
+  auch neben Buchstaben, je Buchstabe ein DisqHit); nie `/^[A-Z]$/` auf Bojenwerte. Wertungsliste: ergebnis.ts
+  zellText mit Komma wie gespeichert, Bojenzellen in ihrer Folge (Fehler-Spalten sortiert).
 - Eingaben: `eingaben[laufSchluessel][starterId][feld]` – Zeile ist die Starter-ID, nicht die Startnummer.
   Disq/Bemerkung/erfasst gehören zur Liste (`disq@steg`, `erfasst@<typeId>`); Knoten unter Lauf 0 (OHNE_LAUF).
   Haken immer über istHaken (auch Teilhaken `erfasst.ab@steg` der WKR-Erfassung, 21.11.2026), nie startsWith('erfasst@').

@@ -2,6 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { configFor, resolveRegelwerkId } from './konfig'
 import { regelwerkOf, versucheNacheinander } from './catalog'
 import type { Sprache } from '../types'
+import { CLASS_IDS } from '../domain/classes'
+import { defFuerKlasse } from '../lib/bogen'
+import { allowedSet, sanitizeBuoy } from '../lib/disq'
+import { listenFelder } from '../lib/eingaben'
+import { bojenWert } from '../lib/scoring'
 
 // Aus regelwerke.test.ts des Fehlerpunkte-Prototyps. Dort waren Regelwerk und Sprache ein
 // Modulzustand; hier wählen `applyRegelwerk` und `applySprache` nur, mit welcher Auswahl
@@ -294,4 +299,39 @@ describe('Berlin-Bilder', () => {
     expect(getSheetDef('brechts').bildDrehung).toBeUndefined()
     for (const id of ['bstartziel', 'brechts', 'blinks']) expect(getSheetDef(id).bildNeben).toBe(true)
   })
+})
+
+describe('Bojenzellen jedes Regelwerks (R7-14, 22.11.2026, WKR_ANNAHMEN BZ6)', () => {
+  it('jede Bojenzelle jeder Position und Klasse: erlaubte Buchstaben einzeln und zu zweit laufen rund durch sanitizeBuoy → bojenWert', () => {
+    let geprueft = 0
+    for (const { id } of getRegelwerke()) {
+      const k = configFor({ regelwerk: id, sprache: 'de' })
+      for (const p of k.getPositions()) {
+        for (const klasse of CLASS_IDS) {
+          if (!k.positionAllowsClass(p.typeId, klasse)) continue
+          const erlaubt = allowedSet(defFuerKlasse(k.getSheetDef(p.typeId), klasse).disqTable)
+          const buchstaben = [...erlaubt].filter((b) => b !== 'X')
+          const felder = listenFelder(k, p.typeId, klasse).filter((f) => f.kind === 'buoy')
+          if (felder.length === 0) continue
+          // Der Katalog hängt an Position und Klasse, nicht an der einzelnen Zelle: Rund-Probe einmal je Paar, danach
+          // nimmt jede Bojenzelle (Feld.gueltig = derselbe Sanierer) jede Zelle unverändert an.
+          const paare = buchstaben.flatMap((a, i) => [[a], ...buchstaben.slice(i + 1).map((b) => [b, a])])
+          const zellen = paare.map((paar) => {
+            const ort = `${id}/${p.typeId}/${klasse}: ${paar.join('')}`
+            // Klein, ohne Trenner und in Tippfolge – die Zelle steht danach in der einen Form.
+            const zelle = sanitizeBuoy(`${paar.join('').toLowerCase()}5`, erlaubt)
+            expect(bojenWert(zelle), ort).toEqual({ punkte: 5, disq: buchstaben.filter((b) => paar.includes(b)) })
+            expect(sanitizeBuoy(zelle, erlaubt), ort).toBe(zelle)
+            return zelle
+          })
+          for (const feld of felder) {
+            const falsch = zellen.filter((z) => feld.gueltig(z) !== z)
+            expect(falsch, `${id}/${p.typeId}/${klasse}/${feld.kennung}`).toEqual([])
+            geprueft += zellen.length
+          }
+        }
+      }
+    }
+    expect(geprueft).toBeGreaterThan(1000)
+  }, 30_000)
 })

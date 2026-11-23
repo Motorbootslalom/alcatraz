@@ -9,9 +9,10 @@ import type { Column, ErrorDef, SheetDef } from '../types'
 // Regeln:
 //   • 'buoy'-Zelle: enthält sie eine Zahl → das ist die Punktzahl direkt
 //                   (der WKR trägt 5, 10, 15 … ein, nicht die Anzahl).
-//                   dahinter ein Buchstabe A-X → Disqualifikation an genau
-//                   dieser Stelle; die Punkte davor zählen trotzdem („5J“,
-//                   W4-12 vom 21.11.2026, bojenWert).
+//                   dahinter Buchstaben A-X → Disqualifikation an genau
+//                   dieser Stelle; die Punkte davor zählen trotzdem („5, J“,
+//                   W4-12 vom 21.11.2026; mehrere „5, J, D“ seit R7-14
+//                   vom 22.11.2026, je Buchstabe ein DisqHit; bojenWert).
 //   • 'code'-Zelle: kommagetrennte Fehlercodes → Punkte laut errorTable.
 //                   Die Punkte erscheinen (read-only) in der zugehörigen pointsCol:
 //                   als Summe, bei `einzeln` einzeln in der Reihenfolge der Codes
@@ -54,17 +55,17 @@ export function columnCellKeys(nr: string, col: Column): string[] {
 const LETTER = /^[A-Za-z]$/
 
 /**
- * Eine Bojen-Zelle (lib/disq.ts sanitizeBuoy): Punkte (5, 10, 15 … direkt eingetragen), dahinter höchstens ein
- * Disq-Buchstabe – „5“, „J“, „5J“. Seit 21.11.2026 (W4-12, BZ1/BZ3) zählen die Punkte auch neben dem Buchstaben:
- * Er disqualifiziert den Lauf, die Punkte bleiben sichtbar (wie Fehlerpunkte neben einem Disq. in einer
- * Fehler-Spalte). Vorher galt eine Zelle mit Buchstaben als 0 Punkte. Tolerant wie sanitizeBuoy: alle Ziffern, der
- * erste Buchstabe.
+ * Eine Bojen-Zelle (lib/disq.ts sanitizeBuoy/bojenZelle): Punkte (5, 10, 15 … direkt eingetragen), dahinter die
+ * Disq-Buchstaben – „5“, „J“, „5, J“, „5, J, D“. Der EINZIGE Leser von Bojenwerten. Seit 21.11.2026 (W4-12, BZ1/BZ3)
+ * zählen die Punkte auch neben einem Buchstaben: Er disqualifiziert den Lauf, die Punkte bleiben sichtbar (wie
+ * Fehlerpunkte neben einem Disq. in einer Fehler-Spalte). Seit 22.11.2026 (R7-14, BZ1 umgebaut/BZ6) trägt eine Zelle
+ * MEHRERE Buchstaben – `disq` ist immer eine Liste (leer = keiner), entdoppelt, in der Folge der Zelle. Tolerant wie
+ * sanitizeBuoy: alle Ziffern = eine Zahl, jeder Buchstabe; alte Werte („5J“) lesen sich ebenso.
  */
-export function bojenWert(raw: string): { punkte: number; disq?: string } {
+export function bojenWert(raw: string): { punkte: number; disq: string[] } {
   const ziffern = raw.replace(/\D/g, '')
-  const disq = /[A-Za-z]/.exec(raw)?.[0].toUpperCase()
-  const punkte = ziffern ? parseInt(ziffern, 10) : 0
-  return disq ? { punkte, disq } : { punkte }
+  const disq = [...new Set([...raw.toUpperCase()].filter((c) => c >= 'A' && c <= 'Z'))]
+  return { punkte: ziffern ? parseInt(ziffern, 10) : 0, disq }
 }
 
 /** Die Buchstaben einer Disq-Zelle. */
@@ -137,7 +138,8 @@ export function scoreRow(
   function handleBuoy(raw: string, where: string) {
     const { punkte, disq } = bojenWert(raw)
     sum += punkte
-    if (disq) disqs.push({ where, code: disq })
+    // Je Buchstabe ein Treffer (R7-14, 22.11.2026): „5, J, D“ nennt beide Gründe an derselben Boje.
+    for (const code of disq) disqs.push({ where, code })
   }
 
   return { sum, computedCols, einzelPunkte, disqs }

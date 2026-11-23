@@ -202,6 +202,14 @@ export interface Erfassung {
   /** Übung ohne Netz (geraete/uebung.ts): nichts geht an einen Bedienrechner. */
   readonly uebung: boolean
   /**
+   * Nur Übung (Nutzer 22.11.2026, R7-45, WKR_ANNAHMEN Y4): „Klasse vorziehen“ – der nächste gezeigte Start ist einer
+   * dieser Klasse (ist gerade keiner gezeigt, sofort), am Tisch springt der Vorschlag auf ihren ersten offenen. Die
+   * echte Erfassung hat es nicht: Die Folge bestimmt der Bedienrechner. `false` = Klasse nicht in der Liste.
+   */
+  zieheKlasseVor?(liste: string, klasse: ClassId): boolean
+  /** Nur Übung am Tisch (Y4): die vorgezogene Klasse für den Vorschlag (wkr/tisch.ts naechsterOffener), bis zur nächsten Zeile. */
+  readonly vorgezogen?: ShallowRef<ClassId | null>
+  /**
    * Art des Geräts aus der Kopplung (GF7) – die Anordnung der Maske (wkr/anordnung.ts, W5.1, 22.11.2026, PD1) folgt
    * ihr vor der Fenstergröße. Fehlt (Übung): nur die Fenstergröße entscheidet.
    */

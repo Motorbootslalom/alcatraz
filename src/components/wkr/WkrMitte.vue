@@ -40,6 +40,8 @@ const props = defineProps<{
   entwurf: Entwurf
   startNr: string
   disqOffen: boolean
+  /** Lang gedrückte Boje (LD1, 22.11.2026): WkrDisqOrt beginnt bei ihren Buchstaben. */
+  disqBoje?: MaskenBoje | null
   disqCodes: MaskenDisq['codes']
   gesperrt: boolean
   weg: Weg
@@ -67,6 +69,8 @@ const emit = defineEmits<{
   disqFertig: []
   boje: [boje: MaskenBoje]
   disq: []
+  /** Langdruck auf eine Boje (LD1). */
+  disqAnBoje: [boje: MaskenBoje]
   tippe: [feld: string, code: string]
   weg: [weg: Weg]
   zeit: [feld: string, text: string]
@@ -124,6 +128,7 @@ function merkeBildWeg(x: BildWeg): void {
     :start-nr="startNr"
     :gesperrt="gesperrt"
     :folge="bojenFolge"
+    :boje="disqBoje ?? null"
     @setze="(c) => emit('setzeDisq', c)"
     @boje-disq="(b, c) => emit('bojeDisq', b, c)"
     @fertig="emit('disqFertig')"
@@ -175,8 +180,10 @@ function merkeBildWeg(x: BildWeg): void {
     :entwurf="entwurf"
     :weg="weg"
     :folge="bojenFolge"
+    :gesperrt="gesperrt"
     @boje="(b) => emit('boje', b)"
     @disq="emit('disq')"
+    @disq-boje="(b) => emit('disqAnBoje', b)"
     @tippe="(f, c) => emit('tippe', f, c)"
     @weg="(x) => emit('weg', x)"
   />

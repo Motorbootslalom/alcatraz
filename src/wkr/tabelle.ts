@@ -108,13 +108,13 @@ export function zelleAusEingabe(spalte: TabellenSpalte, eingabe: string, aufbau:
     case 'boje': {
       const erlaubt = buchstabenVon(spalte, aufbau, teil)
       const wert = sanitizeBuoy(roh, erlaubt)
-      // Höchstens EIN Buchstabe, nur ein erlaubter (sanitizeBuoy nähme still den ersten).
-      const buchstaben = [...roh.toUpperCase()].filter((c) => /[A-Z]/.test(c))
-      if (fremd(roh, erlaubt) || buchstaben.length > 1) return { wert, fehler: 'zeichen-fremd' }
+      // Mehrere Buchstaben seit R7-14 (22.11.2026, BZ6): Fehler nur für einen Buchstaben, den die Zelle nicht kennt
+      // (sanitizeBuoy ließe ihn still weg); doppelte fallen still weg, die Folge richtet sanitizeBuoy (Katalogfolge).
+      if (fremd(roh, erlaubt)) return { wert, fehler: 'zeichen-fremd' }
       const boje = bojenVon(aufbau).find((b) => b.feld === spalte.feld)
       const { punkte } = bojenWert(wert)
       // Bojen als Zahl der Punkte (TB4): ein Vielfaches der Punkte je Berührung (nicht 0 – leer heißt fehlerfrei),
-      // Schalter höchstens eine, Zähler bis zum Höchststand. Die Schreibweise („j5“ → „5J“) richtet sanitizeBuoy.
+      // Schalter höchstens eine, Zähler bis zum Höchststand. Die Schreibweise („j5d“ → „5, J, D“) richtet sanitizeBuoy.
       if (/\d/.test(roh) && (!boje || punkte === 0 || punkte % boje.punkte !== 0 || punkte / boje.punkte > (boje.zaehler ? WKR_ANNAHMEN.bojenZaehlerMax : 1))) {
         return { wert, fehler: 'boje-punkte' }
       }
@@ -190,7 +190,7 @@ export function zeileAusEingaben(
   return { zellen, fehler, entwurf }
 }
 
-/** Die Eingaben einer Zeile aus einem Entwurf (Start mit Entwurf, Korrektur): Codes „2x6, 20“, Bojen „5J“, Zeit wie getippt. */
+/** Die Eingaben einer Zeile aus einem Entwurf (Start mit Entwurf, Korrektur): Codes „2x6, 20“, Bojen „5, J“, Zeit wie getippt. */
 export function eingabenAus(spalten: readonly TabellenSpalte[], entwurf: Entwurf, aufbau: MaskenAufbau, teil?: ListenTeil): Record<string, string> {
   const zellen = zellenAus(entwurf, aufbau, teil)
   const out: Record<string, string> = {}

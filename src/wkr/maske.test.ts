@@ -14,6 +14,8 @@ import {
   tippeBoje,
   tippeBojenDisq,
   disqAnBojen,
+  bojenDisqVon,
+  bojenDisqZahl,
   BOJEN_FOLGE_VORGABE,
   BOJEN_FOLGEN,
   bojenAbschnitte,
@@ -46,6 +48,8 @@ import {
   setzeZeit,
   zeitDeutung,
   zeitenOffen,
+  zeitPflicht,
+  zeitVollstaendig,
   zeitUhr,
   zeitUnlesbar,
 } from './maske'
@@ -53,7 +57,7 @@ import { parseTime, sanitizeTimeInput } from '../lib/time'
 import { maskenJeKlasse, sichtListe, type ListenSicht } from './sicht'
 import { wertGilt } from './zeile'
 import { listenKennung, type ListenTeil } from './liste'
-import { bildWege, bildZiel, bildZuordnung, wegNachTipp } from './bild'
+import { bildWege, bildZiel, bildZuordnung } from './bild'
 
 // Maske „Knöpfe“ (W3.1, Plan docs/plan-wkr-w3.md §3.1): Aufbau je Position unter DM und UIM, Schreibweise wie die
 // Erfassung (jede Tipp-Folge besteht wertGilt unverändert), X nur Steg-Ablegen und Vorsteg (F5), Takt des
@@ -531,14 +535,18 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
     expect(Object.keys(leer).sort()).toEqual([...bojenVon(k7).map((b) => b.feld), 'disq@gate135'].sort())
   })
 
-  it('entwurfAus: Punkte → Berührungen gerundet, Schalter höchstens 1, Zähler höchstens bojenZaehlerMax; Buchstabe der Zelle = Disq. an der Boje (U1), mit Punkten (W4-12), fremde übergangen', () => {
+  it('entwurfAus: Punkte → Berührungen gerundet, Schalter höchstens 1, Zähler höchstens bojenZaehlerMax; Buchstaben der Zelle = Disq. an der Boje (U1), mit Punkten (W4-12), mehrere (R7-14), fremde übergangen', () => {
+    const b = B('t1b|rueck seiteA')
+    const [x, y] = b.disq.map((d) => d.code)
     const e = entwurfAus(
-      { 't1a|hin seiteA': '10', 't5|hin seiteA': '14', 't5|rueck seiteA': '500', 't3a|hin seiteB': 'G', 't3b|rueck seiteB': 'X', 't1b|rueck seiteA': '5J', 'disq@gate135': 'G' },
+      { 't1a|hin seiteA': '10', 't5|hin seiteA': '14', 't5|rueck seiteA': '500', 't3a|hin seiteB': 'G', 't3b|rueck seiteB': 'X', 't1b|rueck seiteA': `5, ${x}, ${y}`, 'disq@gate135': 'G' },
       k7,
     )
     expect(e.bojen).toEqual({ 't1a|hin seiteA': 1, 't5|hin seiteA': 3, 't5|rueck seiteA': WKR_ANNAHMEN.bojenZaehlerMax, 't1b|rueck seiteA': 1 })
-    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': 'G', 't1b|rueck seiteA': 'J' })
+    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': ['G'], 't1b|rueck seiteA': [x, y] })
     expect(e.disq).toEqual(['G'])
+    // Rund-Probe (BZ6): die Zelle kommt in derselben Form zurück.
+    expect(zellenAus(e, k7)['t1b|rueck seiteA']).toBe(`5, ${x}, ${y}`)
   })
 
   it('Disq. an der Boje (W4-12, 21.11.2026, BZ1/BZ3): Buchstabe NEBEN den Punkten, Boje nimmt weiter Tipps, Herausnehmen nur des Buchstabens', () => {
@@ -549,19 +557,19 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
     e = tippeBoje(e, B('t1a|hin seiteA'))
     e = tippeBojenDisq(e, b, 'G')
     expect(e.bojen).toEqual({ 't1a|hin seiteA': 1, 't3a|hin seiteB': 1 })
-    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': 'G' })
-    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('5G')
+    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': ['G'] })
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('5, G')
     expect(zellenAus(e, k7)['disq@gate135']).toBe('')
     // Punkte zählen weiter (die Wertung disqualifiziert, die Punkte bleiben sichtbar).
     expect([eintraege(e), punkteVon(e, k7), eintraegeAuf(e, k7, 'hin')]).toEqual([3, 10, 3])
     expect(disqAnBojen(e, k7)).toEqual([{ feld: 't3a|hin seiteB', code: 'G' }])
     // Die Boje nimmt weiter Tipps an: Schalter nimmt die Berührung weg, der Buchstabe bleibt.
     const ohne = tippeBoje(e, b)
-    expect([ohne.bojen['t3a|hin seiteB'], ohne.bojenDisq['t3a|hin seiteB'], zellenAus(ohne, k7)['t3a|hin seiteB']]).toEqual([undefined, 'G', 'G'])
-    // Ein fremder Buchstabe ändert nichts; ein anderer ersetzt.
+    expect([ohne.bojen['t3a|hin seiteB'], ohne.bojenDisq['t3a|hin seiteB'], zellenAus(ohne, k7)['t3a|hin seiteB']]).toEqual([undefined, ['G'], 'G'])
+    // Ein fremder Buchstabe ändert nichts; ein anderer kommt DAZU (BZ7, R7-14 – vorher ersetzte er).
     expect(tippeBojenDisq(e, b, 'X')).toBe(e)
-    expect(tippeBojenDisq(e, b, 'N').bojenDisq).toEqual({ 't3a|hin seiteB': 'N' })
-    // Derselbe Buchstabe bzw. null nimmt NUR ihn heraus (samt Merker) – die Berührungen bleiben.
+    expect(tippeBojenDisq(e, b, 'N').bojenDisq).toEqual({ 't3a|hin seiteB': ['G', 'N'] })
+    // Derselbe Buchstabe nimmt NUR ihn heraus (samt Merker); null alle – die Berührungen bleiben.
     expect(tippeBojenDisq(e, b, 'G').bojenDisq).toEqual({})
     expect(tippeBojenDisq(e, b, null).bojen).toEqual(e.bojen)
     expect(tippeBojenDisq(e, b, null).folge).toEqual(['#boje:t3a|hin seiteB', '#boje:t1a|hin seiteA'])
@@ -571,31 +579,51 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
     expect(tippeBojenDisq(leererEntwurf(), b, null)).toEqual(leererEntwurf())
   })
 
-  it('Disq. an der Boje, „zurück“ (H2): Punkte → Disq. → zurück = Punkte; Zähler „10G“; G → A → zurück = G', () => {
+  it('mehrere Disq. an einer Boje (R7-14, 22.11.2026, BZ6/BZ7): an/aus je Buchstabe, Zelle in Katalogfolge, „zurück“ nimmt den zuletzt gesetzten', () => {
+    const b = B('t3a|hin seiteB')
+    const [x, y, z] = b.disq.map((d) => d.code)
+    // In umgekehrter Folge getippt – die Zelle ordnet nach dem Katalog, der Entwurf merkt die Tippfolge.
+    let e = tippeBojenDisq(tippeBojenDisq(tippeBoje(leererEntwurf(), b), b, y), b, x)
+    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': [y, x] })
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe(`5, ${x}, ${y}`)
+    expect(bojenDisqVon(e, b)).toEqual([x, y])
+    expect(disqAnBojen(e, k7).map((d) => d.code)).toEqual([y, x])
+    expect([eintraege(e), eintraegeAuf(e, k7, 'hin'), bojenDisqZahl(e, b.feld)]).toEqual([3, 3, 2])
+    // Ein dritter dazu, dann der mittlere wieder aus: die übrigen bleiben.
+    e = tippeBojenDisq(e, b, z)
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe(`5, ${x}, ${y}, ${z}`)
+    e = tippeBojenDisq(e, b, y)
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe(`5, ${x}, ${z}`)
+    // „zurück“ = der zuletzt gesetzte Buchstabe (z), dann x, dann die Berührung.
+    e = zurueck(e)
+    expect(e.bojenDisq).toEqual({ 't3a|hin seiteB': [x] })
+    e = zurueck(e)
+    expect([e.bojenDisq, e.bojen]).toEqual([{}, { 't3a|hin seiteB': 1 }])
+    expect(zurueck(e)).toEqual(leererEntwurf())
+    // null nimmt alle Buchstaben samt Merkern.
+    const alle = tippeBojenDisq(tippeBojenDisq(tippeBojenDisq(leererEntwurf(), b, x), b, y), b, z)
+    expect(tippeBojenDisq(alle, b, null)).toEqual(leererEntwurf())
+    // Rund-Probe mit „5, x, y, z“.
+    const zellen = zellenAus(tippeBoje(alle, b), k7)
+    expect(zellenAus(entwurfAus(zellen, k7), k7)).toEqual(zellen)
+    expect(zellen['t3a|hin seiteB']).toBe(`5, ${x}, ${y}, ${z}`)
+  })
+
+  it('Disq. an der Boje, „zurück“ (H2): Punkte → Disq. → zurück = Punkte; Zähler „10, G“', () => {
     const b = B('t3a|hin seiteB')
     const z = B('t5|hin seiteA')
     let e = tippeBojenDisq(tippeBoje(leererEntwurf(), b), b, 'G')
-    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('5G')
+    expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('5, G')
     e = zurueck(e)
     expect(zellenAus(e, k7)['t3a|hin seiteB']).toBe('5')
     expect(zurueck(e)).toEqual(leererEntwurf())
-    // Zähler mit zwei Berührungen und Buchstabe: „10G“; zurück nimmt den Buchstaben, dann die Berührungen einzeln.
+    // Zähler mit zwei Berührungen und Buchstabe: „10, G“; zurück nimmt den Buchstaben, dann die Berührungen einzeln.
     const code = z.disq[0].code
     let f = tippeBojenDisq(tippeBoje(tippeBoje(leererEntwurf(), z), z), z, code)
-    expect([f.bojen, zellenAus(f, k7)['t5|hin seiteA']]).toEqual([{ 't5|hin seiteA': 2 }, `10${code}`])
+    expect([f.bojen, zellenAus(f, k7)['t5|hin seiteA']]).toEqual([{ 't5|hin seiteA': 2 }, `10, ${code}`])
     f = zurueck(f)
     expect([f.bojen, f.bojenDisq]).toEqual([{ 't5|hin seiteA': 2 }, {}])
     expect(zurueck(zurueck(f))).toEqual(leererEntwurf())
-    // G → A → zurück = G, noch einmal zurück = ohne Buchstaben, die Berührung bleibt.
-    const codes = b.disq.map((d) => d.code).filter((c) => c !== 'G')
-    let g = tippeBojenDisq(tippeBojenDisq(tippeBoje(leererEntwurf(), b), b, 'G'), b, codes[0])
-    expect(g.bojenDisq).toEqual({ 't3a|hin seiteB': codes[0] })
-    g = zurueck(g)
-    expect(g.bojenDisq).toEqual({ 't3a|hin seiteB': 'G' })
-    g = zurueck(g)
-    expect([g.bojenDisq, g.bojen]).toEqual([{}, { 't3a|hin seiteB': 1 }])
-    // Herausnehmen per Schalter nach G → A: der Merker fällt samt Rest, die Folge bleibt leer.
-    expect(tippeBojenDisq(tippeBojenDisq(tippeBojenDisq(leererEntwurf(), b, 'G'), b, codes[0]), b, null)).toEqual(leererEntwurf())
   })
 
   it('Bojen-Folge (Nutzer 22.11.2026): „gedreht“ = Rück-Reiter in derselben Folge wie Hin, „fahrt“ = Fahrtfolge, „untereinander“ = ein Reiter', () => {
@@ -664,8 +692,11 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
             for (let i = 0; i < 15; i++) {
               const b = bojen[r(bojen.length)]
               // Seit U1 (21.11.2026) auch Disq. an der Boje: jeder Buchstabe der Zelle, mal gesetzt, mal herausgenommen –
-              // seit W4-12 neben den Punkten („5J“, „10G“).
-              if (r(4) === 0 && b.disq.length > 0) e = tippeBojenDisq(e, b, b.disq[r(b.disq.length)].code)
+              // seit W4-12 neben den Punkten, seit R7-14 (22.11.2026) mehrere („5, J, D“, „10, G“); dazu „alle weg“ und „zurück“.
+              const wurf = r(12)
+              if (wurf < 3 && b.disq.length > 0) e = tippeBojenDisq(e, b, b.disq[r(b.disq.length)].code)
+              else if (wurf === 3) e = tippeBojenDisq(e, b, null)
+              else if (wurf === 4) e = zurueck(e)
               else e = tippeBoje(e, b)
             }
             const zellen = zellenAus(e, aufbau)
@@ -730,7 +761,6 @@ describe('W5.2 Maske „Bild“: gleiche Tipps → gleiche Zellen wie die Knöpf
               const id = z.ids[r(z.ids.length)]
               const ziel = bildZiel(aufbau, z, id, weg)!
               expect(z.treffer[ziel.boje.feld]).toBe(id)
-              const vorher = bild.bojen[ziel.boje.feld] ?? 0
               if (r(5) === 0 && ziel.boje.disq.length > 0) {
                 const code = ziel.boje.disq[r(ziel.boje.disq.length)].code
                 bild = tippeBojenDisq(bild, ziel.boje, code)
@@ -738,7 +768,6 @@ describe('W5.2 Maske „Bild“: gleiche Tipps → gleiche Zellen wie die Knöpf
               } else {
                 bild = tippeBoje(bild, ziel.boje)
                 knoepfe = tippeBoje(knoepfe, ziel.boje)
-                weg = wegNachTipp(aufbau, ziel, weg, vorher)
               }
             }
             const zellen = zellenAus(bild, aufbau)
@@ -809,23 +838,52 @@ describe('Zeit-Listen mit Ziffernblock (W5.4, 22.11.2026, ZT1–ZT4)', () => {
     expect(zeitUhr(4567)).toBe('0:45,67')
   })
 
-  it('ZT3: Abschicken erst, wenn jedes Zeitfeld eine lesbare Zeit oder „keine Zeit“ hat', () => {
+  it('ZT5 (22.11.2026, R8-35): Pflicht nur das erste Zeitfeld; weitere leer erlaubt, befüllt nur lesbar', () => {
     let e = leererEntwurf()
-    expect([fertig(e, zeit), zeitenOffen(e, zeit)]).toEqual([false, 3])
+    expect([zeitPflicht(zeit, 'zeit1'), zeitPflicht(zeit, 'zeit2'), zeitPflicht(zeit, 'zeit3')]).toEqual([true, false, false])
+    expect([fertig(e, zeit), zeitenOffen(e, zeit)]).toEqual([false, 1])
+    // Nur ein weiteres Feld gesetzt: Das erste fehlt weiter.
+    expect(fertig(setzeZeit(e, zeit, 'zeit2', '83,45'), zeit)).toBe(false)
     e = setzeZeit(e, zeit, 'zeit1', '83,45')
+    expect([fertig(e, zeit), zeitenOffen(e, zeit)]).toEqual([true, 0])
+    expect(zellenAus(e, zeit)).toMatchObject({ zeit1: '83,45', zeit2: '', zeit3: '' })
+    // Unlesbares in einem weiteren Feld sperrt.
     e = setzeZeit(e, zeit, 'zeit2', ',')
-    expect([fertig(e, zeit), zeitenOffen(e, zeit), zeitUnlesbar(e, 'zeit2')]).toEqual([false, 2, true])
+    expect([fertig(e, zeit), zeitenOffen(e, zeit), zeitUnlesbar(e, 'zeit2')]).toEqual([false, 1, true])
     e = setzeZeit(e, zeit, 'zeit2', '83,4')
     e = setzeKeineZeit(e, zeit, 'zeit3', 'nichtImZiel')
     expect([fertig(e, zeit), zeitenOffen(e, zeit)]).toEqual([true, 0])
     // Eine Zeile mit allen Feldern: „keine Zeit“ leer, die Zeiten wie getippt.
     expect(zellenAus(e, zeit)).toMatchObject({ zeit1: '83,45', zeit2: '83,4', zeit3: '' })
     expect(keineZeitAus(e, zeit)).toEqual([['zeit3', 'nichtImZiel']])
+    // „Keine Zeit“ im ersten Feld genügt ebenso.
+    expect(fertig(setzeKeineZeit(leererEntwurf(), zeit, 'zeit1', 'anlage'), zeit)).toBe(true)
     // Gemischte Liste (moewezeit): Bojen-Maske, aber ebenso erst mit Zeit.
     const moewe = maskeFuer(sichtMit(DM, 'moewezeit'), '5')!
     expect(fertig(leererEntwurf(), moewe)).toBe(false)
     const mz = moewe.zeiten[0].feld
     expect(fertig(setzeZeit(leererEntwurf(), moewe, mz, '75,12'), moewe)).toBe(true)
+  })
+
+  it('ZT6 (22.11.2026, R8-35): zeitVollstaendig – alle Stellen der Deutung von lib/time.ts', () => {
+    const faelle: [string, boolean][] = [
+      ['83,45', true],
+      ['83,4', false],
+      ['83', false],
+      ['83,', false],
+      ['20,00', true],
+      ['1,2345', true],
+      ['1,23', false],
+      ['1,234', false],
+      ['12,3456', true],
+      ['12,34', false],
+      [',4567', true],
+      ['1:23,45', true],
+      ['1:23,4', false],
+      [',', false],
+      ['', false],
+    ]
+    expect(faelle.map(([t]) => [t, zeitVollstaendig(t)])).toEqual(faelle)
   })
 
   it('ZT4: „keine Zeit“ leert die Zeit, eine Zeit hebt „keine Zeit“ auf; derselbe Grund bzw. null nimmt ihn heraus', () => {

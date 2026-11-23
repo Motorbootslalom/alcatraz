@@ -41,7 +41,7 @@ export const BEISPIEL_STARTERZAHL: Readonly<Record<BeispielFeldArt, readonly [nu
  * ohne Vereine, jedoch mit mehreren Klassen auf einem Blatt.“ Daraus (21.11.2026): Die Größe 10–20 bleibt
  * (vom Nutzer so genannt); die Starter bekommen keine Herkunft (beispielHerkunft, BS1); mehrere Klassen auf
  * einem Blatt sind die gemeinsamen WKR-Bögen der Clubmeisterschaft (lib/wkrListen.ts, „Papier sparen“) –
- * die Wertungslisten bleiben je Klasse (Rangliste je Klasse, Entscheidung 12.11.2026).
+ * die Wertungslisten bleiben je Klasse (Rangliste je Klasse, Entscheidung 12.11.2026) – bestätigt 22.11.2026 (R7-49).
  */
 export function beispielFeldArt(eventKind: EventKind, originMode: OriginMode): BeispielFeldArt {
   if (eventKind === 'club') return 'club'
@@ -50,7 +50,7 @@ export function beispielFeldArt(eventKind: EventKind, originMode: OriginMode): B
 
 /**
  * Die Herkunft der Beispielstarter: die der Veranstaltung (Entscheidung 15.11.2026) – außer bei der
- * Clubmeisterschaft. Auslegung BS1 vom 21.11.2026 (noch zu bestätigen, aus R6-01 „ohne Vereine“): Dort
+ * Clubmeisterschaft. Auslegung BS1 vom 21.11.2026 (aus R6-01 „ohne Vereine“, bestätigt 22.11.2026 R7-48): Dort
  * bekommen sie nie eine Herkunft, auch wenn die Veranstaltung nach dem Wechsel zur Clubmeisterschaft
  * (SET_EVENT_KIND setzt „ohne“) von Hand wieder eine bekommen hat. Die Einstellung selbst bleibt, wie gewählt.
  */
@@ -70,8 +70,21 @@ export function beispielGesamt(art: BeispielFeldArt, zufall: () => number): numb
  * Folge der Klassen. Kleine Felder dürfen in einer Klasse 0 haben (meist E). Eine Klasse ohne Anteil
  * (eigenes Regelwerk) bekommt den Durchschnitt. Unter UIM dieselbe Gesamtzahl auf die Klassen des
  * Regelwerks – bestätigt 21.11.2026 (Fragenseite R6-04).
+ *
+ * `fest` (BS4, Nutzer 22.11.2026 R7-51: „Manuelle Anpassung soll berücksichtigt werden. Mit einem Reset-Knopf.“; noch
+ * zu bestätigen): Von Hand gesetzte Klassen behalten ihre Zahl; nur der Rest max(0, gesamt − Σ fest) wird nach
+ * denselben Anteilen und derselben Rundung auf die übrigen verteilt. Ist Σ fest größer als `gesamt`, bleiben die
+ * festen stehen und die übrigen bekommen 0 – die Summe weicht dann ab (die Oberfläche zeigt sie).
  */
-export function verteileAufKlassen(gesamt: number, klassen: readonly ClassId[]): Record<ClassId, number> {
+export function verteileAufKlassen(gesamt: number, klassen: readonly ClassId[], fest: Partial<Record<ClassId, number>> = {}): Record<ClassId, number> {
+  const feste = klassen.filter((k) => typeof fest[k] === 'number' && Number.isFinite(fest[k]))
+  if (feste.length > 0) {
+    const festSumme = feste.reduce((s, k) => s + Math.max(0, Math.floor(fest[k]!)), 0)
+    const uebrige = verteileAufKlassen(Math.max(0, Math.floor(gesamt) - festSumme), klassen.filter((k) => !feste.includes(k)))
+    const out = {} as Record<ClassId, number>
+    for (const k of klassen) out[k] = feste.includes(k) ? Math.max(0, Math.floor(fest[k]!)) : uebrige[k]
+    return out
+  }
   const ergebnis = {} as Record<ClassId, number>
   if (klassen.length === 0) return ergebnis
   const bekannt = Object.values(BEISPIEL_KLASSEN_ANTEILE)

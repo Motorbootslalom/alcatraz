@@ -1831,7 +1831,7 @@ describe('Bojen (W4.2)', () => {
   // W5.2 (Plan docs/plan-wkr-w5.md §5, 22.11.2026): Pad + Bojen-Liste ohne Vorgabe → Maske „Bild“ (MW1); die Probe übt
   // am Bild (MW3); Tipps ins Bild landen als dieselben Zellen am Bedienrechner wie die Knöpfe; Tor 5 schaltet auf den
   // Rückweg (BD4), Rück 2 (BD5), Disq. über „Disq. an Boje …“ + Tipp (BD7); Einträge im Klartext in der Seitenspalte.
-  it('W5.2 Maske „Bild“: Probe am Bild, Tipps → Zellen am Bedienrechner, Tor 5 → Rückweg, Rück 2, Disq. an der Boje', async () => {
+  it('W5.2 Maske „Bild“: Probe am Bild, Tipps → Zellen am Bedienrechner, Rückweg von Hand, Rück 2, Disq. an der Boje', async () => {
     fenster(1024, 768)
     const r = await bedienrechner(bojenStand(), P2)
     const seit = Date.now()
@@ -1863,9 +1863,11 @@ describe('Bojen (W4.2)', () => {
     expect(w.findAll('[data-action="bild-weg"]').map((b) => b.attributes('data-weg'))).toEqual(['hin', 'rueck'])
     const bildBoje = (id: string) => `[data-teil="bild"] [data-action="bild-boje"][data-bild-id="${id}"]`
     await klick(w, bildBoje('Tor1_innen'))
-    // Tor 5 auf dem Hinweg: Zähler, danach steht der Umschalter auf „Rückweg“ (BD4).
+    // Tor 5 auf dem Hinweg: Zähler; der Umschalter bleibt auf „Hinweg“ (BD4 umgebaut 22.11.2026, R8-20), den
+    // Rückweg stellt der WKR von Hand.
     await klick(w, bildBoje('Tor5_unten'))
-    expect(w.find('[data-teil="bild"]').attributes('data-weg')).toBe('rueck')
+    expect(w.find('[data-teil="bild"]').attributes('data-weg')).toBe('hin')
+    await klick(w, '[data-action="bild-weg"][data-weg="rueck"]')
     await klick(w, bildBoje('Tor5_unten'))
     expect(w.find('[data-teil="seite-eintraege-text"]').text()).not.toBe('–')
     expect(w.find('[data-teil="seite-summe"]').text()).toContain('15')
@@ -1888,10 +1890,11 @@ describe('Bojen (W4.2)', () => {
     const code = w.find('[data-action="disq-code"]').attributes('data-code')!
     await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
     await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
+    await klick(w, '[data-action="disq-ort-fertig"]')
     expect(w.find(bildBoje('Tor1_innen')).attributes('data-disq')).toBe(code)
     await klick(w, '[data-action="haupt"]')
     await bis(() => !!werte(r.state.value, s7.starter)['t1c|rueck seiteB'])
-    expect(werte(r.state.value, s7.starter)['t1c|rueck seiteB']).toBe(`5${code}`)
+    expect(werte(r.state.value, s7.starter)['t1c|rueck seiteB']).toBe(`5, ${code}`)
     expect(w.html()).not.toMatch(NAMEN)
   }, 25_000)
 
@@ -1946,7 +1949,7 @@ describe('Bojen (W4.2)', () => {
     expect(werte(state.value, s4.starter)['t1a|hin seiteB']).toBe('5')
   }, 15_000)
 
-  it('Disq. an der Boje (W4-12, 21.11.2026, BZ1/BZ4): DISQ fragt erst die Boje, der Buchstabe kommt zu den Punkten, die Boje nimmt weiter Tipps; Host „5G“, Zuletzt und Korrektur', async () => {
+  it('Disq. an der Boje (W4-12, 21.11.2026, BZ1/BZ4): DISQ fragt erst die Boje, der Buchstabe kommt zu den Punkten, die Boje nimmt weiter Tipps; Host „5, G“, Zuletzt und Korrektur; mehrere Buchstaben bis „Fertig“ (BZ7, 22.11.2026)', async () => {
     const { w, state, zeige } = await torListe()
     const s4 = zeige()
     await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s4.startNr)
@@ -1968,6 +1971,10 @@ describe('Bojen (W4.2)', () => {
     expect(codes).not.toContain('X')
     await klick(w, '[data-action="disq-code"][data-code="G"]')
     await klick(w, '[data-action="disq-code"][data-code="G"]')
+    // Die Wahl bleibt offen (Mehrfachwahl, BZ7) – „Fertig · G“ schließt sie.
+    expect(w.find('[data-teil="disq-ort"]').attributes('data-schritt')).toBe('boje')
+    expect(w.find('[data-action="disq-ort-fertig"]').text()).toBe('Fertig · G')
+    await klick(w, '[data-action="disq-ort-fertig"]')
     // Zurück bei den Bojen: Punkte UND Buchstabe an der Boje.
     expect(w.find('[data-teil="disq-ort"]').exists()).toBe(false)
     expect(w.find(boje(feld)).attributes('data-disq')).toBe('G')
@@ -1991,26 +1998,77 @@ describe('Bojen (W4.2)', () => {
     await klick(w, ort(feld))
     await klick(w, '[data-action="disq-code"][data-code="G"]')
     await klick(w, '[data-action="disq-code"][data-code="G"]')
+    await klick(w, '[data-action="disq-ort-fertig"]')
     await klick(w, '[data-action="boje-disq-modus"]')
     expect(w.find(ort(feld)).attributes('data-disq')).toBe('G')
     await klick(w, ort(feld))
     await klick(w, '[data-action="disq-code"][data-code="G"]')
+    await klick(w, '[data-action="disq-ort-fertig"]')
     expect(w.find(boje(feld)).attributes('data-disq')).toBeUndefined()
     expect(w.find(boje(feld)).attributes('data-anzahl')).toBe('1')
     await klick(w, '[data-action="disq"]')
     await klick(w, ort(feld))
     await klick(w, '[data-action="disq-code"][data-code="G"]')
     await klick(w, '[data-action="disq-code"][data-code="G"]')
+    // Ein zweiter Buchstabe an derselben Boje (R7-14): beide stehen in der Zelle, in Katalogfolge.
+    const zweiter = w.findAll('[data-action="disq-code"]').map((b) => b.attributes('data-code')!).find((c) => c !== 'G')!
+    await klick(w, `[data-action="disq-code"][data-code="${zweiter}"]`)
+    await klick(w, `[data-action="disq-code"][data-code="${zweiter}"]`)
+    await klick(w, '[data-action="disq-ort-fertig"]')
+    const katalog = ['G', zweiter].sort((a, b) => codes.indexOf(a) - codes.indexOf(b)).join(', ')
+    expect(w.find(boje(feld)).attributes('data-disq')).toBe(katalog)
     await klick(w, '[data-action="haupt"]')
-    // Am Host stehen Punkte und Buchstabe in der Bojenzelle – wie abgetippt (sanitizeBuoy), das Disq.-Feld bleibt leer.
-    await bis(() => werte(state.value, s4.starter)[feld] === '5G')
+    // Am Host stehen Punkte und Buchstaben in der Bojenzelle – wie abgetippt (sanitizeBuoy), das Disq.-Feld bleibt leer.
+    await bis(() => werte(state.value, s4.starter)[feld] === `5, ${katalog}`)
     expect(werte(state.value, s4.starter)['disq@gate135'] ?? '').toBe('')
     await zeigt(() => w.find('[data-action="zuletzt"]').exists())
     await klick(w, '[data-action="zuletzt"]')
-    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('Tor 3 R L: 5G')
+    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain(`Tor 3 R L: 5, ${katalog}`)
     await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
-    expect([w.find(boje(feld)).attributes('data-disq'), w.find(boje(feld)).attributes('data-anzahl')]).toEqual(['G', '1'])
+    expect([w.find(boje(feld)).attributes('data-disq'), w.find(boje(feld)).attributes('data-anzahl')]).toEqual([katalog, '1'])
   }, 15_000)
+
+  it('Langdruck auf eine Boje (R7-21, 22.11.2026, LD1–LD4): öffnet die Buchstaben DIESER Boje, Zähler unverändert; kurz zählt beim Loslassen, Prellschutz wie bisher', async () => {
+    vi.useFakeTimers()
+    const { w } = uebe('dm-2026', 'gate135')
+    await nextTick()
+    // Eine Boje mit Buchstaben: die erste wählbare der Ortswahl (DISQ im Fuß), danach wieder zu.
+    await klick(w, '[data-action="disq"]')
+    const feld = w.findAll('[data-action="disq-ort"]').find((b) => b.attributes('disabled') === undefined)!.attributes('data-feld')!
+    await klick(w, '[data-action="disq"]')
+    const knopf = () => w.find(boje(feld))
+    const druck = (typ: string) => knopf().trigger(typ, { pointerId: 1, button: 0, clientX: 5, clientY: 5 })
+    // Kurz: zählt beim Loslassen einmal; der nachlaufende click zählt nicht noch einmal.
+    await druck('pointerdown')
+    expect(knopf().attributes('data-anzahl')).toBe('0')
+    await druck('pointerup')
+    await knopf().trigger('click')
+    await nextTick()
+    expect(knopf().attributes('data-anzahl')).toBe('1')
+    // Prellschutz (S1, LD4): ein zweiter kurzer Tipp gleich danach nimmt die Berührung nicht weg.
+    await druck('pointerdown')
+    await druck('pointerup')
+    await nextTick()
+    expect(knopf().attributes('data-anzahl')).toBe('1')
+    // Lang: Ring, dann die Buchstaben dieser Boje (Schritt 2), die Berührung bleibt.
+    vi.advanceTimersByTime(WKR_ANNAHMEN.bojenSchalterPrellMs + 100)
+    await druck('pointerdown')
+    vi.advanceTimersByTime(WKR_ANNAHMEN.langdruckRingMs)
+    await nextTick()
+    expect(knopf().attributes('data-langdruck')).toBe('fuellt')
+    vi.advanceTimersByTime(WKR_ANNAHMEN.langdruckMs - WKR_ANNAHMEN.langdruckRingMs)
+    await nextTick()
+    expect(w.find('[data-teil="disq-ort"]').attributes('data-schritt')).toBe('boje')
+    const code = w.find('[data-action="disq-code"]').attributes('data-code')!
+    await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
+    await klick(w, `[data-action="disq-code"][data-code="${code}"]`)
+    await klick(w, '[data-action="disq-ort-fertig"]')
+    expect([knopf().attributes('data-anzahl'), knopf().attributes('data-disq')]).toEqual(['1', code])
+    // DISQ im Fuß beginnt danach wieder bei „Wo?“ (die lang gedrückte Boje gilt nur für diese eine Wahl).
+    await klick(w, '[data-action="disq"]')
+    expect(w.find('[data-teil="disq-ort"]').attributes('data-schritt')).toBe('wo')
+    expect(WKR_ANNAHMEN.disqBojeLangdruck).toBe(true)
+  })
 
   it('Bojen-Folge (Nutzer 22.11.2026): Vorgabe „Rückweg gedreht“, „Fahrtfolge“, „Alles untereinander“ – gemerkt je Liste; Ortswahl und Probe ebenso', async () => {
     const { w, l, speicher } = uebe('dm-2026', 'gate135')
@@ -2134,6 +2192,9 @@ describe('Bojen (W4.2)', () => {
     await klick(w, '[data-action="disq-ort"][data-feld="t1b|rueck seiteB"]')
     await klick(w, '[data-action="disq-code"][data-code="A"]')
     await klick(w, '[data-action="disq-code"][data-code="A"]')
+    // Mehrfachwahl (BZ7, 22.11.2026): der Schritt ist erst mit „Fertig“ erledigt.
+    expect(probe().attributes('data-schritt')).toBe('bojeDisq')
+    await klick(w, '[data-action="disq-ort-fertig"]')
     expect(probe().attributes('data-schritt')).toBe('haupt')
     expect(w.find(boje('t1b|rueck seiteB')).attributes('data-disq')).toBe('A')
     expect(haupt(w).text()).toBe('Abschicken · 15 Pkt. · Disq. A')
@@ -2240,8 +2301,10 @@ describe('Bojen (W4.2)', () => {
     const titel = w.find('[data-teil="runden-band"]').text()
     expect(titel).toMatch(/Attempt 1/)
     expect(w.find('[data-teil="wkr-kopf"] [data-teil="lauf"]').exists()).toBe(false)
-    // Auf dem Pad mit Bojen-Liste: Vorgabe „Bild“ (MW1, seit W5.2 gebaut) – das Schema des Racecourse je Spalte (BD3).
-    expect(w.findAll('[data-teil="bild-schema"]').map((x) => x.attributes('data-racecourse'))).toEqual(['A', 'B'])
+    // Auf dem Pad mit Bojen-Liste: Vorgabe „Bild“ (MW1, seit W5.2 gebaut) – je Spalte die Parallel-Zeichnung mit der
+    // Bahn ihres Racecourse (BD3 umgebaut 22.11.2026, R8-19; das Schema nur noch ohne Parallel.svg).
+    expect(w.findAll('[data-teil="bild-flaeche"]').map((x) => x.attributes('data-racecourse'))).toEqual(['A', 'B'])
+    expect(w.find('[data-teil="bild-schema"]').exists()).toBe(false)
     await klick(w, '[data-action="mehr"]')
     const wahl = w.find('[data-teil="masken-wahl"]')
     // Seit W5.5 (22.11.2026) auch „Tabelle“ – auf dem Pad wählbar (TB1).

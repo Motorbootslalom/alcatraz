@@ -140,10 +140,15 @@ const bojeMm = computed(() => (bojenSpalten.value > 0 ? (frei.value - (props.her
 /** Kurze Zellen (Fahrweg, Fehler-Schlüssel) werden kleiner gesetzt statt umbrochen. */
 const fit = (text: string, normal: number) => (text.length > normal * 1.4 ? 'fit-2' : text.length > normal ? 'fit-1' : undefined)
 /**
- * Zellen des Fahrwegs: In schmalen Spalten stehen schon zwei Zeichen („20“, „5J“) kleiner, drei („10G“ – Punkte
- * und Disqualifikation an derselben Boje, W4-12) noch kleiner; erst mehr als drei stehen zweizeilig.
+ * Zellen des Fahrwegs: In schmalen Spalten stehen schon zwei Zeichen („20“, „J“ hat eins) kleiner, drei („100“)
+ * noch kleiner; mehr als drei stehen zweizeilig. Seit R7-14 (22.11.2026, BZ6) tragen Bojenzellen das Komma der
+ * Speicherform („5, J“, „5, J, D“): In breiteren Spalten bricht erst ab fünf Zeichen um – nie abgeschnitten (`td`
+ * hat `overflow: hidden`, `erg-zweizeilig` erlaubt den Umbruch).
  */
-const fitZelle = (text: string) => (bojeMm.value < 5 ? (text.length > 3 ? 'erg-zweizeilig' : text.length > 2 ? 'fit-2' : text.length > 1 ? 'fit-1' : undefined) : fit(text, 2))
+const fitZelle = (text: string) =>
+  bojeMm.value < 5
+    ? text.length > 3 ? 'erg-zweizeilig' : text.length > 2 ? 'fit-2' : text.length > 1 ? 'fit-1' : undefined
+    : text.length > 4 ? 'erg-zweizeilig' : fit(text, 2)
 /**
  * Kopf einer Spalte ohne Unterspalten (8 mm): Die englischen Kürzel der Steg-Spalten („Leav.“,
  * „Moor.“ nach Regel 960, Pkt. 4.1 und 4.1.1) sind ein Wort und brechen nicht um – in voller

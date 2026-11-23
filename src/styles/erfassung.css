@@ -256,8 +256,8 @@
 }
 
 /*
- * Eingabefelder: füllen die Zelle, ohne eigenen Rahmen – das Gitter ist der Rahmen. 44 px reichen für eine Bojenzelle
- * mit Punkten und Disq.-Buchstabe („10G“ an Tor 5, W4-12, 21.11.2026 geprüft) – keine eigene Breite nötig.
+ * Eingabefelder: füllen die Zelle, ohne eigenen Rahmen – das Gitter ist der Rahmen. 44 px reichen für Punkte und
+ * „5, J“; längere Bojenzellen („10, G“, „5, J, D“) bekommen `.erf-feld--boje-lang` (22.11.2026).
  */
 .erf-feld {
   display: block;
@@ -282,6 +282,15 @@
 
 .erf-feld--code {
   min-width: 84px;
+}
+
+/*
+ * Bojenzelle mit Buchstaben (R7-14, 22.11.2026, BZ6): „10, G“ und „5, J, D“ passen nicht in 44 px – nur dann wird
+ * die Spalte breiter, damit nichts abgeschnitten ist (ein Eingabefeld bricht nicht um). Die übrigen Bojenspalten
+ * bleiben schmal.
+ */
+.erf-feld--boje-lang {
+  min-width: 72px;
 }
 
 .erf-feld--disq {

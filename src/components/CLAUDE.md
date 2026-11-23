@@ -18,7 +18,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 - Weitere Listen: StarterBlaetter (Starter-, Vorsteg-, Gewichtslisten), AusgleichListen, TeamListen (Pkt. 3.7),
   CodesAushang, ParallelStartlisten (über ListenDokument), DruckdateiListen. Laufzettel: LaufzettelListen (Seitenzahlen
   aus unsichtbaren BogenBlatt-Instanzen), LaufzettelBlatt, ParallelLaufzettel (Zettel A und B), ParallelMessung.
-- Erfassung `erfassung/`: ErfassungTabelle (dispatch SET_EINGABEN; AppDialog vor dem Löschen eines verdeckten X am
+- Erfassung `erfassung/`: ErfassungTabelle (dispatch SET_EINGABEN; Bojenzellen über sanitizeBuoy je Taste, ab fünf
+  Zeichen `.erf-feld--boje-lang` 72 px („5, J, D“, R7-14 22.11.2026); AppDialog vor dem Löschen eines verdeckten X am
   Vorsteg, `frage` art `x`; W2.3 (21.11.2026, nur mit Host): Liste des Bogens über wkr/liste.ts listeVonBogen, Marken
   über wkr/lage.ts zeilenMarken (einmal je Bogen), ◆ über herkunftGilt (`data-raute`, Titel Liste · Gerät · Uhrzeit,
   X vom Gerät `.erf-zelle--x-geraet`), „Papier ansehen“ ▭ an der Nummer bzw. Zelle `.erf-zelle--papier`, Rückfrage „!“
@@ -153,10 +154,17 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Anzeige `ziffern-anzeige`; W5.4 baut die Zeit darauf) und **WkrPruefliste.vue** (statt WkrMaske, wenn die Sicht
   `bestand` trägt – WkrGeraet `istPruefliste`; `.wkr-pruefliste` mit `data-maske="pruefliste"`, `data-pad`): Kopf
   `pruef-nr`/`pruef-klasse`/`pruef-offen`, Knoten `pruef-knoten` (`data-feld`, `data-wahl` ok|fehler|offen, Knöpfe
-  `pruef-ok`/`pruef-fehler`), Hauptknopf `haupt` gesperrt mit „noch n offen“, sonst „Abschicken · Σ n“ bzw. Korrektur;
+  `pruef-ok`/`pruef-fehler`), Hauptknopf `haupt` seit 22.11.2026 (R8-31, KN10) aktiv ab gewählter Nummer: „✓ Alle
+  richtig“ / „✓ Rest richtig · Σ n“ (wkr/maske.ts restRichtig, dann abschicken) / „Abschicken · Σ n“ bzw. Korrektur;
+  Vorschlag `pruef-vorschlag` (`data-start`, KN9 wkr/tisch.ts naechsterOffener nach quelle.zuletzt) im leeren Feld, seit KN12 (Prüfbefund 22.11.2026) vorbelegt: `treffer` = Vorschlag, Kopf „Nr. 9“, Knoten + „Alle richtig“ sofort;
+  Rückfrage `pruef-frage` (`pruef-frage-ja`/`-nein`, KN11) an Stelle der Knoten bei erledigter oder selbst
+  geschickter Nummer, „Korrigieren“ aus WkrAbschluss gilt als Ja;
   Bänder `pruef-unbekannt`/`pruef-korrektur`/`pruef-erledigt`, Rückmeldung `pruef-letzte`; offene Nummern
   `pruef-offene` (`pruef-waehle`; Pad rechts, Handy `<details>`); `pruef-abschliessen` → WkrAbschluss mit Punkt `ohne`.
-  Kein Takt, keine Probe, kein Overlay. Stile `.wkr-pruef-*`, `.wkr-ziffern-titel`. WkrUebung: Liste „Knoten (am
+  Kein Takt, keine Probe, kein Overlay. Übung (R7-45, 22.11.2026, Y4): **WkrVorziehen.vue** (`uebung-vorziehen`,
+  Knöpfe `data-action="uebung-vorziehen"` `data-klasse`) in WkrMehr (Prop `vorziehen`, Ereignis `vorziehen` →
+  quelle.zieheKlasseVor, klappt zu) und in WkrPruefliste als `<details data-teil="pruef-vorziehen">`; Vorschlag nimmt
+  quelle.vorgezogen. Test WkrPruefliste.test.ts „Klasse vorziehen“. Stile `.wkr-pruef-*`, `.wkr-ziffern-titel`. WkrUebung: Liste „Knoten (am
   Tisch)“. Bedienrechner: WkrMatrix-Block `wkr-tisch` (`wkr-tisch-offen`, Bedienung über WkrListeBedienung mit
   `bereich` null, ohne „Papier ab“; Abschluss „ganze Liste“), wkrListenWahl Gruppe „Am Tisch“ (ListenWahl.`tisch`),
   GeraeteListe `data-maske="pruefliste"` statt Maskenwahl. Tests: components/wkr/WkrPruefliste.test.ts,
@@ -166,12 +174,13 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   bzw. „so nicht lesbar“ als rote Fläche, `data-lesbar` ja|nein, `ziffern-getippt`); **WkrZeiten.vue** (`data-teil=
   "zeiten"`, `data-anordnung` reiter (Handy) | nebeneinander (Pad); Felder `zeit-feld` mit `data-feld`/`data-stand`
   offen|zeit|unlesbar|keine/`data-aktiv`, `.wkr-zeit-feld--aktiv` umrandet; EIN Ziffernblock fürs aktive Feld, springt
-  nie selbst weiter; `keine-zeit` → `keine-zeit-grund` `data-grund`, Stand `keine-zeit-stand` mit `keine-zeit-weg`).
+  seit 22.11.2026 (R8-35, ZT6) nach einer fertigen Zeit (wkr/maske.ts zeitVollstaendig) ins nächste Feld, nie im letzten; `keine-zeit` → `keine-zeit-grund` `data-grund`, Stand `keine-zeit-stand` mit `keine-zeit-weg`).
   WkrMitte: art `zeit` → WkrZeiten; Bojen mit `aufbau.zeiten` → WkrZeiten unter Bojen/Bild. WkrMaske: setzeZeitFeld/
   setzeKeineZeitFeld, haupt erst bei `fertig`, Zeile mit `kz` (Zeit-Listen immer), Korrektur mit quelle.keineZeit,
   Zuletzt/Seite/Korrektur-Dialog über texte.ts zellenText(…, keineZeit) (Uhr, „Zeit 3: keine Zeit“), Entwurf über
   entwurfZellen. WkrFuss Props `zeitenOffen` (gesperrt „noch 2 Zeiten“, `data-offen`) und `mitZeit` („Zeiten
-  abschicken ✓“). WkrProbe Schritte `zeit` („Tippe bei „Zeit 1“ 83,45 ein“) → `zeitRest` → haupt. WkrUebung Liste
+  abschicken ✓“). WkrProbe Schritte `zeit` („Tippe bei „Zeit 1“ 83,45 ein“) → `zeitRest` (nach dem Sprung eine weitere Zeit oder
+  „keine Zeit“ – freiwillig, ZT5) → haupt. WkrFuss „noch 1 Zeit“ zählt seit ZT5 nur das erste Feld + unlesbare. WkrUebung Liste
   „Zeit (Zeitnahme)“. Bedienrechner: WkrMatrix `mzelle-keine-zeit` + Grund im Titel und in der Karte, WkrEingang
   `wkr-keine-zeit` an Rückfrage und Vorschlag; ErfassungTabelle markiert über zeilenMarken von selbst. Stile
   `.wkr-zeiten*`, `.wkr-zeit-feld*`, `.wkr-ziffern-deutung*`. Test components/wkr/WkrZeiten.test.ts, views/BetriebWkr.test.ts
@@ -191,10 +200,12 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `.wkr-tabelle` – die gehört WkrEinteilung in app.css). Test components/wkr/WkrTabelle.test.ts.
   W5.2 Maske „Bild“ (22.11.2026, Plan docs/plan-wkr-w5.md §5, WKR_ANNAHMEN BD1–BD7): **WkrBild.vue** (`data-teil="bild"`,
   `data-art` svg|schema, `data-weg`, `data-klasse`): Klassen-SVG inline über wkr/bild.ts inlineSvg (Präfix je Bild),
-  Parallel-Schema `bild-schema` (`data-racecourse`), Umschalter `bild-weg` (`data-weg` hin|rueck|rueck2, Zahl), Treffer
+  Parallelslalom seit 22.11.2026 (R8-19) Parallel.svg inline (Titel „Racecourse A“, `bild-flaeche` mit
+  `data-racecourse`, fremde Bahn gedimmt ohne Treffer, Namensnennung darunter), nur ohne Datei das Schema `bild-schema`
+  (`data-racecourse`), Umschalter `bild-weg` (`data-weg` hin|rueck|rueck2, Zahl), Treffer
   `data-action="bild-boje"` mit `data-bild-id`/`data-feld`/`data-anzahl`/`data-disq` – als Kreise über der Lage
   (getBBox + getBoundingClientRect, ≥ 15 mm, schiebeAuseinander) oder ohne Lage (Test-DOM) als Liste `bild-ersatz`;
-  Stand „✔ 5“/„2×“/„5 G“; Disq. `bild-disq-modus` → `bild-disq-tippe` → Tipp → WkrDisq; Kataloge der Seite über
+  Stand „✔ 5“/„2×“/„5 G“; Disq. `bild-disq-modus` → `bild-disq-tippe` → Tipp → WkrDisq (seit 22.11.2026 auch Langdruck auf den Treffer); Kataloge der Seite über
   WkrKnoepfe. WkrMitte zeigt es bei `maske === 'bild'` und vollständiger Zuordnung (Prop `bild`, sonst WkrBojen, BD2);
   WkrMaske rechnet `bildZuordnungJetzt` (bildTreffer), dann WkrSeite auch auf dem Handy kompakt (Einträge Pflicht),
   keine WkrParcoursBild dazu. WkrProbe Prop `bild`/`pad`: Schritte bild → zurueck → rueckweg → haupt (`data-maske`).
@@ -205,6 +216,15 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   wkr/bild.ts wirksameDrehung + CSS max-height (--wkr-bild-rest), Kreis --wkr-bild-kreis ≥ --wkr-ziel; WkrTabelle
   fokussiert von selbst nur ohne Fokus in einer anderen `.wkr-spalte`; useFenster ignoriert reine Höhenänderungen bei
   Fokus in einem Eingabefeld (Tastatur, Test systemModus.test.ts); WkrMatrix `.wkr-tisch` in app.css.
+  Test der Mehrfachwahl: components/wkr/WkrDisqOrt.test.ts (22.11.2026).
+  Langdruck (R7-21/R8-23, 22.11.2026, WKR_ANNAHMEN U3/BD7/LD1–LD4): **wkr/langdruck.ts** useLangdruck({kurz, lang,
+  langMoeglich, gesperrt}) → `an(x)` für `v-on` (Tipp beim pointerup, Langdruck ab langdruckMs, Abbruch ab
+  langdruckWegPx bzw. pointercancel, Loslassen solange ein Druck läuft auch am `window` (Capture; Knopf kann nach dem Langdruck aus dem DOM sein, Prüfbefund 22.11.2026), contextmenu weg, `click` ohne vorherige Berührung = Tastatur = kurz) und `fuellt`
+  (→ `data-langdruck="fuellt"`, fester Ring --wkr-langdruck, keine Übergänge). WkrBojen (Prop `gesperrt`, Ereignis
+  `disqBoje`) → WkrMitte `disqAnBoje` (Prop `disqBoje`) → WkrMaske/WkrProbe `oeffneDisqAnBoje` → WkrDisqOrt Prop `boje`
+  (beginnt im Schritt `boje`); WkrBild öffnet seine Buchstabenwahl selbst (`langeAufBoje`). Boje ohne Buchstaben: auch
+  ein langer Druck ist ein Tipp. WkrBild-Umschalter wechselt seit R8-20 nur von Hand (BD4). Test
+  components/wkr/langdruck.test.ts (Fake-Uhr), WkrBild.test.ts, GeraetWkr.test.ts „Langdruck auf eine Boje“.
   Feldtest 21.11.2026 (N1–N7 in WKR_ANNAHMEN): WkrUebertragen (Overlay `data-teil="uebertragen"` über der ganzen Maske
   nach dem Abschicken, ohne Knöpfe, `data-phase` laeuft|beantwortet; auch in WkrProbe), WkrKopf `bestaetigungFolgt`
   (`.wkr-kopf-ueber`), WkrFuss „DISQ“ ↔ „FEHLER“ (nennt das Ziel), WkrDisq `titel` („Disq.“ über der offenen Liste),
@@ -240,8 +260,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Disq.-Feld, sobald eine Boje Buchstaben annimmt). Beide öffnen WkrDisqOrt (`data-teil="disq-ort"`, `data-schritt`
   wo|boje|keine): Zeilen `disq-ort-halt` mit Knöpfen `disq-ort` (`data-feld`, `data-disq`), `disq-ort-keine`
   („Keine Boje / ganzer Parcours“ → WkrDisq des Disq.-Felds), dann WkrDisq mit den Buchstaben der Zelle (Titel
-  „Disq. an Tor 3 · Rück R L“), `disq-ort-zurueck`; nach der Wahl an einer Boje `fertig` → Bojen. Boje `data-disq` +
-  Klasse `wkr-bojen-knopf--disq` zeigt Punkte UND „Disq. G“ (`boje-disq-stand`), nimmt weiter Tipps. WkrMaske
+  „Disq. an Tor 3 · Rück R L“), `disq-ort-zurueck`; an einer Boje seit R7-14 (22.11.2026, BZ7) Mehrfachwahl: jeder
+  Buchstabe an/aus, Knopf `disq-ort-fertig` („Fertig · J, D“, `data-anzahl`) → `fertig` → Bojen (ebenso in WkrBild;
+  WkrProbe: Schritt `bojeDisq` erst nach „Fertig“). Boje `data-disq` („J, D“ in Katalogfolge, wkr/maske.ts
+  bojenDisqVon) + Klasse `wkr-bojen-knopf--disq` zeigt Punkte UND „Disq. J, D“ (`boje-disq-stand`,
+  `.wkr-bojen-disq-stand` bricht um), nimmt weiter Tipps; Bild-Stand in Zellform „5, J, D“. WkrMaske
   `setzeBojenDisq`, Fuß nennt Buchstaben an Bojen mit (`fussDisq`), `:key` je Start. Stile `.wkr-disq-ort*`. Bojen-Folge
   (Nutzer 22.11.2026, V3; „Wie der Parcours liegt“ samt Start oben/unten und Tauschen entfernt): Prop `folge`
   (wkr/maske.ts BojenFolge) an WkrBojen (`data-folge` gedreht|fahrt|untereinander, Zeilen über bojenAbschnitte,
@@ -289,8 +312,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   (`data-hinweis="nur-digital"`, no-print, Schalter `data-feld="digital-drucken"`). Test views/WkrDruck.test.ts.
 - Panels: BeispieldatenPanel (EINZIGE Stelle für Beispiel-Knöpfe, 21.11.2026; Starter und saat entstehen hier:
   Gesamtzahl `beispiel-gesamt` nach Art (Vorschlag), `beispiel-gesamt-neu` „Vorschlag neu“, je Klasse Zahlfeld
-  `beispiel-klasse|<k>` (R6-02), Summe `beispiel-summe`, merke `beispiel.klassen` {art, gesamt, klassen}; Verteilung
-  domain/generate.ts verteileAufKlassen; Herkunft beispielHerkunft (Clubmeisterschaft keine, R6-01); Beispiel-Besetzung, -gewichte,
+  `beispiel-klasse|<k>` (R6-02), Summe `beispiel-summe`, merke `beispiel.klassen` {art, gesamt, klassen, hand}; Verteilung
+  domain/generate.ts verteileAufKlassen (seit R7-51 22.11.2026 mit `fest` = Hand-Zahlen, markiert `data-hand` + ✎
+  `beispiel-hand`, Knopf `beispiel-klassen-zuruecksetzen` nur mit Hand-Zahlen; BS3 umgebaut, BS4); Herkunft beispielHerkunft (Clubmeisterschaft keine, R6-01); Beispiel-Besetzung, -gewichte,
   -Boote, -Co-Piloten; confirm vor dem Ersetzen), BesetzungPanel (ohne Beispiel-Knöpfe), EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
   HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop,

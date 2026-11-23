@@ -17,14 +17,20 @@ import {
   BEARBEITUNGSVERMERK,
   ERWARTETE_LIZENZ,
   gleicheLizenz,
+  machParallel,
   metadaten,
   normalisiere,
+  PARALLEL_DATEI,
+  PARALLEL_QUELLE,
+  parallelBefunde,
   PARCOURS_DATEIEN,
   vertragsBefunde,
 } from '../src/lib/parcoursVertrag.ts'
 
 /** Nur die WKR-Ausschnitte ohne Abdeckung: keine Logos, keine Texte im Ausschnitt. */
 const ORDNER = 'dist/alcatraz_Parcours'
+/** Die Parallelslalom-Zeichnung (R8-19, 22.11.2026): ein zweiter Ordner, verkleinert und mit IDs je Bahn (machParallel). */
+const ORDNER_PARALLEL = PARALLEL_QUELLE.ordner
 const REPO = 'https://github.com/Motorbootslalom/Parcours'
 
 const wurzel = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -45,13 +51,13 @@ function commit(): string {
   try {
     hash = git('rev-parse', 'HEAD')
     // Auch Unversioniertes (`??`) zählt: Eine neue Datei stünde ebenfalls in keinem Commit.
-    offen = git('status', '--porcelain', '--', ORDNER)
+    offen = git('status', '--porcelain', '--', ORDNER, ORDNER_PARALLEL)
   } catch {
     console.error(`Abgebrochen, nichts geschrieben: ${quelle} ist kein Git-Repository – der Stand der Quelle ließe sich nicht festhalten.`)
     process.exit(1)
   }
   if (offen) {
-    console.error(`Abgebrochen, nichts geschrieben: ${ORDNER} hat Änderungen, die in keinem Commit stehen.\nErst im Parcours-Repository committen:\n${offen}`)
+    console.error(`Abgebrochen, nichts geschrieben: ${ORDNER} oder ${ORDNER_PARALLEL} hat Änderungen, die in keinem Commit stehen.\nErst im Parcours-Repository committen:\n${offen}`)
     process.exit(1)
   }
   return hash
@@ -76,6 +82,23 @@ for (const datei of PARCOURS_DATEIEN) {
   fertig.push({ datei, text })
 }
 
+// Parallelslalom: verkleinern (Logos als Rasterbilder ~450 KB, Titel, Maße), IDs je Bahn über die Lage setzen (BD8,
+// ohne Änderung am Parcours-Repository), Racecourse A = vom Steg aus linke Bahn (BD9). Abbruch, wenn danach noch ein
+// Rasterbild drin ist, die Datei über 100 KB hat oder nicht genau 5 Bojen + 2 Start/Ziel-Kreise je Bahn gefunden sind.
+let parallel: { text: string; bahnA: string } | null = null
+try {
+  const roh = readFileSync(join(quelle, ORDNER_PARALLEL, PARALLEL_QUELLE.datei), 'utf8')
+  const r = machParallel(roh)
+  for (const f of r.fehler) fehler.push(`${PARALLEL_QUELLE.datei}: ${f}`)
+  if (r.zuordnung) {
+    for (const b of parallelBefunde(r.text)) fehler.push(`${PARALLEL_DATEI}.svg: ${b}`)
+    if (!r.text.includes('<metadata')) fehler.push(`${PARALLEL_DATEI}.svg: Metadaten (Urheber, Lizenz) fehlen`)
+    parallel = { text: r.text, bahnA: r.zuordnung.bahnA }
+  }
+} catch {
+  fehler.push(`${PARALLEL_QUELLE.datei}: nicht gefunden in ${join(quelle, ORDNER_PARALLEL)}`)
+}
+
 // Erst prüfen, dann schreiben: Bei einem Fehler bleibt der eingecheckte Stand unberührt.
 if (fehler.length > 0) {
   console.error(`Abgebrochen, nichts geschrieben:\n  ${fehler.join('\n  ')}`)
@@ -87,8 +110,13 @@ for (const { datei, text } of fertig) {
   writeFileSync(join(ziel, `${datei}.svg`), text)
   bytes += Buffer.byteLength(text)
 }
+if (parallel) {
+  writeFileSync(join(ziel, `${PARALLEL_DATEI}.svg`), parallel.text)
+  bytes += Buffer.byteLength(parallel.text)
+}
 // Titel und Urheber stehen in den Zeichnungen selbst; die Oberfläche nennt sie von hier aus.
 const angaben = fertig.map((f) => metadaten(f.text))
+const parallelAngaben = parallel ? metadaten(parallel.text) : null
 const { titel, urheber } = angaben[0]
 const quelleJson = {
   repo: REPO,
@@ -99,6 +127,14 @@ const quelleJson = {
   lizenz: ERWARTETE_LIZENZ.name,
   lizenzUrl: ERWARTETE_LIZENZ.url,
   dateien: fertig.map((f) => `${f.datei}.svg`),
+  // Derselbe Commit und dieselbe Namensnennung (WkrBildNachweis.vue, LICENSE.md) – nur ein anderer Ordner.
+  parallel: {
+    ordner: ORDNER_PARALLEL,
+    quelle: PARALLEL_QUELLE.datei,
+    titel: parallelAngaben?.titel ?? '',
+    urheber: parallelAngaben?.urheber ?? '',
+    dateien: [`${PARALLEL_DATEI}.svg`],
+  },
 }
 writeFileSync(join(ziel, 'QUELLE.json'), `${JSON.stringify(quelleJson, null, 2)}\n`)
 
@@ -109,17 +145,19 @@ const mitStand = lizenzText.replace(/(Stand: Commit `)[^`]*(`)/, `$1${stand}$2`)
 if (mitStand === lizenzText && !lizenzText.includes(stand)) console.warn('ACHTUNG: In LICENSE.md fehlt die Zeile „Stand: Commit `…`“ – bitte den Commit von Hand nachziehen.')
 else writeFileSync(lizenzDatei, mitStand)
 
-console.log(`${fertig.length} Zeichnungen (${Math.round(bytes / 1024)} kB) nach ${ziel}, Stand ${stand}.`)
+console.log(`${fertig.length + (parallel ? 1 : 0)} Zeichnungen (${Math.round(bytes / 1024)} kB) nach ${ziel}, Stand ${stand}.`)
+if (parallel) console.log(`Parallelslalom: ${Math.round(Buffer.byteLength(parallel.text) / 1024)} kB, Racecourse A = ${parallel.bahnA === 'oben' ? 'obere' : 'untere'} Bahn der Zeichnung.`)
 
-const abweichend = fertig.filter((_, i) => !gleicheLizenz(angaben[i].lizenzUrl, ERWARTETE_LIZENZ.url))
+const alleAngaben = parallelAngaben ? [...angaben, parallelAngaben] : angaben
+const abweichend = alleAngaben.filter((a) => !gleicheLizenz(a.lizenzUrl, ERWARTETE_LIZENZ.url))
 if (abweichend.length > 0) {
   // Kein Abbruch: Bereinigen kann das nur der Urheber im Parcours-Repository, und bis dahin
   // muss sich die Zeichnung trotzdem holen lassen. Aber es soll niemand übersehen.
   console.warn(
     `\nACHTUNG: Die Metadaten von ${abweichend.length} Zeichnung(en) nennen eine andere Lizenz als das Repository (${ERWARTETE_LIZENZ.name}):\n` +
-      [...new Set(angaben.map((a) => a.lizenzUrl || '(keine)'))].map((u) => `  ${u}`).join('\n') +
+      [...new Set(alleAngaben.map((a) => a.lizenzUrl || '(keine)'))].map((u) => `  ${u}`).join('\n') +
       '\nBitte im Parcours-Repository (parcours.svg) bereinigen.',
   )
 }
-if (new Set(angaben.map((a) => `${a.titel}|${a.urheber}`)).size > 1) console.warn('ACHTUNG: Titel oder Urheber sind nicht in allen Zeichnungen gleich.')
+if (new Set(alleAngaben.map((a) => `${a.titel}|${a.urheber}`)).size > 1) console.warn('ACHTUNG: Titel oder Urheber sind nicht in allen Zeichnungen gleich.')
 console.log('Bitte "npm run check" laufen lassen.')

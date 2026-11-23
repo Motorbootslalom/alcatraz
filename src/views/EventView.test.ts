@@ -360,7 +360,7 @@ describe('Veranstaltung', () => {
       expect(store.state.value.starters).toHaveLength(12)
       wrapper.unmount()
       // Über das Neuladen (sessionStorage) und den Wechsel der Ansicht: dieselbe Zahl.
-      expect(JSON.parse(sessionStorage.getItem('alcatraz.merke.beispiel.klassen') ?? 'null')).toEqual({ art: 'club', gesamt: 12, klassen: { E: 0, 1: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 2 } })
+      expect(JSON.parse(sessionStorage.getItem('alcatraz.merke.beispiel.klassen') ?? 'null')).toEqual({ art: 'club', gesamt: 12, klassen: { E: 0, 1: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 1, 7: 2 }, hand: [] })
       const wieder = zeige()
       expect(gesamt(wieder)).toBe(12)
       wieder.unmount()
@@ -368,8 +368,8 @@ describe('Veranstaltung', () => {
     })
 
     // R6-02 (Nutzer 21.11.2026): „Es sollte weiterhin möglich sein, eine Anzahl pro Klasse festzulegen“ –
-    // die Gesamtzahl ist der Vorschlag; BS2 „Vorschlag neu“, BS3 neue Gesamtzahl verteilt neu (noch zu bestätigen).
-    it('Zahl je Klasse festlegbar: eine Klasse auf 0, eine andere höher; Summe daneben; „Vorschlag neu“ und neue Gesamtzahl verteilen neu', async () => {
+    // die Gesamtzahl ist der Vorschlag; BS2 „Vorschlag neu“ (bestätigt 22.11.2026, R7-50), BS3 neue Gesamtzahl verteilt neu (NICHT bestätigt, R7-51).
+    it('Zahl je Klasse festlegbar: eine Klasse auf 0, eine andere höher; Summe daneben; „Vorschlag neu“ und neue Gesamtzahl verteilen nur die übrigen; „Zurücksetzen“', async () => {
       vergissAlles()
       const wrapper = zeige()
       const klasse = (k: string) => block(wrapper).find(`[data-feld="beispiel-klasse|${k}"]`)
@@ -392,29 +392,46 @@ describe('Veranstaltung', () => {
       await setzeKlasse('6', '5')
       // Über den Wechsel der Ansicht bleibt es stehen; erzeugt werden genau diese Zahlen.
       wrapper.unmount()
-      const wieder = zeige()
+      let wieder = zeige()
       expect(zahlen(wieder)).toEqual([0, 5, 6, 7, 7, 9, 5, 12])
       await block(wieder).find('[data-action="beispielstarter"]').trigger('click')
       expect(store.state.value.starters).toHaveLength(51)
       expect(store.state.value.starters.filter((p) => p.klasse === 'E')).toHaveLength(0)
       expect(store.state.value.starters.filter((p) => p.klasse === '7')).toHaveLength(12)
-      // BS3: Eine neue Gesamtzahl verteilt neu – die Zahlen von Hand gehen.
+      // BS3 umgebaut (Nutzer 22.11.2026, R7-51): Hand-Zahlen (E, 6, 7) bleiben, nur die übrigen werden verteilt.
+      const hand = () => block(wieder).findAll('[data-teil="beispiel-hand"]').map((m) => m.element.closest('[data-klasse]')!.getAttribute('data-klasse'))
+      expect(hand()).toEqual(['6', '7', 'E'].sort((x, y) => ['E', '1', '2', '3', '4', '5', '6', '7'].indexOf(x) - ['E', '1', '2', '3', '4', '5', '6', '7'].indexOf(y)))
       await setzeGesamt(wieder, 48)
+      const z = zahlen(wieder)
+      expect([z[0], z[6], z[7]]).toEqual([0, 5, 12])
+      expect(z.reduce((a, b) => a + b, 0)).toBe(48)
+      expect(block(wieder).find('[data-hinweis="beispiel-summe"]').text()).toBe('zusammen 48 (Vorschlag 48)')
+      // Neuladen (Wechsel der Ansicht) behält, welche Klassen von Hand gesetzt sind.
+      wieder.unmount()
+      wieder = zeige()
+      expect(zahlen(wieder)).toEqual(z)
+      expect(hand()).toHaveLength(3)
+      // BS4: „Zurücksetzen“ vergisst die Hand-Zahlen und verteilt über alle Klassen; danach ist der Knopf weg.
+      const zurueck = () => block(wieder).find('[data-action="beispiel-klassen-zuruecksetzen"]')
+      expect(zurueck().text()).toBe('Zurücksetzen')
+      await zurueck().trigger('click')
       expect(zahlen(wieder)).toEqual([2, 5, 6, 7, 7, 9, 5, 7])
-      // BS2: „Vorschlag neu“ setzt Gesamtzahl und Klassen neu (Summe = Gesamtzahl, im Bereich 45–75).
+      expect(zurueck().exists()).toBe(false)
+      expect(hand()).toEqual([])
+      // BS2 + BS3 umgebaut: „Vorschlag neu“ zieht eine neue Gesamtzahl (45–75), die Hand-Zahl von E bleibt.
       await block(wieder).find('[data-feld="beispiel-klasse|E"]').setValue('30')
       await block(wieder).find('[data-feld="beispiel-klasse|E"]').trigger('change')
       await block(wieder).find('[data-action="beispiel-gesamt-neu"]').trigger('click')
       const n = Number((block(wieder).find('[data-feld="beispiel-gesamt"]').element as HTMLInputElement).value)
       expect(n).toBeGreaterThanOrEqual(45)
       expect(n).toBeLessThanOrEqual(75)
+      expect(zahlen(wieder)[0]).toBe(30)
       expect(zahlen(wieder).reduce((a, b) => a + b, 0)).toBe(n)
-      expect(zahlen(wieder)[0]).toBeLessThan(30)
       wieder.unmount()
       vergissAlles()
     })
 
-    // R6-01 (Nutzer 21.11.2026): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine“ – BS1, noch zu bestätigen.
+    // R6-01 (Nutzer 21.11.2026): „Clubmeisterschaft ist eine Meisterschaft ohne Vereine“ – BS1, bestätigt 22.11.2026 (R7-48).
     it('Clubmeisterschaft: Beispielstarter ohne Herkunft, auch wenn die Veranstaltung danach wieder eine bekam', async () => {
       store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
       expect(store.state.value.originMode).toBe('none')

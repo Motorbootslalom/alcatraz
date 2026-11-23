@@ -44,6 +44,21 @@ export interface UebungsStand {
    * Zeigen, kein Takt – der WKR tippt die Nummer ein.
    */
   erledigt?: number[]
+  /**
+   * „Klasse vorziehen“ (Nutzer 22.11.2026, R7-45, WKR_ANNAHMEN.uebungVorziehen Y4): Der NÄCHSTE gezeigte Start ist
+   * einer dieser Klasse; danach geht die normale Folge weiter. Am Tisch: der Vorschlag nimmt den ersten offenen
+   * dieser Klasse, bis die nächste Zeile abgeschickt ist.
+   */
+  vorziehen?: ClassId
+  /** Vorgezogen gezeigte laufende Nummern ≥ `naechster` – die normale Folge überspringt sie. */
+  vorgezogen?: number[]
+  /**
+   * Erfundene weitere Starts (Block der Klasse im Lauf erschöpft): laufende Nummer EXTRA + k, Startnummer
+   * uebungStarts + k + 1 – so kollidieren sie nie mit den Nummern 1–uebungStarts der normalen Folge.
+   */
+  extra?: { klasse: ClassId; lauf: number }[]
+  /** Der zuletzt gezeigte Start (Steg-Anlegen: er ist noch im Boot); fehlt = `naechster − 1`. */
+  zuletzt?: number
 }
 
 /**
@@ -62,9 +77,77 @@ export function uebungsStand(regelwerk: string, typeId: string, sprache?: Sprach
   }
 }
 
-const nrVon = (i: number) => (i % WKR_ANNAHMEN.uebungStarts) + 1
-const laufVon = (i: number) => Math.floor(i / WKR_ANNAHMEN.uebungStarts) + 1
-const keyVon = (i: number) => refKey({ art: 'm', starter: `u${nrVon(i)}`, lauf: laufVon(i) })
+/** Ab hier zählen die erfundenen weiteren Starts (Y4) – weit hinter jeder Übung, die man durchhält. */
+const EXTRA = 1_000_000
+const istExtra = (i: number) => i >= EXTRA
+const laufNormal = (i: number) => Math.floor(i / WKR_ANNAHMEN.uebungStarts) + 1
+const nrVon = (i: number) => (istExtra(i) ? WKR_ANNAHMEN.uebungStarts + (i - EXTRA) + 1 : (i % WKR_ANNAHMEN.uebungStarts) + 1)
+/** Lauf eines Starts; ein erfundener, der erst gezeigt wird, gehört zum laufenden Lauf (`naechster`). */
+function laufVon(stand: UebungsStand, i: number): number {
+  if (!istExtra(i)) return laufNormal(i)
+  return stand.extra?.[i - EXTRA]?.lauf ?? laufNormal(stand.naechster)
+}
+const keyVon = (stand: UebungsStand, i: number) => refKey({ art: 'm', starter: `u${nrVon(i)}`, lauf: laufVon(stand, i) })
+/** Klasse eines Starts: fest nach Nummer über die Klassen verteilt; ein erfundener trägt seine (bzw. die vorgezogene). */
+function klasseAus(stand: UebungsStand, klassen: readonly ClassId[], i: number): ClassId {
+  if (istExtra(i)) return stand.extra?.[i - EXTRA]?.klasse ?? stand.vorziehen ?? klassen[0]
+  return klassen[Math.floor(((nrVon(i) - 1) * klassen.length) / WKR_ANNAHMEN.uebungStarts)]
+}
+
+/**
+ * Der Start, den „Klasse vorziehen“ als nächsten zeigt (Y4): der nächste noch nicht gezeigte ihres Blocks im
+ * laufenden Lauf; ist der erschöpft, ein erfundener weiterer Start mit neuer Nummer. `null` = nichts vorgezogen.
+ */
+function zielVon(stand: UebungsStand, klassen: readonly ClassId[]): number | null {
+  if (!stand.vorziehen) return null
+  const vor = stand.vorgezogen ?? []
+  const ende = laufNormal(stand.naechster) * WKR_ANNAHMEN.uebungStarts
+  for (let j = stand.naechster; j < ende; j++) if (!vor.includes(j) && klasseAus(stand, klassen, j) === stand.vorziehen) return j
+  return EXTRA + (stand.extra?.length ?? 0)
+}
+
+/** Die nächsten `n` zu zeigenden Starts: der vorgezogene zuerst, dann die normale Folge ohne schon gezeigte. */
+function folgeVon(stand: UebungsStand, klassen: readonly ClassId[], n: number): number[] {
+  const ziel = zielVon(stand, klassen)
+  const out = ziel === null ? [] : [ziel]
+  const vor = stand.vorgezogen ?? []
+  for (let j = stand.naechster; out.length < n; j++) if (j !== ziel && !vor.includes(j)) out.push(j)
+  return out.slice(0, n)
+}
+
+/** Zeigt den nächsten Start der Folge (der vorgezogene verbraucht `vorziehen`). */
+function zeigeNaechsten(stand: UebungsStand, klassen: readonly ClassId[]): UebungsStand {
+  const ziel = zielVon(stand, klassen)
+  const [i] = folgeVon(stand, klassen, 1)
+  let { naechster } = stand
+  let vorgezogen = stand.vorgezogen ?? []
+  let extra = stand.extra ?? []
+  if (istExtra(i)) extra = [...extra, { klasse: stand.vorziehen!, lauf: laufNormal(naechster) }]
+  else if (i === naechster) {
+    naechster++
+    while (vorgezogen.includes(naechster)) naechster++
+  } else vorgezogen = [...vorgezogen, i]
+  vorgezogen = vorgezogen.filter((j) => j >= naechster)
+  const { vorziehen: _v, vorgezogen: _g, extra: _e, ...rest } = stand
+  return {
+    ...rest,
+    ...(i !== ziel && stand.vorziehen ? { vorziehen: stand.vorziehen } : {}),
+    ...(vorgezogen.length > 0 ? { vorgezogen } : {}),
+    ...(extra.length > 0 ? { extra } : {}),
+    naechster,
+    offen: [...stand.offen, { i, ab: false, an: false }],
+    zuletzt: i,
+  }
+}
+
+/**
+ * „Klasse vorziehen“ (Y4): Der nächste gezeigte Start (am Tisch: der Vorschlag) ist einer dieser Klasse. Eine Klasse,
+ * die die Liste nicht hat, ändert nichts (dieselbe Referenz).
+ */
+export function ziehVor(stand: UebungsStand, klasse: ClassId): UebungsStand {
+  if (stand.vorziehen === klasse || !klassenVon(stand).includes(klasse)) return stand
+  return { ...stand, vorziehen: klasse }
+}
 
 /** Hat die Übungsliste keinen Lauf (Knoten, W5.3)? Dann Bestand statt Schlange. */
 function ohneLauf(stand: Pick<UebungsStand, 'regelwerk' | 'typeId'>): boolean {
@@ -78,14 +161,20 @@ function nrOhneLauf(key: string): number | null {
   return nr >= 1 && nr <= WKR_ANNAHMEN.uebungStarts ? nr : null
 }
 
-/** Die laufende Nummer zu einer Kennung der Übung; `null`, wenn sie keine ist. */
-function indexVon(key: string): number | null {
+/** Die laufende Nummer zu einer Kennung der Übung; `null`, wenn sie keine ist (auch kein bekannter erfundener Start). */
+function indexVon(stand: UebungsStand, key: string): number | null {
   const ref = liesRef(key)
   if (!ref || ref.art !== 'm') return null
   const m = /^u(\d+)$/.exec(ref.starter)
   if (!m) return null
   const nr = Number(m[1])
-  if (nr < 1 || nr > WKR_ANNAHMEN.uebungStarts) return null
+  if (nr < 1) return null
+  if (nr > WKR_ANNAHMEN.uebungStarts) {
+    // Erfundener Start (Y4): schon gezeigt, oder der gerade vorgezogene (Vorsteg sieht ihn vorab).
+    const k = nr - WKR_ANNAHMEN.uebungStarts - 1
+    const bekannt = k < (stand.extra?.length ?? 0) || (k === (stand.extra?.length ?? 0) && !!stand.vorziehen)
+    return bekannt && laufVon(stand, EXTRA + k) === ref.lauf ? EXTRA + k : null
+  }
   return (ref.lauf - 1) * WKR_ANNAHMEN.uebungStarts + nr - 1
 }
 
@@ -108,26 +197,28 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
   const listenKonfig = konfigVon(stand)
   const texte = listenKonfig.getBogenTexte()
   const klassen = klassenVon(stand)
-  const klasseVon = (i: number) => klassen[Math.floor(((nrVon(i) - 1) * klassen.length) / WKR_ANNAHMEN.uebungStarts)]
+  const klasseVon = (i: number) => klasseAus(stand, klassen, i)
   const teile = teileVon(stand.typeId)
   const vorab = WKR_ANNAHMEN.vorabListen.includes(stand.typeId)
   // Steg-Zeitversatz (Nutzer 21.11.2026, T1/T2): Ablegen sieht „Als Nächstes“ vorab, Anlegen erst nach dem Boot.
   const nVorab = vorab ? VORAB : teile && WKR_ANNAHMEN.stegAblegenVorab ? VORAB_STEG : 0
   const nachlaufend = !!teile && WKR_ANNAHMEN.stegAnlegenNachlaufend
-  const imBoot = stand.naechster - 1
+  const imBoot = stand.zuletzt ?? stand.naechster - 1
   const start = (i: number, extra: Partial<ListenStart> = {}): ListenStart => ({
-    key: keyVon(i),
+    key: keyVon(stand, i),
     startNr: String(nrVon(i)),
     klasse: klasseVon(i),
-    titel: texte.lauf(laufVon(i)),
-    lauf: laufSchluessel('manoevrieren', laufVon(i)),
+    titel: texte.lauf(laufVon(stand, i)),
+    lauf: laufSchluessel('manoevrieren', laufVon(stand, i)),
     ...extra,
   })
   const schlange = stand.offen.map((o) => start(o.i, teile ? { teile: { ab: o.ab, an: o.an || (nachlaufend && o.i === imBoot) } } : {}))
-  const frei = Array.from({ length: nVorab + WKR_ANNAHMEN.danach }, (_, j) => stand.naechster + j)
+  // Der vorgezogene Start (Y4) steht vorn – der Vorsteg sieht ihn schon vorab.
+  const frei = folgeVon(stand, klassen, nVorab + WKR_ANNAHMEN.danach)
   schlange.push(...frei.slice(0, nVorab).map((i) => start(i, { vorab: true, ...(teile ? { teile: { ab: false, an: nachlaufend } } : {}) })))
   const danach = frei.slice(nVorab).map((i) => start(i, teile ? { teile: { ab: false, an: nachlaufend } } : {}))
-  const lauf = laufVon(stand.offen.length > 0 ? Math.max(...stand.offen.map((o) => o.i)) : stand.naechster)
+  const normal = stand.offen.filter((o) => !istExtra(o.i)).map((o) => o.i)
+  const lauf = laufNormal(normal.length > 0 ? Math.max(...normal) : stand.naechster)
   const xErlaubt = WKR_ANNAHMEN.xListen.includes(stand.typeId)
   const maskenKonfig = konfigVon(stand, sprachen.maske)
   const bekannt = listenKonfig.getPositions().some((p) => p.typeId === stand.typeId)
@@ -182,22 +273,25 @@ export function uebungsSchritt(stand: UebungsStand, zeile: { s: string; teil?: L
   if (stand.erledigt !== undefined) {
     const nr = zeile ? nrOhneLauf(zeile.s) : null
     if (nr === null || stand.erledigt.includes(nr)) return stand
-    return { ...stand, erledigt: [...stand.erledigt, nr].sort((a, b) => a - b) }
+    // „Klasse vorziehen“ (Y4) wirkt am Tisch bis zur nächsten abgeschickten Zeile.
+    const { vorziehen: _v, ...rest } = stand
+    return { ...rest, erledigt: [...stand.erledigt, nr].sort((a, b) => a - b) }
   }
+  const klassen = klassenVon(stand)
   if (zeile === null) {
     if (stand.offen.length >= WKR_ANNAHMEN.schlange) return stand
-    return { ...stand, naechster: stand.naechster + 1, offen: [...stand.offen, { i: stand.naechster, ab: false, an: false }] }
+    return zeigeNaechsten(stand, klassen)
   }
-  const i = indexVon(zeile.s)
+  const i = indexVon(stand, zeile.s)
   if (i === null) return stand
-  let { naechster } = stand
-  let offen = stand.offen.map((o) => ({ ...o }))
-  if (i >= naechster) {
-    // Vorsteg vorab (oder geschätzt): alles bis dorthin gilt als gezeigt.
-    if (i >= naechster + VORAB + WKR_ANNAHMEN.danach) return stand
-    for (let j = naechster; j <= i; j++) offen.push({ i: j, ab: false, an: false })
-    naechster = i + 1
+  let neu = stand
+  if (!stand.offen.some((x) => x.i === i)) {
+    // Vorsteg vorab (oder geschätzt): alles in der Folge bis dorthin gilt als gezeigt.
+    const p = folgeVon(stand, klassen, VORAB + WKR_ANNAHMEN.danach).indexOf(i)
+    if (p < 0) return stand
+    for (let j = 0; j <= p; j++) neu = zeigeNaechsten(neu, klassen)
   }
+  let offen = neu.offen.map((o) => ({ ...o }))
   const o = offen.find((x) => x.i === i)
   if (!o) return stand
   const geteilt = !!teileVon(stand.typeId)
@@ -207,9 +301,7 @@ export function uebungsSchritt(stand: UebungsStand, zeile: { s: string; teil?: L
     o.an = true
   }
   offen = offen.filter((x) => !(x.ab && x.an))
-  while (offen.length < mindestens) {
-    offen.push({ i: naechster, ab: false, an: false })
-    naechster++
-  }
-  return { ...stand, naechster, offen }
+  neu = { ...neu, offen }
+  while (neu.offen.length < mindestens) neu = zeigeNaechsten(neu, klassen)
+  return neu
 }
