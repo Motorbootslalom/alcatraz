@@ -359,7 +359,7 @@ describe('Zeichnung inline und Trefferflächen (BD6)', () => {
 
 describe('Drehung nach dem Platz (Prüfbefund 22.11.2026, bildDrehungNachPlatz)', () => {
   // Rest über/unter der Zeichnung wie --wkr-bild-rest (styles/wkr-geraet.css), Rand der Fläche wie --wkr-bild-kreis/2 × 2.
-  const REST = 440
+  const REST = 380
   const RAND = 72
   const DM = configFor({ regelwerk: 'dm-2026' })
 

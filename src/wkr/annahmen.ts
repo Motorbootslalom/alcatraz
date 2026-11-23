@@ -1819,7 +1819,7 @@ export const WKR_ANNAHMEN = {
    * Prüfbefund 22.11.2026 (zu bildDrehungNurPad): ±90° auch auf dem Pad nur, wenn die gedrehte Zeichnung im freien Platz
    * (Breite der Fläche × höchste Höhe) nicht kleiner erscheint als die ungedrehte – sonst 0° wie auf dem Handy (wkr/bild.ts
    * wirksameDrehung). Die Zeichnung ist außerdem nie höher als das Fenster abzüglich Kopf, Karte, Umschalter und Fuß
-   * (CSS max-height über --wkr-bild-rest 440 px, mindestens 200 px). Vorher wurde gate135/gate245/moewe (`blick:
+   * (CSS max-height über --wkr-bild-rest, seit 23.11.2026 380 px, mindestens 200 px). Vorher wurde gate135/gate245/moewe (`blick:
    * hinten`) auf dem Pad quer rund 1400 px hoch – Tor 1 bzw. Start/Ziel lagen bei jedem Start außerhalb des Bildschirms.
    * Auslegung, noch zu bestätigen (Frage: lieber immer wie am Ufer gedreht und dafür kleiner?).
    * Bestätigt 22.11.2026 (R8-24).

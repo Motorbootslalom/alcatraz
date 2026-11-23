@@ -201,7 +201,7 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   W5.2 Maske „Bild“ (22.11.2026, Plan docs/plan-wkr-w5.md §5, WKR_ANNAHMEN BD1–BD7): **WkrBild.vue** (`data-teil="bild"`,
   `data-art` svg|schema, `data-weg`, `data-klasse`): Klassen-SVG inline über wkr/bild.ts inlineSvg (Präfix je Bild),
   Parallelslalom seit 22.11.2026 (R8-19) Parallel.svg inline (Titel „Racecourse A“, `bild-flaeche` mit
-  `data-racecourse`, fremde Bahn gedimmt ohne Treffer, Namensnennung darunter), nur ohne Datei das Schema `bild-schema`
+  `data-racecourse`, fremde Bahn gedimmt ohne Treffer; seit 23.11.2026 ohne Titel und Namensnennung – Name nur als `aria-label` der figure), nur ohne Datei das Schema `bild-schema`
   (`data-racecourse`), Umschalter `bild-weg` (`data-weg` hin|rueck|rueck2, Zahl), Treffer
   `data-action="bild-boje"` mit `data-bild-id`/`data-feld`/`data-anzahl`/`data-disq` – als Kreise über der Lage
   (getBBox + getBoundingClientRect, ≥ 15 mm, schiebeAuseinander) oder ohne Lage (Test-DOM) als Liste `bild-ersatz`;
@@ -211,8 +211,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   keine WkrParcoursBild dazu. WkrProbe Prop `bild`/`pad`: Schritte bild → zurueck → rueckweg → haupt (`data-maske`).
   WkrGeraet: probeBildVon (wkr/bild.ts probeBild). WkrUebung: `uebung-maske` (Knöpfe|Bild nur bei Bojen-Listen, Vorgabe
   nach Fenstergröße wie MW1) → ablage.ts mitMaskenWahl. Stile `.wkr-bild*` (Tokens --wkr-bild-*). Test WkrBild.test.ts.
-  Prüfbefunde 22.11.2026: **WkrBildNachweis.vue** (`bild-nachweis`, Namensnennung CC BY-NC-SA unter WkrBild und
-  WkrParcoursBild, Lizenz als `<a class="wkr-knopf" data-ziel="klein">`); „Rück 2“ merkt WkrMitte je Start; Drehung über
+  Prüfbefunde 22.11.2026: **WkrBildNachweis.vue** (`bild-nachweis`, Namensnennung CC BY-NC-SA, Lizenz als
+  `<a class="wkr-knopf" data-ziel="klein">`) – seit 23.11.2026 (Nutzer: „nimmt kostbaren Platz weg“) nicht mehr unter
+  WkrBild/WkrParcoursBild, sondern unter „Mehr“ (WkrMehr Prop `nachweis`, aus WkrMaske bei Zeichnung oder Bild); „Rück 2“ merkt WkrMitte je Start; Drehung über
   wkr/bild.ts wirksameDrehung + CSS max-height (--wkr-bild-rest), Kreis --wkr-bild-kreis ≥ --wkr-ziel; WkrTabelle
   fokussiert von selbst nur ohne Fokus in einer anderen `.wkr-spalte`; useFenster ignoriert reine Höhenänderungen bei
   Fokus in einem Eingabefeld (Tastatur, Test systemModus.test.ts); WkrMatrix `.wkr-tisch` in app.css.

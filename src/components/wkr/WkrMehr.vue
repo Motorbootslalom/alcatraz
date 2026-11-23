@@ -7,6 +7,7 @@ import type { WkrNameLage } from '../../geraete/erfassen'
 import { MASKEN_GEBAUT, type MaskenWahl } from '../../wkr/maskenWahl'
 import AppDialog from '../AppDialog.vue'
 import WkrVorziehen from './WkrVorziehen.vue'
+import WkrBildNachweis from './WkrBildNachweis.vue'
 import type { ClassId } from '../../types'
 import { useWkrText } from './texte'
 
@@ -76,8 +77,13 @@ const props = withDefaults(
     masken?: { erlaubt: MaskenWahl[]; wirksam: MaskenWahl; fest: boolean; aus?: MaskenWahl[] } | null
     /** Nur Übung (Y4): die Klassen der Liste zum Vorziehen, Namen wie in der Maske; `null` = kein Eintrag. */
     vorziehen?: { id: ClassId; titel: string }[] | null
+    /**
+     * Zeigt die Liste eine Parcours-Zeichnung (Maske „Bild“ oder Zeichnung unter den Knöpfen)? Dann steht hier die
+     * Namensnennung (CC BY-NC-SA 4.0) – Nutzer 23.11.2026: unter der Zeichnung „nimmt das kostbaren Platz weg“.
+     */
+    nachweis?: boolean
   }>(),
-  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenFolge: null, wkrName: null, masken: null, vorziehen: null },
+  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenFolge: null, wkrName: null, masken: null, vorziehen: null, nachweis: false },
 )
 const emit = defineEmits<{
   bemerkung: [text: string]
@@ -264,6 +270,7 @@ function tue(f: () => void): void {
         <button type="button" class="wkr-knopf" data-ziel="klein" data-action="probe" @click="tue(() => emit('probe'))">{{ w('wkr.geraet.probe') }}</button>
         <button v-if="uebung" type="button" class="wkr-knopf" data-ziel="klein" data-action="uebung-ende" @click="tue(() => emit('uebungEnde'))">{{ w('wkr.geraet.uebung.ende') }}</button>
       </div>
+      <WkrBildNachweis v-if="nachweis" />
     </div>
     <AppDialog
       v-if="frageNv && nichtVorbei"

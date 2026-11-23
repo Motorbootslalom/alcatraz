@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { configFor } from '../../config/konfig'
-import { PARCOURS_HERKUNFT, parcoursSvg } from '../../lib/parcoursQuelle'
+import { parcoursSvg } from '../../lib/parcoursQuelle'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { bildTreffer } from '../../wkr/bild'
 import { listenKennung } from '../../wkr/liste'
@@ -67,12 +67,9 @@ describe('WkrBild (W5.2)', () => {
     await nextTick()
     expect(entwurf().bojen['t1a|hin seiteB']).toBe(1)
     expect(treffer(w, 'Tor1_innen').find('[data-teil="bild-stand"]').text()).toBe('✔ 5')
-    // Namensnennung der bearbeiteten Zeichnung (Prüfbefund 22.11.2026): Urheber, „bearbeitet“, Lizenz mit Link.
-    const nachweis = w.find('[data-teil="bild-nachweis"]')
-    expect(nachweis.text()).toContain(PARCOURS_HERKUNFT.urheber)
-    expect(nachweis.text()).toContain('bearbeitet')
-    expect(nachweis.find('a').attributes('href')).toBe(PARCOURS_HERKUNFT.lizenzUrl)
-    expect(nachweis.find('a').text()).toContain(PARCOURS_HERKUNFT.lizenz)
+    // Kein Titel, keine Namensnennung unter dem Bild (Nutzer 23.11.2026: Platz) – sie steht unter „Mehr“ (WkrMehr).
+    expect(w.find('figcaption').exists()).toBe(false)
+    expect(w.find('[data-teil="bild-nachweis"]').exists()).toBe(false)
   })
 
   it('Umschalter Hin / Rück / Rück 2 (BD5): Tor 1 ist je Seite eine andere Boje', async () => {
@@ -214,14 +211,14 @@ describe('WkrBild (W5.2)', () => {
     return mount(WkrBild, { props: { aufbau, entwurf: leererEntwurf(), zuordnung: bildTreffer(s, k, svgVon)!, klasse: aufbau.titel, startNr: '5', weg: 'hin' } })
   }
 
-  it('Parallelslalom: Zeichnung mit beiden Bahnen, fremde gedimmt und ohne Treffer, mit Namensnennung', () => {
+  it('Parallelslalom: Zeichnung mit beiden Bahnen, fremde gedimmt und ohne Treffer, Namensnennung unter „Mehr“', () => {
     for (const rc of ['A', 'B'] as const) {
       const fremd = rc === 'A' ? 'B' : 'A'
       const w = parallel(rc, parcoursSvg)
       expect(w.find('[data-teil="bild"]').attributes('data-art')).toBe('svg')
       expect(w.find('[data-teil="bild-flaeche"]').attributes('data-racecourse')).toBe(rc)
       expect(w.find('[data-teil="bild-schema"]').exists()).toBe(false)
-      expect(w.find('figcaption').text()).toBe(`Racecourse ${rc}`)
+      expect(w.find("figure").attributes("aria-label")).toBe(`Racecourse ${rc}`)
       const svg = w.find('.wkr-bild-svg > svg')
       expect(svg.exists()).toBe(true)
       expect(svg.html()).not.toContain('<image')
@@ -232,11 +229,8 @@ describe('WkrBild (W5.2)', () => {
         expect(svg.find(`[id$="P_${fremd}_b${n}"]`).attributes('style')).toMatch(/opacity:0\./)
       }
       expect(treffer(w, `P_${rc}_start_seiteA`).exists()).toBe(true)
-      // Bearbeitete fremde Zeichnung (CC BY-NC-SA 4.0): die Namensnennung steht darunter.
-      const nachweis = w.find('[data-teil="bild-nachweis"]')
-      expect(nachweis.exists()).toBe(true)
-      expect(nachweis.text()).toContain(PARCOURS_HERKUNFT.urheber)
-      expect(nachweis.find('a').attributes('href')).toBe(PARCOURS_HERKUNFT.lizenzUrl)
+      // Namensnennung nicht unter dem Bild, sondern unter „Mehr“ (Nutzer 23.11.2026).
+      expect(w.find('[data-teil="bild-nachweis"]').exists()).toBe(false)
     }
   })
 
@@ -244,7 +238,7 @@ describe('WkrBild (W5.2)', () => {
     for (const rc of ['A', 'B'] as const) {
       const w = parallel(rc)
       expect(w.find('[data-teil="bild-schema"]').attributes('data-racecourse')).toBe(rc)
-      expect(w.find('figcaption').text()).toBe(`Racecourse ${rc}`)
+      expect(w.find("figure").attributes("aria-label")).toBe(`Racecourse ${rc}`)
       expect(treffer(w, 'P_b5').exists()).toBe(true)
       // Das Schema ist eigene Zeichnung – keine fremde Namensnennung.
       expect(w.find('[data-teil="bild-nachweis"]').exists()).toBe(false)

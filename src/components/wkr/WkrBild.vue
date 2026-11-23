@@ -6,7 +6,6 @@ import type { Weg } from '../../wkr/bojen'
 import { bildWege, bildZahlen, bildZiel, inlineSvg, schiebeAuseinander, svgSeiten, wirksameDrehung, type BildBojeMitHalt, type BildWeg, type BildZuordnung } from '../../wkr/bild'
 import { bojenDisqVon, type Entwurf, type MaskenAufbau, type MaskenBoje } from '../../wkr/maske'
 import { bojenZelle } from '../../lib/disq'
-import WkrBildNachweis from './WkrBildNachweis.vue'
 import WkrDisq from './WkrDisq.vue'
 import WkrKnoepfe from './WkrKnoepfe.vue'
 import { useLangdruck } from './langdruck'
@@ -289,10 +288,12 @@ watch([svgText, schema], () => void nextTick(messen))
         </button>
       </nav>
 
-      <figure class="wkr-bild-figur" :data-disq-wahl="disqWahl || undefined">
-        <figcaption class="wkr-bild-titel">
-          {{ zuordnung.racecourse ? w('wkr.geraet.bild.racecourse', { rc: zuordnung.racecourse }) : w('wkr.geraet.bild', { klasse }) }}
-        </figcaption>
+      <!-- Ohne Überschrift (Nutzer 23.11.2026: „nimmt kostbaren Platz weg“) – der Name steht nur noch für Screenreader. -->
+      <figure
+        class="wkr-bild-figur"
+        :data-disq-wahl="disqWahl || undefined"
+        :aria-label="zuordnung.racecourse ? w('wkr.geraet.bild.racecourse', { rc: zuordnung.racecourse }) : w('wkr.geraet.bild', { klasse })"
+      >
         <div ref="flaeche" class="wkr-bild-flaeche" data-teil="bild-flaeche" :data-drehung="drehung" :data-racecourse="zuordnung.racecourse">
           <!-- Gebündelte Zeichnung (lib/parcoursQuelle.ts), IDs mit Präfix – kein fremder Inhalt. -->
           <div v-if="svgText" class="wkr-bild-svg" aria-hidden="true" v-html="svgText" />
@@ -333,8 +334,6 @@ watch([svgText, schema], () => void nextTick(messen))
             </button>
           </template>
         </div>
-        <!-- Namensnennung der bearbeiteten Zeichnung (Prüfbefund 22.11.2026); das Parallel-Schema ist eigenes. -->
-        <WkrBildNachweis v-if="svgText" />
       </figure>
 
       <!-- Ohne Lage der Bojen (kein Layout): dieselben Treffer als Knopfliste in Fahrtfolge (BD6). -->

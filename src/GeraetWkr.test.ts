@@ -1801,6 +1801,11 @@ describe('Bojen (W4.2)', () => {
     // Die Zeichnung der Klasse steht unter den Knöpfen (Sicht `bild`, wie auf dem Bogen).
     expect(w.find('[data-teil="mitte"] [data-teil="parcours-bild"]').exists()).toBe(true)
     expect(w.find('[data-teil="parcours-bild"]').text()).toContain('Klasse 4')
+    // Namensnennung nicht unter der Zeichnung, sondern unter „Mehr“ (Nutzer 23.11.2026: Platz).
+    expect(w.find('[data-teil="parcours-bild"] [data-teil="bild-nachweis"]').exists()).toBe(false)
+    await klick(w, '[data-action="mehr"]')
+    expect(w.find('[data-teil="mehr"] [data-teil="bild-nachweis"]').exists()).toBe(true)
+    await klick(w, '[data-action="mehr"]')
     const fertig = async (s: { starter: string; startNr: string }, naechste: string) => {
       await klick(w, '[data-action="haupt"]')
       await bis(() => !!werte(state.value, s.starter)['erfasst@gate135'])

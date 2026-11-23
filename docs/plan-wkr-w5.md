@@ -389,7 +389,7 @@ Behoben (alle Auslegungen datiert in `WKR_ANNAHMEN`, noch zu bestätigen):
   im freien Platz nicht kleiner wird (wkr/bild.ts wirksameDrehung, `bildDrehungNachPlatz`), und die Zeichnung nie
   höher als Fenster − `--wkr-bild-rest` (440 px, mindestens 200 px). Tests bild.test.ts (gate135 auf 1024×768),
   wkr-geraet.test.ts.
-- **Namensnennung fehlte auf dem Gerät** (CC BY-NC-SA 4.0 Abschnitt 3(a)): WkrBildNachweis.vue unter dem Bild und
+- **Namensnennung fehlte auf dem Gerät** (CC BY-NC-SA 4.0 Abschnitt 3(a); seit 23.11.2026 unter „Mehr“ statt unter dem Bild): WkrBildNachweis.vue unter dem Bild und
   unter WkrParcoursBild (auch in WkrSeite) – Urheber, „bearbeitet“, Quelle mit Stand, Lizenz-Link; Sprache der Liste
   (`wkr.geraet.nachweis*`); nicht unter dem eigenen Parallel-Schema.
 - **Trefferkreise kleiner als --wkr-ziel** (wkr-geraet.css): Kreis = `max(var(--wkr-ziel), 15 CSS-mm)`, Abstand beim

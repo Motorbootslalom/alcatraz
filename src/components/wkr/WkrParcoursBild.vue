@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { parcoursBildUrl } from '../../lib/parcoursQuelle'
 import type { MaskenBild } from '../../wkr/sicht'
-import WkrBildNachweis from './WkrBildNachweis.vue'
 import { useWkrText } from './texte'
 
 /**
@@ -10,7 +9,7 @@ import { useWkrText } from './texte'
  * Parcours-Zeichnung mit angezeigt wird, wenn man hochwischt.“ Dieselbe Zeichnung wie auf dem Bogen der Klasse
  * (Sicht `bild`: Datei, Dimmen/Ausblenden, Drehung) – gebündelt (src/assets/parcours über lib/parcoursQuelle.ts),
  * kein Netz. Steht unter den Knöpfen, damit sie die Bedienung nie verdrängt; ±90° gedreht wird sie hochkant gezeigt
- * (Handy). Ohne Blob-URLs (Test-DOM) bleiben nur Überschrift und Namensnennung.
+ * (Handy). Ohne Blob-URLs (Test-DOM) bleibt nur die Überschrift.
  */
 const props = defineProps<{ bild: MaskenBild; klasse: string }>()
 const { w } = useWkrText()
@@ -31,7 +30,6 @@ const drehung = computed(() => (props.bild.drehung === 180 ? 'rotate(180deg)' : 
   <figure class="wkr-parcours-bild" data-teil="parcours-bild" :data-datei="bild.datei">
     <figcaption>{{ w('wkr.geraet.parcoursBild', { klasse }) }}</figcaption>
     <img v-if="src" :src="src" :alt="w('wkr.geraet.parcoursBild', { klasse })" :style="drehung ? { transform: drehung } : undefined" />
-    <!-- Namensnennung (Prüfbefund 22.11.2026): auch hier gedimmt und gedreht, also bearbeitet. -->
-    <WkrBildNachweis />
+    <!-- Namensnennung steht unter „Mehr“ (Nutzer 23.11.2026: „Das reicht, dass es bei den Einstellungen steht“). -->
   </figure>
 </template>

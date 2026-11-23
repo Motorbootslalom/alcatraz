@@ -50,9 +50,10 @@
   --wkr-bild-fahrt: #1f5fbf;
   --wkr-bild-boje: #e05a00;
   --wkr-bild-treffer-groesse: 15mm;
-  /* Höhe über und unter der Zeichnung (Kopf, Starterkarte, Umschalter, Titel, Fuß), Prüfbefund 22.11.2026: Die Zeichnung
-     ist nie höher als das Fenster abzüglich dieses Rests (bildDrehungNachPlatz) – mindestens --wkr-bild-min-hoehe. */
-  --wkr-bild-rest: 440px;
+  /* Höhe über und unter der Zeichnung (Kopf, Starterkarte, Umschalter, Fuß), Prüfbefund 22.11.2026: Die Zeichnung
+     ist nie höher als das Fenster abzüglich dieses Rests (bildDrehungNachPlatz) – mindestens --wkr-bild-min-hoehe.
+     23.11.2026: Titel und Namensnennung unter dem Bild entfallen (Nutzer), daher 60 px weniger. */
+  --wkr-bild-rest: 380px;
   --wkr-bild-min-hoehe: 200px;
   /* „entfällt“: das einzige Grau – je Modus mit genug Kontrast (Sonne/Hell 7,5:1 auf Weiß, Dunkel 8,4:1 auf Schwarz). */
   --wkr-grau: #555555;
@@ -1363,11 +1364,6 @@
   color: var(--wkr-bild-text);
 }
 
-.wkr-bild-titel {
-  font-size: 0.85em;
-  font-weight: 700;
-}
-
 .wkr-bild-flaeche {
   position: relative;
   /* Platz für die halben Trefferkreise am Rand, damit nichts über die Spalte hinausragt. */
@@ -1410,22 +1406,19 @@
   font-weight: 700;
 }
 
-/* Namensnennung unter der Zeichnung (Prüfbefund 22.11.2026): klein, auf dem weißen Grund der Zeichnung, bricht um. */
+/* Namensnennung der Parcours-Zeichnung, seit 23.11.2026 unter „Mehr“ statt unter dem Bild (Platz): klein, bricht um,
+   Farben des Gerätemodus. */
 .wkr-bild-nachweis {
   margin: var(--wkr-abstand) 0 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--wkr-abstand);
-  color: var(--wkr-bild-text);
-  font-size: 0.7em;
+  font-size: 0.75em;
   font-weight: 400;
 }
 
 .wkr-knopf.wkr-bild-nachweis-link {
-  color: var(--wkr-bild-text);
-  background: var(--wkr-bild-grund);
-  border-color: var(--wkr-bild-text);
   text-decoration: underline;
 }
 

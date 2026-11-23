@@ -986,6 +986,11 @@ gebaute Stand:
   Sprung, sobald die Zeit alle Stellen hat (ZT6, zeitVollstaendig: „83,45“, „1,2345“ – nicht schon „1,23“),
   ZT3 umgebaut; ein leeres weiteres Feld überschreibt nie eine Papierzeit (das Gerät schickt es nur als Korrektur
   einer eigenen Zeit). ZT5/ZT6 noch zu bestätigen.
+- 2026-11-23 · N · **Maske „Bild“ ohne Titel und Namensnennung** (Nutzer, nach dem Test): „Bei der Bilder-Variante
+  kann noch der Text und die Lizenzangabe von den Bildern weg. Das reicht, dass es bei den Einstellungen steht. Das
+  nimmt kostbaren Platz weg.“ Wie 2026-11-16 (Vermerk unter „Fremde Bestandteile und Lizenzen“ genügt). Umgesetzt:
+  kein Titel, keine Namensnennung unter WkrBild und WkrParcoursBild; auf dem Gerät (ohne Zugang zu den Einstellungen)
+  steht die Zeile nur noch zugeklappt unter „Mehr“; --wkr-bild-rest 440 → 380 px, die Zeichnung wird entsprechend größer.
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
