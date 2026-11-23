@@ -5,6 +5,7 @@ import { useStore } from '../state/store'
 import { useAuswahlKonfig, useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { parallelBoegen, waehleRundenBoegen, type ParallelAuswahl } from '../lib/parallelBogen'
+import { bogenMitBild } from '../lib/bogen'
 import { RACECOURSE_PARCOURS, RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
 import { rundenName as rundenNameIn } from '../planung/parallelRunden'
 import { t, tn } from '../i18n'
@@ -14,6 +15,7 @@ import BogenBlatt from './bogen/BogenBlatt.vue'
 import AufbauBalken from './AufbauBalken.vue'
 import { useSchrittweise } from '../lib/aufbau'
 import WkrDigitalHinweis from './WkrDigitalHinweis.vue'
+import ParcoursNachweis from './ParcoursNachweis.vue'
 import { useWkrDruck } from './wkrDruck'
 
 /**
@@ -114,6 +116,10 @@ watchEffect(() =>
   }),
 )
 
+// Der Fahrweg-Bogen trägt die Zeichnung der Bahn (23.11.2026): darunter am Bildschirm die Namensnennung mit Links, wie
+// unter den Bögen des Manövrierens (WkrListen.vue) – auf dem Papier steht sie als Zeile im Fuß des Bogens.
+const mitBild = computed(() => boegen.value.some((b) => bogenMitBild(konfig.value, b.auftrag)))
+
 const stapel = ref<HTMLElement | null>(null)
 const { zoom } = useBogenZoom(stapel)
 </script>
@@ -166,4 +172,5 @@ const { zoom } = useBogenZoom(stapel)
   <div ref="stapel" :class="['bogen-stapel', 'wkr-listen', aufbau.fertig.value ? '' : 'no-print']" :data-aufbau="aufbau.fertig.value ? undefined : 'laeuft'" :aria-busy="!aufbau.fertig.value" :style="zoom">
     <BogenBlatt v-for="b in aufbau.sichtbar.value" :key="b.id" :konfig="bogenKonfig(b.typeId, b.parcoursId)" :auftrag="b.auftrag" :optionen="b.optionen" :rueckseite="state.wkrRueckseite" />
   </div>
+  <div v-if="mitBild" class="no-print"><ParcoursNachweis /></div>
 </template>

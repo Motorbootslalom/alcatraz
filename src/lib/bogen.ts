@@ -69,6 +69,12 @@ export interface BogenAuftrag {
    */
   ohneBild?: boolean
   /**
+   * Ein fest vorgegebenes Bild statt des Bildes der Klasse (`bildErzeugen` der Position): die Parallelslalom-Zeichnung
+   * auf dem Fahrweg-Bogen eines Racecourse (lib/parallelBogen.ts PARALLEL_BOGEN_BILD, 23.11.2026, R9-05 bis R9-07) –
+   * eine Liste einer Runde gehört zu keiner Klasse, und für A und B gilt dieselbe eine Bahn. {@link ohneBild} gewinnt.
+   */
+  bild?: BogenBild
+  /**
    * Inhalt des QR-Codes ohne Seite (lib/qr.ts `bogenCode`); jede Druckseite hängt ihre Nummer
    * an. Fehlt = kein Code im Kopf.
    */
@@ -233,6 +239,13 @@ export interface BogenBild {
   datei: string
   vorgabe: { dim: string[]; aus: string[] }
   drehung: number
+  /**
+   * Eine flache Zeichnung (breit, wenig hoch – die eine Bahn des Parallelslaloms, etwa 4 : 1; 23.11.2026): Vorn steht
+   * sie RECHTS NEBEN der Legende und ist höchstens so hoch wie diese (styles/bogen.css `.bogen--bild-streifen`) – sie
+   * belegt nur Platz, der neben der Legende ohnehin frei ist, und kostet so keine Zeile je Blatt. Auf der Rückseite
+   * steht sie unter der Legende in ihrer eigenen Höhe statt in einem Rahmen über die ganze Blatthälfte.
+   */
+  streifen?: boolean
 }
 
 /** Eine Druckseite eines Bogens. */
@@ -305,6 +318,22 @@ export function hasDescription(def: SheetDef): boolean {
 }
 
 /**
+ * Wie {@link hasDescription} für eine Druckseite: Auch ein Bild, das der Auftrag mitbringt ({@link BogenAuftrag.bild},
+ * Parallelslalom), ist Beschreibung – es steht mit der Legende vorn bzw. auf der Rückseite.
+ */
+export function seiteMitBeschreibung(seite: Pick<BogenSeite, 'def' | 'bild'>): boolean {
+  return hasDescription(seite.def) || !!seite.bild
+}
+
+/**
+ * Trägt der Bogen eines Auftrags ein Parcoursbild? Dieselbe Regel wie in {@link bogenSeiten} – für die Namensnennung
+ * am Bildschirm (components/ParcoursNachweis.vue unter WkrListen, ParallelWkrListen, WkrVorschau).
+ */
+export function bogenMitBild(konfig: Pick<BogenKonfig, 'getSheetDef'>, auftrag: Pick<BogenAuftrag, 'typeId' | 'ohneBild' | 'bild'>): boolean {
+  return !auftrag.ohneBild && (!!auftrag.bild || !!konfig.getSheetDef(auftrag.typeId).bildErzeugen)
+}
+
+/**
  * Beschreibung auf der Rückseite („Anne-Feature“ im Prototyp): Muss die Rückseite um 180°
  * gedreht werden, damit sie beim Nach-oben-Klappen am Klemmbrett richtig herum steht?
  * Hochformat: ja – Wenden an der langen Kante legt die Rückseite für seitliches Umblättern
@@ -365,10 +394,13 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
   const zeigtKlasse = klassen.length > 1
   // Mehrere Klassen: Das Bild der letzten – die höhere Klasse zeigt den längeren Parcours.
   const bildKlasse = klassen[klassen.length - 1]
-  const bild: BogenBild | undefined =
-    def.bildErzeugen && bildKlasse !== undefined && !auftrag.ohneBild
-      ? { datei: konfig.bildDatei(auftrag.aufbauId, bildKlasse), vorgabe: def.bildErzeugen, drehung: def.bildDrehung ?? 0 }
-      : undefined
+  // Ein Bild, das der Auftrag mitbringt (Parallelslalom), geht dem der Klasse vor.
+  const bild: BogenBild | undefined = auftrag.ohneBild
+    ? undefined
+    : (auftrag.bild ??
+      (def.bildErzeugen && bildKlasse !== undefined
+        ? { datei: konfig.bildDatei(auftrag.aufbauId, bildKlasse), vorgabe: def.bildErzeugen, drehung: def.bildDrehung ?? 0 }
+        : undefined))
 
   type Roh = Omit<BogenModellZeile, 'shaded' | 'cells'>
   const rundenListe = auftrag.runde !== undefined

@@ -22,14 +22,14 @@ import {
   normalisiere,
   PARALLEL_DATEI,
   PARALLEL_QUELLE,
-  parallelBefunde,
   PARCOURS_DATEIEN,
   vertragsBefunde,
 } from '../src/lib/parcoursVertrag.ts'
 
 /** Nur die WKR-Ausschnitte ohne Abdeckung: keine Logos, keine Texte im Ausschnitt. */
 const ORDNER = 'dist/alcatraz_Parcours'
-/** Die Parallelslalom-Zeichnung (R8-19, 22.11.2026): ein zweiter Ordner, verkleinert und mit IDs je Bahn (machParallel). */
+/** Die Parallelslalom-Zeichnung (R8-19, 22.11.2026): ein zweiter Ordner. Seit 23.11.2026 (R9-05 bis R9-07) die Ausgabe
+ *  „eine Bahn ohne Steg“ des Parcours-Repositorys mit dessen IDs (`A_Boje1` …) – machParallel prüft nur noch. */
 const ORDNER_PARALLEL = PARALLEL_QUELLE.ordner
 const REPO = 'https://github.com/Motorbootslalom/Parcours'
 
@@ -65,6 +65,22 @@ function commit(): string {
 // Vor dem Lesen: Was danach gelesen wird, ist der Stand dieses Commits.
 const stand = commit()
 
+/**
+ * Steht der Commit schon auf einem Remote-Branch (laut den Remote-Zweigen der Quelle, ohne `fetch`)? QUELLE.json,
+ * LICENSE.md und die Namensnennung in App und Druck nennen ihn – ungepusht fände ihn niemand, und ein frischer Klon
+ * des Parcours-Repositorys hätte die Ausgabe vielleicht nicht (Prüfbefund 23.11.2026). Kein Abbruch: Abgleichen und
+ * Prüfen soll auch vor dem Push gehen. Aber veröffentlicht werden darf alcatraz erst danach – darum die Warnung am Ende.
+ * `null` = ließ sich nicht feststellen (kein Remote).
+ */
+function gepusht(hash: string): boolean | null {
+  try {
+    if (git('remote') === '') return null
+    return git('branch', '-r', '--contains', hash) !== ''
+  } catch {
+    return null
+  }
+}
+
 const fertig: Array<{ datei: string; text: string }> = []
 const fehler: string[] = []
 for (const datei of PARCOURS_DATEIEN) {
@@ -82,21 +98,18 @@ for (const datei of PARCOURS_DATEIEN) {
   fertig.push({ datei, text })
 }
 
-// Parallelslalom: verkleinern (Logos als Rasterbilder ~450 KB, Titel, Maße), IDs je Bahn über die Lage setzen (BD8,
-// ohne Änderung am Parcours-Repository), Racecourse A = vom Steg aus linke Bahn (BD9). Abbruch, wenn danach noch ein
-// Rasterbild drin ist, die Datei über 100 KB hat oder nicht genau 5 Bojen + 2 Start/Ziel-Kreise je Bahn gefunden sind.
-let parallel: { text: string; bahnA: string } | null = null
+// Parallelslalom (seit 23.11.2026): die Eine-Bahn-Ausgabe so übernehmen, wie das Parcours-Repository sie zuschneidet und
+// benennt (R9-05) – nur zurechtmachen wie die Klassen-Zeichnungen. Abbruch, wenn eine Pflicht-ID (Bojen 1–5,
+// Start/Ziel oben/unten) fehlt oder doppelt ist, Teile der zweiten Bahn oder der Steg drin sind (R9-06), ein Rasterbild,
+// die Datei zu groß ist oder eine Boje außerhalb des Bilds liegt (parallelBefunde).
+let parallel: string | null = null
 try {
   const roh = readFileSync(join(quelle, ORDNER_PARALLEL, PARALLEL_QUELLE.datei), 'utf8')
   const r = machParallel(roh)
   for (const f of r.fehler) fehler.push(`${PARALLEL_QUELLE.datei}: ${f}`)
-  if (r.zuordnung) {
-    for (const b of parallelBefunde(r.text)) fehler.push(`${PARALLEL_DATEI}.svg: ${b}`)
-    if (!r.text.includes('<metadata')) fehler.push(`${PARALLEL_DATEI}.svg: Metadaten (Urheber, Lizenz) fehlen`)
-    parallel = { text: r.text, bahnA: r.zuordnung.bahnA }
-  }
+  if (r.fehler.length === 0) parallel = r.text
 } catch {
-  fehler.push(`${PARALLEL_QUELLE.datei}: nicht gefunden in ${join(quelle, ORDNER_PARALLEL)}`)
+  fehler.push(`${PARALLEL_QUELLE.datei}: nicht gefunden in ${join(quelle, ORDNER_PARALLEL)} (Parcours: make, Ausgabe „eine Bahn ohne Steg“)`)
 }
 
 // Erst prüfen, dann schreiben: Bei einem Fehler bleibt der eingecheckte Stand unberührt.
@@ -111,12 +124,12 @@ for (const { datei, text } of fertig) {
   bytes += Buffer.byteLength(text)
 }
 if (parallel) {
-  writeFileSync(join(ziel, `${PARALLEL_DATEI}.svg`), parallel.text)
-  bytes += Buffer.byteLength(parallel.text)
+  writeFileSync(join(ziel, `${PARALLEL_DATEI}.svg`), parallel)
+  bytes += Buffer.byteLength(parallel)
 }
 // Titel und Urheber stehen in den Zeichnungen selbst; die Oberfläche nennt sie von hier aus.
 const angaben = fertig.map((f) => metadaten(f.text))
-const parallelAngaben = parallel ? metadaten(parallel.text) : null
+const parallelAngaben = parallel ? metadaten(parallel) : null
 const { titel, urheber } = angaben[0]
 const quelleJson = {
   repo: REPO,
@@ -146,7 +159,7 @@ if (mitStand === lizenzText && !lizenzText.includes(stand)) console.warn('ACHTUN
 else writeFileSync(lizenzDatei, mitStand)
 
 console.log(`${fertig.length + (parallel ? 1 : 0)} Zeichnungen (${Math.round(bytes / 1024)} kB) nach ${ziel}, Stand ${stand}.`)
-if (parallel) console.log(`Parallelslalom: ${Math.round(Buffer.byteLength(parallel.text) / 1024)} kB, Racecourse A = ${parallel.bahnA === 'oben' ? 'obere' : 'untere'} Bahn der Zeichnung.`)
+if (parallel) console.log(`Parallelslalom: ${Math.round(Buffer.byteLength(parallel) / 1024)} kB, eine Bahn (für Racecourse A und B).`)
 
 const alleAngaben = parallelAngaben ? [...angaben, parallelAngaben] : angaben
 const abweichend = alleAngaben.filter((a) => !gleicheLizenz(a.lizenzUrl, ERWARTETE_LIZENZ.url))
@@ -160,4 +173,10 @@ if (abweichend.length > 0) {
   )
 }
 if (new Set(alleAngaben.map((a) => `${a.titel}|${a.urheber}`)).size > 1) console.warn('ACHTUNG: Titel oder Urheber sind nicht in allen Zeichnungen gleich.')
+if (gepusht(stand) === false)
+  console.warn(
+    `\nACHTUNG: Stand ${stand.slice(0, 7)} steht im Parcours-Repository auf keinem Remote-Branch (nicht gepusht).\n` +
+      'Erst das Parcours-Repository pushen, dann alcatraz veröffentlichen – sonst nennt die Namensnennung einen Stand,\n' +
+      'den auf GitHub niemand findet.',
+  )
 console.log('Bitte "npm run check" laufen lassen.')

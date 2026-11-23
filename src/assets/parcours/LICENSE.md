@@ -2,8 +2,8 @@
 
 Die SVG-Dateien in diesem Ordner stammen aus dem Repository
 [Motorbootslalom/Parcours](https://github.com/Motorbootslalom/Parcours)
-(Stand: Commit `9b92e699116aa571341e5a32f18adf345297d58c`, Ordner `dist/alcatraz_Parcours`, die Parallelslalom-Zeichnung
-aus `dist/parallel/en/pontoon_bottom`; maschinenlesbar in `QUELLE.json`).
+(Stand: Commit `a9c427581543d159193f32e8ef120851cc2d4a31`, Ordner `dist/alcatraz_Parcours`, die Parallelslalom-Zeichnung
+aus `dist/parallel/alcatraz_Parcours`; maschinenlesbar in `QUELLE.json`).
 
 - Titel: „Schlauchbootslalom Parcours“
 - Urheber: Matthias Kerk
@@ -20,7 +20,7 @@ verändert weitergibt, muss den Urheber nennen und dieselbe Lizenz verwenden.
 | `Parcours.svg` | leerer Parcours (Erklärung der Blickrichtungen im Assistenten) | unverändert übernommen |
 | `KlasseE.svg`, `Klasse1.svg` … `Klasse7.svg` | Fahrweg je Klasse | für Alcatraz bearbeitet, siehe unten |
 | `Klasse5_Moewe.svg`, `Klasse6_Moewe.svg`, `Klasse7_Moewe.svg` | Fahrweg der Kursvariante „Möwe“ | für Alcatraz bearbeitet, siehe unten |
-| `Parallel.svg` | Parallelslalom, beide Bahnen (Quelle `ParallelSlalom.svg`) | für Alcatraz bearbeitet, siehe unten |
+| `Parallel.svg` | Parallelslalom, eine Bahn ohne Steg (Quelle `ParallelSlalom.svg`) | für Alcatraz bearbeitet, siehe unten |
 
 ## Änderungen gegenüber der Quelle
 
@@ -33,15 +33,13 @@ Parcours-Repository und macht sie dabei zurecht (`normalisiere` in src/lib/parco
 - Ausweichschriften hinter „Verdana“ und „Arial Black“ ergänzt,
 - in den Metadaten (`dc:description`) vermerkt, dass und wie die Zeichnung bearbeitet ist, samt Lizenz.
 
-Die Parallelslalom-Zeichnung (`Parallel.svg`, seit 22.11.2026) macht derselbe Sync zurecht (`machParallel` in
-src/lib/parcoursVertrag.ts), dazu:
+Die Parallelslalom-Zeichnung (`Parallel.svg`) ist seit 23.11.2026 die Ausgabe „eine Bahn ohne Steg“ des
+Parcours-Repositorys: Zuschnitt auf eine Bahn und die IDs der Bojen (`A_Boje1` … `A_Boje5`, `A_StartZiel_oben`/`_unten`)
+stammen von dort. Derselbe Sync macht sie zurecht (`machParallel` in src/lib/parcoursVertrag.ts) wie die
+Klassen-Zeichnungen (viewBox, Editor-Angaben, Ausweichschriften), dazu:
 
-- Logos (zwei eingebettete Rasterbilder), Titel, Beschreibung und Maße entfernt, Ausschnitt auf die beiden Bahnen
-  verkleinert,
-- IDs je Bahn gesetzt (`P_A_b1` … `P_B_start_seiteB`, Fahrlinien, Ziffern), damit die WKR-Geräte die Bojen ansprechen
-  können; welche Bahn „A“ heißt, rechnet der Sync aus der Lage,
-- ungenutzte Pfeilspitzen und Verläufe sowie Inkscape-Schriftangaben entfernt; der Namensraum der Metadaten heißt
-  `cc:` statt `ns2:` (Inhalt unverändert),
+- die Exportfläche (unsichtbares Rechteck) sowie ungenutzte Pfeilspitzen und Verläufe entfernt,
+- Inkscape-Schriftangaben entfernt,
 - der Bearbeitungsvermerk nennt diese Änderungen.
 
 Am Parcours selbst (Bojen, Fahrweg, Ziffern) ist nichts geändert. Zur Laufzeit blendet
@@ -50,11 +48,13 @@ Alcatraz je Wettkampfrichter-Position einzelne Tore ab oder Ziffern aus und dreh
 Fassungen sind Bearbeitungen im Sinne der Lizenz und stehen unter CC BY-NC-SA 4.0.
 
 Den Commit oben und `QUELLE.json` schreibt `npm run parcours:sync`; es bricht ab, wenn
-`dist/alcatraz_Parcours` oder `dist/parallel/en/pontoon_bottom` der Quelle Änderungen hat, die in keinem Commit stehen.
+`dist/alcatraz_Parcours` oder `dist/parallel/alcatraz_Parcours` der Quelle Änderungen hat, die in keinem Commit stehen.
 
 ## Namensnennung in der App
 
 Wo Alcatraz eine der Zeichnungen zeigt, steht darunter Urheber, Quelle mit Stand, der Hinweis
-„bearbeitet“ und die Lizenz (src/components/ParcoursNachweis.vue, auf den WKR-Geräten src/components/wkr/WkrBildNachweis.vue – auch unter der
-Parallelslalom-Zeichnung; Angaben aus `QUELLE.json`).
+„bearbeitet“ und die Lizenz (src/components/ParcoursNachweis.vue; auf den WKR-Geräten seit 23.11.2026 zugeklappt
+unter „Mehr“, src/components/wkr/WkrBildNachweis.vue – auch für die Parallelslalom-Zeichnung; Angaben aus `QUELLE.json`).
+Auf gedruckten WKR-Bögen mit Zeichnung steht dasselbe als Zeile im Fuß (src/lib/parcoursNachweis.ts) – seit 23.11.2026
+auch auf dem Fahrweg-Bogen des Parallelslaloms, der die eine Bahn neben der Legende trägt.
 So reisen sie auch in der einzelnen HTML-Datei mit, in der diese Datei hier nicht liegt.

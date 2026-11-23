@@ -230,6 +230,8 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
   Listen mit Parcoursbild bleiben je Klasse.
   Mit „Papier sparen“ stehen die Leerzeilen einmal je Seite statt je Klasse.
 - Die Parcours-Zeichnung steht auf den Bögen, abgeblendet je Position.
+  Parallelslalom (23.11.2026): Der Fahrweg-Bogen jedes Racecourse trägt die eine Bahn ohne Steg rechts neben der
+  Legende – ohne eine Zeile je Blatt zu kosten ([parallelslalom.md](parallelslalom.md#wkr-listen-des-vorlaufs)).
 - Gedruckt werden die Bögen erst nach dem Festschreiben der Verzahnung (siehe [Sperren](#sperren-und-prüfungen)).
 - Druckfolge (21.11.2026): je Parcours Position für Position, darin die Startfolge (1. Lauf in der Reihenfolge der
   Klassen, dann der 2. …) – der Stapel wird nur an den Positionen getrennt und verteilt (`WKR_DRUCKFOLGE`).

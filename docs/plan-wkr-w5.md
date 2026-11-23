@@ -283,7 +283,9 @@ weitere Zeitfelder optional).
   genau Klasse 7 auf Möwe-Listen (Klasse7_Moewe.svg ohne Speedboje_unten, die Liste fragt Sp. 2 ab) – im Test fest
   benannt, damit eine neue Lücke auffällt.
 - **BD3** Parallelslalom: schematische Zeichnung je Racecourse, B gespiegelt. Beim Bau (22.11.2026): Start und Ziel
-  dasselbe Tor (seiteA links), Boje n hin und rück dieselbe Boje; die Lage der Bahnen ist geraten.
+  dasselbe Tor (seiteA links), Boje n hin und rück dieselbe Boje; die Lage der Bahnen ist geraten. Umgebaut 22.11.2026
+  (R8-19): Zeichnung aus dem Parcours-Repo (beide Bahnen, BD8–BD10); seit 23.11.2026 (R9-05 bis R9-07) eine Bahn ohne
+  Steg mit IDs aus dem Parcours-Repo, für A und B dieselbe – auch das Schema (Rückfall) ist nicht mehr gespiegelt.
 - **BD4** Bild-Umschalter springt nach dem ersten Tipp an Tor 5 auf Rückweg (anders als P8). Beim Bau (22.11.2026):
   eine zweite Berührung von Tor 5 auf dem Hinweg tippt der WKR nach dem Zurückstellen – Frage: lieber erst nach der
   Einfahrt springen? Umgebaut 22.11.2026 (R8-20): kein Sprung mehr, der Umschalter wechselt nur von Hand.

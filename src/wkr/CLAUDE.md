@@ -39,6 +39,10 @@ umgebaut 22.11.2026), BD7 (R8-23 – umgebaut 22.11.2026), KN3 (R8-27), KN7 (R8-
 KN8 (R8-32) (alle drei umgebaut 22.11.2026, KN9–KN11 neu), ZT3 (R8-35 – umgebaut 22.11.2026, ZT5/ZT6 neu) – „NICHT bestätigt“ im Eintrag, sonst noch nicht umgebaut (docs/entscheidungen.md „Antworten
 22.11.2026 (Runden 7–8)“); Y1 bestätigt mit Zusatzwunsch (R7-45: in der Übung Klasse vorziehen – gebaut 22.11.2026,
 Y4 uebungVorziehen, noch zu bestätigen). Alle Antworten der Runden 7–8 sind seit 22.11.2026 umgesetzt.
+**Antworten 23.11.2026** (Runde 9, R9-01…14): bestätigt (je Eintrag „Bestätigt 23.11.2026 (Frage)“) BZ1/BZ6, BZ7, U3,
+LD1–LD4, Langdruck in BD7, KN7–KN12, ZT3, ZT5, ZT6, Y4 (und BS3/BS4 der Beispieldaten); NICHT bestätigt BD8–BD10
+(R9-05…07) – umgebaut 23.11.2026: Parallel.svg ist die Eine-Bahn-Ausgabe des Parcours-Repos ohne Steg, IDs von dort
+(`A_Boje1` …), für Racecourse A und B dieselbe Bahn, nichts gedimmt (docs/entscheidungen.md „Antworten 23.11.2026 (Runde 9)“).
 Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte Zellen nie still überschreiben.
 
 ## Dateien
@@ -103,7 +107,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   zeitEineZeile (Pflicht nur das erste Feld), neu ZT5 zeitNurErstesPflicht, ZT6 zeitSpringtWeiter (noch zu bestätigen).
   W5.5 (22.11.2026, noch zu bestätigen): TB1 tabelleNurPad, TB2 tabelleOhneProbe, TB3 tabelleWieErfassung, TB4
   tabelleBojenAlsPunkte, TB5 tabelleZeilen {gesendet 5, naechste 3}.
-  W5.2 (22.11.2026, noch zu bestätigen): BD1 bildSeitenWieSpalten, BD2 bildSonstKnoepfe, BD3 bildParallelZeichnung (umgebaut 22.11.2026 R8-19, vorher bildParallelSchema; neu BD8 bildParallelIdsAusLage, BD9 bildParallelALinks, BD10 bildParallelFremdeBahnBlass, noch zu bestätigen), BD4
+  W5.2 (22.11.2026, noch zu bestätigen): BD1 bildSeitenWieSpalten, BD2 bildSonstKnoepfe, BD3 bildParallelZeichnung (umgebaut 22.11.2026 R8-19, vorher bildParallelSchema; neu BD8–BD10, seit 23.11.2026 nach R9-05…07 umgeschrieben: BD8 bildParallelIdsAusParcoursRepo, BD9 bildParallelEineBahnFuerBeide, BD10 bildParallelNurEineBahn), BD4
   bildUmschalterNurVonHand (umgebaut 22.11.2026 R8-20, vorher bildRueckNachTor5), BD5 bildRueck2, BD6 bildTrefferMm 15,
   BD7 bildDisqKnopfUndLangdruck (umgebaut 22.11.2026 R8-23, vorher bildDisqUeberKnopf), beim Bau bildDrehungNurPad; Prüfbefunde 22.11.2026: bildDrehungNachPlatz, tastaturAendertNichts (PD1).
   Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeMitPunkten (seit W4-12 statt
@@ -157,9 +161,11 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - `bild.ts` (W5.2, 22.11.2026, BD1–BD6) – Maske „Bild“, rein: BILD_BOJEN (SVG-ID der Klassen-SVGs → {halt, seite};
   innen/außen über config/kurzform.ts bildBojeId = dieselbe Regel wie die Unterspalten/`boje.spalte`, BD1), bildIdVon(feld)
   (nur Kennungen mit Richtung bzw. Speedbojen; `start|seiteA` ist Parallel); Parallelslalom seit 22.11.2026 (R8-19,
-  BD3/BD8–BD10): PARALLEL_BILD (Parallel.svg, Drehung 0), parallelBildId(feld, rc) → `P_<rc>_b<n>` bzw.
-  `P_<rc>_start_seiteA|B`, fremde Bahn (Präfix `P_<andere>_`) = `blass`; schemaParallel(rc) (Start/Ziel unten, 1–4,
-  5 Wende, B gespiegelt) + schemaIdVon nur noch Rückfall ohne vollständige Parallel.svg; bildZuordnung(aufbau, {bild,
+  BD3), seit 23.11.2026 eine Bahn (R9-05…07, BD8–BD10): PARALLEL_BILD (Parallel.svg, Drehung 0, nichts gedimmt),
+  parallelBildId(feld) → `A_Boje<n>` bzw. `A_StartZiel_unten` (seiteA) / `_oben` (seiteB) – OHNE Racecourse, A und B
+  treffen dieselbe Bahn, der Racecourse kommt aus der Liste (`racecourse` der Zuordnung); `blass` leer;
+  schemaParallel(rc) (Start/Ziel unten, 1–4, 5 Wende, für A und B gleich) + schemaIdVon nur noch Rückfall ohne
+  vollständige Parallel.svg; bildZuordnung(aufbau, {bild,
   racecourse, svg}) / bildTreffer(sicht, klasse, svgVon – ohne Bild der Klasse holt es PARALLEL_DATEI) → {art
   svg|schema, treffer feld→id, ids, blass, racecourse?} | null (BD2: ID fehlt oder nicht genau einmal → Knöpfe;
   Stand 22.11.2026 nur Klasse7_Moewe ohne Speedboje_unten), probeBild, BildWeg hin|rueck|rueck2 (BD5), bildWege,

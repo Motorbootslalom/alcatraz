@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { hasDescription, type BogenBlattSpalte, type BogenSeite } from '../../lib/bogen'
+import { seiteMitBeschreibung, type BogenBlattSpalte, type BogenSeite } from '../../lib/bogen'
 import { PRINT_MARGIN_MM, PX_PER_MM, overflowRows, pageHeightMm as pageHeightOf } from '../../lib/paging'
 import { tn } from '../../i18n'
 import { nachweisZeile } from '../../lib/parcoursNachweis'
@@ -39,7 +39,8 @@ const totalCols = computed(() => 1 + (props.seite.zeigtKlasse ? 1 : 0) + (props.
 // Die Klassen-Spalte nennt den Namen der Klasse; für lange Namen („Dolphin“) ist sie breiter.
 const klasseBreit = computed(() => props.seite.klassen.some((k) => props.seite.texte.klasseName(k).length > 3))
 // Die Zeichnungen stehen unter CC BY-NC-SA: Wo ein Bild gedruckt wird, steht auch die Namensnennung.
-const nachweis = computed(() => (props.seite.bild && !props.rueckseite ? nachweisZeile() : undefined))
+// In der Sprache des Bogens, nicht der Oberfläche (23.11.2026, lib/parcoursNachweis.ts).
+const nachweis = computed(() => (props.seite.bild && !props.rueckseite ? nachweisZeile(props.seite.texte.sprache) : undefined))
 const bildAlt = computed(() => `${props.seite.titel} – ${props.seite.klassenText}`)
 
 const trennerClass = (trenner?: TrennerDesign) => (trenner ? ` sep-${trenner}` : '')
@@ -123,7 +124,13 @@ onBeforeUnmount(() => beobachter?.disconnect())
     :class="[
       'bogen',
       `bogen--${seite.orientation === 'landscape' ? 'quer' : 'hoch'}`,
-      { 'bogen--gedreht': gedreht && !rueckseite, 'bogen--bild-neben': def.bildNeben && !rueckseite, 'bogen--runde-eng': seite.startForm && seite.leaves.length > 10 },
+      {
+        'bogen--gedreht': gedreht && !rueckseite,
+        'bogen--bild-neben': def.bildNeben && !rueckseite,
+        // Flache Zeichnung (Parallelslalom, 23.11.2026): rechts neben der Legende, höchstens so hoch wie sie.
+        'bogen--bild-streifen': !!seite.bild?.streifen && !rueckseite,
+        'bogen--runde-eng': seite.startForm && seite.leaves.length > 10,
+      },
     ]"
     :style="[def.bildBreite ? { '--bild-breite': `${def.bildBreite}mm` } : undefined, hoehe > 0 ? { '--bogen-hoehe': `${hoehe}px` } : undefined]"
   >
@@ -171,10 +178,10 @@ onBeforeUnmount(() => beobachter?.disconnect())
             <div class="bogen-fuss">
               <template v-if="!rueckseite">
                 <BogenLegende :def="def" />
-                <div v-if="seite.bild" class="bogen-bild"><BogenBild :bild="seite.bild" :alt="bildAlt" /></div>
+                <div v-if="seite.bild" :class="['bogen-bild', { 'bogen-bild--streifen': seite.bild.streifen }]"><BogenBild :bild="seite.bild" :alt="bildAlt" /></div>
               </template>
               <!-- Die Beschreibung steht auf der Rückseite (BogenRueckseite.vue). -->
-              <div v-else-if="hasDescription(def)" class="bogen-rueckhinweis">
+              <div v-else-if="seiteMitBeschreibung(seite)" class="bogen-rueckhinweis">
                 <svg class="bogen-rueckhinweis-pfeil" viewBox="0 0 24 24" aria-hidden="true">
                   <!-- Blatt mit angehobener unterer Ecke; der Bogen des Pfeils führt von unten über die
                        Oberkante: hochklappen, nicht bloß „nach oben“. Muss ohne den Text verständlich sein. -->

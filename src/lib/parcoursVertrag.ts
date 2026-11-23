@@ -146,77 +146,67 @@ export function normalisiere(svg: string, vermerk: string = BEARBEITUNGSVERMERK)
 }
 
 // ---------------------------------------------------------------------------
-// Parallelslalom-Zeichnung (R8-19, Plan docs/plan-antworten-runde7-8.md §5, 22.11.2026; WKR_ANNAHMEN BD3, BD8–BD10)
+// Parallelslalom-Zeichnung (R8-19, 22.11.2026; seit 23.11.2026 eine Bahn mit IDs aus dem Parcours-Repository, R9-05 bis
+// R9-07; WKR_ANNAHMEN BD3, BD8–BD10)
 // ---------------------------------------------------------------------------
 
 /**
- * Die Parallelslalom-Zeichnung des Parcours-Repositorys: Ordner und Datei der Quelle, Name hier (ohne Endung). Die
- * Quelle zeigt zwei Bahnen übereinander, die Stege links unter den Bahnen – „pontoon_bottom“ wie die Klassen-SVGs.
- * Mit Fahrlinien statt `Parcours.svg` („empty course“): Sie zeigen Hin- und Rückweg wie die Klassen-Zeichnungen und
- * stören die Trefferkreise nicht (beim Bau 22.11.2026 angesehen).
+ * Die Parallelslalom-Zeichnung des Parcours-Repositorys: Ordner und Datei der Quelle, Name hier (ohne Endung).
+ * Seit 23.11.2026 die Ausgabe „eine Bahn ohne Steg“ (Parcours-Commit a9c4275, split.py `split_alcatraz_bahn`, README.parallel.md):
+ * nur Bahn A mit Fahrlinien, ohne Steg, Logos, Titel, Beschreibung und Maße, auf die Bahn zugeschnitten – der Ordner
+ * spiegelt `dist/alcatraz_Parcours` der Klassen-Zeichnungen. Warum (Nutzer 23.11.2026, R9-06): „Die Zeichnung ist eine
+ * schematische Darstellung und variiert von Standort zu Standort. Also was den Steg angeht und ob sie nebeneinander
+ * passen. Daher kommt auf den Listen und auf dem Gerät nur einer der zwei Parcours und ohne Steg.“ Vorher (22.11.2026)
+ * `dist/parallel/en/pontoon_bottom` mit beiden Bahnen, Stegen, Logos – verkleinert und mit IDs über die Lage.
  */
-export const PARALLEL_QUELLE = { ordner: 'dist/parallel/en/pontoon_bottom', datei: 'ParallelSlalom.svg' } as const
+export const PARALLEL_QUELLE = { ordner: 'dist/parallel/alcatraz_Parcours', datei: 'ParallelSlalom.svg' } as const
 export const PARALLEL_DATEI = 'Parallel'
 
-export type ParallelBahn = 'A' | 'B'
-export const PARALLEL_BAHNEN: readonly ParallelBahn[] = ['A', 'B']
+/**
+ * Die Bahn in der Zeichnung. Die IDs vergibt seit 23.11.2026 das Parcours-Repository selbst je Bahn (`A_…`, `B_…`,
+ * Nutzer R9-05: „… mit A und B in den IDs benennen“); die Eine-Bahn-Ausgabe enthält nur `A_…`. Diese eine Bahn steht
+ * für JEDEN Racecourse – A und B zeigen dasselbe Bild, welche Racecourse gemeint ist, sagt die Liste (BD9, R9-06).
+ */
+export const PARALLEL_BAHN = 'A'
+/** Präfix der anderen Bahn: In der Eine-Bahn-Ausgabe darf nichts davon stehen (parallelBefunde). */
+const ANDERE_BAHN = 'B'
 
-/** ID einer Boje (1–5) bzw. einer Start/Ziel-Boje einer Bahn in Parallel.svg (BD8). */
-export const parallelBojeId = (bahn: ParallelBahn, n: number) => `P_${bahn}_b${n}`
-export const parallelStartId = (bahn: ParallelBahn, seite: 'seiteA' | 'seiteB') => `P_${bahn}_start_${seite}`
-/** Präfix aller Teile einer Bahn (Bojen, Start/Ziel, Fahrlinien, Ziffern) – zum Dimmen der fremden Bahn (BD10). */
-export const parallelBahnPraefix = (bahn: ParallelBahn) => `P_${bahn}_`
+/** ID der Boje n (1–5) in Parallel.svg – hin und rück dieselbe Boje (der Umschalter sagt, welche Fahrt). */
+export const parallelBojeId = (n: number) => `${PARALLEL_BAHN}_Boje${n}`
+/**
+ * ID einer Start/Ziel-Boje (Start und Ziel sind dasselbe Tor): seiteA = die untere im Bild, seiteB = die obere –
+ * dieselbe Regel wie bei den Klassen-Zeichnungen (config/kurzform.ts SEITE, bildBojeId).
+ */
+export const parallelStartId = (seite: 'seiteA' | 'seiteB') => `${PARALLEL_BAHN}_StartZiel_${seite === 'seiteA' ? 'unten' : 'oben'}`
 
-/** IDs, die Parallel.svg genau einmal tragen muss: je Bahn Bojen 1–5 und die beiden Start/Ziel-Bojen. */
-export const PARALLEL_PFLICHT_IDS: readonly string[] = PARALLEL_BAHNEN.flatMap((b) => [
-  ...[1, 2, 3, 4, 5].map((n) => parallelBojeId(b, n)),
-  parallelStartId(b, 'seiteA'),
-  parallelStartId(b, 'seiteB'),
-])
-
-/** Die Bojen 1–5 der unteren Bahn tragen IDs aus dem Manövrierparcours (orange, gleiche Lage wie dort). */
-const UNTERE_BOJEN = ['Tor1_aussen', 'Tor2_innen', 'Tor3_aussen', 'Tor4_innen', 'Tor5_unten'] as const
+/** IDs, die Parallel.svg genau einmal tragen muss: Bojen 1–5 und die beiden Start/Ziel-Bojen (die Trefferkreise). */
+export const PARALLEL_PFLICHT_IDS: readonly string[] = [...[1, 2, 3, 4, 5].map(parallelBojeId), parallelStartId('seiteA'), parallelStartId('seiteB')]
 
 /**
- * Was beim Sync aus der Parallel-Zeichnung fällt (≈ 450 KB von 493 KB): die Gruppe `LogoEN` (zwei eingebettete
- * Rasterbilder), Titel und Beschreibung (`text1016`, `text1026`), die Maße (`abmessung`) samt Satz „the dimensions
- * shown are approximate values“ (`g4772`) – auf dem Gerät zählt nur, wo die Bojen liegen.
+ * Was die Eine-Bahn-Ausgabe nicht enthalten darf: den Steg (R9-06 „ohne Steg“; im Parcours-Repository `A_Steg`/`B_Steg`
+ * samt Beschriftung) und die Maße. Die zweite Bahn prüft parallelBefunde über das Präfix.
  */
-const PARALLEL_WEG = ['LogoEN', 'text1016', 'text1026', 'abmessung', 'g4772'] as const
+const PARALLEL_NIE = ['A_Steg', 'A_Steg_Beschriftung', 'B_Steg', 'A_Abmessung', 'abmessung', 'Titel', 'Beschreibung'] as const
 
 /**
- * Ausschnitt nach dem Entfernen (viewBox, Einheiten der Quelle): beide Bahnen samt Stegen, „Start/Finish“ und
- * Fahrlinien, gemessen mit `inkscape --query-all` am Stand 9b92e69 (22.11.2026: Inhalt x 14,7–931, y 192–590). Ohne ihn
- * bliebe ein Drittel der Seite leer (Titel, Logos), und die Bojen würden auf dem Gerät entsprechend kleiner. Der Sync
- * prüft, dass jede Boje mit Rand darin liegt (parallelBefunde).
+ * Die Exportfläche der Quelle (Ebene `Export_Area` mit dem unsichtbaren Rechteck `A_Export_Area`, split.py exportiert
+ * auf sie zu). Die App zieht ihren eigenen Rahmen – wie RAHMEN_ID bei den Klassen-Zeichnungen fällt sie weg.
  */
-export const PARALLEL_AUSSCHNITT = { x: 8, y: 186, breite: 934, hoehe: 410 } as const
+const PARALLEL_EXPORTFLAECHE = 'Export_Area'
 
 export const BEARBEITUNGSVERMERK_PARALLEL =
-  'Für Alcatraz bearbeitet: Logos, Titel, Beschreibung und Maße entfernt, Ausschnitt verkleinert, IDs der Bojen, ' +
-  'Start/Ziel-Bojen, Fahrlinien und Ziffern je Bahn gesetzt (P_A_…, P_B_…), Editor-Angaben und ungenutzte ' +
-  `Pfeilspitzen entfernt, Ausweichschriften ergänzt. Lizenz: ${ERWARTETE_LIZENZ.name}, ${ERWARTETE_LIZENZ.url}`
+  'Für Alcatraz bearbeitet: viewBox ergänzt, Exportfläche, Editor-Angaben, ungenutzte Pfeilspitzen und Verläufe ' +
+  `entfernt, Ausweichschriften ergänzt. Lizenz: ${ERWARTETE_LIZENZ.name}, ${ERWARTETE_LIZENZ.url}`
 
-/** Höchstgröße von Parallel.svg nach dem Sync (Ziel < 60 KB; darüber bricht der Sync ab). */
-export const PARALLEL_MAX_BYTES = 100 * 1024
+/** Befunde von parallelBefunde, die eine Pflicht-ID selbst betreffen (fehlt, steht mehrfach) – nicht ihre Lage. */
+const PFLICHT_ID_BEFUND = /^(\S+) (?:fehlt|steht \d+-mal)$/
+
+/** Höchstgröße von Parallel.svg nach dem Sync (heute rund 13 KB; darüber bricht der Sync ab – etwa bei Rasterbildern). */
+export const PARALLEL_MAX_BYTES = 60 * 1024
 
 interface Punkt {
   x: number
   y: number
-}
-
-/** Ein Element der Quelle mit seiner Lage (erster Punkt des Pfads bzw. x/y des Texts, samt Verschiebungen der Eltern). */
-interface Element {
-  tag: string
-  id: string
-  /** Lage in Koordinaten der Wurzel; `null`, wenn ein Elternteil anders als verschoben ist (Drehung). */
-  lage: Punkt | null
-  /** Die IDs der umgebenden Gruppen, innen zuletzt. */
-  gruppen: string[]
-  /** Kreis-Pfad (geschlossen, mit Kurven) wie die Bojen. */
-  kreis: boolean
-  /** Erster Pfad bzw. Text direkt in einer Gruppe mit eigener Verschiebung (Start/Ziel-Kreise). */
-  inGruppe: string | null
 }
 
 const zahl = (s: string | undefined) => (s === undefined ? NaN : Number(s))
@@ -230,147 +220,36 @@ function verschiebung(tag: string): Punkt | null {
 }
 
 /**
- * Alle Elemente mit ID samt Lage – ein kleiner Gang durch die Tags ohne DOM (dieselbe Datei läuft im Sync unter Node).
- * Die Lage eines Pfads ist sein erster Punkt (`m x,y`), die eines Texts x/y; Kreise der Quelle beginnen rechts außen
- * (Mitte = x − r). Für die Zuordnung reicht das: Verglichen werden nur gleichartige Kreise untereinander.
+ * Die Lage jedes Pfads bzw. Texts mit ID in Koordinaten der Wurzel – ein kleiner Gang durch die Tags ohne DOM (dieselbe
+ * Datei läuft im Sync unter Node). Lage eines Pfads = sein erster Punkt (`m x,y`; die Bojen-Kreise der Quelle beginnen
+ * rechts außen), eines Texts x/y, jeweils samt Verschiebungen der Eltern; `null`, wo ein Elternteil anders transformiert
+ * ist. Für parallelBefunde reicht das: Geprüft wird nur, ob die Bojen im Ausschnitt liegen.
  */
-function elemente(svg: string): Element[] {
-  const out: Element[] = []
-  const stapel: { tag: string; id: string; v: Punkt | null }[] = []
-  const summe = (): Punkt | null => {
-    let x = 0
-    let y = 0
-    for (const s of stapel) {
-      if (!s.v) return null
-      x += s.v.x
-      y += s.v.y
-    }
-    return { x, y }
-  }
+function lagen(svg: string): Map<string, Punkt | null> {
+  const out = new Map<string, Punkt | null>()
+  const stapel: { tag: string; v: Punkt | null }[] = []
   for (const m of svg.matchAll(/<(\/?)([A-Za-z][\w:.-]*)\b([^>]*?)(\/?)>/g)) {
     const [ganz, zu, tag, , selbst] = m
     if (zu) {
-      for (let i = stapel.length - 1; i >= 0; i--) if (stapel[i].tag === tag) {
-        stapel.length = i
-        break
-      }
+      for (let i = stapel.length - 1; i >= 0; i--)
+        if (stapel[i].tag === tag) {
+          stapel.length = i
+          break
+        }
       continue
     }
-    const id = /\bid="([^"]*)"/.exec(ganz)?.[1] ?? ''
     const v = verschiebung(ganz)
+    const id = /\bid="([^"]*)"/.exec(ganz)?.[1]
     if (id && (tag === 'path' || tag === 'text')) {
-      const basis = summe()
-      const eigen = v
-      let p: Punkt | null = null
-      if (tag === 'path') {
-        const d = /\bd="\s*[mM]\s*([-\d.e]+)[\s,]+([-\d.e]+)/.exec(ganz)
-        if (d) p = { x: zahl(d[1]), y: zahl(d[2]) }
-      } else {
-        p = { x: zahl(/\bx="([-\d.e]+)"/.exec(ganz)?.[1]), y: zahl(/\by="([-\d.e]+)"/.exec(ganz)?.[1]) }
-      }
-      const lage = basis && eigen && p && Number.isFinite(p.x) && Number.isFinite(p.y) ? { x: basis.x + eigen.x + p.x, y: basis.y + eigen.y + p.y } : null
-      const d = /\bd="([^"]*)"/.exec(ganz)?.[1] ?? ''
-      const oben = stapel.at(-1)
-      out.push({
-        tag,
-        id,
-        lage,
-        gruppen: stapel.map((s) => s.id),
-        kreis: tag === 'path' && /c/i.test(d) && /z\s*$/i.test(d),
-        inGruppe: oben && oben.tag === 'g' && oben.v && (oben.v.x !== 0 || oben.v.y !== 0) ? oben.id : null,
-      })
+      const d = /\bd="\s*[mM]\s*([-\d.e]+)[\s,]+([-\d.e]+)/.exec(ganz)
+      const p = tag === 'path' ? (d ? { x: zahl(d[1]), y: zahl(d[2]) } : null) : { x: zahl(/\bx="([-\d.e]+)"/.exec(ganz)?.[1]), y: zahl(/\by="([-\d.e]+)"/.exec(ganz)?.[1]) }
+      let lage: Punkt | null = p && Number.isFinite(p.x) && Number.isFinite(p.y) && v ? { x: p.x + v.x, y: p.y + v.y } : null
+      for (const s of stapel) lage = lage && s.v ? { x: lage.x + s.v.x, y: lage.y + s.v.y } : null
+      out.set(id, lage)
     }
-    if (!selbst) stapel.push({ tag, id, v })
+    if (!selbst) stapel.push({ tag, v })
   }
   return out
-}
-
-/** Ergebnis der Zuordnung: alte ID → neue ID, und welche Bahn der Quelle (oben/unten) Racecourse A ist. */
-export interface ParallelZuordnung {
-  ids: Record<string, string>
-  /** Racecourse A in der Quelle: die obere oder die untere Bahn (BD9). */
-  bahnA: 'oben' | 'unten'
-}
-
-const mittel = (ps: Punkt[]): Punkt => ({ x: ps.reduce((s, p) => s + p.x, 0) / ps.length, y: ps.reduce((s, p) => s + p.y, 0) / ps.length })
-
-/**
- * Ordnet die Teile der Parallel-Zeichnung ihren Bahnen zu (BD8, 22.11.2026, noch zu bestätigen – ohne Änderung am
- * Parcours-Repository):
- * - untere Bahn: Bojen 1–5 über die vorhandenen IDs Tor1_aussen, Tor2_innen, Tor3_aussen, Tor4_innen, Tor5_unten;
- * - obere Bahn: je Boje die Kopie (Kreis in `layer6`) mit gleichem x (± 1) – alle mit demselben Versatz in y (± 1);
- * - Start/Ziel: die Kreise in eigenen verschobenen Gruppen in `layer6` (g13156/g13172, g17522/g17526), je Bahn die
- *   beiden nächstgelegenen; seiteA = die untere im Bild, seiteB = die obere (config/kurzform.ts SEITE);
- * - Fahrlinien (Pfade in `ParallelSlalom` und Linien in `layer6`) und Ziffern (`ParcoursLabel`) nach der nächsten Bahn.
- * Racecourse A ist die Bahn, die vom Steg aus in Fahrtrichtung (Start → Boje 5) LINKS liegt (BD9, wie die Vorgabe der
- * Tafel „A links, B rechts“) – gerechnet aus den Lagen, nicht geraten. Fehler als Sätze; dann `null`.
- */
-export function parallelZuordnung(svg: string): { zuordnung: ParallelZuordnung | null; fehler: string[] } {
-  const fehler: string[] = []
-  const alle = elemente(svg)
-  const imLayer = alle.filter((e) => e.gruppen.includes('layer6'))
-  const nachId = new Map(alle.map((e) => [e.id, e]))
-  const unten: Element[] = []
-  for (const id of UNTERE_BOJEN) {
-    const e = nachId.get(id)
-    if (!e || !e.lage || !e.kreis) fehler.push(`${id}: keine Boje (Kreis mit Lage) gefunden`)
-    else unten.push(e)
-  }
-  if (fehler.length) return { zuordnung: null, fehler }
-  const kopien = imLayer.filter((e) => e.kreis && !e.inGruppe && e.lage && !UNTERE_BOJEN.includes(e.id as (typeof UNTERE_BOJEN)[number]))
-  const oben: Element[] = []
-  for (const b of unten) {
-    const treffer = kopien.filter((k) => Math.abs(k.lage!.x - b.lage!.x) <= 1 && Math.abs(k.lage!.y - b.lage!.y) > 1)
-    if (treffer.length !== 1) fehler.push(`${b.id}: ${treffer.length} Kopien mit gleichem x statt genau einer`)
-    else oben.push(treffer[0])
-  }
-  if (fehler.length) return { zuordnung: null, fehler }
-  const versatz = oben.map((o, i) => o.lage!.y - unten[i].lage!.y)
-  if (versatz.some((v) => Math.abs(v - versatz[0]) > 1)) fehler.push(`Bojen der zweiten Bahn mit ungleichem Versatz: ${versatz.map((v) => v.toFixed(1)).join(', ')}`)
-  if (kopien.length !== 5) fehler.push(`${kopien.length} Bojen-Kopien in layer6 statt 5`)
-  // „unten“ heißt hier: die Bahn mit den Tor-IDs. Liegt sie im Bild doch oben, tauschen.
-  let [bahnU, bahnO] = [unten, oben]
-  if (versatz[0] > 0) [bahnU, bahnO] = [oben, unten]
-  const mitteU = mittel(bahnU.map((e) => e.lage!))
-  const mitteO = mittel(bahnO.map((e) => e.lage!))
-  const naechste = (p: Punkt): 'unten' | 'oben' => (Math.hypot(p.x - mitteU.x, p.y - mitteU.y) <= Math.hypot(p.x - mitteO.x, p.y - mitteO.y) ? 'unten' : 'oben')
-  const kreise = imLayer.filter((e) => e.kreis && e.inGruppe && e.lage)
-  const start = { unten: kreise.filter((k) => naechste(k.lage!) === 'unten'), oben: kreise.filter((k) => naechste(k.lage!) === 'oben') }
-  for (const b of ['unten', 'oben'] as const) if (start[b].length !== 2) fehler.push(`Bahn ${b}: ${start[b].length} Start/Ziel-Kreise statt 2`)
-  if (fehler.length) return { zuordnung: null, fehler }
-
-  // BD9: Fahrtrichtung d = Boje 5 − Mitte des Starttors; „links“ davon ist im SVG (y nach unten) die Richtung (dy, −dx).
-  const startMitte = mittel(start.unten.map((k) => k.lage!))
-  const d = { x: bahnU[4].lage!.x - startMitte.x, y: bahnU[4].lage!.y - startMitte.y }
-  const c = { x: mitteO.x - mitteU.x, y: mitteO.y - mitteU.y }
-  const links = c.x * d.y - c.y * d.x
-  if (Math.abs(links) < 1) return { zuordnung: null, fehler: ['Bahnen liegen in Fahrtrichtung hintereinander, nicht nebeneinander'] }
-  const bahnA: 'oben' | 'unten' = links > 0 ? 'oben' : 'unten'
-  const bahnVon = (b: 'oben' | 'unten'): ParallelBahn => (b === bahnA ? 'A' : 'B')
-
-  const ids: Record<string, string> = {}
-  bahnU.forEach((e, i) => (ids[e.id] = parallelBojeId(bahnVon('unten'), i + 1)))
-  bahnO.forEach((e, i) => (ids[e.id] = parallelBojeId(bahnVon('oben'), i + 1)))
-  for (const b of ['unten', 'oben'] as const) {
-    // Start/Ziel: die Gruppe bekommt die ID (Lage samt Verschiebung). seiteA = größeres y = untere im Bild.
-    const [a, bb] = [...start[b]].sort((p, q) => q.lage!.y - p.lage!.y)
-    ids[a.inGruppe!] = parallelStartId(bahnVon(b), 'seiteA')
-    ids[bb.inGruppe!] = parallelStartId(bahnVon(b), 'seiteB')
-  }
-  const zaehler: Record<string, number> = {}
-  const neu = (bahn: ParallelBahn, art: string) => `P_${bahn}_${art}${(zaehler[`${bahn}${art}`] = (zaehler[`${bahn}${art}`] ?? 0) + 1)}`
-  for (const e of alle) {
-    if (ids[e.id] || !e.lage) continue
-    const linie = (e.tag === 'path' && !e.kreis && (e.gruppen.includes('ParallelSlalom') || (e.gruppen.includes('layer6') && !e.inGruppe)))
-    if (linie) ids[e.id] = neu(bahnVon(naechste(e.lage)), 'linie')
-  }
-  // Ziffern: Text in ParcoursLabel nahe einer Boje (≤ 15 Einheiten von ihrer Mitte).
-  const bojen = [...bahnU.map((e, i) => ({ e, n: i + 1, b: 'unten' as const })), ...bahnO.map((e, i) => ({ e, n: i + 1, b: 'oben' as const }))]
-  for (const t of alle.filter((e) => e.tag === 'text' && e.gruppen.includes('ParcoursLabel') && e.lage)) {
-    const nah = bojen.filter(({ e }) => Math.hypot(e.lage!.x - 7 - t.lage!.x, e.lage!.y - t.lage!.y) <= 15)
-    if (nah.length === 1) ids[t.id] = `P_${bahnVon(nah[0].b)}_nr${nah[0].n}`
-  }
-  return { zuordnung: { ids, bahnA }, fehler: [] }
 }
 
 /** Ein Element samt Inhalt entfernen (geschachtelte gleichnamige Tags mitgezählt). */
@@ -391,17 +270,17 @@ function entferne(svg: string, id: string): string {
 }
 
 /**
- * Macht die Parallel-Zeichnung aus `Parcours/dist/parallel/en/pontoon_bottom/ParallelSlalom.svg` für Alcatraz zurecht
- * (Sync, BD8): verkleinern (PARALLEL_WEG, ungenutzte Marker/Verläufe, Inkscape-Schriftangaben), IDs je Bahn
- * (parallelZuordnung), Ausschnitt (PARALLEL_AUSSCHNITT), Namensraum `ns2:` der Metadaten als `cc:` (sonst fände
- * metadaten() Titel, Urheber und Lizenz nicht), dann wie die Klassen-Zeichnungen (normalisiere, eigener Vermerk).
- * `metadata` bleibt: Titel, Urheber und Lizenz reisen mit der Datei (CC BY-NC-SA 4.0 Abschnitt 3(a)(1)). Zweimal
- * angewandt ändert sich nichts (die Zuordnung findet die gesetzten IDs dann über P_… nicht mehr – darum Fehler, wenn
- * die Tor-IDs fehlen; der Sync läuft immer auf der Quelle).
+ * Macht die Eine-Bahn-Zeichnung aus `Parcours/dist/parallel/alcatraz_Parcours/ParallelSlalom.svg` für Alcatraz zurecht
+ * (Sync). Seit 23.11.2026 ohne Umbenennen und ohne Zuschnitt – beides macht das Parcours-Repository (R9-05): die
+ * Exportfläche weg, ungenutzte Marker/Verläufe und Inkscape-Schriftangaben weg, ein Namensraum `ns2:` der Metadaten als
+ * `cc:` (ältere Inkscape-Ausgaben; sonst fände metadaten() Titel, Urheber und Lizenz nicht), dann wie die
+ * Klassen-Zeichnungen (normalisiere mit eigenem Vermerk: viewBox aus Breite × Höhe). `metadata` bleibt: Titel, Urheber
+ * und Lizenz reisen mit der Datei (CC BY-NC-SA 4.0 Abschnitt 3(a)(1)). Zweimal angewandt ändert sich nichts.
+ * `fehler` = parallelBefunde des Ergebnisses (Pflicht-IDs, zweite Bahn, Steg, Rasterbild, Größe, Lage) – der Sync
+ * schreibt dann nichts.
  */
-export function machParallel(roh: string): { text: string; zuordnung: ParallelZuordnung | null; fehler: string[] } {
-  let s = roh
-  for (const id of PARALLEL_WEG) s = entferne(s, id)
+export function machParallel(roh: string): { text: string; fehler: string[] } {
+  let s = entferne(roh, PARALLEL_EXPORTFLAECHE)
   // Ungenutzte Marker und Verläufe (die Quelle schleppt sie aus dem Master mit).
   for (const m of [...s.matchAll(/<(marker|linearGradient|radialGradient)\b[^>]*\bid="([^"]+)"/g)]) {
     const id = m[2]
@@ -409,40 +288,44 @@ export function machParallel(roh: string): { text: string; zuordnung: ParallelZu
   }
   s = s.replace(/-inkscape-font-specification:[^;"]*;?/g, '')
   s = s.replace(/xmlns:ns2=/, 'xmlns:cc=').replace(/<(\/?)ns2:/g, '<$1cc:').replace(/\bns2:/g, 'cc:')
-  const { zuordnung, fehler } = parallelZuordnung(s)
-  if (!zuordnung) return { text: s, zuordnung: null, fehler }
-  for (const [alt, neu] of Object.entries(zuordnung.ids)) {
-    if (s.split(`id="${alt}"`).length !== 2) return { text: s, zuordnung: null, fehler: [`${alt} steht nicht genau einmal`] }
-    if (s.includes(`#${alt})`) || s.includes(`#${alt}"`)) return { text: s, zuordnung: null, fehler: [`${alt} wird verwiesen – Umbenennen bräche den Verweis`] }
-    s = s.replace(`id="${alt}"`, `id="${neu}"`)
-  }
-  const a = PARALLEL_AUSSCHNITT
-  s = s.replace(/<svg\b[^>]*>/, (w) =>
-    w
-      .replace(/\s(?:width|height|viewBox)="[^"]*"/g, '')
-      .replace(/<svg\b/, `<svg viewBox="${a.x} ${a.y} ${a.breite} ${a.hoehe}" width="${a.breite}" height="${a.hoehe}"`),
-  )
-  return { text: normalisiere(s, BEARBEITUNGSVERMERK_PARALLEL), zuordnung, fehler: [] }
+  const text = normalisiere(s, BEARBEITUNGSVERMERK_PARALLEL)
+  const fehler = parallelBefunde(text)
+  if (!text.includes('<metadata')) fehler.push('Metadaten (Urheber, Lizenz) fehlen')
+  // Klar sagen, woher die IDs kommen müssen: Die App setzt keine mehr selbst (R9-05, 23.11.2026). Nur wenn eine fehlt
+  // oder doppelt steht – nicht beim Lagebefund „… liegt außerhalb des Ausschnitts“: Da stimmen die IDs, nur der Rahmen
+  // A_Export_Area (bzw. die Boje) im Parcours-Repository nicht; der Hinweis schickte die Suche in die falsche Richtung
+  // (Prüfbefund 23.11.2026).
+  if (fehler.some((f) => PARALLEL_PFLICHT_IDS.includes(PFLICHT_ID_BEFUND.exec(f)?.[1] ?? '')))
+    fehler.push(
+      `Pflicht-IDs der Eine-Bahn-Ausgabe: ${PARALLEL_PFLICHT_IDS.join(', ')} – sie vergibt das Parcours-Repository (parallel.svg, README.parallel.md), die App setzt keine selbst`,
+    )
+  return { text, fehler }
 }
 
-/** Was an der fertigen Parallel.svg nicht stimmt: Pflicht-IDs nicht genau einmal, Rasterbild, Größe, Bojen außerhalb. */
+/**
+ * Was an der fertigen Parallel.svg nicht stimmt: Pflicht-IDs nicht genau einmal, Teile der zweiten Bahn (`B_…`), Steg
+ * oder Maße (R9-06 „nur einer der zwei Parcours und ohne Steg“), Rasterbild, Größe, kein viewBox, Bojen außerhalb.
+ */
 export function parallelBefunde(svg: string): string[] {
   const out: string[] = []
   for (const id of PARALLEL_PFLICHT_IDS) {
     const n = anzahl(svg, id)
     if (n !== 1) out.push(n === 0 ? `${id} fehlt` : `${id} steht ${n}-mal`)
   }
+  const fremd = [...svg.matchAll(new RegExp(`\\bid="(${ANDERE_BAHN}_[^"]*)"`, 'g'))].map((m) => m[1])
+  if (fremd.length > 0) out.push(`enthält die zweite Bahn (${fremd.slice(0, 3).join(', ')}${fremd.length > 3 ? ' …' : ''}) – erwartet ist nur eine`)
+  for (const id of PARALLEL_NIE) if (anzahl(svg, id) > 0) out.push(`enthält ${id} – erwartet ist eine Bahn ohne Steg und Maße`)
   if (/<image\b/.test(svg)) out.push('enthält ein Rasterbild (<image)')
   const bytes = new TextEncoder().encode(svg).length
   if (bytes > PARALLEL_MAX_BYTES) out.push(`${Math.round(bytes / 1024)} KB, mehr als ${PARALLEL_MAX_BYTES / 1024} KB`)
   const vb = /<svg\b[^>]*\bviewBox="([^"]+)"/.exec(svg)?.[1].split(/[\s,]+/).map(Number)
-  if (!vb || vb.length !== 4) out.push('kein viewBox')
+  if (!vb || vb.length !== 4 || !vb.every(Number.isFinite)) out.push('kein viewBox')
   else {
-    const lagen = new Map(elemente(svg).map((e) => [e.id, e.lage]))
-    const rand = 20
-    for (const id of PARALLEL_PFLICHT_IDS.filter((i) => !i.includes('_start_'))) {
-      const p = lagen.get(id)
-      if (p && (p.x - 7 < vb[0] + rand || p.x > vb[0] + vb[2] - rand || p.y < vb[1] + rand || p.y > vb[1] + vb[3] - rand)) out.push(`${id} liegt außerhalb des Ausschnitts`)
+    // Mitte einer Boje ≈ erster Punkt − Radius (die Kreise beginnen rechts außen, r ≈ 7); sie muss im Bild liegen.
+    const lage = lagen(svg)
+    for (const id of PARALLEL_PFLICHT_IDS) {
+      const p = lage.get(id)
+      if (p && (p.x - 7 < vb[0] || p.x - 7 > vb[0] + vb[2] || p.y < vb[1] || p.y > vb[1] + vb[3])) out.push(`${id} liegt außerhalb des Ausschnitts`)
     }
   }
   return out

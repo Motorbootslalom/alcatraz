@@ -248,7 +248,7 @@ export default {
   'wkr.geraet.bojen.beruehrt': 'Berührt',
   'wkr.geraet.bojen.durchfahrt': '2. Durchfahrt (Speedrunde)',
   'wkr.geraet.bojen.durchfahrtKurz': '(2. Durchf.)',
-  'wkr.geraet.bojen.klassenWechsel': '{klasse} – andere Halte',
+  'wkr.geraet.bojen.klassenWechsel': 'Achtung, Klassenwechsel! {klasse}',
   'wkr.geraet.probe.boje': 'Tippe bei „{halt}“ den Knopf „{knopf}“ an.',
   'wkr.geraet.probe.bojeZaehler': 'Tippe bei „{halt}“ zweimal auf „{knopf}“ – das zählt 2 Berührungen ({punkte}).',
   'wkr.geraet.probe.bojeRueckweg': 'Tippe „{knopf}“ – dort stehen die Bojen der Rückfahrt.',

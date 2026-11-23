@@ -15,7 +15,8 @@ clipboard, scanner, logoBild.
   `pokal.ts` (pokalKlassen + disziplinen → einzelwertungen), `pokalBlaetter.ts` (usePokalWertung), `teamListe.ts`.
 - Parallelslalom: `parallelErgebnis.ts` (Runde, Qualifikation, Re-run, PARALLEL_ANNAHMEN), `parallelStage.ts`
   (klassenStand, schreibeRundeFest, alleWeiter, stageErgebnis), `parallelSchluessel.ts`, `parallelBogen.ts` (Listen je Racecourse,
-  rundenZettel A/B, messKennungRunde, musterRundenBoegen), `parallelStartliste.ts` (Blatt: ParallelStartlisten.vue).
+  rundenZettel A/B, messKennungRunde, musterRundenBoegen; 23.11.2026 Zeichnung der einen Bahn PARALLEL_BOGEN_BILD nur
+  für Listen mit Bojen-Spalten, parallelListeMitBild → BogenAuftrag.bild), `parallelStartliste.ts` (Blatt: ParallelStartlisten.vue).
   Ablauf: PARALLEL_RUNDE_FESTSCHREIBEN (state/reducer/parallel.ts) → parallelStage.schreibeRundeFest → parallelBoegen
   → Werte unter `parallel:<runde>/<attempt>` → rundenErgebnis (mitWiederholungen) → klassenStand → stageErgebnis.
   Runden (21.11.2026): pre, semi, small (Kleines Finale, Platz 3/4), final (Platz 1/2) + rerun-*; PARALLEL_RUNDEN in
@@ -23,7 +24,9 @@ clipboard, scanner, logoBild.
   `naechste` = erster); stageErgebnis nimmt 1/2 aus `final`, 3/4 aus `small`. Alte Stände: state/migrate.ts teileAlteFinals.
 - Bögen und Listen: `wkrListen.ts` (wkrBoegenZumStand: planung/plan.ts planEvent, listen.ts, bogen.ts defFuerKlasse,
   qr.ts; Druckfolge WKR_DRUCKFOLGE 21.11.2026: Parcours → Position → Lauf → Klasse, `innen` umstellbar; parallelBogen.ts
-  gleich: Racecourse → Position → Runde; Laufzettel bleiben je Klasse und Lauf), `bogen.ts` (Modell, bogenSeiten), `listen.ts` (veranstaltungsListen), `laufzettel.ts` (messBoegen,
+  gleich: Racecourse → Position → Runde; Laufzettel bleiben je Klasse und Lauf), `bogen.ts` (Modell, bogenSeiten; Bild: das der Klasse aus `bildErzeugen` oder BogenAuftrag.`bild` (Parallelslalom),
+  `ohneBild` gewinnt; BogenBild.`streifen` = flach neben der Legende; bogenMitBild für die Namensnennung am Bildschirm,
+  seiteMitBeschreibung statt hasDescription auf Druckseiten), `listen.ts` (veranstaltungsListen), `laufzettel.ts` (messBoegen,
   buildLaufzettel, zettelSchritte), `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`, `namen.ts`,
   `origin.ts` (Herkunft, Kürzel, Flagge), `ausgleich.ts`, `besetzung.ts`, `qr.ts`, `einteilung.ts` (WKR-Namen UND
   Sprache je Parcours und Liste: setzeSprache, normalisiereSprachen; einteilungsZellen = gedruckte Zellen).
@@ -46,12 +49,17 @@ clipboard, scanner, logoBild.
   19.11.2026 -boote, -Co-Piloten; Knöpfe und Rückfrage `beispielBoote.ts`, mit Vue, nur im BeispieldatenPanel),
   `reihenfolge.ts` (je Klasse nach Spalte, stabil, fehlende hinten; mische; 21.11.2026 Stufen naechsteSortierung ↓ ↑ keine,
   SortierWahl = Stufe + Folge je Klasse, gleicheFolge statt istGeordnet – mit Startnummern-Bereichen sortiert der Reducer je Größengruppe); `saat.ts` neueSaat – nur Oberfläche.
-- Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis, assistent(Texte).
-  Parallelslalom-Zeichnung (R8-19, 22.11.2026, WKR_ANNAHMEN BD8/BD9): parcoursVertrag.ts PARALLEL_QUELLE/PARALLEL_DATEI,
-  parallelZuordnung (IDs je Bahn über die Lage: Tor-IDs unten, Kopien gleiches x oben, Start/Ziel-Gruppen; A = vom Steg
-  in Fahrtrichtung links), machParallel (verkleinern, IDs, PARALLEL_AUSSCHNITT, `ns2:` → `cc:`, eigener Vermerk),
-  parallelBefunde (Pflicht-IDs, kein `<image`, ≤ 100 KB); parcoursQuelle.ts parcoursSvg('Parallel') – parcoursDateien()
-  bleibt die Klassenliste; QUELLE.json `parallel`. Test parcoursVertrag.test.ts (am Original nur mit ../Parcours).
+- Parcours, Assistent: parcoursQuelle, parcoursVertrag (auch Node), parcoursbild, parcoursNachweis (nachweisZeile(sprache) =
+  Zeile im Fuß gedruckter Bögen, Sprache des Bogens aus BogenTexte.sprache, nie t()), assistent(Texte).
+  Parallelslalom-Zeichnung (R8-19, 22.11.2026; seit 23.11.2026 eine Bahn, R9-05…07, WKR_ANNAHMEN BD8–BD10):
+  parcoursVertrag.ts PARALLEL_QUELLE (`dist/parallel/alcatraz_Parcours/ParallelSlalom.svg` = Eine-Bahn-Ausgabe des
+  Parcours-Repos, ohne Steg) /PARALLEL_DATEI, PARALLEL_BAHN 'A', parallelBojeId(n)/parallelStartId(seite) (IDs des
+  Parcours-Repos `A_Boje<n>`, `A_StartZiel_unten|oben`), PARALLEL_PFLICHT_IDS (7), machParallel (nur zurechtmachen:
+  Exportfläche, ungenutzte Marker/Verläufe, `ns2:` → `cc:`, normalisiere mit eigenem Vermerk – benennt nichts um; der
+  Hinweis auf die Herkunft der IDs nur bei „fehlt“/„steht n-mal“, PFLICHT_ID_BEFUND),
+  parallelBefunde (Pflicht-IDs genau einmal, keine `B_…`, kein Steg/Maße, kein `<image`, ≤ 60 KB, Bojen im Bild);
+  parcoursQuelle.ts parcoursSvg('Parallel') – parcoursDateien() bleibt die Klassenliste; QUELLE.json `parallel`.
+  Test parcoursVertrag.test.ts (am Original nur mit ../Parcours).
 - Logos (16.11.2026): `logo.ts` (rein: Grenzen, logoTeile = eine Lesart der data-URL, logoWert, logoHoeheZahl, Maße,
   zielMasse), `logoBild.ts` (nur Browser: verkleinereLogo; testbar svgMasse, svgFuerZiel = viewBox ergänzen),
   `listenLogos.ts` (useListenLogos, logoUrl = Blob-Adressen mit LRU, SVG bleibt data-URL; logoSchluessel).

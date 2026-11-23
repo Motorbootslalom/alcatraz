@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { backNeedsFlip, hasDescription, type BogenSeite } from '../../lib/bogen'
+import { backNeedsFlip, seiteMitBeschreibung, type BogenSeite } from '../../lib/bogen'
 import { t } from '../../i18n'
 import { nachweisZeile } from '../../lib/parcoursNachweis'
 import BogenBild from './BogenBild.vue'
@@ -19,7 +19,9 @@ const def = computed(() => props.seite.def)
 // Hochformat-Bild (±90°) neben der Legende, sonst darunter.
 const nebeneinander = computed(() => Math.abs(props.seite.bild?.drehung ?? 0) === 90)
 const flip = computed(() => backNeedsFlip(props.seite.orientation))
-const nachweis = computed(() => (props.seite.bild && hasDescription(def.value) ? nachweisZeile() : undefined))
+// Ein Bild, das der Auftrag mitbringt (Parallelslalom), zählt als Beschreibung (lib/bogen.ts seiteMitBeschreibung).
+const beschreibung = computed(() => seiteMitBeschreibung(props.seite))
+const nachweis = computed(() => (props.seite.bild && beschreibung.value ? nachweisZeile(props.seite.texte.sprache) : undefined))
 const bildAlt = computed(() => `${props.seite.titel} – ${props.seite.klassenText}`)
 
 // Passt die Beschreibung nicht in die sichtbare Hälfte? Dann ein Hinweis (nur am
@@ -49,9 +51,9 @@ onBeforeUnmount(() => beobachter?.disconnect())
   >
     <p v-if="zuHoch" class="bogen-zuviel">{{ t('sheet.backOverflow') }}</p>
     <div :class="['bogen-rueck-seite', { 'bogen-rueck-seite--flip': flip }]">
-      <div v-if="hasDescription(def)" ref="haelfte" :class="['bogen-rueck-haelfte', nebeneinander ? 'bogen-rueck-haelfte--neben' : 'bogen-rueck-haelfte--stapel']">
+      <div v-if="beschreibung" ref="haelfte" :class="['bogen-rueck-haelfte', nebeneinander ? 'bogen-rueck-haelfte--neben' : 'bogen-rueck-haelfte--stapel']">
         <BogenLegende :def="def" />
-        <div v-if="seite.bild" class="bogen-bild"><BogenBild :bild="seite.bild" :alt="bildAlt" /></div>
+        <div v-if="seite.bild" :class="['bogen-bild', { 'bogen-bild--streifen': seite.bild.streifen }]"><BogenBild :bild="seite.bild" :alt="bildAlt" /></div>
       </div>
       <!-- Namensnennung der Zeichnung: unter der sichtbaren Hälfte, damit sie dort nichts verdrängt. -->
       <p v-if="nachweis" class="bogen-nachweis bogen-nachweis--rueck">{{ nachweis }}</p>

@@ -944,7 +944,7 @@ gebaute Stand:
   `dist/parallel/en/pontoon_bottom/ParallelSlalom.svg`, beim Sync von 493 KB auf 23 KB verkleinert
   (`src/assets/parcours/Parallel.svg`), IDs je Bahn über die Lage gesetzt (BD8), Racecourse A = vom Steg aus linke
   Bahn (BD9), fremde Bahn gedimmt ohne Treffer (BD10) – noch zu bestätigen, Frage: IDs im Parcours-Repo direkt
-  vergeben?
+  vergeben? Überholt 23.11.2026 durch R9-05 bis R9-07 (unten): eine Bahn ohne Steg, IDs aus dem Parcours-Repo.
 - 2026-11-22 · R8-20 · **Kein automatischer Wechsel des Bild-Umschalters** (gegen BD4): „Den automatischen Wechsel
   bitte wieder raus.“ Der erste Tipp an Tor 5 schaltet nicht mehr von selbst auf „Rückweg“. **Umgesetzt 22.11.2026**
   (Scheibe 3, §4.2): wkr/bild.ts wegNachTipp entfernt, der Umschalter des Bilds wechselt nur von Hand (BD4 umgebaut,
@@ -992,6 +992,60 @@ gebaute Stand:
   kein Titel, keine Namensnennung unter WkrBild und WkrParcoursBild; auf dem Gerät (ohne Zugang zu den Einstellungen)
   steht die Zeile nur noch zugeklappt unter „Mehr“; --wkr-bild-rest 440 → 380 px, die Zeichnung wird entsprechend größer.
 
+### Antworten 23.11.2026 (Runde 9)
+
+Antworten des Nutzers auf die Fragenseite, Runde 9 (R9-01…R9-14: mehrere Disq. an einer Boje, langes Drücken,
+Parallelslalom-Zeichnung, Knoten am Tisch, Zeit-Listen, Übung, Beispieldaten). R9-01 bis R9-04 und R9-08 bis R9-14 hat
+er mit „passt“ bestätigt – in `WKR_ANNAHMEN` je Eintrag „Bestätigt 23.11.2026 (Frage)“: BZ1 (neue Fassung) und BZ6
+(R9-01: Punkte zuerst, Buchstaben in Katalogfolge mit Komma), BZ7 (R9-02: Mehrfachwahl mit „Fertig“), U3, LD1, LD3 und
+der Langdruck in BD7 (R9-03: ab 0,8 s, Ring ab 0,3 s, Abbruch ab 10 px), LD2, LD4 (R9-04: Tipp zählt beim Loslassen),
+KN9 (R9-08: Folge des Starter-Reiters, nicht die Startfolge des Tages), KN7/KN10 und KN12 (R9-09: Vorschlag vorbelegt,
+„Alle richtig“ schickt in einem Tipp ab), KN8/KN11 (R9-10: Rückfrage in der Maske), ZT3 und ZT5 (R9-11: nur das erste
+Zeitfeld Pflicht), ZT6 (R9-12: Sprung bei vollständiger Zeit), Y4 (R9-13: „Klasse vorziehen“ wirkt einmal); BS3/BS4
+in `components/BeispieldatenPanel.vue` und `domain/generate.ts` (R9-14: Hand-Zahlen bleiben, „Zurücksetzen“ nur mit
+Hand-Zahlen). Anders entschieden hat er die drei Fragen zur Parallelslalom-Zeichnung:
+
+- 2026-11-23 · R9-05 · **IDs im Parcours-Repository vergeben, nur eine Bahn** (gegen BD8, Zuordnung nach Lage): „Auf
+  dem Parallel-Slalom-Parcours ist A und B dargestellt. Wir brauchen bei dem Bild in der App und auf den WKR-Listen nur
+  einen von beiden. Bitte den Parcours auch unter ../parcours berichtigen und mit A und B in den IDs benennen.“
+- 2026-11-23 · R9-06 · **Keine Zuordnung Racecourse ↔ Bahn der Zeichnung, ohne Steg** (gegen BD9 „A = obere Bahn“):
+  „Für die Eintragung ist das eigentlich egal. Die Zeichnung ist eine schematische Darstellung und variiert von
+  Standort zu Standort. Also was den Steg angeht und ob sie nebeneinander passen. Daher kommt auf den Listen und auf
+  dem Gerät nur einer der zwei Parcours und ohne Steg.“
+- 2026-11-23 · R9-07 · **Nur eine Bahn im Bild** (gegen BD10, ganze Zeichnung mit gedimmter fremder Bahn): „Nur eine
+  Bahn.“
+
+**Umgesetzt 23.11.2026:**
+
+- Parcours-Repository (Commit a9c4275, eigener Schritt): `parallel.svg` trägt IDs je Bahn (`A_Boje1` … `A_Boje5`,
+  `A_StartZiel_oben`/`_unten`, `A_StartZiel_Linie`, `A_Nummer_Boje<n>`, `A_Fahrlinie_hin`/`_rueck`, `A_Steg`,
+  `A_Abmessung`, Bahn B ebenso mit `B_`; Tabelle in README.parallel.md); neue Ausgabe „eine Bahn ohne Steg“
+  `dist/parallel/alcatraz_Parcours/ParallelSlalom.svg` (nur Bahn A mit Fahrlinien, ohne Steg, Logos, Titel, Maße,
+  765 × 182). Die übrigen Ausgaben sehen unverändert aus.
+- Scheibe 1 „App-Bild: eine Bahn“: `npm run parcours:sync` übernimmt diese Datei als `src/assets/parcours/Parallel.svg`
+  (13 KB) ohne Umbenennen; lib/parcoursVertrag.ts prüft nur noch (PARALLEL_PFLICHT_IDS: Bojen 1–5, Start/Ziel
+  oben/unten je genau einmal; keine zweite Bahn, kein Steg, keine Maße, kein Rasterbild; Lage im Bild) und bricht
+  sonst mit einer Meldung ab, die die fehlende ID und ihre Herkunft nennt. Die Zuordnung nach Lage (parallelZuordnung)
+  und der Zuschnitt in der App (PARALLEL_AUSSCHNITT) sind entfernt. Maske „Bild“: Racecourse A und B zeigen dieselbe
+  eine Bahn mit denselben Treffern (`A_Boje<n>`, Start/Ziel seiteA = `A_StartZiel_unten`, seiteB = `_oben`), nichts
+  gedimmt; welcher Racecourse, sagt die Liste (`aria-label`, `data-racecourse`). Das Schema (Rückfall ohne Datei) ist
+  für A und B ebenfalls gleich (vorher B gespiegelt) – beim Bau ausgelegt, noch zu bestätigen. BD3 ergänzt, BD8–BD10
+  umgeschrieben (Schalter jetzt `bildParallelIdsAusParcoursRepo`, `bildParallelEineBahnFuerBeide`,
+  `bildParallelNurEineBahn`).
+- Scheibe 2 „Parallel-WKR-Bögen mit der Zeichnung einer Bahn“ („… und auf den WKR-Listen nur einen von beiden“):
+  Der Fahrweg-Bogen von Racecourse A und B trägt dieselbe Bahn wie das Gerät (lib/parallelBogen.ts
+  PARALLEL_BOGEN_BILD über BogenAuftrag.bild, lib/bogen.ts), mit Namensnennung im Fuß und am Bildschirm unter den Bögen
+  (auch in der Muster-Runde der Beispielansicht). Beim Bau ausgelegt, **noch zu bestätigen**: (a) nur der
+  Fahrweg-Bogen – die Liste mit Bojen-Spalten –, Zeit und Steg ohne, wie im Manövrieren; (b) vorn rechts neben der
+  Legende, höchstens so hoch wie sie (`.bogen--bild-streifen`), damit die Zeilen je Blatt, die Seitenzahlen und die
+  Laufzettel-Kästchen bleiben (gemessen: Fuß 40,2 mm mit und ohne; darunter in voller Breite kostete sie rund acht
+  Zeilen je Blatt) – 94 × 22 mm (Bojen 1,7 mm, Ziffern rund 4,5 pt); (c) mit „Beschreibung auf der Rückseite“
+  dort unter der Legende in voller Breite. Nach einem Prüfbefund (23.11.2026) ist der Rahmen immer 100 mm breit:
+  Zweisprachig blieben neben der 144 mm breiten Legende sonst nur 45 × 11 mm (Bojen 0,8 mm, nicht lesbar); jetzt
+  bricht dort die Legende auf rund 91 mm um, die Zeichnung ist 98 × 23 mm groß und der Bogen fasst 24 statt 26 Zeilen
+  je Blatt (einsprachig unverändert 31). Die Namensnennung im Fuß steht in der Sprache des Bogens (vorher in der der
+  Oberfläche). Docs: [parallelslalom.md](parallelslalom.md) „WKR-Listen des Vorlaufs“.
+
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
@@ -1014,7 +1068,14 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
   auf Bojen und im Bild R7-21/R8-23, kein automatischer Wechsel im Bild R8-20, Parallel-Zeichnung aus dem
   Parcours-Repo R8-19; Knoten: nächste offene vorschlagen, „Alle richtig“, Rückfrage bei erfasster Nummer
   R8-27/R8-31/R8-32; Übung: Klasse vorziehen R7-45; Handeingaben je Klasse mit Reset-Knopf R7-51) – nichts mehr
-  offen; zu bestätigen bleiben die neuen Auslegungen ([plan-antworten-runde7-8.md](plan-antworten-runde7-8.md) §8).
+  offen; die neuen Auslegungen stehen in [plan-antworten-runde7-8.md](plan-antworten-runde7-8.md) §8, seit 23.11.2026
+  mit dem Stand nach Runde 9 je Zeile: bestätigt bis auf BD3/BD8, BD9 und BD10 (R9-05 bis R9-07, NICHT bestätigt und
+  umgebaut, Abschnitt „Antworten 23.11.2026 (Runde 9)“); AM1/AM2, BZ8 und BD4 folgen früheren Entscheidungen.
+- Antworten 23.11.2026 (Runde 9, Abschnitt oben): Parallelslalom-Zeichnung eine Bahn ohne Steg, IDs aus dem
+  Parcours-Repo (R9-05 bis R9-07) – gebaut 23.11.2026: Gerätebild (Scheibe 1) und Fahrweg-Bogen auf Papier
+  (Scheibe 2; noch zu bestätigen: nur der Fahrweg-Bogen, rechts neben der Legende in 100 mm Breite – zweisprachig
+  bricht die Legende dafür um und der Bogen fasst 2 Zeilen weniger je Blatt). Veröffentlichen: erst den
+  Parcours-Commit pushen, dann alcatraz (QUELLE.json und die Namensnennung nennen ihn).
 
 ## Offen
 

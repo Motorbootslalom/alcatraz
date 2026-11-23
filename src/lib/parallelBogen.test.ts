@@ -4,7 +4,9 @@ import { aufbauFuer, aufbautenFuer, aufbauOf, PARALLEL } from '../config/catalog
 import { emptyState, reducer } from '../state/reducer'
 import { migrate } from '../state/migrate'
 import { plaetzeVon } from '../planung/parallelRunden'
-import { bogenSeiten } from './bogen'
+import { bogenMitBild, bogenSeiten, seiteMitBeschreibung } from './bogen'
+import { PARALLEL_DATEI } from './parcoursVertrag'
+import { parcoursSvg } from './parcoursQuelle'
 import { laufSchluessel, verborgeneZellen } from './eingaben'
 import { bogenFortschritt, zeilenSchluessel } from './erfassung'
 import { haengeUm, normalisiereEinteilung } from './einteilung'
@@ -18,8 +20,10 @@ import {
   messKennungRunde,
   musterRundenBoegen,
   musterStarter,
+  PARALLEL_BOGEN_BILD,
   parallelAufbauId,
   parallelBoegen,
+  parallelListeMitBild,
   parallelListen,
   rundenSeitenzahl,
   rundenZeilen,
@@ -352,6 +356,49 @@ describe('Listen des Vorlaufs', () => {
     expect(migrate(JSON.parse(JSON.stringify(state)))!.einteilung).toEqual(state.einteilung)
     const neu = reducer(reducer(state, { type: 'SET_VERZAHNUNG_LOCK', locked: false }), { type: 'SET_PARCOURS_PRESET', parcours: [{ id: 'par_neu', classIds: ['E', '1', '4'] }] })
     expect(neu.einteilung[RACECOURSE_PARCOURS.A]).toEqual({ zeit: 'Erika Beispiel' })
+  })
+})
+
+describe('Zeichnung der Bahn auf dem Fahrweg-Bogen (23.11.2026, R9-05 bis R9-07)', () => {
+  it('nur der Fahrweg-Bogen trägt sie – auf A und B dieselbe eine Bahn, ungedimmt, als Streifen neben der Legende', () => {
+    const { boegen } = parallelBoegen(uim(), konfig)
+    const mit = boegen.filter((b) => b.auftrag.bild)
+    expect(mit.map((b) => `${b.runde!.racecourse}|${b.typeId}`)).toEqual(['A|parallelparcours', 'B|parallelparcours'])
+    for (const b of mit) expect(b.auftrag.bild).toBe(PARALLEL_BOGEN_BILD)
+    expect(PARALLEL_BOGEN_BILD).toEqual({ datei: PARALLEL_DATEI, vorgabe: { dim: [], aus: [] }, drehung: 0, streifen: true })
+    // Die Regel: eine Liste mit Bojen-Spalten (dieselbe, die auf dem Gerät die Maske „Bild“ hat).
+    expect(parallelListen(konfig).filter((typeId) => parallelListeMitBild(konfig.getSheetDef(typeId)))).toEqual(['parallelparcours'])
+    // Die Zeichnung ist gebündelt (kein Nachladen) und ist die eine Bahn: Bojen von A, nichts von B, kein Steg.
+    const svg = parcoursSvg(PARALLEL_DATEI)!
+    expect(svg).toContain('id="A_Boje1"')
+    expect(svg).not.toMatch(/id="B_/)
+    // Namensnennung am Bildschirm und auf dem Bogen folgen derselben Regel wie das Bild.
+    expect(boegen.map((b) => bogenMitBild(konfig, b.auftrag))).toEqual(boegen.map((b) => b.typeId === 'parallelparcours'))
+    expect(bogenMitBild(konfig, { ...mit[0].auftrag, ohneBild: true })).toBe(false)
+  })
+
+  it('jede Druckseite trägt sie, die Seiten teilen sich wie ohne Zeichnung', () => {
+    const state = uim([...mk('1', 8), ...mk('4', 8)])
+    const fahrweg = parallelBoegen(state, konfig).boegen.find((b) => b.typeId === 'parallelparcours')!
+    const { bild: _bild, ...ohneBild } = fahrweg.auftrag
+    for (const kap of [0, 7, 13, 30]) {
+      const mit = bogenSeiten(konfig, fahrweg.auftrag, { ...fahrweg.optionen, zeilenKapazitaet: kap })
+      const ohne = bogenSeiten(konfig, ohneBild, { ...fahrweg.optionen, zeilenKapazitaet: kap })
+      expect(mit.map((s) => s.rows.map((r) => r.key)), String(kap)).toEqual(ohne.map((s) => s.rows.map((r) => r.key)))
+      expect(mit.every((s) => s.bild === PARALLEL_BOGEN_BILD)).toBe(true)
+      expect(ohne.every((s) => s.bild === undefined)).toBe(true)
+    }
+    // Ein mitgebrachtes Bild ist Beschreibung (Rückseite, Hinweis vorn) – auch wo die Legende leer wäre.
+    const zeit = parallelBoegen(state, konfig).boegen.find((b) => b.typeId === 'zeit')!
+    const [seite] = bogenSeiten(konfig, { ...zeit.auftrag, bild: PARALLEL_BOGEN_BILD }, zeit.optionen)
+    expect(seiteMitBeschreibung(seite)).toBe(true)
+    expect(seiteMitBeschreibung(bogenSeiten(konfig, zeit.auftrag, zeit.optionen)[0])).toBe(false)
+  })
+
+  it('auch die Muster-Runde der Beispielansicht; unter der DM gibt es keine', () => {
+    const muster = musterRundenBoegen(reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' }), konfig, { anzahl: 10, praefix: 'M', klasse: '3' })
+    expect(muster.boegen.filter((b) => b.auftrag.bild === PARALLEL_BOGEN_BILD).map((b) => b.id)).toEqual(['parallel|pre|A|parallelparcours', 'parallel|pre|B|parallelparcours'])
+    expect(parallelBoegen(uim(), dm).boegen).toEqual([])
   })
 })
 

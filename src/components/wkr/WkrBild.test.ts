@@ -202,7 +202,8 @@ describe('WkrBild (W5.2)', () => {
     }
   })
 
-  // R8-19 (22.11.2026, BD3 umgebaut, BD8–BD10): die Parallel-Zeichnung aus dem Parcours-Repo statt des Schemas.
+  // R8-19 (22.11.2026, BD3 umgebaut); seit 23.11.2026 (R9-05 bis R9-07, BD8–BD10 umgebaut) eine Bahn ohne Steg mit den
+  // IDs des Parcours-Repositorys – für Racecourse A und B dieselbe.
   const UIM = configFor({ regelwerk: 'uim-2026' })
   const parallel = (rc: 'A' | 'B', svgVon?: (d: string) => string | undefined) => {
     const s = { liste: listenKennung({ bereich: 'parallel', typeId: 'parallelparcours', racecourse: rc }), klassen: maskenJeKlasse(UIM, UIM, 'parallelparcours', KLASSEN, false) } as ListenSicht
@@ -211,30 +212,32 @@ describe('WkrBild (W5.2)', () => {
     return mount(WkrBild, { props: { aufbau, entwurf: leererEntwurf(), zuordnung: bildTreffer(s, k, svgVon)!, klasse: aufbau.titel, startNr: '5', weg: 'hin' } })
   }
 
-  it('Parallelslalom: Zeichnung mit beiden Bahnen, fremde gedimmt und ohne Treffer, Namensnennung unter „Mehr“', () => {
+  it('Parallelslalom: eine Bahn für A und B, nichts gedimmt, Racecourse aus der Liste, Namensnennung unter „Mehr“', () => {
+    const ids: Record<string, string[]> = {}
     for (const rc of ['A', 'B'] as const) {
-      const fremd = rc === 'A' ? 'B' : 'A'
       const w = parallel(rc, parcoursSvg)
       expect(w.find('[data-teil="bild"]').attributes('data-art')).toBe('svg')
       expect(w.find('[data-teil="bild-flaeche"]').attributes('data-racecourse')).toBe(rc)
       expect(w.find('[data-teil="bild-schema"]').exists()).toBe(false)
-      expect(w.find("figure").attributes("aria-label")).toBe(`Racecourse ${rc}`)
+      expect(w.find('figure').attributes('aria-label')).toBe(`Racecourse ${rc}`)
       const svg = w.find('.wkr-bild-svg > svg')
       expect(svg.exists()).toBe(true)
       expect(svg.html()).not.toContain('<image')
-      // Eigene Bahn antippbar, fremde nicht – aber in der Zeichnung (gedimmt).
-      for (const n of [1, 2, 3, 4, 5]) {
-        expect(treffer(w, `P_${rc}_b${n}`).exists(), `${rc} b${n}`).toBe(true)
-        expect(treffer(w, `P_${fremd}_b${n}`).exists()).toBe(false)
-        expect(svg.find(`[id$="P_${fremd}_b${n}"]`).attributes('style')).toMatch(/opacity:0\./)
-      }
-      expect(treffer(w, `P_${rc}_start_seiteA`).exists()).toBe(true)
+      // Nur die eine Bahn: keine zweite, kein Steg, nichts gedimmt (R9-07 „Nur eine Bahn.“).
+      expect(svg.html()).not.toMatch(/id="[^"]*-B_|Steg/)
+      expect(svg.html()).not.toMatch(/style="[^"]*;opacity:0\./)
+      for (const n of [1, 2, 3, 4, 5]) expect(treffer(w, `A_Boje${n}`).exists(), `${rc} Boje ${n}`).toBe(true)
+      expect(treffer(w, 'A_StartZiel_unten').exists()).toBe(true)
+      expect(treffer(w, 'A_StartZiel_oben').exists()).toBe(true)
+      ids[rc] = w.findAll('[data-action="bild-boje"]').map((b) => `${b.attributes('data-bild-id')}|${b.attributes('data-feld')}`)
       // Namensnennung nicht unter dem Bild, sondern unter „Mehr“ (Nutzer 23.11.2026).
       expect(w.find('[data-teil="bild-nachweis"]').exists()).toBe(false)
     }
+    // Dieselben Treffer auf derselben Bahn – welcher Racecourse, sagt nur die Liste.
+    expect(ids.B).toEqual(ids.A)
   })
 
-  it('Parallelslalom ohne Parallel.svg: Schema des Racecourse (Rückfall), B gespiegelt, ohne Namensnennung', () => {
+  it('Parallelslalom ohne Parallel.svg: Schema des Racecourse (Rückfall, für A und B gleich), ohne Namensnennung', () => {
     for (const rc of ['A', 'B'] as const) {
       const w = parallel(rc)
       expect(w.find('[data-teil="bild-schema"]').attributes('data-racecourse')).toBe(rc)

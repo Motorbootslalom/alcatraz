@@ -8,17 +8,19 @@ import {
   machParallel,
   metadaten,
   normalisiere,
-  PARALLEL_AUSSCHNITT,
+  PARALLEL_BAHN,
   PARALLEL_DATEI,
   PARALLEL_PFLICHT_IDS,
   PARALLEL_QUELLE,
   parallelBefunde,
-  parallelZuordnung,
+  parallelBojeId,
+  parallelStartId,
 } from './parcoursVertrag'
 
-// Parallelslalom-Zeichnung (R8-19, Plan docs/plan-antworten-runde7-8.md §5, 22.11.2026; WKR_ANNAHMEN BD8, BD9): Der Sync
-// holt sie aus dem Parcours-Repository, verkleinert sie und setzt IDs je Bahn über die Lage – ohne Änderung dort.
-// Am Original nur, wenn das Parcours-Repository als Nachbarordner liegt (wie beim Sync); am Asset immer.
+// Parallelslalom-Zeichnung (R8-19, 22.11.2026; seit 23.11.2026 nach R9-05 bis R9-07 eine Bahn ohne Steg, IDs aus dem
+// Parcours-Repository; WKR_ANNAHMEN BD8–BD10): Der Sync übernimmt die Eine-Bahn-Ausgabe und prüft nur noch – keine
+// Zuordnung nach Lage mehr. Am Original nur, wenn das Parcours-Repository als Nachbarordner liegt (wie beim Sync); am
+// Asset immer.
 
 const QUELLE = join(process.cwd(), '..', 'Parcours', PARALLEL_QUELLE.ordner, PARALLEL_QUELLE.datei)
 const mitQuelle = existsSync(QUELLE)
@@ -31,19 +33,31 @@ describe('Parallel.svg (eingecheckt)', () => {
     expect(parcoursDateien()).not.toContain(PARALLEL_DATEI)
   })
 
-  it('trägt je Bahn genau die IDs b1–b5 und Start/Ziel A/B, ohne Rasterbild, klein', () => {
+  it('trägt die IDs des Parcours-Repositorys: Bojen 1–5 und Start/Ziel oben/unten, je genau einmal', () => {
     expect(parallelBefunde(svg)).toEqual([])
-    expect(PARALLEL_PFLICHT_IDS).toHaveLength(14)
+    expect(PARALLEL_BAHN).toBe('A')
+    expect(PARALLEL_PFLICHT_IDS).toEqual(['A_Boje1', 'A_Boje2', 'A_Boje3', 'A_Boje4', 'A_Boje5', 'A_StartZiel_unten', 'A_StartZiel_oben'])
     for (const id of PARALLEL_PFLICHT_IDS) expect(svg.split(`id="${id}"`).length - 1, id).toBe(1)
-    // Die Tor-IDs des Manövrierparcours sind umbenannt – sonst sähe bild.ts dort Klassen-Bojen.
-    expect(svg).not.toMatch(/id="Tor\d_(innen|aussen|oben|unten)"/)
-    expect(svg).not.toMatch(/<image|<script|<foreignObject|LogoEN|sodipodi:|inkscape:/)
-    expect(new TextEncoder().encode(svg).length).toBeLessThan(60 * 1024)
-    expect(svg).toContain(`viewBox="${PARALLEL_AUSSCHNITT.x} ${PARALLEL_AUSSCHNITT.y} ${PARALLEL_AUSSCHNITT.breite} ${PARALLEL_AUSSCHNITT.hoehe}"`)
+    // seiteA = die untere Boje im Bild, wie bei den Klassen-Zeichnungen (config/kurzform.ts SEITE).
+    expect(parallelStartId('seiteA')).toBe('A_StartZiel_unten')
+    expect(parallelStartId('seiteB')).toBe('A_StartZiel_oben')
+    expect(parallelBojeId(3)).toBe('A_Boje3')
+  })
+
+  it('zeigt nur eine Bahn: keine zweite Bahn, kein Steg, keine Maße, kein Titel (R9-06, R9-07)', () => {
+    expect(svg).not.toMatch(/id="B_/)
+    expect(svg).not.toMatch(/Steg|abmessung|Abmessung|id="Titel"|id="Beschreibung"/)
+    // Auch keine IDs aus der Zeit der Zuordnung nach Lage und keine Tor-IDs des Manövrierparcours (bild.ts sähe Klassen-Bojen).
+    expect(svg).not.toMatch(/id="P_|id="Tor\d/)
+    expect(svg).not.toMatch(/<image|<script|<foreignObject|LogoEN|sodipodi:|inkscape:|Export_Area/)
+    expect(new TextEncoder().encode(svg).length).toBeLessThan(20 * 1024)
+    // Zugeschnitten auf die Bahn: breit und flach (Parcours: A_Export_Area 765 × 182).
+    expect(svg).toMatch(/<svg\b[^>]*\bviewBox="0 0 765 182"/)
   })
 
   it('ist durch den Sync gelaufen: Vermerk genau einmal, Namensnennung in den Metadaten', () => {
     expect(normalisiere(svg, BEARBEITUNGSVERMERK_PARALLEL)).toBe(svg)
+    expect(machParallel(svg)).toEqual({ text: svg, fehler: [] })
     expect(svg.split(`<dc:description>${BEARBEITUNGSVERMERK_PARALLEL}</dc:description>`).length - 1).toBe(1)
     expect(metadaten(svg)).toMatchObject({ urheber: PARCOURS_HERKUNFT.urheber })
     expect(metadaten(svg).lizenzUrl.replace(/^https?:\/\//, '')).toBe(ERWARTETE_LIZENZ.url.replace(/^https?:\/\//, ''))
@@ -51,7 +65,8 @@ describe('Parallel.svg (eingecheckt)', () => {
     expect(BEARBEITUNGSVERMERK_PARALLEL).toContain(ERWARTETE_LIZENZ.name)
   })
 
-  it('QUELLE.json nennt die Parallel-Quelle (derselbe Commit, anderer Ordner)', () => {
+  it('QUELLE.json nennt die Parallel-Quelle (derselbe Commit, Ordner der Eine-Bahn-Ausgabe)', () => {
+    expect(PARALLEL_QUELLE.ordner).toBe('dist/parallel/alcatraz_Parcours')
     expect(PARCOURS_HERKUNFT.parallel).toMatchObject({
       ordner: PARALLEL_QUELLE.ordner,
       quelle: PARALLEL_QUELLE.datei,
@@ -61,49 +76,58 @@ describe('Parallel.svg (eingecheckt)', () => {
   })
 })
 
-describe.skipIf(!mitQuelle)('Parallel-Zuordnung am Original (../Parcours)', () => {
+describe.skipIf(!mitQuelle)('Parallel-Zeichnung am Original (../Parcours)', () => {
   const roh = mitQuelle ? readFileSync(QUELLE, 'utf8') : ''
-
-  it('untere Bahn über die Tor-IDs, obere über gleiches x; Start/Ziel-Kreise über die Gruppen; A = obere Bahn (BD9)', () => {
-    const { zuordnung, fehler } = parallelZuordnung(roh)
-    expect(fehler).toEqual([])
-    // Vom Steg aus in Fahrtrichtung (Start → Boje 5, nach rechts) liegt die obere Bahn links.
-    expect(zuordnung!.bahnA).toBe('oben')
-    expect(zuordnung!.ids).toMatchObject({
-      Tor1_aussen: 'P_B_b1',
-      Tor2_innen: 'P_B_b2',
-      Tor3_aussen: 'P_B_b3',
-      Tor4_innen: 'P_B_b4',
-      Tor5_unten: 'P_B_b5',
-      path17530: 'P_A_b1',
-      path17538: 'P_A_b5',
-      // seiteA = die untere Boje im Bild (config/kurzform.ts SEITE).
-      g13172: 'P_B_start_seiteA',
-      g13156: 'P_B_start_seiteB',
-      g17526: 'P_A_start_seiteA',
-      g17522: 'P_A_start_seiteB',
-    })
-  })
 
   it('das eingecheckte Asset ist genau das, was der Sync heute daraus macht', () => {
     const r = machParallel(roh)
     expect(r.fehler).toEqual([])
-    expect(new TextEncoder().encode(roh).length).toBeGreaterThan(400 * 1024)
     expect(r.text).toBe(parcoursSvg(PARALLEL_DATEI))
+    // Die Pflicht-IDs stehen schon in der Quelle – der Sync benennt nichts um (R9-05).
+    for (const id of PARALLEL_PFLICHT_IDS) expect(roh.split(`id="${id}"`).length - 1, id).toBe(1)
   })
 
-  it('bricht ab, wenn eine Boje fehlt oder doppelt ist', () => {
-    expect(machParallel(roh.replace('id="Tor3_aussen"', 'id="weg"')).fehler.join()).toContain('Tor3_aussen')
-    const doppelt = roh.replace('id="path17534"', 'id="path17534"/><path d="m 687.39644,600 c 1,1 1,1 1,1 z" id="extra"')
-    expect(machParallel(doppelt).zuordnung).toBeNull()
+  it('bricht mit klarer Meldung ab, wenn eine Pflicht-ID fehlt oder doppelt ist', () => {
+    const ohne = machParallel(roh.replace('id="A_Boje3"', 'id="weg"'))
+    expect(ohne.fehler).toContain('A_Boje3 fehlt')
+    // … und sagt, woher die IDs kommen müssen.
+    expect(ohne.fehler.at(-1)).toMatch(/Pflicht-IDs der Eine-Bahn-Ausgabe: A_Boje1, .*A_StartZiel_oben – sie vergibt das Parcours-Repository/)
+    const doppelt = machParallel(roh.replace('</svg>', '<path id="A_StartZiel_unten" d="m 10,10 z"/></svg>'))
+    expect(doppelt.fehler).toContain('A_StartZiel_unten steht 2-mal')
   })
 })
 
 describe('Parallel-Befunde', () => {
+  const svg = parcoursSvg(PARALLEL_DATEI)!
+
   it('meldet Rasterbild, fehlende und doppelte IDs', () => {
-    const svg = parcoursSvg(PARALLEL_DATEI)!
     expect(parallelBefunde(svg.replace('</svg>', '<image href="data:x"/></svg>'))).toContain('enthält ein Rasterbild (<image)')
-    expect(parallelBefunde(svg.replace('id="P_A_b2"', 'id="x"'))).toContain('P_A_b2 fehlt')
-    expect(parallelBefunde(svg.replace('</svg>', '<path id="P_B_b1"/></svg>'))).toContain('P_B_b1 steht 2-mal')
+    expect(parallelBefunde(svg.replace('id="A_Boje2"', 'id="x"'))).toContain('A_Boje2 fehlt')
+    expect(parallelBefunde(svg.replace('</svg>', '<path id="A_Boje1"/></svg>'))).toContain('A_Boje1 steht 2-mal')
+  })
+
+  it('meldet die zweite Bahn und den Steg (R9-06: „nur einer der zwei Parcours und ohne Steg“)', () => {
+    const zwei = parallelBefunde(svg.replace('</svg>', '<path id="B_Boje1" d="m 10,10 z"/><path id="B_Boje2" d="m 10,10 z"/></svg>'))
+    expect(zwei).toContain('enthält die zweite Bahn (B_Boje1, B_Boje2) – erwartet ist nur eine')
+    expect(parallelBefunde(svg.replace('</svg>', '<g id="A_Steg"/></svg>'))).toContain('enthält A_Steg – erwartet ist eine Bahn ohne Steg und Maße')
+  })
+
+  it('meldet eine Boje außerhalb des Bilds', () => {
+    const weit = svg.replace(/(d="\s*m\s*)([-\d.]+)([^"]*"\s*id="A_Boje5")/, (_, a: string, x: string, b: string) => `${a}${Number(x) + 900}${b}`)
+    expect(weit).not.toBe(svg)
+    expect(parallelBefunde(weit)).toEqual(['A_Boje5 liegt außerhalb des Ausschnitts'])
+    // Der Sync meldet die Lage, aber nicht, die IDs müssten im Parcours-Repository vergeben werden – die stimmen ja
+    // (Prüfbefund 23.11.2026: der Hinweis hing an jedem Befund, der mit einer Pflicht-ID beginnt).
+    expect(machParallel(weit).fehler).toEqual(['A_Boje5 liegt außerhalb des Ausschnitts'])
+  })
+
+  it('machParallel nennt die Herkunft der IDs nur, wenn eine fehlt oder doppelt ist (auch ohne ../Parcours geprüft)', () => {
+    const hinweis = /^Pflicht-IDs der Eine-Bahn-Ausgabe: /
+    const ohne = machParallel(svg.replace('id="A_Boje4"', 'id="x"')).fehler
+    expect(ohne).toContain('A_Boje4 fehlt')
+    expect(ohne.filter((f) => hinweis.test(f))).toHaveLength(1)
+    expect(machParallel(svg.replace('</svg>', '<path id="A_Boje1"/></svg>')).fehler.some((f) => hinweis.test(f))).toBe(true)
+    // Andere Befunde, auch solche mit „A_…“ vorn, bleiben ohne den Hinweis.
+    expect(machParallel(svg.replace('</svg>', '<g id="A_Steg"/></svg>')).fehler).toEqual(['enthält A_Steg – erwartet ist eine Bahn ohne Steg und Maße'])
   })
 })

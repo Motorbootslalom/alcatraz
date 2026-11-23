@@ -237,7 +237,7 @@ export default {
   'wkr.geraet.bojen.beruehrt': 'Touched',
   'wkr.geraet.bojen.durchfahrt': '2nd pass (speed lap)',
   'wkr.geraet.bojen.durchfahrtKurz': '(2nd pass)',
-  'wkr.geraet.bojen.klassenWechsel': '{klasse} – other stations',
+  'wkr.geraet.bojen.klassenWechsel': 'Attention, class change! {klasse}',
   'wkr.geraet.probe.boje': 'At “{halt}”, tap the button “{knopf}”.',
   'wkr.geraet.probe.bojeZaehler': 'At “{halt}”, tap “{knopf}” twice – that counts 2 touches ({punkte}).',
   'wkr.geraet.probe.bojeRueckweg': 'Tap “{knopf}” – the buoys of the return run are there.',

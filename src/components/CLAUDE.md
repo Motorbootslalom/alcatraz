@@ -9,7 +9,12 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   KopfLogos (Logos links/rechts im Kopf; ohne Logo nur der Slot), AufbauBalken (21.11.2026: Ladebalken mit echtem Stand
   `data-teil="aufbau"`, Zeile `aufbau-zeile` als „Abspann“, erst nach AUFBAU.anzeigeAbMs; Satz `aufbau-druck` nur auf Papier).
 - WKR-Bögen `bogen/`: BogenBlatt (misst erste Seite, bogenSeiten, meldet seiten/kapazitaet), BogenSeite, BogenKopf
-  (schwebender QR), BogenLegende, BogenBild, BogenRueckseite (180° gedreht). Reiter: WkrListen, ParallelWkrListen,
+  (schwebender QR), BogenLegende, BogenBild, BogenRueckseite (180° gedreht). Flache Zeichnung (`bild.streifen`,
+  Parallelslalom-Fahrweg 23.11.2026): BogenSeite `.bogen--bild-streifen` + `.bogen-bild--streifen` – Raster Legende |
+  Bild, das Bild absolut in seiner Zelle, Rahmen 100 mm (keine Höhe; einsprachig keine Zeile weniger, zweisprachig
+  bricht die Legende um – Prüfbefund 23.11.2026; styles/bogen.css, Test styles/blatt.test.ts); auf der Rückseite unter
+  der Legende in eigener Höhe. Namensnennung im Fuß: nachweisZeile(seite.texte.sprache) – Sprache des Bogens. Beschreibung je Seite über lib/bogen.ts seiteMitBeschreibung.
+  ParallelWkrListen zeigt wie WkrListen darunter ParcoursNachweis (no-print), wenn ein Bogen ein Bild trägt (bogenMitBild). Reiter: WkrListen, ParallelWkrListen,
   WkrVorschau (nie gedruckt; UIM: auch Muster-Runde), WkrEinteilung (Name + Sprache je Parcours/Racecourse × Liste,
   einteilungsZellen; Tabelle volle Breite, damit 2–3 Personen je Feld lesbar sind).
 - Wertung: Blätter in `ergebnis/` (eigene Karte: Spalten, Fuß, schräge Zellen, UIM points); Reiter + Stapel:
@@ -200,8 +205,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `.wkr-tabelle` – die gehört WkrEinteilung in app.css). Test components/wkr/WkrTabelle.test.ts.
   W5.2 Maske „Bild“ (22.11.2026, Plan docs/plan-wkr-w5.md §5, WKR_ANNAHMEN BD1–BD7): **WkrBild.vue** (`data-teil="bild"`,
   `data-art` svg|schema, `data-weg`, `data-klasse`): Klassen-SVG inline über wkr/bild.ts inlineSvg (Präfix je Bild),
-  Parallelslalom seit 22.11.2026 (R8-19) Parallel.svg inline (Titel „Racecourse A“, `bild-flaeche` mit
-  `data-racecourse`, fremde Bahn gedimmt ohne Treffer; seit 23.11.2026 ohne Titel und Namensnennung – Name nur als `aria-label` der figure), nur ohne Datei das Schema `bild-schema`
+  Parallelslalom seit 22.11.2026 (R8-19) Parallel.svg inline (`bild-flaeche` mit `data-racecourse`; seit 23.11.2026
+  ohne Titel und Namensnennung – Name „Racecourse A“ nur als `aria-label` der figure; seit 23.11.2026 (R9-05…07) eine
+  Bahn ohne Steg, für A und B dieselbe mit denselben Treffern `A_Boje<n>`/`A_StartZiel_*`, nichts gedimmt), nur ohne Datei das Schema `bild-schema`
   (`data-racecourse`), Umschalter `bild-weg` (`data-weg` hin|rueck|rueck2, Zahl), Treffer
   `data-action="bild-boje"` mit `data-bild-id`/`data-feld`/`data-anzahl`/`data-disq` – als Kreise über der Lage
   (getBBox + getBoundingClientRect, ≥ 15 mm, schiebeAuseinander) oder ohne Lage (Test-DOM) als Liste `bild-ersatz`;

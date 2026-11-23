@@ -161,3 +161,17 @@ describe('Farben der Listen und Bögen', () => {
     expect(benutzt.size).toBeGreaterThan(5)
   })
 })
+
+describe('Zeichnung neben der Legende (Parallelslalom, 23.11.2026)', () => {
+  // Zusage aus lib/parallelBogen.ts: Auf einsprachigen Bögen kostet die Zeichnung der Bahn keine Zeile je Blatt. Das
+  // hält, solange sie nichts zur Höhe des Fußes beiträgt (absolut in ihrer Zelle) und die Legende ihre Breite behält
+  // (max-content vor dem Rest). Die Bildspalte ist mindestens 100 mm breit (Prüfbefund 23.11.2026: zweisprachig blieb
+  // sonst eine Zeichnung von 45 × 11 mm) – dort bricht die Legende um, nicht die Zeichnung schrumpft.
+  const regel = (selektor: string) => regeln(bogenCss).find((r) => r.selektor === selektor)?.deklarationen ?? []
+  it('das Bild liegt absolut in seiner Zelle, ist 100 mm breit, die Legende nimmt den Rest', () => {
+    expect(regel('.bogen--bild-streifen .bogen-bild img')).toContainEqual({ name: 'position', wert: 'absolute' })
+    expect(regel('.bogen--bild-streifen .bogen-bild')).toContainEqual({ name: 'position', wert: 'relative' })
+    expect(regel('.bogen--bild-streifen .bogen-bild')).toContainEqual({ name: 'max-width', wert: '100mm' })
+    expect(regel('.bogen--bild-streifen .bogen-fuss')).toContainEqual({ name: 'grid-template-columns', wert: 'minmax(0, max-content) minmax(100mm, 1fr)' })
+  })
+})

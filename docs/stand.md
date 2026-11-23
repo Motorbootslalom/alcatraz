@@ -161,8 +161,18 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   vor der Korrektur, Zeitfelder springen weiter (nur das erste Pflicht). Prüfbefunde dazu behoben (22.11.2026):
   Langdruck wirkte im Bild nur einmal (Loslassen jetzt auch am Fenster), Knoten-Vorschlag vorbelegt (KN12); alte
   Bojenzellen „5J“ gelten beim Gerätevergleich als abweichend (BZ1, bewusst ohne Migration).
-  Offen: Feldtest Pad (docs/feldtest.md „Pad (W5)“, u. a. Lage der Trefferkreise im echten Browser), W6 nach Befund; CI-Test „Probe beim Einrichten … einmal je Raum“ wackelt
-  unter Last (vorerst zurückgestellt).
+  Runde 9 (23.11.2026): bis auf die Parallel-Zeichnung alles bestätigt; die zeigt auf dem Gerät jetzt nur eine Bahn
+  ohne Steg, für Racecourse A und B dieselbe, mit den IDs aus dem Parcours-Repo (R9-05 bis R9-07); dieselbe Bahn steht
+  auf dem Fahrweg-Bogen jedes Racecourse neben der Legende in 100 mm Breite – einsprachig ohne eine Zeile je Blatt
+  zu kosten, zweisprachig bricht die Legende dafür um (2 Zeilen weniger je Blatt; noch zu bestätigen). Prüfbefunde
+  dazu behoben (23.11.2026): die Zeichnung war zweisprachig nur 45 × 11 mm groß, die Namensnennung im Fuß stand in der
+  Sprache der Oberfläche statt des Bogens, der Sync nannte bei einer Boje außerhalb des Bilds fälschlich fehlende IDs.
+  Veröffentlichen: Der Parcours-Commit a9c4275 ist noch nicht gepusht – erst ihn, dann alcatraz (QUELLE.json,
+  LICENSE.md und die Namensnennung nennen ihn; `npm run parcours:sync` warnt, solange er auf keinem Remote-Branch steht).
+  Offen: Feldtest Pad (docs/feldtest.md „Pad (W5)“, u. a. Lage der Trefferkreise im echten Browser), W6 nach Befund;
+  die Tests „Probe beim Einrichten … einmal je Raum“ und „W5.2 … Probe am Bild“ (src/GeraetWkr.test.ts) wackeln unter
+  Last und können so auch den Pages-Deploy aufhalten (vorerst zurückgestellt; nach einem Push prüfen, ob die neue
+  Fassung online ist).
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
   Server getestet); seit E7 auch die Start-Freigabe vom gekoppelten Handy. Offen: Feldtest mit echten Handys und

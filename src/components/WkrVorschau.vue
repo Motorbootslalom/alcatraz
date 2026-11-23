@@ -4,7 +4,7 @@ import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
-import { listenFuerKlasse, musterZeilen, type BogenAuftrag, type BogenOptionen } from '../lib/bogen'
+import { bogenMitBild, listenFuerKlasse, musterZeilen, type BogenAuftrag, type BogenOptionen } from '../lib/bogen'
 import { parcoursVon, wkrName } from '../lib/einteilung'
 import { wkrBoegen } from '../lib/wkrListen'
 import { musterCode } from '../lib/qr'
@@ -163,7 +163,8 @@ const gewaehlt = merke<string | undefined>('vorschau.reiter', undefined, { ueber
 const alleBlaetter = computed<Blatt[]>(() => [...boegen.value, ...parallelBlaetter.value])
 const aktiv = computed(() => alleBlaetter.value.find((b) => b.id === gewaehlt.value) ?? alleBlaetter.value[0])
 const parallelAktiv = computed(() => !!aktiv.value && parallelBlaetter.value.some((b) => b.id === aktiv.value!.id))
-const mitBild = computed(() => !!aktiv.value && !aktiv.value.auftrag.ohneBild && !!konfig.value.getSheetDef(aktiv.value.typeId).bildErzeugen)
+// Dieselbe Regel wie auf dem Bogen – auch die Muster-Runde des Parallelslaloms trägt auf dem Fahrweg-Bogen die Zeichnung (23.11.2026).
+const mitBild = computed(() => !!aktiv.value && bogenMitBild(konfig.value, aktiv.value.auftrag))
 const reiterTitel = (b: Blatt) => konfig.value.getSheetDef(b.typeId).title
 
 // Schmale Fenster: Die Bögen werden als Ganzes verkleinert (lib/bogenZoom.ts).

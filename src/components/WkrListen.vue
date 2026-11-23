@@ -6,6 +6,7 @@ import { useAuswahlKonfig, useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { useBogenZoom } from '../lib/bogenZoom'
 import { waehleBoegen, wkrBoegenZumStand, type WkrAuswahl, type WkrBogen } from '../lib/wkrListen'
+import { bogenMitBild } from '../lib/bogen'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
 import type { ClassId } from '../types'
@@ -128,7 +129,7 @@ const aufbauZeile = computed(() => {
 })
 watchEffect(() => emit('stand', { anzahl: boegen.value.length, auswahl: auswahlText.value, fertig: aufbau.fertig.value }))
 
-const mitBild = computed(() => boegen.value.some((b) => konfig.value.getSheetDef(b.typeId).bildErzeugen))
+const mitBild = computed(() => boegen.value.some((b) => bogenMitBild(konfig.value, b.auftrag)))
 const ohneListe = computed(() => listen.value.ohneListe.map((k: ClassId) => classLabel(k)).join(', '))
 const stapel = ref<HTMLElement | null>(null)
 const { zoom } = useBogenZoom(stapel)

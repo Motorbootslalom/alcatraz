@@ -13,9 +13,10 @@ import { useWkrText } from './texte'
 
 /**
  * Maske „Bild“ (W5.2, Plan docs/plan-wkr-w5.md §5.2, 22.11.2026; WKR_ANNAHMEN BD1–BD10): die Parcours-Zeichnung der
- * Klasse (bzw. im Parallelslalom die Zeichnung aus dem Parcours-Repo mit beiden Bahnen, die fremde gedimmt und ohne
- * Treffer – BD3 umgebaut 22.11.2026, BD10; nur ohne Parallel.svg das Schema des Racecourse), die Bojen der eigenen
- * Liste antippen.
+ * Klasse (bzw. im Parallelslalom die eine Bahn ohne Steg aus dem Parcours-Repo, für Racecourse A und B dieselbe – BD3
+ * umgebaut 22.11.2026, BD8–BD10 umgebaut 23.11.2026 nach R9-05 bis R9-07, Nutzer: „Nur eine Bahn.“; welcher
+ * Racecourse, sagt die Liste: `aria-label` der figure, `data-racecourse`; nur ohne Parallel.svg das Schema), die Bojen
+ * der eigenen Liste antippen.
  *
  * - Zeichnung INLINE aus dem gebündelten Klassen-SVG (lib/parcoursQuelle.ts, kein Netz), alle IDs mit eigenem Präfix
  *   (wkr/bild.ts inlineSvg – zwei Bilder nebeneinander stören sich nicht), gedimmt wie auf dem Bogen plus fremde Bojen

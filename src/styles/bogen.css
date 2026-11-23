@@ -702,6 +702,53 @@
   grid-area: unterschrift;
 }
 
+/* Flache Zeichnung rechts neben der Legende (Parallelslalom: eine Bahn, etwa 4 : 1 – 23.11.2026, lib/parallelBogen.ts).
+   Das Bild liegt absolut in seiner Rasterzelle und trägt nichts zur Höhe bei: Die Zeile ist so hoch wie die Legende.
+   Der Rahmen ist immer 100 mm breit – mehr braucht die Zeichnung in der Höhe einer einsprachigen Legende (24,5 mm)
+   nicht, weniger macht sie unlesbar. Die Legende nimmt den Rest (max-content, höchstens bis zur Bildspalte):
+   Einsprachig (rund 70–78 mm) passt sie daneben, der Bogen fasst so viele Zeilen je Blatt wie ohne Zeichnung.
+   Zweisprachig (144 mm) bricht sie auf rund 91 mm um und wird höher (35 statt 24,5 mm, 2 Zeilen weniger je Blatt) –
+   vorher (Mindestbreite 45 mm) blieb dort nur eine Zeichnung von 45 × 11 mm mit Bojen unter 1 mm (Prüfbefund
+   23.11.2026, gemessen in Chromium; noch zu bestätigen, lib/parallelBogen.ts). Gemessen wird ohnehin je Bogen
+   (BogenSeite → paging), Seitenzahlen und Laufzettel folgen dem. */
+.bogen--bild-streifen .bogen-fuss {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(100mm, 1fr);
+  grid-template-areas:
+    'legende bild'
+    'unterschrift unterschrift';
+  column-gap: 8px;
+}
+
+.bogen--bild-streifen .bl {
+  grid-area: legende;
+}
+
+.bogen--bild-streifen .bogen-bild {
+  grid-area: bild;
+  justify-self: end;
+  width: 100%;
+  max-width: 100mm;
+  box-sizing: border-box;
+  margin: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.bogen--bild-streifen .bogen-bild img {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  max-height: none;
+  object-fit: contain;
+}
+
+.bogen--bild-streifen .bogen-unterschrift-zeile {
+  grid-area: unterschrift;
+}
+
 /* Namensnennung der Parcours-Zeichnung (CC BY-NC-SA): klein, links unten neben der
    Unterschrift – dort ist ohnehin Platz, die Höhe des Bogens ändert sich nicht. */
 .bogen-nachweis {
@@ -829,6 +876,16 @@
   height: 100%;
   max-height: none;
   object-fit: contain;
+}
+
+/* Flache Zeichnung (Parallelslalom, 23.11.2026): in ihrer eigenen Höhe unter der Legende – ein Rahmen über den Rest
+   der Hälfte stünde zu gut zwei Dritteln leer. */
+.bogen-rueck-haelfte--stapel .bogen-bild--streifen {
+  flex: none;
+}
+
+.bogen-rueck-haelfte--stapel .bogen-bild--streifen img {
+  height: auto;
 }
 
 /* ---------- Beispielansicht (Einstellungen, Assistent) ---------- */

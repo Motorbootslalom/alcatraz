@@ -1,9 +1,10 @@
-import type { AppState, BoatType, ClassId, ParallelPlanFest, ParallelRunde, Starter } from '../types'
+import type { AppState, BoatType, ClassId, ParallelPlanFest, ParallelRunde, SheetDef, Starter } from '../types'
 import { boatTypeOf, CLASS_IDS } from '../domain/classes'
 import { buildParallelPlan, parallelActiveClasses, startEntfaellt } from '../planung/parallel'
 import { loeseAuf, schreibeFest, vergleicheRunden, VORLAUF } from '../planung/parallelRunden'
-import type { BogenKonfig, BogenZeile } from './bogen'
+import type { BogenBild, BogenKonfig, BogenZeile } from './bogen'
 import { gruppenKapazitaet, gruppenSeiten } from './paging'
+import { PARALLEL_DATEI } from './parcoursVertrag'
 import { RACECOURSE_PARCOURS, RACECOURSES, rundenDisziplin, type Racecourse } from './parallelSchluessel'
 import { QR_MUSTER, rundenBogenCode, rundenZettelCode, type QrRundenZiel } from './qr'
 import type { WkrBogen } from './wkrListen'
@@ -47,6 +48,48 @@ import type { WkrBogen } from './wkrListen'
 //   stehen in der WKR-Einteilung unter der Kennung des Racecourse.
 // - Ohne festgeschriebenen Plan gibt es keine Liste: Ein Plan, der dem Starterfeld noch folgt,
 //   stünde nach der nächsten Nachmeldung anders da als auf dem gedruckten Papier.
+//
+// Zeichnung auf dem Bogen (Nutzer 23.11.2026, R9-05 bis R9-07: „Wir brauchen bei dem Bild in der App und auf den
+// WKR-Listen nur einen von beiden … Daher kommt auf den Listen und auf dem Gerät nur einer der zwei Parcours und ohne
+// Steg.“): die eine Bahn des Parcours-Repositorys (src/assets/parcours/Parallel.svg, dieselbe wie in der Maske „Bild“
+// des Geräts) – siehe PARALLEL_BOGEN_BILD. Beim Bau ausgelegt (23.11.2026, noch zu bestätigen):
+// - Nur der Fahrweg-Bogen (Liste mit Bojen-Spalten) trägt sie, wie im Manövrieren nur die Listen mit Bojen, MüB oder
+//   Parcours ein Bild haben (config/kurzform.ts `hatBild`); Zeit und Steg bleiben ohne.
+// - Racecourse A und B zeigen dieselbe Bahn, nichts gedimmt (wie auf dem Gerät, WKR_ANNAHMEN BD9); welcher Racecourse
+//   gemeint ist, steht im Kopf.
+// - Vorn steht sie rechts neben der Legende (den Disqualifikationen), höchstens so hoch wie diese, in einem 100 mm
+//   breiten Rahmen (styles/bogen.css `.bogen--bild-streifen`). Einsprachig ist das Platz, der dort ohnehin frei ist:
+//   Die Zeilen je Blatt, die Seitenzahl jeder Liste und damit die Kästchen der Laufzettel bleiben, wie sie ohne
+//   Zeichnung waren (im Browser gemessen 23.11.2026: Fuß 40,2 mm mit und ohne Zeichnung, deutsch und englisch, 31
+//   Zeilen je Blatt; die Zeichnung 94 × 22 mm, Bojen 1,7 mm, Ziffern rund 4,5 pt – knapp, aber lesbar). Unter der
+//   Legende kostete sie in voller Breite (mit Rahmen gut 50 mm hoch) rund acht Zeilen je Blatt.
+// - Zweisprachig ist die Legende 144 mm breit. Neben ihr blieben bis zum Prüfbefund vom 23.11.2026 nur 45 × 11 mm
+//   (Bojen 0,8 mm, Ziffern unter 1 mm – nicht lesbar). Seitdem behält die Zeichnung ihre 100 mm und die Legende bricht
+//   auf rund 91 mm um (35 statt 24,5 mm hoch): 98 × 23 mm wie einsprachig, dafür 2 Zeilen weniger je Blatt (24 statt
+//   26). Gemessen wird je Bogen, Seitenzahlen und Laufzettel folgen dem. Noch zu bestätigen – die Wahl wäre sonst:
+//   zweisprachig ohne Zeichnung vorn (dann nur mit „Beschreibung auf der Rückseite“) oder unter der Legende in 100 mm
+//   Breite (geschätzt rund 4 Zeilen weniger je Blatt).
+// - Mit „Beschreibung auf der Rückseite“ steht sie dort unter der Legende, wie die Bilder der Klassen-Bögen.
+
+/**
+ * Die Zeichnung des Fahrweg-Bogens (23.11.2026, Auslegung oben): die eine Bahn ohne Steg für A und B, ungedimmt, nicht
+ * gedreht, als flacher Streifen neben der Legende (lib/bogen.ts BogenBild.streifen). Namensnennung wie bei den
+ * Klassen-Zeichnungen (dasselbe Repository, derselbe Commit: lib/parcoursNachweis.ts).
+ */
+export const PARALLEL_BOGEN_BILD: Readonly<BogenBild> = Object.freeze({
+  datei: PARALLEL_DATEI,
+  vorgabe: Object.freeze({ dim: [] as string[], aus: [] as string[] }),
+  drehung: 0,
+  streifen: true,
+})
+
+/**
+ * Trägt eine Liste des Parallelslaloms die Zeichnung? Die mit Bojen-Spalten – die den Fahrweg beobachtet (Auslegung
+ * oben, 23.11.2026). Dieselbe Liste hat auf dem Gerät die Maske „Bild“ (wkr/bild.ts bildTreffer).
+ */
+export function parallelListeMitBild(def: Pick<SheetDef, 'columns'>): boolean {
+  return def.columns.some((c) => c.kind === 'buoy')
+}
 
 /** Was die Ableitung von der Konfiguration braucht (config/konfig.ts `Konfig`). */
 export interface ParallelKonfig extends Pick<BogenKonfig, 'getSheetDef' | 'positionAllowsClass'> {
@@ -159,6 +202,8 @@ export function parallelBoegen(
   const kontext = { kennung: stand.kennung ?? '', regelwerk: stand.regelwerk ?? '', aufbau }
   // Spalten, die die Listen dieses Aufbaus nicht haben (config/aufbauten/parallel.yaml `ohneSpalten`).
   const ohneSpalten = konfig.getAufbauten().find((a) => a.id === aufbau)?.ohneSpalten ?? {}
+  // Die Listen mit der Zeichnung der Bahn (Fahrweg, 23.11.2026) – je Liste einmal, in jeder Runde und auf A und B gleich.
+  const mitBild = new Set(listen.filter((typeId) => parallelListeMitBild(konfig.getSheetDef(typeId))))
   const boegen: WkrBogen[] = []
   for (const racecourse of RACECOURSES) {
     // Je Runde einmal: die Zeilen und Klassen auf diesem Racecourse.
@@ -190,6 +235,7 @@ export function parallelBoegen(
             runde: { runde, racecourse },
             disziplin: rundenDisziplin(runde),
             ...(ohneSpalten[typeId]?.length ? { ohneSpalten: ohneSpalten[typeId] } : {}),
+            ...(mitBild.has(typeId) ? { bild: PARALLEL_BOGEN_BILD } : {}),
             qr: rundenBogenCode(kontext, { runde, racecourse, typeId }),
           },
           optionen: { leerzeilen: 0, zeilenJeSeite: stand.wkrZeilenJeSeite ?? 0, teilenAb: stand.wkrTeilenAb ?? 0, ...(stand.parallelZebra !== false ? { zebra: true } : {}) },

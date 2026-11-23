@@ -1740,7 +1740,7 @@ describe('Bojen (W4.2)', () => {
     // Klasse 7: andere Halte → Band über der Karte (verschiebt nichts), Umschalter auf „Hinweg“.
     const s7 = zeige()
     await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s7.startNr)
-    expect(w.find('[data-teil="klassen-wechsel"]').text()).toBe('Klasse 7 – andere Halte')
+    expect(w.find('[data-teil="klassen-wechsel"]').text()).toBe('Achtung, Klassenwechsel! Klasse 7')
     expect(w.find('.wkr-karten-platz [data-teil="klassen-wechsel"]').exists()).toBe(true)
     const mitte = w.find('[data-teil="bojen"]').html()
     await zeigt(() => !w.find('[data-teil="klassen-wechsel"]').exists())
@@ -2306,10 +2306,16 @@ describe('Bojen (W4.2)', () => {
     const titel = w.find('[data-teil="runden-band"]').text()
     expect(titel).toMatch(/Attempt 1/)
     expect(w.find('[data-teil="wkr-kopf"] [data-teil="lauf"]').exists()).toBe(false)
-    // Auf dem Pad mit Bojen-Liste: Vorgabe „Bild“ (MW1, seit W5.2 gebaut) – je Spalte die Parallel-Zeichnung mit der
-    // Bahn ihres Racecourse (BD3 umgebaut 22.11.2026, R8-19; das Schema nur noch ohne Parallel.svg).
+    // Auf dem Pad mit Bojen-Liste: Vorgabe „Bild“ (MW1, seit W5.2 gebaut) – je Spalte die Parallel-Zeichnung (BD3
+    // umgebaut 22.11.2026, R8-19; das Schema nur noch ohne Parallel.svg). Seit 23.11.2026 (R9-06/R9-07) zeigen beide
+    // Spalten dieselbe eine Bahn mit denselben Treffern; welcher Racecourse, sagt die Spalte (`data-racecourse`).
     expect(w.findAll('[data-teil="bild-flaeche"]').map((x) => x.attributes('data-racecourse'))).toEqual(['A', 'B'])
     expect(w.find('[data-teil="bild-schema"]').exists()).toBe(false)
+    const bojenJeSpalte = w.findAll('[data-teil="spalten"] > .wkr-spalte').map((sp) => sp.findAll('[data-action="bild-boje"]').map((b) => b.attributes('data-bild-id')))
+    expect(bojenJeSpalte).toHaveLength(2)
+    expect(bojenJeSpalte[0].length).toBeGreaterThan(0)
+    expect(bojenJeSpalte[0].every((id) => id?.startsWith('A_'))).toBe(true)
+    expect(bojenJeSpalte[1]).toEqual(bojenJeSpalte[0])
     await klick(w, '[data-action="mehr"]')
     const wahl = w.find('[data-teil="masken-wahl"]')
     // Seit W5.5 (22.11.2026) auch „Tabelle“ – auf dem Pad wählbar (TB1).

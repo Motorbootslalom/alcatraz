@@ -79,6 +79,8 @@ const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color:
 // verteileAufKlassen mit `fest`, BS4); die Hand-Zahlen bleiben und sind markiert (✎). BS4 (22.11.2026, noch zu
 // bestätigen): „Zurücksetzen“ (nur sichtbar mit Hand-Zahlen) leert `hand` und verteilt die Gesamtzahl über alle
 // Klassen neu. Ein Wechsel der Art verwirft wie bisher alles, auch `hand`.
+// BS3 (umgebaut) und BS4 bestätigt 23.11.2026 (R9-14): Hand-Zahlen bleiben (✎), der Rest wird verteilt, „Zurücksetzen“
+// nur bei Hand-Zahlen, ein Wechsel der Art verwirft alles.
 const MAX_ZAHL = 999
 const istZahl = (w: unknown): w is number => typeof w === 'number' && Number.isInteger(w) && w >= 0 && w <= MAX_ZAHL
 interface BeispielKlassen {

@@ -377,4 +377,25 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     expect(wrapper.find('[data-hinweis="vorschau-parallel"]').text()).not.toMatch(/\bround\b/)
     wrapper.unmount()
   })
+
+  it('Parallelslalom (UIM): Der Fahrweg-Bogen der Muster-Runde trägt die Zeichnung der Bahn mit Namensnennung (23.11.2026)', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    const wrapper = ansicht(store)
+    await nextTick()
+    for (const rc of ['A', 'B']) {
+      await wrapper.find(`.wkr-vorschau-parallel-tabs button[data-liste="parallel|pre|${rc}|parallelparcours"]`).trigger('click')
+      const blatt = wrapper.find('.wkr-vorschau .bogen[data-liste="parallelparcours"]')
+      expect(blatt.classes(), rc).toContain('bogen--bild-streifen')
+      expect(blatt.find('.bogen-bild.bogen-bild--streifen').exists(), rc).toBe(true)
+      expect(blatt.find('.bogen-nachweis').text(), rc).toContain('CC BY-NC-SA 4.0')
+      // Am Bildschirm darunter die Namensnennung mit Links, wie unter den Bögen des Manövrierens.
+      expect(wrapper.find('.wkr-vorschau .parcours-nachweis').exists(), rc).toBe(true)
+    }
+    // Zeit und Steg: ohne Zeichnung, ohne Namensnennung.
+    await wrapper.find('.wkr-vorschau-parallel-tabs button[data-liste="parallel|pre|A|steg"]').trigger('click')
+    expect(wrapper.find('.wkr-vorschau .bogen .bogen-bild').exists()).toBe(false)
+    expect(wrapper.find('.wkr-vorschau .bogen .bogen-nachweis').exists()).toBe(false)
+    expect(wrapper.find('.wkr-vorschau .parcours-nachweis').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })

@@ -190,6 +190,10 @@ nur von Hand. Kopfkommentar WkrBild.vue (Z. ~28) und BD4 anpassen; Schalter `bil
 
 ## 5 Scheibe 4 – Parallelslalom-Zeichnung aus dem Parcours-Repo (R8-19) – gebaut 22.11.2026
 
+Überholt 23.11.2026 (Runde 9, R9-05 bis R9-07, docs/entscheidungen.md „Antworten 23.11.2026 (Runde 9)“): eine Bahn
+ohne Steg aus `dist/parallel/alcatraz_Parcours`, IDs aus dem Parcours-Repo (`A_Boje1` …), keine Zuordnung nach Lage,
+kein Zuschnitt in der App, für A und B dieselbe Bahn. Dieser Abschnitt bleibt als Verlauf.
+
 Stand nach dem Bau: `lib/parcoursVertrag.ts` parallelZuordnung/machParallel/parallelBefunde (PARALLEL_QUELLE,
 PARALLEL_DATEI, PARALLEL_PFLICHT_IDS, PARALLEL_AUSSCHNITT, BEARBEITUNGSVERMERK_PARALLEL; normalisiere nimmt den Vermerk
 als Parameter), scripts/parcours-sync.ts mit zweitem Ordner (Git-Sauberkeit beider Ordner), `Parallel.svg` 23 KB
@@ -348,23 +352,32 @@ Festlegung:
   `views/EventView.test.ts` (Klasse von Hand → Gesamtzahl ändern → Hand-Zahl bleibt, übrige verteilt; Zurücksetzen
   verteilt alles; Neuladen behält `hand`).
 
-## 8 Neue und umgebaute Auslegungen (alle 22.11.2026, noch zu bestätigen)
+## 8 Neue und umgebaute Auslegungen (alle 22.11.2026; beantwortet 23.11.2026, Runde 9)
 
-| Kennung | Inhalt | Ort |
-|---|---|---|
-| AM1/AM2 umgebaut | Zeit-Listen sind Parcours-Listen (Ampel, Rückstand, Nachfrage, Auto-Modus) | WKR_ANNAHMEN, wkr/liste.ts |
-| ZT3 umgebaut, ZT5 | nur das erste Zeitfeld ist Pflicht; weitere leer erlaubt, befüllt müssen sie lesbar sein; leere optionale Felder überschreiben keine Papierzeit | WKR_ANNAHMEN, wkr/maske.ts |
-| ZT6 | Sprung ins nächste Zeitfeld, sobald die Zeit alle Stellen der Deutung hat (Sekunden ab 20: Komma + zwei Ziffern „83,45“; Minuten: Komma + vier „1,2345“ – beim Bau 22.11.2026, sonst sprang „1,23“ vor den Hundertsteln); nicht im letzten Feld | WKR_ANNAHMEN, wkr/maske.ts zeitVollstaendig, WkrZeiten.vue |
-| BZ1 umgebaut, BZ6 | Bojenzelle „Punkte, Buchstaben“ mit „, “, Buchstaben in Katalogfolge, Dubletten weg; Speicherform = Anzeige | WKR_ANNAHMEN, lib/disq.ts |
-| BZ7 | Disq.-Wahl an einer Boje ist Mehrfachwahl mit „Fertig“; „zurück“ nimmt den zuletzt gesetzten Buchstaben | WKR_ANNAHMEN, wkr/maske.ts |
-| BZ8 | LISTEN_SICHT_FASSUNG 10 wegen der neuen Zellform | wkr/sicht.ts |
-| U3/BD7 umgebaut, LD1–LD4 | Langdruck 800 ms öffnet Disq. der Boje; zählt nie als Tipp; Abbruch ab 10 px; Prellschutz unverändert | WKR_ANNAHMEN, components/wkr/langdruck.ts |
-| BD4 umgebaut | Bild-Umschalter nur von Hand | WKR_ANNAHMEN, wkr/bild.ts |
-| BD3 umgebaut, BD8 | Parallel-Zeichnung aus dem Parcours-Repo, IDs beim Sync über die Lage gesetzt (Frage: IDs im Parcours-Repo direkt vergeben?) | WKR_ANNAHMEN, scripts/parcours-sync.ts |
-| BD9 | Racecourse A = linke Bahn vom Steg aus | WKR_ANNAHMEN |
-| BD10 | fremde Bahn gedimmt, ohne Treffer | WKR_ANNAHMEN, wkr/bild.ts |
-| KN3 umgebaut, KN9 | Vorschlag „nächster offener nach dem zuletzt getippten“ in Folge des Bestands (Starter-Reiter), selbst geschickt zählt als erledigt | WKR_ANNAHMEN, wkr/tisch.ts |
-| KN7 umgebaut, KN10 | Hauptknopf „Alle richtig“/„Rest richtig“ setzt offene auf ✓ und schickt ab | WKR_ANNAHMEN, wkr/maske.ts |
-| KN8 umgebaut, KN11 | erfasste Nummer → immer Rückfrage vor der Korrektur | WKR_ANNAHMEN, WkrPruefliste.vue |
-| Y4 | Übung: „Klasse vorziehen“ in „Mehr“, wirkt einmal auf den nächsten Start | WKR_ANNAHMEN, wkr/uebung.ts |
-| BS3 umgebaut, BS4 | Hand-Zahlen je Klasse bleiben, Rest verteilt; „Zurücksetzen“ | generate.ts, BeispieldatenPanel.vue |
+Stand nach Runde 9 in der letzten Spalte (docs/entscheidungen.md „Antworten 23.11.2026 (Runde 9)“; in `WKR_ANNAHMEN`
+je Eintrag vermerkt). Drei Zeilen sind **nicht** bestätigt und umgebaut: BD3/BD8, BD9, BD10 – die Parallel-Zeichnung
+zeigt seit 23.11.2026 nur eine Bahn ohne Steg mit den IDs aus dem Parcours-Repository, für Racecourse A und B dieselbe.
+
+| Kennung | Inhalt | Ort | Stand 23.11.2026 |
+|---|---|---|---|
+| AM1/AM2 umgebaut | Zeit-Listen sind Parcours-Listen (Ampel, Rückstand, Nachfrage, Auto-Modus) | WKR_ANNAHMEN, wkr/liste.ts | folgt der Entscheidung R7-01; in Runde 9 nicht gefragt |
+| ZT3 umgebaut, ZT5 | nur das erste Zeitfeld ist Pflicht; weitere leer erlaubt, befüllt müssen sie lesbar sein; leere optionale Felder überschreiben keine Papierzeit | WKR_ANNAHMEN, wkr/maske.ts | bestätigt (R9-11) |
+| ZT6 | Sprung ins nächste Zeitfeld, sobald die Zeit alle Stellen der Deutung hat (Sekunden ab 20: Komma + zwei Ziffern „83,45“; Minuten: Komma + vier „1,2345“ – beim Bau 22.11.2026, sonst sprang „1,23“ vor den Hundertsteln); nicht im letzten Feld | WKR_ANNAHMEN, wkr/maske.ts zeitVollstaendig, WkrZeiten.vue | bestätigt (R9-12) |
+| BZ1 umgebaut, BZ6 | Bojenzelle „Punkte, Buchstaben“ mit „, “, Buchstaben in Katalogfolge, Dubletten weg; Speicherform = Anzeige | WKR_ANNAHMEN, lib/disq.ts | bestätigt (R9-01) |
+| BZ7 | Disq.-Wahl an einer Boje ist Mehrfachwahl mit „Fertig“; „zurück“ nimmt den zuletzt gesetzten Buchstaben | WKR_ANNAHMEN, wkr/maske.ts | bestätigt (R9-02) |
+| BZ8 | LISTEN_SICHT_FASSUNG 10 wegen der neuen Zellform | wkr/sicht.ts | technisch, folgt BZ1; nicht gefragt |
+| U3/BD7 umgebaut, LD1–LD4 | Langdruck 800 ms öffnet Disq. der Boje; zählt nie als Tipp; Abbruch ab 10 px; Prellschutz unverändert | WKR_ANNAHMEN, components/wkr/langdruck.ts | bestätigt (R9-03, R9-04) |
+| BD4 umgebaut | Bild-Umschalter nur von Hand | WKR_ANNAHMEN, wkr/bild.ts | folgt der Entscheidung R8-20; nicht gefragt |
+| BD3 umgebaut, BD8 | Parallel-Zeichnung aus dem Parcours-Repo, IDs beim Sync über die Lage gesetzt (Frage: IDs im Parcours-Repo direkt vergeben?) | WKR_ANNAHMEN, scripts/parcours-sync.ts | **NICHT bestätigt (R9-05), umgebaut:** IDs `A_…`/`B_…` im Parcours-Repository, Ausgabe „eine Bahn ohne Steg“, der Sync prüft nur noch |
+| BD9 | Racecourse A = linke Bahn vom Steg aus | WKR_ANNAHMEN | **NICHT bestätigt (R9-06), umgebaut:** keine Zuordnung; A und B zeigen dieselbe Bahn, die Liste sagt, welche |
+| BD10 | fremde Bahn gedimmt, ohne Treffer | WKR_ANNAHMEN, wkr/bild.ts | **NICHT bestätigt (R9-07), umgebaut:** nur eine Bahn im Bild, nichts gedimmt |
+| KN3 umgebaut, KN9 | Vorschlag „nächster offener nach dem zuletzt getippten“ in Folge des Bestands (Starter-Reiter), selbst geschickt zählt als erledigt | WKR_ANNAHMEN, wkr/tisch.ts | bestätigt (R9-08) |
+| KN7 umgebaut, KN10 | Hauptknopf „Alle richtig“/„Rest richtig“ setzt offene auf ✓ und schickt ab | WKR_ANNAHMEN, wkr/maske.ts | bestätigt (R9-09) |
+| KN8 umgebaut, KN11 | erfasste Nummer → immer Rückfrage vor der Korrektur | WKR_ANNAHMEN, WkrPruefliste.vue | bestätigt (R9-10) |
+| Y4 | Übung: „Klasse vorziehen“ in „Mehr“, wirkt einmal auf den nächsten Start | WKR_ANNAHMEN, wkr/uebung.ts | bestätigt (R9-13) |
+| BS3 umgebaut, BS4 | Hand-Zahlen je Klasse bleiben, Rest verteilt; „Zurücksetzen“ | generate.ts, BeispieldatenPanel.vue | bestätigt (R9-14) |
+
+Neu beim Umbau nach Runde 9 ausgelegt (23.11.2026, noch zu bestätigen): die Zeichnung der einen Bahn auf dem
+Fahrweg-Bogen des Parallelslaloms (nur dieser Bogen, rechts neben der Legende in 100 mm Breite, zweisprachig bricht die
+Legende dafür um) – lib/parallelBogen.ts, docs/parallelslalom.md „WKR-Listen des Vorlaufs“; das Schema (Rückfall ohne
+Datei) für A und B gleich – WKR_ANNAHMEN BD3.

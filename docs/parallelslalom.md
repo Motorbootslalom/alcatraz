@@ -88,6 +88,25 @@ Der frühere Zustand `parallelInternational` (nationaler Parallelslalom) ist ent
 - Die Steg-Liste hat hier keine Spalte „Bemerkung“ (`ohneSpalten` am Aufbau, `config/aufbauten/parallel.yaml`).
   Die Fahrweg-Liste hat eine Σ-Spalte hinter „Disq.“ wie die Fahrweg-Listen des Manövrierens mit Bojen.
 - `config/validate.ts` prüft, dass die Spalten der Parallel-Listen nicht von der Klasse abhängen (`PARALLEL_KLASSEN`).
+- **Zeichnung der Bahn** (23.11.2026 nach R9-05 bis R9-07: „… auf den Listen und auf dem Gerät nur einer der zwei
+  Parcours und ohne Steg“; `PARALLEL_BOGEN_BILD` in `src/lib/parallelBogen.ts`): Der Fahrweg-Bogen trägt die eine
+  Bahn aus `src/assets/parcours/Parallel.svg` – dieselbe Zeichnung wie die Maske „Bild“ des Geräts, für A und B
+  gleich, nichts gedimmt; welcher Racecourse, steht im Kopf. Darunter im Fuß die Namensnennung (CC BY-NC-SA 4.0),
+  am Bildschirm unter den Bögen dieselbe mit Links. Beim Bau ausgelegt, noch zu bestätigen:
+  - nur der Fahrweg-Bogen (die Liste mit Bojen-Spalten, `parallelListeMitBild`) – wie im Manövrieren nur Listen mit
+    Bojen, MüB oder Parcours ein Bild haben; Zeit und Steg bleiben ohne;
+  - vorn **rechts neben der Legende** (den Disqualifikationen), höchstens so hoch wie sie, in einem 100 mm breiten
+    Rahmen (`.bogen--bild-streifen` in `src/styles/bogen.css`). Einsprachig ist der Platz dort ohnehin frei, die
+    Zeilen je Blatt, die Seitenzahlen und die Kästchen der Laufzettel bleiben gleich (im Browser gemessen: Fuß
+    40,2 mm mit und ohne Zeichnung, deutsch und englisch, 31 Zeilen je Blatt); die Zeichnung ist 94 × 22 mm groß
+    (Bojen 1,7 mm, Ziffern rund 4,5 pt – knapp). Unter der Legende in voller Breite kostete sie rund acht Zeilen je
+    Blatt. Zweisprachig ist die Legende 144 mm breit: Damit die Zeichnung lesbar bleibt (vorher daneben nur
+    45 × 11 mm, Bojen 0,8 mm – Prüfbefund 23.11.2026), bricht die Legende auf rund 91 mm um; die Zeichnung ist dann
+    98 × 23 mm, der Bogen fasst 24 statt 26 Zeilen je Blatt;
+  - die Namensnennung im Fuß steht in der Sprache des Bogens (zweisprachig je Teil „deutsch / englisch“), nicht in
+    der Sprache der Oberfläche;
+  - mit „Beschreibung auf der Rückseite“ steht sie dort unter der Legende in voller Breite (wie die Bilder der
+    Klassen-Bögen auf der Rückseite).
 
 **Englische Spaltenköpfe:**
 
@@ -452,14 +471,18 @@ Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts
   wie im Manövrieren, aber **ohne geschätzte Wartezeit**: Paarstarts werden nicht gemessen – ihr Takt (zwei Boote
   zugleich, kurzer Racecourse, Tausch zum 2. Attempt) verzerrte die Abstände der Klassen fürs Manövrieren, und eine
   eigene Vorgabe gibt es nicht. In der Startliste wird nicht gezogen.
-- **WKR-Gerät, Maske „Bild“** (R8-19, umgebaut 22.11.2026, WKR_ANNAHMEN BD3, BD8–BD10, noch zu bestätigen): Die
-  Racecourse-Liste zeigt die Parallelslalom-Zeichnung des Parcours-Repos (`dist/parallel/en/pontoon_bottom`, per
-  `npm run parcours:sync` als `src/assets/parcours/Parallel.svg`, 23 KB statt 493 KB, Namensnennung CC BY-NC-SA 4.0
-  wie die Klassen-Zeichnungen) mit beiden Bahnen; die fremde Bahn ist gedimmt und nicht antippbar. Racecourse A ist
-  die Bahn, die vom Steg aus in Fahrtrichtung links liegt – in der Zeichnung die obere (aus den Lagen gerechnet,
-  wie die Tafel-Vorgabe „A links, B rechts“). Boje n auf Hin- und Rückweg ist dieselbe Boje, Start und Ziel dasselbe
-  Tor; welche Fahrt gemeint ist, sagt der Umschalter. Die IDs je Bahn (`P_A_b1` … `P_B_start_seiteA`) setzt der Sync
-  über die Lage, das Parcours-Repo bleibt unverändert. Fehlt die Datei, zeigt das Gerät ein Schema.
+- **WKR-Gerät, Maske „Bild“** (R8-19, umgebaut 22.11.2026; seit 23.11.2026 nach R9-05 bis R9-07 eine Bahn,
+  WKR_ANNAHMEN BD3, BD8–BD10): Die Racecourse-Liste zeigt die Parallelslalom-Zeichnung des Parcours-Repos in der
+  Ausgabe „eine Bahn ohne Steg“ (`dist/parallel/alcatraz_Parcours`, per `npm run parcours:sync` als
+  `src/assets/parcours/Parallel.svg`, 13 KB, Namensnennung CC BY-NC-SA 4.0 wie die Klassen-Zeichnungen): nur eine
+  Bahn mit Fahrlinien, ohne Steg, Logos, Titel und Maße. Racecourse A und B zeigen **dieselbe** Bahn mit denselben
+  Trefferkreisen – die Zeichnung ist schematisch, Steg und Lage der Bahnen zueinander wechseln von Standort zu
+  Standort (Nutzer 23.11.2026: „Für die Eintragung ist das eigentlich egal“); welcher Racecourse gemeint ist, sagt die
+  Liste. Boje n auf Hin- und Rückweg ist dieselbe Boje, Start und Ziel dasselbe Tor (seiteA = untere Boje im Bild);
+  welche Fahrt gemeint ist, sagt der Umschalter. Die IDs vergibt das Parcours-Repo (`A_Boje1` … `A_Boje5`,
+  `A_StartZiel_oben`/`_unten`); der Sync prüft sie nur und bricht ab, wenn eine fehlt, doppelt ist oder doch die zweite
+  Bahn bzw. der Steg drin ist. Fehlt die Datei, zeigt das Gerät ein Schema (für A und B gleich). Die Parallel-WKR-Bögen
+  auf Papier tragen seit 23.11.2026 dieselbe Bahn auf dem Fahrweg-Bogen (Abschnitt „WKR-Listen des Vorlaufs“).
 - Der Betrieb ändert weder die Pläne noch die Werte der Runden.
 
 ## Dummys und Wörter

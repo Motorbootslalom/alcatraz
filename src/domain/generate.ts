@@ -75,6 +75,7 @@ export function beispielGesamt(art: BeispielFeldArt, zufall: () => number): numb
  * zu bestätigen): Von Hand gesetzte Klassen behalten ihre Zahl; nur der Rest max(0, gesamt − Σ fest) wird nach
  * denselben Anteilen und derselben Rundung auf die übrigen verteilt. Ist Σ fest größer als `gesamt`, bleiben die
  * festen stehen und die übrigen bekommen 0 – die Summe weicht dann ab (die Oberfläche zeigt sie).
+ * Bestätigt 23.11.2026 (R9-14).
  */
 export function verteileAufKlassen(gesamt: number, klassen: readonly ClassId[], fest: Partial<Record<ClassId, number>> = {}): Record<ClassId, number> {
   const feste = klassen.filter((k) => typeof fest[k] === 'number' && Number.isFinite(fest[k]))

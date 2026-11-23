@@ -42,6 +42,12 @@ export function parcoursName(name: string, sprache: Sprache): string {
 
 /** Feste Texte auf den Listen (außer den Spaltennamen, siehe i18n/en.yaml). */
 export interface BogenTexte {
+  /**
+   * Die Sprache, in der diese Texte stehen – für Texte, die aus i18n kommen und auf demselben Blatt stehen
+   * (23.11.2026: die Namensnennung der Parcours-Zeichnung, lib/parcoursNachweis.ts nachweisZeile; vorher in der
+   * Sprache der Oberfläche, also auf englischen UIM-Bögen bei deutscher Oberfläche deutsch).
+   */
+  sprache: Sprache
   nr: string
   /** Kopf der Klassen-Spalte, wenn mehrere Klassen auf einer Liste stehen (Clubmeisterschaft). */
   klasseKurz: string
@@ -91,6 +97,7 @@ export interface BogenTexte {
 export function bogenTexte(sprache: Sprache, klassenNamen: Record<string, string> = {}): BogenTexte {
   const t = (de: string, en: string) => uebersetzt(sprache, de, en)
   return {
+    sprache,
     nr: t('Nr.', 'No.'),
     klasseKurz: t('Kl.', 'Cl.'),
     // Englisch nach dem UIM Circuit Rulebook: „race official“ (Regel 960, Pkt. 1: „all race

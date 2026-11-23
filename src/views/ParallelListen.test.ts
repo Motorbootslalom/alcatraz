@@ -119,6 +119,60 @@ describe('Parallelslalom: Listen, Laufzettel, Einteilung und Erfassung des Vorla
     manoever.unmount()
   })
 
+  it('Listen: Der Fahrweg-Bogen trägt die eine Bahn neben der Legende, mit Namensnennung – vorn oder mit der Legende auf der Rückseite (23.11.2026)', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    const wrapper = await listen('wkr')
+    const boegen = () => wrapper.findAll('.wkr-listen .bogen')
+    for (const b of boegen()) {
+      const fahrweg = b.attributes('data-liste') === 'parallelparcours'
+      expect(b.find('.bogen-bild').exists(), b.attributes('data-liste')).toBe(fahrweg)
+      expect(b.classes().includes('bogen--bild-streifen'), b.attributes('data-liste')).toBe(fahrweg)
+      expect(b.find('.bogen-nachweis').exists(), b.attributes('data-liste')).toBe(fahrweg)
+    }
+    // Neben der Legende (den Disqualifikationen) im Fuß, für A und B dasselbe Bild; der Kopf sagt, welcher Racecourse.
+    const fahrweg = boegen().filter((b) => b.attributes('data-liste') === 'parallelparcours')
+    expect(fahrweg).toHaveLength(2)
+    for (const b of fahrweg) {
+      expect(b.find('.bogen-fuss .bl .bl-disq').exists()).toBe(true)
+      expect(b.find('.bogen-fuss .bogen-bild--streifen').exists()).toBe(true)
+      expect(b.find('.bogen-bild img').attributes('alt')).toBe('Parallel slalom – Preliminary heat')
+      expect(b.find('.bogen-nachweis').text()).toContain('CC BY-NC-SA 4.0')
+      // In der Sprache des Bogens (UIM: englisch), nicht der Oberfläche (hier deutsch) – Prüfbefund 23.11.2026.
+      expect(b.find('.bogen-nachweis').text()).toContain('Course drawing:')
+      expect(b.find('.bogen-nachweis').text()).not.toContain('Parcours-Zeichnung')
+    }
+    // Am Bildschirm unter dem Stapel die Namensnennung mit Links (nie gedruckt).
+    expect(wrapper.find('.no-print .parcours-nachweis').exists()).toBe(true)
+    // „Beschreibung auf der Rückseite“: vorn der Hinweis, hinten Legende, Zeichnung und Namensnennung.
+    store.dispatch({ type: 'SET_WKR_RUECKSEITE', rueckseite: true })
+    await warte()
+    const vorn = wrapper.find('.wkr-listen .bogen[data-liste="parallelparcours"]:not(.bogen--rueck)')
+    const hinten = wrapper.find('.wkr-listen .bogen--rueck[data-liste="parallelparcours"]')
+    expect(vorn.find('.bogen-bild').exists()).toBe(false)
+    expect(vorn.find('.bogen-rueckhinweis').exists()).toBe(true)
+    expect(hinten.find('.bogen-rueck-haelfte .bl-disq').exists()).toBe(true)
+    expect(hinten.find('.bogen-rueck-haelfte .bogen-bild--streifen').exists()).toBe(true)
+    expect(hinten.find('.bogen-nachweis--rueck').text()).toContain('CC BY-NC-SA 4.0')
+    expect(hinten.find('.bogen-nachweis--rueck').text()).toContain('Course drawing:')
+    // Zeit hat weder vorn noch hinten eine Zeichnung.
+    expect(wrapper.find('.wkr-listen .bogen--rueck[data-liste="zeit"] .bogen-bild').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('Listen: Die Namensnennung unter der Zeichnung folgt der Sprache des Fahrweg-Bogens – deutsch, zweisprachig, englisch (23.11.2026)', async () => {
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'racecourse-a', typeId: 'parallelparcours' }], sprache: 'de' })
+    store.dispatch({ type: 'SET_WKR_SPRACHE', zellen: [{ parcoursId: 'racecourse-b', typeId: 'parallelparcours' }], sprache: 'de+en' })
+    setLocale('en')
+    const wrapper = await listen('wkr')
+    const [a, b] = wrapper.findAll('.wkr-listen .bogen[data-liste="parallelparcours"] .bogen-nachweis').map((n) => n.text())
+    expect(a).toMatch(/^Parcours-Zeichnung: .*Quelle: github\.com\/Motorbootslalom\/Parcours \(Stand [0-9a-f]{7}\) · Lizenz: CC BY-NC-SA 4\.0$/)
+    // Zweisprachig je Teil „deutsch / englisch“, Adresse und Lizenz nur einmal.
+    expect(b).toMatch(/^Parcours-Zeichnung: .* \/ Course drawing: .*Quelle: \/ Source: github\.com\/Motorbootslalom\/Parcours \(Stand [0-9a-f]{7} \/ revision [0-9a-f]{7}\) · Lizenz: \/ Licence: CC BY-NC-SA 4\.0$/)
+    expect(b.match(/github\.com/g)).toHaveLength(1)
+    wrapper.unmount()
+  })
+
   it('Listen des Manövrierens bleiben, wie sie sind: keine Spalten Start/Attempt, Klasse und Lauf im Kopf', async () => {
     store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
     const wrapper = await listen('wkr', 'manoever')

@@ -927,6 +927,7 @@ export const WKR_ANNAHMEN = {
    * Bedienrechner (nichts geht still verloren), und die Erfassung zeigt „5J“, bis sie neu getippt wird. Kein
    * Vergleich über bojenWert, weil die Übernahme die Feldart nicht kennt und „5J“ nur aus Entwicklungsständen kommen
    * kann (Wurzel-CLAUDE.md: keine Abwärtskompatibilität während der Entwicklung).
+   * Bestätigt 23.11.2026 (R9-01) in der neuen Fassung: Punkte zuerst, Buchstaben in Katalogfolge mit „, “ (BZ6).
    */
   bojenZelle: true,
   /**
@@ -937,6 +938,7 @@ export const WKR_ANNAHMEN = {
    * meldet `zeichen-fremd` nur noch für Buchstaben, die die Zelle nicht kennt. Erfassung: ein Feld mit mehr als vier
    * Zeichen wird breiter (`.erf-feld--boje-lang`), Wertungsliste bricht um statt abzuschneiden. Beim Bau
    * 22.11.2026, noch zu bestätigen.
+   * Bestätigt 23.11.2026 (R9-01).
    */
   bojenZelleMitKomma: true,
   /**
@@ -946,6 +948,7 @@ export const WKR_ANNAHMEN = {
    * ersetzte ihn. „− letzte zurück“ nimmt den zuletzt gesetzten Buchstaben heraus (Merker je Buchstabe in
    * wkr/maske.ts, der Ersetzt-Merker entfällt). In der Probe ist der Schritt „Disq. an Boje“ erst mit „Fertig“
    * erledigt. Beim Bau 22.11.2026, noch zu bestätigen.
+   * Bestätigt 23.11.2026 (R9-02).
    */
   disqBojeMehrfachwahl: true,
   /**
@@ -994,6 +997,7 @@ export const WKR_ANNAHMEN = {
    * `disqBojeOhneLangdruck`): Ein langer Druck auf einen Bojen-Knopf (WkrBojen) öffnet die Disq.-Buchstaben DIESER Boje
    * (WkrDisqOrt direkt im Schritt 2, Mehrfachwahl BZ7); „Disq. an Boje …“ und DISQ im Fuß bleiben. Einzelheiten LD1–LD4
    * (components/wkr/langdruck.ts), noch zu bestätigen.
+   * Umbau Bestätigt 23.11.2026 (R9-03, R9-04 – Einzelheiten LD1–LD4).
    */
   disqBojeLangdruck: true,
   /**
@@ -1001,18 +1005,21 @@ export const WKR_ANNAHMEN = {
    * Bild) lang ist: 800 ms – deutlich über einem festen Tipp mit Handschuh (≈ 150–300 ms), aber kurz genug, dass der
    * WKR nicht unsicher wird. Eine Boje ohne Disq.-Buchstaben kennt keinen Langdruck: Dort zählt auch ein langer Druck
    * als Tipp (sonst ginge eine Berührung still verloren).
+   * Bestätigt 23.11.2026 (R9-03).
    */
   langdruckMs: 800,
   /**
    * (LD2, 22.11.2026, noch zu bestätigen) Ein Langdruck zählt NIE zusätzlich als Tipp: Der Tipp zählt beim Loslassen
    * (pointerup), nicht beim Aufsetzen; ist der Langdruck ausgelöst, wird der Tipp verworfen. Tastatur (Enter/Leertaste)
    * bleibt kurzer Tipp.
+   * Bestätigt 23.11.2026 (R9-04).
    */
   langdruckNieTipp: true,
   /**
    * (LD3, 22.11.2026, noch zu bestätigen) Abbruch ohne Tipp und ohne Langdruck: Bewegung über langdruckWegPx (Wischen,
    * Scrollen) oder pointercancel. Kontextmenü, Textauswahl und iOS-Callout auf den Knöpfen unterdrückt
    * (styles/wkr-geraet.css). Rückmeldung: Füllring nach langdruckRingMs, beim Auslösen kurz vibrieren (wo es geht).
+   * Bestätigt 23.11.2026 (R9-03: Füllring ab 300 ms, Abbruch ab 10 px).
    */
   langdruckWegPx: 10,
   langdruckRingMs: 300,
@@ -1020,6 +1027,7 @@ export const WKR_ANNAHMEN = {
    * (LD4, 22.11.2026, noch zu bestätigen) Prellschutz S1 (bojenSchalterPrellMs) gilt unverändert für kurze Tipps – die
    * Zeitmarke entsteht beim gezählten Tipp, also beim Loslassen; ein Langdruck setzt keine. Gesperrte Maske
    * (Übertragen, Pause) → kein Langdruck.
+   * Bestätigt 23.11.2026 (R9-04: Prellschutz misst ab dem Loslassen).
    */
   langdruckPrellschutz: true,
   /**
@@ -1065,7 +1073,8 @@ export const WKR_ANNAHMEN = {
   /**
    * (P10) Klassenwechsel: Hat der Start andere Halte als der zuvor gezeigte, liegt so lange ein Band „Klasse n –
    * andere Halte“ über der Mitte, ohne Knöpfe zu verschieben und ohne einen Tipp zu nehmen. 21.11.2026, noch zu
-   * bestätigen.
+   * bestätigen. Text seit 23.11.2026 (Nutzer: „Statt ‚Andere Halte‘ sollte hier eher ‚Achtung, Klassenwechsel!‘
+   * stehen“): „Achtung, Klassenwechsel! Klasse n“.
    * NICHT bestätigt in dieser Form – Nutzer 21.11.2026 (W4-13): Band nur beim ERSTEN Start einer neuen Klasse; beim
    * Hochwischen soll die Parcours-Zeichnung mit angezeigt werden. Sonst gut. Umgebaut 21.11.2026
    * ({@link klassenWechselNurErster}, GF9).
@@ -1428,6 +1437,7 @@ export const WKR_ANNAHMEN = {
    * Nummern kommen nicht doppelt). Steht gerade kein Start vor dem WKR (Takt läuft), kommt er sofort. Am Tisch springt
    * der Vorschlag auf den ersten offenen dieser Klasse, bis die nächste Zeile abgeschickt ist. Rein in wkr/uebung.ts
    * (ziehVor), Kern geraete/uebung.ts zieheKlasseVor; die echte Erfassung hat es nicht. 22.11.2026, noch zu bestätigen.
+   * Bestätigt 23.11.2026 (R9-13).
    */
   uebungVorziehen: true,
   /**
@@ -1750,31 +1760,56 @@ export const WKR_ANNAHMEN = {
    * Klassen-SVGs; wirksameDrehung gilt unverändert). Start und Ziel bleiben dasselbe Tor, Boje n hin und rück dieselbe
    * Boje (der Umschalter sagt, welche Fahrt; PARALLEL_FAHRWEG). Das Schema (wkr/bild.ts schemaParallel) nur noch als
    * Rückfall, wenn die Datei fehlt oder nicht alle IDs trägt. Noch zu bestätigen.
+   * Umgebaut 23.11.2026 (Antworten R9-05 bis R9-07, siehe BD8–BD10): Quelle ist die Ausgabe „eine Bahn ohne Steg“ des
+   * Parcours-Repositorys (`dist/parallel/alcatraz_Parcours/ParallelSlalom.svg`, Commit a9c4275) mit dessen IDs; die
+   * Zeichnung zeigt nur noch Bahn A mit Fahrlinien, ohne Steg, Logos, Titel und Maße. Zeichnung statt Schema, Start/Ziel
+   * ein Tor und Boje n hin und rück dieselbe bleiben.
    */
   bildParallelZeichnung: true,
   /**
-   * (BD8) IDs der Parallel-Zeichnung ohne Änderung am Parcours-Repository: Der Sync setzt sie über die Lage
-   * (lib/parcoursVertrag.ts parallelZuordnung/machParallel): `P_<A|B>_b1` … `b5` (untere Bahn über die vorhandenen IDs
-   * Tor1_aussen, Tor2_innen, Tor3_aussen, Tor4_innen, Tor5_unten; obere über die Kopie mit gleichem x ± 1 und gleichem
-   * Versatz), `P_<A|B>_start_seiteA|B` (Start/Ziel-Kreise in ihren verschobenen Gruppen, seiteA = untere im Bild wie
-   * config/kurzform.ts SEITE), dazu `P_<A|B>_linie<n>` (Fahrlinien) und `P_<A|B>_nr<n>` (Ziffern). Abbruch des Syncs,
-   * wenn nicht genau 5 Bojen und 2 Start/Ziel-Kreise je Bahn gefunden sind, noch ein Rasterbild drin ist oder die Datei
-   * über 100 KB hat. Beim Bau 22.11.2026, noch zu bestätigen. Frage: Die IDs lieber im Parcours-Repository direkt
-   * vergeben (z. B. `A_Boje1` …, `A_Start_unten`)? Dann entfiele die Zuordnung über die Lage.
+   * (BD8) IDs der Parallel-Zeichnung. Bis 23.11.2026 ohne Änderung am Parcours-Repository: Der Sync setzte sie über die
+   * Lage (lib/parcoursVertrag.ts parallelZuordnung/machParallel): `P_<A|B>_b1` … `b5` (untere Bahn über die vorhandenen
+   * IDs Tor1_aussen … Tor5_unten, obere über die Kopie mit gleichem x), `P_<A|B>_start_seiteA|B`, Fahrlinien und Ziffern.
+   * Beim Bau 22.11.2026 mit der Frage, ob die IDs nicht besser im Parcours-Repository vergeben würden (Schalter vorher
+   * `bildParallelIdsAusLage`).
+   * NICHT bestätigt 23.11.2026 (R9-05) – Nutzer: „Auf dem Parallel-Slalom-Parcours ist A und B dargestellt. Wir brauchen
+   * bei dem Bild in der App und auf den WKR-Listen nur einen von beiden. Bitte den Parcours auch unter ../parcours
+   * berichtigen und mit A und B in den IDs benennen.“
+   * Umgebaut 23.11.2026: Das Parcours-Repository vergibt die IDs je Bahn selbst (Commit a9c4275, README.parallel.md:
+   * `A_Boje1` … `A_Boje5`, `A_StartZiel_oben`/`_unten`, `A_StartZiel_Linie`, `A_Nummer_Boje<n>`, `A_Fahrlinie_hin`/
+   * `_rueck`, `A_Steg`, `A_Abmessung`; Bahn B ebenso mit `B_`) und gibt eine Bahn einzeln aus. Der Sync benennt nichts
+   * mehr um: Er prüft die Pflicht-IDs (PARALLEL_PFLICHT_IDS = Bojen 1–5 und Start/Ziel oben/unten, je genau einmal),
+   * dass weder die zweite Bahn (`B_…`) noch Steg oder Maße drin sind, kein Rasterbild, Größe und Lage – und bricht mit
+   * einer Meldung ab, die die fehlende ID und ihre Herkunft nennt (parallelBefunde, machParallel). Die Zuordnung nach
+   * Lage und der Zuschnitt in der App (PARALLEL_AUSSCHNITT) entfallen. Start/Ziel: seiteA = `A_StartZiel_unten`, seiteB
+   * = `A_StartZiel_oben` – dieselbe Regel wie bei den Klassen-Zeichnungen (config/kurzform.ts SEITE).
    */
-  bildParallelIdsAusLage: true,
+  bildParallelIdsAusParcoursRepo: true,
   /**
-   * (BD9) Racecourse A ist die Bahn, die vom Steg aus in Fahrtrichtung (Start → Boje 5) LINKS liegt – wie die Vorgabe
-   * der Tafel „A links, B rechts“ (docs/parallelslalom.md). Gerechnet aus den Lagen der Zeichnung, nicht geraten: in
-   * ParallelSlalom.svg (Stand 9b92e69) die obere Bahn. Beim Bau 22.11.2026, noch zu bestätigen.
+   * (BD9) Bis 23.11.2026: Racecourse A ist die Bahn, die vom Steg aus in Fahrtrichtung (Start → Boje 5) LINKS liegt
+   * (wie die Vorgabe der Tafel „A links, B rechts“), aus den Lagen gerechnet: in der Zeichnung die obere Bahn (Schalter
+   * vorher `bildParallelALinks`).
+   * NICHT bestätigt 23.11.2026 (R9-06) – Nutzer: „Für die Eintragung ist das eigentlich egal. Die Zeichnung ist eine
+   * schematische Darstellung und variiert von Standort zu Standort. Also was den Steg angeht und ob sie nebeneinander
+   * passen. Daher kommt auf den Listen und auf dem Gerät nur einer der zwei Parcours und ohne Steg.“
+   * Umgebaut 23.11.2026: Keine Zuordnung Racecourse ↔ Bahn der Zeichnung mehr. Beide Racecourse-Listen zeigen dieselbe
+   * eine Bahn (`A_…` der Eine-Bahn-Ausgabe; „A“ ist dort nur der Name der gezeichneten Bahn) und treffen dieselben IDs
+   * (wkr/bild.ts parallelBildId ohne Racecourse); welcher Racecourse gemeint ist, sagt allein die Liste (`racecourse`
+   * der Zuordnung → `aria-label` „Racecourse B“ und `data-racecourse` in WkrBild). Die Tafel-Vorgabe „A links, B rechts“
+   * (docs/parallelslalom.md) betrifft nur die Anzeigetafel.
    */
-  bildParallelALinks: true,
+  bildParallelEineBahnFuerBeide: true,
   /**
-   * (BD10) Das Bild einer Racecourse-Liste zeigt die ganze Zeichnung; die fremde Bahn (alle IDs `P_<andere>_…`: Bojen,
-   * Start/Ziel, Fahrlinien, Ziffern) ist gedimmt wie fremde Bojen der Klassen-Zeichnungen und hat keine Trefferkreise.
-   * Die Stege bleiben, wie sie sind (beide Boote legen dort ab). Beim Bau 22.11.2026, noch zu bestätigen.
+   * (BD10) Bis 23.11.2026: Das Bild einer Racecourse-Liste zeigte die ganze Zeichnung; die fremde Bahn (alle IDs
+   * `P_<andere>_…`) war gedimmt und ohne Trefferkreise, die Stege blieben (Schalter vorher `bildParallelFremdeBahnBlass`).
+   * NICHT bestätigt 23.11.2026 (R9-07) – Nutzer: „Nur eine Bahn.“
+   * Umgebaut 23.11.2026: Das Bild zeigt nur die eine Bahn ohne Steg (der Zuschnitt kommt aus dem Parcours-Repository,
+   * BD8), nichts ist gedimmt (`blass` leer), jede der sieben Bojen hat ihren Trefferkreis. Beim Bau ausgelegt, noch zu
+   * bestätigen: Auch das Schema (Rückfall ohne Parallel.svg, wkr/bild.ts schemaParallel) ist seitdem für A und B
+   * dasselbe – vorher war B gespiegelt; „nur einer der zwei Parcours“ (R9-06) gilt so auch im Rückfall. Dieselbe Bahn
+   * trägt seit 23.11.2026 der Fahrweg-Bogen auf Papier (lib/parallelBogen.ts PARALLEL_BOGEN_BILD, Auslegung dort).
    */
-  bildParallelFremdeBahnBlass: true,
+  bildParallelNurEineBahn: true,
   /**
    * (BD4) Bild-Umschalter: Bis 22.11.2026 schaltete der ERSTE Tipp an Tor 5 auf dem Hinweg auf „Rückweg“ (Vorschlag
    * §4.2; anders als P8 bei den Knöpfen).
@@ -1806,6 +1841,7 @@ export const WKR_ANNAHMEN = {
    * NICHT bestätigt 22.11.2026 (R8-23) – Nutzer: „Wenn möglich, bitte auch langes Drücken unterstützen.“ Umgebaut
    * 22.11.2026 (Schalter vorher `bildDisqUeberKnopf`): Knopf bleibt, dazu öffnet ein langer Druck auf einen
    * Trefferkreis die Buchstaben DIESER Boje – dieselbe Hilfe wie die Bojen-Knöpfe (LD1–LD4). Noch zu bestätigen.
+   * Langdruck im Bild Bestätigt 23.11.2026 (R9-03, R9-04 – dieselbe Hilfe wie bei den Knöpfen, LD1–LD4).
    */
   bildDisqKnopfUndLangdruck: true,
   /**
@@ -1887,6 +1923,7 @@ export const WKR_ANNAHMEN = {
    * Umgebaut 22.11.2026 (R8-31), neuer Wortlaut: ✓ (= leere Zelle) / ✗ (= „5“) je Knoten bleiben; der Hauptknopf ist
    * aktiv, sobald eine Nummer gewählt ist, und heißt nach Lage „Alle richtig“ / „Rest richtig“ / „Abschicken“ (KN10).
    * Merker vorher `prueflisteAlleGesetzt`.
+   * Umbau Bestätigt 23.11.2026 (R9-09, KN10).
    */
   knotenPunkte: 5,
   /**
@@ -1895,6 +1932,7 @@ export const WKR_ANNAHMEN = {
    * (wkr/maske.ts restRichtig) und schickt ab, wie „Fehlerfrei“ bei den anderen Listen; sind alle gesetzt:
    * „Abschicken · Σ n“. wkr/maske.ts fertig() ist für die Prüfliste wahr, sobald sie Knoten hat; der Sperrtext „noch n
    * offen“ entfällt. `false` = alte Regel KN7 (erst alle gesetzt). Beim Bau 22.11.2026, noch zu bestätigen.
+   * Bestätigt 23.11.2026 (R9-09).
    */
   prueflisteRestRichtig: true,
   /**
@@ -1906,6 +1944,7 @@ export const WKR_ANNAHMEN = {
    * bleibt; eine schon erfasste Nummer öffnet die Korrektur erst nach einer Rückfrage.
    * Umgebaut 22.11.2026 (R8-32): kein Takt bleibt; vor der Korrektur steht immer die Rückfrage KN11
    * ({@link WKR_ANNAHMEN.tischRueckfrageErfasst}).
+   * Umbau Bestätigt 23.11.2026 (R9-10, KN11).
    */
   tischOhneTakt: true,
   /**
@@ -1917,6 +1956,7 @@ export const WKR_ANNAHMEN = {
    * geraete/uebung.ts `zuletzt`), nie im AppState; eine Korrektur zählt mit. Antippen übernimmt, Eintippen ersetzt
    * den Vorschlag. Beim Bau 22.11.2026, noch zu bestätigen. Offene Frage: „laut Ablauf“ = Folge des Bestands
    * (Starter-Reiter) oder die Startfolge des Tages (betrieb/folge.ts)? Gebaut: Bestand.
+   * Bestätigt 23.11.2026 (R9-08): Folge des Starter-Reiters (Bestand), nicht die Startfolge des Tages.
    */
   tischVorschlag: true,
   /**
@@ -1927,6 +1967,7 @@ export const WKR_ANNAHMEN = {
    * an Stelle der Knoten (kein Dialog), damit Weitertippen („1“ → „12“) nicht blockiert; „Korrigieren“ aus der
    * Prüfansicht des Abschlusses ist schon die Antwort und fragt nicht noch einmal. Beim Bau 22.11.2026, noch zu
    * bestätigen.
+   * Bestätigt 23.11.2026 (R9-10).
    */
   tischRueckfrageErfasst: true,
   /**
@@ -1935,6 +1976,7 @@ export const WKR_ANNAHMEN = {
    * Vorschlag KN9 als gewählt – Kopf „Nr. 9“, Knoten und „✓ Alle richtig“ sofort aktiv; ein fehlerfreier Starter = ein
    * Tipp, ein falscher = ✗ + Hauptknopf. Eintippen ersetzt ihn, Antippen des Vorschlags hält ihn fest. Vorher musste der
    * Vorschlag erst angetippt werden (zwei Tipps je Starter). Auslegung 22.11.2026, noch zu bestätigen.
+   * Bestätigt 23.11.2026 (R9-09).
    */
   tischVorschlagVorbelegt: true,
 
@@ -1963,6 +2005,7 @@ export const WKR_ANNAHMEN = {
    * (ZT5), nach einer fertigen Zeit springt der Block ins nächste Feld (ZT6).
    * Umgebaut 22.11.2026 (R8-35) – Nutzer: „Weiter springen ist okay, die anderen Zeiten sind optional.“ Vorher
    * (22.11.2026, W5.4): Abschicken erst, wenn jedes Feld eine Zeit oder „keine Zeit“ hat; kein Sprung.
+   * Umbau Bestätigt 23.11.2026 (R9-11, R9-12).
    */
   zeitEineZeile: true,
   /**
@@ -1972,6 +2015,7 @@ export const WKR_ANNAHMEN = {
    * Zeit (moewezeit, bstartziel). Ein leeres weiteres Feld überschreibt nie eine Papierzeit am Bedienrechner: Das Gerät
    * schickt ein leeres Feld nur, wenn es dort vorher selbst eine Zeit gesendet hatte (geraete/erfassen.ts `vorher`,
    * Korrektur → Zelle leeren). Beim Bau ausgelegt 22.11.2026 (R8-35), noch zu bestätigen.
+   * Bestätigt 23.11.2026 (R9-11).
    */
   zeitNurErstesPflicht: true,
   /**
@@ -1980,6 +2024,7 @@ export const WKR_ANNAHMEN = {
    * zeitVollstaendig) –, wird das nächste Zeitfeld aktiv (Pad: Umrandung, Handy: Feld-Reiter). Bei „1,23“ (Minuten
    * ohne Hundertstel) springt nichts, sonst ginge „1,2345“ nicht mehr. Im letzten Feld kein Sprung; ein Sprung leert
    * nichts, zurück per Antippen des Felds. Beim Bau ausgelegt 22.11.2026 (R8-35), noch zu bestätigen.
+   * Bestätigt 23.11.2026 (R9-12).
    */
   zeitSpringtWeiter: true,
   /**
