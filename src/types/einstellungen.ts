@@ -35,6 +35,13 @@ export type Besetzung = Partial<Record<ClassId, string>>
 
 export type LaufzettelLayout = 'seite' | 'liste'
 
+/**
+ * Wie die Klassen auf einem gemeinsamen WKR-Bogen stehen (Clubmeisterschaft, Wunsch des Nutzers vom 24.11.2026):
+ * `getrennt` = je Klasse ein Block mit der Klasse als Überschrift, `verzahnung` = alle Zeilen gemischt in der
+ * Startfolge der Verzahnung, mit der Klasse in einer Spalte hinter der Startnummer.
+ */
+export type WkrGemeinsamFolge = 'getrennt' | 'verzahnung'
+
 /** Platz eines Logos im Kopf der gedruckten Listen. */
 export type LogoSeite = 'links' | 'rechts'
 

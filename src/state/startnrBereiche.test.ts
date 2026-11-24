@@ -3,7 +3,7 @@ import { emptyState, reducer } from './reducer'
 import { migrate } from './migrate'
 import { makeFile, parseFile } from '../persistenz/backup'
 import { startNrBereicheOf, startNrRegeln } from '../config/catalog'
-import { startNrAbweichungen } from '../domain/startnrBereiche'
+import { naechsteStartNr, startNrAbweichungen } from '../domain/startnrBereiche'
 import type { AppState, ClassId, Starter } from '../types'
 
 /** Erfundener Starter (Muster Vor1/Nach1). */
@@ -87,6 +87,25 @@ describe('Startnummern-Bereiche im Zustand (19.11.2026)', () => {
     let s = dmMit([st('6', 1, 'XL', '611'), st('7', 1, 'XL', '')])
     s = reducer(s, { type: 'MOVE_STARTER_TO_CLASS', id: '7-1', klasse: '6' })
     expect(s.starters.find((p) => p.id === '7-1')?.startNr).toBe('612')
+  })
+
+  it('Buchstabe D für die Klasse E (24.11.2026): die Bereiche E01–E30 folgen ihm – vergeben wird D01 …', () => {
+    // Vorher wirkte D nur unter UIM (ohne Bereiche); unter DM vergab die App trotz D weiter E01 ….
+    let s = dmMit([st('E', 1, 'M'), st('E', 2, 'S'), st('E', 3, 'XL')])
+    s = reducer(s, { type: 'SET_DOLPHIN_PRAEFIX', praefix: 'D' })
+    // Fehlende Westen lesen E und D gleich: Ob „E02“ oder „d03“ – die Weste fehlt.
+    s = reducer(s, { type: 'SET_FEHLENDE_START_NR', nummern: ['E02', 'd03'] })
+    expect(startNrRegeln(s, 'E').praefixe).toEqual({ E: 'D' })
+    s = reducer(s, { type: 'ASSIGN_START_NUMBERS' })
+    expect(nrVon(s)).toEqual({ 'E-1': 'D01', 'E-2': 'D04', 'E-3': 'D05' })
+    expect(startNrAbweichungen(s.starters, 'E', startNrRegeln(s, 'E'))).toEqual([])
+    // Eigene Bereiche mit D oder E gelten gleich; ein Neuer (von Hand, ManualAddForm) bekommt die nächste freie D-Nummer.
+    s = reducer(s, { type: 'SET_START_NR_BEREICHE', klasse: 'E', bereiche: [{ von: 'D01', bis: 'E10', gruppe: 'S-M' }] })
+    expect(naechsteStartNr(s.starters, 'E', 'M', startNrRegeln(s, 'E'))).toBe('D06')
+    s = reducer(s, { type: 'ADD_STARTERS', starters: [st('E', 4, 'M', 'D06')] })
+    // Zurück auf E: neu vergeben schreibt wieder E01 …
+    s = reducer(reducer(s, { type: 'SET_DOLPHIN_PRAEFIX', praefix: 'E' }), { type: 'ASSIGN_START_NUMBERS' })
+    expect(nrVon(s)).toEqual({ 'E-1': 'E01', 'E-2': 'E04', 'E-3': 'E05', 'E-4': 'E06' })
   })
 
   it('migrate prüft beide Felder; Sicherung und Vorlage tragen sie als Einstellung', () => {

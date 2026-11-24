@@ -350,7 +350,7 @@ const rueckgaengig = computed(() => {
 // --- Was die Mitte zeigt: gesendet (Takt), Korrektur oder der aktuelle Start ---
 const zeige = computed(() => {
   const g = gesendet.value
-  if (g && imOverlay.value) return { start: g.start as Pick<SchlangenEintrag, 'key' | 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab'>, aufbau: g.aufbau, entwurf: g.entwurf, klasse: g.klasse }
+  if (g && imOverlay.value) return { start: g.start as Pick<SchlangenEintrag, 'key' | 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab' | 'ausgleich'>, aufbau: g.aufbau, entwurf: g.entwurf, klasse: g.klasse }
   const k = korrektur.value
   if (k) {
     const bekannt = [...schlange.value, ...danach.value].find((x) => x.key === k.s)
@@ -369,6 +369,17 @@ const kartenAmpel = computed(() => {
   const a = sicht.value?.ampel
   const z = zeige.value
   return a && z && !korrektur.value && a.key === z.start.key ? a.ampel : null
+})
+/**
+ * Ausgleichsgewicht auf der Karte (Nutzer 24.11.2026, WKR_ANNAHMEN AG3): nur im Teil „Ablegen“ – auch am Gerät für
+ * den ganzen Steg im Reiter bzw. der Pad-Spalte „Ablegen“, in der Korrektur nach ihrem Teil –, nie im „Anlegen“. Den
+ * Wert trägt nur die Sicht der Steg-Liste (`ListenStart.ausgleich`); hier wird nur entschieden, ob er erscheint.
+ */
+const kartenAusgleich = computed(() => {
+  const z = zeige.value
+  const t = korrektur.value?.teil ?? teil.value
+  if (!z || (t !== undefined && t !== WKR_ANNAHMEN.ausgleichTeil)) return null
+  return 'ausgleich' in z.start ? (z.start.ausgleich ?? null) : null
 })
 const invers = computed(() => {
   const r = zeige.value ? liesRef(zeige.value.start.key) : null
@@ -1036,7 +1047,7 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
             <p v-if="attemptAktiv" class="wkr-band wkr-attempt" role="status" data-teil="attempt-wechsel">
               <b>{{ attemptText }}</b>
             </p>
-            <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" :ampel="kartenAmpel" />
+            <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" :ampel="kartenAmpel" :ausgleich="kartenAusgleich" />
             <!-- P10: liegt über der Karte (absolut) – verschiebt keinen Knopf, fängt Tipps auf seiner Fläche ab. -->
             <p v-if="klassenWechsel && art === 'bojen'" class="wkr-band wkr-band--warn wkr-klassen-wechsel" role="status" data-teil="klassen-wechsel">
               <b>{{ w('wkr.geraet.bojen.klassenWechsel', { klasse: klassenWechsel }) }}</b>

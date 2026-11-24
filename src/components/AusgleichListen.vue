@@ -16,7 +16,9 @@ import ListenDokument from './ListenDokument.vue'
  * der Kopf folgt den übrigen Listen (jede Angabe in einem eigenen Feld): Liste | Klasse |
  * Boot | Co-Pilot | Veranstaltung. Boot und Co-Pilot kommen aus der Besetzung; ohne Eintrag
  * bleibt ihr Feld leer zum Eintragen von Hand. Den Co-Piloten gibt es nur, wo das Regelwerk
- * ihn vorsieht oder einer eingetragen ist.
+ * ihn vorsieht oder einer eingetragen ist. Wer nicht gewogen ist, bekommt ein Feld zum Nachtragen
+ * von Hand (klein „nicht gewogen“, rechts „kg“; Nutzer 24.11.2026) – digital kommt ein in der
+ * Verwiegung nachgetragenes Gewicht von selbst aufs Steg-Gerät (wkr/sicht.ts `ausgleich`).
  *
  * Alles auf dem Blatt steht in der Sprache des Regelwerks (lib/listensprache.ts). Der Name
  * folgt dem Reglement (DM C3 „Ausgleichsgewichte“, UIM 960 Pkt. 3.7 „extra weight“).
@@ -81,9 +83,14 @@ const laengster = (texte: string[]) => texte.reduce((a, b) => (b.length > a.leng
               <td class="narrow">{{ z.starter.startNr }}</td>
               <td :class="fit(z.starter.nachname, 18)">{{ z.starter.nachname }}</td>
               <td :class="fit(z.starter.vorname, 18)">{{ z.starter.vorname }}</td>
-              <!-- Leer heißt „kein Ausgleichsgewicht nötig“ – wer nicht gewogen ist, steht deshalb ausdrücklich da. -->
-              <td v-if="z.ausgleich === undefined" class="weight ungewogen">{{ lt('lists.notWeighed') }}</td>
-              <td v-else class="weight ausgleich-kg">{{ z.ausgleich === null ? '' : `${z.ausgleich} kg` }}</td>
+              <!-- Leer heißt „kein Ausgleichsgewicht nötig“ – wer nicht gewogen ist, steht deshalb ausdrücklich da.
+                   Seit 24.11.2026 (Nutzer: „bei einer Papierliste manuell nachgetragen“, WKR_ANNAHMEN AG2) nur noch
+                   klein oben in der Ecke: Der Rest der Zelle bleibt frei zum Eintragen von Hand, „kg“ steht rechts. -->
+              <td v-if="z.ausgleich === undefined" class="weight ungewogen"><span class="ungewogen-vermerk">{{ lt('lists.notWeighed') }}</span>{{ ' ' }}<span class="ungewogen-kg">kg</span></td>
+              <!-- Auf 0 kg gerundet (z. B. 64,6 kg bei 65 kg) heißt wie „gewogen, keines nötig“ leer – so liest das
+                   Steg-Gerät denselben Starter als „kein AG“ (Prüfbefund 24.11.2026, WKR_ANNAHMEN AG2, noch zu
+                   bestätigen; vorher stand „0 kg“). Die Verwiegung zeigt weiter „0 kg“ (WeighingView). -->
+              <td v-else class="weight ausgleich-kg">{{ z.ausgleich ? `${z.ausgleich} kg` : '' }}</td>
               <td class="narrow">{{ classCell(z.starter.klasse) }}</td>
               <td v-for="r in runs" :key="r" class="check" />
             </tr>

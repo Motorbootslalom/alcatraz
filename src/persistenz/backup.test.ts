@@ -173,6 +173,17 @@ describe('Dateien', () => {
     expect(applied.starters).toEqual([other])
   })
 
+  it('Datum der Veranstaltung (24.11.2026): in der Sicherung, nicht in der Vorlage – das hiesige bleibt', () => {
+    const mitDatum: AppState = { ...filled(), eventDatum: '2026-09-05' }
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', mitDatum, AT)))
+    expect(sicherung.ok && sicherung.kind === 'sicherung' && sicherung.state.eventDatum).toBe('2026-09-05')
+    const datei = makeFile('vorlage', mitDatum, AT)
+    expect(JSON.stringify(datei)).not.toContain('eventDatum')
+    const vorlage = parseFile(JSON.stringify(datei))
+    if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
+    expect(vorlage.apply({ ...emptyState(), eventDatum: '2027-06-12' }).eventDatum).toBe('2027-06-12')
+  })
+
   it('Teilnehmerdaten: nur die Starter', () => {
     const file = makeFile('starter', filled(), AT)
     expect(file).not.toHaveProperty('state')

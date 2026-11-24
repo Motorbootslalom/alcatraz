@@ -6,6 +6,7 @@ import type { Column } from '../types'
 import { bereicheZumStand, laeufeVonPunkt, lage, rundeVonPunkt } from '../betrieb/folge'
 import { defFuerKlasse } from '../lib/bogen'
 import { erfasstKennung, listenFelder, teilHaken, werteVon } from '../lib/eingaben'
+import { ausgleichAmSteg } from '../lib/ausgleich'
 import { bietetEnglisch, wkrSpracheFuer } from '../lib/listensprache'
 import { RACECOURSE_PARCOURS } from '../lib/parallelSchluessel'
 import { geraetVonZeile } from '../state/reducer/wkr'
@@ -22,10 +23,12 @@ import { danach, schlange, type SchlangenStart } from './schlange'
 // ein neues Feld im Stand landet so nie still auf der Leitung (Schlüssel-Test in sicht.test.ts).
 //
 // Datenschutz (F6, F11, F17): nie Name, Herkunft, Geburtsdatum, Gewicht, Geschlecht; keine Werte (auch nicht der
-// eigenen Liste – das Gerät kennt, was es geschickt hat), keine Summen, keine Wertung. Einzige Ausnahme: bei einer
-// Rückfrage des Geräts der Wert genau dieser Zelle (`steht`, F11). Die Sicht ist EIN Inhalt der Listen-Gruppe: Jedes
-// Gerät derselben Liste (am Steg auch das des anderen Teils) kann sie ganz lesen, also auch `steht`, Ablehnungen und
-// Hinweise der anderen – nie ein Gerät einer anderen Liste (WKR_ANNAHMEN.rueckfrageInListe, Prüfbefund 21.11.2026).
+// eigenen Liste – das Gerät kennt, was es geschickt hat), keine Summen, keine Wertung. Ausnahmen: bei einer
+// Rückfrage des Geräts der Wert genau dieser Zelle (`steht`, F11) und – nur an der Steg-Liste – das Ausgleichsgewicht
+// je Start (`ausgleich`, Nutzer 24.11.2026, WKR_ANNAHMEN AG1; nie Körper- oder Durchschnittsgewicht). Die Sicht ist
+// EIN Inhalt der Listen-Gruppe: Jedes Gerät derselben Liste (am Steg auch das des anderen Teils) kann sie ganz lesen,
+// also auch `steht`, `ausgleich`, Ablehnungen und Hinweise der anderen – nie ein Gerät einer anderen Liste
+// (WKR_ANNAHMEN.rueckfrageInListe, Prüfbefund 21.11.2026).
 // Rein und zeitunabhängig: gleicher Stand und gleiches `extra` ⇒ gleiche Sicht (der Host vergleicht nach Inhalt).
 
 /**
@@ -51,8 +54,11 @@ import { danach, schlange, type SchlangenStart } from './schlange'
  * 10 seit mehreren Disq. je Bojenzelle (R7-14, 22.11.2026, WKR_ANNAHMEN BZ8): Die Form der Sicht bleibt gleich, aber
  * Zellen heißen jetzt „5, J, D“ – ein altes Gerät läse davon nur den ersten Buchstaben und schickte „5J“, das wertGilt
  * ablehnt. Die neue Fassung lässt es über F7 neu laden.
+ * 11 seit dem Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3): `ListenStart.ausgleich` an den
+ * Starts der Steg-Liste – ein altes Gerät zeigte es nicht, der WKR am Ablegen verließe sich auf ein Blatt, das es
+ * digital nicht mehr gibt.
  */
-export const LISTEN_SICHT_FASSUNG = 10
+export const LISTEN_SICHT_FASSUNG = 11
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier
@@ -75,6 +81,12 @@ export interface ListenStart {
   seite?: 'A' | 'B'
   /** Boot der Klasse (AppState.boote), wenn eingetragen. */
   boot?: string
+  /**
+   * Nur Steg-Listen (seit Fassung 11, Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3): das Ausgleichsgewicht in ganzen kg
+   * (lib/ausgleich.ts ausgleichAmSteg – dieselbe Rechnung wie die Papierliste), 0 = keines nötig, 'fehlt' = noch nicht
+   * gewogen. Fehlt, wenn die Klasse kein Durchschnittsgewicht hat. Nie Körper- oder Durchschnittsgewicht.
+   */
+  ausgleich?: number | 'fehlt'
   /**
    * Nur bei geteilten Listen (Steg): welcher Teil vom Gerät nichts mehr braucht – erfasst, oder für diesen Teil auf
    * Papier (Pause, Abschluss mit „Rest auf Papier“) bzw. sein Punkt abgeschlossen. Seit dem Steg-Zeitversatz (Nutzer
@@ -409,11 +421,18 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   const l = lage(stand, liste.bereich)
 
   const starterNachId = new Map(stand.starters.map((s) => [s.id, s]))
+  const mitAusgleich = WKR_ANNAHMEN.ausgleichListen.includes(liste.typeId)
   const start = (s: SchlangenStart): ListenStart => {
     const out: ListenStart = { key: s.key, startNr: starterNachId.get(s.starter)?.startNr ?? '', klasse: s.klasse, titel: startTitel(s.ref, texte), lauf: s.lauf, punkt: s.punkt }
     if (liste.racecourse !== null) out.seite = liste.racecourse
     const boot = stand.boote[s.klasse]?.trim()
     if (boot) out.boot = boot
+    // Ausgleichsgewicht (AG1/AG2): nur an der Steg-Liste, nur der Wert der einen Rechnung – nie ein Gewicht selbst.
+    if (mitAusgleich) {
+      const p = starterNachId.get(s.starter)
+      const ag = p ? ausgleichAmSteg(stand, p) : null
+      if (ag !== null) out.ausgleich = ag
+    }
     if (teile && s.teileOffen) out.teile = { ab: !s.teileOffen.ab, an: !s.teileOffen.an }
     else if (teile) {
       const w = werteVon(stand.eingaben, s.lauf, s.starter)

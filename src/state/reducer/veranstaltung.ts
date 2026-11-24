@@ -1,4 +1,4 @@
-// Veranstaltung: leerer Stand (emptyState), Name, Jahr, Läufe, Art, Herkunft, Kennung; Stand laden und zurücksetzen.
+// Veranstaltung: leerer Stand (emptyState), Name, Jahr, Datum, Läufe, Art, Herkunft, Kennung; Stand laden und zurücksetzen.
 
 import type { AppState, EventKind, OriginMode } from '../../types'
 import { SCHEMA_VERSION } from '../../types'
@@ -10,9 +10,15 @@ import { ERGEBNIS_LISTEN_VORGABE } from './wertung'
 import { LOGO_HOEHE_VORGABE_MM } from '../../lib/logo'
 import { anzeigeVorgabe, betriebLeer } from './betrieb'
 import { wkrLeer } from './wkr'
+import { istTag } from '../../lib/datum'
 
 export type VeranstaltungAenderung =
   | { type: 'SET_EVENT'; patch: Partial<Pick<AppState, 'eventName' | 'eventJahr' | 'laufCount'>> }
+  /**
+   * Datum der Veranstaltung (erster Wettkampftag, JJJJ-MM-TT); '' nimmt es weg. Ein Tag, den es nicht
+   * gibt, ändert nichts (24.11.2026; für die Warnung zur Starterlaubnis nach Geburtstag).
+   */
+  | { type: 'SET_EVENT_DATUM'; datum: string }
   | { type: 'SET_EVENT_KIND'; eventKind: EventKind }
   | { type: 'SET_ORIGIN_MODE'; originMode: OriginMode }
   | { type: 'LOAD_STATE'; state: AppState }
@@ -30,6 +36,8 @@ export function emptyState(): AppState {
     schemaVersion: SCHEMA_VERSION,
     eventName: '',
     eventJahr: 2026,
+    // Kein Datum: Die Warnung zum Geburtstag prüft dann nur den Jahrgang (24.11.2026).
+    eventDatum: '',
     eventKind: 'meisterschaft',
     startNrMode: 'klasse',
     regelwerk: DEFAULT_REGELWERK,
@@ -49,6 +57,7 @@ export function emptyState(): AppState {
     abgemeldetBis: {},
     streichlaeufe: 'auto',
     wkrClubGemeinsam: true,
+    wkrGemeinsamFolge: 'getrennt',
     ergebnisListen: ERGEBNIS_LISTEN_VORGABE,
     kennung: '',
     listenStand: {},
@@ -105,6 +114,11 @@ export function wendeVeranstaltungAn(state: AppState, action: VeranstaltungAende
       const next = { ...state, ...action.patch }
       next.laufCount = Math.max(1, Math.min(9, Math.round(next.laufCount) || 1))
       return next
+    }
+
+    case 'SET_EVENT_DATUM': {
+      const datum = action.datum === '' || istTag(action.datum) ? action.datum : state.eventDatum
+      return datum === state.eventDatum ? state : { ...state, eventDatum: datum }
     }
 
     case 'SET_EVENT_KIND': {

@@ -366,13 +366,9 @@
 /* Dummy oder entfallener Start: Zeile ohne Eingabe – die übrigen Zellen schraffiert (`bt-entfaellt`,
    Entscheidung des Nutzers vom 15.11.2026). Jede zweite Zeile ist grau (Vorgabe, `parallelZebra`):
    Davon muss sich die Zeile klar abheben. Deshalb sind Start- und Dummy-Zelle weiß statt grau, und
-   die Schraffur ist kräftiger und dichter als die einer Spalte, die eine Klasse nicht hat. */
+   die Schraffur ist kräftig und dicht (Regel `td.bt-entfaellt` weiter unten). */
 .bogen-tabelle > tbody > tr.bt-ohne > td {
   background: var(--blatt-bg);
-}
-
-.bogen-tabelle > tbody > tr.bt-ohne > td.bt-entfaellt {
-  background: repeating-linear-gradient(135deg, var(--blatt-bg) 0 2.2px, var(--blatt-linie) 2.2px 3.2px);
 }
 
 .bogen-tabelle > tbody > tr.bt-ohne > td.bt-dummy {
@@ -389,9 +385,20 @@
   box-shadow: inset 0 -2.5px 0 var(--blatt-linie);
 }
 
-/* Mehrere Klassen auf einem Bogen: Diese Spalte gibt es für die Klasse der Zeile nicht. */
+/* Nichts einzutragen: Diese Spalte gibt es für die Klasse der Zeile nicht (mehrere Klassen auf einem Bogen), oder die
+   Zeile gehört einem Dummy bzw. einem entfallenen Start. Beides sieht seit 24.11.2026 gleich aus – kräftig und dicht
+   schraffiert wie die Zeile eines Dummys (Nutzer: „Das Ausgrauen hast du bei den Dummy schon sehr gut umgesetzt. So
+   soll das dort dann auch sein“); vorher war die Spalte einer anderen Klasse nur blass schraffiert. Steht nach der
+   Regel `tr.bt-ohne > td` (gleiche Spezifität), damit die Schraffur dort den weißen Grund ersetzt. */
 .bogen-tabelle > tbody > tr > td.bt-entfaellt {
-  background: repeating-linear-gradient(135deg, transparent 0 3px, var(--blatt-blass) 3px 4px);
+  background: repeating-linear-gradient(135deg, var(--blatt-bg) 0 2.2px, var(--blatt-linie) 2.2px 3.2px);
+}
+
+/* In einer grauen Zeile (jede fünfte bzw. jede zweite einer Runde) liegt dieselbe Schraffur auf Grau: Die Zeile liest
+   sich weiter als graue Zeile über die ganze Breite, und die schraffierte Zelle bleibt von einer bloß grauen klar zu
+   unterscheiden. */
+.bogen-tabelle > tbody > tr.grau > td.bt-entfaellt {
+  background: repeating-linear-gradient(135deg, var(--blatt-grau) 0 2.2px, var(--blatt-linie) 2.2px 3.2px);
 }
 
 /* Optische Spalten-Trenner am linken Rand einer Spalte, über Kopf und Zellen – z. B.

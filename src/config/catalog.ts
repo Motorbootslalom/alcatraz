@@ -5,6 +5,7 @@ import { configFor, eigeneAuswahl, ROH_QUELLE, ROH_REGELWERKE, type RohRegelwerk
 import { regelwerkInfo, type DisziplinWertung } from './build'
 import type { RawAufbau, StichKriterium } from './schema'
 import { normalisiereBereichsListe, type StartNrBereich, type StartNrBereiche, type StartNrRegeln } from '../domain/startnrBereiche'
+import type { GeburtstagsGrenze } from '../import/klassenPruefung'
 
 /**
  * Was eine Veranstaltung zur Auswahl hat: Regelwerke (aus der Ausschreibung) und
@@ -63,6 +64,11 @@ export interface Regelwerk {
   startabstaende: Partial<Record<ClassId, number>>
   /** Nummernbereiche der Startnummern je Klasse nach Größengruppe der Westen (YAML `startNrBereiche`, 19.11.2026). */
   startNrBereiche: StartNrBereiche
+  /**
+   * Starterlaubnis nach Geburtstag je Klasse (YAML `geburtstagsGrenzen`, DM-Reglement C8: E ab dem 6.,
+   * 7 bis zum 27. Geburtstag) – nur eine Warnung im Reiter „Starter“ (24.11.2026); leer = keine.
+   */
+  geburtstagsGrenzen: Partial<Record<ClassId, GeburtstagsGrenze>>
 }
 
 export interface Aufbau {
@@ -112,7 +118,21 @@ function readRegelwerk(raw: RohRegelwerk): Regelwerk {
     laenderKuerzel: info.laenderKuerzel,
     startabstaende: zahlenJeKlasse(raw.startabstaende),
     startNrBereiche: bereicheJeKlasse(raw.startNrBereiche),
+    geburtstagsGrenzen: grenzenJeKlasse(raw.geburtstagsGrenzen),
   }
+}
+
+/** Geburtstags-Grenzen aus dem YAML: nur bekannte Klassen und ganze Jahre (geprüft in validate.ts). */
+function grenzenJeKlasse(roh: unknown): Partial<Record<ClassId, GeburtstagsGrenze>> {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {}
+  const jahre = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x) && x > 0
+  const out: Partial<Record<ClassId, GeburtstagsGrenze>> = {}
+  for (const [klasse, g] of Object.entries(roh as Record<string, { ab?: unknown; bis?: unknown } | null>)) {
+    if (!isClassId(klasse) || !g || typeof g !== 'object') continue
+    const grenze: GeburtstagsGrenze = { ...(jahre(g.ab) ? { ab: g.ab } : {}), ...(jahre(g.bis) ? { bis: g.bis } : {}) }
+    if (grenze.ab !== undefined || grenze.bis !== undefined) out[klasse] = grenze
+  }
+  return out
 }
 
 /** Startnummern-Bereiche aus dem YAML: nur bekannte Klassen und brauchbare Einträge (geprüft in validate.ts). */
@@ -179,13 +199,15 @@ export function versucheNacheinander(stand: { regelwerk: string; versucheNachein
 
 /**
  * Was vor der laufenden Nummer klassenbezogener Startnummern steht: die Angabe des Regelwerks –
- * und für die Klasse Dolphin (ein Regelwerk, das die Klasse E so nennt) der in den Einstellungen
- * gewählte Buchstabe, E oder D (`AppState.dolphinPraefix`; Entscheidung des Nutzers vom
- * 15.11.2026). Regel 960, Pkt. 3.7 sagt nur: „Each driver shall receive a personal number“.
+ * und für die Klasse E der gewählte Buchstabe, E oder D (`AppState.dolphinPraefix`; unter UIM
+ * „Dolphin“, Entscheidung des Nutzers vom 15.11.2026; seit 24.11.2026 unter jedem Regelwerk, auch
+ * DM: „D Präfix kannst du einbauen und zur Auswahl stellen“). Regel 960, Pkt. 3.7 sagt nur: „Each
+ * driver shall receive a personal number“. Die Startnummern-Bereiche folgen dem Buchstaben von
+ * selbst: Gelesen wird E wie D (domain/startnrBereiche.ts nummerDerKlasse), vergeben mit diesem.
  */
 export function startNrPraefixe(stand: { regelwerk: string; dolphinPraefix?: 'E' | 'D' }): Partial<Record<ClassId, string>> {
   const rw = regelwerkOf(stand.regelwerk)
-  return rw.klassenNamen.E === undefined || stand.dolphinPraefix === undefined ? rw.startNrPraefix : { ...rw.startNrPraefix, E: stand.dolphinPraefix }
+  return stand.dolphinPraefix === undefined || !rw.klassen.includes('E') ? rw.startNrPraefix : { ...rw.startNrPraefix, E: stand.dolphinPraefix }
 }
 
 /** Die Startnummern-Bereiche des Regelwerks für eine Klasse; leer, wenn es keine nennt. */

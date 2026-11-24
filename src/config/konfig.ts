@@ -187,7 +187,8 @@ export function baue(
   // `disziplinen` des Regelwerks (Kennungen) gehört nicht in die Listen-Konfiguration;
   // dort sind es die Disziplinen der Positionsdateien. Ebenso die Startabstände (nur für den Betrieb,
   // config/catalog.ts startabstandOf) und die Startnummern-Bereiche (nur für die Vergabe): Zusammengelegt verdeckten die allgemeinen die des Regelwerks.
-  const { disziplinen: _disziplinen, gewichte: _gewichte, coPilot: _coPilot, startabstaende: _abstaende, startNrBereiche: _bereiche, ...ohneDisziplinen } = regelwerk as RohRegelwerk
+  // Die Geburtstags-Grenzen (24.11.2026) brauchen nur der Reiter „Starter“ (config/catalog.ts).
+  const { disziplinen: _disziplinen, gewichte: _gewichte, coPilot: _coPilot, startabstaende: _abstaende, startNrBereiche: _bereiche, geburtstagsGrenzen: _geburtstag, ...ohneDisziplinen } = regelwerk as RohRegelwerk
   const { startabstaende: _allgemein, ...positionenOhneAbstaende } = positionen
   const raw: RawConfig = {
     ...ohneDisziplinen,

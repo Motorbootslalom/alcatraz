@@ -132,6 +132,19 @@ describe('Konfigurations-Validierung', () => {
     expect(neu([1])).toEqual(['BAD_STARTNR_BEREICHE'])
   })
 
+  it('geburtstagsGrenzen (24.11.2026): bekannte Klassen, ab und/oder bis in ganzen Jahren, ab < bis', () => {
+    const codes = (mehr: Record<string, unknown>) => validateRawConfig(mehr as Parameters<typeof validateRawConfig>[0]).map((i) => i.code)
+    const neu = (geburtstagsGrenzen: unknown) => codes({ geburtstagsGrenzen }).filter((c) => !codes({}).includes(c))
+    expect(neu({ E: { ab: 6 }, 7: { bis: 27 }, 3: { ab: 12, bis: 14 } })).toEqual([])
+    expect(neu({ E: {} })).toEqual(['BAD_GEBURTSTAG'])
+    expect(neu({ E: { ab: 6.5 } })).toEqual(['BAD_GEBURTSTAG'])
+    expect(neu({ E: { ab: '6' } })).toEqual(['BAD_GEBURTSTAG'])
+    expect(neu({ E: { von: 6 } })).toEqual(['BAD_GEBURTSTAG'])
+    expect(neu({ 3: { ab: 14, bis: 12 } })).toEqual(['BAD_GEBURTSTAG'])
+    expect(neu({ M: { ab: 6 } })).toEqual(['UNKNOWN_GEBURTSTAG_KLASSE'])
+    expect(neu([6])).toEqual(['BAD_GEBURTSTAG'])
+  })
+
   it('startabstaende: einstellungen.yaml nennt jede Klasse; ein Regelwerk ersetzt je Klasse und wird mitgeprüft', () => {
     const allgemein = (yamlLoad(texte.positionen) as RawQuelle).startabstaende ?? {}
     for (const k of ['E', '1', '2', '3', '4', '5', '6', '7']) expect(allgemein[k], `Klasse ${k}`).toBeGreaterThanOrEqual(30)

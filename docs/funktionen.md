@@ -52,8 +52,12 @@ Das geht nur, wo das Regelwerk Englisch anbietet (`src/lib/listensprache.ts`, `A
 
 ## Veranstaltung und Besetzung
 
-Die Ansicht „Veranstaltung“ nimmt Name, Jahr, Zahl der Läufe, Art (Meisterschaft oder Clubmeisterschaft),
+Die Ansicht „Veranstaltung“ nimmt Name, Jahr, Datum, Zahl der Läufe, Art (Meisterschaft oder Clubmeisterschaft),
 Herkunft (Verein, Bundesland, Land oder ohne), Regelwerk und Aufbau auf.
+
+- Das Datum (24.11.2026, erster Wettkampftag) ist freiwillig. Es braucht nur die Warnung zur Starterlaubnis nach
+  Geburtstag (siehe [Sperren und Prüfungen](#sperren-und-prüfungen)); für die Jahrgänge zählt das Jahr. Liegt es in
+  einem anderen Jahr, sagt das ein leiser Hinweis am Feld. Es steht in der Sicherung, nicht in der Vorlage.
 
 - Die WKR-Einteilung steht im Block „Besetzung“ dieser Ansicht, zusammen mit Booten und Co-Piloten je Klasse.
 - Die Beispielansicht der Listen steht unter „Veranstaltung“ und im Assistenten.
@@ -181,6 +185,12 @@ gezeichnet von einer Komponente (`src/components/HerkunftText.vue`).
   je Klasse ein Blatt nach Startnummer mit dem Ausgleichsgewicht und einem Kästchen je Lauf.
   Im Kopf stehen Boot und Co-Pilot aus „Veranstaltung → Besetzung“
   (`src/lib/ausgleich.ts`, `src/components/AusgleichListen.vue`).
+  Wer noch nicht gewogen ist, bekommt ein Feld zum Nachtragen von Hand (klein „nicht gewogen“, rechts „kg“; 24.11.2026).
+  Leer heißt „kein Ausgleichsgewicht nötig“ – auch, wenn es auf 0 kg gerundet ist (24.11.2026; die Verwiegung zeigt „0 kg“).
+- Digital (24.11.2026): Das Steg-Gerät der WKR-Erfassung zeigt im Teil „Ablegen“ neben der Startnummer dasselbe
+  Ausgleichsgewicht – „AG 4 kg“, „kein AG“ oder „AG: Gewicht fehlt“. Gepflegt wird am Steg nichts: Ein in der
+  Verwiegung nachgetragenes Gewicht kommt von selbst aufs Gerät. Über die Leitung geht nur das Ausgleichsgewicht,
+  verschlüsselt in der Gruppe der Steg-Liste, nie das Körpergewicht ([entscheidungen.md](entscheidungen.md#ausgleichsgewicht-am-steg-entscheidung-24112026)).
 
 Die Durchschnittsgewichte je Klasse stehen im Regelwerk (`gewichte`).
 Sie lassen sich unter „Einstellungen → Durchschnittsgewichte“ ändern.
@@ -229,6 +239,14 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
 - Bei der Clubmeisterschaft stehen mehrere Klassen auf einem Bogen.
   Listen mit Parcoursbild bleiben je Klasse.
   Mit „Papier sparen“ stehen die Leerzeilen einmal je Seite statt je Klasse.
+  Wie die Klassen auf dem gemeinsamen Bogen stehen, ist wählbar (24.11.2026, `wkrGemeinsamFolge`):
+  „getrennt“ (Vorgabe) – je Klasse ein Block, die Klasse als Überschrift darüber; „nach der Verzahnung“ – alle Starter
+  gemischt in der Startfolge, ohne Überschriften, die Klasse in einer schmalen Spalte hinter der Startnummer, die
+  Leerzeilen (je Seite) am Ende jeder Seite mit leerer Klassenzelle. Geteilt wird automatisch nach Messung; der Kopf
+  nennt die Klassen der Seite; Seitenzahlen, Laufzettel, QR-Codes und die Erfassung folgen. Die Erfassung zeigt dieselbe
+  Zeilenfolge wie das Papier.
+- Spalten, die eine Klasse nicht hat, sind in ihren Zeilen kräftig schraffiert – wie die Zeile eines Dummys im
+  Parallelslalom (24.11.2026); in einer grauen Zeile liegt die Schraffur auf Grau.
 - Die Parcours-Zeichnung steht auf den Bögen, abgeblendet je Position.
   Parallelslalom (23.11.2026): Der Fahrweg-Bogen jedes Racecourse trägt die eine Bahn ohne Steg rechts neben der
   Legende – ohne eine Zeile je Blatt zu kosten ([parallelslalom.md](parallelslalom.md#wkr-listen-des-vorlaufs)).
@@ -254,6 +272,9 @@ Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkr
 
 - Starter je Seite fest statt automatisch, und „Teilen ab“ für die Wettkampfrichter-Listen.
   Gemeinsame Club-Bögen teilen sich immer automatisch.
+- Clubmeisterschaft: „Papier sparen“ (alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild) und „Klassen auf
+  gemeinsamen Bögen“: getrennt oder nach der Verzahnung. „Leerzeilen je Seite“ gilt mit „Papier sparen“ und immer, wenn
+  die Klassen nach der Verzahnung stehen.
 - Bezeichnung der Bojen-Seiten: R/L, Land/See, Kai/Hafen, Pfeile, Innen/Außen.
   Die Wertungslisten bleiben bei R/L.
 - Die Sprache der Bögen: siehe [Regelwerke und Begriffe](#regelwerke-und-begriffe).
@@ -790,6 +811,16 @@ Die Punkte mit Datum sind Entscheidungen vom 15.11.2026.
   Passt der Jahrgang in keine Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten; beim Einfügen aus Excel
   lässt sich die Zeile dann je Starter „Nicht übernehmen“.
   Ohne Geburtsdatum lässt sich nichts prüfen; das fällt in der Starterliste auf („fehlt“).
+- **Starterlaubnis nach Geburtstag** (24.11.2026, nur DM, Reglement C8: Klasse E ab dem 6., Klasse 7 bis zum 27.
+  Geburtstag; `geburtstagsGrenzen` im Regelwerk, `src/import/klassenPruefung.ts` geburtstagsHinweise): nur eine
+  Warnung, die man übergehen kann – nichts wird gesperrt, verschoben oder abgefragt.
+  - Kopf der Klasse: gelbe Marke „2 Geburtstage prüfen“, auch zugeklappt; offen eine Liste mit einem Satz je Starter
+    („6. Geburtstag erst am 06.09.2026 – Starterlaubnis in Klasse E ab dem 6. Geburtstag“) und „!“ am Geburtsdatum.
+  - Gemessen am Datum der Veranstaltung (Reiter „Veranstaltung“, Feld „Datum“ = erster Wettkampftag, freiwillig; der
+    Satz unter der Zeile nennt die Grenzen aus dem Regelwerk, unter UIM nur, was das Feld ist). Ohne Datum nennt die Liste die Grenz-Jahrgänge zum Prüfen (werden im Jahr
+    6 bzw. 27) und verweist auf das Datum; wer sicher außerhalb liegt, steht auch ohne Datum da.
+  - Auslegungen (zu bestätigen): am 27. Geburtstag selbst nicht mehr; der erste Wettkampftag zählt; der 29.02. wird in
+    Jahren ohne ihn zum 01.03.
 - **Datumsfelder** (15.11.2026): nie die Datumswahl des Browsers.
   Sie zeigte je nach Systemsprache mm/dd/yyyy – „darf es nie geben“.
   - Stattdessen ein Textfeld mit festem Muster: deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT
@@ -802,8 +833,11 @@ Die Punkte mit Datum sind Entscheidungen vom 15.11.2026.
 - **Startnummern mit Präfix** (15.11.2026): E01, D01 sortieren überall wie mit einer 0 davor, also vor 101, 201 …
   (`vergleicheStartNr` in `src/domain/startnumbers.ts` – die eine Stelle für Listen, Wertung, Verzahnung
   und die Paare des Parallelslaloms).
-  Unter UIM ist der Buchstabe der Dolphin-Nummern wählbar: E oder D
+  Der Buchstabe der Klasse E ist wählbar: E (Vorgabe) oder D – unter UIM „Buchstabe der Dolphin-Nummern“, seit
+  24.11.2026 auch unter DM („Buchstabe der Klasse E“)
   („Starter → Startnummern“, Zustand `dolphinPraefix`, in Sicherung und Vorlage; gilt für neu vergebene Nummern).
+  Die Startnummern nach Westengröße folgen ihm: Mit D wird aus E01–E30 D01–D30, in der Vergabe und in den
+  Einstellungen; Bereiche und fehlende Westen werden mit E oder D gelesen.
   Beim Weiterzählen gelten in der Klasse E beide Buchstaben (`parseClassNumber`):
   Nach dem Umstellen folgt auf E02 also D03, nicht D01.
 - **DM, Disqualifikation S „Bremsen mit der Hand beim Anlegen“** (15.11.2026) – nur auf der Steg-Liste.

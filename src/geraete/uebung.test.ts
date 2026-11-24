@@ -100,6 +100,16 @@ describe('Übungs-Kern', () => {
     expect(q.schlangeTeil(liste, 'ab').some((s) => s.key === k)).toBe(false)
   })
 
+  it('Steg (AG4, 24.11.2026): die Schlange trägt das erfundene Ausgleichsgewicht wie die Sicht; Tor 5 nicht', () => {
+    const { q, liste } = uebe({ regelwerk: 'dm-2026', typeId: 'steg' })
+    const kopf = q.schlange.value[liste][0]
+    expect(kopf.ausgleich).toBeDefined()
+    expect(kopf.ausgleich).toBe(q.sichten.value[liste]!.schlange.find((x) => x.key === kopf.key)!.ausgleich)
+    const tor = uebe({ regelwerk: 'dm-2026', typeId: 'tor5' })
+    expect(tor.q.schlange.value[tor.liste][0].ausgleich).toBeUndefined()
+    expect(localStorage.length).toBe(0)
+  })
+
   it('Entwurf, holeZurueck vor der Quittung, Abschluss mit offenen Starts nur mit „Rest auf Papier“', () => {
     const { q, liste } = uebe({ regelwerk: 'dm-2026', typeId: 'tor5' })
     const kopf = q.schlange.value[liste][0]

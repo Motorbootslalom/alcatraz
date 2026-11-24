@@ -414,6 +414,28 @@ describe('Erfassung', () => {
     wrapper.unmount()
   })
 
+  it('Clubmeisterschaft, Klassen in der Startfolge (24.11.2026): Zeilen wie auf dem Papier gemischt, die Klasse in ihrer Spalte', async () => {
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    store.dispatch({ type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'verzahnung' })
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'parcours', 'par_2')
+    await waehle(wrapper, 'liste', 'steg')
+    expect(titel(wrapper)).toContain('Klassen 4, 7')
+    // Keine Blöcke, keine Zwischenüberschriften – dieselbe Folge wie auf dem gedruckten Bogen (die der Verzahnung).
+    expect(wrapper.findAll('.erf-zwischen')).toHaveLength(0)
+    const papier = wkrBoegenZumStand(store.state.value, configFor()).boegen.find((b) => b.parcoursId === 'par_2' && b.typeId === 'steg' && b.lauf === 1)!
+    expect(papier.klassen).toEqual(['4', '7'])
+    expect(zeilen(wrapper).map((z) => z.attributes('data-zeile'))).toEqual(papier.auftrag.zeilen.map((z) => z.id))
+    expect(new Set(zeilen(wrapper).slice(0, 2).map((z) => z.find('.erf-klasse').text()))).toEqual(new Set(['4', '7']))
+    expect(wrapper.findAll('.erf-tabelle thead th')[1].text()).toBe('Kl.')
+    // Die Tastatur geht von Zeile zu Zeile, gleich welcher Klasse.
+    const erste = feld(wrapper, 0, 'fehlerAB')
+    erste.element.focus()
+    await taste(erste, 'ArrowDown')
+    expect(fokus()).toBe(`${papier.auftrag.zeilen[1].id}|fehlerAB`)
+    wrapper.unmount()
+  })
+
   it('englische Oberfläche und UIM: englische Texte, Klassenname aus dem Regelwerk, Verweis für den Parallel-Slalom', async () => {
     store.dispatch({ type: 'CLEAR_ALL_STARTERS' })
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })

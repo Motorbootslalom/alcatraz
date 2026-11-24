@@ -1,7 +1,7 @@
 // Listen und Druck: WKR-Bögen (Leerzeilen, Seiten, Rückseite, Sprache, Namen, Besetzung), Beschriftung, Laufzettel, Herkunft, Zebra,
 // Logos.
 
-import type { AppState, ClassId, LaufzettelLayout, LogoBild, LogoSeite, Sprache } from '../../types'
+import type { AppState, ClassId, LaufzettelLayout, LogoBild, LogoSeite, Sprache, WkrGemeinsamFolge } from '../../types'
 import { setzeName, setzeSprache, type WkrZelle } from '../../lib/einteilung'
 import { setzeBesetzung } from '../../lib/besetzung'
 import { beschriftungOf } from '../../config/catalog'
@@ -28,6 +28,8 @@ export type ListenAenderung =
   | { type: 'SET_WKR_LEERZEILEN'; klasse?: ClassId; anzahl: number | null; alleKlassen?: boolean }
   | { type: 'SET_WKR_RUECKSEITE'; rueckseite: boolean }
   | { type: 'SET_WKR_CLUB_GEMEINSAM'; gemeinsam: boolean }
+  /** Folge der Klassen auf gemeinsamen Bögen (Clubmeisterschaft, 24.11.2026): Blöcke oder Startfolge der Verzahnung. */
+  | { type: 'SET_WKR_GEMEINSAM_FOLGE'; folge: WkrGemeinsamFolge }
   /**
    * Seitenaufteilung der Wettkampfrichter-Listen: Starter je Seite (0 oder unbrauchbar =
    * automatisch) und „Teilen ab“ (0 = immer). Nur was im Patch steht, ändert sich.
@@ -87,6 +89,11 @@ export function teilenAbZahl(n: unknown): number {
   return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(WKR_TEILEN_AB_MAX, Math.round(n))) : 0
 }
 
+/** Eine gültige Folge der Klassen auf gemeinsamen Bögen; sonst die Vorgabe „getrennt“ (das Verhalten vor dem 24.11.2026). */
+export function gemeinsamFolgeWert(x: unknown): WkrGemeinsamFolge {
+  return x === 'verzahnung' ? 'verzahnung' : 'getrennt'
+}
+
 /** Eine gültige Form der Laufzettel; sonst die Vorgabe „eine Zeile je Seite“. */
 export function laufzettelLayoutWert(x: unknown): LaufzettelLayout {
   return x === 'liste' ? 'liste' : 'seite'
@@ -120,6 +127,11 @@ export function wendeListenAn(state: AppState, action: ListenAenderung): AppStat
 
     case 'SET_WKR_CLUB_GEMEINSAM':
       return { ...state, wkrClubGemeinsam: action.gemeinsam }
+
+    case 'SET_WKR_GEMEINSAM_FOLGE': {
+      const folge = gemeinsamFolgeWert(action.folge)
+      return folge === state.wkrGemeinsamFolge ? state : { ...state, wkrGemeinsamFolge: folge }
+    }
 
     case 'SET_WKR_SEITEN': {
       const { zeilenJeSeite, teilenAb } = action.patch

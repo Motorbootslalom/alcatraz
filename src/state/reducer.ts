@@ -40,6 +40,7 @@ export {
   zeilenJeSeiteZahl,
   teilenAbZahl,
   laufzettelLayoutWert,
+  gemeinsamFolgeWert,
 } from './reducer/listen'
 export { anzeigeVorgabe, betriebLeer, normalisiereAnzeige, normalisiereBetrieb, meldungWert } from './reducer/betrieb'
 export { normalisiereWkr, wkrLeer } from './reducer/wkr'
@@ -184,6 +185,7 @@ function wendeAn(state: AppState, action: Action): AppState {
   // Jede Action gehört zu genau einem Bereich; dort steht ihr case.
   switch (action.type) {
     case 'SET_EVENT':
+    case 'SET_EVENT_DATUM':
     case 'SET_EVENT_KIND':
     case 'SET_ORIGIN_MODE':
     case 'LOAD_STATE':
@@ -275,6 +277,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_WKR_LEERZEILEN':
     case 'SET_WKR_RUECKSEITE':
     case 'SET_WKR_CLUB_GEMEINSAM':
+    case 'SET_WKR_GEMEINSAM_FOLGE':
     case 'SET_WKR_SEITEN':
     case 'SET_BESCHRIFTUNG':
     case 'SET_WKR_SPRACHE':

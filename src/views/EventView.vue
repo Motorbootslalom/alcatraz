@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { aufbauFuer, manoeverAufbauten, PARALLEL, REGELWERKE } from '../config/catalog'
@@ -11,6 +11,7 @@ import BeispieldatenPanel from '../components/BeispieldatenPanel.vue'
 import BesetzungPanel from '../components/BesetzungPanel.vue'
 import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
 import EingabenHinweis from '../components/EingabenHinweis.vue'
+import DatumFeld from '../components/DatumFeld.vue'
 import { starterfeldFest } from '../lib/eingaben'
 
 /**
@@ -47,6 +48,33 @@ function onAufbau(e: Event) {
   dispatch({ type: 'SET_AUFBAU', aufbau: select.value })
 }
 
+/**
+ * Datum der Veranstaltung (erster Wettkampftag, 24.11.2026): freiwillig, für die Warnung zur
+ * Starterlaubnis nach Geburtstag im Reiter „Starter“ (DM-Reglement C8). Maßgeblich für die
+ * Jahrgänge bleibt das Jahr; passt das Jahr des Datums nicht dazu, sagt es ein leiser Hinweis –
+ * nichts wird angeglichen (es kann ja auch das Jahr falsch sein).
+ */
+const datumFehler = ref('')
+/**
+ * Prüfbefund 24.11.2026: Wozu das Datum dient, steht sichtbar unter der Zeile, nicht als `title`
+ * (auf Pad und Handy nie zu sehen). Die Grenzen kommen aus dem Regelwerk (`geburtstagsGrenzen`) in
+ * dessen Klassenfolge – ein Regelwerk ohne Grenzen (uim-2026) nennt keine, dort wirkt das Datum
+ * nirgends, und der Satz sagt nur, was das Feld ist.
+ */
+const geburtstagsGrenzenText = computed(() => {
+  const grenzen = regelwerk.value.geburtstagsGrenzen
+  const teile: string[] = []
+  for (const k of regelwerk.value.klassen) {
+    const g = grenzen[k]
+    if (!g) continue
+    if (g.ab !== undefined) teile.push(t('event.dateGrenzeAb', { class: classLabel(k), jahre: g.ab }))
+    if (g.bis !== undefined) teile.push(t('event.dateGrenzeBis', { class: classLabel(k), jahre: g.bis }))
+  }
+  return teile.join(', ')
+})
+const datumJahr = computed(() => (state.value.eventDatum ? Number(state.value.eventDatum.slice(0, 4)) : null))
+const jahrPasstNicht = computed(() => datumJahr.value !== null && datumJahr.value !== state.value.eventJahr)
+
 function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
   const value = parseInt((e.target as HTMLInputElement).value, 10)
   if (!Number.isNaN(value)) dispatch({ type: 'SET_EVENT', patch: { [field]: value } })
@@ -71,6 +99,18 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
       <div class="field" style="width: 110px">
         <label for="ev-year">{{ t('event.year') }}</label>
         <input id="ev-year" class="input" type="number" :value="state.eventJahr" @change="onNumber('eventJahr', $event)" />
+      </div>
+      <div class="field" style="width: 150px">
+        <label for="ev-datum">{{ t('event.date') }}</label>
+        <!-- Eigenes Textfeld mit festem Muster – nie die Datumswahl des Browsers (mm/dd/yyyy). -->
+        <DatumFeld
+          id="ev-datum"
+          class="input"
+          data-feld="event-datum"
+          :model-value="state.eventDatum"
+          @update:model-value="dispatch({ type: 'SET_EVENT_DATUM', datum: $event })"
+          @fehler="datumFehler = $event"
+        />
       </div>
       <div class="field" style="width: 90px">
         <label for="ev-runs">{{ t('event.runs') }}</label>
@@ -113,6 +153,13 @@ function onNumber(field: 'eventJahr' | 'laufCount', e: Event) {
         </div>
       </div>
     </div>
+    <!-- Unter der Zeile statt im schmalen Feld: Die Sätze sind länger als das Datum. -->
+    <p class="note" data-hinweis="datum-zweck">
+      {{ t('event.dateHint') }}
+      <template v-if="geburtstagsGrenzenText">{{ t('event.dateHintGeburtstag', { grenzen: geburtstagsGrenzenText }) }}</template>
+    </p>
+    <p v-if="datumFehler" class="note" role="alert" data-hinweis="datum-fehler">{{ datumFehler }}</p>
+    <p v-else-if="jahrPasstNicht" class="note" data-hinweis="datum-jahr">{{ t('event.dateOtherYear', { year: datumJahr ?? '', eventYear: state.eventJahr }) }}</p>
     <div class="row" style="margin-top: 14px">
       <div class="field">
         <label>{{ t('event.rulebook') }}</label>

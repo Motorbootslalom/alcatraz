@@ -14,8 +14,8 @@ const props = defineProps<{
   /** Nach einer Suche ohne Treffer: die gesuchte Nummer. */
   nichtGefunden: string | null
   /**
-   * Buchstaben vor den Startnummern, die die Maske kennt (Schlange, danach, Zuletzt): „E“ (E01), unter UIM auch „D“
-   * (Dolphin-Präfix, AppState.dolphinPraefix) – je einer eine Taste (K8, Prüfbefund W3 21.11.2026).
+   * Buchstaben vor den Startnummern, die die Maske kennt (Schlange, danach, Zuletzt): „E“ (E01), auch „D“
+   * (Buchstabe der Klasse E, AppState.dolphinPraefix, seit 24.11.2026 auch unter DM) – je einer eine Taste (K8, Prüfbefund W3 21.11.2026).
    */
   buchstaben: string[]
 }>()

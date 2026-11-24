@@ -153,6 +153,23 @@ describe('Farben der Listen und Bögen', () => {
     expect(dummy?.deklarationen.find((d) => d.name === 'background')?.wert).toMatch(/^repeating-linear-gradient\(135deg, var\(--blatt-bg\) /)
   })
 
+  it('Spalte, die die Klasse der Zeile nicht hat: schraffiert wie die Zeile eines Dummys, in grauen Zeilen auf Grau (24.11.2026)', () => {
+    // Nutzer: „Das Ausgrauen hast du bei den Dummy schon sehr gut umgesetzt. So soll das dort dann auch sein.“
+    const alle = regeln(bogenCss).filter((r) => r.umgebung.length === 0)
+    const hintergrund = (selektor: string) => alle.find((r) => r.selektor === selektor)?.deklarationen.find((d) => d.name === 'background')?.wert
+    const streifen = '2.2px, var(--blatt-linie) 2.2px 3.2px)'
+    expect(hintergrund('.bogen-tabelle > tbody > tr > td.bt-entfaellt')).toBe(`repeating-linear-gradient(135deg, var(--blatt-bg) 0 ${streifen}`)
+    // Die graue Zeile liest sich weiter als graue Zeile; die schraffierte Zelle bleibt von einer bloß grauen verschieden.
+    expect(hintergrund('.bogen-tabelle > tbody > tr.grau > td.bt-entfaellt')).toBe(`repeating-linear-gradient(135deg, var(--blatt-grau) 0 ${streifen}`)
+    // Keine zweite, abweichende Schraffur mehr (früher eigene für den Dummy, blass für die Spalte).
+    const schraffuren = alle.filter((r) => r.selektor.includes('bt-entfaellt') && r.deklarationen.some((d) => d.name === 'background'))
+    expect(schraffuren.map((r) => r.selektor)).toEqual(['.bogen-tabelle > tbody > tr > td.bt-entfaellt', '.bogen-tabelle > tbody > tr.grau > td.bt-entfaellt'])
+    // Gleiche Spezifität wie der weiße Grund der Dummy-Zeile: Die Schraffur muss danach stehen, sonst bliebe die Zelle weiß.
+    const lage = (selektor: string) => alle.findIndex((r) => r.selektor === selektor)
+    expect(lage('.bogen-tabelle > tbody > tr.bt-ohne > td')).toBeLessThan(lage('.bogen-tabelle > tbody > tr > td.bt-entfaellt'))
+    expect(lage('.bogen-tabelle > tbody > tr.grau > td')).toBeLessThan(lage('.bogen-tabelle > tbody > tr > td.bt-entfaellt'))
+  })
+
   it('jede benutzte --blatt-Variable hat eine Druckfarbe', () => {
     const bekannt = new Set(vorgabe!.deklarationen.map((d) => d.name))
     const benutzt = new Set<string>()

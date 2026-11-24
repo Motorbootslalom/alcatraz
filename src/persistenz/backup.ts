@@ -33,10 +33,10 @@ import { starterfeldFest } from '../lib/eingaben'
 export type FileKind = 'sicherung' | 'vorlage' | 'starter'
 
 /**
- * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, WKR-Einteilung, Co-Piloten, erfassten
+ * Einstellungen einer Vorlage: alles außer Startern, Name, Jahr, Datum, WKR-Einteilung, Co-Piloten, erfassten
  * Werten, dem Stand der Wertungslisten, der Kennung und dem Betrieb der Veranstaltung.
  */
-export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'parallelGedruckt' | 'nichtWerten' | 'betrieb' | 'wkr'>
+export type Template = Omit<AppState, 'starters' | 'eventName' | 'eventJahr' | 'eventDatum' | 'einteilung' | 'coPiloten' | 'eingaben' | 'abgemeldet' | 'abgemeldetBis' | 'listenStand' | 'kennung' | 'beispielStarter' | 'parallelPlaene' | 'parallelGedruckt' | 'nichtWerten' | 'betrieb' | 'wkr'>
 
 interface FileBase {
   app: 'alcatraz'
@@ -60,7 +60,7 @@ export function makeFile(kind: FileKind, state: AppState, savedAt: string): Alca
   // „Disziplin nicht werten“ ist eine Entscheidung zu den Ergebnissen dieser Veranstaltung: ebenfalls nicht.
   // Der Betrieb (was auf der Anzeigetafel stand) ebenso; die Kopfzeile der Anzeigetafel nennt die Veranstaltung.
   // Die digitale WKR-Erfassung (Rückfragen, Abschlüsse mit Namen der Wettkampfrichter) gehört zur Veranstaltung.
-  const { starters: _starters, eventName: _name, eventJahr: _jahr, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, parallelGedruckt: _gedruckt, nichtWerten: _nichtWerten, betrieb: _betrieb, wkr: _erfassung, ...rest } = state
+  const { starters: _starters, eventName: _name, eventJahr: _jahr, eventDatum: _datum, einteilung: _wkr, coPiloten: _coPiloten, eingaben: _eingaben, abgemeldet: _abgemeldet, abgemeldetBis: _abgemeldetBis, listenStand: _stand, kennung: _kennung, beispielStarter: _beispiel, parallelPlaene: _plaene, parallelGedruckt: _gedruckt, nichtWerten: _nichtWerten, betrieb: _betrieb, wkr: _erfassung, ...rest } = state
   const settings: Template = { ...rest, anzeige: { ...rest.anzeige, kopfzeile: null } }
   return { ...base, kind, settings }
 }
@@ -134,6 +134,8 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
         beispielStarter: current.beispielStarter,
         eventName: current.eventName,
         eventJahr: current.eventJahr,
+        // Das Datum gehört zur Veranstaltung wie Name und Jahr (24.11.2026).
+        eventDatum: current.eventDatum,
         // Ergebnisse bleiben bei ihren Startern – auch eine von Hand ergänzte Vorlage bringt keine mit.
         eingaben: current.eingaben,
         abgemeldet: current.abgemeldet,

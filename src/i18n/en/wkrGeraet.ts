@@ -26,6 +26,11 @@ export default {
   'wkr.geraet.gesehen': 'Seen',
 
   'wkr.geraet.boot': 'Boat {boot}',
+  // Rule 960, pt. 3.7 “extra weight” (24.11.2026, WKR_ANNAHMEN AG3).
+  'wkr.geraet.ausgleich.kg': 'Extra weight {kg} kg',
+  'wkr.geraet.ausgleich.kein': 'no extra weight',
+  'wkr.geraet.ausgleich.fehlt': 'Extra weight: not weighed',
+  'wkr.geraet.ausgleich.wort': 'Extra weight',
   'wkr.geraet.gesendet': 'sent',
   'wkr.geraet.gesendetNr': 'Start {nr} sent',
   'wkr.geraet.geschaetzt': 'estimated (no connection)',

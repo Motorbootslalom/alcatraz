@@ -411,3 +411,59 @@ describe('Verschieben mit Startnummern-Bereichen (20.11.2026)', () => {
     wrapper.unmount()
   })
 })
+
+describe('Starterlaubnis nach Geburtstag (DM-Reglement C8, Warnung vom 24.11.2026)', () => {
+  // Erfundene Starter der Klasse E (DM: ab dem 6. Geburtstag) im Jahr 2026.
+  const kind = (n: number, geburtsdatum: string): Starter => ({ ...starter(n), id: `e${n}`, startNr: `E0${n}`, klasse: 'E', geburtsdatum })
+  let store: Store
+  const ansicht = (open = true) =>
+    mount(ClassSection, {
+      props: { classId: 'E', starters: store.state.value.starters, duplicates: new Set<string>(), open, sortTick: 0 },
+      global: { provide: { [storeKey as symbol]: store } },
+    })
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    store = createStore()
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+    store.dispatch({ type: 'SET_EVENT', patch: { eventJahr: 2026 } })
+    store.dispatch({ type: 'ADD_STARTERS', starters: [kind(1, '2020-09-06'), kind(2, '2020-09-05'), kind(3, '2019-12-31')] })
+  })
+
+  it('mit Datum der Veranstaltung: nur wer an dem Tag noch nicht 6 ist – Marke, Liste, Zeichen; nichts gesperrt', async () => {
+    store.dispatch({ type: 'SET_EVENT_DATUM', datum: '2026-09-05' })
+    const wrapper = ansicht()
+    expect(wrapper.find('[data-hinweis="geburtstag-zahl"]').text()).toBe('1 Geburtstag prüfen')
+    const hinweis = wrapper.find('[data-hinweis="geburtstag"]')
+    expect(hinweis.attributes('role')).toBeUndefined()
+    expect(hinweis.findAll('li').map((li) => [li.attributes('data-starter'), li.attributes('data-art')])).toEqual([['e1', 'zuJung']])
+    expect(hinweis.find('li').text()).toBe('Vor1 Nach1: 6. Geburtstag erst am 06.09.2026 – Starterlaubnis in Klasse E ab dem 6. Geburtstag.')
+    expect(hinweis.find('[data-hinweis="geburtstag-tag"]').text()).toContain('05.09.2026')
+    expect(hinweis.find('button').exists()).toBe(false)
+    expect(wrapper.findAll('[data-teil="geburtstag-marke"]')).toHaveLength(1)
+    // Am 6. Geburtstag selbst (e2) darf er starten; nichts wurde gesperrt oder verschoben.
+    expect(wrapper.find('[data-action="starter-neu"]').attributes('disabled')).toBeUndefined()
+    expect(store.state.value.starters.map((p) => p.klasse)).toEqual(['E', 'E', 'E'])
+    wrapper.unmount()
+  })
+
+  it('ohne Datum: der Grenz-Jahrgang zum Prüfen, mit Verweis auf „Veranstaltung“; zugeklappt nur die Marke', async () => {
+    const zu = ansicht(false)
+    expect(zu.find('[data-hinweis="geburtstag-zahl"]').text()).toBe('2 Geburtstage prüfen')
+    expect(zu.find('[data-hinweis="geburtstag"]').exists()).toBe(false)
+    zu.unmount()
+    const wrapper = ansicht()
+    const hinweis = wrapper.find('[data-hinweis="geburtstag"]')
+    expect(hinweis.findAll('li').map((li) => li.attributes('data-art'))).toEqual(['pruefenAb', 'pruefenAb'])
+    expect(hinweis.find('[data-hinweis="geburtstag-ohne-datum"] a').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('unter UIM gibt es keine Geburtstags-Grenze: kein Hinweis', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    const wrapper = ansicht()
+    expect(wrapper.find('[data-hinweis="geburtstag-zahl"]').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="geburtstag"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

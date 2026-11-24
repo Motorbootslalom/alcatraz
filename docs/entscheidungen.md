@@ -247,6 +247,21 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   (Bedienauswahl). Ausgelegt, noch zu bestätigen (WKR_ANNAHMEN Z1–Z7): pausiert/abgemeldet → gedruckt; Steg mit nur
   einem Teil auf Geräten (Register am Bedienrechner) oder einem nicht aktiven Teil → gedruckt (Anlegen auf Papier);
   Knoten immer; Parallelslalom je Liste und Racecourse. → `wkr/druck.ts`, `components/wkrDruck.ts`
+- 2026-11-24 · N · Mehrere Klassen auf einem WKR-Bogen (Clubmeisterschaft): „bitte ein Option einbauen, wo ich
+  entscheiden kann, ob die Klassen getrennt oder nach der Verzahnung auf dem Blatt aufgeführt werden sollen. Farben
+  brauchen wir nicht. Wenn die Klassen als Block getrennt werden, reicht die Klassen Info darüber. Wenn sie in der
+  Verzahnung sind, wird die Klasse nach der Startnummer benötigt. Das Ausgrauen hast du bei den Dummy schon sehr gut
+  umgesetzt. So soll das dort dann auch sein.“ Einstellung „Klassen auf gemeinsamen Bögen“: getrennt (Vorgabe, wie
+  bisher) oder nach der Verzahnung (gemischt in der Startfolge, Spalte „Kl.“ hinter der Nummer, keine Überschriften);
+  gilt mit und ohne „Papier sparen“. Spalten, die eine Klasse nicht hat, in beiden Fällen schraffiert wie die
+  Dummy-Zeile. Keine Farbtöne je Klasse (damit erledigt sich die Idee „Farbtöne für andere Klassen auf gemeinsamen
+  Bögen“). Festlegungen bei der Umsetzung, noch zu bestätigen: In der Startfolge stehen die Leerzeilen je Seite
+  (`wkrLeerzeilenSeite`) am Ende jeder Seite mit leerer Klassenzelle, auch ohne „Papier sparen“, und entfallen bis auf
+  eine, wenn sie allein ein Blatt kosteten; mit „Versuche direkt nacheinander“ (UIM) ist jede Leerzeile eine Zeile
+  ohne Versuch – eine Nachmeldung füllt zwei, wie schon auf Bögen einer Klasse; der Kopf nennt die Klassen der Seite; die Beispielansicht mischt die
+  Muster-Starter mit der Verzahnung des Parcours; die Erfassung am Bildschirm behält ihre blasse Schraffur (dort liegt
+  daneben die Schraffur „nicht gestartet“). Offen: ob gemeinsame Bögen über Klassen auch bei DM/UIM-Meisterschaften
+  kommen sollen. → AppState.wkrGemeinsamFolge, `lib/wkrListen.ts`, `lib/bogen.ts`, `styles/bogen.css`
 - 2026-11-12 · N · Startlisten je Parcours getrennt, nicht je Klasse; eine Klasse nicht unnötig über einen Seitenwechsel
   trennen.
 - 2026-11-13 · N · Geburtsdatum nie auf Wertungslisten; auf Starterlisten ein-/ausblendbar; auf Gewichtslisten immer
@@ -397,10 +412,10 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   derselben Richtung. Jetzt gilt sie, solange die Klasse in der Folge nach dem Sortieren steht (Bedienauswahl,
   lib/merken.ts; bestätigt 21.11.2026, P-19). → `lib/reihenfolge.ts` naechsteSortierung/SortierWahl,
   `components/ClassSection.vue`, `views/StartersView.vue`
-- 2026-11-15 · N · Unter UIM ist der Buchstabe der Dolphin-Nummern wählbar: E (Vorgabe, E01) oder D. Er gilt für neu
-  vergebene Nummern; beim Weiterzählen zählen E und D gemeinsam (parseClassNumber). Ein Buchstaben-Präfix sortiert wie
-  0, also vorn. → AppState.dolphinPraefix, `config/catalog.ts` startNrPraefixe, `components/StartNumberPanel.vue`,
-  `domain/startnumbers.ts`
+- 2026-11-15 · N · Der Buchstabe der Dolphin-Nummern ist wählbar: E (Vorgabe, E01) oder D – seit 2026-11-24 auch unter
+  DM (Eintrag unten). Er gilt für neu vergebene Nummern; beim Weiterzählen zählen E und D gemeinsam (parseClassNumber).
+  Ein Buchstaben-Präfix sortiert wie 0, also vorn. → AppState.dolphinPraefix, `config/catalog.ts` startNrPraefixe,
+  `components/StartNumberPanel.vue`, `domain/startnumbers.ts`
 - 2026-11-14 · N · Nach den ersten Ergebnissen steht das Starterfeld fest: kein Entfernen (auch kein nicht
   angetretener, stattdessen abmelden = X), kein Hinzufügen, kein Import, Beispielfeld gesperrt. → `lib/eingaben.ts`
   starterfeldFest, `state/reducer.ts` STARTERFELD_ACTIONS, `lib/abmeldung.ts`
@@ -480,6 +495,27 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   ändern“ und „Zufall“ bleiben in den Bereichen – die Größen stehen fest. → `state/reducer/startnummern.ts` inFolge
 - 2026-11-20 · N · Beispiel-Boote: lustige erfundene Namen (Flash, Merlin …), jedes Boot anders – Antwort des Nutzers,
   damit ist die Frage „je Bootstyp oder je Klasse“ erledigt. → `data/boote.ts`
+- 2026-11-24 · R/N · Geburtstags-Ausnahme des DM-Reglements C8 („Klasse ME Starterlaubnis versicherungsbedingt ab dem
+  6. Geburtstag und Klasse M7 Starterlaubnis bis zum 27. Geburtstag“): nur eine Warnung im Reiter „Starter“, die
+  übergangen werden kann (Nutzer: „Bei den Geburtstag-Ausnahmen reicht eine Warnung und kann dann einfach übergangen
+  werden“). Gebaut: die Grenzen im Regelwerk (`geburtstagsGrenzen`, nur DM: E ab 6, 7 bis 27); ein freiwilliges Datum
+  der Veranstaltung (erster Wettkampftag) unter „Veranstaltung“ – in der Sicherung, nicht in der Vorlage; liegt es in
+  einem anderen Jahr als die Veranstaltung, ein leiser Hinweis am Feld. Im Reiter „Starter“ je Klasse eine gelbe Marke
+  im Kopf („1 Geburtstag prüfen“, auch zugeklappt), in der offenen Klasse die Liste mit Satz je Starter und ein „!“ am
+  Geburtsdatum. Nichts wird gesperrt, verschoben oder abgefragt, es gibt nichts zu bestätigen. Ohne Datum der
+  Veranstaltung nennt die Liste die Grenz-Jahrgänge (werden im Jahr 6 bzw. 27) zum Prüfen, mit Verweis auf das Datum,
+  dazu wer sicher außerhalb liegt; ohne Geburtsdatum keine Warnung. Beim Bau ausgelegt, zu bestätigen (unter „Offen“):
+  „bis zum 27. Geburtstag“ = am Geburtstag selbst nicht mehr; mehrtägig = der erste Tag zählt; am 29.02. Geborene
+  werden in Jahren ohne 29.02. am 01.03. älter (BGB § 188). → `import/klassenPruefung.ts` geburtstagsHinweise,
+  `dm-2026.yaml` `geburtstagsGrenzen`, AppState.eventDatum (SET_EVENT_DATUM), `components/ClassSection.vue`,
+  `views/EventView.vue`
+- 2026-11-24 · N · Buchstabe D für die Klasse E auch unter DM zur Wahl (Nutzer: „D Präfix kannst du einbauen und zur
+  Auswahl stellen“), Vorgabe bleibt E; Beschriftung unter DM „Buchstabe der Klasse E“, unter UIM weiter „Dolphin“. Die
+  Startnummern-Bereiche folgen dem Buchstaben: Mit D vergibt „Automatisch vergeben“ aus der DM-Vorgabe E01–E30 die
+  Nummern D01–D30, die Einstellungen zeigen Bereiche und fehlende Westen mit D. Gelesen werden E und D gleich (eigene
+  Bereiche, fehlende Westen, vorhandene Nummern); gespeichert bleibt, was eingetragen ist. Vorher wirkte D nur unter
+  UIM (dort ohne Bereiche); unter DM vergab die App trotz D weiter E01. → `config/catalog.ts` startNrPraefixe,
+  `domain/startnrBereiche.ts` nummerMitPraefix, `components/StartNumberPanel.vue`, `components/StartNrBereichePanel.vue`
 
 ## Beispieldaten
 
@@ -727,7 +763,8 @@ plan-wkr-w4.md §10), **beantwortet 21.11.2026 abends**: bestätigt bis auf P9/U
 - 2026-11-21 · F9 · Zeitnahme: nur die abgelesene Zeit eintippen, kein Stoppen am Handy.
 - 2026-11-21 · F10 · Herkunft der Werte nicht in der Sicherung, nur Zeichen ◆ und Verlauf am Bedienrechner.
 - 2026-11-21 · F11 · Ausnahme „Werte auf der Leitung“: Werte der eigenen Liste verschlüsselt Gerät → Bedienrechner,
-  zurück nur Quittungen bzw. bei Rückfrage eine Zelle; kein Ausgleichsgewicht.
+  zurück nur Quittungen bzw. bei Rückfrage eine Zelle; kein Ausgleichsgewicht (seit 24.11.2026 doch, nur an der
+  Steg-Liste – Abschnitt „Ausgleichsgewicht am Steg“ unten).
 - 2026-11-21 · F12 · Übernahme automatisch in leere Zellen, abnicken nur bei Abweichung.
 - 2026-11-21 · F13 · Sprache der Maske = Sprache der Liste, auf dem Gerät umschaltbar.
 - 2026-11-21 · F14 · Der Bedienrechner gibt die Maske vor; der WKR wechselt nur, solange nichts festgelegt ist.
@@ -1069,6 +1106,33 @@ Runde 9): alle sieben mit „ja“ bestätigt, nichts umzubauen.
 - 2026-11-24 · R10-07 · **Zweisprachig bricht die Legende um**, damit die Zeichnung lesbar bleibt (98 × 23 mm); der
   Bogen fasst dann 24 statt 26 Zeilen je Blatt.
 
+### Ausgleichsgewicht am Steg (Entscheidung 24.11.2026)
+
+Nutzer: „Das Ausgleichgewicht wird nicht beim Steg gepflegt. Wenn jemand kein Gewicht hat, wird das später in der
+Eingabemaske oder im Checkin später nachgetragen und bei einer Papierliste manuell nachgetragen. In den digitalen Listen
+kommt das dann einfach mit rein.“ Löst die offene Frage aus F11 und §9 von
+[vorschlag-wkr-erfassung.md](vorschlag-wkr-erfassung.md) („kein Ausgleichsgewicht, eigene Entscheidung mit dem
+Check-In E10“). Gebaut 24.11.2026 (`WKR_ANNAHMEN` AG1–AG4 in `src/wkr/annahmen.ts`):
+
+- 2026-11-24 · AG1 · **Datenschutz-Ausnahme**: Die Sicht der Steg-Liste trägt je Start das Ausgleichsgewicht
+  (`ListenStart.ausgleich`, Fassung 11 der Listen-Sicht) – nur in der verschlüsselten Gruppe der Steg-Liste, nie
+  Körper- oder Durchschnittsgewicht, nie auf Anzeigetafel, Zuschauerliste oder Start-Freigabe.
+- 2026-11-24 · AG2 · **Nicht am Steg gepflegt**: keine Eingabe und kein Haken am Steg. Fehlt das Gewicht, wird es in
+  der Verwiegung nachgetragen (später beim Check-in) und kommt mit der nächsten Sicht von selbst aufs Gerät; auf der
+  Papierliste „Ausgleichsgewichte“ bleibt dafür ein Feld zum Eintragen von Hand (klein „nicht gewogen“, rechts „kg“).
+  Gerechnet wird an einer Stelle (`src/lib/ausgleich.ts`): ganze kg, 0 = keines nötig, „fehlt“ = nicht gewogen; ohne
+  Durchschnittsgewicht der Klasse steht nichts.
+- 2026-11-24 · AG3 · Beim Bau ausgelegt, noch zu bestätigen: Die Starterkarte zeigt es neben der Startnummer nur im
+  Teil „Ablegen“ („AG 4 kg“, „kein AG“, „AG: Gewicht fehlt“; englisch „Extra weight 4 kg“) – auch auf dem Gerät für den
+  ganzen Steg im Reiter „Ablegen“ –, im „Anlegen“ nicht und nicht in der Schlange auf der Seite des Pads.
+- 2026-11-24 · AG4 · Beim Bau ausgelegt, noch zu bestätigen: Die Übung zeigt am Steg erfundene Werte (reihum
+  „AG n kg“, „kein AG“, „Gewicht fehlt“), wenn das Regelwerk Durchschnittsgewichte kennt.
+- 2026-11-24 · Prüfbefund, noch zu bestätigen: Auf 0 kg gerundet (weniger als 0,5 kg leichter, z. B. 64,6 kg in einer
+  Klasse mit 65 kg) gilt am Steg wie „keines nötig“ – das Gerät zeigt „kein AG“, die Papierliste lässt das Feld leer
+  (vorher druckte sie „0 kg“, ein zweiter Text für denselben Starter). Die Verwiegung zeigt weiter „0 kg“.
+- 2026-11-24 · Prüfbefund: Ein Gerät nur für „Anlegen“ empfängt das Ausgleichsgewicht verschlüsselt mit (die Sicht
+  ist ein Inhalt je Liste, eine Gruppe je Steg-Teil gibt es nicht), zeigt es aber nicht – Rückfrage unter „Offen“.
+
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
@@ -1102,9 +1166,19 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 
 ## Offen
 
-- Geburtstags-Ausnahme des DM-Reglements (ME ab dem 6. Geburtstag, M7 bis zum 27. Geburtstag): abschaltbar in den
-  Einstellungen oder nur Warnung im Reiter „Starter“ – welche Form, ist offen; bisher nicht umgesetzt (`dm-2026.yaml`).
-- Nummernpakete mit Präfix D für Dolphin: möglich, nicht entschieden.
+- Ausgleichsgewicht am Steg (24.11.2026, Abschnitt „Ausgleichsgewicht am Steg“), vom Nutzer zu bestätigen: AG3 (nur
+  auf der Karte im Teil „Ablegen“, nicht im „Anlegen“, nicht in der Schlange auf der Seite des Pads), AG4 (erfundene
+  Werte in der Übung), auf 0 kg gerundet = „kein AG“ bzw. leer auf Papier. Dazu gefragt: Reicht es, dass ein Gerät nur
+  für „Anlegen“ den Wert verschlüsselt mitbekommt, ohne ihn zu zeigen, oder braucht jeder Steg-Teil eine eigene Gruppe?
+  Wünschst du am Steg einen Haken „Gewicht geladen“ wie das Kästchen auf Papier (nicht gebaut, AG2: nichts am Steg)?
+- Geburtstags-Warnung (24.11.2026), beim Bau ausgelegt und vom Nutzer zu bestätigen (`import/klassenPruefung.ts`,
+  `dm-2026.yaml`): „bis zum 27. Geburtstag“ heißt am 27. Geburtstag selbst nicht mehr; bei mehreren Wettkampftagen
+  zählt der erste (das Datum der Veranstaltung); am 29.02. Geborene werden in Jahren ohne 29.02. am 01.03. älter;
+  ohne Datum werden die ganzen Grenz-Jahrgänge genannt.
+- Klassen auf gemeinsamen WKR-Bögen (24.11.2026, Abschnitt „Listen und Druck“): Gemeinsame Bögen mehrerer Klassen
+  gibt es nur bei der Clubmeisterschaft; ob sie (mit „getrennt“/„nach der Verzahnung“) auch für DM- und
+  UIM-Meisterschaften kommen sollen, ist offen – dort fehlte auf gemeinsamen Bögen mit Bild die Zeichnung je Klasse.
+  Zu bestätigen: Leerzeilen je Seite in der Startfolge, Kopf mit den Klassen der Seite, Erfassung mit blasser Schraffur.
 - Erfassung durch Wettkampfrichter am Gerät: Fragen am 21.11.2026 beantwortet (Abschnitt „Digitale WKR-Erfassung“).
 - Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
   Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;

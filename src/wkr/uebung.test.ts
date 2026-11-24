@@ -4,7 +4,8 @@ import { WKR_ANNAHMEN } from './annahmen'
 import { maskeFuer } from './maske'
 import { LISTEN_SICHT_FASSUNG } from './sicht'
 import type { ClassId } from '../types'
-import { uebungsSchritt, uebungsSicht, uebungsStand, ziehVor, type UebungsStand } from './uebung'
+import { uebungsAusgleich, uebungsSchritt, uebungsSicht, uebungsStand, ziehVor, type UebungsStand } from './uebung'
+import { ausgleichAmSteg } from '../lib/ausgleich'
 
 // Übung ohne Netz (W3.1, G13): Sicht wie vom Bedienrechner (`lv`, Masken), erfundene Starts ohne Namen, Schritt.
 
@@ -36,6 +37,23 @@ describe('Übungs-Sicht', () => {
     const namen = [...VORNAMEN_M, ...VORNAMEN_W, ...NACHNAMEN].filter((n) => n.length > 3)
     for (const n of namen) expect(text, n).not.toContain(`"${n}`)
     expect(text).not.toContain('"boot"')
+  })
+})
+
+describe('Übung: Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG4)', () => {
+  it('Steg-Listen tragen erfundene Werte durch dieselbe Rechnung – „AG n kg“, 0 und „fehlt“; andere Listen nicht', () => {
+    const steg = uebungsSicht(uebungsStand('dm-2026', 'steg'))
+    const starts = [...steg.schlange, ...steg.danach]
+    expect(starts.length).toBeGreaterThan(5)
+    for (const x of starts) expect(x.ausgleich, x.startNr).toBe(uebungsAusgleich('dm-2026', x.klasse, Number(x.startNr)))
+    const werte = new Set(starts.map((x) => (typeof x.ausgleich === 'number' ? (x.ausgleich > 0 ? 'kg' : 'kein') : x.ausgleich)))
+    expect(werte).toEqual(new Set(['kg', 'kein', 'fehlt']))
+    // Feste Folge je Startnummer (AG4): Nr. 1 ist 4,4 kg leichter, Nr. 2 schwerer, Nr. 4 nicht gewogen.
+    expect([1, 2, 4].map((nr) => uebungsAusgleich('dm-2026', '4', nr))).toEqual([4, 0, 'fehlt'])
+    expect(uebungsAusgleich('dm-2026', '4', 1)).toBe(ausgleichAmSteg({ regelwerk: 'dm-2026', sollgewicht: {} }, { klasse: '4', gewicht: 60.6 }))
+    // UIM kennt Durchschnittsgewichte ebenso; Tor 5 trägt keines.
+    for (const x of uebungsSicht(uebungsStand('uim-2026', 'steg')).schlange) expect(x.ausgleich, x.startNr).toBeDefined()
+    for (const x of uebungsSicht(uebungsStand('dm-2026', 'tor5')).schlange) expect(x.ausgleich, x.startNr).toBeUndefined()
   })
 })
 

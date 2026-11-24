@@ -23,6 +23,53 @@ describe('Veranstaltung', () => {
   })
   afterEach(() => setLocale('de'))
 
+  it('Datum der Veranstaltung (24.11.2026): Textfeld nach Muster, leer erlaubt, leiser Hinweis bei anderem Jahr', async () => {
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    const feld = wrapper.find('input[data-feld="event-datum"]')
+    // Nie die Datumswahl des Browsers.
+    expect(feld.attributes('type')).toBe('text')
+    expect(feld.attributes('placeholder')).toBe('TT.MM.JJJJ')
+    await feld.setValue('5.9.2026')
+    expect(store.state.value.eventDatum).toBe('2026-09-05')
+    expect((feld.element as HTMLInputElement).value).toBe('05.09.2026')
+    expect(wrapper.find('[data-hinweis="datum-jahr"]').exists()).toBe(false)
+    // Ein Tag, den es nicht gibt: Meldung, der Stand bleibt.
+    await feld.setValue('31.02.2026')
+    expect(wrapper.find('[data-hinweis="datum-fehler"]').exists()).toBe(true)
+    expect(store.state.value.eventDatum).toBe('2026-09-05')
+    // Anderes Jahr als die Veranstaltung: nur ein Hinweis, nichts wird angeglichen.
+    await feld.setValue('12.06.2027')
+    expect(store.state.value.eventDatum).toBe('2027-06-12')
+    expect(wrapper.find('[data-hinweis="datum-jahr"]').text()).toContain('2027')
+    expect(store.state.value.eventJahr).toBe(2026)
+    await feld.setValue('')
+    expect(store.state.value.eventDatum).toBe('')
+    wrapper.unmount()
+  })
+
+  it('Datum der Veranstaltung (Prüfbefund 24.11.2026): Zweck sichtbar unter der Zeile, Grenzen aus dem Regelwerk, unter UIM keine', async () => {
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    // Kein Tooltip mehr – auf Pad und Handy wäre er nie zu sehen.
+    expect(wrapper.find('label[for="ev-datum"]').attributes('title')).toBeUndefined()
+    const zweck = () => wrapper.find('[data-hinweis="datum-zweck"]').text()
+    expect(zweck()).toContain('erster Wettkampftag, freiwillig')
+    // DM: die Grenzen aus dm-2026.yaml in der Klassenfolge des Regelwerks (E vor 7).
+    expect(zweck()).toContain('(Klasse E ab dem 6. Geburtstag, Klasse 7 nur bis zum 27. Geburtstag)')
+    // UIM nennt keine Grenzen: nur, was das Feld ist.
+    wechsleRegelwerk(store, 'uim-2026')
+    await nextTick()
+    expect(zweck()).toBe('Datum: erster Wettkampftag, freiwillig.')
+    // Der Zweck bleibt neben einer Fehlermeldung stehen.
+    await wrapper.find('input[data-feld="event-datum"]').setValue('31.02.2026')
+    expect(wrapper.find('[data-hinweis="datum-fehler"]').exists()).toBe(true)
+    expect(wrapper.find('[data-hinweis="datum-zweck"]').exists()).toBe(true)
+    setLocale('en')
+    wechsleRegelwerk(store, 'dm-2026')
+    await nextTick()
+    expect(zweck()).toContain('(Class E from age 6, Class 7 only before turning 27)')
+    wrapper.unmount()
+  })
+
   it('Besetzung: Boote, Co-Piloten und die WKR-Einteilung stehen in einem Block – zugeklappt, solange nichts eingetragen ist', async () => {
     const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
     const block = wrapper.find('details[data-block="besetzung"]')
@@ -183,6 +230,28 @@ describe('Veranstaltung', () => {
     expect(klappe.find('.bogen[data-liste="steg"] input').exists()).toBe(false)
     await wrapper.find('#wkr-einteilung input[data-feld="par_2|steg"]').setValue('A. Muster')
     expect(klappe.find('.bogen[data-liste="steg"] .bk-wkr-text').text()).toBe('A. Muster')
+    wrapper.unmount()
+  })
+
+  it('Beispielansicht der Clubmeisterschaft: Klassen getrennt oder gemischt in der Startfolge, wie gedruckt (24.11.2026)', async () => {
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    const wrapper = mount(EventView, { global: { provide: { [storeKey as symbol]: store } } })
+    const klappe = wrapper.find('details[data-vorschau]')
+    ;(klappe.element as HTMLDetailsElement).open = true
+    await klappe.trigger('toggle')
+    await klappe.find('.wkr-vorschau-tabs button[data-liste="steg"]').trigger('click')
+    const bogen = () => klappe.find('.bogen[data-liste="steg"]')
+    // Getrennt (Vorgabe): je Klasse ein Block mit Überschrift, keine Klassenspalte.
+    expect(bogen().findAll('tr.bt-zwischen').length).toBeGreaterThan(1)
+    expect(bogen().find('th.bt-klasse').exists()).toBe(false)
+    store.dispatch({ type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'verzahnung' })
+    await nextTick()
+    // Nach der Verzahnung: keine Überschriften, die Klasse hinter der Nummer – die Muster-Starter so gemischt, wie die
+    // Verzahnung des Parcours echte Starter mischte.
+    expect(bogen().findAll('tr.bt-zwischen')).toHaveLength(0)
+    const klassen = bogen().findAll('tbody tr[data-zeile] td.bt-klasse').map((td) => td.text()).filter(Boolean)
+    expect(new Set(klassen).size).toBeGreaterThan(1)
+    expect(new Set(klassen.slice(0, 4)).size).toBeGreaterThan(1)
     wrapper.unmount()
   })
 

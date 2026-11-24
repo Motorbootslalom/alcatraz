@@ -1,7 +1,8 @@
 /** Reiter „Verzahnung“: Parcours, Klassenaufteilung, Boote, Startnummern und laufende Nummern. */
 export default {
   'numbers.dolphinPrefix': 'Buchstabe der Dolphin-Nummern',
-  'numbers.dolphinPrefix.hint': 'E01 oder D01. Gilt für Nummern, die neu vergeben werden; vorhandene bleiben, bis „Startnummern neu vergeben“ sie ersetzt. Sortiert wird in beiden Fällen wie mit einer 0 davor – also vor den übrigen Klassen.',
+  'numbers.ePrefix': 'Buchstabe der Klasse E',
+  'numbers.dolphinPrefix.hint': 'E01 oder D01. Gilt für Nummern, die neu vergeben werden; vorhandene bleiben, bis „Startnummern neu vergeben“ sie ersetzt. Die Bereiche nach Westengröße folgen dem Buchstaben (aus E01–E30 wird D01–D30); gelesen werden E und D gleich. Sortiert wird in beiden Fällen wie mit einer 0 davor – also vor den übrigen Klassen.',
 
   'numbers.title': 'Startnummern',
   'numbers.abweichung': 'Von Hand prüfen ({n} Starter): | Von Hand prüfen ({n} Starter):',

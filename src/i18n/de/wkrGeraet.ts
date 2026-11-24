@@ -32,6 +32,11 @@ export default {
   'wkr.geraet.gesehen': 'Gesehen',
 
   'wkr.geraet.boot': 'Boot {boot}',
+  // Ausgleichsgewicht am Ablegen (Nutzer 24.11.2026, WKR_ANNAHMEN AG3): kurz, neben der Startnummer; nur lesen.
+  'wkr.geraet.ausgleich.kg': 'AG {kg} kg',
+  'wkr.geraet.ausgleich.kein': 'kein AG',
+  'wkr.geraet.ausgleich.fehlt': 'AG: Gewicht fehlt',
+  'wkr.geraet.ausgleich.wort': 'Ausgleichsgewicht',
   'wkr.geraet.gesendet': 'gesendet',
   'wkr.geraet.gesendetNr': 'Start {nr} gesendet',
   'wkr.geraet.geschaetzt': 'geschätzt (ohne Verbindung)',

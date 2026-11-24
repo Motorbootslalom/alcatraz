@@ -336,7 +336,10 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   `uhr() − zuletztGesendet ≥ 60 s`, nur gekoppelt, verbunden, ohne Ausstehendes, mit laufendem Punkt einer Liste.
 - Was ntfy sieht: Themen, `r/g/e/n/a/sv/hz`, Größen, den öffentlichen Schlüssel eines Geräts; nie Inhalte, Geräte-IDs
   oder g in einem Link. Nie auf der Leitung: AppState, Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen, Logos,
-  Geräteliste, Geheimnis (Schlüssel-Durchlauf über alle entschlüsselten Inhalte: geraet.test.ts „Leitung“).
+  Geräteliste, Geheimnis (Schlüssel-Durchlauf über alle entschlüsselten Inhalte: geraet.test.ts „Leitung“). Ausnahme
+  seit 24.11.2026: das Ausgleichsgewicht je Start in der Gruppe der Steg-Liste (wkr/sicht.ts `ausgleich`, WKR_ANNAHMEN
+  AG1) – nie das Körpergewicht; ein nachgetragenes Gewicht geht mit der nächsten verteileListen von selbst hinaus
+  (wkrHost.test.ts „Steg (Nutzer 24.11.2026, AG1/AG2)“).
 
 - Oberfläche (E7, 20.11.2026; Annahmen BETRIEB_ANNAHMEN.koppelnOberflaeche): Betrieb → Geräte unter den Lese-Links
   GeraeteKoppeln.vue (Bereiche für das nächste Gerät, merke `geraete.koppeln.bereiche`, nie vorgewählt –

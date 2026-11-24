@@ -65,6 +65,9 @@ const host = useGeraeteHost()
 // Die Uhr nur für die Ampel der Geräte („offen, Gerät weg“, A5) und „heute?“ im Titel von ◆ – grob genügt (C4).
 const jetzt = host ? useUhr(WKR_ANNAHMEN.erfassungUhrSek * 1000) : null
 
+// Mehrere Klassen (Clubmeisterschaft): in Blöcken mit Überschrift oder gemischt in der Startfolge mit der Klasse in
+// ihrer Spalte – wie der gedruckte Bogen (`klassenBloecke` kommt aus lib/wkrListen.ts, Einstellung 24.11.2026).
+// Leerzeilen gibt es hier nicht, auch nicht die je Seite.
 const seite = computed(
   () => bogenSeiten(konfig.value, props.bogen.auftrag, { klassenBloecke: props.bogen.optionen.klassenBloecke, leerzeilen: 0, leerzeilenJeKlasse: {} })[0],
 )

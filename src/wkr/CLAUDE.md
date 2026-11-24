@@ -128,6 +128,11 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11); freigabeVorwahlOhneListe → false (W3-26).
   WKR-Namen (21.11.2026, WN1–WN3): nameNurBeimAbschluss → false, wkrNameNurEigeneListe, wkrNameImLebenszeichen,
   wkrNameOhneEinteilung (G12/L4 bleiben Rückfall ohne Einteilung).
+  Ausgleichsgewicht am Steg (Nutzer 24.11.2026, AG1–AG4; AG3/AG4 noch zu bestätigen): ausgleichListen ['steg']
+  (Datenschutz-Ausnahme), ausgleichNurLesen (nichts am Steg pflegen, Nachtrag in der Verwiegung kommt von selbst),
+  ausgleichTeil 'ab' (Karte nur im Ablegen; ein Gerät nur fürs Anlegen empfängt den Wert mit – eine Gruppe je Liste,
+  Rückfrage offen), ausgleichUebung (erfundene Abstände je Startnummer in der Übung). Prüfbefund 24.11.2026: auf 0 kg
+  gerundet = „kein AG“, auf Papier leer (components/AusgleichListen.vue), Verwiegung weiter „0 kg“.
 - `tisch.ts` (22.11.2026, R8-27, KN9) – naechsterOffener(bestand, zuletzt, klasse?) (`klasse` = Übung „Klasse vorziehen“,
   Y4: erster offener dieser Klasse, sonst wie ohne) → erster offener Starter NACH `zuletzt` in der
   Folge des Bestands, Rundlauf, ohne `zuletzt` der erste offene, sonst null; tischOffen (nicht erledigt UND ohne eigene
@@ -403,7 +408,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   vom Gerät ungültig); X nie mit Punkten oder anderen Buchstaben (BZ2). Disq. „keine Boje“ ins Disq.-Feld (BZ4). Die Bojen-Folge (bojenAbschnitte) ordnet nur um – Felder, Zellen und Texte bleiben dieselben. Seit W4.2 zeigt WkrMaske `bojen` mit WkrBojen.vue (Probe
   auch); `spaeter` bleiben nur Zeit, Knoten und Bojen außerhalb des Fahrwegs.
 - Sicht der Liste: jedes Objekt Feld für Feld neu (wie sichtZuschauer); nie Name, Herkunft, Geburtsdatum, Gewicht,
-  Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Ausnahmen: `steht`
+  Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Ausnahmen:
+  `ListenStart.ausgleich` (Nutzer 24.11.2026, AG1, Fassung 11) – nur an Listen aus WKR_ANNAHMEN.ausgleichListen (Steg),
+  nur über lib/ausgleich.ts ausgleichAmSteg (ganze kg, 0, 'fehlt'; nie Körper- oder Durchschnittsgewicht; die Übung
+  über uebungsAusgleich); ob die Karte es zeigt, entscheidet nur WkrMaske `kartenAusgleich` (ausgleichTeil) –, `steht`
   (F11) – steht unter dem Gerät der Rückfrage, lesbar aber für jedes Gerät derselben Liste (EIN Gruppeninhalt,
   WKR_ANNAHMEN.rueckfrageInListe) – und `wkrName` (W3-13, WN1: nur der Name aus der Einteilung für DIESE Liste, nie
   der einer anderen, nie auf ko/kz oder in der Freigabe-Sicht). Neues Feld → Positivliste in sicht.test.ts und ggf.

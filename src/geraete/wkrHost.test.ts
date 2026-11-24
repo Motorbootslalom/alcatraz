@@ -24,6 +24,7 @@ import { werteVon } from '../lib/eingaben'
 import { listenKennung } from '../wkr/liste'
 import { LISTEN_SICHT_FASSUNG, type ListenSicht } from '../wkr/sicht'
 import { wkrBetriebsStand } from '../testHilfen'
+import { sollgewichtOf } from '../config/catalog'
 import type { AppState } from '../types'
 
 /**
@@ -38,6 +39,7 @@ const KENNUNG = 'MUSTERW1'
 const P1 = 'par_1'
 const TOR = listenKennung({ bereich: P1, typeId: 'gate135', racecourse: null })
 const TOR5 = listenKennung({ bereich: P1, typeId: 'tor5', racecourse: null })
+const STEG = listenKennung({ bereich: P1, typeId: 'steg', racecourse: null })
 const G_TOR = gruppeDerListe(TOR)
 const FELD = 't1a|hin seiteA'
 const LAUF = 'manoevrieren/1'
@@ -373,6 +375,39 @@ describe('WKR-Erfassung am Host (W1.3)', () => {
         expect(inhalt).not.toContain('rueckfragen')
       }
     }
+  })
+
+  it('Steg (Nutzer 24.11.2026, AG1/AG2): Ausgleichsgewicht in der Sicht der Steg-Liste; in der Verwiegung nachgetragen, kommt es von selbst; nie auf ko/kz', async () => {
+    const { s, h, raum } = await bedienrechner()
+    const g = await wkrGeraet(h, [{ art: 'liste', liste: STEG }], 'Handy Steg')
+    await bis(() => s.state.value.wkr.listen[STEG]?.modus === 'digital')
+    zeige(s)
+    const starter = aktuellerStarter(s.state.value)
+    const p = s.state.value.starters.find((x) => x.id === starter)!
+    const ag = () => g.sicht(STEG)?.schlange.find((x) => x.startNr === p.startNr)?.ausgleich
+    // Die Starter des Teststands sind nicht gewogen.
+    await bis(() => ag() !== undefined)
+    expect(ag()).toBe('fehlt')
+    // Verwiegung am Bedienrechner: 3,6 kg unter dem Durchschnittsgewicht → 4 kg. Am Steg tut niemand etwas.
+    const soll = sollgewichtOf(s.state.value.regelwerk, s.state.value.sollgewicht, p.klasse)
+    s.dispatch({ type: 'SET_WEIGHT', id: starter, gewicht: Math.round((soll - 3.6) * 10) / 10 })
+    await bis(() => ag() === 4)
+    // Schwerer als der Durchschnitt: 0 = kein Ausgleich.
+    s.dispatch({ type: 'SET_WEIGHT', id: starter, gewicht: soll + 1 })
+    await bis(() => ag() === 0)
+    // Anzeigetafel und Zuschauer (ko/kz) tragen es nie, die Leitung nie ein Gewicht selbst.
+    const r = raum()
+    for (const gruppe of ['ko', 'kz']) {
+      const thema = gruppe === 'ko' ? r.oeffentlich.a : r.oeffentlich.z
+      for (const body of ntfy.bodies(thema)) {
+        const w = parseHostWire(body)
+        if (!w || w.l) continue
+        expect(JSON.stringify(await openGruppe(w, fromBase64Url(r.gruppen[gruppe].k)!))).not.toContain('ausgleich')
+      }
+    }
+    const steg = JSON.stringify(g.sicht(STEG))
+    // Das Körpergewicht mit Nachkommastelle (eindeutig im Text) und kein Schlüssel „gewicht“.
+    for (const verboten of ['gewicht', String(Math.round((soll - 3.6) * 10) / 10)]) expect(steg, verboten).not.toContain(verboten)
   })
 
   it('ohne Raum keine Verbindung – auch mit Listen in der Veranstaltung', async () => {

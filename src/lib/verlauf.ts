@@ -198,6 +198,7 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   SET_AUFBAU: 'aufbau',
   SET_REGELWERK: 'regelwerk',
   SET_EVENT: 'veranstaltung',
+  SET_EVENT_DATUM: 'veranstaltung',
   SET_EVENT_KIND: 'veranstaltung',
   ADD_PARCOURS: 'parcours',
   SET_PARCOURS_PRESET: 'parcours',

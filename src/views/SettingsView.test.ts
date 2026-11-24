@@ -1165,6 +1165,27 @@ describe('Einstellungen: Startnummern nach Westengröße (19.11.2026)', () => {
     wrapper.unmount()
   })
 
+  it('Buchstabe D für die Klasse E (24.11.2026): Bereiche und fehlende Westen stehen als D01 … da; gelesen wird beides', async () => {
+    store.dispatch({ type: 'SET_FEHLENDE_START_NR', nummern: ['E05'] })
+    store.dispatch({ type: 'SET_DOLPHIN_PRAEFIX', praefix: 'D' })
+    const wrapper = settings(store)
+    const zeile = wrapper.find('[data-teil="startnr-bereiche"] tr[data-klasse="E"]')
+    const wert = (sel: string) => (zeile.find(sel).element as HTMLInputElement).value
+    expect([wert('[data-feld="von"]'), wert('[data-feld="bis"]')]).toEqual(['D01', 'D30'])
+    expect(zeile.find('[data-teil="unlesbar"]').exists()).toBe(false)
+    const feld = wrapper.find('[data-feld="fehlende-startnr"]')
+    expect((feld.element as HTMLInputElement).value).toBe('D05')
+    await feld.setValue('d07, E08')
+    expect(store.state.value.fehlendeStartNr).toEqual(['D07', 'E08'])
+    expect((feld.element as HTMLInputElement).value).toBe('D07, D08')
+    // Zurück auf E: dieselben Angaben, mit E geschrieben.
+    store.dispatch({ type: 'SET_DOLPHIN_PRAEFIX', praefix: 'E' })
+    await nextTick()
+    expect([wert('[data-feld="von"]'), wert('[data-feld="bis"]')]).toEqual(['E01', 'E30'])
+    expect((feld.element as HTMLInputElement).value).toBe('E07, E08')
+    wrapper.unmount()
+  })
+
   it('fehlende Nummern: tolerant gelesen, Unbekanntes gemeldet', async () => {
     const wrapper = settings(store)
     const feld = wrapper.find('[data-feld="fehlende-startnr"]')

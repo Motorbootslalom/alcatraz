@@ -55,6 +55,7 @@ export type ConfigInput = {
   startabstaende?: Record<string, unknown>
   startNrPraefix?: Record<string, unknown>
   startNrBereiche?: unknown
+  geburtstagsGrenzen?: unknown
   disqualifikationen?: Array<Partial<RawDisq>>
   kataloge?: Record<string, Partial<RawKatalog>>
   hinweise?: Record<string, string>
@@ -752,6 +753,24 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
           if (gelesen.some((x) => g.von <= x.bis && x.von <= g.bis)) err('DUP_STARTNR_BEREICH', `${wo}: Bereich ${von}–${bis} überschneidet einen anderen.`, wo)
           gelesen.push(g)
         }
+      }
+  }
+
+  // ---- Geburtstags-Grenzen (DM-Reglement C8, 24.11.2026): bekannte Klassen, ganze Jahre ----
+  // `ab` und/oder `bis` (mindestens eins), 1 bis 99 Jahre, `ab` < `bis`. Wirken nur als Warnung.
+  if (raw.geburtstagsGrenzen !== undefined) {
+    const je: unknown = raw.geburtstagsGrenzen
+    const jahre = (x: unknown) => typeof x === 'number' && Number.isInteger(x) && x >= 1 && x <= 99
+    if (!je || typeof je !== 'object' || Array.isArray(je)) err('BAD_GEBURTSTAG', 'geburtstagsGrenzen nennt je Klasse ab und/oder bis in Jahren, z. B. { E: { ab: 6 }, 7: { bis: 27 } }.', 'geburtstagsGrenzen')
+    else
+      for (const [klasse, grenze] of Object.entries(je)) {
+        const wo = `geburtstagsGrenzen.${klasse}`
+        if (!VALID_KLASSEN.has(klasse)) err('UNKNOWN_GEBURTSTAG_KLASSE', `geburtstagsGrenzen nennt die unbekannte Klasse "${klasse}".`, 'geburtstagsGrenzen')
+        const g = (grenze && typeof grenze === 'object' && !Array.isArray(grenze) ? grenze : {}) as Record<string, unknown>
+        const fremd = Object.keys(g).filter((k) => k !== 'ab' && k !== 'bis')
+        if ((g.ab === undefined && g.bis === undefined) || fremd.length > 0 || (g.ab !== undefined && !jahre(g.ab)) || (g.bis !== undefined && !jahre(g.bis)))
+          err('BAD_GEBURTSTAG', `${wo} nennt ab und/oder bis als ganze Zahl von 1 bis 99 Jahren.`, wo)
+        else if (typeof g.ab === 'number' && typeof g.bis === 'number' && g.ab >= g.bis) err('BAD_GEBURTSTAG', `${wo}: ab muss kleiner sein als bis.`, wo)
       }
   }
 

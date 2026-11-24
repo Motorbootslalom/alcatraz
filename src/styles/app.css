@@ -1935,6 +1935,54 @@ details.panel[open] > summary {
   text-align: right;
 }
 
+/* Starterlaubnis nach Geburtstag (DM-Reglement C8, 24.11.2026): nur eine Warnung – gelb wie der
+   Rückstand der WKR-Erfassung, nicht rot wie ein Fehler; Marke im Kopf, Liste, Zeichen an der Zeile. */
+.geburtstag-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--rueckstand-soft);
+  color: var(--rueckstand-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.geburtstag-hinweis {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--rueckstand);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--rueckstand-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.geburtstag-hinweis ul {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.geburtstag-hinweis .note {
+  margin: 4px 0 0;
+}
+
+.geburtstag-zelle {
+  box-shadow: inset 3px 0 0 var(--rueckstand);
+}
+
+.geburtstag-marke {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--rueckstand-soft);
+  color: var(--rueckstand-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* Vorschlag unter der Meldung „Jahrgang passt nicht“: In Klasse X anlegen bzw. verschieben. */
 .jahrgang-vorschlag {
   display: flex;
@@ -1998,10 +2046,26 @@ details.panel[open] > summary {
   font-weight: 700;
 }
 
-/* „nicht gewogen“ steht kleiner in der Spalte – kursiv, damit es nicht wie eine Zahl aussieht. */
+/* „nicht gewogen“ (Nutzer 24.11.2026): ein Feld zum Nachtragen von Hand – der Vermerk klein und kursiv oben links,
+   „kg“ unten rechts, dazwischen frei. Beides absolut, damit die Zeile nicht höher wird als die übrigen (die Seiten
+   misst ListenDokument an echten Zeilen). Farben nur --blatt-*. */
 .sheet.ausgleich .sheet-table td.ungewogen {
-  font-size: 0.78em;
+  position: relative;
+}
+.sheet.ausgleich .sheet-table td.ungewogen .ungewogen-vermerk {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  font-size: 7.5px;
   font-style: italic;
+  line-height: 1;
+  color: var(--blatt-leise);
+}
+.sheet.ausgleich .sheet-table td.ungewogen .ungewogen-kg {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  line-height: 1;
 }
 
 /* ---------- Festgeschriebene Verzahnung ---------- */

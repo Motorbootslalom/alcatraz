@@ -68,7 +68,7 @@ describe('Nummern mit Präfix sortieren wie mit einer 0 davor – vor den übrig
     expect(sortedByStartNr(feld).map((s) => s.startNr)).toEqual(['D01', 'E02', '101', '102'])
   })
 
-  it('der Buchstabe der Dolphin-Nummern ist wählbar (E oder D) – nur unter einem Regelwerk mit „Dolphin“', () => {
+  it('der Buchstabe der Klasse E ist wählbar (E oder D) – seit 24.11.2026 unter jedem Regelwerk, auch DM', () => {
     let state = reducer(emptyState(), { type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     expect([state.dolphinPraefix, startNrPraefixe(state).E]).toEqual(['E', 'E'])
     state = reducer(state, { type: 'ADD_STARTERS', starters: [mk('E', 1), mk('E', 2), mk('1', 1)] })
@@ -78,8 +78,10 @@ describe('Nummern mit Präfix sortieren wie mit einer 0 davor – vor den übrig
     expect(state.starters.map((s) => s.startNr)).toEqual(['E01', 'E02', '101'])
     state = reducer(state, { type: 'ASSIGN_START_NUMBERS' })
     expect(state.starters.map((s) => s.startNr)).toEqual(['D01', 'D02', '101'])
-    // Unter der DM heißt die Klasse E: Dort bleibt es bei E, gleich was gewählt ist.
-    expect(startNrPraefixe({ regelwerk: 'dm-2026', dolphinPraefix: 'D' }).E).toBe('E')
+    // Bis 23.11.2026 blieb es unter der DM bei E, gleich was gewählt war; seit 24.11.2026 gilt die Wahl
+    // auch dort („D Präfix kannst du einbauen und zur Auswahl stellen“). Vorgabe bleibt E.
+    expect(startNrPraefixe({ regelwerk: 'dm-2026', dolphinPraefix: 'D' }).E).toBe('D')
+    expect(startNrPraefixe({ regelwerk: 'dm-2026', dolphinPraefix: 'E' }).E).toBe('E')
   })
 })
 

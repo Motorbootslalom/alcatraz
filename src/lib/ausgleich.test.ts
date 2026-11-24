@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ausgleichListen, type AusgleichStand } from './ausgleich'
+import { ausgleichAmSteg, ausgleichListen, ausgleichVon, type AusgleichStand } from './ausgleich'
 import type { ClassId, Starter } from '../types'
 
 // Ausgleichsgewichte für den Steg. Alle Starter sind erfunden.
@@ -67,5 +67,20 @@ describe('Ausgleichsgewichte für den Steg', () => {
     expect(ausgleichListen(stand(), ['4']).map((l) => l.klasse)).toEqual(['4'])
     expect(ausgleichListen(stand(), ['2'])).toEqual([])
     expect(ausgleichListen(stand({ starters: [] }))).toEqual([])
+  })
+})
+
+describe('Ausgleichsgewicht je Starter – eine Rechnung für Papier und Steg-Gerät (Nutzer 24.11.2026, WKR_ANNAHMEN AG2)', () => {
+  it('ausgleichVon rechnet wie die Liste; ausgleichAmSteg: 0 statt „keines“, „fehlt“ statt „nicht gewogen“', () => {
+    const st = stand()
+    for (const z of ausgleichListen(st).flatMap((l) => l.zeilen)) expect(ausgleichVon(st, z.starter), z.starter.startNr).toBe(z.ausgleich)
+    const am = (klasse: ClassId, gewicht?: number) => ausgleichAmSteg(st, { klasse, ...(gewicht === undefined ? {} : { gewicht }) })
+    expect([am('4', 58.4), am('4', 70), am('4', 65), am('4', 64.6), am('E', 20.5), am('E')]).toEqual([7, 0, 0, 0, 6, 'fehlt'])
+  })
+
+  it('ohne Durchschnittsgewicht der Klasse (eigener Wert 0) steht am Steg nichts – auch nicht „fehlt“', () => {
+    const st = stand({ sollgewicht: { '4': 0 } })
+    expect([ausgleichAmSteg(st, { klasse: '4', gewicht: 50 }), ausgleichAmSteg(st, { klasse: '4' })]).toEqual([null, null])
+    expect(ausgleichAmSteg(st, { klasse: 'E', gewicht: 20.5 })).toBe(6)
   })
 })

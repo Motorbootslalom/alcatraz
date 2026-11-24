@@ -216,13 +216,16 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
     - [x] Ungefähre Berechnung der Zeit bis zum Start/Vorsteg → Startliste und Zuschauerliste: „ca. in“ und „Zum
       Vorsteg“ aus den Startabständen je Klasse (ab drei Messungen gemessen, sonst Vorgabe der DM 2025)
 - [x] Gedruckte WKR-Listen → [Wettkampfrichter-Listen](funktionen.md#wettkampfrichter-listen)
-  - [ ] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)
-    → teilweise: Ein Bogen gilt je Klasse und Lauf, die Starter stehen darauf in der Startfolge der Verzahnung.
-    Nur bei der Clubmeisterschaft stehen mehrere Klassen auf einem Bogen, dann untereinander statt verzahnt.
-  - [ ] leichte Grau- oder Farbtöne für andere Klassen
-    → offen: Auf gemeinsamen Bögen trennt eine Zwischenüberschrift die Klassen; grau ist nur jede fünfte Zeile.
-    - [ ] Schikane (und andere nicht angefahrene Beobachtungspunkte) bei kleineren Klassen auf verzahnten Listen
-          ausgrauen → offen
+  - [x] Verzahnung auf einer Liste (kein Blattwechsel immer wieder, sondern von oben nach unten auszufüllen) (optional)
+    → Ein Bogen gilt je Klasse und Lauf, die Starter stehen darauf in der Startfolge der Verzahnung. Bei der
+    Clubmeisterschaft stehen mehrere Klassen auf einem Bogen – seit 24.11.2026 wählbar getrennt (Blöcke mit
+    Überschrift) oder nach der Verzahnung (gemischt, Klasse hinter der Startnummer; Einstellungen → WKR-Listen).
+    Für DM/UIM-Meisterschaften offen ([entscheidungen.md](entscheidungen.md#offen)).
+  - [x] leichte Grau- oder Farbtöne für andere Klassen
+    → entfällt (Nutzer 24.11.2026: „Farben brauchen wir nicht“): getrennt reicht die Klasse als Überschrift, in der
+    Startfolge die Spalte „Kl.“.
+    - [x] Schikane (und andere nicht angefahrene Beobachtungspunkte) bei kleineren Klassen auf verzahnten Listen
+          ausgrauen → seit 24.11.2026 kräftig schraffiert wie die Zeile eines Dummys im Parallelslalom
   - [x] Auch mehrere Klassen auf einer Seite (konfigurierbar)
     → bei der Art „Clubmeisterschaft“ (Reiter „Veranstaltung“); Listen mit Parcoursbild bleiben je Klasse
     - Bei Clubmeisterschaften oder kleinen Wettkämpfen mit nur 1–2 Startern pro Klasse macht eine eigene Liste keinen

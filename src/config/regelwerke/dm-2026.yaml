@@ -74,6 +74,11 @@
 #   startNrBereiche  { <Klasse>: [{ von, bis, gruppe }] }: Nummernbereiche der Startnummern
 #                    nach Größengruppe der Westen (S-M, L-XL, XXL), wie auf den Westen
 #                    geschrieben. Vorgabe der klassenbasierten Vergabe; fehlt = fortlaufend.
+#   geburtstagsGrenzen { <Klasse>: { ab?, bis? } }: Starterlaubnis ab dem `ab`. Geburtstag bzw.
+#                    bis zum `bis`. Geburtstag (am Geburtstag selbst nicht mehr), gemessen am
+#                    Datum der Veranstaltung. Nur eine Warnung im Reiter „Starter“, nichts
+#                    wird gesperrt (import/klassenPruefung.ts geburtstagsHinweise). Fehlt =
+#                    keine Grenze außer den Jahrgängen.
 id: dm-2026
 name: DM
 version: 2026
@@ -88,13 +93,20 @@ einheit: Punkte
 # Reglement C8 „Klassen“: Klasse ME 6 und 7 Jahre, Klasse 1 8 und 9, Klasse 2 10 und 11,
 # Klasse 3 12 und 13, Klasse 4 14 bis 15, Klasse 5 16 bis 18, Klasse 6 19 bis 21, Klasse 7
 # 22 bis 27 Jahre. „Berechnung der Altersklasse = Veranstaltungsjahr – Geburtsjahr“ – so
-# rechnet domain/classes.ts. Nicht umgesetzt ist die Ausnahme dort: „Klasse ME Starterlaubnis
-# versicherungsbedingt ab dem 6. Geburtstag und Klasse M7 Starterlaubnis bis zum 27.
-# Geburtstag“ (das Programm prüft keinen Stichtag am Wettkampftag). Die jüngste Klasse heißt
+# rechnet domain/classes.ts. Die Ausnahme dort – „Klasse ME Starterlaubnis versicherungsbedingt
+# ab dem 6. Geburtstag und Klasse M7 Starterlaubnis bis zum 27. Geburtstag“ – steht unten in
+# `geburtstagsGrenzen`. Die jüngste Klasse heißt
 # im Reglement „ME“ (C8 „Klasse ME“, im Text „ME bis M3“); hier trägt sie die Kennung E, und
 # die Listen schreiben „Klasse E“ – Entscheidung des Veranstalters: „Das M bei der E ist ein
 # Überbleibsel“. Deshalb steht hier bewusst kein `klassenNamen` (unter UIM: { E: Dolphin }).
 klassen: [E, 1, 2, 3, 4, 5, 6, 7]
+# Reglement C8, Geburtstags-Ausnahme (s. o.): ME (hier E) ab dem 6., M7 bis zum 27. Geburtstag,
+# gemessen am Datum der Veranstaltung (AppState.eventDatum, erster Wettkampftag). Entscheidung des
+# Nutzers vom 24.11.2026: „Bei den Geburtstag-Ausnahmen reicht eine Warnung und kann dann einfach
+# übergangen werden“ – der Reiter „Starter“ nennt die Starter, nichts wird gesperrt oder verschoben.
+# Auslegung (24.11.2026, offen zur Bestätigung): „bis zum 27. Geburtstag“ = am Geburtstag selbst
+# nicht mehr; am 29.02. Geborene werden in Jahren ohne 29.02. am 01.03. ein Jahr älter (BGB § 188).
+geburtstagsGrenzen: { E: { ab: 6 }, 7: { bis: 27 } }
 # Was vor der laufenden Nummer einer klassenbezogenen Startnummer steht (E01, 101 …). Ohne
 # Angabe ist es die Kennung der Klasse; für die Klasse E steht der Buchstabe hier ausdrücklich.
 startNrPraefix: { E: E }

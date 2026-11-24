@@ -563,13 +563,23 @@ quittiert werden: „Bitte Nr. 23 prüfen/nachtragen“, „Papier nehmen“, �
   (wenn es Boote gibt – sie ist auf Entfernung besser zu erkennen als die Weste), die aufgelöste Maske der eigenen Liste.
   **Kein Name** als Vorgabe (die Startnummer reicht); nur wenn gewünscht, nach der öffentlichen Namensregel der Tafel (F6).
 - **Nie**: Geburtsdatum, Gewicht, Geschlecht, Herkunft, Werte oder Summen anderer Listen, Wertung, Plätze.
+  Ausnahme seit 24.11.2026 (Entscheidung des Nutzers): das **Ausgleichsgewicht** je Start, nur in der verschlüsselten
+  Gruppe der Steg-Liste – nie Körper- oder Durchschnittsgewicht, nie auf Anzeigetafel, Zuschauerliste oder
+  Start-Freigabe (`WKR_ANNAHMEN` AG1–AG4).
 - **Neu: Werte auf der Leitung.** Bisher gilt „nie Werte über ntfy“. Die Erfassung schickt die Werte der eigenen Liste
   vom Gerät zum Bedienrechner – verschlüsselt, nur in einer eigenen Gruppe je Liste, die nur die Geräte dieser Liste
   lesen können (am Steg auch das Gerät des anderen Teils; Auslegung 21.11.2026, WKR_ANNAHMEN.rueckfrageInListe).
   Zurück kommen nur Quittungen und bei einer Rückfrage der Stand genau dieser Zelle; die eigenen Werte hält das Gerät
   selbst. Die Tafel- und Zuschauerwege bleiben wertfrei. Das braucht eine ausdrückliche, datierte Ausnahme (F11).
-- **Ausgleichsgewicht** am Steg a gehört nicht in diese Etappe (ließe auf das Körpergewicht schließen); eigene Entscheidung
-  mit dem Check-In (E10).
+- **Ausgleichsgewicht** am Steg: ursprünglich nicht in dieser Etappe (ließe auf das Körpergewicht schließen; eigene
+  Entscheidung mit dem Check-In E10). **Entschieden 24.11.2026:** Es wird am Steg nicht gepflegt. Wer kein Gewicht hat,
+  bekommt es später in der Verwiegung (bzw. beim Check-in) nachgetragen; auf der Papierliste „Ausgleichsgewichte“ trägt
+  man es von Hand nach, in die digitale Liste kommt es von selbst. Die Sicht der Steg-Liste trägt deshalb je Start nur
+  das Ausgleichsgewicht in ganzen kg (0 = keines, „fehlt“ = nicht gewogen; `src/wkr/sicht.ts`, gerechnet wie die
+  Papierliste in `src/lib/ausgleich.ts`), die Karte zeigt es im Teil „Ablegen“ („AG 4 kg“, „kein AG“, „AG: Gewicht
+  fehlt“). Dass es bei leichten Startern auf das Körpergewicht schließen lässt, gehört zur Entscheidung. Ein Gerät nur
+  für „Anlegen“ bekommt den Wert verschlüsselt mit (eine Gruppe je Liste), zeigt ihn aber nicht (Prüfbefund
+  24.11.2026, Rückfrage offen).
 - **Auf dem Gerät gespeichert**: Kopplung, Schlüssel, wartende Zeilen, Entwürfe, die letzten Zeilen zum Korrigieren,
   Maskenwahl. Gelöscht bei Entkoppeln, Raum beendet oder 36 h ohne Nachricht. Nie im AppState, nie in der Sicherung.
 - Der **WKR-Name** bei „Liste abschließen“ ist eine Personenangabe im Stand; die Einteilung führt WKR-Namen schon heute.
@@ -621,7 +631,7 @@ empfohlen“ = die frühere Empfehlung gilt. Kurzfassung auch in [entscheidungen
 | **F8** Abschluss statt Unterschrift? | **Ja**. |
 | **F9** Nur abgelesene Zeit? | **Ja**, kein Stoppen am Handy. |
 | **F10** Herkunft in der Sicherung? | **Nein**, nur ◆ und Verlauf am Bedienrechner. |
-| **F11** Werte auf der Leitung? | **Ja**, nur eigene Liste, verschlüsselt Gerät → Bedienrechner; zurück Quittungen bzw. eine Zelle; kein Ausgleichsgewicht. |
+| **F11** Werte auf der Leitung? | **Ja**, nur eigene Liste, verschlüsselt Gerät → Bedienrechner; zurück Quittungen bzw. eine Zelle; kein Ausgleichsgewicht (seit 24.11.2026: das Ausgleichsgewicht doch, nur an der Steg-Liste, §9). |
 | **F12** Übernahme? | **Automatisch in leere Zellen**, abnicken nur bei Abweichung. |
 | **F13** Sprache der Maske? | **Sprache der Liste**, umschaltbar. |
 | **F14** Wer legt die Maske fest? | **Bedienrechner gibt vor.** |

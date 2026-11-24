@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUFBAUTEN, DEFAULT_AUFBAU, DEFAULT_REGELWERK, MANOEVER_AUFBAUTEN, REGELWERKE, STARTABSTAENDE, codeKlassenOf, hasParallel, regelwerkOf, sollgewichtOf, startabstandOf, startabstandVorgabe } from './catalog'
+import { AUFBAUTEN, DEFAULT_AUFBAU, DEFAULT_REGELWERK, MANOEVER_AUFBAUTEN, REGELWERKE, STARTABSTAENDE, codeKlassenOf, hasParallel, regelwerkOf, sollgewichtOf, startabstandOf, startabstandVorgabe, startNrPraefixe } from './catalog'
 
 describe('Regelwerke und Aufbauten', () => {
   it('liest die Regelwerke in Menü-Reihenfolge', () => {
@@ -28,6 +28,18 @@ describe('Regelwerke und Aufbauten', () => {
   it('der Buchstabe der Startnummern steht im Regelwerk: E01 – auch unter UIM, wo die Klasse „Dolphin“ heißt', () => {
     expect(regelwerkOf('uim-2026').startNrPraefix).toEqual({ E: 'E' })
     expect(regelwerkOf('dm-2026').startNrPraefix).toEqual({ E: 'E' })
+  })
+
+  it('der gewählte Buchstabe der Klasse E (E oder D) gilt seit 24.11.2026 unter jedem Regelwerk, auch DM', () => {
+    expect(startNrPraefixe({ regelwerk: 'dm-2026', dolphinPraefix: 'D' })).toEqual({ E: 'D' })
+    expect(startNrPraefixe({ regelwerk: 'uim-2026', dolphinPraefix: 'D' })).toEqual({ E: 'D' })
+    expect(startNrPraefixe({ regelwerk: 'dm-2026', dolphinPraefix: 'E' })).toEqual({ E: 'E' })
+    expect(startNrPraefixe({ regelwerk: 'dm-2026' })).toEqual({ E: 'E' })
+  })
+
+  it('Geburtstags-Grenzen (DM-Reglement C8, 24.11.2026): nur die DM nennt sie – E ab dem 6., 7 bis zum 27.', () => {
+    expect(regelwerkOf('dm-2026').geburtstagsGrenzen).toEqual({ E: { ab: 6 }, '7': { bis: 27 } })
+    expect(regelwerkOf('uim-2026').geburtstagsGrenzen).toEqual({})
   })
 
   it('Parallelslalom gibt es nur nach den Regeln der UIM', () => {

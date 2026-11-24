@@ -154,12 +154,14 @@ export interface BogenOptionen {
   /** Abweichende Zahl der Leerzeilen je Klasse (nur mit `klassenBloecke`); fehlt = `leerzeilen`. */
   leerzeilenJeKlasse?: Readonly<Record<string, number>>
   /**
-   * Nur mit `klassenBloecke` (Clubmeisterschaft, Papier sparen): Die Klassen einer Seite
-   * teilen sich die Leerzeilen. Statt nach jeder Klasse stehen so viele einmal am Ende jeder
-   * Seite, unter einer eigenen Zwischenüberschrift („Nachmeldungen“) – sonst sähen sie aus
-   * wie Zeilen der letzten Klasse. `leerzeilen` und `leerzeilenJeKlasse` gelten dann nicht.
-   * Kosteten sie allein ein weiteres Blatt, entfallen sie bis auf eine (wie bei den Zeilen
-   * je Klasse).
+   * Gemeinsame Bögen mehrerer Klassen: Die Klassen einer Seite teilen sich die Leerzeilen.
+   * Mit `klassenBloecke` (Clubmeisterschaft, Papier sparen) stehen so viele statt nach jeder
+   * Klasse einmal am Ende jeder Seite, unter einer eigenen Zwischenüberschrift
+   * („Nachmeldungen“) – sonst sähen sie aus wie Zeilen der letzten Klasse. Ohne Blöcke (Klassen
+   * gemischt in der Startfolge der Verzahnung, 24.11.2026) stehen sie ohne Überschrift am Ende
+   * jeder Seite: Ihre Klassenzelle ist leer, das genügt. `leerzeilen` und `leerzeilenJeKlasse`
+   * gelten dann nicht. Kosteten sie allein ein weiteres Blatt, entfallen sie bis auf eine (wie
+   * bei den Zeilen je Klasse).
    */
   leerzeilenJeSeite?: number
   /** Gemessen: so viele Tabellenzeilen (Starter, Leerzeilen, Zwischenüberschriften) passen auf ein Blatt. */
@@ -444,7 +446,7 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
   }
 
   let seitenZeilen: BogenModellZeile[][]
-  /** Mit Klassen-Blöcken: die Klassen, die auf der Seite stehen. */
+  /** Mehrere Klassen (Blöcke oder Startfolge): die Klassen, die auf der Seite stehen. */
   let seitenKlassen: string[][] | undefined
   const zeilenKap = optionen.zeilenKapazitaet ?? 0
   if (rundenListe) {
@@ -553,18 +555,46 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
   } else {
     // Geteilt wird nach Startern: Die Versuche eines Starters bleiben auf einer Seite. Auf ein
     // Blatt passen dann entsprechend weniger Starter (jeder braucht `versuche` Zeilen).
-    const kapazitaet = optionen.kapazitaet ?? 0
-    const chunks = pageChunks([...auftrag.zeilen], zeilenJeSeite, teilenAb, versuche > 1 && kapazitaet > 0 ? Math.max(1, Math.floor(kapazitaet / versuche)) : kapazitaet)
+    const teile = (kap: number) => pageChunks([...auftrag.zeilen], zeilenJeSeite, teilenAb, versuche > 1 && kap > 0 ? Math.max(1, Math.floor(kap / versuche)) : kap)
+    let kapazitaet = optionen.kapazitaet ?? 0
+    let leer = leerzeilen
+    if (optionen.leerzeilenJeSeite !== undefined) {
+      // Klassen gemischt in der Startfolge (Clubmeisterschaft, Nutzer 24.11.2026): Die Leerzeilen gehören zur Seite,
+      // nicht zu einer Klasse. Wie auf den Blöcken mit geteilten Leerzeilen kosten sie kein weiteres Blatt – so viele,
+      // wie ohne Mehrverbrauch gehen, mindestens eine, wenn welche gewünscht sind. Die gemessene Kapazität zählt
+      // Tabellenzeilen; die der Starter ist der Rest neben den Leerzeilen.
+      leer = Math.max(0, Math.floor(optionen.leerzeilenJeSeite))
+      if (zeilenKap > 0) {
+        leer = Math.min(leer, Math.max(0, zeilenKap - 1))
+        const mitLeer = (n: number) => teile(Math.max(1, zeilenKap - n)).length
+        const blaetter = mitLeer(Math.min(1, leer))
+        while (leer > 1 && mitLeer(leer) > blaetter) leer--
+        kapazitaet = Math.max(1, zeilenKap - leer)
+      } else kapazitaet = 0
+    }
+    const chunks = teile(kapazitaet)
     let davor = 0
     seitenZeilen = chunks.map((starterDerSeite, pageIndex) => {
       const chunk = jeVersuch(starterDerSeite)
       const roh: Roh[] = chunk.map(starter)
-      // Der Seiten-Präfix hält die Schlüssel der Leerzeilen je Seite eindeutig.
-      for (let i = 0; i < leerzeilen; i++) roh.push({ key: `_p${pageIndex}_x${i}`, nr: '', fixed: false })
+      // Der Seiten-Präfix hält die Schlüssel der Leerzeilen je Seite eindeutig. Ohne Klasse: Jede Zelle ist
+      // beschreibbar, und auf einem Bogen mehrerer Klassen bleibt die Klassenzelle für die Nachmeldung frei.
+      // Auslegung (Prüfbefund 24.11.2026, offen beim Nutzer): Mit „Versuche direkt nacheinander“ ist eine Leerzeile
+      // eine Zeile ohne Versuch – eine Nachmeldung füllt zwei davon und trägt den Versuch von Hand ein. So war es
+      // auf Bögen einer Klasse schon immer; Leerzeilen in Paaren je Versuch kosteten je Seite doppelt so viel Platz.
+      for (let i = 0; i < leer; i++) roh.push({ key: `_p${pageIndex}_x${i}`, nr: '', fixed: false })
       const start = davor
       davor += chunk.length
       return roh.map((z, i) => fertig(z, start + i + 1))
     })
+    // Mehrere Klassen ohne Blöcke (in der Startfolge): Auch hier nennt der Kopf die Klassen der Seite – der
+    // Wettkampfrichter sucht das Blatt nach der Klasse heraus. Eine Seite ohne Starter nennt alle.
+    if (zeigtKlasse) {
+      seitenKlassen = seitenZeilen.map((rows) => {
+        const da = klassen.filter((k) => rows.some((r) => r.klasse === k))
+        return da.length > 0 ? da : klassen
+      })
+    }
   }
 
   // Im Kopf stehen die Klassen der Seite: Trägt eine Seite eines gemeinsamen Bogens nur eine

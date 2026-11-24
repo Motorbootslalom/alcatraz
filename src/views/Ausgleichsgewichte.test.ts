@@ -98,7 +98,8 @@ describe('Gewichtslisten: Ausgleichsgewichte für den Steg', () => {
     expect(zeilen(wrapper, '4')).toEqual([
       ['401', 'Nach41', 'Vor41', '7 kg', '4', '', '', ''],
       ['402', 'Nach42', 'Vor42', '', '4', '', '', ''],
-      ['403', 'Nach43', 'Vor43', 'nicht gewogen', '4', '', '', ''],
+      // Nicht gewogen (24.11.2026): klein vermerkt, „kg“ rechts – dazwischen frei zum Nachtragen von Hand.
+      ['403', 'Nach43', 'Vor43', 'nicht gewogen kg', '4', '', '', ''],
     ])
     // 26 − 20,5 = 5,5 → 6 kg; genau das Durchschnittsgewicht und mehr: kein Ausgleichsgewicht.
     expect(zeilen(wrapper, 'E').map((z) => z[3])).toEqual(['6 kg', '', ''])
@@ -108,6 +109,21 @@ describe('Gewichtslisten: Ausgleichsgewichte für den Steg', () => {
     expect(spalten(wrapper).slice(5)).toEqual(['1. Lauf', '2. Lauf'])
     expect(zeilen(wrapper, '4')[0]).toHaveLength(7)
     wrapper.unmount()
+  })
+
+  it('auf 0 kg gerundet steht leer wie „keines nötig“ – wie das Steg-Gerät („kein AG“, Prüfbefund 24.11.2026)', async () => {
+    // Klasse 4 (65 kg): 64,6 → 0,4 kg leichter → 0 kg (gerundet); die Verwiegung nennt das weiter „0 kg“.
+    store.dispatch({ type: 'SET_WEIGHT', id: 'id-4-2', gewicht: 64.6 })
+    const wrapper = mounte(ListsView, store)
+    await steg(wrapper)
+    expect(zeilen(wrapper, '4').map((z) => z[3])).toEqual(['7 kg', '', 'nicht gewogen kg'])
+    expect(wrapper.find('[data-liste="ausgleich:4"] tbody tr:nth-child(2)').attributes('data-ausgleich')).toBe('0')
+    wrapper.unmount()
+    // Die Verwiegung zeigt die Rechnung weiter genau: 402 mit „0 kg“.
+    const verwiegung = mounte(WeighingView, store)
+    const zeile402 = verwiegung.findAll('.weigh-table tbody tr').find((tr) => tr.text().includes('Nach42'))
+    expect(zeile402?.findAll('td').at(-1)?.text()).toBe('0 kg')
+    verwiegung.unmount()
   })
 
   it('mit Logos (16.11.2026): auf jeder Seite links und rechts neben dem Kopf, sonst alles wie ohne', async () => {
@@ -134,7 +150,9 @@ describe('Gewichtslisten: Ausgleichsgewichte für den Steg', () => {
     const hinweis = () => wrapper.find('[data-hinweis="steg-ungewogen"]')
     expect(hinweis().text()).toContain('1 Starter ist noch nicht gewogen')
     expect(hinweis().find('a').attributes('href')).toBe('#/verwiegung')
-    expect(wrapper.find('[data-liste="ausgleich:4"] tbody tr[data-ausgleich="ungewogen"] td.ungewogen').text()).toBe('nicht gewogen')
+    // Nutzer 24.11.2026: „bei einer Papierliste manuell nachgetragen“ – ein Feld zum Eintragen, der Vermerk nur klein.
+    const zelle = wrapper.find('[data-liste="ausgleich:4"] tbody tr[data-ausgleich="ungewogen"] td.ungewogen')
+    expect([zelle.find('.ungewogen-vermerk').text(), zelle.find('.ungewogen-kg').text()]).toEqual(['nicht gewogen', 'kg'])
     store.dispatch({ type: 'SET_WEIGHT', id: 'id-4-3', gewicht: 61 })
     await nextTick()
     expect(hinweis().exists()).toBe(false)
@@ -201,7 +219,7 @@ describe('Gewichtslisten: Ausgleichsgewichte für den Steg', () => {
     expect(koepfe(wrapper)).toEqual(['Extra weights | Dolphin | Boat | Co-driver Erika Beispiel | Hafenpokal 2026', 'Extra weights | Class 4 | Boat | Hafenpokal 2026'])
     expect(spalten(wrapper)).toEqual(['No.', 'Surname', 'First name', 'Extra\nweight', 'Class', 'Attempt 1', 'Attempt 2'])
     // UIM 960 Pkt. 3.7: Klasse 4 = 64 kg → 64 − 58,4 = 5,6 → 6 kg.
-    expect(zeilen(wrapper, '4').map((z) => z[3])).toEqual(['6 kg', '', 'not weighed'])
+    expect(zeilen(wrapper, '4').map((z) => z[3])).toEqual(['6 kg', '', 'not weighed kg'])
     // Die Bedienung bleibt deutsch.
     expect(wrapper.find('.gewicht-arten button.active').text()).toBe('für den Steg je Klasse')
     wrapper.unmount()

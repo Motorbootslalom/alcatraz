@@ -34,6 +34,16 @@ export function isoDatum(jahr: string, monat: number, tag: number): string | nul
   return `${jahr}-${zwei(monat)}-${zwei(tag)}`
 }
 
+/**
+ * Ist das ein gespeichertes Datum, also ein Tag, den es gibt, genau als JJJJ-MM-TT? Für das Datum
+ * der Veranstaltung (Reducer, migrate, Warnung zum Geburtstag; 24.11.2026).
+ */
+export function istTag(iso: unknown): iso is string {
+  if (typeof iso !== 'string') return false
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  return m !== null && isoDatum(m[1], Number(m[2]), Number(m[3])) === iso
+}
+
 export function liesDatum(text: string): DatumGelesen {
   const s = text.trim()
   if (s === '') return { art: 'leer' }

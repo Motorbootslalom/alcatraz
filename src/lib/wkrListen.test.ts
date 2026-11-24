@@ -298,6 +298,134 @@ describe('Clubmeisterschaft, Papier sparen: Leerzeilen je Seite statt je Klasse'
   })
 })
 
+// Wunsch des Nutzers vom 24.11.2026: „ob die Klassen getrennt oder nach der Verzahnung auf dem Blatt aufgeführt werden
+// sollen … Wenn sie in der Verzahnung sind, wird die Klasse nach der Startnummer benötigt.“
+describe('Clubmeisterschaft: Klassen eines gemeinsamen Bogens in der Startfolge der Verzahnung', () => {
+  const club = (mehr: Partial<AppState> = {}) =>
+    stand({ eventKind: 'club', wkrClubGemeinsam: true, wkrGemeinsamFolge: 'verzahnung', laufCount: 1, parcoursList: EIN_PARCOURS, starters: starter(['E', '1', '2', '3'], 5), ...mehr })
+  const steg = (s: AppState) => wkrBoegenZumStand(s, dm).boegen.find((b) => b.typeId === 'steg')!
+  /** Je Seite die Zeilen in Kurzform: Startnummer bzw. „_“ = Leerzeile, Überschriften in eckigen Klammern. */
+  const bild = (s: AppState, zeilenKapazitaet = 0) => {
+    const b = steg(s)
+    return bogenSeiten(dm, b.auftrag, { ...b.optionen, zeilenKapazitaet }).map((seite) => seite.rows.map((r) => (r.zwischen !== undefined ? `[${r.zwischen}]` : r.fixed ? r.nr : '_')).join(' '))
+  }
+
+  it('Vorgabe bleibt „getrennt“: Blöcke mit Überschrift wie bisher', () => {
+    expect(emptyState().wkrGemeinsamFolge).toBe('getrennt')
+    const b = steg(club({ wkrGemeinsamFolge: 'getrennt' }))
+    expect(b.optionen.klassenBloecke).toBe(true)
+    // Fehlt die Angabe (Aufrufer ohne ganzen Stand), stehen die Klassen ebenso getrennt.
+    const { wkrGemeinsamFolge: _weg, ...ohne } = club()
+    expect(steg(ohne as AppState).optionen.klassenBloecke).toBe(true)
+  })
+
+  it('keine Blöcke, keine Überschriften: die Zeilen in der Startfolge der Verzahnung, die Klasse hinter der Startnummer', () => {
+    const s = club()
+    const b = steg(s)
+    expect(b.klassen).toHaveLength(4)
+    expect(b.optionen).toEqual({ leerzeilen: 0, leerzeilenJeSeite: 3 })
+    const folge = planEvent(s).plans[0].sequence
+    // Die Verzahnung mischt die Klassen wirklich (sonst prüfte der Test nichts).
+    expect(new Set(folge.slice(0, 4).map((x) => x.klasse)).size).toBeGreaterThan(1)
+    const [seite] = bogenSeiten(dm, b.auftrag, b.optionen)
+    expect(seite.rows.some((r) => r.zwischen !== undefined)).toBe(false)
+    expect(seite.zeigtKlasse).toBe(true)
+    const starterZeilen = seite.rows.filter((r) => r.fixed)
+    expect(starterZeilen.map((r) => r.nr)).toEqual(folge.map((x) => x.startNr))
+    expect(starterZeilen.map((r) => r.klasseText)).toEqual(folge.map((x) => x.klasse))
+    // Die Leerzeilen am Ende der Seite gehören keiner Klasse: Klassenzelle leer, jede Zelle beschreibbar.
+    const leer = seite.rows.filter((r) => !r.fixed)
+    expect(leer).toHaveLength(3)
+    expect(seite.rows.slice(-3)).toEqual(leer)
+    for (const r of leer) {
+      expect(r.klasse).toBeUndefined()
+      expect(r.klasseText).toBeUndefined()
+      expect(r.cells.every((c) => c.gilt)).toBe(true)
+    }
+    // Die graue fünfte Zeile zählt wie auf jeder Liste weiter.
+    expect(seite.rows.map((r, i) => r.shaded === ((i + 1) % 5 === 0)).every(Boolean)).toBe(true)
+  })
+
+  it('auch ohne „Papier sparen“: gemeinsame Bögen in der Startfolge, Bögen einer Klasse wie bisher', () => {
+    const s = club({ wkrClubGemeinsam: false, starters: starter(['E', '1', '3', '4', '7']), parcoursList: stand().parcoursList, wkrLeerzeilen: 2 })
+    const { boegen } = wkrBoegenZumStand(s, dm)
+    const gemeinsam = boegen.filter((b) => b.klassen.length > 1)
+    expect(gemeinsam.length).toBeGreaterThan(0)
+    for (const b of gemeinsam) expect(b.optionen, b.id).toEqual({ leerzeilen: 0, leerzeilenJeSeite: 3 })
+    const einzeln = boegen.find((b) => b.klassen.length === 1)!
+    expect(einzeln.optionen).toMatchObject({ leerzeilen: 2 })
+    expect(einzeln.optionen.leerzeilenJeSeite).toBeUndefined()
+    // Mit Parcoursbild bleibt es ohne „Papier sparen“ bei der eigenen Zeichnung je Klasse – die Folge ändert daran nichts.
+    expect(boegen.filter((b) => b.typeId === 'mueb' && b.lauf === 1).map((b) => b.klassen)).toEqual([['4'], ['7']])
+  })
+
+  it('dieselben Bögen wie getrennt: Kennung, QR-Code, Klassen und Zeilen – nur die Folge auf dem Blatt ist anders', () => {
+    const kurz = (s: AppState) => wkrBoegenZumStand(s, dm).boegen.map((b) => [b.id, b.auftrag.qr, b.klassen.join('+'), b.auftrag.zeilen.map((z) => z.id).join(' ')])
+    expect(kurz(club())).toEqual(kurz(club({ wkrGemeinsamFolge: 'getrennt' })))
+    // Getrennt sortiert lib/bogen.ts die Zeilen je Klasse; die Folge in der Klasse bleibt die der Verzahnung.
+    const getrennt = bild(club({ wkrGemeinsamFolge: 'getrennt' }))[0]
+    expect(getrennt.startsWith('[Klasse ')).toBe(true)
+    expect(bild(club())[0]).not.toContain('[')
+  })
+
+  it('mehrere Seiten: automatisch geteilt, auf jeder Seite die Leerzeilen am Ende, der Kopf nennt die Klassen der Seite', () => {
+    // 20 Starter; auf ein Blatt passen 14 Tabellenzeilen: neben 3 Leerzeilen 11 Starter → zwei Seiten zu 10.
+    const seiten = bild(club(), 14)
+    expect(seiten).toHaveLength(2)
+    for (const s of seiten) {
+      expect(s.endsWith('_ _ _')).toBe(true)
+      expect(s.split(' ').length).toBeLessThanOrEqual(14)
+    }
+    expect(seiten.join(' ').split(' ').filter((x) => x !== '_')).toEqual(planEvent(club()).plans[0].sequence.map((x) => x.startNr))
+    const b = steg(club())
+    const kopf = bogenSeiten(dm, b.auftrag, { ...b.optionen, zeilenKapazitaet: 14 }).map((s) => s.klassenText)
+    // E und 2 fahren laut Verzahnung zuerst, 1 und 3 danach (planung/: zwei Spuren).
+    expect(kopf).toEqual(['Klassen E, 2', 'Klassen 1, 3'])
+    // Die Schlüssel der Leerzeilen sind je Seite eindeutig.
+    const schluessel = bogenSeiten(dm, b.auftrag, { ...b.optionen, zeilenKapazitaet: 14 }).flatMap((s) => s.rows.map((r) => r.key))
+    expect(new Set(schluessel).size).toBe(schluessel.length)
+  })
+
+  it('Leerzeilen sind kein Grund für ein weiteres Blatt: Sie entfallen bis auf eine; 0 heißt keine', () => {
+    // 20 Starter auf Blättern mit 11 Zeilen: zwei Seiten zu 10 Startern – daneben passt genau eine Leerzeile.
+    const seiten = bild(club(), 11)
+    expect(seiten).toHaveLength(2)
+    for (const s of seiten) expect(s.match(/_/g)).toHaveLength(1)
+    expect(bild(club({ wkrLeerzeilenSeite: 0 }), 14).join(' ')).not.toContain('_')
+  })
+
+  // Prüfbefund 24.11.2026: Die Startfolge war nur unter DM und auf Deutsch geprüft.
+  it('UIM, „Versuche direkt nacheinander“: „Dolphin“ in der Spalte „Cl.“, englischer Kopf, beide Versuche eines Starters auf derselben Seite', () => {
+    const uim = configFor({ regelwerk: 'uim-2026', sprache: 'en' })
+    const s = club({ regelwerk: 'uim-2026', laufCount: 2, versucheNacheinander: true, starters: starter(['E', '2'], 4) })
+    const b = wkrBoegenZumStand(s, uim).boegen.find((x) => x.typeId === 'steg')!
+    expect([b.klassen, b.versuche, b.optionen]).toEqual([['E', '2'], 2, { leerzeilen: 0, leerzeilenJeSeite: 3 }])
+    const folge = planEvent(s).plans[0].sequence.map((x) => x.startNr)
+    // Die Verzahnung mischt die Klassen wirklich (sonst prüfte der Test nichts).
+    expect(folge.slice(0, 2).map((nr) => nr[0])).toEqual(['E', '2'])
+    // 8 Starter mit je zwei Zeilen; auf ein Blatt passen 14 Tabellenzeilen: neben 3 Leerzeilen 5 Starter → zwei Seiten.
+    const seiten = bogenSeiten(uim, b.auftrag, { ...b.optionen, zeilenKapazitaet: 14 })
+    expect(seiten).toHaveLength(2)
+    for (const seite of seiten) {
+      expect(seite).toMatchObject({ zeigtKlasse: true, versuchForm: true, laufText: undefined, klassenText: 'Classes Dolphin, 2' })
+      expect(seite.texte.klasseKurz).toBe('Cl.')
+      expect(seite.rows.some((r) => r.zwischen !== undefined)).toBe(false)
+      expect(seite.rows.length).toBeLessThanOrEqual(14)
+      // Die Versuche eines Starters bleiben auf einer Seite und direkt nacheinander.
+      const auf = seite.rows.filter((r) => r.fixed)
+      for (let i = 0; i < auf.length; i += 2) {
+        expect([auf[i].starter, auf[i].lauf, auf[i + 1].lauf]).toEqual([auf[i + 1].starter, 1, 2])
+      }
+      // Die Leerzeilen am Ende jeder Seite: ohne Klasse, ohne Versuch (lib/bogen.ts, Auslegung 24.11.2026).
+      expect(seite.rows.slice(-3).map((r) => [r.fixed, r.klasseText, r.lauf])).toEqual(Array(3).fill([false, undefined, undefined]))
+    }
+    const zeilen = seiten.flatMap((seite) => seite.rows.filter((r) => r.fixed))
+    expect(zeilen.map((r) => `${r.nr}/${r.lauf}`)).toEqual(folge.flatMap((nr) => [`${nr}/1`, `${nr}/2`]))
+    // Klasse E heißt unter UIM „Dolphin“, nie „ME“ (Projektkarte).
+    expect(zeilen.map((r) => r.klasseText)).toEqual(folge.flatMap((nr) => (nr.startsWith('E') ? ['Dolphin', 'Dolphin'] : ['2', '2'])))
+  })
+})
+
 describe('Sprache der Bögen: der Titel in der Auswahl folgt der Sprache der Liste', () => {
   it('`titelVon` nennt jede Liste, wie sie auf ihrem Bogen heißt; ohne Angabe gilt die Konfiguration', () => {
     const uim = stand({ regelwerk: 'uim-2026', starters: starter(['1']), laufCount: 1 })

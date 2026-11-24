@@ -24,7 +24,8 @@ clipboard, scanner, logoBild.
   `naechste` = erster); stageErgebnis nimmt 1/2 aus `final`, 3/4 aus `small`. Alte Stände: state/migrate.ts teileAlteFinals.
 - Bögen und Listen: `wkrListen.ts` (wkrBoegenZumStand: planung/plan.ts planEvent, listen.ts, bogen.ts defFuerKlasse,
   qr.ts; Druckfolge WKR_DRUCKFOLGE 21.11.2026: Parcours → Position → Lauf → Klasse, `innen` umstellbar; parallelBogen.ts
-  gleich: Racecourse → Position → Runde; Laufzettel bleiben je Klasse und Lauf), `bogen.ts` (Modell, bogenSeiten; Bild: das der Klasse aus `bildErzeugen` oder BogenAuftrag.`bild` (Parallelslalom),
+  gleich: Racecourse → Position → Runde; Laufzettel bleiben je Klasse und Lauf; Club 24.11.2026 `wkrGemeinsamFolge`:
+  getrennt = `klassenBloecke`, verzahnung = ohne Blöcke mit `leerzeilenJeSeite` und Spalte Klasse), `bogen.ts` (Modell, bogenSeiten; Bild: das der Klasse aus `bildErzeugen` oder BogenAuftrag.`bild` (Parallelslalom),
   `ohneBild` gewinnt; BogenBild.`streifen` = flach neben der Legende; bogenMitBild für die Namensnennung am Bildschirm,
   seiteMitBeschreibung statt hasDescription auf Druckseiten), `listen.ts` (veranstaltungsListen), `laufzettel.ts` (messBoegen,
   buildLaufzettel, zettelSchritte), `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`, `namen.ts`,

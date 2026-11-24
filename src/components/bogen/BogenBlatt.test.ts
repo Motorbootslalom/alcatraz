@@ -117,6 +117,23 @@ describe('BogenBlatt', () => {
     const zeile = wrapper.findAll(ZEILEN)
     expect(zeile[0].find('td[data-spalte="speed2"]').classes()).toContain('bt-entfaellt')
     expect(zeile[1].find('td[data-spalte="speed2"]').classes()).not.toContain('bt-entfaellt')
+    // Kurze Klassennamen brauchen nur die schmale Spalte.
+    expect(wrapper.find('col.bt-cg-klasse').classes()).not.toContain('bt-cg-klasse--breit')
+    wrapper.unmount()
+  })
+
+  // Prüfbefund 24.11.2026 (Klassen in der Startfolge, auch unter UIM): Klasse E heißt dort „Dolphin“ – die Spalte wird
+  // breit, ihr Kopf folgt der Listensprache.
+  it('UIM: „Dolphin“ in einer breiten Spalte „Cl.“', () => {
+    const uim = configFor({ regelwerk: 'uim-2026', sprache: 'en' })
+    const zeilen = [
+      { nr: 'E01', klasse: 'E' },
+      { nr: '201', klasse: '2' },
+    ]
+    const wrapper = mount(BogenBlatt, { props: { konfig: uim, auftrag: auftrag('steg', { klassen: ['E', '2'], zeilen }), optionen: { leerzeilen: 0 } } })
+    expect(wrapper.find('thead th.bt-klasse').text()).toBe('Cl.')
+    expect(wrapper.findAll(`${ZEILEN} > td.bt-klasse`).map((td) => td.text())).toEqual(['Dolphin', '2'])
+    expect(wrapper.find('col.bt-cg-klasse').classes()).toContain('bt-cg-klasse--breit')
     wrapper.unmount()
   })
 

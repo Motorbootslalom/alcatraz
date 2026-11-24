@@ -26,6 +26,7 @@ import { listenKennung } from './wkr/liste'
 import { WKR_ANNAHMEN } from './wkr/annahmen'
 import { maskeFuer } from './wkr/maske'
 import type { AppState } from './types'
+import { sollgewichtOf } from './config/catalog'
 
 /**
  * Handy-Maske „Knöpfe“ der WKR-Erfassung (W3.3, Plan docs/plan-wkr-w3.md §5/§7, 21.11.2026): Bedienrechner
@@ -594,6 +595,52 @@ const SOFORT = [0, 0] as const
 
 /** In der Übung (Quittung nach uebungQuittungMs < uebertragenMinMs): ab hier wechselt die Nummer (N1). */
 const BIS_WECHSEL = WKR_ANNAHMEN.uebertragenMinMs + WKR_ANNAHMEN.uebernommenMs
+
+describe('Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3)', () => {
+  it('Karte im Ablegen: „AG: Gewicht fehlt“, nach der Verwiegung von selbst „AG 4 kg“ bzw. „kein AG“; im Anlegen nicht', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG }])
+    await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
+    const s = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    const ag = () => w.find('[data-teil="karte"] [data-teil="ausgleich"]')
+    // Der Teststand ist nicht gewogen.
+    expect([ag().text(), ag().attributes('data-ausgleich')]).toEqual(['AG: Gewicht fehlt', 'fehlt'])
+    // Nachgetragen in der Verwiegung am Bedienrechner – am Steg tippt niemand etwas.
+    const klasse = r.state.value.starters.find((p) => p.id === s.starter)!.klasse
+    const soll = sollgewichtOf(r.state.value.regelwerk, r.state.value.sollgewicht, klasse)
+    r.dispatch({ type: 'SET_WEIGHT', id: s.starter, gewicht: Math.round((soll - 3.6) * 10) / 10 })
+    await zeigt(() => ag().exists() && ag().text() === 'AG 4 kg')
+    expect(ag().classes()).toContain('wkr-starterkarte-ausgleich--kg')
+    // 0,4 kg leichter → auf 0 gerundet: „kein AG“ wie „gewogen, keines nötig“; die Papierliste lässt beides leer
+    // (Prüfbefund 24.11.2026, views/Ausgleichsgewichte.test.ts). Schwerer ergibt dieselbe 0 auf der Leitung (sicht.test.ts).
+    r.dispatch({ type: 'SET_WEIGHT', id: s.starter, gewicht: Math.round((soll - 0.4) * 10) / 10 })
+    await zeigt(() => ag().exists() && ag().text() === 'kein AG')
+    expect(ag().attributes('data-ausgleich')).toBe('0')
+    // Ablegen abschicken, nächster Start: Im Reiter „Anlegen“ steht derselbe Start ohne Ausgleichsgewicht (AG3).
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, s.starter)['erfasst.ab@steg'])
+    await zeigt(() => taktFrei(w))
+    r.zeige()
+    await klick(w, '[data-action="steg-teil"][data-steg="an"]')
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    expect(ag().exists()).toBe(false)
+    await klick(w, '[data-action="steg-teil"][data-steg="ab"]')
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) !== s.startNr)
+    expect(ag().exists()).toBe(true)
+  }, 20_000)
+
+  it('Übung (AG4): UIM-Steg in der Sprache der Liste – erfundene Werte, „Extra weight 4 kg“', async () => {
+    const q = oeffneUebung({ regelwerk: 'uim-2026', typeId: 'steg', taktMs: 3_600_000, folgeMs: SOFORT })
+    quellen.push(q)
+    const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: handy() } })
+    wrappers.push(w)
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    // Nr. 1 ist erfunden 4,4 kg leichter als das Durchschnittsgewicht (WKR_ANNAHMEN.ausgleichUebung).
+    expect(startNr(w)).toBe('1')
+    expect(w.find('[data-teil="karte"] [data-teil="ausgleich"]').text()).toBe('Extra weight 4 kg')
+  })
+})
 
 describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () => {
   function uebung(typeId = 'tor5') {
@@ -1452,12 +1499,17 @@ describe('Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl (W5.1, 22.11.2026
     const s = r.zeige()
     await zeigt(() => teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').exists() && teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').text() === s.startNr)
     expect(teilSpalte('an').find('[data-teil="karte"]').exists()).toBe(false)
+    // Ausgleichsgewicht (AG3, Prüfbefund 24.11.2026): auf der Karte der Spalte „Ablegen“ (Teststand nicht gewogen) …
+    expect(teilSpalte('ab').find('[data-teil="karte"] [data-teil="ausgleich"]').attributes('data-ausgleich')).toBe('fehlt')
+    expect(teilSpalte('ab').find('[data-teil="seite"] [data-teil="ausgleich"]').exists()).toBe(false)
     expect(teilSpalte('ab').find('[data-action="haupt"]').text()).toBe('Ablegen OK ✓')
     await teilSpalte('ab').find('[data-action="haupt"]').trigger('click')
     await bis(() => !!werte(r.state.value, s.starter)['erfasst.ab@steg'])
     r.zeige()
     await zeigt(() => teilSpalte('an').find('[data-teil="karte"] [data-teil="startnr"]').exists() && teilSpalte('an').find('[data-teil="karte"] [data-teil="startnr"]').text() === s.startNr)
     expect(teilSpalte('an').find('[data-action="haupt"]').text()).toBe('Anlegen OK ✓')
+    // … derselbe Start in der Spalte „Anlegen“ ohne.
+    expect(teilSpalte('an').find('[data-teil="karte"] [data-teil="ausgleich"]').exists()).toBe(false)
     // T3: der Start im Anlegen steht nicht zugleich im Ablegen (nach dem Takt des Abschickens).
     await zeigt(() => teilSpalte('ab').find('[data-teil="maske"]').attributes('data-takt') === 'frei')
     expect(teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').text()).not.toBe(s.startNr)

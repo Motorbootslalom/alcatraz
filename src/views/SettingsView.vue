@@ -23,7 +23,7 @@ import { verlustBeimErsetzen } from '../lib/eingabenVerlust'
 import { formatDateTime, t, tn, locale } from '../i18n'
 import { adresse, sprungziel } from '../lib/router'
 import { starterfeldFest } from '../lib/eingaben'
-import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout, ParallelAnordnung } from '../types'
+import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, ClassId, OriginStyle, ErgebnisFassung, ErgebnisNamen, LaufzettelLayout, ParallelAnordnung, WkrGemeinsamFolge } from '../types'
 import { bereicheZumStand } from '../betrieb/folge'
 import { messungen, messwerteAlsVorgabe, startabstandZeilen, type StartabstandZeile } from '../betrieb/prognose'
 import { BETRIEB_ANNAHMEN } from '../betrieb/annahmen'
@@ -265,8 +265,12 @@ const LAUFZETTEL_LAYOUTS: LaufzettelLayout[] = ['seite', 'liste']
 // das Regelwerk Englisch anbietet (UIM).
 const spracheWaehlbar = computed(() => bietetEnglisch(state.value.regelwerk))
 const listenSprache = computed(() => regelwerkSprache(state.value.regelwerk))
-// Gemeinsame Bögen der Clubmeisterschaft teilen sich die Leerzeilen je Seite (lib/bogen.ts).
-const leerJeSeite = computed(() => state.value.eventKind === 'club' && state.value.wkrClubGemeinsam)
+// Gemeinsame Bögen der Clubmeisterschaft teilen sich die Leerzeilen je Seite (lib/bogen.ts): mit „Papier sparen“ und,
+// seit 24.11.2026, immer, wenn die Klassen in der Startfolge stehen – dort gibt es kein Ende einer Klasse.
+const inStartfolge = computed(() => state.value.wkrGemeinsamFolge === 'verzahnung')
+const leerJeSeite = computed(() => state.value.eventKind === 'club' && (state.value.wkrClubGemeinsam || inStartfolge.value))
+/** Wie die Klassen auf gemeinsamen Bögen stehen (Nutzer 24.11.2026); Reihenfolge der Knöpfe = Vorgabe zuerst. */
+const GEMEINSAM_FOLGEN: readonly WkrGemeinsamFolge[] = ['getrennt', 'verzahnung']
 function setzeLeerzeilenSeite(e: Event) {
   const n = parseInt((e.target as HTMLInputElement).value, 10)
   dispatch({ type: 'SET_WKR_LEERZEILEN_SEITE', anzahl: Number.isNaN(n) ? null : n })
@@ -648,7 +652,7 @@ function takeLegacy() {
           @change="setzeLeerzeilenSeite"
         />
       </div>
-      <p class="note" style="flex: 1; min-width: 220px; margin: 0">{{ t('listopt.wkr.blankPageHint') }}</p>
+      <p class="note" style="flex: 1; min-width: 220px; margin: 0">{{ inStartfolge ? t('listopt.wkr.blankPageHintFolge') : t('listopt.wkr.blankPageHint') }}</p>
     </div>
     <div class="row" style="align-items: flex-end; gap: 20px">
       <div class="field" :style="{ width: leerJeSeite ? '320px' : '170px' }">
@@ -804,6 +808,22 @@ function takeLegacy() {
         {{ t('listopt.wkr.clubJoint') }}
       </label>
       <p class="note">{{ t('listopt.wkr.clubJointHint') }}</p>
+      <!-- Wie die Klassen auf einem gemeinsamen Bogen stehen (Nutzer 24.11.2026): in Blöcken oder in der Startfolge. -->
+      <fieldset class="field" data-feld="wkr-gemeinsam-folge" style="border: 0; padding: 0; margin: 12px 0 0">
+        <legend>{{ t('listopt.wkr.folge') }}</legend>
+        <label v-for="f in GEMEINSAM_FOLGEN" :key="f" class="boat-check">
+          <input
+            type="radio"
+            :name="`${id}-wkr-gemeinsam-folge`"
+            :value="f"
+            :data-wert="f"
+            :checked="state.wkrGemeinsamFolge === f"
+            @change="dispatch({ type: 'SET_WKR_GEMEINSAM_FOLGE', folge: f })"
+          />
+          {{ t(`listopt.wkr.folge.${f}`) }}
+        </label>
+      </fieldset>
+      <p class="note">{{ t('listopt.wkr.folgeHint') }}</p>
     </template>
   </div>
 

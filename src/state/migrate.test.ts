@@ -51,6 +51,12 @@ describe('migrate', () => {
     expect(migrate({ starters: [], regelwerk: 'uim-2026', versucheNacheinander: 'ja' })!.versucheNacheinander).toBe(false)
   })
 
+  it('Datum der Veranstaltung (24.11.2026): fehlt in älteren Ständen; nur ein Tag, den es gibt, als JJJJ-MM-TT', () => {
+    expect(migrate({ starters: [] })!.eventDatum).toBe('')
+    expect(migrate({ starters: [], eventDatum: '2026-09-05' })!.eventDatum).toBe('2026-09-05')
+    for (const kaputt of ['2026-02-30', '05.09.2026', 20260905, null]) expect(migrate({ starters: [], eventDatum: kaputt })!.eventDatum).toBe('')
+  })
+
   it('füllt fehlende Felder mit Vorgaben auf', () => {
     const state = migrate({ starters: [{ id: 'a', klasse: '1', nachname: 'A' }], eventName: 'Pokal' })
     expect(state).not.toBeNull()
@@ -170,6 +176,12 @@ describe('migrate: Listenoptionen (Seitenaufteilung, Bojen-Seiten, Sprache)', ()
     expect(migrate({ starters: [], wkrLeerzeilenSeite: 5 })!.wkrLeerzeilenSeite).toBe(5)
     expect(migrate({ starters: [], wkrLeerzeilenSeite: 0 })!.wkrLeerzeilenSeite).toBe(0)
     expect(migrate({ starters: [], wkrLeerzeilenSeite: 'drei' })!.wkrLeerzeilenSeite).toBe(3)
+  })
+
+  it('Klassen auf gemeinsamen Bögen (24.11.2026): fehlt oder unbekannt = getrennt, wie vorher', () => {
+    expect(migrate({ starters: [] })!.wkrGemeinsamFolge).toBe('getrennt')
+    expect(migrate({ starters: [], wkrGemeinsamFolge: 'verzahnung' })!.wkrGemeinsamFolge).toBe('verzahnung')
+    expect(migrate({ starters: [], wkrGemeinsamFolge: 'gemischt' })!.wkrGemeinsamFolge).toBe('getrennt')
   })
 
   it('Brauchbares bleibt, Unbrauchbares fällt auf die Vorgabe', () => {

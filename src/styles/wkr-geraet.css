@@ -523,6 +523,25 @@
   font-size: 26px;
 }
 
+/* Ausgleichsgewicht am Ablegen (Nutzer 24.11.2026, WKR_ANNAHMEN AG3): nur lesen. Mit Gewicht umrandet und fett,
+   „Gewicht fehlt“ auf der Warnfläche, „kein AG“ leise – immer mit Wort, nie nur Farbe; so breit wie der Text. */
+.wkr-starterkarte-ausgleich {
+  align-self: flex-start;
+  font-weight: 400;
+}
+.wkr-starterkarte-ausgleich--kg,
+.wkr-starterkarte-ausgleich--fehlt {
+  margin-top: 2px;
+  padding: 0 6px;
+  border: var(--wkr-rand) solid var(--wkr-rand-farbe);
+  border-radius: 4px;
+  font-weight: 800;
+}
+.wkr-starterkarte-ausgleich--fehlt {
+  background: var(--wkr-warn);
+  color: var(--wkr-warn-text);
+}
+
 /* Parcours-Ampel (AM9): Punkt + Wort, bricht um (360 px), keine feste Breite. */
 .wkr-starterkarte-ampel {
   color: var(--wkr-text);

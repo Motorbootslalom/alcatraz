@@ -12,6 +12,7 @@ import type {
   LaufzettelLayout,
   Logos,
   OriginStyle,
+  WkrGemeinsamFolge,
   WkrSprachen,
 } from './einstellungen'
 import type {
@@ -33,6 +34,14 @@ import type {
  */
 export interface AppState extends PlanState {
   schemaVersion: typeof SCHEMA_VERSION
+  /**
+   * Datum der Veranstaltung (erster Wettkampftag) als JJJJ-MM-TT, '' = nicht angegeben (24.11.2026).
+   * Freiwillig: Bisher kennt die App nur das Jahr (`eventJahr`, maßgeblich für die Jahrgänge). Das
+   * Datum braucht die Warnung zur Starterlaubnis nach Geburtstag (DM-Reglement C8, import/
+   * klassenPruefung.ts geburtstagsHinweise). Gehört zur Veranstaltung: in der Sicherung, nicht in
+   * der Vorlage (wie Name und Jahr).
+   */
+  eventDatum: string
   eventKind: EventKind
   startNrMode: StartNrMode
   /** Regelwerk der Ausschreibung, Kennung aus `config/regelwerke.yaml` (z. B. `dm-2026`). */
@@ -128,7 +137,8 @@ export interface AppState extends PlanState {
    * `wkrClubGemeinsam`): Dort teilen sich alle Klassen einer Seite die Zeilen für
    * Nachmeldungen – sie stehen einmal am Ende der Seite statt nach jeder Klasse. Eine eigene
    * Zahl neben `wkrLeerzeilen`, weil sie etwas anderes zählt: Wer „Papier sparen“ ab- und
-   * wieder anschaltet, findet beide Angaben wieder vor.
+   * wieder anschaltet, findet beide Angaben wieder vor. Seit 24.11.2026 auch auf jedem gemeinsamen Bogen mit Klassen
+   * in der Startfolge (`wkrGemeinsamFolge` `verzahnung`): Dort gibt es keine Klasse, an deren Ende sie stünden.
    */
   wkrLeerzeilenSeite: number
   /**
@@ -162,6 +172,14 @@ export interface AppState extends PlanState {
    * Clubmeisterschaft.
    */
   wkrClubGemeinsam: boolean
+  /**
+   * Folge der Zeilen auf einem gemeinsamen Bogen mehrerer Klassen (Clubmeisterschaft, mit und ohne „Papier sparen“;
+   * Wunsch des Nutzers vom 24.11.2026): `getrennt` (Vorgabe, wie bisher) = je Klasse ein Block, die Klasse als
+   * Zwischenüberschrift darüber; `verzahnung` = alle Starter gemischt in der Startfolge der Verzahnung, ohne Blöcke,
+   * mit einer Spalte „Klasse“ hinter der Startnummer – der Wettkampfrichter liest den Bogen von oben nach unten in
+   * der Folge, in der die Boote kommen. Die Leerzeilen stehen dann am Ende jeder Seite (`wkrLeerzeilenSeite`).
+   */
+  wkrGemeinsamFolge: WkrGemeinsamFolge
   /**
    * Was auf den Wertungslisten steht, je Fassung: „Aushang“ (öffentlich – Namen wahlweise
    * gekürzt oder gar nicht) und „Intern“ (immer mit vollem Namen). Die Herkunft je Fassung
@@ -242,11 +260,11 @@ export interface AppState extends PlanState {
    */
   nichtWerten: NichtWerten
   /**
-   * Der Buchstabe vor den Startnummern der Klasse Dolphin: „E“ (E01, wie national) oder „D“
-   * (D01). Wirkt nur unter einem Regelwerk, in dem die Klasse E „Dolphin“ heißt (Regel 960), und
-   * nur für Nummern, die neu vergeben werden – vorhandene bleiben, bis „Startnummern neu
-   * vergeben“ sie ersetzt (config/catalog.ts `startNrPraefixe`). Eine Einstellung: in Sicherung
-   * und Vorlage.
+   * Der Buchstabe vor den Startnummern der Klasse E (unter UIM „Dolphin“): „E“ (E01, Vorgabe) oder
+   * „D“ (D01). Seit 24.11.2026 unter jedem Regelwerk, auch DM (vorher nur unter UIM). Nur für Nummern,
+   * die neu vergeben werden – vorhandene bleiben, bis „Startnummern neu vergeben“ sie ersetzt
+   * (config/catalog.ts `startNrPraefixe`); die Startnummern-Bereiche (E01–E30) folgen dem Buchstaben.
+   * Eine Einstellung: in Sicherung und Vorlage.
    */
   dolphinPraefix: 'E' | 'D'
   /**

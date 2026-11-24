@@ -25,6 +25,28 @@ export interface AusgleichZeile {
   ausgleich: number | null | undefined
 }
 
+/**
+ * Das Ausgleichsgewicht eines Starters – die EINE Rechnung für die Liste „Ausgleichsgewichte“ und das Steg-Gerät der
+ * WKR-Erfassung ({@link ausgleichAmSteg}): Durchschnittsgewicht der Klasse (eigener Wert der Veranstaltung, sonst der
+ * des Regelwerks) minus gewogenes Gewicht, über domain/gewicht.ts `ausgleichKg`. Werte wie {@link AusgleichZeile}.
+ */
+export function ausgleichVon(stand: Pick<AppState, 'regelwerk' | 'sollgewicht'>, starter: Pick<Starter, 'klasse' | 'gewicht'>): number | null | undefined {
+  return ausgleichKg(starter.gewicht, sollgewichtOf(stand.regelwerk, stand.sollgewicht, starter.klasse))
+}
+
+/**
+ * Das Ausgleichsgewicht für das Steg-Gerät der WKR-Erfassung (Nutzer 24.11.2026, WKR_ANNAHMEN AG1/AG2): ganze kg,
+ * `0` = gewogen, keines nötig; `'fehlt'` = noch nicht gewogen (wird in der Verwiegung nachgetragen und kommt dann
+ * mit der nächsten Sicht von selbst aufs Gerät). `null` = die Klasse hat kein Durchschnittsgewicht (Regelwerk bzw.
+ * Veranstaltung nennen keines) – dann steht am Steg gar nichts. Nie das Körpergewicht oder das Durchschnittsgewicht:
+ * Die Sicht der Liste (wkr/sicht.ts) trägt nur diesen Wert.
+ */
+export function ausgleichAmSteg(stand: Pick<AppState, 'regelwerk' | 'sollgewicht'>, starter: Pick<Starter, 'klasse' | 'gewicht'>): number | 'fehlt' | null {
+  if (!(sollgewichtOf(stand.regelwerk, stand.sollgewicht, starter.klasse) > 0)) return null
+  const kg = ausgleichVon(stand, starter)
+  return kg === undefined ? 'fehlt' : (kg ?? 0)
+}
+
 export interface AusgleichListe {
   klasse: ClassId
   /** Durchschnittsgewicht der Klasse in kg (0 = das Regelwerk nennt keines). */
@@ -48,7 +70,7 @@ export function ausgleichListen(stand: AusgleichStand, klassen?: readonly ClassI
     const starter = sortedByStartNr(stand.starters.filter((p) => p.klasse === klasse))
     if (starter.length === 0) return []
     const soll = sollgewichtOf(stand.regelwerk, stand.sollgewicht, klasse)
-    const zeilen = starter.map((p) => ({ starter: p, ausgleich: ausgleichKg(p.gewicht, soll) }))
+    const zeilen = starter.map((p) => ({ starter: p, ausgleich: ausgleichVon(stand, p) }))
     return [
       {
         klasse,

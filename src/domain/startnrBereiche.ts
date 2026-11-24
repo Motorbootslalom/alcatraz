@@ -56,6 +56,17 @@ export function nummerDerKlasse(text: string, klasse: ClassId, praefixe?: StartN
   return moegliche.some((p) => s === p.toUpperCase() + ziffern) ? n : null
 }
 
+/**
+ * Eine Nummer der Klasse so, wie die Vergabe sie heute schreibt – für die Anzeige der Bereiche und
+ * fehlenden Westen (24.11.2026): In Klasse E wird mit dem Buchstaben D aus „E05“ „D05“ (die DM-Vorgabe
+ * E01–E30 steht dann als D01–D30 da), mit E umgekehrt. Gespeichert bleibt, was eingetragen ist;
+ * gelesen wird ohnehin beides. Was keine Nummer der Klasse ist, bleibt, wie es ist.
+ */
+export function nummerMitPraefix(text: string, klasse: ClassId, praefixe?: StartNrPraefixe): string {
+  const n = nummerDerKlasse(text, klasse, praefixe)
+  return n === null ? text : makeStartNr(klasse, n, praefixe)
+}
+
 /** Von/bis eines Bereichs als laufende Nummern; `null`, wenn er für die Klasse nicht lesbar ist oder von > bis. */
 export function bereichsGrenzen(b: StartNrBereich, klasse: ClassId, praefixe?: StartNrPraefixe): { von: number; bis: number } | null {
   const von = nummerDerKlasse(b.von, klasse, praefixe)

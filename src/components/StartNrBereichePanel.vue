@@ -3,7 +3,7 @@ import { computed, ref, useId, watch } from 'vue'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { classColor } from '../domain/classes'
-import { bereichsGrenzen, GROESSEN_GRUPPEN, liesFehlende, type GroessenGruppe, type StartNrBereich } from '../domain/startnrBereiche'
+import { bereichsGrenzen, GROESSEN_GRUPPEN, liesFehlende, nummerMitPraefix, type GroessenGruppe, type StartNrBereich } from '../domain/startnrBereiche'
 import { startNrBereicheOf, startNrPraefixe } from '../config/catalog'
 import { t } from '../i18n'
 import type { ClassId } from '../types'
@@ -17,14 +17,20 @@ const { state, dispatch } = useStore()
 const { regelwerk, classLabel } = useEvent()
 const id = useId()
 
-const zeilen = computed(() =>
-  regelwerk.value.klassen.map((k) => ({
+/**
+ * Die Bereiche, wie die Vergabe sie liest – geschrieben mit dem gewählten Buchstaben der Klasse E
+ * (24.11.2026): Mit D stehen die DM-Vorgabe E01–E30 als D01–D30 da, wie auf den Westen. Wer ändert,
+ * speichert die Klasse so, wie sie hier steht.
+ */
+const zeilen = computed(() => {
+  const praefixe = startNrPraefixe(state.value)
+  return regelwerk.value.klassen.map((k) => ({
     klasse: k,
     color: classColor(k),
     eigen: state.value.startNrBereiche[k] !== undefined,
-    bereiche: startNrBereicheOf(state.value, k),
-  })),
-)
+    bereiche: startNrBereicheOf(state.value, k).map((b) => ({ ...b, von: nummerMitPraefix(b.von, k, praefixe), bis: nummerMitPraefix(b.bis, k, praefixe) })),
+  }))
+})
 
 /** „S-M“ wird als „S–M“ gezeigt; im Stand und im YAML steht der einfache Bindestrich. */
 const gruppeText = (g: GroessenGruppe) => g.replace('-', '–')
@@ -52,17 +58,24 @@ function neu(klasse: ClassId, liste: readonly StartNrBereich[]) {
 const unlesbar = (klasse: ClassId, b: StartNrBereich) => bereichsGrenzen(b, klasse, startNrPraefixe(state.value)) === null
 
 // Fehlende Nummern: Das Feld zeigt den Stand, bis jemand tippt; erst beim Verlassen geht es hinaus.
-const fehlendText = ref(state.value.fehlendeStartNr.join(', '))
-watch(
-  () => state.value.fehlendeStartNr,
-  (n) => (fehlendText.value = n.join(', ')),
-)
+// Wie die Bereiche mit dem gewählten Buchstaben der Klasse E geschrieben (24.11.2026: „E05“ steht mit D als „D05“).
+const fehlendAnzeige = computed(() => {
+  const praefixe = startNrPraefixe(state.value)
+  return state.value.fehlendeStartNr
+    .map((nr) => {
+      const klasse = regelwerk.value.klassen.find((k) => nummerMitPraefix(nr, k, praefixe) !== nr)
+      return klasse ? nummerMitPraefix(nr, klasse, praefixe) : nr
+    })
+    .join(', ')
+})
+const fehlendText = ref(fehlendAnzeige.value)
+watch(fehlendAnzeige, (text) => (fehlendText.value = text))
 const unbekannt = ref<string[]>([])
 function fehlendUebernehmen() {
   const { nummern, unbekannt: rest } = liesFehlende(fehlendText.value, regelwerk.value.klassen, startNrPraefixe(state.value))
   unbekannt.value = rest
   dispatch({ type: 'SET_FEHLENDE_START_NR', nummern })
-  fehlendText.value = nummern.join(', ')
+  fehlendText.value = fehlendAnzeige.value
 }
 </script>
 

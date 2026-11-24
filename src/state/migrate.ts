@@ -1,7 +1,7 @@
 import type { AppState, ClassId, OriginMode, Sprache, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, laufzettelLayoutWert, leerzeilenZahl, normalisiereAnzeige, normalisiereBetrieb, normalisiereWkr, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
+import { emptyState, gemeinsamFolgeWert, laufzettelLayoutWert, leerzeilenZahl, normalisiereAnzeige, normalisiereBetrieb, normalisiereWkr, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
 import { aufbauOf, beschriftungOf, hasParallel, PARALLEL, regelwerkOf } from '../config/catalog'
 import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
@@ -25,6 +25,7 @@ import { serverEinstellung } from '../lib/serverAdresse'
 import { normalisiereFehlende, normalisiereStartNrBereiche } from './reducer/startnummern'
 import { normalisiereGedruckt } from './reducer/parallel'
 import { hebeWkrVorgabe } from './reducer/betrieb'
+import { istTag } from '../lib/datum'
 
 /** Herkunft auf den Wertungslisten: „aus“ oder eine Darstellung der Listen; alles andere ist unbekannt. */
 const ergebnisHerkunft = (wert: unknown): ErgebnisHerkunft | undefined => (wert === 'aus' || istOriginStyle(wert) ? wert : undefined)
@@ -79,6 +80,8 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     ...uebernommen,
     schemaVersion: SCHEMA_VERSION,
     starters,
+    // Fehlt in Ständen vor dem Datum der Veranstaltung (24.11.2026); ein Tag, den es nicht gibt, ebenso.
+    eventDatum: istTag(loaded.eventDatum) ? loaded.eventDatum : '',
     // Fehlen in Ständen vor der Erfassung. Werte von Startern, die es nicht (mehr) gibt, entfallen.
     eingaben: nurStarter(normalisiereEingaben(loaded.eingaben), new Set(starters.map((p) => p.id))),
     // Fehlt in Ständen vor dem Abmelden; IDs ohne Starter entfallen.
@@ -116,6 +119,8 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     wkrRueckseite: loaded.wkrRueckseite === true,
     // Vorgabe an: Wirkt ohnehin nur bei der Clubmeisterschaft, und dort ist Papier sparen das Übliche.
     wkrClubGemeinsam: loaded.wkrClubGemeinsam !== false,
+    // Fehlt in Ständen vor dem 24.11.2026: Dann gilt „getrennt“ (Blöcke je Klasse, wie bis dahin); Unbekanntes ebenso.
+    wkrGemeinsamFolge: gemeinsamFolgeWert(loaded.wkrGemeinsamFolge),
     ergebnisListen: {
       aushang: {
         namen: (['voll', 'kurz', 'ohne'] as const).find((n) => n === loaded.ergebnisListen?.aushang?.namen) ?? base.ergebnisListen.aushang.namen,

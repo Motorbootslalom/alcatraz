@@ -245,6 +245,35 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     // Die Auswahl einer Klasse zeigt den gemeinsamen Bogen, auf dem sie steht.
     await waehle(wrapper, 'klasse', '7')
     expect(koepfe(wrapper)).toEqual(['Steg | Klassen 4, 7 | 1. Lauf | Parcours 2'])
+    // Getrennt (Vorgabe): kein Hinweis auf die Startfolge.
+    expect(wrapper.find('[data-hinweis="wkr-club-folge"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  // Nutzer 24.11.2026, Prüfbefund 24.11.2026: Mit „Nach der Verzahnung“ sagt der Reiter, wie die Klassen stehen – und
+  // der Satz darüber widerspricht nicht („zusammen“, nicht „untereinander“).
+  it('Clubmeisterschaft nach der Verzahnung: Hinweis, keine Zwischenüberschriften, die Klasse in der Spalte hinter der Nummer', async () => {
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    store.dispatch({ type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'verzahnung' })
+    const wrapper = ansicht(store)
+    await wkr(wrapper)
+    const notizen = () => wrapper.findAll('.wkr-listen-wahl .note').map((n) => n.text())
+    expect(wrapper.find('[data-hinweis="wkr-club-folge"]').text()).toContain('Startfolge der Verzahnung')
+    for (const n of notizen()) expect(n).not.toContain('untereinander')
+    await waehle(wrapper, 'lauf', '1')
+    await waehle(wrapper, 'liste', 'steg')
+    const bogen = wrapper.findAll('.wkr-listen .bogen')[1]
+    expect(bogen.findAll('tr.bt-zwischen')).toHaveLength(0)
+    expect(bogen.find('th.bt-klasse').exists()).toBe(true)
+    const klassen = bogen.findAll('.bogen-tabelle > tbody > tr > td.bt-klasse').map((td) => td.text())
+    expect(new Set(klassen.filter(Boolean))).toEqual(new Set(['4', '7']))
+    // Die Leerzeilen am Ende der Seite haben eine leere Klassenzelle.
+    expect(klassen.slice(-3)).toEqual(['', '', ''])
+    // Ohne „Papier sparen“ ebenso: auch dann kein „untereinander“.
+    store.dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: false })
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="wkr-club-folge"]').exists()).toBe(true)
+    for (const n of notizen()) expect(n).not.toContain('untereinander')
     wrapper.unmount()
   })
 

@@ -395,6 +395,27 @@ describe('Einstellungen: Listenoptionen', () => {
     expect(label('wkr-leerzeilen').text()).toBe('Leerzeilen je Klasse')
     wrapper.unmount()
   })
+
+  it('Klassen auf gemeinsamen Bögen: getrennt oder nach der Verzahnung – nur bei der Clubmeisterschaft (24.11.2026)', async () => {
+    const wrapper = einstellungen(store)
+    const wahl = (wert: string) => wrapper.find(`[data-feld="wkr-gemeinsam-folge"] input[data-wert="${wert}"]`)
+    expect(feld(wrapper, 'wkr-gemeinsam-folge').exists()).toBe(false)
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    await nextTick()
+    expect(wrapper.find('[data-feld="wkr-gemeinsam-folge"] legend').text()).toBe('Klassen auf gemeinsamen Bögen')
+    expect((wahl('getrennt').element as HTMLInputElement).checked).toBe(true)
+    await wahl('verzahnung').setValue(true)
+    expect(store.state.value.wkrGemeinsamFolge).toBe('verzahnung')
+    // In der Startfolge gibt es kein Ende einer Klasse: Die Leerzeilen stehen je Seite – auch ohne „Papier sparen“.
+    store.dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: false })
+    await nextTick()
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(true)
+    expect(wrapper.find('#wkr-listen').text()).toContain('mit leerer Klassenzelle')
+    await wahl('getrennt').setValue(true)
+    expect(store.state.value.wkrGemeinsamFolge).toBe('getrennt')
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })
 
 describe('Einstellungen: Listen der Veranstaltung und Form der Laufzettel', () => {

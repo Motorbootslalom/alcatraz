@@ -136,6 +136,13 @@ export interface RawRegelwerk {
    * es heraus. Eingeführt am 19.11.2026 (DMYV-Startnummernliste).
    */
   startNrBereiche?: Record<string, Array<{ von?: string | number; bis?: string | number; gruppe?: string }>>
+  /**
+   * Starterlaubnis nach Geburtstag je Klasse (DM-Reglement C8: ME ab dem 6., M7 bis zum 27.
+   * Geburtstag): { E: { ab: 6 }, 7: { bis: 27 } }. Nur eine Warnung im Reiter „Starter“
+   * (import/klassenPruefung.ts geburtstagsHinweise, Entscheidung des Nutzers vom 24.11.2026). Nur
+   * für den Zustand – baue() nimmt es heraus.
+   */
+  geburtstagsGrenzen?: Record<string, { ab?: number; bis?: number }>
   /** Steht auf jeder Liste mit Fehlercodes und auf der A4-Legende. */
   fehlerHinweis?: string
   fehlerHinweisEn?: string

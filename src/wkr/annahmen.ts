@@ -582,7 +582,7 @@ export const WKR_ANNAHMEN = {
   soLassenNurLokal: false,
   /**
    * (K8) Ziffernfeld der Suche mit einer Taste je Buchstaben vor den bekannten Startnummern (Schlange, „danach“,
-   * „Zuletzt“): „E“ (E01), unter UIM auch „D“ (Dolphin-Präfix, AppState.dolphinPraefix) – Prüfbefund W3 21.11.2026,
+   * „Zuletzt“): „E“ (E01), auch „D“ (Buchstabe der Klasse E, AppState.dolphinPraefix; seit 24.11.2026 auch unter DM) – Prüfbefund W3 21.11.2026,
    * vorher nur „E“. Verglichen wird ohne führende Nullen und ohne Groß/Klein („e1“ = „E01“, „d3“ = „D03“). Gesucht wird
    * in Schlange und „danach“ des gewählten Teils, dann in „Zuletzt“. Bestätigt 21.11.2026 (W3-36).
    */
@@ -2086,4 +2086,46 @@ export const WKR_ANNAHMEN = {
    * Bestätigt 22.11.2026 (R8-42).
    */
   tabelleZeilen: { gesendet: 5, naechste: 3 },
+  // --- Ausgleichsgewicht am Steg (Nutzer 24.11.2026: „Das Ausgleichgewicht wird nicht beim Steg gepflegt. Wenn jemand
+  // kein Gewicht hat, wird das später in der Eingabemaske oder im Checkin später nachgetragen und bei einer Papierliste
+  // manuell nachgetragen. In den digitalen Listen kommt das dann einfach mit rein.“; docs/entscheidungen.md) ---
+  /**
+   * (AG1) Datenschutz-Ausnahme (Nutzer 24.11.2026): Die Sicht der Steg-Liste trägt je Start das Ausgleichsgewicht
+   * (ListenStart.`ausgleich`, wkr/sicht.ts) – nur in der verschlüsselten Gruppe dieser Liste, nie auf Anzeigetafel,
+   * Zuschauerliste oder Start-Freigabe (betrieb/sicht.ts und wkr/freigabe.ts bleiben, wie sie sind). Bei einem
+   * leichten Starter lässt es auf das Körpergewicht schließen (Durchschnittsgewicht − Ausgleichsgewicht, auf 1 kg
+   * genau) – das gehört zur Entscheidung; Körper- und Durchschnittsgewicht selbst gehen nie auf die Leitung. Vorher
+   * (F11, 21.11.2026, docs/vorschlag-wkr-erfassung.md §9): „kein Ausgleichsgewicht“, eigene Entscheidung mit dem
+   * Check-In (E10). Welche Listen: diese Positionen.
+   */
+  ausgleichListen: ['steg'] as readonly string[],
+  /**
+   * (AG2) Werte und Pflege (Nutzer 24.11.2026): ganze kg aus lib/ausgleich.ts ausgleichAmSteg – EINE Rechnung mit der
+   * Papierliste „Ausgleichsgewichte“ –, 0 = kein Ausgleich nötig, 'fehlt' = noch nicht gewogen; ohne
+   * Durchschnittsgewicht der Klasse (Regelwerk bzw. Einstellungen) fehlt das Feld. Am Steg wird nichts gepflegt
+   * (keine Eingabe, kein Haken „Gewicht geladen“): Ein in der Verwiegung (später beim Check-in) nachgetragenes Gewicht
+   * kommt mit der nächsten Sicht von selbst aufs Gerät (geraete/host.ts verteilt bei jeder Änderung des Stands); auf
+   * Papier bleibt bei „nicht gewogen“ ein Feld zum Eintragen von Hand (components/AusgleichListen.vue).
+   * Prüfbefund 24.11.2026 (noch zu bestätigen): Auf 0 kg gerundet (weniger als 0,5 kg leichter) und „gewogen, keines
+   * nötig“ sind am Steg dasselbe – das Gerät zeigt beides „kein AG“, die Papierliste beides leer (vorher druckte sie
+   * „0 kg“, ein zweiter Text für denselben Starter). Die Verwiegung zeigt weiter „0 kg“ bzw. „–“.
+   */
+  ausgleichNurLesen: true,
+  /**
+   * (AG3) Wo es steht (beim Bau ausgelegt 24.11.2026, noch zu bestätigen): auf der Starterkarte neben der Startnummer,
+   * nur im Teil „Ablegen“ – dort kommt das Gewicht ins Boot –, auch auf einem Gerät für den ganzen Steg (im Reiter
+   * bzw. in der Pad-Spalte „Ablegen“); im Teil „Anlegen“ nicht. Die Sicht ist EIN Inhalt der Steg-Gruppe: Ein Gerät nur
+   * für „Anlegen“ empfängt den Wert verschlüsselt mit (wie `steht`, rueckfrageInListe) und hält ihn mit der Sicht im
+   * Ausgang, zeigt ihn aber nicht – eine eigene Gruppe je Steg-Teil gibt es nicht (geraete/wkrGruppen.ts, eine je
+   * Liste); als Rückfrage an den Nutzer gegeben (Prüfbefund 24.11.2026, docs/entscheidungen.md „Offen“). Die Schlange auf der
+   * Seite des Pads (WkrSeite) zeigt ihn nicht – nur der Start auf der Karte.
+   */
+  ausgleichTeil: 'ab' as ListenTeil,
+  /**
+   * (AG4) Übung (beim Bau 24.11.2026, noch zu bestätigen): Steg-Listen zeigen erfundene Werte, nur wenn das Regelwerk
+   * Durchschnittsgewichte kennt – je Startnummer reihum ein erfundener Abstand des Körpergewichts zum
+   * Durchschnittsgewicht der Klasse in kg (`null` = nicht gewogen), gerechnet durch dieselbe Funktion wie am
+   * Bedienrechner. So sieht man in der Übung „AG 4 kg“, „kein AG“ und „Gewicht fehlt“. Nichts davon gespeichert.
+   */
+  ausgleichUebung: [-4.4, 2, -1.6, null, -7.5, 0, -2.5] as readonly (number | null)[],
 } as const

@@ -7,6 +7,7 @@ import { useEvent } from '../lib/event'
 import { bogenMitBild, listenFuerKlasse, musterZeilen, type BogenAuftrag, type BogenOptionen } from '../lib/bogen'
 import { parcoursVon, wkrName } from '../lib/einteilung'
 import { wkrBoegen } from '../lib/wkrListen'
+import { planEvent } from '../planung/plan'
 import { musterCode } from '../lib/qr'
 import { musterRundenBoegen } from '../lib/parallelBogen'
 import { RACECOURSES, type Racecourse } from '../lib/parallelSchluessel'
@@ -95,6 +96,9 @@ interface Blatt {
  * Clubmeisterschaft: Dort stehen mehrere Klassen auf einem Bogen. Die Beispielansicht zeigt
  * deshalb, was wirklich gedruckt würde – abgeleitet mit derselben Funktion wie die echten
  * Listen (lib/wkrListen.ts), nur mit Muster-Startern: je Klasse des Parcours `anzahl` Stück.
+ * Stehen die Klassen in der Startfolge (`wkrGemeinsamFolge` `verzahnung`, 24.11.2026), mischt
+ * die Verzahnung des Parcours (planung/plan.ts, mit seinen Spuren und Booten) die Muster-Starter
+ * so, wie sie es mit echten täte – sonst sähe der Bogen aus wie Blöcke ohne Überschrift.
  */
 const clubBoegen = computed(() => {
   if (state.value.eventKind !== 'club') return undefined
@@ -110,7 +114,8 @@ const clubBoegen = computed(() => {
     }),
   )
   const stand = { ...state.value, aufbau: aufbauId.value, laufCount: 1, parcoursList: [p] }
-  return wkrBoegen(stand, konfig.value, new Map([[p.id, starter]])).boegen
+  const folge = state.value.wkrGemeinsamFolge === 'verzahnung' && dabei.length > 1 ? (planEvent({ ...stand, starters: starter }).plans[0]?.sequence ?? starter) : starter
+  return wkrBoegen(stand, konfig.value, new Map([[p.id, folge]])).boegen
 })
 
 const boegen = computed<Blatt[]>(() => {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { SchlangenEintrag } from '../../geraete/erfassen'
+import { gewichtText } from '../../domain/gewicht'
 import { useWkrText } from './texte'
 
 /**
@@ -8,16 +10,29 @@ import { useWkrText } from './texte'
  * (Vorsteg vorab), „außer der Reihe“ (gewählt statt des Kopfs der Schlange), „● gesendet“ (Doppeltipp-Schutz, G5),
  * „Korrektur“ (F7). Parcours-Ampel (Nutzer 21.11.2026, P-03, AM9): kleiner Punkt mit Wort am gezeigten Start – grün
  * „Start frei“, rot „im Parcours“, frei „alle fertig“ (Farben nur --wkr-*, Zeichen UND Wort, bricht um statt abzuschneiden).
+ * Ausgleichsgewicht (Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3): nur lesen, neben der Startnummer – „AG 4 kg“ umrandet,
+ * „kein AG“ leise, „AG: Gewicht fehlt“ auf Warnfläche; Zahl mit dem Dezimalzeichen der Liste (domain/gewicht.ts
+ * gewichtText). Welcher Teil es zeigt, entscheidet WkrMaske (Prop `ausgleich`, `null` = nicht hier).
  */
-defineProps<{
+const props = defineProps<{
   start: Pick<SchlangenEintrag, 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab'>
   klasse: string
   ausserDerReihe?: boolean
   gesendet?: boolean
   korrektur?: 'korrektur' | 'vorschlag' | null
   ampel?: 'gruen' | 'rot' | 'frei' | null
+  ausgleich?: number | 'fehlt' | null
 }>()
-const { w } = useWkrText()
+const { w, sprache } = useWkrText()
+const ausgleichArt = computed(() => {
+  const a = props.ausgleich
+  return a === undefined || a === null ? null : a === 'fehlt' ? 'fehlt' : a > 0 ? 'kg' : 'kein'
+})
+const ausgleichText = computed(() => {
+  const a = props.ausgleich
+  if (typeof a === 'number' && a > 0) return w('wkr.geraet.ausgleich.kg', { kg: gewichtText(a, sprache.value === 'en' ? 'en' : 'de') })
+  return ausgleichArt.value ? w(`wkr.geraet.ausgleich.${ausgleichArt.value === 'fehlt' ? 'fehlt' : 'kein'}`) : ''
+})
 </script>
 
 <template>
@@ -34,6 +49,7 @@ const { w } = useWkrText()
         <span data-teil="klasse">{{ klasse }}</span>
         <span class="wkr-starterkarte-klein" data-teil="start-titel">{{ start.titel }}</span>
         <span v-if="start.boot" class="wkr-starterkarte-klein" data-teil="boot">{{ w('wkr.geraet.boot', { boot: start.boot }) }}</span>
+        <span v-if="ausgleichArt" class="wkr-starterkarte-ausgleich" :class="`wkr-starterkarte-ausgleich--${ausgleichArt}`" data-teil="ausgleich" :data-ausgleich="String(ausgleich)" :title="w('wkr.geraet.ausgleich.wort')">{{ ausgleichText }}</span>
       </span>
     </div>
     <p v-if="ampel" class="wkr-starterkarte-marke wkr-starterkarte-ampel" :data-ampel="ampel" data-teil="karten-ampel">

@@ -139,6 +139,9 @@ const { zoom } = useBogenZoom(stapel)
   <div v-if="!gesperrt" class="panel no-print wkr-listen-wahl">
     <p class="hint">{{ t('lists.wkr.hint') }}</p>
     <p v-if="state.eventKind === 'club'" class="note">{{ state.wkrClubGemeinsam ? t('lists.wkr.clubJoint') : t('lists.wkr.club') }}</p>
+    <!-- Klassen eines gemeinsamen Bogens in der Startfolge statt in Blöcken (Einstellung, Nutzer 24.11.2026). Der Satz
+         darüber sagt deshalb „zusammen“, nicht „untereinander“ – er gilt für beide Folgen (Prüfbefund 24.11.2026). -->
+    <p v-if="state.eventKind === 'club' && state.wkrGemeinsamFolge === 'verzahnung'" class="note" data-hinweis="wkr-club-folge">{{ t('lists.wkr.clubFolge') }}</p>
     <div class="row wkr-listen-leiste">
       <div v-if="state.parcoursList.length > 1" class="field">
         <label :for="`${id}-parcours`">{{ t('lists.wkr.parcours') }}</label>

@@ -13,6 +13,7 @@ import { sichtFreigabe } from './freigabe'
 import { erfassungsLage } from './lage'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
 import { listenFelder } from '../lib/eingaben'
+import { ausgleichListen } from '../lib/ausgleich'
 import { deflateRawSync } from 'node:zlib'
 
 // Die Sicht einer Liste (Plan §3.1, §6): genaue Schlüssel (Positivliste wie betrieb/sicht.test.ts), Datenschutz über
@@ -90,7 +91,8 @@ describe('Sicht der Liste – Form', () => {
     expect(Object.keys(sicht.punkt!).sort()).toEqual(['id', 'titel'])
     // Teile (Steg, F16): je Teil nur Status und abgeschlossene Punkte.
     expect(sicht.teile).toEqual({ ab: { status: 'aktiv', abgeschlossen: [] }, an: { status: 'aktiv', abgeschlossen: [] } })
-    const startSchluessel = new Set(['key', 'startNr', 'klasse', 'titel', 'lauf', 'seite', 'boot', 'teile', 'entfaellt', 'vorab', 'ab', 'an', 'punkt'])
+    // `ausgleich` seit Fassung 11 (Nutzer 24.11.2026, AG1): nur an der Steg-Liste, eigener Block unten.
+    const startSchluessel = new Set(['key', 'startNr', 'klasse', 'titel', 'lauf', 'seite', 'boot', 'teile', 'entfaellt', 'vorab', 'ab', 'an', 'punkt', 'ausgleich'])
     for (const k of schluessel([...sicht.schlange, ...sicht.danach])) expect(startSchluessel.has(k), k).toBe(true)
     const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus'])
     for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
@@ -263,10 +265,10 @@ describe('Sicht der Liste – Sprache (F13)', () => {
 describe('Sicht der Liste – Bojen (W4.1, P7, P15)', () => {
   const bojeSchluessel = new Set(['halt', 'weg', 'folge', 'titel', 'unter', 'spalte', 'zaehler', 'durchfahrt'])
 
-  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 10 (seit mehreren Disq. je Bojenzelle, R7-14/BZ8 22.11.2026)', () => {
+  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 11 (seit dem Ausgleichsgewicht am Steg, AG1 24.11.2026)', () => {
     const { s } = bereit('gate135')
     const sicht = sichtListe(s, DM, L('gate135'), EXTRA)
-    expect(LISTEN_SICHT_FASSUNG).toBe(10)
+    expect(LISTEN_SICHT_FASSUNG).toBe(11)
     expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.bojenZelleFassung)
     // `bild` (W4-13, GF9): nur die Kennung der Zeichnung, wie auf dem Bogen.
     const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus', 'boje', 'bild', 'datei', 'dim', 'drehung', ...bojeSchluessel])
@@ -392,6 +394,79 @@ describe('F17 (W4.3): „Nicht vorbeigekommen“ kommt weder auf die Tafel noch 
     const text = JSON.stringify(sichtListe(mit, DM, L('gate135'), EXTRA))
     expect(text).not.toContain('nichtVorbei')
     expect(text).not.toContain('"nv"')
+  })
+})
+
+describe('Sicht der Liste – Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3)', () => {
+  /** Alle Starts der Sicht nach Startnummer → `ausgleich` (fehlt = undefined). */
+  const ag = (sicht: ListenSicht) => Object.fromEntries([...sicht.schlange, ...sicht.danach].map((x) => [x.startNr, x.ausgleich]))
+
+  it('nur an der Steg-Liste: ganze kg aus lib/ausgleich.ts, 0 = keines nötig, „fehlt“ = nicht gewogen – nie ein Gewicht selbst', () => {
+    // bereit(): alle 41,7 kg; Parcours 1 fährt E und 1 (DM: E 26 → 0, Klasse 1 33 → 0). e2 nicht gewogen, k1 29,6 kg
+    // (33 − 29,6 = 3,4 → 3), k2 32,6 kg (0,4 kg leichter → auf 0 gerundet = wie „keines nötig“, Prüfbefund 24.11.2026).
+    const { s } = bereit('steg', 'gate135')
+    const kg: Record<string, number | undefined> = { e2: undefined, k1: 29.6, k2: 32.6 }
+    const mit = { ...s, starters: s.starters.map((p) => (p.id in kg ? { ...p, gewicht: kg[p.id] } : p)) }
+    const steg = sichtListe(mit, DM, L('steg'), EXTRA)
+    const werte = ag(steg)
+    expect(Object.keys(werte).length).toBeGreaterThan(2)
+    const erwartet: Record<string, number | 'fehlt'> = { E01: 0, E02: 'fehlt', '101': 3, '102': 0 }
+    for (const [nr, w] of Object.entries(werte)) expect(w, nr).toBe(erwartet[nr])
+    // Eine Rechnung mit der Papierliste: dieselbe Zahl wie „Ausgleichsgewichte“ (lib/ausgleich.ts).
+    for (const z of ausgleichListen(mit).flatMap((l) => l.zeilen)) if (z.starter.startNr in werte) expect(werte[z.starter.startNr], z.starter.startNr).toBe(z.ausgleich === undefined ? 'fehlt' : (z.ausgleich ?? 0))
+    // Nie Körper- oder Durchschnittsgewicht, nie ein anderer Schlüssel dafür.
+    const text = JSON.stringify(steg)
+    for (const verboten of ['41.7', '29.6', '32.6', 'gewicht', 'sollgewicht', 'soll"']) expect(text, verboten).not.toContain(verboten)
+    // Andere Listen tragen es nicht.
+    for (const x of [...sichtListe(mit, DM, L('gate135'), EXTRA).schlange, ...sichtListe(mit, DM, L('gate135'), EXTRA).danach]) expect(x.ausgleich, x.startNr).toBeUndefined()
+  })
+
+  it('ohne Durchschnittsgewicht der Klasse kein Feld; eigene Durchschnittsgewichte der Veranstaltung gelten', () => {
+    const { s } = bereit('steg')
+    // Ein eigener Wert 0 der Veranstaltung = kein Durchschnittsgewicht: Klasse 1 ohne Feld, Klasse E wie vorher.
+    const ohne = sichtListe({ ...s, sollgewicht: { '1': 0 } }, DM, L('steg'), EXTRA)
+    expect(new Set([...ohne.schlange, ...ohne.danach].map((x) => x.klasse))).toEqual(new Set(['E', '1']))
+    for (const x of [...ohne.schlange, ...ohne.danach]) expect('ausgleich' in x, x.startNr).toBe(x.klasse !== '1')
+    // Eigene Durchschnittsgewichte gelten (wie auf der Papierliste): Klasse 1 mit 45 kg → 45 − 41,7 = 3,3 → 3.
+    expect(ag(sichtListe({ ...s, sollgewicht: { '1': 45 } }, DM, L('steg'), EXTRA))['101']).toBe(3)
+  })
+
+  it('UIM nach seinen Gewichten (Klasse 1: 32 kg statt 33 unter DM), am Steg je Racecourse; Parallel-Liste ohne Steg nicht', () => {
+    // Prüfbefund 24.11.2026: vorher prüfte nur die Übung den UIM-Steg. Dolphin 26 kg, Klasse 1 32 kg (uim-2026.yaml).
+    const kg: Record<string, number | undefined> = { 'E-1': 20.5, 'E-2': 26, '1-1': 29.6, '1-2': 31.6, '1-3': 40 }
+    let u = uimParallelStand()
+    u = { ...u, starters: u.starters.map((p) => (p.id in kg ? { ...p, gewicht: kg[p.id] } : p)) }
+    u = reducer(u, { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    const werte: Record<string, number | 'fehlt' | undefined> = {}
+    for (const rc of ['A', 'B'] as const) Object.assign(werte, ag(sichtListe(u, UIM, { bereich: 'parallel', typeId: 'steg', racecourse: rc }, EXTRA)))
+    // 26 − 20,5 = 5,5 → 6; 26 → keines; 32 − 29,6 = 2,4 → 2 (DM: 3); 32 − 31,6 = 0,4 → 0; 40 → keines; Rest nicht gewogen.
+    const erwartet: Record<string, number | 'fehlt'> = { E01: 6, E02: 0, E03: 'fehlt', '101': 2, '102': 0, '103': 0, '104': 'fehlt', '105': 'fehlt', '106': 'fehlt' }
+    expect(Object.keys(werte).length).toBeGreaterThan(2)
+    expect(werte['101']).toBe(2)
+    for (const [nr, w] of Object.entries(werte)) expect(w, nr).toBe(erwartet[nr])
+    // Dieselbe Zahl wie die Papierliste unter UIM.
+    for (const z of ausgleichListen(u).flatMap((l) => l.zeilen)) if (z.starter.startNr in werte) expect(werte[z.starter.startNr], z.starter.startNr).toBe(z.ausgleich === undefined ? 'fehlt' : (z.ausgleich ?? 0))
+    const parcours = sichtListe(u, UIM, { bereich: 'parallel', typeId: 'parallelparcours', racecourse: 'A' }, EXTRA)
+    for (const x of [...parcours.schlange, ...parcours.danach]) expect(x.ausgleich, x.startNr).toBeUndefined()
+  })
+
+  it('ein in der Verwiegung nachgetragenes Gewicht steht in der nächsten Sicht – am Steg wird nichts gepflegt (AG2)', () => {
+    const { s } = bereit('steg')
+    const ohne = { ...s, starters: s.starters.map((p) => (p.id === 'k2' ? { ...p, gewicht: undefined } : p)) }
+    expect(ag(sichtListe(ohne, DM, L('steg'), EXTRA))['102']).toBe('fehlt')
+    const nach = reducer(ohne, { type: 'SET_WEIGHT', id: 'k2', gewicht: 28.6 })
+    // 33 − 28,6 = 4,4 → 4 kg.
+    expect(ag(sichtListe(nach, DM, L('steg'), EXTRA))['102']).toBe(4)
+  })
+
+  it('F17: Anzeigetafel, Zuschauerliste und Start-Freigabe bleiben ohne Ausgleichsgewicht, auch nach einer Verwiegung', () => {
+    const { s } = bereit('steg', 'gate135')
+    const nach = reducer(s, { type: 'SET_WEIGHT', id: 'k2', gewicht: 28.6 })
+    expect(ag(sichtListe(nach, DM, L('steg'), EXTRA))['102']).toBe(4)
+    expect(sichtOeffentlich(nach)).toEqual(sichtOeffentlich(s))
+    expect(sichtZuschauer(sichtOeffentlich(nach))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
+    const freigabe = JSON.stringify(sichtFreigabe(P1, erfassungsLage(nach, DM, P1, [], 0).listen, 'warnen'))
+    for (const wort of ['ausgleich', 'gewicht', '28.6']) expect(freigabe).not.toContain(wort)
   })
 })
 

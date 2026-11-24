@@ -69,6 +69,15 @@ describe('reducer', () => {
     expect(reducer(emptyState(), { type: 'SET_EVENT', patch: { laufCount: 42 } }).laufCount).toBe(9)
   })
 
+  it('Datum der Veranstaltung (24.11.2026): nur Tage, die es gibt; leer nimmt es weg; Unverändertes bleibt derselbe Stand', () => {
+    const mit = reducer(emptyState(), { type: 'SET_EVENT_DATUM', datum: '2026-09-05' })
+    expect(mit.eventDatum).toBe('2026-09-05')
+    expect(reducer(mit, { type: 'SET_EVENT_DATUM', datum: '2026-09-05' })).toBe(mit)
+    expect(reducer(mit, { type: 'SET_EVENT_DATUM', datum: '2026-02-30' })).toBe(mit)
+    expect(reducer(mit, { type: 'SET_EVENT_DATUM', datum: '05.09.2026' })).toBe(mit)
+    expect(reducer(mit, { type: 'SET_EVENT_DATUM', datum: '' }).eventDatum).toBe('')
+  })
+
   it('Ersetzen behält die ID wiedererkannter Starter', () => {
     const before = reducer(emptyState(), {
       type: 'ADD_STARTERS',
@@ -329,6 +338,15 @@ describe('Leerzeilen der Wettkampfrichter-Listen', () => {
     expect(reducer(alsClub, { type: 'SET_EVENT_KIND', eventKind: 'meisterschaft' }).wkrLeerzeilen).toBe(3)
     const eigene = reducer(emptyState(), { type: 'SET_WKR_LEERZEILEN', anzahl: 5 })
     expect(reducer(eigene, { type: 'SET_EVENT_KIND', eventKind: 'club' }).wkrLeerzeilen).toBe(5)
+  })
+
+  it('Klassen auf gemeinsamen Bögen: Vorgabe getrennt, wählbar nach der Verzahnung (24.11.2026)', () => {
+    expect(emptyState().wkrGemeinsamFolge).toBe('getrennt')
+    const s = reducer(emptyState(), { type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'verzahnung' })
+    expect(s.wkrGemeinsamFolge).toBe('verzahnung')
+    // Unverändert: derselbe Stand. Unbekanntes ist die Vorgabe.
+    expect(reducer(s, { type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'verzahnung' })).toBe(s)
+    expect(reducer(s, { type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'quer' as never }).wkrGemeinsamFolge).toBe('getrennt')
   })
 })
 

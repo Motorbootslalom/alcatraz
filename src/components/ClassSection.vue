@@ -17,7 +17,8 @@ import { formatDate, locale, t, tn } from '../i18n'
 import ManualAddForm from './ManualAddForm.vue'
 import AppDialog from './AppDialog.vue'
 import DatumFeld from './DatumFeld.vue'
-import { geburtsjahr, jahrgaengeText, klassenFuerJahr, startendeJahrgaenge } from '../import/klassenPruefung'
+import { geburtsjahr, geburtstagsHinweise, jahrgaengeText, klassenFuerJahr, startendeJahrgaenge, type GeburtstagsHinweis } from '../import/klassenPruefung'
+import { istTag } from '../lib/datum'
 import { klasseFest } from '../state/reducer'
 import { adresse } from '../lib/router'
 import type { ClassId, Starter } from '../types'
@@ -56,6 +57,25 @@ const edit = ref(false)
 
 // Ein fehlendes Geburtsdatum hält nichts auf, soll aber sofort auffallen – auch bei zugeklappter Klasse.
 const ohneDatum = computed(() => props.starters.filter((p) => !p.geburtsdatum).length)
+
+/**
+ * Starterlaubnis nach Geburtstag (DM-Reglement C8: E ab dem 6., 7 bis zum 27. Geburtstag; Regelwerk
+ * `geburtstagsGrenzen`). Entscheidung des Nutzers vom 24.11.2026: „Bei den Geburtstag-Ausnahmen
+ * reicht eine Warnung und kann dann einfach übergangen werden“ – deshalb nur Hinweise wie beim
+ * fehlenden Geburtsdatum: eine Marke im Kopf (auch zugeklappt), die Liste in der offenen Klasse und
+ * ein Zeichen an der Zeile. Nichts wird gesperrt, verschoben oder abgefragt, und es gibt nichts zu
+ * bestätigen. Ohne Datum der Veranstaltung nur nach dem Jahrgang (import/klassenPruefung.ts).
+ */
+const geburtstag = computed(() => geburtstagsHinweise(props.starters, regelwerk.value.geburtstagsGrenzen, state.value.eventJahr, state.value.eventDatum))
+const geburtstagJe = computed(() => {
+  const je = new Map<string, GeburtstagsHinweis[]>()
+  for (const h of geburtstag.value) je.set(h.starter.id, [...(je.get(h.starter.id) ?? []), h])
+  return je
+})
+const ohneEventDatum = computed(() => !istTag(state.value.eventDatum))
+const geburtstagText = (h: GeburtstagsHinweis) =>
+  t(`starters.geburtstag.${h.art}`, { name: nameVon(h.starter), grenze: h.grenze, geburtstag: formatDate(h.geburtstag), class: classLabel(props.classId) })
+const geburtstagTitel = (p: Starter) => (geburtstagJe.value.get(p.id) ?? []).map(geburtstagText).join('\n') || undefined
 
 const classLine = computed(() => {
   const [from, to] = birthYearRange(props.classId, state.value.eventJahr)
@@ -350,6 +370,7 @@ const MOVES = [
         <span class="title">{{ classLabel(classId) }}</span>
         <span class="count">{{ classLine }}</span>
         <span v-if="ohneDatum > 0" class="missing-badge" data-hinweis="ohne-datum">{{ tn('starters.birthdateMissingCount', ohneDatum) }}</span>
+        <span v-if="geburtstag.length > 0" class="geburtstag-badge" data-hinweis="geburtstag-zahl">{{ tn('starters.geburtstag.badge', geburtstagJe.size) }}</span>
         <span class="chevron">{{ open ? '▾' : '▸' }}</span>
       </button>
       <div class="class-tools">
@@ -426,6 +447,18 @@ const MOVES = [
       </div>
     </div>
     <p v-if="woanders" class="boat-banner ok" role="status" data-hinweis="in-anderer-klasse">{{ woanders }}</p>
+    <!-- Nur ein Hinweis (24.11.2026): kein role="alert", kein Knopf – wer ihn liest und den Starter lässt, muss nichts tun. -->
+    <div v-if="open && geburtstag.length > 0" class="geburtstag-hinweis" data-hinweis="geburtstag">
+      <strong>{{ t('starters.geburtstag.titel') }}</strong>
+      <ul>
+        <li v-for="h in geburtstag" :key="`${h.starter.id}|${h.art}`" :data-starter="h.starter.id" :data-art="h.art">{{ geburtstagText(h) }}</li>
+      </ul>
+      <p v-if="ohneEventDatum" class="note" data-hinweis="geburtstag-ohne-datum">
+        {{ t('starters.geburtstag.ohneTag') }}
+        <a :href="adresse('veranstaltung')">{{ t('nav.veranstaltung') }}</a>
+      </p>
+      <p v-else class="note" data-hinweis="geburtstag-tag">{{ t('starters.geburtstag.tag', { tag: formatDate(state.eventDatum) }) }}</p>
+    </div>
 
     <template v-if="open">
       <div v-if="starters.length === 0" class="empty">{{ t('starters.empty') }}</div>
@@ -557,7 +590,7 @@ const MOVES = [
                   <option v-for="g in GESCHLECHTER" :key="g" :value="g" :title="t(`starters.sex.${g}`)">{{ geschlechtKuerzel(g, locale) }}</option>
                 </select>
               </td>
-              <td>
+              <td :class="geburtstagJe.has(p.id) ? 'geburtstag-zelle' : undefined" :title="geburtstagTitel(p)">
                 <!-- Eigenes Textfeld mit festem Muster – nie die Datumswahl des Browsers (mm/dd/yyyy). -->
                 <DatumFeld
                   :class="['cell-input', p.geburtsdatum ? '' : 'missing']"
@@ -580,7 +613,7 @@ const MOVES = [
               <td v-if="state.originMode !== 'none'"><HerkunftText :anzeige="herkunftAnzeige(originOf(p, state.originMode), state.originMode, 'flagge-lang', {}, locale, true)" /></td>
               <td>{{ p.groesse || '–' }}</td>
               <td v-if="mitGeschlecht" data-spalte="geschlecht">{{ p.geschlecht ? geschlechtKuerzel(p.geschlecht, locale) : '–' }}</td>
-              <td :class="p.geburtsdatum ? '' : 'cell-missing'">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}</td>
+              <td :class="p.geburtsdatum ? (geburtstagJe.has(p.id) ? 'geburtstag-zelle' : '') : 'cell-missing'" :title="geburtstagTitel(p)">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}<span v-if="geburtstagJe.has(p.id)" class="geburtstag-marke" data-teil="geburtstag-marke" aria-hidden="true">!</span></td>
             </template>
             <td>
               <button

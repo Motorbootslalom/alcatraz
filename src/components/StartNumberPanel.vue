@@ -14,7 +14,10 @@ import type { RunningNumberConfig, RunningNumberSource, StartNrMode } from '../t
  */
 const { state, dispatch } = useStore()
 const { parallel, regelwerk } = useEvent()
-// Der Buchstabe der Dolphin-Nummern – nur, wo die Klasse E „Dolphin“ heißt (Regel 960).
+// Der Buchstabe der Nummern der Klasse E (E01 oder D01): seit 24.11.2026 unter jedem Regelwerk mit
+// Klasse E („D Präfix kannst du einbauen und zur Auswahl stellen“), vorher nur unter UIM. Dort heißt
+// die Klasse „Dolphin“, unter DM „E“ – danach richtet sich die Beschriftung.
+const mitKlasseE = computed(() => regelwerk.value.klassen.includes('E'))
 const dolphin = computed(() => regelwerk.value.klassenNamen.E !== undefined)
 const PRAEFIXE = ['E', 'D'] as const
 const emit = defineEmits<{ assigned: [] }>()
@@ -76,9 +79,9 @@ function assign() {
       </ul>
     </div>
 
-    <div v-if="dolphin && state.startNrMode === 'klasse'" class="field" style="width: auto" data-feld="dolphin-praefix">
-      <label>{{ t('numbers.dolphinPrefix') }}</label>
-      <div class="segmented" role="group" :aria-label="t('numbers.dolphinPrefix')">
+    <div v-if="mitKlasseE && state.startNrMode === 'klasse'" class="field" style="width: auto" data-feld="dolphin-praefix">
+      <label>{{ dolphin ? t('numbers.dolphinPrefix') : t('numbers.ePrefix') }}</label>
+      <div class="segmented" role="group" :aria-label="dolphin ? t('numbers.dolphinPrefix') : t('numbers.ePrefix')">
         <button
           v-for="p in PRAEFIXE"
           :key="p"

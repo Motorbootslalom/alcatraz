@@ -262,3 +262,36 @@ describe('Starter: Sortierung ändern (Entscheidung des Nutzers vom 15.11.2026)'
     wrapper.unmount()
   })
 })
+
+describe('Starter: Buchstabe der Klasse E (24.11.2026)', () => {
+  let store: Store
+  const zeige = () => mount(StartersView, { global: { provide: { [storeKey as symbol]: store } } })
+
+  beforeEach(() => {
+    localStorage.clear()
+    setLocale('de')
+    vergissAlles()
+    store = createStore()
+  })
+
+  it('unter DM „Buchstabe der Klasse E“, unter UIM „Dolphin“; Vorgabe E, mit D vergibt „Automatisch vergeben“ D01 aus E01–E30', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'dm-2026' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: [{ ...starter('e1', 'E'), groesse: 'M' }] })
+    const wrapper = zeige()
+    const feld = wrapper.find('[data-feld="dolphin-praefix"]')
+    expect(feld.find('label').text()).toBe('Buchstabe der Klasse E')
+    expect(feld.find('[data-praefix="E"]').attributes('aria-pressed')).toBe('true')
+    await feld.find('[data-praefix="D"]').trigger('click')
+    expect(store.state.value.dolphinPraefix).toBe('D')
+    store.dispatch({ type: 'ASSIGN_START_NUMBERS' })
+    expect(store.state.value.starters[0].startNr).toBe('D01')
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    await nextTick()
+    expect(wrapper.find('[data-feld="dolphin-praefix"] label').text()).toBe('Buchstabe der Dolphin-Nummern')
+    // Klassische Nummern kennen keinen Buchstaben.
+    store.dispatch({ type: 'SET_START_NR_MODE', mode: 'klassisch' })
+    await nextTick()
+    expect(wrapper.find('[data-feld="dolphin-praefix"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

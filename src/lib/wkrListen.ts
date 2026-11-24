@@ -31,7 +31,8 @@ export type WkrListenStand = Pick<
   // Für den QR-Code; ohne sie (Tests, Beispielansicht) steht dort „keine Kennung“. Ohne
   // Angaben zur Seitenaufteilung wird automatisch geteilt; ohne `wkrLeerzeilenSeite` gilt
   // auf gemeinsamen Bögen die Vorgabe.
-  Partial<Pick<AppState, 'kennung' | 'regelwerk' | 'wkrZeilenJeSeite' | 'wkrTeilenAb' | 'tor5MitParcours' | 'zusatzListen' | 'wkrLeerzeilenSeite' | 'versucheNacheinander'>>
+  // Ohne `wkrGemeinsamFolge` stehen die Klassen eines gemeinsamen Bogens getrennt (Blöcke).
+  Partial<Pick<AppState, 'kennung' | 'regelwerk' | 'wkrZeilenJeSeite' | 'wkrTeilenAb' | 'tor5MitParcours' | 'zusatzListen' | 'wkrLeerzeilenSeite' | 'versucheNacheinander' | 'wkrGemeinsamFolge'>>
 
 /** Ein Bogen der Veranstaltung: eine Liste für eine Klasse (Clubmeisterschaft: mehrere) in einem Lauf auf einem Parcours. */
 export interface WkrBogen {
@@ -134,12 +135,25 @@ export const WKR_DRUCKFOLGE: { readonly innen: 'lauf' | 'klasse' } = { innen: 'l
  * Knoten werden erst für das Gesamtergebnis gebraucht, ihr Bogen liegt deshalb im Stapel des
  * letzten Laufs (und steht auf dessen Laufzettel, lib/laufzettel.ts).
  *
- * Clubmeisterschaft: Klassen, deren Bogen gleich aufgebaut ist, stehen mit
- * Zwischenüberschrift untereinander auf einem Bogen; eine Klasse mit anderen Spalten oder
- * anderem Parcoursbild bekommt ihren eigenen. Mit `wkrClubGemeinsam` (Papier sparen) stehen
- * alle Klassen einer Liste zusammen, ohne Bild; fehlende Spalten sind je Zeile schraffiert. Die Wertung bleibt klassenbezogen – jede Zeile kennt ihre Klasse.
- * Die Leerzeilen für Nachmeldungen teilen sich dort alle Klassen einer Seite: Sie stehen
- * einmal am Ende jeder Seite (`wkrLeerzeilenSeite`) statt nach jeder Klasse.
+ * Clubmeisterschaft: Klassen, deren Bogen gleich aufgebaut ist, stehen zusammen auf einem
+ * Bogen; eine Klasse mit anderen Spalten oder anderem Parcoursbild bekommt ihren eigenen. Mit
+ * `wkrClubGemeinsam` (Papier sparen) stehen alle Klassen einer Liste zusammen, ohne Bild;
+ * fehlende Spalten sind je Zeile schraffiert (wie die Zeile eines Dummys im Parallelslalom,
+ * Nutzer 24.11.2026). Die Wertung bleibt klassenbezogen – jede Zeile kennt ihre Klasse.
+ * Wie die Klassen auf dem gemeinsamen Bogen stehen, wählt `wkrGemeinsamFolge` (Nutzer 24.11.2026:
+ * „ob die Klassen getrennt oder nach der Verzahnung auf dem Blatt aufgeführt werden sollen“):
+ * - `getrennt` (Vorgabe): je Klasse ein Block, die Klasse als Zwischenüberschrift darüber
+ *   (lib/bogen.ts `klassenBloecke`). Ohne Papier sparen hat jede Klasse ihre Leerzeilen; mit
+ *   Papier sparen teilen sich alle Klassen einer Seite die Leerzeilen – sie stehen einmal am
+ *   Ende jeder Seite (`wkrLeerzeilenSeite`) statt nach jeder Klasse.
+ * - `verzahnung`: alle Zeilen gemischt in der Startfolge der Verzahnung (die Zeilen kommen
+ *   schon so aus `folgen`), ohne Blöcke und Überschriften, die Klasse in einer schmalen Spalte
+ *   hinter der Startnummer. Die Leerzeilen stehen am Ende jeder Seite (`wkrLeerzeilenSeite`, mit
+ *   leerer Klassenzelle) – es gibt keine Klasse, an deren Ende sie stünden. Geteilt wird
+ *   automatisch nach Messung.
+ * Ob Bild und Gruppen sich ändern, hängt nur an `wkrClubGemeinsam`; die Folge ändert nur die
+ * Zeilen, nicht welche Bögen es gibt (QR-Codes und WKR-Geräte bleiben dieselben; die Laufzettel
+ * zählen die Seiten, wie sie dann gedruckt werden).
  *
  * „Versuche direkt nacheinander“ (UIM 960, Pkt. 4.3.2: „2 attempts, run consecutively“; Option
  * der Veranstaltung, config/catalog.ts `versucheNacheinander`): Statt eines Bogens je Lauf gibt
@@ -173,6 +187,9 @@ export function wkrBoegen(
   const boegen: WkrBogen[] = []
   const club = stand.eventKind === 'club'
   const papierSparen = club && stand.wkrClubGemeinsam
+  // Klassen eines gemeinsamen Bogens in der Startfolge statt in Blöcken (Nutzer 24.11.2026, siehe oben).
+  const inStartfolge = club && stand.wkrGemeinsamFolge === 'verzahnung'
+  const leerJeSeite = stand.wkrLeerzeilenSeite ?? BOGEN_VORGABEN.leerzeilen
   // „Zeilen je Seite“ und „Teilen ab“ gelten für Bögen einer Klasse. Ein gemeinsamer Bogen
   // mehrerer Klassen (Clubmeisterschaft) teilt sich immer automatisch: Die feste Zahl zählt
   // Starter einer Klasse; über Klassen hinweg risse sie Klassen mitten durch und kostete
@@ -228,10 +245,13 @@ export function wkrBoegen(
           },
           optionen:
             gruppe.length > 1
-              ? papierSparen
-                ? // Papier sparen: Die Klassen einer Seite teilen sich die Leerzeilen (lib/bogen.ts).
-                  { klassenBloecke: true, leerzeilen: 0, leerzeilenJeSeite: stand.wkrLeerzeilenSeite ?? BOGEN_VORGABEN.leerzeilen }
-                : { klassenBloecke: true, leerzeilen: stand.wkrLeerzeilen, leerzeilenJeKlasse: stand.wkrLeerzeilenKlasse }
+              ? inStartfolge
+                ? // In der Startfolge: keine Blöcke; die Leerzeilen am Ende jeder Seite gehören keiner Klasse (lib/bogen.ts).
+                  { leerzeilen: 0, leerzeilenJeSeite: leerJeSeite }
+                : papierSparen
+                  ? // Papier sparen: Die Klassen einer Seite teilen sich die Leerzeilen (lib/bogen.ts).
+                    { klassenBloecke: true, leerzeilen: 0, leerzeilenJeSeite: leerJeSeite }
+                  : { klassenBloecke: true, leerzeilen: stand.wkrLeerzeilen, leerzeilenJeKlasse: stand.wkrLeerzeilenKlasse }
               : { leerzeilen: stand.wkrLeerzeilenKlasse[gruppe[0]] ?? stand.wkrLeerzeilen, ...seiten },
         })
       }

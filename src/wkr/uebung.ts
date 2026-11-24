@@ -1,6 +1,7 @@
 import type { ClassId, PunktId, Sprache } from '../types'
 import { configFor } from '../config/konfig'
-import { DEFAULT_AUFBAU } from '../config/catalog'
+import { DEFAULT_AUFBAU, sollgewichtOf } from '../config/catalog'
+import { ausgleichAmSteg } from '../lib/ausgleich'
 import { liesRef, refKey } from '../betrieb/folge'
 import { laufSchluessel } from '../lib/eingaben'
 import { parcoursName } from '../config/sprache'
@@ -191,6 +192,19 @@ function klassenVon(stand: UebungsStand): ClassId[] {
   return mit.length > 0 ? mit : alle
 }
 
+/**
+ * Erfundenes Ausgleichsgewicht eines Übungsstarts (Nutzer 24.11.2026, WKR_ANNAHMEN AG4): ein erfundenes Körpergewicht
+ * um das Durchschnittsgewicht der Klasse (reihum WKR_ANNAHMEN.ausgleichUebung nach Startnummer), gerechnet durch
+ * dieselbe Funktion wie am Bedienrechner (lib/ausgleich.ts ausgleichAmSteg). `null` = das Regelwerk kennt für die
+ * Klasse kein Durchschnittsgewicht – dann steht wie im Ernstfall nichts.
+ */
+export function uebungsAusgleich(regelwerk: string, klasse: ClassId, nr: number): number | 'fehlt' | null {
+  const folge = WKR_ANNAHMEN.ausgleichUebung
+  const abstand = folge[(nr - 1) % folge.length]
+  const soll = sollgewichtOf(regelwerk, {}, klasse)
+  return ausgleichAmSteg({ regelwerk, sollgewicht: {} }, { klasse, ...(abstand === null || !(soll > 0) ? {} : { gewicht: Math.round((soll + abstand) * 10) / 10 }) })
+}
+
 /** Die Sicht der Übung – Form und Fassung wie vom Bedienrechner (wkr/sicht.ts). */
 export function uebungsSicht(stand: UebungsStand): ListenSicht {
   const sprachen = maskenSprachen(stand.regelwerk, stand.sprache)
@@ -204,14 +218,19 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
   const nVorab = vorab ? VORAB : teile && WKR_ANNAHMEN.stegAblegenVorab ? VORAB_STEG : 0
   const nachlaufend = !!teile && WKR_ANNAHMEN.stegAnlegenNachlaufend
   const imBoot = stand.zuletzt ?? stand.naechster - 1
-  const start = (i: number, extra: Partial<ListenStart> = {}): ListenStart => ({
-    key: keyVon(stand, i),
-    startNr: String(nrVon(i)),
-    klasse: klasseVon(i),
-    titel: texte.lauf(laufVon(stand, i)),
-    lauf: laufSchluessel('manoevrieren', laufVon(stand, i)),
-    ...extra,
-  })
+  const mitAusgleich = WKR_ANNAHMEN.ausgleichListen.includes(stand.typeId)
+  const start = (i: number, extra: Partial<ListenStart> = {}): ListenStart => {
+    const ag = mitAusgleich ? uebungsAusgleich(stand.regelwerk, klasseVon(i), nrVon(i)) : null
+    return {
+      key: keyVon(stand, i),
+      startNr: String(nrVon(i)),
+      klasse: klasseVon(i),
+      titel: texte.lauf(laufVon(stand, i)),
+      lauf: laufSchluessel('manoevrieren', laufVon(stand, i)),
+      ...(ag !== null ? { ausgleich: ag } : {}),
+      ...extra,
+    }
+  }
   const schlange = stand.offen.map((o) => start(o.i, teile ? { teile: { ab: o.ab, an: o.an || (nachlaufend && o.i === imBoot) } } : {}))
   // Der vorgezogene Start (Y4) steht vorn – der Vorsteg sieht ihn schon vorab.
   const frei = folgeVon(stand, klassen, nVorab + WKR_ANNAHMEN.danach)
