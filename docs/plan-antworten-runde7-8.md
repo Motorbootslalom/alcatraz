@@ -377,7 +377,7 @@ zeigt seit 23.11.2026 nur eine Bahn ohne Steg mit den IDs aus dem Parcours-Repos
 | Y4 | Übung: „Klasse vorziehen“ in „Mehr“, wirkt einmal auf den nächsten Start | WKR_ANNAHMEN, wkr/uebung.ts | bestätigt (R9-13) |
 | BS3 umgebaut, BS4 | Hand-Zahlen je Klasse bleiben, Rest verteilt; „Zurücksetzen“ | generate.ts, BeispieldatenPanel.vue | bestätigt (R9-14) |
 
-Neu beim Umbau nach Runde 9 ausgelegt (23.11.2026, noch zu bestätigen): die Zeichnung der einen Bahn auf dem
+Neu beim Umbau nach Runde 9 ausgelegt (23.11.2026, bestätigt 24.11.2026 mit R10-01 bis R10-07): die Zeichnung der einen Bahn auf dem
 Fahrweg-Bogen des Parallelslaloms (nur dieser Bogen, rechts neben der Legende in 100 mm Breite, zweisprachig bricht die
 Legende dafür um) – lib/parallelBogen.ts, docs/parallelslalom.md „WKR-Listen des Vorlaufs“; das Schema (Rückfall ohne
 Datei) für A und B gleich – WKR_ANNAHMEN BD3.

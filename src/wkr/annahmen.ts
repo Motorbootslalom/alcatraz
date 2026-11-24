@@ -1783,6 +1783,9 @@ export const WKR_ANNAHMEN = {
    * einer Meldung ab, die die fehlende ID und ihre Herkunft nennt (parallelBefunde, machParallel). Die Zuordnung nach
    * Lage und der Zuschnitt in der App (PARALLEL_AUSSCHNITT) entfallen. Start/Ziel: seiteA = `A_StartZiel_unten`, seiteB
    * = `A_StartZiel_oben` – dieselbe Regel wie bei den Klassen-Zeichnungen (config/kurzform.ts SEITE).
+   * Bestätigt 24.11.2026 (R10-01 bis R10-03): A = obere Bahn, B = untere, deutsche Namen mit Bahn-Buchstaben vorn;
+   * die Eine-Bahn-Ausgabe ohne Steg, Maße, Überschrift, Ablauftext und Logos, MIT Fahrlinien; Ordner
+   * `dist/parallel/alcatraz_Parcours`; Commit a9c4275 am 24.11.2026 auf GitHub gepusht.
    */
   bildParallelIdsAusParcoursRepo: true,
   /**
@@ -1797,6 +1800,8 @@ export const WKR_ANNAHMEN = {
    * (wkr/bild.ts parallelBildId ohne Racecourse); welcher Racecourse gemeint ist, sagt allein die Liste (`racecourse`
    * der Zuordnung → `aria-label` „Racecourse B“ und `data-racecourse` in WkrBild). Die Tafel-Vorgabe „A links, B rechts“
    * (docs/parallelslalom.md) betrifft nur die Anzeigetafel.
+   * Bestätigt 24.11.2026 (R10-04): genau dieselbe Zeichnung für A und B, ohne Buchstaben im Bild – den Racecourse
+   * nennt nur die Überschrift der Liste.
    */
   bildParallelEineBahnFuerBeide: true,
   /**
@@ -1804,8 +1809,8 @@ export const WKR_ANNAHMEN = {
    * `P_<andere>_…`) war gedimmt und ohne Trefferkreise, die Stege blieben (Schalter vorher `bildParallelFremdeBahnBlass`).
    * NICHT bestätigt 23.11.2026 (R9-07) – Nutzer: „Nur eine Bahn.“
    * Umgebaut 23.11.2026: Das Bild zeigt nur die eine Bahn ohne Steg (der Zuschnitt kommt aus dem Parcours-Repository,
-   * BD8), nichts ist gedimmt (`blass` leer), jede der sieben Bojen hat ihren Trefferkreis. Beim Bau ausgelegt, noch zu
-   * bestätigen: Auch das Schema (Rückfall ohne Parallel.svg, wkr/bild.ts schemaParallel) ist seitdem für A und B
+   * BD8), nichts ist gedimmt (`blass` leer), jede der sieben Bojen hat ihren Trefferkreis. Beim Bau ausgelegt,
+   * bestätigt 24.11.2026 (R10-04): Auch das Schema (Rückfall ohne Parallel.svg, wkr/bild.ts schemaParallel) ist seitdem für A und B
    * dasselbe – vorher war B gespiegelt; „nur einer der zwei Parcours“ (R9-06) gilt so auch im Rückfall. Dieselbe Bahn
    * trägt seit 23.11.2026 der Fahrweg-Bogen auf Papier (lib/parallelBogen.ts PARALLEL_BOGEN_BILD, Auslegung dort).
    */

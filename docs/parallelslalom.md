@@ -92,7 +92,7 @@ Der frühere Zustand `parallelInternational` (nationaler Parallelslalom) ist ent
   Parcours und ohne Steg“; `PARALLEL_BOGEN_BILD` in `src/lib/parallelBogen.ts`): Der Fahrweg-Bogen trägt die eine
   Bahn aus `src/assets/parcours/Parallel.svg` – dieselbe Zeichnung wie die Maske „Bild“ des Geräts, für A und B
   gleich, nichts gedimmt; welcher Racecourse, steht im Kopf. Darunter im Fuß die Namensnennung (CC BY-NC-SA 4.0),
-  am Bildschirm unter den Bögen dieselbe mit Links. Beim Bau ausgelegt, noch zu bestätigen:
+  am Bildschirm unter den Bögen dieselbe mit Links. Beim Bau ausgelegt, bestätigt 24.11.2026 (R10-04 bis R10-07):
   - nur der Fahrweg-Bogen (die Liste mit Bojen-Spalten, `parallelListeMitBild`) – wie im Manövrieren nur Listen mit
     Bojen, MüB oder Parcours ein Bild haben; Zeit und Steg bleiben ohne;
   - vorn **rechts neben der Legende** (den Disqualifikationen), höchstens so hoch wie sie, in einem 100 mm breiten

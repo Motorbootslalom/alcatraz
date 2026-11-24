@@ -164,11 +164,12 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   Runde 9 (23.11.2026): bis auf die Parallel-Zeichnung alles bestätigt; die zeigt auf dem Gerät jetzt nur eine Bahn
   ohne Steg, für Racecourse A und B dieselbe, mit den IDs aus dem Parcours-Repo (R9-05 bis R9-07); dieselbe Bahn steht
   auf dem Fahrweg-Bogen jedes Racecourse neben der Legende in 100 mm Breite – einsprachig ohne eine Zeile je Blatt
-  zu kosten, zweisprachig bricht die Legende dafür um (2 Zeilen weniger je Blatt; noch zu bestätigen). Prüfbefunde
+  zu kosten, zweisprachig bricht die Legende dafür um (2 Zeilen weniger je Blatt). Prüfbefunde
   dazu behoben (23.11.2026): die Zeichnung war zweisprachig nur 45 × 11 mm groß, die Namensnennung im Fuß stand in der
   Sprache der Oberfläche statt des Bogens, der Sync nannte bei einer Boje außerhalb des Bilds fälschlich fehlende IDs.
-  Veröffentlichen: Der Parcours-Commit a9c4275 ist noch nicht gepusht – erst ihn, dann alcatraz (QUELLE.json,
-  LICENSE.md und die Namensnennung nennen ihn; `npm run parcours:sync` warnt, solange er auf keinem Remote-Branch steht).
+  Runde 10 (24.11.2026): alles zur Parallel-Zeichnung bestätigt (A/B-IDs, Ausgabe einer Bahn mit Fahrlinien, gleiche
+  Zeichnung für A und B, nur der Fahrweg-Bogen, neben der Legende, zweisprachig 24 Zeilen je Blatt); der
+  Parcours-Commit a9c4275 ist gepusht.
   Offen: Feldtest Pad (docs/feldtest.md „Pad (W5)“, u. a. Lage der Trefferkreise im echten Browser), W6 nach Befund;
   die Tests „Probe beim Einrichten … einmal je Raum“ und „W5.2 … Probe am Bild“ (src/GeraetWkr.test.ts) wackeln unter
   Last und können so auch den Pages-Deploy aufhalten (vorerst zurückgestellt; nach einem Push prüfen, ob die neue

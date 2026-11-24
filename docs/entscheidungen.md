@@ -1046,6 +1046,29 @@ Hand-Zahlen). Anders entschieden hat er die drei Fragen zur Parallelslalom-Zeich
   je Blatt (einsprachig unverändert 31). Die Namensnennung im Fuß steht in der Sprache des Bogens (vorher in der der
   Oberfläche). Docs: [parallelslalom.md](parallelslalom.md) „WKR-Listen des Vorlaufs“.
 
+### Antworten 24.11.2026 (Runde 10)
+
+Antworten des Nutzers auf die Fragenseite, Runde 10 (R10-01…R10-07, Parallelslalom-Zeichnung nach dem Umbau aus
+Runde 9): alle sieben mit „ja“ bestätigt, nichts umzubauen.
+
+- 2026-11-24 · R10-01 · **IDs je Bahn**: obere Bahn „A“, untere „B“, jedes Teil mit dem Buchstaben vorn
+  (`A_Boje1` … `A_Boje5`, `A_StartZiel_oben`/`_unten`, `A_Nummer_Boje<n>`, `A_Fahrlinie_hin`/`_rueck`, `A_Steg`,
+  `A_Abmessung`; B ebenso), deutsche Namen wie bei den Klassen-Zeichnungen; Überschrift und Ablauftext ohne Buchstaben
+  (`WKR_ANNAHMEN` BD8).
+- 2026-11-24 · R10-02 · **Ausgabe „eine Bahn“**: ohne Steg, Maße, Überschrift, Ablauftext, Logos und Beschriftung, mit
+  Fahrlinien; die App nutzt die Fassung mit Fahrlinien (BD8).
+- 2026-11-24 · R10-03 · **Ordner und Veröffentlichung**: `dist/parallel/alcatraz_Parcours` im Parcours-Repository ist
+  richtig; der Commit a9c4275 ist am 24.11.2026 auf GitHub gepusht (der Sync warnt nicht mehr).
+- 2026-11-24 · R10-04 · **Dieselbe Zeichnung für A und B**, ohne Buchstaben im Bild; den Racecourse nennt nur die
+  Überschrift der Liste bzw. der Kopf des Bogens; das Schema (Rückfall ohne Datei) ebenso für beide gleich (BD9, BD10).
+- 2026-11-24 · R10-05 · **Nur der Fahrweg-Bogen** trägt die Zeichnung, Zeit und Steg nicht – in jeder Runde, auf A und
+  B (lib/parallelBogen.ts `parallelListeMitBild`).
+- 2026-11-24 · R10-06 · **Rechts neben der Legende**, höchstens so hoch wie sie, in einem 100 mm breiten Rahmen (rund
+  94 × 22 mm, kostet einsprachig keine Zeile); mit „Beschreibung auf der Rückseite“ dort unter der Legende
+  (`.bogen--bild-streifen` in styles/bogen.css).
+- 2026-11-24 · R10-07 · **Zweisprachig bricht die Legende um**, damit die Zeichnung lesbar bleibt (98 × 23 mm); der
+  Bogen fasst dann 24 statt 26 Zeilen je Blatt.
+
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
 Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, danach den Eintrag oben einsortieren.
@@ -1074,8 +1097,8 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 - Antworten 23.11.2026 (Runde 9, Abschnitt oben): Parallelslalom-Zeichnung eine Bahn ohne Steg, IDs aus dem
   Parcours-Repo (R9-05 bis R9-07) – gebaut 23.11.2026: Gerätebild (Scheibe 1) und Fahrweg-Bogen auf Papier
   (Scheibe 2; noch zu bestätigen: nur der Fahrweg-Bogen, rechts neben der Legende in 100 mm Breite – zweisprachig
-  bricht die Legende dafür um und der Bogen fasst 2 Zeilen weniger je Blatt). Veröffentlichen: erst den
-  Parcours-Commit pushen, dann alcatraz (QUELLE.json und die Namensnennung nennen ihn).
+  bricht die Legende dafür um und der Bogen fasst 2 Zeilen weniger je Blatt) – alles bestätigt 24.11.2026 (Runde 10,
+  Abschnitt oben), der Parcours-Commit a9c4275 ist gepusht. Nichts mehr offen.
 
 ## Offen
 

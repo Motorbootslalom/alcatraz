@@ -52,7 +52,7 @@ import type { WkrBogen } from './wkrListen'
 // Zeichnung auf dem Bogen (Nutzer 23.11.2026, R9-05 bis R9-07: „Wir brauchen bei dem Bild in der App und auf den
 // WKR-Listen nur einen von beiden … Daher kommt auf den Listen und auf dem Gerät nur einer der zwei Parcours und ohne
 // Steg.“): die eine Bahn des Parcours-Repositorys (src/assets/parcours/Parallel.svg, dieselbe wie in der Maske „Bild“
-// des Geräts) – siehe PARALLEL_BOGEN_BILD. Beim Bau ausgelegt (23.11.2026, noch zu bestätigen):
+// des Geräts) – siehe PARALLEL_BOGEN_BILD. Beim Bau ausgelegt 23.11.2026, bestätigt 24.11.2026 (R10-04 bis R10-07):
 // - Nur der Fahrweg-Bogen (Liste mit Bojen-Spalten) trägt sie, wie im Manövrieren nur die Listen mit Bojen, MüB oder
 //   Parcours ein Bild haben (config/kurzform.ts `hatBild`); Zeit und Steg bleiben ohne.
 // - Racecourse A und B zeigen dieselbe Bahn, nichts gedimmt (wie auf dem Gerät, WKR_ANNAHMEN BD9); welcher Racecourse
@@ -66,7 +66,7 @@ import type { WkrBogen } from './wkrListen'
 // - Zweisprachig ist die Legende 144 mm breit. Neben ihr blieben bis zum Prüfbefund vom 23.11.2026 nur 45 × 11 mm
 //   (Bojen 0,8 mm, Ziffern unter 1 mm – nicht lesbar). Seitdem behält die Zeichnung ihre 100 mm und die Legende bricht
 //   auf rund 91 mm um (35 statt 24,5 mm hoch): 98 × 23 mm wie einsprachig, dafür 2 Zeilen weniger je Blatt (24 statt
-//   26). Gemessen wird je Bogen, Seitenzahlen und Laufzettel folgen dem. Noch zu bestätigen – die Wahl wäre sonst:
+//   26). Gemessen wird je Bogen, Seitenzahlen und Laufzettel folgen dem. Bestätigt 24.11.2026 (R10-07) – verworfen:
 //   zweisprachig ohne Zeichnung vorn (dann nur mit „Beschreibung auf der Rückseite“) oder unter der Legende in 100 mm
 //   Breite (geschätzt rund 4 Zeilen weniger je Blatt).
 // - Mit „Beschreibung auf der Rückseite“ steht sie dort unter der Legende, wie die Bilder der Klassen-Bögen.

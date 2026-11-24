@@ -709,7 +709,7 @@
    Einsprachig (rund 70–78 mm) passt sie daneben, der Bogen fasst so viele Zeilen je Blatt wie ohne Zeichnung.
    Zweisprachig (144 mm) bricht sie auf rund 91 mm um und wird höher (35 statt 24,5 mm, 2 Zeilen weniger je Blatt) –
    vorher (Mindestbreite 45 mm) blieb dort nur eine Zeichnung von 45 × 11 mm mit Bojen unter 1 mm (Prüfbefund
-   23.11.2026, gemessen in Chromium; noch zu bestätigen, lib/parallelBogen.ts). Gemessen wird ohnehin je Bogen
+   23.11.2026, gemessen in Chromium; bestätigt 24.11.2026 R10-07, lib/parallelBogen.ts). Gemessen wird ohnehin je Bogen
    (BogenSeite → paging), Seitenzahlen und Laufzettel folgen dem. */
 .bogen--bild-streifen .bogen-fuss {
   display: grid;
