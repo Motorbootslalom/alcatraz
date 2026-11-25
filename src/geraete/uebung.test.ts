@@ -39,7 +39,7 @@ describe('Übungs-Kern', () => {
     const kopf = q.schlange.value[liste][0]
     expect(kopf.startNr).toBe('1')
     const aufbau = maskeFuer(q.sichten.value[liste]!, kopf.klasse)!
-    const zellen = zellenAus(tippe(leererEntwurf(), aufbau.teile[0].feld, aufbau.teile[0].codes[0].code), aufbau)
+    const zellen = zellenAus(tippe(leererEntwurf(), aufbau, aufbau.teile[0].feld, aufbau.teile[0].codes[0].code), aufbau)
     const z = q.schicke(liste, { s: kopf.key, zellen })!
     expect(q.stufen.value[z]).toEqual({ stufe: 'unterwegs', gesendet: true })
     expect(q.wartend.value).toBe(1)
@@ -236,23 +236,42 @@ describe('Übungstakt (Nutzer 21.11.2026, Y1–Y3)', () => {
   })
 })
 
-describe('Übung: „Nicht vorbeigekommen“ (W4.3, R8)', () => {
-  it('Zeile ohne Zellen erledigt den Start; Zuletzt ⊘, Prüfansicht zählt; Korrektur hebt es auf; nie Netz', () => {
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG7): „Nicht gestartet · Disq. X“ in der Übung wie echt – ersetzt „nicht vorbeigekommen“.
+describe('Übung: „Nicht gestartet · Disq. X“ (24.11.2026, NG7)', () => {
+  it('X im Disq.-Feld erledigt den Start; Prüfansicht zählt es unter X; „doch gestartet“ nimmt es heraus; nie Netz', () => {
     const { q, liste } = uebe({ regelwerk: 'dm-2026', typeId: 'gate135' })
     const kopf = q.schlange.value[liste][0]
     const punkt = q.sichten.value[liste]!.punkt!.id
-    const z = q.schicke(liste, { s: kopf.key, zellen: { 't1a|hin seiteA': '5' }, nv: true })!
+    const z = q.schicke(liste, { s: kopf.key, zellen: { 'disq@gate135': 'X' } })!
     expect(q.schlange.value[liste].map((s) => s.key)).not.toContain(kopf.key)
-    expect(q.zuletzt.value[0]).toMatchObject({ z, nv: true, zellen: {} })
+    expect(q.zuletzt.value[0]).toMatchObject({ z, zellen: { 'disq@gate135': 'X' } })
     vi.advanceTimersByTime(WKR_ANNAHMEN.uebungQuittungMs)
     let p = q.pruefung(liste, punkt)
-    expect(p.nichtVorbei).toEqual([kopf.startNr])
-    expect(p.zeilen[0]).toMatchObject({ nv: true, zellen: {} })
-    q.korrigiere(z, {})
+    expect(p.x).toEqual([kopf.startNr])
+    expect(p.zeilen[0]).toMatchObject({ x: true, zellen: { 'disq@gate135': 'X' } })
+    q.korrigiere(z, { 'disq@gate135': '' })
     p = q.pruefung(liste, punkt)
-    expect(p.nichtVorbei).toEqual([])
+    expect(p.x).toEqual([])
     expect(netz.fetch).not.toHaveBeenCalled()
     expect(localStorage.length).toBe(0)
+  })
+
+  it('ganzer Steg: X im Ablegen erledigt auch das Anlegen – der Start kommt nie ins Anlegen (Prüfbefund 24.11.2026, wie echt)', () => {
+    const { q, liste } = uebe({ regelwerk: 'dm-2026', typeId: 'steg', folgeMs: [0, 0] })
+    const kopf = q.schlangeTeil(liste, 'ab')[0]
+    expect(q.schlangeTeil(liste, 'an')).toEqual([])
+    q.schicke(liste, { s: kopf.key, zellen: { 'disq@steg': 'X' }, teil: 'ab' })
+    vi.advanceTimersByTime(WKR_ANNAHMEN.uebungQuittungMs + 7000)
+    expect(q.schlangeTeil(liste, 'ab').map((s) => s.key)).not.toContain(kopf.key)
+    expect(q.schlangeTeil(liste, 'an').map((s) => s.key)).not.toContain(kopf.key)
+    // Gegenprobe: eine gewöhnliche Ablegen-Zeile lässt den Start fürs Anlegen stehen (T2, sobald er zurück ist).
+    const zweiter = q.schlangeTeil(liste, 'ab')[0]
+    q.schicke(liste, { s: zweiter.key, zellen: { 'disq@steg': '' }, teil: 'ab' })
+    vi.advanceTimersByTime(WKR_ANNAHMEN.uebungQuittungMs + 7000)
+    const dritter = q.schlangeTeil(liste, 'ab')[0]
+    q.schicke(liste, { s: dritter.key, zellen: { 'disq@steg': '' }, teil: 'ab' })
+    vi.advanceTimersByTime(WKR_ANNAHMEN.uebungQuittungMs + 7000)
+    expect(q.schlangeTeil(liste, 'an').map((s) => s.key)).toContain(zweiter.key)
   })
 })
 

@@ -1,6 +1,5 @@
 import type { AppState, KeineZeitGrund, WkrStand } from '../types'
 import { werteVon } from '../lib/eingaben'
-import { liesNvSchluessel, nvSchluessel } from './nichtVorbei'
 
 // „Keine Zeit“ (W5.4, Plan docs/plan-wkr-w5.md §7, 22.11.2026, WKR_ANNAHMEN ZT4 – noch zu bestätigen): das Kennzeichen
 // je Zeitfeld im Stand (WkrStand.keineZeit) lesen, schreiben, aufheben und beim Laden prüfen – rein, ohne DOM, ohne
@@ -14,10 +13,27 @@ export const KEINE_ZEIT_GRUENDE: readonly KeineZeitGrund[] = ['anlage', 'nichtIm
 
 export const istKeineZeitGrund = (x: unknown): x is KeineZeitGrund => typeof x === 'string' && (KEINE_ZEIT_GRUENDE as readonly string[]).includes(x)
 
+/**
+ * Schlüssel einer Zelle: `${lauf}|${starter}`. Bis 24.11.2026 teilte er sich die Form mit dem Kennzeichen „nicht
+ * vorbeigekommen“ (wkr/nichtVorbei.ts, entfallen – WKR_ANNAHMEN NG6); Zeitlisten sind nie geteilt, also ohne Teil.
+ */
+export function kzSchluessel(lauf: string, starter: string): string {
+  return `${lauf}|${starter}`
+}
+
+/** Lauf und Starter eines Schlüssels; `null`, wenn er nicht von {@link kzSchluessel} stammen kann. */
+function liesKzSchluessel(k: unknown): { lauf: string; starter: string } | null {
+  if (typeof k !== 'string') return null
+  const teile = k.split('|')
+  // Lauf-Schlüssel und Starter-IDs enthalten kein „|“ (lib/eingaben.ts gueltigeZellen prüft den Lauf beim Laden).
+  if (teile.length !== 2 || teile[0] === '' || teile[1] === '') return null
+  return { lauf: teile[0], starter: teile[1] }
+}
+
 /** Das Kennzeichen eines Starts auf einer Liste: je Zeitfeld der Grund (leer = keins). */
 export function keineZeitVon(wkr: WkrStand, liste: string, lauf: string, starter: string): Readonly<Record<string, KeineZeitGrund>> {
   const jeListe = Object.hasOwn(wkr.keineZeit, liste) ? wkr.keineZeit[liste] : undefined
-  const k = nvSchluessel(lauf, starter)
+  const k = kzSchluessel(lauf, starter)
   return (jeListe && Object.hasOwn(jeListe, k) ? jeListe[k] : undefined) ?? {}
 }
 
@@ -26,7 +42,7 @@ export function keineZeitVon(wkr: WkrStand, liste: string, lauf: string, starter
  * Unverändert = dasselbe Objekt.
  */
 export function mitKeineZeit(kz: WkrStand['keineZeit'], liste: string, lauf: string, starter: string, felder: Readonly<Record<string, KeineZeitGrund>>): WkrStand['keineZeit'] {
-  const k = nvSchluessel(lauf, starter)
+  const k = kzSchluessel(lauf, starter)
   const jeListe = Object.hasOwn(kz, liste) ? kz[liste] : {}
   const alt = Object.hasOwn(jeListe, k) ? jeListe[k] : {}
   if (gleich(alt, felder)) return kz
@@ -49,8 +65,8 @@ export function keineZeitNur(kz: WkrStand['keineZeit'], bleibt: (z: { lauf: stri
   const out: WkrStand['keineZeit'] = {}
   for (const [liste, jeZelle] of Object.entries(kz)) {
     const rest = Object.entries(jeZelle).filter(([k]) => {
-      const z = liesNvSchluessel(k)
-      return !!z && z.teil === undefined && bleibt(z)
+      const z = liesKzSchluessel(k)
+      return !!z && bleibt(z)
     })
     if (rest.length !== Object.keys(jeZelle).length) geaendert = true
     if (rest.length > 0) out[liste] = Object.fromEntries(rest)
@@ -68,7 +84,7 @@ export function ohneUeberholteKeineZeit(stand: AppState): AppState {
   let out = kz
   for (const [liste, jeZelle] of Object.entries(kz)) {
     for (const [k, felder] of Object.entries(jeZelle)) {
-      const z = liesNvSchluessel(k)
+      const z = liesKzSchluessel(k)
       if (!z) continue
       const werte = werteVon(stand.eingaben, z.lauf, z.starter)
       const rest = Object.fromEntries(Object.entries(felder).filter(([f]) => !werte[f]))
@@ -90,8 +106,8 @@ export function normalisiereKeineZeit(raw: unknown, listeGilt: (k: string) => bo
     if (!listeGilt(liste) || !istObj(jeZelle)) continue
     const zellen: Record<string, Record<string, KeineZeitGrund>> = {}
     for (const [k, felder] of Object.entries(jeZelle)) {
-      const z = liesNvSchluessel(k)
-      if (!z || z.teil !== undefined || !zelleGilt(z.lauf, z.starter) || !istObj(felder)) continue
+      const z = liesKzSchluessel(k)
+      if (!z || !zelleGilt(z.lauf, z.starter) || !istObj(felder)) continue
       const gut = Object.entries(felder).filter((e): e is [string, KeineZeitGrund] => e[0] !== '' && istKeineZeitGrund(e[1]))
       if (gut.length > 0) zellen[k] = Object.fromEntries(gut)
     }

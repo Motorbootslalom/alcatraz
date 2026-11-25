@@ -6,7 +6,12 @@ import { PARALLEL_DATEI, PARALLEL_PFLICHT_IDS, PARCOURS_DATEIEN } from '../lib/p
 import type { ClassId } from '../types'
 import { WKR_ANNAHMEN } from './annahmen'
 import {
+  aufrechtTransform,
   BILD_BOJEN,
+  BILD_LAGE_SEITE,
+  BILD_LAGEN,
+  istBildLage,
+  lageVonDrehung,
   bildIdVon,
   bildTreffer,
   bildWege,
@@ -383,5 +388,73 @@ describe('Drehung nach dem Platz (Prüfbefund 22.11.2026, bildDrehungNachPlatz)'
     expect(wirksameDrehung(180, { pad: false, seiten: null, platz: null })).toBe(180)
     expect(svgSeiten('<svg viewBox="0 0 10 20">')).toEqual({ breite: 10, hoehe: 20 })
     expect(svgSeiten('<svg>')).toBeNull()
+  })
+})
+
+describe('Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, BL1–BL5)', () => {
+  /** Wohin ein Punkt der Datei (x, y) bei einer Drehung im Uhrzeigersinn wandert – wie inlineSvg (`<g rotate>` + viewBox). */
+  function seiteNach(drehung: number, x: number, y: number): 'unten' | 'links' | 'oben' | 'rechts' {
+    const svg = '<svg viewBox="0 0 100 40"><circle id="p" cx="0" cy="0" r="1"/></svg>'
+    const s = inlineSvg(svg, { praefix: 'l-', drehung, dim: [], aus: [] })
+    const [vx, vy, vw, vh] = /viewBox="([^"]+)"/.exec(s)![1].split(' ').map(Number)
+    const r = (((drehung % 360) + 360) % 360) * (Math.PI / 180)
+    // rotate(d) in SVG: x' = x·cos − y·sin, y' = x·sin + y·cos (y nach unten = im Uhrzeigersinn auf dem Bildschirm).
+    const px = (x * Math.cos(r) - y * Math.sin(r) - vx) / vw
+    const py = (x * Math.sin(r) + y * Math.cos(r) - vy) / vh
+    if (py > 0.9) return 'unten'
+    if (py < 0.1) return 'oben'
+    return px < 0.5 ? 'links' : 'rechts'
+  }
+
+  it('BL2: Drehung im Uhrzeigersinn – die untere Kante der Datei (Steg) landet links, oben, rechts; Start/Ziel (links) mit', () => {
+    expect(BILD_LAGEN).toEqual([0, 90, 180, 270])
+    for (const l of BILD_LAGEN) {
+      // Mitte der unteren Kante = wo der Steg der Variante „Steg unten“ liegt; Mitte der linken Kante = Start/Ziel.
+      expect(seiteNach(l, 50, 40)).toBe(BILD_LAGE_SEITE[l].steg)
+      expect(seiteNach(l, 0, 20)).toBe(BILD_LAGE_SEITE[l].start)
+    }
+    expect(BILD_LAGE_SEITE[0]).toEqual({ steg: 'unten', start: 'links' })
+    expect(BILD_LAGE_SEITE[90]).toEqual({ steg: 'links', start: 'oben' })
+  })
+
+  it('BL3: Die Wahl geht vor Blick, Gerät und Platz; ohne Wahl alles wie bisher', () => {
+    const seiten = { breite: 853, hoehe: 361 }
+    const eng = { breite: 600, hoehe: 400 }
+    // Handy, Blick „hinten“ (90°): ohne Wahl liegend (0°), mit Wahl genau sie – auch 270° und 180°.
+    expect(wirksameDrehung(90, { pad: false, seiten, platz: eng })).toBe(0)
+    expect(wirksameDrehung(90, { pad: false, seiten, platz: eng, wahl: null })).toBe(0)
+    expect(wirksameDrehung(90, { pad: false, seiten, platz: eng, wahl: 90 })).toBe(90)
+    expect(wirksameDrehung(90, { pad: true, seiten, platz: eng, wahl: 270 })).toBe(270)
+    expect(wirksameDrehung(180, { pad: false, seiten: null, platz: null, wahl: 0 })).toBe(0)
+    expect(wirksameDrehung(0, { pad: false, seiten: null, platz: null, wahl: 180 })).toBe(180)
+    // Unbekanntes gilt als keine Wahl.
+    expect(wirksameDrehung(180, { pad: false, seiten, platz: eng, wahl: 45 as never })).toBe(180)
+    expect(istBildLage(270)).toBe(true)
+    expect(istBildLage(-90)).toBe(false)
+    expect(istBildLage('90')).toBe(false)
+    expect(lageVonDrehung(-90)).toBe(270)
+    expect(lageVonDrehung(450)).toBe(90)
+    expect(lageVonDrehung(45)).toBe(0)
+    // inlineSvg nimmt 270° wie −90°.
+    const svg = parcoursSvg('Klasse3')!
+    expect(inlineSvg(svg, { praefix: 'x-', drehung: 270, dim: [], aus: [] })).toContain('<g transform="rotate(-90)">')
+  })
+
+  it('BL4: Text dreht um die eigene Mitte zurück, ein vorhandener transform bleibt vorn; 0° und leerer Rahmen nichts', () => {
+    const rahmen = { x: 10, y: 20, width: 8, height: 12 }
+    expect(aufrechtTransform(null, rahmen, 180)).toBe('rotate(-180 14 26)')
+    expect(aufrechtTransform('rotate(2.0137401)', rahmen, 90)).toBe('rotate(2.0137401) rotate(-90 14 26)')
+    expect(aufrechtTransform(null, rahmen, 270)).toBe('rotate(-270 14 26)')
+    expect(aufrechtTransform(null, rahmen, -90)).toBe('rotate(-270 14 26)')
+    expect(aufrechtTransform(null, rahmen, 0)).toBeNull()
+    expect(aufrechtTransform(null, { x: 0, y: 0, width: 0, height: 0 }, 90)).toBeNull()
+  })
+
+  it('BL4: Zwischen Wurzel und Text der Zeichnungen stehen keine Spiegelungen (sonst dreht die Gegendrehung falsch)', () => {
+    for (const datei of [...PARCOURS_DATEIEN, PARALLEL_DATEI]) {
+      const svg = parcoursSvg(datei)
+      if (!svg) continue
+      expect(svg, datei).not.toMatch(/transform="[^"]*(?:scale\([^)]*-|matrix\()/)
+    }
   })
 })

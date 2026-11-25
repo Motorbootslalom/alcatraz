@@ -21,7 +21,7 @@ import { lage } from '../betrieb/folge'
 import { sichtOeffentlich } from '../betrieb/sicht'
 import { werteVon } from '../lib/eingaben'
 import { listenKennung } from '../wkr/liste'
-import { bojenVon, disqFuer, entwurfAus, keineZeitAus, leererEntwurf, maskeFuer, mitBemerkung, setzeKeineZeit, setzeZeit, tippe, tippeBoje, tippeDisq, tippePruef, zellenAus } from '../wkr/maske'
+import { bojenVon, disqFuer, entwurfAus, keineZeitAus, leererEntwurf, maskeFuer, mitBemerkung, nichtGestartetZellen, setzeKeineZeit, setzeZeit, tippe, tippeBoje, tippeDisq, tippePruef, zellenAus } from '../wkr/maske'
 import { erfassungsLage, tischLage } from '../wkr/lage'
 import { geraetAngaben } from './register'
 import { configFor } from '../config/konfig'
@@ -863,14 +863,14 @@ describe('W3.1: Gerätekern für die Maske (Schlange je Teil, Entwürfe, Zurück
     const za = e.schicke(STEG, { s: erster.key, teil: 'ab', zellen: { 'disq@steg': 'X' } })!
     await bis(() => e.stufen.value[za].stufe === 'uebernommen')
     const ab = e.pruefung(STEG, 'lauf:1', 'ab')
-    expect(ab.zeilen).toEqual([{ s: erster.key, sn: sn(erster.starter), klasse: expect.any(String), zellen: { 'disq@steg': 'X' }, stufe: { stufe: 'uebernommen' }, x: true, nv: false }])
+    expect(ab.zeilen).toEqual([{ s: erster.key, sn: sn(erster.starter), klasse: expect.any(String), zellen: { 'disq@steg': 'X' }, stufe: { stufe: 'uebernommen' }, x: true }])
     expect(ab.x).toEqual([sn(erster.starter)])
     expect(ab.offen.map((x) => x.key)).toContain(zweiter.key)
     expect(ab.offen.map((x) => x.key)).not.toContain(erster.key)
     // Anlegen: noch keine eigene Zeile.
     expect(e.pruefung(STEG, 'lauf:1', 'an').zeilen).toEqual([])
     // Anderer Punkt: nichts offen, keine Zeilen.
-    expect(e.pruefung(STEG, 'lauf:2')).toEqual({ zeilen: [], offen: [], x: [], nichtVorbei: [] })
+    expect(e.pruefung(STEG, 'lauf:2')).toEqual({ zeilen: [], offen: [], x: [] })
     // Kein Name in der Prüfansicht.
     expect(JSON.stringify(ab)).not.toMatch(/Vor\d|Nach\d|Musterclub/)
   })
@@ -890,7 +890,7 @@ describe('Prüfbefunde W3 (21.11.2026): gemeinsame Felder des Stegs und Korrektu
     const { key, starter } = await mitStart(s, e, STEG)
     const a = aufbauFuer(e, key)
     const code = a.teile.find((t) => t.teil === 'ab')!.codes[0].code
-    const ablegen = mitBemerkung(tippeDisq(tippe(leererEntwurf(), a.teile.find((t) => t.teil === 'ab')!.feld, code), 'A'), 'Notiz')
+    const ablegen = mitBemerkung(tippeDisq(tippe(leererEntwurf(), a, a.teile.find((t) => t.teil === 'ab')!.feld, code), 'A'), 'Notiz')
     const za = e.schicke(STEG, { s: key, teil: 'ab', zellen: zellenAus(ablegen, a, 'ab') })!
     await bis(() => e.stufen.value[za].stufe === 'uebernommen')
     expect(werte(s.state.value, starter)).toMatchObject({ 'disq@steg': 'A', 'bemerkung@steg': 'Notiz' })
@@ -925,7 +925,7 @@ describe('Prüfbefunde W3 (21.11.2026): gemeinsame Felder des Stegs und Korrektu
     const a = aufbauFuer(e, key)
     const ab = a.teile.find((t) => t.teil === 'ab')!
     const code = ab.codes[0].code
-    const z1 = e.schicke(STEG, { s: key, teil: 'ab', zellen: zellenAus(tippe(leererEntwurf(), ab.feld, code), a, 'ab') })!
+    const z1 = e.schicke(STEG, { s: key, teil: 'ab', zellen: zellenAus(tippe(leererEntwurf(), a, ab.feld, code), a, 'ab') })!
     await bis(() => e.stufen.value[z1].stufe === 'uebernommen')
     const k1 = e.korrigiere(z1, zellenAus(tippeDisq(entwurfAus(e.stand(z1)!, a), 'A'), a, 'ab'))!
     await bis(() => e.stufen.value[k1]?.stufe === 'uebernommen')
@@ -1066,7 +1066,7 @@ describe('W4.2: Bojen-Maske Ende zu Ende (21.11.2026, Plan docs/plan-wkr-w4.md �
     const tor1 = bojenVon(a).find((b) => b.feld.startsWith('t1a|'))!
     const tor5 = bojenVon(a).find((b) => b.zaehler)!
     let entwurf = tippeBoje(tippeBoje(tippeBoje(leererEntwurf(), tor1), tor5), tor5)
-    entwurf = tippe(entwurf, einfahrt.teil.feld, einfahrt.teil.codes[0].code)
+    entwurf = tippe(entwurf, a, einfahrt.teil.feld, einfahrt.teil.codes[0].code)
     const z = e.schicke(MOEWE, { s: key, zellen: zellenAus(entwurf, a) })!
     await bis(() => e.stufen.value[z].stufe === 'uebernommen')
     const w = werte(s.state.value, starter)
@@ -1440,5 +1440,30 @@ describe('Zeit-Liste Ende zu Ende (W5.4, 22.11.2026, ZT1–ZT4)', () => {
     await bis(() => e.stufen.value[z].stufe === 'uebernommen')
     await bis(() => (e.sichten.value[ZEIT]?.geraete?.[Object.keys(e.sichten.value[ZEIT]!.geraete ?? {})[0]]?.bis ?? 0) > 0)
     for (const text of [JSON.stringify(e.sichten.value[ZEIT]), JSON.stringify(sichtOeffentlich(s.state.value))]) expect(text).not.toContain('nichtImZiel')
+  })
+})
+
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG1–NG4): „Nicht gestartet · Disq. X“ vom Tor-Handy – über Leitung und Host wie ein X
+// vom Steg. Vorher lehnte der Bedienrechner X an Toren ab (F5), und „nicht vorbeigekommen“ schrieb dort J.
+describe('„Nicht gestartet · Disq. X“ Ende zu Ende (24.11.2026, NG1–NG4)', () => {
+  it('Tor-Handy: X allein im Disq.-Feld → übernommen ohne Rückfrage; Matrix ✕, Start entfällt, Prüfansicht zählt X', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const { key, starter } = await mitStart(s, e)
+    const sicht = e.sichten.value[TOR]!
+    const klasse = [...sicht.schlange, ...sicht.danach].find((x) => x.key === key)!.klasse
+    const a = maskeFuer(sicht, klasse)!
+    // Die Knöpfe des Tors bieten X nicht an (NG3) – die Zeile kommt nur über „Mehr“.
+    expect(disqFuer(a).map((d) => d.code)).not.toContain('X')
+    const zellen = nichtGestartetZellen(a)!
+    expect(zellen).toEqual({ 'disq@gate135': 'X' })
+    const z = e.schicke(TOR, { s: key, zellen })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)).toEqual({ 'disq@gate135': 'X', 'erfasst@gate135': '1' })
+    expect(s.state.value.wkr.rueckfragen).toEqual([])
+    const l = erfassungsLage(s.state.value, configFor({ regelwerk: 'dm-2026' }), P1, [], Date.now()).listen.find((x) => x.liste === TOR)!
+    expect(l.zellen[key]).toEqual({ zelle: 'x' })
+    expect(lage(s.state.value, P1).folge.find((x) => x.key === key)?.entfaellt).toBe(true)
+    expect(e.pruefung(TOR, 'lauf:1').x).toHaveLength(1)
   })
 })

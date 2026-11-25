@@ -1,10 +1,12 @@
 import { computed, effectScope, ref, shallowRef, watch } from 'vue'
 import type { ClassId, KeineZeitGrund, WkrPunkt, Sprache } from '../types'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
-import { maskeFuer } from '../wkr/maske'
+import { istNichtGestartet, maskeFuer } from '../wkr/maske'
 import type { ListenSicht, ListenStart } from '../wkr/sicht'
 import { teileVon, type ListenTeil } from '../wkr/liste'
 import { zufallAus } from '../lib/beispielwerte'
+import { NICHT_GESTARTET } from '../lib/abmeldung'
+import { disqCodes } from '../lib/scoring'
 import { neueSaat } from '../lib/saat'
 import { uebungsSchritt, uebungsSicht, uebungsStand, ziehVor, type UebungsStand } from '../wkr/uebung'
 import type { ListenAufgabe } from './aufgaben'
@@ -70,8 +72,6 @@ interface UebZeile {
   k?: true
   punkt: WkrPunkt | null
   zellen: Record<string, string>
-  /** „Nicht vorbeigekommen“ (W4.3, R8): ohne Zellen, wie im echten Kern. */
-  n?: true
   /** „Keine Zeit“ (W5.4, ZT4) wie im echten Kern: ersetzt das Kennzeichen des Starts, ein Wert im Feld hebt es auf. */
   kz?: Record<string, KeineZeitGrund>
   stufe: ZeilenStufe
@@ -213,8 +213,9 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
     zeilen.push(zeile)
     zeilen = zeilen.slice(-WKR_ANNAHMEN.zuletzt)
     if (!z.k) neue++
-    // Die Beispiel-Rückfrage braucht ein Feld – eine Zeile „nicht vorbeigekommen“ hat keins.
-    quittiere(zeile, !z.k && !z.n && neue === WKR_ANNAHMEN.uebungRueckfrageBei)
+    // Keine Beispiel-Rückfrage auf „Nicht gestartet“ (24.11.2026, NG7): Am Bedienrechner stünde in der leeren Disq.-Zelle
+    // nichts anderes – eine erfundene Rückfrage dort lehrte etwas Falsches.
+    quittiere(zeile, !z.k && !istNichtGestartet(z.zellen) && neue === WKR_ANNAHMEN.uebungRueckfrageBei)
     geaendert()
     return zeile.z
   }
@@ -246,7 +247,6 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
           korrektur: !!z.k,
           zellen: { ...z.zellen },
           stufe: z.stufe,
-          ...(z.n ? { nv: true as const } : {}),
           ...(z.kz && Object.keys(z.kz).length > 0 ? { kz: { ...z.kz } } : {}),
         }))
     }),
@@ -290,13 +290,12 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
   }
 
   function pruefung(liste: string, punkt: WkrPunkt, t?: ListenTeil): Pruefung {
-    if (!eigen(liste)) return { zeilen: [], offen: [], x: [], nichtVorbei: [] }
+    if (!eigen(liste)) return { zeilen: [], offen: [], x: [] }
     const jeStart = new Map<string, PruefZeile>()
     for (const z of zeilen) {
       if (z.punkt !== punkt || (t !== undefined && z.t !== undefined && z.t !== t)) continue
       const zellen = stapel(zeilen.filter((x) => x.s === z.s && x.punkt === punkt && x.z <= z.z && (t === undefined || x.t === undefined || x.t === t)))
-      // Die jüngste Zeile des Starts entscheidet: „nicht vorbeigekommen“ oder doch vorbei (Korrektur).
-      jeStart.set(z.s, { s: z.s, ...(z.sn !== undefined ? { sn: z.sn } : {}), klasse: z.klasse, zellen, stufe: z.stufe, x: Object.values(zellen).some((w) => w.split(/[\s,;/]+/).includes('X')), nv: !!z.n })
+      jeStart.set(z.s, { s: z.s, ...(z.sn !== undefined ? { sn: z.sn } : {}), klasse: z.klasse, zellen, stufe: z.stufe, x: Object.values(zellen).some((w) => w.split(/[\s,;/]+/).includes('X')) })
     }
     const out = [...jeStart.values()]
     const b = sicht().bestand
@@ -305,7 +304,7 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       : sicht().punkt?.id === punkt
         ? sicht().schlange.filter((s) => !s.vorab && !s.entfaellt && passt(s, t)).map((s) => ({ ...s }))
         : []
-    return { zeilen: out, offen, x: out.filter((z) => z.x).map((z) => z.sn ?? z.s), nichtVorbei: out.filter((z) => z.nv).map((z) => z.sn ?? z.s) }
+    return { zeilen: out, offen, x: out.filter((z) => z.x).map((z) => z.sn ?? z.s) }
   }
 
   function status(liste: string, st: ListenSicht['status']): number | null {
@@ -382,13 +381,17 @@ export function oeffneUebung(o: UebungsOptionen): ErfassungsQuelle {
       const punkt = sicht().punkt?.id ?? null
       entw.delete(ek(zeile.s, t))
       // Ein Teil-Gerät übt allein: Den anderen Teil erledigt „das andere Handy“ gleich mit, sonst stauten sich die
-      // Starts in der Übung. Nur das Gerät für den ganzen Steg erledigt je Teil.
+      // Starts in der Übung. Nur das Gerät für den ganzen Steg erledigt je Teil – außer die Zeile trägt ein X
+      // („Nicht gestartet“ oder der X-Knopf im Ablegen, Prüfbefund 24.11.2026, NG7): Wie echt fällt der Start dann aus
+      // JEDER Schlange (wkr/schlange.ts „X fällt weg“), das Anlegen bekommt ihn nie – ein Boot, das nie ablegte, legt
+      // auch nicht an.
       // Ohne Nachrücken (0): Der nächste kommt erst nach 2–6 s (naechsterBald).
-      setzeStand(uebungsSchritt(stand, { s: zeile.s, ...(!teil && t ? { teil: t } : {}) }, 0))
+      const mitX = Object.values(zeile.zellen).some((w) => disqCodes(w).includes(NICHT_GESTARTET))
+      setzeStand(uebungsSchritt(stand, { s: zeile.s, ...(!teil && t && !mitX ? { teil: t } : {}) }, 0))
       naechsterBald()
-      const nv = zeile.nv === true
-      const kz = !nv && zeile.kz ? { kz: { ...zeile.kz } } : {}
-      return neueZeile({ s: zeile.s, ...(start ? { sn: start.startNr } : {}), klasse: start?.klasse ?? null, ...(t ? { t } : {}), punkt, zellen: nv ? {} : { ...zeile.zellen }, ...(nv ? { n: true as const } : {}), ...kz }, vorher)
+      // „Nicht gestartet · Disq. X“ (24.11.2026, NG7) ist wie echt eine gewöhnliche Zeile mit X im Disq.-Feld.
+      const kz = zeile.kz ? { kz: { ...zeile.kz } } : {}
+      return neueZeile({ s: zeile.s, ...(start ? { sn: start.startNr } : {}), klasse: start?.klasse ?? null, ...(t ? { t } : {}), punkt, zellen: { ...zeile.zellen }, ...kz }, vorher)
     },
     keineZeit(z) {
       const alt = zeilen.find((x) => x.z === z)

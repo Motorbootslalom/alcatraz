@@ -497,6 +497,14 @@ export interface GeraetAnsicht {
    */
   bojenFolge?: Record<string, BojenFolgeWahl>
   /**
+   * Lage der Zeichnung in der Maske „Bild“ je Liste (Nutzer 24.11.2026, WKR_ANNAHMEN BL1–BL3): Drehung im Uhrzeigersinn
+   * 0 (Steg unten, wie die Datei) / 90 (Steg links) / 180 (Steg oben) / 270 (Steg rechts) – wkr/bild.ts BildLage. Fehlt
+   * = keine Wahl, die Zeichnung liegt wie bisher (Drehung des Bogens nach Gerät und Platz). Wie `bojenFolge` eine
+   * Vorliebe am Standort des WKR: je Listen-Kennung, höchstens {@link BOJEN_FOLGE_MAX}, nur die vier Werte, bleibt nach
+   * „Raum verlassen“.
+   */
+  bildLage?: Record<string, BildLageWahl>
+  /**
    * Maske, die der WKR je Liste gewählt hat (F14, W5.1, 22.11.2026, WKR_ANNAHMEN MW2): gilt nur im Raum `u/r/s`
    * (die Übung unter {@link UEBUNG_RAUM}), höchstens {@link BOJEN_FOLGE_MAX} Listen, nur bekannte Masken – sonst fällt
    * sie beim Lesen weg. Geht mit „Raum verlassen“ (anders als Hand, Modus, Bojen-Folge: Vorlieben des Geräts).
@@ -516,6 +524,9 @@ export const UEBUNG_RAUM: RaumBezug = { u: 'uebung', r: 'uebung', s: 'uebung' }
 /** Wie wkr/maske.ts BojenFolge – hier ohne Import aus src/wkr, die Ablage bleibt ohne Fachlogik. */
 export type BojenFolgeWahl = 'gedreht' | 'fahrt' | 'untereinander'
 const BOJEN_FOLGE_WAHL: readonly unknown[] = ['gedreht', 'fahrt', 'untereinander'] satisfies BojenFolgeWahl[]
+/** Wie wkr/bild.ts BildLage (24.11.2026) – hier ohne Import aus src/wkr. */
+export type BildLageWahl = 0 | 90 | 180 | 270
+const BILD_LAGE_WAHL: readonly unknown[] = [0, 90, 180, 270] satisfies BildLageWahl[]
 /**
  * Höchstens so viele Listen merken – ein Gerät hat höchstens vier zugleich (W3-03), alte fallen vorn heraus. „Alt“ =
  * am längsten nicht geändert: WkrMaske setzt eine geänderte Liste ans Ende (Prüfbefund 21.11.2026).
@@ -561,6 +572,14 @@ function ansichtAus(wert: unknown): GeraetAnsicht {
       if (liste.length <= 200 && BOJEN_FOLGE_WAHL.includes(f)) folgen[liste] = f as BojenFolgeWahl
     }
     if (Object.keys(folgen).length > 0) out.bojenFolge = folgen
+  }
+  // Lage des Bilds (24.11.2026, BL3): nur die vier Drehungen als Zahl, sonst fällt der Eintrag weg (Vorgabe gilt).
+  if (istObjekt(wert.bildLage)) {
+    const lagen: Record<string, BildLageWahl> = {}
+    for (const [liste, l] of Object.entries(wert.bildLage).slice(-BOJEN_FOLGE_MAX)) {
+      if (liste.length <= 200 && liste !== '__proto__' && BILD_LAGE_WAHL.includes(l)) lagen[liste] = l as BildLageWahl
+    }
+    if (Object.keys(lagen).length > 0) out.bildLage = lagen
   }
   const m = wert.masken
   if (istObjekt(m) && typeof m.u === 'string' && typeof m.r === 'string' && typeof m.s === 'string' && istObjekt(m.listen)) {

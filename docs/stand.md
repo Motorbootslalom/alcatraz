@@ -112,7 +112,7 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   zurück, auch nach Neuladen), Handy-Maske auf dem Pad als mittige Spalte bis W5 (seit W5.1 eigene Pad-Anordnung); Beispiel-Boote/-Co-Piloten nur
   noch unter „Beispieldaten“, Beispielstarter nach Art der Veranstaltung. Prüfbefunde dazu behoben.
   Wünsche vom 21.11.2026, zweiter Teil (WKR_ANNAHMEN U–Z, noch zu bestätigen): Disq. an der Boje in der
-  Bojen-Maske (wie auf dem Papier, „− letzte zurück“ stellt den vorigen Stand der Zelle wieder her), Bojen-Folge
+  Bojen-Maske (wie auf dem Papier, „↶ Rückgängig“ stellt den vorigen Stand der Zelle wieder her), Bojen-Folge
   „Rückweg gedreht“ (Vorgabe) / „Fahrtfolge“ / „Alles untereinander“ (22.11.2026; ersetzt „Wie der Parcours liegt“), Druck nur für Listen auf Papier bzw. „beides“, WKR-Bögen je Position in der
   Folge der Verzahnung, Übung mit 2–6 s nach dem Abschicken. Prüfbefunde dazu behoben.
   Antworten der Runden 3–6 (21.11.2026 abends) umgebaut ([plan-antworten-runde3-6.md](plan-antworten-runde3-6.md),
@@ -120,7 +120,8 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   abschließen“ entfernt, Rückfrage beim Abschluss im laufenden Lauf, Bojenzelle mit Punkten und Disq.-Buchstabe,
   Ansicht „Wie Gerät“ als Vorgabe, Codes anderer Klassen ausgegraut, Übung mit Erklärung und „Übung beenden“, „So
   lassen“ an den Bedienrechner, erste Liste ohne Neuladen, Geräteart beim Koppeln, bis vier Listen je Gerät,
-  Start-Freigabe nie vorgewählt, „nicht vorbeigekommen“ = Disq. J, WKR-Name aus der Einteilung, Sortierung A→Z
+  Start-Freigabe nie vorgewählt, „nicht vorbeigekommen“ = Disq. J (seit 24.11.2026 „Nicht gestartet · Disq. X“ auf
+  jeder Liste mit Disq.-Feld, WKR_ANNAHMEN NG1–NG8), WKR-Name aus der Einteilung, Sortierung A→Z
   zuerst. Prüfbefunde dazu behoben (21.11.2026): alte Sonne ohne eigene Wahl gilt als „Wie Gerät“, der letzte Start
   auf dem Weg zum Anlegen zählt als „läuft noch“, erste Liste auch nach einem Funkloch ohne Neuladen, Countdown des
   Auto-Modus in jedem Bedienfenster.
@@ -172,8 +173,9 @@ Genutzt werden sie im Assistenten („Im Bild“) und auf den WKR-Bögen.
   Parcours-Commit a9c4275 ist gepusht.
   Offen: Feldtest Pad (docs/feldtest.md „Pad (W5)“, u. a. Lage der Trefferkreise im echten Browser), W6 nach Befund;
   die Tests „Probe beim Einrichten … einmal je Raum“ und „W5.2 … Probe am Bild“ (src/GeraetWkr.test.ts) wackeln unter
-  Last und können so auch den Pages-Deploy aufhalten (vorerst zurückgestellt; nach einem Push prüfen, ob die neue
-  Fassung online ist).
+  Last; seit 24.11.2026 laufen sie auf GitHub nur auf Wunsch (Actions → CI → Run workflow → Haken „Wackelige Tests
+  mitlaufen lassen“), im Deploy nie, lokal und im pre-commit-Hook weiter immer (docs/technik.md „Tests“). Die
+  Ursache (feste Zeitgrenze beim Warten) ist damit nicht behoben.
 - **Mehrere Geräte:** Anzeigetafel und Zuschauerliste laufen im zweiten Fenster am Bedienrechner (ohne Netz) und
   über Lese-Links auch auf anderen Geräten (E6, verschlüsselt über einen ntfy-Server; nur gegen einen nachgebauten
   Server getestet); seit E7 auch die Start-Freigabe vom gekoppelten Handy. Offen: Feldtest mit echten Handys und

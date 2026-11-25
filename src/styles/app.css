@@ -3987,18 +3987,6 @@ table.starters th .sortier-kopf.aktiv {
   border-color: var(--accent);
 }
 
-/*
- * „Nicht vorbeigekommen“ (W4.3, 21.11.2026): gelb wie der Rückstand, mit Wort darunter (WkrMatrix). Gelb nur als Rand
- * und Fläche, die Schrift dunkel (--rueckstand-text): Das Wort ist der Hinweis neben „⊘“ und muss im hellen Zelt
- * lesbar sein (Prüfbefund 21.11.2026, WCAG AA).
- */
-.wkr-mzelle[data-zelle='nv'] {
-  background: var(--rueckstand-soft);
-  color: var(--rueckstand-text);
-  border-color: var(--rueckstand);
-  font-weight: 700;
-}
-
 .wkr-mzelle-wort {
   display: block;
   font-size: 0.75em;
@@ -4127,8 +4115,11 @@ table.starters th .sortier-kopf.aktiv {
   font-weight: 700;
 }
 
-/* Eingang: Zeile „nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026) – wie die Matrix-Zelle, Zeichen UND Wort. */
-.wkr-nv {
+/*
+ * Eingang: Marke an Rückfrage und Vorschlag („keine Zeit“, W5.4) – gelb wie der Rückstand, die Schrift dunkel
+ * (--rueckstand-text, WCAG AA im hellen Zelt). Hieß bis 24.11.2026 `.wkr-nv` (auch „nicht vorbeigekommen“, entfallen).
+ */
+.wkr-eingang-marke {
   padding: 0 4px;
   border: 1px solid var(--rueckstand);
   border-radius: 4px;
@@ -4137,7 +4128,7 @@ table.starters th .sortier-kopf.aktiv {
   font-weight: 700;
 }
 
-/* Eingang: „WKR: so lassen“ (Nutzer 21.11.2026, W3-35) – nur ein Vermerk, ruhiger als „nicht vorbei“. */
+/* Eingang: „WKR: so lassen“ (Nutzer 21.11.2026, W3-35) – nur ein Vermerk, ruhiger als „keine Zeit“. */
 .wkr-so-lassen {
   padding: 0 4px;
   border: 1px dashed var(--rueckstand);

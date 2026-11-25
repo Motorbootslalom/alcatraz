@@ -242,6 +242,30 @@ describe('Konfigurations-Validierung', () => {
     expect(meldungen.map((m) => m.message)).toEqual([expect.stringContaining('"9"'), expect.stringContaining('entweder')])
   })
 
+  it('max und danach je Fehler-Code (Nutzer 24.11.2026): max ganze Zahl ≥ 1, danach nur mit max, Buchstabe des Regelwerks, nie X, auf jeder Liste des Katalogs', () => {
+    const disqualifikationen = [
+      { code: 'D', text: '4. Versuch', bereiche: ['steg', 'parcours'] },
+      { code: 'X', text: 'Nicht gestartet' },
+    ]
+    const mit = (fehler: Record<string, unknown>[], disq = 'steg') =>
+      validateRawConfig({
+        disqualifikationen,
+        kataloge: { k: { fehler: fehler.map((f, i) => ({ code: i + 1, text: 'x', punkte: 5, ...f })) } },
+        positionen: [{ id: 'p', titel: 'P', disq, spalten: [{ key: 'f', label: 'F', typ: 'code', katalog: 'k' }, { key: 'd', label: 'Disq.', typ: 'disq' }] }],
+      } as Parameters<typeof validateRawConfig>[0])
+        .filter((i) => /FEHLER_(MAX|DANACH)/.test(i.code))
+        .map((i) => i.code)
+    expect(mit([{ max: 2, danach: 'D' }, { max: 1 }, {}])).toEqual([])
+    expect(mit([{ max: 0 }, { max: 1.5 }, { max: '2' }])).toEqual(['BAD_FEHLER_MAX', 'BAD_FEHLER_MAX', 'BAD_FEHLER_MAX'])
+    expect(mit([{ danach: 'D' }])).toEqual(['BAD_FEHLER_DANACH'])
+    expect(mit([{ max: 2, danach: 'X' }])).toEqual(['BAD_FEHLER_DANACH'])
+    expect(mit([{ max: 2, danach: 'Q' }])).toEqual(['UNKNOWN_FEHLER_DANACH'])
+    // D gilt nicht am Vorsteg bzw. auf einer Liste ohne Disq.: Der Tipp nach `max` hätte dort keinen Platz.
+    expect(mit([{ max: 2, danach: 'D' }], 'vorsteg')).toEqual(['BAD_FEHLER_DANACH_BEREICH'])
+    expect(mit([{ max: 2, danach: 'D' }], 'keine')).toEqual(['BAD_FEHLER_DANACH_BEREICH'])
+    expect(mit([{ max: 2, danach: 'D' }], 'alle')).toEqual([])
+  })
+
   describe('Wertungslisten', () => {
     const codes = (aendern: (text: string) => string) =>
       validateConfigTexts({ ...texte, positionen: positionenText(aendern) }).map((i) => i.code)

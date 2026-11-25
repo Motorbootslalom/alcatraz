@@ -3,7 +3,20 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { parcoursSvg } from '../../lib/parcoursQuelle'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { Weg } from '../../wkr/bojen'
-import { bildWege, bildZahlen, bildZiel, inlineSvg, schiebeAuseinander, svgSeiten, wirksameDrehung, type BildBojeMitHalt, type BildWeg, type BildZuordnung } from '../../wkr/bild'
+import {
+  aufrechtTransform,
+  bildWege,
+  bildZahlen,
+  bildZiel,
+  inlineSvg,
+  schiebeAuseinander,
+  svgSeiten,
+  wirksameDrehung,
+  type BildBojeMitHalt,
+  type BildLage,
+  type BildWeg,
+  type BildZuordnung,
+} from '../../wkr/bild'
 import { bojenDisqVon, type Entwurf, type MaskenAufbau, type MaskenBoje } from '../../wkr/maske'
 import { bojenZelle } from '../../lib/disq'
 import WkrDisq from './WkrDisq.vue'
@@ -37,6 +50,11 @@ import { useWkrText } from './texte'
  *   ins Bild wählt die Boje, dann der Buchstabe (BD7), und seit 22.11.2026 (R8-23, LD1–LD4) ein langer Druck auf einen
  *   Trefferkreis direkt die Buchstaben DIESER Boje (components/wkr/langdruck.ts; der Tipp zählt beim Loslassen).
  * - Katalog-Teile gemischter Listen (Einfahrt Tor 5, MüB) stehen als Knöpfe unter dem Bild, auf ihrer Seite.
+ * - Lage nach Wahl des WKR (Nutzer 24.11.2026, WKR_ANNAHMEN BL1–BL5): `lageWahl` (0/90/180/270, „Mehr → Ansicht“) geht vor
+ *   der Drehung des Bogens und vor dem Platz (wkr/bild.ts wirksameDrehung). Die Trefferkreise folgen von selbst (sie
+ *   messen die gedrehten Bojen), die Ziffern der Zeichnung bleiben aufrecht (aufrechtTransform je `<text>`, BL4). Die
+ *   wirksame Drehung geht als `drehung` hinauf – „Mehr“ zeigt ohne eigene Wahl, wie die Zeichnung gerade liegt. Das
+ *   Schema (Rückfall ohne Parallel.svg) dreht nie.
  */
 const props = defineProps<{
   aufbau: MaskenAufbau
@@ -50,6 +68,8 @@ const props = defineProps<{
   /** Pad: Drehung wie auf dem Bogen, auch ±90°. */
   pad?: boolean
   gesperrt?: boolean
+  /** Lage, die der WKR gewählt hat (BL3, 24.11.2026); fehlt = wie der Bogen nach Gerät und Platz. */
+  lageWahl?: BildLage | null
 }>()
 const emit = defineEmits<{
   boje: [boje: MaskenBoje]
@@ -58,6 +78,8 @@ const emit = defineEmits<{
   weg: [weg: Weg]
   /** Die volle Wahl samt „Rück 2“ – WkrMitte merkt sie über ein Neu-Einhängen hinweg. */
   bildWeg: [weg: BildWeg]
+  /** Die wirksame Drehung der Zeichnung (0, ±90, 180, 270) – für „Mehr → Ansicht“ ohne eigene Wahl (BL1). */
+  drehung: [drehung: number]
 }>()
 const { w } = useWkrText()
 
@@ -147,8 +169,17 @@ const kataloge = computed(() =>
 const quelle = computed(() => (props.zuordnung.art === 'svg' && props.zuordnung.bild ? (parcoursSvg(props.zuordnung.bild.datei) ?? '') : ''))
 /** Freier Platz der Zeichnung (Breite der Fläche × max-height aus der CSS), gemessen; `null` vor dem ersten Messen. */
 const platz = ref<{ breite: number; hoehe: number } | null>(null)
-// ±90° nur, wo die gedrehte Zeichnung in den Platz passt (wkr/bild.ts wirksameDrehung, Prüfbefund 22.11.2026).
-const drehung = computed(() => wirksameDrehung(props.zuordnung.bild?.drehung ?? 0, { pad: !!props.pad, seiten: svgSeiten(quelle.value), platz: platz.value }))
+// ±90° nur, wo die gedrehte Zeichnung in den Platz passt (wkr/bild.ts wirksameDrehung, Prüfbefund 22.11.2026) – es sei
+// denn, der WKR hat die Lage gewählt (BL3, 24.11.2026): die gilt immer.
+const drehung = computed(() =>
+  wirksameDrehung(props.zuordnung.bild?.drehung ?? 0, { pad: !!props.pad, seiten: svgSeiten(quelle.value), platz: platz.value, wahl: props.lageWahl ?? null }),
+)
+// Nur die Zeichnung aus der Datei dreht; das Schema (Rückfall) steht immer aufrecht – also meldet es 0°.
+watch(
+  () => (props.zuordnung.art === 'svg' ? drehung.value : 0),
+  (d) => emit('drehung', d),
+  { immediate: true },
+)
 const svgText = computed(() => {
   const b = props.zuordnung.bild
   if (!b || !quelle.value) return ''
@@ -183,9 +214,32 @@ function messePlatz(f: HTMLElement, rahmen: DOMRect): void {
   const neu = breite > 0 && hoehe > 0 ? { breite, hoehe } : null
   if (neu?.breite !== platz.value?.breite || neu?.hoehe !== platz.value?.hoehe) platz.value = neu
 }
+/**
+ * Ziffern und Text der gedrehten Zeichnung aufrecht stellen (BL4, 24.11.2026; wkr/bild.ts aufrechtTransform). Braucht
+ * die Lage im Browser (getBBox) – ohne (Test-DOM) bleibt der Text, wie er ist. `data-aufrecht` markiert erledigte
+ * Elemente: v-html baut bei neuer Drehung frische Elemente, ein Neumessen (ResizeObserver) dreht nichts doppelt.
+ */
+function richteTexteAuf(f: HTMLElement): void {
+  if (props.zuordnung.art !== 'svg' || drehung.value % 360 === 0) return
+  for (const t of Array.from(f.querySelectorAll('.wkr-bild-svg text'))) {
+    const el = t as SVGGraphicsElement
+    if (el.hasAttribute('data-aufrecht') || typeof el.getBBox !== 'function') continue
+    let rahmen: { x: number; y: number; width: number; height: number }
+    try {
+      rahmen = el.getBBox()
+    } catch {
+      continue
+    }
+    const neu = aufrechtTransform(el.getAttribute('transform'), rahmen, drehung.value)
+    if (!neu) continue
+    el.setAttribute('transform', neu)
+    el.setAttribute('data-aufrecht', '')
+  }
+}
 function messen(): void {
   const f = flaeche.value
   if (!f) return
+  richteTexteAuf(f)
   const rahmen = f.getBoundingClientRect()
   messePlatz(f, rahmen)
   const echt: { id: string; x: number; y: number }[] = []
@@ -295,7 +349,14 @@ watch([svgText, schema], () => void nextTick(messen))
         :data-disq-wahl="disqWahl || undefined"
         :aria-label="zuordnung.racecourse ? w('wkr.geraet.bild.racecourse', { rc: zuordnung.racecourse }) : w('wkr.geraet.bild', { klasse })"
       >
-        <div ref="flaeche" class="wkr-bild-flaeche" data-teil="bild-flaeche" :data-drehung="drehung" :data-racecourse="zuordnung.racecourse">
+        <div
+          ref="flaeche"
+          class="wkr-bild-flaeche"
+          data-teil="bild-flaeche"
+          :data-drehung="drehung"
+          :data-lage="lageWahl ?? undefined"
+          :data-racecourse="zuordnung.racecourse"
+        >
           <!-- Gebündelte Zeichnung (lib/parcoursQuelle.ts), IDs mit Präfix – kein fremder Inhalt. -->
           <div v-if="svgText" class="wkr-bild-svg" aria-hidden="true" v-html="svgText" />
           <svg v-else-if="schema" class="wkr-bild-svg wkr-bild-schema" :viewBox="`0 0 ${schema.breite} ${schema.hoehe}`" aria-hidden="true" data-teil="bild-schema" :data-racecourse="schema.racecourse">

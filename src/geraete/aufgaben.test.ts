@@ -211,7 +211,7 @@ describe('erlaubteWkr (W1)', () => {
     expect(erlaubteWkr(zeilen('gate135', ...Array.from({ length: 8 }, (_, i) => z(erster, [], i + 1))), eigene, s, DMK, G)).not.toBeNull()
   })
 
-  it('Steg mit Teil (F16): fremder Teil abgelehnt; X nur Steg-Ablegen und Vorsteg (F5)', () => {
+  it('Steg mit Teil (F16): fremder Teil abgelehnt; X neben anderem nur Steg-Ablegen und Vorsteg (F5), allein überall (NG2)', () => {
     const { s, erster } = bereit()
     const ab = [{ art: 'liste', liste: K('steg'), teil: 'ab' }] as Aufgabe[]
     const an = [{ art: 'liste', liste: K('steg'), teil: 'an' }] as Aufgabe[]
@@ -219,7 +219,9 @@ describe('erlaubteWkr (W1)', () => {
     expect(erlaubteWkr(zeilen('steg', z(erster, [], 1, { t: 'an' })), ab, s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'teil-fremd' }])
     const x = erlaubteWkr(zeilen('steg', z(erster, [['disq@steg', 'X', '']])), ab, s, DMK, G)!
     expect([x.abgelehnt, x.action!.type === 'WKR_ZEILEN' && x.action!.zeilen[0].haken]).toEqual([[], ['erfasst.ab@steg']])
-    expect(erlaubteWkr(zeilen('steg', z(erster, [['disq@steg', 'X', '']])), an, s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'x-nicht-erlaubt' }])
+    // „Nicht gestartet“ (24.11.2026, NG2/NG4): X allein ins gemeinsame Feld auch vom Anlegen; neben einem Code nicht.
+    expect(erlaubteWkr(zeilen('steg', z(erster, [['disq@steg', 'X', '']])), an, s, DMK, G)!.abgelehnt).toEqual([])
+    expect(erlaubteWkr(zeilen('steg', z(erster, [['disq@steg', 'X', ''], ['katalog:stegAnlegen', '7', '']])), an, s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'x-nicht-erlaubt' }])
     expect(erlaubteWkr(zeilen('vorsteg', z(erster, [['disq@vorsteg', 'X', '']])), [{ art: 'liste', liste: K('vorsteg') }], s, DMK, G)!.abgelehnt).toEqual([])
     expect(erlaubteWkr(zeilen('gate135', z(erster, [['t1a|hin seiteA', 'X', '']])), [{ art: 'liste', liste: K('gate135') }], s, DMK, G)!.abgelehnt).toEqual([{ z: 1, grund: 'x-nicht-erlaubt' }])
   })

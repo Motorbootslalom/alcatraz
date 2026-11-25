@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ausgleichKg, gewichtsGruppen, gewichtText, parseGewicht } from './gewicht'
+import { AUSGLEICH_STUFE_VORGABE, ausgleichKg, ausgleichStufeWert, gewichtsGruppen, gewichtText, parseAusgleichStufe, parseGewicht, rundeAufStufe } from './gewicht'
 import type { ClassId, Starter } from '../types'
 
 const s = (klasse: ClassId, nachname: string, vorname: string, verein: string): Starter => ({
@@ -15,19 +15,25 @@ const s = (klasse: ClassId, nachname: string, vorname: string, verein: string): 
 })
 
 describe('Ausgleichsgewicht', () => {
-  it('rundet auf ganze kg, ab ,5 aufwärts', () => {
-    expect(ausgleichKg(30.5, 33)).toBe(3)
-    expect(ausgleichKg(32.6, 33)).toBe(0)
-    expect(ausgleichKg(9, 33)).toBe(24)
+  const kg1 = (gewicht: number | undefined, soll: number) => ausgleichKg(gewicht, soll, AUSGLEICH_STUFE_VORGABE)
+
+  it('rundet mit der Vorgabe (1 kg) wie vorher auf ganze kg, ab ,5 aufwärts', () => {
+    expect(AUSGLEICH_STUFE_VORGABE).toBe(1)
+    expect(kg1(30.5, 33)).toBe(3)
+    expect(kg1(32.6, 33)).toBe(0)
+    expect(kg1(9, 33)).toBe(24)
+    // Kein grundsätzliches Aufrunden (Nutzer 24.11.2026): 2,4 kg leichter → 2, 2,5 → 3.
+    expect(kg1(30.6, 33)).toBe(2)
+    expect(kg1(42.5, 45)).toBe(3)
   })
 
   it('braucht keines, wer das Durchschnittsgewicht erreicht', () => {
-    expect(ausgleichKg(33, 33)).toBeNull()
-    expect(ausgleichKg(40, 33)).toBeNull()
+    expect(kg1(33, 33)).toBeNull()
+    expect(kg1(40, 33)).toBeNull()
   })
 
   it('nennt für Ungewogene keinen Wert – nicht das volle Durchschnittsgewicht', () => {
-    expect(ausgleichKg(undefined, 33)).toBeUndefined()
+    expect(kg1(undefined, 33)).toBeUndefined()
   })
 
   it('liest Gewichte mit Komma, Punkt und Einheit', () => {
@@ -44,6 +50,50 @@ describe('Ausgleichsgewicht', () => {
     expect(gewichtText(28.7, 'en')).toBe('28.7')
     expect(gewichtText(26, 'de')).toBe('26')
     expect(gewichtText(26, 'en')).toBe('26')
+  })
+})
+
+describe('Kleinstes Zusatzgewicht – Rundung auf die Stufe (Nutzer 24.11.2026)', () => {
+  it('rundet auf das nächste Vielfache, genau in der Mitte aufwärts (Beispiele des Auftrags)', () => {
+    // Stufe 2 kg: 2,9 → 2; 3,0 → 4; 3,1 → 4; 0,9 → 0; 1,0 → 2.
+    expect([2.9, 3.0, 3.1, 0.9, 1.0].map((kg) => rundeAufStufe(kg, 2))).toEqual([2, 4, 4, 0, 2])
+    // Stufe 0,5 kg: 1,2 → 1,0; 1,25 → 1,5; 1,3 → 1,5.
+    expect([1.2, 1.25, 1.3].map((kg) => rundeAufStufe(kg, 0.5))).toEqual([1, 1.5, 1.5])
+    // Stufe 0,1 kg: das Gewicht selbst (auf 0,1 kg gewogen).
+    expect([0.3, 2.7, 0.05].map((kg) => rundeAufStufe(kg, 0.1))).toEqual([0.3, 2.7, 0.1])
+  })
+
+  it('rechnet in Gramm: kein Gleitkomma-Rest, die Mitte ist wirklich die Mitte', () => {
+    // 30,3 − 27,8 ist im Gleitkomma nicht genau 2,5 – in Gramm schon.
+    expect(ausgleichKg(27.8, 30.3, 1)).toBe(3)
+    expect(ausgleichKg(27.8, 30.3, 5)).toBe(5)
+    expect(ausgleichKg(28.0, 30.3, 0.1)).toBe(2.3)
+    expect(ausgleichKg(29.9, 30.3, 0.1)).toBe(0.4)
+    // Ungerade Grammzahl der Stufe (0,25 kg): 0,125 ist die Mitte → aufwärts.
+    expect([0.12, 0.125, 0.37, 0.375].map((kg) => rundeAufStufe(kg, 0.25))).toEqual([0, 0.25, 0.25, 0.5])
+    expect(String(ausgleichKg(44.3, 45, 0.1))).toBe('0.7')
+  })
+
+  it('Ausgleichsgewicht mit Stufe: weniger als eine halbe Stufe leichter = 0, gewogen und nicht leichter = keines', () => {
+    expect(ausgleichKg(64.1, 65, 2)).toBe(0)
+    expect(ausgleichKg(64, 65, 2)).toBe(2)
+    expect(ausgleichKg(58.4, 65, 2)).toBe(6)
+    expect(ausgleichKg(58.4, 65, 0.5)).toBe(6.5)
+    expect(ausgleichKg(65, 65, 2)).toBeNull()
+    expect(ausgleichKg(undefined, 65, 2)).toBeUndefined()
+  })
+
+  it('prüft die Stufe: Zahl in 0,1–10 kg, auf 10 g; Eingabe mit Komma', () => {
+    expect([0.1, 0.5, 1, 2, 10, 0.25].map(ausgleichStufeWert)).toEqual([0.1, 0.5, 1, 2, 10, 0.25])
+    expect([0, -1, 0.09, 10.5, NaN, Infinity, '1', null, undefined].map(ausgleichStufeWert)).toEqual(Array(9).fill(undefined))
+    expect(ausgleichStufeWert(0.333)).toBe(0.33)
+    expect(parseAusgleichStufe('0,5')).toBe(0.5)
+    expect(parseAusgleichStufe(' 2 kg')).toBe(2)
+    expect(parseAusgleichStufe('2.5')).toBe(2.5)
+    expect(parseAusgleichStufe('')).toBeUndefined()
+    expect(parseAusgleichStufe('viel')).toBeUndefined()
+    expect(parseAusgleichStufe('0')).toBeUndefined()
+    expect(parseAusgleichStufe('12')).toBeUndefined()
   })
 })
 

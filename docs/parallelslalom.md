@@ -289,7 +289,7 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
   (Actions `PARALLEL_RUNDE_FESTSCHREIBEN` / `PARALLEL_RUNDE_LOESEN`; wer fährt, rechnet der Reducer).
 - **„Alle Klassen weiter“** (19.11.2026): ein Knopf über den Klassen, sobald mindestens zwei so weit sind.
   Er schreibt für alle Klassen, für die Halbfinale bzw. Finals anstehen, die nächste Runde in einem Schritt fest –
-  nach dem Halbfinale Kleines Finale und Finale zusammen (Auslegung vom 21.11.2026, zu bestätigen:
+  nach dem Halbfinale Kleines Finale und Finale zusammen (Auslegung vom 21.11.2026, bestätigt am 24.11.2026:
   `PARALLEL_ANNAHMEN.finalsZusammen`; eine Klasse steht dann zweimal in der Action, gezählt werden Klassen)
   (Action `PARALLEL_RUNDEN_ALLE_FESTSCHREIBEN`, ein Verlaufseintrag; dieselbe Prüfung wie je Klasse:
   `alleWeiter` in `src/lib/parallelStage.ts`). Es bleiben – und stehen im Hinweis darunter: Klassen, deren Runde
@@ -373,8 +373,8 @@ Der Knopf heißt „… löschen“, nicht „lösen“ (Entscheidung vom 15.11.
   Entfällt der Plan des Vorlaufs bei offener Verzahnung, gehen die Pläne und Werte der Runden danach mit.
 
 **Annahmen** zu Fällen, die Regel 960 nicht regelt.
-Sie sind vom Veranstalter noch zu bestätigen, im Code gekennzeichnet und an einer Stelle umstellbar
-(`PARALLEL_ANNAHMEN` in `src/lib/parallelErgebnis.ts`):
+Der Veranstalter hat sie am 24.11.2026 alle bestätigt („Ja, Ja, Ja, Ja, Ja“); sie sind im Code gekennzeichnet und an
+einer Stelle umstellbar (`PARALLEL_ANNAHMEN` in `src/lib/parallelErgebnis.ts`):
 
 - 3 Gewertete im Vorlauf → Halbfinale mit Dummy; der Dritte hat Platz 3, ein Kleines Finale entfällt für die Klasse.
 - 2 Gewertete → direkt das Finale; 1 Gewerteter → Platz 1 aus dem Vorlauf.
@@ -417,7 +417,8 @@ Wer nach Wettkampfbeginn als „nicht gestartet“ eingetragen wird, bekommt das
 
 Etappe E4 des Plans zur Übernahme der Tafel (16.11.2026); das Allgemeine steht in
 [funktionen.md](funktionen.md#betrieb-start-freigabe-und-anzeigetafel). Unter DM gibt es den Bereich nicht.
-Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts`) und sind noch zu bestätigen.
+Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts`) und sind, wo nicht anders vermerkt,
+noch zu bestätigen.
 
 - **Bereich „Parallel slalom“** (`parallel`) hinter den Parcours, sobald jemand in einer Klasse bis 5 fährt
   oder eine Runde festgeschrieben ist (`src/betrieb/folge.ts`).
@@ -426,7 +427,8 @@ Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts
   Programm. Ein Re-run, der erst nach dem Halbfinale festgeschrieben wird, ordnet sich davor ein und wartet als
   nicht begonnene Runde („Vorlauf – Wiederholung beginnen“). Das Kleine Finale ist seit 21.11.2026 ein eigener
   Punkt (`runde:small`) vor dem Finale (`runde:final`); nach dem Kleinen Finale wird „Finale beginnen“ gedrückt wie
-  bei jedem Punkt (`BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`, zu bestätigen). Die Anzeigetafel zeigt „Small final ·
+  bei jedem Punkt (`BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`, bestätigt am 24.11.2026: „Beim Parallel sind die
+  einzelnen Stufen einzeln mit beginnen freizuschalten.“). Die Anzeigetafel zeigt „Small final ·
   Attempt 1“ bzw. „Final · Attempt 1“ (Sicht-Fassung 6: `SichtPaar` ohne `finale`).
 - **Die Runden laufen je Klasse für sich** (Halbfinale, Finals und Re-runs werden je Klasse festgeschrieben; Prüfung
   von E4, 16.11.2026, noch zu bestätigen): „Nachzuholen“ ist ein Start nur, wenn hinter ihm schon ein Start derselben
@@ -526,8 +528,12 @@ Ansicht „Listen → Wertungslisten → Einzelwertung“ und Teil „Einzelwert
   Dafür reicht ein Wert oder der Haken „erfasst“ der Knoten-Liste; unter der DM bleibt es unverändert.
 - Wer in einer Disziplin disqualifiziert ist, hat dort 0 Punkte.
 - Bei gleicher Punktsumme entscheidet nach Pkt. 5.2.6 die Zeit:
-  „the sum of his/her better manoeuvring attempt (including penalties) and both his/her parallel slalom attempts“.
-  Sie steht bei Punktgleichen in einer eigenen Spalte; ein Sternchen am Platz zeigt den Stichentscheid.
+  „the sum of his/her better manoeuvring attempt (including penalties) and both his/her parallel slalom attempts“ –
+  im Parallelslalom aus der letzten Runde, die er gefahren ist, bei gleicher Zeit dazu aus der vorletzten
+  (siehe [Festlegungen zum Stichentscheid](#festlegungen-zum-stichentscheid)).
+  Sie steht bei Punktgleichen in einer eigenen Spalte; ist auch die Zeit gleich und hat jeder dieser Gleichen eine
+  vorletzte Runde, steht deren Summe in Klammern dahinter – auch, wenn sie nichts trennt (die Spalte ist dann breiter).
+  Ein Sternchen am Platz zeigt den Stichentscheid.
 
 ### Disziplin nicht werten
 
@@ -581,13 +587,32 @@ Pkt. 5.1, 5.2.4.
 
 ### Festlegungen zum Stichentscheid
 
-Entscheidungen vom 15.11.2026 zu dem, was Pkt. 5.2.6 offen lässt;
+Entscheidungen des Nutzers zu dem, was Pkt. 5.2.6 offen lässt;
 an einer Stelle umstellbar: `EINZEL_FESTLEGUNGEN` in `src/lib/einzelwertung.ts`.
 
-- Es zählen der bessere Versuch des Manövrierens **mit** den Strafen der Knoten
-  und die beiden Attempts des Vorlaufs (nach einer Wiederholung deren Zeiten).
-- Wem für den Stichentscheid eine Zeit fehlt, weil er in einer Disziplin disqualifiziert ist,
-  steht **hinter** den Punktgleichen mit Zeit.
+- Es zählt der bessere Versuch des Manövrierens **mit** den Strafen der Knoten (15.11.2026).
+  Beleg (dem Nutzer am 24.11.2026 erklärt, aus der Regel abgeleitet): Pkt. 4.3 „Manoeuvring consists of: Tying knots
+  (point 4.3.1); Driving on the manoeuvring racecourse (point 4.3.2)“ und Pkt. 5.2.1 „best times including knots test
+  penalties“ – die Knoten gehören zum Manövrieren, nicht zum Parallelslalom.
+- Dazu im Parallelslalom (24.11.2026, `stichParallelRunde: 'letzteDannVorletzte'`; vorher die beiden Attempts des
+  Vorlaufs): „jeweils die letzte gefahrene Runde, wenn das nicht reicht zusätzlich auch die vorletzte Runde“.
+  - Erste Stufe: je Punktgleichem die Summe beider Attempts **seiner** zuletzt gefahrenen Runde –
+    Finale, Kleines Finale, Halbfinale oder Vorlauf, je nachdem, wie weit er kam.
+    Ein Re-run ersetzt die Zeiten der wiederholten Runde („After running again only the time of the re-run will be
+    taken into account.“); er ist keine eigene Runde.
+  - Zweite Stufe: Ist auch diese Zeit gleich, entscheidet die Summe seiner vorletzten gefahrenen Runde
+    (dazugezählt ändert sie die Reihenfolge genauso, deshalb wird nur sie verglichen und auf der Liste gezeigt).
+  - Wer nur den Vorlauf gefahren ist, hat keine vorletzte Runde: Dann entscheidet die zweite Stufe in seiner Gruppe
+    der Punkt- und Zeitgleichen nicht, die Gruppe teilt sich den Platz („dead-heat result“).
+  - Beim Bau ausgelegt (24.11.2026, vom Nutzer zu bestätigen; `gefahreneRunden`): Eine Runde, in der er keinen
+    Attempt gestartet ist – in keinem Attempt eine Zeit oder eine Disqualifikation außer X „Nicht gestartet“ (X in
+    beiden, oder X im einen und der andere leer) –, gilt nicht als gefahren; dann zählt die Runde davor.
+    Ein X neben einem gefahrenen Attempt und jede Disqualifikation lassen die Runde gefahren, aber ohne Zeit.
+    Ein Dummy als Gegner ändert nichts.
+    Folge (offen): Wer zur letzten Runde nicht antritt, behält die Zeit der Runde davor und steht so vor einem
+    Punktgleichen, der in seiner letzten Runde disqualifiziert wurde.
+- Wem für den Stichentscheid eine Zeit fehlt, weil er disqualifiziert ist (im Manövrieren oder in der Runde des
+  Parallelslaloms, die zählt), steht **hinter** den Punktgleichen mit Zeit.
   Eine Disqualifikation ist eine Wertung, damit letzter Platz unter den Punktgleichen.
-  Mehrere solche teilen sich diesen hinteren Platz.
+  Mehrere solche teilen sich diesen hinteren Platz (für sie gibt es keine zweite Stufe).
 - Der Fuß der Liste nennt die Regel auf jeder Seite mit Punktgleichen; mit nur einer Disziplin nur deren Zeit.

@@ -215,7 +215,16 @@ export default {
   'listopt.geraete.raumServer':
     'The open room was opened with {server}; a different server only applies to a new room (Operation → Devices: end room, then switch on again – with new links).',
   'listopt.geraete.daten':
-    'Only once device operation is switched on under “Operation → Devices” do these go via this server: start number, name (as set under “Names” of the display board), origin and class of the drivers, the order of starts with times, messages and the name of the event – encrypted and signed. The operator of the server sees no content, but times, sizes and IP addresses. Date of birth, weight, gender, entered values and logos never leave.',
+    'Only once device operation is switched on under “Operation → Devices” do these go via this server: start number, name (as set under “Names” of the display board), origin and class of the drivers, the order of starts with times, messages and the name of the event – encrypted and signed. The operator of the server sees no content, but times, sizes and IP addresses. Date of birth, weight, gender, entered values and logos never leave. Exception: the pontoon list of the race officials’ entry receives the extra weight of each driver (rounded to the step under “Average weights”) – for a lighter driver, the body weight can roughly be worked out from it.',
+
+  // Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026); „extra weight“ wie UIM 960 Pkt. 3.7 und die Liste „Extra weights“.
+  'listopt.ausgleich.stufe': 'Extra weight in steps of',
+  'listopt.ausgleich.kg': '{kg} kg',
+  'listopt.ausgleich.eigen': 'Other value …',
+  'listopt.ausgleich.eigenWert': 'Own value in kg',
+  'listopt.ausgleich.hint':
+    'The step is the smallest weight piece put into the boat at the pontoon. The extra weight is always a multiple of it – rounded to the nearest step, halves up (with 2 kg: 2.9 kg → 2 kg, 3 kg → 4 kg). A driver lighter by less than half a step gets none. This applies to the weighing, the lists and the pontoon device.',
+  'listopt.ausgleich.fehler': 'Please enter a number from {min} to {max} kg, e.g. {beispiel}. It stays at {kg} kg.',
 
   'origin.style.aus': 'hide',
   'origin.style.lang': 'full name',

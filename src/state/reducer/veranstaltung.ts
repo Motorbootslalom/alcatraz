@@ -11,6 +11,7 @@ import { LOGO_HOEHE_VORGABE_MM } from '../../lib/logo'
 import { anzeigeVorgabe, betriebLeer } from './betrieb'
 import { wkrLeer } from './wkr'
 import { istTag } from '../../lib/datum'
+import { AUSGLEICH_STUFE_VORGABE } from '../../domain/gewicht'
 
 export type VeranstaltungAenderung =
   | { type: 'SET_EVENT'; patch: Partial<Pick<AppState, 'eventName' | 'eventJahr' | 'laufCount'>> }
@@ -88,6 +89,8 @@ export function emptyState(): AppState {
     // Digitale WKR-Erfassung (W1, 21.11.2026): keine Liste digital, nichts offen.
     wkr: wkrLeer(),
     sollgewicht: {},
+    // Abstufung des Ausgleichsgewichts (24.11.2026): ganze kg wie vor der Einstellung.
+    ausgleichStufe: AUSGLEICH_STUFE_VORGABE,
     verzahnungLocked: false,
     showBirthdate: true,
     listOrigin: 'lang',

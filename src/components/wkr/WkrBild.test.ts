@@ -289,6 +289,73 @@ describe('WkrBild (W5.2)', () => {
     expect(w.find('[data-teil="bild"]').attributes('data-weg')).toBe('rueck')
   })
 
+  it('Lage nach Wahl des WKR (Nutzer 24.11.2026, BL3): geht vor Blick und Gerät, die wirksame Drehung geht als `drehung` hinauf', async () => {
+    const s = sicht('gate135')
+    const aufbau = maskeFuer(s, '7')!
+    const zuordnung = bildTreffer(s, '7', parcoursSvg)!
+    // Blick „hinten“ = 90° auf dem Bogen; ohne Wahl auf dem Handy liegend (0°).
+    expect(Math.abs(zuordnung.bild!.drehung)).toBe(90)
+    const gemeldet: number[] = []
+    const w = mount(WkrBild, {
+      props: { aufbau, entwurf: leererEntwurf(), zuordnung, klasse: aufbau.titel, startNr: '23', weg: 'hin', onDrehung: (d: number) => gemeldet.push(d) },
+    })
+    const flaeche = () => w.find('[data-teil="bild-flaeche"]')
+    expect(flaeche().attributes('data-drehung')).toBe('0')
+    expect(flaeche().attributes('data-lage')).toBeUndefined()
+    await w.setProps({ lageWahl: 270 })
+    expect(flaeche().attributes('data-drehung')).toBe('270')
+    expect(flaeche().attributes('data-lage')).toBe('270')
+    expect(w.find('.wkr-bild-svg').html()).toContain('<g transform="rotate(-90)">')
+    // „Steg unten“ ausdrücklich gewählt: 0° auch auf dem Pad (dort hätte der Bogen 90° gegeben, wo Platz ist).
+    await w.setProps({ lageWahl: 0, pad: true })
+    expect(flaeche().attributes('data-drehung')).toBe('0')
+    expect(gemeldet).toEqual([0, 270, 0])
+  })
+
+  it('Ziffern bleiben aufrecht (BL4): jedes <text> dreht um seine Mitte zurück – einmal, auch nach dem Neumessen', async () => {
+    const s = sicht('gate135')
+    const aufbau = maskeFuer(s, '3')!
+    const zuordnung = bildTreffer(s, '3', parcoursSvg)!
+    // Test-DOM ohne Layout: getBBox liefert für Text einen Rahmen, für alles andere nichts (wie happy-dom).
+    const bbox = vi.spyOn(SVGGraphicsElement.prototype, 'getBBox').mockImplementation(function (this: SVGGraphicsElement) {
+      return (this.tagName.toLowerCase() === 'text' ? new DOMRect(100, 200, 10, 20) : new DOMRect()) as DOMRect
+    })
+    // Der ResizeObserver misst neu – hier von Hand ausgelöst.
+    const alt = globalThis.ResizeObserver
+    let neuMessen: () => void = () => {}
+    globalThis.ResizeObserver = class {
+      constructor(f: () => void) {
+        neuMessen = f
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+    try {
+      const w = mount(WkrBild, { props: { aufbau, entwurf: leererEntwurf(), zuordnung, klasse: aufbau.titel, startNr: '23', weg: 'hin', lageWahl: 180 } })
+      await nextTick()
+      await nextTick()
+      const texte = w.findAll('.wkr-bild-svg text')
+      expect(texte.length).toBeGreaterThan(0)
+      for (const t of texte) {
+        expect(t.attributes('data-aufrecht')).toBe('')
+        expect(t.attributes('transform')).toMatch(/rotate\(-180 105 210\)$/)
+      }
+      // Ein zweites Messen (ResizeObserver) dreht nichts doppelt.
+      neuMessen()
+      await nextTick()
+      for (const t of w.findAll('.wkr-bild-svg text')) expect(t.attributes('transform')!.match(/rotate\(-180/g)).toHaveLength(1)
+      // 0°: neue Zeichnung, kein Text wird angefasst.
+      await w.setProps({ lageWahl: 0 })
+      await nextTick()
+      await nextTick()
+      expect(w.findAll('.wkr-bild-svg text[data-aufrecht]')).toHaveLength(0)
+    } finally {
+      bbox.mockRestore()
+      globalThis.ResizeObserver = alt
+    }
+  })
+
   it('Fläche neu nach „Disq. an Boje …“: der ResizeObserver zieht auf das neue Element um (Prüfbefund 22.11.2026)', async () => {
     const beobachtet: Element[] = []
     const alt = globalThis.ResizeObserver

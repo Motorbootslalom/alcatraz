@@ -5,6 +5,7 @@ import { erfasstKennung, listenFelder, type Feld, type ListenTeil } from '../lib
 import { bojenWert, codeDisqs, disqCodes } from '../lib/scoring'
 import { NICHT_GESTARTET } from '../lib/abmeldung'
 import { parseTime } from '../lib/time'
+import { codesUeberMax } from '../lib/codes'
 import { WKR_ANNAHMEN } from './annahmen'
 import { istTischListe, liesOhneLauf, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste, type OhneLaufRef } from './liste'
 import { hatVorab, vorabStarts } from './schlange'
@@ -30,14 +31,12 @@ export interface GeraeteZeile {
   k?: true
   /** Im Parallelslalom die Seite, die das Gerät erfasst (zur Gegenprobe). */
   seite?: 'A' | 'B'
-  /** Zellen: Feld-Kennung, neuer Wert, erwarteter Wert (`vorher`, beim ersten Abschicken leer). */
-  c: [feld: string, wert: string, vorher: string][]
   /**
-   * „Nicht vorbeigekommen“ (W4.3, 21.11.2026, P16, löst G15 ein): Das Boot kam an diesem Platz nicht vorbei (vorher
-   * aufgegeben, Abbruch). Nur mit leerem `c` – die Zeile trägt keinen Wert, nur Haken und Kennzeichen; nicht am Vorsteg
-   * und nicht im Steg-Ablegen (dort ist es X, F5).
+   * Zellen: Feld-Kennung, neuer Wert, erwarteter Wert (`vorher`, beim ersten Abschicken leer). „Nicht gestartet ·
+   * Disq. X“ (Nutzer 24.11.2026, WKR_ANNAHMEN NG1/NG2) ist eine gewöhnliche Zeile: X allein im Disq.-Feld der Liste.
+   * Das Kennzeichen „nicht vorbeigekommen“ (`n`, W4.3) gibt es seitdem nicht mehr.
    */
-  n?: true
+  c: [feld: string, wert: string, vorher: string][]
   /**
    * „Keine Zeit“ (W5.4, 22.11.2026, ZT4): je Zeitfeld ohne Zeit der Grund (`anlage`, `nichtImZiel`, `anderes`); die Zelle
    * des Felds bleibt leer. Steht `kz` (auch leer), ersetzt es das Kennzeichen des Starts – die Zeit-Maske schickt es
@@ -51,12 +50,12 @@ export interface GeraeteZeile {
  * - `start-unbekannt`: Kennung unlesbar, Start nicht im Bereich der Liste, eigene Seite leer, Starter gelöscht.
  * - `feld-fremd`: Feld steht nicht auf dieser Liste für die Klasse (oder doppelt), Klasse hat die Liste nicht.
  * - `wert-ungueltig`: Wert, den die Erfassungstabelle so nicht stehen ließe; kaputte Form der Zeile.
- * - `x-nicht-erlaubt`: X „nicht gestartet“ außerhalb von Steg-Ablegen und Vorsteg (F5).
+ * - `x-nicht-erlaubt`: X „nicht gestartet“ außerhalb von Steg-Ablegen und Vorsteg (F5) – außer als Zeile „Nicht
+ *   gestartet“ (X allein im Disq.-Feld, sonst nichts; seit 24.11.2026 auf jeder Liste, NG2).
  * - `teil-fremd`: Teil passt nicht zur Liste oder zur Kopplung; Feld eines anderen Teils.
  * - `seite-anders`: Im Parallelslalom eine andere Seite als die der Liste.
- * - `nv-nicht-erlaubt`: „Nicht vorbeigekommen“ am Vorsteg oder im Steg-Ablegen (dort gibt es X, F5) – W4.3, P16.
  */
-export type ZeilenFehler = 'start-unbekannt' | 'feld-fremd' | 'wert-ungueltig' | 'x-nicht-erlaubt' | 'teil-fremd' | 'seite-anders' | 'nv-nicht-erlaubt'
+export type ZeilenFehler = 'start-unbekannt' | 'feld-fremd' | 'wert-ungueltig' | 'x-nicht-erlaubt' | 'teil-fremd' | 'seite-anders'
 
 const istText = (x: unknown): x is string => typeof x === 'string'
 const istTeil = (x: unknown): x is ListenTeil => x === 'ab' || x === 'an'
@@ -69,10 +68,8 @@ function formOk(zeile: unknown): zeile is GeraeteZeile {
   if (z.t !== undefined && !istTeil(z.t)) return false
   if (z.k !== undefined && z.k !== true) return false
   if (z.seite !== undefined && z.seite !== 'A' && z.seite !== 'B') return false
-  // „Nicht vorbeigekommen“ nur ohne Zellen (W4.3): ein Wert dabei hieße doch vorbei – widersprüchlich, nicht raten.
-  if (z.n !== undefined && (z.n !== true || !Array.isArray(z.c) || z.c.length > 0)) return false
-  // „Keine Zeit“ (W5.4): Paare Feld + bekannter Grund, nie zusammen mit „nicht vorbeigekommen“ (dann gibt es nichts zu messen).
-  if (z.kz !== undefined && (z.n !== undefined || !Array.isArray(z.kz) || !z.kz.every((k) => Array.isArray(k) && k.length === 2 && istText(k[0]) && istKeineZeitGrund(k[1])))) return false
+  // „Keine Zeit“ (W5.4): Paare Feld + bekannter Grund.
+  if (z.kz !== undefined && (!Array.isArray(z.kz) || !z.kz.every((k) => Array.isArray(k) && k.length === 2 && istText(k[0]) && istKeineZeitGrund(k[1])))) return false
   return Array.isArray(z.c) && z.c.every((c) => Array.isArray(c) && c.length === 3 && c.every(istText))
 }
 
@@ -80,13 +77,16 @@ function formOk(zeile: unknown): zeile is GeraeteZeile {
  * Gilt der Wert so, wie er ist? Dieselben Sanierer wie die Erfassungstabelle: Boje, Fehlercode, Disq über
  * `Feld.gueltig` (sanitizeBuoy, normalizeCodeCell, sanitizeDisq mit den Buchstaben der Klasse), Punkte nur Ziffern,
  * Zeit lesbar (parseTime), Text getrimmt und höchstens WKR_ANNAHMEN.textMax Zeichen. Leer gilt immer (Zelle leeren).
+ * Seit 24.11.2026 (Nutzer, WKR_ANNAHMEN CM5): kein Code öfter als sein `max` (lib/codes.ts codesUeberMax) – die Maske
+ * zählt nie darüber, ein Gerät, das es doch schickt, rechnet anders als der Bedienrechner.
  */
 export function wertGilt(feld: Feld, wert: string): boolean {
   if (wert === '') return true
   if (wert.length > WKR_ANNAHMEN.textMax) return false
   switch (feld.kind) {
-    case 'buoy':
     case 'code':
+      return feld.gueltig(wert) === wert && codesUeberMax(wert, feld.katalog ?? []).length === 0
+    case 'buoy':
     case 'disq':
       return feld.gueltig(wert) === wert
     case 'points':
@@ -112,10 +112,11 @@ function hatX(feld: Feld, wert: string): boolean {
  * Prüft eine Zeile eines Geräts für eine Liste (gekoppelt mit `teil`, Steg F16) und löst sie auf. Prüft: Form,
  * Kennung des Starts und dass er im Bereich vorkommt (Folge oder gezeigt), die eigene Seite im Parallelslalom
  * (`seite-anders`), Klasse hat die Liste, jedes Feld gehört zur Liste (am Steg nur Felder des eigenen Teils plus
- * gemeinsame), jeder Wert unverändert gültig, X nur Steg-Ablegen/Vorsteg. Löst auf: Lauf-Schlüssel (Vorsteg mit
+ * gemeinsame), jeder Wert unverändert gültig, X nur Steg-Ablegen/Vorsteg – oder als Zeile „Nicht gestartet“ (X allein
+ * im Disq.-Feld, sonst nichts) auf jeder Liste (24.11.2026, NG2). Löst auf: Lauf-Schlüssel (Vorsteg mit
  * „Versuche nacheinander“: alle Versuche), Haken bzw. Teilhaken, `vereinige` für die gemeinsamen Zellen des Stegs
- * (Disq., Bemerkung), `gezeigt` (am Vorsteg auch die nächsten freien). Seit W5.3 (22.11.2026, KN2): auf der Liste am
- * Tisch (ohne Lauf) nur Starts `["o", starterId]`, immer `gezeigt`, nie „nicht vorbeigekommen“.
+ * (Disq., Bemerkung – nicht das X einer Zeile „Nicht gestartet“, Prüfbefund 24.11.2026), `gezeigt` (am Vorsteg auch die nächsten freien). Seit W5.3 (22.11.2026, KN2): auf der Liste am
+ * Tisch (ohne Lauf) nur Starts `["o", starterId]`, immer `gezeigt`.
  */
 export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil: ListenTeil | undefined, geraetId: string, zeile: unknown): WkrZeile | { fehler: ZeilenFehler } {
   if (!formOk(zeile)) return { fehler: 'wert-ungueltig' }
@@ -124,13 +125,7 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
   if ((teil !== undefined || zeile.t !== undefined) && !teile) return { fehler: 'teil-fremd' }
   if (teil !== undefined && zeile.t !== undefined && zeile.t !== teil) return { fehler: 'teil-fremd' }
   const eigenerTeil = zeile.t ?? teil
-  // „Nicht vorbeigekommen“ (W4.3, WKR_ANNAHMEN.nichtVorbeiNichtBeiX): Wo X erlaubt ist (Vorsteg, Steg-Ablegen, F5),
-  // kommt jedes Boot vorbei oder startet nicht – dort ist es X. Ein Gerät für den ganzen Steg schickt es nur mit Teil `an`.
-  const xHier = WKR_ANNAHMEN.xListen.includes(liste.typeId) && (!teile || eigenerTeil === undefined || eigenerTeil === WKR_ANNAHMEN.xTeil)
-  if (zeile.n && xHier) return { fehler: 'nv-nicht-erlaubt' }
-  // Am Tisch (Liste ohne Lauf, W5.3) kommt jeder Starter vorbei – „nicht vorbeigekommen“ gibt es dort nicht.
   const tisch = istTischListe(liste)
-  if (zeile.n && tisch) return { fehler: 'nv-nicht-erlaubt' }
 
   if (zeile.seite !== undefined && zeile.seite !== liste.racecourse) return { fehler: 'seite-anders' }
   // Am Tisch ist der Start der Starter (`["o", id]`, KN2) – keine Folge, nichts gezeigt; sonst nur Starts, die es im
@@ -151,6 +146,11 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
   if (!konfig.positionAllowsClass(liste.typeId, klasse)) return { fehler: 'feld-fremd' }
 
   const felder = new Map(listenFelder(konfig, liste.typeId, klasse).map((f) => [f.kennung, f]))
+  // „Nicht gestartet · Disq. X“ (Nutzer 24.11.2026, WKR_ANNAHMEN NG2): X allein im Disq.-Feld der Liste (am Steg das
+  // gemeinsame), jede andere Zelle der Zeile leer – so schickt „Mehr → Nicht gestartet“ es. Diese Zeile gilt auf jeder
+  // Liste und in jedem Steg-Teil; die Grenze von F5 (X nur Steg-Ablegen/Vorsteg) gilt nur noch für X neben anderem bzw.
+  // in anderen Zellen (das bieten nur die Knöpfe dort an, NG3). X allein hält auch BZ2 ein.
+  const nurXIn = (kennung: string) => zeile.c.every(([f, w]) => (f === kennung ? w === NICHT_GESTARTET : w === ''))
   const zellen: WkrZeile['zellen'] = []
   const gesehen = new Set<string>()
   for (const [kennung, wert, vorher] of zeile.c) {
@@ -160,13 +160,19 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
     const teilDerZelle = teilVonZelle(liste.typeId, feld.zelle)
     if (eigenerTeil !== undefined && teilDerZelle !== eigenerTeil && teilDerZelle !== 'gemeinsam') return { fehler: 'teil-fremd' }
     if (!wertGilt(feld, wert) || vorher.length > WKR_ANNAHMEN.textMax) return { fehler: 'wert-ungueltig' }
+    const nichtGestartet = feld.kind === 'disq' && nurXIn(kennung)
     if (hatX(feld, wert)) {
       const xListe = WKR_ANNAHMEN.xListen.includes(liste.typeId)
       // Am Steg nur im Teil Ablegen – auch ein Gerät für den ganzen Steg nicht in der Spalte des Anlegens.
       const xTeil = !teile || ((eigenerTeil === undefined || eigenerTeil === WKR_ANNAHMEN.xTeil) && (teilDerZelle === 'gemeinsam' || teilDerZelle === WKR_ANNAHMEN.xTeil))
-      if (!xListe || !xTeil) return { fehler: 'x-nicht-erlaubt' }
+      if (!(xListe && xTeil) && !nichtGestartet) return { fehler: 'x-nicht-erlaubt' }
     }
-    zellen.push({ feld: kennung, wert, vorher, ...(teilDerZelle === 'gemeinsam' ? { vereinige: true as const } : {}) })
+    // „Nicht gestartet“ am Steg (Prüfbefund 24.11.2026, NG6): Das X wird im gemeinsamen Disq.-Feld NICHT mit dem
+    // vereinigt, was der andere Teil dort schon gesetzt hat („A“ vom Ablegen + X vom Anlegen gäbe still „A, X“ – X steht
+    // nie neben anderen Buchstaben, BZ2). Ohne `vereinige` wird eine andere Belegung eine gewöhnliche Rückfrage `zelle`,
+    // wie an jeder anderen Liste; steht das Feld leer oder schon X, gilt die Zeile direkt.
+    const vereinige = teilDerZelle === 'gemeinsam' && !nichtGestartet
+    zellen.push({ feld: kennung, wert, vorher, ...(vereinige ? { vereinige: true as const } : {}) })
   }
 
   // „Keine Zeit“ (W5.4, ZT4): nur für Zeitfelder dieser Liste und Klasse (sonst `feld-fremd`), je Feld einmal, und die
@@ -195,7 +201,6 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
     // Am Tisch gibt es kein Zeigen: Jeder Starter des Bestands gilt als „da“ (KN3).
     gezeigt: tisch || istGezeigt(stand, liste, zeile.s, start.starter.id, start.weitere.length > 0, eigenerTeil),
     korrektur: zeile.k === true,
-    ...(zeile.n ? { nichtVorbei: true as const } : {}),
     ...(keineZeit ? { keineZeit } : {}),
   }
 }

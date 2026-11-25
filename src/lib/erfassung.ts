@@ -2,6 +2,7 @@ import type { Eingaben } from '../types'
 import { erfasstKennung, istHaken, laufSchluessel, listenFelder, listenLauf, werteVon, type EingabenKonfig, type Feld } from './eingaben'
 import { bojenWert, codeDisqs, disqCodes } from './scoring'
 import { parseTime } from './time'
+import { codesUeberMax } from './codes'
 import { NICHT_GESTARTET } from './abmeldung'
 import { auftragZeilen, type BogenZeile } from './bogen'
 
@@ -41,13 +42,19 @@ export interface Fortschritt {
  * - `versucheAbweichend`: Die Zeile gilt für jeden Versuch (Vorsteg mit „Versuche direkt
  *   nacheinander“), aber ein späterer Versuch trägt auf dieser Liste etwas anderes als der
  *   erste ({@link versucheAbweichend}).
+ * - `codeZuOft` (Nutzer 24.11.2026, WKR_ANNAHMEN CM6): Ein Fehlercode steht öfter, als er in
+ *   einem Lauf vorkommen kann (lib/codes.ts codesUeberMax – „2x1“ an Tor 5).
+ * - `codeDanach`: ebenso bei einem Code mit Buchstaben danach („3x6“: der 4. Versuch ist
+ *   Disq. D) – Frage „Disq. D?“. Gesetzt wird nichts: Das Papier entscheidet.
  */
-export type HinweisArt = 'zeitFehlt' | 'zeitEinzeln' | 'zeitSpanne' | 'zeitBereich' | 'bojePunkte' | 'versucheAbweichend'
+export type HinweisArt = 'zeitFehlt' | 'zeitEinzeln' | 'zeitSpanne' | 'zeitBereich' | 'bojePunkte' | 'versucheAbweichend' | 'codeZuOft' | 'codeDanach'
 
 export interface Hinweis {
   art: HinweisArt
   /** Die betroffene Zelle des Bogens („zeit1“, „t1a#0“); fehlt = die ganze Zeile. */
   zelle?: string
+  /** Platzhalter des Texts (`capture.hint.<art>`), z. B. Code und Höchstzahl. */
+  werte?: Record<string, string | number>
 }
 
 /** Mehr als so viele Hundertstel zwischen zwei Stoppuhren gelten als auffällig. */
@@ -195,6 +202,14 @@ export function zeilenHinweise(felder: readonly Feld[], werte: Werte, alleFelder
     } else if (feld.kind === 'time') {
       const zeit = parseTime(wert)
       if (!zeit || zeit.centis < ZEIT_MIN || zeit.centis > ZEIT_MAX) hinweise.push({ art: 'zeitBereich', zelle: feld.zelle })
+    } else if (feld.kind === 'code') {
+      // Höchstzahl je Code (CM6): nicht still kürzen – hinweisen, je Code einmal.
+      for (const z of codesUeberMax(wert, feld.katalog ?? []))
+        hinweise.push(
+          z.danach !== undefined
+            ? { art: 'codeDanach', zelle: feld.zelle, werte: { code: z.code, n: z.max, disq: z.danach } }
+            : { art: 'codeZuOft', zelle: feld.zelle, werte: { code: z.code, n: z.max } },
+        )
     }
   }
 

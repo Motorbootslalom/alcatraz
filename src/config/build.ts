@@ -131,7 +131,14 @@ function resolveTokens(text: string, tokens: Record<string, string>): string {
 }
 
 function katalogRows(kat: RawKatalog | undefined, t: Uebersetzer): ErrorDef[] | undefined {
-  return kat?.fehler.map((f) => ({ code: String(f.code), text: t(f.text, f.en), punkte: f.punkte }))
+  // Höchstzahl und Buchstabe danach (24.11.2026) nur, wo das YAML sie nennt – Bogen und Legende lesen sie nicht.
+  return kat?.fehler.map((f) => ({
+    code: String(f.code),
+    text: t(f.text, f.en),
+    punkte: f.punkte,
+    ...(f.max !== undefined ? { max: f.max } : {}),
+    ...(f.danach !== undefined ? { danach: String(f.danach) } : {}),
+  }))
 }
 
 function katalogTitel(kat: RawKatalog, t: Uebersetzer): string | undefined {

@@ -31,7 +31,7 @@ import {
   type MaskenBoje,
   type MaskenHalt,
 } from '../../wkr/maske'
-import type { BildZuordnung } from '../../wkr/bild'
+import type { BildLage, BildZuordnung } from '../../wkr/bild'
 import { bildWege } from '../../wkr/bild'
 import WkrBild from './WkrBild.vue'
 import WkrBojen from './WkrBojen.vue'
@@ -50,11 +50,11 @@ import { useWkrText } from './texte'
  * (Karte, Knöpfe bzw. Vorsteg, Fuß) mit dem Start „P“ – aber ohne Quelle: Es wird nichts gesendet, nichts als Entwurf
  * abgelegt, der Bedienrechner sieht die Probe nicht. Schritte (immer mit „Überspringen“):
  *
- * - Katalog (Tor 5, MüB, Steg-Teil): Code <erster Code> tippen → „− letzte zurück“ → Hauptknopf (Fehlerfrei bzw.
+ * - Katalog (Tor 5, MüB, Steg-Teil): Code <erster Code> tippen → „↶ Rückgängig“ → Hauptknopf (Fehlerfrei bzw.
  *   Ablegen/Anlegen OK).
  * - Vorsteg: zweimal X, dann „Abbrechen“ (die große Rückfrage, F5) → „In Ordnung“.
  * - Bojen (W4.2, Plan docs/plan-wkr-w4.md §5.3, P11, 21.11.2026): Boje antippen (erste zweibojige Zeile, linker
- *   Knopf; ohne eine solche die erste Boje) → „− letzte zurück“ → nur mit Zähler: Tor 5 zweimal (2 Berührungen) →
+ *   Knopf; ohne eine solche die erste Boje) → „↶ Rückgängig“ → nur mit Zähler: Tor 5 zweimal (2 Berührungen) →
  *   nur mit Umschalter: „Rückweg“ → Hauptknopf. Katalog-Teile gemischter Listen übt sie nicht (wie W3).
  *   Nutzer 21.11.2026: vor dem Hauptknopf „Disq. an Boje“ (U4: rechter Knopf der ersten zweibojigen Zeile, erster
  *   Buchstabe) – seit W4-12 (21.11.2026, BZ1/BZ4) mit Punkt UND Buchstabe: Boje antippen, „Disq. an Boje …“, in der
@@ -92,6 +92,8 @@ const props = defineProps<{
   /** Maske „Bild“ (W5.2): Zuordnung der Probe-Klasse (wkr/bild.ts probeBild); fehlt = Probe der Knöpfe. */
   bild?: BildZuordnung | null
   pad?: boolean
+  /** Lage des Bilds nach Wahl des WKR (Nutzer 24.11.2026, BL3): die Probe am Bild liegt wie die Maske. */
+  bildLage?: BildLage | null
 }>()
 const emit = defineEmits<{ fertig: [] }>()
 const { w } = useWkrText()
@@ -249,7 +251,7 @@ function waehleWeg(x: Weg): void {
 }
 function tippeCode(feld: string, code: string): void {
   if (gesperrt.value) return
-  entwurf.value = tippe(entwurf.value, feld, code)
+  entwurf.value = tippe(entwurf.value, props.aufbau, feld, code)
   if (art.value === 'code' && code === ersterCode.value?.code) weiter()
 }
 function zurueckTipp(): void {
@@ -400,6 +402,7 @@ const start = computed(() => ({ startNr: 'P', titel: w('wkr.geraet.probe.titel')
           start-nr="P"
           :weg="weg"
           :pad="pad"
+          :lage-wahl="bildLage ?? null"
           @boje="tippeBojeKnopf"
           @boje-disq="setzeBojenDisq"
           @tippe="tippeCode"

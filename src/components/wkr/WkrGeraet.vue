@@ -29,7 +29,8 @@ import '../../styles/wkr-geraet.css'
  * Ansicht aus der Geräteablage (ablage.ts `alcatraz.geraet.ansicht`): seit 21.11.2026 „Wie Gerät“ als Vorgabe (GF1,
  * Nutzer P-18/W3-01: Hell/Dunkel des Systems, live über systemModus.ts; vorher Sonne, G1), Hand, Sprache;
  * seit 22.11.2026 auch die Bojen-Folge je Liste (`bojenFolge`: Rückweg gedreht/Fahrtfolge/untereinander), die Maske
- * und Probe bekommen (vorher „Wie der Parcours liegt“, `bojen`, entfernt).
+ * und Probe bekommen (vorher „Wie der Parcours liegt“, `bojen`, entfernt); seit 24.11.2026 ebenso die Lage des Bilds je
+ * Liste (`bildLage`: Steg unten/links/oben/rechts, BL3).
  * Die Sprache der Maske ist die der Liste (F13, G9: zweisprachig → deutsch), umgeschaltet über die Ansicht – nie die
  * der Geräte-Oberfläche. Farben nur über --wkr-* (styles/wkr-geraet.css) je `data-modus` – dem wirksamen Modus
  * (`data-wahl` trägt die Wahl, auch `geraet`).
@@ -300,6 +301,7 @@ const imBand = (liste: string) => !!rundenBand.value && !!liesListe(liste)?.race
             :hand="ansicht.hand"
             :uebung="quelle.uebung"
             :bojen-folge="ansicht.bojenFolge?.[x.aufgabe.liste]"
+            :bild-lage="ansicht.bildLage?.[x.aufgabe.liste] ?? null"
             @fertig="probeFertig(x.aufgabe.liste)"
           />
           <WkrPruefliste
@@ -323,6 +325,7 @@ const imBand = (liste: string) => !!rundenBand.value && !!liesListe(liste)?.race
             :modus="ansicht.modus"
             :name="ansicht.name ?? ''"
             :bojen-folgen="ansicht.bojenFolge"
+            :bild-lagen="ansicht.bildLage"
             :meldung="meldungFuer?.(x.aufgabe.liste) ?? null"
             :seite="seiteVon"
             :steg-teil="x.spalte.teil"

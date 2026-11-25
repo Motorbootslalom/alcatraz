@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { ausgleichAmSteg, ausgleichListen, ausgleichVon, type AusgleichStand } from './ausgleich'
-import type { ClassId, Starter } from '../types'
+import type { AppState, ClassId, Starter } from '../types'
+import { emptyState, reducer } from '../state/reducer'
+import { migrate } from '../state/migrate'
+import { makeFile, parseFile } from '../persistenz/backup'
+import { teamListen } from './teamListe'
+import { configFor } from '../config/konfig'
+import { sichtListe } from '../wkr/sicht'
+import { listenKennung, type Liste } from '../wkr/liste'
+import { BETRIEB_STARTER, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 
 // Ausgleichsgewichte für den Steg. Alle Starter sind erfunden.
 
@@ -20,6 +28,7 @@ const starter = (klasse: ClassId, nr: string, gewicht?: number): Starter => ({
 const stand = (mehr: Partial<AusgleichStand> = {}): AusgleichStand => ({
   regelwerk: 'dm-2026',
   sollgewicht: {},
+  ausgleichStufe: 1,
   boote: {},
   coPiloten: {},
   // Absichtlich ungeordnet: Die Liste ordnet nach Startnummer.
@@ -82,5 +91,84 @@ describe('Ausgleichsgewicht je Starter – eine Rechnung für Papier und Steg-Ge
     const st = stand({ sollgewicht: { '4': 0 } })
     expect([ausgleichAmSteg(st, { klasse: '4', gewicht: 50 }), ausgleichAmSteg(st, { klasse: '4' })]).toEqual([null, null])
     expect(ausgleichAmSteg(st, { klasse: 'E', gewicht: 20.5 })).toBe(6)
+  })
+})
+
+describe('Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026: „wie kleinteilig die Zusatzgewichte sind“)', () => {
+  it('Vorgabe 1 kg = wie vorher; jede Stelle rundet über dieselbe Rechnung auf die Stufe, ab der Hälfte aufwärts', () => {
+    expect(emptyState().ausgleichStufe).toBe(1)
+    // Klasse 4 (65 kg): 58,4 → 6,6 kg leichter; 64,6 → 0,4; Klasse E (26 kg): 20,5 → 5,5.
+    const mit = (ausgleichStufe: number) => ausgleichListen(stand({ ausgleichStufe })).flatMap((l) => l.zeilen.map((z) => z.ausgleich))
+    expect(mit(1)).toEqual([6, undefined, 7, null, null, 0])
+    expect(mit(2)).toEqual([6, undefined, 6, null, null, 0])
+    expect(mit(0.5)).toEqual([5.5, undefined, 6.5, null, null, 0.5])
+    expect(mit(0.1)).toEqual([5.5, undefined, 6.6, null, null, 0.4])
+    expect(mit(5)).toEqual([5, undefined, 5, null, null, 0])
+    // Am Steg dieselbe Zahl; ohne Stufe (nur die Übung auf dem Gerät hat keinen Stand) gilt die Vorgabe.
+    const st = stand({ ausgleichStufe: 0.5 })
+    expect([ausgleichAmSteg(st, { klasse: '4', gewicht: 58.4 }), ausgleichAmSteg(st, { klasse: '4', gewicht: 64.6 }), ausgleichAmSteg(st, { klasse: '4' })]).toEqual([6.5, 0.5, 'fehlt'])
+    expect(ausgleichVon({ regelwerk: 'dm-2026', sollgewicht: {} }, { klasse: '4', gewicht: 58.4 })).toBe(7)
+  })
+
+  it('Einstellung: SET_AUSGLEICH_STUFE nimmt 0,1–10 kg (auf 10 g), sonst bleibt der Stand derselbe', () => {
+    const leer = emptyState()
+    const halb = reducer(leer, { type: 'SET_AUSGLEICH_STUFE', kg: 0.5 })
+    expect(halb.ausgleichStufe).toBe(0.5)
+    expect(reducer(halb, { type: 'SET_AUSGLEICH_STUFE', kg: 0.5 })).toBe(halb)
+    for (const kg of [0, -2, 0.05, 10.01, 12, NaN, Infinity]) expect(reducer(halb, { type: 'SET_AUSGLEICH_STUFE', kg }), String(kg)).toBe(halb)
+    expect(reducer(halb, { type: 'SET_AUSGLEICH_STUFE', kg: 0.254 }).ausgleichStufe).toBe(0.25)
+    expect(reducer(halb, { type: 'SET_AUSGLEICH_STUFE', kg: 10 }).ausgleichStufe).toBe(10)
+  })
+
+  it('migrate: fehlt oder unbrauchbar → 1 kg (ganze kg wie vorher), sonst bleibt sie', () => {
+    const roh = (ausgleichStufe: unknown) => {
+      const { ausgleichStufe: _weg, ...rest } = emptyState()
+      return ausgleichStufe === undefined ? rest : { ...rest, ausgleichStufe }
+    }
+    expect(migrate(roh(undefined))!.ausgleichStufe).toBe(1)
+    for (const kaputt of ['2', null, 0, -1, 50, {}]) expect(migrate(roh(kaputt))!.ausgleichStufe, JSON.stringify(kaputt)).toBe(1)
+    expect(migrate(roh(2))!.ausgleichStufe).toBe(2)
+    expect(migrate(roh(0.25))!.ausgleichStufe).toBe(0.25)
+  })
+
+  it('reist als Einstellung mit Sicherung und Vorlage (wie die Durchschnittsgewichte)', () => {
+    const quelle = reducer(reducer(emptyState(), { type: 'SET_AUSGLEICH_STUFE', kg: 2 }), { type: 'SET_SOLLGEWICHT', klasse: '4', kg: 66 })
+    const vorlage = makeFile('vorlage', quelle, '2026-11-24T00:00:00.000Z')
+    expect(vorlage.kind === 'vorlage' && vorlage.settings).toMatchObject({ ausgleichStufe: 2, sollgewicht: { '4': 66 } })
+    const gelesen = parseFile(JSON.stringify(vorlage))
+    expect(gelesen.ok && gelesen.kind === 'vorlage' && gelesen.apply(emptyState()).ausgleichStufe).toBe(2)
+    const sicherung = parseFile(JSON.stringify(makeFile('sicherung', quelle, '2026-11-24T00:00:00.000Z')))
+    expect(sicherung.ok && sicherung.kind === 'sicherung' && sicherung.state.ausgleichStufe).toBe(2)
+  })
+
+  it('die Liste nach Regel 960 Pkt. 3.7 rechnet dieselbe Zahl', () => {
+    const starter = stand().starters
+    const uim: AppState = { ...emptyState(), regelwerk: 'uim-2026', originMode: 'verein', starters: starter, ausgleichStufe: 0.5 }
+    const zeilen = teamListen(uim).flatMap((l) => l.zeilen)
+    // UIM Klasse 4 = 64 kg: 58,4 → 5,6 kg leichter → 5,5 bei 0,5 kg; jede Zeile wie ausgleichVon.
+    for (const z of zeilen) expect(z.ausgleich, z.starter.startNr).toBe(ausgleichVon(uim, z.starter))
+    expect(zeilen.find((z) => z.starter.startNr === '401')?.ausgleich).toBe(5.5)
+  })
+
+  it('Steg-Gerät: die Sicht trägt die gerundete Zahl, mit Stufe 0,5 kg auch mit Nachkommastelle – nie ein Gewicht', () => {
+    const DM = configFor({ regelwerk: 'dm-2026' })
+    const STEG: Liste = { bereich: 'par_1', typeId: 'steg', racecourse: null }
+    // Klasse 1 (DM 33 kg): k1 31,5 kg → 1,5; k2 32,6 → 0,4. Klasse E (26 kg): e1 24 → 2.
+    const kg: Record<string, number> = { e1: 24, k1: 31.5, k2: 32.6 }
+    const basis = (ausgleichStufe: number) => {
+      let s = wkrBetriebsStand(BETRIEB_STARTER.map((p) => (p.id in kg ? { ...p, gewicht: kg[p.id] } : p)))
+      s = reducer(s, { type: 'SET_AUSGLEICH_STUFE', kg: ausgleichStufe })
+      s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(STEG), modus: 'digital', zeit: 100 })
+      return zeigeNaechsten(zeigeNaechsten(s, 'par_1', 1000), 'par_1', 1100)
+    }
+    const werte = (ausgleichStufe: number) => {
+      const sicht = sichtListe(basis(ausgleichStufe), DM, STEG, { geraete: {} })
+      return Object.fromEntries([...sicht.schlange, ...sicht.danach].filter((x) => ['E01', '101', '102'].includes(x.startNr)).map((x) => [x.startNr, x.ausgleich]))
+    }
+    expect(werte(1)).toEqual({ E01: 2, '101': 2, '102': 0 })
+    expect(werte(0.5)).toEqual({ E01: 2, '101': 1.5, '102': 0.5 })
+    expect(werte(2)).toEqual({ E01: 2, '101': 2, '102': 0 })
+    const text = JSON.stringify(sichtListe(basis(0.5), DM, STEG, { geraete: {} }))
+    for (const verboten of ['31.5', '32.6', '"gewicht"']) expect(text, verboten).not.toContain(verboten)
   })
 })

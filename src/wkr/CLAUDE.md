@@ -12,7 +12,8 @@ gebaut 21.11.2026, K1–K9 noch zu bestätigen; W3.4 (Liste abschließen, Probe,
 21.11.2026, L1–L9 noch zu bestätigen – W3 fertig, Feldtest offen. W4 (Bojen-Maske, Plan docs/plan-wkr-w4.md): W4.1
 (reine Bojen-Logik, Sicht, Maske) gebaut 21.11.2026, P1–P15 noch zu bestätigen; W4.2 (Handy-Maske Bojen, Probe, Übung,
 components/wkr/WkrBojen.vue) gebaut 21.11.2026, P17 und Q1–Q7 noch zu bestätigen; W4.3 („Nicht vorbeigekommen“, löst
-G15 ein) gebaut 21.11.2026, P16 und R1–R8 noch zu bestätigen – W4 fertig, Feldtest offen.
+G15 ein) gebaut 21.11.2026 – seit 24.11.2026 ersetzt durch „Nicht gestartet · Disq. X“ (NG1–NG8, unten) – W4 fertig,
+Feldtest offen.
 **Antworten 21.11.2026 abends** (Fragenseite Runden 3–6): G–T bestätigt bis auf G1, G3, G6, G11, G13, G15, J1–J3,
 K7, L3, L4, M5, N4 (Teil), N8, P9/U2, P10/Q2, T9 und die Form von P16/R (künftig Disq. J) – je Eintrag in annahmen.ts
 vermerkt, noch nicht umgebaut (docs/entscheidungen.md „Antworten 21.11.2026 abends (Runden 3–6)“). Umgebaut 21.11.2026
@@ -23,7 +24,10 @@ ersetzt U2/P9): „5J“, DISQ auf Bojen-Listen fragt immer erst die Boje. Umgeb
 zu bestätigen): **Gerät-Feinschliff** – Ansicht „Wie Gerät“, Codes anderer Klassen ausgegraut (YAML `abKlasse`),
 Steg-Reiter immer mit ✓/Zahl, Übung mit Erklärung und „Übung beenden“, „So lassen“ an den Bedienrechner
 (WKR_SO_LASSEN), erste Liste ohne Neuladen, Geräteart beim Koppeln, bis vier Listen (Pad quer nebeneinander), Freigabe
-nie vorgewählt, Klassenwechsel-Band nur beim ersten Start + Parcours-Zeichnung, „nicht vorbeigekommen“ = Disq. J.
+nie vorgewählt, Klassenwechsel-Band nur beim ersten Start + Parcours-Zeichnung, „nicht vorbeigekommen“ = Disq. J
+(GF10/GF11, ersetzt 24.11.2026). **Nutzer 24.11.2026**: „‚Nicht vorbeigekommen Disq J‘ ist falsch. Das meint hier eher
+‚Nicht gestartet Disq X‘.“ – „Mehr → Nicht gestartet · Disq. X“ auf jeder Liste mit Disq.-Feld, ein gewöhnliches X (NG1–NG8,
+NG4–NG6 noch zu bestätigen); Kennzeichen ⊘ samt WkrStand.nichtVorbei, GeraeteZeile.n und wkr/nichtVorbei.ts entfernt.
 Umgebaut 21.11.2026 (Plan §6, WN1–WN3 noch zu bestätigen): **WKR-Name aus der Einteilung** (W3-13, ersetzt G11/L4) –
 Sicht der eigenen Liste trägt `wkrName`, Gerät ändert unter „Mehr → Name“, Bedienrechner zeigt Abweichungen.
 W5 (Pad, Plan docs/plan-wkr-w5.md): W5.1 (Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl) gebaut 22.11.2026,
@@ -49,7 +53,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 
 - `annahmen.ts` – WKR_ANNAHMEN: alle Auslegungen mit Datum (Plan §9, „noch zu bestätigen“), Zahlen (Bündel 8, Schlange
   12, danach 5, zuletzt 20, Lebenszeichen 60 s), Steg-Teile nach Spalten-Key (`fehlerAB`/`fehlerAN`, gemeinsam
-  `disq`/`bemerkung`), X nur Steg-Ablegen und Vorsteg (F5), `vorabListen` (Vorsteg sieht die nächsten), Knoten seit W5.3 (`listenOhneLaufErstW5` false).
+  `disq`/`bemerkung`), X nur Steg-Ablegen und Vorsteg (F5 – seit 24.11.2026 nur noch für X neben anderem bzw. die
+  Disq.-Knöpfe, NG2/NG3), `vorabListen` (Vorsteg sieht die nächsten), Knoten seit W5.3 (`listenOhneLaufErstW5` false).
   W2 (A1–A13, 21.11.2026, bestätigt 21.11.2026): matrixStarts 12, rueckstandVorgabe 2 → seit N8 1 (Grenzen 1–20), ampelStillSek 90,
   ampelWegSek 300, papierStartVorschlag (A6), papierAbMeldetAb (A10), papierAnsehen (A5) …; W2.2 beim Bau B1–B6
   (Zähler nur Rückfragen, Modus ohne Gerät, „Weiter“ mit Hinweis, Papier-ab-Vorgabe, Karte, `zuletzt` gedrosselt);
@@ -84,9 +89,13 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   ab MEHR Zeilen), klassenWechselMs 2000 (erst W4.2); Merker bojenAmFahrweg, zaehlerNurTor5, tor1ZweiZeilen, fahrtfolge,
   seitenNachBlick, disqNieInBoje (seit 21.11.2026 `false`, ersetzt durch U1), probeMeisteZeilen, uebungBojen, bojenFehlerfrei, bojenTexteWieBogen, bojenInSicht;
   W4.2 bojenStartnr80 (P17) und beim Bau Q1–Q7: probeLinkerKnopf, klassenWechselUnterKarte, zaehlerMaxImKnopf, wegJeStart,
-  bojenBeschriftung, wegKopfOhneUmschalter, uebungListenDesRegelwerks. W4.3 (P16, beim Bau R1–R8, noch zu bestätigen):
-  nichtVorbei, nichtVorbeiNichtBeiX (R1, Code `nv-nicht-erlaubt`), nichtVorbeiNurDirekt (R2), nichtVorbeiAufheben (R3),
-  nichtVorbeiZelle (R4), nichtVorbeiImAbschluss (R5), nichtVorbeiMehr (R6), nichtVorbeiVerlauf (R7), nichtVorbeiUebung (R8).
+  bojenBeschriftung, wegKopfOhneUmschalter, uebungListenDesRegelwerks. W4.3 (P16, R1–R8; seit 24.11.2026 NICHT mehr
+  gültig, alle `false`): nichtVorbei, nichtVorbeiNichtBeiX, nichtVorbeiNurDirekt, nichtVorbeiAufheben, nichtVorbeiZelle,
+  nichtVorbeiImAbschluss, nichtVorbeiMehr, nichtVorbeiVerlauf, nichtVorbeiUebung. Dahinter „Nicht gestartet · Disq. X“
+  (Nutzer 24.11.2026, NG1–NG8): nichtGestartetMehr (NG1), nichtGestartetUeberall (NG2), xKnoepfeNurF5 (NG3),
+  nichtGestartetWirkung (NG4, Steg-Anlegen noch zu bestätigen), nichtGestartetKorrektur (NG5, noch zu bestätigen),
+  nichtGestartetStattKennzeichen (NG6, Werte anderer Zellen noch zu bestätigen), nichtGestartetUebung (NG7),
+  nichtGestartetFassung 13 (NG8).
   Prüfbefunde W4 (S1–S5, 21.11.2026, noch zu bestätigen): bojenSchalterPrellMs 400, pruefenNurLaufenderPunkt,
   unbekanntBandKurz, zaehlerStandZweiZeilen, hinweisUeberKopf.
   Nutzer 21.11.2026 (T1–T9, noch zu bestätigen): Steg-Zeitversatz stegAblegenVorab (Ablegen sieht „Am Steg“ vorab,
@@ -110,6 +119,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   W5.2 (22.11.2026, noch zu bestätigen): BD1 bildSeitenWieSpalten, BD2 bildSonstKnoepfe, BD3 bildParallelZeichnung (umgebaut 22.11.2026 R8-19, vorher bildParallelSchema; neu BD8–BD10, seit 23.11.2026 nach R9-05…07 umgeschrieben: BD8 bildParallelIdsAusParcoursRepo, BD9 bildParallelEineBahnFuerBeide, BD10 bildParallelNurEineBahn), BD4
   bildUmschalterNurVonHand (umgebaut 22.11.2026 R8-20, vorher bildRueckNachTor5), BD5 bildRueck2, BD6 bildTrefferMm 15,
   BD7 bildDisqKnopfUndLangdruck (umgebaut 22.11.2026 R8-23, vorher bildDisqUeberKnopf), beim Bau bildDrehungNurPad; Prüfbefunde 22.11.2026: bildDrehungNachPlatz, tastaturAendertNichts (PD1).
+  Nutzer 24.11.2026 (noch zu bestätigen): Lage des Bilds BL1 bildLageWahl (seit Prüfbefund mit „Automatisch“), BL2
+  bildLageNachSteg, BL3 bildLageVorPlatz, BL4 bildTextAufrecht, BL5 bildLageOhneSchema, BL6 bildDisqOrtVorgabeFolge;
+  Übung Y5 uebungVorziehenUnten, UK1 uebungKopfAusDemBild, UK2 uebungKopfNurEineSpalte, UK3 uebungKopfZuletztBleibt,
+  Prüfbefunde 24.11.2026: UK4 uebungKopfSeiteRechts, UK5 uebungKopfMitNaechsterKarte, UK6 uebungKopfAmTisch.
   Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeMitPunkten (seit W4-12 statt
   disqBojeErsetztPunkte), U3 disqBojeLangdruck (umgebaut 22.11.2026 R7-21, vorher disqBojeOhneLangdruck; dazu LD1 langdruckMs 800,
   LD2 langdruckNieTipp, LD3 langdruckWegPx 10 + langdruckRingMs 300, LD4 langdruckPrellschutz – Hilfe
@@ -125,7 +138,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Gerät-Feinschliff (21.11.2026, GF1–GF11): wieGeraetVorgabe (sonneVorgabe → false), codesNachKlasse
   (codesAlleKlassen → false), stegReiterImmer, uebungErklaert, soLassenAmBedienrechner (soLassenNurLokal → false),
   ersteListeOhneNeuladen, artBeimKoppeln (handyNachName → false), listenEmpfehlung (handyEineListe → false),
-  klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11); freigabeVorwahlOhneListe → false (W3-26).
+  klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11, seit 24.11.2026 `false`, NG1); freigabeVorwahlOhneListe → false (W3-26).
   WKR-Namen (21.11.2026, WN1–WN3): nameNurBeimAbschluss → false, wkrNameNurEigeneListe, wkrNameImLebenszeichen,
   wkrNameOhneEinteilung (G12/L4 bleiben Rückfall ohne Einteilung).
   Ausgleichsgewicht am Steg (Nutzer 24.11.2026, AG1–AG4; AG3/AG4 noch zu bestätigen): ausgleichListen ['steg']
@@ -133,6 +146,11 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   ausgleichTeil 'ab' (Karte nur im Ablegen; ein Gerät nur fürs Anlegen empfängt den Wert mit – eine Gruppe je Liste,
   Rückfrage offen), ausgleichUebung (erfundene Abstände je Startnummer in der Übung). Prüfbefund 24.11.2026: auf 0 kg
   gerundet = „kein AG“, auf Papier leer (components/AusgleichListen.vue), Verwiegung weiter „0 kg“.
+  Höchstzahl je Code (Nutzer 24.11.2026, CM1–CM8; CM2–CM6 und CM8 noch zu bestätigen): codeMaxAusRegelwerk (YAML `max`/`danach`
+  je Code: „2. und 3. Versuch“ 2× → D, Tor 5 Code 1 1×), codeMaxAllgemein 3 (lib/codes.ts codeHoechstens/
+  codesUeberMax), codeDanachStattZaehler (maske.ts tippe), codeMaxImKnopf, codeMaxGeraet (tabelle.ts `code-zu-oft`/
+  `code-danach`, zeile.ts wertGilt), codeMaxAbtippenHinweis (lib/erfassung.ts `codeZuOft`/`codeDanach`), codeMaxFassung 12,
+  codeDanachPrellschutz (CM8, Prüfbefund 24.11.2026: maske.ts codeTippPrellt, Uhr in WkrMaske tippeCode).
 - `tisch.ts` (22.11.2026, R8-27, KN9) – naechsterOffener(bestand, zuletzt, klasse?) (`klasse` = Übung „Klasse vorziehen“,
   Y4: erster offener dieser Klasse, sonst wie ohne) → erster offener Starter NACH `zuletzt` in der
   Folge des Bestands, Rundlauf, ohne `zuletzt` der erste offene, sonst null; tischOffen (nicht erledigt UND ohne eigene
@@ -158,7 +176,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   nur Felder, die zellenAus des Teils trägt), kopfGruppen (zweizeiliger Kopf), zelleAusEingabe(spalte, eingabe, aufbau,
   teil) → {wert, fehler} über DIESELBEN Sanierer wie ErfassungTabelle (sanitizeBuoy, sanitizeCodeInput +
   normalizeCodeCell, sanitizeDisq, sanitizeTimeInput; Buchstaben aus dem Aufbau), TabellenFehler zeichen-fremd |
-  code-unbekannt | boje-punkte | zeit-unlesbar | zu-lang | nicht-darstellbar, zeileAusEingaben (Rund-Probe:
+  code-unbekannt | boje-punkte | zeit-unlesbar | zu-lang | nicht-darstellbar | code-zu-oft | code-danach (24.11.2026,
+  CM5: mehr als `max`, bei Codes mit `danach` „3x20“ – die Tabelle wandelt nicht in D um), zeileAusEingaben (Rund-Probe:
   entwurfAus → zellenAus muss die Zellen ergeben; Entwurf aus den fehlerfreien Zellen, „keine Zeit“ für leere
   Zeitfelder bleibt), eingabenAus(spalten, entwurf, …). Nutzer: components/wkr/WkrTabelle.vue, WkrMaske. Test
   tabelle.test.ts (jede Spalte jeder Liste mit Maske, DM + UIM, je Klasse und Teil: gültige Eingaben → wertGilt
@@ -177,7 +196,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   bildZiel(aufbau, z, id, weg) (eine Boje an der ID → diese, sonst nach Weg; der Umschalter wechselt nur von Hand –
   wegNachTipp entfiel 22.11.2026, BD4/R8-20), bildZahlen, inlineSvg (IDs mit Präfix, Drehung über viewBox + `<g>`, Deckkraft als `style` am
   Element – kein `<style>`-Block), schiebeAuseinander (BD6), svgSeiten + wirksameDrehung (±90° nur, wo die gedrehte
-  Zeichnung im Platz nicht kleiner wird, Prüfbefund 22.11.2026). Entwurf/Zellen NUR über maske.ts (maske.test.ts: gleiche
+  Zeichnung im Platz nicht kleiner wird, Prüfbefund 22.11.2026; seit 24.11.2026 `wahl` des WKR geht vor, BL3).
+  Lage (Nutzer 24.11.2026, BL1–BL5): BildLage 0|90|180|270 (im Uhrzeigersinn), BILD_LAGEN, BILD_LAGE_SEITE (Datei =
+  „Steg unten“, Start links; Parallel nach dem Start), istBildLage, lageVonDrehung, aufrechtTransform (Gegendrehung je
+  `<text>`, BL4). Entwurf/Zellen NUR über maske.ts (maske.test.ts: gleiche
   Tipps im Bild und in den Knöpfen → gleiche Zellen). Nutzer: components/wkr/WkrBild.vue, WkrMaske, WkrProbe, WkrGeraet.
 - `ampel.ts` (Parcours-Ampel, Nutzer 21.11.2026 P-03) – parcoursAmpel(stand, konfig, bereich, lagen) → AmpelLage {ampel
   aus|gruen|rot|frei, ref, perKnopf, offen (Titel), autoMoeglich, autoOhne}: aus ohne gezeigten Start oder ohne digitale
@@ -204,22 +226,18 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   (aus lib/eingaben.ts), startAufListe (Starter, Lauf-Schlüssel, `weitere` am Vorsteg mit „Versuche nacheinander“, Punkt;
   Parallel: eigene Seite aus `fest.starts`); W2: listeVonBogen(bogen, konfig) (Bogen der Erfassung → Liste; Knoten →
   die Liste am Tisch, gleich welcher Parcours; unbekannte Position → null).
-- `zeile.ts` – GeraeteZeile (Leitung: z, s, t?, k?, seite?, c: [feld, wert, vorher][], W4.3 n?: true), ZeilenFehler,
+- `zeile.ts` – GeraeteZeile (Leitung: z, s, t?, k?, seite?, c: [feld, wert, vorher][]), ZeilenFehler,
   pruefeZeile → WkrZeile (types/wkr.ts) | {fehler}; wertGilt = dieselben Sanierer wie ErfassungTabelle.vue, ein Wert
-  gilt nur unverändert. WkrZeile trägt `teil` (eigener Teil der Zeile). W4.3: `n` nur mit leerem `c` (sonst
-  `wert-ungueltig`), nie wo X gilt (Vorsteg, Steg-Ablegen bzw. ganzer Steg → `nv-nicht-erlaubt`) → WkrZeile.nichtVorbei.
-  W5.3: am Tisch nur `["o", id]` (sonst `start-unbekannt`, auch umgekehrt), ohne Folge/Zeigen, `gezeigt` immer, `n` →
-  `nv-nicht-erlaubt`.
-  W5.4 (22.11.2026, ZT4): GeraeteZeile.`kz` [feld, grund][] (Form: bekannter Grund, nie mit `n` → `wert-ungueltig`;
+  gilt nur unverändert. WkrZeile trägt `teil` (eigener Teil der Zeile). X: neben anderem bzw. in Bojen-/Code-Zellen nur
+  Steg-Ablegen/Vorsteg (F5, sonst `x-nicht-erlaubt`); allein im Disq.-Feld (Feldart `disq`) mit sonst leeren Zellen =
+  „Nicht gestartet“ auf jeder Liste und in jedem Steg-Teil (24.11.2026, NG2; `nv-nicht-erlaubt` und `n` entfielen) –
+  am Steg OHNE `vereinige` (Prüfbefund 24.11.2026, NG6: ein Buchstabe des anderen Teils wird Rückfrage, nie „A, X“).
+  W5.3: am Tisch nur `["o", id]` (sonst `start-unbekannt`, auch umgekehrt), ohne Folge/Zeigen, `gezeigt` immer.
+  W5.4 (22.11.2026, ZT4): GeraeteZeile.`kz` [feld, grund][] (Form: bekannter Grund, sonst `wert-ungueltig`;
   kein Zeitfeld der Klasse oder doppelt → `feld-fremd`; Zeit UND Grund im selben Feld → `wert-ungueltig`) →
   WkrZeile.keineZeit (steht `kz`, auch leer, ersetzt es das Kennzeichen des Starts; fehlt es, bleibt das stehende).
-- `nichtVorbei.ts` (W4.3, 21.11.2026) – „Nicht vorbeigekommen“ im Stand (WkrStand.nichtVorbei, je Liste Schlüssel):
-  nvSchluessel(lauf, starter, teil?) = `${lauf}|${starter}` bzw. `…|an`, liesNvSchluessel, istNichtVorbei,
-  mitNichtVorbei (setzen/löschen, gleiche Referenz), seit 21.11.2026 (W3-17, GF10) NICHT_VORBEI_DISQ = 'J' und
-  nichtVorbeiArt(disqCodes) → 'disq' (Gerät schickt Disq. J ins Disq.-Feld, eine gewöhnliche Zeile) | 'kennzeichen'
-  (⊘, wo die Liste kein J kennt: Steg-Anlegen), ohneUeberholteNichtVorbei(stand, konfig) – hebt Kennzeichen auf,
-  deren Zelle eigene Werte der Liste hat (am Steg nur Felder des Anlegens); ruft reducer.ts nach jeder Änderung der
-  Eingaben.
+- (`nichtVorbei.ts`, W4.3 – „nicht vorbeigekommen“ im Stand, Schlüssel, Disq. J – entfernt 24.11.2026, NG6; den
+  Zellschlüssel `${lauf}|${starter}` von „keine Zeit“ hält seitdem keineZeit.ts kzSchluessel.)
 - `schlange.ts` – schlange(stand, liste, teil?) (gezeigt ab `seit`, ohne Pausen/P der Liste UND des Teils, ohne Starts
   aus „Rest auf Papier“ und abgeschlossene Punkte, ohne Haken, X fällt weg, Klasse ohne Liste nur als letzter gezeigter
   `entfaellt`, Vorsteg + nächste freie `vorab`; geteilte Liste ohne Teil: Start, solange EIN Teil ihn braucht,
@@ -236,9 +254,14 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Abschlüsse einer Liste mit Punkt/Teil). W5.3: OHNE_PUNKT `ohne` (Typ WkrPunkt = PunktId | 'ohne', types/wkr.ts),
   istWkrPunkt, wkrPunktVonRef (`["o", …]` → `ohne`); alle Schlüssel-Funktionen nehmen WkrPunkt.
 - `uebernahme.ts` – wendeZeileAn (gleich → nichts, vorher → setzen, sonst Konflikt; `vereinige`: Disq. vereinigt,
-  Wegfall = Konflikt `entfernt`, Bemerkung mit „; “), vereinigeDisq, haengeAn, vereinigt (Ziel einer gemeinsamen
-  Zelle bei Entscheid für das Gerät – Rückfrage `start` mit `vereinige: {vorher}`), zeilenPruefsumme (FNV-1a).
-- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 10 seit mehreren
+  Wegfall = Konflikt `entfernt`, Bemerkung mit „; “; X kommt nie still neben andere Buchstaben → Konflikt `zelle`,
+  Prüfbefund 24.11.2026, NG6/BZ2), vereinigeDisq, haengeAn, vereinigt (Ziel einer gemeinsamen
+  Zelle bei Entscheid für das Gerät – Rückfrage `start` mit `vereinige: {vorher}`; mischte es X mit Buchstaben, gilt
+  der Wert des Geräts), zeilenPruefsumme (FNV-1a).
+- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 13 seit „Nicht
+  gestartet · Disq. X“ 24.11.2026, NG8 – Form gleich, alte Geräte schickten `n` bzw. J; 12 seit der Höchstzahl
+  je Code 24.11.2026, CM7: MaskenFeld.katalog `max` (aufgelöst) und `danach` (nur, wo das Feld den Buchstaben annimmt);
+  11 seit dem Ausgleichsgewicht; 10 seit mehreren
   Disq. je Bojenzelle 22.11.2026, BZ8 – Form gleich, nur die Zellform „5, J, D“; 8 seit den
   WKR-Namen 21.11.2026: `wkrName` = Name der EIGENEN Liste aus AppState.einteilung (einteilungsName(stand, liste),
   einteilungsParcours(liste) = Parcours bzw. RACECOURSE_PARCOURS – auch für SET_WKR_NAME am Bedienrechner; fehlt ohne
@@ -248,7 +271,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   `aufbauId`, GF9); 6 seit der
   Parcours-Ampel 21.11.2026: `ampel` {key, ampel} nur an Parcours-Listen (AM9), `laeuft` {punkt, unterwegs, offen}
   (R6-10), ListenStart.`punkt` (Prüfansicht des Bands nach Beginn des nächsten Laufs, W3-40); 5 seit W4.3
-  „Nicht vorbeigekommen“ – Form gleich, nur damit alte Geräte/Bedienrechner nicht mischen; 4 seit W4.1:
+  „Nicht vorbeigekommen“ (entfernt 24.11.2026) – Form gleich, nur damit alte Geräte/Bedienrechner nicht mischen; 4 seit W4.1:
   MaskenFeld.boje {halt, weg, folge, titel, unter, spalte 0|1|null, zaehler?, durchfahrt?} je Fahrweg-Boje – titel/unter
   aus defFuerKlasse(...).columns (label, sub[i], Beschriftung schon aufgelöst), spalte = Index der Seite in der ersten
   Spalte der LISTE mit zwei verschiedenen Bojen (P7), AndereFeld.boje {titel, unter}; 3 seit W3:
@@ -270,7 +293,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   katalog bzw. vorsteg, sonst spaeter), maskeFuer(sicht, klasse, 'liste'|'andere') → MaskenAufbau {art, titel, teile
   (Code-Felder mit Katalog, Steg ab/an), disq {feld, teil, codes mit `nurIn` (X am Steg nur Ablegen)}, bemerkung} | null
   (entfällt), teileFuer, disqFuer(aufbau, teil?); Entwurf {codes je Feld, disq, bemerkung, folge}: leererEntwurf,
-  tippe, tippeDisq (Schalter), mitBemerkung, zurueck, eintraege, punkteVon; zellenAus(e, aufbau, teil?) = Zellwerte
+  tippe, tippeDisq (Schalter), mitBemerkung, zurueck, eintraege, punkteVon. Seit 24.11.2026 (CM1–CM4, CM8): MaskenCode
+  `max` (immer) und `danach?` (nur, wo das Disq.-Feld des Teils den Buchstaben annimmt); `tippe(e, aufbau, feld, code)`
+  zählt bis `max`, der Tipp danach setzt `danach` wie ein DISQ-Tipp (Merker `#disq:D`, Rückgängig nimmt ihn), sonst
+  gleiche Referenz; codeAnzahl, codeStand (Knopf: zaehlt|danach|nichts, danachGesetzt), codeTippPrellt (CM8: Tipp auf
+  denselben Code mit `danach` innerhalb von bojenSchalterPrellMs verwerfen; Uhr in WkrMaske); entwurfAus zählt
+  höchstens bis `max`. zellenAus(e, aufbau, teil?) = Zellwerte
   über normalizeCodeCell („2x6, 20“), Disq. in Tipp-Folge („A, X“), auch leere (Fehlerfrei); entwurfAus (rund);
   wechselTakt(gesendetUm, jetzt) → gesendet|sperre|frei (G5). W3.2: listeMitMaske(konfig, typeId, klassen) – hat die
   Liste in W3 eine Maske (alle Klassen der Starter mit der Liste nur Katalog/Disq./Text, J1); Bedienrechner beim Zuweisen.
@@ -316,9 +344,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   W5.1 (22.11.2026): listeMitBojen(konfig, typeId, klassen) (Bedienrechner: „Bild“ wählbar), attemptWechsel(vorher,
   jetzt) → Attempt-Nummer bei derselben Startnummer im Parallelslalom (PD5, WkrMaske Band + Sperre) | null.
 - `keineZeit.ts` (W5.4, 22.11.2026, ZT4) – „Keine Zeit“ im Stand (WkrStand.keineZeit: Liste → `${lauf}|${starter}` →
-  Feld → Grund `anlage|nichtImZiel|anderes`, KEINE_ZEIT_GRUENDE, istKeineZeitGrund): keineZeitVon, mitKeineZeit (ersetzt
+  Feld → Grund `anlage|nichtImZiel|anderes`, KEINE_ZEIT_GRUENDE, istKeineZeitGrund; Schlüssel kzSchluessel – seit
+  24.11.2026 hier, vorher aus nichtVorbei.ts): keineZeitVon, mitKeineZeit (ersetzt
   ganz, `{}` hebt auf, gleiche Referenz), keineZeitNur (Läufe/Starter löschen), ohneUeberholteKeineZeit (Feld mit Wert
-  → weg; reducer.ts nach jeder Änderung der Eingaben, neben ohneUeberholteNichtVorbei), normalisiereKeineZeit/
+  → weg; reducer.ts nach jeder Änderung der Eingaben), normalisiereKeineZeit/
   liesKeineZeitFelder (migrate über normalisiereWkr). Nie in einer Sicht (Liste, Freigabe, Tafel, Zuschauer).
 - `uebung.ts` (W3.1) – Übung ohne AppState/Store/Netz: uebungsStand(regelwerk, typeId, sprache?, gezeigt = 2) → UebungsStand
   {naechster, offen je Teil}, uebungsSicht(stand) → ListenSicht (Starts 1–20 ohne Namen und ohne Boot in den Klassen
@@ -335,13 +364,13 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - `lage.ts` (W2.1, 21.11.2026) – erfassungsLage(stand, konfig, bereich, geraete, jetzt, starts?) → {punkt, starts
   (Spalten: gezeigte Starts des laufenden Punkts, letzte 12 bzw. alle; Vorsteg + `vorab`), listen: ListenLage (Modus,
   Status, Teile, papierAb, Geräte mit Ampel, Zellstand je Spalte, Rückstand, warnt, Rückfragen/Vorschläge, Abschlüsse
-  mit Startnummern, W4.3 auch `nichtVorbei`)}; Zellstand ok/halb/offen/ueberfaellig/rueckfrage/vorschlag/entfaellt/
-  papier/x/vorab/nv/spaeter (Vorrang X → Klasse ohne Liste → Rückfrage → Vorschlag → nv → Haken → Teile → Schlange; nicht in
-  der Schlange = Papier; Steg: Anlegen nv + Ablegen ok → nv, sonst ½; nv ist in zeilenMarken „Papier ansehen“; Steg-
-  Anlegen des Starts im Boot bzw. eines Vorab-Starts = `spaeter` „kommt noch“, kein Rückstand – T2; Vorab-Spalten je
-  Liste mit hatVorab);
-  ampelVon (gehoert/still/weg, ohne laufenden Punkt ruht), schlechteste; ZellLage.disq (W3-17, GF10, 21.11.2026):
-  `ok` mit Buchstaben im Disq.-Feld der Liste → Matrix „✓ Disq. J“; Parcours-Ampel (21.11.2026): ListenLage.parcours,
+  mit Startnummern)}; Zellstand ok/halb/offen/ueberfaellig/rueckfrage/vorschlag/entfaellt/
+  papier/x/vorab/spaeter (Vorrang X → Klasse ohne Liste → Rückfrage → Vorschlag → Haken → Teile → Schlange; nicht in
+  der Schlange = Papier; X = irgendeine Disq.-Zelle des Laufs, seit 24.11.2026 auch „Nicht gestartet“ vom Tor (NG4);
+  `nv` ⊘ entfiel 24.11.2026; Steg-Anlegen des Starts im Boot bzw. eines Vorab-Starts = `spaeter` „kommt noch“, kein
+  Rückstand – T2; Vorab-Spalten je Liste mit hatVorab);
+  ampelVon (gehoert/still/weg, ohne laufenden Punkt ruht), schlechteste; ZellLage.disq (seit W3-17, 21.11.2026):
+  `ok` mit Buchstaben im Disq.-Feld der Liste → Matrix „✓ Disq. D“; Parcours-Ampel (21.11.2026): ListenLage.parcours,
   `warnt` nur Parcours-Listen, der gezeigte Start zählt im Rückstand einer Parcours-Liste erst ab der Durchfahrt
   (durchfahrtVon: Knopf `BereichBetrieb.durchfahrt` oder Haken/Wert/Rückfrage/Vorschlag einer Parcours-Liste, X = durch); zeilenMarken (Erfassung: `${lauf}|${starter}` →
   Zeile/Zelle „papier-ansehen“ bzw. „rueckfrage“, nur Listen digital/beides); rueckstandZeile (Zeile über „Nächster
@@ -368,10 +397,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   zählt im Führungsfenster geraete/host.ts (pruefeAuto/feuereAuto, `auto`, `halteAuto`, Geräte-Nachricht AUTO_HALT).
 - Stand: types/wkr.ts (WkrStand in AppState.wkr; WkrRueckfrage.soLassen = Zeit, W3-35/GF5), Actions state/reducer/wkr.ts (WKR_SO_LASSEN {liste, zeile}, WKR_ZEILEN, WKR_RUECKFRAGE,
   WKR_VORSCHLAG, WKR_LISTE, WKR_ABSCHLUSS, WKR_ABSCHLUSS_LOESEN, W2: WKR_PAPIER_AB {liste, ref, teil?} mit WkrPause.ab;
-  W4.3: WkrStand.nichtVorbei – WKR_ZEILEN setzt es mit dem Haken nur bei direkter Übernahme, jede Zeile ohne `n`
-  löscht es, eigene Werte löschen es (reducer.ts → ohneUeberholteNichtVorbei), wkrOhneLaeufe/wkrNurStarter räumen;
-  normalisiereWkr für migrate). Verlauf: lib/verlauf.ts eingabeGeraet (Liste + Gerätename), rueckfrage, vorschlag,
-  wkrListe, wkrAbschluss, wkrPapierAb, W4.3 wkrNichtVorbei (Bündel nur aus `n`-Zeilen). Einstellung R und warnen/nachfragen: AppState.anzeige.wkrRueckstand/wkrWarnung
+  normalisiereWkr für migrate – ein altes `nichtVorbei` (W4.3, entfernt 24.11.2026) fällt beim Laden weg). Verlauf:
+  lib/verlauf.ts eingabeGeraet (Liste + Gerätename; auch „Nicht gestartet“), rueckfrage, vorschlag, wkrListe,
+  wkrAbschluss, wkrPapierAb. Einstellung R und warnen/nachfragen: AppState.anzeige.wkrRueckstand/wkrWarnung
   (SET_ANZEIGE, normalisiereAnzeige; SettingsView `#betrieb`).
 
 ## Fallen
@@ -398,6 +426,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - Prüfsumme des Abschlusses: Reducer und Gerät müssen dieselben Felder nehmen – bei einem Teil (Steg) nur die Felder
   dieses Teils, OHNE die gemeinsamen (Disq., Bemerkung); MaskenFeld.teil fehlt bei gemeinsamen. Ändert sich das
   eine, das andere mitziehen (geraete/erfassen.ts schliesseAb).
+- Höchstzahl je Code (24.11.2026): Grenze nur über lib/codes.ts codeHoechstens/codesUeberMax (Gerät, Tabelle, wertGilt,
+  Abtippen), Code-Tipps nur über maske.ts tippe MIT Aufbau – nie selbst zählen.
 - Maske (W3): `zellenAus` muss genau das liefern, was wertGilt unverändert annimmt (maske.test.ts prüft jede
   Tipp-Folge je Position, DM und UIM) – keine eigene Schreibweise, immer über lib/codes.ts bzw. die Disq.-Reihenfolge.
   Disq.-Feld (sanitizeDisq) behält die Tipp-Reihenfolge, Code-Felder sortieren (normalizeCodeCell).
@@ -410,7 +440,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
 - Sicht der Liste: jedes Objekt Feld für Feld neu (wie sichtZuschauer); nie Name, Herkunft, Geburtsdatum, Gewicht,
   Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Ausnahmen:
   `ListenStart.ausgleich` (Nutzer 24.11.2026, AG1, Fassung 11) – nur an Listen aus WKR_ANNAHMEN.ausgleichListen (Steg),
-  nur über lib/ausgleich.ts ausgleichAmSteg (ganze kg, 0, 'fehlt'; nie Körper- oder Durchschnittsgewicht; die Übung
+  nur über lib/ausgleich.ts ausgleichAmSteg (kg auf die Abstufung AppState.ausgleichStufe gerundet, Vorgabe ganze kg, 0, 'fehlt'; nie Körper- oder Durchschnittsgewicht; die Übung
   über uebungsAusgleich); ob die Karte es zeigt, entscheidet nur WkrMaske `kartenAusgleich` (ausgleichTeil) –, `steht`
   (F11) – steht unter dem Gerät der Rückfrage, lesbar aber für jedes Gerät derselben Liste (EIN Gruppeninhalt,
   WKR_ANNAHMEN.rueckfrageInListe) – und `wkrName` (W3-13, WN1: nur der Name aus der Einteilung für DIESE Liste, nie
@@ -422,10 +452,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   kann „erledigt“ und „noch nicht“ dort nicht unterscheiden (gewollt). „Nie beide zugleich“ auf einem Gerät für den
   ganzen Steg macht das Gerät (geraete/erfassen.ts, uebung.ts), nicht schlange.ts. sicht.ts `teile[t].status` nimmt
   den Status der ganzen Liste, wenn die nicht aktiv ist (Befund 21.11.2026: ganzer Steg abgemeldet, Maske zeigte weiter).
-- „Nicht vorbeigekommen“ (W4.3): Kennzeichen UND Haken – Schlange und Rückstand sehen nur den Haken, die Matrix ⊘.
-  Wer `nichtVorbei` liest, nimmt istNichtVorbei/nvSchluessel (nie selbst zusammensetzen). Eine Zeile ohne `n` hebt es
-  auf, auch eine leere Korrektur – das Gerät schickt sie dafür auch ohne geänderte Werte (erfassen.ts korrigiere).
-  Nie in sichtOeffentlich/sichtZuschauer/Freigabe-Sicht (F17, sicht.test.ts).
+- „Nicht gestartet · Disq. X“ (24.11.2026, NG1–NG6): kein eigenes Kennzeichen – X im Disq.-Feld wie jedes X. Die
+  Disq.-Knöpfe bieten X nur am Steg-Ablegen/Vorsteg an (sicht.ts filtert es weg); darum baut das Gerät die Zeile über
+  wkr/maske.ts nichtGestartetZellen, nie über zellenAus (das ließe X weg), und jeder Entwurf aus einer X-Zeile –
+  Korrektur (WkrMaske oeffneKorrektur) und „Rückgängig“ einer wartenden Zeile (ladeEntwurf, Prüfbefund 24.11.2026) –
+  verliert dort das X (maske.ts ohneFremdesX). Wer „ist das ‚nicht gestartet‘?“ fragt, nimmt istNichtGestartet (Zellen) bzw.
+  lib/erfassung.ts nichtGestartet (Lauf).
 - Listen ohne Lauf (W5.3): Wer Kennungen von Starts liest, nimmt liesStartKennung bzw. wkrPunktVonRef – liesRef allein
   kennt `["o", …]` nicht. Die Liste am Tisch hat keinen Bereich des Betriebs: nie bereichBekannt/lage/betriebVon für sie
   voraussetzen (erlaubteWkr, sicht.ts und WKR_ABSCHLUSS zweigen über istTischListe ab). `ohne` steht nur an ihr.

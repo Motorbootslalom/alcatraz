@@ -64,6 +64,24 @@ describe('Hinweise auf unvollständige und unplausible Eingaben', () => {
     expect(arten('gate135', { [boje.kennung]: 'J, X' })).toEqual([`bojePunkte@${boje.zelle}`])
   })
 
+  it('Fehlercode öfter als erlaubt (Nutzer 24.11.2026, WKR_ANNAHMEN CM6): Hinweis, die Zelle bleibt; „2. und 3. Versuch“ fragt „Disq. D?“', () => {
+    const tor5 = listenFelder(konfig, 'tor5', '4').find((f) => f.kind === 'code')!
+    expect(arten('tor5', { [tor5.kennung]: '1, 2x20' })).toEqual([])
+    expect(arten('tor5', { [tor5.kennung]: '2x1' })).toEqual([`codeZuOft@${tor5.zelle}`])
+    expect(arten('tor5', { [tor5.kennung]: '3x20' })).toEqual([`codeDanach@${tor5.zelle}`])
+    // Auch wenn D schon steht: ein „2. und 3. Versuch“ zu viel bleibt auffällig.
+    expect(arten('tor5', { [tor5.kennung]: '3x20', 'disq@tor5': 'D' })).toEqual([`codeDanach@${tor5.zelle}`])
+    const h = zeilenHinweise(listenFelder(konfig, 'tor5', '4'), { [tor5.kennung]: '2x1, 3x20' }, alle('4'), 'tor5')
+    expect(h.map((x) => [x.art, x.werte])).toEqual([
+      ['codeZuOft', { code: '1', n: 1 }],
+      ['codeDanach', { code: '20', n: 2, disq: 'D' }],
+    ])
+    // Codes ohne eigene Angabe: allgemeine Grenze (3) – „4x3“ am Steg fällt auf.
+    const ab = listenFelder(konfig, 'steg', '4').find((f) => f.kennung === 'katalog:stegAblegen')!
+    expect(arten('steg', { [ab.kennung]: '3x3' })).toEqual([])
+    expect(arten('steg', { [ab.kennung]: '4x3' })).toEqual([`codeZuOft@${ab.zelle}`])
+  })
+
   it('Zeit außerhalb des glaubhaften Bereichs', () => {
     expect(arten('zeit', { zeit1: '0,15', zeit2: '0,15' })).toEqual(['zeitBereich@zeit1', 'zeitBereich@zeit2'])
     expect(arten('zeit', { zeit1: '12', zeit2: '12' })).toEqual(['zeitBereich@zeit1', 'zeitBereich@zeit2'])

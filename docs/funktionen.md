@@ -187,6 +187,13 @@ gezeichnet von einer Komponente (`src/components/HerkunftText.vue`).
   (`src/lib/ausgleich.ts`, `src/components/AusgleichListen.vue`).
   Wer noch nicht gewogen ist, bekommt ein Feld zum Nachtragen von Hand (klein „nicht gewogen“, rechts „kg“; 24.11.2026).
   Leer heißt „kein Ausgleichsgewicht nötig“ – auch, wenn es auf 0 kg gerundet ist (24.11.2026; die Verwiegung zeigt „0 kg“).
+- Abstufung (24.11.2026): Unter „Einstellungen → Durchschnittsgewichte“ steht „Ausgleichsgewicht in Stufen von“
+  – 0,1 / 0,5 / 1 / 2 kg oder ein eigener Wert (0,1–10 kg, Komma erlaubt; Vorgabe 1 kg = ganze kg).
+  Das Ausgleichsgewicht ist immer ein Vielfaches davon, gerundet auf die nächste Stufe, ab der Hälfte aufwärts
+  (bei 2 kg: 2,9 → 2 kg, 3,0 → 4 kg; bei 0,5 kg: 1,2 → 1 kg, 1,25 → 1,5 kg).
+  Verwiegung, Liste „Ausgleichsgewichte“, Liste nach Regel 960 und Steg-Gerät nehmen dieselbe Rechnung
+  (`src/domain/gewicht.ts` `rundeAufStufe`, `src/lib/ausgleich.ts` `ausgleichVon`);
+  Zahlen mit Nachkommastelle stehen mit dem Dezimalzeichen der Sprache („1,5 kg“, englisch „1.5 kg“).
 - Digital (24.11.2026): Das Steg-Gerät der WKR-Erfassung zeigt im Teil „Ablegen“ neben der Startnummer dasselbe
   Ausgleichsgewicht – „AG 4 kg“, „kein AG“ oder „AG: Gewicht fehlt“. Gepflegt wird am Steg nichts: Ein in der
   Verwiegung nachgetragenes Gewicht kommt von selbst aufs Gerät. Über die Leitung geht nur das Ausgleichsgewicht,
@@ -203,6 +210,8 @@ Umsetzung: `src/lib/teamListe.ts`, `components/TeamListen.vue`, „Listen → Ge
 
 - Sie ist eine **interne** Liste und steht in keiner Druckdatei.
 - Das Geburtsdatum folgt der Listen-Option „Geburtsdatum zeigen“.
+- „Ballast required“ ist das Ausgleichsgewicht in der Abstufung der Veranstaltung; „–“ heißt keines nötig, auch auf 0 kg
+  gerundet (24.11.2026).
 - Dafür gibt es das freiwillige Starterfeld `geschlecht` mit **vier Werten** (Entscheidung vom 15.11.2026;
   `src/domain/geschlecht.ts`): M (männlich), F (weiblich), D (divers), nA (keine Angabe).
 - Leer bleibt erlaubt und heißt „nicht erfasst“; nur das zählt der Hinweis der Liste als fehlend.

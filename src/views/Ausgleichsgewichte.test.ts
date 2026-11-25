@@ -10,6 +10,7 @@ import { SEITEN_VORGABE } from '../lib/seiten'
 import { setLocale } from '../i18n'
 import type { ClassId, Starter } from '../types'
 import { ohneLogos, seitenKoepfe, setzeTestLogos } from '../testHilfen'
+import WkrStarterKarte from '../components/wkr/WkrStarterKarte.vue'
 
 // Reiter „Gewichtslisten“: je Herkunft für die Verwiegung oder „Ausgleichsgewichte“ für den
 // Steg (je Klasse ein Blatt). Dazu die Begriffe des Reglements. Alle Starter sind erfunden.
@@ -258,5 +259,100 @@ describe('Begriffe des Reglements: Durchschnittsgewicht und Ausgleichsgewicht', 
     expect(wiegen.text() + einstellungen.text()).not.toContain('Standard weight')
     wiegen.unmount()
     einstellungen.unmount()
+  })
+})
+
+describe('Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026): Einstellung, Listen, Verwiegung, Steg-Gerät', () => {
+  let store: Store
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+    vergissAlles()
+    location.hash = ''
+    setLocale('de')
+    store = createStore()
+    store.dispatch({ type: 'ADD_STARTERS', starters: starter(['4'], 3) })
+    // Klasse 4 (DM 65 kg): 58,4 → 6,6 kg leichter; 63,8 → 1,2; 64,6 → 0,4.
+    store.dispatch({ type: 'SET_WEIGHT', id: 'id-4-1', gewicht: 58.4 })
+    store.dispatch({ type: 'SET_WEIGHT', id: 'id-4-2', gewicht: 63.8 })
+    store.dispatch({ type: 'SET_WEIGHT', id: 'id-4-3', gewicht: 64.6 })
+  })
+  afterEach(() => {
+    setLocale('de')
+    document.body.innerHTML = ''
+    location.hash = ''
+  })
+
+  it('bei den Durchschnittsgewichten: 0,1 / 0,5 / 1 / 2 kg oder ein eigener Wert mit Komma; Hinweis auf das Runden', async () => {
+    const wrapper = mounte(SettingsView, store)
+    const wahl = wrapper.find('select[data-feld="ausgleich-stufe"]')
+    // Im Abschnitt „Durchschnittsgewichte“, Vorgabe 1 kg – wie vorher ganze kg.
+    expect(wahl.element.closest('.panel')?.querySelector('h2')?.textContent).toBe('Durchschnittsgewichte')
+    expect((wahl.element as HTMLSelectElement).value).toBe('1')
+    expect(wahl.findAll('option').map((o) => o.text())).toEqual(['0,1 kg', '0,5 kg', '1 kg', '2 kg', 'Eigener Wert …'])
+    expect(wrapper.find('[data-hinweis="ausgleich-stufe"]').text()).toContain('gerundet auf die nächste Stufe, ab der Hälfte aufwärts')
+    expect(wrapper.find('input[data-feld="ausgleich-stufe-eigen"]').exists()).toBe(false)
+    await wahl.setValue('2')
+    expect(store.state.value.ausgleichStufe).toBe(2)
+    await wahl.setValue('eigen')
+    const eigen = wrapper.find('input[data-feld="ausgleich-stufe-eigen"]')
+    expect((eigen.element as HTMLInputElement).value).toBe('2')
+    await eigen.setValue('0,25')
+    expect(store.state.value.ausgleichStufe).toBe(0.25)
+    expect((eigen.element as HTMLInputElement).value).toBe('0,25')
+    // Unbrauchbares ändert nichts; das Feld zeigt wieder, was gilt, und ein Satz sagt warum.
+    await eigen.setValue('20')
+    expect(store.state.value.ausgleichStufe).toBe(0.25)
+    expect((eigen.element as HTMLInputElement).value).toBe('0,25')
+    expect(wrapper.find('[data-hinweis="ausgleich-stufe-fehler"]').text()).toBe('Bitte eine Zahl von 0,1 bis 10 kg eingeben, z. B. 0,25. Es bleibt bei 0,25 kg.')
+    // Ein eigener Wert, der keine der Stufen ist, bleibt als „Eigener Wert“ sichtbar – auch nach dem Neuaufbau.
+    wrapper.unmount()
+    const wieder = mounte(SettingsView, store)
+    expect((wieder.find('select[data-feld="ausgleich-stufe"]').element as HTMLSelectElement).value).toBe('eigen')
+    // Englisch: Dezimalpunkt, Begriff „extra weight“ wie UIM 960 Pkt. 3.7.
+    setLocale('en')
+    await nextTick()
+    expect(wieder.find('select[data-feld="ausgleich-stufe"]').findAll('option').map((o) => o.text())).toEqual(['0.1 kg', '0.5 kg', '1 kg', '2 kg', 'Other value …'])
+    expect((wieder.find('input[data-feld="ausgleich-stufe-eigen"]').element as HTMLInputElement).value).toBe('0.25')
+    expect(wieder.text()).toContain('Extra weight in steps of')
+    wieder.unmount()
+  })
+
+  it('Papierliste und Verwiegung runden gleich – mit 0,5 kg auch „1,0 kg“ → „1 kg“, „1,5 kg“; englisch mit Punkt', async () => {
+    store.dispatch({ type: 'SET_AUSGLEICH_STUFE', kg: 0.5 })
+    const listen = mounte(ListsView, store)
+    await steg(listen)
+    // 6,6 → 6,5; 1,2 → 1,0 („1 kg“); 0,4 → 0,5.
+    expect(zeilen(listen, '4').map((z) => z[3])).toEqual(['6,5 kg', '1 kg', '0,5 kg'])
+    store.dispatch({ type: 'SET_AUSGLEICH_STUFE', kg: 2 })
+    await nextTick()
+    // 6,6 → 6; 1,2 → 2; 0,4 → 0 = leer wie „keines nötig“.
+    expect(zeilen(listen, '4').map((z) => z[3])).toEqual(['6 kg', '2 kg', ''])
+    listen.unmount()
+    const verwiegung = mounte(WeighingView, store)
+    // Die Verwiegung ordnet nach Herkunft (MBC Nord: 1, 3; MBC Süd: 2) – hier nach Starter gelesen.
+    const ag = () => ['Nach41', 'Nach42', 'Nach43'].map((n) => verwiegung.findAll('.weigh-table tbody tr').find((tr) => tr.text().includes(n))?.findAll('td').at(-1)?.text())
+    expect(ag()).toEqual(['6 kg', '2 kg', '0 kg'])
+    store.dispatch({ type: 'SET_AUSGLEICH_STUFE', kg: 0.5 })
+    await nextTick()
+    expect(ag()).toEqual(['6,5 kg', '1 kg', '0,5 kg'])
+    setLocale('en')
+    await nextTick()
+    expect(ag()).toEqual(['6.5 kg', '1 kg', '0.5 kg'])
+    verwiegung.unmount()
+    // UIM (Klasse 4 = 64 kg): das Blatt englisch mit Punkt – 58,4 → 5,6 → 5,5.
+    setLocale('de')
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    const uim = mounte(ListsView, store)
+    await steg(uim)
+    expect(zeilen(uim, '4').map((z) => z[3])).toEqual(['5.5 kg', '', ''])
+    uim.unmount()
+  })
+
+  it('die Starterkarte am Steg schreibt eine Zahl mit Nachkommastelle mit dem Dezimalzeichen der Liste', () => {
+    const karte = mount(WkrStarterKarte, { props: { start: { startNr: '401', titel: '1. Lauf' }, klasse: '4', ausgleich: 1.5 } })
+    expect(karte.find('[data-teil="ausgleich"]').text()).toBe('AG 1,5 kg')
+    expect(karte.find('[data-teil="ausgleich"]').attributes('data-ausgleich')).toBe('1.5')
+    karte.unmount()
   })
 })

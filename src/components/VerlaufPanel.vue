@@ -74,7 +74,7 @@ function listenText(kennung: string | undefined): string {
 
 /** Was sich geändert hat – aus Art und Angaben, in der Sprache der Oberfläche. */
 function was(b: Beschreibung): string {
-  if (b.art === 'eingabeGeraet' || b.art === 'wkrNichtVorbei') return t(`history.what.${b.art}`, { device: b.geraet ?? '', list: listenText(b.liste) })
+  if (b.art === 'eingabeGeraet') return t(`history.what.${b.art}`, { device: b.geraet ?? '', list: listenText(b.liste) })
   if (b.art === 'wkrListe' || b.art === 'wkrAbschluss' || b.art === 'wkrPapierAb') return t(`history.what.${b.art}`, { list: listenText(b.liste) })
   if (b.art === 'eingabe') {
     // Im Parallelslalom ist der „Lauf“ der Attempt einer Runde (lib/verlauf.ts `runde`).

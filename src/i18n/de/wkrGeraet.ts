@@ -52,6 +52,10 @@ export default {
 
   'wkr.geraet.parcoursBild': 'Parcours {klasse}',
   'wkr.geraet.code.aus': 'gilt laut Regelwerk nicht in dieser Klasse',
+  // Höchstzahl je Code (Nutzer 24.11.2026, WKR_ANNAHMEN CM3/CM4): Zeile im Knopf am Höchstwert.
+  'wkr.geraet.code.max': 'höchstens {n}×',
+  'wkr.geraet.code.danach': 'nächster = Disq. {disq}',
+  'wkr.geraet.code.danachGesetzt': 'Disq. {disq} gesetzt',
   'wkr.geraet.punkte': '{n} Pkt.',
   'wkr.geraet.steg.ab': 'Ablegen',
   'wkr.geraet.steg.an': 'Anlegen',
@@ -86,7 +90,8 @@ export default {
   'wkr.geraet.abschicken': 'Abschicken · {was}',
   'wkr.geraet.abschicken.ab': 'Abschicken Ablegen · {was}',
   'wkr.geraet.abschicken.an': 'Abschicken Anlegen · {was}',
-  'wkr.geraet.zurueck': '− letzte zurück',
+  // Nutzer 24.11.2026: „↶ Rückgängig“ statt „− letzte zurück“ – nimmt den letzten Tipp zurück (H2).
+  'wkr.geraet.zurueck': '↶ Rückgängig',
 
   'wkr.geraet.zuletzt': 'Zuletzt',
   'wkr.geraet.entwuerfe': 'Entw. {n}',
@@ -170,14 +175,12 @@ export default {
   'wkr.geraet.abschluss.abgeschickt': '{n} abgeschickt',
   'wkr.geraet.abschluss.offen': '{n} offen: {nrs}',
   'wkr.geraet.abschluss.x': '{n} X: {nrs}',
-  // W4.3 (21.11.2026): „Nicht vorbeigekommen“ (WkrMehr, Zuletzt, Prüfansicht – P16).
-  'wkr.geraet.nichtVorbei': 'Nicht vorbeigekommen',
-  'wkr.geraet.nichtVorbei.frage': '{nr} ist hier nicht vorbeigekommen?',
-  'wkr.geraet.nichtVorbei.hint': 'Es wird nichts eingetragen. Der Start gilt hier als erledigt; der Bedienrechner sieht „nicht vorbeigekommen“.',
-  'wkr.geraet.nichtVorbei.disq': 'Nicht vorbeigekommen · Disq. {code}',
-  'wkr.geraet.nichtVorbei.hintDisq': 'Eingetragen wird Disq. {code} (Parcours verlassen bzw. falscher Parcours) – sonst nichts. Der Start gilt hier als erledigt.',
-  'wkr.geraet.nichtVorbei.text': 'nicht vorbeigekommen',
-  'wkr.geraet.abschluss.nichtVorbei': '{n} nicht vorbeigekommen: {nrs}',
+  // Nutzer 24.11.2026 (WKR_ANNAHMEN NG1): „Nicht gestartet · Disq. X“ unter „Mehr“ – ersetzt „Nicht vorbeigekommen“
+  // (W4.3) und dessen Disq. J (W3-17). `text`: so stehen Zuletzt, Korrektur und Prüfansicht da.
+  'wkr.geraet.nichtGestartet': 'Nicht gestartet · Disq. X',
+  'wkr.geraet.nichtGestartet.frage': '{nr} nicht gestartet?',
+  'wkr.geraet.nichtGestartet.hint': 'Eingetragen wird X (nicht gestartet) im Disq.-Feld dieser Liste – sonst nichts. Damit entfällt der Start in diesem Lauf auf allen Listen und in der Wertung.',
+  'wkr.geraet.nichtGestartet.text': 'nicht gestartet (Disq. X)',
   'wkr.geraet.abschluss.leer': 'Noch keine eigene Zeile in {punkt}.',
   'wkr.geraet.name': 'Name (Wettkampfrichter)',
   'wkr.geraet.name.einteilung': 'Aus der Einteilung der Veranstaltung. Hier änderbar, falls jemand anderes die Liste führt.',
@@ -268,7 +271,8 @@ export default {
   'wkr.geraet.bojen.disqOrt': 'Disq. – an welcher Boje?',
   'wkr.geraet.bojen.disqOrtText': 'Startnummer {nr}: Wo wurde disqualifiziert? Ohne Ort: „Keine Boje / ganzer Parcours“.',
   'wkr.geraet.bojen.disqKeineBoje': 'Keine Boje / ganzer Parcours',
-  'wkr.geraet.bojen.disqOrtZurueck': '← Andere Stelle',
+  // Nutzer 24.11.2026: „← Zurück“ statt „← Andere Stelle“.
+  'wkr.geraet.bojen.disqOrtZurueck': '← Zurück',
   'wkr.geraet.bojen.disqGesetzt': 'Disq. {code}',
   'wkr.geraet.bojen.hin': 'Hin',
   'wkr.geraet.bojen.rueck': 'Rück',
@@ -310,6 +314,8 @@ export default {
   'wkr.geraet.tabelle.fehler.zeit-unlesbar': 'Zeit so nicht lesbar',
   'wkr.geraet.tabelle.fehler.zu-lang': 'Zu lang',
   'wkr.geraet.tabelle.fehler.nicht-darstellbar': 'Geht so nicht (Buchstabe doppelt oder falsche Spalte)',
+  'wkr.geraet.tabelle.fehler.code-zu-oft': 'Zu oft – so oft kommt der Fehler in einem Lauf nicht vor',
+  'wkr.geraet.tabelle.fehler.code-danach': 'Zu oft – der nächste Versuch ist eine Disq. (Spalte Disq.)',
   'wkr.geraet.maske.fest': 'Vom Bedienrechner festgelegt.',
   // W5.2 Maske „Bild“ (22.11.2026, Plan docs/plan-wkr-w5.md §5)
   'wkr.geraet.bild': 'Bild des Parcours {klasse}',
@@ -327,6 +333,28 @@ export default {
   'wkr.geraet.bild.disqAbbrechen': 'Abbrechen',
   'wkr.geraet.bild.schalter': '✔ {punkte}',
   'wkr.geraet.bild.zaehler': '{n}×',
+  // Lage der Zeichnung unter „Mehr → Ansicht“ (Nutzer 24.11.2026, BL1/BL2): Klassen nach dem Steg, Parallel nach dem Start.
+  'wkr.geraet.bild.lage': 'Lage der Zeichnung',
+  'wkr.geraet.bild.lage.steg.unten': 'Steg unten',
+  'wkr.geraet.bild.lage.steg.links': 'Steg links',
+  'wkr.geraet.bild.lage.steg.oben': 'Steg oben',
+  'wkr.geraet.bild.lage.steg.rechts': 'Steg rechts',
+  'wkr.geraet.bild.lage.steg.unten.text': 'Start/Ziel links, Tor 5 rechts.',
+  'wkr.geraet.bild.lage.steg.links.text': 'Start/Ziel oben, Tor 5 unten.',
+  'wkr.geraet.bild.lage.steg.oben.text': 'Start/Ziel rechts, Tor 5 links.',
+  'wkr.geraet.bild.lage.steg.rechts.text': 'Start/Ziel unten, Tor 5 oben.',
+  'wkr.geraet.bild.lage.start.links': 'Start links',
+  'wkr.geraet.bild.lage.start.oben': 'Start oben',
+  'wkr.geraet.bild.lage.start.rechts': 'Start rechts',
+  'wkr.geraet.bild.lage.start.unten': 'Start unten',
+  'wkr.geraet.bild.lage.start.links.text': 'Start/Ziel links, Boje 5 rechts.',
+  'wkr.geraet.bild.lage.start.oben.text': 'Start/Ziel oben, Boje 5 unten.',
+  'wkr.geraet.bild.lage.start.rechts.text': 'Start/Ziel rechts, Boje 5 links.',
+  'wkr.geraet.bild.lage.start.unten.text': 'Start/Ziel unten, Boje 5 oben.',
+  // Prüfbefund 24.11.2026 (BL1): „Automatisch“ = keine eigene Wahl, die Zeichnung liegt wie auf dem Bogen, soweit der
+  // Platz es zulässt (wkr/bild.ts wirksameDrehung).
+  'wkr.geraet.bild.lage.auto': 'Automatisch',
+  'wkr.geraet.bild.lage.vorgabe': 'Automatisch: Die Zeichnung liegt wie auf dem Bogen, soweit der Platz es zulässt. Eine andere Lage gilt auf diesem Gerät für diese Liste.',
   'wkr.geraet.probe.bild': 'Tippe im Bild „{halt}“ die Boje „{knopf}“ an.',
   'wkr.geraet.uebung.maske': 'Maske',
   // W5.3 Knoten-Prüfliste am Tisch (22.11.2026, KN7/KN8)

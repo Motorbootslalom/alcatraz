@@ -64,6 +64,14 @@ export interface AppState extends PlanState {
    */
   sollgewicht: Partial<Record<ClassId, number>>
   /**
+   * Abstufung des Ausgleichsgewichts in kg (Nutzer 24.11.2026: „kleinstes Zusatzgewicht“, das kleinste
+   * Gewichtsstück am Steg): Das Ausgleichsgewicht wird auf ein Vielfaches davon
+   * gerundet, ab der Hälfte aufwärts (domain/gewicht.ts rundeAufStufe). Im Stand immer gesetzt, Vorgabe 1 kg
+   * (AUSGLEICH_STUFE_VORGABE = ganze kg wie vorher), 0,1–10 kg auf 10 g. Einstellung der Veranstaltung: in Sicherung
+   * und Vorlage.
+   */
+  ausgleichStufe: number
+  /**
    * Die Verzahnung ist festgeschrieben. Sie bestimmt Startnummern und damit alle
    * Listen; solange das gesetzt ist, lassen sich Parcours, Spuren und Boote
    * nicht ändern.

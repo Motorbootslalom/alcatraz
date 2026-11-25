@@ -308,6 +308,20 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
       for (const k of genannt)
         if (raw.klassen && !regelKlassen.has(k)) err('BAD_FEHLER_KLASSE', `Fehler-Code "${f.code}" im Katalog "${kid}": Klasse "${k}" gibt es im Regelwerk nicht.`, `kataloge.${kid}`)
     }
+    // Höchstzahl je Lauf und Buchstabe danach (Nutzer 24.11.2026, WKR_ANNAHMEN CM1/CM2): `max` eine ganze Zahl ≥ 1;
+    // `danach` nur mit `max` (sonst wüsste niemand, wann), ein Disq.-Buchstabe des Regelwerks und nie X – ein Tipp auf
+    // einen Fehlercode kann kein „nicht gestartet“ sein. Ob er auf den Listen des Katalogs gilt: unten je Position.
+    for (const f of kat?.fehler ?? []) {
+      if (!f) continue
+      if (f.max !== undefined && (typeof f.max !== 'number' || !Number.isInteger(f.max) || f.max < 1))
+        err('BAD_FEHLER_MAX', `Fehler-Code "${f.code}" im Katalog "${kid}": max muss eine ganze Zahl ab 1 sein.`, `kataloge.${kid}`)
+      if (f.danach === undefined) continue
+      const d = String(f.danach)
+      if (f.max === undefined) err('BAD_FEHLER_DANACH', `Fehler-Code "${f.code}" im Katalog "${kid}": danach braucht max.`, `kataloge.${kid}`)
+      if (d === 'X') err('BAD_FEHLER_DANACH', `Fehler-Code "${f.code}" im Katalog "${kid}": danach darf nicht X („nicht gestartet“) sein.`, `kataloge.${kid}`)
+      else if (!disqs.some((x) => x && String(x.code) === d))
+        err('UNKNOWN_FEHLER_DANACH', `Fehler-Code "${f.code}" im Katalog "${kid}": danach "${d}" ist kein Disqualifikations-Code des Regelwerks.`, `kataloge.${kid}`)
+    }
   }
 
   // Eindeutige Codes über alle Kataloge halten die A4-Legende lesbar.
@@ -384,6 +398,20 @@ export function validateRawConfig(raw: ConfigInput): ConfigIssue[] {
     } else if (pos.disq !== undefined && pos.disq !== 'alle' && pos.disq !== 'keine' && !VALID_BEREICHE.has(pos.disq)) {
       err('UNKNOWN_DISQ_BEREICH', `Position "${pos.id}" verweist auf den unbekannten Bereich "${pos.disq}".`, where)
     }
+
+    // `danach` (Nutzer 24.11.2026): Der Buchstabe muss auf jeder Liste gelten, die den Katalog in einer Code-Spalte
+    // führt (Bereich der Position, `disq:`) – sonst setzte der Tipp nach `max` einen Buchstaben, den die Liste nicht annimmt.
+    const bereich = typeof pos.disq === 'string' ? pos.disq : undefined
+    const genutzt = new Set(spalten.flatMap((sp) => (sp && sp.typ === 'code' && (sp.katalog ?? pos.katalog) ? [(sp.katalog ?? pos.katalog) as string] : [])))
+    for (const kid of genutzt)
+      for (const f of kataloge[kid]?.fehler ?? []) {
+        if (f?.danach === undefined) continue
+        const d = disqs.find((x) => x && String(x.code) === String(f.danach))
+        if (!d) continue // schon UNKNOWN_FEHLER_DANACH
+        const gilt = bereich !== undefined && bereich !== 'keine' && (bereich === 'alle' || !d.bereiche || d.bereiche.includes(bereich))
+        if (!gilt)
+          err('BAD_FEHLER_DANACH_BEREICH', `Fehler-Code "${f.code}" im Katalog "${kid}": "${f.danach}" gilt auf der Liste "${pos.id}" (Bereich ${bereich ?? 'keiner'}) nicht.`, where)
+      }
 
     spalten.forEach((sp, j) => {
       const sw = `${where} · spalte "${sp?.key ?? j}"`

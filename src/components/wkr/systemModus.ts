@@ -61,3 +61,14 @@ function tippt(): boolean {
   if (el instanceof HTMLInputElement) return !['button', 'checkbox', 'radio', 'submit', 'reset', 'range', 'color', 'file'].includes(el.type)
   return el instanceof HTMLElement && el.isContentEditable
 }
+
+/**
+ * Übung: Kopf nach dem Abschicken aus dem Bild (Nutzer 24.11.2026, WKR_ANNAHMEN UK1–UK6) – das Rollen selbst, geteilt
+ * von WkrMaske und WkrPruefliste: `ziel` an den oberen Rand, gleitend; mit „Bewegung reduzieren“ des Systems ohne
+ * Bewegung (springt). Ohne Ziel oder ohne scrollIntoView (alte Browser) geschieht nichts.
+ */
+export function rolleAnDenRand(ziel: Element | null | undefined): void {
+  if (!ziel || typeof ziel.scrollIntoView !== 'function') return
+  const ruhig = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ziel.scrollIntoView({ block: 'start', behavior: ruhig ? 'auto' : 'smooth' })
+}

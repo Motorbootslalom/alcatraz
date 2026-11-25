@@ -146,25 +146,23 @@ describe('Betrieb → WKR: Matrix', () => {
     expect(w.find('[data-reiter="geraete"]').classes()).toContain('active')
   })
 
-  it('W4.3: „nicht vorbeigekommen“ als ⊘ mit Wort, Legende, Abschluss nennt die Nummer; Start-Freigabe warnt nicht', async () => {
+  // Nutzer 24.11.2026 (WKR_ANNAHMEN NG4/NG6): „Nicht gestartet · Disq. X“ vom Tor – ✕ wie jedes X; ⊘ gibt es nicht mehr.
+  it('„Nicht gestartet“ vom Tor-Gerät: Zelle ✕ „nicht gestartet (X)“, Legende ohne ⊘, nichts offen; Start-Freigabe warnt nicht', async () => {
     let s = stand()
     const keys = gezeigt(s)
     for (const [i, key] of keys.entries()) {
-      const r = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: i + 1, s: key, c: [], ...(i === 1 ? { n: true as const } : {}) })
+      const r = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: i + 1, s: key, c: i === 1 ? [['disq@gate135', 'X', '']] : [] })
       if ('fehler' in r) throw new Error(r.fehler)
       s = reducer(s, { type: 'WKR_ZEILEN', liste: TOR, quelle: { geraet: 'gNord', name: 'Handy Nord' }, zeilen: [r], zeit: 5000 + i })
     }
     s = reducer(s, { type: 'WKR_ABSCHLUSS', liste: TOR, punkt: 'lauf:1', name: 'Erika Musterrichterin', pruefsummen: {}, restPapier: false, zeit: 9000 })
     const w = await betrieb(s, hostDoppel().host)
-    expect(zellen(w, TOR)).toEqual(['ok', 'nv', 'ok'])
-    const z = reihe(w, TOR).find('.wkr-mzelle[data-zelle="nv"]')
-    expect(z.text()).toContain('⊘')
-    expect(z.text()).toContain('nicht vorbei')
-    expect(z.attributes('title')).toContain('nicht vorbeigekommen')
-    expect(w.find('[data-teil="wkr-legende"]').text()).toContain('⊘ nicht vorbeigekommen')
+    expect(zellen(w, TOR)).toEqual(['ok', 'x', 'ok'])
+    expect(reihe(w, TOR).find('.wkr-mzelle[data-zelle="x"]').attributes('title')).toContain('nicht gestartet (X)')
+    expect(w.find('[data-teil="wkr-legende"]').text()).not.toContain('⊘')
     expect(reihe(w, TOR).find('[data-teil="wkr-stand"]').text()).toContain('nichts offen')
     await reihe(w, TOR).find('[data-action="wkr-bedienung"]').trigger('click')
-    expect(w.find('[data-teil="abschluss-nicht-vorbei"]').text()).toContain('1 nicht vorbeigekommen: 102')
+    expect(w.find('[data-teil="abschluss-nicht-vorbei"]').exists()).toBe(false)
     await w.find('[data-reiter="start"]').trigger('click')
     await nextTick()
     expect(w.find('[data-teil="wkr-rueckstand"]').exists()).toBe(false)
@@ -309,30 +307,31 @@ describe('Betrieb → WKR: Eingang', () => {
   })
 })
 
-describe('Betrieb → WKR: Eingang „nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026)', () => {
-  it('Vorschlag und Rückfrage zeigen ⊘ mit Wort; „Übernehmen“ setzt ⊘ in der Matrix, nicht ✓', async () => {
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG6): Ein X vom Tor-Gerät geht durch den Eingang wie jedes X vom Gerät (F5-Markierung).
+describe('Betrieb → WKR: Eingang „Nicht gestartet“ vom Tor (24.11.2026)', () => {
+  it('Vorschlag und Rückfrage heben das X hervor (kein ⊘ mehr); „Übernehmen“ trägt es ein, die Matrix zeigt ✕', async () => {
     let s = stand()
     const keys = gezeigt(s)
     // Vorschlag: Start ging aufs Papier.
     s = reducer(s, { type: 'WKR_PAPIER_AB', liste: TOR, ref: keys[1], zeit: 4000 })
-    const r = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: 1, s: keys[1], c: [], n: true })
+    const r = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: 1, s: keys[1], c: [['disq@gate135', 'X', '']] })
     if ('fehler' in r) throw new Error(r.fehler)
     s = reducer(s, { type: 'WKR_ZEILEN', liste: TOR, quelle: { geraet: 'gNord', name: 'Handy Nord' }, zeilen: [r], zeit: 5000 })
     // Rückfrage: ein Start, der noch nicht gezeigt wurde.
     const offen = sichtOeffentlich(s).bereiche.find((b) => b.id === P1)!.offen[0].key
-    const r2 = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: 2, s: offen, c: [], n: true })
+    const r2 = pruefeZeile(s, DM, L('gate135'), undefined, 'gNord', { z: 2, s: offen, c: [['disq@gate135', 'X', '']] })
     if ('fehler' in r2) throw new Error(r2.fehler)
     s = reducer(s, { type: 'WKR_ZEILEN', liste: TOR, quelle: { geraet: 'gNord', name: 'Handy Nord' }, zeilen: [r2], zeit: 5100 })
     expect(s.wkr.vorschlaege).toHaveLength(1)
-    expect(s.wkr.rueckfragen).toHaveLength(1)
+    expect(s.wkr.rueckfragen.length).toBeGreaterThan(0)
     const w = await betrieb(s, hostDoppel().host)
-    expect(w.find('[data-teil="wkr-vorschlag"] [data-teil="wkr-nv"]').text()).toBe('⊘ nicht vorbeigekommen')
-    expect(w.find('[data-teil="wkr-rueckfrage-zeile"] [data-teil="wkr-nv"]').text()).toBe('⊘ nicht vorbeigekommen')
+    expect(w.find('[data-teil="wkr-nv"]').exists()).toBe(false)
+    expect(w.find('[data-teil="wkr-vorschlag"] [data-x]').text()).toContain('nicht gestartet')
+    expect(w.find('[data-teil="wkr-rueckfrage-zeile"] [data-teil="wkr-x"]').text()).toContain('nicht gestartet')
     await w.find('[data-teil="wkr-vorschlag"] [data-action="wkr-uebernehmen"]').trigger('click')
-    await w.find('[data-teil="wkr-rueckfrage-zeile"] [data-action="wkr-geraet"]').trigger('click')
-    expect(store.state.value.wkr.nichtVorbei[TOR]).toEqual([`${LAUF}|${starterVon(keys[1])}`, `${LAUF}|${starterVon(offen)}`])
+    expect(werteVon(store.state.value.eingaben, LAUF, starterVon(keys[1]))['disq@gate135']).toBe('X')
     await nextTick()
-    expect(reihe(w, TOR).find(`.wkr-mzelle[data-zelle="nv"]`).exists()).toBe(true)
+    expect(reihe(w, TOR).find(`.wkr-mzelle[data-zelle="x"][data-start='${keys[1]}']`).exists()).toBe(true)
   })
 })
 

@@ -17,8 +17,9 @@ import { punktText, punktVon, uhrzeitText } from './texte'
  * Geräts gruppiert (eine Zeile kann mehrere Zellen betreffen), mit „Gerät übernehmen“/„Behalten“ je Zelle und für die
  * ganze Zeile, und die Vorschläge mit „Übernehmen“/„Verwerfen“. Der Grund steht als Satz da (Zelle anders belegt,
  * Start nicht gezeigt, Buchstabe fiele weg; Liste abgeschlossen, Start auf Papier). Ein „X“ (nicht gestartet) vom
- * Gerät ist hervorgehoben (F5) – es nimmt den Starter aus der Wertung des Laufs. „Nicht vorbeigekommen“ steht als
- * „⊘ nicht vorbeigekommen“ am Kopf (W4.3, Prüfbefund 21.11.2026); erst die Entscheidung für das Gerät setzt es.
+ * Gerät ist hervorgehoben (F5) – es nimmt den Starter aus der Wertung des Laufs; seit 24.11.2026 kann es von jeder
+ * Liste kommen („Nicht gestartet · Disq. X“, WKR_ANNAHMEN NG2). Das Kennzeichen „⊘ nicht vorbeigekommen“ am Kopf (W4.3)
+ * entfiel damit (NG6).
  * Hat der WKR auf dem Gerät „So lassen“ gewählt, steht „WKR: so lassen (14:03)“ am Kopf (Nutzer 21.11.2026, W3-35,
  * WKR_ANNAHMEN GF5) – die Rückfrage bleibt offen, der Bediener entscheidet wie bisher.
  *
@@ -57,7 +58,7 @@ function felderVon(liste: string, starter: string): Feld[] {
 }
 
 const leer = (w: string) => (w === '' ? t('betrieb.wkr.eingang.leerWert') : w)
-/** Ein X (nicht gestartet) in einer Disq.-Zelle vom Gerät (F5). */
+/** Ein X (nicht gestartet) in einer Disq.-Zelle vom Gerät (F5; seit 24.11.2026 von jeder Liste, NG2). */
 const istX = (f: Feld | undefined, wert: string) => f?.kind === 'disq' && wert.split(/[\s,]+/).includes(NICHT_GESTARTET)
 
 const GRUND = { zelle: 'betrieb.wkr.grund.zelle', start: 'betrieb.wkr.grund.start', entfernt: 'betrieb.wkr.grund.entfernt' } as const
@@ -80,8 +81,6 @@ interface Gruppe {
   kopf: string
   /** „Keine Zeit“ der Zeile (W5.4) als Satz, '' ohne. */
   kz: string
-  /** „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): sonst sähe die Zeile wie ein bloßer Haken aus. */
-  nv: boolean
   /** „So lassen“ vom Gerät (Nutzer 21.11.2026, W3-35, GF5): Zeit des ersten Vermerks der Zeile, sonst null. */
   soLassen: number | null
   zellen: { rf: WkrRueckfrage; label: string; x: boolean }[]
@@ -92,7 +91,7 @@ const gruppen = computed<Gruppe[]>(() => {
   for (const rf of state.value.wkr.rueckfragen) {
     const key = `${rf.zeile}|${rf.lauf}|${rf.starter}`
     let g = out.get(key)
-    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), kz: kzText(rf.liste, rf.starter, rf.keineZeit), nv: !!rf.nichtVorbei, soLassen: null, zellen: [] }))
+    if (!g) out.set(key, (g = { key, kopf: kopf(rf, geraetName(rf.zeile)), kz: kzText(rf.liste, rf.starter, rf.keineZeit), soLassen: null, zellen: [] }))
     if (rf.soLassen !== undefined && (g.soLassen === null || rf.soLassen < g.soLassen)) g.soLassen = rf.soLassen
     const f = felderVon(rf.liste, rf.starter).find((x) => x.kennung === rf.feld)
     g.zellen.push({ rf, label: f?.label ?? rf.feld, x: istX(f, rf.wert) })
@@ -147,8 +146,7 @@ function alle(g: Gruppe, wahl: 'geraet' | 'behalten'): void {
         <li v-for="g in gruppen" :key="g.key" class="wkr-eingang-eintrag" data-teil="wkr-rueckfrage-zeile">
           <div class="wkr-eingang-kopf">
             <strong>{{ g.kopf }}</strong>
-            <span v-if="g.nv" class="wkr-nv" data-teil="wkr-nv">⊘ {{ t('betrieb.wkr.eingang.nichtVorbei') }}</span>
-            <span v-if="g.kz" class="wkr-nv" data-teil="wkr-keine-zeit">{{ g.kz }}</span>
+            <span v-if="g.kz" class="wkr-eingang-marke" data-teil="wkr-keine-zeit">{{ g.kz }}</span>
             <!-- W3-35 (21.11.2026): Der WKR hat „So lassen“ gewählt – Feedback für den Bediener; entscheiden muss er weiter. -->
             <span v-if="g.soLassen !== null" class="wkr-so-lassen" data-teil="wkr-so-lassen">{{ t('betrieb.wkr.eingang.soLassen', { zeit: uhrzeitText(g.soLassen) }) }}</span>
             <template v-if="g.zellen.length > 1">
@@ -175,8 +173,7 @@ function alle(g: Gruppe, wahl: 'geraet' | 'behalten'): void {
         <li v-for="e in vorschlaege" :key="e.v.id + e.v.lauf + e.v.starter" class="wkr-eingang-eintrag" data-teil="wkr-vorschlag" :data-vorschlag="e.v.id">
           <div class="wkr-eingang-kopf">
             <strong>{{ e.kopf }}</strong>
-            <span v-if="e.v.nichtVorbei" class="wkr-nv" data-teil="wkr-nv">⊘ {{ t('betrieb.wkr.eingang.nichtVorbei') }}</span>
-            <span v-if="e.kz" class="wkr-nv" data-teil="wkr-keine-zeit">{{ e.kz }}</span>
+            <span v-if="e.kz" class="wkr-eingang-marke" data-teil="wkr-keine-zeit">{{ e.kz }}</span>
           </div>
           <p class="note">{{ t(VORSCHLAG_GRUND[e.v.grund]) }}</p>
           <ul>

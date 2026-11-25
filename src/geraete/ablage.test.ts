@@ -579,6 +579,24 @@ describe('Ansicht und Probe der WKR-Maske (W3.1)', () => {
     expect(Object.keys(liesAnsicht(localStorage).bojenFolge ?? {})).toEqual(['L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11'])
   })
 
+  it('Lage des Bilds je Liste (Nutzer 24.11.2026, BL3): nur 0/90/180/270 als Zahl; höchstens 8 Listen; bleibt nach „Raum verlassen“', () => {
+    schreibeAnsicht({ bildLage: { L1: 90, L2: 0, L3: 270 } }, localStorage)
+    expect(liesAnsicht(localStorage).bildLage).toEqual({ L1: 90, L2: 0, L3: 270 })
+    verlasseRaum(localStorage)
+    expect(liesAnsicht(localStorage).bildLage?.L1).toBe(90)
+    // Kaputtes fällt je Liste weg (Text, −90, 45, Objekt); ganz leer = kein Feld – dann gilt die Zeichnung wie bisher.
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bildLage: { L1: '90', L2: -90, L3: 45, L4: { lage: 90 }, L5: 180 } }))
+    expect(liesAnsicht(localStorage).bildLage).toEqual({ L5: 180 })
+    localStorage.setItem(ABLAGE.ansicht, JSON.stringify({ bildLage: [90] }))
+    expect(liesAnsicht(localStorage).bildLage).toBeUndefined()
+    const viele = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`L${i}`, 180 as const]))
+    schreibeAnsicht({ bildLage: viele }, localStorage)
+    expect(Object.keys(liesAnsicht(localStorage).bildLage ?? {})).toEqual(['L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11'])
+    // Neben der Bojen-Folge, ohne sie zu berühren.
+    schreibeAnsicht({ bojenFolge: { L1: 'fahrt' } }, localStorage)
+    expect(liesAnsicht(localStorage)).toMatchObject({ bojenFolge: { L1: 'fahrt' }, bildLage: { L11: 180 } })
+  })
+
   it('alte Bojen-Ansicht „Wie der Parcours liegt“ (bis 21.11.2026) wird beim Lesen weggeräumt, der Rest bleibt', () => {
     const alt = { modus: 'hell', modusGewaehlt: true, hand: 'links', bojen: { L1: { folge: 'lage', startOben: false, tauschen: true } } }
     localStorage.setItem(ABLAGE.ansicht, JSON.stringify(alt))

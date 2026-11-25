@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeCodeCell } from './codes'
+import { codeAnzahlen, codeHoechstens, codesUeberMax, normalizeCodeCell } from './codes'
+import { WKR_ANNAHMEN } from '../wkr/annahmen'
 
 const AB = new Set(['3', '4', '5']) // Steg Ablegen
 const AN = new Set(['7', '8', '9', '10', '11', '12']) // Steg Anlegen
@@ -55,5 +56,27 @@ describe('normalizeCodeCell', () => {
   it('leert sauber', () => {
     expect(normalizeCodeCell('', AB, DISQ)).toBe('')
     expect(normalizeCodeCell('99 z', AB, DISQ)).toBe('')
+  })
+})
+
+describe('Höchstzahl je Code (Nutzer 24.11.2026, WKR_ANNAHMEN CM1/CM2)', () => {
+  it('codeHoechstens: Angabe des Regelwerks, sonst die allgemeine Grenze', () => {
+    expect(codeHoechstens({ max: 1 })).toBe(1)
+    expect(codeHoechstens({})).toBe(WKR_ANNAHMEN.codeMaxAllgemein)
+  })
+
+  it('codeAnzahlen zählt jede Schreibweise zusammen („2x6, 6“ = 3), Buchstaben und Unfertiges zählen nicht', () => {
+    expect([...codeAnzahlen('3, 2x6, 6, A')]).toEqual([['3', 1], ['6', 3]])
+    expect([...codeAnzahlen('2 x 06, 0x3, 2x')]).toEqual([['6', 2]])
+  })
+
+  it('codesUeberMax: nur Codes des Katalogs über ihrer Grenze, mit dem Buchstaben danach', () => {
+    const katalog = [{ code: '1', max: 1 }, { code: '20', max: 2, danach: 'D' }, { code: '2' }]
+    expect(codesUeberMax('1, 2x20, 3x2', katalog)).toEqual([])
+    expect(codesUeberMax('2x1, 3x20, 4x2, 9x99', katalog)).toEqual([
+      { code: '1', anzahl: 2, max: 1 },
+      { code: '20', anzahl: 3, max: 2, danach: 'D' },
+      { code: '2', anzahl: 4, max: WKR_ANNAHMEN.codeMaxAllgemein },
+    ])
   })
 })

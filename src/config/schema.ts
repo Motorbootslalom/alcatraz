@@ -33,6 +33,19 @@ export interface RawFehler {
    */
   abKlasse?: string | number
   klassen?: (string | number)[]
+  /**
+   * Wie oft der Code in einem Lauf höchstens vorkommen kann (Nutzer 24.11.2026: „nicht mit gesamter Länge eingefahren
+   * ×62 – das macht auch keinen Sinn“), ganze Zahl ≥ 1. Fehlt sie, gilt die allgemeine Grenze
+   * WKR_ANNAHMEN.codeMaxAllgemein (lib/codes.ts codeHoechstens). Wirkt auf das WKR-Gerät (Knopf nimmt am Höchstwert
+   * nichts mehr an, Tabelle, Prüfung der Gerätezeile) und als Hinweis beim Abtippen – Bogen und Legende unverändert.
+   */
+  max?: number
+  /**
+   * Disq.-Buchstabe, den der Tipp NACH `max` setzt (Nutzer 24.11.2026: „Wenn man bei den 2. und 3. Versuch drauf
+   * klickt, dann sollte der dritte Klick der passende Disquali werden.“ – „2. und 3. Versuch“ → D „4. Versuch“).
+   * Nur mit `max`; ein Buchstabe des Regelwerks (nie X), der auf jeder Liste mit diesem Katalog gilt (validate.ts).
+   */
+  danach?: string
 }
 
 /** Benannter Fehler-Katalog (z. B. "mueb", "steg", "tor5"). */

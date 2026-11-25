@@ -1,5 +1,5 @@
 import type { ClassId, KeineZeitGrund } from '../types'
-import { codeEntries, normalizeCodeCell, parseCodeEntry } from '../lib/codes'
+import { codeEntries, codesUeberMax, normalizeCodeCell, parseCodeEntry } from '../lib/codes'
 import { sanitizeBuoy, sanitizeCodeInput, sanitizeDisq } from '../lib/disq'
 import { bojenWert } from '../lib/scoring'
 import { sanitizeTimeInput } from '../lib/time'
@@ -40,8 +40,11 @@ export interface TabellenSpalte {
  * - `zu-lang`: länger als WKR_ANNAHMEN.textMax.
  * - `nicht-darstellbar`: einzeln gültig, aber die Zeile als Ganzes ergäbe einen anderen Wert (z. B. ein
  *   Disq.-Buchstabe im Code-Feld, wo die Liste ein eigenes Disq.-Feld hat, oder derselbe Buchstabe zweimal).
+ * - `code-zu-oft` (Nutzer 24.11.2026, WKR_ANNAHMEN CM5): ein Code öfter als sein `max` („2x1“ an Tor 5).
+ * - `code-danach`: ebenso, aber der Code hat einen Buchstaben danach („3x20“ – der 4. Versuch ist Disq. D); die Tabelle
+ *   wandelt nicht um, den Buchstaben trägt der WKR unter „Disq.“ ein (TB3: nichts still verbessern).
  */
-export type TabellenFehler = 'zeichen-fremd' | 'code-unbekannt' | 'boje-punkte' | 'zeit-unlesbar' | 'zu-lang' | 'nicht-darstellbar'
+export type TabellenFehler = 'zeichen-fremd' | 'code-unbekannt' | 'boje-punkte' | 'zeit-unlesbar' | 'zu-lang' | 'nicht-darstellbar' | 'code-zu-oft' | 'code-danach'
 
 export interface TabellenZelle {
   /** Der Wert nach dem Sanierer – so ginge er hinaus. */
@@ -134,6 +137,9 @@ export function zelleAusEingabe(spalte: TabellenSpalte, eingabe: string, aufbau:
         }
       }
       if (vorher !== roh.replace(/×/g, 'x').toUpperCase().replace(/(\d)X(\d)/g, '$1x$2')) return { wert, fehler: 'zeichen-fremd' }
+      // Höchstzahl je Code (CM5): dieselbe Grenze wie die Knöpfe und wertGilt am Bedienrechner.
+      const zuOft = codesUeberMax(wert, t?.codes ?? [])
+      if (zuOft.length > 0) return { wert, fehler: zuOft.some((z) => z.danach !== undefined) ? 'code-danach' : 'code-zu-oft' }
       return { wert, fehler: null }
     }
     case 'disq': {

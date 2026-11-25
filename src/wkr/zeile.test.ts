@@ -7,7 +7,8 @@ import type { AppState } from '../types'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
 import { istParcoursListe, listenDerVeranstaltung, listenKennung, liesListe, type Liste } from './liste'
 
-// Prüfung einer Gerätezeile (Plan §6): jede Zellart wie die Erfassungstabelle, X nur Steg-Ablegen/Vorsteg (F5),
+// Prüfung einer Gerätezeile (Plan §6): jede Zellart wie die Erfassungstabelle, X neben anderem nur Steg-Ablegen/Vorsteg
+// (F5), X allein im Disq.-Feld überall („Nicht gestartet“, NG2 seit 24.11.2026),
 // Teile des Stegs (F16), fremde Felder, Klasse ohne Liste, Parallelslalom (eigene Seite), Vorsteg auf alle Versuche.
 // Nur erfundene Starter (testHilfen: Vor<id>/Nach<id>, Musterclub).
 
@@ -96,7 +97,14 @@ describe('pruefeZeile – Werte wie in der Erfassungstabelle', () => {
     ['Boje: X mit Punkten', 'gate135', 't1a|hin seiteA', '5X', false],
     ['Boje: X neben einem Buchstaben', 'gate135', 't1a|hin seiteA', 'A, X', false],
     ['Fehlercode aus dem Katalog', 'tor5', 'katalog:tor5', '1', true],
-    ['Fehlercode, zwei mit Faktor', 'tor5', 'katalog:tor5', '2x1', true],
+    ['Fehlercode, zwei mit Faktor', 'tor5', 'katalog:tor5', '2x20', true],
+    // Höchstzahl je Code (Nutzer 24.11.2026, WKR_ANNAHMEN CM5): Tor 5 Code 1 höchstens 1×, „2. und 3. Versuch“ (20)
+    // höchstens 2× – der dritte ist Disq. D; Codes ohne eigene Angabe höchstens codeMaxAllgemein (3).
+    ['Fehlercode über max (Code 1 höchstens 1×)', 'tor5', 'katalog:tor5', '2x1', false],
+    ['Fehlercode über max (2. und 3. Versuch höchstens 2×)', 'tor5', 'katalog:tor5', '3x20', false],
+    ['Fehlercode am max mit Disq. D', 'tor5', 'disq@tor5', 'D', true],
+    ['Fehlercode, allgemeine Grenze 3', 'steg', 'katalog:stegAblegen', '3x3, 2x6', true],
+    ['Fehlercode über der allgemeinen Grenze', 'steg', 'katalog:stegAblegen', '4x3', false],
     ['Fehlercode fremd', 'tor5', 'katalog:tor5', '999', false],
     ['Disq einzeln', 'tor5', 'disq@tor5', 'A', true],
     ['Disq zwei in Tabellenform', 'tor5', 'disq@tor5', 'A, B', true],
@@ -134,25 +142,24 @@ describe('pruefeZeile – Werte wie in der Erfassungstabelle', () => {
   })
 })
 
-describe('pruefeZeile – X nur am Steg (Ablegen) und am Vorsteg (F5)', () => {
+describe('pruefeZeile – X neben anderem nur am Steg (Ablegen) und am Vorsteg (F5, seit 24.11.2026 NG2)', () => {
   const fall = (typeId: string, c: GeraeteZeile['c'], teil?: 'ab' | 'an', t?: 'ab' | 'an') => {
     const { s, erster } = gezeigt()
     return pruefeZeile(s, DM, L(typeId), teil, 'g1', zeile(m(erster), c, t ? { t } : {}))
   }
 
-  it('Tor-Liste und Tor 5: x-nicht-erlaubt', () => {
-    expect(fall('gate135', [['disq@gate135', 'X', '']])).toEqual({ fehler: 'x-nicht-erlaubt' })
+  it('Tor-Liste und Tor 5: X in einer Boje, neben einem Buchstaben oder neben Werten – x-nicht-erlaubt', () => {
     expect(fall('gate135', [['t1a|hin seiteA', 'X', '']])).toEqual({ fehler: 'x-nicht-erlaubt' })
     expect(fall('tor5', [['disq@tor5', 'A, X', '']])).toEqual({ fehler: 'x-nicht-erlaubt' })
+    expect(fall('gate135', [['disq@gate135', 'X', ''], ['t1a|hin seiteA', '5', '']])).toEqual({ fehler: 'x-nicht-erlaubt' })
   })
 
-  it('Steg: Ablegen ja, Anlegen nein; ein Gerät für den ganzen Steg nicht in der Spalte des Anlegens', () => {
+  it('Steg: Ablegen ja, Anlegen nur allein im Disq.-Feld; ein Gerät für den ganzen Steg nicht in der Spalte des Anlegens', () => {
     expect(fall('steg', [['disq@steg', 'X', '']], 'ab')).not.toHaveProperty('fehler')
     expect(fall('steg', [['katalog:stegAblegen', 'X', '']], 'ab')).not.toHaveProperty('fehler')
-    expect(fall('steg', [['disq@steg', 'X', '']], 'an')).toEqual({ fehler: 'x-nicht-erlaubt' })
     expect(fall('steg', [['disq@steg', 'X', '']])).not.toHaveProperty('fehler')
     expect(fall('steg', [['katalog:stegAnlegen', 'X', '']])).toEqual({ fehler: 'x-nicht-erlaubt' })
-    expect(fall('steg', [['disq@steg', 'X', '']], undefined, 'an')).toEqual({ fehler: 'x-nicht-erlaubt' })
+    expect(fall('steg', [['disq@steg', 'X', ''], ['katalog:stegAnlegen', '7', '']], 'an')).toEqual({ fehler: 'x-nicht-erlaubt' })
   })
 
   it('Vorsteg: ja', () => {
@@ -270,34 +277,40 @@ describe('pruefeZeile – Vorsteg mit „Versuche direkt nacheinander“', () =>
   })
 })
 
-describe('pruefeZeile – „Nicht vorbeigekommen“ (W4.3, P16)', () => {
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG1/NG2/NG4): „Nicht gestartet · Disq. X“ – X allein im Disq.-Feld, auf jeder Liste.
+describe('pruefeZeile – „Nicht gestartet · Disq. X“ (24.11.2026, NG2)', () => {
   const fall = (typeId: string, c: GeraeteZeile['c'], teil?: 'ab' | 'an', mehr: Partial<GeraeteZeile> = {}) => {
     const { s, erster } = gezeigt()
-    return pruefeZeile(s, DM, L(typeId), teil, 'g1', zeile(m(erster), c, { n: true, ...mehr }))
+    return pruefeZeile(s, DM, L(typeId), teil, 'g1', zeile(m(erster), c, mehr))
   }
 
-  it('Zeile ohne Zellen mit `n`: Haken und Kennzeichen, keine Zellen', () => {
-    expect(fall('gate135', [])).toMatchObject({ zellen: [], haken: ['erfasst@gate135'], nichtVorbei: true })
-    expect(fall('tor5', [])).toMatchObject({ nichtVorbei: true })
+  it('Tor-Liste, Tor 5, Vorsteg: X allein im Disq.-Feld gilt – eine gewöhnliche Zeile mit Haken', () => {
+    expect(fall('gate135', [['disq@gate135', 'X', '']])).toMatchObject({ zellen: [{ feld: 'disq@gate135', wert: 'X', vorher: '' }], haken: ['erfasst@gate135'] })
+    expect(fall('tor5', [['disq@tor5', 'X', '']])).toMatchObject({ haken: ['erfasst@tor5'] })
+    expect(fall('vorsteg', [['disq@vorsteg', 'X', '']])).toMatchObject({ haken: ['erfasst@vorsteg'] })
+    // Leere Zellen daneben (Korrektur eines Geräts, das vorher dort etwas hatte) stören nicht.
+    expect(fall('gate135', [['disq@gate135', 'X', ''], ['t1a|hin seiteA', '', '5']])).not.toHaveProperty('fehler')
   })
 
-  it('`n` nur mit leerem `c` und nur als true – sonst wert-ungueltig', () => {
-    expect(fall('gate135', [['t1a|hin seiteA', '5', '']])).toEqual({ fehler: 'wert-ungueltig' })
-    expect(fall('gate135', [], undefined, { n: 1 as unknown as true })).toEqual({ fehler: 'wert-ungueltig' })
+  it('Steg-Anlegen (Teil-Gerät und ganzer Steg mit Teil `an`): X ins gemeinsame Disq.-Feld, Haken des Anlegens (NG4)', () => {
+    const an = fall('steg', [['disq@steg', 'X', '']], 'an')
+    expect(an).toMatchObject({ teil: 'an', haken: ['erfasst.an@steg'], zellen: [{ feld: 'disq@steg', wert: 'X' }] })
+    // Ohne `vereinige` (Prüfbefund 24.11.2026, NG6): Ein Buchstabe des anderen Teils wird eine Rückfrage, nie „A, X“.
+    expect(an).not.toHaveProperty('zellen.0.vereinige')
+    expect(fall('steg', [['disq@steg', 'X', '']], undefined, { t: 'an' })).toMatchObject({ teil: 'an', haken: ['erfasst.an@steg'] })
+    // Andere gemeinsame Zellen vereinigen weiter (F16).
+    expect(fall('steg', [['disq@steg', 'S', '']], 'an')).toMatchObject({ zellen: [{ feld: 'disq@steg', wert: 'S', vereinige: true }] })
   })
 
-  it('nicht am Vorsteg und nicht im Steg-Ablegen (dort X, F5): nv-nicht-erlaubt; Steg-Anlegen ja', () => {
-    expect(fall('vorsteg', [])).toEqual({ fehler: 'nv-nicht-erlaubt' })
-    expect(fall('steg', [], 'ab')).toEqual({ fehler: 'nv-nicht-erlaubt' })
-    // Ein Gerät für den ganzen Steg: ohne Teil nicht (das schlösse das Ablegen ein), mit Teil `an` schon.
-    expect(fall('steg', [])).toEqual({ fehler: 'nv-nicht-erlaubt' })
-    expect(fall('steg', [], undefined, { t: 'an' })).toMatchObject({ teil: 'an', haken: ['erfasst.an@steg'], nichtVorbei: true })
-    expect(fall('steg', [], 'an')).toMatchObject({ teil: 'an', nichtVorbei: true })
+  it('X nie mit anderem (BZ2): „X, J“ im Disq.-Feld bleibt außerhalb von Steg-Ablegen/Vorsteg abgelehnt', () => {
+    expect(fall('gate135', [['disq@gate135', 'J, X', '']])).toEqual({ fehler: 'x-nicht-erlaubt' })
   })
 
-  it('ohne `n` fehlt das Kennzeichen in der aufgelösten Zeile', () => {
-    const { s, erster } = gezeigt()
-    expect(pruefeZeile(s, DM, L('gate135'), undefined, 'g1', zeile(m(erster), []))).not.toHaveProperty('nichtVorbei')
+  it('Parallelslalom: X allein im Disq.-Feld des Fahrwegs je Racecourse', () => {
+    const s = uimParallelStand()
+    const start = lage(s, 'parallel').folge.find((e) => e.paar?.aFaehrt && e.paar.bFaehrt)!
+    const r = pruefeZeile(s, UIM, { bereich: 'parallel', typeId: 'parallelparcours', racecourse: 'A' }, undefined, 'g1', zeile(start.key, [['disq@parallelparcours', 'X', '']]))
+    expect(r).toMatchObject({ starter: start.paar!.a, zellen: [{ feld: 'disq@parallelparcours', wert: 'X' }], haken: ['erfasst@parallelparcours'] })
   })
 })
 
@@ -328,7 +341,6 @@ describe('pruefeZeile – „Keine Zeit“ (W5.4, 22.11.2026, ZT4)', () => {
 
   it('Form: Paare mit bekanntem Grund, nie zusammen mit `n` – sonst wert-ungueltig', () => {
     for (const kz of ['x', [['zeit1']], [['zeit1', 'kaputt']], [[1, 'anlage']], { zeit1: 'anlage' }]) expect(fall('zeit', [], kz), JSON.stringify(kz)).toEqual({ fehler: 'wert-ungueltig' })
-    expect(fall('gate135', [], [['zeit1', 'anlage']], { n: true })).toEqual({ fehler: 'wert-ungueltig' })
   })
 
   it('Zeit UND „keine Zeit“ im selben Feld: wert-ungueltig; Feld, das keine Zeit ist, oder doppelt: feld-fremd', () => {

@@ -221,14 +221,14 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - W4.2 (21.11.2026, Plan docs/plan-wkr-w4.md §5): kein neuer Kern, kein neues Protokoll – die Bojen-Maske liest
   dieselbe ErfassungsQuelle; uebung.ts unverändert (Bojen-Listen über maskenJeKlasse). Ende zu Ende: wkr.test.ts
   „W4.2“ (gate135 jede Boje + Disq. in einer Zeile, moewe135 Bojen + Einfahrt Tor 5 über SET_AUFBAU `moewe`).
-- W4.3 (21.11.2026, Plan docs/plan-wkr-w4.md §6, P16/R1–R8): **„Nicht vorbeigekommen“** – erfassen.ts
-  MaskenZeile.`nv` → `schicke` legt eine Zeile OHNE Zellen mit `n` (AusZeile.n, auf der Leitung GeraeteZeile.n);
-  WerteEintrag.`n` = Teil der Meldung (`g` = ganz), eine spätere Zeile desselben Teils ohne `n` löscht es;
-  `korrigiere` schickt nach einer ⊘-Zeile auch ohne geänderte Werte („doch vorbei, fehlerfrei“) bzw. macht aus der
-  wartenden ⊘-Zeile eine mit Werten; ZuletztZeile.`nv`, PruefZeile.`nv`, Pruefung.`nichtVorbei` (Startnummern).
-  uebung.ts ebenso (UebZeile.n, keine Beispiel-Rückfrage auf einer ⊘-Zeile). protokoll.ts ABLEHNUNGEN + `nv-nicht-erlaubt`
-  (Text geraete.ablehnung.nv-nicht-erlaubt). PROTOKOLL_FASSUNG bleibt 2; LISTEN_SICHT_FASSUNG 5 trennt alte Geräte.
-  Tests: src/GeraetWkr.test.ts „Nicht vorbeigekommen (W4.3)“ (Ende zu Ende über die Maske), uebung.test.ts.
+- W4.3 (21.11.2026) „Nicht vorbeigekommen“ (MaskenZeile.`nv`, AusZeile/GeraeteZeile.`n`, WerteEintrag.`n`,
+  ZuletztZeile/PruefZeile.`nv`, Pruefung.`nichtVorbei`, Ablehnung `nv-nicht-erlaubt`) entfiel am 24.11.2026 (Nutzer:
+  „Das meint hier eher ‚Nicht gestartet Disq X‘“, WKR_ANNAHMEN NG1–NG8): Die Maske schickt X allein im Disq.-Feld als
+  gewöhnliche Zeile über `schicke` (wkr/maske.ts nichtGestartetZellen), die Prüfansicht zählt es unter `x`; uebung.ts
+  ebenso, ohne Beispiel-Rückfrage auf einer X-Zeile (NG7); eine Zeile mit X erledigt auf dem Übungsgerät für den
+  ganzen Steg beide Teile (Prüfbefund 24.11.2026, wie echt). PROTOKOLL_FASSUNG bleibt 2; LISTEN_SICHT_FASSUNG 13 trennt
+  alte Geräte (NG8). Tests: wkr.test.ts „Nicht gestartet · Disq. X Ende zu Ende“, uebung.test.ts, src/GeraetWkr.test.ts
+  „Nicht gestartet · Disq. X“.
 
 - Nutzer 21.11.2026 (WKR_ANNAHMEN T3, T5–T8): **Abmelden am Gerät = Liste entfernen** – host.ts nimmWkrAn: WKR_STATUS
   `abgemeldet` → WKR_LISTE abgemeldet für das, was danach kein Gerät mehr abdeckt (kein anderes Gerät: ganze Liste, T6;
@@ -246,7 +246,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Liste, die gekoppelte Geräte abdecken (ohne Teil = beide); liest components/wkrDruck.ts für wkr/druck.ts.
 - Nutzer 22.11.2026 (WKR_ANNAHMEN V3 bojenFolge, ersetzt V1/V2 vom 21.11.2026): ablage.ts GeraetAnsicht.`bojenFolge` =
   BojenFolgeWahl gedreht|fahrt|untereinander je Listen-Kennung (höchstens 8, nur bekannte Werte; fehlt = `gedreht`),
-  bleibt wie Hand/Modus nach „Raum verlassen“. Der alte Schlüssel `bojen` („Wie der Parcours liegt“) fällt in
+  bleibt wie Hand/Modus nach „Raum verlassen“; seit 24.11.2026 ebenso `bildLage` (BildLageWahl 0|90|180|270 je Liste,
+  Lage der Maske „Bild“, WKR_ANNAHMEN BL3, nur Zahlen, ≤ 8). Der alte Schlüssel `bojen` („Wie der Parcours liegt“) fällt in
   ansichtAus weg, liesAnsicht schreibt die Ansicht ohne ihn zurück. Kein neuer Kern, kein neues Protokoll; Disq. an der Boje (U1) geht als Buchstabe in der
   Bojenzelle über dieselbe Zeile (wkr/zeile.ts wertGilt = sanitizeBuoy) – seit W4-12 (21.11.2026, BZ1) neben den
   Punkten, seit R7-14 (22.11.2026, BZ6) mehrere mit Komma („5, J“, „5, J, D“, „10, G“; „5J“ ist ungültig), weiter ein

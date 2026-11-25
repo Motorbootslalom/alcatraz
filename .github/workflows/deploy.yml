@@ -25,6 +25,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Die wackeligen Tests (src/testHilfen.ts wackelTestsAuslassen) bleiben hier immer aus: GitHub setzt CI, und
+      # ALCATRAZ_WACKELTESTS wird bewusst nie gesetzt – sie sollen den Deploy nicht aufhalten (Nutzer 24.11.2026).
+      # Mitlaufen lassen nur über die CI (Actions → CI → Run workflow → Haken).
       - run: npm test
       - run: npm run build
       # Die Ein-Datei-Fassung wird als alcatraz.html mit ausgeliefert, damit sie

@@ -74,21 +74,22 @@ describe('Maske „Tabelle“ (W5.5)', () => {
     expect(w.findAll('[data-teil="tabelle-kopf"]').length).toBeGreaterThan(0)
   })
 
-  it('Enter springt in die nächste Zelle; Enter in der letzten schickt ab – die Zellen genau wie in der Tabelle, „2x1, 20“', async () => {
+  // „1, 2x20“ statt „2x1, 20“ seit der Höchstzahl je Code (Nutzer 24.11.2026, CM5): Code 1 an Tor 5 höchstens 1×.
+  it('Enter springt in die nächste Zelle; Enter in der letzten schickt ab – die Zellen genau wie in der Tabelle, „1, 2x20“', async () => {
     vi.useFakeTimers()
     const { q, w } = await uebung('tor5', 'text')
     const felder = eingaben(w).map((x) => x.element.closest('[data-feld]')!.getAttribute('data-feld')!)
-    await tippe(w, felder[0], '20 1 1')
+    await tippe(w, felder[0], '20 1 20')
     await enter(w, felder[0])
     // Beim Verlassen steht der Wert so da, wie er hinausgeht.
-    expect((feldVon(w, felder[0]).element as HTMLInputElement).value).toBe('2x1, 20')
+    expect((feldVon(w, felder[0]).element as HTMLInputElement).value).toBe('1, 2x20')
     expect(document.activeElement).toBe(eingaben(w)[1]?.element ?? eingaben(w)[0].element)
     expect(haupt(w).text()).toContain('Abschicken')
     const vorher = q.zuletzt.value.length
     for (const f of felder.slice(1)) await enter(w, f)
     if (felder.length === 1) await enter(w, felder[0])
     expect(q.zuletzt.value.length).toBe(vorher + 1)
-    expect(q.zuletzt.value[0].zellen['katalog:tor5']).toBe('2x1, 20')
+    expect(q.zuletzt.value[0].zellen['katalog:tor5']).toBe('1, 2x20')
     // Overlay wie bei den Knöpfen.
     expect(w.find('[data-teil="uebertragen"]').exists()).toBe(true)
     await vi.advanceTimersByTimeAsync(5000)
@@ -96,7 +97,7 @@ describe('Maske „Tabelle“ (W5.5)', () => {
     // Die gesendete Zeile steht oben mit ihrem Zeichen, darunter die neue aktive Zeile.
     const gesendet = w.findAll('[data-teil="tabelle-gesendet"]')
     expect(gesendet.length).toBe(1)
-    expect(gesendet[0].text()).toContain('2x1, 20')
+    expect(gesendet[0].text()).toContain('1, 2x20')
     expect(['✓', '↑']).toContain(gesendet[0].find('[data-teil="tabelle-zeichen"]').text())
     expect((feldVon(w, 'katalog:tor5').element as HTMLInputElement).value).toBe('')
   })

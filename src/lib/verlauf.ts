@@ -121,13 +121,12 @@ export type VerlaufArt =
   | 'vorschlag'
   | 'wkrListe'
   | 'wkrAbschluss'
-  /** W2: „Papier ab Start …“ – die Liste wird ab einem Start vom Bogen erfasst (`liste`). */
-  | 'wkrPapierAb'
   /**
-   * W4.3 (21.11.2026, WKR_ANNAHMEN.nichtVorbeiVerlauf): Zeilen eines Geräts, die alle „nicht vorbeigekommen“ melden
-   * (`liste`, `geraet`); gemischte Bündel bleiben `eingabeGeraet`.
+   * W2: „Papier ab Start …“ – die Liste wird ab einem Start vom Bogen erfasst (`liste`). (`wkrNichtVorbei` für Bündel
+   * „nicht vorbeigekommen“, W4.3, entfiel am 24.11.2026: „Nicht gestartet · Disq. X“ ist eine gewöhnliche Zeile –
+   * `eingabeGeraet`, WKR_ANNAHMEN NG6.)
    */
-  | 'wkrNichtVorbei'
+  | 'wkrPapierAb'
 
 export interface Beschreibung {
   art: VerlaufArt
@@ -264,7 +263,7 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
           action.zeilen.flatMap((z) => [z.lauf, ...z.weitere].map((lauf) => ({ lauf, starter: z.starter }))),
           nachher,
         ),
-        art: action.zeilen.length > 0 && action.zeilen.every((z) => z.nichtVorbei) ? 'wkrNichtVorbei' : 'eingabeGeraet',
+        art: 'eingabeGeraet',
         liste: action.liste,
         geraet: action.quelle.name,
       }

@@ -9,6 +9,8 @@ import { configFor } from '../config/konfig'
 import { parallelListen } from './parallelBogen'
 import { RACECOURSE_PARCOURS } from './parallelSchluessel'
 import { ausgleichKg, parseGewicht } from '../domain/gewicht'
+import { ausgleichVon } from './ausgleich'
+import { sollgewichtOf } from '../config/catalog'
 import { makeFile, parseFile } from '../persistenz/backup'
 import { emptyState, reducer } from '../state/reducer'
 import type { AppState, ClassId, Starter } from '../types'
@@ -130,13 +132,30 @@ describe('Beispielgewichte', () => {
       // Vier von zehn leichter, jeder davon mit einem Ausgleichsgewicht von mindestens 1 kg.
       const leichter = gewichte.filter((g) => g < soll[k])
       expect(leichter, k).toHaveLength(4)
-      for (const g of leichter) expect(ausgleichKg(g, soll[k])).toBeGreaterThanOrEqual(1)
+      for (const g of leichter) expect(ausgleichKg(g, soll[k], 1)).toBeGreaterThanOrEqual(1)
       for (const g of gewichte) {
         // Glaubhaft nahe am Durchschnitt: höchstens gut 15 % darunter, 25 % darüber.
         expect(g).toBeGreaterThanOrEqual(soll[k] * 0.84 - 1)
         expect(g).toBeLessThanOrEqual(soll[k] * 1.25 + 0.05)
         // Format wie bei der Eingabe in der Verwiegung: auf 0,1 kg.
         expect(parseGewicht(String(g).replace('.', ','))).toBe(g)
+      }
+    }
+  })
+
+  it('jeder leichtere bekommt auch mit grober oder feiner Stufe ein Ausgleichsgewicht (kleinstes Zusatzgewicht, 24.11.2026)', () => {
+    const klassen: ClassId[] = ['E', '1', '2', '3', '4', '5', '6', '7']
+    for (const stufe of [0.1, 0.25, 0.5, 2, 5, 10]) {
+      let stand: AppState = { ...emptyState(), starters: feld(10, klassen) }
+      stand = reducer(stand, { type: 'SET_AUSGLEICH_STUFE', kg: stufe })
+      // Ein Durchschnittsgewicht mit zwei Nachkommastellen: toFixed(1) darf die Mitte der Stufe nicht überspringen.
+      stand = reducer(stand, { type: 'SET_SOLLGEWICHT', klasse: '3', kg: 52.25 })
+      stand = reducer(stand, { type: 'FILL_BEISPIELGEWICHTE', saat: 21 })
+      for (const k of klassen) {
+        const soll = sollgewichtOf(stand.regelwerk, stand.sollgewicht, k)
+        const leichter = stand.starters.filter((p) => p.klasse === k && p.gewicht! < soll)
+        expect(leichter, `${stufe} ${k}`).toHaveLength(4)
+        for (const p of leichter) expect(ausgleichVon(stand, p), `${stufe} ${k} ${p.gewicht}`).toBeGreaterThanOrEqual(stufe)
       }
     }
   })

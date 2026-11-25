@@ -6,6 +6,7 @@ import type { Column } from '../types'
 import { bereicheZumStand, laeufeVonPunkt, lage, rundeVonPunkt } from '../betrieb/folge'
 import { defFuerKlasse } from '../lib/bogen'
 import { erfasstKennung, listenFelder, teilHaken, werteVon } from '../lib/eingaben'
+import { codeHoechstens } from '../lib/codes'
 import { ausgleichAmSteg } from '../lib/ausgleich'
 import { bietetEnglisch, wkrSpracheFuer } from '../lib/listensprache'
 import { RACECOURSE_PARCOURS } from '../lib/parallelSchluessel'
@@ -37,7 +38,7 @@ import { danach, schlange, type SchlangenStart } from './schlange'
  * (`klassen`) deutsch, die englischen in `andere` (G9).
  * 4 seit W4.1 (21.11.2026): `MaskenFeld.boje` und `AndereFeld.boje` (Bojen-Maske, P15) – ein Gerät mit altem Programm
  * zeigte eine Bojen-Liste sonst als „Maske folgt“ bzw. ohne Halte.
- * 5 seit W4.3 (21.11.2026): „Nicht vorbeigekommen“ (GeraeteZeile.n, Ablehnung `nv-nicht-erlaubt`). Die Form der Sicht
+ * 5 seit W4.3 (21.11.2026; entfallen 24.11.2026, siehe 13): „Nicht vorbeigekommen“ (GeraeteZeile.n, Ablehnung `nv-nicht-erlaubt`). Die Form der Sicht
  * bleibt; die Fassung zählt trotzdem hoch, damit ein Gerät mit altem Programm „aktualisieren“ zeigt, statt einen
  * solchen Start ohne Meldung zu verlieren, und kein alter Bedienrechner eine Zeile mit `n` als „fehlerfrei“ übernimmt
  * (er schickte Fassung 4 – das neue Gerät liest sie nicht; P16).
@@ -56,9 +57,17 @@ import { danach, schlange, type SchlangenStart } from './schlange'
  * ablehnt. Die neue Fassung lässt es über F7 neu laden.
  * 11 seit dem Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3): `ListenStart.ausgleich` an den
  * Starts der Steg-Liste – ein altes Gerät zeigte es nicht, der WKR am Ablegen verließe sich auf ein Blatt, das es
- * digital nicht mehr gibt.
+ * digital nicht mehr gibt. Seit der Abstufung des Ausgleichsgewichts (24.11.2026) kann der Wert eine Nachkommastelle haben
+ * („1,5“ bei 0,5 kg) – bewusst KEINE neue Fassung: Die Form bleibt `number | 'fehlt'`, und schon die Geräte der
+ * Fassung 11 schreiben die Zahl über domain/gewicht.ts gewichtText mit dem Dezimalzeichen der Liste.
+ * 12 seit der Höchstzahl je Code (Nutzer 24.11.2026, WKR_ANNAHMEN CM1–CM7): Katalog-Einträge tragen `max` (schon
+ * aufgelöst: YAML oder die allgemeine Grenze CM2) und ggf. `danach` (Disq.-Buchstabe für den Tipp nach `max`) – ein
+ * altes Gerät zählte weiter bis „×62“ und schickte Zeilen, die der Bedienrechner jetzt ablehnt (wkr/zeile.ts wertGilt).
+ * 13 seit „Nicht gestartet · Disq. X“ (Nutzer 24.11.2026, WKR_ANNAHMEN NG1–NG8): Die Form der Sicht bleibt, aber ein
+ * Gerät der Fassung ≤ 12 schickt „nicht vorbeigekommen“ mit `n` und ohne Zellen – das kennt der Bedienrechner nicht
+ * mehr und nähme die Zeile als „fehlerfrei“ – bzw. Disq. J statt X. Die neue Fassung lässt es über F7 neu laden.
  */
-export const LISTEN_SICHT_FASSUNG = 11
+export const LISTEN_SICHT_FASSUNG = 13
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier
@@ -82,9 +91,9 @@ export interface ListenStart {
   /** Boot der Klasse (AppState.boote), wenn eingetragen. */
   boot?: string
   /**
-   * Nur Steg-Listen (seit Fassung 11, Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3): das Ausgleichsgewicht in ganzen kg
-   * (lib/ausgleich.ts ausgleichAmSteg – dieselbe Rechnung wie die Papierliste), 0 = keines nötig, 'fehlt' = noch nicht
-   * gewogen. Fehlt, wenn die Klasse kein Durchschnittsgewicht hat. Nie Körper- oder Durchschnittsgewicht.
+   * Nur Steg-Listen (seit Fassung 11, Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3): das Ausgleichsgewicht in kg
+   * (lib/ausgleich.ts ausgleichAmSteg – dieselbe Rechnung wie die Papierliste, gerundet auf die Abstufung
+   * der Veranstaltung, also ggf. mit Nachkommastelle wie 1.5), 0 = keines nötig, 'fehlt' = noch nicht gewogen. Fehlt, wenn die Klasse kein Durchschnittsgewicht hat. Nie Körper- oder Durchschnittsgewicht.
    */
   ausgleich?: number | 'fehlt'
   /**
@@ -128,9 +137,14 @@ export interface MaskenFeld {
   /**
    * Fehlerkatalog (nur `code`). `aus`: Der Code gilt laut Regelwerk in dieser Klasse nicht (YAML `abKlasse`/`klassen`,
    * config/catalog.ts codeKlassenOf) – die Maske graut ihn aus, drückbar bleibt er (Nutzer 21.11.2026, W3-07, GF2).
+   * `max` (seit Fassung 12, Nutzer 24.11.2026, CM1/CM2): so oft höchstens je Lauf, schon aufgelöst (lib/codes.ts
+   * codeHoechstens); `danach`: Disq.-Buchstabe für den Tipp nach `max` – nur, wenn dieses Feld ihn annimmt (CM3).
    */
-  katalog?: { code: string; punkte: number; text: string; aus?: true }[]
-  /** Disq.-Buchstaben, die hier gelten (`buoy`, `code`, `disq`); X nur, wo das Gerät es darf (F5). */
+  katalog?: { code: string; punkte: number; text: string; aus?: true; max: number; danach?: string }[]
+  /**
+   * Disq.-Buchstaben, die hier gelten (`buoy`, `code`, `disq`); X nur, wo die Knöpfe es anbieten (F5: Steg-Ablegen,
+   * Vorsteg). „Nicht gestartet · Disq. X“ unter „Mehr“ braucht X hier nicht (24.11.2026, NG3).
+   */
   disq?: { code: string; text: string }[]
   /** Nur Bojen auf dem Fahrweg (W4, P15): wo die Boje liegt und wie ihr Kopf auf dem Bogen heißt. */
   boje?: MaskenBojeAngabe
@@ -308,11 +322,14 @@ export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: str
       if (f.kind === 'code' && f.katalog)
         out.katalog = f.katalog.map((e) => {
           const gilt = codeKlassen[e.code]
-          return { code: e.code, punkte: e.punkte, text: e.text, ...(gilt && !gilt.includes(k) ? { aus: true as const } : {}) }
+          // Höchstzahl immer aufgelöst (CM2), der Buchstabe danach nur, wo die Liste ihn annimmt (validate.ts prüft das
+          // für die Listen des Regelwerks; eigene Aufbauten oder Klassen ohne Disq. lassen ihn so still weg).
+          const danach = e.danach !== undefined && disqTabelle.some((d) => d.code === e.danach) ? { danach: e.danach } : {}
+          return { code: e.code, punkte: e.punkte, text: e.text, ...(gilt && !gilt.includes(k) ? { aus: true as const } : {}), max: codeHoechstens(e), ...danach }
         })
       if (f.kind === 'buoy' || f.kind === 'code' || f.kind === 'disq') {
-        // X „nicht gestartet“ nur am Steg (Ablegen bzw. gemeinsame Spalte) und am Vorsteg (F5) – sonst lehnt der
-        // Bedienrechner die Zeile ohnehin ab; die Maske bietet es gar nicht erst an.
+        // X „nicht gestartet“ als Knopf nur am Steg (Ablegen bzw. gemeinsame Spalte) und am Vorsteg (F5). Sonst gibt es X
+        // nur über „Mehr → Nicht gestartet“ (24.11.2026, NG3) – das schreibt X allein ins Disq.-Feld, ohne diese Liste.
         const xHier = xErlaubt && (!teile || teil === WKR_ANNAHMEN.xTeil || teil === 'gemeinsam')
         out.disq = disqTabelle.filter((d) => d.code !== 'X' || xHier).map((d) => ({ code: d.code, text: d.text }))
       }

@@ -4,6 +4,7 @@ import { codeEntries, normalizeCodeCell, parseCodeEntry } from '../lib/codes'
 import { listenFelder } from '../lib/eingaben'
 import { bojenWert } from '../lib/scoring'
 import { bojenZelle } from '../lib/disq'
+import { NICHT_GESTARTET } from '../lib/abmeldung'
 import { parseTime, sanitizeTimeInput } from '../lib/time'
 import { CLASS_IDS } from '../domain/classes'
 import { WKR_ANNAHMEN } from './annahmen'
@@ -35,6 +36,13 @@ export interface MaskenCode {
   punkte: number
   /** Gilt laut Regelwerk in dieser Klasse nicht (Sicht `aus`) – ausgegraut, drückbar (Nutzer 21.11.2026, W3-07, GF2). */
   aus?: true
+  /** So oft höchstens je Lauf (Sicht `max`, Nutzer 24.11.2026, CM1/CM2) – am Höchstwert nimmt der Knopf nichts mehr an. */
+  max: number
+  /**
+   * Disq.-Buchstabe für den Tipp nach `max` („2. und 3. Versuch“ → D, CM3) – nur, wenn das Disq.-Feld dieses Teils ihn
+   * anbietet (maskeFuer prüft das); sonst fehlt er.
+   */
+  danach?: string
 }
 
 /** Ein Teil der Maske: ein Code-Feld mit seinem Katalog (Steg: Ablegen/Anlegen, Tor 5 und MüB: eines). */
@@ -204,7 +212,14 @@ export function maskeFuer(sicht: ListenSicht, klasse: ClassId, sprache: 'liste' 
       teil: f.teil ?? null,
       feld: f.kennung,
       titel: andereFelder.get(f.kennung)?.label ?? f.label,
-      codes: (f.katalog ?? []).map((e) => ({ code: e.code, punkte: e.punkte, text: textVon(f, e.code, 'katalog', e.text), ...(e.aus ? { aus: true as const } : {}) })),
+      codes: (f.katalog ?? []).map((e): MaskenCode => ({
+        code: e.code,
+        punkte: e.punkte,
+        text: textVon(f, e.code, 'katalog', e.text),
+        ...(e.aus ? { aus: true as const } : {}),
+        max: e.max,
+        ...(e.danach !== undefined ? { danach: e.danach } : {}),
+      })),
       buchstaben: (f.disq ?? []).map((d) => d.code),
     }))
 
@@ -230,6 +245,10 @@ export function maskeFuer(sicht: ListenSicht, klasse: ClassId, sprache: 'liste' 
       }),
     }
   }
+  // Der Buchstabe nach dem Höchstwert (CM3) nur, wo das Disq.-Feld dieses Teils ihn anbietet (am Steg gemeinsam, X-artige
+  // Einschränkungen über `nurIn`) – sonst setzte der Tipp einen Buchstaben, den zellenAus wieder wegließe.
+  for (const t of teile)
+    for (const c of t.codes) if (c.danach !== undefined && !disqFuer({ disq }, t.teil ?? undefined).some((d) => d.code === c.danach)) delete c.danach
   const bemerkung = k.felder.find((f) => f.kind === 'text')?.kennung ?? null
   if (art !== 'bojen') return { art, titel, teile, disq, bemerkung, abschnitte: [], umschalter: false, pruef: [], zeiten }
 
@@ -378,10 +397,43 @@ export function teileFuer(aufbau: MaskenAufbau, teil?: ListenTeil): MaskenTeil[]
 }
 
 /** Die Disq.-Buchstaben, die in diesem Teil angeboten werden (X am Steg nur im Ablegen, F5). */
-export function disqFuer(aufbau: MaskenAufbau, teil?: ListenTeil): MaskenDisq['codes'] {
+export function disqFuer(aufbau: Pick<MaskenAufbau, 'disq'>, teil?: ListenTeil): MaskenDisq['codes'] {
   if (!aufbau.disq) return []
   if (aufbau.disq.teil !== null && teil !== undefined && aufbau.disq.teil !== teil) return []
   return aufbau.disq.codes.filter((c) => !c.nurIn || teil === undefined || c.nurIn.includes(teil))
+}
+
+/**
+ * „Nicht gestartet · Disq. X“ (Nutzer 24.11.2026, WKR_ANNAHMEN NG1): die Zellen dieser Zeile – X allein im eigenen
+ * Disq.-Feld der Liste (am Steg das gemeinsame, auch für ein Gerät nur für „Anlegen“, NG4), sonst nichts (BZ2). `null`,
+ * wenn die Liste kein eigenes Disq.-Feld hat (Zeit-Liste, Knoten; eigener Aufbau mit Disq. nur im Code-Feld, H1) – dann
+ * bietet „Mehr“ den Punkt nicht an. X kommt hier vorbei an den Disq.-Knöpfen aufs Gerät: Die bieten X weiter nur am
+ * Steg-Ablegen und am Vorsteg an (F5, NG3); der Bedienrechner nimmt genau diese Form überall (wkr/zeile.ts, NG2).
+ */
+export function nichtGestartetZellen(aufbau: Pick<MaskenAufbau, 'disq' | 'teile'>): Record<string, string> | null {
+  const d = aufbau.disq
+  // Eigenes Feld: gemeinsam (teil null) und keines der Code-Felder (H1 nimmt das erste Code-Feld).
+  if (!d || d.teil !== null || aufbau.teile.some((t) => t.feld === d.feld)) return null
+  return { [d.feld]: NICHT_GESTARTET }
+}
+
+/** Ist die Zeile „Nicht gestartet“ – ein X und sonst nichts? Für Zuletzt, Korrektur, Prüfansicht und Übung (NG1). */
+export function istNichtGestartet(zellen: Readonly<Record<string, string>>): boolean {
+  const werte = Object.values(zellen).filter((w) => w !== '')
+  return werte.length === 1 && werte[0] === NICHT_GESTARTET
+}
+
+/**
+ * Ein Entwurf ohne das X, wo die Disq.-Knöpfe des Teils es nicht anbieten (NG3/NG5, 24.11.2026) – für jeden Entwurf,
+ * der aus den Zellen einer „Nicht gestartet“-Zeile entsteht: die Korrektur (WkrMaske oeffneKorrektur) und „Rückgängig“
+ * einer noch wartenden Zeile (holeZurueck → WkrMaske ladeEntwurf, Prüfbefund 24.11.2026). Sonst stünde X im Fuß
+ * („Abschicken · Disq. X“), ließe sich nicht abwählen, und zellenAus ließe es beim Abschicken doch still weg – am
+ * Bedienrechner käme „fehlerfrei“ an. Wo der Knopf X hat (Steg-Ablegen, Vorsteg), bleibt es. Nichts zu tun → dieselbe
+ * Referenz.
+ */
+export function ohneFremdesX(e: Entwurf, aufbau: Pick<MaskenAufbau, 'disq'>, teil?: ListenTeil): Entwurf {
+  if (!e.disq.includes(NICHT_GESTARTET) || disqFuer(aufbau, teil).some((d) => d.code === NICHT_GESTARTET)) return e
+  return tippeDisq(e, NICHT_GESTARTET)
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +449,7 @@ const DISQ = '#disq:'
 const BOJE = '#boje:'
 /**
  * Merker für einen Disq.-Buchstaben an einer Boje (`#bdisq:t3a|hin seiteB=G`, U1, 21.11.2026): je Buchstabe einer
- * (BZ7, 22.11.2026 – R7-14, mehrere Disq. je Boje). „− letzte zurück“ nimmt genau den zuletzt gesetzten Buchstaben
+ * (BZ7, 22.11.2026 – R7-14, mehrere Disq. je Boje). „↶ Rückgängig“ nimmt genau den zuletzt gesetzten Buchstaben
  * heraus (H2 „zurück = letzter Tipp“); ein ersetzter Buchstabe, den „zurück“ wiederherstellen müsste, kommt nicht mehr
  * vor – ein Tipp schaltet nur seinen eigenen Buchstaben an oder aus. Die Berührungen berührt der Buchstabe seit W4-12
  * (21.11.2026, BZ1) nicht – sie bleiben mit ihren eigenen Merkern stehen.
@@ -414,7 +466,7 @@ function liesBojenDisqMerker(m: string): { feld: string; code: string } {
 /**
  * Was der Wettkampfrichter für einen Start (und Teil) getippt hat. `codes`: je Feld die Code-Tipps in Reihenfolge
  * (ein Tipp = +1, H2); `disq`: Buchstaben in Tipp-Reihenfolge, jeder höchstens einmal (Schalter, H1); `folge`: die
- * Reihenfolge aller Tipps (Feld bzw. Disq.) für „− letzte zurück“.
+ * Reihenfolge aller Tipps (Feld bzw. Disq.) für „↶ Rückgängig“.
  */
 export interface Entwurf {
   codes: Record<string, string[]>
@@ -669,9 +721,55 @@ export function bojenDisqZahl(e: Entwurf, feld: string): number {
   return (e.bojenDisq[feld] ?? []).length
 }
 
-/** Ein Code-Tipp: +1 für diesen Code im Feld. */
-export function tippe(e: Entwurf, feld: string, code: string): Entwurf {
-  return { ...e, codes: { ...e.codes, [feld]: [...(e.codes[feld] ?? []), code] }, folge: [...e.folge, feld] }
+/** Wie oft ein Code im Entwurf getippt ist (Zähler ×n am Knopf). */
+export function codeAnzahl(e: Entwurf, feld: string, code: string): number {
+  return (e.codes[feld] ?? []).filter((c) => c === code).length
+}
+
+/**
+ * Ein Code-Tipp (H2): +1 für diesen Code im Feld – bis zu seinem `max` (Nutzer 24.11.2026, CM1/CM2). Der Tipp danach
+ * setzt bei einem Code mit `danach` („2. und 3. Versuch“) den Buchstaben ins Disq.-Feld wie ein DISQ-Tipp (CM3: Merker
+ * `#disq:D`, „↶ Rückgängig“ nimmt ihn heraus, der Zähler bleibt bei `max`); steht er schon, oder hat der Code kein
+ * `danach`, nimmt der Knopf nichts mehr an (gleiche Referenz, CM4). Ein Code, den das Feld nicht kennt, ändert nichts.
+ */
+export function tippe(e: Entwurf, aufbau: Pick<MaskenAufbau, 'teile'>, feld: string, code: string): Entwurf {
+  const c = aufbau.teile.find((t) => t.feld === feld)?.codes.find((x) => x.code === code)
+  if (!c) return e
+  if (codeAnzahl(e, feld, code) < c.max) return { ...e, codes: { ...e.codes, [feld]: [...(e.codes[feld] ?? []), code] }, folge: [...e.folge, feld] }
+  if (c.danach !== undefined && !e.disq.includes(c.danach)) return tippeDisq(e, c.danach)
+  return e
+}
+
+/**
+ * Was ein Code-Knopf über sich sagt (CM3/CM4, components/wkr/WkrKnoepfe.vue): Zahl der Tipps; `voll` = am Höchstwert;
+ * `naechster` = was der nächste Tipp bewirkt – `zaehlt` (+1), `danach` (setzt den Buchstaben) oder `nichts`
+ * („höchstens n×“ bzw. Buchstabe schon gesetzt); `danachGesetzt` = am Höchstwert steht der Buchstabe im Disq.-Feld.
+ */
+export interface CodeStand {
+  anzahl: number
+  voll: boolean
+  naechster: 'zaehlt' | 'danach' | 'nichts'
+  danachGesetzt: boolean
+}
+
+export function codeStand(e: Entwurf, feld: string, c: Pick<MaskenCode, 'code' | 'max' | 'danach'>): CodeStand {
+  const anzahl = codeAnzahl(e, feld, c.code)
+  const voll = anzahl >= c.max
+  const gesetzt = voll && c.danach !== undefined && e.disq.includes(c.danach)
+  return { anzahl, voll, naechster: !voll ? 'zaehlt' : c.danach !== undefined && !gesetzt ? 'danach' : 'nichts', danachGesetzt: gesetzt }
+}
+
+/**
+ * Prellschutz an Codes mit `danach` (CM8, Prüfbefund 24.11.2026): Ein Tipp auf DENSELBEN Code innerhalb von
+ * `bojenSchalterPrellMs` (S1) nach dem vorigen wird verworfen – `true` = verwerfen. Dort bringt jeder Tipp die
+ * Disqualifikation näher: Ein prellender Handschuh beim 3. Versuch setzte sofort D, beim 2. Versuch machte er aus dem
+ * nächsten echten Tipp ein D. Zwei echte Versuche liegen nie so dicht beieinander. Codes ohne `danach` zählen weiter
+ * jeden Tipp wie die Tor-5-Zähler (S1): Der Zähler zeigt es, „↶ Rückgängig“ nimmt ihn. Die Uhr hält die Komponente
+ * (WkrMaske, Zeitmarke je Feld und Code), damit dieses Modul ohne Date.now() bleibt.
+ */
+export function codeTippPrellt(aufbau: Pick<MaskenAufbau, 'teile'>, feld: string, code: string, vorher: number | undefined, jetzt: number): boolean {
+  if (vorher === undefined || jetzt - vorher >= WKR_ANNAHMEN.bojenSchalterPrellMs) return false
+  return aufbau.teile.find((t) => t.feld === feld)?.codes.find((x) => x.code === code)?.danach !== undefined
 }
 
 /** Ein Disq.-Tipp: setzt den Buchstaben; ein zweiter Tipp nimmt ihn wieder heraus (H1). */
@@ -687,7 +785,7 @@ export function mitBemerkung(e: Entwurf, text: string): Entwurf {
   return { ...e, bemerkung: text }
 }
 
-/** „− letzte zurück“: nimmt den letzten Tipp – Code oder Disq. – zurück (H2). */
+/** „↶ Rückgängig“ (bis 24.11.2026 „− letzte zurück“): nimmt den letzten Tipp – Code oder Disq. – zurück (H2). */
 export function zurueck(e: Entwurf): Entwurf {
   const letzt = e.folge[e.folge.length - 1]
   if (letzt === undefined) return e
@@ -819,7 +917,12 @@ export function entwurfAus(zellen: Readonly<Record<string, string>>, aufbau: Mas
     for (const eintrag of codeEntries(wert)) {
       const c = parseCodeEntry(eintrag)
       if (c) {
-        for (let i = 0; i < c.anzahl && i < 99; i++) e = tippe(e, t.feld, String(Number(c.code)))
+        // Höchstens bis `max` (CM5) und nie den Buchstaben danach: Aus Zellen entsteht nur, was dasteht – „3x6“ wird
+        // nicht still zu „2x6, D“ (Tabelle und Gerätezeile lehnen es vorher ab).
+        const code = String(Number(c.code))
+        // Was schon steht, zählt mit („6, 2x6“ in zwei Einträgen) – sonst träfe ein Tipp den Höchstwert und setzte D.
+        const rest = (t.codes.find((x) => x.code === code)?.max ?? 0) - codeAnzahl(e, t.feld, code)
+        for (let i = 0; i < Math.min(c.anzahl, rest); i++) e = tippe(e, aufbau, t.feld, code)
       } else {
         for (const ch of eintrag.toUpperCase()) if (t.buchstaben.includes(ch) && !disq.includes(ch)) disq.push(ch)
       }

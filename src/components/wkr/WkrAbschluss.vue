@@ -51,9 +51,8 @@ const summe = computed(() => {
   const p = pruefung.value
   const teile = [w('wkr.geraet.abschluss.abgeschickt', { n: p.zeilen.length })]
   if (p.offen.length > 0) teile.push(w('wkr.geraet.abschluss.offen', { n: p.offen.length, nrs: p.offen.map((o) => o.startNr).join(', ') }))
+  // „1 X: 27“ – seit 24.11.2026 auch „Nicht gestartet“ von jeder Liste (NG1); „nicht vorbeigekommen“ gibt es nicht mehr.
   if (p.x.length > 0) teile.push(w('wkr.geraet.abschluss.x', { n: p.x.length, nrs: p.x.join(', ') }))
-  // W4.3 (R5): „1 nicht vorbeigekommen: 27“ – so sieht der WKR vor der Unterschrift, wen er ohne Werte abgehakt hat.
-  if (p.nichtVorbei.length > 0) teile.push(w('wkr.geraet.abschluss.nichtVorbei', { n: p.nichtVorbei.length, nrs: p.nichtVorbei.join(', ') }))
   return teile.join(', ')
 })
 
@@ -119,7 +118,7 @@ const teilText = computed(() => (props.teil ? w(props.teil === 'ab' ? 'wkr.gerae
 
     <p v-if="pruefung.zeilen.length === 0" class="wkr-hinweis" data-teil="abschluss-leer">{{ w('wkr.geraet.abschluss.leer', { punkt: punktTitel }) }}</p>
     <ul v-else class="wkr-pruef-liste" data-teil="pruef-liste">
-      <li v-for="z in pruefung.zeilen" :key="z.s" class="wkr-pruef-zeile" data-teil="pruef-zeile" :data-start="z.s" :data-stufe="z.stufe?.stufe ?? 'uebernommen'" :data-x="z.x || undefined" :data-nv="z.nv || undefined">
+      <li v-for="z in pruefung.zeilen" :key="z.s" class="wkr-pruef-zeile" data-teil="pruef-zeile" :data-start="z.s" :data-stufe="z.stufe?.stufe ?? 'uebernommen'" :data-x="z.x || undefined">
         <button type="button" class="wkr-knopf wkr-pruef-knopf" data-ziel="klein" data-action="pruef-korrigieren" :disabled="!korrigierbar.has(z.s)" @click="emit('korrigiere', z.s)">
           <span class="wkr-zuletzt-nr" data-teil="nr">{{ z.sn ?? '?' }}</span>
           <span class="wkr-pruef-mitte">

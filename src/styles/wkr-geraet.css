@@ -669,6 +669,15 @@
   font-size: 0.8em;
 }
 
+/*
+ * Höchstwert eines Codes (Nutzer 24.11.2026, WKR_ANNAHMEN CM3/CM4): „höchstens 1×“, „nächster = Disq. D“, „Disq. D
+ * gesetzt“ als eigene Zeile unter Text und Punkten – kommt nur mit einem Tipp (M5), bricht an Leerzeichen um (N3).
+ */
+.wkr-code-grenze {
+  flex-basis: 100%;
+  font-weight: 800;
+}
+
 /* Disq.: Der Zustand („noch einmal tippen“) ist Text, keine Zahl – rechts neben dem Kurztext, notfalls darunter. */
 .wkr-disq-knopf {
   grid-template-columns: 2.2em minmax(0, 1fr);
@@ -1534,6 +1543,11 @@
 }
 
 .wkr-pruefliste[data-pad] .wkr-fuss {
+  grid-column: 1 / -1;
+}
+
+/* Übung: „Klasse vorziehen“ seit 24.11.2026 unter dem Fuß (Y5) – über die volle Breite wie der Fuß. */
+.wkr-pruefliste[data-pad] .wkr-pruef-rahmen > [data-teil='pruef-vorziehen'] {
   grid-column: 1 / -1;
 }
 

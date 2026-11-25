@@ -216,7 +216,18 @@ export default {
   'listopt.geraete.raumServer':
     'Der offene Raum wurde mit {server} angelegt; ein anderer Server gilt erst für einen neuen Raum (Betrieb → Geräte: Raum beenden, dann neu einschalten – mit neuen Links).',
   'listopt.geraete.daten':
-    'Über diesen Server gehen erst, wenn unter „Betrieb → Geräte“ der Gerätebetrieb eingeschaltet ist: Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte und Logos.',
+    'Über diesen Server gehen erst, wenn unter „Betrieb → Geräte“ der Gerätebetrieb eingeschaltet ist: Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte und Logos. Ausnahme: Die Steg-Liste der WKR-Erfassung bekommt je Starter das Ausgleichsgewicht (gerundet auf die Stufe unter „Durchschnittsgewichte“) – bei einem leichteren Starter lässt sich daraus das Körpergewicht ungefähr zurückrechnen.',
+
+  // Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026: „wie kleinteilig die Zusatzgewichte sind“) – im Abschnitt
+  // „Durchschnittsgewichte“ der Einstellungen. Wort nach dem Reglement (DM C3 „Ausgleichsgewicht“), nicht
+  // „Zusatzgewicht“ (Entscheidung 14.11.2026, Test views/Ausgleichsgewichte.test.ts).
+  'listopt.ausgleich.stufe': 'Ausgleichsgewicht in Stufen von',
+  'listopt.ausgleich.kg': '{kg} kg',
+  'listopt.ausgleich.eigen': 'Eigener Wert …',
+  'listopt.ausgleich.eigenWert': 'Eigener Wert in kg',
+  'listopt.ausgleich.hint':
+    'Die Stufe ist das kleinste Gewichtsstück, das am Steg ins Boot gelegt wird. Das Ausgleichsgewicht ist immer ein Vielfaches davon – gerundet auf die nächste Stufe, ab der Hälfte aufwärts (bei 2 kg: 2,9 kg → 2 kg, 3 kg → 4 kg). Wer weniger als eine halbe Stufe leichter ist, bekommt keines. Das gilt in der Verwiegung, auf den Listen und am Steg-Gerät.',
+  'listopt.ausgleich.fehler': 'Bitte eine Zahl von {min} bis {max} kg eingeben, z. B. {beispiel}. Es bleibt bei {kg} kg.',
 
   'origin.style.aus': 'nicht zeigen',
   'origin.style.lang': 'ausgeschrieben',

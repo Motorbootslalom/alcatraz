@@ -3,13 +3,14 @@ import { configFor } from '../config/konfig'
 import { pokalRegeln, pokalVorgabe } from '../config/pokal'
 import { emptyState, reducer } from '../state/reducer'
 import { feldVon, laufSchluessel, OHNE_LAUF } from './eingaben'
-import { EINZEL_FESTLEGUNGEN, einzelBlaetter, einzelPokalKlassen, einzelwertung, einzelwertungen, parallelGewertet } from './einzelwertung'
+import { EINZEL_FESTLEGUNGEN, einzelBlaetter, einzelPokalKlassen, einzelwertung, einzelwertungen, gefahreneRunden, parallelGewertet } from './einzelwertung'
 import { einzelZeit, gesamtZeit, wertungZeit } from './listenStand'
 import { disziplinGefahren } from './disziplinen'
 import { attemptSchluessel, rundenDisziplin } from './parallelSchluessel'
-import { stageErgebnis } from './parallelStage'
+import { klassenStand, stageErgebnis } from './parallelStage'
 import { gesamtPunkte, pokalKlassen, pokalZuordnung, uimWertung } from './pokal'
 import { klassenErgebnis } from './ergebnis'
+import { abmeldeZielRunde } from './abmeldung'
 import type { AppState, ClassId, ParallelRunde, Starter } from '../types'
 
 // Einzelwertung über beide Stages (Regel 960, Pkt. 5.1, 5.2.3, 5.2.6) und die Mannschaftswertung
@@ -177,24 +178,82 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
   const zeilen = (state: AppState) => Object.fromEntries(einzel(state).nachPlatz.map((z) => [z.starter.id, z]))
 
   it('die Festlegungen stehen an einer Stelle', () => {
-    expect(EINZEL_FESTLEGUNGEN).toEqual({ stichMitKnoten: true, stichParallelRunde: 'vorlauf' })
+    // Seit 24.11.2026 (Entscheidung des Nutzers): letzte gefahrene Runde, dann die vorletzte.
+    expect(EINZEL_FESTLEGUNGEN).toEqual({ stichMitKnoten: true, stichParallelRunde: 'letzteDannVorletzte' })
   })
 
-  it('gleiche Punktsumme: Es entscheidet die Zeit aus dem besseren Versuch des Manövrierens und beiden Attempts des Vorlaufs', () => {
+  it('gleiche Punktsumme: Es entscheidet die Zeit aus dem besseren Versuch des Manövrierens und beiden Attempts der zuletzt gefahrenen Runde', () => {
     const von = zeilen(beide6())
-    // 1-1: 65 + 80 = 145 s, 1-6: 60 + 110 = 170 s – beide 495 Punkte.
+    // 1-1: 65 + 80 (Finale) = 145 s, 1-6: 60 + 110 (Vorlauf, weiter kam er nicht) = 170 s – beide 495 Punkte.
     expect([von['1-1'].zeit, von['1-6'].zeit]).toEqual([14500, 17000])
     expect([von['1-1'].platz, von['1-6'].platz]).toEqual([1, 2])
     // Beide tragen das Zeichen: Der Platz ist im Stichentscheid entstanden.
     expect([von['1-1'].stich, von['1-6'].stich, von['1-1'].punktgleich]).toEqual([true, true, true])
   })
 
-  it('auch für Finalisten zählen die Attempts des Vorlaufs – nicht die des Finales', () => {
-    // 1-1 fährt im Finale 30 + 30 statt 40 + 40: Die Zeit des Stichentscheids bleibt die des Vorlaufs.
+  it('für Finalisten zählt das Finale bzw. Kleine Finale – nicht der Vorlauf (Entscheidung des Nutzers vom 24.11.2026)', () => {
+    // 1-1 fährt im Finale 30 + 30 statt 40 + 40 wie im Vorlauf: Es zählt das Finale, seine letzte Runde.
     let state = fahre(manoever(uim(mk('1', 6)), MANOEVER6), 'pre', VORLAUF6)
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
-    state = finals(state, { '1-1': [30, 30], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
-    expect(zeilen(state)['1-1'].zeit).toBe(6500 + 8000)
+    state = finals(state, { '1-1': [30, 30], '1-2': [41, 41], '1-3': [44, 44], '1-4': [43, 43] })
+    const von = zeilen(state)
+    expect(von['1-1'].zeit).toBe(6500 + 6000)
+    // 1-3 fährt das Kleine Finale (88 s), 1-5 kam nicht über den Vorlauf (100 s).
+    expect([von['1-3'].zeit, von['1-5'].zeit]).toEqual([6300 + 8800, 6100 + 10000])
+  })
+
+  it('die gefahrenen Runden: Vorlauf, Halbfinale, Kleines Finale bzw. Finale – je nachdem, wie weit einer kam', () => {
+    const state = beide6()
+    const ks = klassenStand(state, konfig, '1')!
+    expect(gefahreneRunden(ks, '1-1')).toEqual([
+      { runde: 'pre', zeit: 8000 },
+      { runde: 'semi', zeit: 8000 },
+      { runde: 'final', zeit: 8000 },
+    ])
+    expect(gefahreneRunden(ks, '1-3').map((r) => r.runde)).toEqual(['pre', 'semi', 'small'])
+    expect(gefahreneRunden(ks, '1-6')).toEqual([{ runde: 'pre', zeit: 11000 }])
+    // Wer nicht im Plan steht, hat keine Runde.
+    expect(gefahreneRunden(ks, 'niemand')).toEqual([])
+  })
+
+  it('disqualifiziert in der letzten Runde: Sie ist gefahren, aber ohne Zeit – keine Ausweiche auf die Runde davor (Auslegung 24.11.2026)', () => {
+    let state = fahre(manoever(uim(mk('1', 6)), MANOEVER6), 'pre', VORLAUF6)
+    state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = finals(state, { '1-1': [40, 40], '1-2': [null, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    expect(gefahreneRunden(klassenStand(state, konfig, '1')!, '1-2').at(-1)).toEqual({ runde: 'final', zeit: null })
+    expect(zeilen(state)['1-2'].zeit).toBeNull()
+  })
+
+  it('in keinem Attempt einer Runde gestartet (nur X): nicht gefahren, es zählt die Runde davor; X neben einem gefahrenen Attempt: gefahren, ohne Zeit (Auslegung 24.11.2026)', () => {
+    const X = abmeldeZielRunde(konfig, '1')!.kennung
+    let state = fahre(manoever(uim(mk('1', 6)), MANOEVER6), 'pre', VORLAUF6)
+    state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    state = fahre(fest(fest(state, 'small'), 'final'), 'small', { '1-3': [42, 42], '1-4': [43, 43] })
+    // 1-2 tritt zum Finale nicht an: X in beiden Attempts (wie beim Abmelden).
+    const nichtAngetreten = reducer(state, { type: 'SET_EINGABEN', zellen: [1, 2].map((a) => ({ lauf: attemptSchluessel('final', a), starter: '1-2', feld: X, wert: 'X' })) })
+    const ohne = fahre(nichtAngetreten, 'final', { '1-1': [40, 40] })
+    expect(stageErgebnis(ohne, konfig, '1', PUNKTE)).not.toBeNull()
+    expect(gefahreneRunden(klassenStand(ohne, konfig, '1')!, '1-2').map((r) => r.runde)).toEqual(['pre', 'semi'])
+    // Seine letzte gefahrene Runde ist das Halbfinale: 64 s + 82 s.
+    expect(zeilen(ohne)['1-2'].zeit).toBe(6400 + 8200)
+    // X nur im 1. Attempt, der 2. gefahren: Das Finale ist gefahren, ohne gültige Summe.
+    const einmal = reducer(state, {
+      type: 'SET_EINGABEN',
+      zellen: [
+        { lauf: attemptSchluessel('final', 1), starter: '1-2', feld: X, wert: 'X' },
+        { lauf: attemptSchluessel('final', 2), starter: '1-2', feld: 'zeit1', wert: '41,00' },
+      ],
+    })
+    const halb = fahre(einmal, 'final', { '1-1': [40, 40] })
+    expect(gefahreneRunden(klassenStand(halb, konfig, '1')!, '1-2').at(-1)).toEqual({ runde: 'final', zeit: null })
+    expect(zeilen(halb)['1-2'].zeit).toBeNull()
+    // X nur im 1. Attempt, der 2. bleibt leer (Prüfbefund 24.11.2026): Die Stage ist mit dem X entschieden, aber er ist
+    // in keinem Attempt gestartet – das Finale ist nicht gefahren, es zählt das Halbfinale.
+    const xLeer = reducer(state, { type: 'SET_EINGABEN', zellen: [{ lauf: attemptSchluessel('final', 1), starter: '1-2', feld: X, wert: 'X' }] })
+    const leer = fahre(xLeer, 'final', { '1-1': [40, 40] })
+    expect(stageErgebnis(leer, konfig, '1', PUNKTE)).not.toBeNull()
+    expect(gefahreneRunden(klassenStand(leer, konfig, '1')!, '1-2').map((r) => r.runde)).toEqual(['pre', 'semi'])
+    expect(zeilen(leer)['1-2'].zeit).toBe(6400 + 8200)
   })
 
   it('die Strafen der Knoten zählen zur Zeit des Manövrierens (Entscheidung des Nutzers)', () => {
@@ -225,18 +284,84 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
       ['1-3', 5, 394],
       ['1-4', 6, 352],
     ])
-    // Zwei mit gleicher Summe und gleicher Zeit: zwei Starter, Manövrieren und Parallelslalom gegengleich.
+    // Zwei mit gleicher Summe, gleicher Zeit und gleicher vorletzter Runde: Manövrieren und Parallelslalom gegengleich.
     let zwei = manoever(uim(mk('1', 2)), { '1-1': [60, 70], '1-2': [61, 71] })
-    zwei = fahre(zwei, 'pre', { '1-1': [41, 41], '1-2': [40, 41] })
-    zwei = finals(zwei, { '1-1': [41, 41], '1-2': [40, 40] })
-    // 1-1: 400 + 300, Zeit 60 + 82; 1-2: 300 + 400, Zeit 61 + 81.
+    zwei = fahre(zwei, 'pre', { '1-1': [41, 41], '1-2': [41, 41] })
+    zwei = finals(zwei, { '1-1': [41, 41], '1-2': [40, 41] })
+    // 1-1: 400 + 300, Zeit 60 + 82 (Finale); 1-2: 300 + 400, Zeit 61 + 81 (Finale). Vorletzte Runde (Vorlauf): beide 82.
     expect(liste(zwei)).toEqual([
       ['1-1', 1, 400, 300, 700],
       ['1-2', 1, 300, 400, 700],
     ])
-    expect(einzel(zwei).nachPlatz.map((z) => [z.zeit, z.stich, z.punktgleich])).toEqual([
-      [14200, false, true],
-      [14200, false, true],
+    expect(einzel(zwei).nachPlatz.map((z) => [z.zeit, z.zeit2, z.stich, z.punktgleich])).toEqual([
+      [14200, 8200, false, true],
+      [14200, 8200, false, true],
+    ])
+  })
+
+  it('reicht die Zeit nicht, entscheidet zusätzlich die vorletzte gefahrene Runde (Entscheidung des Nutzers vom 24.11.2026)', () => {
+    let zwei = manoever(uim(mk('1', 2)), { '1-1': [60, 70], '1-2': [61, 71] })
+    zwei = fahre(zwei, 'pre', { '1-1': [41, 41], '1-2': [40, 41] })
+    zwei = finals(zwei, { '1-1': [41, 41], '1-2': [40, 41] })
+    // Beide 700 Punkte und 142 s (60 + 82 bzw. 61 + 81); im Vorlauf 1-2 81 s, 1-1 82 s.
+    expect(einzel(zwei).nachPlatz.map((z) => [z.starter.id, z.platz, z.zeit, z.zeit2, z.stich])).toEqual([
+      ['1-2', 1, 14200, 8100, true],
+      ['1-1', 2, 14200, 8200, true],
+    ])
+    // Ohne Gleichstand in der Zeit fehlt die zweite Stufe auf der Zeile.
+    expect(einzel(beide6()).nachPlatz.every((z) => z.zeit2 === undefined)).toBe(true)
+  })
+
+  it('wer nur den Vorlauf gefahren ist, hat keine vorletzte Runde: Die zweite Stufe entscheidet nicht, der Platz bleibt geteilt', () => {
+    // 1-6 ist im Manövrieren der Beste (35 s) und im Vorlauf Letzter (110 s); 1-1 gewinnt das Finale (80 s), Manövrieren 65 s.
+    const state = parallel6(manoever(uim(mk('1', 6)), { ...MANOEVER6, '1-6': [35, 70] }))
+    const von = zeilen(state)
+    expect([von['1-1'].summe, von['1-6'].summe]).toEqual([495, 495])
+    expect([von['1-1'].zeit, von['1-6'].zeit]).toEqual([14500, 14500])
+    expect([von['1-1'].platz, von['1-6'].platz, von['1-2'].platz]).toEqual([1, 1, 3])
+    expect([von['1-1'].zeit2, von['1-6'].zeit2, von['1-1'].stich]).toEqual([undefined, undefined, false])
+  })
+
+  it('die zweite Stufe gilt für die ganze Gruppe der Punkt- und Zeitgleichen: Hat einer nur den Vorlauf, teilen sich alle den Platz (nicht 1, 1, 2)', () => {
+    // Eigene Punktetabelle: jeder Platz 1 Punkt – alle fünf haben 2 Punkte. 1-5 kommt nicht über den Vorlauf (100 s).
+    const tabelle = [1, 1, 1, 1, 1]
+    const fuenf = (m5: number) => {
+      let state = manoever(uim(mk('1', 5)), { '1-1': [61, 70], '1-2': [60, 70], '1-3': [62, 70], '1-4': [63, 70], '1-5': [m5, 70] })
+      state = fahre(state, 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43], '1-5': [50, 50] })
+      state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+      // Finale: 1-1 80 s, 1-2 81 s – mit dem Manövrieren beide 141 s; im Halbfinale (vorletzte Runde) 80 s gegen 82 s.
+      state = finals(state, { '1-1': [39, 41], '1-2': [40, 41], '1-3': [42, 42], '1-4': [43, 43] })
+      const e = einzelwertung(state, konfig, '1', tabelle)!
+      expect(e.fertig).toBe(true)
+      return Object.fromEntries(e.nachPlatz.map((z) => [z.starter.id, z]))
+    }
+    // 1-5 ebenfalls 141 s (41 + 100): Er hat keine vorletzte Runde – die Gruppe 1-1, 1-2, 1-5 teilt sich Platz 1.
+    const drei = fuenf(41)
+    expect([drei['1-1'].zeit, drei['1-2'].zeit, drei['1-5'].zeit]).toEqual([14100, 14100, 14100])
+    expect([drei['1-1'].platz, drei['1-2'].platz, drei['1-5'].platz, drei['1-3'].platz, drei['1-4'].platz]).toEqual([1, 1, 1, 4, 5])
+    expect([drei['1-1'].zeit2, drei['1-2'].zeit2, drei['1-5'].zeit2]).toEqual([undefined, undefined, undefined])
+    // Zum Vergleich ohne 1-5 in der Gruppe (142 s): Das Halbfinale trennt 1-1 und 1-2.
+    const zwei = fuenf(42)
+    expect([zwei['1-1'].platz, zwei['1-2'].platz, zwei['1-5'].platz]).toEqual([1, 2, 3])
+    expect([zwei['1-1'].zeit2, zwei['1-2'].zeit2, zwei['1-5'].zeit2]).toEqual([8000, 8200, undefined])
+  })
+
+  it('zweite Stufe: Wer in der vorletzten Runde disqualifiziert ist (ohne Zeit), steht hinter dem Gleichen mit Zeit', () => {
+    // Eigene Punktetabelle: jeder Platz 1 Punkt – alle vier haben 2 Punkte.
+    const tabelle = [1, 1, 1, 1]
+    let state = manoever(uim(mk('1', 4)), { '1-1': [60, 70], '1-2': [61, 70], '1-3': [62, 70], '1-4': [62, 71] })
+    state = fahre(state, 'pre', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    // 1-3 ist im Halbfinale disqualifiziert (letzter des heat) und fährt das Kleine Finale gegen 1-4.
+    state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [null, 42], '1-4': [43, 43] })
+    // Kleines Finale: beide 84 s – mit dem Manövrieren (62 s) beide 146 s.
+    state = finals(state, { '1-1': [40, 40], '1-2': [41, 41], '1-3': [41, 43], '1-4': [42, 42] })
+    const e = einzelwertung(state, konfig, '1', tabelle)!
+    expect(e.fertig).toBe(true)
+    expect(e.nachPlatz.map((z) => [z.starter.id, z.platz, z.zeit, z.zeit2, z.stich])).toEqual([
+      ['1-1', 1, 14000, undefined, true],
+      ['1-2', 2, 14300, undefined, true],
+      ['1-4', 3, 14600, 8600, true],
+      ['1-3', 4, 14600, null, true],
     ])
   })
 
@@ -286,8 +411,15 @@ describe('Stichentscheid der Einzelwertung (Pkt. 5.2.6; Festlegungen des Nutzers
     state = fahre(fest(state, 'semi'), 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
     state = finals(state, { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-5': [43, 43] })
     const von = zeilen(state)
-    // 1-4: besserer Versuch 62 s + Wiederholung 120 s; 1-5: 61 s + 109 s; 1-6 hat nicht wiederholt: 60 s + 110 s.
-    expect([von['1-4'].zeit, von['1-5'].zeit, von['1-6'].zeit]).toEqual([18200, 17000, 17000])
+    // 1-4 kam nicht über den Vorlauf: besserer Versuch 62 s + Wiederholung 120 s (nicht der Vorlauf mit 88 s);
+    // 1-6 hat nicht wiederholt: 60 s + 110 s. 1-5 fuhr weiter bis ins Kleine Finale: 61 s + 86 s.
+    expect([von['1-4'].zeit, von['1-6'].zeit, von['1-5'].zeit]).toEqual([18200, 17000, 14700])
+    // Für 1-5 ersetzt die Wiederholung die Zeit des Vorlaufs auch in der Folge der gefahrenen Runden.
+    expect(gefahreneRunden(klassenStand(state, konfig, '1')!, '1-5')).toEqual([
+      { runde: 'pre', zeit: 10900 },
+      { runde: 'semi', zeit: 8600 },
+      { runde: 'small', zeit: 8600 },
+    ])
   })
 })
 

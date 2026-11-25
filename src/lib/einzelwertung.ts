@@ -4,7 +4,7 @@ import { disziplinGefahren, disziplinZaehlt, nichtGewertet, WERTUNGS_DISZIPLINEN
 import { vergleicheNr } from './eingaben'
 import { klassenErgebnis } from './ergebnis'
 import { rundenEinheit } from './parallelErgebnis'
-import { klassenStand, offeneRunde, stageErgebnis, type StageKonfig, type StageStand } from './parallelStage'
+import { klassenStand, offeneRunde, stageErgebnis, type KlassenStand, type StageKonfig, type StageStand } from './parallelStage'
 import { platzPunkte, pokalKlassen, type PokalKlasse } from './pokal'
 
 // Die Einzelwertung („Individual competition“) – rein, ohne DOM. Sie zählt je Starter die UIM
@@ -48,25 +48,91 @@ import { platzPunkte, pokalKlassen, type PokalKlasse } from './pokal'
 // erfasst sind (lib/pokal.ts `klasseFertig`).
 
 /**
- * Festlegungen zum Stichentscheid der Einzelwertung – Entscheidungen des Nutzers vom 15.11.2026
- * zu dem, was Pkt. 5.2.6 offen lässt (Auslegung, nicht Wortlaut der Regel 960). Hier an EINER
- * Stelle umstellbar.
+ * Welche Runde des Parallelslaloms der Stichentscheid der Einzelwertung liest
+ * ({@link EINZEL_FESTLEGUNGEN}.stichParallelRunde).
+ */
+export type StichParallelRunde = 'letzteDannVorletzte' | 'vorlauf' | 'platzbestimmend'
+
+/**
+ * Festlegungen zum Stichentscheid der Einzelwertung – Entscheidungen des Nutzers zu dem, was
+ * Pkt. 5.2.6 offen lässt (Auslegung, nicht Wortlaut der Regel 960). Hier an EINER Stelle
+ * umstellbar. Die Texte des Stichentscheids (i18n individual.tie, individual.tie.*,
+ * individual.tieDecided, individual.tieShared in de/ und en/wertung.ts) beschreiben die Vorgabe –
+ * wer hier umstellt, zieht sie nach.
  */
 export const EINZEL_FESTLEGUNGEN = {
   /**
    * Pkt. 5.2.6 nennt „his/her better manoeuvring attempt (including penalties)“, die Knoten nennt
-   * er nicht eigens. Entschieden: Die Strafe der Knoten zählt zur Zeit des Manövrierens – wie in
-   * dessen Ergebnis (Pkt. 5.2.1 „best times including knots test penalties“).
+   * er nicht eigens. Festgelegt am 15.11.2026: Die Strafe der Knoten zählt zur Zeit des
+   * Manövrierens – wie in dessen Ergebnis.
+   * Beleg (24.11.2026, auf die Frage des Nutzers, wohin die Knoten laut UIM gehören): Regel 960,
+   * Pkt. 4.3 „Manoeuvring consists of: Tying knots (point 4.3.1); Driving on the manoeuvring
+   * racecourse (point 4.3.2)“ – die Knoten sind ein Teil des Manövrierens, nicht des
+   * Parallelslaloms; Pkt. 5.2.1 (Manoeuvring) „best times including knots test penalties“ – die
+   * Zeit des Manövrierens, nach der gereiht wird, enthält ihre Strafen. Stand: aus Pkt. 4.3 und
+   * 5.2.1 abgeleitet, dem Nutzer am 24.11.2026 erklärt (nicht ausdrücklich von ihm bestätigt).
    */
   stichMitKnoten: true,
   /**
-   * Pkt. 5.2.6 sagt nur „both his/her parallel slalom attempts“. Entschieden: die beiden Attempts
-   * des Vorlaufs, der einzigen Runde, die alle gefahren sind – nach einer Wiederholung zum
-   * Vorlauf deren Zeiten („After running again only the time of the re-run will be taken into
-   * account.“). `platzbestimmend` wäre die Runde, die den Platz bestimmt hat.
+   * Pkt. 5.2.6 sagt nur „both his/her parallel slalom attempts“ – nicht, aus welcher Runde.
+   * ENTSCHEIDUNG DES NUTZERS vom 24.11.2026 (ersetzt `vorlauf` vom 15.11.2026): „jeweils die letzte
+   * gefahrene Runde, wenn das nicht reicht zusätzlich auch die vorletzte Runde“ –
+   * `letzteDannVorletzte`: Für jeden Punktgleichen zählt die Summe beider Attempts SEINER zuletzt
+   * gefahrenen Runde (Finale, Kleines Finale, Halbfinale oder Vorlauf – je nachdem, wie weit er
+   * kam); ist auch die Zeit gleich, entscheidet die Summe seiner vorletzten gefahrenen Runde. Was
+   * dabei als „gefahren“ zählt, steht an {@link gefahreneRunden}, wann die zweite Stufe greift, an
+   * {@link einzelwertung}.
+   * `vorlauf`: die beiden Attempts des Vorlaufs (die einzige Runde, die alle gefahren sind);
+   * `platzbestimmend`: die Runde, die den Platz in der Stage bestimmt hat. Beide ohne zweite Stufe.
+   * In jeder Fassung gilt nach einer Wiederholung deren Zeit („After running again only the time of
+   * the re-run will be taken into account.“).
    */
-  stichParallelRunde: 'vorlauf' as 'vorlauf' | 'platzbestimmend',
+  stichParallelRunde: 'letzteDannVorletzte' as StichParallelRunde,
 } as const
+
+/** Die Runden, die ein Starter gefahren haben kann – in der Folge des Wettkampfs, ohne Wiederholungen (die ersetzen nur Zeiten). */
+const STICH_RUNDEN: readonly ParallelRunde[] = [VORLAUF, 'semi', 'small', 'final']
+
+/** Eine Runde des Parallelslaloms, die ein Starter gefahren ist, mit der Summe beider Attempts. */
+export interface GefahreneRunde {
+  runde: ParallelRunde
+  /** Hundertstel, mit Strafsekunden; `null` = in dieser Runde ohne gültige Summe (disqualifiziert, X neben einem gefahrenen Attempt). */
+  zeit: number | null
+}
+
+/**
+ * Die Runden des Parallelslaloms, die ein Starter gefahren ist, in der Folge des Wettkampfs
+ * (Vorlauf, Halbfinale, Kleines Finale bzw. Finale) – für den Stichentscheid der Einzelwertung
+ * (`letzteDannVorletzte`, Entscheidung des Nutzers vom 24.11.2026). Auslegungen beim Bau,
+ * 24.11.2026 (vom Nutzer zu bestätigen):
+ *   • Gefahren ist eine Runde, in deren festgeschriebenem Plan er steht und in der er mindestens
+ *     einen Attempt gestartet ist: In mindestens einem Attempt steht eine Zeit oder eine
+ *     Disqualifikation, die kein X „Nicht gestartet“ ist. Wer in keinem Attempt gestartet ist (X
+ *     in beiden; oder X im einen und der andere leer – die Runde ist mit dem X schon entschieden,
+ *     Prüfbefund 24.11.2026), ist sie nicht gefahren – dann zählt die Runde davor. Ein X in einem
+ *     Attempt neben einem gefahrenen ist wie eine Disqualifikation: Die Runde ist gefahren, ohne Zeit.
+ *     Folge (offen, docs/entscheidungen.md „Offen“): Wer zur letzten Runde nicht antritt, behält die
+ *     Zeit der Runde davor und steht so vor einem Punktgleichen, der in seiner letzten Runde
+ *     disqualifiziert wurde.
+ *   • Disqualifiziert in einer Runde (Pkt. 5.2.2): Die Runde ist gefahren, hat aber keine Zeit –
+ *     er steht damit hinter den Punktgleichen mit Zeit (wie bisher jeder ohne Zeit); es wird nicht
+ *     auf die Runde davor ausgewichen.
+ *   • Ein Dummy als Gegner ändert nichts: Wer gegen einen Dummy fährt (Halbfinale mit Dummy,
+ *     Einzelner in einer Wiederholung), fährt seine beiden Attempts wie jeder andere.
+ *   • Eine Wiederholung (Re-run) ist keine eigene Runde: Sie ersetzt die Zeit der wiederholten
+ *     Runde (Pkt. 5.2.6 „After running again only the time of the re-run will be taken into
+ *     account.“) – auch, wenn er im Re-run disqualifiziert wird (dann ohne Zeit).
+ */
+export function gefahreneRunden(ks: Pick<KlassenStand, 'runden'>, id: string): GefahreneRunde[] {
+  return STICH_RUNDEN.flatMap((runde): GefahreneRunde[] => {
+    const e = ks.runden.find((r) => r.runde === runde)?.ergebnis
+    const z = e?.gesamt.nachPlatz.find((x) => x.starter.id === id)
+    // Gestartet: ein Attempt mit Zeit oder Disqualifikation ohne X – ein leerer Attempt (offen) zählt nicht.
+    if (!e || !z || !z.laeufe.some((l) => !l.nichtGestartet && !l.offen)) return []
+    const m = e.massgeblich.get(id)
+    return [{ runde, zeit: m ? m.gesamt : z.disq ? null : z.gesamt }]
+  })
+}
 
 export type EinzelStand = StageStand & Partial<Pick<AppState, 'nichtWerten' | 'abgemeldet'>>
 export type EinzelKonfig = StageKonfig
@@ -112,11 +178,20 @@ export interface EinzelZeile {
   punktgleich: boolean
   /**
    * Die „combined times“ des Stichentscheids (Hundertstel): der bessere Versuch des Manövrierens
-   * mit den Strafen der Knoten und beide Attempts des Parallelslaloms – jeweils nur die
-   * Disziplinen, die zählen; `null`, wenn eine davon fehlt (disqualifiziert, nicht gefahren).
-   * Wer keine hat, steht hinter den Punktgleichen mit Zeit.
+   * mit den Strafen der Knoten und beide Attempts der zuletzt gefahrenen Runde des
+   * Parallelslaloms ({@link EINZEL_FESTLEGUNGEN}) – jeweils nur die Disziplinen, die zählen;
+   * `null`, wenn eine davon fehlt (disqualifiziert, nicht gefahren). Wer keine hat, steht hinter
+   * den Punktgleichen mit Zeit.
    */
   zeit: number | null
+  /**
+   * Die zweite Stufe des Stichentscheids (`letzteDannVorletzte`, Entscheidung des Nutzers vom
+   * 24.11.2026): die Summe beider Attempts der vorletzten gefahrenen Runde des Parallelslaloms
+   * (Hundertstel); `null` = dort ohne gültige Summe (disqualifiziert). Nur da, wo sie gebraucht
+   * wird: bei gleichen Punkten UND gleicher {@link zeit} – und nur, wenn jeder dieser Gleichen eine
+   * vorletzte Runde hat. Sonst fehlt das Feld.
+   */
+  zeit2?: number | null
 }
 
 export interface EinzelErgebnis {
@@ -164,12 +239,27 @@ export function parallelGewertet(stand: EinzelStand, konfig: EinzelKonfig): bool
  * ihre Runden gefahren ist. Eine Disziplin, die für die Klasse nicht zählt, trägt nichts bei.
  *
  * Plätze: nach der Summe der Punkte. Punktgleiche trennt die Zeit nach Pkt. 5.2.6
- * ({@link EINZEL_FESTLEGUNGEN}). Wem für den Stichentscheid eine Zeit fehlt, weil er in einer
- * Disziplin disqualifiziert ist (oder dort gar nicht gefahren ist), steht HINTER den
- * Punktgleichen mit Zeit – Entscheidung des Nutzers vom 15.11.2026: Eine Disqualifikation ist
- * eine Wertung, damit letzter Platz unter den Punktgleichen. Mehrere ohne Zeit teilen sich
- * diesen hinteren Platz; gleiche Zeiten teilen den Platz ebenfalls (Pkt. 5.2.6 „dead-heat
- * result“). Ein geteilter Platz lässt den nächsten entfallen (1, 1, 3).
+ * ({@link EINZEL_FESTLEGUNGEN}): der bessere Versuch des Manövrierens plus beide Attempts der
+ * zuletzt gefahrenen Runde des Parallelslaloms. Wem dafür eine Zeit fehlt, weil er
+ * disqualifiziert ist (oder gar nicht gefahren ist), steht HINTER den Punktgleichen mit Zeit –
+ * Entscheidung des Nutzers vom 15.11.2026: Eine Disqualifikation ist eine Wertung, damit letzter
+ * Platz unter den Punktgleichen. Mehrere ohne Zeit teilen sich diesen hinteren Platz.
+ *
+ * Zweite Stufe (Entscheidung des Nutzers vom 24.11.2026: „wenn das nicht reicht zusätzlich auch
+ * die vorletzte Runde“): Haben Punktgleiche auch dieselbe Zeit, kommt die Summe ihrer vorletzten
+ * gefahrenen Runde dazu. Weil die Zeit der ersten Stufe in dieser Gruppe gleich ist, reiht die
+ * Summe aller drei Teile genau so wie die vorletzte Runde allein – verglichen wird deshalb nur
+ * sie (`zeit2`; mit Zeit vor ohne Zeit). Auslegungen beim Bau, 24.11.2026 (vom Nutzer zu
+ * bestätigen):
+ *   • Die zweite Stufe gilt für die ganze Gruppe der Punkt- und Zeitgleichen – oder für keinen:
+ *     Hat einer von ihnen keine vorletzte Runde (nur den Vorlauf gefahren), entscheidet sie nicht
+ *     („bei dem entscheidet die zweite Stufe nicht“), die Gruppe teilt sich den Platz. Paarweise
+ *     entschieden könnten drei Gleiche sonst Plätze wie 1, 1, 2 bekommen.
+ *   • Punktgleiche ohne Zeit (erste Stufe) bekommen keine zweite Stufe: Ihre Summe aus allen
+ *     drei Teilen fehlte ebenso – sie teilen sich weiter den hinteren Platz (15.11.2026).
+ * Was dann noch gleich ist, teilt sich den Platz (Pkt. 5.2.6 „If any of the above mentioned
+ * solutions would not define a winner, there will be a dead-heat result.“). Ein geteilter Platz
+ * lässt den nächsten entfallen (1, 1, 3).
  */
 export function einzelwertung(stand: EinzelStand, konfig: EinzelKonfig, klasse: ClassId, punkte: readonly number[]): EinzelErgebnis | null {
   const manoever = pokalKlassen(stand, konfig, [klasse], { knoten: true })[0]
@@ -191,12 +281,26 @@ export function einzelwertung(stand: EinzelStand, konfig: EinzelKonfig, klasse: 
     // Die Knoten sind Strafsekunden: je Strafpunkt eine Sekunde, wie in der Gesamtliste.
     return Math.min(...gueltig) + (EINZEL_FESTLEGUNGEN.stichMitKnoten ? z.knoten * 100 : 0)
   }
-  /** Die Summe beider Attempts des Parallelslaloms in der Runde, die für den Stichentscheid zählt. */
-  const parallelZeit = (id: string): number | null => {
-    if (!stage) return null
-    if (EINZEL_FESTLEGUNGEN.stichParallelRunde === 'platzbestimmend') return stageVon.get(id)?.gesamt ?? null
-    // Wer im Vorlauf oder in einer Wiederholung dazu disqualifiziert wurde, hat dort keine Zeit.
-    return vorlauf?.massgeblich.get(id)?.gesamt ?? null
+  /**
+   * Die Summen beider Attempts des Parallelslaloms, die für den Stichentscheid zählen: `erste`
+   * für die Zeit, `zweite` für die zweite Stufe – `undefined`, wo es keine gibt (keine vorletzte
+   * Runde, oder die Festlegung kennt keine zweite Stufe).
+   */
+  type ParallelZeiten = { erste: number | null; zweite?: number | null }
+  const parallelZeiten = (id: string): ParallelZeiten => {
+    if (!stage || !ks) return { erste: null }
+    switch (EINZEL_FESTLEGUNGEN.stichParallelRunde) {
+      case 'platzbestimmend':
+        return { erste: stageVon.get(id)?.gesamt ?? null }
+      case 'vorlauf':
+        // Wer im Vorlauf oder in einer Wiederholung dazu disqualifiziert wurde, hat dort keine Zeit.
+        return { erste: vorlauf?.massgeblich.get(id)?.gesamt ?? null }
+      case 'letzteDannVorletzte': {
+        const gefahren = gefahreneRunden(ks, id)
+        const vorletzte = gefahren.at(-2)
+        return { erste: gefahren.at(-1)?.zeit ?? null, ...(vorletzte ? { zweite: vorletzte.zeit } : {}) }
+      }
+    }
   }
 
   const roh = manoever.zeilen.map((m) => {
@@ -205,7 +309,8 @@ export function einzelwertung(stand: EinzelStand, konfig: EinzelKonfig, klasse: 
     const s = stageVon.get(id)
     const pPunkte = stage ? (s?.punkte ?? 0) : null
     const mZeit = zaehltM ? manoeverZeit(id) : 0
-    const pZeit = zaehltP ? parallelZeit(id) : 0
+    const pZeiten: ParallelZeiten = zaehltP ? parallelZeiten(id) : { erste: 0 }
+    const pZeit = pZeiten.erste
     // Zeit und Platz, wie sie im Gesamtergebnis der Disziplin stehen.
     const g = mPunkte === null ? undefined : gesamtVon.get(id)
     return {
@@ -218,19 +323,40 @@ export function einzelwertung(stand: EinzelStand, konfig: EinzelKonfig, klasse: 
       offen: mPunkte === null && pPunkte === null,
       disq: (zaehltM && m.disq) || s?.disq === true,
       zeit: mZeit !== null && pZeit !== null ? mZeit + pZeit : null,
+      /** Die vorletzte gefahrene Runde; `undefined` = keine (oder ohne Parallelslalom, der zählt). */
+      vorletzte: pZeiten.zweite,
     }
   })
   type Roh = (typeof roh)[number]
-  /** Steht `a` unter Punktgleichen vor `b`? Mit der besseren Zeit – oder mit Zeit vor dem ohne. */
-  const stichVor = (a: Roh, b: Roh): boolean => a.zeit !== null && (b.zeit === null || a.zeit < b.zeit)
-  const vor = (a: Roh, b: Roh): boolean => a.summe > b.summe || (a.summe === b.summe && stichVor(a, b))
   const gewertet = roh.filter((z) => !z.offen)
-  const zeilen = roh.map((z): EinzelZeile => {
-    const gleiche = z.offen ? [] : gewertet.filter((y) => y !== z && y.summe === z.summe)
+  /** Punkt- und zeitgleich mit Zeit: die Gruppe, in der die zweite Stufe gefragt ist. */
+  const zeitGleiche = (z: Roh) => (z.offen || z.zeit === null ? [] : gewertet.filter((y) => y.summe === z.summe && y.zeit === z.zeit))
+  /** Die zweite Stufe gilt für die ganze Gruppe – nur, wenn jeder darin eine vorletzte Runde hat (siehe oben). */
+  const zweiteStufe = new Map(
+    roh.map((z) => {
+      const gruppe = zeitGleiche(z)
+      return [z, gruppe.length > 1 && gruppe.every((y) => y.vorletzte !== undefined)]
+    }),
+  )
+  /**
+   * Zwei Punktgleiche im Stichentscheid: < 0 = `a` vorn, > 0 = `b` vorn, 0 = er trennt sie nicht.
+   * Erste Stufe: mit Zeit vor ohne, dann die bessere Zeit. Zweite Stufe: ebenso mit der vorletzten Runde.
+   */
+  const stichVergleich = (a: Roh, b: Roh): number => {
+    if (a.zeit !== b.zeit) return a.zeit === null ? 1 : b.zeit === null ? -1 : a.zeit - b.zeit
+    if (a.zeit === null || !zweiteStufe.get(a) || a.vorletzte === b.vorletzte) return 0
+    return a.vorletzte == null ? 1 : b.vorletzte == null ? -1 : a.vorletzte - b.vorletzte
+  }
+  const vor = (a: Roh, b: Roh): boolean => a.summe > b.summe || (a.summe === b.summe && stichVergleich(a, b) < 0)
+  const zeilen = roh.map((r): EinzelZeile => {
+    const { vorletzte, ...z } = r
+    const gleiche = r.offen ? [] : gewertet.filter((y) => y !== r && y.summe === r.summe)
     return {
       ...z,
-      platz: z.offen ? 0 : 1 + gewertet.filter((y) => vor(y, z)).length,
-      stich: gleiche.some((y) => stichVor(y, z) || stichVor(z, y)),
+      // Die Zeit der vorletzten Runde steht nur da, wo sie gefragt war – die Liste zeigt sie dann.
+      ...(zweiteStufe.get(r) ? { zeit2: vorletzte ?? null } : {}),
+      platz: r.offen ? 0 : 1 + gewertet.filter((y) => vor(y, r)).length,
+      stich: gleiche.some((y) => stichVergleich(y, r) !== 0),
       punktgleich: gleiche.length > 0,
     }
   })

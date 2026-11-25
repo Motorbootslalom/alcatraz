@@ -1,6 +1,6 @@
 import { computed, inject, provide, type ComputedRef, type InjectionKey } from 'vue'
 import { tIn, tnIn, type Locale, type MessageKey } from '../../i18n'
-import { zeitDeutung, zeitUhr, type MaskenAufbau } from '../../wkr/maske'
+import { istNichtGestartet, zeitDeutung, zeitUhr, type MaskenAufbau } from '../../wkr/maske'
 import type { KeineZeitGrund } from '../../types'
 import type { ZeilenStufe } from '../../geraete/erfassen'
 
@@ -64,6 +64,8 @@ export function stufeZeichen(s: ZeilenStufe): string {
  * Kurzvermerk, eine Boje ohne Unterspalte (Speedboje) nur mit dem Titel. Reihenfolge der Maske (Fahrtfolge, dann
  * Disq., Bemerkung) – nicht die der Zellen: „alt → neu“ einer Korrektur soll dieselbe Folge zeigen.
  * Zeit (W5.4, 22.11.2026): „Zeit 1: 1:23,45“ (die Uhr, wie die Maske sie zeigt) und „Zeit 2: keine Zeit“ aus `keineZeit`.
+ * „Nicht gestartet“ (24.11.2026, NG1): Ein X allein heißt „nicht gestartet (Disq. X)“ – so, wie „Mehr“ es nannte
+ * (vorher stand dort „⊘ nicht vorbeigekommen“ statt der Zellen).
  */
 export function zellenText(
   zellen: Readonly<Record<string, string>>,
@@ -72,6 +74,7 @@ export function zellenText(
   leer: string,
   keineZeit: Readonly<Record<string, KeineZeitGrund>> = {},
 ): string {
+  if (istNichtGestartet(zellen)) return t.w('wkr.geraet.nichtGestartet.text')
   const teile: string[] = []
   const titel = new Map<string, string>()
   for (const a of aufbau?.abschnitte ?? []) {
@@ -109,7 +112,6 @@ export interface TabellenGesendet {
   sn: string
   zellen: Readonly<Record<string, string>>
   stufe: ZeilenStufe
-  nv?: true
   /** „Keine Zeit“ je Feld (W5.4). */
   kz?: Readonly<Record<string, string>>
 }

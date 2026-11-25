@@ -73,7 +73,7 @@ describe('pruefeZeile am Tisch (KN2)', () => {
     expect(r).toMatchObject({ id: 'g1.3', liste: KT, ref: ohneLaufKennung('k1'), lauf: LAUF0, starter: 'k1', gezeigt: true, haken: ['erfasst@knoten'] })
   })
 
-  it('lehnt ab: Kennung des Betriebs am Tisch, Starter ohne Lauf am Parcours, „nicht vorbeigekommen“, Unbekannte', () => {
+  it('lehnt ab: Kennung des Betriebs am Tisch, Starter ohne Lauf am Parcours, X (kein Disq.-Feld), Unbekannte', () => {
     const s = digital()
     const fehler = (l: Liste, z: GeraeteZeile) => {
       const r = pruefeZeile(s, DM, l, undefined, 'g1', z)
@@ -81,7 +81,8 @@ describe('pruefeZeile am Tisch (KN2)', () => {
     }
     expect(fehler(TISCH, zeile(refKey({ art: 'm', starter: 'k1', lauf: 1 }), []))).toBe('start-unbekannt')
     expect(fehler({ bereich: P1, typeId: 'gate135', racecourse: null }, zeile(ohneLaufKennung('k1'), []))).toBe('start-unbekannt')
-    expect(fehler(TISCH, zeile(ohneLaufKennung('k1'), [], { n: true }))).toBe('nv-nicht-erlaubt')
+    // „Nicht gestartet“ (24.11.2026, NG1) gibt es am Tisch nicht: Die Knoten-Liste hat kein Disq.-Feld.
+    expect(fehler(TISCH, zeile(ohneLaufKennung('k1'), [[felder[0].kennung, 'X', '']]))).toBe('wert-ungueltig')
     expect(fehler(TISCH, zeile(ohneLaufKennung('niemand'), []))).toBe('start-unbekannt')
     expect(fehler(TISCH, zeile(ohneLaufKennung('k1'), [['t1a|hin seiteA', '5', '']]))).toBe('feld-fremd')
   })

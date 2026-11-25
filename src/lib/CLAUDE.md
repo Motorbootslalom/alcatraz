@@ -7,11 +7,13 @@ clipboard, scanner, logoBild.
 ## Dateien (gruppiert) und Abläufe
 
 - Eingaben: `eingaben.ts` (Schlüssel, setzeWerte, starterfeldFest), `erfassung.ts` (Fortschritt, Plausibilität,
-  zeilenSchluessel), `codes.ts`, `disq.ts`, `time.ts`, `scoring.ts` (Zeilenpunkte), `abmeldung.ts` (X: NICHT_GESTARTET),
+  zeilenSchluessel; Hinweise codeZuOft/codeDanach 24.11.2026), `codes.ts` (normalizeCodeCell; Höchstzahl je Code
+  codeHoechstens/codesUeberMax mit WKR_ANNAHMEN.codeMaxAllgemein, 24.11.2026), `disq.ts`, `time.ts`, `scoring.ts` (Zeilenpunkte), `abmeldung.ts` (X: NICHT_GESTARTET),
   `eingabenVerlust.ts`, `gridnav.ts`.
 - Manövrieren: `ergebnis.ts` (klassenErgebnis → laufListe, gesamtListe, platziert; Streichläufe, stichSchluessel),
   `ergebnisBlaetter.ts`, `ergebnisText.ts` (SPALTEN → results.col.*, ergebnisTexte(sprache)), `listenStand.ts`
-  (Zeitpunkt je Liste, WERTUNG), `disziplinen.ts`. Einzel/Mannschaft: `einzelwertung.ts` (EINZEL_FESTLEGUNGEN),
+  (Zeitpunkt je Liste, WERTUNG), `disziplinen.ts`. Einzel/Mannschaft: `einzelwertung.ts` (EINZEL_FESTLEGUNGEN;
+  Stichentscheid 24.11.2026: letzte gefahrene Runde des Parallelslaloms, dann die vorletzte – gefahreneRunden, `zeit2`),
   `pokal.ts` (pokalKlassen + disziplinen → einzelwertungen), `pokalBlaetter.ts` (usePokalWertung), `teamListe.ts`.
 - Parallelslalom: `parallelErgebnis.ts` (Runde, Qualifikation, Re-run, PARALLEL_ANNAHMEN), `parallelStage.ts`
   (klassenStand, schreibeRundeFest, alleWeiter, stageErgebnis), `parallelSchluessel.ts`, `parallelBogen.ts` (Listen je Racecourse,

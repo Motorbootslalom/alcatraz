@@ -99,11 +99,6 @@ export interface WkrZeile {
   gezeigt: boolean
   korrektur: boolean
   /**
-   * „Nicht vorbeigekommen“ (W4.3, 21.11.2026, P16): Zeile ohne Zellen; setzt den Haken und das Kennzeichen in
-   * {@link WkrStand.nichtVorbei} – kein X, keine Wertung.
-   */
-  nichtVorbei?: true
-  /**
    * „Keine Zeit“ je Zeitfeld (W5.4, ZT4): Fehlt es, bleibt ein stehendes Kennzeichen; steht es (auch leer), ersetzt es
    * das Kennzeichen des Starts auf dieser Liste ({@link WkrStand.keineZeit}).
    */
@@ -140,14 +135,9 @@ export interface WkrRueckfrage {
   /** Die Haken der Zeile: Ist die letzte Rückfrage der Zeile entschieden, werden sie gesetzt. */
   haken: string[]
   /**
-   * „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): Die Zeile des Geräts trug das Kennzeichen – der Eingang
-   * zeigt „⊘ nicht vorbeigekommen“, und erst die Entscheidung für das Gerät setzt es (WKR_ANNAHMEN.nichtVorbeiNurDirekt).
-   * Ohne: die Zeile sagt „doch vorbei“, die Entscheidung für das Gerät hebt ein stehendes Kennzeichen auf (R3).
+   * „Keine Zeit“ der Zeile (W5.4, ZT4) – wirkt erst mit der Entscheidung für das Gerät. (Das Kennzeichen „nicht
+   * vorbeigekommen“ samt Steg-Teil reiste bis 24.11.2026 ebenso mit; ersetzt durch X, WKR_ANNAHMEN NG6.)
    */
-  nichtVorbei?: true
-  /** Teil der Zeile am Steg (nur geteilte Listen) – für den Schlüssel des Kennzeichens (wkr/nichtVorbei.ts). */
-  teil?: 'ab' | 'an'
-  /** „Keine Zeit“ der Zeile (W5.4, ZT4) – wirkt wie `nichtVorbei` erst mit der Entscheidung für das Gerät. */
   keineZeit?: Record<string, KeineZeitGrund>
   /**
    * Der WKR hat auf dem Gerät „So lassen“ gewählt (Zeit des Stores; Nutzer 21.11.2026, W3-35, WKR_ANNAHMEN GF5): Der
@@ -170,15 +160,7 @@ export interface WkrVorschlag {
   zellen: { feld: string; wert: string }[]
   haken: string[]
   grund: 'abgeschlossen' | 'papier'
-  /**
-   * „Nicht vorbeigekommen“ (W4.3, Prüfbefund 21.11.2026): Die Zeile des Geräts trug das Kennzeichen – der Eingang
-   * zeigt „⊘ nicht vorbeigekommen“, und erst die Entscheidung für das Gerät setzt es (WKR_ANNAHMEN.nichtVorbeiNurDirekt).
-   * Ohne: die Zeile sagt „doch vorbei“, die Entscheidung für das Gerät hebt ein stehendes Kennzeichen auf (R3).
-   */
-  nichtVorbei?: true
-  /** Teil der Zeile am Steg (nur geteilte Listen) – für den Schlüssel des Kennzeichens (wkr/nichtVorbei.ts). */
-  teil?: 'ab' | 'an'
-  /** „Keine Zeit“ der Zeile (W5.4, ZT4) – wirkt wie `nichtVorbei` erst mit der Entscheidung für das Gerät. */
+  /** „Keine Zeit“ der Zeile (W5.4, ZT4) – wirkt erst mit „Übernehmen“. */
   keineZeit?: Record<string, KeineZeitGrund>
   zeit: number
 }
@@ -195,17 +177,11 @@ export interface WkrStand {
    */
   abschluss: Record<string, Record<string, WkrAbschluss>>
   /**
-   * „Nicht vorbeigekommen“ (W4.3, 21.11.2026, P16) je Listen-Kennung: Zellen `${lauf}|${starter}`, am Steg mit Teil
-   * `${lauf}|${starter}|an` (nur Anlegen – im Ablegen ist es X). Gesetzt von WKR_ZEILEN mit `nichtVorbei`, gelöscht von
-   * einer späteren Zeile ohne Kennzeichen (doch vorbei) und von eigenen Werten der Liste (Abtippen, Rückfrage,
-   * Vorschlag). Lesen über wkr/lage.ts; in der Sicherung wie Rückfragen, nie auf Tafel oder Zuschauerliste (F17).
-   */
-  nichtVorbei: Record<string, string[]>
-  /**
    * „Keine Zeit“ (W5.4, 22.11.2026, ZT4) je Listen-Kennung und Zelle `${lauf}|${starter}`: je Zeitfeld der Grund. Gesetzt
    * von einer direkt geltenden Zeile mit `keineZeit` (ersetzt den Eintrag des Starts), aufgehoben, sobald das Feld einen
    * Wert hat (Abtippen, spätere Zeile – wkr/keineZeit.ts ohneUeberholteKeineZeit). Lesen über wkr/lage.ts (Matrix,
-   * „Papier ansehen“); in der Sicherung wie `nichtVorbei`, nie auf Tafel oder Zuschauerliste (F17).
+   * „Papier ansehen“); in der Sicherung wie Rückfragen, nie auf Tafel oder Zuschauerliste (F17). Das Kennzeichen
+   * „nicht vorbeigekommen“ (`nichtVorbei`, W4.3) daneben entfiel am 24.11.2026 – es ist jetzt X (WKR_ANNAHMEN NG6).
    */
   keineZeit: Record<string, Record<string, Record<string, KeineZeitGrund>>>
 }

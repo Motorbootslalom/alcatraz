@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import type { ClassId } from '../../types'
 import type { BestandEintrag, ErfassungsQuelle, PruefZeile } from '../../geraete/erfassen'
 import type { ListenAufgabe } from '../../geraete/aufgaben'
 import { entwurfAus, fertig, leererEntwurf, maskeFuer, pruefOffen, punkteVon, restRichtig, tippePruef, zellenAus, type Entwurf, type MaskenAufbau, type PruefWahl } from '../../wkr/maske'
 import { naechsterOffener } from '../../wkr/tisch'
 import { OHNE_PUNKT } from '../../wkr/abschluss'
+import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import WkrAbschluss from './WkrAbschluss.vue'
 import WkrKopf from './WkrKopf.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import WkrZiffern from './WkrZiffern.vue'
 import WkrVorziehen from './WkrVorziehen.vue'
+import { rolleAnDenRand } from './systemModus'
 import { stufeZeichen, useWkrText } from './texte'
 
 /**
@@ -164,6 +166,21 @@ function abschicken(): void {
   letzte.value = { nr: t.startNr, z }
   bejaht.value = null
   nr.value = ''
+  void nextTick(kopfAusDemBild)
+}
+
+/**
+ * Übung am Tisch (Prüfbefund 24.11.2026, WKR_ANNAHMEN UK6, noch zu bestätigen): wie in der Maske mit Schlange (UK1,
+ * Nutzer 24.11.2026) rollen nach „Alle richtig“/„Abschicken“ die Erklärung „So läuft die Übung“ und der Kopf mit
+ * „ÜBUNG“ oben hinaus – an den Rand kommt das erste Element nach dem Kopf, also der Block „Nr. 9 · Klasse · offen“
+ * mit dem Vorschlag. Kein Takt am Tisch: Der nächste Starter ist sofort vorbelegt (KN12), ein Nachrollen wie UK5
+ * braucht es nicht. Auf dem Pad steht der Kopf über beiden Spalten, die offenen Nummern rollen also mit. Nur in der
+ * Übung (die echte Liste zeigt im Kopf die Verbindung).
+ */
+const kopfRef = ref<InstanceType<typeof WkrKopf> | null>(null)
+function kopfAusDemBild(): void {
+  if (!props.quelle.uebung || !WKR_ANNAHMEN.uebungKopfAusDemBild || !WKR_ANNAHMEN.uebungKopfAmTisch) return
+  rolleAnDenRand(((kopfRef.value?.$el ?? null) as Element | null)?.nextElementSibling)
 }
 
 // --- Liste abschließen (KN5) ---
@@ -197,6 +214,7 @@ const stufeText = computed(() => {
     <WkrRuhe v-if="!sicht" art="warte" />
     <template v-else>
       <WkrKopf
+        ref="kopfRef"
         :titel="sicht.titel"
         :bereich="sicht.bereich"
         :lauf="null"
@@ -301,12 +319,6 @@ const stufeText = computed(() => {
           </div>
         </details>
 
-        <!-- Übung (Y4): andere Klasse vorziehen – die Knoten-Liste hat kein „Mehr“, darum hier aufklappbar. -->
-        <details v-if="vorziehKlassen && vorziehKlassen.length > 1" class="wkr-pruef-seite" data-teil="pruef-vorziehen" :open="vorziehOffen" @toggle="(e) => (vorziehOffen = (e.target as HTMLDetailsElement).open)">
-          <summary class="wkr-knopf" data-ziel="klein">{{ w('wkr.geraet.uebung.vorziehen') }}</summary>
-          <WkrVorziehen :klassen="vorziehKlassen" @wahl="ziehVor" />
-        </details>
-
         <footer class="wkr-fuss" :class="{ 'wkr-fuss--links': hand === 'links' }" data-teil="fuss" :data-hand="hand">
           <div class="wkr-fuss-neben">
             <button
@@ -325,6 +337,13 @@ const stufeText = computed(() => {
             {{ hauptText }}
           </button>
         </footer>
+
+        <!-- Übung (Y4): andere Klasse vorziehen – die Knoten-Liste hat kein „Mehr“, darum hier aufklappbar. Seit
+             24.11.2026 (Nutzer, Y5) ganz unten unter dem Hauptknopf, direkt über „Übung beenden“: nur die Übung hat es. -->
+        <details v-if="vorziehKlassen && vorziehKlassen.length > 1" class="wkr-pruef-seite" data-teil="pruef-vorziehen" :open="vorziehOffen" @toggle="(e) => (vorziehOffen = (e.target as HTMLDetailsElement).open)">
+          <summary class="wkr-knopf" data-ziel="klein">{{ w('wkr.geraet.uebung.vorziehen') }}</summary>
+          <WkrVorziehen :klassen="vorziehKlassen" @wahl="ziehVor" />
+        </details>
       </div>
     </template>
   </div>

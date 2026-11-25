@@ -101,6 +101,30 @@ describe('Liste der Fahrer je Team im Reiter „Gewichtslisten“', () => {
     uim.unmount()
   })
 
+  it('Abstufung des Ausgleichsgewichts (24.11.2026): Nachkommastelle im Dezimalzeichen der Liste, auf 0 gerundet „–“ wie keiner nötig', async () => {
+    store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
+    // Dolphin 26 kg, Klasse 1 32 kg (uim-2026.yaml): a1 5,5 kg leichter, b1 0,6 kg leichter.
+    store.dispatch({ type: 'SET_WEIGHT', id: 'a1', gewicht: 20.5 })
+    store.dispatch({ type: 'SET_WEIGHT', id: 'b1', gewicht: 31.4 })
+    store.dispatch({ type: 'SET_AUSGLEICH_STUFE', kg: 0.5 })
+    const wrapper = await gewicht()
+    await wrapper.find('.gewicht-arten button[data-art="team"]').trigger('click')
+    await nextTick()
+    const ballast = (id: string) => wrapper.find(`.team-liste tr[data-starter="${id}"]`).findAll('td').map((td) => td.text())[6]
+    // Oberfläche deutsch, Liste englisch (Sprache des Regelwerks): Punkt, nicht Komma.
+    expect(ballast('a1')).toBe('5.5 kg')
+    expect(ballast('b1')).toBe('0.5 kg')
+    // Stufe 2 kg: 5,5 → 6; 0,6 → 0 = kein Ballast – „–“ wie bei „keiner nötig“, nie „0 kg“ daneben (Prüfbefund 24.11.2026).
+    store.dispatch({ type: 'SET_AUSGLEICH_STUFE', kg: 2 })
+    await nextTick()
+    expect(ballast('a1')).toBe('6 kg')
+    expect(ballast('b1')).toBe('–')
+    store.dispatch({ type: 'SET_WEIGHT', id: 'b1', gewicht: 33 })
+    await nextTick()
+    expect(ballast('b1')).toBe('–')
+    wrapper.unmount()
+  })
+
   it('mit Logos (16.11.2026): auf jeder Seite links und rechts neben dem Kopf, sonst alles wie ohne', async () => {
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
     const team = async () => {

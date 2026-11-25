@@ -478,7 +478,7 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
   const starters = [{ id: 'a', klasse: '1', nachname: 'Nach1' }]
 
   it('fehlt oder kaputt → leer', () => {
-    const leer = { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {}, keineZeit: {} }
+    const leer = { listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, keineZeit: {} }
     expect(migrate({ starters })!.wkr).toEqual(leer)
     for (const kaputt of ['x', 7, null, [], { listen: 'x', rueckfragen: {}, vorschlaege: 3, abschluss: [] }]) expect(migrate({ starters, wkr: kaputt })!.wkr).toEqual(leer)
   })
@@ -503,7 +503,6 @@ describe('migrate: digitale WKR-Erfassung (W1, 21.11.2026)', () => {
       rueckfragen: [rf('a')],
       vorschlaege: [wkr.vorschlaege[0]],
       abschluss: { [liste]: { 'lauf:1': { name: 'Vor1', zeit: 9, abweichend: [], papier: ['k'] } } },
-      nichtVorbei: {},
       keineZeit: {},
     })
   })
@@ -583,19 +582,14 @@ describe('migrate: „Papier ab“ der WKR-Erfassung (W2, 21.11.2026)', () => {
   })
 })
 
-describe('migrate: „Nicht vorbeigekommen“ (W4.3, 21.11.2026)', () => {
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG6): „Nicht vorbeigekommen“ (W4.3) gibt es nicht mehr – X ersetzt es ganz.
+describe('migrate: „Nicht vorbeigekommen“ entfällt (24.11.2026)', () => {
   const starters = [{ id: 'a', klasse: '1', nachname: 'Nach1' }]
   const gate = JSON.stringify(['l', 'par_1', 'gate135', null])
-  const steg = JSON.stringify(['l', 'par_1', 'steg', null])
 
-  it('lesbare Schlüssel gültiger Zellen bleiben; Teil nur am Steg und nur `an`; Doppelte, fremde Starter, Kaputtes fallen weg', () => {
-    const nichtVorbei = {
-      [gate]: ['manoevrieren/1|a', 'manoevrieren/1|a', 'manoevrieren/1|weg', 'manoevrieren/1|a|an', 'kaputt|a', 7],
-      [steg]: ['manoevrieren/1|a|an', 'manoevrieren/2|a|ab', 'manoevrieren/2|a'],
-      kaputt: ['manoevrieren/1|a'],
-      [JSON.stringify(['l', 'par_1', 'tor5', null])]: 'x',
-    }
-    expect(migrate({ starters, wkr: { nichtVorbei } })!.wkr.nichtVorbei).toEqual({ [gate]: ['manoevrieren/1|a'], [steg]: ['manoevrieren/1|a|an'] })
-    expect(migrate({ starters, wkr: { nichtVorbei: [] } })!.wkr.nichtVorbei).toEqual({})
+  it('ein alter Stand verliert `nichtVorbei` beim Laden, ohne Folgen für den Rest', () => {
+    const wkr = migrate({ starters, wkr: { nichtVorbei: { [gate]: ['manoevrieren/1|a'] } } })!.wkr
+    expect(wkr).not.toHaveProperty('nichtVorbei')
+    expect(wkr).toEqual({ listen: {}, rueckfragen: [], vorschlaege: [], abschluss: {}, keineZeit: {} })
   })
 })

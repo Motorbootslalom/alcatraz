@@ -82,7 +82,10 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit
               <td v-if="z.ausgleich === undefined" class="weight ungewogen" colspan="2">{{ lt('lists.notWeighed') }}</td>
               <template v-else>
                 <td class="weight">{{ z.starter.gewicht === undefined ? '' : gewichtText(z.starter.gewicht, listenLocale) }} kg</td>
-                <td class="weight ausgleich-kg">{{ z.ausgleich === null ? '–' : `${z.ausgleich} kg` }}</td>
+                <!-- Auf 0 gerundet (weniger als eine halbe Stufe leichter) = „keiner nötig“, also auch „–“ – nicht „0 kg“
+                     neben „–“ für dasselbe; wie die Liste „Ausgleichsgewichte“ (leer) und das Steg-Gerät („kein AG“).
+                     Prüfbefund 24.11.2026 zur Abstufung: Bei 2 kg trifft das jeden, der weniger als 1 kg leichter ist. -->
+                <td class="weight ausgleich-kg">{{ !z.ausgleich ? '–' : `${gewichtText(z.ausgleich, listenLocale)} kg` }}</td>
               </template>
               <td class="narrow" data-spalte="klasse">{{ classCell(z.starter.klasse) }}</td>
               <!-- Nur Dolphin, 1 – 3 (Pkt. 3.7); die übrigen Klassen fahren ohne Co-Driver. -->

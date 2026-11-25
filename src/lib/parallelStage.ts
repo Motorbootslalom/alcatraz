@@ -23,8 +23,8 @@ import { attemptSchluessel } from './parallelSchluessel'
 //    set up the semi-finals or finals, the drivers having the same time must re-run both
 //    attempts. After running again only the time of the re-run will be taken into account.“
 //
-// Annahmen (Organisation bzw. Empfehlung des Bauplans, nicht Regel 960 – die Schwellen stehen
-// in lib/parallelErgebnis.ts `PARALLEL_ANNAHMEN`):
+// Annahmen (Organisation bzw. Empfehlung des Bauplans, nicht Regel 960; vom Nutzer bestätigt am
+// 24.11.2026 – die Schwellen stehen in lib/parallelErgebnis.ts `PARALLEL_ANNAHMEN`):
 //   • Frage 3: Bei 3 Gewerteten im Vorlauf wird ein Halbfinale mit Dummy gefahren; der Dritte
 //     des Halbfinales hat Platz 3 ohne ein Finale um Platz 3 und 4. Bei 2 Gewerteten wird direkt
 //     das Finale gefahren. Bei 1 Gewertetem gilt Platz 1 aus dem Vorlauf.
@@ -241,7 +241,7 @@ export interface AlleWeiter {
  * wird als Ganzes weitergewechselt“): Jede Klasse, für die jetzt Halbfinale oder Finals anstehen
  * (`schritte` aus {@link klassenStand} – dieselbe Prüfung wie beim Knopf je Klasse), kommt mit;
  * nach dem Halbfinale mit beiden Finals auf einmal (PARALLEL_ANNAHMEN.finalsZusammen, Auslegung vom
- * 21.11.2026), sonst nur mit der ersten offenen Runde.
+ * 21.11.2026, bestätigt vom Nutzer 24.11.2026), sonst nur mit der ersten offenen Runde.
  * Es bleiben: Klassen, deren Runde noch läuft; Klassen mit einem Gleichstand an der Grenze – die
  * Wiederholung (Pkt. 5.2.6) wird weiter je Klasse festgeschrieben, weil sie nur die Gleichstehenden
  * betrifft; Klassen mit einer veralteten Runde (erst lösen). Fertige Klassen fehlen in beiden Listen.

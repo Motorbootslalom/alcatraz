@@ -12,7 +12,8 @@ import { useWkrText } from './texte'
  * 1. **Wo?** – die Bojen der Klasse in der Folge der Maske (je Halt eine Zeile, Hinweg vor Rückweg, der Rückweg unter
  *    `gedreht` umgekehrt wie sein Reiter – wkr/maske.ts bojenAbschnitteAlle, 22.11.2026; zwei Knopfspalten nach dem
  *    Blick), nur Bojen, deren Zelle Buchstaben annimmt; darunter „Keine Boje / ganzer
- *    Parcours“ für Disq. ohne Ort (Ausrüstung, nicht vorbeigekommen …) – nur wenn die Liste ein Disq.-Feld hat.
+ *    Parcours“ für Disq. ohne Ort (Ausrüstung, Quickstopp …) – nur wenn die Liste ein Disq.-Feld hat. („Nicht gestartet“
+ *    ist kein Disq. an einer Stelle: es steht unter „Mehr“, NG1 – 24.11.2026.)
  * 2. **Welcher Buchstabe?** – WkrDisq mit den Buchstaben DIESER Zelle (zweiter Tipp setzt, H1). Seit R7-14
  *    (22.11.2026, BZ7) auch an einer Boje eine Mehrfachwahl: Jeder Buchstabe schaltet sich an bzw. aus, die Wahl bleibt
  *    offen, bis „Fertig“ (`disq-ort-fertig`) sie schließt und die Bojen wieder zeigt (`fertig`) – der Knopf trägt dann

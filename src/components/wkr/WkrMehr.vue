@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { Locale } from '../../i18n'
 import type { AnsichtWahl, GeraetAnsicht } from '../../geraete/ablage'
 import { BOJEN_FOLGEN, type BojenFolge } from '../../wkr/maske'
+import { BILD_LAGE_SEITE, BILD_LAGEN, lageVonDrehung, type BildLage } from '../../wkr/bild'
 import type { WkrNameLage } from '../../geraete/erfassen'
 import { MASKEN_GEBAUT, type MaskenWahl } from '../../wkr/maskenWahl'
 import AppDialog from '../AppDialog.vue'
@@ -17,13 +18,23 @@ import { useWkrText } from './texte'
  * Dunkel, Linkshand; G1, GF1), die Sprache (F13/G9: Vorgabe die der Liste; schaltet die Bedientexte immer, Codes und
  * Titel nur, wenn die Sicht `andere` trägt – sonst sagt ein Satz, warum sie bleiben), „Probe“ (G10) und in der Übung
  * „Übung verlassen“. Die Bemerkung zählt nicht als Tipp (H2) und geht mit der Zeile des Starts.
- * W4.3 (21.11.2026, P16/R6): „Nicht vorbeigekommen“ für den gezeigten Start (`nichtVorbei` = Startnummer, sonst nicht
- * angeboten) – erst nach einer großen Rückfrage („23 ist hier nicht vorbeigekommen? Es wird nichts eingetragen.“),
- * weil die Zeile den Start ohne Werte abhakt.
+ * Nutzer 24.11.2026 (WKR_ANNAHMEN NG1): „Nicht gestartet · Disq. X“ für den gezeigten Start (`nichtGestartet` =
+ * Startnummer, sonst nicht angeboten) – erst nach einer großen Rückfrage („23 nicht gestartet?“ mit dem Satz, was
+ * eingetragen wird), weil X den Start in diesem Lauf auf allen Listen und in der Wertung entfallen lässt. Ersetzt
+ * „Nicht vorbeigekommen“ (W4.3, ⊘ bzw. Disq. J): „Ein J kommt, wenn der Starter seine Linie verlassen hat … Dort würde
+ * aber nur ein Nicht gestartet mit einem X Sinn machen.“
  *
  * Nutzer 22.11.2026 (WKR_ANNAHMEN.bojenFolge, ersetzt „Wie der Parcours liegt“/Spiegeln vom 21.11.2026): Auf
  * Bojen-Listen (`bojenFolge` ≠ null) steht unter „Ansicht“ die Reihenfolge „Rückweg gedreht“ (Vorgabe) / „Fahrtfolge“ /
- * „Alles untereinander“ – Ereignis `bojenFolge`, gemerkt je Liste in WkrGeraet.
+ * „Alles untereinander“ – Ereignis `bojenFolge`, gemerkt je Liste in WkrGeraet. Seit 24.11.2026 (Nutzer, BL1) nur,
+ * wenn die Bojen-Knöpfe zu sehen sind; bei der Maske „Bild“ steht dort die Lage der Zeichnung (`bildLage`): „Steg
+ * unten/links/oben/rechts“ (Parallelslalom „Start links/oben/rechts/unten“) und davor „Automatisch“ (Prüfbefund
+ * 24.11.2026: der Weg zurück zu „keine Wahl“ = Lage nach Bogen und Platz, Ereignis mit `null`); ohne eigene Wahl ist
+ * „Automatisch“ gedrückt, der Satz nennt die gerade wirksame Lage und dass sie wie auf dem Bogen liegt – Ereignis
+ * `bildLage`, gemerkt wie die Folge.
+ *
+ * Nutzer 24.11.2026 (WKR_ANNAHMEN Y5): „Klasse vorziehen“ steht ganz unten unter „Übung verlassen“ – es gibt sie nur in
+ * der Übung, sie soll nicht zwischen den Einstellungen stehen, die es auch im Betrieb gibt.
  *
  * W3-40 (Nutzer 21.11.2026, WKR_ANNAHMEN.abschlussNurBand, AM10): „Liste abschließen“ steht hier nicht mehr – es war
  * unklar, warum man mitten im Lauf und für alle Klassen abschließen sollte. Abgeschlossen wird nur über das Band nach
@@ -62,15 +73,15 @@ const props = withDefaults(
     /** Trägt die Sicht die Masken in der anderen Sprache (UIM)? */
     mitAndere: boolean
     uebung: boolean
-    /** Startnummer des gezeigten Starts, wenn er „nicht vorbeigekommen“ melden darf (nicht Vorsteg/Ablegen, nicht Korrektur). */
-    nichtVorbei?: string | null
-    /**
-     * W3-17 (Nutzer 21.11.2026, GF10): Buchstabe, als der „nicht vorbeigekommen“ eingetragen wird (J), wo die Liste ihn
-     * kennt – Knopf und Rückfrage sagen es; `null` = das Kennzeichen ⊘ (Steg-Anlegen).
-     */
-    nichtVorbeiDisq?: string | null
-    /** Nur Bojen-Listen: Reihenfolge dieser Liste (22.11.2026); `null` = keine Bojen-Maske. */
+    /** Startnummer des gezeigten Starts, wenn „Nicht gestartet“ geht (Liste mit eigenem Disq.-Feld, nicht Korrektur). */
+    nichtGestartet?: string | null
+    /** Nur Bojen-Listen mit Bojen-Knöpfen: Reihenfolge dieser Liste (22.11.2026); `null` = keine Bojen-Knöpfe zu sehen. */
     bojenFolge?: BojenFolge | null
+    /**
+     * Nur Maske „Bild“ mit Zeichnung (Nutzer 24.11.2026, BL1): Lage der Zeichnung – `art` steg (Klassen) | start
+     * (Parallelslalom), die Wahl des WKR (`null` = keine) und die wirksame Drehung; `null` = kein Bild.
+     */
+    bildLage?: { art: 'steg' | 'start'; wahl: BildLage | null; wirksam: number } | null
     /** WKR-Name dieser Liste (W3-13); `null` = kein Namensfeld (Übung). */
     wkrName?: WkrNameLage | null
     /** Maskenwahl dieser Liste (F14, W5.1): erlaubte Masken, die gezeigte, ob fest vorgegeben; `null` = keine Wahl. */
@@ -83,7 +94,7 @@ const props = withDefaults(
      */
     nachweis?: boolean
   }>(),
-  { mitStatus: true, nichtVorbei: null, nichtVorbeiDisq: null, bojenFolge: null, wkrName: null, masken: null, vorziehen: null, nachweis: false },
+  { mitStatus: true, nichtGestartet: null, bojenFolge: null, bildLage: null, wkrName: null, masken: null, vorziehen: null, nachweis: false },
 )
 const emit = defineEmits<{
   bemerkung: [text: string]
@@ -93,8 +104,10 @@ const emit = defineEmits<{
   probe: []
   ansicht: [aenderung: Partial<GeraetAnsicht>]
   uebungEnde: []
-  nichtVorbei: []
+  nichtGestartet: []
   bojenFolge: [folge: BojenFolge]
+  /** `null` = „Automatisch“ (keine Wahl mehr, Prüfbefund 24.11.2026). */
+  bildLage: [lage: BildLage | null]
   wkrName: [name: string]
   maske: [maske: MaskenWahl]
   vorziehen: [klasse: ClassId]
@@ -118,7 +131,7 @@ function setzeName(n: string): void {
   nameText.value = n.trim()
   emit('wkrName', n.trim())
 }
-const frageNv = ref(false)
+const frageNg = ref(false)
 
 // „Wie Gerät“ zuerst: die Vorgabe (GF1, Nutzer 21.11.2026 P-18) – dahin kommt man nach einem Wechsel zurück.
 const MODI: AnsichtWahl[] = ['geraet', 'sonne', 'hell', 'dunkel']
@@ -139,6 +152,11 @@ function tue(f: () => void): void {
   offen.value = false
   f()
 }
+/**
+ * Der Satz unter den Knöpfen nennt die Lage, in der die Zeichnung gerade liegt: die Wahl des WKR, ohne Wahl die
+ * wirksame Drehung (BL1, 24.11.2026). Gedrückt ist seit dem Prüfbefund 24.11.2026 die Wahl bzw. „Automatisch“.
+ */
+const lageGezeigt = computed<BildLage>(() => props.bildLage?.wahl ?? lageVonDrehung(props.bildLage?.wirksam ?? 0))
 </script>
 
 <template>
@@ -154,11 +172,9 @@ function tue(f: () => void): void {
         <button v-if="status === 'aktiv'" type="button" class="wkr-knopf" data-ziel="klein" data-action="abmelden" @click="frageAb = true">{{ w('wkr.geraet.abmelden') }}</button>
         <button v-else type="button" class="wkr-knopf" data-ziel="klein" data-action="weiter" @click="emit('weiter')">{{ w('wkr.geraet.weiter') }}</button>
       </div>
-      <button v-if="nichtVorbei" type="button" class="wkr-knopf" data-ziel="klein" data-action="nicht-vorbei" @click="frageNv = true">
-        {{ nichtVorbeiDisq ? w('wkr.geraet.nichtVorbei.disq', { code: nichtVorbeiDisq }) : `⊘ ${w('wkr.geraet.nichtVorbei')}` }}
+      <button v-if="nichtGestartet" type="button" class="wkr-knopf" data-ziel="klein" data-action="nicht-gestartet" @click="frageNg = true">
+        {{ w('wkr.geraet.nichtGestartet') }}
       </button>
-
-      <WkrVorziehen v-if="uebung && vorziehen && vorziehen.length > 1" :klassen="vorziehen" @wahl="(k) => tue(() => emit('vorziehen', k))" />
 
       <fieldset v-if="wkrName" class="wkr-feldgruppe" data-teil="wkr-name" :data-eigen="wkrName.eigen || undefined">
         <legend>{{ w('wkr.geraet.name') }}</legend>
@@ -223,6 +239,37 @@ function tue(f: () => void): void {
           </div>
           <p class="wkr-hinweis" data-teil="bojen-folge-text">{{ w(`wkr.geraet.bojen.ansicht.${bojenFolge}.text`) }}</p>
         </div>
+        <div v-if="bildLage" class="wkr-mehr-bojen" data-teil="bild-lage" :data-art="bildLage.art" :data-gewaehlt="bildLage.wahl !== null || undefined">
+          <p class="wkr-mehr-untertitel">{{ w('wkr.geraet.bild.lage') }}</p>
+          <div class="wkr-reihe">
+            <!-- Prüfbefund 24.11.2026 (BL1): zurück zu „keine Wahl“ – die Lage nach Bogen und Platz. -->
+            <button
+              type="button"
+              class="wkr-knopf"
+              data-ziel="klein"
+              data-action="bild-lage-auto"
+              :aria-pressed="bildLage.wahl === null"
+              @click="emit('bildLage', null)"
+            >
+              {{ w('wkr.geraet.bild.lage.auto') }}
+            </button>
+            <button
+              v-for="l in BILD_LAGEN"
+              :key="l"
+              type="button"
+              class="wkr-knopf"
+              data-ziel="klein"
+              data-action="bild-lage"
+              :data-lage="l"
+              :aria-pressed="bildLage.wahl === l"
+              @click="emit('bildLage', l)"
+            >
+              {{ w(`wkr.geraet.bild.lage.${bildLage.art}.${BILD_LAGE_SEITE[l][bildLage.art]}`) }}
+            </button>
+          </div>
+          <p class="wkr-hinweis" data-teil="bild-lage-text">{{ w(`wkr.geraet.bild.lage.${bildLage.art}.${BILD_LAGE_SEITE[lageGezeigt][bildLage.art]}.text`) }}</p>
+          <p v-if="bildLage.wahl === null" class="wkr-hinweis" data-teil="bild-lage-vorgabe">{{ w('wkr.geraet.bild.lage.vorgabe') }}</p>
+        </div>
         <div v-if="masken && (masken.fest || maskenKnoepfe.length > 1)" class="wkr-mehr-bojen" data-teil="masken-wahl" :data-fest="masken.fest || undefined">
           <p class="wkr-mehr-untertitel">{{ w('wkr.geraet.maske') }}</p>
           <p v-if="masken.fest" class="wkr-hinweis" data-teil="maske-fest">{{ w(`wkr.geraet.maske.${masken.wirksam}`) }} · {{ w('wkr.geraet.maske.fest') }}</p>
@@ -270,21 +317,23 @@ function tue(f: () => void): void {
         <button type="button" class="wkr-knopf" data-ziel="klein" data-action="probe" @click="tue(() => emit('probe'))">{{ w('wkr.geraet.probe') }}</button>
         <button v-if="uebung" type="button" class="wkr-knopf" data-ziel="klein" data-action="uebung-ende" @click="tue(() => emit('uebungEnde'))">{{ w('wkr.geraet.uebung.ende') }}</button>
       </div>
+      <!-- Nutzer 24.11.2026 (WKR_ANNAHMEN Y5): „Klasse vorziehen“ unter „Übung verlassen“ – das gibt es nur in der Übung. -->
+      <WkrVorziehen v-if="uebung && vorziehen && vorziehen.length > 1" :klassen="vorziehen" @wahl="(k) => tue(() => emit('vorziehen', k))" />
       <WkrBildNachweis v-if="nachweis" />
     </div>
     <AppDialog
-      v-if="frageNv && nichtVorbei"
+      v-if="frageNg && nichtGestartet"
       class="wkr-dialog"
-      :titel="w('wkr.geraet.nichtVorbei.frage', { nr: nichtVorbei })"
-      data-dialog="wkr-nicht-vorbei"
-      @abbrechen="frageNv = false"
+      :titel="w('wkr.geraet.nichtGestartet.frage', { nr: nichtGestartet })"
+      data-dialog="wkr-nicht-gestartet"
+      @abbrechen="frageNg = false"
     >
-      <p>{{ nichtVorbeiDisq ? w('wkr.geraet.nichtVorbei.hintDisq', { code: nichtVorbeiDisq }) : w('wkr.geraet.nichtVorbei.hint') }}</p>
+      <p>{{ w('wkr.geraet.nichtGestartet.hint') }}</p>
       <template #knoepfe>
-        <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="nicht-vorbei-ja" @click="(frageNv = false), tue(() => emit('nichtVorbei'))">
-          {{ nichtVorbeiDisq ? w('wkr.geraet.nichtVorbei.disq', { code: nichtVorbeiDisq }) : `⊘ ${w('wkr.geraet.nichtVorbei')}` }}
+        <button type="button" class="wkr-knopf wkr-knopf--haupt" data-ziel="gross" data-action="nicht-gestartet-ja" @click="(frageNg = false), tue(() => emit('nichtGestartet'))">
+          {{ w('wkr.geraet.nichtGestartet') }}
         </button>
-        <button type="button" class="wkr-knopf" data-ziel="gross" data-action="nicht-vorbei-nein" autofocus @click="frageNv = false">{{ w('wkr.geraet.abbrechen') }}</button>
+        <button type="button" class="wkr-knopf" data-ziel="gross" data-action="nicht-gestartet-nein" autofocus @click="frageNg = false">{{ w('wkr.geraet.abbrechen') }}</button>
       </template>
     </AppDialog>
     <AppDialog v-if="frageAb" class="wkr-dialog" :titel="w('wkr.geraet.abmelden.frage')" data-dialog="wkr-abmelden" @abbrechen="frageAb = false">

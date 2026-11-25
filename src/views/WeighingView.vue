@@ -3,14 +3,15 @@ import { computed } from 'vue'
 import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { classColor } from '../domain/classes'
-import { ausgleichKg, gewichtsGruppen, parseGewicht } from '../domain/gewicht'
+import { gewichtsGruppen, gewichtText, parseGewicht } from '../domain/gewicht'
+import { ausgleichVon } from '../lib/ausgleich'
 import { mannschaftSchluessel } from '../lib/pokal'
 import { sollgewichtOf } from '../config/catalog'
 import { useEvent } from '../lib/event'
 import { originLabelKey } from '../lib/origin'
 import { adresse } from '../lib/router'
 import { ALLE } from '../lib/starterlisten'
-import { t } from '../i18n'
+import { locale, t } from '../i18n'
 import type { Starter } from '../types'
 
 /**
@@ -43,9 +44,14 @@ const done = computed(() => weighed(state.value.starters))
 
 const soll = (p: Starter) => sollgewichtOf(state.value.regelwerk, state.value.sollgewicht, p.klasse)
 
+/**
+ * Dieselbe Zahl wie Papierliste und Steg-Gerät (lib/ausgleich.ts ausgleichVon: gerundet auf die Abstufung des
+ * Ausgleichsgewichts der Veranstaltung, 24.11.2026), mit dem Dezimalzeichen der Oberfläche („1,5 kg“). Auf 0 gerundet
+ * steht hier weiter „0 kg“ – so sieht man, dass gewogen ist (Papier und Gerät: leer bzw. „kein AG“).
+ */
 function ausgleich(p: Starter): string {
-  const kg = ausgleichKg(p.gewicht, soll(p))
-  return kg === undefined ? '' : kg === null ? '–' : `${kg} kg`
+  const kg = ausgleichVon(state.value, p)
+  return kg === undefined ? '' : kg === null ? '–' : `${gewichtText(kg, locale.value)} kg`
 }
 
 function setWeight(p: Starter, e: Event) {
@@ -112,7 +118,7 @@ function next(e: Event) {
           </td>
           <td>{{ p.nachname }}</td>
           <td>{{ p.vorname }}</td>
-          <td class="right">{{ soll(p) }} kg</td>
+          <td class="right">{{ gewichtText(soll(p), locale) }} kg</td>
           <td>
             <input
               class="cell-input weight-input"
@@ -123,7 +129,7 @@ function next(e: Event) {
               @keydown.enter="next"
             />
           </td>
-          <td :class="ausgleichKg(p.gewicht, soll(p)) ? 'ballast' : ''">{{ ausgleich(p) }}</td>
+          <td :class="ausgleichVon(state, p) ? 'ballast' : ''">{{ ausgleich(p) }}</td>
         </tr>
       </tbody>
     </table>

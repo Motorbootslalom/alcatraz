@@ -32,6 +32,9 @@ export default {
   'capture.hint.zeitSpanne': 'Die Stoppuhren liegen mehr als eine Sekunde auseinander.',
   'capture.hint.zeitBereich': 'Zeit unter 20 Sekunden oder über 10 Minuten – Tippfehler?',
   'capture.hint.bojePunkte': 'Bojen-Punkte sind kein Vielfaches von 5 oder mehr als 30.',
+  // Höchstzahl je Code (Nutzer 24.11.2026, WKR_ANNAHMEN CM6): nur ein Hinweis, die Zelle bleibt, wie sie ist.
+  'capture.hint.codeZuOft': 'Code {code} steht öfter als {n}× – so oft kommt er in einem Lauf nicht vor. Tippfehler?',
+  'capture.hint.codeDanach': 'Code {code} steht öfter als {n}× – der nächste Versuch ist eine Disqualifikation. Disq. {disq}?',
   'capture.hint.versucheAbweichend': 'Diese Zeile gilt für jeden Versuch, ein späterer Versuch trägt hier aber etwas anderes (aus der Zeit vor „Versuche direkt nacheinander“). Gezählt wird beides – die nächste Eingabe in der Zeile gleicht alle Versuche an; löschte sie dabei ein X, fragt die Erfassung vorher nach. „Leere Zeilen bestätigen“ lässt die Zeile aus.',
   'capture.overwriteX.heading': 'X „{dns}“ löschen?',
   'capture.overwriteX.text': 'Die Zeile von {nr} gilt für jeden Versuch. Ein späterer Versuch trägt auf dieser Liste aber ein X („{dns}“), das die Zeile nicht zeigt – es stammt aus der Zeit vor „Versuche direkt nacheinander“. Die Eingabe gliche alle Versuche an; das X wäre dann gelöscht.',

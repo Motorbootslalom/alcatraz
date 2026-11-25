@@ -57,10 +57,13 @@ export const BETRIEB_ANNAHMEN = {
    * Nutzers: Kleines Finale und Finale „4 in sich geschlossene Listen/Auswertungen“) ist das Kleine Finale ein
    * eigener Punkt `runde:small` und steht VOR `runde:final` (Entscheidung vom 15.11.2026: zuerst gefahren); die
    * Tafel nennt die Runde („Small final · Attempt 1“). Folge: Nach dem Kleinen Finale muss im Betrieb „Finale
-   * beginnen“ gedrückt werden – wie bei jedem Punkt. OFFENE FRAGE an den Nutzer (21.11.2026): Soll das Finale ohne
-   * Klick anschließen? Empfehlung: Klick behalten, wie bei allen Punkten. Betrieb im Bereich ist möglich, sobald eine Runde festgeschrieben ist, unabhängig von der Sperre
+   * beginnen“ gedrückt werden – wie bei jedem Punkt. BESTÄTIGT vom Nutzer 24.11.2026 (Frage vom 21.11.2026, ob das
+   * Finale ohne Klick anschließen soll): „Beim Parallel sind die einzelnen Stufen einzeln mit beginnen
+   * freizuschalten.“ – der Klick bleibt, für jede Runde.
+   * Unabhängig davon, beim Bau von E4 (16.11.2026) – noch zu bestätigen (die Antwort vom 24.11.2026 betrifft nur
+   * den Klick): Betrieb im Bereich ist möglich, sobald eine Runde festgeschrieben ist, unabhängig von der Sperre
    * der Verzahnung (die Runden nach dem Vorlauf stehen außerhalb davon, der Vorlauf bleibt an erfasste Werte
-   * gebunden). Beim Bau von E4, 16.11.2026 – noch zu bestätigen.
+   * gebunden).
    */
   parallelRundenAlsPunkte: true,
   /**

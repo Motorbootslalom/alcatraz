@@ -493,7 +493,7 @@ function alleBestaetigen() {
 }
 
 const auffaellig = (zeile: Zeile, leaf: BogenBlattSpalte) => zeile.hinweise.some((h) => h.zelle === leafKey(leaf))
-const hinweisText = (zeile: Zeile) => zeile.hinweise.map((h) => t(`capture.hint.${h.art}`)).join(' ')
+const hinweisText = (zeile: Zeile) => zeile.hinweise.map((h) => t(`capture.hint.${h.art}`, h.werte)).join(' ')
 const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
 </script>
 

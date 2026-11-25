@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { BojenFolge, Entwurf, MaskenAufbau, MaskenBoje, MaskenDisq, MaskenTeil } from '../../wkr/maske'
 import type { MaskenWahl } from '../../wkr/maskenWahl'
 import type { Weg } from '../../wkr/bojen'
-import type { BildWeg, BildZuordnung } from '../../wkr/bild'
+import type { BildLage, BildWeg, BildZuordnung } from '../../wkr/bild'
 import WkrBild from './WkrBild.vue'
 import WkrBojen from './WkrBojen.vue'
 import WkrDisq from './WkrDisq.vue'
@@ -45,6 +45,7 @@ const props = defineProps<{
   disqCodes: MaskenDisq['codes']
   gesperrt: boolean
   weg: Weg
+  /** Folge für WkrBojen und WkrDisqOrt – beim Bild schon die Vorgabe (WkrMaske bojenFolgeWirksam, BL6 24.11.2026). */
   bojenFolge: BojenFolge
   sichtbareTeile: MaskenTeil[]
   maske?: MaskenWahl
@@ -54,6 +55,8 @@ const props = defineProps<{
   klasse?: string
   /** Pad (W5.1-Anordnung): das Bild dreht auch ±90° (BD-Auslegung bildDrehungNurPad). */
   pad?: boolean
+  /** Lage des Bilds nach Wahl des WKR (Nutzer 24.11.2026, BL3) – geht vor `pad` und Platz; fehlt = wie der Bogen. */
+  bildLage?: BildLage | null
   /** Maske „Tabelle“ (W5.5): Spalten und Zeilen; fehlt = keine Tabelle. */
   tabelle?: {
     spalten: TabellenSpalte[]
@@ -80,6 +83,8 @@ const emit = defineEmits<{
   abschicken: []
   korrigiere: [z: number]
   korrekturAbbrechen: []
+  /** Wirksame Drehung des Bilds (WkrBild, BL1) – „Mehr“ zeigt damit die Lage ohne eigene Wahl. */
+  bildDrehung: [drehung: number]
 }>()
 const { w } = useWkrText()
 
@@ -166,11 +171,13 @@ function merkeBildWeg(x: BildWeg): void {
     :weg="bildWeg"
     :pad="pad"
     :gesperrt="gesperrt"
+    :lage-wahl="bildLage ?? null"
     @boje="(b) => emit('boje', b)"
     @boje-disq="(b, c) => emit('bojeDisq', b, c)"
     @tippe="(f, c) => emit('tippe', f, c)"
     @weg="(x) => emit('weg', x)"
     @bild-weg="merkeBildWeg"
+    @drehung="(d) => emit('bildDrehung', d)"
   />
   <!-- :key je Start: Ein offener Disq.-Modus gilt nie für den nächsten Start (wie WkrDisq). -->
   <WkrBojen

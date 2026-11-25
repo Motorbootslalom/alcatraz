@@ -9,6 +9,7 @@ import { abmeldeZellen, mitAbmeldung, mitAbmeldungInRunden } from '../../lib/abm
 import { VORLAUF } from '../../planung/parallelRunden'
 import { regelwerkOf, startNrRegeln } from '../../config/catalog'
 import { istGeschlecht } from '../../domain/geschlecht'
+import { ausgleichStufeWert } from '../../domain/gewicht'
 import { konfigVon } from './gemeinsam'
 
 export type StarterAenderung =
@@ -17,6 +18,8 @@ export type StarterAenderung =
   /** Eigenes Durchschnittsgewicht setzen; `null` oder der Wert des Regelwerks entfernt den Eintrag. */
   | { type: 'SET_SOLLGEWICHT'; klasse: ClassId; kg: number | null }
   | { type: 'RESET_SOLLGEWICHT' }
+  /** Abstufung des Ausgleichsgewichts in kg (24.11.2026, kleinstes Gewichtsstück am Steg); Unbrauchbares (außer 0,1–10 kg) ändert nichts. */
+  | { type: 'SET_AUSGLEICH_STUFE'; kg: number }
   /**
    * `replace`: Die Liste gilt danach als Ganzes; wiedererkannte Starter behalten
    * ihre ID (Startlisten und Ergebnisse verweisen darauf). `merge`: Nur neue
@@ -80,6 +83,12 @@ export function wendeStarterAn(state: AppState, action: StarterAenderung): AppSt
 
     case 'RESET_SOLLGEWICHT':
       return { ...state, sollgewicht: {} }
+
+    case 'SET_AUSGLEICH_STUFE': {
+      // Eine Prüfung mit migrate (domain/gewicht.ts ausgleichStufeWert); unverändert = derselbe Stand.
+      const kg = ausgleichStufeWert(action.kg)
+      return kg === undefined || kg === state.ausgleichStufe ? state : { ...state, ausgleichStufe: kg }
+    }
 
     case 'IMPORT_STARTERS': {
       if (action.mode === 'replace') {

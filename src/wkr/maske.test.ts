@@ -33,6 +33,9 @@ import {
   punkteVon,
   tippe,
   tippeDisq,
+  codeAnzahl,
+  codeStand,
+  codeTippPrellt,
   wechselNach,
   wechselTakt,
   zellenAus,
@@ -52,6 +55,9 @@ import {
   zeitVollstaendig,
   zeitUhr,
   zeitUnlesbar,
+  nichtGestartetZellen,
+  istNichtGestartet,
+  ohneFremdesX,
 } from './maske'
 import { parseTime, sanitizeTimeInput } from '../lib/time'
 import { maskenJeKlasse, sichtListe, type ListenSicht } from './sicht'
@@ -100,7 +106,7 @@ function zufallsEntwurf(aufbau: MaskenAufbau, teil: ListenTeil | undefined, saat
       e = k < 11 ? setzeZeit(e, aufbau, z, t + '0123456789,'[k]) : k < 13 ? setzeZeit(e, aufbau, z, t.slice(0, -1)) : setzeKeineZeit(e, aufbau, z, 'anlage')
     } else if (w < 6 && teile.length > 0) {
       const t = teile[r(teile.length)]
-      if (t.codes.length) e = tippe(e, t.feld, t.codes[r(t.codes.length)].code)
+      if (t.codes.length) e = tippe(e, aufbau, t.feld, t.codes[r(t.codes.length)].code)
     } else if (w < 8 && disq.length > 0) e = tippeDisq(e, disq[r(disq.length)].code)
     else if (w < 9) e = zurueck(e)
     else e = mitBemerkung(e, '  Boje berührt ')
@@ -113,7 +119,7 @@ describe('Aufbau je Position (G2: an den Feldarten erkannt)', () => {
     const steg = maskeFuer(sichtMit(DM, 'steg'), '5')!
     expect(steg.art).toBe('katalog')
     expect(steg.teile.map((t) => [t.teil, t.feld])).toEqual([['ab', 'katalog:stegAblegen'], ['an', 'katalog:stegAnlegen']])
-    expect(steg.teile[0].codes[0]).toEqual({ code: '3', text: expect.any(String), punkte: 5 })
+    expect(steg.teile[0].codes[0]).toEqual({ code: '3', text: expect.any(String), punkte: 5, max: WKR_ANNAHMEN.codeMaxAllgemein })
     expect([steg.disq!.feld, steg.disq!.teil, steg.bemerkung]).toEqual(['disq@steg', null, 'bemerkung@steg'])
     for (const typeId of ['tor5', 'tor5pue', 'mueb']) {
       const m = maskeFuer(sichtMit(DM, typeId), '5')!
@@ -159,11 +165,11 @@ describe('Aufbau je Position (G2: an den Feldarten erkannt)', () => {
 
   it('Liste ohne eigenes Disq.-Feld: Buchstaben ins erste Code-Feld, hinter die Codes (H1)', () => {
     const sicht = {
-      klassen: { '5': { titel: 'Klasse 5', felder: [{ kennung: 'katalog:eigen', kind: 'code', label: 'Eigen', katalog: [{ code: '4', punkte: 5, text: 'a' }, { code: '2', punkte: 5, text: 'b' }], disq: [{ code: 'A', text: 'x' }, { code: 'B', text: 'y' }] }] } },
+      klassen: { '5': { titel: 'Klasse 5', felder: [{ kennung: 'katalog:eigen', kind: 'code', label: 'Eigen', katalog: [{ code: '4', punkte: 5, text: 'a', max: 3 }, { code: '2', punkte: 5, text: 'b', max: 3 }], disq: [{ code: 'A', text: 'x' }, { code: 'B', text: 'y' }] }] } },
     } as unknown as ListenSicht
     const m = maskeFuer(sicht, '5')!
     expect([m.art, m.disq?.feld, m.disq?.teil, m.bemerkung]).toEqual(['katalog', 'katalog:eigen', null, null])
-    const e = tippeDisq(tippeDisq(tippe(tippe(leererEntwurf(), 'katalog:eigen', '4'), 'katalog:eigen', '2'), 'B'), 'A')
+    const e = tippeDisq(tippeDisq(tippe(tippe(leererEntwurf(), m, 'katalog:eigen', '4'), m, 'katalog:eigen', '2'), 'B'), 'A')
     expect(zellenAus(e, m)).toEqual({ 'katalog:eigen': '2, 4, A, B' })
     expect(entwurfAus({ 'katalog:eigen': '2, 4, A, B' }, m)).toMatchObject({ codes: { 'katalog:eigen': ['2', '4'] }, disq: ['A', 'B'] })
   })
@@ -238,17 +244,17 @@ describe('Schreibweise: jede Tipp-Folge besteht wertGilt unverändert', () => {
 
   it('„2x6“: Mehrfachtipps zählen, sortiert wie die Erfassung; Disq. am Steg im gemeinsamen Feld, nie in den Codes', () => {
     const steg = maskeFuer(sichtMit(DM, 'steg'), '5')!
-    let e = tippe(leererEntwurf(), 'katalog:stegAblegen', '6')
-    e = tippe(e, 'katalog:stegAblegen', '3')
-    e = tippe(e, 'katalog:stegAblegen', '6')
+    let e = tippe(leererEntwurf(), steg, 'katalog:stegAblegen', '6')
+    e = tippe(e, steg, 'katalog:stegAblegen', '3')
+    e = tippe(e, steg, 'katalog:stegAblegen', '6')
     e = tippeDisq(e, 'A')
-    e = tippe(e, 'katalog:stegAnlegen', '12')
+    e = tippe(e, steg, 'katalog:stegAnlegen', '12')
     expect(zellenAus(e, steg, 'ab')).toEqual({ 'katalog:stegAblegen': '3, 2x6', 'disq@steg': 'A', 'bemerkung@steg': '' })
     expect(zellenAus(e, steg, 'an')).toEqual({ 'katalog:stegAnlegen': '12', 'disq@steg': 'A', 'bemerkung@steg': '' })
     expect(zellenAus(e, steg)).toEqual({ 'katalog:stegAblegen': '3, 2x6', 'katalog:stegAnlegen': '12', 'disq@steg': 'A', 'bemerkung@steg': '' })
     // Tor 5: „2x20“, Disq. im Disq.-Feld der Liste.
     const tor5 = maskeFuer(sichtMit(DM, 'tor5'), '5')!
-    const t = tippeDisq(tippe(tippe(tippe(leererEntwurf(), 'katalog:tor5', '20'), 'katalog:tor5', '1'), 'katalog:tor5', '20'), 'P')
+    const t = tippeDisq(tippe(tippe(tippe(leererEntwurf(), tor5, 'katalog:tor5', '20'), tor5, 'katalog:tor5', '1'), tor5, 'katalog:tor5', '20'), 'P')
     expect(zellenAus(t, tor5)).toEqual({ 'katalog:tor5': '1, 2x20', 'disq@tor5': 'P', 'bemerkung@tor5': '' })
   })
 
@@ -266,10 +272,10 @@ describe('Schreibweise: jede Tipp-Folge besteht wertGilt unverändert', () => {
 describe('Entwurf: zurück, Disq. als Schalter, Punkte, entwurfAus', () => {
   const tor5 = maskeFuer(sichtMit(DM, 'tor5'), '5')!
 
-  it('„− letzte zurück“ nimmt den letzten Tipp – Code oder Disq.; zweiter Disq.-Tipp nimmt ihn heraus', () => {
-    let e = tippe(leererEntwurf(), 'katalog:tor5', '1')
+  it('„↶ Rückgängig“ nimmt den letzten Tipp – Code oder Disq.; zweiter Disq.-Tipp nimmt ihn heraus', () => {
+    let e = tippe(leererEntwurf(), tor5, 'katalog:tor5', '1')
     e = tippeDisq(e, 'A')
-    e = tippe(e, 'katalog:tor5', '20')
+    e = tippe(e, tor5, 'katalog:tor5', '20')
     expect([eintraege(e), punkteVon(e, tor5)]).toEqual([3, 25])
     e = zurueck(e)
     expect(zellenAus(e, tor5)['katalog:tor5']).toBe('1')
@@ -288,7 +294,7 @@ describe('Entwurf: zurück, Disq. als Schalter, Punkte, entwurfAus', () => {
   it('Prüfbefund W3: Herausnehmen eines Disq.-Buchstabens nimmt SEINEN Merker – „zurück“ danach = wirklich letzter Tipp', () => {
     // Disq. A, Code 1, Disq. B, dann A wieder heraus: letzter Tipp ist B, nicht Code 1.
     let e = tippeDisq(leererEntwurf(), 'A')
-    e = tippe(e, 'katalog:tor5', '1')
+    e = tippe(e, tor5, 'katalog:tor5', '1')
     e = tippeDisq(e, 'B')
     e = tippeDisq(e, 'A')
     expect(e.disq).toEqual(['B'])
@@ -300,7 +306,7 @@ describe('Entwurf: zurück, Disq. als Schalter, Punkte, entwurfAus', () => {
 
   it('Punkte nur der Codes des Teils (Steg je Teil)', () => {
     const steg = maskeFuer(sichtMit(DM, 'steg'), '5')!
-    const e = tippe(tippe(tippeDisq(leererEntwurf(), 'A'), 'katalog:stegAblegen', '3'), 'katalog:stegAnlegen', '9')
+    const e = tippe(tippe(tippeDisq(leererEntwurf(), 'A'), steg, 'katalog:stegAblegen', '3'), steg, 'katalog:stegAnlegen', '9')
     expect([punkteVon(e, steg, 'ab'), punkteVon(e, steg, 'an'), punkteVon(e, steg)]).toEqual([5, 10, 15])
   })
 
@@ -316,6 +322,129 @@ describe('Entwurf: zurück, Disq. als Schalter, Punkte, entwurfAus', () => {
       }
     }
     expect(entwurfAus({ 'katalog:tor5': '1, 2x20', 'disq@tor5': 'P, A' }, tor5)).toMatchObject({ codes: { 'katalog:tor5': ['1', '20', '20'] }, disq: ['P', 'A'] })
+  })
+})
+
+describe('Höchstzahl je Code und Disq. danach (Nutzer 24.11.2026, CM1–CM5)', () => {
+  const tor5 = maskeFuer(sichtMit(DM, 'tor5'), '5')!
+  const T5 = 'katalog:tor5'
+
+  it('Tor 5 Code 1 höchstens 1×: der zweite Tipp nimmt nichts an, der Knopf sagt es', () => {
+    const e = tippe(leererEntwurf(), tor5, T5, '1')
+    const c1 = tor5.teile[0].codes.find((c) => c.code === '1')!
+    expect([c1.max, c1.danach]).toEqual([1, undefined])
+    expect(tippe(e, tor5, T5, '1')).toBe(e)
+    expect(codeStand(e, T5, c1)).toEqual({ anzahl: 1, voll: true, naechster: 'nichts', danachGesetzt: false })
+    expect(zellenAus(e, tor5)[T5]).toBe('1')
+  })
+
+  it('„2. und 3. Versuch“: der dritte Tipp setzt Disq. D, der vierte nichts; Rückgängig nimmt D, Zähler wieder 2', () => {
+    const c20 = tor5.teile[0].codes.find((c) => c.code === '20')!
+    expect([c20.max, c20.danach]).toEqual([2, 'D'])
+    let e = tippe(tippe(leererEntwurf(), tor5, T5, '20'), tor5, T5, '20')
+    expect(codeStand(e, T5, c20)).toEqual({ anzahl: 2, voll: true, naechster: 'danach', danachGesetzt: false })
+    e = tippe(e, tor5, T5, '20')
+    expect([codeAnzahl(e, T5, '20'), e.disq, e.folge.at(-1)]).toEqual([2, ['D'], '#disq:D'])
+    expect(codeStand(e, T5, c20)).toEqual({ anzahl: 2, voll: true, naechster: 'nichts', danachGesetzt: true })
+    expect(zellenAus(e, tor5)).toEqual({ [T5]: '2x20', 'disq@tor5': 'D', 'bemerkung@tor5': '' })
+    expect(tippe(e, tor5, T5, '20')).toBe(e)
+    e = zurueck(e)
+    expect([codeAnzahl(e, T5, '20'), e.disq]).toEqual([2, []])
+    e = zurueck(e)
+    expect(codeAnzahl(e, T5, '20')).toBe(1)
+    // D schon über DISQ gesetzt: Der dritte Tipp ändert nichts, der Knopf zeigt „Disq. D gesetzt“.
+    const mitD = tippe(tippe(tippeDisq(leererEntwurf(), 'D'), tor5, T5, '20'), tor5, T5, '20')
+    expect(tippe(mitD, tor5, T5, '20')).toBe(mitD)
+    expect(codeStand(mitD, T5, c20).danachGesetzt).toBe(true)
+  })
+
+  it('Prellschutz (CM8, Prüfbefund 24.11.2026): nur an Codes mit `danach`, nur derselbe Code, nur innerhalb von bojenSchalterPrellMs', () => {
+    const ms = WKR_ANNAHMEN.bojenSchalterPrellMs
+    // Erster Tipp nie verworfen; gleich danach auf 20 („2. und 3. Versuch“) verworfen, ab der Grenze wieder angenommen.
+    expect(codeTippPrellt(tor5, T5, '20', undefined, 1000)).toBe(false)
+    expect(codeTippPrellt(tor5, T5, '20', 1000, 1000 + ms - 1)).toBe(true)
+    expect(codeTippPrellt(tor5, T5, '20', 1000, 1000 + ms)).toBe(false)
+    // Codes ohne `danach` zählen jeden Tipp (wie die Tor-5-Zähler, S1); unbekannte Codes und Felder prellen nicht.
+    expect(codeTippPrellt(tor5, T5, '1', 1000, 1001)).toBe(false)
+    expect(codeTippPrellt(tor5, T5, '99', 1000, 1001)).toBe(false)
+    expect(codeTippPrellt(tor5, 'katalog:fremd', '20', 1000, 1001)).toBe(false)
+    // Am Steg ebenso: 6 im Ablegen, 7 im Anlegen – DM und UIM.
+    for (const konfig of [DM, UIM]) {
+      const steg = maskeFuer(sichtMit(konfig, 'steg'), '5')!
+      expect(codeTippPrellt(steg, 'katalog:stegAblegen', '6', 1000, 1100)).toBe(true)
+      expect(codeTippPrellt(steg, 'katalog:stegAnlegen', '7', 1000, 1100)).toBe(true)
+    }
+    // Wo das Disq.-Feld D nicht annimmt, fehlt `danach` – dann auch kein Prellschutz.
+    const sicht = {
+      klassen: { '5': { titel: 'Klasse 5', felder: [{ kennung: 'katalog:eigen', kind: 'code', label: 'Eigen', katalog: [{ code: '6', punkte: 5, text: 'a', max: 2, danach: 'D' }], disq: [{ code: 'A', text: 'x' }] }] } },
+    } as unknown as ListenSicht
+    expect(codeTippPrellt(maskeFuer(sicht, '5')!, 'katalog:eigen', '6', 1000, 1001)).toBe(false)
+  })
+
+  it('Steg: 6 im Ablegen und 7 im Anlegen setzen D ins gemeinsame Disq.-Feld – DM und UIM', () => {
+    for (const konfig of [DM, UIM]) {
+      const steg = maskeFuer(sichtMit(konfig, 'steg'), '5')!
+      const ab = tippe(tippe(tippe(leererEntwurf(), steg, 'katalog:stegAblegen', '6'), steg, 'katalog:stegAblegen', '6'), steg, 'katalog:stegAblegen', '6')
+      expect(zellenAus(ab, steg, 'ab')).toMatchObject({ 'katalog:stegAblegen': '2x6', 'disq@steg': 'D' })
+      const an = tippe(tippe(tippe(leererEntwurf(), steg, 'katalog:stegAnlegen', '7'), steg, 'katalog:stegAnlegen', '7'), steg, 'katalog:stegAnlegen', '7')
+      expect(zellenAus(an, steg, 'an')).toMatchObject({ 'katalog:stegAnlegen': '2x7', 'disq@steg': 'D' })
+    }
+  })
+
+  it('allgemeine Grenze (CM2) für Codes ohne eigene Angabe; ein unbekannter Code ändert nichts', () => {
+    const mueb = maskeFuer(sichtMit(DM, 'mueb'), '5')!
+    const c13 = mueb.teile[0].codes.find((c) => c.code === '13')!
+    expect([c13.max, c13.danach]).toEqual([WKR_ANNAHMEN.codeMaxAllgemein, undefined])
+    let e = leererEntwurf()
+    for (let i = 0; i < WKR_ANNAHMEN.codeMaxAllgemein; i++) e = tippe(e, mueb, 'katalog:mueb', '13')
+    expect(tippe(e, mueb, 'katalog:mueb', '13')).toBe(e)
+    expect(codeStand(e, 'katalog:mueb', c13)).toMatchObject({ voll: true, naechster: 'nichts' })
+    expect(tippe(e, mueb, 'katalog:mueb', '99')).toBe(e)
+  })
+
+  it('jede Tipp-Folge mit Grenze und D-Übergang besteht wertGilt – jeder Code jeder Liste, DM und UIM, jede Klasse und jeder Teil', () => {
+    const fehler: string[] = []
+    let geprueft = 0
+    for (const konfig of [DM, UIM]) {
+      for (const p of konfig.getPositions()) {
+        const sicht = sichtMit(konfig, p.typeId)
+        for (const k of KLASSEN) {
+          const aufbau = maskeFuer(sicht, k)
+          if (!aufbau || aufbau.art === 'spaeter') continue
+          const felder = new Map(listenFelder(konfig, p.typeId, k).map((f) => [f.kennung, f]))
+          for (const t of aufbau.teile)
+            for (const c of t.codes) {
+              // Zwei Tipps mehr als erlaubt: am Ende genau `max`, D genau bei `danach`.
+              let e = leererEntwurf()
+              for (let i = 0; i < c.max + 2; i++) e = tippe(e, aufbau, t.feld, c.code)
+              if (codeAnzahl(e, t.feld, c.code) !== c.max) fehler.push(`${p.typeId}/${k}/${c.code}: ${codeAnzahl(e, t.feld, c.code)}×`)
+              if (e.disq.includes('D') !== (c.danach === 'D')) fehler.push(`${p.typeId}/${k}/${c.code}: D ${e.disq}`)
+              for (const [kennung, wert] of Object.entries(zellenAus(e, aufbau, t.teil ?? undefined))) {
+                if (!wertGilt(felder.get(kennung)!, wert)) fehler.push(`${p.typeId}/${k}/${c.code}: ${kennung} = „${wert}“`)
+                geprueft++
+              }
+            }
+        }
+      }
+    }
+    expect(fehler).toEqual([])
+    expect(geprueft).toBeGreaterThan(100)
+  })
+
+  it('entwurfAus zählt höchstens bis max und setzt nie den Buchstaben danach', () => {
+    expect(entwurfAus({ [T5]: '2x1, 3x20' }, tor5)).toMatchObject({ codes: { [T5]: ['1', '20', '20'] }, disq: [] })
+    // Derselbe Code in zwei Einträgen zählt zusammen – auch dann kein D.
+    expect(entwurfAus({ [T5]: '20, 2x20' }, tor5)).toMatchObject({ codes: { [T5]: ['20', '20'] }, disq: [] })
+  })
+
+  it('der Buchstabe danach nur, wo das Disq.-Feld des Teils ihn annimmt', () => {
+    const sicht = {
+      klassen: { '5': { titel: 'Klasse 5', felder: [{ kennung: 'katalog:eigen', kind: 'code', label: 'Eigen', katalog: [{ code: '6', punkte: 5, text: 'a', max: 2, danach: 'D' }], disq: [{ code: 'A', text: 'x' }] }] } },
+    } as unknown as ListenSicht
+    const m = maskeFuer(sicht, '5')!
+    expect(m.teile[0].codes[0].danach).toBeUndefined()
+    const e = tippe(tippe(leererEntwurf(), m, 'katalog:eigen', '6'), m, 'katalog:eigen', '6')
+    expect(tippe(e, m, 'katalog:eigen', '6')).toBe(e)
   })
 })
 
@@ -508,7 +637,7 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
     expect(zellenAus(z, k7)['t5|hin seiteA']).toBe(String(WKR_ANNAHMEN.bojenZaehlerMax * 5))
   })
 
-  it('„− letzte zurück“ kennt Bojen (Zähler: ein Tipp), Codes und Disq.; Punkte und Einträge je Seite', () => {
+  it('„↶ Rückgängig“ kennt Bojen (Zähler: ein Tipp), Codes und Disq.; Punkte und Einträge je Seite', () => {
     let e = tippeBoje(leererEntwurf(), B('t5|hin seiteA'))
     e = tippeBoje(e, B('t5|hin seiteA'))
     e = tippeDisq(e, 'G')
@@ -910,5 +1039,61 @@ describe('Zeit-Listen mit Ziffernblock (W5.4, 22.11.2026, ZT1–ZT4)', () => {
     const halb = setzeZeit(leererEntwurf(), zeit, 'zeit1', ',')
     expect([zellenAus(halb, zeit).zeit1, entwurfZellen(halb, zeit).zeit1]).toEqual(['', ','])
     expect(entwurfAus(entwurfZellen(halb, zeit), zeit).zeiten.zeit1).toBe(',')
+  })
+})
+
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG1–NG3): „Nicht gestartet · Disq. X“ – auf jeder Liste mit eigenem Disq.-Feld, in
+// beiden Regelwerken; die Disq.-Knöpfe bieten X weiter nur am Steg-Ablegen und am Vorsteg an.
+describe('„Nicht gestartet · Disq. X“ (24.11.2026, NG1–NG3)', () => {
+  it('jede Liste beider Regelwerke: mit Disq.-Feld X allein dort (der Bedienrechner nimmt es), ohne (Zeit, Knoten) nichts', () => {
+    const mit = new Set<string>()
+    const ohne = new Set<string>()
+    for (const konfig of [DM, UIM]) {
+      for (const { typeId } of konfig.getPositions()) {
+        const sicht = sichtMit(konfig, typeId)
+        for (const k of KLASSEN) {
+          const a = maskeFuer(sicht, k)
+          if (!a || !konfig.positionAllowsClass(typeId, k)) continue
+          const disqFeld = listenFelder(konfig, typeId, k).find((f) => f.kind === 'disq')
+          const zellen = nichtGestartetZellen(a)
+          if (!disqFeld) {
+            expect(zellen, `${typeId} ${k}`).toBeNull()
+            ohne.add(typeId)
+            continue
+          }
+          expect(zellen, `${typeId} ${k}`).toEqual({ [disqFeld.kennung]: 'X' })
+          expect(wertGilt(disqFeld, 'X'), `${typeId} ${k}`).toBe(true)
+          expect(istNichtGestartet(zellen!)).toBe(true)
+          // X als Knopf nur am Steg (Ablegen) und am Vorsteg (F5, NG3).
+          const knopfX = (teil?: ListenTeil) => disqFuer(a, teil).some((d) => d.code === 'X')
+          if (typeId === 'vorsteg') expect(knopfX()).toBe(true)
+          else if (typeId === 'steg') expect([knopfX('ab'), knopfX('an')]).toEqual([true, false])
+          else expect(knopfX(), `${typeId} ${k}`).toBe(false)
+          mit.add(typeId)
+        }
+      }
+    }
+    for (const t of ['gate135', 'tor5', 'mueb', 'steg', 'vorsteg', 'parcoursms', 'moewe135', 'parallelparcours']) expect(mit.has(t), t).toBe(true)
+    for (const t of ['zeit', 'knoten']) expect(ohne.has(t), t).toBe(true)
+  })
+
+  it('istNichtGestartet: genau ein X und sonst nichts', () => {
+    expect(istNichtGestartet({ 'disq@gate135': 'X', 't1a|hin seiteA': '' })).toBe(true)
+    expect(istNichtGestartet({ 'disq@gate135': 'X', 't1a|hin seiteA': '5' })).toBe(false)
+    expect(istNichtGestartet({ 'disq@gate135': 'A, X' })).toBe(false)
+    expect(istNichtGestartet({})).toBe(false)
+  })
+
+  it('ohneFremdesX: der Entwurf aus einer X-Zeile verliert X, wo die Knöpfe es nicht anbieten (Korrektur, Rückgängig – Prüfbefund 24.11.2026)', () => {
+    for (const [typeId, teil, bleibt] of [['gate135', undefined, false], ['tor5', undefined, false], ['steg', 'an', false], ['steg', 'ab', true], ['vorsteg', undefined, true]] as const) {
+      const a = maskeFuer(sichtMit(DM, typeId), '7')!
+      const e = entwurfAus(nichtGestartetZellen(a)!, a)
+      expect(e.disq, typeId).toEqual(['X'])
+      const ohne = ohneFremdesX(e, a, teil)
+      expect(ohne.disq, `${typeId} ${teil}`).toEqual(bleibt ? ['X'] : [])
+      if (bleibt) expect(ohne).toBe(e)
+      // Abgeschickt kommt dasselbe heraus wie aus dem bereinigten Entwurf – nie ein still verschwundenes X im Fuß.
+      expect(zellenAus(ohne, a, teil)[a.disq!.feld]).toBe(bleibt ? 'X' : '')
+    }
   })
 })

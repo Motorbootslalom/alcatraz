@@ -4,7 +4,7 @@ import type { ListenTeil } from '../../wkr/liste'
 import { useWkrText } from './texte'
 
 /**
- * Fuß der Maske (W3.3, Plan §5.1/§5.2): „− letzte zurück“, [DISQ] und der EINE Hauptknopf – leer „Fehlerfrei ✓“
+ * Fuß der Maske (W3.3, Plan §5.1/§5.2): „↶ Rückgängig“, [DISQ] und der EINE Hauptknopf – leer „Fehlerfrei ✓“
  * (Steg „Ablegen OK ✓“/„Anlegen OK ✓“, Vorsteg „In Ordnung ✓“), mit Einträgen „Abschicken · n Pkt.“, in der
  * Korrektur „Korrektur abschicken“ bzw. nach dem Abschluss „Als Vorschlag senden“ (F7). DISQ steht links, der
  * Hauptknopf rechts, dazwischen mindestens 24 px (styles/wkr-geraet.css `--wkr-disq-abstand`); Linkshand spiegelt.

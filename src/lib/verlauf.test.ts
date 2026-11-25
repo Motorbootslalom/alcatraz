@@ -76,12 +76,10 @@ describe('was sich geändert hat', () => {
     expect(beschreibe({ type: 'WKR_PAPIER_AB', liste, ref: JSON.stringify(['m', 'a', 1]) }, STAND)).toEqual({ art: 'wkrPapierAb', liste })
   })
 
-  it('W4.3: nur „nicht vorbeigekommen“ im Bündel heißt wkrNichtVorbei; gemischt bleibt es eingabeGeraet', () => {
+  it('„Nicht gestartet · Disq. X“ (24.11.2026, NG6) ist eine gewöhnliche Eingabe vom Gerät – keine eigene Art mehr', () => {
     const liste = JSON.stringify(['l', 'par_1', 'gate135', null])
-    const zeile = { id: 'g1.1', liste, ref: 'r', lauf: laufSchluessel('manoevrieren', 2), weitere: [], starter: 'a', zellen: [], haken: [], gezeigt: true, korrektur: false }
-    const nv = { ...zeile, id: 'g1.2', nichtVorbei: true as const }
-    expect(beschreibe({ type: 'WKR_ZEILEN', liste, quelle: { geraet: 'g1', name: 'Handy Tor 1' }, zeilen: [nv] }, STAND)).toMatchObject({ art: 'wkrNichtVorbei', liste, geraet: 'Handy Tor 1' })
-    expect(beschreibe({ type: 'WKR_ZEILEN', liste, quelle: { geraet: 'g1', name: 'Handy Tor 1' }, zeilen: [zeile, nv] }, STAND)).toMatchObject({ art: 'eingabeGeraet' })
+    const zeile = { id: 'g1.1', liste, ref: 'r', lauf: laufSchluessel('manoevrieren', 2), weitere: [], starter: 'a', zellen: [{ feld: 'disq@gate135', wert: 'X', vorher: '' }], haken: [], gezeigt: true, korrektur: false }
+    expect(beschreibe({ type: 'WKR_ZEILEN', liste, quelle: { geraet: 'g1', name: 'Handy Tor 1' }, zeilen: [zeile] }, STAND)).toMatchObject({ art: 'eingabeGeraet', liste, geraet: 'Handy Tor 1' })
   })
 
   it('eine Eingabe nennt Klasse und Lauf', () => {

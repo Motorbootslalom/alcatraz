@@ -190,3 +190,17 @@ Die Befehle für gezielte und volle Läufe stehen in der Projektkarte unter [Bef
 
 Die CI (`.github/workflows/ci.yml`) führt `npm run check` und `npm run build:all` aus.
 Das Deployment auf GitHub Pages (`.github/workflows/deploy.yml`) liefert die Ein-Datei-Fassung als `alcatraz.html` mit.
+
+**Wackelige Tests** (24.11.2026): Zwei Ende-zu-Ende-Tests in `src/GeraetWkr.test.ts` – „Probe beim Einrichten …
+einmal je Raum und Liste“ und „W5.2 Maske ‚Bild‘: Probe am Bild …“ – warten mit fester Zeitgrenze auf Gerät und
+nachgebauten ntfy-Server und schlagen unter Last gelegentlich mit „Zeit abgelaufen“ fehl. Damit sie den Pages-Deploy
+nicht aufhalten, laufen sie auf GitHub (dort ist `CI` gesetzt) nur auf Wunsch; Regel: `src/testHilfen.ts`
+`wackelTestsAuslassen`, in den Tests `it.skipIf(WACKELTESTS_AUS)`; `src/testHilfen.test.ts` prüft, dass die Regel zu
+der Zeile in `ci.yml` passt (ohne Haken `0` = aus).
+
+- Lokal, auch im pre-commit-Hook (ohne `CI`): laufen immer.
+- Auf GitHub mitlaufen lassen: **Actions → CI → Run workflow**, Branch wählen, Haken bei „Wackelige Tests mitlaufen
+  lassen“ setzen, **Run workflow**. Der Haken setzt `ALCATRAZ_WACKELTESTS=1`; bei Push und Pull Request ist er aus.
+- Deploy (`deploy.yml`): setzt die Variable nie, die beiden Tests bleiben dort immer aus.
+- Lokal so prüfen wie auf GitHub: `CI=true npx vitest run src/GeraetWkr.test.ts -t "Probe"` (die zwei: übersprungen),
+  mit `ALCATRAZ_WACKELTESTS=1` davor laufen sie mit.

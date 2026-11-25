@@ -107,7 +107,7 @@ Auslegungen am 21.11.2026 abends beantwortet: bestätigt bis auf G1, G3, G6, G11
 und N8 ([plan-wkr-w3.md](plan-wkr-w3.md) §15) – die geplanten Änderungen sind noch nicht gebaut; der Feldtest prüft
 den gebauten Stand.
 
-- [ ] **Handschuhe** (dünne Arbeits- und dicke Segelhandschuhe): Codes, Hauptknopf, Disq., „− letzte zurück“,
+- [ ] **Handschuhe** (dünne Arbeits- und dicke Segelhandschuhe): Codes, Hauptknopf, Disq., „↶ Rückgängig“,
   Ausweichen, Ziffernfeld der Suche treffen. Erwartet: jeder Tipp trifft den gemeinten Knopf, kein Nachbar.
   Fehlgriffe auf 20 Tipps: dünn ______ dick ______ Beobachtung:
 - [ ] **Sonne** (Mittagssonne, Display-Helligkeit automatisch und voll; Sonnenbrille, auch polarisiert): Sonnenmodus
@@ -161,10 +161,10 @@ die Form von „Nicht vorbeigekommen“ ([plan-wkr-w4.md](plan-wkr-w4.md) §14).
   nimmt nichts weg; bewusst nach ½ s erneut tippen nimmt weg. 400 ms passend? Beobachtung:
 - [ ] **Klassenwechsel** (Klasse 4 nach 7): Band „Klasse n – andere Halte“ 2 s. Erwartet: kein Tipp auf die falsche
   Zeile. (Geplant, W4-13: nur beim ersten Start einer neuen Klasse, Parcours-Zeichnung beim Hochwischen.) Beobachtung:
-- [ ] **Nicht vorbeigekommen** (Mehr → Rückfrage): Erwartet: Matrix „⊘ nicht vorbei“ gelb, kein Rückstand, Erfassung
-  „Papier ansehen“; am Vorsteg und im Steg-Ablegen nicht angeboten. Versehentlich gemeldet → „Zuletzt“ → Korrektur
-  hebt es auf. Wird es am Wasser gebraucht, oder reicht X? (Entschieden 21.11.2026, W3-17: wird Disq. J – noch nicht
-  gebaut.) Beobachtung:
+- [ ] **Nicht gestartet** (24.11.2026, ersetzt „Nicht vorbeigekommen“; Mehr → „Nicht gestartet · Disq. X“ → Rückfrage):
+  Erwartet: X im Disq.-Feld der Liste, Matrix ✕ auf allen Listen, der Start fällt bei den anderen Geräten aus der
+  Schlange, Wertung „nicht gestartet“; auch im Steg-Anlegen und am Vorsteg. Versehentlich gemeldet → „Zuletzt“ →
+  Korrektur ohne X nimmt es heraus. Beobachtung:
 
 ## Pad (W5)
 

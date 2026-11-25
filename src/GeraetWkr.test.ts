@@ -18,7 +18,7 @@ import type { GeraeteTyp } from './geraete/transport/protokoll'
 import { reducer, type Action } from './state/reducer'
 import { setLocale } from './i18n'
 import { vergissAlles } from './lib/merken'
-import { betriebStarter, uimParallelStand, wkrBetriebsStand } from './testHilfen'
+import { betriebStarter, uimParallelStand, wkrBetriebsStand, WACKELTESTS_AUS } from './testHilfen'
 import { lage } from './betrieb/folge'
 import { sichtOeffentlich } from './betrieb/sicht'
 import { werteVon } from './lib/eingaben'
@@ -226,7 +226,7 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
     expect(werte(state.value, s.starter)['katalog:tor5'] ?? '').toBe('')
   })
 
-  it('Disq.: zweiter Tipp setzt, Fuß nennt ihn; „− letzte zurück“ nimmt den letzten Tipp', async () => {
+  it('Disq.: zweiter Tipp setzt, Fuß nennt ihn; „↶ Rückgängig“ nimmt den letzten Tipp', async () => {
     const { w, state, s } = await listeMitStart('tor5')
     await klick(w, '[data-action="code"][data-code="20"]')
     await klick(w, '[data-action="disq"]')
@@ -242,6 +242,35 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
     expect(haupt(w).text()).toBe('Abschicken · 5 Pkt.')
     await klick(w, '[data-action="haupt"]')
     await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '20')
+  })
+
+  it('Höchstzahl (Nutzer 24.11.2026, CM1–CM4): dritter Tipp auf „2. und 3. Versuch“ = Disq. D am Bedienrechner; Code 1 nur 1×', async () => {
+    const { w, state, s } = await listeMitStart('tor5')
+    const c20 = '[data-action="code"][data-code="20"]'
+    // Prellschutz (CM8, Prüfbefund 24.11.2026): Ein Tipp gleich nach dem vorigen auf „2. und 3. Versuch“ zählt nicht –
+    // weder beim Zählen noch beim Übergang zu D. Zwischen echten Versuchen vergeht Zeit (`weiter`).
+    vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })
+    const weiter = () => vi.setSystemTime(Date.now() + WKR_ANNAHMEN.bojenSchalterPrellMs + 100)
+    await klick(w, c20)
+    await klick(w, c20)
+    expect(w.find(c20).attributes('data-anzahl')).toBe('1')
+    weiter()
+    await klick(w, c20)
+    expect(w.find(`${c20} [data-teil="code-grenze"]`).text()).toBe('nächster = Disq. D')
+    await klick(w, c20)
+    expect(w.find(c20).attributes('data-naechster')).toBe('danach')
+    expect(haupt(w).text()).not.toContain('Disq. D')
+    weiter()
+    await klick(w, c20)
+    expect(w.find(c20).attributes('data-anzahl')).toBe('2')
+    expect(w.find(`${c20} [data-teil="code-grenze"]`).text()).toBe('Disq. D gesetzt')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    await klick(w, '[data-action="code"][data-code="1"]')
+    expect(w.find('[data-action="code"][data-code="1"] [data-teil="code-grenze"]').text()).toBe('höchstens 1×')
+    expect(haupt(w).text()).toContain('Disq. D')
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => werte(state.value, s.starter)['katalog:tor5'] === '1, 2x20')
+    expect(werte(state.value, s.starter)['disq@tor5']).toBe('D')
   })
 
   it('Ausweichen und Suche: zwei Nächste, Nr.-Feld, „außer der Reihe“; unbekannte Nummer wird nicht angeboten', async () => {
@@ -1166,7 +1195,8 @@ describe('Ansicht und Sprache (W3.4, G1, F13/G9)', () => {
 })
 
 describe('Probe beim Einrichten (W3.4, G10)', () => {
-  it('einmal je Raum und Liste; drei Schritte, nichts geht an den Bedienrechner; danach nie wieder von selbst', async () => {
+  // Wackel-Test: auf GitHub nur mit ALCATRAZ_WACKELTESTS (testHilfen.ts wackelTestsAuslassen, Nutzer 24.11.2026).
+  it.skipIf(WACKELTESTS_AUS)('einmal je Raum und Liste; drei Schritte, nichts geht an den Bedienrechner; danach nie wieder von selbst', async () => {
     const r = await bedienrechner()
     const speicher = handy()
     const { w } = await mitCode(r.h, [{ art: 'liste', liste: TOR5 }], speicher, 'lassen')
@@ -1888,7 +1918,8 @@ describe('Bojen (W4.2)', () => {
   // W5.2 (Plan docs/plan-wkr-w5.md §5, 22.11.2026): Pad + Bojen-Liste ohne Vorgabe → Maske „Bild“ (MW1); die Probe übt
   // am Bild (MW3); Tipps ins Bild landen als dieselben Zellen am Bedienrechner wie die Knöpfe; Tor 5 schaltet auf den
   // Rückweg (BD4), Rück 2 (BD5), Disq. über „Disq. an Boje …“ + Tipp (BD7); Einträge im Klartext in der Seitenspalte.
-  it('W5.2 Maske „Bild“: Probe am Bild, Tipps → Zellen am Bedienrechner, Rückweg von Hand, Rück 2, Disq. an der Boje', async () => {
+  // Wackel-Test: auf GitHub nur mit ALCATRAZ_WACKELTESTS (testHilfen.ts wackelTestsAuslassen, Nutzer 24.11.2026).
+  it.skipIf(WACKELTESTS_AUS)('W5.2 Maske „Bild“: Probe am Bild, Tipps → Zellen am Bedienrechner, Rückweg von Hand, Rück 2, Disq. an der Boje', async () => {
     fenster(1024, 768)
     const r = await bedienrechner(bojenStand(), P2)
     const seit = Date.now()
@@ -2044,7 +2075,7 @@ describe('Bojen (W4.2)', () => {
     await klick(w, boje(feld))
     expect([w.find(boje(feld)).attributes('data-anzahl'), w.find(boje(feld)).attributes('data-disq')]).toEqual(['0', 'G'])
     expect(haupt(w).text()).toBe('Abschicken · Disq. G')
-    // „− letzte zurück“ nimmt die letzte Eingabe (das Wegnehmen der Berührung kennt kein Zurück – die Berührung
+    // „↶ Rückgängig“ nimmt die letzte Eingabe (das Wegnehmen der Berührung kennt kein Zurück – die Berührung
     // bleibt weg); danach den Buchstaben.
     await klick(w, '[data-action="zurueck"]')
     expect(w.find(boje(feld)).attributes('data-disq')).toBeUndefined()
@@ -2378,70 +2409,102 @@ describe('Bojen (W4.2)', () => {
   }, 20_000)
 })
 
-// W4.3 (Plan docs/plan-wkr-w4.md §6, 21.11.2026, P16, R1–R6): „Nicht vorbeigekommen“ unter „Mehr“.
-describe('„Nicht vorbeigekommen“ (W4.3)', () => {
-  const nvMehr = async (w: VueWrapper) => {
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG1–NG5): „Nicht gestartet · Disq. X“ unter „Mehr“ – ersetzt „Nicht vorbeigekommen“
+// (W4.3, ⊘ bzw. Disq. J). Auf jeder Liste mit Disq.-Feld, auch am Vorsteg und im Steg-Anlegen.
+describe('„Nicht gestartet · Disq. X“ (24.11.2026)', () => {
+  const ngMehr = async (w: VueWrapper) => {
     await klick(w, '[data-action="mehr"]')
-    return w.find('[data-action="nicht-vorbei"]')
+    return w.find('[data-action="nicht-gestartet"]')
   }
 
-  // W3-17 (Nutzer 21.11.2026, GF10): Wo die Liste J kennt (Tor 5: Bereich parcours), ist es Disq. J – eine gewöhnliche
-  // Zeile mit Haken, kein Kennzeichen ⊘. Das Kennzeichen bleibt nur, wo J fehlt (Steg-Anlegen, Test unten).
-  it('Mehr → große Rückfrage → Disq. J ins Disq.-Feld mit Haken, kein ⊘; der getippte Entwurf ist verworfen', async () => {
+  it('Mehr → große Rückfrage → X ins Disq.-Feld mit Haken; der getippte Entwurf ist verworfen; Zuletzt „nicht gestartet“', async () => {
     const { w, state, s, l } = await listeMitStart('tor5')
     await klick(w, '[data-action="code"][data-code="1"]')
-    const knopf = await nvMehr(w)
-    expect(knopf.text()).toBe('Nicht vorbeigekommen · Disq. J')
+    // Die Disq.-Knöpfe des Tors bieten X nicht an (NG3) – nur „Mehr“.
+    await klick(w, '[data-action="disq"]')
+    expect(w.find('[data-action="disq-code"][data-code="X"]').exists()).toBe(false)
+    const knopf = await ngMehr(w)
+    expect(knopf.text()).toBe('Nicht gestartet · Disq. X')
     await knopf.trigger('click')
     await nextTick()
-    const d = w.find('[data-dialog="wkr-nicht-vorbei"]')
-    expect(d.text()).toContain(`${s.startNr} ist hier nicht vorbeigekommen?`)
-    expect(d.text()).toContain('Eingetragen wird Disq. J')
+    const d = w.find('[data-dialog="wkr-nicht-gestartet"]')
+    expect(d.text()).toContain(`${s.startNr} nicht gestartet?`)
+    expect(d.text()).toContain('Eingetragen wird X (nicht gestartet)')
     // Abbrechen ändert nichts.
-    await klick(w, '[data-action="nicht-vorbei-nein"]')
-    expect(w.find('[data-dialog="wkr-nicht-vorbei"]').exists()).toBe(false)
+    await klick(w, '[data-action="nicht-gestartet-nein"]')
+    expect(w.find('[data-dialog="wkr-nicht-gestartet"]').exists()).toBe(false)
     expect(startNr(w)).toBe(s.startNr)
-    await klick(w, '[data-action="nicht-vorbei"]')
-    await klick(w, '[data-action="nicht-vorbei-ja"]')
+    await klick(w, '[data-action="nicht-gestartet"]')
+    await klick(w, '[data-action="nicht-gestartet-ja"]')
     // Overlay wie beim Abschicken (N1).
     expect(w.find('[data-teil="uebertragen"]').exists()).toBe(true)
     await bis(() => werte(state.value, s.starter)['erfasst@tor5'] === '1')
-    expect(werte(state.value, s.starter)).toMatchObject({ 'disq@tor5': 'J', 'erfasst@tor5': '1' })
+    expect(werte(state.value, s.starter)).toMatchObject({ 'disq@tor5': 'X', 'erfasst@tor5': '1' })
     expect(werte(state.value, s.starter)['katalog:tor5'] ?? '').toBe('')
-    expect(state.value.wkr.nichtVorbei[l]).toBeUndefined()
-    await zeigt(() => w.find('[data-action="zuletzt"]').exists())
+    expect(state.value.wkr.rueckfragen.filter((r) => r.liste === l)).toEqual([])
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists() && taktFrei(w))
     expect(w.find('[data-teil="entwuerfe"]').exists()).toBe(false)
+    await klick(w, '[data-action="zuletzt"]')
+    expect(w.find('[data-teil="zuletzt-liste"]').text()).toContain('nicht gestartet (Disq. X)')
     expect(w.html()).not.toMatch(NAMEN)
   }, 12_000)
 
-  it('Korrektur einer J-Zeile auf „fehlerfrei“ nimmt das J am Bedienrechner wieder heraus', async () => {
+  it('„doch gestartet“: die Korrektur einer X-Zeile beginnt ohne X; „fehlerfrei“ nimmt es am Bedienrechner heraus (NG5)', async () => {
     const { w, state, s } = await listeMitStart('tor5')
-    await (await nvMehr(w)).trigger('click')
+    await (await ngMehr(w)).trigger('click')
     await nextTick()
-    await klick(w, '[data-action="nicht-vorbei-ja"]')
-    await bis(() => werte(state.value, s.starter)['disq@tor5'] === 'J')
+    await klick(w, '[data-action="nicht-gestartet-ja"]')
+    await bis(() => werte(state.value, s.starter)['disq@tor5'] === 'X')
     await zeigt(() => w.find('[data-action="zuletzt"]').exists() && taktFrei(w))
     await klick(w, '[data-action="zuletzt"]')
     await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
-    expect(w.find('[data-action="nicht-vorbei"]').exists()).toBe(false)
-    // J steht im Entwurf der Korrektur (aus dem eigenen Stand, M2) – herausnehmen ist ein Tipp.
-    await klick(w, '[data-action="disq"]')
-    await klick(w, '[data-action="disq-code"][data-code="J"]')
+    expect(w.find('[data-action="nicht-gestartet"]').exists()).toBe(false)
     await klick(w, '[data-action="haupt"]')
+    const dialog = w.find('[data-dialog="wkr-korrektur"]')
+    expect(dialog.find('[data-teil="alt"]').text()).toBe('nicht gestartet (Disq. X)')
+    expect(dialog.find('[data-teil="neu"]').text()).toBe('fehlerfrei')
     await klick(w, '[data-action="korrektur-ja"]')
     await bis(() => (werte(state.value, s.starter)['disq@tor5'] ?? '') === '')
     expect(werte(state.value, s.starter)['erfasst@tor5']).toBe('1')
   }, 12_000)
 
-  it('nicht am Vorsteg; am Steg nur im Reiter „Anlegen“ (dort X, F5)', async () => {
+  it('„Rückgängig“ einer noch wartenden X-Zeile: der Start steht ohne X wieder da, kein Entwurf mit X; Abschicken = „fehlerfrei“ (Prüfbefund 24.11.2026, NG5)', async () => {
+    // In der echten Erfassung geht das nur, solange die Zeile im Ausgang wartet (Funkloch); die Übung quittiert erst
+    // nach uebungQuittungMs – mit Fake-Uhr derselbe Weg (holeZurueck → Entwurf → ladeEntwurf).
+    vi.useFakeTimers()
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'tor5', taktMs: 3_600_000, folgeMs: SOFORT })
+    quellen.push(q)
+    const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: handy() } })
+    wrappers.push(w)
+    await nextTick()
+    const l = q.listen.value[0].liste
+    const kopf = q.schlange.value[l][0]
+    const erste = startNr(w)
+    await klick(w, '[data-action="mehr"]')
+    await klick(w, '[data-action="nicht-gestartet"]')
+    await klick(w, '[data-action="nicht-gestartet-ja"]')
+    expect(q.zuletzt.value.map((z) => z.zellen)).toEqual([{ 'disq@tor5': 'X' }])
+    await klick(w, '[data-action="rueckgaengig"]')
+    expect(q.zuletzt.value).toHaveLength(0)
+    expect(startNr(w)).toBe(erste)
+    // Die Knöpfe des Tors bieten X nicht an – also auch kein X im Entwurf (Fuß) und keins im Ausgang.
+    expect(w.find('[data-action="haupt"]').text()).not.toContain('X')
+    expect(q.entwurf(l, kopf.key)).toBeNull()
+    expect(q.entwuerfe.value).toEqual([])
+    await klick(w, '[data-action="haupt"]')
+    expect(q.zuletzt.value).toHaveLength(1)
+    expect(Object.values(q.zuletzt.value[0].zellen).join('')).toBe('')
+  })
+
+  it('auch am Vorsteg und im Steg-Anlegen (X ins gemeinsame Disq.-Feld, NG4)', async () => {
     const r = await bedienrechner()
     const { w } = await mitCode(r.h, [{ art: 'liste', liste: VORSTEG }])
     await bis(() => r.state.value.wkr.listen[VORSTEG]?.modus === 'digital')
     await zeigt(() => w.find('[data-teil="karte"]').exists())
-    expect((await nvMehr(w)).exists()).toBe(false)
+    expect((await ngMehr(w)).exists()).toBe(true)
 
     const st = await listeMitStart('steg')
-    expect((await nvMehr(st.w)).exists()).toBe(false)
+    expect((await ngMehr(st.w)).exists()).toBe(true)
     await klick(st.w, '[data-action="mehr"]')
     // Anlegen nachlaufend (T2) und auf dem ganzen Steg nach dem Ablegen (T3): erst ablegen, dann der nächste Start.
     await klick(st.w, '[data-action="haupt"]')
@@ -2450,13 +2513,12 @@ describe('„Nicht vorbeigekommen“ (W4.3)', () => {
     st.zeige()
     await klick(st.w, '[data-action="steg-teil"][data-steg="an"]')
     await zeigt(() => st.w.find('[data-teil="karte"]').exists() && startNr(st.w) === st.s.startNr)
-    const knopf = await nvMehr(st.w)
+    const knopf = await ngMehr(st.w)
     expect(knopf.exists()).toBe(true)
     await knopf.trigger('click')
     await nextTick()
-    await klick(st.w, '[data-action="nicht-vorbei-ja"]')
-    await bis(() => st.state.value.wkr.nichtVorbei[st.l]?.length === 1)
-    expect(st.state.value.wkr.nichtVorbei[st.l][0]).toMatch(/\|an$/)
+    await klick(st.w, '[data-action="nicht-gestartet-ja"]')
+    await bis(() => werte(st.state.value, st.s.starter)['disq@steg'] === 'X')
     expect(werte(st.state.value, st.s.starter)).toMatchObject({ 'erfasst.ab@steg': '1', 'erfasst@steg': '1' })
     expect(werte(st.state.value, st.s.starter)['katalog:stegAnlegen'] ?? '').toBe('')
   }, 20_000)

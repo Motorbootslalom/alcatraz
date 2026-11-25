@@ -117,7 +117,7 @@ export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): A
     }
     case 'FILL_BEISPIELGEWICHTE': {
       if (state.starters.length === 0) return state
-      return { ...state, starters: beispielGewichte(state.starters, (klasse) => sollgewichtOf(state.regelwerk, state.sollgewicht, klasse), zufallAus(action.saat)) }
+      return { ...state, starters: beispielGewichte(state.starters, (klasse) => sollgewichtOf(state.regelwerk, state.sollgewicht, klasse), zufallAus(action.saat), state.ausgleichStufe) }
     }
     case 'FILL_BEISPIEL_BOOTE': {
       const klassen = besetzungsKlassen(state)

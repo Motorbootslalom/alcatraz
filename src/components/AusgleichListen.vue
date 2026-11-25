@@ -8,6 +8,7 @@ import { SEITEN_VORGABE } from '../lib/seiten'
 import type { AusgleichListe } from '../lib/ausgleich'
 import type { ClassId } from '../types'
 import ListenDokument from './ListenDokument.vue'
+import { gewichtText } from '../domain/gewicht'
 
 /**
  * „Ausgleichsgewichte“ – die Gewichtsliste für den Steg (lib/ausgleich.ts): je Klasse ein
@@ -90,7 +91,8 @@ const laengster = (texte: string[]) => texte.reduce((a, b) => (b.length > a.leng
               <!-- Auf 0 kg gerundet (z. B. 64,6 kg bei 65 kg) heißt wie „gewogen, keines nötig“ leer – so liest das
                    Steg-Gerät denselben Starter als „kein AG“ (Prüfbefund 24.11.2026, WKR_ANNAHMEN AG2, noch zu
                    bestätigen; vorher stand „0 kg“). Die Verwiegung zeigt weiter „0 kg“ (WeighingView). -->
-              <td v-else class="weight ausgleich-kg">{{ z.ausgleich ? `${z.ausgleich} kg` : '' }}</td>
+              <!-- Mit einer Abstufung unter 1 kg auch „1,5 kg“ – Dezimalzeichen der Listensprache (24.11.2026). -->
+              <td v-else class="weight ausgleich-kg">{{ z.ausgleich ? `${gewichtText(z.ausgleich, listenLocale)} kg` : '' }}</td>
               <td class="narrow">{{ classCell(z.starter.klasse) }}</td>
               <td v-for="r in runs" :key="r" class="check" />
             </tr>

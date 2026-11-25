@@ -1,6 +1,7 @@
 import type { Eingaben, WkrZeile } from '../types'
 import { setzeWerte, werteVon, type EingabeZelle } from '../lib/eingaben'
 import { disqCodes } from '../lib/scoring'
+import { NICHT_GESTARTET } from '../lib/abmeldung'
 
 // Die Kernregel der Übernahme einer Gerätezeile in die Eingaben – rein, ohne Stand, vom Reducer benutzt
 // (state/reducer/wkr.ts). Regel (Plan §4, WKR_ANNAHMEN.uebernahmeNurVorher): Steht schon der neue Wert da, geschieht
@@ -50,6 +51,12 @@ export function haengeAn(aktuell: string, wert: string, vorher: string): { wert:
   return { wert: teile.map((t, j) => (j === i ? wert : t)).join(BEMERKUNG_TRENNER) }
 }
 
+/** Steht X „nicht gestartet“ neben anderen Buchstaben? (BZ2: das soll nie still entstehen, 24.11.2026.) */
+const xNebenAnderem = (disq: string) => {
+  const c = disqCodes(disq)
+  return c.includes(NICHT_GESTARTET) && c.length > 1
+}
+
 /** Ist das Feld eine Bemerkung (Text, wird angehängt)? Die Kennung ist `bemerkung@<liste>` (config/feld.ts). */
 const istBemerkung = (feld: string) => feld.startsWith('bemerkung@')
 
@@ -69,6 +76,9 @@ export function vereinigt(feld: string, aktuell: string, wert: string, vorher: s
     return 'konflikt' in angehaengt ? aktuell : angehaengt.wert
   }
   const r = vereinigeDisq(aktuell, wert, vorher)
+  // X nie neben anderen Buchstaben (24.11.2026, NG6/BZ2): Der Bediener hat für das Gerät entschieden – dann gilt dessen
+  // Wert wie bei einer Rückfrage `zelle` (wendeZeileAn), statt X und Buchstaben zu mischen.
+  if (xNebenAnderem(r.entfernt ?? r.wert) && !xNebenAnderem(aktuell)) return wert
   return r.entfernt ?? r.wert
 }
 
@@ -99,6 +109,13 @@ export function wendeZeileAn(eingaben: Eingaben, zeile: Pick<WkrZeile, 'lauf' | 
     }
     if (vereinige) {
       const r = vereinigeDisq(steht, wert, vorher)
+      // X „nicht gestartet“ nie still neben anderen Buchstaben (Prüfbefund 24.11.2026, NG6, BZ2): Steht X vom einen
+      // Teil und bringt der andere einen Buchstaben (oder umgekehrt), entscheidet der Bediener – Rückfrage `zelle`.
+      // „Nicht gestartet“ selbst kommt ohne `vereinige` (wkr/zeile.ts); das hier fängt die Gegenrichtung.
+      if (xNebenAnderem(r.wert) && !xNebenAnderem(steht) && r.wert !== steht) {
+        konflikte.push({ feld, wert, steht, grund: 'zelle' })
+        continue
+      }
       setze(feld, r.wert)
       if (r.entfernt !== null) konflikte.push({ feld, wert: r.entfernt, steht: r.wert, grund: 'entfernt' })
       continue

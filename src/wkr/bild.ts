@@ -360,17 +360,76 @@ export function svgSeiten(quelle: string): { breite: number; hoehe: number } | n
   return { breite: vb[2], hoehe: vb[3] }
 }
 
+// ---------------------------------------------------------------------------
+// Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, WKR_ANNAHMEN BL1–BL5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Wie der WKR die Zeichnung legt (Nutzer 24.11.2026: „Dafür braucht Bild die Auswahl von den 4
+ * Parcours-Himmelsrichtungen.“): Drehung im Uhrzeigersinn gegenüber der Datei, wie `rotate()` in SVG.
+ */
+export type BildLage = 0 | 90 | 180 | 270
+export const BILD_LAGEN: readonly BildLage[] = [0, 90, 180, 270]
+export type BildSeite = 'unten' | 'links' | 'oben' | 'rechts'
+
+/**
+ * Wo Steg und Start/Ziel bei dieser Drehung liegen (BL2, 24.11.2026): Die Klassen-Zeichnungen sind der Ausschnitt der
+ * Variante „Steg unten“ des Parcours-Repositorys (dist/de/steg_unten: Start/Ziel links, der Steg links unten am Ufer,
+ * Tor 5 rechts) – ohne den Steg selbst. Gedreht im Uhrzeigersinn wandert die untere Kante nach links, dann nach oben,
+ * dann nach rechts: 0° = „Steg unten“ (die Datei, wie bisher auf dem Handy), 90° = „Steg links“, 180° = „Steg oben“,
+ * 270° = „Steg rechts“. Start/Ziel liegt dabei links, oben, rechts bzw. unten. Die Parallel-Zeichnung hat keinen Steg
+ * (R9-06) – dort heißt dieselbe Drehung nach dem Start: links, oben, rechts, unten.
+ */
+export const BILD_LAGE_SEITE: Readonly<Record<BildLage, { steg: BildSeite; start: BildSeite }>> = Object.freeze({
+  0: { steg: 'unten', start: 'links' },
+  90: { steg: 'links', start: 'oben' },
+  180: { steg: 'oben', start: 'rechts' },
+  270: { steg: 'rechts', start: 'unten' },
+})
+
+/** Ist der Wert eine der vier Lagen? (Ablage, Props – alles andere gilt als „nicht gewählt“.) */
+export function istBildLage(x: unknown): x is BildLage {
+  return (BILD_LAGEN as readonly unknown[]).includes(x)
+}
+
+/** Die Lage einer (wirksamen) Drehung: −90° = 270°; was kein Vielfaches von 90° ist, zählt als 0°. */
+export function lageVonDrehung(drehung: number): BildLage {
+  const d = ((Math.round(drehung) % 360) + 360) % 360
+  return istBildLage(d) ? d : 0
+}
+
+/**
+ * Text einer gedrehten Zeichnung aufrecht halten (BL4, 24.11.2026): Die Ziffern an den Bojen (Nummer_Tor1 …,
+ * A_Nummer_Boje1 …) stünden bei 180° auf dem Kopf – „6“ (Schikane) liest sich dann wie „9“. Jedes `<text>` bekommt
+ * hinten an seinen `transform` eine Gegendrehung um die Mitte seines eigenen Rahmens (getBBox, im eigenen
+ * Koordinatensystem): Die Lage im Bild bleibt, die Schrift steht wie in der Datei (auch eine leicht schräge bleibt
+ * schräg). Gilt, weil zwischen Wurzel und Text nur Verschiebungen und Drehungen stehen – nie Spiegelungen (geprüft
+ * 24.11.2026 an allen Dateien in src/assets/parcours). `null` = nichts zu tun (0° oder leerer Rahmen).
+ */
+export function aufrechtTransform(vorhanden: string | null, rahmen: { x: number; y: number; width: number; height: number }, drehung: number): string | null {
+  const d = lageVonDrehung(drehung)
+  if (d === 0 || (!rahmen.width && !rahmen.height)) return null
+  const runde = (n: number) => Math.round(n * 1000) / 1000
+  const gegen = `rotate(${-d} ${runde(rahmen.x + rahmen.width / 2)} ${runde(rahmen.y + rahmen.height / 2)})`
+  return vorhanden && vorhanden.trim() ? `${vorhanden.trim()} ${gegen}` : gegen
+}
+
 /**
  * Drehung, mit der das Bild wirklich gezeigt wird (Prüfbefund 22.11.2026, WKR_ANNAHMEN.bildDrehungNachPlatz, noch zu
  * bestätigen): 0° und 180° immer; ±90° nur auf dem Pad und nur, wenn die gedrehte Zeichnung im freien Platz (Breite
  * der Fläche × höchste Höhe der Zeichnung) mindestens so groß erscheint wie die ungedrehte – sonst 0° wie auf dem
  * Handy. Vorher drehte das Pad immer ±90°, und eine Zeichnung mit `blick: hinten` (gate135, gate245, moewe …) wurde
  * hochkant doppelt so hoch wie der Bildschirm. Ohne bekannten Platz (vor dem ersten Messen, Test-DOM) 0°.
+ *
+ * Seit 24.11.2026 (Nutzer, WKR_ANNAHMEN BL3): Hat der WKR unter „Mehr → Ansicht“ eine Lage gewählt (`wahl`), gilt
+ * GENAU sie – auf jedem Gerät und unabhängig vom Platz (die Zeichnung wird dann notfalls kleiner, CSS max-height).
+ * Ohne Wahl bleibt alles wie oben: die Drehung des Bogens (Blick) nach Gerät und Platz.
  */
 export function wirksameDrehung(
   drehung: number,
-  o: { pad: boolean; seiten: { breite: number; hoehe: number } | null; platz: { breite: number; hoehe: number } | null },
+  o: { pad: boolean; seiten: { breite: number; hoehe: number } | null; platz: { breite: number; hoehe: number } | null; wahl?: BildLage | null },
 ): number {
+  if (o.wahl !== undefined && o.wahl !== null && istBildLage(o.wahl)) return o.wahl
   const d = ((drehung % 360) + 360) % 360
   if (d === 0 || d === 180) return d
   if (!o.pad || !o.seiten || !o.platz || o.platz.breite <= 0 || o.platz.hoehe <= 0) return 0

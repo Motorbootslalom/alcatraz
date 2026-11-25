@@ -192,7 +192,7 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   „Keine Zeit“, GeraetWkr.test.ts „Liste mit Zeitfeldern (W5.4)“.
   W5.5 Maske „Tabelle“ (22.11.2026, Plan docs/plan-wkr-w5.md §8, WKR_ANNAHMEN TB1–TB5): **WkrTabelle.vue**
   (`data-teil="tabelle"`, `data-korrektur`, `data-fehler` = Zahl): Kopf `tabelle-kopf`/`tabelle-unter` (wkr/tabelle.ts
-  kopfGruppen), Zeilen `tabelle-gesendet` (`data-z`, `data-stufe`, `tabelle-zeichen` ✓/↑/!/✗, `tabelle-nv`, Knopf
+  kopfGruppen), Zeilen `tabelle-gesendet` (`data-z`, `data-stufe`, `tabelle-zeichen` ✓/↑/!/✗, Knopf
   `tabelle-korrigieren`), `tabelle-aktiv` (Eingaben je `data-feld`, `data-fehler` = Code nach dem Verlassen,
   Satz `tabelle-fehler`; in der Korrektur mit `data-z` an ihrem Platz), `tabelle-naechste` (`data-start`); Hinweis
   `tabelle-tasten`, `tabelle-fehlerzahl`. Enter = nächste Zelle, in der letzten = `abschicken` (bei Fehlern Fokus auf
@@ -224,6 +224,21 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   fokussiert von selbst nur ohne Fokus in einer anderen `.wkr-spalte`; useFenster ignoriert reine Höhenänderungen bei
   Fokus in einem Eingabefeld (Tastatur, Test systemModus.test.ts); WkrMatrix `.wkr-tisch` in app.css.
   Test der Mehrfachwahl: components/wkr/WkrDisqOrt.test.ts (22.11.2026).
+  Nutzer 24.11.2026 (WKR_ANNAHMEN BL1–BL6, UK1–UK6, Y5): WkrMehr `bild-lage` (Prop `bildLage` {art steg|start, wahl,
+  wirksam}; Knopf `bild-lage-auto` „Automatisch“ (Ereignis mit `null` = Eintrag weg, gedrückt ohne Wahl) und Knöpfe
+  `bild-lage` `data-lage` 0|90|180|270 (gedrückt nur die Wahl), Satz `bild-lage-text`, ohne Wahl `bild-lage-vorgabe`;
+  Ereignis `bildLage`) statt `bojen-ansicht`, sobald das Bild zu sehen ist (WkrMaske `mehrBojenFolge`/`mehrBildLage`;
+  Bojen-Folge nur bei Bojen-Knöpfen); gemerkt in WkrGeraet (`bildLagen` → WkrMaske, `bild-lage` → WkrProbe) → WkrMitte
+  `bildLage` → WkrBild Prop **`lageWahl`** (nicht `lage` – so heißt dort die Lage der Treffer), `data-lage`, Ereignis
+  `drehung` (wirksam) → WkrMitte `bildDrehung`; Ziffern aufrecht über wkr/bild.ts aufrechtTransform (`data-aufrecht`).
+  WkrMehr: WkrVorziehen ganz unten unter `uebung-ende`; WkrPruefliste: `pruef-vorziehen` unter dem Fuß. WkrMaske
+  kopfAusDemBild: in der Übung nach haupt()/nichtGestartet() (nachDemAbschicken) und noch einmal, sobald die nächste
+  Karte steht (`naechsteKarte`, UK5 – nicht am Overlay-Ende; bis dahin `halteStil` min-height = Höhe beim Abschicken)
+  scrollIntoView auf das Element nach dem Kopf (ref `kopfRef`), bei `seite` rechts auf `.wkr-maske` selbst (UK4,
+  ref `maskeRef`), nicht bei `seite` kompakt; WkrPruefliste ebenso nach abschicken() (UK6). Rollen über
+  systemModus.ts rolleAnDenRand (block start, ohne Gleiten bei „Bewegung reduzieren“). Beim Bild gibt WkrMaske WkrMitte
+  `bojenFolgeWirksam` = Vorgabe (BL6: Ortswahl der Disq. nie in einer verborgenen Folge). Tests:
+  components/wkr/WkrMehr.test.ts, WkrUebung.test.ts (Fake-Uhr mit folgeMs [2000, 2000]), WkrBild.test.ts, WkrPruefliste.test.ts.
   Langdruck (R7-21/R8-23, 22.11.2026, WKR_ANNAHMEN U3/BD7/LD1–LD4): **wkr/langdruck.ts** useLangdruck({kurz, lang,
   langMoeglich, gesperrt}) → `an(x)` für `v-on` (Tipp beim pointerup, Langdruck ab langdruckMs, Abbruch ab
   langdruckWegPx bzw. pointercancel, Loslassen solange ein Druck läuft auch am `window` (Capture; Knopf kann nach dem Langdruck aus dem DOM sein, Prüfbefund 22.11.2026), contextmenu weg, `click` ohne vorherige Berührung = Tastatur = kurz) und `fuellt`
@@ -256,12 +271,15 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `bojen` wie Katalog. WkrProbe: Schritte boje → zurueck → zaehler → rueckweg → haupt (Q1). WkrUebung: Listen
   gate135/gate245/parcoursms, `parallel` nur unter UIM (hasParallel). texte.ts zellenText: Bojen „Tor 1 H L: 5“, in
   der Folge der Maske. Stile `.wkr-bojen*`, `.wkr-klassen-wechsel`, `.wkr-karten-platz` (nur --wkr-*).
-  W4.3 (21.11.2026, „Nicht vorbeigekommen“, P16/R1–R8): WkrMehr Prop `nicht-vorbei` (Startnummer oder null) → Knopf
-  `data-action="nicht-vorbei"` „⊘ Nicht vorbeigekommen“, AppDialog `wkr-nicht-vorbei` („23 ist hier nicht
-  vorbeigekommen? Es wird nichts eingetragen.“, `nicht-vorbei-ja`/`-nein`), Ereignis `nichtVorbei`; WkrMaske
-  `nichtVorbeiNr` (nicht wo X gilt: Vorsteg, Steg-Ablegen; nicht in der Korrektur) und `nichtVorbei()` (verwirft den
-  Entwurf, schicke {nv}, Overlay wie beim Abschicken); Zuletzt, Korrektur-Dialog (alt) und Prüfansicht zeigen
-  „⊘ nicht vorbeigekommen“ statt „fehlerfrei“; WkrAbschluss Summe „1 nicht vorbeigekommen: 27“, Zeile `data-nv`.
+  „Nicht gestartet · Disq. X“ (Nutzer 24.11.2026, WKR_ANNAHMEN NG1–NG7; ersetzt „Nicht vorbeigekommen“ W4.3 und dessen
+  Disq. J): WkrMehr Prop `nicht-gestartet` (Startnummer oder null) → Knopf `data-action="nicht-gestartet"`, AppDialog
+  `wkr-nicht-gestartet` („23 nicht gestartet?“ + Satz, was eingetragen wird; `nicht-gestartet-ja`/`-nein`), Ereignis
+  `nichtGestartet`; WkrMaske `nichtGestartetNr` (jede Liste mit eigenem Disq.-Feld – wkr/maske.ts nichtGestartetZellen;
+  nicht in der Korrektur) und `nichtGestartet()` (verwirft den Entwurf, schickt X allein im Disq.-Feld, Overlay wie
+  beim Abschicken); `oeffneKorrektur` und `ladeEntwurf` (nach „Rückgängig“ einer wartenden X-Zeile, Prüfbefund
+  24.11.2026) nehmen X aus dem Entwurf, wo die Knöpfe es nicht anbieten (wkr/maske.ts ohneFremdesX, NG5); Zuletzt,
+  Korrektur-Dialog und Prüfansicht über texte.ts zellenText („nicht gestartet (Disq. X)“, istNichtGestartet); Tabelle
+  zeigt X in der Disq.-Spalte.
   Nutzer 21.11.2026 (U1–U4), umgebaut nach W4-12 (21.11.2026, BZ1/BZ4): WkrBojen Knopf `boje-disq-modus`
   („Disq. an Boje …“) emittiert nur `disq` – derselbe Einstieg wie DISQ im Fuß (WkrFuss `mit-disq` auch ohne
   Disq.-Feld, sobald eine Boje Buchstaben annimmt). Beide öffnen WkrDisqOrt (`data-teil="disq-ort"`, `data-schritt`
@@ -287,21 +305,22 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   Nutzer 21.11.2026: WkrRuhe art `abmeldung` (Band `abmeldung-band` „Von Tor 5 abgemeldet“, `abmeldung-weg`, „Zuletzt“
   `zuletzt-lesend`, Entwürfe `entwuerfe-lesend`, kein „Weiter digital“); WkrGeraet führt abgemeldete Listen weiter als
   Reiter (quelle.abgemeldet), GeraetFreigabe ebenso; WkrMatrix Zelle `spaeter` „…“ (Steg-Anlegen kommt noch).
-  Bedienrechner: WkrMatrix Zelle `nv` = „⊘“ mit Wort `.wkr-mzelle-wort` („nicht vorbei“), Rand --rueckstand, Schrift
-  --rueckstand-text, Fläche --rueckstand-soft (app.css, Kontrast, Prüfbefund 21.11.2026), Legende; WkrEingang
-  `data-teil="wkr-nv"` („⊘ nicht vorbeigekommen“) an Rückfrage-Zeile und Vorschlag; WkrListeBedienung `abschluss-nicht-vorbei`; ErfassungTabelle markiert von selbst „Papier ansehen“
-  (wkr/lage.ts zeilenMarken); VerlaufPanel `wkrNichtVorbei`.
+  Bedienrechner: ein X vom Gerät ist ✕ wie jedes X (Zelle `nv` ⊘, `wkr-nv`, `abschluss-nicht-vorbei` und VerlaufPanel
+  `wkrNichtVorbei` entfielen 24.11.2026); WkrEingang-Marke „keine Zeit“ heißt `.wkr-eingang-marke` (app.css,
+  --rueckstand-*).
   Gerät-Feinschliff (Nutzer 21.11.2026, WKR_ANNAHMEN GF1–GF11): `wkr/systemModus.ts` useSystemModus/useWirksamerModus
   (Ansicht „Wie Gerät“ = `modus: 'geraet'`, live über matchMedia; WkrGeraet `data-modus` wirksam, `data-wahl` die
   Wahl; WkrMehr Knopf `data-modus="geraet"`) und useMedien (Pad quer ≥ 1000 px, genau zwei Listen nebeneinander – seit
-  W5.1 ersetzt durch useFenster + wkr/anordnung.ts); WkrKnoepfe `wkr-code--aus`
+  W5.1 ersetzt durch useFenster + wkr/anordnung.ts); WkrKnoepfe (24.11.2026, CM3/CM4: `data-max`, `data-naechster`
+  zaehlt|danach|nichts, `data-danach`, Zeile `code-grenze` „höchstens 1×“/„nächster = Disq. D“/„Disq. D gesetzt“,
+  `.wkr-code-grenze`) `wkr-code--aus`
   (`data-aus`, `data-teil="code-aus"`, drückbar); WkrStegReiter `data-teil="steg-stand"` (✓ bzw. „· n“, `data-offen`);
   WkrGeraet Übung: `<details data-teil="uebung-erklaerung">` (gemerkt `uebungErklaerungZu`) und
   `data-action="uebung-beenden"` unter der Maske; WkrRuhe `warte` mit `neu-verbinden` (Prop `neuVerbinden`, WkrMaske
   nach verbindeKarenzSek, lädt die Seite neu); WkrMaske `soLassen` (Band weg + quelle.soLassen bei Rückfragen),
   Klassenwechsel-Band nur beim ersten Start der Klasse im Punkt (gedaechtnis.ts `klassenGesehen`), WkrParcoursBild
   (`data-teil="parcours-bild"` unter den Knöpfen, Sicht `bild`, Tokens --wkr-bild-*), „nicht vorbeigekommen“ als Disq. J
-  (WkrMehr `nicht-vorbei-disq`); betrieb/WkrEingang `data-teil="wkr-so-lassen"` (.wkr-so-lassen in app.css); WkrMatrix
+  (ersetzt 24.11.2026 durch „Nicht gestartet · Disq. X“, oben); betrieb/WkrEingang `data-teil="wkr-so-lassen"` (.wkr-so-lassen in app.css); WkrMatrix
   `data-teil="mzelle-disq"` (✓ mit Disq.); GeraeteListe Art `data-wahl-typ` handy|pad|rechner (host.setzeTyp), Hinweise
   `handy-eine`/`pad-zwei` nur über LISTEN_EMPFEHLUNG der Art (istHandyName entfällt); GeraeteKoppeln: Freigabe nie
   vorgewählt (W3-26).

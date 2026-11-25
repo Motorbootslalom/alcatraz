@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Eingaben, WkrZeile } from '../types'
-import { haengeAn, vereinigeDisq, wendeZeileAn, zeilenPruefsumme } from './uebernahme'
+import { haengeAn, vereinigeDisq, vereinigt, wendeZeileAn, zeilenPruefsumme } from './uebernahme'
 
 // Die Kernregel der Übernahme (Plan §4, §9.1): gleich → nichts, vorher → setzen, sonst Konflikt; Steg gemeinsam:
 // Disq. vereinigt (Wegfall nur als Konflikt), Bemerkung angehängt.
@@ -62,6 +62,24 @@ describe('wendeZeileAn', () => {
     const weg = wendeZeileAn(e2, zeile([{ feld: 'disq@steg', wert: '', vorher: 'S', vereinige: true }]))
     expect(weg.eingaben).toBe(e2)
     expect(weg.konflikte).toEqual([{ feld: 'disq@steg', wert: 'A, F', steht: 'A, S, F', grund: 'entfernt' }])
+  })
+
+  it('X „nicht gestartet“ kommt am Steg nie still neben andere Buchstaben – Rückfrage `zelle` (Prüfbefund 24.11.2026, NG6/BZ2)', () => {
+    // Gegenrichtung zu wkr/zeile.ts (dort kommt „Nicht gestartet“ ohne `vereinige`): X steht, der andere Teil bringt S.
+    const x = mit({ 'disq@steg': 'X' })
+    const s = wendeZeileAn(x, zeile([{ feld: 'disq@steg', wert: 'S', vorher: '', vereinige: true }]))
+    expect(s.eingaben).toBe(x)
+    expect(s.konflikte).toEqual([{ feld: 'disq@steg', wert: 'S', steht: 'X', grund: 'zelle' }])
+    // Ein X MIT `vereinige` (älteres Gerät) neben „A“ ebenso.
+    const a = mit({ 'disq@steg': 'A' })
+    expect(wendeZeileAn(a, zeile([{ feld: 'disq@steg', wert: 'X', vorher: '', vereinige: true }])).konflikte).toEqual([{ feld: 'disq@steg', wert: 'X', steht: 'A', grund: 'zelle' }])
+    // Hat der Bediener „X, A“ selbst geschrieben, gilt das Vereinigen weiter (sein Entscheid).
+    const vonHand = mit({ 'disq@steg': 'X, A' })
+    expect(wendeZeileAn(vonHand, zeile([{ feld: 'disq@steg', wert: 'S', vorher: '', vereinige: true }])).eingaben[L].k1['disq@steg']).toBe('X, A, S')
+    // Rückfrage `start`, für das Gerät entschieden: dessen Wert gilt, statt zu mischen.
+    expect(vereinigt('disq@steg', 'X', 'S', '')).toBe('S')
+    expect(vereinigt('disq@steg', 'A', 'X', '')).toBe('X')
+    expect(vereinigt('disq@steg', 'A', 'S', '')).toBe('A, S')
   })
 
   it('Bemerkung am Steg wird angehängt, nie ersetzt', () => {

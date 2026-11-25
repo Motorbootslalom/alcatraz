@@ -274,7 +274,7 @@ export default {
   'geraete.nichtVerfuegbar': 'In diesem Fenster gibt es keinen Gerätebetrieb.',
   'geraete.aus': 'Der Gerätebetrieb ist aus. Bis er eingeschaltet wird, verlässt nichts diesen Browser.',
   'geraete.wasGeht':
-    'Eingeschaltet gehen Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung über den Server {server} – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte, Logos und die Sicherung.',
+    'Eingeschaltet gehen Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung über den Server {server} – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte, Logos und die Sicherung. Ausnahme: Die Steg-Liste der WKR-Erfassung bekommt je Starter das Ausgleichsgewicht (gerundet auf die Stufe unter „Durchschnittsgewichte“) – bei einem leichteren Starter lässt sich daraus das Körpergewicht ungefähr zurückrechnen.',
   'geraete.einschalten': 'Gerätebetrieb einschalten',
   'geraete.einschalten.hint':
     'Legt einen Raum für diese Veranstaltung an, mit zwei Links samt QR-Code: einem für die Anzeigetafel und einem für die Zuschauer. Ohne Anmeldung – wer den Link hat, kann lesen. Der Raum bleibt über das Neuladen hinweg offen, bis „Raum beenden“.',
@@ -499,8 +499,8 @@ export default {
   'geraete.ablehnung.wert-ungueltig': 'Dieser Wert passt nicht in die Liste.',
   'geraete.ablehnung.start-unbekannt': 'Diesen Start kennt der Bedienrechner auf dieser Liste nicht.',
   'geraete.ablehnung.feld-fremd': 'Diese Spalte gehört nicht zu dieser Liste oder Klasse.',
-  'geraete.ablehnung.x-nicht-erlaubt': '„X“ (nicht gestartet) gibt es nur am Steg (Ablegen) und am Vorsteg.',
-  'geraete.ablehnung.nv-nicht-erlaubt': '„Nicht vorbeigekommen“ gibt es nicht am Vorsteg und nicht am Steg beim Ablegen – dort heißt es „X“ (nicht gestartet).',
+  // 24.11.2026 (WKR_ANNAHMEN NG2): X allein geht über „Mehr → Nicht gestartet“ überall, neben anderem nur Steg/Vorsteg.
+  'geraete.ablehnung.x-nicht-erlaubt': '„X“ (nicht gestartet) steht hier nur allein im Disq.-Feld – über „Mehr → Nicht gestartet“.',
   'geraete.ablehnung.teil-fremd': 'Diese Spalte gehört zum anderen Teil des Stegs.',
   'geraete.ablehnung.seite-anders': 'Dieser Start fährt auf der anderen Seite (A/B).',
   'geraete.ablehnung.offen': 'Es sind noch Starts offen – abschließen nur mit „Rest auf Papier“.',
@@ -548,9 +548,7 @@ export default {
   'betrieb.wkr.zelle.x': 'nicht gestartet (X)',
   'betrieb.wkr.zelle.vorab': 'Vorsteg bzw. Steg-Ablegen: noch nicht gezeigt, schon zu erfassen',
   'betrieb.wkr.zelle.spaeter': 'Steg-Anlegen kommt noch – das Boot ist noch im Parcours',
-  'betrieb.wkr.zelle.nv': 'nicht vorbeigekommen – Haken ohne Werte; Papier ansehen',
   'betrieb.wkr.zelle.disq': 'Disq. {disq}',
-  'betrieb.wkr.zelle.nv.kurz': 'nicht vorbei',
   'betrieb.wkr.zelle.keineZeit': 'keine Zeit',
   'betrieb.wkr.stand.papier': 'Bogen',
   'betrieb.wkr.stand.nichtsOffen': 'nichts offen',
@@ -589,7 +587,6 @@ export default {
   'betrieb.wkr.abschluss.teil': '{punkt} ({teil}): abgeschlossen von {name}, {zeit}',
   'betrieb.wkr.abschluss.abweichend': 'abweichend: {nummern}',
   'betrieb.wkr.abschluss.papier': 'vom Papier: {nummern}',
-  'betrieb.wkr.abschluss.nichtVorbei': '{n} nicht vorbeigekommen: {nummern}',
   'betrieb.wkr.loesen': 'Abschluss lösen',
   'betrieb.wkr.loesen.frage': 'Abschluss lösen?',
   'betrieb.wkr.loesen.text':
@@ -639,7 +636,6 @@ export default {
   'betrieb.wkr.entkoppelt': 'entkoppeltes Gerät',
   'betrieb.wkr.eingang.zelle': '{feld}: Gerät {wert} · steht {steht}',
   'betrieb.wkr.eingang.leerWert': '(leer)',
-  'betrieb.wkr.eingang.nichtVorbei': 'nicht vorbeigekommen',
   'betrieb.wkr.eingang.keineZeit': '{feld}: keine Zeit ({grund})',
   'betrieb.wkr.eingang.soLassen': 'WKR: so lassen ({zeit})',
   'betrieb.wkr.eingang.x': 'nicht gestartet',

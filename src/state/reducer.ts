@@ -17,7 +17,6 @@ import { wendeWertungAn, type WertungAenderung } from './reducer/wertung'
 import { wendeListenAn, type ListenAenderung } from './reducer/listen'
 import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
 import { wendeWkrAn, type WkrAenderung } from './reducer/wkr'
-import { ohneUeberholteNichtVorbei } from '../wkr/nichtVorbei'
 import { ohneUeberholteKeineZeit } from '../wkr/keineZeit'
 
 // Die case-Zweige stehen nach Bereichen in reducer/<bereich>.ts (Zuordnung: switch in wendeAn() unten).
@@ -139,10 +138,10 @@ export function reducer(state: AppState, action: Action): AppState {
   const ohneBeispiel = angewandt.beispielStarter && angewandt.starters.length === 0 ? { ...angewandt, beispielStarter: false } : angewandt
   // Ein Druckvermerk gilt nur, solange es den Plan seiner Runde gibt (20.11.2026).
   const ohneDruck = ohneVerwaistenDruck(ohneBeispiel)
-  // „Nicht vorbeigekommen“ (W4.3, WKR_ANNAHMEN.nichtVorbeiAufheben): Eigene Werte der Liste in der Zelle heben das
-  // Kennzeichen auf – gleich auf welchem Weg sie kamen (Abtippen, Rückfrage, Vorschlag, Gerät). Nur bei geänderten Eingaben.
-  // „Keine Zeit“ (W5.4, 22.11.2026, ZT4) ebenso: Hat ein Zeitfeld einen Wert, ist die Zeit doch da.
-  const next = !frisch && ohneDruck.eingaben !== state.eingaben ? ohneUeberholteKeineZeit(ohneUeberholteNichtVorbei(ohneDruck, konfigVon(ohneDruck))) : ohneDruck
+  // „Keine Zeit“ (W5.4, 22.11.2026, ZT4): Hat ein Zeitfeld einen Wert, ist die Zeit doch da – gleich auf welchem Weg er
+  // kam (Abtippen, Rückfrage, Vorschlag, Gerät). Nur bei geänderten Eingaben. (Das Kennzeichen „nicht vorbeigekommen“
+  // fiel hier bis 24.11.2026 ebenso; seitdem ist es X in einer gewöhnlichen Zelle, WKR_ANNAHMEN NG6.)
+  const next = !frisch && ohneDruck.eingaben !== state.eingaben ? ohneUeberholteKeineZeit(ohneDruck) : ohneDruck
   // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
   const klassen =
     action.type === 'SET_EINGABEN'
@@ -204,6 +203,7 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_WEIGHT':
     case 'SET_SOLLGEWICHT':
     case 'RESET_SOLLGEWICHT':
+    case 'SET_AUSGLEICH_STUFE':
     case 'IMPORT_STARTERS':
     case 'ADD_STARTERS':
     case 'UPDATE_STARTER':

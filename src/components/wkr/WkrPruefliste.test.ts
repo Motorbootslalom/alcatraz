@@ -207,11 +207,16 @@ describe('WkrPruefliste in der Übung (KN7/KN8, umgebaut 22.11.2026 KN9–KN11)'
 })
 
 describe('Übung: Klasse vorziehen (Nutzer 22.11.2026, R7-45, Y4)', () => {
-  it('Knoten: aufklappbar unter den offenen Nummern; Wahl → Vorschlag auf den ersten offenen der Klasse', async () => {
+  it('Knoten: aufklappbar ganz unten unter dem Fuß (Y5); Wahl → Vorschlag auf den ersten offenen der Klasse', async () => {
     const { q, w } = await knoten()
     const liste = q.listen.value[0].liste
     const letzte = q.bestand.value[liste].at(-1)!
     expect(w.find('[data-teil="pruef-vorziehen"]').exists()).toBe(true)
+    // Y5 (Nutzer 24.11.2026): ganz unten – unter dem Fuß mit dem Hauptknopf, nach den offenen Nummern.
+    const vorziehen = w.find('[data-teil="pruef-vorziehen"]').element
+    const fuss = w.find('[data-maske="pruefliste"] [data-teil="fuss"]').element
+    expect(fuss.compareDocumentPosition(vorziehen) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(vorziehen.parentElement!.lastElementChild).toBe(vorziehen)
     await klick(w, `[data-action="uebung-vorziehen"][data-klasse="${letzte.klasse}"]`)
     const erste = q.bestand.value[liste].find((b) => b.klasse === letzte.klasse)!
     expect(w.find('[data-action="pruef-vorschlag"]').attributes('data-start')).toBe(erste.key)

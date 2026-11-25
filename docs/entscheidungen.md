@@ -178,20 +178,34 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Stände mit einer gemeinsamen Runde `final` teilt migrate() auf (Werte ziehen um), sonst verwirft es sie. →
   `types/planung.ts` ParallelRunde, `lib/parallelStage.ts`, `lib/parallelErgebnis.ts`, `state/migrate.ts`
   teileAlteFinals, `components/ParallelRunden.vue`
-- 2026-11-21 · Auslegung, vom Nutzer zu bestätigen · „Alle Klassen weiter“ schreibt nach dem Halbfinale Kleines Finale
-  und Finale auf einmal fest (ein Schritt, ein Verlaufseintrag): Beide folgen aus demselben Halbfinale, die Entscheidung
-  vom 19.11. nennt einen Schritt, gedruckt wird ohnehin zusammen; die Fahrfolge sichert der Betrieb. Die Knöpfe je
-  Klasse bleiben getrennt. → PARALLEL_ANNAHMEN.finalsZusammen
+- 2026-11-24 · N · „Alle Klassen weiter“ schreibt nach dem Halbfinale Kleines Finale und Finale auf einmal fest (ein
+  Schritt, ein Verlaufseintrag; Auslegung vom 21.11.2026, bestätigt): Beide folgen aus demselben Halbfinale, die
+  Entscheidung vom 19.11. nennt einen Schritt, gedruckt wird ohnehin zusammen; die Fahrfolge sichert der Betrieb. Die
+  Knöpfe je Klasse bleiben getrennt. → PARALLEL_ANNAHMEN.finalsZusammen
+- 2026-11-24 · N · Alle Annahmen des Parallelslaloms bestätigt („Ja, Ja, Ja, Ja, Ja“): Schwellen bei wenigen Gewerteten
+  (Halbfinale ab 3, Finale ab 2), Punkte des hinteren Platzes bei Disq. in Halbfinale/Finals, Disq. im Re-run zum
+  Vorlauf = hinterer Platz der Gruppe, Verzahnung der Runden nach dem Vorlauf, beide Finals zusammen bei „Alle Klassen
+  weiter“. → `lib/parallelErgebnis.ts` PARALLEL_ANNAHMEN (Kommentare „BESTÄTIGT vom Nutzer 24.11.2026“)
 
 ## Einzelwertung (Regel 960, Pkt. 5.2.3 und 5.2.6)
 
 - 2026-11-15 · N · „Individual competition“ wird auch gedruckt, wenn nur eine Stage gefahren ist.
 - 2026-11-15 · N · Gesamtplatz ganz vorn; je Disziplin Zeit, Platz, UIM points; keine Spalte „Heat“ (auch nicht auf
   „Overall results“ des Parallelslaloms). → `components/ergebnis/EinzelwertungBlatt.vue`
-- 2026-11-15 · N · Stichentscheid: Die Knotenstrafe zählt zur Manövrier-Zeit. → `lib/einzelwertung.ts`
-  EINZEL_FESTLEGUNGEN.stichMitKnoten
-- 2026-11-15 · N · Stichentscheid Parallelslalom: die beiden Attempts des Vorlaufs, nach einem Re-run dessen Zeiten. →
-  EINZEL_FESTLEGUNGEN.stichParallelRunde = 'vorlauf'
+- 2026-11-15 · N · Stichentscheid: Die Knotenstrafe zählt zur Manövrier-Zeit. Beleg, dem Nutzer am 24.11.2026 auf
+  seine Frage erklärt, wohin die Knoten laut UIM gehören (abgeleitet, nicht eigens bestätigt): Regel 960, Pkt. 4.3
+  „Manoeuvring consists of: Tying knots (point 4.3.1); Driving on the manoeuvring racecourse (point 4.3.2)“ und
+  Pkt. 5.2.1 „best times including knots test penalties“ – die Knoten gehören nur zum Manövrieren. →
+  `lib/einzelwertung.ts` EINZEL_FESTLEGUNGEN.stichMitKnoten
+- 2026-11-24 · N · Stichentscheid Parallelslalom (Pkt. 5.2.6 „both his/her parallel slalom attempts“): „jeweils die
+  letzte gefahrene Runde, wenn das nicht reicht zusätzlich auch die vorletzte Runde“ – je Punktgleichem die Summe
+  beider Attempts SEINER zuletzt gefahrenen Runde (Finale, Kleines Finale, Halbfinale oder Vorlauf), bei gleicher Zeit
+  die seiner vorletzten; ein Re-run ersetzt die Zeiten seiner Runde. Ersetzt „die beiden Attempts des Vorlaufs“ vom
+  15.11.2026. Beim Bau ausgelegt (siehe „Offen“): Runde ohne Start (in keinem Attempt eine Zeit oder Disq. außer X)
+  gilt nicht als gefahren; Disq. in der letzten Runde = ohne Zeit, kein Ausweichen; wer nur den Vorlauf gefahren ist, hat keine vorletzte Runde –
+  dann bleibt der Platz geteilt, für die ganze Gruppe der Gleichen; die Zeit der vorletzten Runde steht auf der Liste
+  in Klammern hinter der Zeit. → EINZEL_FESTLEGUNGEN.stichParallelRunde = 'letzteDannVorletzte',
+  `lib/einzelwertung.ts` gefahreneRunden, `components/ergebnis/EinzelwertungBlatt.vue`
 - 2026-11-15 · N · Punktgleiche ohne Zeit für den Stichentscheid (disqualifiziert) stehen hinter den Punktgleichen mit
   Zeit; mehrere teilen sich diesen Platz. → `lib/einzelwertung.ts`
 
@@ -608,6 +622,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   unter UIM; reist mit der Vorlage. Ausgelegt beim Bau (noch zu bestätigen): Start-Freigabe, Startliste und
   Zuschauerliste bleiben bei A vor B. → `AnzeigeEinstellungen.parallelAnordnung` (types/betrieb.ts),
   `components/anzeige/AnzeigeBereich.vue`, `styles/anzeige.css`, `BETRIEB_ANNAHMEN.parallelAnordnungNurTafel`
+- 2026-11-24 · N · Parallelslalom im Betrieb: „Beim Parallel sind die einzelnen Stufen einzeln mit beginnen
+  freizuschalten.“ Jede Runde (auch das Finale nach dem Kleinen Finale) wird mit „… beginnen“ freigegeben, nichts
+  schließt von selbst an (Frage vom 21.11.2026). → `BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`
 - 2026-11-11 · N · Für die Tafel darf ein öffentlicher ntfy-Server genutzt werden („Im Fall der ../tafel kann aber
   auf ntfy.adminforge.de zurückgegriffen werden“): Vorgabe ntfy.adminforge.de, in den Einstellungen änderbar (wie im
   Lastenheft der Tafel, P-9). Die frühere Notiz „Hostname bewusst nicht im Repo“ stammte nicht vom Nutzer. → ab E5
@@ -715,9 +732,9 @@ gilt die Entscheidung unten „Antworten 21.11.2026 abends (Runden 3–6)“:
 Fahrtfolge für jede Liste, deren Bojen auf dem Fahrweg liegen (Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel, die
 Listen der Aufbauten, Parallelslalom Racecourse A/B), je Boje und Richtung ein Schalter, Tor 5 Zähler, Tor 1 auf der
 Rückfahrt zwei Zeilen (F2), Seiten nach Blick wie auf dem Bogen, Umschalter Hinweg/Rückweg ab acht Zeilen, Probe und
-Übung mit Bojen-Listen; **„Nicht vorbeigekommen“** unter „Mehr“ (löst G15 ein): Zeile ohne Werte, Haken und Kennzeichen
-am Bedienrechner (Matrix „⊘ nicht vorbei“ gelb, „Papier ansehen“ in der Erfassung, kein Rückstand, kein X), nicht am
-Vorsteg und nicht im Steg-Ablegen (dort X), spätere Werte heben es auf. Zeit- und Knotenlisten bleiben Papier (W5).
+Übung mit Bojen-Listen; „Nicht vorbeigekommen“ unter „Mehr“ (löst G15 ein; Kennzeichen ⊘, später Disq. J – seit
+24.11.2026 ersetzt durch „Nicht gestartet · Disq. X“, Abschnitt „Nicht gestartet statt nicht vorbeigekommen“). Zeit-
+und Knotenlisten bleiben Papier (W5).
 Weiterhin nur gegen den nachgebauten Server geprüft. Beim Planen und Bau ausgelegt (im Code `WKR_ANNAHMEN`, Hintergrund
 plan-wkr-w4.md §10), **beantwortet 21.11.2026 abends**: bestätigt bis auf P9/U2, P10/Q2 und die Form von P16/R1–R8
 (Disq. J statt ⊘); P15 nicht gefragt:
@@ -728,15 +745,11 @@ plan-wkr-w4.md §10), **beantwortet 21.11.2026 abends**: bestätigt bis auf P9/U
   Blick wie die Unterspalten des Bogens. P8 Umschalter erst bei mehr als 7 Zeilen, wechselt nie von selbst. P9 Disq.
   immer ins Disq.-Feld (überholt 21.11.2026: Nutzer will Disq. an der Boje – U1–U4, plan-wkr-w4.md §13). P10 Band „Klasse n – andere Halte“ 2 s. P11 Probe an der Klasse mit den meisten Zeilen. P12
   Übung Tor 1/3/5, Tor 2/4/5, Parcours, unter UIM Parallelslalom. P13 Fehlerfrei = Zeile ohne Zellen. P14 Texte „Tor 1
-  H L: 5“. P15 Bojen-Angaben in der Sicht. P16 „Nicht vorbeigekommen“ wie oben. P17 Startnummer 80 px auf Bojen-Listen.
+  H L: 5“. P15 Bojen-Angaben in der Sicht. P16 „Nicht vorbeigekommen“ (ersetzt 24.11.2026). P17 Startnummer 80 px auf
+  Bojen-Listen.
 - Beim Bau W4.2 dazu Q1–Q7 (Probe beginnt mit dem linken Knopf, Klassenwechsel-Band unter der Karte, „höchstens 9×“ im
   Knopf, Seite je Start gemerkt, „Berührt“ und „(2. Durchf.)“, Kopfzeilen HINWEG/RÜCKWEG ohne Umschalter, Übung nur
-  mit Listen des Regelwerks) und beim Bau W4.3 R1–R8 (eigener Ablehnungscode `nv-nicht-erlaubt`; Kennzeichen nur wo
-  die Zeile gilt – direkt, bei Rückfrage/Vorschlag erst mit der Entscheidung für das Gerät, Prüfbefund 21.11.2026;
-  jede geltende Zeile ohne Kennzeichen und eigene Werte heben es auf, auch eine leere Korrektur „doch vorbei“, ein
-  verworfener Vorschlag nicht; Matrix ⊘ vor ✓, am Steg Anlegen ⊘ + Ablegen ✓ = ⊘; Abschluss nennt die
-  Startnummern; Angebot nur beim gezeigten Start, nicht in Korrektur/Probe, verwirft den Entwurf; Verlauf
-  „wkrNichtVorbei“; Übung wie echt).
+  mit Listen des Regelwerks) und beim Bau W4.3 R1–R8 zu „Nicht vorbeigekommen“ (mit ihm ersetzt 24.11.2026).
 
 - 2026-11-21 · F1 · Papier bzw. „beides“ ist **immer** je Liste wählbar, nicht nur beim ersten Wettkampf. Das Gerät kann
   sich „pausieren“ oder „abmelden“; dann zählt die Liste nicht als Rückstand, die Freigabe wartet nicht darauf.
@@ -754,6 +767,8 @@ plan-wkr-w4.md §10), **beantwortet 21.11.2026 abends**: bestätigt bis auf P9/U
   Zeichen nennt den Erfassungsstand (✓ fertig, ⧗ wartet n, ✕ Gerät weg, ▭ Papier), die Verbindung steht klein
   dahinter (Befunde 9, 12). WKR_ANNAHMEN N9, N10 bestätigt 21.11.2026; N8 vom Nutzer neu gefasst (P-03, unten).
 - 2026-11-21 · F5 · X vom Gerät nur bei Steg-Ablegen und Vorsteg, mit Rückfrage und Hervorhebung am Bedienrechner.
+  Seit 24.11.2026 nur noch für die Disq.-Knöpfe; „Nicht gestartet · Disq. X“ unter „Mehr“ geht auf jeder Liste
+  (Abschnitt „Nicht gestartet statt nicht vorbeigekommen“).
 - 2026-11-21 · F6 · Kein Name auf dem WKR-Gerät (Startnummer, Klasse, ggf. Boot).
 - 2026-11-21 · F7 · Korrektur über „Zuletzt“ (die letzten abgeschickten Zeilen bleiben auf dem Gerät erreichbar).
   „Liste abschließen“ zeigt am Laufende alle Zeilen der Liste noch einmal zur Prüfung und wird als Ganzes quittiert;
@@ -838,12 +853,8 @@ bis dahin gilt der gebaute Stand:
   BZ1–BZ5 noch zu bestätigen): Zellform „5J“/„10G“ (Ziffern + ein Buchstabe, tolerant getippt, alte Werte gültig),
   bojenWert zählt die Punkte neben dem Buchstaben, Wertungsliste „5J“ ohne Komma, X nie mit Punkten; auf dem Gerät
   fragt DISQ immer erst die Boje („Keine Boje / ganzer Parcours“ → Disq.-Feld), der Buchstabe kommt zu den Punkten.
-- 2026-11-21 · N · **„Nicht vorbeigekommen“ = Disq. J** (W3-17): „Das ist dann J mit Parcours verlassen oder falscher
-  Parcours.“ Statt des eigenen Kennzeichens ⊘ (W4.3) ein Disq.-Buchstabe J (DM: „Falscher Parcours entgegen der
-  Parcourszeichnung“; UIM: „Error doing the circuit“). Der Ablauf von W4.3 (W4-27…W4-35: unter „Mehr“, nur beim
-  gezeigten Start, Haken, Aufheben durch spätere Werte, Abschluss nennt die Nummern) ist bestätigt. →
-  WKR_ANNAHMEN.nichtVorbei* **Gebaut 21.11.2026** (GF10/GF11, noch zu bestätigen): J ins Disq.-Feld, wo die Liste J
-  kennt; Steg-Anlegen (kein J) behält ⊘; alte ⊘ bleiben; Matrix ✓ mit „Disq. J“.
+- 2026-11-21 · N · „Nicht vorbeigekommen“ = Disq. J (W3-17) – ersetzt am 24.11.2026 durch „Nicht gestartet · Disq.
+  X“ (Abschnitt „Nicht gestartet statt nicht vorbeigekommen“).
 - 2026-11-21 · N · **Hell/Dunkel des Geräts ist Vorgabe** (W3-01, P-18): „Hell/Dunkel ist für Geräteeigentümer heilig.
   Das darf auf keinen Fall ignoriert werden. Es kann abgeändert werden, aber Default ist immer der Gerätemodus.“ Die
   WKR-Maske startet im Modus des Systems (hell oder dunkel); Sonne, Hell, Dunkel bleiben unter „Mehr → Ansicht“
@@ -1132,6 +1143,138 @@ Check-In E10“). Gebaut 24.11.2026 (`WKR_ANNAHMEN` AG1–AG4 in `src/wkr/annahm
   (vorher druckte sie „0 kg“, ein zweiter Text für denselben Starter). Die Verwiegung zeigt weiter „0 kg“.
 - 2026-11-24 · Prüfbefund: Ein Gerät nur für „Anlegen“ empfängt das Ausgleichsgewicht verschlüsselt mit (die Sicht
   ist ein Inhalt je Liste, eine Gruppe je Steg-Teil gibt es nicht), zeigt es aber nicht – Rückfrage unter „Offen“.
+- 2026-11-24 · N · **Abstufung und Rundung** (Nutzer: „kannst du noch einstellbar machen, wie kleinteilig die
+  Zusatzgewichte sind. Vielleicht haben einige halbe Kilos und bei anderen ist 2 kg das kleinste.“ und „Runden bitte
+  nach den üblichen Mathe-Regeln. Kein grundsätzliches Aufrunden.“): Einstellung der Veranstaltung „Ausgleichsgewicht
+  in Stufen von“ bei den Durchschnittsgewichten – 0,1 / 0,5 / 1 / 2 kg oder ein eigener Wert (0,1–10 kg, Komma erlaubt).
+  Das Ausgleichsgewicht ist ein Vielfaches der Stufe, gerundet auf die nächste Stufe, genau in der Mitte aufwärts
+  (Stufe 2 kg: 0,9 → 0, 1,0 → 2, 2,9 → 2, 3,0 → 4; Stufe 0,5 kg: 1,2 → 1,0, 1,25 → 1,5). Vorgabe 1 kg = wie vorher
+  (ganze kg, ab ,5 aufwärts – aufgerundet wurde auch vorher nie grundsätzlich). Eine Rundung für alle Stellen
+  (`src/domain/gewicht.ts` `rundeAufStufe`, in Gramm gerechnet, über `src/lib/ausgleich.ts` `ausgleichVon`): Liste
+  „Ausgleichsgewichte“, Liste nach Regel 960 Pkt. 3.7, Verwiegung, Steg-Gerät; Beispielgewichte sind mindestens eine
+  halbe Stufe leichter, damit wirklich ein Ausgleichsgewicht entsteht. Auf 0 gerundet bleibt „keines“ (Papier leer,
+  Gerät „kein AG“, Verwiegung „0 kg“). Zahlen mit Nachkommastelle mit dem Dezimalzeichen der Sprache („1,5 kg“,
+  englisch „1.5 kg“); die Sicht der Steg-Liste behält ihre Form (Fassung 11 zeigt sie schon richtig). Reist in Sicherung
+  und Vorlage.
+- 2026-11-24 · Beim Bau ausgelegt, noch zu bestätigen: Die Beschriftung heißt nach dem Reglement „Ausgleichsgewicht in
+  Stufen von“ (Hinweis: „das kleinste Gewichtsstück, das am Steg ins Boot gelegt wird“), nicht „Kleinstes
+  Zusatzgewicht“ – „Zusatzgewicht“ steht seit 14.11.2026 nicht in der Oberfläche. Ein eigener Wert gilt auf 10 g genau
+  (0,25 kg geht; 0,125 wird 0,13). Die Übung auf dem Gerät rechnet immer mit 1 kg (sie kennt keine Veranstaltung).
+  Mit 0,1 kg verrät das Ausgleichsgewicht auf dem Steg-Gerät das Körpergewicht eines leichten Starters auf 0,1 kg genau
+  (AG1: vorher auf 1 kg) – als Rückfrage unter „Offen“.
+- 2026-11-24 · Prüfbefund, noch zu bestätigen: Auch die Liste nach Regel 960 Pkt. 3.7 (Spalte „Ballast required“)
+  schreibt ein auf 0 gerundetes Ausgleichsgewicht wie „keines nötig“ als „–“, nicht „0 kg“ daneben – mit einer groben
+  Stufe (2 kg: jeder, der weniger als 1 kg leichter ist) käme das sonst oft vor. Die Verwiegung bleibt bei „0 kg“.
+- 2026-11-24 · Prüfbefund: Die Hinweise zum Gerätebetrieb („Betrieb → Geräte“ und Einstellungen → Geräte) nennen die
+  Ausnahme AG1 jetzt ausdrücklich: Die Steg-Liste bekommt je Starter das Ausgleichsgewicht; bei einem leichteren
+  Starter lässt sich daraus das Körpergewicht ungefähr zurückrechnen (so genau wie die Stufe).
+
+### Maske „Knöpfe“: Höchstzahl je Code, Disq. nach dem 3. Versuch (Entscheidung 24.11.2026)
+
+Nutzer: „Wenn man bei den 2. und 3. Versuch drauf klickt, dann sollte der dritte Klick der passende Disquali werden.“
+und zu „nicht mit gesamter Länge eingefahren ×62“: „Das hier macht auch kein Sinn.“ Gebaut 24.11.2026 (`WKR_ANNAHMEN`
+CM1–CM8 in `src/wkr/annahmen.ts`; Regelwerk-YAML `max`/`danach` je Code):
+
+- 2026-11-24 · CM1 · **Höchstzahl je Code im Regelwerk**: „2. und 3. Versuch des Elementes“ (DM und UIM: 6
+  Steg-Ablegen, 7 Steg-Anlegen, 20 Tor 5, 19 MüB) höchstens 2×, Tor 5 Code 1 („nicht mit gesamter Länge eingefahren“)
+  höchstens 1×. Am Höchstwert nimmt der Knopf nichts mehr an und sagt es im Knopf („höchstens 1×“, CM4).
+- 2026-11-24 · CM3 · **Dritter Tipp = Disq. D**: Auf „2. und 3. Versuch“ setzt der dritte Tipp den Buchstaben D
+  („4. Versuch eines Elementes“, UIM „4th attempt of the racecourse“) ins Disq.-Feld der Liste (am Steg das gemeinsame);
+  der Zähler bleibt bei 2. Der Knopf zeigt vorher „nächster = Disq. D“, danach „Disq. D gesetzt“. „↶ Rückgängig“ nimmt
+  D wieder heraus. Beim Bau ausgelegt, noch zu bestätigen: Steht D schon (über DISQ), ändert der dritte Tipp nichts.
+- 2026-11-24 · CM2 · Beim Bau ausgelegt, noch zu bestätigen: **allgemeine Grenze 3 je Lauf** für Codes ohne eigene
+  Angabe (ein Element höchstens dreimal angefahren). Unsicher und gefragt: Stegberührungen (DM 3, 9; UIM 3, 9) und
+  „Durchreißen der Schaltung“ (DM 2, 5, 10, 16) können in einem Versuch mehrmals vorkommen.
+- 2026-11-24 · CM5 · Beim Bau ausgelegt, noch zu bestätigen: Dieselbe Grenze in der Maske „Tabelle“ (Fehler an der
+  Zelle, „3x20“ wird nicht in „2x20“ + D umgewandelt) und am Bedienrechner für Zeilen vom Gerät (abgelehnt).
+- 2026-11-24 · CM6 · Beim Bau ausgelegt, noch zu bestätigen: **Abtippen** lässt stehen, was auf dem Papier steht
+  („3x6“), und zeigt einen Hinweis („Code 6 steht öfter als 2× … Disq. D?“) – gesetzt wird nichts.
+- 2026-11-24 · CM8 · Prüfbefund, noch zu bestätigen: **Ein Tipp setzt D, mit Prellschutz.** Der dritte Tipp setzt D
+  sofort – anders als die Disq.-Knöpfe, die den Buchstaben erst mit dem zweiten Tipp setzen (K1), weil der Nutzer
+  „der dritte Klick“ sagt. Damit ein prellender Handschuh kein D macht, verwirft der Knopf eines Codes mit `danach`
+  einen Tipp, der weniger als 400 ms nach dem vorigen auf denselben Code kommt (wie der Prellschutz der
+  Bojen-Schalter, S1) – beim Tipp, der D setzen würde, und bei den zählenden davor. Codes ohne `danach` zählen
+  weiter jeden Tipp.
+- 2026-11-24 · **Knöpfe umbenannt**: „− letzte zurück“ heißt „↶ Rückgängig“ (englisch „↶ Undo“), „← Andere Stelle“
+  in der Disq.-Wahl an der Boje heißt „← Zurück“ („← Back“).
+
+### Nicht gestartet statt nicht vorbeigekommen (Entscheidung 24.11.2026)
+
+Nutzer: „‚Nicht vorbeigekommen Disq J‘ ist falsch. Das meint hier eher ‚Nicht gestartet Disq X‘.“ Auf Rückfrage: „Ein J
+kommt, wenn der Starter seine Linie verlassen hat und zum Beispiel ein Tor ausgelassen hat. Hier kommt dann in eine
+Boje von dem Tor ein J rein. Du hast diesen Punkt unter den Parcours als ganzes. Dort würde aber nur ein Nicht gestartet
+mit einem X Sinn machen.“ Ersetzt W3-17 („nicht vorbeigekommen“ = Disq. J), das Kennzeichen ⊘ aus W4.3 (P16, R1–R8) und
+GF10/GF11. Gebaut 24.11.2026 (`WKR_ANNAHMEN` NG1–NG8 in `src/wkr/annahmen.ts`):
+
+- 2026-11-24 · N · **„Mehr → Nicht gestartet · Disq. X“** (englisch „Did not start · Disq. X“) für den gezeigten
+  Start, mit großer Rückfrage „23 nicht gestartet?“: trägt X allein ins Disq.-Feld der Liste – auf jeder Liste mit
+  Disq.-Feld beider Regelwerke (Tore und Parcours aller Aufbauten, Tor 5, MüB, Parallelslalom, Steg, Vorsteg); Zeit- und
+  Knotenlisten haben keins. Am Bedienrechner gilt diese Zeile überall; X neben anderem bleibt nur am Steg-Ablegen und am
+  Vorsteg (F5). Kein automatisches J mehr: J setzt der WKR an einer Boje des ausgelassenen Tors (Disq. an der Boje).
+  Prüfbefund, noch zu bestätigen: Die Zeitnahme bekommt den Punkt nicht – ihre Liste hat kein Disq.-Feld, und in das
+  Feld einer anderen Liste (etwa Steg) darf kein Gerät schreiben.
+- 2026-11-24 · NG3 · Die Disq.-Knöpfe (auch an der Boje und in der Tabelle) bieten X weiter nur am Steg-Ablegen und am
+  Vorsteg an – an Toren nur über „Mehr“.
+- 2026-11-24 · NG4 · Ein X vom Gerät wirkt wie jedes X: Wertung „nicht gestartet“, Erfassung schraffiert, Start entfällt
+  in der Folge, fällt aus jeder Schlange, Matrix ✕ auf allen Listen, Parcours-Ampel gilt als durch; keine Abmeldung (nur
+  dieser Lauf). Beim Bau ausgelegt, noch zu bestätigen: Ein Gerät nur für „Steg-Anlegen“ setzt X ins gemeinsame
+  Disq.-Feld wie das Ablegen. Prüfbefund: Hat das Ablegen dort schon einen Buchstaben gesetzt, kommt das X nicht still
+  dazu („A, X“), sondern der Bedienrechner fragt (wie NG6).
+- 2026-11-24 · NG5 · Beim Bau ausgelegt, noch zu bestätigen: Die Korrektur einer X-Zeile beginnt ohne X („doch
+  gestartet“); Abschicken nimmt das X am Bedienrechner heraus. Prüfbefund: Ebenso „↶ Rückgängig“, solange die Zeile
+  noch im Gerät wartet – der Start steht ohne X wieder da (vorher zeigte der Fuß „Disq. X“, abgeschickt kam aber
+  „fehlerfrei“ an).
+- 2026-11-24 · NG6 · Das Kennzeichen ⊘ ist ganz entfernt (Stand, Protokoll, Matrix, Verlauf, Abschluss-Nummern); ein
+  alter Stand verliert es beim Laden. Beim Bau ausgelegt, noch zu bestätigen: Stehen am Bedienrechner schon Werte in
+  anderen Zellen der Liste, kommt X ohne Rückfrage dazu; steht im Disq.-Feld schon etwas anderes, fragt er wie bisher –
+  seit dem Prüfbefund auch am Steg im gemeinsamen Feld, in beide Richtungen: X kommt nie still neben einen anderen
+  Buchstaben (BZ2); „Gerät übernehmen“ setzt dann den Wert des Geräts allein.
+- 2026-11-24 · NG7/NG8 · Übung wie echt (ohne Beispiel-Rückfrage auf einer X-Zeile); Listen-Sicht Fassung 13 (ältere
+  Geräte laden neu). Prüfbefund: Am Übungsgerät für den ganzen Steg erledigt eine X-Zeile im Ablegen auch das Anlegen
+  (wie echt – der Start fällt aus jeder Schlange).
+
+### Übung und Ansicht der Maske: Kopf aus dem Bild, „Klasse vorziehen“ unten, Lage des Bilds (Entscheidung 24.11.2026)
+
+Nutzer: „Bei dem Header ‚So läuft die Übung‘ und ‚ÜBUNG Tor X bla bla‘ soll beim Klicken auf ‚Fehlerfrei/weiter‘ aus dem
+Screen rutschen, so dass der Block mit der Startnummer am Bildschirmrand ist.“ – „Klasse vorziehen kann unterhalb von
+Übung verlassen, da es diese Einstellung normalerweise nicht gibt.“ – „Die Einstellungen mit Bojen (Rückweg gedreht,
+Fahrtfolge, Alles untereinander) machen keinen Sinn, wenn man Bild ausgewählt hat. Dafür braucht Bild die Auswahl von
+den 4 Parcours-Himmelsrichtungen.“ Gebaut 24.11.2026 (`WKR_ANNAHMEN` UK1–UK6, Y5, BL1–BL6 in `src/wkr/annahmen.ts`):
+
+- 2026-11-24 · N · **Übung: Kopf aus dem Bild** – nach „Fehlerfrei“/„Abschicken“ (auch Enter der Tabelle, „Nicht
+  gestartet“) rollt die Seite, bis „So läuft die Übung“, das Band „ÜBUNG“ und der Kopf oben hinaus sind; unter dem
+  Overlay, mit der nächsten Karte noch einmal ausgerichtet (UK5), ohne Gleiten bei „Bewegung reduzieren“. UK1 beim Bau ausgelegt,
+  noch zu bestätigen: nur in der Übung – die echte Maske trägt im Kopf Verbindung, „Keine Bestätigung“ und „Bitte Nr.
+  prüfen“. UK2: nicht auf dem Pad mit mehreren Spalten (die Seite rollt für alle zugleich). UK3: Ziel ist das erste
+  Element nach dem Kopf – „Zuletzt“ mit „↶ Rückgängig“ und Rückfrage-Bänder bleiben über der Karte sichtbar.
+- 2026-11-24 · Y5 · **„Klasse vorziehen“ ganz unten**: in „Mehr“ unter „Probe · Übung verlassen“; am Tisch (Prüfliste
+  ohne „Mehr“) unter dem Hauptknopf, direkt über „Übung beenden“ – beim Bau ausgelegt, noch zu bestätigen.
+- 2026-11-24 · BL1 · **Bojen-Folge nur bei Bojen-Knöpfen**: nicht bei „Bild“ und nicht bei der Tabelle. Bei „Bild“
+  steht unter „Mehr → Ansicht“ die **Lage der Zeichnung** mit vier Knöpfen (seit dem Prüfbefund davor „Automatisch“,
+  unten); ein Satz nennt, wo Start/Ziel und Tor 5 dann liegen.
+- 2026-11-24 · BL2 · Beim Bau ausgelegt, noch zu bestätigen: Die Klassen-Zeichnungen sind die Variante „Steg unten“ des
+  Parcours-Repositorys ohne Steg (Start/Ziel links, Tor 5 rechts). Gedreht im Uhrzeigersinn: „Steg unten“ 0° (die
+  Zeichnung wie bisher), „Steg links“ 90° (Start/Ziel oben), „Steg oben“ 180° (Start/Ziel rechts), „Steg rechts“ 270°
+  (Start/Ziel unten) – eine Drehung, keine Spiegelung. Die Parallel-Zeichnung hat keinen Steg (R9-06): dort heißen
+  dieselben Drehungen „Start links/oben/rechts/unten“.
+- 2026-11-24 · BL3 · Beim Bau ausgelegt, noch zu bestätigen: Die Wahl gilt genau so auf Handy und Pad, unabhängig vom
+  Platz (vor Blick-Drehung und bildDrehungNachPlatz); ohne Wahl bleibt die Zeichnung wie bisher. Gemerkt je Gerät und
+  Liste wie die Bojen-Folge (bleibt nach „Raum verlassen“), gilt im Gerät, in der Übung und in der Probe am Bild.
+- 2026-11-24 · BL4/BL5 · Ziffern und Text der Zeichnung bleiben aufrecht (Gegendrehung je Text um seine Mitte –
+  sonst läse sich die „6“ der Schikane bei 180° als „9“); die Trefferkreise drehen mit. Das Schema (Rückfall ohne
+  Parallel.svg) dreht nicht und bietet keine Lage an.
+- 2026-11-24 · Prüfbefunde (UK4–UK6, BL1, BL6), alle noch zu bestätigen:
+  - UK5: Im echten Übungstakt (nächster Start 2–6 s nach dem Abschicken) richtete sich die Seite nur bis zum Ende des
+    Overlays aus und sprang danach zurück. Jetzt wird noch einmal ausgerichtet, sobald die nächste Karte steht; bis
+    dahin hält die Maske ihre Höhe vom Abschicken.
+  - UK4: Pad mit einer Spalte und Seitenspalte rechts – gerollt wird nur bis zur Oberkante der Maske (die Erklärung
+    geht hinaus, der Kopf mit „ÜBUNG“ bleibt), sonst ginge der Anfang der Seitenspalte („Schlange“) mit hinaus.
+  - UK6: Am Tisch (Knoten-Prüfliste) rollen Erklärung und Kopf nach „Alle richtig“/„Abschicken“ ebenso hinaus. Y5 dort
+    mit Test der Lage (unter dem Fuß).
+  - BL1: Unter „Lage der Zeichnung“ steht vorn „Automatisch“ – der Weg zurück zu „keine Wahl“ (Lage nach Bogen und
+    Platz); ohne Wahl ist „Automatisch“ gedrückt (vorher die wirksame Lage, ohne Rückweg).
+  - BL6: Beim Bild zeigt DISQ im Fuß die Ortswahl „Disq. – an welcher Boje?“ immer in der Vorgabe „Rückweg gedreht“,
+    nicht in einer früher bei den Knöpfen gewählten Folge, die beim Bild weder zu sehen noch zu ändern ist.
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
@@ -1171,6 +1314,12 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
   Werte in der Übung), auf 0 kg gerundet = „kein AG“ bzw. leer auf Papier. Dazu gefragt: Reicht es, dass ein Gerät nur
   für „Anlegen“ den Wert verschlüsselt mitbekommt, ohne ihn zu zeigen, oder braucht jeder Steg-Teil eine eigene Gruppe?
   Wünschst du am Steg einen Haken „Gewicht geladen“ wie das Kästchen auf Papier (nicht gebaut, AG2: nichts am Steg)?
+- Abstufung des Ausgleichsgewichts (24.11.2026, Abschnitt „Ausgleichsgewicht am Steg“), beim Bau ausgelegt und vom
+  Nutzer zu bestätigen: Beschriftung „Ausgleichsgewicht in Stufen von“ statt „Kleinstes Zusatzgewicht“ (Wort des
+  Reglements); eigener Wert auf 10 g genau in 0,1–10 kg; Übung immer 1 kg; mit feiner Stufe (0,1 kg) lässt das
+  Ausgleichsgewicht am Steg-Gerät auf das Körpergewicht auf 0,1 kg genau schließen – reicht das, oder soll das Gerät
+  dann gröber (z. B. auf ganze kg) zeigen? (Die Hinweise zum Gerätebetrieb nennen die Ausnahme seit dem Prüfbefund
+  24.11.2026.) Liste nach Pkt. 3.7: auf 0 gerundet „–“ wie „keines nötig“ (vorher „0 kg“) – so recht?
 - Geburtstags-Warnung (24.11.2026), beim Bau ausgelegt und vom Nutzer zu bestätigen (`import/klassenPruefung.ts`,
   `dm-2026.yaml`): „bis zum 27. Geburtstag“ heißt am 27. Geburtstag selbst nicht mehr; bei mehreren Wettkampftagen
   zählt der erste (das Datum der Veranstaltung); am 29.02. Geborene werden in Jahren ohne 29.02. am 01.03. älter;
@@ -1179,6 +1328,16 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
   gibt es nur bei der Clubmeisterschaft; ob sie (mit „getrennt“/„nach der Verzahnung“) auch für DM- und
   UIM-Meisterschaften kommen sollen, ist offen – dort fehlte auf gemeinsamen Bögen mit Bild die Zeichnung je Klasse.
   Zu bestätigen: Leerzeilen je Seite in der Startfolge, Kopf mit den Klassen der Seite, Erfassung mit blasser Schraffur.
+- Höchstzahl je Code (24.11.2026, Abschnitt „Maske „Knöpfe“: Höchstzahl je Code …“), beim Bau ausgelegt und vom
+  Nutzer zu bestätigen: allgemeine Grenze 3 je Lauf (CM2) – reicht sie für Stegberührungen und „Durchreißen der
+  Schaltung“?; D schon gesetzt → dritter Tipp ohne Wirkung (CM3); Tabelle und Gerätezeile lehnen „zu oft“ ab (CM5);
+  Abtippen nur mit Hinweis (CM6); zwei Knöpfe „Rückgängig“ (Fuß: letzter Tipp; Leiste „Zuletzt“: letzte gesendete Zeile);
+  D mit EINEM Tipp und nur Prellschutz (CM8) – oder wie die Disq.-Knöpfe erst vormerken, dann mit einem weiteren Tipp
+  setzen (K1)?
+- „Nicht gestartet · Disq. X“ (24.11.2026, Abschnitt „Nicht gestartet statt nicht vorbeigekommen“), beim Bau ausgelegt
+  und vom Nutzer zu bestätigen: Gerät nur für „Steg-Anlegen“ setzt X ins gemeinsame Disq.-Feld (NG4); Korrektur einer
+  X-Zeile beginnt ohne X, „fehlerfrei“ nimmt es heraus (NG5); schon abgetippte Werte in anderen Zellen bleiben, X kommt
+  ohne Rückfrage dazu (NG6); Prüfbefund: die Zeitnahme bekommt den Punkt nicht (NG1, kein eigenes Disq.-Feld).
 - Erfassung durch Wettkampfrichter am Gerät: Fragen am 21.11.2026 beantwortet (Abschnitt „Digitale WKR-Erfassung“).
 - Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
   Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;
@@ -1203,15 +1362,25 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 - Abgelaufener Geräte-Code nach dem Nachlauf (2 min) bekommt keine Antwort, das Handy zeigt nach 15 s „Keine
   Antwort“ – so gewollt, aber noch keine bestätigte Auslegung. Ein QR-Token nach der Gnadenfrist heißt je nach Takt
   „ungültig“ statt „abgelaufen“.
-- Finals getrennt (21.11.2026), beim Bau ausgelegt und vom Nutzer zu bestätigen: (1) „Alle Klassen weiter“ schreibt
-  nach dem Halbfinale beide Finals zusammen fest (PARALLEL_ANNAHMEN.finalsZusammen); (2) im Betrieb muss nach dem
-  Kleinen Finale „Finale beginnen“ gedrückt werden wie bei jedem Punkt – soll das Finale ohne Klick anschließen?
-  Empfehlung: Klick behalten (`BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`); (3) Rundenname ohne den früheren Zusatz
-  „(3rd and 4th place)“ – Anzeigetafel jetzt „Small final · Attempt 1“, die Results zeigen Platz 3/4 ohnehin;
-  (4) nach einem Protest im Halbfinale gilt zuerst das Kleine Finale als veraltet (es wird zuerst gefahren);
+- Finals getrennt (21.11.2026), beim Bau ausgelegt und vom Nutzer zu bestätigen ((1) beide Finals zusammen bei „Alle
+  Klassen weiter“ und (2) „Finale beginnen“ von Hand sind am 24.11.2026 bestätigt, s. oben): (3) Rundenname ohne den
+  früheren Zusatz „(3rd and 4th place)“ – Anzeigetafel jetzt „Small final · Attempt 1“, die Results zeigen Platz 3/4
+  ohnehin; (4) nach einem Protest im Halbfinale gilt zuerst das Kleine Finale als veraltet (es wird zuerst gefahren);
   (5) hingenommen: alte gedruckte Codes `…FINAL…` von Bögen des Kleinen Finales treffen nach der Migration den Bogen
   des Finales; (6) der Hinweis „offene Runde“ (Druckdatei, Einzel-, Mannschaftswertung) nennt das Kleine Finale,
   solange es nicht fertig ist, auch wenn das Finale schon festgeschrieben werden kann (`lib/parallelStage.ts`
   offeneRunde).
-- PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`) und EINZEL_FESTLEGUNGEN (`lib/einzelwertung.ts`) legen aus, wo Regel 960
-  schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste anpassen.
+- Stichentscheid der Einzelwertung, letzte/vorletzte Runde (24.11.2026, Abschnitt „Einzelwertung“), beim Bau ausgelegt
+  und vom Nutzer zu bestätigen (`lib/einzelwertung.ts` gefahreneRunden, einzelwertung): eine Runde, in der er keinen
+  Attempt gestartet ist (X in beiden, oder X im einen und der andere leer – Prüfbefund 24.11.2026), gilt nicht als
+  gefahren (es zählt die davor), ein X neben einem gefahrenen Attempt wie eine Disqualifikation;
+  disqualifiziert in der letzten gefahrenen Runde = ohne Zeit, hinter den Punktgleichen mit Zeit (kein Ausweichen auf
+  die vorletzte) – Folge: Wer zur letzten Runde nicht antritt, behält die Zeit der Runde davor und steht damit VOR
+  einem Punktgleichen, der in seiner letzten Runde disqualifiziert wurde (Beispiel: Nr. 102 tritt zum Finale nicht an,
+  Nr. 105 wird im Kleinen Finale disqualifiziert, beide 469 Punkte – 102 steht vorn); andere Wahl: eine Runde nur mit
+  X gilt als gefahren ohne Zeit, also hinten wie eine Disqualifikation; die zweite Stufe gilt für die ganze Gruppe der Punkt- und Zeitgleichen oder für keinen (hat einer
+  nur den Vorlauf, teilen sich alle den Platz); Punktgleiche ohne Zeit bekommen keine zweite Stufe; die Zeit der
+  vorletzten Runde steht in Klammern hinter der „Combined time“.
+- PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`, alle bestätigt 24.11.2026) und EINZEL_FESTLEGUNGEN
+  (`lib/einzelwertung.ts`) legen aus, wo Regel 960 schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste
+  anpassen.

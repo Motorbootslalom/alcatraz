@@ -9,6 +9,24 @@ import type { AppState, ClassId, LogoBild, ParallelRunde, Starter } from './type
 // Hilfen nur für Tests – kein Teil der Anwendung.
 
 /**
+ * Ob dieser Testlauf die wackeligen Tests auslässt (Wunsch des Nutzers 24.11.2026). Zwei Ende-zu-Ende-Tests in
+ * src/GeraetWkr.test.ts („Probe beim Einrichten … einmal je Raum und Liste“, „W5.2 Maske ‚Bild‘: Probe am Bild …“)
+ * warten mit fester Zeitgrenze auf Gerät und nachgebauten ntfy-Server. Auf den geteilten Rechnern von GitHub Actions
+ * reicht die Zeit unter Last nicht immer; dann wird die CI rot, und der Pages-Deploy bleibt stehen, obwohl die App
+ * stimmt. Deshalb laufen sie dort (GitHub setzt `CI`) nur, wenn `ALCATRAZ_WACKELTESTS` gesetzt ist: Actions → CI →
+ * Run workflow → Haken (.github/workflows/ci.yml); deploy.yml setzt die Variable nie. Lokal und im pre-commit-Hook
+ * (ohne `CI`) laufen sie immer, damit ein echter Fehler darin weiter auffällt. „Gesetzt“ heißt: nicht leer, nicht `0`
+ * und nicht `false` – so wirkt `CI=false` wie lokal, und die Eingabe des Workflows darf `0` schreiben.
+ */
+export function wackelTestsAuslassen(umgebung: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  const gesetzt = (wert: string | undefined) => wert !== undefined && !['', '0', 'false'].includes(wert.trim().toLowerCase())
+  return gesetzt(umgebung.CI) && !gesetzt(umgebung.ALCATRAZ_WACKELTESTS)
+}
+
+/** {@link wackelTestsAuslassen} für diesen Testlauf – Muster: `it.skipIf(WACKELTESTS_AUS)('…', …)`. */
+export const WACKELTESTS_AUS = wackelTestsAuslassen()
+
+/**
  * Das Regelwerk wechseln, auch wenn schon Werte erfasst sind. In der Anwendung ist das gesperrt
  * (state/reducer.ts, SET_REGELWERK); ein solcher Stand entsteht dort nur durch eine geladene
  * Sicherung. Tests, die dieselben Werte unter beiden Regelwerken zeigen, kommen so dorthin: Der

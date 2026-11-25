@@ -1,7 +1,7 @@
 import type { Besetzung, ClassId, Einteilung, Starter } from '../types'
 import { NACHNAMEN, VORNAMEN_M, VORNAMEN_W } from '../data/names'
 import { BOOTSNAMEN } from '../data/boote'
-import { parseGewicht } from '../domain/gewicht'
+import { AUSGLEICH_STUFE_VORGABE, ausgleichKg, parseGewicht } from '../domain/gewicht'
 import { setzeName, type WkrZelle } from './einteilung'
 
 // Beispieldaten neben Starterfeld (domain/generate.ts) und Werten (lib/beispielwerte.ts): eine
@@ -117,13 +117,16 @@ export const ANTEIL_LEICHTER = 0.4
 /**
  * Glaubhafte Gewichte für alle Starter: je Klasse um ihr Durchschnittsgewicht (`soll`: das des
  * Regelwerks oder das abweichende der Veranstaltung, config/catalog.ts `sollgewichtOf`). Ein Teil
- * ({@link ANTEIL_LEICHTER}, ab zwei Startern mindestens einer) ist leichter – mindestens 1 kg,
- * damit ein Ausgleichsgewicht entsteht –, die übrigen wiegen das Durchschnittsgewicht oder mehr.
- * Auf 0,1 kg wie die Eingabe in der Verwiegung (domain/gewicht.ts `parseGewicht`). Starter einer
- * Klasse ohne Durchschnittsgewicht bleiben, wie sie sind. Die übrigen Felder bleiben unverändert.
+ * ({@link ANTEIL_LEICHTER}, ab zwei Startern mindestens einer) ist leichter – mindestens 1 kg und
+ * mindestens eine halbe `stufe` (die Abstufung des Ausgleichsgewichts, 24.11.2026; genau die
+ * Mitte rundet aufwärts), damit nach der Rundung wirklich ein Ausgleichsgewicht entsteht –, die übrigen
+ * wiegen das Durchschnittsgewicht oder mehr. Auf 0,1 kg wie die Eingabe in der Verwiegung
+ * (domain/gewicht.ts `parseGewicht`). Starter einer Klasse ohne Durchschnittsgewicht bleiben, wie sie
+ * sind. Die übrigen Felder bleiben unverändert. Mit der Vorgabe-Stufe (1 kg) dieselben Gewichte wie vorher.
  */
-export function beispielGewichte(starters: readonly Starter[], soll: (klasse: ClassId) => number, zufall: Zufall): Starter[] {
+export function beispielGewichte(starters: readonly Starter[], soll: (klasse: ClassId) => number, zufall: Zufall, stufe: number = AUSGLEICH_STUFE_VORGABE): Starter[] {
   const neu = new Map<string, number>()
+  const mindestens = Math.max(1, stufe / 2)
   const klassen = [...new Set(starters.map((p) => p.klasse))]
   for (const klasse of klassen) {
     const kg = soll(klasse)
@@ -131,9 +134,14 @@ export function beispielGewichte(starters: readonly Starter[], soll: (klasse: Cl
     const ids = mische(starters.filter((p) => p.klasse === klasse).map((p) => p.id), zufall)
     const leichter = ids.length === 1 ? (zufall() < ANTEIL_LEICHTER ? 1 : 0) : Math.max(1, Math.round(ids.length * ANTEIL_LEICHTER))
     ids.forEach((id, i) => {
-      // Leichter: 1 kg bis gut 15 % darunter; sonst bis 25 % darüber – Erwachsene streuen nach oben mehr.
-      const wert = i < leichter ? kg - 1 - zufall() * kg * 0.15 : kg + zufall() * kg * 0.25
-      const gewicht = parseGewicht(wert.toFixed(1))
+      // Leichter: 1 kg (bzw. eine halbe Stufe) bis gut 15 % darunter; sonst bis 25 % darüber – Erwachsene streuen
+      // nach oben mehr.
+      const wert = i < leichter ? kg - mindestens - zufall() * kg * 0.15 : kg + zufall() * kg * 0.25
+      let gewicht = parseGewicht(wert.toFixed(1))
+      // toFixed rundet zum nächsten 0,1 kg – bei einer Stufe mit Hundertsteln (0,25 kg → Mitte 0,125) oder einem
+      // Durchschnittsgewicht mit zwei Nachkommastellen kann das über die Mitte der Stufe heben und das
+      // Ausgleichsgewicht auf 0 runden. Dann 0,1 kg weniger (mehr als die 0,05 kg, die toFixed verschoben hat).
+      if (i < leichter && gewicht !== undefined && !((ausgleichKg(gewicht, kg, stufe) ?? 0) > 0)) gewicht = parseGewicht((gewicht - 0.1).toFixed(1))
       if (gewicht !== undefined) neu.set(id, gewicht)
     })
   }

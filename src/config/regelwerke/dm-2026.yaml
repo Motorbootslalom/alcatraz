@@ -278,6 +278,12 @@ direktpunkte:
 # `abKlasse` (21.11.2026, Nutzer W3-07): übernommen aus genau diesen Texten – „Treten auf den Schlauch (ab Klasse
 # M3)“ → 3, „Schalten … gewertet ab der Klasse M4“ → 4. Nur das WKR-Gerät graut die Codes in anderen Klassen aus,
 # drückbar bleiben sie (die Besprechung kann sie für weitere Klassen freigeben); Bogen und Legende unverändert.
+# `max` / `danach` (24.11.2026, Nutzer: „Wenn man bei den 2. und 3. Versuch drauf klickt, dann sollte der dritte Klick
+# der passende Disquali werden.“ und zu „nicht mit gesamter Länge eingefahren ×62“: „Das hier macht auch kein Sinn.“):
+# `max` = so oft höchstens in einem Lauf, `danach` = Disq.-Buchstabe für den Tipp danach. „2. und 3. Versuch des
+# Elementes“ höchstens 2×, der 4. Versuch ist Disq. D („4. Versuch eines Elementes“); Tor 5 „nicht mit gesamter Länge
+# eingefahren“ höchstens 1×. Codes ohne `max` haben die allgemeine Grenze WKR_ANNAHMEN.codeMaxAllgemein (CM2). Nur
+# WKR-Gerät (Knopf, Tabelle, Prüfung der Gerätezeile) und Hinweis beim Abtippen – Bogen und Legende unverändert.
 # Die Katalog-IDs (tor5, mueb, stegAblegen, stegAnlegen) verwenden die Positionen;
 # jedes Regelwerk muss sie anbieten. Die Codes sind über alle Kataloge eindeutig.
 kataloge:
@@ -289,12 +295,12 @@ kataloge:
       - { code: 3, text: "erneute Stegberührung", punkte: 5 }
       - { code: 4, text: "Treten auf den Schlauch / ab Klasse 3", punkte: 5, abKlasse: 3 }
       - { code: 5, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
-      - { code: 6, text: "2. und 3. Versuch des Elementes", punkte: 5 }
+      - { code: 6, text: "2. und 3. Versuch des Elementes", punkte: 5, max: 2, danach: D }
 
   stegAnlegen:
     titel: "Anlegen (AN)"
     fehler:
-      - { code: 7, text: "2. und 3. Versuch des Elementes", punkte: 5 }
+      - { code: 7, text: "2. und 3. Versuch des Elementes", punkte: 5, max: 2, danach: D }
       - { code: 8, text: "Festmacherleine nicht im Anlegebereich", punkte: 5 }
       - { code: 9, text: "Massive Stegberührung", punkte: 10 }
       - { code: 10, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
@@ -305,9 +311,9 @@ kataloge:
   tor5:
     titel: "Einfahrt Tor 5:"
     fehler:
-      - { code: 1, text: "nicht mit gesamter Länge eingefahren", punkte: 20 }
+      - { code: 1, text: "nicht mit gesamter Länge eingefahren", punkte: 20, max: 1 }
       - { code: 2, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
-      - { code: 20, text: "2. und 3. Versuch des Elementes", punkte: 5 }
+      - { code: 20, text: "2. und 3. Versuch des Elementes", punkte: 5, max: 2, danach: D }
 
   # Je Zeile der Ausschreibung ein Code (S. 13): Getrennte Punkte lassen sich
   # kombinieren (14 + 18 = 10), eine gemeinsame Zeile zählt einmal (15 = 5).
@@ -320,4 +326,4 @@ kataloge:
       - { code: 16, text: "Durchreißen der Schaltung / erst ab Klasse 4", punkte: 5, abKlasse: 4 }
       - { code: 17, text: "Nicht vollständig aufgestoppt", punkte: 5 }
       - { code: 18, text: "Rettungsring nicht sichtbar über Mittelsäule gehoben", punkte: 5 }
-      - { code: 19, text: "2. und 3. Versuch des Elementes", punkte: 5 }
+      - { code: 19, text: "2. und 3. Versuch des Elementes", punkte: 5, max: 2, danach: D }

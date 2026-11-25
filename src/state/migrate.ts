@@ -20,6 +20,7 @@ import type { ErgebnisHerkunft } from '../types'
 import { mitVorlaufPlan, normalisierePlaene } from '../planung/parallelRunden'
 import { normalisiereNichtWerten } from '../lib/disziplinen'
 import { istGeschlecht } from '../domain/geschlecht'
+import { AUSGLEICH_STUFE_VORGABE, ausgleichStufeWert } from '../domain/gewicht'
 import { logoHoeheZahl, logoWert } from '../lib/logo'
 import { serverEinstellung } from '../lib/serverAdresse'
 import { normalisiereFehlende, normalisiereStartNrBereiche } from './reducer/startnummern'
@@ -100,6 +101,8 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     // Auch ein eigener, den die Fachprüfung ablehnt, ist nicht wählbar (config/catalog.ts).
     aufbau: aufbauOf(loaded.aufbau ?? '', eigeneAufbauten).id,
     sollgewicht: ownWeights(loaded.sollgewicht, regelwerkOf(loaded.regelwerk ?? '').gewichte),
+    // Fehlt in Ständen vor der Abstufung des Ausgleichsgewichts (24.11.2026): ganze kg wie vorher; Unbrauchbares ebenso.
+    ausgleichStufe: ausgleichStufeWert(loaded.ausgleichStufe) ?? AUSGLEICH_STUFE_VORGABE,
     verzahnungLocked: loaded.verzahnungLocked === true,
     showBirthdate: loaded.showBirthdate !== false,
     // Stände vor den Flaggen kennen nur „kurz“ und „lang“ – beide gelten weiter; Unbekanntes wird die Vorgabe.

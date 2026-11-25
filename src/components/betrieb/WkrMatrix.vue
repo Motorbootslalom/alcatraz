@@ -67,7 +67,7 @@ const imBoot = computed(() => {
   return key ? (lage.value?.starts.find((s) => s.key === key)?.nummern.join('/') ?? null) : null
 })
 
-const ZEICHEN: Record<Zelle, string> = { ok: '✓', halb: '½', offen: '○', ueberfaellig: '○!', rueckfrage: '!', vorschlag: 'V', entfaellt: '–', papier: 'P', x: '✕', vorab: '»', nv: '⊘', spaeter: '…' }
+const ZEICHEN: Record<Zelle, string> = { ok: '✓', halb: '½', offen: '○', ueberfaellig: '○!', rueckfrage: '!', vorschlag: 'V', entfaellt: '–', papier: 'P', x: '✕', vorab: '»', spaeter: '…' }
 const ZELLEN = Object.keys(ZEICHEN) as Zelle[]
 const AMPEL: Record<Ampel, string> = { gehoert: '●', still: '◐', weg: '✕', ruht: '○' }
 
@@ -232,9 +232,7 @@ function zumEingang(): void {
                     @click="karte = { liste: l.liste, key: s.key }"
                   >
                     {{ ZEICHEN[l.zellen[s.key].zelle] }}
-                    <!-- „Nicht vorbeigekommen“ (W4.3, R4): Zeichen UND Wort – ⊘ allein läse sich wie „leer“. -->
-                    <span v-if="l.zellen[s.key].zelle === 'nv'" class="wkr-mzelle-wort">{{ t('betrieb.wkr.zelle.nv.kurz') }}</span>
-                    <!-- W3-17 (21.11.2026, GF10): ✓ mit Disq.-Marke – „nicht vorbeigekommen“ ist jetzt Disq. J. -->
+                    <!-- ✓ mit Disq.-Marke (seit W3-17, 21.11.2026); ein X zeigt die Zelle als ✕ (24.11.2026, NG4). -->
                     <span v-if="l.zellen[s.key].disq" class="wkr-mzelle-wort" data-teil="mzelle-disq">{{ t('betrieb.wkr.zelle.disq', { disq: l.zellen[s.key].disq! }) }}</span>
                     <!-- W5.4 (22.11.2026, ZT4): ✓ mit „keine Zeit“ – der Grund steht im Titel, auf dem Bogen nachsehen. -->
                     <span v-if="l.zellen[s.key].keineZeit" class="wkr-mzelle-wort" data-teil="mzelle-keine-zeit">{{ t('betrieb.wkr.zelle.keineZeit') }}</span>

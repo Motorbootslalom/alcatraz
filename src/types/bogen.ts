@@ -96,6 +96,10 @@ export interface ErrorDef {
   code: string
   text: string
   punkte: number
+  /** Höchstens so oft je Lauf (YAML `max`, Nutzer 24.11.2026); fehlt = allgemeine Grenze (lib/codes.ts codeHoechstens). */
+  max?: number
+  /** Disq.-Buchstabe für den Tipp nach `max` (YAML `danach`, „2. und 3. Versuch“ → D, Nutzer 24.11.2026). */
+  danach?: string
 }
 
 export interface DisqDef {

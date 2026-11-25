@@ -52,7 +52,10 @@ function gueltigeEingaben(s: TabellenSpalte, aufbau: MaskenAufbau, teil: ListenT
     case 'code': {
       const t = aufbau.teile.find((x) => x.feld === s.feld)!
       const [a, b] = t.codes.map((c) => c.code)
-      const out = [a, `2x${a}`]
+      const out = [a]
+      // „2x…“ nur bei einem Code, der zweimal vorkommen darf (Höchstzahl je Code, Nutzer 24.11.2026: Tor 5 Code 1 nur 1×).
+      const zwei = t.codes.find((c) => c.max >= 2)?.code
+      if (zwei) out.push(`2x${zwei}`)
       if (b) out.push(`${b} ${a}`)
       // Buchstaben nur, wo die Maske sie in DIESES Feld schreibt (H1: Liste ohne eigenes Disq.-Feld).
       const d = aufbau.disq?.feld === s.feld ? disqFuer(aufbau, teil)[0] : undefined
@@ -178,6 +181,15 @@ describe('Eingabe → Zellwert: dieselben Sanierer, wertGilt unverändert', () =
     const code = t5.find((s) => s.art === 'code')!
     expect(zelleAusEingabe(code, '999', tor5, undefined).fehler).toBe('code-unbekannt')
     expect(zelleAusEingabe(code, `${tor5.teile[0].codes[0].code} #`, tor5, undefined).fehler).toBe('zeichen-fremd')
+    // Höchstzahl je Code (Nutzer 24.11.2026, CM5): Code 1 höchstens 1×, „2. und 3. Versuch“ (20) höchstens 2× – ein dritter
+    // ist Disq. D, den der WKR selbst unter „Disq.“ einträgt (die Tabelle wandelt nicht um).
+    expect(zelleAusEingabe(code, '1, 1', tor5, undefined)).toEqual({ wert: '2x1', fehler: 'code-zu-oft' })
+    expect(zelleAusEingabe(code, '2x20', tor5, undefined).fehler).toBeNull()
+    expect(zelleAusEingabe(code, '3x20', tor5, undefined)).toEqual({ wert: '3x20', fehler: 'code-danach' })
+    const steg = maskeFuer(sichtMit(DM, 'steg'), '5')!
+    const ab = tabellenSpalten(sichtMit(DM, 'steg'), '5', steg, 'ab').find((s) => s.art === 'code')!
+    expect(zelleAusEingabe(ab, `${WKR_ANNAHMEN.codeMaxAllgemein}x3`, steg, 'ab').fehler).toBeNull()
+    expect(zelleAusEingabe(ab, `${WKR_ANNAHMEN.codeMaxAllgemein + 1}x3`, steg, 'ab').fehler).toBe('code-zu-oft')
     const zeit: TabellenSpalte = { feld: 'z', art: 'zeit', titel: 'Zeit', unter: '' }
     expect(zelleAusEingabe(zeit, 'abc', aufbau).fehler).toBe('zeit-unlesbar')
     expect(zelleAusEingabe(zeit, '83,4s', aufbau).fehler).toBe('zeichen-fremd')
@@ -202,10 +214,11 @@ describe('Eingabe → Zellwert: dieselben Sanierer, wertGilt unverändert', () =
     const b = bojenVon(aufbau).find((x) => x.disq.some((d) => d.code === 'J'))!
     let e = tippeBojenDisq(tippeBoje(leererEntwurf(), b), b, 'J')
     const t = aufbau.teile[0]
-    if (t) e = tippe(tippe(e, t.feld, t.codes[0].code), t.feld, t.codes[0].code)
+    const c = t?.codes.find((x) => x.max >= 2)
+    if (t && c) e = tippe(tippe(e, aufbau, t.feld, c.code), aufbau, t.feld, c.code)
     const eingaben = eingabenAus(spalten, e, aufbau)
     expect(eingaben[b.feld]).toBe('5, J')
-    if (t) expect(eingaben[t.feld]).toBe(`2x${t.codes[0].code}`)
+    if (t && c) expect(eingaben[t.feld]).toBe(`2x${c.code}`)
     const zeile = zeileAusEingaben(spalten, eingaben, aufbau)
     expect(zeile.fehler).toEqual({})
     expect(zellenAus(zeile.entwurf, aufbau)).toEqual(zellenAus(e, aufbau))

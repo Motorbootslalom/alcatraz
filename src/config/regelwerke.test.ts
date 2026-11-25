@@ -80,6 +80,18 @@ describe('DM 2026', () => {
     expect(codes).toEqual(['13', '14', '15', '16', '17', '18', '19'])
   })
 
+  it('max/danach (Nutzer 24.11.2026): „2. und 3. Versuch“ höchstens 2×, danach D; Tor 5 Code 1 höchstens 1× – DM und UIM', () => {
+    for (const regelwerk of ['dm-2026', 'uim-2026']) {
+      const k = configFor({ regelwerk })
+      const zeilen = [...(k.getSheetDef('steg').errorGroups ?? []).flatMap((g) => g.rows), ...(k.getSheetDef('tor5').errorTable ?? []), ...(k.getSheetDef('mueb').errorTable ?? [])]
+      const von = (code: string) => zeilen.find((e) => e.code === code)
+      for (const code of ['6', '7', '20', '19']) expect([regelwerk, von(code)?.max, von(code)?.danach]).toEqual([regelwerk, 2, 'D'])
+      expect([von('1')?.max, von('1')?.danach]).toEqual([1, undefined])
+      // Alle übrigen ohne eigene Angabe – dort gilt die allgemeine Grenze (WKR_ANNAHMEN.codeMaxAllgemein).
+      expect(zeilen.filter((e) => e.max !== undefined).map((e) => e.code).sort()).toEqual(['1', '19', '20', '6', '7'])
+    }
+  })
+
   it('zeigt den Hinweis „kombinierbar“ auf Listen mit Fehlercodes', () => {
     for (const id of ['steg', 'tor5', 'mueb', 'brechts']) {
       expect(getSheetDef(id).legendNote).toContain('Fehler sind kombinierbar')

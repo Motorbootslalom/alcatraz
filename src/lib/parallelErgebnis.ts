@@ -60,14 +60,17 @@ export const FINALE_UM_1 = 2
 
 /**
  * ANNAHMEN zu Fällen, die Regel 960 nicht oder nicht eindeutig regelt – Organisation bzw.
- * Empfehlung des Bauplans, vom Veranstalter noch nicht bestätigt. Hier an EINER Stelle
- * umstellbar; gelesen werden sie in diesem Modul und in lib/parallelStage.ts.
+ * Empfehlung des Bauplans. ALLE BESTÄTIGT vom Nutzer am 24.11.2026 („Ja, Ja, Ja, Ja, Ja“ auf die
+ * fünf Fragen: Schwellen bei wenigen Gewerteten, Punkte bei Disq. im heat, Disq. im Re-run zum
+ * Vorlauf, Verzahnung der Runden, beide Finals zusammen bei „Alle Klassen weiter“). Hier an EINER
+ * Stelle umstellbar; gelesen werden sie in diesem Modul und in lib/parallelStage.ts.
  */
 export const PARALLEL_ANNAHMEN = {
   /**
    * Frage 3 – weniger als vier Gewertete im Vorlauf (Regel 960 nennt nur „the four drivers“):
    * Ab so vielen Gewerteten wird ein Halbfinale gefahren. Bei 3: Halbfinale mit Dummy; der
-   * Dritte des Halbfinales hat Platz 3 ohne ein Finale um Platz 3 und 4.
+   * Dritte des Halbfinales hat Platz 3 ohne ein Finale um Platz 3 und 4. BESTÄTIGT vom Nutzer
+   * 24.11.2026 (ebenso `finaleAb`).
    */
   halbfinaleAb: 3,
   /** Frage 3 – ab so vielen Gewerteten wird ein Finale gefahren (2: direkt das Finale); darunter gilt Platz 1 aus dem Vorlauf. */
@@ -76,6 +79,7 @@ export const PARALLEL_ANNAHMEN = {
    * Frage 5b – Pkt. 5.2.2: „In the case of disqualification in a semi-final or final, the driver
    * will be ranked last in the relevant heat.“ Der Fahrer behält die Punkte dieses Platzes
    * (anders als im Vorlauf, wo die Disqualifikation für die ganze Stage gilt). `false`: 0 Punkte.
+   * BESTÄTIGT vom Nutzer 24.11.2026.
    */
   disqImHeatBehaeltPunkte: true,
   /**
@@ -84,7 +88,8 @@ export const PARALLEL_ANNAHMEN = {
    * der Gleichstehenden; wer darin disqualifiziert wird, steht auf dem hinteren Platz der Gruppe,
    * die wiederholt hat (z. B. Platz 5), mit dessen Punkten. Die Plätze hinter der Gruppe ändern
    * sich dadurch nicht. (`stage` wäre: wie im Vorlauf selbst „disqualified from the whole
-   * stage“, letzter Platz ohne Punkte, die Dahinterliegenden rücken auf.)
+   * stage“, letzter Platz ohne Punkte, die Dahinterliegenden rücken auf.) Noch einmal BESTÄTIGT vom
+   * Nutzer 24.11.2026.
    */
   disqInWiederholungDesVorlaufs: 'heat' as 'stage' | 'heat',
   /**
@@ -99,12 +104,13 @@ export const PARALLEL_ANNAHMEN = {
    * jeden Fall“), lässt sich aber mit „Druck lösen“ wieder freigeben („wenn später ein Fehler
    * auffällt und neu gedruckt werden muss“) – AppState.parallelGedruckt. Auch der Re-run fährt
    * „die normale Verzahnung (großes Boot/kleines Boot)“; er bleibt je Klasse festzuschreiben
-   * (nicht über „Alle Klassen weiter“), weil er „fast nie vorkommt“.
+   * (nicht über „Alle Klassen weiter“), weil er „fast nie vorkommt“. Als Ganzes BESTÄTIGT vom
+   * Nutzer 24.11.2026.
    * `false`: jede Klasse ans Ende, nie neu ordnen.
    */
   rundenVerzahnen: true as boolean,
   /**
-   * „Alle Klassen weiter“ nach dem Halbfinale – AUSLEGUNG vom 21.11.2026, VOM NUTZER ZU BESTÄTIGEN.
+   * „Alle Klassen weiter“ nach dem Halbfinale – Auslegung vom 21.11.2026, BESTÄTIGT vom Nutzer 24.11.2026.
    * Seit 21.11.2026 sind Kleines Finale und Finale getrennte Runden, je Klasse mit eigenem Knopf.
    * `true`: „Alle Klassen weiter“ schreibt nach dem Halbfinale BEIDE auf einmal fest (ein Schritt,
    * ein Eintrag im Verlauf). Gründe: Beide Paarungen folgen aus demselben Ergebnis des Halbfinales,

@@ -391,9 +391,9 @@ describe('Aufräumen', () => {
     s = reducer(s, { type: 'WKR_ABSCHLUSS', liste: K('gate135'), punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: true, zeit: 9000 })
     expect(s.wkr.rueckfragen).toHaveLength(1)
     const leer = reducer(s, { type: 'CLEAR_EINGABEN' })
-    expect(leer.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {}, keineZeit: {} })
+    expect(leer.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, keineZeit: {} })
     const teil = reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [1] })
-    expect(teil.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, nichtVorbei: {}, keineZeit: {} })
+    expect(teil.wkr).toEqual({ listen: s.wkr.listen, rueckfragen: [], vorschlaege: [], abschluss: {}, keineZeit: {} })
     // Ein anderer Lauf lässt sie stehen.
     expect(reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [2] }).wkr).toBe(s.wkr)
   })
@@ -482,107 +482,104 @@ describe('WKR_PAPIER_AB (W2, A10)', () => {
   })
 })
 
-// W4.3 (Plan docs/plan-wkr-w4.md §6, 21.11.2026, P16, R2/R3): „Nicht vorbeigekommen“ – Haken + Kennzeichen, kein X.
-describe('WKR_ZEILEN – „Nicht vorbeigekommen“ (W4.3)', () => {
-  const nv = (s: AppState, typeId: string, starter: string, mehr: Partial<GeraeteZeile> & { teil?: 'ab' | 'an' } = {}) => zeileVon(s, typeId, starter, [], { n: true, ...mehr })
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG1–NG6): „Nicht gestartet · Disq. X“ ist eine gewöhnliche Zeile – X allein im
+// Disq.-Feld. Ersetzt „nicht vorbeigekommen“ (W4.3: Haken + Kennzeichen ⊘ bzw. Disq. J), das es im Stand nicht mehr gibt.
+describe('WKR_ZEILEN – „Nicht gestartet · Disq. X“ (24.11.2026)', () => {
+  const ng = (s: AppState, typeId: string, starter: string, mehr: Partial<GeraeteZeile> & { teil?: 'ab' | 'an' } = {}) =>
+    zeileVon(s, typeId, starter, [[`disq@${typeId}`, 'X', '']], mehr)
 
-  it('setzt den Haken und das Kennzeichen, keine Werte, kein X; doppelt = derselbe Stand', () => {
+  it('Tor-Liste: X ins Disq.-Feld, Haken; der Start ist nicht gestartet wie bei einem X vom Steg; doppelt = derselbe Stand', () => {
     const { s, erster } = bereit()
-    const next = sende(s, 'gate135', [nv(s, 'gate135', erster)])
-    expect(werte(next, erster)).toEqual({ 'erfasst@gate135': '1' })
-    expect(next.wkr.nichtVorbei).toEqual({ [K('gate135')]: [`${L1}|${erster}`] })
-    expect(sende(next, 'gate135', [nv(s, 'gate135', erster)])).toBe(next)
+    const next = sende(s, 'gate135', [ng(s, 'gate135', erster)])
+    expect(werte(next, erster)).toEqual({ 'disq@gate135': 'X', 'erfasst@gate135': '1' })
+    expect(next.wkr).not.toHaveProperty('nichtVorbei')
+    expect(sende(next, 'gate135', [ng(s, 'gate135', erster)])).toBe(next)
+    // Wie das X am Steg: Der Start entfällt in der Folge – eine Abmeldung ist es nicht.
+    expect(lage(next, P1).folge.find((e) => e.starter === erster && e.lauf === 1)?.entfaellt).toBe(true)
+    expect(next.abgemeldet).toEqual([])
   })
 
-  it('eine spätere Zeile ohne Kennzeichen hebt es auf – auch eine leere („doch vorbei, fehlerfrei“)', () => {
+  it('am Bedienrechner steht schon etwas anderes im Disq.-Feld: Rückfrage wie bisher; Werte in anderen Zellen bleiben (NG6)', () => {
     const { s: s0, erster } = bereit()
-    const s = sende(s0, 'gate135', [nv(s0, 'gate135', erster)])
-    const mitWert = sende(s, 'gate135', [zeileVon(s, 'gate135', erster, [['t1a|hin seiteA', '5', '']], { z: 2, k: true })])
-    expect(mitWert.wkr.nichtVorbei).toEqual({})
-    expect(werte(mitWert, erster)['t1a|hin seiteA']).toBe('5')
-    const leer = sende(s, 'gate135', [zeileVon(s, 'gate135', erster, [], { z: 3, k: true })])
-    expect(leer.wkr.nichtVorbei).toEqual({})
-    expect(werte(leer, erster)['erfasst@gate135']).toBe('1')
+    const mitJ = tippe(s0, erster, 'disq@gate135', 'J')
+    const rf = sende(mitJ, 'gate135', [ng(mitJ, 'gate135', erster)])
+    expect(rf.wkr.rueckfragen.map((r) => [r.feld, r.wert, r.steht])).toEqual([['disq@gate135', 'X', 'J']])
+    expect(werte(rf, erster)['disq@gate135']).toBe('J')
+    // Abgetippte Bojen in ANDEREN Zellen: das X kommt dazu, ohne Rückfrage (beim Bau ausgelegt, NG6).
+    const mitBoje = tippe(s0, erster, 't1a|hin seiteA', '5')
+    const dazu = sende(mitBoje, 'gate135', [ng(mitBoje, 'gate135', erster)])
+    expect(dazu.wkr.rueckfragen).toEqual([])
+    expect(werte(dazu, erster)).toMatchObject({ 't1a|hin seiteA': '5', 'disq@gate135': 'X' })
   })
 
-  it('Abtippen am Bedienrechner hebt es auf (eigene Werte der Liste), der Haken bleibt; fremde Liste nicht', () => {
-    const { s: s0, erster } = bereit('gate135', 'steg')
-    const s = sende(s0, 'gate135', [nv(s0, 'gate135', erster)])
-    // Ein Wert einer anderen Liste (Steg) betrifft gate135 nicht.
-    const fremd = tippe(s, erster, 'disq@steg', 'A')
-    expect(werte(fremd, erster)['disq@steg']).toBe('A')
-    expect(fremd.wkr.nichtVorbei).toEqual(s.wkr.nichtVorbei)
-    const eigen = tippe(s, erster, 't1a|hin seiteA', '5')
-    expect(eigen.wkr.nichtVorbei).toEqual({})
-    expect(werte(eigen, erster)['erfasst@gate135']).toBe('1')
-  })
-
-  it('nicht gezeigt (Rückfrage) bzw. Liste auf Papier (Vorschlag): Kennzeichen erst mit der Entscheidung für das Gerät (R2)', () => {
-    const { s, erster } = bereit()
-    const anderer = lage(s, P1).frei[0].starter
-    const rf = sende(s, 'gate135', [nv(s, 'gate135', anderer)])
-    expect(rf.wkr.rueckfragen.map((r) => [r.feld, r.nichtVorbei])).toEqual([['erfasst@gate135', true]])
-    expect(rf.wkr.nichtVorbei).toEqual({})
-    const behalten = reducer(rf, { type: 'WKR_RUECKFRAGE', id: rf.wkr.rueckfragen[0].id, wahl: 'behalten' })
-    expect(behalten.wkr.nichtVorbei).toEqual({})
-    const geraet = reducer(rf, { type: 'WKR_RUECKFRAGE', id: rf.wkr.rueckfragen[0].id, wahl: 'geraet' })
-    expect(geraet.wkr.nichtVorbei).toEqual({ [K('gate135')]: [`${L1}|${anderer}`] })
-    expect(werte(geraet, anderer)['erfasst@gate135']).toBe('1')
-
-    const papier = reducer(s, { type: 'WKR_LISTE', liste: K('tor5'), modus: 'papier', zeit: 100 })
-    const vs = reducer(papier, { type: 'WKR_ZEILEN', liste: K('tor5'), quelle: { geraet: 'g1', name: 'x' }, zeilen: [nv(s, 'tor5', erster)], zeit: 5000 })
-    expect(vs.wkr.vorschlaege).toMatchObject([{ nichtVorbei: true, zellen: [] }])
-    expect(vs.wkr.nichtVorbei).toEqual({})
-    expect(reducer(vs, { type: 'WKR_VORSCHLAG', id: vs.wkr.vorschlaege[0].id, wahl: 'verwerfen' }).wkr.nichtVorbei).toEqual({})
-    const ueber = reducer(vs, { type: 'WKR_VORSCHLAG', id: vs.wkr.vorschlaege[0].id, wahl: 'uebernehmen' })
-    expect(ueber.wkr.nichtVorbei).toEqual({ [K('tor5')]: [`${L1}|${erster}`] })
-  })
-
-  it('„doch vorbei“ als Vorschlag (Punkt abgeschlossen): verwerfen lässt ⊘ stehen, übernehmen hebt es auf (R3)', () => {
+  it('„doch gestartet“: die Korrektur mit leerer Disq.-Zelle (vorher X) nimmt das X heraus (NG5)', () => {
     const { s: s0, erster } = bereit()
-    const s1 = sende(s0, 'gate135', [nv(s0, 'gate135', erster)])
-    const s = reducer(s1, { type: 'WKR_ABSCHLUSS', liste: K('gate135'), punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: true, zeit: 9000 })
-    expect(s.wkr.nichtVorbei).toEqual(s1.wkr.nichtVorbei)
-    const vs = sende(s, 'gate135', [zeileVon(s, 'gate135', erster, [], { z: 2, k: true })])
-    expect(vs.wkr.vorschlaege).toMatchObject([{ id: 'g1.2', grund: 'abgeschlossen' }])
-    expect(vs.wkr.vorschlaege[0].nichtVorbei).toBeUndefined()
-    // Das Kennzeichen fällt nicht schon beim Eingang (vorher: still weg, Prüfbefund 21.11.2026).
-    expect(vs.wkr.nichtVorbei).toEqual(s1.wkr.nichtVorbei)
-    expect(reducer(vs, { type: 'WKR_VORSCHLAG', id: 'g1.2', wahl: 'verwerfen' }).wkr.nichtVorbei).toEqual(s1.wkr.nichtVorbei)
-    expect(reducer(vs, { type: 'WKR_VORSCHLAG', id: 'g1.2', wahl: 'uebernehmen' }).wkr.nichtVorbei).toEqual({})
+    const s = sende(s0, 'gate135', [ng(s0, 'gate135', erster)])
+    const doch = sende(s, 'gate135', [zeileVon(s, 'gate135', erster, [['disq@gate135', '', 'X'], ['t1a|hin seiteA', '5', '']], { z: 2, k: true })])
+    expect(werte(doch, erster)).toEqual({ 't1a|hin seiteA': '5', 'erfasst@gate135': '1' })
+    expect(lage(doch, P1).folge.find((e) => e.starter === erster && e.lauf === 1)?.entfaellt).toBe(false)
   })
 
-  it('normalisiereWkr behält Kennzeichen und Teil an Rückfrage und Vorschlag, Unbrauchbares fällt weg', () => {
-    const { s, erster } = bereit()
-    const anderer = lage(s, P1).frei[0].starter
-    const rf = sende(s, 'gate135', [nv(s, 'gate135', anderer)])
-    const ids = new Set(s.starters.map((x) => x.id))
-    const roh = JSON.parse(JSON.stringify(rf.wkr))
-    expect(normalisiereWkr(roh, ids).rueckfragen[0].nichtVorbei).toBe(true)
-    roh.rueckfragen[0].nichtVorbei = 'ja'
-    roh.rueckfragen[0].teil = 'mitte'
-    const n = normalisiereWkr(roh, ids).rueckfragen[0]
-    expect([n.nichtVorbei, n.teil]).toEqual([undefined, undefined])
-    expect(erster).toBeTruthy()
-  })
-
-  it('Steg: nur Anlegen, Schlüssel mit Teil; eine ganze Zeile des Stegs hebt es auf', () => {
+  it('Steg, Gerät nur für „Anlegen“: X ins gemeinsame Feld mit dem Haken des Anlegens; herausnehmen wie jede Korrektur (F16)', () => {
     const { s: s0, erster } = bereit('steg')
-    const s = sende(s0, 'steg', [nv(s0, 'steg', erster, { teil: 'an' })])
-    expect(werte(s, erster)).toEqual({ 'erfasst.an@steg': '1' })
-    expect(s.wkr.nichtVorbei).toEqual({ [K('steg')]: [`${L1}|${erster}|an`] })
-    // Ablegen kommt dazu: Kennzeichen des Anlegens bleibt.
-    const ab = sende(s, 'steg', [zeileVon(s, 'steg', erster, [], { z: 2, teil: 'ab' })])
-    expect(ab.wkr.nichtVorbei).toEqual(s.wkr.nichtVorbei)
-    expect(werte(ab, erster)['erfasst@steg']).toBe('1')
-    const ganz = sende(s, 'steg', [zeileVon(s, 'steg', erster, [], { z: 3 })])
-    expect(ganz.wkr.nichtVorbei).toEqual({})
+    const s = sende(s0, 'steg', [ng(s0, 'steg', erster, { teil: 'an' })])
+    expect(werte(s, erster)).toEqual({ 'disq@steg': 'X', 'erfasst.an@steg': '1' })
+    // Steht dort nur das eigene X, fällt es mit der Korrektur.
+    const weg = sende(s, 'steg', [zeileVon(s, 'steg', erster, [['disq@steg', '', 'X']], { z: 2, k: true, teil: 'an' })])
+    expect(werte(weg, erster)['disq@steg'] ?? '').toBe('')
+    // Ein Buchstabe des Ablegens kommt nie still neben das X (Prüfbefund 24.11.2026, BZ2): Rückfrage `zelle`.
+    const mitA = sende(s, 'steg', [zeileVon(s, 'steg', erster, [['disq@steg', 'A', '']], { z: 3, teil: 'ab', geraet: 'g2' })])
+    expect(werte(mitA, erster)['disq@steg']).toBe('X')
+    expect(mitA.wkr.rueckfragen.map((r) => [r.feld, r.grund, r.wert, r.steht])).toEqual([['disq@steg', 'zelle', 'A', 'X']])
+    // Hat der Bediener selbst einen Buchstaben neben das X gesetzt, fragt der Wegfall des X nach (Rückfrage `entfernt`).
+    const vonHand = tippe(s, erster, 'disq@steg', 'X, A')
+    const frage = sende(vonHand, 'steg', [zeileVon(vonHand, 'steg', erster, [['disq@steg', '', 'X']], { z: 4, k: true, teil: 'an' })])
+    expect(frage.wkr.rueckfragen.map((r) => [r.feld, r.grund, r.wert])).toEqual([['disq@steg', 'entfernt', 'A']])
   })
 
-  it('„Werte löschen“ nimmt die Kennzeichen mit', () => {
-    const { s: s0, erster } = bereit()
-    const s = sende(s0, 'gate135', [nv(s0, 'gate135', erster)])
-    expect(reducer(s, { type: 'CLEAR_EINGABEN' }).wkr.nichtVorbei).toEqual({})
-    expect(reducer(s, { type: 'CLEAR_EINGABEN_TEIL', laeufe: [1] }).wkr.nichtVorbei).toEqual({})
+  it('Steg: steht vom Ablegen schon ein Buchstabe im gemeinsamen Feld, wird „Nicht gestartet“ vom Anlegen eine Rückfrage – nie still „A, X“ (Prüfbefund 24.11.2026, NG6)', () => {
+    const { s: s0, erster } = bereit('steg')
+    const s = sende(s0, 'steg', [zeileVon(s0, 'steg', erster, [['disq@steg', 'A', '']], { teil: 'ab', geraet: 'g2' })])
+    expect(werte(s, erster)['disq@steg']).toBe('A')
+    const rf = sende(s, 'steg', [ng(s, 'steg', erster, { teil: 'an', z: 2 })], 6000)
+    expect(werte(rf, erster)).toEqual({ 'disq@steg': 'A', 'erfasst.ab@steg': '1' })
+    expect(rf.wkr.rueckfragen.map((r) => [r.feld, r.wert, r.steht, r.grund])).toEqual([['disq@steg', 'X', 'A', 'zelle']])
+    // „Gerät übernehmen“: X allein (nicht gestartet), der Haken des Anlegens kommt mit.
+    const geraet = reducer(rf, { type: 'WKR_RUECKFRAGE', id: rf.wkr.rueckfragen[0].id, wahl: 'geraet' })
+    expect(werte(geraet, erster)).toMatchObject({ 'disq@steg': 'X', 'erfasst@steg': '1' })
+    // „Behalten“ (Bedienrechner): A bleibt.
+    const bleibt = reducer(rf, { type: 'WKR_RUECKFRAGE', id: rf.wkr.rueckfragen[0].id, wahl: 'behalten' })
+    expect(werte(bleibt, erster)['disq@steg']).toBe('A')
+    // Leeres Feld bzw. schon X: direkt, ohne Rückfrage – auch vom Ablegen-Gerät (dort ist X ein Knopf).
+    const direkt = sende(s0, 'steg', [ng(s0, 'steg', erster, { teil: 'ab' })])
+    expect(direkt.wkr.rueckfragen).toEqual([])
+    expect(werte(direkt, erster)).toEqual({ 'disq@steg': 'X', 'erfasst.ab@steg': '1' })
+    const doppelt = sende(direkt, 'steg', [zeileVon(direkt, 'steg', erster, [['disq@steg', 'X', '']], { teil: 'an', z: 2, geraet: 'g2' })])
+    expect(doppelt.wkr.rueckfragen).toEqual([])
+    expect(werte(doppelt, erster)).toMatchObject({ 'disq@steg': 'X', 'erfasst@steg': '1' })
+  })
+
+  it('Liste auf Papier: Vorschlag mit dem X, erst „Übernehmen“ trägt es ein', () => {
+    const { s, erster } = bereit()
+    const papier = reducer(s, { type: 'WKR_LISTE', liste: K('tor5'), modus: 'papier', zeit: 100 })
+    const vs = reducer(papier, { type: 'WKR_ZEILEN', liste: K('tor5'), quelle: { geraet: 'g1', name: 'x' }, zeilen: [ng(s, 'tor5', erster)], zeit: 5000 })
+    expect(vs.wkr.vorschlaege).toMatchObject([{ zellen: [{ feld: 'disq@tor5', wert: 'X' }] }])
+    expect(werte(vs, erster)['disq@tor5']).toBeUndefined()
+    expect(werte(reducer(vs, { type: 'WKR_VORSCHLAG', id: vs.wkr.vorschlaege[0].id, wahl: 'uebernehmen' }), erster)['disq@tor5']).toBe('X')
+  })
+
+  it('normalisiereWkr: ein alter Stand verliert `nichtVorbei` (auch an Rückfragen samt `teil`), sonst bleibt alles', () => {
+    const { s, erster } = bereit()
+    const anderer = lage(s, P1).frei[0].starter
+    const rf = sende(s, 'gate135', [ng(s, 'gate135', anderer)])
+    const ids = new Set(s.starters.map((x) => x.id))
+    const roh = { ...JSON.parse(JSON.stringify(rf.wkr)), nichtVorbei: { [K('gate135')]: [`${L1}|${erster}`] } }
+    roh.rueckfragen[0].nichtVorbei = true
+    roh.rueckfragen[0].teil = 'an'
+    const n = normalisiereWkr(roh, ids)
+    expect(n).not.toHaveProperty('nichtVorbei')
+    expect(n.rueckfragen[0]).not.toHaveProperty('nichtVorbei')
+    expect(n.rueckfragen[0]).not.toHaveProperty('teil')
+    expect(n.rueckfragen).toHaveLength(rf.wkr.rueckfragen.length)
   })
 })

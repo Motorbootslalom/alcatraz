@@ -30,11 +30,15 @@ import ErgebnisFuss from './ErgebnisFuss.vue'
  * be signed by the O.O.D. and must show the time of posting.“
  *
  * Bei Punktgleichheit entscheidet die Zeit nach Pkt. 5.2.6 („the sum of his/her better
- * manoeuvring attempt (including penalties) and both his/her parallel slalom attempts“). Sie
+ * manoeuvring attempt (including penalties) and both his/her parallel slalom attempts“; aus der
+ * zuletzt gefahrenen Runde, lib/einzelwertung.ts EINZEL_FESTLEGUNGEN). Sie
  * steht nur da, wo sie gebraucht wird: Gibt es in der Klasse Punktgleiche, bekommt die Liste
- * die Spalte „Combined time“, gefüllt bei den Punktgleichen – wer keine hat (in einer Disziplin
- * disqualifiziert), bei dem steht ein Strich, und er steht hinter den Punktgleichen mit Zeit
- * (Entscheidung des Nutzers). Ein Sternchen am Platz heißt: Der Stichentscheid hat ihn bestimmt.
+ * die Spalte „Combined time“, gefüllt bei den Punktgleichen – wer keine hat (disqualifiziert),
+ * bei dem steht ein Strich, und er steht hinter den Punktgleichen mit Zeit
+ * (Entscheidung des Nutzers). Ist auch die Zeit gleich, entscheidet die vorletzte gefahrene Runde
+ * des Parallelslaloms (Entscheidung des Nutzers vom 24.11.2026): Ihre Summe steht dann in Klammern
+ * hinter der Zeit (`zeit2`), die Spalte wird dafür breiter statt zweizeilig – so bleibt jede Zeile
+ * gleich hoch. Ein Sternchen am Platz heißt: Der Stichentscheid hat ihn bestimmt.
  * Der Fuß nennt die Regel auf jeder Seite mit Punktgleichen – auch ohne Sternchen (gleiche
  * Zeit), und den Zusatz zu Strich und geteiltem Platz, wo einer davon vorkommt. Wertet der
  * O.O.D. eine Disziplin für die Klasse nicht, steht das im Fuß jeder Seite (`hinweisText`).
@@ -86,13 +90,17 @@ const teilt = (z: EinzelZeile) => z.punktgleich && props.zeilen.some((y) => y !=
  */
 const fuss = (teile: readonly SeitenTeil[]): { stich: string; hinweis: string } => {
   const seite = zeilenDerSeite(props.zeilen, teile).map(({ z }) => z)
-  // Der Zusatz erklärt den Strich (ohne Zeit: hinter den Punktgleichen mit Zeit) und den geteilten Platz.
-  const geteilt = seite.some((z) => teilt(z) || (z.punktgleich && z.zeit === null)) ? (props.geteiltText ?? '') : ''
+  // Der Zusatz erklärt den Strich (ohne Zeit: hinter den Punktgleichen mit Zeit) und den geteilten Platz – auch den
+  // Strich in der Klammer der zweiten Stufe („142.00 (–)“: in der vorletzten Runde disqualifiziert; Prüfbefund 24.11.2026).
+  const geteilt = seite.some((z) => teilt(z) || (z.punktgleich && (z.zeit === null || z.zeit2 === null))) ? (props.geteiltText ?? '') : ''
   const zusammen = (...texte: (string | undefined)[]) => texte.filter(Boolean).join(' ')
   if (seite.some((z) => z.stich)) return { stich: zusammen(props.stichText, geteilt), hinweis: props.hinweisText ?? '' }
   return { stich: '', hinweis: zusammen(seite.some((z) => z.punktgleich) ? zusammen(props.regelText, geteilt) : '', props.hinweisText) }
 }
 const zeitZelle = (z: EinzelZeile) => (!z.punktgleich ? '' : z.zeit === null ? '–' : sekundenText(z.zeit))
+/** Die zweite Stufe (vorletzte Runde, 24.11.2026) in Klammern – nur, wo sie gefragt war; mit Abstand davor (im Text, die Vorlage verschluckte ihn). */
+const zeit2Zelle = (z: EinzelZeile) => (z.zeit2 === undefined ? '' : ` (${z.zeit2 === null ? '–' : sekundenText(z.zeit2)})`)
+const mitZeit2 = computed(() => props.zeilen.some((z) => z.zeit2 !== undefined))
 /** Zeit, Platz und Punkte einer Disziplin in der Zeile; leer, wo es kein Ergebnis gibt (nicht im Plan des Parallelslaloms). */
 const ergebnisVon = (z: EinzelZeile, d: WertungsDisziplin) => (d === 'manoever' ? z.manoeverErgebnis : z.parallelErgebnis)
 const punkteVon = (z: EinzelZeile, d: WertungsDisziplin) => (d === 'manoever' ? z.manoever : z.parallel)
@@ -118,7 +126,7 @@ const disziplinTitel = (d: WertungsDisziplin) => t(d === 'manoever' ? 'individua
             <col style="width: 15mm" />
           </template>
           <col style="width: 21mm" />
-          <col v-if="mitZeit" style="width: 22mm" />
+          <col v-if="mitZeit" :style="{ width: mitZeit2 ? '32mm' : '22mm' }" />
         </colgroup>
         <thead>
           <tr>
@@ -169,7 +177,7 @@ const disziplinTitel = (d: WertungsDisziplin) => t(d === 'manoever' ? 'individua
               <td :data-spalte="d">{{ punkteVon(z, d) ?? '' }}</td>
             </template>
             <td class="erg-gruppe" data-spalte="summe">{{ z.summe }}</td>
-            <td v-if="mitZeit" data-spalte="zeit">{{ zeitZelle(z) }}</td>
+            <td v-if="mitZeit" data-spalte="zeit">{{ zeitZelle(z) }}<span v-if="z.zeit2 !== undefined" data-teil="zeit2">{{ zeit2Zelle(z) }}</span></td>
           </tr>
         </tbody>
       </table>

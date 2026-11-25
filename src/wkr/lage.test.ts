@@ -7,7 +7,9 @@ import { betriebStarter, betriebsStand, festgeschrieben, uimParallelStand, wkrBe
 import type { AppState, WkrModus, WkrStatus } from '../types'
 import { listenFelder } from '../lib/eingaben'
 import { WKR_ANNAHMEN } from './annahmen'
-import { ampelVon, erfassungsLage, rueckstandZeile, schlechteste, zeilenMarken, type GeraetAngabe, type ListenLage } from './lage'
+import { ampelVon, durchfahrtVon, erfassungsLage, rueckstandZeile, schlechteste, zeilenMarken, type GeraetAngabe, type ListenLage } from './lage'
+import { schlange } from './schlange'
+import { werteVon } from '../lib/eingaben'
 import { listenKennung, listeVonBogen, teilVonZelle, type Liste } from './liste'
 import { pruefeZeile } from './zeile'
 
@@ -316,7 +318,7 @@ describe('erfassungsLage – Geräte', () => {
   it('Abschlüsse mit Startnummern, über abschluss.ts gelesen', () => {
     const { s: s0, keys } = drei()
     const s = reducer(s0, { type: 'WKR_ABSCHLUSS', liste: K('gate135'), punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: true, zeit: 9000 })
-    expect(lageVon(s, 'gate135').abschluss).toEqual([{ punkt: 'lauf:1', name: 'Vor1', zeit: 9000, abweichend: [], papier: keys.map((k) => nr(s, k)), nichtVorbei: [] }])
+    expect(lageVon(s, 'gate135').abschluss).toEqual([{ punkt: 'lauf:1', name: 'Vor1', zeit: 9000, abweichend: [], papier: keys.map((k) => nr(s, k)) }])
   })
 })
 
@@ -457,79 +459,54 @@ describe('Prüfbefunde W2', () => {
   })
 })
 
-// W4.3 (Plan docs/plan-wkr-w4.md §6, 21.11.2026, R4/R5): Zellstand `nv`, kein Rückstand, „Papier ansehen“, Abschluss.
-describe('„Nicht vorbeigekommen“ (W4.3)', () => {
-  /** Zeile mit `n` wie vom Gerät (pruefeZeile → WKR_ZEILEN). */
-  function nv(s: AppState, typeId: string, key: string, teil?: 'ab' | 'an', z = 1): AppState {
-    const r = pruefeZeile(s, DM, L(typeId), teil, 'g1', { z, s: key, c: [], n: true })
-    if ('fehler' in r) throw new Error(r.fehler)
-    return reducer(s, { type: 'WKR_ZEILEN', liste: K(typeId), quelle: { geraet: 'g1', name: 'Handy Nord' }, zeilen: [r], zeit: 5000 })
-  }
-
-  it('Zelle ⊘ statt ✓, kein Rückstand, keine Warnung; Zeile „Papier ansehen“; spätere Werte → ✓', () => {
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG4): „Nicht gestartet · Disq. X“ von einem Tor-Gerät wirkt wie ein X vom Steg –
+// ersetzt „nicht vorbeigekommen“ (W4.3, Zelle ⊘), das es nicht mehr gibt.
+describe('„Nicht gestartet · Disq. X“ (24.11.2026, NG4)', () => {
+  it('vom Tor: ✕ auf allen Listen, aus jeder Schlange, kein Rückstand, kein „Papier ansehen“; der Start entfällt', () => {
     const { s: s0, keys } = drei()
-    let s = nv(s0, 'gate135', keys[0])
-    s = nv(s, 'gate135', keys[1], undefined, 2)
-    s = sende(s, 'gate135', keys[2], [], 3)
-    const l = lageVon(s, 'gate135')
-    expect(zellen(l, keys)).toEqual(['nv', 'nv', 'ok'])
-    expect(l.rueckstand).toBeNull()
-    expect(l.warnt).toBe(false)
-    expect(zeilenMarken(s, DM, L('gate135'), [L1]).get(`${L1}|${starterVon(keys[0])}`)).toEqual({ marke: 'papier-ansehen', zellen: {} })
-    expect(zeilenMarken(s, DM, L('gate135'), [L1]).has(`${L1}|${starterVon(keys[2])}`)).toBe(false)
-    const getippt = setze(s, starterVon(keys[0]), 't1a|hin seiteA', '5')
-    expect(lageVon(getippt, 'gate135').zellen[keys[0]].zelle).toBe('ok')
-    expect(zeilenMarken(getippt, DM, L('gate135'), [L1]).has(`${L1}|${starterVon(keys[0])}`)).toBe(false)
+    const vorher = setzeListe(s0, L('steg'), 100, 'digital')
+    expect(schlange(vorher, L('steg')).map((x) => x.key)).toContain(keys[0])
+    const s = sende(vorher, 'gate135', keys[0], [['disq@gate135', 'X', '']])
+    const starter = starterVon(keys[0])
+    expect(werteVon(s.eingaben, L1, starter)).toEqual({ 'disq@gate135': 'X', 'erfasst@gate135': '1' })
+    expect(lageVon(s, 'gate135').zellen[keys[0]]).toEqual({ zelle: 'x' })
+    expect(lageVon(s, 'steg').zellen[keys[0]]).toEqual({ zelle: 'x' })
+    expect(schlange(s, L('steg')).map((x) => x.key)).not.toContain(keys[0])
+    expect(schlange(s, L('gate135')).map((x) => x.key)).not.toContain(keys[0])
+    expect(zeilenMarken(s, DM, L('gate135'), [L1]).has(`${L1}|${starter}`)).toBe(false)
+    expect(zeilenMarken(s, DM, L('steg'), [L1]).has(`${L1}|${starter}`)).toBe(false)
+    // Wie ein X vom Steg: Der Start entfällt in der Folge – aber keine Abmeldung (nur dieser Lauf).
+    expect(bereichsLage(s, P1).folge.find((e) => e.key === keys[0])?.entfaellt).toBe(true)
+    expect(s.abgemeldet).toEqual([])
   })
 
-  it('Rückfrage geht vor ⊘; Werte vor dem Kennzeichen heben es gleich wieder auf', () => {
-    const { s: s0, keys } = drei()
-    // Erst eine Rückfrage (anderer Wert steht), dann meldet ein zweites Gerät „nicht vorbeigekommen“.
-    let s = setze(s0, starterVon(keys[0]), 't1a|hin seiteA', '10')
-    s = sende(s, 'gate135', keys[0], [['t1a|hin seiteA', '5', '']])
-    s = setze(s, starterVon(keys[0]), 't1a|hin seiteA', '')
-    const r = pruefeZeile(s, DM, L('gate135'), undefined, 'g2', { z: 2, s: keys[0], c: [], n: true })
-    if ('fehler' in r) throw new Error(r.fehler)
-    s = reducer(s, { type: 'WKR_ZEILEN', liste: K('gate135'), quelle: { geraet: 'g2', name: 'Pad' }, zeilen: [r], zeit: 6000 })
-    expect(s.wkr.nichtVorbei[K('gate135')]).toEqual([`${L1}|${starterVon(keys[0])}`])
-    expect(lageVon(s, 'gate135').zellen[keys[0]].zelle).toBe('rueckfrage')
-    // Werte stehen schon: Das Kennzeichen fällt sofort (WKR_ANNAHMEN.nichtVorbeiAufheben).
-    let t = setze(s0, starterVon(keys[1]), 't1a|hin seiteA', '10')
-    t = nv(t, 'gate135', keys[1], undefined, 3)
-    expect(lageVon(t, 'gate135').zellen[keys[1]].zelle).toBe('ok')
+  it('am gezeigten Start: Die Parcours-Ampel gilt als durch (AM4)', () => {
+    const { s: s0, keys } = drei({ durch: false })
+    expect(durchfahrtVon(s0, DM, P1)).toMatchObject({ durch: false, x: false })
+    const s = sende(s0, 'gate135', keys[2], [['disq@gate135', 'X', '']])
+    expect(durchfahrtVon(s, DM, P1)).toMatchObject({ ref: keys[2], durch: true, x: true })
+    // Offen bleiben nur die beiden früheren Starts ohne Zeile; der mit X zählt nicht.
+    expect(lageVon(s, 'gate135').rueckstand).toEqual({ zahl: 2, von: nr(s, keys[0]), bis: nr(s, keys[1]) })
   })
 
-  it('Steg: Anlegen ⊘ + Ablegen erfasst → ⊘; nur Anlegen ⊘ → ½; Marken an den Zellen des Anlegens', () => {
+  it('Steg, Gerät nur für „Anlegen“: X ins gemeinsame Disq.-Feld, Haken des Anlegens, Zelle ✕ (NG4)', () => {
     let s = setzeListe(wkrBetriebsStand(), L('steg'), 100, 'digital')
     s = zeige(s, 1, 1000)
     const [key] = gezeigt(s)
-    s = nv(s, 'steg', key, 'an')
-    expect(lageVon(s, 'steg').zellen[key]).toEqual({ zelle: 'halb', teile: { ab: 'offen', an: 'nv' } })
-    const starter = starterVon(key)
-    const klasse = s.starters.find((x) => x.id === starter)!.klasse
-    const felderAn = listenFelder(DM, 'steg', klasse).filter((f) => teilVonZelle('steg', f.zelle) === 'an').map((f) => f.kennung)
-    s = sende(s, 'steg', key, [], 2)
-    // Eine ganze Steg-Zeile hebt auch das Anlegen auf – darum hier das Ablegen allein.
-    let t = setzeListe(wkrBetriebsStand(), L('steg'), 100, 'digital')
-    t = zeige(t, 1, 1000)
-    t = nv(t, 'steg', key, 'an')
-    const r = pruefeZeile(t, DM, L('steg'), 'ab', 'g2', { z: 9, s: key, c: [] })
+    const r = pruefeZeile(s, DM, L('steg'), 'an', 'g1', { z: 1, s: key, c: [['disq@steg', 'X', '']] })
     if ('fehler' in r) throw new Error(r.fehler)
-    t = reducer(t, { type: 'WKR_ZEILEN', liste: K('steg'), quelle: { geraet: 'g2', name: 'Pad' }, zeilen: [r], zeit: 6000 })
-    expect(lageVon(t, 'steg').zellen[key]).toEqual({ zelle: 'nv', teile: { ab: 'ok', an: 'nv' } })
-    const m = zeilenMarken(t, DM, L('steg'), [L1]).get(`${L1}|${starter}`)!
-    expect(m.marke).toBeNull()
-    expect(Object.keys(m.zellen).sort()).toEqual([...felderAn].sort())
-    expect(lageVon(s, 'steg').zellen[key].zelle).toBe('ok')
+    s = reducer(s, { type: 'WKR_ZEILEN', liste: K('steg'), quelle: { geraet: 'g1', name: 'Handy Anlegen' }, zeilen: [r], zeit: 5000 })
+    expect(werteVon(s.eingaben, L1, starterVon(key))).toMatchObject({ 'disq@steg': 'X', 'erfasst.an@steg': '1' })
+    expect(lageVon(s, 'steg').zellen[key]).toEqual({ zelle: 'x' })
   })
 
-  it('Abschluss nennt die Startnummern mit ⊘ in diesem Punkt', () => {
+  it('Abschluss trägt keine eigene Liste mehr (früher „n nicht vorbeigekommen“)', () => {
     const { s: s0, keys } = drei()
-    let s = nv(s0, 'gate135', keys[1])
+    let s = sende(s0, 'gate135', keys[1], [['disq@gate135', 'X', '']])
     s = sende(s, 'gate135', keys[0], [], 2)
     s = sende(s, 'gate135', keys[2], [], 3)
     s = reducer(s, { type: 'WKR_ABSCHLUSS', liste: K('gate135'), punkt: 'lauf:1', name: 'Vor1', pruefsummen: {}, restPapier: false, zeit: 9000 })
-    expect(lageVon(s, 'gate135').abschluss).toEqual([{ punkt: 'lauf:1', name: 'Vor1', zeit: 9000, abweichend: [], papier: [], nichtVorbei: [nr(s, keys[1])] }])
+    expect(lageVon(s, 'gate135').abschluss).toEqual([{ punkt: 'lauf:1', name: 'Vor1', zeit: 9000, abweichend: [], papier: [] }])
   })
 })
 

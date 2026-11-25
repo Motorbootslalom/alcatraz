@@ -4,6 +4,16 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      # Nutzer 24.11.2026: Zwei Ende-zu-Ende-Tests in src/GeraetWkr.test.ts wackeln unter Last (feste Zeitgrenze) und
+      # hielten den Pages-Deploy auf. Auf GitHub laufen sie nur, wenn man sie hier ausdrücklich einschaltet
+      # (Actions → CI → Run workflow → Haken); bei push und pull_request bleibt die Eingabe leer, die Variable wird
+      # `0`, also aus. Die Regel selbst steht in src/testHilfen.ts wackelTestsAuslassen; src/testHilfen.test.ts prüft,
+      # dass sie zu der Zeile unten passt.
+      wackeltests:
+        description: 'Wackelige Tests mitlaufen lassen (zwei Proben in src/GeraetWkr.test.ts)'
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -16,6 +26,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Typecheck & Tests
+        env:
+          ALCATRAZ_WACKELTESTS: ${{ inputs.wackeltests && '1' || '0' }}
         run: npm run check
       - name: Build
         run: npm run build:all

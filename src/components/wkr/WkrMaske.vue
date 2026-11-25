@@ -6,7 +6,8 @@ import type { AnsichtWahl, GeraetAnsicht } from '../../geraete/ablage'
 import type { ListenAufgabe } from '../../geraete/aufgaben'
 import { liesRef } from '../../betrieb/folge'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
-import { liesListe, type ListenTeil } from '../../wkr/liste'
+import type { ListenTeil } from '../../wkr/liste'
+import { NICHT_GESTARTET } from '../../lib/abmeldung'
 import {
   attemptWechsel,
   BOJEN_FOLGE_VORGABE,
@@ -28,9 +29,12 @@ import {
   punkteVon,
   teileFuer,
   tippe,
+  codeTippPrellt,
   tippeBoje,
   tippeBojenDisq,
   tippeDisq,
+  nichtGestartetZellen,
+  ohneFremdesX,
   wechselNach,
   wechselTakt,
   zellenAus,
@@ -42,7 +46,6 @@ import {
 } from '../../wkr/maske'
 import type { Weg } from '../../wkr/bojen'
 import type { MaskenWahl } from '../../wkr/maskenWahl'
-import { NICHT_VORBEI_DISQ, nichtVorbeiArt } from '../../wkr/nichtVorbei'
 import AppDialog from '../AppDialog.vue'
 import WkrAbschluss from './WkrAbschluss.vue'
 import WkrAusweichen from './WkrAusweichen.vue'
@@ -50,7 +53,7 @@ import WkrFuss from './WkrFuss.vue'
 import WkrKopf from './WkrKopf.vue'
 import WkrMehr from './WkrMehr.vue'
 import WkrMitte from './WkrMitte.vue'
-import { bildTreffer } from '../../wkr/bild'
+import { bildTreffer, type BildLage } from '../../wkr/bild'
 import { tabellenSpalten } from '../../wkr/tabelle'
 import { parcoursSvg } from '../../lib/parcoursQuelle'
 import WkrSeite from './WkrSeite.vue'
@@ -61,6 +64,7 @@ import WkrParcoursBild from './WkrParcoursBild.vue'
 import WkrUebertragen from './WkrUebertragen.vue'
 import WkrZuletzt from './WkrZuletzt.vue'
 import { gedaechtnis } from './gedaechtnis'
+import { rolleAnDenRand } from './systemModus'
 import { useWkrText, zellenText } from './texte'
 
 /**
@@ -113,6 +117,12 @@ import { useWkrText, zellenText } from './texte'
  *   ihren Entwurf hinauf (gemerkt wie jeder Tipp), Enter in der letzten Zelle ruft `haupt` – derselbe Takt, dasselbe
  *   Overlay; „Korrigieren“ an einer Zeile = oeffneKorrektur wie aus „Zuletzt“. Zellen mit Fehler sperren den
  *   Hauptknopf (WkrFuss `zellenFehler`); DISQ entfällt dort (Buchstaben stehen in der Zelle).
+ * - **Übung, Nutzer 24.11.2026** (WKR_ANNAHMEN UK1–UK5): Nach dem Abschicken rollt der Kopf samt Übungs-Erklärung oben
+ *   hinaus (kopfAusDemBild) und noch einmal, sobald die nächste Karte steht (UK5) – nur in der Übung, nicht auf dem
+ *   Pad mit mehreren Spalten; mit eigener Seitenspalte rechts bis zur Oberkante der Maske (UK4).
+ * - **Lage des Bilds, Nutzer 24.11.2026** (BL1–BL6): „Mehr → Ansicht“ zeigt beim Bild statt der Bojen-Folge die Lage
+ *   (Automatisch / Steg unten/links/oben/rechts, Parallelslalom nach dem Start), je Liste gemerkt wie die Bojen-Folge
+ *   (`bildLagen`); die Ortswahl der Disq. folgt beim Bild der Vorgabe-Folge (BL6).
  */
 const props = defineProps<{
   quelle: ErfassungsQuelle
@@ -128,6 +138,8 @@ const props = defineProps<{
   name?: string
   /** Bojen-Folge je Liste (ablage.ts GeraetAnsicht.bojenFolge) – nur zum Lesen; Änderungen gehen als `ansicht` hinauf. */
   bojenFolgen?: Record<string, BojenFolge>
+  /** Lage des Bilds je Liste (ablage.ts GeraetAnsicht.bildLage, Nutzer 24.11.2026, BL3) – wie `bojenFolgen` nur zum Lesen. */
+  bildLagen?: Record<string, BildLage>
   /** Pad (W5.1): eigene Seitenspalte rechts/unten bzw. kompakt unter der Arbeitsfläche; fehlt = Handy. */
   seite?: 'rechts' | 'unten' | 'kompakt' | null
   /** Pad, ganzer Steg (W5.1): dieser Teil als eigene Spalte. */
@@ -253,7 +265,14 @@ function ladeEntwurf(): void {
   const a = aktuell.value
   const b = aufbau.value
   const zellen = a && b ? props.quelle.entwurf(liste.value, a.key, teil.value) : null
-  entwurf.value = zellen && b ? entwurfAus(zellen, b) : leererEntwurf()
+  const e = zellen && b ? entwurfAus(zellen, b) : leererEntwurf()
+  // „Rückgängig“ einer noch wartenden „Nicht gestartet“-Zeile (Prüfbefund 24.11.2026, NG5): holeZurueck legt ihre
+  // Zellen ({Disq.: X}) als Entwurf zurück. Wo die Knöpfe kein X anbieten, gilt dieselbe Regel wie in der Korrektur –
+  // der Start steht wieder ohne X da; der Entwurf im Ausgang zieht mit (leer = weg), sonst stünde X weiter in der
+  // Entwurfsleiste und käme beim nächsten Laden wieder.
+  const ohne = b ? ohneFremdesX(e, b, teil.value) : e
+  if (ohne !== e && a && b) props.quelle.merkeEntwurf(liste.value, a.key, teil.value, entwurfZellen(ohne, b, teil.value))
+  entwurf.value = ohne
 }
 watch(entwurfSchluessel, ladeEntwurf, { immediate: true })
 // Die Klasse kommt erst mit der Sicht – dann den Entwurf noch einmal mit dem Aufbau lesen.
@@ -340,7 +359,8 @@ watch(gesendeteStufe, (st) => {
 })
 // Der Wechsel der Nummer blitzt – gleich ob nach der Quittung oder nach dem Höchstwert.
 watch(takt, (neu, alt) => {
-  if (neu === 'sperre' && (alt === 'gesendet' || alt === 'uebernommen')) blitze()
+  if (neu !== 'sperre' || (alt !== 'gesendet' && alt !== 'uebernommen')) return
+  blitze()
 })
 const rueckgaengig = computed(() => {
   const g = gesendet.value
@@ -415,6 +435,67 @@ const warteLange = computed(() => warteSeit.value !== null && jetzt.value - wart
 function neuVerbinden(): void {
   if (typeof location !== 'undefined') location.reload()
 }
+
+// --- Übung: Kopf nach dem Abschicken aus dem Bild (Nutzer 24.11.2026, WKR_ANNAHMEN UK1–UK5) ---
+// Steht hinter `zeige` und `ruhe`: Der Watch unten liest sie sofort beim Aufbau.
+const kopfRef = ref<InstanceType<typeof WkrKopf> | null>(null)
+const maskeRef = ref<HTMLElement | null>(null)
+/**
+ * Nur in der Übung (UK1: die echte Maske zeigt im Kopf Verbindung, „Keine Bestätigung“ und „Bitte Nr. prüfen“ – die
+ * sollen nicht oben hinausrollen) und nicht auf dem Pad mit mehreren Spalten (`seite` kompakt): Die Seite rollt dort
+ * für alle Spalten zugleich (UK2).
+ */
+const rolltKopfHinaus = computed(() => props.quelle.uebung && WKR_ANNAHMEN.uebungKopfAusDemBild && props.seite !== 'kompakt')
+/**
+ * Nutzer 24.11.2026: „Bei dem Header ‚So läuft die Übung‘ und ‚ÜBUNG Tor X …‘ soll beim Klicken auf ‚Fehlerfrei/weiter‘
+ * aus dem Screen rutschen, so dass der Block mit der Startnummer am Bildschirmrand ist.“ Nach dem Abschicken (UK1)
+ * rollt die Seite so, dass alles über dem Kopf und der Kopf selbst oben hinausgehen – also die Erklärung der Übung, das
+ * Band „ÜBUNG“, Titel und Verbindung. Ziel ist das erste Element NACH dem Kopf (UK3): Steg-Reiter bzw. die Zeile
+ * „Zuletzt“ mit „↶ Rückgängig“ (6 s, G8) und den Rückfrage-Bändern bleiben sichtbar, darunter gleich die Karte; ohne
+ * „Zuletzt“ (erster Start) steht die Karte am Rand. Die Fläche „wird übertragen …“ liegt fest über allem und rollt
+ * nicht mit. Ohne Bewegung bei „Bewegung reduzieren“ (systemModus.ts rolleAnDenRand).
+ *
+ * Pad mit eigener Seitenspalte rechts (Prüfbefund 24.11.2026, UK4, noch zu bestätigen): Der Kopf steht dort in
+ * derselben Rasterzeile wie der Anfang der Seitenspalte (Schlange, gerade aktiver Start) – rollte er hinaus, ginge
+ * deren Anfang mit. Dort rollt die Maske nur bis zu ihrer eigenen Oberkante: Erklärung und Bildschirm-Hinweis gehen
+ * hinaus, der Kopf mit „ÜBUNG“ bleibt.
+ */
+function kopfAusDemBild(): void {
+  if (!rolltKopfHinaus.value) return
+  const ziel = props.seite === 'rechts' && WKR_ANNAHMEN.uebungKopfSeiteRechts ? maskeRef.value : ((kopfRef.value?.$el ?? null) as Element | null)?.nextElementSibling
+  rolleAnDenRand(ziel)
+}
+/**
+ * UK5 (Prüfbefund 24.11.2026): Im Übungstakt kommt der nächste Start erst 2–6 s nach dem Abschicken (geraete/uebung.ts
+ * UEBUNG_FOLGE_MS). Bis dahin steht statt Karte und Knöpfen nur „Kein Boot unterwegs.“ (WkrRuhe `leer`) – die
+ * Seite würde kurz, der Browser rollte von selbst zurück nach oben, und mit der neuen Karte stünden Erklärung und
+ * „ÜBUNG“ wieder da. Darum nach dem Abschicken: (a) ausrichten, sobald wieder eine Karte steht (nicht schon beim Ende
+ * des Overlays – da kann sie noch fehlen), (b) bis dahin hält die Maske ihre Höhe vom Abschicken (min-height), damit
+ * nichts zurückspringt. Beides endet mit dem ersten Ausrichten mit Karte; eine Korrektur dazwischen zählt nicht als
+ * neue Karte. Die gehaltene Höhe gilt nur, solange die Maske Arbeit oder „leer“ zeigt (Pause usw. ohne Leerraum).
+ */
+const ausrichtenOffen = ref(false)
+const halteHoehe = ref<number | null>(null)
+function nachDemAbschicken(): void {
+  if (!rolltKopfHinaus.value) return
+  void nextTick(kopfAusDemBild)
+  if (!WKR_ANNAHMEN.uebungKopfMitNaechsterKarte) return
+  // Gemessen, solange Karte und Knöpfe noch stehen (vor dem Overlay-Ende); im Test-DOM 0 = nichts halten.
+  const h = maskeRef.value?.offsetHeight ?? 0
+  halteHoehe.value = h > 0 ? h : null
+  ausrichtenOffen.value = true
+}
+/** Die Karte des nächsten Starts (nicht die gesendete unter dem Overlay, nicht die Korrektur) – sonst `null`. */
+const naechsteKarte = computed(() => (!imOverlay.value && !korrektur.value && zeige.value ? zeige.value.start.key : null))
+watch(naechsteKarte, (key) => {
+  if (!key || !ausrichtenOffen.value) return
+  ausrichtenOffen.value = false
+  void nextTick(() => {
+    kopfAusDemBild()
+    halteHoehe.value = null
+  })
+})
+const halteStil = computed(() => (halteHoehe.value !== null && (ruhe.value === null || ruhe.value === 'leer') ? { minHeight: `${halteHoehe.value}px` } : undefined))
 const naechsterStart = computed(() => {
   const d = sicht.value?.danach[0]
   return d ? { startNr: d.startNr, klasse: klassenTitel(d.klasse) } : null
@@ -456,8 +537,8 @@ function soLassen(z: number): void {
 const andereEntwuerfe = computed(() =>
   props.quelle.entwuerfe.value.filter((e) => e.liste === liste.value && !(e.s === aktuell.value?.key && (e.teil ?? '') === (teil.value ?? ''))),
 )
-// „Nicht vorbeigekommen“ (W4.3): statt der (leeren) Zellen das Kennzeichen – „fehlerfrei“ wäre falsch.
-const zeilenText = (z: ZuletztZeile) => (z.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(z.zellen, aufbauVon(klasseVon(z.s, z.punkt)), text, w('wkr.geraet.fehlerfreiText'), z.kz))
+// „Nicht gestartet“ (24.11.2026) nennt zellenText selbst – X allein heißt „nicht gestartet (Disq. X)“.
+const zeilenText = (z: ZuletztZeile) => zellenText(z.zellen, aufbauVon(klasseVon(z.s, z.punkt)), text, w('wkr.geraet.fehlerfreiText'), z.kz)
 
 /** Entwürfe zu Starts, die nicht mehr in der Folge stehen (zurückgestellt) – einmal fragen. */
 const gefragt = ref<ReadonlySet<string>>(gedacht.gefragt)
@@ -523,7 +604,6 @@ function korrigiereAusPruefung(s: string): void {
 function pruefText(z: PruefZeile): { klasse: string; codes: string; punkte: number | null } {
   const k = (z.klasse as ClassId | null) ?? null
   const b = aufbauVon(k)
-  if (z.nv) return { klasse: klassenTitel(k), codes: `⊘ ${w('wkr.geraet.nichtVorbei.text')}`, punkte: null }
   return {
     klasse: klassenTitel(k),
     codes: zellenText(z.zellen, b, text, w('wkr.geraet.fehlerfreiText')),
@@ -562,9 +642,19 @@ watch(
   },
 )
 
+/** Letzter Tipp je Feld und Code (Zeitmarke) – nur für den Prellschutz CM8, nie im reinen wkr/maske.ts. */
+const codeTipp = new Map<string, number>()
 function tippeCode(feld: string, code: string): void {
-  if (gesperrt.value) return
-  aendere(tippe(entwurf.value, feld, code))
+  if (gesperrt.value || !aufbau.value) return
+  // Prellschutz an „2. und 3. Versuch“ (CM8, Prüfbefund 24.11.2026): Dort führt der dritte Tipp zu Disq. D – ein
+  // prellender Handschuh-Tipp gleich nach dem vorigen wird verworfen (wkr/maske.ts codeTippPrellt entscheidet).
+  const um = Date.now()
+  const schluessel = JSON.stringify([feld, code])
+  const vorher = codeTipp.get(schluessel)
+  codeTipp.set(schluessel, um)
+  if (codeTippPrellt(aufbau.value, feld, code, vorher, um)) return
+  // Höchstzahl je Code und Disq. danach (Nutzer 24.11.2026, CM3/CM4) entscheidet wkr/maske.ts tippe am Aufbau.
+  aendere(tippe(entwurf.value, aufbau.value, feld, code))
 }
 /** Letzter Tipp je Schalter-Feld (Zeitmarke) – nur für den Prellschutz, nie im reinen wkr/maske.ts. */
 const bojenTipp = new Map<string, number>()
@@ -701,34 +791,34 @@ function haupt(): void {
   disqOffen.value = false
   starteTakt(g)
   ladeEntwurf()
+  // Übung (UK1, 24.11.2026): Kopf aus dem Bild, solange das Overlay noch darüber liegt – und mit der nächsten Karte (UK5).
+  nachDemAbschicken()
 }
 
 /**
- * „Nicht vorbeigekommen“ (W4.3, P16/R6) für den gezeigten Start: wo X nicht gilt (nicht Vorsteg, am Steg nur
- * Anlegen – WKR_ANNAHMEN.nichtVorbeiNichtBeiX), nicht in der Korrektur. Die Startnummer für die Rückfrage; sonst `null`.
+ * „Nicht gestartet · Disq. X“ (Nutzer 24.11.2026, WKR_ANNAHMEN NG1) für den gezeigten Start: auf jeder Liste mit
+ * eigenem Disq.-Feld (wkr/maske.ts nichtGestartetZellen – auch Steg-Anlegen, Vorsteg, Parallelslalom), nicht in der
+ * Korrektur. Die Startnummer für die Rückfrage; sonst `null`. Ersetzt „Nicht vorbeigekommen“ (W4.3) und dessen J (GF10).
  */
-const nichtVorbeiNr = computed(() => {
+const nichtGestartetNr = computed(() => {
   const a = aktuell.value
-  const typeId = liesListe(liste.value)?.typeId
-  if (!a || korrektur.value || !typeId) return null
-  const xHier = WKR_ANNAHMEN.xListen.includes(typeId) && (!geteilt.value || teil.value === undefined || teil.value === WKR_ANNAHMEN.xTeil)
-  return xHier ? null : a.startNr
+  const b = aufbau.value
+  if (!a || korrektur.value || !b || !nichtGestartetZellen(b)) return null
+  return a.startNr
 })
-function nichtVorbei(): void {
-  if (gesperrt.value || !nichtVorbeiNr.value) return
+function nichtGestartet(): void {
+  if (gesperrt.value || !nichtGestartetNr.value) return
   hinweisUnbekannt.value = null
   const a = aktuell.value
   const b = aufbau.value
-  if (!a || !b) return
-  // Ein Entwurf dieses Starts ist damit hinfällig – „Es wird nichts eingetragen“ (R6).
+  const zellen = b ? nichtGestartetZellen(b) : null
+  if (!a || !b || !zellen) return
+  // Ein Entwurf dieses Starts ist damit hinfällig – eingetragen wird nur X (BZ2: X nie neben Punkten oder Buchstaben).
   props.quelle.verwirfEntwurf(liste.value, a.key, teil.value)
-  // W3-17 (Nutzer 21.11.2026, GF10): Wo die Liste J kennt, ist es Disq. J im Disq.-Feld (eine gewöhnliche Zeile – Haken,
-  // Matrix ✓ mit Disq.); sonst (Steg-Anlegen) das Kennzeichen ⊘ wie seit W4.3.
-  const alsDisq = nichtVorbeiArt(disqFuer(b, teil.value)) === 'disq'
-  const e = alsDisq ? tippeDisq(leererEntwurf(), NICHT_VORBEI_DISQ) : leererEntwurf()
-  const z = alsDisq
-    ? props.quelle.schicke(liste.value, { s: a.key, zellen: zellenAus(e, b, teil.value), ...(teil.value ? { teil: teil.value } : {}) })
-    : props.quelle.schicke(liste.value, { s: a.key, zellen: {}, nv: true, ...(teil.value ? { teil: teil.value } : {}) })
+  // Die Zeile geht an zellenAus vorbei: Die Disq.-Knöpfe bieten X außerhalb von Steg-Ablegen und Vorsteg nicht an (NG3),
+  // zellenAus ließe es also weg. Der Entwurf fürs Overlay trägt X wie ein Tipp.
+  const e = tippeDisq(leererEntwurf(), NICHT_GESTARTET)
+  const z = props.quelle.schicke(liste.value, { s: a.key, zellen, ...(teil.value ? { teil: teil.value } : {}) })
   if (z === null) return
   const g: Gesendet = { um: Date.now(), z, start: a, entwurf: e, aufbau: b, klasse: klassenTitel(a.klasse) }
   quittungUm.value = null
@@ -737,6 +827,7 @@ function nichtVorbei(): void {
   disqOffen.value = false
   starteTakt(g)
   ladeEntwurf()
+  nachDemAbschicken()
 }
 
 /** „Keine Zeit“ für die Zeile (W5.4): auf Listen mit Zeitfeldern immer (auch leer), sonst nichts. */
@@ -765,7 +856,11 @@ function oeffneKorrektur(z: number): void {
   const b = aufbauVon(klasseVon(k.s, k.punkt))
   korrekturAlt.value = props.quelle.stand(k.z) ?? k.zellen
   korrekturKz.value = props.quelle.keineZeit(k.z)
-  entwurf.value = b ? entwurfAus(korrekturAlt.value, b, korrekturKz.value) : leererEntwurf()
+  const e = b ? entwurfAus(korrekturAlt.value, b, korrekturKz.value) : leererEntwurf()
+  // „Doch gestartet“ (24.11.2026, WKR_ANNAHMEN NG5): Wo die Knöpfe kein X anbieten (alles außer Steg-Ablegen und
+  // Vorsteg), beginnt die Korrektur ohne X – sonst stünde es im Fuß, ließe sich nicht abwählen, und zellenAus ließe es
+  // beim Abschicken doch weg. Abschicken (auch „fehlerfrei“) nimmt das X am Bedienrechner heraus; „alt → neu“ zeigt es.
+  entwurf.value = b ? ohneFremdesX(e, b, k.teil ?? teil.value) : e
 }
 function brichKorrekturAb(): void {
   korrektur.value = null
@@ -890,6 +985,19 @@ function aendereBojenFolge(neu: BojenFolge): void {
   delete rest[liste.value]
   emit('ansicht', { bojenFolge: { ...rest, [liste.value]: neu } })
 }
+
+// --- Lage des Bilds dieser Liste (Nutzer 24.11.2026, WKR_ANNAHMEN BL1–BL3): gemerkt in WkrGeraet wie die Bojen-Folge ---
+const bildLage = computed<BildLage | null>(() => props.bildLagen?.[liste.value] ?? null)
+/** Wie die Zeichnung gerade liegt (WkrBild meldet die wirksame Drehung) – „Mehr“ zeigt das ohne eigene Wahl. */
+const bildDrehungJetzt = ref(0)
+function aendereBildLage(neu: BildLage | null): void {
+  // Wie bei der Bojen-Folge rückt die geänderte Liste ans Ende (ablage.ts behält die letzten BOJEN_FOLGE_MAX).
+  const rest = { ...(props.bildLagen ?? {}) }
+  delete rest[liste.value]
+  // „Automatisch“ (`null`, Prüfbefund 24.11.2026, BL1): Eintrag der Liste weg = keine Wahl; ohne Eintrag fällt die Map.
+  const lagen = neu === null ? rest : { ...rest, [liste.value]: neu }
+  emit('ansicht', { bildLage: Object.keys(lagen).length > 0 ? lagen : undefined })
+}
 const sichtbareTeile = computed(() => (zeige.value ? teileFuer(zeige.value.aufbau, teil.value) : []))
 
 // --- Seitenspalte auf dem Pad (W5.1, PD3/PD6) ---
@@ -913,6 +1021,13 @@ const bildZuordnungJetzt = computed(() =>
     ? bildTreffer(sicht.value, klasse.value as ClassId, parcoursSvg, props.spracheWahl)
     : null,
 )
+/**
+ * Prüfbefund 24.11.2026 (WKR_ANNAHMEN BL6, noch zu bestätigen): Die Bojen-Folge wirkt nur, wo sie unter „Mehr“ auch
+ * wählbar ist (BL1). Beim Bild öffnet DISQ im Fuß weiter die Liste „Disq. – an welcher Boje?“ (WkrDisqOrt, BD7) – die
+ * steht dort immer in der Vorgabe „Rückweg gedreht“, nie in einer Folge, die der WKR früher bei den Knöpfen gewählt
+ * hat und beim Bild weder sieht noch ändern kann. Bei den Knöpfen gilt die Wahl wie bisher für Knöpfe und Ortswahl.
+ */
+const bojenFolgeWirksam = computed<BojenFolge>(() => (bildZuordnungJetzt.value ? BOJEN_FOLGE_VORGABE : bojenFolge.value))
 /** Beim Bild stehen die Einträge im Klartext immer daneben (Pflicht, Plan §5.2) – auf dem Handy kompakt darunter. */
 // --- Tabelle für Geübte (W5.5, Plan docs/plan-wkr-w5.md §8, 22.11.2026, TB1–TB5) ---
 /** Zellen der aktiven Tabellen-Zeile mit Fehler (WkrTabelle meldet sie) – sperrt den Hauptknopf. */
@@ -926,7 +1041,7 @@ const tabelle = computed(() => {
     .filter((z) => !t || !z.teil || z.teil === t)
     .slice(0, n.gesendet)
     .reverse()
-    .map((z) => ({ z: z.z, sn: z.sn ?? '?', zellen: props.quelle.stand(z.z) ?? z.zellen, stufe: z.stufe, ...(z.nv ? { nv: true as const } : {}), ...(z.kz ? { kz: z.kz } : {}) }))
+    .map((z) => ({ z: z.z, sn: z.sn ?? '?', zellen: props.quelle.stand(z.z) ?? z.zellen, stufe: z.stufe, ...(z.kz ? { kz: z.kz } : {}) }))
   // In der Korrektur steht der aktuelle Start unter den nächsten – er wartet, bis die Korrektur durch ist.
   const naechste = [...(korrektur.value && aktuell.value ? [aktuell.value] : []), ...schlange.value.filter((x) => x.key !== aktuell.value?.key && !x.entfaellt)]
     .slice(0, n.naechste)
@@ -938,6 +1053,19 @@ function tabellenEntwurf(e: Entwurf): void {
   aendere(e)
 }
 const seiteWirksam = computed(() => props.seite ?? (bildZuordnungJetzt.value ? ('kompakt' as const) : null))
+/**
+ * „Mehr → Ansicht“ (Nutzer 24.11.2026: „Die Einstellungen mit Bojen … machen keinen Sinn, wenn man Bild ausgewählt hat.
+ * Dafür braucht Bild die Auswahl von den 4 Parcours-Himmelsrichtungen.“, WKR_ANNAHMEN BL1): die Bojen-Folge nur, wenn
+ * die Bojen-Knöpfe zu sehen sind – nicht beim Bild und nicht bei der Tabelle; beim Bild statt ihrer die Lage. Ein Bild
+ * ohne vollständige Zuordnung zeigt die Knöpfe (BD2) und damit wieder die Bojen-Folge; das Schema (Rückfall ohne
+ * Parallel.svg) dreht nicht und hat keine Lage. Parallelslalom: benannt nach dem Start (keine Zeichnung mit Steg, R9-06).
+ */
+const mehrBojenFolge = computed(() => (art.value === 'bojen' && !bildZuordnungJetzt.value && !tabelle.value ? bojenFolge.value : null))
+const mehrBildLage = computed(() => {
+  const z = bildZuordnungJetzt.value
+  if (!z || z.art !== 'svg') return null
+  return { art: z.racecourse ? ('start' as const) : ('steg' as const), wahl: bildLage.value, wirksam: bildDrehungJetzt.value }
+})
 /** „Andere Startnummer …“ aus der Seitenspalte: dieselbe Suche wie unter der Karte. */
 function sucheAusSeite(): void {
   ausweichen.value?.oeffne('')
@@ -948,8 +1076,10 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
 
 <template>
   <div
+    ref="maskeRef"
     class="wkr-maske"
     :class="{ 'wkr-maske--bojen': art === 'bojen' }"
+    :style="halteStil"
     data-teil="maske"
     :data-liste="liste"
     :data-takt="takt"
@@ -962,6 +1092,7 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
     <div class="wkr-maske-haupt">
       <WkrKopf
         v-if="sicht"
+        ref="kopfRef"
         :titel="kopfTitel.titel"
         :bereich="kopfTitel.bereich"
         :lauf="ohneLauf ? null : (zeige?.start.titel ?? sicht.punkt?.titel ?? null)"
@@ -1078,10 +1209,11 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
               :disq-codes="disqCodes"
               :gesperrt="gesperrt"
               :weg="weg"
-              :bojen-folge="bojenFolge"
+              :bojen-folge="bojenFolgeWirksam"
               :sichtbare-teile="sichtbareTeile"
               :maske="masken?.wirksam"
               :bild="bildZuordnungJetzt"
+              :bild-lage="bildLage"
               :klasse="zeige.aufbau.titel"
               :pad="!!seite"
               :tabelle="tabelle"
@@ -1100,6 +1232,7 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
               @weg="waehleWeg"
               @zeit="setzeZeitFeld"
               @keine-zeit="setzeKeineZeitFeld"
+              @bild-drehung="(d) => (bildDrehungJetzt = d)"
             />
             <WkrMehr
               :mit-bemerkung="!!zeige.aufbau.bemerkung"
@@ -1111,9 +1244,9 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
               :listen-sprache="listenSprache"
               :mit-andere="!!sicht?.andere"
               :uebung="quelle.uebung"
-              :nicht-vorbei="nichtVorbeiNr"
-              :nicht-vorbei-disq="nichtVorbeiArt(disqCodes) === 'disq' ? NICHT_VORBEI_DISQ : null"
-              :bojen-folge="art === 'bojen' ? bojenFolge : null"
+              :nicht-gestartet="nichtGestartetNr"
+              :bojen-folge="mehrBojenFolge"
+              :bild-lage="mehrBildLage"
               :wkr-name="wkrNameLage"
               :masken="masken ?? null"
               :vorziehen="vorziehKlassen"
@@ -1122,7 +1255,8 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
               @wkr-name="(n) => quelle.setzeWkrName(liste, n)"
               @maske="(m) => emit('maske', m)"
               @bojen-folge="aendereBojenFolge"
-              @nicht-vorbei="nichtVorbei"
+              @bild-lage="aendereBildLage"
+              @nicht-gestartet="nichtGestartet"
               @bemerkung="bemerkung"
               @pausiere="quelle.pausiere(liste)"
               @melde-ab="quelle.meldeAb(liste)"
@@ -1213,7 +1347,7 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
       @abbrechen="frageKorrektur = false"
     >
       <p class="wkr-korrektur-alt" data-teil="alt">
-        {{ korrektur.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(korrekturAlt, aufbau, text, w('wkr.geraet.fehlerfreiText'), korrekturKz) }}
+        {{ zellenText(korrekturAlt, aufbau, text, w('wkr.geraet.fehlerfreiText'), korrekturKz) }}
       </p>
       <p class="wkr-korrektur-pfeil" aria-hidden="true">↓</p>
       <p class="wkr-korrektur-neu" data-teil="neu">{{ zellenText(korrekturNeu, aufbau, text, w('wkr.geraet.fehlerfreiText'), korrekturKzNeu) }}</p>

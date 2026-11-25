@@ -47,6 +47,20 @@ describe('Fuß der Einzelwertung', () => {
     expect(w.findAll('td[data-spalte="zeit"]').map((t) => t.text())).toEqual(['', '–', '–'])
   })
 
+  it('zweite Stufe (vorletzte Runde, 24.11.2026): ihre Zeit in Klammern hinter der Zeit, die Spalte breiter statt zweizeilig', () => {
+    const gleich = { stich: true, punktgleich: true, zeit: 14200 }
+    const w = blatt([zeile(1, 1, 700, { ...gleich, zeit2: 8100 }), zeile(2, 2, 700, { ...gleich, zeit2: null }), zeile(3, 3, 500)])
+    expect(w.findAll('td[data-spalte="zeit"]').map((t) => t.text())).toEqual(['142.00 (81.00)', '142.00 (–)', ''])
+    expect(w.findAll('[data-teil="zeit2"]')).toHaveLength(2)
+    expect(w.findAll('colgroup col').at(-1)!.attributes('style')).toContain('32mm')
+    // Der Strich in der Klammer (in der vorletzten Runde disqualifiziert) ist im Fuß erklärt wie jeder Strich.
+    expect(w.find('[data-hinweis="stich"]').text()).toBe('* MARKE REGEL GETEILT')
+    // Ohne zweite Stufe bleibt die Spalte schmal und ohne Klammer.
+    const ohne = blatt([zeile(1, 1, 700, { stich: true, punktgleich: true, zeit: 14200 }), zeile(2, 2, 700, { stich: true, punktgleich: true, zeit: 14300 })])
+    expect(ohne.find('[data-teil="zeit2"]').exists()).toBe(false)
+    expect(ohne.findAll('colgroup col').at(-1)!.attributes('style')).toContain('22mm')
+  })
+
   it('Sternchen und geteilter Platz auf derselben Seite: beides in einer Zeile', () => {
     const gleich = { stich: true, punktgleich: true }
     expect(fuss([zeile(1, 1, 700, { ...gleich, zeit: 10000 }), zeile(2, 2, 700, { ...gleich, zeit: 12000 }), zeile(3, 2, 700, { ...gleich, zeit: 12000 })]).stich).toBe('* MARKE REGEL GETEILT')

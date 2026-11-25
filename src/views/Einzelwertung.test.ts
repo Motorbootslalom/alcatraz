@@ -313,6 +313,35 @@ describe('Einzelwertung', () => {
     wrapper.unmount()
   })
 
+  it('zweite Stufe des Stichentscheids (24.11.2026): die Zeit der vorletzten Runde in Klammern, der Fuß nennt sie – englisch nach Regel 960', async () => {
+    manoever(MANOEVER)
+    store.dispatch({ type: 'SET_VERZAHNUNG_LOCK', locked: true })
+    fahre('pre', VORLAUF)
+    fest('semi')
+    fahre('semi', VIER)
+    fest('small')
+    fest('final')
+    // 1-3 (Manövrieren 63 s) und 1-4 (62 s) fahren im Kleinen Finale 84 s bzw. 85 s: beide 394 Punkte und 147 s.
+    // Im Halbfinale (ihre vorletzte Runde) hatte 1-3 84 s, 1-4 86 s – 1-3 steht vorn.
+    fahre('small', { '1-3': [42, 42], '1-4': [42, 43] }, Date.UTC(2026, 8, 26, 13))
+    fahre('final', { '1-1': VIER['1-1'], '1-2': VIER['1-2'] }, Date.UTC(2026, 8, 26, 14))
+    const wrapper = await listen('ergebnis', 'einzel')
+    const blatt = wrapper.find('.listen-seite[data-art="einzel"]')
+    expect(zeilen(wrapper).map((z) => [z[0], z[1], z.at(-2), z.at(-1)])).toEqual([
+      ['1*', '101', '495', '145.00'],
+      ['2*', '106', '495', '170.00'],
+      ['3*', '102', '427', '146.00'],
+      ['4*', '105', '427', '161.00'],
+      ['5*', '103', '394', '147.00 (84.00)'],
+      ['6*', '104', '394', '147.00 (86.00)'],
+    ])
+    expect(blatt.find('th[data-spalte="zeit"]').text()).toBe('Combined time')
+    const fuss = blatt.find('[data-hinweis="stich"]').text()
+    expect(fuss).toContain('of the last heat he/she has driven')
+    expect(fuss).toContain('his/her heat before decides (time in brackets)')
+    wrapper.unmount()
+  })
+
   it('mit Logos (16.11.2026): links und rechts neben dem Kasten der Einzelwertung, sonst alles wie ohne', async () => {
     manoever(MANOEVER)
     parallel()

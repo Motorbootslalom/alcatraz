@@ -1074,9 +1074,9 @@ describe('Einstellungen: Geräte (E6, Server des Gerätebetriebs)', () => {
     expect(feld(w).attributes('placeholder')).toBe(NTFY_VORGABE)
     expect(feld(w).element.value).toBe('')
     expect(abschnitt.text()).toContain(`Vorgabe ${NTFY_VORGABE}`)
-    // Was über den Server geht – und was nie.
+    // Was über den Server geht – und was nie; dazu die Ausnahme AG1 (Ausgleichsgewicht an der Steg-Liste, Prüfbefund 24.11.2026).
     const daten = abschnitt.find('[data-hinweis="geraete-daten"]').text()
-    for (const wort of ['Startnummer', 'Name', 'Herkunft', 'Klasse', 'verschlüsselt', 'Geburtsdatum', 'Gewicht', 'IP-Adressen']) expect(daten).toContain(wort)
+    for (const wort of ['Startnummer', 'Name', 'Herkunft', 'Klasse', 'verschlüsselt', 'Geburtsdatum', 'Gewicht', 'IP-Adressen', 'Ausgleichsgewicht', 'Steg-Liste']) expect(daten).toContain(wort)
     // Verweis dorthin, wo eingeschaltet wird.
     expect(abschnitt.find('a[href="#/betrieb/geraete"]').exists()).toBe(true)
 

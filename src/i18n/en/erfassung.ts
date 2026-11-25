@@ -34,6 +34,8 @@ export default {
   'capture.hint.zeitSpanne': 'The stopwatches differ by more than one second.',
   'capture.hint.zeitBereich': 'Time below 20 seconds or above 10 minutes – typing error?',
   'capture.hint.bojePunkte': 'Buoy points are not a multiple of 5, or more than 30.',
+  'capture.hint.codeZuOft': 'Code {code} is entered more than {n}× – it cannot occur that often in one attempt. Typing error?',
+  'capture.hint.codeDanach': 'Code {code} is entered more than {n}× – a further attempt is a disqualification. Disq. {disq}?',
   'capture.hint.versucheAbweichend': 'This row applies to every attempt, but a later attempt holds something else here (from before “Attempts run consecutively”). Both count – the next entry in this row makes all attempts the same; if it would delete an X, you are asked first. “Confirm empty rows” leaves this row out.',
   'capture.overwriteX.heading': 'Delete the X “{dns}”?',
   'capture.overwriteX.text': 'The row of {nr} applies to every attempt. A later attempt holds an X (“{dns}”) on this sheet, though, which the row does not show – it dates from before “Attempts run consecutively”. The entry would make all attempts the same; the X would then be deleted.',

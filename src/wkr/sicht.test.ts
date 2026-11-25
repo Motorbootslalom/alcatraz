@@ -94,7 +94,8 @@ describe('Sicht der Liste – Form', () => {
     // `ausgleich` seit Fassung 11 (Nutzer 24.11.2026, AG1): nur an der Steg-Liste, eigener Block unten.
     const startSchluessel = new Set(['key', 'startNr', 'klasse', 'titel', 'lauf', 'seite', 'boot', 'teile', 'entfaellt', 'vorab', 'ab', 'an', 'punkt', 'ausgleich'])
     for (const k of schluessel([...sicht.schlange, ...sicht.danach])) expect(startSchluessel.has(k), k).toBe(true)
-    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus'])
+    // `max`/`danach` je Katalog-Eintrag seit Fassung 12 (Nutzer 24.11.2026, CM1–CM3).
+    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus', 'max', 'danach'])
     for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
     expect(Object.keys(sicht.geraete)).toEqual(['g1'])
     const g = sicht.geraete.g1
@@ -143,7 +144,14 @@ describe('Sicht der Liste – Form', () => {
     const felder = steg.klassen['1']!.felder!
     const code = felder.find((f) => f.kind === 'code' && f.teil === 'ab')!
     expect(code.katalog!.length).toBeGreaterThan(0)
-    expect(Object.keys(code.katalog![0]).sort()).toEqual(['code', 'punkte', 'text'])
+    expect(Object.keys(code.katalog![0]).sort()).toEqual(['code', 'max', 'punkte', 'text'])
+    // Höchstzahl je Code (Nutzer 24.11.2026, CM1/CM2): immer aufgelöst; „2. und 3. Versuch“ (6) mit D danach.
+    expect(code.katalog!.map((e) => [e.code, e.max, e.danach])).toEqual([
+      ['3', WKR_ANNAHMEN.codeMaxAllgemein, undefined],
+      ['4', WKR_ANNAHMEN.codeMaxAllgemein, undefined],
+      ['5', WKR_ANNAHMEN.codeMaxAllgemein, undefined],
+      ['6', 2, 'D'],
+    ])
     expect(felder.some((f) => f.teil === 'an')).toBe(true)
     // W3-07 (21.11.2026, GF2): Codes „ab Klasse 3/4“ tragen in Klasse 1 `aus`, in Klasse 4 nicht.
     expect(code.katalog!.filter((e) => e.aus).map((e) => e.code)).toEqual(['4', '5'])
@@ -265,13 +273,15 @@ describe('Sicht der Liste – Sprache (F13)', () => {
 describe('Sicht der Liste – Bojen (W4.1, P7, P15)', () => {
   const bojeSchluessel = new Set(['halt', 'weg', 'folge', 'titel', 'unter', 'spalte', 'zaehler', 'durchfahrt'])
 
-  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 11 (seit dem Ausgleichsgewicht am Steg, AG1 24.11.2026)', () => {
+  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 13 (seit „Nicht gestartet“, NG8 24.11.2026)', () => {
     const { s } = bereit('gate135')
     const sicht = sichtListe(s, DM, L('gate135'), EXTRA)
-    expect(LISTEN_SICHT_FASSUNG).toBe(11)
+    expect(LISTEN_SICHT_FASSUNG).toBe(13)
+    expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.nichtGestartetFassung)
     expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.bojenZelleFassung)
+    expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.codeMaxFassung)
     // `bild` (W4-13, GF9): nur die Kennung der Zeichnung, wie auf dem Bogen.
-    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus', 'boje', 'bild', 'datei', 'dim', 'drehung', ...bojeSchluessel])
+    const feldSchluessel = new Set(['titel', 'felder', 'kennung', 'kind', 'label', 'teil', 'katalog', 'disq', 'code', 'punkte', 'text', 'aus', 'max', 'danach', 'boje', 'bild', 'datei', 'dim', 'drehung', ...bojeSchluessel])
     for (const k of schluessel(Object.values(sicht.klassen))) expect(feldSchluessel.has(k), k).toBe(true)
     const mitBild = Object.values(sicht.klassen).filter((k) => k?.felder && k.bild)
     expect(mitBild.length).toBeGreaterThan(0)
@@ -374,26 +384,22 @@ describe('F17: nichts auf der Anzeigetafel', () => {
   })
 })
 
-describe('F17 (W4.3): „Nicht vorbeigekommen“ kommt weder auf die Tafel noch auf die Zuschauerliste', () => {
-  it('sichtOeffentlich/sichtZuschauer gleich nach einer Zeile mit `n` (auch Steg-Anlegen) und nach ihrem Aufheben; nichts davon in der Listen-Sicht', () => {
+// Nutzer 24.11.2026 (WKR_ANNAHMEN NG4): Ein X vom Tor-Gerät („Nicht gestartet“) wirkt auf Tafel und Zuschauerliste
+// genau wie ein X am Steg (der gezeigte Start bleibt stehen, Geprüftes: lage.test.ts „Nicht gestartet“). Das Kennzeichen
+// „nicht vorbeigekommen“ (W4.3, F17-Test) gibt es nicht mehr.
+describe('„Nicht gestartet“ (24.11.2026, NG4): Tafel und Zuschauerliste wie bei einem X vom Steg', () => {
+  it('sichtOeffentlich/sichtZuschauer gleich, ob das X vom Tor-Gerät kam oder am Steg abgetippt wurde; die Listen-Sicht trägt es nicht', () => {
     const { s, erste } = bereit('gate135', 'steg')
-    const nv = (st: AppState, typeId: string, starter: string, z: number, teil?: 'ab' | 'an') => {
-      const r = pruefeZeile(st, DM, L(typeId), teil, 'g1', { z, s: m(starter), c: [], n: true })
-      if ('fehler' in r) throw new Error(r.fehler)
-      return sende(st, typeId, [r])
-    }
-    let mit = nv(s, 'gate135', erste[0], 1)
-    mit = nv(mit, 'steg', erste[1], 2, 'an')
-    expect(Object.keys(mit.wkr.nichtVorbei)).toHaveLength(2)
-    expect(sichtOeffentlich(mit)).toEqual(sichtOeffentlich(s))
-    expect(sichtZuschauer(sichtOeffentlich(mit))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
-    const auf = reducer(mit, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: erste[0], feld: 't1a|hin seiteA', wert: '5' }] })
-    expect(auf.wkr.nichtVorbei[K('gate135')]).toBeUndefined()
-    expect(sichtOeffentlich(auf)).toEqual(sichtOeffentlich(s))
-    // Die Sicht der Liste trägt kein Kennzeichen (Positivliste oben): kein Wort „nichtVorbei“, kein `nv`.
-    const text = JSON.stringify(sichtListe(mit, DM, L('gate135'), EXTRA))
+    const r = pruefeZeile(s, DM, L('gate135'), undefined, 'g1', { z: 1, s: m(erste.at(-1)!), c: [['disq@gate135', 'X', '']] })
+    if ('fehler' in r) throw new Error(r.fehler)
+    const vomTor = sende(s, 'gate135', [r])
+    const vomSteg = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: erste[1], feld: 'disq@steg', wert: 'X' }] })
+    expect(sichtOeffentlich(vomTor)).toEqual(sichtOeffentlich(vomSteg))
+    expect(sichtZuschauer(sichtOeffentlich(vomTor))).toEqual(sichtZuschauer(sichtOeffentlich(vomSteg)))
+    // Werte gehen nie in die Sicht der Liste (Positivliste oben) – auch das X nicht; X ist auf dem Tor kein Knopf (NG3).
+    const text = JSON.stringify(sichtListe(vomTor, DM, L('gate135'), EXTRA))
+    expect(text).not.toContain('"X"')
     expect(text).not.toContain('nichtVorbei')
-    expect(text).not.toContain('"nv"')
   })
 })
 
@@ -401,7 +407,7 @@ describe('Sicht der Liste – Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_
   /** Alle Starts der Sicht nach Startnummer → `ausgleich` (fehlt = undefined). */
   const ag = (sicht: ListenSicht) => Object.fromEntries([...sicht.schlange, ...sicht.danach].map((x) => [x.startNr, x.ausgleich]))
 
-  it('nur an der Steg-Liste: ganze kg aus lib/ausgleich.ts, 0 = keines nötig, „fehlt“ = nicht gewogen – nie ein Gewicht selbst', () => {
+  it('nur an der Steg-Liste: kg aus lib/ausgleich.ts auf die Abstufung gerundet (Vorgabe ganze kg), 0 = keines nötig, „fehlt“ = nicht gewogen – nie ein Gewicht selbst', () => {
     // bereit(): alle 41,7 kg; Parcours 1 fährt E und 1 (DM: E 26 → 0, Klasse 1 33 → 0). e2 nicht gewogen, k1 29,6 kg
     // (33 − 29,6 = 3,4 → 3), k2 32,6 kg (0,4 kg leichter → auf 0 gerundet = wie „keines nötig“, Prüfbefund 24.11.2026).
     const { s } = bereit('steg', 'gate135')

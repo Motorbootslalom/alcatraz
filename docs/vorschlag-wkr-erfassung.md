@@ -124,7 +124,8 @@ Kopf und Fuß sind auf jedem Gerät gleich, nur die Mitte wechselt.
   für den neuen Starter ist erst nach dieser Pause drückbar. Sonst meldet ein Doppeltipp oder ein Wassertropfen den
   Nächsten fehlerfrei, und niemand merkt es.
 - **„− letzte zurück“** statt eines Minus an jeder Zelle. Bis zum Abschicken; danach heißt es „Korrigieren“ (§5).
-- **Mehr** (Menü „…“): Ansicht wechseln, „Nicht vorbeigekommen“, „offen in diesem Lauf“, Bemerkung, Sonnen-/Dunkelmodus,
+- **Mehr** (Menü „…“): Ansicht wechseln, „Nicht vorbeigekommen“ (ersetzt 24.11.2026 durch „Nicht gestartet · Disq. X“,
+  docs/entscheidungen.md „Nicht gestartet statt nicht vorbeigekommen“), „offen in diesem Lauf“, Bemerkung, Sonnen-/Dunkelmodus,
   **„Pausieren“ / „Abmelden“** (F1, 21.11.2026; §8).
 - **Zustände ohne Arbeit**:
 
@@ -515,8 +516,8 @@ Gemeint ist hier die Start-Freigabe (Geräteleiste, §6.2), nicht die öffentlic
 | Versuch 2 (UIM, Versuche nacheinander), Re-run | eigene Zeile, Zusatz „Attempt 2“ bzw. „Re-run“ groß im Kopf |
 | „2./3. Versuch“ eines Elements | ist ein Fehlercode (6, 7, 20 …), keine Wiederholung |
 | Klasse ohne diese Position | grau, „entfällt“, schließt von selbst |
-| Boot kam nicht vorbei (vorher aufgegeben, Abbruch) | „Nicht vorbeigekommen“ unter „Mehr“: leere Zeile mit Kennzeichen, **kein X**; in der Matrix gelb (gebaut mit W4.3, 21.11.2026: Haken + „⊘ nicht vorbei“, „Papier ansehen“, nicht am Vorsteg und im Steg-Ablegen, spätere Werte heben es auf) |
-| X (nicht gestartet) | nur Steg-Ablegen und Vorsteg, mit großer Rückfrage; nimmt den Start aus der Folge; am Bedienrechner hervorgehoben (F5) |
+| Boot kam nicht vorbei (vorher aufgegeben, Abbruch) | ~~„Nicht vorbeigekommen“ unter „Mehr“: leere Zeile mit Kennzeichen, kein X (gebaut mit W4.3, 21.11.2026)~~ – **ersetzt 24.11.2026** durch „Mehr → Nicht gestartet · Disq. X“: X allein ins Disq.-Feld jeder Liste mit Disq.-Feld, wirkt wie jedes X; kein Kennzeichen ⊘ mehr (WKR_ANNAHMEN NG1–NG8) |
+| X (nicht gestartet) | als Disq.-Knopf nur Steg-Ablegen und Vorsteg, mit großer Rückfrage; nimmt den Start aus der Folge; am Bedienrechner hervorgehoben (F5); seit 24.11.2026 auf jeder Liste mit Disq.-Feld über „Mehr → Nicht gestartet“ (NG1–NG3) |
 | Disq an anderer Position schon gesetzt | erfährt das Gerät nicht; der WKR erfasst weiter, was er sieht |
 | Netz weg | weiter erfassen, Zeilen warten, Schlange geschätzt, roter Kopf; ab 5 min „Papierbogen ab Nr. x“ |
 | Akku leer, Handy ins Wasser, mitten in der Fahrt | Matrix und Geräteleiste zeigen ✕ (nach 90 s ◐, nach 5 min ✕; der Bediener kann es sofort auf „Papier“ setzen); „Papier ab Start …“ ab dem ersten offenen Start; Ersatzgerät koppeln, es sieht sofort, was offen ist. Verloren sind nur Entwurf und noch nicht Abgeschicktes – der WKR schreibt den laufenden Start aus dem Gedächtnis auf den Bogen. Kommt das alte Gerät wieder, gehen seine wartenden Zeilen als Rückfrage ein, nie still |
@@ -575,8 +576,9 @@ quittiert werden: „Bitte Nr. 23 prüfen/nachtragen“, „Papier nehmen“, �
   Entscheidung mit dem Check-In E10). **Entschieden 24.11.2026:** Es wird am Steg nicht gepflegt. Wer kein Gewicht hat,
   bekommt es später in der Verwiegung (bzw. beim Check-in) nachgetragen; auf der Papierliste „Ausgleichsgewichte“ trägt
   man es von Hand nach, in die digitale Liste kommt es von selbst. Die Sicht der Steg-Liste trägt deshalb je Start nur
-  das Ausgleichsgewicht in ganzen kg (0 = keines, „fehlt“ = nicht gewogen; `src/wkr/sicht.ts`, gerechnet wie die
-  Papierliste in `src/lib/ausgleich.ts`), die Karte zeigt es im Teil „Ablegen“ („AG 4 kg“, „kein AG“, „AG: Gewicht
+  das Ausgleichsgewicht, gerundet auf die Abstufung der Veranstaltung (Vorgabe ganze kg, einstellbar seit 24.11.2026 –
+  [entscheidungen.md](entscheidungen.md) „Abstufung und Rundung“; 0 = keines, „fehlt“ = nicht gewogen;
+  `src/wkr/sicht.ts`, gerechnet wie die Papierliste in `src/lib/ausgleich.ts`), die Karte zeigt es im Teil „Ablegen“ („AG 4 kg“, „kein AG“, „AG: Gewicht
   fehlt“). Dass es bei leichten Startern auf das Körpergewicht schließen lässt, gehört zur Entscheidung. Ein Gerät nur
   für „Anlegen“ bekommt den Wert verschlüsselt mit (eine Gruppe je Liste), zeigt ihn aber nicht (Prüfbefund
   24.11.2026, Rückfrage offen).

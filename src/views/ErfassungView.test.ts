@@ -383,6 +383,25 @@ describe('Erfassung', () => {
     wrapper.unmount()
   })
 
+  it('Fehlercode öfter als erlaubt (Nutzer 24.11.2026, CM6): bleibt stehen wie getippt, Hinweis „Disq. D?“ bzw. „höchstens“', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'liste', 'steg')
+    const ab = feld(wrapper, 0, 'fehlerAB')
+    await tippe(ab, '6 6 6')
+    await ab.trigger('blur')
+    await nextTick()
+    // Nicht still gekürzt und kein D gesetzt: Das Papier entscheidet.
+    expect(store.state.value.eingaben[L1]['id-1-1']).toEqual({ 'katalog:stegAblegen': '3x6' })
+    expect(zeilen(wrapper)[0].classes()).toContain('erf-zeile--hinweis')
+    expect(wrapper.find('.erf-hinweise').text()).toContain('Code 6 steht öfter als 2×')
+    expect(wrapper.find('.erf-hinweise').text()).toContain('Disq. D?')
+    await tippe(ab, '4x3')
+    await ab.trigger('blur')
+    await nextTick()
+    expect(wrapper.find('.erf-hinweise').text()).toContain('Code 3 steht öfter als 3×')
+    wrapper.unmount()
+  })
+
   it('jeder Lauf hat eigene Werte; „Nächste Liste“ geht zur nächsten unfertigen', async () => {
     const wrapper = ansicht(store)
     await tippe(feld(wrapper, 0, 'zeit1'), '80')

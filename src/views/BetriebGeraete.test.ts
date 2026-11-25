@@ -102,7 +102,8 @@ describe('Betrieb → Geräte: einschalten, Links, Fingerabdruck', () => {
     const aus = w.find('[data-teil="geraete"]')
     expect(aus.find('[data-teil="geraete-aus"]').text()).toContain('verlässt nichts diesen Browser')
     const daten = aus.find('[data-hinweis="geraete-daten"]').text()
-    for (const wort of ['ntfy.test', 'Startnummer', 'Name', 'Herkunft', 'Klasse', 'verschlüsselt', 'Geburtsdatum', 'Gewicht', 'Geschlecht']) expect(daten).toContain(wort)
+    // Ausnahme AG1 (Prüfbefund 24.11.2026): das Ausgleichsgewicht an der Steg-Liste steht ausdrücklich da.
+    for (const wort of ['ntfy.test', 'Startnummer', 'Name', 'Herkunft', 'Klasse', 'verschlüsselt', 'Geburtsdatum', 'Gewicht', 'Geschlecht', 'Ausgleichsgewicht', 'Steg-Liste']) expect(daten).toContain(wort)
     expect(aus.find('a[data-verweis="geraete-server"]').attributes('href')).toBe('#/einstellungen?geraete')
     // Auf dem Unterreiter selbst: weder die Knöpfe der Start-Freigabe noch die Karten.
     expect(w.find('[data-action="anzeige-oeffnen"]').exists()).toBe(false)

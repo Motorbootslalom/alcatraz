@@ -344,7 +344,7 @@ bestätigt bis auf G1, G3, G6, G11, G13, G15, J1–J3, K7, L3, L4, M5, die der N
   zeigen oder Geräte-Code ausgeben wie bei der Start-Freigabe. In der Geräteliste lässt sich die Liste je Gerät ändern
   (Handy eine, Pad höchstens zwei). Aus Betrieb → WKR führt „Gerät koppeln“ an einer Liste ohne Gerät direkt dorthin.
 - **Probe**: Nach dem ersten Empfang der Liste zeigt das Handy einmal je Raum und Liste die Probe mit dem Start „P“ –
-  Code tippen, „− letzte zurück“, „Fehlerfrei ✓“ (Vorsteg: zweimal X, „Abbrechen“, „In Ordnung ✓“). Dabei springt die
+  Code tippen, „↶ Rückgängig“, „Fehlerfrei ✓“ (Vorsteg: zweimal X, „Abbrechen“, „In Ordnung ✓“). Dabei springt die
   Maske weiter wie im Ernst (2 s „gesendet“, Blitz, 1 s gesperrt). Es wird **nichts gesendet**; „Überspringen“ geht
   immer, „Mehr → Probe“ wiederholt sie.
 - **Erfassen**: Startnummer groß, nie ein Name. Hauptknopf „Fehlerfrei ✓“, mit Einträgen „Abschicken · n Pkt.“;
@@ -378,16 +378,12 @@ bestätigt bis auf P9/U2, P10/Q2 und die Form von „Nicht vorbeigekommen“, pl
   Ansicht → „Bojen“ (22.11.2026, je Gerät und Liste gemerkt): „Rückweg gedreht“ (Vorgabe, der Rückweg in derselben
   Folge wie der Hinweg – Ziel, Tor 1, Tor 3, Tor 5), „Fahrtfolge“ (Rückweg Tor 5 … Ziel, wie das Boot fährt) oder
   „Alles untereinander“ (ein Reiter ohne Umschalter).
-- **Nicht vorbeigekommen** (Mehr → „⊘ Nicht vorbeigekommen“, große Rückfrage „23 ist hier nicht vorbeigekommen? Es
-  wird nichts eingetragen.“): für ein Boot, das vorher aufgegeben hat. Am Bedienrechner hat der Start damit den Haken
-  (kein Rückstand, die Start-Freigabe wartet nicht), in der Matrix steht gelb „⊘ nicht vorbei“, in der Erfassung
-  „Papier ansehen“; ein X ist es nicht. Am Vorsteg und im Steg-Ablegen gibt es das nicht – dort heißt es X. Wer sich
-  geirrt hat, korrigiert über „Zuletzt“ (auch „fehlerfrei“); eingetippte Werte am Bedienrechner heben es ebenso auf.
-  Die Prüfansicht beim Abschluss zählt „n nicht vorbeigekommen: …“, Betrieb → WKR nennt es beim Abschluss.
-- **Geplant** (Nutzer 21.11.2026, noch nicht gebaut): „Nicht vorbeigekommen“ wird Disq. J (Parcours verlassen bzw.
-  falscher Parcours) statt ⊘; bei einer Disq. fragt die Maske immer nach Boje bzw. Tor, und eine Bojenzelle kann
-  Punkte und Buchstaben zugleich tragen („5 J“); das Band „Klasse n – andere Halte“ nur beim ersten Start einer neuen
-  Klasse, mit der Parcours-Zeichnung beim Hochwischen.
+- **Nicht gestartet** (24.11.2026, ersetzt „Nicht vorbeigekommen“; Mehr → „Nicht gestartet · Disq. X“, große Rückfrage
+  „23 nicht gestartet?“): auf jeder Liste mit Disq.-Feld (Tore, Tor 5, MüB, Parallelslalom, Steg, Vorsteg) – trägt X
+  allein ins Disq.-Feld. Am Bedienrechner wirkt es wie jedes X: Matrix ✕ auf allen Listen, der Start entfällt in diesem
+  Lauf und in der Wertung, keine Liste wartet mehr auf ihn. Die Disq.-Knöpfe bieten X weiter nur am Steg-Ablegen und am
+  Vorsteg an. Hat jemand ein Tor ausgelassen, ist das kein „nicht gestartet“: J an einer Boje des Tors (Disq. an der
+  Boje). Wer sich geirrt hat, korrigiert über „Zuletzt“ – die Korrektur beginnt ohne X („doch gestartet“).
 
 ## Ablauf am Wettkampftag
 

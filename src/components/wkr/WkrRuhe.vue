@@ -40,7 +40,7 @@ defineProps<{
 const emit = defineEmits<{ weiter: []; pausiere: []; neuVerbinden: [] }>()
 const t = useWkrText()
 const { w } = t
-const zeileText = (z: ZuletztZeile) => (z.nv ? `⊘ ${w('wkr.geraet.nichtVorbei.text')}` : zellenText(z.zellen, null, t, w('wkr.geraet.fehlerfreiText')))
+const zeileText = (z: ZuletztZeile) => zellenText(z.zellen, null, t, w('wkr.geraet.fehlerfreiText'))
 
 /**
  * Ein Entwurf fürs Papier (Prüfbefund W3, 21.11.2026): Liste · Bereich, am Steg der Teil, dann jedes belegte Feld mit

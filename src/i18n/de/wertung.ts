@@ -10,14 +10,16 @@ export default {
   'individual.col.time': 'Zeit (Stichentscheid)',
   'individual.hint': 'Einzelwertung je Klasse: vorn der Platz, je Disziplin Zeit, Platz und UIM-Punkte ihres Gesamtergebnisses, dahinter die Summe der Punkte (Regel 960, Pkt. 5.1 und 5.2.3). Die Zeit des Manövrierens ist die gewertete der Gesamtliste (besserer Versuch mit Strafen und Knoten), die des Parallel-Slaloms die Summe beider Versuche in der Runde, die den Platz bestimmt hat – ab Platz 5 also im Vorlauf. Eine Disziplin zählt, sobald zu ihr der erste Wert erfasst ist – in beliebiger Reihenfolge; ist nur eine gefahren, gelten ihre Punkte. Je Klasse ein eigenes Dokument; gedruckt wird, was hier zu sehen ist.',
   'individual.rules': 'Die Punkte des Manövrierens sind die der Gesamtliste (erst, wenn auch die Knoten erfasst sind), die des Parallel-Slaloms die seines Gesamtergebnisses. Wer in einer Disziplin disqualifiziert ist, hat dort 0 Punkte. Eine Liste entsteht, sobald jede Disziplin fertig ist, die für die Klasse zählt.',
-  'individual.tie': 'Bei gleicher Punktsumme steht vorn, wer die bessere Zeit hat: besserer Versuch des Manövrierens (mit Strafen, auch der Knoten) plus beide Versuche des Parallel-Slaloms (mit Strafen).',
+  // Stichentscheid nach Pkt. 5.2.6 mit den Festlegungen in lib/einzelwertung.ts EINZEL_FESTLEGUNGEN (Parallelslalom:
+  // letzte gefahrene Runde, dann die vorletzte – Entscheidung des Nutzers vom 24.11.2026).
+  'individual.tie': 'Bei gleicher Punktsumme steht vorn, wer die bessere Zeit hat: besserer Versuch des Manövrierens (mit Strafen, auch der Knoten) plus beide Versuche der letzten Runde des Parallel-Slaloms, die er gefahren ist (mit Strafen). Ist auch diese Zeit gleich, entscheidet seine vorletzte Runde (Zeit in Klammern).',
   'individual.tie.manoever': 'Bei gleicher Punktzahl steht vorn, wer die bessere Zeit hat: besserer Versuch des Manövrierens (mit Strafen, auch der Knoten).',
-  'individual.tie.parallel': 'Bei gleicher Punktzahl steht vorn, wer die bessere Zeit hat: beide Versuche des Parallel-Slaloms (mit Strafen).',
-  'individual.tieDecided': 'Festgelegt, wo Regel 960 nichts Näheres sagt: Manövrieren mit den Strafen der Knoten; im Parallel-Slalom die beiden Versuche des Vorlaufs (nach einer Wiederholung deren Zeiten); wem eine Zeit fehlt, weil er in einer Disziplin disqualifiziert ist, steht hinter den Punktgleichen mit Zeit.',
+  'individual.tie.parallel': 'Bei gleicher Punktzahl steht vorn, wer die bessere Zeit hat: beide Versuche der letzten Runde des Parallel-Slaloms, die er gefahren ist (mit Strafen); ist sie gleich, seine vorletzte Runde (Zeit in Klammern).',
+  'individual.tieDecided': 'Festgelegt, wo Regel 960 nichts Näheres sagt: Manövrieren mit den Strafen der Knoten (sie gehören zum Manövrieren, Pkt. 4.3 und 5.2.1); im Parallel-Slalom die letzte Runde, die der Fahrer gefahren ist (Finale, Kleines Finale, Halbfinale oder Vorlauf), bei gleicher Zeit zusätzlich seine vorletzte – eine Wiederholung ersetzt die Zeiten ihrer Runde; wer nur den Vorlauf gefahren ist, hat keine vorletzte Runde, dann bleibt der Platz geteilt; eine Runde, in der er keinen Versuch gestartet hat (nur X), gilt nicht als gefahren; wem eine Zeit fehlt, weil er disqualifiziert ist, steht hinter den Punktgleichen mit Zeit.',
   'individual.needValues': 'Eine Einzelwertung gibt es, sobald zu einer Disziplin (Manövrieren oder Parallel-Slalom) der erste Wert erfasst ist.',
   'individual.noDiscipline': 'Keine Disziplin gewertet',
   // Auf der Liste, wenn Punktgleiche denselben Platz haben (Pkt. 5.2.6 „dead-heat result“).
-  'individual.tieShared': 'Ohne Zeit (–): in einer Disziplin disqualifiziert – hinter den Punktgleichen mit Zeit. Gleiche Zeit: geteilter Platz.',
+  'individual.tieShared': 'Ohne Zeit (–): disqualifiziert (Manövrieren oder die Runde des Parallel-Slaloms, die zählt) – hinter den Punktgleichen mit Zeit. Gleiche Zeiten: geteilter Platz.',
   'individual.open': 'Noch ohne Einzelwertung (es fehlt): {classes}.',
   'individual.done': 'Einzelwertung steht fest: {classes}.',
   'individual.empty': 'Noch keine Klasse hat die Disziplinen beendet, die für sie zählen.',

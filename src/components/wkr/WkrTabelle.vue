@@ -192,10 +192,8 @@ const kopfLabel = (s: TabellenSpalte) => [s.titel, s.unter].filter(Boolean).join
         <template v-for="r in zeilen" :key="r.art === 'gesendet' ? r.g.z : r.art === 'naechste' ? r.n.key : 'aktiv'">
           <tr v-if="r.art === 'gesendet'" class="wkr-tabelle-zeile wkr-tabelle-zeile--gesendet" data-teil="tabelle-gesendet" :data-z="r.g.z" :data-stufe="r.g.stufe.stufe">
             <th scope="row" class="wkr-tabelle-nr">{{ r.g.sn }}</th>
-            <td v-if="r.g.nv" :colspan="spalten.length" class="wkr-tabelle-zelle" data-teil="tabelle-nv">⊘ {{ w('wkr.geraet.nichtVorbei.text') }}</td>
-            <template v-else>
-              <td v-for="s in spalten" :key="s.feld" class="wkr-tabelle-zelle" :data-feld="s.feld">{{ gesendetWert(r.g, s.feld) }}</td>
-            </template>
+            <!-- „Nicht gestartet“ (24.11.2026, NG1) steht wie jede Zeile in ihren Spalten: X unter „Disq.“. -->
+            <td v-for="s in spalten" :key="s.feld" class="wkr-tabelle-zelle" :data-feld="s.feld">{{ gesendetWert(r.g, s.feld) }}</td>
             <td class="wkr-tabelle-stand">
               <span class="wkr-tabelle-zeichen" data-teil="tabelle-zeichen" aria-hidden="true">{{ stufeZeichen(r.g.stufe) }}</span>
               <button

@@ -207,8 +207,8 @@ export function liesGeraeteKlartext(wert: unknown): GeraeteKlartext | null {
 export const ABLEHNUNGEN = [
   'code-ungueltig', 'code-abgelaufen', 'id-belegt', 'fassung', 'nicht-erlaubt', 'konflikt',
   'wert-ungueltig', 'start-unbekannt', 'feld-fremd', 'x-nicht-erlaubt', 'teil-fremd', 'seite-anders', 'offen',
-  // W4.3 (21.11.2026): „Nicht vorbeigekommen“ am Vorsteg/im Steg-Ablegen (dort X, F5) – wkr/zeile.ts.
-  'nv-nicht-erlaubt',
+  // `nv-nicht-erlaubt` („nicht vorbeigekommen“ am Vorsteg/Steg-Ablegen, W4.3) entfiel am 24.11.2026: Es heißt jetzt
+  // „Nicht gestartet · Disq. X“ und gilt überall (WKR_ANNAHMEN NG2, NG6).
 ] as const
 export type Ablehnung = (typeof ABLEHNUNGEN)[number]
 

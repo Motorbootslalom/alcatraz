@@ -8,6 +8,7 @@ import { normalizeName } from '../domain/kuerzel'
 import { downloadText, filename, makeFile, parseFile, type FileKind } from '../persistenz/backup'
 import { loadLegacyVerzahnung } from '../persistenz/storage'
 import { BESCHRIFTUNGEN, sollgewichtOf } from '../config/catalog'
+import { AUSGLEICH_STUFE_MAX, AUSGLEICH_STUFE_MIN, AUSGLEICH_STUFEN, gewichtText, parseAusgleichStufe } from '../domain/gewicht'
 import { bietetEnglisch, laenderKuerzelFuer, regelwerkSprache } from '../lib/listensprache'
 import { useEvent } from '../lib/event'
 import { pruefeKlassen } from '../import/klassenPruefung'
@@ -304,6 +305,32 @@ const streichText = (wert: string) =>
 function setzeStreichlaeufe(e: Event) {
   const wert = (e.target as HTMLSelectElement).value
   dispatch({ type: 'SET_STREICHLAEUFE', streichlaeufe: wert === 'auto' ? 'auto' : Number(wert) })
+}
+
+// --- Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026: „kleinstes Zusatzgewicht“) ---
+// Auswahl 0,1 / 0,5 / 1 / 2 kg oder ein eigener Wert (0,1–10 kg, Komma erlaubt). „Eigener Wert …“ ist eine Bedienwahl,
+// kein Zustand: Das Feld bleibt offen, solange man es gewählt hat oder der Wert keine der Stufen ist. Zahlen mit dem
+// Dezimalzeichen der Oberfläche (domain/gewicht.ts gewichtText). Ein unbrauchbarer Wert ändert nichts; das Feld zeigt
+// danach wieder, was gilt (wie die Verwiegung), und ein Satz sagt warum.
+const stufeEigenGewaehlt = ref(false)
+const stufeFehler = ref(false)
+const kgText = (kg: number) => gewichtText(kg, locale.value)
+const stufeWahl = computed(() =>
+  stufeEigenGewaehlt.value || !(AUSGLEICH_STUFEN as readonly number[]).includes(state.value.ausgleichStufe) ? 'eigen' : String(state.value.ausgleichStufe),
+)
+function waehleStufe(e: Event) {
+  const wert = (e.target as HTMLSelectElement).value
+  stufeFehler.value = false
+  stufeEigenGewaehlt.value = wert === 'eigen'
+  if (wert === 'eigen') void nextTick(() => document.getElementById(`${id}-ausgleich-stufe-eigen`)?.focus())
+  else dispatch({ type: 'SET_AUSGLEICH_STUFE', kg: Number(wert) })
+}
+function setzeEigeneStufe(e: Event) {
+  const feld = e.target as HTMLInputElement
+  const kg = parseAusgleichStufe(feld.value)
+  stufeFehler.value = kg === undefined
+  if (kg !== undefined) dispatch({ type: 'SET_AUSGLEICH_STUFE', kg })
+  feld.value = kgText(state.value.ausgleichStufe)
 }
 
 // --- Pokalauswertung -------------------------------------------------------
@@ -851,6 +878,32 @@ function takeLegacy() {
       <span class="note" style="flex: 1; margin: 0">{{ t('weigh.ownNote', { rulebook: regelwerk.label }) }}</span>
       <button class="btn sm" @click="dispatch({ type: 'RESET_SOLLGEWICHT' })">{{ t('weigh.reset', { rulebook: regelwerk.label }) }}</button>
     </div>
+    <!-- Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026): das Ausgleichsgewicht ist ein Vielfaches davon, gerundet ab der
+         Hälfte aufwärts (domain/gewicht.ts rundeAufStufe) – Verwiegung, Listen und Steg-Gerät gleich. -->
+    <div class="row" data-teil="ausgleich-stufe" style="align-items: flex-end; gap: 16px; margin-top: 12px">
+      <div class="field" style="min-width: 220px">
+        <label :for="`${id}-ausgleich-stufe`">{{ t('listopt.ausgleich.stufe') }}</label>
+        <select :id="`${id}-ausgleich-stufe`" class="input" data-feld="ausgleich-stufe" :value="stufeWahl" @change="waehleStufe">
+          <option v-for="kg in AUSGLEICH_STUFEN" :key="kg" :value="String(kg)">{{ t('listopt.ausgleich.kg', { kg: kgText(kg) }) }}</option>
+          <option value="eigen">{{ t('listopt.ausgleich.eigen') }}</option>
+        </select>
+      </div>
+      <div v-if="stufeWahl === 'eigen'" class="field" style="max-width: 160px">
+        <label :for="`${id}-ausgleich-stufe-eigen`">{{ t('listopt.ausgleich.eigenWert') }}</label>
+        <input
+          :id="`${id}-ausgleich-stufe-eigen`"
+          class="input"
+          data-feld="ausgleich-stufe-eigen"
+          inputmode="decimal"
+          :value="kgText(state.ausgleichStufe)"
+          @change="setzeEigeneStufe"
+        />
+      </div>
+    </div>
+    <p v-if="stufeFehler" class="note" data-hinweis="ausgleich-stufe-fehler" role="status">
+      {{ t('listopt.ausgleich.fehler', { min: kgText(AUSGLEICH_STUFE_MIN), max: kgText(AUSGLEICH_STUFE_MAX), beispiel: kgText(0.25), kg: kgText(state.ausgleichStufe) }) }}
+    </p>
+    <p class="note" data-hinweis="ausgleich-stufe">{{ t('listopt.ausgleich.hint') }}</p>
   </div>
 
   <!-- Startnummern nach Westengröße (19.11.2026): Bereiche je Klasse und fehlende Westen. -->
