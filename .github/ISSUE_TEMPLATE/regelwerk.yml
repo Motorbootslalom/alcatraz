@@ -1,0 +1,98 @@
+# Issue-Formular (GitHub Issue Forms) für ein weiteres Regelwerk, zweisprachig deutsch/englisch.
+# Verlinkt aus README.md und README.en.md, Abschnitt „Weitere Regelwerke“ (24.11.2026):
+#   https://github.com/Motorbootslalom/alcatraz/issues/new?template=regelwerk.yml
+# Kontakt nur über GitHub: Das Formular fragt nach keiner E-Mail-Adresse, das Repo ist öffentlich.
+# Das Label „regelwerk“ muss im Repository angelegt sein, sonst setzt GitHub es nicht.
+name: Regelwerk / Rulebook
+description: "Ein weiteres Regelwerk für Alcatraz vorschlagen · Propose another rulebook for Alcatraz"
+title: "Regelwerk / Rulebook: "
+labels:
+  - regelwerk
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Deutsch:** Alcatraz kennt bisher das DM-Reglement und UIM Regel 960 „Formula Future“.
+        Wird in Ihrem Land oder Verband nach einem anderen Regelwerk gefahren, beschreiben Sie es bitte hier.
+        Felder ohne Stern (*) dürfen leer bleiben. Rückfragen stellen wir hier im Issue –
+        bitte keine E-Mail-Adressen oder Telefonnummern eintragen: Das Issue ist öffentlich.
+
+        **English:** So far Alcatraz knows the German DM rules and UIM rule 960 “Formula Future”.
+        If your country or federation runs by another rulebook, please describe it here.
+        Fields without an asterisk (*) may be left empty. We will ask any questions here in the issue –
+        please do not enter e-mail addresses or phone numbers: this issue is public.
+  - type: input
+    id: land
+    attributes:
+      label: Land / Verband · Country / federation
+      placeholder: "z. B. / e.g. Österreich · Poland"
+    validations:
+      required: true
+  - type: input
+    id: regelwerk
+    attributes:
+      label: Name und Fassung des Regelwerks · Name and edition of the rulebook
+      placeholder: "z. B. / e.g. Rulebook 2026, rule 960"
+    validations:
+      required: true
+  - type: textarea
+    id: quelle
+    attributes:
+      label: Link oder PDF · Link or PDF
+      description: |
+        Link auf das Regelwerk – oder die PDF-Datei hier hineinziehen, dann hängt GitHub sie an.
+        Bitte nur anhängen, was öffentlich weitergegeben werden darf.
+        Link to the rulebook – or drag the PDF file in here and GitHub attaches it.
+        Please attach only what may be shared publicly.
+    validations:
+      required: true
+  - type: input
+    id: sprache
+    attributes:
+      label: Sprache der Listen · Language of the lists
+      description: "In welcher Sprache sollen Wettkampfrichter-Listen und Wertungslisten stehen? · Which language should the race officials' sheets and the results be in?"
+      placeholder: "z. B. / e.g. Deutsch, English, Polski"
+    validations:
+      required: true
+  - type: textarea
+    id: klassen
+    attributes:
+      label: Klassen und Altersgrenzen · Classes and age limits
+      description: |
+        Klassen mit Alter bzw. Jahrgängen, Mindestgewicht (für das Ausgleichsgewicht), Co-Pilot.
+        Classes with ages or years of birth, minimum weight (for the ballast required), co-driver.
+      placeholder: |
+        Klasse 1: Jahrgänge …, Mindestgewicht … kg, mit Co-Pilot
+        Class 1: years of birth …, minimum weight … kg, with co-driver
+    validations:
+      required: false
+  - type: textarea
+    id: codes
+    attributes:
+      label: Fehler- und Disq.-Codes · Penalties and disqualifications
+      description: |
+        Je Code: Nummer oder Buchstabe, Bedeutung, Punkte bzw. Sekunden. Oder die Seite im Regelwerk nennen.
+        For each code: number or letter, meaning, points or seconds. Or name the page in the rulebook.
+      placeholder: |
+        Code – Bedeutung / meaning – Punkte bzw. Sekunden / points or seconds
+        X – nicht gestartet / did not start
+    validations:
+      required: false
+  - type: textarea
+    id: besonderheiten
+    attributes:
+      label: Besonderheiten · Special features
+      description: |
+        Was anders ist als bei DM oder UIM: Parallelslalom, Zahl der Läufe und Streichläufe, Stichentscheid,
+        Mannschaftswertung, Parcours, Positionen der Wettkampfrichter.
+        What differs from DM or UIM: parallel slalom, number of attempts and dropped attempts, tie-break,
+        team competition, racecourse, positions of the race officials.
+    validations:
+      required: false
+  - type: checkboxes
+    id: datenschutz
+    attributes:
+      label: Datenschutz · Privacy
+      options:
+        - label: "Ich habe keine Namen, Geburtsdaten oder Ergebnisse von Startern eingetragen oder angehängt. · I have not entered or attached names, dates of birth or results of drivers."
+          required: true

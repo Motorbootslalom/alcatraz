@@ -61,7 +61,7 @@ src/assets/parcours/  Parcours-SVGs (Klassen + Parallel.svg), nur per `npm run p
 src/styles/           CSS; blatt.css einzige Quelle der Listenfarben (--blatt-*), print.css Seitenränder; anzeige.css (--anzeige-*), zuschauer.css, wkr-geraet.css (--wkr-*)
 src/testHilfen.ts     nur Tests: wechsleRegelwerk (trotz Werten), knotenHaken (Regel-960-Knoten), Testlogos
 scripts/              Offline-Speicher (sw.js), parcours-sync, Warnfilter der Tests
-docs/                 entscheidungen, funktionen, parallelslalom, betrieb (Ablauf am Wettkampftag), feldtest (E8), technik, stand (.md); bilder/ (README)
+docs/                 funktionen, parallelslalom, betrieb (Ablauf am Wettkampftag), feldtest (E8), technik, stand (.md) + en/ (Englisch); nur deutsch: entscheidungen, plan-*, vorschlag-*; bilder/de|en/ (README, Doku)
 ```
 
 ## Datenfluss
@@ -134,6 +134,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
 | Sperre einer Action | state/reducer.ts VERZAHNUNG_ACTIONS / PLAN_ACTIONS / STARTERFELD_ACTIONS; klasseFest in reducer/starter.ts |
 | Logos auf den Listen | lib/logo.ts (Grenzen, logoWert, Maße), lib/logoBild.ts (Verkleinern), lib/listenLogos.ts (useListenLogos); components/KopfLogos.vue in jedem Listenkopf, LogosPanel.vue; styles/logos.css |
 | Offline, Update | scripts/offline-sw.js, scripts/offline-speicher.ts, lib/offline.ts, lib/update.ts |
+| Verweis auf GitHub: Fußzeile „Anleitung auf GitHub“ (Ziel nach Oberflächensprache), Repository unter Lizenzen (24.11.2026) | lib/build.ts GITHUB_URL/ANLEITUNG_URL/anleitungUrl; App.vue `version-footer`, components/FremdeBestandteile.vue; i18n app.guide*, licences.programm; Tests App.test.ts, FremdeBestandteile.test.ts |
 | Betrieb: Folge, Lauf beginnen, Nächster | betrieb/folge.ts (lage), state/reducer/betrieb.ts (BETRIEB_*); Auslegungen nur betrieb/annahmen.ts |
 | … umstellen (zurückstellen, aussetzen, verschieben, einsteigen) | betrieb/schritte.ts (Schnappschuss, Abgleich, webeNeu); Actions in state/reducer/betrieb.ts |
 | … was Tafel und Freigabe sehen | betrieb/sicht.ts sichtOeffentlich (EINE Stelle, Datenschutz; Form ändern → `sv`, sicht.test.ts) |
@@ -225,6 +226,10 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
   Fixtures, Doku, Bildern (Ausnahme: einzelne Vornamen in der Doku, 16.11.2026); keine Pfade zu privaten Dateien
   außerhalb des Repos. Tests mit erfundenen Daten (data/names.ts, data/clubs.ts, Muster `Vor1`/`Nach1`/'Musterclub'),
   Hilfen in src/testHilfen.ts.
+- Doku zweisprachig (24.11.2026): README.md + README.en.md, docs/<name>.md + docs/en/<name>.md (außer entscheidungen,
+  plan-*, vorschlag-*), Bilder docs/bilder/de|en; Änderungen immer in beiden Sprachen. Ganz oben je Datei der
+  Verweis auf die andere Sprache (`Deutsch · [English](en/<name>.md)`); Regeln für Doku und Bilder: docs/technik.md
+  „Doku und Bilder“.
 - Stil: keine Semikolons, einfache Anführungszeichen, 2 Leerzeichen, Kommentare auf Deutsch und mit dem Warum.
 - Keine Abwärtskompatibilität nötig, solange die App in Entwicklung ist (alte Stände, Update-Übergänge).
 
@@ -236,5 +241,7 @@ Laden: persistenz/storage.ts bzw. backup.ts → state/migrate.ts migrate() → L
   zum Code nichts still ändern: datierten Code-Kommentar und docs/funktionen.md bzw. parallelslalom.md vergleichen,
   es gilt die jüngere Entscheidung; im Zweifel den Nutzer fragen und danach die Liste nachziehen.
 - Gezielt testen; volle Suite (`npm run test:leise`) nur am Ende. Nach Typ- oder i18n-Änderungen `npx vue-tsc -b`.
-- Bildschirmfotos klein halten (Ausschnitt, geringe Auflösung). README.md bleibt kurz; Neues gehört nach docs/.
-  Bilder für docs/bilder/: Regeln in docs/technik.md unter „Entwickeln“ (nur Beispieldaten, nie Herkunft „Verein“).
+- Bildschirmfotos klein halten (Ausschnitt, geringe Auflösung). README.md und README.en.md bleiben kurz; Neues gehört
+  nach docs/ (deutsch) und docs/en/ (englisch). Bilder für docs/bilder/de/ (DM „Hafenpokal“, Bundesland) und
+  docs/bilder/en/ (UIM „Harbour Cup“, Land, englische Oberfläche): Regeln in docs/technik.md „Doku und Bilder“
+  (nur Beispieldaten, nie Herkunft „Verein“, ≤ 250 KB, ohne Fußzeile).

@@ -4,8 +4,8 @@ import { useStore } from './state/store'
 import { adresse, navigate, useRoute, VIEWS } from './lib/router'
 import { hoereAufScanner } from './lib/scanner'
 import { meldeScan } from './lib/scan'
-import { BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from './lib/build'
-import { formatDateTime, t, tn, type MessageKey } from './i18n'
+import { anleitungUrl, BUILD_COMMIT, BUILD_COMMIT_TIME, BUILD_TIME } from './lib/build'
+import { formatDateTime, locale, t, tn, type MessageKey } from './i18n'
 import { neuLaden, offline, pruefeDauerhaft } from './lib/offline'
 import { fassungsText, useUpdate } from './lib/update'
 import AppLogo from './components/AppLogo.vue'
@@ -171,6 +171,9 @@ function commitLabel(): string {
       <a class="offline-stand" :href="adresse('einstellungen', { ziel: 'offline' })" data-offline-stand>
         <span :class="['offline-punkt', offlineGut ? 'gut' : offline.lage === 'vorbereiten' || offline.neu ? 'wartet' : 'aus']" aria-hidden="true" />{{ t(offlineZeile) }}
       </a>
+      ·
+      <!-- Anleitung auf GitHub (Wunsch 24.11.2026): nur ein Link, Netz erst auf Klick; englische Oberfläche → englische README. -->
+      <a class="anleitung-link" :href="anleitungUrl(locale)" target="_blank" rel="noopener" :title="t('app.guide.title')" data-anleitung>{{ t('app.guide') }}</a>
     </footer>
   </div>
 </template>

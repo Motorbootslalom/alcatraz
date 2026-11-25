@@ -1,11 +1,14 @@
+Deutsch · [English](en/funktionen.md)
+
 # Was Alcatraz kann
 
 Alles, was Alcatraz heute kann – nach Bereichen, ungefähr in der Reihenfolge eines Wettkampfs.
-Warum etwas so ist, steht mit Datum in [entscheidungen.md](entscheidungen.md).
-„Entscheidung vom …“ meint hier immer eine Entscheidung des Nutzers.
-Betrieb ohne Internet, Sicherung und Verlauf: [betrieb.md](betrieb.md).
-Aufbau und Entwickeln: [technik.md](technik.md).
-Was noch fehlt: [stand.md](stand.md).
+Warum etwas so ist, steht mit Datum in [entscheidungen.md](entscheidungen.md);
+„Entscheidung vom …“ meint dort und hier eine Entscheidung des Nutzers.
+
+- Ablauf am Wettkampftag, ohne Internet, Sicherung, Verlauf und Bedienung des Gerätebetriebs: [betrieb.md](betrieb.md).
+- Parallelslalom und Einzelwertung nach Regel 960: [parallelslalom.md](parallelslalom.md).
+- Aufbau und Entwickeln: [technik.md](technik.md). Was noch fehlt: [stand.md](stand.md).
 
 ## Inhalt
 
@@ -18,6 +21,8 @@ Was noch fehlt: [stand.md](stand.md).
 - [Wettkampfrichter-Listen](#wettkampfrichter-listen)
 - [Laufzettel und QR-Codes](#laufzettel-und-qr-codes)
 - [Betrieb: Start-Freigabe und Anzeigetafel](#betrieb-start-freigabe-und-anzeigetafel)
+- [Gerätebetrieb](#gerätebetrieb)
+- [Digitale WKR-Erfassung](#digitale-wkr-erfassung)
 - [Erfassung](#erfassung)
 - [Wertung und Wertungslisten](#wertung-und-wertungslisten)
 - [Mannschaftswertung](#mannschaftswertung)
@@ -29,8 +34,20 @@ Was noch fehlt: [stand.md](stand.md).
 ## Regelwerke und Begriffe
 
 Alcatraz kennt zwei Regelwerke: das DM-Reglement 2026 (`dm-2026`) und UIM Regel 960 „Formula Future“ (`uim-2026`).
-Regelwerke und Aufbauten stehen als YAML unter `src/config/`.
 Unter der DM wird nur das Manövrieren gefahren, unter UIM auch der [Parallelslalom](parallelslalom.md).
+Jedes Regelwerk ist eine YAML-Datei unter `src/config/regelwerke/`: Klassen, Durchschnittsgewichte, Co-Pilot,
+Fehler- und Disqualifikations-Codes, Läufe und Streichläufe, Stichentscheid, Mannschaftswertung, Laufzettel und
+Sprache der Listen. Die Aufbauten der Parcours stehen unter `src/config/aufbauten/`.
+
+**Weitere Regelwerke:** Verbände und Veranstalter aus anderen Ländern sind eingeladen, ihr Regelwerk (Rulebook) zu
+schicken, damit es aufgenommen wird – am einfachsten über die
+[Vorlage für ein neues Regelwerk](https://github.com/Motorbootslalom/alcatraz/issues/new?template=regelwerk.yml) auf
+GitHub. Hilfreich sind:
+
+- das Regelwerk selbst (PDF oder Link),
+- die Klassen mit ihren Altersgrenzen (Jahrgänge, Geburtstage),
+- die Fehler- und Disqualifikations-Codes mit ihren Punkten bzw. Sekunden,
+- die Sprache, in der die Listen stehen sollen.
 
 **Begriffe nach den Regelbüchern:**
 
@@ -38,648 +55,695 @@ Unter der DM wird nur das Manövrieren gefahren, unter UIM auch der [Parallelsla
 - Englisch folgt dem UIM Circuit Rulebook, Regel 960: „driver“, „attempt“, „race number“, „race official“,
   „team manager“, „co-driver“, „extra weight“, „pontoon“, „results“, „ranking“, „dead heat“.
 - Die Klasse E heißt unter UIM überall „Dolphin“ (`klassenNamen` im Regelwerk), unter DM „Klasse E“.
-  Ihre Startnummern behalten das „E“ (`startNrPraefix`).
 - Gewichte: „(statistisches) Durchschnittsgewicht“ und „Ausgleichsgewicht“ (DM-Reglement C3),
   englisch „average weight“ und „extra weight“ (UIM 960 Pkt. 3.7).
 - Der Co-Pilot heißt im DM-Reglement „Co-Pilot“, im UIM-Regelbuch „co-driver“.
 - Die Wörter des Parallelslaloms stehen unter [Dummys und Wörter](parallelslalom.md#dummys-und-wörter).
 
-**Sprache der Listen:** Sie folgt dem Regelwerk, unabhängig von der Oberfläche
-(`listenSprache` in `src/config/regelwerke/*.yaml`: DM deutsch, UIM englisch).
-Nur für die Wettkampfrichter-Bögen lässt sie sich je Liste und Parcours wählen: deutsch, englisch oder zweisprachig.
-Gewählt wird in der WKR-Einteilung neben jedem Namen, weil auf jedem Parcours eine eigene Gruppe sitzt.
-Das geht nur, wo das Regelwerk Englisch anbietet (`src/lib/listensprache.ts`, `AppState.wkrSprachen`).
+**Sprache:** Die Oberfläche lässt sich jederzeit zwischen Deutsch und Englisch umschalten.
+Die Listen folgen dem Regelwerk, nicht der Oberfläche (`listenSprache`: DM deutsch, UIM englisch).
+Nur die Wettkampfrichter-Bögen lassen sich je Liste und Parcours wählen – deutsch, englisch oder zweisprachig –, und
+nur, wo das Regelwerk Englisch anbietet. Gewählt wird in der WKR-Einteilung neben jedem Namen, weil auf jedem Parcours
+eine eigene Gruppe sitzt (`src/lib/listensprache.ts`, `AppState.wkrSprachen`).
 
 ## Veranstaltung und Besetzung
 
 Die Ansicht „Veranstaltung“ nimmt Name, Jahr, Datum, Zahl der Läufe, Art (Meisterschaft oder Clubmeisterschaft),
 Herkunft (Verein, Bundesland, Land oder ohne), Regelwerk und Aufbau auf.
 
-- Das Datum (24.11.2026, erster Wettkampftag) ist freiwillig. Es braucht nur die Warnung zur Starterlaubnis nach
-  Geburtstag (siehe [Sperren und Prüfungen](#sperren-und-prüfungen)); für die Jahrgänge zählt das Jahr. Liegt es in
-  einem anderen Jahr, sagt das ein leiser Hinweis am Feld. Es steht in der Sicherung, nicht in der Vorlage.
-
-- Die WKR-Einteilung steht im Block „Besetzung“ dieser Ansicht, zusammen mit Booten und Co-Piloten je Klasse.
-- Die Beispielansicht der Listen steht unter „Veranstaltung“ und im Assistenten.
-  Unter UIM zeigt sie auch die Listen des Parallelslaloms je Racecourse.
-  Sie zeigt die Namen der Einteilung nur an.
-- Der Name des Co-Piloten steht – wie die Namen der Wettkampfrichter – nur in der Sicherung, nie in der Vorlage.
-  Das Boot der Klasse steht auch in der Vorlage (`src/lib/besetzung.ts`).
-- Erfundene Boote und Co-Piloten gibt es nur unter [Beispieldaten](#beispieldaten) (seit 21.11.2026 nicht mehr
-  unter der Tabelle: Beispielwerte entstehen an einer Stelle).
+- **Datum** (24.11.2026): der erste Wettkampftag, freiwillig. Gebraucht wird es nur für die Warnung zur
+  Starterlaubnis nach Geburtstag (siehe [Sperren und Prüfungen](#sperren-und-prüfungen)); die Jahrgänge rechnen mit
+  dem Jahr. Liegt es in einem anderen Jahr, sagt das ein Hinweis am Feld. Es steht in der Sicherung, nicht in der
+  Vorlage.
+- **Besetzung:** WKR-Einteilung, Boote und Co-Piloten je Klasse stehen im Block „Besetzung“.
+  Die Namen der Wettkampfrichter und Co-Piloten stehen nur in der Sicherung, nie in der Vorlage;
+  das Boot der Klasse auch in der Vorlage (`src/lib/besetzung.ts`).
+- Die **Beispielansicht der Listen** steht hier und im Assistenten, unter UIM auch mit den Listen des
+  Parallelslaloms je Racecourse. Sie zeigt die Namen der Einteilung nur an.
 - Eigene Aufbauten entstehen unter „Einstellungen“ (Assistent und YAML-Austausch).
-- Die Beispieldaten stehen am Ende der Ansicht, siehe [Beispieldaten](#beispieldaten).
+- Am Ende der Ansicht stehen die [Beispieldaten](#beispieldaten).
 
 ## Starter und Startnummern
 
-Der Reiter „Starter“ führt die Starter je Klasse.
-Sie kommen von Hand oder über den Austausch mit Excel (Import und Export).
+Der Reiter „Starter“ führt die Starter je Klasse – von Hand oder über den Austausch mit Excel.
 Startnummern gibt es klassenbasiert (E01, 101 …) oder klassisch (fortlaufend).
 
-Austausch mit Excel (`src/components/ExcelPanel.vue`, `src/import/tsv.ts`, `src/import/starterMerge.ts`):
+<a href="bilder/de/starter.png"><img src="bilder/de/starter.png" width="300"
+alt="Reiter Starter: Klassen mit Startnummern, Namen und Herkunft samt Flagge"></a>
+
+**Austausch mit Excel** (`src/components/ExcelPanel.vue`, `src/import/tsv.ts`, `src/import/starterMerge.ts`):
 
 - **Liste ersetzen** erkennt bisherige Starter an Klasse und Startnummer, dann an Klasse und Name wieder;
   sie behalten ihre ID und damit Gewicht und Platz in der Verzahnung.
-  Kommt die Liste ohne Startnummern, behält ein Wiedererkannter seine bisherige Nummer;
-  Nummern, die erst der Import vergibt, zählen beim Wiedererkennen nicht (16.11.2026).
-- **Ergänzen** fügt nur neue Starter hinzu. Die Meldung zählt nur, wer wirklich dazukam,
-  und nennt die übergangenen eigens (16.11.2026).
+  Kommt die Liste ohne Startnummern, behält ein Wiedererkannter seine bisherige Nummer (16.11.2026).
+- **Ergänzen** fügt nur neue Starter hinzu und nennt die übergangenen eigens (16.11.2026).
 - **Starterliste kopieren** schreibt das Geschlecht in der Sprache der Oberfläche
   (M, W, D, k. A. bzw. M, F, D, n/a); der Import liest beide Schreibweisen.
-„Automatisch vergeben“ nummeriert klassenbasiert jede Klasse in ihrer aktuellen Reihenfolge,
-klassisch in der Startreihenfolge der Verzahnung.
+- „Automatisch vergeben“ nummeriert klassenbasiert jede Klasse in ihrer Reihenfolge,
+  klassisch in der Startreihenfolge der Verzahnung.
 
-**Startnummern nach Westengröße** (19.11.2026, `src/domain/startnrBereiche.ts`, Einstellungen → „Startnummern nach
-Westengröße“, `components/StartNrBereichePanel.vue`): Klassenbasierte Nummern stehen auf Westen in Konfektionsgrößen.
+**Startnummern nach Westengröße** (19.11.2026; Einstellungen → „Startnummern nach Westengröße“,
+`src/domain/startnrBereiche.ts`): Klassenbasierte Nummern stehen auf Westen in Konfektionsgrößen.
 Je Klasse gehört ein Nummernbereich zu einer Größengruppe (S–M, L–XL, XXL; XS zählt zu S–M, XXXL zu XXL).
-Unter der DM ist die DMYV-Startnummernliste die Vorgabe (`dm-2026.yaml` `startNrBereiche`), unter UIM gibt es keine.
-Die Veranstaltung kann je Klasse eigene Bereiche setzen (auch keine) und zur Vorgabe zurückkehren
-(`AppState.startNrBereiche`, nur Abweichungen) und Nummern fehlender Westen eintragen (`AppState.fehlendeStartNr`,
-z. B. „512, 517, 623“; Unlesbares wird genannt). Beides reist mit Sicherung und Vorlage.
+Unter der DM ist die DMYV-Startnummernliste die Vorgabe (`startNrBereiche` in `dm-2026.yaml`), unter UIM gibt es keine.
+Die Veranstaltung kann je Klasse eigene Bereiche setzen und Nummern fehlender Westen eintragen („512, 517, 623“);
+beides reist mit Sicherung und Vorlage.
 
-- „Automatisch vergeben“: jeder Starter bekommt in der Folge des Reiters die nächste freie Nummer aus dem Bereich
-  seiner Größe. Hat eine Klasse nur Bereiche einer Gruppe (DMYV: E bis 3 nur S–M), gilt er für alle, auch ohne
-  Größe. Ist der Bereich voll oder fehlt er (oder fehlt die Größe in einer aufgeteilten Klasse), bleibt die Nummer
-  leer: Der Starter-Reiter nennt ihn unter „Von Hand prüfen“, die Nummer vergibt man selbst (Nutzer, 20.11.2026: kein
-  automatisches Ausweichen). Fehlende Westen werden immer übersprungen, auch in Klassen ohne Bereiche.
+- „Automatisch vergeben“ gibt jedem Starter in der Folge des Reiters die nächste freie Nummer aus dem Bereich seiner
+  Größe. Hat eine Klasse nur Bereiche einer Gruppe (DMYV: E bis 3 nur S–M), gilt er für alle, auch ohne Größe.
+  Fehlende Westen werden immer übersprungen.
+- Ist der Bereich voll oder fehlt die Größe in einer aufgeteilten Klasse, bleibt die Nummer leer; der Reiter nennt
+  den Starter unter „Von Hand prüfen“ (kein automatisches Ausweichen, 20.11.2026).
 - Neue Starter (von Hand, „In Klasse X verschieben“, Excel-Import, Beispielstarter) bekommen ebenso die erste freie
   Nummer ihres Bereichs.
-- Verschieben (▲▼) wirkt frei wie ohne Bereiche (Nutzer, 20.11.2026): Die Nummern wandern mit der Folge. Passt
-  danach eine Nummer nicht zur Größe, nennt „Von Hand prüfen“ den Starter.
-- „Sortierung ändern“ und „Zufall“ halten jede Nummer in ihrem Bereich – die neue Folge gilt nur innerhalb einer
-  Größengruppe (Auslegung, 20.11.2026: die Größen stehen fest). Fehlt noch jemandem in der Klasse die Nummer, wie bisher.
-- Belegt ist eine Nummer nur, wenn sie genau so geschrieben ist, wie die Vergabe sie schreibt: Ein Tippfehler wie
-  „5012“ in Klasse 5 belegt nicht die 512 und steht im Hinweis als „außerhalb der Bereiche“.
-- Der Reiter „Starter“ nennt unter „Startnummern“, wessen Nummer nicht zu seiner Größe passt
-  (anderer Bereich, außerhalb, ohne Größe, Weste fehlt).
-Was ab wann gesperrt ist und was geprüft wird, steht unter [Sperren und Prüfungen](#sperren-und-prüfungen).
-Wer für die Mannschaftswertung zählt, lässt sich wählen (siehe [Mannschaftswertung](#mannschaftswertung)).
+- Verschieben (▲▼) wirkt frei; die Nummern wandern mit. „Sortierung ändern“ und „Zufall“ ordnen nur innerhalb einer
+  Größengruppe (20.11.2026).
+- Belegt ist eine Nummer nur, wenn sie genau so geschrieben ist, wie die Vergabe sie schreibt („5012“ in Klasse 5
+  belegt nicht die 512). Unter „Startnummern“ nennt der Reiter, wessen Nummer nicht zu seiner Größe passt.
+
+**Buchstabe der Klasse E** (seit 24.11.2026 in beiden Regelwerken): E (Vorgabe) oder D – unter DM „Buchstabe der
+Klasse E“, unter UIM „Buchstabe der Dolphin-Nummern“ („Starter → Startnummern“, in Sicherung und Vorlage; gilt für neu
+vergebene Nummern). Die Nummernbereiche folgen ihm: Mit D wird aus E01–E30 D01–D30. Gelesen werden E und D gleich;
+nach dem Umstellen folgt auf E02 also D03, nicht D01 (`parseClassNumber`).
+
+Was ab wann gesperrt ist und was geprüft wird – auch Jahrgang und Geburtstag –, steht unter
+[Sperren und Prüfungen](#sperren-und-prüfungen). Wer für die Mannschaftswertung zählt, lässt sich wählen
+(siehe [Mannschaftswertung](#mannschaftswertung)).
 
 ## Herkunft und Flaggen
 
-Für die Herkunft „Bundesland“ und „Land“ zeigen auf Wunsch die Flagge:
-Starter-Reiter, Starter-, Vorsteg- und Gewichtslisten, Wertungslisten und Mannschaftswertung.
-Formen: wie bisher (ausgeschrieben / Kürzel), Flagge + Kürzel, Flagge + ausgeschrieben oder nur Flagge.
-Gewählt wird unter „Einstellungen → Listen“; die Mannschaftswertung hat die Wahl direkt bei der Liste.
-Auf den Wettkampfrichter-Listen stehen keine Flaggen.
-Entschieden wird an einer Stelle (`herkunftAnzeige` in `src/lib/origin.ts`),
-gezeichnet von einer Komponente (`src/components/HerkunftText.vue`).
+Für die Herkunft „Bundesland“ und „Land“ zeigen auf Wunsch die Flagge: Starter-Reiter, Starter-, Vorsteg- und
+Gewichtslisten, Wertungslisten und Mannschaftswertung – nicht die Wettkampfrichter-Listen.
+Formen: ausgeschrieben bzw. Kürzel, Flagge + Kürzel, Flagge + ausgeschrieben oder nur Flagge
+(„Einstellungen → Listen“; die Mannschaftswertung hat die Wahl bei der Liste).
+Entschieden wird an einer Stelle (`herkunftAnzeige` in `src/lib/origin.ts`).
 
 - **Zuordnung** (`src/domain/flaggen.ts`, `src/domain/staaten.ts`): Die Herkunft ist freier Text am Starter.
-  - Bundesländer werden an Kürzel (BY, DE-BY), Namen und gängigen Schreibweisen (NRW, BaWü, Thueringen) erkannt.
-  - Staaten an ISO-Codes (DE, DEU), IOC-Kürzeln (GER, NED, SUI – wie bei der UIM üblich)
-    und deutschen und englischen Namen.
-  - Bindewörter und „Saint“/„St.“ zählen nicht („Bosnia and Herzegovina“ = „Bosnia & Herzegovina“ =
-    „Bosnien-Herzegowina“).
-  - Die Namen der europäischen und der im Motorbootsport üblichen Staaten sind fest eingetragen;
-    alle übrigen liefert der Browser.
-  - Was nicht erkannt wird, steht als Text da; der Reiter „Starter“ nennt diese Angaben.
-- **Nationen sind international** (`herkunftAnzeige` in `src/lib/origin.ts`):
-  Auf einer englischen Liste (u. a. die Liste nach Pkt. 3.7, Mannschaftswertung, Starterlisten)
-  steht ein erkannter Staat mit englischem Namen bzw. Kürzel, auch wenn er deutsch eingetragen ist
-  („Litauen“ → „Lithuania“).
-  Auf einer deutschen Liste steht er, wie er eingetragen ist.
-- **Kürzel der Länder** (`laenderKuerzel` im YAML des Regelwerks, `KuerzelNorm` in `src/domain/kuerzel.ts`):
-  - Unter der UIM tragen Staaten das Kürzel des IOC – GER, SUI, NED, LAT statt DEU, CHE, NLD, LVA.
-  - Regel 209 „POSTING OF THE RESULTS“: „The nationality of all drivers – either by using a three letter abbreviation
-    for the countries worldwide as listed by the IOC or as full names of the nations in English language.“
-  - Dort wird jeder erkannte Staat zu diesem Kürzel, gleich wie er eingetragen ist
-    („Germany“, „Deutschland“, „DEU“, „GER“ → GER), damit eine Nation auf einer Liste nicht unter zwei Codes steht.
-  - Frühere IOC-Kürzel (ROM, SIN, TRI) werden erkannt; ausgegeben werden die heutigen (ROU, SGP, TTO).
-  - Die Tabelle der Kürzel unter „Einstellungen → Listen“ zeigt dieselbe Vorgabe.
-  - Seit dem 15.11.2026 gilt das auch unter der DM – der Verband gehört zum Olympischen Sportbund
-    (vorher ISO 3166-1 alpha-3, Festlegung vom 12.11.2026).
-    Die Bundesländer behalten ihre Kürzel (BY, NW).
-  - Eigene Kürzel der Veranstaltung gehen immer vor.
-- **Schreibweisen:** Nennen Starter dasselbe Land verschieden („NRW“ und „Nordrhein-Westfalen“, „GER“ und „Germany“),
-  tragen sie dieselbe Flagge und – unter der UIM – dasselbe Kürzel.
-  In der [Mannschaftswertung](#mannschaftswertung) und auf den Starterlisten je Herkunft sind sie **eine** Mannschaft
-  (`mannschaftSchluessel` in `src/lib/pokal.ts`); auf der Liste steht die häufigste Schreibweise.
-  Der Reiter „Starter“ nennt solche Fälle.
-  „Baden“ und „Württemberg“ allein gelten nicht als Baden-Württemberg.
-- **Druck:** Listen müssen in Schwarz-Weiß brauchbar sein.
-  Gedruckt steht die Flagge deshalb nie allein – bei „nur Flagge“ kommt auf dem Papier das Kürzel dazu.
-  Die Flagge hat eine feste Größe unterhalb der Zeilenhöhe und ändert die Seitenteilung nicht.
-- **Bilder:** mitgelieferte Vektorbilder (SVG), beim Bauen eingebettet; nichts wird zur Laufzeit geladen.
-  Keine Emoji: Windows zeigt keine Flaggen-Emoji, und für Bundesländer gibt es keine.
-  Die Ein-Datei-Fassung wächst dadurch um rund 250 kB.
-  - Staaten: alle rund 250 Staaten und Gebiete aus dem Paket
-    [country-flag-icons](https://www.npmjs.com/package/country-flag-icons)
-    (MIT-Lizenz, © 2020 @catamphetamine), Fassung 3:2.
-    Der Lizenzvermerk steht auch in der Anwendung selbst (Einstellungen → „Fremde Bestandteile und Lizenzen“,
-    dort seit 16.11.2026 auch die Namensnennung der Parcours-Zeichnungen),
-    damit er mit der Ein-Datei-Fassung weitergegeben wird.
-  - Bundesländer: `src/flaggen/bundeslaender/` – je Land die **Landesflagge, die jedermann führen darf** (Zivilflagge),
-    nicht die den Behörden vorbehaltene Dienstflagge mit Wappen.
-    Welche das je Land ist und woher die Zeichnungen stammen (Wikimedia Commons, gemeinfrei als amtliche Werke),
-    steht in [`src/flaggen/bundeslaender/LIESMICH.md`](../src/flaggen/bundeslaender/LIESMICH.md).
+  Bundesländer werden an Kürzeln (BY, DE-BY), Namen und gängigen Schreibweisen (NRW, BaWü, Thueringen) erkannt,
+  Staaten an ISO-Codes (DE, DEU), IOC-Kürzeln (GER, NED, SUI) und deutschen und englischen Namen.
+  Bindewörter und „Saint“/„St.“ zählen nicht. Was nicht erkannt wird, steht als Text da; der Reiter „Starter“ nennt es.
+- **Nationen sind international:** Auf einer englischen Liste steht ein erkannter Staat englisch, auch wenn er deutsch
+  eingetragen ist („Litauen“ → „Lithuania“); auf einer deutschen Liste steht er, wie er eingetragen ist.
+- **Kürzel der Länder** (`laenderKuerzel` im Regelwerk, `src/domain/kuerzel.ts`): In beiden Regelwerken tragen
+  Staaten das Kürzel des IOC (GER, SUI, NED, LAT) – nach Regel 209 „POSTING OF THE RESULTS“, unter der DM seit dem
+  15.11.2026, weil der Verband zum Olympischen Sportbund gehört. Jeder erkannte Staat wird zu diesem Kürzel
+  („Germany“, „Deutschland“, „DEU“ → GER); frühere IOC-Kürzel (ROM, SIN, TRI) werden erkannt, ausgegeben die heutigen.
+  Bundesländer behalten ihre Kürzel (BY, NW). Eigene Kürzel der Veranstaltung gehen vor.
+- **Schreibweisen:** Nennen Starter dasselbe Land verschieden („NRW“ und „Nordrhein-Westfalen“), tragen sie dieselbe
+  Flagge und dasselbe Kürzel. In der [Mannschaftswertung](#mannschaftswertung) und auf den Starterlisten je Herkunft
+  sind sie **eine** Mannschaft; auf der Liste steht die häufigste Schreibweise. „Baden“ und „Württemberg“ allein
+  gelten nicht als Baden-Württemberg.
+- **Druck:** Gedruckt steht die Flagge nie allein – bei „nur Flagge“ kommt das Kürzel dazu (Schwarz-Weiß-Druck).
+  Die Flagge ändert die Seitenteilung nicht.
+- **Bilder:** Vektorbilder (SVG), beim Bauen eingebettet, nichts wird zur Laufzeit geladen; keine Emoji.
+  Staaten aus [country-flag-icons](https://www.npmjs.com/package/country-flag-icons) (MIT-Lizenz,
+  © 2020 @catamphetamine); Bundesländer je Land die Landesflagge, die jedermann führen darf (Wikimedia Commons,
+  gemeinfrei; [`src/flaggen/bundeslaender/LIESMICH.md`](../src/flaggen/bundeslaender/LIESMICH.md)).
+  Die Vermerke stehen auch in der App unter „Einstellungen → Fremde Bestandteile und Lizenzen“.
 
 ## Verwiegung
 
-- Gewichtslisten je Herkunft zum Eintragen beim Check-in.
-  Der Link „Gewichtslisten drucken“ in der Verwiegung öffnet sie für die dort gewählte Herkunft.
-  Die Herkunft steht danach in der Adresse (`#/listen/gewicht/<Herkunft>`) und folgt der Auswahl;
-  so lässt sich die Adresse weitergeben (16.11.2026).
-- Die Erfassung der Gewichte im Reiter „Verwiegung“.
-- Die Liste „Ausgleichsgewichte“ für den Steg:
-  je Klasse ein Blatt nach Startnummer mit dem Ausgleichsgewicht und einem Kästchen je Lauf.
-  Im Kopf stehen Boot und Co-Pilot aus „Veranstaltung → Besetzung“
-  (`src/lib/ausgleich.ts`, `src/components/AusgleichListen.vue`).
-  Wer noch nicht gewogen ist, bekommt ein Feld zum Nachtragen von Hand (klein „nicht gewogen“, rechts „kg“; 24.11.2026).
-  Leer heißt „kein Ausgleichsgewicht nötig“ – auch, wenn es auf 0 kg gerundet ist (24.11.2026; die Verwiegung zeigt „0 kg“).
-- Abstufung (24.11.2026): Unter „Einstellungen → Durchschnittsgewichte“ steht „Ausgleichsgewicht in Stufen von“
-  – 0,1 / 0,5 / 1 / 2 kg oder ein eigener Wert (0,1–10 kg, Komma erlaubt; Vorgabe 1 kg = ganze kg).
-  Das Ausgleichsgewicht ist immer ein Vielfaches davon, gerundet auf die nächste Stufe, ab der Hälfte aufwärts
-  (bei 2 kg: 2,9 → 2 kg, 3,0 → 4 kg; bei 0,5 kg: 1,2 → 1 kg, 1,25 → 1,5 kg).
-  Verwiegung, Liste „Ausgleichsgewichte“, Liste nach Regel 960 und Steg-Gerät nehmen dieselbe Rechnung
-  (`src/domain/gewicht.ts` `rundeAufStufe`, `src/lib/ausgleich.ts` `ausgleichVon`);
-  Zahlen mit Nachkommastelle stehen mit dem Dezimalzeichen der Sprache („1,5 kg“, englisch „1.5 kg“).
-- Digital (24.11.2026): Das Steg-Gerät der WKR-Erfassung zeigt im Teil „Ablegen“ neben der Startnummer dasselbe
-  Ausgleichsgewicht – „AG 4 kg“, „kein AG“ oder „AG: Gewicht fehlt“. Gepflegt wird am Steg nichts: Ein in der
-  Verwiegung nachgetragenes Gewicht kommt von selbst aufs Gerät. Über die Leitung geht nur das Ausgleichsgewicht,
-  verschlüsselt in der Gruppe der Steg-Liste, nie das Körpergewicht ([entscheidungen.md](entscheidungen.md#ausgleichsgewicht-am-steg-entscheidung-24112026)).
-
-Die Durchschnittsgewichte je Klasse stehen im Regelwerk (`gewichte`).
-Sie lassen sich unter „Einstellungen → Durchschnittsgewichte“ ändern.
+- **Gewichtslisten** je Herkunft zum Eintragen beim Check-in. „Gewichtslisten drucken“ in der Verwiegung öffnet sie
+  für die gewählte Herkunft; die Adresse (`#/listen/gewicht/<Herkunft>`) lässt sich weitergeben (16.11.2026).
+- Die Gewichte werden im Reiter „Verwiegung“ erfasst. Die Durchschnittsgewichte je Klasse stehen im Regelwerk und
+  lassen sich unter „Einstellungen → Durchschnittsgewichte“ ändern.
+- **Abstufung** (24.11.2026): Dort steht auch „Ausgleichsgewicht in Stufen von“ – 0,1 / 0,5 / 1 / 2 kg oder ein
+  eigener Wert (0,1–10 kg; Vorgabe 1 kg). Die Stufe ist das kleinste Gewichtsstück, das am Steg ins Boot gelegt wird.
+  Das Ausgleichsgewicht ist ein Vielfaches davon, kaufmännisch gerundet (bei 2 kg: 2,9 → 2 kg, 3,0 → 4 kg; bei 0,5 kg:
+  1,2 → 1 kg, 1,25 → 1,5 kg). Wer weniger als eine halbe Stufe leichter ist, braucht keines. Verwiegung, Listen und
+  Steg-Gerät rechnen gleich (`rundeAufStufe` in `src/domain/gewicht.ts`, `ausgleichVon` in `src/lib/ausgleich.ts`).
+- **Liste „Ausgleichsgewichte“** für den Steg: je Klasse ein Blatt nach Startnummer mit dem Ausgleichsgewicht und
+  einem Kästchen je Lauf; im Kopf Boot und Co-Pilot aus der Besetzung (`src/components/AusgleichListen.vue`).
+  Leer heißt „keines nötig“, auch auf 0 kg gerundet (die Verwiegung zeigt dann „0 kg“). Wer noch nicht gewogen ist,
+  bekommt ein Feld zum Nachtragen von Hand („nicht gewogen“, „kg“).
+- **Am Steg-Gerät** (24.11.2026): Mit digitaler WKR-Erfassung zeigt das Gerät im Teil „Ablegen“ neben der
+  Startnummer dasselbe Ausgleichsgewicht – „AG 4 kg“, „kein AG“ oder „AG: Gewicht fehlt“. Am Steg wird nichts
+  gepflegt; ein in der Verwiegung nachgetragenes Gewicht kommt von selbst aufs Gerät. Über die Leitung geht nur das
+  Ausgleichsgewicht, verschlüsselt für die Steg-Liste, nie das Körpergewicht
+  ([Entscheidung](entscheidungen.md#ausgleichsgewicht-am-steg-entscheidung-24112026)).
 
 ### Liste der Fahrer je Team (Regel 960)
 
 Regel 960, Pkt. 3.7 verlangt: Race number, Name and surname, Sex, Date of birth, Verified weight and ballast
-required, Class, in den Klassen Dolphin und 1–3 der Co-driver.
-Umsetzung: `src/lib/teamListe.ts`, `components/TeamListen.vue`, „Listen → Gewichtslisten → je Mannschaft“.
+required, Class, in den Klassen Dolphin und 1–3 der Co-driver
+(„Listen → Gewichtslisten → je Mannschaft“, `src/lib/teamListe.ts`).
 
-- Sie ist eine **interne** Liste und steht in keiner Druckdatei.
-- Das Geburtsdatum folgt der Listen-Option „Geburtsdatum zeigen“.
-- „Ballast required“ ist das Ausgleichsgewicht in der Abstufung der Veranstaltung; „–“ heißt keines nötig, auch auf 0 kg
-  gerundet (24.11.2026).
-- Dafür gibt es das freiwillige Starterfeld `geschlecht` mit **vier Werten** (Entscheidung vom 15.11.2026;
-  `src/domain/geschlecht.ts`): M (männlich), F (weiblich), D (divers), nA (keine Angabe).
-- Leer bleibt erlaubt und heißt „nicht erfasst“; nur das zählt der Hinweis der Liste als fehlend.
-- Unter Regel 960 hat der Starter-Reiter eine Spalte dafür.
-- Import-Spalte „Sex“/„Gender“/„Geschlecht“. Erkannt werden (Groß-/Kleinschreibung egal):
-  m, male, männlich; f, w, female, weiblich; d, diverse, divers; na, n/a, keine Angabe.
-  Unbekanntes bleibt leer und wird beim Einfügen gemeldet.
-- Auf der Liste nach Pkt. 3.7 steht es englisch: M, F, D, n/a.
-- Das Feld steht in Sicherung und Teilnehmerdaten, nie in der Vorlage; die Wertung kennt es nicht.
+- Eine **interne** Liste, in keiner Druckdatei. Das Geburtsdatum folgt der Listen-Option „Geburtsdatum auf den
+  Starterlisten zeigen“.
+- „Ballast required“ ist das Ausgleichsgewicht in der Abstufung der Veranstaltung; „–“ heißt keines nötig.
+- Dafür gibt es das freiwillige Starterfeld **Geschlecht** mit vier Werten (15.11.2026, `src/domain/geschlecht.ts`):
+  M, F, D, keine Angabe; leer heißt „nicht erfasst“. Unter Regel 960 hat der Starter-Reiter eine Spalte dafür.
+  Import-Spalte „Sex“/„Gender“/„Geschlecht“ (m, male, männlich; f, w, female, weiblich; d, divers; na, n/a,
+  keine Angabe). Auf der Liste steht es englisch: M, F, D, n/a.
+- Das Geschlecht steht in Sicherung und Teilnehmerdaten, nie in der Vorlage; die Wertung kennt es nicht.
 
 ## Verzahnung
 
 Die Verzahnung legt die Startreihenfolge fest und damit Startnummern und alle Listen.
 
+<a href="bilder/de/verzahnung.png"><img src="bilder/de/verzahnung.png" width="300"
+alt="Verzahnung: Klassen auf den Spuren eines Parcours, festgeschrieben"></a>
+
 - Die Klassen werden nach Starterzahl möglichst gleichmäßig auf die Spuren eines Parcours verteilt,
   sodass nach jedem Start das Boot wechselt.
-- Schnellauswahl für einen oder zwei Parcours.
-  Klassen-Blöcke lassen sich zwischen den Spuren ziehen; eine Pause lässt eine Spur einige Starts aussetzen.
+- Schnellauswahl für einen oder zwei Parcours. Klassen-Blöcke lassen sich zwischen den Spuren ziehen;
+  eine Pause lässt eine Spur einige Starts aussetzen.
 - Der Bootbedarf wird gegen die vorhandenen kleinen und großen Boote geprüft.
 - „Verzahnung festschreiben“ sperrt Parcours, Spuren und Boote, damit Startnummern und Listen gültig bleiben.
-- Unter UIM steht hier auch der Startplan des Parallelslaloms
-  (siehe [Startplan](parallelslalom.md#startplan-des-vorlaufs)), darunter die Runden danach: je Klasse oder mit
-  „Alle Klassen weiter“ für alle zugleich, verzahnt wie der Vorlauf (klein/groß im Wechsel, 19.11.2026; siehe
-  [Runden nach dem Vorlauf](parallelslalom.md#runden-nach-dem-vorlauf)). Sind die Listen einer Runde gedruckt, steht
-  das dort; ihre Folge bleibt dann, bis „Druck lösen“ (20.11.2026).
+- Unter UIM steht hier auch der Startplan des Parallelslaloms mit den Runden danach – je Klasse oder mit „Alle Klassen
+  weiter“ für alle zugleich ([Startplan](parallelslalom.md#startplan-des-vorlaufs),
+  [Runden nach dem Vorlauf](parallelslalom.md#runden-nach-dem-vorlauf)). Sind die Listen einer Runde gedruckt, bleibt
+  ihre Folge, bis „Druck lösen“ (20.11.2026).
 
 ## Wettkampfrichter-Listen
 
 Die Wettkampfrichter-Listen (WKR-Bögen) stehen unter „Listen“ (`src/lib/wkrListen.ts`, `src/components/WkrListen.vue`).
 
-- Je Parcours, Klasse, Lauf und Liste ein Bogen.
-  Die Startnummern stehen in der Startreihenfolge der Verzahnung.
+<a href="bilder/de/wkr-bogen.png"><img src="bilder/de/wkr-bogen.png" width="240"
+alt="WKR-Bogen für Tor 1/3/5 mit QR-Code, Legende der Disqualifikationen und Parcoursbild"></a>
+
+- Je Parcours, Klasse, Lauf und Liste ein Bogen; die Startnummern in der Startreihenfolge der Verzahnung.
 - Leerzeilen für Nachmeldungen; wahlweise die Beschreibung auf der Rückseite.
-- Bei der Clubmeisterschaft stehen mehrere Klassen auf einem Bogen.
-  Listen mit Parcoursbild bleiben je Klasse.
-  Mit „Papier sparen“ stehen die Leerzeilen einmal je Seite statt je Klasse.
-  Wie die Klassen auf dem gemeinsamen Bogen stehen, ist wählbar (24.11.2026, `wkrGemeinsamFolge`):
-  „getrennt“ (Vorgabe) – je Klasse ein Block, die Klasse als Überschrift darüber; „nach der Verzahnung“ – alle Starter
-  gemischt in der Startfolge, ohne Überschriften, die Klasse in einer schmalen Spalte hinter der Startnummer, die
-  Leerzeilen (je Seite) am Ende jeder Seite mit leerer Klassenzelle. Geteilt wird automatisch nach Messung; der Kopf
-  nennt die Klassen der Seite; Seitenzahlen, Laufzettel, QR-Codes und die Erfassung folgen. Die Erfassung zeigt dieselbe
-  Zeilenfolge wie das Papier.
-- Spalten, die eine Klasse nicht hat, sind in ihren Zeilen kräftig schraffiert – wie die Zeile eines Dummys im
-  Parallelslalom (24.11.2026); in einer grauen Zeile liegt die Schraffur auf Grau.
-- Die Parcours-Zeichnung steht auf den Bögen, abgeblendet je Position.
-  Parallelslalom (23.11.2026): Der Fahrweg-Bogen jedes Racecourse trägt die eine Bahn ohne Steg rechts neben der
-  Legende – ohne eine Zeile je Blatt zu kosten ([parallelslalom.md](parallelslalom.md#wkr-listen-des-vorlaufs)).
+- Die Parcours-Zeichnung steht auf den Bögen, abgeblendet je Position. Im Parallelslalom trägt nur der
+  Fahrweg-Bogen jedes Racecourse die eine Bahn, rechts neben der Legende (23.11.2026,
+  [parallelslalom.md](parallelslalom.md#wkr-listen-des-vorlaufs)).
 - Gedruckt werden die Bögen erst nach dem Festschreiben der Verzahnung (siehe [Sperren](#sperren-und-prüfungen)).
-- Druckfolge (21.11.2026): je Parcours Position für Position, darin die Startfolge (1. Lauf in der Reihenfolge der
-  Klassen, dann der 2. …) – der Stapel wird nur an den Positionen getrennt und verteilt (`WKR_DRUCKFOLGE`).
+- **Druckfolge** (21.11.2026): je Parcours Position für Position, darin die Startfolge (1. Lauf in der Reihenfolge der
+  Klassen, dann der 2. …) – der Stapel wird nur an den Positionen getrennt (`WKR_DRUCKFOLGE`).
   Parallelslalom: je Racecourse Position für Position, darin die Runden. Laufzettel bleiben je Klasse und Lauf.
-- Listen im Modus „Gerät“ (Betrieb → WKR) werden nicht gedruckt, auch nicht auf dem Laufzettel; Hinweis über dem
-  Stapel mit „Trotzdem drucken“. Pausiert/abgemeldet und Steg mit nur einem Teil auf Geräten: gedruckt
-  (`src/wkr/druck.ts`, WKR_ANNAHMEN Z1–Z7, noch zu bestätigen).
+- Listen, die nur am Gerät erfasst werden (Betrieb → WKR, Modus „Gerät“), werden nicht gedruckt, auch nicht auf dem
+  Laufzettel; ein Hinweis über dem Stapel bietet „Trotzdem drucken“. Pausierte und abgemeldete Listen und ein Steg, von
+  dem nur ein Teil auf Geräten ist, werden gedruckt (`src/wkr/druck.ts`).
+
+**Gemeinsame Bögen bei der Clubmeisterschaft:** Mehrere Klassen stehen auf einem Bogen; Listen mit Parcoursbild
+bleiben je Klasse. Mit „Papier sparen“ stehen alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild, die
+Leerzeilen einmal je Seite statt je Klasse.
+
+- „Klassen auf gemeinsamen Bögen“ (24.11.2026, `wkrGemeinsamFolge`): **getrennt** (Vorgabe) – je Klasse ein Block mit
+  der Klasse als Überschrift – oder **nach der Verzahnung** – alle Starter in der Startfolge gemischt, die Klasse in
+  einer schmalen Spalte hinter der Startnummer, die Leerzeilen am Ende jeder Seite mit leerer Klassenzelle.
+  Der Kopf nennt die Klassen der Seite; Laufzettel, QR-Codes und Erfassung folgen derselben Zeilenfolge.
+- Spalten, die eine Klasse nicht hat, sind in ihren Zeilen kräftig schraffiert, wie die Zeile eines Dummys im
+  Parallelslalom. Gewertet wird in beiden Fällen je Klasse.
 
 **Listen der Veranstaltung** (`src/lib/listen.ts`): die Listen des Aufbaus.
 
-- Wahlweise mit „Tor 5 übernimmt die Parcoursüberwachung“: eine Liste statt zweier.
-  Disq., Bemerkung, Haken und WKR-Name ziehen dann um (`src/state/tor5.ts`).
-- Dazu zusätzliche Listen außerhalb des Aufbaus: Knoten, Vorsteg, Varianten ohne Start/Ziel.
-  Sie werden gedruckt, in der WKR-Einteilung geführt, erfasst, gewertet und auf dem Laufzettel gezählt
-  wie die des Aufbaus.
-- Die Knoten-Liste sehen beide Regelwerke in jedem Aufbau des Manövrierens vor
-  (`vorgabeListen` je Disziplin in `src/config/regelwerke/*.yaml`); sie ist abwählbar.
+- Wahlweise „Tor 5 übernimmt die Parcoursüberwachung“: eine Liste statt zweier. Disq., Bemerkung, Haken und
+  WKR-Name ziehen dann um (`src/state/tor5.ts`).
+- Dazu zusätzliche Listen außerhalb des Aufbaus: Knoten, Vorsteg, Varianten ohne Start/Ziel. Sie werden gedruckt,
+  eingeteilt, erfasst, gewertet und auf dem Laufzettel gezählt wie die des Aufbaus.
+- Die Knoten-Liste sehen beide Regelwerke in jedem Aufbau des Manövrierens vor (`vorgabeListen`); sie ist abwählbar.
 
 **Listenoptionen** unter „Einstellungen“:
 
-- Starter je Seite fest statt automatisch, und „Teilen ab“ für die Wettkampfrichter-Listen.
-  Gemeinsame Club-Bögen teilen sich immer automatisch.
-- Clubmeisterschaft: „Papier sparen“ (alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild) und „Klassen auf
-  gemeinsamen Bögen“: getrennt oder nach der Verzahnung. „Leerzeilen je Seite“ gilt mit „Papier sparen“ und immer, wenn
-  die Klassen nach der Verzahnung stehen.
-- Bezeichnung der Bojen-Seiten: R/L, Land/See, Kai/Hafen, Pfeile, Innen/Außen.
-  Die Wertungslisten bleiben bei R/L.
+- Starter je Seite fest statt automatisch, und „Teilen ab“. Gemeinsame Bögen teilen sich immer automatisch.
+- Clubmeisterschaft: „Papier sparen“, „Klassen auf gemeinsamen Bögen“ und „Leerzeilen je Seite“.
+- Bezeichnung der Bojen-Seiten: R/L, Land/See, Kai/Hafen, Pfeile, Innen/Außen. Die Wertungslisten bleiben bei R/L.
 - Die Sprache der Bögen: siehe [Regelwerke und Begriffe](#regelwerke-und-begriffe).
 
 ## Laufzettel und QR-Codes
 
-**Laufzettel** (Checklisten) sind eine eigene Listenart
-(`src/lib/laufzettel.ts`, `src/components/LaufzettelListen.vue`).
+**Laufzettel** (Checklisten) sind eine eigene Listenart (`src/lib/laufzettel.ts`, `src/components/LaufzettelListen.vue`).
 
-- Je Blattstapel ein Zettel: Parcours, Klasse und Lauf.
-  Bei der Clubmeisterschaft mit gemeinsamen Bögen: Parcours und Lauf.
-- Ein A4-Querblatt zum Falten auf A5, mit einem Kästchen je gedruckter Seite.
-  Die Seitenzahlen sind an denselben Bögen gemessen, die gedruckt werden.
-- Die Knoten (eine Liste ohne Lauf) liegen im Stapel des letzten Laufs und stehen auf dessen Zettel.
-- Dieser Zettel hat eigene Arbeitsschritte (`schritteLetzterLauf` in `src/config/einstellungen.yaml`):
-  kein Aushang, sondern Einsicht der Mannschaftsleiter, dazu das Gesamtergebnis.
-- Die Schritte hängen am Regelwerk: Vorgabe in `src/config/einstellungen.yaml`, Abweichung unter `laufzettel`
-  im Regelwerk. UIM: Aushang binnen einer Stunde, vom O.O.D. unterschrieben (Pkt. 5.2).
-- Die Form ist wählbar: eine Zeile je Seite mit dem Kästchen vorn (Vorgabe, bei vielen Seiten mehrspaltig)
-  oder eine Zeile je Liste mit den Kästchen nebeneinander.
+<a href="bilder/de/laufzettel.png"><img src="bilder/de/laufzettel.png" width="180"
+alt="Laufzettel mit einem Kästchen je Liste, den Schritten der Auswertung und QR-Code"></a>
+
+- Je Blattstapel ein Zettel: Parcours, Klasse und Lauf (gemeinsame Bögen: Parcours und Lauf).
+- Ein A4-Querblatt zum Falten auf A5, mit einem Kästchen je gedruckter Seite – gemessen an denselben Bögen,
+  die gedruckt werden. Die Form ist wählbar: eine Zeile je Seite oder eine Zeile je Liste.
+- Die Knoten (eine Liste ohne Lauf) liegen im Stapel des letzten Laufs. Dessen Zettel hat eigene Schritte:
+  kein Aushang, sondern Einsicht der Mannschaftsleiter und das Gesamtergebnis (`schritteLetzterLauf`).
+- Die Schritte hängen am Regelwerk (`laufzettel`; Vorgabe in `src/config/einstellungen.yaml`).
+  UIM: Aushang binnen einer Stunde, vom O.O.D. unterschrieben (Pkt. 5.2).
 
 **QR-Codes** stehen auf jeder Druckseite jedes Bogens und auf jedem Laufzettel (`src/lib/qr.ts`).
 
-- Format `ALC1.<Veranstaltung>.<Regelwerk>.<Aufbau>.<Parcours>.<Klassen>.<Lauf>[.<Liste>.S<Seite>]`.
-- Als Vektor eingebettet; die Bibliothek `qrcode-generator` ist fest eingebaut.
+- Format `ALC1.<Veranstaltung>.<Regelwerk>.<Aufbau>.<Parcours>.<Klassen>.<Lauf>[.<Liste>.S<Seite>]`,
+  als Vektor eingebettet (`qrcode-generator`).
 - Ein Handscanner oder das Feld „Blatt scannen“ springt in der Erfassung zum Bogen und in dessen erste Zelle.
-- Der Code eines Laufzettels zeigt alle Listen seines Blattstapels untereinander,
-  in der Reihenfolge des Zettels und mit einer mitlaufenden Sprungleiste.
-  Von Hand: „alle untereinander“ in der Auswahl der Liste (`stapelBoegen` in `src/lib/laufzettel.ts`).
+- Der Code eines Laufzettels zeigt alle Listen seines Stapels untereinander, mit einer Sprungleiste.
+  Von Hand: „alle untereinander“ in der Auswahl der Liste.
 - Blätter einer anderen Veranstaltung, eines anderen Regelwerks oder Aufbaus werden mit Begründung abgewiesen.
-- Ein Scan hinterlässt keine Spur in dem Feld, in dem der Cursor gerade stand (`src/lib/scanner.ts`, `src/lib/scan.ts`).
+- Ein Scan hinterlässt keine Spur in dem Feld, in dem der Cursor gerade stand (`src/lib/scanner.ts`).
 
 ## Betrieb: Start-Freigabe und Anzeigetafel
 
-Am Wettkampftag gibt der Bedienrechner frei, wer als Nächstes startet, und eine **Anzeigetafel** zeigt es – in einem
-zweiten Fenster, etwa auf einem Monitor am Steg (Reiter „Betrieb“, `src/views/BetriebView.vue`; Plan zur Übernahme des
-Prototyps `tafel` vom 16.11.2026, Etappen E1 bis E4 und E6). „Anzeigetafel“ heißt sie, weil „Tafel“ das Aushangbrett ist.
-Dazu kommen eine **Startliste** mit geschätzten Wartezeiten und eine **Zuschauerliste**. Nichts davon braucht ein Netz;
-nur wer Anzeigetafel oder Zuschauerliste auch auf anderen Geräten zeigen will, schaltet den **Gerätebetrieb** ein
-(Lese-Links über das Internet, siehe unten).
+Am Wettkampftag gibt der Bedienrechner frei, wer als Nächstes startet; eine **Anzeigetafel** zeigt es in einem
+zweiten Fenster, etwa auf einem Monitor am Steg. Dazu kommen eine **Startliste** mit geschätzten Wartezeiten und eine
+**Zuschauerliste**. Reiter „Betrieb“ mit den Unterreitern Start-Freigabe, Startliste, Geräte und WKR
+(`src/views/BetriebView.vue`, Logik in `src/betrieb/`). Nichts davon braucht ein Netz; auf andere Geräte kommt es erst
+mit dem [Gerätebetrieb](#gerätebetrieb).
+Schritt für Schritt: [Ablauf am Wettkampftag](betrieb.md#ablauf-am-wettkampftag).
+Weder DM-Reglement noch Regel 960 regeln den Ablauf am Steg; was ausgelegt wurde, steht in `BETRIEB_ANNAHMEN`
+(`src/betrieb/annahmen.ts`).
 
-- **Voraussetzung:** Die Verzahnung ist festgeschrieben. Erst dann stehen Startnummern und Folge fest;
-  vorher zeigt der Reiter nur den Weg zur Verzahnung. Wird sie mitten am Tag gelöst, bleiben die Karten stehen:
-  Zeigen, „Lauf beginnen“ und alles, was die Folge umstellt, ruhen; Zurück, Meldungen und Zurücksetzen gehen weiter.
-- **Die Folge der Starts** wird nie gespeichert, sondern aus der Verzahnung abgeleitet, Lauf für Lauf – dieselbe wie
-  auf den WKR-Bögen (`src/betrieb/folge.ts`). Gespeichert wird nur, was gezeigt und begonnen wurde – und, sobald die
-  Start-Freigabe umstellt, ein Schnappschuss der Folge (`src/betrieb/schritte.ts`). Verzahnung und WKR-Bögen ändert der
-  Betrieb nie; eine Nachmeldung oder ein X fließt auch in eine umgestellte Folge ein.
-  Mit „Versuche direkt nacheinander“ (UIM) fährt jeder Starter seine Versuche hintereinander, alle in einem Punkt.
+<table>
+<tr>
+<td valign="top" width="300"><a href="bilder/de/start-freigabe.png"><img src="bilder/de/start-freigabe.png"
+width="300" alt="Start-Freigabe am Bedienrechner mit laufendem Start"></a>
+<br>Start-Freigabe am Bedienrechner</td>
+<td valign="top" width="300"><a href="bilder/de/anzeigetafel.png"><img src="bilder/de/anzeigetafel.png"
+width="300" alt="Anzeigetafel im zweiten Fenster, Querformat"></a>
+<br>Anzeigetafel im zweiten Fenster</td>
+<td valign="top" width="120"><a href="bilder/de/zuschauer.png"><img src="bilder/de/zuschauer.png"
+width="120" alt="Zuschauerliste in Handybreite"></a>
+<br>Zuschauerliste</td>
+</tr>
+</table>
+
+**Grundsätze:**
+
+- **Voraussetzung** ist die festgeschriebene Verzahnung; vorher zeigt der Reiter nur den Weg dorthin. Wird sie mitten
+  am Tag gelöst, ruhen Zeigen, „Lauf beginnen“ und alles, was die Folge umstellt; Zurück, Meldungen und Zurücksetzen
+  gehen weiter.
+- **Die Folge der Starts** wird nie gespeichert, sondern Lauf für Lauf aus der Verzahnung abgeleitet – dieselbe wie
+  auf den WKR-Bögen (`src/betrieb/folge.ts`). Gespeichert wird, was gezeigt und begonnen wurde, und nach dem ersten
+  Umstellen ein Schnappschuss der Folge (`src/betrieb/schritte.ts`). Verzahnung und Bögen ändert der Betrieb nie.
+  Mit „Versuche direkt nacheinander“ (UIM) fährt jeder Starter seine Versuche hintereinander.
 - **Freigegeben wird nach Lauf, nicht nach Stelle:** Ein Start eines Laufs, der noch nicht begonnen hat, wartet – auch
-  wenn er schon mitten im laufenden steht (etwa der dritte Lauf ans Ende von Lauf 2 gesetzt); gezielt zeigen geht immer.
-- **Start-Freigabe** je Parcours (`src/components/betrieb/StartFreigabe.vue`):
-  - „Lauf N beginnen“ gibt die Starts des Laufs frei. Sind im laufenden Lauf noch Starts offen, fragt es erst;
-    sie bleiben freigegeben und kommen vor dem neuen Lauf dran.
-  - „Nächster Start“ bringt den nächsten offenen Start auf die Anzeigetafel, „Zurück“ nimmt ihn zurück.
-    Ein Doppelklick schaltet nur einmal: Jeder Klick nennt den Start, der gerade steht.
-  - Am Ende eines Laufs bleibt die Anzeigetafel auf dem letzten Starter stehen, bis der nächste Lauf beginnt.
-  - **Zurückstellen:** Der Nächste ist kurzfristig verhindert – er fährt vorerst nicht, bleibt aber unter
-    „Zurückgestellt“ sichtbar. Von dort „Als Nächster“, „Ans Ende des Laufs“ oder „Jetzt zeigen“.
-  - **Nachzuholen:** Starts, die überholt wurden, ohne dran gewesen zu sein – eine Nachmeldung, ein entferntes X,
-    ein verpasster Lauf. Sie kommen nie von selbst als Nächstes; „Jetzt zeigen“, „Als Nächster“ oder „Ans Ende des
-    Laufs“ (ist der eigene Lauf vorbei: ans Ende des laufenden).
-  - **Anderen Starter wählen** (`BetriebsFolge.vue`): die nächsten zwölf offenen Starts, auf Wunsch die ganze Folge,
-    und eine Suche nach Startnummer oder Name über alles, was noch zu zeigen ist – auch aus anderen Klassen und
-    späteren Läufen („wartet, bis Lauf 3 beginnt“). „Zeigen“ holt den Start sofort auf die Anzeigetafel; er steht dann
-    in der Folge dort, wo er gefahren ist, und der bisherige Nächste bleibt der Nächste. Gehören alle Treffer der
-    Suche zu einem Starter (eine volle Startnummer findet ihn in jedem Lauf), ist sein Start im laufenden Lauf
-    markiert, und die Eingabetaste zeigt ihn. Nach „Zeigen“ steht der Fokus auf „Nächster Start“.
-  - **Verschieben** (Menüknopf je Start, die Ziele klappen als Knöpfe auf): vorziehen (vor den Nächsten), ans Ende
-    des Laufs, vor oder nach einem anderen Lauf – etwa den dritten Lauf ans Ende von Lauf 2 oder den zweiten vor
-    Beginn von Lauf 3. Nie vor schon Gefahrenes. Mit „Verzahnung beim Verschieben halten“ (Einstellung, Vorgabe an)
-    rutscht innerhalb eines Laufs die Spur mit: Der Start bekommt den nächsten Platz seiner Spur, zwei Starts derselben
-    Spur folgen dort nie aufeinander. In einen anderen Lauf geht er genau ans Ziel; die anderen Läufe bleiben, wie sie
-    sind.
-  - Was die Bedienung in einen anderen Lauf gesetzt hat (eingereiht, verschoben, gezielt gezeigt), bleibt dort, auch
-    wenn später eine Klasse aussetzt oder vorgezogen wird. Läufe, die der Betrieb nicht umgestellt hat, folgen
-    weiter der Verzahnung – auch wenn sie gelöst, geändert und wieder festgeschrieben wird.
-  - **Klassen · Boot fehlt** (`KlassenAussetzen.vue`): die Klassen in der Folge, in der sie drankommen, je mit der
-    Zahl ihrer ausstehenden Starts, darunter die Folge als Klassenplaketten. „Boot fehlt“: Die Klasse fährt vorerst
-    nicht, ihre Starts stehen grau am Ende des Laufs. Mit „Andere Klassen vorziehen“ (Vorgabe an) rückt die nächste
-    Klasse derselben Spur auf ihre Plätze (`E2E21212121216163` → `E6E61111113`), sonst schließen sich nur die Lücken
-    (`EE111116163`). „Boot ist zurück“ verzahnt den Rest des Laufs wieder mit ihr – auch wenn der Lauf schon
-    stockte –; spätere Läufe bleiben, wie sie sind. Mit „Versuche direkt nacheinander“ bleiben die Versuche eines
-    Starters dabei beisammen. Die Klassen gelten dem laufenden Lauf, auch wenn gerade ein Nachzügler eines früheren
-    als Nächster eingereiht ist. „Vorziehen“ macht eine Klasse zur nächsten, umgestellt nur innerhalb der Spuren – eine Klasse, die ihre
-    Spur für sich hat, hat diesen Knopf nicht.
-  - Sind nur noch zurückgestellte, nachzuholende oder „Boot fehlt“-Starts übrig, stockt der Lauf: Die Karte sagt es,
-    der Lauf ist nicht zu Ende.
-  - **Einsteigen ab …** Lauf und wahlweise Klasse: wenn die Start-Freigabe erst mitten im Wettkampf dazukommt.
-    Was davor nicht gezeigt wurde, gilt als gefahren (ohne Anzeige, ohne Zeit), die Läufe bis dahin als begonnen.
-    „Weiter mit“ nennt den Start mit Nummer und Name; er ist danach der Nächste. Ein früherer Einstieg nimmt einen zu
-    späten zurück, auch wenn inzwischen schon gezeigt wurde.
-  - Ist die Folge umgestellt, sagt die Karte das – mit dem Hinweis, dass die WKR-Bögen bleiben, wie sie sind.
-  - Rückfrage gibt es nur vor „Lauf beginnen“, solange Starts offen sind; alles andere lässt sich zurücknehmen.
-  - Ein Start mit X („nicht gestartet“) in einer Disq-Zelle des Laufs – am Steg oder am Vorsteg, wie in Wertung und
-    Erfassung – entfällt; wird das X entfernt, ist er wieder da. Der Betrieb selbst setzt nie ein X und ändert keine
-    Wertungsliste.
-  - Wird der Starter im Boot gelöscht (vor dem ersten Wert), zeigt die Anzeigetafel „bereit“; „Nächster Start“
-    geht weiter.
-  - **Meldung** je Parcours oder auf allen: Störung und Pause stehen statt des Starters auf der Anzeigetafel,
-    ein Hinweis steht darunter. **Vorlagen** (Begrüßung, Dank, Pause, Störung; `src/betrieb/meldungen.ts`): wählen,
-    „Übernehmen“ schreibt sie ins Textfeld – Uhrzeit oder Tag anpassen, dann zeigen. Ihr Text steht in der Sprache der Anzeigetafel, mit
-    dem Namen der Veranstaltung.
-  - „Betrieb zurücksetzen“ (mit Rückfrage) löscht Begonnenes, Gezeigtes und Meldungen; Starter, Verzahnung und Werte bleiben.
-- **Anzeigetafel** (`src/AnzeigeApp.vue`, `src/components/anzeige/`): „Anzeigetafel öffnen“ öffnet ein eigenes Fenster
-  (`#/anzeige`, englisch `#/display`; je Parcours `#/anzeige/<parcours>`). Taste F oder Doppelklick schaltet Vollbild,
-  der Mauszeiger verschwindet nach kurzer Ruhe.
-  - Je Parcours: Name des Parcours, Klasse (mit Klassenfarbe) und Lauf, groß die Startnummer, Name, Herkunft und auf
-    Wunsch der Start davor. Weiß auf Schwarz, gleich welches Farbschema die Bedienung hat.
-  - Zwei Parcours stehen untereinander; nur auf sehr breiten Bildschirmen (LED-Band) nebeneinander.
-    Zu lange Namen werden kleiner statt abgeschnitten; wird es eng, schrumpft alles gemeinsam (`src/lib/fit.ts`).
-    Ein langer Hinweis unter dem Starter schrumpft selbst (höchstens zwei Zeilen), die Startnummer bleibt groß.
-    Parcours, Klasse und Lauf stehen immer oben im Bereich – auch bei „bereit“ und bei einer Meldung.
-  - Das Fenster liest nur und schreibt nie; es folgt dem Bedienfenster sofort. Neuladen zeigt gleich den Stand.
-    Eine Eingabe in der Erfassung zeichnet die Tafel nicht neu – nur was sie zeigt, zählt.
-  - Sprache wie die Listen (DM deutsch, UIM englisch: „Course“, „Attempt“, „Class Dolphin“), umstellbar.
-- **Startliste** (Unterreiter „Startliste“, `#/betrieb/startliste`; `src/components/betrieb/StartListe.vue`): je
-  Parcours der Start im Boot mit „seit m:ss“ (ab einer Stunde „seit über 1 h“) und die ganze Folge der offenen
-  Starts, nach Lauf gegliedert, mit zwei Zeiten:
-  - **„ca. in“** – wann der Start ungefähr dran ist: der Rest des Starts im Boot, dann je Start der Startabstand seiner
-    Klasse;
-  - **„Zum Vorsteg“** – wann der Starter am Vorsteg sein muss: sobald er zu den nächsten „am Steg“ + „vor Steg“ Starts
-    gehört (Vorgabe 2 + 2). Wer schon dazugehört, hat „am Steg“ bzw. „vor Steg“ stehen.
-  - Ohne Zahl bleiben Starts eines Laufs, der noch nicht begonnen hat (sein Beginn steht nicht fest), und „Boot fehlt“
-    (wann das Boot zurück ist, weiß niemand); zurückgestellte und nachzuholende stehen darunter, wie an der
-    Start-Freigabe zum Einreihen.
-  - Zeigt die Anzeigetafel des Parcours eine Pause oder Störung (jede Meldung außer „Hinweis“, auch eine Begrüßung),
-    steht keine Zahl da – nur „am Steg“/„vor Steg“ und ein Satz, warum. Ist die Meldung weg, wird weitergerechnet.
-  - Unter einer Minute steht „gleich“, sonst Minuten, ab einer Stunde „1 h 05 min“. Gerechnet wird mit der Uhr des
-    Bildschirms; gespeichert wird dabei nichts.
-  - **Umstellen:** einen offenen Start auf einen anderen ziehen (nach oben gezogen: davor, nach unten: dahinter) oder
-    das Menü „Verschieben …“ wie an der Start-Freigabe – dieselben Regeln (nie vor schon Gefahrenes; mit „Verzahnung
-    beim Verschieben halten“ rutscht im Lauf die Spur mit, der Start landet dann auf dem nächsten Platz seiner Spur).
-  - Darüber die Startabstände, mit denen gerechnet wird, mit Verweis auf die Einstellungen.
-- **Startabstände** (`src/betrieb/prognose.ts`): Gemessen wird der Abstand zweier Anzeigen eines Parcours, zugeschlagen
-  der Klasse des vorigen Starts. Abstände unter 30 s (Durchklicken) und über 300 s (Pause, Störung, Mittag) zählen
-  nicht, ebenso keine über einen „ohne Anzeige“ erledigten Start (Einsteigen), keine über eine Laufgrenze (darin steckt
-  der Laufwechsel: „Lauf beginnen“, Bögen tauschen) oder bei einem Start, der inzwischen ein X hat. Ab drei Messungen einer Klasse gilt ihr Mittel; vorher der eigene Wert der Veranstaltung, sonst die Vorgabe:
-  die des Regelwerks oder die allgemeinen Werte (`src/config/einstellungen.yaml` `startabstaende`, gerundete Mittel der
-  DM 2025: Fahrzeit plus 30 s Bootswechsel; Klasse 1 am schnellsten, E mit mehr Zeit am Steg). Unter UIM gelten bis zur
-  Messung dieselben allgemeinen Werte.
-- **Zuschauerliste** („Zuschauerliste öffnen“, eigenes Fenster `#/zuschauer`, englisch `#/spectators`; je Parcours
-  `#/zuschauer/<parcours>`; `src/ZuschauerApp.vue`, `src/components/zuschauer/`): je Parcours „Im Boot“, „Am Steg“,
-  „Vor Steg“, „Danach“ (mit „ca. in“ und „zum Vorsteg in“) und zuletzt „Boot fehlt“ ohne Zahl; Läufe, die noch nicht
-  begonnen haben, stehen nicht darin. Bei Pause oder Störung auf der Anzeigetafel steht die Meldung oben, die Gruppen
-  bleiben, Zahlen gibt es keine. Filter nach Klasse (nur die Klassen der gezeigten Parcours) – er blendet nur aus,
-  Steg-Gruppen und Wartezeiten zählen alle Klassen; das Fenster merkt ihn sich auch über das Neuladen. Dazu (Feldtest
-  21.11.2026) ein **Team-Filter** nach Herkunft (Verein, Landesverband oder Nation wie die Veranstaltung), zugeklappt,
-  mehrere wählbar, „Alle“ = keiner; gemerkt je Bildschirm im Browser (localStorage), auch auf Lese-Link-Geräten,
-  nichts davon geht übers Netz. Schmal genug fürs Handy, in der Sprache der
-  Anzeigetafel, im Farbschema der Bedienung. Das Fenster liest nur und schreibt nie, wie die Anzeigetafel. Aufs Handy
-  der Zuschauer kommt sie über den Zuschauer-Link (Gerätebetrieb, dieselbe Liste).
-- **Parallelslalom** (nur unter UIM, Etappe E4; Einzelheiten in [parallelslalom.md](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)):
-  ein eigener Bereich „Parallel slalom“ hinter den Parcours. Seine Punkte sind die festgeschriebenen Runden (Vorlauf,
-  Re-run, Halbfinale, Kleines Finale, Finale – seit 21.11.2026 zwei eigene Punkte), seine Starts die Paare des Plans; die Anzeigetafel zeigt Racecourse A und B
-  neben- oder untereinander, so wie sie vom Publikum aus liegen (Einstellung). Klassen aussetzen, vorziehen und
-  Verschieben gibt es dort nicht, Zurückstellen nimmt das ganze Paar, und Startliste und Zuschauerliste zeigen keine
-  Wartezeit. Die gemeinsame Anzeigetafel nimmt ihn von selbst erst dazu, wenn eine Runde begonnen ist; eine eigene
-  Tafel gibt es über „Eigene Anzeigetafel“ (`#/anzeige/parallel`).
-- **Was die Anzeigetafel zeigt** (`src/betrieb/sicht.ts`): nur Startnummer, Name, Klasse und Herkunft der Starter,
-  die gerade vorkommen – nie Geburtsdatum, Gewicht, Geschlecht oder erfasste Werte. Dieselbe Sicht liest die
-  Start-Freigabe; so läuft die Anzeigetafel unverändert auch auf anderen Geräten (Lese-Link), die Start-Freigabe
-  ebenso auf einem gekoppelten Handy (Etappe E7). Die Zuschauerliste liest eine noch
-  schmalere Sicht (`sichtZuschauer`): ohne alles, was nur die Bedienung braucht – wer zurückgestellt ist, wer
-  nachzuholen ist, die Starts späterer Läufe –, und nur die Starter, die darin vorkommen.
-- **Einstellungen** unter „Einstellungen → Anzeigetafel“: Kopfzeile (Vorgabe Name und Jahr der Veranstaltung,
-  eigener Text oder keine), Logos links und rechts daneben (die der Listen), welche Parcours (unter UIM auch der
-  Parallelslalom) die gemeinsame Tafel zeigt, Start davor, Name des Parcours, Namen (wie der Aushang der Wertungslisten, voll, gekürzt, ohne), Herkunft,
-  Sprache und Schriftgröße (70–130 %); nur unter UIM, wo Racecourse A und B auf der Tafel liegen („A links, B rechts“,
-  „B links, A rechts“, „A oben, B unten“, „B oben, A unten“ – je nach Standort der Tafel). Unter „Einstellungen →
-  Startfolge im Betrieb“: „Verzahnung beim Verschieben halten“, wie viele Starts „am Steg“ und „vor Steg“ stehen
-  (je 0–10) und die **Startabstände** je Klasse: Vorgabe, eigener Wert (30–600 s; leer oder gleich der Vorgabe heißt Vorgabe), gemessen (Mittel, Zahl, zuletzt) und was gilt.
-  **„Messwerte als Vorgabe übernehmen“** macht das Mittel jeder Klasse mit mindestens drei Messungen zum eigenen Wert;
-  „Alle auf die Vorgabe“ nimmt die eigenen zurück. Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile – so
-  kommen übernommene Startabstände zur nächsten Veranstaltung mit.
-- **Gerätebetrieb** (Unterreiter „Geräte“, `#/betrieb/geraete`, englisch `#/operation/devices`;
-  `src/components/betrieb/GeraeteRaum.vue`, `src/geraete/`; Bedienung und Grenzen in
-  [betrieb.md](betrieb.md#gerätebetrieb)): Anzeigetafel und Zuschauerliste auf anderen Geräten über das Internet.
-  - Erst **„Gerätebetrieb einschalten“** verbindet – bis dahin verlässt nichts den Browser. Der Text davor sagt, was
-    dann über welchen Server geht: Startnummer, Name (nach der Einstellung „Namen“), Herkunft, Klasse, die Folge der
-    Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung, verschlüsselt und signiert; nie Geburtsdatum,
-    Gewicht, Geschlecht, Werte oder Logos.
-  - Zwei **Lese-Links** mit QR-Code, „Link kopieren“ und „Öffnen“: „Anzeigetafel“ (die Tafel, ohne Logos) und
-    „Zuschauer“ (die Zuschauerliste). Keine Anmeldung, keine Kopplung. Unter `file://` führen sie zur App auf Pages.
-  - **Fingerabdruck** zum Vergleichen mit dem Gerät; **„Zuschauer-Link erneuern“** (der alte bekommt nichts mehr, die
-    Anzeigetafel bleibt); **„Raum beenden“** (die Geräte löschen, was sie zeigen); die **Verbindung** (verbunden,
-    gestört, zu viele Anfragen, keine) – auch im Kopf der anderen Unterreiter und in jedem weiteren Fenster.
-  - **Auf dem Gerät** (`#/sehen/<paket>`, `src/GeraetApp.vue`): dieselbe Anzeigetafel bzw. Zuschauerliste wie am
-    Bedienrechner, „seit“ und „ca. in“ mit der Uhr des Bedienrechners, Fingerabdruck, Vollbild, „Raum verlassen“.
-    Was es zeigt, verfällt 36 Stunden nach der letzten Nachricht. Andere Fassung: „Bedienrechner aktualisieren“ bzw.
-    gezieltes Neuladen, wenn der Bedienrechner neuer ist.
-  - **Koppeln** (E7, `GeraeteKoppeln.vue`): Parcours für das nächste Gerät wählen, dann **QR-Code** (Token wechselt
-    alle 30 s, Sitzung höchstens 10 min; das Handy koppelt ohne Eingabe) oder **Geräte-Code** (6 Zeichen, 5 min, ein
-    Gerät; dazu der **Koppel-Link** `#/koppeln/<paket>` zum Weitergeben). Keine Rückfrage „annehmen?“ – wer den Code
-    gibt, sitzt am Bedienrechner.
-  - **Gekoppelte Geräte** (E7, `GeraeteListe.vue`): Name ändern, Parcours der Start-Freigabe ankreuzen (wirkt sofort),
-    gekoppelt seit, zuletzt gehört, **„Entziehen“** mit Rückfrage; darunter die zuletzt entzogenen.
-  - **Start-Freigabe auf dem Handy** (E7, `#/koppeln/<paket>` → `#/geraet`, `GeraetFreigabe.vue`): dieselbe
-    StartFreigabe wie am Bedienrechner, nur die eigenen Parcours und ohne „Meldung auf allen“; alle Knöpfe gesperrt bis
-    zur Bestätigung (nach 10 s „Verbindung prüfen“); Ablehnung, „jemand war schneller“, „entzogen“ als Satz; entzogen
-    nur lesend „Im Boot“/„Als Nächstes“; „Gerät entkoppeln“. Rechte: alle `BETRIEB_*` außer „Betrieb zurücksetzen“, nur
-    in den eigenen Bereichen (`src/geraete/aufgaben.ts`).
-  - **Einstellung** „Einstellungen → Geräte“: der ntfy-Server (leer = Vorgabe `ntfy.adminforge.de`); geprüft, reist
-    mit Vorlage und Sicherung. Ein anderer Server gilt erst für einen neuen Raum.
-- **Gespeichert:** Der Betrieb steht in der Sicherung, nicht in der Vorlage. „Verlauf wiederherstellen“ (innerhalb
-  derselben Veranstaltung) und „Alle erfassten Werte löschen“ lassen ihn stehen; ein Stand einer anderen
-  Veranstaltung bringt seinen eigenen Betrieb mit.
-- Unter `file://` (Ein-Datei-Fassung) tragen nicht alle Browser die Nachricht zwischen zwei Fenstern; dann stößt das
-  Bedienfenster die von ihm geöffnete Anzeigetafel und Zuschauerliste selbst an (`src/lib/anzeigeFenster.ts`).
-- Wie gebaut ist und was ausgelegt wurde – weder DM-Reglement noch Regel 960 regeln den Ablauf am Steg:
-  `BETRIEB_ANNAHMEN` in `src/betrieb/annahmen.ts`.
+  wenn er schon mitten im laufenden steht; gezielt zeigen geht immer.
+- **X:** Ein Start mit X („nicht gestartet“) in einer Disq.-Zelle des Laufs entfällt; ohne X ist er wieder da.
+  Der Betrieb selbst setzt nie ein X und schreibt nie Werte.
+- **Rückfrage** gibt es nur vor „Lauf beginnen“, solange Starts offen sind, vor „Betrieb zurücksetzen“ und mit
+  digitaler WKR-Erfassung bei Rückstand vor dem Zeigen; alles andere lässt sich zurücknehmen.
+
+### Start-Freigabe
+
+Je Parcours eine Karte (`src/components/betrieb/StartFreigabe.vue`):
+
+- **„Lauf N beginnen“** gibt die Starts des Laufs frei. Offene Starts des laufenden Laufs bleiben freigegeben und
+  kommen vorher dran.
+- **„Nächster Start“** bringt den nächsten offenen Start auf die Anzeigetafel, **„Zurück“** nimmt ihn zurück.
+  Ein Doppelklick schaltet nur einmal. Am Ende eines Laufs bleibt die Anzeigetafel auf dem letzten Starter stehen.
+- **Zurückstellen:** Der Nächste ist kurz verhindert und steht unter „Zurückgestellt“; von dort „Als Nächster“,
+  „Ans Ende des Laufs“ oder „Jetzt zeigen“.
+- **Nachzuholen:** Starts, die überholt wurden, ohne dran gewesen zu sein (Nachmeldung, entferntes X, verpasster Lauf).
+  Sie kommen nie von selbst; sie werden gezeigt oder eingereiht.
+- **Anderen Starter wählen** (`BetriebsFolge.vue`): die nächsten zwölf offenen Starts oder die ganze Folge, dazu eine
+  Suche nach Startnummer oder Name über alles noch zu Zeigende – auch spätere Läufe. „Zeigen“ holt den Start sofort
+  auf die Anzeigetafel; der bisherige Nächste bleibt der Nächste.
+- **Verschieben** (Menü je Start): vor den Nächsten, ans Ende des Laufs, vor oder nach einem anderen Lauf – nie vor
+  schon Gefahrenes. Mit „Verzahnung beim Verschieben halten“ (Vorgabe an) bekommt der Start im Lauf den nächsten Platz
+  seiner Spur. Was die Bedienung so umgestellt hat, bleibt; nicht umgestellte Läufe folgen weiter der Verzahnung.
+- **Klassen · Boot fehlt** (`KlassenAussetzen.vue`): die Klassen in der Folge, in der sie drankommen, mit der Zahl
+  ihrer offenen Starts. „Boot fehlt“ stellt die Starts einer Klasse grau ans Ende des Laufs; mit „Andere Klassen
+  vorziehen“ (Vorgabe an) rückt die nächste Klasse derselben Spur nach (`E2E21212121216163` → `E6E61111113`), sonst
+  schließen sich nur die Lücken. „Boot ist zurück“ verzahnt den Rest des Laufs wieder mit ihr. „Vorziehen“ macht eine
+  Klasse zur nächsten, nur innerhalb ihrer Spur.
+- Sind nur noch zurückgestellte, nachzuholende oder „Boot fehlt“-Starts übrig, **stockt** der Lauf; die Karte sagt es.
+- **Einsteigen ab …** Lauf und wahlweise Klasse, wenn die Start-Freigabe erst mitten im Wettkampf dazukommt: Was davor
+  liegt, gilt als gefahren (ohne Anzeige), „Weiter mit“ nennt den nächsten Start.
+- Wird der Starter im Boot gelöscht (vor dem ersten Wert), zeigt die Anzeigetafel „bereit“.
+- **Meldung** je Parcours oder auf allen: Störung und Pause stehen statt des Starters auf der Anzeigetafel, ein Hinweis
+  darunter. **Vorlagen** (Begrüßung, Dank, Pause, Störung; `src/betrieb/meldungen.ts`) übernimmt man ins Textfeld und
+  passt sie an; ihr Text steht in der Sprache der Anzeigetafel.
+- „Betrieb zurücksetzen“ (mit Rückfrage) löscht Begonnenes, Gezeigtes und Meldungen; Starter, Verzahnung und Werte
+  bleiben.
+- Mit [digitaler WKR-Erfassung](#digitale-wkr-erfassung) zeigt die Karte zusätzlich den Stand jeder Liste und die
+  [Parcours-Ampel](#parcours-ampel-und-auto-modus).
+
+### Anzeigetafel
+
+„Anzeigetafel öffnen“ öffnet ein eigenes Fenster (`#/anzeige`, englisch `#/display`; je Parcours
+`#/anzeige/<parcours>`; `src/AnzeigeApp.vue`). Taste F oder Doppelklick schaltet Vollbild; der Mauszeiger
+verschwindet nach kurzer Ruhe.
+
+- Je Parcours: Name des Parcours, Klasse (mit Klassenfarbe) und Lauf, groß die Startnummer, Name, Herkunft und auf
+  Wunsch der Start davor. Weiß auf Schwarz, gleich welches Farbschema die Bedienung hat.
+- Zwei Parcours stehen untereinander, auf sehr breiten Bildschirmen nebeneinander. Zu lange Namen werden kleiner statt
+  abgeschnitten (`src/lib/fit.ts`).
+- Das Fenster liest nur und schreibt nie; es folgt dem Bedienfenster sofort und hält den Bildschirm wach.
+- Sprache wie die Listen (DM deutsch, UIM englisch: „Course“, „Attempt“, „Class Dolphin“), umstellbar.
+- Was sie zeigt, kommt aus einer schmalen Sicht (`src/betrieb/sicht.ts`): Startnummer, Name, Klasse und Herkunft der
+  Starter, die gerade vorkommen – nie Geburtsdatum, Gewicht, Geschlecht oder erfasste Werte.
+
+### Startliste und Startabstände
+
+**Startliste** (Unterreiter „Startliste“, `src/components/betrieb/StartListe.vue`): je Parcours der Start im Boot mit
+„seit m:ss“ und die ganze Folge der offenen Starts nach Lauf, mit zwei Zeiten:
+
+- **„ca. in“** – wann der Start ungefähr dran ist: der Rest des Starts im Boot, dann je Start der Startabstand seiner
+  Klasse;
+- **„Zum Vorsteg“** – wann der Starter am Vorsteg sein muss: sobald er zu den nächsten „am Steg“ + „vor Steg“ Starts
+  gehört (Vorgabe 2 + 2).
+- Ohne Zahl bleiben Läufe, die noch nicht begonnen haben, und „Boot fehlt“. Während einer Pause oder Störung auf der
+  Anzeigetafel steht keine Zahl da, nur ein Satz, warum.
+- Umstellen durch Ziehen eines Starts auf einen anderen oder über „Verschieben …“ – dieselben Regeln wie an der
+  Start-Freigabe. Gerechnet wird mit der Uhr des Bildschirms; gespeichert wird nichts.
+
+**Startabstände** (`src/betrieb/prognose.ts`): Gemessen wird der Abstand zweier Anzeigen eines Parcours, zugeschlagen
+der Klasse des vorigen Starts. Nicht gezählt werden Abstände unter 30 s und über 300 s, über eine Laufgrenze, über
+einen ohne Anzeige erledigten Start und bei einem Start, der inzwischen ein X hat. Ab drei Messungen gilt das Mittel
+der Klasse, vorher der eigene Wert der Veranstaltung, sonst die Vorgabe (`startabstaende` in
+`src/config/einstellungen.yaml`, gerundete Mittel der DM 2025). „Messwerte als Vorgabe übernehmen“ macht die Mittel
+zu eigenen Werten, die mit der Vorlage zur nächsten Veranstaltung reisen.
+
+### Zuschauerliste
+
+„Zuschauerliste öffnen“: eigenes Fenster (`#/zuschauer`, englisch `#/spectators`; je Parcours `#/zuschauer/<parcours>`;
+`src/ZuschauerApp.vue`), schmal genug fürs Handy.
+
+- Je Parcours „Im Boot“, „Am Steg“, „Vor Steg“, „Danach“ (mit „ca. in“ und „zum Vorsteg in“), zuletzt „Boot fehlt“.
+  Läufe, die noch nicht begonnen haben, stehen nicht darin. Bei Pause oder Störung steht die Meldung oben.
+- Filter nach Klasse und – seit dem Feldtest 21.11.2026 – nach Team (Verein, Landesverband oder Nation wie die
+  Veranstaltung, mehrere wählbar). Die Filter blenden nur aus und bleiben im Browser des Betrachters; nichts davon geht
+  übers Netz.
+- Sie liest eine noch schmalere Sicht als die Anzeigetafel (`sichtZuschauer`): ohne Zurückgestellte, Nachzuholende und
+  Starts späterer Läufe. Aufs Handy der Zuschauer kommt sie über den Zuschauer-Link des [Gerätebetriebs](#gerätebetrieb).
+
+### Parallelslalom im Betrieb
+
+Nur unter UIM ([Einzelheiten](parallelslalom.md#betrieb-start-freigabe-und-anzeigetafel)): ein eigener Bereich hinter
+den Parcours. Seine Punkte sind die festgeschriebenen Runden (Vorlauf, Re-run, Halbfinale, Kleines Finale, Finale);
+jede wird mit „… beginnen“ einzeln freigegeben (24.11.2026), seine Starts sind die Paare des Plans. Die Anzeigetafel
+zeigt Racecourse A und B so, wie sie vom Publikum aus liegen (Einstellung). Klassen aussetzen und Verschieben gibt es
+dort nicht, Zurückstellen nimmt das ganze Paar, Wartezeiten gibt es keine. Eine eigene Tafel öffnet
+„Eigene Anzeigetafel“ (`#/anzeige/parallel`).
+
+### Einstellungen und Speicher
+
+- **„Einstellungen → Anzeigetafel“:** Kopfzeile, Logos links und rechts (die der Listen), welche Parcours die
+  gemeinsame Tafel zeigt, Start davor, Name des Parcours, Namen (wie der Aushang, voll, gekürzt, ohne), Herkunft,
+  Sprache, Schriftgröße (70–130 %); unter UIM die Lage von Racecourse A und B.
+- **„Einstellungen → Startfolge im Betrieb“:** „Verzahnung beim Verschieben halten“, Starts „am Steg“ und „vor Steg“
+  (je 0–10), Startabstände je Klasse (Vorgabe, eigener Wert 30–600 s, gemessen, was gilt) und die Einstellungen der
+  [digitalen WKR-Erfassung](#digitale-wkr-erfassung) (Rückstand, Auto-Modus).
+- Die Einstellungen reisen mit der Vorlage, außer der Kopfzeile. Der Betrieb selbst steht in der Sicherung, nicht in
+  der Vorlage; „Verlauf wiederherstellen“ und „Alle erfassten Werte löschen“ lassen ihn stehen.
+- Unter `file://` (Ein-Datei-Fassung) stößt das Bedienfenster die von ihm geöffneten Fenster selbst an, wo der
+  Browser die Nachricht zwischen Fenstern nicht trägt (`src/lib/anzeigeFenster.ts`).
+
+## Gerätebetrieb
+
+Anzeigetafel, Zuschauerliste, Start-Freigabe und WKR-Listen auf anderen Geräten – Bildschirmen am Steg, Tablets,
+Handys –, über einen fremden ntfy-Server im Internet (Unterreiter „Betrieb → Geräte“, `src/geraete/`).
+Bedienung, Grenzen, Kontingent und Störungen: [betrieb.md](betrieb.md#gerätebetrieb);
+Sicherheitsmodell: [technik.md](technik.md#gerätebetrieb-sicherheitsmodell). Mit echten Handys und dem echten Server
+ist er noch nicht im Feld geprüft ([feldtest.md](feldtest.md)).
+
+- **Erst „Gerätebetrieb einschalten“ verbindet** – bis dahin verlässt nichts den Browser (Test
+  `src/main.geraete.test.ts`). Über den Server gehen dann, verschlüsselt und signiert: Startnummer, Name (nach der
+  Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse, die Folge der Starts mit Zeitpunkten, Meldungen, der
+  Name der Veranstaltung; für die WKR-Listen deren Starts mit Startnummer und Klasse (ohne Namen), am Steg das
+  Ausgleichsgewicht. Vom Bedienrechner gehen nie hinaus: Geburtsdatum, Körpergewicht, Geschlecht, erfasste Werte
+  (außer bei einer Rückfrage der Wert dieser einen Zelle an die Geräte der Liste), Logos oder der Stand der
+  Veranstaltung. Die WKR-Geräte schicken ihre Zeilen verschlüsselt an den Bedienrechner.
+- **Server:** Vorgabe `ntfy.adminforge.de`, änderbar unter „Einstellungen → Geräte“. Sein Betreiber sieht keine
+  Inhalte, wohl aber Zeitpunkte, Größen und IP-Adressen.
+- **Zwei Lese-Links** mit QR-Code: „Anzeigetafel“ und „Zuschauer“ (`#/sehen/<paket>`). Keine Anmeldung, keine
+  Kopplung; das Gerät zeigt dieselbe Anzeigetafel (ohne Logos) bzw. Zuschauerliste wie am Bedienrechner.
+  Fingerabdruck zum Vergleichen, „Zuschauer-Link erneuern“, „Raum beenden“.
+- **Koppeln** (E7): QR-Code vom Bildschirm scannen (Hauptweg) oder Koppel-Link plus Geräte-Code über Funk. Gekoppelt
+  wird für die **Start-Freigabe** bestimmter Parcours oder für eine **WKR-Liste** (siehe
+  [Digitale WKR-Erfassung](#digitale-wkr-erfassung)). In der Geräteliste: Name, Art des Geräts (Handy, Pad, Rechner),
+  Parcours, Listen, „Entziehen“.
+- **Start-Freigabe auf dem Handy** (`#/geraet`): dieselben Knöpfe wie am Bedienrechner, nur für die eigenen Parcours,
+  ohne „Betrieb zurücksetzen“. Nach jedem Druck sind die Knöpfe gesperrt, bis der Bedienrechner bestätigt; entschieden
+  wird immer dort (Positivliste `src/geraete/aufgaben.ts`).
+- Dazu: Bildschirm wach halten auf jedem verbundenen Gerät, „Alle Geräte neu laden“ nach einem Update und eine
+  Anzeige, wie viele Nachrichten heute an den Server gingen.
+
+## Digitale WKR-Erfassung
+
+Die Wettkampfrichter erfassen ihre Liste am eigenen Handy oder Pad statt auf dem Bogen (Etappen W1–W5, gebaut
+21.–24.11.2026; [Vorschlag](vorschlag-wkr-erfassung.md), Pläne [W1](plan-wkr-w1.md) bis [W5](plan-wkr-w5.md)).
+Sie setzt den [Gerätebetrieb](#gerätebetrieb) voraus, ist bisher nur gegen einen nachgebauten Server geprüft und noch
+**ohne Feldtest** ([feldtest.md](feldtest.md)). Papier bleibt jederzeit der Rückfall: Jede Liste lässt sich pausieren
+oder ab einem Start aufs Papier stellen. Bedienung Schritt für Schritt:
+[WKR-Erfassung auf Handy und Pad](betrieb.md#wkr-erfassung-auf-handy-und-pad). Die Auslegungen stehen mit Datum in
+`WKR_ANNAHMEN` (`src/wkr/annahmen.ts`), offene Fragen unter [Offen](entscheidungen.md#offen).
+
+<table>
+<tr>
+<td valign="top" width="160"><a href="bilder/de/wkr-handy.png"><img src="bilder/de/wkr-handy.png"
+width="160" alt="WKR-Maske auf dem Handy mit Startnummer, Bojen-Knöpfen und Hauptknopf"></a>
+<br>Maske „Knöpfe“ auf dem Handy</td>
+<td valign="top" width="360"><a href="bilder/de/wkr-pad-bild.png"><img src="bilder/de/wkr-pad-bild.png"
+width="360" alt="WKR-Maske Bild auf dem Pad mit Parcours-Zeichnung und Seitenspalte"></a>
+<br>Maske „Bild“ auf dem Pad mit Parcours-Zeichnung</td>
+</tr>
+</table>
+
+### Wie eine Zeile ankommt
+
+- Ein Gerät bekommt beim Koppeln eine Liste (Handy empfohlen eine, Pad zwei, höchstens vier); am Steg wahlweise ganz,
+  nur Ablegen oder nur Anlegen. Damit ist die Liste „digital“.
+- Das Gerät sieht nur die **Sicht seiner Liste** (`src/wkr/sicht.ts`): gezeigte Starts mit Startnummer und Klasse,
+  nie Namen, dazu die Maske je Klasse und Hinweise des Bedienrechners. Vorsteg und Steg-Ablegen sehen die nächsten
+  Starts schon vorab; das Anlegen kommt erst, wenn das Boot zurück ist.
+- Eine abgeschickte Zeile geht über die Erfassung in die Werte – genau wie beim Abtippen: leere Zelle → übernommen;
+  steht dort schon etwas anderes, wird es eine **Rückfrage** am Bedienrechner, nie still überschrieben.
+- Ohne Verbindung erfasst das Gerät weiter; wartende Zeilen gehen später gebündelt. Sie liegen nur auf dem Gerät
+  (36 Stunden). Ein Gerät mit Liste meldet sich während eines Laufs mit einem Lebenszeichen (Akku, wartende Zeilen).
+- **Liste abschließen:** Nach dem Lauf erscheint ein Band „… ist vorbei – Liste abschließen?“. Die Prüfansicht zeigt
+  Abgeschicktes, Offenes und X; mit dem Namen des Wettkampfrichters – vorbelegt aus der WKR-Einteilung – ersetzt der
+  Abschluss die Unterschrift auf dem Bogen. Offene Starts gehen mit „Rest auf Papier“. Läuft der Lauf noch, fragt das
+  Gerät nach. Danach gehen Korrekturen nur noch als Vorschlag.
+
+### Am Bedienrechner
+
+- **Betrieb → WKR** (`src/components/betrieb/WkrMatrix.vue`): eine Matrix Listen × gezeigte Starts – ✓ erfasst,
+  ½ ein Steg-Teil, ○ offen, ○! überfällig, ! Rückfrage, V Vorschlag, P Papier, ✕ nicht gestartet,
+  „✓ keine Zeit“ – und je Liste das Gerät mit Ampel (gehört, still, weg). Je Liste: Erfassung Gerät, Papier oder
+  beides; Pausieren, Abmelden, „Weiter digital“; **„Papier ab Start …“**; „Bitte Nr. prüfen“ an die Geräte;
+  Abschlüsse ansehen und lösen. „Gerät koppeln“ an einer Liste ohne Gerät führt direkt zum Koppeln.
+- Darunter der **Eingang**: Rückfragen (Wert des Geräts übernehmen oder behalten) und Vorschläge (übernehmen oder
+  verwerfen).
+- **Am Tisch (ohne Lauf):** ein eigener Block für die Knoten-Liste („Knoten: n / m offen“).
+- **Erfassung:** ◆ an Werten vom Gerät, „Papier ansehen“ an Zeilen und Zellen, für die der Bogen gebraucht wird;
+  wer einen Gerätewert überschreibt, wird einmal gefragt (siehe [Erfassung](#erfassung)).
+- **Start-Freigabe:** eine Zeile mit dem Stand jeder Liste – ✓ fertig, ⧗ wartet n, ✕ Gerät weg, ▭ Papier, klein die
+  Verbindung. Ab wie vielen offenen Starts einer Parcours-Liste gewarnt wird und ob vor dem Zeigen nachgefragt wird
+  („Trotzdem weiter?“) oder nur gewarnt, steht unter „Einstellungen → Startfolge im Betrieb“ (Vorgabe: ab einem,
+  nachfragen). Gesperrt wird nie. Ein gekoppeltes Freigabe-Handy sieht dieselbe Zeile, ohne Werte und Gerätenamen.
+- Der **WKR-Name** kommt aus der Einteilung; ändert ein Gerät ihn unter „Mehr → Name“, zeigt der Bedienrechner die
+  Abweichung und kann sie übernehmen.
+
+### Parcours-Ampel und Auto-Modus
+
+Die Start-Freigabe richtet sich nur nach dem **Parcours** (Nutzer 21.11.2026): Steg und Vorsteg arbeiten autark und
+halten nie auf. Sobald eine Parcours-Liste digital erfasst wird – Tore, Bojen, Tor 5, Mann-über-Bord,
+Parcoursüberwachung, Start/Ziel, seit 22.11.2026 auch Zeit –, steht je Parcours eine Ampel
+(`src/wkr/ampel.ts`; Ablauf in [betrieb.md](betrieb.md#ablauf-am-wettkampftag)):
+
+1. Nach „Nächster Start“ ist sie **grün** („Start frei“).
+2. **Rot** wird sie mit „Durchs Start-Tor“ oder von selbst, sobald ein Parcours-WKR für den Start etwas abschickt;
+   daneben steht, welche Listen noch fehlen. „Doch nicht durch“ nimmt den Knopf zurück.
+3. Haben alle digitalen Parcours-Listen abgeschickt: **frei**. „Nächster Start“ bei Rot fragt „Trotzdem weiter?“.
+4. **Auto-Modus** (Einstellung, Vorgabe aus): Hat jede Parcours-Liste ein Gerät, zählt die Start-Freigabe bei „frei“
+   3 Sekunden herunter („Anhalten“) und zeigt den Nächsten. Nie von selbst: einen neuen Lauf, Nachzuholende,
+   Zurückgestellte, bei offener Rückfrage, bei Pause oder Störung.
+
+Die Parcours-WKR sehen in der Starterkarte einen Punkt „Start frei“ bzw. „im Parcours“; Anzeigetafel und
+Zuschauerliste zeigen keine Ampel.
+
+### Masken
+
+Zur Wahl stehen „Knöpfe“, „Bild“ und „Tabelle“. Der Bedienrechner kann je Liste eine vorgeben (Geräteliste),
+wahlweise „fest“; sonst wechselt der Wettkampfrichter unter „Mehr → Ansicht“. Ohne Vorgabe gilt „Knöpfe“, auf dem Pad
+bei Listen mit Bojen „Bild“ (`src/wkr/maskenWahl.ts`). „Knöpfe“ sieht je nach Liste anders aus (Codes, Bojen, Zeit,
+Prüfliste). Alle Masken erzeugen dieselben Zellwerte wie das Abtippen (`src/wkr/maske.ts`).
+
+- **Codes** (Steg, Vorsteg, Tor 5, Mann-über-Bord): je Fehlercode der Liste ein Knopf, die Startnummer groß, nie ein
+  Name. Hauptknopf „Fehlerfrei ✓“, mit Einträgen „Abschicken · n Pkt.“; „↶ Rückgängig“ nimmt den letzten Tipp
+  zurück. Disq. getrennt über DISQ: der erste Tipp merkt vor, der zweite setzt. X bieten die Disq.-Knöpfe nur am
+  Steg-Ablegen und am Vorsteg an, mit Rückfrage. Codes, die laut Regelwerk in der Klasse nicht gelten, sind
+  ausgegraut, aber drückbar (DM: 4 und 23 ab Klasse 3; 2, 5, 10 und 16 ab Klasse 4).
+- **Höchstzahl je Code** (24.11.2026; `max`/`danach` je Code im Regelwerk): „2. und 3. Versuch des Elementes“ zählt
+  höchstens zweimal; der dritte Tipp setzt Disq. **D** („4. Versuch eines Elementes“) – der Knopf sagt vorher „nächster
+  = Disq. D“. Auf diesen Knöpfen zählt ein Tipp weniger als 0,4 s nach dem vorigen nicht (Prellschutz). Tor 5 Code 1
+  („nicht mit gesamter Länge eingefahren“) geht nur einmal. Jeder andere Code zählt höchstens dreimal je Lauf; am
+  Höchstwert sagt es der Knopf („höchstens 3×“) – ausgelegt, noch zu bestätigen.
+- **Bojen** (Tor-Listen wie Tor 1/3/5 und Tor 2/4/5, Parcours mit Start/Ziel, Parallelslalom): je Halt eine Zeile,
+  die beiden Bojen eines Tores nebeneinander wie auf dem Bogen. Ein Tipp = eine Berührung (5 Punkte), der zweite
+  nimmt sie weg; die Torbojen von Tor 5 zählen bis 9. Hat eine Klasse mehr als sieben Zeilen, teilt ein Umschalter
+  „HINWEG | RÜCKWEG“, der nie von selbst wechselt. Reihenfolge unter „Mehr → Ansicht“: „Rückweg gedreht“ (Vorgabe),
+  „Fahrtfolge“ oder „Alles untereinander“. DISQ fragt erst nach der Boje („Keine Boje / ganzer Parcours“ für das
+  Disq.-Feld); langes Drücken (0,8 s) auf eine Boje öffnet gleich ihre Disq.-Wahl, mehrere Buchstaben, dann „Fertig“.
+  Eine Zelle kann so Punkte und Buchstaben tragen („5, J, D“). Ein ausgelassenes Tor ist ein J an einer seiner Bojen.
+- **Bild** (nur Listen mit Bojen): die Parcours-Zeichnung der Klasse, getippt wird auf die Bojen selbst –
+  Trefferkreise mindestens 15 mm, zu nahe auseinandergeschoben. Umschalter HINWEG, RÜCKWEG und RÜCK 2 (Speedrunde),
+  nur von Hand. Langes Drücken auf eine Boje öffnet die Disq.-Wahl dieser Boje. **Lage der Zeichnung** (24.11.2026,
+  „Mehr → Ansicht“): „Automatisch“ (wie auf dem Bogen, soweit der Platz reicht), „Steg unten/links/oben/rechts“, im
+  Parallelslalom „Start links/oben/rechts/unten“; die Schrift bleibt aufrecht, gemerkt je Gerät und Liste. Der
+  Parallelslalom zeigt die eine Bahn ohne Steg, für Racecourse A und B dieselbe. Fehlt in einer Zeichnung eine Boje,
+  zeigt das Gerät die Knöpfe.
+- **Zeit** (Listen der Zeitnahme): die Zeitfelder mit einem Ziffernblock für das aktive Feld; darunter steht, wie der
+  Bedienrechner die Eingabe liest („83,45“ = 83,45 s). Pflicht ist nur das erste Zeitfeld; nach einer vollständigen
+  Zeit springt der Block ins nächste. „Keine Zeit für …“ mit Grund: Zeitanlage ausgefallen, nicht im Ziel, anderer
+  Grund – am Bedienrechner „✓ keine Zeit“, in der Erfassung „Papier ansehen“. Listen mit Bojen und Zeit zeigen die
+  Bojen-Maske mit Zeitfeldern.
+- **Prüfliste am Tisch** (Knoten, Liste ohne Lauf): Das Gerät kennt alle Starter der Klassen mit der Liste, ohne
+  Start-Freigabe. Startnummer über den Ziffernblock eintippen oder den Vorschlag „Nächster: …“ nehmen (der nächste
+  offene nach dem zuletzt bearbeiteten); je Knoten ✓ oder ✗ (✗ = 5), „✓ Alle richtig“ bzw. „✓ Rest richtig“,
+  abschicken. Eine schon erfasste Nummer fragt „korrigieren?“.
+- **Tabelle** (für Geübte, nur Pad oder Rechner mit Tastatur): eine Zeile je Start mit den Spalten des Bogens, Tab und
+  Enter zur nächsten Zelle, Enter in der letzten schickt ab. Gelesen wird wie beim Abtippen; Fehler stehen an der Zelle
+  („Kein Fehlercode dieser Liste“, „Zu oft …“). Korrektur in der Tabelle mit „alt → neu“, Esc bricht ab.
+
+Für die wenigen Listen ohne Maske steht beim Zuweisen „Maske folgt – Papier“.
+
+### Auf dem Gerät
+
+- **Nach dem Abschicken** steht kurz „wird übertragen …“ mit der Bestätigung, dann die nächste Startnummer; eine
+  Sekunde lang nimmt die Maske nichts an (Schutz gegen Doppeltipp). Die Leiste „Zuletzt“ öffnet abgeschickte Zeilen zur
+  Korrektur; „Andere Startnummer …“ springt zu einem anderen Start.
+- **Nicht gestartet** (24.11.2026, ersetzt „Nicht vorbeigekommen“): „Mehr → Nicht gestartet · Disq. X“ mit großer
+  Rückfrage „23 nicht gestartet?“ trägt X allein ins Disq.-Feld – auf jeder Liste mit Disq.-Feld (Tore, Tor 5, MüB,
+  Parallelslalom, Steg, Vorsteg). Am Bedienrechner wirkt es wie jedes X: Der Start entfällt in diesem Lauf, auf allen
+  Listen und in der Wertung. Wer sich geirrt hat, korrigiert über „Zuletzt“; die Korrektur beginnt ohne X.
+- **Mehr:** Bemerkung, Pausieren (Papier), Abmelden, „Nicht gestartet · Disq. X“, Name, Ansicht („Wie Gerät“ als
+  Vorgabe, Sonne, Hell, Dunkel; Linkshand; dazu Bojen-Reihenfolge, Lage der Zeichnung und Maske), Sprache (die der
+  Liste, umschaltbar; unter UIM wechseln auch Codes und Titel), Probe.
+- **Probe:** Nach dem ersten Empfang einer Liste zeigt das Gerät einmal je Raum, Liste und Maske eine Probe mit dem
+  Start „P“ – nichts wird gesendet; „Überspringen“ geht immer, „Mehr → Probe“ wiederholt sie.
+- **Pad** (`src/wkr/anordnung.ts`): Quer bis vier Listen nebeneinander, hochkant bis zwei; der ganze Steg als Ablegen
+  und Anlegen nebeneinander. Eine Seitenspalte zeigt Schlange und Einträge im Klartext. Im Parallelslalom ein Band mit
+  der Runde und ein deutlicher Wechsel beim nächsten Attempt.
+- **Zwei Tabs** derselben Kopplung: Es sendet nur der zuletzt geöffnete, der ältere bietet „Hier weitermachen“.
+
+### Übung
+
+„Üben ohne Verbindung“ im Koppel-Formular oder die Adresse `#/uebung` (`src/components/wkr/WkrUebung.vue`):
+Regelwerk (DM-Reglement oder UIM Regel 960), Liste und Maske wählen, dann dieselbe Maske mit erfundenen Starts 1–20
+ohne Namen. Kein Netz, kein Bedienrechner, kein Store; gespeichert wird nur die Ansicht.
+
+- Der nächste Start kommt 2–6 Sekunden nach dem Abschicken, gelegentlich auch vorher; hin und wieder kommt eine
+  Rückfrage wie im Ernst. Am Steg stehen erfundene Ausgleichsgewichte.
+- Nach dem Abschicken rollt die Seite, bis Erklärung und Kopf „ÜBUNG“ oben hinaus sind und die Startnummer am Rand
+  steht (24.11.2026).
+- „Klasse vorziehen“ (ganz unten unter „Mehr“, am Tisch über „Übung beenden“) holt den nächsten Start aus einer
+  anderen Klasse – zum Üben eines Klassenwechsels.
+- Gut für die Einweisung am Vortag; die Übung braucht weder Veranstaltung noch Kopplung.
 
 ## Erfassung
 
 Die Erfassung ist ein eigener Reiter (`src/views/ErfassungView.vue`, `src/lib/eingaben.ts`, `src/lib/erfassung.ts`).
 
-- Die ausgefüllten Listen werden nach dem Lauf abgetippt.
-- Derselbe Bogen wie auf dem Papier erscheint als Eingabetabelle.
-- Die Tastatur arbeitet wie im Fehlerpunkte-Prototyp: Tab zum nächsten Feld, Enter und ↑ ↓ in der Spalte.
+<a href="bilder/de/erfassung.png"><img src="bilder/de/erfassung.png" width="240"
+alt="Erfassung: ein Bogen als Eingabetabelle mit Werten"></a>
+
+- Die ausgefüllten Bögen werden nach dem Lauf abgetippt; derselbe Bogen wie auf dem Papier erscheint als
+  Eingabetabelle, in derselben Zeilenfolge.
+- Tastatur: Tab zum nächsten Feld, Enter und ↑ ↓ in der Spalte.
 - Zeiten lassen sich kurz tippen: „83,45“ sind Sekunden, „1,2345“ oder „1:23,45“ ist 1:23,45 (Punkt oder Komma).
-  Vor dem Trenner sind ab 20 Sekunden gemeint, darunter Minuten: „15,30“ ist 15:30,00, nicht 15,30 s
-  (`src/lib/time.ts`).
-- Fortschritt je Bogen; Hinweise auf unplausible Eingaben.
+  Vor dem Trenner sind ab 20 Sekunden gemeint, darunter Minuten: „15,30“ ist 15:30,00 (`src/lib/time.ts`).
+- Fortschritt je Bogen und Hinweise auf unplausible Eingaben – seit 24.11.2026 auch, wenn ein Code öfter steht, als
+  er in einem Lauf vorkommen kann („Code 6 steht öfter als 2× … Disq. D?“). Gesetzt wird dabei nichts; es bleibt,
+  was auf dem Papier steht.
 - Ein QR-Code führt direkt zum Bogen bzw. Blattstapel (siehe [QR-Codes](#laufzettel-und-qr-codes)).
+- Mit [digitaler WKR-Erfassung](#digitale-wkr-erfassung): ◆ an Werten vom Gerät (mit Liste, Gerät und Zeit),
+  „Papier ansehen“ an Zeilen und Zellen, für die der Bogen gebraucht wird, und eine Nachfrage, bevor ein Wert vom Gerät
+  überschrieben wird. Offene Rückfragen werden unter Betrieb → WKR entschieden.
 
 ## Wertung und Wertungslisten
 
-- Die Wertung rechnen reine Funktionen (`src/lib/ergebnis.ts`, `scoring.ts`, `time.ts`, `codes.ts`, `disq.ts`).
-- Wertungslisten gibt es je Klasse, Lauf und gesamt unter „Listen“ (`src/components/ErgebnisListen.vue`).
-- Gedruckt werden sie in der Reihenfolge der Bögen: Parcours, dann Klasse nach Startreihenfolge.
-- In einem eigenen Feld unter der Tabelle steht auf jeder Seite, wann sich die Liste zuletzt geändert hat
-  (`src/lib/listenStand.ts`).
-  Der Zeitpunkt kommt mit der Action und steht in der Sicherung.
-  Einen Druckzeitpunkt im Seitenrand gibt es auf keiner Liste mehr.
-- Wertungslisten lassen sich je Liste in beiden Reihenfolgen (Startnummer, dann Platz) in einem Druck ausgeben.
-  Die Gesamtliste hat dafür ihre eigene Wahl.
+<a href="bilder/de/wertungsliste.png"><img src="bilder/de/wertungsliste.png" width="600"
+alt="Wertungsliste Gesamt einer Klasse mit drei Läufen und Streichlauf"></a>
 
-**Gleiche Punkte:** Es entscheidet der Stichentscheid des Regelwerks
-(`stichentscheid` in `src/config/regelwerke/*.yaml`).
+- Die Wertung rechnen reine Funktionen (`src/lib/ergebnis.ts`, `scoring.ts`, `time.ts`, `codes.ts`, `disq.ts`).
+- Wertungslisten gibt es je Klasse, Lauf und gesamt unter „Listen“, gedruckt in der Reihenfolge der Bögen:
+  Parcours, dann Klasse nach Startreihenfolge.
+- In einem Feld unter der Tabelle steht auf jeder Seite, wann sich die Liste zuletzt geändert hat
+  (`src/lib/listenStand.ts`); einen Druckzeitpunkt im Seitenrand gibt es nicht.
+- Je Liste lassen sich beide Reihenfolgen (Startnummer, dann Platz) in einem Druck ausgeben.
+
+**Gleiche Punkte:** Es entscheidet der Stichentscheid des Regelwerks (`stichentscheid`).
 DM: der schnellste gewertete Lauf. UIM nach Regel 960 Pkt. 5.2.6: die Summe beider Versuche.
-Erst danach wird ein Platz geteilt.
-Ein so vergebener Platz trägt auf der Liste ein Sternchen; unter der Tabelle steht die Regel in Worten.
+Erst danach wird ein Platz geteilt. Ein so vergebener Platz trägt ein Sternchen; unter der Tabelle steht die Regel.
 
 **Wer noch nicht gefahren ist,** steht ohne Zeit auf Platz 1.
-Ein X am Steg oder Vorsteg steht als „Nicht gestartet“ auf der Liste und zählt wie eine Disqualifikation.
-Es steht auch im Zwischenstand der Gesamtliste hinten, bis der Streichlauf den Lauf aufnimmt.
+Ein X (nicht gestartet) in einem Disq.-Feld des Laufs – am Steg, am Vorsteg oder vom Gerät – steht als „Nicht
+gestartet“ auf der Liste und zählt wie eine Disqualifikation. Im Zwischenstand der Gesamtliste steht es hinten, bis
+der Streichlauf den Lauf aufnimmt.
 
 **Läufe und Streichläufe:**
 
-- Sieht das Regelwerk eine Zahl von Läufen vor (`wertungslaeufe`; UIM: zwei Versuche, der bessere zählt),
-  stellt die Wahl des Regelwerks sie gleich ein.
-  UIM: 2 Läufe und 1 Streichlauf. DM: 3 Läufe und „nach Regel“.
-- Unter DM streicht „nach Regel“ auch bei nur zwei Läufen einen (Reglement C6, `wertungslaeufe.nachRegel`).
-- Von Hand abweichen bleibt möglich; dann weist die Oberfläche darauf hin.
-  Ausnahme `nurVorgabe: true` (DM): nur Voreinstellung, kein Hinweis.
-- Schon erfasste Werte eines Laufs, den es danach nicht mehr gibt, bleiben im Stand.
-  Ein Hinweis nennt sie dort, wo man umstellt.
-  Unter „Einzelheiten“ zeigt er je Starter jeden solchen Wert mit Lauf, Liste und Feld,
-  ob er in der Wertung weiter mitzählt und warum ihn keine Liste mehr zeigt
-  (`verborgeneEinzelheiten` in `src/lib/eingaben.ts`, `src/components/EingabenHinweis.vue`).
+- Sieht das Regelwerk eine Zahl von Läufen vor (`wertungslaeufe`), stellt die Wahl des Regelwerks sie gleich ein:
+  UIM 2 Läufe und 1 Streichlauf (zwei Versuche, der bessere zählt), DM 3 Läufe und „nach Regel“.
+  Unter DM streicht „nach Regel“ auch bei nur zwei Läufen einen (Reglement C6).
+- Von Hand abweichen bleibt möglich; dann weist die Oberfläche darauf hin (unter DM nur Voreinstellung, kein Hinweis).
+- Schon erfasste Werte eines Laufs, den es danach nicht mehr gibt, bleiben im Stand. Ein Hinweis nennt sie dort, wo man
+  umstellt, unter „Einzelheiten“ je Starter mit Lauf, Liste und Feld (`src/components/EingabenHinweis.vue`).
 
 ### Aushang nach UIM (Regel 960, Pkt. 5.2)
 
-Was ein Regelwerk für den Aushang verlangt, steht in seiner YAML-Datei.
-Bisher nur in `src/config/regelwerke/uim-2026.yaml`; die Listen der DM bleiben, wie sie sind.
+Was ein Regelwerk für den Aushang verlangt, steht in seiner YAML-Datei (`aushang`, bisher nur `uim-2026.yaml`).
 
-- `aushang.unterschrift`: Unter jeder Wertungsliste (je Versuch, Gesamtliste, Einzelwertung, Mannschaftswertung)
-  stehen eine Unterschriftszeile „O.O.D.“ und ein leeres Feld „Time of posting“, beides zum Eintragen von Hand.
-  Regel 960: „All results must be signed by the O.O.D. and must show the time of posting.“
-  Der gedruckte Zeitstempel daneben bleibt die letzte Änderung.
-  Der Fuß ist dann 22 statt 12 mm hoch; die eigene Seitenteilung rechnet damit (`src/lib/seiten.ts` `ergebnisFussMm`).
-- `aushang.punkte`: Die Gesamtliste des Manövrierens hat die Spalte „UIM points“
-  (Pkt. 5.2.1, Tabelle Pkt. 5.1 aus `pokal.uim.punkte`).
-  Punkte stehen erst da, wenn die Klasse vollständig ist.
-  Ein geteilter Platz gibt beiden die vollen Punkte des Platzes; Disqualifizierte haben 0
-  (`src/lib/pokal.ts` `gesamtPunkte`).
-- Dieselbe Liste hat nach Pkt. 5.2.1 keine Spalte „Result“ (bester Versuch ohne Knoten).
-  Man sieht ihn an den gestrichenen Versuchen (Entscheidung vom 15.11.2026).
-  Spalten: Attempts, „Knots pen.“, „Best time incl. knots pen.“, „UIM points“
-  (`ohneErgebnis` in `components/ergebnis/ErgebnisGesamtBlatt.vue`).
-  Die Gesamtliste der DM behält „Ergebnis“.
-- Auf Listen und in der Oberfläche steht nie die Nummer einer Stage („stage 2“, „2nd stage“),
-  nur der Name der Disziplin (Entscheidung des Nutzers).
-- Das Blatt der UIM-Mannschaftswertung sagt, worauf es beruht, solange erst eine Disziplin gefahren ist:
-  „Manoeuvring only – nothing has been recorded for Parallel slalom yet.“ (oder umgekehrt).
-  Mit beiden steht im Kopf „UIM points (Manoeuvring + Parallel slalom)“.
-  Siehe [Einzelwertung](parallelslalom.md#einzelwertung).
+- Unter jeder Wertungsliste (je Versuch, Gesamtliste, Einzelwertung, Mannschaftswertung) stehen eine
+  Unterschriftszeile „O.O.D.“ und ein leeres Feld „Time of posting“ – „All results must be signed by the O.O.D. and
+  must show the time of posting.“ Der gedruckte Zeitstempel daneben bleibt die letzte Änderung.
+- Die Gesamtliste des Manövrierens hat die Spalte „UIM points“ (Pkt. 5.2.1, Tabelle Pkt. 5.1), sobald die Klasse
+  vollständig ist; ein geteilter Platz gibt beiden die vollen Punkte, Disqualifizierte haben 0.
+- Sie hat nach Pkt. 5.2.1 keine Spalte „Result“: Attempts, „Knots pen.“, „Best time incl. knots pen.“, „UIM points“
+  (15.11.2026). Die Gesamtliste der DM behält „Ergebnis“.
+- Nirgends steht die Nummer einer Stage („stage 2“), nur der Name der Disziplin.
+- Solange erst eine Disziplin gefahren ist, sagt das Blatt der UIM-Mannschaftswertung, worauf es beruht
+  („Manoeuvring only – nothing has been recorded for Parallel slalom yet.“).
 
 ### Versuche direkt nacheinander (UIM)
 
-Der Schalter „Versuche direkt nacheinander“ steht unter „Einstellungen → Wertung“.
-Grundlage: Pkt. 4.3.2 „2 attempts, run consecutively“.
+„Einstellungen → Wertung“, nach Pkt. 4.3.2 „2 attempts, run consecutively“. Unter UIM eine Option, nicht vorgewählt
+(15.11.2026): Manche Länder legen am Steg nur an und fahren gleich noch einmal, andere fahren die Versuche wie Läufe.
+Der Schalter steht nur unter Regelwerken, die ihn kennen (`versucheNacheinander`).
 
-- Die Vorgabe setzt der Schlüssel `versucheNacheinander` im Regelwerk-YAML (bisher nur `uim-2026.yaml`).
-  Die Wahl der Veranstaltung steht im gleichnamigen Zustand, in Sicherung und Vorlage.
-- Unter UIM ist es eine **Option, nicht vorgewählt** (Entscheidung vom 15.11.2026):
-  Manche Länder legen am Steg nur an, steigen nicht aus und fahren gleich noch einmal.
-  Andere fahren die Versuche wie Läufe.
-- Der Schalter ist nur unter Regelwerken sichtbar, die ihn kennen.
+**An:** Jeder Starter steht auf den Listen des Manövrierens zweimal direkt nacheinander.
 
-**An:** Jeder Starter steht auf den Listen der race officials des Manövrierens zweimal direkt nacheinander.
+- 1. und 2. Versuch stehen auf **einem** Klassenzettel, mit der Spalte „Attempt“ hinter der Startnummer und einer
+  Trennlinie unter jedem Starter; geteilt wird nur zwischen Startern.
+- **Vorsteg** (15.11.2026): Dort kommt der Starter nur einmal vorbei – eine Zeile je Starter, ohne „Attempt“
+  (`einmalJeStarter`). Was dort steht, gilt für jeden Versuch; so zählt ein X vom Vorsteg in beiden.
+  Steht in einem späteren Versuch schon etwas anderes, weist die Zeile darauf hin.
+- Je Liste ein Bogen statt einer je Versuch, alle im selben Stapel, dazu **ein** Laufzettel je Klasse.
+  Der QR-Code nennt den Stapel; die Erfassung zeigt denselben Bogen und schreibt jede Zeile unter ihren Versuch.
+- Zwischen den Versuchen wird nichts ausgehängt.
 
-- 1. und 2. Versuch stehen auf **einem** Klassenzettel
-  (`BogenAuftrag.versuche` in `src/lib/bogen.ts`, `WkrBogen.versuche` in `src/lib/wkrListen.ts`).
-- Hinter der Startnummer steht die Spalte „Attempt“, unter jedem Starter eine Trennlinie.
-  Geteilt wird nur zwischen Startern.
-- **Ausnahme Vorsteg** (Entscheidung vom 15.11.2026): Dort kommt der Starter nur einmal vorbei.
-  Die Liste hat wie die Knoten-Liste **eine** Zeile je Starter, ohne Spalte „Attempt“
-  (Position mit `einmalJeStarter: true` in `src/config/aufbauten/gemeinsam.yaml`, `BogenAuftrag.einmal`).
-  Was dort steht, gilt für jeden Versuch: Die Erfassung schreibt es unter jeden
-  (`zeilenSchluesselAlle` in `src/lib/erfassung.ts`).
-  So zählt ein X „Did not start“ vom Vorsteg in beiden Versuchen.
-- Trägt ein späterer Versuch dort etwas anderes (geschrieben, bevor die Option an war), weist die Zeile darauf hin.
-  Die nächste Eingabe in der Zeile gleicht an; „Leere Zeilen bestätigen“ lässt sie aus.
-  Sonst löschte der Sammelknopf etwa ein X im späteren Versuch.
-- Was der Vorsteg in einen späteren Versuch schreibt, legt dessen Wertungsliste noch nicht an
-  (`einmalKennungen` in `laeufeMitEingaben`, `src/lib/ergebnis.ts`). Sie entsteht, sobald dort gefahren wird.
-- Es gibt dann je Liste einen Bogen statt einen je Versuch, alle im selben Stapel
-  (auch die Knoten, die nur einmal abgenommen werden).
-  Dazu **ein** Laufzettel je Klasse („Attempts 1 to 2“, mit den Schritten des letzten Versuchs).
-- Der QR-Code nennt den Stapel; die Erfassung zeigt denselben Bogen ohne Lauf-Auswahl.
-  Jede Zeile schreibt unter ihren Versuch (`manoevrieren/1`, `manoevrieren/2`).
-  Wertung, Beispielwerte und Wertungslisten bleiben damit, wie sie sind.
-- Zwischen den Versuchen wird nichts ausgehängt (Hinweis über den Wertungslisten).
-- Gemeinsame Bögen mehrerer Klassen (Clubmeisterschaft) tragen die Versuche ebenfalls je Starter,
-  werden aber zeilenweise geteilt.
-
-**Aus:** je Versuch eigene Bögen und Laufzettel wie bisher.
-Auf den Zetteln vor dem letzten Versuch stehen die Schritte für den Aushang
-(`zwischenaushang: true` in `einstellungen.yaml`).
+**Aus:** je Versuch eigene Bögen und Laufzettel; vor dem letzten Versuch mit den Schritten für den Aushang.
 
 ## Mannschaftswertung
 
-Die Mannschaftswertung (im Code „pokal“) rechnet je Herkunft: Verein, Bundesland oder Land.
-Sie ist eine eigene Listenart unter „Listen“, gerechnet aus den Plätzen der Gesamtliste jeder Klasse
-(`src/lib/pokal.ts`, `src/components/PokalListen.vue`, `src/components/pokal/`).
+Die Mannschaftswertung rechnet je Herkunft – Verein, Bundesland oder Land – aus den Plätzen der Gesamtliste jeder
+Klasse; eine eigene Listenart unter „Listen“ (`src/lib/pokal.ts`, `src/components/PokalListen.vue`).
 
 **Drei Varianten,** die sich gleichzeitig einschalten lassen:
 
 - Plätze 1–3: 10, 7, 5 Punkte.
 - Plätze 1–6: 6 bis 1 Punkte; so rechnet die Mappe der DM 2026.
-- UIM-Punkte: Plätze 1–20 nach Regel 960 Pkt. 5.1; je Herkunft zählen die fünf Besten, gewertet wird ab fünf Startern.
+- UIM-Punkte: Plätze 1–20 nach Regel 960 Pkt. 5.1; je Herkunft zählen die fünf Besten, gewertet ab fünf Startern.
 
-Die Punkte der Varianten 1 und 2, die Zahl der Besten und die Mindestzahl sind unter
-„Einstellungen → Mannschaftswertung“ änderbar.
-Vorgaben stehen in `src/config/einstellungen.yaml` (`pokalPunkte`) und im Regelwerk
-(`pokal` in `src/config/regelwerke/*.yaml`: DM Plätze 1–6 und UIM, UIM nur UIM).
+Punkte, Zahl der Besten und Mindestzahl sind unter „Einstellungen → Mannschaftswertung“ änderbar
+(Vorgaben `pokalPunkte` in `src/config/einstellungen.yaml` und `pokal` im Regelwerk).
 
-**Gleichstand:** Punktgleiche Herkünfte trennt der Stichentscheid des Regelwerks (`pokal.stichentscheid`).
-DM (C6): die Zahl der 1. Plätze, dann der 2. und 3.
-UIM (960 Pkt. 5.2.6): die Punkte der 1. Plätze, dann der 2. …
-Erst danach teilen sie sich den Platz.
-Ein so entstandener Platz trägt wie auf den Wertungslisten ein Sternchen; die Regel steht im Fuß.
+**Gleichstand** (`pokal.stichentscheid`): DM (C6) die Zahl der 1. Plätze, dann der 2. und 3.; UIM (Pkt. 5.2.6) die
+Punkte der 1. Plätze, dann der 2. … Erst danach teilen sie sich den Platz; der Platz trägt ein Sternchen.
 
 **Wer zählt:**
 
 - Disqualifizierte, Offene und Starter ohne Herkunft bekommen keine Punkte.
-- Schreibweisen einer Herkunft, die sich nur in Groß-/Kleinschreibung oder Leerzeichen unterscheiden,
-  gelten als dieselbe.
-  Bei Bundesland und Land ist auch jede erkannte Schreibweise dieselbe Mannschaft
-  („NRW“ und „Nordrhein-Westfalen“, „GER“ und „Germany“; siehe [Herkunft und Flaggen](#herkunft-und-flaggen)).
-  In der Vereinswertung zählt nur das Feld Verein.
-- Wahlweise zählen nur ausgewählte Starter.
-  Dann zeigt der Reiter „Starter“ eine Spalte mit Kästchen (alle/keine, umkehren – für alle und je Klasse).
-  Wer nicht gewählt ist, behält seinen Platz, bekommt aber keine Punkte (wie „MW ja“ in der Mappe).
-- Die Auswahl steht in Sicherung und Teilnehmerdaten.
-  Beim Einspielen gilt die Auswahl der Datei; ein Excel-Import lässt sie stehen.
-  Die Einstellungen stehen in Sicherung und Vorlage.
+- Schreibweisen, die sich nur in Groß-/Kleinschreibung oder Leerzeichen unterscheiden, gelten als dieselbe; bei
+  Bundesland und Land auch jede erkannte Schreibweise (siehe [Herkunft und Flaggen](#herkunft-und-flaggen)).
+- Wahlweise zählen nur ausgewählte Starter (Spalte mit Kästchen im Reiter „Starter“). Wer nicht gewählt ist, behält
+  seinen Platz, bekommt aber keine Punkte. Die Auswahl steht in Sicherung und Teilnehmerdaten.
 
 **Zwischenstand:** Solange nicht jede Klasse ihr Endergebnis hat, ist die Liste als Zwischenstand gekennzeichnet.
-Im Zwischenstand zählt eine Klasse mit ihrer Gesamtliste, wie sie gerade steht – auch im angefangenen Lauf.
-Die Plätze werden unter den bisher Gefahrenen gebildet, Offene bekommen nichts.
-Der Stand kann deshalb von Starter zu Starter springen.
+Eine Klasse zählt dann mit ihrer Gesamtliste, wie sie gerade steht; Offene bekommen nichts.
 
-**Druck:** je Variante ein eigenes Dokument.
-Plätze quer wie „Mannschaftswertung_Ausgabe“, UIM hoch wie „Mannschaftswertung_UIM“.
-Dazu der Zeitstempel der letzten Änderung: der jüngste der Gesamtlisten aller Klassen
-(`wertungZeit` in `src/lib/listenStand.ts`).
-Die Mannschaftswertung ist nie älter als eine Wertungsliste, und ihr Zeitpunkt läuft nie rückwärts.
-Entfallen alle Listen einer Klasse (letzter Wert gelöscht), bleibt der Zeitpunkt des Wegfalls stehen (`KEINE_LISTE`).
+**Druck:** je Variante ein Dokument – Plätze quer, UIM hoch – mit dem Zeitstempel der jüngsten Gesamtliste aller
+Klassen (`wertungZeit` in `src/lib/listenStand.ts`); er läuft nie rückwärts.
 
 Unter Regel 960 mit Parallelslalom: siehe [Mannschaftswertung UIM](parallelslalom.md#mannschaftswertung-uim).
+
+<a href="bilder/de/mannschaftswertung.png"><img src="bilder/de/mannschaftswertung.png" width="600"
+alt="Mannschaftswertung nach Plätzen 1 bis 6 je Herkunft"></a>
 
 ## Weitere Listen und Druck
 
 ### Starterlisten und Vorsteg-Liste
 
 Die Starterlisten sind ein Reiter mit der Auswahl „Art“ (`src/lib/starterlisten.ts`):
-
-- verzahnt – auf Wunsch mit hervorgehobenen Startern einer Herkunft für die Mannschaftsleiter,
-- je Herkunft nach Startnummer,
-- nach Klasse,
-- unter Regel 960 zusätzlich „Parallel-Slalom“
-  (siehe [Startliste je Racecourse](parallelslalom.md#startliste-je-racecourse)).
-
-Die Vorsteg-Liste ist eine eigene Listenart.
+verzahnt (auf Wunsch mit hervorgehobenen Startern einer Herkunft für die Mannschaftsleiter), je Herkunft nach
+Startnummer, nach Klasse und unter Regel 960 „Parallel-Slalom“
+([Startliste je Racecourse](parallelslalom.md#startliste-je-racecourse)). Die Vorsteg-Liste ist eine eigene Listenart.
 
 ### Aushang der Codes
 
@@ -688,248 +752,131 @@ Eine eigene Listenart: alle Fehler- und Disqualifikations-Codes des Regelwerks m
 
 ### Druckdatei
 
-Die Druckdatei ist der letzte Reiter unter „Listen“ (`src/components/DruckdateiListen.vue`, `src/lib/druckdatei.ts`).
-Sie ist die Datei, die nach dem Wettkampf an die teilnehmenden Gruppen geht.
+Die Druckdatei ist der letzte Reiter unter „Listen“ (`src/lib/druckdatei.ts`): die Datei, die nach dem Wettkampf an
+die teilnehmenden Gruppen geht.
 
 - Inhalt: die verzahnte Starterliste je Parcours, die eingeschalteten Mannschaftswertungen (UIM-Punkte vor Plätzen),
-  die Erklärung der Fehlerpunkte und Disqualifikationen, dann je Klasse (E, 1 … 7) die Läufe und die Gesamtliste
-  nach Platz.
-- Alles in einem Druck: „Als PDF speichern“ ergibt eine Datei; Hoch- und Querformat wechseln.
-- Sie setzt die Folge aus denselben Blatt-Komponenten zusammen wie die einzelnen Reiter
-  (`StarterBlaetter.vue`, `PokalStapel.vue`, `CodesAushang.vue`, `ErgebnisStapel.vue`).
-  Jedes Dokument zählt seine Seiten selbst.
-- Teile, Umfang (Läufe und Gesamtliste oder nur Gesamtliste) und Klassen sind abwählbar.
-- Zwei Fassungen mit den Einstellungen der Wertungslisten:
-  „Extern“ wie der Aushang (Namen gekürzt oder weggelassen – auch auf der Starterliste –, nie ein Geburtsdatum);
-  „Intern“ mit vollen Namen und dem Geburtsdatum auf der Starterliste, wenn es für die Listen eingeschaltet ist.
-- Solange nicht jede Klasse ihr Endergebnis hat, nennt ein Hinweis die Klassen und die fehlenden Läufe.
-- Die Vorschau entsteht in Schritten, damit das Fenster bei großen Feldern bedienbar bleibt.
-
-**Druckdatei nach Regel 960** (Entscheidung vom 15.11.2026; `druckdateiFolge` mit `regel960`, `src/lib/druckdatei.ts`).
-Der Hinweis über der Auswahl beschreibt diese Folge (Text `booklet.hint960`):
-
-- Mannschaftswertung, Legende der Fehlerpunkte (Codes), Einzelwertung,
-  dann je Disziplin mit Werten deren Listen.
-- Vor den Wertungslisten des Manövrierens die verzahnte Starterliste (keine Listen je Herkunft).
-- Vor den Wertungslisten jeder Runde des Parallelslaloms deren Startliste mit den Blöcken
-  (`src/lib/parallelStartliste.ts`, `components/ParallelStartlisten.vue`).
-  Sie bleibt vollständig, auch wenn Klassen abgewählt sind: Ein Block kann Starts mehrerer Klassen tragen;
-  der Hinweis sagt es.
-- Die Druckdatei der DM bleibt in der Ordnung der Vorlage.
-  Auch dort steht nur die normale verzahnte Starterliste, keine Liste je Herkunft und keine Markierung
-  (Entscheidung vom 15.11.2026; mit Test belegt).
-- Die Liste nach Pkt. 3.7 steht in keiner Druckdatei, auch nicht in der internen.
+  die Erklärung der Fehlerpunkte und Disqualifikationen, dann je Klasse die Läufe und die Gesamtliste nach Platz.
+- Alles in einem Druck: „Als PDF speichern“ ergibt eine Datei; Hoch- und Querformat wechseln, jedes Dokument zählt
+  seine Seiten selbst. Teile, Umfang und Klassen sind abwählbar.
+- Zwei Fassungen: „Extern“ wie der Aushang (Namen gekürzt oder weggelassen, nie ein Geburtsdatum); „Intern“ mit vollen
+  Namen und, wenn eingeschaltet, dem Geburtsdatum auf der Starterliste.
+- Solange nicht jede Klasse ihr Endergebnis hat, nennt ein Hinweis die fehlenden Läufe.
+- **Nach Regel 960** (15.11.2026): Mannschaftswertung, Legende der Codes, Einzelwertung, dann je Disziplin mit Werten
+  deren Listen – vor dem Manövrieren die verzahnte Starterliste, vor jeder Runde des Parallelslaloms deren Startliste.
+  Die Druckdatei der DM bleibt in der Ordnung der Vorlage. Die Liste nach Pkt. 3.7 steht in keiner Druckdatei.
 
 ### Logos
 
-Einstellungen → „Logos auf den Listen“ (`src/components/LogosPanel.vue`; Entscheidung vom 16.11.2026).
-Zwei Plätze, „Logo links“ und „Logo rechts“, anfangs leer und für alle Regelwerke gleich.
-Ohne Logo sieht jede Liste aus wie vorher.
+Einstellungen → „Logos auf den Listen“ (`src/components/LogosPanel.vue`, 16.11.2026): zwei Plätze, „Logo links“ und
+„Logo rechts“, anfangs leer. Ohne Logo sieht jede Liste aus wie vorher.
 
-- Wo sie stehen (`src/components/KopfLogos.vue`):
-  - neben dem umrandeten Kopf jeder Seite: Starter-, Gewichts- und Vorsteg-Listen, Ausgleichsgewichte, Liste nach
-    Pkt. 3.7, Startlisten und Wertungslisten auch des Parallelslaloms, Einzelwertung, Mannschaftswertung, Codes und
-    damit auch die Druckdatei;
-  - auf den WKR-Bögen in der Titelleiste, rechts vor dem QR-Code (dessen Lage und Größe bleiben), auch in der
-    Beispielansicht, nicht auf der Rückseite;
-  - auf den Laufzetteln als Streifen über Titel und QR-Code.
-- Höhe 8 bis 30 mm, Vorgabe 15 mm, für beide Logos auf allen Listen gleich; auf den WKR-Bögen höchstens 12 mm (dort
-  kostet jeder Millimeter Zeilen; Laufzettel folgen der Einstellung). Die Breite folgt dem Seitenverhältnis,
-  höchstens 60 mm bzw. ein Viertel der Kopfbreite. Höhere Logos kosten Zeilen; die Listen messen und teilen neu.
-- Hochladen: PNG, JPEG, WebP, GIF oder SVG bis 20 MB. Das Bild wird im Browser verkleinert, auf höchstens 360 px
-  Höhe (`src/lib/logoBild.ts`), und als PNG gespeichert, sonst als WebP, notfalls als JPEG – je Logo höchstens rund
-  100 kB. Metadaten fallen dabei weg. Unter 200 dpi in der eingestellten Höhe weist die Einstellung darauf hin.
-  Ein SVG wird gerastert; fehlt ihm die viewBox, kommt eine aus Breite und Höhe dazu, damit der Inhalt mitwächst.
-  Ein SVG aus einer von Hand geänderten Vorlage oder Sicherung bleibt auf den Listen eine data-URL (keine
-  Blob-Adresse mit dem Ursprung der App, in der ein im Tab geöffnetes SVG Skripte ausführen könnte).
-- Sicherung und Vorlage tragen die Logos (keine Personendaten). Eine Vorlage ohne Logo für eine Seite lässt das
-  hiesige stehen. „Alles zurücksetzen“ entfernt die Logos.
+- Sie stehen neben dem Kopf jeder Seite der Listen, auf den WKR-Bögen in der Titelleiste vor dem QR-Code, auf den
+  Laufzetteln als Streifen über dem Titel und auf der Anzeigetafel neben der Kopfzeile.
+- Höhe 8–30 mm (Vorgabe 15 mm), auf den WKR-Bögen höchstens 12 mm; höhere Logos kosten Zeilen, die Listen teilen neu.
+- Hochladen: PNG, JPEG, WebP, GIF oder SVG bis 20 MB; das Bild wird im Browser verkleinert (höchstens rund 100 kB je
+  Logo), Metadaten fallen weg. Unter 200 dpi weist die Einstellung darauf hin.
+- Sicherung und Vorlage tragen die Logos; über den Gerätebetrieb gehen sie nie.
 
 ### Doppelseitig drucken
 
-Bei den Listenarten mit mehreren Dokumenten in einem Druck steht neben dem Druckknopf der Schalter
-„doppelseitig drucken“: Starter-, Gewichts- und Vorsteg-Listen, Wertungslisten, Mannschaftswertung, Druckdatei.
-Eingeschaltet beginnt jedes Dokument auf einem neuen Blatt.
-Nach einem Dokument mit ungerader Seitenzahl folgt eine leere Seite, die in dessen Seitenzählung nicht mitzählt
-(`src/lib/doppelseitig.ts`, `src/components/LeereRueckseite.vue`).
-Die Wahl merkt sich die App je Listenart.
+Bei Listenarten mit mehreren Dokumenten in einem Druck schaltet „doppelseitig drucken“ jedes Dokument auf ein neues
+Blatt; nach ungerader Seitenzahl folgt eine leere Seite, die nicht mitzählt (`src/lib/doppelseitig.ts`).
 
 ### Farben
 
-Alle Listen und Bögen folgen am Bildschirm dem gewählten Farbschema (auch dunkel).
-Gedruckt sind sie immer schwarz auf weiß mit grauer Fünfer-Zeile.
-Ihre Farben kommen ausschließlich aus den Variablen `--blatt-*` in `src/styles/blatt.css`.
-Neue Listen verwenden nur diese (`src/styles/blatt.test.ts` prüft das).
-Ausnahme: Logos drucken in ihren eigenen Farben.
+Am Bildschirm folgen Listen und Bögen dem Farbschema (auch dunkel); gedruckt sind sie schwarz auf weiß mit grauer
+Fünfer-Zeile. Ihre Farben kommen nur aus `--blatt-*` in `src/styles/blatt.css`; Logos drucken in ihren eigenen Farben.
 
 ## Sperren und Prüfungen
 
-Jeweils in Oberfläche und Reducer.
-Die Punkte mit Datum sind Entscheidungen vom 15.11.2026.
+Jeweils in Oberfläche und Reducer. Die Punkte mit Datum sind Entscheidungen vom 15.11.2026, wo nichts anderes steht.
 
-- **Starterfeld:** Sobald der erste Wert erfasst ist, lassen sich Starter weder importieren noch hinzufügen
-  oder entfernen (auch kein Beispiel-Starterfeld).
-  In der Oberfläche mit Hinweis und Lösungsweg, im Reducer als wirkungslose Action
-  (`starterfeldFest` in `src/lib/eingaben.ts`).
-  Angaben eines Starters ändern, eine Sicherung laden und Zurücksetzen gehen weiter.
-- **Regelwerk** (15.11.2026): Sobald Ergebnisse erfasst sind, lässt sich das Regelwerk nicht mehr wechseln,
-  bis alle Werte gelöscht sind (`SET_REGELWERK` in `src/state/reducer.ts`).
-  Die Knöpfe unter „Veranstaltung“ sind dann gesperrt, mit Hinweis; auch eine Vorlage wechselt es dann nicht.
-- **Klasse eines Starters** (15.11.2026): Sie lässt sich nicht mehr ändern, sobald die Verzahnung
-  bzw. der Startplan des Parallelslaloms festgeschrieben ist (`klasseFest`, `UPDATE_STARTER`, `MOVE_STARTER_TO_CLASS`).
-  Eine Auswahl der Klasse bietet die Oberfläche nicht an: Ein Starter gehört in die Klasse seines Jahrgangs.
-  Nur wenn ein geändertes Geburtsdatum in eine andere Klasse gehört, schlägt sie „In Klasse X verschieben“ vor
-  (siehe „Jahrgang und Klasse“).
-- **Reihenfolge der Starter** (15.11.2026): Im Reiter „Starter“ macht „Sortierung ändern“
-  die Spaltenköpfe Name, Vorname, Herkunft, Größe, Geschlecht und Geburtsdatum zu Knöpfen.
-  - Das gibt es je Klasse und oben für alle Klassen zugleich (jede Klasse in sich, die Folge der Klassen bleibt).
-  - Drei Stufen je Kopf (21.11.2026, Folge bestätigt S-01): Klick 1 sortiert aufsteigend (A→Z, kleinster Wert
-    zuerst – XS vor XL, Älteste zuerst; Pfeil ↑), Klick 2 absteigend (Z→A, ↓), Klick 3 hebt die Markierung auf (↕) und lässt die
-    Reihenfolge, wie sie ist. Eine andere Spalte beginnt bei Stufe 1. Die gewählte Spalte ist farbig hinterlegt;
-    die Stufe ist Bedienauswahl (merke `starter.sortierung.*`) und gilt, solange die Klasse noch so steht – auch
-    mit Startnummern-Bereichen, wo nur je Größengruppe sortiert wird.
-    Gleiche Werte behalten ihre Reihenfolge (erst Vorname, dann Name = nach Name und Vorname).
-    Ohne Angabe steht in beiden Richtungen hinten.
-  - „Zufall“ mischt jedes Mal neu (Saat in der Action).
-  - Die vorhandenen Startnummern werden nur neu verteilt
-    (`src/lib/reihenfolge.ts`, Actions `ORDER_STARTERS`/`SHUFFLE_STARTERS`, Verlauf „Reihenfolge geändert“).
-  - Gesperrt, sobald die Verzahnung festgeschrieben ist (`VERZAHNUNG_ACTIONS`),
-    ebenso ▲▼ unter „Bearbeiten“ (`MOVE_STARTER`, 16.11.2026). Startnummern von Hand bleiben frei, für Korrekturen.
-- **WKR-Listen drucken** (15.11.2026): Die Bögen des Manövrierens und ihre Laufzettel lassen sich erst drucken,
-  wenn die Verzahnung festgeschrieben ist („Erst danach darf ich WKR-Listen drucken“).
-  Vorher ist „Drucken“ gesperrt, und ein Hinweis führt zur Verzahnung.
-  Am Bildschirm stehen die Bögen schon; Strg+P bringt nur den Hinweis aufs Papier
-  (`vorVerzahnung` in `src/views/ListsView.vue`).
-  Die Listen des Parallelslaloms hängen an ihren festgeschriebenen Runden; die Druckdatei enthält keine Bögen.
-- **Jahrgang und Klasse** (15.11.2026): Ein Geburtsjahr, das nicht in die Klasse gehört, wird abgewiesen:
-  beim Einfügen aus Excel (die ganze Liste, bis sie berichtigt ist; `src/import/klassenPruefung.ts`),
-  beim Einspielen einer Teilnehmerdaten-Datei, beim Hinzufügen von Hand
-  und beim Ändern des Geburtsdatums im Bearbeiten-Modus.
-  Gehört der Jahrgang in eine andere Klasse des Regelwerks, steht unter der Meldung ein Vorschlag:
-  - „In Klasse X anlegen“ beim Hinzufügen (mit allen Angaben),
-  - „In Klasse X verschieben“ beim Bearbeiten (mit dem neuen Datum).
-    Eine klassenbasierte Startnummer wird die nächste freie der neuen Klasse.
-    Gesperrt, sobald die Klasse feststeht oder Ergebnisse erfasst sind (`MOVE_STARTER_TO_CLASS`).
-  - „In Klasse X übernehmen“ je Zeile beim Einfügen aus Excel; die Excel-Liste bleibt, wie sie ist.
-  - zusätzlich „Alle beheben“ beim Einfügen aus Excel (16.11.2026; die Knöpfe je Zeile bleiben, denn manchmal sind es
-    viele): Jeder gemeldete Starter kommt in die Klasse seines
-    Jahrgangs, wer in keine passt (zu alt oder zu jung), wird nicht übernommen. Der Knopf nennt das Jahr der
-    Veranstaltung; beide Listen darunter („in einer anderen Klasse“, „nicht übernommen“) zeigen jede Änderung mit
-    „zurück“. Übernommen wird erst mit „Liste ersetzen“ bzw. „Ergänzen“ (`import/tsv.ts` klasseJeZeile, ohneZeilen).
-
-  Passt der Jahrgang in keine Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten; beim Einfügen aus Excel
-  lässt sich die Zeile dann je Starter „Nicht übernehmen“.
-  Ohne Geburtsdatum lässt sich nichts prüfen; das fällt in der Starterliste auf („fehlt“).
+- **Starterfeld:** Sobald der erste Wert erfasst ist, lassen sich Starter weder importieren noch hinzufügen oder
+  entfernen (`starterfeldFest`). Angaben ändern, eine Sicherung laden und Zurücksetzen gehen weiter.
+  Wer nicht mehr fährt, wird stattdessen **als nicht gestartet eingetragen**: ein X im Disq.-Feld am Steg in jedem
+  Lauf ohne Werte, unter UIM auch in den festgeschriebenen Runden des Parallelslaloms (`src/lib/abmeldung.ts`);
+  ↺ nimmt die Abmeldung zurück.
+- **Regelwerk:** Sobald Ergebnisse erfasst sind, lässt es sich nicht mehr wechseln, bis alle Werte gelöscht sind;
+  auch eine Vorlage wechselt es dann nicht.
+- **Klasse eines Starters:** fest, sobald die Verzahnung bzw. der Startplan des Parallelslaloms festgeschrieben ist.
+  Eine freie Wahl der Klasse gibt es nicht; nur wenn ein geändertes Geburtsdatum in eine andere Klasse gehört, schlägt
+  die Oberfläche „In Klasse X verschieben“ vor.
+- **Reihenfolge der Starter:** „Sortierung ändern“ macht die Spaltenköpfe Name, Vorname, Herkunft, Größe, Geschlecht
+  und Geburtsdatum zu Knöpfen – je Klasse und für alle zugleich. Drei Stufen je Kopf (21.11.2026): aufsteigend (↑),
+  absteigend (↓), Markierung weg (↕); gleiche Werte behalten ihre Reihenfolge, ohne Angabe steht hinten. „Zufall“
+  mischt jedes Mal neu. Die vorhandenen Startnummern werden nur neu verteilt (`src/lib/reihenfolge.ts`).
+  Gesperrt, sobald die Verzahnung festgeschrieben ist, ebenso ▲▼; Startnummern von Hand bleiben frei.
+- **WKR-Listen drucken:** erst, wenn die Verzahnung festgeschrieben ist; vorher führt ein Hinweis zur Verzahnung, und
+  Strg+P bringt nur diesen aufs Papier. Die Listen des Parallelslaloms hängen an ihren festgeschriebenen Runden.
+- **Jahrgang und Klasse:** Ein Geburtsjahr, das nicht in die Klasse gehört, wird abgewiesen – beim Einfügen aus Excel,
+  beim Einspielen von Teilnehmerdaten, beim Hinzufügen und beim Ändern des Geburtsdatums
+  (`src/import/klassenPruefung.ts`).
+  Gehört es in eine andere Klasse, steht ein Vorschlag darunter: „In Klasse X anlegen“, „In Klasse X verschieben“,
+  beim Excel-Import je Zeile „In Klasse X übernehmen“ und „Alle beheben“ (16.11.2026). Passt der Jahrgang in keine
+  Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten. Ohne Geburtsdatum fällt der Starter als „fehlt“ auf.
 - **Starterlaubnis nach Geburtstag** (24.11.2026, nur DM, Reglement C8: Klasse E ab dem 6., Klasse 7 bis zum 27.
-  Geburtstag; `geburtstagsGrenzen` im Regelwerk, `src/import/klassenPruefung.ts` geburtstagsHinweise): nur eine
-  Warnung, die man übergehen kann – nichts wird gesperrt, verschoben oder abgefragt.
-  - Kopf der Klasse: gelbe Marke „2 Geburtstage prüfen“, auch zugeklappt; offen eine Liste mit einem Satz je Starter
-    („6. Geburtstag erst am 06.09.2026 – Starterlaubnis in Klasse E ab dem 6. Geburtstag“) und „!“ am Geburtsdatum.
-  - Gemessen am Datum der Veranstaltung (Reiter „Veranstaltung“, Feld „Datum“ = erster Wettkampftag, freiwillig; der
-    Satz unter der Zeile nennt die Grenzen aus dem Regelwerk, unter UIM nur, was das Feld ist). Ohne Datum nennt die Liste die Grenz-Jahrgänge zum Prüfen (werden im Jahr
-    6 bzw. 27) und verweist auf das Datum; wer sicher außerhalb liegt, steht auch ohne Datum da.
-  - Auslegungen (zu bestätigen): am 27. Geburtstag selbst nicht mehr; der erste Wettkampftag zählt; der 29.02. wird in
-    Jahren ohne ihn zum 01.03.
-- **Datumsfelder** (15.11.2026): nie die Datumswahl des Browsers.
-  Sie zeigte je nach Systemsprache mm/dd/yyyy – „darf es nie geben“.
-  - Stattdessen ein Textfeld mit festem Muster: deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT
-    (`src/components/DatumFeld.vue`, `src/lib/datum.ts`).
-  - Erkannt werden auch 2019-12-01, 1.12.2019 und 01/12/2019 – mit Schrägstrich immer Tag zuerst.
-    Ein Datum, das es nicht gibt (31.02.), wird gemeldet. Gespeichert wird JJJJ-MM-TT.
-  - Der Excel-Import liest dieselben Schreibweisen, dazu ein Jahr allein und Excel-Seriennummern.
-    Er nennt, was er nicht lesen kann; das Feld bleibt dann leer.
-  - `src/components/DatumFeld.test.ts` hält fest, dass keine Vorlage ein `<input type="date">` enthält.
-- **Startnummern mit Präfix** (15.11.2026): E01, D01 sortieren überall wie mit einer 0 davor, also vor 101, 201 …
-  (`vergleicheStartNr` in `src/domain/startnumbers.ts` – die eine Stelle für Listen, Wertung, Verzahnung
-  und die Paare des Parallelslaloms).
-  Der Buchstabe der Klasse E ist wählbar: E (Vorgabe) oder D – unter UIM „Buchstabe der Dolphin-Nummern“, seit
-  24.11.2026 auch unter DM („Buchstabe der Klasse E“)
-  („Starter → Startnummern“, Zustand `dolphinPraefix`, in Sicherung und Vorlage; gilt für neu vergebene Nummern).
-  Die Startnummern nach Westengröße folgen ihm: Mit D wird aus E01–E30 D01–D30, in der Vergabe und in den
-  Einstellungen; Bereiche und fehlende Westen werden mit E oder D gelesen.
-  Beim Weiterzählen gelten in der Klasse E beide Buchstaben (`parseClassNumber`):
-  Nach dem Umstellen folgt auf E02 also D03, nicht D01.
-- **DM, Disqualifikation S „Bremsen mit der Hand beim Anlegen“** (15.11.2026) – nur auf der Steg-Liste.
-  Reglement C5 d: „Ein Bremsen mit der Hand ist nicht zulässig.“
-  Liste nach g: „Alle Verstöße gegen diese Ausschreibung, die nicht durch Strafpunkte belegt sind,
-  führen zur Disqualifikation.“
+  Geburtstag; `geburtstagsGrenzen` im Regelwerk): nur eine Warnung, die man übergehen kann.
+  Im Kopf der Klasse eine gelbe Marke („2 Geburtstage prüfen“), offen ein Satz je Starter („6. Geburtstag erst am
+  06.09.2026 – Starterlaubnis in Klasse E ab dem 6. Geburtstag“) und „!“ am Geburtsdatum. Gemessen wird am Datum der
+  Veranstaltung; ohne Datum nennt die Liste die Grenz-Jahrgänge zum Prüfen. Ausgelegt und noch zu bestätigen: am 27.
+  Geburtstag selbst nicht mehr; der erste Wettkampftag zählt; der 29.02. wird in Jahren ohne ihn zum 01.03.
+- **Datumsfelder:** nie die Datumswahl des Browsers (sie zeigte je nach System mm/dd/yyyy), sondern ein Textfeld:
+  deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT (`src/components/DatumFeld.vue`). Erkannt werden auch 2019-12-01, 1.12.2019
+  und 01/12/2019 (Schrägstrich: Tag zuerst); ein Datum, das es nicht gibt, wird gemeldet. Gespeichert wird JJJJ-MM-TT.
+  Der Excel-Import liest dieselben Schreibweisen, dazu ein Jahr allein und Excel-Seriennummern.
+- **Startnummern mit Buchstaben:** E01 und D01 sortieren überall vor 101, 201 … (`vergleicheStartNr` – die eine
+  Stelle für Listen, Wertung, Verzahnung und die Paare des Parallelslaloms).
+- **DM, Disqualifikation S „Bremsen mit der Hand beim Anlegen“** – nur auf der Steg-Liste (Reglement C5 d).
+- **„X“** (nicht gestartet) steht in jedem Regelwerk; „O“ wird nie vergeben.
 
 ## Parallelslalom und Einzelwertung (Regel 960)
 
 Unter Regel 960 kommen der Parallelslalom, die Einzelwertung über beide Stages und die Mannschaftswertung UIM dazu.
-Sie stehen auf einer eigenen Seite: [parallelslalom.md](parallelslalom.md).
+Alles dazu steht auf einer eigenen Seite: [parallelslalom.md](parallelslalom.md).
+
+- Startplan des Vorlaufs mit Racecourse A und B, Dummys bei ungerader Zahl, Runden danach (Halbfinale, Kleines Finale,
+  Finale) und Re-run; die Wertung legt nur aus, wo Regel 960 schweigt (`PARALLEL_ANNAHMEN`, bestätigt 24.11.2026).
+- **Einzelwertung:** je Klasse und Disziplin Zeit, Platz und UIM points, dazu die Summe. Bei gleicher Summe entscheidet
+  nach Pkt. 5.2.6 die Zeit – seit 24.11.2026 im Parallelslalom die beiden Attempts der letzten gefahrenen Runde, bei
+  gleicher Zeit dazu die der vorletzten ([Einzelwertung](parallelslalom.md#einzelwertung)).
+
+<a href="bilder/de/parallel-results.png"><img src="bilder/de/parallel-results.png" width="600"
+alt="Results des Vorlaufs im Parallelslalom mit schrägem Qualified"></a>
 
 ## Beispieldaten
 
-Die Beispieldaten (Starterfeld und Beispielwerte) stehen am Ende von „Veranstaltung“.
-Der Block ist zugeklappt, solange nicht mit Beispieldaten gearbeitet wird.
-Alle Namen sind erfunden.
+Die Beispieldaten stehen am Ende von „Veranstaltung“ (`src/components/BeispieldatenPanel.vue`), zugeklappt, solange
+nicht mit ihnen gearbeitet wird. Alle Namen sind erfunden.
 
 **Beispiel-Starterfeld:**
 
-- Eine **Gesamtzahl** als Vorschlag (21.11.2026), gezogen nach der Art der Veranstaltung
-  (`BEISPIEL_STARTERZAHL` in `src/domain/generate.ts`): Clubmeisterschaft 10–20, Meisterschaft mit Vereinen
-  (oder ohne Herkunft) 45–75, nach Bundesländern oder Ländern 100–160.
-  „Vorschlag neu“ zieht Gesamtzahl und Klassen neu; mit einer anderen Art wird neu gezogen.
-- Die Zahl je Klasse ist ein eigenes Feld (0–999, R6-02): z. B. eine Klasse auf 0, eine andere höher. Daneben steht
-  die Summe („zusammen n (Vorschlag m)“); eine neue Gesamtzahl verteilt neu (Zahlen von Hand gehen dann).
-- Bei der Clubmeisterschaft – einer Meisterschaft ohne Vereine – bekommen die Beispielstarter keine Herkunft
-  (R6-01, `beispielHerkunft`), auch wenn oben eine gewählt ist.
-- Die Starter verteilen sich nach festen Anteilen auf die Klassen (`BEISPIEL_KLASSEN_ANTEILE`:
-  E 4 %, 1 9 %, 2 13 %, 3 15 %, 4 15 %, 5 18 %, 6 11 %, 7 15 % – Anteile aus drei Starterlisten 2025/2026,
-  ohne Daten daraus), gerundet nach den größten Resten; kleine Felder dürfen in E keinen haben.
-  Unter UIM dieselben Anteile auf E (Dolphin) bis 5.
-- Es kennt „Herkünfte“ (leer = unbegrenzt).
-  Mit einer Zahl verteilen sich die Starter reihum auf so viele Herkünfte
-  (`beispielHerkuenfte` in `src/domain/generate.ts`) – zum Prüfen der Mannschaftswertung.
-- Welche Art, folgt der Herkunft der Veranstaltung – **unabhängig vom Regelwerk** (Entscheidung vom 15.11.2026):
-  Verein → Vereine, Bundesland → Bundesländer, Land → Länder, ohne → Starter ohne Herkunft
-  (das Feld „Herkünfte“ ist dann gesperrt).
-  Die Einstellung der Veranstaltung bleibt, wie gewählt.
-- Die Länder stehen mit englischem Namen da (`LAENDER` in `src/domain/generate.ts`: Germany, Austria, Lithuania …).
-  Ihr Kürzel ist in beiden Regelwerken das des IOC
-  (LTU, GER – siehe „Kürzel der Länder“ unter [Herkunft und Flaggen](#herkunft-und-flaggen)).
-- Ein Geschlecht bekommen Beispielstarter nur unter einem Regelwerk mit Parallelslalom (für die Liste nach Pkt. 3.7),
-  unter der DM nicht.
+- Eine **Gesamtzahl** als Vorschlag nach der Art der Veranstaltung (21.11.2026, `BEISPIEL_STARTERZAHL` in
+  `src/domain/generate.ts`): Clubmeisterschaft 10–20, Meisterschaft mit Vereinen oder ohne Herkunft 45–75, nach
+  Bundesländern oder Ländern 100–160. „Vorschlag neu“ zieht neu.
+- Die Zahl je Klasse ist ein eigenes Feld (0–999); daneben die Summe. Von Hand gesetzte Zahlen bleiben bei einer
+  neuen Gesamtzahl; „Zurücksetzen“ vergisst sie, „Vorschlag neu“ ersetzt alles. Verteilt wird nach festen Anteilen
+  (`BEISPIEL_KLASSEN_ANTEILE`: E 4 %, 1 9 %, 2 13 %, 3 15 %, 4 15 %, 5 18 %, 6 11 %, 7 15 % – aus drei Starterlisten
+  2025/2026, ohne Daten daraus); unter UIM dieselben Anteile auf E bis 5.
+- Die Herkunft folgt der Veranstaltung, **unabhängig vom Regelwerk** (15.11.2026): Vereine, Bundesländer, Länder
+  (englische Namen, Kürzel nach IOC) oder ohne; die Clubmeisterschaft bekommt keine. „Herkünfte“ begrenzt ihre Zahl –
+  zum Prüfen der Mannschaftswertung.
+- Ein Geschlecht bekommen Beispielstarter nur unter einem Regelwerk mit Parallelslalom (für die Liste nach Pkt. 3.7).
 
-**Beispielwerte:** Was gefüllt wird, ist eine Auswahl (`components/BeispieldatenPanel.vue`).
+**Beispielwerte:** eine Auswahl – das Manövrieren bis Lauf n oder eine Runde des Parallelslaloms (erst wählbar, wenn
+ihr Startplan festgeschrieben ist).
 
-- Das Manövrieren (bis Lauf n) oder eine einzelne Runde des Parallelslaloms:
-  Vorlauf, Halbfinale, Kleines Finale, Finale (seit 21.11.2026 getrennte Runden), Re-run.
-  Eine Runde ist erst wählbar, wenn ihr Startplan festgeschrieben ist.
-- „Beispielwerte einfügen“ füllt nur das Gewählte
-  (Action `FILL_BEISPIELWERTE` mit `laeufe` bzw. `runden` und `nurRunden`;
-  in den Runden nach dem Vorlauf mit `nurLeere` nur leere Attempts).
-- „Werte des Gewählten löschen“ löscht nur dessen Werte (`CLEAR_EINGABEN_TEIL`).
-  Festgeschriebene Pläne bleiben; Abgemeldete bekommen ihr X zurück.
-  Bleibt nichts übrig, wirkt es wie „Alle erfassten Werte löschen“
-  – bei freigegebener Verzahnung samt Plan des Vorlaufs.
-- „Alle erfassten Werte löschen“ bleibt.
-- Abgemeldete bekommen keine Beispielwerte.
-- Die Werte folgen gerundeten Kennzahlen je Klasse, ohne einzelne Ergebnisse;
-  der Unterschied zwischen Racecourse A und B bleibt.
-- Die Gesamtzahl der Starter, die Herkünfte und die Wahl bei den Beispielwerten bleiben wie andere Ansichtswahlen
-  über das Neuladen stehen (`merke` mit `ueberNeuladen` in `src/lib/merken.ts`).
+- „Beispielwerte einfügen“ füllt nur das Gewählte, in den Runden nach dem Vorlauf nur leere Attempts.
+- „Werte des Gewählten löschen“ löscht nur dessen Werte; Abgemeldete bekommen ihr X zurück. „Alle erfassten Werte
+  löschen“ bleibt.
+- Abgemeldete bekommen keine Beispielwerte. Die Werte folgen gerundeten Kennzahlen je Klasse, ohne einzelne Ergebnisse.
 
-**Beispiel-Besetzung** und **Beispielgewichte** haben je einen eigenen Knopf
-(`src/lib/beispieldaten.ts`, Actions `FILL_BEISPIEL_BESETZUNG` und `FILL_BEISPIELGEWICHTE`,
-deterministisch über `saat`).
+**Beispiel-Besetzung, -Gewichte, -Boote und -Co-Piloten** haben je einen eigenen Knopf (`src/lib/beispieldaten.ts`,
+deterministisch über `saat`; seit 21.11.2026 nur hier):
 
-- Die Besetzung füllt jede gedruckte Liste der WKR-Einteilung je Parcours (unter UIM auch je Racecourse)
-  mit zwei bis drei erfundenen Personen, durch Komma getrennt.
-  Höchstens 40 Zeichen, damit der Eintrag im Bogenkopf auf einer Zeile bleibt
-  (sonst abgekürzte Vornamen, notfalls zwei Personen).
-  Die Namen stehen wie echte in der Sicherung, nie in der Vorlage.
-- Die Gewichte liegen um das Durchschnittsgewicht der Klasse (Regelwerk oder Wert der Veranstaltung).
-  40 % je Klasse sind leichter, damit Ausgleichsgewichte entstehen; auf 0,1 kg wie in der Verwiegung.
-- Stehen schon Namen bzw. Gewichte da, fragt die App vor dem Ersetzen.
-  Beide bekommen einen eigenen Eintrag im Verlauf.
-
-**Beispiel-Boote** und **Beispiel-Co-Piloten** (19.11.2026) stehen nur hier neben der Beispiel-Besetzung
-(seit 21.11.2026 nicht mehr auch im Block „Besetzung“) (`src/lib/beispielBoote.ts`, Actions `FILL_BEISPIEL_BOOTE` und
-`FILL_BEISPIEL_CO_PILOTEN`, deterministisch über `saat`).
-
-- Jede Klasse der Veranstaltung bekommt einen erfundenen Bootsnamen (`src/data/boote.ts`), keinen doppelt.
-- Co-Piloten nur in den Klassen, in denen das Regelwerk einen vorsieht – je Klasse eine erfundene Person.
-- Steht schon etwas da, fragt die App vor dem Ersetzen; Angaben anderer Klassen bleiben.
-  Beide bekommen einen eigenen Eintrag im Verlauf.
+- Die Besetzung füllt jede gedruckte Liste der WKR-Einteilung je Parcours mit zwei bis drei erfundenen Personen,
+  höchstens 40 Zeichen, damit der Eintrag im Bogenkopf auf eine Zeile passt.
+- Die Gewichte liegen um das Durchschnittsgewicht der Klasse; 40 % sind mindestens eine halbe Stufe leichter, damit
+  Ausgleichsgewichte entstehen.
+- Jede Klasse bekommt einen erfundenen Bootsnamen (`src/data/boote.ts`), Co-Piloten nur, wo das Regelwerk sie vorsieht.
+- Steht schon etwas da, fragt die App vor dem Ersetzen. Jeder Knopf bekommt einen eigenen Eintrag im Verlauf.

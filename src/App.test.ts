@@ -6,6 +6,7 @@ import { createStore, storeKey } from './state/store'
 import { setLocale } from './i18n'
 import { generateStarters } from './domain/generate'
 import { VIEWS } from './lib/router'
+import { GITHUB_URL } from './lib/build'
 
 async function show(view: string) {
   location.hash = `#/${view}`
@@ -139,6 +140,26 @@ describe('App', () => {
     await show('verzahnung')
     expect(wrapper.find('.subnav').exists()).toBe(false)
     expect(wrapper.text()).toContain('Verzahnung der Parcours')
+    wrapper.unmount()
+  })
+
+  // Wunsch 24.11.2026: Verweis auf die GitHub-Seite; englische Oberfläche → gleich die englische README.
+  it('verweist in der Fußzeile auf die Anleitung auf GitHub, je nach Sprache der Oberfläche', async () => {
+    localStorage.clear()
+    setLocale('de')
+    await nextTick()
+    const wrapper = mount(App, { global: { provide: { [storeKey as symbol]: createStore() } } })
+    const link = () => wrapper.find('.version-footer a[data-anleitung]')
+    expect(link().text()).toBe('Anleitung auf GitHub')
+    expect(link().attributes('href')).toBe(`${GITHUB_URL}#readme`)
+    expect(link().attributes('target')).toBe('_blank')
+    expect(link().attributes('rel')).toContain('noopener')
+
+    setLocale('en')
+    await nextTick()
+    expect(link().text()).toBe('Guide on GitHub')
+    expect(link().attributes('href')).toBe(`${GITHUB_URL}/blob/master/README.en.md`)
+    setLocale('de')
     wrapper.unmount()
   })
 

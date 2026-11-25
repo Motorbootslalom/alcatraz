@@ -4279,7 +4279,8 @@ table.starters th .sortier-kopf.aktiv {
   background: var(--muted);
 }
 
-.offline-stand {
+.offline-stand,
+.anleitung-link {
   color: inherit;
   white-space: nowrap;
 }

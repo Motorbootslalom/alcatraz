@@ -344,8 +344,8 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   -Boote, -Co-Piloten; confirm vor dem Ersetzen), BesetzungPanel (ohne Beispiel-Knöpfe), EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
   AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
   HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop,
-  ParcoursNachweis, FremdeBestandteile (Lizenzvermerke: Flaggen mit MIT-Text, tweetnacl, Parcours; neues Paket in
-  `dependencies` → hier nennen, Test FremdeBestandteile.test.ts).
+  ParcoursNachweis, FremdeBestandteile (Lizenzvermerke: Alcatraz selbst mit Repository-Link, Flaggen mit MIT-Text,
+  tweetnacl, Parcours; neues Paket in `dependencies` → hier nennen, Test FremdeBestandteile.test.ts).
 
 ## Abläufe
 

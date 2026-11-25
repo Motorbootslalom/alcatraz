@@ -1,3 +1,5 @@
+Deutsch · [English](en/parallelslalom.md)
+
 # Parallelslalom und Einzelwertung (Regel 960)
 
 Was Alcatraz unter UIM Regel 960 „Formula Future“ für den Parallelslalom und die Wertung über beide Stages kann.
@@ -15,8 +17,10 @@ Warum etwas so ist, steht mit Datum in [entscheidungen.md](entscheidungen.md).
 - [Startliste je Racecourse](#startliste-je-racecourse)
 - [Wertung des Vorlaufs](#wertung-des-vorlaufs)
 - [Runden nach dem Vorlauf](#runden-nach-dem-vorlauf)
+  - [Annahmen](#annahmen)
 - [Abmelden](#abmelden)
 - [Betrieb: Start-Freigabe und Anzeigetafel](#betrieb-start-freigabe-und-anzeigetafel)
+  - [WKR-Erfassung am Gerät](#wkr-erfassung-am-gerät)
 - [Dummys und Wörter](#dummys-und-wörter)
 - [Einzelwertung](#einzelwertung)
   - [Disziplin nicht werten](#disziplin-nicht-werten)
@@ -28,10 +32,13 @@ Warum etwas so ist, steht mit Datum in [entscheidungen.md](entscheidungen.md).
 Alcatraz rechnet den Startplan des Vorlaufs
 (`src/planung/parallel.ts`, `src/planung/parallelRunden.ts`, Ansicht „Verzahnung → Parallel-Slalom“).
 Dazu je Klasse Halbfinale, Kleines Finale, Finale und Wiederholung (Re-run) bis zum Gesamtergebnis der Stage.
-Jede Runde ist in sich geschlossen (seit 21.11.2026 auch die beiden Finals): eigener Plan, WKR-Listen, Laufzettel,
-Startliste, Erfassung, Wertungslisten und ein eigener Punkt im Betrieb.
+Jede Runde ist in sich geschlossen (seit 21.11.2026 auch Kleines Finale und Finale getrennt): eigener Plan,
+WKR-Listen, Laufzettel, Startliste, Erfassung, Wertungslisten und ein eigener Punkt im Betrieb, der für sich
+begonnen wird.
 Daraus entstehen die Einzelwertung über beide Stages und die Mannschaftswertung UIM aus den Punkten beider Stages
 (siehe [Einzelwertung](#einzelwertung)).
+Wo Regel 960 schweigt, legt Alcatraz an einer Stelle aus (`PARALLEL_ANNAHMEN`); der Nutzer hat diese Annahmen am
+24.11.2026 alle bestätigt (siehe [Annahmen](#annahmen)).
 Den Parallelslalom gibt es nur unter einem Regelwerk mit der Disziplin `parallel` (Regel 960), also bis Klasse 5.
 Der frühere Zustand `parallelInternational` (nationaler Parallelslalom) ist entfallen; alte Sicherungen laden weiter.
 
@@ -136,7 +143,7 @@ Der frühere Zustand `parallelInternational` (nationaler Parallelslalom) ist ent
   Laufzettel-Kästchen und QR-Seitennummern folgen von selbst, weil die Zahl der Seiten gleich bleibt.
 - „Starter je Seite“ und „Teilen ab“ gelten als Obergrenze, abgerundet auf Blockenden (`gruppenKapazitaet`).
 - Gemessen (Chromium, A4 hoch, Beschreibung vorn): Zeit 32–34 Starts je Seite, Steg 24, Fahrweg 28–30;
-  zweisprachig Zeit 32, Steg 16–18, Fahrweg 24–26.
+  zweisprachig Zeit 32, Steg 16–18, Fahrweg 24–26 (mit der Zeichnung seit 23.11.2026 zwei Zeilen weniger, s. o.).
 - Listen-Option „jede zweite Zeile grau“ (`parallelZebra`): **Vorgabe an** (Entscheidung vom 15.11.2026),
   abschaltbar, in Sicherung und Vorlage.
   Die Zeile eines Dummys bleibt schraffiert und hebt sich mit kräftigerer Schraffur und kursivem „Dummy“ davon ab.
@@ -166,10 +173,9 @@ Der Laufzettel nennt seinen Racecourse und öffnet nur dessen Listen.
 - Ist oben ein Racecourse gewählt, erscheint unten nichts vom anderen – weder in den Reitern noch unter
   „alle untereinander“ (Entscheidung vom 15.11.2026).
   Der Laufzettel eines Racecourse öffnet nur dessen drei Listen.
-- Im Kopf der Erfassungstabelle trägt auch die letzte Unter-Spalte der zweiten Kopfzeile ihre senkrechte Linie,
-  z. B. „R“ unter „Ziel“ vor „Disq.“ (Start und Ziel haben je zwei Zellen „L“ und „R“).
-  Vorher fehlte sie, weil die Regel „rechts außen keine Linie“ auch dort griff (`styles/erfassung.css`).
-  Auf den gedruckten Bögen war sie schon da.
+- Start und Ziel haben je zwei Zellen „L“ und „R“. Im Kopf der Erfassungstabelle trägt auch die letzte
+  Unter-Spalte ihre senkrechte Linie, z. B. „R“ unter „Ziel“ vor „Disq.“ – wie auf dem gedruckten Bogen
+  (`styles/erfassung.css`).
 - Gespeichert wird je Starter-ID und Attempt unter dem Lauf-Schlüssel `parallel:pre/1` bzw. `/2`
   (`src/lib/parallelSchluessel.ts`).
   Der Racecourse steht nicht im Schlüssel; er folgt aus dem Plan (der frühere Start ist der 1. Attempt).
@@ -203,7 +209,7 @@ Entscheidung vom 15.11.2026.
 Unter „Listen → Starterlisten“ gibt es unter Regel 960 die Art „Parallel-Slalom“.
 Je festgeschriebener Runde (Auswahl „Runde“) entweder die gemeinsame Startliste (A und B nebeneinander,
 wie in der Druckdatei) oder je Racecourse eine eigene zum Aushang am jeweiligen Parcours.
-Auswahl „Parcours“: nebeneinander, nur A, nur B, je Parcours eine eigene Liste.
+Auswahl „Parcours“: „A und B nebeneinander“, „nur Parcours A“, „nur Parcours B“, „je Parcours eine eigene Liste“.
 
 - Die Liste eines Racecourse hat die Spalten Start, Attempt, Klasse, Nr., Name, Vorname, Herkunft.
 - Die Start-Nummern sind die der gemeinsamen Liste und der Listen der race officials.
@@ -234,7 +240,8 @@ Ohne sie rechnet es wie bisher: Die Wertung des Manövrierens unter DM und UIM i
 
 - Es zählt die Summe beider Attempts mit Strafsekunden.
   Bei gleicher Summe entscheidet der bessere Einzelversuch (Pkt. 5.2.6), sonst ist der Platz geteilt.
-- Ein disqualifizierter Attempt (auch X „Nicht gestartet“) disqualifiziert für die ganze Runde.
+- Ein disqualifizierter Attempt (auch X „Nicht gestartet“) disqualifiziert für den ganzen Parallelslalom
+  (Pkt. 5.2.2 „disqualified from the whole stage“).
 - Gewertet wird, wer im festgeschriebenen Plan steht; der Racecourse je Attempt kommt aus dem Plan.
 - Annahmen (im Code gekennzeichnet):
   - Offene stehen wie im Manövrieren ohne Ergebnis auf Platz 1.
@@ -270,14 +277,17 @@ Ohne sie rechnet es wie bisher: Die Wertung des Manövrierens unter DM und UIM i
   Trotzdem „nach Platz“ sortiert: beste Zeit zuerst, Disqualifizierte am Ende, in beiden Ansichten.
 - Dazu das Result (`ErgebnisGesamtBlatt.vue` mit `runde`): je Attempt Racecourse, Time, Pen., „Time incl. pen.“,
   dann „Combined time“ und „UIM points“.
-- Die Ansicht „nach Attempt / nach Racecourse“ teilt die Liste der Attempts in „1st/2nd attempt“ mit der Spalte
-  Racecourse oder in „Racecourse A/B“ mit der Spalte Attempt.
+- Die „Ansicht der Versuche“ („nach Versuch“ / „nach Parcours“) teilt die Liste der Attempts in „1st/2nd attempt“
+  mit der Spalte Racecourse oder in „Racecourse A/B“ mit der Spalte Attempt.
   Gemerkt wie die Fassung (`lib/merken.ts`), ohne einen Wert oder Zeitstempel zu ändern.
 - Zeitstempel der letzten Änderung (`listenStand` unter `parallel:pre/<klasse>/<attempt>` und `…/gesamt`).
   Beide Listen tragen den jüngsten der Klasse in der Runde.
 - Fuß mit O.O.D. und „Time of posting“, eigene Seitenteilung und „doppelseitig drucken“
   wie bei den übrigen Wertungslisten.
 - Die Druckdatei hat dafür den Teil „Wertungslisten Parallel-Slalom“ hinter denen des Manövrierens.
+
+<a href="bilder/de/parallel-results.png"><img src="bilder/de/parallel-results.png" width="600"
+alt="Results des Vorlaufs einer Klasse mit „Qualified“ schräg in einer Zelle"></a>
 
 ## Runden nach dem Vorlauf
 
@@ -304,11 +314,15 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
 - **Kleines Finale und Finale** (21.11.2026, Nutzer: „Kleines und großes Finale ist getrennt, wie Vorlauf und
   Halbfinale. Das sind 4 in sich geschlossene Listen/Auswertungen.“): Nach dem Halbfinale stehen beide an, je Klasse
   mit eigenem Knopf und in beliebiger Folge festzuschreiben. Beide lassen sich löschen; das Halbfinale erst, wenn
-  keines der beiden mehr festgeschrieben ist. Ohne Kleines Finale (Halbfinale mit Dummy, nur 2 Gewertete) entfällt
-  die Runde für die Klasse. Woran eine unfertige Klasse hängt (Hinweise der Druckdatei, Einzelwertung), nennt von
-  den Finals das erste nicht fertige – das Kleine Finale, solange es nicht gefahren ist, auch wenn das Finale schon
-  festgeschrieben werden kann (`offeneRunde`, 21.11.2026). „Wird erfasst“ unter der Klasse steht nur, solange nichts
-  festzuschreiben ist.
+  keines der beiden mehr festgeschrieben ist. Ohne Kleines Finale (Halbfinale mit Dummy oder nur 2 Gewertete, siehe
+  [Annahmen](#annahmen)) entfällt die Runde für die Klasse. Gefahren wird das Kleine Finale zuerst (Entscheidung vom
+  15.11.2026); im Betrieb wird jede der beiden Runden für sich begonnen
+  (siehe [Betrieb](#betrieb-start-freigabe-und-anzeigetafel)).
+  Woran eine unfertige Klasse hängt (Hinweise der Druckdatei, Einzel- und Mannschaftswertung), nennt von den Finals
+  das erste nicht fertige – das Kleine Finale, solange es nicht gefahren ist, auch wenn das Finale schon
+  festgeschrieben werden kann (`offeneRunde`; beim Bau ausgelegt 21.11.2026, noch zu bestätigen). Der Hinweis
+  „… Erst wenn jeder beide Versuche gefahren oder disqualifiziert ist, geht es weiter“ unter der Klasse steht nur,
+  solange nichts festzuschreiben ist; dass die Runde erfasst wird, steht ohnehin in ihrer Zeile („wird erfasst“).
 - **Verzahnt wie der Vorlauf** (19.11.2026, „Es fährt immer großes Boot/kleines Boot im Wechsel“):
   ein Block ist klein 1. Attempt, groß 1. Attempt, klein 2. Attempt, groß 2. Attempt; ist ein Bootstyp
   aufgebraucht, fährt jedes übrige Paar seine beiden Attempts als 2er-Block. Die Klassen stehen je Bootstyp in
@@ -318,10 +332,11 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
   Klasse, weil er nur selten und für wenige Starter nötig ist.
   Wird eine Klasse einzeln festgeschrieben oder gelöscht, ordnet das die Runde neu, solange darin nichts erfasst,
   sie im Betrieb nicht begonnen und ihre Listen nicht gedruckt sind; danach kommt eine Klasse nur ans Ende, damit
-  nichts Gedrucktes wandert (`PARALLEL_ANNAHMEN.rundenVerzahnen`). Das X, das ein Abgemeldeter beim Festschreiben bekommt, zählt dabei nicht
-  als erfasst. Würde das Festschreiben (je Klasse oder „Alle Klassen weiter“) die Starts anderer Klassen der Runde
-  verschieben, fragt die Ansicht erst nach: Schon gedruckte Listen und Laufzettel passten danach nicht mehr
-  (`rundenNeuGeordnet` in `src/state/reducer/parallel.ts`, wie die Rückfrage beim Löschen).
+  nichts Gedrucktes wandert (`PARALLEL_ANNAHMEN.rundenVerzahnen`, bestätigt 24.11.2026). Das X, das ein Abgemeldeter
+  beim Festschreiben bekommt, zählt dabei nicht als erfasst. Würde das Festschreiben (je Klasse oder „Alle Klassen
+  weiter“) die Starts anderer Klassen der Runde verschieben, fragt die Ansicht erst nach: Schon gedruckte Listen und
+  Laufzettel passten danach nicht mehr (`rundenNeuGeordnet` in `src/state/reducer/parallel.ts`, wie die Rückfrage
+  beim Löschen).
 - **Gedruckte Runden** (20.11.2026, „Ja, auf jeden Fall. Man muss es aber wieder lösen können, wenn später ein Fehler
   auffällt und neu gedruckt werden muss“): Werden unter „Listen“ WKR-Bögen, Laufzettel oder Startlisten einer Runde
   nach dem Vorlauf gedruckt (Knopf oder Strg+P, `beforeprint` in `src/views/ListsView.vue`), vermerkt die Action
@@ -333,14 +348,16 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
   begonnener Lauf binden weiter. Ohne Plan der Runde (gelöscht, „Werte löschen“) fällt der Vermerk weg.
 - Damit gibt es für jede Runde dieselben Listen wie für den Vorlauf:
   WKR-Listen, Laufzettel und QR-Code je Runde, die Runden-Auswahl in der Erfassung,
-  Beispielwerte („Leere Zeilen der Runde füllen“), Wertungslisten (Attempts, Result) mit eigenem Zeitstempel.
+  Beispielwerte (Runde unter „Was gefüllt wird“; „Beispielwerte einfügen“ füllt nach dem Vorlauf nur die Versuche,
+  zu denen noch nichts erfasst ist), Wertungslisten (Attempts, Result) mit eigenem Zeitstempel.
 
 **Halbfinale** (Pkt. 4.4): die besten vier.
 Paare „according to the personal number“: nach Startnummer, die kleinere auf Racecourse A.
 Alle vier werden gemeinsam nach der Summe beider Attempts gereiht.
 
-**Kleines Finale und Finale** (zwei Runden, 21.11.2026): 3. und 4. um Platz 3 und 4 (Kleines Finale, zuerst gefahren),
-1. und 2. um Platz 1 und 2 (Finale). Gewertet wird je Paar; ein Gleichstand bleibt stehen (Pkt. 5.2.6 „dead-heat result“).
+**Kleines Finale und Finale** (zwei Runden, 21.11.2026): 3. und 4. um Platz 3 und 4 (Kleines Finale, zuerst
+gefahren), 1. und 2. um Platz 1 und 2 (Finale). Gewertet wird je Paar; ein Gleichstand bleibt stehen
+(Pkt. 5.2.6 „dead-heat result“).
 
 **Re-run** (Pkt. 5.2.6):
 
@@ -358,10 +375,13 @@ Alle vier werden gemeinsam nach der Summe beider Attempts gereiht.
   (`durchWiederholung` in `src/lib/parallelErgebnis.ts`, `stageDurchWiederholung` in `src/lib/parallelStage.ts`).
   Die Liste der Wiederholung selbst hat keines.
 
-**Festschreiben und Löschen:** von Hand, je Klasse.
-Der Knopf heißt „… löschen“, nicht „lösen“ (Entscheidung vom 15.11.2026: Er löscht die Werte).
+**Festschreiben und Löschen:** von Hand, je Klasse oder mit „Alle Klassen weiter“.
+Der Knopf heißt nach der Runde, z. B. „Halbfinale löschen …“, nicht „lösen“ (Entscheidung vom 15.11.2026: Er löscht
+die Werte).
 
 - Ändert ein Protest das Ergebnis davor, bleibt der Plan, wie er gedruckt ist, und gilt als veraltet (Warnung).
+  Nach einem Protest im Halbfinale nennt die Warnung zuerst das Kleine Finale, weil es zuerst gefahren wird
+  (beim Bau ausgelegt 21.11.2026, noch zu bestätigen).
 - Solange ein Plan der Klasse veraltet ist, hat sie kein Gesamtergebnis der Stage und keine Einzelwertung.
   Wertungslisten und Druckdatei nennen die Klasse mit der Runde
   („Plan passt nicht mehr zum Ergebnis davor: löschen und neu festschreiben“).
@@ -371,21 +391,6 @@ Der Knopf heißt „… löschen“, nicht „lösen“ (Entscheidung vom 15.11.
   Zurück geht es nur über den Verlauf („Parallel-Slalom: Halbfinale gelöscht (Klasse 1)“).
 - „Alle erfassten Werte löschen“ nimmt die Runden nach dem Vorlauf mit.
   Entfällt der Plan des Vorlaufs bei offener Verzahnung, gehen die Pläne und Werte der Runden danach mit.
-
-**Annahmen** zu Fällen, die Regel 960 nicht regelt.
-Der Veranstalter hat sie am 24.11.2026 alle bestätigt („Ja, Ja, Ja, Ja, Ja“); sie sind im Code gekennzeichnet und an
-einer Stelle umstellbar (`PARALLEL_ANNAHMEN` in `src/lib/parallelErgebnis.ts`):
-
-- 3 Gewertete im Vorlauf → Halbfinale mit Dummy; der Dritte hat Platz 3, ein Kleines Finale entfällt für die Klasse.
-- 2 Gewertete → direkt das Finale; 1 Gewerteter → Platz 1 aus dem Vorlauf.
-- Disqualifikation in Halbfinale, Kleinem Finale oder Finale (Pkt. 5.2.2 „ranked last in the relevant heat“):
-  Platz 4 der vier bzw. der hintere Platz des Paars; die Punkte dieses Platzes bleiben.
-  Zwei Disqualifizierte teilen ihn sich.
-- Disqualifikation in einer Wiederholung (zum Vorlauf wie zum Halbfinale): hinterer Platz der Gruppe mit dessen Punkten
-  (zum Vorlauf Entscheidung vom 15.11.2026).
-  Werden alle der Gruppe disqualifiziert, teilen sie sich diesen Platz.
-- Das Kleine Finale wird vor dem Finale gefahren (eigene Runde, im Betrieb ein eigener Punkt davor); jedes Paar fährt seine beiden Attempts im selben Block
-  (bei beiden Bootstypen verzahnt, sonst direkt nacheinander).
 
 **Gesamtergebnis der Stage** (`stageErgebnis`, Blatt `components/ergebnis/ParallelStageBlatt.vue`, „Overall results“):
 
@@ -397,6 +402,27 @@ einer Stelle umstellbar (`PARALLEL_ANNAHMEN` in `src/lib/parallelErgebnis.ts`):
   Bis dahin nennt ein Hinweis die Runde, an der es hängt.
   Das tut auch der Unfertig-Hinweis der Druckdatei, sobald zum Parallelslalom etwas erfasst ist.
 - In der Druckdatei lassen sich Gesamtergebnis und Runden einzeln abwählen.
+
+### Annahmen
+
+Zu Fällen, die Regel 960 nicht regelt. Der Nutzer hat alle am 24.11.2026 bestätigt („Ja, Ja, Ja, Ja, Ja“).
+Sie sind im Code gekennzeichnet und an einer Stelle umstellbar (`PARALLEL_ANNAHMEN` in `src/lib/parallelErgebnis.ts`):
+
+- **Wenige Gewertete** (`halbfinaleAb`, `finaleAb`): 3 Gewertete im Vorlauf → Halbfinale mit Dummy; der Dritte hat
+  Platz 3, ein Kleines Finale entfällt für die Klasse. 2 Gewertete → direkt das Finale; 1 Gewerteter → Platz 1 aus
+  dem Vorlauf.
+- **Disqualifikation in Halbfinale, Kleinem Finale oder Finale** (`disqImHeatBehaeltPunkte`; Pkt. 5.2.2 „ranked last
+  in the relevant heat“): Platz 4 der vier bzw. der hintere Platz des Paars; die Punkte dieses Platzes bleiben.
+  Zwei Disqualifizierte teilen ihn sich.
+- **Disqualifikation in einer Wiederholung** (zum Vorlauf `disqInWiederholungDesVorlaufs: 'heat'`, zum Halbfinale
+  ebenso): hinterer Platz der Gruppe mit dessen Punkten (zum Vorlauf Entscheidung vom 15.11.2026).
+  Werden alle der Gruppe disqualifiziert, teilen sie sich diesen Platz; den Fall löst die App nicht eigens, es
+  entscheidet der O.O.D. vor Ort (Entscheidung vom 15.11.2026).
+- **Verzahnung der Runden nach dem Vorlauf** (`rundenVerzahnen`): klein und groß im Wechsel wie im Vorlauf; neu
+  geordnet wird nur, solange nichts erfasst, begonnen oder gedruckt ist (siehe
+  [Runden nach dem Vorlauf](#runden-nach-dem-vorlauf)).
+- **Beide Finals auf einmal bei „Alle Klassen weiter“** (`finalsZusammen`): nach dem Halbfinale Kleines Finale und
+  Finale in einem Schritt; die Knöpfe je Klasse bleiben getrennt.
 
 ## Abmelden
 
@@ -412,38 +438,45 @@ Wer nach Wettkampfbeginn als „nicht gestartet“ eingetragen wird, bekommt das
 - Das X einer Abmeldung macht eine Disziplin nicht zur „gefahrenen“
   (`disziplinGefahren` in `src/lib/disziplinen.ts` übergeht Zeilen Abgemeldeter, in denen nur das X steht).
   Wer nur das Manövrieren fährt und danach jemanden abmeldet, behält seine Einzelwertung.
+- Ein X vom WKR-Gerät („Mehr → Nicht gestartet · Disq. X“, 24.11.2026) ist keine Abmeldung: Es steht nur in diesem
+  Attempt und wirkt dort wie jedes X (siehe [WKR-Erfassung am Gerät](#wkr-erfassung-am-gerät)).
 
 ## Betrieb: Start-Freigabe und Anzeigetafel
 
 Etappe E4 des Plans zur Übernahme der Tafel (16.11.2026); das Allgemeine steht in
-[funktionen.md](funktionen.md#betrieb-start-freigabe-und-anzeigetafel). Unter DM gibt es den Bereich nicht.
-Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts`) und sind, wo nicht anders vermerkt,
-noch zu bestätigen.
+[funktionen.md](funktionen.md#betrieb-start-freigabe-und-anzeigetafel), der Gerätebetrieb in
+[betrieb.md](betrieb.md#gerätebetrieb). Unter DM gibt es den Bereich nicht.
+Die Auslegungen stehen mit Datum in `BETRIEB_ANNAHMEN` (`src/betrieb/annahmen.ts`). Die Grundzüge des Plans hat der
+Nutzer am 16.11.2026 bestätigt; was beim Bau und bei der Prüfung von E4 dazukam, ist noch zu bestätigen, soweit es
+hier nicht als bestätigt vermerkt ist.
 
-- **Bereich „Parallel slalom“** (`parallel`) hinter den Parcours, sobald jemand in einer Klasse bis 5 fährt
-  oder eine Runde festgeschrieben ist (`src/betrieb/folge.ts`).
+- **Bereich „Parallel-Slalom“** (`parallel`, auf der englischen Anzeigetafel „Parallel slalom“) hinter den Parcours,
+  sobald jemand in einer Klasse bis 5 fährt oder eine Runde festgeschrieben ist (`src/betrieb/folge.ts`).
 - **Punkte sind die festgeschriebenen Runden**, in der Folge, in der sie gefahren werden: Vorlauf, seine
-  Wiederholungen, Halbfinale, dessen Wiederholungen, Kleines Finale, Finale. Eine Runde ohne festgeschriebenen Plan steht nicht im
-  Programm. Ein Re-run, der erst nach dem Halbfinale festgeschrieben wird, ordnet sich davor ein und wartet als
-  nicht begonnene Runde („Vorlauf – Wiederholung beginnen“). Das Kleine Finale ist seit 21.11.2026 ein eigener
-  Punkt (`runde:small`) vor dem Finale (`runde:final`); nach dem Kleinen Finale wird „Finale beginnen“ gedrückt wie
-  bei jedem Punkt (`BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`, bestätigt am 24.11.2026: „Beim Parallel sind die
-  einzelnen Stufen einzeln mit beginnen freizuschalten.“). Die Anzeigetafel zeigt „Small final ·
-  Attempt 1“ bzw. „Final · Attempt 1“ (Sicht-Fassung 6: `SichtPaar` ohne `finale`).
-- **Die Runden laufen je Klasse für sich** (Halbfinale, Finals und Re-runs werden je Klasse festgeschrieben; Prüfung
-  von E4, 16.11.2026, noch zu bestätigen): „Nachzuholen“ ist ein Start nur, wenn hinter ihm schon ein Start derselben
-  Runde gezeigt ist. Ein Re-run, der festgeschrieben wird, während das Halbfinale läuft, kommt nach „Re-run beginnen“
-  also dran; das Halbfinale einer Klasse, das erst während der Finals einer anderen festgeschrieben wird, ist sofort
-  freigegeben. Gefahren wird in der Folge der Runden, aber ein Paar im Boot fährt erst seinen anderen Attempt. Als
-  laufende Runde nennen Tafel und Zuschauerliste die des nächsten Starts.
-- Betrieb ist möglich, sobald eine Runde festgeschrieben ist – unabhängig von der Sperre der Verzahnung.
+  Wiederholungen, Halbfinale, dessen Wiederholungen, Kleines Finale, Finale. Eine Runde ohne festgeschriebenen Plan
+  steht nicht im Programm. Ein Re-run, der erst nach dem Halbfinale festgeschrieben wird, ordnet sich davor ein und
+  wartet als nicht begonnene Runde („Vorlauf – Wiederholung beginnen“).
+- **Jede Runde wird für sich begonnen** – bestätigt am 24.11.2026: „Beim Parallel sind die einzelnen Stufen einzeln
+  mit beginnen freizuschalten.“ (`BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`). Nichts schließt von selbst an, auch das
+  Finale nicht an das Kleine Finale: Das Kleine Finale ist seit 21.11.2026 ein eigener Punkt (`runde:small`) vor dem
+  Finale (`runde:final`), danach wird „Finale beginnen“ gedrückt. Die Anzeigetafel zeigt „Small final · Attempt 1“
+  bzw. „Final · Attempt 1“ (Sicht-Fassung 6).
+- Betrieb ist möglich, sobald eine Runde festgeschrieben ist – unabhängig von der Sperre der Verzahnung (noch zu
+  bestätigen; die Antwort vom 24.11.2026 betrifft nur das Beginnen).
+- **Die Runden laufen je Klasse für sich** (Halbfinale, Finals und Re-runs werden je Klasse festgeschrieben;
+  `parallelRundenFuerSich`, noch zu bestätigen): „Nachzuholen“ ist ein Start nur, wenn hinter ihm schon ein Start
+  derselben Runde gezeigt ist. Ein Re-run, der festgeschrieben wird, während das Halbfinale läuft, kommt nach
+  „… – Wiederholung beginnen“ also dran; das Halbfinale einer Klasse, das erst während der Finals einer anderen
+  festgeschrieben wird, ist sofort freigegeben. Gefahren wird in der Folge der Runden, aber ein Paar im Boot fährt
+  erst seinen anderen Attempt. Als laufende Runde nennen Tafel und Zuschauerliste die des nächsten Starts.
 - **Starts sind die Paare des Plans**, in seiner Reihenfolge – dieselbe wie auf den Listen der race officials.
   Die Kennung eines Starts bilden Runde, Attempt und die gespeicherten IDs auf A und B (`parallelPlaene[runde].starts`),
   nie die aufgelösten Paare: Wird ein Starter gelöscht, bleibt ein schon gezeigter Start derselbe und taucht nicht
   wieder als offen auf (Kritik K8).
   Seit 19.11.2026 sind auch Halbfinale, Finals und Re-runs verzahnt (klein/groß im Wechsel); Start-Freigabe,
   Anzeigetafel und Zuschauerliste übernehmen diese Folge ohne eigene Regel. Ein gezielt gezeigtes Paar nimmt seinen
-  2. Attempt dann nicht mit – dazwischen fährt der andere Bootstyp, wie im Vorlauf (`planPartner`).
+  anderen Attempt nur mit, wenn er im Plan direkt dahinter steht (2er-Block eines Bootstyps); sonst fährt dazwischen
+  der andere Bootstyp, und die Folge des Plans bleibt (`planPartner` in `src/betrieb/schritte.ts`).
 - **Leere Seite:** Steht auf einer Seite ein Dummy, ein gelöschter Starter oder ein X „nicht gestartet“ in diesem
   Attempt, zeigt die Anzeigetafel sie leer („–“); der Gegner fährt – so fährt ein Halbfinale mit einer abgemeldeten
   Seite. Der Start entfällt erst, wenn auf keiner Seite jemand fährt (beide gelöscht, beide X, Dummy gegen X).
@@ -458,34 +491,65 @@ noch zu bestätigen.
   Nummer und Angaben je Seite nebeneinander, wenn die Tafel breit genug ist (Querformat), hochkant untereinander; was
   nicht passt, wird gemeinsam kleiner. „Davor“ nennt die beiden Nummern in der Folge der Seiten auf der Tafel. Die
   Lage steht in der Sicht (auch für entfernte Anzeigetafeln), nicht in der Zuschauerliste; Start-Freigabe, Startliste
-  und Zuschauerliste bleiben bei A vor B (`BETRIEB_ANNAHMEN.parallelAnordnungNurTafel`). Englisch nach dem
-  Rulebook, deutsch als Einstellung („Vorlauf · 2. Versuch“, „Parcours A“). Die gemeinsame Tafel nimmt den
-  Parallelslalom von selbst erst dazu, wenn eine Runde begonnen ist; „Eigene Anzeigetafel“ öffnet `#/anzeige/parallel`.
+  und Zuschauerliste bleiben bei A vor B (`BETRIEB_ANNAHMEN.parallelAnordnungNurTafel`, beim Bau ausgelegt, noch zu
+  bestätigen). Englisch nach dem Rulebook, deutsch als Einstellung („Vorlauf · 2. Versuch“, „Parcours A“). Die
+  gemeinsame Tafel nimmt den Parallelslalom von selbst erst dazu, wenn eine Runde begonnen ist; „Eigene Anzeigetafel“
+  öffnet `#/anzeige/parallel`.
 - **Start-Freigabe:** „Vorlauf beginnen“ (bzw. die nächste Runde), „Nächster Start“, „Zurück“, Meldung,
   „Anderen Starter wählen“ (die Suche findet ein Paar über beide Nummern), „Einsteigen ab …“ Runde und Klasse.
   Zurückstellen nimmt das ganze Paar – seine offenen Attempts der Runde –, Einreihen und gezieltes Zeigen holen die
-  wartenden Attempts des Paares in ihrer Folge mit, gezieltes Zeigen nach dem Vorlauf auch den direkt folgenden (im
-  Vorlauf wechseln dazwischen die Bootstypen, dort bleibt der Plan); „Als Nächster“ und gezielt Gezeigtes kommen hinter
-  das zuletzt Gezeigte ihrer Runde, „Ans Ende der Runde“ ans Ende ihrer Runde, nie in eine spätere. Klassen aussetzen oder vorziehen und Starts verschieben gibt es
-  hier nicht: Der Plan gibt die Folge vor (Paare, Blöcke im Wechsel der Bootstypen, Tausch zum 2. Attempt); die
-  Karte sagt das statt „Klassen · Boot fehlt“.
+  wartenden Attempts des Paares in ihrer Folge mit, gezieltes Zeigen auch den im Plan direkt folgenden (siehe oben);
+  „Als Nächster“ und gezielt Gezeigtes kommen hinter das zuletzt Gezeigte ihrer Runde, „Ans Ende der Runde“ ans Ende
+  ihrer Runde, nie in eine spätere. Klassen aussetzen oder vorziehen und Starts verschieben gibt es hier nicht: Der
+  Plan gibt die Folge vor (Paare, Blöcke im Wechsel der Bootstypen, Tausch zum 2. Attempt); die Karte sagt das statt
+  „Klassen · Boot fehlt“.
 - **Startliste und Zuschauerliste:** je Zeile bzw. Karte ein Paar mit Racecourse A und B; „am Steg“ und „vor Steg“
   wie im Manövrieren, aber **ohne geschätzte Wartezeit**: Paarstarts werden nicht gemessen – ihr Takt (zwei Boote
   zugleich, kurzer Racecourse, Tausch zum 2. Attempt) verzerrte die Abstände der Klassen fürs Manövrieren, und eine
-  eigene Vorgabe gibt es nicht. In der Startliste wird nicht gezogen.
-- **WKR-Gerät, Maske „Bild“** (R8-19, umgebaut 22.11.2026; seit 23.11.2026 nach R9-05 bis R9-07 eine Bahn,
-  WKR_ANNAHMEN BD3, BD8–BD10): Die Racecourse-Liste zeigt die Parallelslalom-Zeichnung des Parcours-Repos in der
-  Ausgabe „eine Bahn ohne Steg“ (`dist/parallel/alcatraz_Parcours`, per `npm run parcours:sync` als
-  `src/assets/parcours/Parallel.svg`, 13 KB, Namensnennung CC BY-NC-SA 4.0 wie die Klassen-Zeichnungen): nur eine
-  Bahn mit Fahrlinien, ohne Steg, Logos, Titel und Maße. Racecourse A und B zeigen **dieselbe** Bahn mit denselben
-  Trefferkreisen – die Zeichnung ist schematisch, Steg und Lage der Bahnen zueinander wechseln von Standort zu
-  Standort (Nutzer 23.11.2026: „Für die Eintragung ist das eigentlich egal“); welcher Racecourse gemeint ist, sagt die
-  Liste. Boje n auf Hin- und Rückweg ist dieselbe Boje, Start und Ziel dasselbe Tor (seiteA = untere Boje im Bild);
-  welche Fahrt gemeint ist, sagt der Umschalter. Die IDs vergibt das Parcours-Repo (`A_Boje1` … `A_Boje5`,
-  `A_StartZiel_oben`/`_unten`); der Sync prüft sie nur und bricht ab, wenn eine fehlt, doppelt ist oder doch die zweite
-  Bahn bzw. der Steg drin ist. Fehlt die Datei, zeigt das Gerät ein Schema (für A und B gleich). Die Parallel-WKR-Bögen
-  auf Papier tragen seit 23.11.2026 dieselbe Bahn auf dem Fahrweg-Bogen (Abschnitt „WKR-Listen des Vorlaufs“).
+  eigene Vorgabe gibt es nicht. In der Startliste wird nicht gezogen. Der Team-Filter der Zuschauerliste zeigt ein
+  Paar, wenn eine Seite passt (bestätigt 21.11.2026, `BETRIEB_ANNAHMEN.zuschauerTeamFilter`).
 - Der Betrieb ändert weder die Pläne noch die Werte der Runden.
+
+### WKR-Erfassung am Gerät
+
+Die race officials können auch im Parallelslalom am eigenen Gerät erfassen. Bedienung in
+[betrieb.md](betrieb.md#wkr-erfassung-auf-handy-und-pad), Auslegungen mit Datum in `WKR_ANNAHMEN`
+(`src/wkr/annahmen.ts`).
+
+- Je Racecourse gibt es die drei Listen Zeit, Steg und Fahrweg wie auf Papier; zugewiesen werden sie unter
+  „Parallel-Slalom · Racecourse A“ bzw. „B“ (der Bereich heißt wie auf der Anzeigetafel).
+- Der Fahrweg hat die Bojen-Maske: je Halt eine Zeile in Fahrtfolge, Boje 5 (Wende) zum Hinweg; jede Boje ist ein
+  Schalter „Berührt“ (bestätigt 21.11.2026).
+- Kommt dieselbe Startnummer mit ihrem anderen Attempt wieder, steht über der Karte invers „23 · VERSUCH 2“
+  (englische Liste „23 · ATTEMPT 2“), und die Maske nimmt kurz nichts an. Stehen Racecourse A und B auf dem Pad
+  nebeneinander, steht ein gemeinsames Rundenband darüber, solange beide denselben nächsten Start haben (beides
+  bestätigt 22.11.2026).
+- Parcours-Ampel: Das Paar ist ein Start, eine leere Seite zählt nicht (bestätigt 22.11.2026); Zeit und Fahrweg von
+  A und B zählen als Parcours-Listen. „Papier ab“ nennt die Startnummer der eigenen Seite.
+- „Mehr → Nicht gestartet · Disq. X“ (24.11.2026) gibt es auf Fahrweg und Steg; die Zeit-Liste hat kein Disq.-Feld
+  (dort „keine Zeit“). Das X wirkt wie jedes X: Die Anzeigetafel zeigt die Seite leer, und der Attempt zählt als
+  Disqualifikation – im Vorlauf für den ganzen Parallelslalom, danach hinterer Platz (siehe [Annahmen](#annahmen)).
+  Eine Abmeldung ist es nicht (siehe [Abmelden](#abmelden)).
+- Druck nach Modus: Bögen einer Liste, die nur am Gerät erfasst wird (Modus „Gerät“), druckt „Listen“ nur mit
+  „Trotzdem drucken (Rückfall auf Papier)“, im Parallelslalom je Liste und Racecourse; eine Runde gilt dann nur als
+  gedruckt, wenn von ihr etwas gedruckt wurde (bestätigt 22.11.2026).
+- Übung (`#/uebung`): Den Parallelslalom gibt es dort nur unter UIM – Racecourse A als Maske mit gewöhnlichen
+  Übungsstarts, ohne Paar und Attempt-Wechsel (bestätigt 21.11.2026).
+- **Maske „Bild“** (eine Bahn seit 23.11.2026, bestätigt 24.11.2026, R10-01 bis R10-04; `WKR_ANNAHMEN` BD8–BD10):
+  Der Fahrweg jedes Racecourse zeigt die Zeichnung des Parcours-Repos in der Ausgabe „eine Bahn ohne Steg“
+  (`dist/parallel/alcatraz_Parcours`, per `npm run parcours:sync` als `src/assets/parcours/Parallel.svg`,
+  Namensnennung CC BY-NC-SA 4.0 wie die Klassen-Zeichnungen): eine Bahn mit Fahrlinien, ohne Steg, Logos, Titel und
+  Maße. Racecourse A und B zeigen **dieselbe** Bahn mit denselben Trefferkreisen, ohne Buchstaben im Bild – die
+  Zeichnung ist schematisch, Steg und Lage der Bahnen zueinander wechseln von Standort zu Standort (Nutzer 23.11.2026:
+  „Für die Eintragung ist das eigentlich egal“); welcher Racecourse gemeint ist, sagt die Überschrift der Liste.
+  Boje n auf Hin- und Rückweg ist dieselbe Boje, Start und Ziel dasselbe Tor (seiteA = untere Boje im Bild); welche
+  Fahrt gemeint ist, sagt der Umschalter (er wechselt nur von Hand). Die IDs vergibt das Parcours-Repo (`A_Boje1` …
+  `A_Boje5`, `A_StartZiel_oben`/`_unten`); der Sync prüft sie nur und bricht ab, wenn eine fehlt, doppelt ist oder
+  doch die zweite Bahn bzw. der Steg drin ist. Fehlt die Datei, zeigt das Gerät ein Schema (für A und B gleich).
+  Unter „Mehr → Ansicht“ lässt sich die „Lage der Zeichnung“ wählen; weil sie keinen Steg hat, heißen die vier
+  Drehungen „Start links“, „Start oben“, „Start rechts“, „Start unten“, davor „Automatisch“ (24.11.2026, noch zu
+  bestätigen); das Schema dreht nicht. Dieselbe Bahn trägt der Fahrweg-Bogen auf Papier
+  (siehe [WKR-Listen des Vorlaufs](#wkr-listen-des-vorlaufs)).
 
 ## Dummys und Wörter
 
@@ -495,8 +559,8 @@ noch zu bestätigen.
 - Die Runden heißen „Preliminary heat“, „Semi-finals“, „Small final“, „Final“, „Re-run“
   („Small final“ statt des Regelbuch-Wortlauts „compete for the 3rd and 4th place“, Entscheidung vom 15.11.2026).
   Seit 21.11.2026 ist das Kleine Finale eine eigene Runde; der frühere Zusatz „(3rd and 4th place)“ entfällt, weil
-  die Runde ihn sagt (zu bestätigen). Die Rundennamen stehen doppelt: i18n `parallel.round.*` (über `rundenName`) und
-  `bogenTexte().runde` in `src/config/sprache.ts` – beide gleich halten.
+  die Runde ihn sagt (beim Bau ausgelegt, noch zu bestätigen). Die Rundennamen stehen doppelt: i18n
+  `parallel.round.*` (über `rundenName`) und `bogenTexte().runde` in `src/config/sprache.ts` – beide gleich halten.
 - Deutsch: Vorlauf, Halbfinale, Kleines Finale, Finale, Wiederholung.
 
 ## Einzelwertung
@@ -510,7 +574,7 @@ Ansicht „Listen → Wertungslisten → Einzelwertung“ und Teil „Einzelwert
   Manövrieren: die gewertete Zeit der Gesamtliste, also der bessere Versuch mit Strafen und Knoten.
   Parallelslalom: die Summe beider Attempts in der Runde, die den Platz bestimmt hat, ab Platz 5 also im Vorlauf.
 - Dahinter die Summe der Punkte und nur bei Punktgleichen die „Combined time“
-  (Entscheidung vom 15.11.2026; keine Spalte „Heat“, kein Fuß dazu).
+  (Entscheidung vom 15.11.2026; keine Spalte „Heat“).
 - Mit Zeitstempel (dem jüngsten der Klasse aus beiden Disziplinen), Unterschriftszeile „O.O.D.“
   und Feld „Time of posting“.
 
@@ -531,8 +595,10 @@ Ansicht „Listen → Wertungslisten → Einzelwertung“ und Teil „Einzelwert
   „the sum of his/her better manoeuvring attempt (including penalties) and both his/her parallel slalom attempts“ –
   im Parallelslalom aus der letzten Runde, die er gefahren ist, bei gleicher Zeit dazu aus der vorletzten
   (siehe [Festlegungen zum Stichentscheid](#festlegungen-zum-stichentscheid)).
-  Sie steht bei Punktgleichen in einer eigenen Spalte; ist auch die Zeit gleich und hat jeder dieser Gleichen eine
-  vorletzte Runde, steht deren Summe in Klammern dahinter – auch, wenn sie nichts trennt (die Spalte ist dann breiter).
+  Sie steht bei Punktgleichen in der Spalte „Combined time“; wer dafür keine Zeit hat (disqualifiziert), hat dort
+  einen Strich. Ist auch die Zeit gleich und hat jeder dieser Gleichen eine vorletzte Runde, steht deren Summe in
+  Klammern dahinter – auch, wenn sie nichts trennt (die Spalte ist dann breiter, die Zeile bleibt einzeilig);
+  „(–)“ heißt: in der vorletzten Runde disqualifiziert.
   Ein Sternchen am Platz zeigt den Stichentscheid.
 
 ### Disziplin nicht werten
@@ -591,28 +657,35 @@ Entscheidungen des Nutzers zu dem, was Pkt. 5.2.6 offen lässt;
 an einer Stelle umstellbar: `EINZEL_FESTLEGUNGEN` in `src/lib/einzelwertung.ts`.
 
 - Es zählt der bessere Versuch des Manövrierens **mit** den Strafen der Knoten (15.11.2026).
-  Beleg (dem Nutzer am 24.11.2026 erklärt, aus der Regel abgeleitet): Pkt. 4.3 „Manoeuvring consists of: Tying knots
-  (point 4.3.1); Driving on the manoeuvring racecourse (point 4.3.2)“ und Pkt. 5.2.1 „best times including knots test
-  penalties“ – die Knoten gehören zum Manövrieren, nicht zum Parallelslalom.
-- Dazu im Parallelslalom (24.11.2026, `stichParallelRunde: 'letzteDannVorletzte'`; vorher die beiden Attempts des
-  Vorlaufs): „jeweils die letzte gefahrene Runde, wenn das nicht reicht zusätzlich auch die vorletzte Runde“.
+  Beleg (dem Nutzer am 24.11.2026 erklärt, aus der Regel abgeleitet, nicht eigens bestätigt): Pkt. 4.3
+  „Manoeuvring consists of: Tying knots (point 4.3.1); Driving on the manoeuvring racecourse (point 4.3.2)“ und
+  Pkt. 5.2.1 „best times including knots test penalties“ – die Knoten gehören zum Manövrieren, nicht zum
+  Parallelslalom.
+- Dazu im Parallelslalom die Entscheidung des Nutzers vom 24.11.2026 (`stichParallelRunde: 'letzteDannVorletzte'`;
+  vorher die beiden Attempts des Vorlaufs): „jeweils die letzte gefahrene Runde, wenn das nicht reicht zusätzlich
+  auch die vorletzte Runde“.
   - Erste Stufe: je Punktgleichem die Summe beider Attempts **seiner** zuletzt gefahrenen Runde –
     Finale, Kleines Finale, Halbfinale oder Vorlauf, je nachdem, wie weit er kam.
-    Ein Re-run ersetzt die Zeiten der wiederholten Runde („After running again only the time of the re-run will be
-    taken into account.“); er ist keine eigene Runde.
+    Ein Re-run ersetzt die Zeiten der wiederholten Runde (Pkt. 5.2.6 „After running again only the time of the
+    re-run will be taken into account.“); er ist keine eigene Runde.
   - Zweite Stufe: Ist auch diese Zeit gleich, entscheidet die Summe seiner vorletzten gefahrenen Runde
-    (dazugezählt ändert sie die Reihenfolge genauso, deshalb wird nur sie verglichen und auf der Liste gezeigt).
-  - Wer nur den Vorlauf gefahren ist, hat keine vorletzte Runde: Dann entscheidet die zweite Stufe in seiner Gruppe
-    der Punkt- und Zeitgleichen nicht, die Gruppe teilt sich den Platz („dead-heat result“).
-  - Beim Bau ausgelegt (24.11.2026, vom Nutzer zu bestätigen; `gefahreneRunden`): Eine Runde, in der er keinen
-    Attempt gestartet ist – in keinem Attempt eine Zeit oder eine Disqualifikation außer X „Nicht gestartet“ (X in
-    beiden, oder X im einen und der andere leer) –, gilt nicht als gefahren; dann zählt die Runde davor.
-    Ein X neben einem gefahrenen Attempt und jede Disqualifikation lassen die Runde gefahren, aber ohne Zeit.
-    Ein Dummy als Gegner ändert nichts.
-    Folge (offen): Wer zur letzten Runde nicht antritt, behält die Zeit der Runde davor und steht so vor einem
-    Punktgleichen, der in seiner letzten Runde disqualifiziert wurde.
+    (dazugezählt ändert sie die Reihenfolge genauso, deshalb wird nur sie verglichen und auf der Liste in Klammern
+    gezeigt).
 - Wem für den Stichentscheid eine Zeit fehlt, weil er disqualifiziert ist (im Manövrieren oder in der Runde des
-  Parallelslaloms, die zählt), steht **hinter** den Punktgleichen mit Zeit.
+  Parallelslaloms, die zählt), steht **hinter** den Punktgleichen mit Zeit (15.11.2026).
   Eine Disqualifikation ist eine Wertung, damit letzter Platz unter den Punktgleichen.
-  Mehrere solche teilen sich diesen hinteren Platz (für sie gibt es keine zweite Stufe).
+  Mehrere solche teilen sich diesen hinteren Platz.
+- Beim Bau ausgelegt (24.11.2026, vom Nutzer noch zu bestätigen; `gefahreneRunden` und `einzelwertung` in
+  `src/lib/einzelwertung.ts`):
+  - Eine Runde, in der er keinen Attempt gestartet ist – in keinem Attempt eine Zeit oder eine Disqualifikation außer
+    X „Nicht gestartet“ (X in beiden, oder X im einen und der andere leer) –, gilt nicht als gefahren; dann zählt die
+    Runde davor. Ein Dummy als Gegner ändert nichts.
+  - Ein X neben einem gefahrenen Attempt und jede Disqualifikation lassen die Runde gefahren, aber ohne Zeit; es wird
+    nicht auf die Runde davor ausgewichen.
+  - Folge: Wer zur letzten Runde nicht antritt, behält die Zeit der Runde davor und steht so vor einem Punktgleichen,
+    der in seiner letzten Runde disqualifiziert wurde.
+  - Die zweite Stufe gilt für die ganze Gruppe der Punkt- und Zeitgleichen oder für keinen: Hat einer von ihnen nur
+    den Vorlauf gefahren (keine vorletzte Runde), teilt sich die Gruppe den Platz („dead-heat result“).
+    Punktgleiche ohne Zeit bekommen keine zweite Stufe.
+  - Die Summe der vorletzten Runde steht in Klammern hinter der „Combined time“.
 - Der Fuß der Liste nennt die Regel auf jeder Seite mit Punktgleichen; mit nur einer Disziplin nur deren Zeit.

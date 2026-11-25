@@ -5,6 +5,9 @@ export default {
   'app.starters': '{n} Starter | {n} Starter',
   'app.footer': 'Codestand {commit} · gebaut {time}',
   'app.unknown': 'unbekannt',
+  // Verweis auf Anleitung und Repository (Fußzeile, Wunsch 24.11.2026); Ziel nach Sprache der Oberfläche, lib/build.ts.
+  'app.guide': 'Anleitung auf GitHub',
+  'app.guide.title': 'Öffnet die Anleitung (README) im Repository auf GitHub in einem neuen Tab – braucht Internet.',
   'app.language': 'Sprache',
   'app.notSaved':
     'Der Stand konnte nicht im Browser gespeichert werden. Bitte jetzt unter „Einstellungen“ eine Sicherung herunterladen.',
@@ -49,6 +52,7 @@ export default {
   'date.unknown': 'Kein Datum erkannt: „{text}“. Bitte als {pattern} eingeben, zum Beispiel {example}.',
 
   'licences.title': 'Fremde Bestandteile und Lizenzen',
+  'licences.programm': 'Alcatraz selbst: freie Software unter der GNU Affero General Public License 3.0 oder später. Quelltext, Anleitung und Lizenz im Repository:',
   'licences.flags.countries': 'Flaggen der Staaten: Paket „country-flag-icons“, © 2020 @catamphetamine, unter der MIT-Lizenz:',
   'licences.flags.states': 'Flaggen der Bundesländer: Zeichnungen von Wikimedia Commons, gemeinfrei (amtliche Werke) – je Land die Landesflagge, die jedermann führen darf.',
   'licences.tweetnacl': 'Verschlüsselung und Signaturen im Betrieb mit anderen Geräten: Paket „tweetnacl“ (TweetNaCl.js), gemeinfrei nach „The Unlicense“.',

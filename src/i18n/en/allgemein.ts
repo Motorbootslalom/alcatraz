@@ -7,6 +7,8 @@ export default {
   'app.starters': '{n} driver | {n} drivers',
   'app.footer': 'Revision {commit} · built {time}',
   'app.unknown': 'unknown',
+  'app.guide': 'Guide on GitHub',
+  'app.guide.title': 'Opens the guide (README) in the repository on GitHub in a new tab – needs internet access.',
   'app.language': 'Language',
   'app.notSaved':
     'The data could not be saved in this browser. Please download a backup under “Settings” now.',
@@ -51,6 +53,7 @@ export default {
   'date.unknown': 'No date recognised: “{text}”. Please enter as {pattern}, for example {example}.',
 
   'licences.title': 'Third-party components and licences',
+  'licences.programm': 'Alcatraz itself: free software under the GNU Affero General Public License 3.0 or later. Source code, guide and licence in the repository:',
   'licences.flags.countries': 'Country flags: package “country-flag-icons”, © 2020 @catamphetamine, under the MIT licence:',
   'licences.flags.states': 'Flags of the German states: drawings from Wikimedia Commons, public domain (official works) – for each state the flag anyone may fly.',
   'licences.tweetnacl': 'Encryption and signatures when working with other devices: package “tweetnacl” (TweetNaCl.js), dedicated to the public domain under “The Unlicense”.',

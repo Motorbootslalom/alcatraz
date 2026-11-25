@@ -1,3 +1,5 @@
+Deutsch · [English](en/technik.md)
+
 # Technik
 
 Wie Alcatraz gebaut ist und wie man daran arbeitet.
@@ -12,6 +14,7 @@ Für Agenten und Entwickler gibt es dazu die Projektkarte [CLAUDE.md](../CLAUDE.
 - [Offline-Speicher](#offline-speicher)
 - [Gerätebetrieb: Sicherheitsmodell](#gerätebetrieb-sicherheitsmodell)
 - [Entwickeln](#entwickeln)
+- [Doku und Bilder](#doku-und-bilder)
 - [Tests](#tests)
 
 ## Aufbau
@@ -20,7 +23,8 @@ Alcatraz ist eine reine Browser-Anwendung ([Vue 3](https://vuejs.org/), TypeScri
 Server, Datenbank und Anmeldung gibt es nicht (siehe [README](../README.md)).
 
 - **Mehrsprachig:** Die Oberfläche lässt sich im laufenden Betrieb umschalten (bisher Deutsch und Englisch).
-  Die Texte stehen in `src/i18n/`; eine weitere Sprache ist eine weitere Katalogdatei.
+  Die Texte stehen in `src/i18n/`, je Sprache ein Ordner mit Dateien nach Bereichen (`de/`, `en/`).
+  Die Listen folgen der Sprache des Regelwerks, nicht der Oberfläche.
 - **Adressen in der Sprache der Oberfläche:** Jede Ansicht, jeder Reiter und jedes Sprungziel hat eine Adresse
   zum Weitergeben (`#/listen/wkr`, englisch `#/lists/race-officials`).
   - Geschrieben wird sie in der Sprache der Oberfläche, gelesen in jeder.
@@ -31,15 +35,24 @@ Server, Datenbank und Anmeldung gibt es nicht (siehe [README](../README.md)).
     Beispiel: „Verwiegung → Gewichtslisten drucken“ führt zu `#/listen/gewicht/<Herkunft>` (`*` = alle).
     Die Ansicht übernimmt die Wahl; danach steht in der Adresse wieder nur der Reiter.
   - Verändert wird nur der Hash – das geht auch in der Ein-Datei-Fassung unter `file://`.
+- **Mehrere Wurzeln nach Adresse** (`src/main.ts`): die App selbst (`App.vue`), die Anzeigetafel `#/anzeige`
+  (`AnzeigeApp.vue`) und die Zuschauerliste `#/zuschauer` (`ZuschauerApp.vue`) – beide nur lesend –
+  sowie ein Gerät ohne eigenen Stand (`GeraetApp.vue`: Lese-Link, Koppeln, gekoppeltes Gerät, Übung `#/uebung`).
 - **Gedruckte Listen im Mittelpunkt:** Gedruckt wird über den Druckdialog des Browsers (auch „Als PDF speichern“).
+  Seitenzahlen zählt jede Liste selbst.
 
 Aufbau von `src/`:
 
-- `domain/`: Klassen, Startnummern
-- `import/`: Excel-Austausch
-- `planung/`: Verzahnung, Boote, Parallel-Slalom
+- `domain/`: Klassen, Startnummern, Staaten, Flaggen
+- `import/`: Austausch mit Excel
+- `planung/`: Verzahnung, Boote, Parallelslalom
+- `config/`: Regelwerke, Aufbauten und Positionen als YAML
 - `state/`: Zustand als reiner Reducer
 - `persistenz/`: Speicher im Browser, Sicherung
+- `lib/`: reine Logik – Wertung, Bögen, Listen, Mannschaftswertung, Offline-Speicher
+- `betrieb/`: Betrieb am Wettkampftag (Folge der Starts, öffentliche Sicht, Wartezeiten)
+- `wkr/`: digitale Erfassung durch die Wettkampfrichter (Listen, Masken, Übernahme)
+- `geraete/`: Gerätebetrieb über ntfy
 - `i18n/`: Sprachen
 - `views/` und `components/`: Oberfläche
 
@@ -53,17 +66,19 @@ In der ausgelieferten App stecken nur wenige fremde Pakete (`package.json`, `dep
 |---|---|---|
 | `vue` | Oberfläche | MIT |
 | `js-yaml` | Regelwerke und Aufbauten (YAML) | MIT |
-| `qrcode-generator` | QR-Codes auf Bögen und Laufzetteln | MIT |
-| `vuedraggable` (mit `sortablejs`) | Ziehen in Verzahnung und Startliste | MIT |
-| `tweetnacl` | Verschlüsselung und Signaturen im Gerätebetrieb (`src/geraete/`, ab Etappe E5) | Unlicense (gemeinfrei) |
+| `qrcode-generator` | QR-Codes auf Bögen, Laufzetteln und für die Links des Gerätebetriebs | MIT |
+| `vuedraggable` (mit `sortablejs`) | Ziehen von Klassen und Pausen auf die Spuren der Verzahnung | MIT |
+| `tweetnacl` | Verschlüsselung und Signaturen im Gerätebetrieb (`src/geraete/`) | Unlicense (gemeinfrei) |
 
 Dazu kommen die Flaggenbilder aus `country-flag-icons` (MIT; als Entwicklungsabhängigkeit eingetragen, weil nur die
-Bilder beim Bauen übernommen werden). Alle Vermerke zeigt die App unter „Einstellungen → Fremde Bestandteile und
-Lizenzen“ (`src/components/FremdeBestandteile.vue`) – die Ein-Datei-Fassung wird ohne README weitergereicht.
+Bilder beim Bauen übernommen werden). Die App zeigt unter „Einstellungen → Fremde Bestandteile und Lizenzen“
+(`src/components/FremdeBestandteile.vue`) ihre eigene Lizenz mit Link zum Repository und die Vermerke zu Flaggen,
+tweetnacl und Parcours-Zeichnungen – die Ein-Datei-Fassung wird ohne README weitergereicht.
 
 `tweetnacl` (1.0.3, wie im Prototyp `tafel`; Plan vom 16.11.2026) statt WebCrypto: `crypto.subtle` fehlt außerhalb
 sicherer Kontexte und kann unter `file://` bei undurchsichtiger Herkunft fehlen, tweetnacl läuft überall.
-Solange nichts außerhalb von `src/geraete/` es lädt (Etappe E5), steckt es noch nicht im Bündel.
+Es steckt im Bündel, weil `src/main.ts` den Gerätebetrieb anlegt; eine Verbindung entsteht trotzdem erst beim
+Einschalten (siehe unten).
 
 ## Offline-Speicher
 
@@ -82,9 +97,12 @@ Was Auswerter davon sehen und tun müssen, steht in [betrieb.md](betrieb.md).
   bis „Update“ gedrückt wird (andere Fenster zeigen danach „bitte neu laden“).
   Ohne Starter übernimmt Alcatraz die neue beim Öffnen von selbst
   (bzw. beim nächsten Öffnen, wenn im Fenster schon gearbeitet wurde).
+- Ein Gerät im Gerätebetrieb (`GeraetApp.vue`) holt eine neue Fassung gezielt selbst, wenn der Bedienrechner neuer
+  ist oder „Alle Geräte neu laden“ kommt (`holeNeueFassung` in `src/lib/offline.ts`).
 - `scripts/offline-speicher.ts` schreibt den Service Worker beim Build mit der Liste aller Dateien als `dist/sw.js`.
   Das Deployment ruft das Skript nach dem Kopieren von `alcatraz.html` noch einmal auf.
-- Die Seite dazu: `src/lib/offline.ts`, `src/components/OfflinePanel.vue`.
+  Im Entwicklungsserver gibt es keinen Offline-Speicher: Unter `sw.js` liefert er nur dessen Abmeldung.
+- Die Seite dazu: `src/lib/offline.ts`, `src/lib/update.ts`, `src/components/OfflinePanel.vue`.
 - Der zweite Speicher: `src/persistenz/zweitspeicher.ts` (IndexedDB),
   `src/state/zweit.ts` (wann geschrieben wird, Abgleich beim Start),
   `src/lib/verlauf.ts` (welcher Stand neuer ist, Zusammenfassen, Grenzen), `src/components/VerlaufPanel.vue`.
@@ -96,26 +114,34 @@ Was Auswerter davon sehen und tun müssen, steht in [betrieb.md](betrieb.md).
 
 ## Gerätebetrieb: Sicherheitsmodell
 
-Stand Etappe E7 (20.11.2026): Anzeigetafel und Zuschauerliste gehen über Lese-Links auf andere Geräte, gekoppelte
-Handys bedienen die Start-Freigabe ihrer Bereiche (Bedienung: [betrieb.md](betrieb.md#gerätebetrieb)). Geprüft und
-angewandt wird nur am Bedienrechner: Positivliste `src/geraete/aufgaben.ts` nach dem Register des Hosts, nie nach dem,
-was ein Gerät von sich sagt; jede Action trägt eine Nummer (Doppelte nur quittiert), Entzug sperrt sofort.
+Stand 25.11.2026: Anzeigetafel und Zuschauerliste gehen über Lese-Links auf andere Geräte (Etappe E6), gekoppelte
+Handys bedienen die Start-Freigabe ihrer Bereiche (E7), WKR-Geräte erfassen ihre Liste (W1–W5). Bedienung:
+[betrieb.md](betrieb.md#gerätebetrieb). Geprüft und angewandt wird nur am Bedienrechner: Positivliste
+`src/geraete/aufgaben.ts` nach dem Register des Hosts, nie nach dem, was ein Gerät von sich sagt; jede Action trägt
+eine Nummer (Doppelte nur quittiert), Entzug sperrt sofort.
 Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offline); Ordnerkarte `src/geraete/CLAUDE.md`.
 
 - **Ohne Einschalten keine Verbindung:** Erst „Gerätebetrieb einschalten“ legt einen Raum an; bis dahin öffnet die App
   weder WebSocket noch Abfrage noch Fensterbus (`src/main.geraete.test.ts`, `src/geraete/host.test.ts`). Ein Gerät mit
-  Lese-Link spricht nur mit dem Server, der im Link steht (`src/main.sehen.test.ts`).
+  Lese-Link spricht nur mit dem Server, der im Link steht (`src/main.sehen.test.ts`). Die Übung der WKR-Maske
+  (`#/uebung`) geht nie ins Netz (`src/main.uebung.test.ts`).
 - **Lese-Links:** `#/sehen/<paket>` (`src/geraete/paket.ts`), gepackt für einen kleinen QR-Code (Version 10). Das Paket
   trägt Server, Raum, Thema, den Schlüssel seiner Gruppe und den öffentlichen Schlüssel des Bedienrechners – nie das
   Geheimnis, nie das Thema der Geräte. Anzeigetafel und Zuschauer sind zwei Gruppen mit eigenem Schlüssel: Der
   Zuschauer-Link öffnet nur die Zuschauersicht. Ein Gerät (`src/GeraetApp.vue`) hat keinen Store und berührt den
   Stand einer Veranstaltung nie.
-
 - **Ein fremder Server, kein eigener:** Nachrichten gehen über einen ntfy-Server (Vorgabe `ntfy.adminforge.de`,
   änderbar). Er sieht Themen, Zeitpunkte, Größen und IP-Adressen, aber keine Inhalte.
 - **Der Bedienrechner ist die einzige Wahrheit.** Geräte bekommen nie den Stand der Veranstaltung, sondern eine
   zugeschnittene Sicht (`src/betrieb/sicht.ts`: nie Geburtsdatum, Gewicht, Geschlecht). Geräte schicken nur
   Änderungswünsche; prüfen und anwenden tut allein der Bedienrechner.
+- **WKR-Geräte:** Jede Liste hat eine eigene verschlüsselte Gruppe (`src/geraete/wkrGruppen.ts`). Ihre Sicht
+  (`src/wkr/sicht.ts`) nennt Startnummer und Klasse, nie Name, Herkunft, Geburtsdatum, Gewicht oder Geschlecht der
+  Starter, keine Werte und keine Wertung. Ausnahmen: bei einer Rückfrage der Wert genau dieser Zelle, und nur die
+  Steg-Liste sieht das Ausgleichsgewicht je Start. Die Geräte schicken Zeilen mit Werten; der Bedienrechner prüft sie
+  Zeile für Zeile (`erlaubteWkr` in `src/geraete/aufgaben.ts`) und übernimmt sie wie abgetippte Werte: Steht in der
+  Zelle etwas anderes, als das Gerät erwartet, entsteht eine Rückfrage, nie ein stilles Überschreiben
+  (`src/wkr/uebernahme.ts`).
 - **Verschlüsselt und signiert:** Sichten je Gruppe mit einem gemeinsamen Schlüssel (secretbox), Nachrichten an ein
   Gerät und von einem Gerät an dessen bzw. den Schlüssel des Bedienrechners (box). Jede Nachricht des
   Bedienrechners ist signiert (Ed25519) – samt Thema, Raum, Gruppe, Nummer, Fassung und Sendezeit. Eine alte,
@@ -141,7 +167,7 @@ Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offli
 ## Entwickeln
 
 ```sh
-npm install
+npm install             # richtet auch den pre-commit-Hook ein (.githooks, über `prepare`)
 npm run dev             # Entwicklungsserver (nur dieser Rechner)
 npm run dev:host        # dasselbe im lokalen Netz, für Tests mit Handy und Pad
 npm run dev:https       # dasselbe mit HTTPS (selbst signiert): Wake Lock und Web Locks (kein Offline-Speicher)
@@ -158,45 +184,92 @@ einige Browser-Funktionen: Bildschirm-Wachhalten (Wake Lock), Offline-Speicher u
 (Rückfall ohne Wake Lock, Fensterführung über die Lease). Für den Feldtest mit allem deshalb die Fassung auf GitHub Pages.
 
 **Mit HTTPS im WLAN** (`dev:https`, 21.11.2026): wie `dev:host`, aber über `https://192.168.…:5173/` mit einem selbst
-signierten Zertifikat (`@vitejs/plugin-basic-ssl`, nur devDependency; vite.config.ts `--mode https`). Der Browser warnt
+signierten Zertifikat (`@vitejs/plugin-basic-ssl`, nur devDependency; `vite.config.ts` `--mode https`). Der Browser warnt
 einmal je Gerät („Verbindung ist nicht privat“) – auf dem Bedienrechner UND auf jedem Handy „Erweitert → Weiter zu …“
 bestätigen; danach ist es ein sicherer Kontext: Das Handy hält den Bildschirm wach (Wake Lock), der Bedienrechner führt
 seine Fenster über Web Locks. Den Bedienrechner auch hier über die Netzadresse öffnen, nicht über `localhost`. Das
 Zertifikat legt das Plugin unter `node_modules/.vite/basic-ssl/` ab; es gilt nur für die Entwicklung. Den
-Offline-Speicher gibt es auch so NICHT: Im Entwicklungsserver ist er immer aus („nicht verfügbar“, lib/offline.ts), und
-Service Worker lassen sich mit selbst signiertem Zertifikat nicht registrieren – Offline prüfen nur über GitHub Pages
-(Prüfbefund 21.11.2026).
+Offline-Speicher gibt es auch so NICHT: Im Entwicklungsserver ist er immer aus („nicht verfügbar“, `src/lib/offline.ts`),
+und Service Worker lassen sich mit selbst signiertem Zertifikat nicht registrieren – Offline prüfen nur über GitHub
+Pages (Prüfbefund 21.11.2026).
 
-Die Parcours-Zeichnungen unter `src/assets/parcours/` kommen nur über `npm run parcours:sync`
+**WKR-Masken ohne Gerätebetrieb:** Die Übung `#/uebung` zeigt dieselbe Maske wie ein gekoppeltes Gerät, mit
+erfundenen Starts ohne Namen, ohne Verbindung. Zuerst Regelwerk und Liste wählen, dann – wo es eine Wahl gibt – die
+Maske („Knöpfe“; „Bild“ nur bei Listen mit Bojen; „Tabelle“ nur, wenn die kürzere Seite des Fensters mindestens 600 px
+misst), danach „Übung starten“. Die Fenstergröße entscheidet auch, ob die Maske wie auf dem Handy oder wie auf dem Pad
+steht (`src/wkr/anordnung.ts`).
+
+Die Parcours-Zeichnungen unter `src/assets/parcours/` kommen nur über `npm run parcours:sync`, nach `make` und Commit
+im Parcours-Repository; `src/lib/parcoursQuelle.test.ts` prüft die eingecheckten Dateien
 (Herkunft und Lizenz: [`src/assets/parcours/LICENSE.md`](../src/assets/parcours/LICENSE.md)).
 
-**Bilder der README** (`docs/bilder/`): aufgenommen mit `npm run dev` und den Beispieldaten der App.
+## Doku und Bilder
 
+**Zweisprachig** (24.11.2026): `README.md` und `README.en.md`, `docs/<name>.md` und `docs/en/<name>.md` mit demselben
+Namen. Jede Datei verweist in der ersten Zeile auf die andere Sprache (`Deutsch · [English](en/<name>.md)`, in der
+README `Deutsch · [English](README.en.md)`, englisch umgekehrt). Änderungen immer in beiden Sprachen.
+Nur deutsch bleiben die Arbeitsprotokolle mit Zitaten: `docs/entscheidungen.md`, `docs/plan-*.md`,
+`docs/vorschlag-wkr-erfassung.md`.
+
+**Schreiben:** sachlich, kurze Sätze, Begriffe wie im Regelbuch (DM-Reglement, UIM Rulebook Regel 960). Nur
+beschreiben, was im Code steht; Entfallenes streichen. Keine echten Namen, keine E-Mail-Adressen, keine Pfade
+außerhalb des Repos. Die README bleibt kurz; Einzelheiten gehören nach `docs/`.
+
+**Bilder** liegen in zwei Ordnern mit denselben Dateinamen:
+
+| Ordner | Oberfläche | Veranstaltung | Herkunft | Listen |
+|---|---|---|---|---|
+| `docs/bilder/de/` | deutsch | DM, „Hafenpokal“ | Bundesland | deutsch |
+| `docs/bilder/en/` | englisch | UIM, „Harbour Cup“ | Land (Country) | englisch |
+
+Den Parallelslalom gibt es nur unter UIM: `parallel-results.png` zeigt auch im deutschen Ordner englische Listen.
+
+| Datei | Inhalt |
+|---|---|
+| `starter.png` | Reiter „Starter“: Klassen mit Startnummern, Namen, Herkunft mit Flagge |
+| `verzahnung.png` | Verzahnung der Klassen, festgeschrieben |
+| `wkr-bogen.png` | WKR-Bogen (Tor-Liste) mit QR-Code, Disq.-Legende und Parcoursbild (Reiter „Listen“, Druckansicht) |
+| `laufzettel.png` | Laufzettel mit Kästchen je Liste, Schritten und QR-Code |
+| `erfassung.png` | Erfassung: ein Bogen als Eingabetabelle mit Werten |
+| `wertungsliste.png` | Wertungsliste Gesamt einer Klasse mit drei Läufen (Streichlauf) |
+| `mannschaftswertung.png` | Mannschaftswertung |
+| `parallel-results.png` | Parallelslalom: Results des Vorlaufs mit „Qualified“ (nur UIM) |
+| `start-freigabe.png` | Betrieb → Start-Freigabe am Bedienrechner mit laufendem Start |
+| `anzeigetafel.png` | Anzeigetafel (`#/anzeige`, englisch `#/display`) im zweiten Fenster, Querformat |
+| `zuschauer.png` | Zuschauerliste (`#/zuschauer`, englisch `#/spectators`) in Handybreite |
+| `wkr-handy.png` | WKR-Maske „Knöpfe“ bzw. Bojen auf dem Handy (Übung `#/uebung`, etwa 390 px breit, hochkant) |
+| `wkr-pad-bild.png` | WKR-Maske „Bild“ mit Parcours-Zeichnung auf dem Pad (Übung `#/uebung`, etwa 1180 × 820, quer) |
+
+Regeln für alle Bilder:
+
+- Aufgenommen mit `npm run dev` und den Beispieldaten der App (Reiter „Veranstaltung“ → „Beispieldaten“).
 - Nur erfundene Daten: Beispiel-Starterfeld, Beispielwerte, Beispiel-Besetzung, Beispielgewichte,
   ein erfundener Veranstaltungsname ohne Jahr (die App hängt das Jahr an, im Kopf stünde es sonst doppelt).
 - Herkunft „Bundesland“ oder „Land“, nie „Verein“: `src/data/clubs.ts` ist an reale Vereine angelehnt,
   und erfundene Personen sollen nicht echten Vereinen zugeordnet erscheinen.
-- Helles Farbschema, zugeschnitten auf das Wesentliche, etwa 1200 px breit, je Datei unter 250 KB
-  (verkleinert mit ImageMagick auf 64–256 Farben und `oxipng`).
+- Helles Farbschema (die Anzeigetafel ist immer weiß auf schwarz), zugeschnitten auf das Wesentliche,
+  Ansichten etwa 1200 px breit, je Datei höchstens 250 KB (verkleinert mit ImageMagick auf 64–256 Farben und `oxipng`).
 - Ohne Fußzeile der App und ohne die Quellenzeile unter dem Parcoursbild; die Lizenz steht in der README.
-- Die README zeigt sie nur als Vorschau mit Link auf das volle Bild:
-  Ansichten und Bögen 180–300 px breit, breite Listen 600 px in einer eigenen Zeile.
+- Die README zeigt eine Auswahl, nur als Vorschau mit Link auf das volle Bild:
+  Ansichten, Bögen und Handy 180–300 px breit, breite Listen 600 px in einer eigenen Zeile.
 
 ## Tests
 
 Getestet wird mit Vitest und happy-dom; die Tests liegen neben dem Code (`*.test.ts`).
 Personen in Tests und Beispieldaten sind erfunden (`src/data/names.ts`).
 Die Befehle für gezielte und volle Läufe stehen in der Projektkarte unter [Befehle](../CLAUDE.md#befehle).
+Der pre-commit-Hook (`.githooks/pre-commit`) führt vor jedem Commit `npm run check` aus.
 
 Die CI (`.github/workflows/ci.yml`) führt `npm run check` und `npm run build:all` aus.
-Das Deployment auf GitHub Pages (`.github/workflows/deploy.yml`) liefert die Ein-Datei-Fassung als `alcatraz.html` mit.
+Das Deployment auf GitHub Pages (`.github/workflows/deploy.yml`, bei Push auf `master`) führt die Tests aus, baut und
+liefert die Ein-Datei-Fassung als `alcatraz.html` mit.
 
 **Wackelige Tests** (24.11.2026): Zwei Ende-zu-Ende-Tests in `src/GeraetWkr.test.ts` – „Probe beim Einrichten …
 einmal je Raum und Liste“ und „W5.2 Maske ‚Bild‘: Probe am Bild …“ – warten mit fester Zeitgrenze auf Gerät und
 nachgebauten ntfy-Server und schlagen unter Last gelegentlich mit „Zeit abgelaufen“ fehl. Damit sie den Pages-Deploy
-nicht aufhalten, laufen sie auf GitHub (dort ist `CI` gesetzt) nur auf Wunsch; Regel: `src/testHilfen.ts`
+nicht aufhalten, laufen sie auf GitHub (dort ist `CI` gesetzt) nur auf Wunsch. Regel: `src/testHilfen.ts`
 `wackelTestsAuslassen`, in den Tests `it.skipIf(WACKELTESTS_AUS)`; `src/testHilfen.test.ts` prüft, dass die Regel zu
-der Zeile in `ci.yml` passt (ohne Haken `0` = aus).
+der Zeile in `ci.yml` passt (ohne Haken `0` = aus) und dass `deploy.yml` die Variable nie setzt.
 
 - Lokal, auch im pre-commit-Hook (ohne `CI`): laufen immer.
 - Auf GitHub mitlaufen lassen: **Actions → CI → Run workflow**, Branch wählen, Haken bei „Wackelige Tests mitlaufen
