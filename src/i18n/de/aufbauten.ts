@@ -133,7 +133,8 @@ export default {
   'assist.mode.bild': 'Im Bild',
   'assist.img.drawFor': 'Zeichnen für',
   'assist.img.unnamed': 'Position',
-  // Pfeil nach links als Zeichnung in ZuordnungImBild.vue (27.11.2026, wie die WKR-Maske nach R11-30 (2)), nicht im Text.
+  // Pfeil nach links als Zeichnung in ZuordnungImBild.vue (27.11.2026, wie die WKR-Maske nach R11-30 (2); bestätigt
+  // 27.11.2026, R12-18 (2)), nicht im Text.
   'assist.img.undo': 'Rückgängig',
   'assist.img.undoTitle': 'Die letzte Änderung im Bild zurücknehmen',
   'assist.img.noPosition': 'Noch keine Position: Mit „+ Position“ eine anlegen, dann ihre Bojen im Bild umkreisen.',

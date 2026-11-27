@@ -707,12 +707,18 @@ export const BETRIEB_ANNAHMEN = {
    * Prüfbefund 27.11.2026: Starts abgemeldeter Starter stehen ausgegraut in der Wahl („abgemeldet – keine Wiederholung“,
    * WH10) – vorher bestätigte man die Rückfrage, und still geschah nichts. BetriebView gibt die Abmeldungen dazu; die
    * Sicht trägt sie nie.
+   * Bestätigt 27.11.2026 (R12-18 (4)): In der Wahl stehen alle schon gezeigten, geltenden Starts der Läufe, die gerade
+   * laufen, der zuletzt gezeigte oben; die ersten acht sofort, die übrigen über die Suche nach Startnummer; beim
+   * Einsteigen mitten im Wettkampf ohne Anzeige Erledigte fehlen. Die Abgemeldeten ausgegraut: R12-18 (6). Weiter zu
+   * bestätigen: dass das Freigabe-Handy nicht auslöst (nicht gefragt).
    */
   wiederholungNurBedienrechner: true,
   /**
    * (WH4) „Zurück“ nimmt einen abgebrochenen Versuch nicht zurück (er ist schon „verbraucht“). Wer sich vertan hat:
    * „Doch keine Wiederholung“ in der Liste „Wiederholung offen“ (nur am Bedienrechner), solange der Start nicht wieder
-   * gezeigt ist – der zuletzt abgebrochene Versuch gilt wieder. Beim Bau 26.11.2026, noch zu bestätigen.
+   * gezeigt ist – der zuletzt abgebrochene Versuch gilt wieder. Beim Bau 26.11.2026; dass „Zurück“ den Versuch nicht
+   * nimmt und „Doch keine Wiederholung“ nur am Bedienrechner geht, ist weiter zu bestätigen (in R12-11 nur als
+   * Hintergrund genannt, nicht gefragt).
    * Umgebaut nach dem Prüfbefund 27.11.2026: Vorher holte nur „Einstellungen → Verlauf“ die Werte zurück – und nahm
    * dabei alles seitdem Eingetragene mit; ohne das stand der Start erledigt, aber leer da, und die WKR-Geräte boten ihn
    * unter der alten Kennung nie wieder an (sie hielten ihre Zeile für übernommen). Jetzt ist „Doch keine Wiederholung“
@@ -720,19 +726,24 @@ export const BETRIEB_ANNAHMEN = {
    * (samt Haken und „keine Zeit“) liegen solange in WkrStand.verworfen und kommen zurück – nur in leere Zellen; was seit
    * dem Ausfall eingetragen wurde, bleibt. Rückfragen, Vorschläge und Papier-Vermerke von damals kommen nicht zurück.
    * Die Geräte haben damit wieder ihre Kennung und ihre Zeile; der Start ist erledigt (Haken).
+   * Bestätigt 27.11.2026 (R12-11): Die alten Werte kommen nur in Felder, die jetzt leer sind (auch die Haken „Liste
+   * erledigt“ und „keine Zeit“); was seit dem Ausfall eingetragen wurde, bleibt; offene Rückfragen und Vorschläge von
+   * damals kommen nicht zurück. Nicht gefragt: die Papier-Vermerke (P der Pausen, `papier` der Abschlüsse).
    */
   wiederholungAufheben: true,
   /**
    * (WH5) Anzeigetafel und Zuschauerliste zeigen beim Start „Wiederholung“ (im Titel des Laufs: „1. Lauf · Wiederholung“)
    * – ohne Grund, ohne Werte; die Start-Freigabe ebenso. Der abgebrochene Versuch selbst bleibt dort ohne Kennzeichen
-   * stehen, bis der nächste Start kommt. Beim Bau 26.11.2026, noch zu bestätigen (Alternative: nichts auf der Tafel).
+   * stehen, bis der nächste Start kommt. Beim Bau 26.11.2026, bestätigt 27.11.2026 (R12-12) – ebenso das Englische
+   * „Repeat“ („Attempt 1 · Repeat“, „Repeat (breakdown) …“, „Repeat pending“, „No repeat after all“), nie „Re-run“: So
+   * heißt in Regel 960 die Wiederholungsrunde des Parallelslaloms, unter UIM können beide auf derselben Tafel stehen.
    */
   wiederholungAufTafel: true,
   /**
    * (WH6) Mit „Versuche direkt nacheinander“ gilt die Zeile am Vorsteg für alle Versuche des Starters (wkr/liste.ts
    * startAufListe `weitere`): Sie bleibt bei der Wiederholung eines Versuchs stehen – das Boot fährt nicht noch einmal
-   * durch die Vorsteg-Kontrolle. Alle anderen Listen dieses Versuchs werden geleert. Beim Bau 26.11.2026, noch zu
-   * bestätigen.
+   * durch die Vorsteg-Kontrolle. Alle anderen Listen dieses Versuchs werden geleert. Beim Bau 26.11.2026, bestätigt
+   * 27.11.2026 (R12-13; die Rückfrage beim Auslösen sagt es).
    * Prüfbefund 27.11.2026, nachgezogen: Für diese Liste ist auch keine Geräte-Kennung veraltet (das Gerät darf seine
    * Zeile weiter korrigieren, eine verspätete gilt), P der Pausen und Abschlüsse bleiben, und die Erfassung zeigt dort
    * kein ↻ (es ist keine Zeile gestrichen).
@@ -743,35 +754,46 @@ export const BETRIEB_ANNAHMEN = {
    * das Gerät ihn für schon geschickt. Eine späte Gerätezeile zum abgebrochenen Versuch (kam nach dem Leeren an) wird
    * abgelehnt (`versuch-abgebrochen`, das Gerät zeigt es) – nie still wieder eingefüllt und keine Rückfrage am
    * Bedienrechner: Ihre Werte gehören zu einem Versuch, den die Wettkampfleitung verworfen hat; auf dem Gerät bleiben sie
-   * unter „Zuletzt“ lesbar. Beim Bau 26.11.2026, noch zu bestätigen.
+   * unter „Zuletzt“ lesbar. Beim Bau 26.11.2026, bestätigt 27.11.2026 (R12-14).
    * Prüfbefund 27.11.2026: Die Zeile trägt ihren Versuch (WkrZeile.versuch), und WKR_ZEILEN prüft ihn beim Anwenden
    * noch einmal – zwischen der Prüfung im Führungsfenster und dem Anwenden im Schreibfenster (zwei Fenster) konnte der
    * Ausfall dazwischenkommen. Ausnahme: die Vorsteg-Zeile mit „Versuche nacheinander“ (WH6) gilt für jeden Versuch –
-   * dort ist keine Kennung veraltet (wkr/versuch.ts versuchVeraltetAuf).
+   * dort ist keine Kennung veraltet (wkr/versuch.ts versuchVeraltetAuf). Bestätigt 27.11.2026 (R12-14) samt dem
+   * seltenen Sonderfall: Kommt die Zeile genau beim Wechsel zwischen zwei Fenstern an, fehlt auf dem Gerät der Satz und
+   * es zeigt ✓ – übernommen wird sie auch dann nicht.
+   * Bestätigt 27.11.2026 (R12-16): Am Gerät ändert sich nichts – die alte Zeile bleibt unter „Zuletzt“ und in der
+   * Übersicht beim Abschließen mit ✓ stehen (die Startnummer steht dann zweimal, die Wiederholung kommt als neuer
+   * Start); für den Abschluss zählt sie nicht (WKR_ABSCHLUSS überspringt Prüfsummen veralteter Versuche).
    */
   wiederholungSpaeteZeileAblehnen: true,
   /**
    * (WH8) Beim Auslösen fallen Rückfragen, Vorschläge und „keine Zeit“ dieses Versuchs weg, der Start fällt aus „Papier“
    * (P) der Pausen und aus `papier`/`abweichend` der Abschlüsse. Ein schon abgeschlossener Lauf einer Liste bleibt
-   * abgeschlossen: Die Zeile der Wiederholung wird dort ein Vorschlag „abgeschlossen“. Beim Bau 26.11.2026, noch zu
-   * bestätigen.
+   * abgeschlossen: Die Zeile der Wiederholung wird dort ein Vorschlag „abgeschlossen“. Beim Bau 26.11.2026; der
+   * abgeschlossene Lauf bestätigt 27.11.2026 (R12-15, unten), dass Rückfragen und Vorschläge wegfallen (und auch mit
+   * „Doch keine Wiederholung“ nicht zurückkommen) mit R12-11. Nicht gefragt: P der Pausen und `papier`/`abweichend`.
    * Prüfbefund 27.11.2026: Vorher kam die Wiederholung auf einer Liste, die den Lauf schon abgeschlossen hatte, gar nicht
    * auf das Gerät (die Schlange ließ abgeschlossene Punkte aus) – die Zeile, die Vorschlag werden sollte, entstand nie,
    * und mit „Druck nach Modus“ fehlte oft auch der Bogen. Jetzt lässt wkr/schlange.ts eine Wiederholung (ein geltender
    * Versuch nach einem abgebrochenen) auch in einem abgeschlossenen Punkt durch – anders als jeden anderen Start nach
    * dem Abschluss; was der Abschluss mit „Rest auf Papier“ nannte, bleibt Papier. Matrix und Rückstand zählen sie wie
-   * einen offenen Start. Auslegung 27.11.2026, noch zu bestätigen (Alternative: den Abschluss dieser Liste lösen).
+   * einen offenen Start. Auslegung 27.11.2026, bestätigt 27.11.2026 (R12-15): Das Gerät bekommt die Wiederholung wieder
+   * angeboten, die Eingabe kommt als Vorschlag „abgeschlossen“ an (ein Klick zum Annehmen), der Abschluss mit dem Namen
+   * des WKR bleibt; in der Übersicht der WKR-Erfassung steht der Start bis dahin offen. Die Wiederholung löst den
+   * Abschluss nicht.
    */
   wiederholungAbschlussBleibt: true,
   /**
    * (WH9) Ein abgebrochener Start im Boot hat keine Parcours-Ampel und keinen Auto-Modus (wkr/lage.ts durchfahrtVon);
-   * eine Durchfahrt für ihn fällt weg. „Nächster Start“ geht von Hand. Beim Bau 26.11.2026, noch zu bestätigen.
+   * eine Durchfahrt für ihn fällt weg. „Nächster Start“ geht von Hand. Beim Bau 26.11.2026, bestätigt 27.11.2026
+   * (R12-18 (5)).
    */
   wiederholungOhneAmpel: true,
   /**
    * (WH10) Keine Wiederholung für einen abgemeldeten Starter (Disq. X kommt beim Abmelden in leere Läufe – geleert
    * stünde er sonst offen da) und keine im Parallelslalom (dort gilt der Re-run, lib/parallelErgebnis.ts). Beim Bau
-   * 26.11.2026.
+   * 26.11.2026. Für Abgemeldete bestätigt 27.11.2026 (R12-18 (6)): ausgegraut in der Wahl mit „abgemeldet – keine
+   * Wiederholung“; soll er doch fahren, nimmt die Leitung zuerst die Abmeldung zurück.
    */
   wiederholungNurManoevrieren: true,
 } as const

@@ -488,7 +488,9 @@ export const WKR_ANNAHMEN = {
    * „↩ Undo“). Der Pfeil ist eine Zeichnung im Knopf (components/wkr/WkrFuss.vue `.wkr-pfeil`), kein Schriftzeichen:
    * ↩ (U+21A9) fehlt in den Schriften der App (system-ui, Roboto, Segoe UI, Helvetica, Arial – geprüft 26.11.2026) und
    * käme auf Handys als buntes Emoji. Der Text heißt nur „Rückgängig“; „Rückgängig“ in der Leiste „Zuletzt“ (G8) trug
-   * nie ein Zeichen und bleibt so.
+   * nie ein Zeichen und bleibt so. Angeglichen 27.11.2026: auch „Rückgängig“ („Undo“) im Aufbau-Assistenten (Bojen im
+   * Bild zuordnen, components/ZuordnungImBild.vue) trägt den gezeichneten Pfeil nach links statt ↶ – bestätigt
+   * 27.11.2026 (R12-18 (2)).
    */
   zurueckLetzterTipp: true,
   /**
@@ -1582,9 +1584,9 @@ export const WKR_ANNAHMEN = {
    * „Zuletzt“ mit „↩ Rückgängig“ und die Karte (components/wkr/WkrMaske.vue erklaerungAusDemBild, WkrPruefliste
    * ebenso, systemModus.ts rolleAnDenRand/zielNachErklaerung). Der Hinweis „Bildschirm kann ausgehen“ steht seit
    * 27.11.2026 UNTER der Erklärung und bleibt als Warnung über dem Kopf stehen (Prüfbefund 27.11.2026: er lag darüber
-   * und rollte mit hinaus; mit „Ausblenden“ ist er weg – ausgelegt 27.11.2026, noch zu bestätigen). UK2 und UK5 gelten
-   * weiter. Beim Bau
-   * ausgelegt 26.11.2026, noch zu bestätigen: rollen statt die Erklärung nach dem ersten Abschicken zuzuklappen – das
+   * und rollte mit hinaus; mit „Ausblenden“ ist er weg – ausgelegt 27.11.2026, bestätigt 27.11.2026, R12-17). UK2 und
+   * UK5 gelten weiter. Beim Bau ausgelegt 26.11.2026, bestätigt 27.11.2026 (R12-17): rollen statt die Erklärung nach
+   * dem ersten Abschicken zuzuklappen – das
    * Zuklappen ließe die Zeile „So läuft die Übung ▸“ über dem Kopf stehen (der Kopf käme nicht an den Rand) und
    * schöbe die Maske einmal sichtbar nach oben; gerollt bleibt die Erklärung offen und ist mit einem Wisch nach unten
    * wieder da. Am Wettkampftag gibt es keine Erklärung, dort rollt nichts.
@@ -1620,6 +1622,8 @@ export const WKR_ANNAHMEN = {
    * (min-height) – nichts springt zurück. Danach rollt nichts mehr von selbst bis zum nächsten Abschicken; eine
    * Korrektur dazwischen zählt nicht als neue Karte. Prüfbefund 24.11.2026 (vorher nur am Ende des Overlays – griff nur
    * bei vorab wartendem Start). Gilt seit 26.11.2026 für UK7 (ausgerichtet wird die Spalte samt Kopf).
+   * Bestätigt 27.11.2026 mit R12-17 – die Frage beschrieb das Rollen so: „Steht schon alles richtig, bewegt sich nichts;
+   * sobald die nächste Karte steht, richtet die App noch einmal aus.“
    */
   uebungKopfMitNaechsterKarte: true,
   /**
@@ -1628,7 +1632,8 @@ export const WKR_ANNAHMEN = {
    * (der nächste Starter ist sofort vorbelegt, KN12); der Kopf steht dort über beiden Pad-Spalten. Prüfbefund
    * 24.11.2026, noch zu bestätigen.
    * Umgebaut 26.11.2026 (R11-14) wie UK7: Nur die Erklärung rollt hinaus, der Kopf mit „ÜBUNG“ steht am Rand, darunter
-   * der Block „Nr. 9 · Klasse · offen“.
+   * der Block „Nr. 9 · Klasse · offen“. Bestätigt 27.11.2026 (R12-17: „Ebenso am Tisch bei der Knoten-Liste („Alle
+   * richtig“)“).
    */
   uebungKopfAmTisch: true,
   /**
@@ -2097,6 +2102,8 @@ export const WKR_ANNAHMEN = {
    * (wkr/bild.ts BILD_LAGE_SEITE {start, wende}, Test bild.test.ts „BL7 an den echten Zeichnungen“). Gemerkt wird
    * weiter die Drehung (geraete/ablage.ts GeraetAnsicht.bildLage): ein gemerkter Wert zeigt dieselbe Zeichnung wie
    * vorher, nur der Name ist neu (früher „Steg links“ = 90° = jetzt „Start/Ziel oben“).
+   * Bestätigt 27.11.2026 (R12-18 (1)): Klassen „Start/Ziel links/oben/rechts/unten“ (englisch „Start/finish on the
+   * left …“), Parallelslalom weiter kurz „Start links/oben/rechts/unten“ (englisch „Start on the left …“).
    */
   bildLageNachStartZiel: true,
   /**

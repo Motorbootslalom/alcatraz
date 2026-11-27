@@ -97,7 +97,10 @@ export interface GeburtstagsGrenze {
  * - `warnungTage`: bis zu so vielen Tagen davor oder danach eine deutliche Warnung – bei zwei oder drei
  *   Wettkampftagen kann der Geburtstag auf einen davon fallen, dann entscheidet der Tag des Starts.
  *   Auslegung vom 26.11.2026: „weniger als 2 Tage“ einschließlich 2 Tagen, damit auch der dritte Tag
- *   (Freitag bis Sonntag) erfasst ist.
+ *   (Freitag bis Sonntag) erfasst ist – bestätigt 27.11.2026 (R12-01). In beide Richtungen gleich, also rot
+ *   auch, wenn der 6. Geburtstag 1–2 Tage VOR dem ersten Wettkampftag liegt und das Kind an allen Tagen
+ *   starten darf (Rot erinnert dann nur ans genaue Hinsehen, etwa wegen eines Tippfehlers in der Meldung) –
+ *   bestätigt 27.11.2026 (R12-02).
  * - `hinweisTage`: darüber hinaus bis zu so vielen Tagen ein Hinweis zum Prüfen (gelb).
  * Hier und nicht im Regelwerk-YAML (Entscheidung beim Bau, 26.11.2026): Das Reglement nennt nur die
  * Grenzen in Jahren; wie früh die App davor warnt, ist eine Sache der App und gilt für jedes Regelwerk
@@ -111,10 +114,12 @@ export const GEBURTSTAG_FENSTER = { warnungTage: 2, hinweisTage: 14 } as const
  * werden“; die zwei Stufen vom 26.11.2026 bleiben ebenso übergehbar):
  * - `zuJung` / `zuAlt`: klar außerhalb – am ersten Wettkampftag jünger als `ab` und der Geburtstag
  *   mehr als `warnungTage` danach, bzw. schon `bis` oder älter und der Geburtstag mehr als
- *   `warnungTage` davor. Ohne Datum der Veranstaltung: sicher außerhalb nach dem Jahr.
+ *   `warnungTage` davor. Ohne Datum der Veranstaltung: sicher außerhalb nach dem Jahr. Rot, egal wie nah
+ *   der Geburtstag liegt – Klasse E mit dem 6. Geburtstag 3–14 Tage nach dem ersten Wettkampftag ist „zu
+ *   jung“, nicht gelb (bestätigt 27.11.2026, R12-03).
  * - `knappAb` / `knappBis`: Geburtstag höchstens `warnungTage` vor oder nach dem ersten Wettkampftag.
  * - `nahAb` / `nahBis`: am ersten Wettkampftag startberechtigt, aber der Geburtstag liegt höchstens
- *   `hinweisTage` davor (`ab`) bzw. danach (`bis`).
+ *   `hinweisTage` davor (`ab`) bzw. danach (`bis`). Gelb nur dann (bestätigt 27.11.2026, R12-03).
  * - `pruefenAb` / `pruefenBis`: ohne Datum der Veranstaltung – der Starter wird im Jahr der
  *   Veranstaltung `ab` bzw. `bis`; ob vor oder nach dem Wettkampftag, sagt erst das Datum. Den ganzen
  *   Grenz-Jahrgang mit dem Tag des Geburtstags zu nennen (statt nur „Datum fehlt“): bestätigt 26.11.2026 (R11-29 (1)).

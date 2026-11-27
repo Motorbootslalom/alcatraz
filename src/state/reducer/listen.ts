@@ -148,7 +148,8 @@ export function wendeListenAn(state: AppState, action: ListenAenderung): AppStat
     }
 
     case 'SET_WKR_MEISTERSCHAFT_GEMEINSAM': {
-      // Nur die Art; die Leerzeilen je Klasse bleiben, wie eingestellt (Auslegung 26.11.2026, lib/wkrListen.ts gemeinsameBoegen).
+      // Nur die Art; die Leerzeilen je Klasse bleiben, wie eingestellt (Auslegung 26.11.2026, bestätigt 27.11.2026,
+      // R12-18 (3); lib/wkrListen.ts gemeinsameBoegen).
       const art = meisterschaftGemeinsamWert(action.art)
       return art === state.wkrMeisterschaftGemeinsam ? state : { ...state, wkrMeisterschaftGemeinsam: art }
     }

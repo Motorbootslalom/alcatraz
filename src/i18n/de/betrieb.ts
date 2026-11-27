@@ -212,7 +212,8 @@ export default {
   'anzeige.parallel': 'Parallel-Slalom',
   'anzeige.racecourse': 'Parcours {rc}',
   'anzeige.versuch': '{n}. Versuch',
-  // Wiederholung nach Ausfall (R11-11, 26.11.2026): hinter dem Lauf auf Tafel und Zuschauerliste – ohne Grund.
+  // Wiederholung nach Ausfall (R11-11, 26.11.2026): hinter dem Lauf auf Tafel und Zuschauerliste – ohne Grund
+  // (bestätigt 27.11.2026, R12-12).
   'anzeige.wiederholung': 'Wiederholung',
 
   // Zuschauerliste (`#/zuschauer`, src/ZuschauerApp.vue, components/zuschauer/; E3) – in der Sprache der Anzeigetafel

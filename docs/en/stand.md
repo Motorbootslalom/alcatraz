@@ -109,7 +109,8 @@ field tests.
   days around the first day of racing), shared race officials' sheets on request at DM and UIM championships too,
   co-drivers per class with a substitute and weight and an extra weight of their own, the repeat of an attempt after a
   confirmed breakdown, the position of the drawing named after start/finish, “↩ Undo” with an arrow pointing left, in
-  practice only the explanation scrolls out of view. Before that, among others: several disqualifications at one buoy
+  practice only the explanation scrolls out of view. Round 12 (27.11.2026) confirmed everything newly interpreted
+  there. Before that, among others: several disqualifications at one buoy
   (“5, J, D”), a long press on a buoy, the lane of the parallel slalom on the device and on the course sheet, a maximum
   number per code (the third tap on “2nd and 3rd attempt” sets Disq. D), “Did not start · Disq. X” instead of “Did not
   pass”, the position of the drawing in “Picture”, the extra weight on the pontoon device and in adjustable steps,
@@ -131,10 +132,10 @@ field tests.
   the phone in portrait, timing lists specially for the phone, in the parallel slalom one pontoon device for both
   sides (“A | B” in one form).
 - **Open questions** to the user for the next round of the question page, collected under
-  [Offen](../entscheidungen.md#offen) (German): above all what was newly interpreted while rebuilding after round 11
-  (repeat after a breakdown, co-drivers with substitute and weight, details of the birthday warning and of the shared
-  race officials' sheets), plus single interpretations on the maximum number per code, on “Did not start · Disq. X”
-  and on practice, older ones on pairing (E7) and on the separate finals.
+  [Offen](../entscheidungen.md#offen) (German): only single interpretations that were never asked about – three
+  details of the repeat after a breakdown, 29 February in the birthday warning, the header and the sample view of
+  shared race officials' sheets, the label of the weight steps, two on the maximum number per code, one each on “Did
+  not start · Disq. X” and on the position of the drawing, older ones on pairing (E7) and on the separate finals.
 - **Flaky tests:** Two end-to-end tests in `src/GeraetWkr.test.ts` occasionally fail under load (a fixed time limit
   while waiting). On GitHub they have only run on request since 24.11.2026, locally and in the pre-commit hook always
   ([technik.md](technik.md#tests)). The cause has not been fixed.

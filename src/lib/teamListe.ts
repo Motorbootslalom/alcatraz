@@ -29,7 +29,8 @@ export interface TeamZeile {
   /**
    * Die Co-Driver der Klasse (lib/ausgleich.ts coPilotZeilen); `undefined` = die Klasse fährt ohne (Pkt. 3.7: nur
    * Dolphin, 1 – 3). Sonst der eingeteilte (Name leer = noch nicht eingetragen) und, seit 26.11.2026 (R11-07), wenn
-   * eingetragen, darunter der Ersatz – je mit seinem Ausgleichsgewicht.
+   * eingetragen, darunter der Ersatz – je mit seinem Ausgleichsgewicht. Der Ersatz auch hier, obwohl Pkt. 2 „the same
+   * co-driver“ verlangt: bestätigt 27.11.2026 (R12-10).
    */
   coDriver: CoPilotZeile[] | undefined
 }

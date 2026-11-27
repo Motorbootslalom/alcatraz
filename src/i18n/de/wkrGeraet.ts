@@ -335,7 +335,8 @@ export default {
   'wkr.geraet.bild.schalter': '✔ {punkte}',
   'wkr.geraet.bild.zaehler': '{n}×',
   // Lage der Zeichnung unter „Mehr → Ansicht“ (Nutzer 24.11.2026, BL1): seit 26.11.2026 (R11-13, BL7) auch die Klassen
-  // nach Start/Ziel – „Steg ist hier irreführend. Der steht immer anders.“ Der Satz nennt, wo die Wende liegt.
+  // nach Start/Ziel – „Steg ist hier irreführend. Der steht immer anders.“ Der Satz nennt, wo die Wende liegt. Klassen
+  // „Start/Ziel …“, Parallelslalom kurz „Start …“: bestätigt 27.11.2026 (R12-18 (1)).
   'wkr.geraet.bild.lage': 'Lage der Zeichnung',
   'wkr.geraet.bild.lage.klasse.links': 'Start/Ziel links',
   'wkr.geraet.bild.lage.klasse.oben': 'Start/Ziel oben',

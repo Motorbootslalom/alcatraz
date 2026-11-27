@@ -204,6 +204,7 @@ export default {
   'anzeige.versuch': 'Attempt {n}',
   // Repeat after a breakdown (R11-11, 26.11.2026): after the attempt on the display board and spectator list – no reason.
   // Not „Re-run“ (27.11.2026): that is the parallel slalom heat, which can stand on the same board under UIM.
+  // „Repeat“ on board and spectator list confirmed 27.11.2026 (R12-12).
   'anzeige.wiederholung': 'Repeat',
 
   // „Pontoon“ und „pontoon entry“ (Vorsteg) wie die Listen; „spectator list“ vorläufig (Plan vom 16.11.2026).

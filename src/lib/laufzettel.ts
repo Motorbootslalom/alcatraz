@@ -15,7 +15,8 @@ import type { WkrBogen } from './wkrListen'
 //   Klassen weiter, nur Listen mit Bild sind je Klasse getrennt. Ein gemeinsamer Bogen kann
 //   nicht in zwei Stapeln liegen – der Zettel gilt deshalb für alle Klassen, die über
 //   gemeinsame Bögen zusammenhängen (in der Regel wieder der ganze Parcours); die Bögen
-//   einzelner Klassen nennen ihre Klasse in der Zeile.
+//   einzelner Klassen nennen ihre Klasse in der Zeile. Für Meisterschaften mit gemeinsamen
+//   Bögen ebenso – bestätigt 27.11.2026 (R12-05).
 // - Eine Liste ohne Lauf (Knoten) wird einmal abgenommen und gedruckt: Sie liegt im Stapel
 //   des letzten Laufs und steht nur auf dessen Zettel – die Knoten zählen erst zum
 //   Gesamtergebnis (lib/wkrListen.ts ordnet den Bogen so ein).

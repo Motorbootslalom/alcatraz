@@ -980,9 +980,9 @@ stated otherwise.
     that with a date the check counts to the day and then only names who is too young or too old on that day or has a
     birthday up to 14 days before or after it.
   - Confirmed 26.11.2026: no longer on the 27th birthday itself; without a date the whole borderline years.
-    Interpreted and still to be confirmed: 29 February becomes 1 March in years without it; “less than 2 days”
-    includes the 2nd day; class E with the 6th birthday 3 to 14 days after the first day of racing is “too young”
-    (red), not a note.
+    Confirmed 27.11.2026: “less than 2 days” includes the 2nd day; red as well if the 6th birthday is 1 or 2 days
+    before the first day of racing; class E with the 6th birthday 3 to 14 days after the first day of racing is “too
+    young” (red), not a note. Interpreted and still to be confirmed: 29 February becomes 1 March in years without it.
 - **Date fields:** never the browser's date picker (depending on the system it showed mm/dd/yyyy), but a text field:
   German DD.MM.YYYY, English YYYY-MM-DD (`src/components/DatumFeld.vue`). Also recognised are 2019-12-01, 1.12.2019
   and 01/12/2019 (slash: day first); a date that does not exist is reported. Stored as YYYY-MM-DD.

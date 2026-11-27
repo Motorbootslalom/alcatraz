@@ -45,13 +45,15 @@ export type WkrListenStand = Pick<
  * `inStartfolge`: Klassen eines gemeinsamen Bogens gemischt in der Startfolge (`wkrGemeinsamFolge`, 24.11.2026) – nur,
  * wo es gemeinsame Bögen gibt.
  *
- * Beim Bau von R11-03 ausgelegt (26.11.2026, noch zu bestätigen):
+ * Beim Bau von R11-03 ausgelegt (26.11.2026), alle drei bestätigt 27.11.2026:
  * - „Papier sparen“ steht auch bei Meisterschaften zur Wahl (`alle`), Vorgabe aus – der Nutzer: „Wenn es schon da ist …“;
- *   dafür fehlt dort die Zeichnung der Klasse, nur die Beschreibung bleibt.
+ *   dafür fehlt dort die Zeichnung der Klasse, nur die Beschreibung bleibt (R12-04).
  * - Die Laufzettel folgen den Bögen wie bei der Clubmeisterschaft (lib/laufzettel.ts): ein Zettel für alle Klassen, die
- *   sich Bögen teilen – meist der ganze Parcours je Lauf statt je Klasse. Ein gemeinsamer Bogen liegt nur in einem Stapel.
+ *   sich Bögen teilen – meist der ganze Parcours je Lauf statt je Klasse. Ein gemeinsamer Bogen liegt nur in einem Stapel;
+ *   Bögen, die je Klasse bleiben (eigene Zeichnung), nennen ihre Klasse auf dem Zettel (R12-05).
  * - Die Leerzeilen je Klasse (Blöcke ohne „Papier sparen“) bleiben beim Einschalten, wie eingestellt (Meisterschaft 3) –
- *   anders als beim Wechsel zur Clubmeisterschaft (SET_EVENT_KIND setzt dort 1).
+ *   anders als beim Wechsel zur Clubmeisterschaft (SET_EVENT_KIND setzt dort 1); mit „Papier sparen“ oder „nach der
+ *   Verzahnung“ gelten die Leerzeilen je Seite (R12-18 (3)).
  */
 export interface GemeinsameBoegen {
   /** Klassen mit gleich aufgebautem Bogen (gleiche Spalten, gleiche Zeichnung) teilen sich einen. */

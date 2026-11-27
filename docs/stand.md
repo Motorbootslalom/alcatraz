@@ -104,7 +104,7 @@ die Feldtests.
   2 Tage um den ersten Wettkampftag), gemeinsame WKR-Bögen auf Wunsch auch bei DM- und UIM-Meisterschaften, Co-Piloten
   je Klasse mit Ersatz und Gewicht samt eigenem Ausgleichsgewicht, Wiederholung eines Laufs nach bestätigtem Ausfall,
   die Lage der Zeichnung nach Start/Ziel benannt, „↩ Rückgängig“ mit Pfeil nach links, in der Übung rollt nur noch die
-  Erklärung aus dem Bild. Davor u. a.: mehrere Disq. an einer Boje („5, J, D“), langes Drücken auf eine Boje, die Bahn
+  Erklärung aus dem Bild. Runde 12 (27.11.2026) hat alles bestätigt, was dabei neu ausgelegt wurde. Davor u. a.: mehrere Disq. an einer Boje („5, J, D“), langes Drücken auf eine Boje, die Bahn
   des Parallelslaloms auf Gerät und Fahrweg-Bogen, Höchstzahl je Code (der dritte Tipp auf „2. und 3. Versuch“ setzt
   Disq. D), „Nicht gestartet · Disq. X“ statt „Nicht vorbeigekommen“, Lage der Zeichnung im „Bild“, das
   Ausgleichsgewicht auf dem Steg-Gerät und in einstellbaren Stufen, gemeinsame WKR-Bögen der Clubmeisterschaft nach der
@@ -123,10 +123,10 @@ die Feldtests.
 - **W6 nach Befund** ([plan-wkr-w5.md](plan-wkr-w5.md)): die Maske „Bild“ eigens für das Handy hochkant, Zeit-Listen
   eigens für das Handy, im Parallelslalom ein Steg-Gerät für beide Seiten („A | B“ in einer Maske).
 - **Offene Fragen** an den Nutzer für die nächste Runde der Fragenseite, gesammelt unter
-  [Offen](entscheidungen.md#offen): vor allem, was beim Umbau nach Runde 11 neu ausgelegt wurde (Wiederholung nach
-  Ausfall, Co-Piloten mit Ersatz und Gewicht, Einzelheiten der Geburtstags-Warnung und der gemeinsamen WKR-Bögen),
-  dazu einzelne Auslegungen zur Höchstzahl je Code, zu „Nicht gestartet · Disq. X“ und zur Übung, ältere zum Koppeln
-  (E7) und zu den getrennten Finals.
+  [Offen](entscheidungen.md#offen): nur noch einzelne, nie eigens gefragte Auslegungen – drei Einzelheiten der
+  Wiederholung nach Ausfall, der 29.02. bei der Geburtstags-Warnung, Kopf und Beispielansicht gemeinsamer WKR-Bögen,
+  die Beschriftung der Abstufung, zwei zur Höchstzahl je Code, je eine zu „Nicht gestartet · Disq. X“ und zur Lage der
+  Zeichnung, ältere zum Koppeln (E7) und zu den getrennten Finals.
 - **Wackelige Tests:** Zwei Ende-zu-Ende-Tests in `src/GeraetWkr.test.ts` schlagen unter Last gelegentlich fehl
   (feste Zeitgrenze beim Warten). Auf GitHub laufen sie seit 24.11.2026 nur auf Wunsch, lokal und im pre-commit-Hook
   immer ([technik.md](technik.md#tests)). Die Ursache ist nicht behoben.

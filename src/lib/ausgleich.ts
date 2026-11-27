@@ -63,7 +63,7 @@ export type CoPilotStand = Pick<AppState, 'regelwerk' | 'starters' | 'coPiloten'
  * Die Person einer Rolle, wenn sie für den Ausgleich zählt: nur mit Namen. Prüfbefund 27.11.2026: Wer den Namen eines
  * Ersatzes löscht („er fällt weg“), lässt sein Gewicht im Stand stehen (lib/besetzung.ts setzeCoPilotName – beim
  * Neutippen eines Namens soll es nicht verloren gehen); als Bezug gälte sonst eine Person, die es nicht mehr gibt, und
- * der eingeteilte Co-Pilot bekäme Ballast gegen niemanden. Auslegung 27.11.2026 (offen zur Bestätigung).
+ * der eingeteilte Co-Pilot bekäme Ballast gegen niemanden. Auslegung 27.11.2026, bestätigt 27.11.2026 (R12-06).
  */
 function benannt(stand: Pick<CoPilotStand, 'coPiloten'>, klasse: ClassId, rolle: CoPilotRolle): CoPilot | undefined {
   const p = stand.coPiloten[klasse]?.[rolle]
@@ -76,7 +76,7 @@ function benannt(stand: Pick<CoPilotStand, 'coPiloten'>, klasse: ClassId, rolle:
  * „Beispiel-Co-Piloten“, die jede Klasse mit Co-Pilot füllen) darf den Bezug nicht hochziehen. Die eigene Klasse zählt
  * immer mit (der Block „Besetzung“ zeigt auch dort einen Wert). Solange noch gar kein Starter eingetragen ist, gelten
  * alle Klassen der Besetzung (lib/besetzung.ts besetzungsKlassen) – sonst zeigte der Block bis dahin Werte je Klasse,
- * obwohl „über alle“ gewählt ist. Auslegung 27.11.2026 (offen zur Bestätigung).
+ * obwohl „über alle“ gewählt ist. Auslegung 27.11.2026, bestätigt 27.11.2026 (R12-07).
  */
 function ausgleichsKlassen(stand: CoPilotStand, klasse: ClassId): ClassId[] {
   if (stand.coPilotAusgleich !== 'alle') return [klasse]
@@ -94,8 +94,8 @@ function ausgleichsKlassen(stand: CoPilotStand, klasse: ClassId): ClassId[] {
  *
  * Gruppe nach AppState.coPilotAusgleich: `klasse` = Co-Pilot und Ersatz seiner Klasse; `alle` = die Co-Piloten der
  * Klassen mit Startern ({@link ausgleichsKlassen}). Bezug = der schwerste gewogene, benannte Co-Pilot der Gruppe.
- * Auslegung 26.11.2026 (offen zur Bestätigung): Wer kein Gewicht hat, zählt für den Bezug nicht – „nicht gewogen“
- * steht nur da, wo andere seiner Gruppe gewogen sind.
+ * Auslegung 26.11.2026, bestätigt 27.11.2026 (R12-06): Wer kein Gewicht hat, zählt für den Bezug nicht – „nicht
+ * gewogen“ steht nur da, wo andere seiner Gruppe gewogen sind; ist niemand gewogen, steht nichts in Klammern.
  */
 export function coPilotAusgleichVon(stand: CoPilotStand, klasse: ClassId, rolle: CoPilotRolle): number | null | 'fehlt' | undefined {
   const selbst = benannt(stand, klasse, rolle)
@@ -119,7 +119,10 @@ export interface CoPilotZeile {
  * Listen, damit beim Steg klar ist, wer die Alternative ist.“): `undefined` = die Klasse fährt ohne (das Feld entfällt,
  * lib/besetzung.ts zeigtCoPilot); sonst immer der eingeteilte Co-Pilot (auch leer, zum Eintragen von Hand) und, wenn
  * mit Namen eingetragen, darunter der Ersatz (ein Gewicht ohne Namen gibt kein leeres Feld „Ersatz-Co-Pilot“,
- * Prüfbefund 27.11.2026). Nie das Körpergewicht – nur das Ausgleichsgewicht.
+ * Prüfbefund 27.11.2026; bestätigt 27.11.2026, R12-06). Nie das Körpergewicht – nur das Ausgleichsgewicht. Nur auf den
+ * „Ausgleichsgewichten“ und der Liste nach Regel 960 Pkt. 3.7 – WKR-Bögen und Steg-Gerät zeigen keine Co-Piloten
+ * (bestätigt 27.11.2026, R12-09); auf der Liste nach Pkt. 3.7 auch der Ersatz, obwohl Pkt. 2 „the same co-driver“
+ * verlangt (bestätigt 27.11.2026, R12-10).
  */
 export function coPilotZeilen(stand: CoPilotStand, klasse: ClassId): CoPilotZeile[] | undefined {
   if (!zeigtCoPilot(stand, klasse)) return undefined

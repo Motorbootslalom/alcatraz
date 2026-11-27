@@ -930,7 +930,8 @@ function takeLegacy() {
     <p class="note" data-hinweis="ausgleich-stufe">{{ t('listopt.ausgleich.hint') }}</p>
     <!-- Ausgleich der Co-Piloten (Antwort des Nutzers vom 26.11.2026, R11-07: „Dann steht zur Wahl, ob das
          Ausgleichsgewicht über alle Co-Piloten zählt oder nur pro Klasse.“). Vorgabe je Klasse wie DM-Reglement C3;
-         Namen und Gewichte stehen im Block „Besetzung“ der Veranstaltung. -->
+         Namen und Gewichte stehen im Block „Besetzung“ der Veranstaltung. Die Wahl hier statt im Block „Besetzung“
+         (dort nur Satz und Verweis): bestätigt 27.11.2026 (R12-08). -->
     <fieldset class="field" data-feld="co-pilot-ausgleich" style="border: 0; padding: 0; margin: 12px 0 0">
       <legend>{{ t('listopt.coPilotAusgleich') }}</legend>
       <label v-for="a in CO_PILOT_AUSGLEICHE" :key="a" class="boat-check">

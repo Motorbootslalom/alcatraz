@@ -956,9 +956,10 @@ Jeweils in Oberfläche und Reducer. Die Punkte mit Datum sind Entscheidungen vom
     Wettkampftag?“); wer nach dem Jahr sicher außerhalb liegt, steht rot da. Der Satz darunter sagt, dass die Prüfung
     mit Datum auf den Tag genau rechnet und dann nur noch nennt, wer an dem Tag zu jung oder zu alt ist oder bis 14 Tage
     davor oder danach Geburtstag hat.
-  - Bestätigt 26.11.2026: am 27. Geburtstag selbst nicht mehr; ohne Datum die ganzen Grenz-Jahrgänge. Ausgelegt und
-    noch zu bestätigen: Der 29.02. wird in Jahren ohne ihn zum 01.03.; „weniger als 2 Tage“ schließt den 2. Tag ein;
-    Klasse E mit dem 6. Geburtstag 3 bis 14 Tage nach dem ersten Wettkampftag ist „zu jung“ (rot), kein Hinweis.
+  - Bestätigt 26.11.2026: am 27. Geburtstag selbst nicht mehr; ohne Datum die ganzen Grenz-Jahrgänge. Bestätigt
+    27.11.2026: „weniger als 2 Tage“ schließt den 2. Tag ein; rot auch, wenn der 6. Geburtstag 1 oder 2 Tage vor dem
+    ersten Wettkampftag liegt; Klasse E mit dem 6. Geburtstag 3 bis 14 Tage nach dem ersten Wettkampftag ist „zu
+    jung“ (rot), kein Hinweis. Ausgelegt und noch zu bestätigen: Der 29.02. wird in Jahren ohne ihn zum 01.03.
 - **Datumsfelder:** nie die Datumswahl des Browsers (sie zeigte je nach System mm/dd/yyyy), sondern ein Textfeld:
   deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT (`src/components/DatumFeld.vue`). Erkannt werden auch 2019-12-01, 1.12.2019
   und 01/12/2019 (Schrägstrich: Tag zuerst); ein Datum, das es nicht gibt, wird gemeldet. Gespeichert wird JJJJ-MM-TT.

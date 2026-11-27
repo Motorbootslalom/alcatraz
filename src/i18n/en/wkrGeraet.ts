@@ -320,7 +320,8 @@ export default {
   'wkr.geraet.bild.schalter': '✔ {punkte}',
   'wkr.geraet.bild.zaehler': '{n}×',
   // Position of the drawing under “More → View” (user 24.11.2026, BL1): since 26.11.2026 (R11-13, BL7) the classes are
-  // named by the start/finish as well (no longer by the pontoon); the sentence says where the turn lies.
+  // named by the start/finish as well (no longer by the pontoon); the sentence says where the turn lies. Classes
+  // „Start/finish …“, parallel slalom short „Start …“: confirmed 27.11.2026 (R12-18 (1)).
   'wkr.geraet.bild.lage': 'Position of the drawing',
   'wkr.geraet.bild.lage.klasse.links': 'Start/finish on the left',
   'wkr.geraet.bild.lage.klasse.oben': 'Start/finish at the top',

@@ -83,7 +83,8 @@ function setzeGewicht(klasse: ClassId, rolle: CoPilotRolle, e: Event) {
  * Was neben dem Gewicht steht: das Ausgleichsgewicht („+3 kg Ausgleich“) oder „Gewicht fehlt“, wenn andere seiner
  * Gruppe gewogen sind (lib/ausgleich.ts coPilotAusgleichVon); sonst nichts – auch beim schwersten Co-Piloten.
  * Ein Gewicht ohne Namen zählt nicht (Prüfbefund 27.11.2026: Name gelöscht = Person fällt weg) – das sagt der Satz
- * „zählt erst mit Namen“, damit niemand rätselt, warum kein Ausgleich erscheint.
+ * „zählt erst mit Namen“, damit niemand rätselt, warum kein Ausgleich erscheint. Das Gewicht bleibt gespeichert (beim
+ * Neutippen des Namens geht es nicht verloren): bestätigt 27.11.2026 (R12-06).
  */
 function agText(klasse: ClassId, rolle: CoPilotRolle): string {
   const p = person(klasse, rolle)
@@ -191,7 +192,7 @@ function weiter(e: Event) {
         </tbody>
       </table>
       <!-- Wogegen das Ausgleichsgewicht der Co-Piloten rechnet – die Wahl selbst ist eine Einstellung (Projektregel:
-           Einstellungen in SettingsView), der Verweis führt hin (R11-07, 26.11.2026). -->
+           Einstellungen in SettingsView), der Verweis führt hin (R11-07, 26.11.2026; bestätigt 27.11.2026, R12-08). -->
       <p class="note" data-hinweis="co-pilot-ausgleich">
         {{ t(state.coPilotAusgleich === 'alle' ? 'crew.coPilot.compensationAll' : 'crew.coPilot.compensationClass') }}
         <a :href="adresse('einstellungen', { ziel: 'gewichte' })" data-verweis="co-pilot-ausgleich">{{ t('crew.coPilot.compensationChange') }}</a>
