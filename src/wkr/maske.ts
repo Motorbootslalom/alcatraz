@@ -25,7 +25,7 @@ import type { ListenSicht, MaskenFeld } from './sicht'
  * dem Fahrweg (mit `boje` in der Sicht), auch gemischt mit Katalog, Disq. und Text → `bojen`; ein Feld mit Zeit oder
  * Punkten oder eine Boje außerhalb des Fahrwegs (Knoten) → `spaeter` (Masken W5, bis dahin Papier, G14). Seit W5.3
  * (22.11.2026, KN7): auf einer Liste OHNE Lauf nur Bojen ohne Fahrweg (+ Text) → `pruefliste` (Knoten: ✓/✗ je Feld).
- * Seit W5.4 (22.11.2026, ZT1, noch zu bestätigen): nur Zeit (+ Disq./Text) → `zeit` (Ziffernblock je Zeitfeld); Bojen
+ * Seit W5.4 (22.11.2026, ZT1, bestätigt 22.11.2026, R8-33): nur Zeit (+ Disq./Text) → `zeit` (Ziffernblock je Zeitfeld); Bojen
  * auf dem Fahrweg MIT Zeit (`moewezeit`, `bstartziel`) → `bojen` mit Zeit-Abschnitt (`zeiten` im Aufbau).
  */
 export type MaskenArt = 'katalog' | 'vorsteg' | 'bojen' | 'pruefliste' | 'zeit' | 'spaeter'
@@ -324,7 +324,7 @@ function gegenstueck(a: MaskenAbschnitt): string | null {
  * dem Hinweg steht (Ziel unter Start, Tor 1 R unter Tor 1 H …) – bei einfachen Listen genau die umgekehrte Fahrtfolge.
  * Was kein Gegenstück auf dem Hinweg hat (Speedbojen, Tor 1 der Speedrunde, MüB), steht direkt vor seinem Vorgänger in
  * der Fahrtfolge – der ganze Reiter ist dann die umgekehrte Fahrtfolge, die Tore stehen untereinander wie auf Hin
- * (Prüfbefund 22.11.2026, ersetzt „danach in Fahrtfolge“; noch zu bestätigen).
+ * (Prüfbefund 22.11.2026, ersetzt „danach in Fahrtfolge“; bestätigt 22.11.2026, R8-01 (a)).
  */
 export function bojenAbschnitte(aufbau: MaskenAufbau, folge: BojenFolge, weg: Weg): MaskenAbschnitt[] {
   if (!mitUmschalter(aufbau, folge)) return aufbau.abschnitte
@@ -356,7 +356,8 @@ export function bojenAbschnitte(aufbau: MaskenAufbau, folge: BojenFolge, weg: We
 
 /**
  * Alle Abschnitte in einer Liste (Ortswahl „Disq. – an welcher Boje?“): wie die Maske sie zeigt, der Hinweg vor dem
- * Rückweg – unter `gedreht` (mit Umschalter) der Rückweg umgekehrt wie sein Reiter (22.11.2026, noch zu bestätigen).
+ * Rückweg – unter `gedreht` (mit Umschalter) der Rückweg umgekehrt wie sein Reiter (22.11.2026, bestätigt
+ * 22.11.2026, R8-03).
  */
 export function bojenAbschnitteAlle(aufbau: MaskenAufbau, folge: BojenFolge): MaskenAbschnitt[] {
   if (!mitUmschalter(aufbau, folge)) return aufbau.abschnitte

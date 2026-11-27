@@ -69,7 +69,7 @@ const getippt = computed(() => {
   const n = nr.value.trim().toUpperCase()
   return n === '' ? null : (bestand.value.find((b) => b.startNr.toUpperCase() === n) ?? null)
 })
-// KN12 (Prüfbefund 22.11.2026 zu R8-27/R8-31, noch zu bestätigen): Der Vorschlag ist VORBELEGT – bei leerem Feld gilt
+// KN12 (Prüfbefund 22.11.2026 zu R8-27/R8-31, bestätigt 23.11.2026, R9-09): Der Vorschlag ist VORBELEGT – bei leerem Feld gilt
 // er als gewählt, Knoten und „✓ Alle richtig“ stehen sofort bereit. Ein fehlerfreier Starter braucht so EINEN Tipp,
 // ein falscher nur das ✗ – „so muss dann nur der falsche markiert werden“. Eintippen ersetzt ihn.
 const treffer = computed(() => (nr.value === '' ? (vorschlag.value ?? null) : getippt.value))

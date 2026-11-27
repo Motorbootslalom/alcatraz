@@ -13,7 +13,7 @@ import type { PunktId } from './betrieb'
 export type WkrPunkt = PunktId | 'ohne'
 
 /**
- * Warum ein Zeitfeld keine Zeit hat (W5.4, 22.11.2026, WKR_ANNAHMEN ZT4, noch zu bestätigen): `anlage` (Zeitanlage
+ * Warum ein Zeitfeld keine Zeit hat (W5.4, 22.11.2026, WKR_ANNAHMEN ZT4, bestätigt 22.11.2026, R8-36): `anlage` (Zeitanlage
  * ausgefallen), `nichtImZiel` (Boot kam nicht ins Ziel), `anderes`. Die Zelle bleibt leer; der Grund steht nur in
  * {@link WkrStand.keineZeit} und am Bedienrechner (Eingang, Matrix, „Papier ansehen“) – nie auf Tafel, Zuschauerliste
  * oder Start-Freigabe (F17).
@@ -198,7 +198,10 @@ export interface WkrStand {
   verworfen?: WkrVerworfen[]
 }
 
-/** Die Werte eines nach einem Ausfall abgebrochenen Versuchs (WIEDERHOLUNG_AUSFALL), je Start einer. */
+/**
+ * Die Werte eines nach einem Ausfall abgebrochenen Versuchs (WIEDERHOLUNG_AUSFALL), je Start und Starter einer – im
+ * Parallelslalom je Boot, das wiederholt (R13-02, 27.11.2026: zwei, wenn beide wiederholen).
+ */
 export interface WkrVerworfen {
   /** Bereich des Betriebs und Kennung des Starts (betrieb/folge.ts refKey). */
   bereich: string

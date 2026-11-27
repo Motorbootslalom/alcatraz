@@ -17,7 +17,7 @@ import { bojenHalt } from './bojen'
 import { bestandOhneLauf, istParcoursListe, istTischListe, listenKennung, teileVon, teilVonZelle, type Liste } from './liste'
 import { ampelImStand, laufLage } from './ampel'
 import { danach, schlange, type SchlangenStart } from './schlange'
-import { geraeteKennung } from './versuch'
+import { geraeteKennung, listenSeite } from './versuch'
 
 // Die Sicht einer Liste (Plan docs/plan-wkr-w1.md §3.1, 21.11.2026): das EINE, was die WKR-Geräte einer Liste vom
 // Stand zu sehen bekommen – über die verschlüsselte Gruppe der Liste (geraete/wkrGruppen.ts). Gebaut wie
@@ -444,10 +444,12 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   const starterNachId = new Map(stand.starters.map((s) => [s.id, s]))
   const mitAusgleich = WKR_ANNAHMEN.ausgleichListen.includes(liste.typeId)
   // Wiederholung nach Ausfall (R11-11, 26.11.2026): je Versuch eine eigene Kennung (wkr/versuch.ts) – das Gerät hält die
-  // Wiederholung so für einen neuen Start und schickt ihre Werte ohne `vorher` des abgebrochenen Versuchs.
+  // Wiederholung so für einen neuen Start und schickt ihre Werte ohne `vorher` des abgebrochenen Versuchs. Im
+  // Parallelslalom zählen nur Abbrüche, die das Boot dieser Liste trafen (R13-02, 27.11.2026).
   const betrieb = betriebVon(stand, liste.bereich)
+  const seite = listenSeite(liste)
   const start = (s: SchlangenStart): ListenStart => {
-    const out: ListenStart = { key: geraeteKennung(betrieb, s.key), startNr: starterNachId.get(s.starter)?.startNr ?? '', klasse: s.klasse, titel: startTitel(s.ref, texte), lauf: s.lauf, punkt: s.punkt }
+    const out: ListenStart = { key: geraeteKennung(betrieb, s.key, seite), startNr: starterNachId.get(s.starter)?.startNr ?? '', klasse: s.klasse, titel: startTitel(s.ref, texte), lauf: s.lauf, punkt: s.punkt }
     if (liste.racecourse !== null) out.seite = liste.racecourse
     const boot = stand.boote[s.klasse]?.trim()
     if (boot) out.boot = boot
@@ -540,7 +542,7 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   const aktuell = l.aktuell?.key ?? null
   if (bekannt && aktuell !== null && istParcoursListe(konfig, liste.typeId)) {
     const a = ampelImStand(stand, konfig, liste.bereich)
-    if (a !== 'aus') sicht.ampel = { key: geraeteKennung(betrieb, aktuell), ampel: a }
+    if (a !== 'aus') sicht.ampel = { key: geraeteKennung(betrieb, aktuell, seite), ampel: a }
   }
   // Ein gezeigter Start, den diese Liste (bzw. ein Teil am Steg) noch nicht erledigt hat, ist unterwegs – auch der
   // letzte des Laufs auf dem Weg zum Anlegen (Prüfbefund 21.11.2026, R6-10).

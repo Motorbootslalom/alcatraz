@@ -9,14 +9,14 @@
 
 import type { AppState, Eingaben, KeineZeitGrund, WkrAbschluss, WkrPunkt, WkrListe, WkrModus, WkrPause, WkrRueckfrage, WkrStand, WkrStatus, WkrTeilStatus, WkrVerworfen, WkrVorschlag, WkrZeile } from '../../types'
 import { erfasstKennung, gueltigeZellen, istHaken, listenFelder, setzeWerte, werteVon, type EingabeZelle, type ListenTeil } from '../../lib/eingaben'
-import { abbruecheVon, betriebVon, liesRef } from '../../betrieb/folge'
+import { abbruecheVon, abgebrochenAuf, betriebVon, liesRef } from '../../betrieb/folge'
 import { abschlussSchluessel, abschlussVon, istWkrPunkt, liesAbschlussSchluessel, OHNE_PUNKT, punktBegonnen, TEILE, wkrPunktVonRef, zeileAbgeschlossen } from '../../wkr/abschluss'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { bestandOhneLauf, istTischListe, liesListe, liesStartKennung, startAufListe, teileVon, teilHaken, teilVonZelle } from '../../wkr/liste'
 import { papierStarts, schlange } from '../../wkr/schlange'
 import { vereinigt, wendeZeileAn, zeilenPruefsumme } from '../../wkr/uebernahme'
 import { keineZeitNur, liesKeineZeitFelder, mitKeineZeit, normalisiereKeineZeit } from '../../wkr/keineZeit'
-import { giltFuerAlleVersuche, liesVersuch, versuchVeraltetAuf } from '../../wkr/versuch'
+import { giltFuerAlleVersuche, listenSeite, liesVersuch, versuchVeraltetAuf } from '../../wkr/versuch'
 import { konfigVon } from './gemeinsam'
 
 export type WkrAenderung =
@@ -165,7 +165,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       // gilt für jeden Versuch (WH6).
       let alleVersuche: boolean | undefined
       const versuchVorbei = (zeile: WkrZeile): boolean => {
-        if (zeile.versuch === undefined || zeile.versuch === abbruecheVon(betriebVon(state, zielListe.bereich), zeile.ref)) return false
+        // Im Parallelslalom zählen nur Abbrüche, die das Boot dieser Liste trafen (R13-02, listenSeite).
+        if (zeile.versuch === undefined || zeile.versuch === abbruecheVon(betriebVon(state, zielListe.bereich), zeile.ref, listenSeite(zielListe))) return false
         alleVersuche ??= giltFuerAlleVersuche(state, konfigVon(state), zielListe.typeId)
         return !alleVersuche
       }
@@ -398,7 +399,8 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       // Der geltende, jüngste gezeigte Versuch des Starts: Nach einem Ausfall (R11-11) ist der erste Eintrag der
       // abgebrochene – „Papier ab“ der Wiederholung nähme sonst alles mit, was dazwischen gezeigt wurde (Prüfbefund
       // 27.11.2026). Wartet der Start noch auf seine Wiederholung, gilt die Zeit des Klicks.
-      const gezeigt = [...betriebVon(state, liste.bereich).gezeigt].reverse().find((g) => g.ref === action.ref && !g.abgebrochen)
+      // Im Parallelslalom gilt für die Liste des anderen Racecourse ein Versuch, der nur für ein Boot abbrach, weiter (R13-02).
+      const gezeigt = [...betriebVon(state, liste.bereich).gezeigt].reverse().find((g) => g.ref === action.ref && !abgebrochenAuf(g, listenSeite(liste)))
       const von = gezeigt?.zeit ?? zeit
       // P = die Schlange ab dem Start: er selbst und was danach gezeigt wurde (Vorsteg-Vorschau und „entfällt“ nicht),
       // samt dem Anlegen des Starts im Boot (Prüfbefund 21.11.2026, WKR_ANNAHMEN.stegAbschlussOhneImBoot).
@@ -685,7 +687,8 @@ export function normalisiereWkr(raw: unknown, starterIds: ReadonlySet<string>): 
 function liesVerworfen(raw: unknown, ids: ReadonlySet<string>): WkrVerworfen | null {
   if (!istObj(raw)) return null
   const { bereich, ref, lauf, starter, werte } = raw
-  if (!istText(bereich) || bereich === '' || liesRef(ref)?.art !== 'm' || !istText(lauf) || !istText(starter) || !zelleGilt(lauf, starter, ids) || !istObj(werte)) return null
+  // Ein Start des Manövrierens oder seit dem 27.11.2026 (R13-02) ein Paar des Parallelslaloms.
+  if (!istText(bereich) || bereich === '' || liesRef(ref) === null || !istText(lauf) || !istText(starter) || !zelleGilt(lauf, starter, ids) || !istObj(werte)) return null
   const zellen = Object.entries(werte).filter((e): e is [string, string] => e[0] !== '' && istText(e[1]) && e[1] !== '')
   const keineZeit: WkrVerworfen['keineZeit'] = {}
   if (istObj(raw.keineZeit)) {
@@ -697,11 +700,11 @@ function liesVerworfen(raw: unknown, ids: ReadonlySet<string>): WkrVerworfen | n
   return { bereich, ref: ref as string, lauf, starter, werte: Object.fromEntries(zellen), keineZeit }
 }
 
-/** Je Bereich und Start einer – der spätere (ein zweiter Ausfall desselben Starts ersetzt den ersten). */
+/** Je Bereich, Start und Starter einer – der spätere (ein zweiter Ausfall desselben Starts ersetzt den ersten; im Parallelslalom je Boot, R13-02). */
 function eindeutigeVerworfene(xs: WkrVerworfen[]): WkrVerworfen[] {
   const je = new Map<string, WkrVerworfen>()
   for (const x of xs) {
-    const k = JSON.stringify([x.bereich, x.ref])
+    const k = JSON.stringify([x.bereich, x.ref, x.starter])
     je.delete(k)
     je.set(k, x)
   }

@@ -231,7 +231,7 @@ const istObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x ===
  * Halbfinale beide Finals neu an – Werte gehen so nur bei kaputten Daten verloren.
  *
  * Hingenommen: Alte gedruckte QR-Codes `…FINAL…` von Bögen des Kleinen Finales treffen danach den
- * Bogen des Finales (keine Abwärtskompatibilität nötig).
+ * Bogen des Finales (keine Abwärtskompatibilität nötig) – bestätigt 27.11.2026 (R13-14 (5)).
  */
 export function teileAlteFinals(roh: Record<string, unknown>): Record<string, unknown> {
   try {

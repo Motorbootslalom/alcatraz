@@ -94,6 +94,15 @@ export default {
     'All values of {nr} in {lauf} are discarded – on every sheet, including those from the race officials’ devices. The start then waits under “Repeat pending” and only goes once it is put in line; the race officials’ devices then get it once more. On paper: strike out the line and enter the repeat in a blank line. “No repeat after all” brings the values back as long as the start has not been shown again.',
   'betrieb.ausfall.vorsteg': 'The pontoon entry line counts for all attempts and stays.',
   'betrieb.ausfall.ja': 'Discard values and repeat',
+  // Parallel slalom (user 27.11.2026, R13-02): repeats there too; the question asks every time which boats repeat – no
+  // preselection. „Repeat“, never „re-run“ (that is the heat after a tie, rule 960 pt. 5.2.6).
+  'betrieb.ausfall.hint.runde':
+    'Pairs shown in the heats under way, the one shown last first. The O.O.D. decides on the repeat and which boats repeat; if a driver is to blame, the race official enters “J” at the buoy (wrong racecourse) – then no repeat for that driver.',
+  'betrieb.ausfall.paar.text':
+    'Which boats repeat {lauf}? Only the values of the chosen boats in this attempt are discarded – on every sheet of both racecourses, including those from the race officials’ devices; a boat that does not repeat keeps its values. The pair then waits under “Repeat pending” (the other boat shown there as “–”) and only goes once it is put in line; the race officials’ devices then get it once more. On paper: strike out the line and enter the repeat in a blank line. “No repeat after all” brings the values back as long as the start has not been shown again.',
+  'betrieb.ausfall.nur': 'Only {nr} ({rc})',
+  'betrieb.ausfall.einer': 'Repeat {nr} ({rc})',
+  'betrieb.ausfall.beide': 'Repeat both',
 
   // Parallel slalom (rule 960): „heat“ is the round (pt. 5.2.2), „racecourse“ and „attempt“ (pt. 4.4).
   'betrieb.versuch': 'Attempt {n}',
@@ -106,7 +115,7 @@ export default {
   'betrieb.beginnen.text.runde':
     'The heats begun still have {n} start to go. It stays released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, small final, final –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt. | The heats begun still have {n} starts to go. They stay released. Starts go in the order of the heats – preliminary heat, re-run, semi-finals, small final, final –, so a re-run comes before semi-finals already begun; the pair in the boat first completes its other attempt.',
   'betrieb.stockt.runde':
-    'No start released – {n} start is waiting (held back or to be made up). The heat is not complete. | No start released – {n} starts are waiting (held back or to be made up). The heat is not complete.',
+    'No start released – {n} start is waiting (held back, repeat pending or to be made up). The heat is not complete. | No start released – {n} starts are waiting (held back, repeat pending or to be made up). The heat is not complete.',
   'betrieb.abweichend.runde': 'The order differs from the locked starting order (pairs held back or shown out of turn). The race officials’ sheets stay as they are.',
   'betrieb.zurueckstellen.title.runde': 'Hold back the next pair: its open attempts of this heat do not go for now but stay visible.',
   'betrieb.einreihen.ende.runde': 'To the end of the heat',
@@ -285,7 +294,7 @@ export default {
   'geraete.nichtVerfuegbar': 'Device operation is not available in this window.',
   'geraete.aus': 'Device operation is off. Until it is switched on, nothing leaves this browser.',
   'geraete.wasGeht':
-    'Once switched on, start number, name (as set under “Names” of the display board), origin and class of the drivers, the order of starts with times, messages and the name of the event go via the server {server} – encrypted and signed. The operator of the server sees no content, but times, sizes and IP addresses. Date of birth, weight, gender, entered values, logos and the backup never leave. Exception: the pontoon list of the race officials’ entry receives the extra weight of each driver (rounded to the step under “Average weights”) – for a lighter driver, the body weight can roughly be worked out from it.',
+    'Once switched on, start number, name (as set under “Names” of the display board), origin and class of the drivers, the order of starts with times, messages and the name of the event go via the server {server} – encrypted and signed. The operator of the server sees no content, but times, sizes and IP addresses. Date of birth, weight, gender, entered values, logos and the backup never leave. Exception: the pontoon list of the race officials’ entry receives the extra weight of each driver (rounded to the step under “Average weights”) – for a lighter driver, the body weight can roughly be worked out from it. A paired start release learns, for its courses, which drivers who have already started have withdrawn – only so that it offers them no repeat after a breakdown.',
   'geraete.einschalten': 'Switch on device operation',
   'geraete.einschalten.hint':
     'Opens a room for this event with two links and QR codes: one for the display board, one for spectators. No login – whoever has the link can read. The room stays open across reloads until “End room”.',
@@ -511,6 +520,9 @@ export default {
   'geraete.ablehnung.offen': 'There are still open starts – finish only with “Rest on paper”.',
   // R11-11 (26.11.2026): line for an attempt aborted after a breakdown (BETRIEB_ANNAHMEN WH7).
   'geraete.ablehnung.versuch-abgebrochen': 'This attempt was aborted after a breakdown – the start is repeated. The line was not taken over.',
+  // R13-01 (27.11.2026): “Repeat (breakdown)” from the start release phone, refused by the operating computer.
+  'geraete.ablehnung.nicht-gezeigt': 'No repeat for this start: it is not (or no longer) among the starts run in the attempts or heats under way – please check the display.',
+  'geraete.ablehnung.abgemeldet': 'The driver has withdrawn – no repeat. If the driver is to start after all, first take back the withdrawal at the operating computer.',
   // W2.2 (21.11.2026): Operation → Race officials (digital entry by the race officials).
   'betrieb.reiter.wkr': 'Race officials',
   'betrieb.wkr.hint':

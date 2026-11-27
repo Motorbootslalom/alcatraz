@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { bereinige, darf, erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, LISTEN_JE_GERAET, listenAufgaben, STARTFREIGABE_ACTIONS, WKR_ACTIONS, type Aufgabe, type AufgabenStand } from './aufgaben'
+import { bereinige, bereinigeWiederholung, darf, erlaubteAction, erlaubteWiederholung, erlaubteWkr, freigabeBereiche, liesAufgaben, LISTEN_JE_GERAET, listenAufgaben, STARTFREIGABE_ACTIONS, STARTFREIGABE_WIEDERHOLUNG, WKR_ACTIONS, type Aufgabe, type AufgabenStand } from './aufgaben'
 import { reducer } from '../state/reducer'
 import { configFor } from '../config/konfig'
-import { lage, refKey } from '../betrieb/folge'
-import { wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { ausfallGesperrt, betriebVon, lage, PARALLEL_BEREICH as PARALLEL, refKey } from '../betrieb/folge'
+import { uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import { listenKennung, type Liste } from '../wkr/liste'
 import type { AppState } from '../types'
 
@@ -66,12 +66,20 @@ describe('darf – Start-Freigabe', () => {
       { type: 'IMPORT_STARTERS', starters: [], mode: 'replace', bereich: 'see' },
       { type: 'CLEAR_EINGABEN', bereich: 'see' },
       { type: 'SET_KENNUNG', kennung: 'X', bereich: 'see' },
-      // Wiederholung nach Ausfall (R11-11, WH3/WH4): Auslösen und „Doch keine Wiederholung“ nur am Bedienrechner –
-      // beides Actions der Erfassung (Werte verwerfen bzw. zurückholen, Prüfbefund 27.11.2026).
-      { type: 'WIEDERHOLUNG_AUSFALL', bereich: 'see', ref: '["m","s1",1]' },
-      { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: 'see', ref: '["m","s1",1]' },
+      // Andere Actions der Erfassung als die beiden der Wiederholung (R13-01) gehen nie – auch nicht über die Ausnahme.
+      { type: 'CLEAR_EINGABEN_TEIL', laeufe: [1], bereich: 'see' },
+      { type: 'FILL_BEISPIELWERTE', saat: 1, bereich: 'see' },
     ]
     for (const a of verboten) expect(darf(a, steg('see'), DM), a.type).toBe(false)
+    for (const a of verboten) expect(erlaubteWiederholung(a, steg('see'), DM as unknown as AppState), a.type).toBeNull()
+  })
+
+  it('die Wiederholung nach Ausfall (Actions der Erfassung) nie über die Betriebs-Positivliste – nur über erlaubteWiederholung (R13-01)', () => {
+    for (const type of STARTFREIGABE_WIEDERHOLUNG) {
+      expect(darf({ type, bereich: 'see', ref: '["m","s1",1]' }, steg('see'), DM), type).toBe(false)
+      expect((STARTFREIGABE_ACTIONS as readonly string[]).includes(type)).toBe(false)
+    }
+    expect(STARTFREIGABE_WIEDERHOLUNG).toEqual(['WIEDERHOLUNG_AUSFALL', 'WIEDERHOLUNG_AUFHEBEN'])
   })
 
   it('Meldung an alle Bereiche („*“) nie vom Gerät', () => {
@@ -268,5 +276,121 @@ describe('erlaubteWkr (W1)', () => {
     })
     for (const z of [0, -1, 1.5, '7', undefined]) expect(erlaubteWkr({ type: 'WKR_SO_LASSEN', liste: K('gate135'), z }, eigene, s, DMK, G)).toBeNull()
     expect(erlaubteWkr({ type: 'WKR_SO_LASSEN', liste: K('tor5'), z: 1 }, eigene, s, DMK, G)).toBeNull()
+  })
+})
+
+/**
+ * Wiederholung nach Ausfall vom Freigabe-Handy (Nutzer 27.11.2026, R13-01: „Die Start-Freigabe ist die Instance, die
+ * bestimmt, wer im Parcours ist …“; R13-06: „Wiederholungen von Starts auslösen und einordnen …“): die eng geprüfte
+ * Ausnahme – nur der eigene Bereich, nur gefahrene Starts, nie Abgemeldete. Erfundene Starter (testHilfen e1/k1/e2/k2).
+ */
+describe('erlaubteWiederholung (R13-01/R13-06)', () => {
+  const P1 = 'par_1'
+  const P2 = 'par_2'
+  const m = (starter: string, lauf = 1) => refKey({ art: 'm', starter, lauf })
+  // `abbrueche`: die Zahl der Abbrüche, die das Handy sah (Prüfbefund 27.11.2026) – vom Gerät Pflicht.
+  const ausfall = (ref: string, bereich = P1, mehr: Record<string, unknown> = {}) => ({ type: 'WIEDERHOLUNG_AUSFALL', bereich, ref, abbrueche: 0, ...mehr })
+  const aufheben = (ref: string, abbrueche: number) => ({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich: P1, ref, abbrueche })
+  /** Lauf 1 auf Parcours 1 begonnen, e1 und k1 gezeigt (k1 im Boot), e2 als Nächster. */
+  const gezeigt = (): AppState => zeigeNaechsten(zeigeNaechsten(wkrBetriebsStand(), P1, 1000), P1, 61_000)
+
+  it('eigener Bereich, gezeigter Start: die Action bereinigt – ohne `zeit` und Fremdes', () => {
+    const s = gezeigt()
+    expect(erlaubteWiederholung({ ...ausfall(m('k1')), zeit: 5, kennung: 'X', eingaben: {} }, steg(P1), s)).toEqual({ action: ausfall(m('k1')) })
+    // Auch der früher gezeigte (e1), nicht nur der im Boot.
+    expect(erlaubteWiederholung(ausfall(m('e1')), steg(P1, P2), s)).toEqual({ action: ausfall(m('e1')) })
+    expect(erlaubteWiederholung({ ...aufheben(m('k1'), 0), nur: 'a', zeit: 5 }, steg(P1), s)).toEqual({ action: aufheben(m('k1'), 0) })
+  })
+
+  it('fremder Bereich, kein Recht, unbekannter Bereich, kaputt → nicht-erlaubt', () => {
+    const s = gezeigt()
+    expect(erlaubteWiederholung(ausfall(m('k1')), steg(P2), s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(erlaubteWiederholung(ausfall(m('k1')), [], s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(erlaubteWiederholung(ausfall(m('k1')), [{ art: 'liste', liste: listenKennung({ bereich: P1, typeId: 'gate135', racecourse: null }) }], s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(erlaubteWiederholung(ausfall(m('k1'), 'weg'), steg('weg'), s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(erlaubteWiederholung(ausfall(m('k1'), PARALLEL), steg(PARALLEL), s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(erlaubteWiederholung(ausfall(m('k1'), P1, { nur: 'c' }), steg(P1), s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(erlaubteWiederholung({ type: 'WIEDERHOLUNG_AUSFALL', bereich: P1 }, steg(P1), s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(erlaubteWiederholung({ ...aufheben(m('k1'), 0), bereich: P2 }, steg(P1), s)).toEqual({ grund: 'nicht-erlaubt' })
+    expect(bereinigeWiederholung({ type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: 'x'.repeat(513), abbrueche: 0 })).toBeNull()
+    // Ohne gültige Zahl der Abbrüche (Prüfbefund 27.11.2026): nicht an einen Versuch gebunden – abgelehnt.
+    for (const abbrueche of [undefined, -1, 1.5, '0', 1000]) {
+      expect(erlaubteWiederholung(ausfall(m('k1'), P1, { abbrueche }), steg(P1), s)).toEqual({ grund: 'nicht-erlaubt' })
+      expect(erlaubteWiederholung({ ...aufheben(m('k1'), 0), abbrueche }, steg(P1), s)).toEqual({ grund: 'nicht-erlaubt' })
+    }
+    // Keine Art der Ausnahme: `null` – der Host prüft dann wie bisher über die Positivliste.
+    expect(erlaubteWiederholung({ type: 'BETRIEB_MELDUNG', bereich: P1, meldung: null }, steg(P1), s)).toBeNull()
+    expect(erlaubteWiederholung(null, steg(P1), s)).toBeNull()
+  })
+
+  it('nicht gezeigt, anderer Lauf, kaputte Kennung → nicht-gezeigt; abgemeldet → abgemeldet', () => {
+    const s = gezeigt()
+    expect(erlaubteWiederholung(ausfall(m('e2')), steg(P1), s)).toEqual({ grund: 'nicht-gezeigt' })
+    expect(erlaubteWiederholung(ausfall(m('k1', 2)), steg(P1), s)).toEqual({ grund: 'nicht-gezeigt' })
+    expect(erlaubteWiederholung(ausfall('kaputt'), steg(P1), s)).toEqual({ grund: 'nicht-gezeigt' })
+    // Der Start gehört zu Parcours 1 – über Parcours 2 nie (auch mit Recht dort).
+    expect(erlaubteWiederholung(ausfall(m('k1'), P2), steg(P2), s)).toEqual({ grund: 'nicht-gezeigt' })
+    expect(erlaubteWiederholung(ausfall(m('k1')), steg(P1), { ...s, abgemeldet: ['k1'] })).toEqual({ grund: 'abgemeldet' })
+    // Andere Abgemeldete hindern nicht.
+    expect(erlaubteWiederholung(ausfall(m('k1')), steg(P1), { ...s, abgemeldet: ['e2'] })).toEqual({ action: ausfall(m('k1')) })
+    expect(ausfallGesperrt({ ...s, abgemeldet: ['k1', 'e2'] }, P1)).toEqual(['k1'])
+    expect(ausfallGesperrt(s, P1)).toEqual([])
+  })
+
+  it('schon abgebrochen (jemand war schneller): geht durch, der Reducer ändert nichts – das Handy liest „unverändert“', () => {
+    const s = reducer(gezeigt(), { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1'), zeit: 70_000 })
+    const r = erlaubteWiederholung(ausfall(m('k1')), steg(P1), s)
+    expect(r).toEqual({ action: ausfall(m('k1')) })
+    expect(reducer(s, { ...ausfall(m('k1')), zeit: 71_000 } as never)).toBe(s)
+    // „Doch keine Wiederholung“ (gesehen: ein Abbruch) wirkt; ein zweites Mal ändert nichts.
+    const auf = erlaubteWiederholung(aufheben(m('k1'), 1), steg(P1), s)
+    expect(auf).toEqual({ action: aufheben(m('k1'), 1) })
+    const zurueck = reducer(s, { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: P1, ref: m('k1'), abbrueche: 1, zeit: 72_000 })
+    expect(zurueck).not.toBe(s)
+    expect(reducer(zurueck, { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: P1, ref: m('k1'), zeit: 73_000 })).toBe(zurueck)
+  })
+
+  it('verspätet (Funkloch, Prüfbefund 27.11.2026): nach Abbruch und neuem Zeigen am Bedienrechner `konflikt` – die Wiederholung bleibt', () => {
+    // Das Handy sah k1 mit 0 Abbrüchen und tippte „Wiederholung“; die Nachricht hängt. Am Bedienrechner: Ausfall,
+    // einreihen, zeigen, der WKR trägt den Wert der Wiederholung ein.
+    let s = reducer(gezeigt(), { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1'), abbrueche: 0, zeit: 70_000 })
+    s = reducer(s, { type: 'BETRIEB_EINREIHEN', bereich: P1, ref: m('k1'), wo: 'naechster' })
+    s = zeigeNaechsten(s, P1, 80_000)
+    s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: 'k1', feld: 't1a|hin seiteA', wert: '5' }] })
+    expect(lage(s, P1).erledigt.has(m('k1'))).toBe(true)
+    // Jetzt kommt die alte Nachricht an: abgelehnt mit `konflikt`; auch der Reducer allein ändert nichts (zwei Fenster).
+    expect(erlaubteWiederholung(ausfall(m('k1')), steg(P1), s)).toEqual({ grund: 'konflikt' })
+    expect(reducer(s, { ...ausfall(m('k1')), zeit: 90_000 } as never)).toBe(s)
+    // Mit der Zahl, die jetzt gilt, geht ein neuer Ausfall der Wiederholung.
+    expect(erlaubteWiederholung(ausfall(m('k1'), P1, { abbrueche: 1 }), steg(P1), s)).toEqual({ action: ausfall(m('k1'), P1, { abbrueche: 1 }) })
+    // „Doch keine Wiederholung“ für den ersten Ausfall hebt keinen neueren, zweiten auf.
+    const zweiter = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1'), abbrueche: 1, zeit: 95_000 })
+    expect(betriebVon(zweiter, P1).gezeigt.filter((g) => g.abgebrochen)).toHaveLength(2)
+    expect(erlaubteWiederholung(aufheben(m('k1'), 1), steg(P1), zweiter)).toEqual({ grund: 'konflikt' })
+    expect(reducer(zweiter, { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: P1, ref: m('k1'), abbrueche: 1, zeit: 96_000 })).toBe(zweiter)
+    expect(erlaubteWiederholung(aufheben(m('k1'), 2), steg(P1), zweiter)).toEqual({ action: aufheben(m('k1'), 2) })
+  })
+
+  it('Parallelslalom (R13-02): `nur` nur mit einem Boot, das fuhr; ein abgemeldetes Boot nur, wenn die Wiederholung es träfe', () => {
+    let s = reducer(uimParallelStand(), { type: 'BETRIEB_BEGINNEN', bereich: PARALLEL, punkt: 'runde:pre', zeit: 500 })
+    s = zeigeNaechsten(s, PARALLEL, 1000)
+    const key = s.betrieb.bereiche[PARALLEL].gezeigt[0].ref
+    const [, , , a, b] = JSON.parse(key) as [string, string, number, string, string]
+    const par = steg(PARALLEL)
+    expect(erlaubteWiederholung(ausfall(key, PARALLEL), par, s)).toEqual({ action: ausfall(key, PARALLEL) })
+    expect(erlaubteWiederholung(ausfall(key, PARALLEL, { nur: 'b' }), par, s)).toEqual({ action: ausfall(key, PARALLEL, { nur: 'b' }) })
+    const ohneB = { ...s, abgemeldet: [b] }
+    expect(erlaubteWiederholung(ausfall(key, PARALLEL), par, ohneB)).toEqual({ grund: 'abgemeldet' })
+    expect(erlaubteWiederholung(ausfall(key, PARALLEL, { nur: 'b' }), par, ohneB)).toEqual({ grund: 'abgemeldet' })
+    expect(erlaubteWiederholung(ausfall(key, PARALLEL, { nur: 'a' }), par, ohneB)).toEqual({ action: ausfall(key, PARALLEL, { nur: 'a' }) })
+    expect(ausfallGesperrt(ohneB, PARALLEL)).toEqual([b])
+    // Nach einer Wiederholung nur von A, eingereiht und gezeigt: B fuhr darin nicht – `nur: 'b'` ist kein gefahrenes Boot.
+    let w = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: PARALLEL, ref: key, nur: 'a', zeit: 2000 })
+    w = reducer(w, { type: 'BETRIEB_EINREIHEN', bereich: PARALLEL, ref: key, wo: 'naechster' })
+    w = zeigeNaechsten(w, PARALLEL, 3000)
+    expect(lage(w, PARALLEL).aktuell?.key).toBe(key)
+    expect(erlaubteWiederholung(ausfall(key, PARALLEL, { nur: 'b', abbrueche: 1 }), par, w)).toEqual({ grund: 'nicht-gezeigt' })
+    expect(erlaubteWiederholung(ausfall(key, PARALLEL, { nur: 'a', abbrueche: 1 }), par, w)).toEqual({ action: ausfall(key, PARALLEL, { nur: 'a', abbrueche: 1 }) })
+    expect(a).not.toBe(b)
   })
 })

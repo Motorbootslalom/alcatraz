@@ -175,7 +175,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Dummy, nur 2 Gewertete) entfällt die Runde für die Klasse. Das Gesamtergebnis nimmt 1/2 aus dem Finale, 3/4 aus dem
   Kleinen Finale. Rundennamen „Kleines Finale“/„Small final“ und „Finale“/„Final“ (statt „Finals“); der Vermerk
   „Kleines Finale (Platz 3 und 4)“ in der Klasse-Spalte von Plänen und Startlisten entfällt (die Runde sagt es). Alte
-  Stände mit einer gemeinsamen Runde `final` teilt migrate() auf (Werte ziehen um), sonst verwirft es sie. →
+  Stände mit einer gemeinsamen Runde `final` teilt migrate() auf (Werte ziehen um), sonst verwirft es sie; alte
+  gedruckte QR-Codes des Kleinen Finales treffen danach den Bogen des Finales (hingenommen, bestätigt 27.11.2026,
+  R13-14 (5)). →
   `types/planung.ts` ParallelRunde, `lib/parallelStage.ts`, `lib/parallelErgebnis.ts`, `state/migrate.ts`
   teileAlteFinals, `components/ParallelRunden.vue`
 - 2026-11-24 · N · „Alle Klassen weiter“ schreibt nach dem Halbfinale Kleines Finale und Finale auf einmal fest (ein
@@ -278,9 +280,9 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   (`wkrLeerzeilenSeite`) am Ende jeder Seite mit leerer Klassenzelle, auch ohne „Papier sparen“, und entfallen bis auf
   eine, wenn sie allein ein Blatt kosteten; mit „Versuche direkt nacheinander“ (UIM) ist jede Leerzeile eine Zeile
   ohne Versuch – eine Nachmeldung füllt zwei, wie schon auf Bögen einer Klasse (R11-04); die Erfassung am Bildschirm
-  behält ihre blasse Schraffur (dort liegt daneben die Schraffur „nicht gestartet“; R11-29 (2)). Noch zu bestätigen:
-  der Kopf nennt die Klassen der Seite; die Beispielansicht mischt die Muster-Starter mit der Verzahnung des
-  Parcours. Offen: ob gemeinsame Bögen über Klassen auch bei DM/UIM-Meisterschaften
+  behält ihre blasse Schraffur (dort liegt daneben die Schraffur „nicht gestartet“; R11-29 (2)). Bestätigt 27.11.2026:
+  der Kopf nennt die Klassen der Seite (R13-05); die Beispielansicht mischt die Muster-Starter mit der Verzahnung des
+  Parcours (R13-14 (3)). Offen: ob gemeinsame Bögen über Klassen auch bei DM/UIM-Meisterschaften
   kommen sollen (beantwortet 26.11.2026, R11-03, nächster Eintrag). → AppState.wkrGemeinsamFolge, `lib/wkrListen.ts`,
   `lib/bogen.ts`, `styles/bogen.css`
 - 2026-11-26 · N · R11-03 Gemeinsame WKR-Bögen mehrerer Klassen auch bei Meisterschaften (DM, UIM): „Wenn es schon da
@@ -542,7 +544,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   Veranstaltung nennt die Liste die Grenz-Jahrgänge (werden im Jahr 6 bzw. 27) zum Prüfen, mit Verweis auf das Datum,
   dazu wer sicher außerhalb liegt (bestätigt 26.11.2026, R11-29 (1)); ohne Geburtsdatum keine Warnung. „Bis zum 27. Geburtstag“ = am Geburtstag selbst
   nicht mehr (beim Bau ausgelegt, vom Nutzer bestätigt am 26.11.2026, R11-01). Mehrtägige Veranstaltungen: zwei Stufen,
-  Eintrag vom 26.11.2026 (R11-02). Beim Bau ausgelegt, zu bestätigen (unter „Offen“): am 29.02. Geborene werden in
+  Eintrag vom 26.11.2026 (R11-02). Beim Bau ausgelegt, bestätigt 27.11.2026 (R13-14 (1)): am 29.02. Geborene werden in
   Jahren ohne 29.02. am 01.03. älter (BGB § 188). → `import/klassenPruefung.ts` geburtstagsHinweise,
   `dm-2026.yaml` `geburtstagsGrenzen`, AppState.eventDatum (SET_EVENT_DATUM), `components/ClassSection.vue`,
   `views/EventView.vue`
@@ -667,7 +669,7 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   einstellen, ob Racecourse A und B neben- oder untereinander stehen und welcher links bzw. oben („Bei der
   Parallel-Tafel bitte einstellbar machen, ob horizontal oder vertikal geteilt wird. Das ist standortabhängig.“ –
   „Ja, es muss einstellbar sein, ob oben oder unten bzw. links/rechts.“). Vier Möglichkeiten, Vorgabe A links; nur
-  unter UIM; reist mit der Vorlage. Ausgelegt beim Bau (noch zu bestätigen): Start-Freigabe, Startliste und
+  unter UIM; reist mit der Vorlage. Ausgelegt beim Bau, bestätigt 27.11.2026 (R13-12 (3)): Start-Freigabe, Startliste und
   Zuschauerliste bleiben bei A vor B. → `AnzeigeEinstellungen.parallelAnordnung` (types/betrieb.ts),
   `components/anzeige/AnzeigeBereich.vue`, `styles/anzeige.css`, `BETRIEB_ANNAHMEN.parallelAnordnungNurTafel`
 - 2026-11-24 · N · Parallelslalom im Betrieb: „Beim Parallel sind die einzelnen Stufen einzeln mit beginnen
@@ -684,9 +686,10 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   (Erfassung: ↻ an der Nummer). Der alte Stand bleibt im Verlauf zurückholbar; „Doch keine Wiederholung“ holt die Werte
   zurück (27.11.2026). Ausnahme von „Der Betrieb schreibt nie
   in `eingaben`“: nur über diese eigene Action der Erfassung. „J bei Verschulden“ setzt der WKR an der Boje – dafür
-  ist nichts gebaut; der Parallelslalom behält seinen Re-run. Beim Bau ausgelegt: WH3–WH10 – bestätigt 27.11.2026
-  (R12-11 bis R12-16, R12-18 (4)–(6); WH10 nur für Abgemeldete) bis auf die unter „Offen“ genannten, nicht gefragten
-  Punkte. →
+  ist nichts gebaut; der Parallelslalom behält seinen Re-run (seit 27.11.2026, R13-02, gibt es die Wiederholung auch
+  dort, und seit R13-01/R13-06 löst auch das Freigabe-Handy aus – Einträge unten). Beim Bau ausgelegt: WH3–WH10 –
+  bestätigt 27.11.2026 (R12-11 bis R12-16, R12-18 (4)–(6); WH10 nur für Abgemeldete) bis auf die unter „Offen“
+  genannten, nicht gefragten Punkte. →
   `state/reducer/erfassung.ts` WIEDERHOLUNG_AUSFALL/WIEDERHOLUNG_AUFHEBEN, `state/reducer/betrieb.ts`
   mitWiederholung/ohneWiederholung/BETRIEB_EINREIHEN, `betrieb/folge.ts` lage (`wiederholung`), `wkr/versuch.ts`,
   `components/betrieb/AusfallWahl.vue`, `BETRIEB_ANNAHMEN` WH1–WH10
@@ -706,6 +709,68 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   die Runde des Parallelslaloms). → `state/reducer/erfassung.ts` WIEDERHOLUNG_AUFHEBEN, `state/reducer/betrieb.ts`
   ohneWiederholung, `state/reducer/wkr.ts` (WKR_ZEILEN, WKR_PAPIER_AB, wkrOhneVersuch, verworfen), `wkr/schlange.ts`
   rahmen, `wkr/versuch.ts` versuchVeraltetAuf, `BETRIEB_ANNAHMEN` WH3, WH4, WH6–WH8
+- 2026-11-27 · N · R13-02 **Wiederholung nach Ausfall auch im Parallelslalom** (Frage: „Wiederholung nach Ausfall im
+  Parallelslalom?“ – „Auch hier kann es zu technischen Ausfällen kommen.“; damit ist WH10 „keine im Parallelslalom“
+  umentschieden, der Teil zu Abgemeldeten bleibt). Welche Boote wiederholen (nur das ausgefallene oder beide des Paares),
+  hat der Nutzer offen gelassen. Gebaut 27.11.2026: „Wiederholung (Ausfall) …“ an der Start-Freigabe auch im
+  Parallelslalom; die Wahl zeigt die gezeigten Paar-Starts der laufenden Runden, die Rückfrage fragt JEDES MAL ohne
+  Vorauswahl „Nur 101 (Parcours A)“, „Nur 102 (Parcours B)“ oder „Beide wiederholen“ (leere Seite: nur das Boot, das
+  fuhr). Verworfen werden die Werte der gewählten Boote in genau diesem Attempt auf allen Listen beider Racecourses
+  (samt Haken, Disq., „keine Zeit“), gemerkt je Boot; „Doch keine Wiederholung“ holt sie zurück (nur in leere Zellen).
+  Das Paar steht danach unter „Wiederholung offen“ – wiederholt nur ein Boot, steht das andere dort und auf der
+  Anzeigetafel als „–“ – und wird von Hand eingereiht, als Einheit (R13-13; „Ans Ende der Runde“ nimmt den 2. Attempt,
+  der im Plan direkt dahinter steht, mit). Die WKR-Geräte des wiederholenden Boots bekommen den Attempt als neuen Start,
+  eine späte Zeile dazu wird abgelehnt; auf dem anderen Racecourse gilt der Versuch weiter. Titel „Vorlauf · 1. Versuch ·
+  Wiederholung“ bzw. „Preliminary heat · Attempt 1 · Repeat“ (`sv` bleibt 7). Die Wertung nimmt den wiederholten Attempt
+  wie jeden anderen; der Re-run bei Gleichstand und „Runde gedruckt (fest)“ bleiben unberührt (die Paarung ändert sich
+  nie). Beim Bau ausgelegt, vom Nutzer zu bestätigen: WHP1–WHP6 (unter „Offen“). Nicht Teil dieses Schritts: das
+  Auslösen vom Freigabe-Handy (R13-01, R13-06, nächster Eintrag). → `state/reducer/erfassung.ts` WIEDERHOLUNG_AUSFALL `nur`,
+  `state/reducer/betrieb.ts` mitWiederholung/BETRIEB_EINREIHEN, `betrieb/folge.ts` abgebrochenAuf/wiederholtNur/
+  gefahreneSeiten, `GezeigterStart.nur`, `wkr/versuch.ts` listenSeite, `components/betrieb/AusfallWahl.vue`,
+  `BETRIEB_ANNAHMEN` WH10, WHP1–WHP6
+- 2026-11-27 · N · R13-01/R13-06 **Wiederholung nach Ausfall auch an der Start-Freigabe auf dem Handy** (Frage R13-01:
+  „Wiederholung nur am Bedienrechner?“ – „Nein, auch an der Start Freigabe, wenn diese auf einem anderen Gerät aktiv
+  ist. Die Start-Freigabe ist die Instance, die bestimmt, wer im Parcours ist und als welchen Lauf dieser gewertet wird.
+  Damit sind auch Wiederholungen direkt dort zu entscheiden“; Frage R13-06 „Rechte der Start-Freigabe auf dem Handy“ –
+  „Wiederholungen von Starts auslösen und einordnen in der Verzahnung, das die Position auch machen.“; sonst bleibt es
+  beim Gebauten: kein „Betrieb zurücksetzen“, kein „Auf allen Parcours zeigen“, keine Einstellungen). WH3 („nur am
+  Bedienrechner“) und der Teil von WH4 („Doch keine Wiederholung“ nur am Bedienrechner) sind damit umentschieden.
+  Gebaut 27.11.2026: Das gekoppelte Freigabe-Handy zeigt für seine Parcours „Wiederholung (Ausfall) …“ mit derselben
+  Wahl und Rückfrage wie am Bedienrechner (im Parallelslalom mit der Wahl der Boote) und in „Wiederholung offen“ „Doch
+  keine Wiederholung“; Einreihen ging schon. Die beiden Actions der Erfassung (WIEDERHOLUNG_AUSFALL,
+  WIEDERHOLUNG_AUFHEBEN) gehen über eine eigene, eng geprüfte Ausnahme der Positivliste, nicht pauschal: Der Host
+  prüft den eigenen Bereich, dass der Start (das Paar, das Boot) unter den gefahrenen Starts des Bereichs steht und
+  nicht abgemeldet ist, und lehnt sonst mit Grund ab („Für diesen Start gibt es keine Wiederholung …“, „Der Starter ist
+  abgemeldet – keine Wiederholung …“). Die Wahl steht dafür in jeder öffentlichen Sicht (`sv` 8); die Abgemeldeten
+  unter den gefahrenen Starts bekommt nur das Handy des Bereichs über die Freigabe-Gruppe (fv 3), zum Ausgrauen. Beim
+  Bau ausgelegt, vom Nutzer zu bestätigen: WH11–WH13 (unter „Offen“). → `geraete/aufgaben.ts`
+  STARTFREIGABE_WIEDERHOLUNG/erlaubteWiederholung, `geraete/host.ts` nimmAn/verteileFreigabe, `betrieb/folge.ts`
+  gefahreneStarts/ausfallGrund/ausfallGesperrt, `betrieb/sicht.ts` (sv 8), `wkr/freigabe.ts` `ausfallGesperrt`,
+  `components/betrieb/GeraetFreigabe.vue`, `BETRIEB_ANNAHMEN` WH3, WH4, WH11–WH13, startfreigabeRechte
+- 2026-11-27 · N · R13-01/R13-02/R13-06 **Prüfbefunde zur Wiederholung nach Ausfall (Handy, Parallelslalom)** –
+  behoben 27.11.2026: (1) Wiederholt nur ein Boot und fährt es danach nicht mehr (Abmeldung setzt X in den geleerten
+  Attempt, X von Hand), entfällt der Start jetzt wie im Manövrieren (`betrieb/folge.ts` faehrtNoch) – vorher blieb ein
+  leeres Paar unter „Wiederholung offen“, fuhr als „Attempt 1 · Repeat“ ohne Boote über die Tafel, und „Doch keine
+  Wiederholung“ schrieb die alte Zeit neben das X; das geht jetzt auch im Manövrieren nicht mehr, und wiederholten beide
+  Boote und hat eins inzwischen X, holt es nur die Werte des anderen zurück (WH4, WHP3). (2)
+  Parcours-Ampel, „Durchs Start-Tor“ und „unterwegs“ zählen bei der Wiederholung nur eines Boots nur dessen Listen –
+  vorher hielten die stehen gebliebenen Werte des anderen Boots die Ampel sofort für „durch“ (WHP4). (3) Die
+  Wiederholung nur eines Boots kommt auf den Listen des anderen Racecourse nie als neuer Start, auch wenn die Liste beim
+  ersten Versuch pausiert oder noch nicht digital war (`betrieb/folge.ts` giltAuf für Schlange, P, „überfällig“, Marken;
+  WHP4). (4) Der Verlauf nennt die Boote aus den verworfenen Werten (beim Aufheben aus dem Stand davor), nicht beide
+  laut Plan (WHP6). (5) **Gebunden an den gesehenen Versuch**: „Wiederholung (Ausfall)“ und „Doch keine Wiederholung“
+  tragen die Zahl der Abbrüche, die die Start-Freigabe zeigte (`SichtStart.abbrueche`, Action `abbrueche`, vom Handy
+  Pflicht); stimmt sie nicht mehr, ändert sich nichts, das Handy liest „Inzwischen hat sich dort etwas geändert – bitte
+  die Anzeige prüfen.“ – vorher traf eine Nachricht aus dem Funkloch die inzwischen am Bedienrechner gezeigte
+  Wiederholung selbst; die offene Rückfrage schließt sich, sobald ihr Start nicht mehr so unter den gefahrenen steht
+  (WH14, neu, zu bestätigen). (6) Datenschutz-Aussagen nachgezogen: Abmeldungen (nur die Abgemeldeten unter den
+  gefahrenen Starts, nur in der Freigabe-Gruppe des Bereichs) gehen über die Leitung – Text vor dem Einschalten
+  (`geraete.wasGeht`), `geraete/CLAUDE.md`, Projektkarte, Leitungs-Test (WH12, zu bestätigen). Nicht umgebaut, zur
+  Entscheidung (WH11, unter „Offen“): `gefahren` hält alle Starter begonnener Läufe den ganzen Tag in der Sicht der
+  Tafel-Links. Die Nutzer-Doku (docs/funktionen.md, betrieb.md, parallelslalom.md, de und en) zieht ein eigener Schritt
+  nach. → `betrieb/folge.ts` faehrtNoch/giltAuf, `state/reducer/erfassung.ts`, `wkr/schlange.ts`, `wkr/lage.ts`
+  durchfahrtVon, `wkr/ampel.ts` laufLage, `geraete/aufgaben.ts` bereinigeWiederholung/erlaubteWiederholung (`konflikt`),
+  `components/betrieb/AusfallWahl.vue`, `lib/verlauf.ts`, `BETRIEB_ANNAHMEN` WH4, WH11, WH12, WH14, WHP3, WHP4, WHP6
 - 2026-11-26 · N · Gerätebetrieb (E6–E8) wie gebaut bestätigt (R11-15 bis R11-24, Einzelheiten im Abschnitt „Antworten
   26.11.2026 (Runde 11)“): zwei Lese-Links mit eigenem Schlüssel, nur der Zuschauer-Link erneuerbar; Uhrversatz nur aus
   frisch empfangenen Nachrichten; der Raum endet nur mit „Raum beenden“; Fassungsprüfung an der Form der Nachrichten;
@@ -1248,9 +1313,9 @@ Check-In E10“). Gebaut 24.11.2026 (`WKR_ANNAHMEN` AG1–AG4 in `src/wkr/annahm
   Gerät „kein AG“, Verwiegung „0 kg“). Zahlen mit Nachkommastelle mit dem Dezimalzeichen der Sprache („1,5 kg“,
   englisch „1.5 kg“); die Sicht der Steg-Liste behält ihre Form (Fassung 11 zeigt sie schon richtig). Reist in Sicherung
   und Vorlage.
-- 2026-11-24 · Beim Bau ausgelegt, noch zu bestätigen: Die Beschriftung heißt nach dem Reglement „Ausgleichsgewicht in
-  Stufen von“ (Hinweis: „das kleinste Gewichtsstück, das am Steg ins Boot gelegt wird“), nicht „Kleinstes
-  Zusatzgewicht“ – „Zusatzgewicht“ steht seit 14.11.2026 nicht in der Oberfläche. Bestätigt 26.11.2026: Ein eigener
+- 2026-11-24 · Beim Bau ausgelegt, bestätigt 27.11.2026 (R13-14 (2)): Die Beschriftung heißt nach dem Reglement
+  „Ausgleichsgewicht in Stufen von“ (Hinweis: „das kleinste Gewichtsstück, das am Steg ins Boot gelegt wird“), nicht
+  „Kleinstes Zusatzgewicht“ – „Zusatzgewicht“ steht seit 14.11.2026 nicht in der Oberfläche. Bestätigt 26.11.2026: Ein eigener
   Wert gilt auf 10 g genau (0,25 kg geht; 0,125 wird 0,13; R11-29 (6)). Die Übung auf dem Gerät rechnet immer mit
   1 kg (sie kennt keine Veranstaltung; R11-30 (6)). Mit 0,1 kg verrät das Ausgleichsgewicht auf dem Steg-Gerät das
   Körpergewicht eines leichten Starters auf 0,1 kg genau (AG1: vorher auf 1 kg) – das Gerät zeigt trotzdem dieselbe
@@ -1303,11 +1368,13 @@ CM1–CM8 in `src/wkr/annahmen.ts`; Regelwerk-YAML `max`/`danach` je Code):
 
 - 2026-11-24 · CM1 · **Höchstzahl je Code im Regelwerk**: „2. und 3. Versuch des Elementes“ (DM und UIM: 6
   Steg-Ablegen, 7 Steg-Anlegen, 20 Tor 5, 19 MüB) höchstens 2×, Tor 5 Code 1 („nicht mit gesamter Länge eingefahren“)
-  höchstens 1×. Am Höchstwert nimmt der Knopf nichts mehr an und sagt es im Knopf („höchstens 1×“, CM4).
+  höchstens 1×. Am Höchstwert nimmt der Knopf nichts mehr an und sagt es im Knopf („höchstens 1×“, CM4 – nicht
+  ausgegraut, kein Band; bestätigt 27.11.2026, R13-04 (a)).
 - 2026-11-24 · CM3 · **Dritter Tipp = Disq. D**: Auf „2. und 3. Versuch“ setzt der dritte Tipp den Buchstaben D
   („4. Versuch eines Elementes“, UIM „4th attempt of the racecourse“) ins Disq.-Feld der Liste (am Steg das gemeinsame);
   der Zähler bleibt bei 2. Der Knopf zeigt vorher „nächster = Disq. D“, danach „Disq. D gesetzt“. „↶ Rückgängig“ nimmt
-  D wieder heraus. Beim Bau ausgelegt, noch zu bestätigen: Steht D schon (über DISQ), ändert der dritte Tipp nichts.
+  D wieder heraus. Beim Bau ausgelegt, bestätigt 27.11.2026 (R13-04 (b)): Steht D schon (über DISQ), ändert der
+  dritte Tipp nichts.
 - 2026-11-24 · CM2 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-08): **allgemeine Grenze 3 je Lauf** für Codes ohne eigene
   Angabe (ein Element höchstens dreimal angefahren). Unsicher und gefragt: Stegberührungen (DM 3, 9; UIM 3, 9) und
   „Durchreißen der Schaltung“ (DM 2, 5, 10, 16) können in einem Versuch mehrmals vorkommen.
@@ -1351,8 +1418,8 @@ GF10/GF11. Gebaut 24.11.2026 (`WKR_ANNAHMEN` NG1–NG8 in `src/wkr/annahmen.ts`)
   Disq.-Feld beider Regelwerke (Tore und Parcours aller Aufbauten, Tor 5, MüB, Parallelslalom, Steg, Vorsteg); Zeit- und
   Knotenlisten haben keins. Am Bedienrechner gilt diese Zeile überall; X neben anderem bleibt nur am Steg-Ablegen und am
   Vorsteg (F5). Kein automatisches J mehr: J setzt der WKR an einer Boje des ausgelassenen Tors (Disq. an der Boje).
-  Prüfbefund, noch zu bestätigen: Die Zeitnahme bekommt den Punkt nicht – ihre Liste hat kein Disq.-Feld, und in das
-  Feld einer anderen Liste (etwa Steg) darf kein Gerät schreiben.
+  Prüfbefund, bestätigt 27.11.2026 (R13-03): Die Zeitnahme bekommt den Punkt nicht – ihre Liste hat kein Disq.-Feld,
+  und in das Feld einer anderen Liste (etwa Steg) darf kein Gerät schreiben; ebenso der Knoten am Tisch.
 - 2026-11-24 · NG3 · Die Disq.-Knöpfe (auch an der Boje und in der Tabelle) bieten X weiter nur am Steg-Ablegen und am
   Vorsteg an – an Toren nur über „Mehr“.
 - 2026-11-24 · NG4 · Ein X vom Gerät wirkt wie jedes X: Wertung „nicht gestartet“, Erfassung schraffiert, Start entfällt
@@ -1409,8 +1476,14 @@ den 4 Parcours-Himmelsrichtungen.“ Gebaut 24.11.2026 (`WKR_ANNAHMEN` UK1–UK6
   Platz (vor Blick-Drehung und bildDrehungNachPlatz); ohne Wahl bleibt die Zeichnung wie bisher. Gemerkt je Gerät und
   Liste wie die Bojen-Folge (bleibt nach „Raum verlassen“), gilt im Gerät, in der Übung und in der Probe am Bild.
 - 2026-11-24 · BL4/BL5 · Ziffern und Text der Zeichnung bleiben aufrecht (Gegendrehung je Text um seine Mitte –
-  sonst läse sich die „6“ der Schikane bei 180° als „9“); die Trefferkreise drehen mit. Das Schema (Rückfall ohne
-  Parallel.svg) dreht nicht und bietet keine Lage an.
+  sonst läse sich die „6“ der Schikane bei 180° als „9“); die Trefferkreise drehen mit – bestätigt 27.11.2026
+  (R13-14 (4)). Das Schema (Rückfall ohne Parallel.svg) dreht nicht und bietet keine Lage an (BL5, nicht gefragt).
+- 2026-11-27 · N · BL8 · Nutzer (Bildschirmfoto Klasse E hochkant): „Warum hast du den Text hier drin, wenn der
+  Parcours im Hochformat ist?“ – Die Zeichnungen sind quer angelegt; um ±90° gedreht legten sich Titel und
+  Fahrweg-Beschreibung (aufrecht nach BL4) quer über den Parcours. **Hochkant nur die Ziffern an den Bojen**, alle
+  übrigen Texte der Zeichnung (Titel, Beschreibung, „Tempo - Runde“, „Möwe-Parcour“) ausgeblendet; quer (0°, 180°)
+  bleibt alles. Beim Bau ausgelegt (zu bestätigen): auch „Tempo - Runde“ fällt hochkant weg. → `wkr/bild.ts`
+  nurBojenZiffern, `WKR_ANNAHMEN.bildHochkantNurZiffern`, Test `wkr/bild.test.ts` „BL8“
 - 2026-11-24 · Prüfbefunde (UK4–UK6, BL1, BL6) – UK4, BL1 und BL6 bestätigt 26.11.2026 (R11-30 (4), (5), (8)), UK5
   und UK6 (in der Fassung von UK7) bestätigt 27.11.2026 (R12-17):
   - UK5: Im echten Übungstakt (nächster Start 2–6 s nach dem Abschicken) richtete sich die Seite nur bis zum Ende des
@@ -1626,7 +1699,88 @@ es im Parallelslalom keine Wiederholung gibt (WH10, bestätigt ist nur der Teil 
 „Zurück“ den abgebrochenen Versuch nicht nimmt und „Doch keine Wiederholung“ nur am Bedienrechner geht (WH4; in R12-11
 nur als Hintergrund genannt) und was mit den Papier-Vermerken geschieht (WH4, WH8); dazu der 29.02., der Kopf mit den
 Klassen der Seite, die Beispielansicht gemeinsamer Bögen, CM3 „D schon gesetzt“, CM4, NG1, BL4/BL5 und die übrigen
-älteren Punkte.
+älteren Punkte – beantwortet 27.11.2026 (Runde 13, nächster Abschnitt) bis auf BL5 und einzelne ältere.
+
+### Antworten 27.11.2026 (Runde 13)
+
+Antworten des Nutzers auf die Fragenseite, Runde 13 (R13-01…R13-15: Wiederholung nach Ausfall, WKR-Gerät, WKR-Bögen,
+Start-Freigabe vom Handy, Startliste, Wartezeiten und Zuschauerliste, Parallelslalom im Betrieb, Kleinigkeiten). Zwölf
+Fragen hat er mit „Passt“ beantwortet – das Gebaute gilt –, dazu R13-06 bis auf die Wiederholung. Anders entschieden
+hat er R13-01, R13-02 und den Teil von R13-06 zur Wiederholung; die sind umgebaut, ihre Einträge stehen im Abschnitt
+„Betrieb und Offline“. Im Code steht an jeder bestätigten Auslegung „Bestätigt 27.11.2026 (R13-xx)“, in den
+Abschnitten oben ebenso. Zugleich sind die veralteten „noch zu bestätigen“ im Code gestrichen, deren Auslegung laut
+den Runden 7–12 schon bestätigt war (`WKR_ANNAHMEN`, `BETRIEB_ANNAHMEN` AM6–AM8, Kopfkommentare einzelner Dateien).
+
+**Bestätigt:**
+
+- R13-03 · Zeitnahme und Knoten am Tisch ohne „Nicht gestartet · Disq. X“: Die Zeitnahme meldet „keine Zeit“ mit
+  Grund, das X kommt von einer Liste mit Disq.-Feld oder vom Bedienrechner (`WKR_ANNAHMEN` NG1).
+- R13-04 · Am Höchstwert sagt der Code-Knopf es in sich („höchstens 1×“), bleibt normal, nicht ausgegraut, kein Band
+  (CM4); steht D schon (über DISQ gesetzt), bleibt ein weiterer Tipp auf „2. und 3. Versuch“ ohne Wirkung, der Knopf
+  sagt „Disq. D gesetzt“ (CM3).
+- R13-05 · Der Kopf eines gemeinsamen WKR-Bogens nennt je Seite nur deren Klassen, eine allein als „Klasse 3“; eine
+  Seite nur mit Leerzeilen nennt bei „nach der Verzahnung“ alle Klassen des Bogens. → `lib/bogen.ts`
+- R13-06 · Bis auf die Wiederholung (unten): Das Freigabe-Handy darf alles Betriebliche seiner Parcours, aber nicht
+  „Betrieb zurücksetzen“, keine Meldung „Auf allen Parcours zeigen“, keine Einstellungen (`BETRIEB_ANNAHMEN`
+  startfreigabeRechte).
+- R13-07 · Koppeln ohne Rückfrage am Bedienrechner; Name nach der Geräteart, eindeutig gemacht, umbenennen in der
+  Geräteliste (koppelnOberflaeche, koppelnZeiten).
+- R13-08 · Gekoppelte Handys melden sich von selbst wieder an, mit den Rechten von jetzt; entzogen zeigen sie nur noch,
+  wer im Boot ist und wer als Nächstes kommt; „Gerät entkoppeln“ löscht nur auf dem Handy; die Geräteliste zeigt
+  „zuletzt gehört“ statt „verbunden“ (gekoppelteGeraete, koppelnOberflaeche).
+- R13-09 · Startabstände: ab drei Messungen nur der Messwert, vorher nur die Vorgabe; gültig 30 bis 300 s; nie über
+  einen Laufwechsel, nicht über „ohne Anzeige“ Erledigte, nicht nach X oder Abbruch, ein zurückgenommener Start zählt
+  nicht; „Messwerte als Vorgabe übernehmen“ erst ab drei Messungen (prognoseMessung, keineMessungOhneLauf,
+  keineMessungUeberPunktgrenze, vorgabeAbGenugMessungen).
+- R13-10 · „ca. in“ nur für offene Starts des begonnenen Laufs; keine Zahl bei Pause oder Störung (auch bei den
+  Begrüßungen), für „Boot fehlt“, Zurückgestellte, Nachzuholende, „Wiederholung offen“ und nicht begonnene Läufe
+  (wartezeitNurFreigegebene, keineZahlBeiPause, zuschauerGruppen).
+- R13-11 · Die Zuschauerliste zeigt nur den laufenden Lauf, ohne Zurückgestellte, Nachzuholende und „Wiederholung
+  offen“; die Filter blenden nur aus (zuschauerSchmal, zuschauerGruppen).
+- R13-12 · Parallelslalom im Betrieb: (1) ohne „ca. in“; (2) auf der gemeinsamen Anzeigetafel erst ab einer begonnenen
+  Runde, sonst wählbar; (3) die Lage von A und B nur auf der Anzeigetafel; (4) eine leere Seite „–“, der Start entfällt
+  nur, wenn beide leer sind (parallelOhnePrognose, parallelAufDerTafel, parallelAnordnungNurTafel, parallelLeereSeite).
+- R13-13 · Kein Umstellen im Parallelslalom; Zurückstellen, Einreihen und gezieltes Zeigen nehmen das Paar mit; ein
+  Paar im Boot fährt vor einer anderen Runde zu Ende (parallelOhneUmstellen, parallelPaarAlsEinheit,
+  parallelPaarZuEnde).
+- R13-14 · Alle fünf Kleinigkeiten: (1) am 29.02. Geborene werden in Jahren ohne ihn am 01.03. älter
+  (`import/klassenPruefung.ts` geburtstagMit); (2) „Ausgleichsgewicht in Stufen von“; (3) die Beispielansicht mischt
+  die Muster-Starter in der Verzahnung des Parcours (`components/WkrVorschau.vue`); (4) Ziffern und Text der Zeichnung
+  bleiben aufrecht (BL4); (5) alte QR-Codes des Kleinen Finales treffen den Bogen des Finales (hingenommen,
+  `state/migrate.ts` teileAlteFinals).
+- R13-15 · Alle acht Kleinigkeiten: (1) „Zurück“ nimmt den abgebrochenen Start nicht, dafür „Doch keine Wiederholung“
+  (WH4); (2) der Papier-Vermerk fällt mit der Wiederholung weg und kommt nicht zurück (WH4, WH8); (3) „Andere Klassen
+  vorziehen“ zu Beginn an, kein „Vorziehen“ für eine Klasse allein auf ihrer Spur (vorziehenVorgabe,
+  alleinAufDerSpurFest); (4) „Ans Ende des Laufs“ = Ende des laufenden Laufs (einreihenEndeLaufend); (5) Knöpfe statt
+  Ziehen an der Start-Freigabe (knoepfeStattZiehen; dass nur die Startliste das Ziehen kennt, ebenso – ihre Regeln
+  des Ablegens waren nicht gefragt); (6) „Einsteigen ab …“ ohne Rückfrage; (7) Meldungsvorlagen in der Sprache der
+  Anzeigetafel; (8) Sperre bis zur Bestätigung, der Satz nach 10 s; QR-Code 30 s, Sitzung 10 Minuten
+  (koppelnOberflaeche, koppelnZeiten).
+
+**Anders entschieden** (umgebaut 27.11.2026):
+
+- R13-01 · Wiederholung nur am Bedienrechner? Nutzer: „Nein, auch an der Start Freigabe, wenn diese auf einem anderen
+  Gerät aktiv ist. Die Start-Freigabe ist die Instance, die bestimmt, wer im Parcours ist und als welchen Lauf dieser
+  gewertet wird. Damit sind auch Wiederholungen direkt dort zu entscheiden“.
+- R13-06 · Rechte der Start-Freigabe auf dem Handy. Nutzer: „Wiederholungen von Starts auslösen und einordnen in der
+  Verzahnung, das die Position auch machen.“ Gebaut (mit R13-01): Das gekoppelte Freigabe-Handy zeigt für seine
+  Parcours „Wiederholung (Ausfall) …“ mit derselben Wahl und Rückfrage wie am Bedienrechner und unter „Wiederholung
+  offen“ „Doch keine Wiederholung“; einreihen konnte es schon. Die zwei Actions der Erfassung gehen über eine eigene,
+  eng geprüfte Ausnahme der Positivliste: Der Host prüft Bereich, gefahrene Starts, Abmeldung und die Zahl der
+  Abbrüche und lehnt sonst mit Grund ab. Am Bedienrechner bleiben „Betrieb zurücksetzen“, „Auf allen Parcours zeigen“
+  und die Einstellungen. WH3 heißt seitdem `wiederholungAnDerStartFreigabe`. → Abschnitt „Betrieb und Offline“,
+  `BETRIEB_ANNAHMEN` WH3, WH4, WH11–WH14
+- R13-02 · Wiederholung nach Ausfall auch im Parallelslalom? Nutzer: „Auch hier kann es zu technischen Ausfällen
+  kommen.“ Gebaut: „Wiederholung (Ausfall) …“ auch im Parallelslalom. Welche Boote wiederholen, hat der Nutzer offen
+  gelassen; die Rückfrage fragt deshalb jedes Mal („Nur 101 (Parcours A)“, „Nur 102 (Parcours B)“, „Beide
+  wiederholen“). Verworfen werden die Werte der gewählten Boote in genau diesem Attempt; das Paar wird von Hand
+  eingereiht, als Einheit (R13-13). Der Re-run bei Gleichstand, „Runde gedruckt (fest)“ und die Paarung bleiben
+  unberührt. → Abschnitt „Betrieb und Offline“, `BETRIEB_ANNAHMEN` WH10, WHP1–WHP6
+
+Beim Umbau ausgelegt und vom Nutzer zu bestätigen – Liste unter „Offen“, vor allem: Soll es im Parallelslalom eine
+Vorgabe geben, welche Boote wiederholen (WHP2)? Und zur Entscheidung (WH11): Die Wahl der gefahrenen Starts hält die
+Starter begonnener Läufe den ganzen Tag in der Sicht der Tafel-Links. Nicht gefragt und weiter offen: die Sonderfälle
+der Startfolge an der Start-Freigabe (für Runde 14 vorgesehen) und einzelne ältere Kleinigkeiten (unter „Offen“).
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
@@ -1661,53 +1815,93 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 
 ## Offen
 
-- Wiederholung nach Ausfall (26.11.2026, R11-11, Abschnitt „Betrieb und Offline“; WH5–WH7, WH9, WH10 für Abgemeldete,
-  der abgeschlossene Lauf in WH8, „Doch keine Wiederholung“ mit den Werten (WH4) und die Wahl in WH3 bestätigt
-  27.11.2026, R12-11 bis R12-16, R12-18 (4)–(6)), nicht gefragt und weiter zu bestätigen (`BETRIEB_ANNAHMEN`
-  WH3, WH4, WH8, WH10; gefragt in Runde 13, R13-01, R13-02, R13-15 (1), (2)): Das Freigabe-Handy löst keine
-  Wiederholung aus (Einreihen geht dort); keine Wiederholung im Parallelslalom (dort gilt der Re-run, WH10); „Zurück“
-  nimmt den abgebrochenen Versuch nicht, „Doch keine Wiederholung“ gibt es nur am Bedienrechner; die Papier-Vermerke
-  (P der Pausen, `papier`/`abweichend` der Abschlüsse) fallen beim Auslösen weg und kommen mit „Doch keine
-  Wiederholung“ nicht zurück. Prüfbefunde ohne eigene Frage (Eintrag 27.11.2026 (4), (7)): „Papier ab“ ab der
-  Wiederholung nimmt nur sie und Späteres; der Verlauf nennt die Startnummer.
-- Betrieb am Wettkampftag (E2–E4, ab 16.11.2026, Abschnitt „Betrieb und Offline“): die in `BETRIEB_ANNAHMEN` als
-  „noch zu bestätigen“ geführten Auslegungen zu Messung und Wartezeiten („ca. in“), Zuschauerliste, Parallelslalom im
-  Betrieb und Umstellen an der Start-Freigabe – gefragt in Runde 13 (R13-09 bis R13-13, R13-15 (3)–(7)).
-- Abstufung des Ausgleichsgewichts (24.11.2026, Abschnitt „Ausgleichsgewicht am Steg“; eigener Wert auf 10 g genau,
-  Übung in ganzen kg und dieselbe Zahl auf dem Steg-Gerät auch bei 0,1 kg am 26.11.2026 bestätigt, R11-06, R11-29 (6),
-  R11-30 (6)), beim Bau ausgelegt und vom Nutzer zu bestätigen: Beschriftung „Ausgleichsgewicht in Stufen von“ statt
-  „Kleinstes Zusatzgewicht“ (Wort des Reglements).
-- Geburtstags-Warnung (24.11.2026; „bis zum 27.“, die Grenz-Jahrgänge ohne Datum und die zwei Stufen bestätigt,
-  R11-01/R11-02/R11-29 (1), R12-01 bis R12-03), beim Bau ausgelegt und vom Nutzer zu bestätigen
-  (`import/klassenPruefung.ts` geburtstagMit): am 29.02. Geborene werden in Jahren ohne 29.02. am 01.03. älter.
-- Klassen auf gemeinsamen WKR-Bögen (24.11.2026, Abschnitt „Listen und Druck“; Meisterschaften auf Wunsch samt
-  „Papier sparen“, Laufzettel und Leerzeilen bestätigt, R11-03/R11-04/R11-29 (2), R12-04, R12-05, R12-18 (3)), noch zu
-  bestätigen: der Kopf nennt die Klassen der Seite; die Beispielansicht mischt die Muster-Starter mit der Verzahnung
-  des Parcours.
-- Höchstzahl je Code (24.11.2026, Abschnitt „Maske „Knöpfe“: Höchstzahl je Code …“; Grenze 3 (CM2), D mit einem Tipp
-  und Prellschutz (CM3, CM8), Tabelle, Gerätezeile und Abtippen (CM5, CM6) am 26.11.2026 bestätigt, R11-08, R11-09,
-  R11-30 (1); „Rückgängig“ mit Pfeil nach links auch im Aufbau-Assistenten, R11-30 (2), R12-18 (2)), noch zu
-  bestätigen: D schon gesetzt → dritter Tipp ohne Wirkung (CM3); der Knopf sagt am Höchstwert „höchstens n×“ (CM4).
-- „Nicht gestartet · Disq. X“ (24.11.2026, Abschnitt „Nicht gestartet statt nicht vorbeigekommen“; NG4, NG5, NG6 am
-  26.11.2026 bestätigt, R11-10, R11-12, R11-30 (3)), noch zu bestätigen: Prüfbefund – die Zeitnahme bekommt den Punkt
-  nicht (NG1, kein eigenes Disq.-Feld).
-- Lage der Zeichnung (24.11.2026, Abschnitt „Übung und Ansicht der Maske …“; BL1, BL3, BL6, Y5, UK2, UK4 am
-  26.11.2026, BL7 und die Übung mit UK5–UK7 am 27.11.2026 bestätigt, R11-30, R12-17, R12-18 (1)), noch zu bestätigen:
-  BL4 (Schrift bleibt aufrecht; gefragt in Runde 13, R13-14 (4)); BL5 (das Schema dreht nicht) bewusst nicht gefragt –
-  es erscheint nur als Rückfall, wenn die Parallel-Zeichnung fehlt.
-- Erfassung durch Wettkampfrichter am Gerät: Fragen am 21.11.2026 beantwortet (Abschnitt „Digitale WKR-Erfassung“).
-- Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern), E6 (Lese-Links für Anzeigetafel und Zuschauer,
-  Betrieb → Geräte, Einstellung des Servers), E7 (Koppeln, Start-Freigabe vom Handy, 20.11.2026) und E8 sind gebaut,
-  aber nur gegen einen nachgebauten Server geprüft; offen ist der Feldtest ([feldtest.md](feldtest.md)).
-  Entscheidungen dazu unter „Betrieb und Offline“ (F1, F3, F6, F7 umgesetzt). Die Auslegungen von E6 und E8 und zu
-  Quittung und Geräte-Code aus E7 sind am 26.11.2026 bestätigt (R11-15 bis R11-24); die übrigen Auslegungen von E7
-  (`BETRIEB_ANNAHMEN` startfreigabeRechte, koppelnZeiten, gekoppelteGeraete, koppelnOberflaeche) stehen dort weiter
-  als „vom Nutzer zu bestätigen“. Ohne Netz gibt es seit 16.11.2026 (E1) die Anzeigetafel im zweiten Fenster und die
-  Start-Freigabe am Bedienrechner.
-- Finals getrennt (21.11.2026; (1) beide Finals zusammen bei „Alle Klassen weiter“ und (2) „Finale beginnen“ von Hand
-  bestätigt 24.11.2026, (3) Rundenname ohne Zusatz, (4) veraltet zuerst das Kleine Finale und (6) „offene Runde“
-  bestätigt 26.11.2026, R11-25/R11-29 (7)), hingenommen und vom Nutzer zu bestätigen: (5) alte gedruckte Codes
-  `…FINAL…` von Bögen des Kleinen Finales treffen nach der Migration den Bogen des Finales.
+- **Wiederholung nach Ausfall – Umbau nach Runde 13** (27.11.2026, R13-01, R13-02, R13-06; Abschnitt „Betrieb und
+  Offline“). Beim Bau ausgelegt bzw. nach den Prüfbefunden nachgezogen, vom Nutzer zu bestätigen:
+  - Parallelslalom (`BETRIEB_ANNAHMEN` WHP1–WHP6, WH10):
+    - WHP2: Die Rückfrage hat keine Vorgabe dafür, welche Boote wiederholen. Sie fragt jedes Mal mit „Nur 101
+      (Parcours A)“, „Nur 102 (Parcours B)“ oder „Beide wiederholen“, und der Knopf ist zugleich die Bestätigung.
+      **Frage für die nächste Runde:** Soll es eine Vorgabe geben, nur das ausgefallene Boot oder beide?
+    - WHP2: Fuhr in diesem Versuch nur ein Boot (Dummy, gelöscht, X), wird nur dieses angeboten. Nach einer
+      Wiederholung nur von A bietet ein weiterer Ausfall desselben Attempts nur noch A an.
+    - WHP3: Wiederholt nur ein Boot, steht das andere unter „Wiederholung offen“, auf Anzeigetafel, Start-Freigabe und
+      Zuschauerliste als „–“ (wie eine leere Seite, ohne Grund). Es fährt nicht noch einmal und behält Werte, Haken, P
+      der Pausen und Abschlüsse seines Racecourse.
+    - WHP3: Der abgebrochene Versuch bleibt im Boot mit beiden Booten stehen, bis der nächste Start kommt.
+    - WHP3: Haben beide Boote wiederholt und hat eines inzwischen X, holt „Doch keine Wiederholung“ nur die Werte des
+      anderen zurück (beim Bau ausgelegt, nicht als Befund gemeldet).
+    - WHP4: Nur die Listen des Racecourse, dessen Boot wiederholt, bekommen eine neue Geräte-Kennung. Eine späte Zeile
+      dort wird mit `versuch-abgebrochen` abgelehnt. Auf dem anderen Racecourse gilt der Versuch weiter: Eine späte
+      Zeile wird übernommen, und die Wiederholung erscheint dort weder in der Schlange noch vorab noch unter „danach“.
+    - WHP4: Die Spalte des Paares in der Matrix der WKR-Erfassung fehlt wie im Manövrieren bis zum neuen Zeigen, auch
+      mit der Zelle des Boots, das nicht wiederholt.
+    - WHP5: „Als Nächster“ und „Ans Ende der Runde“ nehmen mit der Wiederholung den Attempt mit, der im Plan direkt
+      dahinter steht und noch nicht gezeigt ist (planPartner, also nur nach dem Vorlauf). Begründung: Regel 960
+      Pkt. 4.4, der 1. Attempt ist der frühere Start. „Zurückstellen“ nimmt eine wartende Wiederholung nicht mit.
+    - WHP5: Der 2. Attempt wartet nicht von selbst. Wird vor dem Einreihen „Nächster Start“ getippt, kommt er vor der
+      Wiederholung.
+    - WHP6: Titel „· Wiederholung“ bzw. „· Repeat“ am Paar. `sv` bleibt 7, weil sich die Form der Sicht nicht ändert.
+      Die Zuschauersicht zeigt die Wiederholung nur im Titel.
+    - WHP6: Der Verlauf nennt die Startnummern der wiederholenden Boote (bei beiden „E01 / E02“), die Klasse nur, wenn
+      sie für alle gleich ist, dazu Runde und Attempt.
+    - WHP1: Die Wertung nimmt den wiederholten Attempt wie jeden anderen, weil er in denselben Zellen steht. Re-run bei
+      Gleichstand und „Runde gedruckt (fest)“ bleiben unberührt, die Paarung ändert sich nie.
+    - WH10 im Parallelslalom je Boot: Ist ein Boot abgemeldet, sind seine Seite und „Beide wiederholen“ gesperrt, das
+      andere Boot darf wiederholen. Der Reducer ändert nichts, wenn ein gewähltes Boot abgemeldet ist.
+    - Ein zweiter Ausfall desselben Paares ersetzt alle gemerkten verworfenen Werte des ersten, auch die des anderen
+      Boots. „Doch keine Wiederholung“ nimmt danach nur den letzten Abbruch zurück, mit dessen Booten.
+  - Freigabe-Handy (`BETRIEB_ANNAHMEN` WH11–WH14):
+    - WH11 (wiederholungWahlInSicht): Die Wahl `gefahren` steht seit `sv` 8 in jeder öffentlichen Sicht, also auch
+      auf den Lese-Links der Anzeigetafel. Das sind schon gefahrene Starts der laufenden Läufe, ohne Werte, Gründe
+      oder Abmeldungen; nicht in der Zuschauersicht. Grund: Das Handy liest nur diese Sicht, und die Freigabe-Gruppe
+      darf keine Starternamen tragen (A9).
+    - WH12 (wiederholungHandyAbmeldungen): Das Handy bekommt Abmeldungen nur zum Ausgrauen. Gemeint sind die IDs der
+      Abgemeldeten unter den gefahrenen Starts seines Bereichs, über die Freigabe-Gruppe
+      (FreigabeErfassung.ausfallGesperrt, fv 3). Nie alle Abmeldungen, nie in der öffentlichen Sicht, nie an Geräte
+      anderer Bereiche.
+    - WH13 (wiederholungHandyPruefung): Der Host prüft gegen den vollen Stand und lehnt mit Grund ab: `nicht-erlaubt`
+      (fremder oder unbekannter Bereich), `nicht-gezeigt` (nicht unter den gefahrenen Starts; im Parallelslalom auch
+      „Nur …“ für ein Boot, das nicht fuhr), `abgemeldet`. Ein Start, der schon auf seine Wiederholung wartet, geht
+      durch und ändert nichts („Nichts geändert“). „Doch keine Wiederholung“ prüft nur den Bereich; wartet der Start
+      nicht mehr, ebenfalls „Nichts geändert“.
+    - WH14 (wiederholungGebunden): Auslösen und „Doch keine Wiederholung“ tragen die Zahl der Abbrüche, die die
+      Start-Freigabe zeigte; stimmt sie nicht mehr, ändert sich nichts und das Handy liest „Inzwischen hat sich dort
+      etwas geändert …“ (`konflikt`). Die offene Rückfrage schließt sich still, ohne Hinweis (beim Bau ausgelegt,
+      nicht als Befund gemeldet).
+  - **Zur Entscheidung** (Befund 8, WH11): `gefahren` in der Gruppe ko hält alle Starter begonnener Läufe bzw. Runden
+    den ganzen Tag in der Startertabelle der Tafel-Links (Name nach der Namensregel, Herkunft, Klasse). Nicht umgebaut,
+    weil es eine fachliche Entscheidung ist. Begrenzen auf die jüngsten Starts widerspräche R12-18 (4) („alle, Rest über
+    die Suche“); „Läufe, die gerade laufen“ ist mehrdeutig, weil ein begonnener Lauf nie endet; möglich wäre auch, die
+    Wahl nur über eine eigene Gruppe an die Freigabe-Handys zu schicken. Der Nutzer muss wählen.
+  - Prüfbefunde ohne eigene Frage (Eintrag 27.11.2026 „nach den Prüfbefunden nachgezogen“, (4) und (7)): „Papier ab“
+    ab der Wiederholung nimmt nur sie und Späteres; der Verlauf nennt die Startnummer. Dazu WH4: Fährt in dem Start
+    niemand mehr (X nach dem Ausfall), entfällt er, und „Doch keine Wiederholung“ ändert nichts (`betrieb/folge.ts`
+    faehrtNoch).
+  - Nicht mehr offen: R13-15 (1) und (2) („Passt“) sind in WH4 und WH8 als bestätigt vermerkt. WH3 ist nach den
+    Zitaten R13-01 und R13-06 umgeschrieben und heißt `wiederholungAnDerStartFreigabe`; am Bedienrechner bleiben
+    „Betrieb zurücksetzen“, „Auf allen Parcours zeigen“ und die Einstellungen, wie in R13-06 bestätigt.
+  - Nutzer-Doku (Befund 7): docs/betrieb.md, funktionen.md, parallelslalom.md (de und en) und feldtest.md beschreiben
+    die Wiederholung vom Handy und im Parallelslalom noch nicht – das zieht ein eigener Doku-Schritt nach (was zu
+    ändern ist, steht im Bericht des Bau-Schritts unter „fuerNutzer“).
+- **Betrieb am Wettkampftag** (E1–E4, ab 16.11.2026, Abschnitt „Betrieb und Offline“): Messung, Wartezeiten,
+  Zuschauerliste, Parallelslalom im Betrieb und Umstellen an der Start-Freigabe sind am 27.11.2026 bestätigt (R13-09
+  bis R13-13, R13-15 (3)–(7)). Weiter „noch zu bestätigen“ in `BETRIEB_ANNAHMEN` – die Sonderfälle der Startfolge an
+  der Start-Freigabe, für Runde 14 vorgesehen: abgemeldetNurDurchX (nur ein X in einer Disq.-Zelle des Laufs lässt
+  den Start entfallen), angebrochenFaehrtZuEnde, zeigenJederOffene (auch Zurückgestellte und „Boot fehlt“),
+  nichtBegonneneWarten, bootFehltVorNachzuholen, bloeckeJePunkt, haltenImBlock, unberuehrtePunkteFolgenVerzahnung,
+  klassenImLaufendenPunkt, schritteNurFestgeschrieben, parallelRundenFuerSich, parallelRundenAlsPunkte (Betrieb ab einer festgeschriebenen
+  Runde) und parallelLeereSeite (Kennung eines Paares laut Plan, K8); dazu vorstegVorDenStegStarts (Zeit bis zum
+  Vorsteg) und in ziehenInDerStartliste die Regeln des Ablegens (vor/hinter, was nicht gezogen wird).
+- **Mehrgeräte-Betrieb über ntfy** (E5–E8): gebaut, aber nur gegen einen nachgebauten Server geprüft; offen ist der
+  Feldtest ([feldtest.md](feldtest.md)). Die Auslegungen von E6–E8 sind bestätigt (R11-15 bis R11-24, R13-06 bis
+  R13-08, R13-15 (8)). Nicht eigens gefragt, in `BETRIEB_ANNAHMEN` koppelnZeiten und gekoppelteGeraete weiter „noch zu
+  bestätigen“ (technische Einzelheiten): der Geräte-Code nur mit Koppel-Link, das Wiederholen mit wachsendem Abstand
+  samt später Antwort, das Hingenommene zum Betreiber des ntfy-Servers, ein neuer Code für ein schon gebundenes Gerät,
+  das Schreibfenster.
+- **Ältere, nie eigens gefragte Auslegungen:** die Folge innerhalb einer Position beim Druck der WKR-Bögen (erst alle
+  Klassen im 1. Lauf; Abschnitt „Listen und Druck“, `lib/wkrListen.ts` WKR_DRUCKFOLGE.innen); zur Lage der Zeichnung
+  BL5 (das Schema dreht nicht – erscheint nur als Rückfall ohne Parallel-Zeichnung, bewusst nicht gefragt) und BL8
+  (hochkant nur die Ziffern an den Bojen, auch „Tempo - Runde“ fällt weg; `WKR_ANNAHMEN` bildLageOhneSchema,
+  bildHochkantNurZiffern).
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`, alle bestätigt 24.11.2026) und EINZEL_FESTLEGUNGEN
   (`lib/einzelwertung.ts`) legen aus, wo Regel 960 schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste
   anpassen.

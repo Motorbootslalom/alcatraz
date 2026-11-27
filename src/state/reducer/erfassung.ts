@@ -2,7 +2,7 @@
 // Wiederholung nach Ausfall (26.11.2026, R11-11): die Werte eines abgebrochenen Versuchs verwerfen – und mit „Doch keine
 // Wiederholung“ zurückholen (Prüfbefund 27.11.2026).
 
-import type { AppState, BereichId, ParallelRunde, WkrPunkt, WkrVerworfen } from '../../types'
+import type { AppState, BereichId, PaarSeite, ParallelRunde, WkrPunkt, WkrVerworfen } from '../../types'
 import { einteilungsZellen } from '../../lib/einteilung'
 import { beispielBoote, beispielCoPiloten, beispielEinteilung, beispielGewichte } from '../../lib/beispieldaten'
 import { besetzungsKlassen, coPilotKlassen } from '../../lib/besetzung'
@@ -16,7 +16,7 @@ import { hasParallel, sollgewichtOf } from '../../config/catalog'
 import { konfigVon } from './gemeinsam'
 import { wkrOhneLaeufe, wkrOhneVersuch } from './wkr'
 import { mitWiederholung, ohneWiederholung } from './betrieb'
-import { laufPunkt, liesRef, rundenPunkt } from '../../betrieb/folge'
+import { abbruecheVon, betriebVon, faehrtNoch, gefahreneSeiten, lage, laufPunkt, liesRef, rundenPunkt } from '../../betrieb/folge'
 import { liesListe } from '../../wkr/liste'
 import { giltFuerAlleVersuche } from '../../wkr/versuch'
 import { keineZeitVon, kzSchluessel, mitKeineZeit } from '../../wkr/keineZeit'
@@ -82,17 +82,39 @@ export type ErfassungAenderung =
    * „Wiederholung offen“ (reducer/betrieb.ts mitWiederholung) – EINE Action, damit Werte und Folge nie auseinanderlaufen.
    * Eine Action der Erfassung, nicht des Betriebs: „Der Betrieb schreibt nie in `eingaben`“ (Projektkarte, Ausnahme
    * 26.11.2026). Nur ein gezeigter, geltender Start eines nicht abgemeldeten Starters; sonst ändert sich nichts.
+   *
+   * Parallelslalom (Nutzer 27.11.2026, R13-02: „Auch hier kann es zu technischen Ausfällen kommen.“): `ref` ist ein Paar
+   * (Runde, Attempt, A, B). `nur` = nur das Boot dieser Seite wiederholt – verworfen werden dann nur seine Werte in diesem
+   * Attempt (auf allen Listen beider Racecourses; die Werte stehen je Starter), das andere Boot behält seine. Ohne `nur`
+   * wiederholen alle Boote, die in diesem Versuch fuhren (bei einer leeren Seite das eine). Eine Seite, deren Boot nicht
+   * fuhr, oder ein abgemeldeter Starter darunter: nichts ändert sich (BETRIEB_ANNAHMEN WHP1–WHP3).
+   *
+   * `abbrueche` (Prüfbefund 27.11.2026, BETRIEB_ANNAHMEN.wiederholungGebunden): die Zahl der Abbrüche dieses Starts, die
+   * der Bediener in der Wahl sah (SichtStart.`abbrueche`, fehlt = 0). Stimmt sie nicht mehr, ändert sich nichts – eine
+   * verspätete Action (Funkloch, lange offene Rückfrage) träfe sonst schon die Wiederholung selbst (K30: bedingt).
+   * Start-Freigaben schicken sie immer mit, das Freigabe-Handy muss (geraete/aufgaben.ts bereinigeWiederholung).
    */
-  | { type: 'WIEDERHOLUNG_AUSFALL'; bereich: BereichId; ref: string }
+  | { type: 'WIEDERHOLUNG_AUSFALL'; bereich: BereichId; ref: string; nur?: PaarSeite; abbrueche?: number }
   /**
    * „Doch keine Wiederholung“ (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN.wiederholungAufheben; seit dem Prüfbefund
    * 27.11.2026 eine Action der Erfassung): Der zuletzt abgebrochene Versuch von `ref` gilt wieder (reducer/betrieb.ts
    * ohneWiederholung), und seine verworfenen Werte kommen zurück (WkrStand.verworfen) – nur in leere Zellen: Was seit dem
    * Ausfall eingetragen wurde, bleibt (nie still überschreiben). Rückfragen, Vorschläge und Papier-Vermerke von damals
-   * kommen nicht zurück. Nur, solange der Start auf seine Wiederholung wartet; sonst ändert sich nichts. Nur am
-   * Bedienrechner (nicht in der Positivliste des Freigabe-Handys, geraete/aufgaben.ts).
+   * kommen nicht zurück. Nur, solange der Start auf seine Wiederholung wartet und noch jemand fährt (betrieb/folge.ts
+   * faehrtNoch – mit X käme die alte Zeit neben das X, Prüfbefund 27.11.2026); sonst ändert sich nichts. Am Bedienrechner
+   * und seit dem 27.11.2026 (R13-06) vom Freigabe-Handy (geraete/aufgaben.ts erlaubteWiederholung). `abbrueche` wie bei
+   * WIEDERHOLUNG_AUSFALL: die Zahl der Abbrüche, die der Bediener sah – ein späteres Aufheben nimmt sonst einen neueren,
+   * zweiten Ausfall desselben Starts zurück.
    */
-  | { type: 'WIEDERHOLUNG_AUFHEBEN'; bereich: BereichId; ref: string }
+  | { type: 'WIEDERHOLUNG_AUFHEBEN'; bereich: BereichId; ref: string; abbrueche?: number }
+
+/**
+ * Gilt die Wiederholungs-Action noch dem Versuch, den der Bediener sah (Prüfbefund 27.11.2026)? Ohne `abbrueche` (Tests,
+ * ältere Aufrufer) ja; sonst nur, wenn die Zahl der Abbrüche des Starts noch dieselbe ist. Rein.
+ */
+function gesehenerVersuch(state: AppState, action: { bereich: BereichId; ref: string; abbrueche?: number }): boolean {
+  return action.abbrueche === undefined || abbruecheVon(betriebVon(state, action.bereich), action.ref) === action.abbrueche
+}
 
 export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): AppState {
   switch (action.type) {
@@ -155,62 +177,106 @@ export function wendeErfassungAn(state: AppState, action: ErfassungAenderung): A
     }
     case 'WIEDERHOLUNG_AUSFALL': {
       const r = liesRef(action.ref)
-      if (r?.art !== 'm') return state
-      const starter = state.starters.find((s) => s.id === r.starter)
-      // Abgemeldet (WH10): Das X käme beim Leeren nicht zurück – der Start stünde offen da, obwohl er nicht startet.
-      if (!starter || state.abgemeldet.includes(starter.id)) return state
-      const betrieben = mitWiederholung(state, action.bereich, action.ref)
-      if (betrieben === state) return state
+      if (r === null || !gesehenerVersuch(state, action)) return state
+      // Was verworfen wird: je Boot die Zelle (Lauf-Schlüssel, Starter) und die Felder, die bleiben (Vorsteg mit „Versuche
+      // nacheinander“, WH6 – nur im Manövrieren). Abgemeldet (WH10): Das X käme beim Leeren nicht zurück – der Start
+      // stünde offen da, obwohl er nicht startet; dann ändert sich gar nichts.
       const konfig = konfigVon(state)
-      const lauf = laufSchluessel(konfig.getAufbau(state.aufbau).disziplin, r.lauf)
-      // Die Zeile am Vorsteg mit „Versuche nacheinander“ gilt für alle Versuche (WH6): ihre Felder und ihr Haken bleiben.
-      const alleVersuche = new Set(konfig.getPositions().filter((p) => giltFuerAlleVersuche(state, konfig, p.typeId)).map((p) => p.typeId))
-      const bleibt = new Set([...alleVersuche].flatMap((typeId) => [...listenFelder(konfig, typeId, starter.klasse).map((f) => f.kennung), erfasstKennung(typeId)]))
-      const werte = state.eingaben[lauf]?.[starter.id] ?? {}
-      const eingaben = setzeWerte(
-        state.eingaben,
-        Object.keys(werte)
-          .filter((feld) => !bleibt.has(feld))
-          .map((feld) => ({ lauf, starter: starter.id, feld, wert: '' })),
-      )
-      const ohne = wkrOhneVersuch(state.wkr, { lauf, starter: starter.id, ref: action.ref }, (kennung) => alleVersuche.has(liesListe(kennung)?.typeId ?? ''))
-      // Was verworfen wird, merkt sich die Erfassung, solange der Abbruch steht – für „Doch keine Wiederholung“
-      // (Prüfbefund 27.11.2026). Ein zweiter Ausfall desselben Starts ersetzt den ersten: Der ist dann endgültig vorbei.
-      const kz = kzSchluessel(lauf, starter.id)
-      const keineZeit = Object.fromEntries(Object.entries(state.wkr.keineZeit).flatMap(([liste, jeZelle]) => (Object.hasOwn(jeZelle, kz) ? [[liste, { ...jeZelle[kz] }]] : [])))
-      const verworfen: WkrVerworfen = {
-        bereich: action.bereich,
-        ref: action.ref,
-        lauf,
-        starter: starter.id,
-        werte: Object.fromEntries(Object.entries(werte).filter(([feld, wert]) => !bleibt.has(feld) && wert !== '')),
-        keineZeit,
+      let zellen: { lauf: string; starter: string; bleibt: ReadonlySet<string> }[]
+      let bleibtListe: (kennung: string) => boolean = () => false
+      let nur: PaarSeite | undefined
+      if (r.art === 'm') {
+        const starter = state.starters.find((s) => s.id === r.starter)
+        if (!starter || state.abgemeldet.includes(starter.id)) return state
+        const lauf = laufSchluessel(konfig.getAufbau(state.aufbau).disziplin, r.lauf)
+        // Die Zeile am Vorsteg mit „Versuche nacheinander“ gilt für alle Versuche (WH6): ihre Felder und ihr Haken bleiben.
+        const alleVersuche = new Set(konfig.getPositions().filter((p) => giltFuerAlleVersuche(state, konfig, p.typeId)).map((p) => p.typeId))
+        const bleibt = new Set([...alleVersuche].flatMap((typeId) => [...listenFelder(konfig, typeId, starter.klasse).map((f) => f.kennung), erfasstKennung(typeId)]))
+        zellen = [{ lauf, starter: starter.id, bleibt }]
+        bleibtListe = (kennung) => alleVersuche.has(liesListe(kennung)?.typeId ?? '')
+      } else {
+        // Parallelslalom (R13-02): die Boote, die im zuletzt gezeigten, geltenden Versuch fuhren (betrieb/folge.ts
+        // gefahreneSeiten) – davon die gewählte Seite oder alle.
+        const eintrag = lage(state, action.bereich).folge.find((e) => e.key === action.ref)
+        const gefahren = eintrag ? gefahreneSeiten(betriebVon(state, action.bereich), eintrag) : []
+        const seiten = action.nur !== undefined ? gefahren.filter((x) => x === action.nur) : gefahren
+        if (seiten.length === 0) return state
+        const ids = seiten.map((x) => r[x])
+        if (ids.some((id) => id === null || !state.starters.some((s) => s.id === id) || state.abgemeldet.includes(id))) return state
+        // Ein Boot von zweien: gemerkt am abgebrochenen Versuch; fuhr nur eins, wiederholt eben dieses.
+        nur = seiten.length === 1 ? seiten[0] : undefined
+        const lauf = attemptSchluessel(r.runde, r.attempt)
+        zellen = (ids as string[]).map((id) => ({ lauf, starter: id, bleibt: new Set<string>() }))
+        // Papier (P) und Abschlüsse der Listen des anderen Racecourse bleiben: Dort ist der Versuch gefahren und gilt.
+        if (nur !== undefined) bleibtListe = (kennung) => liesListe(kennung)?.racecourse !== (nur === 'a' ? 'A' : 'B')
       }
-      const wkr = { ...ohne, verworfen: [...(ohne.verworfen ?? []).filter((v) => !(v.bereich === action.bereich && v.ref === action.ref)), verworfen] }
+      const betrieben = mitWiederholung(state, action.bereich, action.ref, nur)
+      if (betrieben === state) return state
+      let eingaben = state.eingaben
+      let ohne = state.wkr
+      const neu: WkrVerworfen[] = []
+      for (const z of zellen) {
+        const werte = state.eingaben[z.lauf]?.[z.starter] ?? {}
+        eingaben = setzeWerte(
+          eingaben,
+          Object.keys(werte)
+            .filter((feld) => !z.bleibt.has(feld))
+            .map((feld) => ({ lauf: z.lauf, starter: z.starter, feld, wert: '' })),
+        )
+        ohne = wkrOhneVersuch(ohne, { lauf: z.lauf, starter: z.starter, ref: action.ref }, bleibtListe)
+        // Was verworfen wird, merkt sich die Erfassung, solange der Abbruch steht – für „Doch keine Wiederholung“
+        // (Prüfbefund 27.11.2026), je Boot ein Eintrag.
+        const kz = kzSchluessel(z.lauf, z.starter)
+        const keineZeit = Object.fromEntries(Object.entries(state.wkr.keineZeit).flatMap(([liste, jeZelle]) => (Object.hasOwn(jeZelle, kz) ? [[liste, { ...jeZelle[kz] }]] : [])))
+        neu.push({
+          bereich: action.bereich,
+          ref: action.ref,
+          lauf: z.lauf,
+          starter: z.starter,
+          werte: Object.fromEntries(Object.entries(werte).filter(([feld, wert]) => !z.bleibt.has(feld) && wert !== '')),
+          keineZeit,
+        })
+      }
+      // Ein zweiter Ausfall desselben Starts ersetzt den ersten: Der ist dann endgültig vorbei.
+      const wkr = { ...ohne, verworfen: [...(ohne.verworfen ?? []).filter((v) => !(v.bereich === action.bereich && v.ref === action.ref)), ...neu] }
       return { ...betrieben, eingaben, wkr }
     }
     case 'WIEDERHOLUNG_AUFHEBEN': {
+      if (!gesehenerVersuch(state, action)) return state
+      // Fährt in dem Start niemand mehr (X nach dem Ausfall, etwa durch eine Abmeldung), kommt nichts zurück: Die alte
+      // Zeit stünde sonst neben dem X (Prüfbefund 27.11.2026). Ein Start, der nicht mehr in der Folge steht, wie bisher.
+      const eintrag = lage(state, action.bereich).folge.find((e) => e.key === action.ref)
+      if (eintrag && !faehrtNoch(betriebVon(state, action.bereich), eintrag)) return state
       const betrieben = ohneWiederholung(state, action.bereich, action.ref)
       if (betrieben === state) return state
-      const v = (state.wkr.verworfen ?? []).find((x) => x.bereich === action.bereich && x.ref === action.ref)
-      if (!v) return betrieben
-      // Nur in leere Zellen: Was seit dem Ausfall eingetragen wurde, ist jünger (nie still überschreiben).
-      const jetzt = state.eingaben[v.lauf]?.[v.starter] ?? {}
-      const zellen = gueltigeZellen(
-        Object.entries(v.werte)
-          .filter(([feld]) => (jetzt[feld] ?? '') === '')
-          .map(([feld, wert]) => ({ lauf: v.lauf, starter: v.starter, feld, wert })),
-        new Set(state.starters.map((p) => p.id)),
-      )
-      const eingaben = setzeWerte(state.eingaben, zellen)
-      // „Keine Zeit“ nur, wo die Liste für diesen Start keins hat und das Feld leer ist.
+      // Je Boot ein Eintrag (im Parallelslalom bis zu zwei, R13-02).
+      const vs = (state.wkr.verworfen ?? []).filter((x) => x.bereich === action.bereich && x.ref === action.ref)
+      if (vs.length === 0) return betrieben
+      const ids = new Set(state.starters.map((p) => p.id))
+      let eingaben = state.eingaben
       let keineZeit = state.wkr.keineZeit
-      for (const [liste, felder] of Object.entries(v.keineZeit)) {
-        if (Object.keys(keineZeitVon(state.wkr, liste, v.lauf, v.starter)).length > 0) continue
-        const frei = Object.fromEntries(Object.entries(felder).filter(([feld]) => (jetzt[feld] ?? '') === ''))
-        if (Object.keys(frei).length > 0) keineZeit = mitKeineZeit(keineZeit, liste, v.lauf, v.starter, frei)
+      for (const v of vs) {
+        // Im Paar, wenn beide wiederholten und eins inzwischen X hat (Abmeldung): dessen Werte nicht – die alte Zeit stünde
+        // neben dem X; der Versuch des anderen gilt wieder (Prüfbefund 27.11.2026, BETRIEB_ANNAHMEN.wiederholungParallelNurEinBoot).
+        const paar = eintrag?.paar
+        if (paar && !((paar.a === v.starter && paar.aFaehrt) || (paar.b === v.starter && paar.bFaehrt))) continue
+        // Nur in leere Zellen: Was seit dem Ausfall eingetragen wurde, ist jünger (nie still überschreiben).
+        const jetzt = state.eingaben[v.lauf]?.[v.starter] ?? {}
+        const zellen = gueltigeZellen(
+          Object.entries(v.werte)
+            .filter(([feld]) => (jetzt[feld] ?? '') === '')
+            .map(([feld, wert]) => ({ lauf: v.lauf, starter: v.starter, feld, wert })),
+          ids,
+        )
+        eingaben = setzeWerte(eingaben, zellen)
+        // „Keine Zeit“ nur, wo die Liste für diesen Start keins hat und das Feld leer ist.
+        for (const [liste, felder] of Object.entries(v.keineZeit)) {
+          if (Object.keys(keineZeitVon(state.wkr, liste, v.lauf, v.starter)).length > 0) continue
+          const frei = Object.fromEntries(Object.entries(felder).filter(([feld]) => (jetzt[feld] ?? '') === ''))
+          if (Object.keys(frei).length > 0) keineZeit = mitKeineZeit(keineZeit, liste, v.lauf, v.starter, frei)
+        }
       }
-      const rest = (state.wkr.verworfen ?? []).filter((x) => x !== v)
+      const rest = (state.wkr.verworfen ?? []).filter((x) => !vs.includes(x))
       const { verworfen: _weg, ...wkrOhne } = state.wkr
       return { ...betrieben, eingaben, wkr: { ...wkrOhne, keineZeit, ...(rest.length > 0 ? { verworfen: rest } : {}) } }
     }

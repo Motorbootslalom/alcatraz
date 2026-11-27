@@ -20,6 +20,7 @@ Warum etwas so ist, steht mit Datum in [entscheidungen.md](entscheidungen.md).
   - [Annahmen](#annahmen)
 - [Abmelden](#abmelden)
 - [Betrieb: Start-Freigabe und Anzeigetafel](#betrieb-start-freigabe-und-anzeigetafel)
+  - [Wiederholung nach Ausfall](#wiederholung-nach-ausfall)
   - [WKR-Erfassung am Gerät](#wkr-erfassung-am-gerät)
 - [Dummys und Wörter](#dummys-und-wörter)
 - [Einzelwertung](#einzelwertung)
@@ -181,6 +182,8 @@ Der Laufzettel nennt seinen Racecourse und öffnet nur dessen Listen.
   Der Racecourse steht nicht im Schlüssel; er folgt aus dem Plan (der frühere Start ist der 1. Attempt).
 - Die Zeile eines Dummys hat keine Felder und wird übersprungen.
 - Diese Werte gelten nicht als „verborgen“, solange Plan, Attempt und Feld zu einer Liste gehören.
+- Nach einer [Wiederholung nach Ausfall](#wiederholung-nach-ausfall) (27.11.2026) steht ↻ an der Nummer – nur in der
+  Zeile des Boots, das wiederholt.
 
 **Plan und Werte:**
 
@@ -440,6 +443,10 @@ Wer nach Wettkampfbeginn als „nicht gestartet“ eingetragen wird, bekommt das
   Wer nur das Manövrieren fährt und danach jemanden abmeldet, behält seine Einzelwertung.
 - Ein X vom WKR-Gerät („Mehr → Nicht gestartet · Disq. X“, 24.11.2026) ist keine Abmeldung: Es steht nur in diesem
   Attempt und wirkt dort wie jedes X (siehe [WKR-Erfassung am Gerät](#wkr-erfassung-am-gerät)).
+- Ein abgemeldetes Boot bekommt keine [Wiederholung nach Ausfall](#wiederholung-nach-ausfall): In der Rückfrage sind
+  sein Knopf und „Beide wiederholen“ ausgegraut. Wird ein wiederholendes Boot erst abgemeldet, während die
+  Wiederholung wartet, kommt das X in den geleerten Attempt: Wiederholte nur dieses Boot, entfällt die Wiederholung;
+  wiederholten beide, fährt das andere allein (die Seite steht als „–“).
 
 ## Betrieb: Start-Freigabe und Anzeigetafel
 
@@ -502,14 +509,77 @@ hier nicht als bestätigt vermerkt ist.
   „Als Nächster“ und gezielt Gezeigtes kommen hinter das zuletzt Gezeigte ihrer Runde, „Ans Ende der Runde“ ans Ende
   ihrer Runde, nie in eine spätere. Klassen aussetzen oder vorziehen und Starts verschieben gibt es hier nicht: Der
   Plan gibt die Folge vor (Paare, Blöcke im Wechsel der Bootstypen, Tausch zum 2. Attempt); die Karte sagt das statt
-  „Klassen · Boot fehlt“. Auch „Wiederholung (Ausfall) …“ des Manövrierens (26.11.2026,
-  [funktionen.md](funktionen.md#start-freigabe)) gibt es hier nicht – wiederholt wird im Parallelslalom nur im Re-run.
+  „Klassen · Boot fehlt“. „Wiederholung (Ausfall) …“ gibt es seit 27.11.2026 auch hier, mit der Wahl, welche Boote
+  wiederholen ([unten](#wiederholung-nach-ausfall)); das ist nicht der Re-run bei Gleichstand.
 - **Startliste und Zuschauerliste:** je Zeile bzw. Karte ein Paar mit Racecourse A und B; „am Steg“ und „vor Steg“
   wie im Manövrieren, aber **ohne geschätzte Wartezeit**: Paarstarts werden nicht gemessen – ihr Takt (zwei Boote
   zugleich, kurzer Racecourse, Tausch zum 2. Attempt) verzerrte die Abstände der Klassen fürs Manövrieren, und eine
   eigene Vorgabe gibt es nicht. In der Startliste wird nicht gezogen. Der Team-Filter der Zuschauerliste zeigt ein
   Paar, wenn eine Seite passt (bestätigt 21.11.2026, `BETRIEB_ANNAHMEN.zuschauerTeamFilter`).
-- Der Betrieb ändert weder die Pläne noch die Werte der Runden.
+- Der Betrieb ändert weder die Pläne noch die Werte der Runden; nur die Wiederholung nach Ausfall (unten) verwirft
+  Werte, ausdrücklich und mit Rückfrage.
+
+### Wiederholung nach Ausfall
+
+Seit 27.11.2026 auch im Parallelslalom (Nutzer, R13-02: „Auch hier kann es zu technischen Ausfällen kommen.“); bis
+dahin gab es sie nur im Manövrieren. Sie ist **nicht der Re-run**: Der Re-run ist eine eigene Runde nach einem
+Gleichstand (Pkt. 5.2.6, [Runden nach dem Vorlauf](#runden-nach-dem-vorlauf)); die Wiederholung nach Ausfall fährt
+einen Attempt derselben Runde noch einmal, nachdem die Wettkampfleitung einen technischen Ausfall bestätigt hat.
+Englisch heißt sie deshalb immer „Repeat“, nie „Re-run“. Das Allgemeine – „Wiederholung offen“, „Doch keine
+Wiederholung“, Papier, Verlauf – steht in [funktionen.md](funktionen.md#start-freigabe), die Bedienung in
+[betrieb.md](betrieb.md#start-freigabe-anzeigetafel-und-zuschauerliste). Die Auslegungen stehen mit Datum in
+`BETRIEB_ANNAHMEN` (WHP1–WHP6); beim Bau ausgelegt, noch zu bestätigen – vor allem, ob es eine Vorgabe geben soll,
+welche Boote wiederholen.
+
+- **Auslösen:** „Wiederholung (Ausfall) …“ an der Start-Freigabe des Parallelslaloms, am Bedienrechner oder auf dem
+  gekoppelten Freigabe-Handy. Die Liste zeigt die schon gezeigten Paare der laufenden Runden, das zuletzt gezeigte
+  zuerst, je Zeile etwa „E01 / E02 · Klasse Dolphin · Vorlauf · Versuch 1“ mit „Wiederholen …“. Darüber steht:
+  „Gezeigte Paare der laufenden Runden, das zuletzt gezeigte zuerst. Die Wettkampfleitung entscheidet über die
+  Wiederholung und welche Boote wiederholen; liegt der Ausfall an einem Fahrer, trägt der WKR an der Boje „J“ ein
+  (falscher Parcours) – dann keine Wiederholung für ihn.“
+- **Rückfrage:** „Wiederholung nach Ausfall: E01 / E02, Vorlauf · Versuch 1?“ – „Welche Boote wiederholen Vorlauf ·
+  Versuch 1? Verworfen werden nur die Werte der gewählten Boote in diesem Versuch – auf jeder Liste beider Parcours,
+  auch die von den WKR-Geräten; ein Boot, das nicht wiederholt, behält seine Werte. …“ Die Knöpfe heißen „Nur E01
+  (Parcours A)“, „Nur E02 (Parcours B)“, „Beide wiederholen“ und „Abbrechen“. Keiner ist vorgewählt, der Fokus liegt
+  auf „Abbrechen“; der gewählte Knopf ist zugleich die Bestätigung, einen eigenen Knopf „Werte verwerfen und
+  wiederholen“ gibt es hier nicht. Fuhr nur ein Boot (leere Seite „–“) oder wiederholte schon vorher nur ein Boot,
+  gibt es nur einen Knopf: „E01 (Parcours A) wiederholen“.
+- **Abgemeldet:** Ist ein Boot abgemeldet, sind sein Knopf und „Beide wiederholen“ ausgegraut; darüber steht „E02
+  (Parcours B): abgemeldet – keine Wiederholung“. Ganz ausgegraut ist die Zeile in der Liste nur, wenn alle Boote des
+  Paares abgemeldet sind.
+- **Danach:** Im Boot bleibt das abgebrochene Paar mit beiden Booten stehen, gekennzeichnet mit „Ausfall – wird
+  wiederholt“; „Zurück“ ist gesperrt. Unter „Wiederholung offen“ steht das Paar mit „… · Vorlauf · Versuch 1 ·
+  Wiederholung“; ein Boot, das nicht wiederholt, steht dort als „–“. Dort gibt es „Als Nächster“, „Ans Ende der
+  Runde“, „Jetzt zeigen“ und „Doch keine Wiederholung“ (holt die Werte zurück, nur in Felder, die inzwischen leer
+  sind) – am Bedienrechner und auf dem Freigabe-Handy.
+- **Der 2. Attempt:** Einreihen und „Jetzt zeigen“ nehmen den 2. Attempt desselben Paares mit, wenn er nach dem Vorlauf
+  im Plan direkt dahinter steht und noch nicht gezeigt ist (der 1. Attempt ist der frühere Start, Pkt. 4.4; im
+  Vorlauf wechseln dazwischen die Bootstypen, dort bleibt der Plan). Wird vor dem Einreihen „Nächster Start“ getippt,
+  kommt der 2. Attempt, und die Wiederholung wartet weiter – wer erst wiederholen will, reiht sie „Als Nächster“ ein.
+  „Zurückstellen“ nimmt eine wartende Wiederholung nicht mit. Steht in einer Runde nichts mehr frei, sagt die Karte
+  etwa: „Kein Start frei – noch 1 Start wartet (zurückgestellt, Wiederholung offen oder nachzuholen). Die Runde ist
+  nicht zu Ende.“
+- **Fährt ein wiederholendes Boot nicht mehr** (danach abgemeldet oder X): Das Paar verschwindet aus „Wiederholung
+  offen“ und aus der Wahl, „Doch keine Wiederholung“ gibt es dafür nicht mehr; das andere Boot behält seinen Versuch.
+  Haben beide Boote wiederholt und hat eines inzwischen X, holt „Doch keine Wiederholung“ nur die Werte des anderen
+  zurück.
+- **Anzeigetafel und Zuschauerliste:** „Vorlauf · 1. Versuch · Wiederholung“, auf der englischen Tafel „Preliminary
+  heat · Attempt 1 · Repeat“. Wiederholt nur ein Boot, zeigen sie nur dieses; die andere Seite steht als „–“, ohne
+  Grund.
+- **WKR-Geräte:** Nur das Gerät der Liste des Racecourse, dessen Boot wiederholt, bekommt den Attempt nach dem erneuten
+  Zeigen als neuen Start. Schickt es verspätet noch eine Zeile zum abgebrochenen Versuch, wird sie abgelehnt: „Dieser
+  Versuch wurde nach einem Ausfall abgebrochen – der Start wird wiederholt. Die Zeile ist nicht übernommen.“ Auf dem
+  anderen Racecourse ändert sich nichts: Eine verspätete Zeile wird übernommen, und der Start kommt dort nie noch
+  einmal – auch nicht, wenn die Liste beim ersten Versuch pausiert war oder erst später digital wurde. Die
+  Parcours-Ampel bleibt grün, bis das wiederholende Boot durchs Start-Tor ist; die stehen gebliebenen Werte des anderen
+  Boots zählen dafür nicht, und die Rückfrage beim Abschließen nennt als „unterwegs“ nur dieses Boot.
+- **Erfassung am Bildschirm:** ↻ an der Nummer nur in der Zeile des Boots, das wiederholt.
+- **Verlauf** („Einstellungen → Dateien → Verlauf“): „Wiederholung nach Ausfall – Werte verworfen: E01, Klasse
+  Dolphin, Parallel-Slalom Vorlauf, 1. Versuch“, bei „Beide wiederholen“ mit „E01 / E02“. Er nennt nur die Boote, die
+  wirklich wiederholen; „Doch keine Wiederholung“ nennt die Boote von vorher.
+- **Unverändert** bleiben Paarung und Pläne; eine gedruckte Runde („Listen gedruckt“) hindert die Wiederholung nicht.
+  Der wiederholte Attempt steht in denselben Zellen und wird gewertet wie jeder andere. Der Re-run bei Gleichstand
+  bleibt unberührt.
 
 ### WKR-Erfassung am Gerät
 
@@ -527,6 +597,9 @@ Die race officials können auch im Parallelslalom am eigenen Gerät erfassen. Be
   bestätigt 22.11.2026).
 - Parcours-Ampel: Das Paar ist ein Start, eine leere Seite zählt nicht (bestätigt 22.11.2026); Zeit und Fahrweg von
   A und B zählen als Parcours-Listen. „Papier ab“ nennt die Startnummer der eigenen Seite.
+- Wiederholung nach Ausfall (27.11.2026): Den Attempt bekommen nur die Listen des Racecourse neu, dessen Boot
+  wiederholt; nur für dieses Boot zählt danach die Ampel
+  (siehe [Wiederholung nach Ausfall](#wiederholung-nach-ausfall)).
 - „Mehr → Nicht gestartet · Disq. X“ (24.11.2026) gibt es auf Fahrweg und Steg; die Zeit-Liste hat kein Disq.-Feld
   (dort „keine Zeit“). Das X wirkt wie jedes X: Die Anzeigetafel zeigt die Seite leer, und der Attempt zählt als
   Disqualifikation – im Vorlauf für den ganzen Parallelslalom, danach hinterer Platz (siehe [Annahmen](#annahmen)).
@@ -564,6 +637,10 @@ Die race officials können auch im Parallelslalom am eigenen Gerät erfassen. Be
   die Runde ihn sagt (beim Bau ausgelegt, bestätigt 26.11.2026). Die Rundennamen stehen doppelt: i18n
   `parallel.round.*` (über `rundenName`) und `bogenTexte().runde` in `src/config/sprache.ts` – beide gleich halten.
 - Deutsch: Vorlauf, Halbfinale, Kleines Finale, Finale, Wiederholung.
+- Nicht verwechseln: Die Runde „Wiederholung“ ist der Re-run nach Gleichstand. Die
+  [Wiederholung nach Ausfall](#wiederholung-nach-ausfall) wiederholt einen Attempt nach einem technischen Ausfall und
+  heißt englisch „Repeat“ („Repeat (breakdown) …“, „Repeat pending“, auf der Tafel „Preliminary heat · Attempt 1 ·
+  Repeat“), nie „Re-run“ – unter UIM können beide auf derselben Tafel stehen.
 
 ## Einzelwertung
 

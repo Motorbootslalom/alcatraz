@@ -553,14 +553,15 @@ describe('Parcours-Ampel (P-03, AM8, AM9; 21.11.2026)', () => {
     expect(sichtListe(fertig, DM, L('steg'), EXTRA).laeuft).toBeUndefined()
   })
 
-  // sv 7 seit der Wiederholung nach Ausfall (26.11.2026, R11-11) – die Ampel änderte die Fassung nie.
-  it('keine Ampel auf Anzeigetafel und Zuschauerliste: Durchfahrt ändert sichtOeffentlich/sichtZuschauer nicht, sv bleibt 7', () => {
+  // sv 7 seit der Wiederholung nach Ausfall (26.11.2026, R11-11), 8 seit `gefahren` in jeder Sicht (27.11.2026, R13-01) –
+  // die Ampel änderte die Fassung nie.
+  it('keine Ampel auf Anzeigetafel und Zuschauerliste: Durchfahrt ändert sichtOeffentlich/sichtZuschauer nicht', () => {
     const { s } = bereit('gate135')
     const key = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
     const rot = reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: key, an: true, zeit: 1200 })
     expect(rot).not.toBe(s)
     expect(sichtOeffentlich(rot)).toEqual(sichtOeffentlich(s))
-    expect(sichtOeffentlich(rot).sv).toBe(7)
+    expect(sichtOeffentlich(rot).sv).toBe(8)
     expect(sichtZuschauer(sichtOeffentlich(rot))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
     const text = JSON.stringify(sichtOeffentlich(rot))
     for (const wort of ['durchfahrt', 'ampel', 'wkrAuto']) expect(text).not.toContain(wort)

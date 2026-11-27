@@ -48,10 +48,11 @@ describe('sichtFreigabe', () => {
   it('Positivliste: genau diese Felder, je Liste nur Titel, Stand, Ampel, Zahlen, Startnummern', () => {
     const { s, geraete } = stand()
     const f = sicht(s, geraete)
-    // fv 2 (21.11.2026, P-03): Parcours-Ampel, Auto-Modus; je Liste `parcours`.
-    expect(Object.keys(f).sort()).toEqual(['ampel', 'ampelRef', 'autoIn', 'autoMoeglich', 'autoOhne', 'bereich', 'fv', 'listen', 'perKnopf', 'warnung'])
+    // fv 2 (21.11.2026, P-03): Parcours-Ampel, Auto-Modus; je Liste `parcours`. fv 3 (27.11.2026, R13-01): `ausfallGesperrt`.
+    expect(Object.keys(f).sort()).toEqual(['ampel', 'ampelRef', 'ausfallGesperrt', 'autoIn', 'autoMoeglich', 'autoOhne', 'bereich', 'fv', 'listen', 'perKnopf', 'warnung'])
     expect(f.fv).toBe(FREIGABE_SICHT_FASSUNG)
-    expect(FREIGABE_SICHT_FASSUNG).toBe(2)
+    expect(FREIGABE_SICHT_FASSUNG).toBe(3)
+    expect(f.ausfallGesperrt).toEqual([])
     expect(f).toMatchObject({ ampel: 'rot', ampelRef: s.betrieb.bereiche[P1].gezeigt[3].ref, perKnopf: true, autoMoeglich: false, autoOhne: [], autoIn: null })
     const erlaubt = ['ampel', 'bis', 'offen', 'parcours', 'rueckfragen', 'stand', 'titel', 'von', 'wartend', 'warnt']
     for (const l of f.listen) for (const k of Object.keys(l)) expect(erlaubt).toContain(k)
@@ -120,15 +121,18 @@ describe('liesFreigabe (Gerät)', () => {
 
   it('falsche Fassung oder Form → null; Fremdes fällt weg', () => {
     expect(liesFreigabe(null)).toBeNull()
-    // Fassung 1 (vor der Parcours-Ampel) liest ein neues Gerät nicht mehr.
+    // Fassung 1 (vor der Parcours-Ampel) und 2 (vor `ausfallGesperrt`, R13-01) liest ein neues Gerät nicht mehr.
     expect(liesFreigabe({ fv: 1, bereich: P1, listen: [] })).toBeNull()
-    expect(liesFreigabe({ fv: 2, bereich: P1 })).toBeNull()
-    const f = liesFreigabe({ fv: 2, bereich: P1, warnung: 'sperren', ampel: 'blau', ampelRef: 7, autoIn: -1, autoOhne: [3, 'Tor 2'], name: 'Geheim', listen: [{ titel: 'Tor', stand: 'x', ampel: 'rot', offen: -3, von: 1, warnt: 'ja', parcours: 'ja', name: 'Geheim' }, 'kaputt'] })
+    expect(liesFreigabe({ fv: 2, bereich: P1, listen: [] })).toBeNull()
+    expect(liesFreigabe({ fv: 3, bereich: P1 })).toBeNull()
+    const f = liesFreigabe({ fv: 3, bereich: P1, warnung: 'sperren', ampel: 'blau', ampelRef: 7, autoIn: -1, autoOhne: [3, 'Tor 2'], ausfallGesperrt: ['m1', 7, '', 'm1', 'x'.repeat(65)], name: 'Geheim', listen: [{ titel: 'Tor', stand: 'x', ampel: 'rot', offen: -3, von: 1, warnt: 'ja', parcours: 'ja', name: 'Geheim' }, 'kaputt'] })
     expect(f).toEqual({
-      fv: 2, bereich: P1, warnung: 'warnen', ampel: 'aus', ampelRef: null, perKnopf: false, autoMoeglich: false, autoOhne: ['Tor 2'], autoIn: null,
+      fv: 3, bereich: P1, warnung: 'warnen', ampel: 'aus', ampelRef: null, perKnopf: false, autoMoeglich: false, autoOhne: ['Tor 2'], autoIn: null, ausfallGesperrt: ['m1'],
       listen: [{ titel: 'Tor', stand: 'papier', ampel: null, offen: 0, von: '', bis: '', rueckfragen: 0, warnt: false, parcours: false }],
     })
+    // Ohne das Feld (oder kaputt): keine gesperrten Starter – der Host lehnt Abgemeldete ohnehin ab.
+    expect(liesFreigabe({ fv: 3, bereich: P1, listen: [], ausfallGesperrt: 'm1' })?.ausfallGesperrt).toEqual([])
     // Ampel nur mit Kennung des Starts; Countdown nur mit Auto-Modus, höchstens 60 s.
-    expect(liesFreigabe({ fv: 2, bereich: P1, listen: [], ampel: 'gruen', ampelRef: '["m","a",1]', perKnopf: true, autoMoeglich: true, autoIn: 999 })).toMatchObject({ ampel: 'gruen', ampelRef: '["m","a",1]', perKnopf: true, autoIn: 60 })
+    expect(liesFreigabe({ fv: 3, bereich: P1, listen: [], ampel: 'gruen', ampelRef: '["m","a",1]', perKnopf: true, autoMoeglich: true, autoIn: 999 })).toMatchObject({ ampel: 'gruen', ampelRef: '["m","a",1]', perKnopf: true, autoIn: 60 })
   })
 })

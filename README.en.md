@@ -22,6 +22,9 @@ such as race number, name, origin and class of the drivers and the entered value
   after the first visit also without internet.
 - **Single-file version:** [`alcatraz.html`](https://motorbootslalom.github.io/alcatraz/alcatraz.html) –
   a single HTML file that runs without internet on a double-click.
+- **Practice for race officials:** <https://motorbootslalom.github.io/alcatraz/#/uebung> –
+  try out data entry on a phone or tablet without a connection: choose a rulebook and a list, then practice starts
+  appear. Nothing is sent. Best open the link on the device that will be used for entry later.
 
 ## Getting started
 
@@ -51,7 +54,7 @@ such as race number, name, origin and class of the drivers and the entered value
   list – if desired also on other devices via a link with QR code; the start release also on a paired phone.
 - **Race official devices:** race officials enter their list on a phone or tablet instead of on paper –
   with buttons, on the course drawing (“Picture”) or as a table; paper and devices can be mixed.
-  Practice works without a connection.
+  Practice works without a connection: [open the practice](https://motorbootslalom.github.io/alcatraz/#/uebung).
 - User interface in German and English; the lists are in the language of the rulebook.
 - Runs without internet, with a second store against hard interruptions and a history to restore from.
 

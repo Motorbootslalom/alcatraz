@@ -60,6 +60,15 @@ Je Punkt abhaken, wenn das erwartete Ergebnis eintritt; sonst unter „Beobachtu
 - [ ] **Doppelt tippen** (schnell zweimal, und auf zwei Handys gleichzeitig). Erwartet: genau ein Schritt; das zweite
   Handy sieht „Nichts geändert – schon geschehen oder jemand anderes war schneller“ oder nichts. Beobachtung:
 - [ ] **Zurückstellen, Meldung, Einreihen** vom Handy. Erwartet: wirkt wie am Bedienrechner. Beobachtung:
+- [ ] **Wiederholung vom Handy auslösen, auch im Funkloch** (27.11.2026): auf dem Handy „Wiederholung (Ausfall) …“ für
+  einen schon gezeigten Start, „Wiederholen …“, „Werte verwerfen und wiederholen“. Erwartet: dieselbe Wahl wie am
+  Bedienrechner (der zuletzt gezeigte oben), „Wird gesendet …“, dann steht der Start auf Handy und Bedienrechner unter
+  „Wiederholung offen“, im Verlauf „Wiederholung nach Ausfall – Werte verworfen: …“; „Doch keine Wiederholung“ vom
+  Handy holt die Werte zurück. Dann im Funkloch: Handy in den Flugmodus, dort für einen anderen Start „Wiederholung
+  (Ausfall) …“ bestätigen; währenddessen am Bedienrechner denselben Start wiederholen, „Als Nächster“ einreihen und
+  zeigen; danach das Handy wieder verbinden. Erwartet: Auf dem Handy erscheint „Abgelehnt: Inzwischen hat sich dort
+  etwas geändert – bitte die Anzeige prüfen.“, und die Wiederholung bleibt stehen (sie wird nicht noch einmal
+  abgebrochen, ihre Werte bleiben). Beobachtung:
 - [ ] **Nur eigene Parcours:** Häkchen am Bedienrechner wegnehmen. Erwartet: Karte verschwindet auf dem Handy sofort.
   Beobachtung:
 
@@ -139,6 +148,13 @@ fahren.
   abgebrochen …“). Nach „Als Nächster“ und „Nächster Start“ kommt er auf allen Geräten wie ein neuer Start; die
   Anzeigetafel zeigt „1. Lauf · Wiederholung“. Einmal stattdessen „Doch keine Wiederholung“: Die Werte sind zurück.
   Beobachtung:
+- [ ] **Wiederholung im Parallelslalom** (UIM; je Racecourse ein Gerät mit dem Fahrweg; ein Paar des Vorlaufs zeigen,
+  beide Geräte erfassen, dann „Wiederholung (Ausfall) …“ → „Nur E01 (Parcours A)“; Gerät B schickt danach noch eine
+  Korrektur). Erwartet: Die Rückfrage hat keine Vorauswahl, der Fokus liegt auf „Abbrechen“; die Werte von E01 sind
+  weg, die von E02 bleiben, die Korrektur von B wird übernommen. Unter „Wiederholung offen“ steht das Paar mit „–“ für
+  E02. Nach „Als Nächster“ und „Nächster Start“ bekommt nur das Gerät von Racecourse A den Attempt neu; die Tafel zeigt
+  „Preliminary heat · Attempt 1 · Repeat“ mit „–“ auf B, die Ampel bleibt grün, bis E01 durchs Start-Tor ist; die
+  Erfassung zeigt ↻ nur bei E01. Beobachtung:
 
 ## WKR-Maske auf dem Handy
 

@@ -2,7 +2,7 @@ import { getCurrentInstance, onBeforeUnmount, ref, type Ref } from 'vue'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 
 /**
- * Langes Drücken auf eine Boje (R7-21, R8-23 – Nutzer 22.11.2026; WKR_ANNAHMEN LD1–LD4, noch zu bestätigen): ein
+ * Langes Drücken auf eine Boje (R7-21, R8-23 – Nutzer 22.11.2026; WKR_ANNAHMEN LD1–LD4, bestätigt 23.11.2026, R9-03/R9-04): ein
  * zweiter Weg zum Disq. an DIESER Boje, gedacht für Handschuhe – neben „Disq. an Boje …“ und DISQ im Fuß.
  *
  * Warum Pointer-Events statt `@click`: Ein Langdruck darf nie zusätzlich als Tipp zählen (LD2). Der Tipp zählt darum
@@ -15,7 +15,7 @@ import { WKR_ANNAHMEN } from '../../wkr/annahmen'
  * Rückmeldung: Nach `langdruckRingMs` steht der Knopf in `fuellt` (Füllring über CSS, nur --wkr-*), beim Auslösen
  * `navigator.vibrate?.(30)`. Gesperrt (LD4: Übertragen, Pause) → nichts. Wo kein Langdruck möglich ist (`langMoeglich`
  * false: Boje ohne Disq.-Buchstaben), zählt auch ein langer Druck als Tipp – sonst ginge eine Berührung mit Handschuh
- * still verloren (Auslegung LD1, 22.11.2026, noch zu bestätigen).
+ * still verloren (Auslegung LD1, 22.11.2026, bestätigt 23.11.2026, R9-03).
  */
 export interface LangdruckOptionen<T> {
   kurz: (x: T) => void

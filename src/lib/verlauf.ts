@@ -245,14 +245,16 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
 /**
  * Wie eine Action im Verlauf heißt – aus ihrer Art abgeleitet. `null`: Sie bekommt keinen eigenen
  * Eintrag (die Kennung der Veranstaltung entsteht von selbst), der Stand wird trotzdem gespeichert.
- * `nachher` ist der Stand nach der Action: Die Klasse einer Eingabe folgt aus ihren Startern.
+ * `nachher` ist der Stand nach der Action: Die Klasse einer Eingabe folgt aus ihren Startern. `vorher` (der Stand davor,
+ * vom Store) braucht nur „Doch keine Wiederholung“ im Parallelslalom: Welche Boote es betraf, steht nach der Action
+ * nirgends mehr (Prüfbefund 27.11.2026).
  *
  * Der Betrieb am Wettkampftag (BETRIEB_*: Lauf beginnen, Start zeigen, Meldung …) bekommt ebenfalls
  * keinen: Wechselten Erfassung und „Nächster Start“ einander ab, entstünde sonst bei jedem Start ein
  * neuer Eintrag mit dem ganzen Stand. Die Einstellungen der Anzeigetafel (SET_ANZEIGE) sind
  * gewöhnliche Einstellungen. Plan vom 16.11.2026.
  */
-export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>): Beschreibung | null {
+export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'> & Partial<Pick<AppState, 'wkr'>>, vorher?: Partial<Pick<AppState, 'wkr'>>): Beschreibung | null {
   switch (action.type) {
     case 'SET_KENNUNG':
     case 'BETRIEB_BEGINNEN':
@@ -287,11 +289,26 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
       }
     case 'WIEDERHOLUNG_AUSFALL':
     case 'WIEDERHOLUNG_AUFHEBEN': {
-      // Startnummer, Klasse und Lauf – aus der Kennung des Starts (Starter, Lauf).
+      // Startnummer, Klasse und Lauf – aus der Kennung des Starts (Starter, Lauf). Im Parallelslalom (R13-02, 27.11.2026)
+      // die Boote, die wiederholen, die Runde und der Attempt. Welche Boote: die verworfenen Werte des Starts (je Boot ein
+      // Eintrag, WkrStand.verworfen) – beim Auslösen die neuen, beim Aufheben die von vorher (Prüfbefund 27.11.2026: Ohne
+      // `nur` nannte der Verlauf sonst beide Seiten laut Plan, auch wenn nur ein Boot fuhr, und das Aufheben immer
+      // beide). Ohne diese Angaben (Tests) `nur` bzw. beide laut Plan.
+      const art = action.type === 'WIEDERHOLUNG_AUSFALL' ? 'wiederholungAusfall' : 'wiederholungAufgehoben'
       const ref = liesRef(action.ref)
+      if (ref?.art === 'p') {
+        const quelle = action.type === 'WIEDERHOLUNG_AUSFALL' ? nachher.wkr : vorher?.wkr
+        const verworfen = (quelle?.verworfen ?? []).filter((v) => v.bereich === action.bereich && v.ref === action.ref).map((v) => v.starter)
+        const nur = action.type === 'WIEDERHOLUNG_AUSFALL' ? action.nur : undefined
+        const boote = verworfen.length > 0 ? [ref.a, ref.b].filter((id) => id !== null && verworfen.includes(id)) : nur ? [ref[nur]] : [ref.a, ref.b]
+        const ps = boote.flatMap((id) => nachher.starters.filter((x) => x.id === id))
+        const nummern = ps.map((p) => p.startNr).filter(Boolean)
+        const klassen = [...new Set(ps.map((p) => String(p.klasse)))]
+        return { art, ...(nummern.length > 0 ? { startNr: nummern.join(' / ') } : {}), ...(klassen.length === 1 ? { klasse: klassen[0] } : {}), runde: ref.runde, lauf: ref.attempt }
+      }
       const p = ref?.art === 'm' ? nachher.starters.find((x) => x.id === ref.starter) : undefined
       return {
-        art: action.type === 'WIEDERHOLUNG_AUSFALL' ? 'wiederholungAusfall' : 'wiederholungAufgehoben',
+        art,
         ...(p?.startNr ? { startNr: p.startNr } : {}),
         ...(p ? { klasse: String(p.klasse) } : {}),
         ...(ref?.art === 'm' ? { lauf: ref.lauf } : {}),

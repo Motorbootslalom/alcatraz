@@ -213,6 +213,11 @@ export const ABLEHNUNGEN = [
   // BETRIEB_ANNAHMEN.wiederholungSpaeteZeileAblehnen) – PROTOKOLL_FASSUNG bleibt 2: Ein älteres Gerät kennt den Code
   // nicht und liest die Ablehnung als `wert-ungueltig` (erfassen.ts) – abgelehnt bleibt sie so oder so.
   'versuch-abgebrochen',
+  // R13-01 (27.11.2026): „Wiederholung (Ausfall)“ vom Freigabe-Handy für einen Start, der nicht unter den gefahrenen des
+  // Bereichs steht (nicht gezeigt, abgebrochen, Lauf nicht begonnen, entfallen, Boot fuhr nicht) bzw. dessen Starter
+  // abgemeldet ist (betrieb/folge.ts ausfallGrund). PROTOKOLL_FASSUNG bleibt 2 wie oben; die Sicht (sv 8) trennt ohnehin.
+  'nicht-gezeigt',
+  'abgemeldet',
 ] as const
 export type Ablehnung = (typeof ABLEHNUNGEN)[number]
 

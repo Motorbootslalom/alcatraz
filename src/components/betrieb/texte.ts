@@ -28,6 +28,7 @@ export type BereichText =
   | 'betrieb.einstieg.hint'
   | 'betrieb.einstieg.punkt'
   | 'betrieb.einstieg.alleKlassen'
+  | 'betrieb.ausfall.hint'
 
 const fassung = (b: Pick<SichtBereich, 'art'> | null | undefined, key: BereichText): MessageKey => (b?.art === 'parallel' ? (`${key}.runde` as MessageKey) : key)
 
@@ -137,7 +138,10 @@ function paarZeile(sicht: Pick<OeffentlicheSicht, 'starter' | 'klassen'>, s: Sic
     key: s.key,
     startNr: seiten.map((x) => x.startNr).join(' / '),
     name: seiten.some((x) => x.name) ? seiten.map((x) => x.name || '–').join(' / ') : '',
-    was: [klassen.length > 0 ? t('common.class', { id: klassen.map((k) => k.name).join('/') }) : '', wo, t('betrieb.versuch', { n: paar.attempt })].filter(Boolean).join(' · '),
+    // Wiederholung nach Ausfall (R13-02, 27.11.2026) wie im Manövrieren: „Klasse 1 · Vorlauf · Versuch 1 · Wiederholung“.
+    was: [klassen.length > 0 ? t('common.class', { id: klassen.map((k) => k.name).join('/') }) : '', wo, t('betrieb.versuch', { n: paar.attempt }), s.wiederholung ? t('betrieb.wiederholung.marke') : '']
+      .filter(Boolean)
+      .join(' · '),
     herkunft: seiten.some((x) => x.herkunft) ? seiten.map((x) => x.herkunft || '–').join(' / ') : '',
     farbe: klassen[0]?.farbe ?? '',
     klasse: klassen.map((k) => k.name).join('/'),

@@ -2,7 +2,7 @@ import { dieserTyp } from './geraeteName'
 import { ref, shallowRef, type Ref, type ShallowRef } from 'vue'
 import { SICHT_FASSUNG } from '../betrieb/sicht'
 import { geraetAblage, ichOderNeu, liesKopplung, pruefeRaum, schreibeKopplung, type Ablage, type KoppelLage, type Kopplung, type RaumBezug } from './ablage'
-import { bereinige, freigabeBereiche, liesAufgaben, type Aufgabe } from './aufgaben'
+import { bereinige, bereinigeWiederholung, freigabeBereiche, liesAufgaben, type Aufgabe } from './aufgaben'
 import { lesegeraetAus, type FassungsLage, type LeseGeraet, type LeseUmgebung } from './geraet'
 import { normalisiereCode } from './koppeln'
 import { liesKoppelLink, packeKoppelPaket, PAKET_FASSUNG, type KoppelPaket } from './paket'
@@ -288,7 +288,8 @@ function gekoppeltAus(paket: KoppelPaket, umgebung: LeseUmgebung, ablage: Ablage
       return nr
     },
     darf(action) {
-      const sauber = bereinige(action)
+      // Seit R13-01 (27.11.2026) auch die Wiederholung nach Ausfall – ob der Start dafür taugt, weiß nur der Host.
+      const sauber = bereinige(action) ?? bereinigeWiederholung(action)
       return lage.value === 'gekoppelt' && !!sauber && freigabeBereiche(aufgaben.value).includes(sauber.bereich)
     },
     kanal: {

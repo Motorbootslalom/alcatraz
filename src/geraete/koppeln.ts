@@ -41,16 +41,16 @@ export const CODE_GUELTIG_MS = 5 * 60_000
 export const TOKEN_LAENGE = 16
 export const QR_TOKEN_GUELTIG_MS = 30_000
 /**
- * Gnade des vorigen Tokens: so lang wie seine Gültigkeit (Prüfung E7, 20.11.2026, vorher 10 s – vom Nutzer zu
- * bestätigen). Geprüft wird erst beim Eingang am Host, gesendet erst nach Einstieg und Abo: Ein Handy, das die App zum
+ * Gnade des vorigen Tokens: so lang wie seine Gültigkeit (Prüfung E7, 20.11.2026, vorher 10 s; bestätigt
+ * 27.11.2026, R13-07: „ein Foto davon gilt höchstens eine Minute“). Geprüft wird erst beim Eingang am Host, gesendet erst nach Einstieg und Abo: Ein Handy, das die App zum
  * ersten Mal ohne Cache über Mobilfunk lädt, braucht dafür leicht mehr als 10 s. Ein abfotografierter Code gilt so
  * höchstens eine Minute.
  */
 export const QR_GNADE_MS = 30_000
 /**
  * So lange bleibt eine QR-Sitzung offen, wenn niemand sie schließt (Fenster zu, Bedienrechner verlassen): Danach
- * wechselt kein Token mehr, und das Koppel-Thema wird nicht mehr gelesen. Auslegung beim Bau von E7, 20.11.2026 – vom
- * Nutzer zu bestätigen (BETRIEB_ANNAHMEN.koppelnZeiten).
+ * wechselt kein Token mehr, und das Koppel-Thema wird nicht mehr gelesen. Auslegung beim Bau von E7, 20.11.2026, bestätigt
+ * 27.11.2026 (R13-15 (8); BETRIEB_ANNAHMEN.koppelnZeiten).
  */
 export const QR_SITZUNG_MS = 10 * 60_000
 /**

@@ -5,11 +5,14 @@
 // Runden 3–6 der Fragenseite (W3-01…W3-52, P-01…P-19, W4-01…W4-35, R6-01…R6-17) hat er am 21.11.2026 abends
 // beantwortet: Was er mit „passt“ bestätigte, trägt hier „bestätigt 21.11.2026 (Frage)“; wo er anders entschied, steht
 // „NICHT bestätigt“ mit seiner Entscheidung – der Code gilt dort, bis er umgebaut ist (docs/entscheidungen.md
-// „Antworten 21.11.2026 abends (Runden 3–6)“). Nicht gefragt und weiter offen: P15, U1, U3, U4 (U1/U4 umgebaut nach W4-12, U2 ersetzt durch BZ1–BZ5),
-// V3 (22.11.2026, ersetzt V1/V2), Z1–Z7, Y1–Y3. Die Runden 7–8 (R7-01…R7-52, R8-01…R8-42) hat er am 22.11.2026
-// beantwortet: Ein Eintrag mit „Bestätigt 22.11.2026 (Frage)“ gilt seitdem als bestätigt, auch wenn darüber noch
-// „noch zu bestätigen“ steht; „NICHT bestätigt 22.11.2026“ trägt seine Entscheidung, der Code gilt dort bis zum Umbau
-// (docs/entscheidungen.md „Antworten 22.11.2026 (Runden 7–8)“). Die
+// „Antworten 21.11.2026 abends (Runden 3–6)“). Damals nicht gefragt: P15, U1, U3, U4 (U1/U4 umgebaut nach W4-12, U2
+// ersetzt durch BZ1–BZ5), V3 (22.11.2026, ersetzt V1/V2), Z1–Z7, Y1–Y3 – bestätigt 22.11.2026, U3 anders entschieden.
+// Die Runden 7–8 (R7-01…R7-52, R8-01…R8-42) hat er am 22.11.2026 beantwortet: Ein Eintrag mit „Bestätigt 22.11.2026
+// (Frage)“ gilt seitdem als bestätigt; „NICHT bestätigt 22.11.2026“ trägt seine Entscheidung, der Code gilt dort bis
+// zum Umbau (docs/entscheidungen.md „Antworten 22.11.2026 (Runden 7–8)“). Die Runden 9–13 (23.–27.11.2026) ebenso je
+// Eintrag „Bestätigt <Datum> (Frage)“. Das veraltete „noch zu bestätigen“ an schon bestätigten Einträgen ist seit dem
+// 27.11.2026 (nach Runde 13) gestrichen: Offen ist nur noch, was hier „noch zu bestätigen“ oder „vom Nutzer zu
+// bestätigen“ trägt (docs/entscheidungen.md „Offen“). Die
 // Werte, die der Code liest, sind hier umstellbar; die übrigen Einträge halten fest, wie der Code gebaut ist.
 
 import type { ListenTeil } from '../lib/eingaben'
@@ -194,7 +197,9 @@ export const WKR_ANNAHMEN = {
   nachfragenJedesZeigen: true,
   /**
    * (A9, F17) Auf dem Freigabe-Handy nur Listenname, Ampel, Zahl und Startnummern der offenen Starts, keine
-   * Gerätenamen, keine Werte – in einer eigenen Gruppe, nicht in der Sicht der Anzeigetafel.
+   * Gerätenamen, keine Werte – in einer eigenen Gruppe, nicht in der Sicht der Anzeigetafel. Seit dem 27.11.2026 (R13-01,
+   * fv 3) dazu die IDs der Abgemeldeten unter den gefahrenen Starts des Bereichs – IDs, keine Namen, nur zum Ausgrauen der
+   * Wahl „Wiederholung (Ausfall)“ (BETRIEB_ANNAHMEN.wiederholungHandyAbmeldungen).
    */
   freigabeOhneNamen: true,
   /**
@@ -426,7 +431,7 @@ export const WKR_ANNAHMEN = {
    * (Parcours × Liste), unter „Mehr“ jederzeit änderbar, am Bedienrechner unter Betrieb → WKR/Geräte gezeigt; weicht er
    * von der Einteilung ab, nur ein Hinweis – übernehmen unter Veranstaltung oder auf dem Gerät überschreiben. Der
    * zuletzt eingegebene Name (G12, bestätigt) bliebe der Rückfall ohne Eintrag in der Einteilung – Auslegung
-   * 21.11.2026, noch zu bestätigen.
+   * 21.11.2026, als WN3 bestätigt 22.11.2026 (R7-37).
    * Umgebaut 21.11.2026 (Plan docs/plan-antworten-runde3-6.md §6, {@link wkrNameNurEigeneListe} WN1,
    * {@link wkrNameImLebenszeichen} WN2, {@link wkrNameOhneEinteilung} WN3).
    */
@@ -898,7 +903,7 @@ export const WKR_ANNAHMEN = {
    * (U1, Nutzer 21.11.2026) Disq. an der Boje wie auf dem Papier: Die Bojenzelle nimmt einen erlaubten
    * Disq.-Buchstaben (lib/disq.ts sanitizeBuoy) – genau das schickt das Gerät; angeboten werden alle Buchstaben, die
    * die Zelle annimmt, wie beim Abtippen (keine engere Auswahl nach Bedeutung). Nach dem Setzen zeigt die Maske wieder
-   * die Bojen (ein Disq. je Gang, kein zweiter aus Versehen – seit BZ7 22.11.2026 Mehrfachwahl bis „Fertig“). 21.11.2026, noch zu bestätigen.
+   * die Bojen (ein Disq. je Gang, kein zweiter aus Versehen – seit BZ7 22.11.2026 Mehrfachwahl bis „Fertig“). 21.11.2026.
    * Umgebaut 21.11.2026 nach W4-12: Der Buchstabe steht NEBEN den Punkten (BZ1, vorher „statt 5/0“); „Disq. an Boje …“
    * ist nur noch ein Einstieg in die Ortswahl (BZ4, components/wkr/WkrDisqOrt.vue), es gibt keinen eigenen Disq.-Modus
    * mehr; herausnehmen = in der Ortswahl die Boje und den gesetzten Buchstaben noch einmal tippen.
@@ -911,8 +916,7 @@ export const WKR_ANNAHMEN = {
    * und ein Disq.-Grund in der gleichen Bojenspalte stehen können müssen.“ Seitdem (BZ1–BZ3): Setzen lässt die
    * Berührungen stehen, Herausnehmen nimmt nur den Buchstaben, eine Boje mit Buchstaben nimmt weiter Tipps (wkr/maske.ts
    * tippeBoje, tippeBojenDisq); „↩ Rückgängig“ nimmt einen Buchstaben wie jeden Tipp zurück (ein ersetzter
-   * Buchstabe kommt wieder – seit BZ7 22.11.2026 ersetzt keiner mehr, jeder Buchstabe kommt dazu). 21.11.2026, noch zu
-   * bestätigen.
+   * Buchstabe kommt wieder – seit BZ7 22.11.2026 ersetzt keiner mehr, jeder Buchstabe kommt dazu). 21.11.2026.
    * Bestätigt 22.11.2026 (R7-19).
    */
   disqBojeMitPunkten: true,
@@ -922,7 +926,7 @@ export const WKR_ANNAHMEN = {
    * Buchstaben gilt der erste erlaubte), lib/disq.ts sanitizeBuoy; gelesen nur über lib/scoring.ts bojenWert (alle
    * Ziffern, erster Buchstabe). Anzeige in Erfassung und Wertungsliste ebenso („5J“, ohne Komma – lib/ergebnis.ts
    * zellText nur für Bojenzellen; Fehler-Spalten bleiben „5, D“). Alte Werte („5“, „J“) sind unverändert gültig –
-   * keine Migration (migrate prüft nichts Neues). 21.11.2026, noch zu bestätigen.
+   * keine Migration (migrate prüft nichts Neues). 21.11.2026.
    * NICHT bestätigt 22.11.2026 (R7-14) – Nutzer: „Es können pro Boje auch mehrere Disq. eingetragen werden. Bei der
    * Eingabe kann flexibel geparst werden. Also mit Leerzeichen, ohne oder mit Komma. Angezeigt wird es dann aber
    * mit Komma.“ Also mehrere Buchstaben je Bojenzelle, Eingabe tolerant, Anzeige mit Komma (nicht „5J“). Bis zum
@@ -934,7 +938,7 @@ export const WKR_ANNAHMEN = {
    * sanitizeBuoy/bojenZelle; gelesen nur über lib/scoring.ts bojenWert ({punkte, disq: string[]}, je Buchstabe ein
    * DisqHit). Anzeige = Speicherform, auch auf der Wertungsliste (zellText ohne Sonderweg für das Komma). Keine Migration:
    * „5J“ aus alten Ständen liest bojenWert weiter richtig, sanitizeBuoy schreibt es beim nächsten Tippen „5, J“.
-   * 22.11.2026, noch zu bestätigen.
+   * 22.11.2026.
    * Folge (Prüfbefund 22.11.2026, bewusst so gelassen): wkr/uebernahme.ts wendeZeileAn vergleicht Zellen als Text (BZ5).
    * Eine vor dem Umbau abgetippte Zelle „5J“ gilt darum gegenüber „5, J“ vom Gerät als abweichend → Rückfrage am
    * Bedienrechner (nichts geht still verloren), und die Erfassung zeigt „5J“, bis sie neu getippt wird. Kein
@@ -950,7 +954,7 @@ export const WKR_ANNAHMEN = {
    * „5, X“ und „J, X“ → „X“). wertGilt nimmt vom Gerät nur genau diese Form an („5J“ = `wert-ungueltig`). Die Tabelle
    * meldet `zeichen-fremd` nur noch für Buchstaben, die die Zelle nicht kennt. Erfassung: ein Feld mit mehr als vier
    * Zeichen wird breiter (`.erf-feld--boje-lang`), Wertungsliste bricht um statt abzuschneiden. Beim Bau
-   * 22.11.2026, noch zu bestätigen.
+   * 22.11.2026.
    * Bestätigt 23.11.2026 (R9-01).
    */
   bojenZelleMitKomma: true,
@@ -960,21 +964,21 @@ export const WKR_ANNAHMEN = {
    * und zeigt die Bojen wieder – in WkrDisqOrt und im Bild (WkrBild). Vorher schloss der erste Buchstabe, ein zweiter
    * ersetzte ihn. „↩ Rückgängig“ nimmt den zuletzt gesetzten Buchstaben heraus (Merker je Buchstabe in
    * wkr/maske.ts, der Ersetzt-Merker entfällt). In der Probe ist der Schritt „Disq. an Boje“ erst mit „Fertig“
-   * erledigt. Beim Bau 22.11.2026, noch zu bestätigen.
+   * erledigt. Beim Bau 22.11.2026.
    * Bestätigt 23.11.2026 (R9-02).
    */
   disqBojeMehrfachwahl: true,
   /**
    * (BZ8, 22.11.2026, R7-14) LISTEN_SICHT_FASSUNG 9 → 10 (wkr/sicht.ts): Die Form der Sicht bleibt, aber ein Gerät
    * älterer Fassung schickte „5J“ (jetzt ungültig) und läse „5, J, D“ nur mit einem Buchstaben – es lädt über F7 neu.
-   * Protokoll unverändert (der Zellwert ist ein String). Beim Bau 22.11.2026, noch zu bestätigen.
+   * Protokoll unverändert (der Zellwert ist ein String). Beim Bau 22.11.2026. Keine eigene Frage: folgt der
+   * Entscheidung R7-14 (docs/entscheidungen.md: „BZ8 … folgen früheren Entscheidungen“).
    */
   bojenZelleFassung: 10,
   /**
    * (BZ2, 21.11.2026) X „nicht gestartet“ steht nie mit Punkten: Wer nicht gestartet ist, hat keine Boje berührt.
    * sanitizeBuoy macht aus „5X“ ein „X“ (Abtippen), wertGilt lehnt „5X“ vom Gerät ab (`wert-ungueltig`), ein solcher
-   * Wert aus alten Ständen trägt den Hinweis `bojePunkte` (lib/erfassung.ts zeilenHinweise). 21.11.2026, noch zu
-   * bestätigen.
+   * Wert aus alten Ständen trägt den Hinweis `bojePunkte` (lib/erfassung.ts zeilenHinweise). 21.11.2026.
    * Bestätigt 22.11.2026 (R7-15).
    */
   xNieMitPunkten: true,
@@ -982,7 +986,7 @@ export const WKR_ANNAHMEN = {
    * (BZ3, 21.11.2026) Wertung einer Bojenzelle „5J“: Die Punkte zählen in die Strafpunkte, der Buchstabe
    * disqualifiziert den Lauf (wie bisher je Lauf); die Punkte bleiben auf der Wertungsliste sichtbar – wie
    * Fehlerpunkte neben einem Disq. in einer Fehler-Spalte (MüB „5, D“). Der Hinweis `bojePunkte` prüft nur den
-   * Ziffernteil. 21.11.2026, noch zu bestätigen.
+   * Ziffernteil. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-16).
    */
   punkteNebenDisq: true,
@@ -992,14 +996,14 @@ export const WKR_ANNAHMEN = {
    * Maske, nur Bojen mit Buchstaben; Titel mit „Hin“/„Rück“, wo es beide Wege gibt) und „Keine Boje / ganzer Parcours“
    * (nur mit Disq.-Feld) → Disq.-Feld der Liste; danach die Buchstaben DIESER Zelle (zweiter Tipp setzt, H1). Nach
    * der Wahl an einer Boje zeigt die Mitte wieder die Bojen, bei „keine Boje“ bleibt die Liste offen (mehrere
-   * Buchstaben möglich). Katalog-Listen (Tor 5 ohne Bojen, MüB) bleiben ohne Ortswahl. 21.11.2026, noch zu bestätigen.
+   * Buchstaben möglich). Katalog-Listen (Tor 5 ohne Bojen, MüB) bleiben ohne Ortswahl. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-17).
    */
   disqFragtBoje: true,
   /**
    * (BZ5, 21.11.2026) Übernahme: abweichend heißt String-ungleich – ein Papierwert „5“ und ein Gerätewert „5, J“ sind
    * abweichend (Rückfrage, wkr/uebernahme.ts wendeZeileAn), kein Zusammenführen von Punkten und Buchstaben.
-   * Keine Protokolländerung: Der Zellwert war immer ein String. 21.11.2026, noch zu bestätigen.
+   * Keine Protokolländerung: Der Zellwert war immer ein String. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-20).
    */
   papierGegenGeraetAbweichend: true,
@@ -1009,12 +1013,12 @@ export const WKR_ANNAHMEN = {
    * NICHT bestätigt 22.11.2026 (R7-21) – Nutzer: „Ja“. Umgebaut 22.11.2026 (R7-21, Schalter vorher
    * `disqBojeOhneLangdruck`): Ein langer Druck auf einen Bojen-Knopf (WkrBojen) öffnet die Disq.-Buchstaben DIESER Boje
    * (WkrDisqOrt direkt im Schritt 2, Mehrfachwahl BZ7); „Disq. an Boje …“ und DISQ im Fuß bleiben. Einzelheiten LD1–LD4
-   * (components/wkr/langdruck.ts), noch zu bestätigen.
+   * (components/wkr/langdruck.ts).
    * Umbau Bestätigt 23.11.2026 (R9-03, R9-04 – Einzelheiten LD1–LD4).
    */
   disqBojeLangdruck: true,
   /**
-   * (LD1, R7-21/R8-23, 22.11.2026, noch zu bestätigen) Ab wann ein Druck auf eine Boje (Knopf bzw. Trefferkreis im
+   * (LD1, R7-21/R8-23, 22.11.2026) Ab wann ein Druck auf eine Boje (Knopf bzw. Trefferkreis im
    * Bild) lang ist: 800 ms – deutlich über einem festen Tipp mit Handschuh (≈ 150–300 ms), aber kurz genug, dass der
    * WKR nicht unsicher wird. Eine Boje ohne Disq.-Buchstaben kennt keinen Langdruck: Dort zählt auch ein langer Druck
    * als Tipp (sonst ginge eine Berührung still verloren).
@@ -1022,14 +1026,14 @@ export const WKR_ANNAHMEN = {
    */
   langdruckMs: 800,
   /**
-   * (LD2, 22.11.2026, noch zu bestätigen) Ein Langdruck zählt NIE zusätzlich als Tipp: Der Tipp zählt beim Loslassen
+   * (LD2, 22.11.2026) Ein Langdruck zählt NIE zusätzlich als Tipp: Der Tipp zählt beim Loslassen
    * (pointerup), nicht beim Aufsetzen; ist der Langdruck ausgelöst, wird der Tipp verworfen. Tastatur (Enter/Leertaste)
    * bleibt kurzer Tipp.
    * Bestätigt 23.11.2026 (R9-04).
    */
   langdruckNieTipp: true,
   /**
-   * (LD3, 22.11.2026, noch zu bestätigen) Abbruch ohne Tipp und ohne Langdruck: Bewegung über langdruckWegPx (Wischen,
+   * (LD3, 22.11.2026) Abbruch ohne Tipp und ohne Langdruck: Bewegung über langdruckWegPx (Wischen,
    * Scrollen) oder pointercancel. Kontextmenü, Textauswahl und iOS-Callout auf den Knöpfen unterdrückt
    * (styles/wkr-geraet.css). Rückmeldung: Füllring nach langdruckRingMs, beim Auslösen kurz vibrieren (wo es geht).
    * Bestätigt 23.11.2026 (R9-03: Füllring ab 300 ms, Abbruch ab 10 px).
@@ -1037,7 +1041,7 @@ export const WKR_ANNAHMEN = {
   langdruckWegPx: 10,
   langdruckRingMs: 300,
   /**
-   * (LD4, 22.11.2026, noch zu bestätigen) Prellschutz S1 (bojenSchalterPrellMs) gilt unverändert für kurze Tipps – die
+   * (LD4, 22.11.2026) Prellschutz S1 (bojenSchalterPrellMs) gilt unverändert für kurze Tipps – die
    * Zeitmarke entsteht beim gezählten Tipp, also beim Loslassen; ein Langdruck setzt keine. Gesperrte Maske
    * (Übertragen, Pause) → kein Langdruck.
    * Bestätigt 23.11.2026 (R9-04: Prellschutz misst ab dem Loslassen).
@@ -1048,7 +1052,7 @@ export const WKR_ANNAHMEN = {
    * Buchstaben im RECHTEN Knopf der ersten zweibojigen Zeile (bzw. der ersten Boje), mit ihrem ersten Buchstaben – der
    * Hauptknopf heißt danach „Abschicken“. Mit Umschalter (Fahrtfolge) liegt die Boje auf der gerade offenen Seite:
    * nach dem Rückweg-Schritt auf dem Rückweg, ohne Buchstaben dort kommt der Schritt vor den Rückweg-Schritt
-   * (Prüfbefund 21.11.2026 – sonst stand die genannte Boje nicht auf dem Bildschirm). 21.11.2026, noch zu bestätigen.
+   * (Prüfbefund 21.11.2026 – sonst stand die genannte Boje nicht auf dem Bildschirm). 21.11.2026.
    * Umgebaut 21.11.2026 nach W4-12 (BZ1/BZ4): Der Schritt übt Punkt UND Buchstabe – Berührung an dieser Boje, dann
    * „Disq. an Boje …“, in der Ortswahl dieselbe Boje, Buchstabe; fertig, wenn die Boje beides trägt (Reihenfolge
    * egal). „FEHLER“ im Fuß erscheint in der Probe nur bei offener Ortswahl (zurück zu den Bojen).
@@ -1067,7 +1071,7 @@ export const WKR_ANNAHMEN = {
    * - „Fahrtfolge“ (`fahrt`): der Rück-Reiter, wie das Boot fährt (Tor 5, Tor 3, Tor 1, Ziel – der Stand bis 21.11.2026);
    * - „Alles untereinander“ (`untereinander`): ein Reiter ohne Umschalter, Hinweg und Rückweg in Fahrtfolge mit den
    *   Kopfzeilen HINWEG/RÜCKWEG (wie Listen mit wenigen Zeilen ohnehin).
-   * Auslegungen 22.11.2026, noch zu bestätigen: (a) Was auf dem Hinweg kein Gegenstück hat (Speedbojen, Tor 1 der
+   * Auslegungen 22.11.2026: (a) Was auf dem Hinweg kein Gegenstück hat (Speedbojen, Tor 1 der
    * Speedrunde, MüB), steht unter „gedreht“ direkt VOR seinem Vorgänger in der Fahrtfolge – der Rück-Reiter ist so in
    * jeder Liste genau die umgekehrte Fahrtfolge (Klasse 7: Ziel, Tor 1 (2.), Speed 2, Tor 1 R, Tor 3, Tor 5), die Tore
    * stehen untereinander wie auf Hin (Prüfbefund 22.11.2026; vorher standen sie unter den Toren in Fahrtfolge – das war
@@ -1085,8 +1089,8 @@ export const WKR_ANNAHMEN = {
   bojenFolge: true,
   /**
    * (P10) Klassenwechsel: Hat der Start andere Halte als der zuvor gezeigte, liegt so lange ein Band „Klasse n –
-   * andere Halte“ über der Mitte, ohne Knöpfe zu verschieben und ohne einen Tipp zu nehmen. 21.11.2026, noch zu
-   * bestätigen. Text seit 23.11.2026 (Nutzer: „Statt ‚Andere Halte‘ sollte hier eher ‚Achtung, Klassenwechsel!‘
+   * andere Halte“ über der Mitte, ohne Knöpfe zu verschieben und ohne einen Tipp zu nehmen. 21.11.2026.
+   * Text seit 23.11.2026 (Nutzer: „Statt ‚Andere Halte‘ sollte hier eher ‚Achtung, Klassenwechsel!‘
    * stehen“): „Achtung, Klassenwechsel! Klasse n“.
    * NICHT bestätigt in dieser Form – Nutzer 21.11.2026 (W4-13): Band nur beim ERSTEN Start einer neuen Klasse; beim
    * Hochwischen soll die Parcours-Zeichnung mit angezeigt werden. Sonst gut. Umgebaut 21.11.2026
@@ -1118,7 +1122,7 @@ export const WKR_ANNAHMEN = {
    * (P15) Sicht: `MaskenFeld.boje` {halt, weg, folge, titel, unter, spalte, zaehler?, durchfahrt?} – nur Bogentexte
    * und Fahrweg-Angaben, keine Werte; `AndereFeld.boje` {titel, unter}; LISTEN_SICHT_FASSUNG 4. Die Seitenfolge
    * kommt aus der ganzen Liste, nicht der Klasse (dieselbe Boje steht in jeder Klasse in derselben Spalte).
-   * 21.11.2026, noch zu bestätigen.
+   * 21.11.2026.
    * Bestätigt 22.11.2026 (R7-52).
    */
   bojenInSicht: true,
@@ -1139,9 +1143,10 @@ export const WKR_ANNAHMEN = {
    * (Q2) Klassenwechsel-Band (P10) liegt unter der Starterkarte über dem Anfang der Mitte (absolut): Die Startnummer
    * bleibt lesbar, kein Knopf rutscht; Tipps auf seiner Fläche fängt es ab (darunter liegen höchstens „Ausweichen“
    * bzw. die ersten Knöpfe). Nicht beim ersten Start der Maske, nicht in der Korrektur; nur auf Bojen-Listen.
-   * 21.11.2026, noch zu bestätigen.
-   * Lage bestätigt; Auslösung neu (W4-13): nur beim ersten Start einer neuen Klasse, dazu die Parcours-Zeichnung beim
-   * Hochwischen.
+   * 21.11.2026.
+   * Lage bestätigt 21.11.2026; Auslösung neu (W4-13): nur beim ersten Start einer neuen Klasse, dazu die
+   * Parcours-Zeichnung beim Hochwischen – umgebaut als GF9 ({@link klassenWechselNurErster}), bestätigt 22.11.2026
+   * (R7-33).
    */
   klassenWechselUnterKarte: true,
   /**
@@ -1302,7 +1307,8 @@ export const WKR_ANNAHMEN = {
    * Parcoursüberwachung), MüB, Parallelslalom (Fahrweg je Racecourse), Steg (Ablegen, Anlegen, ganz) und Vorsteg – in
    * DM und UIM (X steht in beiden Regelwerken ohne `bereiche`, gilt also in jedem Disq.-Feld). Nicht auf Listen ohne
    * Disq.-Feld: Zeit (dort „keine Zeit“, ZT4) und Knoten am Tisch – für die Zeitnahme beim Bau ausgelegt 24.11.2026
-   * (Prüfbefund), noch zu bestätigen: Ihre Liste hat nur Zeitfelder, ein X müsste in das Disq.-Feld einer ANDEREN Liste
+   * (Prüfbefund), bestätigt 27.11.2026 (R13-03, ebenso Knoten am Tisch): Ihre Liste hat nur Zeitfelder, ein X müsste
+   * in das Disq.-Feld einer ANDEREN Liste
    * (etwa Steg, lib/abmeldung.ts abmeldeZiel) – das erlaubt pruefeZeile keinem Gerät. Nicht in der Korrektur, nicht
    * in der Probe. Große Rückfrage „23 nicht gestartet?“ mit dem Satz, was eingetragen wird; ein Entwurf des Starts
    * fällt weg. Die Zeile ist
@@ -1418,7 +1424,7 @@ export const WKR_ANNAHMEN = {
    * zählt dort nicht als offen. Die Prüfansicht des Geräts kennt ihn ebenso wenig – sonst lehnte der Bedienrechner einen
    * Abschluss mit „offen“ ab, den das Gerät als vollständig zeigt. Abgeschlossen wird ohnehin nach dem Lauf (dann gilt
    * der letzte Start als zurück, T2, und zählt wieder); ein Anlegen, das nach einem verfrühten Abschluss kommt, wird
-   * Vorschlag. 21.11.2026, noch zu bestätigen.
+   * Vorschlag. 21.11.2026.
    * Pause, Abmelden und „Papier ab“ dagegen nehmen das Anlegen des Starts im Boot MIT in P (Prüfbefund 21.11.2026):
    * Das Boot kommt während der Pause zurück, der WKR schreibt das Anlegen auf den Bogen. Ohne P fiele es nach „Weiter“
    * (bzw. neu Zuweisen und „Weiter“) wieder offen in die Schlange, stünde doppelt auf dem Gerät und ließe die
@@ -1484,14 +1490,13 @@ export const WKR_ANNAHMEN = {
   /**
    * (Z1) Unter Listen → WKR-Bögen und Laufzettel entfallen die Bögen einer Liste mit Modus `digital`; `papier`,
    * `beides` und eine Liste ohne Eintrag (= Papier) werden gedruckt wie bisher. Sie stehen dann auch nicht am Bildschirm
-   * (Bildschirmansicht = Druckansicht), ein Hinweis über dem Stapel nennt sie. 21.11.2026, noch zu bestätigen.
+   * (Bildschirmansicht = Druckansicht), ein Hinweis über dem Stapel nennt sie. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-38).
    */
   druckOhneDigital: true,
   /**
    * (Z2) Eine digitale Liste, die gerade pausiert oder abgemeldet ist (ganz oder ein Steg-Teil), wird gedruckt: Dann
-   * übernimmt der Papierbogen (F1). Der Druck folgt dem Stand beim Drucken, nicht dem späteren. 21.11.2026, noch zu
-   * bestätigen.
+   * übernimmt der Papierbogen (F1). Der Druck folgt dem Stand beim Drucken, nicht dem späteren. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-39).
    */
   druckBeiPause: true,
@@ -1499,46 +1504,46 @@ export const WKR_ANNAHMEN = {
    * (Z3) Steg digital, aber nur ein Teil auf einem Gerät (Register am Bedienrechner: nur Teil-Geräte eines Teils, z. B.
    * „nur Ablegen“) → der Bogen wird gedruckt, das Anlegen schreibt auf Papier. Der Bogen ist einer für beide Teile –
    * eine halbe Liste gibt es nicht. Ohne gekoppeltes Gerät zählt der Modus allein (der Bediener hat „digital“ gewählt,
-   * B2). Der Druck liest das Register nur am Bedienrechner (nie im Stand). 21.11.2026, noch zu bestätigen.
+   * B2). Der Druck liest das Register nur am Bedienrechner (nie im Stand). 21.11.2026.
    * Bestätigt 22.11.2026 (R7-40).
    */
   druckStegJeTeil: true,
   /**
    * (Z4) Rückfall: Schalter „Trotzdem drucken“ über dem Stapel (Bedienauswahl, lib/merken.ts `listen.wkr.digitalDrucken`,
    * übersteht Neuladen, nie im Stand) druckt auch die nur digitalen – für Ausfall von Netz oder Geräten. Er gilt für
-   * Bögen UND Laufzettel. 21.11.2026, noch zu bestätigen.
+   * Bögen UND Laufzettel. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-41).
    */
   druckRueckfall: true,
   /**
    * (Z5) Laufzettel: ohne die Bögen, die nicht gedruckt werden (kein Kästchen für ein Blatt, das es nicht gibt). Ein
-   * Stapel, dessen Bögen alle nur digital sind, hat keinen Zettel. 21.11.2026, noch zu bestätigen.
+   * Stapel, dessen Bögen alle nur digital sind, hat keinen Zettel. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-42).
    */
   druckLaufzettel: true,
   /**
    * (Z6) Listen ohne Liste der WKR-Erfassung (Positionen außerhalb des Regelwerks; bis W5.3 auch Knoten) werden immer
    * gedruckt (wkr/liste.ts listeVonBogen → null). Die Druckdatei enthält keine WKR-Bögen – dort ändert sich nichts.
-   * 21.11.2026, noch zu bestätigen. Seit W5.3 (22.11.2026, KN6) hat Knoten eine Liste (Bereich `tisch`) und darf
+   * 21.11.2026. Seit W5.3 (22.11.2026, KN6) hat Knoten eine Liste (Bereich `tisch`) und darf
    * „nur digital“ sein.
    * Bestätigt 22.11.2026 (R7-43).
    */
   druckOhneListeImmer: true,
   /**
    * (Z7) Parallelslalom: dieselbe Regel je Liste und Racecourse (Bereich `parallel`); die Runde gilt nach dem Drucken
-   * nur als gebunden, wenn von ihr etwas gedruckt wurde (views/ListsView.vue gedruckteRunden). 21.11.2026, noch zu
-   * bestätigen.
+   * nur als gebunden, wenn von ihr etwas gedruckt wurde (views/ListsView.vue gedruckteRunden). 21.11.2026.
    * Bestätigt 22.11.2026 (R7-44).
    */
   druckParallelJeRacecourse: true,
   // --- Übungstakt (Nutzer 21.11.2026: „dass der nächste Starter immer erst so 2–6 Sekunden später kommt, nachdem man
-  // was geschickt hat. Dann hin und wieder auch mal vorher, wie jetzt auch.“ Y1–Y3, alle noch zu bestätigen) --------
+  // was geschickt hat. Dann hin und wieder auch mal vorher, wie jetzt auch.“ Y1–Y3,
+  // bestätigt 22.11.2026: R7-45 bis R7-47) ---
   /**
    * (Y1) Übung (geraete/uebung.ts): Hat der WKR nach dem Abschicken (auch „Fehlerfrei“, „nicht vorbeigekommen“) keinen
    * gezeigten Start seines Teils mehr vor sich, kommt der nächste nach zufällig 2–6 s (UEBUNG_FOLGE_MS, gleichverteilt,
    * Saat je Übung). „Als Nächstes“ vorab (Vorsteg, Steg-Ablegen) zählt nicht als „vor sich“ – das sieht er immer.
    * Die Übung beginnt mit EINEM gezeigten Start (früher zwei). Korrekturen, Rückfragen und Quittungen bleiben wie
-   * bisher (Nutzer: „sehr cool“). 21.11.2026, noch zu bestätigen.
+   * bisher (Nutzer: „sehr cool“). 21.11.2026.
    * Bestätigt 22.11.2026 (R7-45) – mit Zusatzwunsch: „man muss auch in der Übung andere Klassen vorziehen können,
    * damit man diese Klasse sehen kann“ – gebaut 22.11.2026 als Y4 (uebungVorziehen).
    */
@@ -1550,7 +1555,7 @@ export const WKR_ANNAHMEN = {
    * ist der erschöpft, ein erfundener weiterer Start mit neuer Nummer (21, 22 …); danach die normale Folge (übersprungene
    * Nummern kommen nicht doppelt). Steht gerade kein Start vor dem WKR (Takt läuft), kommt er sofort. Am Tisch springt
    * der Vorschlag auf den ersten offenen dieser Klasse, bis die nächste Zeile abgeschickt ist. Rein in wkr/uebung.ts
-   * (ziehVor), Kern geraete/uebung.ts zieheKlasseVor; die echte Erfassung hat es nicht. 22.11.2026, noch zu bestätigen.
+   * (ziehVor), Kern geraete/uebung.ts zieheKlasseVor; die echte Erfassung hat es nicht. 22.11.2026.
    * Bestätigt 23.11.2026 (R9-13).
    */
   uebungVorziehen: true,
@@ -1571,7 +1576,7 @@ export const WKR_ANNAHMEN = {
    * (components/wkr/WkrMaske.vue kopfAusDemBild, scrollIntoView). Die Fläche „wird übertragen …“ liegt fest darüber;
    * sobald die nächste Karte steht, wird noch einmal ausgerichtet (UK5). Mit „Bewegung reduzieren“ ohne Gleiten.
    * Nur in der Übung: Die echte Maske zeigt im Kopf Verbindung, „Keine Bestätigung“ und „Bitte Nr. prüfen“ – das soll
-   * nicht oben hinausrollen (Frage an den Nutzer). Beim Bau 24.11.2026, noch zu bestätigen.
+   * nicht oben hinausrollen (Frage an den Nutzer). Beim Bau 24.11.2026.
    * NICHT bestätigt 26.11.2026 (R11-14) – auf die Frage, ob der Kopf auch am Wettkampftag hinausrollen soll, Nutzer: „Oh,
    * dann besser wieder raus damit. Ich dachte, es ist eine extra Zeile.“ Der Kopf rollt auch in der Übung nicht mehr
    * hinaus; ersetzt durch UK7 ({@link WKR_ANNAHMEN.uebungErklaerungAusDemBild}).
@@ -1601,8 +1606,7 @@ export const WKR_ANNAHMEN = {
   /**
    * (UK3) Gerollt wird bis zum ersten Element NACH dem Kopf, nicht bis zur Karte selbst: Steg-Reiter, die Zeile
    * „Zuletzt“ mit „↶ Rückgängig“ (6 s, G8) und Rückfrage-Bänder bleiben sichtbar, direkt darunter die Karte. Beim
-   * ersten Start (noch nichts in „Zuletzt“) steht die Karte am Rand, danach eine Zeile tiefer. Beim Bau 24.11.2026,
-   * noch zu bestätigen.
+   * ersten Start (noch nichts in „Zuletzt“) steht die Karte am Rand, danach eine Zeile tiefer. Beim Bau 24.11.2026.
    * Entfällt 26.11.2026 mit UK1 (R11-14): Der Kopf bleibt stehen, „Zuletzt“ und die Karte stehen darunter (UK7).
    */
   uebungKopfZuletztBleibt: false,
@@ -1630,7 +1634,7 @@ export const WKR_ANNAHMEN = {
    * (UK6) Knoten am Tisch (WkrPruefliste) ebenso: nach „Alle richtig“/„Abschicken“ rollen Erklärung und Kopf mit
    * „ÜBUNG“ hinaus, oben steht der Block „Nr. 9 · Klasse · offen“ mit dem Vorschlag. Ohne Takt und ohne Nachrollen
    * (der nächste Starter ist sofort vorbelegt, KN12); der Kopf steht dort über beiden Pad-Spalten. Prüfbefund
-   * 24.11.2026, noch zu bestätigen.
+   * 24.11.2026.
    * Umgebaut 26.11.2026 (R11-14) wie UK7: Nur die Erklärung rollt hinaus, der Kopf mit „ÜBUNG“ steht am Rand, darunter
    * der Block „Nr. 9 · Klasse · offen“. Bestätigt 27.11.2026 (R12-17: „Ebenso am Tisch bei der Knoten-Liste („Alle
    * richtig“)“).
@@ -1639,7 +1643,7 @@ export const WKR_ANNAHMEN = {
   /**
    * (Y2) „Hin und wieder vorher“: Jeder 4.–6. gezeigte Start (UEBUNG_FRUEH_JEDER, neu gezogen nach jedem) zieht nach
    * 2–6 s einen weiteren nach sich, ohne aufs Abschicken zu warten – dann stehen zwei an. Nie zwei geplant zugleich;
-   * „Rückgängig“ vor der Quittung nimmt den geplanten nächsten zurück. 21.11.2026, noch zu bestätigen.
+   * „Rückgängig“ vor der Quittung nimmt den geplanten nächsten zurück. 21.11.2026.
    * Bestätigt 22.11.2026 (R7-46).
    */
   uebungFruehHinUndWieder: true,
@@ -1647,12 +1651,13 @@ export const WKR_ANNAHMEN = {
    * (Y3) Der 30-s-Takt (uebungTaktSek) läuft nur noch, wenn der WKR so lange nichts schickt oder korrigiert (Uhr
    * beginnt mit jeder Eingabe und jedem gezeigten Start neu). Pausiert/abgemeldet zeigt nichts; „Weiter“ holt den
    * nächsten nach 2–6 s. Am Steg-Anlegen zeigt die Übung so viele, bis einer anlegen kann (der zuletzt gezeigte ist
-   * noch im Boot, T1/T2). 21.11.2026, noch zu bestätigen.
+   * noch im Boot, T1/T2). 21.11.2026.
    * Bestätigt 22.11.2026 (R7-47).
    */
   uebungTaktNurRueckfall: true,
   // --- Parcours-Ampel (Nutzer 21.11.2026, P-03/P-04, R6-10, W3-40; Plan docs/plan-antworten-runde3-6.md §3). Alle
-  // 21.11.2026, noch zu bestätigen. Auto-Modus und Anzeigetafel: BETRIEB_ANNAHMEN AM6–AM8. -----------------------------
+  // 21.11.2026; bestätigt 22.11.2026 (Runde 7), AM1/AM2 nach R7-01 umgebaut. Auto-Modus und Anzeigetafel:
+  // BETRIEB_ANNAHMEN AM6–AM8. -------------------------------------------------------------------------------------
   /**
    * (AM1) Parcours-Liste – an den Feldern erkannt, nicht an der Kennung (wkr/liste.ts istParcoursListe): mit Lauf, nicht
    * geteilt (Steg), nicht „einmal je Starter“ (Vorsteg), mindestens ein Feld außer Summe (seit 22.11.2026, R7-01: Zeit
@@ -1720,7 +1725,8 @@ export const WKR_ANNAHMEN = {
    * Bestätigt 22.11.2026 (R7-13).
    */
   abschlussFragtWennLaufLaeuft: true,
-  // --- Gerät-Feinschliff (Plan docs/plan-antworten-runde3-6.md §5, GF1–GF11, 21.11.2026, alle noch zu bestätigen) ------
+  // --- Gerät-Feinschliff (Plan docs/plan-antworten-runde3-6.md §5, GF1–GF11, 21.11.2026; bestätigt 22.11.2026,
+  // R7-25 bis R7-34) ---
   /**
    * (GF1, P-18/W3-01) Ansicht der Maske: Vorgabe „Wie Gerät“ – Hell/Dunkel des Systems (prefers-color-scheme, live
    * gelesen in components/wkr/systemModus.ts, die Maske setzt `data-modus` hell bzw. dunkel). Unter „Mehr → Ansicht“
@@ -1815,7 +1821,8 @@ export const WKR_ANNAHMEN = {
    */
   nichtVorbeiAlsJ: false,
 
-  // --- WKR-Namen aus der Veranstaltung (Plan docs/plan-antworten-runde3-6.md §6, WN1–WN3, 21.11.2026, noch zu bestätigen) ---
+  // --- WKR-Namen aus der Veranstaltung (Plan docs/plan-antworten-runde3-6.md §6, WN1–WN3, 21.11.2026; bestätigt
+  // 22.11.2026, R7-35 bis R7-37) ---
   // Nutzer 21.11.2026 (W3-13, W3-41): „Der Name sollte aus dem Veranstaltungsbereich kommen, wo die Namen der WKR
   // eingetragen werden (können). Man kann es ändern oder so lassen. … unter Mehr ändern/eintragen … unter WKR/Geräte
   // angezeigt … Warnhinweis, dass sich der Name von der Festlegung unter Veranstaltung unterscheidet.“
@@ -1824,7 +1831,7 @@ export const WKR_ANNAHMEN = {
    * (wkr/sicht.ts `wkrName`, LISTEN_SICHT_FASSUNG 8) – nie in die öffentliche, Zuschauer- oder Freigabe-Sicht und nie
    * in die Sicht einer anderen Liste. Teil-Geräte am Steg bekommen denselben Namen (die Einteilung kennt keine Teile).
    * Auf dem Gerät vorbelegt, unter „Mehr → Name“ jederzeit änderbar (gerätelokal je Raum und Liste, im Ausgang
-   * `alcatraz.geraet.wkr`); der Abschluss nimmt den aktuellen Namen. Auslegung 21.11.2026, noch zu bestätigen.
+   * `alcatraz.geraet.wkr`); der Abschluss nimmt den aktuellen Namen. Auslegung 21.11.2026.
    * Bestätigt 22.11.2026 (R7-35).
    */
   wkrNameNurEigeneListe: true,
@@ -1834,25 +1841,25 @@ export const WKR_ANNAHMEN = {
    * wiederkommt. Der Bedienrechner legt ihn im Register ab (gerätelokal, nie im AppState außer im Abschluss) und zeigt
    * unter Betrieb → Geräte bei Abweichung nur einen Hinweis mit „In Veranstaltung übernehmen“ (SET_WKR_NAME). `namen`
    * ist freiwillig (ein Host ohne das Feld liest das Lebenszeichen weiter), PROTOKOLL_FASSUNG bleibt 2.
-   * Auslegung 21.11.2026, noch zu bestätigen.
+   * Auslegung 21.11.2026.
    * Bestätigt 22.11.2026 (R7-36).
    */
   wkrNameImLebenszeichen: true,
   /**
    * (WN3) Ohne Eintrag in der Einteilung fragt das Gerät wie bisher beim Abschluss nach dem Namen (vorbelegt mit dem
    * zuletzt eingegebenen, G12); der dort eingegebene Name gilt danach auch als Name der Liste auf diesem Gerät.
-   * Auslegung 21.11.2026, noch zu bestätigen.
+   * Auslegung 21.11.2026.
    * Bestätigt 22.11.2026 (R7-37).
    */
   wkrNameOhneEinteilung: true,
   // --- W5.1 Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl (Plan docs/plan-wkr-w5.md §4, §10; 22.11.2026,
-  // beim Bau ohne Rückfrage ausgelegt, alles noch zu bestätigen) ---
+  // beim Bau ohne Rückfrage ausgelegt; bestätigt 22.11.2026, R8-08 bis R8-16) ---
   /**
    * (PD1) Pad oder Handy: die Art aus der Kopplung (das Gerät meldet sie beim Koppeln, GF7 – geraete/gekoppelt.ts
    * `typ`) entscheidet vor der Fenstergröße; `rechner` gilt wie ein Pad. Ohne Art (Übung) ist es ein Pad, wenn die
    * kürzere Fensterseite ≥ padAbKurzeSeite CSS-px ist. Quer/hoch nach dem Fenster (Breite ≥ Höhe = quer). Auslegung
    * 22.11.2026: Die Art, die der Bediener am Bedienrechner umstellt (host.setzeTyp), erfährt das Gerät nicht – es nimmt
-   * die eigene Meldung; noch zu bestätigen.
+   * die eigene Meldung.
    * Bestätigt 22.11.2026 (R8-08).
    */
   padAbKurzeSeite: 600,
@@ -1861,8 +1868,8 @@ export const WKR_ANNAHMEN = {
    * ein Eingabefeld den Fokus hat (Maske „Tabelle“, Name unter „Mehr“), bleibt die Anordnung bei der alten Höhe
    * (components/wkr/systemModus.ts useFenster) – Android-Browser verkleinern beim Öffnen der Tastatur das Fenster, und
    * ein Pad hochkant spränge sonst auf „quer“, baute die Spalte mit dem Feld ab und schlösse die Tastatur. Echte
-   * Drehung ändert immer die Breite. Im Test-DOM nicht nachstellbar wie auf dem Gerät (nur über `resize`); Auslegung,
-   * noch zu bestätigen – Feldtest docs/feldtest.md „Pad (W5)“.
+   * Drehung ändert immer die Breite. Im Test-DOM nicht nachstellbar wie auf dem Gerät (nur über `resize`); Auslegung
+   * – Feldtest docs/feldtest.md „Pad (W5)“.
    * Bestätigt 22.11.2026 (R8-13) – im Feldtest weiter zu prüfen.
    */
   tastaturAendertNichts: true,
@@ -1871,7 +1878,7 @@ export const WKR_ANNAHMEN = {
    * (2) – hoch zählt die Breite je Spalte ab padHochSpalteMinPx (360 px, die geprüfte Handy-Breite), sonst stünde ein
    * 768-px-Pad hochkant immer einspaltig. Was nicht passt, teilt sich als Reiter die letzte Spalte. Ein Gerät für den
    * ganzen Steg bekommt Ablegen und Anlegen als zwei Spalten, wenn beide passen (sonst Steg-Reiter wie auf dem Handy).
-   * Auslegung 22.11.2026, noch zu bestätigen.
+   * Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-09).
    */
   padSpalteMinPx: 480,
@@ -1882,7 +1889,7 @@ export const WKR_ANNAHMEN = {
    * (PD3) Eigene Seitenspalte (Schlange / Zuletzt / Einträge im Klartext, components/wkr/WkrSeite.vue) nur bei genau
    * einer Spalte – quer rechts (≈ 30 %), hoch unten; ab zwei Spalten trägt jede Spalte Schlange und Einträge kompakt
    * unter ihrer Arbeitsfläche. „Zuletzt“ bleibt als Leiste mit Rückfrage-Bändern und „Rückgängig“ in der Maske (die
-   * Seite zeigt die Liste dazu, nur zum Lesen und Korrigieren). Auslegung 22.11.2026, noch zu bestätigen.
+   * Seite zeigt die Liste dazu, nur zum Lesen und Korrigieren). Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-10, mit seiteSchlange 5).
    */
   padSeiteNurEineSpalte: true,
@@ -1892,21 +1899,21 @@ export const WKR_ANNAHMEN = {
    * (PD4) Racecourse A und B nebeneinander: EIN Rundenband („Quarterfinal · Attempt 1“) über beiden Spalten nur, wenn
    * beide denselben Start (Runde, Attempt und Paar stecken in der Kennung) als nächsten haben; sonst trägt jede Spalte
    * ihren Lauf im Kopf. Auslegung 22.11.2026: Die Paarnummer „3/8“ steht nicht in der Listen-Sicht und fehlt im Band
-   * (sonst neue LISTEN_SICHT_FASSUNG); noch zu bestätigen.
+   * (sonst neue LISTEN_SICHT_FASSUNG).
    * Bestätigt 22.11.2026 (R8-11).
    */
   rundenBandBeiGleichemPaar: true,
   /**
    * (PD5) Attempt-Wechsel bei derselben Startnummer (Parallelslalom, Vorschlag §4.8): Kommt nach Nummer 23 wieder 23
    * mit einem anderen Start, steht über der Karte invers „23 · ATTEMPT 2“, und attemptSperreMs lang nimmt die Maske
-   * nichts an (wie die Sperre nach dem Abschicken). Auslegung 22.11.2026, noch zu bestätigen.
+   * nichts an (wie die Sperre nach dem Abschicken). Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-12).
    */
   attemptSperreMs: 1000,
   /**
    * (PD6) Hochwischen (W4-13) auf dem Pad: die Parcours-Zeichnung steht in der Seitenspalte unter den Einträgen,
    * solange die Maske nicht „Bild“ ist; auf dem Handy und in Spalten ohne eigene Seite bleibt sie unter den Knöpfen.
-   * Auslegung 22.11.2026, noch zu bestätigen.
+   * Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-10).
    */
   bildInDerSeite: true,
@@ -1914,7 +1921,7 @@ export const WKR_ANNAHMEN = {
    * (MW1) Maskenvorgabe ohne Auswahl am Bedienrechner: Pad + Bojen-Liste → „Bild“, sonst „Knöpfe“; Handy immer
    * „Knöpfe“ (Bild auf dem Handy erst W6); „Tabelle“ nie Vorgabe; Zeit/Knoten haben ihre feste Art (W5.3/W5.4). Bis die
    * Maske gebaut ist (wkr/maskenWahl.ts MASKEN_GEBAUT: Bild W5.2, Tabelle W5.5 – beide gebaut 22.11.2026), zeigt das
-   * Gerät statt ihrer „Knöpfe“. Tabelle auf dem Handy: TB1. Auslegung 22.11.2026, noch zu bestätigen.
+   * Gerät statt ihrer „Knöpfe“. Tabelle auf dem Handy: TB1. Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-14).
    */
   maskeVorgabePadBild: true,
@@ -1922,37 +1929,38 @@ export const WKR_ANNAHMEN = {
    * (MW2) Die Wahl des WKR („Mehr → Ansicht → Maske“, nur wenn der Bedienrechner sie nicht `fest` vorgibt) gilt
    * gerätelokal je Raum und Liste (geraete/ablage.ts GeraetAnsicht.masken, höchstens 8 Listen) und geht mit „Raum
    * verlassen“; eine Wahl, die die Liste nicht (mehr) erlaubt, gilt nicht. Die Übung merkt ihre Wahl unter einem
-   * eigenen Raum „uebung“. Auslegung 22.11.2026, noch zu bestätigen.
+   * eigenen Raum „uebung“. Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-15).
    */
   maskeWahlJeRaumUndListe: true,
   /**
    * (MW3) Probe je Maske: Der Merker „Probe erledigt“ gilt je Raum, Liste UND Maske (ablage.ts probeErledigt mit
    * `maske`; „Knöpfe“ unter dem alten Schlüssel = der Liste, damit erledigte Proben bleiben). Wechselt die Maske, kommt
-   * die Probe der neuen Maske einmal von selbst. Auslegung 22.11.2026, noch zu bestätigen.
+   * die Probe der neuen Maske einmal von selbst. Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-16).
    */
   probeJeMaske: true,
-  // --- W5.2 Maske „Bild“ (Plan docs/plan-wkr-w5.md §5, §10; 22.11.2026, beim Bau ohne Rückfrage ausgelegt, alles noch
-  // zu bestätigen) ---
+  // --- W5.2 Maske „Bild“ (Plan docs/plan-wkr-w5.md §5, §10; 22.11.2026, beim Bau ohne Rückfrage ausgelegt; bestätigt
+  // 22.11.2026 (R8-17 bis R8-24) bis auf BD3, BD4, BD7 – umgebaut; BD3 mit BD8–BD10 bestätigt 24.11.2026 (R10-01 bis
+  // R10-04), der Langdruck in BD7 23.11.2026 (R9-03, R9-04), BD4 folgt der Entscheidung R8-20) ---
   /**
    * (BD1) innen/außen der Zeichnung ↔ seiteA/B der Feld-Kennung über config/kurzform.ts bildBojeId – dieselbe Regel
    * (SEITE, INNEN), aus der die Kurzform die Unterspalten nach dem Blick ordnet und die Sicht `boje.spalte` liest (P7).
-   * wkr/bild.ts BILD_BOJEN. Auslegung 22.11.2026, noch zu bestätigen.
+   * wkr/bild.ts BILD_BOJEN. Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-17).
    */
   bildSeitenWieSpalten: true,
   /**
    * (BD2) Hat eine Boje der Liste keine ID in der Zeichnung ihrer Klasse oder steht die ID nicht genau einmal darin
    * (oder fehlt die Zeichnung), zeigt diese Klasse die Knöpfe – nie ein Bild mit stiller Lücke (bild.test.ts über alle
-   * Klassen-SVGs × Aufbauten × Klassen). Auslegung 22.11.2026, noch zu bestätigen.
+   * Klassen-SVGs × Aufbauten × Klassen). Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-18).
    */
   bildSonstKnoepfe: true,
   /**
    * (BD3) Parallelslalom: schematische Zeichnung je Racecourse (Start/Ziel unten, Bojen 1–4 in einer Reihe, 5 als
    * Wende; seiteA links), B gespiegelt – es gibt kein Parallel-SVG. Start und Ziel sind dasselbe Tor, Boje n hin und
-   * rück dieselbe Boje (der Umschalter sagt, welche Fahrt). Auslegung 22.11.2026, noch zu bestätigen.
+   * rück dieselbe Boje (der Umschalter sagt, welche Fahrt). Auslegung 22.11.2026.
    * NICHT bestätigt 22.11.2026 (R8-19) – Nutzer: „Schau mal im Parcours-Repo, da sollte es einen Parcours für
    * Parallel geben.“ Umgebaut 22.11.2026 (Schalter vorher `bildParallelSchema`, Plan docs/plan-antworten-runde7-8.md
    * §5): Das Bild zeigt die Zeichnung `dist/parallel/en/pontoon_bottom/ParallelSlalom.svg` des Parcours-Repos
@@ -1960,11 +1968,12 @@ export const WKR_ANNAHMEN = {
    * Klassen-Zeichnungen) – mit beiden Bahnen und Fahrlinien, Drehung 0 („pontoon_bottom“ = Steg unten wie die
    * Klassen-SVGs; wirksameDrehung gilt unverändert). Start und Ziel bleiben dasselbe Tor, Boje n hin und rück dieselbe
    * Boje (der Umschalter sagt, welche Fahrt; PARALLEL_FAHRWEG). Das Schema (wkr/bild.ts schemaParallel) nur noch als
-   * Rückfall, wenn die Datei fehlt oder nicht alle IDs trägt. Noch zu bestätigen.
+   * Rückfall, wenn die Datei fehlt oder nicht alle IDs trägt.
    * Umgebaut 23.11.2026 (Antworten R9-05 bis R9-07, siehe BD8–BD10): Quelle ist die Ausgabe „eine Bahn ohne Steg“ des
    * Parcours-Repositorys (`dist/parallel/alcatraz_Parcours/ParallelSlalom.svg`, Commit a9c4275) mit dessen IDs; die
    * Zeichnung zeigt nur noch Bahn A mit Fahrlinien, ohne Steg, Logos, Titel und Maße. Zeichnung statt Schema, Start/Ziel
    * ein Tor und Boje n hin und rück dieselbe bleiben.
+   * Umbau bestätigt 24.11.2026 (R10-01 bis R10-04, Einzelheiten BD8–BD10).
    */
   bildParallelZeichnung: true,
   /**
@@ -2021,23 +2030,23 @@ export const WKR_ANNAHMEN = {
    * §4.2; anders als P8 bei den Knöpfen).
    * NICHT bestätigt 22.11.2026 (R8-20) – Nutzer: „Den automatischen Wechsel bitte wieder raus.“ Umgebaut 22.11.2026
    * (Schalter vorher `bildRueckNachTor5`, wkr/bild.ts wegNachTipp entfernt): Der Umschalter des Bilds wechselt nur von
-   * Hand – wie die Knöpfe (P8). Noch zu bestätigen.
+   * Hand – wie die Knöpfe (P8). Keine eigene Frage: folgt der Entscheidung R8-20 (docs/entscheidungen.md).
    */
   bildUmschalterNurVonHand: true,
   /**
    * (BD5) Tor 1 der Speedrunde (`t1c`) als eigener Umschalter-Zustand „Rück 2“ – das Bild zeigt Tor 1 nur einmal.
-   * Auslegung 22.11.2026, noch zu bestätigen.
+   * Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-21).
    */
   bildRueck2: true,
   /**
    * (BD6) Trefferkreise über den Bojen mindestens bildTrefferMm (15 mm) groß; liegen zwei näher, werden sie
    * auseinandergeschoben und mit einer Linie mit der echten Boje verbunden (wkr/bild.ts schiebeAuseinander). Ohne
-   * Lage der Bojen (Test-DOM, getBBox fehlt) zeigt die Maske dieselben Treffer als Knopfliste. Auslegung 22.11.2026,
-   * noch zu bestätigen. Prüfbefund 22.11.2026: „mm“ sind CSS-mm (an 96 dpi gebunden, auf einem iPad real etwa 11 mm) –
+   * Lage der Bojen (Test-DOM, getBBox fehlt) zeigt die Maske dieselben Treffer als Knopfliste. Auslegung 22.11.2026.
+   * Prüfbefund 22.11.2026: „mm“ sind CSS-mm (an 96 dpi gebunden, auf einem iPad real etwa 11 mm) –
    * echte Millimeter kennt der Browser nicht. Der Kreis ist darum nie kleiner als --wkr-ziel (Handy 64 px, Pad 72 px,
-   * CSS `--wkr-bild-kreis`), und der Mindestabstand beim Auseinanderschieben ist dieselbe Größe. Auslegung, noch zu
-   * bestätigen (Frage: Pad-Ziele größer, z. B. 88 px, damit es real ≥ 15 mm sind?).
+   * CSS `--wkr-bild-kreis`), und der Mindestabstand beim Auseinanderschieben ist dieselbe Größe. Auslegung
+   * (Frage war: Pad-Ziele größer, z. B. 88 px, damit es real ≥ 15 mm sind?).
    * Bestätigt 22.11.2026 (R8-22).
    */
   bildTrefferMm: 15,
@@ -2046,14 +2055,14 @@ export const WKR_ANNAHMEN = {
    * an Boje …“ → der nächste Tipp ins Bild wählt die Boje, dann der Buchstabe. Bis 22.11.2026 ohne Langdruck (U3).
    * NICHT bestätigt 22.11.2026 (R8-23) – Nutzer: „Wenn möglich, bitte auch langes Drücken unterstützen.“ Umgebaut
    * 22.11.2026 (Schalter vorher `bildDisqUeberKnopf`): Knopf bleibt, dazu öffnet ein langer Druck auf einen
-   * Trefferkreis die Buchstaben DIESER Boje – dieselbe Hilfe wie die Bojen-Knöpfe (LD1–LD4). Noch zu bestätigen.
+   * Trefferkreis die Buchstaben DIESER Boje – dieselbe Hilfe wie die Bojen-Knöpfe (LD1–LD4).
    * Langdruck im Bild Bestätigt 23.11.2026 (R9-03, R9-04 – dieselbe Hilfe wie bei den Knöpfen, LD1–LD4).
    */
   bildDisqKnopfUndLangdruck: true,
   /**
    * Beim Bau W5.2 (22.11.2026): Auf dem Handy zeigt das Bild ±90° liegend (wie WkrParcoursBild), nur auf dem Pad
    * gedreht wie auf dem Bogen; die Einträge im Klartext stehen bei „Bild“ immer daneben bzw. darunter (WkrSeite, auf
-   * dem Handy kompakt). Noch zu bestätigen.
+   * dem Handy kompakt).
    * Bestätigt 22.11.2026 (R8-24, in der Fassung bildDrehungNachPlatz).
    */
   bildDrehungNurPad: true,
@@ -2063,7 +2072,7 @@ export const WKR_ANNAHMEN = {
    * wirksameDrehung). Die Zeichnung ist außerdem nie höher als das Fenster abzüglich Kopf, Karte, Umschalter und Fuß
    * (CSS max-height über --wkr-bild-rest, seit 23.11.2026 380 px, mindestens 200 px). Vorher wurde gate135/gate245/moewe (`blick:
    * hinten`) auf dem Pad quer rund 1400 px hoch – Tor 1 bzw. Start/Ziel lagen bei jedem Start außerhalb des Bildschirms.
-   * Auslegung, noch zu bestätigen (Frage: lieber immer wie am Ufer gedreht und dafür kleiner?).
+   * Auslegung (Frage war: lieber immer wie am Ufer gedreht und dafür kleiner?).
    * Bestätigt 22.11.2026 (R8-24).
    */
   bildDrehungNachPlatz: true,
@@ -2088,7 +2097,7 @@ export const WKR_ANNAHMEN = {
    * „Steg oben“ (Start/Ziel rechts), 270° „Steg rechts“ (Start/Ziel unten) – wkr/bild.ts BILD_LAGE_SEITE. Es ist eine
    * DREHUNG, keine Spiegelung: „Steg oben“ des Repositorys (Steg links oben, Parcours ungedreht) gibt es so nicht. Die
    * Parallel-Zeichnung hat keinen Steg (R9-06): dieselben Drehungen heißen „Start links/oben/rechts/unten“.
-   * Beim Bau 24.11.2026, noch zu bestätigen.
+   * Beim Bau 24.11.2026.
    * NICHT bestätigt 26.11.2026 (R11-13) – Nutzer: „Nein, Steg ist hier irreführend. Der steht immer anders.“ Umgebaut
    * 26.11.2026: benannt nach Start/Ziel (BL7, {@link WKR_ANNAHMEN.bildLageNachStartZiel}).
    */
@@ -2120,7 +2129,7 @@ export const WKR_ANNAHMEN = {
    * (BL4) Ziffern und Text der Zeichnung bleiben aufrecht: jedes `<text>` dreht um seine eigene Mitte zurück
    * (wkr/bild.ts aufrechtTransform, im Browser über getBBox) – die Lage im Bild dreht mit, die Schrift nicht („6“ der
    * Schikane bliebe bei 180° sonst eine „9“). Trefferkreise drehen von selbst mit (sie messen die gedrehten Bojen).
-   * Beim Bau 24.11.2026, noch zu bestätigen.
+   * Beim Bau 24.11.2026, bestätigt 27.11.2026 (R13-14 (4)).
    */
   bildTextAufrecht: true,
   /**
@@ -2129,6 +2138,16 @@ export const WKR_ANNAHMEN = {
    */
   bildLageOhneSchema: true,
   /**
+   * (BL8) Nutzer 27.11.2026 (Bildschirmfoto Klasse E hochkant auf dem Pad): „Warum hast du den Text hier drin, wenn der
+   * Parcours im Hochformat ist?“ – Die Zeichnungen sind quer angelegt, Titel („DMYV-Jugend Motorboot-Slalom Klasse E“)
+   * und Fahrweg-Beschreibung („Ablegen - Startlinie - …“) stehen neben dem Parcours. Um ±90° gedreht legte BL4 die
+   * breiten Blöcke quer über den hochkant stehenden Parcours. Seitdem stehen hochkant nur die Ziffern an den Bojen
+   * (`Nummer_*`, `A_Nummer_*`); Titel, Beschreibung, „Tempo - Runde“ und „Möwe-Parcour“ fehlen (wkr/bild.ts
+   * nurBojenZiffern in inlineSvg). Quer (0°, 180°) bleibt aller Text. Beim Bau ausgelegt: auch das kleine „Tempo -
+   * Runde“ fällt hochkant weg (eine Regel für alle freien Texte statt einer Liste je Datei).
+   */
+  bildHochkantNurZiffern: true,
+  /**
    * (BL6) Die Bojen-Folge wirkt nur, wo sie wählbar ist (BL1): Beim Bild zeigt DISQ im Fuß die Ortswahl „Disq. – an
    * welcher Boje?“ (WkrDisqOrt, BD7) immer in der Vorgabe „Rückweg gedreht“ – nicht in einer Folge, die der WKR früher
    * bei den Knöpfen gewählt hat und beim Bild weder sieht noch ändern kann (WkrMaske bojenFolgeWirksam). Die gemerkte
@@ -2136,20 +2155,20 @@ export const WKR_ANNAHMEN = {
    * Bestätigt 26.11.2026 (R11-30 (5)).
    */
   bildDisqOrtVorgabeFolge: true,
-  // --- W5.3 Listen ohne Lauf und Knoten-Prüfliste (Plan docs/plan-wkr-w5.md §6, 22.11.2026, alle noch zu bestätigen) ---
+  // --- W5.3 Listen ohne Lauf und Knoten-Prüfliste (Plan docs/plan-wkr-w5.md §6, 22.11.2026; bestätigt 22.11.2026,
+  // R8-25 bis R8-30, KN3/KN7/KN8 umgebaut und mit KN9–KN12 bestätigt 23.11.2026, R9-08 bis R9-10) ---
   /**
    * (KN1) Eine Liste ohne Lauf (Knoten) gibt es EINMAL je Veranstaltung, nicht je Parcours: Bereich `tisch`
    * (wkr/liste.ts TISCH_BEREICH), Kennung `["l","tisch","knoten",null]`. Abgenommen wird am Tisch, nicht am Parcours;
    * jeder Starter einmal. Alle Knoten-Bögen (auch mehrerer Parcours) gehören zu dieser einen Liste (listeVonBogen).
-   * Auslegung 22.11.2026, noch zu bestätigen.
+   * Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-25).
    */
   knotenEineListe: true,
   /**
    * (KN2) Ein „Start“ ohne Lauf ist der Starter selbst: Kennung `["o", starterId]` (wkr/liste.ts ohneLaufKennung),
    * Werte unter dem Lauf-Schlüssel `<disziplin>/0` (OHNE_LAUF). Nur Starter der Klassen mit der Liste und nicht
-   * abgemeldet (AppState.abgemeldet – „nicht X“; die Knoten-Liste hat selbst keine Disq.-Spalte). Beim Bau 22.11.2026,
-   * noch zu bestätigen.
+   * abgemeldet (AppState.abgemeldet – „nicht X“; die Knoten-Liste hat selbst keine Disq.-Spalte). Beim Bau 22.11.2026.
    * Bestätigt 22.11.2026 (R8-26).
    */
   ohneLaufStartIstStarter: true,
@@ -2157,40 +2176,39 @@ export const WKR_ANNAHMEN = {
    * (KN3) Keine Schlange der Startfolge: Die Sicht einer Liste ohne Lauf trägt `bestand` (Startnummer, Klasse,
    * erledigt – nie Namen, F6) und `offen` {n, m}; die Nummer tippt der WKR ein. „Erledigt“ ist dort der Haken wie in
    * der Schlange (nicht „eigene Werte“ wie lage.ts) – das Gerät soll auch nach einer Eingabe am Bedienrechner noch
-   * schicken können. Auslegung 22.11.2026, noch zu bestätigen.
+   * schicken können. Auslegung 22.11.2026.
    * NICHT bestätigt 22.11.2026 (R8-27) – Nutzer: „Es soll aber der nächste offene laut Ablauf immer vorgeschlagen
    * werden. Ich mache also gerade die 8, dann wird die 9 als nächster vorgeschlagen. Ich kann dann aber die 10
    * tippen und bekomme danach die 11 vorgeschlagen. Wenn ich dann die 9 tippe, dann wird die 11 vorgeschlagen, weil
    * die 10 schon war.“ Bestand ohne Namen und „offen n/m“ bleiben; dazu ein Vorschlag: der nächste offene nach dem
    * zuletzt getippten in der Folge des Bestands.
    * Umgebaut 22.11.2026 (R8-27): Bestand, „offen n/m“ und Eintippen bleiben; dazu der Vorschlag KN9
-   * ({@link WKR_ANNAHMEN.tischVorschlag}).
+   * ({@link WKR_ANNAHMEN.tischVorschlag}). Umbau bestätigt 23.11.2026 (R9-08, KN9).
    */
   ohneLaufBestand: true,
   /**
    * (KN4) Die Knoten-Liste hat nie Rückstand, nie Ampel und nie eine Rückfrage vor „Nächster Start“ – sie gehört zu
    * keinem Bereich des Betriebs. Bedienrechner: eigener Block „Knoten: 14 / 38 offen“ (lage.ts tischLage, WkrMatrix).
-   * Auslegung 22.11.2026, noch zu bestätigen.
+   * Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-28).
    */
   ohneLaufNieRueckstand: true,
   /**
    * (KN5) Abschluss der ganzen Knoten-Liste (Punkt `ohne`, wkr/abschluss.ts OHNE_PUNKT): offene Starter nur mit „Rest
    * auf Papier“. Eine Pause nimmt keine Starter aufs Papier (es gibt keinen gezeigten Start) – Zeilen während der Pause
-   * gelten direkt. Auslegung 22.11.2026, noch zu bestätigen.
+   * gelten direkt. Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-29).
    */
   ohneLaufAbschlussGanz: true,
   /**
    * (KN6) Die Knoten-Liste darf „nur digital“ sein wie jede andere (Z6 angepasst: vorher immer gedruckt,
-   * druckOhneListeImmer gilt nur noch für Bögen ohne Liste). Auslegung 22.11.2026, noch zu bestätigen.
+   * druckOhneListeImmer gilt nur noch für Bögen ohne Liste). Auslegung 22.11.2026.
    * Bestätigt 22.11.2026 (R8-30).
    */
   knotenDarfDigital: true,
   /**
    * (KN7) Prüfliste: je Knoten ✓ (= leere Zelle) oder ✗ (= Fehlerpunkte knotenPunkte, „5“ wie P4); Abschicken erst,
-   * wenn jeder Knoten gesetzt ist (Hauptknopf vorher gesperrt mit „noch 2 offen“). Auslegung 22.11.2026, noch zu
-   * bestätigen.
+   * wenn jeder Knoten gesetzt ist (Hauptknopf vorher gesperrt mit „noch 2 offen“). Auslegung 22.11.2026.
    * NICHT bestätigt 22.11.2026 (R8-31) – Nutzer: „Ja, aber es soll auch einen Button ‚alle richtig‘ geben. Das
    * kann, wie bei den anderen Listen auch, der große Button sein. Also statt ‚5 offen‘. So muss dann nur der
    * falsche markiert werden.“ ✓/✗ und ✗ = 5 bleiben; der Hauptknopf heißt bei offenen Knoten „Alle richtig“ (offene
@@ -2206,7 +2224,7 @@ export const WKR_ANNAHMEN = {
    * keiner gesetzt) bzw. „Rest richtig · Σ n“ (schon ✓/✗ gesetzt) und ist aktiv – ein Tipp setzt die offenen auf ✓
    * (wkr/maske.ts restRichtig) und schickt ab, wie „Fehlerfrei“ bei den anderen Listen; sind alle gesetzt:
    * „Abschicken · Σ n“. wkr/maske.ts fertig() ist für die Prüfliste wahr, sobald sie Knoten hat; der Sperrtext „noch n
-   * offen“ entfällt. `false` = alte Regel KN7 (erst alle gesetzt). Beim Bau 22.11.2026, noch zu bestätigen.
+   * offen“ entfällt. `false` = alte Regel KN7 (erst alle gesetzt). Beim Bau 22.11.2026.
    * Bestätigt 23.11.2026 (R9-09).
    */
   prueflisteRestRichtig: true,
@@ -2214,7 +2232,7 @@ export const WKR_ANNAHMEN = {
    * (KN8) Am Tisch kein Startwechsel-Takt (kein Overlay, keine Sperrsekunde – es fährt kein Boot): Nach dem Abschicken
    * leert sich das Nummernfeld, die Rückmeldung steht klein darunter („23 ⧗ gesendet“). Eine schon erledigte Nummer
    * öffnet die Korrektur der eigenen Zeile (sonst eine neue Zeile, die der Bedienrechner ggf. als Rückfrage zeigt).
-   * Übung: 20 erfundene Starter, ohne Takt. Auslegung 22.11.2026, noch zu bestätigen.
+   * Übung: 20 erfundene Starter, ohne Takt. Auslegung 22.11.2026.
    * NICHT bestätigt 22.11.2026 (R8-32) – Nutzer: „Wenn schon erfasst wurde, dann immer nachfragen.“ Kein Takt
    * bleibt; eine schon erfasste Nummer öffnet die Korrektur erst nach einer Rückfrage.
    * Umgebaut 22.11.2026 (R8-32): kein Takt bleibt; vor der Korrektur steht immer die Rückfrage KN11
@@ -2229,7 +2247,7 @@ export const WKR_ANNAHMEN = {
    * offene. Offen = weder in der Sicht erledigt noch von diesem Gerät geschickt (die Quittung kann nachlaufen).
    * „Zuletzt“ = die Startnummer der neuesten eigenen Zeile der Liste – gerätelokal im Kern (geraete/erfassen.ts bzw.
    * geraete/uebung.ts `zuletzt`), nie im AppState; eine Korrektur zählt mit. Antippen übernimmt, Eintippen ersetzt
-   * den Vorschlag. Beim Bau 22.11.2026, noch zu bestätigen. Offene Frage: „laut Ablauf“ = Folge des Bestands
+   * den Vorschlag. Beim Bau 22.11.2026. Frage war: „laut Ablauf“ = Folge des Bestands
    * (Starter-Reiter) oder die Startfolge des Tages (betrieb/folge.ts)? Gebaut: Bestand.
    * Bestätigt 23.11.2026 (R9-08): Folge des Starter-Reiters (Bestand), nicht die Startfolge des Tages.
    */
@@ -2240,8 +2258,7 @@ export const WKR_ANNAHMEN = {
    * ist schon erfasst – korrigieren?“. Ja → Korrektur der eigenen Zeile bzw. neue Zeile, wenn sie vom Bedienrechner
    * kam (wie bisher KN8); Nein → Feld leer, der Vorschlag bleibt. Beim Bau ausgelegt: die Rückfrage steht IN der Maske
    * an Stelle der Knoten (kein Dialog), damit Weitertippen („1“ → „12“) nicht blockiert; „Korrigieren“ aus der
-   * Prüfansicht des Abschlusses ist schon die Antwort und fragt nicht noch einmal. Beim Bau 22.11.2026, noch zu
-   * bestätigen.
+   * Prüfansicht des Abschlusses ist schon die Antwort und fragt nicht noch einmal. Beim Bau 22.11.2026.
    * Bestätigt 23.11.2026 (R9-10).
    */
   tischRueckfrageErfasst: true,
@@ -2250,18 +2267,18 @@ export const WKR_ANNAHMEN = {
    * Ablauf immer vorgeschlagen werden“, „So muss dann nur der falsche markiert werden“): Bei leerem Nummernfeld gilt der
    * Vorschlag KN9 als gewählt – Kopf „Nr. 9“, Knoten und „✓ Alle richtig“ sofort aktiv; ein fehlerfreier Starter = ein
    * Tipp, ein falscher = ✗ + Hauptknopf. Eintippen ersetzt ihn, Antippen des Vorschlags hält ihn fest. Vorher musste der
-   * Vorschlag erst angetippt werden (zwei Tipps je Starter). Auslegung 22.11.2026, noch zu bestätigen.
+   * Vorschlag erst angetippt werden (zwei Tipps je Starter). Auslegung 22.11.2026.
    * Bestätigt 23.11.2026 (R9-09).
    */
   tischVorschlagVorbelegt: true,
 
   // --- W5.4 Zeit-Listen mit Ziffernblock (Plan docs/plan-wkr-w5.md §7, §10; 22.11.2026, beim Bau ohne Rückfrage ausgelegt,
-  // alles noch zu bestätigen) ---------------------------------------------------------------------------------------
+  // bestätigt 22.11.2026: R8-33, R8-34, R8-36; ZT3 nach R8-35 umgebaut, mit ZT5/ZT6 bestätigt 23.11.2026,
+  // R9-11, R9-12) ---
   /**
    * (ZT1) Maske an den Feldern: nur Zeit (+ Disq./Text) → `zeit` (Ziffernblock je Zeitfeld, wkr/maske.ts maskenArt);
    * Bojen auf dem Fahrweg MIT Zeit (`moewezeit`, `bstartziel`) → Bojen-Maske mit Zeit-Abschnitt unter den Bojen (ein
-   * Start, eine Zeile). Zeit neben Katalog ohne Bojen gibt es in keinem Aufbau – bleibt `spaeter`. 22.11.2026, noch
-   * zu bestätigen.
+   * Start, eine Zeile). Zeit neben Katalog ohne Bojen gibt es in keinem Aufbau – bleibt `spaeter`. 22.11.2026.
    * Bestätigt 22.11.2026 (R8-33).
    */
   zeitMaske: true,
@@ -2270,7 +2287,7 @@ export const WKR_ANNAHMEN = {
    * sanitizeTimeInput – ZeitZelle.vue speichert ebenso die Roh-Eingabe), Lesart parseTime (≥ 20 vor dem Komma =
    * Sekunden, sonst Minuten: „83,45“ = 1:23,45, „1,2345“ = 1:23,45). Auf dem Gerät gibt es nur 0–9, „,“ und ⌫ – keinen
    * Doppelpunkt (die Deutung „= 1 min 23,45 s“ steht groß darunter); eine Zeit aus der Erfassung mit „:“ bleibt beim
-   * Korrigieren lesbar. Unlesbar → rot, Hauptknopf gesperrt. 22.11.2026, noch zu bestätigen.
+   * Korrigieren lesbar. Unlesbar → rot, Hauptknopf gesperrt. 22.11.2026.
    * Bestätigt 22.11.2026 (R8-34).
    */
   zeitWieErfassung: true,
@@ -2289,7 +2306,7 @@ export const WKR_ANNAHMEN = {
    * lesbar sein (unlesbar sperrt, rot). Hauptknopf „noch 1 Zeit“ zählt nur das (zeitenOffen). Gilt auch für Bojen +
    * Zeit (moewezeit, bstartziel). Ein leeres weiteres Feld überschreibt nie eine Papierzeit am Bedienrechner: Das Gerät
    * schickt ein leeres Feld nur, wenn es dort vorher selbst eine Zeit gesendet hatte (geraete/erfassen.ts `vorher`,
-   * Korrektur → Zelle leeren). Beim Bau ausgelegt 22.11.2026 (R8-35), noch zu bestätigen.
+   * Korrektur → Zelle leeren). Beim Bau ausgelegt 22.11.2026 (R8-35).
    * Bestätigt 23.11.2026 (R9-11).
    */
   zeitNurErstesPflicht: true,
@@ -2298,7 +2315,7 @@ export const WKR_ANNAHMEN = {
    * (Sekunden ab 20 mit zwei Hundertsteln „83,45“, Minuten mit Sekunden und Hundertsteln „1,2345“; wkr/maske.ts
    * zeitVollstaendig) –, wird das nächste Zeitfeld aktiv (Pad: Umrandung, Handy: Feld-Reiter). Bei „1,23“ (Minuten
    * ohne Hundertstel) springt nichts, sonst ginge „1,2345“ nicht mehr. Im letzten Feld kein Sprung; ein Sprung leert
-   * nichts, zurück per Antippen des Felds. Beim Bau ausgelegt 22.11.2026 (R8-35), noch zu bestätigen.
+   * nichts, zurück per Antippen des Felds. Beim Bau ausgelegt 22.11.2026 (R8-35).
    * Bestätigt 23.11.2026 (R9-12).
    */
   zeitSpringtWeiter: true,
@@ -2309,23 +2326,22 @@ export const WKR_ANNAHMEN = {
    * Vorschlag), Matrix „✓ keine Zeit“ (Grund im Titel und in der Karte), Erfassung „Papier ansehen“ an genau diesen
    * Zellen (wkr/lage.ts zeilenMarken). Nie Tafel, Zuschauerliste oder Start-Freigabe (sicht.test.ts). Beim Bau: Entwürfe
    * merken die Zeiten wie getippt, auch halb (wkr/maske.ts entwurfZellen), aber nie „keine Zeit“ (der Entwurf ist eine
-   * Zellzeile); eine Korrektur holt „keine Zeit“ aus dem eigenen Stand (Erfassung.keineZeit). 22.11.2026, noch zu
-   * bestätigen.
+   * Zellzeile); eine Korrektur holt „keine Zeit“ aus dem eigenen Stand (Erfassung.keineZeit). 22.11.2026.
    * Bestätigt 22.11.2026 (R8-36).
    */
   keineZeitMitGrund: true,
   // --- W5.5 Maske „Tabelle“ für Geübte (Plan docs/plan-wkr-w5.md §8, §10; 22.11.2026, beim Bau ohne Rückfrage
-  // ausgelegt, alles noch zu bestätigen) ---
+  // ausgelegt; bestätigt 22.11.2026, R8-38 bis R8-42) ---
   /**
    * (TB1) „Tabelle“ nur auf Pad und Rechner (wkr/maskenWahl.ts maskeAufGeraet): Auf dem Handy ist die Wahl ausgegraut
    * („Mehr → Ansicht → Maske“ und am Bedienrechner in der Geräteliste); eine Vorgabe „Tabelle“ zeigt dort „Knöpfe“.
-   * Nie Vorgabe (MW1). 22.11.2026, noch zu bestätigen.
+   * Nie Vorgabe (MW1). 22.11.2026.
    * Bestätigt 22.11.2026 (R8-38).
    */
   tabelleNurPad: true,
   /**
    * (TB2) Keine Probe für die Tabelle – sie ist für Geübte, die die Knöpfe kennen; wer auf „Tabelle“ wechselt, bekommt
-   * keine Probe von selbst (WkrGeraet), „Mehr → Probe“ übt weiter die Knöpfe. 22.11.2026, noch zu bestätigen.
+   * keine Probe von selbst (WkrGeraet), „Mehr → Probe“ übt weiter die Knöpfe. 22.11.2026.
    * Bestätigt 22.11.2026 (R8-39).
    */
   tabelleOhneProbe: true,
@@ -2336,15 +2352,14 @@ export const WKR_ANNAHMEN = {
    * wkr/maske.ts entwurfAus → zellenAus), wird nicht verbessert, sondern als Fehler je Zelle gezeigt (Code, Texte
    * `wkr.geraet.tabelle.fehler.*`); solange einer steht, schickt weder Enter noch der Hauptknopf. Geschickt wird über
    * denselben Entwurf wie bei den Knöpfen. Tab/Umschalt+Tab und Enter springen durch die Zellen der Zeile, Enter in der
-   * letzten Zelle schickt ab (bzw. fragt in der Korrektur „alt → neu“), Esc bricht eine Korrektur ab. 22.11.2026, noch
-   * zu bestätigen.
+   * letzten Zelle schickt ab (bzw. fragt in der Korrektur „alt → neu“), Esc bricht eine Korrektur ab. 22.11.2026.
    * Bestätigt 22.11.2026 (R8-40).
    */
   tabelleWieErfassung: true,
   /**
    * (TB4) Bojen als Punkte („5“, Zähler „10“, mit Disq. „5J“), nicht als Zahl der Berührungen – so steht es auf dem Bogen
    * und so tippt die Erfassung ab; ein Wert, der keine ganze Zahl von Berührungen ist („3“, „0“, Schalter „10“), ist
-   * ein Fehler `boje-punkte`. Codes als Text wie die Erfassung („2x6, 20“). 22.11.2026, noch zu bestätigen.
+   * ein Fehler `boje-punkte`. Codes als Text wie die Erfassung („2x6, 20“). 22.11.2026.
    * Bestätigt 22.11.2026 (R8-41).
    */
   tabelleBojenAlsPunkte: true,
@@ -2352,7 +2367,7 @@ export const WKR_ANNAHMEN = {
    * (TB5) Gezeigt: die letzten fünf eigenen Zeilen der Liste (✓/↑/!/✗ wie „Zuletzt“), die aktive Zeile und die nächsten
    * drei Starts der Schlange (nur Nummer und Klasse). Eine gesendete Zeile korrigiert man in der Tabelle über
    * „Korrigieren“ an ihrer Zeile – derselbe Weg wie „Zuletzt → Korrigieren“ (WkrMaske oeffneKorrektur, Rückfrage alt →
-   * neu, nach dem Abschluss „Als Vorschlag“). 22.11.2026, noch zu bestätigen.
+   * neu, nach dem Abschluss „Als Vorschlag“). 22.11.2026.
    * Bestätigt 22.11.2026 (R8-42).
    */
   tabelleZeilen: { gesendet: 5, naechste: 3 },
@@ -2438,17 +2453,18 @@ export const WKR_ANNAHMEN = {
    * wkr/maske.ts tippe. Er steht in der Tipp-Folge wie ein DISQ-Tipp (Merker `#disq:D`): „↩ Rückgängig“ nimmt ihn
    * heraus, der Zähler steht wieder bei 2; ein zweiter Tipp auf DISQ → D ebenso. Steht D schon (über DISQ gesetzt),
    * ändert der Tipp nichts. Der Knopf zeigt bei `max` „nächster = Disq. D“ und danach „Disq. D gesetzt“
-   * (components/wkr/WkrKnoepfe.vue, wkr/maske.ts codeStand). Beim Bau ausgelegt 24.11.2026, noch zu bestätigen:
+   * (components/wkr/WkrKnoepfe.vue, wkr/maske.ts codeStand). Beim Bau ausgelegt 24.11.2026:
    * D schon gesetzt → nichts; Rückgängig = DISQ-Merker. Ein Tipp setzt D – ohne den zweiten Tipp der Disq.-Knöpfe
    * (K1), weil der Nutzer „der dritte Klick“ sagt; gegen Prellen schützt CM8 (Prüfbefund 24.11.2026).
-   * Bestätigt 26.11.2026 (R11-09): Der dritte Tipp setzt D sofort. Weiter zu bestätigen: D schon gesetzt → nichts.
+   * Bestätigt 26.11.2026 (R11-09): Der dritte Tipp setzt D sofort. Bestätigt 27.11.2026 (R13-04 (b)): Steht D schon
+   * (über DISQ gesetzt), bleibt ein weiterer Tipp ohne Wirkung; der Knopf sagt „Disq. D gesetzt“.
    */
   codeDanachStattZaehler: true,
   /**
    * (CM4) Am Höchstwert (ohne `danach`, bzw. mit gesetztem Buchstaben) nimmt der Knopf nichts mehr an und sagt es
    * dauerhaft in sich („höchstens 1×“) – wie Q3 zaehlerMaxImKnopf bei den Bojen: kein Band, das kommt und geht und die
    * Knöpfe darunter schiebt. Er bleibt drückbar und wird nicht ausgegraut (ausgegraut heißt dort „gilt in dieser Klasse
-   * nicht“, GF2). 24.11.2026, noch zu bestätigen.
+   * nicht“, GF2). 24.11.2026, bestätigt 27.11.2026 (R13-04 (a): Hinweis im Knopf, nicht ausgegraut, kein Band).
    */
   codeMaxImKnopf: true,
   /**

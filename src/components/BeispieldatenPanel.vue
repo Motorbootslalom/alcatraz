@@ -69,15 +69,15 @@ const CLASSES = computed(() => regelwerk.value.klassen.map((id) => ({ id, color:
 // Block über das Neuladen stehen (lib/merken.ts `beispiel.klassen`) – zusammen mit der Art, für die sie gezogen
 // wurden: Wechselt die Art (Clubmeisterschaft → Meisterschaft, Verein → Land), passen sie nicht mehr, und es wird
 // neu gezogen – bestätigt 21.11.2026 (Fragenseite R6-03).
-// Auslegungen vom 21.11.2026, noch zu bestätigen: BS2 Der Knopf heißt „Vorschlag neu“ statt „neu ziehen“ (dem
+// Auslegungen vom 21.11.2026: BS2 Der Knopf heißt „Vorschlag neu“ statt „neu ziehen“ (dem
 // Nutzer zu seltsam) und setzt Gesamtzahl und Klassen neu. BS3 Die Gesamtzahl ändern verteilt neu – die Zahlen
 // je Klasse von Hand gehen dann verloren (die Gesamtzahl ist die Vorgabe, die Summe steht daneben).
 // BS2 bestätigt 22.11.2026 (R7-50). BS3 NICHT bestätigt 22.11.2026 (R7-51) – Nutzer: „Manuelle Anpassung soll
 // berücksichtigt werden. Mit einem Reset-Knopf.“
-// BS3 umgebaut 22.11.2026 (R7-51, noch zu bestätigen): Gemerkt wird auch, welche Klassen von Hand gesetzt sind
+// BS3 umgebaut 22.11.2026 (R7-51): Gemerkt wird auch, welche Klassen von Hand gesetzt sind
 // (`hand`). Eine neue Gesamtzahl und „Vorschlag neu“ verteilen nur noch auf die übrigen Klassen (domain/generate.ts
-// verteileAufKlassen mit `fest`, BS4); die Hand-Zahlen bleiben und sind markiert (✎). BS4 (22.11.2026, noch zu
-// bestätigen): „Zurücksetzen“ (nur sichtbar mit Hand-Zahlen) leert `hand` und verteilt die Gesamtzahl über alle
+// verteileAufKlassen mit `fest`, BS4); die Hand-Zahlen bleiben und sind markiert (✎). BS4 (22.11.2026):
+// „Zurücksetzen“ (nur sichtbar mit Hand-Zahlen) leert `hand` und verteilt die Gesamtzahl über alle
 // Klassen neu. Ein Wechsel der Art verwirft wie bisher alles, auch `hand`.
 // BS3 (umgebaut) und BS4 bestätigt 23.11.2026 (R9-14): Hand-Zahlen bleiben (✎), der Rest wird verteilt, „Zurücksetzen“
 // nur bei Hand-Zahlen, ein Wechsel der Art verwirft alles.

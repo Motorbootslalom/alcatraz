@@ -317,6 +317,8 @@ function setzeStreichlaeufe(e: Event) {
 }
 
 // --- Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026: „kleinstes Zusatzgewicht“) ---
+// Beschriftung nach dem Reglement (DM C3) „Ausgleichsgewicht in Stufen von“ (listopt.ausgleich.stufe), nicht
+// „Zusatzgewicht“ – bestätigt 27.11.2026 (R13-14 (2)).
 // Auswahl 0,1 / 0,5 / 1 / 2 kg oder ein eigener Wert (0,1–10 kg, Komma erlaubt). „Eigener Wert …“ ist eine Bedienwahl,
 // kein Zustand: Das Feld bleibt offen, solange man es gewählt hat oder der Wert keine der Stufen ist. Zahlen mit dem
 // Dezimalzeichen der Oberfläche (domain/gewicht.ts gewichtText). Ein unbrauchbarer Wert ändert nichts; das Feld zeigt

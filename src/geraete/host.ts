@@ -13,7 +13,7 @@ import { koppelPaketAus, packeKoppelPaket, packeLesePaket } from './paket'
 import { fingerabdruck, lesePaket, type HostRaum } from './transport/ntfy/raum'
 import { HostTransport, type Eingang } from './transport/ntfy/transport'
 import { toBase64Url } from './transport/ntfy/codec'
-import { AUTO_HALT, erlaubteAction, erlaubteWkr, freigabeBereiche, liesAufgaben, listenAufgaben, WKR_ACTIONS, type Aufgabe } from './aufgaben'
+import { AUTO_HALT, erlaubteAction, erlaubteWiederholung, erlaubteWkr, freigabeBereiche, liesAufgaben, listenAufgaben, WKR_ACTIONS, type Aufgabe } from './aufgaben'
 import { gruppeDerFreigabe, gruppeDerListe, gruppenFuer } from './wkrGruppen'
 import { extraFuer, leereHerkunft, leererEingang, mitAbgelehnt, mitHerkunft, mitHinweis, ohneGeraet, ohneHinweis, type HerkunftEintrag, type WkrEingang, type WkrHerkunft } from './wkrEingang'
 import { configFor } from '../config/konfig'
@@ -27,7 +27,7 @@ import { sichtListe } from '../wkr/sicht'
 import { erfassungsLage } from '../wkr/lage'
 import { sichtFreigabe } from '../wkr/freigabe'
 import { autoSchritt, parcoursAmpel, type AmpelLage } from '../wkr/ampel'
-import { bereicheZumStand, betriebVon, lage as bereichsLage } from '../betrieb/folge'
+import { ausfallGesperrt, bereicheZumStand, betriebVon, lage as bereichsLage } from '../betrieb/folge'
 import { entscheideAnmeldung } from './koppelEntscheid'
 import { dreheQr, gibCode, koppelThemen, markiereBenutzt, oeffneQr, qrFaellig, raeumeAuf, schliesseKoppeln } from './koppeln'
 import {
@@ -822,14 +822,18 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
         const lage = erfassungsLage(state, konfig, bereich, geraete, jetzt)
         const lauf = a.autoLauf.get(bereich)
         const autoIn = lauf ? Math.max(0, (lauf.bis - Date.now()) / 1000) : null
-        text = JSON.stringify(sichtFreigabe(bereich, lage.listen, state.anzeige.wkrWarnung, parcoursAmpel(state, konfig, bereich, lage.listen), autoIn))
+        // R13-01 (27.11.2026): die Abgemeldeten unter den gefahrenen Starts – das Handy graut sie in der Wahl „Wiederholung
+        // (Ausfall)“ aus (nie in der öffentlichen Sicht, BETRIEB_ANNAHMEN.wiederholungHandyAbmeldungen).
+        const gesperrt = ausfallGesperrt(state, bereich)
+        text = JSON.stringify(sichtFreigabe(bereich, lage.listen, state.anzeige.wkrWarnung, parcoursAmpel(state, konfig, bereich, lage.listen), autoIn, gesperrt))
       } catch {
         // Ein Bereich, den es so nicht (mehr) gibt: nichts verteilen, das Handy behält die letzte Sicht.
         continue
       }
       const bisher = a.listen.get(gruppe)
       // Noch nie gesendet und nichts zu zeigen: nichts senden (spart eine Nachricht je Bereich und Start).
-      if (bisher === undefined && (JSON.parse(text) as { listen: unknown[] }).listen.length === 0) continue
+      const inhalt = JSON.parse(text) as { listen: unknown[]; ausfallGesperrt: unknown[] }
+      if (bisher === undefined && inhalt.listen.length === 0 && inhalt.ausfallGesperrt.length === 0) continue
       const voll = a.listenVoll.delete(gruppe)
       if (!voll && bisher === text) continue
       a.listen.set(gruppe, text)
@@ -925,10 +929,13 @@ export function starteGeraeteHost(store: HostStore, umgebung: HostUmgebung = {})
       zieheZuletztNach(a)
       return
     }
-    const action = store.dispatch ? erlaubteAction(n.action, aufgabenVon(raum, e.id), store.state.value) : null
+    // Wiederholung nach Ausfall (Nutzer 27.11.2026, R13-01/R13-06): zwei Actions der Erfassung als eng geprüfte Ausnahme
+    // – gegen den vollen Stand (gefahren, abgemeldet), mit eigenem Grund; alles andere wie bisher über die Positivliste.
+    const wdh = store.dispatch ? erlaubteWiederholung(n.action, aufgabenVon(raum, e.id), store.state.value) : null
+    const action = wdh ? ('action' in wdh ? wdh.action : null) : store.dispatch ? erlaubteAction(n.action, aufgabenVon(raum, e.id), store.state.value) : null
     if (!action) {
       t.verwalte((r) => beruehre(r, e.id, jetzt))
-      t.quittiere(e, 'abgelehnt', 'nicht-erlaubt')
+      t.quittiere(e, 'abgelehnt', wdh && 'grund' in wdh ? wdh.grund : 'nicht-erlaubt')
       zieheZuletztNach(a)
       return
     }

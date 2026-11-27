@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
-import type { ClassId } from '../types'
+import type { ClassId, PaarSeite } from '../types'
 import { useStore } from '../state/store'
 import { merke } from '../lib/merken'
 import { adresse, useReiter } from '../lib/router'
@@ -71,9 +71,9 @@ function zumEingang() {
   document.querySelector('[data-teil="wkr-eingang"]')?.scrollIntoView?.({ block: 'start' })
 }
 
-// Ohne Logos: Die Bedienung braucht sie nicht, und so trägt die Sicht hier keine Bilder. Mit `gefahren` (R11-11,
-// 26.11.2026): die gezeigten Starts als Wahl für „Wiederholung (Ausfall)“ – nur hier, nie auf der Leitung.
-const sicht = computed(() => sichtOeffentlich(state.value, { logos: false, gefahren: true }))
+// Ohne Logos: Die Bedienung braucht sie nicht, und so trägt die Sicht hier keine Bilder. Die Wahl für „Wiederholung
+// (Ausfall)“ (`gefahren`) trägt seit sv 8 jede Sicht (R13-01, 27.11.2026: auch das Freigabe-Handy löst aus).
+const sicht = computed(() => sichtOeffentlich(state.value, { logos: false }))
 const fest = computed(() => sicht.value.bereiche.some((b) => b.fest))
 const hatBetrieb = computed(() => Object.keys(state.value.betrieb.bereiche).length > 0)
 const jetzt = useUhr(1000)
@@ -141,16 +141,20 @@ function zurErfassung(bereich: string) {
 }
 
 /**
- * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN WH3): nur am Bedienrechner. Eine Action der
- * Erfassung (die Werte werden verworfen), die zugleich den Start unter „Wiederholung offen“ stellt – deshalb hier und
- * nicht über `sende` der Start-Freigabe (das Freigabe-Handy kann sie nicht schicken).
+ * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN WH3): eine Action der Erfassung (die Werte
+ * werden verworfen), die zugleich den Start unter „Wiederholung offen“ stellt – deshalb hier und nicht über `sende` der
+ * Start-Freigabe. Das Freigabe-Handy schickt dieselbe Action an den Host, der sie eng prüft (seit 27.11.2026, R13-01;
+ * geraete/aufgaben.ts erlaubteWiederholung). Im Parallelslalom (R13-02, 27.11.2026) mit `nur`, wenn nur ein Boot des
+ * Paares wiederholt.
  */
-function wiederholen(bereich: string, ref: string) {
-  dispatch({ type: 'WIEDERHOLUNG_AUSFALL', bereich, ref })
+function wiederholen(bereich: string, ref: string, nur: PaarSeite | undefined, abbrueche: number) {
+  // `abbrueche` (Prüfbefund 27.11.2026): gebunden an den Versuch, den die Wahl zeigte – eine spät bestätigte Rückfrage
+  // träfe sonst die Wiederholung selbst.
+  dispatch({ type: 'WIEDERHOLUNG_AUSFALL', bereich, ref, ...(nur ? { nur } : {}), abbrueche })
 }
 /** „Doch keine Wiederholung“ – ebenso eine Action der Erfassung: Die verworfenen Werte kommen zurück (Prüfbefund 27.11.2026). */
-function aufheben(bereich: string, ref: string) {
-  dispatch({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich, ref })
+function aufheben(bereich: string, ref: string, abbrueche: number) {
+  dispatch({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich, ref, abbrueche })
 }
 
 const frageZuruecksetzen = ref(false)
@@ -211,8 +215,8 @@ function zuruecksetzen() {
         :erfassung="erfassung[b.id]"
         :erfassung-oeffnen="() => zurErfassung(b.id)"
         :auto-anhalten="geraete?.halteAuto ? (ref: string) => geraete!.halteAuto!(b.id, ref) : undefined"
-        :wiederholen="(ref: string) => wiederholen(b.id, ref)"
-        :aufheben="(ref: string) => aufheben(b.id, ref)"
+        :wiederholen="(ref: string, nur: PaarSeite | undefined, abbrueche: number) => wiederholen(b.id, ref, nur, abbrueche)"
+        :aufheben="(ref: string, abbrueche: number) => aufheben(b.id, ref, abbrueche)"
         :ausfall-gesperrt="state.abgemeldet"
       />
     </div>

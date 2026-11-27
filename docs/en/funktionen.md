@@ -411,29 +411,38 @@ One card per racecourse (`src/components/betrieb/StartFreigabe.vue`):
 - **Choose another driver** (`BetriebsFolge.vue`): the next twelve open starts or the whole order, plus a
   search by race number or name across everything still to be shown – later attempts too. “Show” brings the start
   onto the scoreboard at once; the previous next driver stays the next one.
-- **Repeat (breakdown) …** (26.11.2026, only at the operating computer, not in the parallel slalom;
-  `AusfallWahl.vue`, `BETRIEB_ANNAHMEN` WH1–WH10): after a confirmed breakdown the driver's attempt is repeated. The
-  choice shows the starts already shown in the attempts under way, the one shown last first, with a search by race
-  number; starts of withdrawn drivers are greyed out (“withdrawn – no repeat”). If the driver is to blame, the race
-  official enters “J” at the buoy (wrong racecourse) – then there is no repeat. “Repeat …” asks “Repeat after
-  breakdown: 102, Attempt 1?”; “Discard values and repeat” empties all values of this driver in this attempt on every
-  sheet, including those from the race officials' devices and their open queries. With “Attempts run consecutively”
-  (UIM) the pontoon entry line stays; the question says so. In English this is called “Repeat”, so that it is not
-  confused with the “Re-run” of the parallel slalom.
+- **Repeat (breakdown) …** (26.11.2026; since 27.11.2026 also on the paired start release phone and in the parallel
+  slalom; `AusfallWahl.vue`, `BETRIEB_ANNAHMEN` WH1–WH14, WHP1–WHP6): after a confirmed breakdown the driver's
+  attempt is repeated. The choice shows the starts already shown in the attempts under way, the one shown last first;
+  the first eight are shown at once, the search by race number finds the others. Starts of withdrawn drivers are
+  greyed out (“withdrawn – no repeat”). If the driver is to blame, the race official enters “J” at the buoy (wrong
+  racecourse) – then there is no repeat. “Repeat …” asks “Repeat after breakdown: 102, Attempt 1?”; “Discard values
+  and repeat” empties all values of this driver in this attempt on every sheet, including those from the race
+  officials' devices and their open queries. With “Attempts run consecutively” (UIM) the pontoon entry line stays;
+  the question says so. The open confirmation closes by itself if its start has meanwhile been repeated elsewhere,
+  taken back or given an X. In the parallel slalom the confirmation asks instead which boats repeat
+  ([Parallel slalom in operation](#parallel-slalom-in-operation)). From the phone, the operating computer checks
+  every repeat once more; a refusal is shown there as a sentence ([Device operation](#device-operation)). In English
+  this is always called “Repeat”, never “Re-run” – that is the heat after a tie in the parallel slalom.
 - **Repeat pending:** this is where the start waits afterwards; it never goes by itself. The O.O.D. puts it in line
   with “As next” or “To the end of the attempt” or shows it with “Show now” – also from the paired start release phone
   and in the starting order. Until then the aborted attempt stands under “In the boat” with “breakdown – to be
-  repeated”; “Back” is locked, and there is no racecourse light and no auto mode for it.
-- **No repeat after all** (only at the operating computer, in the list “Repeat pending”, as long as the start has not
-  been shown again): the aborted attempt counts again, and its discarded values come back – on all sheets, including
-  the ticks “entered” and “no time”, but only into fields that are empty by now; what has been entered since the
-  breakdown stays. Queries, proposals and paper notes from back then do not come back. After two breakdowns of the
-  same start the attempt aborted last counts. The race officials' devices then treat the start as before (done;
-  corrections from “Recent” are accepted again).
+  repeated”; “Back” is locked, and there is no racecourse light and no auto mode for it. If nobody runs in the start
+  any more afterwards (X, for example through a withdrawal), it is dropped: it disappears from “Repeat pending” and
+  from the choice, and there is no “No repeat after all” for it any more.
+- **No repeat after all** (in the list “Repeat pending”, at the operating computer and since 27.11.2026 also on the
+  start release phone, as long as the start has not been shown again): the aborted attempt counts again, and its
+  discarded values come back – on all sheets, including the ticks “entered” and “no time”, but only into fields that
+  are empty by now; what has been entered since the breakdown stays. Queries, proposals and paper notes from back then
+  do not come back. After two breakdowns of the same start the attempt aborted last counts. The race officials'
+  devices then treat the start as before (done; corrections from “Recent” are accepted again).
 - The history (“Settings → Files → History”) has entries of its own, such as “Repeat after breakdown – values
-  discarded: 101, Class 1, Attempt 1” and “No repeat after all – values brought back: …”. The discarded values are in
-  the backup as long as the abort is part of the operation; “Reset operation”, deleting the attempt and removing the
-  driver clear them away.
+  discarded: 101, Class 1, Attempt 1” and “No repeat after all – values brought back: …” – the same when triggered
+  from the phone, without a device name. In the parallel slalom the entry names only the boats that really repeat
+  (“… values discarded: E01, Class Dolphin, Parallel slalom Preliminary heat, 1st attempt”, after “Repeat both”
+  with “E01 / E02”); “No repeat after all” names the boats from before. The discarded values are in the backup as
+  long as the abort is part of the operation; “Reset operation”, deleting the attempt and removing the driver clear
+  them away.
 - **Move** (menu per start): ahead of the next one, to the end of the attempt, before or after another attempt – never
   ahead of what has already run. With “Keep the interleaving when moving” (on by default) the start gets the next
   place of its lane within the attempt. What the operator has rearranged this way stays; attempts not rearranged keep
@@ -467,7 +476,8 @@ disappears after a short rest.
 - Two racecourses are shown one above the other, on very wide screens side by side. Names that are too long get
   smaller instead of being cut off (`src/lib/fit.ts`).
 - A start repeated after a breakdown is shown as “Attempt 1 · Repeat” (German “1. Lauf · Wiederholung”), without a
-  reason; likewise in the spectator list.
+  reason; likewise in the spectator list. In the parallel slalom it reads “Preliminary heat · Attempt 1 · Repeat”
+  (German “Vorlauf · 1. Versuch · Wiederholung”); if only one boat repeats, the other side is shown as “–”.
 - The window only reads and never writes; it follows the operating window at once and keeps the screen awake.
 - Language as the lists (DM German, UIM English: “Course”, “Attempt”, “Class Dolphin”), can be changed.
 - What it shows comes from a narrow view (`src/betrieb/sicht.ts`): race number, name, class and origin of the
@@ -516,7 +526,10 @@ the racecourses. Its steps are the locked heats (preliminary heat, re-run, semi-
 each is released individually with “Begin …” (24.11.2026), its starts are the pairs of the plan. The scoreboard
 shows racecourse A and B as they lie seen from the spectators (setting). Classes sitting out and moving do not exist
 there, holding back takes the whole pair, there are no waiting times. A board of its own is opened with
-“Separate display board” (`#/anzeige/parallel`).
+“Separate display board” (`#/anzeige/parallel`). “Repeat (breakdown) …” has existed here too since 27.11.2026: the
+choice shows the pairs shown in the heats under way, the confirmation asks every time without a preselection which
+boats repeat (“Only E01 (Racecourse A)”, “Only E02 (Racecourse B)”, “Repeat both”); a boat that does not repeat keeps
+its values ([details](parallelslalom.md#repeat-after-a-breakdown)). This is not the re-run after a tie.
 
 ### Settings and storage
 
@@ -544,21 +557,37 @@ with real phones and the real server ([feldtest.md](feldtest.md)).
   `src/main.geraete.test.ts`). Then, encrypted and signed, the following go via the server: race number, name
   (according to the setting “Names” of the scoreboard), origin and class, the order of starts with times, messages,
   the name of the event; for the race official lists their starts with race number and class (without names), at
-  the pontoon the extra weight. Never leaving the operating computer: date of birth, body weight, gender, entered
+  the pontoon the extra weight. A paired start release learns, for its courses, which drivers who have already
+  started have withdrawn – only so that it offers them no repeat after a breakdown (27.11.2026; the notice before
+  switching on names it). Never leaving the operating computer: date of birth, body weight, gender, entered
   values (except, for a query, the value of that one cell to the devices of the list), logos or the data of the
   event. The race official devices send their rows encrypted to the operating computer.
 - **Server:** default `ntfy.adminforge.de`, can be changed under “Settings → Devices”. Its operator sees no
   contents, but times, sizes and IP addresses.
 - **Two read links** with QR code: “Display board” and “Spectators” (`#/sehen/<paket>`). No login, no
   pairing; the device shows the same scoreboard (without logos) or spectator list as at the operating computer.
-  Fingerprint for comparing, “Renew spectator link”, “End room”.
+  Fingerprint for comparing, “Renew spectator link”, “End room”. Since 27.11.2026 the display board link also
+  carries the list of starts run in the attempts under way, from which the start release builds the choice “Repeat
+  (breakdown) …” (without values, reasons or withdrawals); the spectator link does not – interpreted during
+  implementation, still to be confirmed (`BETRIEB_ANNAHMEN` WH11). Devices with an older version reload once for it.
 - **Pairing** (E7): scan the QR code from the screen (main way) or pairing link plus device code over the radio. A
   device is paired for the **start release** of certain racecourses or for a **race official list** (see
   [Digital entry by the race officials](#digital-entry-by-the-race-officials)). In the device list: name, kind of
   device (phone, tablet, computer), racecourses, lists, “Revoke”.
 - **Start release on the phone** (`#/geraet`): the same buttons as at the operating computer, only for its own
-  racecourses, without “Reset operation”. After every press the buttons are locked until the operating computer
-  confirms; the decision is always made there (allowlist `src/geraete/aufgaben.ts`).
+  racecourses, without “Reset operation” and “Show on all courses” (the message). After every press the buttons are
+  locked until the operating computer confirms; the decision is always made there (allowlist
+  `src/geraete/aufgaben.ts`).
+- **Repeat from the phone** (27.11.2026, user R13-01/R13-06; `BETRIEB_ANNAHMEN` WH3, WH11–WH14): “Repeat
+  (breakdown) …” and “No repeat after all” also work on the start release phone, with the same choice and
+  confirmation as at the operating computer (in the parallel slalom with the choice of boats). The operating computer
+  checks against the full data and refuses with a reason: “No repeat for this start: it is not (or no longer) among
+  the starts run in the attempts or heats under way – please check the display.”, “The driver has withdrawn – no
+  repeat. If the driver is to start after all, first take back the withdrawal at the operating computer.” or “This
+  device may not do that (another racecourse, or no longer released).” The repeat is bound to the attempt the phone
+  saw: if the message arrives late (dead spot) and the start has changed in the meantime, nothing changes, and the
+  phone reports “Something has changed there in the meantime – please check the display.” If someone was quicker:
+  “Nothing changed – already done, or someone else was quicker. Please check the display.”
 - In addition: keeping the screen awake on every connected device, “Reload all devices” after an update and a
   display of how many messages went to the server today.
 
@@ -607,6 +636,9 @@ width="360" alt="Race official form Picture on the tablet with course drawing an
   has already closed the attempt, its device still gets the repeat; the row arrives under Incoming as a proposal (“The
   list is finished for this attempt.”) and is accepted with one click, the closing stays. Exception “Attempts run
   consecutively”: the pontoon entry row stays, the device there can keep correcting it, and a late row is taken over.
+  In the parallel slalom (27.11.2026) only the lists of the racecourse whose boat repeats get the attempt anew, and
+  only there is a late row refused; on the other racecourse it is taken over, and the repeat never comes there as a
+  new start – not even if the list was paused during the first attempt or only went digital later.
 
 ### At the operating computer
 
@@ -647,7 +679,10 @@ course supervision, start/finish, since 22.11.2026 also time –, there is a tra
    held-back starts, with an open query, during a break or disruption.
 
 The racecourse race officials see a dot “start clear” or “on the racecourse” in the driver card; scoreboard and
-spectator list show no traffic light.
+spectator list show no traffic light. If, in the parallel slalom, only one boat repeats after a breakdown, only the
+lists of this boat count: the light stays green until it has passed through the start gate – the values of the other
+boat that remained do not count –, and the question when closing the list names only this boat as “on the course”
+(27.11.2026).
 
 ### Forms
 
@@ -760,7 +795,8 @@ alt="Data entry: a sheet as an input table with values"></a>
 - **Repeat after a breakdown** (26.11.2026): the race number carries ↻ with the note “Repeat after breakdown – enter
   the values of the repeat …”. On paper the race official has struck out the line and entered the repeat in a blank
   line; the struck-out line does not count. At pontoon entry with “Attempts run consecutively” there is no ↻ (nothing
-  is struck out there).
+  is struck out there). On the sheets of the parallel slalom ↻ is only in the row of the boat that repeats
+  (27.11.2026).
 - With [digital entry by the race officials](#digital-entry-by-the-race-officials): ◆ on values from the device (with
   list, device and time), “Check paper” on rows and cells for which the sheet is needed, and a question before a value
   from the device is overwritten. Open queries are decided under Operation → Race officials.
@@ -982,7 +1018,7 @@ stated otherwise.
   - Confirmed 26.11.2026: no longer on the 27th birthday itself; without a date the whole borderline years.
     Confirmed 27.11.2026: “less than 2 days” includes the 2nd day; red as well if the 6th birthday is 1 or 2 days
     before the first day of racing; class E with the 6th birthday 3 to 14 days after the first day of racing is “too
-    young” (red), not a note. Interpreted and still to be confirmed: 29 February becomes 1 March in years without it.
+    young” (red), not a note. Confirmed 27.11.2026: 29 February becomes 1 March in years without it.
 - **Date fields:** never the browser's date picker (depending on the system it showed mm/dd/yyyy), but a text field:
   German DD.MM.YYYY, English YYYY-MM-DD (`src/components/DatumFeld.vue`). Also recognised are 2019-12-01, 1.12.2019
   and 01/12/2019 (slash: day first); a date that does not exist is reported. Stored as YYYY-MM-DD.

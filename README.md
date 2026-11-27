@@ -21,6 +21,9 @@ etwa Startnummer, Name, Herkunft und Klasse der Starter und die erfassten Werte,
   nach dem ersten Aufruf auch ohne Internet.
 - **Ein-Datei-Fassung:** [`alcatraz.html`](https://motorbootslalom.github.io/alcatraz/alcatraz.html) –
   eine einzelne HTML-Datei, die ohne Internet per Doppelklick läuft.
+- **Üben für Wettkampfrichter:** <https://motorbootslalom.github.io/alcatraz/#/uebung> –
+  die Eingabe auf Handy oder Pad ohne Verbindung ausprobieren: Regelwerk und Liste wählen, dann kommen Übungsstarts.
+  Gesendet wird nichts. Den Link am besten auf dem Gerät öffnen, mit dem später erfasst wird.
 
 ## Loslegen
 
@@ -48,7 +51,7 @@ etwa Startnummer, Name, Herkunft und Klasse der Starter und die erfassten Werte,
   auf Wunsch auch auf anderen Geräten über einen Link mit QR-Code; die Start-Freigabe auch auf einem gekoppelten Handy.
 - **WKR-Geräte:** Wettkampfrichter erfassen ihre Liste auf Handy oder Pad statt auf Papier –
   mit Knöpfen, auf der Parcours-Zeichnung („Bild“) oder als Tabelle; Papier und Gerät lassen sich mischen.
-  Üben geht ohne Verbindung.
+  Üben geht ohne Verbindung: [Übung öffnen](https://motorbootslalom.github.io/alcatraz/#/uebung).
 - Oberfläche deutsch und englisch; die Listen stehen in der Sprache des Regelwerks.
 - Läuft ohne Internet, mit zweitem Speicher gegen harte Abbrüche und einem Verlauf zum Zurückholen.
 

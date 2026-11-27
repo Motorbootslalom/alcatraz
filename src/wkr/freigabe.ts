@@ -14,13 +14,18 @@ import type { AmpelLage, ParcoursAmpel } from './ampel'
 // Titel der Listen, an denen er scheitert, und der Countdown in Sekunden. Nie Werte, Namen von Startern, Geräten oder WKR,
 // Herkunft, Gewicht, Geburtsdatum, Geschlecht, Abschlüsse (WKR_ANNAHMEN.freigabeOhneNamen, A9). Jedes Objekt Feld für
 // Feld neu gebaut (wie betrieb/sicht.ts sichtZuschauer) – ein neues Feld in ListenLage gelangt nie von selbst hierher.
+// Seit fv 3 (Nutzer 27.11.2026, R13-01: auch die Start-Freigabe auf dem Handy löst die Wiederholung nach Ausfall aus) dazu
+// `ausfallGesperrt`: die IDs der abgemeldeten Starter unter den gefahrenen Starts des Bereichs (betrieb/folge.ts
+// ausfallGesperrt) – damit die Wahl sie ausgraut wie am Bedienrechner (WH10). Nur diese, nie alle Abmeldungen, und nur
+// hier: Die öffentliche Sicht trägt nie Abmeldungen (BETRIEB_ANNAHMEN.wiederholungHandyAbmeldungen).
 // Rein: kein DOM, kein Store, keine Uhr, nichts aus geraete/.
 
 /**
  * Fassung der Freigabe-Sicht (innen `fv`; die Gruppe trägt die `sv` der öffentlichen Sicht wie jede Gruppe).
  * 2 seit der Parcours-Ampel (Nutzer 21.11.2026, P-03): `ampel`, `autoMoeglich`, `autoOhne`, `autoIn`, je Liste `parcours`.
+ * 3 seit der Wiederholung vom Freigabe-Handy (Nutzer 27.11.2026, R13-01): `ausfallGesperrt`.
  */
-export const FREIGABE_SICHT_FASSUNG = 2
+export const FREIGABE_SICHT_FASSUNG = 3
 
 /** Stand einer Liste für die Leiste: Papier = kein Eintrag oder Modus Papier (▭). */
 export type FreigabeStand = 'aktiv' | 'pausiert' | 'abgemeldet' | 'papier'
@@ -64,6 +69,12 @@ export interface FreigabeErfassung {
   autoOhne: string[]
   /** Countdown des Auto-Modus in Sekunden, wie der Host ihn beim Senden sah; `null` = keiner. */
   autoIn: number | null
+  /**
+   * Seit fv 3 (R13-01): Starter-IDs, für die „Wiederholung (Ausfall)“ nicht geht – die abgemeldeten unter den gefahrenen
+   * Starts des Bereichs (betrieb/folge.ts ausfallGesperrt). Das Freigabe-Handy graut sie in der Wahl aus; der Host lehnt
+   * sie ohnehin ab (`abgemeldet`). Am Bedienrechner leer – dort kommen die Abmeldungen aus dem Stand.
+   */
+  ausfallGesperrt: string[]
 }
 
 /** Ohne Ampel (alter Aufrufer, Bereich ohne Parcours-Liste): wie AM3 – keine. */
@@ -71,9 +82,17 @@ const OHNE_AMPEL: AmpelLage = { ampel: 'aus', ref: null, perKnopf: false, offen:
 
 /**
  * Die Freigabe-Sicht eines Bereichs aus den Lagen seiner Listen (wkr/lage.ts erfassungsLage), der Ampel desselben
- * Stands (wkr/ampel.ts parcoursAmpel) und dem Countdown des Auto-Modus (`autoIn`, nur der Host weiß ihn).
+ * Stands (wkr/ampel.ts parcoursAmpel), dem Countdown des Auto-Modus (`autoIn`, nur der Host weiß ihn) und – seit fv 3 –
+ * den Startern ohne Wiederholung (`ausfallGesperrt`, betrieb/folge.ts ausfallGesperrt; nur der Host gibt sie mit).
  */
-export function sichtFreigabe(bereich: BereichId, lagen: readonly ListenLage[], warnung: WkrWarnung, ampel: AmpelLage = OHNE_AMPEL, autoIn: number | null = null): FreigabeErfassung {
+export function sichtFreigabe(
+  bereich: BereichId,
+  lagen: readonly ListenLage[],
+  warnung: WkrWarnung,
+  ampel: AmpelLage = OHNE_AMPEL,
+  autoIn: number | null = null,
+  ausfallGesperrt: readonly string[] = [],
+): FreigabeErfassung {
   const mitEintrag = lagen.some((l) => l.modus !== null)
   const listen = !mitEintrag
     ? []
@@ -105,6 +124,7 @@ export function sichtFreigabe(bereich: BereichId, lagen: readonly ListenLage[], 
     autoMoeglich: ampel.autoMoeglich,
     autoOhne: [...ampel.autoOhne],
     autoIn: ampel.autoMoeglich && autoIn !== null ? Math.max(0, Math.ceil(autoIn)) : null,
+    ausfallGesperrt: [...ausfallGesperrt],
   }
 }
 
@@ -142,6 +162,8 @@ export function liesFreigabe(v: unknown): FreigabeErfassung | null {
   const ampelRef = ampel !== 'aus' && typeof v.ampelRef === 'string' ? v.ampelRef.slice(0, 400) : null
   const autoOhne = Array.isArray(v.autoOhne) ? v.autoOhne.filter((x): x is string => typeof x === 'string').slice(0, 64).map((x) => x.slice(0, 80)) : []
   const autoIn = typeof v.autoIn === 'number' && Number.isFinite(v.autoIn) && v.autoIn >= 0 ? Math.min(Math.ceil(v.autoIn), 60) : null
+  // Starter-IDs (fv 3): nur Text in vernünftiger Länge; mehr als ein Bereich Starts hat, kommt nicht vor.
+  const ausfallGesperrt = Array.isArray(v.ausfallGesperrt) ? [...new Set(v.ausfallGesperrt.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 64))].slice(0, 1000) : []
   return {
     fv: FREIGABE_SICHT_FASSUNG,
     bereich: v.bereich,
@@ -153,5 +175,6 @@ export function liesFreigabe(v: unknown): FreigabeErfassung | null {
     autoMoeglich: v.autoMoeglich === true,
     autoOhne,
     autoIn: v.autoMoeglich === true ? autoIn : null,
+    ausfallGesperrt,
   }
 }

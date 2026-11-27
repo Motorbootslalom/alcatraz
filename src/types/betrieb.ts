@@ -63,7 +63,16 @@ export interface GezeigterStart {
    * erneut gezeigt wird. Fehlt = gewöhnlich gezeigt.
    */
   abgebrochen?: true
+  /**
+   * Nur mit `abgebrochen`, nur im Parallelslalom (Nutzer 27.11.2026, R13-02): Nur das Boot dieser Seite wiederholt – das
+   * andere ist gefahren, seine Werte bleiben, in der Wiederholung steht es als „–“. Fehlt = alle Boote des Starts (im
+   * Manövrieren ist es eins, im Parallelslalom beide bzw. das eine, das fuhr).
+   */
+  nur?: PaarSeite
 }
+
+/** Eine Seite eines Paares im Parallelslalom: Racecourse A (`a`) oder B (`b`) – wie StartRef `a`/`b`. */
+export type PaarSeite = 'a' | 'b'
 
 /** Was im Betrieb eines Bereichs geschehen ist und wovon abgewichen wird. */
 export interface BereichBetrieb {
@@ -247,8 +256,17 @@ export interface SichtStart {
   /**
    * Ab sv 7 (Nutzer 26.11.2026, R11-11): Der Start wird wiederholt – ein früherer Versuch wurde nach einem Ausfall
    * abgebrochen. Ohne Grund und ohne Werte; `titel` trägt dazu „Wiederholung“ in der Sprache der Tafel. Fehlt = nein.
+   * Seit 27.11.2026 (R13-02) auch an einem Paar; wiederholt nur ein Boot, ist die andere Seite in `paar` `null` (die Form
+   * blieb, `sv` 7).
    */
   wiederholung?: true
+  /**
+   * Ab sv 8, nur mit `wiederholung` (Prüfbefund 27.11.2026): wie oft ein Versuch dieses Starts bisher abgebrochen wurde
+   * (≥ 1; fehlt = 0). Die Start-Freigabe schickt die Zahl mit „Wiederholung (Ausfall)“ und „Doch keine Wiederholung“ mit
+   * (WIEDERHOLUNG_AUSFALL/_AUFHEBEN `abbrueche`) – so trifft eine verspätete Action nie einen späteren Versuch
+   * (BETRIEB_ANNAHMEN.wiederholungGebunden). Nicht in der Zuschauersicht.
+   */
+  abbrueche?: number
   /**
    * Ab sv 7, nur an `aktuell`/`vorig`: Dieser gezeigte Versuch ist abgebrochen (Ausfall, Wiederholung entschieden) –
    * die Start-Freigabe nimmt ihn nicht mehr „zurück“. Fehlt = nein.
@@ -296,10 +314,13 @@ export interface SichtBereich {
    */
   wiederholung: SichtStart[]
   /**
-   * Nur am Bedienrechner (SichtOptionen.gefahren, nie auf der Leitung): die gezeigten Starts der begonnenen Punkte, die
-   * gelten (nicht abgebrochen), der jüngste zuerst – die Wahl für „Wiederholung (Ausfall)“.
+   * Ab sv 8 (Nutzer 27.11.2026, R13-01; vorher nur am Bedienrechner): die gezeigten Starts der begonnenen Punkte, die
+   * gelten (nicht abgebrochen), der jüngste zuerst – die Wahl für „Wiederholung (Ausfall)“ an der Start-Freigabe, am
+   * Bedienrechner wie auf dem Freigabe-Handy (betrieb/folge.ts gefahreneStarts); seit 27.11.2026 (R13-02) auch die Paare
+   * des Parallelslaloms (`paar` nur mit den Booten, die in diesem Versuch fuhren). Ohne Abmeldungen – die bekommt nur
+   * das Freigabe-Handy, und nur für diese Starts (wkr/freigabe.ts `ausfallGesperrt`). Nicht in der Zuschauersicht.
    */
-  gefahren?: SichtStart[]
+  gefahren: SichtStart[]
   /** Starts ausgesetzter Klassen („Boot fehlt“, V-5/L-7), in der Folge. */
   bootFehlt: SichtStart[]
   /** Der Punkt, auf den sich Aussetzen und Vorziehen der Klassen beziehen (betrieb/folge.ts `arbeitsPunkt`). */
@@ -347,9 +368,10 @@ export interface OeffentlicheSicht {
    * „am Steg“/„vor Steg“ für die Prognose, Etappe E3; 4: Bereich `parallel` mit Paaren, `SichtStart.paar`, E4;
    * 5: `einst.parallelAnordnung`, Lage von Racecourse A und B, 16.11.2026; 6: SichtPaar ohne `finale`, das Kleine
    * Finale ist eine eigene Runde `runde:small`, 21.11.2026; 7: Wiederholung nach Ausfall – SichtBereich.wiederholung,
-   * SichtStart.wiederholung/abgebrochen, 26.11.2026). Gilt auch für die Zuschauersicht.
+   * SichtStart.wiederholung/abgebrochen, 26.11.2026; 8: SichtBereich.gefahren in jeder Sicht – die Start-Freigabe auf
+   * dem Handy löst die Wiederholung aus, Nutzer 27.11.2026, R13-01). Gilt auch für die Zuschauersicht.
    */
-  sv: 7
+  sv: 8
   /** Kopfzeile; '' = keine. */
   kopf: string
   /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */

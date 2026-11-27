@@ -97,6 +97,15 @@ export default {
     'Alle Werte von {nr} in {lauf} werden verworfen – auf jeder Liste, auch die von den WKR-Geräten. Der Start steht danach unter „Wiederholung offen“ und fährt erst, wenn er eingereiht wird; die WKR-Geräte bekommen ihn dann noch einmal. Auf Papier: die Zeile streichen und die Wiederholung in eine Leerzeile eintragen. „Doch keine Wiederholung“ holt die Werte zurück, solange der Start nicht wieder gezeigt ist.',
   'betrieb.ausfall.vorsteg': 'Die Zeile am Vorsteg gilt für alle Versuche und bleibt stehen.',
   'betrieb.ausfall.ja': 'Werte verwerfen und wiederholen',
+  // Parallelslalom (Nutzer 27.11.2026, R13-02): Wiederholung auch dort; die Rückfrage fragt jedes Mal, welche Boote
+  // wiederholen – ohne Vorauswahl (BETRIEB_ANNAHMEN.wiederholungParallelWahl).
+  'betrieb.ausfall.hint.runde':
+    'Gezeigte Paare der laufenden Runden, das zuletzt gezeigte zuerst. Die Wettkampfleitung entscheidet über die Wiederholung und welche Boote wiederholen; liegt der Ausfall an einem Fahrer, trägt der WKR an der Boje „J“ ein (falscher Parcours) – dann keine Wiederholung für ihn.',
+  'betrieb.ausfall.paar.text':
+    'Welche Boote wiederholen {lauf}? Verworfen werden nur die Werte der gewählten Boote in diesem Versuch – auf jeder Liste beider Parcours, auch die von den WKR-Geräten; ein Boot, das nicht wiederholt, behält seine Werte. Das Paar steht danach unter „Wiederholung offen“ (das andere Boot dort als „–“) und fährt erst, wenn es eingereiht wird; die WKR-Geräte bekommen es dann noch einmal. Auf Papier: die Zeile streichen und die Wiederholung in eine Leerzeile eintragen. „Doch keine Wiederholung“ holt die Werte zurück, solange der Start nicht wieder gezeigt ist.',
+  'betrieb.ausfall.nur': 'Nur {nr} ({rc})',
+  'betrieb.ausfall.einer': '{nr} ({rc}) wiederholen',
+  'betrieb.ausfall.beide': 'Beide wiederholen',
 
   // Parallel-Slalom (E4, nur unter UIM): Runden statt Läufe, Paare auf Parcours A und B. Die Fassungen `….runde`
   // ersetzen die gleichnamigen Texte im Bereich des Parallel-Slaloms (components/betrieb/texte.ts tBereich).
@@ -110,7 +119,7 @@ export default {
   'betrieb.beginnen.text.runde':
     'In den begonnenen Runden ist noch {n} Start offen. Er bleibt freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Kleines Finale, Finale –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch. | In den begonnenen Runden sind noch {n} Starts offen. Sie bleiben freigegeben. Gefahren wird in der Folge der Runden – Vorlauf, Re-run, Halbfinale, Kleines Finale, Finale –, ein Re-run also vor einem schon begonnenen Halbfinale; das Paar im Boot fährt erst seinen anderen Versuch.',
   'betrieb.stockt.runde':
-    'Kein Start frei – noch {n} Start wartet (zurückgestellt oder nachzuholen). Die Runde ist nicht zu Ende. | Kein Start frei – noch {n} Starts warten (zurückgestellt oder nachzuholen). Die Runde ist nicht zu Ende.',
+    'Kein Start frei – noch {n} Start wartet (zurückgestellt, Wiederholung offen oder nachzuholen). Die Runde ist nicht zu Ende. | Kein Start frei – noch {n} Starts warten (zurückgestellt, Wiederholung offen oder nachzuholen). Die Runde ist nicht zu Ende.',
   'betrieb.abweichend.runde': 'Die Folge weicht vom festgeschriebenen Plan ab (Paare zurückgestellt oder gezielt gezeigt). Die Listen der Wettkampfrichter bleiben, wie sie sind.',
   'betrieb.zurueckstellen.title.runde': 'Das nächste Paar zurückstellen: Seine offenen Versuche dieser Runde fahren vorerst nicht, bleiben aber sichtbar.',
   'betrieb.einreihen.ende.runde': 'Ans Ende der Runde',
@@ -299,7 +308,7 @@ export default {
   'geraete.nichtVerfuegbar': 'In diesem Fenster gibt es keinen Gerätebetrieb.',
   'geraete.aus': 'Der Gerätebetrieb ist aus. Bis er eingeschaltet wird, verlässt nichts diesen Browser.',
   'geraete.wasGeht':
-    'Eingeschaltet gehen Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung über den Server {server} – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte, Logos und die Sicherung. Ausnahme: Die Steg-Liste der WKR-Erfassung bekommt je Starter das Ausgleichsgewicht (gerundet auf die Stufe unter „Durchschnittsgewichte“) – bei einem leichteren Starter lässt sich daraus das Körpergewicht ungefähr zurückrechnen.',
+    'Eingeschaltet gehen Startnummer, Name (nach der Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der Name der Veranstaltung über den Server {server} – verschlüsselt und signiert. Der Betreiber des Servers sieht keine Inhalte, wohl aber Zeitpunkte, Größe und IP-Adressen. Nie hinaus gehen Geburtsdatum, Gewicht, Geschlecht, erfasste Werte, Logos und die Sicherung. Ausnahme: Die Steg-Liste der WKR-Erfassung bekommt je Starter das Ausgleichsgewicht (gerundet auf die Stufe unter „Durchschnittsgewichte“) – bei einem leichteren Starter lässt sich daraus das Körpergewicht ungefähr zurückrechnen. Eine gekoppelte Start-Freigabe erfährt für ihre Parcours, welche schon gestarteten Starter abgemeldet sind – nur damit sie ihnen keine Wiederholung nach Ausfall anbietet.',
   'geraete.einschalten': 'Gerätebetrieb einschalten',
   'geraete.einschalten.hint':
     'Legt einen Raum für diese Veranstaltung an, mit zwei Links samt QR-Code: einem für die Anzeigetafel und einem für die Zuschauer. Ohne Anmeldung – wer den Link hat, kann lesen. Der Raum bleibt über das Neuladen hinweg offen, bis „Raum beenden“.',
@@ -531,6 +540,9 @@ export default {
   'geraete.ablehnung.offen': 'Es sind noch Starts offen – abschließen nur mit „Rest auf Papier“.',
   // R11-11 (26.11.2026): Zeile zu einem Versuch, der nach einem Ausfall abgebrochen wurde (BETRIEB_ANNAHMEN WH7).
   'geraete.ablehnung.versuch-abgebrochen': 'Dieser Versuch wurde nach einem Ausfall abgebrochen – der Start wird wiederholt. Die Zeile ist nicht übernommen.',
+  // R13-01 (27.11.2026): „Wiederholung (Ausfall)“ vom Freigabe-Handy, vom Bedienrechner abgelehnt (betrieb/folge.ts ausfallGrund).
+  'geraete.ablehnung.nicht-gezeigt': 'Für diesen Start gibt es keine Wiederholung: Er steht nicht (mehr) unter den gefahrenen Starts der laufenden Läufe bzw. Runden – bitte die Anzeige prüfen.',
+  'geraete.ablehnung.abgemeldet': 'Der Starter ist abgemeldet – keine Wiederholung. Soll er doch fahren, zuerst am Bedienrechner die Abmeldung zurücknehmen.',
   // W2.2 (21.11.2026): Betrieb → WKR – digitale Erfassung der Wettkampfrichter am Bedienrechner (Matrix, Bedienung je
   // Liste, Eingang). Oberflächensprache; Listennamen aus der Konfiguration der Oberfläche.
   'betrieb.reiter.wkr': 'WKR',

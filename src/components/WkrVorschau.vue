@@ -99,7 +99,8 @@ interface Blatt {
  * Listen (lib/wkrListen.ts), nur mit Muster-Startern: je Klasse des Parcours `anzahl` Stück.
  * Stehen die Klassen in der Startfolge (`wkrGemeinsamFolge` `verzahnung`, 24.11.2026), mischt
  * die Verzahnung des Parcours (planung/plan.ts, mit seinen Spuren und Booten) die Muster-Starter
- * so, wie sie es mit echten täte – sonst sähe der Bogen aus wie Blöcke ohne Überschrift.
+ * so, wie sie es mit echten täte – sonst sähe der Bogen aus wie Blöcke ohne Überschrift. Bestätigt
+ * 27.11.2026 (R13-14 (3)).
  */
 const musterGemeinsam = computed(() => {
   if (!gemeinsameBoegen(state.value).gemeinsam) return undefined

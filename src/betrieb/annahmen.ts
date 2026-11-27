@@ -3,8 +3,10 @@
 // den Ablauf am Steg; was hier steht, ist Organisation nach dem Plan zur Übernahme der Tafel vom
 // 16.11.2026 (§7 „Auslegungen“, Nummern in Klammern). Vom Nutzer am 16.11.2026 bestätigt („Deine Annahmen zur
 // Tafel usw. sind hiermit bestätigt“, docs/entscheidungen.md „Betrieb und Offline“); was danach dazukommt, steht
-// mit eigenem Datum da. Die Werte, die der Code liest, sind hier umstellbar;
-// die übrigen Einträge halten fest, wie der Code gebaut ist, damit es nur eine Stelle zum Nachlesen gibt.
+// mit eigenem Datum da; was der Nutzer in den Fragenrunden bestätigt hat, trägt „Bestätigt <Datum> (Frage)“ (Runde 13,
+// 27.11.2026: R13-xx). Offen ist nur, was „noch zu bestätigen“ bzw. „vom Nutzer zu bestätigen“ trägt
+// (docs/entscheidungen.md „Offen“). Die Werte, die der Code liest, sind hier umstellbar; die übrigen Einträge halten
+// fest, wie der Code gebaut ist, damit es nur eine Stelle zum Nachlesen gibt.
 
 export const BETRIEB_ANNAHMEN = {
   /**
@@ -37,12 +39,13 @@ export const BETRIEB_ANNAHMEN = {
    * (4) Parallelslalom (ab E4): Eine Seite mit X oder Dummy wird leer gezeigt; der Start entfällt nur
    * bei `startEntfaellt` (planung/parallel.ts) oder wenn beide Seiten ein X haben – der Gegner fährt
    * (lib/abmeldung.ts, Halbfinale und Finale). 16.11.2026.
-   * Beim Bau von E4 (16.11.2026, noch zu bestätigen): „Leer“ ist eine Seite mit Dummy, mit gelöschtem Starter
+   * Beim Bau von E4 (16.11.2026): „Leer“ ist eine Seite mit Dummy, mit gelöschtem Starter
    * (startEntfaellt zählt ihn als Dummy) oder mit X in einer Disq-Zelle dieses Attempts auf einer Liste des
    * Parallelslaloms – dieselbe Frage wie Erfassung und Wertung. Der Start entfällt, wenn BEIDE Seiten leer sind;
    * das schließt startEntfaellt und das doppelte X ein und ebenso einen Dummy gegen ein X (dort fährt niemand –
    * die Regel oben nennt den Fall nicht). Die Sicht sagt nicht, warum eine Seite leer ist (`null`): Abmeldungen
-   * gehören nicht in die Sicht.
+   * gehören nicht in die Sicht. Bestätigt 27.11.2026 (R13-12 (4)): leere Seite „–“, der Start entfällt nur, wenn beide
+   * Seiten leer sind.
    * Nach der Prüfung von E4 (16.11.2026, vom Nutzer zu bestätigen): Die Kennung eines Paares in der öffentlichen
    * Sicht (Anzeigetafel, Start-Freigabe, ab E6 Geräte des Veranstalters) trägt weiter die IDs laut Plan, auch die
    * einer leeren Seite – „Nächster Start“ schickt sie als `vorher`, und sie darf sich nicht ändern, wenn ein X
@@ -86,8 +89,8 @@ export const BETRIEB_ANNAHMEN = {
    * frühere Runde einer Klasse festgeschrieben, während eine andere schon in den Finals ist, stünde deren Start in
    * der Folge der Runden vorn und unterbräche das Paar zwischen seinen Attempts (Tausch von Boot und Racecourse,
    * Regel 960 Pkt. 4.4). Innerhalb derselben Runde gilt die Folge, wie sie steht – „Als Nächster“ und „Einsteigen
-   * ab …“ sind dort bewusste Entscheidungen am Steg; gezielt zeigen geht immer. Nach der Prüfung von E4, 16.11.2026 –
-   * vom Nutzer zu bestätigen.
+   * ab …“ sind dort bewusste Entscheidungen am Steg; gezielt zeigen geht immer. Nach der Prüfung von E4, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-13): Ein Paar im Boot fährt seinen anderen Attempt, bevor eine andere Runde drankommt.
    */
   parallelPaarZuEnde: true,
   /**
@@ -97,11 +100,12 @@ export const BETRIEB_ANNAHMEN = {
    * 2. desselben Paares – vor dem 1. und mit einem Paar, das nicht bereit ist (Regel 960, Pkt. 4.4: der frühere
    * Start ist der 1. Attempt). Gezielt zeigen geht wie im Manövrieren für jeden offenen Start; dort prüft der
    * Betrieb die Folge der Attempts nicht – das ist eine bewusste Entscheidung am Steg. Beim Bau von E4,
-   * 16.11.2026 – noch zu bestätigen.
-   * Nach der Prüfung von E4 (16.11.2026, vom Nutzer zu bestätigen): Gezielt gezeigt holt ein Attempt auch den
+   * 16.11.2026.
+   * Nach der Prüfung von E4 (16.11.2026): Gezielt gezeigt holt ein Attempt auch den
    * offenen Attempt seines Paares direkt hinter sich, der im Plan direkt dahinter steht (Halbfinale, Finals, Re-runs:
    * planung/parallelRunden.ts `mitKlasse`) – sonst käme nach einem gezielt gezeigten 1. Attempt erst ein Paar, das in
    * der Folge davor stand. Im Vorlauf wechseln die Blöcke zwischen den Attempts die Bootstypen; dort bleibt der Plan.
+   * Bestätigt 27.11.2026 (R13-13): Zurückstellen, Einreihen und gezieltes Zeigen nehmen das Paar mit.
    */
   parallelPaarAlsEinheit: true,
   /**
@@ -111,8 +115,8 @@ export const BETRIEB_ANNAHMEN = {
    * „Verzahnung beim Verschieben halten“ ausrichten könnten. Diese Schritte und das Verschieben (Menü und Ziehen
    * in der Startliste) sind dort gesperrt – der Reducer ändert nichts, die Start-Freigabe zeigt einen Hinweis.
    * Ist ein Paar nicht bereit: zurückstellen und einreihen (`parallelPaarAlsEinheit`). Zeigen, Zurück,
-   * Meldungen, Runde beginnen und „Einsteigen ab …“ (Runde, Klasse) gehen. Beim Bau von E4, 16.11.2026 – noch
-   * zu bestätigen.
+   * Meldungen, Runde beginnen und „Einsteigen ab …“ (Runde, Klasse) gehen. Beim Bau von E4, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-13): kein Umstellen im Parallelslalom, das Paar gilt als Einheit.
    */
   parallelOhneUmstellen: true,
   /**
@@ -123,7 +127,7 @@ export const BETRIEB_ANNAHMEN = {
    * eigener Abstand des Parallelslaloms bräuchte eine Vorgabe, die weder Regel 960 noch die Messdaten des
    * Prototyps hergeben, und bis zur dritten Messung gäbe es ohnehin keine Zahl – bei wenigen Dutzend Starts je
    * Runde kaum je eine. Später möglich: ein eigener gemessener Abstand des Bereichs. Beim Bau von E4,
-   * 16.11.2026 – noch zu bestätigen.
+   * 16.11.2026. Bestätigt 27.11.2026 (R13-12 (1)).
    */
   parallelOhnePrognose: true,
   /**
@@ -131,7 +135,7 @@ export const BETRIEB_ANNAHMEN = {
    * erst, wenn dort eine Runde begonnen ist: Am Tag des Manövrierens bliebe sonst ein Drittel der Tafel auf
    * „bereit“. Eine eigene Tafel nur für ihn gibt es über „Eigene Anzeigetafel“ (`#/anzeige/parallel`), ausdrücklich
    * wählen lässt er sich in den Einstellungen. `false`: Er steht immer auf der gemeinsamen Tafel. Beim Bau von E4,
-   * 16.11.2026 – noch zu bestätigen.
+   * 16.11.2026. Bestätigt 27.11.2026 (R13-12 (2)).
    */
   parallelAufDerTafel: true as boolean,
   /**
@@ -140,7 +144,8 @@ export const BETRIEB_ANNAHMEN = {
    * Start-Freigabe, die Startliste im Betrieb und die Zuschauerliste bleiben bei A vor B: Am Steg und auf dem Handy
    * liest man sie wie die Listen der race officials, den Laufzettel und die Startlisten (überall A vor B), nicht vom
    * Ufer aus. Die Zeile „davor“ der Tafel nennt das Paar in der Folge der Seiten auf der Tafel (links bzw. oben
-   * zuerst) – so steht jede Nummer auf derselben Seite wie eben noch im Boot. Beim Bau, 16.11.2026 – noch zu bestätigen.
+   * zuerst) – so steht jede Nummer auf derselben Seite wie eben noch im Boot. Beim Bau, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-12 (3)).
    */
   parallelAnordnungNurTafel: true,
   /**
@@ -264,13 +269,15 @@ export const BETRIEB_ANNAHMEN = {
   /**
    * „Andere Klassen vorziehen“ ist anfangs an – wie im Tafel-Prototyp (`pullForward: true`): Fällt ein Boot
    * aus, bleibt der Wechsel zwischen den Spuren erhalten, ohne dass am Steg erst ein Schalter gesucht werden
-   * muss. Beim Bau von E2, 16.11.2026 – noch zu bestätigen (`false`: anfangs schließen sich nur die Lücken).
+   * muss. Beim Bau von E2, 16.11.2026 (`false`: anfangs schließen sich nur die Lücken).
+   * Bestätigt 27.11.2026 (R13-15 (3)).
    */
   vorziehenVorgabe: true as boolean,
   /**
    * (zu B-4) „Ans Ende des Laufs einreihen“: hinter den letzten Start des eigenen Punkts; ist der schon
    * vorbei (ein verpasster Lauf 1, während Lauf 2 läuft), ans Ende des laufenden Punkts – dort kommt er
-   * wirklich dran (S-4: „den zweiten vor Beginn von Lauf 3“). Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   * wirklich dran (S-4: „den zweiten vor Beginn von Lauf 3“). Beim Bau von E2, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-15 (4)).
    */
   einreihenEndeLaufend: true,
   /**
@@ -284,14 +291,15 @@ export const BETRIEB_ANNAHMEN = {
    * (zu B-10) Eine Klasse, die unter den fahrenden Klassen ihre Spur für sich hat, lässt sich nicht
    * vorziehen (Lastenheft B-10: „ihre Plätze gehören ihr ohnehin alle“). Der Prototyp ließ in diesem Fall
    * stattdessen die andere Spur beginnen; das geht hier über das Vorziehen einer Klasse der anderen Spur.
-   * Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   * Beim Bau von E2, 16.11.2026. Bestätigt 27.11.2026 (R13-15 (3)).
    */
   alleinAufDerSpurFest: true,
   /**
    * (zu B-8) Meldungsvorlagen erscheinen in der Sprache der Anzeigetafel (wie alles, was dort steht),
    * beschriftet in der Sprache der Oberfläche; `{veranstaltung}` wird der Name der Veranstaltung, ohne
    * Namen ein allgemeines Wort. Texte nach dem Tafel-Prototyp (data/messages.ts, aus der bisherigen
-   * Word-Lösung). Beim Bau von E2, 16.11.2026 – noch zu bestätigen.
+   * Word-Lösung). Beim Bau von E2, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-15 (7)).
    */
   vorlagenInTafelSprache: true,
   /**
@@ -300,8 +308,8 @@ export const BETRIEB_ANNAHMEN = {
    * nur innerhalb der Spuren); ein Start wird über ein Menü verschoben – vorziehen (vor den Nächsten), ans Ende
    * des Laufs, vor/nach Lauf n. Am Laptop am Steg ist ein Klick der sicherere Griff, ein Fehlgriff beim Ziehen
    * stellte die Folge vor Zuschauern um. Gezogen wird in der Startliste im Betrieb (E3, `ziehenInDerStartliste`);
-   * Klassen werden nirgends gezogen. Beim Bau der Oberfläche von E2, 16.11.2026 – noch zu bestätigen
-   * (components/betrieb/KlassenAussetzen.vue, BetriebsFolge.vue).
+   * Klassen werden nirgends gezogen. Beim Bau der Oberfläche von E2, 16.11.2026
+   * (components/betrieb/KlassenAussetzen.vue, BetriebsFolge.vue). Bestätigt 27.11.2026 (R13-15 (5)).
    */
   knoepfeStattZiehen: true,
   /**
@@ -311,14 +319,16 @@ export const BETRIEB_ANNAHMEN = {
    * `verschiebe`: Blöcke je Lauf, nie vor den Zeiger, mit „Verzahnung halten“ rutscht die Spur im Block mit – der
    * Start landet dann auf dem nächsten Platz seiner Spur, nicht immer genau am Ablageort). Nicht gezogen werden
    * „Boot fehlt“, zurückgestellte und nachzuholende (sie haben ihre Knöpfe); für die Tastatur steht daneben dasselbe
-   * Menü. Ohne festgeschriebene Verzahnung ruht beides. Beim Bau der Oberfläche von E3, 16.11.2026 – noch zu bestätigen.
+   * Menü. Ohne festgeschriebene Verzahnung ruht beides. Beim Bau der Oberfläche von E3, 16.11.2026.
+   * Dass nur in der Startliste gezogen wird, bestätigt 27.11.2026 (R13-15 (5)); die Regeln des Ablegens (vor/hinter,
+   * was nicht gezogen wird) waren nicht eigens gefragt – noch zu bestätigen.
    */
   ziehenInDerStartliste: true,
   /**
    * „Einsteigen ab …“ fragt nicht nach: Ein früherer Einstieg nimmt einen zu späten zurück (betrieb/schritte.ts
    * `einsteigen`), und Rückfragen gibt es an der Start-Freigabe nur vor Unumkehrbarem bzw. vor „Lauf beginnen“
    * mit noch offenen Starts (E1). Der Prototyp fragte mit confirm(). Beim Bau der Oberfläche von E2,
-   * 16.11.2026 – noch zu bestätigen (components/betrieb/EinsteigenAb.vue).
+   * 16.11.2026 (components/betrieb/EinsteigenAb.vue). Bestätigt 27.11.2026 (R13-15 (6)).
    * Der gewählte Start ist danach der Nächste, auch wenn nach einem zu späten Einstieg schon gezeigt wurde: Er
    * und alles, was mit ihm wieder offen ist, rücken hinter den Zeiger (state/reducer/betrieb.ts BETRIEB_AB).
    * Nach der Prüfung von E2, 16.11.2026.
@@ -331,16 +341,17 @@ export const BETRIEB_ANNAHMEN = {
    * unter `kuerzester` (Durchklicken, Fehlklick) oder über `laengster` Sekunden (Pause, Störung, Mittag) zählen
    * nicht (L-4). Ab `ab` Messungen einer Klasse (über alle Bereiche) gilt ihr Mittel, sonst die Vorgabe
    * (config/catalog.ts startabstandOf: eigener Wert, Regelwerk, einstellungen.yaml – unter UIM die allgemeine).
-   * Plan §7 Nr. 12, 16.11.2026. Beim Bau von E3 (16.11.2026, noch zu bestätigen): Unter `ab` Messungen wird nicht
+   * Plan §7 Nr. 12, 16.11.2026. Beim Bau von E3 (16.11.2026): Unter `ab` Messungen wird nicht
    * gemischt (der Prototyp gewichtete Vorgabe und Messung) – „ab 3 Messungen der Messwert“ wörtlich.
+   * Bestätigt 27.11.2026 (R13-09 (a), (b)): ab drei Messungen nur der Messwert, vorher nur die Vorgabe; gültig 30–300 s.
    */
   prognoseMessung: { ab: 3, kuerzester: 30, laengster: 300 },
   /**
-   * (zu 12) Was keine Messung ist – beim Bau von E3, 16.11.2026, noch zu bestätigen: „ohne Anzeige“ Erledigtes
+   * (zu 12) Was keine Messung ist – beim Bau von E3, 16.11.2026: „ohne Anzeige“ Erledigtes
    * (Einsteigen) hat keine Zeit; steht zwischen zwei gezeigten Starts in der Folge ein solcher, zählt ihr Abstand
    * nicht (er umfasste mehrere Läufe). Ebenso nicht, wenn der vorige Start inzwischen entfällt (X: kein Lauf
    * gefahren) oder sein Starter gelöscht ist (Klasse unbekannt). „Zurück“ nimmt den Start aus dem Verlauf und so
-   * auch aus der Messung.
+   * auch aus der Messung. Bestätigt 27.11.2026 (R13-09 (c)).
    */
   keineMessungOhneLauf: true,
   /**
@@ -351,7 +362,8 @@ export const BETRIEB_ANNAHMEN = {
    * Wann der Punkt begonnen wurde, steht nicht im Stand; also zählt kein Abstand zwischen zwei Punkten – auch nicht
    * der zu einem nachzuholenden oder gezielt gezeigten Start eines anderen Punkts. Eine verworfene Messung schadet
    * nicht, eine verzerrte schon. Mit „Versuche nacheinander“ gibt es nur einen Punkt, dort greift das nie. Der
-   * Prototyp maß über die Grenze. Nach der Prüfung von E3, 16.11.2026 – noch zu bestätigen.
+   * Prototyp maß über die Grenze. Nach der Prüfung von E3, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-09 (c)): nie über einen Laufwechsel.
    */
   keineMessungUeberPunktgrenze: true,
   /**
@@ -360,7 +372,8 @@ export const BETRIEB_ANNAHMEN = {
    * Abstand seiner Klasse. Ohne Zahl bleiben „Boot fehlt“ (wann es zurück ist, weiß niemand), Starts nicht
    * begonnener Punkte (deren Beginn steht nicht fest: Mittag, Nacht), zurückgestellte und nachzuholende (sie
    * kommen nicht von selbst). Gerechnet wird auf dem Bildschirm mit seiner Uhr; die Sicht trägt nur die Abstände
-   * und `seit` (Kritik K28). Beim Bau von E3, 16.11.2026 – noch zu bestätigen.
+   * und `seit` (Kritik K28). Beim Bau von E3, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-10), ebenso ohne Zahl „Wiederholung offen“ (WH2).
    */
   wartezeitNurFreigegebene: true,
   /**
@@ -371,8 +384,8 @@ export const BETRIEB_ANNAHMEN = {
    * erfinden. Dieselbe Grenze wie auf der Tafel, mit Absicht: Auch Begrüßungen („Gleich geht's los“) stehen als
    * Pause – solange sie stehen, fährt niemand, und vor dem ersten Start wäre jede Zahl erfunden. Ein „Hinweis“
    * (Art info) hält nichts an. Ist die Meldung weg, rechnet die Liste vom Start im Boot weiter (sein Rest ist dann
-   * meist 0: der Nächste „gleich“). Nach der Prüfung von E3, 16.11.2026 – noch zu bestätigen
-   * (betrieb/prognose.ts `bereichAngehalten`).
+   * meist 0: der Nächste „gleich“). Nach der Prüfung von E3, 16.11.2026
+   * (betrieb/prognose.ts `bereichAngehalten`). Bestätigt 27.11.2026 (R13-10), auch für die Begrüßungen.
    */
   keineZahlBeiPause: true,
   /**
@@ -386,7 +399,8 @@ export const BETRIEB_ANNAHMEN = {
    * (zu 12, L-6) „Messwerte als Vorgabe übernehmen“ (Einstellungen → Betrieb) übernimmt nur Klassen mit mindestens
    * `prognoseMessung.ab` Messungen – weniger sind auch für die Prognose zu wenig –, auf ganze Sekunden gerundet;
    * ein Wert gleich der Vorgabe wird kein eigener (der Stand hält nur Abweichungen, K24). Der Prototyp übernahm
-   * schon ab einer Messung. Beim Bau von E3, 16.11.2026 – noch zu bestätigen.
+   * schon ab einer Messung. Beim Bau von E3, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-09 (d)).
    */
   vorgabeAbGenugMessungen: true,
   /**
@@ -395,7 +409,8 @@ export const BETRIEB_ANNAHMEN = {
    * der begonnenen Punkte, deren „Boot fehlt“ und die Meldung – keine Bedienangaben (zur Wahl über alle Läufe,
    * zurückgestellt, nachzuholen, Einstiege, Klassen, Programm) und keine Logos. Grund: Der Link wird weitergegeben
    * (Minderjährige), und wer zurückgestellt ist, geht Zuschauer nichts an; Starter, die nur in Bedienangaben
-   * vorkommen, stehen dann gar nicht darin. Beim Bau von E3, 16.11.2026 – noch zu bestätigen.
+   * vorkommen, stehen dann gar nicht darin. Beim Bau von E3, 16.11.2026.
+   * Bestätigt 27.11.2026 (R13-11): nur der laufende Lauf, ohne Zurückgestellte, Nachzuholende und „Wiederholung offen“.
    */
   zuschauerSchmal: true,
   /**
@@ -405,7 +420,7 @@ export const BETRIEB_ANNAHMEN = {
    * und „zum Vorsteg in“. Der Klassenfilter blendet nur aus – Gruppe und Wartezeit zählen alle Klassen, sonst rückte
    * ein Starter scheinbar an den Steg. Unter einer Minute steht „gleich“, ab einer Stunde „1 h 05 min“. Die
    * Startliste im Betrieb zeigt dagegen die ganze Folge, auch nicht begonnene Läufe (ohne Zahl, L-2). Beim Bau der
-   * Oberfläche von E3, 16.11.2026 – noch zu bestätigen.
+   * Oberfläche von E3, 16.11.2026. Bestätigt 27.11.2026 (R13-10, R13-11).
    */
   zuschauerGruppen: true,
   /**
@@ -488,15 +503,19 @@ export const BETRIEB_ANNAHMEN = {
    */
   leseLinkOberflaeche: true,
   /**
-   * E7, Rechte der Start-Freigabe (Entscheidung F5 vom 16.11.2026; Ausgestaltung beim Bau 20.11.2026 – vom Nutzer zu
-   * bestätigen): Positivliste geraete/aufgaben.ts STARTFREIGABE_ACTIONS = alle BETRIEB_* außer ZURUECKSETZEN, nur in
-   * den Bereichen der Aufgabe, und nur Bereiche, die es im Stand gibt. Eine Meldung an ALLE Bereiche (`'*'`) darf kein
-   * Gerät – auch eines mit allen Bereichen nicht: Sie schriebe auch auf Bereiche, die später dazukommen. Das Gerät
+   * E7, Rechte der Start-Freigabe (Entscheidung F5 vom 16.11.2026; Ausgestaltung beim Bau 20.11.2026, bestätigt
+   * 27.11.2026 – R13-06, bis auf die Wiederholung, unten): Positivliste geraete/aufgaben.ts STARTFREIGABE_ACTIONS = alle
+   * BETRIEB_* außer ZURUECKSETZEN, nur in den Bereichen der Aufgabe, und nur Bereiche, die es im Stand gibt. Eine
+   * Meldung an ALLE Bereiche (`'*'`) darf kein Gerät – auch eines mit allen Bereichen nicht: Sie schriebe auch auf Bereiche, die später dazukommen. Das Gerät
    * prüft dieselbe Liste nur, um Knöpfe zu sperren; maßgeblich ist der Host (Register, nie die Behauptung des Geräts).
+   * Seit dem 27.11.2026 (Nutzer, R13-01/R13-06) dazu die Wiederholung nach Ausfall – auslösen und „Doch keine
+   * Wiederholung“, zwei Actions der Erfassung über eine eigene, eng geprüfte Ausnahme (STARTFREIGABE_WIEDERHOLUNG,
+   * WH3/WH13); „Betrieb zurücksetzen“ und „Auf allen Parcours zeigen“ bleiben am Bedienrechner (R13-06 sonst bestätigt).
    */
   startfreigabeRechte: true,
   /**
-   * E7, Koppeln (Lastenheft der Tafel P-3/P-4; beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * E7, Koppeln (Lastenheft der Tafel P-3/P-4; beim Bau 20.11.2026; bestätigt 26./27.11.2026 bis auf die Punkte, die
+   * der letzte Absatz als nicht gefragt nennt):
    * - Geräte-Code (6 Zeichen, 5 min, EIN Gerät) braucht auf dem Handy den **Koppel-Link** (`#/koppeln/<paket>`: alles
    *   des Anzeigetafel-Links plus der öffentliche Box-Schlüssel des Hosts). Der Link wird vorab verteilt, der Code kommt
    *   über Funk. Thema H(oA ‖ 'koppeln' ‖ code); ein Code gilt nur auf seinem Thema.
@@ -515,10 +534,15 @@ export const BETRIEB_ANNAHMEN = {
    * - Hingenommen: Der Betreiber des ntfy-Servers sieht oA und das Koppel-Thema und könnte den 6-stelligen Code
    *   zurückrechnen (≈ 6·10⁸ Versuche). Ihm fehlt der Box-Schlüssel des Hosts (steht nur im Koppel-Link), der Code gilt
    *   5 Minuten für ein Gerät, und ein fremdes Gerät stünde in der Geräteliste.
+   * - Bestätigt 27.11.2026 (R13-07, R13-15 (8)): Der QR-Code wechselt alle 30 s, ein Foto davon gilt höchstens eine
+   *   Minute, die QR-Sitzung schließt sich nach 10 Minuten; wer scannt bzw. den gültigen Code eintippt, ist ohne
+   *   Rückfrage gekoppelt. Nicht eigens gefragt, noch zu bestätigen: der Geräte-Code nur mit Koppel-Link (erster
+   *   Punkt), das Wiederholen mit wachsendem Abstand samt später Antwort und das Hingenommene zum Betreiber des
+   *   ntfy-Servers.
    */
   koppelnZeiten: true,
   /**
-   * E7, gekoppelte Geräte (beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * E7, gekoppelte Geräte (beim Bau 20.11.2026; das Wiederanmelden und der Entzug bestätigt 27.11.2026, R13-08):
    * - Ein bekanntes Gerät (ID UND Schlüssel im Register) meldet sich nach jedem Start selbst an (P-7) und bekommt seine
    *   jetzigen Rechte. Rechte ändert der Bedienrechner in der Geräteliste (wirkt sofort). Ein neuer gültiger Code, über
    *   sein Koppel-Thema eingegeben, setzt auch für ein schon gebundenes Gerät die Rechte des Codes (der Bedienrechner
@@ -529,10 +553,14 @@ export const BETRIEB_ANNAHMEN = {
    *   werden (derselbe Schlüssel – der Host hatte ihn aus dem Register genommen).
    * - Schreibfenster: Jedes `pointerdown`/`keydown` in einem Fenster mit vollem Store gilt als Bedienung (geraete/host.ts);
    *   Geräte-Actions wendet das zuletzt bediente Fenster an, nach 1 s ohne Antwort das Führungsfenster.
+   * - Bestätigt 27.11.2026 (R13-08 (1), (2)): von selbst wieder an, mit den Rechten, die jetzt in der Geräteliste
+   *   stehen; entzogen nur noch lesen, wieder koppeln nur mit einem neuen Code. Nicht eigens gefragt (technische
+   *   Folgen, noch zu bestätigen): ein neuer Code für ein schon gebundenes Gerät setzt dessen Rechte neu; das
+   *   Schreibfenster.
    */
   gekoppelteGeraete: true,
   /**
-   * E7, Oberfläche (beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * E7, Oberfläche (beim Bau 20.11.2026; ganz bestätigt – R11-20, R11-21, R13-06, R13-07, R13-08, R13-15 (8)):
    * - Keine Rückfrage „Gerät annehmen?“ am Bedienrechner: Gültiger Code bzw. QR-Token koppelt sofort mit den Rechten,
    *   die beim Ausgeben gewählt waren (components/betrieb/GeraeteKoppeln.vue). Den Code gibt nur, wer am Bedienrechner
    *   sitzt; ein fremdes Gerät stünde sofort in der Geräteliste und lässt sich entziehen.
@@ -553,6 +581,10 @@ export const BETRIEB_ANNAHMEN = {
    * - „Gerät entkoppeln“ löscht nur auf dem Gerät; der Host erfährt es nicht, das Gerät bleibt in seiner Liste, bis
    *   es dort entzogen wird.
    * - Die Geräteliste zeigt „zuletzt gehört“, nicht „verbunden“: Geräte senden keinen Herzschlag (Kontingent).
+   * Bestätigt 27.11.2026: keine Rückfrage, Name nach der Geräteart, umbenennen in der Geräteliste (R13-07); nur die
+   * eigenen Bereiche, ohne „Meldung auf allen“ (R13-06); alle Knöpfe gesperrt bis zur Quittung, nach 10 s der Satz
+   * (R13-15 (8)); Entzogen, „Gerät entkoppeln“ und „zuletzt gehört“ (R13-08 (2)–(4)). „Keine Antwort“ nach 15 s
+   * bestätigt 26.11.2026 (R11-21).
    */
   koppelnOberflaeche: true,
   /**
@@ -659,31 +691,36 @@ export const BETRIEB_ANNAHMEN = {
    * „Pause“ oder „Störung“, nach „Zurück“ bzw. nach dem Neuladen (gezählt wird nur, wenn der Host die Ampel desselben
    * Starts vorher grün oder rot gesehen hat). Dispatch nur im Fenster mit der Führung (geraete/fuehrung.ts) über
    * dasselbe Schreibfenster wie die Geräte-Actions; die Entscheidung rein in wkr/ampel.ts autoSchritt.
-   * 21.11.2026, noch zu bestätigen.
+   * 21.11.2026.
    * Bestätigt 22.11.2026 (R7-06 Einstellung, Vorgabe aus, 3 s mit „Anhalten“; R7-07 nie von selbst).
    */
   autoVorgabe: false,
-  /** (AM6) Sekunden zwischen „frei“ und dem automatischen „Nächster Start“ – Zeit für „Anhalten“. 21.11.2026, noch zu bestätigen. */
+  /**
+   * (AM6) Sekunden zwischen „frei“ und dem automatischen „Nächster Start“ – Zeit für „Anhalten“. 21.11.2026, bestätigt
+   * 22.11.2026 (R7-06: 3 s).
+   */
   autoVerzugSek: 3,
   /**
    * (AM7) „Anhalten“ des Auto-Modus gilt bis zum nächsten gezeigten Start und liegt gerätelokal im Host (Arbeitsspeicher
    * des Führungsfensters), nie im AppState – vom Freigabe-Handy als Geräte-Nachricht `BETRIEB_AUTO_HALT` (keine
-   * Reducer-Action, der Host fängt sie vor dem Schreibfenster ab). 21.11.2026, noch zu bestätigen.
+   * Reducer-Action, der Host fängt sie vor dem Schreibfenster ab). 21.11.2026.
    * Bestätigt 22.11.2026 (R7-08).
    */
   autoAnhaltenLokal: true,
   /**
    * (AM8) Keine Ampel auf Anzeigetafel und Zuschauerliste (F17: nichts aus der WKR-Erfassung auf öffentlichen Links;
    * die Tafel zeigt den Starter ohnehin erst ab grün). sichtOeffentlich/sichtZuschauer bleiben unverändert, `sv` 6.
-   * 21.11.2026, noch zu bestätigen.
+   * 21.11.2026.
    * Bestätigt 22.11.2026 (R7-09).
    */
   keineAmpelAufTafel: true,
   // --- Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11) ---------------------------------------------------------
   // „Bei einem bestätigten Ausfall kommt es zu einer Wiederholung des Laufes. … Wenn der Ausfall Verschulden vom Starter
   // ist, dann ist es ein J Falscher Parcours.“ Auf Rückfrage entschieden (26.11.2026): von Hand einreihen, Werte werden
-  // verworfen, ausgelöst am Bedienrechner. Gilt für das Manövrieren (DM und UIM); der Parallelslalom hat seinen eigenen
-  // Re-run. „J bei Verschulden“ setzt der WKR an einer Boje – dafür baut die App nichts.
+  // verworfen, ausgelöst am Bedienrechner – seit dem 27.11.2026 (R13-01/R13-06) an der Start-Freigabe, auch auf dem
+  // gekoppelten Handy (WH3, WH11–WH13). Gilt für das Manövrieren (DM und UIM) und seit dem 27.11.2026 (R13-02: „Auch
+  // hier kann es zu technischen Ausfällen kommen.“) auch für den Parallelslalom (WHP1–WHP6 unten); dessen Re-run bei
+  // Gleichstand ist eine eigene Sache. „J bei Verschulden“ setzt der WKR an einer Boje – dafür baut die App nichts.
   /**
    * (WH1) Der abgebrochene Versuch bleibt im Verlauf der Anzeige (`gezeigt` mit `abgebrochen`: Tafel „davor“, Messung
    * nicht), zählt aber nicht als erledigt – der Start ist wieder offen, bis er erneut gezeigt wird (betrieb/folge.ts lage).
@@ -699,26 +736,32 @@ export const BETRIEB_ANNAHMEN = {
    */
   wiederholungVonHand: true,
   /**
-   * (WH3) Auslösen nur am Bedienrechner (Nutzer 26.11.2026: „Bedienrechner“), mit Rückfrage, die Startnummer, Lauf und
-   * Folgen nennt; die Wahl sind die gezeigten, geltenden Starts der begonnenen Punkte, der jüngste zuerst, mit Suche nach
-   * Startnummer (betrieb/sicht.ts `gefahren`, nur am Bedienrechner, nie auf der Leitung). Beim Bau 26.11.2026, noch zu
-   * bestätigen: Das Freigabe-Handy löst nicht aus (WIEDERHOLUNG_AUSFALL steht nicht in der Positivliste
-   * geraete/aufgaben.ts – es ist eine Action der Erfassung, keine des Betriebs).
+   * (WH3) Auslösen an der Start-Freigabe – am Bedienrechner UND auf dem gekoppelten Freigabe-Handy für dessen Bereiche
+   * (Nutzer 27.11.2026, R13-01: „Nein, auch an der Start Freigabe, wenn diese auf einem anderen Gerät aktiv ist. Die
+   * Start-Freigabe ist die Instance, die bestimmt, wer im Parcours ist und als welchen Lauf dieser gewertet wird. Damit
+   * sind auch Wiederholungen direkt dort zu entscheiden“; R13-06: „Wiederholungen von Starts auslösen und einordnen in der
+   * Verzahnung, das die Position auch machen.“ – vorher, 26.11.2026, „Bedienrechner“: nur dort). Mit Rückfrage, die
+   * Startnummer, Lauf und Folgen nennt; die Wahl sind die gezeigten, geltenden Starts der begonnenen Punkte, der jüngste
+   * zuerst, mit Suche nach Startnummer (betrieb/sicht.ts `gefahren`, betrieb/folge.ts gefahreneStarts). Auf dem Handy
+   * dieselbe Wahl und Rückfrage (components/betrieb/GeraetFreigabe.vue → StartFreigabe/AusfallWahl); die beiden Actions
+   * der Erfassung WIEDERHOLUNG_AUSFALL und WIEDERHOLUNG_AUFHEBEN gehen über eine eigene, eng geprüfte Ausnahme der
+   * Positivliste (geraete/aufgaben.ts STARTFREIGABE_WIEDERHOLUNG/erlaubteWiederholung, WH13) – nicht pauschal Actions
+   * der Erfassung. Weiter nur am Bedienrechner (R13-06 sonst bestätigt): „Betrieb zurücksetzen“, „Auf allen Parcours
+   * zeigen“ (die Meldung), alle Einstellungen.
    * Prüfbefund 27.11.2026: Starts abgemeldeter Starter stehen ausgegraut in der Wahl („abgemeldet – keine Wiederholung“,
-   * WH10) – vorher bestätigte man die Rückfrage, und still geschah nichts. BetriebView gibt die Abmeldungen dazu; die
-   * Sicht trägt sie nie.
+   * WH10) – vorher bestätigte man die Rückfrage, und still geschah nichts. BetriebView gibt die Abmeldungen dazu, dem
+   * Handy die Freigabe-Gruppe (WH12); die öffentliche Sicht trägt sie nie.
    * Bestätigt 27.11.2026 (R12-18 (4)): In der Wahl stehen alle schon gezeigten, geltenden Starts der Läufe, die gerade
    * laufen, der zuletzt gezeigte oben; die ersten acht sofort, die übrigen über die Suche nach Startnummer; beim
-   * Einsteigen mitten im Wettkampf ohne Anzeige Erledigte fehlen. Die Abgemeldeten ausgegraut: R12-18 (6). Weiter zu
-   * bestätigen: dass das Freigabe-Handy nicht auslöst (nicht gefragt).
+   * Einsteigen mitten im Wettkampf ohne Anzeige Erledigte fehlen. Die Abgemeldeten ausgegraut: R12-18 (6).
    */
-  wiederholungNurBedienrechner: true,
+  wiederholungAnDerStartFreigabe: true,
   /**
    * (WH4) „Zurück“ nimmt einen abgebrochenen Versuch nicht zurück (er ist schon „verbraucht“). Wer sich vertan hat:
-   * „Doch keine Wiederholung“ in der Liste „Wiederholung offen“ (nur am Bedienrechner), solange der Start nicht wieder
-   * gezeigt ist – der zuletzt abgebrochene Versuch gilt wieder. Beim Bau 26.11.2026; dass „Zurück“ den Versuch nicht
-   * nimmt und „Doch keine Wiederholung“ nur am Bedienrechner geht, ist weiter zu bestätigen (in R12-11 nur als
-   * Hintergrund genannt, nicht gefragt).
+   * „Doch keine Wiederholung“ in der Liste „Wiederholung offen“, solange der Start nicht wieder gezeigt ist – der zuletzt
+   * abgebrochene Versuch gilt wieder. Beim Bau 26.11.2026; „Zurück“ nimmt den abgebrochenen Start nicht, dafür „Doch keine
+   * Wiederholung“ – bestätigt 27.11.2026 (R13-15 (1): „Passt“). „Doch keine Wiederholung“ seit dem 27.11.2026 auch auf dem
+   * Freigabe-Handy (R13-01/R13-06, WH3; vorher nur am Bedienrechner).
    * Umgebaut nach dem Prüfbefund 27.11.2026: Vorher holte nur „Einstellungen → Verlauf“ die Werte zurück – und nahm
    * dabei alles seitdem Eingetragene mit; ohne das stand der Start erledigt, aber leer da, und die WKR-Geräte boten ihn
    * unter der alten Kennung nie wieder an (sie hielten ihre Zeile für übernommen). Jetzt ist „Doch keine Wiederholung“
@@ -726,9 +769,13 @@ export const BETRIEB_ANNAHMEN = {
    * (samt Haken und „keine Zeit“) liegen solange in WkrStand.verworfen und kommen zurück – nur in leere Zellen; was seit
    * dem Ausfall eingetragen wurde, bleibt. Rückfragen, Vorschläge und Papier-Vermerke von damals kommen nicht zurück.
    * Die Geräte haben damit wieder ihre Kennung und ihre Zeile; der Start ist erledigt (Haken).
+   * Prüfbefund 27.11.2026: Fährt in dem Start niemand mehr (X nach dem Ausfall, etwa weil die Abmeldung X in den geleerten
+   * Lauf setzte), ändert „Doch keine Wiederholung“ nichts – vorher kam die alte Zeit neben das X. Angeboten wird es dann
+   * ohnehin nicht (der Start entfällt, betrieb/folge.ts faehrtNoch). Beim Bau ausgelegt, vom Nutzer zu bestätigen.
    * Bestätigt 27.11.2026 (R12-11): Die alten Werte kommen nur in Felder, die jetzt leer sind (auch die Haken „Liste
    * erledigt“ und „keine Zeit“); was seit dem Ausfall eingetragen wurde, bleibt; offene Rückfragen und Vorschläge von
-   * damals kommen nicht zurück. Nicht gefragt: die Papier-Vermerke (P der Pausen, `papier` der Abschlüsse).
+   * damals kommen nicht zurück. Die Papier-Vermerke (P der Pausen, `papier` der Abschlüsse) kommen nicht zurück –
+   * bestätigt 27.11.2026 (R13-15 (2): „Passt“).
    */
   wiederholungAufheben: true,
   /**
@@ -771,7 +818,8 @@ export const BETRIEB_ANNAHMEN = {
    * (P) der Pausen und aus `papier`/`abweichend` der Abschlüsse. Ein schon abgeschlossener Lauf einer Liste bleibt
    * abgeschlossen: Die Zeile der Wiederholung wird dort ein Vorschlag „abgeschlossen“. Beim Bau 26.11.2026; der
    * abgeschlossene Lauf bestätigt 27.11.2026 (R12-15, unten), dass Rückfragen und Vorschläge wegfallen (und auch mit
-   * „Doch keine Wiederholung“ nicht zurückkommen) mit R12-11. Nicht gefragt: P der Pausen und `papier`/`abweichend`.
+   * „Doch keine Wiederholung“ nicht zurückkommen) mit R12-11. P der Pausen und `papier`/`abweichend` fallen weg –
+   * bestätigt 27.11.2026 (R13-15 (2): „Passt“).
    * Prüfbefund 27.11.2026: Vorher kam die Wiederholung auf einer Liste, die den Lauf schon abgeschlossen hatte, gar nicht
    * auf das Gerät (die Schlange ließ abgeschlossene Punkte aus) – die Zeile, die Vorschlag werden sollte, entstand nie,
    * und mit „Druck nach Modus“ fehlte oft auch der Bogen. Jetzt lässt wkr/schlange.ts eine Wiederholung (ein geltender
@@ -791,9 +839,142 @@ export const BETRIEB_ANNAHMEN = {
   wiederholungOhneAmpel: true,
   /**
    * (WH10) Keine Wiederholung für einen abgemeldeten Starter (Disq. X kommt beim Abmelden in leere Läufe – geleert
-   * stünde er sonst offen da) und keine im Parallelslalom (dort gilt der Re-run, lib/parallelErgebnis.ts). Beim Bau
-   * 26.11.2026. Für Abgemeldete bestätigt 27.11.2026 (R12-18 (6)): ausgegraut in der Wahl mit „abgemeldet – keine
-   * Wiederholung“; soll er doch fahren, nimmt die Leitung zuerst die Abmeldung zurück.
+   * stünde er sonst offen da). Beim Bau 26.11.2026. Für Abgemeldete bestätigt 27.11.2026 (R12-18 (6)): ausgegraut in der
+   * Wahl mit „abgemeldet – keine Wiederholung“; soll er doch fahren, nimmt die Leitung zuerst die Abmeldung zurück. Im
+   * Parallelslalom gilt das je Boot: Ein abgemeldetes Boot ist in der Wahl der Boote ausgegraut, „Beide wiederholen“
+   * dann auch (WHP2).
+   * Der zweite Teil – „keine Wiederholung im Parallelslalom (dort gilt der Re-run)“ – ist vom Nutzer umentschieden
+   * (27.11.2026, R13-02: „Auch hier kann es zu technischen Ausfällen kommen.“): Die Wiederholung gibt es seitdem auch dort
+   * (WHP1–WHP6); der Re-run bei Gleichstand (lib/parallelErgebnis.ts, Regel 960 Pkt. 5.2.6) bleibt davon unberührt.
    */
-  wiederholungNurManoevrieren: true,
+  wiederholungNichtAbgemeldet: true,
+  // --- Wiederholung vom Freigabe-Handy (Nutzer 27.11.2026, R13-01/R13-06, WH3) ----------------------------------------
+  // Beim Bau ausgelegt (27.11.2026), vom Nutzer zu bestätigen: wie die Wahl auf das Handy kommt (WH11, WH12), wie der
+  // Host prüft (WH13) und – nach dem Prüfbefund 27.11.2026 – woran die Action gebunden ist (WH14).
+  /**
+   * (WH11) Die Wahl „Wiederholung (Ausfall) …“ (`gefahren`) steht seit sv 8 in JEDER öffentlichen Sicht, nicht mehr nur am
+   * Bedienrechner – die Start-Freigabe auf dem Handy liest nur diese Sicht, und die Namen der Starter stehen nur dort
+   * (die Freigabe-Gruppe trägt keine, WKR_ANNAHMEN.freigabeOhneNamen). Damit lesen sie auch die Lese-Links der
+   * Anzeigetafel mit: welche Starts der laufenden Läufe schon gefahren sind – nichts, was die Tafel nicht schon gezeigt
+   * hat, ohne Werte, ohne Gründe, ohne Abmeldungen. Die Zuschauersicht (öffentlicher Link) trägt es nicht. Ältere Geräte
+   * (sv 7) laden neu. Beim Bau 27.11.2026, vom Nutzer zu bestätigen.
+   * Prüfbefund 27.11.2026 (zur Entscheidung, nicht umgebaut): Weil `gefahren` alle gezeigten Starts aller BEGONNENEN Läufe
+   * bzw. Runden trägt, bleiben deren Starter den ganzen Tag in der Startertabelle der Sicht (Name nach der Namensregel,
+   * Herkunft, Klasse) – auch auf jedem Gerät mit Anzeigetafel-Link (Gruppe ko), das die Wahl nie zeigt. Vorher fielen
+   * Starter, die alle Läufe hinter sich hatten, dort heraus. Kein neues Datenfeld, aber mehr Personen auf dem Tafel-Link
+   * als nötig. Möglich wären: nur die Läufe, die noch nicht zu Ende sind; eine feste Zahl der jüngsten Starts (dann fehlen
+   * ältere in der Suche – R12-18 (4) sagt „alle“); oder die Wahl nur an die Freigabe-Handys (eigene Gruppe). Bis zur
+   * Entscheidung bleibt es wie gebaut. Vom Nutzer zu entscheiden.
+   */
+  wiederholungWahlInSicht: true,
+  /**
+   * (WH12) Abmeldungen bekommt das Freigabe-Handy nur, um „abgemeldet – keine Wiederholung“ auszugrauen (WH10): die IDs der
+   * abgemeldeten Starter unter den gefahrenen Starts SEINES Bereichs (betrieb/folge.ts ausfallGesperrt), verschlüsselt in
+   * der Freigabe-Gruppe des Bereichs (wkr/freigabe.ts `ausfallGesperrt`, fv 3) – nie alle Abmeldungen, nie in der
+   * öffentlichen Sicht, nie an Geräte anderer Bereiche. Fehlt sie (noch nicht angekommen), lehnt der Host trotzdem ab
+   * (WH13). Beim Bau 27.11.2026, vom Nutzer zu bestätigen.
+   * Prüfbefund 27.11.2026: Damit gehen Abmeldungen (wenige, gezielt) über die Leitung – die Datenschutz-Aussagen sagten
+   * noch „nie“. Nachgezogen wie beim Ausgleichsgewicht: Text vor dem Einschalten (i18n `geraete.wasGeht`), geraete/CLAUDE.md
+   * „Was ntfy sieht“, Projektkarte; Leitungs-Test geraete/kopplung.test.ts (nur in der Freigabe-Gruppe des Bereichs).
+   */
+  wiederholungHandyAbmeldungen: true,
+  /**
+   * (WH13) Der Host prüft eine Wiederholung vom Handy gegen den vollen Stand und lehnt mit Grund ab, den das Handy als
+   * Satz zeigt (geraete.ablehnung.*): kein eigener Bereich der Start-Freigabe → `nicht-erlaubt`; der Start (das Paar,
+   * mit „Nur …“ das Boot) steht nicht unter den gefahrenen Starts des Bereichs – nicht gezeigt, inzwischen „Zurück“
+   * genommen, Lauf bzw. Runde nicht begonnen, entfallen – → `nicht-gezeigt`; ein Starter, den sie träfe, ist abgemeldet →
+   * `abgemeldet`. Wartet der Start schon auf seine Wiederholung (am Bedienrechner oder auf einem zweiten Handy schon
+   * ausgelöst), geht sie durch und ändert nichts – das Handy zeigt „Nichts geändert – schon geschehen …“. „Doch keine
+   * Wiederholung“ prüft nur den Bereich; wartet der Start nicht mehr (schon eingereiht und gezeigt), ebenso „Nichts
+   * geändert“. Zeit und Kennung setzt der Store wie bei jeder Geräte-Action; der Verlauf nennt den Eintrag wie am
+   * Bedienrechner (ohne Gerätenamen). Beim Bau 27.11.2026, vom Nutzer zu bestätigen.
+   */
+  wiederholungHandyPruefung: true,
+  /**
+   * (WH14) Gebunden an den gesehenen Versuch (Prüfbefund 27.11.2026): „Wiederholung (Ausfall)“ und „Doch keine
+   * Wiederholung“ tragen die Zahl der Abbrüche des Starts, wie die Start-Freigabe sie zeigte (SichtStart.`abbrueche`, sv 8;
+   * Action `abbrueche`). Stimmt sie beim Anwenden nicht mehr, ändert sich nichts (Reducer) und das Handy liest „Inzwischen
+   * hat sich dort etwas geändert – bitte die Anzeige prüfen.“ (`konflikt`). Vorher traf eine Nachricht, die im Funkloch
+   * stand (oder eine lange offene Rückfrage), die inzwischen am Bedienrechner ausgelöste, eingereihte und gezeigte
+   * Wiederholung selbst – sie wurde abgebrochen und ihre Werte geleert; ebenso hob ein spätes Aufheben einen neueren
+   * Ausfall auf. Das Handy MUSS die Zahl schicken (geraete/aufgaben.ts bereinigeWiederholung). Die offene Rückfrage
+   * (AusfallWahl) schließt sich still, sobald ihr Start nicht mehr mit derselben Zahl unter den gefahrenen steht. Beim Bau
+   * ausgelegt, vom Nutzer zu bestätigen.
+   */
+  wiederholungGebunden: true,
+  // --- Wiederholung nach Ausfall im Parallelslalom (Nutzer 27.11.2026, R13-02) -----------------------------------------
+  // „Auch hier kann es zu technischen Ausfällen kommen.“ – also JA, auch im Parallelslalom. Welche Boote wiederholen (nur
+  // das ausgefallene oder beide des Paares), hat der Nutzer offen gelassen; Paar als Einheit und kein Umstellen im
+  // Parallelslalom bestätigt (R13-13). Alles Folgende beim Bau ausgelegt (27.11.2026), vom Nutzer zu bestätigen.
+  /**
+   * (WHP1) Wie im Manövrieren (WH1–WH9), nur mit dem Paar als Start: Die Wahl „Wiederholung (Ausfall) …“ zeigt die
+   * gezeigten, geltenden Paar-Starts der begonnenen Runden (betrieb/sicht.ts `gefahren`). Verworfen werden die Werte der
+   * gewählten Boote in GENAU diesem Attempt (Runde + Attempt, `attemptSchluessel`) auf allen Listen – die Werte stehen je
+   * Starter, also auf den Listen beider Racecourses – samt Haken, Disq., „keine Zeit“, Rückfragen und Vorschlägen; gemerkt
+   * je Boot (WkrStand.verworfen), „Doch keine Wiederholung“ holt sie zurück (nur in leere Zellen, wie R12-11). Der
+   * wiederholte Attempt steht in denselben Zellen; die Wertung (lib/parallelErgebnis.ts) nimmt ihn wie jeden anderen, der
+   * Re-run bei Gleichstand bleibt eine eigene Runde. Die Paarung ändert sich nie – „Runde gedruckt (fest)“
+   * (AppState.parallelGedruckt) hindert die Wiederholung deshalb nicht. Beim Bau 27.11.2026, vom Nutzer zu bestätigen.
+   */
+  wiederholungParallel: true,
+  /**
+   * (WHP2) Die Rückfrage fragt JEDES MAL, welche Boote wiederholen – „Nur 101 (Parcours A)“, „Nur 102 (Parcours B)“ oder
+   * „Beide wiederholen“ – OHNE Vorauswahl; der Knopf ist zugleich die Bestätigung (components/betrieb/AusfallWahl.vue). Der
+   * Nutzer hat offen gelassen, ob nur das ausgefallene Boot oder beide wiederholen (R13-02) – deshalb keine Vorgabe. Ein
+   * Paar mit leerer Seite („–“: Dummy, gelöscht, X) bietet nur das Boot an, das fuhr; nach einer Wiederholung nur eines
+   * Boots bietet ein weiterer Ausfall desselben Attempts nur dieses an (betrieb/folge.ts gefahreneSeiten). Beim Bau
+   * 27.11.2026, vom Nutzer zu bestätigen – in der nächsten Fragenrunde: Soll es eine Vorgabe geben?
+   */
+  wiederholungParallelWahl: true,
+  /**
+   * (WHP3) Wiederholt nur ein Boot (GezeigterStart.nur): Das Paar steht unter „Wiederholung offen“ mit dem anderen Boot als
+   * „–“ (wie eine leere Seite, ohne Grund) und fährt so auch auf Anzeigetafel, Start-Freigabe und Zuschauerliste. Das
+   * andere Boot fährt nicht noch einmal: Seine Werte, sein Haken, P der Pausen und Abschlüsse auf den Listen seines
+   * Racecourse bleiben. Der abgebrochene Versuch selbst bleibt im Boot mit beiden Booten stehen, bis der nächste Start
+   * kommt (WH5). Beim Bau 27.11.2026, vom Nutzer zu bestätigen.
+   * Prüfbefund 27.11.2026: Fährt das wiederholende Boot danach nicht mehr (Abmeldung – X in den geleerten Attempt – oder
+   * X von Hand), entfällt der Start wie im Manövrieren (betrieb/folge.ts faehrtNoch): weg aus „Wiederholung offen“ und
+   * aus der Folge, kein „Doch keine Wiederholung“, nicht in der Wahl. Vorher blieb ein leeres Paar stehen, fuhr als
+   * „Attempt 1 · Repeat“ ohne Boote über die Tafel, und „Doch keine Wiederholung“ schrieb die alte Zeit neben das X. Das
+   * andere Boot behält seinen Versuch. Wiederholten beide und hat eins inzwischen X, holt „Doch keine Wiederholung“ nur
+   * die Werte des anderen zurück; das X bleibt. Beim Bau ausgelegt, vom Nutzer zu bestätigen.
+   */
+  wiederholungParallelNurEinBoot: true,
+  /**
+   * (WHP4) WKR-Geräte: Die Kennung ist die des Paares, die Listen stehen je Racecourse. Eine neue Kennung je Versuch
+   * (wkr/versuch.ts, WH7) bekommen nur die Listen des Racecourse, dessen Boot wiederholt; eine späte Zeile dort wird
+   * abgelehnt (`versuch-abgebrochen`). Auf dem anderen Racecourse gilt der Versuch weiter: gleiche Kennung, eine späte
+   * Zeile wird übernommen, die Wiederholung kommt dort nicht noch einmal (Schlange, vorab, „danach“). Erfassung am
+   * Bildschirm: ↻ an der Nummer nur beim wiederholenden Boot. Die Spalte des Paares in der Matrix der WKR-Erfassung fehlt
+   * wie im Manövrieren bis zum neuen Zeigen – auch mit der Zelle des anderen Boots (seine Liste führt den Start weiter in
+   * ihrer Schlange).
+   * Beim Bau 27.11.2026, vom Nutzer zu bestätigen.
+   * Prüfbefund 27.11.2026: „kommt dort nicht noch einmal“ gilt jetzt an EINER Stelle (betrieb/folge.ts giltAuf) für
+   * Schlange, P der Pausen, „überfällig“ und Marken – vorher hing es daran, dass der frühere Versuch in der Schlange schon
+   * gezählt war; eine damals pausierte oder erst später digitale Liste bekam die Wiederholung des anderen Boots als neuen
+   * Start. Ebenso Parcours-Ampel und Durchfahrt: Es zählen nur die Listen des wiederholenden Boots (vorher hielten die
+   * stehen gebliebenen Werte des anderen die Ampel sofort für „durch“), und „unterwegs“ nennt nur dieses Boot.
+   */
+  wiederholungParallelGeraete: true,
+  /**
+   * (WHP5) Einreihen als Einheit (R13-13): „Als Nächster“ und „Ans Ende der Runde“ nehmen mit der Wiederholung die wartenden
+   * Attempts des Paares mit (zurückgestellt, nachzuholen, wie bisher) UND den Attempt, der im Plan direkt dahinter steht und
+   * noch nicht gezeigt ist (schritte.ts planPartner – nach dem Vorlauf; im Vorlauf wechseln dazwischen die Bootstypen,
+   * dort bleibt der Plan): Der 1. Attempt ist der frühere Start (Regel 960, Pkt. 4.4), „Ans Ende der Runde“ ließe den 2.
+   * sonst vor der Wiederholung fahren. „Jetzt zeigen“ holt ihn ohnehin mit (parallelPaarAlsEinheit). „Zurückstellen“ nimmt
+   * eine wartende Wiederholung nicht mit. Der 2. Attempt wartet aber nicht von selbst: Wird nach dem Ausfall „Nächster
+   * Start“ getippt, bevor die Wiederholung eingereiht ist, kommt er – wer erst wiederholen will, reiht „Als Nächster“
+   * ein. Beim Bau 27.11.2026, vom Nutzer zu bestätigen.
+   */
+  wiederholungParallelPaar: true,
+  /**
+   * (WHP6) Titel wie im Manövrieren (WH5) in der Sprache der Tafel: „Vorlauf · 1. Versuch · Wiederholung“ bzw.
+   * „Preliminary heat · Attempt 1 · Repeat“ – nie „Re-run“; SichtStart.`wiederholung` am Paar. Die Form der Sicht ändert
+   * sich nicht (beide Felder gab es seit sv 7, eine leere Seite seit sv 4) – `sv` bleibt 7 (8 erst durch WH11, R13-01);
+   * die Zuschauersicht trägt es nur im Titel. Verlauf: „Wiederholung nach Ausfall – Werte verworfen: 101, Klasse 1,
+   * Parallel-Slalom Vorlauf, 1. Versuch“ (Startnummern der wiederholenden Boote). Beim Bau 27.11.2026, vom Nutzer zu
+   * bestätigen. Prüfbefund 27.11.2026: Die Boote kommen aus den verworfenen Werten (je Boot ein Eintrag) – beim Aufheben
+   * aus dem Stand davor; vorher nannte der Verlauf ohne „Nur …“ beide Seiten laut Plan, auch wenn nur eins fuhr.
+   */
+  wiederholungParallelTitel: true,
 } as const

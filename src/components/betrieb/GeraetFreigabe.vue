@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from 'vue'
-import type { SichtBereich } from '../../types'
+import type { PaarSeite, SichtBereich } from '../../types'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { oeffneGekoppelt, oeffneKoppelLink, type GekoppeltesGeraet } from '../../geraete/gekoppelt'
 import type { FassungsLage, LeseUmgebung } from '../../geraete/geraet'
@@ -35,6 +35,11 @@ import { fingerabdruckText, startZeile } from './texte'
  *   steht als Satz da. Die Selbstanmeldung nach jedem Start sperrt nichts, sie zeigt nur „Verbinde …“ (meldetSich).
  * - W2.4: Stand der WKR-Erfassung (Geräteleiste, Rückstand, „Trotzdem freigeben?“) aus der Freigabe-Gruppe des
  *   Bereichs (geraete/gekoppelt.ts `freigabe`) – ohne Werte und Namen; ohne Schlüssel bleibt die Leiste einfach weg.
+ * - Wiederholung nach Ausfall (Nutzer 27.11.2026, R13-01/R13-06): „Wiederholung (Ausfall) …“ und „Doch keine
+ *   Wiederholung“ wie am Bedienrechner – dieselbe Wahl (AusfallWahl, `bereich.gefahren` aus der Sicht, sv 8) und
+ *   Rückfrage; Abgemeldete ausgegraut aus der Freigabe-Sicht (`ausfallGesperrt`, fv 3). Geschickt werden die Actions der
+ *   Erfassung WIEDERHOLUNG_AUSFALL/_AUFHEBEN; der Host prüft sie eng (geraete/aufgaben.ts erlaubteWiederholung) und
+ *   lehnt mit Grund ab (`geraete.ablehnung.nicht-gezeigt`/`abgemeldet`), gesperrt bis zur Quittung wie jede Action.
  * - Entzogen: Hinweis, dazu nur lesend, wer im Boot sitzt und wer als Nächstes (K14, gewollt); neu koppeln mit Code.
  * - W3.3 (21.11.2026, Plan docs/plan-wkr-w3.md §5): Hat das Gerät Listen-Aufgaben, öffnet es EINMAL die WKR-Erfassung
  *   (geraete/erfassen.ts oeffneErfassung; stop beim Unmount, Entkoppeln oder einem anderen Gerät) und zeigt die Maske
@@ -237,6 +242,25 @@ function sende(action: BetriebAenderung): void {
   if (nr !== null) gesendet.value = nr
 }
 /**
+ * Wiederholung nach Ausfall vom Handy (Nutzer 27.11.2026, R13-01/R13-06; BETRIEB_ANNAHMEN.wiederholungAnDerStartFreigabe):
+ * Actions der Erfassung, nicht des Betriebs – deshalb eigene Wege neben `sende`, aber dieselbe Schlange und Sperre bis
+ * zur Quittung. `nur` im Parallelslalom: nur das Boot dieser Seite wiederholt (R13-02).
+ */
+function wiederholen(bereich: string, ref: string, nur: PaarSeite | undefined, abbrueche: number): void {
+  const g = geraet.value
+  if (!g || offen.value) return
+  // `abbrueche` (Prüfbefund 27.11.2026): Die Nachricht kann im Funkloch in der Schlange stehen – der Host wendet sie nur
+  // auf den Versuch an, den die Wahl zeigte (geraete/aufgaben.ts erlaubteWiederholung, sonst `konflikt`).
+  const nr = g.sende({ type: 'WIEDERHOLUNG_AUSFALL', bereich, ref, ...(nur ? { nur } : {}), abbrueche })
+  if (nr !== null) gesendet.value = nr
+}
+function aufheben(bereich: string, ref: string, abbrueche: number): void {
+  const g = geraet.value
+  if (!g || offen.value) return
+  const nr = g.sende({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich, ref, abbrueche })
+  if (nr !== null) gesendet.value = nr
+}
+/**
  * „Anhalten“ des Auto-Modus (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN.autoAnhaltenLokal, AM7): eine Nachricht an den
  * Host, keine Reducer-Action – der Host merkt es sich bis zum nächsten gezeigten Start (geraete/host.ts AUTO_HALT).
  */
@@ -351,7 +375,19 @@ function entkopple(): void {
           <!-- Selbstanmeldung (P-7) läuft: nur ein Hinweis, die Knöpfe bleiben frei (Prüfung E7, 20.11.2026). -->
           <p v-else-if="geraet.meldetSich.value" class="note geraet-banner" role="status" data-teil="verbinde">{{ t('geraete.freigabe.verbinde') }}</p>
           <fieldset class="geraet-sperre" :disabled="offen" :aria-busy="offen">
-            <StartFreigabe v-for="b in eigene" :key="b.id" :sicht="sicht" :bereich="b" :sende="sende" :erfassung="erfassung[b.id]" :auto-anhalten="(ref: string) => autoAnhalten(b.id, ref)" nur-dieser />
+            <StartFreigabe
+              v-for="b in eigene"
+              :key="b.id"
+              :sicht="sicht"
+              :bereich="b"
+              :sende="sende"
+              :erfassung="erfassung[b.id]"
+              :auto-anhalten="(ref: string) => autoAnhalten(b.id, ref)"
+              :wiederholen="(ref: string, nur: PaarSeite | undefined, abbrueche: number) => wiederholen(b.id, ref, nur, abbrueche)"
+              :aufheben="(ref: string, abbrueche: number) => aufheben(b.id, ref, abbrueche)"
+              :ausfall-gesperrt="erfassung[b.id]?.ausfallGesperrt"
+              nur-dieser
+            />
           </fieldset>
         </template>
         <nav v-if="mitFreigabe && wkrListen.length > 0" class="geraet-reiter" role="tablist" data-teil="geraet-reiter">

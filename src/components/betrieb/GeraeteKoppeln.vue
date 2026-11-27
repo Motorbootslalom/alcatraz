@@ -26,8 +26,8 @@ import type { ListenTeil } from '../../wkr/liste'
  * - **Geräte-Code** (P-4): 6 Zeichen, 5 min, EIN Gerät. Das Handy braucht dazu den Koppel-Link – der steht hier als
  *   Link mit QR-Code zum Weitergeben; der Code geht über Funk.
  * Entschieden wird am Host (koppelEntscheid.ts): gültiger Code bzw. Token → gekoppelt, mit den Rechten, die beim
- * Ausgeben galten. Eine zusätzliche Rückfrage „annehmen?“ am Bedienrechner gibt es nicht (Auslegung 20.11.2026, vom
- * Nutzer zu bestätigen – BETRIEB_ANNAHMEN.koppelnOberflaeche): Den Code gibt nur, wer am Bedienrechner sitzt, und ein
+ * Ausgeben galten. Eine zusätzliche Rückfrage „annehmen?“ am Bedienrechner gibt es nicht (Auslegung 20.11.2026,
+ * bestätigt 27.11.2026, R13-07 – BETRIEB_ANNAHMEN.koppelnOberflaeche): Den Code gibt nur, wer am Bedienrechner sitzt, und ein
  * fremdes Gerät stünde sofort in der Geräteliste, wo es sich entziehen lässt.
  *
  * W3.2 (21.11.2026, Plan docs/plan-wkr-w3.md §6): Die Aufgabe des nächsten Geräts ist die Start-Freigabe (Bereiche)

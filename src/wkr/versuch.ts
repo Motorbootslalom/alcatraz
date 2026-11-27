@@ -1,4 +1,4 @@
-import type { AppState, BereichBetrieb } from '../types'
+import type { AppState, BereichBetrieb, PaarSeite } from '../types'
 import type { Konfig } from '../config/konfig'
 import { abbruecheVon, betriebVon, laeufeVonPunkt, laufPunkt } from '../betrieb/folge'
 import { WKR_ANNAHMEN } from './annahmen'
@@ -12,6 +12,10 @@ import { WKR_ANNAHMEN } from './annahmen'
 // eigene Kennung: der erste wie bisher die des Betriebs, nach n Abbrüchen `["w", n, <Kennung>]`. Was zurückkommt
 // (Zeile `s`, Prüfsummen des Abschlusses), liest liesVersuch wieder auf die Kennung des Betriebs zurück; ein veralteter
 // Versuch ist daran erkennbar, dass seine Zahl nicht mehr die jetzige ist.
+//
+// Parallelslalom (Nutzer 27.11.2026, R13-02): Die Kennung ist die des Paares, die Listen aber stehen je Racecourse. Wiederholt
+// nur ein Boot (GezeigterStart.nur), zählen für die Listen des anderen Racecourse nur die Abbrüche, die ihr Boot trafen –
+// dort bleibt die Kennung, die Zeile gilt weiter, nichts kommt doppelt (BETRIEB_ANNAHMEN WHP4).
 
 /** Die Kennung, unter der die Geräte den n-ten Versuch eines Starts bekommen (n = Zahl der Abbrüche davor). */
 export function versuchsKennung(key: string, n: number): string {
@@ -36,15 +40,20 @@ export function liesVersuch(kennung: unknown): { key: string; n: number } | null
   return null
 }
 
-/** Die Kennung, unter der die Geräte diesen Start jetzt bekommen (`b` = Betrieb seines Bereichs). */
-export function geraeteKennung(b: Pick<BereichBetrieb, 'gezeigt'>, key: string): string {
-  return versuchsKennung(key, abbruecheVon(b, key))
+/** Die Seite eines Paares, deren Boot eine Liste erfasst: Racecourse A → `a`, B → `b`; im Manövrieren keine. */
+export function listenSeite(liste: { racecourse: 'A' | 'B' | null }): PaarSeite | undefined {
+  return liste.racecourse === 'A' ? 'a' : liste.racecourse === 'B' ? 'b' : undefined
+}
+
+/** Die Kennung, unter der die Geräte diesen Start jetzt bekommen (`b` = Betrieb seines Bereichs; `seite` = die der Liste, {@link listenSeite}). */
+export function geraeteKennung(b: Pick<BereichBetrieb, 'gezeigt'>, key: string, seite?: PaarSeite): string {
+  return versuchsKennung(key, abbruecheVon(b, key, seite))
 }
 
 /** Gehört die Geräte-Kennung zu einem abgebrochenen Versuch (oder ist sie kaputt)? Gewöhnliche Kennungen ohne Abbruch: nein. */
-export function versuchVeraltet(b: Pick<BereichBetrieb, 'gezeigt'>, kennung: unknown): boolean {
+export function versuchVeraltet(b: Pick<BereichBetrieb, 'gezeigt'>, kennung: unknown, seite?: PaarSeite): boolean {
   const v = liesVersuch(kennung)
-  return v === null || v.n !== abbruecheVon(b, v.key)
+  return v === null || v.n !== abbruecheVon(b, v.key, seite)
 }
 
 /**
@@ -63,7 +72,7 @@ export function giltFuerAlleVersuche(stand: AppState, konfig: Pick<Konfig, 'getP
  * stehen, das Gerät darf sie weiter korrigieren, und eine verspätete gilt (Prüfbefund 27.11.2026 – vorher lehnte die
  * Prüfung auch hier `versuch-abgebrochen` ab).
  */
-export function versuchVeraltetAuf(stand: AppState, konfig: Pick<Konfig, 'getPositions' | 'getSheetDef'>, liste: { bereich: string; typeId: string }, kennung: unknown): boolean {
-  if (!versuchVeraltet(betriebVon(stand, liste.bereich), kennung)) return false
+export function versuchVeraltetAuf(stand: AppState, konfig: Pick<Konfig, 'getPositions' | 'getSheetDef'>, liste: { bereich: string; typeId: string; racecourse?: 'A' | 'B' | null }, kennung: unknown): boolean {
+  if (!versuchVeraltet(betriebVon(stand, liste.bereich), kennung, listenSeite({ racecourse: liste.racecourse ?? null }))) return false
   return liesVersuch(kennung) === null || !giltFuerAlleVersuche(stand, konfig, liste.typeId)
 }

@@ -104,8 +104,8 @@ const NOCHMAL_JE_MINUTE = 12
 const NOCHMAL_HOECHSTENS_MS = 5 * 60_000
 
 /**
- * Wie lange eine Meldung „neu laden“ höchstens auf das Senden wartet (Prüfung E8, 21.11.2026 – vom Nutzer zu
- * bestätigen, BETRIEB_ANNAHMEN.alleNeuLaden). Ohne Abo sendet der Host nichts; käme die Verbindung erst nach einer
+ * Wie lange eine Meldung „neu laden“ höchstens auf das Senden wartet (Prüfung E8, 21.11.2026, bestätigt
+ * 26.11.2026, R11-23 – BETRIEB_ANNAHMEN.alleNeuLaden). Ohne Abo sendet der Host nichts; käme die Verbindung erst nach einer
  * Stunde zurück, ginge der Befehl mit frischem `hz` hinaus, bestünde die Frische-Prüfung der Geräte (geraet.ts
  * NEULADEN_BEFEHL_GUELTIG_MS) und lüde alle Geräte mitten im Lauf neu. Eine Minute deckt kurze Wackler (Wiederholung
  * des POST) und nicht mehr.

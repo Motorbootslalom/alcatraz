@@ -589,7 +589,8 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
       return roh.map((z, i) => fertig(z, start + i + 1))
     })
     // Mehrere Klassen ohne Blöcke (in der Startfolge): Auch hier nennt der Kopf die Klassen der Seite – der
-    // Wettkampfrichter sucht das Blatt nach der Klasse heraus. Eine Seite ohne Starter nennt alle.
+    // Wettkampfrichter sucht das Blatt nach der Klasse heraus. Eine Seite ohne Starter nennt alle (bestätigt
+    // 27.11.2026, R13-05).
     if (zeigtKlasse) {
       seitenKlassen = seitenZeilen.map((rows) => {
         const da = klassen.filter((k) => rows.some((r) => r.klasse === k))
@@ -599,7 +600,8 @@ export function bogenSeiten(konfig: BogenKonfig, auftrag: BogenAuftrag, optionen
   }
 
   // Im Kopf stehen die Klassen der Seite: Trägt eine Seite eines gemeinsamen Bogens nur eine
-  // Klasse, heißt sie auch so – der Wettkampfrichter sucht das Blatt nach der Klasse heraus.
+  // Klasse, heißt sie auch so – der Wettkampfrichter sucht das Blatt nach der Klasse heraus. Bestätigt 27.11.2026
+  // (R13-05), auch für „getrennt“ (Leerzeilen gehören zum Block ihrer Klasse).
   const kopfKlassen = (k: readonly string[]) => (k.length > 1 ? texte.klassen([...k]) : k.map((x) => texte.klasse(x)).join(''))
   return seitenZeilen.map((rows, pageIndex) => {
     return {

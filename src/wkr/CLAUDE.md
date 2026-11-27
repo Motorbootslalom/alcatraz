@@ -128,6 +128,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   gesetzt“), CM5, CM6, CM8, NG4, NG5, NG6 (je „Bestätigt 26.11.2026 (R11-xx)“); NICHT bestätigt BL2 (R11-13 – umgebaut: BL7 bildLageNachStartZiel, Lagen
   „Start/Ziel links/oben/rechts/unten“) und UK1/UK3 (R11-14 – umgebaut: UK7 uebungErklaerungAusDemBild, der Kopf bleibt,
   nur die Erklärung rollt hinaus; UK6 ebenso); H2 „↩ Rückgängig“ (R11-30 (2), Pfeil als Zeichnung in WkrFuss).
+  **Antworten 27.11.2026** (Runde 13): bestätigt NG1 (Zeitnahme und Knoten ohne „Nicht gestartet“, R13-03), CM3 „D schon
+  gesetzt“ und CM4 (R13-04), BL4 (R13-14 (4)). Die veralteten „noch zu bestätigen“ an schon bestätigten Einträgen
+  sind seitdem gestrichen; offen bleiben BL5 (bewusst nicht gefragt) und BL8 (beim Bau ausgelegt).
   Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeMitPunkten (seit W4-12 statt
   disqBojeErsetztPunkte), U3 disqBojeLangdruck (umgebaut 22.11.2026 R7-21, vorher disqBojeOhneLangdruck; dazu LD1 langdruckMs 800,
   LD2 langdruckNieTipp, LD3 langdruckWegPx 10 + langdruckRingMs 300, LD4 langdruckPrellschutz – Hilfe
@@ -151,7 +154,7 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   ausgleichTeil 'ab' (Karte nur im Ablegen; ein Gerät nur fürs Anlegen empfängt den Wert mit – eine Gruppe je Liste,
   so bestätigt), ausgleichUebung (erfundene Abstände je Startnummer in der Übung). Prüfbefund 24.11.2026 (bestätigt): auf 0 kg
   gerundet = „kein AG“, auf Papier leer (components/AusgleichListen.vue), Verwiegung weiter „0 kg“.
-  Höchstzahl je Code (Nutzer 24.11.2026, CM1–CM8; CM2, CM3, CM5, CM6, CM8 bestätigt 26.11.2026, CM4 und „D schon gesetzt“ in CM3 noch zu bestätigen): codeMaxAusRegelwerk (YAML `max`/`danach`
+  Höchstzahl je Code (Nutzer 24.11.2026, CM1–CM8; CM2, CM3, CM5, CM6, CM8 bestätigt 26.11.2026, CM4 und „D schon gesetzt“ in CM3 am 27.11.2026, R13-04): codeMaxAusRegelwerk (YAML `max`/`danach`
   je Code: „2. und 3. Versuch“ 2× → D, Tor 5 Code 1 1×), codeMaxAllgemein 3 (lib/codes.ts codeHoechstens/
   codesUeberMax), codeDanachStattZaehler (maske.ts tippe), codeMaxImKnopf, codeMaxGeraet (tabelle.ts `code-zu-oft`/
   `code-danach`, zeile.ts wertGilt), codeMaxAbtippenHinweis (lib/erfassung.ts `codeZuOft`/`codeDanach`), codeMaxFassung 12,
@@ -388,8 +391,10 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   wkr/keineZeit.ts) → Matrix „✓ keine Zeit“; zeilenMarken markiert genau diese Zellen „papier-ansehen“ (Zeile ohne Marke) – erfassungsLage kennt die Liste am Tisch nie
   (anderer Bereich), also auch Freigabe und Ampel nicht. Nutzer: WkrMatrix-Block „Am Tisch“.
 - `freigabe.ts` (W2.4, 21.11.2026) – sichtFreigabe(bereich, lagen, warnung) → FreigabeErfassung {fv:
-  FREIGABE_SICHT_FASSUNG = 2 (seit der Parcours-Ampel; sichtFreigabe(…, ampel, autoIn) mit `ampel`, `ampelRef`,
-  `perKnopf`, `autoMoeglich`, `autoOhne`, `autoIn`), bereich, warnung, listen: FreigabeListe {titel, stand
+  FREIGABE_SICHT_FASSUNG = 3 (2 seit der Parcours-Ampel; sichtFreigabe(…, ampel, autoIn) mit `ampel`, `ampelRef`,
+  `perKnopf`, `autoMoeglich`, `autoOhne`, `autoIn`; 3 seit 27.11.2026, R13-01: sichtFreigabe(…, ausfallGesperrt) =
+  Abgemeldete unter den gefahrenen Starts des Bereichs, nur vom Host, fürs Ausgrauen auf dem Handy), bereich, warnung,
+  listen: FreigabeListe {titel, stand
   aktiv|pausiert|abgemeldet|papier, ampel|null, offen, von, bis, wartend?, rueckfragen, warnt (≥ R seit N8), parcours}}
   – Feld für Feld, leer ohne Eintrag im Bereich; liesFreigabe
   (Gerät: Form prüfen, Fremdes fällt weg). Nutzer: StartFreigabe.vue Prop `erfassung` (BetriebView rechnet sie aus
@@ -407,6 +412,15 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   P der Pausen, Spalten, „überfällig“, Marken); imBoot nie für einen abgebrochenen Versuch, wartet aber auf eine offene
   Wiederholung; ampel.ts laufLage zählt sie als offen; durchfahrtVon: abgebrochener Start im Boot = keine Ampel.
   Test wkr/wiederholung.test.ts, geraete/wkr.test.ts „Wiederholung nach Ausfall Ende zu Ende“.
+  Parallelslalom (27.11.2026, R13-02, BETRIEB_ANNAHMEN WHP4): listenSeite(liste) (A → `a`, B → `b`); geraeteKennung/
+  versuchVeraltet(Auf) zählen nur Abbrüche, die das Boot der Liste trafen (GezeigterStart.nur). schlange.ts, lage.ts
+  (überfällig, Marken), zeile.ts istGezeigt, reducer/wkr.ts (versuchVorbei, PAPIER_AB) über betrieb/folge.ts
+  abgebrochenAuf(g, seite); vorab/„danach“ lassen eine Wiederholung nur des anderen Boots aus (fremdeWiederholung).
+  Die Matrix-Spalte (lage.ts erfassungsLage) fehlt bei jedem Abbruch bis zum neuen Zeigen. Seit dem Prüfbefund
+  27.11.2026 über betrieb/folge.ts giltAuf(b, i, seite) statt abgebrochenAuf: Schlange (Hauptschleife), papierStarts,
+  lage.ts rechner („überfällig“) und zeilenMarken lassen die Wiederholung nur des anderen Boots aus – auch wenn der
+  frühere Versuch dort nie gezählt war (Liste pausiert, erst später digital); durchfahrtVon zählt nur die Listen des
+  wiederholenden Boots, ampel.ts laufLage nennt nur dessen Nummer als `unterwegs`.
 - Nutzer außerhalb: geraete/aufgaben.ts erlaubteWkr (pruefeZeile), geraete/host.ts (sichtListe je Listen-Gruppe),
   geraete/erfassen.ts (Gerät: liest ListenSicht, rechnet zeilenPruefsumme wie WKR_ABSCHLUSS, Zahlen aus WKR_ANNAHMEN:
   buendel, zuletzt, lebenszeichenSek, nameMax). Ende zu Ende: geraete/wkr.test.ts.

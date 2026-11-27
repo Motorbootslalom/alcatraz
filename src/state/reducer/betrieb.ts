@@ -6,7 +6,7 @@
 // setzt sie), Kennungen sind Refs (betrieb/folge.ts `refKey`), keine Zufalls-IDs. Der Betrieb schreibt
 // nie in `eingaben` und ändert keine Wertungsliste (BETRIEB_ANNAHMEN.keinXVonDerTafel).
 
-import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, ParallelAnordnung, PunktId, VerschiebeZiel, WkrWarnung } from '../../types'
+import type { AnzeigeEinstellungen, AnzeigeNamen, AnzeigeSprache, AppState, BereichBetrieb, BereichId, Betrieb, ClassId, GezeigterStart, Meldung, MeldungArt, PaarSeite, ParallelAnordnung, PunktId, VerschiebeZiel, WkrWarnung } from '../../types'
 import { CLASS_IDS } from '../../domain/classes'
 import { STARTABSTAND_MAX, STARTABSTAND_MIN } from '../../config/schema'
 import { istOriginStyle } from '../../lib/origin'
@@ -202,11 +202,15 @@ function normalisiereBereich(raw: unknown): BereichBetrieb | null {
   const b = raw as Partial<Record<keyof BereichBetrieb, unknown>>
   const gezeigt: GezeigterStart[] = Array.isArray(b.gezeigt)
     ? b.gezeigt.flatMap((g: unknown) => {
-        const e = g as { ref?: unknown; zeit?: unknown; abgebrochen?: unknown } | null
-        if (!e || liesRef(e.ref) === null) return []
+        const e = g as { ref?: unknown; zeit?: unknown; abgebrochen?: unknown; nur?: unknown } | null
+        const ref = e ? liesRef(e.ref) : null
+        if (!e || ref === null) return []
         const zeit = typeof e.zeit === 'number' && Number.isFinite(e.zeit) && e.zeit > 0 ? e.zeit : 0
         // Abgebrochen (Ausfall, R11-11) nur als ausdrückliches `true` – alles andere ist ein gewöhnlich gezeigter Start.
-        return [e.abgebrochen === true ? { ref: e.ref as string, zeit, abgebrochen: true as const } : { ref: e.ref as string, zeit }]
+        if (e.abgebrochen !== true) return [{ ref: e.ref as string, zeit }]
+        // `nur` (R13-02, 27.11.2026): nur an einem Paar des Parallelslaloms und nur mit einer Seite, auf der laut Plan jemand stand.
+        const nur = ref.art === 'p' && (e.nur === 'a' || e.nur === 'b') && ref[e.nur] !== null ? { nur: e.nur } : {}
+        return [{ ref: e.ref as string, zeit, abgebrochen: true as const, ...nur }]
       })
     : []
   const bereich: BereichBetrieb = {
@@ -313,16 +317,19 @@ function neuVerzahnt(state: AppState, bereich: BereichId, l: BereichLage, ausges
  * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11) – der Teil des Betriebs: Der gezeigte Versuch von `ref` gilt als
  * abgebrochen (GezeigterStart.abgebrochen; der Start ist wieder offen) und steht unter „Wiederholung offen“, bis die
  * Wettkampfleitung ihn einreiht (BETRIEB_ANNAHMEN.wiederholungVonHand). Eine Durchfahrt für ihn fällt weg (WH9).
- * Nur ein gezeigter, geltender Start des Manövrierens in einem Bereich mit Betrieb; sonst derselbe Stand. Aufgerufen NUR
- * von WIEDERHOLUNG_AUSFALL (reducer/erfassung.ts), das zugleich die Werte leert – eine eigene Action des Betriebs dafür
- * gibt es nicht, damit Folge und Werte nie auseinanderlaufen.
+ * Nur ein gezeigter, geltender Start in einem Bereich mit Betrieb – seit dem 27.11.2026 (R13-02) auch ein Paar des
+ * Parallelslaloms; `nur` = nur das Boot dieser Seite wiederholt (GezeigterStart.nur, nur dort). Sonst derselbe Stand.
+ * Aufgerufen NUR von WIEDERHOLUNG_AUSFALL (reducer/erfassung.ts), das zugleich die Werte leert – eine eigene Action des
+ * Betriebs dafür gibt es nicht, damit Folge und Werte nie auseinanderlaufen.
  */
-export function mitWiederholung(state: AppState, bereich: BereichId, ref: string): AppState {
-  if (istParallel(bereich) || !bereichBekannt(state, bereich)) return state
+export function mitWiederholung(state: AppState, bereich: BereichId, ref: string, nur?: PaarSeite): AppState {
+  if (!bereichBekannt(state, bereich)) return state
   const r = liesRef(ref)
   const b = betriebVon(state, bereich)
-  if (r?.art !== 'm' || !b.gezeigt.some((g) => g.ref === ref && !g.abgebrochen)) return state
-  const gezeigt = b.gezeigt.map((g) => (g.ref === ref && !g.abgebrochen ? { ...g, abgebrochen: true as const } : g))
+  // Die Art des Starts muss zum Bereich passen: ein Paar nur im Parallelslalom, ein Lauf nur im Manövrieren.
+  if (r === null || (r.art === 'p') !== istParallel(bereich) || !b.gezeigt.some((g) => g.ref === ref && !g.abgebrochen)) return state
+  const mitNur = r.art === 'p' && nur !== undefined && r[nur] !== null ? { nur } : {}
+  const gezeigt = b.gezeigt.map((g) => (g.ref === ref && !g.abgebrochen ? { ...g, abgebrochen: true as const, ...mitNur } : g))
   const { durchfahrt, ...rest } = b
   return mitBereich(state, bereich, {
     ...rest,
@@ -406,10 +413,11 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       const b = betriebVon(state, action.bereich)
       // Eine offene Wiederholung (R11-11) wartet ohnehin – zurückstellen hieße nichts.
       if (!schrittErlaubt(l) || !beweglich(l, action.ref) || b.zurueckgestellt.includes(action.ref) || l.wiederholung.some((e) => e.key === action.ref)) return state
-      // Im Parallelslalom das ganze Paar: auch seine übrigen offenen Attempts dieser Runde (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit).
+      // Im Parallelslalom das ganze Paar: auch seine übrigen offenen Attempts dieser Runde (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit) –
+      // nicht einen, der auf seine Wiederholung wartet (R13-02): Der wartet ohnehin und bleibt unter „Wiederholung offen“.
       const mit = paarStarts(l, action.ref)
         .map((e) => e.key)
-        .filter((k) => k === action.ref || (beweglich(l, k) !== null && !b.zurueckgestellt.includes(k)))
+        .filter((k) => k === action.ref || (beweglich(l, k) !== null && !b.zurueckgestellt.includes(k) && !l.wiederholung.some((e) => e.key === k)))
       return mitBereich(state, action.bereich, { ...b, zurueckgestellt: [...b.zurueckgestellt, ...mit] })
     }
 
@@ -423,9 +431,13 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       const { wiederholung: alteWiederholung, ...b } = betriebVon(state, action.bereich)
       // Im Parallelslalom kommt das Paar mit: seine zurückgestellten und nachzuholenden Attempts dieser Runde, in
       // der Folge der Attempts (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit). Im Manövrieren nur der Start selbst.
+      // Eine Wiederholung (R13-02, BETRIEB_ANNAHMEN.wiederholungParallelPaar) nimmt dazu den Attempt mit, der im Plan direkt
+      // dahinter steht und noch nicht gezeigt ist (planPartner, wie gezieltes Zeigen): „Ans Ende der Runde“ ließe ihn
+      // sonst vor der Wiederholung fahren – der 1. Attempt ist der frühere Start (Regel 960, Pkt. 4.4).
       const wartend = new Set(warten.map((e) => e.key))
+      const partner = l.wiederholung.some((e) => e.key === action.ref) ? planPartner(l.abgeleitet, action.ref) : null
       const mit = paarStarts(l, action.ref)
-        .filter((e) => e.key === action.ref || wartend.has(e.key))
+        .filter((e) => e.key === action.ref || wartend.has(e.key) || (e.key === partner && beweglich(l, e.key) !== null && !l.gezeigtKeys.has(e.key)))
         .sort((x, y) => x.lauf - y.lauf)
         .map((e) => e.key)
       const weg = new Set(mit)

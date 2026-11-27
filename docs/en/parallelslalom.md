@@ -20,6 +20,7 @@ Why something is the way it is is recorded with a date in [entscheidungen.md](..
   - [Assumptions](#assumptions)
 - [Withdrawals](#withdrawals)
 - [Operation: start release and scoreboard](#operation-start-release-and-scoreboard)
+  - [Repeat after a breakdown](#repeat-after-a-breakdown)
   - [Race official data entry on the device](#race-official-data-entry-on-the-device)
 - [Dummies and terms](#dummies-and-terms)
 - [Individual competition](#individual-competition)
@@ -184,6 +185,8 @@ of 15.11.2026).
   The racecourse is not part of the key; it follows from the plan (the earlier start is the 1st attempt).
 - The row of a dummy has no fields and is skipped.
 - These values do not count as “hidden” as long as plan, attempt and field belong to a sheet.
+- After a [repeat after a breakdown](#repeat-after-a-breakdown) (27.11.2026) the race number carries ↻ – only in the
+  row of the boat that repeats.
 
 **Plan and values:**
 
@@ -452,6 +455,10 @@ Anyone entered as “did not start” after the competition has begun gets the X
 - An X from the race official's device (“More → Did not start · Disq. X”, 24.11.2026) is not a withdrawal: it stands
   only in this attempt and acts there like any X (see
   [Race official data entry on the device](#race-official-data-entry-on-the-device)).
+- A withdrawn boat gets no [repeat after a breakdown](#repeat-after-a-breakdown): in the confirmation its button and
+  “Repeat both” are greyed out. If a repeating boat is only withdrawn while the repeat is waiting, the X goes into the
+  emptied attempt: if only this boat was repeating, the repeat is dropped; if both were, the other one runs alone (the
+  side is shown as “–”).
 
 ## Operation: start release and scoreboard
 
@@ -515,15 +522,75 @@ unless it is noted here as confirmed.
   (see above); “As next” and starts shown specifically go after the last start shown of their heat, “To the end of
   the heat” to the end of their heat, never into a later one. Suspending or bringing forward classes and moving starts
   do not exist here: the plan sets the order (pairs, blocks alternating the types of boat, swap for the 2nd attempt);
-  the card says so instead of “Classes · boat missing”. The “Repeat (breakdown) …” of the manoeuvring (26.11.2026,
-  [funktionen.md](funktionen.md#start-release)) does not exist here either – in the parallel slalom the only repeat is
-  the re-run.
+  the card says so instead of “Classes · boat missing”. “Repeat (breakdown) …” has existed here too since 27.11.2026,
+  with the choice of which boats repeat ([below](#repeat-after-a-breakdown)); this is not the re-run after a tie.
 - **Starting order and spectator list:** per row or card one pair with racecourse A and B; “at the pontoon” and
   “at pontoon entry” as in manoeuvring, but **without estimated waiting time**: pair starts are not measured – their
   rhythm (two boats at once, short racecourse, swap for the 2nd attempt) would distort the intervals of the classes
   for manoeuvring, and there is no default of its own. Nothing is dragged in the starting order. The team filter of
   the spectator list shows a pair if one side matches (confirmed 21.11.2026, `BETRIEB_ANNAHMEN.zuschauerTeamFilter`).
-- Operation changes neither the plans nor the values of the heats.
+- Operation changes neither the plans nor the values of the heats; only the repeat after a breakdown (below) discards
+  values, explicitly and after a confirmation question.
+
+### Repeat after a breakdown
+
+Since 27.11.2026 also in the parallel slalom (user, R13-02: “Technical breakdowns can happen here too.”); until then
+it only existed in manoeuvring. It is **not the re-run**: the re-run is a heat of its own after a tie (pt. 5.2.6,
+[Heats after the preliminary heat](#heats-after-the-preliminary-heat)); the repeat after a breakdown runs an attempt
+of the same heat once more after the O.O.D. has confirmed a technical breakdown. In English it is therefore always
+called “Repeat”, never “Re-run”. The general part – “Repeat pending”, “No repeat after all”, paper, history – is
+described in [funktionen.md](funktionen.md#start-release), how to operate it in
+[betrieb.md](betrieb.md#start-release-scoreboard-and-spectator-list). The interpretations are kept with dates in
+`BETRIEB_ANNAHMEN` (WHP1–WHP6); interpreted during implementation, still to be confirmed – above all whether there
+should be a default for which boats repeat.
+
+- **Triggering:** “Repeat (breakdown) …” at the start release of the parallel slalom, at the operating computer or on
+  the paired start release phone. The list shows the pairs already shown in the heats under way, the one shown last
+  first, each row for example “E01 / E02 · Class Dolphin · Preliminary heat · Attempt 1” with “Repeat …”. Above it:
+  “Pairs shown in the heats under way, the one shown last first. The O.O.D. decides on the repeat and which boats
+  repeat; if a driver is to blame, the race official enters “J” at the buoy (wrong racecourse) – then no repeat for
+  that driver.”
+- **Confirmation:** “Repeat after breakdown: E01 / E02, Preliminary heat · Attempt 1?” – “Which boats repeat
+  Preliminary heat · Attempt 1? Only the values of the chosen boats in this attempt are discarded – on every sheet of
+  both racecourses, including those from the race officials’ devices; a boat that does not repeat keeps its values. …”
+  The buttons are “Only E01 (Racecourse A)”, “Only E02 (Racecourse B)”, “Repeat both” and “Cancel”. None is
+  preselected, the focus is on “Cancel”; the chosen button is the confirmation itself, there is no separate button
+  “Discard values and repeat” here. If only one boat ran (empty side “–”) or only one boat repeated before, there is
+  just one button: “Repeat E01 (Racecourse A)”.
+- **Withdrawn:** if a boat has withdrawn, its button and “Repeat both” are greyed out; above them it reads “E02
+  (Racecourse B): withdrawn – no repeat”. The row in the list is only greyed out entirely if all boats of the pair
+  have withdrawn.
+- **Afterwards:** the aborted pair stays in the boat with both boats, marked “breakdown – to be repeated”; “Back” is
+  locked. Under “Repeat pending” the pair is listed with “… · Preliminary heat · Attempt 1 · repeat”; a boat that does
+  not repeat is shown there as “–”. There are “As next”, “To the end of the heat”, “Show now” and “No repeat after
+  all” (brings the values back, only into fields that are empty by now) – at the operating computer and on the start
+  release phone.
+- **The 2nd attempt:** putting in line and “Show now” take the 2nd attempt of the same pair along if, after the
+  preliminary heat, it stands directly behind in the plan and has not been shown yet (the 1st attempt is the earlier
+  start, pt. 4.4; in the preliminary heat the types of boat alternate in between, there the plan stays). If “Next
+  start” is tapped before the repeat is put in line, the 2nd attempt comes and the repeat keeps waiting – whoever wants
+  to repeat first puts it in line “As next”. “Hold back” does not take a waiting repeat along. If nothing is released
+  in a heat any more, the card says for example: “No start released – 1 start is waiting (held back, repeat pending or
+  to be made up). The heat is not complete.”
+- **If a repeating boat no longer runs** (withdrawn afterwards or X): the pair disappears from “Repeat pending” and
+  from the choice, and there is no “No repeat after all” for it any more; the other boat keeps its attempt. If both
+  boats repeated and one of them has an X by now, “No repeat after all” only brings back the values of the other one.
+- **Scoreboard and spectator list:** “Preliminary heat · Attempt 1 · Repeat”, on a German board “Vorlauf · 1. Versuch
+  · Wiederholung”. If only one boat repeats, they show only this one; the other side is shown as “–”, without a
+  reason.
+- **Race officials' devices:** only the device of the sheet of the racecourse whose boat repeats gets the attempt as a
+  new start once it is shown again. If it still sends a late row for the aborted attempt, the row is refused: “This
+  attempt was aborted after a breakdown – the start is repeated. The line was not taken over.” On the other
+  racecourse nothing changes: a late row is taken over, and the start never comes there again – not even if the sheet
+  was paused during the first attempt or only went digital later. The racecourse light stays green until the
+  repeating boat has passed through the start gate; the values of the other boat that remained do not count for it,
+  and the question when closing the list names only this boat as “on the course”.
+- **Data entry on screen:** ↻ at the race number only in the row of the boat that repeats.
+- **History** (“Settings → Files → History”): “Repeat after breakdown – values discarded: E01, Class Dolphin,
+  Parallel slalom Preliminary heat, 1st attempt”, after “Repeat both” with “E01 / E02”. It names only the boats that
+  really repeat; “No repeat after all” names the boats from before.
+- **Unchanged** are the pairing and the plans; a printed heat (“lists printed”) does not prevent the repeat. The
+  repeated attempt is stored in the same cells and scored like any other. The re-run after a tie stays untouched.
 
 ### Race official data entry on the device
 
@@ -541,6 +608,8 @@ The race officials can also enter data on their own device in the parallel slalo
   22.11.2026).
 - Racecourse light: the pair is one start, an empty side does not count (confirmed 22.11.2026); time and course of
   A and B count as racecourse sheets. “Paper from” names the race number of its own side.
+- Repeat after a breakdown (27.11.2026): only the sheets of the racecourse whose boat repeats get the attempt anew;
+  afterwards the light counts only for this boat (see [Repeat after a breakdown](#repeat-after-a-breakdown)).
 - “More → Did not start · Disq. X” (24.11.2026) exists on course and pontoon; the time sheet has no Disq. field
   (there: “no time”). The X acts like any X: the scoreboard shows the side empty, and the attempt counts as a
   disqualification – in the preliminary heat for the whole parallel slalom, afterwards rear place (see
@@ -581,6 +650,11 @@ The race officials can also enter data on their own device in the parallel slalo
   the heat says it (interpreted during implementation, confirmed 26.11.2026). The heat names are kept twice: i18n
   `parallel.round.*` (via `rundenName`) and `bogenTexte().runde` in `src/config/sprache.ts` – keep both the same.
 - German: Vorlauf, Halbfinale, Kleines Finale, Finale, Wiederholung.
+- Do not confuse: the heat “Re-run” (German “Wiederholung”) follows a tie. The
+  [repeat after a breakdown](#repeat-after-a-breakdown) repeats an attempt after a technical breakdown and is called
+  “Repeat” in English (“Repeat (breakdown) …”, “Repeat pending”, on the board “Preliminary heat · Attempt 1 · Repeat”),
+  never “Re-run” – under UIM both can appear on the same board. In German both are “Wiederholung”; the repeat after a
+  breakdown is “Wiederholung nach Ausfall”.
 
 ## Individual competition
 

@@ -132,10 +132,12 @@ field tests.
   the phone in portrait, timing lists specially for the phone, in the parallel slalom one pontoon device for both
   sides (“A | B” in one form).
 - **Open questions** to the user for the next round of the question page, collected under
-  [Offen](../entscheidungen.md#offen) (German): only single interpretations that were never asked about – three
-  details of the repeat after a breakdown, 29 February in the birthday warning, the header and the sample view of
-  shared race officials' sheets, the label of the weight steps, two on the maximum number per code, one each on “Did
-  not start · Disq. X” and on the position of the drawing, older ones on pairing (E7) and on the separate finals.
+  [Offen](../entscheidungen.md#offen) (German). Round 13 (27.11.2026) confirmed the remaining interpretations; the
+  user decided differently on the repeat after a breakdown: since then it also works at the start release on the
+  phone and in the parallel slalom (built 27.11.2026). Open are the interpretations of this rework (above all: in the
+  parallel slalom, a default for which boats repeat?), the special cases of the starting order at the start release
+  (planned for round 14) and single details never asked about (pairing, print order of the race officials' sheets,
+  position of the drawing).
 - **Flaky tests:** Two end-to-end tests in `src/GeraetWkr.test.ts` occasionally fail under load (a fixed time limit
   while waiting). On GitHub they have only run on request since 24.11.2026, locally and in the pre-commit hook always
   ([technik.md](technik.md#tests)). The cause has not been fixed.

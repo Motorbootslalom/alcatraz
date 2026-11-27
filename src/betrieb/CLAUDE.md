@@ -49,11 +49,28 @@ start release.
   folge.ts: abbruecheVon, wartetAufWiederholung, wiederholteZellen (Erfassung ↻), lage → `wiederholung` (Rang vor
   zurückgestellt; nie offen/frei/nachzuholen), GezeigtEintrag.`abgebrochen`; prognose.ts misst einen abgebrochenen
   Versuch nicht; sicht.ts sv 7: SichtBereich.`wiederholung`, SichtStart.`wiederholung` (Titel „1. Lauf · Wiederholung“
-  in Tafel-Sprache, `anzeige.wiederholung`) und `abgebrochen` (nur aktuell/vorig), Option `gefahren` (nur
-  BetriebView, Wahl für die Start-Freigabe). Ausgelöst NICHT vom Betrieb: WIEDERHOLUNG_AUSFALL (state/reducer/
-  erfassung.ts) ruft reducer/betrieb.ts mitWiederholung, WIEDERHOLUNG_AUFHEBEN (ebenda, 27.11.2026) ohneWiederholung.
-  AusfallWahl graut Starts Abgemeldeter aus (Prop `nicht` aus BetriebView – nie aus der Sicht). Englisch „Repeat“, nie
-  „Re-run“ (Parallelslalom). Test betrieb/wiederholung.test.ts.
+  in Tafel-Sprache, `anzeige.wiederholung`) und `abgebrochen` (nur aktuell/vorig); `gefahren` (Wahl für die
+  Start-Freigabe) seit sv 8 (27.11.2026, R13-01) in JEDER Sicht – folge.ts gefahreneStarts, dieselbe Stelle prüft der
+  Host. Ausgelöst NICHT vom Betrieb: WIEDERHOLUNG_AUSFALL (state/reducer/erfassung.ts) ruft reducer/betrieb.ts
+  mitWiederholung, WIEDERHOLUNG_AUFHEBEN (ebenda, 27.11.2026) ohneWiederholung – am Bedienrechner und seit R13-01/R13-06
+  vom Freigabe-Handy (geraete/aufgaben.ts erlaubteWiederholung mit folge.ts ausfallGrund → `nicht-gezeigt`/`abgemeldet`;
+  BETRIEB_ANNAHMEN WH3, WH11–WH13). AusfallWahl graut Starts Abgemeldeter aus (Prop `nicht`: BetriebView aus dem Stand,
+  das Handy aus der Freigabe-Sicht `ausfallGesperrt` = folge.ts ausfallGesperrt – nie aus der öffentlichen Sicht).
+  Englisch „Repeat“, nie „Re-run“ (Parallelslalom). Test betrieb/wiederholung.test.ts.
+  Parallelslalom (Nutzer 27.11.2026, R13-02; BETRIEB_ANNAHMEN WHP1–WHP6, WH10 umentschieden): WIEDERHOLUNG_AUSFALL mit
+  Paar-Kennung und `nur` (Boot) → GezeigterStart.`nur` (nur mit `abgebrochen`, nur `p`-Kennung; normalisiereBereich).
+  folge.ts: abgebrochenAuf(g, seite) (Abbruch traf das Boot dieser Seite?), abbruecheVon(b, key, seite?),
+  wiederholtNur(b, key, bis?) (`nur` des letzten Abbruchs), gefahreneSeiten (Boote des letzten geltenden Versuchs –
+  die Wahl), wiederholteZellen auch mit Attempt-Schlüssel. sicht.ts: `gefahren` auch für Paare; ein Paar mit Abbruch
+  davor trägt `wiederholung`, Titel „· Repeat“ und nur das Boot `nur` (das andere `null`); sv bleibt 7 (8 erst R13-01).
+  reducer/betrieb.ts: EINREIHEN einer Wiederholung nimmt planPartner mit (noch nicht gezeigt), ZURUECKSTELLEN keine
+  wartende Wiederholung.
+  Prüfbefunde 27.11.2026 (WH14, WHP3/WHP4): folge.ts faehrtNoch (Paar, dessen wiederholendes Boot nicht mehr fährt, =
+  entfallen: lage überspringt es, gefahreneStarts auch, erfassung.ts AUFHEBEN mit X ändert nichts) und giltAuf(b, i,
+  seite) (gilt der i-te gezeigte Versuch für die Listen dieser Seite – nie die Wiederholung nur des anderen Boots; EINE
+  Stelle für wkr/ schlange, lage, ampel). SichtStart.`abbrueche` (sv 8, nur mit `wiederholung`) → AusfallWahl/
+  StartFreigabe schicken `abbrueche` mit WIEDERHOLUNG_AUSFALL/_AUFHEBEN; der Reducer ändert nichts, wenn die Zahl nicht
+  mehr stimmt (verspätete Action), der Host antwortet dem Handy `konflikt`.
 - Typen: types/betrieb.ts. Actions und Normalisierer: state/reducer/betrieb.ts. Nur-Lese-Store: state/leseStore.ts.
 - Oberfläche (liest nur die Sicht): components/anzeige/ (AnzeigeTafel, AnzeigeBereich; styles/anzeige.css, lib/fit.ts),
   components/betrieb/ (StartFreigabe; E2: BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb;
@@ -137,8 +154,9 @@ start release.
 - Sicht: nie Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen; nur vorkommende Starter. Neue Felder → sicht.test.ts
   (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert (sv 2 = E2, mit `programm`; sv 3 = E3, mit
   `abstaende` und `einst.amSteg/vorSteg`; sv 4 = E4, `SichtStart.paar`, Bereich `parallel`; sv 5 =
-  `einst.parallelAnordnung`). Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit
-  `jetzt + versatz` (prognose.ts), nie Reducer oder Sicht; `abstaende` ändert sich nur mit Gezeigtem/Einstellungen.
+  `einst.parallelAnordnung`; sv 7 = Wiederholung nach Ausfall; sv 8 = `gefahren` in jeder Sicht, R13-01).
+  Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit `jetzt + versatz` (prognose.ts), nie Reducer
+  oder Sicht; `abstaende` ändert sich nur mit Gezeigtem/Einstellungen.
   Zuschauersicht: genaue Schlüssel im Test, auch verschachtelt (Start, Starter, Herkunft, Punkt, Meldung, Klasse) –
   sichtZuschauer baut jedes Objekt Feld für Feld neu, nie als Referenz; ein neues Feld dort ist eine bewusste
   Entscheidung (öffentlicher Link).

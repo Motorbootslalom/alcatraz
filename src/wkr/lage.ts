@@ -1,12 +1,13 @@
 import type { AppState, BereichId, KeineZeitGrund, PunktId, StartRef, WkrModus, WkrPunkt, WkrStatus } from '../types'
 import type { Konfig } from '../config/konfig'
-import { betriebVon, lage as bereichsLage, liesRef } from '../betrieb/folge'
+import { betriebVon, giltAuf, lage as bereichsLage, liesRef } from '../betrieb/folge'
 import { erfasstKennung, listenFelder, werteVon, type Feld, type ListenTeil } from '../lib/eingaben'
 import { abschluesseVon, punktVonRef, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
 import { bestandOhneLauf, istParcoursListe, istTischListe, listenDerVeranstaltung, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste } from './liste'
 import { hatVorab, leser, schlange, vorabStarts, type SchlangenStart } from './schlange'
 import { keineZeitVon } from './keineZeit'
+import { listenSeite } from './versuch'
 
 // Lage der digitalen WKR-Erfassung am Bedienrechner (W2, Plan docs/plan-wkr-w2.md §3, 21.11.2026): je Liste und Start,
 // was da ist und was fehlt – EINE Stelle für Matrix, Geräteleiste, Rückstandswarnung, Marken der Erfassung und die
@@ -186,8 +187,10 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
 
   // „Überfällig“: Folge der gezeigten Starts, die auf dieser Liste vorkommen (Klasse mit Liste), je Zelle die letzte Stelle.
   // Ohne abgebrochene Versuche (Ausfall, R11-11, 26.11.2026): Die Wiederholung zählt erst ab ihrem eigenen Zeigen –
-  // sonst stünde sie gleich als „überfällig“ da.
-  const gezeigt = betriebVon(stand, liste.bereich).gezeigt.filter((g) => !g.abgebrochen)
+  // sonst stünde sie gleich als „überfällig“ da. Im Parallelslalom nur Abbrüche, die das Boot dieser Liste trafen, und nie
+  // die Wiederholung nur des anderen Boots (R13-02, betrieb/folge.ts giltAuf).
+  const betrieb = betriebVon(stand, liste.bereich)
+  const gezeigt = betrieb.gezeigt.filter((_, i) => giltAuf(betrieb, i, listenSeite(liste)))
   const gezeigtKeys = new Set(gezeigt.map((g) => g.ref))
   const stelle = new Map<string, number>()
   let n = 0
@@ -351,13 +354,17 @@ export function durchfahrtVon(stand: AppState, konfig: Konfig, bereich: BereichI
   const aktuell = bereichsLage(stand, bereich).aktuell
   const ref = aktuell && !aktuell.abgebrochen ? aktuell.key : null
   if (ref === null) return { ref, durch: false, perKnopf: false, x: false }
-  const perKnopf = betriebVon(stand, bereich).durchfahrt?.ref === ref
+  const betrieb = betriebVon(stand, bereich)
+  const perKnopf = betrieb.durchfahrt?.ref === ref
   const start = liesRef(ref)
   let durch = perKnopf
   let x = false
   if (start) {
     for (const liste of listenDerVeranstaltung(stand, konfig)) {
       if (liste.bereich !== bereich || !istParcoursListe(konfig, liste.typeId)) continue
+      // Die Wiederholung nur eines Boots (R13-02): Nur die Listen seines Racecourse zählen – die des anderen tragen die
+      // Werte aus dem früheren, geltenden Versuch, das wiederholende Boot liegt noch vor dem Start-Tor (Prüfbefund 27.11.2026).
+      if (!giltAuf(betrieb, betrieb.gezeigt.length - 1, listenSeite(liste))) continue
       const s = startAufListe(stand, konfig, liste, start)
       if (!s) continue
       if (leser(stand, konfig, liste).istX(s.lauf, s.starter.id, s.starter.klasse)) {
@@ -561,9 +568,12 @@ export function zeilenMarken(stand: AppState, konfig: Konfig, liste: Liste, laeu
   }
   const verdaechtig = (z: Zelle, t: ListenTeil | undefined) => z === 'papier' || z === 'ueberfaellig' || (z === 'offen' && alleWeg(t))
   const gesehen = new Set<string>()
-  for (const g of betriebVon(stand, liste.bereich).gezeigt) {
-    // Abgebrochene Versuche (R11-11) markieren nichts – die Erfassung zeigt dort „Wiederholung nach Ausfall“.
-    if (g.abgebrochen) continue
+  const betrieb = betriebVon(stand, liste.bereich)
+  for (let i = 0; i < betrieb.gezeigt.length; i++) {
+    const g = betrieb.gezeigt[i]
+    // Abgebrochene Versuche (R11-11) markieren nichts – die Erfassung zeigt dort „Wiederholung nach Ausfall“. Im
+    // Parallelslalom nur, wenn der Abbruch das Boot dieser Liste traf; die Wiederholung nur des anderen Boots nie (R13-02).
+    if (!giltAuf(betrieb, i, listenSeite(liste))) continue
     const z = r.zelleVon(g.ref)
     if (!z || z.starter === '') continue
     const laufe = [z.lauf, ...z.weitere].filter((l) => imBogen.has(l))

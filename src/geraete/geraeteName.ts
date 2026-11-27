@@ -67,7 +67,7 @@ export function eindeutigerName(wunsch: string, vergeben: Iterable<string>, ersa
 }
 
 /**
- * Art des Geräts für die Anmeldung (Nutzer 21.11.2026, W3-25, WKR_ANNAHMEN GF7, noch zu bestätigen): aus der kurzen
+ * Art des Geräts für die Anmeldung (Nutzer 21.11.2026, W3-25, WKR_ANNAHMEN GF7, bestätigt 22.11.2026, R7-31): aus der kurzen
  * Seite des Bildschirms und dem Zeiger – Finger (`pointer: coarse`) und kurze Seite unter 600 px = Handy, Finger und
  * mehr = Pad, sonst (Maus) Rechner. Der Name des Browsers allein trügt (iPad meldet sich als Mac, umbenannte Geräte).
  */

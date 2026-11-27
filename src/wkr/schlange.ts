@@ -1,6 +1,6 @@
-import type { AppState, ClassId, StartRef, WkrListe, WkrPause, WkrPunkt } from '../types'
+import type { AppState, BereichBetrieb, ClassId, PaarSeite, StartRef, WkrListe, WkrPause, WkrPunkt } from '../types'
 import type { Konfig } from '../config/konfig'
-import { abbruecheVon, betriebVon, istParallel, lage, liesRef, type FolgeEintrag } from '../betrieb/folge'
+import { abbruecheVon, betriebVon, giltAuf, istParallel, lage, liesRef, wiederholtNur, type FolgeEintrag } from '../betrieb/folge'
 import { konfigVon } from '../state/reducer/gemeinsam'
 import { erfasstKennung, felderJeKennung, werteVon, type Feld, type ListenTeil } from '../lib/eingaben'
 import { nichtGestartet } from '../lib/erfassung'
@@ -8,6 +8,7 @@ import { parallelListen } from '../lib/parallelBogen'
 import { abschlussPapier, istAbgeschlossen, punktVonRef, TEILE } from './abschluss'
 import { WKR_ANNAHMEN } from './annahmen'
 import { listenKennung, startAufListe, teileVon, teilHaken, type Liste } from './liste'
+import { listenSeite } from './versuch'
 
 // Die Schlange einer Liste: welche Starts diese Liste noch abschicken muss (Vorschlag §2, Plan §3.1) – rein, abgeleitet
 // aus derselben Lage wie die öffentliche Sicht (betrieb/folge.ts). Kein eigener Zustand: gezeigte Starts minus Haken
@@ -35,6 +36,16 @@ export interface SchlangenStart {
 }
 
 type Pausen = readonly WkrPause[]
+
+/**
+ * Wartet bzw. fährt dieser Start als Wiederholung nur des ANDEREN Boots eines Paares (Parallelslalom, R13-02)? Dann kommt
+ * er auf dieser Liste nicht wieder (vorab, „danach“): Ihr Boot ist gefahren, seine Zeile gilt.
+ */
+function fremdeWiederholung(b: Pick<BereichBetrieb, 'gezeigt'>, key: string, seite: PaarSeite | undefined): boolean {
+  if (seite === undefined) return false
+  const nur = wiederholtNur(b, key)
+  return nur !== null && nur !== seite
+}
 
 /** Liegt der Zeitpunkt in einer der Pausen? */
 function inPause(pausen: Pausen, zeit: number): boolean {
@@ -130,18 +141,23 @@ export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil, optio
     return geteilt && teil === undefined ? { ...s, teileOffen: { ab: offen.includes('ab'), an: offen.includes('an') } } : s
   }
   const b = betriebVon(stand, liste.bereich)
+  const seite = listenSeite(liste)
   const letzter = b.gezeigt.at(-1)?.ref
   const gesehen = new Set<string>()
   const out: SchlangenStart[] = []
-  for (const g of b.gezeigt) {
+  for (let i = 0; i < b.gezeigt.length; i++) {
+    const g = b.gezeigt[i]
     // Ein abgebrochener Versuch (Ausfall, R11-11, 26.11.2026) ist nichts mehr zu erfassen – seine Werte sind verworfen; die
     // Wiederholung kommt mit ihrem neuen Zeigen in die Schlange (neue Zeit, eigene Kennung für die Geräte, wkr/versuch.ts).
-    if (g.abgebrochen || g.zeit < eintrag.seit) continue
+    // Im Parallelslalom nur, wenn der Abbruch das Boot dieser Liste traf (R13-02): Sonst ist der Versuch hier gefahren und
+    // gilt. Die Wiederholung nur des ANDEREN Boots ist hier kein Start (betrieb/folge.ts giltAuf) – auch nicht, wenn der
+    // Versuch davor hier nicht zählte (Liste damals pausiert oder noch nicht digital; Prüfbefund 27.11.2026).
+    if (!giltAuf(b, i, seite) || g.zeit < eintrag.seit) continue
     const s = lies(g.ref)
     // Am Vorsteg mit „Versuche nacheinander“ steht der Starter einmal da: gleiche Zelle, gleicher Start.
     if (!s || gesehen.has(`${s.lauf}|${s.starter}`)) continue
     // Ein geltender Versuch nach einem abgebrochenen ist die Wiederholung (R11-11).
-    const wdh = abbruecheVon(b, g.ref) > 0
+    const wdh = abbruecheVon(b, g.ref, seite) > 0
     if (!rahmenJe.some(({ r }) => r.offen(s, g.zeit, wdh))) continue
     gesehen.add(`${s.lauf}|${s.starter}`)
     if (s.entfaellt) {
@@ -153,7 +169,7 @@ export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil, optio
   }
   for (const e of vorabStarts(stand, liste)) {
     const s = lies(e.key, e.ref)
-    if (!s || s.entfaellt || gesehen.has(`${s.lauf}|${s.starter}`)) continue
+    if (!s || s.entfaellt || gesehen.has(`${s.lauf}|${s.starter}`) || fremdeWiederholung(b, e.key, seite)) continue
     gesehen.add(`${s.lauf}|${s.starter}`)
     const offen = braucht(s, undefined, true)
     if (offen) out.push({ ...offen, vorab: true })
@@ -219,9 +235,11 @@ export function danach(stand: AppState, liste: Liste): SchlangenStart[] {
   const { lies } = leser(stand, konfig, liste)
   const vorab = new Set(vorabStarts(stand, liste).map((e) => e.key))
   const out: SchlangenStart[] = []
+  const b = betriebVon(stand, liste.bereich)
+  const seite = listenSeite(liste)
   for (const e of lage(stand, liste.bereich).frei) {
     if (out.length >= WKR_ANNAHMEN.danach) break
-    if (vorab.has(e.key)) continue
+    if (vorab.has(e.key) || fremdeWiederholung(b, e.key, seite)) continue
     const s = lies(e.key, e.ref)
     if (s && !s.entfaellt) out.push(s)
   }
@@ -237,12 +255,16 @@ export function papierStarts(stand: AppState, liste: Liste, teil?: ListenTeil): 
   const eintrag = stand.wkr.listen[listenKennung(liste)]
   if (!eintrag) return []
   const konfig = konfigVon(stand)
-  const gezeigt = betriebVon(stand, liste.bereich).gezeigt
+  const b = betriebVon(stand, liste.bereich)
+  const seite = listenSeite(liste)
   const out = new Set<string>()
   for (const p of [...eintrag.pausen, ...(teil !== undefined ? (eintrag.teile?.[teil]?.pausen ?? []) : [])]) {
     for (const key of p.papier) out.add(key)
-    // Ein abgebrochener Versuch (R11-11) zählt nicht – die Wiederholung gilt nach ihrem eigenen Zeigen.
-    for (const g of gezeigt) if (!g.abgebrochen && g.zeit >= p.von && (p.bis === null || g.zeit < p.bis)) out.add(g.ref)
+    // Ein abgebrochener Versuch (R11-11) zählt nicht – die Wiederholung gilt nach ihrem eigenen Zeigen; im Parallelslalom
+    // nur, wenn der Abbruch das Boot dieser Liste traf, und die Wiederholung nur des anderen Boots nie (R13-02, giltAuf).
+    b.gezeigt.forEach((g, i) => {
+      if (giltAuf(b, i, seite) && g.zeit >= p.von && (p.bis === null || g.zeit < p.bis)) out.add(g.ref)
+    })
   }
   return [...out].filter((key) => {
     const ref = liesRef(key)

@@ -5,7 +5,7 @@ import WkrDisq from './WkrDisq.vue'
 import { useWkrText } from './texte'
 
 /**
- * Disq. auf Bojen-Listen (Antwort W4-12 vom 21.11.2026, WKR_ANNAHMEN BZ4, noch zu bestätigen): „Boje/Tor usw. ist
+ * Disq. auf Bojen-Listen (Antwort W4-12 vom 21.11.2026, WKR_ANNAHMEN BZ4, bestätigt 22.11.2026, R7-17): „Boje/Tor usw. ist
  * wichtig, damit geprüft werden kann, wo der Disq.-Fehler genau passiert ist. Daher sollte das immer nachgefragt
  * werden.“ DISQ im Fuß (und „Disq. an Boje …“ über den Bojen) führt deshalb zuerst hierher:
  *
@@ -20,7 +20,7 @@ import { useWkrText } from './texte'
  *    Punkte UND Buchstaben („✔ 5“ / „Disq. J, D“). Vorher schloss schon der erste Buchstabe. Bei „keine Boje“ bleibt
  *    die Liste offen wie bisher.
  *
- * Langdruck (R7-21, 22.11.2026, LD1, noch zu bestätigen): Mit `boje` (lang gedrückte Boje aus WkrBojen) beginnt die
+ * Langdruck (R7-21, 22.11.2026, LD1, bestätigt 23.11.2026, R9-03): Mit `boje` (lang gedrückte Boje aus WkrBojen) beginnt die
  * Wahl gleich im Schritt 2 bei DIESER Boje; „Fertig“ schließt wie sonst, „Zurück“ führt zu Schritt 1.
  *
  * Ein gesetzter Buchstabe an einer Boje steht in Schritt 1 am Knopf; in Schritt 2 nimmt ein Tipp auf ihn ihn heraus

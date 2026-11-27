@@ -8,7 +8,7 @@ import type { ListenTeil } from './liste'
 import { bojenVon, disqFuer, entwurfAus, leererEntwurf, zeitDeutung, zellenAus, type Entwurf, type MaskenAufbau } from './maske'
 import type { ListenSicht } from './sicht'
 
-// Maske „Tabelle“ für Geübte (W5.5, Plan docs/plan-wkr-w5.md §8, 22.11.2026, TB1–TB4 noch zu bestätigen) – rein, ohne
+// Maske „Tabelle“ für Geübte (W5.5, Plan docs/plan-wkr-w5.md §8, 22.11.2026, TB1–TB4 bestätigt 22.11.2026, R8-38 bis R8-41) – rein, ohne
 // DOM, nichts aus geraete/. Die Zeile des Bogens zum Eintippen: Spalten in Reihenfolge und mit den Köpfen wie der Bogen
 // der Klasse (aus der Sicht), jede Eingabe geht durch DIESELBEN Sanierer wie die Erfassungstabelle am Rechner
 // (lib/disq.ts, lib/codes.ts, lib/time.ts – wkr/zeile.ts wertGilt nimmt das Ergebnis unverändert an). Was die Sanierer

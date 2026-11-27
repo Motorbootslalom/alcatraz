@@ -132,8 +132,9 @@ describe('Öffentliche Sicht', () => {
     // DM: kein Parallelslalom – also auch keine Lage, nicht einmal ihr Name (Schlüssel-Durchlauf).
     const dm = sichtOeffentlich(imBetrieb())
     // Fassung 6 (21.11.2026): SichtPaar ohne `finale`, das Kleine Finale ist eine eigene Runde. Fassung 7 (26.11.2026,
-    // R11-11): Wiederholung nach Ausfall – SichtBereich.wiederholung, SichtStart.wiederholung/abgebrochen.
-    expect(dm.sv).toBe(7)
+    // R11-11): Wiederholung nach Ausfall – SichtBereich.wiederholung, SichtStart.wiederholung/abgebrochen. Fassung 8
+    // (27.11.2026, R13-01): SichtBereich.gefahren in jeder Sicht.
+    expect(dm.sv).toBe(8)
     expect(Object.keys(dm.einst).sort()).toEqual(['amSteg', 'davor', 'parcoursName', 'vorSteg'])
     expect(schluessel(dm).has('parallelAnordnung')).toBe(false)
     // UIM mit Parallelslalom: die Einstellung (Vorgabe A links) – auch entfernte Anzeigetafeln (ab E6) lesen nur die Sicht.
@@ -152,12 +153,13 @@ describe('Öffentliche Sicht', () => {
     const s0 = imBetrieb()
     const s = reducer(s0, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1', 1), zeit: 70_000 })
     const sicht = sichtOeffentlich(s)
-    expect(sicht.sv).toBe(7)
+    expect(sicht.sv).toBe(8)
     const b = sicht.bereiche[0]
-    // Jeder Bereich trägt die Liste (auch leer); `gefahren` nur mit der Option des Bedienrechners.
+    // Jeder Bereich trägt die Listen (auch leer); `gefahren` seit Fassung 8 (R13-01) ebenso – ohne den abgebrochenen.
     expect(sicht.bereiche.map((x) => x.wiederholung.length)).toEqual([1, 0])
-    expect(schluessel(sicht).has('gefahren')).toBe(false)
-    expect(b.wiederholung[0]).toEqual({ key: m('k1', 1), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf · Wiederholung', wiederholung: true })
+    expect(sicht.bereiche.map((x) => x.gefahren.map((g) => g.key))).toEqual([[m('e1', 1)], []])
+    // `abbrueche` (sv 8, Prüfbefund 27.11.2026): die Zahl der Abbrüche – die Start-Freigabe bindet ihre Actions daran.
+    expect(b.wiederholung[0]).toEqual({ key: m('k1', 1), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf · Wiederholung', wiederholung: true, abbrueche: 1 })
     expect(b.aktuell).toEqual({ key: m('k1', 1), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf', abgebrochen: true })
     // Datenschutz wie immer: Die verworfenen Werte und ihr Grund stehen nirgends.
     const text = JSON.stringify(sicht)
@@ -167,6 +169,45 @@ describe('Öffentliche Sicht', () => {
     const z = sichtZuschauer(sichtOeffentlich(eingereiht))
     expect(schluessel(z)).toEqual(schluessel(sichtZuschauer(sichtOeffentlich(s0))))
     expect(z.bereiche[0].frei[0].titel).toBe('1. Lauf · Wiederholung')
+    // Die Zahl der Abbrüche steht in der Wahl (nach erneutem Zeigen) und nie in der Zuschauersicht.
+    const wieder = zeigeNaechsten(eingereiht, P1, 80_000)
+    expect(sichtOeffentlich(wieder).bereiche[0].gefahren[0]).toMatchObject({ key: m('k1', 1), wiederholung: true, abbrueche: 1 })
+    expect(schluessel(sichtZuschauer(sichtOeffentlich(wieder))).has('abbrueche')).toBe(false)
+  })
+
+  it('Fassung 8 (R13-01, 27.11.2026): `gefahren` in jeder Sicht – Starts wie alle anderen, ohne Abmeldungen; nie in der Zuschauersicht', () => {
+    const s = imBetrieb()
+    const sicht = sichtOeffentlich(s)
+    expect(sicht.sv).toBe(8)
+    const b = sicht.bereiche[0]
+    expect(b.gefahren).toEqual([
+      { key: m('k1', 1), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf' },
+      { key: m('e1', 1), starter: 'e1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf' },
+    ])
+    // Eine Abmeldung ändert an `gefahren` nichts und steht nirgends in der Sicht (die Wahl graut sie nur am Bedienrechner
+    // bzw. über die Freigabe-Gruppe aus).
+    const ab = sichtOeffentlich({ ...s, abgemeldet: ['k1'] })
+    expect(ab.bereiche[0].gefahren).toEqual(b.gefahren)
+    expect(JSON.stringify(ab)).not.toMatch(/abgemeldet|ausfallGesperrt/)
+    expect(schluessel(sichtZuschauer(sicht)).has('gefahren')).toBe(false)
+  })
+
+  it('R13-02 (27.11.2026): Wiederholung im Parallelslalom – dieselben Schlüssel wie im Manövrieren, nur ein Boot = andere Seite `null`', () => {
+    let s0 = reducer(uimParallelStand(), { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    s0 = zeigeNaechsten(zeigeNaechsten(s0, 'parallel', 1000), 'parallel', 2000)
+    const key = s0.betrieb.bereiche.parallel.gezeigt[0].ref
+    const s = reducer(s0, { type: 'WIEDERHOLUNG_AUSFALL', bereich: 'parallel', ref: key, nur: 'b', zeit: 9000 })
+    const sicht = sichtOeffentlich(s)
+    expect(sicht.sv).toBe(8)
+    const b = sicht.bereiche.find((x) => x.id === 'parallel')!
+    const [, , , a, bId] = JSON.parse(key) as [string, string, number, string, string]
+    expect(b.wiederholung).toEqual([{ key, starter: bId, lauf: 1, punkt: 'runde:pre', titel: 'Preliminary heat · Attempt 1 · Repeat', paar: { attempt: 1, a: null, b: bId }, wiederholung: true, abbrueche: 1 }])
+    expect(a).not.toBeNull()
+    // Dieselben Schlüssel wie im Manövrieren mit Wiederholung (seit sv 7); die Zuschauersicht ohne neues Feld.
+    const eingereiht = reducer(s, { type: 'BETRIEB_EINREIHEN', bereich: 'parallel', ref: key, wo: 'naechster' })
+    const z = sichtZuschauer(sichtOeffentlich(eingereiht))
+    expect(schluessel(z)).toEqual(schluessel(sichtZuschauer(sichtOeffentlich(s0))))
+    expect(z.bereiche.find((x) => x.id === 'parallel')!.frei[0]).toMatchObject({ titel: 'Preliminary heat · Attempt 1 · Repeat', paar: { attempt: 1, a: null, b: bId } })
   })
 
   it('Zuschauersicht: nur Im Boot, die offene Folge der begonnenen Läufe, „Boot fehlt“ und Meldung – keine Bedienangaben', () => {

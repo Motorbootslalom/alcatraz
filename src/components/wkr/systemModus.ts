@@ -2,7 +2,7 @@ import { computed, onBeforeUnmount, ref, type Ref } from 'vue'
 import type { AnsichtModus, AnsichtWahl } from '../../geraete/ablage'
 
 /**
- * Hell/Dunkel des Geräts für die WKR-Maske (Nutzer 21.11.2026, P-18/W3-01, WKR_ANNAHMEN GF1, noch zu bestätigen):
+ * Hell/Dunkel des Geräts für die WKR-Maske (Nutzer 21.11.2026, P-18/W3-01, WKR_ANNAHMEN GF1, bestätigt 22.11.2026, R7-25):
  * „Hell/Dunkel ist für Geräteeigentümer heilig“ – ohne eigene Wahl folgt die Maske dem System, auch wenn es mitten im
  * Wettkampf umschaltet (Abenddämmerung). Gelesen in JS statt per `@media (prefers-color-scheme)` in der CSS: So bleibt
  * `data-modus` die EINE Stelle, an der die Farben hängen (Tokens --wkr-* je Modus), und `color-scheme` folgt der Maske.

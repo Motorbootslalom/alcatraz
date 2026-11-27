@@ -403,28 +403,38 @@ Je Parcours eine Karte (`src/components/betrieb/StartFreigabe.vue`):
 - **Anderen Starter wählen** (`BetriebsFolge.vue`): die nächsten zwölf offenen Starts oder die ganze Folge, dazu eine
   Suche nach Startnummer oder Name über alles noch zu Zeigende – auch spätere Läufe. „Zeigen“ holt den Start sofort
   auf die Anzeigetafel; der bisherige Nächste bleibt der Nächste.
-- **Wiederholung (Ausfall) …** (26.11.2026, nur am Bedienrechner, nicht im Parallelslalom; `AusfallWahl.vue`,
-  `BETRIEB_ANNAHMEN` WH1–WH10): Bei einem bestätigten Ausfall wird der Lauf des Starters wiederholt. Die Wahl zeigt die
-  schon gezeigten Starts der laufenden Läufe, der zuletzt gezeigte zuerst, mit Suche nach Startnummer; Starts
-  abgemeldeter Starter stehen ausgegraut („abgemeldet – keine Wiederholung“). Liegt der Ausfall am Starter, trägt der
-  WKR an der Boje „J“ ein (falscher Parcours) – dann gibt es keine Wiederholung. „Wiederholen …“ fragt
+- **Wiederholung (Ausfall) …** (26.11.2026; seit 27.11.2026 auch auf dem gekoppelten Freigabe-Handy und im
+  Parallelslalom; `AusfallWahl.vue`, `BETRIEB_ANNAHMEN` WH1–WH14, WHP1–WHP6): Bei einem bestätigten Ausfall wird der
+  Lauf des Starters wiederholt. Die Wahl zeigt die schon gezeigten Starts der laufenden Läufe, der zuletzt gezeigte
+  zuerst; die ersten acht stehen sofort da, die übrigen findet die Suche nach Startnummer. Starts abgemeldeter Starter
+  stehen ausgegraut („abgemeldet – keine Wiederholung“). Liegt der Ausfall am Starter, trägt der WKR an der Boje „J“
+  ein (falscher Parcours) – dann gibt es keine Wiederholung. „Wiederholen …“ fragt
   „Wiederholung nach Ausfall: 102, Lauf 1?“; „Werte verwerfen und wiederholen“ leert alle Werte dieses Starters in
   diesem Lauf auf jeder Liste, auch die von den WKR-Geräten samt ihren offenen Rückfragen. Mit „Versuche direkt
-  nacheinander“ (UIM) bleibt die Zeile am Vorsteg stehen; die Rückfrage sagt das.
+  nacheinander“ (UIM) bleibt die Zeile am Vorsteg stehen; die Rückfrage sagt das. Die offene Rückfrage schließt sich
+  von selbst, wenn ihr Start inzwischen anderswo ausgelöst, zurückgenommen oder mit X versehen wurde. Im
+  Parallelslalom fragt die Rückfrage stattdessen, welche Boote wiederholen
+  ([Parallelslalom im Betrieb](#parallelslalom-im-betrieb)). Vom Handy aus prüft der Bedienrechner jede Wiederholung
+  noch einmal; eine Ablehnung steht dort als Satz ([Gerätebetrieb](#gerätebetrieb)).
 - **Wiederholung offen:** Dort steht der Start danach; er fährt nie von selbst. Die Wettkampfleitung reiht ihn mit
   „Als Nächster“ oder „Ans Ende des Laufs“ ein oder zeigt ihn mit „Jetzt zeigen“ – auch vom gekoppelten Freigabe-Handy
   und in der Startliste. Bis dahin steht der abgebrochene Versuch unter „Im Boot“ mit „Ausfall – wird wiederholt“;
-  „Zurück“ ist gesperrt, eine Parcours-Ampel und den Auto-Modus gibt es für ihn nicht.
-- **Doch keine Wiederholung** (nur am Bedienrechner, in der Liste „Wiederholung offen“, solange der Start nicht wieder
-  gezeigt ist): Der abgebrochene Versuch gilt wieder, und seine verworfenen Werte kommen zurück – auf allen Listen,
-  samt Haken „erfasst“ und „keine Zeit“, aber nur in Felder, die inzwischen leer sind; was seit dem Ausfall
-  eingetragen wurde, bleibt. Rückfragen, Vorschläge und Papier-Vermerke von damals kommen nicht zurück. Nach zwei
-  Ausfällen desselben Starts gilt danach der zuletzt abgebrochene Versuch. Die WKR-Geräte behandeln den Start danach
-  wie vorher (erledigt; Korrekturen aus „Zuletzt“ werden wieder übernommen).
+  „Zurück“ ist gesperrt, eine Parcours-Ampel und den Auto-Modus gibt es für ihn nicht. Fährt in dem Start danach
+  niemand mehr (X, etwa durch eine Abmeldung), entfällt er: Er verschwindet aus „Wiederholung offen“ und aus der Wahl,
+  „Doch keine Wiederholung“ gibt es dafür nicht mehr.
+- **Doch keine Wiederholung** (in der Liste „Wiederholung offen“, am Bedienrechner und seit 27.11.2026 auch auf dem
+  Freigabe-Handy, solange der Start nicht wieder gezeigt ist): Der abgebrochene Versuch gilt wieder, und seine
+  verworfenen Werte kommen zurück – auf allen Listen, samt Haken „erfasst“ und „keine Zeit“, aber nur in Felder, die
+  inzwischen leer sind; was seit dem Ausfall eingetragen wurde, bleibt. Rückfragen, Vorschläge und Papier-Vermerke von
+  damals kommen nicht zurück. Nach zwei Ausfällen desselben Starts gilt danach der zuletzt abgebrochene Versuch. Die
+  WKR-Geräte behandeln den Start danach wie vorher (erledigt; Korrekturen aus „Zuletzt“ werden wieder übernommen).
 - Im Verlauf („Einstellungen → Dateien → Verlauf“) stehen eigene Einträge, etwa „Wiederholung nach Ausfall – Werte
-  verworfen: 101, Klasse 1, 1. Lauf“ und „Doch keine Wiederholung – Werte zurückgeholt: …“. Die verworfenen Werte
-  stehen in der Sicherung, solange der Abbruch im Betrieb steht; „Betrieb zurücksetzen“, das Löschen des Laufs und das
-  Entfernen des Starters räumen sie weg.
+  verworfen: 101, Klasse 1, 1. Lauf“ und „Doch keine Wiederholung – Werte zurückgeholt: …“ – vom Handy ausgelöst
+  genauso, ohne Gerätenamen. Im Parallelslalom nennt der Eintrag nur die Boote, die wirklich wiederholen („… Werte
+  verworfen: E01, Klasse Dolphin, Parallel-Slalom Vorlauf, 1. Versuch“, bei „Beide wiederholen“ „E01 / E02“);
+  „Doch keine Wiederholung“ nennt die Boote von vorher. Die verworfenen Werte stehen in der Sicherung, solange der
+  Abbruch im Betrieb steht; „Betrieb zurücksetzen“, das Löschen des Laufs und das Entfernen des Starters räumen sie
+  weg.
 - **Verschieben** (Menü je Start): vor den Nächsten, ans Ende des Laufs, vor oder nach einem anderen Lauf – nie vor
   schon Gefahrenes. Mit „Verzahnung beim Verschieben halten“ (Vorgabe an) bekommt der Start im Lauf den nächsten Platz
   seiner Spur. Was die Bedienung so umgestellt hat, bleibt; nicht umgestellte Läufe folgen weiter der Verzahnung.
@@ -457,7 +467,8 @@ verschwindet nach kurzer Ruhe.
 - Zwei Parcours stehen untereinander, auf sehr breiten Bildschirmen nebeneinander. Zu lange Namen werden kleiner statt
   abgeschnitten (`src/lib/fit.ts`).
 - Ein wiederholter Start nach Ausfall steht als „1. Lauf · Wiederholung“ da (englisch „Attempt 1 · Repeat“), ohne
-  Grund; ebenso in der Zuschauerliste.
+  Grund; ebenso in der Zuschauerliste. Im Parallelslalom heißt es „Vorlauf · 1. Versuch · Wiederholung“ (englisch
+  „Preliminary heat · Attempt 1 · Repeat“); wiederholt nur ein Boot, steht die andere Seite als „–“.
 - Das Fenster liest nur und schreibt nie; es folgt dem Bedienfenster sofort und hält den Bildschirm wach.
 - Sprache wie die Listen (DM deutsch, UIM englisch: „Course“, „Attempt“, „Class Dolphin“), umstellbar.
 - Was sie zeigt, kommt aus einer schmalen Sicht (`src/betrieb/sicht.ts`): Startnummer, Name, Klasse und Herkunft der
@@ -504,7 +515,11 @@ den Parcours. Seine Punkte sind die festgeschriebenen Runden (Vorlauf, Re-run, H
 jede wird mit „… beginnen“ einzeln freigegeben (24.11.2026), seine Starts sind die Paare des Plans. Die Anzeigetafel
 zeigt Racecourse A und B so, wie sie vom Publikum aus liegen (Einstellung). Klassen aussetzen und Verschieben gibt es
 dort nicht, Zurückstellen nimmt das ganze Paar, Wartezeiten gibt es keine. Eine eigene Tafel öffnet
-„Eigene Anzeigetafel“ (`#/anzeige/parallel`).
+„Eigene Anzeigetafel“ (`#/anzeige/parallel`). „Wiederholung (Ausfall) …“ gibt es seit 27.11.2026 auch hier: Die Wahl
+zeigt die gezeigten Paare der laufenden Runden, die Rückfrage fragt jedes Mal ohne Vorauswahl, welche Boote
+wiederholen („Nur E01 (Parcours A)“, „Nur E02 (Parcours B)“, „Beide wiederholen“); ein Boot, das nicht wiederholt,
+behält seine Werte ([Einzelheiten](parallelslalom.md#wiederholung-nach-ausfall)). Das ist nicht der Re-run bei
+Gleichstand.
 
 ### Einstellungen und Speicher
 
@@ -531,21 +546,36 @@ ist er noch nicht im Feld geprüft ([feldtest.md](feldtest.md)).
   `src/main.geraete.test.ts`). Über den Server gehen dann, verschlüsselt und signiert: Startnummer, Name (nach der
   Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse, die Folge der Starts mit Zeitpunkten, Meldungen, der
   Name der Veranstaltung; für die WKR-Listen deren Starts mit Startnummer und Klasse (ohne Namen), am Steg das
-  Ausgleichsgewicht. Vom Bedienrechner gehen nie hinaus: Geburtsdatum, Körpergewicht, Geschlecht, erfasste Werte
+  Ausgleichsgewicht. Eine gekoppelte Start-Freigabe erfährt für ihre Parcours, welche schon gestarteten Starter
+  abgemeldet sind – nur damit sie ihnen keine Wiederholung nach Ausfall anbietet (27.11.2026; der Hinweis vor dem
+  Einschalten nennt es). Vom Bedienrechner gehen nie hinaus: Geburtsdatum, Körpergewicht, Geschlecht, erfasste Werte
   (außer bei einer Rückfrage der Wert dieser einen Zelle an die Geräte der Liste), Logos oder der Stand der
   Veranstaltung. Die WKR-Geräte schicken ihre Zeilen verschlüsselt an den Bedienrechner.
 - **Server:** Vorgabe `ntfy.adminforge.de`, änderbar unter „Einstellungen → Geräte“. Sein Betreiber sieht keine
   Inhalte, wohl aber Zeitpunkte, Größen und IP-Adressen.
 - **Zwei Lese-Links** mit QR-Code: „Anzeigetafel“ und „Zuschauer“ (`#/sehen/<paket>`). Keine Anmeldung, keine
   Kopplung; das Gerät zeigt dieselbe Anzeigetafel (ohne Logos) bzw. Zuschauerliste wie am Bedienrechner.
-  Fingerabdruck zum Vergleichen, „Zuschauer-Link erneuern“, „Raum beenden“.
+  Fingerabdruck zum Vergleichen, „Zuschauer-Link erneuern“, „Raum beenden“. Seit 27.11.2026 trägt der
+  Anzeigetafel-Link auch die Liste der gefahrenen Starts der laufenden Läufe mit, aus der die Start-Freigabe die Wahl
+  „Wiederholung (Ausfall) …“ bildet (ohne Werte, Gründe oder Abmeldungen); der Zuschauer-Link nicht – beim Bau
+  ausgelegt, noch zu bestätigen (`BETRIEB_ANNAHMEN` WH11). Geräte mit älterer Fassung laden dafür einmal neu.
 - **Koppeln** (E7): QR-Code vom Bildschirm scannen (Hauptweg) oder Koppel-Link plus Geräte-Code über Funk. Gekoppelt
   wird für die **Start-Freigabe** bestimmter Parcours oder für eine **WKR-Liste** (siehe
   [Digitale WKR-Erfassung](#digitale-wkr-erfassung)). In der Geräteliste: Name, Art des Geräts (Handy, Pad, Rechner),
   Parcours, Listen, „Entziehen“.
 - **Start-Freigabe auf dem Handy** (`#/geraet`): dieselben Knöpfe wie am Bedienrechner, nur für die eigenen Parcours,
-  ohne „Betrieb zurücksetzen“. Nach jedem Druck sind die Knöpfe gesperrt, bis der Bedienrechner bestätigt; entschieden
-  wird immer dort (Positivliste `src/geraete/aufgaben.ts`).
+  ohne „Betrieb zurücksetzen“ und „Auf allen Parcours zeigen“ (die Meldung). Nach jedem Druck sind die Knöpfe
+  gesperrt, bis der Bedienrechner bestätigt; entschieden wird immer dort (Positivliste `src/geraete/aufgaben.ts`).
+- **Wiederholung vom Handy** (27.11.2026, Nutzer R13-01/R13-06; `BETRIEB_ANNAHMEN` WH3, WH11–WH14): „Wiederholung
+  (Ausfall) …“ und „Doch keine Wiederholung“ gehen auch auf dem Freigabe-Handy, mit derselben Wahl und Rückfrage wie
+  am Bedienrechner (im Parallelslalom mit der Wahl der Boote). Der Bedienrechner prüft gegen den vollen Stand und
+  lehnt mit Grund ab: „Für diesen Start gibt es keine Wiederholung: Er steht nicht (mehr) unter den gefahrenen Starts
+  der laufenden Läufe bzw. Runden – bitte die Anzeige prüfen.“, „Der Starter ist abgemeldet – keine Wiederholung. Soll
+  er doch fahren, zuerst am Bedienrechner die Abmeldung zurücknehmen.“ oder „Das darf dieses Gerät nicht (anderer
+  Parcours oder nicht mehr freigegeben).“ Die Wiederholung ist an den Versuch gebunden, den das Handy sah: Kommt die
+  Nachricht verspätet an (Funkloch) und hat sich der Start inzwischen geändert, ändert sich nichts, und das Handy
+  meldet „Inzwischen hat sich dort etwas geändert – bitte die Anzeige prüfen.“ War jemand schneller: „Nichts geändert
+  – schon geschehen oder jemand anderes war schneller. Bitte die Anzeige prüfen.“
 - Dazu: Bildschirm wach halten auf jedem verbundenen Gerät, „Alle Geräte neu laden“ nach einem Update und eine
   Anzeige, wie viele Nachrichten heute an den Server gingen.
 
@@ -591,7 +621,10 @@ width="360" alt="WKR-Maske Bild auf dem Pad mit Parcours-Zeichnung und Seitenspa
   ist nicht übernommen.“ Hat eine Liste den Lauf schon abgeschlossen, bekommt ihr Gerät die Wiederholung trotzdem; die
   Zeile kommt im Eingang als Vorschlag an („Die Liste ist für diesen Lauf abgeschlossen.“) und wird mit einem Klick
   übernommen, der Abschluss bleibt stehen. Ausnahme „Versuche direkt nacheinander“: Die Zeile am Vorsteg bleibt, das
-  Gerät dort kann sie weiter korrigieren, und eine verspätete Zeile wird übernommen.
+  Gerät dort kann sie weiter korrigieren, und eine verspätete Zeile wird übernommen. Im Parallelslalom (27.11.2026)
+  bekommen nur die Listen des Racecourse, dessen Boot wiederholt, den Attempt neu, und nur dort wird eine verspätete
+  Zeile abgelehnt; auf dem anderen Racecourse wird sie übernommen, und die Wiederholung kommt dort nie als neuer Start
+  – auch nicht, wenn die Liste beim ersten Versuch pausiert war oder erst später digital wurde.
 
 ### Am Bedienrechner
 
@@ -631,7 +664,9 @@ Parcoursüberwachung, Start/Ziel, seit 22.11.2026 auch Zeit –, steht je Parcou
    Zurückgestellte, bei offener Rückfrage, bei Pause oder Störung.
 
 Die Parcours-WKR sehen in der Starterkarte einen Punkt „Start frei“ bzw. „im Parcours“; Anzeigetafel und
-Zuschauerliste zeigen keine Ampel.
+Zuschauerliste zeigen keine Ampel. Wiederholt im Parallelslalom nach einem Ausfall nur ein Boot, zählen nur die Listen
+dieses Boots: Die Ampel bleibt grün, bis es durchs Start-Tor ist – die stehen gebliebenen Werte des anderen Boots
+zählen nicht –, und die Rückfrage beim Abschließen nennt als „unterwegs“ nur dieses Boot (27.11.2026).
 
 ### Masken
 
@@ -742,7 +777,8 @@ alt="Erfassung: ein Bogen als Eingabetabelle mit Werten"></a>
 - **Wiederholung nach Ausfall** (26.11.2026): An der Startnummer steht ↻ mit dem Hinweis „Wiederholung nach Ausfall –
   Werte der Wiederholung eintragen“. Auf Papier hat der Wettkampfrichter die Zeile gestrichen und die Wiederholung in
   eine Leerzeile eingetragen; die gestrichene Zeile gilt nicht. Am Vorsteg mit „Versuche direkt nacheinander“ gibt es
-  kein ↻ (dort ist nichts gestrichen).
+  kein ↻ (dort ist nichts gestrichen). Auf den Listen des Parallelslaloms steht ↻ nur in der Zeile des Boots, das
+  wiederholt (27.11.2026).
 - Mit [digitaler WKR-Erfassung](#digitale-wkr-erfassung): ◆ an Werten vom Gerät (mit Liste, Gerät und Zeit),
   „Papier ansehen“ an Zeilen und Zellen, für die der Bogen gebraucht wird, und eine Nachfrage, bevor ein Wert vom Gerät
   überschrieben wird. Offene Rückfragen werden unter Betrieb → WKR entschieden.
@@ -959,7 +995,7 @@ Jeweils in Oberfläche und Reducer. Die Punkte mit Datum sind Entscheidungen vom
   - Bestätigt 26.11.2026: am 27. Geburtstag selbst nicht mehr; ohne Datum die ganzen Grenz-Jahrgänge. Bestätigt
     27.11.2026: „weniger als 2 Tage“ schließt den 2. Tag ein; rot auch, wenn der 6. Geburtstag 1 oder 2 Tage vor dem
     ersten Wettkampftag liegt; Klasse E mit dem 6. Geburtstag 3 bis 14 Tage nach dem ersten Wettkampftag ist „zu
-    jung“ (rot), kein Hinweis. Ausgelegt und noch zu bestätigen: Der 29.02. wird in Jahren ohne ihn zum 01.03.
+    jung“ (rot), kein Hinweis. Bestätigt 27.11.2026: Der 29.02. wird in Jahren ohne ihn zum 01.03.
 - **Datumsfelder:** nie die Datumswahl des Browsers (sie zeigte je nach System mm/dd/yyyy), sondern ein Textfeld:
   deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT (`src/components/DatumFeld.vue`). Erkannt werden auch 2019-12-01, 1.12.2019
   und 01/12/2019 (Schrägstrich: Tag zuerst); ein Datum, das es nicht gibt, wird gemeldet. Gespeichert wird JJJJ-MM-TT.

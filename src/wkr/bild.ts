@@ -324,11 +324,34 @@ export function inlineSvg(quelle: string, o: { praefix: string; drehung: number;
       const neu = d === 180 ? [-(x + w), -(y + h), w, h] : d === 90 ? [-(y + h), x, h, w] : d === 270 ? [y, -(x + w), h, w] : vb
       kopf = kopf.replace(/\bviewBox="[^"]+"/, `viewBox="${neu.join(' ')}"`)
       innen = `<g transform="rotate(${d === 270 ? -90 : d})">${innen}</g>`
+      if (d === 90 || d === 270) innen = nurBojenZiffern(innen, p)
     }
     kopf = kopf.replace(/<svg\b/, '<svg preserveAspectRatio="xMidYMid meet"')
     s = kopf + innen + '</svg>'
   }
   return mitDeckkraft(mitDeckkraft(s, o.dim.map((id) => p + id), DIM_OPACITY), o.aus.map((id) => p + id), AUSBLENDEN_OPACITY)
+}
+
+/** Ziffern an den Bojen: `Nummer_Tor1` … in den Klassen-Zeichnungen, `A_Nummer_Boje1` … in Parallel.svg. */
+const BOJEN_ZIFFER = /^(?:[AB]_)?Nummer_/
+
+/**
+ * Hochkant nur die Ziffern an den Bojen (BL8, Nutzer 27.11.2026: „Warum hast du den Text hier drin, wenn der Parcours
+ * im Hochformat ist?“). Die Zeichnungen sind quer angelegt; Titel („DMYV-Jugend Motorboot-Slalom Klasse E“),
+ * Fahrweg-Beschreibung („Ablegen - Startlinie - …“), „Tempo - Runde“ und „Möwe-Parcour“ stehen dort neben dem
+ * Parcours. Gedreht um ±90° hält BL4 jeden Text aufrecht – um seine eigene Mitte, die mit der Zeichnung wandert –, und
+ * die breiten Blöcke legten sich quer über den nun hochkant stehenden Parcours. Bei 0° und 180° bleibt jeder Block in
+ * seinem eigenen Rahmen (eine halbe Drehung um die eigene Mitte deckt dieselbe Fläche), dort bleibt der Text.
+ * Ausgeblendet per `display:none` am Element: getBBox der Bojen und die Trefferkreise bleiben unberührt.
+ */
+function nurBojenZiffern(innen: string, praefix: string): string {
+  return innen.replace(/<text\b[^>]*>/g, (tag) => {
+    const id = /\bid="([^"]*)"/.exec(tag)?.[1] ?? ''
+    if (id.startsWith(praefix) && BOJEN_ZIFFER.test(id.slice(praefix.length))) return tag
+    return /\bstyle="/.test(tag)
+      ? tag.replace(/\bstyle="([^"]*)"/, (_, st: string) => `style="${st.replace(/;?\s*$/, '')};display:none"`)
+      : tag.replace(/\s*(\/?)>$/, ` style="display:none"$1>`)
+  })
 }
 
 /** Nur solche IDs werden angefasst (wie lib/parcoursbild.ts): Was aus YAML stammt, darf kein Markup einschleusen. */
@@ -416,8 +439,8 @@ export function aufrechtTransform(vorhanden: string | null, rahmen: { x: number;
 }
 
 /**
- * Drehung, mit der das Bild wirklich gezeigt wird (Prüfbefund 22.11.2026, WKR_ANNAHMEN.bildDrehungNachPlatz, noch zu
- * bestätigen): 0° und 180° immer; ±90° nur auf dem Pad und nur, wenn die gedrehte Zeichnung im freien Platz (Breite
+ * Drehung, mit der das Bild wirklich gezeigt wird (Prüfbefund 22.11.2026, WKR_ANNAHMEN.bildDrehungNachPlatz,
+ * bestätigt 22.11.2026, R8-24): 0° und 180° immer; ±90° nur auf dem Pad und nur, wenn die gedrehte Zeichnung im freien Platz (Breite
  * der Fläche × höchste Höhe der Zeichnung) mindestens so groß erscheint wie die ungedrehte – sonst 0° wie auf dem
  * Handy. Vorher drehte das Pad immer ±90°, und eine Zeichnung mit `blick: hinten` (gate135, gate245, moewe …) wurde
  * hochkant doppelt so hoch wie der Bildschirm. Ohne bekannten Platz (vor dem ersten Messen, Test-DOM) 0°.

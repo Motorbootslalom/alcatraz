@@ -123,10 +123,11 @@ die Feldtests.
 - **W6 nach Befund** ([plan-wkr-w5.md](plan-wkr-w5.md)): die Maske „Bild“ eigens für das Handy hochkant, Zeit-Listen
   eigens für das Handy, im Parallelslalom ein Steg-Gerät für beide Seiten („A | B“ in einer Maske).
 - **Offene Fragen** an den Nutzer für die nächste Runde der Fragenseite, gesammelt unter
-  [Offen](entscheidungen.md#offen): nur noch einzelne, nie eigens gefragte Auslegungen – drei Einzelheiten der
-  Wiederholung nach Ausfall, der 29.02. bei der Geburtstags-Warnung, Kopf und Beispielansicht gemeinsamer WKR-Bögen,
-  die Beschriftung der Abstufung, zwei zur Höchstzahl je Code, je eine zu „Nicht gestartet · Disq. X“ und zur Lage der
-  Zeichnung, ältere zum Koppeln (E7) und zu den getrennten Finals.
+  [Offen](entscheidungen.md#offen). Runde 13 (27.11.2026) hat die übrigen Auslegungen bestätigt; anders entschieden
+  hat der Nutzer die Wiederholung nach Ausfall: Sie geht seitdem auch an der Start-Freigabe auf dem Handy und im
+  Parallelslalom (gebaut 27.11.2026). Offen sind die Auslegungen dieses Umbaus (vor allem: im Parallelslalom eine
+  Vorgabe, welche Boote wiederholen?), die Sonderfälle der Startfolge an der Start-Freigabe (für Runde 14 vorgesehen)
+  und einzelne nie eigens gefragte Kleinigkeiten (Koppeln, Druckfolge der WKR-Bögen, Lage der Zeichnung).
 - **Wackelige Tests:** Zwei Ende-zu-Ende-Tests in `src/GeraetWkr.test.ts` schlagen unter Last gelegentlich fehl
   (feste Zeitgrenze beim Warten). Auf GitHub laufen sie seit 24.11.2026 nur auf Wunsch, lokal und im pre-commit-Hook
   immer ([technik.md](technik.md#tests)). Die Ursache ist nicht behoben.

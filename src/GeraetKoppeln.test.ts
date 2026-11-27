@@ -336,3 +336,92 @@ describe('Gerät: Stand der WKR-Erfassung in der Start-Freigabe (W2.4)', () => {
     await bis(() => state.value.betrieb.bereiche.par_1.gezeigt.length === vorher + 1)
   })
 })
+
+/**
+ * Wiederholung nach Ausfall vom Handy (Nutzer 27.11.2026, R13-01/R13-06): dieselbe Wahl und Rückfrage wie am
+ * Bedienrechner, „Doch keine Wiederholung“ auch hier; abgelehnt mit einem Satz, Abgemeldete ausgegraut.
+ */
+describe('Gerät: Wiederholung nach Ausfall (R13-01/R13-06)', () => {
+  const L1 = 'manoevrieren/1'
+  const FELD = 't1a|hin seiteA'
+  const m = (starter: string) => JSON.stringify(['m', starter, 1])
+
+  /** Lauf 1 auf Parcours 1, e1 und k1 gezeigt (k1 im Boot), beide mit Wert – am Bedienrechner. */
+  async function mitGezeigten() {
+    const { state, h } = await bedienrechner()
+    const dispatch = (a: Action) => (state.value = reducer(state.value, { ...a, zeit: 20_000 } as Action))
+    dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:1' })
+    for (let i = 0; i < 2; i++) {
+      const b = sichtOeffentlich(state.value).bereiche.find((x) => x.id === 'par_1')!
+      dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
+    }
+    dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: L1, starter: 'e1', feld: FELD, wert: '5' }, { lauf: L1, starter: 'k1', feld: FELD, wert: '10' }] } as Action)
+    const { w } = await mitCode(h, NUR_1)
+    return { state, h, w, dispatch }
+  }
+  const dialog = () => document.querySelector('[data-dialog="ausfall"]')
+  const klicke = (sel: string) => (document.querySelector(sel) as HTMLButtonElement).click()
+
+  it('der Knopf steht auch auf dem Handy: Wahl, Rückfrage, Werte verworfen; „Doch keine Wiederholung“ holt sie zurück', async () => {
+    const { state, w } = await mitGezeigten()
+    const k = () => karte(w, 'par_1')
+    await zeigt(() => k().find('[data-action="ausfall"]').exists())
+    expect(k().find('[data-action="ausfall"]').text()).toBe('Wiederholung (Ausfall) …')
+    await k().find('[data-action="ausfall"]').trigger('click')
+    // Dieselbe Wahl wie am Bedienrechner: der zuletzt gezeigte zuerst.
+    expect(k().findAll('[data-teil="ausfall"] li').map((li) => li.attributes('data-start'))).toEqual([m('k1'), m('e1')])
+    await k().find(`[data-teil="ausfall"] li[data-start='${m('k1')}'] [data-action="ausfall-waehlen"]`).trigger('click')
+    await nextTick()
+    expect(dialog()!.textContent).toContain('Wiederholung nach Ausfall: 101, Lauf 1?')
+    klicke('[data-action="ausfall-ja"]')
+    await nextTick()
+    // Gesperrt bis zur Quittung, wie jede Action vom Handy.
+    expect(w.find('fieldset.geraet-sperre').attributes('disabled')).toBeDefined()
+    await zeigt(() => state.value.betrieb.bereiche.par_1.wiederholung?.length === 1 && w.find('fieldset.geraet-sperre').attributes('disabled') === undefined)
+    expect(state.value.eingaben[L1].k1).toBeUndefined()
+    expect(state.value.eingaben[L1].e1).toEqual({ [FELD]: '5' })
+
+    // „Wiederholung offen“ mit „Doch keine Wiederholung“ – auch auf dem Handy (R13-06).
+    await zeigt(() => k().find('[data-teil="wiederholung"] [data-action="wiederholung-aufheben"]').exists())
+    expect(k().find('[data-teil="wiederholung"] [data-action="wiederholung-aufheben"]').text()).toBe('Doch keine Wiederholung')
+    await k().find('[data-teil="wiederholung"] [data-action="wiederholung-aufheben"]').trigger('click')
+    await zeigt(() => state.value.betrieb.bereiche.par_1.wiederholung === undefined && w.find('fieldset.geraet-sperre').attributes('disabled') === undefined)
+    expect(state.value.eingaben[L1].k1).toEqual({ [FELD]: '10' })
+    await zeigt(() => !k().find('[data-teil="wiederholung"]').exists())
+  })
+
+  it('abgelehnt: ein Satz mit dem Grund; die offene Rückfrage geht zu, wenn ihr Start wegfällt; Abgemeldete ausgegraut', async () => {
+    const { state, w, dispatch } = await mitGezeigten()
+    const k = () => karte(w, 'par_1')
+    const k1 = () => k().find(`[data-teil="ausfall"] li[data-start='${m('k1')}']`)
+    await zeigt(() => k().find('[data-action="ausfall"]').exists())
+    await k().find('[data-action="ausfall"]').trigger('click')
+    await k1().find('[data-action="ausfall-waehlen"]').trigger('click')
+    await nextTick()
+    expect(dialog()).not.toBeNull()
+    // Während die Rückfrage offen ist, nimmt der Bedienrechner den Start zurück: Die Rückfrage geht zu – bestätigt träfe
+    // sie sonst einen anderen Versuch (Prüfbefund 27.11.2026).
+    dispatch({ type: 'BETRIEB_ZURUECK', bereich: 'par_1', ref: m('k1') })
+    await zeigt(() => !k1().exists() && dialog() === null)
+    // Wieder gezeigt; bestätigt – und noch bevor die Nachricht ankommt, nimmt der Bedienrechner ihn erneut zurück: Der
+    // Host lehnt ab, das Handy sagt warum.
+    dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: m('k1'), vorher: m('e1') })
+    await zeigt(() => k1().exists() && w.find('fieldset.geraet-sperre').attributes('disabled') === undefined)
+    await k1().find('[data-action="ausfall-waehlen"]').trigger('click')
+    await nextTick()
+    klicke('[data-action="ausfall-ja"]')
+    dispatch({ type: 'BETRIEB_ZURUECK', bereich: 'par_1', ref: m('k1') })
+    await zeigt(() => w.find('[data-teil="rueckmeldung"]').exists())
+    expect(w.find('[data-teil="rueckmeldung"]').attributes('data-art')).toBe('abgelehnt')
+    expect(w.find('[data-teil="rueckmeldung"]').text()).toContain('Für diesen Start gibt es keine Wiederholung')
+    expect(state.value.eingaben[L1].k1).toEqual({ [FELD]: '10' })
+
+    // Abgemeldet (e1): ausgegraut mit „abgemeldet – keine Wiederholung“ – aus der Freigabe-Gruppe, nicht aus der Sicht.
+    dispatch({ type: 'ABMELDEN_STARTER', id: 'e1' } as Action)
+    await k().find('[data-action="ausfall"]').trigger('click')
+    const e1 = () => k().find(`[data-teil="ausfall"] li[data-start='${m('e1')}']`)
+    await zeigt(() => e1().exists() && e1().find('[data-teil="ausfall-abgemeldet"]').exists())
+    expect(e1().find('[data-teil="ausfall-abgemeldet"]').text()).toBe('abgemeldet – keine Wiederholung')
+    expect(e1().find('[data-action="ausfall-waehlen"]').attributes('disabled')).toBeDefined()
+  })
+})

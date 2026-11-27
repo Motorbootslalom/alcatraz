@@ -32,7 +32,7 @@ import { useWkrText } from './texte'
  * der Buchstabe). Eine Boje mit Buchstaben zeigt Punkte UND „Disq. G“ (zwei Zeilen, nichts abgeschnitten bei 360 px) und
  * nimmt weiter Berührungen an – die Zelle trägt beides („5, G“, mehrere Buchstaben seit R7-14 22.11.2026).
  *
- * Langes Drücken (R7-21, 22.11.2026, WKR_ANNAHMEN U3/LD1–LD4, noch zu bestätigen): Ein Druck ab langdruckMs auf eine
+ * Langes Drücken (R7-21, 22.11.2026, WKR_ANNAHMEN U3/LD1–LD4, bestätigt 23.11.2026, R9-03/R9-04): Ein Druck ab langdruckMs auf eine
  * Boje mit Buchstaben meldet `disqBoje` – WkrMaske/WkrProbe öffnen WkrDisqOrt direkt bei DIESER Boje (Schritt 2). Der
  * Tipp zählt dafür beim Loslassen (components/wkr/langdruck.ts), ein ausgelöster Langdruck zählt nie als Tipp.
  */

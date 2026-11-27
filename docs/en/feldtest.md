@@ -61,6 +61,14 @@ Tick each point when the expected result occurs; otherwise note under “Observa
   phone sees “Nothing changed – already done, or someone else was quicker” or nothing. Observation:
 - [ ] **Hold back, message, putting back in line** from the phone. Expected: works as on the operating computer.
   Observation:
+- [ ] **Trigger a repeat from the phone, also in a dead spot** (27.11.2026): on the phone “Repeat (breakdown) …” for a
+  start already shown, “Repeat …”, “Discard values and repeat”. Expected: the same choice as at the operating computer
+  (the one shown last at the top), “Sending …”, then the start is under “Repeat pending” on phone and operating
+  computer, in the history “Repeat after breakdown – values discarded: …”; “No repeat after all” from the phone brings
+  the values back. Then in a dead spot: put the phone into flight mode and confirm “Repeat (breakdown) …” there for
+  another start; meanwhile repeat the same start at the operating computer, put it in line “As next” and show it;
+  then reconnect the phone. Expected: the phone shows “Refused: Something has changed there in the meantime – please
+  check the display.”, and the repeat stays (it is not aborted again, its values stay). Observation:
 - [ ] **Own racecourses only:** remove the tick on the operating computer. Expected: the card disappears on the phone
   at once. Observation:
 
@@ -145,6 +153,13 @@ data.
   start is under “Repeat pending”; the correction is rejected (“This attempt was aborted after a breakdown …”). After
   “As next” and “Next start” it comes onto all devices like a new start; the scoreboard shows “Attempt 1 · Repeat”.
   Once “No repeat after all” instead: the values are back. Observation:
+- [ ] **Repeat in the parallel slalom** (UIM; one device with the course sheet per racecourse; show a pair of the
+  preliminary heat, both devices enter, then “Repeat (breakdown) …” → “Only E01 (Racecourse A)”; afterwards device B
+  sends one more correction). Expected: the confirmation has no preselection, the focus is on “Cancel”; the values of
+  E01 are gone, those of E02 stay, the correction from B is taken over. Under “Repeat pending” the pair is shown with
+  “–” for E02. After “As next” and “Next start” only the device of racecourse A gets the attempt anew; the scoreboard
+  shows “Preliminary heat · Attempt 1 · Repeat” with “–” on B, the racecourse light stays green until E01 has passed
+  through the start gate; data entry shows ↻ only at E01. Observation:
 
 ## Race official form on the phone
 

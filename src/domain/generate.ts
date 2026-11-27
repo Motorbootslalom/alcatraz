@@ -71,8 +71,8 @@ export function beispielGesamt(art: BeispielFeldArt, zufall: () => number): numb
  * (eigenes Regelwerk) bekommt den Durchschnitt. Unter UIM dieselbe Gesamtzahl auf die Klassen des
  * Regelwerks – bestätigt 21.11.2026 (Fragenseite R6-04).
  *
- * `fest` (BS4, Nutzer 22.11.2026 R7-51: „Manuelle Anpassung soll berücksichtigt werden. Mit einem Reset-Knopf.“; noch
- * zu bestätigen): Von Hand gesetzte Klassen behalten ihre Zahl; nur der Rest max(0, gesamt − Σ fest) wird nach
+ * `fest` (BS4, Nutzer 22.11.2026 R7-51: „Manuelle Anpassung soll berücksichtigt werden. Mit einem Reset-Knopf.“):
+ * Von Hand gesetzte Klassen behalten ihre Zahl; nur der Rest max(0, gesamt − Σ fest) wird nach
  * denselben Anteilen und derselben Rundung auf die übrigen verteilt. Ist Σ fest größer als `gesamt`, bleiben die
  * festen stehen und die übrigen bekommen 0 – die Summe weicht dann ab (die Oberfläche zeigt sie).
  * Bestätigt 23.11.2026 (R9-14).

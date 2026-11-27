@@ -37,10 +37,20 @@
   alles ohne stehenden Abbruch). WIEDERHOLUNG_AUFHEBEN (27.11.2026, „Doch keine Wiederholung“, statt
   BETRIEB_WIEDERHOLUNG_AUFHEBEN) holt sie zurück – nur in leere Zellen – und ruft reducer/betrieb.ts ohneWiederholung
   (nur der zuletzt abgebrochene Versuch); Eingabeweg, Verlauf `wiederholungAufgehoben`. Nur so schreibt etwas aus dem
-  Betrieb in `eingaben` (Projektkarte, Feste Regeln); beide nicht in der Positivliste des Handys. reducer/betrieb.ts:
-  EINREIHEN nimmt auch `wiederholung`, ZEIGEN räumt sie, ZURUECKSTELLEN/ZURUECK/DURCHFAHRT lassen den abgebrochenen
+  Betrieb in `eingaben` (Projektkarte, Feste Regeln); vom Freigabe-Handy seit 27.11.2026 (R13-01/R13-06) über die eng
+  geprüfte Ausnahme geraete/aufgaben.ts erlaubteWiederholung – der Reducer bleibt, wie er ist (Zeit vom Store).
+  reducer/betrieb.ts: EINREIHEN nimmt auch `wiederholung`, ZEIGEN räumt sie, ZURUECKSTELLEN/ZURUECK/DURCHFAHRT lassen den abgebrochenen
   Versuch; normalisiereBereich liest `abgebrochen` (nur `true`) und `wiederholung` (nur wartende). reducer/wkr.ts:
   WKR_ZEILEN prüft WkrZeile.versuch noch einmal (zwei Fenster), WKR_PAPIER_AB nimmt den jüngsten geltenden Versuch.
+  Parallelslalom (27.11.2026, R13-02): WIEDERHOLUNG_AUSFALL {bereich, ref: Paar, nur?: 'a'|'b'} – Boote aus
+  betrieb/folge.ts gefahreneSeiten, je Boot Zelle `attemptSchluessel` leeren, wkrOhneVersuch (Listen des anderen
+  Racecourse behalten P/Abschluss) und ein WkrVerworfen (je Bereich + Start + Starter; eindeutigeVerworfene);
+  mitWiederholung(…, nur) setzt GezeigterStart.nur. AUFHEBEN holt alle Einträge des Starts zurück. reducer/wkr.ts zählt
+  Abbrüche je Seite der Liste (wkr/versuch.ts listenSeite). Prüfbefund 27.11.2026: beide Actions mit optionalem
+  `abbrueche` (gesehene Zahl der Abbrüche; stimmt sie nicht, derselbe Stand – gesehenerVersuch; Start-Freigaben schicken
+  sie immer, das Handy muss); AUFHEBEN ändert nichts, wenn im Start niemand mehr fährt (betrieb/folge.ts faehrtNoch, X),
+  und holt im Paar keine Werte eines Boots zurück, das inzwischen X hat.
+  lib/verlauf.ts beschreibe(action, nachher, vorher) – Boote eines Paares aus `wkr.verworfen` (Aufheben: vorher).
 - `reducer/wkr.ts` (W1, 21.11.2026) – WKR_ZEILEN (Übernahme über wkr/uebernahme.ts, Rückfrage-ID zeile|lauf|starter|feld,
   Papier/abgeschlossen → Vorschlag, nicht gezeigt → Rückfrage `start`, Haken nur ohne Konflikt, beide Teilhaken →
   ganzer), WKR_RUECKFRAGE (Grund `start` mit `vereinige`: gegen das dann Stehende vereinigt), WKR_VORSCHLAG, WKR_LISTE

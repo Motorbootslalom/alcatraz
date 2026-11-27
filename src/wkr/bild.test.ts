@@ -521,4 +521,30 @@ describe('Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, BL1–BL5; Na
       expect(svg, datei).not.toMatch(/transform="[^"]*(?:scale\([^)]*-|matrix\()/)
     }
   })
+
+  // BL8 (Nutzer 27.11.2026): hochkant lagen Titel und Fahrweg-Beschreibung quer über dem Parcours.
+  const texte = (s: string) => [...s.matchAll(/<text\b[^>]*>/g)].map((m) => ({ id: /\bid="([^"]*)"/.exec(m[0])?.[1] ?? '', aus: /display:none/.test(m[0]) }))
+
+  it('BL8: Hochkant (±90°) stehen nur die Bojen-Ziffern; Titel, Beschreibung, „Tempo – Runde“ fehlen – in jeder Zeichnung', () => {
+    for (const datei of [...PARCOURS_DATEIEN, PARALLEL_DATEI]) {
+      const svg = parcoursSvg(datei)
+      if (!svg) continue
+      for (const drehung of [90, 270]) {
+        const t = texte(inlineSvg(svg, { praefix: 'x-', drehung, dim: [], aus: [] }))
+        const ziffern = t.filter((e) => /^x-(?:A_)?Nummer_/.test(e.id))
+        expect(ziffern.length, `${datei} ${drehung}°`).toBeGreaterThan(0)
+        expect(ziffern.every((e) => !e.aus), `${datei} ${drehung}°: Ziffern sichtbar`).toBe(true)
+        expect(t.filter((e) => !/^x-(?:A_)?Nummer_/.test(e.id)).every((e) => e.aus), `${datei} ${drehung}°: übriger Text weg`).toBe(true)
+      }
+    }
+  })
+
+  it('BL8: Quer (0°, 180°) bleibt aller Text – dort liegt er wie in der Datei neben dem Parcours', () => {
+    const svg = parcoursSvg('KlasseE')!
+    for (const drehung of [0, 180]) {
+      const t = texte(inlineSvg(svg, { praefix: 'x-', drehung, dim: [], aus: [] }))
+      expect(t.some((e) => !/Nummer_/.test(e.id)), `${drehung}°: Titel/Beschreibung vorhanden`).toBe(true)
+      expect(t.every((e) => !e.aus), `${drehung}°`).toBe(true)
+    }
+  })
 })

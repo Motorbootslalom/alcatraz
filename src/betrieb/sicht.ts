@@ -1,12 +1,12 @@
 import { tIn, type Locale } from '../i18n'
-import type { AppState, ClassId, OeffentlicheSicht, ParallelRunde, PunktId, SichtBereich, SichtEinstieg, SichtHerkunft, SichtKlasse, SichtKlassenStand, SichtPaar, SichtPunkt, SichtStart, SichtStarter, Starter, ZuschauerBereich, ZuschauerSicht } from '../types'
+import type { AppState, ClassId, OeffentlicheSicht, PaarSeite, ParallelRunde, PunktId, SichtBereich, SichtEinstieg, SichtHerkunft, SichtKlasse, SichtKlassenStand, SichtPaar, SichtPunkt, SichtStart, SichtStarter, Starter, ZuschauerBereich, ZuschauerSicht } from '../types'
 import { regelwerkOf } from '../config/catalog'
 import { bogenTexte, type BogenTexte } from '../config/sprache'
 import { classColor } from '../domain/classes'
 import { listenNachname } from '../lib/namen'
 import { starterHerkunft } from '../lib/origin'
 import { laenderKuerzelFuer, regelwerkSprache } from '../lib/listensprache'
-import { abbruecheVon, bereicheZumStand, betriebVon, istParallel, laeufeVonPunkt, lage, punktVonLauf, rundenPunkt, rundeVonPunkt, spurenVon, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
+import { abbruecheVon, bereicheZumStand, betriebVon, gefahreneStarts, istParallel, laeufeVonPunkt, lage, punktVonLauf, rundenPunkt, rundeVonPunkt, spurenVon, wiederholtNur, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
 import { ersterStart, klasseAllein, klassenNachNaechstemStart } from './schritte'
 import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabstandImBetrieb, type Messung } from './prognose'
 
@@ -38,9 +38,11 @@ import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabst
 /**
  * Fassung der Sicht (`sv`), wie sie in jeder Nachricht des Hosts steht (geraete/, Plan F7): Ändert sich die Form der
  * öffentlichen oder der Zuschauersicht, zählt sie hoch – Geräte zeigen nur dieselbe Fassung (Entscheidung des Nutzers
- * vom 16.11.2026: Gerätebetrieb nur bei gleicher Fassung).
+ * vom 16.11.2026: Gerätebetrieb nur bei gleicher Fassung). 8 seit dem 27.11.2026 (Nutzer, R13-01): SichtBereich.`gefahren`
+ * steht in jeder Sicht, nicht mehr nur am Bedienrechner – die Start-Freigabe auf dem Handy löst die Wiederholung nach
+ * Ausfall jetzt selbst aus und braucht die Wahl.
  */
-export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 7
+export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 8
 
 export interface SichtOptionen {
   /**
@@ -48,12 +50,6 @@ export interface SichtOptionen {
    * Bedienrechner. Für entfernte Anzeigen (E6) ruft der Host mit `!BETRIEB_ANNAHMEN.logosNurLokal` auf.
    */
   logos?: boolean
-  /**
-   * Nur am Bedienrechner (BetriebView): je Bereich des Manövrierens `gefahren` – die gezeigten, geltenden Starts der
-   * begonnenen Punkte, der jüngste zuerst, als Wahl für „Wiederholung (Ausfall)“ (Nutzer 26.11.2026, R11-11, WH3). Nie für
-   * Anzeigetafel, Geräte oder Zuschauer (der Host ruft ohne). Vorgabe aus.
-   */
-  gefahren?: boolean
 }
 
 /** Die Sprache der Anzeigetafel: die Einstellung oder die der Listen (Regelwerk). */
@@ -127,30 +123,12 @@ function sichtPunkt(stand: AppState, punkt: PunktId | null, texte: BogenTexte): 
 
 /**
  * Der Titel eines Starts des Parallelslaloms in der Sprache der Tafel: die Runde und der Attempt („Small final ·
- * Attempt 1“). Um welche Plätze ein Finale geht, sagt seit 21.11.2026 die Runde selbst (Kleines Finale, Finale).
+ * Attempt 1“). Um welche Plätze ein Finale geht, sagt seit 21.11.2026 die Runde selbst (Kleines Finale, Finale). Eine
+ * Wiederholung nach Ausfall (R13-02, 27.11.2026) wie im Manövrieren dahinter: „Preliminary heat · Attempt 1 · Repeat“ –
+ * nie „Re-run“, so heißt die Runde bei Gleichstand.
  */
-function paarTitel(runde: ParallelRunde, attempt: number, texte: BogenTexte, sprache: Locale): string {
-  return `${texte.runde(runde)} · ${tIn(sprache, 'anzeige.versuch', { n: attempt })}`
-}
-
-/**
- * Die gezeigten, geltenden Starts der begonnenen Punkte eines Bereichs, der jüngste zuerst, je Start einmal – die Wahl
- * für „Wiederholung (Ausfall)“ am Bedienrechner (R11-11, WH3). Ohne abgebrochene Versuche, ohne Starts, die nicht (mehr)
- * in der Folge stehen oder entfallen (X).
- */
-function gefahrene(l: BereichLage, gezeigt: readonly { ref: string; abgebrochen?: true }[], start: (e: FolgeEintrag) => SichtStart): SichtStart[] {
-  const nachKey = new Map(l.folge.map((e) => [e.key, e]))
-  const begonnen = new Set(l.begonnen)
-  const gesehen = new Set<string>()
-  const out: SichtStart[] = []
-  for (let i = gezeigt.length - 1; i >= 0; i--) {
-    const g = gezeigt[i]
-    if (g.abgebrochen || gesehen.has(g.ref)) continue
-    gesehen.add(g.ref)
-    const e = nachKey.get(g.ref)
-    if (e && !e.entfaellt && !e.paar && begonnen.has(e.punkt) && l.erledigt.has(e.key)) out.push(start(e))
-  }
-  return out
+function paarTitel(runde: ParallelRunde, attempt: number, texte: BogenTexte, sprache: Locale, wdh = false): string {
+  return [texte.runde(runde), tIn(sprache, 'anzeige.versuch', { n: attempt }), ...(wdh ? [tIn(sprache, 'anzeige.wiederholung')] : [])].join(' · ')
 }
 
 /**
@@ -165,23 +143,38 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
   const vorkommend = new Map<string, Starter>()
 
   // Wiederholung nach Ausfall (R11-11, sv 7, BETRIEB_ANNAHMEN.wiederholungAufTafel): Starts mit einem abgebrochenen
-  // Versuch tragen `wiederholung` und „Wiederholung“ im Titel (Sprache der Tafel) – ohne Grund, ohne Werte. Nur im
-  // Manövrieren (der Parallelslalom hat seinen Re-run). Die Kennungen sind je Starter und Lauf eindeutig.
-  const wiederholt = new Set<string>()
-  for (const b of Object.values(stand.betrieb.bereiche)) for (const g of b.gezeigt) if (g.abgebrochen) wiederholt.add(g.ref)
+  // Versuch tragen `wiederholung` und „Wiederholung“ im Titel (Sprache der Tafel) – ohne Grund, ohne Werte. Seit dem
+  // 27.11.2026 auch Paare des Parallelslaloms (R13-02, WHP5); wiederholt dort nur ein Boot, steht das andere in der
+  // Wiederholung leer („–“, `nur`). Die Kennungen sind je Starter und Lauf bzw. je Paar und Attempt eindeutig.
+  // `abbrueche` (Prüfbefund 27.11.2026): die Zahl der Abbrüche je Start – die Start-Freigabe bindet „Wiederholung
+  // (Ausfall)“ und „Doch keine Wiederholung“ daran (BETRIEB_ANNAHMEN.wiederholungGebunden).
+  const wiederholt = new Map<string, number>()
+  const nurJe = new Map<string, PaarSeite | null>()
+  for (const b of Object.values(stand.betrieb.bereiche)) {
+    for (const g of b.gezeigt) {
+      if (!g.abgebrochen) continue
+      wiederholt.set(g.ref, (wiederholt.get(g.ref) ?? 0) + 1)
+      // Der letzte Abbruch zählt (betrieb/folge.ts wiederholtNur).
+      nurJe.set(g.ref, g.nur ?? null)
+    }
+  }
   const wiederholungsTitel = (lauf: number) => `${texte.lauf(lauf)} · ${tIn(sprache, 'anzeige.wiederholung')}`
+  // Die Zahl bis jetzt (mit `wiederholung` immer ≥ 1).
+  const abbrueche = (key: string) => wiederholt.get(key) ?? 0
 
-  const start = (e: FolgeEintrag, wdh = wiederholt.has(e.key)): SichtStart => {
+  const start = (e: FolgeEintrag, wdh = wiederholt.has(e.key), nur: PaarSeite | null = wdh ? (nurJe.get(e.key) ?? null) : null): SichtStart => {
     if (e.paar) {
-      // Nur die Seiten, auf denen jemand fährt – eine leere (Dummy, gelöscht, X) ist `null`, ohne Grund.
-      const a = e.paar.aFaehrt ? e.paar.a : null
-      const b = e.paar.bFaehrt ? e.paar.b : null
+      // Nur die Seiten, auf denen jemand fährt – eine leere (Dummy, gelöscht, X) ist `null`, ohne Grund. In einer
+      // Wiederholung nur eines Boots (R13-02) auch die andere: Das Boot ist gefahren, es fährt nicht noch einmal.
+      const a = e.paar.aFaehrt && (nur === null || nur === 'a') ? e.paar.a : null
+      const b = e.paar.bFaehrt && (nur === null || nur === 'b') ? e.paar.b : null
       for (const id of [a, b]) if (id !== null) vorkommend.set(id, starterNachId.get(id)!)
       const paar: SichtPaar = { attempt: e.paar.attempt, a, b }
-      return { key: e.key, starter: a ?? b ?? '', lauf: e.lauf, punkt: e.punkt, titel: paarTitel(e.paar.runde, e.paar.attempt, texte, sprache), paar }
+      const titel = paarTitel(e.paar.runde, e.paar.attempt, texte, sprache, wdh)
+      return { key: e.key, starter: a ?? b ?? '', lauf: e.lauf, punkt: e.punkt, titel, paar, ...(wdh ? { wiederholung: true as const, abbrueche: abbrueche(e.key) } : {}) }
     }
     vorkommend.set(e.starter, starterNachId.get(e.starter)!)
-    if (wdh) return { key: e.key, starter: e.starter, lauf: e.lauf, punkt: e.punkt, titel: wiederholungsTitel(e.lauf), wiederholung: true }
+    if (wdh) return { key: e.key, starter: e.starter, lauf: e.lauf, punkt: e.punkt, titel: wiederholungsTitel(e.lauf), wiederholung: true, abbrueche: abbrueche(e.key) }
     return { key: e.key, starter: e.starter, lauf: e.lauf, punkt: e.punkt, titel: texte.lauf(e.lauf) }
   }
   // Ein gezeigter Start, der in der Folge nicht mehr vorkommt (anderes Programm, X danach), bleibt
@@ -190,11 +183,12 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
   // „Nächster Start“ schickt sie als `vorher`, und der Reducer vergleicht mit der Lage (betrieb/folge.ts),
   // die den Start weiter im Boot führt. Ohne sie hinge die Start-Freigabe (Prüfung E1, 16.11.2026).
   // `wdh`: Vor DIESEM gezeigten Versuch wurde einer abgebrochen – nur dann ist er selbst die Wiederholung. Der abgebrochene
-  // Versuch trägt `abgebrochen` (die Start-Freigabe nimmt ihn nicht zurück), aber kein „Wiederholung“ (WH5).
-  const gezeigt = (g: GezeigtEintrag | null, wdh = false): SichtStart | null => {
+  // Versuch trägt `abgebrochen` (die Start-Freigabe nimmt ihn nicht zurück), aber kein „Wiederholung“ (WH5). `nur`: das
+  // Boot, das in dieser Wiederholung fährt (Parallelslalom, R13-02) – nach dem Abbruch DAVOR.
+  const gezeigt = (g: GezeigtEintrag | null, wdh = false, nur: PaarSeite | null = null): SichtStart | null => {
     if (!g) return null
     if (g.eintrag) {
-      const s = start(g.eintrag, wdh)
+      const s = start(g.eintrag, wdh, nur)
       return g.abgebrochen ? { ...s, abgebrochen: true } : s
     }
     const ref = g.ref
@@ -219,11 +213,11 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
     const l = lage(stand, b.id)
     const betrieb = betriebVon(stand, b.id)
     gemessen.push(...messungenIn(b.id, betrieb.gezeigt, l.folge, betrieb.ohneAnzeige, klasseVon))
-    // Abbrüche vor dem i-ten gezeigten Versuch (R11-11): ist er selbst schon eine Wiederholung?
+    // Abbrüche vor dem i-ten gezeigten Versuch (R11-11): ist er selbst schon eine Wiederholung – und welches Boot fährt?
     const n = betrieb.gezeigt.length
     const davorAbgebrochen = (i: number) => i >= 0 && betrieb.gezeigt.slice(0, i).some((g) => g.abgebrochen && g.ref === betrieb.gezeigt[i].ref)
-    const aktuell = gezeigt(l.aktuell, davorAbgebrochen(n - 1))
-    const mitGefahren = optionen.gefahren && b.art === 'manoevrieren' ? { gefahren: gefahrene(l, betrieb.gezeigt, (e) => start(e, abbruecheVon(betrieb, e.key) > 0)) } : {}
+    const nurVor = (i: number) => (i >= 0 ? wiederholtNur(betrieb, betrieb.gezeigt[i].ref, i) : null)
+    const aktuell = gezeigt(l.aktuell, davorAbgebrochen(n - 1), nurVor(n - 1))
     return {
       id: b.id,
       // Der Parallelslalom hat keinen Namen im Stand: in der Sprache der Tafel.
@@ -233,7 +227,7 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       punkt: sichtPunkt(stand, l.laufend, texte),
       naechsterPunkt: sichtPunkt(stand, l.naechsterPunkt, texte),
       aktuell,
-      vorig: gezeigt(l.vorig, davorAbgebrochen(n - 2)),
+      vorig: gezeigt(l.vorig, davorAbgebrochen(n - 2), nurVor(n - 2)),
       seit: aktuell ? l.aktuell!.zeit : null,
       offen: l.frei.slice(0, stand.anzeige.amSteg + stand.anzeige.vorSteg + 1).map((e) => start(e)),
       offenZahl: l.frei.length,
@@ -243,7 +237,10 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       waehlbar: l.offen.map((e) => start(e)),
       zurueckgestellt: l.zurueckgestellt.map((e) => start(e)),
       wiederholung: l.wiederholung.map((e) => start(e)),
-      ...mitGefahren,
+      // Die Wahl für „Wiederholung (Ausfall)“ (R11-11; seit sv 8 in jeder Sicht: Nutzer 27.11.2026, R13-01 – auch die
+      // Start-Freigabe auf dem Handy löst aus, und sie liest nur diese Sicht; BETRIEB_ANNAHMEN.wiederholungWahlInSicht).
+      // Ein Start mit einem früheren Abbruch trägt „Wiederholung“ im Titel.
+      gefahren: gefahreneStarts(l, betrieb).map((e) => start(e, abbruecheVon(betrieb, e.key) > 0)),
       bootFehlt: l.bootFehlt.map((e) => start(e)),
       arbeitsPunkt: sichtPunkt(stand, l.arbeitsPunkt, texte),
       programm: l.programm.map((p) => sichtPunkt(stand, p, texte)!),

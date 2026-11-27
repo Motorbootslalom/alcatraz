@@ -5,7 +5,7 @@ import StartFreigabe from './StartFreigabe.vue'
 import { setLocale } from '../../i18n'
 import { vergissAlles } from '../../lib/merken'
 import { sichtOeffentlich } from '../../betrieb/sicht'
-import { betriebStarter, wkrBetriebsStand, zeigeNaechsten } from '../../testHilfen'
+import { betriebStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../../testHilfen'
 import { reducer } from '../../state/reducer'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { FREIGABE_SICHT_FASSUNG, type FreigabeErfassung, type FreigabeListe } from '../../wkr/freigabe'
@@ -35,7 +35,7 @@ function stand() {
 const tor = (mehr: Partial<FreigabeListe> = {}): FreigabeListe => ({ titel: 'Tor 1/3/5', stand: 'aktiv', ampel: 'gehoert', offen: 0, von: '', bis: '', rueckfragen: 0, warnt: false, parcours: true, ...mehr })
 
 function erfassung(key: string, mehr: Partial<FreigabeErfassung> = {}): FreigabeErfassung {
-  return { fv: FREIGABE_SICHT_FASSUNG, bereich: P1, warnung: 'nachfragen', listen: [tor()], ampel: 'gruen', ampelRef: key, perKnopf: false, autoMoeglich: false, autoOhne: [], autoIn: null, ...mehr }
+  return { fv: FREIGABE_SICHT_FASSUNG, bereich: P1, warnung: 'nachfragen', listen: [tor()], ampel: 'gruen', ampelRef: key, perKnopf: false, autoMoeglich: false, autoOhne: [], autoIn: null, ausfallGesperrt: [], ...mehr }
 }
 
 function karte(e: (key: string) => FreigabeErfassung, autoAnhalten?: (ref: string) => void) {
@@ -119,7 +119,7 @@ describe('Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11)', () => {
     let s = zeigeNaechsten(stand(), P1, 61_000)
     const imBoot = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
     if (ausgefallen) s = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: imBoot, zeit: 70_000 })
-    const sicht = sichtOeffentlich(s, { logos: false, gefahren: true })
+    const sicht = sichtOeffentlich(s, { logos: false })
     const bereich = sicht.bereiche.find((b) => b.id === P1)!
     const gesendet: BetriebAenderung[] = []
     const w = mount(StartFreigabe, {
@@ -161,7 +161,9 @@ describe('Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11)', () => {
     expect(w.find('[data-teil="ausfall"]').exists()).toBe(false)
   })
 
-  it('„Wiederholung offen“: einreihen, zeigen, „Doch keine Wiederholung“ nur am Bedienrechner; „Zurück“ gesperrt', async () => {
+  it('„Wiederholung offen“: einreihen, zeigen, „Doch keine Wiederholung“ nur mit `aufheben`; „Zurück“ gesperrt', async () => {
+    // Ohne `aufheben` (eine Start-Freigabe, die nicht aufheben darf): Einreihen und Zeigen ja, kein „Doch keine Wiederholung“.
+    // Bedienrechner und Freigabe-Handy geben es seit R13-06 (27.11.2026) beide.
     const handy = wkarte({ ausgefallen: true })
     const liste = handy.w.find('[data-teil="wiederholung"]')
     expect(liste.exists()).toBe(true)
@@ -177,8 +179,8 @@ describe('Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11)', () => {
       { type: 'BETRIEB_EINREIHEN', bereich: P1, ref: handy.imBoot, wo: 'naechster' },
       { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: handy.imBoot, vorher: handy.imBoot },
     ])
-    // Am Bedienrechner: „Doch keine Wiederholung“ geht an BetriebView (WIEDERHOLUNG_AUFHEBEN, eine Action der Erfassung –
-    // die Werte kommen zurück, Prüfbefund 27.11.2026), nie über `sende`.
+    // Mit `aufheben`: „Doch keine Wiederholung“ geht an BetriebView bzw. GeraetFreigabe (WIEDERHOLUNG_AUFHEBEN, eine Action
+    // der Erfassung – die Werte kommen zurück, Prüfbefund 27.11.2026), nie über `sende`.
     const aufgehoben: string[] = []
     const am = wkarte({ ausgefallen: true, wiederholen: () => {}, aufheben: (ref) => aufgehoben.push(ref) })
     await am.w.find('[data-teil="wiederholung"] [data-action="wiederholung-aufheben"]').trigger('click')
@@ -199,5 +201,120 @@ describe('Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11)', () => {
     const andere = w.findAll('[data-teil="ausfall"] li').filter((z) => z.attributes('data-start') !== imBoot)
     expect(andere.length).toBeGreaterThan(0)
     expect(andere[0].find('[data-action="ausfall-waehlen"]').attributes('disabled')).toBeUndefined()
+  })
+})
+
+describe('Wiederholung nach Ausfall: an den gesehenen Versuch gebunden (Prüfbefund 27.11.2026)', () => {
+  const dialog = () => document.querySelector('[data-dialog="ausfall"]')
+  const bereichVon = (st: ReturnType<typeof stand>) => {
+    const sicht = sichtOeffentlich(st, { logos: false })
+    return { sicht, bereich: sicht.bereiche.find((b) => b.id === P1)! }
+  }
+
+  it('„Wiederholung“ schickt die Zahl der Abbrüche mit; die Rückfrage geht zu, sobald ihr Start anderswo ausgelöst ist', async () => {
+    const s = zeigeNaechsten(stand(), P1, 61_000)
+    const imBoot = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    const gewaehlt: unknown[][] = []
+    const w = mount(StartFreigabe, { attachTo: document.body, props: { ...bereichVon(s), sende: () => {}, wiederholen: (...a: unknown[]) => void gewaehlt.push(a) } })
+    wrappers.push(w)
+    const waehle = async () => {
+      await w.find(`[data-teil="ausfall"] li[data-start='${imBoot}'] [data-action="ausfall-waehlen"]`).trigger('click')
+      await nextTick()
+    }
+    await w.find('[data-action="ausfall"]').trigger('click')
+    await waehle()
+    ;(document.querySelector('[data-action="ausfall-ja"]') as HTMLButtonElement).click()
+    await nextTick()
+    expect(gewaehlt).toEqual([[imBoot, undefined, 0]])
+
+    // Die Rückfrage ist offen – da löst ein anderer (Bedienrechner, zweites Handy) aus: Sie geht still zu, bestätigt
+    // träfe sie sonst die spätere Wiederholung.
+    await w.find('[data-action="ausfall"]').trigger('click')
+    await waehle()
+    expect(dialog()).not.toBeNull()
+    const ausgefallen = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: imBoot, abbrueche: 0, zeit: 70_000 })
+    await w.setProps(bereichVon(ausgefallen))
+    await nextTick()
+    expect(dialog()).toBeNull()
+
+    // Wieder eingereiht und gezeigt: Die Wahl trägt jetzt einen Abbruch, und die Action sagt es.
+    const wieder = zeigeNaechsten(reducer(ausgefallen, { type: 'BETRIEB_EINREIHEN', bereich: P1, ref: imBoot, wo: 'naechster' }), P1, 80_000)
+    await w.setProps(bereichVon(wieder))
+    await nextTick()
+    await waehle()
+    ;(document.querySelector('[data-action="ausfall-ja"]') as HTMLButtonElement).click()
+    await nextTick()
+    expect(gewaehlt.at(-1)).toEqual([imBoot, undefined, 1])
+  })
+
+  it('„Doch keine Wiederholung“ schickt die Zahl der Abbrüche aus „Wiederholung offen“ mit', async () => {
+    let s = zeigeNaechsten(stand(), P1, 61_000)
+    const imBoot = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    s = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: imBoot, zeit: 70_000 })
+    const aufgehoben: unknown[][] = []
+    const w = mount(StartFreigabe, { attachTo: document.body, props: { ...bereichVon(s), sende: () => {}, wiederholen: () => {}, aufheben: (...a: unknown[]) => void aufgehoben.push(a) } })
+    wrappers.push(w)
+    await w.find('[data-teil="wiederholung"] [data-action="wiederholung-aufheben"]').trigger('click')
+    expect(aufgehoben).toEqual([[imBoot, 1]])
+  })
+})
+
+describe('Wiederholung nach Ausfall im Parallelslalom (Nutzer 27.11.2026, R13-02)', () => {
+  /** UIM, Vorlauf begonnen, das erste Paar gezeigt: Dolphin E01 (E-1) auf A, E02 (E-2) auf B. */
+  function pkarte(wiederholen: (ref: string, nur?: 'a' | 'b') => void, ausfallGesperrt?: string[]) {
+    let s = reducer(uimParallelStand(), { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    s = zeigeNaechsten(s, 'parallel', 1000)
+    const imBoot = s.betrieb.bereiche.parallel.gezeigt.at(-1)!.ref
+    const sicht = sichtOeffentlich(s, { logos: false })
+    const bereich = sicht.bereiche.find((b) => b.id === 'parallel')!
+    const w = mount(StartFreigabe, { attachTo: document.body, props: { sicht, bereich, sende: () => {}, wiederholen, ...(ausfallGesperrt ? { ausfallGesperrt } : {}) } })
+    wrappers.push(w)
+    return { w, imBoot }
+  }
+
+  it('auch im Parallelslalom: die Rückfrage fragt jedes Mal, welche Boote – ohne Vorauswahl; der Knopf schickt `nur`', async () => {
+    const gewaehlt: [string, string | undefined][] = []
+    const { w, imBoot } = pkarte((ref, nur) => gewaehlt.push([ref, nur]))
+    await w.find('[data-action="ausfall"]').trigger('click')
+    expect(w.find('[data-teil="ausfall"] .note').text()).toContain('Gezeigte Paare der laufenden Runden')
+    const zeile = w.find(`[data-teil="ausfall"] li[data-start='${imBoot}']`)
+    expect(zeile.text()).toContain('E01 / E02')
+    await zeile.find('[data-action="ausfall-waehlen"]').trigger('click')
+    await nextTick()
+    const dialog = document.querySelector('[data-dialog="ausfall"]')!
+    expect(dialog.textContent).toContain('Wiederholung nach Ausfall: E01 / E02, Vorlauf · Versuch 1?')
+    expect(dialog.textContent).toContain('Welche Boote wiederholen Vorlauf · Versuch 1?')
+    const knoepfe = [...dialog.querySelectorAll('[data-action="ausfall-seite"], [data-action="ausfall-beide"]')] as HTMLButtonElement[]
+    expect(knoepfe.map((k) => k.textContent!.trim())).toEqual(['Nur E01 (Parcours A)', 'Nur E02 (Parcours B)', 'Beide wiederholen'])
+    // Keine Vorauswahl: kein Knopf hervorgehoben, der Fokus liegt auf „Abbrechen“; kein „ausfall-ja“.
+    expect(knoepfe.some((k) => k.classList.contains('active') || k.classList.contains('primary') || k.hasAttribute('autofocus'))).toBe(false)
+    expect(dialog.querySelector('[data-action="ausfall-ja"]')).toBeNull()
+    ;(dialog.querySelector('[data-action="ausfall-seite"][data-seite="b"]') as HTMLButtonElement).click()
+    await nextTick()
+    expect(gewaehlt).toEqual([[imBoot, 'b']])
+    await w.find('[data-action="ausfall"]').trigger('click')
+    await w.find(`[data-teil="ausfall"] li[data-start='${imBoot}'] [data-action="ausfall-waehlen"]`).trigger('click')
+    await nextTick()
+    ;(document.querySelector('[data-action="ausfall-beide"]') as HTMLButtonElement).click()
+    await nextTick()
+    expect(gewaehlt).toEqual([
+      [imBoot, 'b'],
+      [imBoot, undefined],
+    ])
+  })
+
+  it('ein abgemeldetes Boot: seine Seite und „Beide“ ausgegraut, das andere geht (WH10 je Boot)', async () => {
+    const { w, imBoot } = pkarte(() => {}, ['E-2'])
+    await w.find('[data-action="ausfall"]').trigger('click')
+    const zeile = w.find(`[data-teil="ausfall"] li[data-start='${imBoot}']`)
+    // Die Zeile bleibt wählbar – ein Boot darin darf wiederholen.
+    expect(zeile.find('[data-action="ausfall-waehlen"]').attributes('disabled')).toBeUndefined()
+    await zeile.find('[data-action="ausfall-waehlen"]').trigger('click')
+    await nextTick()
+    const dialog = document.querySelector('[data-dialog="ausfall"]')!
+    expect((dialog.querySelector('[data-seite="a"][data-action="ausfall-seite"]') as HTMLButtonElement).disabled).toBe(false)
+    expect((dialog.querySelector('[data-seite="b"][data-action="ausfall-seite"]') as HTMLButtonElement).disabled).toBe(true)
+    expect((dialog.querySelector('[data-action="ausfall-beide"]') as HTMLButtonElement).disabled).toBe(true)
+    expect(dialog.querySelector('[data-teil="ausfall-abgemeldet"][data-seite="b"]')!.textContent).toContain('abgemeldet – keine Wiederholung')
   })
 })

@@ -199,7 +199,7 @@ function tagDavor(iso: string): string {
  * Der Tag, an dem ein Mensch, geboren `geburtsdatum`, `jahre` Jahre alt wird (JJJJ-MM-TT); `null`
  * ohne gültiges Datum. Wer am 29.02. geboren ist, wird in Jahren ohne 29.02. am 01.03. ein Jahr
  * älter: Nach BGB §§ 187 Abs. 2, 188 vollendet er das Lebensjahr mit Ablauf des 28.02. (Auslegung
- * vom 24.11.2026, offen zur Bestätigung).
+ * vom 24.11.2026, bestätigt 27.11.2026, R13-14 (1)).
  */
 export function geburtstagMit(geburtsdatum: string, jahre: number): string | null {
   const g = tagVon(geburtsdatum)

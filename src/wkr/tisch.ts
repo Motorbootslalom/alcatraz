@@ -1,5 +1,5 @@
 /**
- * Knoten am Tisch: Vorschlag der nächsten Nummer (Nutzer 22.11.2026, R8-27, WKR_ANNAHMEN KN9, noch zu bestätigen).
+ * Knoten am Tisch: Vorschlag der nächsten Nummer (Nutzer 22.11.2026, R8-27, WKR_ANNAHMEN KN9, bestätigt 23.11.2026, R9-08).
  *
  * Am Tisch fährt kein Boot – der WKR tippt die Startnummer selbst. Damit er nicht jede Nummer suchen muss, schlägt das
  * Gerät den nächsten offenen Starter vor: den ersten offenen NACH dem zuletzt abgeschickten in der Folge des Bestands

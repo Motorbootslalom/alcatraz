@@ -4,7 +4,7 @@ import { useWkrText } from './texte'
 
 /**
  * „Klasse vorziehen“ in der Übung (Nutzer 22.11.2026, R7-45: „man muss auch in der Übung andere Klassen vorziehen
- * können, damit man diese Klasse sehen kann“; WKR_ANNAHMEN Y4, noch zu bestätigen). Je Klasse der Liste ein Knopf mit
+ * können, damit man diese Klasse sehen kann“; WKR_ANNAHMEN Y4, bestätigt 23.11.2026, R9-13). Je Klasse der Liste ein Knopf mit
  * dem Namen wie in der Maske (Klasse E unter UIM „Dolphin“); die Wahl wirkt einmal auf den nächsten Start
  * (geraete/uebung.ts zieheKlasseVor). Eingebaut in WkrMehr (Masken mit Schlange) und WkrPruefliste (Knoten am Tisch,
  * dort springt der Vorschlag). Texte in der Sprache der Liste (useWkrText); Knöpfe umbrechend (360 px, N3).

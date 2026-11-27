@@ -4,11 +4,14 @@ import { normalisiereBetrieb } from '../state/reducer/betrieb'
 import { normalisiereWkr } from '../state/reducer/wkr'
 import { laufSchluessel } from '../lib/eingaben'
 import { beschreibe } from '../lib/verlauf'
-import { betriebsStand, festgeschrieben, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
-import { abbruecheVon, betriebVon, lage, refKey, wartetAufWiederholung, wiederholteZellen } from './folge'
+import { betriebsStand, fahreRunde, festgeschrieben, parallelStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { abbruecheVon, ausfallGrund, betriebVon, lage, refKey, wartetAufWiederholung, wiederholteZellen } from './folge'
+import { configFor } from '../config/konfig'
+import { attemptSchluessel } from '../lib/parallelSchluessel'
+import { rundenErgebnis } from '../lib/parallelErgebnis'
 import { messungenIn } from './prognose'
 import { sichtOeffentlich, sichtZuschauer } from './sicht'
-import type { AppState } from '../types'
+import type { AppState, PaarSeite, ParallelRunde } from '../types'
 
 // Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11; BETRIEB_ANNAHMEN WH1–WH10): Die Wettkampfleitung entscheidet für
 // einen gezeigten Start eine Wiederholung – die Werte dieses Starters in diesem Lauf werden auf allen Listen verworfen
@@ -186,13 +189,26 @@ describe('Wiederholung nach Ausfall – Betrieb', () => {
     expect(lage(zweiter, P1).wiederholung.map((e) => e.key)).toEqual([m('k1')])
   })
 
-  it('Parallelslalom: keine Wiederholung über diesen Weg (dort gilt der Re-run)', () => {
-    let s = uimParallelStand()
-    const runde = lage(s, 'parallel').programm[0]
-    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: runde })
-    s = zeigeNaechsten(s, 'parallel', 1000)
-    const key = lage(s, 'parallel').aktuell!.key
-    expect(ausfall(s, key, 'parallel')).toBe(s)
+  it('Prüfbefund 27.11.2026: an den gesehenen Versuch gebunden (`abbrueche`); mit X kein „Doch keine Wiederholung“', () => {
+    const s = gefahren()
+    // Falsche Zahl: nichts; richtige: wirkt. Ohne Zahl (ältere Aufrufer, Tests) wie bisher.
+    expect(reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1'), abbrueche: 1, zeit: 9000 })).toBe(s)
+    const einmal = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1'), abbrueche: 0, zeit: 9000 })
+    expect(lage(einmal, P1).wiederholung.map((e) => e.key)).toEqual([m('k1')])
+    // Eingereiht und wieder gezeigt: Eine verspätete Action mit der alten Zahl trifft die Wiederholung nicht.
+    const wieder = zeigeNaechsten(einreihen(einmal, m('k1')), P1, 200_000)
+    const getippt = tippe(wieder, L1, 'k1', 't1a|hin seiteA', '20')
+    expect(reducer(getippt, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1'), abbrueche: 0, zeit: 9100 })).toBe(getippt)
+    // „Doch keine Wiederholung“ für den ersten Ausfall hebt keinen zweiten auf.
+    const zweiter = reducer(getippt, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1'), abbrueche: 1, zeit: 9200 })
+    expect(abbruecheVon(betriebVon(zweiter, P1), m('k1'))).toBe(2)
+    expect(reducer(zweiter, { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: P1, ref: m('k1'), abbrueche: 1, zeit: 9300 })).toBe(zweiter)
+    expect(reducer(zweiter, { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: P1, ref: m('k1'), abbrueche: 2, zeit: 9300 })).not.toBe(zweiter)
+    // X nach dem Ausfall (etwa durch die Abmeldung): Der Start entfällt, „Doch keine Wiederholung“ schriebe die alte Zeit
+    // neben das X – nichts ändert sich.
+    const x = tippe(einmal, L1, 'k1', 'disq@steg', 'X')
+    expect(lage(x, P1).wiederholung).toEqual([])
+    expect(aufheben(x, m('k1'))).toBe(x)
   })
 
   it('Versuche direkt nacheinander: die Zeile am Vorsteg (gilt für alle Versuche) bleibt, der Rest des Versuchs geht (WH6)', () => {
@@ -248,17 +264,18 @@ describe('Wiederholung nach Ausfall – Betrieb', () => {
   })
 })
 
-describe('Wiederholung nach Ausfall – öffentliche Sicht (sv 7)', () => {
+describe('Wiederholung nach Ausfall – öffentliche Sicht (sv 7, `gefahren` seit sv 8)', () => {
   it('„Wiederholung offen“ in der Sicht; der abgebrochene Versuch im Boot ohne „Wiederholung“, die Wiederholung mit', () => {
     const s = ausfall(gefahren(), m('k1'))
     const sicht = sichtOeffentlich(s)
-    expect(sicht.sv).toBe(7)
+    expect(sicht.sv).toBe(8)
     const b = sicht.bereiche[0]
     expect(b.wiederholung.map((x) => [x.key, x.titel, x.wiederholung])).toEqual([[m('k1'), '1. Lauf · Wiederholung', true]])
     expect(b.aktuell).toMatchObject({ key: m('k1'), titel: '1. Lauf', abgebrochen: true })
     expect(b.aktuell?.wiederholung).toBeUndefined()
-    // Ohne Option keine Wahl der Gefahrenen (nie auf der Leitung).
-    expect(b.gefahren).toBeUndefined()
+    // Die Wahl der Gefahrenen steht seit sv 8 in jeder Sicht (R13-01: auch das Freigabe-Handy löst aus) – ohne den
+    // abgebrochenen Versuch.
+    expect(b.gefahren.map((x) => x.key)).toEqual([m('e1')])
     // Eingereiht und gezeigt: Im Boot die Wiederholung, auf der Tafel mit „Wiederholung“ im Titel.
     const wieder = zeigeNaechsten(einreihen(s, m('k1')), P1, 200_000)
     const a = sichtOeffentlich(wieder).bereiche[0]
@@ -279,12 +296,220 @@ describe('Wiederholung nach Ausfall – öffentliche Sicht (sv 7)', () => {
     expect(z.bereiche[0].frei[0]).toEqual({ key: m('k1'), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf · Wiederholung' })
   })
 
-  it('Bedienrechner: `gefahren` = gezeigte, geltende Starts, der jüngste zuerst, ohne abgebrochene', () => {
+  it('`gefahren` = gezeigte, geltende Starts, der jüngste zuerst, ohne abgebrochene (seit sv 8 in jeder Sicht)', () => {
     const s = gefahren()
-    expect(sichtOeffentlich(s, { gefahren: true }).bereiche[0].gefahren?.map((x) => x.key)).toEqual([m('k1'), m('e1')])
+    expect(sichtOeffentlich(s).bereiche[0].gefahren.map((x) => x.key)).toEqual([m('k1'), m('e1')])
     const n = ausfall(s, m('k1'))
-    expect(sichtOeffentlich(n, { gefahren: true }).bereiche[0].gefahren?.map((x) => x.key)).toEqual([m('e1')])
+    expect(sichtOeffentlich(n).bereiche[0].gefahren.map((x) => x.key)).toEqual([m('e1')])
     // Parcours 2 hat nichts gezeigt.
-    expect(sichtOeffentlich(n, { gefahren: true }).bereiche[1].gefahren).toEqual([])
+    expect(sichtOeffentlich(n).bereiche[1].gefahren).toEqual([])
+  })
+})
+
+// Wiederholung nach Ausfall im Parallelslalom (Nutzer 27.11.2026, R13-02: „Auch hier kann es zu technischen Ausfällen
+// kommen.“; BETRIEB_ANNAHMEN WHP1–WHP6): Ein Paar-Start wird wiederholt – nur ein Boot oder beide, gefragt jedes Mal.
+// Erfundene Starter (testHilfen parallelStarter: `<klasse>-<n>`).
+describe('Wiederholung nach Ausfall – Parallelslalom (R13-02)', () => {
+  const PA = 'parallel'
+  const UIM = configFor({ regelwerk: 'uim-2026' })
+  const p = (runde: ParallelRunde, attempt: 1 | 2, a: string | null, b: string | null) => refKey({ art: 'p', runde, attempt, a, b })
+  const pausfall = (s: AppState, ref: string, nur?: PaarSeite): AppState => reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: PA, ref, ...(nur ? { nur } : {}), zeit: 9000 })
+  const paufheben = (s: AppState, ref: string): AppState => reducer(s, { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: PA, ref, zeit: 9500 })
+  const peinreihen = (s: AppState, ref: string, wo: 'naechster' | 'ende' = 'naechster') => reducer(s, { type: 'BETRIEB_EINREIHEN', bereich: PA, ref, wo })
+  const VORLAUF6 = { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43], '1-5': [50, 50], '1-6': [55, 55] }
+  const SEMI = p('semi', 1, '1-1', '1-2')
+  const SEMI2 = p('semi', 2, '1-2', '1-1')
+  const S1 = attemptSchluessel('semi', 1)
+  const BOJE = 'b1a'
+
+  /** Klasse 1: Vorlauf gefahren, Halbfinale festgeschrieben und begonnen, das erste Paar (1-1 auf A, 1-2 auf B) gezeigt, Werte beider. */
+  function imBoot(): AppState {
+    let s = fahreRunde(uimParallelStand(parallelStarter('1', 6)), 'pre', VORLAUF6)
+    s = reducer(s, { type: 'PARALLEL_RUNDE_FESTSCHREIBEN', klasse: '1', runde: 'semi' })
+    s = reducer(s, { type: 'BETRIEB_BEGINNEN', bereich: PA, punkt: 'runde:semi', zeit: 500 })
+    s = zeigeNaechsten(s, PA, 1000)
+    expect(lage(s, PA).aktuell?.key).toBe(SEMI)
+    s = fahreRunde(s, 'semi', { '1-1': [40, 40], '1-2': [41, 41], '1-3': [42, 42], '1-4': [43, 43] })
+    s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: S1, starter: '1-1', feld: BOJE, wert: '5' }, { lauf: S1, starter: '1-2', feld: BOJE, wert: '5' }] })
+    return s
+  }
+
+  it('nur A: dessen Werte in diesem Attempt weg, B behält seine; „Wiederholung offen“ als Paar mit B „–“', () => {
+    const vorher = imBoot()
+    const s = pausfall(vorher, SEMI, 'a')
+    expect(s.eingaben[S1]['1-1']).toBeUndefined()
+    expect(s.eingaben[S1]['1-2']).toEqual(vorher.eingaben[S1]['1-2'])
+    // Der 2. Attempt desselben Paares bleibt.
+    expect(s.eingaben[attemptSchluessel('semi', 2)]['1-1']).toEqual(vorher.eingaben[attemptSchluessel('semi', 2)]['1-1'])
+    const b = betriebVon(s, PA)
+    expect(b.gezeigt.at(-1)).toEqual({ ref: SEMI, zeit: 1000, abgebrochen: true, nur: 'a' })
+    expect(b.wiederholung).toEqual([SEMI])
+    expect([abbruecheVon(b, SEMI), abbruecheVon(b, SEMI, 'a'), abbruecheVon(b, SEMI, 'b')]).toEqual([1, 1, 0])
+    expect(s.wkr.verworfen?.map((v) => [v.starter, v.lauf])).toEqual([['1-1', S1]])
+    const l = lage(s, PA)
+    expect(l.wiederholung.map((e) => e.key)).toEqual([SEMI])
+    expect(l.erledigt.has(SEMI)).toBe(false)
+    // Tafel und Start-Freigabe (englisch, UIM): die Wiederholung nur mit A; der abgebrochene Versuch im Boot mit beiden.
+    const sb = sichtOeffentlich(s).bereiche.find((x) => x.id === PA)!
+    expect(sb.wiederholung.map((x) => [x.key, x.paar, x.titel, x.wiederholung])).toEqual([[SEMI, { attempt: 1, a: '1-1', b: null }, 'Semi-finals · Attempt 1 · Repeat', true]])
+    expect(sb.aktuell).toMatchObject({ key: SEMI, abgebrochen: true, paar: { attempt: 1, a: '1-1', b: '1-2' }, titel: 'Semi-finals · Attempt 1' })
+    expect(sb.aktuell?.wiederholung).toBeUndefined()
+    // Erfassung: ↻ nur beim Boot, das wiederholt.
+    expect([...wiederholteZellen(s, (lauf) => laufSchluessel('manoevrieren', lauf))]).toEqual([`${S1}|1-1`])
+    // Eingereiht und gezeigt: im Boot die Wiederholung mit A allein; die Zuschauerliste nur über den Titel.
+    const w = zeigeNaechsten(peinreihen(s, SEMI), PA, 20_000)
+    const wb = sichtOeffentlich(w).bereiche.find((x) => x.id === PA)!
+    expect(wb.aktuell).toMatchObject({ key: SEMI, paar: { attempt: 1, a: '1-1', b: null }, wiederholung: true, titel: 'Semi-finals · Attempt 1 · Repeat' })
+    expect(wb.vorig).toMatchObject({ key: SEMI, abgebrochen: true, paar: { attempt: 1, a: '1-1', b: '1-2' } })
+    // Ein weiterer Ausfall bietet nur noch A an (`gefahren`) – B zu wiederholen ändert nichts.
+    expect(wb.gefahren?.find((x) => x.key === SEMI)?.paar).toEqual({ attempt: 1, a: '1-1', b: null })
+    expect(pausfall(w, SEMI, 'b')).toBe(w)
+    const zweiter = pausfall(w, SEMI)
+    expect(betriebVon(zweiter, PA).gezeigt.at(-1)).toMatchObject({ abgebrochen: true, nur: 'a' })
+    const z = sichtZuschauer(sichtOeffentlich(w)).bereiche.find((x) => x.id === PA)!
+    expect(z.aktuell?.titel).toBe('Semi-finals · Attempt 1 · Repeat')
+    expect(JSON.stringify(z)).not.toContain('"wiederholung"')
+  })
+
+  it('„Doch keine Wiederholung“ holt die Werte des Boots zurück; ohne `nur`: beide Boote, je Boot gemerkt', () => {
+    const vorher = imBoot()
+    const auf = paufheben(pausfall(vorher, SEMI, 'a'), SEMI)
+    expect(auf.eingaben).toEqual(vorher.eingaben)
+    expect(auf.wkr.verworfen).toBeUndefined()
+    expect(betriebVon(auf, PA).gezeigt.at(-1)).toEqual({ ref: SEMI, zeit: 1000 })
+    expect(lage(auf, PA).erledigt.has(SEMI)).toBe(true)
+    // Beide: beider Werte weg, zwei Einträge; zurück kommen beide (nur in leere Zellen).
+    const beide = pausfall(vorher, SEMI)
+    expect([beide.eingaben[S1]['1-1'], beide.eingaben[S1]['1-2']]).toEqual([undefined, undefined])
+    expect(beide.wkr.verworfen?.map((v) => v.starter)).toEqual(['1-1', '1-2'])
+    expect(betriebVon(beide, PA).gezeigt.at(-1)).toEqual({ ref: SEMI, zeit: 1000, abgebrochen: true })
+    expect(sichtOeffentlich(beide).bereiche.find((x) => x.id === PA)!.wiederholung[0].paar).toEqual({ attempt: 1, a: '1-1', b: '1-2' })
+    const getippt = reducer(beide, { type: 'SET_EINGABEN', zellen: [{ lauf: S1, starter: '1-2', feld: 'zeit1', wert: '39,00' }] })
+    const zurueck = paufheben(getippt, SEMI)
+    expect(zurueck.eingaben[S1]['1-1']).toEqual(vorher.eingaben[S1]['1-1'])
+    expect(zurueck.eingaben[S1]['1-2']).toEqual({ ...vorher.eingaben[S1]['1-2'], zeit1: '39,00' })
+    // Laden: `nur` und je Boot ein verworfener Eintrag überstehen die Normalisierer; `nur` an einem Lauf fällt weg.
+    const a = pausfall(vorher, SEMI, 'a')
+    expect(normalisiereBetrieb(JSON.parse(JSON.stringify(a.betrieb)))).toEqual(a.betrieb)
+    const ids = new Set(beide.starters.map((x) => x.id))
+    expect(normalisiereWkr(JSON.parse(JSON.stringify(beide.wkr)), ids)).toEqual(beide.wkr)
+    const roh = JSON.parse(JSON.stringify(ausfall(gefahren(), m('k1')).betrieb))
+    roh.bereiche[P1].gezeigt[1].nur = 'a'
+    expect(normalisiereBetrieb(roh).bereiche[P1].gezeigt[1]).toEqual({ ref: m('k1'), zeit: 61_000, abgebrochen: true })
+  })
+
+  it('nur Gezeigtes, nur Boote, die fuhren, keine Abgemeldeten; Kennung muss zum Bereich passen', () => {
+    const s = imBoot()
+    // Nicht gezeigt, fremder Bereich, eine Kennung des Manövrierens im Parallelslalom.
+    expect(pausfall(s, p('semi', 1, '1-3', '1-4'))).toBe(s)
+    expect(reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: 'par_1', ref: SEMI, zeit: 9000 })).toBe(s)
+    expect(pausfall(s, m('1-1'))).toBe(s)
+    // Abgemeldet (WH10, je Boot): A gesperrt, B geht.
+    const ab = { ...s, abgemeldet: ['1-1'] }
+    expect(pausfall(ab, SEMI, 'a')).toBe(ab)
+    expect(pausfall(ab, SEMI)).toBe(ab)
+    expect(pausfall(ab, SEMI, 'b').eingaben[S1]['1-1']).toEqual(s.eingaben[S1]['1-1'])
+    // Leere Seite (X auf B): nur A fuhr – „ohne nur“ wiederholt A und merkt es als `nur`.
+    const x = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: S1, starter: '1-2', feld: 'disq@steg', wert: 'X' }] })
+    expect(lage(x, PA).folge.find((e) => e.key === SEMI)?.paar?.bFaehrt).toBe(false)
+    expect(pausfall(x, SEMI, 'b')).toBe(x)
+    expect(betriebVon(pausfall(x, SEMI), PA).gezeigt.at(-1)).toMatchObject({ abgebrochen: true, nur: 'a' })
+  })
+
+  it('Prüfbefund 27.11.2026: nur A wiederholt, danach fährt A nicht mehr (X, Abmeldung) – das Paar entfällt wie im Manövrieren', () => {
+    const s = pausfall(imBoot(), SEMI, 'a')
+    const b = s.eingaben[S1]['1-2']
+    for (const [wie, x] of [
+      ['X von Hand', reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: S1, starter: '1-1', feld: 'disq@steg', wert: 'X' }] })],
+      ['abgemeldet', reducer(s, { type: 'ABMELDEN_STARTER', id: '1-1' })],
+    ] as const) {
+      expect(lage(x, PA).folge.find((e) => e.key === SEMI)?.paar?.aFaehrt, wie).toBe(false)
+      const l = lage(x, PA)
+      // Nicht unter „Wiederholung offen“, nicht offen/frei, nicht in der Wahl – kein leeres Paar auf der Tafel.
+      expect(l.wiederholung, wie).toEqual([])
+      expect([...l.offen, ...l.frei, ...l.zurueckgestellt, ...l.nachzuholen].map((e) => e.key), wie).not.toContain(SEMI)
+      const sb = sichtOeffentlich(x).bereiche.find((y) => y.id === PA)!
+      expect(sb.wiederholung, wie).toEqual([])
+      expect(sb.gefahren.map((y) => y.key), wie).not.toContain(SEMI)
+      expect(JSON.stringify(sichtZuschauer(sichtOeffentlich(x))), wie).not.toContain('null,null')
+      // „Doch keine Wiederholung“ und Einreihen ändern nichts; B behält seine Werte.
+      expect(paufheben(x, SEMI), wie).toBe(x)
+      expect(peinreihen(x, SEMI), wie).toBe(x)
+      expect(x.eingaben[S1]['1-2'], wie).toEqual(b)
+      expect(ausfallGrund(x, PA, SEMI), wie).toBe('nicht-gezeigt')
+    }
+    // Die Abmeldung zurückgenommen: Die Wiederholung wartet wieder.
+    const zurueck = reducer(reducer(s, { type: 'ABMELDEN_STARTER', id: '1-1' }), { type: 'ANMELDEN_STARTER', id: '1-1' })
+    expect(lage(zurueck, PA).wiederholung.map((e) => e.key)).toEqual([SEMI])
+    // Die Wiederholung gezeigt, dann X für A: kein leeres Paar in der Wahl (`gefahren`), nichts mehr auszulösen.
+    const w = zeigeNaechsten(peinreihen(s, SEMI), PA, 20_000)
+    const wx = reducer(w, { type: 'SET_EINGABEN', zellen: [{ lauf: S1, starter: '1-1', feld: 'disq@steg', wert: 'X' }] })
+    const wb = sichtOeffentlich(wx).bereiche.find((y) => y.id === PA)!
+    expect(wb.gefahren.map((y) => y.key)).not.toContain(SEMI)
+    expect(wb.gefahren.every((y) => !y.paar || y.paar.a !== null || y.paar.b !== null)).toBe(true)
+    expect(ausfallGrund(wx, PA, SEMI)).toBe('nicht-gezeigt')
+    expect(pausfall(wx, SEMI)).toBe(wx)
+    // Beide wiederholt, dann A abgemeldet (X): „Doch keine Wiederholung“ holt nur B zurück – nie die alte Zeit neben das X.
+    const beide = reducer(pausfall(imBoot(), SEMI), { type: 'ABMELDEN_STARTER', id: '1-1' })
+    expect(lage(beide, PA).wiederholung.map((e) => e.key)).toEqual([SEMI])
+    const auf = paufheben(beide, SEMI)
+    expect(auf.eingaben[S1]['1-2']).toEqual(imBoot().eingaben[S1]['1-2'])
+    expect(auf.eingaben[S1]['1-1']).toEqual(beide.eingaben[S1]['1-1'])
+    expect(Object.values(auf.eingaben[S1]['1-1'])).toContain('X')
+  })
+
+  it('Einreihen als Paar (R13-13): „Ans Ende der Runde“ nimmt den 2. Attempt mit; „Nächster Start“ vorher zeigt ihn', () => {
+    const s = pausfall(imBoot(), SEMI, 'a')
+    expect(lage(s, PA).frei.map((e) => e.key)).toEqual([SEMI2, p('semi', 1, '1-3', '1-4'), p('semi', 2, '1-4', '1-3')])
+    const ende = peinreihen(s, SEMI, 'ende')
+    expect(lage(ende, PA).frei.map((e) => e.key)).toEqual([p('semi', 1, '1-3', '1-4'), p('semi', 2, '1-4', '1-3'), SEMI, SEMI2])
+    const naechster = peinreihen(s, SEMI)
+    expect(lage(naechster, PA).frei.map((e) => e.key).slice(0, 2)).toEqual([SEMI, SEMI2])
+    // Zurückstellen des 2. Attempts lässt die Wiederholung, wo sie ist.
+    const zurueck = reducer(s, { type: 'BETRIEB_ZURUECKSTELLEN', bereich: PA, ref: SEMI2 })
+    expect(betriebVon(zurueck, PA).zurueckgestellt).toEqual([SEMI2])
+    expect(lage(zurueck, PA).wiederholung.map((e) => e.key)).toEqual([SEMI])
+    // Einreihen der Wiederholung holt den zurückgestellten Attempt mit (wie bisher).
+    expect(lage(peinreihen(zurueck, SEMI), PA).frei.map((e) => e.key).slice(0, 2)).toEqual([SEMI, SEMI2])
+    // Ohne Einreihen ist der Nächste der 2. Attempt (WHP5: er wartet nicht von selbst).
+    expect(lage(zeigeNaechsten(s, PA, 2000), PA).aktuell?.key).toBe(SEMI2)
+  })
+
+  it('Wertung: der wiederholte Attempt zählt wie jeder andere; kein Re-run dadurch; Pläne und Druckvermerk bleiben', () => {
+    let s = reducer(imBoot(), { type: 'PARALLEL_RUNDEN_GEDRUCKT', runden: ['semi'], zeit: 800 })
+    const gedruckt = s.parallelGedruckt
+    expect(Object.keys(gedruckt)).toContain('semi')
+    const vorher = rundenErgebnis(s, UIM, '1', 'semi')!
+    const sek = (e: typeof vorher, id: string) => e.gesamt.nachNummer.find((z) => z.starter.id === id)!.gesamt
+    // Je 5 s für die berührte Boje im 1. Attempt.
+    expect([sek(vorher, '1-1'), sek(vorher, '1-2')]).toEqual([8500, 8700])
+    const plaene = s.parallelPlaene
+    s = pausfall(s, SEMI, 'a')
+    expect(s.parallelPlaene).toBe(plaene)
+    expect(s.parallelGedruckt).toBe(gedruckt)
+    expect(sek(rundenErgebnis(s, UIM, '1', 'semi')!, '1-1')).toBeNull()
+    s = zeigeNaechsten(peinreihen(s, SEMI), PA, 20_000)
+    // Die Wiederholung: 43 s ohne Boje – sie gilt statt des abgebrochenen Attempts.
+    s = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: S1, starter: '1-1', feld: 'zeit1', wert: '43,00' }] })
+    const nachher = rundenErgebnis(s, UIM, '1', 'semi')!
+    expect([sek(nachher, '1-1'), sek(nachher, '1-2')]).toEqual([8300, 8700])
+    expect(nachher.rerun).toEqual([])
+    expect(nachher.gesamt.nachPlatz.map((z) => z.starter.id)).toEqual(['1-1', '1-3', '1-4', '1-2'])
+  })
+
+  it('Verlauf: Startnummer des wiederholenden Boots, Runde und Attempt', () => {
+    const s = imBoot()
+    const nr = (id: string) => s.starters.find((x) => x.id === id)!.startNr
+    expect(beschreibe({ type: 'WIEDERHOLUNG_AUSFALL', bereich: PA, ref: SEMI, nur: 'b' }, s)).toEqual({ art: 'wiederholungAusfall', startNr: nr('1-2'), klasse: '1', runde: 'semi', lauf: 1 })
+    expect(beschreibe({ type: 'WIEDERHOLUNG_AUSFALL', bereich: PA, ref: SEMI }, s)).toEqual({ art: 'wiederholungAusfall', startNr: `${nr('1-1')} / ${nr('1-2')}`, klasse: '1', runde: 'semi', lauf: 1 })
+    // Prüfbefund 27.11.2026: aus dem Ergebnis (verworfene Werte je Boot) – fuhr nur A (X auf B), nennt der Verlauf nur A,
+    // auch ohne `nur`; das Aufheben nennt die Boote aus dem Stand davor, nicht beide laut Plan.
+    const x = reducer(s, { type: 'SET_EINGABEN', zellen: [{ lauf: S1, starter: '1-2', feld: 'disq@steg', wert: 'X' }] })
+    const aus = { type: 'WIEDERHOLUNG_AUSFALL', bereich: PA, ref: SEMI } as const
+    const nachAusfall = reducer(x, aus)
+    expect(beschreibe(aus, nachAusfall)?.startNr).toBe(nr('1-1'))
+    const nurA = pausfall(s, SEMI, 'a')
+    const auf = { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: PA, ref: SEMI } as const
+    expect(beschreibe(auf, reducer(nurA, auf), nurA)?.startNr).toBe(nr('1-1'))
   })
 })

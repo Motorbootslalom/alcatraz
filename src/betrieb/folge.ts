@@ -1,4 +1,4 @@
-import type { AppState, BereichBetrieb, BereichId, ClassId, GezeigterStart, ParallelRunde, Parcours, PunktId, StartRef, Starter, TrackItem } from '../types'
+import type { AppState, BereichBetrieb, BereichId, ClassId, GezeigterStart, PaarSeite, ParallelRunde, Parcours, PunktId, StartRef, Starter, TrackItem } from '../types'
 import { planEvent, type ParcoursPlan } from '../planung/plan'
 import { istRunde } from '../planung/parallelRunden'
 import { parallelActiveClasses } from '../planung/parallel'
@@ -177,10 +177,140 @@ export function bereichLeer(b: BereichBetrieb): boolean {
  * Einträge in `gezeigt` mit `abgebrochen`. 0 = nie. Die WKR-Geräte bekommen den Start danach unter einer neuen Kennung
  * (wkr/versuch.ts) – so gilt er dort als neuer Start, und eine späte Zeile zum abgebrochenen Versuch ist erkennbar.
  */
-export function abbruecheVon(b: Pick<BereichBetrieb, 'gezeigt'>, key: string): number {
+export function abbruecheVon(b: Pick<BereichBetrieb, 'gezeigt'>, key: string, seite?: PaarSeite): number {
   let n = 0
-  for (const g of b.gezeigt) if (g.abgebrochen && g.ref === key) n++
+  for (const g of b.gezeigt) if (g.ref === key && abgebrochenAuf(g, seite)) n++
   return n
+}
+
+/**
+ * Ist dieser gezeigte Versuch für die Seite `seite` abgebrochen? Im Parallelslalom wiederholt nach einem Ausfall
+ * vielleicht nur ein Boot (Nutzer 27.11.2026, R13-02; GezeigterStart.nur): Für das andere ist der Versuch gefahren und
+ * gilt – seine Listen (Racecourse) behalten Kennung, Schlange und Zeile. Ohne `seite` (Manövrieren, oder „irgendein
+ * Boot“): jeder Abbruch.
+ */
+export function abgebrochenAuf(g: Pick<GezeigterStart, 'abgebrochen' | 'nur'>, seite?: PaarSeite): boolean {
+  return g.abgebrochen === true && (seite === undefined || g.nur === undefined || g.nur === seite)
+}
+
+/**
+ * Welches Boot eines Paares wiederholt (R13-02): `nur` des letzten Abbruchs dieses Starts vor der Stelle `bis` in
+ * `gezeigt` (Vorgabe: über alle) – `null`, wenn dieser Abbruch alle Boote traf oder es keinen gibt. Nach einer
+ * Wiederholung nur von A steht B in der Wiederholung als „–“ (betrieb/sicht.ts), auch in der Wahl eines weiteren Ausfalls.
+ */
+export function wiederholtNur(b: Pick<BereichBetrieb, 'gezeigt'>, key: string, bis = b.gezeigt.length): PaarSeite | null {
+  for (let i = Math.min(bis, b.gezeigt.length) - 1; i >= 0; i--) {
+    const g = b.gezeigt[i]
+    if (g.ref === key && g.abgebrochen) return g.nur ?? null
+  }
+  return null
+}
+
+/**
+ * Die Seiten eines Paares, deren Boot im zuletzt gezeigten, geltenden Versuch fuhr (R13-02): laut Folge (leer = Dummy,
+ * gelöscht, X), nach einer Wiederholung nur eines Boots nur dieses. Die Wahl beim Ausfall bietet genau sie an.
+ */
+export function gefahreneSeiten(b: Pick<BereichBetrieb, 'gezeigt'>, e: Pick<FolgeEintrag, 'key' | 'paar'>): PaarSeite[] {
+  return e.paar ? faehrendeSeiten(e.paar, wiederholtNur(b, e.key)) : []
+}
+
+/** Die Seiten eines Paares, auf denen jemand fährt, mit `nur` (Wiederholung nur eines Boots) nur diese – A vor B. */
+function faehrendeSeiten(paar: Pick<FolgePaar, 'aFaehrt' | 'bFaehrt'>, nur: PaarSeite | null): PaarSeite[] {
+  return (['a', 'b'] as const).filter((x) => (x === 'a' ? paar.aFaehrt : paar.bFaehrt) && (nur === null || nur === x))
+}
+
+/**
+ * Fährt in diesem Start noch jemand? Im Manövrieren: nicht entfallen (X). Im Parallelslalom dazu: Ein Paar, das auf die
+ * Wiederholung nur eines Boots wartet (bzw. sie gefahren hat), lebt nur von diesem Boot ({@link gefahreneSeiten}) – fährt
+ * es nicht mehr (Abmeldung setzt X in den geleerten Attempt, X von Hand), entfällt der Start wie im Manövrieren:
+ * nicht unter „Wiederholung offen“, nie offen/frei, nicht in der Wahl `gefahren`, kein „Doch keine Wiederholung“
+ * (Prüfbefund 27.11.2026 – vorher blieb ein leeres Paar stehen und kam als „Attempt 1 · Repeat“ ohne Boote auf die Tafel).
+ */
+export function faehrtNoch(b: Pick<BereichBetrieb, 'gezeigt'>, e: Pick<FolgeEintrag, 'key' | 'paar' | 'entfaellt'>): boolean {
+  return !e.entfaellt && (!e.paar || gefahreneSeiten(b, e).length > 0)
+}
+
+/**
+ * Gilt der i-te gezeigte Versuch für die Listen der Seite `seite` (Parallelslalom, R13-02; Prüfbefund 27.11.2026)? Nein,
+ * wenn er abgebrochen ist und ihr Boot traf ({@link abgebrochenAuf}) – und nein, wenn er die Wiederholung nur des ANDEREN
+ * Boots ist (der letzte Abbruch davor traf nur das andere): Ihr Boot fuhr dann nicht noch einmal, ihre Zeile gilt aus
+ * dem früheren Versuch (BETRIEB_ANNAHMEN.wiederholungParallelGeraete, WHP4). Ohne `seite` (Manövrieren, Listen ohne
+ * Racecourse): jeder nicht abgebrochene. EINE Stelle für Schlange, P der Pausen, „überfällig“, Marken, Durchfahrt
+ * und „unterwegs“ (wkr/) – vorher hing das an der Reihenfolge in der Schlange (`gesehen`), und eine damals pausierte
+ * oder erst später digitale Liste bekam die Wiederholung des anderen Boots als neuen Start.
+ */
+export function giltAuf(b: Pick<BereichBetrieb, 'gezeigt'>, i: number, seite?: PaarSeite): boolean {
+  const g = b.gezeigt[i]
+  if (!g || abgebrochenAuf(g, seite)) return false
+  if (seite === undefined) return true
+  const nur = wiederholtNur(b, g.ref, i)
+  return nur === null || nur === seite
+}
+
+/**
+ * Die gezeigten, geltenden Starts der begonnenen Punkte eines Bereichs, der jüngste zuerst, je Start einmal – die Wahl
+ * für „Wiederholung (Ausfall)“ (R11-11, WH3; Paare seit R13-02). Ohne abgebrochene Versuche, ohne Starts, die nicht
+ * (mehr) in der Folge stehen oder entfallen (X; ein Paar ohne Boot, das noch fährt – {@link faehrtNoch}). EINE Stelle
+ * für die Sicht (betrieb/sicht.ts `gefahren`) und die Prüfung am Host, wenn das Freigabe-Handy auslöst (Nutzer
+ * 27.11.2026, R13-01; {@link ausfallGrund}) – so bietet das Handy nie etwas an, das der Host ablehnt, und umgekehrt.
+ */
+export function gefahreneStarts(l: Pick<BereichLage, 'folge' | 'begonnen' | 'erledigt'>, b: Pick<BereichBetrieb, 'gezeigt'>): FolgeEintrag[] {
+  const nachKey = new Map(l.folge.map((e) => [e.key, e]))
+  const begonnen = new Set(l.begonnen)
+  const gesehen = new Set<string>()
+  const out: FolgeEintrag[] = []
+  for (let i = b.gezeigt.length - 1; i >= 0; i--) {
+    const g = b.gezeigt[i]
+    if (g.abgebrochen || gesehen.has(g.ref)) continue
+    gesehen.add(g.ref)
+    const e = nachKey.get(g.ref)
+    if (e && faehrtNoch(b, e) && begonnen.has(e.punkt) && l.erledigt.has(e.key)) out.push(e)
+  }
+  return out
+}
+
+/**
+ * Die Starter eines gefahrenen Starts, die eine Wiederholung träfe: im Manövrieren der Starter; im Parallelslalom die
+ * Boote, die fuhren ({@link gefahreneSeiten}), mit `nur` nur das dieser Seite (leer, wenn es nicht fuhr).
+ */
+function wiederholendeStarter(b: Pick<BereichBetrieb, 'gezeigt'>, e: FolgeEintrag, nur?: PaarSeite): string[] {
+  if (!e.paar) return [e.starter]
+  const paar = e.paar
+  return gefahreneSeiten(b, e)
+    .filter((x) => nur === undefined || x === nur)
+    .flatMap((x) => (paar[x] !== null ? [paar[x]] : []))
+}
+
+/** Warum für einen Start keine Wiederholung nach Ausfall geht – Codes, wie der Host sie dem Freigabe-Handy nennt. */
+export type AusfallGrund = 'nicht-gezeigt' | 'abgemeldet'
+
+/**
+ * Geht für `ref` (mit `nur`: nur für das Boot dieser Seite) eine Wiederholung nach Ausfall? `null` = ja. Sonst der
+ * Grund: `nicht-gezeigt` – nicht unter den gefahrenen Starts des Bereichs ({@link gefahreneStarts}: nicht gezeigt,
+ * abgebrochen, Lauf bzw. Runde nicht begonnen, entfallen) oder `nur` nennt ein Boot, das nicht fuhr; `abgemeldet` – ein
+ * Starter, den sie träfe, ist abgemeldet (WH10). Dieselben Regeln wie die Wahl an der Start-Freigabe (AusfallWahl.vue)
+ * und strenger als der Reducer, der nur „gezeigt, geltend, nicht abgemeldet“ prüft. Geprüft am Host, wenn das
+ * Freigabe-Handy auslöst (Nutzer 27.11.2026, R13-01; geraete/aufgaben.ts erlaubteWiederholung). Rein.
+ */
+export function ausfallGrund(stand: AppState, bereich: BereichId, ref: string, nur?: PaarSeite): AusfallGrund | null {
+  const b = betriebVon(stand, bereich)
+  const e = gefahreneStarts(lage(stand, bereich), b).find((x) => x.key === ref)
+  if (!e) return 'nicht-gezeigt'
+  const ids = wiederholendeStarter(b, e, nur)
+  if (ids.length === 0) return 'nicht-gezeigt'
+  return ids.some((id) => stand.abgemeldet.includes(id)) ? 'abgemeldet' : null
+}
+
+/**
+ * Die abgemeldeten Starter unter den gefahrenen Starts eines Bereichs (je Boot) – für das Freigabe-Handy, das sie in
+ * der Wahl ausgraut (Nutzer 27.11.2026, R13-01; BETRIEB_ANNAHMEN.wiederholungHandyAbmeldungen). Nur diese, nie alle
+ * Abmeldungen: Mehr braucht die Wahl nicht (wkr/freigabe.ts `ausfallGesperrt`, nie in der öffentlichen Sicht).
+ */
+export function ausfallGesperrt(stand: AppState, bereich: BereichId): string[] {
+  if (stand.abgemeldet.length === 0) return []
+  const ab = new Set(stand.abgemeldet)
+  const b = betriebVon(stand, bereich)
+  return [...new Set(gefahreneStarts(lage(stand, bereich), b).flatMap((e) => wiederholendeStarter(b, e)))].filter((id) => ab.has(id))
 }
 
 /** Ist der zuletzt gezeigte Versuch dieses Starts abgebrochen und der Start seitdem nicht wieder gezeigt? */
@@ -190,9 +320,10 @@ export function wartetAufWiederholung(b: Pick<BereichBetrieb, 'gezeigt'>, key: s
 }
 
 /**
- * Die Zellen (`${laufSchluessel}|${starterId}`) aller Starts des Manövrierens, die wiederholt werden oder wurden – für
- * den Hinweis in der Erfassung („Wiederholung nach Ausfall – Werte der Wiederholung eintragen“), über alle Bereiche.
- * Rein; der Lauf-Schlüssel kommt von außen (Disziplin des Aufbaus).
+ * Die Zellen (`${laufSchluessel}|${starterId}`) aller Starts, die wiederholt werden oder wurden – für den Hinweis in der
+ * Erfassung („Wiederholung nach Ausfall – Werte der Wiederholung eintragen“), über alle Bereiche. Rein; der
+ * Lauf-Schlüssel des Manövrierens kommt von außen (Disziplin des Aufbaus). Parallelslalom (R13-02, 27.11.2026): der
+ * Attempt-Schlüssel und nur die Boote, die wiederholen (`nur`).
  */
 export function wiederholteZellen(stand: Pick<AppState, 'betrieb'>, laufKey: (lauf: number) => string): Set<string> {
   const out = new Set<string>()
@@ -201,6 +332,12 @@ export function wiederholteZellen(stand: Pick<AppState, 'betrieb'>, laufKey: (la
       if (!g.abgebrochen) continue
       const r = liesRef(g.ref)
       if (r?.art === 'm') out.add(`${laufKey(r.lauf)}|${r.starter}`)
+      else if (r?.art === 'p') {
+        for (const seite of ['a', 'b'] as const) {
+          const id = r[seite]
+          if (id !== null && abgebrochenAuf(g, seite)) out.add(`${attemptSchluessel(r.runde, r.attempt)}|${id}`)
+        }
+      }
     }
   }
   return out
@@ -563,8 +700,13 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
   const zurueckgestellt: FolgeEintrag[] = []
   const wiederholung: FolgeEintrag[] = []
   const bootFehlt: FolgeEintrag[] = []
+  // Wiederholung nur eines Boots (R13-02): `nur` des letzten Abbruchs je Paar, einmal gesammelt. Fährt dieses Boot nicht
+  // mehr (X), entfällt der Start wie im Manövrieren (faehrtNoch, Prüfbefund 27.11.2026).
+  const nurJe = new Map<string, PaarSeite | null>()
+  for (const g of b.gezeigt) if (g.abgebrochen) nurJe.set(g.ref, g.nur ?? null)
+  const ohneBoot = (e: FolgeEintrag) => !!e.paar && faehrendeSeiten(e.paar, nurJe.get(e.key) ?? null).length === 0
   folge.forEach((e, i) => {
-    if (e.entfaellt || erledigt.has(e.key)) return
+    if (e.entfaellt || ohneBoot(e) || erledigt.has(e.key)) return
     const nachzuegler = BETRIEB_ANNAHMEN.nachzueglerNachzuholen && (BETRIEB_ANNAHMEN.nichtBegonneneWarten ? ueberholt[i] : i < zeiger)
     // Wiederholung offen vor allem anderen: Die Wettkampfleitung setzt den Start selbst an seine Stelle (R11-11).
     if (wiederholen.has(e.key)) wiederholung.push(e)

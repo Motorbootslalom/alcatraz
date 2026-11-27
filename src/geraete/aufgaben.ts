@@ -1,11 +1,12 @@
-import type { GeraeteTyp } from './transport/protokoll'
+import type { Ablehnung, GeraeteTyp } from './transport/protokoll'
 import type { AppState, BereichId, ClassId, Meldung, VerschiebeZiel, WkrStatus, WkrZeile } from '../types'
 import type { Konfig } from '../config/konfig'
 import type { BetriebAenderung } from '../state/reducer/betrieb'
+import type { ErfassungAenderung } from '../state/reducer/erfassung'
 import type { WkrAenderung } from '../state/reducer/wkr'
 import { MELDUNG_MAX } from '../state/reducer/betrieb'
 import { CLASS_IDS } from '../domain/classes'
-import { bereichBekannt, istPunktId } from '../betrieb/folge'
+import { abbruecheVon, ausfallGrund, bereichBekannt, betriebVon, istPunktId, wartetAufWiederholung } from '../betrieb/folge'
 import { istWkrPunkt, OHNE_PUNKT, punktBegonnen } from '../wkr/abschluss'
 import { WKR_ANNAHMEN } from '../wkr/annahmen'
 import { istTischListe, liesListe, listenDerVeranstaltung, listenKennung, teileVon, type ListenTeil } from '../wkr/liste'
@@ -30,6 +31,10 @@ import { pruefeZeile, type ZeilenFehler } from '../wkr/zeile'
  * Entscheidung des Nutzers vom 16.11.2026 (F5): Einen entfernten „Poweruser“ gibt es vorerst nicht; die
  * Start-Freigabe darf das Betriebliche ihrer Bereiche – auch Einsteigen, Aussetzen, Verschieben, Meldung –, nur nicht
  * „Betrieb zurücksetzen“. Einstellungen bleiben am Bedienrechner.
+ *
+ * Seit dem 27.11.2026 (Nutzer, R13-01/R13-06) dazu EINE eng geprüfte Ausnahme außerhalb des Betriebs: die Wiederholung
+ * nach Ausfall auslösen und aufheben ({@link STARTFREIGABE_WIEDERHOLUNG}, {@link erlaubteWiederholung}) – zwei Actions
+ * der Erfassung, nicht pauschal alle.
  */
 
 export type Aufgabe =
@@ -60,7 +65,7 @@ export type ListenAufgabe = Extract<Aufgabe, { art: 'liste' }>
 
 /**
  * Obergrenze der Listen je Gerät – mehr nimmt der Host nie an. F15 (21.11.2026) hatte 2 (Handy eine, Pad zwei); seit
- * dem Nutzer am 21.11.2026 (W3-03, WKR_ANNAHMEN GF8, noch zu bestätigen) ist „Handy eine, Pad zwei“ nur eine
+ * dem Nutzer am 21.11.2026 (W3-03, WKR_ANNAHMEN GF8, bestätigt 22.11.2026, R7-32) ist „Handy eine, Pad zwei“ nur eine
  * Empfehlung ({@link LISTEN_EMPFEHLUNG}): mehr Listen gehen, auf dem Pad nebeneinander, darüber als Reiter. Vier
  * begrenzt Sicht-Abos und Schlüssel je Gerät (je Liste eine Gruppe).
  */
@@ -86,10 +91,10 @@ export const STARTFREIGABE_ACTIONS = [
   'BETRIEB_AB',
   // Parcours-Ampel (Nutzer 21.11.2026, P-03): „Durchs Start-Tor“ gehört zur Start-Freigabe – auch auf dem Handy.
   'BETRIEB_DURCHFAHRT',
-  // Bewusst NICHT (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN.wiederholungNurBedienrechner): „Doch keine Wiederholung“
-  // (WIEDERHOLUNG_AUFHEBEN, seit dem Prüfbefund 27.11.2026 ebenfalls eine Action der Erfassung: die verworfenen Werte
-  // kommen zurück) – wie das Auslösen (WIEDERHOLUNG_AUSFALL) nur am
-  // Bedienrechner. Einreihen und Zeigen der Wiederholung gehen auch vom Handy (EINREIHEN, ZEIGEN).
+  // Nicht hier: Auslösen (WIEDERHOLUNG_AUSFALL) und „Doch keine Wiederholung“ (WIEDERHOLUNG_AUFHEBEN) der Wiederholung
+  // nach Ausfall sind Actions der ERFASSUNG (Werte verwerfen bzw. zurückholen) – sie gehen seit dem 27.11.2026 (Nutzer,
+  // R13-01/R13-06, BETRIEB_ANNAHMEN.wiederholungAnDerStartFreigabe) auch vom Handy, aber über die eigene, enger geprüfte
+  // Ausnahme STARTFREIGABE_WIEDERHOLUNG/erlaubteWiederholung unten. Einreihen und Zeigen sind gewöhnliche Schritte hier.
 ] as const satisfies readonly BetriebAenderung['type'][]
 
 /**
@@ -218,6 +223,80 @@ export function bereinige(action: unknown): GeraeteBetriebAction | null {
 
 /** Was der Stand für die Prüfung hergibt: welche Bereiche es gibt. */
 export type AufgabenStand = Pick<AppState, 'parcoursList' | 'regelwerk'>
+
+// --- Wiederholung nach Ausfall vom Freigabe-Handy (Nutzer 27.11.2026, R13-01/R13-06) -----------------------------
+
+/**
+ * Die eng geprüfte Ausnahme der Positivliste (Nutzer 27.11.2026, R13-01: „Die Start-Freigabe ist die Instance, die
+ * bestimmt, wer im Parcours ist und als welchen Lauf dieser gewertet wird. Damit sind auch Wiederholungen direkt dort zu
+ * entscheiden“; R13-06: „Wiederholungen von Starts auslösen und einordnen in der Verzahnung, das die Position auch
+ * machen.“): Auslösen und „Doch keine Wiederholung“ – zwei Actions der ERFASSUNG (sie verwerfen bzw. holen Werte), die
+ * die Start-Freigabe auf dem Handy schicken darf. Keine andere Action der Erfassung; geprüft wird jede gegen den vollen
+ * Stand ({@link erlaubteWiederholung}). BETRIEB_ANNAHMEN.wiederholungAnDerStartFreigabe (WH3), wiederholungHandyPruefung.
+ */
+export const STARTFREIGABE_WIEDERHOLUNG = ['WIEDERHOLUNG_AUSFALL', 'WIEDERHOLUNG_AUFHEBEN'] as const satisfies readonly ErfassungAenderung['type'][]
+
+export type GeraeteWiederholungAction = Extract<ErfassungAenderung, { type: (typeof STARTFREIGABE_WIEDERHOLUNG)[number] }>
+
+/** Ist das eine Action der Ausnahme (Art, nicht Erlaubnis)? */
+export function istWiederholungsArt(action: unknown): boolean {
+  return istObjekt(action) && (STARTFREIGABE_WIEDERHOLUNG as readonly unknown[]).includes(action.type)
+}
+
+/** Höchstens so viele Abbrüche je Start nimmt die Prüfung an – mehr kommt nicht vor (Schutz vor Unsinn auf der Leitung). */
+const ABBRUECHE_MAX = 999
+
+/**
+ * Die Wiederholungs-Action eines Geräts in sauberer Form – nur `type`, `bereich`, `ref`, `abbrueche` und bei
+ * WIEDERHOLUNG_AUSFALL `nur` ('a'|'b'), geprüft nach Typ; alles andere (auch `zeit`) fällt weg. `abbrueche` (ganze Zahl
+ * ≥ 0) ist vom Gerät Pflicht (Prüfbefund 27.11.2026, BETRIEB_ANNAHMEN.wiederholungGebunden): Die Action gilt nur dem
+ * Versuch, den das Handy zeigte. `null`: keine Art der Ausnahme oder kaputt.
+ */
+export function bereinigeWiederholung(action: unknown): GeraeteWiederholungAction | null {
+  if (!istObjekt(action) || !istKennung(action.bereich, 64) || !istKennung(action.ref)) return null
+  const { bereich, ref, abbrueche } = action
+  if (typeof abbrueche !== 'number' || !Number.isInteger(abbrueche) || abbrueche < 0 || abbrueche > ABBRUECHE_MAX) return null
+  if (action.type === 'WIEDERHOLUNG_AUFHEBEN') return { type: 'WIEDERHOLUNG_AUFHEBEN', bereich, ref, abbrueche }
+  if (action.type !== 'WIEDERHOLUNG_AUSFALL') return null
+  if (action.nur !== undefined && action.nur !== 'a' && action.nur !== 'b') return null
+  return { type: 'WIEDERHOLUNG_AUSFALL', bereich, ref, ...(action.nur !== undefined ? { nur: action.nur } : {}), abbrueche }
+}
+
+/** Ergebnis von {@link erlaubteWiederholung}: die bereinigte Action – oder der Grund, mit dem der Host ablehnt (Code). */
+export type WiederholungErlaubt = { action: GeraeteWiederholungAction } | { grund: Extract<Ablehnung, 'nicht-erlaubt' | 'nicht-gezeigt' | 'abgemeldet' | 'konflikt'> }
+
+/**
+ * Prüft eine Wiederholungs-Action eines Geräts (R13-01/R13-06) gegen seine Aufgaben (aus dem Register des Hosts) und den
+ * vollen Stand. `null`: keine Art der Ausnahme – der Aufrufer prüft dann wie bisher ({@link erlaubteAction}). Sonst:
+ * - `nicht-erlaubt`: kaputt, kein eigener Bereich der Start-Freigabe oder einer, den es im Stand nicht gibt;
+ * - WIEDERHOLUNG_AUSFALL: Der Start (das Paar; mit `nur` das Boot dieser Seite) muss unter den gefahrenen Starts des
+ *   Bereichs stehen – gezeigt, geltend, Lauf bzw. Runde begonnen, nicht entfallen –, sonst `nicht-gezeigt`; ein Starter,
+ *   den sie träfe, abgemeldet → `abgemeldet` (betrieb/folge.ts ausfallGrund, dieselben Regeln wie die Wahl). Wartet der
+ *   Start schon auf seine Wiederholung (jemand war schneller), geht die Action durch – der Reducer ändert nichts, das
+ *   Handy liest „unverändert“;
+ * - WIEDERHOLUNG_AUFHEBEN: nur der eigene Bereich – der Reducer nimmt ohnehin nur einen Start, der auf seine Wiederholung
+ *   wartet (sonst „unverändert“);
+ * - beide (Prüfbefund 27.11.2026): `abbrueche` muss die Zahl der Abbrüche des Starts sein, wie das Handy sie sah – sonst
+ *   `konflikt` („Inzwischen hat sich dort etwas geändert“): Eine Nachricht, die im Funkloch stand, träfe sonst die
+ *   inzwischen am Bedienrechner ausgelöste, eingereihte und gezeigte Wiederholung (bzw. höbe einen neueren Ausfall auf).
+ *   Ausnahme wie oben: Wartet der Start beim Auslösen schon, bleibt es bei „unverändert“.
+ * Rein. Zeit und Kennung setzt wie bei jeder Action das Schreibfenster (Store); nichts von hier gelangt in den Reducer.
+ */
+export function erlaubteWiederholung(action: unknown, aufgaben: readonly Aufgabe[], stand: AppState): WiederholungErlaubt | null {
+  if (!istWiederholungsArt(action)) return null
+  const sauber = bereinigeWiederholung(action)
+  if (!sauber || !freigabeBereiche(aufgaben).includes(sauber.bereich) || !bereichBekannt(stand, sauber.bereich)) return { grund: 'nicht-erlaubt' }
+  const b = betriebVon(stand, sauber.bereich)
+  const wartet = wartetAufWiederholung(b, sauber.ref)
+  const veraltet = abbruecheVon(b, sauber.ref) !== sauber.abbrueche
+  if (sauber.type === 'WIEDERHOLUNG_AUSFALL' && !wartet) {
+    if (veraltet) return { grund: 'konflikt' }
+    const grund = ausfallGrund(stand, sauber.bereich, sauber.ref, sauber.nur)
+    if (grund) return { grund }
+  }
+  if (sauber.type === 'WIEDERHOLUNG_AUFHEBEN' && wartet && veraltet) return { grund: 'konflikt' }
+  return { action: sauber }
+}
 
 /**
  * Prüft die Action eines Geräts gegen seine Aufgaben (aus dem Register des Hosts) und den Stand. Liefert die

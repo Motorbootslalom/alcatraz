@@ -104,13 +104,21 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `auto-anhalten` (Prop `autoAnhalten(ref)`: BetriebView → host.halteAuto, GeraetFreigabe → Nachricht AUTO_HALT) bzw.
   `auto-aus`. Rückfrage nur über warnende Parcours-Listen (lage.ts). Stile `.betrieb-ampel*`, `.betrieb-auto` (app.css).
   Test components/betrieb/StartFreigabe.test.ts (falsche Uhr).
-  Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11): StartFreigabe Prop `wiederholen(ref)` (nur BetriebView →
-  WIEDERHOLUNG_AUSFALL) → Knopf `data-action="ausfall"` → **AusfallWahl.vue** (`data-teil="ausfall"`, Suche
+  Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11): StartFreigabe Prop `wiederholen(ref)` (BetriebView →
+  WIEDERHOLUNG_AUSFALL; seit 27.11.2026, R13-01/R13-06, auch GeraetFreigabe → g.sende an den Host, abgelehnt mit Satz
+  `geraete.ablehnung.nicht-gezeigt`/`abgemeldet`) → Knopf `data-action="ausfall"` → **AusfallWahl.vue** (`data-teil="ausfall"`, Suche
   `ausfall-suche`, Zeilen aus `bereich.gefahren`, `ausfall-waehlen`, AppDialog `ausfall` mit `ausfall-ja`/`-nein`;
   Prop `nicht` = Starter-IDs Abgemeldeter → ausgegraut mit `ausfall-abgemeldet`, 27.11.2026; StartFreigabe-Prop
-  `ausfallGesperrt` aus BetriebView `state.abgemeldet`);
+  `ausfallGesperrt` aus BetriebView `state.abgemeldet`, auf dem Handy aus `freigabe[b.id].ausfallGesperrt`; seit 27.11.2026 (R13-02) auch im Parallelslalom: Paare,
+  Hinweis `betrieb.ausfall.hint.runde` über tBereich, Dialog ohne `ausfall-ja`, stattdessen Knöpfe `ausfall-seite`
+  `data-seite` a|b („Nur 101 (Parcours A)“, bei einem Boot „101 (Parcours A) wiederholen“) und `ausfall-beide`, keine
+  Vorauswahl; abgemeldetes Boot: Knopf und „Beide“ gesperrt, Satz `ausfall-abgemeldet` `data-seite`; emit
+  `wiederholen(key, nur, abbrueche)` → StartFreigabe-Prop `wiederholen(ref, nur, abbrueche)`; Prüfbefund 27.11.2026:
+  `abbrueche` = SichtStart.abbrueche des gewählten Starts, die offene Rückfrage geht zu (bzw. folgt dem Start), sobald
+  er nicht mehr mit derselben Zahl in `gefahren` steht; Handy-Ablehnung `geraete.ablehnung.konflikt`);
   EinreihenListe art `wiederholung` (überall, auch Handy und StartListe; `aufhebbar` → `wiederholung-aufheben` → Prop
-  `aufheben` der StartFreigabe → BetriebView WIEDERHOLUNG_AUFHEBEN, nur am Bedienrechner, holt die Werte zurück); Im Boot `data-teil="abgebrochen"`, „Zurück“ gesperrt;
+  `aufheben(ref, abbrueche)` der StartFreigabe (Zahl aus `bereich.wiederholung`) → BetriebView bzw. GeraetFreigabe
+  WIEDERHOLUNG_AUFHEBEN, holt die Werte zurück); Im Boot `data-teil="abgebrochen"`, „Zurück“ gesperrt;
   BetriebsFolge-Suche mit art `wiederholung`; texte.ts startZeile „· Wiederholung“. ErfassungTabelle: ↻
   `data-marke="wiederholung"` an der Nummer, `tr[data-wiederholung]` (betrieb/folge.ts wiederholteZellen, auch ohne
   Host), styles/erfassung.css `.erf-wiederholung-marke`.

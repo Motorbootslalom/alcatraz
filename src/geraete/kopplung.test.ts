@@ -7,9 +7,12 @@ import { ABLAGE, liesKopplung, type Ablage } from './ablage'
 import { freigabeBereiche, type Aufgabe } from './aufgaben'
 import { nachgebauterBrowser, type TestFenster } from './testBrowser'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
-import { direktThemaVon, geraeteThemaVon, type HostRaum } from './transport/ntfy/raum'
+import { direktThemaVon, geraeteThemaVon, themenDerGruppe, type HostRaum } from './transport/ntfy/raum'
 import type { NtfyZeiten } from './transport/ntfy/leitung'
-import type { GeraeteAction } from './transport/protokoll'
+import { OEFFENTLICH, ZUSCHAUER, type GeraeteAction } from './transport/protokoll'
+import { fromBase64Url } from './transport/ntfy/codec'
+import { openGruppe, parseHostWire } from './transport/ntfy/wire'
+import { gruppeDerFreigabe } from './wkrGruppen'
 import { reducer, type Action } from '../state/reducer'
 import { sichtOeffentlich } from '../betrieb/sicht'
 import { laufSchluessel } from '../lib/eingaben'
@@ -461,5 +464,146 @@ describe('Schreibfenster (K27)', () => {
       expect(begonnen(stand, 'par_1')).toEqual(['lauf:1'])
       expect(Object.keys(stand.eingaben[lauf] ?? {}).sort()).toEqual(['e1', 'e2', 'k1'])
     }
+  })
+})
+
+/**
+ * Wiederholung nach Ausfall vom Freigabe-Handy (Nutzer 27.11.2026, R13-01/R13-06): Auslösen und „Doch keine Wiederholung“
+ * sind Actions der Erfassung – die Start-Freigabe auf dem Handy darf sie für ihre Bereiche schicken, der Host prüft sie
+ * eng (geraete/aufgaben.ts erlaubteWiederholung) und lehnt mit Grund ab. Ende zu Ende über den nachgebauten ntfy.
+ */
+describe('Wiederholung nach Ausfall vom Freigabe-Handy (R13-01/R13-06)', () => {
+  const L1 = laufSchluessel('manoevrieren', 1)
+  const FELD = 't1a|hin seiteA'
+  const m = (starter: string) => JSON.stringify(['m', starter, 1])
+  // `abbrueche`: die Zahl der Abbrüche, die das Handy sah (Prüfbefund 27.11.2026) – vom Gerät Pflicht.
+  const ausfall = (ref: string, bereich = 'par_1', abbrueche = 0): GeraeteAction => ({ type: 'WIEDERHOLUNG_AUSFALL', bereich, ref, abbrueche })
+  const aufheben = (ref: string, abbrueche = 1): GeraeteAction => ({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich: 'par_1', ref, abbrueche })
+
+  /** Lauf 1 auf Parcours 1 begonnen, e1 und k1 gezeigt (am Bedienrechner), beide mit Wert. */
+  function gezeigtAmHost(s: FStore) {
+    s.dispatch({ type: 'BETRIEB_BEGINNEN', bereich: 'par_1', punkt: 'lauf:1' })
+    for (let i = 0; i < 2; i++) {
+      const b = sichtOeffentlich(s.state.value).bereiche.find((x) => x.id === 'par_1')!
+      s.dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: b.offen[0].key, vorher: b.aktuell?.key ?? null })
+    }
+    s.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: L1, starter: 'e1', feld: FELD, wert: '5' }, { lauf: L1, starter: 'k1', feld: FELD, wert: '10' }] })
+    expect(s.state.value.betrieb.bereiche.par_1.gezeigt.map((g) => g.ref)).toEqual([m('e1'), m('k1')])
+  }
+  const gefahrenAufHandy = (g: GekoppeltesGeraet) => g.anzeige.value?.bereiche.find((b) => b.id === 'par_1')?.gefahren.map((x) => x.key) ?? []
+
+  it('auslösen und „Doch keine Wiederholung“ vom Handy: Werte verworfen und zurück; die Wahl kommt aus der Sicht', async () => {
+    const { h, s } = await bedienrechner()
+    const { g } = await stegHandy(h, NUR_1)
+    gezeigtAmHost(s)
+    // Die Wahl (`gefahren`, sv 8) steht in der Sicht des Handys – der jüngste zuerst.
+    await bis(() => gefahrenAufHandy(g).length === 2)
+    expect(gefahrenAufHandy(g)).toEqual([m('k1'), m('e1')])
+    expect(g.darf(ausfall(m('k1')))).toBe(true)
+    expect(g.darf(ausfall(m('k1'), 'par_2'))).toBe(false)
+
+    expect(await sendeUndWarte(g, { ...ausfall(m('k1')), zeit: 1 })).toMatchObject({ ergebnis: 'angewandt' })
+    expect(s.state.value.eingaben[L1].k1).toBeUndefined()
+    expect(s.state.value.eingaben[L1].e1).toEqual({ [FELD]: '5' })
+    expect(s.state.value.betrieb.bereiche.par_1.wiederholung).toEqual([m('k1')])
+    // Die Zeit stempelt der Store (nicht das Gerät); auf dem Handy erscheint „Wiederholung offen“, die Wahl ohne k1.
+    expect(s.angewandt.at(-1)).toEqual(ausfall(m('k1')))
+    await bis(() => g.anzeige.value?.bereiche.find((b) => b.id === 'par_1')?.wiederholung.length === 1)
+    expect(gefahrenAufHandy(g)).toEqual([m('e1')])
+    // Noch einmal (jemand war schneller): unverändert.
+    expect(await sendeUndWarte(g, ausfall(m('k1')))).toMatchObject({ ergebnis: 'unveraendert' })
+
+    expect(await sendeUndWarte(g, aufheben(m('k1')))).toMatchObject({ ergebnis: 'angewandt' })
+    expect(s.state.value.eingaben[L1].k1).toEqual({ [FELD]: '10' })
+    expect(s.state.value.betrieb.bereiche.par_1.wiederholung).toBeUndefined()
+    expect(await sendeUndWarte(g, aufheben(m('k1')))).toMatchObject({ ergebnis: 'unveraendert' })
+    // Ohne die Zahl der Abbrüche bindet nichts die Action an einen Versuch – das Handy darf sie gar nicht schicken.
+    expect(g.darf({ type: 'WIEDERHOLUNG_AUSFALL', bereich: 'par_1', ref: m('k1') })).toBe(false)
+  })
+
+  it('verspätet (Prüfbefund 27.11.2026): am Bedienrechner schon ausgelöst, eingereiht und gezeigt – das Handy bekommt `konflikt`, die Wiederholung bleibt', async () => {
+    const { h, s } = await bedienrechner()
+    const { g } = await stegHandy(h, NUR_1)
+    gezeigtAmHost(s)
+    await bis(() => gefahrenAufHandy(g).length === 2)
+    // Am Bedienrechner: Ausfall für k1, einreihen, zeigen; der WKR trägt den Wert der Wiederholung ein.
+    s.dispatch({ type: 'WIEDERHOLUNG_AUSFALL', bereich: 'par_1', ref: m('k1'), abbrueche: 0 })
+    s.dispatch({ type: 'BETRIEB_EINREIHEN', bereich: 'par_1', ref: m('k1'), wo: 'naechster' })
+    const b = sichtOeffentlich(s.state.value).bereiche.find((x) => x.id === 'par_1')!
+    s.dispatch({ type: 'BETRIEB_ZEIGEN', bereich: 'par_1', ref: m('k1'), vorher: b.aktuell?.key ?? null })
+    s.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: L1, starter: 'k1', feld: FELD, wert: '15' }] })
+    const vorher = s.state.value
+    // Die Nachricht des Handys (gesehen: 0 Abbrüche) kommt erst jetzt an.
+    expect(await sendeUndWarte(g, ausfall(m('k1')))).toEqual({ nr: expect.any(Number), ergebnis: 'abgelehnt', grund: 'konflikt' })
+    expect(s.state.value).toBe(vorher)
+    expect(s.state.value.eingaben[L1].k1).toEqual({ [FELD]: '15' })
+    // Mit der Zahl aus der jetzigen Sicht geht es (ein zweiter Ausfall).
+    await bis(() => g.anzeige.value?.bereiche.find((x) => x.id === 'par_1')?.gefahren.find((x) => x.key === m('k1'))?.abbrueche === 1)
+    expect(await sendeUndWarte(g, ausfall(m('k1'), 'par_1', 1))).toMatchObject({ ergebnis: 'angewandt' })
+  })
+
+  it('Leitung: Abmelde-IDs nur in der Freigabe-Gruppe des eigenen Bereichs – nie auf ko/kz, nie an andere Gruppen', async () => {
+    const { h, s, raum } = await bedienrechner()
+    const { g } = await stegHandy(h, NUR_1)
+    const { g: g2 } = await stegHandy(h, NUR_2, 'Pad Süd')
+    gezeigtAmHost(s)
+    await bis(() => gefahrenAufHandy(g).length === 2)
+    s.dispatch({ type: 'ABMELDEN_STARTER', id: 'k1' })
+    await bis(() => g.freigabe.value.par_1?.ausfallGesperrt.includes('k1') === true)
+    await ruhe(100)
+    expect(g2.freigabe.value.par_1).toBeUndefined()
+    const r = raum()
+    const F1 = gruppeDerFreigabe('par_1')
+    const gesehen: string[] = []
+    for (const gruppe of Object.keys(r.gruppen)) {
+      const inhalte: unknown[] = []
+      for (const thema of themenDerGruppe(r, gruppe)) {
+        for (const body of ntfy.bodies(thema)) {
+          const w = parseHostWire(body)
+          if (!w || w.l || w.g !== gruppe) continue
+          inhalte.push(await openGruppe(w, fromBase64Url(r.gruppen[gruppe].k)!))
+        }
+      }
+      gesehen.push(gruppe)
+      const text = JSON.stringify(inhalte)
+      // Nirgends ein Feld „abgemeldet“; `ausfallGesperrt` mit Inhalt (voll oder als Differenz) nur in F1.
+      expect(text, gruppe).not.toContain('"abgemeldet')
+      const mitInhalt = /"ausfallGesperrt":\[(?!\])|"p":\["ausfallGesperrt"/.test(text)
+      expect(mitInhalt, gruppe).toBe(gruppe === F1)
+    }
+    expect(gesehen).toEqual(expect.arrayContaining([OEFFENTLICH, ZUSCHAUER, F1]))
+  })
+
+  it('abgelehnt mit Grund: nicht gezeigt, fremder Bereich, abgemeldet – die Abmeldung kommt nur über die Freigabe-Gruppe', async () => {
+    const { h, s } = await bedienrechner()
+    const { g } = await stegHandy(h, NUR_1)
+    const { g: g2 } = await stegHandy(h, NUR_2, 'Pad Süd')
+    gezeigtAmHost(s)
+    await bis(() => gefahrenAufHandy(g).length === 2)
+    const vorher = s.state.value
+
+    // Nicht gezeigt (e2 ist der Nächste): `nicht-gezeigt`.
+    expect(await sendeUndWarte(g, ausfall(m('e2')))).toEqual({ nr: expect.any(Number), ergebnis: 'abgelehnt', grund: 'nicht-gezeigt' })
+    // Ein Gerät nur für Parcours 2: `nicht-erlaubt` – auch „Doch keine Wiederholung“.
+    expect(await sendeUndWarte(g2, ausfall(m('k1')))).toEqual({ nr: expect.any(Number), ergebnis: 'abgelehnt', grund: 'nicht-erlaubt' })
+    expect(await sendeUndWarte(g2, aufheben(m('k1')))).toMatchObject({ ergebnis: 'abgelehnt', grund: 'nicht-erlaubt' })
+    // Andere Actions der Erfassung gehen nie über diese Ausnahme.
+    expect(await sendeUndWarte(g, { type: 'SET_EINGABEN', zellen: [{ lauf: L1, starter: 'k1', feld: FELD, wert: '99' }], bereich: 'par_1' })).toMatchObject({ ergebnis: 'abgelehnt', grund: 'nicht-erlaubt' })
+    expect(s.state.value.eingaben).toEqual(vorher.eingaben)
+    expect(s.state.value.betrieb).toEqual(vorher.betrieb)
+
+    // Abgemeldet: Das Handy des Bereichs bekommt die ID über die Freigabe-Gruppe (zum Ausgrauen) – das andere nicht,
+    // und die öffentliche Sicht nie.
+    s.dispatch({ type: 'ABMELDEN_STARTER', id: 'k1' })
+    expect(s.state.value.abgemeldet).toEqual(['k1'])
+    await bis(() => g.freigabe.value.par_1?.ausfallGesperrt.includes('k1') === true)
+    expect(g.freigabe.value.par_1.ausfallGesperrt).toEqual(['k1'])
+    expect(g2.freigabe.value.par_1).toBeUndefined()
+    expect(JSON.stringify(g.anzeige.value)).not.toMatch(/abgemeldet|ausfallGesperrt/)
+    expect(await sendeUndWarte(g, ausfall(m('k1')))).toEqual({ nr: expect.any(Number), ergebnis: 'abgelehnt', grund: 'abgemeldet' })
+    expect(s.state.value.eingaben[L1].k1).toEqual({ [FELD]: '10' })
+    // e1 ist nicht abgemeldet – geht.
+    expect(await sendeUndWarte(g, ausfall(m('e1')))).toMatchObject({ ergebnis: 'angewandt' })
+    expect(s.state.value.eingaben[L1].e1).toBeUndefined()
   })
 })

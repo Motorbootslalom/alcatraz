@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { reducer } from '../state/reducer'
 import { configFor } from '../config/konfig'
-import { lage as bereichsLage } from '../betrieb/folge'
-import { betriebsStand, betriebStarter, festgeschrieben, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { lage as bereichsLage, betriebVon, wiederholteZellen } from '../betrieb/folge'
+import { attemptSchluessel } from '../lib/parallelSchluessel'
+import { betriebsStand, betriebStarter, festgeschrieben, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { AppState } from '../types'
 import { listenFelder, werteVon } from '../lib/eingaben'
 import { laufLage, parcoursAmpel } from './ampel'
 import { durchfahrtVon, erfassungsLage } from './lage'
 import { listenKennung, type Liste } from './liste'
-import { papierStarts, schlange } from './schlange'
+import { danach, papierStarts, schlange } from './schlange'
 import { sichtListe, type ListenSichtExtra } from './sicht'
 import { zeilenPruefsumme } from './uebernahme'
-import { giltFuerAlleVersuche, liesVersuch, versuchsKennung } from './versuch'
+import { geraeteKennung, giltFuerAlleVersuche, liesVersuch, versuchsKennung } from './versuch'
 import { pruefeZeile } from './zeile'
 
 // Wiederholung nach Ausfall in der WKR-Erfassung (Nutzer 26.11.2026, R11-11; BETRIEB_ANNAHMEN WH7–WH9): Der abgebrochene
@@ -306,5 +307,120 @@ describe('Wiederholung nach Ausfall – Prüfbefunde 27.11.2026', () => {
     const korr = sende(auf, 'gate135', keys[1], [['t1a|hin seiteA', '10', '5']], 2)
     expect(korr.fehler).toBeUndefined()
     expect(werteVon(korr.s.eingaben, L1, starterVon(keys[1]))['t1a|hin seiteA']).toBe('10')
+  })
+})
+
+// Parallelslalom (Nutzer 27.11.2026, R13-02; BETRIEB_ANNAHMEN WHP4): Die Kennung ist die des Paares, die Listen stehen je
+// Racecourse – nur die Listen des Boots, das wiederholt, bekommen eine neue Kennung; auf dem anderen gilt der Versuch.
+describe('Wiederholung nach Ausfall – Parallelslalom auf den WKR-Geräten', () => {
+  const UIM = configFor({ regelwerk: 'uim-2026' })
+  const PA = 'parallel'
+  const A: Liste = { bereich: PA, typeId: 'parallelparcours', racecourse: 'A' }
+  const B: Liste = { bereich: PA, typeId: 'parallelparcours', racecourse: 'B' }
+  const PRE1 = attemptSchluessel('pre', 1)
+
+  /** Vorlauf begonnen, Fahrweg A und B digital (100), das erste Paar gezeigt (1000): Dolphin E-1 auf A, E-2 auf B. */
+  function bereit(): { s: AppState; key: string } {
+    let s = reducer(uimParallelStand(), { type: 'BETRIEB_BEGINNEN', bereich: PA, punkt: 'runde:pre', zeit: 50 })
+    for (const l of [A, B]) s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(l), modus: 'digital', zeit: 100 })
+    s = zeigeNaechsten(s, PA, 1000)
+    const key = bereichsLage(s, PA).aktuell!.key
+    expect(JSON.parse(key)).toEqual(['p', 'pre', 1, 'E-1', 'E-2'])
+    return { s, key }
+  }
+  const feld = (klasse: '1' | 'E') => listenFelder(UIM, 'parallelparcours', klasse).find((f) => f.kennung.startsWith('b1a'))!.kennung
+  function sendeAuf(s: AppState, liste: Liste, kennung: string, wert: string, z: number): { s: AppState; fehler?: string } {
+    const r = pruefeZeile(s, UIM, liste, undefined, 'g1', { z, s: kennung, c: [[feld('E'), wert, '']] })
+    if ('fehler' in r) return { s, fehler: r.fehler }
+    return { s: reducer(s, { type: 'WKR_ZEILEN', liste: listenKennung(liste), quelle: { geraet: 'g1', name: 'Pad' }, zeilen: [r], zeit: 5000 + z }) }
+  }
+  const ausfallP = (s: AppState, key: string, nur?: 'a' | 'b') => reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: PA, ref: key, ...(nur ? { nur } : {}), zeit: 9000 })
+
+  it('nur A wiederholt: A neue Kennung und späte Zeile abgelehnt; B behält Kennung, späte Zeile gilt, nichts doppelt', () => {
+    const { s: s0, key } = bereit()
+    expect(schlange(s0, A).map((x) => x.key)).toEqual([key])
+    expect(schlange(s0, B).map((x) => x.key)).toEqual([key])
+    // A schickt vor dem Ausfall „5“; B noch nicht (Funkloch).
+    const vorher = sendeAuf(s0, A, key, '5', 1).s
+    const s = ausfallP(vorher, key, 'a')
+    expect(werteVon(s.eingaben, PRE1, 'E-1')).toEqual({})
+    // A: der Start fehlt, bis er wieder gezeigt ist; die späte Zeile zum abgebrochenen Versuch wird abgelehnt.
+    expect(schlange(s, A)).toEqual([])
+    expect(sendeAuf(s, A, key, '10', 2).fehler).toBe('versuch-abgebrochen')
+    // B: Für sein Boot gilt der Versuch – Kennung bleibt, die Zeile steht in der Schlange und wird übernommen.
+    expect(schlange(s, B).map((x) => x.key)).toEqual([key])
+    expect(sichtListe(s, UIM, B, EXTRA).schlange.map((x) => x.key)).toEqual([key])
+    const b = sendeAuf(s, B, key, '5', 3)
+    expect(b.fehler).toBeUndefined()
+    expect(werteVon(b.s.eingaben, PRE1, 'E-2')[feld('E')]).toBe('5')
+    // Eingereiht: „danach“ zeigt die Wiederholung nur auf A (B fährt nicht noch einmal).
+    const eingereiht = reducer(b.s, { type: 'BETRIEB_EINREIHEN', bereich: PA, ref: key, wo: 'naechster' })
+    expect(danach(eingereiht, A).map((x) => x.key)[0]).toBe(key)
+    expect(danach(eingereiht, B).map((x) => x.key)).not.toContain(key)
+    // Wieder gezeigt: A unter neuer Kennung, B gar nicht mehr (erledigt) und nie unter einer neuen.
+    const w = zeigeNaechsten(eingereiht, PA, 20_000)
+    const neu = versuchsKennung(key, 1)
+    expect(sichtListe(w, UIM, A, EXTRA).schlange.map((x) => x.key)).toEqual([neu])
+    expect(sichtListe(w, UIM, B, EXTRA).schlange).toEqual([])
+    expect([geraeteKennung(betriebVon(w, PA), key, 'a'), geraeteKennung(betriebVon(w, PA), key, 'b')]).toEqual([neu, key])
+    const a = sendeAuf(w, A, neu, '10', 4)
+    expect(a.fehler).toBeUndefined()
+    expect(werteVon(a.s.eingaben, PRE1, 'E-1')[feld('E')]).toBe('10')
+    // B korrigiert weiter unter der alten Kennung – gilt (keine Rückfrage, kein `versuch-abgebrochen`).
+    expect(sendeAuf(a.s, B, key, '0', 5).fehler).toBeUndefined()
+    // Erfassung am Bildschirm: ↻ nur bei E-1.
+    expect([...wiederholteZellen(w, () => '')]).toEqual([`${PRE1}|E-1`])
+  })
+
+  it('Prüfbefund 27.11.2026: Ampel und Durchfahrt nur über die Listen des wiederholenden Boots – grün, bis A durch ist', () => {
+    const { s: s0, key } = bereit()
+    // B schickt seine Zeile noch zum ersten Versuch; dann Ausfall nur A, eingereiht und gezeigt – von A noch nichts.
+    let s = sendeAuf(s0, B, key, '5', 1).s
+    s = ausfallP(s, key, 'a')
+    s = zeigeNaechsten(reducer(s, { type: 'BETRIEB_EINREIHEN', bereich: PA, ref: key, wo: 'naechster' }), PA, 20_000)
+    expect(bereichsLage(s, PA).aktuell?.key).toBe(key)
+    // Die stehen gebliebenen Werte von E-2 (B) machen A nicht „durch“: grün statt rot/frei.
+    expect(durchfahrtVon(s, UIM, PA).durch).toBe(false)
+    expect(parcoursAmpel(s, UIM, PA, erfassungsLage(s, UIM, PA, [], 0).listen).ampel).toBe('gruen')
+    // Unterwegs ist nur das wiederholende Boot.
+    const nr = (id: string) => s.starters.find((x) => x.id === id)!.startNr
+    expect(laufLage(s, UIM, PA)?.unterwegs).toEqual([nr('E-1')])
+    // A schickt seine Zeile: jetzt durch.
+    const a = sendeAuf(s, A, versuchsKennung(key, 1), '10', 2)
+    expect(a.fehler).toBeUndefined()
+    expect(durchfahrtVon(a.s, UIM, PA).durch).toBe(true)
+  })
+
+  it('Prüfbefund 27.11.2026: Liste B damals pausiert bzw. erst danach digital – die Wiederholung nur von A kommt dort nicht als neuer Start', () => {
+    for (const wie of ['pausiert', 'spaeter digital'] as const) {
+      let s = reducer(uimParallelStand(), { type: 'BETRIEB_BEGINNEN', bereich: PA, punkt: 'runde:pre', zeit: 50 })
+      s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(A), modus: 'digital', zeit: 100 })
+      if (wie === 'pausiert') {
+        s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(B), modus: 'digital', zeit: 100 })
+        s = reducer(s, { type: 'WKR_LISTE', liste: listenKennung(B), status: 'pausiert', zeit: 500 })
+      }
+      s = zeigeNaechsten(s, PA, 1000)
+      const key = bereichsLage(s, PA).aktuell!.key
+      s = reducer(s, wie === 'pausiert' ? { type: 'WKR_LISTE', liste: listenKennung(B), status: 'aktiv', zeit: 1500 } : { type: 'WKR_LISTE', liste: listenKennung(B), modus: 'digital', zeit: 1500 })
+      s = ausfallP(s, key, 'a')
+      s = zeigeNaechsten(reducer(s, { type: 'BETRIEB_EINREIHEN', bereich: PA, ref: key, wo: 'naechster' }), PA, 20_000)
+      expect(bereichsLage(s, PA).aktuell?.key, wie).toBe(key)
+      // A bekommt die Wiederholung, B nicht – E-2 fährt nicht noch einmal.
+      expect(schlange(s, A).map((x) => x.key), wie).toEqual([key])
+      expect(schlange(s, B), wie).toEqual([])
+      expect(sichtListe(s, UIM, B, EXTRA).schlange, wie).toEqual([])
+      expect(erfassungsLage(s, UIM, PA, [], 0).listen.find((l) => l.liste === listenKennung(B))!.rueckstand?.zahl ?? 0, wie).toBe(0)
+    }
+  })
+
+  it('beide wiederholen: beide Listen neue Kennung, beide späten Zeilen abgelehnt', () => {
+    const { s: s0, key } = bereit()
+    const s = ausfallP(s0, key)
+    expect(sendeAuf(s, A, key, '5', 1).fehler).toBe('versuch-abgebrochen')
+    expect(sendeAuf(s, B, key, '5', 2).fehler).toBe('versuch-abgebrochen')
+    const w = zeigeNaechsten(reducer(s, { type: 'BETRIEB_EINREIHEN', bereich: PA, ref: key, wo: 'naechster' }), PA, 20_000)
+    const neu = versuchsKennung(key, 1)
+    expect(sichtListe(w, UIM, A, EXTRA).schlange.map((x) => x.key)).toEqual([neu])
+    expect(sichtListe(w, UIM, B, EXTRA).schlange.map((x) => x.key)).toEqual([neu])
   })
 })

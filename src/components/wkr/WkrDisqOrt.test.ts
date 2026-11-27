@@ -9,7 +9,7 @@ import type { ClassId } from '../../types'
 import WkrDisqOrt from './WkrDisqOrt.vue'
 
 /**
- * Disq. an einer Boje als Mehrfachwahl (R7-14, 22.11.2026, WKR_ANNAHMEN BZ7, noch zu bestätigen): Jeder Buchstabe
+ * Disq. an einer Boje als Mehrfachwahl (R7-14, 22.11.2026, WKR_ANNAHMEN BZ7, bestätigt 23.11.2026, R9-02): Jeder Buchstabe
  * schaltet sich an bzw. aus (zweiter Tipp setzt, H1), die Wahl bleibt offen, „Fertig“ schließt; die Zelle trägt die
  * Buchstaben in Katalogfolge („5, J, D“, BZ6).
  */

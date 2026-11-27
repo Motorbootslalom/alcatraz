@@ -1,6 +1,6 @@
 import type { AppState, KeineZeitGrund, WkrZeile } from '../types'
 import type { Konfig } from '../config/konfig'
-import { betriebVon, lage, liesRef } from '../betrieb/folge'
+import { abgebrochenAuf, betriebVon, lage, liesRef } from '../betrieb/folge'
 import { erfasstKennung, listenFelder, type Feld, type ListenTeil } from '../lib/eingaben'
 import { bojenWert, codeDisqs, disqCodes } from '../lib/scoring'
 import { NICHT_GESTARTET } from '../lib/abmeldung'
@@ -10,7 +10,7 @@ import { WKR_ANNAHMEN } from './annahmen'
 import { istTischListe, liesOhneLauf, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste, type OhneLaufRef } from './liste'
 import { hatVorab, vorabStarts } from './schlange'
 import { istKeineZeitGrund } from './keineZeit'
-import { liesVersuch, versuchVeraltetAuf } from './versuch'
+import { listenSeite, liesVersuch, versuchVeraltetAuf } from './versuch'
 
 // Eine Zeile vom WKR-Gerät und ihre Prüfung am Bedienrechner – rein, ohne DOM, ohne Store, nichts aus geraete/
 // (Plan §3.1). Das Gerät schickt je Start eine Zeile mit kurzen Schlüsseln; `pruefeZeile` prüft sie wie die
@@ -226,9 +226,10 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
  * die Zeile für jeden Versuch (`einmal`), auch ein anderer Versuch desselben Starters.
  */
 function istGezeigt(stand: AppState, liste: Liste, key: string, starter: string, einmal: boolean, teil?: ListenTeil): boolean {
-  // Ein abgebrochener Versuch (Ausfall, R11-11) zählt nicht: Die Wiederholung ist erst mit dem neuen Zeigen gezeigt.
+  // Ein abgebrochener Versuch (Ausfall, R11-11) zählt nicht: Die Wiederholung ist erst mit dem neuen Zeigen gezeigt. Im
+  // Parallelslalom nur, wenn der Abbruch das Boot dieser Liste traf (R13-02) – für das andere ist er gefahren.
   const gezeigt = betriebVon(stand, liste.bereich)
-    .gezeigt.filter((g) => !g.abgebrochen)
+    .gezeigt.filter((g) => !abgebrochenAuf(g, listenSeite(liste)))
     .map((g) => g.ref)
   if (gezeigt.includes(key)) return true
   // Steg-Ablegen sieht seit dem Nutzerbefund 21.11.2026 die Starts „Am Steg“ vorab (WKR_ANNAHMEN.stegAblegenVorab) –

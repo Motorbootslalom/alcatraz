@@ -18,7 +18,7 @@ export const MASKEN_WAHL: readonly MaskenWahl[] = ['knoepfe', 'bild', 'text']
 export const MASKEN_GEBAUT: Readonly<Record<MaskenWahl, boolean>> = { knoepfe: true, bild: true, text: true }
 
 /**
- * Geht die Maske auf diesem Gerät (TB1, W5.5, 22.11.2026, noch zu bestätigen)? „Tabelle“ nur auf Pad und Rechner – sie
+ * Geht die Maske auf diesem Gerät (TB1, W5.5, 22.11.2026, bestätigt 22.11.2026, R8-38)? „Tabelle“ nur auf Pad und Rechner – sie
  * braucht eine Tastatur und Platz für eine ganze Bogenzeile; auf dem Handy ist die Wahl ausgegraut, eine Vorgabe des
  * Bedienrechners zeigt dort „Knöpfe“.
  */

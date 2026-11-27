@@ -15,8 +15,8 @@ import { startZeile, tBereich } from './texte'
  * Attempts desselben Paares mit (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit, im Reducer).
  * - `wiederholung` (Nutzer 26.11.2026, R11-11): nach einem Ausfall wiederholt, Werte verworfen – „Wiederholung offen“;
  *   die Wettkampfleitung setzt den Start hier selbst an seine Stelle (BETRIEB_ANNAHMEN.wiederholungVonHand). Mit
- *   `aufhebbar` (nur am Bedienrechner) dazu „Doch keine Wiederholung“ (Ereignis `aufheben` → BetriebView
- *   WIEDERHOLUNG_AUFHEBEN, holt die verworfenen Werte zurück; WH4, Prüfbefund 27.11.2026).
+ *   `aufhebbar` dazu „Doch keine Wiederholung“ (Ereignis `aufheben` → WIEDERHOLUNG_AUFHEBEN, holt die verworfenen Werte
+ *   zurück; WH4, Prüfbefund 27.11.2026) – am Bedienrechner und seit dem 27.11.2026 (R13-06) auch auf dem Freigabe-Handy.
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -25,7 +25,7 @@ const props = defineProps<{
   eintraege: readonly SichtStart[]
   art: 'zurueckgestellt' | 'nachzuholen' | 'wiederholung'
   gesperrt?: boolean
-  /** Nur `wiederholung`, nur am Bedienrechner: „Doch keine Wiederholung“ anbieten. */
+  /** Nur `wiederholung`: „Doch keine Wiederholung“ anbieten (Bedienrechner und Freigabe-Handy, R13-06). */
   aufhebbar?: boolean
 }>()
 const emit = defineEmits<{ zeigen: [key: string]; einreihen: [key: string, wo: 'naechster' | 'ende']; aufheben: [key: string] }>()

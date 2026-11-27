@@ -290,8 +290,24 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Kennung (wkr/versuch.ts, `["w", n, key]` nach n Abbrüchen; für sie undurchsichtig) – erfassen.ts braucht dafür nichts
   Neues: Die Wiederholung ist für das Gerät ein neuer Start. WIEDERHOLUNG_AUSFALL und WIEDERHOLUNG_AUFHEBEN („Doch keine
   Wiederholung“, 27.11.2026 – Werte und alte Kennung zurück, die eigene Zeile gilt wieder) sind Actions der Erfassung
-  und stehen bewusst NICHT in STARTFREIGABE_ACTIONS (nur am Bedienrechner, aufgaben.test.ts); Einreihen und Zeigen der
-  Wiederholung gehen vom Handy. Ende zu Ende: wkr.test.ts „Wiederholung nach Ausfall Ende zu Ende“.
+  und stehen NICHT in STARTFREIGABE_ACTIONS; Einreihen und Zeigen der Wiederholung gehen vom Handy. Ende zu Ende:
+  wkr.test.ts „Wiederholung nach Ausfall Ende zu Ende“.
+- Wiederholung vom Freigabe-Handy (Nutzer 27.11.2026, R13-01/R13-06; BETRIEB_ANNAHMEN WH3, WH11–WH13): aufgaben.ts
+  STARTFREIGABE_WIEDERHOLUNG = die EINE eng geprüfte Ausnahme für zwei Actions der Erfassung (nicht pauschal):
+  bereinigeWiederholung (type, bereich, ref, `abbrueche` Pflicht – Prüfbefund 27.11.2026 –, bei AUSFALL `nur` a|b),
+  erlaubteWiederholung(action, aufgaben, AppState) → `null` (andere Art, weiter über erlaubteAction) | {action} |
+  {grund}: `nicht-erlaubt` (kein eigener/bekannter Bereich, kaputt, ohne `abbrueche`), AUSFALL: wartet der Start schon →
+  durch (Reducer: `unveraendert`), sonst `konflikt`, wenn `abbrueche` nicht mehr stimmt (verspätet: der Start wurde
+  inzwischen abgebrochen und neu gezeigt), dann betrieb/folge.ts ausfallGrund `nicht-gezeigt` (nicht unter
+  gefahreneStarts, `nur` auf ein Boot, das nicht fuhr) / `abgemeldet`; AUFHEBEN nur der Bereich und – wartet der Start –
+  `abbrueche` (sonst `konflikt`). Der Reducer prüft `abbrueche` noch einmal (zwei Fenster, BETRIEB_ANNAHMEN
+  wiederholungGebunden). host.ts nimmAn: erst erlaubteWiederholung, dann wie gehabt; Ablehnung mit diesem Grund (protokoll.ts
+  ABLEHNUNGEN `nicht-gezeigt`, `abgemeldet`; PROTOKOLL_FASSUNG bleibt 2). verteileFreigabe gibt sichtFreigabe
+  `ausfallGesperrt` (folge.ts ausfallGesperrt: Abgemeldete unter den gefahrenen Starts des Bereichs; fv 3) mit und sendet
+  auch ohne Listen, sobald es welche gibt. gekoppelt.ts darf kennt die Ausnahme. Die Wahl selbst (`gefahren`) steht seit
+  sv 8 in der öffentlichen Sicht. Oberfläche: GeraetFreigabe.vue `wiederholen`/`aufheben` (g.sende, Sperre bis zur
+  Quittung) und `ausfall-gesperrt` aus `freigabe[b.id]`. Tests: aufgaben.test.ts „erlaubteWiederholung“,
+  kopplung.test.ts „Wiederholung nach Ausfall vom Freigabe-Handy“, src/GeraetKoppeln.test.ts, src/GeraetParallel.test.ts.
 - Parcours-Ampel (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN AM6/AM7): aufgaben.ts STARTFREIGABE_ACTIONS +
   BETRIEB_DURCHFAHRT (bereinige: ref, an), AUTO_HALT ('BETRIEB_AUTO_HALT', keine Reducer-Action). host.ts: verteileFreigabe
   mit wkr/ampel.ts parcoursAmpel und autoIn; **Auto-Modus nur im Führungsfenster** (pruefeAuto in verteile() und im
@@ -345,11 +361,15 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   hält nur 20). Direkte Quittung (ohne Gruppe, `nicht-erlaubt`, `doppelt`) gilt ebenso. Lebenszeichen: Takt prüft
   `uhr() − zuletztGesendet ≥ 60 s`, nur gekoppelt, verbunden, ohne Ausstehendes, mit laufendem Punkt einer Liste.
 - Was ntfy sieht: Themen, `r/g/e/n/a/sv/hz`, Größen, den öffentlichen Schlüssel eines Geräts; nie Inhalte, Geräte-IDs
-  oder g in einem Link. Nie auf der Leitung: AppState, Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen, Logos,
+  oder g in einem Link. Nie auf der Leitung: AppState, Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen (Ausnahme unten), Logos,
   Geräteliste, Geheimnis (Schlüssel-Durchlauf über alle entschlüsselten Inhalte: geraet.test.ts „Leitung“). Ausnahme
   seit 24.11.2026: das Ausgleichsgewicht je Start in der Gruppe der Steg-Liste (wkr/sicht.ts `ausgleich`, WKR_ANNAHMEN
   AG1) – nie das Körpergewicht; ein nachgetragenes Gewicht geht mit der nächsten verteileListen von selbst hinaus
-  (wkrHost.test.ts „Steg (Nutzer 24.11.2026, AG1/AG2)“).
+  (wkrHost.test.ts „Steg (Nutzer 24.11.2026, AG1/AG2)“). Zweite Ausnahme seit 27.11.2026 (R13-01, BETRIEB_ANNAHMEN
+  WH12, noch zu bestätigen): Abmeldungen, aber nur die IDs der Abgemeldeten unter den gefahrenen Starts eines Bereichs,
+  nur in dessen Freigabe-Gruppe (`ausfallGesperrt`, fv 3) – fürs Ausgrauen der Wahl „Wiederholung (Ausfall)“; nie in
+  ko/kz, nie an Listen-Gruppen (kopplung.test.ts „Leitung: Abmelde-IDs nur in der Freigabe-Gruppe“). Text vor dem
+  Einschalten: i18n `geraete.wasGeht`.
 
 - Oberfläche (E7, 20.11.2026; Annahmen BETRIEB_ANNAHMEN.koppelnOberflaeche): Betrieb → Geräte unter den Lese-Links
   GeraeteKoppeln.vue (Bereiche für das nächste Gerät, merke `geraete.koppeln.bereiche`, nie vorgewählt –
@@ -363,7 +383,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   `location.replace('#/geraet')` (QR-Token raus aus der Adresse; Kopplung liegt schon ungekoppelt in der Ablage) →
   start(); mit QR-Token sofort koppeln(Vorschlag `geraete.name.<art>`); ohne: Formular Code + Name → koppeln(name,
   code). `#/geraet` → oeffneGekoppelt. Gekoppelt: StartFreigabe je eigenem Bereich (`nur-dieser`: ohne „Meldung auf
-  allen“), in `<fieldset disabled>` solange `offen` (K32), „Wird gesendet …“, nach 10 s „Keine Bestätigung“;
+  allen“; seit R13-01 mit `wiederholen`/`aufheben`), in `<fieldset disabled>` solange `offen` (K32), „Wird gesendet …“,
+  nach 10 s „Keine Bestätigung“;
   Quittung abgelehnt/unveraendert der letzten eigenen Nummer als Satz (`geraete.ablehnung.<grund>`). `koppelt` ohne
   Antwort 15 s → „Keine Antwort“ + Formular (falscher Code: niemand hört das Thema); neue Anmeldung verwirft die alte
   (transport.ts GeraetTransport.verwirfAnmeldung). Entzogen: nur lesend Im Boot/Als Nächstes je Bereich + <details>

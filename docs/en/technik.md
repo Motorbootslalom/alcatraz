@@ -137,6 +137,12 @@ Plan and decisions: [entscheidungen.md](../entscheidungen.md#betrieb-und-offline
 - **The operating computer is the only truth.** Devices never get the data of the event, but a tailored view
   (`src/betrieb/sicht.ts`: never date of birth, weight, gender). Devices only send change requests; checking and
   applying them is done by the operating computer alone.
+- **Start release on the phone** (27.11.2026): it may also send “Repeat (breakdown)” and “No repeat after all” –
+  through a separate, narrowly checked exception of the allowlist (`erlaubteWiederholung` in
+  `src/geraete/aufgaben.ts`): only for its own area, only for a start among those run, never for a withdrawn driver,
+  bound to the number of aborts the phone saw (otherwise nothing changes). So that it offers withdrawn drivers no
+  repeat, the start release group of an area carries the withdrawn drivers among its starts run (`ausfallGesperrt` in
+  `src/wkr/freigabe.ts`) – never all withdrawals, never in the public view.
 - **Race official devices:** Every list has an encrypted group of its own (`src/geraete/wkrGruppen.ts`). Its view
   (`src/wkr/sicht.ts`) gives race number and class, never name, origin, date of birth, weight or gender of the
   drivers, no values and no results. Exceptions: for a query, the value of exactly that cell; and only the pontoon

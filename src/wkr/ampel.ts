@@ -1,6 +1,6 @@
-import type { AppState, BereichId, Meldung, PunktId, StartRef } from '../types'
+import type { AppState, BereichId, Meldung, PaarSeite, PunktId, StartRef } from '../types'
 import type { Konfig } from '../config/konfig'
-import { lage as bereichsLage, liesRef, type BereichLage } from '../betrieb/folge'
+import { betriebVon, giltAuf, lage as bereichsLage, liesRef, type BereichLage } from '../betrieb/folge'
 import { punktVonRef } from './abschluss'
 import { durchfahrtVon, erfassungsLage, type ListenLage } from './lage'
 import { imBoot } from './schlange'
@@ -116,8 +116,9 @@ export interface LaufLage {
   offen: number
 }
 
-const nummernVon = (stand: AppState, ref: StartRef): string[] => {
-  const ids = ref.art === 'm' ? [ref.starter] : [ref.a, ref.b].filter((x): x is string => x !== null)
+/** Startnummern eines Starts; im Parallelslalom nur die Seiten, für die `seite` gilt (Vorgabe: beide). */
+const nummernVon = (stand: AppState, ref: StartRef, seite: (x: PaarSeite) => boolean = () => true): string[] => {
+  const ids = ref.art === 'm' ? [ref.starter] : (['a', 'b'] as const).flatMap((x) => (ref[x] !== null && seite(x) ? [ref[x]] : []))
   return ids.map((id) => stand.starters.find((s) => s.id === id)?.startNr ?? '').filter(Boolean)
 }
 
@@ -140,5 +141,7 @@ export function laufLage(stand: AppState, konfig: Konfig, bereich: BereichId, no
   const faehrt = aktuell !== null && (imBoot(stand, bereich) === aktuell || ampel === 'gruen' || ampel === 'rot' || nochAufListe?.(aktuell) === true)
   if (offen === 0 && !faehrt) return null
   const ref = faehrt && aktuell ? liesRef(aktuell) : null
-  return { punkt, unterwegs: ref ? nummernVon(stand, ref) : [], offen }
+  // Wiederholt nur ein Boot (R13-02), ist nur dieses unterwegs (betrieb/folge.ts giltAuf, Prüfbefund 27.11.2026).
+  const b = betriebVon(stand, bereich)
+  return { punkt, unterwegs: ref ? nummernVon(stand, ref, (x) => giltAuf(b, b.gezeigt.length - 1, x)) : [], offen }
 }

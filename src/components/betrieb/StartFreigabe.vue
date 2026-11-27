@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import type { Meldung, MeldungArt, OeffentlicheSicht, SichtBereich, SichtStart } from '../../types'
+import type { Meldung, MeldungArt, OeffentlicheSicht, PaarSeite, SichtBereich, SichtStart } from '../../types'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { t, tn } from '../../i18n'
 import { merke } from '../../lib/merken'
@@ -55,11 +55,13 @@ import { beginnenText, punktText, startZeile, tBereich, tnBereich, type StartZei
  * Auto-Modus: Countdown aus `erfassung.autoIn` (Sekunden beim Senden; hier mit eigener Uhr heruntergezählt) mit
  * „Anhalten“ (`autoAnhalten`: am Bedienrechner der Host, auf dem Handy eine Nachricht an ihn) bzw. „Auto aus: …“.
  *
- * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11; BETRIEB_ANNAHMEN WH1–WH5): Nur mit `wiederholen` (am
- * Bedienrechner) der Knopf „Wiederholung (Ausfall) …“ mit der Wahl unter den gezeigten Starts (AusfallWahl, Rückfrage), mit
- * `aufheben` „Doch keine Wiederholung“ (holt die verworfenen Werte zurück, Prüfbefund 27.11.2026). Die Liste „Wiederholung offen“ steht überall (auch auf dem Freigabe-Handy) – Einreihen und
- * Zeigen sind gewöhnliche Schritte. Ein abgebrochener Versuch im Boot trägt „Ausfall – wird wiederholt“; „Zurück“ nimmt
- * ihn nicht mehr.
+ * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11; BETRIEB_ANNAHMEN WH1–WH5): Nur mit `wiederholen` der Knopf
+ * „Wiederholung (Ausfall) …“ mit der Wahl unter den gezeigten Starts (AusfallWahl, Rückfrage), mit `aufheben` „Doch keine
+ * Wiederholung“ (holt die verworfenen Werte zurück, Prüfbefund 27.11.2026) – am Bedienrechner (BetriebView) und seit dem
+ * 27.11.2026 auch auf dem Freigabe-Handy (GeraetFreigabe, R13-01/R13-06). Die Liste „Wiederholung offen“ steht überall –
+ * Einreihen und Zeigen sind gewöhnliche Schritte. Ein abgebrochener Versuch im Boot trägt „Ausfall – wird wiederholt“;
+ * „Zurück“ nimmt ihn nicht mehr. Seit 27.11.2026 (R13-02) auch im Parallelslalom – dort fragt AusfallWahl, welche Boote
+ * wiederholen.
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -79,19 +81,23 @@ const props = defineProps<{
   /** Auto-Modus anhalten (AM7) – bis zum nächsten gezeigten Start; ohne = kein Knopf. */
   autoAnhalten?: (ref: string) => void
   /**
-   * Nur am Bedienrechner (R11-11, WH3): Wiederholung nach Ausfall für einen gezeigten Start auslösen – BetriebView
-   * schickt WIEDERHOLUNG_AUSFALL (eine Action der Erfassung, nicht über `sende`). Ohne = kein Knopf, kein „Doch keine
-   * Wiederholung“.
+   * Wiederholung nach Ausfall für einen gezeigten Start auslösen (R11-11, WH3) – eine Action der Erfassung
+   * (WIEDERHOLUNG_AUSFALL), nicht über `sende`: BetriebView dispatcht sie, GeraetFreigabe schickt sie an den Host, der
+   * sie eng prüft (seit 27.11.2026, R13-01/R13-06). Ohne = kein Knopf. Seit 27.11.2026 (R13-02) auch im
+   * Parallelslalom: `nur` = nur das Boot dieser Seite wiederholt. `abbrueche`: die Zahl der Abbrüche, die die Wahl
+   * zeigte (SichtStart.`abbrueche`) – die Action ist daran gebunden (Prüfbefund 27.11.2026).
    */
-  wiederholen?: (ref: string) => void
+  wiederholen?: (ref: string, nur: PaarSeite | undefined, abbrueche: number) => void
   /**
-   * Nur am Bedienrechner, mit `wiederholen`: „Doch keine Wiederholung“ – BetriebView schickt WIEDERHOLUNG_AUFHEBEN (eine
-   * Action der Erfassung: die verworfenen Werte kommen zurück, Prüfbefund 27.11.2026). Ohne = kein Knopf.
+   * „Doch keine Wiederholung“ – WIEDERHOLUNG_AUFHEBEN (eine Action der Erfassung: die verworfenen Werte kommen zurück,
+   * Prüfbefund 27.11.2026), am Bedienrechner wie auf dem Freigabe-Handy (R13-06). Ohne = kein Knopf.
    */
-  aufheben?: (ref: string) => void
+  aufheben?: (ref: string, abbrueche: number) => void
   /**
    * Starter-IDs, für die „Wiederholung (Ausfall)“ nicht geht – abgemeldete (WH10; Prüfbefund 27.11.2026: vorher bestätigte
-   * man die Rückfrage, und es geschah still nichts). Kommt vom Bedienrechner; die Sicht trägt nie Abmeldungen.
+   * man die Rückfrage, und es geschah still nichts). Am Bedienrechner aus dem Stand, auf dem Freigabe-Handy aus der
+   * Freigabe-Sicht (wkr/freigabe.ts `ausfallGesperrt`, nur die Abgemeldeten unter den gefahrenen Starts, R13-01); die
+   * öffentliche Sicht trägt nie Abmeldungen.
    */
   ausfallGesperrt?: readonly string[]
 }>()
@@ -296,14 +302,17 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
 /** Die Wahl „Wiederholung (Ausfall) …“: aufgeklappt bleibt, wie man es gelassen hat (lib/merken.ts) – nach dem Auslösen zu. */
 const ausfallOffen = merke(`betrieb.ausfall.${props.bereich.id}`, false)
 const ausfallKnopf = ref<HTMLButtonElement | null>(null)
-const ausfallMoeglich = computed(() => !!props.wiederholen && !parallel.value)
+// Auch im Parallelslalom (Nutzer 27.11.2026, R13-02: „Auch hier kann es zu technischen Ausfällen kommen.“).
+const ausfallMoeglich = computed(() => !!props.wiederholen)
 async function ausfallZu() {
   ausfallOffen.value = false
   await nextTick()
   ausfallKnopf.value?.focus()
 }
+/** „Doch keine Wiederholung“ – mit der Zahl der Abbrüche, die die Liste „Wiederholung offen“ zeigte (Prüfbefund 27.11.2026). */
 function wiederholungAufheben(key: string) {
-  props.aufheben?.(key)
+  const s = props.bereich.wiederholung.find((x) => x.key === key)
+  props.aufheben?.(key, s?.abbrueche ?? 0)
 }
 
 // „Anderen Starter wählen“: aufgeklappt bleibt, wie man es gelassen hat (lib/merken.ts) – nach dem Zeigen zu.
@@ -533,7 +542,7 @@ function meldungLoeschen() {
       :bereich="bereich"
       :gesperrt="gesperrt"
       :nicht="ausfallGesperrt"
-      @wiederholen="(key) => wiederholen?.(key)"
+      @wiederholen="(key, nur, abbrueche) => wiederholen?.(key, nur, abbrueche)"
       @fertig="ausfallZu"
     />
 

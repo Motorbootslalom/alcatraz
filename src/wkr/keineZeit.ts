@@ -1,7 +1,7 @@
 import type { AppState, KeineZeitGrund, WkrStand } from '../types'
 import { werteVon } from '../lib/eingaben'
 
-// „Keine Zeit“ (W5.4, Plan docs/plan-wkr-w5.md §7, 22.11.2026, WKR_ANNAHMEN ZT4 – noch zu bestätigen): das Kennzeichen
+// „Keine Zeit“ (W5.4, Plan docs/plan-wkr-w5.md §7, 22.11.2026, WKR_ANNAHMEN ZT4 – bestätigt 22.11.2026, R8-36): das Kennzeichen
 // je Zeitfeld im Stand (WkrStand.keineZeit) lesen, schreiben, aufheben und beim Laden prüfen – rein, ohne DOM, ohne
 // Store, nichts aus geraete/. EINE Stelle, damit Reducer, lage.ts (Matrix, „Papier ansehen“) und migrate gleich lesen.
 // Warum ein eigenes Kennzeichen und kein Wert in der Zelle: Die Zelle einer Zeit nimmt nur Lesbares (wkr/zeile.ts

@@ -110,7 +110,7 @@ export function createStore(umgebung: StoreUmgebung = {}): Store {
     if (next === vorher) return
     state.value = next
     // „Alles zurücksetzen“ löscht auch den Verlauf: Er enthält die Namen der Veranstaltung.
-    sichere(next, was ?? beschreibe(mitZeit, next), action.type === 'RESET_ALL')
+    sichere(next, was ?? beschreibe(mitZeit, next, vorher), action.type === 'RESET_ALL')
   }
 
   function stelleHer(stand: AppState) {

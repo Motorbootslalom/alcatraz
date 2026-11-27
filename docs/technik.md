@@ -135,6 +135,12 @@ Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offli
 - **Der Bedienrechner ist die einzige Wahrheit.** Geräte bekommen nie den Stand der Veranstaltung, sondern eine
   zugeschnittene Sicht (`src/betrieb/sicht.ts`: nie Geburtsdatum, Gewicht, Geschlecht). Geräte schicken nur
   Änderungswünsche; prüfen und anwenden tut allein der Bedienrechner.
+- **Start-Freigabe auf dem Handy** (27.11.2026): Sie darf auch „Wiederholung (Ausfall)“ und „Doch keine Wiederholung“
+  schicken – über eine eigene, eng geprüfte Ausnahme der Positivliste (`erlaubteWiederholung` in
+  `src/geraete/aufgaben.ts`): nur für den eigenen Bereich, nur für einen Start unter den gefahrenen, nie für einen
+  Abgemeldeten, gebunden an die Zahl der Abbrüche, die das Handy sah (sonst ändert sich nichts). Damit es Abgemeldeten
+  keine Wiederholung anbietet, trägt die Freigabe-Gruppe eines Bereichs die abgemeldeten Starter unter dessen
+  gefahrenen Starts (`ausfallGesperrt` in `src/wkr/freigabe.ts`) – nie alle Abmeldungen, nie in der öffentlichen Sicht.
 - **WKR-Geräte:** Jede Liste hat eine eigene verschlüsselte Gruppe (`src/geraete/wkrGruppen.ts`). Ihre Sicht
   (`src/wkr/sicht.ts`) nennt Startnummer und Klasse, nie Name, Herkunft, Geburtsdatum, Gewicht oder Geschlecht der
   Starter, keine Werte und keine Wertung. Ausnahmen: bei einer Rückfrage der Wert genau dieser Zelle, und nur die

@@ -175,3 +175,29 @@ describe('Gerät: Start-Freigabe im Parallelslalom (UIM, E8)', () => {
     expect(state.value.betrieb.bereiche[P].gezeigt).toHaveLength(1)
   })
 })
+
+describe('Gerät: Wiederholung nach Ausfall im Parallelslalom (R13-01, R13-02)', () => {
+  it('das Handy fragt wie der Bedienrechner, welche Boote wiederholen; „Nur …“ kommt mit `nur` beim Host an', async () => {
+    const { h, state } = await bedienrechner()
+    const w = await mitCode(h, NUR_PARALLEL)
+    await druecke(w, 'beginnen')
+    await zeigt(() => seiten(w, 'naechster').length === 2)
+    await druecke(w, 'zeigen')
+    const key = paar(1, 'E-1', 'E-2')
+    expect(state.value.betrieb.bereiche[P].gezeigt.at(-1)?.ref).toBe(key)
+    await zeigt(() => karte(w, P).find('[data-action="ausfall"]').exists())
+    await karte(w, P).find('[data-action="ausfall"]').trigger('click')
+    await zeigt(() => karte(w, P).find(`[data-teil="ausfall"] li[data-start='${key}']`).exists())
+    await karte(w, P).find(`[data-teil="ausfall"] li[data-start='${key}'] [data-action="ausfall-waehlen"]`).trigger('click')
+    await nextTick()
+    const dialog = document.querySelector('[data-dialog="ausfall"]')!
+    const knoepfe = [...dialog.querySelectorAll('[data-action="ausfall-seite"], [data-action="ausfall-beide"]')].map((k) => k.textContent!.trim())
+    expect(knoepfe).toEqual(['Nur E01 (Parcours A)', 'Nur E02 (Parcours B)', 'Beide wiederholen'])
+    ;(dialog.querySelector('[data-action="ausfall-seite"][data-seite="a"]') as HTMLButtonElement).click()
+    await zeigt(() => state.value.betrieb.bereiche[P].wiederholung?.length === 1 && w.find('fieldset.geraet-sperre').attributes('disabled') === undefined)
+    expect(state.value.betrieb.bereiche[P].gezeigt.at(-1)).toMatchObject({ ref: key, abgebrochen: true, nur: 'a' })
+    // „Wiederholung offen“ auf dem Handy: das Paar mit B als „–“.
+    await zeigt(() => karte(w, P).find(`[data-teil="wiederholung"] li[data-start='${key}']`).exists())
+    expect(w.find('[data-teil="rueckmeldung"]').exists()).toBe(false)
+  })
+})
