@@ -1,21 +1,28 @@
-import type { ClassId, PunktId, Sprache } from '../types'
+import type { ClassId, CoPilot, CoPiloten, PunktId, Sprache } from '../types'
 import { configFor } from '../config/konfig'
 import { DEFAULT_AUFBAU, sollgewichtOf } from '../config/catalog'
-import { ausgleichAmSteg } from '../lib/ausgleich'
+import { CLASS_IDS } from '../domain/classes'
+import { BOOTSNAMEN } from '../data/boote'
+import { NACHNAMEN, VORNAMEN_M, VORNAMEN_W } from '../data/names'
+import { ausgleichAmSteg, type CoPilotStand } from '../lib/ausgleich'
+import { coPilotVorgesehen } from '../lib/besetzung'
 import { liesRef, refKey } from '../betrieb/folge'
 import { laufSchluessel } from '../lib/eingaben'
 import { parcoursName } from '../config/sprache'
 import { regelwerkSprache } from '../lib/listensprache'
 import { WKR_ANNAHMEN } from './annahmen'
 import { istOhneLauf, liesOhneLauf, listenKennung, ohneLaufKennung, teileVon, TISCH_BEREICH, type ListenTeil } from './liste'
-import { LISTEN_SICHT_FASSUNG, maskenJeKlasse, maskenSprachen, maskenTexte, type ListenBestand, type ListenSicht, type ListenStart } from './sicht'
+import { coPilotenJeKlasse, LISTEN_SICHT_FASSUNG, maskenJeKlasse, maskenSprachen, maskenTexte, type ListenBestand, type ListenSicht, type ListenStart } from './sicht'
 import { OHNE_PUNKT } from './abschluss'
 
 // Übungsmodus der WKR-Maske (W3, Plan docs/plan-wkr-w3.md §3.3, G13, 21.11.2026) – rein, ohne AppState, ohne Store,
 // ohne Netz. Die Übung baut eine ListenSicht wie der Bedienrechner (dieselben Masken über maskenJeKlasse), aber aus
 // erfundenen Starts: Startnummern 1–WKR_ANNAHMEN.uebungStarts in den Klassen des Regelwerks, die die Liste haben –
-// keine Namen, nichts aus src/data/. Ohne Boot (Plan: Boot „Übung“): Das wäre ein Text außerhalb von i18n auf dem
-// Gerät; „ÜBUNG“ steht ohnehin dauerhaft im Kopf. Nach der letzten Nummer beginnt der nächste Lauf.
+// nie der Name eines Starters (Namen nur die erfundenen Co-Piloten am Steg, unten). Seit dem Wunsch des Nutzers vom 27.11.2026 („Hier beim Steg bitte noch das Boot und ggf.
+// die Co-Piloten mit anzeigen“, WKR_ANNAHMEN CP8) mit erfundenem Boot je Klasse aus src/data/boote.ts an jedem Start (wie
+// im Ernstfall) und an der Steg-Liste mit erfundenen Co-Piloten aus src/data/names.ts – Eigennamen, kein Text der
+// Oberfläche, darum nicht in i18n. Bis dahin ohne Boot (Plan W3.1: ein Boot „Übung“ wäre ein Text außerhalb von i18n
+// gewesen; „ÜBUNG“ steht ohnehin dauerhaft im Kopf). Nach der letzten Nummer beginnt der nächste Lauf.
 //
 // Abweichung vom Plan §3.3 (beim Bau 21.11.2026): Der Fortschritt steht in einem eigenen kleinen UebungsStand statt
 // in der Sicht – die Sicht trägt weder Regelwerk noch Uhr, und ein neuer Start braucht beides. Gerätekern:
@@ -205,6 +212,39 @@ export function uebungsAusgleich(regelwerk: string, klasse: ClassId, nr: number)
   return ausgleichAmSteg({ regelwerk, sollgewicht: {} }, { klasse, ...(abstand === null || !(soll > 0) ? {} : { gewicht: Math.round((soll + abstand) * 10) / 10 }) })
 }
 
+/**
+ * Erfundenes Boot einer Klasse in der Übung (Nutzer 27.11.2026, WKR_ANNAHMEN CP8): fest nach der Klasse aus den
+ * Beispiel-Bootsnamen (src/data/boote.ts) – ohne Zufall, damit dieselbe Klasse in jeder Übung dasselbe Boot fährt; je
+ * Klasse ein anderes (Schritt 5 ist teilerfremd zur Zahl der Namen).
+ */
+export function uebungsBoot(klasse: ClassId): string {
+  return BOOTSNAMEN[(CLASS_IDS.indexOf(klasse) * 5 + 2) % BOOTSNAMEN.length]
+}
+
+/** Ein erfundener Name für die k-te Person der Übung (abwechselnd Vornamen w/m, Nachnamen gestreut). */
+function uebungsName(k: number): string {
+  const vornamen = k % 2 === 0 ? VORNAMEN_W : VORNAMEN_M
+  return `${vornamen[(k * 7 + 3) % vornamen.length]} ${NACHNAMEN[(k * 13 + 5) % NACHNAMEN.length]}`
+}
+
+/**
+ * Erfundene Besetzung der Übung für die Co-Piloten (Nutzer 27.11.2026, WKR_ANNAHMEN CP8): in jeder der `klassen`, in
+ * der das Regelwerk einen Co-Piloten vorsieht, reihum nach WKR_ANNAHMEN.coPilotUebung Co-Pilot und ggf. Ersatz mit
+ * erfundenem Namen und Gewicht. Als Stand für lib/ausgleich.ts – dieselbe Rechnung wie am Bedienrechner, „je Klasse“,
+ * Stufe 1 kg (die Übung kennt keine Veranstaltung). Nichts davon gespeichert.
+ */
+export function uebungsCoPiloten(regelwerk: string, klassen: readonly ClassId[]): CoPilotStand {
+  const folge = WKR_ANNAHMEN.coPilotUebung
+  const coPiloten: CoPiloten = {}
+  // In der Folge der Klassen (E, 1, 2 …), gleich wie `klassen` geordnet ist – reihum heißt immer dasselbe.
+  CLASS_IDS.filter((k) => klassen.includes(k) && coPilotVorgesehen(regelwerk, k)).forEach((k, j) => {
+    const art = folge[j % folge.length]
+    const person = (n: number, kg: number | null): CoPilot => ({ name: uebungsName(2 * j + n), ...(kg === null ? {} : { gewicht: kg }) })
+    coPiloten[k] = { haupt: person(0, art.haupt), ...(art.ersatz !== undefined ? { ersatz: person(1, art.ersatz) } : {}) }
+  })
+  return { regelwerk, starters: [], coPiloten, coPilotAusgleich: 'klasse' }
+}
+
 /** Die Sicht der Übung – Form und Fassung wie vom Bedienrechner (wkr/sicht.ts). */
 export function uebungsSicht(stand: UebungsStand): ListenSicht {
   const sprachen = maskenSprachen(stand.regelwerk, stand.sprache)
@@ -227,6 +267,7 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
       klasse: klasseVon(i),
       titel: texte.lauf(laufVon(stand, i)),
       lauf: laufSchluessel('manoevrieren', laufVon(stand, i)),
+      boot: uebungsBoot(klasseVon(i)),
       ...(ag !== null ? { ausgleich: ag } : {}),
       ...extra,
     }
@@ -273,6 +314,11 @@ export function uebungsSicht(stand: UebungsStand): ListenSicht {
     }
   }
   if (teile) sicht.teile = { ab: { status: 'aktiv', abgeschlossen: [] }, an: { status: 'aktiv', abgeschlossen: [] } }
+  // Co-Piloten am Steg (CP8): erfunden, durch dieselbe Auswahl und Rechnung wie die echte Sicht (wkr/sicht.ts).
+  if (WKR_ANNAHMEN.coPilotListen.includes(stand.typeId)) {
+    const coPiloten = coPilotenJeKlasse(uebungsCoPiloten(stand.regelwerk, klassen), sicht.klassen)
+    if (coPiloten) sicht.coPiloten = coPiloten
+  }
   if (tisch) {
     sicht.bestand = bestand
     sicht.offen = { n: bestand.filter((b) => !b.erledigt).length, m: bestand.length }

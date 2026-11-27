@@ -7,6 +7,7 @@ import type { ListenAufgabe } from '../../geraete/aufgaben'
 import { liesRef } from '../../betrieb/folge'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import type { ListenTeil } from '../../wkr/liste'
+import type { ListenCoPilot } from '../../wkr/sicht'
 import { NICHT_GESTARTET } from '../../lib/abmeldung'
 import {
   attemptWechsel,
@@ -372,15 +373,17 @@ const rueckgaengig = computed(() => {
 // --- Was die Mitte zeigt: gesendet (Takt), Korrektur oder der aktuelle Start ---
 const zeige = computed(() => {
   const g = gesendet.value
-  if (g && imOverlay.value) return { start: g.start as Pick<SchlangenEintrag, 'key' | 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab' | 'ausgleich'>, aufbau: g.aufbau, entwurf: g.entwurf, klasse: g.klasse }
+  if (g && imOverlay.value) return { start: g.start as Pick<SchlangenEintrag, 'key' | 'startNr' | 'titel' | 'boot' | 'geschaetzt' | 'vorab' | 'ausgleich'>, aufbau: g.aufbau, entwurf: g.entwurf, klasse: g.klasse, bekannt: true }
   const k = korrektur.value
   if (k) {
-    const bekannt = [...schlange.value, ...danach.value].find((x) => x.key === k.s)
-    const start = bekannt ?? { key: k.s, startNr: k.sn ?? '?', titel: sicht.value?.punkt?.titel ?? '' }
-    return aufbau.value ? { start, aufbau: aufbau.value, entwurf: entwurf.value, klasse: klassenTitel(klasse.value) } : null
+    const gefunden = [...schlange.value, ...danach.value].find((x) => x.key === k.s)
+    // Nicht mehr in der Schlange (typisch: Korrektur über „Zuletzt“): ein Ersatz ohne Boot und Ausgleichsgewicht – die
+    // stehen nur am Start der Sicht. `bekannt` sagt der Karte, dass sie dann auch keine Klammer der Co-Piloten zeigt (CP5).
+    const start = gefunden ?? { key: k.s, startNr: k.sn ?? '?', titel: sicht.value?.punkt?.titel ?? '' }
+    return aufbau.value ? { start, aufbau: aufbau.value, entwurf: entwurf.value, klasse: klassenTitel(klasse.value), bekannt: !!gefunden } : null
   }
   const a = aktuell.value
-  return a && aufbau.value ? { start: a, aufbau: aufbau.value, entwurf: entwurf.value, klasse: klassenTitel(a.klasse) } : null
+  return a && aufbau.value ? { start: a, aufbau: aufbau.value, entwurf: entwurf.value, klasse: klassenTitel(a.klasse), bekannt: true } : null
 })
 const ausserDerReihe = computed(() => !korrektur.value && !!aktuell.value && aktuell.value.key !== kopf.value?.key)
 /**
@@ -402,6 +405,43 @@ const kartenAusgleich = computed(() => {
   const t = korrektur.value?.teil ?? teil.value
   if (!z || (t !== undefined && t !== WKR_ANNAHMEN.ausgleichTeil)) return null
   return 'ausgleich' in z.start ? (z.start.ausgleich ?? null) : null
+})
+/** Klasse des Starts auf der Karte: der eben gesendete, in der Korrektur ihre Klasse, sonst der aktuelle. */
+const kartenKlasse = computed<ClassId | null>(() => {
+  const g = gesendet.value
+  if (g && imOverlay.value) return g.start.klasse
+  return korrektur.value ? klasse.value : (aktuell.value?.klasse ?? null)
+})
+/**
+ * Die Klammer mit dem Ausgleichsgewicht eines Co-Piloten (CP6): nur im Teil „Ablegen“ (wie kartenAusgleich, in der
+ * Korrektur nach ihrem Teil) – und nicht in der Korrektur eines Starts, den die Karte nicht mehr kennt (CP5,
+ * Prüfbefund 27.11.2026): Dort fehlt das Ausgleichsgewicht des Starters, die Last des Co-Piloten allein wäre halb.
+ */
+const coPilotMitKlammer = computed(() => {
+  const t = korrektur.value?.teil ?? teil.value
+  return (t === undefined || t === WKR_ANNAHMEN.coPilotAusgleichTeil) && !!zeige.value?.bekannt
+})
+const mitKlammerOderOhne = (liste: readonly ListenCoPilot[]) =>
+  liste.map((c) => ({ rolle: c.rolle, coPilot: c.coPilot, ...(coPilotMitKlammer.value && c.ausgleich !== undefined ? { ausgleich: c.ausgleich } : {}) }))
+/**
+ * Co-Piloten auf der Karte (Nutzer 27.11.2026, WKR_ANNAHMEN CP5/CP6): die der Klasse aus der Sicht der Liste (nur die
+ * Steg-Liste trägt sie, CP1) – in beiden Teilen, mit Namen; die Klammer nach coPilotMitKlammer.
+ */
+const kartenCoPiloten = computed(() => {
+  const k = kartenKlasse.value
+  const liste = k && zeige.value ? sicht.value?.coPiloten?.[k] : undefined
+  return liste ? mitKlammerOderOhne(liste) : null
+})
+/**
+ * Platz für Co-Piloten (CP7): die Blöcke der ANDEREN Klassen der Liste mit derselben Klammer-Regel – die Karte legt sie
+ * unsichtbar unter den sichtbaren, ihre Höhe ist die des höchsten. So bleibt sie für jeden Start der Liste gleich hoch.
+ */
+const kartenCoPilotPlatz = computed(() => {
+  if (!zeige.value) return []
+  const k = kartenKlasse.value
+  return (Object.entries(sicht.value?.coPiloten ?? {}) as [ClassId, ListenCoPilot[] | undefined][])
+    .filter(([kl, l]) => kl !== k && !!l?.length)
+    .map(([, l]) => mitKlammerOderOhne(l!))
 })
 const invers = computed(() => {
   const r = zeige.value ? liesRef(zeige.value.start.key) : null
@@ -1176,7 +1216,7 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
             <p v-if="attemptAktiv" class="wkr-band wkr-attempt" role="status" data-teil="attempt-wechsel">
               <b>{{ attemptText }}</b>
             </p>
-            <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" :ampel="kartenAmpel" :ausgleich="kartenAusgleich" />
+            <WkrStarterKarte :start="zeige.start" :klasse="zeige.klasse" :ausser-der-reihe="ausserDerReihe" :gesendet="imOverlay" :korrektur="korrekturArt" :ampel="kartenAmpel" :ausgleich="kartenAusgleich" :co-piloten="kartenCoPiloten" :co-pilot-platz="kartenCoPilotPlatz" />
             <!-- P10: liegt über der Karte (absolut) – verschiebt keinen Knopf, fängt Tipps auf seiner Fläche ab. -->
             <p v-if="klassenWechsel && art === 'bojen'" class="wkr-band wkr-band--warn wkr-klassen-wechsel" role="status" data-teil="klassen-wechsel">
               <b>{{ w('wkr.geraet.bojen.klassenWechsel', { klasse: klassenWechsel }) }}</b>

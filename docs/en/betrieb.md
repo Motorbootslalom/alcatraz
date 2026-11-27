@@ -232,10 +232,16 @@ Alcatraz connects to no server at all (there is a test of its own for this). Onc
 - **What goes via the server:** race number, name (according to the setting “Names” of the scoreboard, by default as
   on the posted results), origin and class of the drivers, the order of the starts with times, messages and the
   name of the event. All encrypted and signed by the operating computer.
-- **With race officials' entry additionally:** the rows the race officials send. Their devices see per list only
-  race number, class and boat (never names), the name of the race official from the assignment, in a query the
+- **With race officials' entry additionally:** the rows the race officials send. Their devices see per list only race
+  number, class and boat (never names of drivers), the name of the race official from the assignment, in a query the
   value of exactly this cell – and at the pontoon the **extra weight** per start. From it, for a lighter driver, the
-  body weight can be roughly worked back; the notice before switching on names this exception.
+  body weight can be roughly worked back; the notice before switching on names this exception. Since 27.11.2026 the
+  pontoon list also sees the **co-drivers** of the classes with name and extra weight (never their body weight, never
+  names of drivers). The names come only from “Assignments”, never from the driver list and never with a start – if a
+  co-driver is a driver too, they appear here as co-driver. Scoreboard, spectator list, start release and the other
+  lists get none of this. The names are shown in full, as entered; the setting “Names” of the scoreboard does not
+  apply to them – even with “no names” (for example at a youth event) they go encrypted via the server to the pontoon
+  devices (still to be confirmed). The notice before switching on names this as well.
 - **With start release from the phone additionally** (27.11.2026): a paired start release learns, for its courses,
   which drivers who have already started have withdrawn – only so that it offers them no repeat after a breakdown;
   the notice before switching on names this as well. For the choice “Repeat (breakdown) …” the start release and the
@@ -495,11 +501,12 @@ once (“Replace the value from the device?”).
 
 ### On the device
 
-The device never shows a name, only race number, class and boat. The form speaks the language of the list like the
-sheet (default: German under DM, the German championship rules; English under UIM).
+The device never shows the name of a driver, only race number, class and boat. The only names are at the pontoon: the
+co-drivers of the class from the assignments (below under “Pontoon”). The form speaks the language of the list like
+the sheet (default: German under DM, the German championship rules; English under UIM).
 
 <a href="../bilder/en/wkr-handy.png"><img src="../bilder/en/wkr-handy.png" width="240"
-alt="Race official form on the phone (practice): race number large, below it the buttons of the list, at the bottom the main button “No penalty ✓”"></a>
+alt="Race official form on the phone (practice): race number large with class, attempt and boat, below it the buttons of the list, at the bottom the main button “Send · 15 pen.”"></a>
 
 - **Connecting:** In the first seconds it reads “connecting …”; if it takes longer, “Reconnect” (reloads the page,
   drafts and sent rows are kept).
@@ -570,6 +577,17 @@ weighed”), read-only. It is not maintained at the pontoon: a weight added late
 device by itself with the next view; on the paper list “Extra weights” a field for entering it by hand remains for a
 driver who has not been weighed.
 
+**Boat and co-drivers at the pontoon** (27.11.2026): In both parts, “Leaving” and “Mooring”, the boat of the class
+(“Boat Merlin”) is shown next to the race number below class and attempt (in “Leaving” below the driver’s extra
+weight), below that, in a line of its own across the full width of the card, “Co-driver Anna Muster” and slightly
+smaller “Substitute Ben Muster” – from the assignments, only those entered there with a name. If a co-driver needs an
+extra weight, it follows in brackets as on the paper list: “(+4 kg)” or “(not weighed)”. The brackets appear only in
+“Leaving”, like the driver’s extra weight, because that is where the weight goes into the boat; in “Mooring” only the
+names are shown. The card always keeps the same space free for the co-drivers, so the buttons below do not jump when
+the next class has no co-driver; long names wrap and are never cut off. In a correction via “Recent” whose start is no
+longer in the queue, boat, extra weight and brackets are missing; the names stay. For now the paper race officials’
+sheets show no co-drivers.
+
 ### Forms for buoys, time, knots and experienced users
 
 - **Buoys** (gate 1/3/5, gate 2/4/5, racecourse with start/finish, lists of the setups, under UIM parallel slalom): one
@@ -612,7 +630,8 @@ is shown above racecourse A and B when both have the same start next; the same d
 
 ### Practice offline
 
-“Practise offline” in the pairing form of the device or the address `#/uebung`: choose rulebook (DM rules or UIM
+“Practise offline” in the pairing form of the device or the address `#/uebung`
+([open the practice](https://motorbootslalom.github.io/alcatraz/#/uebung)): choose rulebook (DM rules or UIM
 Rule 960) and list – pontoon (whole, leaving only, mooring only), gate 5, man-over-board, pontoon entry, gate 1/3/5,
 gate 2/4/5, racecourse with start/finish, under UIM parallel slalom racecourse A, knots (at the table), time
 (timekeeping); also the form (“Picture” for buoy lists, on the tablet “Table” except for knots and time). Then the
@@ -621,6 +640,8 @@ only the display settings are stored.
 
 - The next start comes 2–6 s after sending, now and then it is already there before; occasionally a
   query comes as in the real thing.
+- Every class drives a made-up boat. At the pontoon there are made-up extra weights and made-up co-drivers, sometimes
+  with, sometimes without a substitute, in “Leaving” with brackets such as “(+6 kg)” or “(not weighed)”.
 - At the top is the explanation “How practice works”, below it, if shown, the yellow note “The screen may turn off.”,
   then the header “PRACTICE” with list, attempt and connection, “Recent” and the card with the race number. After
   sending only the explanation scrolls off the top; the note (until “Hide”) and the header stay. On the tablet with

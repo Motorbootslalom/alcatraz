@@ -146,7 +146,8 @@ Plan and decisions: [entscheidungen.md](../entscheidungen.md#betrieb-und-offline
 - **Race official devices:** Every list has an encrypted group of its own (`src/geraete/wkrGruppen.ts`). Its view
   (`src/wkr/sicht.ts`) gives race number and class, never name, origin, date of birth, weight or gender of the
   drivers, no values and no results. Exceptions: for a query, the value of exactly that cell; and only the pontoon
-  list sees the extra weight of each start. The devices send rows with values; the operating computer checks them row
+  list sees the extra weight of each start and, per class, the co-drivers with name and extra weight (`coPiloten`,
+  since 27.11.2026). The devices send rows with values; the operating computer checks them row
   by row (`erlaubteWkr` in `src/geraete/aufgaben.ts`) and takes them over like values typed in from paper: if the cell
   holds something other than what the device expects, a query arises, never a silent overwrite
   (`src/wkr/uebernahme.ts`).
@@ -155,6 +156,9 @@ Plan and decisions: [entscheidungen.md](../entscheidungen.md#betrieb-und-offline
   signed (Ed25519) – including topic, room, group, number, version and time of sending. An old message posted again
   loses against the newest one; a device without data of its own accepts only fresh ones (at most 2 hours old). A
   device reports “different version, update needed” only with a signed proof of version.
+  The version on every message is that of the view (`sv`); the shape of the race officials’ list view is only inside
+  (`lv`). If it changes, `sv` goes up with it – otherwise a race official device with an old program would silently
+  discard every new view and stand still instead of reloading (test in `src/wkr/sicht.test.ts`).
 - **Topics:** The two public ones (scoreboard link, spectator link) are random and appear only in their link;
   the spectator link can be renewed without disturbing the scoreboard. All others are derived from a secret of the
   operating computer and are learned only by paired devices.

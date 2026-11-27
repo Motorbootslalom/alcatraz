@@ -195,8 +195,8 @@ describe('Co-Piloten mit Ersatz und Gewicht (R11-07)', () => {
   })
 })
 
-describe('Datenschutz: Co-Piloten nie auf Anzeigetafel, Zuschauerliste, Start-Freigabe oder Geräte (R11-07)', () => {
-  it('weder Namen noch Gewichte noch Ausgleichsgewichte der Co-Piloten in den Sichten', () => {
+describe('Datenschutz: Co-Piloten nie auf Anzeigetafel, Zuschauerliste, Start-Freigabe oder Geräte (R11-07) – außer am Steg-Gerät (27.11.2026, CP1)', () => {
+  it('weder Namen noch Gewichte noch Ausgleichsgewichte der Co-Piloten in den Sichten; die Steg-Liste nur Namen und Klammer', () => {
     let s = wkrBetriebsStand(BETRIEB_STARTER)
     s = reducer(s, { type: 'SET_CO_PILOT', klasse: 'E', text: 'Geheim Copilotin' })
     s = reducer(s, { type: 'SET_CO_PILOT', klasse: 'E', text: 'Geheim Ersatzmann', rolle: 'ersatz' })
@@ -211,8 +211,16 @@ describe('Datenschutz: Co-Piloten nie auf Anzeigetafel, Zuschauerliste, Start-Fr
     const lagen = erfassungsLage(s, dm, 'par_1', [], 2000).listen
     const freigabe = sichtFreigabe('par_1', lagen, s.anzeige.wkrWarnung, parcoursAmpel(s, dm, 'par_1', lagen))
     expect(freigabe.listen.length).toBeGreaterThan(0)
-    const texte = [JSON.stringify(oeffentlich), JSON.stringify(sichtZuschauer(oeffentlich)), JSON.stringify(sichtListe(s, dm, STEG, { geraete: {} })), JSON.stringify(freigabe)]
+    const texte = [JSON.stringify(oeffentlich), JSON.stringify(sichtZuschauer(oeffentlich)), JSON.stringify(freigabe)]
     // 87,3 − 61,9 = 25,4 → 25 kg Ausgleich des Ersatzes.
     for (const text of texte) for (const verboten of ['Geheim', 'Copilotin', 'Ersatzmann', '87.3', '61.9', 'coPilot', 'ersatz']) expect(text, verboten).not.toContain(verboten)
+    // Seit dem Wunsch des Nutzers vom 27.11.2026 („Hier beim Steg bitte noch das Boot und ggf. die Co-Piloten mit
+    // anzeigen“) trägt die Sicht der Steg-Liste die Co-Piloten mit Namen und Klammer (R12-09 gilt fürs Gerät nicht
+    // mehr, WKR_ANNAHMEN CP1–CP4) – nie ein Körpergewicht; andere Listen bleiben ohne.
+    const steg = sichtListe(s, dm, STEG, { geraete: {} })
+    expect(steg.coPiloten).toEqual({ E: [{ rolle: 'haupt', coPilot: 'Geheim Copilotin' }, { rolle: 'ersatz', coPilot: 'Geheim Ersatzmann', ausgleich: 25 }] })
+    for (const verboten of ['87.3', '61.9', 'gewicht']) expect(JSON.stringify(steg), verboten).not.toContain(verboten)
+    const tor5 = JSON.stringify(sichtListe(s, dm, { ...STEG, typeId: 'tor5' }, { geraete: {} }))
+    for (const verboten of ['Geheim', '87.3', '61.9', 'coPilot']) expect(tor5, verboten).not.toContain(verboten)
   })
 })

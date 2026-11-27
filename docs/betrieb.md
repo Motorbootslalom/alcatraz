@@ -233,9 +233,16 @@ baut Alcatraz keine Verbindung zu irgendeinem Server auf (dafür gibt es einen e
   Aushang der Wertungslisten), Herkunft und Klasse der Starter, die Folge der Starts mit Zeitpunkten, Meldungen und der
   Name der Veranstaltung. Alles verschlüsselt und vom Bedienrechner signiert.
 - **Mit WKR-Erfassung zusätzlich:** die Zeilen, die die Wettkampfrichter abschicken. Ihre Geräte sehen je Liste nur
-  Startnummer, Klasse und Boot (nie Namen), den Namen des Wettkampfrichters aus der Einteilung, bei einer Rückfrage den
-  Wert genau dieser Zelle – und am Steg das **Ausgleichsgewicht** je Start. Daraus lässt sich bei einem leichteren
-  Starter das Körpergewicht ungefähr zurückrechnen; der Hinweis vor dem Einschalten nennt diese Ausnahme.
+  Startnummer, Klasse und Boot (nie Namen der Starter), den Namen des Wettkampfrichters aus der Einteilung, bei einer
+  Rückfrage den Wert genau dieser Zelle – und am Steg das **Ausgleichsgewicht** je Start. Daraus lässt sich bei einem
+  leichteren Starter das Körpergewicht ungefähr zurückrechnen; der Hinweis vor dem Einschalten nennt diese Ausnahme.
+  Seit 27.11.2026 sieht die Steg-Liste außerdem die **Co-Piloten** der Klassen mit Namen und Ausgleichsgewicht (nie
+  ihr Körpergewicht, nie Namen von Startern). Die Namen kommen nur aus der „Besetzung“, nie aus der Starterliste und
+  nie an einem Start – ist ein Co-Pilot selbst Starter, steht er hier als Co-Pilot. Anzeigetafel, Zuschauerliste,
+  Start-Freigabe und die übrigen Listen bekommen davon nichts. Die Namen stehen vollständig, wie eingetragen; die
+  Einstellung „Namen“ der Anzeigetafel gilt für sie nicht – auch bei „ohne Namen“ (etwa bei einer
+  Jugendveranstaltung) gehen sie verschlüsselt über den Server an die Steg-Geräte (noch zu bestätigen). Der Hinweis
+  vor dem Einschalten nennt auch das.
 - **Mit Start-Freigabe vom Handy zusätzlich** (27.11.2026): Eine gekoppelte Start-Freigabe erfährt für ihre
   Parcours, welche schon gestarteten Starter abgemeldet sind – nur damit sie ihnen keine Wiederholung nach Ausfall
   anbietet; der Hinweis vor dem Einschalten nennt auch das. Für die Wahl „Wiederholung (Ausfall) …“ tragen die
@@ -487,11 +494,12 @@ einmal gefragt („Wert vom Gerät ersetzen?“).
 
 ### Auf dem Gerät
 
-Das Gerät zeigt nie einen Namen, nur Startnummer, Klasse und Boot. Die Maske spricht die Sprache der Liste wie der
-Bogen (Vorgabe: DM deutsch, UIM englisch).
+Das Gerät zeigt nie den Namen eines Starters, nur Startnummer, Klasse und Boot. Die einzigen Namen stehen am Steg: die
+Co-Piloten der Klasse aus der Besetzung (unten unter „Steg“). Die Maske spricht die Sprache der Liste wie der Bogen
+(Vorgabe: DM deutsch, UIM englisch).
 
 <a href="bilder/de/wkr-handy.png"><img src="bilder/de/wkr-handy.png" width="240"
-alt="WKR-Maske auf dem Handy (Übung): Startnummer groß, darunter die Knöpfe der Liste, unten der Hauptknopf „Fehlerfrei ✓“"></a>
+alt="WKR-Maske auf dem Handy (Übung): Startnummer groß mit Klasse, Lauf und Boot, darunter die Knöpfe der Liste, unten der Hauptknopf „Abschicken · 15 Pkt.“"></a>
 
 - **Verbinden:** In den ersten Sekunden steht „verbinde …“; dauert es länger, „Neu verbinden“ (lädt die Seite neu,
   Entwürfe und Gesendetes bleiben).
@@ -558,6 +566,17 @@ Startnummer das **Ausgleichsgewicht** („AG 4 kg“, „kein AG“ oder „AG: 
 nicht am Steg: Ein in der Verwiegung nachgetragenes Gewicht kommt mit der nächsten Sicht von selbst aufs Gerät; auf der
 Papierliste „Ausgleichsgewichte“ bleibt bei einem nicht gewogenen Starter ein Feld zum Eintragen von Hand.
 
+**Boot und Co-Piloten am Steg** (27.11.2026): In beiden Teilen, „Ablegen“ und „Anlegen“, steht neben der Startnummer
+unter Klasse und Lauf (im „Ablegen“ unter dem Ausgleichsgewicht des Starters) das Boot der Klasse („Boot Merlin“),
+darunter in einer eigenen Zeile über die ganze Breite der Karte „Co-Pilot Anna Muster“ und etwas kleiner „Ersatz Ben
+Muster“ – aus der Besetzung, nur wer dort mit Namen steht. Braucht ein Co-Pilot ein Ausgleichsgewicht, steht es wie
+auf der Papierliste in Klammern dahinter: „(+4 kg)“ oder „(nicht gewogen)“. Die Klammer steht nur im „Ablegen“, wie
+das Ausgleichsgewicht des Starters, denn dort kommt das Gewicht ins Boot; im „Anlegen“ stehen nur die Namen. Die Karte
+hält für die Co-Piloten immer gleich viel Platz frei, so springen die Knöpfe darunter nicht, wenn die nächste Klasse
+keinen Co-Piloten hat; lange Namen brechen um und werden nie abgeschnitten. In einer Korrektur über „Zuletzt“, deren
+Start nicht mehr in der Schlange steht, fehlen Boot, Ausgleichsgewicht und Klammer; die Namen bleiben. Die WKR-Bögen
+auf Papier zeigen vorerst keine Co-Piloten.
+
 ### Masken für Bojen, Zeit, Knoten und Geübte
 
 - **Bojen** (Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel, Listen der Aufbauten, unter UIM Parallelslalom): je Halt
@@ -599,7 +618,8 @@ gemeinsames Rundenband, wenn beide denselben Start als Nächsten haben; derselbe
 
 ### Übung ohne Verbindung
 
-„Üben ohne Verbindung“ im Koppel-Formular des Geräts oder die Adresse `#/uebung`: Regelwerk (DM-Reglement oder UIM
+„Üben ohne Verbindung“ im Koppel-Formular des Geräts oder die Adresse `#/uebung`
+([Übung öffnen](https://motorbootslalom.github.io/alcatraz/#/uebung)): Regelwerk (DM-Reglement oder UIM
 Regel 960) und Liste wählen – Steg (ganz, nur Ablegen, nur Anlegen), Tor 5, Mann-über-Bord, Vorsteg, Tor 1/3/5,
 Tor 2/4/5, Parcours mit Start/Ziel, unter UIM Parallelslalom Racecourse A, Knoten (am Tisch), Zeit (Zeitnahme); dazu
 die Maske („Bild“ bei Bojen-Listen, auf dem Pad „Tabelle“ außer bei Knoten und Zeit). Dann dieselbe Maske mit 20
@@ -608,6 +628,8 @@ gespeichert wird nur die Ansicht.
 
 - Der nächste Start kommt 2–6 s nach dem Abschicken, hin und wieder steht er schon vorher da; gelegentlich kommt eine
   Rückfrage wie im Ernst.
+- Jede Klasse fährt ein erfundenes Boot. Am Steg stehen erfundene Ausgleichsgewichte und erfundene Co-Piloten, mal mit,
+  mal ohne Ersatz, im „Ablegen“ mit Klammern wie „(+6 kg)“ oder „(nicht gewogen)“.
 - Oben steht die Erklärung „So läuft die Übung“, darunter gegebenenfalls der gelbe Hinweis „Bildschirm kann
   ausgehen“, dann der Kopf „ÜBUNG“ mit Liste, Lauf und Verbindung, „Zuletzt“ und die Karte mit der Startnummer. Nach
   dem Abschicken rollt nur die Erklärung oben aus dem Bild; der Hinweis (bis „Ausblenden“) und der Kopf bleiben

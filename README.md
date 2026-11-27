@@ -14,7 +14,8 @@ Alle Daten liegen im Browser des Auswertungsrechners und lassen sich als Datei s
 Einzige Ausnahme ist der Gerätebetrieb, und nur, wenn man ihn bewusst einschaltet (Betrieb → Geräte):
 Dann tauscht dieser Rechner (in der App „Bedienrechner“) mit Anzeigetafel, Zuschauer-Handys
 und gekoppelten Geräten (Start-Freigabe, WKR) verschlüsselte Nachrichten über einen fremden ntfy-Server –
-etwa Startnummer, Name, Herkunft und Klasse der Starter und die erfassten Werte, nie Geburtsdatum oder Geschlecht
+etwa Startnummer, Name, Herkunft und Klasse der Starter, an die Steg-Geräte die Namen der Co-Piloten
+und die erfassten Werte, nie Geburtsdatum oder Geschlecht
 ([Gerätebetrieb](docs/betrieb.md#gerätebetrieb)).
 
 - **App:** <https://motorbootslalom.github.io/alcatraz/> – ausgeliefert über GitHub Pages,

@@ -4,10 +4,16 @@ import { WKR_ANNAHMEN } from './annahmen'
 import { maskeFuer } from './maske'
 import { LISTEN_SICHT_FASSUNG } from './sicht'
 import type { ClassId } from '../types'
-import { uebungsAusgleich, uebungsSchritt, uebungsSicht, uebungsStand, ziehVor, type UebungsStand } from './uebung'
-import { ausgleichAmSteg } from '../lib/ausgleich'
+import { uebungsAusgleich, uebungsBoot, uebungsCoPiloten, uebungsSchritt, uebungsSicht, uebungsStand, ziehVor, type UebungsStand } from './uebung'
+import { ausgleichAmSteg, coPilotenAmSteg } from '../lib/ausgleich'
+import { coPilotVorgesehen } from '../lib/besetzung'
+import { BOOTSNAMEN } from '../data/boote'
 
 // Übung ohne Netz (W3.1, G13): Sicht wie vom Bedienrechner (`lv`, Masken), erfundene Starts ohne Namen, Schritt.
+// Seit 27.11.2026 (CP8) mit erfundenem Boot je Klasse und – nur am Steg – erfundenen Co-Piloten.
+
+/** Erfundene Namen aus src/data (länger als drei Zeichen, damit „Ben“ nicht in „Benutzer“ trifft). */
+const NAMEN = [...VORNAMEN_M, ...VORNAMEN_W, ...NACHNAMEN].filter((n) => n.length > 3)
 
 describe('Übungs-Sicht', () => {
   it('Fassung und Form wie die echte Sicht; Sprache des Regelwerks; Masken für jede Klasse der Starts', () => {
@@ -32,11 +38,20 @@ describe('Übungs-Sicht', () => {
     expect(vorsteg.danach[0].startNr).toBe('5')
   })
 
-  it('ohne Namen: kein erfundener Vor- oder Nachname aus src/data, kein Boot-Text', () => {
-    const text = JSON.stringify([uebungsSicht(uebungsStand('dm-2026', 'steg')), uebungsSicht(uebungsStand('uim-2026', 'vorsteg'))])
-    const namen = [...VORNAMEN_M, ...VORNAMEN_W, ...NACHNAMEN].filter((n) => n.length > 3)
-    for (const n of namen) expect(text, n).not.toContain(`"${n}`)
-    expect(text).not.toContain('"boot"')
+  it('ohne Starter-Namen: Namen nur als Co-Piloten am Steg (CP8); Boot je Klasse an jedem Start, fest nach Klasse', () => {
+    const steg = uebungsSicht(uebungsStand('dm-2026', 'steg'))
+    const { coPiloten: _c, ...ohneCoPiloten } = steg
+    const text = JSON.stringify([ohneCoPiloten, uebungsSicht(uebungsStand('uim-2026', 'vorsteg'))])
+    for (const n of NAMEN) expect(text, n).not.toContain(`"${n}`)
+    for (const regelwerk of ['dm-2026', 'uim-2026'])
+      for (const typeId of ['steg', 'vorsteg', 'tor5']) {
+        const sicht = uebungsSicht(uebungsStand(regelwerk, typeId))
+        for (const x of [...sicht.schlange, ...sicht.danach]) expect(x.boot, `${regelwerk}/${typeId}/${x.startNr}`).toBe(uebungsBoot(x.klasse))
+      }
+    // Je Klasse ein anderes Boot aus den Beispiel-Bootsnamen (src/data/boote.ts).
+    const boote = (['E', '1', '2', '3', '4', '5', '6', '7'] as ClassId[]).map(uebungsBoot)
+    expect(new Set(boote).size).toBe(boote.length)
+    for (const b of boote) expect(BOOTSNAMEN).toContain(b)
   })
 })
 
@@ -57,8 +72,37 @@ describe('Übung: Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG4
   })
 })
 
+describe('Übung: Co-Piloten am Steg (Nutzer 27.11.2026, WKR_ANNAHMEN CP8)', () => {
+  it('nur in Klassen mit Co-Pilot laut Regelwerk, Namen aus src/data, reihum mit und ohne Ersatz, Klammer durch dieselbe Rechnung', () => {
+    for (const regelwerk of ['dm-2026', 'uim-2026']) {
+      const sicht = uebungsSicht(uebungsStand(regelwerk, 'steg'))
+      const klassen = Object.keys(sicht.klassen) as ClassId[]
+      const mit = klassen.filter((k) => coPilotVorgesehen(regelwerk, k))
+      expect(mit.length, regelwerk).toBeGreaterThan(2)
+      expect(Object.keys(sicht.coPiloten ?? {}).sort(), regelwerk).toEqual([...mit].sort())
+      // Dieselbe Auswahl und Rechnung wie am Bedienrechner (lib/ausgleich.ts coPilotenAmSteg, „je Klasse“, 1 kg).
+      const stand = uebungsCoPiloten(regelwerk, klassen)
+      for (const k of mit) expect(sicht.coPiloten![k], `${regelwerk}/${k}`).toEqual(coPilotenAmSteg(stand, k).map((c) => ({ rolle: c.rolle, coPilot: c.name, ...(c.ausgleich !== undefined ? { ausgleich: c.ausgleich } : {}) })))
+      const alle = Object.values(sicht.coPiloten!).flat()
+      for (const c of alle) for (const teil of c!.coPilot.split(' ')) expect([...VORNAMEN_M, ...VORNAMEN_W, ...NACHNAMEN], c!.coPilot).toContain(teil)
+      // Reihum (WKR_ANNAHMEN.coPilotUebung): einige mit Ersatz, einige ohne; Klammern „(+n kg)“ und „(nicht gewogen)“.
+      const zahl = Object.values(sicht.coPiloten!).map((l) => l!.length)
+      expect(new Set(zahl)).toEqual(new Set([1, 2]))
+      expect(new Set(alle.map((c) => (typeof c!.ausgleich === 'number' ? 'kg' : c!.ausgleich)))).toEqual(new Set(['kg', 'fehlt', undefined]))
+      // Kein Name doppelt, und dieselbe Übung zeigt dieselben Personen.
+      expect(new Set(alle.map((c) => c!.coPilot)).size).toBe(alle.length)
+      expect(uebungsSicht(uebungsStand(regelwerk, 'steg')).coPiloten).toEqual(sicht.coPiloten)
+    }
+    // DM, erste Klasse mit Co-Pilot (E): Co-Pilot 64,2 kg, Ersatz 70,5 kg → der Co-Pilot bekommt 6,3 → 6 kg.
+    const e = uebungsSicht(uebungsStand('dm-2026', 'steg')).coPiloten!.E!
+    expect(e.map((c) => [c.rolle, c.ausgleich])).toEqual([['haupt', 6], ['ersatz', undefined]])
+    // Nur am Steg: andere Listen der Übung tragen keine Co-Piloten.
+    for (const typeId of ['vorsteg', 'tor5', 'mueb', 'zeit']) expect(uebungsSicht(uebungsStand('dm-2026', typeId)).coPiloten, typeId).toBeUndefined()
+  })
+})
+
 describe('Übung mit Bojen-Listen (W4.1, P12)', () => {
-  it('Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel (DM) und Parallelslalom (UIM): Bojen-Masken, ohne Namen und Boot', () => {
+  it('Tor 1/3/5, Tor 2/4/5, Parcours mit Start/Ziel (DM) und Parallelslalom (UIM): Bojen-Masken, ohne Namen, mit Boot (CP8)', () => {
     for (const [regelwerk, typeId] of [['dm-2026', 'gate135'], ['dm-2026', 'gate245'], ['dm-2026', 'parcoursms'], ['uim-2026', 'gate135'], ['uim-2026', 'parallelparcours']] as const) {
       const sicht = uebungsSicht(uebungsStand(regelwerk, typeId))
       expect(sicht.lv, typeId).toBe(LISTEN_SICHT_FASSUNG)
@@ -68,9 +112,9 @@ describe('Übung mit Bojen-Listen (W4.1, P12)', () => {
         expect(m.abschnitte.length).toBeGreaterThan(0)
       }
       const text = JSON.stringify(sicht)
-      const namen = [...VORNAMEN_M, ...VORNAMEN_W, ...NACHNAMEN].filter((n) => n.length > 3)
-      for (const n of namen) expect(text, n).not.toContain(`"${n}`)
-      expect(text).not.toContain('"boot"')
+      for (const n of NAMEN) expect(text, n).not.toContain(`"${n}`)
+      expect(sicht.coPiloten, typeId).toBeUndefined()
+      for (const s of [...sicht.schlange, ...sicht.danach]) expect(s.boot, `${typeId}/${s.startNr}`).toBe(uebungsBoot(s.klasse))
     }
   })
 })

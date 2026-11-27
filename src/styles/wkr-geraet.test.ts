@@ -313,3 +313,19 @@ describe('W4.2 Bojen-Maske (21.11.2026, Plan docs/plan-wkr-w4.md §5.2)', () => 
     expect(px(t['--wkr-bild-min-hoehe'])).toBeGreaterThanOrEqual(200)
   })
 })
+
+describe('Besetzung am Steg (Nutzer 27.11.2026, WKR_ANNAHMEN CP7; Prüfbefund 27.11.2026)', () => {
+  it('Co-Piloten über die ganze Karte, sichtbarer Block und Platzhalter in EINER Rasterzelle, Platzhalter unsichtbar; Klammer bricht nie in sich', () => {
+    // happy-dom misst nicht: gemessen im Browser sprangen die Knöpfe um 21–25 px, solange der Block in der Spalte neben
+    // der Nummer stand und nur die Zahl der Einträge Platz hielt. Jetzt: Höhe = höchster Block der Liste.
+    expect(regel('.wkr-starterkarte-besetzung').display).toBe('grid')
+    expect(regel('.wkr-starterkarte-besetzung > .wkr-starterkarte-copiloten')['grid-area']).toBe('1 / 1')
+    expect(regel('.wkr-starterkarte-copiloten--platz').visibility).toBe('hidden')
+    expect(regel('.wkr-starterkarte-copilot-ag')['white-space']).toBe('nowrap')
+    // Der Block steht nicht in der Spalte neben der Nummer (dort hing seine Breite an der Zahl der Ziffern).
+    const karte = vorlagen.find((v) => v.datei === 'WkrStarterKarte.vue')!.text
+    const angaben = karte.slice(karte.indexOf('class="wkr-starterkarte-angaben"'), karte.indexOf('class="wkr-starterkarte-besetzung"'))
+    expect(angaben).toContain('data-teil="boot"')
+    expect(angaben).not.toContain('data-teil="co-pilot"')
+  })
+})

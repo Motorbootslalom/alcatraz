@@ -196,6 +196,12 @@ alt="Race official form on the phone (practice): race number large, below it the
 - [ ] **Extra weight at the pontoon** (pontoon leaving, sample weights; one driver without a weight). Expected:
   “Extra weight … kg”, “no extra weight” or “Extra weight: not weighed” next to the race number, only in leaving; a
   weight added later in the weighing is shown on the device shortly afterwards. Readable at arm's length? Observation:
+- [ ] **Boat and co-drivers at the pontoon** (whole pontoon, or leaving and mooring on two devices; under “Event →
+  Assignments” “Sample boats” and “Sample co-drivers”, then delete the weight of one co-driver and the substitute of
+  one class, give one a long name). Expected: below class and attempt “Boat …”, below that “Co-driver …” and smaller
+  “Substitute …” in both parts; the brackets (“(+4 kg)”, “(not weighed)”) only in leaving. When changing to a class
+  without co-drivers the buttons do not jump; the long name wraps, nothing is cut off. Readable at arm's length?
+  Observation:
 - [ ] **Practice** (“Practise offline” in the pairing form) in flight mode. Expected: the form works without a network;
   after sending only the explanation “How practice works” scrolls out of view, header “PRACTICE”, “Recent” and card
   stay (above them the note “The screen may turn off.”, until “Hide”); the next start comes after 2–6 s, now and then

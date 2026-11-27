@@ -93,7 +93,7 @@ export default {
   'crew.status.empty': 'noch nichts eingetragen',
   'crew.status': 'Boote {boats} von {classes} · Co-Piloten {copilots} von {copilotClasses} · Wettkampfrichter {judges}',
   'crew.classes.title': 'Boote und Co-Piloten',
-  'crew.classes.hint': 'Je Klasse das Boot (z. B. Nummer, Typ oder Motor), der Co-Pilot und – wenn einer einspringen kann – der Ersatz-Co-Pilot, je Person auf Wunsch mit Gewicht. Boot und Co-Piloten stehen im Kopf der Liste „Ausgleichsgewichte“ (Listen → Gewichtslisten → für den Steg), beide Co-Piloten untereinander, ein Ausgleichsgewicht in Klammern dahinter. Mit Enter geht es ins nächste Feld.',
+  'crew.classes.hint': 'Je Klasse das Boot (z. B. Nummer, Typ oder Motor), der Co-Pilot und – wenn einer einspringen kann – der Ersatz-Co-Pilot, je Person auf Wunsch mit Gewicht. Boot und Co-Piloten stehen im Kopf der Liste „Ausgleichsgewichte“ (Listen → Gewichtslisten → für den Steg), beide Co-Piloten untereinander, ein Ausgleichsgewicht in Klammern dahinter – ebenso auf dem Steg-Gerät der digitalen WKR-Erfassung. Mit Enter geht es ins nächste Feld.',
   'crew.classes.coPilotRule': 'Einen Co-Piloten sieht das Regelwerk {rulebook} vor in: {classes}.',
   'crew.boat': 'Boot',
   'crew.coPilot': 'Co-Pilot',

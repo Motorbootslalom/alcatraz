@@ -41,8 +41,15 @@ import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabst
  * vom 16.11.2026: Gerätebetrieb nur bei gleicher Fassung). 8 seit dem 27.11.2026 (Nutzer, R13-01): SichtBereich.`gefahren`
  * steht in jeder Sicht, nicht mehr nur am Bedienrechner – die Start-Freigabe auf dem Handy löst die Wiederholung nach
  * Ausfall jetzt selbst aus und braucht die Wahl.
+ * 9 seit dem 27.11.2026 (Prüfbefund zu den Co-Piloten am Steg): Die öffentliche Sicht und die Zuschauersicht sind
+ * unverändert, aber die Listen-Sicht bekam die Fassung 14 (wkr/sicht.ts LISTEN_SICHT_FASSUNG). `sv` steht außen an JEDER
+ * Nachricht, auch an denen der Listen-Gruppen, und nur `sv` löst F7 aus (transport.ts → geraet.ts: neu laden bzw.
+ * „Bedienrechner aktualisieren“). `lv` steht nur innen: Ein Gerät mit altem Programm verwirft eine Listen-Sicht einer
+ * anderen `lv` still (geraete/erfassen.ts istListenSicht) – seine Liste stünde, ohne Meldung, ohne Neuladen. Deshalb
+ * zählt `sv` mit jeder neuen `lv` mit (wkr/sicht.test.ts hält beide zusammen fest); Tafel und Zuschauer laden dann
+ * einmal neu.
  */
-export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 8
+export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 9
 
 export interface SichtOptionen {
   /**

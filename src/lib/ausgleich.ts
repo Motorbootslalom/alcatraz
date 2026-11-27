@@ -120,9 +120,10 @@ export interface CoPilotZeile {
  * lib/besetzung.ts zeigtCoPilot); sonst immer der eingeteilte Co-Pilot (auch leer, zum Eintragen von Hand) und, wenn
  * mit Namen eingetragen, darunter der Ersatz (ein Gewicht ohne Namen gibt kein leeres Feld „Ersatz-Co-Pilot“,
  * Prüfbefund 27.11.2026; bestätigt 27.11.2026, R12-06). Nie das Körpergewicht – nur das Ausgleichsgewicht. Nur auf den
- * „Ausgleichsgewichten“ und der Liste nach Regel 960 Pkt. 3.7 – WKR-Bögen und Steg-Gerät zeigen keine Co-Piloten
- * (bestätigt 27.11.2026, R12-09); auf der Liste nach Pkt. 3.7 auch der Ersatz, obwohl Pkt. 2 „the same co-driver“
- * verlangt (bestätigt 27.11.2026, R12-10).
+ * „Ausgleichsgewichten“ und der Liste nach Regel 960 Pkt. 3.7 – die WKR-Bögen zeigen keine Co-Piloten (bestätigt
+ * 27.11.2026, R12-09); das Steg-Gerät seit dem Wunsch des Nutzers vom 27.11.2026 doch, über {@link coPilotenAmSteg}
+ * (R12-09 gilt dafür nicht mehr, WKR_ANNAHMEN CP1). Auf der Liste nach Pkt. 3.7 auch der Ersatz, obwohl Pkt. 2 „the
+ * same co-driver“ verlangt (bestätigt 27.11.2026, R12-10).
  */
 export function coPilotZeilen(stand: CoPilotStand, klasse: ClassId): CoPilotZeile[] | undefined {
   if (!zeigtCoPilot(stand, klasse)) return undefined
@@ -131,6 +132,36 @@ export function coPilotZeilen(stand: CoPilotStand, klasse: ClassId): CoPilotZeil
     name: coPilotName(stand.coPiloten, klasse, rolle),
     ausgleich: coPilotAusgleichVon(stand, klasse, rolle),
   }))
+}
+
+/** Ein Co-Pilot, wie ihn das Steg-Gerät bekommt (Nutzer 27.11.2026, WKR_ANNAHMEN CP1–CP4). */
+export interface CoPilotAmSteg {
+  rolle: CoPilotRolle
+  /** Name, wie in der Besetzung eingetragen (ohne Leerraum am Rand) – nie leer. */
+  name: string
+  /**
+   * Nur, was die Papierliste in Klammern druckt: kg über 0 (Vielfaches der Abstufung) bzw. `'fehlt'` = nicht gewogen.
+   * Fehlt sonst – gewogen und keines nötig, auf 0 gerundet oder niemand seiner Gruppe gewogen (CP4).
+   */
+  ausgleich?: number | 'fehlt'
+}
+
+/**
+ * Die Co-Piloten einer Klasse für das Steg-Gerät der WKR-Erfassung (Nutzer 27.11.2026: „Hier beim Steg bitte noch das
+ * Boot und ggf. die Co-Piloten mit anzeigen“; WKR_ANNAHMEN CP1–CP4): aus {@link coPilotZeilen} – DIESELBE Rechnung wie
+ * die Papierliste „Ausgleichsgewichte“ (Gruppe nach AppState.coPilotAusgleich, gerundet auf AppState.ausgleichStufe) –,
+ * aber nur Personen mit Namen: Auf Papier bleibt für den eingeteilten Co-Piloten ein leeres Feld zum Eintragen, am
+ * Gerät trägt niemand etwas ein (CP3). Leer = die Klasse hat keinen Co-Piloten mit Namen; dann fehlt das Feld. Nie das
+ * Körpergewicht; die Sicht der Liste (wkr/sicht.ts) trägt nur diese Werte.
+ */
+export function coPilotenAmSteg(stand: CoPilotStand, klasse: ClassId): CoPilotAmSteg[] {
+  return (coPilotZeilen(stand, klasse) ?? [])
+    .filter((c) => c.name !== '')
+    .map((c) => {
+      // Die Klammer der Papierliste (components/AusgleichListen.vue coAg): nur eine Zahl über 0 oder „nicht gewogen“.
+      const klammer = c.ausgleich === 'fehlt' || (typeof c.ausgleich === 'number' && c.ausgleich > 0)
+      return { rolle: c.rolle, name: c.name, ...(klammer ? { ausgleich: c.ausgleich as number | 'fehlt' } : {}) }
+    })
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { AppState, CellKind, ClassId, PunktId, Sprache, StartRef, WkrPunkt, WkrStatus } from '../types'
+import type { AppState, CellKind, ClassId, CoPilotRolle, PunktId, Sprache, StartRef, WkrPunkt, WkrStatus } from '../types'
 import { configFor, type Konfig } from '../config/konfig'
 import { codeKlassenOf } from '../config/catalog'
 import type { BogenTexte } from '../config/sprache'
@@ -7,7 +7,7 @@ import { bereicheZumStand, betriebVon, laeufeVonPunkt, lage, rundeVonPunkt } fro
 import { defFuerKlasse } from '../lib/bogen'
 import { erfasstKennung, listenFelder, teilHaken, werteVon } from '../lib/eingaben'
 import { codeHoechstens } from '../lib/codes'
-import { ausgleichAmSteg } from '../lib/ausgleich'
+import { ausgleichAmSteg, coPilotenAmSteg, type CoPilotStand } from '../lib/ausgleich'
 import { bietetEnglisch, wkrSpracheFuer } from '../lib/listensprache'
 import { RACECOURSE_PARCOURS } from '../lib/parallelSchluessel'
 import { geraetVonZeile } from '../state/reducer/wkr'
@@ -27,14 +27,20 @@ import { geraeteKennung, listenSeite } from './versuch'
 // Datenschutz (F6, F11, F17): nie Name, Herkunft, Geburtsdatum, Gewicht, Geschlecht; keine Werte (auch nicht der
 // eigenen Liste – das Gerät kennt, was es geschickt hat), keine Summen, keine Wertung. Ausnahmen: bei einer
 // Rückfrage des Geräts der Wert genau dieser Zelle (`steht`, F11) und – nur an der Steg-Liste – das Ausgleichsgewicht
-// je Start (`ausgleich`, Nutzer 24.11.2026, WKR_ANNAHMEN AG1; nie Körper- oder Durchschnittsgewicht). Die Sicht ist
-// EIN Inhalt der Listen-Gruppe: Jedes Gerät derselben Liste (am Steg auch das des anderen Teils) kann sie ganz lesen,
-// also auch `steht`, `ausgleich`, Ablehnungen und Hinweise der anderen – nie ein Gerät einer anderen Liste
-// (WKR_ANNAHMEN.rueckfrageInListe, Prüfbefund 21.11.2026).
+// je Start (`ausgleich`, Nutzer 24.11.2026, WKR_ANNAHMEN AG1; nie Körper- oder Durchschnittsgewicht) sowie je Klasse die
+// Co-Piloten mit Namen und Ausgleichsgewicht in Klammern (`coPiloten`, Nutzer 27.11.2026, CP1–CP4, CP10; Namen nur aus der
+// Besetzung, nie aus der Starterliste und nie am Start – ist ein Co-Pilot selbst Starter, geht sein Name trotzdem als
+// Co-Pilot hinaus, wie eingetragen, unabhängig von der Einstellung „Namen“). Die Sicht ist EIN Inhalt der Listen-Gruppe: Jedes Gerät derselben Liste (am Steg auch das des anderen
+// Teils) kann sie ganz lesen, also auch `steht`, `ausgleich`, `coPiloten`, Ablehnungen und Hinweise der anderen – nie
+// ein Gerät einer anderen Liste (WKR_ANNAHMEN.rueckfrageInListe, Prüfbefund 21.11.2026).
 // Rein und zeitunabhängig: gleicher Stand und gleiches `extra` ⇒ gleiche Sicht (der Host vergleicht nach Inhalt).
 
 /**
- * Fassung der Sicht der Liste: zählt hoch, wenn sich ihre Form ändert (Geräte zeigen nur dieselbe Fassung).
+ * Fassung der Sicht der Liste: zählt hoch, wenn sich ihre Form ändert (Geräte zeigen nur dieselbe Fassung). `lv` steht
+ * nur INNEN: Ein Gerät verwirft eine Sicht anderer `lv` still (geraete/erfassen.ts istListenSicht) – neu laden lässt es
+ * allein `sv` (betrieb/sicht.ts SICHT_FASSUNG, außen an jeder Nachricht, F7). Deshalb hebt jede neue `lv` auch `sv` an
+ * (Prüfbefund 27.11.2026; sicht.test.ts „Fassung“ hält beide zusammen fest). Die Sätze „lässt es über F7 neu laden“
+ * bei 10 und 13 stimmten damals nicht: Ohne neue `sv` blieb ein altes Gerät bei seiner abgelegten Sicht stehen.
  * 3 seit W3 (21.11.2026): `andere` (zweite Sprache der Maske, F13); bei zweisprachiger Liste stehen die Masken
  * (`klassen`) deutsch, die englischen in `andere` (G9).
  * 4 seit W4.1 (21.11.2026): `MaskenFeld.boje` und `AndereFeld.boje` (Bojen-Maske, P15) – ein Gerät mit altem Programm
@@ -55,7 +61,7 @@ import { geraeteKennung, listenSeite } from './versuch'
  * zu tun“ und schickte Kennungen, die es nicht kennt.
  * 10 seit mehreren Disq. je Bojenzelle (R7-14, 22.11.2026, WKR_ANNAHMEN BZ8): Die Form der Sicht bleibt gleich, aber
  * Zellen heißen jetzt „5, J, D“ – ein altes Gerät läse davon nur den ersten Buchstaben und schickte „5J“, das wertGilt
- * ablehnt. Die neue Fassung lässt es über F7 neu laden.
+ * ablehnt. Die neue Fassung sollte es über F7 neu laden lassen (tat es ohne neue `sv` nicht, siehe oben).
  * 11 seit dem Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3): `ListenStart.ausgleich` an den
  * Starts der Steg-Liste – ein altes Gerät zeigte es nicht, der WKR am Ablegen verließe sich auf ein Blatt, das es
  * digital nicht mehr gibt. Seit der Abstufung des Ausgleichsgewichts (24.11.2026) kann der Wert eine Nachkommastelle haben
@@ -66,9 +72,13 @@ import { geraeteKennung, listenSeite } from './versuch'
  * altes Gerät zählte weiter bis „×62“ und schickte Zeilen, die der Bedienrechner jetzt ablehnt (wkr/zeile.ts wertGilt).
  * 13 seit „Nicht gestartet · Disq. X“ (Nutzer 24.11.2026, WKR_ANNAHMEN NG1–NG8): Die Form der Sicht bleibt, aber ein
  * Gerät der Fassung ≤ 12 schickt „nicht vorbeigekommen“ mit `n` und ohne Zellen – das kennt der Bedienrechner nicht
- * mehr und nähme die Zeile als „fehlerfrei“ – bzw. Disq. J statt X. Die neue Fassung lässt es über F7 neu laden.
+ * mehr und nähme die Zeile als „fehlerfrei“ – bzw. Disq. J statt X. Die neue Fassung sollte es über F7 neu laden
+ * lassen (tat es ohne neue `sv` nicht, siehe oben).
+ * 14 seit den Co-Piloten am Steg (Nutzer 27.11.2026, WKR_ANNAHMEN CP1–CP10): `coPiloten` je Klasse an der Steg-Liste –
+ * ein altes Gerät zeigte sie nicht, der WKR am Steg sähe nicht, wer als Co-Pilot ins Boot gehört. Zusammen mit `sv` 9,
+ * damit ein altes Gerät wirklich neu lädt statt still stehen zu bleiben (CP9).
  */
-export const LISTEN_SICHT_FASSUNG = 13
+export const LISTEN_SICHT_FASSUNG = 14
 
 /**
  * Hinweise des Bedienrechners an die Geräte einer Liste (Rückkanal, nur Codes und Startnummer): prüfen, Papier
@@ -117,6 +127,20 @@ export interface ListenStart {
    * (sonst fehlte „Rest auf Papier“ und der Bedienrechner lehnte mit `offen` ab).
    */
   punkt?: WkrPunkt
+}
+
+/**
+ * Ein Co-Pilot der Klasse, wie ihn das Steg-Gerät sieht (seit Fassung 14, Nutzer 27.11.2026, WKR_ANNAHMEN CP1–CP4):
+ * Rolle, Name und – nur wo die Papierliste eine Klammer druckt – das Ausgleichsgewicht. Der Schlüssel heißt bewusst
+ * `coPilot`, nicht `name`: Ein `name` in der Sicht bleibt verboten (Schlüssel-Test in sicht.test.ts) – an einem Start
+ * stünde er für den Starter; Namen kommen nur aus der Besetzung (CP1).
+ */
+export interface ListenCoPilot {
+  rolle: CoPilotRolle
+  /** Name, wie in der Besetzung eingetragen (ohne Leerraum am Rand), nie leer. */
+  coPilot: string
+  /** kg über 0 (Vielfaches der Abstufung) bzw. 'fehlt' = nicht gewogen; fehlt, wo das Papier keine Klammer druckt (CP4). */
+  ausgleich?: number | 'fehlt'
 }
 
 /**
@@ -272,6 +296,12 @@ export interface ListenSicht {
   bestand?: ListenBestand[]
   /** Nur Listen ohne Lauf: noch offen / alle des Bestands („offen 14 / 38“). */
   offen?: { n: number; m: number }
+  /**
+   * Nur Listen aus WKR_ANNAHMEN.coPilotListen (Steg, seit Fassung 14, Nutzer 27.11.2026, CP1–CP3): je Klasse der Liste
+   * die Co-Piloten mit Namen in der Folge Co-Pilot, Ersatz – einmal je Klasse, nicht je Start (CP2). Klassen ohne
+   * Co-Piloten mit Namen fehlen; ohne jeden fehlt das Feld.
+   */
+  coPiloten?: Partial<Record<ClassId, ListenCoPilot[]>>
 }
 
 export type MaskenJeKlasse = ListenSicht['klassen']
@@ -352,6 +382,22 @@ export function maskenJeKlasse(konfig: Konfig, sprachKonfig: Konfig, typeId: str
     klassen[k] = { titel: texte.klasse(k), felder, ...(bild ? { bild } : {}) }
   }
   return klassen
+}
+
+/**
+ * Die Co-Piloten je Klasse für die Sicht einer Steg-Liste (Nutzer 27.11.2026, WKR_ANNAHMEN CP1–CP4) – geteilt von
+ * {@link sichtListe} und der Übung (wkr/uebung.ts). Nur die Klassen mit Maske (`klassen[k].felder`, die Klasse hat die
+ * Liste), nur Personen mit Namen, Ausgleichsgewicht nur über lib/ausgleich.ts coPilotenAmSteg; jedes Objekt neu.
+ * `undefined` = keine Klasse hat einen Co-Piloten mit Namen (das Feld fehlt).
+ */
+export function coPilotenJeKlasse(stand: CoPilotStand, klassen: MaskenJeKlasse): ListenSicht['coPiloten'] {
+  const out: NonNullable<ListenSicht['coPiloten']> = {}
+  for (const k of (Object.keys(klassen) as ClassId[]).sort()) {
+    if (!klassen[k]?.felder) continue
+    const personen = coPilotenAmSteg(stand, k)
+    if (personen.length > 0) out[k] = personen.map((c) => ({ rolle: c.rolle, coPilot: c.name, ...(c.ausgleich !== undefined ? { ausgleich: c.ausgleich } : {}) }))
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 /** Nur die Texte der Masken – für `andere` (Feld für Feld neu, wie die ganze Sicht). */
@@ -533,6 +579,11 @@ export function sichtListe(stand: AppState, konfig: Konfig, liste: Liste, extra:
   // WKR-Name aus der Einteilung (W3-13, WN1): nur dieser Liste, als Text neu (nie das Objekt der Einteilung).
   const name = einteilungsName(stand, liste)
   if (name !== '') sicht.wkrName = name
+  // Co-Piloten am Steg (Nutzer 27.11.2026, CP1–CP3): nur an diesen Listen, je Klasse mit Maske, nur benannte.
+  if (WKR_ANNAHMEN.coPilotListen.includes(liste.typeId)) {
+    const coPiloten = coPilotenJeKlasse(stand, klassen)
+    if (coPiloten) sicht.coPiloten = coPiloten
+  }
   if (tisch) {
     // Jedes Objekt neu (Feld für Feld, wie die ganze Sicht) – nie ein Name, nie ein Wert.
     sicht.bestand = bestand.map((b) => ({ key: b.key, startNr: b.startNr, klasse: b.klasse, erledigt: b.erledigt }))

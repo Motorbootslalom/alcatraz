@@ -94,7 +94,7 @@ export default {
   'crew.status.empty': 'nothing entered yet',
   'crew.status': 'Boats {boats} of {classes} · Co-drivers {copilots} of {copilotClasses} · Race officials {judges}',
   'crew.classes.title': 'Boats and co-drivers',
-  'crew.classes.hint': 'Per class the boat (e.g. number, type or engine), the co-driver and – if someone can step in – the substitute co-driver, each optionally with weight. Boat and co-drivers are printed in the head of the list “Extra weights” (Lists → Weight lists → for the pontoon), both co-drivers one below the other, an extra weight in brackets after the name. Press Enter to move to the next field.',
+  'crew.classes.hint': 'Per class the boat (e.g. number, type or engine), the co-driver and – if someone can step in – the substitute co-driver, each optionally with weight. Boat and co-drivers are printed in the head of the list “Extra weights” (Lists → Weight lists → for the pontoon), both co-drivers one below the other, an extra weight in brackets after the name – and likewise on the pontoon device of the digital race officials’ entry. Press Enter to move to the next field.',
   'crew.classes.coPilotRule': 'The rulebook {rulebook} requires a co-driver in: {classes}.',
   'crew.boat': 'Boat',
   'crew.coPilot': 'Co-driver',

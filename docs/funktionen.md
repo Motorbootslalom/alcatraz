@@ -184,6 +184,22 @@ Entschieden wird an einer Stelle (`herkunftAnzeige` in `src/lib/origin.ts`).
   gepflegt; ein in der Verwiegung nachgetragenes Gewicht kommt von selbst aufs Gerät. Über die Leitung geht nur das
   Ausgleichsgewicht, verschlüsselt für die Steg-Liste, nie das Körpergewicht
   ([Entscheidung](entscheidungen.md#ausgleichsgewicht-am-steg-entscheidung-24112026)).
+- **Boot und Co-Piloten am Steg-Gerät** (27.11.2026): Die Karte zeigt in beiden Teilen („Ablegen“ und „Anlegen“) unter
+  Klasse und Lauf (im „Ablegen“ unter dem Ausgleichsgewicht des Starters) das Boot der Klasse („Boot Merlin“),
+  darunter „Co-Pilot Anna Muster“ und etwas kleiner „Ersatz Ben Muster“ (englische Listen: „Co-driver …“,
+  „Substitute …“) – wie auf der Papierliste, aber nur Personen mit Namen. Braucht ein Co-Pilot ein Ausgleichsgewicht,
+  steht es wie dort in Klammern dahinter („(+4 kg)“, „(nicht gewogen)“) – nur im „Ablegen“, wie beim Starter, denn
+  dort kommt das Gewicht ins Boot; im „Anlegen“ stehen nur die Namen. Auch in der Korrektur eines Starts, der schon
+  aus der Schlange ist (über „Zuletzt“), steht keine Klammer – dort fehlen Boot und Ausgleichsgewicht des Starters
+  ebenso. Die Co-Piloten stehen in einer eigenen Zeile über die ganze Breite der Karte; die Karte hält für sie immer
+  gleich viel Platz frei (so hoch wie der höchste Block der Liste), damit die Knöpfe darunter nicht springen, wenn die
+  nächste Klasse keinen Co-Piloten hat. Lange Namen brechen um und werden nie abgeschnitten. **Datenschutz:** Neu an
+  die Steg-Liste gehen nur Name und Ausgleichsgewicht der Co-Piloten, verschlüsselt – nie ihr Körpergewicht, nie Namen
+  von Startern; Anzeigetafel, Zuschauerliste, Start-Freigabe und die übrigen Listen bekommen davon nichts, der Hinweis
+  vor dem Einschalten des Gerätebetriebs nennt es. Die Namen stehen vollständig, wie in der Besetzung eingetragen; die
+  Einstellung „Namen“ der Anzeigetafel gilt für sie nicht, auch nicht „ohne Namen“ (noch zu bestätigen). Damit gilt
+  die frühere Antwort R12-09 („Steg-Gerät ohne Co-Piloten“) fürs Gerät nicht mehr; die WKR-Bögen auf Papier bleiben
+  vorerst ohne Co-Piloten (Frage für die nächste Runde).
 
 ### Co-Piloten und ihr Ausgleichsgewicht
 
@@ -211,11 +227,13 @@ Körpergewicht.
   bleibt seine Zeile auf den Listen zum Eintragen von Hand leer stehen.
 - **Auf den Listen:** die „Ausgleichsgewichte“ für den Steg (oben) und die
   [Liste nach Regel 960 Pkt. 3.7](#liste-der-fahrer-je-team-regel-960) zeigen beide Co-Piloten untereinander, das
-  Ausgleichsgewicht in Klammern hinter dem Namen, nie das Körpergewicht. WKR-Bögen, Anzeigetafel, Zuschauerliste,
-  Start-Freigabe und Geräte zeigen keine Co-Piloten.
-- **Datenschutz:** Namen und Gewichte der Co-Piloten stehen nur in der Sicherung, nie in der Vorlage. Der Verlauf hat
-  den Eintrag „Gewicht eines Co-Piloten erfasst“. Ältere Stände und Sicherungen werden übernommen: Der bisherige
-  Co-Pilot wird der eingeteilte, ohne Ersatz und ohne Gewicht.
+  Ausgleichsgewicht in Klammern hinter dem Namen, nie das Körpergewicht. Seit 27.11.2026 auch das Steg-Gerät der
+  digitalen WKR-Erfassung ([oben](#verwiegung)). WKR-Bögen auf Papier, Anzeigetafel, Zuschauerliste, Start-Freigabe
+  und die übrigen Geräte zeigen keine Co-Piloten.
+- **Datenschutz:** Namen und Gewichte der Co-Piloten stehen nur in der Sicherung, nie in der Vorlage; mit
+  eingeschaltetem Gerätebetrieb gehen Namen und Ausgleichsgewicht (nie das Gewicht) verschlüsselt an die Steg-Liste.
+  Der Verlauf hat den Eintrag „Gewicht eines Co-Piloten erfasst“. Ältere Stände und Sicherungen werden übernommen: Der
+  bisherige Co-Pilot wird der eingeteilte, ohne Ersatz und ohne Gewicht.
 
 ### Liste der Fahrer je Team (Regel 960)
 
@@ -545,12 +563,15 @@ ist er noch nicht im Feld geprüft ([feldtest.md](feldtest.md)).
 - **Erst „Gerätebetrieb einschalten“ verbindet** – bis dahin verlässt nichts den Browser (Test
   `src/main.geraete.test.ts`). Über den Server gehen dann, verschlüsselt und signiert: Startnummer, Name (nach der
   Einstellung „Namen“ der Anzeigetafel), Herkunft und Klasse, die Folge der Starts mit Zeitpunkten, Meldungen, der
-  Name der Veranstaltung; für die WKR-Listen deren Starts mit Startnummer und Klasse (ohne Namen), am Steg das
-  Ausgleichsgewicht. Eine gekoppelte Start-Freigabe erfährt für ihre Parcours, welche schon gestarteten Starter
-  abgemeldet sind – nur damit sie ihnen keine Wiederholung nach Ausfall anbietet (27.11.2026; der Hinweis vor dem
-  Einschalten nennt es). Vom Bedienrechner gehen nie hinaus: Geburtsdatum, Körpergewicht, Geschlecht, erfasste Werte
-  (außer bei einer Rückfrage der Wert dieser einen Zelle an die Geräte der Liste), Logos oder der Stand der
-  Veranstaltung. Die WKR-Geräte schicken ihre Zeilen verschlüsselt an den Bedienrechner.
+  Name der Veranstaltung; für die WKR-Listen deren Starts mit Startnummer und Klasse (ohne Namen der Starter), am Steg
+  das Ausgleichsgewicht und je Klasse die Co-Piloten aus der „Besetzung“ mit Namen und Ausgleichsgewicht (Namen nur
+  aus der Besetzung, nie aus der Starterliste; vollständig, wie eingetragen – die Einstellung „Namen“ gilt für sie
+  nicht; nie ein Körpergewicht; nur an die Geräte der Steg-Liste). Eine gekoppelte Start-Freigabe erfährt für ihre
+  Parcours, welche schon gestarteten Starter abgemeldet sind – nur damit sie ihnen keine Wiederholung nach Ausfall
+  anbietet (27.11.2026; der Hinweis vor dem Einschalten nennt es). Vom Bedienrechner gehen nie hinaus: Geburtsdatum,
+  Körpergewicht, Geschlecht, erfasste Werte (außer bei einer Rückfrage der Wert dieser einen Zelle an die Geräte der
+  Liste), Logos oder der Stand der Veranstaltung. Die WKR-Geräte schicken ihre Zeilen verschlüsselt an den
+  Bedienrechner.
 - **Server:** Vorgabe `ntfy.adminforge.de`, änderbar unter „Einstellungen → Geräte“. Sein Betreiber sieht keine
   Inhalte, wohl aber Zeitpunkte, Größen und IP-Adressen.
 - **Zwei Lese-Links** mit QR-Code: „Anzeigetafel“ und „Zuschauer“ (`#/sehen/<paket>`). Keine Anmeldung, keine
@@ -604,9 +625,10 @@ width="360" alt="WKR-Maske Bild auf dem Pad mit Parcours-Zeichnung und Seitenspa
 
 - Ein Gerät bekommt beim Koppeln eine Liste (Handy empfohlen eine, Pad zwei, höchstens vier); am Steg wahlweise ganz,
   nur Ablegen oder nur Anlegen. Damit ist die Liste „digital“.
-- Das Gerät sieht nur die **Sicht seiner Liste** (`src/wkr/sicht.ts`): gezeigte Starts mit Startnummer und Klasse,
-  nie Namen, dazu die Maske je Klasse und Hinweise des Bedienrechners. Vorsteg und Steg-Ablegen sehen die nächsten
-  Starts schon vorab; das Anlegen kommt erst, wenn das Boot zurück ist.
+- Das Gerät sieht nur die **Sicht seiner Liste** (`src/wkr/sicht.ts`): gezeigte Starts mit Startnummer und Klasse, nie
+  Namen der Starter, dazu die Maske je Klasse und Hinweise des Bedienrechners. Einzige Namen: am Steg die Co-Piloten
+  je Klasse aus der Besetzung (im „Ablegen“ mit Ausgleichsgewicht in Klammern). Vorsteg und Steg-Ablegen sehen die
+  nächsten Starts schon vorab; das Anlegen kommt erst, wenn das Boot zurück ist.
 - Eine abgeschickte Zeile geht über die Erfassung in die Werte – genau wie beim Abtippen: leere Zelle → übernommen;
   steht dort schon etwas anderes, wird es eine **Rückfrage** am Bedienrechner, nie still überschrieben.
 - Ohne Verbindung erfasst das Gerät weiter; wartende Zeilen gehen später gebündelt. Sie liegen nur auf dem Gerät
@@ -739,12 +761,14 @@ Für die wenigen Listen ohne Maske steht beim Zuweisen „Maske folgt – Papier
 
 ### Übung
 
-„Üben ohne Verbindung“ im Koppel-Formular oder die Adresse `#/uebung` (`src/components/wkr/WkrUebung.vue`):
+„Üben ohne Verbindung“ im Koppel-Formular oder die Adresse `#/uebung`
+([Übung öffnen](https://motorbootslalom.github.io/alcatraz/#/uebung); `src/components/wkr/WkrUebung.vue`):
 Regelwerk (DM-Reglement oder UIM Regel 960), Liste und Maske wählen, dann dieselbe Maske mit erfundenen Starts 1–20
 ohne Namen. Kein Netz, kein Bedienrechner, kein Store; gespeichert wird nur die Ansicht.
 
 - Der nächste Start kommt 2–6 Sekunden nach dem Abschicken, gelegentlich auch vorher; hin und wieder kommt eine
-  Rückfrage wie im Ernst. Am Steg stehen erfundene Ausgleichsgewichte.
+  Rückfrage wie im Ernst. Am Steg stehen erfundene Ausgleichsgewichte; jede Klasse fährt ein erfundenes Boot, und am
+  Steg stehen erfundene Co-Piloten (mit und ohne Ersatz, im „Ablegen“ mit Ausgleichsgewicht in Klammern).
 - Nach dem Abschicken – auch nach Enter in der Tabelle, „Nicht gestartet“ und am Tisch „Alle richtig“ – rollt nur die
   Erklärung „So läuft die Übung“ oben aus dem Bild (seit 26.11.2026; vorher rollte auch der Kopf mit). Stehen bleiben
   der gelbe Hinweis „Bildschirm kann ausgehen“ (er steht unter der Erklärung, bis er mit „Ausblenden“ weggetippt ist),

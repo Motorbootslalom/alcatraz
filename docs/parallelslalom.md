@@ -607,8 +607,9 @@ Die race officials können auch im Parallelslalom am eigenen Gerät erfassen. Be
 - Druck nach Modus: Bögen einer Liste, die nur am Gerät erfasst wird (Modus „Gerät“), druckt „Listen“ nur mit
   „Trotzdem drucken (Rückfall auf Papier)“, im Parallelslalom je Liste und Racecourse; eine Runde gilt dann nur als
   gedruckt, wenn von ihr etwas gedruckt wurde (bestätigt 22.11.2026).
-- Übung (`#/uebung`): Den Parallelslalom gibt es dort nur unter UIM – Racecourse A als Maske mit gewöhnlichen
-  Übungsstarts, ohne Paar und Attempt-Wechsel (bestätigt 21.11.2026).
+- Übung (`#/uebung`, [Übung öffnen](https://motorbootslalom.github.io/alcatraz/#/uebung)): Den Parallelslalom gibt es
+  dort nur unter UIM – Racecourse A als Maske mit gewöhnlichen Übungsstarts, ohne Paar und Attempt-Wechsel (bestätigt
+  21.11.2026).
 - **Maske „Bild“** (eine Bahn seit 23.11.2026, bestätigt 24.11.2026, R10-01 bis R10-04; `WKR_ANNAHMEN` BD8–BD10):
   Der Fahrweg jedes Racecourse zeigt die Zeichnung des Parcours-Repos in der Ausgabe „eine Bahn ohne Steg“
   (`dist/parallel/alcatraz_Parcours`, per `npm run parcours:sync` als `src/assets/parcours/Parallel.svg`,

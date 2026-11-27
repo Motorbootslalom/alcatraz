@@ -99,7 +99,8 @@ field tests.
   “Picture” (tap the buoys in the course drawing); “Table” for experienced users (pad and computer only).
   Timing lists have a numeric keypad, the knots a checklist at the table.
   A pad shows several lists side by side (in landscape up to four depending on the width, in portrait up to two).
-  The trial run sends nothing, the practice needs no network (`#/uebung`).
+  The trial run sends nothing, the practice needs no network
+  (`#/uebung`, [open the practice](https://motorbootslalom.github.io/alcatraz/#/uebung)).
   At the operating computer: a matrix of lists × starts, “Incoming” for queries and proposals, ◆ and “Check paper”
   in data entry, the racecourse light with auto mode in the start release.
   Values from the device take the same path as typing in; a cell that already holds a value is never silently
@@ -137,7 +138,10 @@ field tests.
   phone and in the parallel slalom (built 27.11.2026). Open are the interpretations of this rework (above all: in the
   parallel slalom, a default for which boats repeat?), the special cases of the starting order at the start release
   (planned for round 14) and single details never asked about (pairing, print order of the race officials' sheets,
-  position of the drawing).
+  position of the drawing). Also on 27.11.2026, at the user's request, boat and co-drivers came onto the pontoon
+  device ([funktionen.md](funktionen.md#weighing)); open on this is whether the paper pontoon sheets should show the
+  co-drivers too and whether the setting “Names” of the scoreboard should apply to them (built: no, they are shown in
+  full).
 - **Flaky tests:** Two end-to-end tests in `src/GeraetWkr.test.ts` occasionally fail under load (a fixed time limit
   while waiting). On GitHub they have only run on request since 24.11.2026, locally and in the pre-commit hook always
   ([technik.md](technik.md#tests)). The cause has not been fixed.

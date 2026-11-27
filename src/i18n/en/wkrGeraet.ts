@@ -31,6 +31,13 @@ export default {
   'wkr.geraet.ausgleich.kein': 'no extra weight',
   'wkr.geraet.ausgleich.fehlt': 'Extra weight: not weighed',
   'wkr.geraet.ausgleich.wort': 'Extra weight',
+  // Co-drivers at the pontoon (27.11.2026, WKR_ANNAHMEN CP5/CP6): rule 960 pt. 2 “co-driver”; brackets as on the
+  // “Extra weights” list (lists.coPilot.*).
+  'wkr.geraet.coPilot.haupt': 'Co-driver {name}',
+  'wkr.geraet.coPilot.ersatz': 'Substitute {name}',
+  'wkr.geraet.coPilot.ersatzWort': 'Substitute co-driver',
+  'wkr.geraet.coPilot.ag': '(+{kg} kg)',
+  'wkr.geraet.coPilot.fehlt': '(not weighed)',
   'wkr.geraet.gesendet': 'sent',
   'wkr.geraet.gesendetNr': 'Start {nr} sent',
   'wkr.geraet.geschaetzt': 'estimated (no connection)',

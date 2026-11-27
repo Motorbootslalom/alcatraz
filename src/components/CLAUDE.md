@@ -136,7 +136,13 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   (tIn, nie t()); Reiter je Liste, `nurListe`; entzogen → WkrRuhe mit Entwürfen), WkrMaske (je Liste: Steg-Teil,
   Schlange/gewählter Start, Entwurf je Tipp → merkeEntwurf, Takt wkr/maske.ts wechselTakt mit Blitz + vibrate, `inert`
   auf `.wkr-mitte`/`.wkr-unten` UND Prüfung in jedem Tipp, Korrektur mit AppDialog alt → neu, Rückgängig, Suche,
-  verwaiste Entwürfe, Ruhe-Zustände), WkrKopf, WkrStarterKarte (nie ein Name), WkrAusweichen (Ziffernfeld mit „E“),
+  verwaiste Entwürfe, Ruhe-Zustände), WkrKopf, WkrStarterKarte (nie der Name des Starters; einzige Namen: Co-Piloten am Steg aus der
+  Besetzung seit 27.11.2026 – Props `coPiloten`/`coPilotPlatz` aus WkrMaske kartenCoPiloten/kartenCoPilotPlatz; Block
+  `co-piloten` als eigene Zeile über die Kartenbreite (nicht in `.wkr-starterkarte-angaben`), darin `co-piloten-sichtbar`
+  und je andere Klasse der Liste `co-pilot-platz` (aria-hidden, visibility hidden, dieselbe Rasterzelle: Höhe des
+  höchsten Blocks, CP7), Zeilen `co-pilot` `data-rolle`, Klammer `co-pilot-ag` (nowrap) nur im Ablegen und nur, wenn die
+  Karte den Start kennt (`zeige.bekannt`, nicht in der Korrektur eines Starts außerhalb der Schlange, CP5/CP6); Boot
+  unter dem AG; Test WkrStarterKarte.test.ts, styles/wkr-geraet.test.ts „Besetzung am Steg“), WkrAusweichen (Ziffernfeld mit „E“),
   WkrKnoepfe, WkrStegReiter, WkrVorsteg, WkrDisq (zweiter Tipp setzt, X mit AppDialog), WkrFuss (Hauptknopf-Text,
   Linkshand `wkr-fuss--links`; „↩ Rückgängig“ mit gezeichnetem Pfeil `svg.wkr-pfeil` `pfeil-links`, nie ein Zeichen im
   Text – ↩ fehlt in den Schriften und käme als Emoji, R11-30 (2) 26.11.2026; Pfeil und Wort in EINEM `.wkr-mit-pfeil`,

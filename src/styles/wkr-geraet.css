@@ -542,6 +542,46 @@
   color: var(--wkr-warn-text);
 }
 
+/* Besetzung am Steg (Nutzer 27.11.2026, WKR_ANNAHMEN CP5–CP7): Co-Pilot wie das Boot leise, darunter kleiner der
+   Ersatz (wie auf der Papierliste) – in einer eigenen Zeile über die ganze Breite der Karte, nicht in der schmalen
+   Spalte neben der Nummer (dort brachen auf dem Handy schon gewöhnliche Namen um, und die Breite hing an der Zahl der
+   Ziffern; Prüfbefund 27.11.2026). Der sichtbare Block und die Blöcke der anderen Klassen der Liste liegen in EINER
+   Rasterzelle, die anderen unsichtbar: Der Platz ist so hoch wie der höchste Block – die Knöpfe darunter springen beim
+   Klassenwechsel nicht, auch wenn ein langer Name umbricht (CP7). Lange Namen brechen um (overflow-wrap der Maske), nie
+   abgeschnitten. */
+.wkr-starterkarte-besetzung {
+  display: grid;
+  margin-top: 4px;
+}
+.wkr-starterkarte-besetzung > .wkr-starterkarte-copiloten {
+  grid-area: 1 / 1;
+}
+.wkr-starterkarte-copiloten {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-weight: 400;
+}
+.wkr-starterkarte-copiloten--platz {
+  visibility: hidden;
+}
+.wkr-starterkarte-copilot--ersatz {
+  font-size: 0.85em;
+}
+/* Ausgleichsgewicht eines Co-Piloten in Klammern (nur Ablegen, CP6): fett wie das des Starters, „(nicht gewogen)“ auf
+   der Warnfläche – immer mit Wort, nie nur Farbe. Bricht nie in sich um (Zahl und „kg“ zusammen, die Warnfläche in
+   einem Stück; wie `.co-pilot-ag` auf der Papierliste) – der Name davor darf umbrechen. */
+.wkr-starterkarte-copilot-ag {
+  font-weight: 800;
+  white-space: nowrap;
+}
+.wkr-starterkarte-copilot-ag--fehlt {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--wkr-warn);
+  color: var(--wkr-warn-text);
+}
+
 /* Parcours-Ampel (AM9): Punkt + Wort, bricht um (360 px), keine feste Breite. */
 .wkr-starterkarte-ampel {
   color: var(--wkr-text);

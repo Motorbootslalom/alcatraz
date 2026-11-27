@@ -190,6 +190,22 @@ It is decided in one place (`herkunftAnzeige` in `src/lib/origin.ts`).
   weighed”. Nothing is maintained at the pontoon; a weight added later in Weighing reaches the device by itself. Only
   the extra weight goes over the line, encrypted for the pontoon list, never the body weight
   ([decision](../entscheidungen.md#ausgleichsgewicht-am-steg-entscheidung-24112026) (German)).
+- **Boat and co-drivers on the pontoon device** (27.11.2026): In both parts (“Leaving” and “Mooring”) the card shows,
+  below class and attempt (in “Leaving” below the driver’s extra weight), the boat of the class (“Boat Merlin”), then
+  “Co-driver Anna Muster” and below it, slightly smaller, “Substitute Ben Muster” (German lists: “Co-Pilot …”,
+  “Ersatz …”) – as on the paper list, but only persons with a name. If a co-driver needs an extra weight, it follows
+  in brackets as there (“(+4 kg)”, “(not weighed)”) – only in “Leaving”, as for the driver, because that is where the
+  weight goes into the boat; in “Mooring” only the names are shown. A correction of a start that has already left the
+  queue (via “Recent”) shows no brackets either – the boat and the driver’s extra weight are missing there as well. The
+  co-drivers have their own line across the full width of the card; the card always keeps the same space free for
+  them (as tall as the tallest block of the list), so the buttons below do not jump when the next class has no
+  co-driver. Long names wrap and are never cut off. **Data protection:** the only new data for the pontoon list are
+  name and extra weight of the co-drivers, encrypted – never their body weight, never names of drivers; scoreboard,
+  spectator list, start release and the other lists get none of it, and the notice before switching on device
+  operation says so. The names are shown in full, as entered in the assignments; the setting “Names” of the
+  scoreboard does not apply to them, not even “no names” (still to be confirmed). This means the earlier answer R12-09
+  (“pontoon device without co-drivers”) no longer applies to the device; the paper race officials’ sheets stay without
+  co-drivers for now (question for the next round).
 
 ### Co-drivers and their extra weight
 
@@ -217,9 +233,11 @@ weight.
   co-driver their line on the lists stays empty for filling in by hand.
 - **On the lists:** the “Extra weights” for the pontoon (above) and the
   [list according to rule 960, pt. 3.7](#list-of-drivers-per-team-rule-960) show both co-drivers one below the other,
-  the extra weight in brackets after the name, never the body weight. Race officials' sheets, scoreboard, spectator
-  list, start release and devices show no co-drivers.
-- **Data protection:** names and weights of the co-drivers are kept only in the backup, never in the template. The
+  the extra weight in brackets after the name, never the body weight. Since 27.11.2026 the pontoon device of the
+  digital entry by the race officials does, too ([above](#weighing)). Paper race officials' sheets, scoreboard,
+  spectator list, start release and the other devices show no co-drivers.
+- **Data protection:** names and weights of the co-drivers are kept only in the backup, never in the template; with
+  device operation switched on, names and extra weight (never the weight) go encrypted to the pontoon list. The
   history has the entry “Co-driver weight recorded”. Older states and backups are taken over: the previous co-driver
   becomes the assigned one, without substitute and without weight.
 
@@ -556,12 +574,15 @@ with real phones and the real server ([feldtest.md](feldtest.md)).
 - **Only “Switch on device operation” connects** – until then nothing leaves the browser (test
   `src/main.geraete.test.ts`). Then, encrypted and signed, the following go via the server: race number, name
   (according to the setting “Names” of the scoreboard), origin and class, the order of starts with times, messages,
-  the name of the event; for the race official lists their starts with race number and class (without names), at
-  the pontoon the extra weight. A paired start release learns, for its courses, which drivers who have already
-  started have withdrawn – only so that it offers them no repeat after a breakdown (27.11.2026; the notice before
-  switching on names it). Never leaving the operating computer: date of birth, body weight, gender, entered
-  values (except, for a query, the value of that one cell to the devices of the list), logos or the data of the
-  event. The race official devices send their rows encrypted to the operating computer.
+  the name of the event; for the race official lists their starts with race number and class (without names of
+  drivers), at the pontoon the extra weight and, per class, the co-drivers from “Assignments” with name and extra
+  weight (names only from the assignments, never from the driver list; in full, as entered – the setting “Names” does
+  not apply to them; never a body weight; only to the devices of the pontoon list). A paired start release learns, for
+  its courses, which drivers who have already started have withdrawn – only so that it offers them no repeat after a
+  breakdown (27.11.2026; the notice before switching on names it). Never leaving the operating computer: date of
+  birth, body weight, gender, entered values (except, for a query, the value of that one cell to the devices of the
+  list), logos or the data of the event. The race official devices send their rows encrypted to the operating
+  computer.
 - **Server:** default `ntfy.adminforge.de`, can be changed under “Settings → Devices”. Its operator sees no
   contents, but times, sizes and IP addresses.
 - **Two read links** with QR code: “Display board” and “Spectators” (`#/sehen/<paket>`). No login, no
@@ -618,9 +639,10 @@ width="360" alt="Race official form Picture on the tablet with course drawing an
 
 - When pairing, a device gets a list (phone: one recommended, tablet two, at most four); at the pontoon optionally
   whole, leaving only or mooring only. This makes the list “digital”.
-- The device only sees the **view of its list** (`src/wkr/sicht.ts`): shown starts with race number and class,
-  never names, plus the form per class and notes from the operating computer. Pontoon entry and leaving the pontoon
-  see the next starts in advance; mooring only comes once the boat is back.
+- The device only sees the **view of its list** (`src/wkr/sicht.ts`): shown starts with race number and class, never
+  names of drivers, plus the form per class and notes from the operating computer. The only names: at the pontoon, the
+  co-drivers per class from the assignments (in “Leaving” with extra weight in brackets). Pontoon entry and leaving
+  the pontoon see the next starts in advance; mooring only comes once the boat is back.
 - A row that has been sent goes via data entry into the values – exactly as when typing in from paper: empty cell →
   taken over; if something else is already there, it becomes a **query** at the operating computer, never silently
   overwritten.
@@ -757,12 +779,14 @@ For the few lists without a form, assigning shows “Form to follow – paper”
 
 ### Practice
 
-“Practise offline” in the pairing form or the address `#/uebung` (`src/components/wkr/WkrUebung.vue`):
+“Practise offline” in the pairing form or the address `#/uebung`
+([open the practice](https://motorbootslalom.github.io/alcatraz/#/uebung); `src/components/wkr/WkrUebung.vue`):
 choose rulebook (DM-Reglement or UIM rule 960), list and form, then the same form with made-up starts 1–20
 without names. No network, no operating computer, no store; only the display settings are saved.
 
-- The next start comes 2–6 seconds after sending, occasionally also earlier; now and then a query comes as in
-  earnest. At the pontoon there are made-up extra weights.
+- The next start comes 2–6 seconds after sending, occasionally also earlier; now and then a query comes as in earnest.
+  At the pontoon there are made-up extra weights; every class has a made-up boat, and at the pontoon there are made-up
+  co-drivers (with and without a substitute, in “Leaving” with extra weight in brackets).
 - After sending – also after Enter in the table, “Did not start” and “All correct” at the table – only the
   explanation “How practice works” scrolls off the top (since 26.11.2026; before, the header scrolled away too). What
   stays: the yellow note “The screen may turn off.” (it is below the explanation until it is tapped away with

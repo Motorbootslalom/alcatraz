@@ -15,7 +15,8 @@ all data is kept in the browser of the scoring computer and can be saved as a fi
 The only exception is device operation, and only when it is deliberately switched on (Operation → Devices):
 then this computer (in the app the “operating computer”) exchanges encrypted messages with the scoreboard, spectators’
 phones and paired devices (start release, race officials) via a third-party ntfy server –
-such as race number, name, origin and class of the drivers and the entered values, never date of birth or gender
+such as race number, name, origin and class of the drivers, the names of the co-drivers to the pontoon devices
+and the entered values, never date of birth or gender
 ([device operation](docs/en/betrieb.md#device-operation)).
 
 - **App:** <https://motorbootslalom.github.io/alcatraz/> – served via GitHub Pages,

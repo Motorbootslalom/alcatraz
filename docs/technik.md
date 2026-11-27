@@ -144,7 +144,8 @@ Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offli
 - **WKR-Geräte:** Jede Liste hat eine eigene verschlüsselte Gruppe (`src/geraete/wkrGruppen.ts`). Ihre Sicht
   (`src/wkr/sicht.ts`) nennt Startnummer und Klasse, nie Name, Herkunft, Geburtsdatum, Gewicht oder Geschlecht der
   Starter, keine Werte und keine Wertung. Ausnahmen: bei einer Rückfrage der Wert genau dieser Zelle, und nur die
-  Steg-Liste sieht das Ausgleichsgewicht je Start. Die Geräte schicken Zeilen mit Werten; der Bedienrechner prüft sie
+  Steg-Liste sieht das Ausgleichsgewicht je Start und je Klasse die Co-Piloten mit Namen und Ausgleichsgewicht
+  (`coPiloten`, seit 27.11.2026). Die Geräte schicken Zeilen mit Werten; der Bedienrechner prüft sie
   Zeile für Zeile (`erlaubteWkr` in `src/geraete/aufgaben.ts`) und übernimmt sie wie abgetippte Werte: Steht in der
   Zelle etwas anderes, als das Gerät erwartet, entsteht eine Rückfrage, nie ein stilles Überschreiben
   (`src/wkr/uebernahme.ts`).
@@ -153,6 +154,9 @@ Plan und Entscheidungen: [entscheidungen.md](entscheidungen.md#betrieb-und-offli
   Bedienrechners ist signiert (Ed25519) – samt Thema, Raum, Gruppe, Nummer, Fassung und Sendezeit. Eine alte,
   erneut eingestellte Nachricht verliert gegen die neueste; ein Gerät ohne eigenen Stand nimmt nur Frisches (höchstens
   2 Stunden alt). „Andere Fassung, Update nötig“ meldet ein Gerät nur mit einem signierten Fassungsbeleg.
+  Die Fassung an jeder Nachricht ist die der Sicht (`sv`); die Form der Listen-Sicht der WKR-Geräte steht nur innen
+  (`lv`). Ändert sie sich, zählt `sv` mit – sonst verwürfe ein WKR-Gerät mit altem Programm jede neue Sicht still und
+  bliebe stehen, statt neu zu laden (Test in `src/wkr/sicht.test.ts`).
 - **Themen:** Die beiden öffentlichen (Anzeigetafel-Link, Zuschauer-Link) sind Zufall und stehen nur in ihrem Link;
   der Zuschauer-Link lässt sich erneuern, ohne die Anzeigetafel zu stören. Alle übrigen leiten sich aus einem
   Geheimnis des Bedienrechners ab und erfahren nur gekoppelte Geräte.

@@ -133,8 +133,9 @@ describe('Öffentliche Sicht', () => {
     const dm = sichtOeffentlich(imBetrieb())
     // Fassung 6 (21.11.2026): SichtPaar ohne `finale`, das Kleine Finale ist eine eigene Runde. Fassung 7 (26.11.2026,
     // R11-11): Wiederholung nach Ausfall – SichtBereich.wiederholung, SichtStart.wiederholung/abgebrochen. Fassung 8
-    // (27.11.2026, R13-01): SichtBereich.gefahren in jeder Sicht.
-    expect(dm.sv).toBe(8)
+    // (27.11.2026, R13-01): SichtBereich.gefahren in jeder Sicht. Fassung 9 (27.11.2026, Prüfbefund): Form unverändert,
+    // zählt mit der Listen-Sicht (lv 14) mit – nur `sv` lässt ein Gerät mit altem Programm neu laden (F7).
+    expect(dm.sv).toBe(9)
     expect(Object.keys(dm.einst).sort()).toEqual(['amSteg', 'davor', 'parcoursName', 'vorSteg'])
     expect(schluessel(dm).has('parallelAnordnung')).toBe(false)
     // UIM mit Parallelslalom: die Einstellung (Vorgabe A links) – auch entfernte Anzeigetafeln (ab E6) lesen nur die Sicht.
@@ -153,7 +154,7 @@ describe('Öffentliche Sicht', () => {
     const s0 = imBetrieb()
     const s = reducer(s0, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1', 1), zeit: 70_000 })
     const sicht = sichtOeffentlich(s)
-    expect(sicht.sv).toBe(8)
+    expect(sicht.sv).toBe(9)
     const b = sicht.bereiche[0]
     // Jeder Bereich trägt die Listen (auch leer); `gefahren` seit Fassung 8 (R13-01) ebenso – ohne den abgebrochenen.
     expect(sicht.bereiche.map((x) => x.wiederholung.length)).toEqual([1, 0])
@@ -178,7 +179,7 @@ describe('Öffentliche Sicht', () => {
   it('Fassung 8 (R13-01, 27.11.2026): `gefahren` in jeder Sicht – Starts wie alle anderen, ohne Abmeldungen; nie in der Zuschauersicht', () => {
     const s = imBetrieb()
     const sicht = sichtOeffentlich(s)
-    expect(sicht.sv).toBe(8)
+    expect(sicht.sv).toBe(9)
     const b = sicht.bereiche[0]
     expect(b.gefahren).toEqual([
       { key: m('k1', 1), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf' },
@@ -198,7 +199,7 @@ describe('Öffentliche Sicht', () => {
     const key = s0.betrieb.bereiche.parallel.gezeigt[0].ref
     const s = reducer(s0, { type: 'WIEDERHOLUNG_AUSFALL', bereich: 'parallel', ref: key, nur: 'b', zeit: 9000 })
     const sicht = sichtOeffentlich(s)
-    expect(sicht.sv).toBe(8)
+    expect(sicht.sv).toBe(9)
     const b = sicht.bereiche.find((x) => x.id === 'parallel')!
     const [, , , a, bId] = JSON.parse(key) as [string, string, number, string, string]
     expect(b.wiederholung).toEqual([{ key, starter: bId, lauf: 1, punkt: 'runde:pre', titel: 'Preliminary heat · Attempt 1 · Repeat', paar: { attempt: 1, a: null, b: bId }, wiederholung: true, abbrueche: 1 }])

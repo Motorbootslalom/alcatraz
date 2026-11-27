@@ -154,7 +154,9 @@ start release.
 - Sicht: nie Geburtsdatum, Gewicht, Geschlecht, Werte, Abmeldungen; nur vorkommende Starter. Neue Felder → sicht.test.ts
   (Schlüssel-Durchlauf) und `sv` hochzählen, wenn sich die Form ändert (sv 2 = E2, mit `programm`; sv 3 = E3, mit
   `abstaende` und `einst.amSteg/vorSteg`; sv 4 = E4, `SichtStart.paar`, Bereich `parallel`; sv 5 =
-  `einst.parallelAnordnung`; sv 7 = Wiederholung nach Ausfall; sv 8 = `gefahren` in jeder Sicht, R13-01).
+  `einst.parallelAnordnung`; sv 7 = Wiederholung nach Ausfall; sv 8 = `gefahren` in jeder Sicht, R13-01; sv 9 =
+  Form gleich, zählt mit der Listen-Sicht `lv` 14 mit – jede neue `lv` hebt `sv` mit an, weil nur `sv` ein Gerät mit
+  altem Programm neu laden lässt, F7; wkr/sicht.test.ts hält beide fest, Prüfbefund 27.11.2026).
   Zeitunabhängig (K28): „seit“ und Wartezeiten rechnet der Bildschirm mit `jetzt + versatz` (prognose.ts), nie Reducer
   oder Sicht; `abstaende` ändert sich nur mit Gezeigtem/Einstellungen.
   Zuschauersicht: genaue Schlüssel im Test, auch verschachtelt (Start, Starter, Herkunft, Punkt, Meldung, Klasse) –

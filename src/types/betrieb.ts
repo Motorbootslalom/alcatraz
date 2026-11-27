@@ -369,9 +369,11 @@ export interface OeffentlicheSicht {
    * 5: `einst.parallelAnordnung`, Lage von Racecourse A und B, 16.11.2026; 6: SichtPaar ohne `finale`, das Kleine
    * Finale ist eine eigene Runde `runde:small`, 21.11.2026; 7: Wiederholung nach Ausfall – SichtBereich.wiederholung,
    * SichtStart.wiederholung/abgebrochen, 26.11.2026; 8: SichtBereich.gefahren in jeder Sicht – die Start-Freigabe auf
-   * dem Handy löst die Wiederholung aus, Nutzer 27.11.2026, R13-01). Gilt auch für die Zuschauersicht.
+   * dem Handy löst die Wiederholung aus, Nutzer 27.11.2026, R13-01; 9: Form unverändert – zählt mit der Listen-Sicht
+   * `lv` 14 mit, weil nur `sv` ein Gerät mit altem Programm neu laden lässt, betrieb/sicht.ts SICHT_FASSUNG, Prüfbefund
+   * 27.11.2026). Gilt auch für die Zuschauersicht.
    */
-  sv: 8
+  sv: 9
   /** Kopfzeile; '' = keine. */
   kopf: string
   /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */

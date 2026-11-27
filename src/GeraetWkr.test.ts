@@ -671,6 +671,90 @@ describe('Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_ANNAHMEN AG1–AG3)'
   })
 })
 
+describe('Co-Piloten und Boot am Steg (Nutzer 27.11.2026, WKR_ANNAHMEN CP1–CP8)', () => {
+  const coPiloten = (w: VueWrapper) => w.findAll('[data-teil="karte"] [data-teil="co-pilot"]').map((z) => z.text())
+
+  it('Karte in BEIDEN Teilen mit Boot und Co-Piloten; die Klammer nur im Ablegen; Nachtrag am Bedienrechner kommt von selbst', async () => {
+    const r = await bedienrechner()
+    const { w } = await mitCode(r.h, [{ art: 'liste', liste: STEG }])
+    await bis(() => r.state.value.wkr.listen[STEG]?.modus === 'digital')
+    const s = r.zeige()
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    // Noch nichts eingetragen: kein Block, kein Platz.
+    expect(w.find('[data-teil="karte"] [data-teil="co-piloten"]').exists()).toBe(false)
+    // Besetzung am Bedienrechner (erfundene Namen): Boot, Co-Pilot und Ersatz der Klasse des Starts, Ersatz 3,6 kg leichter.
+    const klasse = r.state.value.starters.find((p) => p.id === s.starter)!.klasse
+    r.dispatch({ type: 'SET_BOOT', klasse, text: 'Flotte Lotte' })
+    r.dispatch({ type: 'SET_CO_PILOT', klasse, rolle: 'haupt', text: 'Copi Muster' })
+    r.dispatch({ type: 'SET_CO_PILOT_GEWICHT', klasse, rolle: 'haupt', gewicht: 71.2 })
+    r.dispatch({ type: 'SET_CO_PILOT', klasse, rolle: 'ersatz', text: 'Copa Beispiel' })
+    r.dispatch({ type: 'SET_CO_PILOT_GEWICHT', klasse, rolle: 'ersatz', gewicht: 67.6 })
+    await zeigt(() => coPiloten(w).length === 2 && w.find('[data-teil="karte"] [data-teil="boot"]').exists())
+    expect(w.find('[data-teil="karte"] [data-teil="boot"]').text()).toBe('Boot Flotte Lotte')
+    expect(coPiloten(w)).toEqual(['Co-Pilot Copi Muster', 'Ersatz Copa Beispiel (+4 kg)'])
+    // Eine Klasse mit Co-Piloten: kein Platzhalter (CP7 – Platzhalter nur für ANDERE Klassen der Liste).
+    expect(w.find('[data-teil="karte"] [data-teil="co-pilot-platz"]').exists()).toBe(false)
+    // Ablegen abschicken; im Reiter „Anlegen“ derselbe Start mit denselben Namen, ohne Klammer (CP6).
+    await klick(w, '[data-action="haupt"]')
+    await bis(() => !!werte(r.state.value, s.starter)['erfasst.ab@steg'])
+    await zeigt(() => taktFrei(w))
+    r.zeige()
+    await klick(w, '[data-action="steg-teil"][data-steg="an"]')
+    await zeigt(() => w.find('[data-teil="karte"]').exists() && startNr(w) === s.startNr)
+    expect(coPiloten(w)).toEqual(['Co-Pilot Copi Muster', 'Ersatz Copa Beispiel'])
+    expect(w.find('[data-teil="karte"] [data-teil="boot"]').text()).toBe('Boot Flotte Lotte')
+    expect(w.find('[data-teil="karte"] [data-teil="co-pilot-ag"]').exists()).toBe(false)
+    // Kein Name der Starter, und die Seite/Schlange kennt keine Co-Piloten (CP5).
+    expect(w.text()).not.toMatch(NAMEN)
+    expect(w.find('[data-teil="seite"] [data-teil="co-pilot"]').exists()).toBe(false)
+  }, 20_000)
+
+  it('Korrektur über „Zuletzt“ (CP5, Prüfbefund 27.11.2026): ohne Boot und Ausgleichsgewicht des Starters – dann auch keine Klammer der Co-Piloten, nur die Namen; Platz gleich', async () => {
+    const q = oeffneUebung({ regelwerk: 'dm-2026', typeId: 'steg', teil: 'ab', taktMs: 3_600_000, folgeMs: SOFORT })
+    quellen.push(q)
+    const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: handy() } })
+    wrappers.push(w)
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    // Nr. 1 fährt Klasse E (Übung, CP8): Boot, Ausgleichsgewicht und Co-Pilot mit Klammer im Ablegen.
+    expect(startNr(w)).toBe('1')
+    const karte = () => w.find('[data-teil="karte"]')
+    expect(karte().find('[data-teil="boot"]').exists()).toBe(true)
+    expect(karte().find('[data-teil="ausgleich"]').exists()).toBe(true)
+    expect(karte().find('[data-teil="co-pilot-ag"]').exists()).toBe(true)
+    const vorher = coPiloten(w).map((z) => z.replace(/ \(.*\)$/, ''))
+    const platz = karte().findAll('[data-teil="co-pilot-platz"]').length
+    await klick(w, '[data-action="haupt"]')
+    await zeigt(() => w.find('[data-action="zuletzt"]').exists() && taktFrei(w) && startNr(w) !== '1')
+    await klick(w, '[data-action="zuletzt"]')
+    await klick(w, '[data-teil="zuletzt-liste"] [data-action="korrigieren"]')
+    await zeigt(() => karte().find('[data-teil="korrektur"]').exists())
+    expect(startNr(w)).toBe('1')
+    // Der Start steht nicht mehr in der Schlange: Boot und Ausgleichsgewicht kennt die Karte nicht …
+    expect(karte().find('[data-teil="boot"]').exists()).toBe(false)
+    expect(karte().find('[data-teil="ausgleich"]').exists()).toBe(false)
+    // … und zeigt deshalb auch keine Last eines Co-Piloten – die Namen bleiben, der Platz auch.
+    expect(karte().find('[data-teil="co-pilot-ag"]').exists()).toBe(false)
+    expect(coPiloten(w)).toEqual(vorher)
+    expect(karte().findAll('[data-teil="co-pilot-platz"]')).toHaveLength(platz)
+    expect(karte().find('[data-teil="co-pilot-platz"] .wkr-starterkarte-copilot-ag').exists()).toBe(false)
+  })
+
+  it('Übung (CP8): UIM-Steg mit erfundenem Boot und Co-Piloten in der Sprache der Liste, Klammer im Ablegen', async () => {
+    const q = oeffneUebung({ regelwerk: 'uim-2026', typeId: 'steg', taktMs: 3_600_000, folgeMs: SOFORT })
+    quellen.push(q)
+    const w = mount(WkrGeraet, { attachTo: document.body, props: { quelle: q, ablage: handy() } })
+    wrappers.push(w)
+    await zeigt(() => w.find('[data-teil="karte"]').exists())
+    // Nr. 1 fährt Dolphin (E): Co-Pilot 64,2 kg, Ersatz 70,5 kg → Co-Pilot +6 kg (WKR_ANNAHMEN.coPilotUebung).
+    expect(startNr(w)).toBe('1')
+    expect(w.find('[data-teil="karte"] [data-teil="boot"]').text()).toMatch(/^Boat \S/)
+    const zeilen = coPiloten(w)
+    expect(zeilen).toHaveLength(2)
+    expect(zeilen[0]).toMatch(/^Co-driver .+ \(\+6 kg\)$/)
+    expect(zeilen[1]).toMatch(/^Substitute [^(]+$/)
+  })
+})
+
 describe('Doppeltipp-Schutz und Rückgängig (Fake-Uhr, Übung ohne Netz)', () => {
   function uebung(typeId = 'tor5') {
     const q = oeffneUebung({ regelwerk: 'dm-2026', typeId, taktMs: 3_600_000, folgeMs: SOFORT })
@@ -1526,20 +1610,33 @@ describe('Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl (W5.1, 22.11.2026
     // Je Spalte nur ihr eigener Teil – kein Wechsel (der Steg-Reiter zeigt nur noch den Stand).
     expect(teilSpalte('ab').findAll('[data-action="steg-teil"]').map((b) => b.attributes('data-steg'))).toEqual(['ab'])
     expect(teilSpalte('an').findAll('[data-action="steg-teil"]').map((b) => b.attributes('data-steg'))).toEqual(['an'])
+    // Co-Piloten (Nutzer 27.11.2026, CP5/CP6) für beide Klassen des Parcours: Ersatz 3,6 kg leichter.
+    for (const klasse of ['E', '1'] as const) {
+      r.dispatch({ type: 'SET_CO_PILOT', klasse, rolle: 'haupt', text: 'Copi Muster' })
+      r.dispatch({ type: 'SET_CO_PILOT_GEWICHT', klasse, rolle: 'haupt', gewicht: 71.2 })
+      r.dispatch({ type: 'SET_CO_PILOT', klasse, rolle: 'ersatz', text: 'Copa Beispiel' })
+      r.dispatch({ type: 'SET_CO_PILOT_GEWICHT', klasse, rolle: 'ersatz', gewicht: 67.6 })
+    }
+    const coPiloten = (t: string) => teilSpalte(t).findAll('[data-teil="karte"] [data-teil="co-pilot"]').map((z) => z.text())
     const s = r.zeige()
     await zeigt(() => teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').exists() && teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').text() === s.startNr)
     expect(teilSpalte('an').find('[data-teil="karte"]').exists()).toBe(false)
     // Ausgleichsgewicht (AG3, Prüfbefund 24.11.2026): auf der Karte der Spalte „Ablegen“ (Teststand nicht gewogen) …
     expect(teilSpalte('ab').find('[data-teil="karte"] [data-teil="ausgleich"]').attributes('data-ausgleich')).toBe('fehlt')
     expect(teilSpalte('ab').find('[data-teil="seite"] [data-teil="ausgleich"]').exists()).toBe(false)
+    // … ebenso die Klammer hinter dem Ersatz-Co-Piloten (CP6); die Seite zeigt keine Co-Piloten (CP5).
+    await zeigt(() => coPiloten('ab').length === 2)
+    expect(coPiloten('ab')).toEqual(['Co-Pilot Copi Muster', 'Ersatz Copa Beispiel (+4 kg)'])
+    expect(teilSpalte('ab').find('[data-teil="seite"] [data-teil="co-pilot"]').exists()).toBe(false)
     expect(teilSpalte('ab').find('[data-action="haupt"]').text()).toBe('Ablegen OK ✓')
     await teilSpalte('ab').find('[data-action="haupt"]').trigger('click')
     await bis(() => !!werte(r.state.value, s.starter)['erfasst.ab@steg'])
     r.zeige()
     await zeigt(() => teilSpalte('an').find('[data-teil="karte"] [data-teil="startnr"]').exists() && teilSpalte('an').find('[data-teil="karte"] [data-teil="startnr"]').text() === s.startNr)
     expect(teilSpalte('an').find('[data-action="haupt"]').text()).toBe('Anlegen OK ✓')
-    // … derselbe Start in der Spalte „Anlegen“ ohne.
+    // … derselbe Start in der Spalte „Anlegen“ ohne – die Co-Piloten mit Namen, ohne Klammer.
     expect(teilSpalte('an').find('[data-teil="karte"] [data-teil="ausgleich"]').exists()).toBe(false)
+    expect(coPiloten('an')).toEqual(['Co-Pilot Copi Muster', 'Ersatz Copa Beispiel'])
     // T3: der Start im Anlegen steht nicht zugleich im Ablegen (nach dem Takt des Abschickens).
     await zeigt(() => teilSpalte('ab').find('[data-teil="maske"]').attributes('data-takt') === 'frei')
     expect(teilSpalte('ab').find('[data-teil="karte"] [data-teil="startnr"]').text()).not.toBe(s.startNr)

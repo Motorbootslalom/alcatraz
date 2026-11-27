@@ -149,6 +149,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11, seit 24.11.2026 `false`, NG1); freigabeVorwahlOhneListe → false (W3-26).
   WKR-Namen (21.11.2026, WN1–WN3): nameNurBeimAbschluss → false, wkrNameNurEigeneListe, wkrNameImLebenszeichen,
   wkrNameOhneEinteilung (G12/L4 bleiben Rückfall ohne Einteilung).
+  Steg-Gerät mit Boot und Co-Piloten (Nutzer 27.11.2026, CP1–CP10, beim Bau ausgelegt, noch zu bestätigen; R12-09 gilt
+  fürs Gerät nicht mehr, Papier-Bögen ohne): coPilotListen ['steg'], coPilotJeKlasse, coPilotNurBenannt,
+  coPilotAusgleichNurKlammer, coPilotKarte (beide Teile; Folge Klasse, Lauf, AG, Boot, Co-Pilot, Ersatz klein; in der
+  Korrektur eines Starts außerhalb der Schlange keine Klammer), coPilotAusgleichTeil 'ab', coPilotZeilenFrei (eigene
+  Zeile über die Kartenbreite, Platz = höchster Block der Liste, CP7), coPilotUebung, coPilotFassung 14 (mit `sv` 9),
+  coPilotNamenVoll (Einstellung „Namen“ gilt nicht, CP10).
   Ausgleichsgewicht am Steg (Nutzer 24.11.2026, AG1–AG4; alle bestätigt 26.11.2026, R11-05/R11-06/R11-29/R11-30): ausgleichListen ['steg']
   (Datenschutz-Ausnahme), ausgleichNurLesen (nichts am Steg pflegen, kein Haken, Nachtrag in der Verwiegung kommt von selbst),
   ausgleichTeil 'ab' (Karte nur im Ablegen; ein Gerät nur fürs Anlegen empfängt den Wert mit – eine Gruppe je Liste,
@@ -267,7 +273,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Prüfbefund 24.11.2026, NG6/BZ2), vereinigeDisq, haengeAn, vereinigt (Ziel einer gemeinsamen
   Zelle bei Entscheid für das Gerät – Rückfrage `start` mit `vereinige: {vorher}`; mischte es X mit Buchstaben, gilt
   der Wert des Geräts), zeilenPruefsumme (FNV-1a).
-- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 13 seit „Nicht
+- `sicht.ts` (W1.2) – sichtListe(stand, konfig, liste, extra) → ListenSicht (LISTEN_SICHT_FASSUNG = 14 seit den
+  Co-Piloten am Steg 27.11.2026, CP9 – mit `sv` 9, weil nur `sv` alte Geräte neu laden lässt: `coPiloten` je Klasse an der Steg-Liste, ListenCoPilot {rolle, coPilot,
+  ausgleich?}, coPilotenJeKlasse(stand, klassen) auch für die Übung; 13 seit „Nicht
   gestartet · Disq. X“ 24.11.2026, NG8 – Form gleich, alte Geräte schickten `n` bzw. J; 12 seit der Höchstzahl
   je Code 24.11.2026, CM7: MaskenFeld.katalog `max` (aufgelöst) und `danach` (nur, wo das Feld den Buchstaben annimmt);
   11 seit dem Ausgleichsgewicht; 10 seit mehreren
@@ -359,7 +367,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   → weg; reducer.ts nach jeder Änderung der Eingaben), normalisiereKeineZeit/
   liesKeineZeitFelder (migrate über normalisiereWkr). Nie in einer Sicht (Liste, Freigabe, Tafel, Zuschauer).
 - `uebung.ts` (W3.1) – Übung ohne AppState/Store/Netz: uebungsStand(regelwerk, typeId, sprache?, gezeigt = 2) → UebungsStand
-  {naechster, offen je Teil}, uebungsSicht(stand) → ListenSicht (Starts 1–20 ohne Namen und ohne Boot in den Klassen
+  {naechster, offen je Teil}, uebungsSicht(stand) → ListenSicht (Starts 1–20 ohne Namen – seit 27.11.2026 (CP8) mit
+  Boot uebungsBoot(klasse) aus data/boote.ts an jedem Start und am Steg `coPiloten` aus uebungsCoPiloten (data/names.ts,
+  reihum WKR_ANNAHMEN.coPilotUebung) – in den Klassen
   mit der Liste, Kennung `["m","u<n>",lauf]`, Vorsteg 2 `vorab`, Steg-Ablegen 1 `vorab` und Anlegen erst nach dem
   zuletzt gezeigten (T1/T2), nach Nr. 20 der nächste Lauf), uebungsSchritt(stand,
   zeile|null, mindestens = 2) (Zeile erledigt Start bzw. Teil und füllt bis `mindestens` auf – der Gerätekern gibt 0,
@@ -473,11 +483,20 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   Geschlecht, Werte (auch nicht der eigenen Liste), Summen, Wertung, WKR-Name des Abschlusses. Ausnahmen:
   `ListenStart.ausgleich` (Nutzer 24.11.2026, AG1, Fassung 11) – nur an Listen aus WKR_ANNAHMEN.ausgleichListen (Steg),
   nur über lib/ausgleich.ts ausgleichAmSteg (kg auf die Abstufung AppState.ausgleichStufe gerundet, Vorgabe ganze kg, 0, 'fehlt'; nie Körper- oder Durchschnittsgewicht; die Übung
-  über uebungsAusgleich); ob die Karte es zeigt, entscheidet nur WkrMaske `kartenAusgleich` (ausgleichTeil) –, `steht`
+  über uebungsAusgleich); ob die Karte es zeigt, entscheidet nur WkrMaske `kartenAusgleich` (ausgleichTeil) –,
+  `ListenSicht.coPiloten` (Nutzer 27.11.2026, CP1–CP4, Fassung 14 – zweite Namens-Ausnahme: nur an Listen aus
+  WKR_ANNAHMEN.coPilotListen (Steg), je Klasse mit Maske EINMAL (nicht je Start, CP2), nur benannte Co-Piloten mit
+  Schlüssel `coPilot` (nie `name` – der bleibt im Schlüssel-Test verboten), Ausgleichsgewicht nur über lib/ausgleich.ts
+  coPilotenAmSteg (nur > 0 oder 'fehlt', CP4); sicht.ts coPilotenJeKlasse, Übung uebungsCoPiloten; die Klammer zeigt die
+  Karte nur im Ablegen, WkrMaske `kartenCoPiloten`/coPilotAusgleichTeil) –, `steht`
   (F11) – steht unter dem Gerät der Rückfrage, lesbar aber für jedes Gerät derselben Liste (EIN Gruppeninhalt,
   WKR_ANNAHMEN.rueckfrageInListe) – und `wkrName` (W3-13, WN1: nur der Name aus der Einteilung für DIESE Liste, nie
   der einer anderen, nie auf ko/kz oder in der Freigabe-Sicht). Neues Feld → Positivliste in sicht.test.ts und ggf.
-  LISTEN_SICHT_FASSUNG.
+  LISTEN_SICHT_FASSUNG – dann IMMER auch betrieb/sicht.ts SICHT_FASSUNG (`sv`): Nur `sv` lässt ein Gerät mit altem
+  Programm neu laden (F7); eine fremde `lv` verwirft es still, die Liste stünde (Prüfbefund 27.11.2026, CP9; der Test
+  „Fassung“ in sicht.test.ts hält beide zusammen fest). Die Co-Piloten tragen Namen nur aus der Besetzung
+  (AppState.coPiloten), nie aus der Starterliste und nie am Start; die Einstellung „Namen“ der Anzeigetafel gilt für
+  sie nicht (CP10, zu bestätigen).
 - Steg-Zeitversatz (T1–T3): `vorab` gibt es seit 21.11.2026 auch am Steg, aber nur im Ablegen – wer `vorab` prüft,
   nimmt hatVorab/vorabStarts, nie WKR_ANNAHMEN.vorabListen allein. Der Start im Boot fehlt in der Anlegen-Schlange; in
   der Sicht steht das als `teile.an = true` („braucht noch nichts“, auch für Vorab- und „danach“-Starts) – das Gerät

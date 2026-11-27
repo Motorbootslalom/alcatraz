@@ -365,7 +365,10 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Geräteliste, Geheimnis (Schlüssel-Durchlauf über alle entschlüsselten Inhalte: geraet.test.ts „Leitung“). Ausnahme
   seit 24.11.2026: das Ausgleichsgewicht je Start in der Gruppe der Steg-Liste (wkr/sicht.ts `ausgleich`, WKR_ANNAHMEN
   AG1) – nie das Körpergewicht; ein nachgetragenes Gewicht geht mit der nächsten verteileListen von selbst hinaus
-  (wkrHost.test.ts „Steg (Nutzer 24.11.2026, AG1/AG2)“). Zweite Ausnahme seit 27.11.2026 (R13-01, BETRIEB_ANNAHMEN
+  (wkrHost.test.ts „Steg (Nutzer 24.11.2026, AG1/AG2)“); seit 27.11.2026 dort auch je Klasse die Co-Piloten mit Namen
+  und Ausgleichsgewicht in Klammern (wkr/sicht.ts `coPiloten`, WKR_ANNAHMEN CP1–CP4, CP10; Namen nur aus der Besetzung,
+  nie aus der Starterliste und nie am Start – auch ein Co-Pilot, der selbst Starter ist; vollständig, unabhängig von der
+  Einstellung „Namen“; nie ein Körpergewicht; GeraetWkr.test.ts „Co-Piloten und Boot am Steg“). Zweite Ausnahme seit 27.11.2026 (R13-01, BETRIEB_ANNAHMEN
   WH12, noch zu bestätigen): Abmeldungen, aber nur die IDs der Abgemeldeten unter den gefahrenen Starts eines Bereichs,
   nur in dessen Freigabe-Gruppe (`ausfallGesperrt`, fv 3) – fürs Ausgrauen der Wahl „Wiederholung (Ausfall)“; nie in
   ko/kz, nie an Listen-Gruppen (kopplung.test.ts „Leitung: Abmelde-IDs nur in der Freigabe-Gruppe“). Text vor dem
@@ -460,7 +463,10 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   Geräts oder `neu`/`weg` von setzeAufgaben vergleichen, müssen sie mitzählen. Die Freigabe-Gruppe trägt nie Werte und
   nie Namen (wkr/freigabe.ts Positivliste); was die Tafel nicht sehen darf, gehört nie nach ko/kz (F17).
 - W1: Die Gruppe einer Liste trägt dieselbe `sv` wie ko (SICHT_FASSUNG, der Transport kennt nur eine); die Form der
-  Listen-Sicht steht innen als `lv` (wkr/sicht.ts LISTEN_SICHT_FASSUNG). Still quittiert wird nur, wer die Gruppe hat –
+  Listen-Sicht steht innen als `lv` (wkr/sicht.ts LISTEN_SICHT_FASSUNG). F7 (neu laden, „Bedienrechner aktualisieren“)
+  löst NUR `sv` aus – eine Sicht mit anderer `lv` verwirft erfassen.ts still (istListenSicht), die Liste stünde ohne
+  Meldung. Deshalb hebt jede neue `lv` auch `sv` an (Prüfbefund 27.11.2026, lv 14 → sv 9; wkr/sicht.test.ts hält beide
+  zusammen fest, geraet.test.ts „gekoppeltes Gerät … Host neuer“). Still quittiert wird nur, wer die Gruppe hat –
   sonst wartete das Gerät auf eine Sicht, die es nicht lesen kann. Akku/wartend liegen im Register (Raum), nicht in
   `alcatraz.geraete.wkr`.
 - Echter ntfy ungeprüft (nur der Nachbau; Checkliste docs/feldtest.md): in E6/E8 `since=<id>` über mehrere Themen und mit abgelaufener ID, und dass

@@ -190,6 +190,12 @@ alt="WKR-Maske auf dem Handy (Übung): Startnummer groß, darunter die Knöpfe d
 - [ ] **Ausgleichsgewicht am Steg** (Steg-Ablegen, Beispielgewichte; einen Starter ohne Gewicht). Erwartet: „AG … kg“,
   „kein AG“ bzw. „AG: Gewicht fehlt“ neben der Startnummer, nur im Ablegen; ein in der Verwiegung nachgetragenes
   Gewicht steht kurz darauf auf dem Gerät. Lesbar aus Armlänge? Beobachtung:
+- [ ] **Boot und Co-Piloten am Steg** (ganzer Steg oder Ablegen und Anlegen auf zwei Geräten; unter „Veranstaltung →
+  Besetzung“ „Beispiel-Boote“ und „Beispiel-Co-Piloten“, dann bei einem Co-Piloten das Gewicht und in einer Klasse den
+  Ersatz löschen, einem einen langen Namen geben). Erwartet: unter Klasse und Lauf „Boot …“, darunter „Co-Pilot …“ und
+  kleiner „Ersatz …“ in beiden Teilen; die Klammer („(+4 kg)“, „(nicht gewogen)“) nur im Ablegen. Beim Wechsel in eine
+  Klasse ohne Co-Piloten springen die Knöpfe nicht; der lange Name bricht um, nichts ist abgeschnitten. Lesbar aus
+  Armlänge? Beobachtung:
 - [ ] **Übung** („Üben ohne Verbindung“ im Koppel-Formular) im Flugmodus. Erwartet: Maske arbeitet ohne Netz; nach
   dem Abschicken rollt nur die Erklärung „So läuft die Übung“ aus dem Bild, Kopf „ÜBUNG“, „Zuletzt“ und Karte bleiben
   stehen (darüber der Hinweis „Bildschirm kann ausgehen“, bis „Ausblenden“); der nächste Start kommt nach 2–6 s, hin

@@ -37,6 +37,13 @@ export default {
   'wkr.geraet.ausgleich.kein': 'kein AG',
   'wkr.geraet.ausgleich.fehlt': 'AG: Gewicht fehlt',
   'wkr.geraet.ausgleich.wort': 'Ausgleichsgewicht',
+  // Besetzung am Steg (Nutzer 27.11.2026, WKR_ANNAHMEN CP5/CP6): Co-Pilot, darunter kleiner der Ersatz, Klammer wie auf
+  // der Papierliste „Ausgleichsgewichte“ (lists.coPilot.*); „Ersatz“ kurz, das ganze Wort als Tooltip.
+  'wkr.geraet.coPilot.haupt': 'Co-Pilot {name}',
+  'wkr.geraet.coPilot.ersatz': 'Ersatz {name}',
+  'wkr.geraet.coPilot.ersatzWort': 'Ersatz-Co-Pilot',
+  'wkr.geraet.coPilot.ag': '(+{kg} kg)',
+  'wkr.geraet.coPilot.fehlt': '(nicht gewogen)',
   'wkr.geraet.gesendet': 'gesendet',
   'wkr.geraet.gesendetNr': 'Start {nr} gesendet',
   'wkr.geraet.geschaetzt': 'geschätzt (ohne Verbindung)',

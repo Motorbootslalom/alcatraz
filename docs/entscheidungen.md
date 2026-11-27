@@ -1340,12 +1340,14 @@ Check-In E10“). Gebaut 24.11.2026 (`WKR_ANNAHMEN` AG1–AG4 in `src/wkr/annahm
   Ausgleich des Fahrers. Listen: Kopf der „Ausgleichsgewichte“ und Spalte „Co-driver“ der Liste nach Regel 960
   Pkt. 3.7 – der Co-Pilot, darunter benannt der Ersatz, je mit „(+3,5 kg)“ bzw. „(nicht gewogen)“ hinter dem Namen; nie
   das Körpergewicht. Namen und Gewichte nur in der Sicherung (nie Vorlage, Anzeigetafel, Zuschauerliste,
-  Start-Freigabe oder Geräte-Sicht), die Wahl reist als Einstellung mit. Beispiel-Co-Piloten bringen Ersatz und
+  Start-Freigabe oder Geräte-Sicht – seit 27.11.2026 mit einer Ausnahme: Namen und Ausgleichsgewicht in der Sicht der
+  Steg-Liste, Eintrag „Steg-Gerät mit Boot und Co-Piloten“ unten), die Wahl reist als Einstellung mit. Beispiel-Co-Piloten bringen Ersatz und
   Gewichte (55–95 kg) mit. R11-05/R11-06 bestätigt. Beim Bau ausgelegt, bestätigt 27.11.2026: wer kein Gewicht hat,
   zählt für den Bezug nicht – „nicht gewogen“ nur, wenn andere seiner Gruppe gewogen sind (R12-06); „über alle“ zählt
   die Klassen mit Startern und die eigene, vor der ersten Meldung alle Klassen der Besetzung (Prüfbefund 27.11.2026,
   nächster Eintrag; R12-07); die Wahl steht in den Einstellungen, der Block „Besetzung“ nennt sie und verweist hin
-  (R12-08); auf den WKR-Bögen und dem Steg-Gerät stehen weiter keine Co-Piloten (R12-09); der Ersatz steht auch auf
+  (R12-08); auf den WKR-Bögen und dem Steg-Gerät stehen weiter keine Co-Piloten (R12-09; für das Steg-Gerät
+  überholt am 27.11.2026, Eintrag „Steg-Gerät mit Boot und Co-Piloten“ unten); der Ersatz steht auch auf
   der Liste nach Pkt. 3.7, obwohl Pkt. 2 „the same co-driver“ verlangt (R12-10).
   → AppState.coPiloten (`CoPiloten`: je Klasse `haupt`/`ersatz` mit `name`, `gewicht`), AppState.coPilotAusgleich,
   `lib/besetzung.ts`, `lib/ausgleich.ts`, `components/BesetzungPanel.vue`, `components/AusgleichListen.vue`,
@@ -1359,6 +1361,52 @@ Check-In E10“). Gebaut 24.11.2026 (`WKR_ANNAHMEN` AG1–AG4 in `src/wkr/annahm
   Pkt. 3.7: „Substitute co-driver:“ klein davor und die Schriftgröße je Zeile, ohne die Vorsilbe gemessen – ein
   Ersatz verkleinert den eingeteilten Co-Piloten nicht mehr mit. Beide Auslegungen bestätigt 27.11.2026 (R12-06,
   R12-07).
+- 2026-11-27 · N · **Steg-Gerät mit Boot und Co-Piloten** (Nutzer, Bildschirmfoto der Übung am Steg mit den Karten
+  „Ablegen“ und „Anlegen“, Pfeile auf den freien Platz in beiden Karten: „Hier beim Steg bitte noch das Boot und ggf.
+  die Co-Piloten mit anzeigen“). Damit gilt R12-09 („WKR-Bögen und Steg-Gerät ohne Co-Piloten“) für das Steg-Gerät
+  nicht mehr; die WKR-Bögen auf Papier bleiben ohne Co-Piloten (Frage für die nächste Runde, „Offen“). Gebaut
+  27.11.2026 (`WKR_ANNAHMEN` CP1–CP10 in `src/wkr/annahmen.ts`): Die Sicht der Steg-Liste trägt je Klasse die
+  Co-Piloten mit Namen (`ListenSicht.coPiloten`, Fassung 14) – zweite Datenschutz-Ausnahme neben AG1, nur in der
+  verschlüsselten Gruppe der Steg-Liste, nie an anderen Listen, auf Anzeigetafel, Zuschauerliste oder Start-Freigabe,
+  Namen nur aus der Besetzung, nie aus der Starterliste und nie am Start (ist ein Co-Pilot selbst Starter, geht sein
+  Name als Co-Pilot trotzdem hinaus – Prüfbefund 27.11.2026), nie ein Körpergewicht; die Hinweise zum Gerätebetrieb
+  nennen sie. Das Ausgleichsgewicht
+  eines Co-Piloten rechnet dieselbe Stelle wie die Papierliste (`lib/ausgleich.ts` coPilotenAmSteg über coPilotZeilen,
+  Gruppe nach „Ausgleichsgewicht der Co-Piloten“, gerundet auf die Stufe). Das Boot stand im Ernstfall schon auf der
+  Karte; die Übung bekommt erfundene Boote und – am Steg – erfundene Co-Piloten. Beim Bau ausgelegt, vom Nutzer zu
+  bestätigen:
+  - CP1: nur die Steg-Liste (nicht der Vorsteg).
+  - CP2: einmal je Klasse in der Sicht, nicht an jedem Start (kein Name doppelt auf der Leitung; die Karte kennt alle
+    Klassen der Liste und kann Platz halten, CP7).
+  - CP3: nur Personen mit Namen – anders als auf Papier, wo der eingeteilte Co-Pilot ein leeres Feld zum Eintragen
+    bekommt; steht nur der Ersatz mit Namen, zeigt die Karte nur ihn.
+  - CP4: das Ausgleichsgewicht eines Co-Piloten nur, wo das Papier eine Klammer druckt („(+3 kg)“, „(nicht gewogen)“);
+    keines nötig bzw. auf 0 gerundet geht nicht auf die Leitung.
+  - CP5: Boot und Co-Piloten in beiden Teilen, Folge auf der Karte: Klasse, Lauf, Ausgleichsgewicht des Starters, Boot,
+    Co-Pilot, darunter kleiner „Ersatz …“ (englisch „Co-driver …“, „Substitute …“); nicht in der Schlange auf der Seite
+    des Pads und nicht in der Probe. In der Korrektur eines Starts, der nicht mehr in der Schlange steht (typisch über
+    „Zuletzt“), kennt die Karte Boot und Ausgleichsgewicht des Starters nicht – dann auch keine Klammer der Co-Piloten,
+    nur die Namen (Prüfbefund 27.11.2026: sonst stand die Last des Co-Piloten da, die des Starters nicht).
+  - CP6: die Klammer eines Co-Piloten nur im „Ablegen“ – wie das Ausgleichsgewicht des Starters (AG3): Dort kommt das
+    Gewicht ins Boot; beim Anlegen genügt, wer im Boot sitzt.
+  - CP7: Die Co-Piloten stehen in einer eigenen Zeile über die ganze Breite der Karte (nicht in der Spalte neben der
+    Nummer); ihr Platz ist so hoch wie der höchste Block der Liste (die Blöcke der anderen Klassen liegen unsichtbar
+    darunter), auch in Klassen ohne Co-Piloten – die Knöpfe darunter springen beim Klassenwechsel nicht, auch wenn ein
+    langer Name umbricht. Die Klammer bricht nie in sich um. Prüfbefund 27.11.2026 (umgebaut): Vorher zählte der Platz
+    nur Einträge; in der schmalen Spalte brachen auf dem Handy schon gewöhnliche Namen um, die Knöpfe sprangen 21–25 px.
+  - CP8: Übung: Boot je Klasse fest aus den Beispiel-Bootsnamen an jeder Liste (wie im Ernstfall), Co-Piloten nur am
+    Steg in den Klassen mit Co-Pilot laut Regelwerk, Namen aus den Beispielnamen, reihum mit und ohne Ersatz und mit
+    Klammern „(+6 kg)“, „(+8 kg)“, „(nicht gewogen)“.
+  - CP9: Fassung der Listen-Sicht 14 – Prüfbefund 27.11.2026: Die neue `lv` allein lädt ein Gerät mit altem Programm
+    nicht neu (es verwarf die Sicht still, die Liste stand); nur die äußere Fassung `sv` tut das. Deshalb zählt `sv`
+    mit auf 9 (Tafel und Zuschauer laden einmal neu), und jede künftige `lv` hebt `sv` mit an. Dasselbe galt schon
+    für `lv` 10 (BZ8) und 13 (NG8) – dort stand fälschlich „lädt über F7 neu“.
+  - CP10: Die Einstellung „Namen“ der Anzeigetafel gilt für die Co-Piloten am Steg nicht – sie stehen vollständig, wie
+    in der Besetzung eingetragen, auch bei „Namen: ohne“; die Hinweise vor dem Einschalten sagen das (Prüfbefund
+    27.11.2026; Frage unter „Offen“).
+  → `src/wkr/sicht.ts` coPilotenJeKlasse, `src/wkr/uebung.ts` uebungsBoot/uebungsCoPiloten,
+  `src/components/wkr/WkrStarterKarte.vue`, `WkrMaske.vue` kartenCoPiloten/kartenCoPilotPlatz, `betrieb/sicht.ts`
+  SICHT_FASSUNG 9
 
 ### Maske „Knöpfe“: Höchstzahl je Code, Disq. nach dem 3. Versuch (Entscheidung 24.11.2026)
 
@@ -1661,7 +1709,9 @@ Code steht an jeder bestätigten Auslegung „bestätigt 27.11.2026 (R12-xx)“,
 - R12-08 · Die Wahl „je Klasse / über alle Co-Piloten“ steht unter Einstellungen → Durchschnittsgewichte, der Block
   „Besetzung“ sagt mit einem Satz, was gilt, und verweist hin.
 - R12-09 · Co-Piloten nur auf den „Ausgleichsgewichten“ und der UIM-Liste nach Pkt. 3.7; WKR-Bögen und Steg-Gerät
-  ohne Co-Piloten.
+  ohne Co-Piloten. → Für das Steg-Gerät überholt am 27.11.2026 (Nutzer: „Hier beim Steg bitte noch das Boot und ggf.
+  die Co-Piloten mit anzeigen“; Abschnitt „Ausgleichsgewicht am Steg“, `WKR_ANNAHMEN` CP1–CP10); die WKR-Bögen bleiben
+  ohne.
 - R12-10 · Der Ersatz-Co-Pilot steht auch auf der Liste nach Regel 960 Pkt. 3.7 („Substitute co-driver:“), sobald
   einer eingetragen ist. → `lib/teamListe.ts`
 - R12-11 · „Doch keine Wiederholung“ setzt die alten Werte nur in Felder, die jetzt leer sind (auch die Haken „Liste
@@ -1897,6 +1947,14 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
   bestätigen“ (technische Einzelheiten): der Geräte-Code nur mit Koppel-Link, das Wiederholen mit wachsendem Abstand
   samt später Antwort, das Hingenommene zum Betreiber des ntfy-Servers, ein neuer Code für ein schon gebundenes Gerät,
   das Schreibfenster.
+- **Steg-Gerät mit Boot und Co-Piloten** (27.11.2026, Abschnitt „Ausgleichsgewicht am Steg“): CP1–CP8 und CP10 beim
+  Bau ausgelegt, vom Nutzer zu bestätigen (CP5 und CP7 nach dem Prüfbefund 27.11.2026 geändert). **Fragen für die
+  nächste Runde:** (1) Sollen auch die WKR-Bögen auf Papier (Steg) die Co-Piloten tragen, wie seit 27.11.2026 das
+  Steg-Gerät? R12-09 sagte für beide „ohne“; der neue Wunsch nennt nur den Steg am Gerät. (2) Soll die Einstellung
+  „Namen“ der Anzeigetafel (voll, gekürzt, ohne) auch für die Co-Piloten am Steg gelten? Gebaut ist „nein“ (CP10): Sie
+  stehen vollständig, wie in der Besetzung eingetragen – der WKR soll prüfen, wer ins Boot steigt. Beispiel: Bei einer
+  Jugendveranstaltung mit „Namen: ohne“ gehen trotzdem die vollen Namen der Co-Piloten verschlüsselt über den fremden
+  ntfy-Server an die Geräte der Steg-Liste (nie an Tafel oder Zuschauer); die Hinweise vor dem Einschalten sagen das.
 - **Ältere, nie eigens gefragte Auslegungen:** die Folge innerhalb einer Position beim Druck der WKR-Bögen (erst alle
   Klassen im 1. Lauf; Abschnitt „Listen und Druck“, `lib/wkrListen.ts` WKR_DRUCKFOLGE.innen); zur Lage der Zeichnung
   BL5 (das Schema dreht nicht – erscheint nur als Rückfall ohne Parallel-Zeichnung, bewusst nicht gefragt) und BL8

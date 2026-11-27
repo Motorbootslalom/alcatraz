@@ -95,7 +95,8 @@ die Feldtests.
   (Bojen in der Parcours-Zeichnung antippen); „Tabelle“ für Geübte (nur Pad und Rechner).
   Zeit-Listen haben einen Ziffernblock, die Knoten eine Prüfliste am Tisch.
   Ein Pad zeigt mehrere Listen nebeneinander (quer je nach Breite bis zu vier, hochkant bis zu zwei).
-  Die Probe sendet nichts, die Übung braucht kein Netz (`#/uebung`).
+  Die Probe sendet nichts, die Übung braucht kein Netz
+  (`#/uebung`, [Übung öffnen](https://motorbootslalom.github.io/alcatraz/#/uebung)).
   Am Bedienrechner: Matrix Listen × Starts, Eingang für Rückfragen und Vorschläge, ◆ und „Papier ansehen“ in der
   Erfassung, Parcours-Ampel mit Auto-Modus in der Start-Freigabe.
   Werte vom Gerät gehen denselben Weg wie das Abtippen; eine belegte Zelle wird nie still überschrieben.
@@ -127,7 +128,10 @@ die Feldtests.
   hat der Nutzer die Wiederholung nach Ausfall: Sie geht seitdem auch an der Start-Freigabe auf dem Handy und im
   Parallelslalom (gebaut 27.11.2026). Offen sind die Auslegungen dieses Umbaus (vor allem: im Parallelslalom eine
   Vorgabe, welche Boote wiederholen?), die Sonderfälle der Startfolge an der Start-Freigabe (für Runde 14 vorgesehen)
-  und einzelne nie eigens gefragte Kleinigkeiten (Koppeln, Druckfolge der WKR-Bögen, Lage der Zeichnung).
+  und einzelne nie eigens gefragte Kleinigkeiten (Koppeln, Druckfolge der WKR-Bögen, Lage der Zeichnung). Ebenfalls am
+  27.11.2026 kamen auf Wunsch des Nutzers Boot und Co-Piloten aufs Steg-Gerät
+  ([funktionen.md](funktionen.md#verwiegung)); offen ist dazu, ob auch die Steg-Bögen auf Papier die Co-Piloten zeigen
+  sollen und ob die Einstellung „Namen“ der Anzeigetafel für sie gelten soll (gebaut: nein, sie stehen vollständig).
 - **Wackelige Tests:** Zwei Ende-zu-Ende-Tests in `src/GeraetWkr.test.ts` schlagen unter Last gelegentlich fehl
   (feste Zeitgrenze beim Warten). Auf GitHub laufen sie seit 24.11.2026 nur auf Wunsch, lokal und im pre-commit-Hook
   immer ([technik.md](technik.md#tests)). Die Ursache ist nicht behoben.

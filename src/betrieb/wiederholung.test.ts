@@ -268,7 +268,7 @@ describe('Wiederholung nach Ausfall – öffentliche Sicht (sv 7, `gefahren` sei
   it('„Wiederholung offen“ in der Sicht; der abgebrochene Versuch im Boot ohne „Wiederholung“, die Wiederholung mit', () => {
     const s = ausfall(gefahren(), m('k1'))
     const sicht = sichtOeffentlich(s)
-    expect(sicht.sv).toBe(8)
+    expect(sicht.sv).toBe(9)
     const b = sicht.bereiche[0]
     expect(b.wiederholung.map((x) => [x.key, x.titel, x.wiederholung])).toEqual([[m('k1'), '1. Lauf · Wiederholung', true]])
     expect(b.aktuell).toMatchObject({ key: m('k1'), titel: '1. Lauf', abgebrochen: true })

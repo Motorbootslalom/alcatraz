@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { reducer } from '../state/reducer'
 import { configFor } from '../config/konfig'
 import { lage, refKey } from '../betrieb/folge'
-import { sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
+import { SICHT_FASSUNG, sichtOeffentlich, sichtZuschauer } from '../betrieb/sicht'
 import { BETRIEB_STARTER, betriebStarter, uimParallelStand, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
-import type { AppState, WkrZeile } from '../types'
+import type { AppState, ClassId, CoPilotRolle, WkrZeile } from '../types'
 import { einteilungsName, einteilungsParcours, LISTEN_SICHT_FASSUNG, maskenJeKlasse, sichtListe, type ListenSicht, type ListenSichtExtra } from './sicht'
 import { WKR_ANNAHMEN } from './annahmen'
 import { listenKennung, type Liste } from './liste'
@@ -13,7 +13,7 @@ import { sichtFreigabe } from './freigabe'
 import { erfassungsLage } from './lage'
 import { pruefeZeile, type GeraeteZeile } from './zeile'
 import { listenFelder } from '../lib/eingaben'
-import { ausgleichListen } from '../lib/ausgleich'
+import { ausgleichListen, coPilotZeilen } from '../lib/ausgleich'
 import { deflateRawSync } from 'node:zlib'
 
 // Die Sicht einer Liste (Plan §3.1, §6): genaue Schlüssel (Positivliste wie betrieb/sicht.test.ts), Datenschutz über
@@ -53,6 +53,16 @@ const masken = (typeId: string, klasse: '5' | '7', beschriftung?: string) =>
   maskenJeKlasse(DM, configFor({ regelwerk: 'dm-2026', ...(beschriftung ? { beschriftung } : {}) }), typeId, [klasse], false)[klasse]!.felder!
 
 const sende = (s: AppState, typeId: string, zeilen: WkrZeile[], geraet = 'g1') => reducer(s, { type: 'WKR_ZEILEN', liste: K(typeId), quelle: { geraet, name: 'Handy Tor 1' }, zeilen, zeit: 5000 })
+
+/** Co-Piloten über die Actions der Besetzung: je Klasse und Rolle [Name, Gewicht?] (erfundene Namen). */
+function co(s: AppState, je: Partial<Record<ClassId, Partial<Record<CoPilotRolle, [string, number?]>>>>): AppState {
+  for (const [klasse, rollen] of Object.entries(je) as [ClassId, Partial<Record<CoPilotRolle, [string, number?]>>][])
+    for (const [rolle, [name, kg]] of Object.entries(rollen) as [CoPilotRolle, [string, number?]][]) {
+      s = reducer(s, { type: 'SET_CO_PILOT', klasse, rolle, text: name })
+      if (kg !== undefined) s = reducer(s, { type: 'SET_CO_PILOT_GEWICHT', klasse, rolle, gewicht: kg })
+    }
+  return s
+}
 
 /** Alle Schlüssel eines Werts, auch verschachtelt (ohne die Schlüssel der Maps `klassen` und `geraete`). */
 function schluessel(wert: unknown, out = new Set<string>()): Set<string> {
@@ -169,20 +179,25 @@ describe('Sicht der Liste – Form', () => {
 describe('Sicht der Liste – Datenschutz', () => {
   it('nie Name, Herkunft, Geburtsdatum, Gewicht, Geschlecht, Werte, Summen, Wertung – auch nicht der eigenen Liste', () => {
     const { s, erste } = bereit('gate135', 'steg')
-    let mit = sende(s, 'gate135', [zeile(s, 'gate135', erste[0], [['t1a|hin seiteA', '5', '']])])
+    // Co-Piloten mit Gewicht (27.11.2026, CP1): Ihre Namen sind die einzigen Namen der Steg-Sicht (Block unten) – hier
+    // nur, damit ihr Körpergewicht und das Objekt des Stands sichtbar draußen bleiben.
+    let mit = co(s, { E: { haupt: ['Copi Muster', 71.3] } })
+    mit = sende(mit, 'gate135', [zeile(mit, 'gate135', erste[0], [['t1a|hin seiteA', '5', '']])])
     // Werte anderer Listen und anderer Starter.
     mit = reducer(mit, { type: 'SET_EINGABEN', zellen: [{ lauf: 'manoevrieren/1', starter: erste[1], feld: 'zeit1', wert: '83.4' }, { lauf: 'manoevrieren/1', starter: erste[1], feld: 'bemerkung@steg', wert: 'Geheimbemerkung' }] })
     for (const typeId of ['gate135', 'steg']) {
       const sicht = sichtListe(mit, DM, L(typeId), EXTRA)
       const alle = schluessel(sicht)
-      for (const verboten of ['name', 'vorname', 'nachname', 'herkunft', 'verein', 'club', 'geburtsdatum', 'gewicht', 'geschlecht', 'eingaben', 'werte', 'summe', 'punkteSumme', 'platz', 'wertung', 'wkr', 'einteilung', 'coPiloten'])
+      // `coPiloten` steht nur an der Steg-Liste, und dort als eigenes Feld der Sicht (Positivliste im Block unten).
+      for (const verboten of ['name', 'vorname', 'nachname', 'herkunft', 'verein', 'club', 'geburtsdatum', 'gewicht', 'geschlecht', 'eingaben', 'werte', 'summe', 'punkteSumme', 'platz', 'wertung', 'wkr', 'einteilung', 'coPiloten', 'haupt', 'ersatz'].filter((k) => typeId !== 'steg' || k !== 'coPiloten'))
         expect(alle.has(verboten), `${typeId}: ${verboten}`).toBe(false)
       const werte = blaetter(sicht).map(String)
       for (const p of mit.starters) {
         for (const verboten of [p.vorname, p.nachname, `${p.vorname} ${p.nachname}`]) expect(werte, verboten).not.toContain(verboten)
       }
       const text = JSON.stringify(sicht)
-      for (const verboten of [GEHEIM, '41.7', '83.4', 'Geheimbemerkung', 'Musterclub', 'Handy Tor 1', 'Vor', 'Nach']) expect(text, `${typeId}: ${verboten}`).not.toContain(verboten)
+      for (const verboten of [GEHEIM, '41.7', '83.4', '71.3', 'Geheimbemerkung', 'Musterclub', 'Handy Tor 1', 'Vor', 'Nach']) expect(text, `${typeId}: ${verboten}`).not.toContain(verboten)
+      expect(text.includes('Copi Muster'), typeId).toBe(typeId === 'steg')
     }
   })
 
@@ -273,10 +288,11 @@ describe('Sicht der Liste – Sprache (F13)', () => {
 describe('Sicht der Liste – Bojen (W4.1, P7, P15)', () => {
   const bojeSchluessel = new Set(['halt', 'weg', 'folge', 'titel', 'unter', 'spalte', 'zaehler', 'durchfahrt'])
 
-  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 13 (seit „Nicht gestartet“, NG8 24.11.2026)', () => {
+  it('Positivliste `boje`: nur Fahrweg-Angaben und Bogentexte, nur an Fahrweg-Bojen; Fassung 14 (seit den Co-Piloten am Steg, CP9 27.11.2026)', () => {
     const { s } = bereit('gate135')
     const sicht = sichtListe(s, DM, L('gate135'), EXTRA)
-    expect(LISTEN_SICHT_FASSUNG).toBe(13)
+    expect(LISTEN_SICHT_FASSUNG).toBe(14)
+    expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.coPilotFassung)
     expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.nichtGestartetFassung)
     expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.bojenZelleFassung)
     expect(LISTEN_SICHT_FASSUNG).toBeGreaterThanOrEqual(WKR_ANNAHMEN.codeMaxFassung)
@@ -476,6 +492,105 @@ describe('Sicht der Liste – Ausgleichsgewicht am Steg (Nutzer 24.11.2026, WKR_
   })
 })
 
+describe('Fassungen: `lv` zählt nie ohne `sv` (Prüfbefund 27.11.2026, WKR_ANNAHMEN CP9)', () => {
+  it('Listen-Sicht 14 gehört zu sv 9 – wer eine anhebt, hebt beide an', () => {
+    // `lv` steht nur innen: Ein Gerät mit altem Programm verwirft eine Sicht anderer `lv` still (geraete/erfassen.ts
+    // istListenSicht) und bleibt bei seiner abgelegten stehen – ohne Meldung, ohne Neuladen. F7 („neu laden“ bzw.
+    // „Bedienrechner aktualisieren“) löst nur `sv` aus, außen an jeder Nachricht (transport.ts, geraet.test.ts
+    // „gekoppeltes Gerät …“). Deshalb stehen beide Zahlen HIER zusammen fest: Wer `lv` anhebt, muss diese Zeile ändern
+    // und hebt dabei betrieb/sicht.ts SICHT_FASSUNG (samt types/betrieb.ts `sv`) mit an.
+    expect({ lv: LISTEN_SICHT_FASSUNG, sv: SICHT_FASSUNG }).toEqual({ lv: 14, sv: 9 })
+    const { s } = bereit('steg')
+    expect([sichtListe(s, DM, L('steg'), EXTRA).lv, sichtOeffentlich(s).sv]).toEqual([14, 9])
+  })
+})
+
+describe('Sicht der Liste – Co-Piloten am Steg (Nutzer 27.11.2026, WKR_ANNAHMEN CP1–CP4)', () => {
+  // bereit(): Parcours 1 fährt E und 1 – unter DM beides Klassen mit Co-Pilot. Gewichte mit Nachkommastelle, damit ein
+  // Körpergewicht in der Sicht auffiele: E 71,3 / 67,6 kg (Ersatz 3,7 leichter → 4), Klasse 1 62,9 kg.
+  const VOLL = { E: { haupt: ['Copi Muster', 71.3], ersatz: ['Copa Beispiel', 67.6] }, '1': { haupt: ['Copu Probe', 62.9] } } as const satisfies Parameters<typeof co>[1]
+
+  it('nur die Steg-Liste, je Klasse der Liste einmal; Positivliste rolle/coPilot/ausgleich; Klammer nur über 0 – nie ein Körpergewicht', () => {
+    const { s } = bereit('steg', 'gate135')
+    const mit = co(s, VOLL)
+    const steg = sichtListe(mit, DM, L('steg'), EXTRA)
+    expect(steg.lv).toBe(14)
+    // Je Klasse (CP2), nicht am Start: Die Starts tragen nichts davon.
+    expect(steg.coPiloten).toEqual({
+      E: [{ rolle: 'haupt', coPilot: 'Copi Muster' }, { rolle: 'ersatz', coPilot: 'Copa Beispiel', ausgleich: 4 }],
+      '1': [{ rolle: 'haupt', coPilot: 'Copu Probe' }],
+    })
+    for (const k of schluessel(steg.coPiloten)) expect(['E', '1', 'rolle', 'coPilot', 'ausgleich'], k).toContain(k)
+    for (const x of [...steg.schlange, ...steg.danach]) expect(JSON.stringify(x), x.startNr).not.toContain('Cop')
+    const text = JSON.stringify(steg)
+    for (const verboten of ['71.3', '67.6', '62.9', 'gewicht']) expect(text, verboten).not.toContain(verboten)
+    // Andere Listen tragen sie nie (CP1) – auch nicht der Vorsteg.
+    for (const typeId of ['gate135', 'vorsteg', 'tor5', 'mueb']) {
+      const andere = sichtListe(mit, DM, L(typeId), EXTRA)
+      expect(andere.coPiloten, typeId).toBeUndefined()
+      expect(JSON.stringify(andere), typeId).not.toContain('Cop')
+    }
+  })
+
+  it('nur benannte (CP3): kein Co-Pilot → kein Feld; Gewicht ohne Namen zählt nicht; nur ein Ersatz → nur der Ersatz', () => {
+    const { s } = bereit('steg')
+    expect('coPiloten' in sichtListe(s, DM, L('steg'), EXTRA)).toBe(false)
+    // Nur ein Gewicht beim eingeteilten Co-Piloten: kein Name, also nichts auf der Leitung (Papier: leeres Feld).
+    const nurGewicht = reducer(s, { type: 'SET_CO_PILOT_GEWICHT', klasse: 'E', rolle: 'haupt', gewicht: 80.1 })
+    expect('coPiloten' in sichtListe(nurGewicht, DM, L('steg'), EXTRA)).toBe(false)
+    // Nur der Ersatz mit Namen (der eingeteilte trägt nur das Gewicht): nur seine Zeile, ohne Klammer – ein Gewicht
+    // ohne Namen zählt nicht als Bezug (R12-06), der Ersatz ist der einzige Benannte seiner Gruppe.
+    const nurErsatz = co(nurGewicht, { E: { ersatz: ['Copa Beispiel'] } })
+    expect(sichtListe(nurErsatz, DM, L('steg'), EXTRA).coPiloten).toEqual({ E: [{ rolle: 'ersatz', coPilot: 'Copa Beispiel' }] })
+    // Leerraum am Rand fällt weg, wie auf Papier.
+    expect(sichtListe(co(s, { '1': { haupt: ['  Copu Probe  '] } }), DM, L('steg'), EXTRA).coPiloten).toEqual({ '1': [{ rolle: 'haupt', coPilot: 'Copu Probe' }] })
+  })
+
+  it('Ausgleichsgewicht nur über lib/ausgleich.ts: je Klasse oder über alle, auf die Abstufung gerundet, „fehlt“ = nicht gewogen', () => {
+    const { s } = bereit('steg')
+    const mit = co(s, VOLL)
+    const ag = (st: AppState) => Object.fromEntries(Object.entries(sichtListe(st, DM, L('steg'), EXTRA).coPiloten ?? {}).flatMap(([k, l]) => l!.map((c) => [`${k}|${c.rolle}`, c.ausgleich])))
+    // Je Klasse (Vorgabe): Klasse 1 hat nur einen Co-Piloten → keine Klammer; E-Ersatz 3,7 → 4.
+    expect(ag(mit)).toEqual({ 'E|haupt': undefined, 'E|ersatz': 4, '1|haupt': undefined })
+    // Über alle (Klassen mit Startern: E und 1): Bezug 71,3 → Klasse 1 8,4 → 8.
+    const alle = reducer(mit, { type: 'SET_CO_PILOT_AUSGLEICH', ausgleich: 'alle' })
+    expect(ag(alle)).toEqual({ 'E|haupt': undefined, 'E|ersatz': 4, '1|haupt': 8 })
+    // Abstufung der Veranstaltung wie beim Fahrer: 0,5 kg → 3,5 und 8,5.
+    expect(ag(reducer(alle, { type: 'SET_AUSGLEICH_STUFE', kg: 0.5 }))).toEqual({ 'E|haupt': undefined, 'E|ersatz': 3.5, '1|haupt': 8.5 })
+    // Ersatz ohne Gewicht, der eingeteilte gewogen: „(nicht gewogen)“.
+    const ohne = reducer(mit, { type: 'SET_CO_PILOT_GEWICHT', klasse: 'E', rolle: 'ersatz', gewicht: null })
+    expect(ag(ohne)['E|ersatz']).toBe('fehlt')
+    // Dieselbe Zahl wie die Papierliste (lib/ausgleich.ts coPilotZeilen) – dort nur, was eine Klammer bekommt.
+    for (const st of [mit, alle, ohne])
+      for (const k of ['E', '1'] as const)
+        for (const z of coPilotZeilen(st, k) ?? []) {
+          const papier = z.ausgleich === 'fehlt' || (typeof z.ausgleich === 'number' && z.ausgleich > 0) ? z.ausgleich : undefined
+          expect(ag(st)[`${k}|${z.rolle}`], `${k}|${z.rolle}`).toBe(papier)
+        }
+  })
+
+  it('F17: Anzeigetafel, Zuschauerliste und Start-Freigabe bleiben ohne Co-Piloten, auch nach einer Änderung der Besetzung', () => {
+    const { s } = bereit('steg', 'gate135')
+    const mit = co(s, VOLL)
+    expect(sichtListe(mit, DM, L('steg'), EXTRA).coPiloten).toBeDefined()
+    expect(sichtOeffentlich(mit)).toEqual(sichtOeffentlich(s))
+    expect(sichtZuschauer(sichtOeffentlich(mit))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
+    const freigabe = JSON.stringify(sichtFreigabe(P1, erfassungsLage(mit, DM, P1, [], 0).listen, 'warnen'))
+    for (const wort of ['Cop', 'coPilot', '71.3']) expect(freigabe).not.toContain(wort)
+  })
+
+  it('UIM: am Steg je Racecourse dieselben Co-Piloten; die Parallel-Liste ohne', () => {
+    let u = uimParallelStand()
+    u = co(u, { E: { haupt: ['Copi Muster', 71.3], ersatz: ['Copa Beispiel'] } })
+    u = reducer(u, { type: 'BETRIEB_BEGINNEN', bereich: 'parallel', punkt: 'runde:pre', zeit: 500 })
+    for (const rc of ['A', 'B'] as const) {
+      const steg = sichtListe(u, UIM, { bereich: 'parallel', typeId: 'steg', racecourse: rc }, EXTRA)
+      expect(steg.coPiloten?.E, rc).toEqual([{ rolle: 'haupt', coPilot: 'Copi Muster' }, { rolle: 'ersatz', coPilot: 'Copa Beispiel', ausgleich: 'fehlt' }])
+    }
+    expect(sichtListe(u, UIM, { bereich: 'parallel', typeId: 'parallelparcours', racecourse: 'A' }, EXTRA).coPiloten).toBeUndefined()
+  })
+})
+
 describe('F17 (W5.4, ZT4): „Keine Zeit“ kommt weder auf Tafel, Zuschauerliste noch Start-Freigabe', () => {
   it('sichtOeffentlich/sichtZuschauer gleich nach einer Zeile mit `kz`; Freigabe- und Listen-Sicht ohne Grund', () => {
     const { s, erste } = bereit('zeit', 'gate135')
@@ -561,7 +676,7 @@ describe('Parcours-Ampel (P-03, AM8, AM9; 21.11.2026)', () => {
     const rot = reducer(s, { type: 'BETRIEB_DURCHFAHRT', bereich: P1, ref: key, an: true, zeit: 1200 })
     expect(rot).not.toBe(s)
     expect(sichtOeffentlich(rot)).toEqual(sichtOeffentlich(s))
-    expect(sichtOeffentlich(rot).sv).toBe(8)
+    expect(sichtOeffentlich(rot).sv).toBe(9)
     expect(sichtZuschauer(sichtOeffentlich(rot))).toEqual(sichtZuschauer(sichtOeffentlich(s)))
     const text = JSON.stringify(sichtOeffentlich(rot))
     for (const wort of ['durchfahrt', 'ampel', 'wkrAuto']) expect(text).not.toContain(wort)

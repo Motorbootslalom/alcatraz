@@ -88,6 +88,8 @@ clipboard, scanner, logoBild.
   ausgleich.ts coPilotAusgleichVon (Bezug = schwerster gewogener Co-Pilot der Klasse bzw. – `alle` – der Klassen
   mit Startern, ausgleichsKlassen, Prüfbefund 27.11.2026; nur Co-Piloten mit Namen, `benannt`; 'fehlt' nur, wenn andere
   gewogen sind) und coPilotZeilen (Listen: haupt immer, ersatz nur mit Namen, nie Körpergewicht); Rundung für Fahrer UND Co-Piloten nur über ausgleichAufStufe.
+  coPilotenAmSteg (27.11.2026, Datenschutz-Ausnahme fürs Steg-Gerät, WKR_ANNAHMEN CP3/CP4): aus coPilotZeilen, nur
+  Personen mit Namen, Klammer nur > 0 oder 'fehlt'; einziger Lieferant von wkr/sicht.ts `coPiloten` (wkr/CLAUDE.md).
 
 ## Fallen
 

@@ -3,7 +3,8 @@ import { shallowRef } from 'vue'
 import { starteGeraeteHost, type GeraeteHost } from './host'
 import { oeffneLeseLink, type LeseGeraet, type LeseUmgebung } from './geraet'
 import { ABLAGE, SICHT_GUELTIG_MS, type Ablage } from './ablage'
-import { liesLeseLink, packeLesePaket, PAKET_FASSUNG } from './paket'
+import { koppelPaketAus, liesLeseLink, packeKoppelPaket, packeLesePaket, PAKET_FASSUNG } from './paket'
+import { oeffneKoppelLink } from './gekoppelt'
 import { nachgebauterBrowser } from './testBrowser'
 import { bis, NachgebauterSocket, nachgebautesFetch, neuesNtfy, ruhe, SERVER, type NachgebautesNtfy } from './transport/ntfy/testNtfy'
 import { canonicalJson, fromBase64Url, toBase64Url } from './transport/ntfy/codec'
@@ -376,7 +377,7 @@ describe('Fassungen (F7): Gerätebetrieb nur bei gleicher Fassung', () => {
     await bis(() => t.status.value === 'verbunden')
     t.verteile(OEFFENTLICH, { stand: 1 })
     await bis(() => ntfy.bodies(raum.oeffentlich.a).length > 0)
-    return { t, link: packeLesePaket(lesePaket(raum, 'a')) }
+    return { t, raum, link: packeLesePaket(lesePaket(raum, 'a')) }
   }
 
   it('Host neuer: gezielt neu laden – einmal, nicht in einer Schleife', async () => {
@@ -393,6 +394,21 @@ describe('Fassungen (F7): Gerätebetrieb nur bei gleicher Fassung', () => {
     await nochmal.start()
     await bis(() => nochmal.fassung.value === 'host-neuer')
     expect(aktualisiere).toHaveBeenCalledOnce()
+    t.stop()
+  })
+
+  it('gekoppeltes Gerät (Start-Freigabe, WKR-Liste) mit älterem Programm: Host neuer → einmal gezielt neu laden statt still zu warten (Prüfbefund 27.11.2026, WKR_ANNAHMEN CP9)', async () => {
+    // Dieselbe `sv` steht an jeder Nachricht, auch an denen der Listen-Gruppen; eine neue Listen-Sicht (`lv`) allein sähe
+    // das Gerät nie – es verwürfe sie still. Darum hebt jede neue `lv` `sv` mit an (wkr/sicht.test.ts „Fassungen“), und
+    // hier zählt, dass ein GEKOPPELTES Gerät über `sv` genauso neu lädt wie ein Lese-Link.
+    const { t, raum } = await hostMitFassung(SICHT_FASSUNG + 1)
+    const aktualisiere = vi.fn()
+    const r = oeffneKoppelLink(packeKoppelPaket(koppelPaketAus(raum)), { ablage: handy(), zeiten: SCHNELL, aktualisiere })
+    if (!r.ok) throw new Error(`Link: ${r.code}`)
+    await r.geraet.start()
+    await bis(() => r.geraet.fassung.value === 'host-neuer')
+    expect(aktualisiere).toHaveBeenCalledOnce()
+    r.geraet.stop()
     t.stop()
   })
 

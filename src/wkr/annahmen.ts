@@ -973,6 +973,8 @@ export const WKR_ANNAHMEN = {
    * älterer Fassung schickte „5J“ (jetzt ungültig) und läse „5, J, D“ nur mit einem Buchstaben – es lädt über F7 neu.
    * Protokoll unverändert (der Zellwert ist ein String). Beim Bau 22.11.2026. Keine eigene Frage: folgt der
    * Entscheidung R7-14 (docs/entscheidungen.md: „BZ8 … folgen früheren Entscheidungen“).
+   * Prüfbefund 27.11.2026: „es lädt über F7 neu“ stimmte nicht – F7 hängt nur an `sv`, die blieb; das alte Gerät
+   * verwarf die neue Sicht still. Seit CP9 hebt jede neue `lv` `sv` mit an.
    */
   bojenZelleFassung: 10,
   /**
@@ -1382,6 +1384,7 @@ export const WKR_ANNAHMEN = {
   /**
    * (NG8) Fassung der Listen-Sicht seit „Nicht gestartet“ (wkr/sicht.ts LISTEN_SICHT_FASSUNG 13): Die Form bleibt, aber
    * ein altes Gerät schickte `n` ohne Zellen (der Bedienrechner nähme das jetzt als „fehlerfrei“) bzw. J. 24.11.2026.
+   * Prüfbefund 27.11.2026: Ohne neue `sv` lud das alte Gerät nicht neu, es verwarf die neue Sicht still (CP9).
    */
   nichtGestartetFassung: 13,
   // --- Nutzer 21.11.2026: Steg-Zeitversatz und „Abmelden“ am Gerät (T1–T10; bis auf T9 bestätigt 21.11.2026) ---
@@ -2426,6 +2429,116 @@ export const WKR_ANNAHMEN = {
    * Bestätigt 26.11.2026 (R11-30 (6)).
    */
   ausgleichUebung: [-4.4, 2, -1.6, null, -7.5, 0, -2.5] as readonly (number | null)[],
+  // --- Steg-Gerät mit Boot und Co-Piloten (Nutzer 27.11.2026, Bildschirmfoto der Übung am Steg mit den Karten „Ablegen“
+  // und „Anlegen“, Pfeile auf den freien Platz in BEIDEN Karten: „Hier beim Steg bitte noch das Boot und ggf. die
+  // Co-Piloten mit anzeigen“; docs/entscheidungen.md „Ausgleichsgewicht am Steg“). Damit gilt R12-09 („WKR-Bögen und
+  // Steg-Gerät ohne Co-Piloten“, bestätigt 27.11.2026) für das Steg-Gerät nicht mehr; die WKR-Bögen auf Papier bleiben
+  // ohne – ob auch sie Co-Piloten tragen sollen, ist für die nächste Fragenrunde notiert. Das Boot stand im Ernstfall
+  // schon auf der Karte (ListenStart.boot an jeder Liste), nur die Übung hatte keines (CP8). ---
+  /**
+   * (CP1) Zweite Datenschutz-Ausnahme neben AG1: Die Sicht der Steg-Liste trägt die Co-Piloten (Name, wie in der
+   * Besetzung eingetragen, Rolle, Ausgleichsgewicht in Klammern; ListenSicht.`coPiloten`, wkr/sicht.ts) – nur in der
+   * verschlüsselten Gruppe dieser Liste, nie auf Anzeigetafel, Zuschauerliste, Start-Freigabe oder an einer anderen
+   * Liste, nie ein Körpergewicht. Namen nur aus der Besetzung (AppState.coPiloten: Co-Pilot, Ersatz), nie aus der
+   * Starterliste und nie am Start – ist ein Co-Pilot selbst Starter (etwa einer höheren Klasse), geht sein Name als
+   * Co-Pilot trotzdem hinaus (Prüfbefund 27.11.2026). Die Hinweise zum Gerätebetrieb (i18n `geraete.wasGeht`,
+   * `listopt.geraete.daten`) nennen die Ausnahme. Welche Listen: diese Positionen – beim Bau ausgelegt 27.11.2026 (nur
+   * der Steg, wie der Nutzer schreibt; der Vorsteg nicht), vom Nutzer zu bestätigen.
+   */
+  coPilotListen: ['steg'] as readonly string[],
+  /**
+   * (CP2) Je Klasse statt je Start: Die Co-Piloten sind eine Angabe der Klasse (AppState.coPiloten). Die Sicht trägt sie
+   * EINMAL je Klasse der Liste (die Klassen der Folge des Bereichs, wie die Masken in `klassen`; nur Klassen, die die
+   * Liste haben) – nicht an jedem Start wie Boot und Ausgleichsgewicht des Starters. So wiederholt sich kein Name auf der
+   * Leitung, die Karte kennt auch die Klassen, die noch nicht in der Schlange stehen (Platz, CP7), und eine Korrektur
+   * findet die Co-Piloten über die Klasse, auch wenn der Start nicht mehr in der Schlange steht. Beim Bau ausgelegt
+   * 27.11.2026 (der Auftrag schlug `ListenStart.coPiloten` vor), vom Nutzer zu bestätigen.
+   */
+  coPilotJeKlasse: true,
+  /**
+   * (CP3) Nur Personen mit Namen (lib/ausgleich.ts coPilotenAmSteg): der Ersatz nur mit Namen wie auf Papier; anders als
+   * auf Papier auch der eingeteilte Co-Pilot nur mit Namen – auf der Liste „Ausgleichsgewichte“ bleibt sein Feld zum
+   * Eintragen von Hand, am Gerät trägt niemand etwas ein. Hat eine Klasse keinen Co-Piloten mit Namen, fehlt sie (ganz
+   * ohne: das Feld fehlt in der Sicht, die Karte zeigt nichts). Steht nur der Ersatz mit Namen, zeigt die Karte nur die
+   * Zeile „Ersatz …“. Beim Bau ausgelegt 27.11.2026, vom Nutzer zu bestätigen.
+   */
+  coPilotNurBenannt: true,
+  /**
+   * (CP4) Ausgleichsgewicht eines Co-Piloten nur, wo die Papierliste eine Klammer druckt: eine Zahl über 0 („(+3 kg)“)
+   * oder „(nicht gewogen)“ – über lib/ausgleich.ts coPilotenAmSteg aus coPilotAusgleichVon (DIESELBE Rechnung, Gruppe
+   * nach AppState.coPilotAusgleich, gerundet auf AppState.ausgleichStufe wie ausgleichAmSteg). „Gewogen, keines nötig“
+   * (der schwerste seiner Gruppe), auf 0 gerundet oder niemand seiner Gruppe gewogen: kein Wert auf der Leitung – die
+   * Karte zeigt dann wie das Papier keine Klammer, und eine 0 verriete nur, wer der Schwerste ist. Nie das
+   * Körpergewicht. Beim Bau ausgelegt 27.11.2026, vom Nutzer zu bestätigen.
+   */
+  coPilotAusgleichNurKlammer: true,
+  /**
+   * (CP5) Wo es steht: Boot und Co-Piloten auf der Starterkarte in BEIDEN Teilen des Stegs (die Pfeile des Nutzers
+   * zeigen in die Karte „Ablegen“ und die Karte „Anlegen“), auch auf einem Gerät für den ganzen Steg (Reiter bzw.
+   * Pad-Spalte) und in der Korrektur. Folge auf der Karte: Klasse, Lauf, Ausgleichsgewicht des Starters (nur Ablegen,
+   * AG3), dann die Besetzung der Klasse – Boot, Co-Pilot, darunter kleiner der Ersatz (wie auf der Papierliste), jeweils
+   * „Co-Pilot Anna Muster“ / „Ersatz Ben Muster“ (englisch „Co-driver …“ / „Substitute …“). Nicht in der Schlange
+   * auf der Seite des Pads (WkrSeite), nicht unter „Andere Startnummer …“ und nicht in der Probe – wie das
+   * Ausgleichsgewicht (R11-05). Korrektur eines Starts, der nicht mehr in der Schlange steht (typisch über „Zuletzt“):
+   * Boot und Ausgleichsgewicht des Starters kennt die Karte dort nicht (sie stehen am Start der Sicht, und der ist weg);
+   * dann steht auch keine Klammer hinter einem Co-Piloten, nur die Namen – sonst zeigte die Karte die Last des
+   * Co-Piloten, die des Starters nicht (Prüfbefund 27.11.2026; WkrMaske `zeige.bekannt`). Beim Bau ausgelegt 27.11.2026,
+   * vom Nutzer zu bestätigen.
+   */
+  coPilotKarte: true,
+  /**
+   * (CP6) Die Klammer mit dem Ausgleichsgewicht eines Co-Piloten steht nur im Teil „Ablegen“ (auch in der Korrektur nach
+   * ihrem Teil) – wie das Ausgleichsgewicht des Starters (AG3, bestätigt 26.11.2026, R11-05): Beim Ablegen kommt das
+   * Gewicht ins Boot, dort braucht der WKR die ganze Last; beim Anlegen ist es schon geladen, dort genügt, wer im Boot
+   * sitzt. Die Namen stehen in beiden Teilen. Beim Bau ausgelegt 27.11.2026, vom Nutzer zu bestätigen.
+   */
+  coPilotAusgleichTeil: 'ab' as ListenTeil,
+  /**
+   * (CP7) Platz auf der Karte: Die Co-Piloten stehen in einer eigenen Zeile über die ganze Breite der Karte, unter
+   * Startnummer und Angaben (nicht in der schmalen Spalte neben der Nummer – dort brachen auf dem Handy schon gewöhnliche
+   * Namen um, und die Breite hing an der Zahl der Ziffern; Prüfbefund 27.11.2026, gemessen 390 × 844). Der Platz richtet
+   * sich nach dem HÖCHSTEN Block aller Klassen der Liste (CP2): Die Blöcke der anderen Klassen liegen unsichtbar in
+   * derselben Rasterzelle (`co-pilot-platz`, visibility hidden, für Vorleser verborgen). So springen die Knöpfe darunter
+   * weder beim Klassenwechsel noch beim Wechsel von Start 9 auf 10 (wie M5 bildschirmOhneNachrutschen), auch wenn ein
+   * langer Name umbricht (nie abgeschnitten); in einer Klasse ohne Co-Piloten bleibt der Platz leer. Die Klammer bricht
+   * nie in sich um (wie `.co-pilot-ag` auf Papier). Beim Bau ausgelegt 27.11.2026, nach dem Prüfbefund umgebaut, vom
+   * Nutzer zu bestätigen.
+   */
+  coPilotZeilenFrei: true,
+  /**
+   * (CP8) Übung: erfundene Boote je Klasse aus data/boote.ts (fest nach Klasse, ohne Zufall) an jedem Start – wie im
+   * Ernstfall an jeder Liste, nicht nur am Steg –, und an der Steg-Liste erfundene Co-Piloten in den Klassen, in denen
+   * das Regelwerk einen vorsieht (lib/besetzung.ts coPilotVorgesehen), Namen aus data/names.ts. Reihum je dieser Klasse
+   * die Gewichte von Co-Pilot und Ersatz in kg (`ersatz` fehlt = kein Ersatz, `null` = nicht gewogen), gerechnet durch
+   * dieselbe Funktion wie am Bedienrechner („je Klasse“, Stufe 1 kg): Co-Pilot mit „(+6 kg)“ und schwererem Ersatz; nur
+   * ein Co-Pilot; Ersatz „(+8 kg)“; Ersatz „(nicht gewogen)“. Nichts davon gespeichert. Ersetzt die Auslegung von W3.1
+   * („ohne Boot“, Plan docs/plan-wkr-w3.md §3.3). Beim Bau ausgelegt 27.11.2026, vom Nutzer zu bestätigen.
+   */
+  coPilotUebung: [
+    { haupt: 64.2, ersatz: 70.5 },
+    { haupt: 78 },
+    { haupt: 81.4, ersatz: 73.1 },
+    { haupt: 68, ersatz: null },
+  ] as readonly { haupt: number | null; ersatz?: number | null }[],
+  /**
+   * (CP9) Fassung der Listen-Sicht seit den Co-Piloten am Steg (wkr/sicht.ts LISTEN_SICHT_FASSUNG 14): Ein Gerät mit altem
+   * Programm zeigte `coPiloten` nicht – der WKR am Steg sähe nicht, wer als Co-Pilot ins Boot gehört. Die neue `lv`
+   * allein lädt es aber NICHT neu: `lv` steht nur innen, das alte Gerät verwürfe jede Sicht still und bliebe bei seiner
+   * abgelegten stehen (Prüfbefund 27.11.2026). Neu laden lässt nur `sv` (F7) – deshalb zählt betrieb/sicht.ts
+   * SICHT_FASSUNG mit auf 9; Tafel und Zuschauer laden dann ebenfalls einmal neu. Regel seitdem: jede neue `lv` hebt
+   * `sv` mit an (sicht.test.ts „Fassung“). Ein neues Gerät gegen einen alten Bedienrechner zeigt über dieselbe `sv`
+   * „Bedienrechner aktualisieren“. 27.11.2026.
+   */
+  coPilotFassung: 14,
+  /**
+   * (CP10) Die Einstellung „Namen“ der Anzeigetafel (voll, gekürzt, ohne) gilt für die Co-Piloten am Steg NICHT: Sie
+   * stehen vollständig, wie in der Besetzung eingetragen, auch bei „ohne“ – der WKR am Steg soll prüfen, wer ins Boot
+   * steigt, und die Sicht geht nur an die Geräte der Steg-Liste, nie an Tafel oder Zuschauer. Die Hinweise vor dem
+   * Einschalten (`geraete.wasGeht`, `listopt.geraete.daten`) sagen das ausdrücklich. Folge: Bei „Namen: ohne“ (etwa einer
+   * Jugendveranstaltung) gehen die Namen der Co-Piloten trotzdem verschlüsselt über den fremden Server. Beim Bau
+   * ausgelegt 27.11.2026 (Prüfbefund), vom Nutzer zu bestätigen – docs/entscheidungen.md „Offen“.
+   */
+  coPilotNamenVoll: true,
   // --- Höchstzahl je Code und Disq. nach dem 3. Versuch (Nutzer 24.11.2026 zur Maske „Knöpfe“: „Wenn man bei den 2. und
   // 3. Versuch drauf klickt, dann sollte der dritte Klick der passende Disquali werden.“ und zu „nicht mit gesamter Länge
   // eingefahren ×62“: „Das hier macht auch kein Sinn.“; docs/entscheidungen.md „Digitale WKR-Erfassung“) ---

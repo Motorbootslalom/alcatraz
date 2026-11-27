@@ -617,8 +617,9 @@ The race officials can also enter data on their own device in the parallel slalo
 - Printing by mode: “Lists” prints the sheets of a list that is entered only on the device (mode “Device”) only with
   “Print anyway (fallback to paper)”, in the parallel slalom per sheet and racecourse; a heat then counts as printed
   only if something of it was printed (confirmed 22.11.2026).
-- Practice (`#/uebung`): the parallel slalom exists there only under UIM – racecourse A as a form with ordinary
-  practice starts, without pair and change of attempt (confirmed 21.11.2026).
+- Practice (`#/uebung`, [open the practice](https://motorbootslalom.github.io/alcatraz/#/uebung)): the parallel slalom
+  exists there only under UIM – racecourse A as a form with ordinary practice starts, without pair and change of
+  attempt (confirmed 21.11.2026).
 - **“Picture” form** (one lane since 23.11.2026, confirmed 24.11.2026, R10-01 to R10-04; `WKR_ANNAHMEN` BD8–BD10):
   The course of each racecourse shows the drawing of the Parcours repo in the output “one lane without pontoon”
   (`dist/parallel/alcatraz_Parcours`, via `npm run parcours:sync` as `src/assets/parcours/Parallel.svg`,
