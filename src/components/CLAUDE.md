@@ -20,7 +20,10 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
 - Wertung: Blätter in `ergebnis/` (eigene Karte: Spalten, Fuß, schräge Zellen, UIM points); Reiter + Stapel:
   ErgebnisListen/…Stapel, ParallelErgebnisListen/…Stapel, EinzelwertungListen/…Stapel, NichtWertenWahl,
   RegelLaeufeHinweis. Mannschaft `pokal/`: PokalPlaetzeBlatt (quer), PokalUimBlatt (hoch); PokalListen, PokalStapel.
-- Weitere Listen: StarterBlaetter (Starter-, Vorsteg-, Gewichtslisten), AusgleichListen, TeamListen (Pkt. 3.7),
+- Weitere Listen: StarterBlaetter (Starter-, Vorsteg-, Gewichtslisten), AusgleichListen (Kopffeld `coPilot`: Co-Pilot,
+  darunter `<small data-rolle="ersatz">` + Ersatz, `data-co-pilot`, Ausgleichsgewicht `.co-pilot-ag` „(+3,5 kg)“ – R11-07,
+  26.11.2026), TeamListen (Pkt. 3.7; Zelle `data-spalte="co-driver"` mit `.co-pilot-zeile` je Rolle, Ersatz mit
+  `<small data-rolle="ersatz">`, fit-Klasse je Zeile ohne Vorsilbe gemessen – Prüfbefund 27.11.2026, app.css),
   CodesAushang, ParallelStartlisten (über ListenDokument), DruckdateiListen. Laufzettel: LaufzettelListen (Seitenzahlen
   aus unsichtbaren BogenBlatt-Instanzen), LaufzettelBlatt, ParallelLaufzettel (Zettel A und B), ParallelMessung.
 - Erfassung `erfassung/`: ErfassungTabelle (dispatch SET_EINGABEN; Bojenzellen über sanitizeBuoy je Taste, ab fünf
@@ -34,7 +37,10 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   ZeitZelle, ScanHinweis.
 - Starter/Verzahnung: ClassSection (Sortierköpfe + Zufall, drei Stufen ↑ A→Z, ↓ Z→A, ↕ aus (S-01) mit `th.sortier-aktiv`/`.sortier-kopf.aktiv`,
   merke `starter.sortierung.<klasse>`, `sortierung` (SortierWahl) von oben; „In Klasse X verschieben“, emit
-  `oeffne`), ManualAddForm, ExcelPanel, DatumFeld (DatumFeld.test.ts durchsucht alle Vorlagen), StartNumberPanel (auch
+  `oeffne`; Geburtstag seit R11-02 26.11.2026 in zwei Stufen: Marken `geburtstag-warnung-zahl` (rot) und
+  `geburtstag-zahl` (gelb), Kästen in `data-hinweis="geburtstag"` mit `data-stufe` warnung|hinweis, „!“ mit `data-stufe`
+  der stärksten Stufe; knapp, aber am ersten Tag schon außerhalb → Text `knappAbNochZuJung`/`knappBisSchonZuAlt` über
+  import/klassenPruefung.ts knappAmErstenTagAusserhalb; Kopf `.class-toggle-btn` bricht um), ManualAddForm, ExcelPanel, DatumFeld (DatumFeld.test.ts durchsucht alle Vorlagen), StartNumberPanel (auch
   E/D), StarterSperre, ParcoursCard, TrackContainer, ClassChip, PauseChip, SlotCell, FlowPreview, SequenceTable,
   BoatPanel, HeatTable, ParallelRunden (je Klasse ein Knopf je `schritte`-Eintrag – nach dem Halbfinale Kleines Finale
   und Finale getrennt, 21.11.2026; „Alle Klassen weiter“ ab zwei verschiedenen KLASSEN, nicht Schritten).
@@ -98,6 +104,16 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `auto-anhalten` (Prop `autoAnhalten(ref)`: BetriebView → host.halteAuto, GeraetFreigabe → Nachricht AUTO_HALT) bzw.
   `auto-aus`. Rückfrage nur über warnende Parcours-Listen (lage.ts). Stile `.betrieb-ampel*`, `.betrieb-auto` (app.css).
   Test components/betrieb/StartFreigabe.test.ts (falsche Uhr).
+  Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11): StartFreigabe Prop `wiederholen(ref)` (nur BetriebView →
+  WIEDERHOLUNG_AUSFALL) → Knopf `data-action="ausfall"` → **AusfallWahl.vue** (`data-teil="ausfall"`, Suche
+  `ausfall-suche`, Zeilen aus `bereich.gefahren`, `ausfall-waehlen`, AppDialog `ausfall` mit `ausfall-ja`/`-nein`;
+  Prop `nicht` = Starter-IDs Abgemeldeter → ausgegraut mit `ausfall-abgemeldet`, 27.11.2026; StartFreigabe-Prop
+  `ausfallGesperrt` aus BetriebView `state.abgemeldet`);
+  EinreihenListe art `wiederholung` (überall, auch Handy und StartListe; `aufhebbar` → `wiederholung-aufheben` → Prop
+  `aufheben` der StartFreigabe → BetriebView WIEDERHOLUNG_AUFHEBEN, nur am Bedienrechner, holt die Werte zurück); Im Boot `data-teil="abgebrochen"`, „Zurück“ gesperrt;
+  BetriebsFolge-Suche mit art `wiederholung`; texte.ts startZeile „· Wiederholung“. ErfassungTabelle: ↻
+  `data-marke="wiederholung"` an der Nummer, `tr[data-wiederholung]` (betrieb/folge.ts wiederholteZellen, auch ohne
+  Host), styles/erfassung.css `.erf-wiederholung-marke`.
   W3.2 (21.11.2026, Liste zuweisen): `betrieb/wkrListenWahl.ts` useListenWahl (gruppen nach Parcours bzw.
   „Parallelslalom · Racecourse A“, Titel in Oberflächensprache, `teilbar`, `ohneMaske`; listeText „Steg (Parcours 1,
   nur Ablegen)“); istHandyName (G3/J2) entfiel 21.11.2026 (Art aus dem Register, GF7). GeraeteKoppeln: `<select data-feld="koppeln-liste">` (Wahl, kein Befehl) +
@@ -114,7 +130,9 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   auf `.wkr-mitte`/`.wkr-unten` UND Prüfung in jedem Tipp, Korrektur mit AppDialog alt → neu, Rückgängig, Suche,
   verwaiste Entwürfe, Ruhe-Zustände), WkrKopf, WkrStarterKarte (nie ein Name), WkrAusweichen (Ziffernfeld mit „E“),
   WkrKnoepfe, WkrStegReiter, WkrVorsteg, WkrDisq (zweiter Tipp setzt, X mit AppDialog), WkrFuss (Hauptknopf-Text,
-  Linkshand `wkr-fuss--links`), WkrZuletzt (Leiste, Liste, Rückfrage-/Ablehnungs-Band, Rückgängig), WkrMehr
+  Linkshand `wkr-fuss--links`; „↩ Rückgängig“ mit gezeichnetem Pfeil `svg.wkr-pfeil` `pfeil-links`, nie ein Zeichen im
+  Text – ↩ fehlt in den Schriften und käme als Emoji, R11-30 (2) 26.11.2026; Pfeil und Wort in EINEM `.wkr-mit-pfeil`,
+  sonst bricht „Rückgängig“ auf dem Handy mitten im Wort, Prüfbefund 27.11.2026), WkrZuletzt (Leiste, Liste, Rückfrage-/Ablehnungs-Band, Rückgängig), WkrMehr
   (Bemerkung, Pausieren/Abmelden/Weiter), WkrRuhe (warte, leer, pausiert, abgemeldet, papier, abgeschlossen,
   entfaellt, spaeter, entzogen); texte.ts (stufeZeichen, zellenText). Stile styles/wkr-geraet.css (Tokens --wkr-*,
   Vorgabe Wie Gerät (System hell/dunkel, GF1), `data-ziel` gross ≥ 64 px / klein ≥ 48 px – JEDER `<button>` hier trägt `class="wkr-knopf…"` und
@@ -224,18 +242,21 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   fokussiert von selbst nur ohne Fokus in einer anderen `.wkr-spalte`; useFenster ignoriert reine Höhenänderungen bei
   Fokus in einem Eingabefeld (Tastatur, Test systemModus.test.ts); WkrMatrix `.wkr-tisch` in app.css.
   Test der Mehrfachwahl: components/wkr/WkrDisqOrt.test.ts (22.11.2026).
-  Nutzer 24.11.2026 (WKR_ANNAHMEN BL1–BL6, UK1–UK6, Y5): WkrMehr `bild-lage` (Prop `bildLage` {art steg|start, wahl,
+  Nutzer 24.11.2026 (WKR_ANNAHMEN BL1–BL7, UK2–UK7, Y5): WkrMehr `bild-lage` (Prop `bildLage` {art klasse|parallel, wahl,
   wirksam}; Knopf `bild-lage-auto` „Automatisch“ (Ereignis mit `null` = Eintrag weg, gedrückt ohne Wahl) und Knöpfe
-  `bild-lage` `data-lage` 0|90|180|270 (gedrückt nur die Wahl), Satz `bild-lage-text`, ohne Wahl `bild-lage-vorgabe`;
+  `bild-lage` `data-lage` 0|90|180|270 (gedrückt nur die Wahl; Texte `wkr.geraet.bild.lage.<art>.<seite von Start/Ziel>`,
+  seit 26.11.2026 „Start/Ziel …“ statt „Steg …“, BL7), Satz `bild-lage-text`, ohne Wahl `bild-lage-vorgabe`;
   Ereignis `bildLage`) statt `bojen-ansicht`, sobald das Bild zu sehen ist (WkrMaske `mehrBojenFolge`/`mehrBildLage`;
   Bojen-Folge nur bei Bojen-Knöpfen); gemerkt in WkrGeraet (`bildLagen` → WkrMaske, `bild-lage` → WkrProbe) → WkrMitte
   `bildLage` → WkrBild Prop **`lageWahl`** (nicht `lage` – so heißt dort die Lage der Treffer), `data-lage`, Ereignis
   `drehung` (wirksam) → WkrMitte `bildDrehung`; Ziffern aufrecht über wkr/bild.ts aufrechtTransform (`data-aufrecht`).
   WkrMehr: WkrVorziehen ganz unten unter `uebung-ende`; WkrPruefliste: `pruef-vorziehen` unter dem Fuß. WkrMaske
-  kopfAusDemBild: in der Übung nach haupt()/nichtGestartet() (nachDemAbschicken) und noch einmal, sobald die nächste
+  erklaerungAusDemBild (seit 26.11.2026, R11-14, UK7 – vorher kopfAusDemBild, der Kopf rollte mit): in der Übung nach
+  haupt()/nichtGestartet() (nachDemAbschicken) und noch einmal, sobald die nächste
   Karte steht (`naechsteKarte`, UK5 – nicht am Overlay-Ende; bis dahin `halteStil` min-height = Höhe beim Abschicken)
-  scrollIntoView auf das Element nach dem Kopf (ref `kopfRef`), bei `seite` rechts auf `.wkr-maske` selbst (UK4,
-  ref `maskeRef`), nicht bei `seite` kompakt; WkrPruefliste ebenso nach abschicken() (UK6). Rollen über
+  scrollIntoView auf systemModus.ts zielNachErklaerung: das Band `wach-hinweis`, wenn es steht (seit 27.11.2026 UNTER
+  der Erklärung, bleibt stehen), sonst die `.wkr-spalte` der Maske (Kopf am Rand, nur die Erklärung darüber geht
+  hinaus; ref `maskeRef`), nicht bei `seite` kompakt; WkrPruefliste ebenso nach abschicken() (UK6, ref `wurzelRef`). Rollen über
   systemModus.ts rolleAnDenRand (block start, ohne Gleiten bei „Bewegung reduzieren“). Beim Bild gibt WkrMaske WkrMitte
   `bojenFolgeWirksam` = Vorgabe (BL6: Ortswahl der Disq. nie in einer verborgenen Folge). Tests:
   components/wkr/WkrMehr.test.ts, WkrUebung.test.ts (Fake-Uhr mit folgeMs [2000, 2000]), WkrBild.test.ts, WkrPruefliste.test.ts.
@@ -341,8 +362,11 @@ Logik in src/lib (CLAUDE.md dort), Zustand nur per dispatch (Actions: src/state/
   `beispiel-klasse|<k>` (R6-02), Summe `beispiel-summe`, merke `beispiel.klassen` {art, gesamt, klassen, hand}; Verteilung
   domain/generate.ts verteileAufKlassen (seit R7-51 22.11.2026 mit `fest` = Hand-Zahlen, markiert `data-hand` + ✎
   `beispiel-hand`, Knopf `beispiel-klassen-zuruecksetzen` nur mit Hand-Zahlen; BS3 umgebaut, BS4); Herkunft beispielHerkunft (Clubmeisterschaft keine, R6-01); Beispiel-Besetzung, -gewichte,
-  -Boote, -Co-Piloten; confirm vor dem Ersetzen), BesetzungPanel (ohne Beispiel-Knöpfe), EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
-  AufbauAssistent + ZuordnungImBild + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
+  -Boote, -Co-Piloten; confirm vor dem Ersetzen), BesetzungPanel (ohne Beispiel-Knöpfe; seit 26.11.2026 je Klasse
+  `coPilot|<k>`, `coPilotKg|<k>`, `ersatz|<k>`, `ersatzKg|<k>`, Ausgleich `data-ag="<k>|<rolle>"` (Gewicht ohne Namen:
+  „zählt erst mit Namen“, 27.11.2026), Satz + Verweis
+  `co-pilot-ausgleich` → Einstellungen `?durchschnittsgewichte`), EigeneAufbautenPanel, LogosPanel (Logos der Listen, verkleinert beim Einlesen),
+  AufbauAssistent + ZuordnungImBild (Rückgängig mit gezeichnetem Pfeil `svg.zib-pfeil`, 27.11.2026) + BlickErklaerung, VerlaufPanel, OfflinePanel, AppearancePanel, EingabenHinweis,
   HerkunftWahl (Listenform), SettingsNav. Klein: AppDialog, AppLogo, LocaleFlag, LocaleSelect, ThemeToggle, ToTop,
   ParcoursNachweis, FremdeBestandteile (Lizenzvermerke: Alcatraz selbst mit Repository-Link, Flaggen mit MIT-Text,
   tweetnacl, Parcours; neues Paket in `dependencies` → hier nennen, Test FremdeBestandteile.test.ts).

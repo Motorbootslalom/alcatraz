@@ -104,8 +104,11 @@ klassen: [E, 1, 2, 3, 4, 5, 6, 7]
 # gemessen am Datum der Veranstaltung (AppState.eventDatum, erster Wettkampftag). Entscheidung des
 # Nutzers vom 24.11.2026: „Bei den Geburtstag-Ausnahmen reicht eine Warnung und kann dann einfach
 # übergangen werden“ – der Reiter „Starter“ nennt die Starter, nichts wird gesperrt oder verschoben.
-# Auslegung (24.11.2026, offen zur Bestätigung): „bis zum 27. Geburtstag“ = am Geburtstag selbst
-# nicht mehr; am 29.02. Geborene werden in Jahren ohne 29.02. am 01.03. ein Jahr älter (BGB § 188).
+# „Bis zum 27. Geburtstag“ = am Geburtstag selbst nicht mehr (Auslegung vom 24.11.2026, vom Nutzer
+# bestätigt am 26.11.2026, R11-01). Auslegung (24.11.2026, offen zur Bestätigung): am 29.02. Geborene
+# werden in Jahren ohne 29.02. am 01.03. ein Jahr älter (BGB § 188). Wie nah am ersten Wettkampftag
+# deutlich gewarnt (2 Tage) bzw. hingewiesen (14 Tage) wird, steht nicht hier, sondern für jedes
+# Regelwerk gleich in import/klassenPruefung.ts GEBURTSTAG_FENSTER (R11-02, 26.11.2026).
 geburtstagsGrenzen: { E: { ab: 6 }, 7: { bis: 27 } }
 # Was vor der laufenden Nummer einer klassenbezogenen Startnummer steht (E01, 101 …). Ohne
 # Angabe ist es die Kennung der Klasse; für die Klasse E steht der Buchstabe hier ausdrücklich.

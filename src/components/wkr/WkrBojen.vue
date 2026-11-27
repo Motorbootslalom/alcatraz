@@ -20,7 +20,7 @@ import { useWkrText } from './texte'
  *   „0×“, jeder Tipp +1, „2× = 10“, ab WKR_ANNAHMEN.bojenZaehlerMax nimmt der Knopf nichts mehr an und sagt es in einer
  *   zweiten Zeile („höchstens 9×“). Nie nur Farbe.
  * - Tor 1, 2. Durchfahrt (`durchfahrt: 2`): eigene Zeile mit dem Satz „2. Durchfahrt (Speedrunde)“ über den Knöpfen.
- * - Kein [−][+]: zurück nur über „↶ Rückgängig“ im Fuß.
+ * - Kein [−][+]: zurück nur über „↩ Rückgängig“ im Fuß.
  *
  * Reihenfolge (Nutzer 22.11.2026, WKR_ANNAHMEN.bojenFolge; ersetzt „Wie der Parcours liegt“ vom 21.11.2026): `folge`
  * `gedreht` (Vorgabe) zeigt den Rück-Reiter in derselben Folge wie Hin (Start/Ziel, Tor 1, Tor 3, Tor 5), `fahrt` in

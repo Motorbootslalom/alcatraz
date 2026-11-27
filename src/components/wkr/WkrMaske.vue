@@ -64,7 +64,7 @@ import WkrParcoursBild from './WkrParcoursBild.vue'
 import WkrUebertragen from './WkrUebertragen.vue'
 import WkrZuletzt from './WkrZuletzt.vue'
 import { gedaechtnis } from './gedaechtnis'
-import { rolleAnDenRand } from './systemModus'
+import { rolleAnDenRand, zielNachErklaerung } from './systemModus'
 import { useWkrText, zellenText } from './texte'
 
 /**
@@ -117,11 +117,13 @@ import { useWkrText, zellenText } from './texte'
  *   ihren Entwurf hinauf (gemerkt wie jeder Tipp), Enter in der letzten Zelle ruft `haupt` – derselbe Takt, dasselbe
  *   Overlay; „Korrigieren“ an einer Zeile = oeffneKorrektur wie aus „Zuletzt“. Zellen mit Fehler sperren den
  *   Hauptknopf (WkrFuss `zellenFehler`); DISQ entfällt dort (Buchstaben stehen in der Zelle).
- * - **Übung, Nutzer 24.11.2026** (WKR_ANNAHMEN UK1–UK5): Nach dem Abschicken rollt der Kopf samt Übungs-Erklärung oben
- *   hinaus (kopfAusDemBild) und noch einmal, sobald die nächste Karte steht (UK5) – nur in der Übung, nicht auf dem
- *   Pad mit mehreren Spalten; mit eigener Seitenspalte rechts bis zur Oberkante der Maske (UK4).
+ * - **Übung, Nutzer 26.11.2026** (WKR_ANNAHMEN UK7, UK2, UK5; ersetzt UK1/UK3 vom 24.11.2026, R11-14): Nach dem
+ *   Abschicken rollt nur die Übungs-Erklärung oben hinaus, der Kopf bleibt und steht am Rand (erklaerungAusDemBild:
+ *   Spalte der Maske an den Rand), noch einmal, sobald die nächste Karte steht (UK5) – nur in der Übung, nicht auf
+ *   dem Pad mit mehreren Spalten.
  * - **Lage des Bilds, Nutzer 24.11.2026** (BL1–BL6): „Mehr → Ansicht“ zeigt beim Bild statt der Bojen-Folge die Lage
- *   (Automatisch / Steg unten/links/oben/rechts, Parallelslalom nach dem Start), je Liste gemerkt wie die Bojen-Folge
+ *   (Automatisch / Start/Ziel links/oben/rechts/unten seit 26.11.2026, R11-13, BL7 – vorher „Steg …“; Parallelslalom
+ *   „Start …“), je Liste gemerkt wie die Bojen-Folge
  *   (`bildLagen`); die Ortswahl der Disq. folgt beim Bild der Vorgabe-Folge (BL6).
  */
 const props = defineProps<{
@@ -436,40 +438,36 @@ function neuVerbinden(): void {
   if (typeof location !== 'undefined') location.reload()
 }
 
-// --- Übung: Kopf nach dem Abschicken aus dem Bild (Nutzer 24.11.2026, WKR_ANNAHMEN UK1–UK5) ---
+// --- Übung: Erklärung nach dem Abschicken aus dem Bild, der Kopf bleibt (Nutzer 26.11.2026, WKR_ANNAHMEN UK7, UK2, UK5) ---
 // Steht hinter `zeige` und `ruhe`: Der Watch unten liest sie sofort beim Aufbau.
-const kopfRef = ref<InstanceType<typeof WkrKopf> | null>(null)
 const maskeRef = ref<HTMLElement | null>(null)
 /**
- * Nur in der Übung (UK1: die echte Maske zeigt im Kopf Verbindung, „Keine Bestätigung“ und „Bitte Nr. prüfen“ – die
- * sollen nicht oben hinausrollen) und nicht auf dem Pad mit mehreren Spalten (`seite` kompakt): Die Seite rollt dort
- * für alle Spalten zugleich (UK2).
+ * Nur in der Übung (die echte Maske rollt nie von selbst) und nicht auf dem Pad mit mehreren Spalten (`seite`
+ * kompakt): Die Seite rollt dort für alle Spalten zugleich (UK2, bestätigt 26.11.2026, R11-30 (8)).
  */
-const rolltKopfHinaus = computed(() => props.quelle.uebung && WKR_ANNAHMEN.uebungKopfAusDemBild && props.seite !== 'kompakt')
+const rolltErklaerungHinaus = computed(() => props.quelle.uebung && WKR_ANNAHMEN.uebungErklaerungAusDemBild && props.seite !== 'kompakt')
 /**
- * Nutzer 24.11.2026: „Bei dem Header ‚So läuft die Übung‘ und ‚ÜBUNG Tor X …‘ soll beim Klicken auf ‚Fehlerfrei/weiter‘
- * aus dem Screen rutschen, so dass der Block mit der Startnummer am Bildschirmrand ist.“ Nach dem Abschicken (UK1)
- * rollt die Seite so, dass alles über dem Kopf und der Kopf selbst oben hinausgehen – also die Erklärung der Übung, das
- * Band „ÜBUNG“, Titel und Verbindung. Ziel ist das erste Element NACH dem Kopf (UK3): Steg-Reiter bzw. die Zeile
- * „Zuletzt“ mit „↶ Rückgängig“ (6 s, G8) und den Rückfrage-Bändern bleiben sichtbar, darunter gleich die Karte; ohne
- * „Zuletzt“ (erster Start) steht die Karte am Rand. Die Fläche „wird übertragen …“ liegt fest über allem und rollt
- * nicht mit. Ohne Bewegung bei „Bewegung reduzieren“ (systemModus.ts rolleAnDenRand).
+ * Nach dem Abschicken rollt die Seite, bis die Spalte dieser Maske oben am Rand steht (UK7, Nutzer 26.11.2026): Die
+ * Erklärung „So läuft die Übung“ geht oben hinaus, der KOPF der Maske („ÜBUNG“, Liste, Verbindung) steht am Rand,
+ * darunter „Zuletzt“ mit „↩ Rückgängig“ und die Karte. Steht der Hinweis „Bildschirm kann ausgehen“, liegt er seit
+ * 27.11.2026 unter der Erklärung und bleibt über dem Kopf stehen (systemModus.ts zielNachErklaerung, Prüfbefund).
+ * Auf dem Pad mit einer Spalte stehen die Reiter der Listen und der Anfang der Seitenspalte in derselben Höhe – sie
+ * bleiben ebenso zu sehen (wie UK4). Die Fläche „wird übertragen …“ liegt fest über allem und rollt nicht mit. Ohne Bewegung bei „Bewegung
+ * reduzieren“ (systemModus.ts rolleAnDenRand). Ohne Spalte (Einbau ohne WkrGeraet) die Maske selbst.
  *
- * Pad mit eigener Seitenspalte rechts (Prüfbefund 24.11.2026, UK4, noch zu bestätigen): Der Kopf steht dort in
- * derselben Rasterzeile wie der Anfang der Seitenspalte (Schlange, gerade aktiver Start) – rollte er hinaus, ginge
- * deren Anfang mit. Dort rollt die Maske nur bis zu ihrer eigenen Oberkante: Erklärung und Bildschirm-Hinweis gehen
- * hinaus, der Kopf mit „ÜBUNG“ bleibt.
+ * Vorher (UK1/UK3, 24.11.2026) rollte auch der Kopf hinaus – Nutzer 26.11.2026 (R11-14) auf die Frage, ob das auch am
+ * Wettkampftag so sein soll (dort stehen im Kopf „Keine Bestätigung“ und „Bitte Nr. prüfen“): „Oh, dann besser wieder
+ * raus damit. Ich dachte, es ist eine extra Zeile.“
  */
-function kopfAusDemBild(): void {
-  if (!rolltKopfHinaus.value) return
-  const ziel = props.seite === 'rechts' && WKR_ANNAHMEN.uebungKopfSeiteRechts ? maskeRef.value : ((kopfRef.value?.$el ?? null) as Element | null)?.nextElementSibling
-  rolleAnDenRand(ziel)
+function erklaerungAusDemBild(): void {
+  if (!rolltErklaerungHinaus.value) return
+  rolleAnDenRand(zielNachErklaerung(maskeRef.value))
 }
 /**
  * UK5 (Prüfbefund 24.11.2026): Im Übungstakt kommt der nächste Start erst 2–6 s nach dem Abschicken (geraete/uebung.ts
  * UEBUNG_FOLGE_MS). Bis dahin steht statt Karte und Knöpfen nur „Kein Boot unterwegs.“ (WkrRuhe `leer`) – die
- * Seite würde kurz, der Browser rollte von selbst zurück nach oben, und mit der neuen Karte stünden Erklärung und
- * „ÜBUNG“ wieder da. Darum nach dem Abschicken: (a) ausrichten, sobald wieder eine Karte steht (nicht schon beim Ende
+ * Seite würde kurz, der Browser rollte von selbst zurück nach oben, und mit der neuen Karte stünde die Erklärung
+ * wieder da (gilt seit 26.11.2026 für UK7). Darum nach dem Abschicken: (a) ausrichten, sobald wieder eine Karte steht (nicht schon beim Ende
  * des Overlays – da kann sie noch fehlen), (b) bis dahin hält die Maske ihre Höhe vom Abschicken (min-height), damit
  * nichts zurückspringt. Beides endet mit dem ersten Ausrichten mit Karte; eine Korrektur dazwischen zählt nicht als
  * neue Karte. Die gehaltene Höhe gilt nur, solange die Maske Arbeit oder „leer“ zeigt (Pause usw. ohne Leerraum).
@@ -477,8 +475,8 @@ function kopfAusDemBild(): void {
 const ausrichtenOffen = ref(false)
 const halteHoehe = ref<number | null>(null)
 function nachDemAbschicken(): void {
-  if (!rolltKopfHinaus.value) return
-  void nextTick(kopfAusDemBild)
+  if (!rolltErklaerungHinaus.value) return
+  void nextTick(erklaerungAusDemBild)
   if (!WKR_ANNAHMEN.uebungKopfMitNaechsterKarte) return
   // Gemessen, solange Karte und Knöpfe noch stehen (vor dem Overlay-Ende); im Test-DOM 0 = nichts halten.
   const h = maskeRef.value?.offsetHeight ?? 0
@@ -491,7 +489,7 @@ watch(naechsteKarte, (key) => {
   if (!key || !ausrichtenOffen.value) return
   ausrichtenOffen.value = false
   void nextTick(() => {
-    kopfAusDemBild()
+    erklaerungAusDemBild()
     halteHoehe.value = null
   })
 })
@@ -791,7 +789,7 @@ function haupt(): void {
   disqOffen.value = false
   starteTakt(g)
   ladeEntwurf()
-  // Übung (UK1, 24.11.2026): Kopf aus dem Bild, solange das Overlay noch darüber liegt – und mit der nächsten Karte (UK5).
+  // Übung (UK7, 26.11.2026): Erklärung aus dem Bild, solange das Overlay noch darüber liegt – und mit der nächsten Karte (UK5).
   nachDemAbschicken()
 }
 
@@ -1022,7 +1020,7 @@ const bildZuordnungJetzt = computed(() =>
     : null,
 )
 /**
- * Prüfbefund 24.11.2026 (WKR_ANNAHMEN BL6, noch zu bestätigen): Die Bojen-Folge wirkt nur, wo sie unter „Mehr“ auch
+ * Prüfbefund 24.11.2026 (WKR_ANNAHMEN BL6, bestätigt 26.11.2026, R11-30 (5)): Die Bojen-Folge wirkt nur, wo sie unter „Mehr“ auch
  * wählbar ist (BL1). Beim Bild öffnet DISQ im Fuß weiter die Liste „Disq. – an welcher Boje?“ (WkrDisqOrt, BD7) – die
  * steht dort immer in der Vorgabe „Rückweg gedreht“, nie in einer Folge, die der WKR früher bei den Knöpfen gewählt
  * hat und beim Bild weder sieht noch ändern kann. Bei den Knöpfen gilt die Wahl wie bisher für Knöpfe und Ortswahl.
@@ -1058,13 +1056,14 @@ const seiteWirksam = computed(() => props.seite ?? (bildZuordnungJetzt.value ? (
  * Dafür braucht Bild die Auswahl von den 4 Parcours-Himmelsrichtungen.“, WKR_ANNAHMEN BL1): die Bojen-Folge nur, wenn
  * die Bojen-Knöpfe zu sehen sind – nicht beim Bild und nicht bei der Tabelle; beim Bild statt ihrer die Lage. Ein Bild
  * ohne vollständige Zuordnung zeigt die Knöpfe (BD2) und damit wieder die Bojen-Folge; das Schema (Rückfall ohne
- * Parallel.svg) dreht nicht und hat keine Lage. Parallelslalom: benannt nach dem Start (keine Zeichnung mit Steg, R9-06).
+ * Parallel.svg) dreht nicht und hat keine Lage. Benannt nach Start/Ziel (Nutzer 26.11.2026, R11-13, BL7: „Steg ist hier
+ * irreführend“) – `art` wählt nur die Texte: Klassen „Start/Ziel …“ mit Tor 5, Parallelslalom „Start …“ mit Boje 5.
  */
 const mehrBojenFolge = computed(() => (art.value === 'bojen' && !bildZuordnungJetzt.value && !tabelle.value ? bojenFolge.value : null))
 const mehrBildLage = computed(() => {
   const z = bildZuordnungJetzt.value
   if (!z || z.art !== 'svg') return null
-  return { art: z.racecourse ? ('start' as const) : ('steg' as const), wahl: bildLage.value, wirksam: bildDrehungJetzt.value }
+  return { art: z.racecourse ? ('parallel' as const) : ('klasse' as const), wahl: bildLage.value, wirksam: bildDrehungJetzt.value }
 })
 /** „Andere Startnummer …“ aus der Seitenspalte: dieselbe Suche wie unter der Karte. */
 function sucheAusSeite(): void {
@@ -1092,7 +1091,6 @@ const zeigeUnten = computed(() => !abschluss.value && !ruhe.value && !!zeige.val
     <div class="wkr-maske-haupt">
       <WkrKopf
         v-if="sicht"
-        ref="kopfRef"
         :titel="kopfTitel.titel"
         :bereich="kopfTitel.bereich"
         :lauf="ohneLauf ? null : (zeige?.start.titel ?? sicht.punkt?.titel ?? null)"

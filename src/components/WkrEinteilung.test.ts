@@ -307,6 +307,25 @@ describe('WKR-Einteilung: Beispielansicht der Listen', () => {
     wrapper.unmount()
   })
 
+  it('Meisterschaft mit gemeinsamen Bögen (R11-03, 26.11.2026): die Beispielansicht zeigt den gemeinsamen Bogen erst nach dem Einschalten', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, '2')
+    await zeige(wrapper, 'steg')
+    const muster = () => wrapper.findAll('.wkr-vorschau .bogen[data-liste="steg"] td.bt-nr').map((td) => td.text()).filter((n) => n.startsWith('M'))
+    // Vorgabe: der Bogen der einen Klasse.
+    expect(muster()).toHaveLength(10)
+    store.dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'gleich' })
+    await nextTick()
+    // Klasse 2 teilt den Steg-Bogen mit E, 1 und 3 (gleiche Spalten), je Klasse ein Block.
+    expect(muster()).toHaveLength(40)
+    const ueber = wrapper.findAll('.wkr-vorschau .bogen[data-liste="steg"] tr.bt-zwischen').map((z) => z.text())
+    expect([...ueber].sort()).toEqual(['Klasse 1', 'Klasse 2', 'Klasse 3', 'Klasse E'])
+    store.dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'aus' })
+    await nextTick()
+    expect(muster()).toHaveLength(10)
+    wrapper.unmount()
+  })
+
 
   it('Parallelslalom (UIM): je Racecourse A und B Zeit, Steg und Fahrweg – Muster-Nummern in Blöcken, Dummy-Zeile, Muster-QR', async () => {
     const wrapper = ansicht(store)

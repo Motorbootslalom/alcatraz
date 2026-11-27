@@ -161,7 +161,8 @@ export interface BogenOptionen {
    * gemischt in der Startfolge der Verzahnung, 24.11.2026) stehen sie ohne Überschrift am Ende
    * jeder Seite: Ihre Klassenzelle ist leer, das genügt. `leerzeilen` und `leerzeilenJeKlasse`
    * gelten dann nicht. Kosteten sie allein ein weiteres Blatt, entfallen sie bis auf eine (wie
-   * bei den Zeilen je Klasse).
+   * bei den Zeilen je Klasse). In der Startfolge bestätigt 26.11.2026 (R11-04): einfache Zeilen je
+   * Seite ohne Überschrift, auch mit „Versuche direkt nacheinander“ (eine Nachmeldung füllt dort zwei).
    */
   leerzeilenJeSeite?: number
   /** Gemessen: so viele Tabellenzeilen (Starter, Leerzeilen, Zwischenüberschriften) passen auf ein Blatt. */

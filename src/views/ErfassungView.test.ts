@@ -455,6 +455,24 @@ describe('Erfassung', () => {
     wrapper.unmount()
   })
 
+  it('Meisterschaft mit gemeinsamen Bögen (R11-03, 26.11.2026): ein Bogen für mehrere Klassen wie bei der Clubmeisterschaft; Vorgabe je Klasse', async () => {
+    const wrapper = ansicht(store)
+    await waehle(wrapper, 'parcours', 'par_2')
+    await waehle(wrapper, 'liste', 'steg')
+    // Vorgabe: der Bogen der Klasse.
+    expect(titel(wrapper)).toContain('Klasse 4')
+    expect(zeilen(wrapper)).toHaveLength(3)
+    store.dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'gleich' })
+    await nextTick()
+    expect(titel(wrapper)).toContain('Klassen 4, 7')
+    expect(wrapper.findAll('.erf-zwischen').map((z) => z.text())).toEqual(['Klasse 4', 'Klasse 7'])
+    expect(zeilen(wrapper)).toHaveLength(6)
+    // Die Eingabe hängt weiter am Starter: gewertet wird je Klasse.
+    await tippe(feld(wrapper, 3, 'fehlerAN'), '9')
+    expect(store.state.value.eingaben[L1]['id-7-1']).toEqual({ 'katalog:stegAnlegen': '9' })
+    wrapper.unmount()
+  })
+
   it('englische Oberfläche und UIM: englische Texte, Klassenname aus dem Regelwerk, Verweis für den Parallel-Slalom', async () => {
     store.dispatch({ type: 'CLEAR_ALL_STARTERS' })
     store.dispatch({ type: 'SET_REGELWERK', regelwerk: 'uim-2026' })
@@ -549,6 +567,21 @@ describe('Erfassung: alle Listen untereinander', () => {
     await waehle(wrapper, 'liste', 'steg')
     expect(namen(wrapper)).toEqual(['Steg'])
     expect(wrapper.find('.eingabe-stapel').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('Meisterschaft, Papier sparen (R11-03, 26.11.2026): der Stapel des Parcours – gemeinsame Bögen, gleich von welcher Klasse aus', async () => {
+    store.dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'alle' })
+    const wrapper = ansicht(store)
+    const boegen = () => wrapper.findAll('.eingabe-stapel .erf-bogen').map((b) => b.attributes('data-bogen') ?? '')
+    await waehle(wrapper, 'parcours', 'par_2')
+    await waehle(wrapper, 'liste', '*')
+    const fuer4 = boegen()
+    expect(fuer4.length).toBeGreaterThan(3)
+    // Jeder Bogen des Stapels trägt beide Klassen des Parcours.
+    for (const id of fuer4) expect(id.split('|')[1].split('+').sort(), id).toEqual(['4', '7'])
+    await waehle(wrapper, 'klasse', '7')
+    expect(boegen()).toEqual(fuer4)
     wrapper.unmount()
   })
 

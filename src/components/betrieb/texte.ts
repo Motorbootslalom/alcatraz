@@ -108,7 +108,8 @@ export function startZeile(sicht: Pick<OeffentlicheSicht, 'starter' | 'klassen'>
     key: s.key,
     startNr: p?.startNr || '–',
     name: p?.name ?? '',
-    was: [klasse ? t('common.class', { id: klasse.name }) : '', t('betrieb.lauf', { n: s.lauf })].filter(Boolean).join(' · '),
+    // Wiederholung nach Ausfall (R11-11, 26.11.2026): „Klasse 1 · Lauf 2 · Wiederholung“.
+    was: [klasse ? t('common.class', { id: klasse.name }) : '', t('betrieb.lauf', { n: s.lauf }), s.wiederholung ? t('betrieb.wiederholung.marke') : ''].filter(Boolean).join(' · '),
     herkunft: p?.herkunft?.klartext ?? '',
     farbe: klasse?.farbe ?? '',
     klasse: klasse?.name ?? '',

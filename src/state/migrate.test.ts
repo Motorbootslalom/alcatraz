@@ -184,6 +184,13 @@ describe('migrate: Listenoptionen (Seitenaufteilung, Bojen-Seiten, Sprache)', ()
     expect(migrate({ starters: [], wkrGemeinsamFolge: 'gemischt' })!.wkrGemeinsamFolge).toBe('getrennt')
   })
 
+  it('gemeinsame Bögen bei einer Meisterschaft (R11-03, 26.11.2026): fehlt oder unbekannt = aus, je Klasse ein Bogen wie vorher', () => {
+    expect(migrate({ starters: [] })!.wkrMeisterschaftGemeinsam).toBe('aus')
+    expect(migrate({ starters: [], wkrMeisterschaftGemeinsam: 'gleich' })!.wkrMeisterschaftGemeinsam).toBe('gleich')
+    expect(migrate({ starters: [], wkrMeisterschaftGemeinsam: 'alle' })!.wkrMeisterschaftGemeinsam).toBe('alle')
+    expect(migrate({ starters: [], wkrMeisterschaftGemeinsam: true })!.wkrMeisterschaftGemeinsam).toBe('aus')
+  })
+
   it('Brauchbares bleibt, Unbrauchbares fällt auf die Vorgabe', () => {
     expect(migrate({ starters: [], wkrZeilenJeSeite: 15, wkrTeilenAb: 25, beschriftung: 'pfeile', wkrSprachen: { par_1: { steg: 'de+en' } } })).toMatchObject({
       wkrZeilenJeSeite: 15,

@@ -1,4 +1,4 @@
-import type { AppState, BereichBetrieb, BereichId, ClassId, ParallelRunde, Parcours, PunktId, StartRef, Starter, TrackItem } from '../types'
+import type { AppState, BereichBetrieb, BereichId, ClassId, GezeigterStart, ParallelRunde, Parcours, PunktId, StartRef, Starter, TrackItem } from '../types'
 import { planEvent, type ParcoursPlan } from '../planung/plan'
 import { istRunde } from '../planung/parallelRunden'
 import { parallelActiveClasses } from '../planung/parallel'
@@ -165,8 +165,45 @@ export function bereichLeer(b: BereichBetrieb): boolean {
     b.reihenfolge === null &&
     b.ausgesetzt.length === 0 &&
     b.vorziehen === BETRIEB_ANNAHMEN.vorziehenVorgabe &&
-    b.meldung === null
+    b.meldung === null &&
+    (b.wiederholung?.length ?? 0) === 0
   )
+}
+
+// --- Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11) -----------------------------------------
+
+/**
+ * Wie oft ein gezeigter Versuch dieses Starts abgebrochen wurde (Ausfall, Wiederholung entschieden): die Zahl der
+ * Einträge in `gezeigt` mit `abgebrochen`. 0 = nie. Die WKR-Geräte bekommen den Start danach unter einer neuen Kennung
+ * (wkr/versuch.ts) – so gilt er dort als neuer Start, und eine späte Zeile zum abgebrochenen Versuch ist erkennbar.
+ */
+export function abbruecheVon(b: Pick<BereichBetrieb, 'gezeigt'>, key: string): number {
+  let n = 0
+  for (const g of b.gezeigt) if (g.abgebrochen && g.ref === key) n++
+  return n
+}
+
+/** Ist der zuletzt gezeigte Versuch dieses Starts abgebrochen und der Start seitdem nicht wieder gezeigt? */
+export function wartetAufWiederholung(b: Pick<BereichBetrieb, 'gezeigt'>, key: string): boolean {
+  for (let i = b.gezeigt.length - 1; i >= 0; i--) if (b.gezeigt[i].ref === key) return b.gezeigt[i].abgebrochen === true
+  return false
+}
+
+/**
+ * Die Zellen (`${laufSchluessel}|${starterId}`) aller Starts des Manövrierens, die wiederholt werden oder wurden – für
+ * den Hinweis in der Erfassung („Wiederholung nach Ausfall – Werte der Wiederholung eintragen“), über alle Bereiche.
+ * Rein; der Lauf-Schlüssel kommt von außen (Disziplin des Aufbaus).
+ */
+export function wiederholteZellen(stand: Pick<AppState, 'betrieb'>, laufKey: (lauf: number) => string): Set<string> {
+  const out = new Set<string>()
+  for (const b of Object.values(stand.betrieb.bereiche)) {
+    for (const g of b.gezeigt) {
+      if (!g.abgebrochen) continue
+      const r = liesRef(g.ref)
+      if (r?.art === 'm') out.add(`${laufKey(r.lauf)}|${r.starter}`)
+    }
+  }
+  return out
 }
 
 /**
@@ -388,6 +425,8 @@ export interface GezeigtEintrag {
   ref: StartRef | null
   zeit: number
   eintrag: FolgeEintrag | null
+  /** Dieser Versuch ist nach einem Ausfall abgebrochen (R11-11, 26.11.2026) – er zählt nicht als erledigt. */
+  abgebrochen: boolean
 }
 
 /** Wo ein Bereich steht – alles, was Anzeigetafel, Start-Freigabe und die Schritte des Betriebs brauchen. */
@@ -423,7 +462,10 @@ export interface BereichLage {
   vorig: GezeigtEintrag | null
   /** Kennungen der gezeigten Starts. */
   gezeigtKeys: ReadonlySet<string>
-  /** Kennungen der erledigten Starts: gezeigt oder „ohne Anzeige“ (Einsteigen). */
+  /**
+   * Kennungen der erledigten Starts: gezeigt oder „ohne Anzeige“ (Einsteigen). Ein Start, dessen gezeigter Versuch nach
+   * einem Ausfall abgebrochen wurde, ist es erst wieder, wenn er erneut gezeigt ist (R11-11, 26.11.2026).
+   */
   erledigt: ReadonlySet<string>
   /** Höchste Stelle eines erledigten Starts (gezeigt oder ohne Anzeige) eines begonnenen Punkts in der Folge; −1 = keiner. */
   zeiger: number
@@ -438,6 +480,11 @@ export interface BereichLage {
   nachzuholen: FolgeEintrag[]
   /** Zurückgestellte Starts (B-3, bleiben sichtbar), in der Folge. */
   zurueckgestellt: FolgeEintrag[]
+  /**
+   * „Wiederholung offen“ (Nutzer 26.11.2026, R11-11): Starts, deren Versuch nach einem Ausfall abgebrochen wurde und die
+   * noch nicht wieder eingereiht sind (BereichBetrieb.wiederholung), in der Folge. Sie fahren nie von selbst.
+   */
+  wiederholung: FolgeEintrag[]
   /** Nicht erledigte Starts ausgesetzter Klassen („Boot fehlt“, V-5/L-7), in der Folge – sie fahren nicht. */
   bootFehlt: FolgeEintrag[]
   /** Die ausgesetzten Klassen („Boot fehlt“), wie im Betrieb vermerkt. */
@@ -455,7 +502,8 @@ export interface BereichLage {
  * mitten in Lauf 2). Am Ende eines Punkts bleibt der letzte gezeigte Start stehen
  * (BETRIEB_ANNAHMEN.endeBleibtStehen), `naechster` ist dann `null`.
  *
- * Einteilung eines nicht erledigten, nicht entfallenen Starts, in dieser Rangfolge: zurückgestellt (B-3);
+ * Einteilung eines nicht erledigten, nicht entfallenen Starts, in dieser Rangfolge: Wiederholung offen (Ausfall, noch
+ * nicht wieder eingereiht – R11-11, 26.11.2026); zurückgestellt (B-3);
  * „Boot fehlt“ (Klasse ausgesetzt, gleich wo er steht – vom Zeiger überholt ist er kein Nachzügler);
  * nachzuholen (vor dem Zeiger, Punkt begonnen); sonst offen.
  */
@@ -466,15 +514,16 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
   const begonnen = punkte.filter((p) => begonnenMenge.has(p))
   const abgeleitet = abgeleiteteFolge(stand, bereich)
   const gezeigtKeys = new Set(b.gezeigt.map((g) => g.ref))
-  // Erledigt: gezeigt oder „ohne Anzeige“ (Einsteigen).
-  const erledigt = new Set([...gezeigtKeys, ...b.ohneAnzeige])
+  // Erledigt: gezeigt oder „ohne Anzeige“ (Einsteigen). Ein abgebrochener Versuch (Ausfall, R11-11) erledigt nichts –
+  // der Start ist wieder offen, bis er erneut gezeigt wird (BETRIEB_ANNAHMEN.wiederholungNichtErledigt).
+  const erledigt = new Set([...b.gezeigt.filter((g) => !g.abgebrochen).map((g) => g.ref), ...b.ohneAnzeige])
   const folge = abgleich(abgeleitet, b.reihenfolge)
   const stelle = new Map(folge.map((e, i) => [e.key, i]))
 
-  const gezeigtEintrag = (g: { ref: string; zeit: number } | undefined): GezeigtEintrag | null => {
+  const gezeigtEintrag = (g: GezeigterStart | undefined): GezeigtEintrag | null => {
     if (!g) return null
     const i = stelle.get(g.ref)
-    return { key: g.ref, ref: liesRef(g.ref), zeit: g.zeit, eintrag: i === undefined ? null : folge[i] }
+    return { key: g.ref, ref: liesRef(g.ref), zeit: g.zeit, eintrag: i === undefined ? null : folge[i], abgebrochen: g.abgebrochen === true }
   }
 
   // Nur Erledigtes begonnener Punkte schiebt den Zeiger (BETRIEB_ANNAHMEN.zeigerNurBegonnene): Wird
@@ -483,6 +532,9 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
   // Ebenso ein gezielt gezeigter Start eines späteren Laufs (B-5).
   const zeiger = zeigerIn(folge, erledigt, begonnenMenge, BETRIEB_ANNAHMEN.zeigerNurBegonnene)
   const zurueck = new Set(b.zurueckgestellt)
+  // „Wiederholung offen“ (R11-11): nur, solange der letzte gezeigte Versuch abgebrochen ist (ein veralteter Eintrag eines
+  // schon wieder gezeigten Starts zählt nicht).
+  const wiederholen = new Set((b.wiederholung ?? []).filter((k) => wartetAufWiederholung(b, k)))
   const ausgesetzt = new Set(b.ausgesetzt)
   // Überholt (BETRIEB_ANNAHMEN.nichtBegonneneWarten): Punkt begonnen, und hinter dem Start ist schon ein
   // Start SEINES oder eines späteren begonnenen Punkts erledigt. Ohne Umstellungen ist das dasselbe wie „vor
@@ -509,11 +561,14 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
   const offen: FolgeEintrag[] = []
   const nachzuholen: FolgeEintrag[] = []
   const zurueckgestellt: FolgeEintrag[] = []
+  const wiederholung: FolgeEintrag[] = []
   const bootFehlt: FolgeEintrag[] = []
   folge.forEach((e, i) => {
     if (e.entfaellt || erledigt.has(e.key)) return
     const nachzuegler = BETRIEB_ANNAHMEN.nachzueglerNachzuholen && (BETRIEB_ANNAHMEN.nichtBegonneneWarten ? ueberholt[i] : i < zeiger)
-    if (zurueck.has(e.key)) zurueckgestellt.push(e)
+    // Wiederholung offen vor allem anderen: Die Wettkampfleitung setzt den Start selbst an seine Stelle (R11-11).
+    if (wiederholen.has(e.key)) wiederholung.push(e)
+    else if (zurueck.has(e.key)) zurueckgestellt.push(e)
     else if (ausgesetzt.has(e.klasse) && (BETRIEB_ANNAHMEN.bootFehltVorNachzuholen || !nachzuegler)) bootFehlt.push(e)
     else if (nachzuegler) nachzuholen.push(e)
     else offen.push(e)
@@ -565,6 +620,7 @@ export function lage(stand: AppState, bereich: BereichId): BereichLage {
     frei,
     nachzuholen,
     zurueckgestellt,
+    wiederholung,
     bootFehlt,
     ausgesetzt: b.ausgesetzt,
     vorziehen: b.vorziehen,

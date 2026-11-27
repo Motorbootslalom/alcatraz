@@ -59,7 +59,7 @@ export default {
   'files.download.vorlage': 'Template',
   'files.download.starter': 'Driver data',
   'files.about.sicherung': 'Everything about this event. Contains names and dates of birth – please store it with care.',
-  'files.about.vorlage': 'The settings only (rulebook, setup, own setups, lists, abbreviations, courses, boats) – without drivers, name, year and the names of the race officials and co-drivers. For the next event.',
+  'files.about.vorlage': 'The settings only (rulebook, setup, own setups, lists, abbreviations, courses, boats) – without drivers, name, year, the names of the race officials and the names and weights of the co-drivers. For the next event.',
   'files.about.starter': 'The drivers only. Contains names and dates of birth – please store it with care.',
   'files.upload': 'Load a file …',
   'files.uploadNote': 'Backup, template or driver data – the file knows what it is. You are asked before anything is overwritten.',
@@ -120,6 +120,7 @@ export default {
   'history.what.starterAbgemeldet': 'Driver entered as did not start',
   'history.what.starterAngemeldet': 'Withdrawal of a driver taken back',
   'history.what.gewicht': 'Weight recorded',
+  'history.what.coPilotGewicht': 'Co-driver weight recorded',
   'history.what.aufbau': 'Setup changed',
   'history.what.regelwerk': 'Rulebook changed',
   'history.what.veranstaltung': 'Event changed',
@@ -149,6 +150,9 @@ export default {
   'history.what.wkrListe': 'Entry mode of list {list} changed',
   'history.what.wkrAbschluss': 'Sign-off of list {list} changed',
   'history.what.wkrPapierAb': 'List {list} switched to paper from a start on',
+  // R11-11 (26.11.2026): repeat after a breakdown – VerlaufPanel appends start number, class and attempt (27.11.2026).
+  'history.what.wiederholungAusfall': 'Repeat after breakdown – values discarded:',
+  'history.what.wiederholungAufgehoben': 'No repeat after all – values brought back:',
 
   'backup.reset': 'Reset everything',
   'backup.resetConfirm':

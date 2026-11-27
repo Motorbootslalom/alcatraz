@@ -104,14 +104,14 @@ export interface GefahreneRunde {
  * Die Runden des Parallelslaloms, die ein Starter gefahren ist, in der Folge des Wettkampfs
  * (Vorlauf, Halbfinale, Kleines Finale bzw. Finale) – für den Stichentscheid der Einzelwertung
  * (`letzteDannVorletzte`, Entscheidung des Nutzers vom 24.11.2026). Auslegungen beim Bau,
- * 24.11.2026 (vom Nutzer zu bestätigen):
+ * 24.11.2026, bestätigt 26.11.2026 (R11-26):
  *   • Gefahren ist eine Runde, in deren festgeschriebenem Plan er steht und in der er mindestens
  *     einen Attempt gestartet ist: In mindestens einem Attempt steht eine Zeit oder eine
  *     Disqualifikation, die kein X „Nicht gestartet“ ist. Wer in keinem Attempt gestartet ist (X
  *     in beiden; oder X im einen und der andere leer – die Runde ist mit dem X schon entschieden,
  *     Prüfbefund 24.11.2026), ist sie nicht gefahren – dann zählt die Runde davor. Ein X in einem
  *     Attempt neben einem gefahrenen ist wie eine Disqualifikation: Die Runde ist gefahren, ohne Zeit.
- *     Folge (offen, docs/entscheidungen.md „Offen“): Wer zur letzten Runde nicht antritt, behält die
+ *     Folge (so bestätigt 26.11.2026, R11-26): Wer zur letzten Runde nicht antritt, behält die
  *     Zeit der Runde davor und steht so vor einem Punktgleichen, der in seiner letzten Runde
  *     disqualifiziert wurde.
  *   • Disqualifiziert in einer Runde (Pkt. 5.2.2): Die Runde ist gefahren, hat aber keine Zeit –
@@ -249,8 +249,8 @@ export function parallelGewertet(stand: EinzelStand, konfig: EinzelKonfig): bool
  * die vorletzte Runde“): Haben Punktgleiche auch dieselbe Zeit, kommt die Summe ihrer vorletzten
  * gefahrenen Runde dazu. Weil die Zeit der ersten Stufe in dieser Gruppe gleich ist, reiht die
  * Summe aller drei Teile genau so wie die vorletzte Runde allein – verglichen wird deshalb nur
- * sie (`zeit2`; mit Zeit vor ohne Zeit). Auslegungen beim Bau, 24.11.2026 (vom Nutzer zu
- * bestätigen):
+ * sie (`zeit2`; mit Zeit vor ohne Zeit). Auslegungen beim Bau, 24.11.2026, bestätigt 26.11.2026
+ * (R11-27):
  *   • Die zweite Stufe gilt für die ganze Gruppe der Punkt- und Zeitgleichen – oder für keinen:
  *     Hat einer von ihnen keine vorletzte Runde (nur den Vorlauf gefahren), entscheidet sie nicht
  *     („bei dem entscheidet die zweite Stufe nicht“), die Gruppe teilt sich den Platz. Paarweise

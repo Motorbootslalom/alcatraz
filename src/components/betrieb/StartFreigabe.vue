@@ -7,6 +7,7 @@ import { merke } from '../../lib/merken'
 import type { FreigabeErfassung, FreigabeListe } from '../../wkr/freigabe'
 import type { Ampel } from '../../wkr/lage'
 import AppDialog from '../AppDialog.vue'
+import AusfallWahl from './AusfallWahl.vue'
 import BetriebsFolge from './BetriebsFolge.vue'
 import EinreihenListe from './EinreihenListe.vue'
 import EinsteigenAb from './EinsteigenAb.vue'
@@ -53,6 +54,12 @@ import { beginnenText, punktText, startZeile, tBereich, tnBereich, type StartZei
  * zählt darin erst ab rot (lage.ts) – ein Starter, der noch nicht losfuhr, lässt nie fragen. Nie gesperrt (F4).
  * Auto-Modus: Countdown aus `erfassung.autoIn` (Sekunden beim Senden; hier mit eigener Uhr heruntergezählt) mit
  * „Anhalten“ (`autoAnhalten`: am Bedienrechner der Host, auf dem Handy eine Nachricht an ihn) bzw. „Auto aus: …“.
+ *
+ * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11; BETRIEB_ANNAHMEN WH1–WH5): Nur mit `wiederholen` (am
+ * Bedienrechner) der Knopf „Wiederholung (Ausfall) …“ mit der Wahl unter den gezeigten Starts (AusfallWahl, Rückfrage), mit
+ * `aufheben` „Doch keine Wiederholung“ (holt die verworfenen Werte zurück, Prüfbefund 27.11.2026). Die Liste „Wiederholung offen“ steht überall (auch auf dem Freigabe-Handy) – Einreihen und
+ * Zeigen sind gewöhnliche Schritte. Ein abgebrochener Versuch im Boot trägt „Ausfall – wird wiederholt“; „Zurück“ nimmt
+ * ihn nicht mehr.
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
@@ -71,6 +78,22 @@ const props = defineProps<{
   erfassungOeffnen?: () => void
   /** Auto-Modus anhalten (AM7) – bis zum nächsten gezeigten Start; ohne = kein Knopf. */
   autoAnhalten?: (ref: string) => void
+  /**
+   * Nur am Bedienrechner (R11-11, WH3): Wiederholung nach Ausfall für einen gezeigten Start auslösen – BetriebView
+   * schickt WIEDERHOLUNG_AUSFALL (eine Action der Erfassung, nicht über `sende`). Ohne = kein Knopf, kein „Doch keine
+   * Wiederholung“.
+   */
+  wiederholen?: (ref: string) => void
+  /**
+   * Nur am Bedienrechner, mit `wiederholen`: „Doch keine Wiederholung“ – BetriebView schickt WIEDERHOLUNG_AUFHEBEN (eine
+   * Action der Erfassung: die verworfenen Werte kommen zurück, Prüfbefund 27.11.2026). Ohne = kein Knopf.
+   */
+  aufheben?: (ref: string) => void
+  /**
+   * Starter-IDs, für die „Wiederholung (Ausfall)“ nicht geht – abgemeldete (WH10; Prüfbefund 27.11.2026: vorher bestätigte
+   * man die Rückfrage, und es geschah still nichts). Kommt vom Bedienrechner; die Sicht trägt nie Abmeldungen.
+   */
+  ausfallGesperrt?: readonly string[]
 }>()
 
 const b = computed(() => props.bereich)
@@ -99,7 +122,7 @@ const stand = computed(() => {
  */
 const wartend = computed(() => {
   const begonnen = new Set(b.value.begonnen)
-  return [...b.value.zurueckgestellt, ...b.value.bootFehlt, ...b.value.nachzuholen].filter((s) => begonnen.has(s.punkt)).length
+  return [...b.value.zurueckgestellt, ...b.value.wiederholung, ...b.value.bootFehlt, ...b.value.nachzuholen].filter((s) => begonnen.has(s.punkt)).length
 })
 /** Kein Nächster: Der Lauf stockt, der laufende Punkt ist zu Ende (die Tafel bleibt stehen) – oder alle sind es. */
 const ohneNaechsten = computed(() => {
@@ -269,6 +292,20 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
   props.sende({ type: 'BETRIEB_EINREIHEN', bereich: b.value.id, ref: key, wo })
 }
 
+// --- Wiederholung nach Ausfall (R11-11) ---
+/** Die Wahl „Wiederholung (Ausfall) …“: aufgeklappt bleibt, wie man es gelassen hat (lib/merken.ts) – nach dem Auslösen zu. */
+const ausfallOffen = merke(`betrieb.ausfall.${props.bereich.id}`, false)
+const ausfallKnopf = ref<HTMLButtonElement | null>(null)
+const ausfallMoeglich = computed(() => !!props.wiederholen && !parallel.value)
+async function ausfallZu() {
+  ausfallOffen.value = false
+  await nextTick()
+  ausfallKnopf.value?.focus()
+}
+function wiederholungAufheben(key: string) {
+  props.aufheben?.(key)
+}
+
 // „Anderen Starter wählen“: aufgeklappt bleibt, wie man es gelassen hat (lib/merken.ts) – nach dem Zeigen zu.
 const wahlOffen = merke(`betrieb.wahl.${props.bereich.id}`, false)
 const zeigenKnopf = ref<HTMLButtonElement | null>(null)
@@ -351,6 +388,7 @@ function meldungLoeschen() {
         <span class="betrieb-nr">{{ aktuell.startNr }}</span>
         <span class="betrieb-name">{{ aktuell.name }}</span>
         <span class="note">{{ [aktuell.was, aktuell.herkunft].filter(Boolean).join(' · ') }}</span>
+        <span v-if="bereich.aktuell?.abgebrochen" class="betrieb-aktiv stoerung" data-teil="abgebrochen">{{ t('betrieb.abgebrochen') }}</span>
       </template>
       <!-- Ein Start ohne Starter in der Sicht: Der Starter wurde gelöscht. Der Start bleibt im Boot, bis der nächste kommt. -->
       <span v-else-if="bereich.aktuell" class="note" data-teil="geloescht">{{ t('betrieb.geloescht') }}</span>
@@ -440,7 +478,14 @@ function meldungLoeschen() {
       <button type="button" class="btn" data-action="zurueckstellen" :disabled="gesperrt || !bereich.offen[0]" :title="tBereich(bereich, 'betrieb.zurueckstellen.title')" @click="zurueckstellen">
         {{ t('betrieb.zurueckstellen') }}
       </button>
-      <button type="button" class="btn" data-action="zurueck" :disabled="!bereich.aktuell" :title="t('betrieb.zurueck.title')" @click="zurueck">
+      <button
+        type="button"
+        class="btn"
+        data-action="zurueck"
+        :disabled="!bereich.aktuell || bereich.aktuell.abgebrochen"
+        :title="bereich.aktuell?.abgebrochen ? t('betrieb.abgebrochen.zurueck') : t('betrieb.zurueck.title')"
+        @click="zurueck"
+      >
         {{ t('betrieb.zurueck') }}
       </button>
       <button
@@ -456,6 +501,19 @@ function meldungLoeschen() {
         {{ t('betrieb.wahl') }}
       </button>
       <button
+        v-if="ausfallMoeglich"
+        ref="ausfallKnopf"
+        type="button"
+        :class="['btn', ausfallOffen && !gesperrt ? 'active' : '']"
+        data-action="ausfall"
+        :aria-expanded="ausfallOffen && !gesperrt"
+        :disabled="gesperrt"
+        :title="t('betrieb.ausfall.title')"
+        @click="ausfallOffen = !ausfallOffen"
+      >
+        {{ t('betrieb.ausfall') }}
+      </button>
+      <button
         v-if="bereich.naechsterPunkt"
         type="button"
         :class="['btn', bereich.offen.length === 0 && wartend === 0 ? 'primary' : '']"
@@ -469,6 +527,27 @@ function meldungLoeschen() {
 
     <BetriebsFolge v-if="wahlOffen && !gesperrt" :sicht="sicht" :bereich="bereich" :sende="sendeGeprueft" :gesperrt="gesperrt" @fertig="wahlZu" />
 
+    <AusfallWahl
+      v-if="ausfallMoeglich && ausfallOffen && !gesperrt"
+      :sicht="sicht"
+      :bereich="bereich"
+      :gesperrt="gesperrt"
+      :nicht="ausfallGesperrt"
+      @wiederholen="(key) => wiederholen?.(key)"
+      @fertig="ausfallZu"
+    />
+
+    <EinreihenListe
+      :sicht="sicht"
+      :bereich="bereich"
+      :eintraege="bereich.wiederholung"
+      art="wiederholung"
+      :gesperrt="gesperrt"
+      :aufhebbar="!!aufheben"
+      @zeigen="zeige"
+      @einreihen="einreihen"
+      @aufheben="wiederholungAufheben"
+    />
     <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.zurueckgestellt" art="zurueckgestellt" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
     <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.nachzuholen" art="nachzuholen" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
 

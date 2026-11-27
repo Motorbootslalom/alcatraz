@@ -133,6 +133,12 @@ fahren.
   zurück. Beobachtung:
 - [ ] **Bitte Nr. prüfen** am Bedienrechner. Erwartet: Das Gerät zeigt „Bediener bittet: Start … prüfen“ mit „… öffnen“.
   Beobachtung:
+- [ ] **Wiederholung nach Ausfall** (Start-Freigabe → „Wiederholung (Ausfall) …“ für einen Start, den die Geräte schon
+  erfasst haben; ein Gerät schickt danach noch eine Korrektur dazu). Erwartet: Die Werte sind auf allen Listen weg, der
+  Start steht unter „Wiederholung offen“; die Korrektur wird abgelehnt („Dieser Versuch wurde nach einem Ausfall
+  abgebrochen …“). Nach „Als Nächster“ und „Nächster Start“ kommt er auf allen Geräten wie ein neuer Start; die
+  Anzeigetafel zeigt „1. Lauf · Wiederholung“. Einmal stattdessen „Doch keine Wiederholung“: Die Werte sind zurück.
+  Beobachtung:
 
 ## WKR-Maske auf dem Handy
 
@@ -142,7 +148,7 @@ erfassen.
 <a href="bilder/de/wkr-handy.png"><img src="bilder/de/wkr-handy.png" width="240"
 alt="WKR-Maske auf dem Handy (Übung): Startnummer groß, darunter die Knöpfe der Liste, unten der Hauptknopf"></a>
 
-- [ ] **Handschuhe** (dünne Arbeits- und dicke Segelhandschuhe): Codes, Hauptknopf, Disq., „↶ Rückgängig“,
+- [ ] **Handschuhe** (dünne Arbeits- und dicke Segelhandschuhe): Codes, Hauptknopf, Disq., „↩ Rückgängig“,
   „Andere Startnummer …“, Ziffernfeld treffen. Erwartet: Jeder Tipp trifft den gemeinten Knopf, kein Nachbar.
   Fehlgriffe auf 20 Tipps: dünn ______ dick ______ Beobachtung:
 - [ ] **Sonne** (Mittagssonne, Display-Helligkeit automatisch und voll; Sonnenbrille, auch polarisiert): Ansichten
@@ -156,7 +162,7 @@ alt="WKR-Maske auf dem Handy (Übung): Startnummer groß, darunter die Knöpfe d
 - [ ] **Hochkant, eine Hand**: Der Daumen erreicht Hauptknopf und Disq. ohne Umgreifen; „Linkshand“ (Mehr → Ansicht)
   spiegelt den Fuß. Bildschirmbreite des Geräts: ______ Beobachtung:
 - [ ] **Höchstzahl je Code**: „2. und 3. Versuch“ dreimal tippen; Tor 5 Code 1 zweimal. Erwartet: Der dritte Tipp
-  setzt Disq. D („nächster = Disq. D“, dann „Disq. D gesetzt“), „↶ Rückgängig“ nimmt D wieder heraus; Code 1 bleibt bei
+  setzt Disq. D („nächster = Disq. D“, dann „Disq. D gesetzt“), „↩ Rückgängig“ nimmt D wieder heraus; Code 1 bleibt bei
   „höchstens 1×“. Löst ein prellender Handschuh-Tipp zu früh D aus? Beobachtung:
 - [ ] **Probe** beim ersten Empfang der Liste; danach (neu laden) nicht noch einmal. Erwartet: Am Bedienrechner kommt
   nichts an. Beobachtung:
@@ -168,10 +174,11 @@ alt="WKR-Maske auf dem Handy (Übung): Startnummer groß, darunter die Knöpfe d
 - [ ] **Ausgleichsgewicht am Steg** (Steg-Ablegen, Beispielgewichte; einen Starter ohne Gewicht). Erwartet: „AG … kg“,
   „kein AG“ bzw. „AG: Gewicht fehlt“ neben der Startnummer, nur im Ablegen; ein in der Verwiegung nachgetragenes
   Gewicht steht kurz darauf auf dem Gerät. Lesbar aus Armlänge? Beobachtung:
-- [ ] **Übung** („Üben ohne Verbindung“ im Koppel-Formular) im Flugmodus. Erwartet: Maske arbeitet ohne Netz, Kopf
-  „ÜBUNG“ rollt nach dem Abschicken aus dem Bild; der nächste Start kommt nach 2–6 s, hin und wieder steht er schon
-  vorher da; „Mehr → Klasse vorziehen“ (ganz unten) holt eine andere Klasse. Passt das Tempo? Taugt sie für die
-  Einweisung? Beobachtung:
+- [ ] **Übung** („Üben ohne Verbindung“ im Koppel-Formular) im Flugmodus. Erwartet: Maske arbeitet ohne Netz; nach
+  dem Abschicken rollt nur die Erklärung „So läuft die Übung“ aus dem Bild, Kopf „ÜBUNG“, „Zuletzt“ und Karte bleiben
+  stehen (darüber der Hinweis „Bildschirm kann ausgehen“, bis „Ausblenden“); der nächste Start kommt nach 2–6 s, hin
+  und wieder steht er schon vorher da; „Mehr → Klasse vorziehen“ (ganz unten) holt eine andere Klasse. Passt das
+  Tempo? Taugt sie für die Einweisung? Beobachtung:
 - [ ] **Akku** nach einem Lauf mit Maske offen (Wake Lock): Anfang ______ % Ende ______ % Dauer ______ min.
 
 ## Bojen-Maske
@@ -230,7 +237,7 @@ alt="WKR-Maske „Bild“ auf dem Pad quer (Übung): Parcours-Zeichnung mit Tref
 - [ ] **Bild** (Pad, Bojen-Liste): Erwartet: Trefferkreise liegen im echten Browser auf den Bojen der Zeichnung (auch
   gedreht) und sind groß genug; zu nahe Kreise sind auseinandergeschoben und mit der Boje verbunden. Der Umschalter
   Hinweg / Rückweg / Rück 2 wechselt nur von Hand – fällt das Umschalten am Wasser schwer? „Mehr → Ansicht → Lage der
-  Zeichnung“: „Automatisch“ und Steg unten/links/oben/rechts; Ziffern bleiben aufrecht, die Wahl bleibt nach dem
+  Zeichnung“: „Automatisch“ und „Start/Ziel links/oben/rechts/unten“; Ziffern bleiben aufrecht, die Wahl bleibt nach dem
   Neuladen. Welche Lage passt zum Standort des WKR? Beobachtung:
 - [ ] **Knoten am Tisch** (Knoten-Liste, ein Pad am Tisch): Erwartet: „Nächster: 9 (Klasse …)“ vorbelegt, andere
   Nummer eintippbar, je Knoten ✓ / ✗, großer Knopf „Alle richtig“ bzw. „Rest richtig“ schickt in einem Tipp, eine schon

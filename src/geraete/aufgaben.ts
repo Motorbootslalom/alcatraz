@@ -86,6 +86,10 @@ export const STARTFREIGABE_ACTIONS = [
   'BETRIEB_AB',
   // Parcours-Ampel (Nutzer 21.11.2026, P-03): „Durchs Start-Tor“ gehört zur Start-Freigabe – auch auf dem Handy.
   'BETRIEB_DURCHFAHRT',
+  // Bewusst NICHT (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN.wiederholungNurBedienrechner): „Doch keine Wiederholung“
+  // (WIEDERHOLUNG_AUFHEBEN, seit dem Prüfbefund 27.11.2026 ebenfalls eine Action der Erfassung: die verworfenen Werte
+  // kommen zurück) – wie das Auslösen (WIEDERHOLUNG_AUSFALL) nur am
+  // Bedienrechner. Einreihen und Zeigen der Wiederholung gehen auch vom Handy (EINREIHEN, ZEIGEN).
 ] as const satisfies readonly BetriebAenderung['type'][]
 
 /**

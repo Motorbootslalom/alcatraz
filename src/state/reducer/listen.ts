@@ -1,9 +1,9 @@
 // Listen und Druck: WKR-Bögen (Leerzeilen, Seiten, Rückseite, Sprache, Namen, Besetzung), Beschriftung, Laufzettel, Herkunft, Zebra,
 // Logos.
 
-import type { AppState, ClassId, LaufzettelLayout, LogoBild, LogoSeite, Sprache, WkrGemeinsamFolge } from '../../types'
+import type { AppState, ClassId, CoPilotAusgleich, CoPilotRolle, LaufzettelLayout, LogoBild, LogoSeite, Sprache, WkrGemeinsamFolge, WkrMeisterschaftGemeinsam } from '../../types'
 import { setzeName, setzeSprache, type WkrZelle } from '../../lib/einteilung'
-import { setzeBesetzung } from '../../lib/besetzung'
+import { coPilotAusgleichWert, setzeBesetzung, setzeCoPilotGewicht, setzeCoPilotName } from '../../lib/besetzung'
 import { beschriftungOf } from '../../config/catalog'
 import { LOGO_HOEHE_VORGABE_MM, logoHoeheZahl, logoWert } from '../../lib/logo'
 
@@ -17,9 +17,16 @@ export type ListenAenderung =
    * verschiedene Felder ausfüllen, einander nichts überschreiben.
    */
   | { type: 'SET_WKR_NAME'; parcoursId: string; typeId: string; name: string }
-  /** Boot bzw. Co-Pilot einer Klasse (Block „Besetzung“); ein leerer Text entfernt die Angabe. */
+  /**
+   * Boot bzw. Co-Pilot einer Klasse (Block „Besetzung“); ein leerer Text entfernt die Angabe. `rolle` (seit 26.11.2026,
+   * R11-07): `haupt` (fehlt = dieser) oder `ersatz` – ein leerer Name lässt ein eingetragenes Gewicht stehen.
+   */
   | { type: 'SET_BOOT'; klasse: ClassId; text: string }
-  | { type: 'SET_CO_PILOT'; klasse: ClassId; text: string }
+  | { type: 'SET_CO_PILOT'; klasse: ClassId; text: string; rolle?: CoPilotRolle }
+  /** Gewicht eines Co-Piloten in kg (R11-07, 26.11.2026); `null` entfernt es. Unbrauchbares ändert nichts. */
+  | { type: 'SET_CO_PILOT_GEWICHT'; klasse: ClassId; rolle: CoPilotRolle; gewicht: number | null }
+  /** Ausgleich der Co-Piloten je Klasse oder über alle (R11-07, 26.11.2026); Unbekanntes gilt als `klasse`. */
+  | { type: 'SET_CO_PILOT_AUSGLEICH'; ausgleich: CoPilotAusgleich }
   /**
    * Leerzeilen der Wettkampfrichter-Listen: allgemein (`klasse` fehlt) oder für eine Klasse;
    * `null` = wieder die allgemeine Zahl bzw. die Vorgabe. `alleKlassen` verwirft dabei die
@@ -30,6 +37,8 @@ export type ListenAenderung =
   | { type: 'SET_WKR_CLUB_GEMEINSAM'; gemeinsam: boolean }
   /** Folge der Klassen auf gemeinsamen Bögen (Clubmeisterschaft, 24.11.2026): Blöcke oder Startfolge der Verzahnung. */
   | { type: 'SET_WKR_GEMEINSAM_FOLGE'; folge: WkrGemeinsamFolge }
+  /** Gemeinsame Bögen mehrerer Klassen bei einer Meisterschaft (R11-03, 26.11.2026): aus, gleich aufgebaute, alle. */
+  | { type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM'; art: WkrMeisterschaftGemeinsam }
   /**
    * Seitenaufteilung der Wettkampfrichter-Listen: Starter je Seite (0 oder unbrauchbar =
    * automatisch) und „Teilen ab“ (0 = immer). Nur was im Patch steht, ändert sich.
@@ -94,6 +103,11 @@ export function gemeinsamFolgeWert(x: unknown): WkrGemeinsamFolge {
   return x === 'verzahnung' ? 'verzahnung' : 'getrennt'
 }
 
+/** Eine gültige Art gemeinsamer Bögen bei einer Meisterschaft; sonst die Vorgabe „aus“ (je Klasse ein Bogen, wie vor dem 26.11.2026). */
+export function meisterschaftGemeinsamWert(x: unknown): WkrMeisterschaftGemeinsam {
+  return x === 'gleich' || x === 'alle' ? x : 'aus'
+}
+
 /** Eine gültige Form der Laufzettel; sonst die Vorgabe „eine Zeile je Seite“. */
 export function laufzettelLayoutWert(x: unknown): LaufzettelLayout {
   return x === 'liste' ? 'liste' : 'seite'
@@ -133,6 +147,12 @@ export function wendeListenAn(state: AppState, action: ListenAenderung): AppStat
       return folge === state.wkrGemeinsamFolge ? state : { ...state, wkrGemeinsamFolge: folge }
     }
 
+    case 'SET_WKR_MEISTERSCHAFT_GEMEINSAM': {
+      // Nur die Art; die Leerzeilen je Klasse bleiben, wie eingestellt (Auslegung 26.11.2026, lib/wkrListen.ts gemeinsameBoegen).
+      const art = meisterschaftGemeinsamWert(action.art)
+      return art === state.wkrMeisterschaftGemeinsam ? state : { ...state, wkrMeisterschaftGemeinsam: art }
+    }
+
     case 'SET_WKR_SEITEN': {
       const { zeilenJeSeite, teilenAb } = action.patch
       const wkrZeilenJeSeite = zeilenJeSeite === undefined ? state.wkrZeilenJeSeite : zeilenJeSeiteZahl(zeilenJeSeite)
@@ -165,8 +185,21 @@ export function wendeListenAn(state: AppState, action: ListenAenderung): AppStat
     case 'SET_BOOT':
       return { ...state, boote: setzeBesetzung(state.boote, action.klasse, action.text) }
 
-    case 'SET_CO_PILOT':
-      return { ...state, coPiloten: setzeBesetzung(state.coPiloten, action.klasse, action.text) }
+    case 'SET_CO_PILOT': {
+      const coPiloten = setzeCoPilotName(state.coPiloten, action.klasse, action.rolle === 'ersatz' ? 'ersatz' : 'haupt', action.text)
+      return coPiloten === state.coPiloten ? state : { ...state, coPiloten }
+    }
+
+    case 'SET_CO_PILOT_GEWICHT': {
+      if (action.rolle !== 'haupt' && action.rolle !== 'ersatz') return state
+      const coPiloten = setzeCoPilotGewicht(state.coPiloten, action.klasse, action.rolle, action.gewicht ?? undefined)
+      return coPiloten === state.coPiloten ? state : { ...state, coPiloten }
+    }
+
+    case 'SET_CO_PILOT_AUSGLEICH': {
+      const coPilotAusgleich = coPilotAusgleichWert(action.ausgleich)
+      return coPilotAusgleich === state.coPilotAusgleich ? state : { ...state, coPilotAusgleich }
+    }
 
     case 'SET_PARALLEL_ZEBRA':
       return action.zebra === state.parallelZebra ? state : { ...state, parallelZebra: action.zebra === true }

@@ -33,7 +33,8 @@ export const VORLAUF: ParallelRunde = 'pre'
 /**
  * Schlüssel des Textes mit dem Namen der Runde (i18n `parallel.round.*`): englisch nach
  * Pkt. 5.2.2 und 5.2.6 („Preliminary heat“, „Semi-finals“, „Re-run“); seit 21.11.2026
- * „Small final“ und „Final“ als eigene Runden (Entscheidung vom 15.11.2026: „Kleines Finale“).
+ * „Small final“ und „Final“ als eigene Runden (Entscheidung vom 15.11.2026: „Kleines Finale“). Ohne den
+ * früheren Zusatz „(3rd and 4th place)“ – die Runde sagt es selbst (bestätigt 26.11.2026, R11-25).
  */
 export function rundenText(runde: ParallelRunde): 'parallel.round.pre' | 'parallel.round.semi' | 'parallel.round.small' | 'parallel.round.final' | 'parallel.round.rerun' {
   return runde === 'pre' || runde === 'semi' || runde === 'small' || runde === 'final' ? `parallel.round.${runde}` : 'parallel.round.rerun'

@@ -131,8 +131,9 @@ describe('Öffentliche Sicht', () => {
   it('Fassung 5: die Lage von Racecourse A und B in `einst` – nur mit dem Parallelslalom, nie in der Zuschauersicht', () => {
     // DM: kein Parallelslalom – also auch keine Lage, nicht einmal ihr Name (Schlüssel-Durchlauf).
     const dm = sichtOeffentlich(imBetrieb())
-    // Fassung 6 (21.11.2026): SichtPaar ohne `finale`, das Kleine Finale ist eine eigene Runde.
-    expect(dm.sv).toBe(6)
+    // Fassung 6 (21.11.2026): SichtPaar ohne `finale`, das Kleine Finale ist eine eigene Runde. Fassung 7 (26.11.2026,
+    // R11-11): Wiederholung nach Ausfall – SichtBereich.wiederholung, SichtStart.wiederholung/abgebrochen.
+    expect(dm.sv).toBe(7)
     expect(Object.keys(dm.einst).sort()).toEqual(['amSteg', 'davor', 'parcoursName', 'vorSteg'])
     expect(schluessel(dm).has('parallelAnordnung')).toBe(false)
     // UIM mit Parallelslalom: die Einstellung (Vorgabe A links) – auch entfernte Anzeigetafeln (ab E6) lesen nur die Sicht.
@@ -145,6 +146,27 @@ describe('Öffentliche Sicht', () => {
     expect(Object.keys(z.einst).sort()).toEqual(['amSteg', 'parcoursName', 'vorSteg'])
     expect(schluessel(z).has('parallelAnordnung')).toBe(false)
     expect(JSON.stringify(z)).not.toContain('b-oben')
+  })
+
+  it('Fassung 7 (R11-11, 26.11.2026): Wiederholung nach Ausfall – `wiederholung` je Bereich, Kennzeichen am Start; kein Wert, kein Grund, nichts davon in der Zuschauersicht', () => {
+    const s0 = imBetrieb()
+    const s = reducer(s0, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: m('k1', 1), zeit: 70_000 })
+    const sicht = sichtOeffentlich(s)
+    expect(sicht.sv).toBe(7)
+    const b = sicht.bereiche[0]
+    // Jeder Bereich trägt die Liste (auch leer); `gefahren` nur mit der Option des Bedienrechners.
+    expect(sicht.bereiche.map((x) => x.wiederholung.length)).toEqual([1, 0])
+    expect(schluessel(sicht).has('gefahren')).toBe(false)
+    expect(b.wiederholung[0]).toEqual({ key: m('k1', 1), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf · Wiederholung', wiederholung: true })
+    expect(b.aktuell).toEqual({ key: m('k1', 1), starter: 'k1', lauf: 1, punkt: 'lauf:1', titel: '1. Lauf', abgebrochen: true })
+    // Datenschutz wie immer: Die verworfenen Werte und ihr Grund stehen nirgends.
+    const text = JSON.stringify(sicht)
+    for (const verboten of [GEHEIM, '41.7', 'Ausfall']) expect(text).not.toContain(verboten)
+    // Zuschauer: dieselben Schlüssel wie ohne Wiederholung – nur der Titel sagt es (nach dem Einreihen).
+    const eingereiht = reducer(s, { type: 'BETRIEB_EINREIHEN', bereich: P1, ref: m('k1', 1), wo: 'naechster' })
+    const z = sichtZuschauer(sichtOeffentlich(eingereiht))
+    expect(schluessel(z)).toEqual(schluessel(sichtZuschauer(sichtOeffentlich(s0))))
+    expect(z.bereiche[0].frei[0].titel).toBe('1. Lauf · Wiederholung')
   })
 
   it('Zuschauersicht: nur Im Boot, die offene Folge der begonnenen Läufe, „Boot fehlt“ und Meldung – keine Bedienangaben', () => {

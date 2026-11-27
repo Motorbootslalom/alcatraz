@@ -49,6 +49,8 @@ export function emptyState(): AppState {
     einteilung: {},
     boote: {},
     coPiloten: {},
+    // Ausgleich der Co-Piloten je Klasse – so steht es im DM-Reglement C3 (R11-07, 26.11.2026).
+    coPilotAusgleich: 'klasse',
     wkrLeerzeilen: WKR_LEERZEILEN_VORGABE,
     wkrLeerzeilenKlasse: {},
     wkrLeerzeilenSeite: WKR_LEERZEILEN_SEITE_VORGABE,
@@ -59,6 +61,8 @@ export function emptyState(): AppState {
     streichlaeufe: 'auto',
     wkrClubGemeinsam: true,
     wkrGemeinsamFolge: 'getrennt',
+    // Meisterschaft: je Klasse ein Bogen, bis gemeinsame Bögen gewählt sind (R11-03, 26.11.2026).
+    wkrMeisterschaftGemeinsam: 'aus',
     ergebnisListen: ERGEBNIS_LISTEN_VORGABE,
     kennung: '',
     listenStand: {},

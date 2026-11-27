@@ -73,28 +73,33 @@ describe('Dateien', () => {
   })
 
   it('Besetzung: Co-Piloten sind Personennamen – in der Sicherung, nie in der Vorlage; die Boote reisen mit', () => {
-    const besetzt: AppState = { ...filled(), boote: { '1': 'Boot 2, 9,9 PS' }, coPiloten: { '1': 'Erika Beispiel' } }
+    // Seit 26.11.2026 (R11-07) mit Ersatz und Gewicht – Personendaten wie die Namen; die Wahl des Ausgleichs ist eine Einstellung.
+    const coPiloten = { '1': { haupt: { name: 'Erika Beispiel', gewicht: 81.3 }, ersatz: { name: 'Vor2 Nach2', gewicht: 64.7 } } }
+    const besetzt: AppState = { ...filled(), boote: { '1': 'Boot 2, 9,9 PS' }, coPiloten, coPilotAusgleich: 'alle' }
     const sicherung = parseFile(JSON.stringify(makeFile('sicherung', besetzt, AT)))
     if (!sicherung.ok || sicherung.kind !== 'sicherung') throw new Error('keine Sicherung')
-    expect(sicherung.state.coPiloten).toEqual({ '1': 'Erika Beispiel' })
+    expect(sicherung.state.coPiloten).toEqual(coPiloten)
+    expect(sicherung.state.coPilotAusgleich).toBe('alle')
     expect(sicherung.state.boote).toEqual({ '1': 'Boot 2, 9,9 PS' })
 
     const datei = makeFile('vorlage', besetzt, AT)
     const text = JSON.stringify(datei)
     expect(text).not.toContain('Erika Beispiel')
     expect(text).not.toContain('coPiloten')
+    for (const verboten of ['Vor2 Nach2', '81.3', '64.7']) expect(text).not.toContain(verboten)
     expect(text).toContain('Boot 2, 9,9 PS')
     const vorlage = parseFile(text)
     if (!vorlage.ok || vorlage.kind !== 'vorlage') throw new Error('keine Vorlage')
     // Die Vorlage bringt die Boote mit; die hiesigen Co-Piloten bleiben, wie sie sind.
-    const hier: AppState = { ...emptyState(), boote: { '4': 'altes Boot' }, coPiloten: { '2': 'Max Muster' } }
+    const hier: AppState = { ...emptyState(), boote: { '4': 'altes Boot' }, coPiloten: { '2': { haupt: { name: 'Max Muster', gewicht: 70 } } } }
     const danach = vorlage.apply(hier)
     expect(danach.boote).toEqual({ '1': 'Boot 2, 9,9 PS' })
-    expect(danach.coPiloten).toEqual({ '2': 'Max Muster' })
+    expect(danach.coPiloten).toEqual({ '2': { haupt: { name: 'Max Muster', gewicht: 70 } } })
+    expect(danach.coPilotAusgleich).toBe('alle')
     // Auch eine von Hand um Namen ergänzte Vorlage bringt keine Co-Piloten mit.
-    const ergaenzt = parseFile(JSON.stringify({ ...datei, settings: { ...(datei as { settings: object }).settings, coPiloten: { '3': 'Fremder Name' } } }))
+    const ergaenzt = parseFile(JSON.stringify({ ...datei, settings: { ...(datei as { settings: object }).settings, coPiloten: { '3': { haupt: { name: 'Fremder Name' } } } } }))
     if (!ergaenzt.ok || ergaenzt.kind !== 'vorlage') throw new Error('keine Vorlage')
-    expect(ergaenzt.apply(hier).coPiloten).toEqual({ '2': 'Max Muster' })
+    expect(ergaenzt.apply(hier).coPiloten).toEqual({ '2': { haupt: { name: 'Max Muster', gewicht: 70 } } })
   })
 
   it('Betrieb am Wettkampftag: in der Sicherung, nicht in der Vorlage; die Anzeigetafel reist mit, außer der Kopfzeile', () => {

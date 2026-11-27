@@ -30,7 +30,7 @@ import '../../styles/wkr-geraet.css'
  * Nutzer P-18/W3-01: Hell/Dunkel des Systems, live über systemModus.ts; vorher Sonne, G1), Hand, Sprache;
  * seit 22.11.2026 auch die Bojen-Folge je Liste (`bojenFolge`: Rückweg gedreht/Fahrtfolge/untereinander), die Maske
  * und Probe bekommen (vorher „Wie der Parcours liegt“, `bojen`, entfernt); seit 24.11.2026 ebenso die Lage des Bilds je
- * Liste (`bildLage`: Steg unten/links/oben/rechts, BL3).
+ * Liste (`bildLage`: Drehung 0/90/180/270, seit 26.11.2026 benannt „Start/Ziel links/oben/rechts/unten“, BL3/BL7).
  * Die Sprache der Maske ist die der Liste (F13, G9: zweisprachig → deutsch), umgeschaltet über die Ansicht – nie die
  * der Geräte-Oberfläche. Farben nur über --wkr-* (styles/wkr-geraet.css) je `data-modus` – dem wirksamen Modus
  * (`data-wahl` trägt die Wahl, auch `geraet`).
@@ -245,6 +245,14 @@ const imBand = (liste: string) => !!rundenBand.value && !!liesListe(liste)?.race
     :data-spalten="spalten.length"
     :lang="sprache"
   >
+    <!-- Übung (Nutzer 21.11.2026, W3-15, GF4): Erklärung in der Übung selbst, einklappbar, gemerkt je Gerät. -->
+    <details v-if="quelle.uebung" class="wkr-uebung-erklaerung" data-teil="uebung-erklaerung" :open="!ansicht.uebungErklaerungZu" @toggle="erklaerungUmschalten">
+      <summary class="wkr-knopf" data-ziel="klein">{{ w('wkr.geraet.uebung.erklaerung.titel') }}</summary>
+      <p>{{ w('wkr.geraet.uebung.erklaerung', { n: WKR_ANNAHMEN.uebungStarts }) }}</p>
+    </details>
+    <!-- Bildschirm-Hinweis UNTER der Erklärung (Prüfbefund 27.11.2026, UK7): Nach dem Abschicken rollt in der Übung nur
+         die Erklärung hinaus (Nutzer zu R11-14: „eine extra Zeile“), die Warnung bleibt wie die im Kopf stehen
+         (systemModus.ts zielNachErklaerung). Am Wettkampftag gibt es keine Erklärung, die Folge ist dort gleich. -->
     <p v-if="bildschirmKannAus && !wachWeg" class="wkr-band wkr-band--warn" role="status" data-teil="wach-hinweis">
       <span>
         <b>{{ w('wkr.geraet.wach.titel') }}</b>
@@ -252,11 +260,6 @@ const imBand = (liste: string) => !!rundenBand.value && !!liesListe(liste)?.race
       </span>
       <button type="button" class="wkr-knopf" data-ziel="klein" data-action="wach-ausblenden" @click="blendeWachAus">{{ w('wkr.geraet.wach.ausblenden') }}</button>
     </p>
-    <!-- Übung (Nutzer 21.11.2026, W3-15, GF4): Erklärung in der Übung selbst, einklappbar, gemerkt je Gerät. -->
-    <details v-if="quelle.uebung" class="wkr-uebung-erklaerung" data-teil="uebung-erklaerung" :open="!ansicht.uebungErklaerungZu" @toggle="erklaerungUmschalten">
-      <summary class="wkr-knopf" data-ziel="klein">{{ w('wkr.geraet.uebung.erklaerung.titel') }}</summary>
-      <p>{{ w('wkr.geraet.uebung.erklaerung', { n: WKR_ANNAHMEN.uebungStarts }) }}</p>
-    </details>
     <WkrRuhe v-if="quelle.entzogen.value" art="entzogen" :entwuerfe="quelle.entwuerfe.value" />
     <WkrRuhe v-else-if="!aktiv" art="keine-liste" />
     <template v-else>

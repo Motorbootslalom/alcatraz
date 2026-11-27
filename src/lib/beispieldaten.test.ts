@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BESETZUNG_HOECHSTENS, beispielBoote, beispielCoPiloten, beispielEinteilung, beispielGewichte, besetzungsText } from './beispieldaten'
+import { BEISPIEL_CO_PILOT_KG, BESETZUNG_HOECHSTENS, beispielBoote, beispielCoPiloten, beispielEinteilung, beispielGewichte, besetzungsText } from './beispieldaten'
 import { BOOTSNAMEN } from '../data/boote'
 import { zufallAus } from './beispielwerte'
 import { einteilungsZellen } from './einteilung'
@@ -198,12 +198,17 @@ describe('Beispiel-Boote und -Co-Piloten (19.11.2026)', () => {
     expect(new Set(namen).size).toBe(namen.length)
     // DM-Reglement C3 bzw. coPilot im YAML: E, 1, 2, 3.
     expect(Object.keys(stand.coPiloten).sort()).toEqual(['1', '2', '3', 'E'])
-    for (const co of Object.values(stand.coPiloten)) {
-      const [vorname, nachname] = co!.split(' ')
+    // Seit 26.11.2026 (R11-07) je Klasse Co-Pilot und Ersatz, beide mit einem erfundenen Gewicht.
+    const personen = Object.values(stand.coPiloten).flatMap((paar) => [paar!.haupt!, paar!.ersatz!])
+    for (const co of personen) {
+      const [vorname, nachname] = co.name.split(' ')
       expect(vornamen.has(vorname)).toBe(true)
       expect(nachnamen.has(nachname)).toBe(true)
+      expect(co.gewicht).toBeGreaterThanOrEqual(BEISPIEL_CO_PILOT_KG.min)
+      expect(co.gewicht).toBeLessThanOrEqual(BEISPIEL_CO_PILOT_KG.max)
+      expect(Math.round(co.gewicht! * 10) / 10).toBe(co.gewicht)
     }
-    expect(new Set(Object.values(stand.coPiloten).map((c) => c!.split(' ')[1])).size).toBe(4)
+    expect(new Set(personen.map((c) => c.name.split(' ')[1])).size).toBe(8)
   })
 
   it('UIM: nur die Klassen des Regelwerks; Klassen mit Startern außerhalb bekommen auch ein Boot', () => {
@@ -218,10 +223,12 @@ describe('Beispiel-Boote und -Co-Piloten (19.11.2026)', () => {
     const a = beispielBoote(vorher, ['E', '1'], zufallAus(5))
     expect(a['4']).toBe('Boot von Hand')
     expect(a).toEqual(beispielBoote(vorher, ['E', '1'], zufallAus(5)))
-    const co = beispielCoPiloten({ '5': 'Vor1 Nach1', E: 'Vor2 Nach2' }, ['E'], zufallAus(5))
-    expect(co['5']).toBe('Vor1 Nach1')
-    expect(co.E).not.toBe('Vor2 Nach2')
-    expect(co).toEqual(beispielCoPiloten({ '5': 'Vor1 Nach1', E: 'Vor2 Nach2' }, ['E'], zufallAus(5)))
+    const coVorher = { '5': { haupt: { name: 'Vor1 Nach1' } }, E: { haupt: { name: 'Vor2 Nach2' }, ersatz: { name: 'Vor3 Nach3', gewicht: 70 } } }
+    const co = beispielCoPiloten(coVorher, ['E'], zufallAus(5))
+    expect(co['5']).toEqual({ haupt: { name: 'Vor1 Nach1' } })
+    expect(co.E?.haupt?.name).not.toBe('Vor2 Nach2')
+    expect(co.E?.ersatz?.name).not.toBe('Vor3 Nach3')
+    expect(co).toEqual(beispielCoPiloten(coVorher, ['E'], zufallAus(5)))
   })
 
   it('reicht der Vorrat nicht, kommen Namen wieder – jede Klasse bekommt trotzdem einen', () => {

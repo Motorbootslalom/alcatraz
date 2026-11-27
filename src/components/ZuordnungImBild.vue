@@ -304,7 +304,11 @@ const hatFeld = (id: string) => !!props.entwurf.zuordnung[id]?.includes(aktiv.va
         <span class="zib-punkt" aria-hidden="true"></span>{{ titel(s) }}
       </button>
       <button type="button" class="btn sm" @click="emit('spalteDazu')">{{ t('assist.addPosition') }}</button>
+      <!-- Pfeil nach links wie „↩ Rückgängig“ der WKR-Maske (Nutzer 26.11.2026, R11-30 (2): nach links, nicht nach
+           unten wie ↶; hier angeglichen 27.11.2026 – dieselbe Handlung, dasselbe Zeichen). Gezeichnet, weil ↩ in den
+           Schriften der App fehlt und als buntes Emoji käme (components/wkr/WkrFuss.vue). -->
       <button type="button" class="btn sm zib-zurueck" :disabled="verlauf.length === 0" :title="t('assist.img.undoTitle')" @click="rueckgaengig">
+        <svg class="zib-pfeil" data-teil="pfeil-links" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.5 11.5 4 16l4.5 4.5M4 16h11.5a4.5 4.5 0 0 0 0-9H12" /></svg>
         {{ t('assist.img.undo') }}
       </button>
     </div>

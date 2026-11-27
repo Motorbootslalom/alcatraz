@@ -1,4 +1,4 @@
-import type { Besetzung, ClassId, Einteilung, Starter } from '../types'
+import type { Besetzung, ClassId, CoPiloten, Einteilung, Starter } from '../types'
 import { NACHNAMEN, VORNAMEN_M, VORNAMEN_W } from '../data/names'
 import { BOOTSNAMEN } from '../data/boote'
 import { AUSGLEICH_STUFE_VORGABE, ausgleichKg, parseGewicht } from '../domain/gewicht'
@@ -91,19 +91,30 @@ export function beispielBoote(boote: Besetzung, klassen: readonly ClassId[], zuf
 }
 
 /**
- * Beispiel-Co-Piloten (Wunsch des Nutzers vom 19.11.2026): eine erfundene Person aus src/data
- * für jede genannte Klasse – eine je Klasse, denn „within the same class is to be the same
- * co-driver“ (UIM 960 Pkt. 2). Kein Nachname doppelt, solange der Vorrat reicht. Welche Klassen,
- * entscheidet der Aufrufer (die, in denen das Regelwerk einen Co-Piloten vorsieht); ersetzt
- * deren Angaben, die übrigen bleiben.
+ * Gewichte der Beispiel-Co-Piloten in kg (R11-07, 26.11.2026): Erwachsene – ein Co-Pilot ist nach DM-Reglement C3
+ * mindestens 16 Jahre alt. Die Spanne ist so breit, dass zwischen Co-Pilot und Ersatz meist ein Ausgleichsgewicht
+ * entsteht, das man auf der Liste sieht.
  */
-export function beispielCoPiloten(coPiloten: Besetzung, klassen: readonly ClassId[], zufall: Zufall): Besetzung {
+export const BEISPIEL_CO_PILOT_KG = { min: 55, max: 95 } as const
+
+/**
+ * Beispiel-Co-Piloten (Wunsch des Nutzers vom 19.11.2026): je genannter Klasse eine erfundene Person aus src/data
+ * als Co-Pilot und seit 26.11.2026 (R11-07) eine als Ersatz-Co-Pilot, beide mit einem erfundenen Gewicht
+ * ({@link BEISPIEL_CO_PILOT_KG}, auf 0,1 kg wie in der Verwiegung) – so zeigen die Ausgleichsgewichte beide
+ * untereinander, mit Ausgleichsgewicht in Klammern. Kein Nachname doppelt, solange der Vorrat reicht. Welche
+ * Klassen, entscheidet der Aufrufer (die, in denen das Regelwerk einen Co-Piloten vorsieht); ersetzt deren Angaben
+ * ganz, die übrigen bleiben.
+ */
+export function beispielCoPiloten(coPiloten: CoPiloten, klassen: readonly ClassId[], zufall: Zufall): CoPiloten {
   let vorrat: string[] = []
-  const neu: Besetzung = { ...coPiloten }
-  for (const klasse of klassen) {
+  const neu: CoPiloten = { ...coPiloten }
+  const person = () => {
     if (vorrat.length === 0) vorrat = mische(NACHNAMEN, zufall)
-    neu[klasse] = `${waehle(zufall() < 0.5 ? VORNAMEN_W : VORNAMEN_M, zufall)} ${vorrat.pop()!}`
+    const name = `${waehle(zufall() < 0.5 ? VORNAMEN_W : VORNAMEN_M, zufall)} ${vorrat.pop()!}`
+    const gewicht = Math.round((BEISPIEL_CO_PILOT_KG.min + zufall() * (BEISPIEL_CO_PILOT_KG.max - BEISPIEL_CO_PILOT_KG.min)) * 10) / 10
+    return { name, gewicht }
   }
+  for (const klasse of klassen) neu[klasse] = { haupt: person(), ersatz: person() }
   return neu
 }
 

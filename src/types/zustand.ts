@@ -7,12 +7,15 @@ import type { AnzeigeEinstellungen, Betrieb } from './betrieb'
 import type { WkrStand } from './wkr'
 import type {
   Besetzung,
+  CoPilotAusgleich,
+  CoPiloten,
   Einteilung,
   EventKind,
   LaufzettelLayout,
   Logos,
   OriginStyle,
   WkrGemeinsamFolge,
+  WkrMeisterschaftGemeinsam,
   WkrSprachen,
 } from './einstellungen'
 import type {
@@ -129,10 +132,18 @@ export interface AppState extends PlanState {
    */
   boote: Besetzung
   /**
-   * Co-Pilot je Klasse (DM-Reglement C3; UIM 960 Pkt. 2 „co-driver“). Ein Personenname wie
-   * die der Wettkampfrichter: in der Sicherung, nie in der Vorlage.
+   * Co-Pilot je Klasse (DM-Reglement C3; UIM 960 Pkt. 2 „co-driver“), seit 26.11.2026 (R11-07) mit Ersatz-Co-Pilot und
+   * je Person optional dem Gewicht (lib/besetzung.ts). Personennamen und Körpergewichte wie die der Wettkampfrichter
+   * bzw. Starter: in der Sicherung, nie in der Vorlage; nie auf Anzeigetafel, Zuschauerliste, Start-Freigabe oder in
+   * einer Geräte-Sicht – auf Papier nur das Ausgleichsgewicht in Klammern hinter dem Namen.
    */
-  coPiloten: Besetzung
+  coPiloten: CoPiloten
+  /**
+   * Wogegen das Ausgleichsgewicht der Co-Piloten rechnet (R11-07, 26.11.2026): je Klasse (Vorgabe, DM C3) oder über
+   * alle Co-Piloten der Klassen mit Startern (lib/ausgleich.ts coPilotAusgleichVon, 27.11.2026). Eine Einstellung ohne Personenbezug: in
+   * Sicherung und Vorlage.
+   */
+  coPilotAusgleich: CoPilotAusgleich
   /**
    * Leerzeilen am Ende jeder Klasse auf den Wettkampfrichter-Listen: Wer nach dem Druck
    * nachgemeldet wird, bekommt dort von Hand seine Zeile (Vorgabe 3 wie im Prototyp).
@@ -142,7 +153,7 @@ export interface AppState extends PlanState {
   wkrLeerzeilenKlasse: Partial<Record<ClassId, number>>
   /**
    * Leerzeilen je Seite auf den gemeinsamen Bögen der Clubmeisterschaft („Papier sparen“,
-   * `wkrClubGemeinsam`): Dort teilen sich alle Klassen einer Seite die Zeilen für
+   * `wkrClubGemeinsam`; seit 26.11.2026 ebenso einer Meisterschaft, `wkrMeisterschaftGemeinsam` `alle`): Dort teilen sich alle Klassen einer Seite die Zeilen für
    * Nachmeldungen – sie stehen einmal am Ende der Seite statt nach jeder Klasse. Eine eigene
    * Zahl neben `wkrLeerzeilen`, weil sie etwas anderes zählt: Wer „Papier sparen“ ab- und
    * wieder anschaltet, findet beide Angaben wieder vor. Seit 24.11.2026 auch auf jedem gemeinsamen Bogen mit Klassen
@@ -182,12 +193,22 @@ export interface AppState extends PlanState {
   wkrClubGemeinsam: boolean
   /**
    * Folge der Zeilen auf einem gemeinsamen Bogen mehrerer Klassen (Clubmeisterschaft, mit und ohne „Papier sparen“;
-   * Wunsch des Nutzers vom 24.11.2026): `getrennt` (Vorgabe, wie bisher) = je Klasse ein Block, die Klasse als
+   * seit 26.11.2026 auch Meisterschaften mit `wkrMeisterschaftGemeinsam`; Wunsch des Nutzers vom 24.11.2026): `getrennt` (Vorgabe, wie bisher) = je Klasse ein Block, die Klasse als
    * Zwischenüberschrift darüber; `verzahnung` = alle Starter gemischt in der Startfolge der Verzahnung, ohne Blöcke,
    * mit einer Spalte „Klasse“ hinter der Startnummer – der Wettkampfrichter liest den Bogen von oben nach unten in
    * der Folge, in der die Boote kommen. Die Leerzeilen stehen dann am Ende jeder Seite (`wkrLeerzeilenSeite`).
    */
   wkrGemeinsamFolge: WkrGemeinsamFolge
+  /**
+   * Gemeinsame WKR-Bögen mehrerer Klassen bei einer Meisterschaft (DM, UIM; R11-03, 26.11.2026): `aus` (Vorgabe, je
+   * Klasse ein Bogen), `gleich` (gleich aufgebaute Bögen zusammen, wie bei der Clubmeisterschaft) oder `alle` (Papier
+   * sparen, ohne Parcoursbild). Wirkt nur, wenn `eventKind` keine Clubmeisterschaft ist – die hat `wkrClubGemeinsam`.
+   * Eine eigene Angabe statt `wkrClubGemeinsam` mitzunutzen, weil die Vorgaben verschieden sind: Bei der
+   * Clubmeisterschaft ist Papier sparen das Übliche, bei einer Meisterschaft der eigene Bogen je Klasse mit seiner
+   * Zeichnung. Wer die Art der Veranstaltung wechselt, findet beide Angaben wieder vor. `wkrGemeinsamFolge` und
+   * `wkrLeerzeilenSeite` gelten für beide.
+   */
+  wkrMeisterschaftGemeinsam: WkrMeisterschaftGemeinsam
   /**
    * Was auf den Wertungslisten steht, je Fassung: „Aushang“ (öffentlich – Namen wahlweise
    * gekürzt oder gar nicht) und „Intern“ (immer mit vollem Namen). Die Herkunft je Fassung

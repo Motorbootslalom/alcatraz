@@ -498,8 +498,10 @@ export interface GeraetAnsicht {
   bojenFolge?: Record<string, BojenFolgeWahl>
   /**
    * Lage der Zeichnung in der Maske „Bild“ je Liste (Nutzer 24.11.2026, WKR_ANNAHMEN BL1–BL3): Drehung im Uhrzeigersinn
-   * 0 (Steg unten, wie die Datei) / 90 (Steg links) / 180 (Steg oben) / 270 (Steg rechts) – wkr/bild.ts BildLage. Fehlt
-   * = keine Wahl, die Zeichnung liegt wie bisher (Drehung des Bogens nach Gerät und Platz). Wie `bojenFolge` eine
+   * 0 (Start/Ziel links, wie die Datei) / 90 (Start/Ziel oben) / 180 (rechts) / 270 (unten) – wkr/bild.ts BildLage. Seit
+   * 26.11.2026 (R11-13, BL7) heißen die Lagen nach Start/Ziel statt nach dem Steg; gespeichert wird weiter die Drehung,
+   * ein gemerkter Wert zeigt also dieselbe Zeichnung wie vorher (früher „Steg links“ = 90 = jetzt „Start/Ziel oben“).
+   * Fehlt = keine Wahl, die Zeichnung liegt wie bisher (Drehung des Bogens nach Gerät und Platz). Wie `bojenFolge` eine
    * Vorliebe am Standort des WKR: je Listen-Kennung, höchstens {@link BOJEN_FOLGE_MAX}, nur die vier Werte, bleibt nach
    * „Raum verlassen“.
    */

@@ -10,7 +10,7 @@ import { versucheNacheinander } from '../config/catalog'
 import { schrittIn, schrittText } from '../lib/laufzettelText'
 import { laufzettelCode } from '../lib/qr'
 import { veranstaltungsListen } from '../lib/listen'
-import { wkrBoegenZumStand, type WkrBogen } from '../lib/wkrListen'
+import { gemeinsameBoegen, wkrBoegenZumStand, type WkrBogen } from '../lib/wkrListen'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
 import { useListenSprache } from '../lib/listensprache'
@@ -23,7 +23,7 @@ import { useWkrDruck } from './wkrDruck'
 
 /**
  * Die Laufzettel (Checklisten) unter „Listen“: je Blattstapel – Parcours, Klasse und Lauf, bei
- * der Clubmeisterschaft Parcours und Lauf – ein Zettel mit einem Kästchen je gedruckter Seite
+ * gemeinsamen Bögen (Clubmeisterschaft, Meisterschaft auf Wunsch) Parcours und Lauf – ein Zettel mit einem Kästchen je gedruckter Seite
  * jeder Wettkampfrichter-Liste (lib/laufzettel.ts). Die
  * Bildschirmansicht ist die Druckansicht; gedruckt wird, was die Auswahl zeigt.
  *
@@ -70,8 +70,9 @@ const listen = computed(() => veranstaltungsListen(konfig.value, state.value))
 // Gemessene Seitenzahl je Mess-Kennung; bis ein Bogen gemessen ist, gilt eine Seite.
 const seiten = reactive(new Map<string, number>())
 const zuMessen = computed(() => (props.gesperrt ? [] : messBoegen(boegen.value)))
-// Clubmeisterschaft mit „Papier sparen“: Alle Klassen stehen auf denselben Bögen – der Stapel ist der Lauf.
-const jeParcours = computed(() => state.value.eventKind === 'club' && state.value.wkrClubGemeinsam)
+// „Papier sparen“ (Clubmeisterschaft, seit 26.11.2026 auch Meisterschaft): Alle Klassen stehen auf denselben Bögen – der
+// Stapel ist der Lauf. Ohne „Papier sparen“ fasst lib/laufzettel.ts die Klassen zusammen, die sich Bögen teilen.
+const jeParcours = computed(() => gemeinsameBoegen(state.value).papierSparen)
 const alle = computed<Laufzettel[]>(() => buildLaufzettel(boegen.value, listen.value, (b) => seiten.get(messKennung(b)) ?? 1, { jeParcours: jeParcours.value }))
 
 const parcours = computed(() => state.value.parcoursList.filter((p) => alle.value.some((z) => z.parcoursId === p.id)))

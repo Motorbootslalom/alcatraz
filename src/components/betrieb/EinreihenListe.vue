@@ -13,16 +13,22 @@ import { startZeile, tBereich } from './texte'
  * Menüs: Am Steg ist das ein Griff, und keiner davon ist unumkehrbar. Liest nur die öffentliche Sicht,
  * Bedienung in der Sprache der Oberfläche. Im Parallelslalom („Ans Ende der Runde“) holt das Einreihen die wartenden
  * Attempts desselben Paares mit (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit, im Reducer).
+ * - `wiederholung` (Nutzer 26.11.2026, R11-11): nach einem Ausfall wiederholt, Werte verworfen – „Wiederholung offen“;
+ *   die Wettkampfleitung setzt den Start hier selbst an seine Stelle (BETRIEB_ANNAHMEN.wiederholungVonHand). Mit
+ *   `aufhebbar` (nur am Bedienrechner) dazu „Doch keine Wiederholung“ (Ereignis `aufheben` → BetriebView
+ *   WIEDERHOLUNG_AUFHEBEN, holt die verworfenen Werte zurück; WH4, Prüfbefund 27.11.2026).
  */
 const props = defineProps<{
   sicht: OeffentlicheSicht
   /** Nur für die Wörter (Lauf bzw. Runde). */
   bereich?: Pick<SichtBereich, 'art'>
   eintraege: readonly SichtStart[]
-  art: 'zurueckgestellt' | 'nachzuholen'
+  art: 'zurueckgestellt' | 'nachzuholen' | 'wiederholung'
   gesperrt?: boolean
+  /** Nur `wiederholung`, nur am Bedienrechner: „Doch keine Wiederholung“ anbieten. */
+  aufhebbar?: boolean
 }>()
-const emit = defineEmits<{ zeigen: [key: string]; einreihen: [key: string, wo: 'naechster' | 'ende'] }>()
+const emit = defineEmits<{ zeigen: [key: string]; einreihen: [key: string, wo: 'naechster' | 'ende']; aufheben: [key: string] }>()
 
 const zeilen = computed(() => props.eintraege.map((e) => startZeile(props.sicht, e)))
 </script>
@@ -43,6 +49,9 @@ const zeilen = computed(() => props.eintraege.map((e) => startZeile(props.sicht,
           <button type="button" class="btn sm" data-action="einreihen-naechster" :disabled="gesperrt" @click="emit('einreihen', z.key, 'naechster')">{{ t('betrieb.einreihen.naechster') }}</button>
           <button type="button" class="btn sm" data-action="einreihen-ende" :disabled="gesperrt" :title="tBereich(bereich, 'betrieb.einreihen.ende.title')" @click="emit('einreihen', z.key, 'ende')">
             {{ tBereich(bereich, 'betrieb.einreihen.ende') }}
+          </button>
+          <button v-if="art === 'wiederholung' && aufhebbar" type="button" class="btn sm" data-action="wiederholung-aufheben" :title="t('betrieb.wiederholung.aufheben.title')" @click="emit('aufheben', z.key)">
+            {{ t('betrieb.wiederholung.aufheben') }}
           </button>
         </span>
       </li>

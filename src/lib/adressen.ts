@@ -39,9 +39,10 @@ export type ReiterView = keyof ReiterNamen
  * Einstellungen und, unter „Veranstaltung“, der Block „Besetzung“ (`besetzung`; `wkr` meint
  * darin die WKR-Einteilung) und der Block mit „Alle erfassten Werte löschen“ (`werte`). Für den Betrieb:
  * `anzeigetafel` und `betrieb` („Startfolge im Betrieb“, geschrieben `startfolge` bzw. `start-order`); `geraete` (E6:
- * Server des Gerätebetriebs).
+ * Server des Gerätebetriebs). `gewichte` (26.11.2026, R11-07): Abschnitt „Durchschnittsgewichte“ mit der Abstufung und dem
+ * Ausgleich der Co-Piloten – der Block „Besetzung“ verweist dorthin.
  */
-export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline' | 'anzeigetafel' | 'betrieb' | 'geraete'
+export type Sprungziel = 'wkr' | 'besetzung' | 'wertung' | 'ergebnislisten' | 'pokal' | 'dateien' | 'werte' | 'offline' | 'anzeigetafel' | 'betrieb' | 'geraete' | 'gewichte'
 
 /**
  * Fenster mit eigener Wurzel, ohne Kopf, Reiter und Fuß (src/main.ts wählt sie vor dem Store):
@@ -106,7 +107,7 @@ export const ADRESSEN = {
       verzahnung: { manoever: 'manoever', parallel: 'parallel' },
       betrieb: { start: 'start', startliste: 'startliste', geraete: 'geraete', wkr: 'wkr' },
     },
-    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge', geraete: 'geraete' },
+    ziele: { wkr: 'wkr', besetzung: 'besetzung', wertung: 'wertung', ergebnislisten: 'wertungslisten', pokal: 'mannschaftswertung', dateien: 'dateien', werte: 'werte', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'startfolge', geraete: 'geraete', gewichte: 'durchschnittsgewichte' },
     // `sehen`, `koppeln` und `geraet` in jeder Sprache gleich (geraete/paket.ts SEHEN/KOPPELN, GERAET): Lese- und
     // Koppel-Link kennen die Sprache des Geräts nicht.
     vollbild: { anzeige: 'anzeige', zuschauer: 'zuschauer', sehen: 'sehen', koppeln: 'koppeln', geraet: 'geraet', uebung: 'uebung' },
@@ -142,7 +143,7 @@ export const ADRESSEN = {
       // WKR (W2.2): „officials“ – „race-officials“ heißt schon die WKR-Liste unter „Lists“ (Rulebook „race official“).
       betrieb: { start: 'start', startliste: 'starting-order', geraete: 'devices', wkr: 'officials' },
     },
-    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order', geraete: 'devices' },
+    ziele: { wkr: 'race-officials', besetzung: 'assignments', wertung: 'scoring', ergebnislisten: 'results', pokal: 'team-competition', dateien: 'files', werte: 'values', offline: 'offline', anzeigetafel: 'display-board', betrieb: 'start-order', geraete: 'devices', gewichte: 'average-weights' },
     // „Display board“ vorläufig (Plan vom 16.11.2026, §7 Nr. 19) – gegen das Rulebook zu prüfen;
     // „spectators“ ebenso (Plan §4: `#/spectators`). `sehen` wie im Deutschen (Lese-Link, s. o.).
     // `uebung` (W3.4) wie `geraet` in jeder Sprache gleich: Der Verweis steht fest im Koppel-Formular des Geräts.

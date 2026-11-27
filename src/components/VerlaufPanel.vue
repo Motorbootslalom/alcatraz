@@ -76,6 +76,12 @@ function listenText(kennung: string | undefined): string {
 function was(b: Beschreibung): string {
   if (b.art === 'eingabeGeraet') return t(`history.what.${b.art}`, { device: b.geraet ?? '', list: listenText(b.liste) })
   if (b.art === 'wkrListe' || b.art === 'wkrAbschluss' || b.art === 'wkrPapierAb') return t(`history.what.${b.art}`, { list: listenText(b.liste) })
+  if (b.art === 'wiederholungAusfall' || b.art === 'wiederholungAufgehoben') {
+    // Wiederholung nach Ausfall (R11-11, 26.11.2026): Startnummer (Prüfbefund 27.11.2026 – mehrere Ausfälle in derselben
+    // Klasse und demselben Lauf wären sonst nicht zu unterscheiden), Klasse und Lauf wie bei einer Eingabe.
+    const teile = [b.startNr ?? '', b.klasse ? classLabel(b.klasse as ClassId) : '', b.lauf ? t('lists.wkr.runN', { n: b.lauf }) : ''].filter(Boolean)
+    return [t(`history.what.${b.art}`), teile.join(', ')].filter(Boolean).join(' ')
+  }
   if (b.art === 'eingabe') {
     // Im Parallelslalom ist der „Lauf“ der Attempt einer Runde (lib/verlauf.ts `runde`).
     const runde = rundeVon(`parallel:${b.runde ?? ''}`)

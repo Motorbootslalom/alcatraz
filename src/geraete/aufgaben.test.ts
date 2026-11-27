@@ -66,6 +66,10 @@ describe('darf – Start-Freigabe', () => {
       { type: 'IMPORT_STARTERS', starters: [], mode: 'replace', bereich: 'see' },
       { type: 'CLEAR_EINGABEN', bereich: 'see' },
       { type: 'SET_KENNUNG', kennung: 'X', bereich: 'see' },
+      // Wiederholung nach Ausfall (R11-11, WH3/WH4): Auslösen und „Doch keine Wiederholung“ nur am Bedienrechner –
+      // beides Actions der Erfassung (Werte verwerfen bzw. zurückholen, Prüfbefund 27.11.2026).
+      { type: 'WIEDERHOLUNG_AUSFALL', bereich: 'see', ref: '["m","s1",1]' },
+      { type: 'WIEDERHOLUNG_AUFHEBEN', bereich: 'see', ref: '["m","s1",1]' },
     ]
     for (const a of verboten) expect(darf(a, steg('see'), DM), a.type).toBe(false)
   })

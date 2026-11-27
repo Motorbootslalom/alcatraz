@@ -39,7 +39,7 @@ import WkrUebung from './components/wkr/WkrUebung.vue'
  * W3.4 (21.11.2026, G13): `#/uebung` zeigt die Übung der WKR-Maske (components/wkr/WkrUebung.vue) – ohne Store, ohne
  * Kopplung, ohne Netz (geraete/uebung.ts); ein Lese- oder Koppel-Gerät ruht dabei (gestoppt wie beim Wechsel).
  *
- * Das Paket des Lese-Links bleibt in der Adresse (Abweichung von Plan §4, beim Bau von E6 am 16.11.2026 – vom Nutzer zu bestätigen):
+ * Das Paket des Lese-Links bleibt in der Adresse (Abweichung von Plan §4, beim Bau von E6 am 16.11.2026, bestätigt 26.11.2026, R11-19):
  * Lesezeichen und Neuladen brauchen es, und geraet.ts legt den Link-Text nicht ab. Nach „Raum verlassen“ steht nur
  * noch `#/sehen` da.
  */

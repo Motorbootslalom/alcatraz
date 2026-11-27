@@ -56,6 +56,13 @@ export interface Meldung {
 export interface GezeigterStart {
   ref: string
   zeit: number
+  /**
+   * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11): Dieser Versuch wurde abgebrochen – die Wettkampfleitung hat
+   * eine Wiederholung entschieden, seine Werte sind verworfen (state/reducer/erfassung.ts WIEDERHOLUNG_AUSFALL). Er
+   * bleibt im Verlauf der Anzeige (Tafel, „davor“), zählt aber nicht als erledigt: Der Start ist wieder offen, bis er
+   * erneut gezeigt wird. Fehlt = gewöhnlich gezeigt.
+   */
+  abgebrochen?: true
 }
 
 /** Was im Betrieb eines Bereichs geschehen ist und wovon abgewichen wird. */
@@ -84,6 +91,12 @@ export interface BereichBetrieb {
    * gezeigten Start (`ref` = aktuell); fällt bei jedem Zeigen und Zurück weg. Fehlt = nicht per Knopf durchgefahren.
    */
   durchfahrt?: { ref: string; zeit: number }
+  /**
+   * „Wiederholung offen“ (Nutzer 26.11.2026, R11-11): Starts, deren gezeigter Versuch nach einem Ausfall abgebrochen
+   * wurde (GezeigterStart.abgebrochen) und die die Wettkampfleitung noch nicht wieder eingereiht hat – sie fahren nicht
+   * von selbst, bis sie per „Als Nächster“/„Ans Ende“/„Jetzt zeigen“ an ihre Stelle kommen. Kennungen. Fehlt = keine.
+   */
+  wiederholung?: string[]
 }
 
 /** Der Betrieb aller Bereiche. Ein Bereich ohne Eintrag hat noch nicht begonnen. */
@@ -231,6 +244,16 @@ export interface SichtStart {
   titel: string
   /** Nur im Parallelslalom: die beiden Seiten. */
   paar?: SichtPaar
+  /**
+   * Ab sv 7 (Nutzer 26.11.2026, R11-11): Der Start wird wiederholt – ein früherer Versuch wurde nach einem Ausfall
+   * abgebrochen. Ohne Grund und ohne Werte; `titel` trägt dazu „Wiederholung“ in der Sprache der Tafel. Fehlt = nein.
+   */
+  wiederholung?: true
+  /**
+   * Ab sv 7, nur an `aktuell`/`vorig`: Dieser gezeigte Versuch ist abgebrochen (Ausfall, Wiederholung entschieden) –
+   * die Start-Freigabe nimmt ihn nicht mehr „zurück“. Fehlt = nein.
+   */
+  abgebrochen?: true
 }
 
 /** Ein Bereich in der Sicht. */
@@ -267,6 +290,16 @@ export interface SichtBereich {
   waehlbar: SichtStart[]
   /** Zurückgestellte Starts (B-3), in der Folge. */
   zurueckgestellt: SichtStart[]
+  /**
+   * Ab sv 7 (Nutzer 26.11.2026, R11-11): „Wiederholung offen“ – Starts, deren Versuch nach einem Ausfall abgebrochen
+   * wurde und die noch nicht wieder eingereiht sind, in der Folge. Ohne Grund und ohne Werte.
+   */
+  wiederholung: SichtStart[]
+  /**
+   * Nur am Bedienrechner (SichtOptionen.gefahren, nie auf der Leitung): die gezeigten Starts der begonnenen Punkte, die
+   * gelten (nicht abgebrochen), der jüngste zuerst – die Wahl für „Wiederholung (Ausfall)“.
+   */
+  gefahren?: SichtStart[]
   /** Starts ausgesetzter Klassen („Boot fehlt“, V-5/L-7), in der Folge. */
   bootFehlt: SichtStart[]
   /** Der Punkt, auf den sich Aussetzen und Vorziehen der Klassen beziehen (betrieb/folge.ts `arbeitsPunkt`). */
@@ -313,9 +346,10 @@ export interface OeffentlicheSicht {
    * Fassung der Sicht; steigt, wenn sich ihre Form ändert (2: Steuerung der Etappe E2; 3: Startabstände und
    * „am Steg“/„vor Steg“ für die Prognose, Etappe E3; 4: Bereich `parallel` mit Paaren, `SichtStart.paar`, E4;
    * 5: `einst.parallelAnordnung`, Lage von Racecourse A und B, 16.11.2026; 6: SichtPaar ohne `finale`, das Kleine
-   * Finale ist eine eigene Runde `runde:small`, 21.11.2026). Gilt auch für die Zuschauersicht.
+   * Finale ist eine eigene Runde `runde:small`, 21.11.2026; 7: Wiederholung nach Ausfall – SichtBereich.wiederholung,
+   * SichtStart.wiederholung/abgebrochen, 26.11.2026). Gilt auch für die Zuschauersicht.
    */
-  sv: 6
+  sv: 7
   /** Kopfzeile; '' = keine. */
   kopf: string
   /** Name der Veranstaltung (ab sv 2) – für `{veranstaltung}` in den Meldungsvorlagen (betrieb/meldungen.ts). */

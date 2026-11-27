@@ -391,7 +391,7 @@ describe('Drehung nach dem Platz (Prüfbefund 22.11.2026, bildDrehungNachPlatz)'
   })
 })
 
-describe('Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, BL1–BL5)', () => {
+describe('Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, BL1–BL5; Namen nach Start/Ziel 26.11.2026, BL7)', () => {
   /** Wohin ein Punkt der Datei (x, y) bei einer Drehung im Uhrzeigersinn wandert – wie inlineSvg (`<g rotate>` + viewBox). */
   function seiteNach(drehung: number, x: number, y: number): 'unten' | 'links' | 'oben' | 'rechts' {
     const svg = '<svg viewBox="0 0 100 40"><circle id="p" cx="0" cy="0" r="1"/></svg>'
@@ -406,15 +406,79 @@ describe('Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, BL1–BL5)', 
     return px < 0.5 ? 'links' : 'rechts'
   }
 
-  it('BL2: Drehung im Uhrzeigersinn – die untere Kante der Datei (Steg) landet links, oben, rechts; Start/Ziel (links) mit', () => {
+  it('BL7: Drehung im Uhrzeigersinn – die linke Kante der Datei (Start/Ziel) landet oben, rechts, unten; die Wende gegenüber', () => {
     expect(BILD_LAGEN).toEqual([0, 90, 180, 270])
     for (const l of BILD_LAGEN) {
-      // Mitte der unteren Kante = wo der Steg der Variante „Steg unten“ liegt; Mitte der linken Kante = Start/Ziel.
-      expect(seiteNach(l, 50, 40)).toBe(BILD_LAGE_SEITE[l].steg)
+      // Mitte der linken Kante = Start/Ziel, Mitte der rechten Kante = Tor 5 bzw. Boje 5 (die Wende).
       expect(seiteNach(l, 0, 20)).toBe(BILD_LAGE_SEITE[l].start)
+      expect(seiteNach(l, 100, 20)).toBe(BILD_LAGE_SEITE[l].wende)
     }
-    expect(BILD_LAGE_SEITE[0]).toEqual({ steg: 'unten', start: 'links' })
-    expect(BILD_LAGE_SEITE[90]).toEqual({ steg: 'links', start: 'oben' })
+    expect(BILD_LAGE_SEITE[0]).toEqual({ start: 'links', wende: 'rechts' })
+    expect(BILD_LAGE_SEITE[90]).toEqual({ start: 'oben', wende: 'unten' })
+  })
+
+  /**
+   * Mitte eines Elements der Zeichnung in Koordinaten der Datei: erster Punkt seiner ersten Form plus alle Verschiebungen
+   * darüber. Andere transforms als `translate` lässt die Probe nicht zu (sie würfe) – dann stimmte die Rechnung nicht.
+   */
+  function punktVon(quelle: string, id: string): { x: number; y: number } {
+    const doc = new DOMParser().parseFromString(quelle, 'image/svg+xml')
+    const el = doc.getElementById(id)
+    if (!el) throw new Error(`${id} fehlt`)
+    const form = ['path', 'circle', 'ellipse', 'rect'].includes(el.tagName.toLowerCase()) ? el : el.querySelector('path, circle, ellipse, rect')
+    if (!form) throw new Error(`${id} ohne Form`)
+    let x: number
+    let y: number
+    if (form.tagName.toLowerCase() === 'path') {
+      const m = /^\s*[mM]\s*(-?[\d.]+(?:e-?\d+)?)[\s,]+(-?[\d.]+(?:e-?\d+)?)/.exec(form.getAttribute('d') ?? '')
+      if (!m) throw new Error(`${id}: Pfad ohne Anfang`)
+      x = Number(m[1])
+      y = Number(m[2])
+    } else {
+      x = Number(form.getAttribute('cx') ?? form.getAttribute('x'))
+      y = Number(form.getAttribute('cy') ?? form.getAttribute('y'))
+    }
+    for (let n: Element | null = form; n; n = n.parentElement) {
+      const t = n.getAttribute('transform')
+      if (!t) continue
+      const m = /^\s*translate\(\s*(-?[\d.]+(?:e-?\d+)?)(?:[\s,]+(-?[\d.]+(?:e-?\d+)?))?\s*\)\s*$/.exec(t)
+      if (!m) throw new Error(`${id}: transform „${t}“ ist keine Verschiebung`)
+      x += Number(m[1])
+      y += Number(m[2] ?? 0)
+    }
+    return { x, y }
+  }
+  /** Kante, der ein Punkt der Datei nach der Drehung am nächsten liegt – im viewBox, den inlineSvg wirklich setzt. */
+  function kanteIm(quelle: string, drehung: number, p: { x: number; y: number }): 'unten' | 'links' | 'oben' | 'rechts' {
+    const s = inlineSvg(quelle, { praefix: 'k-', drehung, dim: [], aus: [] })
+    const [vx, vy, vw, vh] = /<svg\b[^>]*\bviewBox="([^"]+)"/.exec(s)![1].split(/[\s,]+/).map(Number)
+    const r = (((drehung % 360) + 360) % 360) * (Math.PI / 180)
+    const px = (p.x * Math.cos(r) - p.y * Math.sin(r) - vx) / vw
+    const py = (p.x * Math.sin(r) + p.y * Math.cos(r) - vy) / vh
+    const abstand = { links: px, rechts: 1 - px, oben: py, unten: 1 - py }
+    return (Object.keys(abstand) as (keyof typeof abstand)[]).reduce((a, b) => (abstand[b] < abstand[a] ? b : a))
+  }
+
+  it('BL7 an den echten Zeichnungen (Nutzer 26.11.2026, R11-13): „Start/Ziel links“ zeigt Start/Ziel links, Tor 5 bzw. Boje 5 rechts – jede Lage', () => {
+    const proben: [string, string, string][] = [
+      ...PARCOURS_DATEIEN.map((d): [string, string, string] => [d, 'StartZiel', 'Tor5']),
+      [PARALLEL_DATEI, 'A_StartZiel_unten', 'A_Boje5'],
+      [PARALLEL_DATEI, 'A_StartZiel_oben', 'A_Boje5'],
+    ]
+    for (const [datei, start, wende] of proben) {
+      const quelle = parcoursSvg(datei)!
+      expect(quelle, datei).toBeTruthy()
+      const s = punktVon(quelle, start)
+      const t = punktVon(quelle, wende)
+      // In der Datei (0°) liegt Start/Ziel im linken Viertel, die Wende im rechten – nicht nur „weiter links“.
+      const breite = svgSeiten(quelle)!.breite
+      expect(s.x / breite, `${datei} ${start}`).toBeLessThan(0.25)
+      expect(t.x / breite, `${datei} ${wende}`).toBeGreaterThan(0.75)
+      for (const l of BILD_LAGEN) {
+        expect(kanteIm(quelle, l, s), `${datei} ${l}° ${start}`).toBe(BILD_LAGE_SEITE[l].start)
+        expect(kanteIm(quelle, l, t), `${datei} ${l}° ${wende}`).toBe(BILD_LAGE_SEITE[l].wende)
+      }
+    }
   })
 
   it('BL3: Die Wahl geht vor Blick, Gerät und Platz; ohne Wahl alles wie bisher', () => {

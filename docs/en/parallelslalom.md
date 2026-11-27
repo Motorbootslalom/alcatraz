@@ -328,7 +328,7 @@ interleaving.
   (see [Operation](#operation-start-release-and-scoreboard)).
   What an unfinished class is waiting for (notices of the results booklet, individual and team competition) is
   named, among the finals, by the first one not finished – the small final as long as it has not been run, even if the
-  final can already be locked (`offeneRunde`; interpreted during implementation 21.11.2026, still to be confirmed).
+  final can already be locked (`offeneRunde`; interpreted during implementation 21.11.2026, confirmed 26.11.2026).
   The notice “… it continues only once every driver has run both attempts or is disqualified” below the class appears
   only as long as there is nothing to lock; that the heat is being entered is shown in its row anyway
   (“being entered”).
@@ -389,7 +389,7 @@ the values).
 
 - If a protest changes the result before, the plan stays as printed and counts as outdated (warning).
   After a protest in the semi-finals the warning names the small final first, because it is run first
-  (interpreted during implementation 21.11.2026, still to be confirmed).
+  (interpreted during implementation 21.11.2026, confirmed 26.11.2026); after deleting it, the final.
 - As long as a plan of the class is outdated, the class has no overall result of the stage and no individual
   competition. Results lists and results booklet name the class with the heat
   (“starting order no longer matches the results before: delete and lock again”).
@@ -515,7 +515,9 @@ unless it is noted here as confirmed.
   (see above); “As next” and starts shown specifically go after the last start shown of their heat, “To the end of
   the heat” to the end of their heat, never into a later one. Suspending or bringing forward classes and moving starts
   do not exist here: the plan sets the order (pairs, blocks alternating the types of boat, swap for the 2nd attempt);
-  the card says so instead of “Classes · boat missing”.
+  the card says so instead of “Classes · boat missing”. The “Repeat (breakdown) …” of the manoeuvring (26.11.2026,
+  [funktionen.md](funktionen.md#start-release)) does not exist here either – in the parallel slalom the only repeat is
+  the re-run.
 - **Starting order and spectator list:** per row or card one pair with racecourse A and B; “at the pontoon” and
   “at pontoon entry” as in manoeuvring, but **without estimated waiting time**: pair starts are not measured – their
   rhythm (two boats at once, short racecourse, swap for the 2nd attempt) would distort the intervals of the classes
@@ -563,7 +565,9 @@ The race officials can also enter data on their own device in the parallel slalo
   schema (the same for A and B).
   Under “More → Display” the “Position of the drawing” can be chosen; because the drawing has no pontoon, the four
   rotations are called “Start on the left”, “Start at the top”, “Start on the right”, “Start at the bottom”, preceded by
-  “Automatic” (24.11.2026, still to be confirmed); the schema does not rotate. The course sheet on paper carries the
+  “Automatic” (24.11.2026; “Automatic” and the choice per device and list confirmed 26.11.2026, the class drawings
+  have since been named after start/finish instead of the pontoon); the schema does not
+  rotate. The course sheet on paper carries the
   same lane (see [Race officials' sheets of the preliminary heat](#race-officials-sheets-of-the-preliminary-heat)).
 
 ## Dummies and terms
@@ -574,7 +578,7 @@ The race officials can also enter data on their own device in the parallel slalo
 - The heats are called “Preliminary heat”, “Semi-finals”, “Small final”, “Final”, “Re-run”
   (“Small final” instead of the rulebook wording “compete for the 3rd and 4th place”, decision of 15.11.2026).
   Since 21.11.2026 the small final is a heat of its own; the former addition “(3rd and 4th place)” is dropped because
-  the heat says it (interpreted during implementation, still to be confirmed). The heat names are kept twice: i18n
+  the heat says it (interpreted during implementation, confirmed 26.11.2026). The heat names are kept twice: i18n
   `parallel.round.*` (via `rundenName`) and `bogenTexte().runde` in `src/config/sprache.ts` – keep both the same.
 - German: Vorlauf, Halbfinale, Kleines Finale, Finale, Wiederholung.
 
@@ -694,7 +698,7 @@ changeable in one place: `EINZEL_FESTLEGUNGEN` in `src/lib/einzelwertung.ts`.
   parallel slalom that counts) is placed **behind** those tied on points who have a time (15.11.2026).
   A disqualification is a ranking, and thus the last place among those tied on points.
   Several such drivers share this rear place.
-- Interpreted during implementation (24.11.2026, still to be confirmed by the user; `gefahreneRunden` and
+- Interpreted during implementation (24.11.2026, confirmed by the user 26.11.2026; `gefahreneRunden` and
   `einzelwertung` in `src/lib/einzelwertung.ts`):
   - A heat in which the driver did not start any attempt – no time or disqualification in any attempt other than
     X “Did not start” (X in both, or X in one and the other empty) – does not count as run; then the heat before

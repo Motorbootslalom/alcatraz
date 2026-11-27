@@ -38,7 +38,7 @@ import ErgebnisFuss from './ErgebnisFuss.vue'
  * (Entscheidung des Nutzers). Ist auch die Zeit gleich, entscheidet die vorletzte gefahrene Runde
  * des Parallelslaloms (Entscheidung des Nutzers vom 24.11.2026): Ihre Summe steht dann in Klammern
  * hinter der Zeit (`zeit2`), die Spalte wird dafür breiter statt zweizeilig – so bleibt jede Zeile
- * gleich hoch. Ein Sternchen am Platz heißt: Der Stichentscheid hat ihn bestimmt.
+ * gleich hoch (32 statt 22 mm; Klammer und Fußnote bestätigt 26.11.2026, R11-29 (8)). Ein Sternchen am Platz heißt: Der Stichentscheid hat ihn bestimmt.
  * Der Fuß nennt die Regel auf jeder Seite mit Punktgleichen – auch ohne Sternchen (gleiche
  * Zeit), und den Zusatz zu Strich und geteiltem Platz, wo einer davon vorkommt. Wertet der
  * O.O.D. eine Disziplin für die Klasse nicht, steht das im Fuß jeder Seite (`hinweisText`).

@@ -50,6 +50,8 @@ export function messungenIn(
   const out: Messung[] = []
   for (let i = 1; i < gezeigt.length; i++) {
     const vorig = gezeigt[i - 1]
+    // Ein abgebrochener Versuch (Ausfall, R11-11, 26.11.2026) misst nichts: Im Abstand steckt der Ausfall.
+    if (vorig.abgebrochen) continue
     const sekunden = (gezeigt[i].zeit - vorig.zeit) / 1000
     if (!(sekunden >= kuerzester && sekunden <= laengster)) continue
     const ref = liesRef(vorig.ref)

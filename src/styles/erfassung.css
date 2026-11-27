@@ -196,6 +196,8 @@
   box-shadow: inset 0 -2px 0 var(--blatt-linie);
 }
 
+/* Spalte gibt es für die Klasse der Zeile nicht (gemeinsame Bögen): am Bildschirm blass, nicht kräftig wie auf Papier –
+   daneben liegt die Schraffur „nicht gestartet“ (bestätigt 26.11.2026, R11-29 (2)). */
 .erf-tabelle td.erf-entfaellt {
   background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--blatt-blass) 4px 5px);
 }
@@ -531,6 +533,14 @@
 .erf-wkr-rueckfragen {
   color: var(--blatt-warn);
   font-weight: 600;
+}
+
+/* ↻ hinter der Nummer (R11-11, 26.11.2026): Wiederholung nach Ausfall – die Werte der Wiederholung (Leerzeile auf dem
+   Papier) gehören hierher. Zeichen und Text (title, sr-only), nicht nur Farbe. */
+.erf-wiederholung-marke {
+  margin-left: 3px;
+  color: var(--blatt-warn);
+  font-weight: 700;
 }
 
 /* ▭ vor der Nummer: Diese Zeile vom Papierbogen prüfen. Form (Kasten) und Farbe, nicht nur Farbe. */

@@ -276,7 +276,8 @@ So that they do not hold up the Pages deploy, they run on GitHub (where `CI` is 
 checks that the rule matches the line in `ci.yml` (without the tick `0` = off) and that `deploy.yml` never sets the
 variable.
 
-- Locally, also in the pre-commit hook (without `CI`): they always run.
+- Locally, also in the pre-commit hook (without `CI`): they always run – a flaky failure can hold up a commit, but a
+  real error shows up at once (confirmed 26.11.2026).
 - To include them on GitHub: **Actions → CI → Run workflow**, choose the branch, tick “Wackelige Tests mitlaufen
   lassen” (run the flaky tests too), **Run workflow**. The tick sets `ALCATRAZ_WACKELTESTS=1`; on push and pull
   request it is off.

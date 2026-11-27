@@ -31,10 +31,51 @@ export type WkrListenStand = Pick<
   // Für den QR-Code; ohne sie (Tests, Beispielansicht) steht dort „keine Kennung“. Ohne
   // Angaben zur Seitenaufteilung wird automatisch geteilt; ohne `wkrLeerzeilenSeite` gilt
   // auf gemeinsamen Bögen die Vorgabe.
-  // Ohne `wkrGemeinsamFolge` stehen die Klassen eines gemeinsamen Bogens getrennt (Blöcke).
-  Partial<Pick<AppState, 'kennung' | 'regelwerk' | 'wkrZeilenJeSeite' | 'wkrTeilenAb' | 'tor5MitParcours' | 'zusatzListen' | 'wkrLeerzeilenSeite' | 'versucheNacheinander' | 'wkrGemeinsamFolge'>>
+  // Ohne `wkrGemeinsamFolge` stehen die Klassen eines gemeinsamen Bogens getrennt (Blöcke);
+  // ohne `wkrMeisterschaftGemeinsam` hat bei einer Meisterschaft jede Klasse ihre Bögen.
+  Partial<Pick<AppState, 'kennung' | 'regelwerk' | 'wkrZeilenJeSeite' | 'wkrTeilenAb' | 'tor5MitParcours' | 'zusatzListen' | 'wkrLeerzeilenSeite' | 'versucheNacheinander' | 'wkrGemeinsamFolge' | 'wkrMeisterschaftGemeinsam'>>
 
-/** Ein Bogen der Veranstaltung: eine Liste für eine Klasse (Clubmeisterschaft: mehrere) in einem Lauf auf einem Parcours. */
+/**
+ * Wie die Klassen einer Veranstaltung auf die WKR-Bögen kommen – die EINE Stelle, die das aus dem Stand liest (Bögen,
+ * Laufzettel, Erfassung, Beispielansicht, Einstellungen).
+ * - Clubmeisterschaft: immer gemeinsame Bögen; „Papier sparen“ = `wkrClubGemeinsam` (Vorgabe an).
+ * - Meisterschaft (DM, UIM; R11-03, 26.11.2026: „Wenn es schon da ist, kann man das auch bei den anderen nutzen.“):
+ *   `wkrMeisterschaftGemeinsam` – `aus` (Vorgabe) je Klasse ein Bogen wie bisher, `gleich` dieselbe Gruppierung wie bei
+ *   der Clubmeisterschaft ohne „Papier sparen“, `alle` mit „Papier sparen“.
+ * `inStartfolge`: Klassen eines gemeinsamen Bogens gemischt in der Startfolge (`wkrGemeinsamFolge`, 24.11.2026) – nur,
+ * wo es gemeinsame Bögen gibt.
+ *
+ * Beim Bau von R11-03 ausgelegt (26.11.2026, noch zu bestätigen):
+ * - „Papier sparen“ steht auch bei Meisterschaften zur Wahl (`alle`), Vorgabe aus – der Nutzer: „Wenn es schon da ist …“;
+ *   dafür fehlt dort die Zeichnung der Klasse, nur die Beschreibung bleibt.
+ * - Die Laufzettel folgen den Bögen wie bei der Clubmeisterschaft (lib/laufzettel.ts): ein Zettel für alle Klassen, die
+ *   sich Bögen teilen – meist der ganze Parcours je Lauf statt je Klasse. Ein gemeinsamer Bogen liegt nur in einem Stapel.
+ * - Die Leerzeilen je Klasse (Blöcke ohne „Papier sparen“) bleiben beim Einschalten, wie eingestellt (Meisterschaft 3) –
+ *   anders als beim Wechsel zur Clubmeisterschaft (SET_EVENT_KIND setzt dort 1).
+ */
+export interface GemeinsameBoegen {
+  /** Klassen mit gleich aufgebautem Bogen (gleiche Spalten, gleiche Zeichnung) teilen sich einen. */
+  gemeinsam: boolean
+  /** Papier sparen: alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild; der Laufzettel gilt je Parcours und Lauf. */
+  papierSparen: boolean
+  /** Die Klassen eines gemeinsamen Bogens stehen gemischt in der Startfolge der Verzahnung statt in Blöcken. */
+  inStartfolge: boolean
+}
+
+export function gemeinsameBoegen(
+  stand: Pick<AppState, 'eventKind' | 'wkrClubGemeinsam'> & Partial<Pick<AppState, 'wkrMeisterschaftGemeinsam' | 'wkrGemeinsamFolge'>>,
+): GemeinsameBoegen {
+  const club = stand.eventKind === 'club'
+  const art = stand.wkrMeisterschaftGemeinsam ?? 'aus'
+  const gemeinsam = club || art !== 'aus'
+  return {
+    gemeinsam,
+    papierSparen: club ? stand.wkrClubGemeinsam : art === 'alle',
+    inStartfolge: gemeinsam && stand.wkrGemeinsamFolge === 'verzahnung',
+  }
+}
+
+/** Ein Bogen der Veranstaltung: eine Liste für eine Klasse (gemeinsame Bögen: mehrere) in einem Lauf auf einem Parcours. */
 export interface WkrBogen {
   /** Eindeutig und stabil: Parcours, Klassen, Lauf, Liste. */
   id: string
@@ -74,7 +115,7 @@ export interface WkrListen {
 }
 
 /**
- * Woran sich entscheidet, ob zwei Klassen sich einen Bogen teilen können (Clubmeisterschaft):
+ * Woran sich entscheidet, ob zwei Klassen sich einen Bogen teilen können (gemeinsame Bögen, {@link gemeinsameBoegen}):
  * dieselben Spalten, dieselbe Beschreibung und – wenn die Liste ein Parcoursbild trägt –
  * dieselbe Zeichnung. Ein Bogen zeigt genau ein Bild; stünde dort die Zeichnung einer anderen
  * Klasse (anderer Kurs, in der Möwe-Variante sogar andere Fahrtrichtung), gliche der
@@ -87,7 +128,7 @@ function aufbauSignatur(konfig: BogenKonfig, aufbauId: string, typeId: string, k
   return JSON.stringify([d.columns.map((c) => [c.key, c.sub ?? []]), d.errorTable, d.errorGroups, d.legendNote, d.disqTable, bild])
 }
 
-/** Die Klassen einer Liste, zu Bögen zusammengefasst: einzeln, oder (Club) nach gleichem Aufbau. */
+/** Die Klassen einer Liste, zu Bögen zusammengefasst: einzeln, oder (gemeinsame Bögen) nach gleichem Aufbau. */
 function klassenGruppen(
   konfig: BogenKonfig,
   aufbauId: string,
@@ -117,7 +158,8 @@ function klassenGruppen(
  * alle Klassen im 1. Lauf (in der Folge der Verzahnung), dann alle im 2. Lauf – so fährt der Betrieb („Lauf 2
  * beginnen“ je Parcours, betrieb/folge.ts: die Folge der Verzahnung je Lauf einmal). `klasse` wäre die frühere
  * Folge (je Klasse erst alle Läufe), falls der WKR seine Bögen je Klasse gebündelt haben will. Seitenzahlen zählt
- * weiter jeder Bogen für sich; die Laufzettel (lib/laufzettel.ts) bleiben je Parcours, Klasse und Lauf.
+ * weiter jeder Bogen für sich; die Laufzettel (lib/laufzettel.ts) bleiben ohne gemeinsame Bögen je Parcours, Klasse
+ * und Lauf – mit gemeinsamen Bögen ({@link gemeinsameBoegen}) gilt ein Zettel für alle Klassen, die sich Bögen teilen.
  */
 export const WKR_DRUCKFOLGE: { readonly innen: 'lauf' | 'klasse' } = { innen: 'lauf' }
 
@@ -135,9 +177,10 @@ export const WKR_DRUCKFOLGE: { readonly innen: 'lauf' | 'klasse' } = { innen: 'l
  * Knoten werden erst für das Gesamtergebnis gebraucht, ihr Bogen liegt deshalb im Stapel des
  * letzten Laufs (und steht auf dessen Laufzettel, lib/laufzettel.ts).
  *
- * Clubmeisterschaft: Klassen, deren Bogen gleich aufgebaut ist, stehen zusammen auf einem
+ * Gemeinsame Bögen ({@link gemeinsameBoegen}: Clubmeisterschaft immer, Meisterschaft seit 26.11.2026 auf Wunsch,
+ * R11-03): Klassen, deren Bogen gleich aufgebaut ist, stehen zusammen auf einem
  * Bogen; eine Klasse mit anderen Spalten oder anderem Parcoursbild bekommt ihren eigenen. Mit
- * `wkrClubGemeinsam` (Papier sparen) stehen alle Klassen einer Liste zusammen, ohne Bild;
+ * „Papier sparen“ (`wkrClubGemeinsam` bzw. `wkrMeisterschaftGemeinsam` `alle`) stehen alle Klassen einer Liste zusammen, ohne Bild;
  * fehlende Spalten sind je Zeile schraffiert (wie die Zeile eines Dummys im Parallelslalom,
  * Nutzer 24.11.2026). Die Wertung bleibt klassenbezogen – jede Zeile kennt ihre Klasse.
  * Wie die Klassen auf dem gemeinsamen Bogen stehen, wählt `wkrGemeinsamFolge` (Nutzer 24.11.2026:
@@ -151,7 +194,7 @@ export const WKR_DRUCKFOLGE: { readonly innen: 'lauf' | 'klasse' } = { innen: 'l
  *   hinter der Startnummer. Die Leerzeilen stehen am Ende jeder Seite (`wkrLeerzeilenSeite`, mit
  *   leerer Klassenzelle) – es gibt keine Klasse, an deren Ende sie stünden. Geteilt wird
  *   automatisch nach Messung.
- * Ob Bild und Gruppen sich ändern, hängt nur an `wkrClubGemeinsam`; die Folge ändert nur die
+ * Ob Bild und Gruppen sich ändern, hängt nur an „Papier sparen“; die Folge ändert nur die
  * Zeilen, nicht welche Bögen es gibt (QR-Codes und WKR-Geräte bleiben dieselben; die Laufzettel
  * zählen die Seiten, wie sie dann gedruckt werden).
  *
@@ -185,13 +228,11 @@ export function wkrBoegen(
   // in der die Bögen am Steg gebraucht werden; man muss ihn nur noch trennen.
   const auftritt = new Map<string, Map<ClassId, number>>()
   const boegen: WkrBogen[] = []
-  const club = stand.eventKind === 'club'
-  const papierSparen = club && stand.wkrClubGemeinsam
   // Klassen eines gemeinsamen Bogens in der Startfolge statt in Blöcken (Nutzer 24.11.2026, siehe oben).
-  const inStartfolge = club && stand.wkrGemeinsamFolge === 'verzahnung'
+  const { gemeinsam, papierSparen, inStartfolge } = gemeinsameBoegen(stand)
   const leerJeSeite = stand.wkrLeerzeilenSeite ?? BOGEN_VORGABEN.leerzeilen
   // „Zeilen je Seite“ und „Teilen ab“ gelten für Bögen einer Klasse. Ein gemeinsamer Bogen
-  // mehrerer Klassen (Clubmeisterschaft) teilt sich immer automatisch: Die feste Zahl zählt
+  // mehrerer Klassen (Clubmeisterschaft, Meisterschaft mit gemeinsamen Bögen) teilt sich immer automatisch: Die feste Zahl zählt
   // Starter einer Klasse; über Klassen hinweg risse sie Klassen mitten durch und kostete
   // Blätter – dort soll gerade keine Klasse unnötig getrennt werden (lib/paging.ts `blockSeiten`).
   const seiten = { zeilenJeSeite: stand.wkrZeilenJeSeite ?? 0, teilenAb: stand.wkrTeilenAb ?? 0 }
@@ -207,7 +248,7 @@ export function wkrBoegen(
     const klassen = [...zuerst.keys()]
     const jeGruppe = listen.flatMap((typeId) => {
       const mitListe = klassen.filter((k) => konfig.positionAllowsClass(typeId, k))
-      return klassenGruppen(konfig, stand.aufbau, typeId, mitListe, club, papierSparen).map((gruppe) => ({ gruppe, typeId }))
+      return klassenGruppen(konfig, stand.aufbau, typeId, mitListe, gemeinsam, papierSparen).map((gruppe) => ({ gruppe, typeId }))
     })
     for (const { gruppe, typeId } of jeGruppe) {
       const def = konfig.getSheetDef(typeId)
@@ -258,7 +299,7 @@ export function wkrBoegen(
     }
   }
   // Je Parcours und Position die zeitliche Folge (WKR_DRUCKFOLGE); `lage` hält Gleiches stabil
-  // (Clubmeisterschaft: Klassengruppen einer Liste in der Folge ihrer ersten Klasse).
+  // (gemeinsame Bögen: Klassengruppen einer Liste in der Folge ihrer ersten Klasse).
   const lage = new Map(boegen.map((b, i) => [b.id, i]))
   const parcoursRang = new Map(stand.parcoursList.map((p, i) => [p.id, i]))
   const listenRang = new Map(listen.map((typeId, i) => [typeId, i]))

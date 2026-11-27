@@ -8,7 +8,7 @@ export default {
   'lists.weight.art.checkin': 'for the weighing',
   'lists.weight.art.steg': 'for the pontoon per class',
   'lists.weight.hint.herkunft': 'For filling in at registration: by class and name, without numbers – with the average weight of the class and a field for the weight.',
-  'lists.weight.hint.steg': 'The extra weights for the pontoon: one sheet per class by number, with a box to tick per attempt. Boat and co-driver in the head come from the assignments under',
+  'lists.weight.hint.steg': 'The extra weights for the pontoon: one sheet per class by number, with a box to tick per attempt. Boat, co-driver and substitute co-driver in the head – with the extra weight of a co-driver in brackets – come from the assignments under',
   'lists.weight.art.team': 'per team (rule 960, pt. 3.7)',
   'lists.weight.hint.team': 'Internal list according to rule 960, pt. 3.7: for each team the drivers with race number, name and surname, sex, date of birth, class, verified weight and ballast required, in classes Dolphin, 1–3 with the co-driver. It is not part of any print file. The date of birth can be switched off (“Show the date of birth on lists of drivers”) under',
   'lists.team.noSex': '{n} driver has no sex entered – the cell stays empty. The entry is voluntary; it can be entered in edit mode or through the import (column “Sex” with M, F, D or n/a) under | {n} drivers have no sex entered – the cell stays empty. The entry is voluntary; it can be entered in edit mode or through the import (column “Sex” with M, F, D or n/a) under',
@@ -22,6 +22,10 @@ export default {
   'lists.notWeighed': 'not weighed',
   'lists.boat': 'Boat',
   'lists.coPilot': 'Co-driver',
+  // Ersatz-Co-Pilot und Ausgleichsgewicht in Klammern hinter dem Namen (R11-07, 26.11.2026).
+  'lists.coPilotSubstitute': 'Substitute co-driver',
+  'lists.coPilot.ballast': '(+{kg} kg)',
+  'lists.coPilot.notWeighed': '(not weighed)',
 
   'lists.title': 'Print lists',
   'lists.hint':
@@ -69,6 +73,9 @@ export default {
   'lists.wkr.club': 'Club championship: classes whose sheets have the same columns share a page. Lists with a course drawing stay per class, so that each class sees its own drawing. Blank rows that would cost an extra page on their own are dropped, except for one. Scoring stays per class.',
   'lists.wkr.clubJoint': 'Club championship, saving paper: all classes of a list share one sheet, without the course drawing. Hatched fields do not apply to that class. The blank rows for late entries appear once at the end of every page. Change this under “Settings”.',
   'lists.wkr.clubFolge': 'The classes of a shared sheet appear mixed in the starting order of the interleaving, the class in the column next to the race number; the blank rows at the end of every page. Change this under “Settings”.',
+  // Championship with shared sheets (R11-03, 26.11.2026); the club championship keeps its own sentences above.
+  'lists.wkr.joint': 'Shared sheets: classes whose sheets are built alike (same columns, same course drawing) share a page. Lists whose drawing differs between classes stay one per class. A checklist covers all classes that share sheets. Scoring stays per class. Change this under “Settings”.',
+  'lists.wkr.jointPaper': 'Shared sheets, saving paper: all classes of a list share one sheet, without the course drawing. Hatched fields do not apply to that class. The blank rows for late entries appear once at the end of every page; a checklist covers one course and attempt. Scoring stays per class. Change this under “Settings”.',
   'lists.wkr.all': 'all',
   'lists.wkr.parcours': 'Course',
   'lists.wkr.run': 'Attempt',
@@ -101,7 +108,7 @@ export default {
 
   'runsheet.title': 'Checklist',
   'runsheet.stepsElsewhere': 'Scoring: see the checklist for {zettel}',
-  'runsheet.hint': 'A slip keeps together the loose sheets that belong together: one per course, class and attempt – at a club championship, where classes share sheets, one per course and attempt. It has a box for every printed page of every race officials\' sheet: after the attempt you can tick off whether all pages are back. A sheet without an attempt (knots) is on the slip of the last attempt; that slip has its own steps (not posted, but the overall results). The page counts are measured on the sheets as they are printed. What the selection shows is what gets printed.',
+  'runsheet.hint': 'A slip keeps together the loose sheets that belong together: one per course, class and attempt – where classes share sheets (club championship, or a championship if switched on), one slip covers all of them, usually one per course and attempt. It has a box for every printed page of every race officials\' sheet: after the attempt you can tick off whether all pages are back. A sheet without an attempt (knots) is on the slip of the last attempt; that slip has its own steps (not posted, but the overall results). The page counts are measured on the sheets as they are printed. What the selection shows is what gets printed.',
   'runsheet.count': '{n} checklist | {n} checklists',
   'runsheet.none': 'There is no checklist for this selection.',
   'runsheet.print': 'Printing: A4 landscape, folded in the middle to A5 – the front is on the right, with class and attempt along the fold; the left half stays blank. Only the front is shown here.',

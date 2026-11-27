@@ -15,7 +15,8 @@ import type { AppState, ClassId, LogoBild, ParallelRunde, Starter } from './type
  * reicht die Zeit unter Last nicht immer; dann wird die CI rot, und der Pages-Deploy bleibt stehen, obwohl die App
  * stimmt. Deshalb laufen sie dort (GitHub setzt `CI`) nur, wenn `ALCATRAZ_WACKELTESTS` gesetzt ist: Actions → CI →
  * Run workflow → Haken (.github/workflows/ci.yml); deploy.yml setzt die Variable nie. Lokal und im pre-commit-Hook
- * (ohne `CI`) laufen sie immer, damit ein echter Fehler darin weiter auffällt. „Gesetzt“ heißt: nicht leer, nicht `0`
+ * (ohne `CI`) laufen sie immer, damit ein echter Fehler darin weiter auffällt (so bestätigt 26.11.2026, R11-28: ein
+ * Wackler darf einen Commit aufhalten). „Gesetzt“ heißt: nicht leer, nicht `0`
  * und nicht `false` – so wirkt `CI=false` wie lokal, und die Eingabe des Workflows darf `0` schreiben.
  */
 export function wackelTestsAuslassen(umgebung: Readonly<Record<string, string | undefined>> = process.env): boolean {

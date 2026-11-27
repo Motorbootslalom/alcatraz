@@ -16,7 +16,7 @@ import { wendeErfassungAn, type ErfassungAenderung } from './reducer/erfassung'
 import { wendeWertungAn, type WertungAenderung } from './reducer/wertung'
 import { wendeListenAn, type ListenAenderung } from './reducer/listen'
 import { wendeBetriebAn, type BetriebAenderung } from './reducer/betrieb'
-import { wendeWkrAn, type WkrAenderung } from './reducer/wkr'
+import { mitGeltendenVerworfenen, wendeWkrAn, type WkrAenderung } from './reducer/wkr'
 import { ohneUeberholteKeineZeit } from '../wkr/keineZeit'
 
 // Die case-Zweige stehen nach Bereichen in reducer/<bereich>.ts (Zuordnung: switch in wendeAn() unten).
@@ -40,6 +40,7 @@ export {
   teilenAbZahl,
   laufzettelLayoutWert,
   gemeinsamFolgeWert,
+  meisterschaftGemeinsamWert,
 } from './reducer/listen'
 export { anzeigeVorgabe, betriebLeer, normalisiereAnzeige, normalisiereBetrieb, meldungWert } from './reducer/betrieb'
 export { normalisiereWkr, wkrLeer } from './reducer/wkr'
@@ -138,10 +139,13 @@ export function reducer(state: AppState, action: Action): AppState {
   const ohneBeispiel = angewandt.beispielStarter && angewandt.starters.length === 0 ? { ...angewandt, beispielStarter: false } : angewandt
   // Ein Druckvermerk gilt nur, solange es den Plan seiner Runde gibt (20.11.2026).
   const ohneDruck = ohneVerwaistenDruck(ohneBeispiel)
+  // Verworfene Werte (Wiederholung nach Ausfall, R11-11, Prüfbefund 27.11.2026) gelten nur, solange ihr Abbruch im
+  // Betrieb steht – geprüft, wenn sich der Betrieb ändert (zurückgesetzt, Bereich weg).
+  const mitVerworfenen = ohneDruck.betrieb !== state.betrieb ? mitGeltendenVerworfenen(ohneDruck) : ohneDruck
   // „Keine Zeit“ (W5.4, 22.11.2026, ZT4): Hat ein Zeitfeld einen Wert, ist die Zeit doch da – gleich auf welchem Weg er
   // kam (Abtippen, Rückfrage, Vorschlag, Gerät). Nur bei geänderten Eingaben. (Das Kennzeichen „nicht vorbeigekommen“
   // fiel hier bis 24.11.2026 ebenso; seitdem ist es X in einer gewöhnlichen Zelle, WKR_ANNAHMEN NG6.)
-  const next = !frisch && ohneDruck.eingaben !== state.eingaben ? ohneUeberholteKeineZeit(ohneDruck) : ohneDruck
+  const next = !frisch && mitVerworfenen.eingaben !== state.eingaben ? ohneUeberholteKeineZeit(mitVerworfenen) : mitVerworfenen
   // Eine Eingabe betrifft nur die Klassen ihrer Starter – bei jedem Tastendruck alle Klassen neu zu werten wäre unnötig.
   const klassen =
     action.type === 'SET_EINGABEN'
@@ -155,6 +159,10 @@ export function reducer(state: AppState, action: Action): AppState {
     action.type === 'SET_EINGABEN' ||
     action.type === 'FILL_BEISPIELWERTE' ||
     action.type === 'CLEAR_EINGABEN_TEIL' ||
+    // Wiederholung nach Ausfall (R11-11, 26.11.2026): Die verworfenen Werte ändern die Liste wie ein Löschen, das
+    // Zurückholen („Doch keine Wiederholung“, Prüfbefund 27.11.2026) wie eine Eingabe.
+    action.type === 'WIEDERHOLUNG_AUSFALL' ||
+    action.type === 'WIEDERHOLUNG_AUFHEBEN' ||
     action.type === 'ABMELDEN_STARTER' ||
     action.type === 'ANMELDEN_STARTER' ||
     action.type === 'PARALLEL_RUNDE_LOESEN' ||
@@ -256,6 +264,8 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'FILL_BEISPIEL_BOOTE':
     case 'FILL_BEISPIEL_CO_PILOTEN':
     case 'CLEAR_EINGABEN_TEIL':
+    case 'WIEDERHOLUNG_AUSFALL':
+    case 'WIEDERHOLUNG_AUFHEBEN':
       return wendeErfassungAn(state, action)
 
     case 'SET_ERGEBNIS_LISTEN':
@@ -274,10 +284,13 @@ function wendeAn(state: AppState, action: Action): AppState {
     case 'SET_WKR_NAME':
     case 'SET_BOOT':
     case 'SET_CO_PILOT':
+    case 'SET_CO_PILOT_GEWICHT':
+    case 'SET_CO_PILOT_AUSGLEICH':
     case 'SET_WKR_LEERZEILEN':
     case 'SET_WKR_RUECKSEITE':
     case 'SET_WKR_CLUB_GEMEINSAM':
     case 'SET_WKR_GEMEINSAM_FOLGE':
+    case 'SET_WKR_MEISTERSCHAFT_GEMEINSAM':
     case 'SET_WKR_SEITEN':
     case 'SET_BESCHRIFTUNG':
     case 'SET_WKR_SPRACHE':

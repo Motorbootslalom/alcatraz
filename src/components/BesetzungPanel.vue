@@ -4,10 +4,12 @@ import { merke } from '../lib/merken'
 import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { classColor } from '../domain/classes'
-import { BESETZUNG_MAX, besetzungText, coPilotVorgesehen } from '../lib/besetzung'
-import { sprungziel } from '../lib/router'
-import { t } from '../i18n'
-import type { ClassId } from '../types'
+import { BESETZUNG_MAX, besetzungText, coPilotKlassenBesetzt, coPilotVorgesehen } from '../lib/besetzung'
+import { coPilotAusgleichVon } from '../lib/ausgleich'
+import { gewichtText, parseGewicht } from '../domain/gewicht'
+import { adresse, sprungziel } from '../lib/router'
+import { locale, t } from '../i18n'
+import type { ClassId, CoPilotRolle } from '../types'
 import WkrEinteilung from './WkrEinteilung.vue'
 
 /**
@@ -23,13 +25,19 @@ import WkrEinteilung from './WkrEinteilung.vue'
  *
  * Boote sind Einstellungen (auch in der Vorlage). Co-Piloten und Wettkampfrichter sind
  * Personennamen: nur in der Sicherung (persistenz/backup.ts).
+ *
+ * Seit 26.11.2026 (R11-07, Nutzer: „gleich bei der Co-Piloten-Konfiguration mit abgefragt“) je Klasse auch ein
+ * Ersatz-Co-Pilot und je Person optional das Gewicht; daneben das Ausgleichsgewicht, das daraus folgt
+ * (lib/ausgleich.ts coPilotAusgleichVon – dieselbe Zahl wie auf den Listen). Ob es je Klasse oder über alle
+ * Co-Piloten rechnet, ist eine Einstellung (SettingsView, „Durchschnittsgewichte“); der Satz unter der Tabelle
+ * nennt die Wahl und führt hin.
  */
 const { state, dispatch } = useStore()
 const { regelwerk, classes, classLabel, classBadge } = useEvent()
 
 const anzahl = (b: Partial<Record<ClassId, string>>) => classes.value.filter((c) => besetzungText(b, c.id) !== '').length
 const boote = computed(() => anzahl(state.value.boote))
-const coPiloten = computed(() => anzahl(state.value.coPiloten))
+const coPiloten = computed(() => coPilotKlassenBesetzt(state.value.coPiloten, classes.value.map((c) => c.id)))
 /** Klassen der Veranstaltung, in denen das Regelwerk einen Co-Piloten vorsieht. */
 const coPilotKlassen = computed(() => classes.value.filter((c) => coPilotVorgesehen(state.value.regelwerk, c.id)))
 const wkr = computed(() => Object.values(state.value.einteilung).reduce((n, listen) => n + Object.values(listen).filter((name) => name.trim() !== '').length, 0))
@@ -51,17 +59,48 @@ onMounted(async () => {
 // Keine Beispiel-Knöpfe hier (Wunsch des Nutzers vom 21.11.2026): Beispielwerte entstehen an EINER
 // Stelle, im Block „Beispieldaten“ (BeispieldatenPanel.vue), auch Beispiel-Boote und -Co-Piloten.
 
-function setze(feld: 'boot' | 'coPilot', klasse: ClassId, e: Event) {
+function setze(feld: 'boot' | CoPilotRolle, klasse: ClassId, e: Event) {
   const text = (e.target as HTMLInputElement).value
-  dispatch(feld === 'boot' ? { type: 'SET_BOOT', klasse, text } : { type: 'SET_CO_PILOT', klasse, text })
+  dispatch(feld === 'boot' ? { type: 'SET_BOOT', klasse, text } : { type: 'SET_CO_PILOT', klasse, text, rolle: feld })
 }
 
-// Enter springt ins Feld darunter – erst alle Boote, dann alle Co-Piloten, wie man es vom Zettel abliest.
+// --- Co-Piloten: Name und Gewicht je Rolle (R11-07, 26.11.2026) ---
+const ROLLEN: readonly { rolle: CoPilotRolle; name: string; kg: string }[] = [
+  { rolle: 'haupt', name: 'coPilot', kg: 'coPilotKg' },
+  { rolle: 'ersatz', name: 'ersatz', kg: 'ersatzKg' },
+]
+const person = (klasse: ClassId, rolle: CoPilotRolle) => state.value.coPiloten[klasse]?.[rolle]
+const kgText = (kg: number | undefined) => (kg === undefined ? '' : gewichtText(kg, locale.value))
+
+/** Gewicht lesen wie in der Verwiegung (Komma oder Punkt, „72,5 kg“); Unlesbares entfernt es, das Feld zeigt danach, was gilt. */
+function setzeGewicht(klasse: ClassId, rolle: CoPilotRolle, e: Event) {
+  const feld = e.target as HTMLInputElement
+  dispatch({ type: 'SET_CO_PILOT_GEWICHT', klasse, rolle, gewicht: parseGewicht(feld.value) ?? null })
+  feld.value = kgText(person(klasse, rolle)?.gewicht)
+}
+
+/**
+ * Was neben dem Gewicht steht: das Ausgleichsgewicht („+3 kg Ausgleich“) oder „Gewicht fehlt“, wenn andere seiner
+ * Gruppe gewogen sind (lib/ausgleich.ts coPilotAusgleichVon); sonst nichts – auch beim schwersten Co-Piloten.
+ * Ein Gewicht ohne Namen zählt nicht (Prüfbefund 27.11.2026: Name gelöscht = Person fällt weg) – das sagt der Satz
+ * „zählt erst mit Namen“, damit niemand rätselt, warum kein Ausgleich erscheint.
+ */
+function agText(klasse: ClassId, rolle: CoPilotRolle): string {
+  const p = person(klasse, rolle)
+  if (p && p.gewicht !== undefined && p.name.trim() === '') return t('crew.coPilot.nameMissing')
+  const ag = coPilotAusgleichVon(state.value, klasse, rolle)
+  return ag === 'fehlt' ? t('crew.coPilot.weightMissing') : ag ? t('crew.coPilot.ballast', { kg: kgText(ag) }) : ''
+}
+
+// Enter springt ins Feld darunter – erst alle Boote, dann alle Co-Piloten mit Gewicht, dann die Ersatz-Co-Piloten mit
+// Gewicht, wie man es vom Zettel abliest.
+const SPALTEN = ['boot', 'coPilot', 'coPilotKg', 'ersatz', 'ersatzKg']
 const tabelle = ref<HTMLTableElement>()
 function weiter(e: Event) {
   const feld = e.target as HTMLInputElement
   const spalte = [...(tabelle.value?.querySelectorAll<HTMLInputElement>(`input[data-spalte="${feld.dataset.spalte}"]`) ?? [])]
-  const naechstes = spalte[spalte.indexOf(feld) + 1] ?? (feld.dataset.spalte === 'boot' ? tabelle.value?.querySelector<HTMLInputElement>('input[data-spalte="coPilot"]') : undefined)
+  const folgende = SPALTEN[SPALTEN.indexOf(feld.dataset.spalte ?? '') + 1]
+  const naechstes = spalte[spalte.indexOf(feld) + 1] ?? (folgende ? tabelle.value?.querySelector<HTMLInputElement>(`input[data-spalte="${folgende}"]`) : undefined)
   naechstes?.focus()
   naechstes?.select()
 }
@@ -89,6 +128,9 @@ function weiter(e: Event) {
             <th scope="col">{{ t('lists.class') }}</th>
             <th scope="col">{{ t('crew.boat') }}</th>
             <th scope="col">{{ t('crew.coPilot') }}</th>
+            <th scope="col" class="besetzung-kg">{{ t('crew.weight') }}</th>
+            <th scope="col">{{ t('crew.coPilotSubstitute') }}</th>
+            <th scope="col" class="besetzung-kg">{{ t('crew.weight') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -111,25 +153,49 @@ function weiter(e: Event) {
                 @keydown.enter.prevent="weiter"
               />
             </td>
-            <!-- Wo das Regelwerk keinen Co-Piloten vorsieht, bleibt das Feld – unauffällig: Club- und
-                 Landesmeisterschaften dürfen begründet abweichen (DM-Reglement, Abschnitt C). -->
-            <td :data-titel="t('crew.coPilot')">
-              <input
-                :class="['cell-input', coPilotVorgesehen(state.regelwerk, c.id) ? '' : 'besetzung-ohne']"
-                autocomplete="off"
-                data-spalte="coPilot"
-                :data-feld="`coPilot|${c.id}`"
-                :maxlength="BESETZUNG_MAX"
-                :value="state.coPiloten[c.id] ?? ''"
-                :placeholder="coPilotVorgesehen(state.regelwerk, c.id) ? t('wkr.name') : t('crew.coPilotNone')"
-                :aria-label="t('crew.coPilotFor', { name: classLabel(c.id) })"
-                @input="setze('coPilot', c.id, $event)"
-                @keydown.enter.prevent="weiter"
-              />
-            </td>
+            <!-- Wo das Regelwerk keinen Co-Piloten vorsieht, bleiben die Felder – unauffällig: Club- und
+                 Landesmeisterschaften dürfen begründet abweichen (DM-Reglement, Abschnitt C). Je Rolle Name und
+                 Gewicht (R11-07, 26.11.2026); unter dem Gewicht das Ausgleichsgewicht, das daraus folgt. -->
+            <template v-for="r in ROLLEN" :key="r.rolle">
+              <td :data-titel="r.rolle === 'haupt' ? t('crew.coPilot') : t('crew.coPilotSubstitute')">
+                <input
+                  :class="['cell-input', coPilotVorgesehen(state.regelwerk, c.id) ? '' : 'besetzung-ohne']"
+                  autocomplete="off"
+                  :data-spalte="r.name"
+                  :data-feld="`${r.name}|${c.id}`"
+                  :maxlength="BESETZUNG_MAX"
+                  :value="person(c.id, r.rolle)?.name ?? ''"
+                  :placeholder="coPilotVorgesehen(state.regelwerk, c.id) ? t('wkr.name') : t('crew.coPilotNone')"
+                  :aria-label="t(r.rolle === 'haupt' ? 'crew.coPilotFor' : 'crew.coPilotSubstituteFor', { name: classLabel(c.id) })"
+                  @input="setze(r.rolle, c.id, $event)"
+                  @keydown.enter.prevent="weiter"
+                />
+              </td>
+              <td class="besetzung-kg" :data-titel="t('crew.weight')">
+                <input
+                  :class="['cell-input', coPilotVorgesehen(state.regelwerk, c.id) ? '' : 'besetzung-ohne']"
+                  autocomplete="off"
+                  inputmode="decimal"
+                  :data-spalte="r.kg"
+                  :data-feld="`${r.kg}|${c.id}`"
+                  :value="kgText(person(c.id, r.rolle)?.gewicht)"
+                  placeholder="kg"
+                  :aria-label="t(r.rolle === 'haupt' ? 'crew.coPilotWeightFor' : 'crew.coPilotSubstituteWeightFor', { name: classLabel(c.id) })"
+                  @change="setzeGewicht(c.id, r.rolle, $event)"
+                  @keydown.enter.prevent="weiter"
+                />
+                <span v-if="agText(c.id, r.rolle)" class="besetzung-ag" :data-ag="`${c.id}|${r.rolle}`">{{ agText(c.id, r.rolle) }}</span>
+              </td>
+            </template>
           </tr>
         </tbody>
       </table>
+      <!-- Wogegen das Ausgleichsgewicht der Co-Piloten rechnet – die Wahl selbst ist eine Einstellung (Projektregel:
+           Einstellungen in SettingsView), der Verweis führt hin (R11-07, 26.11.2026). -->
+      <p class="note" data-hinweis="co-pilot-ausgleich">
+        {{ t(state.coPilotAusgleich === 'alle' ? 'crew.coPilot.compensationAll' : 'crew.coPilot.compensationClass') }}
+        <a :href="adresse('einstellungen', { ziel: 'gewichte' })" data-verweis="co-pilot-ausgleich">{{ t('crew.coPilot.compensationChange') }}</a>
+      </p>
       <p class="note">{{ t('crew.privacyNote') }}</p>
     </div>
 

@@ -361,7 +361,7 @@ export function svgSeiten(quelle: string): { breite: number; hoehe: number } | n
 }
 
 // ---------------------------------------------------------------------------
-// Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, WKR_ANNAHMEN BL1–BL5)
+// Lage der Zeichnung nach Wahl des WKR (Nutzer 24.11.2026, WKR_ANNAHMEN BL1–BL7; Namen nach Start/Ziel seit 26.11.2026)
 // ---------------------------------------------------------------------------
 
 /**
@@ -373,18 +373,19 @@ export const BILD_LAGEN: readonly BildLage[] = [0, 90, 180, 270]
 export type BildSeite = 'unten' | 'links' | 'oben' | 'rechts'
 
 /**
- * Wo Steg und Start/Ziel bei dieser Drehung liegen (BL2, 24.11.2026): Die Klassen-Zeichnungen sind der Ausschnitt der
- * Variante „Steg unten“ des Parcours-Repositorys (dist/de/steg_unten: Start/Ziel links, der Steg links unten am Ufer,
- * Tor 5 rechts) – ohne den Steg selbst. Gedreht im Uhrzeigersinn wandert die untere Kante nach links, dann nach oben,
- * dann nach rechts: 0° = „Steg unten“ (die Datei, wie bisher auf dem Handy), 90° = „Steg links“, 180° = „Steg oben“,
- * 270° = „Steg rechts“. Start/Ziel liegt dabei links, oben, rechts bzw. unten. Die Parallel-Zeichnung hat keinen Steg
- * (R9-06) – dort heißt dieselbe Drehung nach dem Start: links, oben, rechts, unten.
+ * Wo Start/Ziel und die Wende (Tor 5, im Parallelslalom Boje 5) bei dieser Drehung liegen – danach heißen die Lagen
+ * (BL7, Nutzer 26.11.2026, R11-13). In jeder Datei liegt Start/Ziel links und Tor 5 bzw. Boje 5 rechts (geprüft
+ * 26.11.2026 an allen Klassen-Zeichnungen und Parallel.svg, Test bild.test.ts „BL7“); gedreht im Uhrzeigersinn wandert
+ * die linke Kante nach oben, dann nach rechts, dann nach unten: 0° = „Start/Ziel links“ (die Datei, wie bisher auf dem
+ * Handy), 90° = „oben“, 180° = „rechts“, 270° = „unten“; die Wende liegt jeweils gegenüber.
+ * Vorher (BL2, 24.11.2026) hießen die Lagen der Klassen nach dem Steg („Steg unten“ = Datei, wie die Variante
+ * „Steg unten“ des Parcours-Repositorys) – Nutzer 26.11.2026: „Nein, Steg ist hier irreführend. Der steht immer anders.“
  */
-export const BILD_LAGE_SEITE: Readonly<Record<BildLage, { steg: BildSeite; start: BildSeite }>> = Object.freeze({
-  0: { steg: 'unten', start: 'links' },
-  90: { steg: 'links', start: 'oben' },
-  180: { steg: 'oben', start: 'rechts' },
-  270: { steg: 'rechts', start: 'unten' },
+export const BILD_LAGE_SEITE: Readonly<Record<BildLage, { start: BildSeite; wende: BildSeite }>> = Object.freeze({
+  0: { start: 'links', wende: 'rechts' },
+  90: { start: 'oben', wende: 'unten' },
+  180: { start: 'rechts', wende: 'links' },
+  270: { start: 'unten', wende: 'oben' },
 })
 
 /** Ist der Wert eine der vier Lagen? (Ablage, Props – alles andere gilt als „nicht gewählt“.) */

@@ -57,7 +57,7 @@ export default {
   'files.download.vorlage': 'Vorlage',
   'files.download.starter': 'Teilnehmerdaten',
   'files.about.sicherung': 'Der gesamte Stand dieser Veranstaltung. Enthält Namen und Geburtsdaten – bitte sorgsam aufbewahren.',
-  'files.about.vorlage': 'Nur die Einstellungen (Regelwerk, Aufbau, eigene Aufbauten, Listen, Kürzel, Parcours, Boote) – ohne Starter, Name, Jahr und die Namen der Wettkampfrichter und Co-Piloten. Für die nächste Veranstaltung.',
+  'files.about.vorlage': 'Nur die Einstellungen (Regelwerk, Aufbau, eigene Aufbauten, Listen, Kürzel, Parcours, Boote) – ohne Starter, Name, Jahr, die Namen der Wettkampfrichter und Namen und Gewichte der Co-Piloten. Für die nächste Veranstaltung.',
   'files.about.starter': 'Nur die Starter. Enthält Namen und Geburtsdaten – bitte sorgsam aufbewahren.',
   'files.upload': 'Datei einspielen …',
   'files.uploadNote': 'Sicherung, Vorlage oder Teilnehmerdaten – die Datei weiß selbst, was sie ist. Vor dem Überschreiben wird gefragt.',
@@ -118,6 +118,7 @@ export default {
   'history.what.starterAbgemeldet': 'Starter als nicht gestartet eingetragen',
   'history.what.starterAngemeldet': 'Abmeldung eines Starters zurückgenommen',
   'history.what.gewicht': 'Gewicht erfasst',
+  'history.what.coPilotGewicht': 'Gewicht eines Co-Piloten erfasst',
   'history.what.aufbau': 'Aufbau gewechselt',
   'history.what.regelwerk': 'Regelwerk gewechselt',
   'history.what.veranstaltung': 'Veranstaltung geändert',
@@ -147,6 +148,9 @@ export default {
   'history.what.wkrListe': 'Erfassung der Liste {list} umgestellt',
   'history.what.wkrAbschluss': 'Abschluss der Liste {list} geändert',
   'history.what.wkrPapierAb': 'Liste {list} ab einem Start auf Papier gestellt',
+  // R11-11 (26.11.2026): Wiederholung nach Ausfall – Startnummer, Klasse und Lauf hängt VerlaufPanel an (27.11.2026).
+  'history.what.wiederholungAusfall': 'Wiederholung nach Ausfall – Werte verworfen:',
+  'history.what.wiederholungAufgehoben': 'Doch keine Wiederholung – Werte zurückgeholt:',
 
   'backup.reset': 'Alles zurücksetzen',
   'backup.resetConfirm':

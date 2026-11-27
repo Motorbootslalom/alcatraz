@@ -102,7 +102,7 @@ describe('Veranstaltung', () => {
     await feld('boot|4').setValue('Boot 1, 15 PS')
     await feld('coPilot|E').setValue('Erika Beispiel')
     expect(store.state.value.boote).toEqual({ '4': 'Boot 1, 15 PS' })
-    expect(store.state.value.coPiloten).toEqual({ E: 'Erika Beispiel' })
+    expect(store.state.value.coPiloten).toEqual({ E: { haupt: { name: 'Erika Beispiel' } } })
     expect(wrapper.find('[data-hinweis="besetzung-stand"]').text()).toBe('Boote 1 von 8 · Co-Piloten 1 von 4 · Wettkampfrichter 0')
     // Leeren entfernt die Angabe wieder.
     await feld('boot|4').setValue('  ')
@@ -112,7 +112,7 @@ describe('Veranstaltung', () => {
     setLocale('en')
     await nextTick()
     expect(wrapper.findAll('.besetzung-tabelle tbody tr').map((tr) => tr.attributes('data-klasse'))).toEqual(['E', '1', '2', '3', '4', '5'])
-    expect(wrapper.findAll('.besetzung-tabelle thead th').map((th) => th.text())).toEqual(['Class', 'Boat', 'Co-driver'])
+    expect(wrapper.findAll('.besetzung-tabelle thead th').map((th) => th.text())).toEqual(['Class', 'Boat', 'Co-driver', 'Weight', 'Substitute co-driver', 'Weight'])
     expect(wrapper.find('[data-block="besetzung"] summary').text()).toContain('Assignments')
     wrapper.unmount()
   })

@@ -5,7 +5,7 @@ import { useStore } from '../state/store'
 import { useAuswahlKonfig, useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { useBogenZoom } from '../lib/bogenZoom'
-import { waehleBoegen, wkrBoegenZumStand, type WkrAuswahl, type WkrBogen } from '../lib/wkrListen'
+import { gemeinsameBoegen, waehleBoegen, wkrBoegenZumStand, type WkrAuswahl, type WkrBogen } from '../lib/wkrListen'
 import { bogenMitBild } from '../lib/bogen'
 import { t, tn } from '../i18n'
 import { adresse } from '../lib/router'
@@ -130,6 +130,15 @@ const aufbauZeile = computed(() => {
 watchEffect(() => emit('stand', { anzahl: boegen.value.length, auswahl: auswahlText.value, fertig: aufbau.fertig.value }))
 
 const mitBild = computed(() => boegen.value.some((b) => bogenMitBild(konfig.value, b.auftrag)))
+// Gemeinsame Bögen mehrerer Klassen: Clubmeisterschaft immer, Meisterschaft auf Wunsch (R11-03, 26.11.2026).
+const gemeinsam = computed(() => gemeinsameBoegen(state.value))
+/** Der Hinweis zu gemeinsamen Bögen; die Clubmeisterschaft behält ihre Sätze, eine Meisterschaft hat eigene. */
+const gemeinsamHinweis = computed(() => {
+  const g = gemeinsam.value
+  if (!g.gemeinsam) return ''
+  if (state.value.eventKind === 'club') return g.papierSparen ? t('lists.wkr.clubJoint') : t('lists.wkr.club')
+  return g.papierSparen ? t('lists.wkr.jointPaper') : t('lists.wkr.joint')
+})
 const ohneListe = computed(() => listen.value.ohneListe.map((k: ClassId) => classLabel(k)).join(', '))
 const stapel = ref<HTMLElement | null>(null)
 const { zoom } = useBogenZoom(stapel)
@@ -138,10 +147,10 @@ const { zoom } = useBogenZoom(stapel)
 <template>
   <div v-if="!gesperrt" class="panel no-print wkr-listen-wahl">
     <p class="hint">{{ t('lists.wkr.hint') }}</p>
-    <p v-if="state.eventKind === 'club'" class="note">{{ state.wkrClubGemeinsam ? t('lists.wkr.clubJoint') : t('lists.wkr.club') }}</p>
+    <p v-if="gemeinsamHinweis" class="note" data-hinweis="wkr-gemeinsam">{{ gemeinsamHinweis }}</p>
     <!-- Klassen eines gemeinsamen Bogens in der Startfolge statt in Blöcken (Einstellung, Nutzer 24.11.2026). Der Satz
          darüber sagt deshalb „zusammen“, nicht „untereinander“ – er gilt für beide Folgen (Prüfbefund 24.11.2026). -->
-    <p v-if="state.eventKind === 'club' && state.wkrGemeinsamFolge === 'verzahnung'" class="note" data-hinweis="wkr-club-folge">{{ t('lists.wkr.clubFolge') }}</p>
+    <p v-if="gemeinsam.inStartfolge" class="note" data-hinweis="wkr-club-folge">{{ t('lists.wkr.clubFolge') }}</p>
     <div class="row wkr-listen-leiste">
       <div v-if="state.parcoursList.length > 1" class="field">
         <label :for="`${id}-parcours`">{{ t('lists.wkr.parcours') }}</label>

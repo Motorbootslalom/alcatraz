@@ -24,6 +24,8 @@ import { zeilenMarken, type ZeilenMarke, type ZeilenMarken } from '../../wkr/lag
 import { liesListe, listenKennung as wkrListenKennung, listeVonBogen } from '../../wkr/liste'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { uhrzeitText } from '../betrieb/texte'
+import { wiederholteZellen } from '../../betrieb/folge'
+import { giltFuerAlleVersuche } from '../../wkr/versuch'
 import AppDialog from '../AppDialog.vue'
 import BogenLegende from '../bogen/BogenLegende.vue'
 import ZeitZelle from './ZeitZelle.vue'
@@ -212,6 +214,20 @@ const nieGestartet = computed<ReadonlySet<string>>(() => {
   }
   return out
 })
+
+/**
+ * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11): Zellen `${lauf}|${starter}`, deren Start nach einem Ausfall
+ * wiederholt wird bzw. wurde – ↻ an der Nummer: Auf dem Papier ist die erste Zeile gestrichen, die Werte der Wiederholung
+ * stehen in einer Leerzeile; abgetippt wird nur die Wiederholung. Auch ohne Gerätebetrieb (Papier).
+ */
+const wiederholt = computed<ReadonlySet<string>>(() => {
+  // Die Vorsteg-Zeile mit „Versuche nacheinander“ gilt für alle Versuche und bleibt beim Ausfall stehen (WH6) – dort
+  // ist keine Zeile gestrichen, also kein ↻ (Prüfbefund 27.11.2026).
+  if (giltFuerAlleVersuche(toRaw(state.value), konfig.value, props.bogen.typeId)) return new Set()
+  const disziplin = konfig.value.getAufbau(state.value.aufbau).disziplin
+  return wiederholteZellen(toRaw(state.value), (lauf) => laufSchluessel(disziplin, lauf))
+})
+const istWiederholt = (row: BogenModellZeile) => wiederholt.value.size > 0 && wiederholt.value.has(`${schluesselVon(row)}|${starterVon(row)}`)
 
 const ohneStarter = (row: BogenModellZeile) => row.zwischen !== undefined || !!row.dummy || !!row.entfaellt
 const starterZeilen = computed(() => zeilen.value.filter((z) => !ohneStarter(z.row) && konfig.value.positionAllowsClass(props.bogen.typeId, z.klasse)))
@@ -557,7 +573,7 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
           <tr
             v-for="z in zeilen"
             :key="z.row.key"
-            v-memo="[z, totalCols, nieGestartet.has(z.row.key), wkrVon(z).memo]"
+            v-memo="[z, totalCols, nieGestartet.has(z.row.key), wkrVon(z).memo, istWiederholt(z.row)]"
             :class="
               z.row.zwischen !== undefined
                 ? 'erf-zwischen'
@@ -577,6 +593,7 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
             :data-ohne="z.row.dummy ? 'dummy' : z.row.entfaellt ? 'entfaellt' : undefined"
             :data-nicht-gestartet="z.x || nieGestartet.has(z.row.key) ? '' : undefined"
             :data-wkr-marke="wkrVon(z).marke ?? undefined"
+            :data-wiederholung="z.row.zwischen === undefined && istWiederholt(z.row) ? '' : undefined"
           >
             <th v-if="z.row.zwischen !== undefined" :colspan="totalCols" scope="rowgroup">{{ z.row.zwischen }}</th>
             <!-- Dummy oder entfallener Start: die Zeile des Papiers, ohne Felder – die Eingabe überspringt sie. -->
@@ -594,6 +611,9 @@ const label = (zeile: Zeile, feld: Feld) => `${zeile.row.nr} – ${feld.label}`
                   >!<span class="sr-only"> {{ t('capture.wkr.rueckfrage') }}</span></span
                 >
                 {{ z.row.nr }}
+                <span v-if="istWiederholt(z.row)" class="erf-wiederholung-marke" data-marke="wiederholung" :title="t('capture.wiederholung')"
+                  >↻<span class="sr-only"> {{ t('capture.wiederholung') }}</span></span
+                >
                 <span v-if="z.x || nieGestartet.has(z.row.key)" class="erf-x-marke" :title="t('results.dns')">✕<span class="sr-only"> {{ t('results.dns') }}</span></span>
                 <span v-if="z.hinweise.length > 0" class="erf-marke" :title="hinweisText(z)" aria-hidden="true">!</span>
               </th>

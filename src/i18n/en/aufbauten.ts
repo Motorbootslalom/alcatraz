@@ -135,7 +135,8 @@ export default {
   'assist.mode.bild': 'In the picture',
   'assist.img.drawFor': 'Draw for',
   'assist.img.unnamed': 'Position',
-  'assist.img.undo': '↶ Undo',
+  // Pfeil nach links als Zeichnung in ZuordnungImBild.vue (27.11.2026, wie die WKR-Maske nach R11-30 (2)), nicht im Text.
+  'assist.img.undo': 'Undo',
   'assist.img.undoTitle': 'Take back the last change made in the picture',
   'assist.img.noPosition': 'No position yet: add one with “+ Position”, then circle its buoys in the picture.',
   'assist.img.missing': 'The course drawing is missing. Please assign the buoys in the table.',

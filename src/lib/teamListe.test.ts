@@ -29,7 +29,7 @@ const stand = (): AppState => ({
   ...emptyState(),
   regelwerk: 'uim-2026',
   originMode: 'land',
-  coPiloten: { E: 'Erika Beispiel' },
+  coPiloten: { E: { haupt: { name: 'Erika Beispiel' } } },
   starters: [mk('a2', '4', 'Estland', { gewicht: 70, geschlecht: 'M' }), mk('a1', 'E', 'Estland', { gewicht: 20, geschlecht: 'F' }), mk('b1', '1', 'Lettland')],
 })
 
@@ -42,11 +42,11 @@ describe('Liste der Fahrer je Team (Regel 960, Pkt. 3.7)', () => {
     ])
     const [dolphin, vier] = listen[0].zeilen
     // Dolphin: 26 kg Durchschnitt, gewogen 20 → 6 kg Ballast; Co-Driver aus der Besetzung.
-    expect([dolphin.ausgleich, dolphin.coDriver, dolphin.starter.geschlecht]).toEqual([6, 'Erika Beispiel', 'F'])
+    expect([dolphin.ausgleich, dolphin.coDriver, dolphin.starter.geschlecht]).toEqual([6, [{ rolle: 'haupt', name: 'Erika Beispiel', ausgleich: undefined }], 'F'])
     // Klasse 4: schwerer als der Durchschnitt (64 kg) → kein Ballast; ohne Co-Driver.
     expect([vier.ausgleich, vier.coDriver]).toEqual([null, undefined])
     // Nicht gewogen ist nicht „kein Ballast“; Klasse 1 hat ein (noch leeres) Feld für den Co-Driver.
-    expect([listen[1].zeilen[0].ausgleich, listen[1].zeilen[0].coDriver, listen[1].ungewogen]).toEqual([undefined, '', 1])
+    expect([listen[1].zeilen[0].ausgleich, listen[1].zeilen[0].coDriver, listen[1].ungewogen]).toEqual([undefined, [{ rolle: 'haupt', name: '', ausgleich: undefined }], 1])
     // Ein Team allein; ohne Herkunft gibt es keine Liste.
     expect(teamListen(stand(), listen[1].schluessel).map((l) => l.name)).toEqual(['Lettland'])
     expect(teamListen({ ...stand(), originMode: 'none' })).toEqual([])

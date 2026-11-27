@@ -46,6 +46,9 @@ export default {
   'capture.wkr.raute': 'Value from a device: {liste} · {geraet} · {zeit}',
   'capture.wkr.xGeraet': 'X “{dns}” came from a device',
   'capture.wkr.papier': 'Check paper: the row from the device is missing for this start or overdue – check the paper sheet.',
+  // R11-11 (26.11.2026): repeat after a breakdown – on paper the first line is struck out. Not „re-run“ (27.11.2026): that
+  // is the heat of the parallel slalom (rule 960, pt. 5.2.6).
+  'capture.wiederholung': 'Repeat after breakdown – enter the values of the repeat (on the sheet in a blank line; the struck-out line does not count).',
   'capture.wkr.papierZelle': 'Check paper: this part is missing from the device – check the paper sheet.',
   'capture.wkr.rueckfrage': 'Query about the value from a device is open – decide under Operation → Race officials.',
   'capture.wkr.kopf': '{n} row: check paper | {n} rows: check paper',

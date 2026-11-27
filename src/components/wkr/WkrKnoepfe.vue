@@ -4,7 +4,7 @@ import { useWkrText } from './texte'
 
 /**
  * Katalog-Knöpfe (W3.3, Plan §5.3): je Code ein breiter Knopf mit Code, Kurztext, Punkten und dem Zähler ×n rechts.
- * Ein Tipp = +1 (H2, Zelle „2x20“) – zurück geht es nur über „↶ Rückgängig“ im Fuß (kein [−][+] nebeneinander).
+ * Ein Tipp = +1 (H2, Zelle „2x20“) – zurück geht es nur über „↩ Rückgängig“ im Fuß (kein [−][+] nebeneinander).
  * Codes, die laut Regelwerk in der Klasse des Starts nicht gelten (`aus`, YAML `abKlasse`), sind seit 21.11.2026
  * ausgegraut, bleiben aber drückbar und fragen nicht nach (Nutzer W3-07, GF2: Die Besprechung kann sie für weitere
  * Klassen freigeben; vorher G6 nur der Text). Ein getippter ausgegrauter Code zeigt seinen Zähler wie jeder andere.

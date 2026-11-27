@@ -209,6 +209,10 @@ export const ABLEHNUNGEN = [
   'wert-ungueltig', 'start-unbekannt', 'feld-fremd', 'x-nicht-erlaubt', 'teil-fremd', 'seite-anders', 'offen',
   // `nv-nicht-erlaubt` („nicht vorbeigekommen“ am Vorsteg/Steg-Ablegen, W4.3) entfiel am 24.11.2026: Es heißt jetzt
   // „Nicht gestartet · Disq. X“ und gilt überall (WKR_ANNAHMEN NG2, NG6).
+  // R11-11 (26.11.2026): Zeile zu einem Versuch, der nach einem Ausfall abgebrochen wurde (wkr/versuch.ts,
+  // BETRIEB_ANNAHMEN.wiederholungSpaeteZeileAblehnen) – PROTOKOLL_FASSUNG bleibt 2: Ein älteres Gerät kennt den Code
+  // nicht und liest die Ablehnung als `wert-ungueltig` (erfassen.ts) – abgelehnt bleibt sie so oder so.
+  'versuch-abgebrochen',
 ] as const
 export type Ablehnung = (typeof ABLEHNUNGEN)[number]
 

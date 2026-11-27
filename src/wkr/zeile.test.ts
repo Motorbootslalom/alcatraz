@@ -71,6 +71,8 @@ describe('pruefeZeile – Werte wie in der Erfassungstabelle', () => {
       haken: ['erfasst@gate135'],
       gezeigt: true,
       korrektur: false,
+      // Versuch der Zeile (R11-11, Prüfbefund 27.11.2026): WKR_ZEILEN prüft ihn beim Anwenden noch einmal.
+      versuch: 0,
     })
   })
 

@@ -41,6 +41,22 @@ describe('Zuordnen im Bild', () => {
     wrapper.unmount()
   })
 
+  it('„Rückgängig“ trägt den Pfeil nach links als Zeichnung, nie ↶ oder ↩ im Text (27.11.2026, wie R11-30 (2))', () => {
+    for (const [sprache, text] of [
+      ['de', 'Rückgängig'],
+      ['en', 'Undo'],
+    ] as const) {
+      setLocale(sprache)
+      const wrapper = ansicht(entwurf())
+      const knopf = wrapper.find('.zib-zurueck')
+      expect(knopf.text()).toBe(text)
+      const pfeil = knopf.find('svg.zib-pfeil[data-teil="pfeil-links"]')
+      expect(pfeil.attributes('aria-hidden')).toBe('true')
+      expect(pfeil.find('path').attributes('d')).toMatch(/^M8\.5 11\.5 4 16l4\.5 4\.5M4 16h/)
+      wrapper.unmount()
+    }
+  })
+
   it('„Rückgängig“ holt eine entfernte Position samt ihren Bojen zurück', async () => {
     const start = entwurf()
     const wrapper = ansicht(start)

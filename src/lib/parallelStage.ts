@@ -422,6 +422,8 @@ export interface OffeneRunde {
  * Läuft das Kleine Finale, während das Finale noch festzuschreiben ist oder ebenfalls läuft, hängt es
  * am Kleinen Finale – sonst nennten die Hinweise (Druckdatei, Einzelwertung) nur das Finale, obwohl
  * das Kleine Finale auch nicht gefahren ist. `festschreiben` gilt dann nicht: Die genannte Runde läuft.
+ * Bestätigt 26.11.2026 (R11-29 (7)): je Klasse EINE Runde, die zuerst gefahrene nicht fertige – auch nach einem
+ * Protest, wenn beide Finals veraltet sind: erst das Kleine Finale, nach dessen Löschen das Finale.
  */
 export function offeneRunde(ks: KlassenStand): OffeneRunde {
   if (ks.veraltet !== undefined) return { runde: ks.veraltet, festschreiben: false, veraltet: true }

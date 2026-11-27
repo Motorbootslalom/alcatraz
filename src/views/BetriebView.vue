@@ -71,8 +71,9 @@ function zumEingang() {
   document.querySelector('[data-teil="wkr-eingang"]')?.scrollIntoView?.({ block: 'start' })
 }
 
-// Ohne Logos: Die Bedienung braucht sie nicht, und so trägt die Sicht hier keine Bilder.
-const sicht = computed(() => sichtOeffentlich(state.value, { logos: false }))
+// Ohne Logos: Die Bedienung braucht sie nicht, und so trägt die Sicht hier keine Bilder. Mit `gefahren` (R11-11,
+// 26.11.2026): die gezeigten Starts als Wahl für „Wiederholung (Ausfall)“ – nur hier, nie auf der Leitung.
+const sicht = computed(() => sichtOeffentlich(state.value, { logos: false, gefahren: true }))
 const fest = computed(() => sicht.value.bereiche.some((b) => b.fest))
 const hatBetrieb = computed(() => Object.keys(state.value.betrieb.bereiche).length > 0)
 const jetzt = useUhr(1000)
@@ -139,6 +140,19 @@ function zurErfassung(bereich: string) {
   reiter.value = 'wkr'
 }
 
+/**
+ * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN WH3): nur am Bedienrechner. Eine Action der
+ * Erfassung (die Werte werden verworfen), die zugleich den Start unter „Wiederholung offen“ stellt – deshalb hier und
+ * nicht über `sende` der Start-Freigabe (das Freigabe-Handy kann sie nicht schicken).
+ */
+function wiederholen(bereich: string, ref: string) {
+  dispatch({ type: 'WIEDERHOLUNG_AUSFALL', bereich, ref })
+}
+/** „Doch keine Wiederholung“ – ebenso eine Action der Erfassung: Die verworfenen Werte kommen zurück (Prüfbefund 27.11.2026). */
+function aufheben(bereich: string, ref: string) {
+  dispatch({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich, ref })
+}
+
 const frageZuruecksetzen = ref(false)
 function zuruecksetzen() {
   frageZuruecksetzen.value = false
@@ -197,6 +211,9 @@ function zuruecksetzen() {
         :erfassung="erfassung[b.id]"
         :erfassung-oeffnen="() => zurErfassung(b.id)"
         :auto-anhalten="geraete?.halteAuto ? (ref: string) => geraete!.halteAuto!(b.id, ref) : undefined"
+        :wiederholen="(ref: string) => wiederholen(b.id, ref)"
+        :aufheben="(ref: string) => aufheben(b.id, ref)"
+        :ausfall-gesperrt="state.abgemeldet"
       />
     </div>
     <template v-else-if="reiter === 'wkr'">

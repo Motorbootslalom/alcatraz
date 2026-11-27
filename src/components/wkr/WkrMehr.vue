@@ -27,8 +27,9 @@ import { useWkrText } from './texte'
  * Nutzer 22.11.2026 (WKR_ANNAHMEN.bojenFolge, ersetzt „Wie der Parcours liegt“/Spiegeln vom 21.11.2026): Auf
  * Bojen-Listen (`bojenFolge` ≠ null) steht unter „Ansicht“ die Reihenfolge „Rückweg gedreht“ (Vorgabe) / „Fahrtfolge“ /
  * „Alles untereinander“ – Ereignis `bojenFolge`, gemerkt je Liste in WkrGeraet. Seit 24.11.2026 (Nutzer, BL1) nur,
- * wenn die Bojen-Knöpfe zu sehen sind; bei der Maske „Bild“ steht dort die Lage der Zeichnung (`bildLage`): „Steg
- * unten/links/oben/rechts“ (Parallelslalom „Start links/oben/rechts/unten“) und davor „Automatisch“ (Prüfbefund
+ * wenn die Bojen-Knöpfe zu sehen sind; bei der Maske „Bild“ steht dort die Lage der Zeichnung (`bildLage`): „Start/Ziel
+ * links/oben/rechts/unten“ (Nutzer 26.11.2026, R11-13, BL7 – vorher „Steg …“, „Steg ist hier irreführend. Der steht
+ * immer anders.“; Parallelslalom „Start links/oben/rechts/unten“) und davor „Automatisch“ (Prüfbefund
  * 24.11.2026: der Weg zurück zu „keine Wahl“ = Lage nach Bogen und Platz, Ereignis mit `null`); ohne eigene Wahl ist
  * „Automatisch“ gedrückt, der Satz nennt die gerade wirksame Lage und dass sie wie auf dem Bogen liegt – Ereignis
  * `bildLage`, gemerkt wie die Folge.
@@ -78,10 +79,11 @@ const props = withDefaults(
     /** Nur Bojen-Listen mit Bojen-Knöpfen: Reihenfolge dieser Liste (22.11.2026); `null` = keine Bojen-Knöpfe zu sehen. */
     bojenFolge?: BojenFolge | null
     /**
-     * Nur Maske „Bild“ mit Zeichnung (Nutzer 24.11.2026, BL1): Lage der Zeichnung – `art` steg (Klassen) | start
-     * (Parallelslalom), die Wahl des WKR (`null` = keine) und die wirksame Drehung; `null` = kein Bild.
+     * Nur Maske „Bild“ mit Zeichnung (Nutzer 24.11.2026, BL1): Lage der Zeichnung – `art` klasse | parallel (nur die
+     * Texte: Tor 5 bzw. Boje 5, seit 26.11.2026 beide nach Start/Ziel benannt, BL7), die Wahl des WKR (`null` = keine) und
+     * die wirksame Drehung; `null` = kein Bild.
      */
-    bildLage?: { art: 'steg' | 'start'; wahl: BildLage | null; wirksam: number } | null
+    bildLage?: { art: 'klasse' | 'parallel'; wahl: BildLage | null; wirksam: number } | null
     /** WKR-Name dieser Liste (W3-13); `null` = kein Namensfeld (Übung). */
     wkrName?: WkrNameLage | null
     /** Maskenwahl dieser Liste (F14, W5.1): erlaubte Masken, die gezeigte, ob fest vorgegeben; `null` = keine Wahl. */
@@ -264,10 +266,10 @@ const lageGezeigt = computed<BildLage>(() => props.bildLage?.wahl ?? lageVonDreh
               :aria-pressed="bildLage.wahl === l"
               @click="emit('bildLage', l)"
             >
-              {{ w(`wkr.geraet.bild.lage.${bildLage.art}.${BILD_LAGE_SEITE[l][bildLage.art]}`) }}
+              {{ w(`wkr.geraet.bild.lage.${bildLage.art}.${BILD_LAGE_SEITE[l].start}`) }}
             </button>
           </div>
-          <p class="wkr-hinweis" data-teil="bild-lage-text">{{ w(`wkr.geraet.bild.lage.${bildLage.art}.${BILD_LAGE_SEITE[lageGezeigt][bildLage.art]}.text`) }}</p>
+          <p class="wkr-hinweis" data-teil="bild-lage-text">{{ w(`wkr.geraet.bild.lage.${bildLage.art}.${BILD_LAGE_SEITE[lageGezeigt].start}.text`) }}</p>
           <p v-if="bildLage.wahl === null" class="wkr-hinweis" data-teil="bild-lage-vorgabe">{{ w('wkr.geraet.bild.lage.vorgabe') }}</p>
         </div>
         <div v-if="masken && (masken.fest || maskenKnoepfe.length > 1)" class="wkr-mehr-bojen" data-teil="masken-wahl" :data-fest="masken.fest || undefined">

@@ -56,7 +56,8 @@ export const QR_SITZUNG_MS = 10 * 60_000
 /**
  * So lange liest der Host ein Koppel-Thema nach dem Ablauf noch mit: Kam das `willkommen` eines eben gekoppelten
  * Geräts nicht an, meldet es sich dort noch einmal – und wird erneut begrüßt (transport.ts, gebunden über ein
- * Koppel-Thema). Annahmen ohne gültigen Code gibt es in der Zeit nicht. Auslegung 20.11.2026, vom Nutzer zu bestätigen.
+ * Koppel-Thema). Annahmen ohne gültigen Code gibt es in der Zeit nicht. Auslegung 20.11.2026, bestätigt 26.11.2026
+ * (R11-21): danach liest niemand mehr mit, das Handy zeigt nach 15 s „Keine Antwort“.
  */
 export const KOPPEL_NACHLAUF_MS = 2 * 60_000
 

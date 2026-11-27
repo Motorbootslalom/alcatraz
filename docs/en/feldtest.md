@@ -140,6 +140,11 @@ data.
   brings it back. Observation:
 - [ ] **Please check no.** on the operating computer. Expected: the device shows “Operator asks: check start …” with
   “Open …”. Observation:
+- [ ] **Repeat after a breakdown** (start release → “Repeat (breakdown) …” for a start the devices have already
+  entered; afterwards a device sends one more correction for it). Expected: the values are gone on all sheets, the
+  start is under “Repeat pending”; the correction is rejected (“This attempt was aborted after a breakdown …”). After
+  “As next” and “Next start” it comes onto all devices like a new start; the scoreboard shows “Attempt 1 · Repeat”.
+  Once “No repeat after all” instead: the values are back. Observation:
 
 ## Race official form on the phone
 
@@ -149,7 +154,7 @@ with sample data.
 <a href="../bilder/en/wkr-handy.png"><img src="../bilder/en/wkr-handy.png" width="240"
 alt="Race official form on the phone (practice): race number large, below it the buttons of the list, at the bottom the main button"></a>
 
-- [ ] **Gloves** (thin work gloves and thick sailing gloves): hit codes, main button, Disq., “↶ Undo”,
+- [ ] **Gloves** (thin work gloves and thick sailing gloves): hit codes, main button, Disq., “↩ Undo”,
   “Other start number …”, numeric keypad. Expected: every tap hits the intended button, no neighbour.
   Misses per 20 taps: thin ______ thick ______ Observation:
 - [ ] **Sun** (midday sun, display brightness automatic and full; sunglasses, also polarised): displays
@@ -163,7 +168,7 @@ alt="Race official form on the phone (practice): race number large, below it the
 - [ ] **Portrait, one hand**: the thumb reaches the main button and Disq. without changing grip; “Left-handed” (More →
   Display) mirrors the footer. Screen width of the device: ______ Observation:
 - [ ] **Maximum per code**: tap “2nd and 3rd attempt” three times; gate 5 code 1 twice. Expected: the third tap
-  sets Disq. D (“next = Disq. D”, then “Disq. D set”), “↶ Undo” takes D out again; code 1 stays at
+  sets Disq. D (“next = Disq. D”, then “Disq. D set”), “↩ Undo” takes D out again; code 1 stays at
   “at most 1×”. Does a bouncing glove tap trigger D too early? Observation:
 - [ ] **Trial run** on first receiving the list; afterwards (reload) not again. Expected: nothing arrives on the
   operating computer. Observation:
@@ -176,10 +181,11 @@ alt="Race official form on the phone (practice): race number large, below it the
 - [ ] **Extra weight at the pontoon** (pontoon leaving, sample weights; one driver without a weight). Expected:
   “Extra weight … kg”, “no extra weight” or “Extra weight: not weighed” next to the race number, only in leaving; a
   weight added later in the weighing is shown on the device shortly afterwards. Readable at arm's length? Observation:
-- [ ] **Practice** (“Practise offline” in the pairing form) in flight mode. Expected: the form works without a network,
-  header “PRACTICE” scrolls out of view after sending; the next start comes after 2–6 s, now and then it is already
-  there before; “More → Bring a class forward” (at the very bottom) fetches another class. Is the pace right? Is it
-  suitable for the briefing? Observation:
+- [ ] **Practice** (“Practise offline” in the pairing form) in flight mode. Expected: the form works without a network;
+  after sending only the explanation “How practice works” scrolls out of view, header “PRACTICE”, “Recent” and card
+  stay (above them the note “The screen may turn off.”, until “Hide”); the next start comes after 2–6 s, now and then
+  it is already there before; “More → Bring a class forward” (at the very bottom) fetches another class. Is the pace
+  right? Is it suitable for the briefing? Observation:
 - [ ] **Battery** after an attempt with the form open (Wake Lock): start ______ % end ______ % duration ______ min.
 
 ## Buoy form
@@ -239,8 +245,8 @@ alt="Race official form “Picture” on the tablet in landscape (practice): rac
 - [ ] **Picture** (tablet, buoy list): Expected: hit circles lie on the buoys of the drawing in the real browser (also
   rotated) and are large enough; circles that are too close are pushed apart and connected to the buoy. The switch
   Outward / Return / Return 2 only changes by hand – is switching hard at the water? “More → Display → Position of the
-  drawing”: “Automatic” and pontoon at the bottom/on the left/at the top/on the right; digits stay upright, the choice
-  stays after reloading. Which position suits the race official's location? Observation:
+  drawing”: “Automatic” and “Start/finish on the left/at the top/on the right/at the bottom”; digits stay upright, the
+  choice stays after reloading. Which position suits the race official's location? Observation:
 - [ ] **Knots at the table** (knot list, one tablet at the table): Expected: “Next: 9 (Class …)” prefilled, another
   number can be typed in, per knot ✓ / ✗, large button “All correct” or “Rest correct” sends in one tap, a number
   already entered asks “correct it?”, “open n / m” matches the matrix “At the table” on the operating computer; closing

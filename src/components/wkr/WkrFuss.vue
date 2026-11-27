@@ -4,7 +4,7 @@ import type { ListenTeil } from '../../wkr/liste'
 import { useWkrText } from './texte'
 
 /**
- * Fuß der Maske (W3.3, Plan §5.1/§5.2): „↶ Rückgängig“, [DISQ] und der EINE Hauptknopf – leer „Fehlerfrei ✓“
+ * Fuß der Maske (W3.3, Plan §5.1/§5.2): „↩ Rückgängig“, [DISQ] und der EINE Hauptknopf – leer „Fehlerfrei ✓“
  * (Steg „Ablegen OK ✓“/„Anlegen OK ✓“, Vorsteg „In Ordnung ✓“), mit Einträgen „Abschicken · n Pkt.“, in der
  * Korrektur „Korrektur abschicken“ bzw. nach dem Abschluss „Als Vorschlag senden“ (F7). DISQ steht links, der
  * Hauptknopf rechts, dazwischen mindestens 24 px (styles/wkr-geraet.css `--wkr-disq-abstand`); Linkshand spiegelt.
@@ -15,6 +15,10 @@ import { useWkrText } from './texte'
  * Zeit (W5.4, 22.11.2026, ZT3): Solange ein Zeitfeld weder eine lesbare Zeit noch „keine Zeit“ hat, ist der Hauptknopf
  * gesperrt und sagt „noch 2 Zeiten“ (`zeitenOffen`); danach „Zeiten abschicken ✓“ bzw. mit Punkten/Disq. wie sonst.
  * Tabelle (W5.5, 22.11.2026, TB3): Zellen mit Fehler sperren ebenso („2 Zellen prüfen“, `zellenFehler`).
+ * „↩ Rückgängig“ (Nutzer 26.11.2026, R11-30 (2): „Der Pfeil … soll nach links und nicht nach unten zeigen“, vorher ↶):
+ * der Pfeil ist eine Zeichnung vor dem Text, kein Schriftzeichen – ↩ (U+21A9) fehlt in den Schriften der App
+ * (system-ui, Roboto, Segoe UI, Helvetica, Arial; geprüft 26.11.2026) und käme auf Handys als buntes Emoji aus der
+ * Ersatzschrift. Er trägt die Textfarbe des Knopfs (currentColor, auch ausgegraut) und ist für Vorleser stumm.
  */
 const props = defineProps<{
   art: 'katalog' | 'vorsteg' | 'bojen' | 'zeit'
@@ -59,7 +63,15 @@ const haupt = computed(() => {
 <template>
   <footer class="wkr-fuss" :class="{ 'wkr-fuss--links': hand === 'links' }" data-teil="fuss" :data-hand="hand">
     <div class="wkr-fuss-neben">
-      <button type="button" class="wkr-knopf" data-ziel="klein" data-action="zurueck" :disabled="eintraege === 0" @click="emit('zurueck')">{{ w('wkr.geraet.zurueck') }}</button>
+      <button type="button" class="wkr-knopf" data-ziel="klein" data-action="zurueck" :disabled="eintraege === 0" @click="emit('zurueck')">
+        <!-- EIN Flex-Element für Pfeil und Wort (Prüfung 27.11.2026): so bricht die Zeile am Leerzeichen um (Pfeil über
+             dem Wort wie früher bei „↶ Rückgängig“); als eigenes Flex-Element nahm der Pfeil dem Wort 32 px, und
+             overflow-wrap: anywhere brach „Rückgän|gig“ auf jeder Handybreite mitten im Wort. -->
+        <span class="wkr-mit-pfeil"
+          ><svg class="wkr-pfeil" data-teil="pfeil-links" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.5 11.5 4 16l4.5 4.5M4 16h11.5a4.5 4.5 0 0 0 0-9H12" /></svg>
+          {{ w('wkr.geraet.zurueck') }}</span
+        >
+      </button>
       <button
         v-if="art !== 'vorsteg' && mitDisq"
         type="button"

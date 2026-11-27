@@ -3,7 +3,7 @@ import { configFor } from '../config/konfig'
 import { emptyState } from '../state/reducer'
 import { bogenSeiten } from './bogen'
 import { buildLaufzettel, listenZeilen, messBoegen, messKennung, stapelBoegen, waehleLaufzettel, zettelSchritte } from './laufzettel'
-import { wkrBoegenZumStand, type WkrBogen } from './wkrListen'
+import { gemeinsameBoegen, wkrBoegenZumStand, type WkrBogen } from './wkrListen'
 import type { AppState, ClassId, Starter } from '../types'
 import { veranstaltungsListen } from './listen'
 
@@ -20,7 +20,8 @@ const stand = (mehr: Partial<AppState> = {}): AppState => ({ ...emptyState(), st
 const EIN_PARCOURS = [{ id: 'par_1', name: 'Parcours 1', classIds: ALLE, wechselFaktor: 2 as const }]
 const zettelVon = (s: AppState, seitenVon: (b: WkrBogen) => number = () => 1) => {
   const { boegen } = wkrBoegenZumStand(s, dm)
-  return { boegen, zettel: buildLaufzettel(boegen, veranstaltungsListen(dm, s), seitenVon, { jeParcours: s.eventKind === 'club' && s.wkrClubGemeinsam }) }
+  // Wie LaufzettelListen.vue: „Papier sparen“ aus der einen Stelle (Clubmeisterschaft und, seit 26.11.2026, Meisterschaft).
+  return { boegen, zettel: buildLaufzettel(boegen, veranstaltungsListen(dm, s), seitenVon, { jeParcours: gemeinsameBoegen(s).papierSparen }) }
 }
 
 describe('Laufzettel', () => {
@@ -135,6 +136,26 @@ describe('Laufzettel', () => {
     expect(zettel[0].zeilen.find((r) => r.typeId === 'steg')!.klassen).toEqual([])
   })
 
+  it('Meisterschaft mit gemeinsamen Bögen (R11-03): ein Zettel je Parcours und Lauf statt je Klasse – wie bei der Clubmeisterschaft', () => {
+    // Vorgabe aus: je Parcours, Klasse und Lauf.
+    expect(zettelVon(stand({ parcoursList: EIN_PARCOURS })).zettel).toHaveLength(8 * 3)
+    // Gleich aufgebaute Bögen zusammen: Die Klassen hängen über die gemeinsamen Listen (Zeit, Steg, Knoten) zusammen.
+    const gleich = zettelVon(stand({ parcoursList: EIN_PARCOURS, wkrMeisterschaftGemeinsam: 'gleich' }))
+    expect(gleich.zettel).toHaveLength(3)
+    expect([...gleich.zettel[0].klassen].sort()).toEqual([...ALLE].sort())
+    // Bögen einzelner Klassen (Listen mit eigener Zeichnung) nennen ihre Klasse in der Zeile.
+    expect(gleich.zettel[0].zeilen.filter((r) => r.typeId === 'gate135').every((r) => r.klassen.length >= 1)).toBe(true)
+    expect(gleich.zettel.map((z) => z.zeilen.map((r) => r.bogenId))).toEqual(
+      zettelVon(stand({ parcoursList: EIN_PARCOURS, eventKind: 'club', wkrClubGemeinsam: false })).zettel.map((z) => z.zeilen.map((r) => r.bogenId)),
+    )
+    // Papier sparen: je Parcours und Lauf, ein Bogen je Liste.
+    const alle = zettelVon(stand({ parcoursList: EIN_PARCOURS, wkrMeisterschaftGemeinsam: 'alle' }))
+    expect(alle.zettel).toHaveLength(3)
+    expect(alle.zettel[0].zeilen.find((r) => r.typeId === 'steg')!.klassen).toEqual([])
+    // Zwei Parcours: je Parcours eigene Zettel.
+    expect(zettelVon(stand({ wkrMeisterschaftGemeinsam: 'gleich' })).zettel).toHaveLength(2 * 3)
+  })
+
   it('Clubmeisterschaft, Listen mit Bild je Klasse: je Klasse eine Zeile, in der Reihenfolge des Aufbaus', () => {
     const s = stand({ eventKind: 'club', wkrClubGemeinsam: false, parcoursList: EIN_PARCOURS })
     const { boegen, zettel } = zettelVon(s)
@@ -180,7 +201,7 @@ describe('Laufzettel', () => {
 describe('Blattstapel eines Laufzettels (Erfassung: alle Listen untereinander)', () => {
   const stapel = (s: AppState, klasse: ClassId, lauf: number, parcoursId = 'par_1') => {
     const { boegen, zettel } = zettelVon(s)
-    const liste = stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId, klasse, lauf }, { jeParcours: s.eventKind === 'club' && s.wkrClubGemeinsam })
+    const liste = stapelBoegen(boegen, veranstaltungsListen(dm, s), { parcoursId, klasse, lauf }, { jeParcours: gemeinsameBoegen(s).papierSparen })
     return { liste, zettel: zettel.find((z) => z.parcoursId === parcoursId && z.lauf === lauf && z.klassen.includes(klasse)) }
   }
 
@@ -212,6 +233,18 @@ describe('Blattstapel eines Laufzettels (Erfassung: alle Listen untereinander)',
     expect(einzeln.filter((b) => b.typeId === 'zeit')).toHaveLength(1)
     expect(einzeln.filter((b) => b.typeId === 'gate135').length).toBeGreaterThan(1)
     expect(einzeln.some((b) => !b.klassen.includes('4'))).toBe(true)
+  })
+
+  it('Meisterschaft mit gemeinsamen Bögen (R11-03): der Stapel wie bei der Clubmeisterschaft, ohne gemeinsame Bögen der der Klasse', () => {
+    const je = stand({ parcoursList: EIN_PARCOURS })
+    // Vorgabe: nur die Bögen der Klasse.
+    expect(stapel(je, '4', 1).liste.every((b) => b.klassen.length === 1 && b.klassen[0] === '4')).toBe(true)
+    for (const art of ['gleich', 'alle'] as const) {
+      const s = { ...je, wkrMeisterschaftGemeinsam: art }
+      const club = { ...je, eventKind: 'club' as const, wkrClubGemeinsam: art === 'alle' }
+      expect(stapel(s, '4', 1).liste.map((b) => b.id), art).toEqual(stapel(club, '4', 1).liste.map((b) => b.id))
+      expect(stapel(s, 'E', 1).liste.map((b) => b.id), art).toEqual(stapel(s, '4', 1).liste.map((b) => b.id))
+    }
   })
 
   it('leer, wenn es den Stapel nicht gibt: Klasse nicht auf dem Parcours, Lauf jenseits der Läufe', () => {

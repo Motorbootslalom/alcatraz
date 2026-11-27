@@ -272,7 +272,7 @@ describe('Schreibweise: jede Tipp-Folge besteht wertGilt unverändert', () => {
 describe('Entwurf: zurück, Disq. als Schalter, Punkte, entwurfAus', () => {
   const tor5 = maskeFuer(sichtMit(DM, 'tor5'), '5')!
 
-  it('„↶ Rückgängig“ nimmt den letzten Tipp – Code oder Disq.; zweiter Disq.-Tipp nimmt ihn heraus', () => {
+  it('„↩ Rückgängig“ nimmt den letzten Tipp – Code oder Disq.; zweiter Disq.-Tipp nimmt ihn heraus', () => {
     let e = tippe(leererEntwurf(), tor5, 'katalog:tor5', '1')
     e = tippeDisq(e, 'A')
     e = tippe(e, tor5, 'katalog:tor5', '20')
@@ -637,7 +637,7 @@ describe('Bojen-Maske: Tipps, Zellen, zurück (P2, P4, P5, P9, P13)', () => {
     expect(zellenAus(z, k7)['t5|hin seiteA']).toBe(String(WKR_ANNAHMEN.bojenZaehlerMax * 5))
   })
 
-  it('„↶ Rückgängig“ kennt Bojen (Zähler: ein Tipp), Codes und Disq.; Punkte und Einträge je Seite', () => {
+  it('„↩ Rückgängig“ kennt Bojen (Zähler: ein Tipp), Codes und Disq.; Punkte und Einträge je Seite', () => {
     let e = tippeBoje(leererEntwurf(), B('t5|hin seiteA'))
     e = tippeBoje(e, B('t5|hin seiteA'))
     e = tippeDisq(e, 'G')

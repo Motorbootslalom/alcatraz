@@ -10,7 +10,8 @@ import WkrGeraet from './WkrGeraet.vue'
 /**
  * „Mehr → Ansicht“ und „Klasse vorziehen“ (Nutzer 24.11.2026) über die Übung ohne Netz:
  * - BL1: die Bojen-Folge nur mit Bojen-Knöpfen; bei der Maske „Bild“ statt ihrer die Lage der Zeichnung;
- * - BL2/BL3: „Steg unten/links/oben/rechts“ (Parallelslalom nach dem Start) dreht die Zeichnung, gemerkt je Liste,
+ * - BL7/BL3: „Start/Ziel links/oben/rechts/unten“ (seit 26.11.2026, R11-13 – vorher „Steg …“; Parallelslalom „Start …“)
+ *   dreht die Zeichnung, gemerkt je Liste,
  *   auch auf dem Handy und auch in der Probe am Bild;
  * - Y5: „Klasse vorziehen“ ganz unten unter „Übung verlassen“.
  * Im Test-DOM gibt es keine Lage der Bojen – geprüft wird die Drehung an `data-drehung` und am inline-SVG.
@@ -61,20 +62,22 @@ const lagen = (w: VueWrapper) => w.findAll('[data-action="bild-lage"]')
 const gedrueckt = (w: VueWrapper) => lagen(w).filter((b) => b.attributes('aria-pressed') === 'true').map((b) => b.attributes('data-lage'))
 
 describe('Mehr → Ansicht: Bojen-Folge nur bei Bojen-Knöpfen, beim Bild die Lage (Nutzer 24.11.2026, BL1–BL3)', () => {
-  it('Bild (Handy): keine Bojen-Folge, „Automatisch“ + vier Lagen „Steg …“; ohne Wahl „Automatisch“ gedrückt, der Satz nennt die wirksame Lage', async () => {
+  it('Bild (Handy): keine Bojen-Folge, „Automatisch“ + vier Lagen „Start/Ziel …“; ohne Wahl „Automatisch“ gedrückt, der Satz nennt die wirksame Lage', async () => {
     const { w } = await uebung('dm-2026', 'gate135', 'bild')
     expect(w.find('.wkr-maske').attributes('data-maske')).toBe('bild')
     expect(w.find('[data-teil="bild-flaeche"]').attributes('data-drehung')).toBe('0')
     await klick(w, '[data-action="mehr"]')
     expect(w.find('[data-teil="bojen-ansicht"]').exists()).toBe(false)
     const block = w.find('[data-teil="bild-lage"]')
-    expect(block.attributes('data-art')).toBe('steg')
+    expect(block.attributes('data-art')).toBe('klasse')
     expect(w.find('[data-action="bild-lage-auto"]').text()).toBe('Automatisch')
-    expect(lagen(w).map((b) => b.text())).toEqual(['Steg unten', 'Steg links', 'Steg oben', 'Steg rechts'])
+    // Nutzer 26.11.2026 (R11-13): „Steg ist hier irreführend. Der steht immer anders.“ – benannt nach Start/Ziel.
+    expect(lagen(w).map((b) => b.text())).toEqual(['Start/Ziel links', 'Start/Ziel oben', 'Start/Ziel rechts', 'Start/Ziel unten'])
+    expect(lagen(w).map((b) => b.attributes('data-lage'))).toEqual(['0', '90', '180', '270'])
     // Prüfbefund 24.11.2026: ohne Wahl ist „Automatisch“ gedrückt, keine der vier.
     expect(w.find('[data-action="bild-lage-auto"]').attributes('aria-pressed')).toBe('true')
     expect(gedrueckt(w)).toEqual([])
-    // Blick „hinten“ (Bogen 90°) liegt auf dem Handy ohne Wahl wie die Datei = „Steg unten“.
+    // Blick „hinten“ (Bogen 90°) liegt auf dem Handy ohne Wahl wie die Datei = „Start/Ziel links“.
     expect(w.find('[data-teil="bild-lage-text"]').text()).toBe('Start/Ziel links, Tor 5 rechts.')
     expect(w.find('[data-teil="bild-lage-vorgabe"]').text()).toContain('wie auf dem Bogen')
   })
@@ -121,7 +124,7 @@ describe('Mehr → Ansicht: Bojen-Folge nur bei Bojen-Knöpfen, beim Bild die La
     expect(rueck[0]).toMatch(/^ziel\|/)
   })
 
-  it('„Steg links“ dreht die Zeichnung um 90° (auch auf dem Handy), merkt es je Liste; die Probe am Bild liegt ebenso', async () => {
+  it('„Start/Ziel oben“ dreht die Zeichnung um 90° (auch auf dem Handy), merkt es je Liste; die Probe am Bild liegt ebenso', async () => {
     const { w, a, l } = await uebung('dm-2026', 'gate135', 'bild')
     await klick(w, '[data-action="mehr"]')
     await klick(w, '[data-action="bild-lage"][data-lage="90"]')
@@ -133,7 +136,7 @@ describe('Mehr → Ansicht: Bojen-Folge nur bei Bojen-Knöpfen, beim Bild die La
     expect(gedrueckt(w)).toEqual(['90'])
     expect(w.find('[data-teil="bild-lage-text"]').text()).toBe('Start/Ziel oben, Tor 5 unten.')
     expect(w.find('[data-teil="bild-lage-vorgabe"]').exists()).toBe(false)
-    // „Steg oben“ = 180° (Start/Ziel rechts).
+    // „Start/Ziel rechts“ = 180°.
     await klick(w, '[data-action="bild-lage"][data-lage="180"]')
     expect(w.find('[data-teil="maske"] [data-teil="bild-flaeche"]').attributes('data-drehung')).toBe('180')
     expect(liesAnsicht(a).bildLage).toEqual({ [l]: 180 })
@@ -158,11 +161,11 @@ describe('Mehr → Ansicht: Bojen-Folge nur bei Bojen-Knöpfen, beim Bild die La
     expect(w.find('[data-teil="bild-lage"]').exists()).toBe(false)
   })
 
-  it('Parallelslalom (UIM, englisch): dieselben Drehungen heißen nach dem Start – die Zeichnung hat keinen Steg', async () => {
+  it('Parallelslalom (UIM, englisch): dieselben Drehungen heißen nach dem Start, der Satz nennt Boje 5', async () => {
     const { w } = await uebung('uim-2026', 'parallelparcours', 'bild')
     expect(w.find('[data-teil="bild"]').attributes('data-art')).toBe('svg')
     await klick(w, '[data-action="mehr"]')
-    expect(w.find('[data-teil="bild-lage"]').attributes('data-art')).toBe('start')
+    expect(w.find('[data-teil="bild-lage"]').attributes('data-art')).toBe('parallel')
     expect(lagen(w).map((b) => b.text())).toEqual(['Start on the left', 'Start at the top', 'Start on the right', 'Start at the bottom'])
     await klick(w, '[data-action="bild-lage"][data-lage="270"]')
     expect(w.find('[data-teil="maske"] [data-teil="bild-flaeche"]').attributes('data-drehung')).toBe('270')

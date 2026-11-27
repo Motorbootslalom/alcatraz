@@ -125,7 +125,8 @@ Only the **backup file** helps against a lost or broken device and against delet
 
 - The second store keeps the latest states (“Settings → Files → History”).
   Each entry has a time and what changed:
-  “Data entry Class 4, Attempt 2 · 17 changes”, “12 drivers imported”, “Setup changed”.
+  “Data entry Class 4, Attempt 2 · 17 changes”, “12 drivers imported”, “Setup changed”,
+  “Repeat after breakdown – values discarded: 101, Class 1, Attempt 1”.
 - Similar changes in short succession are one entry
   (up to a pause of two minutes, at most ten minutes long).
 - Every state can be restored.
@@ -169,11 +170,24 @@ parallel slalom (UIM only): [parallelslalom.md](parallelslalom.md).
   and “Devices” ([device operation](#device-operation)).
 - **Start release:** one card per racecourse. “Begin attempt N” releases the starts of the attempt, “Next start”
   brings the next open start onto the scoreboard, “Back” takes it back. In addition “Hold back”, “Choose another
-  driver” (search by race number or name, moving), “Classes · boat missing”, “Join from …” and
-  “Message” (disruption, break, notice; with templates). “Reset operation” in the header deletes begun attempts, shown
-  starts and messages; drivers, interleaving and entered values stay. There is a confirmation only before “Begin
-  attempt” while starts are open, before “Reset operation” and, with race officials' entry, on a backlog (“Continue
-  anyway?”); everything else can be taken back.
+  driver” (search by race number or name, moving), “Repeat (breakdown) …” (below), “Classes · boat missing”, “Join
+  from …” and “Message” (disruption, break, notice; with templates). “Reset operation” in the header deletes begun
+  attempts, shown starts and messages; drivers, interleaving and entered values stay. There is a confirmation only
+  before “Begin attempt” while starts are open, before “Reset operation”, before a repeat after a breakdown and, with
+  race officials' entry, on a backlog (“Continue anyway?”); everything else can be taken back.
+- **Repeat after a breakdown** (26.11.2026; manoeuvring only, only at the operating computer): if a boat breaks down
+  after the start and the O.O.D. confirms the breakdown, the driver's attempt is repeated. “Repeat (breakdown) …” next
+  to “Choose another driver” shows the starts already shown in the attempts under way (the one shown last first,
+  search by race number); “Repeat …”, then “Discard values and repeat”. All values of this driver in this attempt are
+  then gone on every sheet, including those from the race officials' devices. The start waits under “Repeat pending”
+  and never goes by itself: put it in line with “As next” or “To the end of the attempt” or show it with “Show now” –
+  this also works from the start release phone and in the starting order. On paper the race official strikes out the
+  line and enters the repeat in a blank line; data entry shows ↻ at the race number. If the driver is to blame for the
+  breakdown, there is no repeat: the race official enters “J” at the buoy (wrong racecourse). A mistake? “No repeat
+  after all” in the list “Repeat pending” brings the discarded values back as long as the start has not been shown
+  again. Scoreboard and spectator list show “Attempt 1 · Repeat”, without a reason. In English it is called “Repeat”
+  so that it is not confused with the “Re-run” of the parallel slalom, where the button does not exist. Details:
+  [funktionen.md](funktionen.md#start-release).
 - **Scoreboard:** “Open display board” opens it in a window of its own, for example on a second monitor at the pontoon.
   Key F or double-click switches full screen. With several racecourses each card also has “Separate display board”.
 - **Spectator list:** “Open spectator list” shows per racecourse “In the boat”, “At the pontoon”, “At pontoon entry” and
@@ -461,13 +475,15 @@ alt="Race official form on the phone (practice): race number large, below it the
 - **Connecting:** In the first seconds it reads “connecting …”; if it takes longer, “Reconnect” (reloads the page,
   drafts and sent rows are kept).
 - **Trial run:** After the list is received for the first time, the device shows the trial run with the start “P”
-  once per room and list – step by step tap a code, “↶ Undo”, main button; on buoy lists also a touch, a disq. at
+  once per room and list – step by step tap a code, “↩ Undo”, main button; on buoy lists also a touch, a disq. at
   a buoy and the return run. **Nothing is sent**. “Skip” always works, “More → Trial run” repeats it.
-- **Buttons** (pontoon, gate 5, man-over-board, pontoon entry): one button per code; a tap counts +1, “↶ Undo” takes
-  the last tap back. Codes that according to the rulebook do not apply in the class are greyed out but can be pressed.
-  A code counts at most as often as it can occur in an attempt (3; gate 5 “Not passing the gate with the full length
-  of the boat” 1); “2nd and 3rd attempt” counts up to 2, the third tap sets Disq. D (“next = Disq. D”, then “Disq. D
-  set”). At the pontoon a device for the whole pontoon switches between “Leaving” and “Mooring”.
+- **Buttons** (pontoon, gate 5, man-over-board, pontoon entry): one button per code; a tap counts +1, “↩ Undo” in the
+  footer takes the last tap back (the arrow pointing left is a small drawing; on phones 360 to 412 px wide it stands
+  above the word, on wider devices next to it). Codes that according to the rulebook do not apply in the class are
+  greyed out but can be pressed. A code counts at most as often as it can occur in an attempt (3; gate 5 “Not passing
+  the gate with the full length of the boat” 1); “2nd and 3rd attempt” counts up to 2, the third tap sets Disq. D
+  (“next = Disq. D”, then “Disq. D set”). At the pontoon a device for the whole pontoon switches between “Leaving” and
+  “Mooring”.
 - **Disq.:** “DISQ” in the footer opens the letters (“PENALTY” leads back). The first tap marks (“tap
   again”), the second sets. X is among the disq. buttons only at pontoon leaving and at pontoon entry; it asks once
   more in large letters.
@@ -484,6 +500,10 @@ alt="Race official form on the phone (practice): race number large, below it the
   are on the water at the same time.
 - **Notices from the operator:** “Operator asks: check start 601” with “Open 601”; “Operator: the paper sheet
   applies from no. …”.
+- **Repeat after a breakdown:** when a start is shown again after a breakdown, it comes onto the device like a new
+  start – also onto a list that has already closed the attempt (the row then becomes a proposal at the operating
+  computer). A row still sent for the aborted attempt is rejected by the operating computer: “This attempt was aborted
+  after a breakdown – the start is repeated. The line was not taken over.”
 - **Without a connection:** red band “No connection for n min – keep entering, n lines waiting”; after 5 minutes
   also “Gone for longer? Paper sheet from no. …”.
 - **Closing the list:** After your own attempt the band “Attempt 1 is over – close the list?” appears with its
@@ -533,8 +553,11 @@ driver who has not been weighed.
 - **Picture** (lists with buoys; the default on the tablet, selectable on the phone): the racecourse drawing with hit
   circles on the buoys, switch Outward / Return / “RETURN 2 · speed lap”, by hand only. Disq. via “Disq. at buoy …” (then
   tap the buoy in the picture) or a long press on a circle. “More → Display → Position of the drawing”: “Automatic”
-  (as on the sheet, as far as space allows) or pontoon at the bottom, on the left, at the top, on the right (parallel
-  slalom: start on the left, at the top, on the right, at the bottom), remembered per device and list.
+  (as on the sheet, as far as space allows) or “Start/finish on the left”, “… at the top”, “… on the right”, “… at the
+  bottom”, below it a sentence such as “Start/finish at the top, gate 5 at the bottom.” (parallel slalom: start on the
+  left, at the top, on the right, at the bottom), remembered per device and list. Until 26.11.2026 the buttons were
+  called “Pontoon at the bottom/on the left/at the top/on the right”; a position already chosen stays and shows the
+  same picture under the new name (“Pontoon at the bottom” = “Start/finish on the left”).
 - **Time** (timekeeping): a numeric keypad for the chosen time field; below it is shown how the operating computer reads
   the entry (“83.45” → “= 1 min 23.45 s”). After a complete time the keypad jumps to the next field. Only the
   first field is mandatory; “No time for …” with a reason (timing system failed, did not finish, other reason).
@@ -564,8 +587,10 @@ only the display settings are stored.
 
 - The next start comes 2–6 s after sending, now and then it is already there before; occasionally a
   query comes as in the real thing.
-- Header “PRACTICE”; after sending it scrolls out of view so that the race number is at the top (not on the tablet with
-  several columns).
+- At the top is the explanation “How practice works”, below it, if shown, the yellow note “The screen may turn off.”,
+  then the header “PRACTICE” with list, attempt and connection, “Recent” and the card with the race number. After
+  sending only the explanation scrolls off the top; the note (until “Hide”) and the header stay. On the tablet with
+  several lists side by side nothing scrolls. On competition day nothing ever scrolls, the order is the same there.
 - “More → Bring a class forward” (at the very bottom) fetches a start of this class as the next one – for example to see
   class 7.
 - “End practice” below the form or “More → Leave practice” leads back to the choice.
@@ -616,6 +641,11 @@ server are dropped.
   start/finish gate, tap “Through the start gate”. “Continue anyway?” means: a racecourse official has not sent yet.
   ✕ or ! in the bar → Operation → Race officials (decide queries, if necessary “Paper from start …”). At the end of the
   attempt each race official closes their list via the band; closings are shown under Operation → Race officials.
+- Boat broken down: if the O.O.D. confirms a breakdown, choose “Repeat (breakdown) …” at the operating computer and
+  put the start in line as soon as the boat is ready again. Race officials on paper strike out the line and enter the
+  repeat in a blank line; race officials' devices get the start anew by themselves. If the driver is to blame for the
+  breakdown, there is no repeat – “J” (wrong racecourse) at the buoy
+  ([repeat after a breakdown](#start-release-scoreboard-and-spectator-list)).
 - Reading the connection: “connected” is good; “disturbed – reconnecting” and “too many requests – continues after a
   pause” mostly resolve themselves; “no connection” for longer than a few minutes → [Disruptions](#disruptions).
 - Look at the quota now and then; on a warning operate more sparingly (see [quota](#quota-of-the-server)).

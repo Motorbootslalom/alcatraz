@@ -7,10 +7,11 @@ import type { WkrBogen } from './wkrListen'
 // lib/laufzettel.ts im Fehlerpunkte-Prototyp.
 //
 // Was ein Stapel ist:
-// - Sonst je Parcours, Klasse und Lauf: Jeder Bogen trägt eine Klasse.
-// - Clubmeisterschaft mit „Papier sparen“: je Parcours und Lauf – alle Klassen stehen auf
-//   denselben Bögen (`jeParcours`).
-// - Clubmeisterschaft ohne „Papier sparen“: Listen ohne Bild (Zeit, Steg …) teilen sich die
+// - Ohne gemeinsame Bögen je Parcours, Klasse und Lauf: Jeder Bogen trägt eine Klasse.
+// - Gemeinsame Bögen (lib/wkrListen.ts gemeinsameBoegen: Clubmeisterschaft immer, seit R11-03
+//   26.11.2026 auf Wunsch auch eine Meisterschaft) mit „Papier sparen“: je Parcours und Lauf –
+//   alle Klassen stehen auf denselben Bögen (`jeParcours`).
+// - Gemeinsame Bögen ohne „Papier sparen“: Listen ohne Bild (Zeit, Steg …) teilen sich die
 //   Klassen weiter, nur Listen mit Bild sind je Klasse getrennt. Ein gemeinsamer Bogen kann
 //   nicht in zwei Stapeln liegen – der Zettel gilt deshalb für alle Klassen, die über
 //   gemeinsame Bögen zusammenhängen (in der Regel wieder der ganze Parcours); die Bögen
@@ -98,7 +99,7 @@ export function buildLaufzettel(
   boegen: readonly WkrBogen[],
   listen: readonly string[],
   seitenVon: (bogen: WkrBogen) => number,
-  /** `jeParcours`: ein Zettel je Parcours und Lauf, gleich wie die Klassen auf den Bögen stehen (Club, „Papier sparen“). */
+  /** `jeParcours`: ein Zettel je Parcours und Lauf, gleich wie die Klassen auf den Bögen stehen („Papier sparen“, gemeinsameBoegen). */
   optionen: { jeParcours?: boolean } = {},
 ): Laufzettel[] {
   const rang = (typeId: string) => {
@@ -156,8 +157,8 @@ export function zettelSchritte<S extends { zwischenaushang?: boolean }>(
 /**
  * Die Bögen des Blattstapels, zu dem eine Klasse in einem Lauf gehört – in der Reihenfolge des
  * Laufzettels. Die Erfassung zeigt sie untereinander, wenn ein Laufzettel gescannt wurde: Wer
- * den Stapel vor sich hat, tippt Blatt für Blatt ab, ohne zwischen Listen zu wechseln. Bei der
- * Clubmeisterschaft sind das auch die Bögen der anderen Klassen des Stapels; die Liste ohne
+ * den Stapel vor sich hat, tippt Blatt für Blatt ab, ohne zwischen Listen zu wechseln. Mit
+ * gemeinsamen Bögen (Clubmeisterschaft, auf Wunsch Meisterschaft) sind das auch die Bögen der anderen Klassen des Stapels; die Liste ohne
  * Lauf (Knoten) liegt nur im Stapel des letzten Laufs. Leer, wenn es den Stapel nicht gibt.
  */
 export function stapelBoegen(

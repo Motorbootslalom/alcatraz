@@ -552,7 +552,7 @@ describe('Betrieb: Steuerung an der Start-Freigabe (E2)', () => {
     const w = betrieb(festgeschrieben(betriebsStand()))
     await knopf(w, 'beginnen')
     for (const k of ['E', '1']) await karte(w).find(`[data-teil="klassen"] li[data-klasse="${k}"] [data-action="aussetzen"]`).trigger('click')
-    expect(text(karte(w).find('[data-teil="stockt"]'))).toBe('Kein Start frei – noch 4 Starts warten (zurückgestellt, Boot fehlt oder nachzuholen). Der Lauf ist nicht zu Ende.')
+    expect(text(karte(w).find('[data-teil="stockt"]'))).toBe('Kein Start frei – noch 4 Starts warten (zurückgestellt, Wiederholung offen, Boot fehlt oder nachzuholen). Der Lauf ist nicht zu Ende.')
     expect(karte(w).find('[data-action="zeigen"]').attributes('disabled')).toBeDefined()
     // „Lauf 2 beginnen“ drängt sich nicht auf.
     expect(karte(w).find('[data-action="beginnen"]').classes()).not.toContain('primary')
@@ -642,6 +642,41 @@ describe('Betrieb: Steuerung an der Start-Freigabe (E2)', () => {
   it('Verweis auf die Einstellung der Startfolge', () => {
     const w = betrieb(festgeschrieben(betriebsStand()))
     expect(w.find('[data-verweis="betrieb-einstellungen"]').attributes('href')).toBe('#/einstellungen?startfolge')
+  })
+})
+
+describe('Betrieb: Wiederholung nach Ausfall (R11-11)', () => {
+  it('Klick bis zum Stand: Werte verworfen, „Wiederholung offen“; „Doch keine Wiederholung“ holt die Werte zurück (Prüfbefund 27.11.2026)', async () => {
+    const w = betrieb(festgeschrieben(betriebsStand()))
+    await knopf(w, 'beginnen')
+    await knopf(w, 'zeigen')
+    await knopf(w, 'zeigen')
+    expect(imBoot(w)).toBe('101')
+    const L1 = 'manoevrieren/1'
+    store.dispatch({ type: 'SET_EINGABEN', zellen: [{ lauf: L1, starter: 'k1', feld: 't1a|hin seiteA', wert: '5' }] })
+    const vorher = store.state.value.eingaben[L1].k1
+    // Wahl: der Start im Boot zuerst; Rückfrage mit Nummer und Lauf; erst „Werte verwerfen und wiederholen“ wirkt.
+    await knopf(w, 'ausfall')
+    const zeilen = karte(w).findAll('[data-teil="ausfall"] li')
+    expect(zeilen[0].attributes('data-start')).toBe(m('k1', 1))
+    await zeilen[0].find('[data-action="ausfall-waehlen"]').trigger('click')
+    await nextTick()
+    expect(document.querySelector('[data-dialog="ausfall"]')?.textContent).toContain('Wiederholung nach Ausfall: 101, Lauf 1?')
+    ;(document.querySelector('[data-action="ausfall-ja"]') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(store.state.value.eingaben[L1]?.k1).toBeUndefined()
+    expect(betriebVon()?.wiederholung).toEqual([m('k1', 1)])
+    expect(store.state.value.wkr.verworfen?.map((v) => v.ref)).toEqual([m('k1', 1)])
+    const liste = karte(w).find('[data-teil="wiederholung"]')
+    expect(text(liste)).toContain('101')
+    expect(text(karte(w).find('[data-teil="abgebrochen"]'))).toBe('Ausfall – wird wiederholt')
+    // „Doch keine Wiederholung“: der Versuch gilt wieder, die Werte sind zurück.
+    await liste.find('[data-action="wiederholung-aufheben"]').trigger('click')
+    await flushPromises()
+    expect(store.state.value.eingaben[L1].k1).toEqual(vorher)
+    expect(betriebVon()?.wiederholung).toBeUndefined()
+    expect(store.state.value.wkr.verworfen).toBeUndefined()
+    expect(karte(w).find('[data-teil="wiederholung"]').exists()).toBe(false)
   })
 })
 

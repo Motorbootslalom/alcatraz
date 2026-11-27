@@ -14,6 +14,7 @@ import { useEvent } from '../lib/event'
 import { pruefeKlassen } from '../import/klassenPruefung'
 import { useKonfig } from '../lib/konfig'
 import { zusatzListen } from '../lib/listen'
+import { gemeinsameBoegen } from '../lib/wkrListen'
 import { herkunftAnzeige, originLabelKey, originOf } from '../lib/origin'
 import { hatFlaggen } from '../domain/flaggen'
 import HerkunftWahl from '../components/HerkunftWahl.vue'
@@ -44,6 +45,7 @@ import RegelLaeufeHinweis from '../components/RegelLaeufeHinweis.vue'
 import { serverEinstellung } from '../lib/serverAdresse'
 import { NTFY_VORGABE } from '../geraete/themen'
 import { hostServer, useGeraeteHost } from '../geraete/host'
+import { CO_PILOT_AUSGLEICHE } from '../lib/besetzung'
 
 /**
  * Alle Einstellungen an einem Ort: wie Listen aussehen, welche Kürzel gelten, und die
@@ -66,7 +68,7 @@ const inhalt = ref<HTMLElement | null>(null)
 // nicht mehr hier; `#/einstellungen?wkr` führt zur Veranstaltung – lib/adressen.ts `umzug`.)
 onMounted(async () => {
   // Das Sprungziel steht in der Sprache der Oberfläche in der Adresse (lib/router.ts).
-  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'betrieb', geraete: 'geraete' } as Record<string, string>)[sprungziel()]
+  const ziel = ({ wertung: 'wertung', ergebnislisten: 'ergebnislisten', pokal: 'pokal', dateien: 'dateien', offline: 'offline', anzeigetafel: 'anzeigetafel', betrieb: 'betrieb', geraete: 'geraete', gewichte: 'gewichte' } as Record<string, string>)[sprungziel()]
   if (!ziel) return
   await nextTick()
   document.getElementById(ziel)?.scrollIntoView?.({ block: 'start' })
@@ -266,10 +268,17 @@ const LAUFZETTEL_LAYOUTS: LaufzettelLayout[] = ['seite', 'liste']
 // das Regelwerk Englisch anbietet (UIM).
 const spracheWaehlbar = computed(() => bietetEnglisch(state.value.regelwerk))
 const listenSprache = computed(() => regelwerkSprache(state.value.regelwerk))
-// Gemeinsame Bögen der Clubmeisterschaft teilen sich die Leerzeilen je Seite (lib/bogen.ts): mit „Papier sparen“ und,
-// seit 24.11.2026, immer, wenn die Klassen in der Startfolge stehen – dort gibt es kein Ende einer Klasse.
-const inStartfolge = computed(() => state.value.wkrGemeinsamFolge === 'verzahnung')
-const leerJeSeite = computed(() => state.value.eventKind === 'club' && (state.value.wkrClubGemeinsam || inStartfolge.value))
+// Gemeinsame Bögen mehrerer Klassen (lib/wkrListen.ts gemeinsameBoegen): bei der Clubmeisterschaft immer, bei einer
+// Meisterschaft auf Wunsch (R11-03, 26.11.2026). Sie teilen sich die Leerzeilen je Seite (lib/bogen.ts): mit „Papier
+// sparen“ und, seit 24.11.2026, immer, wenn die Klassen in der Startfolge stehen – dort gibt es kein Ende einer Klasse.
+const gemeinsamArt = computed(() => gemeinsameBoegen(state.value))
+const inStartfolge = computed(() => gemeinsamArt.value.inStartfolge)
+const leerJeSeite = computed(() => gemeinsamArt.value.papierSparen || inStartfolge.value)
+/** „Papier sparen“: bei der Clubmeisterschaft die eigene Angabe, bei einer Meisterschaft die dritte Stufe (`alle`). */
+function setzePapierSparen(an: boolean) {
+  if (state.value.eventKind === 'club') dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: an })
+  else dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: an ? 'alle' : 'gleich' })
+}
 /** Wie die Klassen auf gemeinsamen Bögen stehen (Nutzer 24.11.2026); Reihenfolge der Knöpfe = Vorgabe zuerst. */
 const GEMEINSAM_FOLGEN: readonly WkrGemeinsamFolge[] = ['getrennt', 'verzahnung']
 function setzeLeerzeilenSeite(e: Event) {
@@ -753,6 +762,7 @@ function takeLegacy() {
     </div>
     <p class="note">{{ t('listopt.wkr.rowsHint') }}</p>
     <p v-if="state.eventKind === 'club'" class="note" data-hinweis="wkr-seiten-club">{{ t('listopt.wkr.rowsClub') }}</p>
+    <p v-else-if="gemeinsamArt.gemeinsam" class="note" data-hinweis="wkr-seiten-gemeinsam">{{ t('listopt.wkr.rowsJoint') }}</p>
     <!-- Nur unter einem Regelwerk mit Parallelslalom (UIM 960). -->
     <template v-if="parallel">
       <p class="note" data-hinweis="wkr-seiten-parallel">{{ t('listopt.wkr.rowsParallel') }}</p>
@@ -823,18 +833,31 @@ function takeLegacy() {
       {{ t('listopt.wkr.back') }}
     </label>
     <p class="note">{{ t('listopt.wkr.backHint') }}</p>
-    <!-- Nur bei der Clubmeisterschaft stehen mehrere Klassen auf einem Bogen. -->
-    <template v-if="state.eventKind === 'club'">
+    <!-- Mehrere Klassen auf einem Bogen: bei der Clubmeisterschaft immer, bei einer Meisterschaft (DM, UIM) auf Wunsch
+         (R11-03, 26.11.2026: „Wenn es schon da ist, kann man das auch bei den anderen nutzen.“), Vorgabe aus. -->
+    <template v-if="state.eventKind !== 'club'">
       <label class="boat-check" style="margin-top: 12px">
         <input
           type="checkbox"
-          data-feld="wkr-club-gemeinsam"
-          :checked="state.wkrClubGemeinsam"
-          @change="dispatch({ type: 'SET_WKR_CLUB_GEMEINSAM', gemeinsam: ($event.target as HTMLInputElement).checked })"
+          data-feld="wkr-meisterschaft-gemeinsam"
+          :checked="gemeinsamArt.gemeinsam"
+          @change="dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: ($event.target as HTMLInputElement).checked ? 'gleich' : 'aus' })"
+        />
+        {{ t('listopt.wkr.joint') }}
+      </label>
+      <p class="note">{{ t('listopt.wkr.jointHint') }}</p>
+    </template>
+    <template v-if="gemeinsamArt.gemeinsam">
+      <label class="boat-check" style="margin-top: 12px">
+        <input
+          type="checkbox"
+          :data-feld="state.eventKind === 'club' ? 'wkr-club-gemeinsam' : 'wkr-meisterschaft-papier'"
+          :checked="gemeinsamArt.papierSparen"
+          @change="setzePapierSparen(($event.target as HTMLInputElement).checked)"
         />
         {{ t('listopt.wkr.clubJoint') }}
       </label>
-      <p class="note">{{ t('listopt.wkr.clubJointHint') }}</p>
+      <p class="note">{{ state.eventKind === 'club' ? t('listopt.wkr.clubJointHint') : t('listopt.wkr.jointPaperHint') }}</p>
       <!-- Wie die Klassen auf einem gemeinsamen Bogen stehen (Nutzer 24.11.2026): in Blöcken oder in der Startfolge. -->
       <fieldset class="field" data-feld="wkr-gemeinsam-folge" style="border: 0; padding: 0; margin: 12px 0 0">
         <legend>{{ t('listopt.wkr.folge') }}</legend>
@@ -855,7 +878,8 @@ function takeLegacy() {
   </div>
 
 
-  <div class="panel">
+  <!-- id: Sprungziel `?durchschnittsgewichte` – der Block „Besetzung“ verweist auf den Ausgleich der Co-Piloten (26.11.2026). -->
+  <div id="gewichte" class="panel">
     <h2>{{ t('weigh.standards') }}</h2>
     <p class="hint">{{ t('weigh.standardsHint', { rulebook: regelwerk.label }) }}</p>
     <div class="setup-grid">
@@ -904,6 +928,27 @@ function takeLegacy() {
       {{ t('listopt.ausgleich.fehler', { min: kgText(AUSGLEICH_STUFE_MIN), max: kgText(AUSGLEICH_STUFE_MAX), beispiel: kgText(0.25), kg: kgText(state.ausgleichStufe) }) }}
     </p>
     <p class="note" data-hinweis="ausgleich-stufe">{{ t('listopt.ausgleich.hint') }}</p>
+    <!-- Ausgleich der Co-Piloten (Antwort des Nutzers vom 26.11.2026, R11-07: „Dann steht zur Wahl, ob das
+         Ausgleichsgewicht über alle Co-Piloten zählt oder nur pro Klasse.“). Vorgabe je Klasse wie DM-Reglement C3;
+         Namen und Gewichte stehen im Block „Besetzung“ der Veranstaltung. -->
+    <fieldset class="field" data-feld="co-pilot-ausgleich" style="border: 0; padding: 0; margin: 12px 0 0">
+      <legend>{{ t('listopt.coPilotAusgleich') }}</legend>
+      <label v-for="a in CO_PILOT_AUSGLEICHE" :key="a" class="boat-check">
+        <input
+          type="radio"
+          :name="`${id}-co-pilot-ausgleich`"
+          :value="a"
+          :data-wert="a"
+          :checked="state.coPilotAusgleich === a"
+          @change="dispatch({ type: 'SET_CO_PILOT_AUSGLEICH', ausgleich: a })"
+        />
+        {{ t(`listopt.coPilotAusgleich.${a}`) }}
+      </label>
+    </fieldset>
+    <p class="note" data-hinweis="co-pilot-ausgleich">
+      {{ t('listopt.coPilotAusgleich.hint') }}
+      <a :href="adresse('veranstaltung', { ziel: 'besetzung' })" data-verweis="besetzung">{{ t('listopt.coPilotAusgleich.link') }}</a>
+    </p>
   </div>
 
   <!-- Startnummern nach Westengröße (19.11.2026): Bereiche je Klasse und fehlende Westen. -->

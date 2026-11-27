@@ -247,7 +247,8 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
 - Nutzer 22.11.2026 (WKR_ANNAHMEN V3 bojenFolge, ersetzt V1/V2 vom 21.11.2026): ablage.ts GeraetAnsicht.`bojenFolge` =
   BojenFolgeWahl gedreht|fahrt|untereinander je Listen-Kennung (höchstens 8, nur bekannte Werte; fehlt = `gedreht`),
   bleibt wie Hand/Modus nach „Raum verlassen“; seit 24.11.2026 ebenso `bildLage` (BildLageWahl 0|90|180|270 je Liste,
-  Lage der Maske „Bild“, WKR_ANNAHMEN BL3, nur Zahlen, ≤ 8). Der alte Schlüssel `bojen` („Wie der Parcours liegt“) fällt in
+  Lage der Maske „Bild“, WKR_ANNAHMEN BL3, nur Zahlen, ≤ 8; seit 26.11.2026 heißen die Lagen nach Start/Ziel, BL7 – die
+  gemerkte Drehung bleibt gültig). Der alte Schlüssel `bojen` („Wie der Parcours liegt“) fällt in
   ansichtAus weg, liesAnsicht schreibt die Ansicht ohne ihn zurück. Kein neuer Kern, kein neues Protokoll; Disq. an der Boje (U1) geht als Buchstabe in der
   Bojenzelle über dieselbe Zeile (wkr/zeile.ts wertGilt = sanitizeBuoy) – seit W4-12 (21.11.2026, BZ1) neben den
   Punkten, seit R7-14 (22.11.2026, BZ6) mehrere mit Komma („5, J“, „5, J, D“, „10, G“; „5J“ ist ungültig), weiter ein
@@ -283,6 +284,14 @@ Der Host (Bedienrechner) ist die einzige Wahrheit: Geräte bekommen nie den AppS
   neuer Befehl, keine neue Fassung: WkrTabelle schickt über denselben Entwurf und `schicke`/`korrigiere` wie die Knöpfe.
   aufgaben.ts MASKEN_VORGABEN kannte `text` schon; ablage.ts `masken` ebenso. Nur Pad/Rechner (wkr/maskenWahl.ts
   maskeAufGeraet nach Art der Kopplung bzw. Fenstergröße).
+- Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN WH3/WH4/WH7): Ablehnungscode
+  `versuch-abgebrochen` (protokoll.ts ABLEHNUNGEN, i18n `geraete.ablehnung.versuch-abgebrochen`; PROTOKOLL_FASSUNG
+  bleibt 2 – ein älteres Gerät liest ihn als `wert-ungueltig`). Die Geräte bekommen einen Start je Versuch unter eigener
+  Kennung (wkr/versuch.ts, `["w", n, key]` nach n Abbrüchen; für sie undurchsichtig) – erfassen.ts braucht dafür nichts
+  Neues: Die Wiederholung ist für das Gerät ein neuer Start. WIEDERHOLUNG_AUSFALL und WIEDERHOLUNG_AUFHEBEN („Doch keine
+  Wiederholung“, 27.11.2026 – Werte und alte Kennung zurück, die eigene Zeile gilt wieder) sind Actions der Erfassung
+  und stehen bewusst NICHT in STARTFREIGABE_ACTIONS (nur am Bedienrechner, aufgaben.test.ts); Einreihen und Zeigen der
+  Wiederholung gehen vom Handy. Ende zu Ende: wkr.test.ts „Wiederholung nach Ausfall Ende zu Ende“.
 - Parcours-Ampel (Nutzer 21.11.2026, P-03; BETRIEB_ANNAHMEN AM6/AM7): aufgaben.ts STARTFREIGABE_ACTIONS +
   BETRIEB_DURCHFAHRT (bereinige: ref, an), AUTO_HALT ('BETRIEB_AUTO_HALT', keine Reducer-Action). host.ts: verteileFreigabe
   mit wkr/ampel.ts parcoursAmpel und autoIn; **Auto-Modus nur im Führungsfenster** (pruefeAuto in verteile() und im

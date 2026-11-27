@@ -416,6 +416,48 @@ describe('Einstellungen: Listenoptionen', () => {
     expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(false)
     wrapper.unmount()
   })
+
+  it('Meisterschaft: gemeinsame Bögen auf Wunsch, Vorgabe aus – mit „Papier sparen“ und der Folge wie bei der Clubmeisterschaft (R11-03)', async () => {
+    const wrapper = einstellungen(store)
+    const haken = (name: string) => feld(wrapper, name).element as HTMLInputElement
+    // Vorgabe: je Klasse ein Bogen; weder „Papier sparen“ noch die Folge stehen zur Wahl.
+    expect(store.state.value.wkrMeisterschaftGemeinsam).toBe('aus')
+    expect(haken('wkr-meisterschaft-gemeinsam').checked).toBe(false)
+    expect(feld(wrapper, 'wkr-meisterschaft-papier').exists()).toBe(false)
+    expect(feld(wrapper, 'wkr-gemeinsam-folge').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="wkr-seiten-gemeinsam"]').exists()).toBe(false)
+    // Einschalten: gleich aufgebaute Bögen zusammen, mit Bild; die feste Seitenzahl gilt dort nicht.
+    await feld(wrapper, 'wkr-meisterschaft-gemeinsam').setValue(true)
+    expect(store.state.value.wkrMeisterschaftGemeinsam).toBe('gleich')
+    expect(haken('wkr-meisterschaft-papier').checked).toBe(false)
+    expect(feld(wrapper, 'wkr-gemeinsam-folge').exists()).toBe(true)
+    expect(wrapper.find('[data-hinweis="wkr-seiten-gemeinsam"]').exists()).toBe(true)
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(false)
+    // Papier sparen: alle Klassen einer Liste, ohne Bild – die Leerzeilen stehen je Seite.
+    await feld(wrapper, 'wkr-meisterschaft-papier').setValue(true)
+    expect(store.state.value.wkrMeisterschaftGemeinsam).toBe('alle')
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(true)
+    await feld(wrapper, 'wkr-meisterschaft-papier').setValue(false)
+    expect(store.state.value.wkrMeisterschaftGemeinsam).toBe('gleich')
+    // Die Folge ist dieselbe Angabe wie bei der Clubmeisterschaft.
+    await wrapper.find('[data-feld="wkr-gemeinsam-folge"] input[data-wert="verzahnung"]').setValue(true)
+    expect(store.state.value.wkrGemeinsamFolge).toBe('verzahnung')
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(true)
+    // Ausschalten: wieder je Klasse; die gewählte Folge bleibt stehen, wirkt aber nicht.
+    await feld(wrapper, 'wkr-meisterschaft-gemeinsam').setValue(false)
+    expect(store.state.value.wkrMeisterschaftGemeinsam).toBe('aus')
+    expect(feld(wrapper, 'wkr-gemeinsam-folge').exists()).toBe(false)
+    expect(feld(wrapper, 'wkr-leerzeilen-seite').exists()).toBe(false)
+    // Die Clubmeisterschaft hat ihre eigene Angabe: kein Schalter für Meisterschaften, „Papier sparen“ wie bisher.
+    store.dispatch({ type: 'SET_EVENT_KIND', eventKind: 'club' })
+    await nextTick()
+    expect(feld(wrapper, 'wkr-meisterschaft-gemeinsam').exists()).toBe(false)
+    expect(haken('wkr-club-gemeinsam').checked).toBe(true)
+    await feld(wrapper, 'wkr-club-gemeinsam').setValue(false)
+    expect(store.state.value.wkrClubGemeinsam).toBe(false)
+    expect(store.state.value.wkrMeisterschaftGemeinsam).toBe('aus')
+    wrapper.unmount()
+  })
 })
 
 describe('Einstellungen: Listen der Veranstaltung und Form der Laufzettel', () => {

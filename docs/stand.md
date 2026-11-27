@@ -78,7 +78,7 @@ Es fehlen die Urkunden-Daten (gedacht als CSV/XLSX für Serienbriefe, Entscheidu
 
 ## Stand
 
-Stand 24.11.2026. Gebaut und mit Tests geprüft ist, was die Etappen E1–E8 und W1–W5 vorsahen; offen sind vor allem
+Stand 27.11.2026. Gebaut und mit Tests geprüft ist, was die Etappen E1–E8 und W1–W5 vorsahen; offen sind vor allem
 die Feldtests.
 
 - **Vor dem Wettkampf, Listen und Wertung:** Starter, Startnummern, Verwiegung, Verzahnung, WKR-Bögen, Laufzettel,
@@ -99,15 +99,19 @@ die Feldtests.
   Am Bedienrechner: Matrix Listen × Starts, Eingang für Rückfragen und Vorschläge, ◆ und „Papier ansehen“ in der
   Erfassung, Parcours-Ampel mit Auto-Modus in der Start-Freigabe.
   Werte vom Gerät gehen denselben Weg wie das Abtippen; eine belegte Zelle wird nie still überschrieben.
-- **Antworten des Nutzers:** Die Runden bis 10 der Fragenseite (21.–24.11.2026) und die Wünsche vom 24.11.2026 sind
-  eingebaut. Zuletzt u. a.: mehrere Disq. an einer Boje („5, J, D“), langes Drücken auf eine Boje, die Bahn des
-  Parallelslaloms auf Gerät und Fahrweg-Bogen, Höchstzahl je Code (der dritte Tipp auf „2. und 3. Versuch“ setzt
+- **Antworten des Nutzers:** Die Runden bis 11 der Fragenseite (21.–26.11.2026) und die Wünsche vom 24.11.2026 sind
+  eingebaut. Aus Runde 11 (26.11.2026): Geburtstags-Warnung in zwei Stufen (gelber Hinweis bis 14 Tage, rote Warnung bis
+  2 Tage um den ersten Wettkampftag), gemeinsame WKR-Bögen auf Wunsch auch bei DM- und UIM-Meisterschaften, Co-Piloten
+  je Klasse mit Ersatz und Gewicht samt eigenem Ausgleichsgewicht, Wiederholung eines Laufs nach bestätigtem Ausfall,
+  die Lage der Zeichnung nach Start/Ziel benannt, „↩ Rückgängig“ mit Pfeil nach links, in der Übung rollt nur noch die
+  Erklärung aus dem Bild. Davor u. a.: mehrere Disq. an einer Boje („5, J, D“), langes Drücken auf eine Boje, die Bahn
+  des Parallelslaloms auf Gerät und Fahrweg-Bogen, Höchstzahl je Code (der dritte Tipp auf „2. und 3. Versuch“ setzt
   Disq. D), „Nicht gestartet · Disq. X“ statt „Nicht vorbeigekommen“, Lage der Zeichnung im „Bild“, das
   Ausgleichsgewicht auf dem Steg-Gerät und in einstellbaren Stufen, gemeinsame WKR-Bögen der Clubmeisterschaft nach der
   Verzahnung, Geburtstags-Warnung nach DM-Reglement C8, Buchstabe D für Klasse E wählbar auch unter DM, Stichentscheid
   der Einzelwertung nach Regel 960 Pkt. 5.2.6 (im Parallelslalom die letzte, dann die vorletzte gefahrene Runde).
-  Einzelheiten mit Datum: [entscheidungen.md](entscheidungen.md), zur WKR-Erfassung ab
-  [Digitale WKR-Erfassung](entscheidungen.md#digitale-wkr-erfassung-antworten-21112026), dazu die Pläne `plan-*.md`.
+  Einzelheiten mit Datum: [entscheidungen.md](entscheidungen.md), zur WKR-Erfassung ab [Digitale
+  WKR-Erfassung](entscheidungen.md#digitale-wkr-erfassung-antworten-21112026), dazu die Pläne `plan-*.md`.
 
 ## Was offen ist
 
@@ -118,11 +122,11 @@ die Feldtests.
   Handy (21.11.2026) sind eingearbeitet, die Checkliste ist noch nicht abgearbeitet.
 - **W6 nach Befund** ([plan-wkr-w5.md](plan-wkr-w5.md)): die Maske „Bild“ eigens für das Handy hochkant, Zeit-Listen
   eigens für das Handy, im Parallelslalom ein Steg-Gerät für beide Seiten („A | B“ in einer Maske).
-- **Offene Fragen** an den Nutzer für die nächste Runde der Fragenseite (Runde 11), gesammelt unter
-  [Offen](entscheidungen.md#offen): vor allem die Auslegungen vom 24.11.2026 (Ausgleichsgewicht am Steg und seine
-  Stufen, Geburtstags-Warnung, gemeinsame WKR-Bögen auch für DM und UIM, Höchstzahl je Code,
-  „Nicht gestartet · Disq. X“, Stichentscheid der Einzelwertung), dazu ältere zum Gerätebetrieb (E6–E8) und zu den
-  getrennten Finals.
+- **Offene Fragen** an den Nutzer für die nächste Runde der Fragenseite, gesammelt unter
+  [Offen](entscheidungen.md#offen): vor allem, was beim Umbau nach Runde 11 neu ausgelegt wurde (Wiederholung nach
+  Ausfall, Co-Piloten mit Ersatz und Gewicht, Einzelheiten der Geburtstags-Warnung und der gemeinsamen WKR-Bögen),
+  dazu einzelne Auslegungen zur Höchstzahl je Code, zu „Nicht gestartet · Disq. X“ und zur Übung, ältere zum Koppeln
+  (E7) und zu den getrennten Finals.
 - **Wackelige Tests:** Zwei Ende-zu-Ende-Tests in `src/GeraetWkr.test.ts` schlagen unter Last gelegentlich fehl
   (feste Zeitgrenze beim Warten). Auf GitHub laufen sie seit 24.11.2026 nur auf Wunsch, lokal und im pre-commit-Hook
   immer ([technik.md](technik.md#tests)). Die Ursache ist nicht behoben.
@@ -185,8 +189,8 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
     → Ein Bogen gilt je Klasse und Lauf, die Starter stehen darauf in der Startfolge der Verzahnung. Stehen mehrere
     Klassen auf einem Bogen (Clubmeisterschaft), gibt es seit 24.11.2026 die Wahl „Klassen auf gemeinsamen Bögen“
     (Einstellungen → Wettkampfrichter-Listen): getrennt, je Klasse ein Block mit Überschrift, oder nach der
-    Verzahnung, gemischt in der Startfolge. Für DM- und UIM-Meisterschaften offen
-    ([entscheidungen.md](entscheidungen.md#offen)).
+    Verzahnung, gemischt in der Startfolge. Seit 26.11.2026 gibt es gemeinsame Bögen auf Wunsch auch bei DM- und
+    UIM-Meisterschaften (Haken „Gemeinsame Bögen …“ an derselben Stelle), mit derselben Wahl.
   - [x] leichte Grau- oder Farbtöne für andere Klassen
     → anders gelöst (Nutzer 24.11.2026: „Farben brauchen wir nicht“): getrennt trägt jeder Block die Klasse als
     Überschrift, nach der Verzahnung steht sie in der Spalte „Kl.“ hinter der Startnummer.
@@ -194,8 +198,9 @@ Hier nur eine grob sortierte Auflistung der meisten Ideen:
           ausgrauen → Spalten, die eine Klasse nicht hat, sind in ihren Zeilen kräftig schraffiert wie die Zeile
           eines Dummys im Parallelslalom (seit 24.11.2026)
   - [x] Auch mehrere Klassen auf einer Seite (konfigurierbar)
-    → bei der Art „Clubmeisterschaft“ (Reiter „Veranstaltung“); Listen mit Parcoursbild bleiben je Klasse, außer mit
-    „Papier sparen“ (dann ohne Parcoursbild)
+    → bei der Art „Clubmeisterschaft“ (Reiter „Veranstaltung“), seit 26.11.2026 auf Wunsch auch bei Meisterschaften
+    („Einstellungen → Wettkampfrichter-Listen → Gemeinsame Bögen“); Listen, deren Zeichnung sich je Klasse
+    unterscheidet, bleiben je Klasse, außer mit „Papier sparen“ (dann ohne Parcoursbild)
     - Bei Clubmeisterschaften oder kleinen Wettkämpfen mit nur 1–2 Startern pro Klasse macht eine eigene Liste keinen
       Sinn
   - [x] Übertragung von Listen in das Programm mit gleicher Ansicht

@@ -480,10 +480,15 @@ export const WKR_ANNAHMEN = {
    */
   disqAlsSchalter: true,
   /**
-   * (H2) Ein Code-Tipp zählt +1 („2x20“); „↶ Rückgängig“ nimmt den letzten Tipp – Code ODER Disq. – zurück, der
+   * (H2) Ein Code-Tipp zählt +1 („2x20“); „↩ Rückgängig“ nimmt den letzten Tipp – Code ODER Disq. – zurück, der
    * Text der Bemerkung zählt nicht als Tipp (er hat sein eigenes Feld). Bestätigt 21.11.2026 (W3-20).
    * Nutzer 24.11.2026: Der Knopf heißt „↶ Rückgängig“ (en „↶ Undo“), vorher „− letzte zurück“; seitdem zählt ein Code
    * höchstens bis zu seinem `max` (CM1–CM4).
+   * Nutzer 26.11.2026 (R11-30 (2)): „Der Pfeil … soll nach links und nicht nach unten zeigen“ – „↩ Rückgängig“ (en
+   * „↩ Undo“). Der Pfeil ist eine Zeichnung im Knopf (components/wkr/WkrFuss.vue `.wkr-pfeil`), kein Schriftzeichen:
+   * ↩ (U+21A9) fehlt in den Schriften der App (system-ui, Roboto, Segoe UI, Helvetica, Arial – geprüft 26.11.2026) und
+   * käme auf Handys als buntes Emoji. Der Text heißt nur „Rückgängig“; „Rückgängig“ in der Leiste „Zuletzt“ (G8) trug
+   * nie ein Zeichen und bleibt so.
    */
   zurueckLetzterTipp: true,
   /**
@@ -851,7 +856,7 @@ export const WKR_ANNAHMEN = {
   bojenPunkte: 5,
   /**
    * (P5) Ein Zähler nimmt höchstens so viele Tipps je Feld an (danach sagt der Knopf es kurz); zurück nur über
-   * „↶ Rückgängig“. 9 × 5 = 45 Punkte an einer Torboje – mehr ist am Wasser nicht zu sehen, ein Hänger am Knopf
+   * „↩ Rückgängig“. 9 × 5 = 45 Punkte an einer Torboje – mehr ist am Wasser nicht zu sehen, ein Hänger am Knopf
    * soll keine Zahl erzeugen, die keiner bemerkt. 21.11.2026, bestätigt 21.11.2026 (W4-08).
    */
   bojenZaehlerMax: 9,
@@ -903,7 +908,7 @@ export const WKR_ANNAHMEN = {
    * Der Nutzer entschied am 21.11.2026 (W4-12): „Wichtig ist auch, dass es dann passieren kann, dass Fehlerpunkte (5)
    * und ein Disq.-Grund in der gleichen Bojenspalte stehen können müssen.“ Seitdem (BZ1–BZ3): Setzen lässt die
    * Berührungen stehen, Herausnehmen nimmt nur den Buchstaben, eine Boje mit Buchstaben nimmt weiter Tipps (wkr/maske.ts
-   * tippeBoje, tippeBojenDisq); „↶ Rückgängig“ nimmt einen Buchstaben wie jeden Tipp zurück (ein ersetzter
+   * tippeBoje, tippeBojenDisq); „↩ Rückgängig“ nimmt einen Buchstaben wie jeden Tipp zurück (ein ersetzter
    * Buchstabe kommt wieder – seit BZ7 22.11.2026 ersetzt keiner mehr, jeder Buchstabe kommt dazu). 21.11.2026, noch zu
    * bestätigen.
    * Bestätigt 22.11.2026 (R7-19).
@@ -951,7 +956,7 @@ export const WKR_ANNAHMEN = {
    * (BZ7, 22.11.2026, R7-14) Disq.-Wahl an einer Boje ist eine Mehrfachwahl: Jeder Buchstabe schaltet sich an bzw.
    * aus (zweiter Tipp setzt, H1), die Wahl bleibt offen, „Fertig“ (`disq-ort-fertig`, zeigt „Fertig · J, D“) schließt
    * und zeigt die Bojen wieder – in WkrDisqOrt und im Bild (WkrBild). Vorher schloss der erste Buchstabe, ein zweiter
-   * ersetzte ihn. „↶ Rückgängig“ nimmt den zuletzt gesetzten Buchstaben heraus (Merker je Buchstabe in
+   * ersetzte ihn. „↩ Rückgängig“ nimmt den zuletzt gesetzten Buchstaben heraus (Merker je Buchstabe in
    * wkr/maske.ts, der Ersetzt-Merker entfällt). In der Probe ist der Schritt „Disq. an Boje“ erst mit „Fertig“
    * erledigt. Beim Bau 22.11.2026, noch zu bestätigen.
    * Bestätigt 23.11.2026 (R9-02).
@@ -1174,7 +1179,7 @@ export const WKR_ANNAHMEN = {
    * (S1) Prellschutz der Bojen-Schalter: Ein zweiter Tipp auf denselben Schalter innerhalb dieser Zeit wird verworfen
    * (components/wkr/WkrMaske.vue tippeBojeKnopf, Zeitmarke je Feld). Sonst nähme ein prellender Handschuh-Tipp oder ein
    * ungeduldiger zweiter Tipp die Berührung still wieder weg, und „Fehlerfrei“ schickte den Start ohne die 5 Punkte.
-   * Wegnehmen bleibt per Tipp möglich (danach, oder über „↶ Rückgängig“). Zähler (Tor 5) zählen jeden Tipp – die
+   * Wegnehmen bleibt per Tipp möglich (danach, oder über „↩ Rückgängig“). Zähler (Tor 5) zählen jeden Tipp – die
    * Zahl zeigt es. 400 ms: länger als ein Prellen, kürzer als ein bewusstes „doch nicht“. 21.11.2026, bestätigt
    * 21.11.2026 (W4-23).
    */
@@ -1325,9 +1330,11 @@ export const WKR_ANNAHMEN = {
    * (BETRIEB_ANNAHMEN.abgemeldetNurDurchX), fällt aus jeder Schlange (auch der anderen Geräte); die Matrix zeigt ✕ auf
    * allen Listen; die Parcours-Ampel gilt als durch (AM4). Keine Abmeldung: `AppState.abgemeldet` bleibt unberührt, es
    * betrifft nur diesen Lauf. Steg, Gerät nur für „Anlegen“ (beim Bau
-   * ausgelegt 24.11.2026, noch zu bestätigen): X ins gemeinsame `disq@steg` wie im Ablegen, mit dem Haken des Anlegens –
+   * ausgelegt 24.11.2026, bestätigt 26.11.2026): X ins gemeinsame `disq@steg` wie im Ablegen, mit dem Haken des Anlegens –
    * an Stelle des früheren ⊘. 24.11.2026. Steht im gemeinsamen Feld schon ein Buchstabe des anderen Teils, kommt X
    * nicht dazu (kein „A, X“), sondern wird eine Rückfrage (NG6, Prüfbefund 24.11.2026).
+   * Bestätigt 26.11.2026 (R11-10: auch ein Gerät nur fürs Anlegen meldet „Nicht gestartet“; R11-12: Rückfrage im
+   * gemeinsamen Feld).
    */
   nichtGestartetWirkung: true,
   /**
@@ -1336,10 +1343,11 @@ export const WKR_ANNAHMEN = {
    * leer mit `vorher` X – der Bedienrechner nimmt es heraus wie jede Korrektur (uebernahmeNurVorher). Am Steg
    * (gemeinsames Feld) ebenso, solange dort nur das eigene X steht; steht dort mehr (der Bediener hat „X, A“
    * geschrieben – still kommt seit NG6 kein Buchstabe mehr neben X), wird der Wegfall eine Rückfrage `entfernt` (F16).
-   * Am Steg-Ablegen und Vorsteg bleibt X im Entwurf (dort gibt es den Knopf). Beim Bau ausgelegt 24.11.2026, noch zu
-   * bestätigen. Dieselbe Regel (wkr/maske.ts ohneFremdesX) gilt seit dem Prüfbefund 24.11.2026 auch für „Rückgängig“
+   * Am Steg-Ablegen und Vorsteg bleibt X im Entwurf (dort gibt es den Knopf). Beim Bau ausgelegt 24.11.2026. Dieselbe
+   * Regel (wkr/maske.ts ohneFremdesX) gilt seit dem Prüfbefund 24.11.2026 auch für „Rückgängig“
    * einer noch wartenden X-Zeile (holeZurueck legt ihre Zellen als Entwurf zurück): Der Start steht ohne X wieder da,
    * der Entwurf im Ausgang zieht mit – vorher zeigte der Fuß „Disq. X“, abgeschickt kam aber „fehlerfrei“ an.
+   * Bestätigt 26.11.2026 (R11-30 (3)).
    */
   nichtGestartetKorrektur: true,
   /**
@@ -1348,11 +1356,13 @@ export const WKR_ANNAHMEN = {
    * wkr/zeile.ts; und umgekehrt wird ein Buchstabe des anderen Teils neben einem stehenden X eine Rückfrage `zelle`,
    * wkr/uebernahme.ts – X nie still neben anderen Buchstaben, BZ2); stehen nur in ANDEREN Zellen schon Werte
    * (abgetippt), kommt X ohne Rückfrage dazu – die Erfassung zeigt den Starter dann als nicht gestartet neben seinen
-   * Werten (beim Bau ausgelegt 24.11.2026, noch zu bestätigen).
+   * Werten (beim Bau ausgelegt 24.11.2026).
    * Das Kennzeichen ⊘ und alles daran (WkrStand.nichtVorbei, GeraeteZeile.n, Ablehnung `nv-nicht-erlaubt`, Matrix ⊘,
    * „Papier ansehen“, Verlauf `wkrNichtVorbei`, Abschluss „n nicht vorbeigekommen“) ist entfernt – X ersetzt es ganz,
    * ein alter Stand verliert es beim Laden (keine Abwärtskompatibilität nötig). Im Verlauf ist eine X-Zeile „Eingabe vom
    * Gerät“. 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-12): Werte in anderen Zellen → X ohne Rückfrage dazu; ein anderer Buchstabe im
+   * Disq.-Feld (auch im gemeinsamen Feld am Steg, in beide Richtungen) → Rückfrage jedes Mal.
    */
   nichtGestartetStattKennzeichen: true,
   /**
@@ -1546,12 +1556,13 @@ export const WKR_ANNAHMEN = {
    * (Y5) Nutzer 24.11.2026: „Klasse vorziehen kann unterhalb von Übung verlassen, da es diese Einstellung normalerweise
    * nicht gibt.“ – in „Mehr“ steht sie seitdem ganz unten unter „Probe · Übung verlassen“ (vor der Namensnennung der
    * Zeichnung), am Tisch (Prüfliste ohne „Mehr“) unter dem Hauptknopf, direkt über „Übung beenden“. Beim Bau
-   * 24.11.2026: am Tisch nicht UNTER „Übung beenden“ (das gehört WkrGeraet, nicht der Liste), noch zu bestätigen.
+   * 24.11.2026: am Tisch nicht UNTER „Übung beenden“ (das gehört WkrGeraet, nicht der Liste).
+   * Bestätigt 26.11.2026 (R11-30 (7)).
    */
   uebungVorziehenUnten: true,
   // --- Übung: Kopf aus dem Bild nach dem Abschicken (Nutzer 24.11.2026: „Bei dem Header ‚So läuft die Übung‘ und
   // ‚ÜBUNG Tor X bla bla‘ soll beim Klicken auf ‚Fehlerfrei/weiter‘ aus dem Screen rutschen, so dass der Block mit der
-  // Startnummer am Bildschirmrand ist.“) ---
+  // Startnummer am Bildschirmrand ist.“) – seit 26.11.2026 (R11-14) bleibt der Kopf, nur die Erklärung geht (UK7) ---
   /**
    * (UK1) Nach dem Abschicken (Hauptknopf, Enter der Tabelle, „Nicht gestartet“) rollt die Seite in der Übung, bis der
    * Kopf („ÜBUNG“, Liste, Verbindung) und alles darüber („So läuft die Übung“, Bildschirm-Hinweis) oben hinaus sind
@@ -1559,12 +1570,30 @@ export const WKR_ANNAHMEN = {
    * sobald die nächste Karte steht, wird noch einmal ausgerichtet (UK5). Mit „Bewegung reduzieren“ ohne Gleiten.
    * Nur in der Übung: Die echte Maske zeigt im Kopf Verbindung, „Keine Bestätigung“ und „Bitte Nr. prüfen“ – das soll
    * nicht oben hinausrollen (Frage an den Nutzer). Beim Bau 24.11.2026, noch zu bestätigen.
+   * NICHT bestätigt 26.11.2026 (R11-14) – auf die Frage, ob der Kopf auch am Wettkampftag hinausrollen soll, Nutzer: „Oh,
+   * dann besser wieder raus damit. Ich dachte, es ist eine extra Zeile.“ Der Kopf rollt auch in der Übung nicht mehr
+   * hinaus; ersetzt durch UK7 ({@link WKR_ANNAHMEN.uebungErklaerungAusDemBild}).
    */
-  uebungKopfAusDemBild: true,
+  uebungKopfAusDemBild: false,
+  /**
+   * (UK7) Nutzer 26.11.2026 (R11-14): Der Kopf der Maske (Liste, Verbindung, Warnungen „Keine Bestätigung“, „Bitte Nr.
+   * prüfen“) bleibt immer zu sehen. In der Übung rollt nach dem Abschicken nur die Erklärung „So läuft die Übung“
+   * oben hinaus: Die Spalte der Liste kommt an den oberen Rand, also der Kopf mit „ÜBUNG“, darunter Steg-Reiter,
+   * „Zuletzt“ mit „↩ Rückgängig“ und die Karte (components/wkr/WkrMaske.vue erklaerungAusDemBild, WkrPruefliste
+   * ebenso, systemModus.ts rolleAnDenRand/zielNachErklaerung). Der Hinweis „Bildschirm kann ausgehen“ steht seit
+   * 27.11.2026 UNTER der Erklärung und bleibt als Warnung über dem Kopf stehen (Prüfbefund 27.11.2026: er lag darüber
+   * und rollte mit hinaus; mit „Ausblenden“ ist er weg – ausgelegt 27.11.2026, noch zu bestätigen). UK2 und UK5 gelten
+   * weiter. Beim Bau
+   * ausgelegt 26.11.2026, noch zu bestätigen: rollen statt die Erklärung nach dem ersten Abschicken zuzuklappen – das
+   * Zuklappen ließe die Zeile „So läuft die Übung ▸“ über dem Kopf stehen (der Kopf käme nicht an den Rand) und
+   * schöbe die Maske einmal sichtbar nach oben; gerollt bleibt die Erklärung offen und ist mit einem Wisch nach unten
+   * wieder da. Am Wettkampftag gibt es keine Erklärung, dort rollt nichts.
+   */
+  uebungErklaerungAusDemBild: true,
   /**
    * (UK2) Nicht auf dem Pad mit mehreren Spalten (WkrMaske `seite` kompakt): Die Seite rollt für alle Spalten zugleich,
-   * eine Liste würde der anderen den Kopf wegschieben. Pad mit einer Spalte und Handy: ja. Beim Bau 24.11.2026, noch zu
-   * bestätigen.
+   * eine Liste würde der anderen den Kopf wegschieben. Pad mit einer Spalte und Handy: ja. Beim Bau 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-30 (8)); gilt seitdem für UK7.
    */
   uebungKopfNurEineSpalte: true,
   /**
@@ -1572,13 +1601,16 @@ export const WKR_ANNAHMEN = {
    * „Zuletzt“ mit „↶ Rückgängig“ (6 s, G8) und Rückfrage-Bänder bleiben sichtbar, direkt darunter die Karte. Beim
    * ersten Start (noch nichts in „Zuletzt“) steht die Karte am Rand, danach eine Zeile tiefer. Beim Bau 24.11.2026,
    * noch zu bestätigen.
+   * Entfällt 26.11.2026 mit UK1 (R11-14): Der Kopf bleibt stehen, „Zuletzt“ und die Karte stehen darunter (UK7).
    */
-  uebungKopfZuletztBleibt: true,
+  uebungKopfZuletztBleibt: false,
   /**
    * (UK4) Pad mit EINER Spalte und eigener Seitenspalte rechts (WkrMaske `seite` rechts): Der Kopf steht in derselben
    * Rasterzeile wie der Anfang der Seitenspalte („Schlange“, gerade aktiver Start). Rollte er hinaus, ginge der mit –
    * darum rollt die Maske dort nur bis zu ihrer eigenen Oberkante: die Übungs-Erklärung geht hinaus, der Kopf mit
-   * „ÜBUNG“ bleibt. Seitenspalte unten (Pad hochkant) und Handy: wie UK1. Prüfbefund 24.11.2026, noch zu bestätigen.
+   * „ÜBUNG“ bleibt. Seitenspalte unten (Pad hochkant) und Handy: wie UK1. Prüfbefund 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-30 (8)); seit R11-14 die Regel für jede Anordnung (UK7, Ziel ist die Spalte der Liste –
+   * so bleiben auch die Reiter der Listen auf dem Pad stehen).
    */
   uebungKopfSeiteRechts: true,
   /**
@@ -1587,7 +1619,7 @@ export const WKR_ANNAHMEN = {
    * wieder eine Karte steht (nicht schon am Ende des Overlays), und bis dahin hält die Maske die Höhe vom Abschicken
    * (min-height) – nichts springt zurück. Danach rollt nichts mehr von selbst bis zum nächsten Abschicken; eine
    * Korrektur dazwischen zählt nicht als neue Karte. Prüfbefund 24.11.2026 (vorher nur am Ende des Overlays – griff nur
-   * bei vorab wartendem Start).
+   * bei vorab wartendem Start). Gilt seit 26.11.2026 für UK7 (ausgerichtet wird die Spalte samt Kopf).
    */
   uebungKopfMitNaechsterKarte: true,
   /**
@@ -1595,6 +1627,8 @@ export const WKR_ANNAHMEN = {
    * „ÜBUNG“ hinaus, oben steht der Block „Nr. 9 · Klasse · offen“ mit dem Vorschlag. Ohne Takt und ohne Nachrollen
    * (der nächste Starter ist sofort vorbelegt, KN12); der Kopf steht dort über beiden Pad-Spalten. Prüfbefund
    * 24.11.2026, noch zu bestätigen.
+   * Umgebaut 26.11.2026 (R11-14) wie UK7: Nur die Erklärung rollt hinaus, der Kopf mit „ÜBUNG“ steht am Rand, darunter
+   * der Block „Nr. 9 · Klasse · offen“.
    */
   uebungKopfAmTisch: true,
   /**
@@ -2038,7 +2072,8 @@ export const WKR_ANNAHMEN = {
    * Wahl, die Zeichnung liegt nach Bogen und Platz (wkr/bild.ts wirksameDrehung) – gedrückt, solange nichts gewählt
    * ist; sonst ist die Wahl gedrückt. Ein Satz unter den Knöpfen nennt, wo Start/Ziel und Tor 5 gerade liegen, ohne
    * Wahl dazu „Automatisch: … wie auf dem Bogen, soweit der Platz es zulässt“. Nur unter „Mehr“ der Arbeit, nicht in
-   * Ruhe-Zuständen (wie die Bojen-Folge). Beim Bau 24.11.2026, noch zu bestätigen.
+   * Ruhe-Zuständen (wie die Bojen-Folge). Beim Bau 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-30 (4)). Die vier Knöpfe heißen seit 26.11.2026 „Start/Ziel …“ (BL7).
    */
   bildLageWahl: true,
   /**
@@ -2049,15 +2084,29 @@ export const WKR_ANNAHMEN = {
    * DREHUNG, keine Spiegelung: „Steg oben“ des Repositorys (Steg links oben, Parcours ungedreht) gibt es so nicht. Die
    * Parallel-Zeichnung hat keinen Steg (R9-06): dieselben Drehungen heißen „Start links/oben/rechts/unten“.
    * Beim Bau 24.11.2026, noch zu bestätigen.
+   * NICHT bestätigt 26.11.2026 (R11-13) – Nutzer: „Nein, Steg ist hier irreführend. Der steht immer anders.“ Umgebaut
+   * 26.11.2026: benannt nach Start/Ziel (BL7, {@link WKR_ANNAHMEN.bildLageNachStartZiel}).
    */
-  bildLageNachSteg: true,
+  bildLageNachSteg: false,
+  /**
+   * (BL7) Nutzer 26.11.2026 (R11-13): Die Lagen heißen auch bei den Klassen nach Start/Ziel wie beim Parallelslalom –
+   * „Start/Ziel links“ (0° = die Datei, wie bisher), „Start/Ziel oben“ (90° im Uhrzeigersinn), „Start/Ziel rechts“
+   * (180°), „Start/Ziel unten“ (270°), davor „Automatisch“ (BL1). Der Satz darunter nennt Start/Ziel und die Wende:
+   * „Start/Ziel oben, Tor 5 unten.“ (Parallelslalom: Knöpfe „Start …“, Satz mit Boje 5). Geprüft 26.11.2026 an allen
+   * Klassen-Zeichnungen und Parallel.svg: In der Datei liegt Start/Ziel im linken Viertel, Tor 5 bzw. Boje 5 im rechten
+   * (wkr/bild.ts BILD_LAGE_SEITE {start, wende}, Test bild.test.ts „BL7 an den echten Zeichnungen“). Gemerkt wird
+   * weiter die Drehung (geraete/ablage.ts GeraetAnsicht.bildLage): ein gemerkter Wert zeigt dieselbe Zeichnung wie
+   * vorher, nur der Name ist neu (früher „Steg links“ = 90° = jetzt „Start/Ziel oben“).
+   */
+  bildLageNachStartZiel: true,
   /**
    * (BL3) Die Wahl gilt genau so – auf Handy und Pad, unabhängig vom Platz (wkr/bild.ts wirksameDrehung `wahl`); die
    * Drehung des Bogens (Blick) und bildDrehungNachPlatz gelten nur ohne Wahl. Auf dem Handy wird eine stehende Zeichnung
    * (Steg links/rechts) sogar größer (nutzt die Höhe bis --wkr-bild-rest), die Maske aber länger; die Trefferkreise
    * bleiben ≥ bildTrefferMm und werden wie immer auseinandergeschoben. Gemerkt je Gerät und Liste wie die Bojen-Folge
    * (geraete/ablage.ts GeraetAnsicht.bildLage, ≤ 8 Listen, nur 0/90/180/270), bleibt nach „Raum verlassen“; gilt in
-   * Gerät, Übung und Probe am Bild. Beim Bau 24.11.2026, noch zu bestätigen.
+   * Gerät, Übung und Probe am Bild. Beim Bau 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-30 (4)); „Steg links/rechts“ heißen seit BL7 „Start/Ziel oben/unten“.
    */
   bildLageVorPlatz: true,
   /**
@@ -2076,7 +2125,8 @@ export const WKR_ANNAHMEN = {
    * (BL6) Die Bojen-Folge wirkt nur, wo sie wählbar ist (BL1): Beim Bild zeigt DISQ im Fuß die Ortswahl „Disq. – an
    * welcher Boje?“ (WkrDisqOrt, BD7) immer in der Vorgabe „Rückweg gedreht“ – nicht in einer Folge, die der WKR früher
    * bei den Knöpfen gewählt hat und beim Bild weder sieht noch ändern kann (WkrMaske bojenFolgeWirksam). Die gemerkte
-   * Wahl bleibt für die Knöpfe stehen. Prüfbefund 24.11.2026, noch zu bestätigen.
+   * Wahl bleibt für die Knöpfe stehen. Prüfbefund 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-30 (5)).
    */
   bildDisqOrtVorgabeFolge: true,
   // --- W5.3 Listen ohne Lauf und Knoten-Prüfliste (Plan docs/plan-wkr-w5.md §6, 22.11.2026, alle noch zu bestätigen) ---
@@ -2312,6 +2362,9 @@ export const WKR_ANNAHMEN = {
    * Ausnahme seit dem Prüfbefund 24.11.2026) – das gehört zur Entscheidung; Körper- und Durchschnittsgewicht selbst gehen nie auf die Leitung. Vorher
    * (F11, 21.11.2026, docs/vorschlag-wkr-erfassung.md §9): „kein Ausgleichsgewicht“, eigene Entscheidung mit dem
    * Check-In (E10). Welche Listen: diese Positionen.
+   * Bestätigt 26.11.2026 (R11-06): Das Gerät zeigt dieselbe gerundete Zahl wie die Papierliste, bei jeder Abstufung
+   * (auch 0,1 kg – gröber zeigen ginge nicht, sonst läge am Steg das falsche Gewicht im Boot); eine verschlüsselte
+   * Gruppe je Liste, ein Gerät nur fürs Anlegen empfängt den Wert mit und zeigt ihn nicht (AG3).
    */
   ausgleichListen: ['steg'] as readonly string[],
   /**
@@ -2322,26 +2375,33 @@ export const WKR_ANNAHMEN = {
    * (keine Eingabe, kein Haken „Gewicht geladen“): Ein in der Verwiegung (später beim Check-in) nachgetragenes Gewicht
    * kommt mit der nächsten Sicht von selbst aufs Gerät (geraete/host.ts verteilt bei jeder Änderung des Stands); auf
    * Papier bleibt bei „nicht gewogen“ ein Feld zum Eintragen von Hand (components/AusgleichListen.vue).
-   * Prüfbefund 24.11.2026 (noch zu bestätigen): Auf 0 kg gerundet (weniger als 0,5 kg leichter) und „gewogen, keines
-   * nötig“ sind am Steg dasselbe – das Gerät zeigt beides „kein AG“, die Papierliste beides leer (vorher druckte sie
-   * „0 kg“, ein zweiter Text für denselben Starter). Die Verwiegung zeigt weiter „0 kg“ bzw. „–“.
+   * Bestätigt 26.11.2026 (R11-29 (3)): kein Haken „Gewicht geladen“ am Steg; „Ablegen OK“ bestätigt nur die Fehler des
+   * Ablegens.
+   * Prüfbefund 24.11.2026, bestätigt 26.11.2026 (R11-29 (5)): Auf 0 kg gerundet (weniger als eine halbe Stufe leichter)
+   * und „gewogen, keines nötig“ sind am Steg dasselbe – das Gerät zeigt beides „kein AG“, die Papierliste beides leer
+   * (vorher druckte sie „0 kg“, ein zweiter Text für denselben Starter), die Liste nach Pkt. 3.7 „–“. Die Verwiegung
+   * zeigt weiter „0 kg“ bzw. „–“.
    */
   ausgleichNurLesen: true,
   /**
-   * (AG3) Wo es steht (beim Bau ausgelegt 24.11.2026, noch zu bestätigen): auf der Starterkarte neben der Startnummer,
+   * (AG3) Wo es steht (beim Bau ausgelegt 24.11.2026): auf der Starterkarte neben der Startnummer,
    * nur im Teil „Ablegen“ – dort kommt das Gewicht ins Boot –, auch auf einem Gerät für den ganzen Steg (im Reiter
    * bzw. in der Pad-Spalte „Ablegen“); im Teil „Anlegen“ nicht. Die Sicht ist EIN Inhalt der Steg-Gruppe: Ein Gerät nur
    * für „Anlegen“ empfängt den Wert verschlüsselt mit (wie `steht`, rueckfrageInListe) und hält ihn mit der Sicht im
    * Ausgang, zeigt ihn aber nicht – eine eigene Gruppe je Steg-Teil gibt es nicht (geraete/wkrGruppen.ts, eine je
    * Liste); als Rückfrage an den Nutzer gegeben (Prüfbefund 24.11.2026, docs/entscheidungen.md „Offen“). Die Schlange auf der
    * Seite des Pads (WkrSeite) zeigt ihn nicht – nur der Start auf der Karte.
+   * Bestätigt 26.11.2026 (R11-05: nur auf der Karte im Teil „Ablegen“, nicht im „Anlegen“ und nicht in der Liste der
+   * nächsten Starts; R11-06: eine Gruppe je Liste reicht; R11-29 (4): kurz „AG 4 kg“, „kein AG“, „AG: Gewicht fehlt“,
+   * englisch „Extra weight 4 kg“, „no extra weight“, „Extra weight: not weighed“, das ganze Wort nur als Tooltip).
    */
   ausgleichTeil: 'ab' as ListenTeil,
   /**
-   * (AG4) Übung (beim Bau 24.11.2026, noch zu bestätigen): Steg-Listen zeigen erfundene Werte, nur wenn das Regelwerk
+   * (AG4) Übung (beim Bau 24.11.2026): Steg-Listen zeigen erfundene Werte, nur wenn das Regelwerk
    * Durchschnittsgewichte kennt – je Startnummer reihum ein erfundener Abstand des Körpergewichts zum
    * Durchschnittsgewicht der Klasse in kg (`null` = nicht gewogen), gerechnet durch dieselbe Funktion wie am
    * Bedienrechner. So sieht man in der Übung „AG 4 kg“, „kein AG“ und „Gewicht fehlt“. Nichts davon gespeichert.
+   * Bestätigt 26.11.2026 (R11-30 (6)).
    */
   ausgleichUebung: [-4.4, 2, -1.6, null, -7.5, 0, -2.5] as readonly (number | null)[],
   // --- Höchstzahl je Code und Disq. nach dem 3. Versuch (Nutzer 24.11.2026 zur Maske „Knöpfe“: „Wenn man bei den 2. und
@@ -2361,19 +2421,20 @@ export const WKR_ANNAHMEN = {
    * Steg, Stillstand, Treten auf den Schlauch passen in drei Versuche. Unsicher und als Frage gestellt: Stegberührungen
    * (DM 3 „erneute Stegberührung“, 9 „Massive Stegberührung“; UIM 3, 9 „Stegberührung mit Zurückprallen“) und
    * „Durchreißen der Schaltung“ (DM 2, 5, 10, 16) – beides kann in EINEM Versuch mehrmals passieren. Bis zur Antwort
-   * gilt auch dort 3. 24.11.2026, noch zu bestätigen.
+   * gilt auch dort 3. 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-08) – auch für Stegberührungen und „Durchreißen der Schaltung“.
    */
   codeMaxAllgemein: 3,
   /**
    * (CM3) Der Tipp nach `max` auf einen Code mit `danach` (Nutzer 24.11.2026) zählt nicht weiter, sondern setzt den
    * Buchstaben im Disq.-Feld der Liste (am Steg im gemeinsamen `disq@steg`; ohne eigenes Feld im ersten Code-Feld, H1) –
-   * wkr/maske.ts tippe. Er steht in der Tipp-Folge wie ein DISQ-Tipp (Merker `#disq:D`): „↶ Rückgängig“ nimmt ihn
+   * wkr/maske.ts tippe. Er steht in der Tipp-Folge wie ein DISQ-Tipp (Merker `#disq:D`): „↩ Rückgängig“ nimmt ihn
    * heraus, der Zähler steht wieder bei 2; ein zweiter Tipp auf DISQ → D ebenso. Steht D schon (über DISQ gesetzt),
    * ändert der Tipp nichts. Der Knopf zeigt bei `max` „nächster = Disq. D“ und danach „Disq. D gesetzt“
    * (components/wkr/WkrKnoepfe.vue, wkr/maske.ts codeStand). Beim Bau ausgelegt 24.11.2026, noch zu bestätigen:
    * D schon gesetzt → nichts; Rückgängig = DISQ-Merker. Ein Tipp setzt D – ohne den zweiten Tipp der Disq.-Knöpfe
-   * (K1), weil der Nutzer „der dritte Klick“ sagt; gegen Prellen schützt CM8 (Prüfbefund 24.11.2026, noch zu
-   * bestätigen).
+   * (K1), weil der Nutzer „der dritte Klick“ sagt; gegen Prellen schützt CM8 (Prüfbefund 24.11.2026).
+   * Bestätigt 26.11.2026 (R11-09): Der dritte Tipp setzt D sofort. Weiter zu bestätigen: D schon gesetzt → nichts.
    */
   codeDanachStattZaehler: true,
   /**
@@ -2387,14 +2448,15 @@ export const WKR_ANNAHMEN = {
    * (CM5) Dieselbe Grenze überall, wo ein Gerät Codes schreibt: Maske „Tabelle“ meldet „3x6“ als Fehler der Zelle
    * (`code-zu-oft`, bei Codes mit `danach` `code-danach` – den Buchstaben trägt der WKR selbst unter „Disq.“ ein, die
    * Tabelle wandelt nichts um, TB3); der Bedienrechner lehnt eine Gerätezeile mit mehr als `max` ab (wkr/zeile.ts
-   * wertGilt → `wert-ungueltig`). Die Rund-Probe (entwurfAus) zählt höchstens bis `max`. 24.11.2026, noch zu bestätigen.
+   * wertGilt → `wert-ungueltig`). Die Rund-Probe (entwurfAus) zählt höchstens bis `max`. 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-30 (1)).
    */
   codeMaxGeraet: true,
   /**
    * (CM6) Abtippen am Bedienrechner: Was auf dem Papier steht, bleibt stehen („3x6“ wird nicht gekürzt und kein D
    * gesetzt) – die Zeile bekommt einen Hinweis wie andere unplausible Eingaben (lib/erfassung.ts `codeZuOft`, bei
-   * Codes mit `danach` `codeDanach` „… Disq. D?“). Entscheiden muss, wer das Papier vor sich hat. 24.11.2026, noch zu
-   * bestätigen.
+   * Codes mit `danach` `codeDanach` „… Disq. D?“). Entscheiden muss, wer das Papier vor sich hat. 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-30 (1)).
    */
   codeMaxAbtippenHinweis: true,
   /**
@@ -2410,8 +2472,8 @@ export const WKR_ANNAHMEN = {
    * liegen nie so dicht. Codes ohne `danach` zählen weiter jeden Tipp (wie S1 bei Zählern: die Zahl zeigt es, ein
    * Tipp zu viel kostet Punkte, keine Disqualifikation). wkr/maske.ts codeTippPrellt, Uhr in components/wkr/
    * WkrMaske.vue tippeCode; die Probe (WkrProbe) prellt wie bei den Bojen nicht. Statt einer zweiten Bestätigung
-   * wie K1 – offen gefragt: „der dritte Klick“ (Nutzer) gegen „Disq. erst mit dem zweiten Tipp“ (K1). 24.11.2026,
-   * noch zu bestätigen.
+   * wie K1 – gefragt: „der dritte Klick“ (Nutzer) gegen „Disq. erst mit dem zweiten Tipp“ (K1). 24.11.2026.
+   * Bestätigt 26.11.2026 (R11-09): ein Tipp setzt D, mit Prellschutz.
    */
   codeDanachPrellschutz: true,
 } as const

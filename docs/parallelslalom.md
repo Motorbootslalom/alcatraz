@@ -320,7 +320,7 @@ Die Ansicht „Verzahnung → Parallel-Slalom“ zeigt sie unter dem Plan des Vo
   (siehe [Betrieb](#betrieb-start-freigabe-und-anzeigetafel)).
   Woran eine unfertige Klasse hängt (Hinweise der Druckdatei, Einzel- und Mannschaftswertung), nennt von den Finals
   das erste nicht fertige – das Kleine Finale, solange es nicht gefahren ist, auch wenn das Finale schon
-  festgeschrieben werden kann (`offeneRunde`; beim Bau ausgelegt 21.11.2026, noch zu bestätigen). Der Hinweis
+  festgeschrieben werden kann (`offeneRunde`; beim Bau ausgelegt 21.11.2026, bestätigt 26.11.2026). Der Hinweis
   „… Erst wenn jeder beide Versuche gefahren oder disqualifiziert ist, geht es weiter“ unter der Klasse steht nur,
   solange nichts festzuschreiben ist; dass die Runde erfasst wird, steht ohnehin in ihrer Zeile („wird erfasst“).
 - **Verzahnt wie der Vorlauf** (19.11.2026, „Es fährt immer großes Boot/kleines Boot im Wechsel“):
@@ -381,7 +381,7 @@ die Werte).
 
 - Ändert ein Protest das Ergebnis davor, bleibt der Plan, wie er gedruckt ist, und gilt als veraltet (Warnung).
   Nach einem Protest im Halbfinale nennt die Warnung zuerst das Kleine Finale, weil es zuerst gefahren wird
-  (beim Bau ausgelegt 21.11.2026, noch zu bestätigen).
+  (beim Bau ausgelegt 21.11.2026, bestätigt 26.11.2026); nach dessen Löschen das Finale.
 - Solange ein Plan der Klasse veraltet ist, hat sie kein Gesamtergebnis der Stage und keine Einzelwertung.
   Wertungslisten und Druckdatei nennen die Klasse mit der Runde
   („Plan passt nicht mehr zum Ergebnis davor: löschen und neu festschreiben“).
@@ -502,7 +502,8 @@ hier nicht als bestätigt vermerkt ist.
   „Als Nächster“ und gezielt Gezeigtes kommen hinter das zuletzt Gezeigte ihrer Runde, „Ans Ende der Runde“ ans Ende
   ihrer Runde, nie in eine spätere. Klassen aussetzen oder vorziehen und Starts verschieben gibt es hier nicht: Der
   Plan gibt die Folge vor (Paare, Blöcke im Wechsel der Bootstypen, Tausch zum 2. Attempt); die Karte sagt das statt
-  „Klassen · Boot fehlt“.
+  „Klassen · Boot fehlt“. Auch „Wiederholung (Ausfall) …“ des Manövrierens (26.11.2026,
+  [funktionen.md](funktionen.md#start-freigabe)) gibt es hier nicht – wiederholt wird im Parallelslalom nur im Re-run.
 - **Startliste und Zuschauerliste:** je Zeile bzw. Karte ein Paar mit Racecourse A und B; „am Steg“ und „vor Steg“
   wie im Manövrieren, aber **ohne geschätzte Wartezeit**: Paarstarts werden nicht gemessen – ihr Takt (zwei Boote
   zugleich, kurzer Racecourse, Tausch zum 2. Attempt) verzerrte die Abstände der Klassen fürs Manövrieren, und eine
@@ -547,8 +548,9 @@ Die race officials können auch im Parallelslalom am eigenen Gerät erfassen. Be
   `A_Boje5`, `A_StartZiel_oben`/`_unten`); der Sync prüft sie nur und bricht ab, wenn eine fehlt, doppelt ist oder
   doch die zweite Bahn bzw. der Steg drin ist. Fehlt die Datei, zeigt das Gerät ein Schema (für A und B gleich).
   Unter „Mehr → Ansicht“ lässt sich die „Lage der Zeichnung“ wählen; weil sie keinen Steg hat, heißen die vier
-  Drehungen „Start links“, „Start oben“, „Start rechts“, „Start unten“, davor „Automatisch“ (24.11.2026, noch zu
-  bestätigen); das Schema dreht nicht. Dieselbe Bahn trägt der Fahrweg-Bogen auf Papier
+  Drehungen „Start links“, „Start oben“, „Start rechts“, „Start unten“, davor „Automatisch“ (24.11.2026; „Automatisch“
+  und die Wahl je Gerät und Liste bestätigt 26.11.2026, die Klassen-Zeichnungen heißen seitdem nach Start/Ziel statt
+  nach dem Steg); das Schema dreht nicht. Dieselbe Bahn trägt der Fahrweg-Bogen auf Papier
   (siehe [WKR-Listen des Vorlaufs](#wkr-listen-des-vorlaufs)).
 
 ## Dummys und Wörter
@@ -559,7 +561,7 @@ Die race officials können auch im Parallelslalom am eigenen Gerät erfassen. Be
 - Die Runden heißen „Preliminary heat“, „Semi-finals“, „Small final“, „Final“, „Re-run“
   („Small final“ statt des Regelbuch-Wortlauts „compete for the 3rd and 4th place“, Entscheidung vom 15.11.2026).
   Seit 21.11.2026 ist das Kleine Finale eine eigene Runde; der frühere Zusatz „(3rd and 4th place)“ entfällt, weil
-  die Runde ihn sagt (beim Bau ausgelegt, noch zu bestätigen). Die Rundennamen stehen doppelt: i18n
+  die Runde ihn sagt (beim Bau ausgelegt, bestätigt 26.11.2026). Die Rundennamen stehen doppelt: i18n
   `parallel.round.*` (über `rundenName`) und `bogenTexte().runde` in `src/config/sprache.ts` – beide gleich halten.
 - Deutsch: Vorlauf, Halbfinale, Kleines Finale, Finale, Wiederholung.
 
@@ -675,7 +677,7 @@ an einer Stelle umstellbar: `EINZEL_FESTLEGUNGEN` in `src/lib/einzelwertung.ts`.
   Parallelslaloms, die zählt), steht **hinter** den Punktgleichen mit Zeit (15.11.2026).
   Eine Disqualifikation ist eine Wertung, damit letzter Platz unter den Punktgleichen.
   Mehrere solche teilen sich diesen hinteren Platz.
-- Beim Bau ausgelegt (24.11.2026, vom Nutzer noch zu bestätigen; `gefahreneRunden` und `einzelwertung` in
+- Beim Bau ausgelegt (24.11.2026, vom Nutzer bestätigt 26.11.2026; `gefahreneRunden` und `einzelwertung` in
   `src/lib/einzelwertung.ts`):
   - Eine Runde, in der er keinen Attempt gestartet ist – in keinem Attempt eine Zeit oder eine Disqualifikation außer
     X „Nicht gestartet“ (X in beiden, oder X im einen und der andere leer) –, gilt nicht als gefahren; dann zählt die

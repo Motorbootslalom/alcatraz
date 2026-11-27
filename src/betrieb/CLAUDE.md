@@ -44,6 +44,16 @@ start release.
   messwerteAlsVorgabe (→ SET_ANZEIGE {abstaende}). Auf dem Bildschirm: freieFolge, wartezeiten(sicht, bereich,
   jetzt) → Map key → {art:'zeit', stelle, bisStart, bisVorsteg, steg} | {art:'angehalten', stelle, steg} (Pause/
   Störung auf der Tafel, bereichAngehalten) | bootFehlt | spaeter | ohne; seitSekunden, wartezeitAnzeige, mmss.
+- Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11; BETRIEB_ANNAHMEN WH1–WH10): GezeigterStart.`abgebrochen` (der
+  Versuch bleibt im Verlauf, ist aber nicht erledigt) und BereichBetrieb.`wiederholung` („Wiederholung offen“, Kennungen).
+  folge.ts: abbruecheVon, wartetAufWiederholung, wiederholteZellen (Erfassung ↻), lage → `wiederholung` (Rang vor
+  zurückgestellt; nie offen/frei/nachzuholen), GezeigtEintrag.`abgebrochen`; prognose.ts misst einen abgebrochenen
+  Versuch nicht; sicht.ts sv 7: SichtBereich.`wiederholung`, SichtStart.`wiederholung` (Titel „1. Lauf · Wiederholung“
+  in Tafel-Sprache, `anzeige.wiederholung`) und `abgebrochen` (nur aktuell/vorig), Option `gefahren` (nur
+  BetriebView, Wahl für die Start-Freigabe). Ausgelöst NICHT vom Betrieb: WIEDERHOLUNG_AUSFALL (state/reducer/
+  erfassung.ts) ruft reducer/betrieb.ts mitWiederholung, WIEDERHOLUNG_AUFHEBEN (ebenda, 27.11.2026) ohneWiederholung.
+  AusfallWahl graut Starts Abgemeldeter aus (Prop `nicht` aus BetriebView – nie aus der Sicht). Englisch „Repeat“, nie
+  „Re-run“ (Parallelslalom). Test betrieb/wiederholung.test.ts.
 - Typen: types/betrieb.ts. Actions und Normalisierer: state/reducer/betrieb.ts. Nur-Lese-Store: state/leseStore.ts.
 - Oberfläche (liest nur die Sicht): components/anzeige/ (AnzeigeTafel, AnzeigeBereich; styles/anzeige.css, lib/fit.ts),
   components/betrieb/ (StartFreigabe; E2: BetriebsFolge, EinreihenListe, KlassenAussetzen, MeldungWahl, EinsteigenAb;
@@ -103,7 +113,14 @@ start release.
   (Parallelslalom: nur seiner Runde)
   (ohne Umstellung = vor dem Zeiger); nie von selbst der Nächste. Starts nicht begonnener Punkte warten, auch vor dem
   Zeiger (`nichtBegonneneWarten`, S-9). Den Zeiger schiebt nur Erledigtes begonnener Punkte (`zeigerNurBegonnene`).
-- Einteilung in lage: zurückgestellt vor „Boot fehlt“ (Klasse ausgesetzt, gleich wo) vor nachzuholen vor offen.
+- Einteilung in lage: Wiederholung offen (R11-11) vor zurückgestellt vor „Boot fehlt“ (Klasse ausgesetzt, gleich wo) vor
+  nachzuholen vor offen.
+- Wiederholung (R11-11): `erledigt` zählt nur Einträge OHNE `abgebrochen`, `gezeigtKeys` alle (Einstieg). Der
+  abgebrochene Versuch bleibt `aktuell` bis zum nächsten Zeigen; „Zurück“ und Durchfahrt nehmen ihn nicht.
+  BETRIEB_EINREIHEN/ZEIGEN nehmen ihn aus `wiederholung`; „Doch keine Wiederholung“ (WIEDERHOLUNG_AUFHEBEN, seit
+  27.11.2026 eine Action der Erfassung mit den Werten zurück → state/reducer/betrieb.ts ohneWiederholung) nur, solange er
+  wartet, und nur den zuletzt abgebrochenen Versuch. Wer
+  `gezeigt` liest, um „erfasst/gefahren“ zu zählen, überspringt `abgebrochen` (wkr/schlange.ts, wkr/lage.ts).
 - Schnappschuss nur bei Abweichung und nur der umgestellten Punkte (`schnappschuss` lässt weg, was der Abgleich genau
   so zurücklegt – geprüft durch Nachrechnen): Unberührte Läufe folgen einer später geänderten Verzahnung, umgestellte
   nicht – `sicht.abweichend` zeigt das an. Verzahnung und WKR-Bögen ändert der Betrieb nie.

@@ -90,8 +90,9 @@ export default {
   'wkr.geraet.abschicken': 'Abschicken · {was}',
   'wkr.geraet.abschicken.ab': 'Abschicken Ablegen · {was}',
   'wkr.geraet.abschicken.an': 'Abschicken Anlegen · {was}',
-  // Nutzer 24.11.2026: „↶ Rückgängig“ statt „− letzte zurück“ – nimmt den letzten Tipp zurück (H2).
-  'wkr.geraet.zurueck': '↶ Rückgängig',
+  // Nutzer 24.11.2026: „Rückgängig“ statt „− letzte zurück“ – nimmt den letzten Tipp zurück (H2). Seit 26.11.2026
+  // (R11-30 (2)) mit Pfeil nach links ↩ statt ↶ – als Zeichnung in WkrFuss.vue, nicht im Text (↩ fehlt in den Schriften).
+  'wkr.geraet.zurueck': 'Rückgängig',
 
   'wkr.geraet.zuletzt': 'Zuletzt',
   'wkr.geraet.entwuerfe': 'Entw. {n}',
@@ -333,24 +334,25 @@ export default {
   'wkr.geraet.bild.disqAbbrechen': 'Abbrechen',
   'wkr.geraet.bild.schalter': '✔ {punkte}',
   'wkr.geraet.bild.zaehler': '{n}×',
-  // Lage der Zeichnung unter „Mehr → Ansicht“ (Nutzer 24.11.2026, BL1/BL2): Klassen nach dem Steg, Parallel nach dem Start.
+  // Lage der Zeichnung unter „Mehr → Ansicht“ (Nutzer 24.11.2026, BL1): seit 26.11.2026 (R11-13, BL7) auch die Klassen
+  // nach Start/Ziel – „Steg ist hier irreführend. Der steht immer anders.“ Der Satz nennt, wo die Wende liegt.
   'wkr.geraet.bild.lage': 'Lage der Zeichnung',
-  'wkr.geraet.bild.lage.steg.unten': 'Steg unten',
-  'wkr.geraet.bild.lage.steg.links': 'Steg links',
-  'wkr.geraet.bild.lage.steg.oben': 'Steg oben',
-  'wkr.geraet.bild.lage.steg.rechts': 'Steg rechts',
-  'wkr.geraet.bild.lage.steg.unten.text': 'Start/Ziel links, Tor 5 rechts.',
-  'wkr.geraet.bild.lage.steg.links.text': 'Start/Ziel oben, Tor 5 unten.',
-  'wkr.geraet.bild.lage.steg.oben.text': 'Start/Ziel rechts, Tor 5 links.',
-  'wkr.geraet.bild.lage.steg.rechts.text': 'Start/Ziel unten, Tor 5 oben.',
-  'wkr.geraet.bild.lage.start.links': 'Start links',
-  'wkr.geraet.bild.lage.start.oben': 'Start oben',
-  'wkr.geraet.bild.lage.start.rechts': 'Start rechts',
-  'wkr.geraet.bild.lage.start.unten': 'Start unten',
-  'wkr.geraet.bild.lage.start.links.text': 'Start/Ziel links, Boje 5 rechts.',
-  'wkr.geraet.bild.lage.start.oben.text': 'Start/Ziel oben, Boje 5 unten.',
-  'wkr.geraet.bild.lage.start.rechts.text': 'Start/Ziel rechts, Boje 5 links.',
-  'wkr.geraet.bild.lage.start.unten.text': 'Start/Ziel unten, Boje 5 oben.',
+  'wkr.geraet.bild.lage.klasse.links': 'Start/Ziel links',
+  'wkr.geraet.bild.lage.klasse.oben': 'Start/Ziel oben',
+  'wkr.geraet.bild.lage.klasse.rechts': 'Start/Ziel rechts',
+  'wkr.geraet.bild.lage.klasse.unten': 'Start/Ziel unten',
+  'wkr.geraet.bild.lage.klasse.links.text': 'Start/Ziel links, Tor 5 rechts.',
+  'wkr.geraet.bild.lage.klasse.oben.text': 'Start/Ziel oben, Tor 5 unten.',
+  'wkr.geraet.bild.lage.klasse.rechts.text': 'Start/Ziel rechts, Tor 5 links.',
+  'wkr.geraet.bild.lage.klasse.unten.text': 'Start/Ziel unten, Tor 5 oben.',
+  'wkr.geraet.bild.lage.parallel.links': 'Start links',
+  'wkr.geraet.bild.lage.parallel.oben': 'Start oben',
+  'wkr.geraet.bild.lage.parallel.rechts': 'Start rechts',
+  'wkr.geraet.bild.lage.parallel.unten': 'Start unten',
+  'wkr.geraet.bild.lage.parallel.links.text': 'Start/Ziel links, Boje 5 rechts.',
+  'wkr.geraet.bild.lage.parallel.oben.text': 'Start/Ziel oben, Boje 5 unten.',
+  'wkr.geraet.bild.lage.parallel.rechts.text': 'Start/Ziel rechts, Boje 5 links.',
+  'wkr.geraet.bild.lage.parallel.unten.text': 'Start/Ziel unten, Boje 5 oben.',
   // Prüfbefund 24.11.2026 (BL1): „Automatisch“ = keine eigene Wahl, die Zeichnung liegt wie auf dem Bogen, soweit der
   // Platz es zulässt (wkr/bild.ts wirksameDrehung).
   'wkr.geraet.bild.lage.auto': 'Automatisch',

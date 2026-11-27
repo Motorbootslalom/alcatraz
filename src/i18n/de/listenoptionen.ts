@@ -74,6 +74,10 @@ export default {
   'listopt.wkr.backHint': 'Vorn bleibt dann mehr Platz für Starter – sinnvoll bei Aufbauten mit großer Beschreibung. Gedruckt wird doppelseitig.',
   'listopt.wkr.clubJoint': 'Papier sparen: alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild',
   'listopt.wkr.clubJointHint': 'Gilt für die Clubmeisterschaft. Spalten, die eine Klasse nicht hat, sind in ihren Zeilen schraffiert. Ohne diese Option bleiben Listen mit Parcoursbild je Klasse, damit jede Klasse ihre eigene Zeichnung sieht.',
+  // Meisterschaft (DM, UIM): gemeinsame Bögen auf Wunsch, Vorgabe aus (R11-03, 26.11.2026).
+  'listopt.wkr.joint': 'Gemeinsame Bögen: Klassen mit gleich aufgebautem Bogen zusammen auf ein Blatt',
+  'listopt.wkr.jointHint': 'Sonst hat bei einer Meisterschaft jede Klasse ihre eigenen Bögen. Eingeschaltet stehen Klassen, deren Bogen gleich aufgebaut ist (gleiche Spalten, gleiches Parcoursbild), zusammen auf einem Blatt – wie bei der Clubmeisterschaft. Listen, deren Zeichnung sich je Klasse unterscheidet, bleiben je Klasse. Ein Laufzettel gilt dann für alle Klassen, die sich Bögen teilen, meist für den ganzen Parcours und Lauf. Gewertet wird weiter je Klasse.',
+  'listopt.wkr.jointPaperHint': 'Spalten, die eine Klasse nicht hat, sind in ihren Zeilen schraffiert. Ohne Parcoursbild hat der Wettkampfrichter nur die Beschreibung – fahren die Klassen verschiedene Kurse, sieht er die Zeichnung seiner Klasse nicht. Ohne diese Option bleiben Listen mit verschiedener Zeichnung je Klasse.',
   'listopt.wkr.folge': 'Klassen auf gemeinsamen Bögen',
   'listopt.wkr.folge.getrennt': 'getrennt: je Klasse ein Block, die Klasse als Überschrift darüber',
   'listopt.wkr.folge.verzahnung': 'nach der Verzahnung: gemischt in der Startfolge, die Klasse in einer Spalte hinter der Startnummer',
@@ -82,6 +86,7 @@ export default {
   'listopt.wkr.splitFrom': 'Teilen ab … Startern (0 = immer)',
   'listopt.wkr.rowsHint': 'Automatisch: Es wird gemessen, was auf ein Blatt passt, und gleichmäßig in Fünferschritten geteilt (24 Starter → 15 + 9). Mit einer festen Zahl (mindestens 5) stehen so viele Starter auf jeder Seite. „Teilen ab“ gilt nur mit fester Zahl: Erst Klassen mit mindestens so vielen Startern werden geteilt – mit 15 und 25 also ab 25 Startern je 15 auf einer Seite, kleinere Klassen bleiben auf einem Blatt. Passt eine Seite so nicht auf das Blatt, wird automatisch geteilt. Die Laufzettel zählen die Seiten so, wie sie gedruckt werden.',
   'listopt.wkr.rowsClub': 'Clubmeisterschaft: Für gemeinsame Bögen mehrerer Klassen gilt die feste Zahl nicht. Sie werden immer automatisch geteilt, damit keine Klasse unnötig über zwei Blätter geht.',
+  'listopt.wkr.rowsJoint': 'Gemeinsame Bögen mehrerer Klassen: Für sie gilt die feste Zahl nicht. Sie werden immer automatisch geteilt, damit keine Klasse unnötig über zwei Blätter geht.',
   'listopt.wkr.rowsParallel': 'Parallel-Slalom: Jede Liste teilt für sich, auf so wenige Seiten wie möglich, gleichmäßig verteilt und nur am Ende eines Blocks (4 bzw. 2 Starts). „Starter je Seite“ und „Teilen ab“ gelten dort als Obergrenze der Starts je Seite, abgerundet auf ganze Blöcke.',
   'listopt.wkr.parallelZebra': 'Parallel-Slalom: jede zweite Zeile grau',
   'listopt.wkr.parallelZebraHint': 'Auf den Listen der Wettkampfrichter und den Startlisten im Parallel-Slalom. Die Zeile eines Dummys bleibt schraffiert, die kräftige Linie am Ende jedes Blocks bleibt.',
@@ -228,6 +233,13 @@ export default {
   'listopt.ausgleich.hint':
     'Die Stufe ist das kleinste Gewichtsstück, das am Steg ins Boot gelegt wird. Das Ausgleichsgewicht ist immer ein Vielfaches davon – gerundet auf die nächste Stufe, ab der Hälfte aufwärts (bei 2 kg: 2,9 kg → 2 kg, 3 kg → 4 kg). Wer weniger als eine halbe Stufe leichter ist, bekommt keines. Das gilt in der Verwiegung, auf den Listen und am Steg-Gerät.',
   'listopt.ausgleich.fehler': 'Bitte eine Zahl von {min} bis {max} kg eingeben, z. B. {beispiel}. Es bleibt bei {kg} kg.',
+  // Ausgleich der Co-Piloten (Antwort des Nutzers vom 26.11.2026, R11-07); Vorgabe je Klasse wie DM-Reglement C3.
+  'listopt.coPilotAusgleich': 'Ausgleichsgewicht der Co-Piloten',
+  'listopt.coPilotAusgleich.klasse': 'je Klasse – gegen den schwersten Co-Piloten der Klasse',
+  'listopt.coPilotAusgleich.alle': 'über alle Co-Piloten – gegen den schwersten Co-Piloten der Klassen, in denen Starter stehen',
+  'listopt.coPilotAusgleich.hint':
+    'Fahren in einer Klasse wechselnde Co-Piloten, soll das Gesamtgewicht in jedem Lauf gleich bleiben. Wer leichter ist, bekommt den Unterschied als Ausgleichsgewicht – gerundet in der Stufe oben, getrennt vom Ausgleichsgewicht des Fahrers. Es steht auf den Listen in Klammern hinter seinem Namen. Wer kein Gewicht oder keinen Namen hat, zählt nicht mit. Namen und Gewichte der Co-Piloten:',
+  'listopt.coPilotAusgleich.link': 'Veranstaltung → Besetzung',
 
   'origin.style.aus': 'nicht zeigen',
   'origin.style.lang': 'ausgeschrieben',

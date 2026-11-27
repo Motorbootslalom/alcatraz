@@ -10,6 +10,7 @@ import { WKR_ANNAHMEN } from './annahmen'
 import { istTischListe, liesOhneLauf, listenKennung, startAufListe, teileVon, teilHaken, teilVonZelle, type Liste, type OhneLaufRef } from './liste'
 import { hatVorab, vorabStarts } from './schlange'
 import { istKeineZeitGrund } from './keineZeit'
+import { liesVersuch, versuchVeraltetAuf } from './versuch'
 
 // Eine Zeile vom WKR-Gerät und ihre Prüfung am Bedienrechner – rein, ohne DOM, ohne Store, nichts aus geraete/
 // (Plan §3.1). Das Gerät schickt je Start eine Zeile mit kurzen Schlüsseln; `pruefeZeile` prüft sie wie die
@@ -54,8 +55,10 @@ export interface GeraeteZeile {
  *   gestartet“ (X allein im Disq.-Feld, sonst nichts; seit 24.11.2026 auf jeder Liste, NG2).
  * - `teil-fremd`: Teil passt nicht zur Liste oder zur Kopplung; Feld eines anderen Teils.
  * - `seite-anders`: Im Parallelslalom eine andere Seite als die der Liste.
+ * - `versuch-abgebrochen` (R11-11, 26.11.2026): Die Zeile gehört zu einem Versuch, der nach einem Ausfall abgebrochen
+ *   wurde – ihre Kennung ist nicht (mehr) die des jetzigen Versuchs (wkr/versuch.ts; BETRIEB_ANNAHMEN WH7).
  */
-export type ZeilenFehler = 'start-unbekannt' | 'feld-fremd' | 'wert-ungueltig' | 'x-nicht-erlaubt' | 'teil-fremd' | 'seite-anders'
+export type ZeilenFehler = 'start-unbekannt' | 'feld-fremd' | 'wert-ungueltig' | 'x-nicht-erlaubt' | 'teil-fremd' | 'seite-anders' | 'versuch-abgebrochen'
 
 const istText = (x: unknown): x is string => typeof x === 'string'
 const istTeil = (x: unknown): x is ListenTeil => x === 'ab' || x === 'an'
@@ -133,12 +136,24 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
   const ohne = liesOhneLauf(zeile.s)
   if (tisch !== (ohne !== null)) return { fehler: 'start-unbekannt' }
   let ref: ReturnType<typeof liesRef> | OhneLaufRef | null
+  // Die Kennung des Betriebs: Nach einem Ausfall bekommt das Gerät den Start unter der Kennung seines Versuchs
+  // (wkr/versuch.ts, R11-11, 26.11.2026) – zurück auf die des Betriebs; ein abgebrochener Versuch wird abgelehnt
+  // (BETRIEB_ANNAHMEN.wiederholungSpaeteZeileAblehnen: nie still wieder einfüllen).
+  let key = zeile.s
+  /** Versuch der Zeile (Zahl der Abbrüche davor) – WKR_ZEILEN prüft ihn beim Anwenden noch einmal (Prüfbefund 27.11.2026). */
+  let versuch: number | undefined
   if (ohne !== null) ref = { art: 'o', starter: ohne }
   else {
-    ref = liesRef(zeile.s)
+    const v = liesVersuch(zeile.s)
+    if (!v) return { fehler: 'start-unbekannt' }
+    key = v.key
+    versuch = v.n
+    ref = liesRef(key)
     if (!ref) return { fehler: 'start-unbekannt' }
     const l = lage(stand, liste.bereich)
-    if (!l.gezeigtKeys.has(zeile.s) && !l.folge.some((e) => e.key === zeile.s)) return { fehler: 'start-unbekannt' }
+    if (!l.gezeigtKeys.has(key) && !l.folge.some((e) => e.key === key)) return { fehler: 'start-unbekannt' }
+    // Die Vorsteg-Zeile mit „Versuche nacheinander“ gilt für jeden Versuch (WH6) – dort ist keiner veraltet.
+    if (versuchVeraltetAuf(stand, konfig, liste, zeile.s)) return { fehler: 'versuch-abgebrochen' }
   }
   const start = startAufListe(stand, konfig, liste, ref)
   if (!start) return { fehler: 'start-unbekannt' }
@@ -191,7 +206,7 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
   return {
     id: `${geraetId}.${zeile.z}`,
     liste: listenKennung(liste),
-    ref: zeile.s,
+    ref: key,
     lauf: start.lauf,
     weitere: start.weitere,
     starter: start.starter.id,
@@ -199,9 +214,10 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
     ...(eigenerTeil !== undefined ? { teil: eigenerTeil } : {}),
     haken: [eigenerTeil === undefined ? erfasstKennung(liste.typeId) : teilHaken(liste.typeId, eigenerTeil)],
     // Am Tisch gibt es kein Zeigen: Jeder Starter des Bestands gilt als „da“ (KN3).
-    gezeigt: tisch || istGezeigt(stand, liste, zeile.s, start.starter.id, start.weitere.length > 0, eigenerTeil),
+    gezeigt: tisch || istGezeigt(stand, liste, key, start.starter.id, start.weitere.length > 0, eigenerTeil),
     korrektur: zeile.k === true,
     ...(keineZeit ? { keineZeit } : {}),
+    ...(versuch !== undefined ? { versuch } : {}),
   }
 }
 
@@ -210,7 +226,10 @@ export function pruefeZeile(stand: AppState, konfig: Konfig, liste: Liste, teil:
  * die Zeile für jeden Versuch (`einmal`), auch ein anderer Versuch desselben Starters.
  */
 function istGezeigt(stand: AppState, liste: Liste, key: string, starter: string, einmal: boolean, teil?: ListenTeil): boolean {
-  const gezeigt = betriebVon(stand, liste.bereich).gezeigt.map((g) => g.ref)
+  // Ein abgebrochener Versuch (Ausfall, R11-11) zählt nicht: Die Wiederholung ist erst mit dem neuen Zeigen gezeigt.
+  const gezeigt = betriebVon(stand, liste.bereich)
+    .gezeigt.filter((g) => !g.abgebrochen)
+    .map((g) => g.ref)
   if (gezeigt.includes(key)) return true
   // Steg-Ablegen sieht seit dem Nutzerbefund 21.11.2026 die Starts „Am Steg“ vorab (WKR_ANNAHMEN.stegAblegenVorab) –
   // nur eine Zeile des Ablegens: Eine ganze Steg-Zeile (ohne Teil) setzte sonst den ganzen Haken, das Anlegen wäre

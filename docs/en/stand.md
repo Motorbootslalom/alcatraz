@@ -80,7 +80,7 @@ Still missing are the certificate data (intended as CSV/XLSX for mail merge, dec
 
 ## Current status
 
-As of 24.11.2026. Built and checked by tests is what stages E1–E8 and W1–W5 provided for; what is open is mainly the
+As of 27.11.2026. Built and checked by tests is what stages E1–E8 and W1–W5 provided for; what is open is mainly the
 field tests.
 
 - **Before the competition, lists and scoring:** drivers, race numbers, weighing, interleaving, race officials'
@@ -104,17 +104,21 @@ field tests.
   in data entry, the racecourse light with auto mode in the start release.
   Values from the device take the same path as typing in; a cell that already holds a value is never silently
   overwritten.
-- **The user's answers:** Rounds up to 10 of the question page (21.–24.11.2026) and the wishes of 24.11.2026 are built
-  in. Most recently, among others: several disqualifications at one buoy (“5, J, D”), a long press on a buoy, the lane
-  of the parallel slalom on the device and on the course sheet, a maximum number per code (the third tap on “2nd and
-  3rd attempt” sets Disq. D), “Did not start · Disq. X” instead of “Did not pass”, the position of the drawing in
-  “Picture”, the extra weight on the pontoon device and in adjustable steps, shared race officials' sheets of the club
-  championship by the interleaving, a birthday warning according to section C8 of the DM rules, the letter D for class
-  E selectable under DM too, the tie-break of the individual competition according to rule 960, pt. 5.2.6 (in the
-  parallel slalom the last, then the second-to-last heat driven).
-  Details with dates: [entscheidungen.md](../entscheidungen.md) (German), on the digital entry by the race officials
-  from [Digitale WKR-Erfassung](../entscheidungen.md#digitale-wkr-erfassung-antworten-21112026) (German) on, plus the
-  plans `plan-*.md` (German).
+- **The user's answers:** Rounds up to 11 of the question page (21.–26.11.2026) and the wishes of 24.11.2026 are built
+  in. From round 11 (26.11.2026): the birthday warning in two levels (yellow note up to 14 days, red warning up to 2
+  days around the first day of racing), shared race officials' sheets on request at DM and UIM championships too,
+  co-drivers per class with a substitute and weight and an extra weight of their own, the repeat of an attempt after a
+  confirmed breakdown, the position of the drawing named after start/finish, “↩ Undo” with an arrow pointing left, in
+  practice only the explanation scrolls out of view. Before that, among others: several disqualifications at one buoy
+  (“5, J, D”), a long press on a buoy, the lane of the parallel slalom on the device and on the course sheet, a maximum
+  number per code (the third tap on “2nd and 3rd attempt” sets Disq. D), “Did not start · Disq. X” instead of “Did not
+  pass”, the position of the drawing in “Picture”, the extra weight on the pontoon device and in adjustable steps,
+  shared race officials' sheets of the club championship by the interleaving, a birthday warning according to section C8
+  of the DM rules, the letter D for class E selectable under DM too, the tie-break of the individual competition
+  according to rule 960, pt. 5.2.6 (in the parallel slalom the last, then the second-to-last heat driven). Details with
+  dates: [entscheidungen.md](../entscheidungen.md) (German), on the digital entry by the race officials from [Digitale
+  WKR-Erfassung](../entscheidungen.md#digitale-wkr-erfassung-antworten-21112026) (German) on, plus the plans `plan-*.md`
+  (German).
 
 ## What is still open
 
@@ -126,11 +130,11 @@ field tests.
 - **W6 depending on the findings** ([plan-wkr-w5.md](../plan-wkr-w5.md), German): the form “Picture” specially for
   the phone in portrait, timing lists specially for the phone, in the parallel slalom one pontoon device for both
   sides (“A | B” in one form).
-- **Open questions** to the user for the next round of the question page (round 11), collected under
-  [Offen](../entscheidungen.md#offen) (German): above all the interpretations of 24.11.2026 (extra weight at the
-  pontoon and its steps, birthday warning, shared race officials' sheets for DM and UIM too, maximum number per code,
-  “Did not start · Disq. X”, tie-break of the individual competition), plus older ones on device operation (E6–E8)
-  and on the separate finals.
+- **Open questions** to the user for the next round of the question page, collected under
+  [Offen](../entscheidungen.md#offen) (German): above all what was newly interpreted while rebuilding after round 11
+  (repeat after a breakdown, co-drivers with substitute and weight, details of the birthday warning and of the shared
+  race officials' sheets), plus single interpretations on the maximum number per code, on “Did not start · Disq. X”
+  and on practice, older ones on pairing (E7) and on the separate finals.
 - **Flaky tests:** Two end-to-end tests in `src/GeraetWkr.test.ts` occasionally fail under load (a fixed time limit
   while waiting). On GitHub they have only run on request since 24.11.2026, locally and in the pre-commit hook always
   ([technik.md](technik.md#tests)). The cause has not been fixed.
@@ -197,8 +201,8 @@ Here just a roughly sorted listing of most of the ideas:
     → One sheet applies per class and attempt, the drivers on it are in the starting order of the interleaving. If
     several classes are on one sheet (club championship), since 24.11.2026 there has been the choice “Classes on
     shared sheets” (Settings → Race officials' sheets): separate, one block per class with a heading, or by the
-    interleaving, mixed in starting order. Open for DM and UIM championships
-    ([entscheidungen.md](../entscheidungen.md#offen), German).
+    interleaving, mixed in starting order. Since 26.11.2026 shared sheets are also available on request at DM and UIM
+    championships (tick “Shared sheets …” in the same place), with the same choice.
   - [x] light shades of grey or colour for other classes
     → solved differently (user 24.11.2026: “we don't need colours”): when separate, each block carries the class as
     a heading; by the interleaving it stands in the column “Cl.” behind the race number.
@@ -206,8 +210,9 @@ Here just a roughly sorted listing of most of the ideas:
           → columns a class does not have are strongly hatched in its rows, like the row of a dummy in the
           parallel slalom (since 24.11.2026)
   - [x] Also several classes on one page (configurable)
-    → with the type “Club championship” (Event tab); lists with a course drawing stay one per class, except with
-    “Save paper” (then without the course drawing)
+    → with the type “Club championship” (Event tab), since 26.11.2026 on request at championships too (“Settings →
+    Race officials' sheets → Shared sheets”); lists whose drawing differs between classes stay one per class, except
+    with “Save paper” (then without the course drawing)
     - At club championships or small competitions with only 1–2 drivers per class, a list of its own makes no
       sense
   - [x] Transfer of lists into the program with the same view

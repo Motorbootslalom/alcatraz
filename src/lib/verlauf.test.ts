@@ -123,6 +123,13 @@ describe('was sich geändert hat', () => {
     expect(beschreibe({ type: 'SET_KENNUNG', kennung: 'abc' }, STAND)).toBeNull()
   })
 
+  it('Co-Piloten (R11-07): Name = Besetzung, Gewicht eigene Art (Personendaten), die Wahl des Ausgleichs eine Einstellung', () => {
+    expect(beschreibe({ type: 'SET_CO_PILOT', klasse: 'E', text: 'Vor1 Nach1', rolle: 'ersatz' }, STAND)).toEqual({ art: 'besetzung' })
+    expect(beschreibe({ type: 'SET_CO_PILOT_GEWICHT', klasse: 'E', rolle: 'haupt', gewicht: 78.2 }, STAND)).toEqual({ art: 'coPilotGewicht' })
+    expect(beschreibe({ type: 'SET_CO_PILOT_GEWICHT', klasse: 'E', rolle: 'ersatz', gewicht: null }, STAND)).toEqual({ art: 'coPilotGewicht' })
+    expect(beschreibe({ type: 'SET_CO_PILOT_AUSGLEICH', ausgleich: 'alle' }, STAND)).toEqual({ art: 'einstellung' })
+  })
+
   it('Betrieb am Wettkampftag bekommt keinen Eintrag; die Einstellungen der Anzeigetafel sind Einstellungen', () => {
     // Wechselten Erfassung und „Nächster Start“ einander ab, entstünde sonst bei jedem Start ein neuer Eintrag.
     const ref = '["m","a",1]'

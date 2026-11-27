@@ -42,7 +42,7 @@ const emit = defineEmits<{ fertig: [grund: 'gezeigt' | 'geschlossen'] }>()
 /** So viele Starts zeigt die Wahl zuerst – mehr braucht es am Steg selten, der Rest über die Suche. */
 const NAECHSTE = 12
 
-type Art = 'offen' | 'zurueckgestellt' | 'bootFehlt' | 'nachzuholen'
+type Art = 'offen' | 'zurueckgestellt' | 'bootFehlt' | 'nachzuholen' | 'wiederholung'
 interface Zeile extends StartZeile {
   s: SichtStart
   art: Art
@@ -74,6 +74,8 @@ const treffer = computed<Zeile[] | null>(() => {
   const alle = [
     ...ganzeFolge.value,
     ...b.value.zurueckgestellt.map((s) => zeile(s, 'zurueckgestellt')),
+    // Wiederholung offen (R11-11, 26.11.2026): auch über die Suche einzureihen oder zu zeigen.
+    ...b.value.wiederholung.map((s) => zeile(s, 'wiederholung')),
     ...b.value.nachzuholen.map((s) => zeile(s, 'nachzuholen')),
   ]
   return alle.filter((z) => z.nummern.some((n) => klein(n).includes(q)) || klein(z.startNr).includes(q) || klein(z.name).includes(q))

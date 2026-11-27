@@ -7,15 +7,16 @@
 // nie der Reducer), IDs (`zeile.id`) und `zeit` mit der Action. Nichts aus geraete/. Unverändert = derselbe Stand.
 // Werte gehen nur über `eingaben` (wie SET_EINGABEN); belegte Zellen werden nie still überschrieben (wkr/uebernahme.ts).
 
-import type { AppState, Eingaben, KeineZeitGrund, WkrAbschluss, WkrPunkt, WkrListe, WkrModus, WkrPause, WkrRueckfrage, WkrStand, WkrStatus, WkrTeilStatus, WkrVorschlag, WkrZeile } from '../../types'
+import type { AppState, Eingaben, KeineZeitGrund, WkrAbschluss, WkrPunkt, WkrListe, WkrModus, WkrPause, WkrRueckfrage, WkrStand, WkrStatus, WkrTeilStatus, WkrVerworfen, WkrVorschlag, WkrZeile } from '../../types'
 import { erfasstKennung, gueltigeZellen, istHaken, listenFelder, setzeWerte, werteVon, type EingabeZelle, type ListenTeil } from '../../lib/eingaben'
-import { betriebVon, liesRef } from '../../betrieb/folge'
+import { abbruecheVon, betriebVon, liesRef } from '../../betrieb/folge'
 import { abschlussSchluessel, abschlussVon, istWkrPunkt, liesAbschlussSchluessel, OHNE_PUNKT, punktBegonnen, TEILE, wkrPunktVonRef, zeileAbgeschlossen } from '../../wkr/abschluss'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
 import { bestandOhneLauf, istTischListe, liesListe, liesStartKennung, startAufListe, teileVon, teilHaken, teilVonZelle } from '../../wkr/liste'
 import { papierStarts, schlange } from '../../wkr/schlange'
 import { vereinigt, wendeZeileAn, zeilenPruefsumme } from '../../wkr/uebernahme'
 import { keineZeitNur, liesKeineZeitFelder, mitKeineZeit, normalisiereKeineZeit } from '../../wkr/keineZeit'
+import { giltFuerAlleVersuche, liesVersuch, versuchVeraltetAuf } from '../../wkr/versuch'
 import { konfigVon } from './gemeinsam'
 
 export type WkrAenderung =
@@ -157,8 +158,19 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
         }
         return m
       }
+      // Wiederholung nach Ausfall (R11-11, Prüfbefund 27.11.2026): Der Host prüfte den Versuch der Zeile (wkr/zeile.ts) im
+      // Führungsfenster – angewandt wird hier, im Schreibfenster, vielleicht schon nach dem Ausfall. Eine Zeile zu einem
+      // inzwischen abgebrochenen Versuch fällt deshalb hier noch einmal weg: nie still wieder einfüllen, was eben
+      // verworfen wurde (BETRIEB_ANNAHMEN.wiederholungSpaeteZeileAblehnen). Die Vorsteg-Zeile mit „Versuche nacheinander“
+      // gilt für jeden Versuch (WH6).
+      let alleVersuche: boolean | undefined
+      const versuchVorbei = (zeile: WkrZeile): boolean => {
+        if (zeile.versuch === undefined || zeile.versuch === abbruecheVon(betriebVon(state, zielListe.bereich), zeile.ref)) return false
+        alleVersuche ??= giltFuerAlleVersuche(state, konfigVon(state), zielListe.typeId)
+        return !alleVersuche
+      }
       for (const zeile of action.zeilen) {
-        if (zeile.liste !== action.liste) continue
+        if (zeile.liste !== action.liste || versuchVorbei(zeile)) continue
         // Zellen ungültiger Starter oder kaputter Lauf-Schlüssel kommen nicht in den Stand (wie SET_EINGABEN).
         const laeufe = [zeile.lauf, ...zeile.weitere]
         if (gueltigeZellen(laeufe.map((lauf) => ({ lauf, starter: zeile.starter, feld: 'x', wert: '' })), starter).length !== laeufe.length) continue
@@ -356,7 +368,12 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       })
       const papier = [...new Set([...offen, ...ausPause])]
       const abweichend: string[] = []
-      for (const [key, summe] of Object.entries(action.pruefsummen ?? {})) {
+      for (const [geraeteKey, summe] of Object.entries(action.pruefsummen ?? {})) {
+        // Die Geräte schicken die Kennung ihres Versuchs (wkr/versuch.ts, R11-11): Ein abgebrochener Versuch prüft nichts
+        // mehr – seine Werte sind verworfen (BETRIEB_ANNAHMEN.wiederholungAbschlussBleibt).
+        const v = tisch ? { key: geraeteKey, n: 0 } : liesVersuch(geraeteKey)
+        if (!v || (!tisch && versuchVeraltetAuf(state, konfig, liste, geraeteKey))) continue
+        const key = v.key
         const ref = liesStartKennung(key, liesRef)
         const start = ref ? startAufListe(state, konfig, liste, ref) : null
         if (!start || start.punkt !== action.punkt || typeof summe !== 'string' || !konfig.positionAllowsClass(liste.typeId, start.starter.klasse)) continue
@@ -378,7 +395,10 @@ export function wendeWkrAn(state: AppState, action: WkrAenderung & { zeit?: numb
       const alt = state.wkr.listen[action.liste]
       if (!liste || !alt || alt.modus === 'papier' || liesRef(action.ref) === null) return state
       if (action.teil !== undefined && (!teileVon(liste.typeId) || (action.teil !== 'ab' && action.teil !== 'an'))) return state
-      const gezeigt = betriebVon(state, liste.bereich).gezeigt.find((g) => g.ref === action.ref)
+      // Der geltende, jüngste gezeigte Versuch des Starts: Nach einem Ausfall (R11-11) ist der erste Eintrag der
+      // abgebrochene – „Papier ab“ der Wiederholung nähme sonst alles mit, was dazwischen gezeigt wurde (Prüfbefund
+      // 27.11.2026). Wartet der Start noch auf seine Wiederholung, gilt die Zeit des Klicks.
+      const gezeigt = [...betriebVon(state, liste.bereich).gezeigt].reverse().find((g) => g.ref === action.ref && !g.abgebrochen)
       const von = gezeigt?.zeit ?? zeit
       // P = die Schlange ab dem Start: er selbst und was danach gezeigt wurde (Vorsteg-Vorschau und „entfällt“ nicht),
       // samt dem Anlegen des Starts im Boot (Prüfbefund 21.11.2026, WKR_ANNAHMEN.stegAbschlussOhneImBoot).
@@ -427,17 +447,104 @@ export function wkrOhneLaeufe(wkr: WkrStand, wegLauf: (lauf: string) => boolean,
     if (bleibt.length > 0) abschluss[liste] = Object.fromEntries(bleibt)
   }
   const keineZeit = keineZeitNur(wkr.keineZeit, (z) => !wegLauf(z.lauf))
-  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && !abschlussGeaendert && keineZeit === wkr.keineZeit) return wkr
-  return { ...wkr, rueckfragen, vorschlaege, abschluss: abschlussGeaendert ? abschluss : wkr.abschluss, keineZeit }
+  // Verworfene Werte (R11-11) gelöschter Läufe gehen mit.
+  const basis = verworfeneNur(wkr, (v) => !wegLauf(v.lauf))
+  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && !abschlussGeaendert && keineZeit === wkr.keineZeit && basis === wkr) return wkr
+  return { ...basis, rueckfragen, vorschlaege, abschluss: abschlussGeaendert ? abschluss : wkr.abschluss, keineZeit }
 }
 
-/** Nur Rückfragen und Vorschläge der genannten Starter: Wer gelöscht ist, nimmt seine mit. Unverändert = dasselbe Objekt. */
+/**
+ * Nur die verworfenen Werte (Wiederholung nach Ausfall, R11-11), die `bleibt`; ohne übrige fällt das Feld ganz weg.
+ * Unverändert = dasselbe Objekt.
+ */
+function verworfeneNur(wkr: WkrStand, bleibt: (v: WkrVerworfen) => boolean): WkrStand {
+  const alt = wkr.verworfen
+  if (!alt) return wkr
+  const rest = alt.filter(bleibt)
+  if (rest.length === alt.length) return wkr
+  const { verworfen: _weg, ...ohne } = wkr
+  return rest.length > 0 ? { ...ohne, verworfen: rest } : ohne
+}
+
+/**
+ * Die verworfenen Werte nur, solange ihr Abbruch im Betrieb steht (Prüfbefund 27.11.2026): Wird der Betrieb
+ * zurückgesetzt oder fehlt der Bereich, gibt es nichts mehr zurückzuholen – die Werte blieben sonst ewig in der
+ * Sicherung. reducer() ruft es, wenn sich der Betrieb ändert. Unverändert = derselbe Stand.
+ */
+export function mitGeltendenVerworfenen(state: AppState): AppState {
+  const wkr = verworfeneNur(state.wkr, (v) => abbruecheVon(betriebVon(state, v.bereich), v.ref) > 0)
+  return wkr === state.wkr ? state : { ...state, wkr }
+}
+
+/**
+ * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN.wiederholungAbschlussBleibt): ohne alles, was am
+ * abgebrochenen Versuch hing – Rückfragen und Vorschläge zu dieser Zelle (`lauf`, `starter`), „keine Zeit“, den Start
+ * (`ref`) im Papier (P) der Pausen und in `papier`/`abweichend` der Abschlüsse. Abschlüsse selbst, Modus und Status
+ * bleiben. `bleibt(liste)`: Listen, deren Zeile für alle Versuche gilt (Vorsteg mit „Versuche nacheinander“, WH6) –
+ * dort bleiben Rückfragen, Vorschläge, P und Abschluss (seit dem Prüfbefund 27.11.2026 auch P und Abschluss).
+ * Unverändert = dasselbe Objekt.
+ */
+export function wkrOhneVersuch(wkr: WkrStand, z: { lauf: string; starter: string; ref: string }, bleibt: (liste: string) => boolean = () => false): WkrStand {
+  const trifft = (e: { liste: string; lauf: string; weitere: readonly string[]; starter: string }) => e.starter === z.starter && (e.lauf === z.lauf || e.weitere.includes(z.lauf)) && !bleibt(e.liste)
+  const rueckfragen = wkr.rueckfragen.filter((rf) => !trifft(rf))
+  const vorschlaege = wkr.vorschlaege.filter((v) => !trifft(v))
+  const keineZeit = keineZeitNur(wkr.keineZeit, (k) => !(k.lauf === z.lauf && k.starter === z.starter))
+  const ohneRef = <T extends { papier: string[] }>(p: T): T => (p.papier.includes(z.ref) ? { ...p, papier: p.papier.filter((k) => k !== z.ref) } : p)
+  let listenGeaendert = false
+  const listen: WkrStand['listen'] = {}
+  for (const [kennung, l] of Object.entries(wkr.listen)) {
+    // Die Vorsteg-Zeile mit „Versuche nacheinander“ bleibt (WH6) – und mit ihr ein Papier-Vermerk: Sonst käme der Start
+    // dort wieder in die Schlange, obwohl seine Zeile (vom Bogen) steht (Prüfbefund 27.11.2026).
+    if (bleibt(kennung)) {
+      listen[kennung] = l
+      continue
+    }
+    const pausen = l.pausen.map(ohneRef)
+    let teile = l.teile
+    for (const t of TEILE) {
+      const teil = l.teile?.[t]
+      if (!teil) continue
+      const tp = teil.pausen.map(ohneRef)
+      if (tp.some((p, i) => p !== teil.pausen[i])) teile = { ...teile, [t]: { ...teil, pausen: tp } }
+    }
+    const neu = pausen.some((p, i) => p !== l.pausen[i]) || teile !== l.teile ? { ...l, pausen, ...(teile ? { teile } : {}) } : l
+    if (neu !== l) listenGeaendert = true
+    listen[kennung] = neu
+  }
+  let abschlussGeaendert = false
+  const abschluss: WkrStand['abschluss'] = {}
+  for (const [liste, jePunkt] of Object.entries(wkr.abschluss)) {
+    if (bleibt(liste)) {
+      abschluss[liste] = jePunkt
+      continue
+    }
+    const jeNeu: Record<string, WkrAbschluss> = {}
+    for (const [k, a] of Object.entries(jePunkt)) {
+      const trifftA = a.papier.includes(z.ref) || a.abweichend.includes(z.ref)
+      jeNeu[k] = trifftA ? { ...a, papier: a.papier.filter((x) => x !== z.ref), abweichend: a.abweichend.filter((x) => x !== z.ref) } : a
+      if (trifftA) abschlussGeaendert = true
+    }
+    abschluss[liste] = jeNeu
+  }
+  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && keineZeit === wkr.keineZeit && !listenGeaendert && !abschlussGeaendert) return wkr
+  return {
+    ...wkr,
+    rueckfragen: rueckfragen.length === wkr.rueckfragen.length ? wkr.rueckfragen : rueckfragen,
+    vorschlaege: vorschlaege.length === wkr.vorschlaege.length ? wkr.vorschlaege : vorschlaege,
+    keineZeit,
+    listen: listenGeaendert ? listen : wkr.listen,
+    abschluss: abschlussGeaendert ? abschluss : wkr.abschluss,
+  }
+}
+
+/** Nur Rückfragen, Vorschläge, „keine Zeit“ und verworfene Werte der genannten Starter: Wer gelöscht ist, nimmt seine mit. Unverändert = dasselbe Objekt. */
 export function wkrNurStarter(wkr: WkrStand, ids: ReadonlySet<string>): WkrStand {
   const rueckfragen = wkr.rueckfragen.filter((rf) => ids.has(rf.starter))
   const vorschlaege = wkr.vorschlaege.filter((v) => ids.has(v.starter))
   const keineZeit = keineZeitNur(wkr.keineZeit, (z) => ids.has(z.starter))
-  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && keineZeit === wkr.keineZeit) return wkr
-  return { ...wkr, rueckfragen, vorschlaege, keineZeit }
+  const basis = verworfeneNur(wkr, (v) => ids.has(v.starter))
+  if (rueckfragen.length === wkr.rueckfragen.length && vorschlaege.length === wkr.vorschlaege.length && keineZeit === wkr.keineZeit && basis === wkr) return wkr
+  return { ...basis, rueckfragen, vorschlaege, keineZeit }
 }
 
 // --- Laden ---------------------------------------------------------------------------------------
@@ -569,5 +676,34 @@ export function normalisiereWkr(raw: unknown, starterIds: ReadonlySet<string>): 
   // es beim Laden – keine Abwärtskompatibilität nötig (Projektkarte), es trug keinen Wert.
   // „Keine Zeit“ (W5.4, ZT4): je lesbarer Liste gültige Zellen mit bekannten Gründen (wkr/keineZeit.ts).
   const keineZeit = normalisiereKeineZeit(raw.keineZeit, (k) => !!liesListe(k), (lauf, starter) => zelleGilt(lauf, starter, starterIds))
-  return { listen, rueckfragen, vorschlaege, abschluss, keineZeit }
+  // Verworfene Werte (Wiederholung nach Ausfall, R11-11, Prüfbefund 27.11.2026): je Start einer, Unbrauchbares entfällt
+  // einzeln; ob ihr Abbruch noch im Betrieb steht, prüft reducer() beim nächsten Schritt des Betriebs.
+  const verworfen = Array.isArray(raw.verworfen) ? eindeutigeVerworfene(raw.verworfen.map((x) => liesVerworfen(x, starterIds)).filter((x): x is WkrVerworfen => x !== null)) : []
+  return { listen, rueckfragen, vorschlaege, abschluss, keineZeit, ...(verworfen.length > 0 ? { verworfen } : {}) }
+}
+
+function liesVerworfen(raw: unknown, ids: ReadonlySet<string>): WkrVerworfen | null {
+  if (!istObj(raw)) return null
+  const { bereich, ref, lauf, starter, werte } = raw
+  if (!istText(bereich) || bereich === '' || liesRef(ref)?.art !== 'm' || !istText(lauf) || !istText(starter) || !zelleGilt(lauf, starter, ids) || !istObj(werte)) return null
+  const zellen = Object.entries(werte).filter((e): e is [string, string] => e[0] !== '' && istText(e[1]) && e[1] !== '')
+  const keineZeit: WkrVerworfen['keineZeit'] = {}
+  if (istObj(raw.keineZeit)) {
+    for (const [liste, felder] of Object.entries(raw.keineZeit)) {
+      const f = liesListe(liste) ? liesKeineZeitFelder(felder) : undefined
+      if (f && Object.keys(f).length > 0) keineZeit[liste] = f
+    }
+  }
+  return { bereich, ref: ref as string, lauf, starter, werte: Object.fromEntries(zellen), keineZeit }
+}
+
+/** Je Bereich und Start einer – der spätere (ein zweiter Ausfall desselben Starts ersetzt den ersten). */
+function eindeutigeVerworfene(xs: WkrVerworfen[]): WkrVerworfen[] {
+  const je = new Map<string, WkrVerworfen>()
+  for (const x of xs) {
+    const k = JSON.stringify([x.bereich, x.ref])
+    je.delete(k)
+    je.set(k, x)
+  }
+  return [...je.values()]
 }

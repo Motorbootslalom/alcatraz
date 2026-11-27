@@ -330,3 +330,26 @@ describe('Erfassung ohne Host', () => {
     expect(warnung).not.toHaveBeenCalled()
   })
 })
+
+describe('Erfassung: Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11)', () => {
+  it('↻ an der Nummer: Werte der Wiederholung eintragen – auch ohne Gerätebetrieb; keine „Papier ansehen“-Marke dafür', async () => {
+    let s = stand()
+    const keys = keysVon(s)
+    s = zeile(s, keys[1], [[FELD, '5', '']])
+    s = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: keys[1], zeit: 6000 })
+    for (const host of [null, hostDoppel()]) {
+      const w = await erfassung(s, host)
+      const marke = reihe(w, starterVon(keys[1])).find('[data-marke="wiederholung"]')
+      expect(marke.text()).toContain('↻')
+      expect(marke.attributes('title')).toContain('Wiederholung nach Ausfall')
+      expect(reihe(w, starterVon(keys[1])).attributes('data-wiederholung')).toBe('')
+      expect(w.findAll('[data-marke="wiederholung"]')).toHaveLength(1)
+      // Die verworfenen Werte stehen nicht mehr da; der abgebrochene Versuch markiert nichts als „Papier ansehen“.
+      const felder = reihe(w, starterVon(keys[1])).findAll('input').map((i) => i.element as HTMLInputElement)
+      expect(felder.filter((i) => (i.type === 'checkbox' ? i.checked : i.value !== ''))).toEqual([])
+      expect(markiert(w, 'papier-ansehen')).not.toContain(starterVon(keys[1]))
+      w.unmount()
+      wrappers.length = 0
+    }
+  })
+})

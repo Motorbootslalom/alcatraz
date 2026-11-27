@@ -6,6 +6,7 @@ import { setLocale } from '../../i18n'
 import { vergissAlles } from '../../lib/merken'
 import { sichtOeffentlich } from '../../betrieb/sicht'
 import { betriebStarter, wkrBetriebsStand, zeigeNaechsten } from '../../testHilfen'
+import { reducer } from '../../state/reducer'
 import type { BetriebAenderung } from '../../state/reducer/betrieb'
 import { FREIGABE_SICHT_FASSUNG, type FreigabeErfassung, type FreigabeListe } from '../../wkr/freigabe'
 
@@ -104,5 +105,99 @@ describe('Auto-Modus an der Start-Freigabe (AM6/AM7)', () => {
     expect(w.find('[data-teil="auto"]').exists()).toBe(false)
     const ohne = karte((k) => erfassung(k))
     expect(ohne.w.find('[data-teil="auto-aus"]').exists()).toBe(false)
+  })
+})
+
+describe('Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11)', () => {
+  /** Zwei Starts gezeigt; mit `ausgefallen` ist der zweite (im Boot) abgebrochen und wartet. */
+  function wkarte({
+    ausgefallen = false,
+    wiederholen,
+    aufheben,
+    ausfallGesperrt,
+  }: { ausgefallen?: boolean; wiederholen?: (ref: string) => void; aufheben?: (ref: string) => void; ausfallGesperrt?: string[] } = {}) {
+    let s = zeigeNaechsten(stand(), P1, 61_000)
+    const imBoot = s.betrieb.bereiche[P1].gezeigt.at(-1)!.ref
+    if (ausgefallen) s = reducer(s, { type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: imBoot, zeit: 70_000 })
+    const sicht = sichtOeffentlich(s, { logos: false, gefahren: true })
+    const bereich = sicht.bereiche.find((b) => b.id === P1)!
+    const gesendet: BetriebAenderung[] = []
+    const w = mount(StartFreigabe, {
+      attachTo: document.body,
+      props: { sicht, bereich, sende: (a: BetriebAenderung) => void gesendet.push(a), ...(wiederholen ? { wiederholen } : {}), ...(aufheben ? { aufheben } : {}), ...(ausfallGesperrt ? { ausfallGesperrt } : {}) },
+    })
+    wrappers.push(w)
+    return { w, gesendet, imBoot }
+  }
+
+  it('nur mit `wiederholen` (Bedienrechner): Wahl der gezeigten Starts, jüngster zuerst, Rückfrage mit Nummer und Lauf', async () => {
+    expect(wkarte().w.find('[data-action="ausfall"]').exists()).toBe(false)
+    const gewaehlt: string[] = []
+    const { w, gesendet, imBoot } = wkarte({ wiederholen: (ref) => gewaehlt.push(ref) })
+    await w.find('[data-action="ausfall"]').trigger('click')
+    const zeilen = w.findAll('[data-teil="ausfall"] li')
+    expect(zeilen.map((z) => z.attributes('data-start'))).toEqual([imBoot, w.vm.$props.sicht.bereiche[0].vorig!.key])
+    expect(zeilen[0].text()).toContain('102')
+    // Suche nach Startnummer.
+    await w.find('[data-feld="ausfall-suche"]').setValue('101')
+    expect(w.findAll('[data-teil="ausfall"] li').map((z) => z.text())).toHaveLength(1)
+    await w.find('[data-feld="ausfall-suche"]').setValue('')
+    await w.find('[data-teil="ausfall"] li [data-action="ausfall-waehlen"]').trigger('click')
+    await nextTick()
+    const dialog = document.querySelector('[data-dialog="ausfall"]')!
+    expect(dialog.textContent).toContain('Wiederholung nach Ausfall: 102, Lauf 1?')
+    expect(dialog.textContent).toContain('verworfen')
+    // Abbrechen schickt nichts.
+    ;(document.querySelector('[data-action="ausfall-nein"]') as HTMLButtonElement).click()
+    await nextTick()
+    expect(gewaehlt).toEqual([])
+    await w.find('[data-teil="ausfall"] li [data-action="ausfall-waehlen"]').trigger('click')
+    await nextTick()
+    ;(document.querySelector('[data-action="ausfall-ja"]') as HTMLButtonElement).click()
+    await nextTick()
+    expect(gewaehlt).toEqual([imBoot])
+    // Keine Betriebs-Action dafür (die Werte verwirft die Erfassung, BetriebView); die Wahl schließt sich.
+    expect(gesendet).toEqual([])
+    expect(w.find('[data-teil="ausfall"]').exists()).toBe(false)
+  })
+
+  it('„Wiederholung offen“: einreihen, zeigen, „Doch keine Wiederholung“ nur am Bedienrechner; „Zurück“ gesperrt', async () => {
+    const handy = wkarte({ ausgefallen: true })
+    const liste = handy.w.find('[data-teil="wiederholung"]')
+    expect(liste.exists()).toBe(true)
+    expect(liste.text()).toContain('Wiederholung offen (1)')
+    expect(liste.text()).toContain('Lauf 1 · Wiederholung')
+    expect(liste.find('[data-action="wiederholung-aufheben"]').exists()).toBe(false)
+    // Im Boot: der abgebrochene Versuch, gekennzeichnet; „Zurück“ nimmt ihn nicht.
+    expect(handy.w.find('[data-teil="abgebrochen"]').text()).toBe('Ausfall – wird wiederholt')
+    expect(handy.w.find('[data-action="zurueck"]').attributes('disabled')).toBeDefined()
+    await liste.find('[data-action="einreihen-naechster"]').trigger('click')
+    await liste.find('[data-action="wiederholung-zeigen"]').trigger('click')
+    expect(handy.gesendet).toEqual([
+      { type: 'BETRIEB_EINREIHEN', bereich: P1, ref: handy.imBoot, wo: 'naechster' },
+      { type: 'BETRIEB_ZEIGEN', bereich: P1, ref: handy.imBoot, vorher: handy.imBoot },
+    ])
+    // Am Bedienrechner: „Doch keine Wiederholung“ geht an BetriebView (WIEDERHOLUNG_AUFHEBEN, eine Action der Erfassung –
+    // die Werte kommen zurück, Prüfbefund 27.11.2026), nie über `sende`.
+    const aufgehoben: string[] = []
+    const am = wkarte({ ausgefallen: true, wiederholen: () => {}, aufheben: (ref) => aufgehoben.push(ref) })
+    await am.w.find('[data-teil="wiederholung"] [data-action="wiederholung-aufheben"]').trigger('click')
+    expect(aufgehoben).toEqual([am.imBoot])
+    expect(am.gesendet).toEqual([])
+  })
+
+  it('abgemeldeter Starter: in der Wahl ausgegraut mit Satz statt einer Rückfrage, auf die nichts geschähe (WH10)', async () => {
+    const gewaehlt: string[] = []
+    // Im Boot steht m2 (102) – abgemeldet.
+    const { w, imBoot } = wkarte({ wiederholen: (ref) => gewaehlt.push(ref), ausfallGesperrt: ['m2'] })
+    expect(JSON.parse(imBoot)[1]).toBe('m2')
+    await w.find('[data-action="ausfall"]').trigger('click')
+    const zeile = w.find(`[data-teil="ausfall"] li[data-start='${imBoot}']`)
+    expect(zeile.find('[data-teil="ausfall-abgemeldet"]').text()).toBe('abgemeldet – keine Wiederholung')
+    expect(zeile.find('[data-action="ausfall-waehlen"]').attributes('disabled')).toBeDefined()
+    // Die anderen bleiben wählbar.
+    const andere = w.findAll('[data-teil="ausfall"] li').filter((z) => z.attributes('data-start') !== imBoot)
+    expect(andere.length).toBeGreaterThan(0)
+    expect(andere[0].find('[data-action="ausfall-waehlen"]').attributes('disabled')).toBeUndefined()
   })
 })

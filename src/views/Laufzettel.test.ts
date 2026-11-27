@@ -271,6 +271,22 @@ describe('Listen: Laufzettel', () => {
     wrapper.unmount()
   })
 
+  it('Meisterschaft mit gemeinsamen Bögen (R11-03, 26.11.2026): wie bei der Clubmeisterschaft ein Zettel je Parcours und Lauf', async () => {
+    const wrapper = ansicht(store)
+    await laufzettel(wrapper)
+    // Vorgabe: je Klasse.
+    expect(zettel(wrapper)).toHaveLength(4 * 3)
+    for (const art of ['gleich', 'alle'] as const) {
+      store.dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art })
+      await nextTick()
+      await nextTick()
+      expect(zettel(wrapper), art).toHaveLength(2 * 3)
+      expect(ruecken(wrapper)[0], art).toMatch(/^Klassen [13], [13] \| 1\. Lauf \| Parcours 1$/)
+      expect(zettel(wrapper)[0].find('svg.qr-code').attributes('data-qr'), art).toBe('ALC1.K7Q4.DM2026.ALCATRAZ.PAR1.13.1')
+    }
+    wrapper.unmount()
+  })
+
   const BLATT = {
     klassenText: 'Klassen E, 1, 4',
     laufText: '1. Lauf',

@@ -6,7 +6,7 @@ import { useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { duplicateStartNrIds } from '../domain/startnumbers'
 import { bogenFortschritt } from '../lib/erfassung'
-import { wkrBoegenZumStand, type WkrBogen, type WkrListen } from '../lib/wkrListen'
+import { gemeinsameBoegen, wkrBoegenZumStand, type WkrBogen, type WkrListen } from '../lib/wkrListen'
 import { stapelBoegen } from '../lib/laufzettel'
 import { leseCode, type QrFehler } from '../lib/qr'
 import { meldeScan, scanBeenden, scanBogen, scanErledigt, scanStand } from '../lib/scan'
@@ -115,7 +115,7 @@ const bogen = computed(() => boegen.value.find((b) => b.typeId === wahl.value.li
 const ALLE = '*'
 /**
  * Der Blattstapel des Laufzettels (lib/laufzettel.ts), zu dem die gewählte Klasse gehört: bei
- * der Clubmeisterschaft auch die Bögen der anderen Klassen des Stapels, die Knoten nur im
+ * gemeinsamen Bögen (Clubmeisterschaft, Meisterschaft auf Wunsch) auch die Bögen der anderen Klassen des Stapels, die Knoten nur im
  * letzten Lauf – genau die Blätter, die mit dem Zettel zur Auswertung kommen.
  */
 const stapel = computed<WkrBogen[]>(() => {
@@ -124,7 +124,7 @@ const stapel = computed<WkrBogen[]>(() => {
   if (imParallel.value) return amParcours.value
   if (parcoursId.value === undefined || klasse.value === undefined) return []
   return stapelBoegen(alle.value, veranstaltungsListen(konfig.value, state.value), { parcoursId: parcoursId.value, klasse: klasse.value, lauf: lauf.value }, {
-    jeParcours: state.value.eventKind === 'club' && state.value.wkrClubGemeinsam,
+    jeParcours: gemeinsameBoegen(state.value).papierSparen,
   })
 })
 const gestapelt = computed(() => wahl.value.liste === ALLE && stapel.value.length > 0)

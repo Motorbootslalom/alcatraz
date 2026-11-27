@@ -27,7 +27,7 @@ Steg-Reiter immer mit ✓/Zahl, Übung mit Erklärung und „Übung beenden“, 
 nie vorgewählt, Klassenwechsel-Band nur beim ersten Start + Parcours-Zeichnung, „nicht vorbeigekommen“ = Disq. J
 (GF10/GF11, ersetzt 24.11.2026). **Nutzer 24.11.2026**: „‚Nicht vorbeigekommen Disq J‘ ist falsch. Das meint hier eher
 ‚Nicht gestartet Disq X‘.“ – „Mehr → Nicht gestartet · Disq. X“ auf jeder Liste mit Disq.-Feld, ein gewöhnliches X (NG1–NG8,
-NG4–NG6 noch zu bestätigen); Kennzeichen ⊘ samt WkrStand.nichtVorbei, GeraeteZeile.n und wkr/nichtVorbei.ts entfernt.
+NG4–NG6 bestätigt 26.11.2026); Kennzeichen ⊘ samt WkrStand.nichtVorbei, GeraeteZeile.n und wkr/nichtVorbei.ts entfernt.
 Umgebaut 21.11.2026 (Plan §6, WN1–WN3 noch zu bestätigen): **WKR-Name aus der Einteilung** (W3-13, ersetzt G11/L4) –
 Sicht der eigenen Liste trägt `wkrName`, Gerät ändert unter „Mehr → Name“, Bedienrechner zeigt Abweichungen.
 W5 (Pad, Plan docs/plan-wkr-w5.md): W5.1 (Pad-Rahmen, mehrere Listen nebeneinander, Maskenwahl) gebaut 22.11.2026,
@@ -93,8 +93,8 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   gültig, alle `false`): nichtVorbei, nichtVorbeiNichtBeiX, nichtVorbeiNurDirekt, nichtVorbeiAufheben, nichtVorbeiZelle,
   nichtVorbeiImAbschluss, nichtVorbeiMehr, nichtVorbeiVerlauf, nichtVorbeiUebung. Dahinter „Nicht gestartet · Disq. X“
   (Nutzer 24.11.2026, NG1–NG8): nichtGestartetMehr (NG1), nichtGestartetUeberall (NG2), xKnoepfeNurF5 (NG3),
-  nichtGestartetWirkung (NG4, Steg-Anlegen noch zu bestätigen), nichtGestartetKorrektur (NG5, noch zu bestätigen),
-  nichtGestartetStattKennzeichen (NG6, Werte anderer Zellen noch zu bestätigen), nichtGestartetUebung (NG7),
+  nichtGestartetWirkung (NG4, Steg-Anlegen bestätigt 26.11.2026, R11-10/R11-12), nichtGestartetKorrektur (NG5, bestätigt
+  26.11.2026), nichtGestartetStattKennzeichen (NG6, Werte anderer Zellen bestätigt 26.11.2026), nichtGestartetUebung (NG7),
   nichtGestartetFassung 13 (NG8).
   Prüfbefunde W4 (S1–S5, 21.11.2026, noch zu bestätigen): bojenSchalterPrellMs 400, pruefenNurLaufenderPunkt,
   unbekanntBandKurz, zaehlerStandZweiZeilen, hinweisUeberKopf.
@@ -119,10 +119,15 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   W5.2 (22.11.2026, noch zu bestätigen): BD1 bildSeitenWieSpalten, BD2 bildSonstKnoepfe, BD3 bildParallelZeichnung (umgebaut 22.11.2026 R8-19, vorher bildParallelSchema; neu BD8–BD10, seit 23.11.2026 nach R9-05…07 umgeschrieben: BD8 bildParallelIdsAusParcoursRepo, BD9 bildParallelEineBahnFuerBeide, BD10 bildParallelNurEineBahn), BD4
   bildUmschalterNurVonHand (umgebaut 22.11.2026 R8-20, vorher bildRueckNachTor5), BD5 bildRueck2, BD6 bildTrefferMm 15,
   BD7 bildDisqKnopfUndLangdruck (umgebaut 22.11.2026 R8-23, vorher bildDisqUeberKnopf), beim Bau bildDrehungNurPad; Prüfbefunde 22.11.2026: bildDrehungNachPlatz, tastaturAendertNichts (PD1).
-  Nutzer 24.11.2026 (noch zu bestätigen): Lage des Bilds BL1 bildLageWahl (seit Prüfbefund mit „Automatisch“), BL2
+  Nutzer 24.11.2026: Lage des Bilds BL1 bildLageWahl (seit Prüfbefund mit „Automatisch“), BL2
   bildLageNachSteg, BL3 bildLageVorPlatz, BL4 bildTextAufrecht, BL5 bildLageOhneSchema, BL6 bildDisqOrtVorgabeFolge;
-  Übung Y5 uebungVorziehenUnten, UK1 uebungKopfAusDemBild, UK2 uebungKopfNurEineSpalte, UK3 uebungKopfZuletztBleibt,
+  Übung Y5 uebungVorziehenUnten, UK1 uebungKopfAusDemBild und UK3 uebungKopfZuletztBleibt (beide entfallen 26.11.2026,
+  R11-14, `false`, ersetzt durch UK7 uebungErklaerungAusDemBild), UK2 uebungKopfNurEineSpalte,
   Prüfbefunde 24.11.2026: UK4 uebungKopfSeiteRechts, UK5 uebungKopfMitNaechsterKarte, UK6 uebungKopfAmTisch.
+  **Antworten 26.11.2026** (Runde 11): bestätigt BL1, BL3, BL6, Y5, UK2, UK4, AG1–AG4, CM2, CM3 (ohne „D schon
+  gesetzt“), CM5, CM6, CM8, NG4, NG5, NG6 (je „Bestätigt 26.11.2026 (R11-xx)“); NICHT bestätigt BL2 (R11-13 – umgebaut: BL7 bildLageNachStartZiel, Lagen
+  „Start/Ziel links/oben/rechts/unten“) und UK1/UK3 (R11-14 – umgebaut: UK7 uebungErklaerungAusDemBild, der Kopf bleibt,
+  nur die Erklärung rollt hinaus; UK6 ebenso); H2 „↩ Rückgängig“ (R11-30 (2), Pfeil als Zeichnung in WkrFuss).
   Nutzer 21.11.2026 (noch zu bestätigen): Disq. an der Boje U1 disqAnBoje, U2 disqBojeMitPunkten (seit W4-12 statt
   disqBojeErsetztPunkte), U3 disqBojeLangdruck (umgebaut 22.11.2026 R7-21, vorher disqBojeOhneLangdruck; dazu LD1 langdruckMs 800,
   LD2 langdruckNieTipp, LD3 langdruckWegPx 10 + langdruckRingMs 300, LD4 langdruckPrellschutz – Hilfe
@@ -141,12 +146,12 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   klassenWechselNurErster, nichtVorbeiAlsJ (GF10/GF11, seit 24.11.2026 `false`, NG1); freigabeVorwahlOhneListe → false (W3-26).
   WKR-Namen (21.11.2026, WN1–WN3): nameNurBeimAbschluss → false, wkrNameNurEigeneListe, wkrNameImLebenszeichen,
   wkrNameOhneEinteilung (G12/L4 bleiben Rückfall ohne Einteilung).
-  Ausgleichsgewicht am Steg (Nutzer 24.11.2026, AG1–AG4; AG3/AG4 noch zu bestätigen): ausgleichListen ['steg']
-  (Datenschutz-Ausnahme), ausgleichNurLesen (nichts am Steg pflegen, Nachtrag in der Verwiegung kommt von selbst),
+  Ausgleichsgewicht am Steg (Nutzer 24.11.2026, AG1–AG4; alle bestätigt 26.11.2026, R11-05/R11-06/R11-29/R11-30): ausgleichListen ['steg']
+  (Datenschutz-Ausnahme), ausgleichNurLesen (nichts am Steg pflegen, kein Haken, Nachtrag in der Verwiegung kommt von selbst),
   ausgleichTeil 'ab' (Karte nur im Ablegen; ein Gerät nur fürs Anlegen empfängt den Wert mit – eine Gruppe je Liste,
-  Rückfrage offen), ausgleichUebung (erfundene Abstände je Startnummer in der Übung). Prüfbefund 24.11.2026: auf 0 kg
+  so bestätigt), ausgleichUebung (erfundene Abstände je Startnummer in der Übung). Prüfbefund 24.11.2026 (bestätigt): auf 0 kg
   gerundet = „kein AG“, auf Papier leer (components/AusgleichListen.vue), Verwiegung weiter „0 kg“.
-  Höchstzahl je Code (Nutzer 24.11.2026, CM1–CM8; CM2–CM6 und CM8 noch zu bestätigen): codeMaxAusRegelwerk (YAML `max`/`danach`
+  Höchstzahl je Code (Nutzer 24.11.2026, CM1–CM8; CM2, CM3, CM5, CM6, CM8 bestätigt 26.11.2026, CM4 und „D schon gesetzt“ in CM3 noch zu bestätigen): codeMaxAusRegelwerk (YAML `max`/`danach`
   je Code: „2. und 3. Versuch“ 2× → D, Tor 5 Code 1 1×), codeMaxAllgemein 3 (lib/codes.ts codeHoechstens/
   codesUeberMax), codeDanachStattZaehler (maske.ts tippe), codeMaxImKnopf, codeMaxGeraet (tabelle.ts `code-zu-oft`/
   `code-danach`, zeile.ts wertGilt), codeMaxAbtippenHinweis (lib/erfassung.ts `codeZuOft`/`codeDanach`), codeMaxFassung 12,
@@ -197,8 +202,9 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   wegNachTipp entfiel 22.11.2026, BD4/R8-20), bildZahlen, inlineSvg (IDs mit Präfix, Drehung über viewBox + `<g>`, Deckkraft als `style` am
   Element – kein `<style>`-Block), schiebeAuseinander (BD6), svgSeiten + wirksameDrehung (±90° nur, wo die gedrehte
   Zeichnung im Platz nicht kleiner wird, Prüfbefund 22.11.2026; seit 24.11.2026 `wahl` des WKR geht vor, BL3).
-  Lage (Nutzer 24.11.2026, BL1–BL5): BildLage 0|90|180|270 (im Uhrzeigersinn), BILD_LAGEN, BILD_LAGE_SEITE (Datei =
-  „Steg unten“, Start links; Parallel nach dem Start), istBildLage, lageVonDrehung, aufrechtTransform (Gegendrehung je
+  Lage (Nutzer 24.11.2026, BL1–BL5, BL7 26.11.2026): BildLage 0|90|180|270 (im Uhrzeigersinn), BILD_LAGEN,
+  BILD_LAGE_SEITE {start, wende} (Datei = Start/Ziel links, Tor 5/Boje 5 rechts – Test bild.test.ts „BL7 an den echten
+  Zeichnungen“; Namen nach Start/Ziel, nie nach dem Steg), istBildLage, lageVonDrehung, aufrechtTransform (Gegendrehung je
   `<text>`, BL4). Entwurf/Zellen NUR über maske.ts (maske.test.ts: gleiche
   Tipps im Bild und in den Knöpfen → gleiche Zellen). Nutzer: components/wkr/WkrBild.vue, WkrMaske, WkrProbe, WkrGeraet.
 - `ampel.ts` (Parcours-Ampel, Nutzer 21.11.2026 P-03) – parcoursAmpel(stand, konfig, bereich, lagen) → AmpelLage {ampel
@@ -389,6 +395,18 @@ Werte gehen nur über `eingaben` (wie Abtippen), nie über den Betrieb; belegte 
   (Gerät: Form prüfen, Fremdes fällt weg). Nutzer: StartFreigabe.vue Prop `erfassung` (BetriebView rechnet sie aus
   erfassungsLage, GeraetFreigabe bekommt sie über geraete/gekoppelt.ts `freigabe`), geraete/host.ts verteileFreigabe
   (Freigabe-Gruppe je Bereich, geraete/wkrGruppen.ts gruppeDerFreigabe). Nie über ko/kz (F17).
+- `versuch.ts` (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN WH6/WH7) – Wiederholung nach Ausfall auf den Geräten:
+  versuchsKennung(key, n) (n = Abbrüche davor; 0 = Kennung des Betriebs, sonst `["w", n, key]`), liesVersuch,
+  geraeteKennung(betrieb, key), versuchVeraltet, giltFuerAlleVersuche (Vorsteg mit „Versuche nacheinander“),
+  versuchVeraltetAuf(stand, konfig, liste, kennung) (27.11.2026: auf einer Liste für alle Versuche ist keine Kennung
+  veraltet, WH6). sicht.ts gibt ListenStart.key und `ampel.key` als Geräte-Kennung aus; zeile.ts liest sie zurück
+  (WkrZeile.ref = Kennung des Betriebs, WkrZeile.`versuch` = n – WKR_ZEILEN prüft ihn beim Anwenden noch einmal) und
+  lehnt einen veralteten Versuch mit `versuch-abgebrochen` ab (nie still, keine Rückfrage); WKR_ABSCHLUSS überspringt
+  Prüfsummen veralteter Versuche. schlange.ts rahmen: eine Wiederholung (geltender Versuch nach einem abgebrochenen)
+  kommt auch in einem abgeschlossenen Punkt (27.11.2026, WH8; Zeile → Vorschlag „abgeschlossen“). schlange.ts/lage.ts überspringen `gezeigt` mit `abgebrochen` (Schlange,
+  P der Pausen, Spalten, „überfällig“, Marken); imBoot nie für einen abgebrochenen Versuch, wartet aber auf eine offene
+  Wiederholung; ampel.ts laufLage zählt sie als offen; durchfahrtVon: abgebrochener Start im Boot = keine Ampel.
+  Test wkr/wiederholung.test.ts, geraete/wkr.test.ts „Wiederholung nach Ausfall Ende zu Ende“.
 - Nutzer außerhalb: geraete/aufgaben.ts erlaubteWkr (pruefeZeile), geraete/host.ts (sichtListe je Listen-Gruppe),
   geraete/erfassen.ts (Gerät: liest ListenSicht, rechnet zeilenPruefsumme wie WKR_ABSCHLUSS, Zahlen aus WKR_ANNAHMEN:
   buendel, zuletzt, lebenszeichenSek, nameMax). Ende zu Ende: geraete/wkr.test.ts.

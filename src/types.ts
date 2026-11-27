@@ -4,12 +4,13 @@
 //   types/starter.ts        ClassId, Geschlecht, Starter, StartNrMode
 //   types/planung.ts        Parcours, Spuren, Boote, laufende Nummern, PlanState; ParallelRunde, ParallelPlaene …
 //   types/wertung.ts        Eingaben, Streichlaeufe, ListenStand, NichtWerten, PokalEinstellungen, Ergebnis…
-//   types/einstellungen.ts  OriginMode, OriginStyle, EventKind, Einteilung, WkrSprachen, Besetzung, LaufzettelLayout,
-//                           WkrGemeinsamFolge, LogoSeite, LogoBild, Logos
+//   types/einstellungen.ts  OriginMode, OriginStyle, EventKind, Einteilung, WkrSprachen, Besetzung, CoPilot(en), CoPilotRolle,
+//                           CoPilotPaar, CoPilotAusgleich, LaufzettelLayout,
+//                           WkrGemeinsamFolge, WkrMeisterschaftGemeinsam, LogoSeite, LogoBild, Logos
 //   types/bogen.ts          SheetDef, Column, CellKind, ErrorDef, DisqDef, Sprache, Geraet, TrennerDesign
 //   types/betrieb.ts        BereichId, PunktId, StartRef, VerschiebeZiel, Meldung, BereichBetrieb, Betrieb, AnzeigeEinstellungen,
 //                           ParallelAnordnung, OeffentlicheSicht (Sicht…), ZuschauerSicht (Zuschauer…)
-//   types/wkr.ts            WkrStand, WkrPunkt, WkrListe, WkrModus, WkrStatus, WkrPause, WkrAbschluss, WkrZeile, WkrRueckfrage, WkrVorschlag, KeineZeitGrund
+//   types/wkr.ts            WkrStand, WkrPunkt, WkrListe, WkrModus, WkrStatus, WkrPause, WkrAbschluss, WkrZeile, WkrRueckfrage, WkrVorschlag, WkrVerworfen, KeineZeitGrund
 // Die Teile enthalten nur Typen; der einzige Wert, SCHEMA_VERSION, bleibt hier.
 
 export type * from './types/zustand'

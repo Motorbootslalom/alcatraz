@@ -37,6 +37,10 @@ und hört auf den Handscanner. Ansichten lesen `state.value`, ändern nur per di
 - `SettingsView.vue` (~880 Zeilen, gezielt lesen) – alle Einstellungen in Abschnitten mit id (logos (LogosPanel),
   wertung, streichlaeufe, ergebnislisten, pokal, wkr-listen, wkr-zeilen-je-seite, wkr-teilen-ab, wkr-leerzeilen,
   laufzettel-layout, anzeigetafel, betrieb, dateien …) und `data-feld` je Steuerelement; Kürzel, Dateien, Verlauf.
+  Durchschnittsgewichte `#gewichte` (Sprungziel `?durchschnittsgewichte`/`?average-weights`, 26.11.2026): Abstufung und
+  `co-pilot-ausgleich` (SET_CO_PILOT_AUSGLEICH, R11-07; Namen und Gewichte im Block „Besetzung“ der Veranstaltung).
+  Gemeinsame WKR-Bögen (R11-03, 26.11.2026; lib/wkrListen.ts gemeinsameBoegen): Meisterschaft `wkr-meisterschaft-gemeinsam`
+  (aus ↔ gleich) und `wkr-meisterschaft-papier` (gleich ↔ alle), Club `wkr-club-gemeinsam`; `wkr-gemeinsam-folge` für beide.
   Anzeigetafel: data-feld `anzeige-*` → SET_ANZEIGE; Sprungziel `#/einstellungen?anzeigetafel`; nur UIM
   (`v-if="parallel"`) `anzeige-parallel-anordnung` (Lage von Racecourse A und B, PARALLEL_ANORDNUNGEN). Startfolge im
   Betrieb (`#betrieb`, Sprungziel `?startfolge`/`?start-order`): `betrieb-verzahnung-halten` → SET_ANZEIGE {verzahnungHalten};

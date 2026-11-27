@@ -186,6 +186,11 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   (Halbfinale ab 3, Finale ab 2), Punkte des hinteren Platzes bei Disq. in Halbfinale/Finals, Disq. im Re-run zum
   Vorlauf = hinterer Platz der Gruppe, Verzahnung der Runden nach dem Vorlauf, beide Finals zusammen bei „Alle Klassen
   weiter“. → `lib/parallelErgebnis.ts` PARALLEL_ANNAHMEN (Kommentare „BESTÄTIGT vom Nutzer 24.11.2026“)
+- 2026-11-26 · N · Finals getrennt, Auslegungen vom 21.11.2026 bestätigt: Rundenname „Small final“/„Kleines Finale“
+  ohne den früheren Zusatz „(3rd and 4th place)“, überall gleich (R11-25); der Hinweis „offene Runde“ (Results,
+  Druckdatei, Einzel- und Mannschaftswertung) nennt je Klasse EINE Runde – die zuerst gefahrene, nicht fertige, also
+  das Kleine Finale vor dem Finale, auch nach einem Protest, wenn beide veraltet sind (R11-29 (7)). →
+  `planung/parallelRunden.ts` rundenText, `lib/parallelStage.ts` offeneRunde
 
 ## Einzelwertung (Regel 960, Pkt. 5.2.3 und 5.2.6)
 
@@ -201,10 +206,10 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   letzte gefahrene Runde, wenn das nicht reicht zusätzlich auch die vorletzte Runde“ – je Punktgleichem die Summe
   beider Attempts SEINER zuletzt gefahrenen Runde (Finale, Kleines Finale, Halbfinale oder Vorlauf), bei gleicher Zeit
   die seiner vorletzten; ein Re-run ersetzt die Zeiten seiner Runde. Ersetzt „die beiden Attempts des Vorlaufs“ vom
-  15.11.2026. Beim Bau ausgelegt (siehe „Offen“): Runde ohne Start (in keinem Attempt eine Zeit oder Disq. außer X)
-  gilt nicht als gefahren; Disq. in der letzten Runde = ohne Zeit, kein Ausweichen; wer nur den Vorlauf gefahren ist, hat keine vorletzte Runde –
-  dann bleibt der Platz geteilt, für die ganze Gruppe der Gleichen; die Zeit der vorletzten Runde steht auf der Liste
-  in Klammern hinter der Zeit. → EINZEL_FESTLEGUNGEN.stichParallelRunde = 'letzteDannVorletzte',
+  15.11.2026. Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-26, R11-27, R11-29 (8)): Runde ohne Start (in keinem
+  Attempt eine Zeit oder Disq. außer X) gilt nicht als gefahren; Disq. in der letzten Runde = ohne Zeit, kein Ausweichen; wer nur den Vorlauf gefahren ist, hat keine vorletzte Runde –
+  dann bleibt der Platz geteilt, für die ganze Gruppe der Gleichen; Punktgleiche ohne Zeit bekommen keine zweite
+  Stufe; die Zeit der vorletzten Runde steht auf der Liste in Klammern hinter der Zeit. → EINZEL_FESTLEGUNGEN.stichParallelRunde = 'letzteDannVorletzte',
   `lib/einzelwertung.ts` gefahreneRunden, `components/ergebnis/EinzelwertungBlatt.vue`
 - 2026-11-15 · N · Punktgleiche ohne Zeit für den Stichentscheid (disqualifiziert) stehen hinter den Punktgleichen mit
   Zeit; mehrere teilen sich diesen Platz. → `lib/einzelwertung.ts`
@@ -269,13 +274,29 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   bisher) oder nach der Verzahnung (gemischt in der Startfolge, Spalte „Kl.“ hinter der Nummer, keine Überschriften);
   gilt mit und ohne „Papier sparen“. Spalten, die eine Klasse nicht hat, in beiden Fällen schraffiert wie die
   Dummy-Zeile. Keine Farbtöne je Klasse (damit erledigt sich die Idee „Farbtöne für andere Klassen auf gemeinsamen
-  Bögen“). Festlegungen bei der Umsetzung, noch zu bestätigen: In der Startfolge stehen die Leerzeilen je Seite
+  Bögen“). Festlegungen bei der Umsetzung, bestätigt 26.11.2026: In der Startfolge stehen die Leerzeilen je Seite
   (`wkrLeerzeilenSeite`) am Ende jeder Seite mit leerer Klassenzelle, auch ohne „Papier sparen“, und entfallen bis auf
   eine, wenn sie allein ein Blatt kosteten; mit „Versuche direkt nacheinander“ (UIM) ist jede Leerzeile eine Zeile
-  ohne Versuch – eine Nachmeldung füllt zwei, wie schon auf Bögen einer Klasse; der Kopf nennt die Klassen der Seite; die Beispielansicht mischt die
-  Muster-Starter mit der Verzahnung des Parcours; die Erfassung am Bildschirm behält ihre blasse Schraffur (dort liegt
-  daneben die Schraffur „nicht gestartet“). Offen: ob gemeinsame Bögen über Klassen auch bei DM/UIM-Meisterschaften
-  kommen sollen. → AppState.wkrGemeinsamFolge, `lib/wkrListen.ts`, `lib/bogen.ts`, `styles/bogen.css`
+  ohne Versuch – eine Nachmeldung füllt zwei, wie schon auf Bögen einer Klasse (R11-04); die Erfassung am Bildschirm
+  behält ihre blasse Schraffur (dort liegt daneben die Schraffur „nicht gestartet“; R11-29 (2)). Noch zu bestätigen:
+  der Kopf nennt die Klassen der Seite; die Beispielansicht mischt die Muster-Starter mit der Verzahnung des
+  Parcours. Offen: ob gemeinsame Bögen über Klassen auch bei DM/UIM-Meisterschaften
+  kommen sollen (beantwortet 26.11.2026, R11-03, nächster Eintrag). → AppState.wkrGemeinsamFolge, `lib/wkrListen.ts`,
+  `lib/bogen.ts`, `styles/bogen.css`
+- 2026-11-26 · N · R11-03 Gemeinsame WKR-Bögen mehrerer Klassen auch bei Meisterschaften (DM, UIM): „Wenn es schon da
+  ist, kann man das auch bei den anderen nutzen.“ Einstellung „Gemeinsame Bögen“ unter Einstellungen →
+  Wettkampfrichter-Listen, nur wenn die Veranstaltung keine Clubmeisterschaft ist, Vorgabe aus (je Klasse ein Bogen wie
+  bisher). An: dieselbe Gruppierung wie bei der Clubmeisterschaft ohne „Papier sparen“ (gleiche Spalten und gleiche
+  Zeichnung → ein Bogen, Listen mit verschiedener Zeichnung je Klasse), mit der Folge getrennt/nach der Verzahnung;
+  „Papier sparen“ (alle Klassen einer Liste, ohne Bild) als weiterer Haken. Die Clubmeisterschaft bleibt, wie sie war
+  (eigene Angabe `wkrClubGemeinsam`, Vorgabe Papier sparen). Folgen wie bei der Clubmeisterschaft: Laufzettel je
+  Parcours und Lauf für alle Klassen, die sich Bögen teilen; QR-Codes nennen die Klassen des Bogens (nach dem Umstellen
+  findet der Scan den Bogen der ersten Klasse und meldet „ungenau“); Seiten gemeinsamer Bögen immer automatisch; WKR-Geräte,
+  Parallelslalom und Wertung unverändert. R11-04 bestätigt: in der Startfolge die Leerzeilen je Seite am Seitenende.
+  Beim Bau ausgelegt, noch zu bestätigen: „Papier sparen“ auch bei Meisterschaften angeboten (ohne Parcoursbild, Vorgabe
+  aus); Leerzeilen je Klasse bleiben beim Einschalten, wie eingestellt (Meisterschaft 3, Clubmeisterschaft 1).
+  → AppState.wkrMeisterschaftGemeinsam (`aus`|`gleich`|`alle`), `lib/wkrListen.ts` gemeinsameBoegen,
+  `views/SettingsView.vue` `wkr-meisterschaft-gemeinsam`/`wkr-meisterschaft-papier`
 - 2026-11-12 · N · Startlisten je Parcours getrennt, nicht je Klasse; eine Klasse nicht unnötig über einen Seitenwechsel
   trennen.
 - 2026-11-13 · N · Geburtsdatum nie auf Wertungslisten; auf Starterlisten ein-/ausblendbar; auf Gewichtslisten immer
@@ -518,11 +539,36 @@ Belege zusätzlich als Kommentar an der Umsetzung.
   im Kopf („1 Geburtstag prüfen“, auch zugeklappt), in der offenen Klasse die Liste mit Satz je Starter und ein „!“ am
   Geburtsdatum. Nichts wird gesperrt, verschoben oder abgefragt, es gibt nichts zu bestätigen. Ohne Datum der
   Veranstaltung nennt die Liste die Grenz-Jahrgänge (werden im Jahr 6 bzw. 27) zum Prüfen, mit Verweis auf das Datum,
-  dazu wer sicher außerhalb liegt; ohne Geburtsdatum keine Warnung. Beim Bau ausgelegt, zu bestätigen (unter „Offen“):
-  „bis zum 27. Geburtstag“ = am Geburtstag selbst nicht mehr; mehrtägig = der erste Tag zählt; am 29.02. Geborene
-  werden in Jahren ohne 29.02. am 01.03. älter (BGB § 188). → `import/klassenPruefung.ts` geburtstagsHinweise,
+  dazu wer sicher außerhalb liegt (bestätigt 26.11.2026, R11-29 (1)); ohne Geburtsdatum keine Warnung. „Bis zum 27. Geburtstag“ = am Geburtstag selbst
+  nicht mehr (beim Bau ausgelegt, vom Nutzer bestätigt am 26.11.2026, R11-01). Mehrtägige Veranstaltungen: zwei Stufen,
+  Eintrag vom 26.11.2026 (R11-02). Beim Bau ausgelegt, zu bestätigen (unter „Offen“): am 29.02. Geborene werden in
+  Jahren ohne 29.02. am 01.03. älter (BGB § 188). → `import/klassenPruefung.ts` geburtstagsHinweise,
   `dm-2026.yaml` `geburtstagsGrenzen`, AppState.eventDatum (SET_EVENT_DATUM), `components/ClassSection.vue`,
   `views/EventView.vue`
+- 2026-11-26 · N · R11-02 Geburtstags-Warnung bei mehrtägigen Veranstaltungen (Nutzer: „Es sollte dann zwei Warnungen
+  geben. Einen Hinweis, dass man 2 Wochen vor dem Datum ist, und eine deutliche Warnung, wenn der Tag weniger als 2
+  Tage dran ist.“). Gemessen wird der Abstand zwischen dem entscheidenden Geburtstag (6. bzw. 27.) und dem Datum der
+  Veranstaltung (erster Wettkampftag), in beide Richtungen. Deutliche Warnung (rot): Geburtstag bis 2 Tage davor oder
+  danach – der Satz nennt den Geburtstag, den Abstand und ab bzw. bis wann der Starter starten darf („… wird am
+  06.09.2026 6 Jahre alt (1 Tag nach dem ersten Wettkampftag) – darf in Klasse E erst ab diesem Tag starten“, Klasse 7
+  „… nur bis zum 05.09.2026 starten“ = Tag vor dem 27. Geburtstag); rot bleibt auch, wer am ersten Tag klar zu jung
+  oder zu alt ist (Geburtstag mehr als 2 Tage weg). Hinweis (gelb): der Starter darf am ersten Tag starten, aber der
+  Geburtstag liegt 3 bis 14 Tage davor (E) bzw. danach (7) – „Geburtstag nahe am Wettkampftag: … bitte prüfen“. Ohne
+  Datum wie bisher: Grenz-Jahrgänge gelb zum Prüfen, sicher außerhalb rot. Im Reiter „Starter“ je Stufe eine Marke im
+  Kopf („2 Geburtstage: Warnung“, „1 Geburtstag prüfen“; ein Starter zählt nur in seiner stärksten Stufe) und ein
+  Kasten in der offenen Klasse, das „!“ am Geburtsdatum in der stärksten Stufe; der Satz darunter nennt beide Spannen.
+  Beides übergehbar, nichts gesperrt. Die Zahlen 2 und 14 stehen an einer Stelle (`GEBURTSTAG_FENSTER`), nicht im
+  Regelwerk: Das Reglement nennt nur die Grenzen in Jahren, wie früh die App warnt, gilt für jedes Regelwerk gleich.
+  Beim Bau ausgelegt, zu bestätigen (unter „Offen“): „weniger als 2 Tage“ einschließlich 2 Tagen (so ist bei Freitag
+  bis Sonntag auch der dritte Tag erfasst); die rote Warnung kommt auch, wenn der 6. Geburtstag bis 2 Tage VOR dem
+  ersten Tag liegt (darf dann schon starten); wer in Klasse E 3–14 Tage nach dem ersten Tag 6 wird, bleibt „zu jung“
+  (rot), nicht gelb. Nach der Prüfung (26.11.2026): Liegt jemand knapp daneben, aber am ersten Tag schon außerhalb (E:
+  6. Geburtstag 1–2 Tage danach; 7: 27. Geburtstag am Tag oder 1–2 Tage davor), sagt der Satz es ausdrücklich („…, am
+  ersten Wettkampftag also noch nicht“ bzw. „… schon nicht mehr“); der Satz unter den Kästen nennt den Hinweis nur
+  noch für Starter, die am Tag starten dürfen; der Klassenkopf bricht auf dem Handy um, statt mit zwei Marken über den
+  Kasten zu ragen. → `import/klassenPruefung.ts` GEBURTSTAG_FENSTER, geburtstagsArtMitDatum, geburtstagsHinweise,
+  knappAmErstenTagAusserhalb, `components/ClassSection.vue`, `styles/app.css` (`.geburtstag-*--warnung`,
+  `.class-toggle-btn` umbrechend)
 - 2026-11-24 · N · Buchstabe D für die Klasse E auch unter DM zur Wahl (Nutzer: „D Präfix kannst du einbauen und zur
   Auswahl stellen“), Vorgabe bleibt E; Beschriftung unter DM „Buchstabe der Klasse E“, unter UIM weiter „Dolphin“. Die
   Startnummern-Bereiche folgen dem Buchstaben: Mit D vergibt „Automatisch vergeben“ aus der DM-Vorgabe E01–E30 die
@@ -625,6 +671,44 @@ Belege zusätzlich als Kommentar an der Umsetzung.
 - 2026-11-24 · N · Parallelslalom im Betrieb: „Beim Parallel sind die einzelnen Stufen einzeln mit beginnen
   freizuschalten.“ Jede Runde (auch das Finale nach dem Kleinen Finale) wird mit „… beginnen“ freigegeben, nichts
   schließt von selbst an (Frage vom 21.11.2026). → `BETRIEB_ANNAHMEN.parallelRundenAlsPunkte`
+- 2026-11-26 · N · R11-11 **Wiederholung nach Ausfall** (Manövrieren, DM und UIM): „Bei einem bestätigten Ausfall kommt
+  es zu einer Wiederholung des Laufes. … Wenn der Ausfall Verschulden vom Starter ist, dann ist es ein J Falscher
+  Parcours.“ Auf Rückfrage: **von Hand einreihen**, **Werte werden verworfen**, ausgelöst am **Bedienrechner**. An der
+  Start-Freigabe „Wiederholung (Ausfall) …“ – Wahl unter den gezeigten Starts, Rückfrage mit Startnummer, Lauf und
+  Folgen – verwirft die Werte des Starters in diesem Lauf auf allen Listen (samt Haken, Disq., Bemerkung; Rückfragen,
+  Vorschläge, „keine Zeit“ der WKR-Geräte) und stellt den Start unter „Wiederholung offen“; dort reiht ihn die
+  Wettkampfleitung ein („Als Nächster“, „Ans Ende des Laufs“, „Jetzt zeigen“). Die WKR-Geräte bekommen ihn danach wie
+  einen neuen Start; auf Papier wird die Zeile gestrichen und die Wiederholung in eine Leerzeile eingetragen
+  (Erfassung: ↻ an der Nummer). Der alte Stand bleibt im Verlauf zurückholbar; „Doch keine Wiederholung“ holt die Werte
+  zurück (27.11.2026). Ausnahme von „Der Betrieb schreibt nie
+  in `eingaben`“: nur über diese eigene Action der Erfassung. „J bei Verschulden“ setzt der WKR an der Boje – dafür
+  ist nichts gebaut; der Parallelslalom behält seinen Re-run. Beim Bau ausgelegt (unter „Offen“): WH3–WH10. →
+  `state/reducer/erfassung.ts` WIEDERHOLUNG_AUSFALL/WIEDERHOLUNG_AUFHEBEN, `state/reducer/betrieb.ts`
+  mitWiederholung/ohneWiederholung/BETRIEB_EINREIHEN, `betrieb/folge.ts` lage (`wiederholung`), `wkr/versuch.ts`,
+  `components/betrieb/AusfallWahl.vue`, `BETRIEB_ANNAHMEN` WH1–WH10
+- 2026-11-27 · N · R11-11 Wiederholung nach Ausfall, nach den Prüfbefunden nachgezogen (Auslegungen unter „Offen“):
+  (1) **„Doch keine Wiederholung“ holt die verworfenen Werte zurück** (samt Haken und „keine Zeit“, nur in leere
+  Zellen – was seit dem Ausfall eingetragen wurde, bleibt); dafür merkt die Erfassung sie, solange der Abbruch steht
+  (`WkrStand.verworfen`). Vorher ging das nur über den Verlauf, der alles seitdem mit zurücknahm, und die WKR-Geräte
+  boten den Start danach nie wieder an. Es ist jetzt eine Action der Erfassung (WIEDERHOLUNG_AUFHEBEN statt
+  BETRIEB_WIEDERHOLUNG_AUFHEBEN) und nimmt nur den zuletzt abgebrochenen Versuch zurück. (2) Ein schon
+  **abgeschlossener Lauf** einer Liste: Die Wiederholung kommt trotzdem auf das Gerät; ihre Zeile wird dort Vorschlag
+  „abgeschlossen“ (WH8 – vorher kam sie gar nicht an). (3) **„Versuche direkt nacheinander“**: Die Vorsteg-Zeile
+  (unter Lauf 1) bleibt auch für die Geräte gültig – korrigierbar, P und Abschluss bleiben, kein ↻ (WH6). (4) **„Papier
+  ab“** ab der Wiederholung nimmt nur sie und Späteres. (5) Eine späte Gerätezeile wird auch zwischen zwei Fenstern nie
+  still wieder eingefüllt (WkrZeile.versuch, WH7). (6) Abgemeldete Starter stehen in der Wahl ausgegraut („abgemeldet –
+  keine Wiederholung“). (7) Der Verlauf nennt die Startnummer. (8) Englisch „Repeat“ statt „Re-run“ (das ist unter UIM
+  die Runde des Parallelslaloms). → `state/reducer/erfassung.ts` WIEDERHOLUNG_AUFHEBEN, `state/reducer/betrieb.ts`
+  ohneWiederholung, `state/reducer/wkr.ts` (WKR_ZEILEN, WKR_PAPIER_AB, wkrOhneVersuch, verworfen), `wkr/schlange.ts`
+  rahmen, `wkr/versuch.ts` versuchVeraltetAuf, `BETRIEB_ANNAHMEN` WH3, WH4, WH6–WH8
+- 2026-11-26 · N · Gerätebetrieb (E6–E8) wie gebaut bestätigt (R11-15 bis R11-24, Einzelheiten im Abschnitt „Antworten
+  26.11.2026 (Runde 11)“): zwei Lese-Links mit eigenem Schlüssel, nur der Zuschauer-Link erneuerbar; Uhrversatz nur aus
+  frisch empfangenen Nachrichten; der Raum endet nur mit „Raum beenden“; Fassungsprüfung an der Form der Nachrichten;
+  Link bleibt in der Adresse, Leiste nur bei Maus/Berührung oder Störung; „unverändert“ nach einem Führungswechsel nur
+  im Wortlaut; abgelaufener Geräte-Code nach 2 min ohne Antwort; Bildschirm wach auf jedem verbundenen Gerät; „Alle
+  Geräte neu laden“ höchstens 10 min, ohne Verbindung nichts; Kontingent-Warnung ab 80 % und nur am Bedienrechner
+  gezählt. Offen bleibt der Feldtest mit echtem ntfy. → `BETRIEB_ANNAHMEN` lesenJeLink, uhrversatzFrisch, raumEnde,
+  fassungGleich, leseLinkOberflaeche, koppelnZeiten, koppelnOberflaeche, wachBleiben, alleNeuLaden, kontingent
 - 2026-11-11 · N · Für die Tafel darf ein öffentlicher ntfy-Server genutzt werden („Im Fall der ../tafel kann aber
   auf ntfy.adminforge.de zurückgegriffen werden“): Vorgabe ntfy.adminforge.de, in den Einstellungen änderbar (wie im
   Lastenheft der Tafel, P-9). Die frühere Notiz „Hostname bewusst nicht im Repo“ stammte nicht vom Nutzer. → ab E5
@@ -1127,22 +1211,25 @@ Check-In E10“). Gebaut 24.11.2026 (`WKR_ANNAHMEN` AG1–AG4 in `src/wkr/annahm
 
 - 2026-11-24 · AG1 · **Datenschutz-Ausnahme**: Die Sicht der Steg-Liste trägt je Start das Ausgleichsgewicht
   (`ListenStart.ausgleich`, Fassung 11 der Listen-Sicht) – nur in der verschlüsselten Gruppe der Steg-Liste, nie
-  Körper- oder Durchschnittsgewicht, nie auf Anzeigetafel, Zuschauerliste oder Start-Freigabe.
-- 2026-11-24 · AG2 · **Nicht am Steg gepflegt**: keine Eingabe und kein Haken am Steg. Fehlt das Gewicht, wird es in
+  Körper- oder Durchschnittsgewicht, nie auf Anzeigetafel, Zuschauerliste oder Start-Freigabe. Der Datenschutz so
+  reicht (bestätigt 26.11.2026, R11-06): dieselbe gerundete Zahl wie auf Papier, eine Gruppe je Liste.
+- 2026-11-24 · AG2 · **Nicht am Steg gepflegt**: keine Eingabe und kein Haken am Steg (auch kein „Gewicht geladen“,
+  bestätigt 26.11.2026, R11-29 (3)). Fehlt das Gewicht, wird es in
   der Verwiegung nachgetragen (später beim Check-in) und kommt mit der nächsten Sicht von selbst aufs Gerät; auf der
   Papierliste „Ausgleichsgewichte“ bleibt dafür ein Feld zum Eintragen von Hand (klein „nicht gewogen“, rechts „kg“).
   Gerechnet wird an einer Stelle (`src/lib/ausgleich.ts`): ganze kg, 0 = keines nötig, „fehlt“ = nicht gewogen; ohne
   Durchschnittsgewicht der Klasse steht nichts.
-- 2026-11-24 · AG3 · Beim Bau ausgelegt, noch zu bestätigen: Die Starterkarte zeigt es neben der Startnummer nur im
+- 2026-11-24 · AG3 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-05): Die Starterkarte zeigt es neben der Startnummer nur im
   Teil „Ablegen“ („AG 4 kg“, „kein AG“, „AG: Gewicht fehlt“; englisch „Extra weight 4 kg“) – auch auf dem Gerät für den
   ganzen Steg im Reiter „Ablegen“ –, im „Anlegen“ nicht und nicht in der Schlange auf der Seite des Pads.
-- 2026-11-24 · AG4 · Beim Bau ausgelegt, noch zu bestätigen: Die Übung zeigt am Steg erfundene Werte (reihum
+- 2026-11-24 · AG4 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-30 (6)): Die Übung zeigt am Steg erfundene Werte (reihum
   „AG n kg“, „kein AG“, „Gewicht fehlt“), wenn das Regelwerk Durchschnittsgewichte kennt.
-- 2026-11-24 · Prüfbefund, noch zu bestätigen: Auf 0 kg gerundet (weniger als 0,5 kg leichter, z. B. 64,6 kg in einer
+- 2026-11-24 · Prüfbefund, bestätigt 26.11.2026 (R11-29 (5)): Auf 0 kg gerundet (weniger als 0,5 kg leichter, z. B. 64,6 kg in einer
   Klasse mit 65 kg) gilt am Steg wie „keines nötig“ – das Gerät zeigt „kein AG“, die Papierliste lässt das Feld leer
   (vorher druckte sie „0 kg“, ein zweiter Text für denselben Starter). Die Verwiegung zeigt weiter „0 kg“.
 - 2026-11-24 · Prüfbefund: Ein Gerät nur für „Anlegen“ empfängt das Ausgleichsgewicht verschlüsselt mit (die Sicht
-  ist ein Inhalt je Liste, eine Gruppe je Steg-Teil gibt es nicht), zeigt es aber nicht – Rückfrage unter „Offen“.
+  ist ein Inhalt je Liste, eine Gruppe je Steg-Teil gibt es nicht), zeigt es aber nicht – so bestätigt 26.11.2026
+  (R11-06).
 - 2026-11-24 · N · **Abstufung und Rundung** (Nutzer: „kannst du noch einstellbar machen, wie kleinteilig die
   Zusatzgewichte sind. Vielleicht haben einige halbe Kilos und bei anderen ist 2 kg das kleinste.“ und „Runden bitte
   nach den üblichen Mathe-Regeln. Kein grundsätzliches Aufrunden.“): Einstellung der Veranstaltung „Ausgleichsgewicht
@@ -1158,16 +1245,47 @@ Check-In E10“). Gebaut 24.11.2026 (`WKR_ANNAHMEN` AG1–AG4 in `src/wkr/annahm
   und Vorlage.
 - 2026-11-24 · Beim Bau ausgelegt, noch zu bestätigen: Die Beschriftung heißt nach dem Reglement „Ausgleichsgewicht in
   Stufen von“ (Hinweis: „das kleinste Gewichtsstück, das am Steg ins Boot gelegt wird“), nicht „Kleinstes
-  Zusatzgewicht“ – „Zusatzgewicht“ steht seit 14.11.2026 nicht in der Oberfläche. Ein eigener Wert gilt auf 10 g genau
-  (0,25 kg geht; 0,125 wird 0,13). Die Übung auf dem Gerät rechnet immer mit 1 kg (sie kennt keine Veranstaltung).
-  Mit 0,1 kg verrät das Ausgleichsgewicht auf dem Steg-Gerät das Körpergewicht eines leichten Starters auf 0,1 kg genau
-  (AG1: vorher auf 1 kg) – als Rückfrage unter „Offen“.
-- 2026-11-24 · Prüfbefund, noch zu bestätigen: Auch die Liste nach Regel 960 Pkt. 3.7 (Spalte „Ballast required“)
+  Zusatzgewicht“ – „Zusatzgewicht“ steht seit 14.11.2026 nicht in der Oberfläche. Bestätigt 26.11.2026: Ein eigener
+  Wert gilt auf 10 g genau (0,25 kg geht; 0,125 wird 0,13; R11-29 (6)). Die Übung auf dem Gerät rechnet immer mit
+  1 kg (sie kennt keine Veranstaltung; R11-30 (6)). Mit 0,1 kg verrät das Ausgleichsgewicht auf dem Steg-Gerät das
+  Körpergewicht eines leichten Starters auf 0,1 kg genau (AG1: vorher auf 1 kg) – das Gerät zeigt trotzdem dieselbe
+  Zahl wie die Papierliste (R11-06).
+- 2026-11-24 · Prüfbefund, bestätigt 26.11.2026 (R11-29 (5)): Auch die Liste nach Regel 960 Pkt. 3.7 (Spalte „Ballast required“)
   schreibt ein auf 0 gerundetes Ausgleichsgewicht wie „keines nötig“ als „–“, nicht „0 kg“ daneben – mit einer groben
   Stufe (2 kg: jeder, der weniger als 1 kg leichter ist) käme das sonst oft vor. Die Verwiegung bleibt bei „0 kg“.
 - 2026-11-24 · Prüfbefund: Die Hinweise zum Gerätebetrieb („Betrieb → Geräte“ und Einstellungen → Geräte) nennen die
   Ausnahme AG1 jetzt ausdrücklich: Die Steg-Liste bekommt je Starter das Ausgleichsgewicht; bei einem leichteren
   Starter lässt sich daraus das Körpergewicht ungefähr zurückrechnen (so genau wie die Stufe).
+- 2026-11-26 · R/N · R11-07 **Ersatz-Co-Pilot und Ausgleichsgewicht der Co-Piloten** (DM-Reglement C3: „Bei wechselnden
+  Co-Piloten innerhalb einer Klasse ist durch Ausgleichsgewichte sicherzustellen, dass das Gesamtgewicht in der
+  jeweiligen Klasse und jedem Lauf gleich ist.“; Nutzer: „sollte am besten gleich bei der Co-Piloten-Konfiguration mit
+  abgefragt werden. Da soll man dann pro Klasse auch einen Ersatz-Co-Piloten eintragen. Jeder Co-Pilot kann dann
+  optional auch ein Gewicht eingetragen bekommen. Dann steht zur Wahl, ob das Ausgleichsgewicht über alle Co-Piloten
+  zählt oder nur pro Klasse. […] Beide Co-Piloten stehen untereinander auf den Listen, damit beim Steg klar ist, wer die
+  Alternative ist.“). Block „Besetzung“ je Klasse: Co-Pilot, Gewicht, Ersatz-Co-Pilot, Gewicht (Gewicht gelesen wie in
+  der Verwiegung), daneben das Ausgleichsgewicht, das daraus folgt. Einstellung „Ausgleichsgewicht der Co-Piloten“ bei
+  den Durchschnittsgewichten: je Klasse (Vorgabe, so steht es in C3) oder über alle Co-Piloten. Bezug = schwerster
+  gewogener Co-Pilot der Klasse bzw. der Veranstaltung; Ausgleichsgewicht = Bezug − eigenes Gewicht, mit derselben
+  Abstufung und Rundung wie beim Fahrer (`lib/ausgleich.ts` ausgleichAufStufe/coPilotAusgleichVon), getrennt vom
+  Ausgleich des Fahrers. Listen: Kopf der „Ausgleichsgewichte“ und Spalte „Co-driver“ der Liste nach Regel 960
+  Pkt. 3.7 – der Co-Pilot, darunter benannt der Ersatz, je mit „(+3,5 kg)“ bzw. „(nicht gewogen)“ hinter dem Namen; nie
+  das Körpergewicht. Namen und Gewichte nur in der Sicherung (nie Vorlage, Anzeigetafel, Zuschauerliste,
+  Start-Freigabe oder Geräte-Sicht), die Wahl reist als Einstellung mit. Beispiel-Co-Piloten bringen Ersatz und
+  Gewichte (55–95 kg) mit. R11-05/R11-06 bestätigt. Beim Bau ausgelegt, noch zu bestätigen (unter „Offen“): wer kein
+  Gewicht hat, zählt für den Bezug nicht – „nicht gewogen“ nur, wenn andere seiner Gruppe gewogen sind; „über alle“
+  zählt die Klassen der Veranstaltung (Regelwerk und Klassen mit Startern); die Wahl steht in den Einstellungen, der
+  Block „Besetzung“ nennt sie und verweist hin; auf den WKR-Bögen stehen weiter keine Co-Piloten.
+  → AppState.coPiloten (`CoPiloten`: je Klasse `haupt`/`ersatz` mit `name`, `gewicht`), AppState.coPilotAusgleich,
+  `lib/besetzung.ts`, `lib/ausgleich.ts`, `components/BesetzungPanel.vue`, `components/AusgleichListen.vue`,
+  `components/TeamListen.vue`, Sprungziel `?durchschnittsgewichte`
+- 2026-11-27 · Prüfbefund · R11-07 **Co-Piloten: wer zählt** (`lib/ausgleich.ts` ausgleichsKlassen/benannt):
+  „über alle Co-Piloten“ zählt nur die Klassen, in denen Starter stehen (dazu die eigene Klasse; ohne jeden Starter
+  alle Klassen der Besetzung) – vorher zog z. B. ein Beispiel-Co-Pilot einer Klasse ohne Starter den Bezug hoch und
+  die Steg-Liste zeigte zu viel Ballast. Ein Co-Pilot ohne Namen zählt nicht: Wird der Name eines Ersatzes gelöscht,
+  bleibt sein Gewicht stehen (beim Neutippen geht es nicht verloren), zählt aber weder als Bezug noch steht ein leeres
+  Feld „Ersatz-Co-Pilot“ auf den Listen; der Block „Besetzung“ sagt daneben „zählt erst mit Namen“. Liste nach
+  Pkt. 3.7: „Substitute co-driver:“ klein davor und die Schriftgröße je Zeile, ohne die Vorsilbe gemessen – ein
+  Ersatz verkleinert den eingeteilten Co-Piloten nicht mehr mit. Beide Auslegungen unter „Offen“.
 
 ### Maske „Knöpfe“: Höchstzahl je Code, Disq. nach dem 3. Versuch (Entscheidung 24.11.2026)
 
@@ -1182,14 +1300,14 @@ CM1–CM8 in `src/wkr/annahmen.ts`; Regelwerk-YAML `max`/`danach` je Code):
   („4. Versuch eines Elementes“, UIM „4th attempt of the racecourse“) ins Disq.-Feld der Liste (am Steg das gemeinsame);
   der Zähler bleibt bei 2. Der Knopf zeigt vorher „nächster = Disq. D“, danach „Disq. D gesetzt“. „↶ Rückgängig“ nimmt
   D wieder heraus. Beim Bau ausgelegt, noch zu bestätigen: Steht D schon (über DISQ), ändert der dritte Tipp nichts.
-- 2026-11-24 · CM2 · Beim Bau ausgelegt, noch zu bestätigen: **allgemeine Grenze 3 je Lauf** für Codes ohne eigene
+- 2026-11-24 · CM2 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-08): **allgemeine Grenze 3 je Lauf** für Codes ohne eigene
   Angabe (ein Element höchstens dreimal angefahren). Unsicher und gefragt: Stegberührungen (DM 3, 9; UIM 3, 9) und
   „Durchreißen der Schaltung“ (DM 2, 5, 10, 16) können in einem Versuch mehrmals vorkommen.
-- 2026-11-24 · CM5 · Beim Bau ausgelegt, noch zu bestätigen: Dieselbe Grenze in der Maske „Tabelle“ (Fehler an der
+- 2026-11-24 · CM5 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-30 (1)): Dieselbe Grenze in der Maske „Tabelle“ (Fehler an der
   Zelle, „3x20“ wird nicht in „2x20“ + D umgewandelt) und am Bedienrechner für Zeilen vom Gerät (abgelehnt).
-- 2026-11-24 · CM6 · Beim Bau ausgelegt, noch zu bestätigen: **Abtippen** lässt stehen, was auf dem Papier steht
+- 2026-11-24 · CM6 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-30 (1)): **Abtippen** lässt stehen, was auf dem Papier steht
   („3x6“), und zeigt einen Hinweis („Code 6 steht öfter als 2× … Disq. D?“) – gesetzt wird nichts.
-- 2026-11-24 · CM8 · Prüfbefund, noch zu bestätigen: **Ein Tipp setzt D, mit Prellschutz.** Der dritte Tipp setzt D
+- 2026-11-24 · CM8 · Prüfbefund, bestätigt 26.11.2026 (R11-09): **Ein Tipp setzt D, mit Prellschutz.** Der dritte Tipp setzt D
   sofort – anders als die Disq.-Knöpfe, die den Buchstaben erst mit dem zweiten Tipp setzen (K1), weil der Nutzer
   „der dritte Klick“ sagt. Damit ein prellender Handschuh kein D macht, verwirft der Knopf eines Codes mit `danach`
   einen Tipp, der weniger als 400 ms nach dem vorigen auf denselben Code kommt (wie der Prellschutz der
@@ -1197,6 +1315,20 @@ CM1–CM8 in `src/wkr/annahmen.ts`; Regelwerk-YAML `max`/`danach` je Code):
   weiter jeden Tipp.
 - 2026-11-24 · **Knöpfe umbenannt**: „− letzte zurück“ heißt „↶ Rückgängig“ (englisch „↶ Undo“), „← Andere Stelle“
   in der Disq.-Wahl an der Boje heißt „← Zurück“ („← Back“).
+- 2026-11-26 · R11-08 · Bestätigt (CM2): allgemeine Grenze **3 je Lauf** für Codes ohne eigene Angabe, auch für
+  Stegberührungen und „Durchreißen der Schaltung“.
+- 2026-11-26 · R11-09 · Bestätigt (CM3, CM8): Der dritte Tipp auf „2. und 3. Versuch“ setzt Disq. D **sofort** (nicht
+  erst vorgemerkt wie bei den Disq.-Knöpfen), ein zweiter Tipp auf denselben Code innerhalb von 0,4 s zählt nicht.
+- 2026-11-26 · R11-30 (1) · Bestätigt (CM5, CM6): Ein Code öfter als erlaubt wird nirgends still umgewandelt – die
+  Tabelle zeigt einen Fehler an der Zelle, das Abtippen lässt „3x6“ stehen und gibt einen Hinweis.
+- 2026-11-26 · R11-30 (2) · Nutzer: „Der Pfeil bei 2 soll nach links und nicht nach unten zeigen.“ – **„↩ Rückgängig“**
+  (englisch „↩ Undo“) im Fuß der Maske. Der Pfeil ist eine kleine Zeichnung vor dem Wort, kein Schriftzeichen: ↩
+  steht in keiner Schrift der App (system-ui, Roboto, Segoe UI, Helvetica, Arial) und käme auf Handys als buntes Emoji.
+  „Rückgängig“ in der Leiste „Zuletzt“ trug nie ein Zeichen und bleibt so (`WKR_ANNAHMEN` H2). Prüfbefund 27.11.2026:
+  Pfeil und Wort stehen in EINEM Element – wird es eng (Handys von 360 bis 412 px), steht der Pfeil über dem Wort, und
+  „Rückgängig“ bricht nie mehr mitten im Wort um (vorher „Rückgän|gig“ auf jeder Handybreite). Angeglichen 27.11.2026:
+  „Rückgängig“ im Aufbau-Assistenten (Bojen im Bild zuordnen) trägt denselben gezeichneten Pfeil statt ↶ – noch zu
+  bestätigen.
 
 ### Nicht gestartet statt nicht vorbeigekommen (Entscheidung 24.11.2026)
 
@@ -1217,21 +1349,28 @@ GF10/GF11. Gebaut 24.11.2026 (`WKR_ANNAHMEN` NG1–NG8 in `src/wkr/annahmen.ts`)
   Vorsteg an – an Toren nur über „Mehr“.
 - 2026-11-24 · NG4 · Ein X vom Gerät wirkt wie jedes X: Wertung „nicht gestartet“, Erfassung schraffiert, Start entfällt
   in der Folge, fällt aus jeder Schlange, Matrix ✕ auf allen Listen, Parcours-Ampel gilt als durch; keine Abmeldung (nur
-  dieser Lauf). Beim Bau ausgelegt, noch zu bestätigen: Ein Gerät nur für „Steg-Anlegen“ setzt X ins gemeinsame
+  dieser Lauf). Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-10): Ein Gerät nur für „Steg-Anlegen“ setzt X ins gemeinsame
   Disq.-Feld wie das Ablegen. Prüfbefund: Hat das Ablegen dort schon einen Buchstaben gesetzt, kommt das X nicht still
   dazu („A, X“), sondern der Bedienrechner fragt (wie NG6).
-- 2026-11-24 · NG5 · Beim Bau ausgelegt, noch zu bestätigen: Die Korrektur einer X-Zeile beginnt ohne X („doch
+- 2026-11-24 · NG5 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-30 (3)): Die Korrektur einer X-Zeile beginnt ohne X („doch
   gestartet“); Abschicken nimmt das X am Bedienrechner heraus. Prüfbefund: Ebenso „↶ Rückgängig“, solange die Zeile
   noch im Gerät wartet – der Start steht ohne X wieder da (vorher zeigte der Fuß „Disq. X“, abgeschickt kam aber
   „fehlerfrei“ an).
 - 2026-11-24 · NG6 · Das Kennzeichen ⊘ ist ganz entfernt (Stand, Protokoll, Matrix, Verlauf, Abschluss-Nummern); ein
-  alter Stand verliert es beim Laden. Beim Bau ausgelegt, noch zu bestätigen: Stehen am Bedienrechner schon Werte in
+  alter Stand verliert es beim Laden. Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-12): Stehen am Bedienrechner schon Werte in
   anderen Zellen der Liste, kommt X ohne Rückfrage dazu; steht im Disq.-Feld schon etwas anderes, fragt er wie bisher –
   seit dem Prüfbefund auch am Steg im gemeinsamen Feld, in beide Richtungen: X kommt nie still neben einen anderen
   Buchstaben (BZ2); „Gerät übernehmen“ setzt dann den Wert des Geräts allein.
 - 2026-11-24 · NG7/NG8 · Übung wie echt (ohne Beispiel-Rückfrage auf einer X-Zeile); Listen-Sicht Fassung 13 (ältere
   Geräte laden neu). Prüfbefund: Am Übungsgerät für den ganzen Steg erledigt eine X-Zeile im Ablegen auch das Anlegen
   (wie echt – der Start fällt aus jeder Schlange).
+- 2026-11-26 · R11-10 · Bestätigt (NG4): Auch ein Gerät nur fürs Steg-Anlegen meldet „Nicht gestartet“; das X geht in
+  die gemeinsame Disq.-Spalte der Steg-Liste.
+- 2026-11-26 · R11-12 · Bestätigt (NG6): Werte in anderen Spalten der Liste → X kommt ohne Rückfrage dazu; ein anderer
+  Buchstabe im Disq.-Feld (auch im gemeinsamen Feld am Steg, in beide Richtungen) → Rückfrage jedes Mal, „Gerät
+  übernehmen“ setzt nur den Wert des Geräts.
+- 2026-11-26 · R11-30 (3) · Bestätigt (NG5): Korrigieren einer X-Zeile und „Rückgängig“ einer noch nicht angekommenen
+  X-Zeile beginnen ohne X; am Steg-Ablegen und am Vorsteg bleibt X im Entwurf (dort gibt es den Knopf).
 
 ### Übung und Ansicht der Maske: Kopf aus dem Bild, „Klasse vorziehen“ unten, Lage des Bilds (Entscheidung 24.11.2026)
 
@@ -1248,7 +1387,8 @@ den 4 Parcours-Himmelsrichtungen.“ Gebaut 24.11.2026 (`WKR_ANNAHMEN` UK1–UK6
   prüfen“. UK2: nicht auf dem Pad mit mehreren Spalten (die Seite rollt für alle zugleich). UK3: Ziel ist das erste
   Element nach dem Kopf – „Zuletzt“ mit „↶ Rückgängig“ und Rückfrage-Bänder bleiben über der Karte sichtbar.
 - 2026-11-24 · Y5 · **„Klasse vorziehen“ ganz unten**: in „Mehr“ unter „Probe · Übung verlassen“; am Tisch (Prüfliste
-  ohne „Mehr“) unter dem Hauptknopf, direkt über „Übung beenden“ – beim Bau ausgelegt, noch zu bestätigen.
+  ohne „Mehr“) unter dem Hauptknopf, direkt über „Übung beenden“ – beim Bau ausgelegt, bestätigt 26.11.2026
+  (R11-30 (7)).
 - 2026-11-24 · BL1 · **Bojen-Folge nur bei Bojen-Knöpfen**: nicht bei „Bild“ und nicht bei der Tabelle. Bei „Bild“
   steht unter „Mehr → Ansicht“ die **Lage der Zeichnung** mit vier Knöpfen (seit dem Prüfbefund davor „Automatisch“,
   unten); ein Satz nennt, wo Start/Ziel und Tor 5 dann liegen.
@@ -1257,13 +1397,14 @@ den 4 Parcours-Himmelsrichtungen.“ Gebaut 24.11.2026 (`WKR_ANNAHMEN` UK1–UK6
   Zeichnung wie bisher), „Steg links“ 90° (Start/Ziel oben), „Steg oben“ 180° (Start/Ziel rechts), „Steg rechts“ 270°
   (Start/Ziel unten) – eine Drehung, keine Spiegelung. Die Parallel-Zeichnung hat keinen Steg (R9-06): dort heißen
   dieselben Drehungen „Start links/oben/rechts/unten“.
-- 2026-11-24 · BL3 · Beim Bau ausgelegt, noch zu bestätigen: Die Wahl gilt genau so auf Handy und Pad, unabhängig vom
+- 2026-11-24 · BL3 · Beim Bau ausgelegt, bestätigt 26.11.2026 (R11-30 (4)): Die Wahl gilt genau so auf Handy und Pad, unabhängig vom
   Platz (vor Blick-Drehung und bildDrehungNachPlatz); ohne Wahl bleibt die Zeichnung wie bisher. Gemerkt je Gerät und
   Liste wie die Bojen-Folge (bleibt nach „Raum verlassen“), gilt im Gerät, in der Übung und in der Probe am Bild.
 - 2026-11-24 · BL4/BL5 · Ziffern und Text der Zeichnung bleiben aufrecht (Gegendrehung je Text um seine Mitte –
   sonst läse sich die „6“ der Schikane bei 180° als „9“); die Trefferkreise drehen mit. Das Schema (Rückfall ohne
   Parallel.svg) dreht nicht und bietet keine Lage an.
-- 2026-11-24 · Prüfbefunde (UK4–UK6, BL1, BL6), alle noch zu bestätigen:
+- 2026-11-24 · Prüfbefunde (UK4–UK6, BL1, BL6) – UK4, BL1 und BL6 bestätigt 26.11.2026 (R11-30 (4), (5), (8)), UK5
+  und UK6 noch zu bestätigen:
   - UK5: Im echten Übungstakt (nächster Start 2–6 s nach dem Abschicken) richtete sich die Seite nur bis zum Ende des
     Overlays aus und sprang danach zurück. Jetzt wird noch einmal ausgerichtet, sobald die nächste Karte steht; bis
     dahin hält die Maske ihre Höhe vom Abschicken.
@@ -1275,6 +1416,136 @@ den 4 Parcours-Himmelsrichtungen.“ Gebaut 24.11.2026 (`WKR_ANNAHMEN` UK1–UK6
     Platz); ohne Wahl ist „Automatisch“ gedrückt (vorher die wirksame Lage, ohne Rückweg).
   - BL6: Beim Bild zeigt DISQ im Fuß die Ortswahl „Disq. – an welcher Boje?“ immer in der Vorgabe „Rückweg gedreht“,
     nicht in einer früher bei den Knöpfen gewählten Folge, die beim Bild weder zu sehen noch zu ändern ist.
+- 2026-11-26 · R11-14 · **Der Kopf der Maske rollt nicht mehr hinaus, auch nicht in der Übung.** Gefragt, ob er auch am
+  Wettkampftag hinausrollen soll (dort stehen im Kopf „Keine Bestätigung“ und „Bitte Nr. prüfen“), Nutzer: „Oh, dann
+  besser wieder raus damit. Ich dachte, es ist eine extra Zeile.“ Ersetzt UK1 und UK3. Neu UK7: In der Übung rollt nach
+  dem Abschicken nur die Erklärung „So läuft die Übung“ oben hinaus, der Kopf mit „ÜBUNG“ steht am oberen Rand, darunter
+  „Zuletzt“ und die Karte; UK5 (Ausrichten mit der nächsten Karte) und UK6 (am Tisch ebenso) gelten weiter. Beim Bau
+  ausgelegt, noch zu bestätigen: rollen statt die Erklärung nach dem ersten Abschicken zuzuklappen (zugeklappt bliebe
+  die Zeile „So läuft die Übung ▸“ über dem Kopf stehen, und die Maske spränge einmal sichtbar hoch). Prüfbefund
+  27.11.2026: Der Hinweis „Bildschirm kann ausgehen“ stand über der Erklärung und rollte mit hinaus; er steht jetzt
+  unter ihr und bleibt als Warnung über dem Kopf stehen (mit „Ausblenden“ weg) – noch zu bestätigen.
+- 2026-11-26 · R11-13 · **Lage der Zeichnung nach Start/Ziel benannt.** Nutzer zu „Steg unten/links/oben/rechts“: „Nein,
+  Steg ist hier irreführend. Der steht immer anders.“ Ersetzt BL2. Neu BL7: „Start/Ziel links“ (0°, die Zeichnung wie
+  bisher), „Start/Ziel oben“ (90° im Uhrzeigersinn), „Start/Ziel rechts“ (180°), „Start/Ziel unten“ (270°), davor
+  „Automatisch“; der Satz darunter nennt Start/Ziel und Tor 5 („Start/Ziel oben, Tor 5 unten.“). Parallelslalom wie
+  bisher „Start links/oben/rechts/unten“ mit Boje 5. Geprüft an allen Klassen-Zeichnungen und an Parallel.svg: In der
+  Datei liegt Start/Ziel links, Tor 5 bzw. Boje 5 rechts. Eine schon gemerkte Lage bleibt gültig (gespeichert ist die
+  Drehung; früher „Steg links“ heißt jetzt „Start/Ziel oben“ und zeigt dasselbe Bild).
+- 2026-11-26 · R11-30 (4)–(8) · Bestätigt: „Automatisch“ vorn unter „Lage der Zeichnung“, eine gewählte Lage gilt genau
+  so auf Handy und Pad, gemerkt je Gerät und Liste (BL1, BL3); beim Bild zeigt „Disq. – an welcher Boje?“ immer die
+  Vorgabe „Rückweg gedreht“ (BL6); die Steg-Übung zeigt reihum erfundene Ausgleichsgewichte in ganzen kg (AG4); „Klasse
+  vorziehen“ ganz unten, am Tisch direkt über „Übung beenden“ (Y5); auf dem Pad mit mehreren Listen nebeneinander rollt
+  nichts, mit einer Liste und Seitenspalte bleibt der Kopf (UK2, UK4).
+
+### Antworten 26.11.2026 (Runde 11)
+
+Antworten des Nutzers auf die Fragenseite, Runde 11 (R11-01…R11-30: Geburtstags-Warnung, gemeinsame WKR-Bögen,
+Ausgleichsgewicht am Steg, Fehlercodes und Disq. D, „Nicht gestartet · Disq. X“, Lage der Zeichnung, Übung,
+Gerätebetrieb, Finals, Stichentscheid der Einzelwertung, Tests, Kleinigkeiten). 23 Fragen hat er mit „Passt“
+beantwortet – das Gebaute gilt –, dazu R11-30 bis auf Punkt 2. Anders entschieden hat er R11-02, R11-03, R11-07,
+R11-11, R11-13, R11-14 und R11-30 (2); die sind umgebaut, ihre Einträge stehen in den Abschnitten oben. Im Code steht an
+jeder bestätigten Auslegung „Bestätigt 26.11.2026 (R11-xx)“.
+
+**Bestätigt:**
+
+- R11-01 · „Bis zum 27. Geburtstag“ = am 27. Geburtstag selbst nicht mehr. → `import/klassenPruefung.ts`,
+  `dm-2026.yaml` `geburtstagsGrenzen`
+- R11-04 · Gemeinsame Bögen „nach der Verzahnung“: je Seite einfache Leerzeilen (Vorgabe 3) ohne Überschrift, mit
+  leerer Klassenzelle; mit „Versuche direkt nacheinander“ füllt eine Nachmeldung zwei. → `lib/bogen.ts`
+  leerzeilenJeSeite
+- R11-05 · Ausgleichsgewicht auf dem Steg-Gerät nur auf der Karte im Teil „Ablegen“, nicht im „Anlegen“ und nicht in
+  der Liste der nächsten Starts (AG3).
+- R11-06 · Datenschutz beim Ausgleichsgewicht reicht: dieselbe gerundete Zahl wie auf Papier bei jeder Stufe; eine
+  verschlüsselte Gruppe je Liste, ein Gerät nur fürs Anlegen empfängt den Wert und zeigt ihn nicht (AG1, AG3).
+- R11-08 · Allgemeine Grenze 3 je Lauf, auch für Stegberührungen und „Durchreißen der Schaltung“ (CM2).
+- R11-09 · Der dritte Tipp auf „2. und 3. Versuch“ setzt Disq. D sofort; ein Tipp auf denselben Code binnen 0,4 s
+  zählt nicht (CM3, CM8).
+- R11-10 · Auch ein Gerät nur fürs Steg-Anlegen meldet „Nicht gestartet“; das X geht ins gemeinsame Disq.-Feld (NG4).
+- R11-12 · Werte in anderen Spalten → X kommt ohne Rückfrage dazu; ein anderer Buchstabe im Disq.-Feld (auch am Steg,
+  in beide Richtungen) → Rückfrage jedes Mal (NG6).
+- R11-15 · Anzeigetafel- und Zuschauer-Link getrennt verschlüsselt, jeder bekommt nur, was er zeigt; erneuern lässt
+  sich nur der Zuschauer-Link (`BETRIEB_ANNAHMEN` lesenJeLink).
+- R11-16 · Uhrversatz nur aus frisch empfangenen Nachrichten (größter Wert der letzten 20), bis dahin die Uhr des
+  Geräts (uhrversatzFrisch).
+- R11-17 · Nur „Raum beenden“ beendet den Raum; eine andere Veranstaltung trennt nur, ein anderer Server führt zu einer
+  Meldung; ohne Netz beendet der Bedienrechner nach höchstens 8 s ohne Meldung, die Geräte löschen nach 36 h
+  (raumEnde).
+- R11-18 · „Gleiche Fassung“ = gleiche Form der Nachrichten: Bedienrechner neuer → das Gerät aktualisiert sich (je
+  Fassung höchstens einmal in 10 min), älter → „Bedienrechner aktualisieren“ (fassungGleich, leseLinkOberflaeche).
+- R11-19 · Der Lese-Link bleibt in der Adresse, „Raum verlassen“ nimmt ihn heraus; die Leiste über der Anzeigetafel
+  nur bei Maus/Berührung und bei einer Störung, unter der Zuschauerliste immer; Erneuern und Beenden fragen nach,
+  Einschalten nicht (leseLinkOberflaeche, `GeraetApp.vue`).
+- R11-20 · „Unverändert“ nach einem Wechsel des führenden Fensters: gelöst nur über den Wortlaut „Nichts geändert –
+  schon geschehen oder jemand anderes war schneller. Bitte die Anzeige prüfen.“ (koppelnOberflaeche).
+- R11-21 · Geräte-Code 5 min gültig, danach 2 min „abgelaufen“, später keine Antwort („Keine Antwort“ nach 15 s);
+  beim QR-Code nur der vorige Wert „abgelaufen“, ältere „Der Code stimmt nicht.“ (koppelnZeiten,
+  `geraete/koppeln.ts` KOPPEL_NACHLAUF_MS).
+- R11-22 · Bildschirm wach auf jedem verbundenen Gerät, auch auf den Handys der Zuschauer; wo der Browser es nicht
+  kann, nur ein leiser Hinweis (wachBleiben).
+- R11-23 · „Alle Geräte neu laden“: je Befehl einmal je Gerät, höchstens 10 min alt, ohne Speicher nie; ohne
+  Verbindung wird nichts gesendet und nichts nachgeholt (alleNeuLaden).
+- R11-24 · Kontingent: Warnung ab 80 % der Tagesgrenze oder nach „zu viele Anfragen“, gezählt nur am Bedienrechner
+  (kontingent).
+- R11-25 · „Small final“/„Kleines Finale“ ohne den Zusatz „(3rd and 4th place)“, überall gleich.
+- R11-26 · Stichentscheid: Eine Runde nur mit X gilt als nicht gefahren (es zählt die Runde davor); Disqualifikation
+  oder X neben einem gefahrenen Attempt = gefahren ohne Zeit, hinter den Punktgleichen mit Zeit
+  (`lib/einzelwertung.ts` gefahreneRunden).
+- R11-27 · Die zweite Stufe (vorletzte Runde) gilt für die ganze Gruppe der Punkt- und Zeitgleichen oder für keinen;
+  ohne Zeit in der ersten Stufe keine zweite (einzelwertung).
+- R11-28 · Die zwei wackeligen Tests laufen lokal und im pre-commit-Hook weiter immer (`src/testHilfen.ts`,
+  docs/technik.md).
+- R11-29 · Alle acht Kleinigkeiten: (1) ohne Datum der Veranstaltung die ganzen Grenz-Jahrgänge „zum Prüfen“;
+  (2) Spalten, die eine Klasse nicht hat, auf Papier kräftig, in der Erfassung blass schraffiert; (3) kein Haken
+  „Gewicht geladen“ am Steg (AG2); (4) „AG 4 kg“, „kein AG“, „AG: Gewicht fehlt“ (AG3); (5) auf 0 kg gerundet = keines
+  nötig – Papier leer, Gerät „kein AG“, Liste nach Pkt. 3.7 „–“, nur die Verwiegung „0 kg“ (AG2); (6) eigene Stufe
+  0,1–10 kg auf 10 g genau (`domain/gewicht.ts`); (7) der Hinweis „offene Runde“ nennt je Klasse eine Runde, das
+  Kleine Finale vor dem Finale (`lib/parallelStage.ts` offeneRunde); (8) die Summe der vorletzten Runde in Klammern
+  hinter der „Combined time“, Spalte 32 statt 22 mm.
+- R11-30 · Kleinigkeiten zum WKR-Gerät und zur Übung bis auf Punkt 2: (1) ein Code öfter als erlaubt wird nirgends
+  still umgewandelt (CM5, CM6); (3) Korrektur und „Rückgängig“ einer X-Zeile beginnen ohne X (NG5); (4) „Automatisch“
+  unter „Lage der Zeichnung“, eine Wahl gilt genau so, gemerkt je Gerät und Liste (BL1, BL3); (5) die Ortswahl „Disq. –
+  an welcher Boje?“ beim Bild immer in „Rückweg gedreht“ (BL6); (6) die Steg-Übung zeigt erfundene
+  Ausgleichsgewichte in ganzen kg (AG4); (7) „Klasse vorziehen“ ganz unten, am Tisch direkt über „Übung beenden“ (Y5);
+  (8) auf dem Pad mit mehreren Listen rollt nichts, mit einer Liste und Seitenspalte bleibt der Kopf (UK2, UK4).
+
+**Anders entschieden** (umgebaut 26./27.11.2026):
+
+- R11-02 · Geburtstags-Warnung bei mehrtägigen Veranstaltungen. Nutzer: „Das ist ein wichtiger Punkt. Es sollte dann
+  zwei Warnungen geben. Eine Hinweis, dass man 2 Wochen vor dem Datum ist und eine deutliche Warnung, wenn der Tag
+  weniger als 2 Tage dran ist.“ Gebaut: deutliche Warnung (rot), wenn der 6. bzw. 27. Geburtstag bis 2 Tage vor oder
+  nach dem ersten Wettkampftag liegt oder der Starter dort klar außerhalb ist, mit „ab bzw. bis wann er starten darf“;
+  Hinweis (gelb) bei 3 bis 14 Tagen; Zahlen in `GEBURTSTAG_FENSTER`. → Abschnitt „Starter und Startnummern“
+- R11-03 · Gemeinsame WKR-Bögen auch bei Meisterschaften. Nutzer: „Wenn es schon da ist, kann man das auch bei den
+  anderen nutzen“. Gebaut: Einstellung „Gemeinsame Bögen“ bei DM und UIM (Vorgabe aus), an = dieselbe Gruppierung wie
+  bei der Clubmeisterschaft, „Papier sparen“ als weiterer Haken; AppState.wkrMeisterschaftGemeinsam. → Abschnitt
+  „Listen und Druck“
+- R11-07 · Co-Piloten beim Ausgleichsgewicht. Nutzer: „… sollte am besten gleich bei der Co-Piloten konfiguration mit
+  abgefragt werden. Da soll man dann proKlasse auch ein ersatz Co Piloten eintragen. Jeder Co Pilot kann dann optional
+  auch ein Gewicht eingetragen bekommen. Dann steht zur Wahl, ob das Ausgleichgewicht über alle Co-Piloten zählt, oder
+  nur pro Klasse. Die co-Piloten, die ein Ausgleichgewicht brauchen, haben das auf den Listen in Klammern dahinter.
+  Beide Co-Piloten stehen untereinander auf den Listen, damit beim Steg klar ist, wer die alternative ist.“ Gebaut:
+  Block „Besetzung“ je Klasse mit Co-Pilot, Ersatz und Gewichten, Einstellung „Ausgleichsgewicht der Co-Piloten“ (je
+  Klasse oder über alle), „(+3,5 kg)“ hinter dem Namen, beide untereinander auf den „Ausgleichsgewichten“ und der Liste
+  nach Pkt. 3.7. → Abschnitt „Ausgleichsgewicht am Steg“
+- R11-11 · Boot gestartet, aber liegen geblieben. Nutzer: „Bei einem bestätigten Ausfall kommt es zu einer
+  Wiederholung des Laufes. Das ist evtl. noch gar nicht berücksichtigt im Tool. Wenn der Ausfall verschulden vom
+  Starter ist, dann ist es ein J Falscher Parcours.“ Gebaut: „Wiederholung (Ausfall) …“ an der Start-Freigabe (nur am
+  Bedienrechner) verwirft die Werte des Starters in diesem Lauf und stellt ihn unter „Wiederholung offen“, von Hand
+  einzureihen; „Doch keine Wiederholung“ holt die Werte zurück; J bei Verschulden setzt der WKR an der Boje. →
+  Abschnitt „Betrieb und Offline“, `BETRIEB_ANNAHMEN` WH1–WH10
+- R11-13 · Benennung der Lage der Zeichnung. Nutzer: „Nein, Steg ist hier irreführend. Der steht immer anders.“
+  Gebaut: „Start/Ziel links/oben/rechts/unten“ (BL7, ersetzt BL2), Parallelslalom weiter „Start …“.
+- R11-14 · Kopf der Maske hinausrollen. Nutzer: „Oh, dann besser wieder raus damit. Ich dachte, es ist eine extra
+  Zeile“. Gebaut: Der Kopf rollt nirgends mehr hinaus, in der Übung nur die Erklärung „So läuft die Übung“ (UK7,
+  ersetzt UK1/UK3).
+- R11-30 (2) · Zwei „Rückgängig“. Nutzer: „Der Pfeil bei 2 soll nach links und nicht nach unten zeigen“. Gebaut:
+  „↩ Rückgängig“ im Fuß mit gezeichnetem Pfeil nach links; „Rückgängig“ in der Leiste „Zuletzt“ ohne Zeichen (H2).
+
+Nicht gefragt und weiter offen (unter „Offen“): was beim Umbauen von R11-02, R11-03, R11-07, R11-11 und R11-14 neu
+ausgelegt wurde, dazu CM3 „D schon gesetzt → nichts“, CM4, die Zeitnahme ohne „Nicht gestartet“ (NG1), der Kopf mit
+den Klassen der Seite, UK5/UK6, die Beschriftung „Ausgleichsgewicht in Stufen von“ und der Fall alter gedruckter Codes
+des Kleinen Finales.
 
 ## Entschieden, noch nicht umgesetzt (Stand 2026-11-21)
 
@@ -1309,78 +1580,60 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
 
 ## Offen
 
-- Ausgleichsgewicht am Steg (24.11.2026, Abschnitt „Ausgleichsgewicht am Steg“), vom Nutzer zu bestätigen: AG3 (nur
-  auf der Karte im Teil „Ablegen“, nicht im „Anlegen“, nicht in der Schlange auf der Seite des Pads), AG4 (erfundene
-  Werte in der Übung), auf 0 kg gerundet = „kein AG“ bzw. leer auf Papier. Dazu gefragt: Reicht es, dass ein Gerät nur
-  für „Anlegen“ den Wert verschlüsselt mitbekommt, ohne ihn zu zeigen, oder braucht jeder Steg-Teil eine eigene Gruppe?
-  Wünschst du am Steg einen Haken „Gewicht geladen“ wie das Kästchen auf Papier (nicht gebaut, AG2: nichts am Steg)?
-- Abstufung des Ausgleichsgewichts (24.11.2026, Abschnitt „Ausgleichsgewicht am Steg“), beim Bau ausgelegt und vom
-  Nutzer zu bestätigen: Beschriftung „Ausgleichsgewicht in Stufen von“ statt „Kleinstes Zusatzgewicht“ (Wort des
-  Reglements); eigener Wert auf 10 g genau in 0,1–10 kg; Übung immer 1 kg; mit feiner Stufe (0,1 kg) lässt das
-  Ausgleichsgewicht am Steg-Gerät auf das Körpergewicht auf 0,1 kg genau schließen – reicht das, oder soll das Gerät
-  dann gröber (z. B. auf ganze kg) zeigen? (Die Hinweise zum Gerätebetrieb nennen die Ausnahme seit dem Prüfbefund
-  24.11.2026.) Liste nach Pkt. 3.7: auf 0 gerundet „–“ wie „keines nötig“ (vorher „0 kg“) – so recht?
-- Geburtstags-Warnung (24.11.2026), beim Bau ausgelegt und vom Nutzer zu bestätigen (`import/klassenPruefung.ts`,
-  `dm-2026.yaml`): „bis zum 27. Geburtstag“ heißt am 27. Geburtstag selbst nicht mehr; bei mehreren Wettkampftagen
-  zählt der erste (das Datum der Veranstaltung); am 29.02. Geborene werden in Jahren ohne 29.02. am 01.03. älter;
-  ohne Datum werden die ganzen Grenz-Jahrgänge genannt.
-- Klassen auf gemeinsamen WKR-Bögen (24.11.2026, Abschnitt „Listen und Druck“): Gemeinsame Bögen mehrerer Klassen
-  gibt es nur bei der Clubmeisterschaft; ob sie (mit „getrennt“/„nach der Verzahnung“) auch für DM- und
-  UIM-Meisterschaften kommen sollen, ist offen – dort fehlte auf gemeinsamen Bögen mit Bild die Zeichnung je Klasse.
-  Zu bestätigen: Leerzeilen je Seite in der Startfolge, Kopf mit den Klassen der Seite, Erfassung mit blasser Schraffur.
-- Höchstzahl je Code (24.11.2026, Abschnitt „Maske „Knöpfe“: Höchstzahl je Code …“), beim Bau ausgelegt und vom
-  Nutzer zu bestätigen: allgemeine Grenze 3 je Lauf (CM2) – reicht sie für Stegberührungen und „Durchreißen der
-  Schaltung“?; D schon gesetzt → dritter Tipp ohne Wirkung (CM3); Tabelle und Gerätezeile lehnen „zu oft“ ab (CM5);
-  Abtippen nur mit Hinweis (CM6); zwei Knöpfe „Rückgängig“ (Fuß: letzter Tipp; Leiste „Zuletzt“: letzte gesendete Zeile);
-  D mit EINEM Tipp und nur Prellschutz (CM8) – oder wie die Disq.-Knöpfe erst vormerken, dann mit einem weiteren Tipp
-  setzen (K1)?
-- „Nicht gestartet · Disq. X“ (24.11.2026, Abschnitt „Nicht gestartet statt nicht vorbeigekommen“), beim Bau ausgelegt
-  und vom Nutzer zu bestätigen: Gerät nur für „Steg-Anlegen“ setzt X ins gemeinsame Disq.-Feld (NG4); Korrektur einer
-  X-Zeile beginnt ohne X, „fehlerfrei“ nimmt es heraus (NG5); schon abgetippte Werte in anderen Zellen bleiben, X kommt
-  ohne Rückfrage dazu (NG6); Prüfbefund: die Zeitnahme bekommt den Punkt nicht (NG1, kein eigenes Disq.-Feld).
+- Wiederholung nach Ausfall (26.11.2026, R11-11, Abschnitt „Betrieb und Offline“), beim Bau ausgelegt und vom Nutzer zu
+  bestätigen (`BETRIEB_ANNAHMEN` WH3–WH10): nur am Bedienrechner, nie vom Freigabe-Handy (Einreihen geht dort); „Zurück“
+  nimmt den abgebrochenen Versuch nicht, dafür „Doch keine Wiederholung“ (seit 27.11.2026 mit den Werten zurück, nur in
+  leere Zellen; Rückfragen, Vorschläge und Papier-Vermerke von damals nicht); Anzeigetafel und Zuschauerliste zeigen
+  „1. Lauf · Wiederholung“ (ohne Grund; englisch seit 27.11.2026 „Repeat“ – wie heißt es im Rulebook?); mit „Versuche
+  direkt nacheinander“ bleibt die Zeile am Vorsteg; eine späte Gerätezeile zum abgebrochenen Versuch wird abgelehnt
+  (keine Rückfrage); ein schon abgeschlossener Lauf bleibt abgeschlossen – die Wiederholung kommt dort seit 27.11.2026
+  trotzdem auf das Gerät, ihre Zeile wird Vorschlag (oder lieber den Abschluss lösen?); keine Ampel und kein Auto-Modus
+  für den abgebrochenen Start im Boot; keine Wiederholung für Abgemeldete (ausgegraut in der Wahl).
+- Abstufung des Ausgleichsgewichts (24.11.2026, Abschnitt „Ausgleichsgewicht am Steg“; eigener Wert auf 10 g genau,
+  Übung in ganzen kg und dieselbe Zahl auf dem Steg-Gerät auch bei 0,1 kg am 26.11.2026 bestätigt, R11-06, R11-29 (6),
+  R11-30 (6)), beim Bau ausgelegt und vom Nutzer zu bestätigen: Beschriftung „Ausgleichsgewicht in Stufen von“ statt
+  „Kleinstes Zusatzgewicht“ (Wort des Reglements).
+- Co-Piloten mit Ersatz und Gewicht (26.11.2026, R11-07, Abschnitt „Ausgleichsgewicht am Steg“), beim Bau ausgelegt und
+  vom Nutzer zu bestätigen: ohne Gewicht zählt ein Co-Pilot nicht für den Bezug, „(nicht gewogen)“ nur, wenn andere
+  seiner Gruppe gewogen sind; „über alle“ = Klassen mit Startern (seit Prüfbefund 27.11.2026; ohne jeden Starter alle
+  Klassen der Besetzung); ein Co-Pilot ohne Namen zählt nicht (27.11.2026); Wahl in den Einstellungen statt im Block
+  „Besetzung“ (dort nur Satz und Verweis); keine Co-Piloten auf den WKR-Bögen des Stegs; der Ersatz steht auch in der
+  Liste nach Regel 960 Pkt. 3.7, obwohl Pkt. 2 „the same co-driver“ je Klasse verlangt.
+- Geburtstags-Warnung (24.11.2026; „bis zum 27.“ und die Grenz-Jahrgänge ohne Datum bestätigt, zwei Stufen am
+  26.11.2026, R11-01/R11-02/R11-29 (1)), beim Bau ausgelegt und vom Nutzer zu bestätigen (`import/klassenPruefung.ts`):
+  am 29.02. Geborene werden in Jahren ohne 29.02. am 01.03. älter; rote Warnung bis einschließlich 2 Tage um den
+  ersten Wettkampftag („weniger als 2 Tage“), auch wenn der 6. Geburtstag knapp davor liegt; Klasse E 3–14 Tage nach
+  dem ersten Tag = „zu jung“ (rot) statt Hinweis (gelb).
+- Klassen auf gemeinsamen WKR-Bögen (24.11.2026, Abschnitt „Listen und Druck“): Meisterschaften seit 26.11.2026 auf
+  Wunsch (R11-03); Leerzeilen je Seite in der Startfolge und die blasse Schraffur in der Erfassung bestätigt (R11-04,
+  R11-29 (2)). Zu bestätigen: Kopf mit den Klassen der Seite, Beispielansicht mit der Verzahnung des Parcours; beim Bau
+  von R11-03 ausgelegt: „Papier sparen“ auch bei Meisterschaften (ohne Parcoursbild), Leerzeilen je Klasse bleiben
+  beim Einschalten wie eingestellt (Meisterschaft 3), Laufzettel dann je Parcours und Lauf statt je Klasse.
+- Höchstzahl je Code (24.11.2026, Abschnitt „Maske „Knöpfe“: Höchstzahl je Code …“; Grenze 3 (CM2), D mit einem Tipp
+  und Prellschutz (CM3, CM8), Tabelle, Gerätezeile und Abtippen (CM5, CM6) am 26.11.2026 bestätigt, R11-08, R11-09,
+  R11-30 (1); zwei „Rückgängig“, im Fuß mit Pfeil nach links, R11-30 (2)), noch zu bestätigen: D schon gesetzt →
+  dritter Tipp ohne Wirkung (CM3); der Knopf sagt am Höchstwert „höchstens n×“ (CM4); „Rückgängig“ im
+  Aufbau-Assistenten mit demselben gezeichneten Pfeil (27.11.2026).
+- „Nicht gestartet · Disq. X“ (24.11.2026, Abschnitt „Nicht gestartet statt nicht vorbeigekommen“; NG4, NG5, NG6 am
+  26.11.2026 bestätigt, R11-10, R11-12, R11-30 (3)), noch zu bestätigen: Prüfbefund – die Zeitnahme bekommt den Punkt
+  nicht (NG1, kein eigenes Disq.-Feld).
+- Übung und Lage der Zeichnung (24.11.2026, Abschnitt „Übung und Ansicht der Maske …“; BL1, BL3, BL6, Y5, UK2, UK4 am
+  26.11.2026 bestätigt, R11-30), noch zu bestätigen: UK5 (noch einmal ausrichten, sobald die nächste Karte steht),
+  UK6 (am Tisch ebenso), zu R11-14 rollen statt zuklappen und der Hinweis „Bildschirm kann ausgehen“ unter der
+  Erklärung (27.11.2026); BL4/BL5 (Schrift bleibt aufrecht, das Schema dreht nicht).
 - Erfassung durch Wettkampfrichter am Gerät: Fragen am 21.11.2026 beantwortet (Abschnitt „Digitale WKR-Erfassung“).
-- Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern) und E6 (Lese-Links für Anzeigetafel und
-  Zuschauer, Betrieb → Geräte, Einstellung des Servers) sind gebaut, aber nur gegen einen nachgebauten Server geprüft;
-  E7 (Koppeln, Start-Freigabe vom Handy, 20.11.2026) ebenso; E8 ist vorbereitet, offen ist der Feldtest
-  ([feldtest.md](feldtest.md)). Entscheidungen dazu unter „Betrieb und
-  Offline“ (F1, F3, F6, F7 umgesetzt). Beim Bau von E6 ausgelegt und vom Nutzer noch zu bestätigen (16.11.2026):
-  Anzeigetafel und Zuschauer als zwei Gruppen mit eigenem Schlüssel; Uhrversatz aus frisch Empfangenem; wann der Raum
-  endet (andere Veranstaltung trennt nur, anderer Server erst für einen neuen Raum, ohne Netz beendet ohne Meldung);
-  Fassungsprüfung samt Sperre gegen Neulade-Schleifen; Links unter `file://` auf Pages, Paket bleibt in der Adresse,
-  Leiste über der Tafel – alles in `BETRIEB_ANNAHMEN` (lesenJeLink, uhrversatzFrisch, raumEnde, fassungGleich,
-  leseLinkOberflaeche). Ohne Netz gibt es seit 16.11.2026 (E1) die Anzeigetafel im zweiten Fenster und die
+- Mehrgeräte-Betrieb über ntfy (Etappen E5–E8): E5 (Übertragungskern), E6 (Lese-Links für Anzeigetafel und Zuschauer,
+  Betrieb → Geräte, Einstellung des Servers), E7 (Koppeln, Start-Freigabe vom Handy, 20.11.2026) und E8 sind gebaut,
+  aber nur gegen einen nachgebauten Server geprüft; offen ist der Feldtest ([feldtest.md](feldtest.md)).
+  Entscheidungen dazu unter „Betrieb und Offline“ (F1, F3, F6, F7 umgesetzt). Die Auslegungen von E6 und E8 und zu
+  Quittung und Geräte-Code aus E7 sind am 26.11.2026 bestätigt (R11-15 bis R11-24); die übrigen Auslegungen von E7
+  (`BETRIEB_ANNAHMEN` startfreigabeRechte, koppelnZeiten, gekoppelteGeraete, koppelnOberflaeche) stehen dort weiter
+  als „vom Nutzer zu bestätigen“. Ohne Netz gibt es seit 16.11.2026 (E1) die Anzeigetafel im zweiten Fenster und die
   Start-Freigabe am Bedienrechner.
-- E8, beim Bau ausgelegt und vom Nutzer zu bestätigen (20.11.2026, `BETRIEB_ANNAHMEN` wachBleiben, alleNeuLaden,
-  kontingent): Bildschirm wach halten auf jedem verbundenen Gerät und im zweiten Fenster, sonst nur ein leiser Hinweis;
-  „Alle Geräte neu laden“ wirkt je Befehl einmal, nur höchstens 10 min alt, ohne Speicher nie, wird nicht nachgeholt,
-  Hinweis nach einem Update des Bedienrechners; Kontingent je Server (21.11.2026: adminforge 17 280, ntfy.sh 250 je Tag und IP, vom Nutzer bestätigt), Warnung ab 80 %
-  oder nach „zu viele Anfragen“, gezählt nur am Bedienrechner.
-- Handy-Quittung nach Führungswechsel: Geht die Führung zwischen Anwenden und Quittung verloren, hört das Handy
-  „unverändert“, obwohl seine Action gewirkt hat (sie wirkt immer nur einmal). Gelöst nur im Wortlaut („schon
-  geschehen oder jemand anderes war schneller“); sicher wäre `letzteNr` vor dem Anwenden – widerspricht der Regel
-  „letzteNr erst in quittiere“. Reicht der Wortlaut?
-- Abgelaufener Geräte-Code nach dem Nachlauf (2 min) bekommt keine Antwort, das Handy zeigt nach 15 s „Keine
-  Antwort“ – so gewollt, aber noch keine bestätigte Auslegung. Ein QR-Token nach der Gnadenfrist heißt je nach Takt
-  „ungültig“ statt „abgelaufen“.
-- Finals getrennt (21.11.2026), beim Bau ausgelegt und vom Nutzer zu bestätigen ((1) beide Finals zusammen bei „Alle
-  Klassen weiter“ und (2) „Finale beginnen“ von Hand sind am 24.11.2026 bestätigt, s. oben): (3) Rundenname ohne den
-  früheren Zusatz „(3rd and 4th place)“ – Anzeigetafel jetzt „Small final · Attempt 1“, die Results zeigen Platz 3/4
-  ohnehin; (4) nach einem Protest im Halbfinale gilt zuerst das Kleine Finale als veraltet (es wird zuerst gefahren);
-  (5) hingenommen: alte gedruckte Codes `…FINAL…` von Bögen des Kleinen Finales treffen nach der Migration den Bogen
-  des Finales; (6) der Hinweis „offene Runde“ (Druckdatei, Einzel-, Mannschaftswertung) nennt das Kleine Finale,
-  solange es nicht fertig ist, auch wenn das Finale schon festgeschrieben werden kann (`lib/parallelStage.ts`
-  offeneRunde).
-- Stichentscheid der Einzelwertung, letzte/vorletzte Runde (24.11.2026, Abschnitt „Einzelwertung“), beim Bau ausgelegt
-  und vom Nutzer zu bestätigen (`lib/einzelwertung.ts` gefahreneRunden, einzelwertung): eine Runde, in der er keinen
-  Attempt gestartet ist (X in beiden, oder X im einen und der andere leer – Prüfbefund 24.11.2026), gilt nicht als
-  gefahren (es zählt die davor), ein X neben einem gefahrenen Attempt wie eine Disqualifikation;
-  disqualifiziert in der letzten gefahrenen Runde = ohne Zeit, hinter den Punktgleichen mit Zeit (kein Ausweichen auf
-  die vorletzte) – Folge: Wer zur letzten Runde nicht antritt, behält die Zeit der Runde davor und steht damit VOR
-  einem Punktgleichen, der in seiner letzten Runde disqualifiziert wurde (Beispiel: Nr. 102 tritt zum Finale nicht an,
-  Nr. 105 wird im Kleinen Finale disqualifiziert, beide 469 Punkte – 102 steht vorn); andere Wahl: eine Runde nur mit
-  X gilt als gefahren ohne Zeit, also hinten wie eine Disqualifikation; die zweite Stufe gilt für die ganze Gruppe der Punkt- und Zeitgleichen oder für keinen (hat einer
-  nur den Vorlauf, teilen sich alle den Platz); Punktgleiche ohne Zeit bekommen keine zweite Stufe; die Zeit der
-  vorletzten Runde steht in Klammern hinter der „Combined time“.
+- Finals getrennt (21.11.2026; (1) beide Finals zusammen bei „Alle Klassen weiter“ und (2) „Finale beginnen“ von Hand
+  bestätigt 24.11.2026, (3) Rundenname ohne Zusatz, (4) veraltet zuerst das Kleine Finale und (6) „offene Runde“
+  bestätigt 26.11.2026, R11-25/R11-29 (7)), hingenommen und vom Nutzer zu bestätigen: (5) alte gedruckte Codes
+  `…FINAL…` von Bögen des Kleinen Finales treffen nach der Migration den Bogen des Finales.
 - PARALLEL_ANNAHMEN (`lib/parallelErgebnis.ts`, alle bestätigt 24.11.2026) und EINZEL_FESTLEGUNGEN
   (`lib/einzelwertung.ts`) legen aus, wo Regel 960 schweigt; bei neuer Auskunft der UIM dort umstellen und diese Liste
   anpassen.

@@ -438,7 +438,7 @@ export const BETRIEB_ANNAHMEN = {
    */
   logosNurLokal: true,
   /**
-   * E6 (Gerätebetrieb, beim Bau 16.11.2026 – vom Nutzer zu bestätigen): Anzeigetafel- und Zuschauer-Link sind zwei
+   * E6 (Gerätebetrieb, beim Bau 16.11.2026; bestätigt 26.11.2026, R11-15): Anzeigetafel- und Zuschauer-Link sind zwei
    * Gruppen mit eigenem Schlüssel, eigenen Nummern und eigenem Thema – `ko` (oA) trägt die öffentliche Sicht ohne
    * Logos, `kz` (oZ) die Zuschauersicht (`sichtZuschauer`). Der Plan (§5) sah eine Gruppe mit zwei Themen vor; die
    * schmalere Zuschauersicht kam erst mit E3. So trägt der Zuschauer-Link nur, was die Zuschauerliste zeigt, und sein
@@ -447,14 +447,14 @@ export const BETRIEB_ANNAHMEN = {
    */
   lesenJeLink: true,
   /**
-   * E6 (beim Bau 16.11.2026 – vom Nutzer zu bestätigen): Der Uhrversatz eines Geräts („seit“, „ca. in“) ist der größte
+   * E6 (beim Bau 16.11.2026; bestätigt 26.11.2026, R11-16): Der Uhrversatz eines Geräts („seit“, „ca. in“) ist der größte
    * Wert von „Sendezeit des Hosts minus Empfang“ über die letzten 20 frisch über das Abo gekommenen Nachrichten (die
    * Laufzeit ist nie negativ, der größte Wert liegt dem wahren Versatz am nächsten). Nachgeholtes aus der Abfrage zählt
    * nicht – ein Vollstand dort kann eine Stunde alt sein; bis zur ersten frischen Nachricht gilt 0 (geraete/geraet.ts).
    */
   uhrversatzFrisch: true,
   /**
-   * E6 (beim Bau 16.11.2026 – vom Nutzer zu bestätigen): Wann der Gerätebetrieb endet. Nur „Raum beenden“ schickt das
+   * E6 (beim Bau 16.11.2026; bestätigt 26.11.2026, R11-17): Wann der Gerätebetrieb endet. Nur „Raum beenden“ schickt das
    * signierte „Raum beendet“ an beide Links (Geräte löschen Sicht und Verbindung) – ohne Netz wird nach höchstens 8 s
    * ohne Meldung gelöscht, die Geräte löschen dann nach 36 h. Eine andere Veranstaltung (andere Kennung) trennt nur:
    * Der Raum bleibt liegen und gilt wieder, wenn die Veranstaltung zurückkommt; ein neu geöffneter Raum ersetzt ihn. Ein
@@ -463,14 +463,15 @@ export const BETRIEB_ANNAHMEN = {
    */
   raumEnde: true,
   /**
-   * E6 (Entscheidung des Nutzers F7, 16.11.2026: Gerätebetrieb nur bei gleicher Fassung; Ausgestaltung beim Bau – vom
-   * Nutzer zu bestätigen): Ein Gerät lädt nur neu, wenn der Host signiert eine neuere Fassung spricht oder der Link eine
+   * E6 (Entscheidung des Nutzers F7, 16.11.2026: Gerätebetrieb nur bei gleicher Fassung; Ausgestaltung beim Bau,
+   * bestätigt 26.11.2026, R11-18: „gleiche Fassung“ = gleiche Form der Nachrichten): Ein Gerät lädt nur neu, wenn der Host signiert eine neuere Fassung spricht oder der Link eine
    * neuere Paket-Fassung trägt – je Fassung höchstens einmal in 10 Minuten (geraete/geraet.ts NEULADEN_SPERRE_MS),
    * danach bleibt „Update nötig“ stehen. Ist der Host älter: „Bedienrechner aktualisieren“, kein Neuladen.
    */
   fassungGleich: true,
   /**
-   * E6, Oberfläche (beim Bau 16.11.2026 – vom Nutzer zu bestätigen):
+   * E6, Oberfläche (beim Bau 16.11.2026; bestätigt 26.11.2026, R11-18 zu Pages und Selbst-Update, R11-19 zu Adresse,
+   * Leiste und Rückfragen):
    * - Ein Lese-Link zeigt auf die Seite des Bedienrechners (ohne Anfrage und Anker), unter `file://` (Ein-Datei-Fassung)
    *   auf die App auf Pages (lib/build.ts PAGES_URL) – dort läuft oft eine neuere Fassung, dann sagt das Gerät
    *   „Bedienrechner aktualisieren“ (F7).
@@ -508,6 +509,9 @@ export const BETRIEB_ANNAHMEN = {
    *   Die Anmeldung wird dabei nicht verworfen: Eine späte Antwort koppelt noch (Prüfung E7, 20.11.2026).
    * - Abgelaufene Koppel-Themen liest der Host noch 2 Minuten (KOPPEL_NACHLAUF_MS): Ein eben gekoppeltes Gerät, dessen
    *   `willkommen` verloren ging, meldet sich dort noch einmal und wird erneut begrüßt.
+   * - Bestätigt 26.11.2026 (R11-21): Der Geräte-Code gilt 5 min, danach antwortet der Host noch 2 min mit „abgelaufen“,
+   *   später gar nicht mehr (das Gerät zeigt nach 15 s „Keine Antwort“, wie bei einem Tippfehler); beim QR-Code heißt
+   *   nur der vorige Wert „abgelaufen“, ältere „Der Code stimmt nicht.“, jeweils mit „noch einmal scannen“.
    * - Hingenommen: Der Betreiber des ntfy-Servers sieht oA und das Koppel-Thema und könnte den 6-stelligen Code
    *   zurückrechnen (≈ 6·10⁸ Versuche). Ihm fehlt der Box-Schlüssel des Hosts (steht nur im Koppel-Link), der Code gilt
    *   5 Minuten für ein Gerät, und ein fremdes Gerät stünde in der Geräteliste.
@@ -539,6 +543,9 @@ export const BETRIEB_ANNAHMEN = {
    * - Auf dem Gerät nur die EIGENEN Bereiche, mit derselben StartFreigabe wie am Bedienrechner, ohne „Meldung auf
    *   allen“; alle Knöpfe gesperrt, solange eine Action ohne Quittung ist (nicht nur der gedrückte – die Sicht kann
    *   sich bis dahin ändern); nach 10 s „Keine Bestätigung – Verbindung prüfen“.
+   * - Geht die Führung zwischen Anwenden und Quittung verloren, hört das Handy „unverändert“, obwohl sein Druck gewirkt
+   *   hat (er wirkt genau einmal, `letzteNr` erst nach dem Anwenden). Gelöst nur über den Wortlaut „Nichts geändert –
+   *   schon geschehen oder jemand anderes war schneller. Bitte die Anzeige prüfen.“ – bestätigt 26.11.2026 (R11-20).
    * - Auf eine Anmeldung mit falschem Code antwortet niemand (sein Thema hört der Host nicht): nach 15 s „Keine
    *   Antwort“ und das Formular wieder; eine neue Anmeldung ersetzt die alte in der Schlange (transport.ts
    *   verwirfAnmeldung).
@@ -558,7 +565,8 @@ export const BETRIEB_ANNAHMEN = {
    */
   koppelnWege: true,
   /**
-   * E8, Bildschirm wach halten (beim Bau 20.11.2026 – vom Nutzer zu bestätigen; lib/wachBleiben.ts): Wake Lock auf
+   * E8, Bildschirm wach halten (beim Bau 20.11.2026, bestätigt 26.11.2026, R11-22 – auch auf den Handys der Zuschauer;
+   * lib/wachBleiben.ts): Wake Lock auf
    * jedem Gerät mit Lese-Link oder Start-Freigabe (GeraetApp, solange verbunden – nicht nach „Raum beendet“/„verlassen“)
    * und im zweiten Fenster für Anzeigetafel und Zuschauerliste. Neu angefordert, sobald die Seite wieder sichtbar ist.
    * Fehlt die API oder weist der Browser ab (iPhone vor iOS 16.4, http://, file://, Energiesparen), still; auf dem Gerät
@@ -566,7 +574,7 @@ export const BETRIEB_ANNAHMEN = {
    */
   wachBleiben: true,
   /**
-   * E8, „Alle Geräte neu laden“ (beim Bau 20.11.2026 – vom Nutzer zu bestätigen):
+   * E8, „Alle Geräte neu laden“ (beim Bau 20.11.2026, bestätigt 26.11.2026, R11-23):
    * - Signierte Gruppenmeldung `neu-laden` an `ko` und `kz` (gab es seit E5 im Protokoll; PROTOKOLL_FASSUNG blieb 1, 2 erst
    *   mit W1 – ältere Geräte überhören sie). Gekoppelte Handys lesen `ko` und laden mit.
    * - Das Gerät holt wie bei einer neueren Fassung des Hosts das Programm (lib/offline.ts holeNeueFassung, geht das
@@ -589,6 +597,9 @@ export const BETRIEB_ANNAHMEN = {
    * der Server heute „zu viele Anfragen“ (429) gemeldet hat. Gezählt wird nur am Bedienrechner (Nachrichten = von ntfy
    * angenommene POSTs; Anfragen = alle POSTs, Abfragen, Anhänge, Abos), je lokalem Kalendertag, gerätelokal.
    * Überschlag: ein Wettkampftag erzeugt ≈ 600–850 Nachrichten – weit unter 17 280; ntfy.sh (250) reicht nicht.
+   * Warnung ab 80 % und Zählen nur am Bedienrechner bestätigt 26.11.2026 (R11-24) – obwohl Geräte, die am selben
+   * Hotspot selbst senden (Start-Freigabe, WKR-Geräte), beim Server mitzählen; der Überschlag enthält die digitale
+   * WKR-Erfassung noch nicht (nicht gemessen).
    */
   kontingent: true,
   /**
@@ -668,4 +679,99 @@ export const BETRIEB_ANNAHMEN = {
    * Bestätigt 22.11.2026 (R7-09).
    */
   keineAmpelAufTafel: true,
+  // --- Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11) ---------------------------------------------------------
+  // „Bei einem bestätigten Ausfall kommt es zu einer Wiederholung des Laufes. … Wenn der Ausfall Verschulden vom Starter
+  // ist, dann ist es ein J Falscher Parcours.“ Auf Rückfrage entschieden (26.11.2026): von Hand einreihen, Werte werden
+  // verworfen, ausgelöst am Bedienrechner. Gilt für das Manövrieren (DM und UIM); der Parallelslalom hat seinen eigenen
+  // Re-run. „J bei Verschulden“ setzt der WKR an einer Boje – dafür baut die App nichts.
+  /**
+   * (WH1) Der abgebrochene Versuch bleibt im Verlauf der Anzeige (`gezeigt` mit `abgebrochen`: Tafel „davor“, Messung
+   * nicht), zählt aber nicht als erledigt – der Start ist wieder offen, bis er erneut gezeigt wird (betrieb/folge.ts lage).
+   * Die Werte leert eine eigene Action der Erfassung (WIEDERHOLUNG_AUSFALL, state/reducer/erfassung.ts) – der Betrieb
+   * selbst schreibt nie in `eingaben`. 26.11.2026 (Nutzer: „Werden verworfen“).
+   */
+  wiederholungNichtErledigt: true,
+  /**
+   * (WH2) „Wiederholung offen“: Der Start fährt nie von selbst. Die Wettkampfleitung setzt ihn an der Start-Freigabe an
+   * seine Stelle – „Als Nächster“, „Ans Ende des Laufs“ (BETRIEB_EINREIHEN) oder „Jetzt zeigen“ (BETRIEB_ZEIGEN); erst
+   * dann zeigt ihn die Folge wieder. Einreihen und Zeigen gehen auch vom Freigabe-Handy (dieselben Actions).
+   * 26.11.2026 (Nutzer: „Von Hand einreihen“).
+   */
+  wiederholungVonHand: true,
+  /**
+   * (WH3) Auslösen nur am Bedienrechner (Nutzer 26.11.2026: „Bedienrechner“), mit Rückfrage, die Startnummer, Lauf und
+   * Folgen nennt; die Wahl sind die gezeigten, geltenden Starts der begonnenen Punkte, der jüngste zuerst, mit Suche nach
+   * Startnummer (betrieb/sicht.ts `gefahren`, nur am Bedienrechner, nie auf der Leitung). Beim Bau 26.11.2026, noch zu
+   * bestätigen: Das Freigabe-Handy löst nicht aus (WIEDERHOLUNG_AUSFALL steht nicht in der Positivliste
+   * geraete/aufgaben.ts – es ist eine Action der Erfassung, keine des Betriebs).
+   * Prüfbefund 27.11.2026: Starts abgemeldeter Starter stehen ausgegraut in der Wahl („abgemeldet – keine Wiederholung“,
+   * WH10) – vorher bestätigte man die Rückfrage, und still geschah nichts. BetriebView gibt die Abmeldungen dazu; die
+   * Sicht trägt sie nie.
+   */
+  wiederholungNurBedienrechner: true,
+  /**
+   * (WH4) „Zurück“ nimmt einen abgebrochenen Versuch nicht zurück (er ist schon „verbraucht“). Wer sich vertan hat:
+   * „Doch keine Wiederholung“ in der Liste „Wiederholung offen“ (nur am Bedienrechner), solange der Start nicht wieder
+   * gezeigt ist – der zuletzt abgebrochene Versuch gilt wieder. Beim Bau 26.11.2026, noch zu bestätigen.
+   * Umgebaut nach dem Prüfbefund 27.11.2026: Vorher holte nur „Einstellungen → Verlauf“ die Werte zurück – und nahm
+   * dabei alles seitdem Eingetragene mit; ohne das stand der Start erledigt, aber leer da, und die WKR-Geräte boten ihn
+   * unter der alten Kennung nie wieder an (sie hielten ihre Zeile für übernommen). Jetzt ist „Doch keine Wiederholung“
+   * eine Action der Erfassung (WIEDERHOLUNG_AUFHEBEN, state/reducer/erfassung.ts): Die beim Ausfall verworfenen Werte
+   * (samt Haken und „keine Zeit“) liegen solange in WkrStand.verworfen und kommen zurück – nur in leere Zellen; was seit
+   * dem Ausfall eingetragen wurde, bleibt. Rückfragen, Vorschläge und Papier-Vermerke von damals kommen nicht zurück.
+   * Die Geräte haben damit wieder ihre Kennung und ihre Zeile; der Start ist erledigt (Haken).
+   */
+  wiederholungAufheben: true,
+  /**
+   * (WH5) Anzeigetafel und Zuschauerliste zeigen beim Start „Wiederholung“ (im Titel des Laufs: „1. Lauf · Wiederholung“)
+   * – ohne Grund, ohne Werte; die Start-Freigabe ebenso. Der abgebrochene Versuch selbst bleibt dort ohne Kennzeichen
+   * stehen, bis der nächste Start kommt. Beim Bau 26.11.2026, noch zu bestätigen (Alternative: nichts auf der Tafel).
+   */
+  wiederholungAufTafel: true,
+  /**
+   * (WH6) Mit „Versuche direkt nacheinander“ gilt die Zeile am Vorsteg für alle Versuche des Starters (wkr/liste.ts
+   * startAufListe `weitere`): Sie bleibt bei der Wiederholung eines Versuchs stehen – das Boot fährt nicht noch einmal
+   * durch die Vorsteg-Kontrolle. Alle anderen Listen dieses Versuchs werden geleert. Beim Bau 26.11.2026, noch zu
+   * bestätigen.
+   * Prüfbefund 27.11.2026, nachgezogen: Für diese Liste ist auch keine Geräte-Kennung veraltet (das Gerät darf seine
+   * Zeile weiter korrigieren, eine verspätete gilt), P der Pausen und Abschlüsse bleiben, und die Erfassung zeigt dort
+   * kein ↻ (es ist keine Zeile gestrichen).
+   */
+  wiederholungVorstegBleibt: true,
+  /**
+   * (WH7) WKR-Geräte bekommen die Wiederholung als neuen Start: eigene Kennung je Versuch (wkr/versuch.ts), sonst hielte
+   * das Gerät ihn für schon geschickt. Eine späte Gerätezeile zum abgebrochenen Versuch (kam nach dem Leeren an) wird
+   * abgelehnt (`versuch-abgebrochen`, das Gerät zeigt es) – nie still wieder eingefüllt und keine Rückfrage am
+   * Bedienrechner: Ihre Werte gehören zu einem Versuch, den die Wettkampfleitung verworfen hat; auf dem Gerät bleiben sie
+   * unter „Zuletzt“ lesbar. Beim Bau 26.11.2026, noch zu bestätigen.
+   * Prüfbefund 27.11.2026: Die Zeile trägt ihren Versuch (WkrZeile.versuch), und WKR_ZEILEN prüft ihn beim Anwenden
+   * noch einmal – zwischen der Prüfung im Führungsfenster und dem Anwenden im Schreibfenster (zwei Fenster) konnte der
+   * Ausfall dazwischenkommen. Ausnahme: die Vorsteg-Zeile mit „Versuche nacheinander“ (WH6) gilt für jeden Versuch –
+   * dort ist keine Kennung veraltet (wkr/versuch.ts versuchVeraltetAuf).
+   */
+  wiederholungSpaeteZeileAblehnen: true,
+  /**
+   * (WH8) Beim Auslösen fallen Rückfragen, Vorschläge und „keine Zeit“ dieses Versuchs weg, der Start fällt aus „Papier“
+   * (P) der Pausen und aus `papier`/`abweichend` der Abschlüsse. Ein schon abgeschlossener Lauf einer Liste bleibt
+   * abgeschlossen: Die Zeile der Wiederholung wird dort ein Vorschlag „abgeschlossen“. Beim Bau 26.11.2026, noch zu
+   * bestätigen.
+   * Prüfbefund 27.11.2026: Vorher kam die Wiederholung auf einer Liste, die den Lauf schon abgeschlossen hatte, gar nicht
+   * auf das Gerät (die Schlange ließ abgeschlossene Punkte aus) – die Zeile, die Vorschlag werden sollte, entstand nie,
+   * und mit „Druck nach Modus“ fehlte oft auch der Bogen. Jetzt lässt wkr/schlange.ts eine Wiederholung (ein geltender
+   * Versuch nach einem abgebrochenen) auch in einem abgeschlossenen Punkt durch – anders als jeden anderen Start nach
+   * dem Abschluss; was der Abschluss mit „Rest auf Papier“ nannte, bleibt Papier. Matrix und Rückstand zählen sie wie
+   * einen offenen Start. Auslegung 27.11.2026, noch zu bestätigen (Alternative: den Abschluss dieser Liste lösen).
+   */
+  wiederholungAbschlussBleibt: true,
+  /**
+   * (WH9) Ein abgebrochener Start im Boot hat keine Parcours-Ampel und keinen Auto-Modus (wkr/lage.ts durchfahrtVon);
+   * eine Durchfahrt für ihn fällt weg. „Nächster Start“ geht von Hand. Beim Bau 26.11.2026, noch zu bestätigen.
+   */
+  wiederholungOhneAmpel: true,
+  /**
+   * (WH10) Keine Wiederholung für einen abgemeldeten Starter (Disq. X kommt beim Abmelden in leere Läufe – geleert
+   * stünde er sonst offen da) und keine im Parallelslalom (dort gilt der Re-run, lib/parallelErgebnis.ts). Beim Bau
+   * 26.11.2026.
+   */
+  wiederholungNurManoevrieren: true,
 } as const

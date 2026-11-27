@@ -57,7 +57,7 @@ export default {
   'betrieb.beginnen.text':
     'Im laufenden Lauf ist noch {n} Start offen. Er bleibt freigegeben und kommt vor den Starts des neuen Laufs dran. | Im laufenden Lauf sind noch {n} Starts offen. Sie bleiben freigegeben und kommen vor den Starts des neuen Laufs dran.',
   'betrieb.stockt':
-    'Kein Start frei – noch {n} Start wartet (zurückgestellt, Boot fehlt oder nachzuholen). Der Lauf ist nicht zu Ende. | Kein Start frei – noch {n} Starts warten (zurückgestellt, Boot fehlt oder nachzuholen). Der Lauf ist nicht zu Ende.',
+    'Kein Start frei – noch {n} Start wartet (zurückgestellt, Wiederholung offen, Boot fehlt oder nachzuholen). Der Lauf ist nicht zu Ende. | Kein Start frei – noch {n} Starts warten (zurückgestellt, Wiederholung offen, Boot fehlt oder nachzuholen). Der Lauf ist nicht zu Ende.',
   'betrieb.abweichend': 'Die Folge weicht von der Verzahnung ab (umgestellt oder Klasse ausgesetzt). Die Wettkampfrichter-Listen bleiben, wie sie sind.',
   'betrieb.zurueckstellen': 'Zurückstellen',
   'betrieb.zurueckstellen.title': 'Den Nächsten zurückstellen: Er fährt vorerst nicht, bleibt aber sichtbar.',
@@ -75,6 +75,28 @@ export default {
   'betrieb.status.zurueckgestellt': 'zurückgestellt',
   'betrieb.status.bootFehlt': 'Boot fehlt',
   'betrieb.status.nachzuholen': 'nachzuholen',
+  // Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11): ausgelöst am Bedienrechner, eingereiht von Hand.
+  'betrieb.status.wiederholung': 'Wiederholung offen',
+  'betrieb.wiederholung': 'Wiederholung offen',
+  'betrieb.wiederholung.hint': 'Nach einem Ausfall wird der Start wiederholt; seine Werte sind verworfen. Er fährt erst, wenn er eingereiht oder gezeigt wird.',
+  'betrieb.wiederholung.marke': 'Wiederholung',
+  'betrieb.wiederholung.aufheben': 'Doch keine Wiederholung',
+  'betrieb.wiederholung.aufheben.title': 'Der abgebrochene Versuch gilt wieder, und seine verworfenen Werte kommen zurück – was seitdem eingetragen wurde, bleibt.',
+  'betrieb.abgebrochen': 'Ausfall – wird wiederholt',
+  'betrieb.abgebrochen.zurueck': 'Nach „Wiederholung (Ausfall)“ nimmt „Zurück“ den Start nicht mehr zurück – dafür „Doch keine Wiederholung“.',
+  'betrieb.ausfall': 'Wiederholung (Ausfall) …',
+  'betrieb.ausfall.title': 'Ein gezeigter Start fiel aus und wird wiederholt – nach Entscheidung der Wettkampfleitung',
+  'betrieb.ausfall.hint': 'Gezeigte Starts der laufenden Läufe, der zuletzt gezeigte zuerst. Die Wettkampfleitung entscheidet über die Wiederholung; liegt der Ausfall am Starter, trägt der WKR an der Boje „J“ ein (falscher Parcours) – dann keine Wiederholung.',
+  'betrieb.ausfall.suche': 'Startnummer',
+  'betrieb.ausfall.keiner': 'Noch kein Start gezeigt.',
+  'betrieb.ausfall.keine': 'Kein gezeigter Start passt.',
+  'betrieb.ausfall.knopf': 'Wiederholen …',
+  'betrieb.ausfall.abgemeldet': 'abgemeldet – keine Wiederholung',
+  'betrieb.ausfall.frage': 'Wiederholung nach Ausfall: {nr}, {lauf}?',
+  'betrieb.ausfall.text':
+    'Alle Werte von {nr} in {lauf} werden verworfen – auf jeder Liste, auch die von den WKR-Geräten. Der Start steht danach unter „Wiederholung offen“ und fährt erst, wenn er eingereiht wird; die WKR-Geräte bekommen ihn dann noch einmal. Auf Papier: die Zeile streichen und die Wiederholung in eine Leerzeile eintragen. „Doch keine Wiederholung“ holt die Werte zurück, solange der Start nicht wieder gezeigt ist.',
+  'betrieb.ausfall.vorsteg': 'Die Zeile am Vorsteg gilt für alle Versuche und bleibt stehen.',
+  'betrieb.ausfall.ja': 'Werte verwerfen und wiederholen',
 
   // Parallel-Slalom (E4, nur unter UIM): Runden statt Läufe, Paare auf Parcours A und B. Die Fassungen `….runde`
   // ersetzen die gleichnamigen Texte im Bereich des Parallel-Slaloms (components/betrieb/texte.ts tBereich).
@@ -190,6 +212,8 @@ export default {
   'anzeige.parallel': 'Parallel-Slalom',
   'anzeige.racecourse': 'Parcours {rc}',
   'anzeige.versuch': '{n}. Versuch',
+  // Wiederholung nach Ausfall (R11-11, 26.11.2026): hinter dem Lauf auf Tafel und Zuschauerliste – ohne Grund.
+  'anzeige.wiederholung': 'Wiederholung',
 
   // Zuschauerliste (`#/zuschauer`, src/ZuschauerApp.vue, components/zuschauer/; E3) – in der Sprache der Anzeigetafel
   'zuschauer.titel': 'Startfolge',
@@ -504,6 +528,8 @@ export default {
   'geraete.ablehnung.teil-fremd': 'Diese Spalte gehört zum anderen Teil des Stegs.',
   'geraete.ablehnung.seite-anders': 'Dieser Start fährt auf der anderen Seite (A/B).',
   'geraete.ablehnung.offen': 'Es sind noch Starts offen – abschließen nur mit „Rest auf Papier“.',
+  // R11-11 (26.11.2026): Zeile zu einem Versuch, der nach einem Ausfall abgebrochen wurde (BETRIEB_ANNAHMEN WH7).
+  'geraete.ablehnung.versuch-abgebrochen': 'Dieser Versuch wurde nach einem Ausfall abgebrochen – der Start wird wiederholt. Die Zeile ist nicht übernommen.',
   // W2.2 (21.11.2026): Betrieb → WKR – digitale Erfassung der Wettkampfrichter am Bedienrechner (Matrix, Bedienung je
   // Liste, Eingang). Oberflächensprache; Listennamen aus der Konfiguration der Oberfläche.
   'betrieb.reiter.wkr': 'WKR',

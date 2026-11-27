@@ -226,7 +226,7 @@ describe('Handy-Maske Tor 5 (W3.3)', () => {
     expect(werte(state.value, s.starter)['katalog:tor5'] ?? '').toBe('')
   })
 
-  it('Disq.: zweiter Tipp setzt, Fuß nennt ihn; „↶ Rückgängig“ nimmt den letzten Tipp', async () => {
+  it('Disq.: zweiter Tipp setzt, Fuß nennt ihn; „↩ Rückgängig“ nimmt den letzten Tipp', async () => {
     const { w, state, s } = await listeMitStart('tor5')
     await klick(w, '[data-action="code"][data-code="20"]')
     await klick(w, '[data-action="disq"]')
@@ -2075,7 +2075,7 @@ describe('Bojen (W4.2)', () => {
     await klick(w, boje(feld))
     expect([w.find(boje(feld)).attributes('data-anzahl'), w.find(boje(feld)).attributes('data-disq')]).toEqual(['0', 'G'])
     expect(haupt(w).text()).toBe('Abschicken · Disq. G')
-    // „↶ Rückgängig“ nimmt die letzte Eingabe (das Wegnehmen der Berührung kennt kein Zurück – die Berührung
+    // „↩ Rückgängig“ nimmt die letzte Eingabe (das Wegnehmen der Berührung kennt kein Zurück – die Berührung
     // bleibt weg); danach den Buchstaben.
     await klick(w, '[data-action="zurueck"]')
     expect(w.find(boje(feld)).attributes('data-disq')).toBeUndefined()

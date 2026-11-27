@@ -306,7 +306,7 @@ describe('WkrBild (W5.2)', () => {
     expect(flaeche().attributes('data-drehung')).toBe('270')
     expect(flaeche().attributes('data-lage')).toBe('270')
     expect(w.find('.wkr-bild-svg').html()).toContain('<g transform="rotate(-90)">')
-    // „Steg unten“ ausdrücklich gewählt: 0° auch auf dem Pad (dort hätte der Bogen 90° gegeben, wo Platz ist).
+    // „Start/Ziel links“ (0°, bis 26.11.2026 „Steg unten“) ausdrücklich gewählt: 0° auch auf dem Pad (dort hätte der Bogen 90° gegeben, wo Platz ist).
     await w.setProps({ lageWahl: 0, pad: true })
     expect(flaeche().attributes('data-drehung')).toBe('0')
     expect(gemeldet).toEqual([0, 270, 0])

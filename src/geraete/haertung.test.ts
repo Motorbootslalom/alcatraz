@@ -348,7 +348,8 @@ describe('Zeitgrenzen (E8)', () => {
     await bis(() => g.quittung.value?.nr === nr)
     // Gewirkt hat es einmal; die zweite Anwendung ändert nichts (bedingt über `vorher`, K30). Das Handy hört deshalb
     // „unverändert“, obwohl SEINE Action gewirkt hat (selten: Führung weg genau zwischen Anwenden und Quittung). Der Satz
-    // dazu nennt deshalb seit E8 (20.11.2026) auch „schon geschehen“ und bittet, die Anzeige zu prüfen.
+    // dazu nennt deshalb seit E8 (20.11.2026) auch „schon geschehen“ und bittet, die Anzeige zu prüfen (so bestätigt
+    // 26.11.2026, R11-20).
     expect(g.quittung.value!.ergebnis).toBe('unveraendert')
     expect(s2.state.value.betrieb.bereiche[P].gezeigt.map((x) => x.ref)).toEqual([zeigen.ref])
     expect(s2.angewandt.filter((a) => a.type === 'BETRIEB_ZEIGEN').length).toBeGreaterThanOrEqual(2)

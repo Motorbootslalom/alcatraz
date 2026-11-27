@@ -112,7 +112,7 @@ export interface LaufLage {
   punkt: PunktId
   /** Startnummern des Starts, der noch unterwegs ist (im Boot, bzw. die besetzten Seiten eines Paars); leer = keiner. */
   unterwegs: string[]
-  /** Freie Starts dieses Punkts, die noch kommen. */
+  /** Freie Starts dieses Punkts, die noch kommen – dazu offene Wiederholungen nach Ausfall (R11-11, 26.11.2026). */
   offen: number
 }
 
@@ -132,8 +132,10 @@ export function laufLage(stand: AppState, konfig: Konfig, bereich: BereichId, no
   const l = bereichsLage(stand, bereich)
   const punkt = l.laufend
   if (punkt === null) return null
-  const offen = l.frei.filter((e) => e.punkt === punkt).length
-  const aktuell = l.aktuell && punktVonRef(stand, l.aktuell.key) === punkt ? l.aktuell.key : null
+  // Eine offene Wiederholung (Ausfall, R11-11, 26.11.2026) kommt sicher noch – der Lauf läuft; ein abgebrochener Versuch
+  // im Boot fährt dagegen nicht mehr.
+  const offen = [...l.frei, ...l.wiederholung].filter((e) => e.punkt === punkt).length
+  const aktuell = l.aktuell && !l.aktuell.abgebrochen && punktVonRef(stand, l.aktuell.key) === punkt ? l.aktuell.key : null
   const ampel = aktuell ? ampelImStand(stand, konfig, bereich) : 'aus'
   const faehrt = aktuell !== null && (imBoot(stand, bereich) === aktuell || ampel === 'gruen' || ampel === 'rot' || nochAufListe?.(aktuell) === true)
   if (offen === 0 && !faehrt) return null

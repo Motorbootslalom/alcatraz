@@ -348,6 +348,19 @@ describe('Leerzeilen der Wettkampfrichter-Listen', () => {
     expect(reducer(s, { type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'verzahnung' })).toBe(s)
     expect(reducer(s, { type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'quer' as never }).wkrGemeinsamFolge).toBe('getrennt')
   })
+
+  it('gemeinsame Bögen bei einer Meisterschaft (R11-03, 26.11.2026): Vorgabe aus, wählbar gleich oder alle', () => {
+    expect(emptyState().wkrMeisterschaftGemeinsam).toBe('aus')
+    const s = reducer(emptyState(), { type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'gleich' })
+    expect(s.wkrMeisterschaftGemeinsam).toBe('gleich')
+    expect(reducer(s, { type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'alle' }).wkrMeisterschaftGemeinsam).toBe('alle')
+    // Unverändert: derselbe Stand. Unbekanntes ist die Vorgabe.
+    expect(reducer(s, { type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'gleich' })).toBe(s)
+    expect(reducer(s, { type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'immer' as never }).wkrMeisterschaftGemeinsam).toBe('aus')
+    // Der Wechsel zur Clubmeisterschaft und zurück lässt die Angabe stehen.
+    const club = reducer(s, { type: 'SET_EVENT_KIND', eventKind: 'club' })
+    expect(reducer(club, { type: 'SET_EVENT_KIND', eventKind: 'meisterschaft' }).wkrMeisterschaftGemeinsam).toBe('gleich')
+  })
 })
 
 describe('Listenoptionen: Seitenaufteilung, Bojen-Seiten, Sprache', () => {

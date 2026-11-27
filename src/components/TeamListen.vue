@@ -7,6 +7,7 @@ import { useListenSprache } from '../lib/listensprache'
 import { geburtsdatumAufListe } from '../i18n'
 import { SEITEN_VORGABE } from '../lib/seiten'
 import type { TeamListe } from '../lib/teamListe'
+import type { CoPilotZeile } from '../lib/ausgleich'
 import ListenDokument from './ListenDokument.vue'
 import { geschlechtAufListe } from '../domain/geschlecht'
 import { herkunftAnzeige } from '../lib/origin'
@@ -38,6 +39,22 @@ const teamName = (name: string) => herkunftAnzeige(name, state.value.originMode,
 const spalten = computed(() => 8 + (props.geburtsdatum ? 1 : 0))
 // Lange Namen kleiner statt umbrochen – wie auf den Starterlisten.
 const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit-3' : text.length > normal * 1.35 ? 'fit-2' : text.length > normal ? 'fit-1' : '')
+
+/**
+ * Eine Zeile der Zelle „Co-driver“ (R11-07, 26.11.2026): der Name und ein Ausgleichsgewicht in Klammern dahinter – wie
+ * auf der Liste „Ausgleichsgewichte“; nie das Körpergewicht. Die Vorsilbe „Substitute co-driver:“ setzt die Vorlage
+ * davor, klein wie im Kopf der Ausgleichsliste.
+ */
+function coZeile(c: CoPilotZeile): string {
+  const ag = c.ausgleich === 'fehlt' ? lt('lists.coPilot.notWeighed') : c.ausgleich ? lt('lists.coPilot.ballast', { kg: gewichtText(c.ausgleich, listenLocale.value) }) : ''
+  return [c.name, ag].filter(Boolean).join(' ')
+}
+/**
+ * Die Schriftgröße je Zeile, gemessen ohne die Vorsilbe (Prüfbefund 27.11.2026): Mit „Substitute co-driver: “ (22
+ * Zeichen) rutschte fast jede Ersatz-Zeile in fit-3, und weil fit für die ganze Zelle galt, schrumpfte der eingeteilte
+ * Co-Pilot darüber mit. Ein üblicher Name bleibt so in normaler Größe.
+ */
+const coFit = (c: CoPilotZeile) => fit(coZeile(c), 22)
 </script>
 
 <template>
@@ -88,8 +105,14 @@ const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit
                 <td class="weight ausgleich-kg">{{ !z.ausgleich ? '–' : `${gewichtText(z.ausgleich, listenLocale)} kg` }}</td>
               </template>
               <td class="narrow" data-spalte="klasse">{{ classCell(z.starter.klasse) }}</td>
-              <!-- Nur Dolphin, 1 – 3 (Pkt. 3.7); die übrigen Klassen fahren ohne Co-Driver. -->
-              <td :class="z.coDriver === undefined ? 'ohne' : fit(z.coDriver, 22)">{{ z.coDriver === undefined ? '–' : z.coDriver }}</td>
+              <!-- Nur Dolphin, 1 – 3 (Pkt. 3.7); die übrigen Klassen fahren ohne Co-Driver. Ein Ersatz steht
+                   darunter (26.11.2026) – die Zeile wird höher, ListenDokument misst sie mit. -->
+              <td v-if="z.coDriver === undefined" class="ohne">–</td>
+              <td v-else class="co-piloten" data-spalte="co-driver">
+                <span v-for="c in z.coDriver" :key="c.rolle" :class="['co-pilot-zeile', coFit(c)]" :data-co-pilot="c.rolle"
+                  ><template v-if="c.rolle === 'ersatz'"><small data-rolle="ersatz">{{ lt('lists.coPilotSubstitute') }}:</small>{{ ' ' }}</template>{{ coZeile(c) }}</span
+                >
+              </td>
             </tr>
           </tbody>
         </table>

@@ -50,11 +50,11 @@ import { useWkrText } from './texte'
  * (Karte, Knöpfe bzw. Vorsteg, Fuß) mit dem Start „P“ – aber ohne Quelle: Es wird nichts gesendet, nichts als Entwurf
  * abgelegt, der Bedienrechner sieht die Probe nicht. Schritte (immer mit „Überspringen“):
  *
- * - Katalog (Tor 5, MüB, Steg-Teil): Code <erster Code> tippen → „↶ Rückgängig“ → Hauptknopf (Fehlerfrei bzw.
+ * - Katalog (Tor 5, MüB, Steg-Teil): Code <erster Code> tippen → „↩ Rückgängig“ → Hauptknopf (Fehlerfrei bzw.
  *   Ablegen/Anlegen OK).
  * - Vorsteg: zweimal X, dann „Abbrechen“ (die große Rückfrage, F5) → „In Ordnung“.
  * - Bojen (W4.2, Plan docs/plan-wkr-w4.md §5.3, P11, 21.11.2026): Boje antippen (erste zweibojige Zeile, linker
- *   Knopf; ohne eine solche die erste Boje) → „↶ Rückgängig“ → nur mit Zähler: Tor 5 zweimal (2 Berührungen) →
+ *   Knopf; ohne eine solche die erste Boje) → „↩ Rückgängig“ → nur mit Zähler: Tor 5 zweimal (2 Berührungen) →
  *   nur mit Umschalter: „Rückweg“ → Hauptknopf. Katalog-Teile gemischter Listen übt sie nicht (wie W3).
  *   Nutzer 21.11.2026: vor dem Hauptknopf „Disq. an Boje“ (U4: rechter Knopf der ersten zweibojigen Zeile, erster
  *   Buchstabe) – seit W4-12 (21.11.2026, BZ1/BZ4) mit Punkt UND Buchstabe: Boje antippen, „Disq. an Boje …“, in der

@@ -727,6 +727,27 @@
   flex: 1 1 0;
 }
 
+/* „↩ Rückgängig“ (Nutzer 26.11.2026, R11-30 (2): Pfeil nach links statt ↶): gezeichnet, weil ↩ in den Schriften der
+   App fehlt und auf Handys als buntes Emoji käme (components/wkr/WkrFuss.vue). Farbe = Text des Knopfs.
+   Pfeil und Wort sind Inline-Inhalt EINES Elements `.wkr-mit-pfeil` (Prüfung 27.11.2026): wird es eng, bricht die
+   Zeile am Leerzeichen (Pfeil über dem Wort), nie mitten in „Rückgängig“ – als eigenes Flex-Element nahm der Pfeil dem
+   Wort den Platz, und overflow-wrap: anywhere brach es auf jeder Handybreite (gemessen 320–412 px). */
+.wkr-mit-pfeil {
+  min-width: 0;
+}
+
+.wkr-pfeil {
+  display: inline-block;
+  vertical-align: -0.25em;
+  width: 1.2em;
+  height: 1.2em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* --- Ausweichen, Ziffernfeld --- */
 
 .wkr-ziffern {

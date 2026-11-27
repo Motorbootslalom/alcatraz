@@ -5,7 +5,7 @@ import { useStore } from '../state/store'
 import { useEvent } from '../lib/event'
 import { useListenSprache } from '../lib/listensprache'
 import { SEITEN_VORGABE } from '../lib/seiten'
-import type { AusgleichListe } from '../lib/ausgleich'
+import type { AusgleichListe, CoPilotZeile } from '../lib/ausgleich'
 import type { ClassId } from '../types'
 import ListenDokument from './ListenDokument.vue'
 import { gewichtText } from '../domain/gewicht'
@@ -21,6 +21,11 @@ import { gewichtText } from '../domain/gewicht'
  * von Hand (klein „nicht gewogen“, rechts „kg“; Nutzer 24.11.2026) – digital kommt ein in der
  * Verwiegung nachgetragenes Gewicht von selbst aufs Steg-Gerät (wkr/sicht.ts `ausgleich`).
  *
+ * Co-Piloten (R11-07, 26.11.2026: „Beide Co-Piloten stehen untereinander auf den Listen, damit beim Steg klar ist, wer
+ * die Alternative ist.“): im Feld „Co-Pilot“ der eingeteilte, darunter – klein benannt – der Ersatz-Co-Pilot; wer ein
+ * Ausgleichsgewicht braucht, hat es in Klammern hinter dem Namen („(+3 kg)“), wer fehlt „(nicht gewogen)“. Nie das
+ * Körpergewicht (lib/ausgleich.ts coPilotZeilen).
+ *
  * Alles auf dem Blatt steht in der Sprache des Regelwerks (lib/listensprache.ts). Der Name
  * folgt dem Reglement (DM C3 „Ausgleichsgewichte“, UIM 960 Pkt. 3.7 „extra weight“).
  */
@@ -33,6 +38,10 @@ const { t: lt, listenLocale } = useListenSprache()
 const heading = computed(() => [state.value.eventName, state.value.eventJahr].filter(Boolean).join(' '))
 const runs = computed(() => Array.from({ length: state.value.laufCount }, (_, i) => i + 1))
 const klasseText = (k: ClassId) => regelwerk.value.klassenNamen[k] ?? lt('common.class', { id: k })
+
+/** Was hinter dem Namen eines Co-Piloten in Klammern steht: sein Ausgleichsgewicht oder „nicht gewogen“; sonst nichts. */
+const coAg = (c: CoPilotZeile) =>
+  c.ausgleich === 'fehlt' ? lt('lists.coPilot.notWeighed') : c.ausgleich ? lt('lists.coPilot.ballast', { kg: gewichtText(c.ausgleich, listenLocale.value) }) : ''
 
 // Lange Namen kleiner statt umbrochen – wie auf den Starterlisten (views/ListsView.vue).
 const fit = (text: string, normal: number) => (text.length > normal * 1.9 ? 'fit-3' : text.length > normal * 1.35 ? 'fit-2' : text.length > normal ? 'fit-1' : '')
@@ -55,7 +64,12 @@ const laengster = (texte: string[]) => texte.reduce((a, b) => (b.length > a.leng
                     <span class="list" data-feld="liste">{{ lt('lists.title.ausgleich') }}</span>{{ ' ' }}
                     <span class="feld" data-feld="klasse">{{ klasseText(l.klasse) }}</span>{{ ' ' }}
                     <span class="feld benannt" data-feld="boot"><small>{{ lt('lists.boat') }}</small>{{ ' ' }}<span class="wert">{{ l.boot }}</span></span>{{ ' ' }}
-                    <span v-if="l.coPilot !== undefined" class="feld benannt" data-feld="coPilot"><small>{{ lt('lists.coPilot') }}</small>{{ ' ' }}<span class="wert">{{ l.coPilot }}</span></span>{{ ' ' }}
+                    <!-- Co-Pilot und, wenn eingetragen, darunter der Ersatz – je mit Ausgleichsgewicht in Klammern (26.11.2026). -->
+                    <span v-if="l.coPiloten !== undefined" class="feld benannt co-piloten" data-feld="coPilot">
+                      <template v-for="c in l.coPiloten" :key="c.rolle">
+                        <small :data-rolle="c.rolle">{{ lt(c.rolle === 'ersatz' ? 'lists.coPilotSubstitute' : 'lists.coPilot') }}</small>{{ ' ' }}<span class="wert" :data-co-pilot="c.rolle">{{ c.name }}<template v-if="coAg(c)">{{ ' ' }}<span class="co-pilot-ag">{{ coAg(c) }}</span></template></span>{{ ' ' }}
+                      </template>
+                    </span>{{ ' ' }}
                     <span class="event" data-feld="veranstaltung">{{ heading }}</span>
                   </div>
                 </KopfLogos>
@@ -89,8 +103,8 @@ const laengster = (texte: string[]) => texte.reduce((a, b) => (b.length > a.leng
                    klein oben in der Ecke: Der Rest der Zelle bleibt frei zum Eintragen von Hand, „kg“ steht rechts. -->
               <td v-if="z.ausgleich === undefined" class="weight ungewogen"><span class="ungewogen-vermerk">{{ lt('lists.notWeighed') }}</span>{{ ' ' }}<span class="ungewogen-kg">kg</span></td>
               <!-- Auf 0 kg gerundet (z. B. 64,6 kg bei 65 kg) heißt wie „gewogen, keines nötig“ leer – so liest das
-                   Steg-Gerät denselben Starter als „kein AG“ (Prüfbefund 24.11.2026, WKR_ANNAHMEN AG2, noch zu
-                   bestätigen; vorher stand „0 kg“). Die Verwiegung zeigt weiter „0 kg“ (WeighingView). -->
+                   Steg-Gerät denselben Starter als „kein AG“ (Prüfbefund 24.11.2026, WKR_ANNAHMEN AG2, bestätigt
+                   26.11.2026, R11-29 (5); vorher stand „0 kg“). Die Verwiegung zeigt weiter „0 kg“ (WeighingView). -->
               <!-- Mit einer Abstufung unter 1 kg auch „1,5 kg“ – Dezimalzeichen der Listensprache (24.11.2026). -->
               <td v-else class="weight ausgleich-kg">{{ z.ausgleich ? `${gewichtText(z.ausgleich, listenLocale)} kg` : '' }}</td>
               <td class="narrow">{{ classCell(z.starter.klasse) }}</td>

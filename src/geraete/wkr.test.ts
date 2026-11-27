@@ -1467,3 +1467,57 @@ describe('„Nicht gestartet · Disq. X“ Ende zu Ende (24.11.2026, NG1–NG4)'
     expect(e.pruefung(TOR, 'lauf:1').x).toHaveLength(1)
   })
 })
+
+describe('Wiederholung nach Ausfall Ende zu Ende (Nutzer 26.11.2026, R11-11)', () => {
+  it('Werte verworfen; das Gerät bekommt die Wiederholung als neuen Start; eine späte Korrektur des alten Versuchs wird abgelehnt', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const { key, starter } = await mitStart(s, e)
+    const z = e.schicke(TOR, { s: key, zellen: { [FELD]: '5' } })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)[FELD]).toBe('5')
+
+    // Bedienrechner: Wiederholung (Ausfall) – Werte weg, „Wiederholung offen“.
+    s.dispatch({ type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: key })
+    expect(werte(s.state.value, starter)).toEqual({})
+    expect(lage(s.state.value, P1).wiederholung.map((x) => x.key)).toEqual([key])
+
+    // Eine Korrektur des abgebrochenen Versuchs (kam zu spät): abgelehnt, nichts eingefüllt, keine Rückfrage.
+    const k = e.korrigiere(z, { [FELD]: '10' })!
+    await bis(() => e.stufen.value[k]?.stufe === 'abgelehnt')
+    expect(e.stufen.value[k]).toEqual({ stufe: 'abgelehnt', grund: 'versuch-abgebrochen' })
+    expect(werte(s.state.value, starter)).toEqual({})
+    expect(s.state.value.wkr.rueckfragen).toEqual([])
+
+    // Eingereiht und gezeigt: Das Gerät hat den Start wieder in der Schlange – unter neuer Kennung, wie einen neuen.
+    s.dispatch({ type: 'BETRIEB_EINREIHEN', bereich: P1, ref: key, wo: 'naechster' })
+    zeige(s)
+    expect(aktuell(s.state.value).key).toBe(key)
+    const neu = JSON.stringify(['w', 1, key])
+    await bis(() => !!e.schlange.value[TOR]?.some((x) => x.key === neu))
+    const w = e.schicke(TOR, { s: neu, zellen: { [FELD]: '15' } })!
+    await bis(() => e.stufen.value[w].stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)).toEqual({ [FELD]: '15', 'erfasst@gate135': '1' })
+    expect(s.state.value.wkr.rueckfragen).toEqual([])
+  })
+
+  it('„Doch keine Wiederholung“ (Prüfbefund 27.11.2026): Werte zurück, das Gerät hat wieder seine Kennung, eine Korrektur gilt', async () => {
+    const { s, h } = await bedienrechner()
+    const { e } = await wkrHandy(h, [{ art: 'liste', liste: TOR }])
+    const { key, starter } = await mitStart(s, e)
+    const z = e.schicke(TOR, { s: key, zellen: { [FELD]: '5' } })!
+    await bis(() => e.stufen.value[z].stufe === 'uebernommen')
+    s.dispatch({ type: 'WIEDERHOLUNG_AUSFALL', bereich: P1, ref: key })
+    expect(werte(s.state.value, starter)).toEqual({})
+    s.dispatch({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich: P1, ref: key })
+    // Werte samt Haken zurück: Der Start ist auf der Liste erledigt, das Gerät bietet ihn nicht noch einmal an.
+    expect(werte(s.state.value, starter)).toEqual({ [FELD]: '5', 'erfasst@gate135': '1' })
+    expect(lage(s.state.value, P1).wiederholung).toEqual([])
+    await bis(() => !e.schlange.value[TOR]?.some((x) => x.key === key || x.key === JSON.stringify(['w', 1, key])))
+    // Die Korrektur unter der alten Kennung gilt wieder (vorher: `versuch-abgebrochen`).
+    const k = e.korrigiere(z, { [FELD]: '10' })!
+    await bis(() => e.stufen.value[k]?.stufe === 'uebernommen')
+    expect(werte(s.state.value, starter)[FELD]).toBe('10')
+    expect(s.state.value.wkr.rueckfragen).toEqual([])
+  })
+})

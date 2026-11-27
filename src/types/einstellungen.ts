@@ -30,8 +30,37 @@ export type Einteilung = Record<string, Record<string, string>>
  */
 export type WkrSprachen = Record<string, Record<string, Sprache>>
 
-/** Eine Angabe je Klasse als freier Text (Boot, Co-Pilot); eine Klasse ohne Angabe fehlt. */
+/** Eine Angabe je Klasse als freier Text (Boot); eine Klasse ohne Angabe fehlt. */
 export type Besetzung = Partial<Record<ClassId, string>>
+
+/**
+ * Rolle eines Co-Piloten in seiner Klasse (Antwort des Nutzers vom 26.11.2026, R11-07: „pro Klasse auch einen
+ * Ersatz-Co-Piloten eintragen“): `haupt` = der eingeteilte Co-Pilot, `ersatz` = der, der für ihn einspringt.
+ */
+export type CoPilotRolle = 'haupt' | 'ersatz'
+
+/**
+ * Ein Co-Pilot: Name, wie getippt (leer, solange nur ein Gewicht steht), und – wenn gewogen – sein Gewicht in kg auf
+ * 0,1 kg wie in der Verwiegung (R11-07: „Jeder Co-Pilot kann dann optional auch ein Gewicht eingetragen bekommen.“).
+ */
+export interface CoPilot {
+  name: string
+  gewicht?: number
+}
+
+/** Co-Pilot und Ersatz-Co-Pilot einer Klasse; eine Rolle ohne Name und Gewicht fehlt. */
+export type CoPilotPaar = Partial<Record<CoPilotRolle, CoPilot>>
+
+/** Co-Piloten je Klasse (lib/besetzung.ts); eine Klasse ohne Co-Piloten fehlt. */
+export type CoPiloten = Partial<Record<ClassId, CoPilotPaar>>
+
+/**
+ * Wogegen das Ausgleichsgewicht eines Co-Piloten rechnet (R11-07: „ob das Ausgleichsgewicht über alle Co-Piloten zählt
+ * oder nur pro Klasse“): `klasse` (Vorgabe, DM-Reglement C3 „in der jeweiligen Klasse“) = der schwerste Co-Pilot
+ * seiner Klasse, `alle` = der schwerste Co-Pilot der Klassen, in denen Starter stehen (lib/ausgleich.ts
+ * coPilotAusgleichVon; Prüfbefund 27.11.2026: nicht auch Klassen ohne Starter).
+ */
+export type CoPilotAusgleich = 'klasse' | 'alle'
 
 export type LaufzettelLayout = 'seite' | 'liste'
 
@@ -41,6 +70,17 @@ export type LaufzettelLayout = 'seite' | 'liste'
  * Startfolge der Verzahnung, mit der Klasse in einer Spalte hinter der Startnummer.
  */
 export type WkrGemeinsamFolge = 'getrennt' | 'verzahnung'
+
+/**
+ * Gemeinsame WKR-Bögen mehrerer Klassen bei einer Meisterschaft (DM, UIM; Antwort des Nutzers vom 26.11.2026, R11-03:
+ * „Wenn es schon da ist, kann man das auch bei den anderen nutzen.“). Die Clubmeisterschaft hat ihre eigene Angabe
+ * (`wkrClubGemeinsam`), dort teilen sich Klassen immer Bögen.
+ * - `aus` (Vorgabe): je Klasse ein Bogen, wie vor dem 26.11.2026.
+ * - `gleich`: Klassen, deren Bogen gleich aufgebaut ist (gleiche Spalten, gleiche Zeichnung), stehen auf einem Bogen –
+ *   wie bei der Clubmeisterschaft ohne „Papier sparen“; Listen mit verschiedener Zeichnung bleiben je Klasse.
+ * - `alle`: „Papier sparen“ – alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild.
+ */
+export type WkrMeisterschaftGemeinsam = 'aus' | 'gleich' | 'alle'
 
 /** Platz eines Logos im Kopf der gedruckten Listen. */
 export type LogoSeite = 'links' | 'rechts'

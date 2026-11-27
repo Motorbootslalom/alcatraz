@@ -103,6 +103,12 @@ export interface WkrZeile {
    * das Kennzeichen des Starts auf dieser Liste ({@link WkrStand.keineZeit}).
    */
   keineZeit?: Record<string, KeineZeitGrund>
+  /**
+   * Wiederholung nach Ausfall (R11-11, Prüfbefund 27.11.2026): der Versuch, für den das Gerät die Zeile schickte (Zahl
+   * der Abbrüche davor, wkr/versuch.ts); fehlt am Tisch. WKR_ZEILEN prüft ihn beim Anwenden noch einmal gegen den Stand –
+   * zwischen der Prüfung im Führungsfenster und dem Anwenden im Schreibfenster kann der Versuch abgebrochen worden sein.
+   */
+  versuch?: number
 }
 
 /** Warum eine Rückfrage entstand: Zelle anders belegt, Start nicht gezeigt, oder ein Disq.-Buchstabe soll wegfallen. */
@@ -184,4 +190,24 @@ export interface WkrStand {
    * „nicht vorbeigekommen“ (`nichtVorbei`, W4.3) daneben entfiel am 24.11.2026 – es ist jetzt X (WKR_ANNAHMEN NG6).
    */
   keineZeit: Record<string, Record<string, Record<string, KeineZeitGrund>>>
+  /**
+   * Wiederholung nach Ausfall (R11-11; Prüfbefund 27.11.2026): die Werte abgebrochener Versuche, solange der Abbruch im
+   * Betrieb steht – damit „Doch keine Wiederholung“ (WIEDERHOLUNG_AUFHEBEN) sie zurückholen kann, ohne den Verlauf (der
+   * alles seitdem mit zurücknähme). Fehlt = keine. In der Sicherung wie Rückfragen, nie in einer Sicht.
+   */
+  verworfen?: WkrVerworfen[]
+}
+
+/** Die Werte eines nach einem Ausfall abgebrochenen Versuchs (WIEDERHOLUNG_AUSFALL), je Start einer. */
+export interface WkrVerworfen {
+  /** Bereich des Betriebs und Kennung des Starts (betrieb/folge.ts refKey). */
+  bereich: string
+  ref: string
+  /** Zelle: Lauf-Schlüssel und Starter-ID. */
+  lauf: string
+  starter: string
+  /** Die verworfenen Zellen (Feld → Wert, ohne leere), Haken eingeschlossen. */
+  werte: Record<string, string>
+  /** „Keine Zeit“ dieser Zelle je Liste (Feld → Grund), wie {@link WkrStand.keineZeit}. */
+  keineZeit: Record<string, Record<string, KeineZeitGrund>>
 }

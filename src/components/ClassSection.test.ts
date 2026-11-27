@@ -371,6 +371,7 @@ describe('Geschlecht im Starter-Reiter', () => {
     await englisch.findAll('button').find((b) => b.text().includes('✎'))!.trigger('click')
     expect(englisch.find('select[data-feld="geschlecht"]').findAll('option').map((o) => o.text())).toEqual(['–', 'M', 'F', 'D', 'n/a'])
     englisch.unmount()
+    setLocale('de')
   })
 
   it('der Hinweis am Feld nennt die deutschen Kürzel als die der Oberfläche – eine deutsche Liste mit Geschlecht gibt es nicht', async () => {
@@ -412,7 +413,7 @@ describe('Verschieben mit Startnummern-Bereichen (20.11.2026)', () => {
   })
 })
 
-describe('Starterlaubnis nach Geburtstag (DM-Reglement C8, Warnung vom 24.11.2026)', () => {
+describe('Starterlaubnis nach Geburtstag (DM-Reglement C8, Warnung vom 24.11.2026, zwei Stufen vom 26.11.2026)', () => {
   // Erfundene Starter der Klasse E (DM: ab dem 6. Geburtstag) im Jahr 2026.
   const kind = (n: number, geburtsdatum: string): Starter => ({ ...starter(n), id: `e${n}`, startNr: `E0${n}`, klasse: 'E', geburtsdatum })
   let store: Store
@@ -430,21 +431,80 @@ describe('Starterlaubnis nach Geburtstag (DM-Reglement C8, Warnung vom 24.11.202
     store.dispatch({ type: 'ADD_STARTERS', starters: [kind(1, '2020-09-06'), kind(2, '2020-09-05'), kind(3, '2019-12-31')] })
   })
 
-  it('mit Datum der Veranstaltung: nur wer an dem Tag noch nicht 6 ist – Marke, Liste, Zeichen; nichts gesperrt', async () => {
+  it('mit Datum (zwei Stufen, 26.11.2026): deutliche Warnung bis 2 Tage und klar zu jung, Hinweis bis 14 Tage; nichts gesperrt', async () => {
     store.dispatch({ type: 'SET_EVENT_DATUM', datum: '2026-09-05' })
+    // e1: 6. Geburtstag 1 Tag nach dem ersten Wettkampftag, e2: am Tag, e4: 9 Tage davor, e5: 15 Tage danach; e3 längst 6.
+    store.dispatch({ type: 'ADD_STARTERS', starters: [kind(4, '2020-08-27'), kind(5, '2020-09-20')] })
     const wrapper = ansicht()
+    expect(wrapper.find('[data-hinweis="geburtstag-warnung-zahl"]').text()).toBe('3 Geburtstage: Warnung')
     expect(wrapper.find('[data-hinweis="geburtstag-zahl"]').text()).toBe('1 Geburtstag prüfen')
     const hinweis = wrapper.find('[data-hinweis="geburtstag"]')
     expect(hinweis.attributes('role')).toBeUndefined()
-    expect(hinweis.findAll('li').map((li) => [li.attributes('data-starter'), li.attributes('data-art')])).toEqual([['e1', 'zuJung']])
-    expect(hinweis.find('li').text()).toBe('Vor1 Nach1: 6. Geburtstag erst am 06.09.2026 – Starterlaubnis in Klasse E ab dem 6. Geburtstag.')
-    expect(hinweis.find('[data-hinweis="geburtstag-tag"]').text()).toContain('05.09.2026')
+    const warnung = hinweis.find('[data-stufe="warnung"]')
+    expect(warnung.classes()).toContain('geburtstag-hinweis--warnung')
+    expect(warnung.findAll('li').map((li) => [li.attributes('data-starter'), li.attributes('data-art')])).toEqual([
+      ['e1', 'knappAb'],
+      ['e2', 'knappAb'],
+      ['e5', 'zuJung'],
+    ])
+    expect(warnung.findAll('li').map((li) => li.text())).toEqual([
+      'Vor1 Nach1 wird am 06.09.2026 6 Jahre alt (1 Tag nach dem ersten Wettkampftag) – darf in Klasse E erst ab diesem Tag starten, am ersten Wettkampftag also noch nicht.',
+      'Vor2 Nach2 wird am 05.09.2026 6 Jahre alt (am ersten Wettkampftag) – darf in Klasse E erst ab diesem Tag starten.',
+      'Vor5 Nach5: 6. Geburtstag erst am 20.09.2026 – Starterlaubnis in Klasse E ab dem 6. Geburtstag.',
+    ])
+    const gelb = hinweis.find('[data-stufe="hinweis"]')
+    expect(gelb.classes()).not.toContain('geburtstag-hinweis--warnung')
+    expect(gelb.findAll('li').map((li) => li.text())).toEqual([
+      'Geburtstag nahe am Wettkampftag: Vor4 Nach4 wird am 27.08.2026 6 Jahre alt (9 Tage vor dem ersten Wettkampftag) – Starterlaubnis in Klasse E ab dem 6. Geburtstag, bitte prüfen.',
+    ])
+    const tag = hinweis.find('[data-hinweis="geburtstag-tag"]').text()
+    expect([tag.includes('05.09.2026'), tag.includes('bis 2 Tage davor oder danach'), tag.includes('Darf jemand an diesem Tag starten, liegt der Geburtstag aber höchstens 14 Tage davon entfernt')]).toEqual([true, true, true])
     expect(hinweis.find('button').exists()).toBe(false)
-    expect(wrapper.findAll('[data-teil="geburtstag-marke"]')).toHaveLength(1)
-    // Am 6. Geburtstag selbst (e2) darf er starten; nichts wurde gesperrt oder verschoben.
+    // Das Zeichen am Geburtsdatum in der stärksten Stufe des Starters (Zeilen e1, e2, e4, e5; e3 ohne).
+    expect(wrapper.findAll('[data-teil="geburtstag-marke"]').map((m) => m.attributes('data-stufe'))).toEqual(['warnung', 'warnung', 'hinweis', 'warnung'])
+    expect(wrapper.findAll('td.geburtstag-zelle--warnung')).toHaveLength(3)
+    // Nichts wurde gesperrt oder verschoben.
     expect(wrapper.find('[data-action="starter-neu"]').attributes('disabled')).toBeUndefined()
-    expect(store.state.value.starters.map((p) => p.klasse)).toEqual(['E', 'E', 'E'])
+    expect(store.state.value.starters.map((p) => p.klasse)).toEqual(['E', 'E', 'E', 'E', 'E'])
     wrapper.unmount()
+  })
+
+  it('Klasse 7, Geburtstag am zweiten Wettkampftag: deutliche Warnung mit dem letzten Tag der Starterlaubnis – deutsch und englisch', async () => {
+    store.dispatch({ type: 'SET_EVENT_DATUM', datum: '2026-09-05' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: [{ ...starter(7), id: 'g7', startNr: '707', klasse: '7', geburtsdatum: '1999-09-06' }] })
+    const sieben = () =>
+      mount(ClassSection, {
+        props: { classId: '7', starters: store.state.value.starters.filter((p) => p.klasse === '7'), duplicates: new Set<string>(), open: true, sortTick: 0 },
+        global: { provide: { [storeKey as symbol]: store } },
+      })
+    const wrapper = sieben()
+    expect(wrapper.find('[data-hinweis="geburtstag-warnung-zahl"]').text()).toBe('1 Geburtstag: Warnung')
+    expect(wrapper.find('[data-hinweis="geburtstag-zahl"]').exists()).toBe(false)
+    expect(wrapper.find('[data-stufe="warnung"] li').text()).toBe('Vor7 Nach7 wird am 06.09.2026 27 Jahre alt (1 Tag nach dem ersten Wettkampftag) – darf in Klasse 7 nur bis zum 05.09.2026 starten.')
+    wrapper.unmount()
+    setLocale('en')
+    const englisch = sieben()
+    expect(englisch.find('[data-stufe="warnung"] li').text()).toBe('Vor7 Nach7 turns 27 on 2026-09-06 (1 day after the first day of racing) – in Class 7 permitted to start only until 2026-09-05.')
+    englisch.unmount()
+  })
+
+  it('Klasse 7, 27. Geburtstag am ersten Wettkampftag: der Text sagt, dass er schon an diesem Tag nicht mehr starten darf (Prüfbefund 26.11.2026)', async () => {
+    store.dispatch({ type: 'SET_EVENT_DATUM', datum: '2026-09-05' })
+    store.dispatch({ type: 'ADD_STARTERS', starters: [{ ...starter(7), id: 'g7', startNr: '707', klasse: '7', geburtsdatum: '1999-09-05' }] })
+    const sieben = () =>
+      mount(ClassSection, {
+        props: { classId: '7', starters: store.state.value.starters.filter((p) => p.klasse === '7'), duplicates: new Set<string>(), open: true, sortTick: 0 },
+        global: { provide: { [storeKey as symbol]: store } },
+      })
+    const wrapper = sieben()
+    const li = wrapper.find('[data-stufe="warnung"] li')
+    expect(li.attributes('data-art')).toBe('knappBis')
+    expect(li.text()).toBe('Vor7 Nach7 wird am 05.09.2026 27 Jahre alt (am ersten Wettkampftag) – darf in Klasse 7 nur bis zum 04.09.2026 starten, am ersten Wettkampftag also schon nicht mehr.')
+    wrapper.unmount()
+    setLocale('en')
+    const englisch = sieben()
+    expect(englisch.find('[data-stufe="warnung"] li').text()).toBe('Vor7 Nach7 turns 27 on 2026-09-05 (on the first day of racing) – in Class 7 permitted to start only until 2026-09-04, so no longer on the first day of racing.')
+    englisch.unmount()
   })
 
   it('ohne Datum: der Grenz-Jahrgang zum Prüfen, mit Verweis auf „Veranstaltung“; zugeklappt nur die Marke', async () => {
@@ -455,7 +515,11 @@ describe('Starterlaubnis nach Geburtstag (DM-Reglement C8, Warnung vom 24.11.202
     const wrapper = ansicht()
     const hinweis = wrapper.find('[data-hinweis="geburtstag"]')
     expect(hinweis.findAll('li').map((li) => li.attributes('data-art'))).toEqual(['pruefenAb', 'pruefenAb'])
+    // Ohne Datum bleibt es beim gelben Hinweis – der Grenz-Jahrgang ist nicht „klar außerhalb“.
+    expect(hinweis.find('[data-stufe="warnung"]').exists()).toBe(false)
+    expect(wrapper.find('[data-hinweis="geburtstag-warnung-zahl"]').exists()).toBe(false)
     expect(hinweis.find('[data-hinweis="geburtstag-ohne-datum"] a').exists()).toBe(true)
+    expect(hinweis.find('[data-hinweis="geburtstag-ohne-datum"]').text()).toContain('oder bis 14 Tage davor oder danach Geburtstag hat.')
     wrapper.unmount()
   })
 

@@ -6,7 +6,7 @@ import { useBogenKonfig, useKonfig } from '../lib/konfig'
 import { useEvent } from '../lib/event'
 import { bogenMitBild, listenFuerKlasse, musterZeilen, type BogenAuftrag, type BogenOptionen } from '../lib/bogen'
 import { parcoursVon, wkrName } from '../lib/einteilung'
-import { wkrBoegen } from '../lib/wkrListen'
+import { gemeinsameBoegen, wkrBoegen } from '../lib/wkrListen'
 import { planEvent } from '../planung/plan'
 import { musterCode } from '../lib/qr'
 import { musterRundenBoegen } from '../lib/parallelBogen'
@@ -93,15 +93,16 @@ interface Blatt {
 }
 
 /**
- * Clubmeisterschaft: Dort stehen mehrere Klassen auf einem Bogen. Die Beispielansicht zeigt
+ * Gemeinsame Bögen (Clubmeisterschaft; Meisterschaft auf Wunsch, R11-03, 26.11.2026): Dort stehen mehrere Klassen auf
+ * einem Bogen. Die Beispielansicht zeigt
  * deshalb, was wirklich gedruckt würde – abgeleitet mit derselben Funktion wie die echten
  * Listen (lib/wkrListen.ts), nur mit Muster-Startern: je Klasse des Parcours `anzahl` Stück.
  * Stehen die Klassen in der Startfolge (`wkrGemeinsamFolge` `verzahnung`, 24.11.2026), mischt
  * die Verzahnung des Parcours (planung/plan.ts, mit seinen Spuren und Booten) die Muster-Starter
  * so, wie sie es mit echten täte – sonst sähe der Bogen aus wie Blöcke ohne Überschrift.
  */
-const clubBoegen = computed(() => {
-  if (state.value.eventKind !== 'club') return undefined
+const musterGemeinsam = computed(() => {
+  if (!gemeinsameBoegen(state.value).gemeinsam) return undefined
   const praefix = t('preview.numberPrefix')
   const erlaubt = new Set<ClassId>(klassen.value)
   const p = parcours.value ?? { id: '_', name: '', classIds: [klasse.value], wechselFaktor: 2 as const }
@@ -121,8 +122,8 @@ const clubBoegen = computed(() => {
 const boegen = computed<Blatt[]>(() => {
   const zeilen = musterZeilen(anzahl.value, t('preview.numberPrefix'))
   return listenFuerKlasse(konfig.value, { ...state.value, aufbau: aufbauId.value }, klasse.value).map((typeId) => {
-    // Der gemeinsame Bogen, auf dem die gewählte Klasse steht (nur Clubmeisterschaft).
-    const gemeinsam = clubBoegen.value?.find((b) => b.typeId === typeId && b.klassen.includes(klasse.value))
+    // Der gemeinsame Bogen, auf dem die gewählte Klasse steht (nur mit gemeinsamen Bögen).
+    const gemeinsam = musterGemeinsam.value?.find((b) => b.typeId === typeId && b.klassen.includes(klasse.value))
     const auftrag: BogenAuftrag = {
       ...(gemeinsam?.auftrag ?? { typeId, klassen: [klasse.value], lauf: 1, zeilen, aufbauId: aufbauId.value }),
       eventName: heading.value,

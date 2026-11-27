@@ -17,7 +17,7 @@ import { formatDate, locale, t, tn } from '../i18n'
 import ManualAddForm from './ManualAddForm.vue'
 import AppDialog from './AppDialog.vue'
 import DatumFeld from './DatumFeld.vue'
-import { geburtsjahr, geburtstagsHinweise, jahrgaengeText, klassenFuerJahr, startendeJahrgaenge, type GeburtstagsHinweis } from '../import/klassenPruefung'
+import { GEBURTSTAG_FENSTER, geburtsjahr, geburtstagsHinweise, jahrgaengeText, klassenFuerJahr, knappAmErstenTagAusserhalb, startendeJahrgaenge, type GeburtstagsHinweis, type GeburtstagsStufe } from '../import/klassenPruefung'
 import { istTag } from '../lib/datum'
 import { klasseFest } from '../state/reducer'
 import { adresse } from '../lib/router'
@@ -65,6 +65,11 @@ const ohneDatum = computed(() => props.starters.filter((p) => !p.geburtsdatum).l
  * fehlenden Geburtsdatum: eine Marke im Kopf (auch zugeklappt), die Liste in der offenen Klasse und
  * ein Zeichen an der Zeile. Nichts wird gesperrt, verschoben oder abgefragt, und es gibt nichts zu
  * bestätigen. Ohne Datum der Veranstaltung nur nach dem Jahrgang (import/klassenPruefung.ts).
+ * Seit 26.11.2026 (Antwort des Nutzers auf R11-02, mehrtägige Veranstaltungen) zwei Stufen: eine
+ * deutliche Warnung (rot: klar zu jung/zu alt oder Geburtstag knapp um den ersten Wettkampftag) und
+ * der Hinweis (gelb: Geburtstag nahe daran, ohne Datum der Grenz-Jahrgang; Spannen nur in
+ * GEBURTSTAG_FENSTER) – je eine Marke im Kopf, je ein
+ * Kasten, das Zeichen am Geburtsdatum in der stärksten Stufe des Starters. Beide bleiben übergehbar.
  */
 const geburtstag = computed(() => geburtstagsHinweise(props.starters, regelwerk.value.geburtstagsGrenzen, state.value.eventJahr, state.value.eventDatum))
 const geburtstagJe = computed(() => {
@@ -72,10 +77,40 @@ const geburtstagJe = computed(() => {
   for (const h of geburtstag.value) je.set(h.starter.id, [...(je.get(h.starter.id) ?? []), h])
   return je
 })
+const geburtstagWarnungen = computed(() => geburtstag.value.filter((h) => h.stufe === 'warnung'))
+const geburtstagHinweiseNur = computed(() => geburtstag.value.filter((h) => h.stufe === 'hinweis'))
+/** Stärkste Stufe je Starter – ein Starter zählt in den Marken im Kopf nur einmal, in seiner stärksten Stufe. */
+const geburtstagStufe = computed(() => {
+  const je = new Map<string, GeburtstagsStufe>()
+  for (const [id, hs] of geburtstagJe.value) je.set(id, hs.some((h) => h.stufe === 'warnung') ? 'warnung' : 'hinweis')
+  return je
+})
+const geburtstagZahl = (stufe: GeburtstagsStufe) => [...geburtstagStufe.value.values()].filter((s) => s === stufe).length
 const ohneEventDatum = computed(() => !istTag(state.value.eventDatum))
+const abstandText = (tage: number | null) =>
+  tage === null ? '' : tage === 0 ? t('starters.geburtstag.abstand.am') : tn(tage < 0 ? 'starters.geburtstag.abstand.vor' : 'starters.geburtstag.abstand.nach', Math.abs(tage))
+// Knapp, aber am ersten Wettkampftag schon außerhalb: Der Text sagt es ausdrücklich (Prüfbefund 26.11.2026).
+const geburtstagSchluessel = (h: GeburtstagsHinweis) =>
+  knappAmErstenTagAusserhalb(h) ? (h.art === 'knappAb' ? 'knappAbNochZuJung' : 'knappBisSchonZuAlt') : h.art
 const geburtstagText = (h: GeburtstagsHinweis) =>
-  t(`starters.geburtstag.${h.art}`, { name: nameVon(h.starter), grenze: h.grenze, geburtstag: formatDate(h.geburtstag), class: classLabel(props.classId) })
+  t(`starters.geburtstag.${geburtstagSchluessel(h)}`, {
+    name: nameVon(h.starter),
+    grenze: h.grenze,
+    geburtstag: formatDate(h.geburtstag),
+    class: classLabel(props.classId),
+    abstand: abstandText(h.abstand),
+    letzterTag: h.letzterTag ? formatDate(h.letzterTag) : '',
+  })
 const geburtstagTitel = (p: Starter) => (geburtstagJe.value.get(p.id) ?? []).map(geburtstagText).join('\n') || undefined
+const geburtstagZelle = (p: Starter) => (geburtstagStufe.value.has(p.id) ? ['geburtstag-zelle', `geburtstag-zelle--${geburtstagStufe.value.get(p.id)}`] : [])
+/** Satz unter den Kästen: wie weit die zwei Stufen reichen (Zahlen aus GEBURTSTAG_FENSTER). */
+const geburtstagTagText = computed(() =>
+  t('starters.geburtstag.tag', {
+    tag: formatDate(state.value.eventDatum),
+    warnung: tn('starters.geburtstag.tage', GEBURTSTAG_FENSTER.warnungTage),
+    hinweis: tn('starters.geburtstag.tage', GEBURTSTAG_FENSTER.hinweisTage),
+  }),
+)
 
 const classLine = computed(() => {
   const [from, to] = birthYearRange(props.classId, state.value.eventJahr)
@@ -370,7 +405,8 @@ const MOVES = [
         <span class="title">{{ classLabel(classId) }}</span>
         <span class="count">{{ classLine }}</span>
         <span v-if="ohneDatum > 0" class="missing-badge" data-hinweis="ohne-datum">{{ tn('starters.birthdateMissingCount', ohneDatum) }}</span>
-        <span v-if="geburtstag.length > 0" class="geburtstag-badge" data-hinweis="geburtstag-zahl">{{ tn('starters.geburtstag.badge', geburtstagJe.size) }}</span>
+        <span v-if="geburtstagZahl('warnung') > 0" class="geburtstag-badge geburtstag-badge--warnung" data-hinweis="geburtstag-warnung-zahl">{{ tn('starters.geburtstag.badgeWarnung', geburtstagZahl('warnung')) }}</span>
+        <span v-if="geburtstagZahl('hinweis') > 0" class="geburtstag-badge" data-hinweis="geburtstag-zahl">{{ tn('starters.geburtstag.badge', geburtstagZahl('hinweis')) }}</span>
         <span class="chevron">{{ open ? '▾' : '▸' }}</span>
       </button>
       <div class="class-tools">
@@ -447,17 +483,25 @@ const MOVES = [
       </div>
     </div>
     <p v-if="woanders" class="boat-banner ok" role="status" data-hinweis="in-anderer-klasse">{{ woanders }}</p>
-    <!-- Nur ein Hinweis (24.11.2026): kein role="alert", kein Knopf – wer ihn liest und den Starter lässt, muss nichts tun. -->
-    <div v-if="open && geburtstag.length > 0" class="geburtstag-hinweis" data-hinweis="geburtstag">
-      <strong>{{ t('starters.geburtstag.titel') }}</strong>
-      <ul>
-        <li v-for="h in geburtstag" :key="`${h.starter.id}|${h.art}`" :data-starter="h.starter.id" :data-art="h.art">{{ geburtstagText(h) }}</li>
-      </ul>
+    <!-- Nur Warnung bzw. Hinweis (24.11.2026, zwei Stufen 26.11.2026): kein role="alert", kein Knopf – wer sie liest und den Starter lässt, muss nichts tun. -->
+    <div v-if="open && geburtstag.length > 0" class="geburtstag-hinweise" data-hinweis="geburtstag">
+      <div v-if="geburtstagWarnungen.length > 0" class="geburtstag-hinweis geburtstag-hinweis--warnung" data-stufe="warnung">
+        <strong>{{ t('starters.geburtstag.titelWarnung') }}</strong>
+        <ul>
+          <li v-for="h in geburtstagWarnungen" :key="`${h.starter.id}|${h.art}`" :data-starter="h.starter.id" :data-art="h.art" data-stufe="warnung">{{ geburtstagText(h) }}</li>
+        </ul>
+      </div>
+      <div v-if="geburtstagHinweiseNur.length > 0" class="geburtstag-hinweis" data-stufe="hinweis">
+        <strong>{{ t('starters.geburtstag.titel') }}</strong>
+        <ul>
+          <li v-for="h in geburtstagHinweiseNur" :key="`${h.starter.id}|${h.art}`" :data-starter="h.starter.id" :data-art="h.art" data-stufe="hinweis">{{ geburtstagText(h) }}</li>
+        </ul>
+      </div>
       <p v-if="ohneEventDatum" class="note" data-hinweis="geburtstag-ohne-datum">
-        {{ t('starters.geburtstag.ohneTag') }}
+        {{ t('starters.geburtstag.ohneTag', { hinweis: tn('starters.geburtstag.tage', GEBURTSTAG_FENSTER.hinweisTage) }) }}
         <a :href="adresse('veranstaltung')">{{ t('nav.veranstaltung') }}</a>
       </p>
-      <p v-else class="note" data-hinweis="geburtstag-tag">{{ t('starters.geburtstag.tag', { tag: formatDate(state.eventDatum) }) }}</p>
+      <p v-else class="note" data-hinweis="geburtstag-tag">{{ geburtstagTagText }}</p>
     </div>
 
     <template v-if="open">
@@ -590,7 +634,7 @@ const MOVES = [
                   <option v-for="g in GESCHLECHTER" :key="g" :value="g" :title="t(`starters.sex.${g}`)">{{ geschlechtKuerzel(g, locale) }}</option>
                 </select>
               </td>
-              <td :class="geburtstagJe.has(p.id) ? 'geburtstag-zelle' : undefined" :title="geburtstagTitel(p)">
+              <td :class="geburtstagZelle(p)" :title="geburtstagTitel(p)">
                 <!-- Eigenes Textfeld mit festem Muster – nie die Datumswahl des Browsers (mm/dd/yyyy). -->
                 <DatumFeld
                   :class="['cell-input', p.geburtsdatum ? '' : 'missing']"
@@ -613,7 +657,7 @@ const MOVES = [
               <td v-if="state.originMode !== 'none'"><HerkunftText :anzeige="herkunftAnzeige(originOf(p, state.originMode), state.originMode, 'flagge-lang', {}, locale, true)" /></td>
               <td>{{ p.groesse || '–' }}</td>
               <td v-if="mitGeschlecht" data-spalte="geschlecht">{{ p.geschlecht ? geschlechtKuerzel(p.geschlecht, locale) : '–' }}</td>
-              <td :class="p.geburtsdatum ? (geburtstagJe.has(p.id) ? 'geburtstag-zelle' : '') : 'cell-missing'" :title="geburtstagTitel(p)">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}<span v-if="geburtstagJe.has(p.id)" class="geburtstag-marke" data-teil="geburtstag-marke" aria-hidden="true">!</span></td>
+              <td :class="p.geburtsdatum ? geburtstagZelle(p) : 'cell-missing'" :title="geburtstagTitel(p)">{{ p.geburtsdatum ? formatDate(p.geburtsdatum) : t('starters.birthdateMissing') }}<span v-if="geburtstagStufe.has(p.id)" :class="['geburtstag-marke', `geburtstag-marke--${geburtstagStufe.get(p.id)}`]" data-teil="geburtstag-marke" :data-stufe="geburtstagStufe.get(p.id)" aria-hidden="true">!</span></td>
             </template>
             <td>
               <button

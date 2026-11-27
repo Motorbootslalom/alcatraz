@@ -449,7 +449,7 @@ const DISQ = '#disq:'
 const BOJE = '#boje:'
 /**
  * Merker für einen Disq.-Buchstaben an einer Boje (`#bdisq:t3a|hin seiteB=G`, U1, 21.11.2026): je Buchstabe einer
- * (BZ7, 22.11.2026 – R7-14, mehrere Disq. je Boje). „↶ Rückgängig“ nimmt genau den zuletzt gesetzten Buchstaben
+ * (BZ7, 22.11.2026 – R7-14, mehrere Disq. je Boje). „↩ Rückgängig“ nimmt genau den zuletzt gesetzten Buchstaben
  * heraus (H2 „zurück = letzter Tipp“); ein ersetzter Buchstabe, den „zurück“ wiederherstellen müsste, kommt nicht mehr
  * vor – ein Tipp schaltet nur seinen eigenen Buchstaben an oder aus. Die Berührungen berührt der Buchstabe seit W4-12
  * (21.11.2026, BZ1) nicht – sie bleiben mit ihren eigenen Merkern stehen.
@@ -466,7 +466,7 @@ function liesBojenDisqMerker(m: string): { feld: string; code: string } {
 /**
  * Was der Wettkampfrichter für einen Start (und Teil) getippt hat. `codes`: je Feld die Code-Tipps in Reihenfolge
  * (ein Tipp = +1, H2); `disq`: Buchstaben in Tipp-Reihenfolge, jeder höchstens einmal (Schalter, H1); `folge`: die
- * Reihenfolge aller Tipps (Feld bzw. Disq.) für „↶ Rückgängig“.
+ * Reihenfolge aller Tipps (Feld bzw. Disq.) für „↩ Rückgängig“.
  */
 export interface Entwurf {
   codes: Record<string, string[]>
@@ -729,7 +729,7 @@ export function codeAnzahl(e: Entwurf, feld: string, code: string): number {
 /**
  * Ein Code-Tipp (H2): +1 für diesen Code im Feld – bis zu seinem `max` (Nutzer 24.11.2026, CM1/CM2). Der Tipp danach
  * setzt bei einem Code mit `danach` („2. und 3. Versuch“) den Buchstaben ins Disq.-Feld wie ein DISQ-Tipp (CM3: Merker
- * `#disq:D`, „↶ Rückgängig“ nimmt ihn heraus, der Zähler bleibt bei `max`); steht er schon, oder hat der Code kein
+ * `#disq:D`, „↩ Rückgängig“ nimmt ihn heraus, der Zähler bleibt bei `max`); steht er schon, oder hat der Code kein
  * `danach`, nimmt der Knopf nichts mehr an (gleiche Referenz, CM4). Ein Code, den das Feld nicht kennt, ändert nichts.
  */
 export function tippe(e: Entwurf, aufbau: Pick<MaskenAufbau, 'teile'>, feld: string, code: string): Entwurf {
@@ -764,7 +764,7 @@ export function codeStand(e: Entwurf, feld: string, c: Pick<MaskenCode, 'code' |
  * `bojenSchalterPrellMs` (S1) nach dem vorigen wird verworfen – `true` = verwerfen. Dort bringt jeder Tipp die
  * Disqualifikation näher: Ein prellender Handschuh beim 3. Versuch setzte sofort D, beim 2. Versuch machte er aus dem
  * nächsten echten Tipp ein D. Zwei echte Versuche liegen nie so dicht beieinander. Codes ohne `danach` zählen weiter
- * jeden Tipp wie die Tor-5-Zähler (S1): Der Zähler zeigt es, „↶ Rückgängig“ nimmt ihn. Die Uhr hält die Komponente
+ * jeden Tipp wie die Tor-5-Zähler (S1): Der Zähler zeigt es, „↩ Rückgängig“ nimmt ihn. Die Uhr hält die Komponente
  * (WkrMaske, Zeitmarke je Feld und Code), damit dieses Modul ohne Date.now() bleibt.
  */
 export function codeTippPrellt(aufbau: Pick<MaskenAufbau, 'teile'>, feld: string, code: string, vorher: number | undefined, jetzt: number): boolean {
@@ -785,7 +785,7 @@ export function mitBemerkung(e: Entwurf, text: string): Entwurf {
   return { ...e, bemerkung: text }
 }
 
-/** „↶ Rückgängig“ (bis 24.11.2026 „− letzte zurück“): nimmt den letzten Tipp – Code oder Disq. – zurück (H2). */
+/** „↩ Rückgängig“ (bis 24.11.2026 „− letzte zurück“): nimmt den letzten Tipp – Code oder Disq. – zurück (H2). */
 export function zurueck(e: Entwurf): Entwurf {
   const letzt = e.folge[e.folge.length - 1]
   if (letzt === undefined) return e

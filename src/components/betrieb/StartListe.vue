@@ -267,6 +267,8 @@ function einreihen(key: string, wo: 'naechster' | 'ende') {
       </table>
     </div>
 
+    <!-- Wiederholung offen (R11-11, 26.11.2026): wie an der Start-Freigabe einzureihen; Auslösen nur dort. -->
+    <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.wiederholung" art="wiederholung" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
     <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.zurueckgestellt" art="zurueckgestellt" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
     <EinreihenListe :sicht="sicht" :bereich="bereich" :eintraege="bereich.nachzuholen" art="nachzuholen" :gesperrt="gesperrt" @zeigen="zeige" @einreihen="einreihen" />
   </section>

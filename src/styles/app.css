@@ -1256,10 +1256,13 @@ label.class-count {
   flex-wrap: wrap;
 }
 
+/* Umbrechen statt über den Kasten hinausragen (26.11.2026): Auf dem Handy reicht die Breite schon für Name,
+   Zahl und eine Geburtstags-Marke kaum; mit Warnung und Hinweis (R11-02) stehen zwei Marken nebeneinander. */
 .class-toggle-btn {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
   flex: 1;
   min-width: 240px;
   border: none;
@@ -1935,8 +1938,10 @@ details.panel[open] > summary {
   text-align: right;
 }
 
-/* Starterlaubnis nach Geburtstag (DM-Reglement C8, 24.11.2026): nur eine Warnung – gelb wie der
-   Rückstand der WKR-Erfassung, nicht rot wie ein Fehler; Marke im Kopf, Liste, Zeichen an der Zeile. */
+/* Starterlaubnis nach Geburtstag (DM-Reglement C8, 24.11.2026): Hinweis gelb wie der Rückstand der
+   WKR-Erfassung; Marke im Kopf, Kasten, Zeichen an der Zeile. Seit 26.11.2026 (R11-02) dazu die
+   deutliche Warnung (`--warnung`: klar zu jung/zu alt, Geburtstag bis 2 Tage um den Wettkampftag) in
+   Rot über --danger/--danger-soft/--warn-text – kräftiger als der Hinweis, sperrt aber ebenso nichts. */
 .geburtstag-badge {
   padding: 2px 8px;
   border-radius: 999px;
@@ -1947,8 +1952,19 @@ details.panel[open] > summary {
   white-space: nowrap;
 }
 
-.geburtstag-hinweis {
+.geburtstag-badge--warnung {
+  background: var(--danger-soft);
+  color: var(--warn-text);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+.geburtstag-hinweise {
+  display: grid;
+  gap: 8px;
   margin: 12px 0 0;
+}
+
+.geburtstag-hinweis {
   padding: 10px 12px;
   border: 1px solid var(--rueckstand);
   border-left-width: 4px;
@@ -1959,17 +1975,35 @@ details.panel[open] > summary {
   line-height: 1.45;
 }
 
+.geburtstag-hinweis--warnung {
+  border-color: var(--danger);
+  border-left-width: 6px;
+  background: var(--danger-soft);
+}
+
+.geburtstag-hinweis--warnung > strong {
+  color: var(--warn-text);
+}
+
+.geburtstag-hinweis--warnung li {
+  font-weight: 600;
+}
+
 .geburtstag-hinweis ul {
-  margin: 6px 0;
+  margin: 6px 0 0;
   padding-left: 20px;
 }
 
-.geburtstag-hinweis .note {
-  margin: 4px 0 0;
+.geburtstag-hinweise > .note {
+  margin: 0;
 }
 
 .geburtstag-zelle {
   box-shadow: inset 3px 0 0 var(--rueckstand);
+}
+
+.geburtstag-zelle--warnung {
+  box-shadow: inset 4px 0 0 var(--danger);
 }
 
 .geburtstag-marke {
@@ -1981,6 +2015,11 @@ details.panel[open] > summary {
   color: var(--rueckstand-text);
   font-size: 12px;
   font-weight: 700;
+}
+
+.geburtstag-marke--warnung {
+  background: var(--danger);
+  color: var(--panel);
 }
 
 /* Vorschlag unter der Meldung „Jahrgang passt nicht“: In Klasse X anlegen bzw. verschieben. */
@@ -2030,6 +2069,40 @@ details.panel[open] > summary {
 
 .sheet.ausgleich .sheet-title-box .event {
   font-size: 17px;
+}
+
+/* Co-Pilot und Ersatz-Co-Pilot untereinander in einem Feld (R11-07, 26.11.2026): Der Ersatz ist klein benannt, mit
+   etwas Abstand – am Steg soll klar sein, wer die Alternative ist. Das Ausgleichsgewicht in Klammern bricht nicht
+   mitten durch; ein langer Name bricht wie jedes Feld um, der Kopf wird höher und die Liste misst das mit. */
+.sheet-title-box .feld.co-piloten small[data-rolle='ersatz'] {
+  margin-top: 3px;
+}
+
+.sheet-title-box .co-pilot-ag,
+.sheet-table .co-pilot-zeile {
+  white-space: nowrap;
+}
+
+.sheet-table td.co-piloten .co-pilot-zeile {
+  display: block;
+}
+
+/* Liste nach Pkt. 3.7: Die Schriftgröße gilt je Zeile, nicht für die ganze Zelle (Prüfbefund 27.11.2026) – ein langer
+   Ersatz verkleinert den eingeteilten Co-Piloten darüber nicht mit. Stufen wie td.fit-1/-2/-3; sehr lang (fit-3) bricht
+   um statt die Tabelle über das Blatt zu schieben, die Liste misst die höhere Zeile mit. */
+.sheet-table .co-pilot-zeile.fit-1 {
+  font-size: 0.82em;
+}
+
+.sheet-table .co-pilot-zeile.fit-2,
+.sheet-table .co-pilot-zeile.fit-3 {
+  font-size: 0.68em;
+}
+
+.sheet-table .co-pilot-zeile.fit-3 {
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Kästchen zum Abhaken je Lauf: breit genug für die Überschrift „1. Lauf“ / „Attempt 1“. */
@@ -2322,6 +2395,20 @@ fieldset.lockable:disabled .drag-handle {
 
 .zib-zurueck {
   margin-left: auto;
+}
+
+/* Pfeil nach links vor „Rückgängig“ (27.11.2026, wie .wkr-pfeil der WKR-Maske, R11-30 (2)): gezeichnet statt ↩,
+   das in den Schriften fehlt und als Emoji käme; Farbe = Text des Knopfs, auch ausgegraut. */
+.zib-pfeil {
+  display: inline-block;
+  vertical-align: -0.25em;
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Die Zeichnung ist dunkel auf durchsichtig – ihr Grund bleibt deshalb auch im dunklen Modus hell. */
@@ -2640,7 +2727,8 @@ fieldset.lockable:disabled .drag-handle {
 
 .besetzung-tabelle {
   width: 100%;
-  max-width: 760px;
+  /* Seit 26.11.2026 sechs Spalten: Klasse, Boot, Co-Pilot + Gewicht, Ersatz-Co-Pilot + Gewicht (R11-07). */
+  max-width: 980px;
   border-collapse: collapse;
   margin: 12px 0;
 }
@@ -2666,6 +2754,23 @@ fieldset.lockable:disabled .drag-handle {
 /* Ein Co-Pilot, den das Regelwerk in dieser Klasse nicht vorsieht: Das Feld tritt zurück. */
 .besetzung-tabelle .besetzung-ohne:placeholder-shown {
   border-style: dashed;
+}
+
+/* Gewicht eines Co-Piloten: schmal; darunter klein das Ausgleichsgewicht, das daraus folgt (26.11.2026). */
+.besetzung-tabelle .besetzung-kg {
+  width: 96px;
+}
+
+.besetzung-tabelle .besetzung-kg .cell-input {
+  min-width: 64px;
+}
+
+.besetzung-ag {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 /* Schmal (Handy): je Klasse ein Block, „Boot“ und „Co-Pilot“ stehen vor ihrem Feld – nichts rollt quer. */
@@ -2703,6 +2808,11 @@ fieldset.lockable:disabled .drag-handle {
     align-items: center;
     gap: 8px;
     padding: 3px 0;
+  }
+
+  /* Das Gewicht steht hier wie jedes Feld in voller Breite (oben schmal, 26.11.2026). */
+  .besetzung-tabelle .besetzung-kg {
+    width: auto;
   }
 
   .besetzung-tabelle td::before {

@@ -28,6 +28,19 @@
   geschickt werden die Schritte von components/betrieb/ (Start-Freigabe) über `sende`. E6: SET_GERAETE_SERVER
   (`geraeteServer`, '' = Vorgabe geraete/themen.ts NTFY_VORGABE; geprüft mit lib/serverAdresse.ts – nichts aus
   geraete/ im Reducer; reist als Einstellung mit Sicherung und Vorlage, migrate: Unbrauchbares → '').
+- Wiederholung nach Ausfall (26.11.2026, R11-11): `reducer/erfassung.ts` WIEDERHOLUNG_AUSFALL {bereich, ref} – leert
+  `eingaben[lauf][starter]` (außer der Vorsteg-Zeile mit „Versuche nacheinander“, WH6), wkrOhneVersuch (reducer/wkr.ts:
+  Rückfragen, Vorschläge, „keine Zeit“, P der Pausen, papier/abweichend der Abschlüsse) und mitWiederholung
+  (reducer/betrieb.ts) in EINER Action; Eingabeweg (`eingegeben`), Verlauf `wiederholungAusfall` (EINZELN, mit
+  Startnummer). Die verworfenen Werte merkt WkrStand.`verworfen` (je Bereich + Start, samt „keine Zeit“; optional,
+  normalisiereWkr, wkrOhneLaeufe/wkrNurStarter räumen, reducer() mitGeltendenVerworfenen räumt bei geändertem Betrieb
+  alles ohne stehenden Abbruch). WIEDERHOLUNG_AUFHEBEN (27.11.2026, „Doch keine Wiederholung“, statt
+  BETRIEB_WIEDERHOLUNG_AUFHEBEN) holt sie zurück – nur in leere Zellen – und ruft reducer/betrieb.ts ohneWiederholung
+  (nur der zuletzt abgebrochene Versuch); Eingabeweg, Verlauf `wiederholungAufgehoben`. Nur so schreibt etwas aus dem
+  Betrieb in `eingaben` (Projektkarte, Feste Regeln); beide nicht in der Positivliste des Handys. reducer/betrieb.ts:
+  EINREIHEN nimmt auch `wiederholung`, ZEIGEN räumt sie, ZURUECKSTELLEN/ZURUECK/DURCHFAHRT lassen den abgebrochenen
+  Versuch; normalisiereBereich liest `abgebrochen` (nur `true`) und `wiederholung` (nur wartende). reducer/wkr.ts:
+  WKR_ZEILEN prüft WkrZeile.versuch noch einmal (zwei Fenster), WKR_PAPIER_AB nimmt den jüngsten geltenden Versuch.
 - `reducer/wkr.ts` (W1, 21.11.2026) – WKR_ZEILEN (Übernahme über wkr/uebernahme.ts, Rückfrage-ID zeile|lauf|starter|feld,
   Papier/abgeschlossen → Vorschlag, nicht gezeigt → Rückfrage `start`, Haken nur ohne Konflikt, beide Teilhaken →
   ganzer), WKR_RUECKFRAGE (Grund `start` mit `vereinige`: gegen das dann Stehende vereinigt), WKR_VORSCHLAG, WKR_LISTE

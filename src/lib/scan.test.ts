@@ -39,6 +39,10 @@ describe('scanBogen', () => {
     ['Meisterschaft, dreimal Zeit (zeit-1 … zeit-3)', stand({ aufbau: 'alcatrazdm26' })],
     ['Clubmeisterschaft, gemeinsame Bögen', stand({ eventKind: 'club', parcoursList: EIN_PARCOURS })],
     ['Clubmeisterschaft, Listen mit Bild je Klasse', stand({ eventKind: 'club', wkrClubGemeinsam: false, parcoursList: EIN_PARCOURS })],
+    // Seit 26.11.2026 (R11-03) auch bei Meisterschaften: gleich aufgebaute Bögen zusammen bzw. Papier sparen.
+    ['Meisterschaft, gemeinsame Bögen gleichen Aufbaus', stand({ wkrMeisterschaftGemeinsam: 'gleich' })],
+    ['Meisterschaft, gemeinsame Bögen in der Startfolge', stand({ wkrMeisterschaftGemeinsam: 'gleich', wkrGemeinsamFolge: 'verzahnung' })],
+    ['Meisterschaft, Papier sparen', stand({ wkrMeisterschaftGemeinsam: 'alle', parcoursList: EIN_PARCOURS })],
   ])('%s: Der Code jeder Druckseite jedes Bogens führt zu genau diesem Bogen', (_name, s) => {
     const { boegen } = wkrBoegenZumStand(s, dm)
     expect(boegen.length).toBeGreaterThan(10)
@@ -98,6 +102,21 @@ describe('scanBogen', () => {
     expect(treffer?.genau).toBe(false)
     expect(treffer?.bogen.typeId).toBe('gate135')
     expect(treffer?.bogen.klassen).toContain(gemeinsam.klassen[0])
+  })
+
+  it('Meisterschaft: gemeinsame Bögen nach dem Druck wieder ausgeschaltet – der Bogen der ersten Klasse, als ungenau gemeldet (R11-03)', () => {
+    const gedruckt = stand({ wkrMeisterschaftGemeinsam: 'gleich', parcoursList: EIN_PARCOURS })
+    const gemeinsam = wkrBoegenZumStand(gedruckt, dm).boegen.find((b) => b.typeId === 'steg' && b.lauf === 2 && b.klassen.length > 1)!
+    expect(gemeinsam).toBeDefined()
+    const lesung = leseCode(`${gemeinsam.auftrag.qr}.S1`, bekannt(gedruckt))
+    if (!lesung.ok) throw new Error(lesung.fehler.art)
+    const jetzt = wkrBoegenZumStand({ ...gedruckt, wkrMeisterschaftGemeinsam: 'aus' }, dm).boegen
+    const treffer = scanBogen(lesung.ziel, jetzt, ohneLauf)
+    expect(treffer).toMatchObject({ genau: false, klasse: gemeinsam.klassen[0], bogen: { typeId: 'steg', lauf: 2, klassen: [gemeinsam.klassen[0]] } })
+    // Ein Laufzettel-Code mit allen Klassen des Parcours trifft die erste Liste der ersten Klasse.
+    const zettel = leseCode(laufzettelCode(gedruckt, { parcoursId: 'par_1', klassen: gemeinsam.klassen, lauf: 2 }), bekannt(gedruckt))
+    if (!zettel.ok) throw new Error(zettel.fehler.art)
+    expect(scanBogen(zettel.ziel, wkrBoegenZumStand(gedruckt, dm).boegen, ohneLauf)).toMatchObject({ genau: true, bogen: { lauf: 2 } })
   })
 
   it('kein Bogen: Die Klasse fährt nicht (mehr) auf dem Parcours', () => {

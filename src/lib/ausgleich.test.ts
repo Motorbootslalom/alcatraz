@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ausgleichAmSteg, ausgleichListen, ausgleichVon, type AusgleichStand } from './ausgleich'
+import { ausgleichAmSteg, ausgleichListen, ausgleichVon, coPilotAusgleichVon, coPilotZeilen, type AusgleichStand } from './ausgleich'
 import type { AppState, ClassId, Starter } from '../types'
 import { emptyState, reducer } from '../state/reducer'
 import { migrate } from '../state/migrate'
@@ -9,6 +9,7 @@ import { configFor } from '../config/konfig'
 import { sichtListe } from '../wkr/sicht'
 import { listenKennung, type Liste } from '../wkr/liste'
 import { BETRIEB_STARTER, wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
+import { setzeCoPilotGewicht, setzeCoPilotName } from './besetzung'
 
 // Ausgleichsgewichte für den Steg. Alle Starter sind erfunden.
 
@@ -31,6 +32,7 @@ const stand = (mehr: Partial<AusgleichStand> = {}): AusgleichStand => ({
   ausgleichStufe: 1,
   boote: {},
   coPiloten: {},
+  coPilotAusgleich: 'klasse',
   // Absichtlich ungeordnet: Die Liste ordnet nach Startnummer.
   starters: [starter('4', '403', 65), starter('4', '401', 58.4), starter('E', 'E02'), starter('4', '402', 70), starter('E', 'E01', 20.5), starter('4', '404', 64.6)],
   ...mehr,
@@ -62,14 +64,14 @@ describe('Ausgleichsgewichte für den Steg', () => {
   })
 
   it('Boot und Co-Pilot kommen aus der Besetzung; den Co-Piloten gibt es nur, wo er vorgesehen oder eingetragen ist', () => {
-    const [e, vier] = ausgleichListen(stand({ boote: { '4': ' Boot 1 ' }, coPiloten: { E: 'Erika Beispiel' } }))
+    const [e, vier] = ausgleichListen(stand({ boote: { '4': ' Boot 1 ' }, coPiloten: { E: { haupt: { name: 'Erika Beispiel' } } } }))
     expect(e.boot).toBe('')
-    expect(e.coPilot).toBe('Erika Beispiel')
+    expect(e.coPiloten).toEqual([{ rolle: 'haupt', name: 'Erika Beispiel', ausgleich: undefined }])
     expect(vier.boot).toBe('Boot 1')
-    expect(vier.coPilot).toBeUndefined()
+    expect(vier.coPiloten).toBeUndefined()
     // Vorgesehen, aber noch niemand eingetragen: Das Feld bleibt zum Ausfüllen von Hand.
-    expect(ausgleichListen(stand(), ['E'])[0].coPilot).toBe('')
-    expect(ausgleichListen(stand({ coPiloten: { '4': 'Max Muster' } }), ['4'])[0].coPilot).toBe('Max Muster')
+    expect(ausgleichListen(stand(), ['E'])[0].coPiloten).toEqual([{ rolle: 'haupt', name: '', ausgleich: undefined }])
+    expect(ausgleichListen(stand({ coPiloten: { '4': { haupt: { name: 'Max Muster' } } } }), ['4'])[0].coPiloten?.map((c) => c.name)).toEqual(['Max Muster'])
   })
 
   it('die Auswahl schränkt ein; eine Klasse ohne Starter hat kein Blatt', () => {
@@ -170,5 +172,105 @@ describe('Abstufung des Ausgleichsgewichts (Nutzer 24.11.2026: „wie kleinteili
     expect(werte(2)).toEqual({ E01: 2, '101': 2, '102': 0 })
     const text = JSON.stringify(sichtListe(basis(0.5), DM, STEG, { geraete: {} }))
     for (const verboten of ['31.5', '32.6', '"gewicht"']) expect(text, verboten).not.toContain(verboten)
+  })
+})
+
+// Co-Piloten mit Ersatz und Gewicht (Antwort des Nutzers vom 26.11.2026, R11-07; DM-Reglement C3: „Bei wechselnden
+// Co-Piloten innerhalb einer Klasse ist durch Ausgleichsgewichte sicherzustellen, dass das Gesamtgewicht in der
+// jeweiligen Klasse und jedem Lauf gleich ist.“). Namen und Gewichte erfunden.
+describe('Ausgleichsgewicht der Co-Piloten (R11-07)', () => {
+  const co = (name: string, gewicht?: number) => ({ name, ...(gewicht === undefined ? {} : { gewicht }) })
+  const mit = (coPiloten: AusgleichStand['coPiloten'], mehr: Partial<AusgleichStand> = {}) => stand({ coPiloten, ...mehr })
+
+  it('je Klasse: der schwerste Co-Pilot der Klasse ist der Bezug, der leichtere bekommt den Unterschied – gerundet wie beim Fahrer', () => {
+    const s = mit({ E: { haupt: co('Vor1 Nach1', 78.2), ersatz: co('Vor2 Nach2', 74.6) }, '1': { haupt: co('Vor3 Nach3', 90) } })
+    expect(coPilotAusgleichVon(s, 'E', 'haupt')).toBeNull()
+    // 78,2 − 74,6 = 3,6 → 4 kg (Stufe 1 kg, ab der Hälfte aufwärts).
+    expect(coPilotAusgleichVon(s, 'E', 'ersatz')).toBe(4)
+    // Klasse 1 allein: kein Ausgleich – die schwerere Klasse 1 zählt für E nicht.
+    expect(coPilotAusgleichVon(s, '1', 'haupt')).toBeNull()
+    // Dieselbe Abstufung wie beim Fahrer: 0,5 kg → 3,5 kg; 2 kg → 4 kg.
+    expect(coPilotAusgleichVon({ ...s, ausgleichStufe: 0.5 }, 'E', 'ersatz')).toBe(3.5)
+    expect(coPilotAusgleichVon({ ...s, ausgleichStufe: 2 }, 'E', 'ersatz')).toBe(4)
+    // Weniger als eine halbe Stufe leichter: 0 (gedruckt wie „keines“).
+    expect(coPilotAusgleichVon(mit({ E: { haupt: co('A', 70.4), ersatz: co('B', 70) } }), 'E', 'ersatz')).toBe(0)
+  })
+
+  it('über alle Co-Piloten: der schwerste der fahrenden Klassen ist der Bezug – auch für den eingeteilten Co-Piloten', () => {
+    const mitKlasse1 = [...stand().starters, starter('1', '101', 50)]
+    const s = mit({ E: { haupt: co('Vor1 Nach1', 78.2), ersatz: co('Vor2 Nach2', 74.6) }, '1': { haupt: co('Vor3 Nach3', 90) } }, { coPilotAusgleich: 'alle', starters: mitKlasse1 })
+    expect(coPilotAusgleichVon(s, '1', 'haupt')).toBeNull()
+    expect(coPilotAusgleichVon(s, 'E', 'haupt')).toBe(12)
+    expect(coPilotAusgleichVon(s, 'E', 'ersatz')).toBe(15)
+    // Nur Klassen der Veranstaltung (Regelwerk oder Starter) zählen: Klasse 7 gibt es unter UIM nicht.
+    const uim = mit({ E: { haupt: co('Vor1 Nach1', 78) }, '7': { haupt: co('Vor9 Nach9', 120) } }, { coPilotAusgleich: 'alle', regelwerk: 'uim-2026' })
+    expect(coPilotAusgleichVon(uim, 'E', 'haupt')).toBeNull()
+  })
+
+  it('über alle: eine Klasse ohne Starter zieht den Bezug nicht hoch; ohne jeden Starter gelten alle Klassen (Prüfbefund 27.11.2026)', () => {
+    // Starter nur in Klasse E; „Beispiel-Co-Piloten“ füllen auch Klasse 3 (ohne Starter) mit 95 kg.
+    const nurE = [starter('E', 'E01', 20.5)]
+    const s = mit({ E: { haupt: co('Vor1 Nach1', 70) }, '3': { haupt: co('Vor5 Nach5', 95) } }, { coPilotAusgleich: 'alle', starters: nurE })
+    expect(coPilotAusgleichVon(s, 'E', 'haupt')).toBeNull()
+    expect(ausgleichListen(s, ['E'])[0].coPiloten).toEqual([{ rolle: 'haupt', name: 'Vor1 Nach1', ausgleich: null }])
+    // Die eigene Klasse zählt immer mit: Der Block „Besetzung“ zeigt für Klasse 3 den Wert gegen E und 3.
+    expect(coPilotAusgleichVon(s, '3', 'haupt')).toBeNull()
+    expect(coPilotAusgleichVon({ ...s, coPiloten: { ...s.coPiloten, '3': { haupt: co('Vor5 Nach5', 60) } } }, '3', 'haupt')).toBe(10)
+    // Sobald in Klasse 3 jemand startet, zählt sie: 95 − 70 = 25 kg.
+    expect(coPilotAusgleichVon({ ...s, starters: [...nurE, starter('3', '301', 60)] }, 'E', 'haupt')).toBe(25)
+    // Noch gar kein Starter: alle Klassen der Besetzung (Vorschau beim Eintragen).
+    expect(coPilotAusgleichVon({ ...s, starters: [] }, 'E', 'haupt')).toBe(25)
+  })
+
+  it('ein Gewicht ohne Namen zählt nicht – weder als Bezug noch auf der Liste (Prüfbefund 27.11.2026)', () => {
+    // Der Ersatz fällt weg, sein Name wird gelöscht; das Gewicht bleibt im Stand (setzeCoPilotName), zählt aber nicht.
+    let c = setzeCoPilotName({}, 'E', 'haupt', 'Vor1 Nach1')
+    c = setzeCoPilotGewicht(c, 'E', 'haupt', 70)
+    c = setzeCoPilotName(c, 'E', 'ersatz', 'Vor2 Nach2')
+    c = setzeCoPilotGewicht(c, 'E', 'ersatz', 80)
+    expect(coPilotAusgleichVon(mit(c), 'E', 'haupt')).toBe(10)
+    c = setzeCoPilotName(c, 'E', 'ersatz', '')
+    expect(c.E?.ersatz).toEqual({ name: '', gewicht: 80 })
+    // Der eingeteilte ist allein und damit der schwerste: keines nötig (nicht 10 kg gegen niemanden).
+    expect(coPilotAusgleichVon(mit(c), 'E', 'haupt')).toBeNull()
+    expect(coPilotAusgleichVon(mit(c), 'E', 'ersatz')).toBeUndefined()
+    // Kein leeres Feld „Ersatz-Co-Pilot“ auf der Liste.
+    expect(coPilotZeilen(mit(c), 'E')).toEqual([{ rolle: 'haupt', name: 'Vor1 Nach1', ausgleich: null }])
+    // Neu getippt, zählt das Gewicht wieder.
+    expect(coPilotAusgleichVon(mit(setzeCoPilotName(c, 'E', 'ersatz', 'Vor3 Nach3')), 'E', 'haupt')).toBe(10)
+    // Auch beim eingeteilten: ohne Namen kein Bezug; seine Zeile bleibt (leer, zum Eintragen von Hand).
+    const ohneHaupt = mit({ E: { haupt: co('', 90), ersatz: co('Vor2 Nach2', 80) } })
+    expect(coPilotAusgleichVon(ohneHaupt, 'E', 'ersatz')).toBeNull()
+    expect(coPilotZeilen(ohneHaupt, 'E')).toEqual([
+      { rolle: 'haupt', name: '', ausgleich: undefined },
+      { rolle: 'ersatz', name: 'Vor2 Nach2', ausgleich: null },
+    ])
+  })
+
+  it('ohne Gewicht: „fehlt“ nur, wenn andere der Gruppe gewogen sind; sonst nichts – und der Fahrer bleibt unberührt', () => {
+    const s = mit({ E: { haupt: co('Vor1 Nach1', 78), ersatz: co('Vor2 Nach2') }, '1': { haupt: co('Vor3 Nach3') } })
+    expect(coPilotAusgleichVon(s, 'E', 'ersatz')).toBe('fehlt')
+    expect(coPilotAusgleichVon(s, 'E', 'haupt')).toBeNull()
+    expect(coPilotAusgleichVon(s, '1', 'haupt')).toBeUndefined()
+    expect(coPilotAusgleichVon(s, '1', 'ersatz')).toBeUndefined()
+    expect(coPilotAusgleichVon({ ...s, coPilotAusgleich: 'alle' }, '1', 'haupt')).toBe('fehlt')
+    // Der Ausgleich des Fahrers rechnet weiter gegen das Durchschnittsgewicht (26 kg in Klasse E).
+    expect(ausgleichListen(s, ['E'])[0].zeilen.map((z) => z.ausgleich)).toEqual([6, undefined])
+  })
+
+  it('auf der Liste: der eingeteilte, darunter der Ersatz – nie das Körpergewicht', () => {
+    const s = mit({ E: { haupt: co('Vor1 Nach1', 78.2), ersatz: co('Vor2 Nach2', 74.6) }, '2': { ersatz: co('Vor4 Nach4') } })
+    expect(ausgleichListen(s, ['E'])[0].coPiloten).toEqual([
+      { rolle: 'haupt', name: 'Vor1 Nach1', ausgleich: null },
+      { rolle: 'ersatz', name: 'Vor2 Nach2', ausgleich: 4 },
+    ])
+    // Nur ein Ersatz eingetragen: Das Feld für den eingeteilten bleibt leer zum Eintragen von Hand.
+    expect(coPilotZeilen(s, '2')).toEqual([
+      { rolle: 'haupt', name: '', ausgleich: undefined },
+      { rolle: 'ersatz', name: 'Vor4 Nach4', ausgleich: undefined },
+    ])
+    expect(JSON.stringify(ausgleichListen(s, ['E'])[0].coPiloten)).not.toMatch(/78|74/)
+    // Klasse 4 sieht keinen Co-Piloten vor: kein Feld.
+    expect(coPilotZeilen(s, '4')).toBeUndefined()
   })
 })

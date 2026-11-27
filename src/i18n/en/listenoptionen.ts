@@ -76,6 +76,10 @@ export default {
   'listopt.wkr.backHint': 'This leaves more room for drivers on the front – useful for setups with a large description. Print double-sided.',
   'listopt.wkr.clubJoint': 'Save paper: all classes of a list on one sheet, without the course drawing',
   'listopt.wkr.clubJointHint': 'Applies to club championships. Columns a class does not have are hatched in its rows. Without this option, lists with a course drawing stay one per class so that every class sees its own drawing.',
+  // Championship (DM, UIM): shared sheets on request, off by default (R11-03, 26.11.2026).
+  'listopt.wkr.joint': 'Shared sheets: classes whose sheets are built alike on one page',
+  'listopt.wkr.jointHint': 'Otherwise every class of a championship has its own sheets. When switched on, classes whose sheets are built alike (same columns, same course drawing) share a page – as at a club championship. Lists whose drawing differs between classes stay one per class. A checklist then covers all classes that share sheets, usually the whole course and attempt. Scoring stays per class.',
+  'listopt.wkr.jointPaperHint': 'Columns a class does not have are hatched in its rows. Without the course drawing the race official only has the description – if the classes drive different courses, the drawing of the class is missing. Without this option, lists with different drawings stay one per class.',
   'listopt.wkr.folge': 'Classes on shared sheets',
   'listopt.wkr.folge.getrennt': 'separate: one block per class, headed by the class',
   'listopt.wkr.folge.verzahnung': 'by the interleaving: mixed in starting order, the class in a column next to the race number',
@@ -84,6 +88,7 @@ export default {
   'listopt.wkr.splitFrom': 'Split from … drivers (0 = always)',
   'listopt.wkr.rowsHint': 'Automatic: the app measures what fits on a sheet and splits evenly in steps of five (24 drivers → 15 + 9). With a fixed number (at least 5), every page holds that many drivers. "Split from" only applies with a fixed number: only classes with at least that many drivers are split – with 15 and 25, classes of 25 or more get 15 per page, smaller classes stay on one sheet. If a page does not fit on the sheet that way, it is split automatically. The checklists count the pages as they are printed.',
   'listopt.wkr.rowsClub': 'Club championship: the fixed number does not apply to joint sheets of several classes. They are always split automatically so that no class runs across two sheets without need.',
+  'listopt.wkr.rowsJoint': 'Shared sheets of several classes: the fixed number does not apply to them. They are always split automatically so that no class runs across two sheets without need.',
   'listopt.wkr.rowsParallel': 'Parallel slalom: every sheet is divided on its own, onto as few pages as possible, spread evenly and only at the end of a block (4 or 2 starts). “Drivers per page” and “Split from” are the upper limit of starts per page there, rounded down to whole blocks.',
   'listopt.wkr.parallelZebra': 'Parallel slalom: every second row grey',
   'listopt.wkr.parallelZebraHint': 'On the sheets of the race officials and the starting orders in the parallel slalom. The row of a dummy stays hatched, the strong line at the end of each block stays.',
@@ -225,6 +230,13 @@ export default {
   'listopt.ausgleich.hint':
     'The step is the smallest weight piece put into the boat at the pontoon. The extra weight is always a multiple of it – rounded to the nearest step, halves up (with 2 kg: 2.9 kg → 2 kg, 3 kg → 4 kg). A driver lighter by less than half a step gets none. This applies to the weighing, the lists and the pontoon device.',
   'listopt.ausgleich.fehler': 'Please enter a number from {min} to {max} kg, e.g. {beispiel}. It stays at {kg} kg.',
+  // Ausgleich der Co-Piloten (R11-07, 26.11.2026).
+  'listopt.coPilotAusgleich': 'Extra weight of the co-drivers',
+  'listopt.coPilotAusgleich.klasse': 'per class – against the heaviest co-driver of the class',
+  'listopt.coPilotAusgleich.alle': 'across all co-drivers – against the heaviest co-driver of the classes with drivers',
+  'listopt.coPilotAusgleich.hint':
+    'If co-drivers change within a class, the total weight should stay the same in every attempt. A lighter co-driver gets the difference as extra weight – rounded with the step set above (to the nearest step, halves up), separate from the extra weight of the driver. The lists show it in brackets after the name. A co-driver without a weight or without a name does not count. Names and weights of the co-drivers:',
+  'listopt.coPilotAusgleich.link': 'Event → Assignments',
 
   'origin.style.aus': 'hide',
   'origin.style.lang': 'full name',

@@ -1,13 +1,13 @@
 import type { AppState, ClassId, OriginMode, Sprache, Starter } from '../types'
 import { CLASS_IDS } from '../domain/classes'
 import { SCHEMA_VERSION } from '../types'
-import { emptyState, gemeinsamFolgeWert, laufzettelLayoutWert, leerzeilenZahl, normalisiereAnzeige, normalisiereBetrieb, normalisiereWkr, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
+import { emptyState, gemeinsamFolgeWert, laufzettelLayoutWert, meisterschaftGemeinsamWert, leerzeilenZahl, normalisiereAnzeige, normalisiereBetrieb, normalisiereWkr, streichlaeufeWert, teilenAbZahl, zeilenJeSeiteZahl } from './reducer'
 import { aufbauOf, beschriftungOf, hasParallel, PARALLEL, regelwerkOf } from '../config/catalog'
 import { normalisiereZusatzListen } from '../lib/listen'
 import { ID_MUSTER } from '../config/eigene'
 import type { RawAufbau } from '../config/schema'
 import { normalisiereEinteilung, normalisiereSprachen } from '../lib/einteilung'
-import { normalisiereBesetzung } from '../lib/besetzung'
+import { coPilotAusgleichWert, normalisiereBesetzung, normalisiereCoPiloten } from '../lib/besetzung'
 import { normalisiereEingaben, nurStarter } from '../lib/eingaben'
 import { istKennung } from '../lib/qr'
 import { configFor } from '../config/konfig'
@@ -113,7 +113,11 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     einteilung: normalisiereEinteilung(loaded.einteilung, parcoursIds),
     // Fehlen in Ständen vor dem Block „Besetzung“; Unbrauchbares entfällt.
     boote: normalisiereBesetzung(loaded.boote),
-    coPiloten: normalisiereBesetzung(loaded.coPiloten),
+    // Seit 26.11.2026 (R11-07) je Klasse Co-Pilot und Ersatz mit Gewicht; ein alter Stand (nur ein Name je Klasse) wird
+    // der eingeteilte Co-Pilot.
+    coPiloten: normalisiereCoPiloten(loaded.coPiloten),
+    // Fehlt in Ständen vor dem 26.11.2026: je Klasse (DM-Reglement C3); Unbekanntes ebenso.
+    coPilotAusgleich: coPilotAusgleichWert(loaded.coPilotAusgleich),
     // Fehlen in Ständen vor den Wettkampfrichter-Listen.
     wkrLeerzeilen: leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen,
     wkrLeerzeilenKlasse: eigeneLeerzeilen(loaded.wkrLeerzeilenKlasse, leerzeilenZahl(loaded.wkrLeerzeilen) ?? base.wkrLeerzeilen),
@@ -124,6 +128,8 @@ export function migrate(raw: unknown, optionen: { oberflaeche?: string } = {}): 
     wkrClubGemeinsam: loaded.wkrClubGemeinsam !== false,
     // Fehlt in Ständen vor dem 24.11.2026: Dann gilt „getrennt“ (Blöcke je Klasse, wie bis dahin); Unbekanntes ebenso.
     wkrGemeinsamFolge: gemeinsamFolgeWert(loaded.wkrGemeinsamFolge),
+    // Fehlt in Ständen vor dem 26.11.2026 (R11-03): Dann „aus“ – je Klasse ein Bogen, wie bis dahin; Unbekanntes ebenso.
+    wkrMeisterschaftGemeinsam: meisterschaftGemeinsamWert(loaded.wkrMeisterschaftGemeinsam),
     ergebnisListen: {
       aushang: {
         namen: (['voll', 'kurz', 'ohne'] as const).find((n) => n === loaded.ergebnisListen?.aushang?.namen) ?? base.ergebnisListen.aushang.namen,

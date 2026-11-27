@@ -185,7 +185,9 @@ function rechner(stand: AppState, konfig: Konfig, liste: Liste) {
   }
 
   // „Überfällig“: Folge der gezeigten Starts, die auf dieser Liste vorkommen (Klasse mit Liste), je Zelle die letzte Stelle.
-  const gezeigt = betriebVon(stand, liste.bereich).gezeigt
+  // Ohne abgebrochene Versuche (Ausfall, R11-11, 26.11.2026): Die Wiederholung zählt erst ab ihrem eigenen Zeigen –
+  // sonst stünde sie gleich als „überfällig“ da.
+  const gezeigt = betriebVon(stand, liste.bereich).gezeigt.filter((g) => !g.abgebrochen)
   const gezeigtKeys = new Set(gezeigt.map((g) => g.ref))
   const stelle = new Map<string, number>()
   let n = 0
@@ -345,7 +347,9 @@ export interface Durchfahrt {
  * etwas abschickt, hat das Boot gesehen. Ein X des Starts gilt als durch (`x`).
  */
 export function durchfahrtVon(stand: AppState, konfig: Konfig, bereich: BereichId): Durchfahrt {
-  const ref = bereichsLage(stand, bereich).aktuell?.key ?? null
+  // Ein abgebrochener Versuch im Boot (Ausfall, R11-11) hat keine Ampel (BETRIEB_ANNAHMEN.wiederholungOhneAmpel).
+  const aktuell = bereichsLage(stand, bereich).aktuell
+  const ref = aktuell && !aktuell.abgebrochen ? aktuell.key : null
   if (ref === null) return { ref, durch: false, perKnopf: false, x: false }
   const perKnopf = betriebVon(stand, bereich).durchfahrt?.ref === ref
   const start = liesRef(ref)
@@ -386,7 +390,8 @@ export function erfassungsLage(stand: AppState, konfig: Konfig, bereich: Bereich
   let spalten: MatrixStart[] = []
   for (const g of betriebVon(stand, bereich).gezeigt) {
     const ref = liesRef(g.ref)
-    if (!ref || gesehen.has(g.ref) || punkt === null || punktVonRef(stand, g.ref) !== punkt) continue
+    // Ein abgebrochener Versuch (R11-11) ist keine Spalte; die Wiederholung bekommt ihre mit dem neuen Zeigen.
+    if (!ref || g.abgebrochen || gesehen.has(g.ref) || punkt === null || punktVonRef(stand, g.ref) !== punkt) continue
     gesehen.add(g.ref)
     spalten.push({ key: g.ref, nummern: nummernVon(stand, ref), punkt, zeit: g.zeit })
   }
@@ -557,6 +562,8 @@ export function zeilenMarken(stand: AppState, konfig: Konfig, liste: Liste, laeu
   const verdaechtig = (z: Zelle, t: ListenTeil | undefined) => z === 'papier' || z === 'ueberfaellig' || (z === 'offen' && alleWeg(t))
   const gesehen = new Set<string>()
   for (const g of betriebVon(stand, liste.bereich).gezeigt) {
+    // Abgebrochene Versuche (R11-11) markieren nichts – die Erfassung zeigt dort „Wiederholung nach Ausfall“.
+    if (g.abgebrochen) continue
     const z = r.zelleVon(g.ref)
     if (!z || z.starter === '') continue
     const laufe = [z.lauf, ...z.weitere].filter((l) => imBogen.has(l))

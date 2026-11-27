@@ -1,6 +1,6 @@
 import type { AppState, ClassId, StartRef, WkrListe, WkrPause, WkrPunkt } from '../types'
 import type { Konfig } from '../config/konfig'
-import { betriebVon, istParallel, lage, liesRef, type FolgeEintrag } from '../betrieb/folge'
+import { abbruecheVon, betriebVon, istParallel, lage, liesRef, type FolgeEintrag } from '../betrieb/folge'
 import { konfigVon } from '../state/reducer/gemeinsam'
 import { erfasstKennung, felderJeKennung, werteVon, type Feld, type ListenTeil } from '../lib/eingaben'
 import { nichtGestartet } from '../lib/erfassung'
@@ -52,8 +52,16 @@ function rahmen(stand: AppState, kennung: string, eintrag: WkrListe, teil: Liste
   const pausen: Pausen = [...eintrag.pausen, ...(eigen?.pausen ?? [])]
   const papier = new Set([...pausen.flatMap((p) => p.papier), ...abschlussPapier(stand.wkr, kennung, teil)])
   const zu = (punkt: WkrPunkt) => istAbgeschlossen(stand.wkr, kennung, punkt, teil, geteilt)
-  /** Gehört der (gezeigte, bei `zeit`) Start in diesem Rahmen noch digital erfasst? */
-  const offen = (s: SchlangenStart, zeit: number | undefined) => aktiv && !papier.has(s.key) && !zu(s.punkt) && (zeit === undefined || !inPause(pausen, zeit))
+  /**
+   * Gehört der (gezeigte, bei `zeit`) Start in diesem Rahmen noch digital erfasst? `wiederholung`: Er ist die Wiederholung
+   * nach einem Ausfall (R11-11) – sie kommt auch in einem schon abgeschlossenen Punkt (Prüfbefund 27.11.2026,
+   * BETRIEB_ANNAHMEN.wiederholungAbschlussBleibt): Fiel der letzte Start eines Laufs hinter Tor 1 aus und hatte Tor 1
+   * schon abgeschlossen, bekäme das Gerät die Wiederholung sonst nie (und mit „Druck nach Modus“ fehlte oft auch der
+   * Bogen). Ihre Zeile wird dort ein Vorschlag „abgeschlossen“ (state/reducer/wkr.ts WKR_ZEILEN). Was der Abschluss mit
+   * „Rest auf Papier“ nannte, bleibt Papier (`papier`).
+   */
+  const offen = (s: SchlangenStart, zeit: number | undefined, wiederholung = false) =>
+    aktiv && !papier.has(s.key) && (wiederholung || !zu(s.punkt)) && (zeit === undefined || !inPause(pausen, zeit))
   return { aktiv, offen }
 }
 
@@ -115,9 +123,9 @@ export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil, optio
   const boot = nachlaufend ? imBoot(stand, liste.bereich) : null
   /** Gehört der Teil `t` dieses Starts schon (bzw. noch) in die Schlange? Anlegen nicht vorab und nicht im Boot. */
   const imTeil = (t: ListenTeil | undefined, s: SchlangenStart, vorab: boolean) => t !== 'an' || !geteilt || (!vorab && (!nachlaufend || s.key !== boot))
-  /** Welche Rahmen den Start noch brauchen; `null` = keiner. */
-  const braucht = (s: SchlangenStart, zeit: number | undefined, vorab = false): SchlangenStart | null => {
-    const offen = rahmenJe.filter(({ t, r }) => imTeil(t, s, vorab) && r.offen(s, zeit) && !erledigt(s, t)).map(({ t }) => t)
+  /** Welche Rahmen den Start noch brauchen; `null` = keiner. `wdh`: die Wiederholung nach einem Ausfall (siehe rahmen). */
+  const braucht = (s: SchlangenStart, zeit: number | undefined, vorab = false, wdh = false): SchlangenStart | null => {
+    const offen = rahmenJe.filter(({ t, r }) => imTeil(t, s, vorab) && r.offen(s, zeit, wdh) && !erledigt(s, t)).map(({ t }) => t)
     if (offen.length === 0) return null
     return geteilt && teil === undefined ? { ...s, teileOffen: { ab: offen.includes('ab'), an: offen.includes('an') } } : s
   }
@@ -126,17 +134,21 @@ export function schlange(stand: AppState, liste: Liste, teil?: ListenTeil, optio
   const gesehen = new Set<string>()
   const out: SchlangenStart[] = []
   for (const g of b.gezeigt) {
-    if (g.zeit < eintrag.seit) continue
+    // Ein abgebrochener Versuch (Ausfall, R11-11, 26.11.2026) ist nichts mehr zu erfassen – seine Werte sind verworfen; die
+    // Wiederholung kommt mit ihrem neuen Zeigen in die Schlange (neue Zeit, eigene Kennung für die Geräte, wkr/versuch.ts).
+    if (g.abgebrochen || g.zeit < eintrag.seit) continue
     const s = lies(g.ref)
     // Am Vorsteg mit „Versuche nacheinander“ steht der Starter einmal da: gleiche Zelle, gleicher Start.
     if (!s || gesehen.has(`${s.lauf}|${s.starter}`)) continue
-    if (!rahmenJe.some(({ r }) => r.offen(s, g.zeit))) continue
+    // Ein geltender Versuch nach einem abgebrochenen ist die Wiederholung (R11-11).
+    const wdh = abbruecheVon(b, g.ref) > 0
+    if (!rahmenJe.some(({ r }) => r.offen(s, g.zeit, wdh))) continue
     gesehen.add(`${s.lauf}|${s.starter}`)
     if (s.entfaellt) {
       if (g.ref === letzter || !WKR_ANNAHMEN.entfaelltNurAktuell) out.push({ ...s, zeit: g.zeit })
       continue
     }
-    const offen = braucht(s, g.zeit)
+    const offen = braucht(s, g.zeit, false, wdh)
     if (offen) out.push({ ...offen, zeit: g.zeit })
   }
   for (const e of vorabStarts(stand, liste)) {
@@ -177,19 +189,20 @@ export function hatVorab(typeId: string): boolean {
 
 /**
  * Der Start „Im Boot“ eines Bereichs (Kennung), solange sein Boot noch fährt (WKR_ANNAHMEN.stegAnlegenNachlaufend): der
- * zuletzt gezeigte, solange in seinem Punkt noch ein Start aussteht – frei, zurückgestellt, „Boot fehlt“ (ausgesetzte
- * Klasse) oder nachzuholen. Prüfbefund 21.11.2026: vorher zählte nur `frei`; war der letzte freie Start eines Punkts
+ * zuletzt gezeigte, solange in seinem Punkt noch ein Start aussteht – frei, zurückgestellt, Wiederholung offen (R11-11),
+ * „Boot fehlt“ (ausgesetzte Klasse) oder nachzuholen; nie ein abgebrochener Versuch. Prüfbefund 21.11.2026: vorher zählte nur `frei`; war der letzte freie Start eines Punkts
  * gezeigt und ein anderer zurückgestellt, stand das fahrende Boot schon im Anlegen. Steht in seinem Punkt nichts mehr
  * aus (letzter Start eines Laufs, auch wenn er auf der Tafel stehen bleibt), gilt er als zurück; `null` = keiner im
  * Boot. Den Rückstand vor „Nächster Start“ nimmt das Anlegen des Starts auf der Tafel trotzdem nie (wkr/lage.ts, T2).
  */
 export function imBoot(stand: AppState, bereich: string): string | null {
   const l = lage(stand, bereich)
-  if (!l.aktuell) return null
+  // Ein abgebrochener Versuch (Ausfall, R11-11) ist nicht mehr unterwegs.
+  if (!l.aktuell || l.aktuell.abgebrochen) return null
   const punkt = punktVonRef(stand, l.aktuell.key)
   if (punkt === null) return null
   const steht = (e: FolgeEintrag) => e.punkt === punkt && e.key !== l.aktuell!.key
-  return [l.frei, l.zurueckgestellt, l.bootFehlt, l.nachzuholen].some((x) => x.some(steht)) ? l.aktuell.key : null
+  return [l.frei, l.zurueckgestellt, l.wiederholung, l.bootFehlt, l.nachzuholen].some((x) => x.some(steht)) ? l.aktuell.key : null
 }
 
 /** Die nächsten freien Starts des Bereichs, die am Vorsteg schon zu sehen sind (Am Steg + Vor Steg der Anzeige). */
@@ -228,7 +241,8 @@ export function papierStarts(stand: AppState, liste: Liste, teil?: ListenTeil): 
   const out = new Set<string>()
   for (const p of [...eintrag.pausen, ...(teil !== undefined ? (eintrag.teile?.[teil]?.pausen ?? []) : [])]) {
     for (const key of p.papier) out.add(key)
-    for (const g of gezeigt) if (g.zeit >= p.von && (p.bis === null || g.zeit < p.bis)) out.add(g.ref)
+    // Ein abgebrochener Versuch (R11-11) zählt nicht – die Wiederholung gilt nach ihrem eigenen Zeigen.
+    for (const g of gezeigt) if (!g.abgebrochen && g.zeit >= p.von && (p.bis === null || g.zeit < p.bis)) out.add(g.ref)
   }
   return [...out].filter((key) => {
     const ref = liesRef(key)

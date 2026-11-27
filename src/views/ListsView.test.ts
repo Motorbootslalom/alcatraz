@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ListsView from './ListsView.vue'
 import { createStore, storeKey, type Store } from '../state/store'
@@ -38,6 +38,24 @@ async function waehle(wrapper: VueWrapper, feld: string, wert: string) {
 }
 const koepfe = (wrapper: VueWrapper) => wrapper.findAll('.wkr-listen .bogen').map((b) => b.findAll('.bk-links .bk-zelle').map((z) => z.text()).join(' | '))
 const drucken = (wrapper: VueWrapper) => wrapper.find('button.primary')
+/**
+ * Leere Zeilen (ohne Startnummer) je Block eines Bogens, nach der Zwischenüberschrift darüber. Dummy- und
+ * entfallene Zeilen zählen nicht – sie tragen „Dummy“ bzw. „entfällt“ in der Nummernzelle.
+ */
+function leereJeBlock(bogen: DOMWrapper<Element>): Record<string, number> {
+  const bloecke: Record<string, number> = {}
+  let block = ''
+  for (const tr of bogen.findAll('.bogen-tabelle > tbody > tr')) {
+    if (tr.classes('bt-zwischen')) {
+      block = tr.text()
+      bloecke[block] ??= 0
+      continue
+    }
+    const nr = tr.find('td.bt-nr:not(.bt-start)')
+    if (nr.exists() && nr.text() === '') bloecke[block] = (bloecke[block] ?? 0) + 1
+  }
+  return bloecke
+}
 
 describe('Listen: Wettkampfrichter-Listen', () => {
   let store: Store
@@ -274,6 +292,39 @@ describe('Listen: Wettkampfrichter-Listen', () => {
     await nextTick()
     expect(wrapper.find('[data-hinweis="wkr-club-folge"]').exists()).toBe(true)
     for (const n of notizen()) expect(n).not.toContain('untereinander')
+    wrapper.unmount()
+  })
+
+  // Antwort des Nutzers vom 26.11.2026 (R11-03): gemeinsame Bögen auch bei Meisterschaften, Vorgabe aus.
+  it('Meisterschaft mit gemeinsamen Bögen: Hinweis ohne „Clubmeisterschaft“, Klassen mit gleichem Aufbau auf einem Bogen', async () => {
+    const wrapper = ansicht(store)
+    await wkr(wrapper)
+    await waehle(wrapper, 'lauf', '1')
+    await waehle(wrapper, 'liste', 'steg')
+    // Vorgabe: je Klasse ein Bogen, kein Hinweis.
+    expect(wrapper.find('[data-hinweis="wkr-gemeinsam"]').exists()).toBe(false)
+    expect(koepfe(wrapper)).toHaveLength(4)
+    store.dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'gleich' })
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="wkr-gemeinsam"]').text()).toContain('Gemeinsame Bögen')
+    expect(wrapper.find('[data-hinweis="wkr-gemeinsam"]').text()).not.toContain('Clubmeisterschaft')
+    expect(koepfe(wrapper)).toEqual(['Steg | Klassen 1, 3 | 1. Lauf | Parcours 1', 'Steg | Klassen 4, 7 | 1. Lauf | Parcours 2'])
+    // Ohne „Papier sparen“: Blöcke mit den Leerzeilen je Klasse – beim Einschalten bleibt die Zahl der Meisterschaft
+    // (drei), anders als beim Wechsel zur Clubmeisterschaft (Auslegung 26.11.2026, lib/wkrListen.ts gemeinsameBoegen).
+    expect(leereJeBlock(wrapper.findAll('.wkr-listen .bogen')[1])).toEqual({ 'Klasse 4': 3, 'Klasse 7': 3 })
+    store.dispatch({ type: 'SET_WKR_MEISTERSCHAFT_GEMEINSAM', art: 'alle' })
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="wkr-gemeinsam"]').text()).toContain('Papier sparen')
+    // „Papier sparen“: keine Leerzeilen in den Klassenblöcken, die der Seite stehen einmal unter „Nachmeldungen“.
+    const sparen = leereJeBlock(wrapper.findAll('.wkr-listen .bogen')[1])
+    expect(Object.keys(sparen)).toEqual(['Klasse 4', 'Klasse 7', 'Nachmeldungen'])
+    expect(sparen['Klasse 4']).toBe(0)
+    expect(sparen['Klasse 7']).toBe(0)
+    expect(sparen.Nachmeldungen).toBeGreaterThan(0)
+    store.dispatch({ type: 'SET_WKR_GEMEINSAM_FOLGE', folge: 'verzahnung' })
+    await nextTick()
+    expect(wrapper.find('[data-hinweis="wkr-club-folge"]').exists()).toBe(true)
     wrapper.unmount()
   })
 

@@ -271,7 +271,8 @@ nicht aufhalten, laufen sie auf GitHub (dort ist `CI` gesetzt) nur auf Wunsch. R
 `wackelTestsAuslassen`, in den Tests `it.skipIf(WACKELTESTS_AUS)`; `src/testHilfen.test.ts` prüft, dass die Regel zu
 der Zeile in `ci.yml` passt (ohne Haken `0` = aus) und dass `deploy.yml` die Variable nie setzt.
 
-- Lokal, auch im pre-commit-Hook (ohne `CI`): laufen immer.
+- Lokal, auch im pre-commit-Hook (ohne `CI`): laufen immer – ein Wackler kann einen Commit aufhalten, ein echter
+  Fehler fällt dafür sofort auf (so bestätigt 26.11.2026).
 - Auf GitHub mitlaufen lassen: **Actions → CI → Run workflow**, Branch wählen, Haken bei „Wackelige Tests mitlaufen
   lassen“ setzen, **Run workflow**. Der Haken setzt `ALCATRAZ_WACKELTESTS=1`; bei Push und Pull Request ist er aus.
 - Deploy (`deploy.yml`): setzt die Variable nie, die beiden Tests bleiben dort immer aus.

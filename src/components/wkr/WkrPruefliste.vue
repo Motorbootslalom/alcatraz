@@ -12,7 +12,7 @@ import WkrKopf from './WkrKopf.vue'
 import WkrRuhe from './WkrRuhe.vue'
 import WkrZiffern from './WkrZiffern.vue'
 import WkrVorziehen from './WkrVorziehen.vue'
-import { rolleAnDenRand } from './systemModus'
+import { rolleAnDenRand, zielNachErklaerung } from './systemModus'
 import { stufeZeichen, useWkrText } from './texte'
 
 /**
@@ -166,21 +166,22 @@ function abschicken(): void {
   letzte.value = { nr: t.startNr, z }
   bejaht.value = null
   nr.value = ''
-  void nextTick(kopfAusDemBild)
+  void nextTick(erklaerungAusDemBild)
 }
 
 /**
- * Übung am Tisch (Prüfbefund 24.11.2026, WKR_ANNAHMEN UK6, noch zu bestätigen): wie in der Maske mit Schlange (UK1,
- * Nutzer 24.11.2026) rollen nach „Alle richtig“/„Abschicken“ die Erklärung „So läuft die Übung“ und der Kopf mit
- * „ÜBUNG“ oben hinaus – an den Rand kommt das erste Element nach dem Kopf, also der Block „Nr. 9 · Klasse · offen“
- * mit dem Vorschlag. Kein Takt am Tisch: Der nächste Starter ist sofort vorbelegt (KN12), ein Nachrollen wie UK5
- * braucht es nicht. Auf dem Pad steht der Kopf über beiden Spalten, die offenen Nummern rollen also mit. Nur in der
- * Übung (die echte Liste zeigt im Kopf die Verbindung).
+ * Übung am Tisch (WKR_ANNAHMEN UK6, seit 26.11.2026 wie UK7 – Nutzer zu R11-14: „Oh, dann besser wieder raus damit.
+ * Ich dachte, es ist eine extra Zeile.“): Nach „Alle richtig“/„Abschicken“ rollt nur die Erklärung „So läuft die Übung“
+ * oben hinaus; der Kopf mit „ÜBUNG“ bleibt und steht am Rand, darunter der Block „Nr. 9 · Klasse · offen“ mit dem
+ * Vorschlag (vorher rollte der Kopf mit hinaus). Ziel ist die Spalte der Liste (ohne Spalte die Liste selbst), bzw. der
+ * Hinweis „Bildschirm kann ausgehen“, wenn er steht (zielNachErklaerung, 27.11.2026 – er bleibt wie der Kopf). Kein
+ * Takt am Tisch: Der nächste Starter ist sofort vorbelegt (KN12), ein Nachrollen wie UK5 braucht es nicht. Nur in der
+ * Übung.
  */
-const kopfRef = ref<InstanceType<typeof WkrKopf> | null>(null)
-function kopfAusDemBild(): void {
-  if (!props.quelle.uebung || !WKR_ANNAHMEN.uebungKopfAusDemBild || !WKR_ANNAHMEN.uebungKopfAmTisch) return
-  rolleAnDenRand(((kopfRef.value?.$el ?? null) as Element | null)?.nextElementSibling)
+const wurzelRef = ref<HTMLElement | null>(null)
+function erklaerungAusDemBild(): void {
+  if (!props.quelle.uebung || !WKR_ANNAHMEN.uebungErklaerungAusDemBild || !WKR_ANNAHMEN.uebungKopfAmTisch) return
+  rolleAnDenRand(zielNachErklaerung(wurzelRef.value))
 }
 
 // --- Liste abschließen (KN5) ---
@@ -210,11 +211,10 @@ const stufeText = computed(() => {
 </script>
 
 <template>
-  <div class="wkr-maske wkr-pruefliste" data-teil="maske" data-maske="pruefliste" :data-liste="liste" :data-pad="pad || undefined">
+  <div ref="wurzelRef" class="wkr-maske wkr-pruefliste" data-teil="maske" data-maske="pruefliste" :data-liste="liste" :data-pad="pad || undefined">
     <WkrRuhe v-if="!sicht" art="warte" />
     <template v-else>
       <WkrKopf
-        ref="kopfRef"
         :titel="sicht.titel"
         :bereich="sicht.bereich"
         :lauf="null"

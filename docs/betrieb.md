@@ -125,7 +125,8 @@ Gegen ein verlorenes oder defektes Gerät und gegen gelöschte Browserdaten hilf
 
 - Der zweite Speicher hält die letzten Stände vor („Einstellungen → Dateien → Verlauf“).
   Jeder Eintrag hat Zeitpunkt und das, was sich geändert hat:
-  „Eingabe Klasse 4, 2. Lauf · 17 Änderungen“, „12 Starter importiert“, „Aufbau gewechselt“.
+  „Eingabe Klasse 4, 2. Lauf · 17 Änderungen“, „12 Starter importiert“, „Aufbau gewechselt“,
+  „Wiederholung nach Ausfall – Werte verworfen: 101, Klasse 1, 1. Lauf“.
 - Gleichartige Änderungen kurz nacheinander sind ein Eintrag
   (bis zu einer Pause von zwei Minuten, höchstens zehn Minuten lang).
 - Jeder Stand lässt sich wiederherstellen.
@@ -169,11 +170,24 @@ Parallelslalom (nur UIM): [parallelslalom.md](parallelslalom.md).
   und „Geräte“ ([Gerätebetrieb](#gerätebetrieb)).
 - **Start-Freigabe:** je Parcours eine Karte. „Lauf N beginnen“ gibt die Starts des Laufs frei, „Nächster Start“
   bringt den nächsten offenen Start auf die Anzeigetafel, „Zurück“ nimmt ihn zurück. Dazu „Zurückstellen“, „Anderen
-  Starter wählen“ (Suche nach Startnummer oder Name, Verschieben), „Klassen · Boot fehlt“, „Einsteigen ab …“ und
-  „Meldung“ (Störung, Pause, Hinweis; mit Vorlagen). „Betrieb zurücksetzen“ im Kopf löscht begonnene Läufe, gezeigte
-  Starts und Meldungen; Starter, Verzahnung und erfasste Werte bleiben. Rückfrage gibt es nur vor „Lauf beginnen“,
-  solange Starts offen sind, vor „Betrieb zurücksetzen“ und mit WKR-Erfassung bei Rückstand („Trotzdem weiter?“);
-  alles andere lässt sich zurücknehmen.
+  Starter wählen“ (Suche nach Startnummer oder Name, Verschieben), „Wiederholung (Ausfall) …“ (unten), „Klassen · Boot
+  fehlt“, „Einsteigen ab …“ und „Meldung“ (Störung, Pause, Hinweis; mit Vorlagen). „Betrieb zurücksetzen“ im Kopf
+  löscht begonnene Läufe, gezeigte Starts und Meldungen; Starter, Verzahnung und erfasste Werte bleiben. Rückfrage gibt
+  es nur vor „Lauf beginnen“, solange Starts offen sind, vor „Betrieb zurücksetzen“, vor einer Wiederholung nach
+  Ausfall und mit WKR-Erfassung bei Rückstand („Trotzdem weiter?“); alles andere lässt sich zurücknehmen.
+- **Wiederholung nach Ausfall** (26.11.2026; nur Manövrieren, nur am Bedienrechner): Fällt ein Boot nach dem Start
+  aus und bestätigt die Wettkampfleitung den Ausfall, wird der Lauf des Starters wiederholt. „Wiederholung (Ausfall) …“
+  neben „Anderen Starter wählen“ zeigt die schon gezeigten Starts der laufenden Läufe (der zuletzt gezeigte zuerst,
+  Suche nach Startnummer); „Wiederholen …“, dann „Werte verwerfen und wiederholen“. Alle Werte dieses Starters in
+  diesem Lauf sind danach auf jeder Liste weg, auch die von den WKR-Geräten. Der Start steht unter „Wiederholung
+  offen“ und fährt nie von selbst: mit „Als Nächster“ oder „Ans Ende des Laufs“ einreihen oder mit „Jetzt zeigen“
+  zeigen – das geht auch vom Freigabe-Handy und in der Startliste. Auf Papier streicht der Wettkampfrichter die Zeile
+  und trägt die Wiederholung in eine Leerzeile ein; die Erfassung zeigt an der Startnummer ↻. Liegt der Ausfall am
+  Starter, gibt es keine Wiederholung: Der Wettkampfrichter trägt an der Boje „J“ ein (falscher Parcours). Vertan?
+  „Doch keine Wiederholung“ in der Liste „Wiederholung offen“ holt die verworfenen Werte zurück, solange der Start
+  nicht wieder gezeigt ist. Anzeigetafel und Zuschauerliste zeigen „1. Lauf · Wiederholung“, ohne Grund. Im
+  Parallelslalom gibt es den Knopf nicht. Einzelheiten:
+  [funktionen.md](funktionen.md#start-freigabe).
 - **Anzeigetafel:** „Anzeigetafel öffnen“ öffnet sie in einem eigenen Fenster, etwa auf einem zweiten Monitor am Steg.
   Taste F oder Doppelklick schaltet Vollbild. Bei mehreren Parcours hat jede Karte dazu „Eigene Anzeigetafel“.
 - **Zuschauerliste:** „Zuschauerliste öffnen“ zeigt je Parcours „Im Boot“, „Am Steg“, „Vor Steg“ und „Danach“ mit
@@ -453,13 +467,14 @@ alt="WKR-Maske auf dem Handy (Übung): Startnummer groß, darunter die Knöpfe d
 - **Verbinden:** In den ersten Sekunden steht „verbinde …“; dauert es länger, „Neu verbinden“ (lädt die Seite neu,
   Entwürfe und Gesendetes bleiben).
 - **Probe:** Nach dem ersten Empfang der Liste zeigt das Gerät einmal je Raum und Liste die Probe mit dem Start „P“ –
-  Schritt für Schritt Code tippen, „↶ Rückgängig“, Hauptknopf; auf Bojen-Listen auch eine Berührung, eine Disq. an
+  Schritt für Schritt Code tippen, „↩ Rückgängig“, Hauptknopf; auf Bojen-Listen auch eine Berührung, eine Disq. an
   einer Boje und den Rückweg. Es wird **nichts gesendet**. „Überspringen“ geht immer, „Mehr → Probe“ wiederholt sie.
-- **Knöpfe** (Steg, Tor 5, Mann-über-Bord, Vorsteg): je Code ein Knopf; ein Tipp zählt +1, „↶ Rückgängig“ nimmt den
-  letzten Tipp zurück. Codes, die laut Regelwerk in der Klasse nicht gelten, sind ausgegraut, aber drückbar. Ein Code
-  zählt höchstens so oft, wie er in einem Lauf vorkommen kann (3; Tor 5 „nicht mit gesamter Länge eingefahren“ 1);
-  „2. und 3. Versuch“ zählt bis 2, der dritte Tipp setzt Disq. D („nächster = Disq. D“, dann „Disq. D gesetzt“).
-  Am Steg schaltet ein Gerät für den ganzen Steg zwischen „Ablegen“ und „Anlegen“.
+- **Knöpfe** (Steg, Tor 5, Mann-über-Bord, Vorsteg): je Code ein Knopf; ein Tipp zählt +1, „↩ Rückgängig“ im Fuß nimmt
+  den letzten Tipp zurück (der Pfeil nach links ist eine kleine Zeichnung; auf Handys von 360 bis 412 px Breite steht er
+  über dem Wort, auf breiteren Geräten daneben). Codes, die laut Regelwerk in der Klasse nicht gelten, sind ausgegraut,
+  aber drückbar. Ein Code zählt höchstens so oft, wie er in einem Lauf vorkommen kann (3; Tor 5 „nicht mit gesamter
+  Länge eingefahren“ 1); „2. und 3. Versuch“ zählt bis 2, der dritte Tipp setzt Disq. D („nächster = Disq. D“, dann
+  „Disq. D gesetzt“). Am Steg schaltet ein Gerät für den ganzen Steg zwischen „Ablegen“ und „Anlegen“.
 - **Disq.:** „DISQ“ im Fuß öffnet die Buchstaben („FEHLER“ führt zurück). Der erste Tipp merkt vor („noch einmal
   tippen“), der zweite setzt. X gibt es in den Disq.-Knöpfen nur am Steg-Ablegen und am Vorsteg; es fragt noch einmal
   groß nach.
@@ -475,6 +490,10 @@ alt="WKR-Maske auf dem Handy (Übung): Startnummer groß, darunter die Knöpfe d
   zugleich auf dem Wasser sind.
 - **Hinweise des Bedieners:** „Bediener bittet: Start 601 prüfen“ mit „601 öffnen“; „Bedienrechner: Ab Nr. … gilt der
   Papierbogen“.
+- **Wiederholung nach Ausfall:** Wird ein Start nach einem Ausfall wieder gezeigt, kommt er wie ein neuer Start aufs
+  Gerät – auch auf eine Liste, die den Lauf schon abgeschlossen hat (dann wird die Zeile am Bedienrechner ein
+  Vorschlag). Eine Zeile, die noch zum abgebrochenen Versuch geschickt wird, lehnt der Bedienrechner ab: „Dieser
+  Versuch wurde nach einem Ausfall abgebrochen – der Start wird wiederholt. Die Zeile ist nicht übernommen.“
 - **Ohne Verbindung:** rotes Band „Keine Verbindung seit n min – weiter erfassen, n Zeilen warten“; nach 5 Minuten
   dazu „Länger weg? Papierbogen ab Nr. …“.
 - **Liste abschließen:** Nach dem eigenen Lauf erscheint das Band „1. Lauf ist vorbei – Liste abschließen?“ mit dem
@@ -522,8 +541,10 @@ Papierliste „Ausgleichsgewichte“ bleibt bei einem nicht gewogenen Starter ei
 - **Bild** (Listen mit Bojen; auf dem Pad die Vorgabe, auf dem Handy wählbar): die Parcours-Zeichnung mit Trefferkreisen
   auf den Bojen, Umschalter Hinweg / Rückweg / „RÜCK 2 · Speedrunde“, nur von Hand. Disq. über „Disq. an Boje …“ (dann
   die Boje im Bild antippen) oder langen Druck auf einen Kreis. „Mehr → Ansicht → Lage der Zeichnung“: „Automatisch“
-  (wie auf dem Bogen, soweit der Platz es zulässt) oder Steg unten, links, oben, rechts (Parallelslalom: Start links,
-  oben, rechts, unten), gemerkt je Gerät und Liste.
+  (wie auf dem Bogen, soweit der Platz es zulässt) oder „Start/Ziel links“, „… oben“, „… rechts“, „… unten“, darunter
+  ein Satz wie „Start/Ziel oben, Tor 5 unten.“ (Parallelslalom: Start links, oben, rechts, unten), gemerkt je Gerät
+  und Liste. Bis 26.11.2026 hießen die Knöpfe „Steg unten/links/oben/rechts“; eine schon gewählte Lage bleibt und zeigt
+  dasselbe Bild unter dem neuen Namen („Steg unten“ = „Start/Ziel links“).
 - **Zeit** (Zeitnahme): ein Ziffernblock für das gewählte Zeitfeld; darunter steht, wie der Bedienrechner die Eingabe
   liest („83,45“ → „= 1 min 23,45 s“). Nach einer fertigen Zeit springt der Block ins nächste Feld. Pflicht ist nur das
   erste Feld; „Keine Zeit für …“ mit Grund (Zeitanlage ausgefallen, nicht im Ziel, anderer Grund).
@@ -553,8 +574,11 @@ gespeichert wird nur die Ansicht.
 
 - Der nächste Start kommt 2–6 s nach dem Abschicken, hin und wieder steht er schon vorher da; gelegentlich kommt eine
   Rückfrage wie im Ernst.
-- Kopf „ÜBUNG“; nach dem Abschicken rollt er aus dem Bild, damit die Startnummer oben steht (nicht auf dem Pad mit
-  mehreren Spalten).
+- Oben steht die Erklärung „So läuft die Übung“, darunter gegebenenfalls der gelbe Hinweis „Bildschirm kann
+  ausgehen“, dann der Kopf „ÜBUNG“ mit Liste, Lauf und Verbindung, „Zuletzt“ und die Karte mit der Startnummer. Nach
+  dem Abschicken rollt nur die Erklärung oben aus dem Bild; der Hinweis (bis „Ausblenden“) und der Kopf bleiben
+  stehen. Auf dem Pad mit mehreren Listen nebeneinander rollt nichts. Am Wettkampftag rollt nie etwas, die Reihenfolge
+  ist dort dieselbe.
 - „Mehr → Klasse vorziehen“ (ganz unten) holt als Nächstes einen Start dieser Klasse – etwa um Klasse 7 zu sehen.
 - „Übung beenden“ unter der Maske bzw. „Mehr → Übung verlassen“ führt zurück zur Wahl.
 - Gut für die Einweisung am Vortag.
@@ -603,6 +627,11 @@ Server.
   Start/Ziel-Tor, „Durchs Start-Tor“ tippen. „Trotzdem weiter?“ heißt: Ein Parcours-WKR hat noch nicht abgeschickt.
   ✕ oder ! in der Leiste → Betrieb → WKR (Rückfragen entscheiden, notfalls „Papier ab Start …“). Am Laufende schließt
   jeder Wettkampfrichter seine Liste über das Band ab; Abschlüsse stehen unter Betrieb → WKR.
+- Boot liegen geblieben: Bestätigt die Wettkampfleitung einen Ausfall, am Bedienrechner „Wiederholung (Ausfall) …“
+  wählen und den Start einreihen, sobald das Boot wieder bereit ist. Wettkampfrichter auf Papier streichen die Zeile
+  und tragen die Wiederholung in eine Leerzeile ein; WKR-Geräte bekommen den Start von selbst neu. Hat der Starter den
+  Ausfall verschuldet, gibt es keine Wiederholung – „J“ (falscher Parcours) an der Boje
+  ([Wiederholung nach Ausfall](#start-freigabe-anzeigetafel-und-zuschauerliste)).
 - Verbindung lesen: „verbunden“ ist gut; „gestört – verbindet neu“ und „zu viele Anfragen – weiter nach einer Pause“
   lösen sich meist von selbst; „keine Verbindung“ länger als einige Minuten → [Störungen](#störungen).
 - Kontingent ab und zu ansehen; bei Warnung sparsamer schalten (siehe [Kontingent](#kontingent-des-servers)).

@@ -151,7 +151,8 @@ export function parseFile(text: string, optionen: { oberflaeche?: string } = {})
           current.parcoursList.map((p) => p.id),
           checked.parcoursList.map((p) => p.id),
         ),
-        // Ebenso die Co-Piloten: Sie hängen an der Klasse, nicht am Parcours – die hiesigen bleiben.
+        // Ebenso die Co-Piloten: Sie hängen an der Klasse, nicht am Parcours – die hiesigen bleiben (seit 26.11.2026 mit
+        // Ersatz und Körpergewicht, R11-07; die Wahl „Ausgleich der Co-Piloten“ ist eine Einstellung und reist mit).
         coPiloten: current.coPiloten,
         // Festgeschriebene Pläne des Parallelslaloms hängen an den hiesigen Startern: Sie bleiben.
         parallelPlaene: current.parallelPlaene,

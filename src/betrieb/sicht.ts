@@ -6,7 +6,7 @@ import { classColor } from '../domain/classes'
 import { listenNachname } from '../lib/namen'
 import { starterHerkunft } from '../lib/origin'
 import { laenderKuerzelFuer, regelwerkSprache } from '../lib/listensprache'
-import { bereicheZumStand, betriebVon, istParallel, laeufeVonPunkt, lage, punktVonLauf, rundenPunkt, rundeVonPunkt, spurenVon, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
+import { abbruecheVon, bereicheZumStand, betriebVon, istParallel, laeufeVonPunkt, lage, punktVonLauf, rundenPunkt, rundeVonPunkt, spurenVon, type BereichLage, type FolgeEintrag, type GezeigtEintrag } from './folge'
 import { ersterStart, klasseAllein, klassenNachNaechstemStart } from './schritte'
 import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabstandImBetrieb, type Messung } from './prognose'
 
@@ -40,7 +40,7 @@ import { freieFolge, klasseNachStarter, klassenMessungen, messungenIn, startabst
  * öffentlichen oder der Zuschauersicht, zählt sie hoch – Geräte zeigen nur dieselbe Fassung (Entscheidung des Nutzers
  * vom 16.11.2026: Gerätebetrieb nur bei gleicher Fassung).
  */
-export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 6
+export const SICHT_FASSUNG: OeffentlicheSicht['sv'] = 7
 
 export interface SichtOptionen {
   /**
@@ -48,6 +48,12 @@ export interface SichtOptionen {
    * Bedienrechner. Für entfernte Anzeigen (E6) ruft der Host mit `!BETRIEB_ANNAHMEN.logosNurLokal` auf.
    */
   logos?: boolean
+  /**
+   * Nur am Bedienrechner (BetriebView): je Bereich des Manövrierens `gefahren` – die gezeigten, geltenden Starts der
+   * begonnenen Punkte, der jüngste zuerst, als Wahl für „Wiederholung (Ausfall)“ (Nutzer 26.11.2026, R11-11, WH3). Nie für
+   * Anzeigetafel, Geräte oder Zuschauer (der Host ruft ohne). Vorgabe aus.
+   */
+  gefahren?: boolean
 }
 
 /** Die Sprache der Anzeigetafel: die Einstellung oder die der Listen (Regelwerk). */
@@ -128,6 +134,26 @@ function paarTitel(runde: ParallelRunde, attempt: number, texte: BogenTexte, spr
 }
 
 /**
+ * Die gezeigten, geltenden Starts der begonnenen Punkte eines Bereichs, der jüngste zuerst, je Start einmal – die Wahl
+ * für „Wiederholung (Ausfall)“ am Bedienrechner (R11-11, WH3). Ohne abgebrochene Versuche, ohne Starts, die nicht (mehr)
+ * in der Folge stehen oder entfallen (X).
+ */
+function gefahrene(l: BereichLage, gezeigt: readonly { ref: string; abgebrochen?: true }[], start: (e: FolgeEintrag) => SichtStart): SichtStart[] {
+  const nachKey = new Map(l.folge.map((e) => [e.key, e]))
+  const begonnen = new Set(l.begonnen)
+  const gesehen = new Set<string>()
+  const out: SichtStart[] = []
+  for (let i = gezeigt.length - 1; i >= 0; i--) {
+    const g = gezeigt[i]
+    if (g.abgebrochen || gesehen.has(g.ref)) continue
+    gesehen.add(g.ref)
+    const e = nachKey.get(g.ref)
+    if (e && !e.entfaellt && !e.paar && begonnen.has(e.punkt) && l.erledigt.has(e.key)) out.push(start(e))
+  }
+  return out
+}
+
+/**
  * Die öffentliche Sicht zum Stand. Rein und zeitunabhängig; gleicher Stand ⇒ gleiche Sicht (der
  * Bildschirm vergleicht nach Inhalt, damit eine Eingabe in einem anderen Fenster die Tafel nicht neu
  * zeichnet). Enthält alle Bereiche; `auswahl` nennt die der gemeinsamen Anzeigetafel.
@@ -138,7 +164,14 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
   const starterNachId = new Map(stand.starters.map((s) => [s.id, s]))
   const vorkommend = new Map<string, Starter>()
 
-  const start = (e: FolgeEintrag): SichtStart => {
+  // Wiederholung nach Ausfall (R11-11, sv 7, BETRIEB_ANNAHMEN.wiederholungAufTafel): Starts mit einem abgebrochenen
+  // Versuch tragen `wiederholung` und „Wiederholung“ im Titel (Sprache der Tafel) – ohne Grund, ohne Werte. Nur im
+  // Manövrieren (der Parallelslalom hat seinen Re-run). Die Kennungen sind je Starter und Lauf eindeutig.
+  const wiederholt = new Set<string>()
+  for (const b of Object.values(stand.betrieb.bereiche)) for (const g of b.gezeigt) if (g.abgebrochen) wiederholt.add(g.ref)
+  const wiederholungsTitel = (lauf: number) => `${texte.lauf(lauf)} · ${tIn(sprache, 'anzeige.wiederholung')}`
+
+  const start = (e: FolgeEintrag, wdh = wiederholt.has(e.key)): SichtStart => {
     if (e.paar) {
       // Nur die Seiten, auf denen jemand fährt – eine leere (Dummy, gelöscht, X) ist `null`, ohne Grund.
       const a = e.paar.aFaehrt ? e.paar.a : null
@@ -148,6 +181,7 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       return { key: e.key, starter: a ?? b ?? '', lauf: e.lauf, punkt: e.punkt, titel: paarTitel(e.paar.runde, e.paar.attempt, texte, sprache), paar }
     }
     vorkommend.set(e.starter, starterNachId.get(e.starter)!)
+    if (wdh) return { key: e.key, starter: e.starter, lauf: e.lauf, punkt: e.punkt, titel: wiederholungsTitel(e.lauf), wiederholung: true }
     return { key: e.key, starter: e.starter, lauf: e.lauf, punkt: e.punkt, titel: texte.lauf(e.lauf) }
   }
   // Ein gezeigter Start, der in der Folge nicht mehr vorkommt (anderes Programm, X danach), bleibt
@@ -155,9 +189,14 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
   // `starter`, die Bildschirme zeigen dann „bereit“ bzw. „noch kein Start“. Die Kennung muss bleiben:
   // „Nächster Start“ schickt sie als `vorher`, und der Reducer vergleicht mit der Lage (betrieb/folge.ts),
   // die den Start weiter im Boot führt. Ohne sie hinge die Start-Freigabe (Prüfung E1, 16.11.2026).
-  const gezeigt = (g: GezeigtEintrag | null): SichtStart | null => {
+  // `wdh`: Vor DIESEM gezeigten Versuch wurde einer abgebrochen – nur dann ist er selbst die Wiederholung. Der abgebrochene
+  // Versuch trägt `abgebrochen` (die Start-Freigabe nimmt ihn nicht zurück), aber kein „Wiederholung“ (WH5).
+  const gezeigt = (g: GezeigtEintrag | null, wdh = false): SichtStart | null => {
     if (!g) return null
-    if (g.eintrag) return start(g.eintrag)
+    if (g.eintrag) {
+      const s = start(g.eintrag, wdh)
+      return g.abgebrochen ? { ...s, abgebrochen: true } : s
+    }
     const ref = g.ref
     if (!ref) return null
     if (ref.art === 'p') {
@@ -180,7 +219,11 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
     const l = lage(stand, b.id)
     const betrieb = betriebVon(stand, b.id)
     gemessen.push(...messungenIn(b.id, betrieb.gezeigt, l.folge, betrieb.ohneAnzeige, klasseVon))
-    const aktuell = gezeigt(l.aktuell)
+    // Abbrüche vor dem i-ten gezeigten Versuch (R11-11): ist er selbst schon eine Wiederholung?
+    const n = betrieb.gezeigt.length
+    const davorAbgebrochen = (i: number) => i >= 0 && betrieb.gezeigt.slice(0, i).some((g) => g.abgebrochen && g.ref === betrieb.gezeigt[i].ref)
+    const aktuell = gezeigt(l.aktuell, davorAbgebrochen(n - 1))
+    const mitGefahren = optionen.gefahren && b.art === 'manoevrieren' ? { gefahren: gefahrene(l, betrieb.gezeigt, (e) => start(e, abbruecheVon(betrieb, e.key) > 0)) } : {}
     return {
       id: b.id,
       // Der Parallelslalom hat keinen Namen im Stand: in der Sprache der Tafel.
@@ -190,22 +233,24 @@ export function sichtOeffentlich(stand: AppState, optionen: SichtOptionen = {}):
       punkt: sichtPunkt(stand, l.laufend, texte),
       naechsterPunkt: sichtPunkt(stand, l.naechsterPunkt, texte),
       aktuell,
-      vorig: gezeigt(l.vorig),
+      vorig: gezeigt(l.vorig, davorAbgebrochen(n - 2)),
       seit: aktuell ? l.aktuell!.zeit : null,
-      offen: l.frei.slice(0, stand.anzeige.amSteg + stand.anzeige.vorSteg + 1).map(start),
+      offen: l.frei.slice(0, stand.anzeige.amSteg + stand.anzeige.vorSteg + 1).map((e) => start(e)),
       offenZahl: l.frei.length,
-      nachzuholen: l.nachzuholen.map(start),
+      nachzuholen: l.nachzuholen.map((e) => start(e)),
       meldung: betrieb.meldung,
       begonnen: l.begonnen,
-      waehlbar: l.offen.map(start),
-      zurueckgestellt: l.zurueckgestellt.map(start),
-      bootFehlt: l.bootFehlt.map(start),
+      waehlbar: l.offen.map((e) => start(e)),
+      zurueckgestellt: l.zurueckgestellt.map((e) => start(e)),
+      wiederholung: l.wiederholung.map((e) => start(e)),
+      ...mitGefahren,
+      bootFehlt: l.bootFehlt.map((e) => start(e)),
       arbeitsPunkt: sichtPunkt(stand, l.arbeitsPunkt, texte),
       programm: l.programm.map((p) => sichtPunkt(stand, p, texte)!),
       klassenFolge: klassenFolge(l, stand),
       vorziehen: l.vorziehen,
       abweichend: l.abweichend,
-      einstieg: einstiege(l, start),
+      einstieg: einstiege(l, (e) => start(e)),
     }
   })
 

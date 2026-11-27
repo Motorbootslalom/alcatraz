@@ -45,6 +45,8 @@ export default {
   'capture.wkr.raute': 'Wert vom Gerät: {liste} · {geraet} · {zeit}',
   'capture.wkr.xGeraet': 'X „{dns}“ kam vom Gerät',
   'capture.wkr.papier': 'Papier ansehen: Für diesen Start fehlt die Zeile vom Gerät oder sie ist im Rückstand – den Papierbogen prüfen.',
+  // R11-11 (26.11.2026): Wiederholung nach Ausfall – auf Papier ist die erste Zeile gestrichen.
+  'capture.wiederholung': 'Wiederholung nach Ausfall – Werte der Wiederholung eintragen (auf dem Bogen in einer Leerzeile; die gestrichene Zeile gilt nicht).',
   'capture.wkr.papierZelle': 'Papier ansehen: Hier fehlt der Teil vom Gerät – den Papierbogen prüfen.',
   'capture.wkr.rueckfrage': 'Rückfrage zum Wert vom Gerät offen – entschieden wird unter Betrieb → WKR.',
   'capture.wkr.kopf': '{n} Zeile: Papier ansehen | {n} Zeilen: Papier ansehen',

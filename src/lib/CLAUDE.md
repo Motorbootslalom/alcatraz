@@ -26,8 +26,12 @@ clipboard, scanner, logoBild.
   `naechste` = erster); stageErgebnis nimmt 1/2 aus `final`, 3/4 aus `small`. Alte Stände: state/migrate.ts teileAlteFinals.
 - Bögen und Listen: `wkrListen.ts` (wkrBoegenZumStand: planung/plan.ts planEvent, listen.ts, bogen.ts defFuerKlasse,
   qr.ts; Druckfolge WKR_DRUCKFOLGE 21.11.2026: Parcours → Position → Lauf → Klasse, `innen` umstellbar; parallelBogen.ts
-  gleich: Racecourse → Position → Runde; Laufzettel bleiben je Klasse und Lauf; Club 24.11.2026 `wkrGemeinsamFolge`:
-  getrennt = `klassenBloecke`, verzahnung = ohne Blöcke mit `leerzeilenJeSeite` und Spalte Klasse), `bogen.ts` (Modell, bogenSeiten; Bild: das der Klasse aus `bildErzeugen` oder BogenAuftrag.`bild` (Parallelslalom),
+  gleich: Racecourse → Position → Runde; Laufzettel ohne gemeinsame Bögen je Klasse und Lauf, mit ihnen je Gruppe
+  der Klassen, die sich Bögen teilen (laufzettel.ts klassenGruppen); Club 24.11.2026 `wkrGemeinsamFolge`:
+  getrennt = `klassenBloecke`, verzahnung = ohne Blöcke mit `leerzeilenJeSeite` und Spalte Klasse; gemeinsameBoegen =
+  EINE Stelle für gemeinsam/papierSparen/inStartfolge – Club immer, Meisterschaft nach `wkrMeisterschaftGemeinsam`
+  aus|gleich|alle (R11-03, 26.11.2026); Nutzer: SettingsView, WkrListen, WkrVorschau, Laufzettel/Erfassung `jeParcours` =
+  papierSparen), `bogen.ts` (Modell, bogenSeiten; Bild: das der Klasse aus `bildErzeugen` oder BogenAuftrag.`bild` (Parallelslalom),
   `ohneBild` gewinnt; BogenBild.`streifen` = flach neben der Legende; bogenMitBild für die Namensnennung am Bildschirm,
   seiteMitBeschreibung statt hasDescription auf Druckseiten), `listen.ts` (veranstaltungsListen), `laufzettel.ts` (messBoegen,
   buildLaufzettel, zettelSchritte), `laufzettelText.ts` (SCHRITTE), `starterlisten.ts`, `druckdatei.ts`, `namen.ts`,
@@ -78,6 +82,12 @@ clipboard, scanner, logoBild.
 - Beispielwerte: beispielwerte.ts (DM_2026, WM_MANOEVRIEREN, WM_PARALLEL; nur gerundete Kennzahlen). Besetzung,
   Gewichte: beispieldaten.ts (BESETZUNG_PERSONEN, BESETZUNG_HOECHSTENS = eine Zeile im Bogenkopf, ANTEIL_LEICHTER);
   Zellen: einteilung.ts einteilungsZellen (auch „alle auf …“ in WkrEinteilung.vue). Actions: state/reducer/erfassung.ts.
+  Beispiel-Co-Piloten mit Ersatz und Gewicht (BEISPIEL_CO_PILOT_KG, 26.11.2026).
+- Co-Piloten (R11-07, 26.11.2026): besetzung.ts (AppState.coPiloten je Klasse `haupt`/`ersatz` mit `name`/`gewicht`;
+  setzeCoPilotName/-Gewicht geben unverändert dieselbe Referenz; normalisiereCoPiloten: alter Text → `haupt`),
+  ausgleich.ts coPilotAusgleichVon (Bezug = schwerster gewogener Co-Pilot der Klasse bzw. – `alle` – der Klassen
+  mit Startern, ausgleichsKlassen, Prüfbefund 27.11.2026; nur Co-Piloten mit Namen, `benannt`; 'fehlt' nur, wenn andere
+  gewogen sind) und coPilotZeilen (Listen: haupt immer, ersatz nur mit Namen, nie Körpergewicht); Rundung für Fahrer UND Co-Piloten nur über ausgleichAufStufe.
 
 ## Fallen
 

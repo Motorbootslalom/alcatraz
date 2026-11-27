@@ -1,6 +1,5 @@
 import type { AppState, Starter } from '../types'
-import { ausgleichVon } from './ausgleich'
-import { besetzungText, zeigtCoPilot } from './besetzung'
+import { ausgleichVon, coPilotZeilen, type CoPilotZeile } from './ausgleich'
 import { ALLE, gewaehlteHerkuenfte, herkuenfte, nachStartnummer } from './starterlisten'
 
 // Die Liste der Fahrer je Team nach Regel 960, Pkt. 3.7 – rein, ohne DOM
@@ -16,18 +15,23 @@ import { ALLE, gewaehlteHerkuenfte, herkuenfte, nachStartnummer } from './starte
 // Geburtsdatum folgt der Listen-Option der Veranstaltung (`showBirthdate`) und lässt sich dort
 // abschalten. Das Geschlecht ist ein freiwilliges Starterfeld – wo es fehlt, bleibt die Zelle leer.
 
-export type TeamStand = Pick<AppState, 'starters' | 'originMode' | 'startNrMode' | 'regelwerk' | 'sollgewicht' | 'ausgleichStufe' | 'coPiloten'>
+export type TeamStand = Pick<AppState, 'starters' | 'originMode' | 'startNrMode' | 'regelwerk' | 'sollgewicht' | 'ausgleichStufe' | 'coPiloten' | 'coPilotAusgleich'>
 
 export interface TeamZeile {
   starter: Starter
   /**
    * Ballast in kg, gerundet auf die Abstufung (24.11.2026); `null` = gewogen, keiner nötig; `undefined` =
    * noch nicht gewogen – dieselbe Rechnung wie die Liste „Ausgleichsgewichte“ (lib/ausgleich.ts ausgleichVon).
-   * `0` (auf 0 gerundet) druckt components/TeamListen.vue wie `null` als „–“ (Prüfbefund 24.11.2026).
+   * `0` (auf 0 gerundet) druckt components/TeamListen.vue wie `null` als „–“ (Prüfbefund 24.11.2026, bestätigt
+   * 26.11.2026, R11-29 (5)).
    */
   ausgleich: number | null | undefined
-  /** Der Co-Driver der Klasse; `undefined` = die Klasse fährt ohne (Pkt. 3.7: nur Dolphin, 1 – 3), leer = noch nicht eingetragen. */
-  coDriver: string | undefined
+  /**
+   * Die Co-Driver der Klasse (lib/ausgleich.ts coPilotZeilen); `undefined` = die Klasse fährt ohne (Pkt. 3.7: nur
+   * Dolphin, 1 – 3). Sonst der eingeteilte (Name leer = noch nicht eingetragen) und, seit 26.11.2026 (R11-07), wenn
+   * eingetragen, darunter der Ersatz – je mit seinem Ausgleichsgewicht.
+   */
+  coDriver: CoPilotZeile[] | undefined
 }
 
 export interface TeamListe {
@@ -46,7 +50,7 @@ export function teamListen(stand: TeamStand, wahl: string = ALLE): TeamListe[] {
       (p): TeamZeile => ({
         starter: p,
         ausgleich: ausgleichVon(stand, p),
-        coDriver: zeigtCoPilot(stand, p.klasse) ? besetzungText(stand.coPiloten, p.klasse) : undefined,
+        coDriver: coPilotZeilen(stand, p.klasse),
       }),
     )
     return { schluessel: h.schluessel, name: h.name, zeilen, ungewogen: zeilen.filter((z) => z.ausgleich === undefined).length }

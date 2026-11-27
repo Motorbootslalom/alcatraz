@@ -214,7 +214,9 @@ export function hinterDenZeiger(l: Pick<BereichLage, 'folge' | 'zeiger' | 'aktue
   const weg = new Set(liste)
   const rest = keysVon(l.folge).filter((k) => !weg.has(k))
   if (jeRunde(l, liste[0])) return hinterDasErledigteDerRunde(l, liste, rest)
-  // Zeiger und Start im Boot sind erledigt, also nie unter den bewegten.
+  // Zeiger und Start im Boot sind erledigt, also nie unter den bewegten – außer einem abgebrochenen Versuch im Boot
+  // (Ausfall, R11-11, 26.11.2026): Wird er selbst eingereiht, fehlt er in `rest` (−1), und er kommt hinter den Zeiger.
+  // Bleibt er stehen, zählt seine Stelle wie die jedes Starts im Boot.
   const zeiger = l.zeiger >= 0 ? rest.indexOf(l.folge[l.zeiger].key) : -1
   const imBoot = l.aktuell ? rest.indexOf(l.aktuell.key) : -1
   const at = Math.max(zeiger, imBoot) + 1

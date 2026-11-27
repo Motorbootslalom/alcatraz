@@ -74,11 +74,13 @@ The “Event” view takes name, year, date, number of attempts, type (champions
 origin (club, state, country or none), rulebook and setup.
 
 - **Date** (24.11.2026): the first day of competition, optional. It is only needed for the warning about permission to
-  start by birthday (see [Locks and checks](#locks-and-checks)); the years of birth are calculated with the year. If
-  it lies in another year, a note at the field says so. It is kept in the backup, not in the template.
+  start by birthday – with a date exact to the day, in two levels (see [Locks and checks](#locks-and-checks)); the
+  years of birth are calculated with the year. If it lies in another year, a note at the field says so. It is kept in
+  the backup, not in the template.
 - **Assignments:** race official assignment, boats and co-drivers per class are in the block “Assignments”.
-  The names of the race officials and co-drivers are kept only in the backup, never in the template;
-  the boat of the class also in the template (`src/lib/besetzung.ts`).
+  The names of the race officials and the names and weights of the co-drivers are kept only in the backup, never in
+  the template; the boat of the class also in the template (`src/lib/besetzung.ts`). On the co-drivers see
+  [Co-drivers and their extra weight](#co-drivers-and-their-extra-weight).
 - The **preview of the lists** (“What the lists look like”) is here and in the wizard, under UIM also with the lists
   of the parallel slalom per racecourse. It only displays the names of the assignment.
 - Own setups are created under “Settings” (wizard and YAML exchange).
@@ -176,15 +178,50 @@ It is decided in one place (`herkunftAnzeige` in `src/lib/origin.ts`).
   1.2 → 1 kg, 1.25 → 1.5 kg). Anyone lighter by less than half a step needs none. Weighing, lists and
   pontoon device calculate the same way (`rundeAufStufe` in `src/domain/gewicht.ts`, `ausgleichVon` in
   `src/lib/ausgleich.ts`).
-- **List “Extra weights”** for the pontoon: one sheet per class by race number with the extra weight and
-  a box per attempt; in the head boat and co-driver from the assignments (`src/components/AusgleichListen.vue`).
-  Empty means “none needed”, also when rounded to 0 kg (Weighing then shows “0 kg”). Anyone not weighed yet
-  gets a field for adding it by hand (“not weighed”, “kg”).
+- **List “Extra weights”** for the pontoon: one sheet per class by race number with the extra weight and a box per
+  attempt; in the head boat, co-driver and – if entered – below it in small print “Substitute co-driver” with the name,
+  from the assignments (`src/components/AusgleichListen.vue`). If a co-driver needs an extra weight, it is in brackets
+  after the name (under UIM “Vor2 Nach2 (+3.5 kg)”, under DM in German “(+3,5 kg)”), if their weight is missing,
+  “(not weighed)”; never the body weight. Empty means “none needed”, also when rounded to 0 kg (Weighing then shows
+  “0 kg”).
+  Anyone not weighed yet gets a field for adding it by hand (“not weighed”, “kg”).
 - **On the pontoon device** (24.11.2026): With digital entry by the race officials, the device shows the same extra
   weight next to the race number in the part “Leaving” – “Extra weight 4 kg”, “no extra weight” or “Extra weight: not
   weighed”. Nothing is maintained at the pontoon; a weight added later in Weighing reaches the device by itself. Only
   the extra weight goes over the line, encrypted for the pontoon list, never the body weight
   ([decision](../entscheidungen.md#ausgleichsgewicht-am-steg-entscheidung-24112026) (German)).
+
+### Co-drivers and their extra weight
+
+If co-drivers change within a class, the total weight should stay the same in every attempt (26.11.2026;
+`src/lib/besetzung.ts`, `src/lib/ausgleich.ts`). The drivers are calculated as before: average weight minus body
+weight.
+
+- **Entering:** “Event → Assignments”, table “Boats and co-drivers” with the columns Class, Boat, Co-driver, Weight,
+  Substitute co-driver, Weight. The weight is optional and is read as in Weighing (comma or point, “kg” may be added,
+  stored to 0.1 kg); anything unreadable removes the weight, the name stays. Enter first goes through all boats, then
+  through all co-drivers, their weights, the substitute co-drivers and their weights.
+- **Below the weight** a small note says what follows from it: “+4 kg extra weight” for the lighter co-driver,
+  “weight missing” if others of their group are weighed but they are not, “counts only with a name” for a weight
+  without a name; nothing for the heaviest. Below the table a sentence names the choice in force, with the link
+  “Change: Settings → Average weights”.
+- **Choice** under “Settings → Average weights” (jump target `#/settings?average-weights`), below “Extra weight in
+  steps of”: “Extra weight of the co-drivers” **per class** – against the heaviest co-driver of the class (default) –
+  or **across all co-drivers** – against the heaviest co-driver of the classes with drivers; as long as no driver has
+  been entered, against all classes of the assignments. A lighter co-driver gets the difference, rounded with the same
+  step as the drivers (to the nearest step, halves up) and separate from the extra weight of the driver. The choice
+  travels with backup and template.
+- **Who counts:** only a co-driver with a name and a weight. If the name of a substitute co-driver is deleted (they
+  drop out), their weight stays in the field but no longer causes ballast for the other one, and the lists show no
+  empty field “Substitute co-driver”. Typing the name in again makes the weight count again. For the assigned
+  co-driver their line on the lists stays empty for filling in by hand.
+- **On the lists:** the “Extra weights” for the pontoon (above) and the
+  [list according to rule 960, pt. 3.7](#list-of-drivers-per-team-rule-960) show both co-drivers one below the other,
+  the extra weight in brackets after the name, never the body weight. Race officials' sheets, scoreboard, spectator
+  list, start release and devices show no co-drivers.
+- **Data protection:** names and weights of the co-drivers are kept only in the backup, never in the template. The
+  history has the entry “Co-driver weight recorded”. Older states and backups are taken over: the previous co-driver
+  becomes the assigned one, without substitute and without weight.
 
 ### List of drivers per team (rule 960)
 
@@ -195,6 +232,9 @@ required, Class, in the classes Dolphin and 1–3 the co-driver
 - An **internal** list, in no results booklet. The date of birth follows the list option “Show the date of birth on
   lists of drivers”.
 - “Ballast required” is the extra weight in the steps of the event; “–” means none needed.
+- The column “Co-driver” shows the assigned co-driver and below it, introduced in small print with “Substitute
+  co-driver:”, the substitute, each with the extra weight in brackets (“Vor2 Nach2 (+3.5 kg)”). A long line gets
+  smaller, the assigned co-driver keeps the normal size (26.11.2026).
 - For this there is the optional driver field **Gender** with four values (15.11.2026, `src/domain/geschlecht.ts`):
   M, F, D, not specified; empty means “not recorded”. Under rule 960 the Drivers tab has a column for it.
   Import column “Sex”/“Gender”/“Geschlecht” (m, male, männlich; f, w, female, weiblich; d, divers; na, n/a,
@@ -235,15 +275,28 @@ alt="Race officials' sheet for gate 1/3/5 with QR code, legend of the disqualifi
 - The sheets are only printed after the interleaving has been locked (see [Locks](#locks-and-checks)).
 - **Print order** (21.11.2026): per racecourse position by position, within that the starting order (1st attempt in
   the order of the classes, then the 2nd …) – the stack only needs to be split at the positions (`WKR_DRUCKFOLGE`).
-  Parallel slalom: per racecourse position by position, within that the heats. Checklists stay per class and attempt.
+  Parallel slalom: per racecourse position by position, within that the heats. Checklists stay per class and attempt
+  (with shared sheets mostly per racecourse and attempt, see [checklists](#checklists-and-qr-codes)).
 - Lists that are only entered on a device (Operation → Race officials, mode “Device”) are not printed, not even on
   the checklist; a note above the stack offers “Print anyway”. Paused and signed-off lists and a pontoon of which
   only one part is on devices are printed (`src/wkr/druck.ts`).
 
-**Shared sheets at the club championship:** Several classes are on one sheet; lists with a course drawing
-stay per class. With “Save paper” all classes of a list are on one sheet, without course drawing, the
-blank rows once per page instead of per class.
+**Shared sheets:** Classes whose sheets are built alike (same columns, same course drawing) share a page; lists whose
+drawing differs between classes stay one per class. With “Save paper” all classes of a list are on one sheet, without
+course drawing, the blank rows once per page under “Late entries” instead of per class. Scoring is per class in any
+case.
 
+- **Club championship:** always shared sheets; “Save paper” is preselected there.
+- **Championship (DM and UIM)** since 26.11.2026 on request: “Settings → Race officials' sheets”, tick “Shared sheets:
+  classes whose sheets are built alike on one page” (off by default; otherwise every class has its own sheets). Only
+  with the tick do “Save paper: all classes of a list on one sheet, without the course drawing” (off by default here;
+  without the course drawing the race official only has the description, and if the classes drive different courses,
+  the drawing of their class is missing) and “Classes on shared sheets” appear below it. The sheets then look as at
+  the club championship: in the head for example “Classes 4, 7”, the QR code names all classes of the sheet. A note
+  above the sheets under “Lists” says that they are shared. The preview of the lists (Event, “Race officials”) also
+  shows the shared sheet. The setting travels with backup and template and is still there after switching to the club
+  championship and back. Unchanged: race officials' devices (lists per racecourse and list), parallel slalom,
+  results, team competition and results booklet.
 - “Classes on shared sheets” (24.11.2026, `wkrGemeinsamFolge`): **separate** (default) – one block per class with
   the class as heading – or **by the interleaving** – all drivers mixed in starting order, the class in a narrow
   column next to the race number, the blank rows at the end of every page with an empty class cell.
@@ -261,8 +314,11 @@ blank rows once per page instead of per class.
 
 **List options** under “Settings”:
 
-- Drivers per page fixed instead of automatic, and “Split from”. Shared sheets are always split automatically.
-- Club championship: “Save paper”, “Classes on shared sheets” and “Blank rows per page”.
+- Drivers per page fixed instead of automatic, and “Split from”. Shared sheets of several classes are always split
+  automatically; the note below says so at a club championship and with shared sheets switched on.
+- Club championship: “Save paper” and “Classes on shared sheets”; championship: before them the tick “Shared sheets
+  …”. “Blank rows per page” appears as soon as “Save paper” is on or the classes stand by the interleaving; otherwise
+  they stay blank rows per class (3 at a championship).
 - Names of the buoy sides: R/L, Land/Sea, Quay/Harbour, arrows, Inner/Outer. The results stay with R/L.
 - The language of the sheets: see [Rulebooks and terms](#rulebooks-and-terms).
 
@@ -274,7 +330,9 @@ blank rows once per page instead of per class.
 <a href="../bilder/en/laufzettel.png"><img src="../bilder/en/laufzettel.png" width="180"
 alt="Checklist with a box per list, the steps of the scoring and QR code"></a>
 
-- One checklist per stack of sheets: racecourse, class and attempt (shared sheets: racecourse and attempt).
+- One checklist per stack of sheets: racecourse, class and attempt. Where classes share sheets (club championship, or
+  a championship if switched on), one checklist covers all of them, usually one per racecourse and attempt; sheets of
+  single classes on it (lists with a drawing of their own) name their class in the row (“Cl. 4”).
 - An A4 landscape sheet to be folded to A5, with a box per printed page – measured on the same sheets
   that are printed. The layout can be chosen: one row per page or one row per list.
 - The knots (a list without attempt) are in the stack of the last attempt. Its checklist has steps of its own:
@@ -287,6 +345,9 @@ alt="Checklist with a box per list, the steps of the scoring and QR code"></a>
 - Format `ALC1.<Veranstaltung>.<Regelwerk>.<Aufbau>.<Parcours>.<Klassen>.<Lauf>[.<Liste>.S<Seite>]`
   (event, rulebook, setup, racecourse, classes, attempt, list, page), embedded as a vector (`qrcode-generator`).
 - A handheld scanner or the field “Scan sheet” jumps in data entry to the sheet and into its first cell.
+  If the sheets have been grouped differently since printing (shared sheets switched on or off), scanning an old
+  sheet shows the sheet the class is on now (with several classes the first one) and says so; the entries belong to
+  the driver and end up in the right place.
 - The code of a checklist shows all lists of its stack one below the other, with a jump bar.
   By hand: “all, one below the other” in the choice of list.
 - Sheets of another event, another rulebook or setup are rejected with a reason.
@@ -329,9 +390,11 @@ width="120" alt="Spectator list at phone width"></a>
 - **Release goes by attempt, not by position:** A start of an attempt that has not begun yet waits – even
   if it already stands in the middle of the current one; showing a start specifically always works.
 - **X:** A start with X (“did not start”) in a Disq. cell of the attempt is dropped; without X it is back.
-  Operation itself never sets an X and never writes values.
-- **A confirmation question** only comes before “Begin attempt” while starts are open, before “Reset operation” and,
-  with digital entry by the race officials, on a backlog before showing; everything else can be taken back.
+  Operation itself never sets an X and never writes values; only the repeat after a breakdown (below) discards
+  values, explicitly and after a confirmation question.
+- **A confirmation question** only comes before “Begin attempt” while starts are open, before “Reset operation”,
+  before a repeat after a breakdown and, with digital entry by the race officials, on a backlog before showing;
+  everything else can be taken back.
 
 ### Start release
 
@@ -348,6 +411,29 @@ One card per racecourse (`src/components/betrieb/StartFreigabe.vue`):
 - **Choose another driver** (`BetriebsFolge.vue`): the next twelve open starts or the whole order, plus a
   search by race number or name across everything still to be shown – later attempts too. “Show” brings the start
   onto the scoreboard at once; the previous next driver stays the next one.
+- **Repeat (breakdown) …** (26.11.2026, only at the operating computer, not in the parallel slalom;
+  `AusfallWahl.vue`, `BETRIEB_ANNAHMEN` WH1–WH10): after a confirmed breakdown the driver's attempt is repeated. The
+  choice shows the starts already shown in the attempts under way, the one shown last first, with a search by race
+  number; starts of withdrawn drivers are greyed out (“withdrawn – no repeat”). If the driver is to blame, the race
+  official enters “J” at the buoy (wrong racecourse) – then there is no repeat. “Repeat …” asks “Repeat after
+  breakdown: 102, Attempt 1?”; “Discard values and repeat” empties all values of this driver in this attempt on every
+  sheet, including those from the race officials' devices and their open queries. With “Attempts run consecutively”
+  (UIM) the pontoon entry line stays; the question says so. In English this is called “Repeat”, so that it is not
+  confused with the “Re-run” of the parallel slalom.
+- **Repeat pending:** this is where the start waits afterwards; it never goes by itself. The O.O.D. puts it in line
+  with “As next” or “To the end of the attempt” or shows it with “Show now” – also from the paired start release phone
+  and in the starting order. Until then the aborted attempt stands under “In the boat” with “breakdown – to be
+  repeated”; “Back” is locked, and there is no racecourse light and no auto mode for it.
+- **No repeat after all** (only at the operating computer, in the list “Repeat pending”, as long as the start has not
+  been shown again): the aborted attempt counts again, and its discarded values come back – on all sheets, including
+  the ticks “entered” and “no time”, but only into fields that are empty by now; what has been entered since the
+  breakdown stays. Queries, proposals and paper notes from back then do not come back. After two breakdowns of the
+  same start the attempt aborted last counts. The race officials' devices then treat the start as before (done;
+  corrections from “Recent” are accepted again).
+- The history (“Settings → Files → History”) has entries of its own, such as “Repeat after breakdown – values
+  discarded: 101, Class 1, Attempt 1” and “No repeat after all – values brought back: …”. The discarded values are in
+  the backup as long as the abort is part of the operation; “Reset operation”, deleting the attempt and removing the
+  driver clear them away.
 - **Move** (menu per start): ahead of the next one, to the end of the attempt, before or after another attempt – never
   ahead of what has already run. With “Keep the interleaving when moving” (on by default) the start gets the next
   place of its lane within the attempt. What the operator has rearranged this way stays; attempts not rearranged keep
@@ -357,7 +443,8 @@ One card per racecourse (`src/components/betrieb/StartFreigabe.vue`):
   “Bring other classes forward” (on by default) the next class of the same lane moves up (`E2E21212121216163` →
   `E6E61111113`), otherwise only the gaps close. “Boat is back” interleaves the rest of the attempt with it again.
   “Bring forward” makes a class the next one, only within its lane.
-- If only held-back, to-be-made-up or “boat missing” starts are left, the attempt **stalls**; the card says so.
+- If only held-back, to-be-repeated, to-be-made-up or “boat missing” starts are left, the attempt **stalls**; the
+  card says so.
 - **Join from …** attempt and optionally class, if start release only joins in the middle of the competition:
   whatever lies before counts as run (without display), “Continue with” names the next start.
 - If the driver in the boat is deleted (before the first value), the scoreboard shows “ready”.
@@ -379,6 +466,8 @@ disappears after a short rest.
   and on request the start before. White on black, whatever colour scheme the operator uses.
 - Two racecourses are shown one above the other, on very wide screens side by side. Names that are too long get
   smaller instead of being cut off (`src/lib/fit.ts`).
+- A start repeated after a breakdown is shown as “Attempt 1 · Repeat” (German “1. Lauf · Wiederholung”), without a
+  reason; likewise in the spectator list.
 - The window only reads and never writes; it follows the operating window at once and keeps the screen awake.
 - Language as the lists (DM German, UIM English: “Course”, “Attempt”, “Class Dolphin”), can be changed.
 - What it shows comes from a narrow view (`src/betrieb/sicht.ts`): race number, name, class and origin of the
@@ -512,6 +601,12 @@ width="360" alt="Race official form Picture on the tablet with course drawing an
   what was sent, what is open and X; with the name of the race official – prefilled from the race official
   assignment – closing replaces the signature on the sheet. Open starts go with “Rest on paper”. If the attempt is
   still running, the device asks. After that, corrections only go as a proposal.
+- **Repeat after a breakdown** (26.11.2026, see [Start release](#start-release)): when the start is shown again, the
+  devices get it like a new start. A row that a device still sends for the aborted attempt is rejected; the device
+  shows “This attempt was aborted after a breakdown – the start is repeated. The line was not taken over.” If a list
+  has already closed the attempt, its device still gets the repeat; the row arrives under Incoming as a proposal (“The
+  list is finished for this attempt.”) and is accepted with one click, the closing stays. Exception “Attempts run
+  consecutively”: the pontoon entry row stays, the device there can keep correcting it, and a late row is taken over.
 
 ### At the operating computer
 
@@ -519,7 +614,10 @@ width="360" alt="Race official form Picture on the tablet with course drawing an
   entered, ½ one pontoon part, ○ open, ○! overdue, ! query, V proposal, P paper, ✕ did not start,
   “✓ no time” – and per list the device with a traffic light (heard, quiet, gone). Per list: entry by device, paper or
   both; pause, sign off, “Continue on device”; **“Paper from start …”**; “Please check no.” to the devices;
-  view and release closings. “Pair device” on a list without a device leads directly to pairing.
+  view and release closings. “Pair device” on a list without a device leads directly to pairing. A repeat after a
+  breakdown is shown as open in the matrix and counts towards the backlog, also on a list with a closed attempt;
+  “Paper from start …” from the repeat on puts only the repeat and later starts on paper, not the starts between the
+  breakdown and the repeat.
 - Below that the **Incoming** area: queries (take the device's value or keep the existing one) and proposals
   (accept or discard).
 - **At the table (no attempt):** a block of its own for the knots list (“Knots: n / m open”).
@@ -559,16 +657,17 @@ on the tablet for lists with buoys “Picture” (`src/wkr/maskenWahl.ts`). “B
 (codes, buoys, time, checklist). All forms produce the same cell values as typing in from paper (`src/wkr/maske.ts`).
 
 - **Codes** (pontoon, pontoon entry, gate 5, man overboard): one button per penalty code of the list, the race number
-  large, never a name. Main button “No penalty ✓”, with entries “Send · n pen.”; “↶ Undo” takes back the
-  last tap. Disq. separately via DISQ: the first tap marks, the second sets. The Disq. buttons only offer X at
-  leaving the pontoon and at pontoon entry, with a confirmation question. Codes that do not apply in the class
-  according to the rulebook are greyed out but can be pressed (DM: 4 and 23 from class 3; 2, 5, 10 and 16 from
-  class 4).
+  large, never a name. Main button “No penalty ✓”, with entries “Send · n pen.”; “↩ Undo” in the footer (the arrow
+  pointing left as a small drawing, above the word on narrow phones) takes back the last tap. Disq. separately via DISQ:
+  the first tap marks, the second sets. The Disq. buttons only offer X at leaving the pontoon and at pontoon entry, with
+  a confirmation question. Codes that do not apply in the class according to the rulebook are greyed out but can be
+  pressed (DM: 4 and 23 from class 3; 2, 5, 10 and 16 from class 4).
 - **Maximum per code** (24.11.2026; `max`/`danach` per code in the rulebook): “2nd and 3rd attempt of the element”
   counts at most twice; the third tap sets Disq. **D** (“4th attempt of an element”) – the button says beforehand
   “next = Disq. D”. On these buttons a tap less than 0.4 s after the previous one does not count (debounce). Gate 5
-  code 1 (“not entered with the full length”) only works once. Every other code counts at most three times per
-  attempt; at the maximum the button says so (“at most 3×”) – interpreted, still to be confirmed.
+  code 1 (“not entered with the full length”) only works once. Every other code counts at most three times per attempt, also
+  contacts with the pontoon and “Durchreißen der Schaltung” (DM) (confirmed 26.11.2026); at the maximum the button says
+  so (“at most 3×”).
 - **Buoys** (gate lists such as gate 1/3/5 and gate 2/4/5, racecourse with start/finish, parallel slalom): one row per
   stop, the two buoys of a gate side by side as on the sheet. One tap = one touch (5 points), the second
   removes it; the gate buoys of gate 5 count up to 9. If a class has more than seven rows, a switch
@@ -576,13 +675,15 @@ on the tablet for lists with buoys “Picture” (`src/wkr/maskenWahl.ts`). “B
   (default), “Order of the run” or “All in one list”. DISQ first asks for the buoy (“No buoy / whole racecourse” for
   the Disq. field); a long press (0.8 s) on a buoy opens its Disq. choice directly, several letters, then “Done”.
   A cell can thus carry points and letters (“5, J, D”). A gate left out is a J on one of its buoys.
-- **Picture** (only lists with buoys): the course drawing of the class, tapping is done on the buoys themselves –
-  hit circles at least 15 mm, pushed apart if too close. Switch OUTWARD, RETURN and RETURN 2 (speed lap),
-  by hand only. A long press on a buoy opens the Disq. choice of that buoy. **Position of the drawing** (24.11.2026,
-  “More → Display”): “Automatic” (as on the sheet, as far as space allows), “Pontoon at the bottom/on the left/at the
-  top/on the right”, in the parallel slalom “Start on the left/at the top/on the right/at the bottom”; the lettering
-  stays upright, remembered per device and list. The parallel slalom shows the single lane without pontoon, the same
-  for racecourse A and B. If a buoy is missing in a drawing, the device shows the buttons.
+- **Picture** (only lists with buoys): the course drawing of the class, tapping is done on the buoys themselves – hit
+  circles at least 15 mm, pushed apart if too close. Switch OUTWARD, RETURN and RETURN 2 (speed lap), by hand only. A
+  long press on a buoy opens the Disq. choice of that buoy. **Position of the drawing** (24.11.2026, “More → Display”):
+  “Automatic” (as on the sheet, as far as space allows), “Start/finish on the left/at the top/on the right/at the
+  bottom” (since 26.11.2026; before “Pontoon at the bottom/on the left/at the top/on the right” – a position already
+  chosen stays and shows the same picture, only under the new name), below it a sentence such as “Start/finish at the
+  top, gate 5 at the bottom.”; in the parallel slalom “Start on the left/at the top/on the right/at the bottom”; the
+  lettering stays upright, remembered per device and list. The parallel slalom shows the single lane without pontoon,
+  the same for racecourse A and B. If a buoy is missing in a drawing, the device shows the buttons.
 - **Time** (timing lists): the time fields with a numeric keypad for the active field; below it is shown how the
   operating computer reads the input (“83.45” = 83.45 s). Only the first time field is mandatory; after a complete
   time the keypad jumps to the next one. “No time for …” with a reason: timing system failed, did not finish, other
@@ -627,8 +728,12 @@ without names. No network, no operating computer, no store; only the display set
 
 - The next start comes 2–6 seconds after sending, occasionally also earlier; now and then a query comes as in
   earnest. At the pontoon there are made-up extra weights.
-- After sending, the page scrolls until the explanation and the header “PRACTICE” have gone off the top and the race
-  number is at the edge (24.11.2026).
+- After sending – also after Enter in the table, “Did not start” and “All correct” at the table – only the
+  explanation “How practice works” scrolls off the top (since 26.11.2026; before, the header scrolled away too). What
+  stays: the yellow note “The screen may turn off.” (it is below the explanation until it is tapped away with
+  “Hide”), below it the header with “PRACTICE”, list, attempt and connection, below that “Recent” and the card with
+  the race number. On the tablet with several lists side by side nothing scrolls; with one list the list tabs and the
+  top of the side column stay in view. In the real entry nothing ever scrolls by itself.
 - “Bring a class forward” (at the very bottom under “More”, at the table above “End practice”) fetches the next start
   from another class – to practise a class change.
 - Good for the briefing the day before; the practice needs neither an event nor pairing.
@@ -649,6 +754,13 @@ alt="Data entry: a sheet as an input table with values"></a>
   it can occur in an attempt (“Code 6 is entered more than 2× … Disq. D?”). Nothing is set by this; what is on
   the paper stays.
 - A QR code leads directly to the sheet or stack of sheets (see [QR codes](#checklists-and-qr-codes)).
+- With [shared sheets](#race-officials-sheets), choosing a class shows the shared sheet it is on; “all, one below the
+  other” and scanning a checklist bring the stack of the racecourse. The values belong to the driver, scoring is per
+  class.
+- **Repeat after a breakdown** (26.11.2026): the race number carries ↻ with the note “Repeat after breakdown – enter
+  the values of the repeat …”. On paper the race official has struck out the line and entered the repeat in a blank
+  line; the struck-out line does not count. At pontoon entry with “Attempts run consecutively” there is no ↻ (nothing
+  is struck out there).
 - With [digital entry by the race officials](#digital-entry-by-the-race-officials): ◆ on values from the device (with
   list, device and time), “Check paper” on rows and cells for which the sheet is needed, and a question before a value
   from the device is overwritten. Open queries are decided under Operation → Race officials.
@@ -839,13 +951,38 @@ stated otherwise.
   in the Excel import per row “Import into class X” and “Fix all” (16.11.2026). If the year of birth fits no
   class, the message names the years of birth that start at all. Without a date of birth the driver stands out as
   “missing”.
-- **Permission to start by birthday** (24.11.2026, DM only, Reglement C8: class E from the 6th, class 7 up to the 27th
-  birthday; `geburtstagsGrenzen` in the rulebook): only a warning that can be ignored.
-  In the header of the class a yellow badge (“2 birthdays to check”), expanded one sentence per driver (“turns 6 only
-  on 2026-09-06 – in class E permitted to start from age 6”) and “!” at the date of birth. It is measured against the
-  date of the event; without a date the list names the borderline years of birth to check. Interpreted and still to be
-  confirmed: no longer on the 27th birthday itself; the first day of competition counts; 29 February becomes 1 March
-  in years without it.
+- **Permission to start by birthday** (24.11.2026, two levels since 26.11.2026; DM only, Reglement C8: class E from
+  the 6th, class 7 up to the 27th birthday; `geburtstagsGrenzen` in the rulebook, days in `GEBURTSTAG_FENSTER`,
+  `src/import/klassenPruefung.ts`): a warning and a note in the “Drivers” tab that can be ignored – nothing is locked,
+  moved or asked, there is nothing to confirm. UIM has no birthday limits.
+  It is measured against the date of the event (first day of racing); if the event runs over several days, the day
+  the driver starts counts.
+  - **Clear warning (red):** the 6th or 27th birthday lies at most 2 days before or after the first day of racing, or
+    the driver is clearly too young or too old on that day. In the header of the class the red badge “2 birthdays:
+    warning” (also when the class is collapsed), expanded a red box “Attention, permission to start by birthday –
+    please check, nothing is locked:” with one sentence per driver, for example (first day of racing 2026-09-05):
+    “Vor1 Nach1 turns 6 on 2026-09-04 (1 day before the first day of racing) – in Class E permitted to start only
+    from that day.” or “… turns 27 on 2026-09-06 (1 day after the first day of racing) – in Class 7 permitted to start
+    only until 2026-09-05.” (the last day is the one before the 27th birthday). If the driver may not start on the
+    first day of racing already, the sentence adds it: “… (1 day after the first day of racing) – in Class E permitted
+    to start only from that day, so not yet on the first day of racing.” or “… (on the first day of racing) – in
+    Class 7 permitted to start only until 2026-09-04, so no longer on the first day of racing.” Clearly outside:
+    “turns 6 only on … – in Class E permitted to start from age 6.”
+  - **Note (yellow):** the driver may start on the first day of racing, but the birthday lies 3 to 14 days before it
+    (class E) or after it (class 7). Yellow badge “1 birthday to check” and a yellow box “Permission to start by
+    birthday – only a note, nothing is locked:”, for example “Birthday close to the day of racing: Vor1 Nach1 turns 6
+    on 2026-08-27 (9 days before the first day of racing) – in Class E permitted to start from age 6, please check.”
+  - Each driver counts in the header only once, at their stronger level. The “!” at the date of birth is red or
+    yellow, and the cell has a red or yellow left edge. On the phone name, number of drivers and badges in the class
+    header wrap onto a new line. A sentence below the boxes names the day and both spans.
+  - **Without a date** only the year counts: the borderline years of birth are shown in yellow with the day of the
+    birthday (“before the day of racing?”); drivers certainly outside by year are shown in red. The sentence below says
+    that with a date the check counts to the day and then only names who is too young or too old on that day or has a
+    birthday up to 14 days before or after it.
+  - Confirmed 26.11.2026: no longer on the 27th birthday itself; without a date the whole borderline years.
+    Interpreted and still to be confirmed: 29 February becomes 1 March in years without it; “less than 2 days”
+    includes the 2nd day; class E with the 6th birthday 3 to 14 days after the first day of racing is “too young”
+    (red), not a note.
 - **Date fields:** never the browser's date picker (depending on the system it showed mm/dd/yyyy), but a text field:
   German DD.MM.YYYY, English YYYY-MM-DD (`src/components/DatumFeld.vue`). Also recognised are 2019-12-01, 1.12.2019
   and 01/12/2019 (slash: day first); a date that does not exist is reported. Stored as YYYY-MM-DD.
@@ -906,6 +1043,9 @@ deterministic via `saat`; since 21.11.2026 only here):
   people, at most 40 characters, so that the entry fits on one line in the head of the sheet.
 - The weights lie around the average weight of the class; 40 % are at least half a step lighter, so that
   extra weights arise.
-- Each class gets a made-up boat name (`src/data/boote.ts`), co-drivers only where the rulebook provides them.
+- Each class gets a made-up boat name (`src/data/boote.ts`). “Sample co-drivers” enters, for each class in which the
+  rulebook provides a co-driver, a made-up co-driver and a substitute, both with a made-up weight of 55–95 kg – so that
+  an extra weight appears on the lists. The question before replacing reads “… Replace them with made-up names and
+  weights?”.
 - If something is already there, the app asks before replacing it. Each button gets an entry of its own in the
   history.

@@ -53,7 +53,7 @@ export default {
   'betrieb.beginnen.text':
     'The current attempt still has {n} start to go. It stays released and comes before the starts of the new attempt. | The current attempt still has {n} starts to go. They stay released and come before the starts of the new attempt.',
   'betrieb.stockt':
-    'No start released – {n} start is waiting (held back, boat missing or to be made up). The attempt is not complete. | No start released – {n} starts are waiting (held back, boat missing or to be made up). The attempt is not complete.',
+    'No start released – {n} start is waiting (held back, repeat pending, boat missing or to be made up). The attempt is not complete. | No start released – {n} starts are waiting (held back, repeat pending, boat missing or to be made up). The attempt is not complete.',
   'betrieb.abweichend': 'The order differs from the interleaving (rearranged or a class sitting out). The race officials’ sheets stay as they are.',
   'betrieb.zurueckstellen': 'Hold back',
   'betrieb.zurueckstellen.title': 'Hold back the next start: it does not go for now but stays visible.',
@@ -71,6 +71,29 @@ export default {
   'betrieb.status.zurueckgestellt': 'held back',
   'betrieb.status.bootFehlt': 'boat missing',
   'betrieb.status.nachzuholen': 'to be made up',
+  // Repeat after a breakdown (user 26.11.2026, R11-11): triggered at the operating computer, put in line by hand. Not
+  // „re-run“ (check 27.11.2026): in rule 960 and in this app that is the heat of the parallel slalom (pt. 5.2.6).
+  'betrieb.status.wiederholung': 'repeat pending',
+  'betrieb.wiederholung': 'Repeat pending',
+  'betrieb.wiederholung.hint': 'After a breakdown the start is repeated; its values are discarded. It does not go until it is put in line or shown.',
+  'betrieb.wiederholung.marke': 'repeat',
+  'betrieb.wiederholung.aufheben': 'No repeat after all',
+  'betrieb.wiederholung.aufheben.title': 'The aborted attempt counts again, and its discarded values come back – what has been entered since then stays.',
+  'betrieb.abgebrochen': 'breakdown – to be repeated',
+  'betrieb.abgebrochen.zurueck': 'After “Repeat (breakdown)”, “Back” no longer takes the start back – use “No repeat after all”.',
+  'betrieb.ausfall': 'Repeat (breakdown) …',
+  'betrieb.ausfall.title': 'A start already shown broke down and is repeated – as decided by the O.O.D.',
+  'betrieb.ausfall.hint': 'Starts shown in the attempts under way, the one shown last first. The O.O.D. decides on the repeat; if the driver is to blame, the race official enters “J” at the buoy (wrong racecourse) – then no repeat.',
+  'betrieb.ausfall.suche': 'Start number',
+  'betrieb.ausfall.keiner': 'No start shown yet.',
+  'betrieb.ausfall.keine': 'No start shown matches.',
+  'betrieb.ausfall.knopf': 'Repeat …',
+  'betrieb.ausfall.abgemeldet': 'withdrawn – no repeat',
+  'betrieb.ausfall.frage': 'Repeat after breakdown: {nr}, {lauf}?',
+  'betrieb.ausfall.text':
+    'All values of {nr} in {lauf} are discarded – on every sheet, including those from the race officials’ devices. The start then waits under “Repeat pending” and only goes once it is put in line; the race officials’ devices then get it once more. On paper: strike out the line and enter the repeat in a blank line. “No repeat after all” brings the values back as long as the start has not been shown again.',
+  'betrieb.ausfall.vorsteg': 'The pontoon entry line counts for all attempts and stays.',
+  'betrieb.ausfall.ja': 'Discard values and repeat',
 
   // Parallel slalom (rule 960): „heat“ is the round (pt. 5.2.2), „racecourse“ and „attempt“ (pt. 4.4).
   'betrieb.versuch': 'Attempt {n}',
@@ -179,6 +202,9 @@ export default {
   'anzeige.parallel': 'Parallel slalom',
   'anzeige.racecourse': 'Racecourse {rc}',
   'anzeige.versuch': 'Attempt {n}',
+  // Repeat after a breakdown (R11-11, 26.11.2026): after the attempt on the display board and spectator list – no reason.
+  // Not „Re-run“ (27.11.2026): that is the parallel slalom heat, which can stand on the same board under UIM.
+  'anzeige.wiederholung': 'Repeat',
 
   // „Pontoon“ und „pontoon entry“ (Vorsteg) wie die Listen; „spectator list“ vorläufig (Plan vom 16.11.2026).
   'zuschauer.titel': 'Starting order',
@@ -482,6 +508,8 @@ export default {
   'geraete.ablehnung.teil-fremd': 'This column belongs to the other part of the pontoon list.',
   'geraete.ablehnung.seite-anders': 'This start runs on the other side (A/B).',
   'geraete.ablehnung.offen': 'There are still open starts – finish only with “Rest on paper”.',
+  // R11-11 (26.11.2026): line for an attempt aborted after a breakdown (BETRIEB_ANNAHMEN WH7).
+  'geraete.ablehnung.versuch-abgebrochen': 'This attempt was aborted after a breakdown – the start is repeated. The line was not taken over.',
   // W2.2 (21.11.2026): Operation → Race officials (digital entry by the race officials).
   'betrieb.reiter.wkr': 'Race officials',
   'betrieb.wkr.hint':

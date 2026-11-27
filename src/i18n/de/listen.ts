@@ -6,7 +6,7 @@ export default {
   'lists.weight.art.checkin': 'für die Verwiegung',
   'lists.weight.art.steg': 'für den Steg je Klasse',
   'lists.weight.hint.herkunft': 'Zum Eintragen beim Check-in: nach Klasse und Name, ohne Startnummern – mit dem Durchschnittsgewicht der Klasse und einem Feld für das Gewicht.',
-  'lists.weight.hint.steg': 'Die Ausgleichsgewichte für den Steg: je Klasse ein Blatt nach Startnummer, mit einem Kästchen zum Abhaken je Lauf. Boot und Co-Pilot im Kopf kommen aus der Besetzung unter',
+  'lists.weight.hint.steg': 'Die Ausgleichsgewichte für den Steg: je Klasse ein Blatt nach Startnummer, mit einem Kästchen zum Abhaken je Lauf. Boot, Co-Pilot und Ersatz-Co-Pilot im Kopf – mit dem Ausgleichsgewicht eines Co-Piloten in Klammern – kommen aus der Besetzung unter',
   'lists.weight.art.team': 'je Mannschaft (Regel 960, Pkt. 3.7)',
   'lists.weight.hint.team': 'Interne Liste nach Regel 960, Pkt. 3.7: je Mannschaft die Fahrer mit Startnummer, Name, Geschlecht, Geburtsdatum, Klasse, gewogenem Gewicht und Ausgleichsgewicht, in den Klassen Dolphin, 1–3 mit Co-Pilot. Sie steht in keiner Druckdatei. Das Geburtsdatum lässt sich abschalten („Geburtsdatum auf Starterlisten zeigen“) unter',
   'lists.team.noSex': 'Bei {n} Starter ist kein Geschlecht eingetragen – die Zelle bleibt leer. Die Angabe ist freiwillig; eintragen lässt sie sich im Bearbeiten-Modus oder über den Import (Spalte „Sex“ mit M, W, D oder k. A.) unter | Bei {n} Startern ist kein Geschlecht eingetragen – die Zelle bleibt leer. Die Angabe ist freiwillig; eintragen lässt sie sich im Bearbeiten-Modus oder über den Import (Spalte „Sex“ mit M, W, D oder k. A.) unter',
@@ -20,6 +20,10 @@ export default {
   'lists.notWeighed': 'nicht gewogen',
   'lists.boat': 'Boot',
   'lists.coPilot': 'Co-Pilot',
+  // Ersatz-Co-Pilot und Ausgleichsgewicht in Klammern hinter dem Namen (R11-07, 26.11.2026).
+  'lists.coPilotSubstitute': 'Ersatz-Co-Pilot',
+  'lists.coPilot.ballast': '(+{kg} kg)',
+  'lists.coPilot.notWeighed': '(nicht gewogen)',
 
   'lists.title': 'Listen drucken',
   'lists.hint':
@@ -67,6 +71,9 @@ export default {
   'lists.wkr.club': 'Clubmeisterschaft: Klassen, deren Bogen gleich aufgebaut ist, stehen zusammen auf einem Blatt. Listen mit Parcoursbild bleiben je Klasse, damit jede Klasse ihre eigene Zeichnung sieht. Leerzeilen, die allein ein weiteres Blatt kosteten, entfallen bis auf eine. Gewertet wird weiter je Klasse.',
   'lists.wkr.clubJoint': 'Clubmeisterschaft, Papier sparen: Alle Klassen einer Liste stehen zusammen auf einem Bogen, ohne Parcoursbild. Schraffierte Felder gibt es für die Klasse nicht. Die Leerzeilen für Nachmeldungen stehen einmal am Ende jeder Seite. Umstellen unter „Einstellungen“.',
   'lists.wkr.clubFolge': 'Die Klassen eines gemeinsamen Bogens stehen gemischt in der Startfolge der Verzahnung, die Klasse in der Spalte hinter der Startnummer; die Leerzeilen am Ende jeder Seite. Umstellen unter „Einstellungen“.',
+  // Meisterschaft mit gemeinsamen Bögen (R11-03, 26.11.2026); die Clubmeisterschaft behält ihre Sätze darüber.
+  'lists.wkr.joint': 'Gemeinsame Bögen: Klassen, deren Bogen gleich aufgebaut ist (gleiche Spalten, gleiches Parcoursbild), stehen zusammen auf einem Blatt. Listen, deren Zeichnung sich je Klasse unterscheidet, bleiben je Klasse. Ein Laufzettel gilt für alle Klassen, die sich Bögen teilen. Gewertet wird weiter je Klasse. Umstellen unter „Einstellungen“.',
+  'lists.wkr.jointPaper': 'Gemeinsame Bögen, Papier sparen: Alle Klassen einer Liste stehen zusammen auf einem Bogen, ohne Parcoursbild. Schraffierte Felder gibt es für die Klasse nicht. Die Leerzeilen für Nachmeldungen stehen einmal am Ende jeder Seite; ein Laufzettel gilt je Parcours und Lauf. Gewertet wird weiter je Klasse. Umstellen unter „Einstellungen“.',
   'lists.wkr.all': 'alle',
   'lists.wkr.parcours': 'Parcours',
   'lists.wkr.run': 'Lauf',
@@ -100,7 +107,7 @@ export default {
 
   'runsheet.title': 'Laufzettel',
   'runsheet.stepsElsewhere': 'Auswertung: siehe Laufzettel {zettel}',
-  'runsheet.hint': 'Ein Zettel hält die losen Blätter zusammen, die zusammengehören: je Parcours, Klasse und Lauf – bei der Clubmeisterschaft, wo sich die Klassen Bögen teilen, je Parcours und Lauf. Darauf steht ein Kästchen für jede gedruckte Seite jeder Wettkampfrichter-Liste: Nach dem Lauf lässt sich abhaken, ob alle Seiten zurück sind. Eine Liste ohne Lauf (Knoten) steht auf dem Zettel des letzten Laufs; er hat eigene Arbeitsschritte (kein Aushang, dafür das Gesamtergebnis). Die Seitenzahlen sind an den Bögen gemessen, so wie sie gedruckt werden. Gedruckt wird, was die Auswahl zeigt.',
+  'runsheet.hint': 'Ein Zettel hält die losen Blätter zusammen, die zusammengehören: je Parcours, Klasse und Lauf – teilen sich Klassen Bögen (Clubmeisterschaft, auf Wunsch auch eine Meisterschaft), gilt er für alle diese Klassen, meist je Parcours und Lauf. Darauf steht ein Kästchen für jede gedruckte Seite jeder Wettkampfrichter-Liste: Nach dem Lauf lässt sich abhaken, ob alle Seiten zurück sind. Eine Liste ohne Lauf (Knoten) steht auf dem Zettel des letzten Laufs; er hat eigene Arbeitsschritte (kein Aushang, dafür das Gesamtergebnis). Die Seitenzahlen sind an den Bögen gemessen, so wie sie gedruckt werden. Gedruckt wird, was die Auswahl zeigt.',
   'runsheet.count': '{n} Laufzettel | {n} Laufzettel',
   'runsheet.none': 'Für diese Auswahl gibt es keinen Laufzettel.',
   'runsheet.print': 'Druck: A4 quer, in der Mitte auf A5 gefaltet – rechts die Vorderseite mit Klasse und Lauf am Falz, die linke Hälfte bleibt frei. Hier ist nur die Vorderseite zu sehen.',

@@ -63,7 +63,8 @@ function tippt(): boolean {
 }
 
 /**
- * Übung: Kopf nach dem Abschicken aus dem Bild (Nutzer 24.11.2026, WKR_ANNAHMEN UK1–UK6) – das Rollen selbst, geteilt
+ * Übung: Erklärung nach dem Abschicken aus dem Bild, der Kopf bleibt am Rand (Nutzer 24.11.2026, seit 26.11.2026
+ * WKR_ANNAHMEN UK7 statt UK1, R11-14) – das Rollen selbst, geteilt
  * von WkrMaske und WkrPruefliste: `ziel` an den oberen Rand, gleitend; mit „Bewegung reduzieren“ des Systems ohne
  * Bewegung (springt). Ohne Ziel oder ohne scrollIntoView (alte Browser) geschieht nichts.
  */
@@ -71,4 +72,17 @@ export function rolleAnDenRand(ziel: Element | null | undefined): void {
   if (!ziel || typeof ziel.scrollIntoView !== 'function') return
   const ruhig = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   ziel.scrollIntoView({ block: 'start', behavior: ruhig ? 'auto' : 'smooth' })
+}
+
+/**
+ * Wohin die Übung nach dem Abschicken rollt (UK7, Nutzer 26.11.2026 zu R11-14: nur die „extra Zeile“ soll weg): das
+ * Erste NACH der Erklärung „So läuft die Übung“. Steht der Hinweis „Bildschirm kann ausgehen“ (WkrGeraet
+ * `wach-hinweis`, liegt seit 27.11.2026 unter der Erklärung), ist er das Ziel – er ist eine Warnung wie die im Kopf und
+ * bleibt stehen (Prüfbefund 27.11.2026: vorher lag er über der Erklärung und rollte mit hinaus); sonst die Spalte der
+ * Liste, ohne Spalte (Einbau ohne WkrGeraet) `el` selbst. Ausgeblendet ist das Band nicht im DOM.
+ */
+export function zielNachErklaerung(el: HTMLElement | null | undefined): Element | null {
+  if (!el) return null
+  const band = el.closest('.wkr-geraet')?.querySelector('[data-teil="wach-hinweis"]')
+  return band ?? el.closest('.wkr-spalte') ?? el
 }

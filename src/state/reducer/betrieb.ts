@@ -13,7 +13,7 @@ import { istOriginStyle } from '../../lib/origin'
 import { serverEinstellung } from '../../lib/serverAdresse'
 import { BETRIEB_ANNAHMEN } from '../../betrieb/annahmen'
 import { WKR_ANNAHMEN } from '../../wkr/annahmen'
-import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istParallel, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, type BereichLage } from '../../betrieb/folge'
+import { bereichBekannt, bereicheZumStand, bereichFest, bereichLeer, betriebVon, istParallel, istPunktId, lage, liesRef, PARALLEL_BEREICH, programm, spurenVon, wartetAufWiederholung, type BereichLage } from '../../betrieb/folge'
 import { ansPunktende, beweglich, einsteigen, hinterDenZeiger, klasseVor, paarStarts, planPartner, schnappschuss, verschiebe, webeNeu } from '../../betrieb/schritte'
 
 export type BetriebAenderung =
@@ -202,9 +202,11 @@ function normalisiereBereich(raw: unknown): BereichBetrieb | null {
   const b = raw as Partial<Record<keyof BereichBetrieb, unknown>>
   const gezeigt: GezeigterStart[] = Array.isArray(b.gezeigt)
     ? b.gezeigt.flatMap((g: unknown) => {
-        const e = g as { ref?: unknown; zeit?: unknown } | null
+        const e = g as { ref?: unknown; zeit?: unknown; abgebrochen?: unknown } | null
         if (!e || liesRef(e.ref) === null) return []
-        return [{ ref: e.ref as string, zeit: typeof e.zeit === 'number' && Number.isFinite(e.zeit) && e.zeit > 0 ? e.zeit : 0 }]
+        const zeit = typeof e.zeit === 'number' && Number.isFinite(e.zeit) && e.zeit > 0 ? e.zeit : 0
+        // Abgebrochen (Ausfall, R11-11) nur als ausdrückliches `true` – alles andere ist ein gewöhnlich gezeigter Start.
+        return [e.abgebrochen === true ? { ref: e.ref as string, zeit, abgebrochen: true as const } : { ref: e.ref as string, zeit }]
       })
     : []
   const bereich: BereichBetrieb = {
@@ -218,6 +220,9 @@ function normalisiereBereich(raw: unknown): BereichBetrieb | null {
     vorziehen: typeof b.vorziehen === 'boolean' ? b.vorziehen : BETRIEB_ANNAHMEN.vorziehenVorgabe,
     meldung: meldungWert(b.meldung),
   }
+  // „Wiederholung offen“ (R11-11) nur für Starts, deren letzter gezeigter Versuch abgebrochen ist.
+  const wiederholung = refListe(b.wiederholung).filter((k) => wartetAufWiederholung(bereich, k))
+  if (wiederholung.length > 0) bereich.wiederholung = wiederholung
   // Durchfahrt (P-03) nur für den gezeigten Start – eine für einen anderen gälte ohnehin nie (wkr/ampel.ts).
   const d = b.durchfahrt as { ref?: unknown; zeit?: unknown } | null | undefined
   if (d && typeof d === 'object' && typeof d.ref === 'string' && d.ref === gezeigt.at(-1)?.ref) {
@@ -265,7 +270,13 @@ function mitBereich(state: AppState, bereich: BereichId, b: BereichBetrieb): App
   return { ...state, betrieb: { bereiche: { ...state.betrieb.bereiche, [bereich]: b } } }
 }
 
-const gleich = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+/**
+ * Inhaltlich gleich – unabhängig von der Folge der Felder (seit 26.11.2026: `wiederholung` kommt je nach Weg an anderer
+ * Stelle ins Objekt; ein Schritt, der nichts ändert, soll trotzdem denselben Stand ergeben).
+ */
+const geordnet = (_k: string, v: unknown) =>
+  v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))) : v
+const gleich = (a: unknown, b: unknown) => JSON.stringify(a, geordnet) === JSON.stringify(b, geordnet)
 
 /** Den Bereich ersetzen – nur wenn sich etwas ändert; sonst derselbe Stand (unverändert = dieselbe Referenz). */
 function wennAnders(state: AppState, bereich: BereichId, alt: BereichBetrieb, neu: BereichBetrieb): AppState {
@@ -298,6 +309,50 @@ function neuVerzahnt(state: AppState, bereich: BereichId, l: BereichLage, ausges
   return webeNeu(l, spurenVon(state, bereich), new Set(ausgesetzt), { punkte, ...(zurueck ? { zurueck: new Set([zurueck]) } : {}) })
 }
 
+/**
+ * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11) – der Teil des Betriebs: Der gezeigte Versuch von `ref` gilt als
+ * abgebrochen (GezeigterStart.abgebrochen; der Start ist wieder offen) und steht unter „Wiederholung offen“, bis die
+ * Wettkampfleitung ihn einreiht (BETRIEB_ANNAHMEN.wiederholungVonHand). Eine Durchfahrt für ihn fällt weg (WH9).
+ * Nur ein gezeigter, geltender Start des Manövrierens in einem Bereich mit Betrieb; sonst derselbe Stand. Aufgerufen NUR
+ * von WIEDERHOLUNG_AUSFALL (reducer/erfassung.ts), das zugleich die Werte leert – eine eigene Action des Betriebs dafür
+ * gibt es nicht, damit Folge und Werte nie auseinanderlaufen.
+ */
+export function mitWiederholung(state: AppState, bereich: BereichId, ref: string): AppState {
+  if (istParallel(bereich) || !bereichBekannt(state, bereich)) return state
+  const r = liesRef(ref)
+  const b = betriebVon(state, bereich)
+  if (r?.art !== 'm' || !b.gezeigt.some((g) => g.ref === ref && !g.abgebrochen)) return state
+  const gezeigt = b.gezeigt.map((g) => (g.ref === ref && !g.abgebrochen ? { ...g, abgebrochen: true as const } : g))
+  const { durchfahrt, ...rest } = b
+  return mitBereich(state, bereich, {
+    ...rest,
+    ...(durchfahrt && durchfahrt.ref !== ref ? { durchfahrt } : {}),
+    gezeigt,
+    zurueckgestellt: b.zurueckgestellt.filter((k) => k !== ref),
+    wiederholung: [...(b.wiederholung ?? []).filter((k) => k !== ref), ref],
+  })
+}
+
+/**
+ * „Doch keine Wiederholung“ (Nutzer 26.11.2026, R11-11, BETRIEB_ANNAHMEN.wiederholungAufheben) – der Teil des Betriebs:
+ * Der zuletzt abgebrochene Versuch von `ref` gilt wieder, der Start ist erledigt wie vorher und nicht mehr „Wiederholung
+ * offen“. Nur, solange er auf seine Wiederholung wartet (sonst gälte ein schon gefahrener Versuch doppelt); ein früherer
+ * Abbruch desselben Starts bleibt (Prüfbefund 27.11.2026: vorher galten alle wieder). Aufgerufen NUR von
+ * WIEDERHOLUNG_AUFHEBEN (reducer/erfassung.ts), das zugleich die verworfenen Werte zurückholt – seit dem Prüfbefund
+ * 27.11.2026 keine eigene Action des Betriebs mehr: Ohne die Werte stand der Start erledigt, aber leer da, und die
+ * WKR-Geräte boten ihn unter der alten Kennung nie wieder an.
+ */
+export function ohneWiederholung(state: AppState, bereich: BereichId, ref: string): AppState {
+  const b = betriebVon(state, bereich)
+  if (!wartetAufWiederholung(b, ref)) return state
+  let i = b.gezeigt.length - 1
+  while (i >= 0 && b.gezeigt[i].ref !== ref) i--
+  const gezeigt = b.gezeigt.map((g, j) => (j === i ? { ref: g.ref, zeit: g.zeit } : g))
+  const wiederholung = (b.wiederholung ?? []).filter((k) => k !== ref)
+  const { wiederholung: _weg, ...rest } = b
+  return mitBereich(state, bereich, { ...rest, gezeigt, ...(wiederholung.length > 0 ? { wiederholung } : {}) })
+}
+
 export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zeit?: number }): AppState {
   switch (action.type) {
     case 'BETRIEB_BEGINNEN': {
@@ -316,9 +371,12 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       const l = lage(state, action.bereich)
       if (!l.fest || (l.aktuell?.key ?? null) !== action.vorher) return state
       // Die Durchfahrt (P-03) gilt dem bisher gezeigten Start – mit dem neuen fällt sie weg.
-      const { durchfahrt: _alt, ...b } = betriebVon(state, action.bereich)
+      const { durchfahrt: _alt, wiederholung: alteWiederholung, ...b } = betriebVon(state, action.bereich)
       const gezeigt = [...b.gezeigt, { ref: action.ref, zeit: action.zeit ?? 0 }]
-      if (l.naechster?.key === action.ref) return mitBereich(state, action.bereich, { ...b, gezeigt })
+      // Wieder gezeigt (R11-11): Die Wiederholung ist nicht mehr offen.
+      const wiederholung = (alteWiederholung ?? []).filter((k) => k !== action.ref)
+      const mitW = wiederholung.length > 0 ? { wiederholung } : {}
+      if (l.naechster?.key === action.ref) return mitBereich(state, action.bereich, { ...b, ...mitW, gezeigt })
       // Ein nachzuholender Start (E1) – oder jeder andere nicht erledigte, nicht entfallene (B-5, S-4;
       // BETRIEB_ANNAHMEN.zeigenJederOffene). Er rückt hinter den Zeiger bzw. den Start im Boot: dorthin, wo er gefahren ist.
       const erlaubt = BETRIEB_ANNAHMEN.zeigenJederOffene ? beweglich(l, action.ref) !== null : l.nachzuholen.some((e) => e.key === action.ref)
@@ -336,6 +394,7 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       const weg = new Set([action.ref, ...mit.map((e) => e.key)])
       return mitBereich(state, action.bereich, {
         ...b,
+        ...mitW,
         gezeigt,
         zurueckgestellt: b.zurueckgestellt.filter((k) => !weg.has(k)),
         reihenfolge: folgeAls(l, hinterDenZeiger(l, [action.ref, ...mit.map((e) => e.key)])),
@@ -345,7 +404,8 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
     case 'BETRIEB_ZURUECKSTELLEN': {
       const l = lage(state, action.bereich)
       const b = betriebVon(state, action.bereich)
-      if (!schrittErlaubt(l) || !beweglich(l, action.ref) || b.zurueckgestellt.includes(action.ref)) return state
+      // Eine offene Wiederholung (R11-11) wartet ohnehin – zurückstellen hieße nichts.
+      if (!schrittErlaubt(l) || !beweglich(l, action.ref) || b.zurueckgestellt.includes(action.ref) || l.wiederholung.some((e) => e.key === action.ref)) return state
       // Im Parallelslalom das ganze Paar: auch seine übrigen offenen Attempts dieser Runde (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit).
       const mit = paarStarts(l, action.ref)
         .map((e) => e.key)
@@ -356,19 +416,28 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
     case 'BETRIEB_EINREIHEN': {
       const l = lage(state, action.bereich)
       if (!schrittErlaubt(l)) return state
-      // Nur was zurückgestellt oder nachzuholen ist – ein zweites Mal geschickt, ist er schon wieder offen.
-      if (!l.zurueckgestellt.some((e) => e.key === action.ref) && !l.nachzuholen.some((e) => e.key === action.ref)) return state
-      const b = betriebVon(state, action.bereich)
+      // Nur was zurückgestellt, nachzuholen oder als Wiederholung offen ist (R11-11, BETRIEB_ANNAHMEN.wiederholungVonHand) –
+      // ein zweites Mal geschickt, ist er schon wieder offen.
+      const warten = [...l.zurueckgestellt, ...l.nachzuholen, ...l.wiederholung]
+      if (!warten.some((e) => e.key === action.ref)) return state
+      const { wiederholung: alteWiederholung, ...b } = betriebVon(state, action.bereich)
       // Im Parallelslalom kommt das Paar mit: seine zurückgestellten und nachzuholenden Attempts dieser Runde, in
       // der Folge der Attempts (BETRIEB_ANNAHMEN.parallelPaarAlsEinheit). Im Manövrieren nur der Start selbst.
-      const wartend = new Set([...l.zurueckgestellt, ...l.nachzuholen].map((e) => e.key))
+      const wartend = new Set(warten.map((e) => e.key))
       const mit = paarStarts(l, action.ref)
         .filter((e) => e.key === action.ref || wartend.has(e.key))
         .sort((x, y) => x.lauf - y.lauf)
         .map((e) => e.key)
       const weg = new Set(mit)
       const keys = action.wo === 'ende' ? ansPunktende(l, mit) : hinterDenZeiger(l, mit)
-      return wennAnders(state, action.bereich, b, { ...b, zurueckgestellt: b.zurueckgestellt.filter((k) => !weg.has(k)), reihenfolge: folgeAls(l, keys) })
+      const wiederholung = (alteWiederholung ?? []).filter((k) => !weg.has(k))
+      const alt = betriebVon(state, action.bereich)
+      return wennAnders(state, action.bereich, alt, {
+        ...b,
+        ...(wiederholung.length > 0 ? { wiederholung } : {}),
+        zurueckgestellt: b.zurueckgestellt.filter((k) => !weg.has(k)),
+        reihenfolge: folgeAls(l, keys),
+      })
     }
 
     case 'BETRIEB_AUSSETZEN': {
@@ -441,7 +510,8 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
 
     case 'BETRIEB_ZURUECK': {
       const { durchfahrt: _alt, ...b } = betriebVon(state, action.bereich)
-      if (b.gezeigt.at(-1)?.ref !== action.ref) return state
+      // Ein abgebrochener Versuch (Ausfall, R11-11) ist „verbraucht“ – zurück nimmt ihn nicht (BETRIEB_ANNAHMEN.wiederholungAufheben).
+      if (b.gezeigt.at(-1)?.ref !== action.ref || b.gezeigt.at(-1)?.abgebrochen) return state
       return mitBereich(state, action.bereich, { ...b, gezeigt: b.gezeigt.slice(0, -1) })
     }
 
@@ -449,7 +519,8 @@ export function wendeBetriebAn(state: AppState, action: BetriebAenderung & { zei
       // Nur der gezeigte Start (ein veraltetes Gerät, ein Doppeltipp ändern nichts); kein Lauf, keine Folge – ein
       // menschlicher Vermerk, aus dem wkr/ampel.ts rot ableitet. Unverändert = derselbe Stand.
       const b = betriebVon(state, action.bereich)
-      if (b.gezeigt.at(-1)?.ref !== action.ref) return state
+      // Ein abgebrochener Versuch (Ausfall, R11-11) fährt nicht mehr – keine Ampel (BETRIEB_ANNAHMEN.wiederholungOhneAmpel).
+      if (b.gezeigt.at(-1)?.ref !== action.ref || (action.an && b.gezeigt.at(-1)?.abgebrochen)) return state
       if (action.an) return b.durchfahrt?.ref === action.ref ? state : mitBereich(state, action.bereich, { ...b, durchfahrt: { ref: action.ref, zeit: action.zeit ?? 0 } })
       if (!b.durchfahrt) return state
       const { durchfahrt: _weg, ...ohne } = b

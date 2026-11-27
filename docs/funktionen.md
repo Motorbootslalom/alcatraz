@@ -72,12 +72,13 @@ Die Ansicht „Veranstaltung“ nimmt Name, Jahr, Datum, Zahl der Läufe, Art (M
 Herkunft (Verein, Bundesland, Land oder ohne), Regelwerk und Aufbau auf.
 
 - **Datum** (24.11.2026): der erste Wettkampftag, freiwillig. Gebraucht wird es nur für die Warnung zur
-  Starterlaubnis nach Geburtstag (siehe [Sperren und Prüfungen](#sperren-und-prüfungen)); die Jahrgänge rechnen mit
-  dem Jahr. Liegt es in einem anderen Jahr, sagt das ein Hinweis am Feld. Es steht in der Sicherung, nicht in der
-  Vorlage.
+  Starterlaubnis nach Geburtstag – mit Datum auf den Tag genau, in zwei Stufen (siehe
+  [Sperren und Prüfungen](#sperren-und-prüfungen)); die Jahrgänge rechnen mit dem Jahr. Liegt es in einem anderen
+  Jahr, sagt das ein Hinweis am Feld. Es steht in der Sicherung, nicht in der Vorlage.
 - **Besetzung:** WKR-Einteilung, Boote und Co-Piloten je Klasse stehen im Block „Besetzung“.
-  Die Namen der Wettkampfrichter und Co-Piloten stehen nur in der Sicherung, nie in der Vorlage;
-  das Boot der Klasse auch in der Vorlage (`src/lib/besetzung.ts`).
+  Die Namen der Wettkampfrichter und Namen und Gewichte der Co-Piloten stehen nur in der Sicherung, nie in der Vorlage;
+  das Boot der Klasse auch in der Vorlage (`src/lib/besetzung.ts`). Zu den Co-Piloten siehe
+  [Co-Piloten und ihr Ausgleichsgewicht](#co-piloten-und-ihr-ausgleichsgewicht).
 - Die **Beispielansicht der Listen** steht hier und im Assistenten, unter UIM auch mit den Listen des
   Parallelslaloms je Racecourse. Sie zeigt die Namen der Einteilung nur an.
 - Eigene Aufbauten entstehen unter „Einstellungen“ (Assistent und YAML-Austausch).
@@ -173,7 +174,9 @@ Entschieden wird an einer Stelle (`herkunftAnzeige` in `src/lib/origin.ts`).
   1,2 → 1 kg, 1,25 → 1,5 kg). Wer weniger als eine halbe Stufe leichter ist, braucht keines. Verwiegung, Listen und
   Steg-Gerät rechnen gleich (`rundeAufStufe` in `src/domain/gewicht.ts`, `ausgleichVon` in `src/lib/ausgleich.ts`).
 - **Liste „Ausgleichsgewichte“** für den Steg: je Klasse ein Blatt nach Startnummer mit dem Ausgleichsgewicht und
-  einem Kästchen je Lauf; im Kopf Boot und Co-Pilot aus der Besetzung (`src/components/AusgleichListen.vue`).
+  einem Kästchen je Lauf; im Kopf Boot, Co-Pilot und – wenn eingetragen – darunter klein „Ersatz-Co-Pilot“ mit Namen,
+  aus der Besetzung (`src/components/AusgleichListen.vue`). Braucht ein Co-Pilot ein Ausgleichsgewicht, steht es in
+  Klammern hinter dem Namen („Vor2 Nach2 (+3,5 kg)“), fehlt sein Gewicht, „(nicht gewogen)“; nie das Körpergewicht.
   Leer heißt „keines nötig“, auch auf 0 kg gerundet (die Verwiegung zeigt dann „0 kg“). Wer noch nicht gewogen ist,
   bekommt ein Feld zum Nachtragen von Hand („nicht gewogen“, „kg“).
 - **Am Steg-Gerät** (24.11.2026): Mit digitaler WKR-Erfassung zeigt das Gerät im Teil „Ablegen“ neben der
@@ -181,6 +184,38 @@ Entschieden wird an einer Stelle (`herkunftAnzeige` in `src/lib/origin.ts`).
   gepflegt; ein in der Verwiegung nachgetragenes Gewicht kommt von selbst aufs Gerät. Über die Leitung geht nur das
   Ausgleichsgewicht, verschlüsselt für die Steg-Liste, nie das Körpergewicht
   ([Entscheidung](entscheidungen.md#ausgleichsgewicht-am-steg-entscheidung-24112026)).
+
+### Co-Piloten und ihr Ausgleichsgewicht
+
+Fahren in einer Klasse wechselnde Co-Piloten, soll das Gesamtgewicht in jedem Lauf gleich bleiben (26.11.2026;
+`src/lib/besetzung.ts`, `src/lib/ausgleich.ts`). Die Fahrer rechnen davon unberührt weiter: Durchschnittsgewicht minus
+Körpergewicht.
+
+- **Eintragen:** „Veranstaltung → Besetzung“, Tabelle „Boote und Co-Piloten“ mit den Spalten Klasse, Boot, Co-Pilot,
+  Gewicht, Ersatz-Co-Pilot, Gewicht. Das Gewicht ist freiwillig und wird gelesen wie in der Verwiegung (Komma oder
+  Punkt, „kg“ darf dabei stehen, gespeichert auf 0,1 kg); Unlesbares entfernt das Gewicht, der Name bleibt. Enter
+  springt erst durch alle Boote, dann durch alle Co-Piloten, ihre Gewichte, die Ersatz-Co-Piloten und deren Gewichte.
+- **Unter dem Gewicht** steht klein, was daraus folgt: „+4 kg Ausgleich“ beim leichteren Co-Piloten, „Gewicht fehlt“,
+  wenn andere seiner Gruppe gewogen sind, er aber nicht, „zählt erst mit Namen“ bei einem Gewicht ohne Namen; beim
+  schwersten nichts. Unter der Tabelle nennt ein Satz die geltende Wahl, mit dem Verweis „Ändern: Einstellungen →
+  Durchschnittsgewichte“.
+- **Wahl** unter „Einstellungen → Durchschnittsgewichte“ (Sprungziel `#/einstellungen?durchschnittsgewichte`), unter
+  „Ausgleichsgewicht in Stufen von“: „Ausgleichsgewicht der Co-Piloten“ **je Klasse** – gegen den schwersten Co-Piloten
+  der Klasse (Vorgabe) – oder **über alle Co-Piloten** – gegen den schwersten Co-Piloten der Klassen, in denen Starter
+  stehen; solange noch kein Starter eingetragen ist, gegen alle Klassen der Besetzung. Wer leichter ist, bekommt den
+  Unterschied, gerundet in derselben Stufe wie die Fahrer und getrennt vom Ausgleichsgewicht des Fahrers. Die Wahl
+  reist mit Sicherung und Vorlage.
+- **Wer zählt:** nur ein Co-Pilot mit Namen und Gewicht. Wird der Name eines Ersatz-Co-Piloten gelöscht (er fällt
+  weg), bleibt sein Gewicht im Feld, macht aber keinen Ballast mehr für den anderen, und auf den Listen steht kein
+  leeres Feld „Ersatz-Co-Pilot“. Tippt man den Namen wieder ein, zählt das Gewicht wieder. Beim eingeteilten Co-Piloten
+  bleibt seine Zeile auf den Listen zum Eintragen von Hand leer stehen.
+- **Auf den Listen:** die „Ausgleichsgewichte“ für den Steg (oben) und die
+  [Liste nach Regel 960 Pkt. 3.7](#liste-der-fahrer-je-team-regel-960) zeigen beide Co-Piloten untereinander, das
+  Ausgleichsgewicht in Klammern hinter dem Namen, nie das Körpergewicht. WKR-Bögen, Anzeigetafel, Zuschauerliste,
+  Start-Freigabe und Geräte zeigen keine Co-Piloten.
+- **Datenschutz:** Namen und Gewichte der Co-Piloten stehen nur in der Sicherung, nie in der Vorlage. Der Verlauf hat
+  den Eintrag „Gewicht eines Co-Piloten erfasst“. Ältere Stände und Sicherungen werden übernommen: Der bisherige
+  Co-Pilot wird der eingeteilte, ohne Ersatz und ohne Gewicht.
 
 ### Liste der Fahrer je Team (Regel 960)
 
@@ -191,6 +226,9 @@ required, Class, in den Klassen Dolphin und 1–3 der Co-driver
 - Eine **interne** Liste, in keiner Druckdatei. Das Geburtsdatum folgt der Listen-Option „Geburtsdatum auf den
   Starterlisten zeigen“.
 - „Ballast required“ ist das Ausgleichsgewicht in der Abstufung der Veranstaltung; „–“ heißt keines nötig.
+- In der Spalte „Co-driver“ stehen der eingeteilte Co-Pilot und darunter, klein eingeleitet mit „Substitute
+  co-driver:“, der Ersatz, je mit Ausgleichsgewicht in Klammern („Vor2 Nach2 (+3.5 kg)“). Eine lange Zeile wird
+  kleiner, der eingeteilte Co-Pilot bleibt normal groß (26.11.2026).
 - Dafür gibt es das freiwillige Starterfeld **Geschlecht** mit vier Werten (15.11.2026, `src/domain/geschlecht.ts`):
   M, F, D, keine Angabe; leer heißt „nicht erfasst“. Unter Regel 960 hat der Starter-Reiter eine Spalte dafür.
   Import-Spalte „Sex“/„Gender“/„Geschlecht“ (m, male, männlich; f, w, female, weiblich; d, divers; na, n/a,
@@ -230,15 +268,28 @@ alt="WKR-Bogen für Tor 1/3/5 mit QR-Code, Legende der Disqualifikationen und Pa
 - Gedruckt werden die Bögen erst nach dem Festschreiben der Verzahnung (siehe [Sperren](#sperren-und-prüfungen)).
 - **Druckfolge** (21.11.2026): je Parcours Position für Position, darin die Startfolge (1. Lauf in der Reihenfolge der
   Klassen, dann der 2. …) – der Stapel wird nur an den Positionen getrennt (`WKR_DRUCKFOLGE`).
-  Parallelslalom: je Racecourse Position für Position, darin die Runden. Laufzettel bleiben je Klasse und Lauf.
+  Parallelslalom: je Racecourse Position für Position, darin die Runden. Laufzettel bleiben je Klasse und Lauf (mit
+  gemeinsamen Bögen meist je Parcours und Lauf, siehe [Laufzettel](#laufzettel-und-qr-codes)).
 - Listen, die nur am Gerät erfasst werden (Betrieb → WKR, Modus „Gerät“), werden nicht gedruckt, auch nicht auf dem
   Laufzettel; ein Hinweis über dem Stapel bietet „Trotzdem drucken“. Pausierte und abgemeldete Listen und ein Steg, von
   dem nur ein Teil auf Geräten ist, werden gedruckt (`src/wkr/druck.ts`).
 
-**Gemeinsame Bögen bei der Clubmeisterschaft:** Mehrere Klassen stehen auf einem Bogen; Listen mit Parcoursbild
-bleiben je Klasse. Mit „Papier sparen“ stehen alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild, die
-Leerzeilen einmal je Seite statt je Klasse.
+**Gemeinsame Bögen:** Klassen, deren Bogen gleich aufgebaut ist (gleiche Spalten, gleiches Parcoursbild), stehen
+zusammen auf einem Blatt; Listen, deren Zeichnung sich je Klasse unterscheidet, bleiben je Klasse. Mit „Papier
+sparen“ stehen alle Klassen einer Liste auf einem Bogen, ohne Parcoursbild, die Leerzeilen einmal je Seite unter
+„Nachmeldungen“ statt je Klasse. Gewertet wird in jedem Fall je Klasse.
 
+- **Clubmeisterschaft:** immer gemeinsame Bögen; „Papier sparen“ ist dort vorgewählt.
+- **Meisterschaft (DM und UIM)** seit 26.11.2026 auf Wunsch: „Einstellungen → Wettkampfrichter-Listen“, Haken
+  „Gemeinsame Bögen: Klassen mit gleich aufgebautem Bogen zusammen auf ein Blatt“ (Vorgabe aus; sonst hat jede Klasse
+  ihre eigenen Bögen). Erst mit dem Haken erscheinen darunter „Papier sparen: alle Klassen einer Liste auf einem
+  Bogen, ohne Parcoursbild“ (hier Vorgabe aus; ohne Parcoursbild hat der Wettkampfrichter nur die Beschreibung, und
+  fahren die Klassen verschiedene Kurse, fehlt ihm die Zeichnung seiner Klasse) und „Klassen auf gemeinsamen Bögen“.
+  Die Bögen sehen dann aus wie bei der Clubmeisterschaft: im Kopf etwa „Klassen 4, 7“, der QR-Code nennt alle Klassen
+  des Bogens. Ein Hinweis über den Bögen unter „Listen“ sagt, dass sie gemeinsam sind. Auch die Beispielansicht
+  (Veranstaltung → WKR-Einteilung) zeigt den gemeinsamen Bogen. Die Einstellung reist mit Sicherung und Vorlage und
+  bleibt erhalten, wer zur Clubmeisterschaft und zurück wechselt. Unverändert bleiben WKR-Geräte (Listen je Parcours
+  und Liste), Parallelslalom, Wertungslisten, Mannschaftswertung und Druckdatei.
 - „Klassen auf gemeinsamen Bögen“ (24.11.2026, `wkrGemeinsamFolge`): **getrennt** (Vorgabe) – je Klasse ein Block mit
   der Klasse als Überschrift – oder **nach der Verzahnung** – alle Starter in der Startfolge gemischt, die Klasse in
   einer schmalen Spalte hinter der Startnummer, die Leerzeilen am Ende jeder Seite mit leerer Klassenzelle.
@@ -256,8 +307,11 @@ Leerzeilen einmal je Seite statt je Klasse.
 
 **Listenoptionen** unter „Einstellungen“:
 
-- Starter je Seite fest statt automatisch, und „Teilen ab“. Gemeinsame Bögen teilen sich immer automatisch.
-- Clubmeisterschaft: „Papier sparen“, „Klassen auf gemeinsamen Bögen“ und „Leerzeilen je Seite“.
+- Starter je Seite fest statt automatisch, und „Teilen ab“. Gemeinsame Bögen mehrerer Klassen teilen sich immer
+  automatisch; der Hinweis darunter sagt das bei der Clubmeisterschaft und bei eingeschalteten gemeinsamen Bögen.
+- Clubmeisterschaft: „Papier sparen“ und „Klassen auf gemeinsamen Bögen“; Meisterschaft: dazu vorher der Haken
+  „Gemeinsame Bögen …“. „Leerzeilen je Seite“ erscheint, sobald „Papier sparen“ an ist oder die Klassen nach der
+  Verzahnung stehen; sonst bleiben es Leerzeilen je Klasse (bei der Meisterschaft 3).
 - Bezeichnung der Bojen-Seiten: R/L, Land/See, Kai/Hafen, Pfeile, Innen/Außen. Die Wertungslisten bleiben bei R/L.
 - Die Sprache der Bögen: siehe [Regelwerke und Begriffe](#regelwerke-und-begriffe).
 
@@ -268,7 +322,9 @@ Leerzeilen einmal je Seite statt je Klasse.
 <a href="bilder/de/laufzettel.png"><img src="bilder/de/laufzettel.png" width="180"
 alt="Laufzettel mit einem Kästchen je Liste, den Schritten der Auswertung und QR-Code"></a>
 
-- Je Blattstapel ein Zettel: Parcours, Klasse und Lauf (gemeinsame Bögen: Parcours und Lauf).
+- Je Blattstapel ein Zettel: Parcours, Klasse und Lauf. Teilen sich Klassen Bögen (Clubmeisterschaft, auf Wunsch
+  auch eine Meisterschaft), gilt ein Zettel für alle diese Klassen, meist je Parcours und Lauf; Bögen einzelner Klassen
+  darauf (Listen mit eigener Zeichnung) nennen ihre Klasse in der Zeile („Kl. 4“).
 - Ein A4-Querblatt zum Falten auf A5, mit einem Kästchen je gedruckter Seite – gemessen an denselben Bögen,
   die gedruckt werden. Die Form ist wählbar: eine Zeile je Seite oder eine Zeile je Liste.
 - Die Knoten (eine Liste ohne Lauf) liegen im Stapel des letzten Laufs. Dessen Zettel hat eigene Schritte:
@@ -281,6 +337,9 @@ alt="Laufzettel mit einem Kästchen je Liste, den Schritten der Auswertung und Q
 - Format `ALC1.<Veranstaltung>.<Regelwerk>.<Aufbau>.<Parcours>.<Klassen>.<Lauf>[.<Liste>.S<Seite>]`,
   als Vektor eingebettet (`qrcode-generator`).
 - Ein Handscanner oder das Feld „Blatt scannen“ springt in der Erfassung zum Bogen und in dessen erste Zelle.
+  Sind die Bögen seit dem Druck anders zusammengefasst (gemeinsame Bögen ein- oder ausgeschaltet), zeigt der Scan
+  eines alten Bogens den Bogen, auf dem die Klasse jetzt steht (bei mehreren Klassen die erste), und sagt das dazu;
+  die Eingaben hängen am Starter und landen richtig.
 - Der Code eines Laufzettels zeigt alle Listen seines Stapels untereinander, mit einer Sprungleiste.
   Von Hand: „alle untereinander“ in der Auswahl der Liste.
 - Blätter einer anderen Veranstaltung, eines anderen Regelwerks oder Aufbaus werden mit Begründung abgewiesen.
@@ -323,9 +382,11 @@ width="120" alt="Zuschauerliste in Handybreite"></a>
 - **Freigegeben wird nach Lauf, nicht nach Stelle:** Ein Start eines Laufs, der noch nicht begonnen hat, wartet – auch
   wenn er schon mitten im laufenden steht; gezielt zeigen geht immer.
 - **X:** Ein Start mit X („nicht gestartet“) in einer Disq.-Zelle des Laufs entfällt; ohne X ist er wieder da.
-  Der Betrieb selbst setzt nie ein X und schreibt nie Werte.
-- **Rückfrage** gibt es nur vor „Lauf beginnen“, solange Starts offen sind, vor „Betrieb zurücksetzen“ und mit
-  digitaler WKR-Erfassung bei Rückstand vor dem Zeigen; alles andere lässt sich zurücknehmen.
+  Der Betrieb selbst setzt nie ein X und schreibt nie Werte; nur die Wiederholung nach Ausfall (unten) verwirft
+  Werte, ausdrücklich und mit Rückfrage.
+- **Rückfrage** gibt es nur vor „Lauf beginnen“, solange Starts offen sind, vor „Betrieb zurücksetzen“, vor einer
+  Wiederholung nach Ausfall und mit digitaler WKR-Erfassung bei Rückstand vor dem Zeigen; alles andere lässt sich
+  zurücknehmen.
 
 ### Start-Freigabe
 
@@ -342,6 +403,28 @@ Je Parcours eine Karte (`src/components/betrieb/StartFreigabe.vue`):
 - **Anderen Starter wählen** (`BetriebsFolge.vue`): die nächsten zwölf offenen Starts oder die ganze Folge, dazu eine
   Suche nach Startnummer oder Name über alles noch zu Zeigende – auch spätere Läufe. „Zeigen“ holt den Start sofort
   auf die Anzeigetafel; der bisherige Nächste bleibt der Nächste.
+- **Wiederholung (Ausfall) …** (26.11.2026, nur am Bedienrechner, nicht im Parallelslalom; `AusfallWahl.vue`,
+  `BETRIEB_ANNAHMEN` WH1–WH10): Bei einem bestätigten Ausfall wird der Lauf des Starters wiederholt. Die Wahl zeigt die
+  schon gezeigten Starts der laufenden Läufe, der zuletzt gezeigte zuerst, mit Suche nach Startnummer; Starts
+  abgemeldeter Starter stehen ausgegraut („abgemeldet – keine Wiederholung“). Liegt der Ausfall am Starter, trägt der
+  WKR an der Boje „J“ ein (falscher Parcours) – dann gibt es keine Wiederholung. „Wiederholen …“ fragt
+  „Wiederholung nach Ausfall: 102, Lauf 1?“; „Werte verwerfen und wiederholen“ leert alle Werte dieses Starters in
+  diesem Lauf auf jeder Liste, auch die von den WKR-Geräten samt ihren offenen Rückfragen. Mit „Versuche direkt
+  nacheinander“ (UIM) bleibt die Zeile am Vorsteg stehen; die Rückfrage sagt das.
+- **Wiederholung offen:** Dort steht der Start danach; er fährt nie von selbst. Die Wettkampfleitung reiht ihn mit
+  „Als Nächster“ oder „Ans Ende des Laufs“ ein oder zeigt ihn mit „Jetzt zeigen“ – auch vom gekoppelten Freigabe-Handy
+  und in der Startliste. Bis dahin steht der abgebrochene Versuch unter „Im Boot“ mit „Ausfall – wird wiederholt“;
+  „Zurück“ ist gesperrt, eine Parcours-Ampel und den Auto-Modus gibt es für ihn nicht.
+- **Doch keine Wiederholung** (nur am Bedienrechner, in der Liste „Wiederholung offen“, solange der Start nicht wieder
+  gezeigt ist): Der abgebrochene Versuch gilt wieder, und seine verworfenen Werte kommen zurück – auf allen Listen,
+  samt Haken „erfasst“ und „keine Zeit“, aber nur in Felder, die inzwischen leer sind; was seit dem Ausfall
+  eingetragen wurde, bleibt. Rückfragen, Vorschläge und Papier-Vermerke von damals kommen nicht zurück. Nach zwei
+  Ausfällen desselben Starts gilt danach der zuletzt abgebrochene Versuch. Die WKR-Geräte behandeln den Start danach
+  wie vorher (erledigt; Korrekturen aus „Zuletzt“ werden wieder übernommen).
+- Im Verlauf („Einstellungen → Dateien → Verlauf“) stehen eigene Einträge, etwa „Wiederholung nach Ausfall – Werte
+  verworfen: 101, Klasse 1, 1. Lauf“ und „Doch keine Wiederholung – Werte zurückgeholt: …“. Die verworfenen Werte
+  stehen in der Sicherung, solange der Abbruch im Betrieb steht; „Betrieb zurücksetzen“, das Löschen des Laufs und das
+  Entfernen des Starters räumen sie weg.
 - **Verschieben** (Menü je Start): vor den Nächsten, ans Ende des Laufs, vor oder nach einem anderen Lauf – nie vor
   schon Gefahrenes. Mit „Verzahnung beim Verschieben halten“ (Vorgabe an) bekommt der Start im Lauf den nächsten Platz
   seiner Spur. Was die Bedienung so umgestellt hat, bleibt; nicht umgestellte Läufe folgen weiter der Verzahnung.
@@ -350,7 +433,8 @@ Je Parcours eine Karte (`src/components/betrieb/StartFreigabe.vue`):
   vorziehen“ (Vorgabe an) rückt die nächste Klasse derselben Spur nach (`E2E21212121216163` → `E6E61111113`), sonst
   schließen sich nur die Lücken. „Boot ist zurück“ verzahnt den Rest des Laufs wieder mit ihr. „Vorziehen“ macht eine
   Klasse zur nächsten, nur innerhalb ihrer Spur.
-- Sind nur noch zurückgestellte, nachzuholende oder „Boot fehlt“-Starts übrig, **stockt** der Lauf; die Karte sagt es.
+- Sind nur noch zurückgestellte, zu wiederholende, nachzuholende oder „Boot fehlt“-Starts übrig, **stockt** der Lauf;
+  die Karte sagt es.
 - **Einsteigen ab …** Lauf und wahlweise Klasse, wenn die Start-Freigabe erst mitten im Wettkampf dazukommt: Was davor
   liegt, gilt als gefahren (ohne Anzeige), „Weiter mit“ nennt den nächsten Start.
 - Wird der Starter im Boot gelöscht (vor dem ersten Wert), zeigt die Anzeigetafel „bereit“.
@@ -372,6 +456,8 @@ verschwindet nach kurzer Ruhe.
   Wunsch der Start davor. Weiß auf Schwarz, gleich welches Farbschema die Bedienung hat.
 - Zwei Parcours stehen untereinander, auf sehr breiten Bildschirmen nebeneinander. Zu lange Namen werden kleiner statt
   abgeschnitten (`src/lib/fit.ts`).
+- Ein wiederholter Start nach Ausfall steht als „1. Lauf · Wiederholung“ da (englisch „Attempt 1 · Repeat“), ohne
+  Grund; ebenso in der Zuschauerliste.
 - Das Fenster liest nur und schreibt nie; es folgt dem Bedienfenster sofort und hält den Bildschirm wach.
 - Sprache wie die Listen (DM deutsch, UIM englisch: „Course“, „Attempt“, „Class Dolphin“), umstellbar.
 - Was sie zeigt, kommt aus einer schmalen Sicht (`src/betrieb/sicht.ts`): Startnummer, Name, Klasse und Herkunft der
@@ -499,6 +585,13 @@ width="360" alt="WKR-Maske Bild auf dem Pad mit Parcours-Zeichnung und Seitenspa
   Abgeschicktes, Offenes und X; mit dem Namen des Wettkampfrichters – vorbelegt aus der WKR-Einteilung – ersetzt der
   Abschluss die Unterschrift auf dem Bogen. Offene Starts gehen mit „Rest auf Papier“. Läuft der Lauf noch, fragt das
   Gerät nach. Danach gehen Korrekturen nur noch als Vorschlag.
+- **Wiederholung nach Ausfall** (26.11.2026, siehe [Start-Freigabe](#start-freigabe)): Wird der Start wieder gezeigt,
+  bekommen die Geräte ihn wie einen neuen Start. Eine Zeile, die ein Gerät noch zum abgebrochenen Versuch schickt, wird
+  abgelehnt; das Gerät zeigt „Dieser Versuch wurde nach einem Ausfall abgebrochen – der Start wird wiederholt. Die Zeile
+  ist nicht übernommen.“ Hat eine Liste den Lauf schon abgeschlossen, bekommt ihr Gerät die Wiederholung trotzdem; die
+  Zeile kommt im Eingang als Vorschlag an („Die Liste ist für diesen Lauf abgeschlossen.“) und wird mit einem Klick
+  übernommen, der Abschluss bleibt stehen. Ausnahme „Versuche direkt nacheinander“: Die Zeile am Vorsteg bleibt, das
+  Gerät dort kann sie weiter korrigieren, und eine verspätete Zeile wird übernommen.
 
 ### Am Bedienrechner
 
@@ -506,7 +599,10 @@ width="360" alt="WKR-Maske Bild auf dem Pad mit Parcours-Zeichnung und Seitenspa
   ½ ein Steg-Teil, ○ offen, ○! überfällig, ! Rückfrage, V Vorschlag, P Papier, ✕ nicht gestartet,
   „✓ keine Zeit“ – und je Liste das Gerät mit Ampel (gehört, still, weg). Je Liste: Erfassung Gerät, Papier oder
   beides; Pausieren, Abmelden, „Weiter digital“; **„Papier ab Start …“**; „Bitte Nr. prüfen“ an die Geräte;
-  Abschlüsse ansehen und lösen. „Gerät koppeln“ an einer Liste ohne Gerät führt direkt zum Koppeln.
+  Abschlüsse ansehen und lösen. „Gerät koppeln“ an einer Liste ohne Gerät führt direkt zum Koppeln. Eine
+  Wiederholung nach Ausfall steht in der Matrix als offen und zählt im Rückstand, auch auf einer Liste mit
+  abgeschlossenem Lauf; „Papier ab Start …“ ab der Wiederholung stellt nur sie und spätere Starts auf Papier, nicht
+  die Starts zwischen Ausfall und Wiederholung.
 - Darunter der **Eingang**: Rückfragen (Wert des Geräts übernehmen oder behalten) und Vorschläge (übernehmen oder
   verwerfen).
 - **Am Tisch (ohne Lauf):** ein eigener Block für die Knoten-Liste („Knoten: n / m offen“).
@@ -545,15 +641,17 @@ bei Listen mit Bojen „Bild“ (`src/wkr/maskenWahl.ts`). „Knöpfe“ sieht j
 Prüfliste). Alle Masken erzeugen dieselben Zellwerte wie das Abtippen (`src/wkr/maske.ts`).
 
 - **Codes** (Steg, Vorsteg, Tor 5, Mann-über-Bord): je Fehlercode der Liste ein Knopf, die Startnummer groß, nie ein
-  Name. Hauptknopf „Fehlerfrei ✓“, mit Einträgen „Abschicken · n Pkt.“; „↶ Rückgängig“ nimmt den letzten Tipp
-  zurück. Disq. getrennt über DISQ: der erste Tipp merkt vor, der zweite setzt. X bieten die Disq.-Knöpfe nur am
-  Steg-Ablegen und am Vorsteg an, mit Rückfrage. Codes, die laut Regelwerk in der Klasse nicht gelten, sind
-  ausgegraut, aber drückbar (DM: 4 und 23 ab Klasse 3; 2, 5, 10 und 16 ab Klasse 4).
+  Name. Hauptknopf „Fehlerfrei ✓“, mit Einträgen „Abschicken · n Pkt.“; „↩ Rückgängig“ im Fuß (der Pfeil nach links als
+  kleine Zeichnung, auf schmalen Handys über dem Wort) nimmt den letzten Tipp zurück. Disq. getrennt über DISQ: der
+  erste Tipp merkt vor, der zweite setzt. X bieten die Disq.-Knöpfe nur am Steg-Ablegen und am Vorsteg an, mit
+  Rückfrage. Codes, die laut Regelwerk in der Klasse nicht gelten, sind ausgegraut, aber drückbar (DM: 4 und 23 ab
+  Klasse 3; 2, 5, 10 und 16 ab Klasse 4).
 - **Höchstzahl je Code** (24.11.2026; `max`/`danach` je Code im Regelwerk): „2. und 3. Versuch des Elementes“ zählt
   höchstens zweimal; der dritte Tipp setzt Disq. **D** („4. Versuch eines Elementes“) – der Knopf sagt vorher „nächster
   = Disq. D“. Auf diesen Knöpfen zählt ein Tipp weniger als 0,4 s nach dem vorigen nicht (Prellschutz). Tor 5 Code 1
-  („nicht mit gesamter Länge eingefahren“) geht nur einmal. Jeder andere Code zählt höchstens dreimal je Lauf; am
-  Höchstwert sagt es der Knopf („höchstens 3×“) – ausgelegt, noch zu bestätigen.
+  („nicht mit gesamter Länge eingefahren“) geht nur einmal. Jeder andere Code zählt höchstens dreimal je Lauf, auch
+  Stegberührungen und „Durchreißen der Schaltung“ (bestätigt 26.11.2026); am Höchstwert sagt es der Knopf
+  („höchstens 3×“).
 - **Bojen** (Tor-Listen wie Tor 1/3/5 und Tor 2/4/5, Parcours mit Start/Ziel, Parallelslalom): je Halt eine Zeile,
   die beiden Bojen eines Tores nebeneinander wie auf dem Bogen. Ein Tipp = eine Berührung (5 Punkte), der zweite
   nimmt sie weg; die Torbojen von Tor 5 zählen bis 9. Hat eine Klasse mehr als sieben Zeilen, teilt ein Umschalter
@@ -564,8 +662,10 @@ Prüfliste). Alle Masken erzeugen dieselben Zellwerte wie das Abtippen (`src/wkr
 - **Bild** (nur Listen mit Bojen): die Parcours-Zeichnung der Klasse, getippt wird auf die Bojen selbst –
   Trefferkreise mindestens 15 mm, zu nahe auseinandergeschoben. Umschalter HINWEG, RÜCKWEG und RÜCK 2 (Speedrunde),
   nur von Hand. Langes Drücken auf eine Boje öffnet die Disq.-Wahl dieser Boje. **Lage der Zeichnung** (24.11.2026,
-  „Mehr → Ansicht“): „Automatisch“ (wie auf dem Bogen, soweit der Platz reicht), „Steg unten/links/oben/rechts“, im
-  Parallelslalom „Start links/oben/rechts/unten“; die Schrift bleibt aufrecht, gemerkt je Gerät und Liste. Der
+  „Mehr → Ansicht“): „Automatisch“ (wie auf dem Bogen, soweit der Platz reicht), „Start/Ziel links/oben/rechts/unten“
+  (seit 26.11.2026; vorher „Steg unten/links/oben/rechts“ – eine gewählte Lage bleibt und zeigt dasselbe Bild, nur
+  unter dem neuen Namen), darunter ein Satz wie „Start/Ziel oben, Tor 5 unten.“; im Parallelslalom „Start
+  links/oben/rechts/unten“; die Schrift bleibt aufrecht, gemerkt je Gerät und Liste. Der
   Parallelslalom zeigt die eine Bahn ohne Steg, für Racecourse A und B dieselbe. Fehlt in einer Zeichnung eine Boje,
   zeigt das Gerät die Knöpfe.
 - **Zeit** (Listen der Zeitnahme): die Zeitfelder mit einem Ziffernblock für das aktive Feld; darunter steht, wie der
@@ -610,8 +710,12 @@ ohne Namen. Kein Netz, kein Bedienrechner, kein Store; gespeichert wird nur die 
 
 - Der nächste Start kommt 2–6 Sekunden nach dem Abschicken, gelegentlich auch vorher; hin und wieder kommt eine
   Rückfrage wie im Ernst. Am Steg stehen erfundene Ausgleichsgewichte.
-- Nach dem Abschicken rollt die Seite, bis Erklärung und Kopf „ÜBUNG“ oben hinaus sind und die Startnummer am Rand
-  steht (24.11.2026).
+- Nach dem Abschicken – auch nach Enter in der Tabelle, „Nicht gestartet“ und am Tisch „Alle richtig“ – rollt nur die
+  Erklärung „So läuft die Übung“ oben aus dem Bild (seit 26.11.2026; vorher rollte auch der Kopf mit). Stehen bleiben
+  der gelbe Hinweis „Bildschirm kann ausgehen“ (er steht unter der Erklärung, bis er mit „Ausblenden“ weggetippt ist),
+  darunter der Kopf mit „ÜBUNG“, Liste, Lauf und Verbindung, darunter „Zuletzt“ und die Karte mit der Startnummer. Auf
+  dem Pad mit mehreren Listen nebeneinander rollt nichts; mit einer Liste bleiben die Listen-Reiter und der Anfang
+  der Seitenspalte zu sehen. In der echten Erfassung rollt nie etwas von selbst.
 - „Klasse vorziehen“ (ganz unten unter „Mehr“, am Tisch über „Übung beenden“) holt den nächsten Start aus einer
   anderen Klasse – zum Üben eines Klassenwechsels.
 - Gut für die Einweisung am Vortag; die Übung braucht weder Veranstaltung noch Kopplung.
@@ -632,6 +736,13 @@ alt="Erfassung: ein Bogen als Eingabetabelle mit Werten"></a>
   er in einem Lauf vorkommen kann („Code 6 steht öfter als 2× … Disq. D?“). Gesetzt wird dabei nichts; es bleibt,
   was auf dem Papier steht.
 - Ein QR-Code führt direkt zum Bogen bzw. Blattstapel (siehe [QR-Codes](#laufzettel-und-qr-codes)).
+- Mit [gemeinsamen Bögen](#wettkampfrichter-listen) zeigt die Wahl einer Klasse den gemeinsamen Bogen, auf dem sie
+  steht; „alle untereinander“ und der Scan eines Laufzettels bringen den Stapel des Parcours. Die Werte hängen am
+  Starter, gewertet wird je Klasse.
+- **Wiederholung nach Ausfall** (26.11.2026): An der Startnummer steht ↻ mit dem Hinweis „Wiederholung nach Ausfall –
+  Werte der Wiederholung eintragen“. Auf Papier hat der Wettkampfrichter die Zeile gestrichen und die Wiederholung in
+  eine Leerzeile eingetragen; die gestrichene Zeile gilt nicht. Am Vorsteg mit „Versuche direkt nacheinander“ gibt es
+  kein ↻ (dort ist nichts gestrichen).
 - Mit [digitaler WKR-Erfassung](#digitale-wkr-erfassung): ◆ an Werten vom Gerät (mit Liste, Gerät und Zeit),
   „Papier ansehen“ an Zeilen und Zellen, für die der Bogen gebraucht wird, und eine Nachfrage, bevor ein Wert vom Gerät
   überschrieben wird. Offene Rückfragen werden unter Betrieb → WKR entschieden.
@@ -815,12 +926,39 @@ Jeweils in Oberfläche und Reducer. Die Punkte mit Datum sind Entscheidungen vom
   Gehört es in eine andere Klasse, steht ein Vorschlag darunter: „In Klasse X anlegen“, „In Klasse X verschieben“,
   beim Excel-Import je Zeile „In Klasse X übernehmen“ und „Alle beheben“ (16.11.2026). Passt der Jahrgang in keine
   Klasse, nennt die Meldung die Jahrgänge, die überhaupt starten. Ohne Geburtsdatum fällt der Starter als „fehlt“ auf.
-- **Starterlaubnis nach Geburtstag** (24.11.2026, nur DM, Reglement C8: Klasse E ab dem 6., Klasse 7 bis zum 27.
-  Geburtstag; `geburtstagsGrenzen` im Regelwerk): nur eine Warnung, die man übergehen kann.
-  Im Kopf der Klasse eine gelbe Marke („2 Geburtstage prüfen“), offen ein Satz je Starter („6. Geburtstag erst am
-  06.09.2026 – Starterlaubnis in Klasse E ab dem 6. Geburtstag“) und „!“ am Geburtsdatum. Gemessen wird am Datum der
-  Veranstaltung; ohne Datum nennt die Liste die Grenz-Jahrgänge zum Prüfen. Ausgelegt und noch zu bestätigen: am 27.
-  Geburtstag selbst nicht mehr; der erste Wettkampftag zählt; der 29.02. wird in Jahren ohne ihn zum 01.03.
+- **Starterlaubnis nach Geburtstag** (24.11.2026, zwei Stufen seit 26.11.2026; nur DM, Reglement C8: Klasse E ab dem
+  6., Klasse 7 bis zum 27. Geburtstag; `geburtstagsGrenzen` im Regelwerk, Tage in `GEBURTSTAG_FENSTER`,
+  `src/import/klassenPruefung.ts`): Warnung und Hinweis im Reiter „Starter“, die man übergehen kann – gesperrt,
+  verschoben oder abgefragt wird nichts, es gibt nichts zu bestätigen. UIM kennt keine Geburtstagsgrenzen.
+  Gemessen wird am Datum der Veranstaltung (erster Wettkampftag); geht sie über mehrere Tage, zählt der Tag, an dem
+  der Starter startet.
+  - **Deutliche Warnung (rot):** Der 6. bzw. 27. Geburtstag liegt höchstens 2 Tage vor oder nach dem ersten
+    Wettkampftag, oder der Starter ist an dem Tag klar zu jung oder zu alt. Im Kopf der Klasse die rote Marke
+    „2 Geburtstage: Warnung“ (auch zugeklappt), offen ein roter Kasten „Achtung, Starterlaubnis nach Geburtstag –
+    bitte prüfen, gesperrt ist nichts:“ mit einem Satz je Starter, etwa (erster Wettkampftag 05.09.2026): „Vor1 Nach1
+    wird am 04.09.2026 6 Jahre alt (1 Tag vor dem ersten Wettkampftag) – darf in Klasse E erst ab diesem Tag
+    starten.“ bzw. „… wird am 06.09.2026
+    27 Jahre alt (1 Tag nach dem ersten Wettkampftag) – darf in Klasse 7 nur bis zum 05.09.2026 starten.“ (der letzte
+    Tag ist der vor dem 27. Geburtstag). Darf er am ersten Wettkampftag schon nicht starten, sagt der Satz das dazu:
+    „… (1 Tag nach dem ersten Wettkampftag) – darf in Klasse E erst ab diesem Tag starten, am ersten Wettkampftag also
+    noch nicht.“ bzw. „… (am ersten Wettkampftag) – darf in Klasse 7 nur bis zum 04.09.2026 starten, am ersten
+    Wettkampftag also schon nicht mehr.“ Klar außerhalb: „6. Geburtstag erst am … – Starterlaubnis in Klasse E ab dem
+    6. Geburtstag.“
+  - **Hinweis (gelb):** Der Starter darf am ersten Wettkampftag starten, aber der Geburtstag liegt 3 bis 14 Tage davor
+    (Klasse E) bzw. danach (Klasse 7). Gelbe Marke „1 Geburtstag prüfen“ und ein gelber Kasten „Starterlaubnis nach
+    Geburtstag – nur ein Hinweis, nichts ist gesperrt:“, etwa „Geburtstag nahe am Wettkampftag: Vor1 Nach1 wird am
+    27.08.2026 6 Jahre alt (9 Tage vor dem ersten Wettkampftag) – Starterlaubnis in Klasse E ab dem 6. Geburtstag,
+    bitte prüfen.“
+  - Jeder Starter zählt im Kopf nur einmal, in seiner stärkeren Stufe. Das „!“ am Geburtsdatum ist rot bzw. gelb, die
+    Zelle hat links einen roten bzw. gelben Rand. Auf dem Handy brechen Name, Starterzahl und Marken im Klassenkopf um.
+    Ein Satz unter den Kästen nennt den Tag und beide Spannen.
+  - **Ohne Datum** zählt nur das Jahr: Die Grenz-Jahrgänge stehen gelb da, mit dem Tag des Geburtstags („vor dem
+    Wettkampftag?“); wer nach dem Jahr sicher außerhalb liegt, steht rot da. Der Satz darunter sagt, dass die Prüfung
+    mit Datum auf den Tag genau rechnet und dann nur noch nennt, wer an dem Tag zu jung oder zu alt ist oder bis 14 Tage
+    davor oder danach Geburtstag hat.
+  - Bestätigt 26.11.2026: am 27. Geburtstag selbst nicht mehr; ohne Datum die ganzen Grenz-Jahrgänge. Ausgelegt und
+    noch zu bestätigen: Der 29.02. wird in Jahren ohne ihn zum 01.03.; „weniger als 2 Tage“ schließt den 2. Tag ein;
+    Klasse E mit dem 6. Geburtstag 3 bis 14 Tage nach dem ersten Wettkampftag ist „zu jung“ (rot), kein Hinweis.
 - **Datumsfelder:** nie die Datumswahl des Browsers (sie zeigte je nach System mm/dd/yyyy), sondern ein Textfeld:
   deutsch TT.MM.JJJJ, englisch JJJJ-MM-TT (`src/components/DatumFeld.vue`). Erkannt werden auch 2019-12-01, 1.12.2019
   und 01/12/2019 (Schrägstrich: Tag zuerst); ein Datum, das es nicht gibt, wird gemeldet. Gespeichert wird JJJJ-MM-TT.
@@ -878,5 +1016,8 @@ deterministisch über `saat`; seit 21.11.2026 nur hier):
   höchstens 40 Zeichen, damit der Eintrag im Bogenkopf auf eine Zeile passt.
 - Die Gewichte liegen um das Durchschnittsgewicht der Klasse; 40 % sind mindestens eine halbe Stufe leichter, damit
   Ausgleichsgewichte entstehen.
-- Jede Klasse bekommt einen erfundenen Bootsnamen (`src/data/boote.ts`), Co-Piloten nur, wo das Regelwerk sie vorsieht.
+- Jede Klasse bekommt einen erfundenen Bootsnamen (`src/data/boote.ts`). „Beispiel-Co-Piloten“ trägt je Klasse, in
+  der das Regelwerk einen Co-Piloten vorsieht, einen erfundenen Co-Piloten und einen Ersatz ein, beide mit erfundenem
+  Gewicht von 55–95 kg – so steht auf den Listen ein Ausgleichsgewicht. Die Rückfrage vor dem Ersetzen lautet „…
+  Durch erfundene Namen und Gewichte ersetzen?“.
 - Steht schon etwas da, fragt die App vor dem Ersetzen. Jeder Knopf bekommt einen eigenen Eintrag im Verlauf.

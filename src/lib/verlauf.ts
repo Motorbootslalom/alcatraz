@@ -2,6 +2,7 @@ import type { AppState } from '../types'
 import type { Action } from '../state/reducer'
 import { OHNE_LAUF, zerlegeLauf } from './eingaben'
 import { zerlegeAttempt } from './parallelSchluessel'
+import { liesRef } from '../betrieb/folge'
 
 /**
  * Reine Logik des zweiten Speichers und des Verlaufs: welcher von zwei gespeicherten Ständen der
@@ -79,6 +80,8 @@ export type VerlaufArt =
   | 'starterAbgemeldet'
   | 'starterAngemeldet'
   | 'gewicht'
+  /** Gewicht eines Co-Piloten oder seines Ersatzes (Block „Besetzung“, R11-07, 26.11.2026). */
+  | 'coPilotGewicht'
   | 'aufbau'
   | 'regelwerk'
   | 'veranstaltung'
@@ -127,6 +130,13 @@ export type VerlaufArt =
    * `eingabeGeraet`, WKR_ANNAHMEN NG6.)
    */
   | 'wkrPapierAb'
+  /**
+   * Wiederholung nach Ausfall (Nutzer 26.11.2026, R11-11): Die Werte eines Starters in einem Lauf wurden verworfen
+   * (`startNr`, `klasse`, `lauf`). Immer ein eigener Eintrag – der Stand davor ist der, den „Zurückholen“ braucht.
+   */
+  | 'wiederholungAusfall'
+  /** „Doch keine Wiederholung“ (Prüfbefund 27.11.2026): die verworfenen Werte zurückgeholt (`startNr`, `klasse`, `lauf`). */
+  | 'wiederholungAufgehoben'
 
 export interface Beschreibung {
   art: VerlaufArt
@@ -143,6 +153,11 @@ export interface Beschreibung {
   /** Digitale WKR-Erfassung: die Liste (Kennung, wkr/liste.ts) und der Name des Geräts, von dem die Werte kamen. */
   liste?: string
   geraet?: string
+  /**
+   * Wiederholung nach Ausfall: die Startnummer des Starts (Prüfbefund 27.11.2026) – bei mehreren Ausfällen in derselben
+   * Klasse und demselben Lauf sonst nicht zu unterscheiden.
+   */
+  startNr?: string
 }
 
 /** Diese Arten stehen immer für sich: Zwei Importe hintereinander sind zwei Einträge. */
@@ -174,6 +189,8 @@ const EINZELN: ReadonlySet<VerlaufArt> = new Set<VerlaufArt>([
   'rundeGeloest',
   'rundenFestAlle',
   'druckGeloest',
+  'wiederholungAusfall',
+  'wiederholungAufgehoben',
 ])
 
 const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
@@ -211,6 +228,7 @@ const ARTEN: Partial<Record<Action['type'], VerlaufArt>> = {
   SET_WKR_NAME: 'besetzung',
   SET_BOOT: 'besetzung',
   SET_CO_PILOT: 'besetzung',
+  SET_CO_PILOT_GEWICHT: 'coPilotGewicht',
   SET_POKAL_VARIANTE: 'mannschaft',
   SET_POKAL_PUNKTE: 'mannschaft',
   SET_POKAL_UIM: 'mannschaft',
@@ -267,6 +285,18 @@ export function beschreibe(action: Action, nachher: Pick<AppState, 'starters'>):
         liste: action.liste,
         geraet: action.quelle.name,
       }
+    case 'WIEDERHOLUNG_AUSFALL':
+    case 'WIEDERHOLUNG_AUFHEBEN': {
+      // Startnummer, Klasse und Lauf – aus der Kennung des Starts (Starter, Lauf).
+      const ref = liesRef(action.ref)
+      const p = ref?.art === 'm' ? nachher.starters.find((x) => x.id === ref.starter) : undefined
+      return {
+        art: action.type === 'WIEDERHOLUNG_AUSFALL' ? 'wiederholungAusfall' : 'wiederholungAufgehoben',
+        ...(p?.startNr ? { startNr: p.startNr } : {}),
+        ...(p ? { klasse: String(p.klasse) } : {}),
+        ...(ref?.art === 'm' ? { lauf: ref.lauf } : {}),
+      }
+    }
     case 'WKR_LISTE':
       return { art: 'wkrListe', liste: action.liste }
     case 'WKR_PAPIER_AB':

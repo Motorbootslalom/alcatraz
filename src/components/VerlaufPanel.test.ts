@@ -9,6 +9,7 @@ import { STATE_KEY } from '../persistenz/storage'
 import { laufSchluessel } from '../lib/eingaben'
 import { lage } from '../betrieb/folge'
 import { setLocale } from '../i18n'
+import { wkrBetriebsStand, zeigeNaechsten } from '../testHilfen'
 import type { ClassId, Starter } from '../types'
 
 // Der Verlauf in den Einstellungen. Die IndexedDB ist eine im Arbeitsspeicher; alle Starter sind erfunden.
@@ -76,6 +77,22 @@ describe('Verlauf in den Einstellungen', () => {
     setLocale('en')
     await ruhe()
     expect(w.find('.verlauf-liste li').text()).toContain('Data entry Class 4, Parallel slalom Preliminary heat, 2nd attempt')
+  })
+
+  it('Wiederholung nach Ausfall: eigene Einträge mit Startnummer, Klasse und Lauf – auch „Doch keine Wiederholung“ (27.11.2026)', async () => {
+    // Zwei Ausfälle in derselben Klasse und demselben Lauf wären ohne Startnummer nicht zu unterscheiden.
+    store.dispatch({ type: 'LOAD_STATE', state: zeigeNaechsten(zeigeNaechsten(wkrBetriebsStand(), 'par_1', 1000), 'par_1', 61_000) })
+    await ruhe()
+    const ref = lage(store.state.value, 'par_1').aktuell!.key
+    store.dispatch({ type: 'WIEDERHOLUNG_AUSFALL', bereich: 'par_1', ref })
+    await ruhe()
+    store.dispatch({ type: 'WIEDERHOLUNG_AUFHEBEN', bereich: 'par_1', ref })
+    await ruhe()
+    const w = panel()
+    await ruhe()
+    const zeilen = w.findAll('.verlauf-liste li').map((z) => z.text())
+    expect(zeilen[0]).toContain('Doch keine Wiederholung – Werte zurückgeholt: 101, Klasse 1, 1. Lauf')
+    expect(zeilen[1]).toContain('Wiederholung nach Ausfall – Werte verworfen: 101, Klasse 1, 1. Lauf')
   })
 
   it('folgt der Sprache der Oberfläche', async () => {

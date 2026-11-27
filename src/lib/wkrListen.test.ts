@@ -3,7 +3,7 @@ import { configFor } from '../config/konfig'
 import { planEvent } from '../planung/plan'
 import { emptyState, reducer } from '../state/reducer'
 import { bogenSeiten } from './bogen'
-import { klassenInStartfolge, waehleBoegen, wkrBoegenZumStand, WKR_DRUCKFOLGE } from './wkrListen'
+import { gemeinsameBoegen, klassenInStartfolge, waehleBoegen, wkrBoegenZumStand, WKR_DRUCKFOLGE } from './wkrListen'
 import { bogenCode } from './qr'
 import type { AppState, ClassId, Starter } from '../types'
 import { veranstaltungsListen } from './listen'
@@ -655,5 +655,93 @@ describe('Seitenaufteilung: Starter je Seite und „Teilen ab“', () => {
     const einzeln = wkrBoegenZumStand({ ...club, wkrClubGemeinsam: false }, dm).boegen.find((b) => b.klassen.length === 1)!
     expect(einzeln.optionen).toMatchObject({ zeilenJeSeite: 5 })
     expect(bogenSeiten(dm, einzeln.auftrag, einzeln.optionen)).toHaveLength(2)
+  })
+})
+
+// Antwort des Nutzers vom 26.11.2026 (R11-03): „Wenn es schon da ist, kann man das auch bei den anderen nutzen.“ –
+// gemeinsame Bögen mehrerer Klassen auch bei DM- und UIM-Meisterschaften, als Einstellung mit Vorgabe aus.
+describe('Meisterschaft: gemeinsame Bögen mehrerer Klassen auf Wunsch (R11-03)', () => {
+  const meister = (mehr: Partial<AppState> = {}) => stand({ starters: starter(['E', '1', '3', '4', '7']), kennung: 'K7Q4', ...mehr })
+  /** Was gedruckt wird, in Kurzform: Kennung, Klassen, QR-Code, Bild ja/nein, Optionen, Zeilen. */
+  const kurz = (s: AppState) => wkrBoegenZumStand(s, dm).boegen.map((b) => [b.id, b.klassen.join('+'), b.auftrag.qr, b.auftrag.ohneBild, JSON.stringify(b.optionen), b.auftrag.zeilen.map((z) => z.id).join(' ')])
+
+  it('gemeinsameBoegen: Clubmeisterschaft immer gemeinsam; Meisterschaft nach `wkrMeisterschaftGemeinsam`, Vorgabe aus', () => {
+    expect(emptyState().wkrMeisterschaftGemeinsam).toBe('aus')
+    expect(gemeinsameBoegen(emptyState())).toEqual({ gemeinsam: false, papierSparen: false, inStartfolge: false })
+    // Die Folge wirkt nur, wo es gemeinsame Bögen gibt.
+    expect(gemeinsameBoegen({ ...emptyState(), wkrGemeinsamFolge: 'verzahnung' }).inStartfolge).toBe(false)
+    expect(gemeinsameBoegen({ ...emptyState(), wkrMeisterschaftGemeinsam: 'gleich', wkrGemeinsamFolge: 'verzahnung' })).toEqual({ gemeinsam: true, papierSparen: false, inStartfolge: true })
+    expect(gemeinsameBoegen({ ...emptyState(), wkrMeisterschaftGemeinsam: 'alle' })).toEqual({ gemeinsam: true, papierSparen: true, inStartfolge: false })
+    // Fehlt die Angabe (Aufrufer ohne ganzen Stand): je Klasse ein Bogen.
+    const { wkrMeisterschaftGemeinsam: _weg, ...ohne } = emptyState()
+    expect(gemeinsameBoegen(ohne).gemeinsam).toBe(false)
+    // Die Clubmeisterschaft hat ihre eigene Angabe; die der Meisterschaft ändert dort nichts.
+    for (const art of ['aus', 'gleich', 'alle'] as const) {
+      expect(gemeinsameBoegen({ ...emptyState(), eventKind: 'club', wkrMeisterschaftGemeinsam: art })).toEqual({ gemeinsam: true, papierSparen: true, inStartfolge: false })
+      expect(gemeinsameBoegen({ ...emptyState(), eventKind: 'club', wkrClubGemeinsam: false, wkrMeisterschaftGemeinsam: art }).papierSparen).toBe(false)
+    }
+  })
+
+  it('aus (Vorgabe): je Klasse ein Bogen wie bisher – auch mit der Folge „nach der Verzahnung“', () => {
+    const { boegen } = wkrBoegenZumStand(meister(), dm)
+    expect(boegen.every((b) => b.klassen.length === 1)).toBe(true)
+    expect(kurz(meister({ wkrGemeinsamFolge: 'verzahnung' }))).toEqual(kurz(meister()))
+  })
+
+  it('gleich: dieselben Bögen wie bei der Clubmeisterschaft ohne „Papier sparen“ – Listen mit eigener Zeichnung bleiben je Klasse', () => {
+    const s = meister({ wkrMeisterschaftGemeinsam: 'gleich' })
+    expect(kurz(s)).toEqual(kurz(meister({ eventKind: 'club', wkrClubGemeinsam: false })))
+    const { boegen } = wkrBoegenZumStand(s, dm)
+    // Steg: gleiche Spalten bei E, 1, 3 und bei 4, 7 – zwei gemeinsame Bögen statt fünf.
+    expect(boegen.filter((b) => b.typeId === 'steg' && b.lauf === 1).map((b) => sortiert(b.klassen))).toEqual([['E', '1', '3'], ['4', '7']])
+    expect(boegen.length).toBeLessThan(wkrBoegenZumStand(meister(), dm).boegen.length)
+    // Mann-über-Bord trägt die Zeichnung der Klasse: je Klasse ein Bogen, mit Bild.
+    expect(boegen.filter((b) => b.typeId === 'mueb' && b.lauf === 1).map((b) => b.klassen)).toEqual([['4'], ['7']])
+    expect(boegen.every((b) => b.auftrag.ohneBild === false)).toBe(true)
+    for (const b of boegen) {
+      const bild = bogenSeiten(dm, b.auftrag, b.optionen)[0].bild
+      if (bild) for (const k of b.klassen) expect(dm.bildDatei(s.aufbau, k), b.id).toBe(bild.datei)
+    }
+    // Der gemeinsame Bogen: Blöcke je Klasse mit den Leerzeilen je Klasse, automatisch geteilt; der QR-Code nennt alle Klassen.
+    const steg = boegen.find((b) => b.typeId === 'steg' && b.lauf === 1 && b.klassen.length === 3)!
+    expect(steg.optionen).toEqual({ klassenBloecke: true, leerzeilen: 3, leerzeilenJeKlasse: {} })
+    expect(steg.auftrag.qr).toMatch(/^ALC1\.K7Q4\.DM2026\.ALCATRAZ\.PAR\d\.E13\.1\.STEG$/)
+    expect(new Set(boegen.map((b) => b.auftrag.qr)).size).toBe(boegen.length)
+  })
+
+  it('gleich, nach der Verzahnung: gemischt in der Startfolge, die Leerzeilen je Seite – wie bei der Clubmeisterschaft', () => {
+    const s = meister({ wkrMeisterschaftGemeinsam: 'gleich', wkrGemeinsamFolge: 'verzahnung', parcoursList: EIN_PARCOURS, laufCount: 1 })
+    expect(kurz(s)).toEqual(kurz({ ...s, eventKind: 'club', wkrClubGemeinsam: false }))
+    const steg = wkrBoegenZumStand(s, dm).boegen.find((b) => b.typeId === 'steg' && b.klassen.length > 1)!
+    expect(steg.optionen).toEqual({ leerzeilen: 0, leerzeilenJeSeite: 3 })
+    expect(bogenSeiten(dm, steg.auftrag, steg.optionen)[0].zeigtKlasse).toBe(true)
+  })
+
+  it('alle (Papier sparen): je Liste ein Bogen für alle Klassen, ohne Bild – wie bei der Clubmeisterschaft', () => {
+    const s = meister({ wkrMeisterschaftGemeinsam: 'alle', parcoursList: EIN_PARCOURS, laufCount: 1 })
+    expect(kurz(s)).toEqual(kurz({ ...s, eventKind: 'club', wkrClubGemeinsam: true }))
+    const { boegen } = wkrBoegenZumStand(s, dm)
+    expect(boegen.map((b) => b.typeId).sort()).toEqual([...veranstaltungsListen(dm, s)].sort())
+    const tor = boegen.find((b) => b.typeId === 'gate135')!
+    expect(sortiert(tor.klassen)).toEqual(['E', '1', '3', '4', '7'])
+    expect(tor.auftrag.ohneBild).toBe(true)
+    expect(bogenSeiten(dm, tor.auftrag, tor.optionen).every((x) => x.bild === undefined)).toBe(true)
+  })
+
+  it('UIM: dieselbe Einstellung, englische Bögen, „Dolphin“ unter den Klassen des gemeinsamen Bogens', () => {
+    const uim = configFor({ regelwerk: 'uim-2026', sprache: 'en' })
+    const s = stand({ regelwerk: 'uim-2026', starters: starter(['E', '1', '2']), parcoursList: EIN_PARCOURS, laufCount: 1, wkrMeisterschaftGemeinsam: 'gleich' })
+    const { boegen } = wkrBoegenZumStand(s, uim)
+    const steg = boegen.find((b) => b.typeId === 'steg' && b.klassen.length > 1)!
+    expect(sortiert(steg.klassen)).toEqual(['E', '1', '2'])
+    expect(bogenSeiten(uim, steg.auftrag, steg.optionen)[0].klassenText).toContain('Dolphin')
+    expect(boegen.length).toBeLessThan(wkrBoegenZumStand({ ...s, wkrMeisterschaftGemeinsam: 'aus' }, uim).boegen.length)
+  })
+
+  it('Seitenaufteilung: gemeinsame Bögen teilen sich immer automatisch, Bögen einer Klasse folgen der festen Zahl', () => {
+    const s = meister({ wkrMeisterschaftGemeinsam: 'gleich', wkrZeilenJeSeite: 5, starters: starter(ALLE, 8) })
+    const { boegen } = wkrBoegenZumStand(s, dm)
+    for (const b of boegen.filter((x) => x.klassen.length > 1)) expect(b.optionen.zeilenJeSeite, b.id).toBeUndefined()
+    expect(boegen.find((b) => b.klassen.length === 1)!.optionen).toMatchObject({ zeilenJeSeite: 5 })
   })
 })

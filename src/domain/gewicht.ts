@@ -21,7 +21,8 @@ export const AUSGLEICH_STUFE_MAX = 10
 
 /**
  * Eine brauchbare Stufe in kg oder `undefined` – für Reducer, migrate und die Einstellungen (EINE Prüfung). Auf 10 g
- * genau (Auslegung 24.11.2026: so geht auch 0,25 kg; feiner wiegt am Steg niemand ab), in den Grenzen
+ * genau (Auslegung 24.11.2026, bestätigt 26.11.2026, R11-29 (6): so geht auch 0,25 kg, aus 0,125 wird 0,13; feiner
+ * wiegt am Steg niemand ab), in den Grenzen
  * {@link AUSGLEICH_STUFE_MIN}–{@link AUSGLEICH_STUFE_MAX} kg.
  */
 export function ausgleichStufeWert(kg: unknown): number | undefined {
