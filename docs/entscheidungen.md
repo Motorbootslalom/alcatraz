@@ -1929,9 +1929,8 @@ Der Code weicht hier noch ab. Vor dem Umsetzen kurz mit dem Nutzer bestätigen, 
   - Nicht mehr offen: R13-15 (1) und (2) („Passt“) sind in WH4 und WH8 als bestätigt vermerkt. WH3 ist nach den
     Zitaten R13-01 und R13-06 umgeschrieben und heißt `wiederholungAnDerStartFreigabe`; am Bedienrechner bleiben
     „Betrieb zurücksetzen“, „Auf allen Parcours zeigen“ und die Einstellungen, wie in R13-06 bestätigt.
-  - Nutzer-Doku (Befund 7): docs/betrieb.md, funktionen.md, parallelslalom.md (de und en) und feldtest.md beschreiben
-    die Wiederholung vom Handy und im Parallelslalom noch nicht – das zieht ein eigener Doku-Schritt nach (was zu
-    ändern ist, steht im Bericht des Bau-Schritts unter „fuerNutzer“).
+  - Nicht mehr offen: Die Nutzer-Doku (Befund 7) beschreibt die Wiederholung vom Freigabe-Handy und im
+    Parallelslalom seit 27.11.2026 (docs/betrieb.md, funktionen.md, parallelslalom.md, feldtest.md, je de und en).
 - **Betrieb am Wettkampftag** (E1–E4, ab 16.11.2026, Abschnitt „Betrieb und Offline“): Messung, Wartezeiten,
   Zuschauerliste, Parallelslalom im Betrieb und Umstellen an der Start-Freigabe sind am 27.11.2026 bestätigt (R13-09
   bis R13-13, R13-15 (3)–(7)). Weiter „noch zu bestätigen“ in `BETRIEB_ANNAHMEN` – die Sonderfälle der Startfolge an
